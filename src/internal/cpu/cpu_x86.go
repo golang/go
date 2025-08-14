@@ -39,7 +39,7 @@ const (
 	cpuid_OSXSAVE         = 1 << 27
 	cpuid_AVX             = 1 << 28
 
-	// ebx bits
+	// "Extended Feature Flag" bits returned in EBX for CPUID EAX=0x7 ECX=0x0
 	cpuid_BMI1     = 1 << 3
 	cpuid_AVX2     = 1 << 5
 	cpuid_BMI2     = 1 << 8
@@ -52,8 +52,12 @@ const (
 	cpuid_AVX512BW = 1 << 30
 	cpuid_AVX512VL = 1 << 31
 
-	// ecx bits
+	// "Extended Feature Flag" bits returned in ECX for CPUID EAX=0x7 ECX=0x0
+	cpuid_AVX512_VBMI      = 1 << 1
+	cpuid_AVX512_VBMI2     = 1 << 6
+	cpuid_GFNI             = 1 << 8
 	cpuid_AVX512VPCLMULQDQ = 1 << 10
+	cpuid_AVX512_BITALG    = 1 << 12
 
 	// edx bits
 	cpuid_FSRM = 1 << 4
@@ -178,6 +182,10 @@ func doinit() {
 		X86.HasAVX512VBMI2 = isSet(ecx7, cpuid_AVX512VBMI2)
 		X86.HasAVX512VNNI = isSet(ecx7, cpuid_AVX512VNNI)
 		X86.HasAVX512VPCLMULQDQ = isSet(ecx7, cpuid_AVX512VPCLMULQDQ)
+		X86.HasAVX512VBMI = isSet(ecx7, cpuid_AVX512_VBMI)
+		X86.HasAVX512VBMI2 = isSet(ecx7, cpuid_AVX512_VBMI2)
+		X86.HasGFNI = isSet(ecx7, cpuid_GFNI)
+		X86.HasAVX512BITALG = isSet(ecx7, cpuid_AVX512_BITALG)
 	}
 
 	X86.HasFSRM = isSet(edx7, cpuid_FSRM)
@@ -202,6 +210,7 @@ func doinit() {
 		// included in AVX10.1.
 		X86.HasAVX512 = X86.HasAVX512F && X86.HasAVX512CD && X86.HasAVX512BW && X86.HasAVX512DQ && X86.HasAVX512VL
 	}
+
 	if eax7 >= 1 {
 		eax71, _, _, _ := cpuid(7, 1)
 		if X86.HasAVX {

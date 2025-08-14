@@ -1009,10 +1009,6 @@ func LegacyGoMod(modPath string) []byte {
 	return fmt.Appendf(nil, "module %s\n", modfile.AutoQuote(modPath))
 }
 
-func (r *codeRepo) modPrefix(rev string) string {
-	return r.modPath + "@" + rev
-}
-
 func (r *codeRepo) retractedVersions(ctx context.Context) (func(string) bool, error) {
 	vs, err := r.Versions(ctx, "")
 	if err != nil {

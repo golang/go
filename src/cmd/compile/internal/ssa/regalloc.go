@@ -561,7 +561,14 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos 
 	pos = pos.WithNotStmt()
 	// Check if v is already in a requested register.
 	if mask&vi.regs != 0 {
-		r := pickReg(mask & vi.regs)
+		mask &= vi.regs
+		r := pickReg(mask)
+		if mask.contains(s.SPReg) {
+			// Prefer the stack pointer if it is allowed.
+			// (Needed because the op might have an Aux symbol
+			// that needs SP as its base.)
+			r = s.SPReg
+		}
 		if !s.allocatable.contains(r) {
 			return v // v is in a fixed register
 		}
@@ -2484,7 +2491,7 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XP
 	}
 
 	// Check if we're allowed to clobber the destination location.
-	if len(e.cache[occupant.vid]) == 1 && !e.s.values[occupant.vid].rematerializeable {
+	if len(e.cache[occupant.vid]) == 1 && !e.s.values[occupant.vid].rematerializeable && !opcodeTable[e.s.orig[occupant.vid].Op].fixedReg {
 		// We can't overwrite the last copy
 		// of a value that needs to survive.
 		return false
@@ -2986,11 +2993,6 @@ type desiredStateEntry struct {
 	// for the first element of the tuple (see desiredSecondReg for
 	// tracking the desired register for second part of a tuple).
 	regs [4]register
-}
-
-func (d *desiredState) clear() {
-	d.entries = d.entries[:0]
-	d.avoid = 0
 }
 
 // get returns a list of desired registers for value vid.

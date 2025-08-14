@@ -567,6 +567,11 @@ const (
 	AMOVVF
 	AMOVVD
 
+	// 2.2.1.3
+	AALSLW
+	AALSLWU
+	AALSLV
+
 	// 2.2.1.8
 	AORN
 	AANDN
@@ -742,6 +747,9 @@ const (
 	AFTINTRNEWD
 	AFTINTRNEVF
 	AFTINTRNEVD
+
+	// 3.2.4.2
+	AFSEL
 
 	// LSX and LASX memory access instructions
 	AVMOVQ

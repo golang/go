@@ -536,44 +536,36 @@ func init() {
 		{name: "LessThanNoov", argLength: 1, reg: readflags},     // bool, true flags encode signed x<y but without honoring overflow, false otherwise.
 		{name: "GreaterEqualNoov", argLength: 1, reg: readflags}, // bool, true flags encode signed x>=y but without honoring overflow, false otherwise.
 
-		// duffzero
+		// medium zeroing
 		// arg0 = address of memory to zero
 		// arg1 = mem
-		// auxint = offset into duffzero code to start executing
+		// auxint = # of bytes to zero
 		// returns mem
-		// R20 changed as side effect
-		// R16 and R17 may be clobbered by linker trampoline.
 		{
-			name:      "DUFFZERO",
+			name:      "LoweredZero",
 			aux:       "Int64",
 			argLength: 2,
 			reg: regInfo{
-				inputs:   []regMask{buildReg("R20")},
-				clobbers: buildReg("R16 R17 R20 R30"),
+				inputs: []regMask{gp},
 			},
-			//faultOnNilArg0: true, // Note: removed for 73748. TODO: reenable at some point
-			unsafePoint: true, // FP maintenance around DUFFZERO can be clobbered by interrupts
+			faultOnNilArg0: true,
 		},
 
 		// large zeroing
-		// arg0 = address of memory to zero (in R16 aka arm64.REGRT1, changed as side effect)
-		// arg1 = address of the last 16-byte unit to zero
-		// arg2 = mem
+		// arg0 = address of memory to zero
+		// arg1 = mem
+		// auxint = # of bytes to zero
 		// returns mem
-		//	STP.P	(ZR,ZR), 16(R16)
-		//	CMP	Rarg1, R16
-		//	BLE	-2(PC)
-		// Note: the-end-of-the-memory may be not a valid pointer. it's a problem if it is spilled.
-		// the-end-of-the-memory - 16 is with the area to zero, ok to spill.
 		{
-			name:      "LoweredZero",
-			argLength: 3,
+			name:      "LoweredZeroLoop",
+			aux:       "Int64",
+			argLength: 2,
 			reg: regInfo{
-				inputs:   []regMask{buildReg("R16"), gp},
-				clobbers: buildReg("R16"),
+				inputs:       []regMask{gp},
+				clobbersArg0: true,
 			},
-			clobberFlags:   true,
 			faultOnNilArg0: true,
+			needIntTemp:    true,
 		},
 
 		// duffcopy

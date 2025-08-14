@@ -392,44 +392,8 @@
 (Zero [16] ptr mem) =>
 	(STP [0] ptr (MOVDconst [0]) (MOVDconst [0]) mem)
 
-(Zero [32] ptr mem) =>
-	(STP [16] ptr (MOVDconst [0]) (MOVDconst [0])
-		(STP [0] ptr (MOVDconst [0]) (MOVDconst [0]) mem))
-
-(Zero [48] ptr mem) =>
-	(STP [32] ptr (MOVDconst [0]) (MOVDconst [0])
-		(STP [16] ptr (MOVDconst [0]) (MOVDconst [0])
-			(STP [0] ptr (MOVDconst [0]) (MOVDconst [0]) mem)))
-
-(Zero [64] ptr mem) =>
-	(STP [48] ptr (MOVDconst [0]) (MOVDconst [0])
-		(STP [32] ptr (MOVDconst [0]) (MOVDconst [0])
-			(STP [16] ptr (MOVDconst [0]) (MOVDconst [0])
-				(STP [0] ptr (MOVDconst [0]) (MOVDconst [0]) mem))))
-
-// strip off fractional word zeroing
-(Zero [s] ptr mem) && s%16 != 0 && s%16 <= 8 && s > 16 =>
-	(Zero [8]
-		(OffPtr <ptr.Type> ptr [s-8])
-		(Zero [s-s%16] ptr mem))
-(Zero [s] ptr mem) && s%16 != 0 && s%16 > 8 && s > 16 =>
-	(Zero [16]
-		(OffPtr <ptr.Type> ptr [s-16])
-		(Zero [s-s%16] ptr mem))
-
-// medium zeroing uses a duff device
-// 4, 16, and 64 are magic constants, see runtime/mkduff.go
-(Zero [s] ptr mem)
-	&& s%16 == 0 && s > 64 && s <= 16*64 =>
-	(DUFFZERO [4 * (64 - s/16)] ptr mem)
-
-// large zeroing uses a loop
-(Zero [s] ptr mem)
-	&& s%16 == 0 && s > 16*64 =>
-	(LoweredZero
-		ptr
-		(ADDconst <ptr.Type> [s-16] ptr)
-		mem)
+(Zero [s] ptr mem) && s > 16 && s < 192 => (LoweredZero [s] ptr mem)
+(Zero [s] ptr mem) && s >= 192 => (LoweredZeroLoop [s] ptr mem)
 
 // moves
 (Move [0] _   _   mem) => mem

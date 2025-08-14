@@ -470,7 +470,7 @@ func unmarshalDecode(in *jsontext.Decoder, out any, uo *jsonopts.Struct, last bo
 	// was validated before attempting to unmarshal it.
 	if uo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
 		if err := export.Decoder(in).CheckNextValue(last); err != nil {
-			if err == io.EOF {
+			if err == io.EOF && last {
 				offset := in.InputOffset() + int64(len(in.UnreadBuffer()))
 				return &jsontext.SyntacticError{ByteOffset: offset, Err: io.ErrUnexpectedEOF}
 			}
@@ -487,7 +487,7 @@ func unmarshalDecode(in *jsontext.Decoder, out any, uo *jsonopts.Struct, last bo
 		if !uo.Flags.Get(jsonflags.AllowDuplicateNames) {
 			export.Decoder(in).Tokens.InvalidateDisabledNamespaces()
 		}
-		if err == io.EOF {
+		if err == io.EOF && last {
 			offset := in.InputOffset() + int64(len(in.UnreadBuffer()))
 			return &jsontext.SyntacticError{ByteOffset: offset, Err: io.ErrUnexpectedEOF}
 		}

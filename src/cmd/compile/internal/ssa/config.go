@@ -574,7 +574,7 @@ func (c *Config) buildRecipes(arch string) {
 		}
 	case "loong64":
 		// - multiply is 4 cycles.
-		// - add/sub/shift are 1 cycle.
+		// - add/sub/shift/alsl are 1 cycle.
 		// On loong64, using a multiply also needs to load the constant into a register.
 		// TODO: figure out a happy medium.
 		mulCost = 45
@@ -607,6 +607,15 @@ func (c *Config) buildRecipes(arch string) {
 			r(1<<i, 0, c,
 				func(m, x, y *Value) *Value {
 					return m.Block.NewValue1I(m.Pos, OpLOONG64SLLVconst, m.Type, int64(i), x)
+				})
+		}
+
+		// ADDshiftLLV
+		for i := 1; i < 5; i++ {
+			c := 10
+			r(1, 1<<i, c,
+				func(m, x, y *Value) *Value {
+					return m.Block.NewValue2I(m.Pos, OpLOONG64ADDshiftLLV, m.Type, int64(i), x, y)
 				})
 		}
 	}
@@ -726,7 +735,7 @@ func (c *Config) buildRecipes(arch string) {
 	// Currently:
 	// len(c.mulRecipes) == 5984 on arm64
 	//                       680 on amd64
-	//                      5984 on loong64
+	//                      9738 on loong64
 	// This function takes ~2.5ms on arm64.
 	//println(len(c.mulRecipes))
 }

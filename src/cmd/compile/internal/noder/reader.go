@@ -3681,17 +3681,6 @@ func expandInline(fn *ir.Func, pri pkgReaderIndex) {
 	typecheck.Target.Funcs = typecheck.Target.Funcs[:topdcls]
 }
 
-// usedLocals returns a set of local variables that are used within body.
-func usedLocals(body []ir.Node) ir.NameSet {
-	var used ir.NameSet
-	ir.VisitList(body, func(n ir.Node) {
-		if n, ok := n.(*ir.Name); ok && n.Op() == ir.ONAME && n.Class == ir.PAUTO {
-			used.Add(n)
-		}
-	})
-	return used
-}
-
 // @@@ Method wrappers
 //
 // Here we handle constructing "method wrappers," alternative entry

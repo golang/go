@@ -295,7 +295,7 @@ func (g *Generation) writeEventsTo(tw *raw.TextWriter) {
 	b.RawEvent(tracev2.EvStacks, nil)
 	for stk, id := range g.stacks {
 		stk := stk.stk[:stk.len]
-		args := []uint64{id}
+		args := []uint64{id, uint64(len(stk))}
 		for _, f := range stk {
 			args = append(args, f.PC, g.String(f.Func), g.String(f.File), f.Line)
 		}

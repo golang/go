@@ -663,7 +663,7 @@ func TestOpenVolumeName(t *testing.T) {
 	}
 	slices.Sort(have)
 
-	if strings.Join(want, "/") != strings.Join(have, "/") {
+	if !slices.Equal(want, have) {
 		t.Fatalf("unexpected file list %q, want %q", have, want)
 	}
 }

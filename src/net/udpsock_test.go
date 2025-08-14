@@ -705,3 +705,35 @@ func TestIPv6WriteMsgUDPAddrPortTargetAddrIPVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// TestIPv4WriteMsgUDPAddrPortTargetAddrIPVersion verifies that
+// WriteMsgUDPAddrPort accepts IPv4 and IPv4-mapped IPv6 destination addresses,
+// and rejects IPv6 destination addresses on a "udp4" connection.
+func TestIPv4WriteMsgUDPAddrPortTargetAddrIPVersion(t *testing.T) {
+	if !testableNetwork("udp4") {
+		t.Skipf("skipping: udp4 not available")
+	}
+
+	conn, err := ListenUDP("udp4", &UDPAddr{IP: IPv4(127, 0, 0, 1)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	daddr4 := netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 12345)
+	daddr4in6 := netip.AddrPortFrom(netip.MustParseAddr("::ffff:127.0.0.1"), 12345)
+	daddr6 := netip.AddrPortFrom(netip.MustParseAddr("::1"), 12345)
+	buf := make([]byte, 8)
+
+	if _, _, err = conn.WriteMsgUDPAddrPort(buf, nil, daddr4); err != nil {
+		t.Errorf("conn.WriteMsgUDPAddrPort(buf, nil, daddr4) failed: %v", err)
+	}
+
+	if _, _, err = conn.WriteMsgUDPAddrPort(buf, nil, daddr4in6); err != nil {
+		t.Errorf("conn.WriteMsgUDPAddrPort(buf, nil, daddr4in6) failed: %v", err)
+	}
+
+	if _, _, err = conn.WriteMsgUDPAddrPort(buf, nil, daddr6); err == nil {
+		t.Errorf("conn.WriteMsgUDPAddrPort(buf, nil, daddr6) should have failed, but got no error")
+	}
+}

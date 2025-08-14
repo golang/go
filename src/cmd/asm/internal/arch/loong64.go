@@ -23,18 +23,6 @@ func jumpLoong64(word string) bool {
 	return false
 }
 
-// IsLoong64MUL reports whether the op (as defined by an loong64.A* constant) is
-// one of the MUL/DIV/REM instructions that require special handling.
-func IsLoong64MUL(op obj.As) bool {
-	switch op {
-	case loong64.AMUL, loong64.AMULU, loong64.AMULV, loong64.AMULVU,
-		loong64.ADIV, loong64.ADIVU, loong64.ADIVV, loong64.ADIVVU,
-		loong64.AREM, loong64.AREMU, loong64.AREMV, loong64.AREMVU:
-		return true
-	}
-	return false
-}
-
 // IsLoong64RDTIME reports whether the op (as defined by an loong64.A*
 // constant) is one of the RDTIMELW/RDTIMEHW/RDTIMED instructions that
 // require special handling.

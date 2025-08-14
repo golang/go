@@ -1468,10 +1468,3 @@ func MarkUsedIfaceMethod(n *ir.CallExpr) {
 		Add:  InterfaceMethodOffset(ityp, midx),
 	})
 }
-
-func deref(t *types.Type) *types.Type {
-	if t.IsPtr() {
-		return t.Elem()
-	}
-	return t
-}

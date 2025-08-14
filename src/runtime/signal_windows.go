@@ -39,7 +39,7 @@ func enableWER() {
 	}
 }
 
-// in sys_windows_386.s, sys_windows_amd64.s, sys_windows_arm.s, and sys_windows_arm64.s
+// in sys_windows_386.s, sys_windows_amd64.s, and sys_windows_arm64.s
 func exceptiontramp()
 func firstcontinuetramp()
 func lastcontinuetramp()
@@ -64,10 +64,9 @@ func initExceptionHandler() {
 //go:nosplit
 func isAbort(r *context) bool {
 	pc := r.ip()
-	if GOARCH == "386" || GOARCH == "amd64" || GOARCH == "arm" {
+	if GOARCH == "386" || GOARCH == "amd64" {
 		// In the case of an abort, the exception IP is one byte after
-		// the INT3 (this differs from UNIX OSes). Note that on ARM,
-		// this means that the exception IP is no longer aligned.
+		// the INT3 (this differs from UNIX OSes).
 		pc--
 	}
 	return isAbortPC(pc)

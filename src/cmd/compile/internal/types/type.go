@@ -1712,13 +1712,6 @@ func fieldsHasShape(fields []*Field) bool {
 	return false
 }
 
-// newBasic returns a new basic type of the given kind.
-func newBasic(kind Kind, obj Object) *Type {
-	t := newType(kind)
-	t.obj = obj
-	return t
-}
-
 // NewInterface returns a new interface for the given methods and
 // embedded types. Embedded types are specified as fields with no Sym.
 func NewInterface(methods []*Field) *Type {

@@ -523,6 +523,106 @@ func TestFloatSignalingNaNConversionConst(t *testing.T) {
 	}
 }
 
+//go:noinline
+func isPosInf(x float64) bool {
+	return math.IsInf(x, 1)
+}
+
+//go:noinline
+func isPosInfEq(x float64) bool {
+	return x == math.Inf(1)
+}
+
+//go:noinline
+func isPosInfCmp(x float64) bool {
+	return x > math.MaxFloat64
+}
+
+//go:noinline
+func isNotPosInf(x float64) bool {
+	return !math.IsInf(x, 1)
+}
+
+//go:noinline
+func isNotPosInfEq(x float64) bool {
+	return x != math.Inf(1)
+}
+
+//go:noinline
+func isNotPosInfCmp(x float64) bool {
+	return x <= math.MaxFloat64
+}
+
+//go:noinline
+func isNegInf(x float64) bool {
+	return math.IsInf(x, -1)
+}
+
+//go:noinline
+func isNegInfEq(x float64) bool {
+	return x == math.Inf(-1)
+}
+
+//go:noinline
+func isNegInfCmp(x float64) bool {
+	return x < -math.MaxFloat64
+}
+
+//go:noinline
+func isNotNegInf(x float64) bool {
+	return !math.IsInf(x, -1)
+}
+
+//go:noinline
+func isNotNegInfEq(x float64) bool {
+	return x != math.Inf(-1)
+}
+
+//go:noinline
+func isNotNegInfCmp(x float64) bool {
+	return x >= -math.MaxFloat64
+}
+
+func TestInf(t *testing.T) {
+	tests := []struct {
+		value    float64
+		isPosInf bool
+		isNegInf bool
+		isNaN    bool
+	}{
+		{value: math.Inf(1), isPosInf: true},
+		{value: math.MaxFloat64},
+		{value: math.Inf(-1), isNegInf: true},
+		{value: -math.MaxFloat64},
+		{value: math.NaN(), isNaN: true},
+	}
+
+	check := func(name string, f func(x float64) bool, value float64, want bool) {
+		got := f(value)
+		if got != want {
+			t.Errorf("%v(%g): want %v, got %v", name, value, want, got)
+		}
+	}
+
+	for _, test := range tests {
+		check("isPosInf", isPosInf, test.value, test.isPosInf)
+		check("isPosInfEq", isPosInfEq, test.value, test.isPosInf)
+		check("isPosInfCmp", isPosInfCmp, test.value, test.isPosInf)
+
+		check("isNotPosInf", isNotPosInf, test.value, !test.isPosInf)
+		check("isNotPosInfEq", isNotPosInfEq, test.value, !test.isPosInf)
+		check("isNotPosInfCmp", isNotPosInfCmp, test.value, !test.isPosInf && !test.isNaN)
+
+		check("isNegInf", isNegInf, test.value, test.isNegInf)
+		check("isNegInfEq", isNegInfEq, test.value, test.isNegInf)
+		check("isNegInfCmp", isNegInfCmp, test.value, test.isNegInf)
+
+		check("isNotNegInf", isNotNegInf, test.value, !test.isNegInf)
+		check("isNotNegInfEq", isNotNegInfEq, test.value, !test.isNegInf)
+		check("isNotNegInfCmp", isNotNegInfCmp, test.value, !test.isNegInf && !test.isNaN)
+	}
+}
+
 var sinkFloat float64
 
 func BenchmarkMul2(b *testing.B) {

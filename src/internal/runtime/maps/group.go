@@ -22,10 +22,9 @@ const (
 	ctrlEmpty   ctrl = 0b10000000
 	ctrlDeleted ctrl = 0b11111110
 
-	bitsetLSB     = 0x0101010101010101
-	bitsetMSB     = 0x8080808080808080
-	bitsetEmpty   = bitsetLSB * uint64(ctrlEmpty)
-	bitsetDeleted = bitsetLSB * uint64(ctrlDeleted)
+	bitsetLSB   = 0x0101010101010101
+	bitsetMSB   = 0x8080808080808080
+	bitsetEmpty = bitsetLSB * uint64(ctrlEmpty)
 )
 
 // bitset represents a set of slots within a group.

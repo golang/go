@@ -4,3 +4,6 @@
 
 // Prefer addition when shifting left by one.
 (SLLVconst [1] x) => (ADDV x x)
+
+(EQZ (XOR x y) yes no) => (BEQ x y yes no)
+(NEZ (XOR x y) yes no) => (BNE x y yes no)

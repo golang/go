@@ -77,10 +77,6 @@ func (ls *liveSlot) String() string {
 	return fmt.Sprintf("0x%x.%d.%d", ls.Registers, ls.stackOffsetValue(), int32(ls.StackOffset)&1)
 }
 
-func (ls liveSlot) absent() bool {
-	return ls.Registers == 0 && !ls.onStack()
-}
-
 // StackOffset encodes whether a value is on the stack and if so, where.
 // It is a 31-bit integer followed by a presence flag at the low-order
 // bit.

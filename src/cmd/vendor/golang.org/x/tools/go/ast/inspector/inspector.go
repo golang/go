@@ -85,6 +85,7 @@ type event struct {
 
 // TODO: Experiment with storing only the second word of event.node (unsafe.Pointer).
 // Type can be recovered from the sole bit in typ.
+// [Tried this, wasn't faster. --adonovan]
 
 // Preorder visits all the nodes of the files supplied to New in
 // depth-first order. It calls f(n) for each node n before it visits

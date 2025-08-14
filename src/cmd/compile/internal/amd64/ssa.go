@@ -182,45 +182,6 @@ func memIdx(a *obj.Addr, v *ssa.Value) {
 	a.Index = i
 }
 
-// DUFFZERO consists of repeated blocks of 4 MOVUPSs + LEAQ,
-// See runtime/mkduff.go.
-const (
-	dzBlocks    = 16 // number of MOV/ADD blocks
-	dzBlockLen  = 4  // number of clears per block
-	dzBlockSize = 23 // size of instructions in a single block
-	dzMovSize   = 5  // size of single MOV instruction w/ offset
-	dzLeaqSize  = 4  // size of single LEAQ instruction
-	dzClearStep = 16 // number of bytes cleared by each MOV instruction
-)
-
-func duffStart(size int64) int64 {
-	x, _ := duff(size)
-	return x
-}
-func duffAdj(size int64) int64 {
-	_, x := duff(size)
-	return x
-}
-
-// duff returns the offset (from duffzero, in bytes) and pointer adjust (in bytes)
-// required to use the duffzero mechanism for a block of the given size.
-func duff(size int64) (int64, int64) {
-	if size < 32 || size > 1024 || size%dzClearStep != 0 {
-		panic("bad duffzero size")
-	}
-	steps := size / dzClearStep
-	blocks := steps / dzBlockLen
-	steps %= dzBlockLen
-	off := dzBlockSize * (dzBlocks - blocks)
-	var adj int64
-	if steps != 0 {
-		off -= dzLeaqSize
-		off -= dzMovSize * steps
-		adj -= dzClearStep * (dzBlockLen - steps)
-	}
-	return off, adj
-}
-
 func getgFromTLS(s *ssagen.State, r int16) {
 	// See the comments in cmd/internal/obj/x86/obj6.go
 	// near CanUse1InsnTLS for a detailed explanation of these instructions.
@@ -1168,20 +1129,110 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			zero16(off + n - 16)
 		}
 
-	case ssa.OpAMD64DUFFCOPY:
-		p := s.Prog(obj.ADUFFCOPY)
-		p.To.Type = obj.TYPE_ADDR
-		p.To.Sym = ir.Syms.Duffcopy
-		if v.AuxInt%16 != 0 {
-			v.Fatalf("bad DUFFCOPY AuxInt %v", v.AuxInt)
+	case ssa.OpAMD64LoweredMove:
+		dstReg := v.Args[0].Reg()
+		srcReg := v.Args[1].Reg()
+		if dstReg == srcReg {
+			break
 		}
-		p.To.Offset = 14 * (64 - v.AuxInt/16)
-		// 14 and 64 are magic constants.  14 is the number of bytes to encode:
-		//	MOVUPS	(SI), X0
-		//	ADDQ	$16, SI
-		//	MOVUPS	X0, (DI)
-		//	ADDQ	$16, DI
-		// and 64 is the number of such blocks. See src/runtime/duff_amd64.s:duffcopy.
+		tmpReg := int16(x86.REG_X14)
+		n := v.AuxInt
+		if n < 16 {
+			v.Fatalf("Move too small %d", n)
+		}
+		// move 16 bytes from srcReg+off to dstReg+off.
+		move16 := func(off int64) {
+			move16(s, srcReg, dstReg, tmpReg, off)
+		}
+
+		// Generate copying instructions.
+		var off int64
+		for n >= 16 {
+			move16(off)
+			off += 16
+			n -= 16
+		}
+		if n != 0 {
+			// use partially overlapped read/write.
+			// TODO: use smaller operations when we can?
+			move16(off + n - 16)
+		}
+
+	case ssa.OpAMD64LoweredMoveLoop:
+		dstReg := v.Args[0].Reg()
+		srcReg := v.Args[1].Reg()
+		if dstReg == srcReg {
+			break
+		}
+		countReg := v.RegTmp()
+		tmpReg := int16(x86.REG_X14)
+		n := v.AuxInt
+		loopSize := int64(64)
+		if n < 3*loopSize {
+			// - a loop count of 0 won't work.
+			// - a loop count of 1 is useless.
+			// - a loop count of 2 is a code size ~tie
+			//     4 instructions to implement the loop
+			//     4 instructions in the loop body
+			//   vs
+			//     8 instructions in the straightline code
+			//   Might as well use straightline code.
+			v.Fatalf("ZeroLoop size too small %d", n)
+		}
+		// move 16 bytes from srcReg+off to dstReg+off.
+		move16 := func(off int64) {
+			move16(s, srcReg, dstReg, tmpReg, off)
+		}
+
+		// Put iteration count in a register.
+		//   MOVL    $n, countReg
+		p := s.Prog(x86.AMOVL)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = n / loopSize
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = countReg
+		cntInit := p
+
+		// Copy loopSize bytes starting at srcReg to dstReg.
+		for i := range loopSize / 16 {
+			move16(i * 16)
+		}
+		//   ADDQ    $loopSize, srcReg
+		p = s.Prog(x86.AADDQ)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = loopSize
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = srcReg
+		//   ADDQ    $loopSize, dstReg
+		p = s.Prog(x86.AADDQ)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = loopSize
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = dstReg
+		//   DECL    countReg
+		p = s.Prog(x86.ADECL)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = countReg
+		// Jump to loop header if we're not done yet.
+		//   JNE     head
+		p = s.Prog(x86.AJNE)
+		p.To.Type = obj.TYPE_BRANCH
+		p.To.SetTarget(cntInit.Link)
+
+		// Multiples of the loop size are now done.
+		n %= loopSize
+
+		// Copy any fractional portion.
+		var off int64
+		for n >= 16 {
+			move16(off)
+			off += 16
+			n -= 16
+		}
+		if n != 0 {
+			// Use partially-overlapping copy.
+			move16(off + n - 16)
+		}
 
 	case ssa.OpCopy: // TODO: use MOVQreg for reg->reg copies instead of OpCopy?
 		if v.Type.IsMemory() {
@@ -2146,6 +2197,24 @@ func zero16(s *ssagen.State, reg int16, off int64) {
 	p.From.Reg = x86.REG_X15
 	p.To.Type = obj.TYPE_MEM
 	p.To.Reg = reg
+	p.To.Offset = off
+}
+
+// move 16 bytes from src+off to dst+off using temporary register tmp.
+func move16(s *ssagen.State, src, dst, tmp int16, off int64) {
+	//   MOVUPS  off(srcReg), tmpReg
+	//   MOVUPS  tmpReg, off(dstReg)
+	p := s.Prog(x86.AMOVUPS)
+	p.From.Type = obj.TYPE_MEM
+	p.From.Reg = src
+	p.From.Offset = off
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = tmp
+	p = s.Prog(x86.AMOVUPS)
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = tmp
+	p.To.Type = obj.TYPE_MEM
+	p.To.Reg = dst
 	p.To.Offset = off
 }
 

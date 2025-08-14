@@ -2330,6 +2330,18 @@ func issue74473(s []uint) {
 	}
 }
 
+func setCapMaxBasedOnElementSize(x []uint64) int {
+	c := uintptr(cap(x))
+	max := ^uintptr(0) >> 3
+	if c > max { // ERROR "Disproved Less"
+		return 42
+	}
+	if c <= max { // ERROR "Proved Leq"
+		return 1337
+	}
+	return 0
+}
+
 //go:noinline
 func useInt(a int) {
 }

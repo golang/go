@@ -305,30 +305,6 @@ func (mms *MainModuleSet) Godebugs() []*modfile.Godebug {
 	return nil
 }
 
-// Toolchain returns the toolchain set on the single module, in module mode,
-// or the go.work file in workspace mode.
-func (mms *MainModuleSet) Toolchain() string {
-	if inWorkspaceMode() {
-		if mms.workFile != nil && mms.workFile.Toolchain != nil {
-			return mms.workFile.Toolchain.Name
-		}
-		return "go" + mms.GoVersion()
-	}
-	if mms != nil && len(mms.versions) == 1 {
-		f := mms.ModFile(mms.mustGetSingleMainModule())
-		if f == nil {
-			// Special case: we are outside a module, like 'go run x.go'.
-			// Assume the local Go version.
-			// TODO(#49228): Clean this up; see loadModFile.
-			return gover.LocalToolchain()
-		}
-		if f.Toolchain != nil {
-			return f.Toolchain.Name
-		}
-	}
-	return "go" + mms.GoVersion()
-}
-
 func (mms *MainModuleSet) WorkFileReplaceMap() map[module.Version]module.Version {
 	return mms.workFileReplaceMap
 }

@@ -6,6 +6,7 @@ package net
 
 import (
 	"context"
+	"net/netip"
 	"syscall"
 )
 
@@ -23,6 +24,13 @@ import (
 
 // BUG(mikio): On JS and Plan 9, methods and functions related
 // to IPConn are not implemented.
+
+func ipAddrFromAddr(addr netip.Addr) *IPAddr {
+	return &IPAddr{
+		IP:   addr.AsSlice(),
+		Zone: addr.Zone(),
+	}
+}
 
 // IPAddr represents the address of an IP end point.
 type IPAddr struct {
@@ -206,11 +214,18 @@ func newIPConn(fd *netFD) *IPConn { return &IPConn{conn{fd}} }
 // If the IP field of raddr is nil or an unspecified IP address, the
 // local system is assumed.
 func DialIP(network string, laddr, raddr *IPAddr) (*IPConn, error) {
+	return dialIP(context.Background(), nil, network, laddr, raddr)
+}
+
+func dialIP(ctx context.Context, dialer *Dialer, network string, laddr, raddr *IPAddr) (*IPConn, error) {
 	if raddr == nil {
 		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: nil, Err: errMissingAddress}
 	}
 	sd := &sysDialer{network: network, address: raddr.String()}
-	c, err := sd.dialIP(context.Background(), laddr, raddr)
+	if dialer != nil {
+		sd.Dialer = *dialer
+	}
+	c, err := sd.dialIP(ctx, laddr, raddr)
 	if err != nil {
 		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
 	}

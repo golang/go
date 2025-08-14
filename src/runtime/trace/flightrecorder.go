@@ -158,7 +158,7 @@ type FlightRecorderConfig struct {
 	//
 	// The flight recorder will strive to promptly discard events older than the minimum age,
 	// but older events may appear in the window snapshot. The age setting will always be
-	// overridden by MaxSize.
+	// overridden by MaxBytes.
 	//
 	// If this is 0, the minimum age is implementation defined, but can be assumed to be on the order
 	// of seconds.

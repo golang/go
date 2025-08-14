@@ -50,6 +50,7 @@ var X86 struct {
 	HasERMS             bool
 	HasFSRM             bool
 	HasFMA              bool
+	HasGFNI             bool
 	HasOSXSAVE          bool
 	HasPCLMULQDQ        bool
 	HasPOPCNT           bool

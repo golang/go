@@ -56,11 +56,6 @@ func (w *Writer) Debug(out io.Writer) {
 	w.debug = out
 }
 
-// BitIndex returns the number of bits written to the bit stream so far.
-func (w *Writer) BitIndex() int64 {
-	return w.index
-}
-
 // byte writes the byte x to the output.
 func (w *Writer) byte(x byte) {
 	if w.debug != nil {
@@ -96,20 +91,6 @@ func (w *Writer) Ptr(index int64) {
 		fmt.Fprintf(w.debug, "gcprog: ptr at %d\n", index)
 	}
 	w.lit(1)
-}
-
-// ShouldRepeat reports whether it would be worthwhile to
-// use a Repeat to describe c elements of n bits each,
-// compared to just emitting c copies of the n-bit description.
-func (w *Writer) ShouldRepeat(n, c int64) bool {
-	// Should we lay out the bits directly instead of
-	// encoding them as a repetition? Certainly if count==1,
-	// since there's nothing to repeat, but also if the total
-	// size of the plain pointer bits for the type will fit in
-	// 4 or fewer bytes, since using a repetition will require
-	// flushing the current bits plus at least one byte for
-	// the repeat size and one for the repeat count.
-	return c > 1 && c*n > 4*8
 }
 
 // Repeat emits an instruction to repeat the description
@@ -161,36 +142,6 @@ func (w *Writer) ZeroUntil(index int64) {
 	w.lit(0)
 	w.flushlit()
 	w.Repeat(1, skip-1)
-}
-
-// Append emits the given GC program into the current output.
-// The caller asserts that the program emits n bits (describes n words),
-// and Append panics if that is not true.
-func (w *Writer) Append(prog []byte, n int64) {
-	w.flushlit()
-	if w.debug != nil {
-		fmt.Fprintf(w.debug, "gcprog: append prog for %d ptrs\n", n)
-		fmt.Fprintf(w.debug, "\t")
-	}
-	n1 := progbits(prog)
-	if n1 != n {
-		panic("gcprog: wrong bit count in append")
-	}
-	// The last byte of the prog terminates the program.
-	// Don't emit that, or else our own program will end.
-	for i, x := range prog[:len(prog)-1] {
-		if w.debug != nil {
-			if i > 0 {
-				fmt.Fprintf(w.debug, " ")
-			}
-			fmt.Fprintf(w.debug, "%02x", x)
-		}
-		w.byte(x)
-	}
-	if w.debug != nil {
-		fmt.Fprintf(w.debug, "\n")
-	}
-	w.index += n
 }
 
 // progbits returns the length of the bit stream encoded by the program p.
