@@ -1272,6 +1272,7 @@ func TestGoroutineLeakGC(t *testing.T) {
 		makeFlakyTest("SpawnGC",
 			`spawnGC.func1\(.* \[chan receive\]`,
 		),
+		makeTest("DaisyChain"),
 	}
 
 	// Common goroutine leak patterns.
