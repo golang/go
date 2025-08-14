@@ -383,57 +383,59 @@ func TestChannelMovedOutOfBubble(t *testing.T) {
 	for _, test := range []struct {
 		desc      string
 		f         func(chan struct{})
-		wantPanic string
+		wantFatal string
 	}{{
 		desc: "receive",
 		f: func(ch chan struct{}) {
 			<-ch
 		},
-		wantPanic: "receive on synctest channel from outside bubble",
+		wantFatal: "receive on synctest channel from outside bubble",
 	}, {
 		desc: "send",
 		f: func(ch chan struct{}) {
 			ch <- struct{}{}
 		},
-		wantPanic: "send on synctest channel from outside bubble",
+		wantFatal: "send on synctest channel from outside bubble",
 	}, {
 		desc: "close",
 		f: func(ch chan struct{}) {
 			close(ch)
 		},
-		wantPanic: "close of synctest channel from outside bubble",
+		wantFatal: "close of synctest channel from outside bubble",
 	}} {
 		t.Run(test.desc, func(t *testing.T) {
 			// Bubbled channel accessed from outside any bubble.
 			t.Run("outside_bubble", func(t *testing.T) {
-				donec := make(chan struct{})
-				ch := make(chan chan struct{})
-				go func() {
-					defer close(donec)
-					defer wantPanic(t, test.wantPanic)
-					test.f(<-ch)
-				}()
-				synctest.Run(func() {
-					ch <- make(chan struct{})
+				wantFatal(t, test.wantFatal, func() {
+					donec := make(chan struct{})
+					ch := make(chan chan struct{})
+					go func() {
+						defer close(donec)
+						test.f(<-ch)
+					}()
+					synctest.Run(func() {
+						ch <- make(chan struct{})
+					})
+					<-donec
 				})
-				<-donec
 			})
 			// Bubbled channel accessed from a different bubble.
 			t.Run("different_bubble", func(t *testing.T) {
-				donec := make(chan struct{})
-				ch := make(chan chan struct{})
-				go func() {
-					defer close(donec)
-					c := <-ch
+				wantFatal(t, test.wantFatal, func() {
+					donec := make(chan struct{})
+					ch := make(chan chan struct{})
+					go func() {
+						defer close(donec)
+						c := <-ch
+						synctest.Run(func() {
+							test.f(c)
+						})
+					}()
 					synctest.Run(func() {
-						defer wantPanic(t, test.wantPanic)
-						test.f(c)
+						ch <- make(chan struct{})
 					})
-				}()
-				synctest.Run(func() {
-					ch <- make(chan struct{})
+					<-donec
 				})
-				<-donec
 			})
 		})
 	}
@@ -443,39 +445,40 @@ func TestTimerFromInsideBubble(t *testing.T) {
 	for _, test := range []struct {
 		desc      string
 		f         func(tm *time.Timer)
-		wantPanic string
+		wantFatal string
 	}{{
 		desc: "read channel",
 		f: func(tm *time.Timer) {
 			<-tm.C
 		},
-		wantPanic: "receive on synctest channel from outside bubble",
+		wantFatal: "receive on synctest channel from outside bubble",
 	}, {
 		desc: "Reset",
 		f: func(tm *time.Timer) {
 			tm.Reset(1 * time.Second)
 		},
-		wantPanic: "reset of synctest timer from outside bubble",
+		wantFatal: "reset of synctest timer from outside bubble",
 	}, {
 		desc: "Stop",
 		f: func(tm *time.Timer) {
 			tm.Stop()
 		},
-		wantPanic: "stop of synctest timer from outside bubble",
+		wantFatal: "stop of synctest timer from outside bubble",
 	}} {
 		t.Run(test.desc, func(t *testing.T) {
-			donec := make(chan struct{})
-			ch := make(chan *time.Timer)
-			go func() {
-				defer close(donec)
-				defer wantPanic(t, test.wantPanic)
-				test.f(<-ch)
-			}()
-			synctest.Run(func() {
-				tm := time.NewTimer(1 * time.Second)
-				ch <- tm
+			wantFatal(t, test.wantFatal, func() {
+				donec := make(chan struct{})
+				ch := make(chan *time.Timer)
+				go func() {
+					defer close(donec)
+					test.f(<-ch)
+				}()
+				synctest.Run(func() {
+					tm := time.NewTimer(1 * time.Second)
+					ch <- tm
+				})
+				<-donec
 			})
-			<-donec
 		})
 	}
 }
