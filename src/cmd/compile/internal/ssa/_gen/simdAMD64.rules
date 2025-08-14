@@ -524,6 +524,8 @@
 (GaloisFieldMulMaskedUint8x16 x y mask) => (VGF2P8MULBMasked128 x y (VPMOVVec8x16ToM <types.TypeMask> mask))
 (GaloisFieldMulMaskedUint8x32 x y mask) => (VGF2P8MULBMasked256 x y (VPMOVVec8x32ToM <types.TypeMask> mask))
 (GaloisFieldMulMaskedUint8x64 x y mask) => (VGF2P8MULBMasked512 x y (VPMOVVec8x64ToM <types.TypeMask> mask))
+(GetElemFloat32x4 ...) => (VPEXTRD128 ...)
+(GetElemFloat64x2 ...) => (VPEXTRQ128 ...)
 (GetElemInt8x16 ...) => (VPEXTRB128 ...)
 (GetElemInt16x8 ...) => (VPEXTRW128 ...)
 (GetElemInt32x4 ...) => (VPEXTRD128 ...)

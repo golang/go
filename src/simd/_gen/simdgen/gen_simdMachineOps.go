@@ -46,22 +46,47 @@ func writeSIMDMachineOps(ops []Operation) *bytes.Buffer {
 		OpsData    []opData
 		OpsDataImm []opData
 	}
-	seen := map[string]struct{}{}
+
 	regInfoSet := map[string]bool{
 		"v11": true, "v21": true, "v2k": true, "v2kv": true, "v2kk": true, "vkv": true, "v31": true, "v3kv": true, "vgpv": true, "vgp": true, "vfpv": true, "vfpkv": true,
 		"w11": true, "w21": true, "w2k": true, "w2kw": true, "w2kk": true, "wkw": true, "w31": true, "w3kw": true, "wgpw": true, "wgp": true, "wfpw": true, "wfpkw": true}
 	opsData := make([]opData, 0)
 	opsDataImm := make([]opData, 0)
+
+	// Determine the "best" version of an instruction to use
+	best := make(map[string]Operation)
+	var mOpOrder []string
+	countOverrides := func(s []Operand) int {
+		a := 0
+		for _, o := range s {
+			if o.OverwriteBase != nil {
+				a++
+			}
+		}
+		return a
+	}
 	for _, op := range ops {
-		shapeIn, shapeOut, maskType, _, gOp := op.shape()
+		_, _, maskType, _, gOp := op.shape()
 		asm := machineOpName(maskType, gOp)
+		other, ok := best[asm]
+		if !ok {
+			best[asm] = op
+			mOpOrder = append(mOpOrder, asm)
+			continue
+		}
+		// see if "op" is better than "other"
+		if countOverrides(op.In)+countOverrides(op.Out) < countOverrides(other.In)+countOverrides(other.Out) {
+			best[asm] = op
+		}
+	}
+
+	for _, asm := range mOpOrder {
+		op := best[asm]
+		shapeIn, shapeOut, _, _, gOp := op.shape()
 
 		// TODO: all our masked operations are now zeroing, we need to generate machine ops with merging masks, maybe copy
 		// one here with a name suffix "Merging". The rewrite rules will need them.
-		if _, ok := seen[asm]; ok {
-			continue
-		}
-		seen[asm] = struct{}{}
+
 		regInfo, err := op.regShape()
 		if err != nil {
 			panic(err)

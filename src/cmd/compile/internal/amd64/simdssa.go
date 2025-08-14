@@ -1128,10 +1128,10 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssa.OpAMD64VPINSRW128:
 		p = simdVgpvImm8(s, v)
 
-	case ssa.OpAMD64VPEXTRB128,
-		ssa.OpAMD64VPEXTRW128,
-		ssa.OpAMD64VPEXTRD128,
-		ssa.OpAMD64VPEXTRQ128:
+	case ssa.OpAMD64VPEXTRD128,
+		ssa.OpAMD64VPEXTRQ128,
+		ssa.OpAMD64VPEXTRB128,
+		ssa.OpAMD64VPEXTRW128:
 		p = simdVgpImm8(s, v)
 
 	case ssa.OpAMD64VGF2P8AFFINEINVQBMasked128,

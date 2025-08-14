@@ -2186,6 +2186,12 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpGetClosurePtr:
 		v.Op = OpAMD64LoweredGetClosurePtr
 		return true
+	case OpGetElemFloat32x4:
+		v.Op = OpAMD64VPEXTRD128
+		return true
+	case OpGetElemFloat64x2:
+		v.Op = OpAMD64VPEXTRQ128
+		return true
 	case OpGetElemInt16x8:
 		v.Op = OpAMD64VPEXTRW128
 		return true

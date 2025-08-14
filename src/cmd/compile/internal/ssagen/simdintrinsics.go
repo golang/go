@@ -536,6 +536,8 @@ func simdIntrinsics(addF func(pkg, fn string, b intrinsicBuilder, archFamilies .
 	addF(simdPackage, "Uint8x16.GaloisFieldMulMasked", opLen3(ssa.OpGaloisFieldMulMaskedUint8x16, types.TypeVec128), sys.AMD64)
 	addF(simdPackage, "Uint8x32.GaloisFieldMulMasked", opLen3(ssa.OpGaloisFieldMulMaskedUint8x32, types.TypeVec256), sys.AMD64)
 	addF(simdPackage, "Uint8x64.GaloisFieldMulMasked", opLen3(ssa.OpGaloisFieldMulMaskedUint8x64, types.TypeVec512), sys.AMD64)
+	addF(simdPackage, "Float32x4.GetElem", opLen1Imm8(ssa.OpGetElemFloat32x4, types.Types[types.TFLOAT32], 0), sys.AMD64)
+	addF(simdPackage, "Float64x2.GetElem", opLen1Imm8(ssa.OpGetElemFloat64x2, types.Types[types.TFLOAT64], 0), sys.AMD64)
 	addF(simdPackage, "Int8x16.GetElem", opLen1Imm8(ssa.OpGetElemInt8x16, types.Types[types.TINT8], 0), sys.AMD64)
 	addF(simdPackage, "Int16x8.GetElem", opLen1Imm8(ssa.OpGetElemInt16x8, types.Types[types.TINT16], 0), sys.AMD64)
 	addF(simdPackage, "Int32x4.GetElem", opLen1Imm8(ssa.OpGetElemInt32x4, types.Types[types.TINT32], 0), sys.AMD64)

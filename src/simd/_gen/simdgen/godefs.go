@@ -67,7 +67,7 @@ type rawOperation struct {
 	NoTypes *string
 	// If non-nil, all generation in gen_simdGenericOps and gen_simdrules will be skipped.
 	NoGenericOps *string
-	// If non-nil, this string will be attached to the machine ssa op name.
+	// If non-nil, this string will be attached to the machine ssa op name.  E.g. "const"
 	SSAVariant *string
 }
 

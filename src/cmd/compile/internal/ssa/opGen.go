@@ -2201,10 +2201,10 @@ const (
 	OpAMD64VGF2P8AFFINEQBMasked128
 	OpAMD64VGF2P8AFFINEQBMasked256
 	OpAMD64VGF2P8AFFINEQBMasked512
-	OpAMD64VPEXTRB128
-	OpAMD64VPEXTRW128
 	OpAMD64VPEXTRD128
 	OpAMD64VPEXTRQ128
+	OpAMD64VPEXTRB128
+	OpAMD64VPEXTRW128
 	OpAMD64VEXTRACTF128128
 	OpAMD64VEXTRACTF64X4256
 	OpAMD64VEXTRACTI128128
@@ -6352,6 +6352,8 @@ const (
 	OpGaloisFieldAffineTransformUint8x16
 	OpGaloisFieldAffineTransformUint8x32
 	OpGaloisFieldAffineTransformUint8x64
+	OpGetElemFloat32x4
+	OpGetElemFloat64x2
 	OpGetElemInt8x16
 	OpGetElemInt16x8
 	OpGetElemInt32x4
@@ -34154,34 +34156,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "VPEXTRB128",
-		auxType: auxUInt8,
-		argLen:  1,
-		asm:     x86.AVPEXTRB,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-			outputs: []outputInfo{
-				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
-			},
-		},
-	},
-	{
-		name:    "VPEXTRW128",
-		auxType: auxUInt8,
-		argLen:  1,
-		asm:     x86.AVPEXTRW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-			outputs: []outputInfo{
-				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
-			},
-		},
-	},
-	{
 		name:    "VPEXTRD128",
 		auxType: auxUInt8,
 		argLen:  1,
@@ -34203,6 +34177,34 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
+		name:    "VPEXTRB128",
+		auxType: auxUInt8,
+		argLen:  1,
+		asm:     x86.AVPEXTRB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
+		name:    "VPEXTRW128",
+		auxType: auxUInt8,
+		argLen:  1,
+		asm:     x86.AVPEXTRW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
 			},
 			outputs: []outputInfo{
 				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
@@ -72918,6 +72920,18 @@ var opcodeTable = [...]opInfo{
 		name:    "GaloisFieldAffineTransformUint8x64",
 		auxType: auxUInt8,
 		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "GetElemFloat32x4",
+		auxType: auxUInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "GetElemFloat64x2",
+		auxType: auxUInt8,
+		argLen:  1,
 		generic: true,
 	},
 	{

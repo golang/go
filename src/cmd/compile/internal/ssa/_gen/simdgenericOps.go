@@ -1720,6 +1720,8 @@ func simdGenericOps() []opData {
 		{name: "GaloisFieldAffineTransformUint8x16", argLength: 2, commutative: false, aux: "UInt8"},
 		{name: "GaloisFieldAffineTransformUint8x32", argLength: 2, commutative: false, aux: "UInt8"},
 		{name: "GaloisFieldAffineTransformUint8x64", argLength: 2, commutative: false, aux: "UInt8"},
+		{name: "GetElemFloat32x4", argLength: 1, commutative: false, aux: "UInt8"},
+		{name: "GetElemFloat64x2", argLength: 1, commutative: false, aux: "UInt8"},
 		{name: "GetElemInt8x16", argLength: 1, commutative: false, aux: "UInt8"},
 		{name: "GetElemInt16x8", argLength: 1, commutative: false, aux: "UInt8"},
 		{name: "GetElemInt32x4", argLength: 1, commutative: false, aux: "UInt8"},

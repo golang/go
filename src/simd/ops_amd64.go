@@ -3474,6 +3474,20 @@ func (x Uint8x64) GaloisFieldMulMasked(y Uint8x64, mask Mask8x64) Uint8x64
 //
 // index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
+// Asm: VPEXTRD, CPU Feature: AVX
+func (x Float32x4) GetElem(index uint8) float32
+
+// GetElem retrieves a single constant-indexed element's value.
+//
+// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPEXTRQ, CPU Feature: AVX
+func (x Float64x2) GetElem(index uint8) float64
+
+// GetElem retrieves a single constant-indexed element's value.
+//
+// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
 // Asm: VPEXTRB, CPU Feature: AVX512
 func (x Int8x16) GetElem(index uint8) int8
 

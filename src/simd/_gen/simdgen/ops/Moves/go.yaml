@@ -45,6 +45,20 @@
     base: $b
     bits: $e
 
+- go: GetElem
+  asm: "VPEXTR[DQ]"
+  in:
+  - class: vreg
+    base: int
+    elemBits: $e
+    OverwriteBase: float
+  - *imm
+  out:
+  - class: greg
+    base: int
+    bits: $e
+    OverwriteBase: float
+
 - go: "SetHi|SetLo"
   asm: "VINSERTI128|VINSERTI64X4"
   inVariant: []
