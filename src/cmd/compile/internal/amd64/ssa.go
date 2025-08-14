@@ -63,6 +63,7 @@ func loadByTypeAndReg(t *types.Type, r int16) obj.As {
 }
 
 // storeByTypeAndReg returns the store instruction of the given type/register.
+// It's also used for loading const to a reg.
 func storeByTypeAndReg(t *types.Type, r int16) obj.As {
 	width := t.Size()
 	if t.IsSIMD() {
@@ -75,67 +76,38 @@ func storeByTypeAndReg(t *types.Type, r int16) obj.As {
 		case 8:
 			return x86.AMOVSD
 		}
-	} else {
-		switch width {
-		case 1:
-			return x86.AMOVB
-		case 2:
-			return x86.AMOVW
-		case 4:
-			return x86.AMOVL
-		case 8:
-			return x86.AMOVQ
-		case 16:
-			return x86.AMOVUPS
-		}
+	}
+	switch width {
+	case 1:
+		return x86.AMOVB
+	case 2:
+		return x86.AMOVW
+	case 4:
+		return x86.AMOVL
+	case 8:
+		return x86.AMOVQ
+	case 16:
+		return x86.AMOVUPS
 	}
 	panic(fmt.Sprintf("bad store type %v", t))
 }
 
-// storeByType returns the store instruction of the given type.
-func storeByType(t *types.Type) obj.As {
+// moveByTypeAndReg returns the reg->reg move instruction of the given type/registers.
+func moveByTypeAndReg(t *types.Type, dest, src int16) obj.As {
 	width := t.Size()
-	if t.IsFloat() {
-		switch width {
-		case 4:
-			return x86.AMOVSS
-		case 8:
-			return x86.AMOVSD
-		}
-	} else if t.IsSIMD() {
-		return simdMov(width)
-	} else {
-		switch width {
-		case 1:
-			return x86.AMOVB
-		case 2:
-			return x86.AMOVW
-		case 4:
-			return x86.AMOVL
-		case 8:
-			return x86.AMOVQ
-		case 16:
-			return x86.AMOVUPS
-		}
+	if t.IsSIMD() {
+		return simdMov(t.Size())
 	}
-	panic(fmt.Sprintf("bad store type %v", t))
-}
-
-// moveByType returns the reg->reg move instruction of the given type.
-func moveByType(from, to *ssa.Value) obj.As {
-	toT := to.Type
-	fromR, toR := from.Reg(), to.Reg()
-	if isFPReg(fromR) && isFPReg(toR) && toT.IsFloat() {
+	// fp -> fp
+	if isFPReg(dest) && isFPReg(src) {
 		// Moving the whole sse2 register is faster
 		// than moving just the correct low portion of it.
 		// There is no xmm->xmm move with 1 byte opcode,
 		// so use movups, which has 2 byte opcode.
 		return x86.AMOVUPS
 	}
-	if toT.IsSIMD() {
-		return simdMov(toT.Size())
-	}
-	switch toT.Size() {
+	// gp -> fp, fp -> gp, gp -> gp
+	switch width {
 	case 1:
 		// Avoids partial register write
 		return x86.AMOVL
@@ -147,9 +119,8 @@ func moveByType(from, to *ssa.Value) obj.As {
 		return x86.AMOVQ
 	case 16:
 		return x86.AMOVUPS // int128s are in SSE registers
-	default:
-		panic(fmt.Sprintf("bad int register width %d:%v", toT.Size(), toT))
 	}
+	panic(fmt.Sprintf("bad int register width %d:%v", t.Size(), t))
 }
 
 // opregreg emits instructions for
@@ -645,7 +616,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// But this requires a way for regalloc to know that SRC might be
 		// clobbered by this instruction.
 		t := v.RegTmp()
-		opregreg(s, moveByType(v.Args[1], v), t, v.Args[1].Reg())
+		opregreg(s, moveByTypeAndReg(v.Type, t, v.Args[1].Reg()), t, v.Args[1].Reg())
 
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
@@ -820,34 +791,15 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 
 	case ssa.OpAMD64MOVSSconst, ssa.OpAMD64MOVSDconst:
 		x := v.Reg()
-		a := v.Op.Asm()
-		if x < x86.REG_X0 { // not an FP register
-			if v.AuxInt == 0 && v.Aux == nil {
-				opregreg(s, x86.AXORL, x, x)
-				break
-			}
-			c := v.AuxInt
-			switch v.Type.Size() {
-			case 4:
-				a = x86.AMOVL
-				c = int64(math.Float32bits(float32(math.Float64frombits(uint64(v.AuxInt)))))
-			case 8:
-				a = x86.AMOVQ
-			default:
-				panic(fmt.Sprintf("unexpected type width for float const into non-float register, %v", v))
-			}
-			p := s.Prog(a)
-			p.From.Type = obj.TYPE_CONST
-			p.From.Offset = c
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = x
-		} else {
-			p := s.Prog(a)
-			p.From.Type = obj.TYPE_FCONST
-			p.From.Val = math.Float64frombits(uint64(v.AuxInt))
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = x
+		if !isFPReg(x) && v.AuxInt == 0 && v.Aux == nil {
+			opregreg(s, x86.AXORL, x, x)
+			break
 		}
+		p := s.Prog(storeByTypeAndReg(v.Type, x))
+		p.From.Type = obj.TYPE_FCONST
+		p.From.Val = math.Float64frombits(uint64(v.AuxInt))
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = x
 	case ssa.OpAMD64MOVQload, ssa.OpAMD64MOVLload, ssa.OpAMD64MOVWload, ssa.OpAMD64MOVBload, ssa.OpAMD64MOVOload,
 		ssa.OpAMD64MOVSSload, ssa.OpAMD64MOVSDload, ssa.OpAMD64MOVBQSXload, ssa.OpAMD64MOVWQSXload, ssa.OpAMD64MOVLQSXload,
 		ssa.OpAMD64MOVBEQload, ssa.OpAMD64MOVBELload:
@@ -1245,7 +1197,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			y = simdOrMaskReg(v)
 		}
 		if x != y {
-			opregreg(s, moveByType(v.Args[0], v), y, x)
+			opregreg(s, moveByTypeAndReg(v.Type, y, x), y, x)
 		}
 	case ssa.OpLoadReg:
 		if v.Type.IsFlags() {
@@ -1270,7 +1222,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		if v.Type.IsSIMD() {
 			r = simdOrMaskReg(v.Args[0])
 		}
-		p := s.Prog(storeByType(v.Type))
+		p := s.Prog(storeByTypeAndReg(v.Type, r))
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = r
 		ssagen.AddrAuto(&p.To, v)
@@ -1287,7 +1239,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			// Pass the spill/unspill information along to the assembler, offset by size of return PC pushed on stack.
 			addr := ssagen.SpillSlotAddr(ap, x86.REG_SP, v.Block.Func.Config.PtrSize)
 			s.FuncInfo().AddSpill(
-				obj.RegSpill{Reg: ap.Reg, Addr: addr, Unspill: loadByTypeAndReg(ap.Type, ap.Reg), Spill: storeByType(ap.Type)})
+				obj.RegSpill{Reg: ap.Reg, Addr: addr, Unspill: loadByTypeAndReg(ap.Type, ap.Reg), Spill: storeByTypeAndReg(ap.Type, ap.Reg)})
 		}
 		v.Block.Func.RegArgs = nil
 		ssagen.CheckArgReg(v)
@@ -2182,7 +2134,7 @@ func loadRegResult(s *ssagen.State, f *ssa.Func, t *types.Type, reg int16, n *ir
 }
 
 func spillArgReg(pp *objw.Progs, p *obj.Prog, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
-	p = pp.Append(p, storeByType(t), obj.TYPE_REG, reg, 0, obj.TYPE_MEM, 0, n.FrameOffset()+off)
+	p = pp.Append(p, storeByTypeAndReg(t, reg), obj.TYPE_REG, reg, 0, obj.TYPE_MEM, 0, n.FrameOffset()+off)
 	p.To.Name = obj.NAME_PARAM
 	p.To.Sym = n.Linksym()
 	p.Pos = p.Pos.WithNotStmt()
