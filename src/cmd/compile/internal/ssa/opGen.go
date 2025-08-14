@@ -1214,6 +1214,10 @@ const (
 	OpAMD64Zero128
 	OpAMD64Zero256
 	OpAMD64Zero512
+	OpAMD64VMOVSDf2v
+	OpAMD64VMOVSSf2v
+	OpAMD64VMOVQ
+	OpAMD64VMOVD
 	OpAMD64VZEROUPPER
 	OpAMD64VZEROALL
 	OpAMD64KMOVQload
@@ -18866,6 +18870,58 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			outputs: []outputInfo{
 				{0, 2147483648}, // X15
+			},
+		},
+	},
+	{
+		name:   "VMOVSDf2v",
+		argLen: 1,
+		asm:    x86.AVMOVSD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VMOVSSf2v",
+		argLen: 1,
+		asm:    x86.AVMOVSS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VMOVQ",
+		argLen: 1,
+		asm:    x86.AVMOVQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VMOVD",
+		argLen: 1,
+		asm:    x86.AVMOVD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},

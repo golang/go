@@ -517,6 +517,22 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpAMD64VMOVDQU8Masked512(v)
 	case OpAMD64VPANDQ512:
 		return rewriteValueAMD64_OpAMD64VPANDQ512(v)
+	case OpAMD64VPBROADCASTB128:
+		return rewriteValueAMD64_OpAMD64VPBROADCASTB128(v)
+	case OpAMD64VPBROADCASTB256:
+		return rewriteValueAMD64_OpAMD64VPBROADCASTB256(v)
+	case OpAMD64VPBROADCASTB512:
+		return rewriteValueAMD64_OpAMD64VPBROADCASTB512(v)
+	case OpAMD64VPBROADCASTW128:
+		return rewriteValueAMD64_OpAMD64VPBROADCASTW128(v)
+	case OpAMD64VPBROADCASTW256:
+		return rewriteValueAMD64_OpAMD64VPBROADCASTW256(v)
+	case OpAMD64VPBROADCASTW512:
+		return rewriteValueAMD64_OpAMD64VPBROADCASTW512(v)
+	case OpAMD64VPINSRD128:
+		return rewriteValueAMD64_OpAMD64VPINSRD128(v)
+	case OpAMD64VPINSRQ128:
+		return rewriteValueAMD64_OpAMD64VPINSRQ128(v)
 	case OpAMD64VPMOVVec16x16ToM:
 		return rewriteValueAMD64_OpAMD64VPMOVVec16x16ToM(v)
 	case OpAMD64VPMOVVec16x32ToM:
@@ -28845,6 +28861,242 @@ func rewriteValueAMD64_OpAMD64VPANDQ512(v *Value) bool {
 			return true
 		}
 		break
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VPBROADCASTB128(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (VPBROADCASTB128 x:(VPINSRB128 [0] (Zero128 <t>) y))
+	// cond: x.Uses == 1
+	// result: (VPBROADCASTB128 (VMOVQ <types.TypeVec128> y))
+	for {
+		x := v_0
+		if x.Op != OpAMD64VPINSRB128 || auxIntToUint8(x.AuxInt) != 0 {
+			break
+		}
+		y := x.Args[1]
+		x_0 := x.Args[0]
+		if x_0.Op != OpAMD64Zero128 {
+			break
+		}
+		if !(x.Uses == 1) {
+			break
+		}
+		v.reset(OpAMD64VPBROADCASTB128)
+		v0 := b.NewValue0(v.Pos, OpAMD64VMOVQ, types.TypeVec128)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VPBROADCASTB256(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (VPBROADCASTB256 x:(VPINSRB128 [0] (Zero128 <t>) y))
+	// cond: x.Uses == 1
+	// result: (VPBROADCASTB256 (VMOVQ <types.TypeVec128> y))
+	for {
+		x := v_0
+		if x.Op != OpAMD64VPINSRB128 || auxIntToUint8(x.AuxInt) != 0 {
+			break
+		}
+		y := x.Args[1]
+		x_0 := x.Args[0]
+		if x_0.Op != OpAMD64Zero128 {
+			break
+		}
+		if !(x.Uses == 1) {
+			break
+		}
+		v.reset(OpAMD64VPBROADCASTB256)
+		v0 := b.NewValue0(v.Pos, OpAMD64VMOVQ, types.TypeVec128)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VPBROADCASTB512(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (VPBROADCASTB512 x:(VPINSRB128 [0] (Zero128 <t>) y))
+	// cond: x.Uses == 1
+	// result: (VPBROADCASTB512 (VMOVQ <types.TypeVec128> y))
+	for {
+		x := v_0
+		if x.Op != OpAMD64VPINSRB128 || auxIntToUint8(x.AuxInt) != 0 {
+			break
+		}
+		y := x.Args[1]
+		x_0 := x.Args[0]
+		if x_0.Op != OpAMD64Zero128 {
+			break
+		}
+		if !(x.Uses == 1) {
+			break
+		}
+		v.reset(OpAMD64VPBROADCASTB512)
+		v0 := b.NewValue0(v.Pos, OpAMD64VMOVQ, types.TypeVec128)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VPBROADCASTW128(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (VPBROADCASTW128 x:(VPINSRW128 [0] (Zero128 <t>) y))
+	// cond: x.Uses == 1
+	// result: (VPBROADCASTW128 (VMOVQ <types.TypeVec128> y))
+	for {
+		x := v_0
+		if x.Op != OpAMD64VPINSRW128 || auxIntToUint8(x.AuxInt) != 0 {
+			break
+		}
+		y := x.Args[1]
+		x_0 := x.Args[0]
+		if x_0.Op != OpAMD64Zero128 {
+			break
+		}
+		if !(x.Uses == 1) {
+			break
+		}
+		v.reset(OpAMD64VPBROADCASTW128)
+		v0 := b.NewValue0(v.Pos, OpAMD64VMOVQ, types.TypeVec128)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VPBROADCASTW256(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (VPBROADCASTW256 x:(VPINSRW128 [0] (Zero128 <t>) y))
+	// cond: x.Uses == 1
+	// result: (VPBROADCASTW256 (VMOVQ <types.TypeVec128> y))
+	for {
+		x := v_0
+		if x.Op != OpAMD64VPINSRW128 || auxIntToUint8(x.AuxInt) != 0 {
+			break
+		}
+		y := x.Args[1]
+		x_0 := x.Args[0]
+		if x_0.Op != OpAMD64Zero128 {
+			break
+		}
+		if !(x.Uses == 1) {
+			break
+		}
+		v.reset(OpAMD64VPBROADCASTW256)
+		v0 := b.NewValue0(v.Pos, OpAMD64VMOVQ, types.TypeVec128)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VPBROADCASTW512(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (VPBROADCASTW512 x:(VPINSRW128 [0] (Zero128 <t>) y))
+	// cond: x.Uses == 1
+	// result: (VPBROADCASTW512 (VMOVQ <types.TypeVec128> y))
+	for {
+		x := v_0
+		if x.Op != OpAMD64VPINSRW128 || auxIntToUint8(x.AuxInt) != 0 {
+			break
+		}
+		y := x.Args[1]
+		x_0 := x.Args[0]
+		if x_0.Op != OpAMD64Zero128 {
+			break
+		}
+		if !(x.Uses == 1) {
+			break
+		}
+		v.reset(OpAMD64VPBROADCASTW512)
+		v0 := b.NewValue0(v.Pos, OpAMD64VMOVQ, types.TypeVec128)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VPINSRD128(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VPINSRD128 [0] (Zero128 <t>) y)
+	// cond: y.Type.IsFloat()
+	// result: (VMOVSSf2v <types.TypeVec128> y)
+	for {
+		if auxIntToUint8(v.AuxInt) != 0 || v_0.Op != OpAMD64Zero128 {
+			break
+		}
+		y := v_1
+		if !(y.Type.IsFloat()) {
+			break
+		}
+		v.reset(OpAMD64VMOVSSf2v)
+		v.Type = types.TypeVec128
+		v.AddArg(y)
+		return true
+	}
+	// match: (VPINSRD128 [0] (Zero128 <t>) y)
+	// cond: !y.Type.IsFloat()
+	// result: (VMOVD <types.TypeVec128> y)
+	for {
+		if auxIntToUint8(v.AuxInt) != 0 || v_0.Op != OpAMD64Zero128 {
+			break
+		}
+		y := v_1
+		if !(!y.Type.IsFloat()) {
+			break
+		}
+		v.reset(OpAMD64VMOVD)
+		v.Type = types.TypeVec128
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VPINSRQ128(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VPINSRQ128 [0] (Zero128 <t>) y)
+	// cond: y.Type.IsFloat()
+	// result: (VMOVSDf2v <types.TypeVec128> y)
+	for {
+		if auxIntToUint8(v.AuxInt) != 0 || v_0.Op != OpAMD64Zero128 {
+			break
+		}
+		y := v_1
+		if !(y.Type.IsFloat()) {
+			break
+		}
+		v.reset(OpAMD64VMOVSDf2v)
+		v.Type = types.TypeVec128
+		v.AddArg(y)
+		return true
+	}
+	// match: (VPINSRQ128 [0] (Zero128 <t>) y)
+	// cond: !y.Type.IsFloat()
+	// result: (VMOVQ <types.TypeVec128> y)
+	for {
+		if auxIntToUint8(v.AuxInt) != 0 || v_0.Op != OpAMD64Zero128 {
+			break
+		}
+		y := v_1
+		if !(!y.Type.IsFloat()) {
+			break
+		}
+		v.reset(OpAMD64VMOVQ)
+		v.Type = types.TypeVec128
+		v.AddArg(y)
+		return true
 	}
 	return false
 }

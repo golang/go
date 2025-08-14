@@ -875,7 +875,7 @@ func declReserved(name, value string) *Declare {
 	if !reservedNames[name] {
 		panic(fmt.Sprintf("declReserved call does not use a reserved name: %q", name))
 	}
-	return &Declare{name, exprf(value)}
+	return &Declare{name, exprf("%s", value)}
 }
 
 // breakf constructs a simple "if cond { break }" statement, using exprf for its
@@ -902,7 +902,7 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
 			if vname == "" {
 				vname = fmt.Sprintf("v_%v", i)
 			}
-			rr.add(declf(rr.Loc, vname, cname))
+			rr.add(declf(rr.Loc, vname, "%s", cname))
 			p, op := genMatch0(rr, arch, expr, vname, nil, false) // TODO: pass non-nil cnt?
 			if op != "" {
 				check := fmt.Sprintf("%s.Op == %s", cname, op)
@@ -917,7 +917,7 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
 			}
 			pos[i] = p
 		} else {
-			rr.add(declf(rr.Loc, arg, cname))
+			rr.add(declf(rr.Loc, arg, "%s", cname))
 			pos[i] = arg + ".Pos"
 		}
 	}

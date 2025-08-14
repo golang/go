@@ -458,6 +458,22 @@ func TestBroadcastUint64x2(t *testing.T) {
 	checkSlices(t, s, []uint64{123456789, 123456789})
 }
 
+func TestBroadcastUint16x8(t *testing.T) {
+	s := make([]uint16, 8, 8)
+	simd.BroadcastUint16x8(12345).StoreSlice(s)
+	checkSlices(t, s, []uint16{12345, 12345, 12345, 12345})
+}
+
+func TestBroadcastInt8x32(t *testing.T) {
+	s := make([]int8, 32, 32)
+	simd.BroadcastInt8x32(-123).StoreSlice(s)
+	checkSlices(t, s, []int8{-123, -123, -123, -123, -123, -123, -123, -123,
+		-123, -123, -123, -123, -123, -123, -123, -123,
+		-123, -123, -123, -123, -123, -123, -123, -123,
+		-123, -123, -123, -123, -123, -123, -123, -123,
+	})
+}
+
 func TestMaskOpt512(t *testing.T) {
 	if !simd.HasAVX512() {
 		t.Skip("Test requires HasAVX512, not available on this hardware")

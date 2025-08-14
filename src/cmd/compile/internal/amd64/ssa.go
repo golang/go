@@ -1711,8 +1711,26 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	// SIMD ops
 	case ssa.OpAMD64VZEROUPPER, ssa.OpAMD64VZEROALL:
 		s.Prog(v.Op.Asm())
-	case ssa.OpAMD64Zero128, ssa.OpAMD64Zero256, ssa.OpAMD64Zero512:
-		// zero-width, no instruction generated
+
+	case ssa.OpAMD64Zero128, ssa.OpAMD64Zero256, ssa.OpAMD64Zero512: // no code emitted
+
+	case ssa.OpAMD64VMOVSSf2v, ssa.OpAMD64VMOVSDf2v:
+		// These are for initializing the least 32/64 bits of a SIMD register from a "float".
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[0].Reg()
+		p.AddRestSourceReg(x86.REG_X15)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = simdReg(v)
+
+	case ssa.OpAMD64VMOVD, ssa.OpAMD64VMOVQ:
+		// These are for initializing the least 32/64 bits of a SIMD register from an "int".
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[0].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = simdReg(v)
+
 	case ssa.OpAMD64VMOVDQUload128, ssa.OpAMD64VMOVDQUload256, ssa.OpAMD64VMOVDQUload512, ssa.OpAMD64KMOVQload:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM

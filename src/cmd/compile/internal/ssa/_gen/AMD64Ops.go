@@ -226,6 +226,8 @@ func init() {
 		vgp   = regInfo{inputs: vonly, outputs: gponly}
 		vfpv  = regInfo{inputs: []regMask{vz, fp}, outputs: vonly}
 		vfpkv = regInfo{inputs: []regMask{vz, fp, mask}, outputs: vonly}
+		fpv   = regInfo{inputs: []regMask{fp}, outputs: vonly}
+		gpv   = regInfo{inputs: []regMask{gp}, outputs: vonly}
 
 		w11   = regInfo{inputs: wzonly, outputs: wonly}
 		w21   = regInfo{inputs: []regMask{wz, wz}, outputs: wonly}
@@ -1381,6 +1383,11 @@ func init() {
 		{name: "Zero128", argLength: 0, reg: x15only, zeroWidth: true, fixedReg: true},
 		{name: "Zero256", argLength: 0, reg: x15only, zeroWidth: true, fixedReg: true},
 		{name: "Zero512", argLength: 0, reg: x15only, zeroWidth: true, fixedReg: true},
+
+		{name: "VMOVSDf2v", argLength: 1, reg: fpv, asm: "VMOVSD"},
+		{name: "VMOVSSf2v", argLength: 1, reg: fpv, asm: "VMOVSS"},
+		{name: "VMOVQ", argLength: 1, reg: gpv, asm: "VMOVQ"},
+		{name: "VMOVD", argLength: 1, reg: gpv, asm: "VMOVD"},
 
 		{name: "VZEROUPPER", argLength: 0, asm: "VZEROUPPER"},
 		{name: "VZEROALL", argLength: 0, asm: "VZEROALL"},

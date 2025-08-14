@@ -1768,3 +1768,17 @@
 (VPANDQ512 x (VPMOVMToVec32x16 k)) => (VMOVDQU32Masked512 x k)
 (VPANDQ512 x (VPMOVMToVec16x32 k)) => (VMOVDQU16Masked512 x k)
 (VPANDQ512 x (VPMOVMToVec8x64 k)) => (VMOVDQU8Masked512 x k)
+
+// Insert to zero of 32/64 bit floats and ints to a zero is just MOVS[SD]
+(VPINSRQ128 [0] (Zero128 <t>) y) && y.Type.IsFloat() => (VMOVSDf2v <types.TypeVec128> y)
+(VPINSRD128 [0] (Zero128 <t>) y) && y.Type.IsFloat() => (VMOVSSf2v <types.TypeVec128> y)
+(VPINSRQ128 [0] (Zero128 <t>) y) && !y.Type.IsFloat() => (VMOVQ <types.TypeVec128> y)
+(VPINSRD128 [0] (Zero128 <t>) y) && !y.Type.IsFloat() => (VMOVD <types.TypeVec128> y)
+
+// These rewrites can skip zero-extending the 8/16-bit inputs because they are
+// only used as the input to a broadcast; the potentially "bad" bits are ignored
+(VPBROADCASTB(128|256|512) x:(VPINSRB128 [0] (Zero128    <t>) y)) && x.Uses == 1 =>
+	(VPBROADCASTB(128|256|512) (VMOVQ <types.TypeVec128> y))
+(VPBROADCASTW(128|256|512) x:(VPINSRW128 [0] (Zero128    <t>) y)) && x.Uses == 1 =>
+	(VPBROADCASTW(128|256|512)   (VMOVQ <types.TypeVec128> y))
+
