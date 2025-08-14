@@ -710,6 +710,11 @@ func TestIPv6WriteMsgUDPAddrPortTargetAddrIPVersion(t *testing.T) {
 // WriteMsgUDPAddrPort accepts IPv4 and IPv4-mapped IPv6 destination addresses,
 // and rejects IPv6 destination addresses on a "udp4" connection.
 func TestIPv4WriteMsgUDPAddrPortTargetAddrIPVersion(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9":
+		t.Skipf("not supported on %s", runtime.GOOS)
+	}
+
 	if !testableNetwork("udp4") {
 		t.Skipf("skipping: udp4 not available")
 	}
