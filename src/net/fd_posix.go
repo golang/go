@@ -24,6 +24,7 @@ type netFD struct {
 	net         string
 	laddr       Addr
 	raddr       Addr
+	cleanup     runtime.Cleanup
 }
 
 func (fd *netFD) name() string {
@@ -40,13 +41,13 @@ func (fd *netFD) name() string {
 func (fd *netFD) setAddr(laddr, raddr Addr) {
 	fd.laddr = laddr
 	fd.raddr = raddr
-	// TODO Replace with runtime.AddCleanup.
-	runtime.SetFinalizer(fd, (*netFD).Close)
+	fd.cleanup = runtime.AddCleanup(fd, func(_ int) {
+		_ = fd.pfd.Close()
+	}, 0)
 }
 
 func (fd *netFD) Close() error {
-	// TODO Replace with runtime.AddCleanup.
-	runtime.SetFinalizer(fd, nil)
+	fd.cleanup.Stop()
 	return fd.pfd.Close()
 }
 
