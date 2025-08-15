@@ -114,7 +114,7 @@ func unalias(a0 *Alias) Type {
 		t = a.fromRHS
 	}
 
-	// It's fine to memoize nil types since it's the zero value for actual.
+	// It's fine to memorize nil types since it's the zero value for actual.
 	// It accomplishes nothing.
 	a0.actual = t
 	return t
