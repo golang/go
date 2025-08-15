@@ -177,6 +177,7 @@ func init() {
 
 		{name: "REVB2H", argLength: 1, reg: gp11, asm: "REVB2H"}, // Swap bytes: 0x11223344 -> 0x22114433 (sign extends to 64 bits)
 		{name: "REVB2W", argLength: 1, reg: gp11, asm: "REVB2W"}, // Swap bytes: 0x1122334455667788 -> 0x4433221188776655
+		{name: "REVB4H", argLength: 1, reg: gp11, asm: "REVB4H"}, // Swap bytes: 0x1122334455667788 -> 0x2211443366558877
 		{name: "REVBV", argLength: 1, reg: gp11, asm: "REVBV"},   // Swap bytes: 0x1122334455667788 -> 0x8877665544332211
 
 		{name: "BITREV4B", argLength: 1, reg: gp11, asm: "BITREV4B"}, // Reverse the bits of each byte inside a 32-bit arg[0]

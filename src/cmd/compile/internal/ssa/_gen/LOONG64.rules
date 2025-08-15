@@ -136,6 +136,27 @@
 (Rsh8x16 <t> x y) && !shiftIsBounded(v) => (SRAV (SignExt8to64 x) (OR <t> (NEGV <t> (SGTU (ZeroExt16to64 y) (MOVVconst <typ.UInt64> [63]))) (ZeroExt16to64 y)))
 (Rsh8x8  <t> x y) && !shiftIsBounded(v) => (SRAV (SignExt8to64 x) (OR <t> (NEGV <t> (SGTU (ZeroExt8to64  y) (MOVVconst <typ.UInt64> [63]))) (ZeroExt8to64  y)))
 
+
+// revb2h
+// ((x>>8) | (x<<8)) => (REVB2H x), the type of x is uint16
+((OR|XOR|ADDV) <typ.UInt16> (SRLVconst [8] <typ.UInt16> x) (SLLVconst [8] <typ.UInt16> x)) => (REVB2H x)
+
+// ((x & 0xff00ff00)>>8) | ((x & 0x00ff00ff)<<8), the type of x is uint32
+((OR|XOR|ADDV) (SRLconst [8] (ANDconst [c1] x)) (SLLconst [8] (ANDconst [c2] x)))
+	&& uint32(c1) == 0xff00ff00 && uint32(c2) == 0x00ff00ff
+	=> (REVB2H x)
+
+// revb4h
+// ((x & 0xff00ff00ff00ff00)>>8) | ((x & 0x00ff00ff00ff00ff)<<8), the type of x is uint64
+((OR|XOR|ADDV) (SRLVconst [8] (AND (MOVVconst [c1]) x)) (SLLVconst [8] (AND (MOVVconst [c2]) x)))
+	&& uint64(c1) == 0xff00ff00ff00ff00 && uint64(c2) == 0x00ff00ff00ff00ff
+	=> (REVB4H x)
+
+// ((x & 0xff00ff00)>>8) | ((x & 0x00ff00ff)<<8), the type of x is uint64
+((OR|XOR|ADDV) (SRLVconst [8] (AND (MOVVconst [c1]) x)) (SLLVconst [8] (ANDconst [c2] x)))
+	&& uint64(c1) == 0xff00ff00 && uint64(c2) == 0x00ff00ff
+	=> (REVB4H (ANDconst <x.Type> [0xffffffff] x))
+
 // bitfield ops
 
 // bstrpickv

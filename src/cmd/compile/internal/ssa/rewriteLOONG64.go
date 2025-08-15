@@ -1784,6 +1784,148 @@ func rewriteValueLOONG64_OpLOONG64ADDF(v *Value) bool {
 func rewriteValueLOONG64_OpLOONG64ADDV(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (ADDV <typ.UInt16> (SRLVconst [8] <typ.UInt16> x) (SLLVconst [8] <typ.UInt16> x))
+	// result: (REVB2H x)
+	for {
+		if v.Type != typ.UInt16 {
+			break
+		}
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpLOONG64SRLVconst || v_0.Type != typ.UInt16 || auxIntToInt64(v_0.AuxInt) != 8 {
+				continue
+			}
+			x := v_0.Args[0]
+			if v_1.Op != OpLOONG64SLLVconst || v_1.Type != typ.UInt16 || auxIntToInt64(v_1.AuxInt) != 8 || x != v_1.Args[0] {
+				continue
+			}
+			v.reset(OpLOONG64REVB2H)
+			v.AddArg(x)
+			return true
+		}
+		break
+	}
+	// match: (ADDV (SRLconst [8] (ANDconst [c1] x)) (SLLconst [8] (ANDconst [c2] x)))
+	// cond: uint32(c1) == 0xff00ff00 && uint32(c2) == 0x00ff00ff
+	// result: (REVB2H x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpLOONG64SRLconst || auxIntToInt64(v_0.AuxInt) != 8 {
+				continue
+			}
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpLOONG64ANDconst {
+				continue
+			}
+			c1 := auxIntToInt64(v_0_0.AuxInt)
+			x := v_0_0.Args[0]
+			if v_1.Op != OpLOONG64SLLconst || auxIntToInt64(v_1.AuxInt) != 8 {
+				continue
+			}
+			v_1_0 := v_1.Args[0]
+			if v_1_0.Op != OpLOONG64ANDconst {
+				continue
+			}
+			c2 := auxIntToInt64(v_1_0.AuxInt)
+			if x != v_1_0.Args[0] || !(uint32(c1) == 0xff00ff00 && uint32(c2) == 0x00ff00ff) {
+				continue
+			}
+			v.reset(OpLOONG64REVB2H)
+			v.AddArg(x)
+			return true
+		}
+		break
+	}
+	// match: (ADDV (SRLVconst [8] (AND (MOVVconst [c1]) x)) (SLLVconst [8] (AND (MOVVconst [c2]) x)))
+	// cond: uint64(c1) == 0xff00ff00ff00ff00 && uint64(c2) == 0x00ff00ff00ff00ff
+	// result: (REVB4H x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpLOONG64SRLVconst || auxIntToInt64(v_0.AuxInt) != 8 {
+				continue
+			}
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpLOONG64AND {
+				continue
+			}
+			_ = v_0_0.Args[1]
+			v_0_0_0 := v_0_0.Args[0]
+			v_0_0_1 := v_0_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_0_0_0, v_0_0_1 = _i1+1, v_0_0_1, v_0_0_0 {
+				if v_0_0_0.Op != OpLOONG64MOVVconst {
+					continue
+				}
+				c1 := auxIntToInt64(v_0_0_0.AuxInt)
+				x := v_0_0_1
+				if v_1.Op != OpLOONG64SLLVconst || auxIntToInt64(v_1.AuxInt) != 8 {
+					continue
+				}
+				v_1_0 := v_1.Args[0]
+				if v_1_0.Op != OpLOONG64AND {
+					continue
+				}
+				_ = v_1_0.Args[1]
+				v_1_0_0 := v_1_0.Args[0]
+				v_1_0_1 := v_1_0.Args[1]
+				for _i2 := 0; _i2 <= 1; _i2, v_1_0_0, v_1_0_1 = _i2+1, v_1_0_1, v_1_0_0 {
+					if v_1_0_0.Op != OpLOONG64MOVVconst {
+						continue
+					}
+					c2 := auxIntToInt64(v_1_0_0.AuxInt)
+					if x != v_1_0_1 || !(uint64(c1) == 0xff00ff00ff00ff00 && uint64(c2) == 0x00ff00ff00ff00ff) {
+						continue
+					}
+					v.reset(OpLOONG64REVB4H)
+					v.AddArg(x)
+					return true
+				}
+			}
+		}
+		break
+	}
+	// match: (ADDV (SRLVconst [8] (AND (MOVVconst [c1]) x)) (SLLVconst [8] (ANDconst [c2] x)))
+	// cond: uint64(c1) == 0xff00ff00 && uint64(c2) == 0x00ff00ff
+	// result: (REVB4H (ANDconst <x.Type> [0xffffffff] x))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpLOONG64SRLVconst || auxIntToInt64(v_0.AuxInt) != 8 {
+				continue
+			}
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpLOONG64AND {
+				continue
+			}
+			_ = v_0_0.Args[1]
+			v_0_0_0 := v_0_0.Args[0]
+			v_0_0_1 := v_0_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_0_0_0, v_0_0_1 = _i1+1, v_0_0_1, v_0_0_0 {
+				if v_0_0_0.Op != OpLOONG64MOVVconst {
+					continue
+				}
+				c1 := auxIntToInt64(v_0_0_0.AuxInt)
+				x := v_0_0_1
+				if v_1.Op != OpLOONG64SLLVconst || auxIntToInt64(v_1.AuxInt) != 8 {
+					continue
+				}
+				v_1_0 := v_1.Args[0]
+				if v_1_0.Op != OpLOONG64ANDconst {
+					continue
+				}
+				c2 := auxIntToInt64(v_1_0.AuxInt)
+				if x != v_1_0.Args[0] || !(uint64(c1) == 0xff00ff00 && uint64(c2) == 0x00ff00ff) {
+					continue
+				}
+				v.reset(OpLOONG64REVB4H)
+				v0 := b.NewValue0(v.Pos, OpLOONG64ANDconst, x.Type)
+				v0.AuxInt = int64ToAuxInt(0xffffffff)
+				v0.AddArg(x)
+				v.AddArg(v0)
+				return true
+			}
+		}
+		break
+	}
 	// match: (ADDV x (MOVVconst <t> [c]))
 	// cond: is32Bit(c) && !t.IsPtr()
 	// result: (ADDVconst [c] x)
@@ -5774,6 +5916,148 @@ func rewriteValueLOONG64_OpLOONG64NORconst(v *Value) bool {
 func rewriteValueLOONG64_OpLOONG64OR(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (OR <typ.UInt16> (SRLVconst [8] <typ.UInt16> x) (SLLVconst [8] <typ.UInt16> x))
+	// result: (REVB2H x)
+	for {
+		if v.Type != typ.UInt16 {
+			break
+		}
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpLOONG64SRLVconst || v_0.Type != typ.UInt16 || auxIntToInt64(v_0.AuxInt) != 8 {
+				continue
+			}
+			x := v_0.Args[0]
+			if v_1.Op != OpLOONG64SLLVconst || v_1.Type != typ.UInt16 || auxIntToInt64(v_1.AuxInt) != 8 || x != v_1.Args[0] {
+				continue
+			}
+			v.reset(OpLOONG64REVB2H)
+			v.AddArg(x)
+			return true
+		}
+		break
+	}
+	// match: (OR (SRLconst [8] (ANDconst [c1] x)) (SLLconst [8] (ANDconst [c2] x)))
+	// cond: uint32(c1) == 0xff00ff00 && uint32(c2) == 0x00ff00ff
+	// result: (REVB2H x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpLOONG64SRLconst || auxIntToInt64(v_0.AuxInt) != 8 {
+				continue
+			}
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpLOONG64ANDconst {
+				continue
+			}
+			c1 := auxIntToInt64(v_0_0.AuxInt)
+			x := v_0_0.Args[0]
+			if v_1.Op != OpLOONG64SLLconst || auxIntToInt64(v_1.AuxInt) != 8 {
+				continue
+			}
+			v_1_0 := v_1.Args[0]
+			if v_1_0.Op != OpLOONG64ANDconst {
+				continue
+			}
+			c2 := auxIntToInt64(v_1_0.AuxInt)
+			if x != v_1_0.Args[0] || !(uint32(c1) == 0xff00ff00 && uint32(c2) == 0x00ff00ff) {
+				continue
+			}
+			v.reset(OpLOONG64REVB2H)
+			v.AddArg(x)
+			return true
+		}
+		break
+	}
+	// match: (OR (SRLVconst [8] (AND (MOVVconst [c1]) x)) (SLLVconst [8] (AND (MOVVconst [c2]) x)))
+	// cond: uint64(c1) == 0xff00ff00ff00ff00 && uint64(c2) == 0x00ff00ff00ff00ff
+	// result: (REVB4H x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpLOONG64SRLVconst || auxIntToInt64(v_0.AuxInt) != 8 {
+				continue
+			}
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpLOONG64AND {
+				continue
+			}
+			_ = v_0_0.Args[1]
+			v_0_0_0 := v_0_0.Args[0]
+			v_0_0_1 := v_0_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_0_0_0, v_0_0_1 = _i1+1, v_0_0_1, v_0_0_0 {
+				if v_0_0_0.Op != OpLOONG64MOVVconst {
+					continue
+				}
+				c1 := auxIntToInt64(v_0_0_0.AuxInt)
+				x := v_0_0_1
+				if v_1.Op != OpLOONG64SLLVconst || auxIntToInt64(v_1.AuxInt) != 8 {
+					continue
+				}
+				v_1_0 := v_1.Args[0]
+				if v_1_0.Op != OpLOONG64AND {
+					continue
+				}
+				_ = v_1_0.Args[1]
+				v_1_0_0 := v_1_0.Args[0]
+				v_1_0_1 := v_1_0.Args[1]
+				for _i2 := 0; _i2 <= 1; _i2, v_1_0_0, v_1_0_1 = _i2+1, v_1_0_1, v_1_0_0 {
+					if v_1_0_0.Op != OpLOONG64MOVVconst {
+						continue
+					}
+					c2 := auxIntToInt64(v_1_0_0.AuxInt)
+					if x != v_1_0_1 || !(uint64(c1) == 0xff00ff00ff00ff00 && uint64(c2) == 0x00ff00ff00ff00ff) {
+						continue
+					}
+					v.reset(OpLOONG64REVB4H)
+					v.AddArg(x)
+					return true
+				}
+			}
+		}
+		break
+	}
+	// match: (OR (SRLVconst [8] (AND (MOVVconst [c1]) x)) (SLLVconst [8] (ANDconst [c2] x)))
+	// cond: uint64(c1) == 0xff00ff00 && uint64(c2) == 0x00ff00ff
+	// result: (REVB4H (ANDconst <x.Type> [0xffffffff] x))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpLOONG64SRLVconst || auxIntToInt64(v_0.AuxInt) != 8 {
+				continue
+			}
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpLOONG64AND {
+				continue
+			}
+			_ = v_0_0.Args[1]
+			v_0_0_0 := v_0_0.Args[0]
+			v_0_0_1 := v_0_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_0_0_0, v_0_0_1 = _i1+1, v_0_0_1, v_0_0_0 {
+				if v_0_0_0.Op != OpLOONG64MOVVconst {
+					continue
+				}
+				c1 := auxIntToInt64(v_0_0_0.AuxInt)
+				x := v_0_0_1
+				if v_1.Op != OpLOONG64SLLVconst || auxIntToInt64(v_1.AuxInt) != 8 {
+					continue
+				}
+				v_1_0 := v_1.Args[0]
+				if v_1_0.Op != OpLOONG64ANDconst {
+					continue
+				}
+				c2 := auxIntToInt64(v_1_0.AuxInt)
+				if x != v_1_0.Args[0] || !(uint64(c1) == 0xff00ff00 && uint64(c2) == 0x00ff00ff) {
+					continue
+				}
+				v.reset(OpLOONG64REVB4H)
+				v0 := b.NewValue0(v.Pos, OpLOONG64ANDconst, x.Type)
+				v0.AuxInt = int64ToAuxInt(0xffffffff)
+				v0.AddArg(x)
+				v.AddArg(v0)
+				return true
+			}
+		}
+		break
+	}
 	// match: (OR x (MOVVconst [c]))
 	// cond: is32Bit(c)
 	// result: (ORconst [c] x)
@@ -7245,6 +7529,148 @@ func rewriteValueLOONG64_OpLOONG64SUBVconst(v *Value) bool {
 func rewriteValueLOONG64_OpLOONG64XOR(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (XOR <typ.UInt16> (SRLVconst [8] <typ.UInt16> x) (SLLVconst [8] <typ.UInt16> x))
+	// result: (REVB2H x)
+	for {
+		if v.Type != typ.UInt16 {
+			break
+		}
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpLOONG64SRLVconst || v_0.Type != typ.UInt16 || auxIntToInt64(v_0.AuxInt) != 8 {
+				continue
+			}
+			x := v_0.Args[0]
+			if v_1.Op != OpLOONG64SLLVconst || v_1.Type != typ.UInt16 || auxIntToInt64(v_1.AuxInt) != 8 || x != v_1.Args[0] {
+				continue
+			}
+			v.reset(OpLOONG64REVB2H)
+			v.AddArg(x)
+			return true
+		}
+		break
+	}
+	// match: (XOR (SRLconst [8] (ANDconst [c1] x)) (SLLconst [8] (ANDconst [c2] x)))
+	// cond: uint32(c1) == 0xff00ff00 && uint32(c2) == 0x00ff00ff
+	// result: (REVB2H x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpLOONG64SRLconst || auxIntToInt64(v_0.AuxInt) != 8 {
+				continue
+			}
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpLOONG64ANDconst {
+				continue
+			}
+			c1 := auxIntToInt64(v_0_0.AuxInt)
+			x := v_0_0.Args[0]
+			if v_1.Op != OpLOONG64SLLconst || auxIntToInt64(v_1.AuxInt) != 8 {
+				continue
+			}
+			v_1_0 := v_1.Args[0]
+			if v_1_0.Op != OpLOONG64ANDconst {
+				continue
+			}
+			c2 := auxIntToInt64(v_1_0.AuxInt)
+			if x != v_1_0.Args[0] || !(uint32(c1) == 0xff00ff00 && uint32(c2) == 0x00ff00ff) {
+				continue
+			}
+			v.reset(OpLOONG64REVB2H)
+			v.AddArg(x)
+			return true
+		}
+		break
+	}
+	// match: (XOR (SRLVconst [8] (AND (MOVVconst [c1]) x)) (SLLVconst [8] (AND (MOVVconst [c2]) x)))
+	// cond: uint64(c1) == 0xff00ff00ff00ff00 && uint64(c2) == 0x00ff00ff00ff00ff
+	// result: (REVB4H x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpLOONG64SRLVconst || auxIntToInt64(v_0.AuxInt) != 8 {
+				continue
+			}
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpLOONG64AND {
+				continue
+			}
+			_ = v_0_0.Args[1]
+			v_0_0_0 := v_0_0.Args[0]
+			v_0_0_1 := v_0_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_0_0_0, v_0_0_1 = _i1+1, v_0_0_1, v_0_0_0 {
+				if v_0_0_0.Op != OpLOONG64MOVVconst {
+					continue
+				}
+				c1 := auxIntToInt64(v_0_0_0.AuxInt)
+				x := v_0_0_1
+				if v_1.Op != OpLOONG64SLLVconst || auxIntToInt64(v_1.AuxInt) != 8 {
+					continue
+				}
+				v_1_0 := v_1.Args[0]
+				if v_1_0.Op != OpLOONG64AND {
+					continue
+				}
+				_ = v_1_0.Args[1]
+				v_1_0_0 := v_1_0.Args[0]
+				v_1_0_1 := v_1_0.Args[1]
+				for _i2 := 0; _i2 <= 1; _i2, v_1_0_0, v_1_0_1 = _i2+1, v_1_0_1, v_1_0_0 {
+					if v_1_0_0.Op != OpLOONG64MOVVconst {
+						continue
+					}
+					c2 := auxIntToInt64(v_1_0_0.AuxInt)
+					if x != v_1_0_1 || !(uint64(c1) == 0xff00ff00ff00ff00 && uint64(c2) == 0x00ff00ff00ff00ff) {
+						continue
+					}
+					v.reset(OpLOONG64REVB4H)
+					v.AddArg(x)
+					return true
+				}
+			}
+		}
+		break
+	}
+	// match: (XOR (SRLVconst [8] (AND (MOVVconst [c1]) x)) (SLLVconst [8] (ANDconst [c2] x)))
+	// cond: uint64(c1) == 0xff00ff00 && uint64(c2) == 0x00ff00ff
+	// result: (REVB4H (ANDconst <x.Type> [0xffffffff] x))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpLOONG64SRLVconst || auxIntToInt64(v_0.AuxInt) != 8 {
+				continue
+			}
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpLOONG64AND {
+				continue
+			}
+			_ = v_0_0.Args[1]
+			v_0_0_0 := v_0_0.Args[0]
+			v_0_0_1 := v_0_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_0_0_0, v_0_0_1 = _i1+1, v_0_0_1, v_0_0_0 {
+				if v_0_0_0.Op != OpLOONG64MOVVconst {
+					continue
+				}
+				c1 := auxIntToInt64(v_0_0_0.AuxInt)
+				x := v_0_0_1
+				if v_1.Op != OpLOONG64SLLVconst || auxIntToInt64(v_1.AuxInt) != 8 {
+					continue
+				}
+				v_1_0 := v_1.Args[0]
+				if v_1_0.Op != OpLOONG64ANDconst {
+					continue
+				}
+				c2 := auxIntToInt64(v_1_0.AuxInt)
+				if x != v_1_0.Args[0] || !(uint64(c1) == 0xff00ff00 && uint64(c2) == 0x00ff00ff) {
+					continue
+				}
+				v.reset(OpLOONG64REVB4H)
+				v0 := b.NewValue0(v.Pos, OpLOONG64ANDconst, x.Type)
+				v0.AuxInt = int64ToAuxInt(0xffffffff)
+				v0.AddArg(x)
+				v.AddArg(v0)
+				return true
+			}
+		}
+		break
+	}
 	// match: (XOR x (MOVVconst [c]))
 	// cond: is32Bit(c)
 	// result: (XORconst [c] x)
