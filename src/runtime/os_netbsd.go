@@ -388,6 +388,12 @@ func validSIGPROF(mp *m, c *sigctxt) bool {
 }
 
 func sysargs(argc int32, argv **byte) {
+	// Check for nil argv to handle c-shared/c-archive libraries
+	// where DT_INIT_ARRAY doesn't pass arguments according to ELF specification
+	if argv == nil || argc < 0 || (islibrary || isarchive) {
+		return
+	}
+	
 	n := argc + 1
 
 	// skip over argv, envp to get to auxv

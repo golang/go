@@ -238,22 +238,27 @@ func mincore(addr unsafe.Pointer, n uintptr, dst *byte) int32
 var auxvreadbuf [128]uintptr
 
 func sysargs(argc int32, argv **byte) {
-	n := argc + 1
+	// On non-glibc systems, argc/argv are not passed to shared library constructors.
+	// The ELF specification for DT_INIT_ARRAY does not require passing arguments.
+	// Skip the argv-based auxv parsing when argv is invalid.
+	if argv != nil && argc >= 0 && !(islibrary || isarchive) {
+		n := argc + 1
 
-	// skip over argv, envp to get to auxv
-	for argv_index(argv, n) != nil {
+		// skip over argv, envp to get to auxv
+		for argv_index(argv, n) != nil {
+			n++
+		}
+
+		// skip NULL separator
 		n++
-	}
 
-	// skip NULL separator
-	n++
+		// now argv+n is auxv
+		auxvp := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
 
-	// now argv+n is auxv
-	auxvp := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
-
-	if pairs := sysauxv(auxvp[:]); pairs != 0 {
-		auxv = auxvp[: pairs*2 : pairs*2]
-		return
+		if pairs := sysauxv(auxvp[:]); pairs != 0 {
+			auxv = auxvp[: pairs*2 : pairs*2]
+			return
+		}
 	}
 	// In some situations we don't get a loader-provided
 	// auxv, such as when loaded as a library on Android.
