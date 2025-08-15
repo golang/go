@@ -1774,7 +1774,7 @@ func TestReadMetricsSched(t *testing.T) {
 	t.Run("waiting", func(t *testing.T) {
 		// Force waiting count to be high.
 		const waitingCount = 1000
-		stop = make(chan bool)
+		stop := make(chan bool)
 		for i := 0; i < waitingCount; i++ {
 			go func() { <-stop }()
 		}
