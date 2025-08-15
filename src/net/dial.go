@@ -727,13 +727,15 @@ func (sd *sysDialer) dialParallel(ctx context.Context, primaries, fallbacks addr
 // dialSerial connects to a list of addresses in sequence, returning
 // either the first successful connection, or the first error.
 func (sd *sysDialer) dialSerial(ctx context.Context, ras addrList) (Conn, error) {
-	var conn Conn
 	var firstErr error // The error from the first address is most relevant.
 
 	for i := range ras {
-		conn, firstErr = sd.dialAddr(ctx, ras, i)
-		if firstErr == nil {
+		conn, err := sd.dialAddr(ctx, ras, i)
+		if err == nil {
 			return conn, nil
+		}
+		if firstErr == nil {
+			firstErr = err
 		}
 	}
 
