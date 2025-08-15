@@ -31,6 +31,7 @@ type Reader struct {
 	cpuSamples []cpuSample
 	order      ordering
 	syncs      int
+	readGenErr error
 	done       bool
 
 	// Spill state.
@@ -153,9 +154,18 @@ func (r *Reader) ReadEvent() (e Event, err error) {
 		if r.version < version.Go126 {
 			return r.nextGenWithSpill()
 		}
+		if r.readGenErr != nil {
+			return Event{}, r.readGenErr
+		}
 		gen, err := readGeneration(r.r, r.version)
 		if err != nil {
-			return Event{}, err
+			// Before returning an error, emit the sync event
+			// for the current generation and queue up the error
+			// for the next call.
+			r.readGenErr = err
+			r.gen = nil
+			r.syncs++
+			return syncEvent(nil, r.lastTs, r.syncs), nil
 		}
 		return r.installGen(gen)
 	}
