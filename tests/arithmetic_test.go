@@ -373,3 +373,19 @@ func TestSafeArithmetic(t *testing.T) {
 		t.Fatalf("Expected 150, got %d", result2)
 	}
 }
+
+// Suppression directive tests for overflow/underflow
+func TestOverflowSuppression_LineAbove(t *testing.T) {
+    // Expect no panic due to suppression marker on previous line
+    var a int8 = 120
+    var b int8 = 10
+    // overflow_false_positive
+    _ = a + b
+}
+
+func TestOverflowSuppression_SameLine(t *testing.T) {
+    // Expect no panic due to suppression marker on same line
+    var a int8 = 120
+    var b int8 = 10
+    _ = a + b // overflow_false_positive
+}

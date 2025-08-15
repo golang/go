@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 
 	"cmd/compile/internal/abi"
 	"cmd/compile/internal/base"
@@ -5429,6 +5430,118 @@ func isStandardLibraryFile(filename string) bool {
 	return false
 }
 
+// Suppression directives to skip integer overflow checks on specific source lines.
+// If a line contains one of these markers, or the immediately preceding line contains it,
+// arithmetic overflow checks for that line will be skipped.
+const (
+	// Match either with or without a leading '@' in comments
+	overflowSuppressionDirectivePrimary = "overflow_false_positive"
+)
+
+// cache mapping filename -> set of line numbers that contain the suppression directive
+var overflowSuppressionCache sync.Map // map[string]map[int]struct{}
+
+// hasOverflowSuppression reports whether the given position has a nearby suppression directive.
+// It returns true if the exact line or the immediately preceding line contains the directive.
+func hasOverflowSuppression(pos src.XPos) bool {
+	if !pos.IsKnown() {
+		return false
+	}
+	p := base.Ctxt.PosTable.Pos(pos)
+	filename := p.Filename()
+	intLine := int(p.Line())
+	if filename == "" || intLine <= 0 {
+		return false
+	}
+
+	// Load or populate the per-file directive line set.
+	var lineSet map[int]struct{}
+	if v, ok := overflowSuppressionCache.Load(filename); ok {
+		lineSet, _ = v.(map[int]struct{})
+	} else {
+		// Build the set once per file.
+		data, err := os.ReadFile(filename)
+		if err != nil {
+			return false
+		}
+		lines := strings.Split(string(data), "\n")
+		set := make(map[int]struct{}, 8)
+		for i, s := range lines {
+			if strings.Contains(s, overflowSuppressionDirectivePrimary) {
+				// Lines are 1-indexed in src.Pos
+				set[i+1] = struct{}{}
+			}
+		}
+		overflowSuppressionCache.Store(filename, set)
+		lineSet = set
+	}
+
+	if lineSet == nil {
+		return false
+	}
+	if _, ok := lineSet[intLine]; ok {
+		return true
+	}
+	if intLine > 1 {
+		if _, ok := lineSet[intLine-1]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+// Suppress truncation detection when a directive is present on the same or previous line.
+const (
+	// Match either with or without a leading '@' in comments
+	truncationSuppressionDirectivePrimary = "truncation_false_positive"
+)
+
+var truncationSuppressionCache sync.Map // map[string]map[int]struct{}
+
+func hasTruncationSuppression(pos src.XPos) bool {
+	if !pos.IsKnown() {
+		return false
+	}
+	p := base.Ctxt.PosTable.Pos(pos)
+	filename := p.Filename()
+	intLine := int(p.Line())
+	if filename == "" || intLine <= 0 {
+		return false
+	}
+
+	var lineSet map[int]struct{}
+	if v, ok := truncationSuppressionCache.Load(filename); ok {
+		lineSet, _ = v.(map[int]struct{})
+	} else {
+		data, err := os.ReadFile(filename)
+		if err != nil {
+			return false
+		}
+		lines := strings.Split(string(data), "\n")
+		set := make(map[int]struct{}, 8)
+		for i, s := range lines {
+			if strings.Contains(s, truncationSuppressionDirectivePrimary) {
+				set[i+1] = struct{}{}
+			}
+		}
+		truncationSuppressionCache.Store(filename, set)
+		lineSet = set
+	}
+
+	if lineSet == nil {
+		return false
+	}
+	if _, ok := lineSet[intLine]; ok {
+		return true
+	}
+	if intLine > 1 {
+		if _, ok := lineSet[intLine-1]; ok {
+			return true
+		}
+	}
+	return false
+}
+
 // shouldCheckOverflow returns true if overflow detection should be applied for this operation.
 // It checks if the package should be excluded from overflow detection and if the type is supported.
 func (s *state) shouldCheckOverflow(typ *types.Type) bool {
@@ -5484,7 +5597,6 @@ func (s *state) shouldCheckTruncation(n ir.Node, fromType, toType *types.Type) b
 		return false
 	}
 
-
 	// Check truncation for integer types in these cases:
 	// 1. Target type is smaller than source type (traditional truncation)
 	// 2. Same size but different signedness (problematic conversions)
@@ -5537,6 +5649,11 @@ func (s *state) checkTypeTruncation(n ir.Node, value *ssa.Value, fromType, toTyp
 		if strings.Contains(filename, "/encoding/binary/") {
 			return s.newValue1(op, toType, value)
 		}
+	}
+
+	// Allow source-level suppression using the same directive key.
+	if hasTruncationSuppression(n.Pos()) {
+		return s.newValue1(op, toType, value)
 	}
 
 	// Perform the conversion first
@@ -5631,6 +5748,10 @@ func (s *state) intAdd(n ir.Node, a, b *ssa.Value) *ssa.Value {
 		}
 	}
 
+	if hasOverflowSuppression(n.Pos()) {
+		return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
+	}
+
 	if !s.shouldCheckOverflow(n.Type()) {
 		return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
 	}
@@ -5702,6 +5823,10 @@ func (s *state) intSub(n ir.Node, a, b *ssa.Value) *ssa.Value {
 		}
 	}
 
+	if hasOverflowSuppression(n.Pos()) {
+		return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
+	}
+
 	if !s.shouldCheckOverflow(n.Type()) {
 		return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
 	}
@@ -5771,6 +5896,10 @@ func (s *state) intMul(n ir.Node, a, b *ssa.Value) *ssa.Value {
 			// Skip overflow detection for operations from standard library files
 			return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
 		}
+	}
+
+	if hasOverflowSuppression(n.Pos()) {
+		return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
 	}
 
 	if !s.shouldCheckOverflow(n.Type()) {
@@ -5845,7 +5974,10 @@ func (s *state) intDiv(n ir.Node, a, b *ssa.Value) *ssa.Value {
 		s.check(cmp, ir.Syms.Panicdivide)
 	}
 
-	// If overflow detection is disabled, just perform the division
+	// If overflow detection is suppressed/disabled, just perform the division
+	if hasOverflowSuppression(n.Pos()) {
+		return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
+	}
 	if !s.shouldCheckOverflow(n.Type()) {
 		return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
 	}

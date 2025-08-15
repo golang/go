@@ -135,6 +135,27 @@ func main() {
 }
 ```
 
+### Suppressing false positives
+
+Add a comment marker on the same line as the operation or the line immediately above to mark a bug as false positive, so that the compiler won't panic on the arithmetic or truncation issue.:
+
+- Overflow/underflow: `overflow_false_positive`
+- Truncation: `truncation_false_positive`
+
+Example:
+
+```go
+// overflow_false_positive
+sum := a + b
+
+// truncation_false_positive
+x := uint8(big)
+
+sum2 := a + b // overflow_false_positive
+x2 := uint8(big) // truncation_false_positive
+```
+ 
+
 **Expected output:**
 
 ```bash

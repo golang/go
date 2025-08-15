@@ -395,3 +395,17 @@ func TestSafeTruncation(t *testing.T) {
 		t.Fatalf("Expected 200, got %d", result2)
 	}
 }
+
+// Suppression directive tests for truncation
+func TestTruncationSuppression_LineAbove(t *testing.T) {
+    // Expect no panic due to suppression marker on previous line
+    var big uint16 = 300
+    // truncation_false_positive
+    _ = uint8(big)
+}
+
+func TestTruncationSuppression_SameLine(t *testing.T) {
+    // Expect no panic due to suppression marker on same line
+    var big uint16 = 300
+    _ = uint8(big) // truncation_false_positive
+}
