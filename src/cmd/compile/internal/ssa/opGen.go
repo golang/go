@@ -1765,6 +1765,18 @@ const (
 	OpAMD64VPMINUWMasked128
 	OpAMD64VPMINUWMasked256
 	OpAMD64VPMINUWMasked512
+	OpAMD64VPMOVZXBW128
+	OpAMD64VPMOVZXBW256
+	OpAMD64VPMOVZXBW512
+	OpAMD64VPMOVZXBWMasked128
+	OpAMD64VPMOVZXBWMasked256
+	OpAMD64VPMOVZXBWMasked512
+	OpAMD64VPMOVZXWD128
+	OpAMD64VPMOVZXWD256
+	OpAMD64VPMOVZXWD512
+	OpAMD64VPMOVZXWDMasked128
+	OpAMD64VPMOVZXWDMasked256
+	OpAMD64VPMOVZXWDMasked512
 	OpAMD64VPMULDQ128
 	OpAMD64VPMULDQ256
 	OpAMD64VPMULHUW128
@@ -4838,9 +4850,15 @@ const (
 	OpConvertToInt32Float32x4
 	OpConvertToInt32Float32x8
 	OpConvertToInt32Float32x16
+	OpConvertToUint16Uint8x16
+	OpConvertToUint16Uint8x32
+	OpConvertToUint16x8Uint8x16
 	OpConvertToUint32Float32x4
 	OpConvertToUint32Float32x8
 	OpConvertToUint32Float32x16
+	OpConvertToUint32Uint16x8
+	OpConvertToUint32Uint16x16
+	OpConvertToUint32x4Uint16x8
 	OpCopySignInt8x16
 	OpCopySignInt8x32
 	OpCopySignInt16x8
@@ -26818,6 +26836,168 @@ var opcodeTable = [...]opInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
 				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVZXBW128",
+		argLen: 1,
+		asm:    x86.AVPMOVZXBW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVZXBW256",
+		argLen: 1,
+		asm:    x86.AVPMOVZXBW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVZXBW512",
+		argLen: 1,
+		asm:    x86.AVPMOVZXBW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPMOVZXBWMasked128",
+		argLen: 2,
+		asm:    x86.AVPMOVZXBW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVZXBWMasked256",
+		argLen: 2,
+		asm:    x86.AVPMOVZXBW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVZXBWMasked512",
+		argLen: 2,
+		asm:    x86.AVPMOVZXBW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVZXWD128",
+		argLen: 1,
+		asm:    x86.AVPMOVZXWD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVZXWD256",
+		argLen: 1,
+		asm:    x86.AVPMOVZXWD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVZXWD512",
+		argLen: 1,
+		asm:    x86.AVPMOVZXWD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPMOVZXWDMasked128",
+		argLen: 2,
+		asm:    x86.AVPMOVZXWD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVZXWDMasked256",
+		argLen: 2,
+		asm:    x86.AVPMOVZXWD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVZXWDMasked512",
+		argLen: 2,
+		asm:    x86.AVPMOVZXWD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -64009,6 +64189,21 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "ConvertToUint16Uint8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToUint16Uint8x32",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToUint16x8Uint8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
 		name:    "ConvertToUint32Float32x4",
 		argLen:  1,
 		generic: true,
@@ -64020,6 +64215,21 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "ConvertToUint32Float32x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToUint32Uint16x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToUint32Uint16x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToUint32x4Uint16x8",
 		argLen:  1,
 		generic: true,
 	},

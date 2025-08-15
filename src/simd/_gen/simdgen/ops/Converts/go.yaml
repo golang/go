@@ -19,3 +19,75 @@
     go: $u
     base: uint
     elemBits: 32
+
+- go: ConvertToUint16x8
+  asm: "VPMOVZXBW"
+  in:
+  - &u8x16
+    base: uint
+    elemBits: 8
+    bits: 128
+  out:
+  -
+    base: uint
+    elemBits: 16
+    bits: 128
+
+- go: ConvertToUint16
+  asm: "VPMOVZXBW"
+  in:
+  - *u8x16
+  out:
+  -
+    base: uint
+    elemBits: 16
+    bits: 256
+
+- go: ConvertToUint16
+  asm: "VPMOVZXBW"
+  in:
+  -
+    base: uint
+    elemBits: 8
+    bits: 256
+  out:
+  -
+    base: uint
+    elemBits: 16
+    bits: 512
+
+- go: ConvertToUint32x4
+  asm: "VPMOVZXWD"
+  in:
+  - &u16x8
+    base: uint
+    elemBits: 16
+    bits: 128
+  out:
+  -
+    base: uint
+    elemBits: 32
+    bits: 128
+
+- go: ConvertToUint32
+  asm: "VPMOVZXWD"
+  in:
+  - *u16x8
+  out:
+  -
+    base: uint
+    elemBits: 32
+    bits: 256
+
+- go: ConvertToUint32
+  asm: "VPMOVZXWD"
+  in:
+  -
+    base: uint
+    elemBits: 16
+    bits: 256
+  out:
+  -
+    base: uint
+    elemBits: 32
+    bits: 512

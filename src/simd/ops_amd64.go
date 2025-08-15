@@ -1212,22 +1212,58 @@ func (x Float32x8) ConvertToInt32() Int32x8
 // Asm: VCVTTPS2DQ, CPU Feature: AVX512
 func (x Float32x16) ConvertToInt32() Int32x16
 
+/* ConvertToUint16 */
+
+// ConvertToUint16 converts element values to uint16.
+//
+// Asm: VPMOVZXBW, CPU Feature: AVX2
+func (x Uint8x16) ConvertToUint16() Uint16x16
+
+// ConvertToUint16 converts element values to uint16.
+//
+// Asm: VPMOVZXBW, CPU Feature: AVX512
+func (x Uint8x32) ConvertToUint16() Uint16x32
+
+/* ConvertToUint16x8 */
+
+// ConvertToUint16x8 converts 8 lowest vector element values to uint16.
+//
+// Asm: VPMOVZXBW, CPU Feature: AVX
+func (x Uint8x16) ConvertToUint16x8() Uint16x8
+
 /* ConvertToUint32 */
 
-// ConvertToUint32Masked converts element values to uint32.
+// ConvertToUint32 converts element values to uint32.
 //
 // Asm: VCVTPS2UDQ, CPU Feature: AVX512
 func (x Float32x4) ConvertToUint32() Uint32x4
 
-// ConvertToUint32Masked converts element values to uint32.
+// ConvertToUint32 converts element values to uint32.
 //
 // Asm: VCVTPS2UDQ, CPU Feature: AVX512
 func (x Float32x8) ConvertToUint32() Uint32x8
 
-// ConvertToUint32Masked converts element values to uint32.
+// ConvertToUint32 converts element values to uint32.
 //
 // Asm: VCVTPS2UDQ, CPU Feature: AVX512
 func (x Float32x16) ConvertToUint32() Uint32x16
+
+// ConvertToUint32 converts element values to uint32.
+//
+// Asm: VPMOVZXWD, CPU Feature: AVX2
+func (x Uint16x8) ConvertToUint32() Uint32x8
+
+// ConvertToUint32 converts element values to uint32.
+//
+// Asm: VPMOVZXWD, CPU Feature: AVX512
+func (x Uint16x16) ConvertToUint32() Uint32x16
+
+/* ConvertToUint32x4 */
+
+// ConvertToUint32x4 converts 4 lowest vector element values to uint32.
+//
+// Asm: VPMOVZXWD, CPU Feature: AVX
+func (x Uint16x8) ConvertToUint32x4() Uint32x4
 
 /* CopySign */
 
