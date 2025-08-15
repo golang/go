@@ -517,7 +517,7 @@
 (GetCallerSP ...) => (LoweredGetCallerSP ...)
 (GetCallerPC ...) => (LoweredGetCallerPC ...)
 
-(If cond yes no) => (NE (MOVBUreg <typ.UInt64> cond) yes no)
+(If cond yes no) => (NEZ (MOVBUreg <typ.UInt64> cond) yes no)
 (MOVBUreg x:((SGT|SGTU) _ _)) => x
 (MOVBUreg x:(XOR (MOVVconst [1]) ((SGT|SGTU) _ _))) => x
 
@@ -750,10 +750,13 @@
 (SRLVconst [rc] (MOVBUreg x)) && rc >= 8 => (MOVVconst [0])
 
 // mul by constant
-(MULV x (MOVVconst [-1])) => (NEGV x)
 (MULV _ (MOVVconst [0])) => (MOVVconst [0])
 (MULV x (MOVVconst [1])) => x
-(MULV x (MOVVconst [c])) && isPowerOfTwo(c) => (SLLVconst [log64(c)] x)
+
+(MULV  x (MOVVconst [c])) && canMulStrengthReduce(config, c) => {mulStrengthReduce(v, x, c)}
+
+(MULV (NEGV x) (MOVVconst [c])) => (MULV x (MOVVconst [-c]))
+(MULV (NEGV x) (NEGV y)) => (MULV x y)
 
 // div by constant
 (DIVVU x (MOVVconst [1])) => x
@@ -899,41 +902,46 @@
 // Optimizations
 
 // Absorb boolean tests into block
-(NE (FPFlagTrue cmp) yes no) => (FPT cmp yes no)
-(NE (FPFlagFalse cmp) yes no) => (FPF cmp yes no)
-(EQ (FPFlagTrue cmp) yes no) => (FPF cmp yes no)
-(EQ (FPFlagFalse cmp) yes no) => (FPT cmp yes no)
-(NE (XORconst [1] cmp:(SGT _ _)) yes no) => (EQ cmp yes no)
-(NE (XORconst [1] cmp:(SGTU _ _)) yes no) => (EQ cmp yes no)
-(NE (XORconst [1] cmp:(SGTconst _)) yes no) => (EQ cmp yes no)
-(NE (XORconst [1] cmp:(SGTUconst _)) yes no) => (EQ cmp yes no)
-(EQ (XORconst [1] cmp:(SGT _ _)) yes no) => (NE cmp yes no)
-(EQ (XORconst [1] cmp:(SGTU _ _)) yes no) => (NE cmp yes no)
-(EQ (XORconst [1] cmp:(SGTconst _)) yes no) => (NE cmp yes no)
-(EQ (XORconst [1] cmp:(SGTUconst _)) yes no) => (NE cmp yes no)
-(NE (SGTUconst [1] x) yes no) => (EQ x yes no)
-(EQ (SGTUconst [1] x) yes no) => (NE x yes no)
-(NE (SGTU x (MOVVconst [0])) yes no) => (NE x yes no)
-(EQ (SGTU x (MOVVconst [0])) yes no) => (EQ x yes no)
-(NE (SGTconst [0] x) yes no) => (LTZ x yes no)
-(EQ (SGTconst [0] x) yes no) => (GEZ x yes no)
-(NE (SGT x (MOVVconst [0])) yes no) => (GTZ x yes no)
-(EQ (SGT x (MOVVconst [0])) yes no) => (LEZ x yes no)
+(NEZ (FPFlagTrue cmp) yes no) => (FPT cmp yes no)
+(NEZ (FPFlagFalse cmp) yes no) => (FPF cmp yes no)
+(EQZ (FPFlagTrue cmp) yes no) => (FPF cmp yes no)
+(EQZ (FPFlagFalse cmp) yes no) => (FPT cmp yes no)
+(NEZ (XORconst [1] cmp:(SGT _ _)) yes no) => (EQZ cmp yes no)
+(NEZ (XORconst [1] cmp:(SGTU _ _)) yes no) => (EQZ cmp yes no)
+(NEZ (XORconst [1] cmp:(SGTconst _)) yes no) => (EQZ cmp yes no)
+(NEZ (XORconst [1] cmp:(SGTUconst _)) yes no) => (EQZ cmp yes no)
+(EQZ (XORconst [1] cmp:(SGT _ _)) yes no) => (NEZ cmp yes no)
+(EQZ (XORconst [1] cmp:(SGTU _ _)) yes no) => (NEZ cmp yes no)
+(EQZ (XORconst [1] cmp:(SGTconst _)) yes no) => (NEZ cmp yes no)
+(EQZ (XORconst [1] cmp:(SGTUconst _)) yes no) => (NEZ cmp yes no)
+(NEZ (SGTUconst [1] x) yes no) => (EQZ x yes no)
+(EQZ (SGTUconst [1] x) yes no) => (NEZ x yes no)
+(NEZ (SGTU x (MOVVconst [0])) yes no) => (NEZ x yes no)
+(EQZ (SGTU x (MOVVconst [0])) yes no) => (EQZ x yes no)
+(NEZ (SGTconst [0] x) yes no) => (LTZ x yes no)
+(EQZ (SGTconst [0] x) yes no) => (GEZ x yes no)
+(NEZ (SGT x (MOVVconst [0])) yes no) => (GTZ x yes no)
+(EQZ (SGT x (MOVVconst [0])) yes no) => (LEZ x yes no)
 
-(EQ (SGTU (MOVVconst [c]) y) yes no) && c >= -2048 && c <= 2047 => (EQ (SGTUconst [c] y) yes no)
-(NE (SGTU (MOVVconst [c]) y) yes no) && c >= -2048 && c <= 2047 => (NE (SGTUconst [c] y) yes no)
-(EQ (SUBV x y) yes no) => (BEQ x y yes no)
-(NE (SUBV x y) yes no) => (BNE x y yes no)
-(EQ (SGT x y) yes no) => (BGE y x yes no)
-(NE (SGT x y) yes no) => (BLT y x yes no)
-(EQ (SGTU x y) yes no) => (BGEU y x yes no)
-(NE (SGTU x y) yes no) => (BLTU y x yes no)
+// Convert EQZ/NEZ into more optimal branch conditions.
+(EQZ (SGTU (MOVVconst [c]) y) yes no) && c >= -2048 && c <= 2047 => (EQZ (SGTUconst [c] y) yes no)
+(NEZ (SGTU (MOVVconst [c]) y) yes no) && c >= -2048 && c <= 2047 => (NEZ (SGTUconst [c] y) yes no)
+(EQZ (SUBV x y) yes no) => (BEQ x y yes no)
+(NEZ (SUBV x y) yes no) => (BNE x y yes no)
+(EQZ (SGT x y) yes no) => (BGE y x yes no)
+(NEZ (SGT x y) yes no) => (BLT y x yes no)
+(EQZ (SGTU x y) yes no) => (BGEU y x yes no)
+(NEZ (SGTU x y) yes no) => (BLTU y x yes no)
+(EQZ (SGTconst [c] y) yes no) => (BGE y (MOVVconst [c]) yes no)
+(NEZ (SGTconst [c] y) yes no) => (BLT y (MOVVconst [c]) yes no)
+(EQZ (SGTUconst [c] y) yes no) => (BGEU y (MOVVconst [c]) yes no)
+(NEZ (SGTUconst [c] y) yes no) => (BLTU y (MOVVconst [c]) yes no)
 
 // absorb constants into branches
-(EQ  (MOVVconst [0]) yes no) => (First yes no)
-(EQ  (MOVVconst [c]) yes no) && c != 0 => (First no yes)
-(NE  (MOVVconst [0]) yes no) => (First no yes)
-(NE  (MOVVconst [c]) yes no) && c != 0 => (First yes no)
+(EQZ  (MOVVconst [0]) yes no) => (First yes no)
+(EQZ  (MOVVconst [c]) yes no) && c != 0 => (First no yes)
+(NEZ  (MOVVconst [0]) yes no) => (First no yes)
+(NEZ  (MOVVconst [c]) yes no) && c != 0 => (First yes no)
 (LTZ (MOVVconst [c]) yes no) && c <  0 => (First yes no)
 (LTZ (MOVVconst [c]) yes no) && c >= 0 => (First no yes)
 (LEZ (MOVVconst [c]) yes no) && c <= 0 => (First yes no)
@@ -942,6 +950,22 @@
 (GTZ (MOVVconst [c]) yes no) && c <= 0 => (First no yes)
 (GEZ (MOVVconst [c]) yes no) && c >= 0 => (First yes no)
 (GEZ (MOVVconst [c]) yes no) && c <  0 => (First no yes)
+
+// absorb NEGV into branches
+(EQZ (NEGV x) yes no) => (EQZ x yes no)
+(NEZ (NEGV x) yes no) => (NEZ x yes no)
+
+// Convert branch with zero to more optimal branch zero.
+(BEQ  (MOVVconst [0]) cond yes no) => (EQZ cond yes no)
+(BEQ  cond (MOVVconst [0]) yes no) => (EQZ cond yes no)
+(BNE  (MOVVconst [0]) cond yes no) => (NEZ cond yes no)
+(BNE  cond (MOVVconst [0]) yes no) => (NEZ cond yes no)
+(BLT  (MOVVconst [0]) cond yes no) => (GTZ cond yes no)
+(BLT  cond (MOVVconst [0]) yes no) => (LTZ cond yes no)
+(BLTU (MOVVconst [0]) cond yes no) => (NEZ cond yes no)
+(BGE  (MOVVconst [0]) cond yes no) => (LEZ cond yes no)
+(BGE  cond (MOVVconst [0]) yes no) => (GEZ cond yes no)
+(BGEU (MOVVconst [0]) cond yes no) => (EQZ cond yes no)
 
 // Arch-specific inlining for small or disjoint runtime.memmove
 // Match post-lowering calls, register version.

@@ -32,12 +32,3 @@ func DeepCopy(pos src.XPos, n Node) Node {
 	}
 	return edit(n)
 }
-
-// DeepCopyList returns a list of deep copies (using DeepCopy) of the nodes in list.
-func DeepCopyList(pos src.XPos, list []Node) []Node {
-	var out []Node
-	for _, n := range list {
-		out = append(out, DeepCopy(pos, n))
-	}
-	return out
-}

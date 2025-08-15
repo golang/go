@@ -151,7 +151,7 @@ func TestTickerResetLtZeroDuration(t *testing.T) {
 }
 
 func TestLongAdjustTimers(t *testing.T) {
-	if runtime.GOOS == "android" || runtime.GOOS == "ios" {
+	if runtime.GOOS == "android" || runtime.GOOS == "ios" || runtime.GOOS == "plan9" {
 		t.Skipf("skipping on %s - too slow", runtime.GOOS)
 	}
 	t.Parallel()

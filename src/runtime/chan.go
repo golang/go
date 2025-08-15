@@ -191,7 +191,7 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
 	}
 
 	if c.bubble != nil && getg().bubble != c.bubble {
-		panic(plainError("send on synctest channel from outside bubble"))
+		fatal("send on synctest channel from outside bubble")
 	}
 
 	// Fast path: check for failed non-blocking operation without acquiring the lock.
@@ -318,7 +318,7 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
 func send(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int) {
 	if c.bubble != nil && getg().bubble != c.bubble {
 		unlockf()
-		panic(plainError("send on synctest channel from outside bubble"))
+		fatal("send on synctest channel from outside bubble")
 	}
 	if raceenabled {
 		if c.dataqsiz == 0 {
@@ -416,7 +416,7 @@ func closechan(c *hchan) {
 		panic(plainError("close of nil channel"))
 	}
 	if c.bubble != nil && getg().bubble != c.bubble {
-		panic(plainError("close of synctest channel from outside bubble"))
+		fatal("close of synctest channel from outside bubble")
 	}
 
 	lock(&c.lock)
@@ -538,7 +538,7 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 	}
 
 	if c.bubble != nil && getg().bubble != c.bubble {
-		panic(plainError("receive on synctest channel from outside bubble"))
+		fatal("receive on synctest channel from outside bubble")
 	}
 
 	if c.timer != nil {
@@ -702,7 +702,7 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 func recv(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int) {
 	if c.bubble != nil && getg().bubble != c.bubble {
 		unlockf()
-		panic(plainError("receive on synctest channel from outside bubble"))
+		fatal("receive on synctest channel from outside bubble")
 	}
 	if c.dataqsiz == 0 {
 		if raceenabled {

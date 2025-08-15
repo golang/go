@@ -34,6 +34,9 @@ const (
 // It is also the size of the machine's native word size (that is, 4 on 32-bit systems, 8 on 64-bit).
 const PtrSize = 4 << (^uintptr(0) >> 63)
 
+// PtrSize is bit width of a pointer.
+const PtrBits = PtrSize * 8
+
 // ArchFamily is the architecture family (AMD64, ARM, ...)
 const ArchFamily ArchFamilyType = _ArchFamily
 

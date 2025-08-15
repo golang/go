@@ -195,3 +195,24 @@ func ui4d(c <-chan uint8) {
 	for x := <-c; x < 126 || x >= 128; x = <-c {
 	}
 }
+
+// ------------------------------------ //
+// regressions                          //
+// ------------------------------------ //
+
+func gte4(x uint64) bool {
+	return x >= 4
+}
+
+func lt20(x uint64) bool {
+	return x < 20
+}
+
+func issue74915(c <-chan uint64) {
+	// Check that the optimization is not blocked by function inlining.
+
+	// amd64:"CMPQ\t.+, [$]16","ADDQ\t[$]-4,"
+	// s390x:"CLGIJ\t[$]4, R[0-9]+, [$]16","ADD\t[$]-4,"
+	for x := <-c; gte4(x) && lt20(x); x = <-c {
+	}
+}

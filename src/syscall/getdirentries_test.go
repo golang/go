@@ -11,7 +11,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strings"
 	"syscall"
 	"testing"
 	"unsafe"
@@ -78,7 +77,7 @@ func testGetdirentries(t *testing.T, count int) {
 	names = append(names, ".", "..") // Getdirentries returns these also
 	slices.Sort(names)
 	slices.Sort(names2)
-	if strings.Join(names, ":") != strings.Join(names2, ":") {
+	if !slices.Equal(names, names2) {
 		t.Errorf("names don't match\n names: %q\nnames2: %q", names, names2)
 	}
 }

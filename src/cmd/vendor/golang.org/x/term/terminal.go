@@ -146,6 +146,7 @@ const (
 	keyCtrlD     = 4
 	keyCtrlU     = 21
 	keyEnter     = '\r'
+	keyLF        = '\n'
 	keyEscape    = 27
 	keyBackspace = 127
 	keyUnknown   = 0xd800 /* UTF-16 surrogate area */ + iota
@@ -497,7 +498,7 @@ func (t *Terminal) historyAdd(entry string) {
 // handleKey processes the given key and, optionally, returns a line of text
 // that the user has entered.
 func (t *Terminal) handleKey(key rune) (line string, ok bool) {
-	if t.pasteActive && key != keyEnter {
+	if t.pasteActive && key != keyEnter && key != keyLF {
 		t.addKeyToLine(key)
 		return
 	}
@@ -567,7 +568,7 @@ func (t *Terminal) handleKey(key rune) (line string, ok bool) {
 				t.setLine(runes, len(runes))
 			}
 		}
-	case keyEnter:
+	case keyEnter, keyLF:
 		t.moveCursorToPos(len(t.line))
 		t.queue([]rune("\r\n"))
 		line = string(t.line)
@@ -811,6 +812,10 @@ func (t *Terminal) readLine() (line string, err error) {
 			}
 			if !t.pasteActive {
 				lineIsPasted = false
+			}
+			// If we have CR, consume LF if present (CRLF sequence) to avoid returning an extra empty line.
+			if key == keyEnter && len(rest) > 0 && rest[0] == keyLF {
+				rest = rest[1:]
 			}
 			line, lineOk = t.handleKey(key)
 		}

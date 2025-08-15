@@ -9,6 +9,6 @@ import "unsafe"
 //go:nosplit
 func cputicks() int64 {
 	var counter int64
-	stdcall1(_QueryPerformanceCounter, uintptr(unsafe.Pointer(&counter)))
+	stdcall(_QueryPerformanceCounter, uintptr(unsafe.Pointer(&counter)))
 	return counter
 }

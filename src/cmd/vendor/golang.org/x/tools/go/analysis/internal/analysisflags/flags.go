@@ -318,23 +318,31 @@ var vetLegacyFlags = map[string]string{
 // If contextLines is nonnegative, it also prints the
 // offending line plus this many lines of context.
 func PrintPlain(out io.Writer, fset *token.FileSet, contextLines int, diag analysis.Diagnostic) {
-	posn := fset.Position(diag.Pos)
-	fmt.Fprintf(out, "%s: %s\n", posn, diag.Message)
+	print := func(pos, end token.Pos, message string) {
+		posn := fset.Position(pos)
+		fmt.Fprintf(out, "%s: %s\n", posn, message)
 
-	// show offending line plus N lines of context.
-	if contextLines >= 0 {
-		posn := fset.Position(diag.Pos)
-		end := fset.Position(diag.End)
-		if !end.IsValid() {
-			end = posn
-		}
-		data, _ := os.ReadFile(posn.Filename)
-		lines := strings.Split(string(data), "\n")
-		for i := posn.Line - contextLines; i <= end.Line+contextLines; i++ {
-			if 1 <= i && i <= len(lines) {
-				fmt.Fprintf(out, "%d\t%s\n", i, lines[i-1])
+		// show offending line plus N lines of context.
+		if contextLines >= 0 {
+			end := fset.Position(end)
+			if !end.IsValid() {
+				end = posn
+			}
+			// TODO(adonovan): highlight the portion of the line indicated
+			// by pos...end using ASCII art, terminal colors, etc?
+			data, _ := os.ReadFile(posn.Filename)
+			lines := strings.Split(string(data), "\n")
+			for i := posn.Line - contextLines; i <= end.Line+contextLines; i++ {
+				if 1 <= i && i <= len(lines) {
+					fmt.Fprintf(out, "%d\t%s\n", i, lines[i-1])
+				}
 			}
 		}
+	}
+
+	print(diag.Pos, diag.End, diag.Message)
+	for _, rel := range diag.Related {
+		print(rel.Pos, rel.End, "\t"+rel.Message)
 	}
 }
 

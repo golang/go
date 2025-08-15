@@ -103,9 +103,8 @@ func panicCheck2(err string) {
 // these (they always look like they're called from the runtime).
 // Hence, for these, we just check for clearly bad runtime conditions.
 //
-// The panic{Index,Slice} functions are implemented in assembly and tail call
-// to the goPanic{Index,Slice} functions below. This is done so we can use
-// a space-minimal register calling convention.
+// The goPanic{Index,Slice} functions are only used by wasm. All the other architectures
+// use panic{Bounds,Extend} in assembly, which then call to panicBounds{64,32,32X}.
 
 // failures in the comparisons for s[x], 0 <= x < y (y == len(s))
 //
@@ -205,28 +204,10 @@ func goPanicSliceConvert(x int, y int) {
 	panic(boundsError{x: int64(x), signed: true, y: y, code: abi.BoundsConvert})
 }
 
-// Implemented in assembly, as they take arguments in registers.
-// Declared here to mark them as ABIInternal.
-func panicIndex(x int, y int)
-func panicIndexU(x uint, y int)
-func panicSliceAlen(x int, y int)
-func panicSliceAlenU(x uint, y int)
-func panicSliceAcap(x int, y int)
-func panicSliceAcapU(x uint, y int)
-func panicSliceB(x int, y int)
-func panicSliceBU(x uint, y int)
-func panicSlice3Alen(x int, y int)
-func panicSlice3AlenU(x uint, y int)
-func panicSlice3Acap(x int, y int)
-func panicSlice3AcapU(x uint, y int)
-func panicSlice3B(x int, y int)
-func panicSlice3BU(x uint, y int)
-func panicSlice3C(x int, y int)
-func panicSlice3CU(x uint, y int)
-func panicSliceConvert(x int, y int)
-
+// Implemented in assembly. Declared here to mark them as ABIInternal.
 func panicBounds() // in asm_GOARCH.s files, called from generated code
 func panicExtend() // in asm_GOARCH.s files, called from generated code (on 32-bit archs)
+
 func panicBounds64(pc uintptr, regs *[16]int64) { // called from panicBounds on 64-bit archs
 	f := findfunc(pc)
 	v := pcdatavalue(f, abi.PCDATA_PanicBounds, pc-1)

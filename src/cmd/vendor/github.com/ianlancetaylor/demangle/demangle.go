@@ -186,7 +186,7 @@ func ToAST(name string, options ...Option) (AST, error) {
 		i := 0
 		for i < len(options) {
 			if options[i] == NoParams {
-				options = append(options[:i], options[i+1:]...)
+				options = append(options[:i:i], options[i+1:]...)
 			} else {
 				i++
 			}

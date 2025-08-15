@@ -72,14 +72,6 @@ type Engine struct {
 	Quiet bool
 }
 
-// NewEngine returns an Engine configured with a basic set of commands and conditions.
-func NewEngine() *Engine {
-	return &Engine{
-		Cmds:  DefaultCmds(),
-		Conds: DefaultConds(),
-	}
-}
-
 // A Cmd is a command that is available to a script.
 type Cmd interface {
 	// Run begins running the command.

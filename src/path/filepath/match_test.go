@@ -231,7 +231,7 @@ func (test *globTest) globAbs(root, rootPattern string) error {
 	}
 	slices.Sort(have)
 	want := test.buildWant(root + `\`)
-	if strings.Join(want, "_") == strings.Join(have, "_") {
+	if slices.Equal(want, have) {
 		return nil
 	}
 	return fmt.Errorf("Glob(%q) returns %q, but %q expected", p, have, want)
@@ -245,12 +245,12 @@ func (test *globTest) globRel(root string) error {
 	}
 	slices.Sort(have)
 	want := test.buildWant(root)
-	if strings.Join(want, "_") == strings.Join(have, "_") {
+	if slices.Equal(want, have) {
 		return nil
 	}
 	// try also matching version without root prefix
 	wantWithNoRoot := test.buildWant("")
-	if strings.Join(wantWithNoRoot, "_") == strings.Join(have, "_") {
+	if slices.Equal(wantWithNoRoot, have) {
 		return nil
 	}
 	return fmt.Errorf("Glob(%q) returns %q, but %q expected", p, have, want)

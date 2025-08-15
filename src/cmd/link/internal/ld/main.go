@@ -292,14 +292,6 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	interpreter = *flagInterpreter
 
-	if *flagBuildid == "" && ctxt.Target.IsOpenbsd() {
-		// TODO(jsing): Remove once direct syscalls are no longer in use.
-		// OpenBSD 6.7 onwards will not permit direct syscalls from a
-		// dynamically linked binary unless it identifies the binary
-		// contains a .note.go.buildid ELF note. See issue #36435.
-		*flagBuildid = "go-openbsd"
-	}
-
 	if *flagHostBuildid == "" && *flagBuildid != "" {
 		*flagHostBuildid = "gobuildid"
 	}

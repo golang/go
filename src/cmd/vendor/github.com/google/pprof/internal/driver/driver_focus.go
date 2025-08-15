@@ -17,6 +17,7 @@ package driver
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -148,10 +149,8 @@ func compileTagFilter(name, value string, numLabelUnits map[string]string, ui pl
 	return func(s *profile.Sample) bool {
 		if vals, ok := s.Label[wantKey]; ok {
 			for _, rx := range rfx {
-				for _, val := range vals {
-					if rx.MatchString(val) {
-						return true
-					}
+				if slices.ContainsFunc(vals, rx.MatchString) {
+					return true
 				}
 			}
 		}

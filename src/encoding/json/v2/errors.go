@@ -88,7 +88,10 @@ type SemanticError struct {
 }
 
 // coder is implemented by [jsontext.Encoder] or [jsontext.Decoder].
-type coder interface{ StackPointer() jsontext.Pointer }
+type coder interface {
+	StackPointer() jsontext.Pointer
+	Options() Options
+}
 
 // newInvalidFormatError wraps err in a SemanticError because
 // the current type t cannot handle the provided options format.
@@ -97,13 +100,13 @@ type coder interface{ StackPointer() jsontext.Pointer }
 // If [jsonflags.ReportErrorsWithLegacySemantics] is specified,
 // then this automatically skips the next value when unmarshaling
 // to ensure that the value is fully consumed.
-func newInvalidFormatError(c coder, t reflect.Type, o *jsonopts.Struct) error {
-	err := fmt.Errorf("invalid format flag %q", o.Format)
+func newInvalidFormatError(c coder, t reflect.Type) error {
+	err := fmt.Errorf("invalid format flag %q", c.Options().(*jsonopts.Struct).Format)
 	switch c := c.(type) {
 	case *jsontext.Encoder:
 		err = newMarshalErrorBefore(c, t, err)
 	case *jsontext.Decoder:
-		err = newUnmarshalErrorBeforeWithSkipping(c, o, t, err)
+		err = newUnmarshalErrorBeforeWithSkipping(c, t, err)
 	}
 	return err
 }
@@ -136,9 +139,9 @@ func newUnmarshalErrorBefore(d *jsontext.Decoder, t reflect.Type, err error) err
 // newUnmarshalErrorBeforeWithSkipping is like [newUnmarshalErrorBefore],
 // but automatically skips the next value if
 // [jsonflags.ReportErrorsWithLegacySemantics] is specified.
-func newUnmarshalErrorBeforeWithSkipping(d *jsontext.Decoder, o *jsonopts.Struct, t reflect.Type, err error) error {
+func newUnmarshalErrorBeforeWithSkipping(d *jsontext.Decoder, t reflect.Type, err error) error {
 	err = newUnmarshalErrorBefore(d, t, err)
-	if o.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
+	if export.Decoder(d).Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
 		if err2 := export.Decoder(d).SkipValue(); err2 != nil {
 			return err2
 		}
@@ -170,9 +173,9 @@ func newUnmarshalErrorAfterWithValue(d *jsontext.Decoder, t reflect.Type, err er
 // newUnmarshalErrorAfterWithSkipping is like [newUnmarshalErrorAfter],
 // but automatically skips the remainder of the current value if
 // [jsonflags.ReportErrorsWithLegacySemantics] is specified.
-func newUnmarshalErrorAfterWithSkipping(d *jsontext.Decoder, o *jsonopts.Struct, t reflect.Type, err error) error {
+func newUnmarshalErrorAfterWithSkipping(d *jsontext.Decoder, t reflect.Type, err error) error {
 	err = newUnmarshalErrorAfter(d, t, err)
-	if o.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
+	if export.Decoder(d).Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
 		if err2 := export.Decoder(d).SkipValueRemainder(); err2 != nil {
 			return err2
 		}

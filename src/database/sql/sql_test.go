@@ -5,6 +5,7 @@
 package sql
 
 import (
+	"bytes"
 	"context"
 	"database/sql/driver"
 	"errors"
@@ -4200,6 +4201,102 @@ func TestNamedValueCheckerSkip(t *testing.T) {
 	}
 }
 
+type rcsDriver struct {
+	fakeDriver
+}
+
+func (d *rcsDriver) Open(dsn string) (driver.Conn, error) {
+	c, err := d.fakeDriver.Open(dsn)
+	fc := c.(*fakeConn)
+	fc.db.allowAny = true
+	return &rcsConn{fc}, err
+}
+
+type rcsConn struct {
+	*fakeConn
+}
+
+func (c *rcsConn) PrepareContext(ctx context.Context, q string) (driver.Stmt, error) {
+	stmt, err := c.fakeConn.PrepareContext(ctx, q)
+	if err != nil {
+		return stmt, err
+	}
+	return &rcsStmt{stmt.(*fakeStmt)}, nil
+}
+
+type rcsStmt struct {
+	*fakeStmt
+}
+
+func (s *rcsStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (driver.Rows, error) {
+	rows, err := s.fakeStmt.QueryContext(ctx, args)
+	if err != nil {
+		return rows, err
+	}
+	return &rcsRows{rows.(*rowsCursor)}, nil
+}
+
+type rcsRows struct {
+	*rowsCursor
+}
+
+func (r *rcsRows) ScanColumn(dest any, index int) error {
+	switch d := dest.(type) {
+	case *int64:
+		*d = 42
+		return nil
+	}
+
+	return driver.ErrSkip
+}
+
+func TestRowsColumnScanner(t *testing.T) {
+	Register("RowsColumnScanner", &rcsDriver{})
+	db, err := Open("RowsColumnScanner", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	_, err = db.ExecContext(ctx, "CREATE|t|str=string,n=int64")
+	if err != nil {
+		t.Fatal("exec create", err)
+	}
+
+	_, err = db.ExecContext(ctx, "INSERT|t|str=?,n=?", "foo", int64(1))
+	if err != nil {
+		t.Fatal("exec insert", err)
+	}
+	var (
+		str string
+		i64 int64
+		i   int
+		f64 float64
+		ui  uint
+	)
+	err = db.QueryRowContext(ctx, "SELECT|t|str,n,n,n,n|").Scan(&str, &i64, &i, &f64, &ui)
+	if err != nil {
+		t.Fatal("select", err)
+	}
+
+	list := []struct{ got, want any }{
+		{str, "foo"},
+		{i64, int64(42)},
+		{i, int(1)},
+		{f64, float64(1)},
+		{ui, uint(1)},
+	}
+
+	for index, item := range list {
+		if !reflect.DeepEqual(item.got, item.want) {
+			t.Errorf("got %#v wanted %#v for index %d", item.got, item.want, index)
+		}
+	}
+}
+
 func TestOpenConnector(t *testing.T) {
 	Register("testctx", &fakeDriverCtx{})
 	db, err := Open("testctx", "people")
@@ -4434,10 +4531,6 @@ func testContextCancelDuringRawBytesScan(t *testing.T, mode string) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
 
-	if _, err := db.Exec("USE_RAWBYTES"); err != nil {
-		t.Fatal(err)
-	}
-
 	// cancel used to call close asynchronously.
 	// This test checks that it waits so as not to interfere with RawBytes.
 	ctx, cancel := context.WithCancel(context.Background())
@@ -4529,6 +4622,61 @@ func TestContextCancelBetweenNextAndErr(t *testing.T) {
 	}
 }
 
+type testScanner struct {
+	scanf func(src any) error
+}
+
+func (ts testScanner) Scan(src any) error { return ts.scanf(src) }
+
+func TestContextCancelDuringScan(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	scanStart := make(chan any)
+	scanEnd := make(chan error)
+	scanner := &testScanner{
+		scanf: func(src any) error {
+			scanStart <- src
+			return <-scanEnd
+		},
+	}
+
+	// Start a query, and pause it mid-scan.
+	want := []byte("Alice")
+	r, err := db.QueryContext(ctx, "SELECT|people|name|name=?", string(want))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !r.Next() {
+		t.Fatalf("r.Next() = false, want true")
+	}
+	go func() {
+		r.Scan(scanner)
+	}()
+	got := <-scanStart
+	defer close(scanEnd)
+	gotBytes, ok := got.([]byte)
+	if !ok {
+		t.Fatalf("r.Scan returned %T, want []byte", got)
+	}
+	if !bytes.Equal(gotBytes, want) {
+		t.Fatalf("before cancel: r.Scan returned %q, want %q", gotBytes, want)
+	}
+
+	// Cancel the query.
+	// Sleep to give it a chance to finish canceling.
+	cancel()
+	time.Sleep(10 * time.Millisecond)
+
+	// Cancelling the query should not have changed the result.
+	if !bytes.Equal(gotBytes, want) {
+		t.Fatalf("after cancel: r.Scan result is now %q, want %q", gotBytes, want)
+	}
+}
+
 func TestNilErrorAfterClose(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
@@ -4561,10 +4709,6 @@ func TestNilErrorAfterClose(t *testing.T) {
 func TestRawBytesReuse(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
-
-	if _, err := db.Exec("USE_RAWBYTES"); err != nil {
-		t.Fatal(err)
-	}
 
 	var raw RawBytes
 

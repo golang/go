@@ -25,7 +25,7 @@ var noposn = atPos(nopos)
 const debug = false // leave on during development
 
 // position tracing for panics during type checking
-const tracePos = false // TODO(markfreeman): check performance implications
+const tracePos = true
 
 // gotypesalias controls the use of Alias types.
 // As of Apr 16 2024 they are used by default.

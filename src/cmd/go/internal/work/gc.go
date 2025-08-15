@@ -6,7 +6,6 @@ package work
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	"internal/buildcfg"
 	"internal/platform"
@@ -436,32 +435,6 @@ func (gcToolchain) symabis(b *Builder, a *Action, sfiles []string) (string, erro
 	}
 
 	return symabis, nil
-}
-
-// toolVerify checks that the command line args writes the same output file
-// if run using newTool instead.
-// Unused now but kept around for future use.
-func toolVerify(a *Action, b *Builder, p *load.Package, newTool string, ofile string, args []any) error {
-	newArgs := make([]any, len(args))
-	copy(newArgs, args)
-	newArgs[1] = base.Tool(newTool)
-	newArgs[3] = ofile + ".new" // x.6 becomes x.6.new
-	if err := b.Shell(a).run(p.Dir, p.ImportPath, nil, newArgs...); err != nil {
-		return err
-	}
-	data1, err := os.ReadFile(ofile)
-	if err != nil {
-		return err
-	}
-	data2, err := os.ReadFile(ofile + ".new")
-	if err != nil {
-		return err
-	}
-	if !bytes.Equal(data1, data2) {
-		return fmt.Errorf("%s and %s produced different output files:\n%s\n%s", filepath.Base(args[1].(string)), newTool, strings.Join(str.StringList(args...), " "), strings.Join(str.StringList(newArgs...), " "))
-	}
-	os.Remove(ofile + ".new")
-	return nil
 }
 
 func (gcToolchain) pack(b *Builder, a *Action, afile string, ofiles []string) error {

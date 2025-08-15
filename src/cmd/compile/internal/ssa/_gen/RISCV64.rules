@@ -299,6 +299,11 @@
 	(base.Op != OpSB || !config.ctxt.Flag_dynlink) =>
 	(MOV(B|BU|H|HU|W|WU|D)load [off1+off2] {mergeSym(sym1,sym2)} base mem)
 
+(FMOV(W|D)load [off1] {sym1} (MOVaddr [off2] {sym2} base) mem) &&
+	is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) &&
+	(base.Op != OpSB || !config.ctxt.Flag_dynlink) =>
+	(FMOV(W|D)load [off1+off2] {mergeSym(sym1,sym2)} base mem)
+
 (MOV(B|H|W|D)store [off1] {sym1} (MOVaddr [off2] {sym2} base) val mem) &&
 	is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) &&
 	(base.Op != OpSB || !config.ctxt.Flag_dynlink) =>
@@ -309,14 +314,25 @@
 	(base.Op != OpSB || !config.ctxt.Flag_dynlink) =>
 	(MOV(B|H|W|D)storezero [off1+off2] {mergeSym(sym1,sym2)} base mem)
 
+(FMOV(W|D)store [off1] {sym1} (MOVaddr [off2] {sym2} base) val mem) &&
+	is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) &&
+	(base.Op != OpSB || !config.ctxt.Flag_dynlink) =>
+	(FMOV(W|D)store [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+
 (MOV(B|BU|H|HU|W|WU|D)load [off1] {sym} (ADDI [off2] base) mem) && is32Bit(int64(off1)+off2) =>
 	(MOV(B|BU|H|HU|W|WU|D)load [off1+int32(off2)] {sym} base mem)
+
+(FMOV(W|D)load [off1] {sym} (ADDI [off2] base) mem) && is32Bit(int64(off1)+off2) =>
+	(FMOV(W|D)load [off1+int32(off2)] {sym} base mem)
 
 (MOV(B|H|W|D)store [off1] {sym} (ADDI [off2] base) val mem) && is32Bit(int64(off1)+off2) =>
 	(MOV(B|H|W|D)store [off1+int32(off2)] {sym} base val mem)
 
 (MOV(B|H|W|D)storezero [off1] {sym} (ADDI [off2] base) mem) && is32Bit(int64(off1)+off2) =>
 	(MOV(B|H|W|D)storezero [off1+int32(off2)] {sym} base mem)
+
+(FMOV(W|D)store [off1] {sym} (ADDI [off2] base) val mem) && is32Bit(int64(off1)+off2) =>
+	(FMOV(W|D)store [off1+int32(off2)] {sym} base val mem)
 
 // Similarly, fold ADDI into MOVaddr to avoid confusing live variable analysis
 // with OffPtr -> ADDI.
@@ -407,9 +423,11 @@
 // Publication barrier as intrinsic
 (PubBarrier ...) => (LoweredPubBarrier ...)
 
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 0 => (LoweredPanicBoundsA [kind] x y mem)
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 1 => (LoweredPanicBoundsB [kind] x y mem)
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 2 => (LoweredPanicBoundsC [kind] x y mem)
+(PanicBounds ...) => (LoweredPanicBoundsRR ...)
+(LoweredPanicBoundsRR [kind] x (MOVDconst [c]) mem) => (LoweredPanicBoundsRC [kind] x {PanicBoundsC{C:c}} mem)
+(LoweredPanicBoundsRR [kind] (MOVDconst [c]) y mem) => (LoweredPanicBoundsCR [kind] {PanicBoundsC{C:c}} y mem)
+(LoweredPanicBoundsRC [kind] {p} (MOVDconst [c]) mem) => (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:c, Cy:p.C}} mem)
+(LoweredPanicBoundsCR [kind] {p} (MOVDconst [c]) mem) => (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:p.C, Cy:c}} mem)
 
 // Small moves
 (Move [0] _ _ mem) => mem
@@ -699,6 +717,13 @@
 (MOVHUreg <t> x:(MOVHload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (MOVHUload <t> [off] {sym} ptr mem)
 (MOVWUreg <t> x:(MOVWload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (MOVWUload <t> [off] {sym} ptr mem)
 
+// Replace load from same location as preceding store with copy.
+(MOVDload  [off] {sym} ptr1 (FMOVDstore [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) => (FMVXD x)
+(FMOVDload [off] {sym} ptr1 (MOVDstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) => (FMVDX x)
+(MOVWload  [off] {sym} ptr1 (FMOVWstore [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) => (FMVXS x)
+(MOVWUload [off] {sym} ptr1 (FMOVWstore [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) => (MOVWUreg (FMVXS x))
+(FMOVWload [off] {sym} ptr1 (MOVWstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) => (FMVSX x)
+
 // If a register move has only 1 use, just use the same register without emitting instruction
 // MOVnop does not emit an instruction, only for ensuring the type.
 (MOVDreg x) && x.Uses == 1 => (MOVDnop x)
@@ -836,6 +861,18 @@
 (F(MADD|NMADD|MSUB|NMSUB)S x y neg:(FNEGS z)) && neg.Uses == 1 => (F(MSUB|NMSUB|MADD|NMADD)S x y z)
 (F(MADD|NMADD|MSUB|NMSUB)D neg:(FNEGD x) y z) && neg.Uses == 1 => (F(NMSUB|MSUB|NMADD|MADD)D x y z)
 (F(MADD|NMADD|MSUB|NMSUB)D x y neg:(FNEGD z)) && neg.Uses == 1 => (F(MSUB|NMSUB|MADD|NMADD)D x y z)
+
+// Test for -∞ (bit 0) using 64 bit classify instruction.
+(FLTD x (FMVDX (MOVDconst [int64(math.Float64bits(-math.MaxFloat64))]))) => (ANDI [1] (FCLASSD x))
+(FLED (FMVDX (MOVDconst [int64(math.Float64bits(-math.MaxFloat64))])) x) => (SNEZ (ANDI <typ.Int64> [0xff &^ 1] (FCLASSD x)))
+(FEQD x (FMVDX (MOVDconst [int64(math.Float64bits(math.Inf(-1)))])))  => (ANDI [1] (FCLASSD x))
+(FNED x (FMVDX (MOVDconst [int64(math.Float64bits(math.Inf(-1)))])))  => (SEQZ (ANDI <typ.Int64> [1] (FCLASSD x)))
+
+// Test for +∞ (bit 7) using 64 bit classify instruction.
+(FLTD (FMVDX (MOVDconst [int64(math.Float64bits(math.MaxFloat64))])) x) => (SNEZ (ANDI <typ.Int64> [1<<7] (FCLASSD x)))
+(FLED x (FMVDX (MOVDconst [int64(math.Float64bits(math.MaxFloat64))]))) => (SNEZ (ANDI <typ.Int64> [0xff &^ (1<<7)] (FCLASSD x)))
+(FEQD x (FMVDX (MOVDconst [int64(math.Float64bits(math.Inf(1)))]))) => (SNEZ (ANDI <typ.Int64> [1<<7] (FCLASSD x)))
+(FNED x (FMVDX (MOVDconst [int64(math.Float64bits(math.Inf(1)))]))) => (SEQZ (ANDI <typ.Int64> [1<<7] (FCLASSD x)))
 
 //
 // Optimisations for rva22u64 and above.

@@ -96,11 +96,8 @@ type pkgWriter struct {
 // newPkgWriter returns an initialized pkgWriter for the specified
 // package.
 func newPkgWriter(m posMap, pkg *types2.Package, info *types2.Info, otherInfo map[*syntax.FuncLit]bool) *pkgWriter {
-	// Use V2 as the encoded version aliastypeparams GOEXPERIMENT is enabled.
-	version := pkgbits.V1
-	if buildcfg.Experiment.AliasTypeParams {
-		version = pkgbits.V2
-	}
+	// Use V2 as the encoded version for aliastypeparams.
+	version := pkgbits.V2
 	return &pkgWriter{
 		PkgEncoder: pkgbits.NewPkgEncoder(version, base.Debug.SyncFrames),
 
@@ -2411,11 +2408,6 @@ type posVar struct {
 
 func (p posVar) String() string {
 	return p.pos.String() + ":" + p.var_.String()
-}
-
-func (w *writer) exprList(expr syntax.Expr) {
-	w.Sync(pkgbits.SyncExprList)
-	w.exprs(syntax.UnpackListExpr(expr))
 }
 
 func (w *writer) exprs(exprs []syntax.Expr) {

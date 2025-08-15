@@ -577,11 +577,13 @@ func init() {
 		//   is $hint and bit[41:5] is $n.
 		{name: "PRELD", argLength: 2, aux: "Int64", reg: preldreg, asm: "PRELD", hasSideEffects: true},
 		{name: "PRELDX", argLength: 2, aux: "Int64", reg: preldreg, asm: "PRELDX", hasSideEffects: true},
+
+		{name: "ADDshiftLLV", argLength: 2, aux: "Int64", reg: gp21, asm: "ALSLV"}, // arg0 + arg1<<auxInt, the value of auxInt should be in the range [1, 4].
 	}
 
 	blocks := []blockData{
-		{name: "EQ", controls: 1},
-		{name: "NE", controls: 1},
+		{name: "EQZ", controls: 1},  // = 0
+		{name: "NEZ", controls: 1},  // != 0
 		{name: "LTZ", controls: 1},  // < 0
 		{name: "LEZ", controls: 1},  // <= 0
 		{name: "GTZ", controls: 1},  // > 0
@@ -589,7 +591,7 @@ func init() {
 		{name: "FPT", controls: 1},  // FP flag is true
 		{name: "FPF", controls: 1},  // FP flag is false
 		{name: "BEQ", controls: 2},  // controls[0] == controls[1]
-		{name: "BNE", controls: 2},  // controls[0] == controls[1]
+		{name: "BNE", controls: 2},  // controls[0] != controls[1]
 		{name: "BGE", controls: 2},  // controls[0] >= controls[1]
 		{name: "BLT", controls: 2},  // controls[0] < controls[1]
 		{name: "BGEU", controls: 2}, // controls[0] >= controls[1], unsigned

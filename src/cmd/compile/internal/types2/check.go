@@ -22,7 +22,7 @@ var nopos syntax.Pos
 const debug = false // leave on during development
 
 // position tracing for panics during type checking
-const tracePos = false // TODO(markfreeman): check performance implications
+const tracePos = true
 
 // _aliasAny changes the behavior of [Scope.Lookup] for "any" in the
 // [Universe] scope.

@@ -436,8 +436,15 @@ func canSpeculativelyExecute(b *Block) bool {
 	// don't fuse memory ops, Phi ops, divides (can panic),
 	// or anything else with side-effects
 	for _, v := range b.Values {
-		if v.Op == OpPhi || isDivMod(v.Op) || isPtrArithmetic(v.Op) || v.Type.IsMemory() ||
-			v.MemoryArg() != nil || opcodeTable[v.Op].hasSideEffects {
+		if v.Op == OpPhi || isDivMod(v.Op) || isPtrArithmetic(v.Op) ||
+			v.Type.IsMemory() || opcodeTable[v.Op].hasSideEffects {
+			return false
+		}
+
+		// Allow inlining markers to be speculatively executed
+		// even though they have a memory argument.
+		// See issue #74915.
+		if v.Op != OpInlMark && v.MemoryArg() != nil {
 			return false
 		}
 	}

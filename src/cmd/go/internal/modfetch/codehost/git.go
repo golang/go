@@ -387,23 +387,6 @@ func (r *gitRepo) Latest(ctx context.Context) (*RevInfo, error) {
 	return info, nil
 }
 
-// findRef finds some ref name for the given hash,
-// for use when the server requires giving a ref instead of a hash.
-// There may be multiple ref names for a given hash,
-// in which case this returns some name - it doesn't matter which.
-func (r *gitRepo) findRef(ctx context.Context, hash string) (ref string, ok bool) {
-	refs, err := r.loadRefs(ctx)
-	if err != nil {
-		return "", false
-	}
-	for ref, h := range refs {
-		if h == hash {
-			return ref, true
-		}
-	}
-	return "", false
-}
-
 func (r *gitRepo) checkConfigSHA256(ctx context.Context) bool {
 	if hashType, sha256CfgErr := r.runGit(ctx, "git", "config", "extensions.objectformat"); sha256CfgErr == nil {
 		return "sha256" == strings.TrimSpace(string(hashType))
