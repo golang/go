@@ -63,6 +63,7 @@ type file struct {
 	nonblock    bool                    // whether we set nonblocking mode
 	stdoutOrErr bool                    // whether this is stdout or stderr
 	appendMode  bool                    // whether file is opened for appending
+	cleanup     runtime.Cleanup
 }
 
 // fd is the Unix implementation of Fd.
@@ -221,7 +222,9 @@ func newFile(fd int, name string, kind newFileKind, nonBlocking bool) *File {
 		}
 	}
 
-	runtime.SetFinalizer(f.file, (*file).close)
+	f.file.cleanup = runtime.AddCleanup(f, func(f *file) {
+		f.close()
+	}, f.file)
 	return f
 }
 
@@ -319,7 +322,7 @@ func (file *file) close() error {
 	}
 
 	// no need for a finalizer anymore
-	runtime.SetFinalizer(file, nil)
+	file.cleanup.Stop()
 	return err
 }
 

@@ -29,6 +29,7 @@ type file struct {
 	name       string
 	dirinfo    atomic.Pointer[dirInfo] // nil unless directory being read
 	appendMode bool                    // whether file is opened for appending
+	cleanup    runtime.Cleanup
 }
 
 // fd is the Windows implementation of Fd.
@@ -68,7 +69,9 @@ func newFile(h syscall.Handle, name string, kind string, nonBlocking bool) *File
 		},
 		name: name,
 	}}
-	runtime.SetFinalizer(f.file, (*file).close)
+	f.file.cleanup = runtime.AddCleanup(f, func(f *file) {
+		f.close()
+	}, f.file)
 
 	// Ignore initialization errors.
 	// Assume any problems will show up in later I/O.
@@ -144,7 +147,7 @@ func (file *file) close() error {
 	}
 
 	// no need for a finalizer anymore
-	runtime.SetFinalizer(file, nil)
+	file.cleanup.Stop()
 	return err
 }
 
