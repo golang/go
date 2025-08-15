@@ -34,6 +34,7 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"debug/elf"
 	"encoding/binary"
 	"fmt"
 	"internal/buildcfg"
@@ -2547,11 +2548,9 @@ func prefixof(ctxt *obj.Link, a *obj.Addr) int {
 					return 0x64 // FS
 				}
 
-				if ctxt.Flag_shared {
-					log.Fatalf("unknown TLS base register for linux with -shared")
-				} else {
-					return 0x64 // FS
-				}
+				// For shared libraries, we need to handle TLS differently
+				// But the FS prefix is still used for TLS access
+				return 0x64 // FS
 
 			case objabi.Hdragonfly,
 				objabi.Hfreebsd,
@@ -3553,6 +3552,11 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int64 {
 			r.Siz = 4
 			r.Off = -1 // caller must fill in
 			r.Add = a.Offset
+		} else {
+			r.Type = objabi.R_TLS_IE
+			r.Siz = 4
+			r.Off = -1 // caller must fill in
+			r.Add = a.Offset
 		}
 		return 0
 	}
@@ -3731,6 +3735,7 @@ func (ab *AsmBuf) asmandsz(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, a *obj
 	if REG_AX <= base && base <= REG_R15 {
 		if a.Index == REG_TLS && !ctxt.Flag_shared && !isAndroid &&
 			ctxt.Headtype != objabi.Hwindows {
+			// For static executables, use TLS Local Exec model
 			rel = obj.Reloc{}
 			rel.Type = objabi.R_TLS_LE
 			rel.Siz = 4
@@ -5079,37 +5084,45 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 						default:
 							log.Fatalf("unknown TLS base location for %v", ctxt.Headtype)
 
-						case objabi.Hlinux, objabi.Hfreebsd:
+						case objabi.Hlinux, objabi.Hfreebsd, objabi.Hopenbsd:
 							if ctxt.Flag_shared {
-								// Note that this is not generating the same insns as the other cases.
-								//     MOV TLS, dst
-								// becomes
-								//     call __x86.get_pc_thunk.dst
-								//     movl (gotpc + g@gotntpoff)(dst), dst
-								// which is encoded as
-								//     call __x86.get_pc_thunk.dst
-								//     movq 0(dst), dst
-								// and R_CALL & R_TLS_IE relocs. This all assumes the only tls variable we access
-								// is g, which we can't check here, but will when we assemble the second
-								// instruction.
+								// For non-glibc dlopen(), use General Dynamic TLS model for shared libraries
+								// 386 TLS GD sequence:
+								//     MOV TLS, dst  
+								// becomes:
+								//     leal runtime.tls_g@tlsgd(,%ebx,1), %eax
+								//     call ___tls_get_addr@PLT
+								//     movl (%eax), dst
+								
 								dst := p.To.Reg
-								ab.Put1(0xe8)
+								
+								// First: leal runtime.tls_g@tlsgd(,%ebx,1), %eax
+								ab.Put2(0x8D, 0x04) // LEAL + ModRM: 00 000 100 (indirect+SIB, reg=EAX, SIB follows)
+								ab.Put1(0x1D)       // SIB: 00 011 101 (scale=1, index=EBX, base=none)
 								cursym.AddRel(ctxt, obj.Reloc{
-									Type: objabi.R_CALL,
+									Type: objabi.R_386_TLS_GD,
 									Off:  int32(p.Pc + int64(ab.Len())),
 									Siz:  4,
-									Sym:  ctxt.Lookup("__x86.get_pc_thunk." + strings.ToLower(rconv(int(dst)))),
+									Sym:  ctxt.Lookup("runtime.tls_g"),
 								})
 								ab.PutInt32(0)
-
-								ab.Put2(0x8B, byte(2<<6|reg[dst]|(reg[dst]<<3)))
+								
+								// Second: call ___tls_get_addr@PLT (note: 3 underscores for 386)
+								ab.Put1(0xE8) // CALL rel32
 								cursym.AddRel(ctxt, obj.Reloc{
-									Type: objabi.R_TLS_IE,
+									Type: objabi.ElfRelocOffset + objabi.RelocType(elf.R_386_PLT32),
 									Off:  int32(p.Pc + int64(ab.Len())),
 									Siz:  4,
-									Add:  2,
+									Sym:  ctxt.Lookup("___tls_get_addr"), // 3 underscores for 386
+									Add:  -4,
 								})
 								ab.PutInt32(0)
+								
+								// Third: movl (%eax), dst
+								if dst != REG_AX {
+									ab.Put2(0x8B, byte(0x00|(reg[dst]<<3))) // MOVL (%eax), dst
+								}
+								// If dst == EAX, no need to move - result is already in EAX
 							} else {
 								// ELF TLS base is 0(GS).
 								pp.From = p.From
@@ -5141,28 +5154,105 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 						log.Fatalf("unknown TLS base location for %v", ctxt.Headtype)
 
 					case objabi.Hlinux, objabi.Hfreebsd:
-						if !ctxt.Flag_shared {
-							log.Fatalf("unknown TLS base location for linux/freebsd without -shared")
-						}
-						// Note that this is not generating the same insn as the other cases.
+						// For non-glibc dlopen(), use General Dynamic (GD) model
+						// instead of Initial Exec (IE) model on non-glibc systems.
+						//
+						// AMD64 TLS GD sequence:
 						//     MOV TLS, R_to
-						// becomes
-						//     movq g@gottpoff(%rip), R_to
-						// which is encoded as
-						//     movq 0(%rip), R_to
-						// and a R_TLS_IE reloc. This all assumes the only tls variable we access
-						// is g, which we can't check here, but will when we assemble the second
-						// instruction.
-						ab.rexflag = Pw | (regrex[p.To.Reg] & Rxr)
-
-						ab.Put2(0x8B, byte(0x05|(reg[p.To.Reg]<<3)))
-						cursym.AddRel(ctxt, obj.Reloc{
-							Type: objabi.R_TLS_IE,
-							Off:  int32(p.Pc + int64(ab.Len())),
-							Siz:  4,
-							Add:  -4,
-						})
-						ab.PutInt32(0)
+						// becomes:
+						//     .byte 0x66  // data16 prefix
+						//     leaq runtime.tls_g@tlsgd(%rip), %rdi
+						//     .byte 0x66, 0x66, 0x48  // data16 data16 rex.W
+						//     call __tls_get_addr@PLT
+						//     movq (%rax), R_to
+						//
+						// This is a complex sequence that needs special handling.
+						// For now, we'll mark this as needing TLS GD and handle it specially.
+						
+						// Save the destination register
+						dst := p.To.Reg
+						
+						// For shared libraries on Linux/FreeBSD, use TLS GD model
+						// This provides dynamic TLS allocation required for non-glibc dlopen()
+						if ctxt.Flag_shared && (ctxt.Headtype == objabi.Hlinux || ctxt.Headtype == objabi.Hfreebsd || ctxt.Headtype == objabi.Hopenbsd) {
+							// Generate TLS GD instruction sequence:
+							// leaq runtime.tls_g@tlsgd(%rip), %rdi
+							// call __tls_get_addr@PLT  
+							// movq (%rax), dst
+							
+							// Generate standard x86-64 TLS GD sequence:
+							// .byte 0x66                           # data16 prefix
+							// leaq runtime.tls_g@tlsgd(%rip), %rdi
+							// .word 0x6666                         # data16 data16 prefix  
+							// rex64                                # rex.W prefix
+							// call __tls_get_addr@PLT
+							
+							// First: .byte 0x66; leaq var@tlsgd(%rip), %rdi
+							ab.Put1(0x66) // data16 prefix
+							ab.Put3(0x48, 0x8D, 0x3D) // REX.W + LEAQ + ModRM (RIP-relative to RDI)
+							cursym.AddRel(ctxt, obj.Reloc{
+								Type: objabi.R_AMD64_TLS_GD,
+								Off:  int32(p.Pc + int64(ab.Len())),
+								Siz:  4,
+								Sym:  ctxt.Lookup("runtime.tls_g"),
+								Add:  -4,
+							})
+							ab.PutInt32(0)
+							
+							// Second: .word 0x6666; rex64; call __tls_get_addr@PLT
+							ab.Put2(0x66, 0x66) // data16 data16 prefix
+							ab.Put1(0x48)       // REX.W prefix  
+							ab.Put1(0xE8)       // CALL rel32
+							cursym.AddRel(ctxt, obj.Reloc{
+								Type: objabi.ElfRelocOffset + objabi.RelocType(elf.R_X86_64_PLT32),
+								Off:  int32(p.Pc + int64(ab.Len())),
+								Siz:  4,
+								Sym:  ctxt.Lookup("__tls_get_addr"),
+								Add:  -4,
+							})
+							ab.PutInt32(0)
+							
+							// Third: MOVQ (%rax), dst
+							if dst != REG_AX {
+								ab.rexflag = Pw | (regrex[dst] & Rxr)
+								ab.Put2(0x8B, byte(0x00|(reg[dst]<<3))) // MOVQ (%rax), dst
+							}
+							// If dst == RAX, no need to move - result is already in RAX
+						} else if ctxt.Flag_shared && ctxt.Headtype != objabi.Hlinux && ctxt.Headtype != objabi.Hfreebsd {
+							// For other shared library cases (not Linux/FreeBSD), use Initial Exec model
+							ab.rexflag = Pw | (regrex[dst] & Rxr)
+							ab.Put2(0x8B, byte(0x05|(reg[dst]<<3)))
+							cursym.AddRel(ctxt, obj.Reloc{
+								Type: objabi.R_TLS_IE,
+								Off:  int32(p.Pc + int64(ab.Len())),
+								Siz:  4,
+								Add:  -4,
+							})
+							ab.PutInt32(0)
+						} else if ctxt.Headtype == objabi.Hlinux || ctxt.Headtype == objabi.Hfreebsd {
+							// Linux/FreeBSD without shared flag - use Local Exec for static executables
+							ab.rexflag = Pw | (regrex[dst] & Rxr)
+							ab.Put2(0x8B, byte(0x04|(reg[dst]<<3)))
+							ab.Put1(0x25)
+							cursym.AddRel(ctxt, obj.Reloc{
+								Type: objabi.R_TLS_LE,
+								Off:  int32(p.Pc + int64(ab.Len())),
+								Siz:  4,
+								Add:  -4,
+							})
+							ab.PutInt32(0)
+						} else {
+							// Use Initial Exec model for other platforms
+							ab.rexflag = Pw | (regrex[dst] & Rxr)
+							ab.Put2(0x8B, byte(0x05|(reg[dst]<<3)))
+							cursym.AddRel(ctxt, obj.Reloc{
+								Type: objabi.R_TLS_IE,
+								Off:  int32(p.Pc + int64(ab.Len())),
+								Siz:  4,
+								Add:  -4,
+							})
+							ab.PutInt32(0)
+						}
 
 					case objabi.Hplan9:
 						pp.From = obj.Addr{}

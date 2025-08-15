@@ -137,6 +137,11 @@ const (
 	// referenced (thread local) symbol from the GOT.
 	R_ARM64_TLS_IE
 
+	// General Dynamic TLS model: relocates a 4-instruction sequence
+	// (ADRP; LDR; ADD; BLR) to call __tls_get_addr or equivalent.
+	// Used for dynamically loaded libraries.
+	R_ARM64_TLS_GD
+
 	// R_ARM64_GOTPCREL relocates an adrp, ld64 pair to compute the address of the GOT
 	// slot of the referenced symbol.
 	R_ARM64_GOTPCREL
@@ -180,6 +185,22 @@ const (
 	// R_ARM64_LDST128 sets a LD/ST immediate value to bits [11:4] of a local address.
 	R_ARM64_LDST128
 
+	// AMD64.
+
+	// R_AMD64_TLS_GD is used to implement the "general dynamic" model for tls
+	// access. Used for symbols accessed in dynamically loaded modules.
+	R_AMD64_TLS_GD
+
+	// R_386_TLS_GD is used to implement the "general dynamic" model for tls
+	// access on 32-bit x86. Used for symbols accessed in dynamically loaded modules.
+	R_386_TLS_GD
+
+	// ARM.
+
+	// R_ARM_TLS_GD32 is used to implement the "general dynamic" model for tls
+	// access on 32-bit ARM. Used for symbols accessed in dynamically loaded modules.
+	R_ARM_TLS_GD32
+
 	// PPC64.
 
 	// R_POWER_TLS_LE is used to implement the "local exec" model for tls
@@ -211,6 +232,14 @@ const (
 	// R_POWER_TLS_LE_TPREL34 is similar to R_POWER_TLS_LE, but computes an offset from
 	// the thread pointer in one prefixed instruction.
 	R_POWER_TLS_LE_TPREL34
+
+	// R_POWER_TLS_GD_HA is used in the general dynamic TLS model for the high-adjusted
+	// 16 bits of the GOT slot offset.
+	R_POWER_TLS_GD_HA
+
+	// R_POWER_TLS_GD_LO is used in the general dynamic TLS model for the low
+	// 16 bits of the GOT slot offset.
+	R_POWER_TLS_GD_LO
 
 	// R_ADDRPOWER_DS is similar to R_ADDRPOWER above, but assumes the second
 	// instruction is a "DS-form" instruction, which has an immediate field occupying
@@ -281,6 +310,20 @@ const (
 	// R_RISCV_TLS_LE resolves a 32 bit TLS local-exec address for a
 	// LUI + I-type instruction sequence.
 	R_RISCV_TLS_LE
+
+	// R_RISCV_TLS_GD resolves a 32 bit TLS general-dynamic address for an
+	// AUIPC + ADDI + CALL instruction sequence to __tls_get_addr.
+	R_RISCV_TLS_GD
+
+	// R_390_TLS_GD64 resolves a 64-bit TLS general-dynamic address for an
+	// LARL + BRASL instruction sequence to __tls_get_addr.
+	R_390_TLS_GD64
+
+	// R_LOONG64_TLS_GD_HI resolves the high 20 bits of a TLS GD address.
+	R_LOONG64_TLS_GD_HI
+	
+	// R_LOONG64_TLS_GD_LO resolves the low 12 bits of a TLS GD address.
+	R_LOONG64_TLS_GD_LO
 
 	// R_RISCV_GOT_HI20 resolves the high 20 bits of a 32-bit PC-relative GOT
 	// address.
@@ -368,6 +411,14 @@ const (
 	// R_ADDRMIPSTLS (only used on mips64) resolves to the low 16 bits of a TLS
 	// address (offset from thread pointer), by encoding it into the instruction.
 	R_ADDRMIPSTLS
+
+	// R_MIPS_TLS_GD_HI is used in the general dynamic TLS model for the high
+	// 16 bits of the GOT slot offset.
+	R_MIPS_TLS_GD_HI
+
+	// R_MIPS_TLS_GD_LO is used in the general dynamic TLS model for the low
+	// 16 bits of the GOT slot offset.
+	R_MIPS_TLS_GD_LO
 
 	// R_ADDRCUOFF resolves to a pointer-sized offset from the start of the
 	// symbol's DWARF compile unit.

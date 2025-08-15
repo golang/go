@@ -547,6 +547,7 @@ var prefixableOptab = []PrefixableOptab{
 	{Optab: Optab{as: AMOVD, a1: C_ADDR, a6: C_REG, type_: 75, size: 8}, minGOPPC64: 10, pfxsize: 8},
 	{Optab: Optab{as: AMOVD, a1: C_TLS_LE, a6: C_REG, type_: 79, size: 8}, minGOPPC64: 10, pfxsize: 8},
 	{Optab: Optab{as: AMOVD, a1: C_TLS_IE, a6: C_REG, type_: 80, size: 12}, minGOPPC64: 10, pfxsize: 12},
+	{Optab: Optab{as: AMOVD, a1: C_TLS_GD, a6: C_REG, type_: 81, size: 16}, minGOPPC64: 10, pfxsize: 16},
 	{Optab: Optab{as: AMOVD, a1: C_LACON, a6: C_REG, type_: 26, size: 8}, minGOPPC64: 10, pfxsize: 8},
 	{Optab: Optab{as: AMOVD, a1: C_LOREG, a6: C_REG, type_: 36, size: 8}, minGOPPC64: 10, pfxsize: 8},
 	{Optab: Optab{as: AMOVD, a1: C_REG, a6: C_LOREG, type_: 35, size: 8}, minGOPPC64: 10, pfxsize: 8},
@@ -907,9 +908,10 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
 			if a.Sym == nil {
 				break
 			} else if a.Sym.Type == objabi.STLSBSS {
-				// For PIC builds, use 12 byte got initial-exec TLS accesses.
-				if c.ctxt.Flag_shared {
-					return C_TLS_IE
+				// For shared libraries, use general dynamic TLS model
+				// to support non-glibc dlopen()
+				if c.ctxt.Flag_shared && (c.ctxt.Headtype == objabi.Hlinux || c.ctxt.Headtype == objabi.Hfreebsd || c.ctxt.Headtype == objabi.Hopenbsd) {
+					return C_TLS_GD
 				}
 				// Otherwise, use 8 byte local-exec TLS accesses.
 				return C_TLS_LE
@@ -3674,6 +3676,47 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 			Siz:  4,
 			Sym:  p.From.Sym,
 		})
+
+	case 81: /* General Dynamic TLS model */
+		if p.From.Offset != 0 {
+			c.ctxt.Diag("invalid offset against tls var %v", p)
+		}
+		// For PPC64 TLS GD, we need to generate a call sequence to __tls_get_addr
+		// This is typically:
+		// addis r3, r2, x@got@tlsgd@ha
+		// addi r3, r3, x@got@tlsgd@l
+		// bl __tls_get_addr(x@tlsgd)
+		// nop
+		
+		// First instruction: addis r3, r2, sym@got@tlsgd@ha
+		o1 = AOP_IRR(OP_ADDIS, uint32(REG_R3), REG_R2, 0)
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_POWER_TLS_GD_HA,
+			Off:  int32(c.pc),
+			Siz:  4,
+			Sym:  p.From.Sym,
+		})
+		
+		// Second instruction: addi r3, r3, sym@got@tlsgd@l
+		o2 = AOP_IRR(OP_ADDI, uint32(REG_R3), uint32(REG_R3), 0)
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_POWER_TLS_GD_LO,
+			Off:  int32(c.pc) + 4,
+			Siz:  4,
+			Sym:  p.From.Sym,
+		})
+		
+		// Third instruction: bl __tls_get_addr
+		o3 = 0x48000001 // bl with link bit set
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_CALLPOWER,
+			Off:  int32(c.pc) + 8,
+			Siz:  4,
+			Sym:  c.ctxt.Lookup("__tls_get_addr"),
+		})
+		
+		// Fourth instruction: nop (for linker)
+		o4 = 0x60000000 // nop
 
 	case 82: /* vector instructions, VX-form and VC-form */
 		if p.From.Type == obj.TYPE_REG {

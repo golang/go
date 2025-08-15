@@ -285,7 +285,9 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 			objabi.R_ADDRMIPSU,
 			objabi.R_ADDRMIPSTLS,
 			objabi.R_CALLMIPS,
-			objabi.R_JMPMIPS:
+			objabi.R_JMPMIPS,
+			objabi.R_MIPS_TLS_GD_HI,
+			objabi.R_MIPS_TLS_GD_LO:
 			return val, 1, true
 		}
 	}
@@ -294,6 +296,12 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 	const noExtReloc = 0
 	rs := r.Sym()
 	switch r.Type() {
+	case objabi.R_MIPS_TLS_GD_HI, objabi.R_MIPS_TLS_GD_LO:
+		// General Dynamic model requires external linking
+		if !target.IsExternal() {
+			ldr.Errorf(s, "cannot handle R_MIPS_TLS_GD relocations when linking internally")
+		}
+		return val, noExtReloc, isOk
 	case objabi.R_ADDRMIPS,
 		objabi.R_ADDRMIPSU:
 		t := ldr.SymValue(rs) + r.Add()

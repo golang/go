@@ -215,6 +215,7 @@ const ( // comments from func aclass in asmz.go
 	C_LOREG    // heap address, register-based, int32 displacement
 	C_TLS_LE   // TLS - local exec model (for executables)
 	C_TLS_IE   // TLS - initial exec model (for shared libraries loaded at program startup)
+	C_TLS_GD   // TLS - general dynamic model (for dynamically loaded shared libraries)
 	C_GOK      // general address
 	C_ADDR     // relocation for extern or static symbols (loads and stores)
 	C_SYMADDR  // relocation for extern or static symbols (address taking)

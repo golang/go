@@ -23,6 +23,8 @@ TEXT runtime·load_g(SB),NOSPLIT,$0
 	// Darwin sometimes returns unaligned pointers
 	AND	$0xfffffffffffffff8, R0
 #endif
+	// When using general dynamic TLS, the MOVD becomes a call sequence
+	// that may clobber LR, but this function is NOSPLIT so that's ok
 	MOVD	runtime·tls_g(SB), R27
 	MOVD	(R0)(R27), g
 

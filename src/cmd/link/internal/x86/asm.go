@@ -366,6 +366,13 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 		} else {
 			return false
 		}
+	case objabi.R_386_TLS_GD:
+		// General Dynamic TLS model
+		if siz == 4 {
+			out.Write32(uint32(elf.R_386_TLS_GD) | uint32(elfsym)<<8)
+		} else {
+			return false
+		}
 	}
 
 	return true
@@ -412,7 +419,19 @@ func pereloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 	return true
 }
 
-func archreloc(*ld.Target, *loader.Loader, *ld.ArchSyms, loader.Reloc, loader.Sym, int64) (int64, int, bool) {
+func archreloc(target *ld.Target, ldr *loader.Loader, _ *ld.ArchSyms, r loader.Reloc, s loader.Sym, val int64) (int64, int, bool) {
+	const noExtReloc = 0
+	const isOk = true
+	
+	switch r.Type() {
+	case objabi.R_386_TLS_GD:
+		// General Dynamic model requires external linking
+		if !target.IsExternal() {
+			ldr.Errorf(s, "cannot handle R_386_TLS_GD when linking internally")
+		}
+		return val, noExtReloc, isOk
+	}
+	
 	return -1, 0, false
 }
 

@@ -2060,6 +2060,28 @@ GLOBL runtime·tls_g+0(SB), NOPTR, $8
 #ifdef GOOS_windows
 GLOBL runtime·tls_g+0(SB), NOPTR, $8
 #endif
+// For TLS GD model support on Unix systems
+#ifdef GOOS_linux
+GLOBL runtime·tls_g+0(SB), TLSBSS, $8
+#endif
+#ifdef GOOS_freebsd
+GLOBL runtime·tls_g+0(SB), TLSBSS, $8
+#endif
+#ifdef GOOS_netbsd
+GLOBL runtime·tls_g+0(SB), TLSBSS, $8
+#endif
+#ifdef GOOS_openbsd
+GLOBL runtime·tls_g+0(SB), TLSBSS, $8
+#endif
+#ifdef GOOS_dragonfly
+GLOBL runtime·tls_g+0(SB), TLSBSS, $8
+#endif
+#ifdef GOOS_solaris
+GLOBL runtime·tls_g+0(SB), TLSBSS, $8
+#endif
+#ifdef GOOS_darwin
+GLOBL runtime·tls_g+0(SB), TLSBSS, $8
+#endif
 
 // The compiler and assembler's -spectre=ret mode rewrites
 // all indirect CALL AX / JMP AX instructions to be
