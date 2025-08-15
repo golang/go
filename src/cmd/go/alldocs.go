@@ -3244,6 +3244,10 @@
 // The following flags are recognized by the 'go test' command and
 // control the execution of any test:
 //
+//	-artifacts
+//	    Save test artifacts in the directory specified by -outputdir.
+//	    See 'go doc testing.T.ArtifactDir'.
+//
 //	-bench regexp
 //	    Run only those benchmarks matching a regular expression.
 //	    By default, no benchmarks are run.
@@ -3337,6 +3341,10 @@
 //	    expression. No tests, benchmarks, fuzz tests, or examples will be run.
 //	    This will only list top-level tests. No subtest or subbenchmarks will be
 //	    shown.
+//
+//	-outputdir directory
+//	    Place output files from profiling and test artifacts in the
+//	    specified directory, by default the directory in which "go test" is running.
 //
 //	-parallel n
 //	    Allow parallel execution of test functions that call t.Parallel, and
@@ -3448,10 +3456,6 @@
 //	-mutexprofilefraction n
 //	    Sample 1 in n stack traces of goroutines holding a
 //	    contended mutex.
-//
-//	-outputdir directory
-//	    Place output files from profiling in the specified directory,
-//	    by default the directory in which "go test" is running.
 //
 //	-trace trace.out
 //	    Write an execution trace to the specified file before exiting.

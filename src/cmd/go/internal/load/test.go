@@ -649,6 +649,14 @@ func (t *testFuncs) ImportPath() string {
 	return pkg
 }
 
+func (t *testFuncs) ModulePath() string {
+	m := t.Package.Module
+	if m == nil {
+		return ""
+	}
+	return m.Path
+}
+
 // Covered returns a string describing which packages are being tested for coverage.
 // If the covered package is the same as the tested package, it returns the empty string.
 // Otherwise it is a comma-separated human-readable list of packages beginning with
@@ -836,6 +844,7 @@ func init() {
 	testdeps.CoverMarkProfileEmittedFunc = cfile.MarkProfileEmitted
 
 {{end}}
+	testdeps.ModulePath = {{.ModulePath | printf "%q"}}
 	testdeps.ImportPath = {{.ImportPath | printf "%q"}}
 }
 
