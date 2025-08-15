@@ -727,38 +727,13 @@ func (sd *sysDialer) dialParallel(ctx context.Context, primaries, fallbacks addr
 // dialSerial connects to a list of addresses in sequence, returning
 // either the first successful connection, or the first error.
 func (sd *sysDialer) dialSerial(ctx context.Context, ras addrList) (Conn, error) {
+	var conn Conn
 	var firstErr error // The error from the first address is most relevant.
 
-	for i, ra := range ras {
-		select {
-		case <-ctx.Done():
-			return nil, &OpError{Op: "dial", Net: sd.network, Source: sd.LocalAddr, Addr: ra, Err: mapErr(ctx.Err())}
-		default:
-		}
-
-		dialCtx := ctx
-		if deadline, hasDeadline := ctx.Deadline(); hasDeadline {
-			partialDeadline, err := partialDeadline(time.Now(), deadline, len(ras)-i)
-			if err != nil {
-				// Ran out of time.
-				if firstErr == nil {
-					firstErr = &OpError{Op: "dial", Net: sd.network, Source: sd.LocalAddr, Addr: ra, Err: err}
-				}
-				break
-			}
-			if partialDeadline.Before(deadline) {
-				var cancel context.CancelFunc
-				dialCtx, cancel = context.WithDeadline(ctx, partialDeadline)
-				defer cancel()
-			}
-		}
-
-		c, err := sd.dialSingle(dialCtx, ra)
-		if err == nil {
-			return c, nil
-		}
+	for i := range ras {
+		conn, firstErr = sd.dialAddr(ctx, ras, i)
 		if firstErr == nil {
-			firstErr = err
+			return conn, nil
 		}
 	}
 
@@ -766,6 +741,34 @@ func (sd *sysDialer) dialSerial(ctx context.Context, ras addrList) (Conn, error)
 		firstErr = &OpError{Op: "dial", Net: sd.network, Source: nil, Addr: nil, Err: errMissingAddress}
 	}
 	return nil, firstErr
+}
+
+// dialAddr connects to an address,
+// returning either a successful connection, or an error.
+func (sd *sysDialer) dialAddr(ctx context.Context, ras addrList, i int) (Conn, error) {
+	ra := ras[i]
+
+	select {
+	case <-ctx.Done():
+		return nil, &OpError{Op: "dial", Net: sd.network, Source: sd.LocalAddr, Addr: ra, Err: mapErr(ctx.Err())}
+	default:
+	}
+
+	dialCtx := ctx
+	if deadline, hasDeadline := ctx.Deadline(); hasDeadline {
+		partialDeadline, err := partialDeadline(time.Now(), deadline, len(ras)-i)
+		if err != nil {
+			// Ran out of time.
+			return nil, &OpError{Op: "dial", Net: sd.network, Source: sd.LocalAddr, Addr: ra, Err: err}
+		}
+		if partialDeadline.Before(deadline) {
+			var cancel context.CancelFunc
+			dialCtx, cancel = context.WithDeadline(ctx, partialDeadline)
+			defer cancel()
+		}
+	}
+
+	return sd.dialSingle(dialCtx, ra)
 }
 
 // dialSingle attempts to establish and returns a single connection to
