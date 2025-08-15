@@ -55,9 +55,32 @@ if (*x_00 == '+') {
 As implemented in `src/cmd/compile/internal/ssagen/ssa.go`, we apply a source-location-based filtering for overflow detection. This ensures overflow detection is applied only to user code and target applications (like security audits of external codebases) while excluding standard library and third-party dependencies.
 Each arithmetic operation (`intAdd`, `intSub`, `intMul`, `intDiv`) checks the actual source file location using `n.Pos()` and `base.Ctxt.PosTable.Pos(pos).Filename()`. Operations from files containing `/go-panikint/src/`, `/pkg/mod/`, `/vendor/` are automatically excluded  and standard library packages (`runtime`, `sync`, `os`, `syscall`, etc.) / internal packages (`internal/*`) are excluded during compiler build.
 
+### Suppressing false positives
+
+Add a comment marker on the same line as the operation or the line immediately above to mark a bug as false positive, so that the compiler won't panic on the arithmetic or truncation issue.:
+
+- Overflow/underflow: `overflow_false_positive`
+- Truncation: `truncation_false_positive`
+
+Example:
+
+```go
+// This is an overflow, but it's on purpose so we don't care flagging it
+// overflow_false_positive
+intentional_overflow := a + b
+
+// Same for my buggy truncation
+// truncation_false_positive
+x := uint8(big)
+
+// Also work on the same line
+sum2 := a + b // overflow_false_positive
+x2 := uint8(big) // truncation_false_positive
+```
+
 ### Testing
 
-You can run theÒ test suite in `tests/` with:
+You can run the test suite in `tests/` with:
 
 ```bash
 cd tests/;
@@ -134,27 +157,6 @@ func main() {
 	fmt.Printf("After: result=%d\n", result)
 }
 ```
-
-### Suppressing false positives
-
-Add a comment marker on the same line as the operation or the line immediately above to mark a bug as false positive, so that the compiler won't panic on the arithmetic or truncation issue.:
-
-- Overflow/underflow: `overflow_false_positive`
-- Truncation: `truncation_false_positive`
-
-Example:
-
-```go
-// overflow_false_positive
-sum := a + b
-
-// truncation_false_positive
-x := uint8(big)
-
-sum2 := a + b // overflow_false_positive
-x2 := uint8(big) // truncation_false_positive
-```
- 
 
 **Expected output:**
 
