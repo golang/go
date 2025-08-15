@@ -39,7 +39,7 @@ type dnsConfig struct {
 	lookup        []string      // OpenBSD top-level database "lookup" order
 	err           error         // any error that occurs during open of resolv.conf
 	mtime         time.Time     // time of resolv.conf modification
-	soffset       uint32        // used by serverOffset
+	soffset       atomic.Uint32 // used by serverOffset
 	singleRequest bool          // use sequential A and AAAA queries instead of parallel queries
 	useTCP        bool          // force usage of TCP for DNS resolutions
 	trustAD       bool          // add AD flag to queries
@@ -52,7 +52,7 @@ type dnsConfig struct {
 // Otherwise it is always 0.
 func (c *dnsConfig) serverOffset() uint32 {
 	if c.rotate {
-		return atomic.AddUint32(&c.soffset, 1) - 1 // return 0 to start
+		return c.soffset.Add(1) - 1 // return 0 to start
 	}
 	return 0
 }
