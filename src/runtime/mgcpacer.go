@@ -714,7 +714,7 @@ func (c *gcControllerState) enlistWorker() {
 		// (the scheduler will already prefer to spin up a new
 		// dedicated worker over an idle one).
 		if sched.npidle.Load() != 0 && sched.nmspinning.Load() == 0 {
-			wakep()
+			wakep() // Likely to consume our worker request.
 			return
 		}
 	}

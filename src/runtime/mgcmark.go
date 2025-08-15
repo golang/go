@@ -666,6 +666,7 @@ func gcAssistAlloc1(gp *g, scanWork int64) {
 		gp.gcAssistBytes = 0
 		return
 	}
+
 	// Track time spent in this assist. Since we're on the
 	// system stack, this is non-preemptible, so we can
 	// just measure start and end time.
@@ -1231,14 +1232,18 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 		var b uintptr
 		var s objptr
 		if b = gcw.tryGetObjFast(); b == 0 {
-			if s = gcw.tryGetSpan(false); s == 0 {
+			if s = gcw.tryGetSpanFast(); s == 0 {
 				if b = gcw.tryGetObj(); b == 0 {
-					// Flush the write barrier
-					// buffer; this may create
-					// more work.
-					wbBufFlush()
-					if b = gcw.tryGetObj(); b == 0 {
-						s = gcw.tryGetSpan(true)
+					if s = gcw.tryGetSpan(); s == 0 {
+						// Flush the write barrier
+						// buffer; this may create
+						// more work.
+						wbBufFlush()
+						if b = gcw.tryGetObj(); b == 0 {
+							if s = gcw.tryGetSpan(); s == 0 {
+								s = gcw.tryStealSpan()
+							}
+						}
 					}
 				}
 			}
@@ -1327,22 +1332,26 @@ func gcDrainN(gcw *gcWork, scanWork int64) int64 {
 		var b uintptr
 		var s objptr
 		if b = gcw.tryGetObjFast(); b == 0 {
-			if s = gcw.tryGetSpan(false); s == 0 {
+			if s = gcw.tryGetSpanFast(); s == 0 {
 				if b = gcw.tryGetObj(); b == 0 {
-					// Flush the write barrier
-					// buffer; this may create
-					// more work.
-					wbBufFlush()
-					if b = gcw.tryGetObj(); b == 0 {
-						// Try to do a root job.
-						if work.markrootNext < work.markrootJobs {
-							job := atomic.Xadd(&work.markrootNext, +1) - 1
-							if job < work.markrootJobs {
-								workFlushed += markroot(gcw, job, false)
-								continue
+					if s = gcw.tryGetSpan(); s == 0 {
+						// Flush the write barrier
+						// buffer; this may create
+						// more work.
+						wbBufFlush()
+						if b = gcw.tryGetObj(); b == 0 {
+							if s = gcw.tryGetSpan(); s == 0 {
+								// Try to do a root job.
+								if work.markrootNext < work.markrootJobs {
+									job := atomic.Xadd(&work.markrootNext, +1) - 1
+									if job < work.markrootJobs {
+										workFlushed += markroot(gcw, job, false)
+										continue
+									}
+								}
+								s = gcw.tryStealSpan()
 							}
 						}
-						s = gcw.tryGetSpan(true)
 					}
 				}
 			}

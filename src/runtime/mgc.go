@@ -326,7 +326,7 @@ type workType struct {
 	full  lfstack          // lock-free list of full blocks workbuf
 	_     cpu.CacheLinePad // prevents false-sharing between full and empty
 	empty lfstack          // lock-free list of empty blocks workbuf
-	_     cpu.CacheLinePad // prevents false-sharing between empty and nproc/nwait
+	_     cpu.CacheLinePad // prevents false-sharing between empty and wbufSpans
 
 	wbufSpans struct {
 		lock mutex
@@ -337,12 +337,24 @@ type workType struct {
 		// one of the workbuf lists.
 		busy mSpanList
 	}
-	_ cpu.CacheLinePad // prevents false-sharing between wbufSpans and spanq
+	_ cpu.CacheLinePad // prevents false-sharing between wbufSpans and spanWorkMask
 
-	// Global queue of spans to scan.
+	// spanqMask is a bitmap indicating which Ps have local work worth stealing.
+	// Set or cleared by the owning P, cleared by stealing Ps.
+	//
+	// spanqMask is like a proxy for a global queue. An important invariant is that
+	// forced flushing like gcw.dispose must set this bit on any P that has local
+	// span work.
+	spanqMask pMask
+	_         cpu.CacheLinePad // prevents false-sharing between spanqMask and everything else
+
+	// List of all spanSPMCs.
 	//
 	// Only used if goexperiment.GreenTeaGC.
-	spanq spanQueue
+	spanSPMCs struct {
+		lock mutex // no lock rank because it's a leaf lock (see mklockrank.go).
+		all  *spanSPMC
+	}
 
 	// Restore 64-bit alignment on 32-bit.
 	// _ uint32
@@ -711,8 +723,9 @@ func gcStart(trigger gcTrigger) {
 		traceRelease(trace)
 	}
 
-	// Check that all Ps have finished deferred mcache flushes.
+	// Check and setup per-P state.
 	for _, p := range allp {
+		// Check that all Ps have finished deferred mcache flushes.
 		if fg := p.mcache.flushGen.Load(); fg != mheap_.sweepgen {
 			println("runtime: p", p.id, "flushGen", fg, "!= sweepgen", mheap_.sweepgen)
 			throw("p mcache not flushed")
@@ -923,6 +936,7 @@ top:
 		// TODO(austin): Break up these workbufs to
 		// better distribute work.
 		pp.gcw.dispose()
+
 		// Collect the flushedWork flag.
 		if pp.gcw.flushedWork {
 			atomic.Xadd(&gcMarkDoneFlushed, 1)
@@ -1623,17 +1637,6 @@ func gcEndWork() (last bool) {
 	return incnwait == work.nproc && !gcMarkWorkAvailable()
 }
 
-// gcMarkWorkAvailable reports whether there's any non-local work available to do.
-func gcMarkWorkAvailable() bool {
-	if !work.full.empty() || !work.spanq.empty() {
-		return true // global work available
-	}
-	if work.markrootNext < work.markrootJobs {
-		return true // root scan work available
-	}
-	return false
-}
-
 // gcMark runs the mark (or, for concurrent GC, mark termination)
 // All gcWork caches must be empty.
 // STW is in effect at this point.
@@ -1644,8 +1647,8 @@ func gcMark(startTime int64) {
 	work.tstart = startTime
 
 	// Check that there's no marking work remaining.
-	if work.full != 0 || work.markrootNext < work.markrootJobs || !work.spanq.empty() {
-		print("runtime: full=", hex(work.full), " next=", work.markrootNext, " jobs=", work.markrootJobs, " nDataRoots=", work.nDataRoots, " nBSSRoots=", work.nBSSRoots, " nSpanRoots=", work.nSpanRoots, " nStackRoots=", work.nStackRoots, " spanq.n=", work.spanq.size(), "\n")
+	if work.full != 0 || work.markrootNext < work.markrootJobs {
+		print("runtime: full=", hex(work.full), " next=", work.markrootNext, " jobs=", work.markrootJobs, " nDataRoots=", work.nDataRoots, " nBSSRoots=", work.nBSSRoots, " nSpanRoots=", work.nSpanRoots, " nStackRoots=", work.nStackRoots, "\n")
 		panic("non-empty mark queue after concurrent mark")
 	}
 
@@ -1761,9 +1764,11 @@ func gcSweep(mode gcMode) bool {
 		// Sweep all spans eagerly.
 		for sweepone() != ^uintptr(0) {
 		}
-		// Free workbufs eagerly.
+		// Free workbufs and span rings eagerly.
 		prepareFreeWorkbufs()
 		for freeSomeWbufs(false) {
+		}
+		for freeSomeSpanSPMCs(false) {
 		}
 		// All "free" events for this mark/sweep cycle have
 		// now happened, so we can make this profile cycle

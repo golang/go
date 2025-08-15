@@ -5735,6 +5735,7 @@ func setcpuprofilerate(hz int32) {
 // previously destroyed p, and transitions it to status _Pgcstop.
 func (pp *p) init(id int32) {
 	pp.id = id
+	pp.gcw.id = id
 	pp.status = _Pgcstop
 	pp.sudogcache = pp.sudogbuf[:0]
 	pp.deferpool = pp.deferpoolbuf[:0]
@@ -5890,6 +5891,7 @@ func procresize(nprocs int32) *p {
 
 		idlepMask = idlepMask.resize(nprocs)
 		timerpMask = timerpMask.resize(nprocs)
+		work.spanqMask = work.spanqMask.resize(nprocs)
 		unlock(&allpLock)
 	}
 
@@ -5954,6 +5956,7 @@ func procresize(nprocs int32) *p {
 		allp = allp[:nprocs]
 		idlepMask = idlepMask.resize(nprocs)
 		timerpMask = timerpMask.resize(nprocs)
+		work.spanqMask = work.spanqMask.resize(nprocs)
 		unlock(&allpLock)
 	}
 
@@ -6890,6 +6893,16 @@ func (p pMask) clear(id int32) {
 	word := id / 32
 	mask := uint32(1) << (id % 32)
 	atomic.And(&p[word], ^mask)
+}
+
+// any returns true if any bit in p is set.
+func (p pMask) any() bool {
+	for i := range p {
+		if atomic.Load(&p[i]) != 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // resize resizes the pMask and returns a new one.
