@@ -4,7 +4,10 @@
 
 package syntax
 
-import "fmt"
+import (
+	"fmt"
+	"slices"
+)
 
 // checkBranches checks correct use of labels and branch
 // statements (break, continue, fallthrough, goto) in a function body.
@@ -146,14 +149,7 @@ func (ls *labelScope) blockBranches(parent *block, ctxt targets, lstmt *LabeledS
 	}
 
 	jumpsOverVarDecl := func(fwd *BranchStmt) bool {
-		if varPos.IsKnown() {
-			for _, bad := range badGotos {
-				if fwd == bad {
-					return true
-				}
-			}
-		}
-		return false
+		return varPos.IsKnown() && slices.Contains(badGotos, fwd)
 	}
 
 	innerBlock := func(ctxt targets, start Pos, body []Stmt) {
