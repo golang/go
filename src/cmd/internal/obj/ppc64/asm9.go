@@ -910,7 +910,7 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
 			} else if a.Sym.Type == objabi.STLSBSS {
 				// For shared libraries, use general dynamic TLS model
 				// to support non-glibc dlopen()
-				if c.ctxt.Flag_shared && (c.ctxt.Headtype == objabi.Hlinux || c.ctxt.Headtype == objabi.Hfreebsd || c.ctxt.Headtype == objabi.Hopenbsd) {
+				if c.ctxt.ShouldUseTLSGD() {
 					return C_TLS_GD
 				}
 				// Otherwise, use 8 byte local-exec TLS accesses.

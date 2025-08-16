@@ -582,7 +582,7 @@ func (c *ctxtz) aclass(a *obj.Addr) int {
 			}
 			c.instoffset = a.Offset
 			if a.Sym.Type == objabi.STLSBSS {
-				if c.ctxt.Flag_shared && (c.ctxt.Headtype == objabi.Hlinux || c.ctxt.Headtype == objabi.Hfreebsd || c.ctxt.Headtype == objabi.Hopenbsd) {
+				if c.ctxt.ShouldUseTLSGD() {
 					return C_TLS_GD // general dynamic model
 				}
 				return C_TLS_LE // local exec model

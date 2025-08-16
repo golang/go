@@ -2103,7 +2103,7 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
 				if a.Sym.Type == objabi.STLSBSS {
 					// For c-shared/c-archive on standards-compliant systems,
 					// use general dynamic model for dlopen compatibility.
-					if c.ctxt.Flag_shared && (c.ctxt.Headtype == objabi.Hlinux || c.ctxt.Headtype == objabi.Hfreebsd || c.ctxt.Headtype == objabi.Hopenbsd) {
+					if c.ctxt.ShouldUseTLSGD() {
 						return C_TLS_GD
 					} else {
 						return C_TLS_LE

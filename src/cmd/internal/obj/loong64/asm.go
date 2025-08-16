@@ -763,7 +763,7 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
 			}
 			c.instoffset = a.Offset
 			if a.Sym.Type == objabi.STLSBSS {
-				if c.ctxt.Flag_shared && (c.ctxt.Headtype == objabi.Hlinux || c.ctxt.Headtype == objabi.Hfreebsd || c.ctxt.Headtype == objabi.Hopenbsd) {
+				if c.ctxt.ShouldUseTLSGD() {
 					return C_TLS_GD
 				} else {
 					return C_TLS_LE

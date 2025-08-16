@@ -155,7 +155,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			// required for non-glibc dlopen(). In TLS GD, the first instruction (MOVQ TLS, reg)
 			// calls __tls_get_addr and loads the TLS address into reg.
 			// The second instruction should access 0(reg) without TLS index.
-			if ctxt.Flag_shared && (ctxt.Headtype == objabi.Hlinux || ctxt.Headtype == objabi.Hfreebsd || ctxt.Headtype == objabi.Hopenbsd) {
+			if ctxt.ShouldUseTLSGD() {
 				// Remove TLS index for TLS GD model - the base register will contain
 				// the correct TLS address after the first instruction's __tls_get_addr call
 				q.From.Index = REG_NONE

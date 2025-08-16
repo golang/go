@@ -288,7 +288,7 @@ func sysargs(argc int32, argv **byte) {
 		return
 	}
 
-	n = read(fd, noescape(unsafe.Pointer(&auxvreadbuf[0])), int32(unsafe.Sizeof(auxvreadbuf)))
+	n := read(fd, noescape(unsafe.Pointer(&auxvreadbuf[0])), int32(unsafe.Sizeof(auxvreadbuf)))
 	closefd(fd)
 	if n < 0 {
 		return

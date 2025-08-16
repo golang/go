@@ -871,7 +871,7 @@ func (c *ctxt5) aclass(a *obj.Addr) int {
 
 			c.instoffset = 0 // s.b. unused but just in case
 			if a.Sym.Type == objabi.STLSBSS {
-				if c.ctxt.Flag_shared && (c.ctxt.Headtype == objabi.Hlinux || c.ctxt.Headtype == objabi.Hfreebsd || c.ctxt.Headtype == objabi.Hopenbsd) {
+				if c.ctxt.ShouldUseTLSGD() {
 					// Use General Dynamic model for shared libraries
 					// to support non-glibc dlopen()
 					return C_TLS_GD

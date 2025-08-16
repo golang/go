@@ -3904,7 +3904,7 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				break
 			}
 			if addr.Sym.Type == objabi.STLSBSS {
-				if ctxt.Flag_shared && (ctxt.Headtype == objabi.Hlinux || ctxt.Headtype == objabi.Hfreebsd || ctxt.Headtype == objabi.Hopenbsd) {
+				if ctxt.ShouldUseTLSGD() {
 					rt = objabi.R_RISCV_TLS_GD
 				} else {
 					rt = objabi.R_RISCV_TLS_LE

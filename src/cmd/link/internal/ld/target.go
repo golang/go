@@ -8,6 +8,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"encoding/binary"
+	"fmt"
 )
 
 // Target holds the configuration we're building for.
@@ -22,6 +23,105 @@ type Target struct {
 	linkShared    bool
 	canUsePlugins bool
 	IsELF         bool
+
+	TLSModel TLSModel // TLS model selection
+}
+
+// TLSModel represents different Thread Local Storage models
+type TLSModel int
+
+const (
+	TLSModelAuto TLSModel = iota // Automatic selection based on platform and build mode
+	TLSModelLE                   // Local Exec - fastest, static executables only
+	TLSModelIE                   // Initial Exec - fast, may not work with dlopen on non-glibc
+	TLSModelGD                   // General Dynamic - compatible with all dlopen scenarios
+)
+
+func (t TLSModel) String() string {
+	switch t {
+	case TLSModelAuto:
+		return "auto"
+	case TLSModelLE:
+		return "LE"
+	case TLSModelIE:
+		return "IE"
+	case TLSModelGD:
+		return "GD"
+	default:
+		return "unknown"
+	}
+}
+
+// Set implements flag.Value interface for TLS model parsing
+func (t *TLSModel) Set(s string) error {
+	switch s {
+	case "auto":
+		*t = TLSModelAuto
+	case "LE":
+		*t = TLSModelLE
+	case "IE":
+		*t = TLSModelIE
+	case "GD":
+		*t = TLSModelGD
+	default:
+		return fmt.Errorf("invalid TLS model %q; valid values are auto, LE, IE, GD", s)
+	}
+	return nil
+}
+
+// ValidateTLSModel checks if the TLS model is valid for the target platform and build mode
+func (t *Target) ValidateTLSModel() error {
+	switch t.TLSModel {
+	case TLSModelAuto:
+		// Auto is always valid
+		return nil
+	case TLSModelLE:
+		// LE model is only valid for static executables
+		if t.BuildMode == BuildModeShared || t.BuildMode == BuildModeCArchive || t.BuildMode == BuildModeCShared {
+			return fmt.Errorf("LE TLS model invalid for shared libraries (requires static TLS allocation)")
+		}
+		// LE not supported on Windows/Plan9
+		if t.HeadType == objabi.Hwindows || t.HeadType == objabi.Hplan9 {
+			return fmt.Errorf("LE TLS model not supported on %s", t.HeadType)
+		}
+	case TLSModelGD:
+		// GD model requires __tls_get_addr support
+		if t.HeadType == objabi.Hwindows || t.HeadType == objabi.Hplan9 {
+			return fmt.Errorf("GD TLS model not supported on %s (no __tls_get_addr support)", t.HeadType)
+		}
+	case TLSModelIE:
+		// IE model may fail on non-glibc systems when used with shared libraries
+		if (t.BuildMode == BuildModeShared || t.BuildMode == BuildModeCArchive || t.BuildMode == BuildModeCShared) &&
+			(t.HeadType == objabi.Hlinux || t.HeadType == objabi.Hfreebsd || t.HeadType == objabi.Hopenbsd) {
+			// This is a warning case, not an error - user might know their deployment environment
+			// We'll print a warning during linking but allow it
+		}
+	}
+	return nil
+}
+
+// GetEffectiveTLSModel returns the actual TLS model to use, resolving "auto" to a concrete model
+func (t *Target) GetEffectiveTLSModel() TLSModel {
+	if t.TLSModel != TLSModelAuto {
+		return t.TLSModel
+	}
+
+	// Auto selection logic - matches our current implementation
+	switch {
+	case t.BuildMode == BuildModeShared || t.BuildMode == BuildModeCArchive || t.BuildMode == BuildModeCShared:
+		// For shared libraries, use GD on Unix platforms for compatibility
+		if t.HeadType == objabi.Hlinux || t.HeadType == objabi.Hfreebsd || t.HeadType == objabi.Hopenbsd {
+			return TLSModelGD
+		}
+		// For other platforms (Darwin, Windows), use IE
+		return TLSModelIE
+	default:
+		// For static executables, use LE where supported, otherwise IE
+		if t.HeadType == objabi.Hwindows || t.HeadType == objabi.Hplan9 {
+			return TLSModelIE
+		}
+		return TLSModelLE
+	}
 }
 
 //

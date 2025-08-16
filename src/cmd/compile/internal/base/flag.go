@@ -119,6 +119,7 @@ type CmdFlags struct {
 	Race               bool         "help:\"enable race detector\""
 	Shared             *bool        "help:\"generate code that can be linked into a shared library\"" // &Ctxt.Flag_shared, set below
 	SmallFrames        bool         "help:\"reduce the size limit for stack allocated objects\""      // small stacks, to diagnose GC latency; see golang.org/issue/27732
+	TLS                string       "help:\"set TLS model (auto, LE, IE, GD)\""
 	Spectre            string       "help:\"enable spectre mitigations in `list` (all, index, ret)\""
 	Std                bool         "help:\"compiling standard library\""
 	SymABIs            string       "help:\"read symbol ABIs from `file`\""
@@ -292,6 +293,11 @@ func ParseFlags() {
 		log.Fatalf("%s/%s does not support -shared", buildcfg.GOOS, buildcfg.GOARCH)
 	}
 	parseSpectre(Flag.Spectre) // left as string for RecordFlags
+	
+	// Parse TLS model before setting other flags that depend on it
+	if err := parseTLSModel(Flag.TLS); err != nil {
+		log.Fatalf("%v", err)
+	}
 
 	Ctxt.Flag_shared = Ctxt.Flag_dynlink || Ctxt.Flag_shared
 	Ctxt.Flag_optimize = Flag.N == 0
@@ -566,6 +572,27 @@ func readEmbedCfg(file string) {
 	if Flag.Cfg.Embed.Files == nil {
 		log.Fatalf("%s: invalid embedcfg: missing Files", file)
 	}
+}
+
+// parseTLSModel parses the TLS model from the string s.
+func parseTLSModel(s string) error {
+	if s == "" {
+		s = "auto" // Default to auto
+	}
+	
+	switch s {
+	case "auto":
+		Ctxt.TLSModel = obj.TLSModelAuto
+	case "LE":
+		Ctxt.TLSModel = obj.TLSModelLE
+	case "IE":
+		Ctxt.TLSModel = obj.TLSModelIE
+	case "GD":
+		Ctxt.TLSModel = obj.TLSModelGD
+	default:
+		return fmt.Errorf("invalid TLS model %q; valid values are auto, LE, IE, GD", s)
+	}
+	return nil
 }
 
 // parseSpectre parses the spectre configuration from the string s.

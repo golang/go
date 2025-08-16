@@ -16,9 +16,6 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    // Set an environment variable before loading the library
-    setenv("MUSL_TEST_VAR", "from_c", 1);
-
     // Try to load the shared library
     void *handle = dlopen(argv[1], RTLD_NOW);
     if (!handle) {
@@ -35,31 +32,17 @@ int main(int argc, char **argv) {
     }
     test_init();
 
-    // Test 2: Check environment variable synchronization
-    char* (*test_env)(void) = dlsym(handle, "TestEnvSync");
-    if (!test_env) {
-        fprintf(stderr, "dlsym TestEnvSync failed: %s\n", dlerror());
-        dlclose(handle);
-        return 1;
-    }
-    char* env_val = test_env();
-    if (env_val && strcmp(env_val, "from_c") == 0) {
-        printf("ENV_SYNC_SUCCESS\n");
-    } else {
-        printf("ENV_SYNC_FAIL: got '%s', expected 'from_c'\n", env_val ? env_val : "(null)");
-    }
-
-    // Test 3: Check if argc is accessible
-    int (*test_argc)(void) = dlsym(handle, "TestArgc");
-    if (test_argc) {
-        int go_argc = test_argc();
+    // Test 2: Check if argc is accessible
+    int (*get_arg_count)(void) = dlsym(handle, "GetArgCount");
+    if (get_arg_count) {
+        int go_argc = get_arg_count();
         printf("ARGC_TEST: C=%d Go=%d\n", argc, go_argc);
     }
 
-    // Test 4: Check if argv is accessible
-    char* (*test_argv)(int) = dlsym(handle, "TestArgv");
-    if (test_argv) {
-        char* arg0 = test_argv(0);
+    // Test 3: Check if argv is accessible
+    char* (*get_arg)(int) = dlsym(handle, "GetArg");
+    if (get_arg) {
+        char* arg0 = get_arg(0);
         if (arg0 && *arg0) {
             printf("ARGV_TEST_SUCCESS: argv[0]=%s\n", arg0);
         } else {

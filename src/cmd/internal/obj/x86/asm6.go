@@ -5149,6 +5149,12 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 						break
 					}
 
+					// Skip TLS GD/LE handling for platforms that use different TLS mechanisms
+					if ctxt.Headtype == objabi.Hdarwin || ctxt.Headtype == objabi.Hwindows {
+						// These platforms handle TLS differently, fall through to next case
+						break
+					}
+					
 					switch ctxt.Headtype {
 					default:
 						log.Fatalf("unknown TLS base location for %v", ctxt.Headtype)
@@ -5174,7 +5180,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 						
 						// For shared libraries on Linux/FreeBSD, use TLS GD model
 						// This provides dynamic TLS allocation required for non-glibc dlopen()
-						if ctxt.Flag_shared && (ctxt.Headtype == objabi.Hlinux || ctxt.Headtype == objabi.Hfreebsd || ctxt.Headtype == objabi.Hopenbsd) {
+						if ctxt.ShouldUseTLSGD() {
 							// Generate TLS GD instruction sequence:
 							// leaq runtime.tls_g@tlsgd(%rip), %rdi
 							// call __tls_get_addr@PLT  
@@ -5229,8 +5235,8 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 								Add:  -4,
 							})
 							ab.PutInt32(0)
-						} else if ctxt.Headtype == objabi.Hlinux || ctxt.Headtype == objabi.Hfreebsd {
-							// Linux/FreeBSD without shared flag - use Local Exec for static executables
+						} else if ctxt.ShouldUseTLSLE() {
+							// Use Local Exec for static executables
 							ab.rexflag = Pw | (regrex[dst] & Rxr)
 							ab.Put2(0x8B, byte(0x04|(reg[dst]<<3)))
 							ab.Put1(0x25)

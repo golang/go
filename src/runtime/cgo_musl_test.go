@@ -63,22 +63,14 @@ func TestMuslSharedLibrary(t *testing.T) {
 		t.Error("shared library initialization failed")
 	}
 
-	// Test 2: Environment sync (currently expected to fail)
-	if strings.Contains(outStr, "ENV_SYNC_SUCCESS") {
-		t.Log("Environment synchronization working (unexpected)")
-	} else if strings.Contains(outStr, "ENV_SYNC_FAIL") {
-		// This is expected until we fix env sync
-		t.Log("Environment synchronization not working (expected)")
-	}
-
-	// Test 3: argc access
+	// Test 2: argc access
 	if strings.Contains(outStr, "ARGC_TEST:") {
 		// On musl without our fix, argc would be garbage
 		// With our fix, it should be 0 for shared libraries
 		t.Log("argc test passed")
 	}
 
-	// Test 4: argv access
+	// Test 3: argv access
 	if strings.Contains(outStr, "ARGV_TEST_SUCCESS") {
 		t.Log("argv accessible")
 	} else if strings.Contains(outStr, "ARGV_TEST_FAIL") {

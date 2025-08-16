@@ -57,6 +57,7 @@ func Linknew(arch *LinkArch) *Link {
 	}
 
 	ctxt.Flag_optimize = true
+	ctxt.TLSModel = TLSModelAuto // Default to automatic TLS model selection
 	return ctxt
 }
 
