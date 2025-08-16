@@ -115,4 +115,7 @@ type Flags struct {
 	// RandomizedHeapBase enables heap base address randomization on 64-bit
 	// platforms.
 	RandomizedHeapBase64 bool
+
+	// GoroutineLeakFinderGC enables the Deadlock GC implementation.
+	GoroutineLeakFinderGC bool
 }

@@ -513,7 +513,7 @@ func acquireSudog() *sudog {
 	s := pp.sudogcache[n-1]
 	pp.sudogcache[n-1] = nil
 	pp.sudogcache = pp.sudogcache[:n-1]
-	if s.elem != nil {
+	if s.elem.get() != nil {
 		throw("acquireSudog: found s.elem != nil in cache")
 	}
 	releasem(mp)
@@ -522,7 +522,7 @@ func acquireSudog() *sudog {
 
 //go:nosplit
 func releaseSudog(s *sudog) {
-	if s.elem != nil {
+	if s.elem.get() != nil {
 		throw("runtime: sudog with non-nil elem")
 	}
 	if s.isSelect {
@@ -537,7 +537,7 @@ func releaseSudog(s *sudog) {
 	if s.waitlink != nil {
 		throw("runtime: sudog with non-nil waitlink")
 	}
-	if s.c != nil {
+	if s.c.get() != nil {
 		throw("runtime: sudog with non-nil c")
 	}
 	gp := getg()
@@ -1208,6 +1208,7 @@ func casfrom_Gscanstatus(gp *g, oldval, newval uint32) {
 		_Gscanwaiting,
 		_Gscanrunning,
 		_Gscansyscall,
+		_Gscanleaked,
 		_Gscanpreempted:
 		if newval == oldval&^_Gscan {
 			success = gp.atomicstatus.CompareAndSwap(oldval, newval)
@@ -1228,6 +1229,7 @@ func castogscanstatus(gp *g, oldval, newval uint32) bool {
 	case _Grunnable,
 		_Grunning,
 		_Gwaiting,
+		_Gleaked,
 		_Gsyscall:
 		if newval == oldval|_Gscan {
 			r := gp.atomicstatus.CompareAndSwap(oldval, newval)
@@ -5552,6 +5554,25 @@ func gcount(includeSys bool) int32 {
 	if n < 1 {
 		n = 1
 	}
+	return n
+}
+
+//go:linkname runtime_gleakcount runtime/pprof.runtime_gleakcount
+func runtime_gleakcount() int32 {
+	return gleakcount()
+}
+
+// gleakcount returns the number of leaked goroutines currently reported by
+// the runtime. Protected by allglock.
+func gleakcount() int32 {
+	n := int32(0)
+	lock(&allglock)
+	for _, g := range allgs {
+		if readgstatus(g) == _Gleaked {
+			n++
+		}
+	}
+	unlock(&allglock)
 	return n
 }
 
