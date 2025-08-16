@@ -283,9 +283,9 @@ dependencies, so is not suitable for distributed build systems.)
   $ git clone https://go.googlesource.com/go
   $ cd go
   $ git checkout -b mybranch
-  $ ./src/all.bash               # build and confirm good starting point
+  $ cd src && ./all.bash && cd ..   # build and confirm good starting point
   $ export PATH=$PWD/bin:$PATH
-  $ toolstash save               # save current tools
+  $ toolstash save                  # save current tools
   ```
   After that, your edit/compile/test cycle can be similar to:
   ```
