@@ -5827,6 +5827,25 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
 	if n.ITab != nil {
 		targetItab = s.expr(n.ITab)
 	}
+
+	if n.UseNilPanic {
+		if commaok {
+			base.Fatalf("unexpected *ir.TypeAssertExpr with UseNilPanic == true && commaok == true")
+		}
+		if n.Type().IsInterface() {
+			// Currently we do not expect the compiler to emit type asserts with UseNilPanic, that assert to an interface type.
+			// If needed, this can be relaxed in the future, but for now we can assert that.
+			base.Fatalf("unexpected *ir.TypeAssertExpr with UseNilPanic == true && Type().IsInterface() == true")
+		}
+		typs := s.f.Config.Types
+		iface = s.newValue2(
+			ssa.OpIMake,
+			iface.Type,
+			s.nilCheck(s.newValue1(ssa.OpITab, typs.BytePtr, iface)),
+			s.newValue1(ssa.OpIData, typs.BytePtr, iface),
+		)
+	}
+
 	return s.dottype1(n.Pos(), n.X.Type(), n.Type(), iface, nil, target, targetItab, commaok, n.Descriptor)
 }
 
