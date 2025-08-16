@@ -1237,16 +1237,19 @@ func hostobjs(ctxt *Link) {
 		if err != nil {
 			Exitf("cannot reopen %s: %v", h.pn, err)
 		}
-		f.MustSeek(h.off, 0)
-		if h.ld == nil {
-			Errorf("%s: unrecognized object file format", h.pn)
-			continue
-		}
-		h.ld(ctxt, f, h.pkg, h.length, h.pn)
-		if *flagCaptureHostObjs != "" {
-			captureHostObj(h)
-		}
-		f.Close()
+		func() {
+			defer f.Close()
+
+			f.MustSeek(h.off, 0)
+			if h.ld == nil {
+				Errorf("%s: unrecognized object file format", h.pn)
+				return
+			}
+			h.ld(ctxt, f, h.pkg, h.length, h.pn)
+			if *flagCaptureHostObjs != "" {
+				captureHostObj(h)
+			}
+		}()
 	}
 }
 
