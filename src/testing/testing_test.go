@@ -147,6 +147,39 @@ func testTempDir(t *testing.T) {
 	}
 }
 
+func TestTempDirGOTMPDIR(t *testing.T) {
+	// The first call to t.TempDir will create a parent temporary directory
+	// that will contain all temporary directories created by TempDir.
+	//
+	// Use os.TempDir (not t.TempDir) to get a temporary directory,
+	// set GOTMPDIR to that directory,
+	// and then verify that t.TempDir creates a directory in GOTMPDIR.
+	customTmpDir := filepath.Join(os.TempDir(), "custom-gotmpdir-test")
+	if err := os.MkdirAll(customTmpDir, 0777); err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(customTmpDir)
+
+	t.Setenv("GOTMPDIR", customTmpDir)
+
+	dir := t.TempDir()
+	if dir == "" {
+		t.Fatal("expected dir")
+	}
+
+	if !strings.HasPrefix(dir, customTmpDir) {
+		t.Errorf("TempDir did not use GOTMPDIR: got %q, want prefix %q", dir, customTmpDir)
+	}
+
+	fi, err := os.Stat(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !fi.IsDir() {
+		t.Errorf("dir %q is not a dir", dir)
+	}
+}
+
 func TestSetenv(t *testing.T) {
 	tests := []struct {
 		name               string
