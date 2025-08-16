@@ -105,7 +105,7 @@ func MkdirTemp(dir, pattern string) (string, error) {
 			if try++; try < 10000 {
 				continue
 			}
-			return "", &PathError{Op: "mkdirtemp", Path: dir + string(PathSeparator) + prefix + "*" + suffix, Err: ErrExist}
+			return "", &PathError{Op: "mkdirtemp", Path: prefix + "*" + suffix, Err: ErrExist}
 		}
 		if IsNotExist(err) {
 			if _, err := Stat(dir); IsNotExist(err) {
