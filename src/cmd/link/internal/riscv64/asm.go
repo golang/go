@@ -259,6 +259,7 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 		objabi.R_RISCV_PCREL_ITYPE,
 		objabi.R_RISCV_PCREL_STYPE,
 		objabi.R_RISCV_TLS_IE,
+		objabi.R_RISCV_TLS_GD,
 		objabi.R_RISCV_GOT_PCREL_ITYPE:
 		// Find the text symbol for the AUIPC instruction targeted
 		// by this relocation.
@@ -288,6 +289,8 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 			hiRel, loRel = elf.R_RISCV_PCREL_HI20, elf.R_RISCV_PCREL_LO12_S
 		case objabi.R_RISCV_TLS_IE:
 			hiRel, loRel = elf.R_RISCV_TLS_GOT_HI20, elf.R_RISCV_PCREL_LO12_I
+		case objabi.R_RISCV_TLS_GD:
+			hiRel, loRel = elf.R_RISCV_TLS_GD_HI20, elf.R_RISCV_PCREL_LO12_I
 		case objabi.R_RISCV_GOT_PCREL_ITYPE:
 			hiRel, loRel = elf.R_RISCV_GOT_HI20, elf.R_RISCV_PCREL_LO12_I
 		}
@@ -454,7 +457,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		case objabi.R_RISCV_JAL, objabi.R_RISCV_JAL_TRAMP:
 			return val, 1, true
 
-		case objabi.R_RISCV_CALL, objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE, objabi.R_RISCV_TLS_LE, objabi.R_RISCV_GOT_PCREL_ITYPE:
+		case objabi.R_RISCV_CALL, objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_GD, objabi.R_RISCV_TLS_IE, objabi.R_RISCV_TLS_LE, objabi.R_RISCV_GOT_PCREL_ITYPE:
 			return val, 2, true
 		}
 
@@ -476,6 +479,13 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 
 		return val, 0, true
 
+	case objabi.R_RISCV_TLS_GD:
+		// General Dynamic model requires external linking
+		if !target.IsExternal() {
+			ldr.Errorf(s, "cannot handle R_RISCV_TLS_GD when linking internally")
+		}
+		return val, 0, true
+	
 	case objabi.R_RISCV_TLS_IE:
 		log.Fatalf("cannot handle R_RISCV_TLS_IE (sym %s) when linking internally", ldr.SymName(s))
 		return val, 0, false
@@ -654,7 +664,7 @@ func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc, s loader.Sy
 	case objabi.R_RISCV_JAL, objabi.R_RISCV_JAL_TRAMP:
 		return ld.ExtrelocSimple(ldr, r), true
 
-	case objabi.R_RISCV_CALL, objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE, objabi.R_RISCV_TLS_LE, objabi.R_RISCV_GOT_PCREL_ITYPE:
+	case objabi.R_RISCV_CALL, objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_GD, objabi.R_RISCV_TLS_IE, objabi.R_RISCV_TLS_LE, objabi.R_RISCV_GOT_PCREL_ITYPE:
 		return ld.ExtrelocViaOuterSym(ldr, r, s), true
 	}
 	return loader.ExtReloc{}, false

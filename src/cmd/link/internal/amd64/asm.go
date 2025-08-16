@@ -466,6 +466,13 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 		} else {
 			return false
 		}
+	case objabi.R_AMD64_TLS_GD:
+		// General Dynamic TLS model
+		if siz == 4 {
+			out.Write64(uint64(elf.R_X86_64_TLSGD) | uint64(elfsym)<<32)
+		} else {
+			return false
+		}
 	case objabi.R_CALL:
 		if siz == 4 {
 			if ldr.SymType(r.Xsym) == sym.SDYNIMPORT {
@@ -603,8 +610,30 @@ func pereloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 	return true
 }
 
-func archreloc(*ld.Target, *loader.Loader, *ld.ArchSyms, loader.Reloc, loader.Sym, int64) (int64, int, bool) {
+func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc, s loader.Sym, val int64) (int64, int, bool) {
+	const noExtReloc = 1
+	const isOk = true
+
+	switch rt := r.Type(); rt {
+	case objabi.R_AMD64_TLS_GD:
+		// General Dynamic model requires external linking
+		if !target.IsExternal() {
+			ldr.Errorf(s, "cannot handle R_AMD64_TLS_GD when linking internally")
+		}
+		return val, noExtReloc, isOk
+	}
+	
 	return -1, 0, false
+}
+
+func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc, s loader.Sym) (loader.ExtReloc, bool) {
+	switch rt := r.Type(); rt {
+	case objabi.R_AMD64_TLS_GD:
+		return ld.ExtrelocSimple(ldr, r), true
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_X86_64_PLT32):
+		return ld.ExtrelocSimple(ldr, r), true
+	}
+	return loader.ExtReloc{}, false
 }
 
 func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant, loader.Sym, int64, []byte) int64 {

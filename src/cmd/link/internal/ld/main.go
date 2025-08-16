@@ -39,6 +39,7 @@ import (
 	"cmd/internal/telemetry/counter"
 	"cmd/link/internal/benchmark"
 	"flag"
+	"fmt"
 	"internal/buildcfg"
 	"log"
 	"os"
@@ -199,6 +200,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 	flag.BoolVar(&ctxt.linkShared, "linkshared", false, "link against installed Go shared libraries")
 	flag.Var(&ctxt.LinkMode, "linkmode", "set link `mode`")
 	flag.Var(&ctxt.BuildMode, "buildmode", "set build `mode`")
+	flag.Var(&ctxt.TLSModel, "tls", "set TLS `model` (auto, LE, IE, GD)")
 	flag.BoolVar(&ctxt.compressDWARF, "compressdwarf", true, "compress DWARF if possible")
 	objabi.Flagfn1("L", "add specified `directory` to library path", func(a string) { Lflag(ctxt, a) })
 	objabi.AddVersionFlag() // -V
@@ -235,6 +237,19 @@ func Main(arch *sys.Arch, theArch Arch) {
 	}
 	if ctxt.HeadType == objabi.Hunknown {
 		ctxt.HeadType.Set(buildcfg.GOOS)
+	}
+
+	// Validate TLS model selection
+	if err := ctxt.ValidateTLSModel(); err != nil {
+		Errorf("%v", err)
+		usage()
+	}
+
+	// Check for TLS model warnings
+	if ctxt.TLSModel == TLSModelIE &&
+		(ctxt.BuildMode == BuildModeShared || ctxt.BuildMode == BuildModeCArchive || ctxt.BuildMode == BuildModeCShared) &&
+		(ctxt.HeadType == objabi.Hlinux || ctxt.HeadType == objabi.Hfreebsd || ctxt.HeadType == objabi.Hopenbsd) {
+		fmt.Fprintf(os.Stderr, "link: warning: IE TLS model may fail on non-glibc systems; consider -tls=GD for compatibility\n")
 	}
 
 	if !*flagAslr && ctxt.BuildMode != BuildModeCShared {

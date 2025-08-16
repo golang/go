@@ -66,6 +66,7 @@ var cnames0 = []string{
 	"ADDR",
 	"TLS_LE",
 	"TLS_IE",
+	"TLS_GD",
 	"GOTADDR",
 	"TEXTSIZE",
 	"GOK",

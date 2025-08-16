@@ -198,6 +198,11 @@ const (
 	// offset from the thread local base.
 	C_TLS_IE
 
+	// TLS "var" in general dynamic mode: will become a call to __tls_get_addr
+	// to retrieve the address of the TLS variable. Used for dynamically loaded
+	// shared libraries.
+	C_TLS_GD
+
 	C_TEXTSIZE
 
 	C_GOK

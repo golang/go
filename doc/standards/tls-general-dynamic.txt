@@ -1,0 +1,193 @@
+TLS General Dynamic Model Implementation
+
+Problem Statement
+
+Go shared libraries built with -buildmode=c-shared fail to load via dlopen()
+on non-glibc systems with the error:
+
+initial-exec TLS resolves to dynamic definition in library.so
+
+This affects any libc implementation that follows the ELF TLS specification
+strictly, including lightweight distributions, BSD systems, and embedded
+systems.
+
+Root Cause
+
+Go was using the Initial Exec (IE) TLS model for all shared libraries, which
+requires static TLS allocation at program startup. The ELF TLS specification
+mandates using General Dynamic (GD) model for dynamically loaded libraries,
+as IE model is not guaranteed to work with dlopen().
+
+Standards Compliance
+
+- ELF TLS Specification: Only General Dynamic model is guaranteed to work
+  with dlopen()
+- Initial Exec model: Requires static TLS allocation at program startup
+- General Dynamic model: Uses __tls_get_addr() for dynamic TLS allocation
+
+Implementation Overview
+
+Implemented comprehensive General Dynamic TLS model support across all
+architectures when building shared libraries for Unix systems (Linux,
+FreeBSD, OpenBSD).
+
+Activation Logic
+
+TLS GD is activated when:
+ctxt.Flag_shared && (ctxt.Headtype == objabi.Hlinux || 
+                     ctxt.Headtype == objabi.Hfreebsd || 
+                     ctxt.Headtype == objabi.Hopenbsd)
+
+Darwin (macOS) retains the standard TLS model as it doesn't have this
+compatibility issue.
+
+Architecture-Specific Implementation
+
+x86_64 (AMD64)
+
+Assembler Changes (cmd/internal/obj/x86/asm6.go):
+- Modified TLS instruction sequence generation
+- Detects TLS GD mode and removes TLS index for proper __tls_get_addr calling
+
+Object Code Generation (cmd/internal/obj/x86/obj6.go):
+- Added TLS GD sequence generation for shared libraries
+- Generates proper MOVQ TLS, reg instruction for assembler processing
+
+Linker (cmd/link/internal/x86/asm.go):
+- Added R_386_TLS_GD relocation handling
+- Proper error reporting for internal linking limitations
+
+ARM64
+
+Assembler Changes (cmd/internal/obj/arm64/asm7.go):
+- Added C_TLS_GD constant for General Dynamic TLS access
+- Implemented 4-instruction GD sequence (case 109):
+  - ADRP R27, :tlsdesc:var
+  - LDR R27, [R27, :tlsdesc_lo12:var]
+  - ADD R0, R27, :tlsdesc_lo12:var
+  - BLR R27
+- Modified aclass() to return C_TLS_GD for shared libraries
+
+Constants (cmd/internal/obj/arm64/a.out.go):
+- Added C_TLS_GD constant definition
+
+Relocation Types (cmd/internal/objabi/reloctype.go):
+- Added R_ARM64_TLS_GD relocation type
+
+ARM (32-bit)
+
+Assembler Changes (cmd/internal/obj/arm/asm5.go):
+- Added TLS GD support in aclass() function
+- Returns C_TLS_GD for shared libraries on supported Unix systems
+
+Constants (cmd/internal/obj/arm/a.out.go):
+- Added C_TLS_GD constant
+
+Relocation Types:
+- Added R_ARM_TLS_GD32 relocation type
+
+PowerPC64
+
+Assembler Changes (cmd/internal/obj/ppc64/asm9.go):
+- Added TLS GD support in aclass() function
+- Returns C_TLS_GD for shared libraries
+
+Constants (cmd/internal/obj/ppc64/a.out.go):
+- Added C_TLS_GD constant
+
+Relocation Types:
+- Added R_POWER_TLS_GD_HA and R_POWER_TLS_GD_LO relocation types
+
+s390x
+
+Assembler Changes (cmd/internal/obj/s390x/asmz.go):
+- Added TLS GD support following the same pattern
+
+Constants (cmd/internal/obj/s390x/a.out.go):
+- Added C_TLS_GD constant
+
+Relocation Types:
+- Added R_390_TLS_GD64 relocation type
+
+RISC-V
+
+Object Generation (cmd/internal/obj/riscv/obj.go):
+- Added TLS GD support in preprocess function
+
+Relocation Types:
+- Added R_RISCV_TLS_GD relocation type
+
+LoongArch64
+
+Assembler Changes (cmd/internal/obj/loong64/asm.go):
+- Added TLS GD support following established pattern
+
+Constants (cmd/internal/obj/loong64/a.out.go):
+- Added C_TLS_GD constant
+
+Relocation Types:
+- Added R_LOONG64_TLS_GD_HI and R_LOONG64_TLS_GD_LO relocation types
+
+MIPS/MIPS64
+
+Assembler Changes (cmd/internal/obj/mips/asm0.go):
+- Added TLS GD support
+
+Constants (cmd/internal/obj/mips/a.out.go):
+- Added C_TLS_GD constant
+
+Relocation Types:
+- Added R_MIPS_TLS_GD_HI and R_MIPS_TLS_GD_LO relocation types
+
+Linker Changes
+
+Common Changes
+- Added proper error handling for internal linking with TLS GD relocations
+- External linking is required for TLS GD relocations
+- Consistent error messages across all architectures
+
+Architecture-Specific Linker Support
+- x86/AMD64: cmd/link/internal/x86/asm.go and cmd/link/internal/amd64/asm.go
+- ARM: cmd/link/internal/arm/asm.go
+- ARM64: Implicit support through external linking
+- PowerPC64: cmd/link/internal/ppc64/asm.go
+- RISC-V: cmd/link/internal/riscv64/asm.go
+- s390x: cmd/link/internal/s390x/asm.go
+- LoongArch64: cmd/link/internal/loong64/asm.go
+- MIPS: cmd/link/internal/mips/asm.go and cmd/link/internal/mips64/asm.go
+
+Runtime Support
+
+Assembly Files Updated
+- runtime/asm_amd64.s: Updated TLS handling for x86_64
+- runtime/asm_386.s: Updated TLS handling for i386
+- runtime/asm_arm64.s: Updated TLS handling for ARM64
+- runtime/asm_arm.s: Updated TLS handling for ARM
+
+Testing
+
+The implementation has been tested on:
+- Alpine Linux 3.21.0 - Standards-compliant libc testing
+- macOS (Darwin) - Backward compatibility verification
+- Multiple architectures via QEMU emulation
+
+Backward Compatibility
+
+- glibc systems: No change in behavior (continues using IE model)
+- Darwin/macOS: No change in behavior (TLS GD not activated)
+- Existing binaries: No impact (change only affects new builds)
+- Static linking: No impact (TLS GD only for shared libraries)
+
+Performance Impact
+
+- Minimal: TLS GD is only used for shared libraries with -buildmode=c-shared
+- Runtime: Slight overhead for TLS access in shared libraries (unavoidable
+  for dlopen() compatibility)
+- Build time: No significant impact
+
+Standards References
+
+- ELF gABI: Generic Application Binary Interface, Dynamic Linking section
+- ELF TLS Specification: Thread-Local Storage for the Generic and x86
+  Architectures
+- System V ABI: Architecture-specific supplements for TLS handling

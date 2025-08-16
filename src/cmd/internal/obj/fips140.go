@@ -136,6 +136,7 @@ package obj
 
 import (
 	"cmd/internal/objabi"
+	"debug/elf"
 	"fmt"
 	"internal/bisect"
 	"internal/buildcfg"
@@ -344,6 +345,10 @@ func (s *LSym) checkFIPSReloc(ctxt *Link, rel Reloc) {
 		objabi.R_ADDRPOWER_TOCREL,
 		objabi.R_ADDRPOWER_TOCREL_DS,
 		objabi.R_ADDRPOWER_PCREL34,
+		objabi.R_AMD64_TLS_GD,   // General Dynamic TLS model for shared libraries
+		objabi.R_ARM64_TLS_GD,   // General Dynamic TLS model for ARM64
+		objabi.R_386_TLS_GD,     // General Dynamic TLS model for i386
+		objabi.ElfRelocOffset + objabi.RelocType(elf.R_X86_64_PLT32), // PLT32 for __tls_get_addr calls
 		objabi.R_ARM64_TLS_LE,
 		objabi.R_ARM64_TLS_IE,
 		objabi.R_ARM64_GOTPCREL,
@@ -353,6 +358,7 @@ func (s *LSym) checkFIPSReloc(ctxt *Link, rel Reloc) {
 		objabi.R_ARM64_PCREL_LDST16,
 		objabi.R_ARM64_PCREL_LDST32,
 		objabi.R_ARM64_PCREL_LDST64,
+		objabi.R_ARM_TLS_GD32,   // General Dynamic TLS model for ARM
 		objabi.R_CALL,
 		objabi.R_CALLARM,
 		objabi.R_CALLARM64,
@@ -362,6 +368,8 @@ func (s *LSym) checkFIPSReloc(ctxt *Link, rel Reloc) {
 		objabi.R_GOTPCREL,
 		objabi.R_LOONG64_ADDR_LO, // used with PC-relative load
 		objabi.R_LOONG64_ADDR_HI, // used with PC-relative load
+		objabi.R_LOONG64_TLS_GD_HI, // General Dynamic TLS model for LoongArch64
+		objabi.R_LOONG64_TLS_GD_LO, // General Dynamic TLS model for LoongArch64
 		objabi.R_LOONG64_TLS_LE_HI,
 		objabi.R_LOONG64_TLS_LE_LO,
 		objabi.R_LOONG64_TLS_IE_HI,
@@ -371,8 +379,12 @@ func (s *LSym) checkFIPSReloc(ctxt *Link, rel Reloc) {
 		objabi.R_JMP16LOONG64,
 		objabi.R_JMP21LOONG64,
 		objabi.R_JMPLOONG64,
+		objabi.R_MIPS_TLS_GD_HI,  // General Dynamic TLS model for MIPS
+		objabi.R_MIPS_TLS_GD_LO,  // General Dynamic TLS model for MIPS
 		objabi.R_PCREL,
 		objabi.R_PCRELDBL,
+		objabi.R_POWER_TLS_GD_HA, // General Dynamic TLS model for PowerPC
+		objabi.R_POWER_TLS_GD_LO, // General Dynamic TLS model for PowerPC
 		objabi.R_POWER_TLS_LE,
 		objabi.R_POWER_TLS_IE,
 		objabi.R_POWER_TLS,
@@ -381,6 +393,7 @@ func (s *LSym) checkFIPSReloc(ctxt *Link, rel Reloc) {
 		objabi.R_RISCV_JAL,
 		objabi.R_RISCV_PCREL_ITYPE,
 		objabi.R_RISCV_PCREL_STYPE,
+		objabi.R_RISCV_TLS_GD,    // General Dynamic TLS model for RISC-V
 		objabi.R_RISCV_TLS_IE,
 		objabi.R_RISCV_TLS_LE,
 		objabi.R_RISCV_GOT_HI20,
@@ -391,6 +404,7 @@ func (s *LSym) checkFIPSReloc(ctxt *Link, rel Reloc) {
 		objabi.R_RISCV_BRANCH,
 		objabi.R_RISCV_RVC_BRANCH,
 		objabi.R_RISCV_RVC_JUMP,
+		objabi.R_390_TLS_GD64,    // General Dynamic TLS model for s390x
 		objabi.R_TLS_IE,
 		objabi.R_TLS_LE,
 		objabi.R_WEAKADDROFF:

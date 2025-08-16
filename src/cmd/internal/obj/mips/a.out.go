@@ -312,6 +312,7 @@ const (
 	C_GOK
 	C_ADDR
 	C_TLS
+	C_TLS_GD   /* TLS General Dynamic model */
 	C_TEXTSIZE
 
 	C_NCLASS /* must be the last */

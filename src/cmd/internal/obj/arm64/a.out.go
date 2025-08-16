@@ -473,6 +473,11 @@ const (
 	// offset from the thread local base.
 	C_TLS_IE
 
+	// TLS "var" in general dynamic mode: will become a call sequence to
+	// __tls_get_addr or equivalent dynamic linker function. Used for
+	// dynamically loaded libraries (dlopen).
+	C_TLS_GD
+
 	C_ROFF // register offset (including register extended)
 
 	C_GOK

@@ -1,0 +1,31 @@
+# Test Go c-shared compatibility on Alpine Linux (musl libc) - ARM64
+FROM --platform=linux/arm64 alpine:latest
+
+# Install dependencies
+RUN apk add --no-cache \
+    gcc \
+    musl-dev \
+    make \
+    bash \
+    git
+
+# Copy Go source (will be mounted as volume)
+WORKDIR /go
+
+# Build Go from source
+COPY src src
+RUN cd src && ./make.bash
+
+# Set up environment
+ENV PATH="/go/bin:${PATH}"
+ENV GOROOT="/go"
+
+# Create test directory
+WORKDIR /test
+
+# Copy test files
+COPY test/musl/test-cshared.sh /test/
+RUN chmod +x /test/test-cshared.sh
+
+# Run tests
+CMD ["/test/test-cshared.sh"]

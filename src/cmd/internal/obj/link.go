@@ -45,6 +45,47 @@ import (
 	"sync/atomic"
 )
 
+// TLSModel represents different Thread Local Storage models
+type TLSModel int
+
+const (
+	TLSModelAuto TLSModel = iota // Automatic selection based on platform and build mode
+	TLSModelLE                   // Local Exec - fastest, static executables only
+	TLSModelIE                   // Initial Exec - fast, may not work with dlopen on non-glibc
+	TLSModelGD                   // General Dynamic - compatible with all dlopen scenarios
+)
+
+// ShouldUseTLSGD returns true if General Dynamic TLS model should be used
+func (ctxt *Link) ShouldUseTLSGD() bool {
+	switch ctxt.TLSModel {
+	case TLSModelGD:
+		return true
+	case TLSModelLE, TLSModelIE:
+		return false
+	case TLSModelAuto:
+		// Auto selection logic - matches our current implementation
+		return ctxt.Flag_shared && (ctxt.Headtype == objabi.Hlinux || 
+			ctxt.Headtype == objabi.Hfreebsd || ctxt.Headtype == objabi.Hopenbsd)
+	default:
+		return false
+	}
+}
+
+// ShouldUseTLSLE returns true if Local Exec TLS model should be used
+func (ctxt *Link) ShouldUseTLSLE() bool {
+	switch ctxt.TLSModel {
+	case TLSModelLE:
+		return true
+	case TLSModelGD, TLSModelIE:
+		return false
+	case TLSModelAuto:
+		// Auto selection: use LE for static executables on supported platforms
+		return !ctxt.Flag_shared && ctxt.Headtype != objabi.Hwindows && ctxt.Headtype != objabi.Hplan9
+	default:
+		return false
+	}
+}
+
 // An Addr is an argument to an instruction.
 // The general forms and their encodings are:
 //
@@ -1147,6 +1188,7 @@ type Link struct {
 	Flag_locationlists bool
 	Flag_noRefName     bool   // do not include referenced symbol names in object file
 	Retpoline          bool   // emit use of retpoline stubs for indirect jmp/call
+	TLSModel           TLSModel // TLS model selection
 	Flag_maymorestack  string // If not "", call this function before stack checks
 	Bso                *bufio.Writer
 	Pathname           string

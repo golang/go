@@ -458,6 +458,12 @@ func validSIGPROF(mp *m, c *sigctxt) bool {
 var executablePath string
 
 func sysargs(argc int32, argv **byte) {
+	// Check for nil argv to handle c-shared/c-archive libraries
+	// where DT_INIT_ARRAY doesn't pass arguments according to ELF specification
+	if argv == nil || argc < 0 || (islibrary || isarchive) {
+		return
+	}
+	
 	// skip over argv, envv and the first string will be the path
 	n := argc + 1
 	for argv_index(argv, n) != nil {

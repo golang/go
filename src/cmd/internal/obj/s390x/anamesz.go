@@ -28,6 +28,7 @@ var cnamesz = []string{
 	"LOREG",
 	"TLS_LE",
 	"TLS_IE",
+	"TLS_GD",
 	"GOK",
 	"ADDR",
 	"SYMADDR",

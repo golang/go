@@ -373,6 +373,18 @@ var optab = []Optab{
 	{AMOVBU, C_TLS_IE, C_NONE, C_NONE, C_REG, C_NONE, 57, 16, 0, 0},
 	{AMOVWU, C_TLS_IE, C_NONE, C_NONE, C_REG, C_NONE, 57, 16, 0, 0},
 
+	{AMOVB, C_REG, C_NONE, C_NONE, C_TLS_GD, C_NONE, 73, 16, 0, 0},
+	{AMOVW, C_REG, C_NONE, C_NONE, C_TLS_GD, C_NONE, 73, 16, 0, 0},
+	{AMOVV, C_REG, C_NONE, C_NONE, C_TLS_GD, C_NONE, 73, 16, 0, 0},
+	{AMOVBU, C_REG, C_NONE, C_NONE, C_TLS_GD, C_NONE, 73, 16, 0, 0},
+	{AMOVWU, C_REG, C_NONE, C_NONE, C_TLS_GD, C_NONE, 73, 16, 0, 0},
+
+	{AMOVB, C_TLS_GD, C_NONE, C_NONE, C_REG, C_NONE, 74, 16, 0, 0},
+	{AMOVW, C_TLS_GD, C_NONE, C_NONE, C_REG, C_NONE, 74, 16, 0, 0},
+	{AMOVV, C_TLS_GD, C_NONE, C_NONE, C_REG, C_NONE, 74, 16, 0, 0},
+	{AMOVBU, C_TLS_GD, C_NONE, C_NONE, C_REG, C_NONE, 74, 16, 0, 0},
+	{AMOVWU, C_TLS_GD, C_NONE, C_NONE, C_REG, C_NONE, 74, 16, 0, 0},
+
 	{AWORD, C_32CON, C_NONE, C_NONE, C_NONE, C_NONE, 38, 4, 0, 0},
 	{AWORD, C_DCON, C_NONE, C_NONE, C_NONE, C_NONE, 61, 4, 0, 0},
 
@@ -751,8 +763,8 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
 			}
 			c.instoffset = a.Offset
 			if a.Sym.Type == objabi.STLSBSS {
-				if c.ctxt.Flag_shared {
-					return C_TLS_IE
+				if c.ctxt.ShouldUseTLSGD() {
+					return C_TLS_GD
 				} else {
 					return C_TLS_LE
 				}
@@ -2899,6 +2911,70 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			o3 = OP_12IRR(c.opirr(ALU52ID), uint32(v>>52), uint32(REGTMP), uint32(REGTMP))
 		}
 		o4 = OP_RRR(c.oprrr(p.As), uint32(REGTMP), uint32(r), uint32(p.To.Reg))
+
+	case 73: // mov r, tlsvar GD model ==> TLS general dynamic store
+		// TLS General Dynamic model sequence:
+		// pcalau12i $t0, %gd_hi20(var)
+		// addi.d $a0, $t0, %gd_lo12(var)
+		// bl __tls_get_addr
+		// st.d r, $a0, 0
+		o1 = OP_IR(c.opir(APCALAU12I), uint32(0), uint32(REGTMP))
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_LOONG64_TLS_GD_HI,
+			Off:  int32(c.pc),
+			Siz:  4,
+			Sym:  p.To.Sym,
+		})
+		o2 = OP_12IRR(c.opirr(AADDV), uint32(0), uint32(REGTMP), uint32(REG_R4))
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_LOONG64_TLS_GD_LO,
+			Off:  int32(c.pc + 4),
+			Siz:  4,
+			Sym:  p.To.Sym,
+		})
+		// BL __tls_get_addr
+		o3 = OP_B_BL(c.opi(AJAL), 0)
+		tlsGetAddr := c.ctxt.Lookup("__tls_get_addr")
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_CALLLOONG64,
+			Off:  int32(c.pc + 8),
+			Siz:  4,
+			Sym:  tlsGetAddr,
+		})
+		// Store register to TLS variable
+		o4 = OP_12IRR(c.opirr(p.As), uint32(0), uint32(REG_R4), uint32(p.From.Reg))
+
+	case 74: // mov tlsvar, r GD model ==> TLS general dynamic load
+		// TLS General Dynamic model sequence:
+		// pcalau12i $t0, %gd_hi20(var)
+		// addi.d $a0, $t0, %gd_lo12(var)
+		// bl __tls_get_addr
+		// ld.d r, $a0, 0
+		o1 = OP_IR(c.opir(APCALAU12I), uint32(0), uint32(REGTMP))
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_LOONG64_TLS_GD_HI,
+			Off:  int32(c.pc),
+			Siz:  4,
+			Sym:  p.From.Sym,
+		})
+		o2 = OP_12IRR(c.opirr(AADDV), uint32(0), uint32(REGTMP), uint32(REG_R4))
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_LOONG64_TLS_GD_LO,
+			Off:  int32(c.pc + 4),
+			Siz:  4,
+			Sym:  p.From.Sym,
+		})
+		// BL __tls_get_addr
+		o3 = OP_B_BL(c.opi(AJAL), 0)
+		tlsGetAddr := c.ctxt.Lookup("__tls_get_addr")
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_CALLLOONG64,
+			Off:  int32(c.pc + 8),
+			Siz:  4,
+			Sym:  tlsGetAddr,
+		})
+		// Load from TLS variable
+		o4 = OP_12IRR(c.opirr(-p.As), uint32(0), uint32(REG_R4), uint32(p.To.Reg))
 	}
 
 	out[0] = o1

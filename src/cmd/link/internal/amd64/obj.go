@@ -55,6 +55,7 @@ func Init() (*sys.Arch, ld.Arch) {
 		Archinit:         archinit,
 		Archreloc:        archreloc,
 		Archrelocvariant: archrelocvariant,
+		Extreloc:         extreloc,
 		Gentext:          gentext,
 		Machoreloc1:      machoreloc1,
 		MachorelocSize:   8,

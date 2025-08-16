@@ -231,6 +231,7 @@ ok:
 	// convention is D is always cleared
 	CLD
 
+skipcheck:
 	CALL	runtime·check(SB)
 
 	// saved argc, argv
@@ -1559,4 +1560,23 @@ GLOBL runtime·tls_g+0(SB), NOPTR, $4
 #endif
 #ifdef GOOS_windows
 GLOBL runtime·tls_g+0(SB), NOPTR, $4
+#endif
+// For TLS GD model support on Unix systems
+#ifdef GOOS_linux
+GLOBL runtime·tls_g+0(SB), TLSBSS, $4
+#endif
+#ifdef GOOS_freebsd
+GLOBL runtime·tls_g+0(SB), TLSBSS, $4
+#endif
+#ifdef GOOS_netbsd
+GLOBL runtime·tls_g+0(SB), TLSBSS, $4
+#endif
+#ifdef GOOS_openbsd
+GLOBL runtime·tls_g+0(SB), TLSBSS, $4
+#endif
+#ifdef GOOS_dragonfly
+GLOBL runtime·tls_g+0(SB), TLSBSS, $4
+#endif
+#ifdef GOOS_solaris
+GLOBL runtime·tls_g+0(SB), TLSBSS, $4
 #endif

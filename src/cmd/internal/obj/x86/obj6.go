@@ -149,9 +149,23 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			q.From = p.From
 			q.From.Type = obj.TYPE_MEM
 			q.From.Reg = p.To.Reg
-			q.From.Index = REG_TLS
-			q.From.Scale = 2 // TODO: use 1
 			q.To = p.To
+			
+			// For shared libraries on Linux/FreeBSD, use TLS GD model which is
+			// required for non-glibc dlopen(). In TLS GD, the first instruction (MOVQ TLS, reg)
+			// calls __tls_get_addr and loads the TLS address into reg.
+			// The second instruction should access 0(reg) without TLS index.
+			if ctxt.ShouldUseTLSGD() {
+				// Remove TLS index for TLS GD model - the base register will contain
+				// the correct TLS address after the first instruction's __tls_get_addr call
+				q.From.Index = REG_NONE
+				q.From.Scale = 0
+			} else {
+				// Use the traditional two-instruction TLS sequence with TLS index
+				q.From.Index = REG_TLS
+				q.From.Scale = 2 // TODO: use 1
+			}
+			
 			p.From.Type = obj.TYPE_REG
 			p.From.Reg = REG_TLS
 			p.From.Index = REG_NONE
@@ -193,6 +207,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			q.To = p.To
 		}
 	}
+
 
 	// TODO: Remove.
 	if ctxt.Headtype == objabi.Hwindows && ctxt.Arch.Family == sys.AMD64 || ctxt.Headtype == objabi.Hplan9 {
@@ -864,6 +879,58 @@ func loadG(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgAlloc)
 	var regg int16 = REG_CX
 	if ctxt.Arch.Family == sys.AMD64 {
 		regg = REGG // == REG_R14
+	}
+
+	// When building shared libraries, use General Dynamic TLS model
+	// to support non-glibc dlopen().
+	if ctxt.Flag_shared {
+		// For TLS GD, we need to generate a call to __tls_get_addr
+		// The exact sequence depends on the architecture.
+		
+		if ctxt.Arch.Family == sys.AMD64 {
+			// For shared libraries, generate MOVQ TLS, dst
+			// The assembler (asm6.go) will convert this to TLS GD sequence
+			p = obj.Appendp(p, newprog)
+			p.As = AMOVQ
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = REG_TLS
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = regg
+			
+			// Note: asm6.go will detect this pattern when Flag_shared is set
+			// and convert it to the full TLS GD sequence:
+			// leaq runtime.tls_g@tlsgd(%rip), %rdi
+			// call __tls_get_addr@PLT
+			// movq (%rax), regg
+			
+			return p, regg
+		} else {
+			// 386: Similar but use LEAL and appropriate registers
+			p = obj.Appendp(p, newprog)
+			p.As = ALEAL
+			p.From.Type = obj.TYPE_MEM
+			p.From.Name = obj.NAME_EXTERN
+			p.From.Sym = ctxt.Lookup("runtime.tls_g")
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = REG_AX  // First argument in EAX for 386
+			
+			// Call __tls_get_addr
+			p = obj.Appendp(p, newprog)
+			p.As = obj.ACALL
+			p.To.Type = obj.TYPE_BRANCH
+			p.To.Name = obj.NAME_EXTERN
+			p.To.Sym = ctxt.Lookup("___tls_get_addr")  // Note: 3 underscores on 386
+			
+			// Result is in EAX
+			p = obj.Appendp(p, newprog)
+			p.As = AMOVL
+			p.From.Type = obj.TYPE_MEM
+			p.From.Reg = REG_AX
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = regg
+		}
+		
+		return p, regg
 	}
 
 	p = obj.Appendp(p, newprog)

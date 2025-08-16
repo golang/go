@@ -134,6 +134,7 @@ var optab = []Optab{
 	{AWORD, C_NONE, C_NONE, C_ADDR, 11, 4, 0, 0, 0, 0},
 	{AWORD, C_NONE, C_NONE, C_TLS_LE, 103, 4, 0, 0, 0, 0},
 	{AWORD, C_NONE, C_NONE, C_TLS_IE, 104, 4, 0, 0, 0, 0},
+	{AWORD, C_NONE, C_NONE, C_TLS_GD, 111, 4, 0, 0, 0, 0},
 	{AMOVW, C_NCON, C_NONE, C_REG, 12, 4, 0, 0, 0, 0},
 	{AMOVW, C_SCON, C_NONE, C_REG, 12, 4, 0, 0, 0, 0},
 	{AMOVW, C_LCON, C_NONE, C_REG, 12, 4, 0, LFROM, 0, 0},
@@ -218,6 +219,7 @@ var optab = []Optab{
 	{AMOVBU, C_REG, C_NONE, C_ADDR, 64, 8, 0, LTO | LPCREL, 4, C_PBIT | C_WBIT | C_UBIT},
 	{AMOVW, C_TLS_LE, C_NONE, C_REG, 101, 4, 0, LFROM, 0, 0},
 	{AMOVW, C_TLS_IE, C_NONE, C_REG, 102, 8, 0, LFROM, 0, 0},
+	{AMOVW, C_TLS_GD, C_NONE, C_REG, 112, 12, 0, LFROM, 0, 0},
 	{AMOVW, C_LAUTO, C_NONE, C_REG, 31, 8, REGSP, LFROM, 0, C_PBIT | C_WBIT | C_UBIT},
 	{AMOVW, C_LOREG, C_NONE, C_REG, 31, 8, 0, LFROM, 0, C_PBIT | C_WBIT | C_UBIT},
 	{AMOVW, C_ADDR, C_NONE, C_REG, 65, 8, 0, LFROM | LPCREL, 4, C_PBIT | C_WBIT | C_UBIT},
@@ -869,8 +871,10 @@ func (c *ctxt5) aclass(a *obj.Addr) int {
 
 			c.instoffset = 0 // s.b. unused but just in case
 			if a.Sym.Type == objabi.STLSBSS {
-				if c.ctxt.Flag_shared {
-					return C_TLS_IE
+				if c.ctxt.ShouldUseTLSGD() {
+					// Use General Dynamic model for shared libraries
+					// to support non-glibc dlopen()
+					return C_TLS_GD
 				} else {
 					return C_TLS_LE
 				}
@@ -2182,6 +2186,32 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			Sym:  p.To.Sym,
 			Add:  c.pc - p.Rel.Pc - 8 - 4,
 		})
+
+	case 111: /* word tlsvar, general dynamic */
+		if p.To.Sym == nil {
+			c.ctxt.Diag("nil sym in tls %v", p)
+		}
+		if p.To.Offset != 0 {
+			c.ctxt.Diag("offset against tls var in %v", p)
+		}
+		// For TLS GD on ARM, we need to generate a sequence that will
+		// be recognized by the linker for __tls_get_addr call
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_ARM_TLS_GD32,
+			Off:  int32(c.pc),
+			Siz:  4,
+			Sym:  p.To.Sym,
+			Add:  c.pc - p.Rel.Pc - 8,
+		})
+
+	case 112: /* movw tlsvar,R, general dynamic */
+		// For General Dynamic model, we need to generate a call to __tls_get_addr
+		// The exact sequence for ARM is complex and handled by the linker
+		// Here we just emit the relocation
+		o1 = c.omvl(p, &p.From, int(p.To.Reg))
+		// Add second instruction for the full GD sequence
+		o2 = c.oprrr(p, AADD, int(p.Scond)) | (uint32(p.To.Reg)&15)<<12 | (REGPC&15)<<16 | (uint32(p.To.Reg)&15)
+		// The third instruction will be a BL __tls_get_addr, handled by linker
 
 	case 68: /* floating point store -> ADDR */
 		o1 = c.omvl(p, &p.To, REGTMP)

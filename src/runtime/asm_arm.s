@@ -147,6 +147,24 @@ TEXT runtime·rt0_go(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
 	BL	runtime·save_g(SB)
 #endif
 
+#ifdef GOOS_linux
+	// Check if we are a c-shared/c-archive library on Linux
+	// Skip TLS save if so, as musl's dlopen sets up TLS differently
+	MOVB	runtime·islibrary(SB), R0
+	CMP	$0, R0
+	BNE	skipcheck
+	BL	runtime·save_g(SB)
+skipcheck:
+#endif
+#ifdef GOOS_freebsd
+	// Check if we are a c-shared/c-archive library on FreeBSD
+	// Skip TLS save if so, as BSD dlopen sets up TLS differently
+	MOVB	runtime·islibrary(SB), R0
+	CMP	$0, R0
+	BNE	skipcheck2
+	BL	runtime·save_g(SB)
+skipcheck2:
+#endif
 	BL	runtime·_initcgo(SB)	// will clobber R0-R3
 
 	// update stackguard after _cgo_init
