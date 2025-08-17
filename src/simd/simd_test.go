@@ -378,16 +378,18 @@ func TestBitMaskToBits(t *testing.T) {
 }
 
 func TestMergeFloat(t *testing.T) {
+	k := make([]int64, 4, 4)
+	s := make([]float64, 4, 4)
+
 	a := simd.LoadFloat64x4Slice([]float64{1, 2, 3, 4})
 	b := simd.LoadFloat64x4Slice([]float64{4, 2, 3, 1})
 	g := a.Greater(b)
-	k := make([]int64, 4, 4)
 	g.AsInt64x4().StoreSlice(k)
-	checkSlices[int64](t, k, []int64{0, 0, 0, -1})
 	c := a.Merge(b, g)
 
-	s := make([]float64, 4, 4)
 	c.StoreSlice(s)
+
+	checkSlices[int64](t, k, []int64{0, 0, 0, -1})
 	checkSlices[float64](t, s, []float64{4, 2, 3, 4})
 }
 
@@ -396,16 +398,19 @@ func TestMergeFloat512(t *testing.T) {
 		t.Skip("Test requires HasAVX512, not available on this hardware")
 		return
 	}
+
+	k := make([]int64, 8, 8)
+	s := make([]float64, 8, 8)
+
 	a := simd.LoadFloat64x8Slice([]float64{1, 2, 3, 4, 5, 6, 7, 8})
 	b := simd.LoadFloat64x8Slice([]float64{8, 7, 6, 5, 4, 2, 3, 1})
 	g := a.Greater(b)
-	k := make([]int64, 8, 8)
 	g.AsInt64x8().StoreSlice(k)
-	checkSlices[int64](t, k, []int64{0, 0, 0, 0, -1, -1, -1, -1})
 	c := a.Merge(b, g)
 	d := a.Masked(g)
 
-	s := make([]float64, 8, 8)
+	checkSlices[int64](t, k, []int64{0, 0, 0, 0, -1, -1, -1, -1})
+
 	c.StoreSlice(s)
 	checkSlices[float64](t, s, []float64{8, 7, 6, 5, 5, 6, 7, 8})
 
