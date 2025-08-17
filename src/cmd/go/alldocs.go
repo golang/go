@@ -758,6 +758,8 @@
 // variable, which defaults to $GOPATH/bin or $HOME/go/bin if the GOPATH
 // environment variable is not set. Executables in $GOROOT
 // are installed in $GOROOT/bin or $GOTOOLDIR instead of $GOBIN.
+// Cross compiled binaries are installed in $GOOS_$GOARCH subdirectories
+// of the above.
 //
 // If the arguments have version suffixes (like @latest or @v1.0.0), "go install"
 // builds packages in module-aware mode, ignoring the go.mod file in the current
