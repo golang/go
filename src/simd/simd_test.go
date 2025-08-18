@@ -397,6 +397,28 @@ func TestMergeFloat(t *testing.T) {
 	checkSlices[float64](t, s, []float64{4, 2, 3, 4})
 }
 
+func TestMergeFloat512(t *testing.T) {
+	if !simd.HasAVX512() {
+		t.Skip("Test requires HasAVX512, not available on this hardware")
+		return
+	}
+	a := simd.LoadFloat64x8Slice([]float64{1, 2, 3, 4, 5, 6, 7, 8})
+	b := simd.LoadFloat64x8Slice([]float64{8, 7, 6, 5, 4, 2, 3, 1})
+	g := a.Greater(b)
+	k := make([]int64, 8, 8)
+	g.AsInt64x8().StoreSlice(k)
+	checkSlices[int64](t, k, []int64{0, 0, 0, 0, -1, -1, -1, -1})
+	c := a.Merge(b, g)
+	d := a.Masked(g)
+
+	s := make([]float64, 8, 8)
+	c.StoreSlice(s)
+	checkSlices[float64](t, s, []float64{8, 7, 6, 5, 5, 6, 7, 8})
+
+	d.StoreSlice(s)
+	checkSlices[float64](t, s, []float64{0, 0, 0, 0, 5, 6, 7, 8})
+}
+
 var ro uint8 = 2
 
 func TestRotateAllVariable(t *testing.T) {

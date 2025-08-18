@@ -253,6 +253,7 @@
 # That means the signature is wrong.
 - go: blend
   asm: VPBLENDVB
+  zeroing: false
   in:
   - &v
     go: $t
@@ -269,6 +270,7 @@
 # For AVX512
 - go: blend
   asm: VPBLENDM[BWDQ]
+  zeroing: false
   in:
   - &v
     go: $t
