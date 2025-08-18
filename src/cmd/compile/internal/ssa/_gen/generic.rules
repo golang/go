@@ -347,6 +347,22 @@
 (OrB ((Less|Leq)16U (Const16 [c]) x) (Leq16U x (Const16 [d]))) && uint16(c) >= uint16(d+1) && uint16(d+1) > uint16(d) => ((Less|Leq)16U (Const16 <x.Type> [c-d-1]) (Sub16 <x.Type> x (Const16 <x.Type> [d+1])))
 (OrB ((Less|Leq)8U  (Const8  [c]) x) (Leq8U  x (Const8  [d]))) && uint8(c)  >= uint8(d+1)  && uint8(d+1)  > uint8(d)  => ((Less|Leq)8U  (Const8  <x.Type> [c-d-1]) (Sub8  <x.Type> x (Const8  <x.Type> [d+1])))
 
+// NaN check: ( x != x || x (>|>=|<|<=) c ) -> ( !(c (>=|>|<=|<) x) )
+(OrB (Neq64F x x) ((Less|Leq)64F x y:(Const64F [c]))) => (Not ((Leq|Less)64F y x))
+(OrB (Neq64F x x) ((Less|Leq)64F y:(Const64F [c]) x)) => (Not ((Leq|Less)64F x y))
+(OrB (Neq32F x x) ((Less|Leq)32F x y:(Const32F [c]))) => (Not ((Leq|Less)32F y x))
+(OrB (Neq32F x x) ((Less|Leq)32F y:(Const32F [c]) x)) => (Not ((Leq|Less)32F x y))
+
+// NaN check: ( x != x || Abs(x) (>|>=|<|<=) c ) -> ( !(c (>=|>|<=|<) Abs(x) )
+(OrB (Neq64F x x) ((Less|Leq)64F abs:(Abs x) y:(Const64F [c]))) => (Not ((Leq|Less)64F y abs))
+(OrB (Neq64F x x) ((Less|Leq)64F y:(Const64F [c]) abs:(Abs x))) => (Not ((Leq|Less)64F abs y))
+
+// NaN check: ( x != x || -x (>|>=|<|<=) c ) -> ( !(c (>=|>|<=|<) -x) )
+(OrB (Neq64F x x) ((Less|Leq)64F neg:(Neg64F x) y:(Const64F [c]))) => (Not ((Leq|Less)64F y neg))
+(OrB (Neq64F x x) ((Less|Leq)64F y:(Const64F [c]) neg:(Neg64F x))) => (Not ((Leq|Less)64F neg y))
+(OrB (Neq32F x x) ((Less|Leq)32F neg:(Neg32F x) y:(Const32F [c]))) => (Not ((Leq|Less)32F y neg))
+(OrB (Neq32F x x) ((Less|Leq)32F y:(Const32F [c]) neg:(Neg32F x))) => (Not ((Leq|Less)32F neg y))
+
 // Canonicalize x-const to x+(-const)
 (Sub64 x (Const64 <t> [c])) && x.Op != OpConst64 => (Add64 (Const64 <t> [-c]) x)
 (Sub32 x (Const32 <t> [c])) && x.Op != OpConst32 => (Add32 (Const32 <t> [-c]) x)

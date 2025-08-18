@@ -4,21 +4,36 @@
 
 package ssa
 
-// fuseIntegerComparisons optimizes inequalities such as '1 <= x && x < 5',
-// which can be optimized to 'unsigned(x-1) < 4'.
+// fuseIntInRange transforms integer range checks to remove the short-circuit operator. For example,
+// it would convert `if 1 <= x && x < 5 { ... }` into `if (1 <= x) & (x < 5) { ... }`. Rewrite rules
+// can then optimize these into unsigned range checks, `if unsigned(x-1) < 4 { ... }` in this case.
+func fuseIntInRange(b *Block) bool {
+	return fuseComparisons(b, canOptIntInRange)
+}
+
+// fuseNanCheck replaces the short-circuit operators between NaN checks and comparisons with
+// constants. For example, it would transform `if x != x || x > 1.0 { ... }` into
+// `if (x != x) | (x > 1.0) { ... }`. Rewrite rules can then merge the NaN check with the comparison,
+// in this case generating `if !(x <= 1.0) { ... }`.
+func fuseNanCheck(b *Block) bool {
+	return fuseComparisons(b, canOptNanCheck)
+}
+
+// fuseComparisons looks for control graphs that match this pattern:
 //
-// Look for branch structure like:
-//
-//	p
+//	p - predecessor
 //	|\
-//	| b
+//	| b - block
 //	|/ \
-//	s0 s1
+//	s0 s1 - successors
 //
-// In our example, p has control '1 <= x', b has control 'x < 5',
-// and s0 and s1 are the if and else results of the comparison.
+// This pattern is typical for if statements such as `if x || y { ... }` and `if x && y { ... }`.
 //
-// This will be optimized into:
+// If canOptControls returns true when passed the control values for p and b then fuseComparisons
+// will try to convert p into a plain block with only one successor (b) and modify b's control
+// value to include p's control value (effectively causing b to be speculatively executed).
+//
+// This transformation results in a control graph that will now look like this:
 //
 //	p
 //	 \
@@ -26,9 +41,12 @@ package ssa
 //	 / \
 //	s0 s1
 //
-// where b has the combined control value 'unsigned(x-1) < 4'.
 // Later passes will then fuse p and b.
-func fuseIntegerComparisons(b *Block) bool {
+//
+// In other words `if x || y { ... }` will become `if x | y { ... }` and `if x && y { ... }` will
+// become `if x & y { ... }`. This is a useful transformation because we can then use rewrite
+// rules to optimize `x | y` and `x & y`.
+func fuseComparisons(b *Block, canOptControls func(a, b *Value, op Op) bool) bool {
 	if len(b.Preds) != 1 {
 		return false
 	}
@@ -45,19 +63,18 @@ func fuseIntegerComparisons(b *Block) bool {
 		return false
 	}
 
-	// Check if the control values combine to make an integer inequality that
-	// can be further optimized later.
-	bc := b.Controls[0]
-	pc := p.Controls[0]
-	if !areMergeableInequalities(bc, pc) {
-		return false
-	}
-
 	// If the first (true) successors match then we have a disjunction (||).
 	// If the second (false) successors match then we have a conjunction (&&).
 	for i, op := range [2]Op{OpOrB, OpAndB} {
 		if p.Succs[i].Block() != b.Succs[i].Block() {
 			continue
+		}
+
+		// Check if the control values can be usefully combined.
+		bc := b.Controls[0]
+		pc := p.Controls[0]
+		if !canOptControls(bc, pc, op) {
+			return false
 		}
 
 		// TODO(mundaym): should we also check the cost of executing b?
@@ -125,7 +142,7 @@ func isUnsignedInequality(v *Value) bool {
 	return false
 }
 
-func areMergeableInequalities(x, y *Value) bool {
+func canOptIntInRange(x, y *Value, op Op) bool {
 	// We need both inequalities to be either in the signed or unsigned domain.
 	// TODO(mundaym): it would also be good to merge when we have an Eq op that
 	// could be transformed into a Less/Leq. For example in the unsigned
@@ -152,6 +169,63 @@ func areMergeableInequalities(x, y *Value) bool {
 		// Check that the non-constant arguments to the inequalities
 		// are the same.
 		return x.Args[xi^1] == y.Args[yi^1]
+	}
+	return false
+}
+
+// canOptNanCheck reports whether one of arguments is a NaN check and the other
+// is a comparison with a constant that can be combined together.
+//
+// Examples (c must be a constant):
+//
+//	v != v || v <  c => !(c <= v)
+//	v != v || v <= c => !(c <  v)
+//	v != v || c <  v => !(v <= c)
+//	v != v || c <= v => !(v <  c)
+func canOptNanCheck(x, y *Value, op Op) bool {
+	if op != OpOrB {
+		return false
+	}
+
+	for i := 0; i <= 1; i, x, y = i+1, y, x {
+		if len(x.Args) != 2 || x.Args[0] != x.Args[1] {
+			continue
+		}
+		v := x.Args[0]
+		switch x.Op {
+		case OpNeq64F:
+			if y.Op != OpLess64F && y.Op != OpLeq64F {
+				return false
+			}
+			for j := 0; j <= 1; j++ {
+				a, b := y.Args[j], y.Args[j^1]
+				if a.Op != OpConst64F {
+					continue
+				}
+				// Sign bit operations not affect NaN check results. This special case allows us
+				// to optimize statements like `if v != v || Abs(v) > c { ... }`.
+				if (b.Op == OpAbs || b.Op == OpNeg64F) && b.Args[0] == v {
+					return true
+				}
+				return b == v
+			}
+		case OpNeq32F:
+			if y.Op != OpLess32F && y.Op != OpLeq32F {
+				return false
+			}
+			for j := 0; j <= 1; j++ {
+				a, b := y.Args[j], y.Args[j^1]
+				if a.Op != OpConst32F {
+					continue
+				}
+				// Sign bit operations not affect NaN check results. This special case allows us
+				// to optimize statements like `if v != v || -v > c { ... }`.
+				if b.Op == OpNeg32F && b.Args[0] == v {
+					return true
+				}
+				return b == v
+			}
+		}
 	}
 	return false
 }
