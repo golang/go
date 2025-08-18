@@ -128,14 +128,29 @@ func Info(ctxt *obj.Link, fnsym *obj.LSym, infosym *obj.LSym, curfn obj.Func) (s
 	// already referenced by a dwarf var, attach an R_USETYPE relocation to
 	// the function symbol to insure that the type included in DWARF
 	// processing during linking.
+	// Do the same with R_USEIFACE relocations from the function symbol for the
+	// same reason.
+	// All these R_USETYPE relocations are only looked at if the function
+	// survives deadcode elimination in the linker.
 	typesyms := []*obj.LSym{}
 	for t := range fnsym.Func().Autot {
 		typesyms = append(typesyms, t)
 	}
+	for i := range fnsym.R {
+		if fnsym.R[i].Type == objabi.R_USEIFACE && !strings.HasPrefix(fnsym.R[i].Sym.Name, "go:itab.") {
+			// Types referenced through itab will be referenced from somewhere else
+			typesyms = append(typesyms, fnsym.R[i].Sym)
+		}
+	}
 	slices.SortFunc(typesyms, func(a, b *obj.LSym) int {
 		return strings.Compare(a.Name, b.Name)
 	})
+	var lastsym *obj.LSym
 	for _, sym := range typesyms {
+		if sym == lastsym {
+			continue
+		}
+		lastsym = sym
 		infosym.AddRel(ctxt, obj.Reloc{Type: objabi.R_USETYPE, Sym: sym})
 	}
 	fnsym.Func().Autot = nil
