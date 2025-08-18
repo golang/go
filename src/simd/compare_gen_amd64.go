@@ -16,7 +16,7 @@ func (x Int8x16) Less(y Int8x16) Mask8x16 {
 // Emulated, CPU Feature AVX
 func (x Int8x16) GreaterEqual(y Int8x16) Mask8x16 {
 	ones := x.Equal(x).AsInt8x16()
-	return y.Greater(x).AsInt8x16().Xor(ones).AsMask8x16()
+	return y.Greater(x).AsInt8x16().Xor(ones).asMask()
 }
 
 // LessEqual returns a mask whose elements indicate whether x <= y
@@ -24,7 +24,7 @@ func (x Int8x16) GreaterEqual(y Int8x16) Mask8x16 {
 // Emulated, CPU Feature AVX
 func (x Int8x16) LessEqual(y Int8x16) Mask8x16 {
 	ones := x.Equal(x).AsInt8x16()
-	return x.Greater(y).AsInt8x16().Xor(ones).AsMask8x16()
+	return x.Greater(y).AsInt8x16().Xor(ones).asMask()
 }
 
 // NotEqual returns a mask whose elements indicate whether x != y
@@ -32,7 +32,7 @@ func (x Int8x16) LessEqual(y Int8x16) Mask8x16 {
 // Emulated, CPU Feature AVX
 func (x Int8x16) NotEqual(y Int8x16) Mask8x16 {
 	ones := x.Equal(x).AsInt8x16()
-	return x.Equal(y).AsInt8x16().Xor(ones).AsMask8x16()
+	return x.Equal(y).AsInt8x16().Xor(ones).asMask()
 }
 
 // Less returns a mask whose elements indicate whether x < y
@@ -47,7 +47,7 @@ func (x Int16x8) Less(y Int16x8) Mask16x8 {
 // Emulated, CPU Feature AVX
 func (x Int16x8) GreaterEqual(y Int16x8) Mask16x8 {
 	ones := x.Equal(x).AsInt16x8()
-	return y.Greater(x).AsInt16x8().Xor(ones).AsMask16x8()
+	return y.Greater(x).AsInt16x8().Xor(ones).asMask()
 }
 
 // LessEqual returns a mask whose elements indicate whether x <= y
@@ -55,7 +55,7 @@ func (x Int16x8) GreaterEqual(y Int16x8) Mask16x8 {
 // Emulated, CPU Feature AVX
 func (x Int16x8) LessEqual(y Int16x8) Mask16x8 {
 	ones := x.Equal(x).AsInt16x8()
-	return x.Greater(y).AsInt16x8().Xor(ones).AsMask16x8()
+	return x.Greater(y).AsInt16x8().Xor(ones).asMask()
 }
 
 // NotEqual returns a mask whose elements indicate whether x != y
@@ -63,7 +63,7 @@ func (x Int16x8) LessEqual(y Int16x8) Mask16x8 {
 // Emulated, CPU Feature AVX
 func (x Int16x8) NotEqual(y Int16x8) Mask16x8 {
 	ones := x.Equal(x).AsInt16x8()
-	return x.Equal(y).AsInt16x8().Xor(ones).AsMask16x8()
+	return x.Equal(y).AsInt16x8().Xor(ones).asMask()
 }
 
 // Less returns a mask whose elements indicate whether x < y
@@ -78,7 +78,7 @@ func (x Int32x4) Less(y Int32x4) Mask32x4 {
 // Emulated, CPU Feature AVX
 func (x Int32x4) GreaterEqual(y Int32x4) Mask32x4 {
 	ones := x.Equal(x).AsInt32x4()
-	return y.Greater(x).AsInt32x4().Xor(ones).AsMask32x4()
+	return y.Greater(x).AsInt32x4().Xor(ones).asMask()
 }
 
 // LessEqual returns a mask whose elements indicate whether x <= y
@@ -86,7 +86,7 @@ func (x Int32x4) GreaterEqual(y Int32x4) Mask32x4 {
 // Emulated, CPU Feature AVX
 func (x Int32x4) LessEqual(y Int32x4) Mask32x4 {
 	ones := x.Equal(x).AsInt32x4()
-	return x.Greater(y).AsInt32x4().Xor(ones).AsMask32x4()
+	return x.Greater(y).AsInt32x4().Xor(ones).asMask()
 }
 
 // NotEqual returns a mask whose elements indicate whether x != y
@@ -94,7 +94,7 @@ func (x Int32x4) LessEqual(y Int32x4) Mask32x4 {
 // Emulated, CPU Feature AVX
 func (x Int32x4) NotEqual(y Int32x4) Mask32x4 {
 	ones := x.Equal(x).AsInt32x4()
-	return x.Equal(y).AsInt32x4().Xor(ones).AsMask32x4()
+	return x.Equal(y).AsInt32x4().Xor(ones).asMask()
 }
 
 // Less returns a mask whose elements indicate whether x < y
@@ -109,7 +109,7 @@ func (x Int64x2) Less(y Int64x2) Mask64x2 {
 // Emulated, CPU Feature AVX
 func (x Int64x2) GreaterEqual(y Int64x2) Mask64x2 {
 	ones := x.Equal(x).AsInt64x2()
-	return y.Greater(x).AsInt64x2().Xor(ones).AsMask64x2()
+	return y.Greater(x).AsInt64x2().Xor(ones).asMask()
 }
 
 // LessEqual returns a mask whose elements indicate whether x <= y
@@ -117,7 +117,7 @@ func (x Int64x2) GreaterEqual(y Int64x2) Mask64x2 {
 // Emulated, CPU Feature AVX
 func (x Int64x2) LessEqual(y Int64x2) Mask64x2 {
 	ones := x.Equal(x).AsInt64x2()
-	return x.Greater(y).AsInt64x2().Xor(ones).AsMask64x2()
+	return x.Greater(y).AsInt64x2().Xor(ones).asMask()
 }
 
 // NotEqual returns a mask whose elements indicate whether x != y
@@ -125,7 +125,7 @@ func (x Int64x2) LessEqual(y Int64x2) Mask64x2 {
 // Emulated, CPU Feature AVX
 func (x Int64x2) NotEqual(y Int64x2) Mask64x2 {
 	ones := x.Equal(x).AsInt64x2()
-	return x.Equal(y).AsInt64x2().Xor(ones).AsMask64x2()
+	return x.Equal(y).AsInt64x2().Xor(ones).asMask()
 }
 
 // Less returns a mask whose elements indicate whether x < y
@@ -140,7 +140,7 @@ func (x Int8x32) Less(y Int8x32) Mask8x32 {
 // Emulated, CPU Feature AVX2
 func (x Int8x32) GreaterEqual(y Int8x32) Mask8x32 {
 	ones := x.Equal(x).AsInt8x32()
-	return y.Greater(x).AsInt8x32().Xor(ones).AsMask8x32()
+	return y.Greater(x).AsInt8x32().Xor(ones).asMask()
 }
 
 // LessEqual returns a mask whose elements indicate whether x <= y
@@ -148,7 +148,7 @@ func (x Int8x32) GreaterEqual(y Int8x32) Mask8x32 {
 // Emulated, CPU Feature AVX2
 func (x Int8x32) LessEqual(y Int8x32) Mask8x32 {
 	ones := x.Equal(x).AsInt8x32()
-	return x.Greater(y).AsInt8x32().Xor(ones).AsMask8x32()
+	return x.Greater(y).AsInt8x32().Xor(ones).asMask()
 }
 
 // NotEqual returns a mask whose elements indicate whether x != y
@@ -156,7 +156,7 @@ func (x Int8x32) LessEqual(y Int8x32) Mask8x32 {
 // Emulated, CPU Feature AVX2
 func (x Int8x32) NotEqual(y Int8x32) Mask8x32 {
 	ones := x.Equal(x).AsInt8x32()
-	return x.Equal(y).AsInt8x32().Xor(ones).AsMask8x32()
+	return x.Equal(y).AsInt8x32().Xor(ones).asMask()
 }
 
 // Less returns a mask whose elements indicate whether x < y
@@ -171,7 +171,7 @@ func (x Int16x16) Less(y Int16x16) Mask16x16 {
 // Emulated, CPU Feature AVX2
 func (x Int16x16) GreaterEqual(y Int16x16) Mask16x16 {
 	ones := x.Equal(x).AsInt16x16()
-	return y.Greater(x).AsInt16x16().Xor(ones).AsMask16x16()
+	return y.Greater(x).AsInt16x16().Xor(ones).asMask()
 }
 
 // LessEqual returns a mask whose elements indicate whether x <= y
@@ -179,7 +179,7 @@ func (x Int16x16) GreaterEqual(y Int16x16) Mask16x16 {
 // Emulated, CPU Feature AVX2
 func (x Int16x16) LessEqual(y Int16x16) Mask16x16 {
 	ones := x.Equal(x).AsInt16x16()
-	return x.Greater(y).AsInt16x16().Xor(ones).AsMask16x16()
+	return x.Greater(y).AsInt16x16().Xor(ones).asMask()
 }
 
 // NotEqual returns a mask whose elements indicate whether x != y
@@ -187,7 +187,7 @@ func (x Int16x16) LessEqual(y Int16x16) Mask16x16 {
 // Emulated, CPU Feature AVX2
 func (x Int16x16) NotEqual(y Int16x16) Mask16x16 {
 	ones := x.Equal(x).AsInt16x16()
-	return x.Equal(y).AsInt16x16().Xor(ones).AsMask16x16()
+	return x.Equal(y).AsInt16x16().Xor(ones).asMask()
 }
 
 // Less returns a mask whose elements indicate whether x < y
@@ -202,7 +202,7 @@ func (x Int32x8) Less(y Int32x8) Mask32x8 {
 // Emulated, CPU Feature AVX2
 func (x Int32x8) GreaterEqual(y Int32x8) Mask32x8 {
 	ones := x.Equal(x).AsInt32x8()
-	return y.Greater(x).AsInt32x8().Xor(ones).AsMask32x8()
+	return y.Greater(x).AsInt32x8().Xor(ones).asMask()
 }
 
 // LessEqual returns a mask whose elements indicate whether x <= y
@@ -210,7 +210,7 @@ func (x Int32x8) GreaterEqual(y Int32x8) Mask32x8 {
 // Emulated, CPU Feature AVX2
 func (x Int32x8) LessEqual(y Int32x8) Mask32x8 {
 	ones := x.Equal(x).AsInt32x8()
-	return x.Greater(y).AsInt32x8().Xor(ones).AsMask32x8()
+	return x.Greater(y).AsInt32x8().Xor(ones).asMask()
 }
 
 // NotEqual returns a mask whose elements indicate whether x != y
@@ -218,7 +218,7 @@ func (x Int32x8) LessEqual(y Int32x8) Mask32x8 {
 // Emulated, CPU Feature AVX2
 func (x Int32x8) NotEqual(y Int32x8) Mask32x8 {
 	ones := x.Equal(x).AsInt32x8()
-	return x.Equal(y).AsInt32x8().Xor(ones).AsMask32x8()
+	return x.Equal(y).AsInt32x8().Xor(ones).asMask()
 }
 
 // Less returns a mask whose elements indicate whether x < y
@@ -233,7 +233,7 @@ func (x Int64x4) Less(y Int64x4) Mask64x4 {
 // Emulated, CPU Feature AVX2
 func (x Int64x4) GreaterEqual(y Int64x4) Mask64x4 {
 	ones := x.Equal(x).AsInt64x4()
-	return y.Greater(x).AsInt64x4().Xor(ones).AsMask64x4()
+	return y.Greater(x).AsInt64x4().Xor(ones).asMask()
 }
 
 // LessEqual returns a mask whose elements indicate whether x <= y
@@ -241,7 +241,7 @@ func (x Int64x4) GreaterEqual(y Int64x4) Mask64x4 {
 // Emulated, CPU Feature AVX2
 func (x Int64x4) LessEqual(y Int64x4) Mask64x4 {
 	ones := x.Equal(x).AsInt64x4()
-	return x.Greater(y).AsInt64x4().Xor(ones).AsMask64x4()
+	return x.Greater(y).AsInt64x4().Xor(ones).asMask()
 }
 
 // NotEqual returns a mask whose elements indicate whether x != y
@@ -249,7 +249,7 @@ func (x Int64x4) LessEqual(y Int64x4) Mask64x4 {
 // Emulated, CPU Feature AVX2
 func (x Int64x4) NotEqual(y Int64x4) Mask64x4 {
 	ones := x.Equal(x).AsInt64x4()
-	return x.Equal(y).AsInt64x4().Xor(ones).AsMask64x4()
+	return x.Equal(y).AsInt64x4().Xor(ones).asMask()
 }
 
 // Greater returns a mask whose elements indicate whether x > y
@@ -277,7 +277,7 @@ func (x Uint8x16) GreaterEqual(y Uint8x16) Mask8x16 {
 	a, b := x.AsInt8x16(), y.AsInt8x16()
 	ones := x.Equal(x).AsInt8x16()
 	signs := BroadcastInt8x16(-1 << (8 - 1))
-	return b.Xor(signs).Greater(a.Xor(signs)).AsInt8x16().Xor(ones).AsMask8x16()
+	return b.Xor(signs).Greater(a.Xor(signs)).AsInt8x16().Xor(ones).asMask()
 }
 
 // LessEqual returns a mask whose elements indicate whether x <= y
@@ -287,7 +287,7 @@ func (x Uint8x16) LessEqual(y Uint8x16) Mask8x16 {
 	a, b := x.AsInt8x16(), y.AsInt8x16()
 	ones := x.Equal(x).AsInt8x16()
 	signs := BroadcastInt8x16(-1 << (8 - 1))
-	return a.Xor(signs).Greater(b.Xor(signs)).AsInt8x16().Xor(ones).AsMask8x16()
+	return a.Xor(signs).Greater(b.Xor(signs)).AsInt8x16().Xor(ones).asMask()
 }
 
 // NotEqual returns a mask whose elements indicate whether x != y
@@ -296,7 +296,7 @@ func (x Uint8x16) LessEqual(y Uint8x16) Mask8x16 {
 func (x Uint8x16) NotEqual(y Uint8x16) Mask8x16 {
 	a, b := x.AsInt8x16(), y.AsInt8x16()
 	ones := x.Equal(x).AsInt8x16()
-	return a.Equal(b).AsInt8x16().Xor(ones).AsMask8x16()
+	return a.Equal(b).AsInt8x16().Xor(ones).asMask()
 }
 
 // Greater returns a mask whose elements indicate whether x > y
@@ -326,7 +326,7 @@ func (x Uint16x8) GreaterEqual(y Uint16x8) Mask16x8 {
 	a, b := x.AsInt16x8(), y.AsInt16x8()
 	ones := x.Equal(x).AsInt16x8()
 	signs := ones.ShiftAllLeft(16 - 1)
-	return b.Xor(signs).Greater(a.Xor(signs)).AsInt16x8().Xor(ones).AsMask16x8()
+	return b.Xor(signs).Greater(a.Xor(signs)).AsInt16x8().Xor(ones).asMask()
 }
 
 // LessEqual returns a mask whose elements indicate whether x <= y
@@ -336,7 +336,7 @@ func (x Uint16x8) LessEqual(y Uint16x8) Mask16x8 {
 	a, b := x.AsInt16x8(), y.AsInt16x8()
 	ones := x.Equal(x).AsInt16x8()
 	signs := ones.ShiftAllLeft(16 - 1)
-	return a.Xor(signs).Greater(b.Xor(signs)).AsInt16x8().Xor(ones).AsMask16x8()
+	return a.Xor(signs).Greater(b.Xor(signs)).AsInt16x8().Xor(ones).asMask()
 }
 
 // NotEqual returns a mask whose elements indicate whether x != y
@@ -345,7 +345,7 @@ func (x Uint16x8) LessEqual(y Uint16x8) Mask16x8 {
 func (x Uint16x8) NotEqual(y Uint16x8) Mask16x8 {
 	a, b := x.AsInt16x8(), y.AsInt16x8()
 	ones := x.Equal(x).AsInt16x8()
-	return a.Equal(b).AsInt16x8().Xor(ones).AsMask16x8()
+	return a.Equal(b).AsInt16x8().Xor(ones).asMask()
 }
 
 // Greater returns a mask whose elements indicate whether x > y
@@ -375,7 +375,7 @@ func (x Uint32x4) GreaterEqual(y Uint32x4) Mask32x4 {
 	a, b := x.AsInt32x4(), y.AsInt32x4()
 	ones := x.Equal(x).AsInt32x4()
 	signs := ones.ShiftAllLeft(32 - 1)
-	return b.Xor(signs).Greater(a.Xor(signs)).AsInt32x4().Xor(ones).AsMask32x4()
+	return b.Xor(signs).Greater(a.Xor(signs)).AsInt32x4().Xor(ones).asMask()
 }
 
 // LessEqual returns a mask whose elements indicate whether x <= y
@@ -385,7 +385,7 @@ func (x Uint32x4) LessEqual(y Uint32x4) Mask32x4 {
 	a, b := x.AsInt32x4(), y.AsInt32x4()
 	ones := x.Equal(x).AsInt32x4()
 	signs := ones.ShiftAllLeft(32 - 1)
-	return a.Xor(signs).Greater(b.Xor(signs)).AsInt32x4().Xor(ones).AsMask32x4()
+	return a.Xor(signs).Greater(b.Xor(signs)).AsInt32x4().Xor(ones).asMask()
 }
 
 // NotEqual returns a mask whose elements indicate whether x != y
@@ -394,7 +394,7 @@ func (x Uint32x4) LessEqual(y Uint32x4) Mask32x4 {
 func (x Uint32x4) NotEqual(y Uint32x4) Mask32x4 {
 	a, b := x.AsInt32x4(), y.AsInt32x4()
 	ones := x.Equal(x).AsInt32x4()
-	return a.Equal(b).AsInt32x4().Xor(ones).AsMask32x4()
+	return a.Equal(b).AsInt32x4().Xor(ones).asMask()
 }
 
 // Greater returns a mask whose elements indicate whether x > y
@@ -424,7 +424,7 @@ func (x Uint64x2) GreaterEqual(y Uint64x2) Mask64x2 {
 	a, b := x.AsInt64x2(), y.AsInt64x2()
 	ones := x.Equal(x).AsInt64x2()
 	signs := ones.ShiftAllLeft(64 - 1)
-	return b.Xor(signs).Greater(a.Xor(signs)).AsInt64x2().Xor(ones).AsMask64x2()
+	return b.Xor(signs).Greater(a.Xor(signs)).AsInt64x2().Xor(ones).asMask()
 }
 
 // LessEqual returns a mask whose elements indicate whether x <= y
@@ -434,7 +434,7 @@ func (x Uint64x2) LessEqual(y Uint64x2) Mask64x2 {
 	a, b := x.AsInt64x2(), y.AsInt64x2()
 	ones := x.Equal(x).AsInt64x2()
 	signs := ones.ShiftAllLeft(64 - 1)
-	return a.Xor(signs).Greater(b.Xor(signs)).AsInt64x2().Xor(ones).AsMask64x2()
+	return a.Xor(signs).Greater(b.Xor(signs)).AsInt64x2().Xor(ones).asMask()
 }
 
 // NotEqual returns a mask whose elements indicate whether x != y
@@ -443,7 +443,7 @@ func (x Uint64x2) LessEqual(y Uint64x2) Mask64x2 {
 func (x Uint64x2) NotEqual(y Uint64x2) Mask64x2 {
 	a, b := x.AsInt64x2(), y.AsInt64x2()
 	ones := x.Equal(x).AsInt64x2()
-	return a.Equal(b).AsInt64x2().Xor(ones).AsMask64x2()
+	return a.Equal(b).AsInt64x2().Xor(ones).asMask()
 }
 
 // Greater returns a mask whose elements indicate whether x > y
@@ -471,7 +471,7 @@ func (x Uint8x32) GreaterEqual(y Uint8x32) Mask8x32 {
 	a, b := x.AsInt8x32(), y.AsInt8x32()
 	ones := x.Equal(x).AsInt8x32()
 	signs := BroadcastInt8x32(-1 << (8 - 1))
-	return b.Xor(signs).Greater(a.Xor(signs)).AsInt8x32().Xor(ones).AsMask8x32()
+	return b.Xor(signs).Greater(a.Xor(signs)).AsInt8x32().Xor(ones).asMask()
 }
 
 // LessEqual returns a mask whose elements indicate whether x <= y
@@ -481,7 +481,7 @@ func (x Uint8x32) LessEqual(y Uint8x32) Mask8x32 {
 	a, b := x.AsInt8x32(), y.AsInt8x32()
 	ones := x.Equal(x).AsInt8x32()
 	signs := BroadcastInt8x32(-1 << (8 - 1))
-	return a.Xor(signs).Greater(b.Xor(signs)).AsInt8x32().Xor(ones).AsMask8x32()
+	return a.Xor(signs).Greater(b.Xor(signs)).AsInt8x32().Xor(ones).asMask()
 }
 
 // NotEqual returns a mask whose elements indicate whether x != y
@@ -490,7 +490,7 @@ func (x Uint8x32) LessEqual(y Uint8x32) Mask8x32 {
 func (x Uint8x32) NotEqual(y Uint8x32) Mask8x32 {
 	a, b := x.AsInt8x32(), y.AsInt8x32()
 	ones := x.Equal(x).AsInt8x32()
-	return a.Equal(b).AsInt8x32().Xor(ones).AsMask8x32()
+	return a.Equal(b).AsInt8x32().Xor(ones).asMask()
 }
 
 // Greater returns a mask whose elements indicate whether x > y
@@ -520,7 +520,7 @@ func (x Uint16x16) GreaterEqual(y Uint16x16) Mask16x16 {
 	a, b := x.AsInt16x16(), y.AsInt16x16()
 	ones := x.Equal(x).AsInt16x16()
 	signs := ones.ShiftAllLeft(16 - 1)
-	return b.Xor(signs).Greater(a.Xor(signs)).AsInt16x16().Xor(ones).AsMask16x16()
+	return b.Xor(signs).Greater(a.Xor(signs)).AsInt16x16().Xor(ones).asMask()
 }
 
 // LessEqual returns a mask whose elements indicate whether x <= y
@@ -530,7 +530,7 @@ func (x Uint16x16) LessEqual(y Uint16x16) Mask16x16 {
 	a, b := x.AsInt16x16(), y.AsInt16x16()
 	ones := x.Equal(x).AsInt16x16()
 	signs := ones.ShiftAllLeft(16 - 1)
-	return a.Xor(signs).Greater(b.Xor(signs)).AsInt16x16().Xor(ones).AsMask16x16()
+	return a.Xor(signs).Greater(b.Xor(signs)).AsInt16x16().Xor(ones).asMask()
 }
 
 // NotEqual returns a mask whose elements indicate whether x != y
@@ -539,7 +539,7 @@ func (x Uint16x16) LessEqual(y Uint16x16) Mask16x16 {
 func (x Uint16x16) NotEqual(y Uint16x16) Mask16x16 {
 	a, b := x.AsInt16x16(), y.AsInt16x16()
 	ones := x.Equal(x).AsInt16x16()
-	return a.Equal(b).AsInt16x16().Xor(ones).AsMask16x16()
+	return a.Equal(b).AsInt16x16().Xor(ones).asMask()
 }
 
 // Greater returns a mask whose elements indicate whether x > y
@@ -569,7 +569,7 @@ func (x Uint32x8) GreaterEqual(y Uint32x8) Mask32x8 {
 	a, b := x.AsInt32x8(), y.AsInt32x8()
 	ones := x.Equal(x).AsInt32x8()
 	signs := ones.ShiftAllLeft(32 - 1)
-	return b.Xor(signs).Greater(a.Xor(signs)).AsInt32x8().Xor(ones).AsMask32x8()
+	return b.Xor(signs).Greater(a.Xor(signs)).AsInt32x8().Xor(ones).asMask()
 }
 
 // LessEqual returns a mask whose elements indicate whether x <= y
@@ -579,7 +579,7 @@ func (x Uint32x8) LessEqual(y Uint32x8) Mask32x8 {
 	a, b := x.AsInt32x8(), y.AsInt32x8()
 	ones := x.Equal(x).AsInt32x8()
 	signs := ones.ShiftAllLeft(32 - 1)
-	return a.Xor(signs).Greater(b.Xor(signs)).AsInt32x8().Xor(ones).AsMask32x8()
+	return a.Xor(signs).Greater(b.Xor(signs)).AsInt32x8().Xor(ones).asMask()
 }
 
 // NotEqual returns a mask whose elements indicate whether x != y
@@ -588,7 +588,7 @@ func (x Uint32x8) LessEqual(y Uint32x8) Mask32x8 {
 func (x Uint32x8) NotEqual(y Uint32x8) Mask32x8 {
 	a, b := x.AsInt32x8(), y.AsInt32x8()
 	ones := x.Equal(x).AsInt32x8()
-	return a.Equal(b).AsInt32x8().Xor(ones).AsMask32x8()
+	return a.Equal(b).AsInt32x8().Xor(ones).asMask()
 }
 
 // Greater returns a mask whose elements indicate whether x > y
@@ -618,7 +618,7 @@ func (x Uint64x4) GreaterEqual(y Uint64x4) Mask64x4 {
 	a, b := x.AsInt64x4(), y.AsInt64x4()
 	ones := x.Equal(x).AsInt64x4()
 	signs := ones.ShiftAllLeft(64 - 1)
-	return b.Xor(signs).Greater(a.Xor(signs)).AsInt64x4().Xor(ones).AsMask64x4()
+	return b.Xor(signs).Greater(a.Xor(signs)).AsInt64x4().Xor(ones).asMask()
 }
 
 // LessEqual returns a mask whose elements indicate whether x <= y
@@ -628,7 +628,7 @@ func (x Uint64x4) LessEqual(y Uint64x4) Mask64x4 {
 	a, b := x.AsInt64x4(), y.AsInt64x4()
 	ones := x.Equal(x).AsInt64x4()
 	signs := ones.ShiftAllLeft(64 - 1)
-	return a.Xor(signs).Greater(b.Xor(signs)).AsInt64x4().Xor(ones).AsMask64x4()
+	return a.Xor(signs).Greater(b.Xor(signs)).AsInt64x4().Xor(ones).asMask()
 }
 
 // NotEqual returns a mask whose elements indicate whether x != y
@@ -637,5 +637,5 @@ func (x Uint64x4) LessEqual(y Uint64x4) Mask64x4 {
 func (x Uint64x4) NotEqual(y Uint64x4) Mask64x4 {
 	a, b := x.AsInt64x4(), y.AsInt64x4()
 	ones := x.Equal(x).AsInt64x4()
-	return a.Equal(b).AsInt64x4().Xor(ones).AsMask64x4()
+	return a.Equal(b).AsInt64x4().Xor(ones).asMask()
 }

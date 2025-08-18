@@ -389,11 +389,11 @@ func (from {{.Tsrc.Name}}) As{{.Tdst.Name}}() (to {{.Tdst.Name}})
 {{end}}
 
 {{define "mask"}}
-// converts from {{.Name}} to {{.VectorCounterpart}}
+// As{{.VectorCounterpart}} converts from {{.Name}} to {{.VectorCounterpart}}
 func (from {{.Name}}) As{{.VectorCounterpart}}() (to {{.VectorCounterpart}})
 
-// converts from {{.VectorCounterpart}} to {{.Name}}
-func (from {{.VectorCounterpart}}) As{{.Name}}() (to {{.Name}})
+// asMask converts from {{.VectorCounterpart}} to {{.Name}}
+func (from {{.VectorCounterpart}}) asMask() (to {{.Name}})
 
 func (x {{.Name}}) And(y {{.Name}}) {{.Name}}
 

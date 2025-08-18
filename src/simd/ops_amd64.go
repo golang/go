@@ -13488,121 +13488,121 @@ func (from Uint64x8) AsUint16x32() (to Uint16x32)
 // Uint32x16 converts from Uint64x8 to Uint32x16
 func (from Uint64x8) AsUint32x16() (to Uint32x16)
 
-// converts from Mask8x16 to Int8x16
+// AsInt8x16 converts from Mask8x16 to Int8x16
 func (from Mask8x16) AsInt8x16() (to Int8x16)
 
-// converts from Int8x16 to Mask8x16
-func (from Int8x16) AsMask8x16() (to Mask8x16)
+// asMask converts from Int8x16 to Mask8x16
+func (from Int8x16) asMask() (to Mask8x16)
 
 func (x Mask8x16) And(y Mask8x16) Mask8x16
 
 func (x Mask8x16) Or(y Mask8x16) Mask8x16
 
-// converts from Mask8x32 to Int8x32
+// AsInt8x32 converts from Mask8x32 to Int8x32
 func (from Mask8x32) AsInt8x32() (to Int8x32)
 
-// converts from Int8x32 to Mask8x32
-func (from Int8x32) AsMask8x32() (to Mask8x32)
+// asMask converts from Int8x32 to Mask8x32
+func (from Int8x32) asMask() (to Mask8x32)
 
 func (x Mask8x32) And(y Mask8x32) Mask8x32
 
 func (x Mask8x32) Or(y Mask8x32) Mask8x32
 
-// converts from Mask8x64 to Int8x64
+// AsInt8x64 converts from Mask8x64 to Int8x64
 func (from Mask8x64) AsInt8x64() (to Int8x64)
 
-// converts from Int8x64 to Mask8x64
-func (from Int8x64) AsMask8x64() (to Mask8x64)
+// asMask converts from Int8x64 to Mask8x64
+func (from Int8x64) asMask() (to Mask8x64)
 
 func (x Mask8x64) And(y Mask8x64) Mask8x64
 
 func (x Mask8x64) Or(y Mask8x64) Mask8x64
 
-// converts from Mask16x8 to Int16x8
+// AsInt16x8 converts from Mask16x8 to Int16x8
 func (from Mask16x8) AsInt16x8() (to Int16x8)
 
-// converts from Int16x8 to Mask16x8
-func (from Int16x8) AsMask16x8() (to Mask16x8)
+// asMask converts from Int16x8 to Mask16x8
+func (from Int16x8) asMask() (to Mask16x8)
 
 func (x Mask16x8) And(y Mask16x8) Mask16x8
 
 func (x Mask16x8) Or(y Mask16x8) Mask16x8
 
-// converts from Mask16x16 to Int16x16
+// AsInt16x16 converts from Mask16x16 to Int16x16
 func (from Mask16x16) AsInt16x16() (to Int16x16)
 
-// converts from Int16x16 to Mask16x16
-func (from Int16x16) AsMask16x16() (to Mask16x16)
+// asMask converts from Int16x16 to Mask16x16
+func (from Int16x16) asMask() (to Mask16x16)
 
 func (x Mask16x16) And(y Mask16x16) Mask16x16
 
 func (x Mask16x16) Or(y Mask16x16) Mask16x16
 
-// converts from Mask16x32 to Int16x32
+// AsInt16x32 converts from Mask16x32 to Int16x32
 func (from Mask16x32) AsInt16x32() (to Int16x32)
 
-// converts from Int16x32 to Mask16x32
-func (from Int16x32) AsMask16x32() (to Mask16x32)
+// asMask converts from Int16x32 to Mask16x32
+func (from Int16x32) asMask() (to Mask16x32)
 
 func (x Mask16x32) And(y Mask16x32) Mask16x32
 
 func (x Mask16x32) Or(y Mask16x32) Mask16x32
 
-// converts from Mask32x4 to Int32x4
+// AsInt32x4 converts from Mask32x4 to Int32x4
 func (from Mask32x4) AsInt32x4() (to Int32x4)
 
-// converts from Int32x4 to Mask32x4
-func (from Int32x4) AsMask32x4() (to Mask32x4)
+// asMask converts from Int32x4 to Mask32x4
+func (from Int32x4) asMask() (to Mask32x4)
 
 func (x Mask32x4) And(y Mask32x4) Mask32x4
 
 func (x Mask32x4) Or(y Mask32x4) Mask32x4
 
-// converts from Mask32x8 to Int32x8
+// AsInt32x8 converts from Mask32x8 to Int32x8
 func (from Mask32x8) AsInt32x8() (to Int32x8)
 
-// converts from Int32x8 to Mask32x8
-func (from Int32x8) AsMask32x8() (to Mask32x8)
+// asMask converts from Int32x8 to Mask32x8
+func (from Int32x8) asMask() (to Mask32x8)
 
 func (x Mask32x8) And(y Mask32x8) Mask32x8
 
 func (x Mask32x8) Or(y Mask32x8) Mask32x8
 
-// converts from Mask32x16 to Int32x16
+// AsInt32x16 converts from Mask32x16 to Int32x16
 func (from Mask32x16) AsInt32x16() (to Int32x16)
 
-// converts from Int32x16 to Mask32x16
-func (from Int32x16) AsMask32x16() (to Mask32x16)
+// asMask converts from Int32x16 to Mask32x16
+func (from Int32x16) asMask() (to Mask32x16)
 
 func (x Mask32x16) And(y Mask32x16) Mask32x16
 
 func (x Mask32x16) Or(y Mask32x16) Mask32x16
 
-// converts from Mask64x2 to Int64x2
+// AsInt64x2 converts from Mask64x2 to Int64x2
 func (from Mask64x2) AsInt64x2() (to Int64x2)
 
-// converts from Int64x2 to Mask64x2
-func (from Int64x2) AsMask64x2() (to Mask64x2)
+// asMask converts from Int64x2 to Mask64x2
+func (from Int64x2) asMask() (to Mask64x2)
 
 func (x Mask64x2) And(y Mask64x2) Mask64x2
 
 func (x Mask64x2) Or(y Mask64x2) Mask64x2
 
-// converts from Mask64x4 to Int64x4
+// AsInt64x4 converts from Mask64x4 to Int64x4
 func (from Mask64x4) AsInt64x4() (to Int64x4)
 
-// converts from Int64x4 to Mask64x4
-func (from Int64x4) AsMask64x4() (to Mask64x4)
+// asMask converts from Int64x4 to Mask64x4
+func (from Int64x4) asMask() (to Mask64x4)
 
 func (x Mask64x4) And(y Mask64x4) Mask64x4
 
 func (x Mask64x4) Or(y Mask64x4) Mask64x4
 
-// converts from Mask64x8 to Int64x8
+// AsInt64x8 converts from Mask64x8 to Int64x8
 func (from Mask64x8) AsInt64x8() (to Int64x8)
 
-// converts from Int64x8 to Mask64x8
-func (from Int64x8) AsMask64x8() (to Mask64x8)
+// asMask converts from Int64x8 to Mask64x8
+func (from Int64x8) asMask() (to Mask64x8)
 
 func (x Mask64x8) And(y Mask64x8) Mask64x8
 

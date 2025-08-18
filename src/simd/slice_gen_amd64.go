@@ -639,7 +639,7 @@ func LoadInt32x4SlicePart(s []int32) Int32x4 {
 		return x
 	}
 	mask := vecMask32[len(vecMask32)/2-l:]
-	return LoadMaskedInt32x4(paInt32x4(s), LoadInt32x4Slice(mask).AsMask32x4())
+	return LoadMaskedInt32x4(paInt32x4(s), LoadInt32x4Slice(mask).asMask())
 }
 
 // StoreSlicePart stores the 4 elements of x into the slice s.
@@ -655,7 +655,7 @@ func (x Int32x4) StoreSlicePart(s []int32) {
 		return
 	}
 	mask := vecMask32[len(vecMask32)/2-l:]
-	x.StoreMasked(paInt32x4(s), LoadInt32x4Slice(mask).AsMask32x4())
+	x.StoreMasked(paInt32x4(s), LoadInt32x4Slice(mask).asMask())
 }
 
 // LoadInt64x2SlicePart loads a Int64x2 from the slice s.
@@ -671,7 +671,7 @@ func LoadInt64x2SlicePart(s []int64) Int64x2 {
 		return x
 	}
 	mask := vecMask64[len(vecMask64)/2-l:]
-	return LoadMaskedInt64x2(paInt64x2(s), LoadInt64x2Slice(mask).AsMask64x2())
+	return LoadMaskedInt64x2(paInt64x2(s), LoadInt64x2Slice(mask).asMask())
 }
 
 // StoreSlicePart stores the 2 elements of x into the slice s.
@@ -687,7 +687,7 @@ func (x Int64x2) StoreSlicePart(s []int64) {
 		return
 	}
 	mask := vecMask64[len(vecMask64)/2-l:]
-	x.StoreMasked(paInt64x2(s), LoadInt64x2Slice(mask).AsMask64x2())
+	x.StoreMasked(paInt64x2(s), LoadInt64x2Slice(mask).asMask())
 }
 
 // LoadUint32x4SlicePart loads a Uint32x4 from the slice s.
@@ -703,7 +703,7 @@ func LoadUint32x4SlicePart(s []uint32) Uint32x4 {
 		return x
 	}
 	mask := vecMask32[len(vecMask32)/2-l:]
-	return LoadMaskedUint32x4(paUint32x4(s), LoadInt32x4Slice(mask).AsMask32x4())
+	return LoadMaskedUint32x4(paUint32x4(s), LoadInt32x4Slice(mask).asMask())
 }
 
 // StoreSlicePart stores the 4 elements of x into the slice s.
@@ -719,7 +719,7 @@ func (x Uint32x4) StoreSlicePart(s []uint32) {
 		return
 	}
 	mask := vecMask32[len(vecMask32)/2-l:]
-	x.StoreMasked(paUint32x4(s), LoadInt32x4Slice(mask).AsMask32x4())
+	x.StoreMasked(paUint32x4(s), LoadInt32x4Slice(mask).asMask())
 }
 
 // LoadUint64x2SlicePart loads a Uint64x2 from the slice s.
@@ -735,7 +735,7 @@ func LoadUint64x2SlicePart(s []uint64) Uint64x2 {
 		return x
 	}
 	mask := vecMask64[len(vecMask64)/2-l:]
-	return LoadMaskedUint64x2(paUint64x2(s), LoadInt64x2Slice(mask).AsMask64x2())
+	return LoadMaskedUint64x2(paUint64x2(s), LoadInt64x2Slice(mask).asMask())
 }
 
 // StoreSlicePart stores the 2 elements of x into the slice s.
@@ -751,7 +751,7 @@ func (x Uint64x2) StoreSlicePart(s []uint64) {
 		return
 	}
 	mask := vecMask64[len(vecMask64)/2-l:]
-	x.StoreMasked(paUint64x2(s), LoadInt64x2Slice(mask).AsMask64x2())
+	x.StoreMasked(paUint64x2(s), LoadInt64x2Slice(mask).asMask())
 }
 
 // LoadFloat32x4SlicePart loads a Float32x4 from the slice s.
@@ -767,7 +767,7 @@ func LoadFloat32x4SlicePart(s []float32) Float32x4 {
 		return x
 	}
 	mask := vecMask32[len(vecMask32)/2-l:]
-	return LoadMaskedFloat32x4(paFloat32x4(s), LoadInt32x4Slice(mask).AsMask32x4())
+	return LoadMaskedFloat32x4(paFloat32x4(s), LoadInt32x4Slice(mask).asMask())
 }
 
 // StoreSlicePart stores the 4 elements of x into the slice s.
@@ -783,7 +783,7 @@ func (x Float32x4) StoreSlicePart(s []float32) {
 		return
 	}
 	mask := vecMask32[len(vecMask32)/2-l:]
-	x.StoreMasked(paFloat32x4(s), LoadInt32x4Slice(mask).AsMask32x4())
+	x.StoreMasked(paFloat32x4(s), LoadInt32x4Slice(mask).asMask())
 }
 
 // LoadFloat64x2SlicePart loads a Float64x2 from the slice s.
@@ -799,7 +799,7 @@ func LoadFloat64x2SlicePart(s []float64) Float64x2 {
 		return x
 	}
 	mask := vecMask64[len(vecMask64)/2-l:]
-	return LoadMaskedFloat64x2(paFloat64x2(s), LoadInt64x2Slice(mask).AsMask64x2())
+	return LoadMaskedFloat64x2(paFloat64x2(s), LoadInt64x2Slice(mask).asMask())
 }
 
 // StoreSlicePart stores the 2 elements of x into the slice s.
@@ -815,7 +815,7 @@ func (x Float64x2) StoreSlicePart(s []float64) {
 		return
 	}
 	mask := vecMask64[len(vecMask64)/2-l:]
-	x.StoreMasked(paFloat64x2(s), LoadInt64x2Slice(mask).AsMask64x2())
+	x.StoreMasked(paFloat64x2(s), LoadInt64x2Slice(mask).asMask())
 }
 
 // LoadInt32x8SlicePart loads a Int32x8 from the slice s.
@@ -831,7 +831,7 @@ func LoadInt32x8SlicePart(s []int32) Int32x8 {
 		return x
 	}
 	mask := vecMask32[len(vecMask32)/2-l:]
-	return LoadMaskedInt32x8(paInt32x8(s), LoadInt32x8Slice(mask).AsMask32x8())
+	return LoadMaskedInt32x8(paInt32x8(s), LoadInt32x8Slice(mask).asMask())
 }
 
 // StoreSlicePart stores the 8 elements of x into the slice s.
@@ -847,7 +847,7 @@ func (x Int32x8) StoreSlicePart(s []int32) {
 		return
 	}
 	mask := vecMask32[len(vecMask32)/2-l:]
-	x.StoreMasked(paInt32x8(s), LoadInt32x8Slice(mask).AsMask32x8())
+	x.StoreMasked(paInt32x8(s), LoadInt32x8Slice(mask).asMask())
 }
 
 // LoadInt64x4SlicePart loads a Int64x4 from the slice s.
@@ -863,7 +863,7 @@ func LoadInt64x4SlicePart(s []int64) Int64x4 {
 		return x
 	}
 	mask := vecMask64[len(vecMask64)/2-l:]
-	return LoadMaskedInt64x4(paInt64x4(s), LoadInt64x4Slice(mask).AsMask64x4())
+	return LoadMaskedInt64x4(paInt64x4(s), LoadInt64x4Slice(mask).asMask())
 }
 
 // StoreSlicePart stores the 4 elements of x into the slice s.
@@ -879,7 +879,7 @@ func (x Int64x4) StoreSlicePart(s []int64) {
 		return
 	}
 	mask := vecMask64[len(vecMask64)/2-l:]
-	x.StoreMasked(paInt64x4(s), LoadInt64x4Slice(mask).AsMask64x4())
+	x.StoreMasked(paInt64x4(s), LoadInt64x4Slice(mask).asMask())
 }
 
 // LoadUint32x8SlicePart loads a Uint32x8 from the slice s.
@@ -895,7 +895,7 @@ func LoadUint32x8SlicePart(s []uint32) Uint32x8 {
 		return x
 	}
 	mask := vecMask32[len(vecMask32)/2-l:]
-	return LoadMaskedUint32x8(paUint32x8(s), LoadInt32x8Slice(mask).AsMask32x8())
+	return LoadMaskedUint32x8(paUint32x8(s), LoadInt32x8Slice(mask).asMask())
 }
 
 // StoreSlicePart stores the 8 elements of x into the slice s.
@@ -911,7 +911,7 @@ func (x Uint32x8) StoreSlicePart(s []uint32) {
 		return
 	}
 	mask := vecMask32[len(vecMask32)/2-l:]
-	x.StoreMasked(paUint32x8(s), LoadInt32x8Slice(mask).AsMask32x8())
+	x.StoreMasked(paUint32x8(s), LoadInt32x8Slice(mask).asMask())
 }
 
 // LoadUint64x4SlicePart loads a Uint64x4 from the slice s.
@@ -927,7 +927,7 @@ func LoadUint64x4SlicePart(s []uint64) Uint64x4 {
 		return x
 	}
 	mask := vecMask64[len(vecMask64)/2-l:]
-	return LoadMaskedUint64x4(paUint64x4(s), LoadInt64x4Slice(mask).AsMask64x4())
+	return LoadMaskedUint64x4(paUint64x4(s), LoadInt64x4Slice(mask).asMask())
 }
 
 // StoreSlicePart stores the 4 elements of x into the slice s.
@@ -943,7 +943,7 @@ func (x Uint64x4) StoreSlicePart(s []uint64) {
 		return
 	}
 	mask := vecMask64[len(vecMask64)/2-l:]
-	x.StoreMasked(paUint64x4(s), LoadInt64x4Slice(mask).AsMask64x4())
+	x.StoreMasked(paUint64x4(s), LoadInt64x4Slice(mask).asMask())
 }
 
 // LoadFloat32x8SlicePart loads a Float32x8 from the slice s.
@@ -959,7 +959,7 @@ func LoadFloat32x8SlicePart(s []float32) Float32x8 {
 		return x
 	}
 	mask := vecMask32[len(vecMask32)/2-l:]
-	return LoadMaskedFloat32x8(paFloat32x8(s), LoadInt32x8Slice(mask).AsMask32x8())
+	return LoadMaskedFloat32x8(paFloat32x8(s), LoadInt32x8Slice(mask).asMask())
 }
 
 // StoreSlicePart stores the 8 elements of x into the slice s.
@@ -975,7 +975,7 @@ func (x Float32x8) StoreSlicePart(s []float32) {
 		return
 	}
 	mask := vecMask32[len(vecMask32)/2-l:]
-	x.StoreMasked(paFloat32x8(s), LoadInt32x8Slice(mask).AsMask32x8())
+	x.StoreMasked(paFloat32x8(s), LoadInt32x8Slice(mask).asMask())
 }
 
 // LoadFloat64x4SlicePart loads a Float64x4 from the slice s.
@@ -991,7 +991,7 @@ func LoadFloat64x4SlicePart(s []float64) Float64x4 {
 		return x
 	}
 	mask := vecMask64[len(vecMask64)/2-l:]
-	return LoadMaskedFloat64x4(paFloat64x4(s), LoadInt64x4Slice(mask).AsMask64x4())
+	return LoadMaskedFloat64x4(paFloat64x4(s), LoadInt64x4Slice(mask).asMask())
 }
 
 // StoreSlicePart stores the 4 elements of x into the slice s.
@@ -1007,7 +1007,7 @@ func (x Float64x4) StoreSlicePart(s []float64) {
 		return
 	}
 	mask := vecMask64[len(vecMask64)/2-l:]
-	x.StoreMasked(paFloat64x4(s), LoadInt64x4Slice(mask).AsMask64x4())
+	x.StoreMasked(paFloat64x4(s), LoadInt64x4Slice(mask).asMask())
 }
 
 // LoadUint8x16SlicePart loads a Uint8x16 from the slice s.

@@ -33,7 +33,6 @@ func TestType(t *testing.T) {
 	vals := [4]int32{1, 2, 3, 4}
 	v := myStruct{x: simd.LoadInt32x4(&vals)}
 	// masking elements 1 and 2.
-	maskv := [4]int32{-1, -1, 0, 0}
 	want := []int32{2, 4, 0, 0}
 	y := simd.LoadInt32x4(&vals)
 	v.y = &y
@@ -43,7 +42,7 @@ func TestType(t *testing.T) {
 		t.Skip("Test requires HasAVX512, not available on this hardware")
 		return
 	}
-	v.z = maskT(simd.LoadInt32x4(&maskv).AsMask32x4())
+	v.z = maskT(simd.Mask32x4FromBits(0b0011))
 	*v.y = v.y.AddMasked(v.x, simd.Mask32x4(v.z))
 
 	got := [4]int32{}
@@ -120,18 +119,15 @@ func TestMaskConversion(t *testing.T) {
 		t.Skip("Test requires HasAVX512, not available on this hardware")
 		return
 	}
-	v := [4]int32{1, 0, 1, 0}
-	x := simd.LoadInt32x4(&v)
-	var y simd.Int32x4
-	mask := y.Sub(x).AsMask32x4()
-	v = [4]int32{5, 6, 7, 8}
-	y = simd.LoadInt32x4(&v)
-	y = y.AddMasked(x, mask)
-	got := [4]int32{6, 0, 8, 0}
-	y.Store(&v)
+	x := simd.LoadInt32x4Slice([]int32{5, 0, 7, 0})
+	mask := simd.Int32x4{}.Sub(x).ToMask()
+	y := simd.LoadInt32x4Slice([]int32{1, 2, 3, 4}).AddMasked(x, mask)
+	want := [4]int32{6, 0, 10, 0}
+	got := make([]int32, 4)
+	y.StoreSlice(got)
 	for i := range 4 {
-		if v[i] != got[i] {
-			t.Errorf("Result at %d incorrect: want %d, got %d", i, v[i], got[i])
+		if want[i] != got[i] {
+			t.Errorf("Result at %d incorrect: want %d, got %d", i, want[i], got[i])
 		}
 	}
 }
@@ -177,8 +173,7 @@ func TestCompress(t *testing.T) {
 		return
 	}
 	v1234 := simd.LoadInt32x4Slice([]int32{1, 2, 3, 4})
-	v0101 := simd.LoadInt32x4Slice([]int32{0, -1, 0, -1})
-	v2400 := v1234.Compress(v0101.AsMask32x4())
+	v2400 := v1234.Compress(simd.Mask32x4FromBits(0b1010))
 	got := make([]int32, 4)
 	v2400.StoreSlice(got)
 	want := []int32{2, 4, 0, 0}
@@ -193,8 +188,7 @@ func TestExpand(t *testing.T) {
 		return
 	}
 	v3400 := simd.LoadInt32x4Slice([]int32{3, 4, 0, 0})
-	v0101 := simd.LoadInt32x4Slice([]int32{0, -1, 0, -1})
-	v2400 := v3400.Expand(v0101.AsMask32x4())
+	v2400 := v3400.Expand(simd.Mask32x4FromBits(0b1010))
 	got := make([]int32, 4)
 	v2400.StoreSlice(got)
 	want := []int32{0, 3, 0, 4}
@@ -378,7 +372,7 @@ func TestBitMaskToBits(t *testing.T) {
 		t.Skip("Test requires HasAVX512, not available on this hardware")
 		return
 	}
-	if v := simd.LoadInt16x8Slice([]int16{-1, 0, -1, 0, 0, 0, 0, 0}).AsMask16x8().ToBits(); v != 0b101 {
+	if v := simd.LoadInt16x8Slice([]int16{1, 0, 1, 0, 0, 0, 0, 0}).ToMask().ToBits(); v != 0b101 {
 		t.Errorf("Want 0b101, got %b", v)
 	}
 }

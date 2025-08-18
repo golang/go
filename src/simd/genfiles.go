@@ -387,7 +387,7 @@ func test{{.Vec}}CompareMasked(t *testing.T,
 	 	t.Helper()
 		a := simd.Load{{.Vec}}Slice(x)
 		b := simd.Load{{.Vec}}Slice(y)
-		k := simd.LoadInt{{.WxC}}Slice(toVect[int{{.Width}}](m)).AsMask{{.WxC}}()
+		k := simd.LoadInt{{.WxC}}Slice(toVect[int{{.Width}}](m)).ToMask()
 		g := make([]int{{.Width}}, n)
 		f(a, b, k).AsInt{{.WxC}}().StoreSlice(g)
 		w := want(x, y)
@@ -449,7 +449,7 @@ func Load{{.Vec}}SlicePart(s []{{.Type}}) {{.Vec}} {
 		return x
 	}
 	mask := vecMask{{.Width}}[len(vecMask{{.Width}})/2-l:]
-	return LoadMasked{{.Vec}}(pa{{.Vec}}(s), LoadInt{{.WxC}}Slice(mask).AsMask{{.WxC}}())
+	return LoadMasked{{.Vec}}(pa{{.Vec}}(s), LoadInt{{.WxC}}Slice(mask).asMask())
 }
 
 // StoreSlicePart stores the {{.Count}} elements of x into the slice s.
@@ -465,7 +465,7 @@ func (x {{.Vec}}) StoreSlicePart(s []{{.Type}}) {
 		return
 	}
 	mask := vecMask{{.Width}}[len(vecMask{{.Width}})/2-l:]
-	x.StoreMasked(pa{{.Vec}}(s), LoadInt{{.WxC}}Slice(mask).AsMask{{.WxC}}())
+	x.StoreMasked(pa{{.Vec}}(s), LoadInt{{.WxC}}Slice(mask).asMask())
 }
 `)
 
@@ -519,7 +519,7 @@ func (x {{.Vec}}) Less(y {{.Vec}}) Mask{{.WxC}} {
 // Emulated, CPU Feature {{.CPUfeature}}
 func (x {{.Vec}}) GreaterEqual(y {{.Vec}}) Mask{{.WxC}} {
 	ones := x.Equal(x).AsInt{{.WxC}}()
-	return y.Greater(x).AsInt{{.WxC}}().Xor(ones).AsMask{{.WxC}}()
+	return y.Greater(x).AsInt{{.WxC}}().Xor(ones).asMask()
 }
 
 // LessEqual returns a mask whose elements indicate whether x <= y
@@ -527,7 +527,7 @@ func (x {{.Vec}}) GreaterEqual(y {{.Vec}}) Mask{{.WxC}} {
 // Emulated, CPU Feature {{.CPUfeature}}
 func (x {{.Vec}}) LessEqual(y {{.Vec}}) Mask{{.WxC}} {
 	ones := x.Equal(x).AsInt{{.WxC}}()
-	return x.Greater(y).AsInt{{.WxC}}().Xor(ones).AsMask{{.WxC}}()
+	return x.Greater(y).AsInt{{.WxC}}().Xor(ones).asMask()
 }
 
 // NotEqual returns a mask whose elements indicate whether x != y
@@ -535,7 +535,7 @@ func (x {{.Vec}}) LessEqual(y {{.Vec}}) Mask{{.WxC}} {
 // Emulated, CPU Feature {{.CPUfeature}}
 func (x {{.Vec}}) NotEqual(y {{.Vec}}) Mask{{.WxC}} {
 	ones := x.Equal(x).AsInt{{.WxC}}()
-	return x.Equal(y).AsInt{{.WxC}}().Xor(ones).AsMask{{.WxC}}()	
+	return x.Equal(y).AsInt{{.WxC}}().Xor(ones).asMask()	
 }
 `)
 
@@ -591,7 +591,7 @@ func (x {{.Vec}}) GreaterEqual(y {{.Vec}}) Mask{{.WxC}} {
 {{- else}}
 	signs := ones.ShiftAllLeft({{.Width}}-1)
 {{- end }}
-	return b.Xor(signs).Greater(a.Xor(signs)).AsInt{{.WxC}}().Xor(ones).AsMask{{.WxC}}()
+	return b.Xor(signs).Greater(a.Xor(signs)).AsInt{{.WxC}}().Xor(ones).asMask()
 }
 
 // LessEqual returns a mask whose elements indicate whether x <= y
@@ -605,7 +605,7 @@ func (x {{.Vec}}) LessEqual(y {{.Vec}}) Mask{{.WxC}} {
 {{- else}}
 	signs := ones.ShiftAllLeft({{.Width}}-1)
 {{- end }}
-	return a.Xor(signs).Greater(b.Xor(signs)).AsInt{{.WxC}}().Xor(ones).AsMask{{.WxC}}()
+	return a.Xor(signs).Greater(b.Xor(signs)).AsInt{{.WxC}}().Xor(ones).asMask()
 }
 
 // NotEqual returns a mask whose elements indicate whether x != y
@@ -614,7 +614,7 @@ func (x {{.Vec}}) LessEqual(y {{.Vec}}) Mask{{.WxC}} {
 func (x {{.Vec}}) NotEqual(y {{.Vec}}) Mask{{.WxC}} {
 	a, b := x.AsInt{{.WxC}}(), y.AsInt{{.WxC}}()
 	ones := x.Equal(x).AsInt{{.WxC}}()
-	return a.Equal(b).AsInt{{.WxC}}().Xor(ones).AsMask{{.WxC}}()
+	return a.Equal(b).AsInt{{.WxC}}().Xor(ones).asMask()
 }
 `)
 
@@ -705,6 +705,13 @@ func Broadcast{{.Vec}}(x {{.Type}}) {{.Vec}} {
 }
 `)
 
+var maskCvtTemplate = templateOf("Mask conversions", `
+// ToMask converts from {{.Base}}{{.WxC}} to Mask{{.WxC}}, mask element is set to true when the corresponding vector element is non-zero.
+func (from {{.Base}}{{.WxC}}) ToMask() (to Mask{{.WxC}}) {
+	return from.NotEqual({{.Base}}{{.WxC}}{})
+}
+`)
+
 func main() {
 	sl := flag.String("sl", "slice_gen_amd64.go", "file name for slice operations")
 	cm := flag.String("cm", "compare_gen_amd64.go", "file name for comparison operations")
@@ -741,6 +748,7 @@ func main() {
 	if *op != "" {
 		one(*op, prologue,
 			broadcastTemplate,
+			maskCvtTemplate,
 		)
 	}
 	if *ush != "" {
