@@ -8,7 +8,6 @@ import (
 	"cmd/compile/internal/syntax"
 	"fmt"
 	"go/constant"
-	"internal/buildcfg"
 	. "internal/types/errors"
 	"slices"
 )
@@ -525,10 +524,6 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *TypeN
 
 			// handle type parameters even if not allowed (Alias type is supported)
 			if tparam0 != nil {
-				if !versionErr && !buildcfg.Experiment.AliasTypeParams {
-					check.error(tdecl, UnsupportedFeature, "generic type alias requires GOEXPERIMENT=aliastypeparams")
-					versionErr = true
-				}
 				check.openScope(tdecl, "type parameters")
 				defer check.closeScope()
 				check.collectTypeParams(&alias.tparams, tdecl.TParamList)

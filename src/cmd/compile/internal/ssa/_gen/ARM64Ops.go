@@ -144,6 +144,8 @@ func init() {
 		gpspsbg    = gpspg | buildReg("SB")
 		fp         = buildReg("F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31")
 		callerSave = gp | fp | buildReg("g") // runtime.setg (and anything calling it) may clobber g
+		r24to25    = buildReg("R24 R25")
+		r23to25    = buildReg("R23 R24 R25")
 		rz         = buildReg("ZERO")
 		first16    = buildReg("R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15")
 	)
@@ -536,87 +538,72 @@ func init() {
 		{name: "LessThanNoov", argLength: 1, reg: readflags},     // bool, true flags encode signed x<y but without honoring overflow, false otherwise.
 		{name: "GreaterEqualNoov", argLength: 1, reg: readflags}, // bool, true flags encode signed x>=y but without honoring overflow, false otherwise.
 
-		// duffzero
+		// medium zeroing
 		// arg0 = address of memory to zero
 		// arg1 = mem
-		// auxint = offset into duffzero code to start executing
+		// auxint = # of bytes to zero
 		// returns mem
-		// R20 changed as side effect
-		// R16 and R17 may be clobbered by linker trampoline.
 		{
-			name:      "DUFFZERO",
+			name:      "LoweredZero",
 			aux:       "Int64",
 			argLength: 2,
 			reg: regInfo{
-				inputs:   []regMask{buildReg("R20")},
-				clobbers: buildReg("R16 R17 R20 R30"),
+				inputs: []regMask{gp},
 			},
-			//faultOnNilArg0: true, // Note: removed for 73748. TODO: reenable at some point
-			unsafePoint: true, // FP maintenance around DUFFZERO can be clobbered by interrupts
-		},
-
-		// large zeroing
-		// arg0 = address of memory to zero (in R16 aka arm64.REGRT1, changed as side effect)
-		// arg1 = address of the last 16-byte unit to zero
-		// arg2 = mem
-		// returns mem
-		//	STP.P	(ZR,ZR), 16(R16)
-		//	CMP	Rarg1, R16
-		//	BLE	-2(PC)
-		// Note: the-end-of-the-memory may be not a valid pointer. it's a problem if it is spilled.
-		// the-end-of-the-memory - 16 is with the area to zero, ok to spill.
-		{
-			name:      "LoweredZero",
-			argLength: 3,
-			reg: regInfo{
-				inputs:   []regMask{buildReg("R16"), gp},
-				clobbers: buildReg("R16"),
-			},
-			clobberFlags:   true,
 			faultOnNilArg0: true,
 		},
 
-		// duffcopy
-		// arg0 = address of dst memory (in R21, changed as side effect)
-		// arg1 = address of src memory (in R20, changed as side effect)
-		// arg2 = mem
-		// auxint = offset into duffcopy code to start executing
+		// large zeroing
+		// arg0 = address of memory to zero
+		// arg1 = mem
+		// auxint = # of bytes to zero
 		// returns mem
-		// R20, R21 changed as side effect
-		// R16 and R17 may be clobbered by linker trampoline.
 		{
-			name:      "DUFFCOPY",
+			name:      "LoweredZeroLoop",
+			aux:       "Int64",
+			argLength: 2,
+			reg: regInfo{
+				inputs:       []regMask{gp},
+				clobbersArg0: true,
+			},
+			faultOnNilArg0: true,
+			needIntTemp:    true,
+		},
+
+		// medium copying
+		// arg0 = address of dst memory
+		// arg1 = address of src memory
+		// arg2 = mem
+		// auxint = # of bytes to copy
+		// returns mem
+		{
+			name:      "LoweredMove",
 			aux:       "Int64",
 			argLength: 3,
 			reg: regInfo{
-				inputs:   []regMask{buildReg("R21"), buildReg("R20")},
-				clobbers: buildReg("R16 R17 R20 R21 R26 R30"),
+				inputs:   []regMask{gp &^ r24to25, gp &^ r24to25},
+				clobbers: r24to25, // TODO: figure out needIntTemp x2
 			},
-			//faultOnNilArg0: true, // Note: removed for 73748. TODO: reenable at some point
-			//faultOnNilArg1: true,
-			unsafePoint: true, // FP maintenance around DUFFCOPY can be clobbered by interrupts
+			faultOnNilArg0: true,
+			faultOnNilArg1: true,
 		},
 
-		// large move
-		// arg0 = address of dst memory (in R17 aka arm64.REGRT2, changed as side effect)
-		// arg1 = address of src memory (in R16 aka arm64.REGRT1, changed as side effect)
-		// arg2 = address of the last element of src
-		// arg3 = mem
+		// large copying
+		// arg0 = address of dst memory
+		// arg1 = address of src memory
+		// arg2 = mem
+		// auxint = # of bytes to copy
 		// returns mem
-		//	LDP.P	16(R16), (R25, Rtmp)
-		//	STP.P	(R25, Rtmp), 16(R17)
-		//	CMP	Rarg2, R16
-		//	BLE	-3(PC)
-		// Note: the-end-of-src may be not a valid pointer. it's a problem if it is spilled.
-		// the-end-of-src - 16 is within the area to copy, ok to spill.
 		{
-			name:      "LoweredMove",
-			argLength: 4,
+			name:      "LoweredMoveLoop",
+			aux:       "Int64",
+			argLength: 3,
 			reg: regInfo{
-				inputs:   []regMask{buildReg("R17"), buildReg("R16"), gp &^ buildReg("R25")},
-				clobbers: buildReg("R16 R17 R25"),
+				inputs:       []regMask{gp &^ r23to25, gp &^ r23to25},
+				clobbers:     r23to25, // TODO: figure out needIntTemp x3
+				clobbersArg0: true,
+				clobbersArg1: true,
 			},
-			clobberFlags:   true,
 			faultOnNilArg0: true,
 			faultOnNilArg1: true,
 		},

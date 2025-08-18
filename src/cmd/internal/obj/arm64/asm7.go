@@ -892,8 +892,6 @@ var optab = []Optab{
 	{obj.ANOP, C_LCON, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0}, // nop variants, see #40689
 	{obj.ANOP, C_ZREG, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},
 	{obj.ANOP, C_VREG, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},
-	{obj.ADUFFZERO, C_NONE, C_NONE, C_NONE, C_SBRA, C_NONE, 5, 4, 0, 0, 0},   // same as AB/ABL
-	{obj.ADUFFCOPY, C_NONE, C_NONE, C_NONE, C_SBRA, C_NONE, 5, 4, 0, 0, 0},   // same as AB/ABL
 	{obj.APCALIGN, C_LCON, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},    // align code
 	{obj.APCALIGNMAX, C_LCON, C_NONE, C_NONE, C_LCON, C_NONE, 0, 0, 0, 0, 0}, // align code, conditional
 }
@@ -1054,15 +1052,6 @@ var sysInstFields = map[SpecialOperand]struct {
 // Used for padding NOOP instruction
 const OP_NOOP = 0xd503201f
 
-// pcAlignPadLength returns the number of bytes required to align pc to alignedValue,
-// reporting an error if alignedValue is not a power of two or is out of range.
-func pcAlignPadLength(ctxt *obj.Link, pc int64, alignedValue int64) int {
-	if !((alignedValue&(alignedValue-1) == 0) && 8 <= alignedValue && alignedValue <= 2048) {
-		ctxt.Diag("alignment value of an instruction must be a power of two and in the range [8, 2048], got %d\n", alignedValue)
-	}
-	return int(-pc & (alignedValue - 1))
-}
-
 // size returns the size of the sequence of machine instructions when p is encoded with o.
 // Usually it just returns o.size directly, in some cases it checks whether the optimization
 // conditions are met, and if so returns the size of the optimized instruction sequence.
@@ -1207,10 +1196,6 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 type codeBuffer struct {
 	data *[]byte
-}
-
-func (cb *codeBuffer) pc() int64 {
-	return int64(len(*cb.data))
 }
 
 // Write a sequence of opcodes into the code buffer.
@@ -3310,9 +3295,7 @@ func buildop(ctxt *obj.Link) {
 			obj.AFUNCDATA,
 			obj.APCALIGN,
 			obj.APCALIGNMAX,
-			obj.APCDATA,
-			obj.ADUFFZERO,
-			obj.ADUFFCOPY:
+			obj.APCDATA:
 			break
 		}
 	}
@@ -6984,7 +6967,7 @@ func (c *ctxt7) opbra(p *obj.Prog, a obj.As) uint32 {
 	case AB:
 		return 0<<31 | 5<<26 /* imm26 */
 
-	case obj.ADUFFZERO, obj.ADUFFCOPY, ABL:
+	case ABL:
 		return 1<<31 | 5<<26
 	}
 

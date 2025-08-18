@@ -302,6 +302,9 @@ type QUICSessionTicketOptions struct {
 // Currently, it can only be called once.
 func (q *QUICConn) SendSessionTicket(opts QUICSessionTicketOptions) error {
 	c := q.conn
+	if c.config.SessionTicketsDisabled {
+		return nil
+	}
 	if !c.isHandshakeComplete.Load() {
 		return quicError(errors.New("tls: SendSessionTicket called before handshake completed"))
 	}

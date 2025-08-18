@@ -16,6 +16,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/loong64"
+	"internal/abi"
 )
 
 // isFPreg reports whether r is an FP register.
@@ -663,12 +664,92 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = 0x1A
 
-	case ssa.OpLOONG64LoweredPanicBoundsA, ssa.OpLOONG64LoweredPanicBoundsB, ssa.OpLOONG64LoweredPanicBoundsC:
-		p := s.Prog(obj.ACALL)
+	case ssa.OpLOONG64LoweredPanicBoundsRR, ssa.OpLOONG64LoweredPanicBoundsRC, ssa.OpLOONG64LoweredPanicBoundsCR, ssa.OpLOONG64LoweredPanicBoundsCC:
+		// Compute the constant we put in the PCData entry for this call.
+		code, signed := ssa.BoundsKind(v.AuxInt).Code()
+		xIsReg := false
+		yIsReg := false
+		xVal := 0
+		yVal := 0
+		switch v.Op {
+		case ssa.OpLOONG64LoweredPanicBoundsRR:
+			xIsReg = true
+			xVal = int(v.Args[0].Reg() - loong64.REG_R4)
+			yIsReg = true
+			yVal = int(v.Args[1].Reg() - loong64.REG_R4)
+		case ssa.OpLOONG64LoweredPanicBoundsRC:
+			xIsReg = true
+			xVal = int(v.Args[0].Reg() - loong64.REG_R4)
+			c := v.Aux.(ssa.PanicBoundsC).C
+			if c >= 0 && c <= abi.BoundsMaxConst {
+				yVal = int(c)
+			} else {
+				// Move constant to a register
+				yIsReg = true
+				if yVal == xVal {
+					yVal = 1
+				}
+				p := s.Prog(loong64.AMOVV)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = c
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = loong64.REG_R4 + int16(yVal)
+			}
+		case ssa.OpLOONG64LoweredPanicBoundsCR:
+			yIsReg = true
+			yVal := int(v.Args[0].Reg() - loong64.REG_R4)
+			c := v.Aux.(ssa.PanicBoundsC).C
+			if c >= 0 && c <= abi.BoundsMaxConst {
+				xVal = int(c)
+			} else {
+				// Move constant to a register
+				xIsReg = true
+				if xVal == yVal {
+					xVal = 1
+				}
+				p := s.Prog(loong64.AMOVV)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = c
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = loong64.REG_R4 + int16(xVal)
+			}
+		case ssa.OpLOONG64LoweredPanicBoundsCC:
+			c := v.Aux.(ssa.PanicBoundsCC).Cx
+			if c >= 0 && c <= abi.BoundsMaxConst {
+				xVal = int(c)
+			} else {
+				// Move constant to a register
+				xIsReg = true
+				p := s.Prog(loong64.AMOVV)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = c
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = loong64.REG_R4 + int16(xVal)
+			}
+			c = v.Aux.(ssa.PanicBoundsCC).Cy
+			if c >= 0 && c <= abi.BoundsMaxConst {
+				yVal = int(c)
+			} else {
+				// Move constant to a register
+				yIsReg = true
+				yVal = 1
+				p := s.Prog(loong64.AMOVV)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = c
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = loong64.REG_R4 + int16(yVal)
+			}
+		}
+		c := abi.BoundsEncode(code, signed, xIsReg, yIsReg, xVal, yVal)
+
+		p := s.Prog(obj.APCDATA)
+		p.From.SetConst(abi.PCDATA_PanicBounds)
+		p.To.SetConst(int64(c))
+		p = s.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = ssagen.BoundsCheckFunc[v.AuxInt]
-		s.UseArgs(16) // space used in callee args area by assembly stubs
+		p.To.Sym = ir.Syms.PanicBounds
+
 	case ssa.OpLOONG64LoweredAtomicLoad8, ssa.OpLOONG64LoweredAtomicLoad32, ssa.OpLOONG64LoweredAtomicLoad64:
 		// MOVB	(Rarg0), Rout
 		// DBAR	0x14
@@ -984,6 +1065,17 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			{Type: obj.TYPE_CONST, Offset: int64((v.AuxInt >> 0) & 0x1f)},
 		})
 
+	case ssa.OpLOONG64ADDshiftLLV:
+		// ADDshiftLLV Rarg0, Rarg1, $shift
+		// ALSLV $shift, Rarg1, Rarg0, Rtmp
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = v.AuxInt
+		p.Reg = v.Args[1].Reg()
+		p.AddRestSourceReg(v.Args[0].Reg())
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+
 	case ssa.OpClobber, ssa.OpClobberReg:
 		// TODO: implement for clobberdead experiment. Nop is ok for now.
 	default:
@@ -994,8 +1086,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 var blockJump = map[ssa.BlockKind]struct {
 	asm, invasm obj.As
 }{
-	ssa.BlockLOONG64EQ:   {loong64.ABEQ, loong64.ABNE},
-	ssa.BlockLOONG64NE:   {loong64.ABNE, loong64.ABEQ},
+	ssa.BlockLOONG64EQZ:  {loong64.ABEQ, loong64.ABNE},
+	ssa.BlockLOONG64NEZ:  {loong64.ABNE, loong64.ABEQ},
 	ssa.BlockLOONG64LTZ:  {loong64.ABLTZ, loong64.ABGEZ},
 	ssa.BlockLOONG64GEZ:  {loong64.ABGEZ, loong64.ABLTZ},
 	ssa.BlockLOONG64LEZ:  {loong64.ABLEZ, loong64.ABGTZ},
@@ -1021,7 +1113,7 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	case ssa.BlockExit, ssa.BlockRetJmp:
 	case ssa.BlockRet:
 		s.Prog(obj.ARET)
-	case ssa.BlockLOONG64EQ, ssa.BlockLOONG64NE,
+	case ssa.BlockLOONG64EQZ, ssa.BlockLOONG64NEZ,
 		ssa.BlockLOONG64LTZ, ssa.BlockLOONG64GEZ,
 		ssa.BlockLOONG64LEZ, ssa.BlockLOONG64GTZ,
 		ssa.BlockLOONG64BEQ, ssa.BlockLOONG64BNE,
@@ -1051,7 +1143,7 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 			p.From.Type = obj.TYPE_REG
 			p.From.Reg = b.Controls[0].Reg()
 			p.Reg = b.Controls[1].Reg()
-		case ssa.BlockLOONG64EQ, ssa.BlockLOONG64NE,
+		case ssa.BlockLOONG64EQZ, ssa.BlockLOONG64NEZ,
 			ssa.BlockLOONG64LTZ, ssa.BlockLOONG64GEZ,
 			ssa.BlockLOONG64LEZ, ssa.BlockLOONG64GTZ,
 			ssa.BlockLOONG64FPT, ssa.BlockLOONG64FPF:

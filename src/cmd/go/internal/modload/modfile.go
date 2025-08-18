@@ -68,6 +68,8 @@ func ReadModFile(gomod string, fix modfile.VersionFixer) (data []byte, f *modfil
 	if f.Module == nil {
 		// No module declaration. Must add module path.
 		return nil, nil, fmt.Errorf("error reading %s: missing module declaration. To specify the module path:\n\tgo mod edit -module=example.com/mod", base.ShortPath(gomod))
+	} else if err := CheckReservedModulePath(f.Module.Mod.Path); err != nil {
+		return nil, nil, fmt.Errorf("error reading %s: invalid module path: %q", base.ShortPath(gomod), f.Module.Mod.Path)
 	}
 
 	return data, f, err

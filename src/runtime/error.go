@@ -260,7 +260,7 @@ func printanycustomtype(i any) {
 	eface := efaceOf(&i)
 	typestring := toRType(eface._type).string()
 
-	switch eface._type.Kind_ {
+	switch eface._type.Kind() {
 	case abi.String:
 		print(typestring, `("`)
 		printindented(*(*string)(eface.data))

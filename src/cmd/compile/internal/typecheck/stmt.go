@@ -19,9 +19,6 @@ func RangeExprType(t *types.Type) *types.Type {
 	return t
 }
 
-func typecheckrangeExpr(n *ir.RangeStmt) {
-}
-
 // type check assignment.
 // if this assignment is the definition of a var on the left side,
 // fill in the var's type.

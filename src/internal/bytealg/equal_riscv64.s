@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include "asm_riscv64.h"
 #include "go_asm.h"
 #include "textflag.h"
 
@@ -28,6 +29,35 @@ length_check:
 	MOV	$32, X23
 	BLT	X12, X23, loop4_check
 
+#ifndef hasV
+	MOVB	internal∕cpu·RISCV64+const_offsetRISCV64HasV(SB), X5
+	BEQZ	X5, equal_scalar
+#endif
+
+	// Use vector if not 8 byte aligned.
+	OR	X10, X11, X5
+	AND	$7, X5
+	BNEZ	X5, vector_loop
+
+	// Use scalar if 8 byte aligned and <= 64 bytes.
+	SUB	$64, X12, X6
+	BLEZ	X6, loop32_check
+
+	PCALIGN	$16
+vector_loop:
+	VSETVLI	X12, E8, M8, TA, MA, X5
+	VLE8V	(X10), V8
+	VLE8V	(X11), V16
+	VMSNEVV	V8, V16, V0
+	VFIRSTM	V0, X6
+	BGEZ	X6, done
+	ADD	X5, X10
+	ADD	X5, X11
+	SUB	X5, X12
+	BNEZ	X12, vector_loop
+	JMP	done
+
+equal_scalar:
 	// Check alignment - if alignment differs we have to do one byte at a time.
 	AND	$7, X10, X9
 	AND	$7, X11, X19

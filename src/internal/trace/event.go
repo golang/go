@@ -489,7 +489,6 @@ func (e Event) Range() Range {
 		} else {
 			r.Scope.id = int64(e.Proc())
 		}
-		r.Scope.id = int64(e.Proc())
 	case tracev2.EvGCMarkAssistBegin, tracev2.EvGCMarkAssistActive, tracev2.EvGCMarkAssistEnd:
 		r.Name = "GC mark assist"
 		r.Scope = ResourceID{Kind: ResourceGoroutine}
@@ -625,7 +624,6 @@ func (e Event) StateTransition() StateTransition {
 		s = goStateTransition(GoID(e.base.args[0]), GoRunnable, GoRunning)
 	case tracev2.EvGoDestroy:
 		s = goStateTransition(e.ctx.G, GoRunning, GoNotExist)
-		s.Stack = e.Stack() // This event references the resource the event happened on.
 	case tracev2.EvGoDestroySyscall:
 		s = goStateTransition(e.ctx.G, GoSyscall, GoNotExist)
 	case tracev2.EvGoStop:
@@ -646,10 +644,8 @@ func (e Event) StateTransition() StateTransition {
 		s.Stack = e.Stack() // This event references the resource the event happened on.
 	case tracev2.EvGoSyscallEnd:
 		s = goStateTransition(e.ctx.G, GoSyscall, GoRunning)
-		s.Stack = e.Stack() // This event references the resource the event happened on.
 	case tracev2.EvGoSyscallEndBlocked:
 		s = goStateTransition(e.ctx.G, GoSyscall, GoRunnable)
-		s.Stack = e.Stack() // This event references the resource the event happened on.
 	case tracev2.EvGoStatus, tracev2.EvGoStatusStack:
 		packedStatus := e.base.args[2]
 		from, to := packedStatus>>32, packedStatus&((1<<32)-1)
@@ -690,9 +686,11 @@ type Sync struct {
 	// N indicates that this is the Nth sync event in the trace.
 	N int
 
-	// ClockSnapshot is a snapshot of different clocks taken in close in time
-	// that can be used to correlate trace events with data captured by other
-	// tools. May be nil for older trace versions.
+	// ClockSnapshot represents a near-simultaneous clock reading of several
+	// different system clocks. The snapshot can be used as a reference to
+	// convert timestamps to different clocks, which is helpful for correlating
+	// timestamps with data captured by other tools. The value is nil for traces
+	// before go1.25.
 	ClockSnapshot *ClockSnapshot
 
 	// ExperimentalBatches contain all the unparsed batches of data for a given experiment.

@@ -104,7 +104,7 @@ func (p *abiDesc) assignArg(t *_type) {
 		// registers and the stack.
 		panic("compileCallback: argument size is larger than uintptr")
 	}
-	if k := t.Kind_ & abi.KindMask; GOARCH != "386" && (k == abi.Float32 || k == abi.Float64) {
+	if k := t.Kind(); GOARCH != "386" && (k == abi.Float32 || k == abi.Float64) {
 		// In fastcall, floating-point arguments in
 		// the first four positions are passed in
 		// floating-point registers, which we don't
@@ -175,7 +175,7 @@ func (p *abiDesc) assignArg(t *_type) {
 //
 // Returns whether the assignment succeeded.
 func (p *abiDesc) tryRegAssignArg(t *_type, offset uintptr) bool {
-	switch k := t.Kind_ & abi.KindMask; k {
+	switch k := t.Kind(); k {
 	case abi.Bool, abi.Int, abi.Int8, abi.Int16, abi.Int32, abi.Uint, abi.Uint8, abi.Uint16, abi.Uint32, abi.Uintptr, abi.Pointer, abi.UnsafePointer:
 		// Assign a register for all these types.
 		return p.assignReg(t.Size_, offset)
@@ -236,7 +236,7 @@ func callbackasm()
 // and we want callback to arrive at
 // correspondent call instruction instead of start of
 // runtime.callbackasm.
-// On ARM, runtime.callbackasm is a series of mov and branch instructions.
+// On ARM64, runtime.callbackasm is a series of mov and branch instructions.
 // R12 is loaded with the callback index. Each entry is two instructions,
 // hence 8 bytes.
 func callbackasmAddr(i int) uintptr {
@@ -246,8 +246,8 @@ func callbackasmAddr(i int) uintptr {
 		panic("unsupported architecture")
 	case "386", "amd64":
 		entrySize = 5
-	case "arm", "arm64":
-		// On ARM and ARM64, each entry is a MOV instruction
+	case "arm64":
+		// On ARM64, each entry is a MOV instruction
 		// followed by a branch instruction
 		entrySize = 8
 	}
@@ -270,7 +270,7 @@ func compileCallback(fn eface, cdecl bool) (code uintptr) {
 		cdecl = false
 	}
 
-	if fn._type == nil || (fn._type.Kind_&abi.KindMask) != abi.Func {
+	if fn._type == nil || fn._type.Kind() != abi.Func {
 		panic("compileCallback: expected function with one uintptr-sized result")
 	}
 	ft := (*functype)(unsafe.Pointer(fn._type))
@@ -291,7 +291,7 @@ func compileCallback(fn eface, cdecl bool) (code uintptr) {
 	if ft.OutSlice()[0].Size_ != goarch.PtrSize {
 		panic("compileCallback: expected function with one uintptr-sized result")
 	}
-	if k := ft.OutSlice()[0].Kind_ & abi.KindMask; k == abi.Float32 || k == abi.Float64 {
+	if k := ft.OutSlice()[0].Kind(); k == abi.Float32 || k == abi.Float64 {
 		// In cdecl and stdcall, float results are returned in
 		// ST(0). In fastcall, they're returned in XMM0.
 		// Either way, it's not AX.
@@ -412,48 +412,14 @@ func callbackWrap(a *callbackArgs) {
 	}
 }
 
-const _LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x00000800
-
-//go:linkname syscall_loadsystemlibrary syscall.loadsystemlibrary
-func syscall_loadsystemlibrary(filename *uint16) (handle, err uintptr) {
-	handle, _, err = syscall_syscalln(uintptr(unsafe.Pointer(_LoadLibraryExW)), 3, uintptr(unsafe.Pointer(filename)), 0, _LOAD_LIBRARY_SEARCH_SYSTEM32)
-	KeepAlive(filename)
-	if handle != 0 {
-		err = 0
-	}
-	return
-}
-
-// golang.org/x/sys linknames syscall.loadlibrary
-// (in addition to standard package syscall).
-// Do not remove or change the type signature.
+// syscall_syscalln calls fn with args[:n].
+// It is used to implement [syscall.SyscallN].
+// It shouldn't be used in the runtime package,
+// use [stdcall] instead.
 //
-//go:linkname syscall_loadlibrary syscall.loadlibrary
-func syscall_loadlibrary(filename *uint16) (handle, err uintptr) {
-	handle, _, err = syscall_syscalln(uintptr(unsafe.Pointer(_LoadLibraryW)), 1, uintptr(unsafe.Pointer(filename)))
-	KeepAlive(filename)
-	if handle != 0 {
-		err = 0
-	}
-	return
-}
-
-// golang.org/x/sys linknames syscall.getprocaddress
-// (in addition to standard package syscall).
-// Do not remove or change the type signature.
-//
-//go:linkname syscall_getprocaddress syscall.getprocaddress
-func syscall_getprocaddress(handle uintptr, procname *byte) (outhandle, err uintptr) {
-	outhandle, _, err = syscall_syscalln(uintptr(unsafe.Pointer(_GetProcAddress)), 2, handle, uintptr(unsafe.Pointer(procname)))
-	KeepAlive(procname)
-	if outhandle != 0 {
-		err = 0
-	}
-	return
-}
-
 //go:linkname syscall_syscalln syscall.syscalln
 //go:nosplit
+//go:uintptrkeepalive
 func syscall_syscalln(fn, n uintptr, args ...uintptr) (r1, r2, err uintptr) {
 	if n > uintptr(len(args)) {
 		panic("syscall: n > len(args)") // should not be reachable from user code

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include "asm_riscv64.h"
 #include "go_asm.h"
 #include "textflag.h"
 
@@ -11,12 +12,14 @@ TEXT ·IndexByte<ABIInternal>(SB),NOSPLIT,$0-40
 	// X12 = b_cap (unused)
 	// X13 = byte to find
 	AND	$0xff, X13, X12		// x12 byte to look for
-	MOV	X10, X13		// store base for later
 
 	SLTI	$24, X11, X14
-	ADD	X10, X11		// end
-	BEQZ	X14, bigBody
+	BNEZ	X14, small
+	JMP	indexByteBig<>(SB)
 
+small:
+	MOV	X10, X13		// store base for later
+	ADD	X10, X11		// end
 	SUB	$1, X10
 loop:
 	ADD	$1, X10
@@ -30,22 +33,20 @@ loop:
 notfound:
 	MOV	$-1, X10
 	RET
-
-bigBody:
-	JMP	indexByteBig<>(SB)
 
 TEXT ·IndexByteString<ABIInternal>(SB),NOSPLIT,$0-32
 	// X10 = b_base
 	// X11 = b_len
 	// X12 = byte to find
-
 	AND	$0xff, X12		// x12 byte to look for
-	MOV	X10, X13		// store base for later
 
 	SLTI	$24, X11, X14
-	ADD	X10, X11		// end
-	BEQZ	X14, bigBody
+	BNEZ	X14, small
+	JMP	indexByteBig<>(SB)
 
+small:
+	MOV	X10, X13		// store base for later
+	ADD	X10, X11		// end
 	SUB	$1, X10
 loop:
 	ADD	$1, X10
@@ -60,19 +61,40 @@ notfound:
 	MOV	$-1, X10
 	RET
 
-bigBody:
-	JMP	indexByteBig<>(SB)
-
 TEXT indexByteBig<>(SB),NOSPLIT|NOFRAME,$0
-	// On entry
+	// On entry:
 	// X10 = b_base
-	// X11 = end
+	// X11 = b_len (at least 16 bytes)
 	// X12 = byte to find
-	// X13 = b_base
-	// X11 is at least 16 bytes > X10
-
-	// On exit
+	// On exit:
 	// X10 = index of first instance of sought byte, if found, or -1 otherwise
+
+	MOV	X10, X13		// store base for later
+
+#ifndef hasV
+	MOVB	internal∕cpu·RISCV64+const_offsetRISCV64HasV(SB), X5
+	BEQZ	X5, indexbyte_scalar
+#endif
+
+	PCALIGN	$16
+vector_loop:
+	VSETVLI	X11, E8, M8, TA, MA, X5
+	VLE8V	(X10), V8
+	VMSEQVX	X12, V8, V0
+	VFIRSTM	V0, X6
+	BGEZ	X6, vector_found
+	ADD	X5, X10
+	SUB	X5, X11
+	BNEZ	X11, vector_loop
+	JMP	notfound
+
+vector_found:
+	SUB	X13, X10
+	ADD	X6, X10
+	RET
+
+indexbyte_scalar:
+	ADD	X10, X11		// end
 
 	// Process the first few bytes until we get to an 8 byte boundary
 	// No need to check for end here as we have at least 16 bytes in

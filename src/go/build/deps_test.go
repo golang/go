@@ -100,6 +100,7 @@ var depsRules = `
 	< internal/runtime/maps
 	< internal/runtime/strconv
 	< internal/runtime/cgroup
+	< internal/runtime/gc/scan
 	< runtime
 	< sync/atomic
 	< internal/sync
@@ -796,6 +797,21 @@ var depsRules = `
 	FMT < math/big/internal/asmgen;
 
 	FMT, testing < internal/cgrouptest;
+	C, CGO < internal/runtime/cgobench;
+
+	# Generate-only packages can have anything they want
+	container/heap,
+	encoding/binary,
+	fmt,
+	hash/maphash,
+	io,
+	log,
+	math/bits,
+	os,
+	reflect,
+	strings,
+	sync
+	< internal/runtime/gc/internal/gen;
 `
 
 // listStdPkgs returns the same list of packages as "go list std".

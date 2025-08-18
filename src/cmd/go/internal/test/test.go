@@ -1044,11 +1044,36 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 		prints = append(prints, printTest)
 	}
 
-	// Order runs for coordinating start JSON prints.
+	// Order runs for coordinating start JSON prints via two mechanisms:
+	// 1. Channel locking forces runTest actions to start in-order.
+	// 2. Barrier tasks force runTest actions to be scheduled in-order.
+	// We need both for performant behavior, as channel locking without the barrier tasks starves the worker pool,
+	// and barrier tasks without channel locking doesn't guarantee start in-order behavior alone.
+	var prevBarrier *work.Action
 	ch := make(chan struct{})
 	close(ch)
 	for _, a := range runs {
 		if r, ok := a.Actor.(*runTestActor); ok {
+			// Inject a barrier task between the run action and its dependencies.
+			// This barrier task wil also depend on the previous barrier task.
+			// This prevents the run task from being scheduled until all previous run dependencies have finished.
+			// The build graph will be augmented to look roughly like this:
+			//	build("a")           build("b")           build("c")
+			//	    |                   |                     |
+			//	barrier("a.test") -> barrier("b.test") -> barrier("c.test")
+			//	    |                   |                     |
+			//	run("a.test")        run("b.test")        run("c.test")
+
+			barrier := &work.Action{
+				Mode: "test barrier",
+				Deps: slices.Clip(a.Deps),
+			}
+			if prevBarrier != nil {
+				barrier.Deps = append(barrier.Deps, prevBarrier)
+			}
+			a.Deps = []*work.Action{barrier}
+			prevBarrier = barrier
+
 			r.prev = ch
 			ch = make(chan struct{})
 			r.next = ch
@@ -1400,6 +1425,8 @@ func (lockedStdout) Write(b []byte) (int, error) {
 
 func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action) error {
 	sh := b.Shell(a)
+	barrierAction := a.Deps[0]
+	buildAction := barrierAction.Deps[0]
 
 	// Wait for previous test to get started and print its first json line.
 	select {
@@ -1530,7 +1557,7 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 		// we have different link inputs but the same final binary,
 		// we still reuse the cached test result.
 		// c.saveOutput will store the result under both IDs.
-		r.c.tryCacheWithID(b, a, a.Deps[0].BuildContentID())
+		r.c.tryCacheWithID(b, a, buildAction.BuildContentID())
 	}
 	if r.c.buf != nil {
 		if stdout != &buf {
@@ -1581,7 +1608,7 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 		// fresh copies of tools to test as part of the testing.
 		addToEnv = "GOCOVERDIR=" + gcd
 	}
-	args := str.StringList(execCmd, a.Deps[0].BuiltTarget(), testlogArg, panicArg, fuzzArg, coverdirArg, testArgs)
+	args := str.StringList(execCmd, buildAction.BuiltTarget(), testlogArg, panicArg, fuzzArg, coverdirArg, testArgs)
 
 	if testCoverProfile != "" {
 		// Write coverage to temporary profile, for merging later.
@@ -1741,8 +1768,8 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 // tryCache is called just before the link attempt,
 // to see if the test result is cached and therefore the link is unneeded.
 // It reports whether the result can be satisfied from cache.
-func (c *runCache) tryCache(b *work.Builder, a *work.Action) bool {
-	return c.tryCacheWithID(b, a, a.Deps[0].BuildActionID())
+func (c *runCache) tryCache(b *work.Builder, a *work.Action, linkAction *work.Action) bool {
+	return c.tryCacheWithID(b, a, linkAction.BuildActionID())
 }
 
 func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bool {

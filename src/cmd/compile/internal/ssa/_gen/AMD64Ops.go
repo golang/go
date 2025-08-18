@@ -889,15 +889,30 @@ func init() {
 		// auxint = # of bytes to zero
 		// returns mem
 		{
-			name:      "DUFFZERO",
+			name:      "LoweredZero",
 			aux:       "Int64",
 			argLength: 2,
 			reg: regInfo{
-				inputs:   []regMask{buildReg("DI")},
-				clobbers: buildReg("DI"),
+				inputs: []regMask{gp},
 			},
-			//faultOnNilArg0: true, // Note: removed for 73748. TODO: reenable at some point
-			unsafePoint: true, // FP maintenance around DUFFCOPY can be clobbered by interrupts
+			faultOnNilArg0: true,
+		},
+
+		// arg0 = pointer to start of memory to zero
+		// arg1 = mem
+		// auxint = # of bytes to zero
+		// returns mem
+		{
+			name:      "LoweredZeroLoop",
+			aux:       "Int64",
+			argLength: 2,
+			reg: regInfo{
+				inputs:       []regMask{gp},
+				clobbersArg0: true,
+			},
+			clobberFlags:   true,
+			faultOnNilArg0: true,
+			needIntTemp:    true,
 		},
 
 		// arg0 = address of memory to zero
@@ -924,20 +939,38 @@ func init() {
 		// arg0 = destination pointer
 		// arg1 = source pointer
 		// arg2 = mem
-		// auxint = # of bytes to copy, must be multiple of 16
+		// auxint = # of bytes to copy
 		// returns memory
 		{
-			name:      "DUFFCOPY",
+			name:      "LoweredMove",
 			aux:       "Int64",
 			argLength: 3,
 			reg: regInfo{
-				inputs:   []regMask{buildReg("DI"), buildReg("SI")},
-				clobbers: buildReg("DI SI X0"), // uses X0 as a temporary
+				inputs:   []regMask{gp, gp},
+				clobbers: buildReg("X14"), // uses X14 as a temporary
 			},
-			clobberFlags: true,
-			//faultOnNilArg0: true, // Note: removed for 73748. TODO: reenable at some point
-			//faultOnNilArg1: true,
-			unsafePoint: true, // FP maintenance around DUFFCOPY can be clobbered by interrupts
+			faultOnNilArg0: true,
+			faultOnNilArg1: true,
+		},
+		// arg0 = destination pointer
+		// arg1 = source pointer
+		// arg2 = mem
+		// auxint = # of bytes to copy
+		// returns memory
+		{
+			name:      "LoweredMoveLoop",
+			aux:       "Int64",
+			argLength: 3,
+			reg: regInfo{
+				inputs:       []regMask{gp, gp},
+				clobbers:     buildReg("X14"), // uses X14 as a temporary
+				clobbersArg0: true,
+				clobbersArg1: true,
+			},
+			clobberFlags:   true,
+			faultOnNilArg0: true,
+			faultOnNilArg1: true,
+			needIntTemp:    true,
 		},
 
 		// arg0 = destination pointer

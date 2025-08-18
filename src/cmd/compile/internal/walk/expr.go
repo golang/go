@@ -131,6 +131,14 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		n := n.(*ir.BinaryExpr)
 		n.X = walkExpr(n.X, init)
 		n.Y = walkExpr(n.Y, init)
+		if n.Op() == ir.OUNSAFEADD && ir.ShouldCheckPtr(ir.CurFunc, 1) {
+			// For unsafe.Add(p, n), just walk "unsafe.Pointer(uintptr(p)+uintptr(n))"
+			// for the side effects of validating unsafe.Pointer rules.
+			x := typecheck.ConvNop(n.X, types.Types[types.TUINTPTR])
+			y := typecheck.Conv(n.Y, types.Types[types.TUINTPTR])
+			conv := typecheck.ConvNop(ir.NewBinaryExpr(n.Pos(), ir.OADD, x, y), types.Types[types.TUNSAFEPTR])
+			walkExpr(conv, init)
+		}
 		return n
 
 	case ir.OUNSAFESLICE:

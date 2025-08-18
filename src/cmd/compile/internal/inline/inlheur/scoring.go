@@ -399,14 +399,6 @@ func LargestNegativeScoreAdjustment(fn *ir.Func, props *FuncProps) int {
 	return score
 }
 
-// LargestPositiveScoreAdjustment tries to estimate the largest possible
-// positive score adjustment that could be applied to a given callsite.
-// At the moment we don't have very many positive score adjustments, so
-// this is just hard-coded, not table-driven.
-func LargestPositiveScoreAdjustment(fn *ir.Func) int {
-	return adjValues[panicPathAdj] + adjValues[initFuncAdj]
-}
-
 // callSiteTab contains entries for each call in the function
 // currently being processed by InlineCalls; this variable will either
 // be set to 'cstabCache' below (for non-inlinable routines) or to the

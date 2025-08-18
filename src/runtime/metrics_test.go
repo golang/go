@@ -22,6 +22,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 	"unsafe"
@@ -499,6 +500,10 @@ func TestReadMetricsCumulative(t *testing.T) {
 		defer wg.Done()
 		for {
 			// Add more things here that could influence metrics.
+			for i := 0; i < 10; i++ {
+				runtime.AddCleanup(new(*int), func(_ struct{}) {}, struct{}{})
+				runtime.SetFinalizer(new(*int), func(_ **int) {})
+			}
 			for i := 0; i < len(readMetricsSink); i++ {
 				readMetricsSink[i] = make([]byte, 1024)
 				select {
@@ -1511,4 +1516,279 @@ func TestMetricHeapUnusedLargeObjectOverflow(t *testing.T) {
 	}
 	done <- struct{}{}
 	wg.Wait()
+}
+
+func TestReadMetricsCleanups(t *testing.T) {
+	runtime.GC()                                                // End any in-progress GC.
+	runtime.BlockUntilEmptyCleanupQueue(int64(1 * time.Second)) // Flush any queued cleanups.
+
+	var before [2]metrics.Sample
+	before[0].Name = "/gc/cleanups/queued:cleanups"
+	before[1].Name = "/gc/cleanups/executed:cleanups"
+	after := before
+
+	metrics.Read(before[:])
+
+	const N = 10
+	for i := 0; i < N; i++ {
+		runtime.AddCleanup(new(*int), func(_ struct{}) {}, struct{}{})
+	}
+
+	runtime.GC()
+	runtime.BlockUntilEmptyCleanupQueue(int64(1 * time.Second))
+
+	metrics.Read(after[:])
+
+	if v0, v1 := before[0].Value.Uint64(), after[0].Value.Uint64(); v0+N != v1 {
+		t.Errorf("expected %s difference to be exactly %d, got %d -> %d", before[0].Name, N, v0, v1)
+	}
+	if v0, v1 := before[1].Value.Uint64(), after[1].Value.Uint64(); v0+N != v1 {
+		t.Errorf("expected %s difference to be exactly %d, got %d -> %d", before[1].Name, N, v0, v1)
+	}
+}
+
+func TestReadMetricsFinalizers(t *testing.T) {
+	runtime.GC()                                                  // End any in-progress GC.
+	runtime.BlockUntilEmptyFinalizerQueue(int64(1 * time.Second)) // Flush any queued finalizers.
+
+	var before [2]metrics.Sample
+	before[0].Name = "/gc/finalizers/queued:finalizers"
+	before[1].Name = "/gc/finalizers/executed:finalizers"
+	after := before
+
+	metrics.Read(before[:])
+
+	const N = 10
+	for i := 0; i < N; i++ {
+		runtime.SetFinalizer(new(*int), func(_ **int) {})
+	}
+
+	runtime.GC()
+	runtime.GC()
+	runtime.BlockUntilEmptyFinalizerQueue(int64(1 * time.Second))
+
+	metrics.Read(after[:])
+
+	if v0, v1 := before[0].Value.Uint64(), after[0].Value.Uint64(); v0+N != v1 {
+		t.Errorf("expected %s difference to be exactly %d, got %d -> %d", before[0].Name, N, v0, v1)
+	}
+	if v0, v1 := before[1].Value.Uint64(), after[1].Value.Uint64(); v0+N != v1 {
+		t.Errorf("expected %s difference to be exactly %d, got %d -> %d", before[1].Name, N, v0, v1)
+	}
+}
+
+func TestReadMetricsSched(t *testing.T) {
+	const (
+		notInGo = iota
+		runnable
+		running
+		waiting
+		created
+		threads
+		numSamples
+	)
+	var s [numSamples]metrics.Sample
+	s[notInGo].Name = "/sched/goroutines/not-in-go:goroutines"
+	s[runnable].Name = "/sched/goroutines/runnable:goroutines"
+	s[running].Name = "/sched/goroutines/running:goroutines"
+	s[waiting].Name = "/sched/goroutines/waiting:goroutines"
+	s[created].Name = "/sched/goroutines-created:goroutines"
+	s[threads].Name = "/sched/threads/total:threads"
+
+	logMetrics := func(t *testing.T, s []metrics.Sample) {
+		for i := range s {
+			t.Logf("%s: %d", s[i].Name, s[i].Value.Uint64())
+		}
+	}
+
+	// generalSlack is the amount of goroutines we allow ourselves to be
+	// off by in any given category, either due to background system
+	// goroutines or testing package goroutines.
+	const generalSlack = 4
+
+	// waitingSlack is the max number of blocked goroutines left
+	// from other tests, the testing package, or system
+	// goroutines.
+	const waitingSlack = 100
+
+	// threadsSlack is the maximum number of threads left over
+	// from other tests and the runtime (sysmon, the template thread, etc.)
+	const threadsSlack = 20
+
+	// Make sure GC isn't running, since GC workers interfere with
+	// expected counts.
+	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+	runtime.GC()
+
+	check := func(t *testing.T, s *metrics.Sample, min, max uint64) {
+		val := s.Value.Uint64()
+		if val < min {
+			t.Errorf("%s too low; %d < %d", s.Name, val, min)
+		}
+		if val > max {
+			t.Errorf("%s too high; %d > %d", s.Name, val, max)
+		}
+	}
+	checkEq := func(t *testing.T, s *metrics.Sample, value uint64) {
+		check(t, s, value, value)
+	}
+	spinUntil := func(f func() bool, timeout time.Duration) bool {
+		start := time.Now()
+		for time.Since(start) < timeout {
+			if f() {
+				return true
+			}
+			time.Sleep(time.Millisecond)
+		}
+		return false
+	}
+
+	// Check base values.
+	t.Run("base", func(t *testing.T) {
+		defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+		metrics.Read(s[:])
+		logMetrics(t, s[:])
+		check(t, &s[notInGo], 0, generalSlack)
+		check(t, &s[runnable], 0, generalSlack)
+		checkEq(t, &s[running], 1)
+		check(t, &s[waiting], 0, waitingSlack)
+	})
+
+	metrics.Read(s[:])
+	createdAfterBase := s[created].Value.Uint64()
+
+	// Force Running count to be high. We'll use these goroutines
+	// for Runnable, too.
+	const count = 10
+	var ready, exit atomic.Uint32
+	for i := 0; i < count-1; i++ {
+		go func() {
+			ready.Add(1)
+			for exit.Load() == 0 {
+				// Spin to get us and keep us running, but check
+				// the exit condition so we exit out early if we're
+				// done.
+				start := time.Now()
+				for time.Since(start) < 10*time.Millisecond && exit.Load() == 0 {
+				}
+				runtime.Gosched()
+			}
+		}()
+	}
+	for ready.Load() < count-1 {
+		runtime.Gosched()
+	}
+
+	// Be careful. We've entered a dangerous state for platforms
+	// that do not return back to the underlying system unless all
+	// goroutines are blocked, like js/wasm, since we have a bunch
+	// of runnable goroutines all spinning. We cannot write anything
+	// out.
+	if testenv.HasParallelism() {
+		t.Run("created", func(t *testing.T) {
+			metrics.Read(s[:])
+			logMetrics(t, s[:])
+			checkEq(t, &s[created], createdAfterBase+count)
+		})
+		t.Run("running", func(t *testing.T) {
+			defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(count + 4))
+			// It can take a little bit for the scheduler to
+			// distribute the goroutines to Ps, so retry for a
+			// while.
+			spinUntil(func() bool {
+				metrics.Read(s[:])
+				return s[running].Value.Uint64() >= count
+			}, time.Second)
+			logMetrics(t, s[:])
+			check(t, &s[running], count, count+4)
+			check(t, &s[threads], count, count+4+threadsSlack)
+		})
+
+		// Force runnable count to be high.
+		t.Run("runnable", func(t *testing.T) {
+			defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+			metrics.Read(s[:])
+			logMetrics(t, s[:])
+			checkEq(t, &s[running], 1)
+			check(t, &s[runnable], count-1, count+generalSlack)
+		})
+
+		// Done with the running/runnable goroutines.
+		exit.Store(1)
+	} else {
+		// Read metrics and then exit all the other goroutines,
+		// so that system calls may proceed.
+		metrics.Read(s[:])
+
+		// Done with the running/runnable goroutines.
+		exit.Store(1)
+
+		// Now we can check our invariants.
+		t.Run("created", func(t *testing.T) {
+			// Look for count-1 goroutines because we read metrics
+			// *before* t.Run goroutine was created for this sub-test.
+			checkEq(t, &s[created], createdAfterBase+count-1)
+		})
+		t.Run("running", func(t *testing.T) {
+			logMetrics(t, s[:])
+			checkEq(t, &s[running], 1)
+			checkEq(t, &s[threads], 1)
+		})
+		t.Run("runnable", func(t *testing.T) {
+			logMetrics(t, s[:])
+			check(t, &s[runnable], count-1, count+generalSlack)
+		})
+	}
+
+	// Force not-in-go count to be high. This is a little tricky since
+	// we try really hard not to let things block in system calls.
+	// We have to drop to the syscall package to do this reliably.
+	t.Run("not-in-go", func(t *testing.T) {
+		// Block a bunch of goroutines on an OS pipe.
+		pr, pw, err := pipe()
+		if err != nil {
+			switch runtime.GOOS {
+			case "js", "wasip1":
+				t.Skip("creating pipe:", err)
+			}
+			t.Fatal("creating pipe:", err)
+		}
+		for i := 0; i < count; i++ {
+			go syscall.Read(pr, make([]byte, 1))
+		}
+
+		// Let the goroutines block.
+		spinUntil(func() bool {
+			metrics.Read(s[:])
+			return s[notInGo].Value.Uint64() >= count
+		}, time.Second)
+
+		metrics.Read(s[:])
+		logMetrics(t, s[:])
+		check(t, &s[notInGo], count, count+generalSlack)
+
+		syscall.Close(pw)
+		syscall.Close(pr)
+	})
+
+	t.Run("waiting", func(t *testing.T) {
+		// Force waiting count to be high.
+		const waitingCount = 1000
+		stop := make(chan bool)
+		for i := 0; i < waitingCount; i++ {
+			go func() { <-stop }()
+		}
+
+		// Let the goroutines block.
+		spinUntil(func() bool {
+			metrics.Read(s[:])
+			return s[waiting].Value.Uint64() >= waitingCount
+		}, time.Second)
+
+		metrics.Read(s[:])
+		logMetrics(t, s[:])
+		check(t, &s[waiting], waitingCount, waitingCount+waitingSlack)
+
+		close(stop)
+	})
 }

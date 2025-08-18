@@ -947,7 +947,7 @@ func doubleCheckTypePointersOfType(s *mspan, typ *_type, addr, size uintptr) {
 	if typ == nil {
 		return
 	}
-	if typ.Kind_&abi.KindMask == abi.Interface {
+	if typ.Kind() == abi.Interface {
 		// Interfaces are unfortunately inconsistently handled
 		// when it comes to the type pointer, so it's easy to
 		// produce a lot of false positives here.
@@ -1776,7 +1776,7 @@ func pointerMask(ep any) (mask []byte) {
 	t := e._type
 
 	var et *_type
-	if t.Kind_&abi.KindMask != abi.Pointer {
+	if t.Kind() != abi.Pointer {
 		throw("bad argument to getgcmask: expected type to be a pointer to the value type whose mask is being queried")
 	}
 	et = (*ptrtype)(unsafe.Pointer(t)).Elem

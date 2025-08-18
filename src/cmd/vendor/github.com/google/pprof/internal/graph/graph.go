@@ -336,12 +336,8 @@ func newGraph(prof *profile.Profile, o *Options) (*Graph, map[uint64]Nodes) {
 		if dw == 0 && w == 0 {
 			continue
 		}
-		for k := range seenNode {
-			delete(seenNode, k)
-		}
-		for k := range seenEdge {
-			delete(seenEdge, k)
-		}
+		clear(seenNode)
+		clear(seenEdge)
 		var parent *Node
 		// A residual edge goes over one or more nodes that were not kept.
 		residual := false
@@ -850,10 +846,7 @@ func (g *Graph) selectTopNodes(maxNodes int, visualMode bool) Nodes {
 			// If generating a visual graph, count tags as nodes. Update
 			// maxNodes to account for them.
 			for i, n := range g.Nodes {
-				tags := countTags(n)
-				if tags > maxNodelets {
-					tags = maxNodelets
-				}
+				tags := min(countTags(n), maxNodelets)
 				if count += tags + 1; count >= maxNodes {
 					maxNodes = i + 1
 					break

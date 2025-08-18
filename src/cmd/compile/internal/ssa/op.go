@@ -70,6 +70,10 @@ type regInfo struct {
 	// clobbers encodes the set of registers that are overwritten by
 	// the instruction (other than the output registers).
 	clobbers regMask
+	// Instruction clobbers the register containing input 0.
+	clobbersArg0 bool
+	// Instruction clobbers the register containing input 1.
+	clobbersArg1 bool
 	// outputs is the same as inputs, but for the outputs of the instruction.
 	outputs []outputInfo
 }
@@ -480,53 +484,6 @@ const (
 	BoundsConvert                       // conversion to array pointer failed
 	BoundsKindCount
 )
-
-// boundsABI determines which register arguments a bounds check call should use. For an [a:b:c] slice, we do:
-//
-//	CMPQ c, cap
-//	JA   fail1
-//	CMPQ b, c
-//	JA   fail2
-//	CMPQ a, b
-//	JA   fail3
-//
-// fail1: CALL panicSlice3Acap (c, cap)
-// fail2: CALL panicSlice3B (b, c)
-// fail3: CALL panicSlice3C (a, b)
-//
-// When we register allocate that code, we want the same register to be used for
-// the first arg of panicSlice3Acap and the second arg to panicSlice3B. That way,
-// initializing that register once will satisfy both calls.
-// That desire ends up dividing the set of bounds check calls into 3 sets. This function
-// determines which set to use for a given panic call.
-// The first arg for set 0 should be the second arg for set 1.
-// The first arg for set 1 should be the second arg for set 2.
-func boundsABI(b int64) int {
-	switch BoundsKind(b) {
-	case BoundsSlice3Alen,
-		BoundsSlice3AlenU,
-		BoundsSlice3Acap,
-		BoundsSlice3AcapU,
-		BoundsConvert:
-		return 0
-	case BoundsSliceAlen,
-		BoundsSliceAlenU,
-		BoundsSliceAcap,
-		BoundsSliceAcapU,
-		BoundsSlice3B,
-		BoundsSlice3BU:
-		return 1
-	case BoundsIndex,
-		BoundsIndexU,
-		BoundsSliceB,
-		BoundsSliceBU,
-		BoundsSlice3C,
-		BoundsSlice3CU:
-		return 2
-	default:
-		panic("bad BoundsKind")
-	}
-}
 
 // Returns the bounds error code needed by the runtime, and
 // whether the x field is signed.

@@ -622,12 +622,6 @@ func (s *Schedule) staticAssignInlinedCall(l *ir.Name, loff int64, call *ir.Inli
 	// 	INLCALL-ReturnVars
 	// 	.   NAME-p.~R0 Class:PAUTO Offset:0 OnStack Used PTR-*T tc(1) # x.go:18:13
 	//
-	// In non-unified IR, the tree is slightly different:
-	//  - if there are no arguments to the inlined function,
-	//    the INLCALL-init omits the AS2.
-	//  - the DCL inside BLOCK is on the AS2's init list,
-	//    not its own statement in the top level of the BLOCK.
-	//
 	// If the init values are side-effect-free and each either only
 	// appears once in the function body or is safely repeatable,
 	// then we inline the value expressions into the return argument
@@ -647,39 +641,26 @@ func (s *Schedule) staticAssignInlinedCall(l *ir.Name, loff int64, call *ir.Inli
 	// is the most important case for us to get right.
 
 	init := call.Init()
-	var as2init *ir.AssignListStmt
-	if len(init) == 2 && init[0].Op() == ir.OAS2 && init[1].Op() == ir.OINLMARK {
-		as2init = init[0].(*ir.AssignListStmt)
-	} else if len(init) == 1 && init[0].Op() == ir.OINLMARK {
-		as2init = new(ir.AssignListStmt)
-	} else {
+	if len(init) != 2 || init[0].Op() != ir.OAS2 || init[1].Op() != ir.OINLMARK {
 		return false
 	}
+	as2init := init[0].(*ir.AssignListStmt)
+
 	if len(call.Body) != 2 || call.Body[0].Op() != ir.OBLOCK || call.Body[1].Op() != ir.OLABEL {
 		return false
 	}
 	label := call.Body[1].(*ir.LabelStmt).Label
 	block := call.Body[0].(*ir.BlockStmt)
 	list := block.List
-	var dcl *ir.Decl
-	if len(list) == 3 && list[0].Op() == ir.ODCL {
-		dcl = list[0].(*ir.Decl)
-		list = list[1:]
-	}
-	if len(list) != 2 ||
-		list[0].Op() != ir.OAS2 ||
-		list[1].Op() != ir.OGOTO ||
-		list[1].(*ir.BranchStmt).Label != label {
+	if len(list) != 3 ||
+		list[0].Op() != ir.ODCL ||
+		list[1].Op() != ir.OAS2 ||
+		list[2].Op() != ir.OGOTO ||
+		list[2].(*ir.BranchStmt).Label != label {
 		return false
 	}
-	as2body := list[0].(*ir.AssignListStmt)
-	if dcl == nil {
-		ainit := as2body.Init()
-		if len(ainit) != 1 || ainit[0].Op() != ir.ODCL {
-			return false
-		}
-		dcl = ainit[0].(*ir.Decl)
-	}
+	dcl := list[0].(*ir.Decl)
+	as2body := list[1].(*ir.AssignListStmt)
 	if len(as2body.Lhs) != 1 || as2body.Lhs[0] != dcl.X {
 		return false
 	}

@@ -1308,7 +1308,7 @@ func goroutineProfileWithLabelsConcurrent(p []profilerecord.StackRecord, labels 
 		// allocation estimate without bothering to STW. As long as
 		// this is close, then we'll only need to STW once (on the next
 		// call).
-		return int(gcount()), false
+		return int(gcount(false)), false
 	}
 
 	semacquire(&goroutineProfile.sema)
@@ -1324,7 +1324,7 @@ func goroutineProfileWithLabelsConcurrent(p []profilerecord.StackRecord, labels 
 	// goroutines that can vary between user and system to ensure that the count
 	// doesn't change during the collection. So, check the finalizer goroutine
 	// and cleanup goroutines in particular.
-	n = int(gcount())
+	n = int(gcount(false))
 	if fingStatus.Load()&fingRunningFinalizer != 0 {
 		n++
 	}

@@ -719,15 +719,28 @@ func (f *File) DWARF() (*dwarf.Data, error) {
 // referred to by the binary f that are expected to be
 // satisfied by other libraries at dynamic load time.
 func (f *File) ImportedSymbols() ([]string, error) {
-	if f.Dysymtab == nil || f.Symtab == nil {
+	if f.Symtab == nil {
 		return nil, &FormatError{0, "missing symbol table", nil}
 	}
 
 	st := f.Symtab
 	dt := f.Dysymtab
 	var all []string
-	for _, s := range st.Syms[dt.Iundefsym : dt.Iundefsym+dt.Nundefsym] {
-		all = append(all, s.Name)
+	if dt != nil {
+		for _, s := range st.Syms[dt.Iundefsym : dt.Iundefsym+dt.Nundefsym] {
+			all = append(all, s.Name)
+		}
+	} else {
+		// From Darwin's include/mach-o/nlist.h
+		const (
+			N_TYPE = 0x0e
+			N_UNDF = 0x0
+		)
+		for _, s := range st.Syms {
+			if s.Type&N_TYPE == N_UNDF && s.Sect == 0 {
+				all = append(all, s.Name)
+			}
+		}
 	}
 	return all, nil
 }

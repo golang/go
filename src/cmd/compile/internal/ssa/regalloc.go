@@ -561,7 +561,14 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos 
 	pos = pos.WithNotStmt()
 	// Check if v is already in a requested register.
 	if mask&vi.regs != 0 {
-		r := pickReg(mask & vi.regs)
+		mask &= vi.regs
+		r := pickReg(mask)
+		if mask.contains(s.SPReg) {
+			// Prefer the stack pointer if it is allowed.
+			// (Needed because the op might have an Aux symbol
+			// that needs SP as its base.)
+			r = s.SPReg
+		}
 		if !s.allocatable.contains(r) {
 			return v // v is in a fixed register
 		}
@@ -1583,6 +1590,12 @@ func (s *regAllocState) regalloc(f *Func) {
 						mask &^= desired.avoid
 					}
 				}
+				if mask&s.values[v.Args[i.idx].ID].regs&(1<<s.SPReg) != 0 {
+					// Prefer SP register. This ensures that local variables
+					// use SP as their base register (instead of a copy of the
+					// stack pointer living in another register). See issue 74836.
+					mask = 1 << s.SPReg
+				}
 				args[i.idx] = s.allocValToReg(v.Args[i.idx], mask, true, v.Pos)
 			}
 
@@ -1686,8 +1699,38 @@ func (s *regAllocState) regalloc(f *Func) {
 					}
 				}
 			}
-
 		ok:
+			for i := 0; i < 2; i++ {
+				if !(i == 0 && regspec.clobbersArg0 || i == 1 && regspec.clobbersArg1) {
+					continue
+				}
+				if !s.liveAfterCurrentInstruction(v.Args[i]) {
+					// arg is dead.  We can clobber its register.
+					continue
+				}
+				if s.values[v.Args[i].ID].rematerializeable {
+					// We can rematerialize the input, don't worry about clobbering it.
+					continue
+				}
+				if countRegs(s.values[v.Args[i].ID].regs) >= 2 {
+					// We have at least 2 copies of arg.  We can afford to clobber one.
+					continue
+				}
+				// Possible new registers to copy into.
+				m := s.compatRegs(v.Args[i].Type) &^ s.used
+				if m == 0 {
+					// No free registers.  In this case we'll just clobber the
+					// input and future uses of that input must use a restore.
+					// TODO(khr): We should really do this like allocReg does it,
+					// spilling the value with the most distant next use.
+					continue
+				}
+				// Copy input to a new clobberable register.
+				c := s.allocValToReg(v.Args[i], m, true, v.Pos)
+				s.copies[c] = false
+				args[i] = c
+			}
+
 			// Pick a temporary register if needed.
 			// It should be distinct from all the input registers, so we
 			// allocate it after all the input registers, but before
@@ -1707,6 +1750,13 @@ func (s *regAllocState) regalloc(f *Func) {
 				tmpReg = s.allocReg(m, &tmpVal)
 				s.nospill |= regMask(1) << tmpReg
 				s.tmpused |= regMask(1) << tmpReg
+			}
+
+			if regspec.clobbersArg0 {
+				s.freeReg(register(s.f.getHome(args[0].ID).(*Register).num))
+			}
+			if regspec.clobbersArg1 {
+				s.freeReg(register(s.f.getHome(args[1].ID).(*Register).num))
 			}
 
 			// Now that all args are in regs, we're ready to issue the value itself.
@@ -2433,7 +2483,7 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XP
 	}
 
 	// Check if we're allowed to clobber the destination location.
-	if len(e.cache[occupant.vid]) == 1 && !e.s.values[occupant.vid].rematerializeable {
+	if len(e.cache[occupant.vid]) == 1 && !e.s.values[occupant.vid].rematerializeable && !opcodeTable[e.s.orig[occupant.vid].Op].fixedReg {
 		// We can't overwrite the last copy
 		// of a value that needs to survive.
 		return false
@@ -2935,11 +2985,6 @@ type desiredStateEntry struct {
 	// for the first element of the tuple (see desiredSecondReg for
 	// tracking the desired register for second part of a tuple).
 	regs [4]register
-}
-
-func (d *desiredState) clear() {
-	d.entries = d.entries[:0]
-	d.avoid = 0
 }
 
 // get returns a list of desired registers for value vid.

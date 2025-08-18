@@ -203,6 +203,23 @@ Note: In the following sections 3.1 to 3.6, "ui4" (4-bit unsigned int immediate)
 	VMOVQ Vj.W[index], Vd.W4  | vreplvei.w vd, vj, ui2 | for i in range(4) : VR[vd].w[i] = VR[vj].w[ui2]
 	VMOVQ Vj.V[index], Vd.V2  | vreplvei.d vd, vj, ui1 | for i in range(2) : VR[vd].d[i] = VR[vj].d[ui1]
 
+3.7 Load data from memory and broadcast to each element of a vector register.
+
+	Instruction format:
+	        VMOVQ    offset(Rj), <Vd>.<T>
+
+	Mapping between Go and platform assembly:
+	   Go assembly              |     platform assembly      |                                semantics
+	-------------------------------------------------------------------------------------------------------------------------------------------------------
+	 VMOVQ  offset(Rj), Vd.B16  |   vldrepl.b  Vd, Rj, si12  |  for i in range(16): VR[vd].b[i] = load 8 bit memory data from (GR[rj]+SignExtend(si12))
+	 VMOVQ  offset(Rj), Vd.H8   |   vldrepl.h  Vd, Rj, si11  |  for i in range(8) : VR[vd].h[i] = load 16 bit memory data from (GR[rj]+SignExtend(si11<<1))
+	 VMOVQ  offset(Rj), Vd.W4   |   vldrepl.w  Vd, Rj, si10  |  for i in range(4) : VR[vd].w[i] = load 32 bit memory data from (GR[rj]+SignExtend(si10<<2))
+	 VMOVQ  offset(Rj), Vd.V2   |   vldrepl.d  Vd, Rj, si9   |  for i in range(2) : VR[vd].d[i] = load 64 bit memory data from (GR[rj]+SignExtend(si9<<3))
+	XVMOVQ  offset(Rj), Xd.B32  |  xvldrepl.b  Xd, Rj, si12  |  for i in range(32): XR[xd].b[i] = load 8 bit memory data from (GR[rj]+SignExtend(si12))
+	XVMOVQ  offset(Rj), Xd.H16  |  xvldrepl.h  Xd, Rj, si11  |  for i in range(16): XR[xd].h[i] = load 16 bit memory data from (GR[rj]+SignExtend(si11<<1))
+	XVMOVQ  offset(Rj), Xd.W8   |  xvldrepl.w  Xd, Rj, si10  |  for i in range(8) : XR[xd].w[i] = load 32 bit memory data from (GR[rj]+SignExtend(si10<<2))
+	XVMOVQ  offset(Rj), Xd.V4   |  xvldrepl.d  Xd, Rj, si9   |  for i in range(4) : XR[xd].d[i] = load 64 bit memory data from (GR[rj]+SignExtend(si9<<3))
+
 # Special instruction encoding definition and description on LoongArch
 
  1. DBAR hint encoding for LA664(Loongson 3A6000) and later micro-architectures, paraphrased
@@ -251,6 +268,27 @@ Note: In the following sections 3.1 to 3.6, "ui4" (4-bit unsigned int immediate)
       bits[11:1]:  block size, the value range is [16, 1024], and it must be an integer multiple of 16
       bits[20:12]: block num, the value range is [1, 256]
       bits[36:21]: stride, the value range is [0, 0xffff]
+
+4. ShiftAdd instructions
+    Mapping between Go and platform assembly:
+                Go assembly            |    platform assembly
+     ALSL.W/WU/V $Imm, Rj, Rk, Rd      |    alsl.w/wu/d rd, rj, rk, $imm
+
+    Instruction encoding format is as follows:
+
+	| 31 ~ 17 | 16 ~ 15 | 14 ~ 10 | 9 ~ 5 | 4 ~ 0 |
+	|  opcode |   sa2   |   rk    |   rj  |   rd  |
+
+    The alsl.w/wu/v series of instructions shift the data in rj left by sa+1, add the value
+    in rk, and write the result to rd.
+
+    To allow programmers to directly write the desired shift amount in assembly code, we actually write
+    the value of sa2+1 in the assembly code and then include the value of sa2 in the instruction encoding.
+
+    For example:
+
+            Go assembly      | instruction Encoding
+        ALSLV $4, r4, r5, R6 |      002d9486
 */
 
 package loong64

@@ -771,14 +771,6 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	return end
 }
 
-func (c *ctxt0) addnop(p *obj.Prog) {
-	q := c.newprog()
-	q.As = ANOOP
-	q.Pos = p.Pos
-	q.Link = p.Link
-	p.Link = q
-}
-
 var Linkloong64 = obj.LinkArch{
 	Arch:           sys.ArchLoong64,
 	Init:           buildop,

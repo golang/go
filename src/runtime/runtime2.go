@@ -492,6 +492,10 @@ type g struct {
 	coroarg *coro // argument during coroutine transfers
 	bubble  *synctestBubble
 
+	// xRegs stores the extended register state if this G has been
+	// asynchronously preempted.
+	xRegs xRegPerG
+
 	// Per-G tracer state.
 	trace gTraceState
 
@@ -760,6 +764,14 @@ type p struct {
 	// gcStopTime is the nanotime timestamp that this P last entered _Pgcstop.
 	gcStopTime int64
 
+	// goroutinesCreated is the total count of goroutines created by this P.
+	goroutinesCreated uint64
+
+	// xRegs is the per-P extended register state used by asynchronous
+	// preemption. This is an empty struct on platforms that don't use extended
+	// register state.
+	xRegs xRegPerP
+
 	// Padding is no longer needed. False sharing is now not a worry because p is large enough
 	// that its size class is an integer multiple of the cache line size (for any of our architectures).
 }
@@ -783,7 +795,8 @@ type schedt struct {
 	nmsys        int32    // number of system m's not counted for deadlock
 	nmfreed      int64    // cumulative number of freed m's
 
-	ngsys atomic.Int32 // number of system goroutines
+	ngsys        atomic.Int32 // number of system goroutines
+	nGsyscallNoP atomic.Int32 // number of goroutines in syscalls without a P
 
 	pidle        puintptr // idle p's
 	npidle       atomic.Int32
@@ -882,6 +895,10 @@ type schedt struct {
 	// M, but waiting for locks within the runtime. This field stores the value
 	// for Ms that have exited.
 	totalRuntimeLockWaitTime atomic.Int64
+
+	// goroutinesCreated (plus the value of goroutinesCreated on each P in allp)
+	// is the sum of all goroutines created by the program.
+	goroutinesCreated atomic.Uint64
 }
 
 // Values for the flags field of a sigTabT.
@@ -1208,7 +1225,9 @@ var isIdleInSynctest = [len(waitReasonStrings)]bool{
 }
 
 var (
-	allm          *m
+	// Linked-list of all Ms. Written under sched.lock, read atomically.
+	allm *m
+
 	gomaxprocs    int32
 	numCPUStartup int32
 	forcegc       forcegcstate

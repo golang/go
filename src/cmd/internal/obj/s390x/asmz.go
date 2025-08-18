@@ -441,6 +441,11 @@ var optab = []Optab{
 	{i: 119, as: AVERLLVG, a1: C_VREG, a2: C_VREG, a6: C_VREG},
 	{i: 119, as: AVERLLVG, a1: C_VREG, a6: C_VREG},
 
+	// VRR-c floating point min/max
+	{i: 128, as: AVFMAXDB, a1: C_SCON, a2: C_VREG, a3: C_VREG, a6: C_VREG},
+	{i: 128, as: AWFMAXDB, a1: C_SCON, a2: C_VREG, a3: C_VREG, a6: C_VREG},
+	{i: 128, as: AWFMAXDB, a1: C_SCON, a2: C_FREG, a3: C_FREG, a6: C_FREG},
+
 	// VRR-d
 	{i: 120, as: AVACQ, a1: C_VREG, a2: C_VREG, a3: C_VREG, a6: C_VREG},
 
@@ -1480,6 +1485,14 @@ func buildop(ctxt *obj.Link) {
 			opset(AVFMSDB, r)
 			opset(AWFMSDB, r)
 			opset(AVPERM, r)
+		case AVFMAXDB:
+			opset(AVFMAXSB, r)
+			opset(AVFMINDB, r)
+			opset(AVFMINSB, r)
+		case AWFMAXDB:
+			opset(AWFMAXSB, r)
+			opset(AWFMINDB, r)
+			opset(AWFMINSB, r)
 		case AKM:
 			opset(AKMC, r)
 			opset(AKLMD, r)
@@ -2636,6 +2649,8 @@ const (
 	op_VUPLL  uint32 = 0xE7D4 // 	VRR-a	VECTOR UNPACK LOGICAL LOW
 	op_VUPL   uint32 = 0xE7D6 // 	VRR-a	VECTOR UNPACK LOW
 	op_VMSL   uint32 = 0xE7B8 // 	VRR-d	VECTOR MULTIPLY SUM LOGICAL
+	op_VFMAX  uint32 = 0xE7EF // 	VRR-c	VECTOR FP MAXIMUM
+	op_VFMIN  uint32 = 0xE7EE // 	VRR-c	VECTOR FP MINIMUM
 
 	// added in z15
 	op_KDSA uint32 = 0xB93A // FORMAT_RRE        COMPUTE DIGITAL SIGNATURE AUTHENTICATION (KDSA)
@@ -2653,20 +2668,6 @@ func (c *ctxtz) addrilreloc(sym *obj.LSym, add int64) {
 		c.ctxt.Diag("require symbol to apply relocation")
 	}
 	offset := int64(2) // relocation offset from start of instruction
-	c.cursym.AddRel(c.ctxt, obj.Reloc{
-		Type: objabi.R_PCRELDBL,
-		Off:  int32(c.pc + offset),
-		Siz:  4,
-		Sym:  sym,
-		Add:  add + offset + 4,
-	})
-}
-
-func (c *ctxtz) addrilrelocoffset(sym *obj.LSym, add, offset int64) {
-	if sym == nil {
-		c.ctxt.Diag("require symbol to apply relocation")
-	}
-	offset += int64(2) // relocation offset from start of instruction
 	c.cursym.AddRel(c.ctxt, obj.Reloc{
 		Type: objabi.R_PCRELDBL,
 		Off:  int32(c.pc + offset),
@@ -4475,6 +4476,12 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 			c.ctxt.Diag("padding byte register cannot be same as input or output register %v", p)
 		}
 		zRS(op_MVCLE, uint32(p.To.Reg), uint32(p.Reg), uint32(p.From.Reg), uint32(d2), asm)
+
+	case 128: // VRR-c floating point max/min
+		op, m4, _ := vop(p.As)
+		m5 := singleElementMask(p.As)
+		m6 := uint32(c.vregoff(&p.From))
+		zVRRc(op, uint32(p.To.Reg), uint32(p.Reg), uint32(p.GetFrom3().Reg), m6, m5, m4, asm)
 	}
 }
 
@@ -4724,16 +4731,6 @@ func zI(op, i1 uint32, asm *[]byte) {
 	*asm = append(*asm, uint8(op>>8), uint8(i1))
 }
 
-func zMII(op, m1, ri2, ri3 uint32, asm *[]byte) {
-	*asm = append(*asm,
-		uint8(op>>8),
-		(uint8(m1)<<4)|uint8((ri2>>8)&0x0F),
-		uint8(ri2),
-		uint8(ri3>>16),
-		uint8(ri3>>8),
-		uint8(ri3))
-}
-
 func zRI(op, r1_m1, i2_ri2 uint32, asm *[]byte) {
 	*asm = append(*asm,
 		uint8(op>>8),
@@ -4786,16 +4783,6 @@ func zRIL(f form, op, r1_m1, i2_ri2 uint32, asm *[]byte) {
 		uint8(i2_ri2))
 }
 
-func zRIS(op, r1, m3, b4, d4, i2 uint32, asm *[]byte) {
-	*asm = append(*asm,
-		uint8(op>>8),
-		(uint8(r1)<<4)|uint8(m3&0x0F),
-		(uint8(b4)<<4)|(uint8(d4>>8)&0x0F),
-		uint8(d4),
-		uint8(i2),
-		uint8(op))
-}
-
 func zRR(op, r1, r2 uint32, asm *[]byte) {
 	*asm = append(*asm, uint8(op>>8), (uint8(r1)<<4)|uint8(r2&0x0F))
 }
@@ -4824,39 +4811,12 @@ func zRRF(op, r3_m3, m4, r1, r2 uint32, asm *[]byte) {
 		(uint8(r1)<<4)|uint8(r2&0x0F))
 }
 
-func zRRS(op, r1, r2, b4, d4, m3 uint32, asm *[]byte) {
-	*asm = append(*asm,
-		uint8(op>>8),
-		(uint8(r1)<<4)|uint8(r2&0x0F),
-		(uint8(b4)<<4)|uint8((d4>>8)&0x0F),
-		uint8(d4),
-		uint8(m3)<<4,
-		uint8(op))
-}
-
 func zRS(op, r1, r3_m3, b2, d2 uint32, asm *[]byte) {
 	*asm = append(*asm,
 		uint8(op>>8),
 		(uint8(r1)<<4)|uint8(r3_m3&0x0F),
 		(uint8(b2)<<4)|uint8((d2>>8)&0x0F),
 		uint8(d2))
-}
-
-func zRSI(op, r1, r3, ri2 uint32, asm *[]byte) {
-	*asm = append(*asm,
-		uint8(op>>8),
-		(uint8(r1)<<4)|uint8(r3&0x0F),
-		uint8(ri2>>8),
-		uint8(ri2))
-}
-
-func zRSL(op, l1, b2, d2 uint32, asm *[]byte) {
-	*asm = append(*asm,
-		uint8(op>>8),
-		uint8(l1),
-		(uint8(b2)<<4)|uint8((d2>>8)&0x0F),
-		uint8(d2),
-		uint8(op))
 }
 
 func zRSY(op, r1, r3_m3, b2, d2 uint32, asm *[]byte) {
@@ -4885,16 +4845,6 @@ func zRXE(op, r1, x2, b2, d2, m3 uint32, asm *[]byte) {
 		(uint8(b2)<<4)|uint8((d2>>8)&0x0F),
 		uint8(d2),
 		uint8(m3)<<4,
-		uint8(op))
-}
-
-func zRXF(op, r3, x2, b2, d2, m1 uint32, asm *[]byte) {
-	*asm = append(*asm,
-		uint8(op>>8),
-		(uint8(r3)<<4)|uint8(x2&0x0F),
-		(uint8(b2)<<4)|uint8((d2>>8)&0x0F),
-		uint8(d2),
-		uint8(m1)<<4,
 		uint8(op))
 }
 
@@ -4946,16 +4896,6 @@ func zSIY(op, i2, b1, d1 uint32, asm *[]byte) {
 		uint8(op))
 }
 
-func zSMI(op, m1, b3, d3, ri2 uint32, asm *[]byte) {
-	*asm = append(*asm,
-		uint8(op>>8),
-		uint8(m1)<<4,
-		(uint8(b3)<<4)|uint8((d3>>8)&0x0F),
-		uint8(d3),
-		uint8(ri2>>8),
-		uint8(ri2))
-}
-
 // Expected argument values for the instruction formats.
 //
 // Format    a1  a2  a3  a4  a5  a6
@@ -4983,26 +4923,6 @@ func zSS(f form, op, l1_r1, l2_i3_r3, b1_b2, d1_d2, b2_b4, d2_d4 uint32, asm *[]
 		uint8(d1_d2),
 		(uint8(b2_b4)<<4)|uint8((d2_d4>>8)&0x0F),
 		uint8(d2_d4))
-}
-
-func zSSE(op, b1, d1, b2, d2 uint32, asm *[]byte) {
-	*asm = append(*asm,
-		uint8(op>>8),
-		uint8(op),
-		(uint8(b1)<<4)|uint8((d1>>8)&0x0F),
-		uint8(d1),
-		(uint8(b2)<<4)|uint8((d2>>8)&0x0F),
-		uint8(d2))
-}
-
-func zSSF(op, r3, b1, d1, b2, d2 uint32, asm *[]byte) {
-	*asm = append(*asm,
-		uint8(op>>8),
-		(uint8(r3)<<4)|(uint8(op)&0x0F),
-		(uint8(b1)<<4)|uint8((d1>>8)&0x0F),
-		uint8(d1),
-		(uint8(b2)<<4)|uint8((d2>>8)&0x0F),
-		uint8(d2))
 }
 
 func rxb(va, vb, vc, vd uint32) uint8 {
