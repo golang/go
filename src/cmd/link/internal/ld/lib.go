@@ -1675,27 +1675,8 @@ func (ctxt *Link) hostlink() {
 			altLinker = "lld"
 		}
 
-		if ctxt.Arch.InFamily(sys.ARM64) && buildcfg.GOOS == "linux" {
-			// On ARM64, the GNU linker will fail with
-			// -znocopyreloc if it thinks a COPY relocation is
-			// required. Switch to gold.
-			// https://sourceware.org/bugzilla/show_bug.cgi?id=19962
-			// https://go.dev/issue/22040
-			altLinker = "gold"
-
-			// If gold is not installed, gcc will silently switch
-			// back to ld.bfd. So we parse the version information
-			// and provide a useful error if gold is missing.
-			name, args := flagExtld[0], flagExtld[1:]
-			args = append(args, "-fuse-ld=gold", "-Wl,--version")
-			cmd := exec.Command(name, args...)
-			if out, err := cmd.CombinedOutput(); err == nil {
-				if !bytes.Contains(out, []byte("GNU gold")) {
-					log.Fatalf("ARM64 external linker must be gold (issue #15696, 22040), but is not: %s", out)
-				}
-			}
-		}
 	}
+
 	if ctxt.Arch.Family == sys.ARM64 && buildcfg.GOOS == "freebsd" {
 		// Switch to ld.bfd on freebsd/arm64.
 		altLinker = "bfd"
