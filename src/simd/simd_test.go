@@ -43,7 +43,7 @@ func TestType(t *testing.T) {
 		return
 	}
 	v.z = maskT(simd.Mask32x4FromBits(0b0011))
-	*v.y = v.y.AddMasked(v.x, simd.Mask32x4(v.z))
+	*v.y = v.y.Add(v.x).Masked(simd.Mask32x4(v.z))
 
 	got := [4]int32{}
 	v.y.Store(&got)
@@ -121,7 +121,7 @@ func TestMaskConversion(t *testing.T) {
 	}
 	x := simd.LoadInt32x4Slice([]int32{5, 0, 7, 0})
 	mask := simd.Int32x4{}.Sub(x).ToMask()
-	y := simd.LoadInt32x4Slice([]int32{1, 2, 3, 4}).AddMasked(x, mask)
+	y := simd.LoadInt32x4Slice([]int32{1, 2, 3, 4}).Add(x).Masked(mask)
 	want := [4]int32{6, 0, 10, 0}
 	got := make([]int32, 4)
 	y.StoreSlice(got)
@@ -327,7 +327,7 @@ func TestBitMaskLoad(t *testing.T) {
 	results := [2]int64{}
 	want := [2]int64{0, 6}
 	m := simd.LoadMask64x2FromBits(&bits)
-	simd.LoadInt64x2Slice([]int64{1, 2}).AddMasked(simd.LoadInt64x2Slice([]int64{3, 4}), m).Store(&results)
+	simd.LoadInt64x2Slice([]int64{1, 2}).Add(simd.LoadInt64x2Slice([]int64{3, 4})).Masked(m).Store(&results)
 	for i := range 2 {
 		if results[i] != want[i] {
 			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], results[i])
@@ -359,7 +359,7 @@ func TestBitMaskFromBits(t *testing.T) {
 	results := [2]int64{}
 	want := [2]int64{0, 6}
 	m := simd.Mask64x2FromBits(0b10)
-	simd.LoadInt64x2Slice([]int64{1, 2}).AddMasked(simd.LoadInt64x2Slice([]int64{3, 4}), m).Store(&results)
+	simd.LoadInt64x2Slice([]int64{1, 2}).Add(simd.LoadInt64x2Slice([]int64{3, 4})).Masked(m).Store(&results)
 	for i := range 2 {
 		if results[i] != want[i] {
 			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], results[i])

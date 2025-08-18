@@ -15,44 +15,6 @@ import (
 // from > and =
 var comparisonFixed bool = simd.HasAVX512()
 
-func TestLessMasked(t *testing.T) {
-	if simd.HasAVX512() {
-		testFloat32x4CompareMasked(t, simd.Float32x4.LessMasked, lessSlice[float32])
-		testFloat32x8CompareMasked(t, simd.Float32x8.LessMasked, lessSlice[float32])
-		testFloat64x2CompareMasked(t, simd.Float64x2.LessMasked, lessSlice[float64])
-		testFloat64x4CompareMasked(t, simd.Float64x4.LessMasked, lessSlice[float64])
-
-		testInt16x16CompareMasked(t, simd.Int16x16.LessMasked, lessSlice[int16])
-		testInt16x8CompareMasked(t, simd.Int16x8.LessMasked, lessSlice[int16])
-		testInt32x4CompareMasked(t, simd.Int32x4.LessMasked, lessSlice[int32])
-		testInt32x8CompareMasked(t, simd.Int32x8.LessMasked, lessSlice[int32])
-		testInt64x2CompareMasked(t, simd.Int64x2.LessMasked, lessSlice[int64])
-		testInt64x4CompareMasked(t, simd.Int64x4.LessMasked, lessSlice[int64])
-		testInt8x16CompareMasked(t, simd.Int8x16.LessMasked, lessSlice[int8])
-		testInt8x32CompareMasked(t, simd.Int8x32.LessMasked, lessSlice[int8])
-
-		testUint16x16CompareMasked(t, simd.Uint16x16.LessMasked, lessSlice[uint16])
-		testUint16x8CompareMasked(t, simd.Uint16x8.LessMasked, lessSlice[uint16])
-		testUint32x4CompareMasked(t, simd.Uint32x4.LessMasked, lessSlice[uint32])
-		testUint32x8CompareMasked(t, simd.Uint32x8.LessMasked, lessSlice[uint32])
-		testUint64x2CompareMasked(t, simd.Uint64x2.LessMasked, lessSlice[uint64])
-		testUint64x4CompareMasked(t, simd.Uint64x4.LessMasked, lessSlice[uint64])
-		testUint8x16CompareMasked(t, simd.Uint8x16.LessMasked, lessSlice[uint8])
-		testUint8x32CompareMasked(t, simd.Uint8x32.LessMasked, lessSlice[uint8])
-
-		testFloat32x16CompareMasked(t, simd.Float32x16.LessMasked, lessSlice[float32])
-		testFloat64x8CompareMasked(t, simd.Float64x8.LessMasked, lessSlice[float64])
-		testInt8x64CompareMasked(t, simd.Int8x64.LessMasked, lessSlice[int8])
-		testInt16x32CompareMasked(t, simd.Int16x32.LessMasked, lessSlice[int16])
-		testInt32x16CompareMasked(t, simd.Int32x16.LessMasked, lessSlice[int32])
-		testInt64x8CompareMasked(t, simd.Int64x8.LessMasked, lessSlice[int64])
-		testUint8x64CompareMasked(t, simd.Uint8x64.LessMasked, lessSlice[uint8])
-		testUint16x32CompareMasked(t, simd.Uint16x32.LessMasked, lessSlice[uint16])
-		testUint32x16CompareMasked(t, simd.Uint32x16.LessMasked, lessSlice[uint32])
-		testUint64x8CompareMasked(t, simd.Uint64x8.LessMasked, lessSlice[uint64])
-	}
-}
-
 func TestLess(t *testing.T) {
 	testFloat32x4Compare(t, simd.Float32x4.Less, lessSlice[float32])
 	testFloat32x8Compare(t, simd.Float32x8.Less, lessSlice[float32])

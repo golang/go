@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"simd/_gen/unify"
 )
@@ -100,6 +101,11 @@ func (o *Operation) DecodeUnified(v *unify.Value) error {
 	o.Documentation = regexp.MustCompile(`\bNAME\b`).ReplaceAllString(o.Documentation, o.Go)
 	if isMasked {
 		o.Documentation += "\n//\n// This operation is applied selectively under a write mask."
+		if unicode.IsUpper([]rune(o.Go)[0]) {
+			trueVal := "true"
+			o.NoGenericOps = &trueVal
+			o.NoTypes = &trueVal
+		}
 	}
 
 	o.In = append(o.rawOperation.In, o.rawOperation.InVariant...)

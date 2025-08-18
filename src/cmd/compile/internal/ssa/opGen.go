@@ -4648,36 +4648,15 @@ const (
 	OpAbsInt64x2
 	OpAbsInt64x4
 	OpAbsInt64x8
-	OpAbsMaskedInt8x16
-	OpAbsMaskedInt8x32
-	OpAbsMaskedInt8x64
-	OpAbsMaskedInt16x8
-	OpAbsMaskedInt16x16
-	OpAbsMaskedInt16x32
-	OpAbsMaskedInt32x4
-	OpAbsMaskedInt32x8
-	OpAbsMaskedInt32x16
-	OpAbsMaskedInt64x2
-	OpAbsMaskedInt64x4
-	OpAbsMaskedInt64x8
 	OpAddDotProdPairsSaturatedInt32x4
 	OpAddDotProdPairsSaturatedInt32x8
 	OpAddDotProdPairsSaturatedInt32x16
-	OpAddDotProdPairsSaturatedMaskedInt32x4
-	OpAddDotProdPairsSaturatedMaskedInt32x8
-	OpAddDotProdPairsSaturatedMaskedInt32x16
 	OpAddDotProdQuadrupleInt32x4
 	OpAddDotProdQuadrupleInt32x8
 	OpAddDotProdQuadrupleInt32x16
-	OpAddDotProdQuadrupleMaskedInt32x4
-	OpAddDotProdQuadrupleMaskedInt32x8
-	OpAddDotProdQuadrupleMaskedInt32x16
 	OpAddDotProdQuadrupleSaturatedInt32x4
 	OpAddDotProdQuadrupleSaturatedInt32x8
 	OpAddDotProdQuadrupleSaturatedInt32x16
-	OpAddDotProdQuadrupleSaturatedMaskedInt32x4
-	OpAddDotProdQuadrupleSaturatedMaskedInt32x8
-	OpAddDotProdQuadrupleSaturatedMaskedInt32x16
 	OpAddFloat32x4
 	OpAddFloat32x8
 	OpAddFloat32x16
@@ -4696,36 +4675,6 @@ const (
 	OpAddInt64x2
 	OpAddInt64x4
 	OpAddInt64x8
-	OpAddMaskedFloat32x4
-	OpAddMaskedFloat32x8
-	OpAddMaskedFloat32x16
-	OpAddMaskedFloat64x2
-	OpAddMaskedFloat64x4
-	OpAddMaskedFloat64x8
-	OpAddMaskedInt8x16
-	OpAddMaskedInt8x32
-	OpAddMaskedInt8x64
-	OpAddMaskedInt16x8
-	OpAddMaskedInt16x16
-	OpAddMaskedInt16x32
-	OpAddMaskedInt32x4
-	OpAddMaskedInt32x8
-	OpAddMaskedInt32x16
-	OpAddMaskedInt64x2
-	OpAddMaskedInt64x4
-	OpAddMaskedInt64x8
-	OpAddMaskedUint8x16
-	OpAddMaskedUint8x32
-	OpAddMaskedUint8x64
-	OpAddMaskedUint16x8
-	OpAddMaskedUint16x16
-	OpAddMaskedUint16x32
-	OpAddMaskedUint32x4
-	OpAddMaskedUint32x8
-	OpAddMaskedUint32x16
-	OpAddMaskedUint64x2
-	OpAddMaskedUint64x4
-	OpAddMaskedUint64x8
 	OpAddPairsFloat32x4
 	OpAddPairsFloat32x8
 	OpAddPairsFloat64x2
@@ -4746,18 +4695,6 @@ const (
 	OpAddSaturatedInt16x8
 	OpAddSaturatedInt16x16
 	OpAddSaturatedInt16x32
-	OpAddSaturatedMaskedInt8x16
-	OpAddSaturatedMaskedInt8x32
-	OpAddSaturatedMaskedInt8x64
-	OpAddSaturatedMaskedInt16x8
-	OpAddSaturatedMaskedInt16x16
-	OpAddSaturatedMaskedInt16x32
-	OpAddSaturatedMaskedUint8x16
-	OpAddSaturatedMaskedUint8x32
-	OpAddSaturatedMaskedUint8x64
-	OpAddSaturatedMaskedUint16x8
-	OpAddSaturatedMaskedUint16x16
-	OpAddSaturatedMaskedUint16x32
 	OpAddSaturatedUint8x16
 	OpAddSaturatedUint8x32
 	OpAddSaturatedUint8x64
@@ -4792,18 +4729,6 @@ const (
 	OpAndInt64x2
 	OpAndInt64x4
 	OpAndInt64x8
-	OpAndMaskedInt32x4
-	OpAndMaskedInt32x8
-	OpAndMaskedInt32x16
-	OpAndMaskedInt64x2
-	OpAndMaskedInt64x4
-	OpAndMaskedInt64x8
-	OpAndMaskedUint32x4
-	OpAndMaskedUint32x8
-	OpAndMaskedUint32x16
-	OpAndMaskedUint64x2
-	OpAndMaskedUint64x4
-	OpAndMaskedUint64x8
 	OpAndNotInt8x16
 	OpAndNotInt8x32
 	OpAndNotInt8x64
@@ -4816,18 +4741,6 @@ const (
 	OpAndNotInt64x2
 	OpAndNotInt64x4
 	OpAndNotInt64x8
-	OpAndNotMaskedInt32x4
-	OpAndNotMaskedInt32x8
-	OpAndNotMaskedInt32x16
-	OpAndNotMaskedInt64x2
-	OpAndNotMaskedInt64x4
-	OpAndNotMaskedInt64x8
-	OpAndNotMaskedUint32x4
-	OpAndNotMaskedUint32x8
-	OpAndNotMaskedUint32x16
-	OpAndNotMaskedUint64x2
-	OpAndNotMaskedUint64x4
-	OpAndNotMaskedUint64x8
 	OpAndNotUint8x16
 	OpAndNotUint8x32
 	OpAndNotUint8x64
@@ -4852,12 +4765,6 @@ const (
 	OpAndUint64x2
 	OpAndUint64x4
 	OpAndUint64x8
-	OpAverageMaskedUint8x16
-	OpAverageMaskedUint8x32
-	OpAverageMaskedUint8x64
-	OpAverageMaskedUint16x8
-	OpAverageMaskedUint16x16
-	OpAverageMaskedUint16x32
 	OpAverageUint8x16
 	OpAverageUint8x32
 	OpAverageUint8x64
@@ -4870,16 +4777,6 @@ const (
 	OpBroadcast128Int16x8
 	OpBroadcast128Int32x4
 	OpBroadcast128Int64x2
-	OpBroadcast128MaskedFloat32x4
-	OpBroadcast128MaskedFloat64x2
-	OpBroadcast128MaskedInt8x16
-	OpBroadcast128MaskedInt16x8
-	OpBroadcast128MaskedInt32x4
-	OpBroadcast128MaskedInt64x2
-	OpBroadcast128MaskedUint8x16
-	OpBroadcast128MaskedUint16x8
-	OpBroadcast128MaskedUint32x4
-	OpBroadcast128MaskedUint64x2
 	OpBroadcast128Uint8x16
 	OpBroadcast128Uint16x8
 	OpBroadcast128Uint32x4
@@ -4890,16 +4787,6 @@ const (
 	OpBroadcast256Int16x8
 	OpBroadcast256Int32x4
 	OpBroadcast256Int64x2
-	OpBroadcast256MaskedFloat32x4
-	OpBroadcast256MaskedFloat64x2
-	OpBroadcast256MaskedInt8x16
-	OpBroadcast256MaskedInt16x8
-	OpBroadcast256MaskedInt32x4
-	OpBroadcast256MaskedInt64x2
-	OpBroadcast256MaskedUint8x16
-	OpBroadcast256MaskedUint16x8
-	OpBroadcast256MaskedUint32x4
-	OpBroadcast256MaskedUint64x2
 	OpBroadcast256Uint8x16
 	OpBroadcast256Uint16x8
 	OpBroadcast256Uint32x4
@@ -4910,16 +4797,6 @@ const (
 	OpBroadcast512Int16x8
 	OpBroadcast512Int32x4
 	OpBroadcast512Int64x2
-	OpBroadcast512MaskedFloat32x4
-	OpBroadcast512MaskedFloat64x2
-	OpBroadcast512MaskedInt8x16
-	OpBroadcast512MaskedInt16x8
-	OpBroadcast512MaskedInt32x4
-	OpBroadcast512MaskedInt64x2
-	OpBroadcast512MaskedUint8x16
-	OpBroadcast512MaskedUint16x8
-	OpBroadcast512MaskedUint32x4
-	OpBroadcast512MaskedUint64x2
 	OpBroadcast512Uint8x16
 	OpBroadcast512Uint16x8
 	OpBroadcast512Uint32x4
@@ -4961,15 +4838,9 @@ const (
 	OpConvertToInt32Float32x4
 	OpConvertToInt32Float32x8
 	OpConvertToInt32Float32x16
-	OpConvertToInt32MaskedFloat32x4
-	OpConvertToInt32MaskedFloat32x8
-	OpConvertToInt32MaskedFloat32x16
 	OpConvertToUint32Float32x4
 	OpConvertToUint32Float32x8
 	OpConvertToUint32Float32x16
-	OpConvertToUint32MaskedFloat32x4
-	OpConvertToUint32MaskedFloat32x8
-	OpConvertToUint32MaskedFloat32x16
 	OpCopySignInt8x16
 	OpCopySignInt8x32
 	OpCopySignInt16x8
@@ -4982,21 +4853,9 @@ const (
 	OpDivFloat64x2
 	OpDivFloat64x4
 	OpDivFloat64x8
-	OpDivMaskedFloat32x4
-	OpDivMaskedFloat32x8
-	OpDivMaskedFloat32x16
-	OpDivMaskedFloat64x2
-	OpDivMaskedFloat64x4
-	OpDivMaskedFloat64x8
 	OpDotProdPairsInt16x8
 	OpDotProdPairsInt16x16
 	OpDotProdPairsInt16x32
-	OpDotProdPairsMaskedInt16x8
-	OpDotProdPairsMaskedInt16x16
-	OpDotProdPairsMaskedInt16x32
-	OpDotProdPairsSaturatedMaskedUint8x16
-	OpDotProdPairsSaturatedMaskedUint8x32
-	OpDotProdPairsSaturatedMaskedUint8x64
 	OpDotProdPairsSaturatedUint8x16
 	OpDotProdPairsSaturatedUint8x32
 	OpDotProdPairsSaturatedUint8x64
@@ -5018,36 +4877,6 @@ const (
 	OpEqualInt64x2
 	OpEqualInt64x4
 	OpEqualInt64x8
-	OpEqualMaskedFloat32x4
-	OpEqualMaskedFloat32x8
-	OpEqualMaskedFloat32x16
-	OpEqualMaskedFloat64x2
-	OpEqualMaskedFloat64x4
-	OpEqualMaskedFloat64x8
-	OpEqualMaskedInt8x16
-	OpEqualMaskedInt8x32
-	OpEqualMaskedInt8x64
-	OpEqualMaskedInt16x8
-	OpEqualMaskedInt16x16
-	OpEqualMaskedInt16x32
-	OpEqualMaskedInt32x4
-	OpEqualMaskedInt32x8
-	OpEqualMaskedInt32x16
-	OpEqualMaskedInt64x2
-	OpEqualMaskedInt64x4
-	OpEqualMaskedInt64x8
-	OpEqualMaskedUint8x16
-	OpEqualMaskedUint8x32
-	OpEqualMaskedUint8x64
-	OpEqualMaskedUint16x8
-	OpEqualMaskedUint16x16
-	OpEqualMaskedUint16x32
-	OpEqualMaskedUint32x4
-	OpEqualMaskedUint32x8
-	OpEqualMaskedUint32x16
-	OpEqualMaskedUint64x2
-	OpEqualMaskedUint64x4
-	OpEqualMaskedUint64x8
 	OpEqualUint8x16
 	OpEqualUint8x32
 	OpEqualUint8x64
@@ -5094,9 +4923,6 @@ const (
 	OpFloorFloat32x8
 	OpFloorFloat64x2
 	OpFloorFloat64x4
-	OpGaloisFieldMulMaskedUint8x16
-	OpGaloisFieldMulMaskedUint8x32
-	OpGaloisFieldMulMaskedUint8x64
 	OpGaloisFieldMulUint8x16
 	OpGaloisFieldMulUint8x32
 	OpGaloisFieldMulUint8x64
@@ -5150,36 +4976,6 @@ const (
 	OpGreaterEqualInt16x32
 	OpGreaterEqualInt32x16
 	OpGreaterEqualInt64x8
-	OpGreaterEqualMaskedFloat32x4
-	OpGreaterEqualMaskedFloat32x8
-	OpGreaterEqualMaskedFloat32x16
-	OpGreaterEqualMaskedFloat64x2
-	OpGreaterEqualMaskedFloat64x4
-	OpGreaterEqualMaskedFloat64x8
-	OpGreaterEqualMaskedInt8x16
-	OpGreaterEqualMaskedInt8x32
-	OpGreaterEqualMaskedInt8x64
-	OpGreaterEqualMaskedInt16x8
-	OpGreaterEqualMaskedInt16x16
-	OpGreaterEqualMaskedInt16x32
-	OpGreaterEqualMaskedInt32x4
-	OpGreaterEqualMaskedInt32x8
-	OpGreaterEqualMaskedInt32x16
-	OpGreaterEqualMaskedInt64x2
-	OpGreaterEqualMaskedInt64x4
-	OpGreaterEqualMaskedInt64x8
-	OpGreaterEqualMaskedUint8x16
-	OpGreaterEqualMaskedUint8x32
-	OpGreaterEqualMaskedUint8x64
-	OpGreaterEqualMaskedUint16x8
-	OpGreaterEqualMaskedUint16x16
-	OpGreaterEqualMaskedUint16x32
-	OpGreaterEqualMaskedUint32x4
-	OpGreaterEqualMaskedUint32x8
-	OpGreaterEqualMaskedUint32x16
-	OpGreaterEqualMaskedUint64x2
-	OpGreaterEqualMaskedUint64x4
-	OpGreaterEqualMaskedUint64x8
 	OpGreaterEqualUint8x64
 	OpGreaterEqualUint16x32
 	OpGreaterEqualUint32x16
@@ -5202,36 +4998,6 @@ const (
 	OpGreaterInt64x2
 	OpGreaterInt64x4
 	OpGreaterInt64x8
-	OpGreaterMaskedFloat32x4
-	OpGreaterMaskedFloat32x8
-	OpGreaterMaskedFloat32x16
-	OpGreaterMaskedFloat64x2
-	OpGreaterMaskedFloat64x4
-	OpGreaterMaskedFloat64x8
-	OpGreaterMaskedInt8x16
-	OpGreaterMaskedInt8x32
-	OpGreaterMaskedInt8x64
-	OpGreaterMaskedInt16x8
-	OpGreaterMaskedInt16x16
-	OpGreaterMaskedInt16x32
-	OpGreaterMaskedInt32x4
-	OpGreaterMaskedInt32x8
-	OpGreaterMaskedInt32x16
-	OpGreaterMaskedInt64x2
-	OpGreaterMaskedInt64x4
-	OpGreaterMaskedInt64x8
-	OpGreaterMaskedUint8x16
-	OpGreaterMaskedUint8x32
-	OpGreaterMaskedUint8x64
-	OpGreaterMaskedUint16x8
-	OpGreaterMaskedUint16x16
-	OpGreaterMaskedUint16x32
-	OpGreaterMaskedUint32x4
-	OpGreaterMaskedUint32x8
-	OpGreaterMaskedUint32x16
-	OpGreaterMaskedUint64x2
-	OpGreaterMaskedUint64x4
-	OpGreaterMaskedUint64x8
 	OpGreaterUint8x64
 	OpGreaterUint16x32
 	OpGreaterUint32x16
@@ -5242,12 +5008,6 @@ const (
 	OpIsNanFloat64x2
 	OpIsNanFloat64x4
 	OpIsNanFloat64x8
-	OpIsNanMaskedFloat32x4
-	OpIsNanMaskedFloat32x8
-	OpIsNanMaskedFloat32x16
-	OpIsNanMaskedFloat64x2
-	OpIsNanMaskedFloat64x4
-	OpIsNanMaskedFloat64x8
 	OpLessEqualFloat32x4
 	OpLessEqualFloat32x8
 	OpLessEqualFloat32x16
@@ -5258,36 +5018,6 @@ const (
 	OpLessEqualInt16x32
 	OpLessEqualInt32x16
 	OpLessEqualInt64x8
-	OpLessEqualMaskedFloat32x4
-	OpLessEqualMaskedFloat32x8
-	OpLessEqualMaskedFloat32x16
-	OpLessEqualMaskedFloat64x2
-	OpLessEqualMaskedFloat64x4
-	OpLessEqualMaskedFloat64x8
-	OpLessEqualMaskedInt8x16
-	OpLessEqualMaskedInt8x32
-	OpLessEqualMaskedInt8x64
-	OpLessEqualMaskedInt16x8
-	OpLessEqualMaskedInt16x16
-	OpLessEqualMaskedInt16x32
-	OpLessEqualMaskedInt32x4
-	OpLessEqualMaskedInt32x8
-	OpLessEqualMaskedInt32x16
-	OpLessEqualMaskedInt64x2
-	OpLessEqualMaskedInt64x4
-	OpLessEqualMaskedInt64x8
-	OpLessEqualMaskedUint8x16
-	OpLessEqualMaskedUint8x32
-	OpLessEqualMaskedUint8x64
-	OpLessEqualMaskedUint16x8
-	OpLessEqualMaskedUint16x16
-	OpLessEqualMaskedUint16x32
-	OpLessEqualMaskedUint32x4
-	OpLessEqualMaskedUint32x8
-	OpLessEqualMaskedUint32x16
-	OpLessEqualMaskedUint64x2
-	OpLessEqualMaskedUint64x4
-	OpLessEqualMaskedUint64x8
 	OpLessEqualUint8x64
 	OpLessEqualUint16x32
 	OpLessEqualUint32x16
@@ -5302,36 +5032,6 @@ const (
 	OpLessInt16x32
 	OpLessInt32x16
 	OpLessInt64x8
-	OpLessMaskedFloat32x4
-	OpLessMaskedFloat32x8
-	OpLessMaskedFloat32x16
-	OpLessMaskedFloat64x2
-	OpLessMaskedFloat64x4
-	OpLessMaskedFloat64x8
-	OpLessMaskedInt8x16
-	OpLessMaskedInt8x32
-	OpLessMaskedInt8x64
-	OpLessMaskedInt16x8
-	OpLessMaskedInt16x16
-	OpLessMaskedInt16x32
-	OpLessMaskedInt32x4
-	OpLessMaskedInt32x8
-	OpLessMaskedInt32x16
-	OpLessMaskedInt64x2
-	OpLessMaskedInt64x4
-	OpLessMaskedInt64x8
-	OpLessMaskedUint8x16
-	OpLessMaskedUint8x32
-	OpLessMaskedUint8x64
-	OpLessMaskedUint16x8
-	OpLessMaskedUint16x16
-	OpLessMaskedUint16x32
-	OpLessMaskedUint32x4
-	OpLessMaskedUint32x8
-	OpLessMaskedUint32x16
-	OpLessMaskedUint64x2
-	OpLessMaskedUint64x4
-	OpLessMaskedUint64x8
 	OpLessUint8x64
 	OpLessUint16x32
 	OpLessUint32x16
@@ -5354,36 +5054,6 @@ const (
 	OpMaxInt64x2
 	OpMaxInt64x4
 	OpMaxInt64x8
-	OpMaxMaskedFloat32x4
-	OpMaxMaskedFloat32x8
-	OpMaxMaskedFloat32x16
-	OpMaxMaskedFloat64x2
-	OpMaxMaskedFloat64x4
-	OpMaxMaskedFloat64x8
-	OpMaxMaskedInt8x16
-	OpMaxMaskedInt8x32
-	OpMaxMaskedInt8x64
-	OpMaxMaskedInt16x8
-	OpMaxMaskedInt16x16
-	OpMaxMaskedInt16x32
-	OpMaxMaskedInt32x4
-	OpMaxMaskedInt32x8
-	OpMaxMaskedInt32x16
-	OpMaxMaskedInt64x2
-	OpMaxMaskedInt64x4
-	OpMaxMaskedInt64x8
-	OpMaxMaskedUint8x16
-	OpMaxMaskedUint8x32
-	OpMaxMaskedUint8x64
-	OpMaxMaskedUint16x8
-	OpMaxMaskedUint16x16
-	OpMaxMaskedUint16x32
-	OpMaxMaskedUint32x4
-	OpMaxMaskedUint32x8
-	OpMaxMaskedUint32x16
-	OpMaxMaskedUint64x2
-	OpMaxMaskedUint64x4
-	OpMaxMaskedUint64x8
 	OpMaxUint8x16
 	OpMaxUint8x32
 	OpMaxUint8x64
@@ -5414,36 +5084,6 @@ const (
 	OpMinInt64x2
 	OpMinInt64x4
 	OpMinInt64x8
-	OpMinMaskedFloat32x4
-	OpMinMaskedFloat32x8
-	OpMinMaskedFloat32x16
-	OpMinMaskedFloat64x2
-	OpMinMaskedFloat64x4
-	OpMinMaskedFloat64x8
-	OpMinMaskedInt8x16
-	OpMinMaskedInt8x32
-	OpMinMaskedInt8x64
-	OpMinMaskedInt16x8
-	OpMinMaskedInt16x16
-	OpMinMaskedInt16x32
-	OpMinMaskedInt32x4
-	OpMinMaskedInt32x8
-	OpMinMaskedInt32x16
-	OpMinMaskedInt64x2
-	OpMinMaskedInt64x4
-	OpMinMaskedInt64x8
-	OpMinMaskedUint8x16
-	OpMinMaskedUint8x32
-	OpMinMaskedUint8x64
-	OpMinMaskedUint16x8
-	OpMinMaskedUint16x16
-	OpMinMaskedUint16x32
-	OpMinMaskedUint32x4
-	OpMinMaskedUint32x8
-	OpMinMaskedUint32x16
-	OpMinMaskedUint64x2
-	OpMinMaskedUint64x4
-	OpMinMaskedUint64x8
 	OpMinUint8x16
 	OpMinUint8x32
 	OpMinUint8x64
@@ -5462,24 +5102,12 @@ const (
 	OpMulAddFloat64x2
 	OpMulAddFloat64x4
 	OpMulAddFloat64x8
-	OpMulAddMaskedFloat32x4
-	OpMulAddMaskedFloat32x8
-	OpMulAddMaskedFloat32x16
-	OpMulAddMaskedFloat64x2
-	OpMulAddMaskedFloat64x4
-	OpMulAddMaskedFloat64x8
 	OpMulAddSubFloat32x4
 	OpMulAddSubFloat32x8
 	OpMulAddSubFloat32x16
 	OpMulAddSubFloat64x2
 	OpMulAddSubFloat64x4
 	OpMulAddSubFloat64x8
-	OpMulAddSubMaskedFloat32x4
-	OpMulAddSubMaskedFloat32x8
-	OpMulAddSubMaskedFloat32x16
-	OpMulAddSubMaskedFloat64x2
-	OpMulAddSubMaskedFloat64x4
-	OpMulAddSubMaskedFloat64x8
 	OpMulEvenWidenInt32x4
 	OpMulEvenWidenInt32x8
 	OpMulEvenWidenUint32x4
@@ -5493,12 +5121,6 @@ const (
 	OpMulHighInt16x8
 	OpMulHighInt16x16
 	OpMulHighInt16x32
-	OpMulHighMaskedInt16x8
-	OpMulHighMaskedInt16x16
-	OpMulHighMaskedInt16x32
-	OpMulHighMaskedUint16x8
-	OpMulHighMaskedUint16x16
-	OpMulHighMaskedUint16x32
 	OpMulHighUint16x8
 	OpMulHighUint16x16
 	OpMulHighUint16x32
@@ -5511,42 +5133,12 @@ const (
 	OpMulInt64x2
 	OpMulInt64x4
 	OpMulInt64x8
-	OpMulMaskedFloat32x4
-	OpMulMaskedFloat32x8
-	OpMulMaskedFloat32x16
-	OpMulMaskedFloat64x2
-	OpMulMaskedFloat64x4
-	OpMulMaskedFloat64x8
-	OpMulMaskedInt16x8
-	OpMulMaskedInt16x16
-	OpMulMaskedInt16x32
-	OpMulMaskedInt32x4
-	OpMulMaskedInt32x8
-	OpMulMaskedInt32x16
-	OpMulMaskedInt64x2
-	OpMulMaskedInt64x4
-	OpMulMaskedInt64x8
-	OpMulMaskedUint16x8
-	OpMulMaskedUint16x16
-	OpMulMaskedUint16x32
-	OpMulMaskedUint32x4
-	OpMulMaskedUint32x8
-	OpMulMaskedUint32x16
-	OpMulMaskedUint64x2
-	OpMulMaskedUint64x4
-	OpMulMaskedUint64x8
 	OpMulSubAddFloat32x4
 	OpMulSubAddFloat32x8
 	OpMulSubAddFloat32x16
 	OpMulSubAddFloat64x2
 	OpMulSubAddFloat64x4
 	OpMulSubAddFloat64x8
-	OpMulSubAddMaskedFloat32x4
-	OpMulSubAddMaskedFloat32x8
-	OpMulSubAddMaskedFloat32x16
-	OpMulSubAddMaskedFloat64x2
-	OpMulSubAddMaskedFloat64x4
-	OpMulSubAddMaskedFloat64x8
 	OpMulUint16x8
 	OpMulUint16x16
 	OpMulUint16x32
@@ -5566,36 +5158,6 @@ const (
 	OpNotEqualInt16x32
 	OpNotEqualInt32x16
 	OpNotEqualInt64x8
-	OpNotEqualMaskedFloat32x4
-	OpNotEqualMaskedFloat32x8
-	OpNotEqualMaskedFloat32x16
-	OpNotEqualMaskedFloat64x2
-	OpNotEqualMaskedFloat64x4
-	OpNotEqualMaskedFloat64x8
-	OpNotEqualMaskedInt8x16
-	OpNotEqualMaskedInt8x32
-	OpNotEqualMaskedInt8x64
-	OpNotEqualMaskedInt16x8
-	OpNotEqualMaskedInt16x16
-	OpNotEqualMaskedInt16x32
-	OpNotEqualMaskedInt32x4
-	OpNotEqualMaskedInt32x8
-	OpNotEqualMaskedInt32x16
-	OpNotEqualMaskedInt64x2
-	OpNotEqualMaskedInt64x4
-	OpNotEqualMaskedInt64x8
-	OpNotEqualMaskedUint8x16
-	OpNotEqualMaskedUint8x32
-	OpNotEqualMaskedUint8x64
-	OpNotEqualMaskedUint16x8
-	OpNotEqualMaskedUint16x16
-	OpNotEqualMaskedUint16x32
-	OpNotEqualMaskedUint32x4
-	OpNotEqualMaskedUint32x8
-	OpNotEqualMaskedUint32x16
-	OpNotEqualMaskedUint64x2
-	OpNotEqualMaskedUint64x4
-	OpNotEqualMaskedUint64x8
 	OpNotEqualUint8x64
 	OpNotEqualUint16x32
 	OpNotEqualUint32x16
@@ -5612,30 +5174,6 @@ const (
 	OpOnesCountInt64x2
 	OpOnesCountInt64x4
 	OpOnesCountInt64x8
-	OpOnesCountMaskedInt8x16
-	OpOnesCountMaskedInt8x32
-	OpOnesCountMaskedInt8x64
-	OpOnesCountMaskedInt16x8
-	OpOnesCountMaskedInt16x16
-	OpOnesCountMaskedInt16x32
-	OpOnesCountMaskedInt32x4
-	OpOnesCountMaskedInt32x8
-	OpOnesCountMaskedInt32x16
-	OpOnesCountMaskedInt64x2
-	OpOnesCountMaskedInt64x4
-	OpOnesCountMaskedInt64x8
-	OpOnesCountMaskedUint8x16
-	OpOnesCountMaskedUint8x32
-	OpOnesCountMaskedUint8x64
-	OpOnesCountMaskedUint16x8
-	OpOnesCountMaskedUint16x16
-	OpOnesCountMaskedUint16x32
-	OpOnesCountMaskedUint32x4
-	OpOnesCountMaskedUint32x8
-	OpOnesCountMaskedUint32x16
-	OpOnesCountMaskedUint64x2
-	OpOnesCountMaskedUint64x4
-	OpOnesCountMaskedUint64x8
 	OpOnesCountUint8x16
 	OpOnesCountUint8x32
 	OpOnesCountUint8x64
@@ -5660,18 +5198,6 @@ const (
 	OpOrInt64x2
 	OpOrInt64x4
 	OpOrInt64x8
-	OpOrMaskedInt32x4
-	OpOrMaskedInt32x8
-	OpOrMaskedInt32x16
-	OpOrMaskedInt64x2
-	OpOrMaskedInt64x4
-	OpOrMaskedInt64x8
-	OpOrMaskedUint32x4
-	OpOrMaskedUint32x8
-	OpOrMaskedUint32x16
-	OpOrMaskedUint64x2
-	OpOrMaskedUint64x4
-	OpOrMaskedUint64x8
 	OpOrUint8x16
 	OpOrUint8x32
 	OpOrUint8x64
@@ -5702,36 +5228,6 @@ const (
 	OpPermute2Int64x2
 	OpPermute2Int64x4
 	OpPermute2Int64x8
-	OpPermute2MaskedFloat32x4
-	OpPermute2MaskedFloat32x8
-	OpPermute2MaskedFloat32x16
-	OpPermute2MaskedFloat64x2
-	OpPermute2MaskedFloat64x4
-	OpPermute2MaskedFloat64x8
-	OpPermute2MaskedInt8x16
-	OpPermute2MaskedInt8x32
-	OpPermute2MaskedInt8x64
-	OpPermute2MaskedInt16x8
-	OpPermute2MaskedInt16x16
-	OpPermute2MaskedInt16x32
-	OpPermute2MaskedInt32x4
-	OpPermute2MaskedInt32x8
-	OpPermute2MaskedInt32x16
-	OpPermute2MaskedInt64x2
-	OpPermute2MaskedInt64x4
-	OpPermute2MaskedInt64x8
-	OpPermute2MaskedUint8x16
-	OpPermute2MaskedUint8x32
-	OpPermute2MaskedUint8x64
-	OpPermute2MaskedUint16x8
-	OpPermute2MaskedUint16x16
-	OpPermute2MaskedUint16x32
-	OpPermute2MaskedUint32x4
-	OpPermute2MaskedUint32x8
-	OpPermute2MaskedUint32x16
-	OpPermute2MaskedUint64x2
-	OpPermute2MaskedUint64x4
-	OpPermute2MaskedUint64x8
 	OpPermute2Uint8x16
 	OpPermute2Uint8x32
 	OpPermute2Uint8x64
@@ -5758,30 +5254,6 @@ const (
 	OpPermuteInt32x16
 	OpPermuteInt64x4
 	OpPermuteInt64x8
-	OpPermuteMaskedFloat32x8
-	OpPermuteMaskedFloat32x16
-	OpPermuteMaskedFloat64x4
-	OpPermuteMaskedFloat64x8
-	OpPermuteMaskedInt8x16
-	OpPermuteMaskedInt8x32
-	OpPermuteMaskedInt8x64
-	OpPermuteMaskedInt16x8
-	OpPermuteMaskedInt16x16
-	OpPermuteMaskedInt16x32
-	OpPermuteMaskedInt32x8
-	OpPermuteMaskedInt32x16
-	OpPermuteMaskedInt64x4
-	OpPermuteMaskedInt64x8
-	OpPermuteMaskedUint8x16
-	OpPermuteMaskedUint8x32
-	OpPermuteMaskedUint8x64
-	OpPermuteMaskedUint16x8
-	OpPermuteMaskedUint16x16
-	OpPermuteMaskedUint16x32
-	OpPermuteMaskedUint32x8
-	OpPermuteMaskedUint32x16
-	OpPermuteMaskedUint64x4
-	OpPermuteMaskedUint64x8
 	OpPermuteUint8x16
 	OpPermuteUint8x32
 	OpPermuteUint8x64
@@ -5798,42 +5270,18 @@ const (
 	OpReciprocalFloat64x2
 	OpReciprocalFloat64x4
 	OpReciprocalFloat64x8
-	OpReciprocalMaskedFloat32x4
-	OpReciprocalMaskedFloat32x8
-	OpReciprocalMaskedFloat32x16
-	OpReciprocalMaskedFloat64x2
-	OpReciprocalMaskedFloat64x4
-	OpReciprocalMaskedFloat64x8
 	OpReciprocalSqrtFloat32x4
 	OpReciprocalSqrtFloat32x8
 	OpReciprocalSqrtFloat32x16
 	OpReciprocalSqrtFloat64x2
 	OpReciprocalSqrtFloat64x4
 	OpReciprocalSqrtFloat64x8
-	OpReciprocalSqrtMaskedFloat32x4
-	OpReciprocalSqrtMaskedFloat32x8
-	OpReciprocalSqrtMaskedFloat32x16
-	OpReciprocalSqrtMaskedFloat64x2
-	OpReciprocalSqrtMaskedFloat64x4
-	OpReciprocalSqrtMaskedFloat64x8
 	OpRotateLeftInt32x4
 	OpRotateLeftInt32x8
 	OpRotateLeftInt32x16
 	OpRotateLeftInt64x2
 	OpRotateLeftInt64x4
 	OpRotateLeftInt64x8
-	OpRotateLeftMaskedInt32x4
-	OpRotateLeftMaskedInt32x8
-	OpRotateLeftMaskedInt32x16
-	OpRotateLeftMaskedInt64x2
-	OpRotateLeftMaskedInt64x4
-	OpRotateLeftMaskedInt64x8
-	OpRotateLeftMaskedUint32x4
-	OpRotateLeftMaskedUint32x8
-	OpRotateLeftMaskedUint32x16
-	OpRotateLeftMaskedUint64x2
-	OpRotateLeftMaskedUint64x4
-	OpRotateLeftMaskedUint64x8
 	OpRotateLeftUint32x4
 	OpRotateLeftUint32x8
 	OpRotateLeftUint32x16
@@ -5846,18 +5294,6 @@ const (
 	OpRotateRightInt64x2
 	OpRotateRightInt64x4
 	OpRotateRightInt64x8
-	OpRotateRightMaskedInt32x4
-	OpRotateRightMaskedInt32x8
-	OpRotateRightMaskedInt32x16
-	OpRotateRightMaskedInt64x2
-	OpRotateRightMaskedInt64x4
-	OpRotateRightMaskedInt64x8
-	OpRotateRightMaskedUint32x4
-	OpRotateRightMaskedUint32x8
-	OpRotateRightMaskedUint32x16
-	OpRotateRightMaskedUint64x2
-	OpRotateRightMaskedUint64x4
-	OpRotateRightMaskedUint64x8
 	OpRotateRightUint32x4
 	OpRotateRightUint32x8
 	OpRotateRightUint32x16
@@ -5874,12 +5310,6 @@ const (
 	OpScaleFloat64x2
 	OpScaleFloat64x4
 	OpScaleFloat64x8
-	OpScaleMaskedFloat32x4
-	OpScaleMaskedFloat32x8
-	OpScaleMaskedFloat32x16
-	OpScaleMaskedFloat64x2
-	OpScaleMaskedFloat64x4
-	OpScaleMaskedFloat64x8
 	OpSetHiFloat32x8
 	OpSetHiFloat32x16
 	OpSetHiFloat64x4
@@ -5929,24 +5359,6 @@ const (
 	OpShiftAllLeftInt64x2
 	OpShiftAllLeftInt64x4
 	OpShiftAllLeftInt64x8
-	OpShiftAllLeftMaskedInt16x8
-	OpShiftAllLeftMaskedInt16x16
-	OpShiftAllLeftMaskedInt16x32
-	OpShiftAllLeftMaskedInt32x4
-	OpShiftAllLeftMaskedInt32x8
-	OpShiftAllLeftMaskedInt32x16
-	OpShiftAllLeftMaskedInt64x2
-	OpShiftAllLeftMaskedInt64x4
-	OpShiftAllLeftMaskedInt64x8
-	OpShiftAllLeftMaskedUint16x8
-	OpShiftAllLeftMaskedUint16x16
-	OpShiftAllLeftMaskedUint16x32
-	OpShiftAllLeftMaskedUint32x4
-	OpShiftAllLeftMaskedUint32x8
-	OpShiftAllLeftMaskedUint32x16
-	OpShiftAllLeftMaskedUint64x2
-	OpShiftAllLeftMaskedUint64x4
-	OpShiftAllLeftMaskedUint64x8
 	OpShiftAllLeftUint16x8
 	OpShiftAllLeftUint16x16
 	OpShiftAllLeftUint16x32
@@ -5965,24 +5377,6 @@ const (
 	OpShiftAllRightInt64x2
 	OpShiftAllRightInt64x4
 	OpShiftAllRightInt64x8
-	OpShiftAllRightMaskedInt16x8
-	OpShiftAllRightMaskedInt16x16
-	OpShiftAllRightMaskedInt16x32
-	OpShiftAllRightMaskedInt32x4
-	OpShiftAllRightMaskedInt32x8
-	OpShiftAllRightMaskedInt32x16
-	OpShiftAllRightMaskedInt64x2
-	OpShiftAllRightMaskedInt64x4
-	OpShiftAllRightMaskedInt64x8
-	OpShiftAllRightMaskedUint16x8
-	OpShiftAllRightMaskedUint16x16
-	OpShiftAllRightMaskedUint16x32
-	OpShiftAllRightMaskedUint32x4
-	OpShiftAllRightMaskedUint32x8
-	OpShiftAllRightMaskedUint32x16
-	OpShiftAllRightMaskedUint64x2
-	OpShiftAllRightMaskedUint64x4
-	OpShiftAllRightMaskedUint64x8
 	OpShiftAllRightUint16x8
 	OpShiftAllRightUint16x16
 	OpShiftAllRightUint16x32
@@ -6001,24 +5395,6 @@ const (
 	OpShiftLeftConcatInt64x2
 	OpShiftLeftConcatInt64x4
 	OpShiftLeftConcatInt64x8
-	OpShiftLeftConcatMaskedInt16x8
-	OpShiftLeftConcatMaskedInt16x16
-	OpShiftLeftConcatMaskedInt16x32
-	OpShiftLeftConcatMaskedInt32x4
-	OpShiftLeftConcatMaskedInt32x8
-	OpShiftLeftConcatMaskedInt32x16
-	OpShiftLeftConcatMaskedInt64x2
-	OpShiftLeftConcatMaskedInt64x4
-	OpShiftLeftConcatMaskedInt64x8
-	OpShiftLeftConcatMaskedUint16x8
-	OpShiftLeftConcatMaskedUint16x16
-	OpShiftLeftConcatMaskedUint16x32
-	OpShiftLeftConcatMaskedUint32x4
-	OpShiftLeftConcatMaskedUint32x8
-	OpShiftLeftConcatMaskedUint32x16
-	OpShiftLeftConcatMaskedUint64x2
-	OpShiftLeftConcatMaskedUint64x4
-	OpShiftLeftConcatMaskedUint64x8
 	OpShiftLeftConcatUint16x8
 	OpShiftLeftConcatUint16x16
 	OpShiftLeftConcatUint16x32
@@ -6037,24 +5413,6 @@ const (
 	OpShiftLeftInt64x2
 	OpShiftLeftInt64x4
 	OpShiftLeftInt64x8
-	OpShiftLeftMaskedInt16x8
-	OpShiftLeftMaskedInt16x16
-	OpShiftLeftMaskedInt16x32
-	OpShiftLeftMaskedInt32x4
-	OpShiftLeftMaskedInt32x8
-	OpShiftLeftMaskedInt32x16
-	OpShiftLeftMaskedInt64x2
-	OpShiftLeftMaskedInt64x4
-	OpShiftLeftMaskedInt64x8
-	OpShiftLeftMaskedUint16x8
-	OpShiftLeftMaskedUint16x16
-	OpShiftLeftMaskedUint16x32
-	OpShiftLeftMaskedUint32x4
-	OpShiftLeftMaskedUint32x8
-	OpShiftLeftMaskedUint32x16
-	OpShiftLeftMaskedUint64x2
-	OpShiftLeftMaskedUint64x4
-	OpShiftLeftMaskedUint64x8
 	OpShiftLeftUint16x8
 	OpShiftLeftUint16x16
 	OpShiftLeftUint16x32
@@ -6073,24 +5431,6 @@ const (
 	OpShiftRightConcatInt64x2
 	OpShiftRightConcatInt64x4
 	OpShiftRightConcatInt64x8
-	OpShiftRightConcatMaskedInt16x8
-	OpShiftRightConcatMaskedInt16x16
-	OpShiftRightConcatMaskedInt16x32
-	OpShiftRightConcatMaskedInt32x4
-	OpShiftRightConcatMaskedInt32x8
-	OpShiftRightConcatMaskedInt32x16
-	OpShiftRightConcatMaskedInt64x2
-	OpShiftRightConcatMaskedInt64x4
-	OpShiftRightConcatMaskedInt64x8
-	OpShiftRightConcatMaskedUint16x8
-	OpShiftRightConcatMaskedUint16x16
-	OpShiftRightConcatMaskedUint16x32
-	OpShiftRightConcatMaskedUint32x4
-	OpShiftRightConcatMaskedUint32x8
-	OpShiftRightConcatMaskedUint32x16
-	OpShiftRightConcatMaskedUint64x2
-	OpShiftRightConcatMaskedUint64x4
-	OpShiftRightConcatMaskedUint64x8
 	OpShiftRightConcatUint16x8
 	OpShiftRightConcatUint16x16
 	OpShiftRightConcatUint16x32
@@ -6109,24 +5449,6 @@ const (
 	OpShiftRightInt64x2
 	OpShiftRightInt64x4
 	OpShiftRightInt64x8
-	OpShiftRightMaskedInt16x8
-	OpShiftRightMaskedInt16x16
-	OpShiftRightMaskedInt16x32
-	OpShiftRightMaskedInt32x4
-	OpShiftRightMaskedInt32x8
-	OpShiftRightMaskedInt32x16
-	OpShiftRightMaskedInt64x2
-	OpShiftRightMaskedInt64x4
-	OpShiftRightMaskedInt64x8
-	OpShiftRightMaskedUint16x8
-	OpShiftRightMaskedUint16x16
-	OpShiftRightMaskedUint16x32
-	OpShiftRightMaskedUint32x4
-	OpShiftRightMaskedUint32x8
-	OpShiftRightMaskedUint32x16
-	OpShiftRightMaskedUint64x2
-	OpShiftRightMaskedUint64x4
-	OpShiftRightMaskedUint64x8
 	OpShiftRightUint16x8
 	OpShiftRightUint16x16
 	OpShiftRightUint16x32
@@ -6142,12 +5464,6 @@ const (
 	OpSqrtFloat64x2
 	OpSqrtFloat64x4
 	OpSqrtFloat64x8
-	OpSqrtMaskedFloat32x4
-	OpSqrtMaskedFloat32x8
-	OpSqrtMaskedFloat32x16
-	OpSqrtMaskedFloat64x2
-	OpSqrtMaskedFloat64x4
-	OpSqrtMaskedFloat64x8
 	OpSubFloat32x4
 	OpSubFloat32x8
 	OpSubFloat32x16
@@ -6166,36 +5482,6 @@ const (
 	OpSubInt64x2
 	OpSubInt64x4
 	OpSubInt64x8
-	OpSubMaskedFloat32x4
-	OpSubMaskedFloat32x8
-	OpSubMaskedFloat32x16
-	OpSubMaskedFloat64x2
-	OpSubMaskedFloat64x4
-	OpSubMaskedFloat64x8
-	OpSubMaskedInt8x16
-	OpSubMaskedInt8x32
-	OpSubMaskedInt8x64
-	OpSubMaskedInt16x8
-	OpSubMaskedInt16x16
-	OpSubMaskedInt16x32
-	OpSubMaskedInt32x4
-	OpSubMaskedInt32x8
-	OpSubMaskedInt32x16
-	OpSubMaskedInt64x2
-	OpSubMaskedInt64x4
-	OpSubMaskedInt64x8
-	OpSubMaskedUint8x16
-	OpSubMaskedUint8x32
-	OpSubMaskedUint8x64
-	OpSubMaskedUint16x8
-	OpSubMaskedUint16x16
-	OpSubMaskedUint16x32
-	OpSubMaskedUint32x4
-	OpSubMaskedUint32x8
-	OpSubMaskedUint32x16
-	OpSubMaskedUint64x2
-	OpSubMaskedUint64x4
-	OpSubMaskedUint64x8
 	OpSubPairsFloat32x4
 	OpSubPairsFloat32x8
 	OpSubPairsFloat64x2
@@ -6216,18 +5502,6 @@ const (
 	OpSubSaturatedInt16x8
 	OpSubSaturatedInt16x16
 	OpSubSaturatedInt16x32
-	OpSubSaturatedMaskedInt8x16
-	OpSubSaturatedMaskedInt8x32
-	OpSubSaturatedMaskedInt8x64
-	OpSubSaturatedMaskedInt16x8
-	OpSubSaturatedMaskedInt16x16
-	OpSubSaturatedMaskedInt16x32
-	OpSubSaturatedMaskedUint8x16
-	OpSubSaturatedMaskedUint8x32
-	OpSubSaturatedMaskedUint8x64
-	OpSubSaturatedMaskedUint16x8
-	OpSubSaturatedMaskedUint16x16
-	OpSubSaturatedMaskedUint16x32
 	OpSubSaturatedUint8x16
 	OpSubSaturatedUint8x32
 	OpSubSaturatedUint8x64
@@ -6262,18 +5536,6 @@ const (
 	OpXorInt64x2
 	OpXorInt64x4
 	OpXorInt64x8
-	OpXorMaskedInt32x4
-	OpXorMaskedInt32x8
-	OpXorMaskedInt32x16
-	OpXorMaskedInt64x2
-	OpXorMaskedInt64x4
-	OpXorMaskedInt64x8
-	OpXorMaskedUint32x4
-	OpXorMaskedUint32x8
-	OpXorMaskedUint32x16
-	OpXorMaskedUint64x2
-	OpXorMaskedUint64x4
-	OpXorMaskedUint64x8
 	OpXorUint8x16
 	OpXorUint8x32
 	OpXorUint8x64
@@ -6298,57 +5560,27 @@ const (
 	OpCeilScaledFloat64x2
 	OpCeilScaledFloat64x4
 	OpCeilScaledFloat64x8
-	OpCeilScaledMaskedFloat32x4
-	OpCeilScaledMaskedFloat32x8
-	OpCeilScaledMaskedFloat32x16
-	OpCeilScaledMaskedFloat64x2
-	OpCeilScaledMaskedFloat64x4
-	OpCeilScaledMaskedFloat64x8
 	OpCeilScaledResidueFloat32x4
 	OpCeilScaledResidueFloat32x8
 	OpCeilScaledResidueFloat32x16
 	OpCeilScaledResidueFloat64x2
 	OpCeilScaledResidueFloat64x4
 	OpCeilScaledResidueFloat64x8
-	OpCeilScaledResidueMaskedFloat32x4
-	OpCeilScaledResidueMaskedFloat32x8
-	OpCeilScaledResidueMaskedFloat32x16
-	OpCeilScaledResidueMaskedFloat64x2
-	OpCeilScaledResidueMaskedFloat64x4
-	OpCeilScaledResidueMaskedFloat64x8
 	OpFloorScaledFloat32x4
 	OpFloorScaledFloat32x8
 	OpFloorScaledFloat32x16
 	OpFloorScaledFloat64x2
 	OpFloorScaledFloat64x4
 	OpFloorScaledFloat64x8
-	OpFloorScaledMaskedFloat32x4
-	OpFloorScaledMaskedFloat32x8
-	OpFloorScaledMaskedFloat32x16
-	OpFloorScaledMaskedFloat64x2
-	OpFloorScaledMaskedFloat64x4
-	OpFloorScaledMaskedFloat64x8
 	OpFloorScaledResidueFloat32x4
 	OpFloorScaledResidueFloat32x8
 	OpFloorScaledResidueFloat32x16
 	OpFloorScaledResidueFloat64x2
 	OpFloorScaledResidueFloat64x4
 	OpFloorScaledResidueFloat64x8
-	OpFloorScaledResidueMaskedFloat32x4
-	OpFloorScaledResidueMaskedFloat32x8
-	OpFloorScaledResidueMaskedFloat32x16
-	OpFloorScaledResidueMaskedFloat64x2
-	OpFloorScaledResidueMaskedFloat64x4
-	OpFloorScaledResidueMaskedFloat64x8
-	OpGaloisFieldAffineTransformInverseMaskedUint8x16
-	OpGaloisFieldAffineTransformInverseMaskedUint8x32
-	OpGaloisFieldAffineTransformInverseMaskedUint8x64
 	OpGaloisFieldAffineTransformInverseUint8x16
 	OpGaloisFieldAffineTransformInverseUint8x32
 	OpGaloisFieldAffineTransformInverseUint8x64
-	OpGaloisFieldAffineTransformMaskedUint8x16
-	OpGaloisFieldAffineTransformMaskedUint8x32
-	OpGaloisFieldAffineTransformMaskedUint8x64
 	OpGaloisFieldAffineTransformUint8x16
 	OpGaloisFieldAffineTransformUint8x32
 	OpGaloisFieldAffineTransformUint8x64
@@ -6368,18 +5600,6 @@ const (
 	OpRotateAllLeftInt64x2
 	OpRotateAllLeftInt64x4
 	OpRotateAllLeftInt64x8
-	OpRotateAllLeftMaskedInt32x4
-	OpRotateAllLeftMaskedInt32x8
-	OpRotateAllLeftMaskedInt32x16
-	OpRotateAllLeftMaskedInt64x2
-	OpRotateAllLeftMaskedInt64x4
-	OpRotateAllLeftMaskedInt64x8
-	OpRotateAllLeftMaskedUint32x4
-	OpRotateAllLeftMaskedUint32x8
-	OpRotateAllLeftMaskedUint32x16
-	OpRotateAllLeftMaskedUint64x2
-	OpRotateAllLeftMaskedUint64x4
-	OpRotateAllLeftMaskedUint64x8
 	OpRotateAllLeftUint32x4
 	OpRotateAllLeftUint32x8
 	OpRotateAllLeftUint32x16
@@ -6392,18 +5612,6 @@ const (
 	OpRotateAllRightInt64x2
 	OpRotateAllRightInt64x4
 	OpRotateAllRightInt64x8
-	OpRotateAllRightMaskedInt32x4
-	OpRotateAllRightMaskedInt32x8
-	OpRotateAllRightMaskedInt32x16
-	OpRotateAllRightMaskedInt64x2
-	OpRotateAllRightMaskedInt64x4
-	OpRotateAllRightMaskedInt64x8
-	OpRotateAllRightMaskedUint32x4
-	OpRotateAllRightMaskedUint32x8
-	OpRotateAllRightMaskedUint32x16
-	OpRotateAllRightMaskedUint64x2
-	OpRotateAllRightMaskedUint64x4
-	OpRotateAllRightMaskedUint64x8
 	OpRotateAllRightUint32x4
 	OpRotateAllRightUint32x8
 	OpRotateAllRightUint32x16
@@ -6416,24 +5624,12 @@ const (
 	OpRoundToEvenScaledFloat64x2
 	OpRoundToEvenScaledFloat64x4
 	OpRoundToEvenScaledFloat64x8
-	OpRoundToEvenScaledMaskedFloat32x4
-	OpRoundToEvenScaledMaskedFloat32x8
-	OpRoundToEvenScaledMaskedFloat32x16
-	OpRoundToEvenScaledMaskedFloat64x2
-	OpRoundToEvenScaledMaskedFloat64x4
-	OpRoundToEvenScaledMaskedFloat64x8
 	OpRoundToEvenScaledResidueFloat32x4
 	OpRoundToEvenScaledResidueFloat32x8
 	OpRoundToEvenScaledResidueFloat32x16
 	OpRoundToEvenScaledResidueFloat64x2
 	OpRoundToEvenScaledResidueFloat64x4
 	OpRoundToEvenScaledResidueFloat64x8
-	OpRoundToEvenScaledResidueMaskedFloat32x4
-	OpRoundToEvenScaledResidueMaskedFloat32x8
-	OpRoundToEvenScaledResidueMaskedFloat32x16
-	OpRoundToEvenScaledResidueMaskedFloat64x2
-	OpRoundToEvenScaledResidueMaskedFloat64x4
-	OpRoundToEvenScaledResidueMaskedFloat64x8
 	OpSetElemFloat32x4
 	OpSetElemFloat64x2
 	OpSetElemInt8x16
@@ -6453,24 +5649,6 @@ const (
 	OpShiftAllLeftConcatInt64x2
 	OpShiftAllLeftConcatInt64x4
 	OpShiftAllLeftConcatInt64x8
-	OpShiftAllLeftConcatMaskedInt16x8
-	OpShiftAllLeftConcatMaskedInt16x16
-	OpShiftAllLeftConcatMaskedInt16x32
-	OpShiftAllLeftConcatMaskedInt32x4
-	OpShiftAllLeftConcatMaskedInt32x8
-	OpShiftAllLeftConcatMaskedInt32x16
-	OpShiftAllLeftConcatMaskedInt64x2
-	OpShiftAllLeftConcatMaskedInt64x4
-	OpShiftAllLeftConcatMaskedInt64x8
-	OpShiftAllLeftConcatMaskedUint16x8
-	OpShiftAllLeftConcatMaskedUint16x16
-	OpShiftAllLeftConcatMaskedUint16x32
-	OpShiftAllLeftConcatMaskedUint32x4
-	OpShiftAllLeftConcatMaskedUint32x8
-	OpShiftAllLeftConcatMaskedUint32x16
-	OpShiftAllLeftConcatMaskedUint64x2
-	OpShiftAllLeftConcatMaskedUint64x4
-	OpShiftAllLeftConcatMaskedUint64x8
 	OpShiftAllLeftConcatUint16x8
 	OpShiftAllLeftConcatUint16x16
 	OpShiftAllLeftConcatUint16x32
@@ -6489,24 +5667,6 @@ const (
 	OpShiftAllRightConcatInt64x2
 	OpShiftAllRightConcatInt64x4
 	OpShiftAllRightConcatInt64x8
-	OpShiftAllRightConcatMaskedInt16x8
-	OpShiftAllRightConcatMaskedInt16x16
-	OpShiftAllRightConcatMaskedInt16x32
-	OpShiftAllRightConcatMaskedInt32x4
-	OpShiftAllRightConcatMaskedInt32x8
-	OpShiftAllRightConcatMaskedInt32x16
-	OpShiftAllRightConcatMaskedInt64x2
-	OpShiftAllRightConcatMaskedInt64x4
-	OpShiftAllRightConcatMaskedInt64x8
-	OpShiftAllRightConcatMaskedUint16x8
-	OpShiftAllRightConcatMaskedUint16x16
-	OpShiftAllRightConcatMaskedUint16x32
-	OpShiftAllRightConcatMaskedUint32x4
-	OpShiftAllRightConcatMaskedUint32x8
-	OpShiftAllRightConcatMaskedUint32x16
-	OpShiftAllRightConcatMaskedUint64x2
-	OpShiftAllRightConcatMaskedUint64x4
-	OpShiftAllRightConcatMaskedUint64x8
 	OpShiftAllRightConcatUint16x8
 	OpShiftAllRightConcatUint16x16
 	OpShiftAllRightConcatUint16x32
@@ -6522,24 +5682,12 @@ const (
 	OpTruncScaledFloat64x2
 	OpTruncScaledFloat64x4
 	OpTruncScaledFloat64x8
-	OpTruncScaledMaskedFloat32x4
-	OpTruncScaledMaskedFloat32x8
-	OpTruncScaledMaskedFloat32x16
-	OpTruncScaledMaskedFloat64x2
-	OpTruncScaledMaskedFloat64x4
-	OpTruncScaledMaskedFloat64x8
 	OpTruncScaledResidueFloat32x4
 	OpTruncScaledResidueFloat32x8
 	OpTruncScaledResidueFloat32x16
 	OpTruncScaledResidueFloat64x2
 	OpTruncScaledResidueFloat64x4
 	OpTruncScaledResidueFloat64x8
-	OpTruncScaledResidueMaskedFloat32x4
-	OpTruncScaledResidueMaskedFloat32x8
-	OpTruncScaledResidueMaskedFloat32x16
-	OpTruncScaledResidueMaskedFloat64x2
-	OpTruncScaledResidueMaskedFloat64x4
-	OpTruncScaledResidueMaskedFloat64x8
 )
 
 var opcodeTable = [...]opInfo{
@@ -63839,66 +62987,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "AbsMaskedInt8x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "AbsMaskedInt8x32",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "AbsMaskedInt8x64",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "AbsMaskedInt16x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "AbsMaskedInt16x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "AbsMaskedInt16x32",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "AbsMaskedInt32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "AbsMaskedInt32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "AbsMaskedInt32x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "AbsMaskedInt64x2",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "AbsMaskedInt64x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "AbsMaskedInt64x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "AddDotProdPairsSaturatedInt32x4",
 		argLen:  3,
 		generic: true,
@@ -63911,21 +62999,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "AddDotProdPairsSaturatedInt32x16",
 		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "AddDotProdPairsSaturatedMaskedInt32x4",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "AddDotProdPairsSaturatedMaskedInt32x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "AddDotProdPairsSaturatedMaskedInt32x16",
-		argLen:  4,
 		generic: true,
 	},
 	{
@@ -63944,21 +63017,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "AddDotProdQuadrupleMaskedInt32x4",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "AddDotProdQuadrupleMaskedInt32x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "AddDotProdQuadrupleMaskedInt32x16",
-		argLen:  4,
-		generic: true,
-	},
-	{
 		name:    "AddDotProdQuadrupleSaturatedInt32x4",
 		argLen:  3,
 		generic: true,
@@ -63971,21 +63029,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "AddDotProdQuadrupleSaturatedInt32x16",
 		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "AddDotProdQuadrupleSaturatedMaskedInt32x4",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "AddDotProdQuadrupleSaturatedMaskedInt32x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "AddDotProdQuadrupleSaturatedMaskedInt32x16",
-		argLen:  4,
 		generic: true,
 	},
 	{
@@ -64097,186 +63140,6 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "AddMaskedFloat32x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddMaskedFloat32x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddMaskedFloat32x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddMaskedFloat64x2",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddMaskedFloat64x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddMaskedFloat64x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddMaskedInt8x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddMaskedInt8x32",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddMaskedInt8x64",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddMaskedInt16x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddMaskedInt16x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddMaskedInt16x32",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddMaskedInt32x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddMaskedInt32x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddMaskedInt32x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddMaskedInt64x2",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddMaskedInt64x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddMaskedInt64x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddMaskedUint8x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddMaskedUint8x32",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddMaskedUint8x64",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddMaskedUint16x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddMaskedUint16x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddMaskedUint16x32",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddMaskedUint32x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddMaskedUint32x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddMaskedUint32x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddMaskedUint64x2",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddMaskedUint64x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddMaskedUint64x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
 		name:    "AddPairsFloat32x4",
 		argLen:  2,
 		generic: true,
@@ -64379,78 +63242,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:        "AddSaturatedInt16x32",
 		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddSaturatedMaskedInt8x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddSaturatedMaskedInt8x32",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddSaturatedMaskedInt8x64",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddSaturatedMaskedInt16x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddSaturatedMaskedInt16x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddSaturatedMaskedInt16x32",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddSaturatedMaskedUint8x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddSaturatedMaskedUint8x32",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddSaturatedMaskedUint8x64",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddSaturatedMaskedUint16x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddSaturatedMaskedUint16x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AddSaturatedMaskedUint16x32",
-		argLen:      3,
 		commutative: true,
 		generic:     true,
 	},
@@ -64655,78 +63446,6 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "AndMaskedInt32x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AndMaskedInt32x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AndMaskedInt32x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AndMaskedInt64x2",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AndMaskedInt64x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AndMaskedInt64x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AndMaskedUint32x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AndMaskedUint32x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AndMaskedUint32x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AndMaskedUint64x2",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AndMaskedUint64x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AndMaskedUint64x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
 		name:    "AndNotInt8x16",
 		argLen:  2,
 		generic: true,
@@ -64784,66 +63503,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "AndNotInt64x8",
 		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "AndNotMaskedInt32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "AndNotMaskedInt32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "AndNotMaskedInt32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "AndNotMaskedInt64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "AndNotMaskedInt64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "AndNotMaskedInt64x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "AndNotMaskedUint32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "AndNotMaskedUint32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "AndNotMaskedUint32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "AndNotMaskedUint64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "AndNotMaskedUint64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "AndNotMaskedUint64x8",
-		argLen:  3,
 		generic: true,
 	},
 	{
@@ -64979,42 +63638,6 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "AverageMaskedUint8x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AverageMaskedUint8x32",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AverageMaskedUint8x64",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AverageMaskedUint16x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AverageMaskedUint16x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "AverageMaskedUint16x32",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
 		name:        "AverageUint8x16",
 		argLen:      2,
 		commutative: true,
@@ -65081,56 +63704,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "Broadcast128MaskedFloat32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Broadcast128MaskedFloat64x2",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Broadcast128MaskedInt8x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Broadcast128MaskedInt16x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Broadcast128MaskedInt32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Broadcast128MaskedInt64x2",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Broadcast128MaskedUint8x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Broadcast128MaskedUint16x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Broadcast128MaskedUint32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Broadcast128MaskedUint64x2",
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "Broadcast128Uint8x16",
 		argLen:  1,
 		generic: true,
@@ -65181,56 +63754,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "Broadcast256MaskedFloat32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Broadcast256MaskedFloat64x2",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Broadcast256MaskedInt8x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Broadcast256MaskedInt16x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Broadcast256MaskedInt32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Broadcast256MaskedInt64x2",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Broadcast256MaskedUint8x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Broadcast256MaskedUint16x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Broadcast256MaskedUint32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Broadcast256MaskedUint64x2",
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "Broadcast256Uint8x16",
 		argLen:  1,
 		generic: true,
@@ -65278,56 +63801,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "Broadcast512Int64x2",
 		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "Broadcast512MaskedFloat32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Broadcast512MaskedFloat64x2",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Broadcast512MaskedInt8x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Broadcast512MaskedInt16x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Broadcast512MaskedInt32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Broadcast512MaskedInt64x2",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Broadcast512MaskedUint8x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Broadcast512MaskedUint16x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Broadcast512MaskedUint32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Broadcast512MaskedUint64x2",
-		argLen:  2,
 		generic: true,
 	},
 	{
@@ -65536,21 +64009,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "ConvertToInt32MaskedFloat32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ConvertToInt32MaskedFloat32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ConvertToInt32MaskedFloat32x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "ConvertToUint32Float32x4",
 		argLen:  1,
 		generic: true,
@@ -65563,21 +64021,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "ConvertToUint32Float32x16",
 		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ConvertToUint32MaskedFloat32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ConvertToUint32MaskedFloat32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ConvertToUint32MaskedFloat32x16",
-		argLen:  2,
 		generic: true,
 	},
 	{
@@ -65641,36 +64084,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "DivMaskedFloat32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "DivMaskedFloat32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "DivMaskedFloat32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "DivMaskedFloat64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "DivMaskedFloat64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "DivMaskedFloat64x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
 		name:    "DotProdPairsInt16x8",
 		argLen:  2,
 		generic: true,
@@ -65683,36 +64096,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "DotProdPairsInt16x32",
 		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "DotProdPairsMaskedInt16x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "DotProdPairsMaskedInt16x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "DotProdPairsMaskedInt16x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "DotProdPairsSaturatedMaskedUint8x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "DotProdPairsSaturatedMaskedUint8x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "DotProdPairsSaturatedMaskedUint8x64",
-		argLen:  3,
 		generic: true,
 	},
 	{
@@ -65835,186 +64218,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:        "EqualInt64x8",
 		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "EqualMaskedFloat32x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "EqualMaskedFloat32x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "EqualMaskedFloat32x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "EqualMaskedFloat64x2",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "EqualMaskedFloat64x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "EqualMaskedFloat64x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "EqualMaskedInt8x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "EqualMaskedInt8x32",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "EqualMaskedInt8x64",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "EqualMaskedInt16x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "EqualMaskedInt16x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "EqualMaskedInt16x32",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "EqualMaskedInt32x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "EqualMaskedInt32x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "EqualMaskedInt32x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "EqualMaskedInt64x2",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "EqualMaskedInt64x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "EqualMaskedInt64x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "EqualMaskedUint8x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "EqualMaskedUint8x32",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "EqualMaskedUint8x64",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "EqualMaskedUint16x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "EqualMaskedUint16x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "EqualMaskedUint16x32",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "EqualMaskedUint32x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "EqualMaskedUint32x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "EqualMaskedUint32x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "EqualMaskedUint64x2",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "EqualMaskedUint64x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "EqualMaskedUint64x8",
-		argLen:      3,
 		commutative: true,
 		generic:     true,
 	},
@@ -66258,21 +64461,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "FloorFloat64x4",
 		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "GaloisFieldMulMaskedUint8x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GaloisFieldMulMaskedUint8x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GaloisFieldMulMaskedUint8x64",
-		argLen:  3,
 		generic: true,
 	},
 	{
@@ -66541,156 +64729,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "GreaterEqualMaskedFloat32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualMaskedFloat32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualMaskedFloat32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualMaskedFloat64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualMaskedFloat64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualMaskedFloat64x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualMaskedInt8x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualMaskedInt8x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualMaskedInt8x64",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualMaskedInt16x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualMaskedInt16x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualMaskedInt16x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualMaskedInt32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualMaskedInt32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualMaskedInt32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualMaskedInt64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualMaskedInt64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualMaskedInt64x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualMaskedUint8x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualMaskedUint8x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualMaskedUint8x64",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualMaskedUint16x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualMaskedUint16x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualMaskedUint16x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualMaskedUint32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualMaskedUint32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualMaskedUint32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualMaskedUint64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualMaskedUint64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualMaskedUint64x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
 		name:    "GreaterEqualUint8x64",
 		argLen:  2,
 		generic: true,
@@ -66801,156 +64839,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "GreaterMaskedFloat32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterMaskedFloat32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterMaskedFloat32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterMaskedFloat64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterMaskedFloat64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterMaskedFloat64x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterMaskedInt8x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterMaskedInt8x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterMaskedInt8x64",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterMaskedInt16x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterMaskedInt16x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterMaskedInt16x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterMaskedInt32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterMaskedInt32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterMaskedInt32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterMaskedInt64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterMaskedInt64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterMaskedInt64x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterMaskedUint8x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterMaskedUint8x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterMaskedUint8x64",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterMaskedUint16x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterMaskedUint16x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterMaskedUint16x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterMaskedUint32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterMaskedUint32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterMaskedUint32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterMaskedUint64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterMaskedUint64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GreaterMaskedUint64x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
 		name:    "GreaterUint8x64",
 		argLen:  2,
 		generic: true,
@@ -67007,42 +64895,6 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "IsNanMaskedFloat32x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "IsNanMaskedFloat32x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "IsNanMaskedFloat32x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "IsNanMaskedFloat64x2",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "IsNanMaskedFloat64x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "IsNanMaskedFloat64x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
 		name:    "LessEqualFloat32x4",
 		argLen:  2,
 		generic: true,
@@ -67090,156 +64942,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "LessEqualInt64x8",
 		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "LessEqualMaskedFloat32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessEqualMaskedFloat32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessEqualMaskedFloat32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessEqualMaskedFloat64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessEqualMaskedFloat64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessEqualMaskedFloat64x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessEqualMaskedInt8x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessEqualMaskedInt8x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessEqualMaskedInt8x64",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessEqualMaskedInt16x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessEqualMaskedInt16x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessEqualMaskedInt16x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessEqualMaskedInt32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessEqualMaskedInt32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessEqualMaskedInt32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessEqualMaskedInt64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessEqualMaskedInt64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessEqualMaskedInt64x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessEqualMaskedUint8x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessEqualMaskedUint8x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessEqualMaskedUint8x64",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessEqualMaskedUint16x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessEqualMaskedUint16x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessEqualMaskedUint16x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessEqualMaskedUint32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessEqualMaskedUint32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessEqualMaskedUint32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessEqualMaskedUint64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessEqualMaskedUint64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessEqualMaskedUint64x8",
-		argLen:  3,
 		generic: true,
 	},
 	{
@@ -67310,156 +65012,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "LessInt64x8",
 		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "LessMaskedFloat32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessMaskedFloat32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessMaskedFloat32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessMaskedFloat64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessMaskedFloat64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessMaskedFloat64x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessMaskedInt8x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessMaskedInt8x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessMaskedInt8x64",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessMaskedInt16x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessMaskedInt16x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessMaskedInt16x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessMaskedInt32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessMaskedInt32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessMaskedInt32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessMaskedInt64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessMaskedInt64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessMaskedInt64x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessMaskedUint8x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessMaskedUint8x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessMaskedUint8x64",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessMaskedUint16x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessMaskedUint16x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessMaskedUint16x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessMaskedUint32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessMaskedUint32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessMaskedUint32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessMaskedUint64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessMaskedUint64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LessMaskedUint64x8",
-		argLen:  3,
 		generic: true,
 	},
 	{
@@ -67587,186 +65139,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:        "MaxInt64x8",
 		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MaxMaskedFloat32x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MaxMaskedFloat32x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MaxMaskedFloat32x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MaxMaskedFloat64x2",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MaxMaskedFloat64x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MaxMaskedFloat64x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MaxMaskedInt8x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MaxMaskedInt8x32",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MaxMaskedInt8x64",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MaxMaskedInt16x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MaxMaskedInt16x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MaxMaskedInt16x32",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MaxMaskedInt32x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MaxMaskedInt32x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MaxMaskedInt32x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MaxMaskedInt64x2",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MaxMaskedInt64x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MaxMaskedInt64x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MaxMaskedUint8x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MaxMaskedUint8x32",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MaxMaskedUint8x64",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MaxMaskedUint16x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MaxMaskedUint16x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MaxMaskedUint16x32",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MaxMaskedUint32x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MaxMaskedUint32x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MaxMaskedUint32x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MaxMaskedUint64x2",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MaxMaskedUint64x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MaxMaskedUint64x8",
-		argLen:      3,
 		commutative: true,
 		generic:     true,
 	},
@@ -67951,186 +65323,6 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "MinMaskedFloat32x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MinMaskedFloat32x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MinMaskedFloat32x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MinMaskedFloat64x2",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MinMaskedFloat64x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MinMaskedFloat64x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MinMaskedInt8x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MinMaskedInt8x32",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MinMaskedInt8x64",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MinMaskedInt16x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MinMaskedInt16x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MinMaskedInt16x32",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MinMaskedInt32x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MinMaskedInt32x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MinMaskedInt32x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MinMaskedInt64x2",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MinMaskedInt64x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MinMaskedInt64x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MinMaskedUint8x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MinMaskedUint8x32",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MinMaskedUint8x64",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MinMaskedUint16x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MinMaskedUint16x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MinMaskedUint16x32",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MinMaskedUint32x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MinMaskedUint32x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MinMaskedUint32x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MinMaskedUint64x2",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MinMaskedUint64x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MinMaskedUint64x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
 		name:        "MinUint8x16",
 		argLen:      2,
 		commutative: true,
@@ -68233,36 +65425,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "MulAddMaskedFloat32x4",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "MulAddMaskedFloat32x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "MulAddMaskedFloat32x16",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "MulAddMaskedFloat64x2",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "MulAddMaskedFloat64x4",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "MulAddMaskedFloat64x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
 		name:    "MulAddSubFloat32x4",
 		argLen:  3,
 		generic: true,
@@ -68290,36 +65452,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MulAddSubFloat64x8",
 		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "MulAddSubMaskedFloat32x4",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "MulAddSubMaskedFloat32x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "MulAddSubMaskedFloat32x16",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "MulAddSubMaskedFloat64x2",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "MulAddSubMaskedFloat64x4",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "MulAddSubMaskedFloat64x8",
-		argLen:  4,
 		generic: true,
 	},
 	{
@@ -68401,42 +65533,6 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "MulHighMaskedInt16x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulHighMaskedInt16x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulHighMaskedInt16x32",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulHighMaskedUint16x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulHighMaskedUint16x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulHighMaskedUint16x32",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
 		name:        "MulHighUint16x8",
 		argLen:      2,
 		commutative: true,
@@ -68509,150 +65605,6 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "MulMaskedFloat32x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulMaskedFloat32x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulMaskedFloat32x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulMaskedFloat64x2",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulMaskedFloat64x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulMaskedFloat64x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulMaskedInt16x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulMaskedInt16x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulMaskedInt16x32",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulMaskedInt32x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulMaskedInt32x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulMaskedInt32x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulMaskedInt64x2",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulMaskedInt64x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulMaskedInt64x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulMaskedUint16x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulMaskedUint16x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulMaskedUint16x32",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulMaskedUint32x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulMaskedUint32x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulMaskedUint32x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulMaskedUint64x2",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulMaskedUint64x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulMaskedUint64x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
 		name:    "MulSubAddFloat32x4",
 		argLen:  3,
 		generic: true,
@@ -68680,36 +65632,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MulSubAddFloat64x8",
 		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "MulSubAddMaskedFloat32x4",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "MulSubAddMaskedFloat32x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "MulSubAddMaskedFloat32x16",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "MulSubAddMaskedFloat64x2",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "MulSubAddMaskedFloat64x4",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "MulSubAddMaskedFloat64x8",
-		argLen:  4,
 		generic: true,
 	},
 	{
@@ -68827,186 +65749,6 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "NotEqualMaskedFloat32x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualMaskedFloat32x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualMaskedFloat32x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualMaskedFloat64x2",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualMaskedFloat64x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualMaskedFloat64x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualMaskedInt8x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualMaskedInt8x32",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualMaskedInt8x64",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualMaskedInt16x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualMaskedInt16x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualMaskedInt16x32",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualMaskedInt32x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualMaskedInt32x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualMaskedInt32x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualMaskedInt64x2",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualMaskedInt64x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualMaskedInt64x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualMaskedUint8x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualMaskedUint8x32",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualMaskedUint8x64",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualMaskedUint16x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualMaskedUint16x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualMaskedUint16x32",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualMaskedUint32x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualMaskedUint32x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualMaskedUint32x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualMaskedUint64x2",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualMaskedUint64x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualMaskedUint64x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
 		name:        "NotEqualUint8x64",
 		argLen:      2,
 		commutative: true,
@@ -69088,126 +65830,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "OnesCountInt64x8",
 		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "OnesCountMaskedInt8x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "OnesCountMaskedInt8x32",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "OnesCountMaskedInt8x64",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "OnesCountMaskedInt16x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "OnesCountMaskedInt16x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "OnesCountMaskedInt16x32",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "OnesCountMaskedInt32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "OnesCountMaskedInt32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "OnesCountMaskedInt32x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "OnesCountMaskedInt64x2",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "OnesCountMaskedInt64x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "OnesCountMaskedInt64x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "OnesCountMaskedUint8x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "OnesCountMaskedUint8x32",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "OnesCountMaskedUint8x64",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "OnesCountMaskedUint16x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "OnesCountMaskedUint16x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "OnesCountMaskedUint16x32",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "OnesCountMaskedUint32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "OnesCountMaskedUint32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "OnesCountMaskedUint32x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "OnesCountMaskedUint64x2",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "OnesCountMaskedUint64x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "OnesCountMaskedUint64x8",
-		argLen:  2,
 		generic: true,
 	},
 	{
@@ -69339,78 +65961,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:        "OrInt64x8",
 		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "OrMaskedInt32x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "OrMaskedInt32x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "OrMaskedInt32x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "OrMaskedInt64x2",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "OrMaskedInt64x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "OrMaskedInt64x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "OrMaskedUint32x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "OrMaskedUint32x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "OrMaskedUint32x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "OrMaskedUint64x2",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "OrMaskedUint64x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "OrMaskedUint64x8",
-		argLen:      3,
 		commutative: true,
 		generic:     true,
 	},
@@ -69577,156 +66127,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "Permute2MaskedFloat32x4",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "Permute2MaskedFloat32x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "Permute2MaskedFloat32x16",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "Permute2MaskedFloat64x2",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "Permute2MaskedFloat64x4",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "Permute2MaskedFloat64x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "Permute2MaskedInt8x16",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "Permute2MaskedInt8x32",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "Permute2MaskedInt8x64",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "Permute2MaskedInt16x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "Permute2MaskedInt16x16",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "Permute2MaskedInt16x32",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "Permute2MaskedInt32x4",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "Permute2MaskedInt32x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "Permute2MaskedInt32x16",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "Permute2MaskedInt64x2",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "Permute2MaskedInt64x4",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "Permute2MaskedInt64x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "Permute2MaskedUint8x16",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "Permute2MaskedUint8x32",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "Permute2MaskedUint8x64",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "Permute2MaskedUint16x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "Permute2MaskedUint16x16",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "Permute2MaskedUint16x32",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "Permute2MaskedUint32x4",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "Permute2MaskedUint32x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "Permute2MaskedUint32x16",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "Permute2MaskedUint64x2",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "Permute2MaskedUint64x4",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "Permute2MaskedUint64x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
 		name:    "Permute2Uint8x16",
 		argLen:  3,
 		generic: true,
@@ -69857,126 +66257,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "PermuteMaskedFloat32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "PermuteMaskedFloat32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "PermuteMaskedFloat64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "PermuteMaskedFloat64x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "PermuteMaskedInt8x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "PermuteMaskedInt8x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "PermuteMaskedInt8x64",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "PermuteMaskedInt16x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "PermuteMaskedInt16x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "PermuteMaskedInt16x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "PermuteMaskedInt32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "PermuteMaskedInt32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "PermuteMaskedInt64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "PermuteMaskedInt64x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "PermuteMaskedUint8x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "PermuteMaskedUint8x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "PermuteMaskedUint8x64",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "PermuteMaskedUint16x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "PermuteMaskedUint16x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "PermuteMaskedUint16x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "PermuteMaskedUint32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "PermuteMaskedUint32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "PermuteMaskedUint64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "PermuteMaskedUint64x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
 		name:    "PermuteUint8x16",
 		argLen:  2,
 		generic: true,
@@ -70057,36 +66337,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "ReciprocalMaskedFloat32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ReciprocalMaskedFloat32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ReciprocalMaskedFloat32x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ReciprocalMaskedFloat64x2",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ReciprocalMaskedFloat64x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ReciprocalMaskedFloat64x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "ReciprocalSqrtFloat32x4",
 		argLen:  1,
 		generic: true,
@@ -70117,36 +66367,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "ReciprocalSqrtMaskedFloat32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ReciprocalSqrtMaskedFloat32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ReciprocalSqrtMaskedFloat32x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ReciprocalSqrtMaskedFloat64x2",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ReciprocalSqrtMaskedFloat64x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ReciprocalSqrtMaskedFloat64x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "RotateLeftInt32x4",
 		argLen:  2,
 		generic: true,
@@ -70174,66 +66394,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "RotateLeftInt64x8",
 		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "RotateLeftMaskedInt32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "RotateLeftMaskedInt32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "RotateLeftMaskedInt32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "RotateLeftMaskedInt64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "RotateLeftMaskedInt64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "RotateLeftMaskedInt64x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "RotateLeftMaskedUint32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "RotateLeftMaskedUint32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "RotateLeftMaskedUint32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "RotateLeftMaskedUint64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "RotateLeftMaskedUint64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "RotateLeftMaskedUint64x8",
-		argLen:  3,
 		generic: true,
 	},
 	{
@@ -70294,66 +66454,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "RotateRightInt64x8",
 		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "RotateRightMaskedInt32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "RotateRightMaskedInt32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "RotateRightMaskedInt32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "RotateRightMaskedInt64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "RotateRightMaskedInt64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "RotateRightMaskedInt64x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "RotateRightMaskedUint32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "RotateRightMaskedUint32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "RotateRightMaskedUint32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "RotateRightMaskedUint64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "RotateRightMaskedUint64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "RotateRightMaskedUint64x8",
-		argLen:  3,
 		generic: true,
 	},
 	{
@@ -70434,36 +66534,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "ScaleFloat64x8",
 		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ScaleMaskedFloat32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ScaleMaskedFloat32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ScaleMaskedFloat32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ScaleMaskedFloat64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ScaleMaskedFloat64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ScaleMaskedFloat64x8",
-		argLen:  3,
 		generic: true,
 	},
 	{
@@ -70712,96 +66782,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "ShiftAllLeftMaskedInt16x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllLeftMaskedInt16x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllLeftMaskedInt16x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllLeftMaskedInt32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllLeftMaskedInt32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllLeftMaskedInt32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllLeftMaskedInt64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllLeftMaskedInt64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllLeftMaskedInt64x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllLeftMaskedUint16x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllLeftMaskedUint16x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllLeftMaskedUint16x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllLeftMaskedUint32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllLeftMaskedUint32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllLeftMaskedUint32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllLeftMaskedUint64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllLeftMaskedUint64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllLeftMaskedUint64x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
 		name:    "ShiftAllLeftUint16x8",
 		argLen:  2,
 		generic: true,
@@ -70889,96 +66869,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "ShiftAllRightInt64x8",
 		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllRightMaskedInt16x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllRightMaskedInt16x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllRightMaskedInt16x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllRightMaskedInt32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllRightMaskedInt32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllRightMaskedInt32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllRightMaskedInt64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllRightMaskedInt64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllRightMaskedInt64x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllRightMaskedUint16x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllRightMaskedUint16x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllRightMaskedUint16x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllRightMaskedUint32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllRightMaskedUint32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllRightMaskedUint32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllRightMaskedUint64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllRightMaskedUint64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllRightMaskedUint64x8",
-		argLen:  3,
 		generic: true,
 	},
 	{
@@ -71072,96 +66962,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftConcatMaskedInt16x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftConcatMaskedInt16x16",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftConcatMaskedInt16x32",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftConcatMaskedInt32x4",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftConcatMaskedInt32x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftConcatMaskedInt32x16",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftConcatMaskedInt64x2",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftConcatMaskedInt64x4",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftConcatMaskedInt64x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftConcatMaskedUint16x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftConcatMaskedUint16x16",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftConcatMaskedUint16x32",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftConcatMaskedUint32x4",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftConcatMaskedUint32x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftConcatMaskedUint32x16",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftConcatMaskedUint64x2",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftConcatMaskedUint64x4",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftConcatMaskedUint64x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
 		name:    "ShiftLeftConcatUint16x8",
 		argLen:  3,
 		generic: true,
@@ -71249,96 +67049,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "ShiftLeftInt64x8",
 		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftMaskedInt16x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftMaskedInt16x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftMaskedInt16x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftMaskedInt32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftMaskedInt32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftMaskedInt32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftMaskedInt64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftMaskedInt64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftMaskedInt64x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftMaskedUint16x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftMaskedUint16x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftMaskedUint16x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftMaskedUint32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftMaskedUint32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftMaskedUint32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftMaskedUint64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftMaskedUint64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftMaskedUint64x8",
-		argLen:  3,
 		generic: true,
 	},
 	{
@@ -71432,96 +67142,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "ShiftRightConcatMaskedInt16x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightConcatMaskedInt16x16",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightConcatMaskedInt16x32",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightConcatMaskedInt32x4",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightConcatMaskedInt32x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightConcatMaskedInt32x16",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightConcatMaskedInt64x2",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightConcatMaskedInt64x4",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightConcatMaskedInt64x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightConcatMaskedUint16x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightConcatMaskedUint16x16",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightConcatMaskedUint16x32",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightConcatMaskedUint32x4",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightConcatMaskedUint32x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightConcatMaskedUint32x16",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightConcatMaskedUint64x2",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightConcatMaskedUint64x4",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightConcatMaskedUint64x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
 		name:    "ShiftRightConcatUint16x8",
 		argLen:  3,
 		generic: true,
@@ -71612,96 +67232,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "ShiftRightMaskedInt16x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightMaskedInt16x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightMaskedInt16x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightMaskedInt32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightMaskedInt32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightMaskedInt32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightMaskedInt64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightMaskedInt64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightMaskedInt64x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightMaskedUint16x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightMaskedUint16x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightMaskedUint16x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightMaskedUint32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightMaskedUint32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightMaskedUint32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightMaskedUint64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightMaskedUint64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightMaskedUint64x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
 		name:    "ShiftRightUint16x8",
 		argLen:  2,
 		generic: true,
@@ -71774,36 +67304,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "SqrtFloat64x8",
 		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "SqrtMaskedFloat32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SqrtMaskedFloat32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SqrtMaskedFloat32x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SqrtMaskedFloat64x2",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SqrtMaskedFloat64x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SqrtMaskedFloat64x8",
-		argLen:  2,
 		generic: true,
 	},
 	{
@@ -71894,156 +67394,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "SubInt64x8",
 		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SubMaskedFloat32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubMaskedFloat32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubMaskedFloat32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubMaskedFloat64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubMaskedFloat64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubMaskedFloat64x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubMaskedInt8x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubMaskedInt8x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubMaskedInt8x64",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubMaskedInt16x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubMaskedInt16x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubMaskedInt16x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubMaskedInt32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubMaskedInt32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubMaskedInt32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubMaskedInt64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubMaskedInt64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubMaskedInt64x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubMaskedUint8x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubMaskedUint8x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubMaskedUint8x64",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubMaskedUint16x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubMaskedUint16x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubMaskedUint16x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubMaskedUint32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubMaskedUint32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubMaskedUint32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubMaskedUint64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubMaskedUint64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubMaskedUint64x8",
-		argLen:  3,
 		generic: true,
 	},
 	{
@@ -72144,66 +67494,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "SubSaturatedInt16x32",
 		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SubSaturatedMaskedInt8x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubSaturatedMaskedInt8x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubSaturatedMaskedInt8x64",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubSaturatedMaskedInt16x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubSaturatedMaskedInt16x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubSaturatedMaskedInt16x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubSaturatedMaskedUint8x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubSaturatedMaskedUint8x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubSaturatedMaskedUint8x64",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubSaturatedMaskedUint16x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubSaturatedMaskedUint16x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SubSaturatedMaskedUint16x32",
-		argLen:  3,
 		generic: true,
 	},
 	{
@@ -72389,78 +67679,6 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "XorMaskedInt32x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "XorMaskedInt32x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "XorMaskedInt32x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "XorMaskedInt64x2",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "XorMaskedInt64x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "XorMaskedInt64x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "XorMaskedUint32x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "XorMaskedUint32x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "XorMaskedUint32x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "XorMaskedUint64x2",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "XorMaskedUint64x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "XorMaskedUint64x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
 		name:        "XorUint8x16",
 		argLen:      2,
 		commutative: true,
@@ -72599,42 +67817,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "CeilScaledMaskedFloat32x4",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "CeilScaledMaskedFloat32x8",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "CeilScaledMaskedFloat32x16",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "CeilScaledMaskedFloat64x2",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "CeilScaledMaskedFloat64x4",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "CeilScaledMaskedFloat64x8",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "CeilScaledResidueFloat32x4",
 		auxType: auxUInt8,
 		argLen:  1,
@@ -72668,42 +67850,6 @@ var opcodeTable = [...]opInfo{
 		name:    "CeilScaledResidueFloat64x8",
 		auxType: auxUInt8,
 		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "CeilScaledResidueMaskedFloat32x4",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "CeilScaledResidueMaskedFloat32x8",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "CeilScaledResidueMaskedFloat32x16",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "CeilScaledResidueMaskedFloat64x2",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "CeilScaledResidueMaskedFloat64x4",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "CeilScaledResidueMaskedFloat64x8",
-		auxType: auxUInt8,
-		argLen:  2,
 		generic: true,
 	},
 	{
@@ -72743,42 +67889,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "FloorScaledMaskedFloat32x4",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "FloorScaledMaskedFloat32x8",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "FloorScaledMaskedFloat32x16",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "FloorScaledMaskedFloat64x2",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "FloorScaledMaskedFloat64x4",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "FloorScaledMaskedFloat64x8",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "FloorScaledResidueFloat32x4",
 		auxType: auxUInt8,
 		argLen:  1,
@@ -72815,60 +67925,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "FloorScaledResidueMaskedFloat32x4",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "FloorScaledResidueMaskedFloat32x8",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "FloorScaledResidueMaskedFloat32x16",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "FloorScaledResidueMaskedFloat64x2",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "FloorScaledResidueMaskedFloat64x4",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "FloorScaledResidueMaskedFloat64x8",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "GaloisFieldAffineTransformInverseMaskedUint8x16",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GaloisFieldAffineTransformInverseMaskedUint8x32",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GaloisFieldAffineTransformInverseMaskedUint8x64",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
 		name:    "GaloisFieldAffineTransformInverseUint8x16",
 		auxType: auxUInt8,
 		argLen:  2,
@@ -72884,24 +67940,6 @@ var opcodeTable = [...]opInfo{
 		name:    "GaloisFieldAffineTransformInverseUint8x64",
 		auxType: auxUInt8,
 		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "GaloisFieldAffineTransformMaskedUint8x16",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GaloisFieldAffineTransformMaskedUint8x32",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "GaloisFieldAffineTransformMaskedUint8x64",
-		auxType: auxUInt8,
-		argLen:  3,
 		generic: true,
 	},
 	{
@@ -73019,78 +68057,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "RotateAllLeftMaskedInt32x4",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "RotateAllLeftMaskedInt32x8",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "RotateAllLeftMaskedInt32x16",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "RotateAllLeftMaskedInt64x2",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "RotateAllLeftMaskedInt64x4",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "RotateAllLeftMaskedInt64x8",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "RotateAllLeftMaskedUint32x4",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "RotateAllLeftMaskedUint32x8",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "RotateAllLeftMaskedUint32x16",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "RotateAllLeftMaskedUint64x2",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "RotateAllLeftMaskedUint64x4",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "RotateAllLeftMaskedUint64x8",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "RotateAllLeftUint32x4",
 		auxType: auxUInt8,
 		argLen:  1,
@@ -73160,78 +68126,6 @@ var opcodeTable = [...]opInfo{
 		name:    "RotateAllRightInt64x8",
 		auxType: auxUInt8,
 		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "RotateAllRightMaskedInt32x4",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "RotateAllRightMaskedInt32x8",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "RotateAllRightMaskedInt32x16",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "RotateAllRightMaskedInt64x2",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "RotateAllRightMaskedInt64x4",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "RotateAllRightMaskedInt64x8",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "RotateAllRightMaskedUint32x4",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "RotateAllRightMaskedUint32x8",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "RotateAllRightMaskedUint32x16",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "RotateAllRightMaskedUint64x2",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "RotateAllRightMaskedUint64x4",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "RotateAllRightMaskedUint64x8",
-		auxType: auxUInt8,
-		argLen:  2,
 		generic: true,
 	},
 	{
@@ -73307,42 +68201,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "RoundToEvenScaledMaskedFloat32x4",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "RoundToEvenScaledMaskedFloat32x8",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "RoundToEvenScaledMaskedFloat32x16",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "RoundToEvenScaledMaskedFloat64x2",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "RoundToEvenScaledMaskedFloat64x4",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "RoundToEvenScaledMaskedFloat64x8",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "RoundToEvenScaledResidueFloat32x4",
 		auxType: auxUInt8,
 		argLen:  1,
@@ -73376,42 +68234,6 @@ var opcodeTable = [...]opInfo{
 		name:    "RoundToEvenScaledResidueFloat64x8",
 		auxType: auxUInt8,
 		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "RoundToEvenScaledResidueMaskedFloat32x4",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "RoundToEvenScaledResidueMaskedFloat32x8",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "RoundToEvenScaledResidueMaskedFloat32x16",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "RoundToEvenScaledResidueMaskedFloat64x2",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "RoundToEvenScaledResidueMaskedFloat64x4",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "RoundToEvenScaledResidueMaskedFloat64x8",
-		auxType: auxUInt8,
-		argLen:  2,
 		generic: true,
 	},
 	{
@@ -73529,114 +68351,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "ShiftAllLeftConcatMaskedInt16x8",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllLeftConcatMaskedInt16x16",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllLeftConcatMaskedInt16x32",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllLeftConcatMaskedInt32x4",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllLeftConcatMaskedInt32x8",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllLeftConcatMaskedInt32x16",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllLeftConcatMaskedInt64x2",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllLeftConcatMaskedInt64x4",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllLeftConcatMaskedInt64x8",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllLeftConcatMaskedUint16x8",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllLeftConcatMaskedUint16x16",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllLeftConcatMaskedUint16x32",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllLeftConcatMaskedUint32x4",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllLeftConcatMaskedUint32x8",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllLeftConcatMaskedUint32x16",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllLeftConcatMaskedUint64x2",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllLeftConcatMaskedUint64x4",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllLeftConcatMaskedUint64x8",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
 		name:    "ShiftAllLeftConcatUint16x8",
 		auxType: auxUInt8,
 		argLen:  2,
@@ -73745,114 +68459,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightConcatMaskedInt16x8",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllRightConcatMaskedInt16x16",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllRightConcatMaskedInt16x32",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllRightConcatMaskedInt32x4",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllRightConcatMaskedInt32x8",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllRightConcatMaskedInt32x16",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllRightConcatMaskedInt64x2",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllRightConcatMaskedInt64x4",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllRightConcatMaskedInt64x8",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllRightConcatMaskedUint16x8",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllRightConcatMaskedUint16x16",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllRightConcatMaskedUint16x32",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllRightConcatMaskedUint32x4",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllRightConcatMaskedUint32x8",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllRightConcatMaskedUint32x16",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllRightConcatMaskedUint64x2",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllRightConcatMaskedUint64x4",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllRightConcatMaskedUint64x8",
-		auxType: auxUInt8,
-		argLen:  3,
-		generic: true,
-	},
-	{
 		name:    "ShiftAllRightConcatUint16x8",
 		auxType: auxUInt8,
 		argLen:  2,
@@ -73943,42 +68549,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "TruncScaledMaskedFloat32x4",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "TruncScaledMaskedFloat32x8",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "TruncScaledMaskedFloat32x16",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "TruncScaledMaskedFloat64x2",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "TruncScaledMaskedFloat64x4",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "TruncScaledMaskedFloat64x8",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "TruncScaledResidueFloat32x4",
 		auxType: auxUInt8,
 		argLen:  1,
@@ -74012,42 +68582,6 @@ var opcodeTable = [...]opInfo{
 		name:    "TruncScaledResidueFloat64x8",
 		auxType: auxUInt8,
 		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "TruncScaledResidueMaskedFloat32x4",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "TruncScaledResidueMaskedFloat32x8",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "TruncScaledResidueMaskedFloat32x16",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "TruncScaledResidueMaskedFloat64x2",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "TruncScaledResidueMaskedFloat64x4",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "TruncScaledResidueMaskedFloat64x8",
-		auxType: auxUInt8,
-		argLen:  2,
 		generic: true,
 	},
 }
