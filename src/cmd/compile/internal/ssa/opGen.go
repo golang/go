@@ -1363,6 +1363,12 @@ const (
 	OpAMD64VMINPSMasked128
 	OpAMD64VMINPSMasked256
 	OpAMD64VMINPSMasked512
+	OpAMD64VMOVDQU8Masked512
+	OpAMD64VMOVDQU16Masked512
+	OpAMD64VMOVDQU32Masked512
+	OpAMD64VMOVDQU64Masked512
+	OpAMD64VMOVUPDMasked512
+	OpAMD64VMOVUPSMasked512
 	OpAMD64VMULPD128
 	OpAMD64VMULPD256
 	OpAMD64VMULPD512
@@ -5572,6 +5578,16 @@ const (
 	OpblendMaskedInt16x32
 	OpblendMaskedInt32x16
 	OpblendMaskedInt64x8
+	OpmoveMaskedFloat32x16
+	OpmoveMaskedFloat64x8
+	OpmoveMaskedInt8x64
+	OpmoveMaskedInt16x32
+	OpmoveMaskedInt32x16
+	OpmoveMaskedInt64x8
+	OpmoveMaskedUint8x64
+	OpmoveMaskedUint16x32
+	OpmoveMaskedUint32x16
+	OpmoveMaskedUint64x8
 	OpCeilScaledFloat32x4
 	OpCeilScaledFloat32x8
 	OpCeilScaledFloat32x16
@@ -20770,6 +20786,90 @@ var opcodeTable = [...]opInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
 				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VMOVDQU8Masked512",
+		argLen: 2,
+		asm:    x86.AVMOVDQU8,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VMOVDQU16Masked512",
+		argLen: 2,
+		asm:    x86.AVMOVDQU16,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VMOVDQU32Masked512",
+		argLen: 2,
+		asm:    x86.AVMOVDQU32,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VMOVDQU64Masked512",
+		argLen: 2,
+		asm:    x86.AVMOVDQU64,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VMOVUPDMasked512",
+		argLen: 2,
+		asm:    x86.AVMOVUPD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VMOVUPSMasked512",
+		argLen: 2,
+		asm:    x86.AVMOVUPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -67990,6 +68090,56 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "blendMaskedInt64x8",
 		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "moveMaskedFloat32x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "moveMaskedFloat64x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "moveMaskedInt8x64",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "moveMaskedInt16x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "moveMaskedInt32x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "moveMaskedInt64x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "moveMaskedUint8x64",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "moveMaskedUint16x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "moveMaskedUint32x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "moveMaskedUint64x8",
+		argLen:  2,
 		generic: true,
 	},
 	{

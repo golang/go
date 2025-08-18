@@ -284,6 +284,38 @@
   out:
   - *v
 
+  # For AVX512
+- go: move
+  asm: VMOVDQU(8|16|32|64)
+  zeroing: true
+  in:
+  - &v
+    go: $t
+    bits: 512
+    class: vreg
+    base: int|uint
+  inVariant:
+  -
+    class: mask
+  out:
+  - *v
+
+  # For AVX512
+- go: move
+  asm: VMOVUP[SD]
+  zeroing: true
+  in:
+  - &v
+    go: $t
+    bits: 512
+    class: vreg
+    base: float
+  inVariant:
+  -
+    class: mask
+  out:
+  - *v
+
 - go: Expand
   asm: "VPEXPAND[BWDQ]|VEXPANDP[SD]"
   in:

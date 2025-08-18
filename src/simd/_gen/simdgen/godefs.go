@@ -129,7 +129,7 @@ func (o *Operation) VectorWidth() int {
 
 func machineOpName(maskType maskShape, gOp Operation) string {
 	asm := gOp.Asm
-	if maskType == 2 {
+	if maskType == OneMask {
 		asm += "Masked"
 	}
 	asm = fmt.Sprintf("%s%d", asm, gOp.VectorWidth())

@@ -98,7 +98,7 @@ func writeSIMDSSA(ops []Operation) *bytes.Buffer {
 		seen[asm] = struct{}{}
 		caseStr := fmt.Sprintf("ssa.OpAMD64%s", asm)
 		if shapeIn == OneKmaskIn || shapeIn == OneKmaskImmIn {
-			if gOp.Zeroing == nil {
+			if gOp.Zeroing == nil || *gOp.Zeroing {
 				ZeroingMask = append(ZeroingMask, caseStr)
 			}
 		}

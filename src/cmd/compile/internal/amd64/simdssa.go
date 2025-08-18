@@ -741,7 +741,13 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssa.OpAMD64VSQRTPSMasked512,
 		ssa.OpAMD64VSQRTPDMasked128,
 		ssa.OpAMD64VSQRTPDMasked256,
-		ssa.OpAMD64VSQRTPDMasked512:
+		ssa.OpAMD64VSQRTPDMasked512,
+		ssa.OpAMD64VMOVUPSMasked512,
+		ssa.OpAMD64VMOVUPDMasked512,
+		ssa.OpAMD64VMOVDQU8Masked512,
+		ssa.OpAMD64VMOVDQU16Masked512,
+		ssa.OpAMD64VMOVDQU32Masked512,
+		ssa.OpAMD64VMOVDQU64Masked512:
 		p = simdVkv(s, v)
 
 	case ssa.OpAMD64VPBLENDVB128,
@@ -1672,6 +1678,12 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssa.OpAMD64VPXORQMasked128,
 		ssa.OpAMD64VPXORQMasked256,
 		ssa.OpAMD64VPXORQMasked512,
+		ssa.OpAMD64VMOVUPSMasked512,
+		ssa.OpAMD64VMOVUPDMasked512,
+		ssa.OpAMD64VMOVDQU8Masked512,
+		ssa.OpAMD64VMOVDQU16Masked512,
+		ssa.OpAMD64VMOVDQU32Masked512,
+		ssa.OpAMD64VMOVDQU64Masked512,
 		ssa.OpAMD64VPSLLWMasked128const,
 		ssa.OpAMD64VPSLLWMasked256const,
 		ssa.OpAMD64VPSLLWMasked512const,
