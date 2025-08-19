@@ -1883,6 +1883,34 @@ func TestFileOverlappedSeek(t *testing.T) {
 	}
 }
 
+func TestFileOverlappedReadAtVolume(t *testing.T) {
+	// Test that we can use File.ReadAt with an overlapped volume handle.
+	// See https://go.dev/issues/74951.
+	t.Parallel()
+	name := `\\.\` + filepath.VolumeName(t.TempDir())
+	namep, err := syscall.UTF16PtrFromString(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, err := syscall.CreateFile(namep,
+		syscall.GENERIC_READ|syscall.GENERIC_WRITE,
+		syscall.FILE_SHARE_WRITE|syscall.FILE_SHARE_READ,
+		nil, syscall.OPEN_ALWAYS, syscall.FILE_FLAG_OVERLAPPED, 0)
+	if err != nil {
+		if errors.Is(err, syscall.ERROR_ACCESS_DENIED) {
+			t.Skip("skipping test: access denied")
+		}
+		t.Fatal(err)
+	}
+	f := os.NewFile(uintptr(h), name)
+	defer f.Close()
+
+	var buf [0]byte
+	if _, err := f.ReadAt(buf[:], 0); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestPipe(t *testing.T) {
 	t.Parallel()
 	r, w, err := os.Pipe()
