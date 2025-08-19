@@ -879,7 +879,7 @@ func (e Event) String() string {
 			fmt.Fprintf(&sb, " Trace=%d Mono=%d Wall=%s",
 				s.ClockSnapshot.Trace,
 				s.ClockSnapshot.Mono,
-				s.ClockSnapshot.Wall.Format(time.RFC3339),
+				s.ClockSnapshot.Wall.Format(time.RFC3339Nano),
 			)
 		}
 	}
