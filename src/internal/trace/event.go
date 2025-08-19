@@ -843,7 +843,6 @@ func (e Event) String() string {
 		fmt.Fprintf(&sb, " Task=%d Category=%q Message=%q", l.Task, l.Category, l.Message)
 	case EventStateTransition:
 		s := e.StateTransition()
-		fmt.Fprintf(&sb, " Resource=%s Reason=%q", s.Resource, s.Reason)
 		switch s.Resource.Kind {
 		case ResourceGoroutine:
 			id := s.Resource.Goroutine()
@@ -854,6 +853,7 @@ func (e Event) String() string {
 			old, new := s.Proc()
 			fmt.Fprintf(&sb, " ProcID=%d %s->%s", id, old, new)
 		}
+		fmt.Fprintf(&sb, " Reason=%q", s.Reason)
 		if s.Stack != NoStack {
 			fmt.Fprintln(&sb)
 			fmt.Fprintln(&sb, "TransitionStack=")
