@@ -1,39 +1,26 @@
-handle git
+env date=2019-05-09T18:56:25-04:00
 
-env GIT_AUTHOR_NAME='Jay Conrod'
-env GIT_AUTHOR_EMAIL='jayconrod@google.com'
-env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
-env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+handle hg
 
-at 2019-05-09T18:56:25-04:00
+hg init
+hg add go.mod tagtests.go
+hg commit --user 'rsc' --date $date -m 'create module tagtests'
+hg branch b
+hg add v0.2.1
+hg commit --user 'rsc' --date $date -m 'v0.2.1'
+hg tag --user 'rsc' --date $date v0.2.1
 
-git init
+hg update default
+hg add v0.2.2
+hg commit --user 'rsc' --date $date -m 'v0.2.2'
+hg tag --user 'rsc' --date $date v0.2.2
 
-git add go.mod tagtests.go
-git commit -m 'create module tagtests'
-git branch -m master
-git branch b
+hg tags
+cmp stdout .hg-tags
 
-git add v0.2.1
-git commit -m 'v0.2.1'
-git tag 'v0.2.1'
+hg branches
+cmp stdout .hg-branches
 
-git checkout b
-git add 'v0.2.2'
-git commit -m 'v0.2.2'
-git tag 'v0.2.2'
-
-git checkout master
-git merge b -m 'merge'
-
-git show-ref --tags --heads
-cmp stdout .git-refs
-
--- .git-refs --
-59356c8cd18c5fe9a598167d98a6843e52d57952 refs/heads/b
-c7818c24fa2f3f714c67d0a6d3e411c85a518d1f refs/heads/master
-101c49f5af1b2466332158058cf5f03c8cca6429 refs/tags/v0.2.1
-59356c8cd18c5fe9a598167d98a6843e52d57952 refs/tags/v0.2.2
 -- go.mod --
 module vcs-test.golang.org/git/tagtests.git
 -- tagtests.go --
@@ -42,3 +29,10 @@ package tagtests
 v0.2.1
 -- v0.2.2 --
 v0.2.2
+-- .hg-tags --
+tip                                4:8d0b18b816df
+v0.2.2                             3:1e531550e864
+v0.2.1                             1:010a2d1a2ea7
+-- .hg-branches --
+default                        4:8d0b18b816df
+b                              2:ceae444ffda5

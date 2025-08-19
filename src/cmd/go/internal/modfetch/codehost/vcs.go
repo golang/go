@@ -17,9 +17,11 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/str"
 	"cmd/internal/par"
@@ -80,6 +82,10 @@ type vcsRepo struct {
 
 	fetchOnce sync.Once
 	fetchErr  error
+	fetched   atomic.Bool
+
+	repoSumOnce sync.Once
+	repoSum     string
 }
 
 func newVCSRepo(ctx context.Context, vcs, remote string, local bool) (Repo, error) {
@@ -129,6 +135,9 @@ func newVCSRepo(ctx context.Context, vcs, remote string, local bool) (Repo, erro
 			return nil, err
 		}
 		_, err = Run(ctx, r.dir, cmd.init(r.remote))
+		if err == nil && cmd.postInit != nil {
+			err = cmd.postInit(ctx, r)
+		}
 		release()
 
 		if err != nil {
@@ -142,20 +151,27 @@ func newVCSRepo(ctx context.Context, vcs, remote string, local bool) (Repo, erro
 const vcsWorkDirType = "vcs1."
 
 type vcsCmd struct {
-	vcs           string                                                                              // vcs name "hg"
-	init          func(remote string) []string                                                        // cmd to init repo to track remote
-	tags          func(remote string) []string                                                        // cmd to list local tags
-	tagRE         *lazyregexp.Regexp                                                                  // regexp to extract tag names from output of tags cmd
-	branches      func(remote string) []string                                                        // cmd to list local branches
-	branchRE      *lazyregexp.Regexp                                                                  // regexp to extract branch names from output of tags cmd
-	badLocalRevRE *lazyregexp.Regexp                                                                  // regexp of names that must not be served out of local cache without doing fetch first
-	statLocal     func(rev, remote string) []string                                                   // cmd to stat local rev
-	parseStat     func(rev, out string) (*RevInfo, error)                                             // cmd to parse output of statLocal
-	fetch         []string                                                                            // cmd to fetch everything from remote
-	latest        string                                                                              // name of latest commit on remote (tip, HEAD, etc)
-	readFile      func(rev, file, remote string) []string                                             // cmd to read rev's file
-	readZip       func(rev, subdir, remote, target string) []string                                   // cmd to read rev's subdir as zip file
-	doReadZip     func(ctx context.Context, dst io.Writer, workDir, rev, subdir, remote string) error // arbitrary function to read rev's subdir as zip file
+	vcs                string                                            // vcs name "hg"
+	init               func(remote string) []string                      // cmd to init repo to track remote
+	postInit           func(context.Context, *vcsRepo) error             // func to init repo after .init runs
+	repoSum            func(remote string) []string                      // cmd to calculate reposum of remote repo
+	lookupRef          func(remote, ref string) []string                 // cmd to look up ref in remote repo
+	tags               func(remote string) []string                      // cmd to list local tags
+	tagsNeedsFetch     bool                                              // run fetch before tags
+	tagRE              *lazyregexp.Regexp                                // regexp to extract tag names from output of tags cmd
+	branches           func(remote string) []string                      // cmd to list local branches
+	branchesNeedsFetch bool                                              // run branches before tags
+	branchRE           *lazyregexp.Regexp                                // regexp to extract branch names from output of tags cmd
+	badLocalRevRE      *lazyregexp.Regexp                                // regexp of names that must not be served out of local cache without doing fetch first
+	statLocal          func(rev, remote string) []string                 // cmd to stat local rev
+	parseStat          func(rev, out string) (*RevInfo, error)           // func to parse output of statLocal
+	fetch              []string                                          // cmd to fetch everything from remote
+	latest             string                                            // name of latest commit on remote (tip, HEAD, etc)
+	readFile           func(rev, file, remote string) []string           // cmd to read rev's file
+	readZip            func(rev, subdir, remote, target string) []string // cmd to read rev's subdir as zip file
+
+	// arbitrary function to read rev's subdir as zip file
+	doReadZip func(ctx context.Context, dst io.Writer, workDir, rev, subdir, remote string) error
 }
 
 var re = lazyregexp.New
@@ -163,18 +179,38 @@ var re = lazyregexp.New
 var vcsCmds = map[string]*vcsCmd{
 	"hg": {
 		vcs: "hg",
-		init: func(remote string) []string {
-			return []string{"hg", "clone", "-U", "--", remote, "."}
+		repoSum: func(remote string) []string {
+			return []string{
+				"hg",
+				"--config=extensions.goreposum=" + filepath.Join(cfg.GOROOT, "lib/hg/goreposum.py"),
+				"goreposum",
+				remote,
+			}
 		},
+		lookupRef: func(remote, ref string) []string {
+			return []string{
+				"hg",
+				"--config=extensions.goreposum=" + filepath.Join(cfg.GOROOT, "lib/hg/goreposum.py"),
+				"golookup",
+				remote,
+				ref,
+			}
+		},
+		init: func(remote string) []string {
+			return []string{"hg", "init", "."}
+		},
+		postInit: hgAddRemote,
 		tags: func(remote string) []string {
 			return []string{"hg", "tags", "-q"}
 		},
-		tagRE: re(`(?m)^[^\n]+$`),
+		tagsNeedsFetch: true,
+		tagRE:          re(`(?m)^[^\n]+$`),
 		branches: func(remote string) []string {
 			return []string{"hg", "branches", "-c", "-q"}
 		},
-		branchRE:      re(`(?m)^[^\n]+$`),
-		badLocalRevRE: re(`(?m)^(tip)$`),
+		branchesNeedsFetch: true,
+		branchRE:           re(`(?m)^[^\n]+$`),
+		badLocalRevRE:      re(`(?m)^(tip)$`),
 		statLocal: func(rev, remote string) []string {
 			return []string{"hg", "log", "-l1", "-r", rev, "--template", "{node} {date|hgdate} {tags}"}
 		},
@@ -276,6 +312,10 @@ var vcsCmds = map[string]*vcsCmd{
 }
 
 func (r *vcsRepo) loadTags(ctx context.Context) {
+	if r.cmd.tagsNeedsFetch {
+		r.fetchOnce.Do(func() { r.fetch(ctx) })
+	}
+
 	out, err := Run(ctx, r.dir, r.cmd.tags(r.remote))
 	if err != nil {
 		return
@@ -296,6 +336,10 @@ func (r *vcsRepo) loadBranches(ctx context.Context) {
 		return
 	}
 
+	if r.cmd.branchesNeedsFetch {
+		r.fetchOnce.Do(func() { r.fetch(ctx) })
+	}
+
 	out, err := Run(ctx, r.dir, r.cmd.branches(r.remote))
 	if err != nil {
 		return
@@ -310,7 +354,84 @@ func (r *vcsRepo) loadBranches(ctx context.Context) {
 	}
 }
 
+func (r *vcsRepo) loadRepoSum(ctx context.Context) {
+	if r.cmd.repoSum == nil {
+		return
+	}
+	where := r.remote
+	if r.fetched.Load() {
+		where = "." // use local repo
+	}
+	out, err := Run(ctx, r.dir, r.cmd.repoSum(where))
+	if err != nil {
+		return
+	}
+	r.repoSum = strings.TrimSpace(string(out))
+}
+
+func (r *vcsRepo) lookupRef(ctx context.Context, ref string) (string, error) {
+	if r.cmd.lookupRef == nil {
+		return "", fmt.Errorf("no lookupRef")
+	}
+	out, err := Run(ctx, r.dir, r.cmd.lookupRef(r.remote, ref))
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+// repoSumOrigin returns an Origin containing a RepoSum.
+func (r *vcsRepo) repoSumOrigin(ctx context.Context) *Origin {
+	origin := &Origin{
+		VCS:     r.cmd.vcs,
+		URL:     r.remote,
+		RepoSum: r.repoSum,
+	}
+	r.repoSumOnce.Do(func() { r.loadRepoSum(ctx) })
+	origin.RepoSum = r.repoSum
+	return origin
+}
+
 func (r *vcsRepo) CheckReuse(ctx context.Context, old *Origin, subdir string) error {
+	if old == nil {
+		return fmt.Errorf("missing origin")
+	}
+	if old.VCS != r.cmd.vcs || old.URL != r.remote {
+		return fmt.Errorf("origin moved from %v %q to %v %q", old.VCS, old.URL, r.cmd.vcs, r.remote)
+	}
+	if old.Subdir != subdir {
+		return fmt.Errorf("origin moved from %v %q %q to %v %q %q", old.VCS, old.URL, old.Subdir, r.cmd.vcs, r.remote, subdir)
+	}
+
+	if old.Ref == "" && old.RepoSum == "" && old.Hash != "" {
+		// Hash has to remain in repo.
+		hash, err := r.lookupRef(ctx, old.Hash)
+		if err == nil && hash == old.Hash {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("looking up hash: %v", err)
+		}
+		return fmt.Errorf("hash changed") // weird but maybe they made a tag
+	}
+
+	if old.Ref != "" && old.RepoSum == "" {
+		hash, err := r.lookupRef(ctx, old.Ref)
+		if err == nil && hash != "" && hash == old.Hash {
+			return nil
+		}
+	}
+
+	r.repoSumOnce.Do(func() { r.loadRepoSum(ctx) })
+	if r.repoSum != "" {
+		if old.RepoSum == "" {
+			return fmt.Errorf("non-specific origin")
+		}
+		if old.RepoSum != r.repoSum {
+			return fmt.Errorf("repo changed")
+		}
+		return nil
+	}
 	return fmt.Errorf("vcs %s: CheckReuse: %w", r.cmd.vcs, errors.ErrUnsupported)
 }
 
@@ -323,14 +444,8 @@ func (r *vcsRepo) Tags(ctx context.Context, prefix string) (*Tags, error) {
 
 	r.tagsOnce.Do(func() { r.loadTags(ctx) })
 	tags := &Tags{
-		// None of the other VCS provide a reasonable way to compute TagSum
-		// without downloading the whole repo, so we only include VCS and URL
-		// in the Origin.
-		Origin: &Origin{
-			VCS: r.cmd.vcs,
-			URL: r.remote,
-		},
-		List: []Tag{},
+		Origin: r.repoSumOrigin(ctx),
+		List:   []Tag{},
 	}
 	for tag := range r.tags {
 		if strings.HasPrefix(tag, prefix) {
@@ -372,7 +487,7 @@ func (r *vcsRepo) Stat(ctx context.Context, rev string) (*RevInfo, error) {
 	}
 	info, err := r.statLocal(ctx, rev)
 	if err != nil {
-		return nil, err
+		return info, err
 	}
 	if !revOK {
 		info.Version = info.Name
@@ -389,13 +504,15 @@ func (r *vcsRepo) fetch(ctx context.Context) {
 		}
 		_, r.fetchErr = Run(ctx, r.dir, r.cmd.fetch)
 		release()
+		r.fetched.Store(true)
 	}
 }
 
 func (r *vcsRepo) statLocal(ctx context.Context, rev string) (*RevInfo, error) {
 	out, err := Run(ctx, r.dir, r.cmd.statLocal(rev, r.remote))
 	if err != nil {
-		return nil, &UnknownRevisionError{Rev: rev}
+		info := &RevInfo{Origin: r.repoSumOrigin(ctx)}
+		return info, &UnknownRevisionError{Rev: rev}
 	}
 	info, err := r.cmd.parseStat(rev, string(out))
 	if err != nil {
@@ -406,6 +523,10 @@ func (r *vcsRepo) statLocal(ctx context.Context, rev string) (*RevInfo, error) {
 	}
 	info.Origin.VCS = r.cmd.vcs
 	info.Origin.URL = r.remote
+	info.Origin.Ref = rev
+	if strings.HasPrefix(info.Name, rev) && len(rev) >= 12 {
+		info.Origin.Ref = "" // duplicates Hash
+	}
 	return info, nil
 }
 
@@ -521,6 +642,11 @@ func (d *deleteCloser) Close() error {
 	return d.File.Close()
 }
 
+func hgAddRemote(ctx context.Context, r *vcsRepo) error {
+	// Write .hg/hgrc with remote URL in it.
+	return os.WriteFile(filepath.Join(r.dir, ".hg/hgrc"), []byte(fmt.Sprintf("[paths]\ndefault = %s\n", r.remote)), 0666)
+}
+
 func hgParseStat(rev, out string) (*RevInfo, error) {
 	f := strings.Fields(out)
 	if len(f) < 3 {
@@ -545,9 +671,7 @@ func hgParseStat(rev, out string) (*RevInfo, error) {
 	sort.Strings(tags)
 
 	info := &RevInfo{
-		Origin: &Origin{
-			Hash: hash,
-		},
+		Origin:  &Origin{Hash: hash},
 		Name:    hash,
 		Short:   ShortenSHA1(hash),
 		Time:    time.Unix(t, 0).UTC(),
@@ -630,9 +754,7 @@ func fossilParseStat(rev, out string) (*RevInfo, error) {
 				version = hash // extend to full hash
 			}
 			info := &RevInfo{
-				Origin: &Origin{
-					Hash: hash,
-				},
+				Origin:  &Origin{Hash: hash},
 				Name:    hash,
 				Short:   ShortenSHA1(hash),
 				Time:    t,
