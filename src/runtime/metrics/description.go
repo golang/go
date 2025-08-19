@@ -126,7 +126,7 @@ var allDesc = []Description{
 	{
 		Name: "/cpu/classes/scavenge/assist:cpu-seconds",
 		Description: "Estimated total CPU time spent returning unused memory to the " +
-			"underlying platform in response eagerly in response to memory pressure. " +
+			"underlying platform in response eagerly to memory pressure. " +
 			"This metric is an overestimate, and not directly comparable to " +
 			"system CPU time measurements. Compare only with other /cpu/classes " +
 			"metrics.",
