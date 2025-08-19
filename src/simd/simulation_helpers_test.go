@@ -32,7 +32,7 @@ func notEqual[T number](x, y T) bool {
 func abs[T number](x T) T {
 	// TODO this will need a non-standard FP-equality test.
 	if x == 0 { // true if x is -0.
-		return x // this is not a negative zero
+		return 0 // this is not a negative zero
 	}
 	if x < 0 {
 		return -x
@@ -108,8 +108,16 @@ func fma[T float](x, y, z T) T {
 	return T(math.FMA(float64(x), float64(y), float64(z)))
 }
 
-func toInt32[T number](x T) int32 {
-	return int32(x)
+func toUint8[T number](x T) uint8 {
+	return uint8(x)
+}
+
+func toUint16[T number](x T) uint16 {
+	return uint16(x)
+}
+
+func toUint64[T number](x T) uint64 {
+	return uint64(x)
 }
 
 func toUint32[T number](x T) uint32 {
@@ -124,6 +132,30 @@ func toUint32[T number](x T) uint32 {
 		}
 	}
 	return uint32(x)
+}
+
+func toInt8[T number](x T) int8 {
+	return int8(x)
+}
+
+func toInt16[T number](x T) int16 {
+	return int16(x)
+}
+
+func toInt32[T number](x T) int32 {
+	return int32(x)
+}
+
+func toInt64[T number](x T) int64 {
+	return int64(x)
+}
+
+func toFloat32[T number](x T) float32 {
+	return float32(x)
+}
+
+func toFloat64[T number](x T) float64 {
+	return float64(x)
 }
 
 func ceilResidueForPrecision[T float](i int) func(T) T {
@@ -239,12 +271,4 @@ func imaSlice[T integer](x, y, z []T) []T {
 
 func fmaSlice[T float](x, y, z []T) []T {
 	return map3[T](fma)(x, y, z)
-}
-
-func toInt32Slice[T number](x []T) []int32 {
-	return map1[T](toInt32)(x)
-}
-
-func toUint32Slice[T number](x []T) []uint32 {
-	return map1[T](toUint32)(x)
 }

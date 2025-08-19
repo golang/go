@@ -84,11 +84,6 @@ func TestAbsolute(t *testing.T) {
 	}
 }
 
-func TestToInt32(t *testing.T) {
-	testFloat32x4UnaryToInt32(t, simd.Float32x4.ConvertToInt32, toInt32Slice[float32])
-	testFloat32x8UnaryToInt32(t, simd.Float32x8.ConvertToInt32, toInt32Slice[float32])
-}
-
 func TestCeilScaledResidue(t *testing.T) {
 	if !simd.HasAVX512() {
 		t.Skip("Needs AVX512")
@@ -110,7 +105,24 @@ func TestToUint32(t *testing.T) {
 	if !simd.HasAVX512() {
 		t.Skip("Needs AVX512")
 	}
-	testFloat32x4UnaryToUint32(t, simd.Float32x4.ConvertToUint32, toUint32Slice[float32])
-	testFloat32x8UnaryToUint32(t, simd.Float32x8.ConvertToUint32, toUint32Slice[float32])
-	testFloat32x16UnaryToUint32(t, simd.Float32x16.ConvertToUint32, toUint32Slice[float32])
+	testFloat32x4ConvertToUint32(t, simd.Float32x4.ConvertToUint32, map1[float32](toUint32))
+	testFloat32x8ConvertToUint32(t, simd.Float32x8.ConvertToUint32, map1[float32](toUint32))
+	testFloat32x16ConvertToUint32(t, simd.Float32x16.ConvertToUint32, map1[float32](toUint32))
+}
+
+func TestToInt32(t *testing.T) {
+	testFloat32x4ConvertToInt32(t, simd.Float32x4.ConvertToInt32, map1[float32](toInt32))
+	testFloat32x8ConvertToInt32(t, simd.Float32x8.ConvertToInt32, map1[float32](toInt32))
+}
+
+func TestConverts(t *testing.T) {
+	testUint8x16ConvertToUint16(t, simd.Uint8x16.ConvertToUint16, map1[uint8](toUint16))
+	testUint16x8ConvertToUint32(t, simd.Uint16x8.ConvertToUint32, map1[uint16](toUint32))
+}
+
+func TestConvertsAVX512(t *testing.T) {
+	if !simd.HasAVX512() {
+		t.Skip("Needs AVX512")
+	}
+	testUint8x32ConvertToUint16(t, simd.Uint8x32.ConvertToUint16, map1[uint8](toUint16))
 }
