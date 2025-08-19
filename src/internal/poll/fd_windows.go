@@ -1107,6 +1107,12 @@ func (fd *FD) Seek(offset int64, whence int) (int64, error) {
 	fd.l.Lock()
 	defer fd.l.Unlock()
 
+	if !fd.isBlocking && whence == io.SeekCurrent {
+		// Windows doesn't keep the file pointer for overlapped file handles.
+		// We do it ourselves in case to account for any read or write
+		// operations that may have occurred.
+		offset += fd.offset
+	}
 	n, err := syscall.Seek(fd.Sysfd, offset, whence)
 	fd.setOffset(n)
 	return n, err
