@@ -1845,6 +1845,44 @@ func TestFile(t *testing.T) {
 	}
 }
 
+func TestFileOverlappedSeek(t *testing.T) {
+	t.Parallel()
+	name := filepath.Join(t.TempDir(), "foo")
+	f := newFileOverlapped(t, name, true)
+	content := []byte("foo")
+	if _, err := f.Write(content); err != nil {
+		t.Fatal(err)
+	}
+	// Check that the file pointer is at the expected offset.
+	n, err := f.Seek(0, io.SeekCurrent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != int64(len(content)) {
+		t.Errorf("expected file pointer to be at offset %d, got %d", len(content), n)
+	}
+	// Set the file pointer to the start of the file.
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		t.Fatal(err)
+	}
+	// Read the first byte.
+	var buf [1]byte
+	if _, err := f.Read(buf[:]); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(buf[:], content[:len(buf)]) {
+		t.Errorf("expected %q, got %q", content[:len(buf)], buf[:])
+	}
+	// Check that the file pointer is at the expected offset.
+	n, err = f.Seek(0, io.SeekCurrent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != int64(len(buf)) {
+		t.Errorf("expected file pointer to be at offset %d, got %d", len(buf), n)
+	}
+}
+
 func TestPipe(t *testing.T) {
 	t.Parallel()
 	r, w, err := os.Pipe()
