@@ -4,8 +4,22 @@ package ssa
 
 func rewriteValueLOONG64latelower(v *Value) bool {
 	switch v.Op {
+	case OpLOONG64MOVVconst:
+		return rewriteValueLOONG64latelower_OpLOONG64MOVVconst(v)
 	case OpLOONG64SLLVconst:
 		return rewriteValueLOONG64latelower_OpLOONG64SLLVconst(v)
+	}
+	return false
+}
+func rewriteValueLOONG64latelower_OpLOONG64MOVVconst(v *Value) bool {
+	// match: (MOVVconst [0])
+	// result: (ZERO)
+	for {
+		if auxIntToInt64(v.AuxInt) != 0 {
+			break
+		}
+		v.reset(OpLOONG64ZERO)
+		return true
 	}
 	return false
 }

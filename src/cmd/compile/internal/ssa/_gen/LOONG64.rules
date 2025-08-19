@@ -576,10 +576,6 @@
 	&& (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
 	(MOV(B|H|W|V|F|D)store [off1+int32(off2)] {sym} ptr val mem)
 
-(MOV(B|H|W|V)storezero [off1] {sym} (ADDVconst [off2] ptr) mem) && is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
-	(MOV(B|H|W|V)storezero [off1+int32(off2)] {sym} ptr mem)
-
 (MOV(B|BU|H|HU|W|WU|V|F|D)load [off1] {sym1} (MOVVaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2)
 	&& is32Bit(int64(off1)+int64(off2)) && (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
 	(MOV(B|BU|H|HU|W|WU|V|F|D)load [off1+int32(off2)] {mergeSym(sym1,sym2)} ptr mem)
@@ -587,10 +583,6 @@
 (MOV(B|H|W|V|F|D)store [off1] {sym1} (MOVVaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2)
 	&& is32Bit(int64(off1)+int64(off2)) && (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
 	(MOV(B|H|W|V|F|D)store [off1+int32(off2)] {mergeSym(sym1,sym2)} ptr val mem)
-
-(MOV(B|H|W|V)storezero [off1] {sym1} (MOVVaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2)
-	&& is32Bit(int64(off1)+int64(off2)) && (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
-	(MOV(B|H|W|V)storezero [off1+int32(off2)] {mergeSym(sym1,sym2)} ptr mem)
 
 // don't extend after proper load
 (MOVBreg x:(MOVBload _ _)) => (MOVVreg x)
@@ -654,11 +646,6 @@
 (MOVWstore [off] {sym} ptr (MOVWreg x) mem) => (MOVWstore [off] {sym} ptr x mem)
 (MOVWstore [off] {sym} ptr (MOVWUreg x) mem) => (MOVWstore [off] {sym} ptr x mem)
 
-(MOVBstore [off] {sym} ptr (MOVVconst [0]) mem) => (MOVBstorezero [off] {sym} ptr mem)
-(MOVHstore [off] {sym} ptr (MOVVconst [0]) mem) => (MOVHstorezero [off] {sym} ptr mem)
-(MOVWstore [off] {sym} ptr (MOVVconst [0]) mem) => (MOVWstorezero [off] {sym} ptr mem)
-(MOVVstore [off] {sym} ptr (MOVVconst [0]) mem) => (MOVVstorezero [off] {sym} ptr mem)
-
 // register indexed load
 (MOVVload [off] {sym} (ADDV ptr idx) mem) && off == 0 && sym == nil => (MOVVloadidx ptr idx mem)
 (MOVWUload [off] {sym} (ADDV ptr idx) mem) && off == 0 && sym == nil => (MOVWUloadidx ptr idx mem)
@@ -707,24 +694,6 @@
 (MOVFstoreidx (MOVVconst [c]) idx val mem) && is32Bit(c) => (MOVFstore [int32(c)] idx val mem)
 (MOVDstoreidx ptr (MOVVconst [c]) val mem) && is32Bit(c) => (MOVDstore [int32(c)] ptr val mem)
 (MOVDstoreidx (MOVVconst [c]) idx val mem) && is32Bit(c) => (MOVDstore [int32(c)] idx val mem)
-
-// register indexed store zero
-(MOVVstorezero [off] {sym} (ADDV ptr idx) mem) && off == 0 && sym == nil => (MOVVstorezeroidx ptr idx mem)
-(MOVWstorezero [off] {sym} (ADDV ptr idx) mem) && off == 0 && sym == nil => (MOVWstorezeroidx ptr idx mem)
-(MOVHstorezero [off] {sym} (ADDV ptr idx) mem) && off == 0 && sym == nil => (MOVHstorezeroidx ptr idx mem)
-(MOVBstorezero [off] {sym} (ADDV ptr idx) mem) && off == 0 && sym == nil => (MOVBstorezeroidx ptr idx mem)
-(MOVVstoreidx ptr idx (MOVVconst [0]) mem) => (MOVVstorezeroidx ptr idx mem)
-(MOVWstoreidx ptr idx (MOVVconst [0]) mem) => (MOVWstorezeroidx ptr idx mem)
-(MOVHstoreidx ptr idx (MOVVconst [0]) mem) => (MOVHstorezeroidx ptr idx mem)
-(MOVBstoreidx ptr idx (MOVVconst [0]) mem) => (MOVBstorezeroidx ptr idx mem)
-(MOVVstorezeroidx ptr (MOVVconst [c]) mem) && is32Bit(c) => (MOVVstorezero [int32(c)] ptr mem)
-(MOVVstorezeroidx (MOVVconst [c]) idx mem) && is32Bit(c) => (MOVVstorezero [int32(c)] idx mem)
-(MOVWstorezeroidx ptr (MOVVconst [c]) mem) && is32Bit(c) => (MOVWstorezero [int32(c)] ptr mem)
-(MOVWstorezeroidx (MOVVconst [c]) idx mem) && is32Bit(c) => (MOVWstorezero [int32(c)] idx mem)
-(MOVHstorezeroidx ptr (MOVVconst [c]) mem) && is32Bit(c) => (MOVHstorezero [int32(c)] ptr mem)
-(MOVHstorezeroidx (MOVVconst [c]) idx mem) && is32Bit(c) => (MOVHstorezero [int32(c)] idx mem)
-(MOVBstorezeroidx ptr (MOVVconst [c]) mem) && is32Bit(c) => (MOVBstorezero [int32(c)] ptr mem)
-(MOVBstorezeroidx (MOVVconst [c]) idx mem) && is32Bit(c) => (MOVBstorezero [int32(c)] idx mem)
 
 // if a register move has only 1 use, just use the same register without emitting instruction
 // MOVVnop doesn't emit instruction, only for ensuring the type.

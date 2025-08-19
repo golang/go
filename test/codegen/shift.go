@@ -25,19 +25,19 @@ func rshConst64Ux64(v uint64) uint64 {
 }
 
 func rshConst64Ux64Overflow32(v uint32) uint64 {
-	// loong64:"MOVV\t\\$0,",-"SRL\t"
+	// loong64:"MOVV\tR0,",-"SRL\t"
 	// riscv64:"MOV\t\\$0,",-"SRL"
 	return uint64(v) >> 32
 }
 
 func rshConst64Ux64Overflow16(v uint16) uint64 {
-	// loong64:"MOVV\t\\$0,",-"SRLV"
+	// loong64:"MOVV\tR0,",-"SRLV"
 	// riscv64:"MOV\t\\$0,",-"SRL"
 	return uint64(v) >> 16
 }
 
 func rshConst64Ux64Overflow8(v uint8) uint64 {
-	// loong64:"MOVV\t\\$0,",-"SRLV"
+	// loong64:"MOVV\tR0,",-"SRLV"
 	// riscv64:"MOV\t\\$0,",-"SRL"
 	return uint64(v) >> 8
 }

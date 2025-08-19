@@ -373,6 +373,6 @@ func shift(x uint32, y uint16, z uint8) uint64 {
 	// loong64:-`MOVBU`,-`SRLV\t[$]8`
 	c := uint64(z) >> 8
 	// arm64:`MOVD\tZR`,-`ADD\tR[0-9]+>>16`,-`ADD\tR[0-9]+>>8`,
-	// loong64:`MOVV\t[$]0`,-`ADDVU`
+	// loong64:`MOVV\tR0`,-`ADDVU`
 	return a + b + c
 }
