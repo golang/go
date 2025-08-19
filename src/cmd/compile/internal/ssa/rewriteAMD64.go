@@ -507,6 +507,14 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpAMD64TESTW(v)
 	case OpAMD64TESTWconst:
 		return rewriteValueAMD64_OpAMD64TESTWconst(v)
+	case OpAMD64VMOVDQU16Masked512:
+		return rewriteValueAMD64_OpAMD64VMOVDQU16Masked512(v)
+	case OpAMD64VMOVDQU32Masked512:
+		return rewriteValueAMD64_OpAMD64VMOVDQU32Masked512(v)
+	case OpAMD64VMOVDQU64Masked512:
+		return rewriteValueAMD64_OpAMD64VMOVDQU64Masked512(v)
+	case OpAMD64VMOVDQU8Masked512:
+		return rewriteValueAMD64_OpAMD64VMOVDQU8Masked512(v)
 	case OpAMD64VPANDQ512:
 		return rewriteValueAMD64_OpAMD64VPANDQ512(v)
 	case OpAMD64VPMOVVec16x16ToM:
@@ -539,36 +547,72 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpAMD64VPSLLD256(v)
 	case OpAMD64VPSLLD512:
 		return rewriteValueAMD64_OpAMD64VPSLLD512(v)
+	case OpAMD64VPSLLDMasked128:
+		return rewriteValueAMD64_OpAMD64VPSLLDMasked128(v)
+	case OpAMD64VPSLLDMasked256:
+		return rewriteValueAMD64_OpAMD64VPSLLDMasked256(v)
+	case OpAMD64VPSLLDMasked512:
+		return rewriteValueAMD64_OpAMD64VPSLLDMasked512(v)
 	case OpAMD64VPSLLQ128:
 		return rewriteValueAMD64_OpAMD64VPSLLQ128(v)
 	case OpAMD64VPSLLQ256:
 		return rewriteValueAMD64_OpAMD64VPSLLQ256(v)
 	case OpAMD64VPSLLQ512:
 		return rewriteValueAMD64_OpAMD64VPSLLQ512(v)
+	case OpAMD64VPSLLQMasked128:
+		return rewriteValueAMD64_OpAMD64VPSLLQMasked128(v)
+	case OpAMD64VPSLLQMasked256:
+		return rewriteValueAMD64_OpAMD64VPSLLQMasked256(v)
+	case OpAMD64VPSLLQMasked512:
+		return rewriteValueAMD64_OpAMD64VPSLLQMasked512(v)
 	case OpAMD64VPSLLW128:
 		return rewriteValueAMD64_OpAMD64VPSLLW128(v)
 	case OpAMD64VPSLLW256:
 		return rewriteValueAMD64_OpAMD64VPSLLW256(v)
 	case OpAMD64VPSLLW512:
 		return rewriteValueAMD64_OpAMD64VPSLLW512(v)
+	case OpAMD64VPSLLWMasked128:
+		return rewriteValueAMD64_OpAMD64VPSLLWMasked128(v)
+	case OpAMD64VPSLLWMasked256:
+		return rewriteValueAMD64_OpAMD64VPSLLWMasked256(v)
+	case OpAMD64VPSLLWMasked512:
+		return rewriteValueAMD64_OpAMD64VPSLLWMasked512(v)
 	case OpAMD64VPSRAD128:
 		return rewriteValueAMD64_OpAMD64VPSRAD128(v)
 	case OpAMD64VPSRAD256:
 		return rewriteValueAMD64_OpAMD64VPSRAD256(v)
 	case OpAMD64VPSRAD512:
 		return rewriteValueAMD64_OpAMD64VPSRAD512(v)
+	case OpAMD64VPSRADMasked128:
+		return rewriteValueAMD64_OpAMD64VPSRADMasked128(v)
+	case OpAMD64VPSRADMasked256:
+		return rewriteValueAMD64_OpAMD64VPSRADMasked256(v)
+	case OpAMD64VPSRADMasked512:
+		return rewriteValueAMD64_OpAMD64VPSRADMasked512(v)
 	case OpAMD64VPSRAQ128:
 		return rewriteValueAMD64_OpAMD64VPSRAQ128(v)
 	case OpAMD64VPSRAQ256:
 		return rewriteValueAMD64_OpAMD64VPSRAQ256(v)
 	case OpAMD64VPSRAQ512:
 		return rewriteValueAMD64_OpAMD64VPSRAQ512(v)
+	case OpAMD64VPSRAQMasked128:
+		return rewriteValueAMD64_OpAMD64VPSRAQMasked128(v)
+	case OpAMD64VPSRAQMasked256:
+		return rewriteValueAMD64_OpAMD64VPSRAQMasked256(v)
+	case OpAMD64VPSRAQMasked512:
+		return rewriteValueAMD64_OpAMD64VPSRAQMasked512(v)
 	case OpAMD64VPSRAW128:
 		return rewriteValueAMD64_OpAMD64VPSRAW128(v)
 	case OpAMD64VPSRAW256:
 		return rewriteValueAMD64_OpAMD64VPSRAW256(v)
 	case OpAMD64VPSRAW512:
 		return rewriteValueAMD64_OpAMD64VPSRAW512(v)
+	case OpAMD64VPSRAWMasked128:
+		return rewriteValueAMD64_OpAMD64VPSRAWMasked128(v)
+	case OpAMD64VPSRAWMasked256:
+		return rewriteValueAMD64_OpAMD64VPSRAWMasked256(v)
+	case OpAMD64VPSRAWMasked512:
+		return rewriteValueAMD64_OpAMD64VPSRAWMasked512(v)
 	case OpAMD64XADDLlock:
 		return rewriteValueAMD64_OpAMD64XADDLlock(v)
 	case OpAMD64XADDQlock:
@@ -25971,6 +26015,2176 @@ func rewriteValueAMD64_OpAMD64TESTWconst(v *Value) bool {
 	}
 	return false
 }
+func rewriteValueAMD64_OpAMD64VMOVDQU16Masked512(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VMOVDQU16Masked512 (VPABSW512 x) mask)
+	// result: (VPABSWMasked512 x mask)
+	for {
+		if v_0.Op != OpAMD64VPABSW512 {
+			break
+		}
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPABSWMasked512)
+		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU16Masked512 (VPADDW512 x y) mask)
+	// result: (VPADDWMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPADDW512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPADDWMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU16Masked512 (VPADDSW512 x y) mask)
+	// result: (VPADDSWMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPADDSW512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPADDSWMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU16Masked512 (VPADDUSW512 x y) mask)
+	// result: (VPADDUSWMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPADDUSW512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPADDUSWMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU16Masked512 (VPAVGW512 x y) mask)
+	// result: (VPAVGWMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPAVGW512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPAVGWMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU16Masked512 (VPBROADCASTW512 x) mask)
+	// result: (VPBROADCASTWMasked512 x mask)
+	for {
+		if v_0.Op != OpAMD64VPBROADCASTW512 {
+			break
+		}
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPBROADCASTWMasked512)
+		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU16Masked512 (VPMOVZXWD512 x) mask)
+	// result: (VPMOVZXWDMasked512 x mask)
+	for {
+		if v_0.Op != OpAMD64VPMOVZXWD512 {
+			break
+		}
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPMOVZXWDMasked512)
+		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU16Masked512 (VPMADDWD512 x y) mask)
+	// result: (VPMADDWDMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPMADDWD512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPMADDWDMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU16Masked512 (VPMADDUBSW512 x y) mask)
+	// result: (VPMADDUBSWMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPMADDUBSW512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPMADDUBSWMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU16Masked512 (VPMAXSW512 x y) mask)
+	// result: (VPMAXSWMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPMAXSW512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPMAXSWMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU16Masked512 (VPMAXUW512 x y) mask)
+	// result: (VPMAXUWMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPMAXUW512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPMAXUWMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU16Masked512 (VPMINSW512 x y) mask)
+	// result: (VPMINSWMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPMINSW512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPMINSWMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU16Masked512 (VPMINUW512 x y) mask)
+	// result: (VPMINUWMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPMINUW512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPMINUWMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU16Masked512 (VPMULHW512 x y) mask)
+	// result: (VPMULHWMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPMULHW512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPMULHWMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU16Masked512 (VPMULHUW512 x y) mask)
+	// result: (VPMULHUWMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPMULHUW512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPMULHUWMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU16Masked512 (VPMULLW512 x y) mask)
+	// result: (VPMULLWMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPMULLW512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPMULLWMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU16Masked512 (VPOPCNTW512 x) mask)
+	// result: (VPOPCNTWMasked512 x mask)
+	for {
+		if v_0.Op != OpAMD64VPOPCNTW512 {
+			break
+		}
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPOPCNTWMasked512)
+		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU16Masked512 (VPERMI2W512 x y z) mask)
+	// result: (VPERMI2WMasked512 x y z mask)
+	for {
+		if v_0.Op != OpAMD64VPERMI2W512 {
+			break
+		}
+		z := v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		mask := v_1
+		v.reset(OpAMD64VPERMI2WMasked512)
+		v.AddArg4(x, y, z, mask)
+		return true
+	}
+	// match: (VMOVDQU16Masked512 (VPERMW512 x y) mask)
+	// result: (VPERMWMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPERMW512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPERMWMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU16Masked512 (VPSHLDW512 [a] x y) mask)
+	// result: (VPSHLDWMasked512 [a] x y mask)
+	for {
+		if v_0.Op != OpAMD64VPSHLDW512 {
+			break
+		}
+		a := auxIntToUint8(v_0.AuxInt)
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSHLDWMasked512)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU16Masked512 (VPSLLW512 x y) mask)
+	// result: (VPSLLWMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPSLLW512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSLLWMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU16Masked512 (VPSHRDW512 [a] x y) mask)
+	// result: (VPSHRDWMasked512 [a] x y mask)
+	for {
+		if v_0.Op != OpAMD64VPSHRDW512 {
+			break
+		}
+		a := auxIntToUint8(v_0.AuxInt)
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSHRDWMasked512)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU16Masked512 (VPSRAW512 x y) mask)
+	// result: (VPSRAWMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPSRAW512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSRAWMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU16Masked512 (VPSRLW512 x y) mask)
+	// result: (VPSRLWMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPSRLW512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSRLWMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU16Masked512 (VPSHLDVW512 x y z) mask)
+	// result: (VPSHLDVWMasked512 x y z mask)
+	for {
+		if v_0.Op != OpAMD64VPSHLDVW512 {
+			break
+		}
+		z := v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		mask := v_1
+		v.reset(OpAMD64VPSHLDVWMasked512)
+		v.AddArg4(x, y, z, mask)
+		return true
+	}
+	// match: (VMOVDQU16Masked512 (VPSLLVW512 x y) mask)
+	// result: (VPSLLVWMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPSLLVW512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSLLVWMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU16Masked512 (VPSHRDVW512 x y z) mask)
+	// result: (VPSHRDVWMasked512 x y z mask)
+	for {
+		if v_0.Op != OpAMD64VPSHRDVW512 {
+			break
+		}
+		z := v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		mask := v_1
+		v.reset(OpAMD64VPSHRDVWMasked512)
+		v.AddArg4(x, y, z, mask)
+		return true
+	}
+	// match: (VMOVDQU16Masked512 (VPSRAVW512 x y) mask)
+	// result: (VPSRAVWMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPSRAVW512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSRAVWMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU16Masked512 (VPSRLVW512 x y) mask)
+	// result: (VPSRLVWMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPSRLVW512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSRLVWMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU16Masked512 (VPSUBW512 x y) mask)
+	// result: (VPSUBWMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPSUBW512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSUBWMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU16Masked512 (VPSUBSW512 x y) mask)
+	// result: (VPSUBSWMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPSUBSW512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSUBSWMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU16Masked512 (VPSUBUSW512 x y) mask)
+	// result: (VPSUBUSWMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPSUBUSW512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSUBUSWMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU16Masked512 (VPSLLW512const [a] x) mask)
+	// result: (VPSLLWMasked512const [a] x mask)
+	for {
+		if v_0.Op != OpAMD64VPSLLW512const {
+			break
+		}
+		a := auxIntToUint8(v_0.AuxInt)
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSLLWMasked512const)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU16Masked512 (VPSRLW512const [a] x) mask)
+	// result: (VPSRLWMasked512const [a] x mask)
+	for {
+		if v_0.Op != OpAMD64VPSRLW512const {
+			break
+		}
+		a := auxIntToUint8(v_0.AuxInt)
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSRLWMasked512const)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU16Masked512 (VPSRAW512const [a] x) mask)
+	// result: (VPSRAWMasked512const [a] x mask)
+	for {
+		if v_0.Op != OpAMD64VPSRAW512const {
+			break
+		}
+		a := auxIntToUint8(v_0.AuxInt)
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSRAWMasked512const)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg2(x, mask)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VMOVDQU32Masked512(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VMOVDQU32Masked512 (VPABSD512 x) mask)
+	// result: (VPABSDMasked512 x mask)
+	for {
+		if v_0.Op != OpAMD64VPABSD512 {
+			break
+		}
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPABSDMasked512)
+		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPDPWSSD512 x y z) mask)
+	// result: (VPDPWSSDMasked512 x y z mask)
+	for {
+		if v_0.Op != OpAMD64VPDPWSSD512 {
+			break
+		}
+		z := v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		mask := v_1
+		v.reset(OpAMD64VPDPWSSDMasked512)
+		v.AddArg4(x, y, z, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPDPWSSDS512 x y z) mask)
+	// result: (VPDPWSSDSMasked512 x y z mask)
+	for {
+		if v_0.Op != OpAMD64VPDPWSSDS512 {
+			break
+		}
+		z := v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		mask := v_1
+		v.reset(OpAMD64VPDPWSSDSMasked512)
+		v.AddArg4(x, y, z, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPDPBUSD512 x y z) mask)
+	// result: (VPDPBUSDMasked512 x y z mask)
+	for {
+		if v_0.Op != OpAMD64VPDPBUSD512 {
+			break
+		}
+		z := v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		mask := v_1
+		v.reset(OpAMD64VPDPBUSDMasked512)
+		v.AddArg4(x, y, z, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPDPBUSDS512 x y z) mask)
+	// result: (VPDPBUSDSMasked512 x y z mask)
+	for {
+		if v_0.Op != OpAMD64VPDPBUSDS512 {
+			break
+		}
+		z := v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		mask := v_1
+		v.reset(OpAMD64VPDPBUSDSMasked512)
+		v.AddArg4(x, y, z, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VADDPS512 x y) mask)
+	// result: (VADDPSMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VADDPS512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VADDPSMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPADDD512 x y) mask)
+	// result: (VPADDDMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPADDD512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPADDDMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPANDD512 x y) mask)
+	// result: (VPANDDMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPANDD512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPANDDMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPANDND512 x y) mask)
+	// result: (VPANDNDMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPANDND512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPANDNDMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VBROADCASTSS512 x) mask)
+	// result: (VBROADCASTSSMasked512 x mask)
+	for {
+		if v_0.Op != OpAMD64VBROADCASTSS512 {
+			break
+		}
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VBROADCASTSSMasked512)
+		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPBROADCASTD512 x) mask)
+	// result: (VPBROADCASTDMasked512 x mask)
+	for {
+		if v_0.Op != OpAMD64VPBROADCASTD512 {
+			break
+		}
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPBROADCASTDMasked512)
+		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VRNDSCALEPS512 [a] x) mask)
+	// result: (VRNDSCALEPSMasked512 [a] x mask)
+	for {
+		if v_0.Op != OpAMD64VRNDSCALEPS512 {
+			break
+		}
+		a := auxIntToUint8(v_0.AuxInt)
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VRNDSCALEPSMasked512)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VREDUCEPS512 [a] x) mask)
+	// result: (VREDUCEPSMasked512 [a] x mask)
+	for {
+		if v_0.Op != OpAMD64VREDUCEPS512 {
+			break
+		}
+		a := auxIntToUint8(v_0.AuxInt)
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VREDUCEPSMasked512)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VCVTTPS2DQ512 x) mask)
+	// result: (VCVTTPS2DQMasked512 x mask)
+	for {
+		if v_0.Op != OpAMD64VCVTTPS2DQ512 {
+			break
+		}
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VCVTTPS2DQMasked512)
+		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VCVTPS2UDQ512 x) mask)
+	// result: (VCVTPS2UDQMasked512 x mask)
+	for {
+		if v_0.Op != OpAMD64VCVTPS2UDQ512 {
+			break
+		}
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VCVTPS2UDQMasked512)
+		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VDIVPS512 x y) mask)
+	// result: (VDIVPSMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VDIVPS512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VDIVPSMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VMAXPS512 x y) mask)
+	// result: (VMAXPSMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VMAXPS512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VMAXPSMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPMAXSD512 x y) mask)
+	// result: (VPMAXSDMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPMAXSD512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPMAXSDMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPMAXUD512 x y) mask)
+	// result: (VPMAXUDMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPMAXUD512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPMAXUDMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VMINPS512 x y) mask)
+	// result: (VMINPSMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VMINPS512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VMINPSMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPMINSD512 x y) mask)
+	// result: (VPMINSDMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPMINSD512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPMINSDMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPMINUD512 x y) mask)
+	// result: (VPMINUDMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPMINUD512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPMINUDMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VFMADD213PS512 x y z) mask)
+	// result: (VFMADD213PSMasked512 x y z mask)
+	for {
+		if v_0.Op != OpAMD64VFMADD213PS512 {
+			break
+		}
+		z := v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		mask := v_1
+		v.reset(OpAMD64VFMADD213PSMasked512)
+		v.AddArg4(x, y, z, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VFMADDSUB213PS512 x y z) mask)
+	// result: (VFMADDSUB213PSMasked512 x y z mask)
+	for {
+		if v_0.Op != OpAMD64VFMADDSUB213PS512 {
+			break
+		}
+		z := v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		mask := v_1
+		v.reset(OpAMD64VFMADDSUB213PSMasked512)
+		v.AddArg4(x, y, z, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VMULPS512 x y) mask)
+	// result: (VMULPSMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VMULPS512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VMULPSMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPMULLD512 x y) mask)
+	// result: (VPMULLDMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPMULLD512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPMULLDMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VFMSUBADD213PS512 x y z) mask)
+	// result: (VFMSUBADD213PSMasked512 x y z mask)
+	for {
+		if v_0.Op != OpAMD64VFMSUBADD213PS512 {
+			break
+		}
+		z := v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		mask := v_1
+		v.reset(OpAMD64VFMSUBADD213PSMasked512)
+		v.AddArg4(x, y, z, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPOPCNTD512 x) mask)
+	// result: (VPOPCNTDMasked512 x mask)
+	for {
+		if v_0.Op != OpAMD64VPOPCNTD512 {
+			break
+		}
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPOPCNTDMasked512)
+		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPORD512 x y) mask)
+	// result: (VPORDMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPORD512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPORDMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPERMI2PS512 x y z) mask)
+	// result: (VPERMI2PSMasked512 x y z mask)
+	for {
+		if v_0.Op != OpAMD64VPERMI2PS512 {
+			break
+		}
+		z := v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		mask := v_1
+		v.reset(OpAMD64VPERMI2PSMasked512)
+		v.AddArg4(x, y, z, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPERMI2D512 x y z) mask)
+	// result: (VPERMI2DMasked512 x y z mask)
+	for {
+		if v_0.Op != OpAMD64VPERMI2D512 {
+			break
+		}
+		z := v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		mask := v_1
+		v.reset(OpAMD64VPERMI2DMasked512)
+		v.AddArg4(x, y, z, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPERMPS512 x y) mask)
+	// result: (VPERMPSMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPERMPS512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPERMPSMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPERMD512 x y) mask)
+	// result: (VPERMDMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPERMD512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPERMDMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VRCP14PS512 x) mask)
+	// result: (VRCP14PSMasked512 x mask)
+	for {
+		if v_0.Op != OpAMD64VRCP14PS512 {
+			break
+		}
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VRCP14PSMasked512)
+		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VRSQRT14PS512 x) mask)
+	// result: (VRSQRT14PSMasked512 x mask)
+	for {
+		if v_0.Op != OpAMD64VRSQRT14PS512 {
+			break
+		}
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VRSQRT14PSMasked512)
+		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPROLD512 [a] x) mask)
+	// result: (VPROLDMasked512 [a] x mask)
+	for {
+		if v_0.Op != OpAMD64VPROLD512 {
+			break
+		}
+		a := auxIntToUint8(v_0.AuxInt)
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPROLDMasked512)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPRORD512 [a] x) mask)
+	// result: (VPRORDMasked512 [a] x mask)
+	for {
+		if v_0.Op != OpAMD64VPRORD512 {
+			break
+		}
+		a := auxIntToUint8(v_0.AuxInt)
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPRORDMasked512)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPROLVD512 x y) mask)
+	// result: (VPROLVDMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPROLVD512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPROLVDMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPRORVD512 x y) mask)
+	// result: (VPRORVDMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPRORVD512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPRORVDMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VSCALEFPS512 x y) mask)
+	// result: (VSCALEFPSMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VSCALEFPS512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VSCALEFPSMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPSHLDD512 [a] x y) mask)
+	// result: (VPSHLDDMasked512 [a] x y mask)
+	for {
+		if v_0.Op != OpAMD64VPSHLDD512 {
+			break
+		}
+		a := auxIntToUint8(v_0.AuxInt)
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSHLDDMasked512)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPSLLD512 x y) mask)
+	// result: (VPSLLDMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPSLLD512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSLLDMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPSHRDD512 [a] x y) mask)
+	// result: (VPSHRDDMasked512 [a] x y mask)
+	for {
+		if v_0.Op != OpAMD64VPSHRDD512 {
+			break
+		}
+		a := auxIntToUint8(v_0.AuxInt)
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSHRDDMasked512)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPSRAD512 x y) mask)
+	// result: (VPSRADMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPSRAD512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSRADMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPSRLD512 x y) mask)
+	// result: (VPSRLDMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPSRLD512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSRLDMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPSHLDVD512 x y z) mask)
+	// result: (VPSHLDVDMasked512 x y z mask)
+	for {
+		if v_0.Op != OpAMD64VPSHLDVD512 {
+			break
+		}
+		z := v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		mask := v_1
+		v.reset(OpAMD64VPSHLDVDMasked512)
+		v.AddArg4(x, y, z, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPSLLVD512 x y) mask)
+	// result: (VPSLLVDMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPSLLVD512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSLLVDMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPSHRDVD512 x y z) mask)
+	// result: (VPSHRDVDMasked512 x y z mask)
+	for {
+		if v_0.Op != OpAMD64VPSHRDVD512 {
+			break
+		}
+		z := v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		mask := v_1
+		v.reset(OpAMD64VPSHRDVDMasked512)
+		v.AddArg4(x, y, z, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPSRAVD512 x y) mask)
+	// result: (VPSRAVDMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPSRAVD512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSRAVDMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPSRLVD512 x y) mask)
+	// result: (VPSRLVDMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPSRLVD512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSRLVDMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VSQRTPS512 x) mask)
+	// result: (VSQRTPSMasked512 x mask)
+	for {
+		if v_0.Op != OpAMD64VSQRTPS512 {
+			break
+		}
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VSQRTPSMasked512)
+		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VSUBPS512 x y) mask)
+	// result: (VSUBPSMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VSUBPS512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VSUBPSMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPSUBD512 x y) mask)
+	// result: (VPSUBDMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPSUBD512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSUBDMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPXORD512 x y) mask)
+	// result: (VPXORDMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPXORD512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPXORDMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPSLLD512const [a] x) mask)
+	// result: (VPSLLDMasked512const [a] x mask)
+	for {
+		if v_0.Op != OpAMD64VPSLLD512const {
+			break
+		}
+		a := auxIntToUint8(v_0.AuxInt)
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSLLDMasked512const)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPSRLD512const [a] x) mask)
+	// result: (VPSRLDMasked512const [a] x mask)
+	for {
+		if v_0.Op != OpAMD64VPSRLD512const {
+			break
+		}
+		a := auxIntToUint8(v_0.AuxInt)
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSRLDMasked512const)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPSRAD512const [a] x) mask)
+	// result: (VPSRADMasked512const [a] x mask)
+	for {
+		if v_0.Op != OpAMD64VPSRAD512const {
+			break
+		}
+		a := auxIntToUint8(v_0.AuxInt)
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSRADMasked512const)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg2(x, mask)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VMOVDQU64Masked512(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VMOVDQU64Masked512 (VPABSQ512 x) mask)
+	// result: (VPABSQMasked512 x mask)
+	for {
+		if v_0.Op != OpAMD64VPABSQ512 {
+			break
+		}
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPABSQMasked512)
+		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VADDPD512 x y) mask)
+	// result: (VADDPDMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VADDPD512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VADDPDMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VPADDQ512 x y) mask)
+	// result: (VPADDQMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPADDQ512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPADDQMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VPANDQ512 x y) mask)
+	// result: (VPANDQMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPANDQ512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPANDQMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VPANDNQ512 x y) mask)
+	// result: (VPANDNQMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPANDNQ512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPANDNQMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VBROADCASTSD512 x) mask)
+	// result: (VBROADCASTSDMasked512 x mask)
+	for {
+		if v_0.Op != OpAMD64VBROADCASTSD512 {
+			break
+		}
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VBROADCASTSDMasked512)
+		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VPBROADCASTQ512 x) mask)
+	// result: (VPBROADCASTQMasked512 x mask)
+	for {
+		if v_0.Op != OpAMD64VPBROADCASTQ512 {
+			break
+		}
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPBROADCASTQMasked512)
+		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VRNDSCALEPD512 [a] x) mask)
+	// result: (VRNDSCALEPDMasked512 [a] x mask)
+	for {
+		if v_0.Op != OpAMD64VRNDSCALEPD512 {
+			break
+		}
+		a := auxIntToUint8(v_0.AuxInt)
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VRNDSCALEPDMasked512)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VREDUCEPD512 [a] x) mask)
+	// result: (VREDUCEPDMasked512 [a] x mask)
+	for {
+		if v_0.Op != OpAMD64VREDUCEPD512 {
+			break
+		}
+		a := auxIntToUint8(v_0.AuxInt)
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VREDUCEPDMasked512)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VDIVPD512 x y) mask)
+	// result: (VDIVPDMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VDIVPD512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VDIVPDMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VMAXPD512 x y) mask)
+	// result: (VMAXPDMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VMAXPD512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VMAXPDMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VPMAXSQ512 x y) mask)
+	// result: (VPMAXSQMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPMAXSQ512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPMAXSQMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VPMAXUQ512 x y) mask)
+	// result: (VPMAXUQMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPMAXUQ512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPMAXUQMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VMINPD512 x y) mask)
+	// result: (VMINPDMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VMINPD512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VMINPDMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VPMINSQ512 x y) mask)
+	// result: (VPMINSQMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPMINSQ512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPMINSQMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VPMINUQ512 x y) mask)
+	// result: (VPMINUQMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPMINUQ512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPMINUQMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VFMADD213PD512 x y z) mask)
+	// result: (VFMADD213PDMasked512 x y z mask)
+	for {
+		if v_0.Op != OpAMD64VFMADD213PD512 {
+			break
+		}
+		z := v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		mask := v_1
+		v.reset(OpAMD64VFMADD213PDMasked512)
+		v.AddArg4(x, y, z, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VFMADDSUB213PD512 x y z) mask)
+	// result: (VFMADDSUB213PDMasked512 x y z mask)
+	for {
+		if v_0.Op != OpAMD64VFMADDSUB213PD512 {
+			break
+		}
+		z := v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		mask := v_1
+		v.reset(OpAMD64VFMADDSUB213PDMasked512)
+		v.AddArg4(x, y, z, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VMULPD512 x y) mask)
+	// result: (VMULPDMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VMULPD512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VMULPDMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VPMULLQ512 x y) mask)
+	// result: (VPMULLQMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPMULLQ512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPMULLQMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VFMSUBADD213PD512 x y z) mask)
+	// result: (VFMSUBADD213PDMasked512 x y z mask)
+	for {
+		if v_0.Op != OpAMD64VFMSUBADD213PD512 {
+			break
+		}
+		z := v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		mask := v_1
+		v.reset(OpAMD64VFMSUBADD213PDMasked512)
+		v.AddArg4(x, y, z, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VPOPCNTQ512 x) mask)
+	// result: (VPOPCNTQMasked512 x mask)
+	for {
+		if v_0.Op != OpAMD64VPOPCNTQ512 {
+			break
+		}
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPOPCNTQMasked512)
+		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VPORQ512 x y) mask)
+	// result: (VPORQMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPORQ512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPORQMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VPERMI2PD512 x y z) mask)
+	// result: (VPERMI2PDMasked512 x y z mask)
+	for {
+		if v_0.Op != OpAMD64VPERMI2PD512 {
+			break
+		}
+		z := v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		mask := v_1
+		v.reset(OpAMD64VPERMI2PDMasked512)
+		v.AddArg4(x, y, z, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VPERMI2Q512 x y z) mask)
+	// result: (VPERMI2QMasked512 x y z mask)
+	for {
+		if v_0.Op != OpAMD64VPERMI2Q512 {
+			break
+		}
+		z := v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		mask := v_1
+		v.reset(OpAMD64VPERMI2QMasked512)
+		v.AddArg4(x, y, z, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VPERMPD512 x y) mask)
+	// result: (VPERMPDMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPERMPD512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPERMPDMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VPERMQ512 x y) mask)
+	// result: (VPERMQMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPERMQ512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPERMQMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VRCP14PD512 x) mask)
+	// result: (VRCP14PDMasked512 x mask)
+	for {
+		if v_0.Op != OpAMD64VRCP14PD512 {
+			break
+		}
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VRCP14PDMasked512)
+		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VRSQRT14PD512 x) mask)
+	// result: (VRSQRT14PDMasked512 x mask)
+	for {
+		if v_0.Op != OpAMD64VRSQRT14PD512 {
+			break
+		}
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VRSQRT14PDMasked512)
+		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VPROLQ512 [a] x) mask)
+	// result: (VPROLQMasked512 [a] x mask)
+	for {
+		if v_0.Op != OpAMD64VPROLQ512 {
+			break
+		}
+		a := auxIntToUint8(v_0.AuxInt)
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPROLQMasked512)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VPRORQ512 [a] x) mask)
+	// result: (VPRORQMasked512 [a] x mask)
+	for {
+		if v_0.Op != OpAMD64VPRORQ512 {
+			break
+		}
+		a := auxIntToUint8(v_0.AuxInt)
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPRORQMasked512)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VPROLVQ512 x y) mask)
+	// result: (VPROLVQMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPROLVQ512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPROLVQMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VPRORVQ512 x y) mask)
+	// result: (VPRORVQMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPRORVQ512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPRORVQMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VSCALEFPD512 x y) mask)
+	// result: (VSCALEFPDMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VSCALEFPD512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VSCALEFPDMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VPSHLDQ512 [a] x y) mask)
+	// result: (VPSHLDQMasked512 [a] x y mask)
+	for {
+		if v_0.Op != OpAMD64VPSHLDQ512 {
+			break
+		}
+		a := auxIntToUint8(v_0.AuxInt)
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSHLDQMasked512)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VPSLLQ512 x y) mask)
+	// result: (VPSLLQMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPSLLQ512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSLLQMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VPSHRDQ512 [a] x y) mask)
+	// result: (VPSHRDQMasked512 [a] x y mask)
+	for {
+		if v_0.Op != OpAMD64VPSHRDQ512 {
+			break
+		}
+		a := auxIntToUint8(v_0.AuxInt)
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSHRDQMasked512)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VPSRAQ512 x y) mask)
+	// result: (VPSRAQMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPSRAQ512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSRAQMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VPSRLQ512 x y) mask)
+	// result: (VPSRLQMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPSRLQ512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSRLQMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VPSHLDVQ512 x y z) mask)
+	// result: (VPSHLDVQMasked512 x y z mask)
+	for {
+		if v_0.Op != OpAMD64VPSHLDVQ512 {
+			break
+		}
+		z := v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		mask := v_1
+		v.reset(OpAMD64VPSHLDVQMasked512)
+		v.AddArg4(x, y, z, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VPSLLVQ512 x y) mask)
+	// result: (VPSLLVQMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPSLLVQ512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSLLVQMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VPSHRDVQ512 x y z) mask)
+	// result: (VPSHRDVQMasked512 x y z mask)
+	for {
+		if v_0.Op != OpAMD64VPSHRDVQ512 {
+			break
+		}
+		z := v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		mask := v_1
+		v.reset(OpAMD64VPSHRDVQMasked512)
+		v.AddArg4(x, y, z, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VPSRAVQ512 x y) mask)
+	// result: (VPSRAVQMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPSRAVQ512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSRAVQMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VPSRLVQ512 x y) mask)
+	// result: (VPSRLVQMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPSRLVQ512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSRLVQMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VSQRTPD512 x) mask)
+	// result: (VSQRTPDMasked512 x mask)
+	for {
+		if v_0.Op != OpAMD64VSQRTPD512 {
+			break
+		}
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VSQRTPDMasked512)
+		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VSUBPD512 x y) mask)
+	// result: (VSUBPDMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VSUBPD512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VSUBPDMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VPSUBQ512 x y) mask)
+	// result: (VPSUBQMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPSUBQ512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSUBQMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VPXORQ512 x y) mask)
+	// result: (VPXORQMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPXORQ512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPXORQMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VPSLLQ512const [a] x) mask)
+	// result: (VPSLLQMasked512const [a] x mask)
+	for {
+		if v_0.Op != OpAMD64VPSLLQ512const {
+			break
+		}
+		a := auxIntToUint8(v_0.AuxInt)
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSLLQMasked512const)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VPSRLQ512const [a] x) mask)
+	// result: (VPSRLQMasked512const [a] x mask)
+	for {
+		if v_0.Op != OpAMD64VPSRLQ512const {
+			break
+		}
+		a := auxIntToUint8(v_0.AuxInt)
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSRLQMasked512const)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VPSRAQ512const [a] x) mask)
+	// result: (VPSRAQMasked512const [a] x mask)
+	for {
+		if v_0.Op != OpAMD64VPSRAQ512const {
+			break
+		}
+		a := auxIntToUint8(v_0.AuxInt)
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSRAQMasked512const)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg2(x, mask)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VMOVDQU8Masked512(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VMOVDQU8Masked512 (VPABSB512 x) mask)
+	// result: (VPABSBMasked512 x mask)
+	for {
+		if v_0.Op != OpAMD64VPABSB512 {
+			break
+		}
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPABSBMasked512)
+		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU8Masked512 (VPADDB512 x y) mask)
+	// result: (VPADDBMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPADDB512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPADDBMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU8Masked512 (VPADDSB512 x y) mask)
+	// result: (VPADDSBMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPADDSB512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPADDSBMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU8Masked512 (VPADDUSB512 x y) mask)
+	// result: (VPADDUSBMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPADDUSB512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPADDUSBMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU8Masked512 (VPAVGB512 x y) mask)
+	// result: (VPAVGBMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPAVGB512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPAVGBMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU8Masked512 (VPBROADCASTB512 x) mask)
+	// result: (VPBROADCASTBMasked512 x mask)
+	for {
+		if v_0.Op != OpAMD64VPBROADCASTB512 {
+			break
+		}
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPBROADCASTBMasked512)
+		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU8Masked512 (VPMOVZXBW512 x) mask)
+	// result: (VPMOVZXBWMasked512 x mask)
+	for {
+		if v_0.Op != OpAMD64VPMOVZXBW512 {
+			break
+		}
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPMOVZXBWMasked512)
+		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU8Masked512 (VGF2P8AFFINEINVQB512 [a] x y) mask)
+	// result: (VGF2P8AFFINEINVQBMasked512 [a] x y mask)
+	for {
+		if v_0.Op != OpAMD64VGF2P8AFFINEINVQB512 {
+			break
+		}
+		a := auxIntToUint8(v_0.AuxInt)
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VGF2P8AFFINEINVQBMasked512)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU8Masked512 (VGF2P8AFFINEQB512 [a] x y) mask)
+	// result: (VGF2P8AFFINEQBMasked512 [a] x y mask)
+	for {
+		if v_0.Op != OpAMD64VGF2P8AFFINEQB512 {
+			break
+		}
+		a := auxIntToUint8(v_0.AuxInt)
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VGF2P8AFFINEQBMasked512)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU8Masked512 (VGF2P8MULB512 x y) mask)
+	// result: (VGF2P8MULBMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VGF2P8MULB512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VGF2P8MULBMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU8Masked512 (VPMAXSB512 x y) mask)
+	// result: (VPMAXSBMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPMAXSB512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPMAXSBMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU8Masked512 (VPMAXUB512 x y) mask)
+	// result: (VPMAXUBMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPMAXUB512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPMAXUBMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU8Masked512 (VPMINSB512 x y) mask)
+	// result: (VPMINSBMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPMINSB512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPMINSBMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU8Masked512 (VPMINUB512 x y) mask)
+	// result: (VPMINUBMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPMINUB512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPMINUBMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU8Masked512 (VPOPCNTB512 x) mask)
+	// result: (VPOPCNTBMasked512 x mask)
+	for {
+		if v_0.Op != OpAMD64VPOPCNTB512 {
+			break
+		}
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPOPCNTBMasked512)
+		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU8Masked512 (VPERMI2B512 x y z) mask)
+	// result: (VPERMI2BMasked512 x y z mask)
+	for {
+		if v_0.Op != OpAMD64VPERMI2B512 {
+			break
+		}
+		z := v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		mask := v_1
+		v.reset(OpAMD64VPERMI2BMasked512)
+		v.AddArg4(x, y, z, mask)
+		return true
+	}
+	// match: (VMOVDQU8Masked512 (VPERMB512 x y) mask)
+	// result: (VPERMBMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPERMB512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPERMBMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU8Masked512 (VPSUBB512 x y) mask)
+	// result: (VPSUBBMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPSUBB512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSUBBMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU8Masked512 (VPSUBSB512 x y) mask)
+	// result: (VPSUBSBMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPSUBSB512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSUBSBMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU8Masked512 (VPSUBUSB512 x y) mask)
+	// result: (VPSUBUSBMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPSUBUSB512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSUBUSBMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	return false
+}
 func rewriteValueAMD64_OpAMD64VPANDQ512(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -26258,6 +28472,66 @@ func rewriteValueAMD64_OpAMD64VPSLLD512(v *Value) bool {
 	}
 	return false
 }
+func rewriteValueAMD64_OpAMD64VPSLLDMasked128(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VPSLLDMasked128 x (MOVQconst [c]) mask)
+	// result: (VPSLLDMasked128const [uint8(c)] x mask)
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64MOVQconst {
+			break
+		}
+		c := auxIntToInt64(v_1.AuxInt)
+		mask := v_2
+		v.reset(OpAMD64VPSLLDMasked128const)
+		v.AuxInt = uint8ToAuxInt(uint8(c))
+		v.AddArg2(x, mask)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VPSLLDMasked256(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VPSLLDMasked256 x (MOVQconst [c]) mask)
+	// result: (VPSLLDMasked256const [uint8(c)] x mask)
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64MOVQconst {
+			break
+		}
+		c := auxIntToInt64(v_1.AuxInt)
+		mask := v_2
+		v.reset(OpAMD64VPSLLDMasked256const)
+		v.AuxInt = uint8ToAuxInt(uint8(c))
+		v.AddArg2(x, mask)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VPSLLDMasked512(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VPSLLDMasked512 x (MOVQconst [c]) mask)
+	// result: (VPSLLDMasked512const [uint8(c)] x mask)
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64MOVQconst {
+			break
+		}
+		c := auxIntToInt64(v_1.AuxInt)
+		mask := v_2
+		v.reset(OpAMD64VPSLLDMasked512const)
+		v.AuxInt = uint8ToAuxInt(uint8(c))
+		v.AddArg2(x, mask)
+		return true
+	}
+	return false
+}
 func rewriteValueAMD64_OpAMD64VPSLLQ128(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -26308,6 +28582,66 @@ func rewriteValueAMD64_OpAMD64VPSLLQ512(v *Value) bool {
 		v.reset(OpAMD64VPSLLQ512const)
 		v.AuxInt = uint8ToAuxInt(uint8(c))
 		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VPSLLQMasked128(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VPSLLQMasked128 x (MOVQconst [c]) mask)
+	// result: (VPSLLQMasked128const [uint8(c)] x mask)
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64MOVQconst {
+			break
+		}
+		c := auxIntToInt64(v_1.AuxInt)
+		mask := v_2
+		v.reset(OpAMD64VPSLLQMasked128const)
+		v.AuxInt = uint8ToAuxInt(uint8(c))
+		v.AddArg2(x, mask)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VPSLLQMasked256(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VPSLLQMasked256 x (MOVQconst [c]) mask)
+	// result: (VPSLLQMasked256const [uint8(c)] x mask)
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64MOVQconst {
+			break
+		}
+		c := auxIntToInt64(v_1.AuxInt)
+		mask := v_2
+		v.reset(OpAMD64VPSLLQMasked256const)
+		v.AuxInt = uint8ToAuxInt(uint8(c))
+		v.AddArg2(x, mask)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VPSLLQMasked512(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VPSLLQMasked512 x (MOVQconst [c]) mask)
+	// result: (VPSLLQMasked512const [uint8(c)] x mask)
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64MOVQconst {
+			break
+		}
+		c := auxIntToInt64(v_1.AuxInt)
+		mask := v_2
+		v.reset(OpAMD64VPSLLQMasked512const)
+		v.AuxInt = uint8ToAuxInt(uint8(c))
+		v.AddArg2(x, mask)
 		return true
 	}
 	return false
@@ -26366,6 +28700,66 @@ func rewriteValueAMD64_OpAMD64VPSLLW512(v *Value) bool {
 	}
 	return false
 }
+func rewriteValueAMD64_OpAMD64VPSLLWMasked128(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VPSLLWMasked128 x (MOVQconst [c]) mask)
+	// result: (VPSLLWMasked128const [uint8(c)] x mask)
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64MOVQconst {
+			break
+		}
+		c := auxIntToInt64(v_1.AuxInt)
+		mask := v_2
+		v.reset(OpAMD64VPSLLWMasked128const)
+		v.AuxInt = uint8ToAuxInt(uint8(c))
+		v.AddArg2(x, mask)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VPSLLWMasked256(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VPSLLWMasked256 x (MOVQconst [c]) mask)
+	// result: (VPSLLWMasked256const [uint8(c)] x mask)
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64MOVQconst {
+			break
+		}
+		c := auxIntToInt64(v_1.AuxInt)
+		mask := v_2
+		v.reset(OpAMD64VPSLLWMasked256const)
+		v.AuxInt = uint8ToAuxInt(uint8(c))
+		v.AddArg2(x, mask)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VPSLLWMasked512(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VPSLLWMasked512 x (MOVQconst [c]) mask)
+	// result: (VPSLLWMasked512const [uint8(c)] x mask)
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64MOVQconst {
+			break
+		}
+		c := auxIntToInt64(v_1.AuxInt)
+		mask := v_2
+		v.reset(OpAMD64VPSLLWMasked512const)
+		v.AuxInt = uint8ToAuxInt(uint8(c))
+		v.AddArg2(x, mask)
+		return true
+	}
+	return false
+}
 func rewriteValueAMD64_OpAMD64VPSRAD128(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -26416,6 +28810,66 @@ func rewriteValueAMD64_OpAMD64VPSRAD512(v *Value) bool {
 		v.reset(OpAMD64VPSRAD512const)
 		v.AuxInt = uint8ToAuxInt(uint8(c))
 		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VPSRADMasked128(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VPSRADMasked128 x (MOVQconst [c]) mask)
+	// result: (VPSRADMasked128const [uint8(c)] x mask)
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64MOVQconst {
+			break
+		}
+		c := auxIntToInt64(v_1.AuxInt)
+		mask := v_2
+		v.reset(OpAMD64VPSRADMasked128const)
+		v.AuxInt = uint8ToAuxInt(uint8(c))
+		v.AddArg2(x, mask)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VPSRADMasked256(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VPSRADMasked256 x (MOVQconst [c]) mask)
+	// result: (VPSRADMasked256const [uint8(c)] x mask)
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64MOVQconst {
+			break
+		}
+		c := auxIntToInt64(v_1.AuxInt)
+		mask := v_2
+		v.reset(OpAMD64VPSRADMasked256const)
+		v.AuxInt = uint8ToAuxInt(uint8(c))
+		v.AddArg2(x, mask)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VPSRADMasked512(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VPSRADMasked512 x (MOVQconst [c]) mask)
+	// result: (VPSRADMasked512const [uint8(c)] x mask)
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64MOVQconst {
+			break
+		}
+		c := auxIntToInt64(v_1.AuxInt)
+		mask := v_2
+		v.reset(OpAMD64VPSRADMasked512const)
+		v.AuxInt = uint8ToAuxInt(uint8(c))
+		v.AddArg2(x, mask)
 		return true
 	}
 	return false
@@ -26474,6 +28928,66 @@ func rewriteValueAMD64_OpAMD64VPSRAQ512(v *Value) bool {
 	}
 	return false
 }
+func rewriteValueAMD64_OpAMD64VPSRAQMasked128(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VPSRAQMasked128 x (MOVQconst [c]) mask)
+	// result: (VPSRAQMasked128const [uint8(c)] x mask)
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64MOVQconst {
+			break
+		}
+		c := auxIntToInt64(v_1.AuxInt)
+		mask := v_2
+		v.reset(OpAMD64VPSRAQMasked128const)
+		v.AuxInt = uint8ToAuxInt(uint8(c))
+		v.AddArg2(x, mask)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VPSRAQMasked256(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VPSRAQMasked256 x (MOVQconst [c]) mask)
+	// result: (VPSRAQMasked256const [uint8(c)] x mask)
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64MOVQconst {
+			break
+		}
+		c := auxIntToInt64(v_1.AuxInt)
+		mask := v_2
+		v.reset(OpAMD64VPSRAQMasked256const)
+		v.AuxInt = uint8ToAuxInt(uint8(c))
+		v.AddArg2(x, mask)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VPSRAQMasked512(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VPSRAQMasked512 x (MOVQconst [c]) mask)
+	// result: (VPSRAQMasked512const [uint8(c)] x mask)
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64MOVQconst {
+			break
+		}
+		c := auxIntToInt64(v_1.AuxInt)
+		mask := v_2
+		v.reset(OpAMD64VPSRAQMasked512const)
+		v.AuxInt = uint8ToAuxInt(uint8(c))
+		v.AddArg2(x, mask)
+		return true
+	}
+	return false
+}
 func rewriteValueAMD64_OpAMD64VPSRAW128(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -26524,6 +29038,66 @@ func rewriteValueAMD64_OpAMD64VPSRAW512(v *Value) bool {
 		v.reset(OpAMD64VPSRAW512const)
 		v.AuxInt = uint8ToAuxInt(uint8(c))
 		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VPSRAWMasked128(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VPSRAWMasked128 x (MOVQconst [c]) mask)
+	// result: (VPSRAWMasked128const [uint8(c)] x mask)
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64MOVQconst {
+			break
+		}
+		c := auxIntToInt64(v_1.AuxInt)
+		mask := v_2
+		v.reset(OpAMD64VPSRAWMasked128const)
+		v.AuxInt = uint8ToAuxInt(uint8(c))
+		v.AddArg2(x, mask)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VPSRAWMasked256(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VPSRAWMasked256 x (MOVQconst [c]) mask)
+	// result: (VPSRAWMasked256const [uint8(c)] x mask)
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64MOVQconst {
+			break
+		}
+		c := auxIntToInt64(v_1.AuxInt)
+		mask := v_2
+		v.reset(OpAMD64VPSRAWMasked256const)
+		v.AuxInt = uint8ToAuxInt(uint8(c))
+		v.AddArg2(x, mask)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VPSRAWMasked512(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VPSRAWMasked512 x (MOVQconst [c]) mask)
+	// result: (VPSRAWMasked512const [uint8(c)] x mask)
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64MOVQconst {
+			break
+		}
+		c := auxIntToInt64(v_1.AuxInt)
+		mask := v_2
+		v.reset(OpAMD64VPSRAWMasked512const)
+		v.AuxInt = uint8ToAuxInt(uint8(c))
+		v.AddArg2(x, mask)
 		return true
 	}
 	return false

@@ -445,3 +445,36 @@ func TestBroadcastFloat32x8(t *testing.T) {
 	simd.BroadcastFloat32x8(123456789).StoreSlice(s)
 	checkSlices(t, s, []float32{123456789, 123456789, 123456789, 123456789, 123456789, 123456789, 123456789, 123456789})
 }
+
+func TestBroadcastFloat64x2(t *testing.T) {
+	s := make([]float64, 2, 2)
+	simd.BroadcastFloat64x2(123456789).StoreSlice(s)
+	checkSlices(t, s, []float64{123456789, 123456789})
+}
+
+func TestBroadcastUint64x2(t *testing.T) {
+	s := make([]uint64, 2, 2)
+	simd.BroadcastUint64x2(123456789).StoreSlice(s)
+	checkSlices(t, s, []uint64{123456789, 123456789})
+}
+
+func TestMaskOpt512(t *testing.T) {
+	if !simd.HasAVX512() {
+		t.Skip("Test requires HasAVX512, not available on this hardware")
+		return
+	}
+
+	k := make([]int64, 8, 8)
+	s := make([]float64, 8, 8)
+
+	a := simd.LoadFloat64x8Slice([]float64{2, 0, 2, 0, 2, 0, 2, 0})
+	b := simd.LoadFloat64x8Slice([]float64{1, 1, 1, 1, 1, 1, 1, 1})
+	c := simd.LoadFloat64x8Slice([]float64{1, 2, 3, 4, 5, 6, 7, 8})
+	d := simd.LoadFloat64x8Slice([]float64{2, 4, 6, 8, 10, 12, 14, 16})
+	g := a.Greater(b)
+	e := c.Add(d).Masked(g)
+	e.StoreSlice(s)
+	g.AsInt64x8().StoreSlice(k)
+	checkSlices[int64](t, k, []int64{-1, 0, -1, 0, -1, 0, -1, 0})
+	checkSlices[float64](t, s, []float64{3, 0, 9, 0, 15, 0, 21, 0})
+}
