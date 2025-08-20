@@ -119,7 +119,7 @@ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
 	// those packages. In order to make 'go test' reproducible for the packages
 	// that are in 'all' but outside of the main module, we must explicitly
 	// request that their test dependencies be included.
-	modload.ForceUseModules = true
+	modload.LoaderState.ForceUseModules = true
 	modload.RootMode = modload.NeedRoot
 
 	goVersion := tidyGo.String()

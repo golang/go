@@ -3348,7 +3348,7 @@ func GoFilesPackage(ctx context.Context, opts PackageOpts, gofiles []string) *Pa
 // would cause it to be interpreted differently if it were the main module
 // (replace, exclude).
 func PackagesAndErrorsOutsideModule(ctx context.Context, opts PackageOpts, args []string) ([]*Package, error) {
-	if !modload.ForceUseModules {
+	if !modload.LoaderState.ForceUseModules {
 		panic("modload.ForceUseModules must be true")
 	}
 	if modload.RootMode != modload.NoRoot {

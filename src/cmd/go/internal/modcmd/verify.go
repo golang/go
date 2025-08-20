@@ -50,7 +50,7 @@ func runVerify(ctx context.Context, cmd *base.Command, args []string) {
 		// NOTE(rsc): Could take a module pattern.
 		base.Fatalf("go: verify takes no arguments")
 	}
-	modload.ForceUseModules = true
+	modload.LoaderState.ForceUseModules = true
 	modload.RootMode = modload.NeedRoot
 
 	// Only verify up to GOMAXPROCS zips at once.

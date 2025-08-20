@@ -41,10 +41,6 @@ var (
 	// RootMode determines whether a module root is needed.
 	RootMode Root
 
-	// ForceUseModules may be set to force modules to be enabled when
-	// GO111MODULE=auto or to report an error when GO111MODULE=off.
-	ForceUseModules bool
-
 	allowMissingModuleImports bool
 
 	// ExplicitWriteGoMod prevents LoadPackages, ListModules, and other functions
@@ -96,7 +92,7 @@ func EnterWorkspace(ctx context.Context) (exit func(), err error) {
 
 	// Reset the state to a clean state.
 	oldstate := setState(State{})
-	ForceUseModules = true
+	LoaderState.ForceUseModules = true
 
 	// Load in workspace mode.
 	InitWorkfile()
@@ -406,7 +402,7 @@ func Reset() {
 func setState(s State) State {
 	oldState := State{
 		initialized:     LoaderState.initialized,
-		forceUseModules: ForceUseModules,
+		ForceUseModules: LoaderState.ForceUseModules,
 		rootMode:        RootMode,
 		modRoots:        modRoots,
 		modulesEnabled:  cfg.ModulesEnabled,
@@ -414,7 +410,7 @@ func setState(s State) State {
 		requirements:    requirements,
 	}
 	LoaderState.initialized = s.initialized
-	ForceUseModules = s.forceUseModules
+	LoaderState.ForceUseModules = s.ForceUseModules
 	RootMode = s.rootMode
 	modRoots = s.modRoots
 	cfg.ModulesEnabled = s.modulesEnabled
@@ -429,8 +425,11 @@ func setState(s State) State {
 }
 
 type State struct {
-	initialized     bool
-	forceUseModules bool
+	initialized bool
+
+	// ForceUseModules may be set to force modules to be enabled when
+	// GO111MODULE=auto or to report an error when GO111MODULE=off.
+	ForceUseModules bool
 	rootMode        Root
 	modRoots        []string
 	modulesEnabled  bool
@@ -465,11 +464,11 @@ func Init() {
 	default:
 		base.Fatalf("go: unknown environment setting GO111MODULE=%s", env)
 	case "auto":
-		mustUseModules = ForceUseModules
+		mustUseModules = LoaderState.ForceUseModules
 	case "on", "":
 		mustUseModules = true
 	case "off":
-		if ForceUseModules {
+		if LoaderState.ForceUseModules {
 			base.Fatalf("go: modules disabled by GO111MODULE=off; see 'go help modules'")
 		}
 		mustUseModules = false

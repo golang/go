@@ -353,7 +353,7 @@ func Exec(gotoolchain string) {
 
 	// Set up modules without an explicit go.mod, to download distribution.
 	modload.Reset()
-	modload.ForceUseModules = true
+	modload.LoaderState.ForceUseModules = true
 	modload.RootMode = modload.NoRoot
 	modload.Init()
 
@@ -692,7 +692,7 @@ func maybeSwitchForGoInstallVersion(minVers string) {
 	// command lines if we add new flags in the future.
 
 	// Set up modules without an explicit go.mod, to download go.mod.
-	modload.ForceUseModules = true
+	modload.LoaderState.ForceUseModules = true
 	modload.RootMode = modload.NoRoot
 	modload.Init()
 	defer modload.Reset()

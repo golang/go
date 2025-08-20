@@ -112,7 +112,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	modload.InitWorkfile()
 
 	// Check whether modules are enabled and whether we're in a module.
-	modload.ForceUseModules = true
+	modload.LoaderState.ForceUseModules = true
 	modload.ExplicitWriteGoMod = true
 	haveExplicitArgs := len(args) > 0
 
