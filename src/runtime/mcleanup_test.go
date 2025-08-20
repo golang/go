@@ -337,6 +337,23 @@ func TestCleanupLost(t *testing.T) {
 	}
 }
 
+func TestCleanupUnreachable(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Error("AddCleanup failed to detect self-pointer")
+		}
+	}()
+
+	type T struct {
+		p *byte // use *byte to avoid tiny allocator
+		f int
+	}
+	v := &T{}
+	runtime.AddCleanup(v, func(*int) {
+		t.Error("cleanup ran unexpectedly")
+	}, &v.f)
+}
+
 // BenchmarkAddCleanupAndStop benchmarks adding and removing a cleanup
 // from the same allocation.
 //
