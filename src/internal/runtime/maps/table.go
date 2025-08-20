@@ -606,7 +606,7 @@ func (t *table) Clear(typ *abi.MapType) {
 	}
 	for i := uint64(0); i <= t.groups.lengthMask; i++ {
 		g := t.groups.group(typ, i)
-		if g.ctrls().matchFull() != 0 {
+		if g.ctrls().anyFull() {
 			typedmemclr(typ.Group, g.data)
 		}
 		g.ctrls().setEmpty()
