@@ -165,7 +165,7 @@ func match(m map[string]reflect.Value, pattern, val reflect.Value) bool {
 		name := pattern.Interface().(*ast.Ident).Name
 		if isWildcard(name) && val.IsValid() {
 			// wildcards only match valid (non-nil) expressions.
-			if _, ok := val.Interface().(ast.Expr); ok && !val.IsNil() {
+			if _, ok := reflect.TypeAssert[ast.Expr](val); ok && !val.IsNil() {
 				if old, ok := m[name]; ok {
 					return match(nil, old, val)
 				}
