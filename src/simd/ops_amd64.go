@@ -7369,6 +7369,277 @@ func (x Int32x16) blendMasked(y Int32x16, mask Mask32x16) Int32x16
 // Asm: VPBLENDMQ, CPU Feature: AVX512
 func (x Int64x8) blendMasked(y Int64x8, mask Mask64x8) Int64x8
 
+/* concatSelectedConstant */
+
+// concatSelectedConstant concatenates selected elements from x and y into the lower and upper
+// halves of the output.  The selection is chosen by the constant parameter h1h0l1l0
+// where each {h,l}{1,0} is two bits specify which element from y or x to select.
+// For example, {0,1,2,3}.concatSelectedConstant(0b_11_01_00_10, {4,5,6,7}) returns
+// {2, 1, 4, 6} (don't forget that the binary constant is written big-endian).
+//
+// h1h0l1l0 results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VSHUFPS, CPU Feature: AVX
+func (x Float32x4) concatSelectedConstant(h1h0l1l0 uint8, y Float32x4) Float32x4
+
+// concatSelectedConstant concatenates selected elements from x and y into the lower and upper
+// halves of the output.  The selection is chosen by the constant parameter hilo
+// where hi and lo are each one bit specifying which 64-bit element to select
+// from y and x.  For example {4,5}.concatSelectedConstant(0b10, {6,7})
+// returns {4,7}; bit 0, selecting from x, is zero, and selects 4, and bit 1,
+// selecting from y, is 1, and selects 7.
+//
+// hilo results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VSHUFPD, CPU Feature: AVX
+func (x Float64x2) concatSelectedConstant(hilo uint8, y Float64x2) Float64x2
+
+// concatSelectedConstant concatenates selected elements from x and y into the lower and upper
+// halves of the output.  The selection is chosen by the constant parameter h1h0l1l0
+// where each {h,l}{1,0} is two bits specify which element from y or x to select.
+// For example, {0,1,2,3}.concatSelectedConstant(0b_11_01_00_10, {4,5,6,7}) returns
+// {2, 1, 4, 6} (don't forget that the binary constant is written big-endian).
+//
+// h1h0l1l0 results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VSHUFPS, CPU Feature: AVX
+func (x Int32x4) concatSelectedConstant(h1h0l1l0 uint8, y Int32x4) Int32x4
+
+// concatSelectedConstant concatenates selected elements from x and y into the lower and upper
+// halves of the output.  The selection is chosen by the constant parameter hilo
+// where hi and lo are each one bit specifying which 64-bit element to select
+// from y and x.  For example {4,5}.concatSelectedConstant(0b10, {6,7})
+// returns {4,7}; bit 0, selecting from x, is zero, and selects 4, and bit 1,
+// selecting from y, is 1, and selects 7.
+//
+// hilo results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VSHUFPD, CPU Feature: AVX
+func (x Int64x2) concatSelectedConstant(hilo uint8, y Int64x2) Int64x2
+
+// concatSelectedConstant concatenates selected elements from x and y into the lower and upper
+// halves of the output.  The selection is chosen by the constant parameter h1h0l1l0
+// where each {h,l}{1,0} is two bits specify which element from y or x to select.
+// For example, {0,1,2,3}.concatSelectedConstant(0b_11_01_00_10, {4,5,6,7}) returns
+// {2, 1, 4, 6} (don't forget that the binary constant is written big-endian).
+//
+// h1h0l1l0 results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VSHUFPS, CPU Feature: AVX
+func (x Uint32x4) concatSelectedConstant(h1h0l1l0 uint8, y Uint32x4) Uint32x4
+
+// concatSelectedConstant concatenates selected elements from x and y into the lower and upper
+// halves of the output.  The selection is chosen by the constant parameter hilo
+// where hi and lo are each one bit specifying which 64-bit element to select
+// from y and x.  For example {4,5}.concatSelectedConstant(0b10, {6,7})
+// returns {4,7}; bit 0, selecting from x, is zero, and selects 4, and bit 1,
+// selecting from y, is 1, and selects 7.
+//
+// hilo results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VSHUFPD, CPU Feature: AVX
+func (x Uint64x2) concatSelectedConstant(hilo uint8, y Uint64x2) Uint64x2
+
+/* concatSelectedConstantGrouped */
+
+// concatSelectedConstantGrouped concatenates selected elements from 128-bit subvectors of x and y
+// into the lower and upper halves of corresponding subvectors of the output.
+// The selection is chosen by the constant parameter h1h0l1l0
+// where each {h,l}{1,0} is two bits specify which element from y or x to select.
+// For example,
+// {0,1,2,3,8,9,10,11}.concatSelectedConstant(0b_11_01_00_10, {4,5,6,7,12,13,14,15})
+// returns {2,0,5,7,10,8,13,15}
+// (don't forget that the binary constant is written big-endian).
+//
+// h1h0l1l0 results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VSHUFPS, CPU Feature: AVX
+func (x Float32x8) concatSelectedConstantGrouped(h1h0l1l0 uint8, y Float32x8) Float32x8
+
+// concatSelectedConstantGrouped concatenates selected elements from 128-bit subvectors of x and y
+// into the lower and upper halves of corresponding subvectors of the output.
+// The selection is chosen by the constant parameter h1h0l1l0
+// where each {h,l}{1,0} is two bits specify which element from y or x to select.
+// For example,
+// {0,1,2,3,8,9,10,11}.concatSelectedConstant(0b_11_01_00_10, {4,5,6,7,12,13,14,15})
+// returns {2,0,5,7,10,8,13,15}
+// (don't forget that the binary constant is written big-endian).
+//
+// h1h0l1l0 results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VSHUFPS, CPU Feature: AVX512
+func (x Float32x16) concatSelectedConstantGrouped(h1h0l1l0 uint8, y Float32x16) Float32x16
+
+// concatSelectedConstantGrouped concatenates selected elements from 128-bit subvectors of x and y
+// into the lower and upper halves of corresponding subvectors of the output.
+// The selections are specified by the constant parameter hilos where each
+// hi and lo pair select 64-bit elements from the corresponding 128-bit
+// subvectors of x and y.
+//
+// For example {4,5,8,9}.concatSelectedConstant(0b_11_10, {6,7,10,11})
+// returns {4,7,9,11}; bit 0 is zero, selecting element 0 from x's least
+// 128-bits (4), then 1, selects the element 1 from y's least 128-bits (7),
+// then 1, selecting element 1 from x's upper 128 bits (9), then 1,
+// selecting element 1 from y's upper 128 bits (11).
+// This differs from the same method applied to a 32x8 vector, where
+// the 8-bit constant performs the same selection on both subvectors.
+//
+// hilos results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VSHUFPD, CPU Feature: AVX
+func (x Float64x4) concatSelectedConstantGrouped(hilos uint8, y Float64x4) Float64x4
+
+// concatSelectedConstantGrouped concatenates selected elements from 128-bit subvectors of x and y
+// into the lower and upper halves of corresponding subvectors of the output.
+// The selections are specified by the constant parameter hilos where each
+// hi and lo pair select 64-bit elements from the corresponding 128-bit
+// subvectors of x and y.
+//
+// For example {4,5,8,9}.concatSelectedConstant(0b_11_10, {6,7,10,11})
+// returns {4,7,9,11}; bit 0 is zero, selecting element 0 from x's least
+// 128-bits (4), then 1, selects the element 1 from y's least 128-bits (7),
+// then 1, selecting element 1 from x's upper 128 bits (9), then 1,
+// selecting element 1 from y's upper 128 bits (11).
+// This differs from the same method applied to a 32x8 vector, where
+// the 8-bit constant performs the same selection on both subvectors.
+//
+// hilos results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VSHUFPD, CPU Feature: AVX512
+func (x Float64x8) concatSelectedConstantGrouped(hilos uint8, y Float64x8) Float64x8
+
+// concatSelectedConstantGrouped concatenates selected elements from 128-bit subvectors of x and y
+// into the lower and upper halves of corresponding subvectors of the output.
+// The selection is chosen by the constant parameter h1h0l1l0
+// where each {h,l}{1,0} is two bits specify which element from y or x to select.
+// For example,
+// {0,1,2,3,8,9,10,11}.concatSelectedConstant(0b_11_01_00_10, {4,5,6,7,12,13,14,15})
+// returns {2,0,5,7,10,8,13,15}
+// (don't forget that the binary constant is written big-endian).
+//
+// h1h0l1l0 results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VSHUFPS, CPU Feature: AVX
+func (x Int32x8) concatSelectedConstantGrouped(h1h0l1l0 uint8, y Int32x8) Int32x8
+
+// concatSelectedConstantGrouped concatenates selected elements from 128-bit subvectors of x and y
+// into the lower and upper halves of corresponding subvectors of the output.
+// The selection is chosen by the constant parameter h1h0l1l0
+// where each {h,l}{1,0} is two bits specify which element from y or x to select.
+// For example,
+// {0,1,2,3,8,9,10,11}.concatSelectedConstant(0b_11_01_00_10, {4,5,6,7,12,13,14,15})
+// returns {2,0,5,7,10,8,13,15}
+// (don't forget that the binary constant is written big-endian).
+//
+// h1h0l1l0 results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VSHUFPS, CPU Feature: AVX512
+func (x Int32x16) concatSelectedConstantGrouped(h1h0l1l0 uint8, y Int32x16) Int32x16
+
+// concatSelectedConstantGrouped concatenates selected elements from 128-bit subvectors of x and y
+// into the lower and upper halves of corresponding subvectors of the output.
+// The selections are specified by the constant parameter hilos where each
+// hi and lo pair select 64-bit elements from the corresponding 128-bit
+// subvectors of x and y.
+//
+// For example {4,5,8,9}.concatSelectedConstant(0b_11_10, {6,7,10,11})
+// returns {4,7,9,11}; bit 0 is zero, selecting element 0 from x's least
+// 128-bits (4), then 1, selects the element 1 from y's least 128-bits (7),
+// then 1, selecting element 1 from x's upper 128 bits (9), then 1,
+// selecting element 1 from y's upper 128 bits (11).
+// This differs from the same method applied to a 32x8 vector, where
+// the 8-bit constant performs the same selection on both subvectors.
+//
+// hilos results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VSHUFPD, CPU Feature: AVX
+func (x Int64x4) concatSelectedConstantGrouped(hilos uint8, y Int64x4) Int64x4
+
+// concatSelectedConstantGrouped concatenates selected elements from 128-bit subvectors of x and y
+// into the lower and upper halves of corresponding subvectors of the output.
+// The selections are specified by the constant parameter hilos where each
+// hi and lo pair select 64-bit elements from the corresponding 128-bit
+// subvectors of x and y.
+//
+// For example {4,5,8,9}.concatSelectedConstant(0b_11_10, {6,7,10,11})
+// returns {4,7,9,11}; bit 0 is zero, selecting element 0 from x's least
+// 128-bits (4), then 1, selects the element 1 from y's least 128-bits (7),
+// then 1, selecting element 1 from x's upper 128 bits (9), then 1,
+// selecting element 1 from y's upper 128 bits (11).
+// This differs from the same method applied to a 32x8 vector, where
+// the 8-bit constant performs the same selection on both subvectors.
+//
+// hilos results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VSHUFPD, CPU Feature: AVX512
+func (x Int64x8) concatSelectedConstantGrouped(hilos uint8, y Int64x8) Int64x8
+
+// concatSelectedConstantGrouped concatenates selected elements from 128-bit subvectors of x and y
+// into the lower and upper halves of corresponding subvectors of the output.
+// The selection is chosen by the constant parameter h1h0l1l0
+// where each {h,l}{1,0} is two bits specify which element from y or x to select.
+// For example,
+// {0,1,2,3,8,9,10,11}.concatSelectedConstant(0b_11_01_00_10, {4,5,6,7,12,13,14,15})
+// returns {2,0,5,7,10,8,13,15}
+// (don't forget that the binary constant is written big-endian).
+//
+// h1h0l1l0 results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VSHUFPS, CPU Feature: AVX
+func (x Uint32x8) concatSelectedConstantGrouped(h1h0l1l0 uint8, y Uint32x8) Uint32x8
+
+// concatSelectedConstantGrouped concatenates selected elements from 128-bit subvectors of x and y
+// into the lower and upper halves of corresponding subvectors of the output.
+// The selection is chosen by the constant parameter h1h0l1l0
+// where each {h,l}{1,0} is two bits specify which element from y or x to select.
+// For example,
+// {0,1,2,3,8,9,10,11}.concatSelectedConstant(0b_11_01_00_10, {4,5,6,7,12,13,14,15})
+// returns {2,0,5,7,10,8,13,15}
+// (don't forget that the binary constant is written big-endian).
+//
+// h1h0l1l0 results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VSHUFPS, CPU Feature: AVX512
+func (x Uint32x16) concatSelectedConstantGrouped(h1h0l1l0 uint8, y Uint32x16) Uint32x16
+
+// concatSelectedConstantGrouped concatenates selected elements from 128-bit subvectors of x and y
+// into the lower and upper halves of corresponding subvectors of the output.
+// The selections are specified by the constant parameter hilos where each
+// hi and lo pair select 64-bit elements from the corresponding 128-bit
+// subvectors of x and y.
+//
+// For example {4,5,8,9}.concatSelectedConstant(0b_11_10, {6,7,10,11})
+// returns {4,7,9,11}; bit 0 is zero, selecting element 0 from x's least
+// 128-bits (4), then 1, selects the element 1 from y's least 128-bits (7),
+// then 1, selecting element 1 from x's upper 128 bits (9), then 1,
+// selecting element 1 from y's upper 128 bits (11).
+// This differs from the same method applied to a 32x8 vector, where
+// the 8-bit constant performs the same selection on both subvectors.
+//
+// hilos results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VSHUFPD, CPU Feature: AVX
+func (x Uint64x4) concatSelectedConstantGrouped(hilos uint8, y Uint64x4) Uint64x4
+
+// concatSelectedConstantGrouped concatenates selected elements from 128-bit subvectors of x and y
+// into the lower and upper halves of corresponding subvectors of the output.
+// The selections are specified by the constant parameter hilos where each
+// hi and lo pair select 64-bit elements from the corresponding 128-bit
+// subvectors of x and y.
+//
+// For example {4,5,8,9}.concatSelectedConstant(0b_11_10, {6,7,10,11})
+// returns {4,7,9,11}; bit 0 is zero, selecting element 0 from x's least
+// 128-bits (4), then 1, selects the element 1 from y's least 128-bits (7),
+// then 1, selecting element 1 from x's upper 128 bits (9), then 1,
+// selecting element 1 from y's upper 128 bits (11).
+// This differs from the same method applied to a 32x8 vector, where
+// the 8-bit constant performs the same selection on both subvectors.
+//
+// hilos results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VSHUFPD, CPU Feature: AVX512
+func (x Uint64x8) concatSelectedConstantGrouped(hilos uint8, y Uint64x8) Uint64x8
+
 /* moveMasked */
 
 // moveMasked blends a vector with zero, with the original value where the mask is true

@@ -2488,6 +2488,12 @@ const (
 	OpAMD64VPSHRDQMasked128
 	OpAMD64VPSHRDQMasked256
 	OpAMD64VPSHRDQMasked512
+	OpAMD64VSHUFPS128
+	OpAMD64VSHUFPD128
+	OpAMD64VSHUFPS256
+	OpAMD64VSHUFPS512
+	OpAMD64VSHUFPD256
+	OpAMD64VSHUFPD512
 	OpAMD64VPSLLW128const
 	OpAMD64VPSLLW256const
 	OpAMD64VPSLLW512const
@@ -3066,6 +3072,8 @@ const (
 	OpAMD64VPSHRDQMasked128load
 	OpAMD64VPSHRDQMasked256load
 	OpAMD64VPSHRDQMasked512load
+	OpAMD64VSHUFPS512load
+	OpAMD64VSHUFPD512load
 	OpAMD64VPSLLD512constload
 	OpAMD64VPSLLQ512constload
 	OpAMD64VPSLLDMasked128constload
@@ -6644,6 +6652,24 @@ const (
 	OpTruncScaledResidueFloat64x2
 	OpTruncScaledResidueFloat64x4
 	OpTruncScaledResidueFloat64x8
+	OpconcatSelectedConstantFloat32x4
+	OpconcatSelectedConstantFloat64x2
+	OpconcatSelectedConstantGroupedFloat32x8
+	OpconcatSelectedConstantGroupedFloat32x16
+	OpconcatSelectedConstantGroupedFloat64x4
+	OpconcatSelectedConstantGroupedFloat64x8
+	OpconcatSelectedConstantGroupedInt32x8
+	OpconcatSelectedConstantGroupedInt32x16
+	OpconcatSelectedConstantGroupedInt64x4
+	OpconcatSelectedConstantGroupedInt64x8
+	OpconcatSelectedConstantGroupedUint32x8
+	OpconcatSelectedConstantGroupedUint32x16
+	OpconcatSelectedConstantGroupedUint64x4
+	OpconcatSelectedConstantGroupedUint64x8
+	OpconcatSelectedConstantInt32x4
+	OpconcatSelectedConstantInt64x2
+	OpconcatSelectedConstantUint32x4
+	OpconcatSelectedConstantUint64x2
 )
 
 var opcodeTable = [...]opInfo{
@@ -38309,6 +38335,96 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "VSHUFPS128",
+		auxType: auxUInt8,
+		argLen:  2,
+		asm:     x86.AVSHUFPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VSHUFPD128",
+		auxType: auxUInt8,
+		argLen:  2,
+		asm:     x86.AVSHUFPD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VSHUFPS256",
+		auxType: auxUInt8,
+		argLen:  2,
+		asm:     x86.AVSHUFPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VSHUFPS512",
+		auxType: auxUInt8,
+		argLen:  2,
+		asm:     x86.AVSHUFPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:    "VSHUFPD256",
+		auxType: auxUInt8,
+		argLen:  2,
+		asm:     x86.AVSHUFPD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VSHUFPD512",
+		auxType: auxUInt8,
+		argLen:  2,
+		asm:     x86.AVSHUFPD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
 		name:    "VPSLLW128const",
 		auxType: auxUInt8,
 		argLen:  1,
@@ -47856,6 +47972,38 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+				{0, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:      "VSHUFPS512load",
+		auxType:   auxSymValAndOff,
+		argLen:    3,
+		symEffect: SymRead,
+		asm:       x86.AVSHUFPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+				{0, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:      "VSHUFPD512load",
+		auxType:   auxSymValAndOff,
+		argLen:    3,
+		symEffect: SymRead,
+		asm:       x86.AVSHUFPD,
+		reg: regInfo{
+			inputs: []inputInfo{
 				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
 				{0, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
 			},
@@ -82558,6 +82706,114 @@ var opcodeTable = [...]opInfo{
 		name:    "TruncScaledResidueFloat64x8",
 		auxType: auxUInt8,
 		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "concatSelectedConstantFloat32x4",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "concatSelectedConstantFloat64x2",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "concatSelectedConstantGroupedFloat32x8",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "concatSelectedConstantGroupedFloat32x16",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "concatSelectedConstantGroupedFloat64x4",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "concatSelectedConstantGroupedFloat64x8",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "concatSelectedConstantGroupedInt32x8",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "concatSelectedConstantGroupedInt32x16",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "concatSelectedConstantGroupedInt64x4",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "concatSelectedConstantGroupedInt64x8",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "concatSelectedConstantGroupedUint32x8",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "concatSelectedConstantGroupedUint32x16",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "concatSelectedConstantGroupedUint64x4",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "concatSelectedConstantGroupedUint64x8",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "concatSelectedConstantInt32x4",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "concatSelectedConstantInt64x2",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "concatSelectedConstantUint32x4",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "concatSelectedConstantUint64x2",
+		auxType: auxUInt8,
+		argLen:  2,
 		generic: true,
 	},
 }

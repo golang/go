@@ -1715,6 +1715,10 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpAMD64VSCALEFPSMasked256(v)
 	case OpAMD64VSCALEFPSMasked512:
 		return rewriteValueAMD64_OpAMD64VSCALEFPSMasked512(v)
+	case OpAMD64VSHUFPD512:
+		return rewriteValueAMD64_OpAMD64VSHUFPD512(v)
+	case OpAMD64VSHUFPS512:
+		return rewriteValueAMD64_OpAMD64VSHUFPS512(v)
 	case OpAMD64VSQRTPD512:
 		return rewriteValueAMD64_OpAMD64VSQRTPD512(v)
 	case OpAMD64VSQRTPDMasked128:
@@ -5992,6 +5996,60 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpblendMaskedInt64x8(v)
 	case OpblendMaskedInt8x64:
 		return rewriteValueAMD64_OpblendMaskedInt8x64(v)
+	case OpconcatSelectedConstantFloat32x4:
+		v.Op = OpAMD64VSHUFPS128
+		return true
+	case OpconcatSelectedConstantFloat64x2:
+		v.Op = OpAMD64VSHUFPD128
+		return true
+	case OpconcatSelectedConstantGroupedFloat32x16:
+		v.Op = OpAMD64VSHUFPS512
+		return true
+	case OpconcatSelectedConstantGroupedFloat32x8:
+		v.Op = OpAMD64VSHUFPS256
+		return true
+	case OpconcatSelectedConstantGroupedFloat64x4:
+		v.Op = OpAMD64VSHUFPD256
+		return true
+	case OpconcatSelectedConstantGroupedFloat64x8:
+		v.Op = OpAMD64VSHUFPD512
+		return true
+	case OpconcatSelectedConstantGroupedInt32x16:
+		v.Op = OpAMD64VSHUFPS512
+		return true
+	case OpconcatSelectedConstantGroupedInt32x8:
+		v.Op = OpAMD64VSHUFPS256
+		return true
+	case OpconcatSelectedConstantGroupedInt64x4:
+		v.Op = OpAMD64VSHUFPD256
+		return true
+	case OpconcatSelectedConstantGroupedInt64x8:
+		v.Op = OpAMD64VSHUFPD512
+		return true
+	case OpconcatSelectedConstantGroupedUint32x16:
+		v.Op = OpAMD64VSHUFPS512
+		return true
+	case OpconcatSelectedConstantGroupedUint32x8:
+		v.Op = OpAMD64VSHUFPS256
+		return true
+	case OpconcatSelectedConstantGroupedUint64x4:
+		v.Op = OpAMD64VSHUFPD256
+		return true
+	case OpconcatSelectedConstantGroupedUint64x8:
+		v.Op = OpAMD64VSHUFPD512
+		return true
+	case OpconcatSelectedConstantInt32x4:
+		v.Op = OpAMD64VSHUFPS128
+		return true
+	case OpconcatSelectedConstantInt64x2:
+		v.Op = OpAMD64VSHUFPD128
+		return true
+	case OpconcatSelectedConstantUint32x4:
+		v.Op = OpAMD64VSHUFPS128
+		return true
+	case OpconcatSelectedConstantUint64x2:
+		v.Op = OpAMD64VSHUFPD128
+		return true
 	case OpmoveMaskedFloat32x16:
 		return rewriteValueAMD64_OpmoveMaskedFloat32x16(v)
 	case OpmoveMaskedFloat64x8:
@@ -47438,6 +47496,62 @@ func rewriteValueAMD64_OpAMD64VSCALEFPSMasked512(v *Value) bool {
 		v.AuxInt = int32ToAuxInt(off)
 		v.Aux = symToAux(sym)
 		v.AddArg4(x, ptr, mask, mem)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VSHUFPD512(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VSHUFPD512 [c] x l:(VMOVDQUload512 {sym} [off] ptr mem))
+	// cond: canMergeLoad(v, l) && clobber(l)
+	// result: (VSHUFPD512load {sym} [makeValAndOff(int32(int8(c)),off)] x ptr mem)
+	for {
+		c := auxIntToUint8(v.AuxInt)
+		x := v_0
+		l := v_1
+		if l.Op != OpAMD64VMOVDQUload512 {
+			break
+		}
+		off := auxIntToInt32(l.AuxInt)
+		sym := auxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		if !(canMergeLoad(v, l) && clobber(l)) {
+			break
+		}
+		v.reset(OpAMD64VSHUFPD512load)
+		v.AuxInt = valAndOffToAuxInt(makeValAndOff(int32(int8(c)), off))
+		v.Aux = symToAux(sym)
+		v.AddArg3(x, ptr, mem)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VSHUFPS512(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VSHUFPS512 [c] x l:(VMOVDQUload512 {sym} [off] ptr mem))
+	// cond: canMergeLoad(v, l) && clobber(l)
+	// result: (VSHUFPS512load {sym} [makeValAndOff(int32(int8(c)),off)] x ptr mem)
+	for {
+		c := auxIntToUint8(v.AuxInt)
+		x := v_0
+		l := v_1
+		if l.Op != OpAMD64VMOVDQUload512 {
+			break
+		}
+		off := auxIntToInt32(l.AuxInt)
+		sym := auxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		if !(canMergeLoad(v, l) && clobber(l)) {
+			break
+		}
+		v.reset(OpAMD64VSHUFPS512load)
+		v.AuxInt = valAndOffToAuxInt(makeValAndOff(int32(int8(c)), off))
+		v.Aux = symToAux(sym)
+		v.AddArg3(x, ptr, mem)
 		return true
 	}
 	return false

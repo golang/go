@@ -8,6 +8,7 @@ package simd_test
 
 import (
 	"math"
+	"simd/internal/test_helpers"
 	"testing"
 )
 
@@ -29,97 +30,12 @@ type number interface {
 
 func checkSlices[T number](t *testing.T, got, want []T) bool {
 	t.Helper()
-	return checkSlicesLogInput[T](t, got, want, 0.0, nil)
+	return test_helpers.CheckSlicesLogInput[T](t, got, want, 0.0, nil)
 }
 
-// checkSlices compares two slices for equality,
-// reporting a test error if there is a problem,
-// and also consumes the two slices so that a
-// test/benchmark won't be dead-code eliminated.
 func checkSlicesLogInput[T number](t *testing.T, got, want []T, flakiness float64, logInput func()) bool {
 	t.Helper()
-	var z T
-	for i := range want {
-		if got[i] != want[i] {
-			var ia any = got[i]
-			var ib any = want[i]
-			switch x := ia.(type) {
-			case float32:
-				y := ib.(float32)
-				if math.IsNaN(float64(x)) && math.IsNaN(float64(y)) {
-					continue
-				}
-				if flakiness > 0 {
-					if y == 0 {
-						if math.Abs(float64(x)) < flakiness {
-							continue
-						}
-					} else {
-						if math.Abs(float64((x-y)/y)) < flakiness {
-							continue
-						}
-					}
-				}
-			case float64:
-				y := ib.(float64)
-				if math.IsNaN(x) && math.IsNaN(y) {
-					continue
-				}
-				if flakiness > 0 {
-					if y == 0 {
-						if math.Abs(x) < flakiness {
-							continue
-						}
-					} else if math.Abs((x-y)/y) < flakiness {
-						continue
-					}
-				}
-
-			default:
-			}
-
-			t.Logf("For %T vector elements:", z)
-			t.Logf("got =%v", got)
-			t.Logf("want=%v", want)
-			if logInput != nil {
-				logInput()
-			}
-			t.Errorf("at index %d, got=%v, want=%v", i, got[i], want[i])
-			return false
-		} else if got[i] == 0 { // for floating point, 0.0 == -0.0 but a bitwise check can see the difference
-			var ia any = got[i]
-			var ib any = want[i]
-			switch x := ia.(type) {
-			case float32:
-				y := ib.(float32)
-				if math.Float32bits(x) != math.Float32bits(y) {
-					t.Logf("For %T vector elements:", z)
-					t.Logf("got =%v", got)
-					t.Logf("want=%v", want)
-					if logInput != nil {
-						logInput()
-					}
-					t.Errorf("at index %d, different signs of zero", i)
-					return false
-				}
-			case float64:
-				y := ib.(float64)
-				if math.Float64bits(x) != math.Float64bits(y) {
-					t.Logf("For %T vector elements:", z)
-					t.Logf("got =%v", got)
-					t.Logf("want=%v", want)
-					if logInput != nil {
-						logInput()
-					}
-					t.Errorf("at index %d, different signs of zero", i)
-					return false
-				}
-			default:
-			}
-
-		}
-	}
-	return true
+	return test_helpers.CheckSlicesLogInput[T](t, got, want, flakiness, logInput)
 }
 
 // sliceOf returns a slice n T's, with each

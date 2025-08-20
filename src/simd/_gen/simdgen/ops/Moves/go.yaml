@@ -564,3 +564,210 @@
   out:
   - *256Or512any
 
+# These are all described separately to carry the name of the constant parameter
+
+- go: concatSelectedConstant
+  asm: VSHUFPS
+  width: 32
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: float
+    bits: 128
+  - *v
+  - class: immediate
+    immOffset: 0
+    name: h1h0l1l0
+  inVariant: []
+  out:
+  - *v
+
+- go: concatSelectedConstant
+  asm: VSHUFPS
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: float
+    bits: 128
+    OverwriteBase: int
+  - *v
+  - class: immediate
+    immOffset: 0
+    name: h1h0l1l0
+  inVariant: []
+  out:
+  - *v
+
+- go: concatSelectedConstant
+  asm: VSHUFPS
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: float
+    bits: 128
+    OverwriteBase: uint
+  - *v
+  - class: immediate
+    immOffset: 0
+    name: h1h0l1l0
+  inVariant: []
+  out:
+  - *v
+
+
+- go: concatSelectedConstantGrouped
+  asm: VSHUFPS
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: float
+    bits: "256|512"
+  - *v
+  - class: immediate
+    immOffset: 0
+    name: h1h0l1l0
+  inVariant: []
+  out:
+  - *v
+
+- go: concatSelectedConstantGrouped
+  asm: VSHUFPS
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: float
+    bits: "256|512"
+    OverwriteBase: int
+  - *v
+  - class: immediate
+    immOffset: 0
+    name: h1h0l1l0
+  inVariant: []
+  out:
+  - *v
+
+- go: concatSelectedConstantGrouped
+  asm: VSHUFPS
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: float
+    bits: "256|512"
+    OverwriteBase: uint
+  - *v
+  - class: immediate
+    immOffset: 0
+    name: h1h0l1l0
+  inVariant: []
+  out:
+  - *v
+
+
+  # 64 bit versions
+
+- go: concatSelectedConstant
+  asm: VSHUFPD
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: float
+    bits: 128
+  - *v
+  - class: immediate
+    immOffset: 0
+    name: hilo
+  inVariant: []
+  out:
+  - *v
+
+- go: concatSelectedConstant
+  asm: VSHUFPD
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: float
+    bits: 128
+    OverwriteBase: int
+  - *v
+  - class: immediate
+    immOffset: 0
+    name: hilo
+  inVariant: []
+  out:
+  - *v
+
+- go: concatSelectedConstant
+  asm: VSHUFPD
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: float
+    bits: 128
+    OverwriteBase: uint
+  - *v
+  - class: immediate
+    immOffset: 0
+    name: hilo
+  inVariant: []
+  out:
+  - *v
+
+
+- go: concatSelectedConstantGrouped
+  asm: VSHUFPD
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: float
+    bits: "256|512"
+  - *v
+  - class: immediate
+    immOffset: 0
+    name: hilos
+  inVariant: []
+  out:
+  - *v
+
+- go: concatSelectedConstantGrouped
+  asm: VSHUFPD
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: float
+    bits: "256|512"
+    OverwriteBase: int
+  - *v
+  - class: immediate
+    immOffset: 0
+    name: hilos
+  inVariant: []
+  out:
+  - *v
+
+- go: concatSelectedConstantGrouped
+  asm: VSHUFPD
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: float
+    bits: "256|512"
+    OverwriteBase: uint
+  - *v
+  - class: immediate
+    immOffset: 0
+    name: hilos
+  inVariant: []
+  out:
+  - *v

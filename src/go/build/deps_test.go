@@ -687,6 +687,9 @@ var depsRules = `
 	FMT, DEBUG, flag, runtime/trace, internal/sysinfo, math/rand
 	< testing;
 
+	testing, math
+	< simd/internal/test_helpers;
+
 	log/slog, testing
 	< testing/slogtest;
 
