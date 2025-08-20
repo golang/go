@@ -49,7 +49,7 @@ func defaultGODEBUG(p *Package, directives, testDirectives, xtestDirectives []bu
 	if p.Name != "main" {
 		return ""
 	}
-	goVersion := modload.MainModules.GoVersion()
+	goVersion := modload.LoaderState.MainModules.GoVersion()
 	if modload.LoaderState.RootMode == modload.NoRoot && p.Module != nil {
 		// This is go install pkg@version or go run pkg@version.
 		// Use the Go version from the package.
@@ -73,7 +73,7 @@ func defaultGODEBUG(p *Package, directives, testDirectives, xtestDirectives []bu
 	}
 
 	// Add directives from main module go.mod.
-	for _, g := range modload.MainModules.Godebugs() {
+	for _, g := range modload.LoaderState.MainModules.Godebugs() {
 		if m == nil {
 			m = make(map[string]string)
 		}

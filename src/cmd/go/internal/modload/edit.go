@@ -106,7 +106,7 @@ func editRequirements(ctx context.Context, rs *Requirements, tryUpgrade, mustSel
 			// to begin with, so we can't edit those requirements in a coherent way.
 			return orig, false, err
 		}
-		bl := mg.BuildList()[MainModules.Len():]
+		bl := mg.BuildList()[LoaderState.MainModules.Len():]
 		selectedRoot = make(map[string]string, len(bl))
 		for _, m := range bl {
 			selectedRoot[m.Path] = m.Version
@@ -513,7 +513,7 @@ func editRequirements(ctx context.Context, rs *Requirements, tryUpgrade, mustSel
 
 		// The modules in mustSelect are always promoted to be explicit.
 		for _, m := range mustSelect {
-			if m.Version != "none" && !MainModules.Contains(m.Path) {
+			if m.Version != "none" && !LoaderState.MainModules.Contains(m.Path) {
 				rootPaths = append(rootPaths, m.Path)
 			}
 		}
@@ -530,7 +530,7 @@ func editRequirements(ctx context.Context, rs *Requirements, tryUpgrade, mustSel
 			}
 		}
 
-		roots, err = mvs.Req(MainModules.mustGetSingleMainModule(), rootPaths, &mvsReqs{roots: roots})
+		roots, err = mvs.Req(LoaderState.MainModules.mustGetSingleMainModule(), rootPaths, &mvsReqs{roots: roots})
 		if err != nil {
 			return nil, false, err
 		}

@@ -163,7 +163,7 @@ func listTools(ctx context.Context) {
 
 	modload.InitWorkfile()
 	modload.LoadModFile(ctx)
-	modTools := slices.Sorted(maps.Keys(modload.MainModules.Tools()))
+	modTools := slices.Sorted(maps.Keys(modload.LoaderState.MainModules.Tools()))
 	for _, tool := range modTools {
 		fmt.Println(tool)
 	}
@@ -256,7 +256,7 @@ func loadModTool(ctx context.Context, name string) string {
 	modload.LoadModFile(ctx)
 
 	matches := []string{}
-	for tool := range modload.MainModules.Tools() {
+	for tool := range modload.LoaderState.MainModules.Tools() {
 		if tool == name || defaultExecName(tool) == name {
 			matches = append(matches, tool)
 		}

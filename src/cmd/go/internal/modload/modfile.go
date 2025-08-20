@@ -156,8 +156,8 @@ var ErrDisallowed = errors.New("disallowed module version")
 // CheckExclusions returns an error equivalent to ErrDisallowed if module m is
 // excluded by the main module's go.mod file.
 func CheckExclusions(ctx context.Context, m module.Version) error {
-	for _, mainModule := range MainModules.Versions() {
-		if index := MainModules.Index(mainModule); index != nil && index.exclude[m] {
+	for _, mainModule := range LoaderState.MainModules.Versions() {
+		if index := LoaderState.MainModules.Index(mainModule); index != nil && index.exclude[m] {
 			return module.VersionError(m, errExcluded)
 		}
 	}
@@ -349,19 +349,19 @@ func Replacement(mod module.Version) module.Version {
 // and the source of the replacement. The replacement is relative to the go.work or go.mod file it appears in.
 func replacementFrom(mod module.Version) (r module.Version, modroot string, fromFile string) {
 	foundFrom, found, foundModRoot := "", module.Version{}, ""
-	if MainModules == nil {
+	if LoaderState.MainModules == nil {
 		return module.Version{}, "", ""
-	} else if MainModules.Contains(mod.Path) && mod.Version == "" {
+	} else if LoaderState.MainModules.Contains(mod.Path) && mod.Version == "" {
 		// Don't replace the workspace version of the main module.
 		return module.Version{}, "", ""
 	}
-	if _, r, ok := replacement(mod, MainModules.WorkFileReplaceMap()); ok {
+	if _, r, ok := replacement(mod, LoaderState.MainModules.WorkFileReplaceMap()); ok {
 		return r, "", workFilePath
 	}
-	for _, v := range MainModules.Versions() {
-		if index := MainModules.Index(v); index != nil {
+	for _, v := range LoaderState.MainModules.Versions() {
+		if index := LoaderState.MainModules.Index(v); index != nil {
 			if from, r, ok := replacement(mod, index.replace); ok {
-				modRoot := MainModules.ModRoot(v)
+				modRoot := LoaderState.MainModules.ModRoot(v)
 				if foundModRoot != "" && foundFrom != from && found != r {
 					base.Errorf("conflicting replacements found for %v in workspace modules defined by %v and %v",
 						mod, modFilePath(foundModRoot), modFilePath(modRoot))
@@ -378,7 +378,7 @@ func replaceRelativeTo() string {
 	if workFilePath := WorkFilePath(); workFilePath != "" {
 		return filepath.Dir(workFilePath)
 	}
-	return MainModules.ModRoot(MainModules.mustGetSingleMainModule())
+	return LoaderState.MainModules.ModRoot(LoaderState.MainModules.mustGetSingleMainModule())
 }
 
 // canonicalizeReplacePath ensures that relative, on-disk, replaced module paths
@@ -572,7 +572,7 @@ type retraction struct {
 //
 // The caller must not modify the returned summary.
 func goModSummary(m module.Version) (*modFileSummary, error) {
-	if m.Version == "" && !inWorkspaceMode() && MainModules.Contains(m.Path) {
+	if m.Version == "" && !inWorkspaceMode() && LoaderState.MainModules.Contains(m.Path) {
 		panic("internal error: goModSummary called on a main module")
 	}
 	if gover.IsToolchain(m.Path) {
@@ -639,8 +639,8 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
 		}
 	}
 
-	for _, mainModule := range MainModules.Versions() {
-		if index := MainModules.Index(mainModule); index != nil && len(index.exclude) > 0 {
+	for _, mainModule := range LoaderState.MainModules.Versions() {
+		if index := LoaderState.MainModules.Index(mainModule); index != nil && len(index.exclude) > 0 {
 			// Drop any requirements on excluded versions.
 			// Don't modify the cached summary though, since we might need the raw
 			// summary separately.
@@ -684,7 +684,7 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
 		}
 		return &modFileSummary{module: m}, nil
 	}
-	if m.Version == "" && !inWorkspaceMode() && MainModules.Contains(m.Path) {
+	if m.Version == "" && !inWorkspaceMode() && LoaderState.MainModules.Contains(m.Path) {
 		// Calling rawGoModSummary implies that we are treating m as a module whose
 		// requirements aren't the roots of the module graph and can't be modified.
 		//
@@ -697,13 +697,13 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
 		// If there are no modules in the workspace, we synthesize an empty
 		// command-line-arguments module, which rawGoModData cannot read a go.mod for.
 		return &modFileSummary{module: m}, nil
-	} else if m.Version == "" && inWorkspaceMode() && MainModules.Contains(m.Path) {
+	} else if m.Version == "" && inWorkspaceMode() && LoaderState.MainModules.Contains(m.Path) {
 		// When go get uses EnterWorkspace to check that the workspace loads properly,
 		// it will update the contents of the workspace module's modfile in memory. To use the updated
 		// contents of the modfile when doing the load, don't read from disk and instead
 		// recompute a summary using the updated contents of the modfile.
-		if mf := MainModules.ModFile(m); mf != nil {
-			return summaryFromModFile(m, MainModules.modFiles[m])
+		if mf := LoaderState.MainModules.ModFile(m); mf != nil {
+			return summaryFromModFile(m, LoaderState.MainModules.modFiles[m])
 		}
 	}
 	return rawGoModSummaryCache.Do(m, func() (*modFileSummary, error) {
@@ -783,8 +783,8 @@ func rawGoModData(m module.Version) (name string, data []byte, err error) {
 	if m.Version == "" {
 		dir := m.Path
 		if !filepath.IsAbs(dir) {
-			if inWorkspaceMode() && MainModules.Contains(m.Path) {
-				dir = MainModules.ModRoot(m)
+			if inWorkspaceMode() && LoaderState.MainModules.Contains(m.Path) {
+				dir = LoaderState.MainModules.ModRoot(m)
 			} else {
 				// m is a replacement module with only a file path.
 				dir = filepath.Join(replaceRelativeTo(), dir)

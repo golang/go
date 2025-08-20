@@ -730,7 +730,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 		// the module cache (or permanently alter the behavior of std tests for all
 		// users) by writing the failing input to the package's testdata directory.
 		// (See https://golang.org/issue/48495 and test_fuzz_modcache.txt.)
-		mainMods := modload.MainModules
+		mainMods := modload.LoaderState.MainModules
 		if m := pkgs[0].Module; m != nil && m.Path != "" {
 			if !mainMods.Contains(m.Path) {
 				base.Fatalf("cannot use -fuzz flag on package outside the main module")

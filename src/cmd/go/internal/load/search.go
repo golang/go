@@ -56,11 +56,11 @@ func MatchPackage(pattern, cwd string) func(*Package) bool {
 		return func(p *Package) bool { return p.Standard && strings.HasPrefix(p.ImportPath, "cmd/") }
 	case pattern == "tool" && modload.Enabled():
 		return func(p *Package) bool {
-			return modload.MainModules.Tools()[p.ImportPath]
+			return modload.LoaderState.MainModules.Tools()[p.ImportPath]
 		}
 	case pattern == "work" && modload.Enabled():
 		return func(p *Package) bool {
-			return p.Module != nil && modload.MainModules.Contains(p.Module.Path)
+			return p.Module != nil && modload.LoaderState.MainModules.Contains(p.Module.Path)
 		}
 
 	default:

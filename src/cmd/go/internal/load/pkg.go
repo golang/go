@@ -1552,7 +1552,7 @@ func disallowInternal(ctx context.Context, srcDir string, importer *Package, imp
 			// directory containing them.
 			// If the directory is outside the main modules, this will resolve to ".",
 			// which is not a prefix of any valid module.
-			importerPath, _ = modload.MainModules.DirImportPath(ctx, importer.Dir)
+			importerPath, _ = modload.LoaderState.MainModules.DirImportPath(ctx, importer.Dir)
 		}
 		parentOfInternal := p.ImportPath[:i]
 		if str.HasPathPrefix(importerPath, parentOfInternal) {

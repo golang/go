@@ -236,8 +236,8 @@ func checkVendorConsistency(indexes []*modFileIndex, modFiles []*modfile.File, m
 	for _, modFile := range modFiles {
 		checkReplace(modFile.Replace)
 	}
-	if MainModules.workFile != nil {
-		checkReplace(MainModules.workFile.Replace)
+	if LoaderState.MainModules.workFile != nil {
+		checkReplace(LoaderState.MainModules.workFile.Replace)
 	}
 
 	for _, mod := range vendorList {

@@ -426,7 +426,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 
 	if gowork := modload.FindGoWork(base.Cwd()); gowork != "" {
 		wf, err := modload.ReadWorkFile(gowork)
-		if err == nil && modload.UpdateWorkGoVersion(wf, modload.MainModules.GoVersion()) {
+		if err == nil && modload.UpdateWorkGoVersion(wf, modload.LoaderState.MainModules.GoVersion()) {
 			modload.WriteWorkFile(gowork, wf)
 		}
 	}
@@ -722,7 +722,7 @@ func (r *resolver) queryNone(ctx context.Context, q *query) {
 	if !q.isWildcard() {
 		q.pathOnce(q.pattern, func() pathSet {
 			hasModRoot := modload.HasModRoot()
-			if hasModRoot && modload.MainModules.Contains(q.pattern) {
+			if hasModRoot && modload.LoaderState.MainModules.Contains(q.pattern) {
 				v := module.Version{Path: q.pattern}
 				// The user has explicitly requested to downgrade their own module to
 				// version "none". This is not an entirely unreasonable request: it
@@ -746,7 +746,7 @@ func (r *resolver) queryNone(ctx context.Context, q *query) {
 			continue
 		}
 		q.pathOnce(curM.Path, func() pathSet {
-			if modload.HasModRoot() && curM.Version == "" && modload.MainModules.Contains(curM.Path) {
+			if modload.HasModRoot() && curM.Version == "" && modload.LoaderState.MainModules.Contains(curM.Path) {
 				return errSet(&modload.QueryMatchesMainModulesError{MainModules: []module.Version{curM}, Pattern: q.pattern, Query: q.version})
 			}
 			return pathSet{mod: module.Version{Path: curM.Path, Version: "none"}}
@@ -766,13 +766,13 @@ func (r *resolver) performLocalQueries(ctx context.Context) {
 
 			// Absolute paths like C:\foo and relative paths like ../foo... are
 			// restricted to matching packages in the main module.
-			pkgPattern, mainModule := modload.MainModules.DirImportPath(ctx, q.pattern)
+			pkgPattern, mainModule := modload.LoaderState.MainModules.DirImportPath(ctx, q.pattern)
 			if pkgPattern == "." {
 				modload.MustHaveModRoot()
-				versions := modload.MainModules.Versions()
+				versions := modload.LoaderState.MainModules.Versions()
 				modRoots := make([]string, 0, len(versions))
 				for _, m := range versions {
-					modRoots = append(modRoots, modload.MainModules.ModRoot(m))
+					modRoots = append(modRoots, modload.LoaderState.MainModules.ModRoot(m))
 				}
 				var plural string
 				if len(modRoots) != 1 {
@@ -792,7 +792,7 @@ func (r *resolver) performLocalQueries(ctx context.Context) {
 				}
 				if !q.isWildcard() {
 					modload.MustHaveModRoot()
-					return errSet(fmt.Errorf("%s%s is not a package in module rooted at %s", q.pattern, absDetail, modload.MainModules.ModRoot(mainModule)))
+					return errSet(fmt.Errorf("%s%s is not a package in module rooted at %s", q.pattern, absDetail, modload.LoaderState.MainModules.ModRoot(mainModule)))
 				}
 				search.WarnUnmatched([]*search.Match{match})
 				return pathSet{}
@@ -848,7 +848,7 @@ func (r *resolver) queryWildcard(ctx context.Context, q *query) {
 				return pathSet{}
 			}
 
-			if modload.MainModules.Contains(curM.Path) && !versionOkForMainModule(q.version) {
+			if modload.LoaderState.MainModules.Contains(curM.Path) && !versionOkForMainModule(q.version) {
 				if q.matchesPath(curM.Path) {
 					return errSet(&modload.QueryMatchesMainModulesError{
 						MainModules: []module.Version{curM},
@@ -1065,7 +1065,7 @@ func (r *resolver) queryPath(ctx context.Context, q *query) {
 // pattern is "tool".
 func (r *resolver) performToolQueries(ctx context.Context) {
 	for _, q := range r.toolQueries {
-		for tool := range modload.MainModules.Tools() {
+		for tool := range modload.LoaderState.MainModules.Tools() {
 			q.pathOnce(tool, func() pathSet {
 				pkgMods, err := r.queryPackages(ctx, tool, q.version, r.initialSelected)
 				return pathSet{pkgMods: pkgMods, err: err}
@@ -1082,10 +1082,10 @@ func (r *resolver) performWorkQueries(ctx context.Context) {
 			// TODO(matloob): Maybe export MainModules.mustGetSingleMainModule and call that.
 			// There are a few other places outside the modload package where we expect
 			// a single main module.
-			if len(modload.MainModules.Versions()) != 1 {
+			if len(modload.LoaderState.MainModules.Versions()) != 1 {
 				panic("internal error: number of main modules is not exactly one in resolution phase of go get")
 			}
-			mainModule := modload.MainModules.Versions()[0]
+			mainModule := modload.LoaderState.MainModules.Versions()[0]
 
 			// We know what the result is going to be, assuming the main module is not
 			// empty, (it's the main module itself) but first check to see that there
@@ -1496,7 +1496,7 @@ func (r *resolver) disambiguate(cs pathSet) (filtered pathSet, isPackage bool, m
 			continue
 		}
 
-		if modload.MainModules.Contains(m.Path) {
+		if modload.LoaderState.MainModules.Contains(m.Path) {
 			if m.Version == "" {
 				return pathSet{}, true, m, true
 			}
@@ -1612,7 +1612,7 @@ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []strin
 	// info, but switch back to single module mode when fetching sums so that we update
 	// the single module's go.sum file.
 	var exitWorkspace func()
-	if r.workspace != nil && r.workspace.hasModule(modload.MainModules.Versions()[0].Path) {
+	if r.workspace != nil && r.workspace.hasModule(modload.LoaderState.MainModules.Versions()[0].Path) {
 		var err error
 		exitWorkspace, err = modload.EnterWorkspace(ctx)
 		if err != nil {
@@ -1951,7 +1951,7 @@ func (r *resolver) resolve(q *query, m module.Version) {
 		panic("internal error: resolving a module.Version with an empty path")
 	}
 
-	if modload.MainModules.Contains(m.Path) && m.Version != "" {
+	if modload.LoaderState.MainModules.Contains(m.Path) && m.Version != "" {
 		reportError(q, &modload.QueryMatchesMainModulesError{
 			MainModules: []module.Version{{Path: m.Path}},
 			Pattern:     q.pattern,
@@ -1983,7 +1983,7 @@ func (r *resolver) updateBuildList(ctx context.Context, additions []module.Versi
 
 	resolved := make([]module.Version, 0, len(r.resolvedVersion))
 	for mPath, rv := range r.resolvedVersion {
-		if !modload.MainModules.Contains(mPath) {
+		if !modload.LoaderState.MainModules.Contains(mPath) {
 			resolved = append(resolved, module.Version{Path: mPath, Version: rv.version})
 		}
 	}

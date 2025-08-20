@@ -94,7 +94,7 @@ func verifyMod(ctx context.Context, mod module.Version) []error {
 		// "go" and "toolchain" have no disk footprint; nothing to verify.
 		return nil
 	}
-	if modload.MainModules.Contains(mod.Path) {
+	if modload.LoaderState.MainModules.Contains(mod.Path) {
 		return nil
 	}
 	var errs []error

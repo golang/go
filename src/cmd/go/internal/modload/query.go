@@ -211,7 +211,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 		allowed = func(context.Context, module.Version) error { return nil }
 	}
 
-	if MainModules.Contains(path) && (query == "upgrade" || query == "patch") {
+	if LoaderState.MainModules.Contains(path) && (query == "upgrade" || query == "patch") {
 		m := module.Version{Path: path}
 		if err := allowed(ctx, m); err != nil {
 			return nil, fmt.Errorf("internal error: main module version is not allowed: %w", err)
@@ -700,8 +700,8 @@ func QueryPattern(ctx context.Context, pattern, query string, current func(strin
 		match = func(mod module.Version, roots []string, isLocal bool) *search.Match {
 			m := search.NewMatch(pattern)
 			prefix := mod.Path
-			if MainModules.Contains(mod.Path) {
-				prefix = MainModules.PathPrefix(module.Version{Path: mod.Path})
+			if LoaderState.MainModules.Contains(mod.Path) {
+				prefix = LoaderState.MainModules.PathPrefix(module.Version{Path: mod.Path})
 			}
 			for _, root := range roots {
 				if _, ok, err := dirInModule(pattern, prefix, root, isLocal); err != nil {
@@ -715,7 +715,7 @@ func QueryPattern(ctx context.Context, pattern, query string, current func(strin
 	}
 
 	var mainModuleMatches []module.Version
-	for _, mainModule := range MainModules.Versions() {
+	for _, mainModule := range LoaderState.MainModules.Versions() {
 		m := match(mainModule, LoaderState.modRoots, true)
 		if len(m.Pkgs) > 0 {
 			if query != "upgrade" && query != "patch" {
@@ -842,7 +842,7 @@ func modulePrefixesExcludingTarget(path string) []string {
 	prefixes := make([]string, 0, strings.Count(path, "/")+1)
 
 	mainModulePrefixes := make(map[string]bool)
-	for _, m := range MainModules.Versions() {
+	for _, m := range LoaderState.MainModules.Versions() {
 		mainModulePrefixes[m.Path] = true
 	}
 
@@ -905,7 +905,7 @@ func queryPrefixModules(ctx context.Context, candidateModules []string, queryMod
 		case *PackageNotInModuleError:
 			// Given the option, prefer to attribute “package not in module”
 			// to modules other than the main one.
-			if noPackage == nil || MainModules.Contains(noPackage.Mod.Path) {
+			if noPackage == nil || LoaderState.MainModules.Contains(noPackage.Mod.Path) {
 				noPackage = rErr
 			}
 		case *NoMatchingVersionError:
@@ -1127,9 +1127,9 @@ func lookupRepo(ctx context.Context, proxy, path string) (repo versionRepo, err 
 		repo = emptyRepo{path: path, err: err}
 	}
 
-	if MainModules == nil {
+	if LoaderState.MainModules == nil {
 		return repo, err
-	} else if _, ok := MainModules.HighestReplaced()[path]; ok {
+	} else if _, ok := LoaderState.MainModules.HighestReplaced()[path]; ok {
 		return &replacementRepo{repo: repo}, nil
 	}
 
@@ -1186,8 +1186,8 @@ func (rr *replacementRepo) Versions(ctx context.Context, prefix string) (*modfet
 	}
 
 	versions := repoVersions.List
-	for _, mm := range MainModules.Versions() {
-		if index := MainModules.Index(mm); index != nil && len(index.replace) > 0 {
+	for _, mm := range LoaderState.MainModules.Versions() {
+		if index := LoaderState.MainModules.Index(mm); index != nil && len(index.replace) > 0 {
 			path := rr.ModulePath()
 			for m := range index.replace {
 				if m.Path == path && strings.HasPrefix(m.Version, prefix) && m.Version != "" && !module.IsPseudoVersion(m.Version) {
@@ -1215,8 +1215,8 @@ func (rr *replacementRepo) Stat(ctx context.Context, rev string) (*modfetch.RevI
 		return info, err
 	}
 	var hasReplacements bool
-	for _, v := range MainModules.Versions() {
-		if index := MainModules.Index(v); index != nil && len(index.replace) > 0 {
+	for _, v := range LoaderState.MainModules.Versions() {
+		if index := LoaderState.MainModules.Index(v); index != nil && len(index.replace) > 0 {
 			hasReplacements = true
 		}
 	}
@@ -1249,7 +1249,7 @@ func (rr *replacementRepo) Latest(ctx context.Context) (*modfetch.RevInfo, error
 	info, err := rr.repo.Latest(ctx)
 	path := rr.ModulePath()
 
-	if v, ok := MainModules.HighestReplaced()[path]; ok {
+	if v, ok := LoaderState.MainModules.HighestReplaced()[path]; ok {
 		if v == "" {
 			// The only replacement is a wildcard that doesn't specify a version, so
 			// synthesize a pseudo-version with an appropriate major version and a
@@ -1290,7 +1290,7 @@ type QueryMatchesMainModulesError struct {
 }
 
 func (e *QueryMatchesMainModulesError) Error() string {
-	if MainModules.Contains(e.Pattern) {
+	if LoaderState.MainModules.Contains(e.Pattern) {
 		return fmt.Sprintf("can't request version %q of the main module (%s)", e.Query, e.Pattern)
 	}
 

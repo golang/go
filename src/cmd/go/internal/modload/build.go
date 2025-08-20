@@ -290,7 +290,7 @@ func addDeprecation(ctx context.Context, m *modinfo.ModulePublic) {
 // in rs (which may be nil to indicate that m was not loaded from a requirement
 // graph).
 func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode ListMode, reuse map[module.Version]*modinfo.ModulePublic) *modinfo.ModulePublic {
-	if m.Version == "" && MainModules.Contains(m.Path) {
+	if m.Version == "" && LoaderState.MainModules.Contains(m.Path) {
 		info := &modinfo.ModulePublic{
 			Path:    m.Path,
 			Version: m.Version,
@@ -301,7 +301,7 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
 		} else {
 			panic("internal error: GoVersion not set for main module")
 		}
-		if modRoot := MainModules.ModRoot(m); modRoot != "" {
+		if modRoot := LoaderState.MainModules.ModRoot(m); modRoot != "" {
 			info.Dir = modRoot
 			info.GoMod = modFilePath(modRoot)
 		}

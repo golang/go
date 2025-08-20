@@ -60,7 +60,7 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
 	}
 	mustSelectFor := map[module.Version][]module.Version{}
 
-	mms := modload.MainModules
+	mms := modload.LoaderState.MainModules
 
 	opts := modload.PackageOpts{
 		Tags:                     imports.AnyTags(),
@@ -131,7 +131,7 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
 			}, "all")
 			modload.WriteGoMod(ctx, modload.WriteOpts{})
 		}
-		goV = gover.Max(goV, modload.MainModules.GoVersion())
+		goV = gover.Max(goV, modload.LoaderState.MainModules.GoVersion())
 	}
 
 	wf, err := modload.ReadWorkFile(workFilePath)

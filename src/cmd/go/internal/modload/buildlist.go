@@ -128,7 +128,7 @@ func newRequirements(pruning modPruning, rootModules []module.Version, direct ma
 			panic("in workspace mode, but pruning is not workspace in newRequirements")
 		}
 		for i, m := range rootModules {
-			if m.Version == "" && MainModules.Contains(m.Path) {
+			if m.Version == "" && LoaderState.MainModules.Contains(m.Path) {
 				panic(fmt.Sprintf("newRequirements called with untrimmed build list: rootModules[%v] is a main module", i))
 			}
 			if m.Path == "" || m.Version == "" {
@@ -174,7 +174,7 @@ func (rs *Requirements) String() string {
 // requirements.
 func (rs *Requirements) initVendor(vendorList []module.Version) {
 	rs.graphOnce.Do(func() {
-		roots := MainModules.Versions()
+		roots := LoaderState.MainModules.Versions()
 		if inWorkspaceMode() {
 			// Use rs.rootModules to pull in the go and toolchain roots
 			// from the go.work file and preserve the invariant that all
@@ -186,7 +186,7 @@ func (rs *Requirements) initVendor(vendorList []module.Version) {
 		}
 
 		if rs.pruning == pruned {
-			mainModule := MainModules.mustGetSingleMainModule()
+			mainModule := LoaderState.MainModules.mustGetSingleMainModule()
 			// The roots of a single pruned module should already include every module in the
 			// vendor list, because the vendored modules are the same as those needed
 			// for graph pruning.
@@ -219,14 +219,14 @@ func (rs *Requirements) initVendor(vendorList []module.Version) {
 			// dependencies.
 			vendorMod := module.Version{Path: "vendor/modules.txt", Version: ""}
 			if inWorkspaceMode() {
-				for _, m := range MainModules.Versions() {
-					reqs, _ := rootsFromModFile(m, MainModules.ModFile(m), omitToolchainRoot)
+				for _, m := range LoaderState.MainModules.Versions() {
+					reqs, _ := rootsFromModFile(m, LoaderState.MainModules.ModFile(m), omitToolchainRoot)
 					mg.g.Require(m, append(reqs, vendorMod))
 				}
 				mg.g.Require(vendorMod, vendorList)
 
 			} else {
-				mainModule := MainModules.mustGetSingleMainModule()
+				mainModule := LoaderState.MainModules.mustGetSingleMainModule()
 				mg.g.Require(mainModule, append(rs.rootModules, vendorMod))
 				mg.g.Require(vendorMod, vendorList)
 			}
@@ -249,7 +249,7 @@ func (rs *Requirements) GoVersion() string {
 // path, or the zero module.Version and ok=false if the module is not a root
 // dependency.
 func (rs *Requirements) rootSelected(path string) (version string, ok bool) {
-	if MainModules.Contains(path) {
+	if LoaderState.MainModules.Contains(path) {
 		return "", true
 	}
 	if v, ok := rs.maxRootVersion[path]; ok {
@@ -264,7 +264,7 @@ func (rs *Requirements) rootSelected(path string) (version string, ok bool) {
 // selection.
 func (rs *Requirements) hasRedundantRoot() bool {
 	for i, m := range rs.rootModules {
-		if MainModules.Contains(m.Path) || (i > 0 && m.Path == rs.rootModules[i-1].Path) {
+		if LoaderState.MainModules.Contains(m.Path) || (i > 0 && m.Path == rs.rootModules[i-1].Path) {
 			return true
 		}
 	}
@@ -346,7 +346,7 @@ func readModGraph(ctx context.Context, pruning modPruning, roots []module.Versio
 	if inWorkspaceMode() {
 		graphRoots = roots
 	} else {
-		graphRoots = MainModules.Versions()
+		graphRoots = LoaderState.MainModules.Versions()
 	}
 	var (
 		mu       sync.Mutex // guards mg.g and hasError during loading
@@ -360,7 +360,7 @@ func readModGraph(ctx context.Context, pruning modPruning, roots []module.Versio
 		if inWorkspaceMode() {
 			panic("pruning is not workspace in workspace mode")
 		}
-		mg.g.Require(MainModules.mustGetSingleMainModule(), roots)
+		mg.g.Require(LoaderState.MainModules.mustGetSingleMainModule(), roots)
 	}
 
 	type dedupKey struct {
@@ -540,9 +540,9 @@ func (mg *ModuleGraph) findError() error {
 func (mg *ModuleGraph) allRootsSelected() bool {
 	var roots []module.Version
 	if inWorkspaceMode() {
-		roots = MainModules.Versions()
+		roots = LoaderState.MainModules.Versions()
 	} else {
-		roots, _ = mg.g.RequiredBy(MainModules.mustGetSingleMainModule())
+		roots, _ = mg.g.RequiredBy(LoaderState.MainModules.mustGetSingleMainModule())
 	}
 	for _, m := range roots {
 		if mg.Selected(m.Path) != m.Version {
@@ -776,7 +776,7 @@ func (c Conflict) String() string {
 // both retain the same versions of all packages in pkgs and satisfy the
 // graph-pruning invariants (if applicable).
 func tidyRoots(ctx context.Context, rs *Requirements, pkgs []*loadPkg) (*Requirements, error) {
-	mainModule := MainModules.mustGetSingleMainModule()
+	mainModule := LoaderState.MainModules.mustGetSingleMainModule()
 	if rs.pruning == unpruned {
 		return tidyUnprunedRoots(ctx, mainModule, rs, pkgs)
 	}
@@ -1168,7 +1168,7 @@ func updatePrunedRoots(ctx context.Context, direct map[string]bool, rs *Requirem
 		roots = make([]module.Version, 0, len(rs.rootModules))
 		rootsUpgraded = false
 		inRootPaths := make(map[string]bool, len(rs.rootModules)+1)
-		for _, mm := range MainModules.Versions() {
+		for _, mm := range LoaderState.MainModules.Versions() {
 			inRootPaths[mm.Path] = true
 		}
 		for _, m := range rs.rootModules {
@@ -1445,7 +1445,7 @@ func updateUnprunedRoots(ctx context.Context, direct map[string]bool, rs *Requir
 	// This is only for convenience and clarity for end users: in an unpruned module,
 	// the choice of explicit vs. implicit dependency has no impact on MVS
 	// selection (for itself or any other module).
-	keep := append(mg.BuildList()[MainModules.Len():], add...)
+	keep := append(mg.BuildList()[LoaderState.MainModules.Len():], add...)
 	for _, m := range keep {
 		if direct[m.Path] && !inRootPaths[m.Path] {
 			rootPaths = append(rootPaths, m.Path)
@@ -1454,14 +1454,14 @@ func updateUnprunedRoots(ctx context.Context, direct map[string]bool, rs *Requir
 	}
 
 	var roots []module.Version
-	for _, mainModule := range MainModules.Versions() {
+	for _, mainModule := range LoaderState.MainModules.Versions() {
 		min, err := mvs.Req(mainModule, rootPaths, &mvsReqs{roots: keep})
 		if err != nil {
 			return rs, err
 		}
 		roots = append(roots, min...)
 	}
-	if MainModules.Len() > 1 {
+	if LoaderState.MainModules.Len() > 1 {
 		gover.ModSort(roots)
 	}
 	if rs.pruning == unpruned && slices.Equal(roots, rs.rootModules) && maps.Equal(direct, rs.direct) {
@@ -1501,5 +1501,5 @@ func convertPruning(ctx context.Context, rs *Requirements, pruning modPruning) (
 	if err != nil {
 		return rs, err
 	}
-	return newRequirements(pruned, mg.BuildList()[MainModules.Len():], rs.direct), nil
+	return newRequirements(pruned, mg.BuildList()[LoaderState.MainModules.Len():], rs.direct), nil
 }

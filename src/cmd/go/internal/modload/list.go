@@ -126,7 +126,7 @@ func ListModules(ctx context.Context, args []string, mode ListMode, reuseFile st
 func listModules(ctx context.Context, rs *Requirements, args []string, mode ListMode, reuse map[module.Version]*modinfo.ModulePublic) (_ *Requirements, mods []*modinfo.ModulePublic, mgErr error) {
 	if len(args) == 0 {
 		var ms []*modinfo.ModulePublic
-		for _, m := range MainModules.Versions() {
+		for _, m := range LoaderState.MainModules.Versions() {
 			if gover.IsToolchain(m.Path) {
 				continue
 			}
