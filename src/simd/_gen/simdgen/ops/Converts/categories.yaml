@@ -1,24 +1,24 @@
 !sum
+# Non-truncating conversions
+# Could be widening int<->int or uint<->uint conversions or float<->int|uint conversions.
 - go: ConvertToInt32
   commutative: false
   documentation: !string |-
     // NAME converts element values to int32.
-
 - go: ConvertToUint32
   commutative: false
   documentation: !string |-
     // NAME converts element values to uint32.
-
 - go: ConvertToUint16
   commutative: false
   documentation: !string |-
     // NAME converts element values to uint16.
 
+# Truncating conversions, int<->int or uint<->uint.
 - go: ConvertToUint16x8
   commutative: false
   documentation: !string |-
     // NAME converts 8 lowest vector element values to uint16.
-
 - go: ConvertToUint32x4
   commutative: false
   documentation: !string |-

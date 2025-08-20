@@ -1,4 +1,6 @@
 !sum
+# Float <-> Int conversions
+# TODO: this right now only has Float32 -> Int32|Uint32, more to add.
 - go: ConvertToInt32
   asm: "VCVTTPS2DQ"
   in:
@@ -20,7 +22,9 @@
     base: uint
     elemBits: 32
 
-- go: ConvertToUint16x8
+# Uint -> Uint widening conversions.
+# TODO: this right now only has uint8 -> uint16 and uint16->uint32.
+- go: ConvertToUint16
   asm: "VPMOVZXBW"
   in:
   - &u8x16
@@ -28,17 +32,7 @@
     elemBits: 8
     bits: 128
   out:
-  -
-    base: uint
-    elemBits: 16
-    bits: 128
-
-- go: ConvertToUint16
-  asm: "VPMOVZXBW"
-  in:
-  - *u8x16
-  out:
-  -
+  - &u16x16
     base: uint
     elemBits: 16
     bits: 256
@@ -46,17 +40,17 @@
 - go: ConvertToUint16
   asm: "VPMOVZXBW"
   in:
-  -
+  - &u8x32
     base: uint
     elemBits: 8
     bits: 256
   out:
-  -
+  - &u16x32
     base: uint
     elemBits: 16
     bits: 512
 
-- go: ConvertToUint32x4
+- go: ConvertToUint32
   asm: "VPMOVZXWD"
   in:
   - &u16x8
@@ -64,30 +58,35 @@
     elemBits: 16
     bits: 128
   out:
-  -
+  - &u32x8
     base: uint
     elemBits: 32
-    bits: 128
+    bits: 256
 
 - go: ConvertToUint32
+  asm: "VPMOVZXWD"
+  in:
+  - *u16x16
+  out:
+  - &u32x16
+    base: uint
+    elemBits: 32
+    bits: 512
+
+# Truncating conversions.
+# TODO: this right now only has uint8->uint16 and uint16->uint32.
+- go: ConvertToUint16x8
+  asm: "VPMOVZXBW"
+  in:
+  - *u8x16
+  out:
+  - *u16x8
+- go: ConvertToUint32x4
   asm: "VPMOVZXWD"
   in:
   - *u16x8
   out:
-  -
+  - &u32x4
     base: uint
     elemBits: 32
-    bits: 256
-
-- go: ConvertToUint32
-  asm: "VPMOVZXWD"
-  in:
-  -
-    base: uint
-    elemBits: 16
-    bits: 256
-  out:
-  -
-    base: uint
-    elemBits: 32
-    bits: 512
+    bits: 128
