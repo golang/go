@@ -461,7 +461,7 @@ func (check *Checker) validRecv(pos positioner, recv *Var) {
 			break
 		}
 		var cause string
-		switch u := T.under().(type) {
+		switch u := T.Underlying().(type) {
 		case *Basic:
 			// unsafe.Pointer is treated like a regular pointer
 			if u.kind == UnsafePointer {

@@ -476,7 +476,7 @@ func (check *Checker) isImportedConstraint(typ Type) bool {
 	if named == nil || named.obj.pkg == check.pkg || named.obj.pkg == nil {
 		return false
 	}
-	u, _ := named.under().(*Interface)
+	u, _ := named.Underlying().(*Interface)
 	return u != nil && !u.IsMethodSet()
 }
 
@@ -558,28 +558,33 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *TypeN
 	named := check.newNamed(obj, nil, nil)
 	setDefType(def, named)
 
+	// The RHS of a named N can be nil if, for example, N is defined as a cycle of aliases with
+	// gotypesalias=0. Consider:
+	//
+	//   type D N    // N.resolve() will panic
+	//   type N A
+	//   type A = N  // N.fromRHS is not set before N.resolve(), since A does not call setDefType
+	//
+	// There is likely a better way to detect such cases, but it may not be worth the effort.
+	// Instead, we briefly permit a nil N.fromRHS while type-checking D.
+	named.allowNilRHS = true
+	defer (func() { named.allowNilRHS = false })()
+
 	if tdecl.TParamList != nil {
 		check.openScope(tdecl, "type parameters")
 		defer check.closeScope()
 		check.collectTypeParams(&named.tparams, tdecl.TParamList)
 	}
 
-	// determine underlying type of named
 	rhs = check.definedType(tdecl.Type, obj)
 	assert(rhs != nil)
 	named.fromRHS = rhs
-
-	// If the underlying type was not set while type-checking the right-hand
-	// side, it is invalid and an error should have been reported elsewhere.
-	if named.underlying == nil {
-		named.underlying = Typ[Invalid]
-	}
 
 	// spec: "In a type definition the given type cannot be a type parameter."
 	// (See also go.dev/issue/45639.)
 	if isTypeParam(rhs) {
 		check.error(tdecl.Type, MisplacedTypeParam, "cannot use a type parameter as RHS in type declaration")
-		named.underlying = Typ[Invalid]
+		named.fromRHS = Typ[Invalid]
 	}
 }
 
@@ -721,7 +726,7 @@ func (check *Checker) collectMethods(obj *TypeName) {
 }
 
 func (check *Checker) checkFieldUniqueness(base *Named) {
-	if t, _ := base.under().(*Struct); t != nil {
+	if t, _ := base.Underlying().(*Struct); t != nil {
 		var mset objset
 		for i := 0; i < base.NumMethods(); i++ {
 			m := base.Method(i)

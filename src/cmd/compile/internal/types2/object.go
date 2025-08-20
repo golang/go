@@ -295,7 +295,8 @@ func NewTypeName(pos syntax.Pos, pkg *Package, name string, typ Type) *TypeName 
 // lazily calls resolve to finish constructing the Named object.
 func NewTypeNameLazy(pos syntax.Pos, pkg *Package, name string, load func(*Named) ([]*TypeParam, Type, []*Func, []func())) *TypeName {
 	obj := NewTypeName(pos, pkg, name, nil)
-	NewNamed(obj, nil, nil).loader = load
+	n := (*Checker)(nil).newNamed(obj, nil, nil)
+	n.loader = load
 	return obj
 }
 

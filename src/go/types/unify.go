@@ -342,7 +342,7 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 		if traceInference {
 			u.tracef("%s ≡ under %s", x, ny)
 		}
-		y = ny.under()
+		y = ny.Underlying()
 		// Per the spec, a defined type cannot have an underlying type
 		// that is a type parameter.
 		assert(!isTypeParam(y))

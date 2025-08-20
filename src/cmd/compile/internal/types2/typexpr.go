@@ -425,7 +425,7 @@ func setDefType(def *TypeName, typ Type) {
 		case *Basic:
 			assert(t == Typ[Invalid])
 		case *Named:
-			t.underlying = typ
+			t.fromRHS = typ
 		default:
 			panic(fmt.Sprintf("unexpected type %T", t))
 		}
