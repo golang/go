@@ -221,7 +221,7 @@ func (q *QUICConn) NextEvent() QUICEvent {
 	qs := q.conn.quic
 	if last := qs.nextEvent - 1; last >= 0 && len(qs.events[last].Data) > 0 {
 		// Write over some of the previous event's data,
-		// to catch callers erroniously retaining it.
+		// to catch callers erroneously retaining it.
 		qs.events[last].Data[0] = 0
 	}
 	if qs.nextEvent >= len(qs.events) && qs.waitingForDrain {
