@@ -308,7 +308,7 @@ func buildAndRunBuiltinTool(ctx context.Context, toolName, tool string, args []s
 	// Ignore go.mod and go.work: we don't need them, and we want to be able
 	// to run the tool even if there's an issue with the module or workspace the
 	// user happens to be in.
-	modload.RootMode = modload.NoRoot
+	modload.LoaderState.RootMode = modload.NoRoot
 
 	runFunc := func(b *work.Builder, ctx context.Context, a *work.Action) error {
 		cmdline := str.StringList(builtTool(a), a.Args)

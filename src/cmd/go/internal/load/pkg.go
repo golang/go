@@ -3351,7 +3351,7 @@ func PackagesAndErrorsOutsideModule(ctx context.Context, opts PackageOpts, args 
 	if !modload.LoaderState.ForceUseModules {
 		panic("modload.ForceUseModules must be true")
 	}
-	if modload.RootMode != modload.NoRoot {
+	if modload.LoaderState.RootMode != modload.NoRoot {
 		panic("modload.RootMode must be NoRoot")
 	}
 

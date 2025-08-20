@@ -38,9 +38,6 @@ import (
 //
 // TODO(#40775): See if these can be plumbed as explicit parameters.
 var (
-	// RootMode determines whether a module root is needed.
-	RootMode Root
-
 	allowMissingModuleImports bool
 
 	// ExplicitWriteGoMod prevents LoadPackages, ListModules, and other functions
@@ -370,7 +367,7 @@ func InitWorkfile() {
 // It is exported mainly for Go toolchain switching, which must process
 // the go.work very early at startup.
 func FindGoWork(wd string) string {
-	if RootMode == NoRoot {
+	if LoaderState.RootMode == NoRoot {
 		return ""
 	}
 
@@ -403,7 +400,7 @@ func setState(s State) State {
 	oldState := State{
 		initialized:     LoaderState.initialized,
 		ForceUseModules: LoaderState.ForceUseModules,
-		rootMode:        RootMode,
+		RootMode:        LoaderState.RootMode,
 		modRoots:        modRoots,
 		modulesEnabled:  cfg.ModulesEnabled,
 		mainModules:     MainModules,
@@ -411,7 +408,7 @@ func setState(s State) State {
 	}
 	LoaderState.initialized = s.initialized
 	LoaderState.ForceUseModules = s.ForceUseModules
-	RootMode = s.rootMode
+	LoaderState.RootMode = s.RootMode
 	modRoots = s.modRoots
 	cfg.ModulesEnabled = s.modulesEnabled
 	MainModules = s.mainModules
@@ -430,13 +427,15 @@ type State struct {
 	// ForceUseModules may be set to force modules to be enabled when
 	// GO111MODULE=auto or to report an error when GO111MODULE=off.
 	ForceUseModules bool
-	rootMode        Root
-	modRoots        []string
-	modulesEnabled  bool
-	mainModules     *MainModuleSet
-	requirements    *Requirements
-	workFilePath    string
-	modfetchState   modfetch.State
+
+	// RootMode determines whether a module root is needed.
+	RootMode       Root
+	modRoots       []string
+	modulesEnabled bool
+	mainModules    *MainModuleSet
+	requirements   *Requirements
+	workFilePath   string
+	modfetchState  modfetch.State
 }
 
 func NewState() *State { return &State{} }
@@ -495,7 +494,7 @@ func Init() {
 	if modRoots != nil {
 		// modRoot set before Init was called ("go mod init" does this).
 		// No need to search for go.mod.
-	} else if RootMode == NoRoot {
+	} else if LoaderState.RootMode == NoRoot {
 		if cfg.ModFile != "" && !base.InGOFLAGS("-modfile") {
 			base.Fatalf("go: -modfile cannot be used with commands that ignore the current module")
 		}
@@ -510,7 +509,7 @@ func Init() {
 			if cfg.ModFile != "" {
 				base.Fatalf("go: cannot find main module, but -modfile was set.\n\t-modfile cannot be used to set the module root directory.")
 			}
-			if RootMode == NeedRoot {
+			if LoaderState.RootMode == NeedRoot {
 				base.Fatal(ErrNoModRoot)
 			}
 			if !mustUseModules {
@@ -525,7 +524,7 @@ func Init() {
 			// It's a bit of a peculiar thing to disallow but quite mysterious
 			// when it happens. See golang.org/issue/26708.
 			fmt.Fprintf(os.Stderr, "go: warning: ignoring go.mod in system temp root %v\n", os.TempDir())
-			if RootMode == NeedRoot {
+			if LoaderState.RootMode == NeedRoot {
 				base.Fatal(ErrNoModRoot)
 			}
 			if !mustUseModules {
@@ -547,7 +546,7 @@ func Init() {
 		gopath = list[0]
 		if _, err := fsys.Stat(filepath.Join(gopath, "go.mod")); err == nil {
 			fmt.Fprintf(os.Stderr, "go: warning: ignoring go.mod in $GOPATH %v\n", gopath)
-			if RootMode == NeedRoot {
+			if LoaderState.RootMode == NeedRoot {
 				base.Fatal(ErrNoModRoot)
 			}
 			if !mustUseModules {

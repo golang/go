@@ -50,7 +50,7 @@ func defaultGODEBUG(p *Package, directives, testDirectives, xtestDirectives []bu
 		return ""
 	}
 	goVersion := modload.MainModules.GoVersion()
-	if modload.RootMode == modload.NoRoot && p.Module != nil {
+	if modload.LoaderState.RootMode == modload.NoRoot && p.Module != nil {
 		// This is go install pkg@version or go run pkg@version.
 		// Use the Go version from the package.
 		// If there isn't one, then assume Go 1.20,

@@ -58,7 +58,7 @@ func runGraph(ctx context.Context, cmd *base.Command, args []string) {
 		base.Fatalf("go: 'go mod graph' accepts no arguments")
 	}
 	modload.LoaderState.ForceUseModules = true
-	modload.RootMode = modload.NeedRoot
+	modload.LoaderState.RootMode = modload.NeedRoot
 
 	goVersion := graphGo.String()
 	if goVersion != "" && gover.Compare(gover.Local(), goVersion) < 0 {

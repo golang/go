@@ -60,13 +60,13 @@ func TestQueryImport(t *testing.T) {
 	testenv.MustHaveExecPath(t, "git")
 
 	oldAllowMissingModuleImports := allowMissingModuleImports
-	oldRootMode := RootMode
+	oldRootMode := LoaderState.RootMode
 	defer func() {
 		allowMissingModuleImports = oldAllowMissingModuleImports
-		RootMode = oldRootMode
+		LoaderState.RootMode = oldRootMode
 	}()
 	allowMissingModuleImports = true
-	RootMode = NoRoot
+	LoaderState.RootMode = NoRoot
 
 	ctx := context.Background()
 	rs := LoadModFile(ctx)
