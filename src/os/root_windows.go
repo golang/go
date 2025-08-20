@@ -129,7 +129,7 @@ func openRootInRoot(r *Root, name string) (*Root, error) {
 // rootOpenFileNolog is Root.OpenFile.
 func rootOpenFileNolog(root *Root, name string, flag int, perm FileMode) (*File, error) {
 	fd, err := doInRoot(root, name, nil, func(parent syscall.Handle, name string) (syscall.Handle, error) {
-		return openat(parent, name, flag, perm)
+		return openat(parent, name, uint64(flag), perm)
 	})
 	if err != nil {
 		return nil, &PathError{Op: "openat", Path: name, Err: err}
@@ -138,8 +138,8 @@ func rootOpenFileNolog(root *Root, name string, flag int, perm FileMode) (*File,
 	return newFile(fd, joinPath(root.Name(), name), "file", false), nil
 }
 
-func openat(dirfd syscall.Handle, name string, flag int, perm FileMode) (syscall.Handle, error) {
-	h, err := windows.Openat(dirfd, name, uint64(flag)|syscall.O_CLOEXEC|windows.O_NOFOLLOW_ANY, syscallMode(perm))
+func openat(dirfd syscall.Handle, name string, flag uint64, perm FileMode) (syscall.Handle, error) {
+	h, err := windows.Openat(dirfd, name, flag|syscall.O_CLOEXEC|windows.O_NOFOLLOW_ANY, syscallMode(perm))
 	if err == syscall.ELOOP || err == syscall.ENOTDIR {
 		if link, err := readReparseLinkAt(dirfd, name); err == nil {
 			return syscall.InvalidHandle, errSymlink(link)
