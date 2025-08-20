@@ -716,7 +716,7 @@ func QueryPattern(ctx context.Context, pattern, query string, current func(strin
 
 	var mainModuleMatches []module.Version
 	for _, mainModule := range MainModules.Versions() {
-		m := match(mainModule, modRoots, true)
+		m := match(mainModule, LoaderState.modRoots, true)
 		if len(m.Pkgs) > 0 {
 			if query != "upgrade" && query != "patch" {
 				return nil, nil, &QueryMatchesPackagesInMainModuleError{

@@ -271,7 +271,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 			case m.IsLocal():
 				// Evaluate list of file system directories on first iteration.
 				if m.Dirs == nil {
-					matchModRoots := modRoots
+					matchModRoots := LoaderState.modRoots
 					if opts.MainModule != (module.Version{}) {
 						matchModRoots = []string{MainModules.ModRoot(opts.MainModule)}
 					}
