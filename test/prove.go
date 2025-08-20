@@ -511,10 +511,10 @@ func f19() (e int64, err error) {
 
 func sm1(b []int, x int) {
 	// Test constant argument to slicemask.
-	useSlice(b[2:8]) // ERROR "Proved slicemask not needed$"
+	useSlice(b[2:8]) // optimized away earlier by rewrite
 	// Test non-constant argument with known limits.
 	if cap(b) > 10 {
-		useSlice(b[2:])
+		useSlice(b[2:]) // ERROR "Proved slicemask not needed$"
 	}
 }
 
