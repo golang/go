@@ -140,7 +140,7 @@ func (p *dumper) dump(x reflect.Value, depth int) {
 		return
 	}
 
-	if pos, ok := x.Interface().(src.XPos); ok {
+	if pos, ok := reflect.TypeAssert[src.XPos](x); ok {
 		p.printf("%s", base.FmtPos(pos))
 		return
 	}
@@ -193,7 +193,7 @@ func (p *dumper) dump(x reflect.Value, depth int) {
 		typ := x.Type()
 
 		isNode := false
-		if n, ok := x.Interface().(Node); ok {
+		if n, ok := reflect.TypeAssert[Node](x); ok {
 			isNode = true
 			p.printf("%s %s {", n.Op().String(), p.addr(x))
 		} else {
@@ -222,7 +222,7 @@ func (p *dumper) dump(x reflect.Value, depth int) {
 					omitted = true
 					continue // exclude zero-valued fields
 				}
-				if n, ok := x.Interface().(Nodes); ok && len(n) == 0 {
+				if n, ok := reflect.TypeAssert[Nodes](x); ok && len(n) == 0 {
 					omitted = true
 					continue // exclude empty Nodes slices
 				}
