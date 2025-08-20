@@ -2363,6 +2363,114 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpInterCall:
 		v.Op = OpAMD64CALLinter
 		return true
+	case OpInterleaveHiGroupedInt16x16:
+		v.Op = OpAMD64VPUNPCKHWD256
+		return true
+	case OpInterleaveHiGroupedInt16x32:
+		v.Op = OpAMD64VPUNPCKHWD512
+		return true
+	case OpInterleaveHiGroupedInt32x16:
+		v.Op = OpAMD64VPUNPCKHDQ512
+		return true
+	case OpInterleaveHiGroupedInt32x8:
+		v.Op = OpAMD64VPUNPCKHDQ256
+		return true
+	case OpInterleaveHiGroupedInt64x4:
+		v.Op = OpAMD64VPUNPCKHQDQ256
+		return true
+	case OpInterleaveHiGroupedInt64x8:
+		v.Op = OpAMD64VPUNPCKHQDQ512
+		return true
+	case OpInterleaveHiGroupedUint16x16:
+		v.Op = OpAMD64VPUNPCKHWD256
+		return true
+	case OpInterleaveHiGroupedUint16x32:
+		v.Op = OpAMD64VPUNPCKHWD512
+		return true
+	case OpInterleaveHiGroupedUint32x16:
+		v.Op = OpAMD64VPUNPCKHDQ512
+		return true
+	case OpInterleaveHiGroupedUint32x8:
+		v.Op = OpAMD64VPUNPCKHDQ256
+		return true
+	case OpInterleaveHiGroupedUint64x4:
+		v.Op = OpAMD64VPUNPCKHQDQ256
+		return true
+	case OpInterleaveHiGroupedUint64x8:
+		v.Op = OpAMD64VPUNPCKHQDQ512
+		return true
+	case OpInterleaveHiInt16x8:
+		v.Op = OpAMD64VPUNPCKHWD128
+		return true
+	case OpInterleaveHiInt32x4:
+		v.Op = OpAMD64VPUNPCKHDQ128
+		return true
+	case OpInterleaveHiInt64x2:
+		v.Op = OpAMD64VPUNPCKHQDQ128
+		return true
+	case OpInterleaveHiUint16x8:
+		v.Op = OpAMD64VPUNPCKHWD128
+		return true
+	case OpInterleaveHiUint32x4:
+		v.Op = OpAMD64VPUNPCKHDQ128
+		return true
+	case OpInterleaveHiUint64x2:
+		v.Op = OpAMD64VPUNPCKHQDQ128
+		return true
+	case OpInterleaveLoGroupedInt16x16:
+		v.Op = OpAMD64VPUNPCKLWD256
+		return true
+	case OpInterleaveLoGroupedInt16x32:
+		v.Op = OpAMD64VPUNPCKLWD512
+		return true
+	case OpInterleaveLoGroupedInt32x16:
+		v.Op = OpAMD64VPUNPCKLDQ512
+		return true
+	case OpInterleaveLoGroupedInt32x8:
+		v.Op = OpAMD64VPUNPCKLDQ256
+		return true
+	case OpInterleaveLoGroupedInt64x4:
+		v.Op = OpAMD64VPUNPCKLQDQ256
+		return true
+	case OpInterleaveLoGroupedInt64x8:
+		v.Op = OpAMD64VPUNPCKLQDQ512
+		return true
+	case OpInterleaveLoGroupedUint16x16:
+		v.Op = OpAMD64VPUNPCKLWD256
+		return true
+	case OpInterleaveLoGroupedUint16x32:
+		v.Op = OpAMD64VPUNPCKLWD512
+		return true
+	case OpInterleaveLoGroupedUint32x16:
+		v.Op = OpAMD64VPUNPCKLDQ512
+		return true
+	case OpInterleaveLoGroupedUint32x8:
+		v.Op = OpAMD64VPUNPCKLDQ256
+		return true
+	case OpInterleaveLoGroupedUint64x4:
+		v.Op = OpAMD64VPUNPCKLQDQ256
+		return true
+	case OpInterleaveLoGroupedUint64x8:
+		v.Op = OpAMD64VPUNPCKLQDQ512
+		return true
+	case OpInterleaveLoInt16x8:
+		v.Op = OpAMD64VPUNPCKLWD128
+		return true
+	case OpInterleaveLoInt32x4:
+		v.Op = OpAMD64VPUNPCKLDQ128
+		return true
+	case OpInterleaveLoInt64x2:
+		v.Op = OpAMD64VPUNPCKLQDQ128
+		return true
+	case OpInterleaveLoUint16x8:
+		v.Op = OpAMD64VPUNPCKLWD128
+		return true
+	case OpInterleaveLoUint32x4:
+		v.Op = OpAMD64VPUNPCKLDQ128
+		return true
+	case OpInterleaveLoUint64x2:
+		v.Op = OpAMD64VPUNPCKLQDQ128
+		return true
 	case OpIsInBounds:
 		return rewriteValueAMD64_OpIsInBounds(v)
 	case OpIsNanFloat32x16:

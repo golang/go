@@ -527,3 +527,40 @@
     name: indices
   out:
   - *256Or512any
+
+- go: InterleaveHi
+  asm: VPUNPCKH(QDQ|DQ|WD|WB)
+  in:
+  - *128any
+  - *128any
+  inVariant: []
+  out:
+  - *128any
+
+- go: InterleaveLo
+  asm: VPUNPCKL(QDQ|DQ|WD|WB)
+  in:
+  - *128any
+  - *128any
+  inVariant: []
+  out:
+  - *128any
+
+- go: InterleaveHiGrouped
+  asm: VPUNPCKH(QDQ|DQ|WD|WB)
+  in:
+  - *256Or512any
+  - *256Or512any
+  inVariant: []
+  out:
+  - *256Or512any
+
+- go: InterleaveLoGrouped
+  asm: VPUNPCKL(QDQ|DQ|WD|WB)
+  in:
+  - *256Or512any
+  - *256Or512any
+  inVariant: []
+  out:
+  - *256Or512any
+

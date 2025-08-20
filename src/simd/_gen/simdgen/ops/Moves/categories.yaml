@@ -103,3 +103,20 @@
   commutative: false
   documentation: !string |- # Detailed documentation will rely on the specific ops.
     // NAME performs a grouped permutation of vector x using constant indices:
+- go: InterleaveHi
+  commutative: false
+  documentation: !string |-
+    // NAME interleaves the elements of the high halves of x and y.
+- go: InterleaveLo
+  commutative: false
+  documentation: !string |-
+    // NAME interleaves the elements of the low halves of x and y.
+- go: InterleaveHiGrouped
+  commutative: false
+  documentation: !string |-
+    // NAME interleaves the elements of the high half of each 128-bit subvector of x and y.
+- go: InterleaveLoGrouped
+  commutative: false
+  documentation: !string |-
+    // NAME interleaves the elements of the low half of each 128-bit subvector of x and y.
+

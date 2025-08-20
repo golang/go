@@ -2215,6 +2215,24 @@ const (
 	OpAMD64VPSUBWMasked128
 	OpAMD64VPSUBWMasked256
 	OpAMD64VPSUBWMasked512
+	OpAMD64VPUNPCKHDQ128
+	OpAMD64VPUNPCKHDQ256
+	OpAMD64VPUNPCKHDQ512
+	OpAMD64VPUNPCKHQDQ128
+	OpAMD64VPUNPCKHQDQ256
+	OpAMD64VPUNPCKHQDQ512
+	OpAMD64VPUNPCKHWD128
+	OpAMD64VPUNPCKHWD256
+	OpAMD64VPUNPCKHWD512
+	OpAMD64VPUNPCKLDQ128
+	OpAMD64VPUNPCKLDQ256
+	OpAMD64VPUNPCKLDQ512
+	OpAMD64VPUNPCKLQDQ128
+	OpAMD64VPUNPCKLQDQ256
+	OpAMD64VPUNPCKLQDQ512
+	OpAMD64VPUNPCKLWD128
+	OpAMD64VPUNPCKLWD256
+	OpAMD64VPUNPCKLWD512
 	OpAMD64VPXOR128
 	OpAMD64VPXOR256
 	OpAMD64VPXORD512
@@ -5288,6 +5306,42 @@ const (
 	OpGreaterUint16x32
 	OpGreaterUint32x16
 	OpGreaterUint64x8
+	OpInterleaveHiGroupedInt16x16
+	OpInterleaveHiGroupedInt16x32
+	OpInterleaveHiGroupedInt32x8
+	OpInterleaveHiGroupedInt32x16
+	OpInterleaveHiGroupedInt64x4
+	OpInterleaveHiGroupedInt64x8
+	OpInterleaveHiGroupedUint16x16
+	OpInterleaveHiGroupedUint16x32
+	OpInterleaveHiGroupedUint32x8
+	OpInterleaveHiGroupedUint32x16
+	OpInterleaveHiGroupedUint64x4
+	OpInterleaveHiGroupedUint64x8
+	OpInterleaveHiInt16x8
+	OpInterleaveHiInt32x4
+	OpInterleaveHiInt64x2
+	OpInterleaveHiUint16x8
+	OpInterleaveHiUint32x4
+	OpInterleaveHiUint64x2
+	OpInterleaveLoGroupedInt16x16
+	OpInterleaveLoGroupedInt16x32
+	OpInterleaveLoGroupedInt32x8
+	OpInterleaveLoGroupedInt32x16
+	OpInterleaveLoGroupedInt64x4
+	OpInterleaveLoGroupedInt64x8
+	OpInterleaveLoGroupedUint16x16
+	OpInterleaveLoGroupedUint16x32
+	OpInterleaveLoGroupedUint32x8
+	OpInterleaveLoGroupedUint32x16
+	OpInterleaveLoGroupedUint64x4
+	OpInterleaveLoGroupedUint64x8
+	OpInterleaveLoInt16x8
+	OpInterleaveLoInt32x4
+	OpInterleaveLoInt64x2
+	OpInterleaveLoUint16x8
+	OpInterleaveLoUint32x4
+	OpInterleaveLoUint64x2
 	OpIsNanFloat32x4
 	OpIsNanFloat32x8
 	OpIsNanFloat32x16
@@ -33623,6 +33677,258 @@ var opcodeTable = [...]opInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
 				{0, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
 				{1, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPUNPCKHDQ128",
+		argLen: 2,
+		asm:    x86.AVPUNPCKHDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPUNPCKHDQ256",
+		argLen: 2,
+		asm:    x86.AVPUNPCKHDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPUNPCKHDQ512",
+		argLen: 2,
+		asm:    x86.AVPUNPCKHDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPUNPCKHQDQ128",
+		argLen: 2,
+		asm:    x86.AVPUNPCKHQDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPUNPCKHQDQ256",
+		argLen: 2,
+		asm:    x86.AVPUNPCKHQDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPUNPCKHQDQ512",
+		argLen: 2,
+		asm:    x86.AVPUNPCKHQDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPUNPCKHWD128",
+		argLen: 2,
+		asm:    x86.AVPUNPCKHWD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPUNPCKHWD256",
+		argLen: 2,
+		asm:    x86.AVPUNPCKHWD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPUNPCKHWD512",
+		argLen: 2,
+		asm:    x86.AVPUNPCKHWD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPUNPCKLDQ128",
+		argLen: 2,
+		asm:    x86.AVPUNPCKLDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPUNPCKLDQ256",
+		argLen: 2,
+		asm:    x86.AVPUNPCKLDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPUNPCKLDQ512",
+		argLen: 2,
+		asm:    x86.AVPUNPCKLDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPUNPCKLQDQ128",
+		argLen: 2,
+		asm:    x86.AVPUNPCKLQDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPUNPCKLQDQ256",
+		argLen: 2,
+		asm:    x86.AVPUNPCKLQDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPUNPCKLQDQ512",
+		argLen: 2,
+		asm:    x86.AVPUNPCKLQDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPUNPCKLWD128",
+		argLen: 2,
+		asm:    x86.AVPUNPCKLWD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPUNPCKLWD256",
+		argLen: 2,
+		asm:    x86.AVPUNPCKLWD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPUNPCKLWD512",
+		argLen: 2,
+		asm:    x86.AVPUNPCKLWD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
 			},
 			outputs: []outputInfo{
 				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
@@ -68113,6 +68419,186 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "GreaterUint64x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "InterleaveHiGroupedInt16x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "InterleaveHiGroupedInt16x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "InterleaveHiGroupedInt32x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "InterleaveHiGroupedInt32x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "InterleaveHiGroupedInt64x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "InterleaveHiGroupedInt64x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "InterleaveHiGroupedUint16x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "InterleaveHiGroupedUint16x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "InterleaveHiGroupedUint32x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "InterleaveHiGroupedUint32x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "InterleaveHiGroupedUint64x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "InterleaveHiGroupedUint64x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "InterleaveHiInt16x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "InterleaveHiInt32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "InterleaveHiInt64x2",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "InterleaveHiUint16x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "InterleaveHiUint32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "InterleaveHiUint64x2",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "InterleaveLoGroupedInt16x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "InterleaveLoGroupedInt16x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "InterleaveLoGroupedInt32x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "InterleaveLoGroupedInt32x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "InterleaveLoGroupedInt64x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "InterleaveLoGroupedInt64x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "InterleaveLoGroupedUint16x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "InterleaveLoGroupedUint16x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "InterleaveLoGroupedUint32x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "InterleaveLoGroupedUint32x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "InterleaveLoGroupedUint64x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "InterleaveLoGroupedUint64x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "InterleaveLoInt16x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "InterleaveLoInt32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "InterleaveLoInt64x2",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "InterleaveLoUint16x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "InterleaveLoUint32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "InterleaveLoUint64x2",
 		argLen:  2,
 		generic: true,
 	},

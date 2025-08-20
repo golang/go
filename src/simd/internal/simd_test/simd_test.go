@@ -494,3 +494,27 @@ func TestMaskOpt512(t *testing.T) {
 	checkSlices[int64](t, k, []int64{-1, 0, -1, 0, -1, 0, -1, 0})
 	checkSlices[float64](t, s, []float64{3, 0, 9, 0, 15, 0, 21, 0})
 }
+
+// flattenedTranspose tranposes x and y, regarded as a pair of 2x2
+// matrices, but then flattens the rows in order, i.e
+// x: ABCD ==> a: A1B2
+// y: 1234     b: C3D4
+func flattenedTranspose(x, y simd.Int32x4) (a, b simd.Int32x4) {
+	return x.InterleaveLo(y), x.InterleaveHi(y)
+}
+
+func TestFlattenedTranspose(t *testing.T) {
+	r := make([]int32, 4, 4)
+	s := make([]int32, 4, 4)
+
+	x := simd.LoadInt32x4Slice([]int32{0xA, 0xB, 0xC, 0xD})
+	y := simd.LoadInt32x4Slice([]int32{1, 2, 3, 4})
+	a, b := flattenedTranspose(x, y)
+
+	a.StoreSlice(r)
+	b.StoreSlice(s)
+
+	checkSlices[int32](t, r, []int32{0xA, 1, 0xB, 2})
+	checkSlices[int32](t, s, []int32{0xC, 3, 0xD, 4})
+
+}
