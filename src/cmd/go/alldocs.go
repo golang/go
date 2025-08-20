@@ -758,6 +758,8 @@
 // variable, which defaults to $GOPATH/bin or $HOME/go/bin if the GOPATH
 // environment variable is not set. Executables in $GOROOT
 // are installed in $GOROOT/bin or $GOTOOLDIR instead of $GOBIN.
+// Cross compiled binaries are installed in $GOOS_$GOARCH subdirectories
+// of the above.
 //
 // If the arguments have version suffixes (like @latest or @v1.0.0), "go install"
 // builds packages in module-aware mode, ignoring the go.mod file in the current
@@ -3231,8 +3233,8 @@
 //
 // Several of the flags control profiling and write an execution profile
 // suitable for "go tool pprof"; run "go tool pprof -h" for more
-// information. The --alloc_space, --alloc_objects, and --show_bytes
-// options of pprof control how the information is presented.
+// information. The -sample_index=alloc_space, -sample_index=alloc_objects,
+// and -show_bytes options of pprof control how the information is presented.
 //
 // The following flags are recognized by the 'go test' command and
 // control the execution of any test:

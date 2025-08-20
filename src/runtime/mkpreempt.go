@@ -610,10 +610,30 @@ func genLoong64(g *gen) {
 		l.add(movf, reg, regsize)
 	}
 
-	// save/restore FCC0
+	// Add condition flag register fcc0-fcc7
+	sv := ""
+	rs := ""
+	last := 7
+	for i := 0; i <= last; i++ {
+		msb := 7 + (i * 8)
+		lsb := 0 + (i * 8)
+
+		// MOVV FCCx, R4,
+		// BSTRINSV $msb, R4, $lsb, R5
+		sv += fmt.Sprintf("%s FCC%d, R4\n", mov, i)
+		sv += fmt.Sprintf("BSTRINSV $%d, R4, $%d, R5\n", msb, lsb)
+
+		// BSTRPICKV $msb, R5, $lsb, R4
+		// MOVV R4, FCCx
+		rs += fmt.Sprintf("BSTRPICKV $%d, R5, $%d, R4\n", msb, lsb)
+		rs += fmt.Sprintf("%s R4, FCC%d", mov, i)
+		if i != last {
+			rs += fmt.Sprintf("\n")
+		}
+	}
 	l.addSpecial(
-		mov+" FCC0, R4\n"+mov+" R4, %d(R3)",
-		mov+" %d(R3), R4\n"+mov+" R4, FCC0",
+		sv+mov+" R5, %d(R3)",
+		mov+" %d(R3), R5\n"+rs,
 		regsize)
 
 	// allocate frame, save PC of interrupted instruction (in LR)

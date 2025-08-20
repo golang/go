@@ -1162,41 +1162,119 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		//   BNE loop
 		// There's a past-the-end pointer here, any problem with that?
 
-	case ssa.OpARM64DUFFCOPY:
-		p := s.Prog(obj.ADUFFCOPY)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = ir.Syms.Duffcopy
-		p.To.Offset = v.AuxInt
 	case ssa.OpARM64LoweredMove:
-		// LDP.P	16(R16), (R25, Rtmp)
-		// STP.P	(R25, Rtmp), 16(R17)
-		// CMP	Rarg2, R16
-		// BLE	-3(PC)
-		// arg2 is the address of the last element of src
-		p := s.Prog(arm64.ALDP)
-		p.Scond = arm64.C_XPOST
-		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = arm64.REG_R16
-		p.From.Offset = 16
-		p.To.Type = obj.TYPE_REGREG
-		p.To.Reg = arm64.REG_R25
-		p.To.Offset = int64(arm64.REGTMP)
-		p2 := s.Prog(arm64.ASTP)
-		p2.Scond = arm64.C_XPOST
-		p2.From.Type = obj.TYPE_REGREG
-		p2.From.Reg = arm64.REG_R25
-		p2.From.Offset = int64(arm64.REGTMP)
-		p2.To.Type = obj.TYPE_MEM
-		p2.To.Reg = arm64.REG_R17
-		p2.To.Offset = 16
-		p3 := s.Prog(arm64.ACMP)
-		p3.From.Type = obj.TYPE_REG
-		p3.From.Reg = v.Args[2].Reg()
-		p3.Reg = arm64.REG_R16
-		p4 := s.Prog(arm64.ABLE)
-		p4.To.Type = obj.TYPE_BRANCH
-		p4.To.SetTarget(p)
+		dstReg := v.Args[0].Reg()
+		srcReg := v.Args[1].Reg()
+		if dstReg == srcReg {
+			break
+		}
+		tmpReg1 := int16(arm64.REG_R24)
+		tmpReg2 := int16(arm64.REG_R25)
+		n := v.AuxInt
+		if n < 16 {
+			v.Fatalf("Move too small %d", n)
+		}
+
+		// Generate copying instructions.
+		var off int64
+		for n >= 16 {
+			// LDP     off(srcReg), (tmpReg1, tmpReg2)
+			// STP     (tmpReg1, tmpReg2), off(dstReg)
+			move16(s, srcReg, dstReg, tmpReg1, tmpReg2, off, false)
+			off += 16
+			n -= 16
+		}
+		if n > 8 {
+			//  MOVD    off(srcReg), tmpReg1
+			//  MOVD    tmpReg1, off(dstReg)
+			move8(s, srcReg, dstReg, tmpReg1, off)
+			off += 8
+			n -= 8
+		}
+		if n != 0 {
+			//  MOVD    off+n-8(srcReg), tmpReg1
+			//  MOVD    tmpReg1, off+n-8(dstReg)
+			move8(s, srcReg, dstReg, tmpReg1, off+n-8)
+		}
+	case ssa.OpARM64LoweredMoveLoop:
+		dstReg := v.Args[0].Reg()
+		srcReg := v.Args[1].Reg()
+		if dstReg == srcReg {
+			break
+		}
+		countReg := int16(arm64.REG_R23)
+		tmpReg1 := int16(arm64.REG_R24)
+		tmpReg2 := int16(arm64.REG_R25)
+		n := v.AuxInt
+		loopSize := int64(64)
+		if n < 3*loopSize {
+			// - a loop count of 0 won't work.
+			// - a loop count of 1 is useless.
+			// - a loop count of 2 is a code size ~tie
+			//     3 instructions to implement the loop
+			//     4 instructions in the loop body
+			//   vs
+			//     8 instructions in the straightline code
+			//   Might as well use straightline code.
+			v.Fatalf("ZeroLoop size too small %d", n)
+		}
+
+		// Put iteration count in a register.
+		//   MOVD    $n, countReg
+		p := s.Prog(arm64.AMOVD)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = n / loopSize
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = countReg
+		cntInit := p
+
+		// Move loopSize bytes starting at srcReg to dstReg.
+		// Increment srcReg and destReg by loopSize as a side effect.
+		for range loopSize / 16 {
+			// LDP.P  16(srcReg), (tmpReg1, tmpReg2)
+			// STP.P  (tmpReg1, tmpReg2), 16(dstReg)
+			move16(s, srcReg, dstReg, tmpReg1, tmpReg2, 0, true)
+		}
+		// Decrement loop count.
+		//   SUB     $1, countReg
+		p = s.Prog(arm64.ASUB)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = 1
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = countReg
+		// Jump to loop header if we're not done yet.
+		//   CBNZ    head
+		p = s.Prog(arm64.ACBNZ)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = countReg
+		p.To.Type = obj.TYPE_BRANCH
+		p.To.SetTarget(cntInit.Link)
+
+		// Multiples of the loop size are now done.
+		n %= loopSize
+
+		// Copy any fractional portion.
+		var off int64
+		for n >= 16 {
+			//  LDP     off(srcReg), (tmpReg1, tmpReg2)
+			//  STP     (tmpReg1, tmpReg2), off(dstReg)
+			move16(s, srcReg, dstReg, tmpReg1, tmpReg2, off, false)
+			off += 16
+			n -= 16
+		}
+		if n > 8 {
+			//  MOVD    off(srcReg), tmpReg1
+			//  MOVD    tmpReg1, off(dstReg)
+			move8(s, srcReg, dstReg, tmpReg1, off)
+			off += 8
+			n -= 8
+		}
+		if n != 0 {
+			//  MOVD    off+n-8(srcReg), tmpReg1
+			//  MOVD    tmpReg1, off+n-8(dstReg)
+			move8(s, srcReg, dstReg, tmpReg1, off+n-8)
+		}
+
 	case ssa.OpARM64CALLstatic, ssa.OpARM64CALLclosure, ssa.OpARM64CALLinter:
 		s.Call(v)
 	case ssa.OpARM64CALLtail:
@@ -1598,4 +1676,54 @@ func zero8(s *ssagen.State, reg int16, off int64) {
 	p.To.Type = obj.TYPE_MEM
 	p.To.Reg = reg
 	p.To.Offset = off
+}
+
+// move16 copies 16 bytes at src+off to dst+off.
+// Uses registers tmp1 and tmp2.
+// If postInc is true, increment src and dst by 16.
+func move16(s *ssagen.State, src, dst, tmp1, tmp2 int16, off int64, postInc bool) {
+	// LDP     off(src), (tmp1, tmp2)
+	ld := s.Prog(arm64.ALDP)
+	ld.From.Type = obj.TYPE_MEM
+	ld.From.Reg = src
+	ld.From.Offset = off
+	ld.To.Type = obj.TYPE_REGREG
+	ld.To.Reg = tmp1
+	ld.To.Offset = int64(tmp2)
+	// STP     (tmp1, tmp2), off(dst)
+	st := s.Prog(arm64.ASTP)
+	st.From.Type = obj.TYPE_REGREG
+	st.From.Reg = tmp1
+	st.From.Offset = int64(tmp2)
+	st.To.Type = obj.TYPE_MEM
+	st.To.Reg = dst
+	st.To.Offset = off
+	if postInc {
+		if off != 0 {
+			panic("can't postinc with non-zero offset")
+		}
+		ld.Scond = arm64.C_XPOST
+		st.Scond = arm64.C_XPOST
+		ld.From.Offset = 16
+		st.To.Offset = 16
+	}
+}
+
+// move8 copies 8 bytes at src+off to dst+off.
+// Uses register tmp.
+func move8(s *ssagen.State, src, dst, tmp int16, off int64) {
+	// MOVD    off(src), tmp
+	ld := s.Prog(arm64.AMOVD)
+	ld.From.Type = obj.TYPE_MEM
+	ld.From.Reg = src
+	ld.From.Offset = off
+	ld.To.Type = obj.TYPE_REG
+	ld.To.Reg = tmp
+	// MOVD    tmp, off(dst)
+	st := s.Prog(arm64.AMOVD)
+	st.From.Type = obj.TYPE_REG
+	st.From.Reg = tmp
+	st.To.Type = obj.TYPE_MEM
+	st.To.Reg = dst
+	st.To.Offset = off
 }

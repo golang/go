@@ -365,11 +365,11 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 		if _, _, err1 = RawSyscall(SYS_CLOSE, uintptr(mapPipe[1]), 0, 0); err1 != 0 {
 			goto childerror
 		}
-		pid, _, err1 = RawSyscall(SYS_READ, uintptr(mapPipe[0]), uintptr(unsafe.Pointer(&err2)), unsafe.Sizeof(err2))
+		c, _, err1 = RawSyscall(SYS_READ, uintptr(mapPipe[0]), uintptr(unsafe.Pointer(&err2)), unsafe.Sizeof(err2))
 		if err1 != 0 {
 			goto childerror
 		}
-		if pid != unsafe.Sizeof(err2) {
+		if c != unsafe.Sizeof(err2) {
 			err1 = EINVAL
 			goto childerror
 		}
@@ -427,7 +427,7 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 			if fd1, _, err1 = RawSyscall6(SYS_OPENAT, uintptr(dirfd), uintptr(unsafe.Pointer(&psetgroups[0])), uintptr(O_WRONLY), 0, 0, 0); err1 != 0 {
 				goto childerror
 			}
-			pid, _, err1 = RawSyscall(SYS_WRITE, fd1, uintptr(unsafe.Pointer(&setgroups[0])), uintptr(len(setgroups)))
+			_, _, err1 = RawSyscall(SYS_WRITE, fd1, uintptr(unsafe.Pointer(&setgroups[0])), uintptr(len(setgroups)))
 			if err1 != 0 {
 				goto childerror
 			}
@@ -438,7 +438,7 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 			if fd1, _, err1 = RawSyscall6(SYS_OPENAT, uintptr(dirfd), uintptr(unsafe.Pointer(&pgid[0])), uintptr(O_WRONLY), 0, 0, 0); err1 != 0 {
 				goto childerror
 			}
-			pid, _, err1 = RawSyscall(SYS_WRITE, fd1, uintptr(unsafe.Pointer(&gidmap[0])), uintptr(len(gidmap)))
+			_, _, err1 = RawSyscall(SYS_WRITE, fd1, uintptr(unsafe.Pointer(&gidmap[0])), uintptr(len(gidmap)))
 			if err1 != 0 {
 				goto childerror
 			}
@@ -452,7 +452,7 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 			if fd1, _, err1 = RawSyscall6(SYS_OPENAT, uintptr(dirfd), uintptr(unsafe.Pointer(&puid[0])), uintptr(O_WRONLY), 0, 0, 0); err1 != 0 {
 				goto childerror
 			}
-			pid, _, err1 = RawSyscall(SYS_WRITE, fd1, uintptr(unsafe.Pointer(&uidmap[0])), uintptr(len(uidmap)))
+			_, _, err1 = RawSyscall(SYS_WRITE, fd1, uintptr(unsafe.Pointer(&uidmap[0])), uintptr(len(uidmap)))
 			if err1 != 0 {
 				goto childerror
 			}

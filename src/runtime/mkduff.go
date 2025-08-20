@@ -32,10 +32,8 @@ import (
 )
 
 func main() {
-	gen("amd64", notags, zeroAMD64, copyAMD64)
 	gen("386", notags, zero386, copy386)
 	gen("arm", notags, zeroARM, copyARM)
-	gen("arm64", notags, zeroARM64, copyARM64)
 	gen("loong64", notags, zeroLOONG64, copyLOONG64)
 	gen("ppc64x", tagsPPC64x, zeroPPC64x, copyPPC64x)
 	gen("mips64x", tagsMIPS64x, zeroMIPS64x, copyMIPS64x)

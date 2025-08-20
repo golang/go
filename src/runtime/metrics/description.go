@@ -438,6 +438,32 @@ var allDesc = []Description{
 		Kind:        KindUint64,
 	},
 	{
+		Name:        "/sched/goroutines-created:goroutines",
+		Description: "Count of goroutines created since program start.",
+		Cumulative:  true,
+		Kind:        KindUint64,
+	},
+	{
+		Name:        "/sched/goroutines/not-in-go:goroutines",
+		Description: "Approximate count of goroutines running or blocked in a system call or cgo call. Not guaranteed to add up to /sched/goroutines:goroutines with other goroutine metrics.",
+		Kind:        KindUint64,
+	},
+	{
+		Name:        "/sched/goroutines/runnable:goroutines",
+		Description: "Approximate count of goroutines ready to execute, but not executing. Not guaranteed to add up to /sched/goroutines:goroutines with other goroutine metrics.",
+		Kind:        KindUint64,
+	},
+	{
+		Name:        "/sched/goroutines/running:goroutines",
+		Description: "Approximate count of goroutines executing. Always less than or equal to /sched/gomaxprocs:threads. Not guaranteed to add up to /sched/goroutines:goroutines with other goroutine metrics.",
+		Kind:        KindUint64,
+	},
+	{
+		Name:        "/sched/goroutines/waiting:goroutines",
+		Description: "Approximate count of goroutines waiting on a resource (I/O or sync primitives). Not guaranteed to add up to /sched/goroutines:goroutines with other goroutine metrics.",
+		Kind:        KindUint64,
+	},
+	{
 		Name:        "/sched/goroutines:goroutines",
 		Description: "Count of live goroutines.",
 		Kind:        KindUint64,
@@ -471,6 +497,11 @@ var allDesc = []Description{
 		Description: "Distribution of individual non-GC-related stop-the-world pause latencies. This is the time from deciding to stop the world until the world is started again. Some of this time is spent getting all threads to stop (measured directly in /sched/pauses/stopping/other:seconds). Bucket counts increase monotonically.",
 		Kind:        KindFloat64Histogram,
 		Cumulative:  true,
+	},
+	{
+		Name:        "/sched/threads/total:threads",
+		Description: "The current count of live threads that are owned by the Go runtime.",
+		Kind:        KindUint64,
 	},
 	{
 		Name:        "/sync/mutex/wait/total:seconds",
