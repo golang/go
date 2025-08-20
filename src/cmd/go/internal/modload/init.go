@@ -60,7 +60,6 @@ var (
 
 // Variables set in Init.
 var (
-	initialized bool
 
 	// These are primarily used to initialize the MainModules, and should be
 	// eventually superseded by them but are still used in cases where the module
@@ -406,7 +405,7 @@ func Reset() {
 
 func setState(s State) State {
 	oldState := State{
-		initialized:     initialized,
+		initialized:     LoaderState.initialized,
 		forceUseModules: ForceUseModules,
 		rootMode:        RootMode,
 		modRoots:        modRoots,
@@ -414,7 +413,7 @@ func setState(s State) State {
 		mainModules:     MainModules,
 		requirements:    requirements,
 	}
-	initialized = s.initialized
+	LoaderState.initialized = s.initialized
 	ForceUseModules = s.forceUseModules
 	RootMode = s.rootMode
 	modRoots = s.modRoots
@@ -450,10 +449,10 @@ var LoaderState = NewState()
 // configures the cfg, codehost, load, modfetch, and search packages for use
 // with modules.
 func Init() {
-	if initialized {
+	if LoaderState.initialized {
 		return
 	}
-	initialized = true
+	LoaderState.initialized = true
 
 	fips140.Init()
 
@@ -573,7 +572,7 @@ func WillBeEnabled() bool {
 		// Already enabled.
 		return true
 	}
-	if initialized {
+	if LoaderState.initialized {
 		// Initialized, not enabled.
 		return false
 	}
@@ -640,7 +639,7 @@ func VendorDir() string {
 }
 
 func inWorkspaceMode() bool {
-	if !initialized {
+	if !LoaderState.initialized {
 		panic("inWorkspaceMode called before modload.Init called")
 	}
 	if !Enabled() {
@@ -1253,7 +1252,7 @@ func fixVersion(ctx context.Context, fixed *bool) modfile.VersionFixer {
 // This function affects the default cfg.BuildMod when outside of a module,
 // so it can only be called prior to Init.
 func AllowMissingModuleImports() {
-	if initialized {
+	if LoaderState.initialized {
 		panic("AllowMissingModuleImports after Init")
 	}
 	allowMissingModuleImports = true
