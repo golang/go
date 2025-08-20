@@ -948,6 +948,10 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 		out.Write64(uint64(r.Xadd))
 		out.Write64(uint64(sectoff + 4))
 		out.Write64(uint64(elf.R_PPC64_GOT_TPREL16_LO_DS) | uint64(elfsym)<<32)
+	case objabi.R_POWER_TLS_GD_HA:
+		out.Write64(uint64(elf.R_PPC64_GOT_TLSGD16_HA) | uint64(elfsym)<<32)
+	case objabi.R_POWER_TLS_GD_LO:
+		out.Write64(uint64(elf.R_PPC64_GOT_TLSGD16_LO) | uint64(elfsym)<<32)
 	case objabi.R_ADDRPOWER:
 		out.Write64(uint64(elf.R_PPC64_ADDR16_HA) | uint64(elfsym)<<32)
 		out.Write64(uint64(r.Xadd))
@@ -1383,7 +1387,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 			if !target.IsAIX() {
 				return val, nExtReloc, false
 			}
-		case objabi.R_POWER_TLS, objabi.R_POWER_TLS_IE_PCREL34, objabi.R_POWER_TLS_LE_TPREL34, objabi.R_ADDRPOWER_GOT_PCREL34:
+		case objabi.R_POWER_TLS, objabi.R_POWER_TLS_IE_PCREL34, objabi.R_POWER_TLS_LE_TPREL34, objabi.R_ADDRPOWER_GOT_PCREL34, objabi.R_POWER_TLS_GD_HA, objabi.R_POWER_TLS_GD_LO:
 			nExtReloc = 1
 			return val, nExtReloc, true
 		case objabi.R_POWER_TLS_LE, objabi.R_POWER_TLS_IE:
@@ -1534,6 +1538,13 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		o1 |= computePrefix34HI(v)
 		o2 |= computeLO(int32(v))
 		return packInstPair(target, o1, o2), nExtReloc, true
+	
+	case objabi.R_POWER_TLS_GD_HA, objabi.R_POWER_TLS_GD_LO:
+		// General Dynamic model requires external linking
+		if !target.IsExternal() {
+			ldr.Errorf(s, "cannot handle R_POWER_TLS_GD relocations when linking internally")
+		}
+		return val, nExtReloc, true
 	}
 
 	return val, nExtReloc, false

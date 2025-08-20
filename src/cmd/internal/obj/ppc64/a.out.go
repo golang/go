@@ -447,6 +447,7 @@ const (
 	C_ADDR     /* A symbolic memory location */
 	C_TLS_LE   /* A thread local, local-exec, type memory arg */
 	C_TLS_IE   /* A thread local, initial-exec, type memory arg */
+	C_TLS_GD   /* A thread local, general-dynamic, type memory arg */
 	C_TEXTSIZE /* An argument with Type obj.TYPE_TEXTSIZE */
 
 	C_NCLASS /* must be the last */

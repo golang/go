@@ -200,6 +200,19 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		}
 
 		return true
+
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_TLS_GD32):
+		// General Dynamic TLS model
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_ARM_TLS_GD32)
+		if target.IsExternal() {
+			// Let the external linker handle the TLS GD relocation
+			return true
+		}
+		// For internal linking, we would need to implement TLS GD support
+		// This is complex and requires generating a call to __tls_get_addr
+		ldr.Errorf(s, "internal linking of TLS GD not implemented")
+		return false
 	}
 
 	// Handle references to ELF symbols from our own object files.
@@ -237,6 +250,14 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			su.SetRelocSym(rIdx, 0)
 			return true
 		}
+
+	case objabi.R_ARM_TLS_GD32:
+		if target.IsExternal() {
+			// External linker will handle TLS GD relocation
+			return true
+		}
+		// Internal linking not supported for TLS GD
+		return false
 
 	case objabi.R_GOTPCREL:
 		if target.IsExternal() {
@@ -293,6 +314,10 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 		out.Write32(uint32(elf.R_ARM_TLS_LE32) | uint32(elfsym)<<8)
 	case objabi.R_TLS_IE:
 		out.Write32(uint32(elf.R_ARM_TLS_IE32) | uint32(elfsym)<<8)
+	case objabi.R_ARM_TLS_GD32:
+		// ARM General Dynamic TLS model
+		// This generates a call to __tls_get_addr
+		out.Write32(uint32(elf.R_ARM_TLS_GD32) | uint32(elfsym)<<8)
 	case objabi.R_GOTPCREL:
 		if siz == 4 {
 			out.Write32(uint32(elf.R_ARM_GOT_PREL) | uint32(elfsym)<<8)
@@ -581,6 +606,12 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 	const isOk = true
 	const noExtReloc = 0
 	switch r.Type() {
+	case objabi.R_ARM_TLS_GD32:
+		// General Dynamic model requires external linking
+		if !target.IsExternal() {
+			ldr.Errorf(s, "cannot handle R_ARM_TLS_GD32 when linking internally")
+		}
+		return val, noExtReloc, isOk
 	// The following three arch specific relocations are only for generation of
 	// Linux/ARM ELF's PLT entry (3 assembler instruction)
 	case objabi.R_PLT0: // add ip, pc, #0xXX00000

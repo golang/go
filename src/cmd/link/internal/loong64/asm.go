@@ -427,6 +427,14 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 		out.Write64(uint64(sectoff))
 		out.Write64(uint64(elf.R_LARCH_TLS_IE_PC_LO12) | uint64(elfsym)<<32)
 		out.Write64(uint64(0x0))
+	case objabi.R_LOONG64_TLS_GD_HI:
+		out.Write64(uint64(sectoff))
+		out.Write64(uint64(elf.R_LARCH_TLS_GD_PC_HI20) | uint64(elfsym)<<32)
+		out.Write64(uint64(r.Xadd))
+	case objabi.R_LOONG64_TLS_GD_LO:
+		out.Write64(uint64(sectoff))
+		out.Write64(uint64(elf.R_LARCH_TLS_GD_HI20) | uint64(elfsym)<<32)
+		out.Write64(uint64(r.Xadd))
 
 	case objabi.R_LOONG64_ADDR_LO:
 		out.Write64(uint64(sectoff))
@@ -477,6 +485,8 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 			objabi.R_JMPLOONG64,
 			objabi.R_LOONG64_TLS_IE_HI,
 			objabi.R_LOONG64_TLS_IE_LO,
+			objabi.R_LOONG64_TLS_GD_HI,
+			objabi.R_LOONG64_TLS_GD_LO,
 			objabi.R_LOONG64_GOT_HI,
 			objabi.R_LOONG64_GOT_LO:
 			return val, 1, true
@@ -499,6 +509,12 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 			return int64(val&0xffc003ff | (t << 10)), noExtReloc, isOk
 		}
 		return int64(val&0xfe00001f | (t << 5)), noExtReloc, isOk
+	case objabi.R_LOONG64_TLS_GD_HI, objabi.R_LOONG64_TLS_GD_LO:
+		// General Dynamic model requires external linking
+		if !target.IsExternal() {
+			ldr.Errorf(s, "cannot handle R_LOONG64_TLS_GD relocations when linking internally")
+		}
+		return val, noExtReloc, isOk
 	case objabi.R_LOONG64_TLS_LE_HI,
 		objabi.R_LOONG64_TLS_LE_LO:
 		t := ldr.SymAddr(rs) + r.Add()
@@ -567,7 +583,9 @@ func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc, s loader.Sy
 		objabi.R_CALLLOONG64,
 		objabi.R_JMPLOONG64,
 		objabi.R_LOONG64_TLS_IE_HI,
-		objabi.R_LOONG64_TLS_IE_LO:
+		objabi.R_LOONG64_TLS_IE_LO,
+		objabi.R_LOONG64_TLS_GD_HI,
+		objabi.R_LOONG64_TLS_GD_LO:
 		return ld.ExtrelocSimple(ldr, r), true
 	}
 	return loader.ExtReloc{}, false

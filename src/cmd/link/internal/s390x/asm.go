@@ -208,6 +208,16 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		r.SetSym(syms.GOT)
 		su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymGot(targ))+int64(r.Siz()))
 		return true
+		
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_TLS_GD64):
+		// TLS general dynamic - need to add TLS descriptor to GOT
+		ld.AddGotSym(target, ldr, syms, targ, uint32(elf.R_390_TLS_DTPMOD))
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_PCREL)
+		ldr.SetRelocVariant(s, rIdx, sym.RV_390_DBL)
+		r.SetSym(syms.GOT)
+		su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymGot(targ))+int64(r.Siz()))
+		return true
 	}
 	// Handle references to ELF symbols from our own object files.
 	return targType != sym.SDYNIMPORT
@@ -239,6 +249,8 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 		case 4:
 			out.Write64(uint64(elf.R_390_TLS_IEENT) | uint64(elfsym)<<32)
 		}
+	case objabi.R_390_TLS_GD64:
+		out.Write64(uint64(elf.R_390_TLS_GD64) | uint64(elfsym)<<32)
 	case objabi.R_ADDR, objabi.R_DWARFSECREF:
 		switch siz {
 		default:
@@ -362,6 +374,18 @@ func machoreloc1(*sys.Arch, *ld.OutBuf, *loader.Loader, loader.Sym, loader.ExtRe
 }
 
 func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc, s loader.Sym, val int64) (o int64, nExtReloc int, ok bool) {
+	const noExtReloc = 0
+	const isOk = true
+	
+	switch r.Type() {
+	case objabi.R_390_TLS_GD64:
+		// General Dynamic model requires external linking
+		if !target.IsExternal() {
+			ldr.Errorf(s, "cannot handle R_390_TLS_GD64 when linking internally")
+		}
+		return val, noExtReloc, isOk
+	}
+	
 	return val, 0, false
 }
 

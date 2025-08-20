@@ -78,6 +78,18 @@ TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	ADD	$16, RSP
 
 nocgo:
+#ifdef GOOS_linux
+	// Check if we are a c-shared/c-archive library on Linux
+	// Skip TLS save if so, as musl's dlopen sets up TLS differently  
+	MOVB	runtime·islibrary(SB), R0
+	CBNZ	R0, skipcheck
+#endif
+#ifdef GOOS_freebsd
+	// Check if we are a c-shared/c-archive library on FreeBSD
+	// Skip TLS save if so, as BSD dlopen sets up TLS differently  
+	MOVB	runtime·islibrary(SB), R0
+	CBNZ	R0, skipcheck
+#endif
 	BL	runtime·save_g(SB)
 	// update stackguard after _cgo_init
 	MOVD	(g_stack+stack_lo)(g), R0
@@ -85,6 +97,7 @@ nocgo:
 	MOVD	R0, g_stackguard0(g)
 	MOVD	R0, g_stackguard1(g)
 
+skipcheck:
 	// set the per-goroutine and per-mach "registers"
 	MOVD	$runtime·m0(SB), R0
 

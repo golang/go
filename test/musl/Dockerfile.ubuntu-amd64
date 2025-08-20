@@ -1,0 +1,32 @@
+# Test Go c-shared compatibility on Ubuntu (glibc) - AMD64
+# This ensures our patches don't break glibc systems
+FROM --platform=linux/amd64 ubuntu:22.04
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    libc6-dev \
+    make \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy Go source
+WORKDIR /go
+
+# Build Go from source
+COPY src src
+RUN cd src && ./make.bash
+
+# Set up environment
+ENV PATH="/go/bin:${PATH}"
+ENV GOROOT="/go"
+
+# Create test directory
+WORKDIR /test
+
+# Copy test files
+COPY test/musl/test-cshared.sh /test/
+RUN chmod +x /test/test-cshared.sh
+
+# Run tests
+CMD ["/test/test-cshared.sh"]

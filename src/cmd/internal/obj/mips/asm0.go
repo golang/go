@@ -221,6 +221,9 @@ var optab = []Optab{
 	{AMOVV, C_TLS, C_NONE, C_REG, 54, 8, 0, sys.MIPS64, NOTUSETMP},
 	{AMOVB, C_TLS, C_NONE, C_REG, 54, 8, 0, 0, NOTUSETMP},
 	{AMOVBU, C_TLS, C_NONE, C_REG, 54, 8, 0, 0, NOTUSETMP},
+	{AMOVW, C_TLS_GD, C_NONE, C_REG, 60, 16, 0, 0, NOTUSETMP},
+	{AMOVWU, C_TLS_GD, C_NONE, C_REG, 60, 16, 0, sys.MIPS64, NOTUSETMP},
+	{AMOVV, C_TLS_GD, C_NONE, C_REG, 60, 16, 0, sys.MIPS64, NOTUSETMP},
 
 	{AMOVW, C_SECON, C_NONE, C_REG, 3, 4, REGSB, sys.MIPS64, 0},
 	{AMOVV, C_SECON, C_NONE, C_REG, 3, 4, REGSB, sys.MIPS64, 0},
@@ -606,6 +609,10 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
 			c.instoffset = a.Offset
 			if a.Sym != nil { // use relocation
 				if a.Sym.Type == objabi.STLSBSS {
+					// For shared libraries, use general dynamic TLS model
+					if c.ctxt.ShouldUseTLSGD() {
+						return C_TLS_GD
+					}
 					return C_TLS
 				}
 				return C_ADDR
@@ -1693,6 +1700,36 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 	case 59:
 		o1 = OP_RRR(c.oprrr(p.As), p.From.Reg, REGZERO, p.To.Reg)
+
+	case 60: /* TLS General Dynamic model */
+		// For MIPS TLS GD, generate a call to __tls_get_addr
+		// First, load the GOT address of the TLS descriptor
+		// lui $t9, %got_tlsgd_hi(sym)
+		o1 = OP_IRR(0x0f, 0, 0, 25) // lui $t9, 0
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_MIPS_TLS_GD_HI,
+			Off:  int32(c.pc),
+			Siz:  4,
+			Sym:  p.From.Sym,
+			Add:  p.From.Offset,
+		})
+		
+		// addiu $t9, $t9, %got_tlsgd_lo(sym)
+		o2 = OP_IRR(0x09, 25, 25, 0) // addiu $t9, $t9, 0
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_MIPS_TLS_GD_LO,
+			Off:  int32(c.pc + 4),
+			Siz:  4,
+			Sym:  p.From.Sym,
+			Add:  p.From.Offset,
+		})
+		
+		// jalr $t9 (call __tls_get_addr)
+		o3 = 0x0320f809 // jalr $t9
+		
+		// move $a0, $v0 (result to destination register)
+		o4 = OP_RRR(0x21, 2, 0, p.To.Reg) // move
+
 	}
 
 	out[0] = o1

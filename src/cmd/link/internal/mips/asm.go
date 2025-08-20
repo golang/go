@@ -61,6 +61,10 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 		out.Write32(uint32(elf.R_MIPS_HI16) | uint32(elfsym)<<8)
 	case objabi.R_ADDRMIPSTLS:
 		out.Write32(uint32(elf.R_MIPS_TLS_TPREL_LO16) | uint32(elfsym)<<8)
+	case objabi.R_MIPS_TLS_GD_HI:
+		out.Write32(uint32(elf.R_MIPS_TLS_GD) | uint32(elfsym)<<8)
+	case objabi.R_MIPS_TLS_GD_LO:
+		out.Write32(uint32(elf.R_MIPS_TLS_GD) | uint32(elfsym)<<8)
 	case objabi.R_CALLMIPS, objabi.R_JMPMIPS:
 		out.Write32(uint32(elf.R_MIPS_26) | uint32(elfsym)<<8)
 	}
@@ -148,7 +152,7 @@ func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc, s loader.Sy
 	case objabi.R_ADDRMIPS, objabi.R_ADDRMIPSU:
 		return ld.ExtrelocViaOuterSym(ldr, r, s), true
 
-	case objabi.R_ADDRMIPSTLS, objabi.R_CALLMIPS, objabi.R_JMPMIPS:
+	case objabi.R_ADDRMIPSTLS, objabi.R_CALLMIPS, objabi.R_JMPMIPS, objabi.R_MIPS_TLS_GD_HI, objabi.R_MIPS_TLS_GD_LO:
 		return ld.ExtrelocSimple(ldr, r), true
 	}
 	return loader.ExtReloc{}, false

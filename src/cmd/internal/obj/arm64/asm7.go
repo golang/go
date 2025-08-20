@@ -478,6 +478,7 @@ var optab = []Optab{
 	{AMOVD, C_GOTADDR, C_NONE, C_NONE, C_ZREG, C_NONE, 71, 8, 0, 0, 0},
 	{AMOVD, C_TLS_LE, C_NONE, C_NONE, C_ZREG, C_NONE, 69, 4, 0, 0, 0},
 	{AMOVD, C_TLS_IE, C_NONE, C_NONE, C_ZREG, C_NONE, 70, 8, 0, 0, 0},
+	{AMOVD, C_TLS_GD, C_NONE, C_NONE, C_ZREG, C_NONE, 109, 16, 0, 0, 0},
 
 	{AFMOVS, C_FREG, C_NONE, C_NONE, C_ADDR, C_NONE, 64, 12, 0, 0, 0},
 	{AFMOVS, C_ADDR, C_NONE, C_NONE, C_FREG, C_NONE, 65, 12, 0, 0, 0},
@@ -2100,8 +2101,10 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
 			c.instoffset = a.Offset
 			if a.Sym != nil { // use relocation
 				if a.Sym.Type == objabi.STLSBSS {
-					if c.ctxt.Flag_shared {
-						return C_TLS_IE
+					// For c-shared/c-archive on standards-compliant systems,
+					// use general dynamic model for dlopen compatibility.
+					if c.ctxt.ShouldUseTLSGD() {
+						return C_TLS_GD
 					} else {
 						return C_TLS_LE
 					}
@@ -5830,6 +5833,38 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 		default:
 			c.ctxt.Diag("illegal argument: %v\n", p)
 			break
+		}
+	
+	case 109: /* GD model TLS sequence: ADRP; LDR; ADD; BLR */
+		// General Dynamic TLS model generates a 4-instruction sequence
+		// to call __tls_get_addr (or equivalent)
+		//   ADRP R27, :tlsdesc:var
+		//   LDR  R27, [R27, :tlsdesc_lo12:var]
+		//   ADD  R0, R27, :tlsdesc_lo12:var
+		//   BLR  R27
+		// The output is the offset in R0 (p.To.Reg)
+		rt := p.To.Reg
+		
+		// ADRP R27, 0 (page address)
+		o1 = ADR(1, 0, REGRT2)
+		
+		// LDR R27, [R27, #0]
+		o2 = c.olsr12u(p, c.opldr(p, AMOVD), 0, REGRT2, REGRT2)
+		
+		// ADD R0, R27, #0 (prepare argument)
+		o3 = c.oaddi(p, AADD, 0, REGRT2, rt)
+		
+		// BLR R27 (call descriptor function)
+		o4 = 0xd63f0000 | uint32(REGRT2&31)<<5
+		
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_ARM64_TLS_GD,
+			Off:  int32(c.pc),
+			Siz:  16,
+			Sym:  p.From.Sym,
+		})
+		if p.From.Offset != 0 {
+			c.ctxt.Diag("invalid offset on TLS GD")
 		}
 	}
 	out[0] = o1
