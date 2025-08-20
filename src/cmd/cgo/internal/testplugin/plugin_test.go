@@ -422,3 +422,11 @@ func TestIssue67976(t *testing.T) {
 	globalSkip(t)
 	goCmd(t, "build", "-buildmode=plugin", "-o", "issue67976.so", "./issue67976/plugin.go")
 }
+
+func TestIssue75102(t *testing.T) {
+	globalSkip(t)
+	// add gcflags different from the executable file to trigger plugin open failed.
+	goCmd(t, "build", "-gcflags=all=-N -l", "-buildmode=plugin", "-o", "issue75102.so", "./issue75102/plugin.go")
+	goCmd(t, "build", "-o", "issue75102.exe", "./issue75102/main.go")
+	run(t, "./issue75102.exe")
+}
