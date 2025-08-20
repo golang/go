@@ -111,3 +111,13 @@
   - *fma_op
   out:
   - *fma_op
+- go: SumAbsDiff
+  asm: "VPSADBW"
+  in:
+  - go: $t
+    base: uint
+  - go: $t
+    base: uint
+  out:
+  - go: $t2
+    base: uint

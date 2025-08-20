@@ -1875,6 +1875,9 @@ const (
 	OpAMD64VPRORVQMasked128
 	OpAMD64VPRORVQMasked256
 	OpAMD64VPRORVQMasked512
+	OpAMD64VPSADBW128
+	OpAMD64VPSADBW256
+	OpAMD64VPSADBW512
 	OpAMD64VPSHLDVD128
 	OpAMD64VPSHLDVD256
 	OpAMD64VPSHLDVD512
@@ -5544,6 +5547,9 @@ const (
 	OpSubUint64x2
 	OpSubUint64x4
 	OpSubUint64x8
+	OpSumAbsDiffUint8x16
+	OpSumAbsDiffUint8x32
+	OpSumAbsDiffUint8x64
 	OpTruncFloat32x4
 	OpTruncFloat32x8
 	OpTruncFloat64x2
@@ -28454,6 +28460,48 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSADBW128",
+		argLen: 2,
+		asm:    x86.AVPSADBW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSADBW256",
+		argLen: 2,
+		asm:    x86.AVPSADBW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSADBW512",
+		argLen: 2,
+		asm:    x86.AVPSADBW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
 			},
 		},
 	},
@@ -67895,6 +67943,21 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "SubUint64x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SumAbsDiffUint8x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SumAbsDiffUint8x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SumAbsDiffUint8x64",
 		argLen:  2,
 		generic: true,
 	},

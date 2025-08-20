@@ -4123,6 +4123,15 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpSubUint8x64:
 		v.Op = OpAMD64VPSUBB512
 		return true
+	case OpSumAbsDiffUint8x16:
+		v.Op = OpAMD64VPSADBW128
+		return true
+	case OpSumAbsDiffUint8x32:
+		v.Op = OpAMD64VPSADBW256
+		return true
+	case OpSumAbsDiffUint8x64:
+		v.Op = OpAMD64VPSADBW512
+		return true
 	case OpTailCall:
 		v.Op = OpAMD64CALLtail
 		return true

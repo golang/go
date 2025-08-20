@@ -45,3 +45,9 @@
   commutative: false
   documentation: !string |-
     // NAME performs a fused (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
+- go: SumAbsDiff
+  commutative: false
+  documentation: !string |-
+    // NAME sums the absolute distance of the two input vectors, each adjacent 8 bytes as a group. The output sum will
+    // be a vector of word-sized elements whose each 8*n-th element contains the sum of the n-th input group.
+    // This method could be seen as the norm of the L1 distance of each adjacent 8-byte vector group of the two input vectors.
