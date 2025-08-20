@@ -96,7 +96,7 @@ func EnterWorkspace(ctx context.Context) (exit func(), err error) {
 	}
 
 	// Reset the state to a clean state.
-	oldstate := setState(state{})
+	oldstate := setState(State{})
 	ForceUseModules = true
 
 	// Load in workspace mode.
@@ -401,11 +401,11 @@ func WorkFilePath() string {
 // Reset clears all the initialized, cached state about the use of modules,
 // so that we can start over.
 func Reset() {
-	setState(state{})
+	setState(State{})
 }
 
-func setState(s state) state {
-	oldState := state{
+func setState(s State) State {
+	oldState := State{
 		initialized:     initialized,
 		forceUseModules: ForceUseModules,
 		rootMode:        RootMode,
@@ -429,7 +429,7 @@ func setState(s state) state {
 	return oldState
 }
 
-type state struct {
+type State struct {
 	initialized     bool
 	forceUseModules bool
 	rootMode        Root
@@ -440,6 +440,10 @@ type state struct {
 	workFilePath    string
 	modfetchState   modfetch.State
 }
+
+func NewState() *State { return &State{} }
+
+var LoaderState = NewState()
 
 // Init determines whether module mode is enabled, locates the root of the
 // current module (if any), sets environment variables for Git subprocesses, and
