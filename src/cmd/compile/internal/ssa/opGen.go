@@ -1587,10 +1587,8 @@ const (
 	OpAMD64VPDPWSSDSMasked128
 	OpAMD64VPDPWSSDSMasked256
 	OpAMD64VPDPWSSDSMasked512
-	OpAMD64VPERMB128
 	OpAMD64VPERMB256
 	OpAMD64VPERMB512
-	OpAMD64VPERMBMasked128
 	OpAMD64VPERMBMasked256
 	OpAMD64VPERMBMasked512
 	OpAMD64VPERMD256
@@ -2040,6 +2038,8 @@ const (
 	OpAMD64VPSHRDVWMasked128
 	OpAMD64VPSHRDVWMasked256
 	OpAMD64VPSHRDVWMasked512
+	OpAMD64VPSHUFB128
+	OpAMD64VPSHUFBMasked128
 	OpAMD64VPSIGNB128
 	OpAMD64VPSIGNB256
 	OpAMD64VPSIGND128
@@ -24359,20 +24359,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VPERMB128",
-		argLen: 2,
-		asm:    x86.AVPERMB,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-				{1, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-			outputs: []outputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
 		name:   "VPERMB256",
 		argLen: 2,
 		asm:    x86.AVPERMB,
@@ -24397,21 +24383,6 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
-		name:   "VPERMBMasked128",
-		argLen: 3,
-		asm:    x86.AVPERMB,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -31040,6 +31011,35 @@ var opcodeTable = [...]opInfo{
 				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{2, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSHUFB128",
+		argLen: 2,
+		asm:    x86.AVPSHUFB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSHUFBMasked128",
+		argLen: 3,
+		asm:    x86.AVPSHUFB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14

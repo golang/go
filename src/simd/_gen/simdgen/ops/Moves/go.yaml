@@ -418,3 +418,18 @@
     bits: 512
     elemBits: $e
     base: $b
+
+# VPSHUFB for 128-bit byte shuffles will be picked with higher priority than VPERMB, given its lower CPU feature requirement. (It's AVX)
+- go: Permute
+  asm: VPSHUFB
+  addDoc: !string |-
+    // However when the top bit is set, the low bits will be disregard and the respective element in the result vector will be zeroed.
+  in:
+  - &128any
+    bits: 128
+    go: $t
+  - bits: 128
+    go: $t
+    name: indices
+  out:
+  - *128any

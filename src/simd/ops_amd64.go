@@ -4155,15 +4155,17 @@ func (x Uint64x8) Or(y Uint64x8) Uint64x8
 // Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
+// However when the top bit is set, the low bits will be disregard and the respective element in the result vector will be zeroed.
 //
-// Asm: VPERMB, CPU Feature: AVX512VBMI
-func (x Int8x16) Permute(indices Uint8x16) Int8x16
+// Asm: VPSHUFB, CPU Feature: AVX
+func (x Int8x16) Permute(indices Int8x16) Int8x16
 
 // Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
+// However when the top bit is set, the low bits will be disregard and the respective element in the result vector will be zeroed.
 //
-// Asm: VPERMB, CPU Feature: AVX512VBMI
+// Asm: VPSHUFB, CPU Feature: AVX
 func (x Uint8x16) Permute(indices Uint8x16) Uint8x16
 
 // Permute performs a full permutation of vector x using indices:

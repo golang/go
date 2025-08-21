@@ -3257,7 +3257,7 @@ func rewriteValueAMD64(v *Value) bool {
 		v.Op = OpAMD64VPERMQ512
 		return true
 	case OpPermuteInt8x16:
-		v.Op = OpAMD64VPERMB128
+		v.Op = OpAMD64VPSHUFB128
 		return true
 	case OpPermuteInt8x32:
 		v.Op = OpAMD64VPERMB256
@@ -3287,7 +3287,7 @@ func rewriteValueAMD64(v *Value) bool {
 		v.Op = OpAMD64VPERMQ512
 		return true
 	case OpPermuteUint8x16:
-		v.Op = OpAMD64VPERMB128
+		v.Op = OpAMD64VPSHUFB128
 		return true
 	case OpPermuteUint8x32:
 		v.Op = OpAMD64VPERMB256
