@@ -109,7 +109,7 @@ func ListModules(ctx context.Context, args []string, mode ListMode, reuseFile st
 	}
 
 	if err == nil {
-		requirements = rs
+		LoaderState.requirements = rs
 		// TODO(#61605): The extra ListU clause fixes a problem with Go 1.21rc3
 		// where "go mod tidy" and "go list -m -u all" fight over whether the go.sum
 		// should be considered up-to-date. The fix for now is to always treat the

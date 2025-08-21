@@ -85,16 +85,6 @@ type cachedGraph struct {
 	err error // If err is non-nil, mg may be incomplete (but must still be non-nil).
 }
 
-// requirements is the requirement graph for the main module.
-//
-// It is always non-nil if the main module's go.mod file has been loaded.
-//
-// This variable should only be read from the loadModFile function, and should
-// only be written in the loadModFile and commitRequirements functions.
-// All other functions that need or produce a *Requirements should
-// accept and/or return an explicit parameter.
-var requirements *Requirements
-
 func mustHaveGoRoot(roots []module.Version) {
 	for _, m := range roots {
 		if m.Path == "go" {
@@ -589,7 +579,7 @@ func LoadModGraph(ctx context.Context, goVersion string) (*ModuleGraph, error) {
 	if err != nil {
 		return nil, err
 	}
-	requirements = rs
+	LoaderState.requirements = rs
 	return mg, nil
 }
 
@@ -654,7 +644,7 @@ func EditBuildList(ctx context.Context, add, mustSelect []module.Version) (chang
 	if err != nil {
 		return false, err
 	}
-	requirements = rs
+	LoaderState.requirements = rs
 	return changed, nil
 }
 

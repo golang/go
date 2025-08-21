@@ -59,7 +59,7 @@ var (
 // EnterModule resets MainModules and requirements to refer to just this one module.
 func EnterModule(ctx context.Context, enterModroot string) {
 	LoaderState.MainModules = nil // reset MainModules
-	requirements = nil
+	LoaderState.requirements = nil
 	workFilePath = "" // Force module mode
 	modfetch.Reset()
 
@@ -90,7 +90,7 @@ func EnterWorkspace(ctx context.Context) (exit func(), err error) {
 
 	// Update the content of the previous main module, and recompute the requirements.
 	*LoaderState.MainModules.ModFile(mm) = *updatedmodfile
-	requirements = requirementsFromModFiles(ctx, LoaderState.MainModules.workFile, slices.Collect(maps.Values(LoaderState.MainModules.modFiles)), nil)
+	LoaderState.requirements = requirementsFromModFiles(ctx, LoaderState.MainModules.workFile, slices.Collect(maps.Values(LoaderState.MainModules.modFiles)), nil)
 
 	return func() {
 		setState(oldstate)
@@ -395,7 +395,7 @@ func setState(s State) State {
 		modRoots:        LoaderState.modRoots,
 		modulesEnabled:  cfg.ModulesEnabled,
 		MainModules:     LoaderState.MainModules,
-		requirements:    requirements,
+		requirements:    LoaderState.requirements,
 	}
 	LoaderState.initialized = s.initialized
 	LoaderState.ForceUseModules = s.ForceUseModules
@@ -403,7 +403,7 @@ func setState(s State) State {
 	LoaderState.modRoots = s.modRoots
 	cfg.ModulesEnabled = s.modulesEnabled
 	LoaderState.MainModules = s.MainModules
-	requirements = s.requirements
+	LoaderState.requirements = s.requirements
 	workFilePath = s.workFilePath
 	// The modfetch package's global state is used to compute
 	// the go.sum file, so save and restore it along with the
@@ -430,9 +430,20 @@ type State struct {
 	modRoots       []string
 	modulesEnabled bool
 	MainModules    *MainModuleSet
-	requirements   *Requirements
-	workFilePath   string
-	modfetchState  modfetch.State
+
+	// requirements is the requirement graph for the main module.
+	//
+	// It is always non-nil if the main module's go.mod file has been
+	// loaded.
+	//
+	// This variable should only be read from the loadModFile
+	// function, and should only be written in the loadModFile and
+	// commitRequirements functions.  All other functions that need or
+	// produce a *Requirements should accept and/or return an explicit
+	// parameter.
+	requirements  *Requirements
+	workFilePath  string
+	modfetchState modfetch.State
 }
 
 func NewState() *State { return &State{} }
@@ -869,8 +880,8 @@ func LoadModFile(ctx context.Context) *Requirements {
 }
 
 func loadModFile(ctx context.Context, opts *PackageOpts) (*Requirements, error) {
-	if requirements != nil {
-		return requirements, nil
+	if LoaderState.requirements != nil {
+		return LoaderState.requirements, nil
 	}
 
 	Init()
@@ -939,14 +950,14 @@ func loadModFile(ctx context.Context, opts *PackageOpts) (*Requirements, error) 
 			}
 		}
 		rawGoVersion.Store(mainModule, goVersion)
-		requirements = newRequirements(pruning, roots, direct)
+		LoaderState.requirements = newRequirements(pruning, roots, direct)
 		if cfg.BuildMod == "vendor" {
 			// For issue 56536: Some users may have GOFLAGS=-mod=vendor set.
 			// Make sure it behaves as though the fake module is vendored
 			// with no dependencies.
-			requirements.initVendor(nil)
+			LoaderState.requirements.initVendor(nil)
 		}
-		return requirements, nil
+		return LoaderState.requirements, nil
 	}
 
 	var modFiles []*modfile.File
@@ -1035,7 +1046,7 @@ func loadModFile(ctx context.Context, opts *PackageOpts) (*Requirements, error) 
 
 	if inWorkspaceMode() {
 		// We don't need to update the mod file so return early.
-		requirements = rs
+		LoaderState.requirements = rs
 		return rs, nil
 	}
 
@@ -1081,8 +1092,8 @@ func loadModFile(ctx context.Context, opts *PackageOpts) (*Requirements, error) 
 		}
 	}
 
-	requirements = rs
-	return requirements, nil
+	LoaderState.requirements = rs
+	return LoaderState.requirements, nil
 }
 
 func errWorkTooOld(gomod string, wf *modfile.WorkFile, goVers string) error {
@@ -1162,7 +1173,7 @@ func CreateModFile(ctx context.Context, modPath string) {
 	if err != nil {
 		base.Fatal(err)
 	}
-	requirements = rs
+	LoaderState.requirements = rs
 	if err := commitRequirements(ctx, WriteOpts{}); err != nil {
 		base.Fatal(err)
 	}
@@ -1801,7 +1812,7 @@ type WriteOpts struct {
 
 // WriteGoMod writes the current build list back to go.mod.
 func WriteGoMod(ctx context.Context, opts WriteOpts) error {
-	requirements = LoadModFile(ctx)
+	LoaderState.requirements = LoadModFile(ctx)
 	return commitRequirements(ctx, opts)
 }
 
@@ -1828,7 +1839,7 @@ func UpdateGoModFromReqs(ctx context.Context, opts WriteOpts) (before, after []b
 	var list []*modfile.Require
 	toolchain := ""
 	goVersion := ""
-	for _, m := range requirements.rootModules {
+	for _, m := range LoaderState.requirements.rootModules {
 		if m.Path == "go" {
 			goVersion = m.Version
 			continue
@@ -1839,7 +1850,7 @@ func UpdateGoModFromReqs(ctx context.Context, opts WriteOpts) (before, after []b
 		}
 		list = append(list, &modfile.Require{
 			Mod:      m,
-			Indirect: !requirements.direct[m.Path],
+			Indirect: !LoaderState.requirements.direct[m.Path],
 		})
 	}
 
@@ -1913,7 +1924,7 @@ func commitRequirements(ctx context.Context, opts WriteOpts) (err error) {
 	if inWorkspaceMode() {
 		// go.mod files aren't updated in workspace mode, but we still want to
 		// update the go.work.sum file.
-		return modfetch.WriteGoSum(ctx, keepSums(ctx, loaded, requirements, addBuildListZipSums), mustHaveCompleteRequirements())
+		return modfetch.WriteGoSum(ctx, keepSums(ctx, loaded, LoaderState.requirements, addBuildListZipSums), mustHaveCompleteRequirements())
 	}
 	_, updatedGoMod, modFile, err := UpdateGoModFromReqs(ctx, opts)
 	if err != nil {
@@ -1937,7 +1948,7 @@ func commitRequirements(ctx context.Context, opts WriteOpts) (err error) {
 		// Don't write go.mod, but write go.sum in case we added or trimmed sums.
 		// 'go mod init' shouldn't write go.sum, since it will be incomplete.
 		if cfg.CmdName != "mod init" {
-			if err := modfetch.WriteGoSum(ctx, keepSums(ctx, loaded, requirements, addBuildListZipSums), mustHaveCompleteRequirements()); err != nil {
+			if err := modfetch.WriteGoSum(ctx, keepSums(ctx, loaded, LoaderState.requirements, addBuildListZipSums), mustHaveCompleteRequirements()); err != nil {
 				return err
 			}
 		}
@@ -1960,7 +1971,7 @@ func commitRequirements(ctx context.Context, opts WriteOpts) (err error) {
 		// 'go mod init' shouldn't write go.sum, since it will be incomplete.
 		if cfg.CmdName != "mod init" {
 			if err == nil {
-				err = modfetch.WriteGoSum(ctx, keepSums(ctx, loaded, requirements, addBuildListZipSums), mustHaveCompleteRequirements())
+				err = modfetch.WriteGoSum(ctx, keepSums(ctx, loaded, LoaderState.requirements, addBuildListZipSums), mustHaveCompleteRequirements())
 			}
 		}
 	}()

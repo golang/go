@@ -455,7 +455,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 		if opts.TidyDiff {
 			cfg.BuildMod = "readonly"
 			loaded = ld
-			requirements = loaded.requirements
+			LoaderState.requirements = loaded.requirements
 			currentGoMod, updatedGoMod, _, err := UpdateGoModFromReqs(ctx, WriteOpts{})
 			if err != nil {
 				base.Fatal(err)
@@ -466,7 +466,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 			// Dropping compatibility for 1.16 may result in a strictly smaller go.sum.
 			// Update the keep map with only the loaded.requirements.
 			if gover.Compare(compatVersion, "1.16") > 0 {
-				keep = keepSums(ctx, loaded, requirements, addBuildListZipSums)
+				keep = keepSums(ctx, loaded, LoaderState.requirements, addBuildListZipSums)
 			}
 			currentGoSum, tidyGoSum := modfetch.TidyGoSum(keep)
 			goSumDiff := diff.Diff("current/go.sum", currentGoSum, "tidy/go.sum", tidyGoSum)
@@ -505,7 +505,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 	// to call WriteGoMod itself) or if ResolveMissingImports is false (the
 	// command wants to examine the package graph as-is).
 	loaded = ld
-	requirements = loaded.requirements
+	LoaderState.requirements = loaded.requirements
 
 	for _, pkg := range ld.pkgs {
 		if !pkg.isTest() {
@@ -788,7 +788,7 @@ func ImportFromFiles(ctx context.Context, gofiles []string) {
 			return roots
 		},
 	})
-	requirements = loaded.requirements
+	LoaderState.requirements = loaded.requirements
 
 	if !ExplicitWriteGoMod {
 		if err := commitRequirements(ctx, WriteOpts{}); err != nil {
