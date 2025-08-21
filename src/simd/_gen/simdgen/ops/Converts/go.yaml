@@ -235,6 +235,51 @@
     - base: uint
   out:
     - base: uint
+# Saturated conversions.
+- go: ConvertToInt8Saturated
+  asm: "VPMOVS[WDQ]B"
+  addDoc: &satDoc
+    !string |-
+    // Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
+  in:
+    - base: int
+  out:
+    - base: int
+- go: ConvertToUint8Saturated
+  asm: "VPMOVUS[WDQ]B"
+  addDoc: *satDoc
+  in:
+    - base: uint
+  out:
+    - base: uint
+- go: ConvertToInt16Saturated
+  asm: "VPMOVS[DQ]W"
+  addDoc: *satDoc
+  in:
+    - base: int
+  out:
+    - base: int
+- go: ConvertToUint16Saturated
+  asm: "VPMOVUS[DQ]W"
+  addDoc: *satDoc
+  in:
+    - base: uint
+  out:
+    - base: uint
+- go: ConvertToInt32Saturated
+  asm: "VPMOVSQD"
+  addDoc: *satDoc
+  in:
+    - base: int
+  out:
+    - base: int
+- go: ConvertToUint32Saturated
+  asm: "VPMOVUSQD"
+  addDoc: *satDoc
+  in:
+    - base: uint
+  out:
+    - base: uint
 
 # low-part only conversions.
 # uint8->uint16

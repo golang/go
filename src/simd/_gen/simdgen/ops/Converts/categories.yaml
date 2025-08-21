@@ -4,7 +4,7 @@
 - go: ConvertToInt8
   commutative: false
   documentation: !string |-
-    // NAME converts element values to int16.
+    // NAME converts element values to int8.
 - go: ConvertToInt16
   commutative: false
   documentation: !string |-
@@ -20,7 +20,7 @@
 - go: ConvertToUint8
   commutative: false
   documentation: !string |-
-    // NAME converts element values to uint16.
+    // NAME converts element values to uint8.
 - go: ConvertToUint16
   commutative: false
   documentation: !string |-
@@ -33,6 +33,30 @@
   commutative: false
   documentation: !string |-
     // NAME converts element values to uint64.
+- go: ConvertToInt8Saturated
+  commutative: false
+  documentation: !string |-
+    // NAME converts element values to int8 with saturation.
+- go: ConvertToInt16Saturated
+  commutative: false
+  documentation: !string |-
+    // NAME converts element values to int16 with saturation.
+- go: ConvertToInt32Saturated
+  commutative: false
+  documentation: !string |-
+    // NAME converts element values to int32 with saturation.
+- go: ConvertToUint8Saturated
+  commutative: false
+  documentation: !string |-
+    // NAME converts element values to uint8 with saturation.
+- go: ConvertToUint16Saturated
+  commutative: false
+  documentation: !string |-
+    // NAME converts element values to uint16 with saturation.
+- go: ConvertToUint32Saturated
+  commutative: false
+  documentation: !string |-
+    // NAME converts element values to uint32 with saturation.
 
 # low-part only conversions
 # int<->int or uint<->uint widening conversions.
