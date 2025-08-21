@@ -1370,6 +1370,24 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpConstBool(v)
 	case OpConstNil:
 		return rewriteValueAMD64_OpConstNil(v)
+	case OpConvertToInt16Int32x16:
+		v.Op = OpAMD64VPMOVDW256
+		return true
+	case OpConvertToInt16Int32x4:
+		v.Op = OpAMD64VPMOVDW128
+		return true
+	case OpConvertToInt16Int32x8:
+		v.Op = OpAMD64VPMOVDW128
+		return true
+	case OpConvertToInt16Int64x2:
+		v.Op = OpAMD64VPMOVQW128
+		return true
+	case OpConvertToInt16Int64x4:
+		v.Op = OpAMD64VPMOVQW128
+		return true
+	case OpConvertToInt16Int64x8:
+		v.Op = OpAMD64VPMOVQW128
+		return true
 	case OpConvertToInt16Int8x16:
 		v.Op = OpAMD64VPMOVSXBW256
 		return true
@@ -1393,6 +1411,15 @@ func rewriteValueAMD64(v *Value) bool {
 		return true
 	case OpConvertToInt32Int16x8:
 		v.Op = OpAMD64VPMOVSXWD256
+		return true
+	case OpConvertToInt32Int64x2:
+		v.Op = OpAMD64VPMOVQD128
+		return true
+	case OpConvertToInt32Int64x4:
+		v.Op = OpAMD64VPMOVQD128
+		return true
+	case OpConvertToInt32Int64x8:
+		v.Op = OpAMD64VPMOVQD256
 		return true
 	case OpConvertToInt32Int8x16:
 		v.Op = OpAMD64VPMOVSXBD512
@@ -1430,6 +1457,51 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpConvertToInt64x8Int8x16:
 		v.Op = OpAMD64VPMOVSXBQ512
 		return true
+	case OpConvertToInt8Int16x16:
+		v.Op = OpAMD64VPMOVWB128
+		return true
+	case OpConvertToInt8Int16x32:
+		v.Op = OpAMD64VPMOVWB256
+		return true
+	case OpConvertToInt8Int16x8:
+		v.Op = OpAMD64VPMOVWB128
+		return true
+	case OpConvertToInt8Int32x16:
+		v.Op = OpAMD64VPMOVDB128
+		return true
+	case OpConvertToInt8Int32x4:
+		v.Op = OpAMD64VPMOVDB128
+		return true
+	case OpConvertToInt8Int32x8:
+		v.Op = OpAMD64VPMOVDB128
+		return true
+	case OpConvertToInt8Int64x2:
+		v.Op = OpAMD64VPMOVQB128
+		return true
+	case OpConvertToInt8Int64x4:
+		v.Op = OpAMD64VPMOVQB128
+		return true
+	case OpConvertToInt8Int64x8:
+		v.Op = OpAMD64VPMOVQB128
+		return true
+	case OpConvertToUint16Uint32x16:
+		v.Op = OpAMD64VPMOVDW256
+		return true
+	case OpConvertToUint16Uint32x4:
+		v.Op = OpAMD64VPMOVDW128
+		return true
+	case OpConvertToUint16Uint32x8:
+		v.Op = OpAMD64VPMOVDW128
+		return true
+	case OpConvertToUint16Uint64x2:
+		v.Op = OpAMD64VPMOVQW128
+		return true
+	case OpConvertToUint16Uint64x4:
+		v.Op = OpAMD64VPMOVQW128
+		return true
+	case OpConvertToUint16Uint64x8:
+		v.Op = OpAMD64VPMOVQW128
+		return true
 	case OpConvertToUint16Uint8x16:
 		v.Op = OpAMD64VPMOVZXBW256
 		return true
@@ -1453,6 +1525,15 @@ func rewriteValueAMD64(v *Value) bool {
 		return true
 	case OpConvertToUint32Uint16x8:
 		v.Op = OpAMD64VPMOVZXWD256
+		return true
+	case OpConvertToUint32Uint64x2:
+		v.Op = OpAMD64VPMOVQD128
+		return true
+	case OpConvertToUint32Uint64x4:
+		v.Op = OpAMD64VPMOVQD128
+		return true
+	case OpConvertToUint32Uint64x8:
+		v.Op = OpAMD64VPMOVQD256
 		return true
 	case OpConvertToUint32Uint8x16:
 		v.Op = OpAMD64VPMOVZXBD512
@@ -1495,6 +1576,33 @@ func rewriteValueAMD64(v *Value) bool {
 		return true
 	case OpConvertToUint64x8Uint8x16:
 		v.Op = OpAMD64VPMOVZXBQ512
+		return true
+	case OpConvertToUint8Uint16x16:
+		v.Op = OpAMD64VPMOVWB128
+		return true
+	case OpConvertToUint8Uint16x32:
+		v.Op = OpAMD64VPMOVWB256
+		return true
+	case OpConvertToUint8Uint16x8:
+		v.Op = OpAMD64VPMOVWB128
+		return true
+	case OpConvertToUint8Uint32x16:
+		v.Op = OpAMD64VPMOVDB128
+		return true
+	case OpConvertToUint8Uint32x4:
+		v.Op = OpAMD64VPMOVDB128
+		return true
+	case OpConvertToUint8Uint32x8:
+		v.Op = OpAMD64VPMOVDB128
+		return true
+	case OpConvertToUint8Uint64x2:
+		v.Op = OpAMD64VPMOVQB128
+		return true
+	case OpConvertToUint8Uint64x4:
+		v.Op = OpAMD64VPMOVQB128
+		return true
+	case OpConvertToUint8Uint64x8:
+		v.Op = OpAMD64VPMOVQB128
 		return true
 	case OpCopySignInt16x16:
 		v.Op = OpAMD64VPSIGNW256

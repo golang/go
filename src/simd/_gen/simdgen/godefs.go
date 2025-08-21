@@ -59,6 +59,7 @@ type rawOperation struct {
 	CPUFeature    string    // CPUID/Has* feature name
 	Zeroing       *bool     // nil => use asm suffix ".Z"; false => do not use asm suffix ".Z"
 	Documentation *string   // Documentation will be appended to the stubs comments.
+	AddDoc        *string   // Additional doc to be appended.
 	// ConstMask is a hack to reduce the size of defs the user writes for const-immediate
 	// If present, it will be copied to [In[0].Const].
 	ConstImm *string
@@ -106,6 +107,9 @@ func (o *Operation) DecodeUnified(v *unify.Value) error {
 			o.NoGenericOps = &trueVal
 			o.NoTypes = &trueVal
 		}
+	}
+	if o.rawOperation.AddDoc != nil {
+		o.Documentation += "\n" + *o.rawOperation.AddDoc
 	}
 
 	o.In = append(o.rawOperation.In, o.rawOperation.InVariant...)

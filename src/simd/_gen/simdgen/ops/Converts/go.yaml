@@ -22,7 +22,6 @@
     go: $u
     base: uint
     elemBits: 32
-
 # Widening integer conversions.
 # uint8 -> uint16
 - go: ConvertToUint16
@@ -190,8 +189,54 @@
   - *i8x16
   out:
   - *i32x16
+# Truncating conversions
+- go: ConvertToInt8
+  asm: "VPMOV[WDQ]B"
+  addDoc: &truncDoc
+    !string |-
+    // Conversion is done with truncation on the vector elements.
+    // Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
+  in:
+    - base: int
+  out:
+    - base: int
+- go: ConvertToUint8
+  asm: "VPMOV[WDQ]B"
+  addDoc: *truncDoc
+  in:
+    - base: uint
+  out:
+    - base: uint
+- go: ConvertToInt16
+  asm: "VPMOV[DQ]W"
+  addDoc: *truncDoc
+  in:
+    - base: int
+  out:
+    - base: int
+- go: ConvertToUint16
+  asm: "VPMOV[DQ]W"
+  addDoc: *truncDoc
+  in:
+    - base: uint
+  out:
+    - base: uint
+- go: ConvertToInt32
+  asm: "VPMOVQD"
+  addDoc: *truncDoc
+  in:
+    - base: int
+  out:
+    - base: int
+- go: ConvertToUint32
+  asm: "VPMOVQD"
+  addDoc: *truncDoc
+  in:
+    - base: uint
+  out:
+    - base: uint
 
-# Truncating conversions.
+# low-part only conversions.
 # uint8->uint16
 - go: ConvertToUint16x8
   asm: "VPMOVZXBW"

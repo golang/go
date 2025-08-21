@@ -1,6 +1,10 @@
 !sum
 # Non-truncating conversions
-# int<->int or uint<->uint widening or float<->int|uint conversions.
+# int<->int or uint<->uint widening, float<->int|uint conversions or trucating conversions.
+- go: ConvertToInt8
+  commutative: false
+  documentation: !string |-
+    // NAME converts element values to int16.
 - go: ConvertToInt16
   commutative: false
   documentation: !string |-
@@ -13,6 +17,10 @@
   commutative: false
   documentation: !string |-
     // NAME converts element values to int64.
+- go: ConvertToUint8
+  commutative: false
+  documentation: !string |-
+    // NAME converts element values to uint16.
 - go: ConvertToUint16
   commutative: false
   documentation: !string |-
@@ -26,7 +34,7 @@
   documentation: !string |-
     // NAME converts element values to uint64.
 
-# Truncating conversions
+# low-part only conversions
 # int<->int or uint<->uint widening conversions.
 - go: ConvertToInt16x8
   commutative: false
