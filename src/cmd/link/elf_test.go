@@ -579,125 +579,15 @@ func TestFlagR(t *testing.T) {
 func TestFlagD(t *testing.T) {
 	// Test that using the -D flag to specify data section address generates
 	// a working binary with data at the specified address.
-	// (Test only on ELF for now.)
-	testenv.MustHaveGoBuild(t)
 	t.Parallel()
-	tmpdir := t.TempDir()
-	src := filepath.Join(tmpdir, "x.go")
-	if err := os.WriteFile(src, []byte(goSourceWithData), 0444); err != nil {
-		t.Fatal(err)
-	}
-	exe := filepath.Join(tmpdir, "x.exe")
-
-	dataAddr := "0x10000000"
-	expectedAddr := uint64(0x10000000)
-
-	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-D="+dataAddr, "-o", exe, src)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("build failed: %v, output:\n%s", err, out)
-	}
-
-	cmd = testenv.Command(t, exe)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Errorf("executable failed to run: %v\n%s", err, out)
-	}
-
-	ef, err := elf.Open(exe)
-	if err != nil {
-		t.Fatalf("open elf file failed: %v", err)
-	}
-	defer ef.Close()
-
-	// Find the first data-related section to verify segment placement
-	var firstDataSectionAddr uint64
-	var found bool = false
-	for _, sec := range ef.Sections {
-		if sec.Type == elf.SHT_PROGBITS || sec.Type == elf.SHT_NOBITS {
-
-			// These sections are writable, allocated at runtime, but not executable
-			isWrite := sec.Flags&elf.SHF_WRITE != 0
-			isExec := sec.Flags&elf.SHF_EXECINSTR != 0
-			isAlloc := sec.Flags&elf.SHF_ALLOC != 0
-
-			if isWrite && !isExec && isAlloc {
-				addrLower := sec.Addr < firstDataSectionAddr
-				if !found || addrLower {
-					firstDataSectionAddr = sec.Addr
-					found = true
-				}
-			}
-		}
-	}
-
-	if !found {
-		t.Fatalf("can't find any writable data sections")
-	}
-	if firstDataSectionAddr != expectedAddr {
-		t.Errorf("data section starts at 0x%x, expected 0x%x", firstDataSectionAddr, expectedAddr)
-	}
+	testFlagD(t, "0x10000000", "", 0x10000000)
 }
 
 func TestFlagDWithR(t *testing.T) {
 	// Test that using the -D flag with -R flag works together.
-	// Note: The data address gets rounded to the specified alignment quantum.
-	testenv.MustHaveGoBuild(t)
+	// The unaligned data address gets rounded to the specified alignment quantum.
 	t.Parallel()
-	tmpdir := t.TempDir()
-	src := filepath.Join(tmpdir, "x.go")
-	if err := os.WriteFile(src, []byte(goSourceWithData), 0444); err != nil {
-		t.Fatal(err)
-	}
-	exe := filepath.Join(tmpdir, "x.exe")
-
-	// Use an unaligned address that tests -D and -R rounding
-	dataAddr := "0x30001234"
-	roundQuantum := "8192"
-	expectedAddr := uint64(0x30002000) // Should be rounded up to next 8KB boundary
-
-	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-D="+dataAddr+" -R="+roundQuantum, "-o", exe, src)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("build failed: %v, output:\n%s", err, out)
-	}
-
-	cmd = testenv.Command(t, exe)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Errorf("executable failed to run: %v\n%s", err, out)
-	}
-
-	ef, err := elf.Open(exe)
-	if err != nil {
-		t.Fatalf("open elf file failed: %v", err)
-	}
-	defer ef.Close()
-
-	// Find the first data-related section to verify segment placement
-	var firstDataSectionAddr uint64
-	var found bool = false
-	for _, sec := range ef.Sections {
-		if sec.Type == elf.SHT_PROGBITS || sec.Type == elf.SHT_NOBITS {
-
-			// These sections are writable, allocated at runtime, but not executable
-			isWrite := sec.Flags&elf.SHF_WRITE != 0
-			isExec := sec.Flags&elf.SHF_EXECINSTR != 0
-			isAlloc := sec.Flags&elf.SHF_ALLOC != 0
-
-			if isWrite && !isExec && isAlloc {
-				addrLower := sec.Addr < firstDataSectionAddr
-				if !found || addrLower {
-					firstDataSectionAddr = sec.Addr
-					found = true
-				}
-			}
-		}
-	}
-
-	if !found {
-		t.Fatalf("can't find any writable data sections")
-	}
-	if firstDataSectionAddr != expectedAddr {
-		t.Errorf("data section starts at 0x%x, expected 0x%x",
-			firstDataSectionAddr, expectedAddr)
-	}
+	testFlagD(t, "0x30001234", "8192", 0x30002000)
 }
 
 // TODO: sanity check, delete this
@@ -720,5 +610,64 @@ func TestRounding(t *testing.T) {
 			t.Errorf("Rnd(0x%x, 0x%x) = 0x%x, expected 0x%x",
 				tc.input, tc.quantum, result, tc.expected)
 		}
+	}
+}
+
+func testFlagD(t *testing.T, dataAddr string, roundQuantum string, expectedAddr uint64) {
+	testenv.MustHaveGoBuild(t)
+	tmpdir := t.TempDir()
+	src := filepath.Join(tmpdir, "x.go")
+	if err := os.WriteFile(src, []byte(goSourceWithData), 0444); err != nil {
+		t.Fatal(err)
+	}
+	exe := filepath.Join(tmpdir, "x.exe")
+
+	// Build linker flags
+	ldflags := "-D=" + dataAddr
+	if roundQuantum != "" {
+		ldflags += " -R=" + roundQuantum
+	}
+
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags="+ldflags, "-o", exe, src)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("build failed: %v, output:\n%s", err, out)
+	}
+
+	cmd = testenv.Command(t, exe)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Errorf("executable failed to run: %v\n%s", err, out)
+	}
+
+	ef, err := elf.Open(exe)
+	if err != nil {
+		t.Fatalf("open elf file failed: %v", err)
+	}
+	defer ef.Close()
+
+	// Find the first data-related section to verify segment placement
+	var firstDataSectionAddr uint64
+	var found bool = false
+	for _, sec := range ef.Sections {
+		if sec.Type == elf.SHT_PROGBITS || sec.Type == elf.SHT_NOBITS {
+			// These sections are writable, allocated at runtime, but not executable
+			isWrite := sec.Flags&elf.SHF_WRITE != 0
+			isExec := sec.Flags&elf.SHF_EXECINSTR != 0
+			isAlloc := sec.Flags&elf.SHF_ALLOC != 0
+
+			if isWrite && !isExec && isAlloc {
+				addrLower := sec.Addr < firstDataSectionAddr
+				if !found || addrLower {
+					firstDataSectionAddr = sec.Addr
+					found = true
+				}
+			}
+		}
+	}
+
+	if !found {
+		t.Fatalf("can't find any writable data sections")
+	}
+	if firstDataSectionAddr != expectedAddr {
+		t.Errorf("data section starts at 0x%x, expected 0x%x", firstDataSectionAddr, expectedAddr)
 	}
 }
