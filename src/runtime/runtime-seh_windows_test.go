@@ -6,6 +6,7 @@ package runtime_test
 
 import (
 	"internal/abi"
+	"internal/runtime/sys"
 	"internal/syscall/windows"
 	"runtime"
 	"slices"
@@ -47,7 +48,7 @@ func TestSehLookupFunctionEntry(t *testing.T) {
 		{"func in prologue", sehf1pc + 1, true},
 		{"anonymous func with frame", abi.FuncPCABIInternal(fnwithframe), true},
 		{"anonymous func without frame", abi.FuncPCABIInternal(fnwithoutframe), false},
-		{"pc at func body", runtime.NewContextStub().GetPC(), true},
+		{"pc at func body", sys.GetCallerPC(), true},
 	}
 	for _, tt := range tests {
 		var base uintptr
@@ -68,19 +69,22 @@ func sehCallers() []uintptr {
 	// We don't need a real context,
 	// RtlVirtualUnwind just needs a context with
 	// valid a pc, sp and fp (aka bp).
-	ctx := runtime.NewContextStub()
+	var ctx windows.Context
+	ctx.SetPC(sys.GetCallerPC())
+	ctx.SetSP(sys.GetCallerSP())
+	ctx.SetFP(runtime.GetCallerFp())
 
 	pcs := make([]uintptr, 15)
 	var base, frame uintptr
 	var n int
 	for i := 0; i < len(pcs); i++ {
-		fn := windows.RtlLookupFunctionEntry(ctx.GetPC(), &base, nil)
+		fn := windows.RtlLookupFunctionEntry(ctx.PC(), &base, nil)
 		if fn == nil {
 			break
 		}
-		pcs[i] = ctx.GetPC()
+		pcs[i] = ctx.PC()
 		n++
-		windows.RtlVirtualUnwind(0, base, ctx.GetPC(), fn, unsafe.Pointer(ctx), nil, &frame, nil)
+		windows.RtlVirtualUnwind(0, base, ctx.PC(), fn, unsafe.Pointer(&ctx), nil, &frame, nil)
 	}
 	return pcs[:n]
 }
@@ -129,15 +133,14 @@ func TestSehUnwind(t *testing.T) {
 		t.Skip("skipping amd64-only test")
 	}
 	pcs := sehf3(false)
-	testSehCallersEqual(t, pcs, []string{"runtime_test.sehCallers", "runtime_test.sehf4",
-		"runtime_test.sehf3", "runtime_test.TestSehUnwind"})
+	testSehCallersEqual(t, pcs, []string{"runtime_test.sehf4", "runtime_test.sehf3", "runtime_test.TestSehUnwind"})
 }
 
 func TestSehUnwindPanic(t *testing.T) {
 	if runtime.GOARCH != "amd64" {
 		t.Skip("skipping amd64-only test")
 	}
-	want := []string{"runtime_test.sehCallers", "runtime_test.TestSehUnwindPanic.func1", "runtime.gopanic",
+	want := []string{"runtime_test.TestSehUnwindPanic.func1", "runtime.gopanic",
 		"runtime_test.sehf4", "runtime_test.sehf3", "runtime_test.TestSehUnwindPanic"}
 	defer func() {
 		if r := recover(); r == nil {
@@ -153,7 +156,7 @@ func TestSehUnwindDoublePanic(t *testing.T) {
 	if runtime.GOARCH != "amd64" {
 		t.Skip("skipping amd64-only test")
 	}
-	want := []string{"runtime_test.sehCallers", "runtime_test.TestSehUnwindDoublePanic.func1.1", "runtime.gopanic",
+	want := []string{"runtime_test.TestSehUnwindDoublePanic.func1.1", "runtime.gopanic",
 		"runtime_test.TestSehUnwindDoublePanic.func1", "runtime.gopanic", "runtime_test.TestSehUnwindDoublePanic"}
 	defer func() {
 		defer func() {
@@ -175,7 +178,7 @@ func TestSehUnwindNilPointerPanic(t *testing.T) {
 	if runtime.GOARCH != "amd64" {
 		t.Skip("skipping amd64-only test")
 	}
-	want := []string{"runtime_test.sehCallers", "runtime_test.TestSehUnwindNilPointerPanic.func1", "runtime.gopanic",
+	want := []string{"runtime_test.TestSehUnwindNilPointerPanic.func1", "runtime.gopanic",
 		"runtime.sigpanic", "runtime_test.TestSehUnwindNilPointerPanic"}
 	defer func() {
 		if r := recover(); r == nil {
