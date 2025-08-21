@@ -17,25 +17,46 @@ import (
 // To keep this compact, we use an algebraic representation similar to
 // relational algebra. The atoms are zero, unit, or a singular binding:
 //
-// - A singular binding is an environment set consisting of a single environment
-// that binds a single ident to a single value.
+// - A singular binding {x: v} is an environment set consisting of a single
+// environment that binds a single ident x to a single value v.
 //
-// - Zero is the empty set.
+// - Zero (0) is the empty set.
 //
-// - Unit is an environment set consisting of a single, empty environment (no
-// bindings).
+// - Unit (1) is an environment set consisting of a single, empty environment
+// (no bindings).
 //
 // From these, we build up more complex sets of environments using sums and
 // cross products:
 //
-// - A sum is simply the union of the two environment sets.
+// - A sum, E + F, is simply the union of the two environment sets: E ∪ F
 //
-// - A cross product is the Cartesian product of the two environment sets,
-// followed by combining each pair of environments. Combining simply merges the
-// two mappings, but fails if the mappings overlap.
+// - A cross product, E ⨯ F, is the Cartesian product of the two environment
+// sets, followed by joining each pair of environments: {e ⊕ f | (e, f) ∊ E ⨯ F}
 //
-// For example, to represent {{x: 1, y: 1}, {x: 2, y: 2}}, we build the two
-// environments and sum them:
+// The join of two environments, e ⊕ f, is an environment that contains all of
+// the bindings in either e or f. To detect bugs, it is an error if an
+// identifier is bound in both e and f (however, see below for what we could do
+// differently).
+//
+// Environment sets form a commutative semiring and thus obey the usual
+// commutative semiring rules:
+//
+//	e + 0 = e
+//	e ⨯ 0 = 0
+//	e ⨯ 1 = e
+//	e + f = f + e
+//	e ⨯ f = f ⨯ e
+//
+// Furthermore, environments sets are additively and multiplicatively idempotent
+// because + and ⨯ are themselves defined in terms of sets:
+//
+//	e + e = e
+//	e ⨯ e = e
+//
+// # Examples
+//
+// To represent {{x: 1, y: 1}, {x: 2, y: 2}}, we build the two environments and
+// sum them:
 //
 //	({x: 1} ⨯ {y: 1}) + ({x: 2} ⨯ {y: 2})
 //
@@ -52,13 +73,23 @@ import (
 //
 //	(({x: 1} ⨯ {y: 1}) + ({x: 2} ⨯ {y: 2})) ⨯ ({z: 1} + {z: 2})
 //
-// Environment sets obey commutative algebra rules:
+// # Generalized cross product
 //
-//	e + 0 = e
-//	e ⨯ 0 = 0
-//	e ⨯ 1 = e
-//	e + f = f + e
-//	e ⨯ f = f ⨯ e
+// While cross-product is currently restricted to disjoint environments, we
+// could generalize the definition of joining two environments to:
+//
+//	{xₖ: vₖ} ⊕ {xₖ: wₖ} = {xₖ: vₖ ∩ wₖ} (where unbound idents are bound to the [Top] value, ⟙)
+//
+// where v ∩ w is the unification of v and w. This itself could be coarsened to
+//
+//	v ∩ w = v if w = ⟙
+//	      = w if v = ⟙
+//	      = v if v = w
+//	      = 0 otherwise
+//
+// We could use this rule to implement substitution. For example, E ⨯ {x: 1}
+// narrows environment set E to only environments in which x is bound to 1. But
+// we currently don't do this.
 type envSet struct {
 	root *envExpr
 }
