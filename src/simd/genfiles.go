@@ -742,17 +742,19 @@ func (from {{.Base}}{{.WxC}}) ToMask() (to Mask{{.WxC}}) {
 }
 `)
 
+const TD = "internal/simd_test/"
+
 func main() {
 	sl := flag.String("sl", "slice_gen_amd64.go", "file name for slice operations")
 	cm := flag.String("cm", "compare_gen_amd64.go", "file name for comparison operations")
 	mm := flag.String("mm", "maskmerge_gen_amd64.go", "file name for mask/merge operations")
 	op := flag.String("op", "other_gen_amd64.go", "file name for other operations")
 	ush := flag.String("ush", "unsafe_helpers.go", "file name for unsafe helpers")
-	bh := flag.String("bh", "binary_helpers_test.go", "file name for binary test helpers")
-	uh := flag.String("uh", "unary_helpers_test.go", "file name for unary test helpers")
-	th := flag.String("th", "ternary_helpers_test.go", "file name for ternary test helpers")
-	ch := flag.String("ch", "compare_helpers_test.go", "file name for compare test helpers")
-	cmh := flag.String("cmh", "comparemasked_helpers_test.go", "file name for compare-masked test helpers")
+	bh := flag.String("bh", TD+"binary_helpers_test.go", "file name for binary test helpers")
+	uh := flag.String("uh", TD+"unary_helpers_test.go", "file name for unary test helpers")
+	th := flag.String("th", TD+"ternary_helpers_test.go", "file name for ternary test helpers")
+	ch := flag.String("ch", TD+"compare_helpers_test.go", "file name for compare test helpers")
+	cmh := flag.String("cmh", TD+"comparemasked_helpers_test.go", "file name for compare-masked test helpers")
 	flag.Parse()
 
 	if *sl != "" {
