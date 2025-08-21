@@ -21,6 +21,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/envcmd"
+	"cmd/go/internal/modload"
 	"cmd/go/internal/web"
 	"cmd/go/internal/work"
 )
@@ -44,7 +45,7 @@ func runBug(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) > 0 {
 		base.Fatalf("go: bug takes no arguments")
 	}
-	work.BuildInit()
+	work.BuildInit(modload.LoaderState)
 
 	var buf strings.Builder
 	buf.WriteString(bugHeader)

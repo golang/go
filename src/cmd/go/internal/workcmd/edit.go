@@ -143,8 +143,8 @@ func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) == 1 {
 		gowork = args[0]
 	} else {
-		modload.InitWorkfile()
-		gowork = modload.WorkFilePath()
+		modload.InitWorkfile(modload.LoaderState)
+		gowork = modload.WorkFilePath(modload.LoaderState)
 	}
 	if gowork == "" {
 		base.Fatalf("go: no go.work file found\n\t(run 'go work init' first or specify path using GOWORK environment variable)")

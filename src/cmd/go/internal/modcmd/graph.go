@@ -52,7 +52,7 @@ func init() {
 }
 
 func runGraph(ctx context.Context, cmd *base.Command, args []string) {
-	modload.InitWorkfile()
+	modload.InitWorkfile(modload.LoaderState)
 
 	if len(args) > 0 {
 		base.Fatalf("go: 'go mod graph' accepts no arguments")

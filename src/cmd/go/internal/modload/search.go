@@ -41,7 +41,7 @@ const (
 // matchPackages is like m.MatchPackages, but uses a local variable (rather than
 // a global) for tags, can include or exclude packages in the standard library,
 // and is restricted to the given list of modules.
-func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, filter stdFilter, modules []module.Version) {
+func matchPackages(loaderstate *State, ctx context.Context, m *search.Match, tags map[string]bool, filter stdFilter, modules []module.Version) {
 	ctx, span := trace.StartSpan(ctx, "modload.matchPackages")
 	defer span.Done()
 
@@ -74,7 +74,7 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 	)
 
 	q := par.NewQueue(runtime.GOMAXPROCS(0))
-	ignorePatternsMap := parseIgnorePatterns(ctx, treeCanMatch, modules)
+	ignorePatternsMap := parseIgnorePatterns(loaderstate, ctx, treeCanMatch, modules)
 	walkPkgs := func(root, importPathRoot string, prune pruning) {
 		_, span := trace.StartSpan(ctx, "walkPkgs "+root)
 		defer span.Done()
@@ -171,13 +171,13 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 	}
 
 	if cfg.BuildMod == "vendor" {
-		for _, mod := range LoaderState.MainModules.Versions() {
-			if modRoot := LoaderState.MainModules.ModRoot(mod); modRoot != "" {
-				walkPkgs(modRoot, LoaderState.MainModules.PathPrefix(mod), pruneGoMod|pruneVendor)
+		for _, mod := range loaderstate.MainModules.Versions() {
+			if modRoot := loaderstate.MainModules.ModRoot(mod); modRoot != "" {
+				walkPkgs(modRoot, loaderstate.MainModules.PathPrefix(mod), pruneGoMod|pruneVendor)
 			}
 		}
-		if HasModRoot() {
-			walkPkgs(VendorDir(), "", pruneVendor)
+		if HasModRoot(loaderstate) {
+			walkPkgs(VendorDir(loaderstate), "", pruneVendor)
 		}
 		return
 	}
@@ -191,16 +191,16 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 			root, modPrefix string
 			isLocal         bool
 		)
-		if LoaderState.MainModules.Contains(mod.Path) {
-			if LoaderState.MainModules.ModRoot(mod) == "" {
+		if loaderstate.MainModules.Contains(mod.Path) {
+			if loaderstate.MainModules.ModRoot(mod) == "" {
 				continue // If there is no main module, we can't search in it.
 			}
-			root = LoaderState.MainModules.ModRoot(mod)
-			modPrefix = LoaderState.MainModules.PathPrefix(mod)
+			root = loaderstate.MainModules.ModRoot(mod)
+			modPrefix = loaderstate.MainModules.PathPrefix(mod)
 			isLocal = true
 		} else {
 			var err error
-			root, isLocal, err = fetch(ctx, mod)
+			root, isLocal, err = fetch(loaderstate, ctx, mod)
 			if err != nil {
 				m.AddError(err)
 				continue
@@ -286,17 +286,17 @@ func walkFromIndex(index *modindex.Module, importPathRoot string, isMatch, treeC
 func MatchInModule(ctx context.Context, pattern string, m module.Version, tags map[string]bool) *search.Match {
 	match := search.NewMatch(pattern)
 	if m == (module.Version{}) {
-		matchPackages(ctx, match, tags, includeStd, nil)
+		matchPackages(LoaderState, ctx, match, tags, includeStd, nil)
 	}
 
-	LoadModFile(ctx) // Sets Target, needed by fetch and matchPackages.
+	LoadModFile(LoaderState, ctx) // Sets Target, needed by fetch and matchPackages.
 
 	if !match.IsLiteral() {
-		matchPackages(ctx, match, tags, omitStd, []module.Version{m})
+		matchPackages(LoaderState, ctx, match, tags, omitStd, []module.Version{m})
 		return match
 	}
 
-	root, isLocal, err := fetch(ctx, m)
+	root, isLocal, err := fetch(LoaderState, ctx, m)
 	if err != nil {
 		match.Errs = []error{err}
 		return match
@@ -322,7 +322,7 @@ func MatchInModule(ctx context.Context, pattern string, m module.Version, tags m
 // parseIgnorePatterns collects all ignore patterns associated with the
 // provided list of modules.
 // It returns a map of module root -> *search.IgnorePatterns.
-func parseIgnorePatterns(ctx context.Context, treeCanMatch func(string) bool, modules []module.Version) map[string]*search.IgnorePatterns {
+func parseIgnorePatterns(loaderstate *State, ctx context.Context, treeCanMatch func(string) bool, modules []module.Version) map[string]*search.IgnorePatterns {
 	ignorePatternsMap := make(map[string]*search.IgnorePatterns)
 	for _, mod := range modules {
 		if gover.IsToolchain(mod.Path) || !treeCanMatch(mod.Path) {
@@ -330,12 +330,12 @@ func parseIgnorePatterns(ctx context.Context, treeCanMatch func(string) bool, mo
 		}
 		var modRoot string
 		var ignorePatterns []string
-		if LoaderState.MainModules.Contains(mod.Path) {
-			modRoot = LoaderState.MainModules.ModRoot(mod)
+		if loaderstate.MainModules.Contains(mod.Path) {
+			modRoot = loaderstate.MainModules.ModRoot(mod)
 			if modRoot == "" {
 				continue
 			}
-			modIndex := LoaderState.MainModules.Index(mod)
+			modIndex := loaderstate.MainModules.Index(mod)
 			if modIndex == nil {
 				continue
 			}
@@ -344,11 +344,11 @@ func parseIgnorePatterns(ctx context.Context, treeCanMatch func(string) bool, mo
 			// Skip getting ignore patterns for vendored modules because they
 			// do not have go.mod files.
 			var err error
-			modRoot, _, err = fetch(ctx, mod)
+			modRoot, _, err = fetch(loaderstate, ctx, mod)
 			if err != nil {
 				continue
 			}
-			summary, err := goModSummary(mod)
+			summary, err := goModSummary(loaderstate, mod)
 			if err != nil {
 				continue
 			}

@@ -123,7 +123,7 @@ func run(ctx context.Context, cmd *base.Command, args []string) {
 
 	// The vet/fix commands do custom flag processing;
 	// initialize workspaces after that.
-	modload.InitWorkfile()
+	modload.InitWorkfile(modload.LoaderState)
 
 	if cfg.DebugTrace != "" {
 		var close func() error
@@ -142,7 +142,7 @@ func run(ctx context.Context, cmd *base.Command, args []string) {
 	ctx, span := trace.StartSpan(ctx, fmt.Sprint("Running ", cmd.Name(), " command"))
 	defer span.Done()
 
-	work.BuildInit()
+	work.BuildInit(modload.LoaderState)
 
 	// Flag theory:
 	//
@@ -217,7 +217,7 @@ func run(ctx context.Context, cmd *base.Command, args []string) {
 	work.VetFlags = toolFlags
 
 	pkgOpts := load.PackageOpts{ModResolveTests: true}
-	pkgs := load.PackagesAndErrors(ctx, pkgOpts, pkgArgs)
+	pkgs := load.PackagesAndErrors(modload.LoaderState, ctx, pkgOpts, pkgArgs)
 	load.CheckPackageErrors(pkgs)
 	if len(pkgs) == 0 {
 		base.Fatalf("no packages to %s", cmd.Name())

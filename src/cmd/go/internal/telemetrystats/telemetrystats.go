@@ -24,7 +24,7 @@ func Increment() {
 func incrementConfig() {
 	if !modload.WillBeEnabled() {
 		counter.Inc("go/mode:gopath")
-	} else if workfile := modload.FindGoWork(base.Cwd()); workfile != "" {
+	} else if workfile := modload.FindGoWork(modload.LoaderState, base.Cwd()); workfile != "" {
 		counter.Inc("go/mode:workspace")
 	} else {
 		counter.Inc("go/mode:module")

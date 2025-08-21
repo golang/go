@@ -459,8 +459,8 @@ func oneMainPkg(pkgs []*load.Package) []*load.Package {
 var pkgsFilter = func(pkgs []*load.Package) []*load.Package { return pkgs }
 
 func runBuild(ctx context.Context, cmd *base.Command, args []string) {
-	modload.InitWorkfile()
-	BuildInit()
+	modload.InitWorkfile(modload.LoaderState)
+	BuildInit(modload.LoaderState)
 	b := NewBuilder("")
 	defer func() {
 		if err := b.Close(); err != nil {
@@ -468,7 +468,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}()
 
-	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{AutoVCS: true}, args)
+	pkgs := load.PackagesAndErrors(modload.LoaderState, ctx, load.PackageOpts{AutoVCS: true}, args)
 	load.CheckPackageErrors(pkgs)
 
 	explicitO := len(cfg.BuildO) > 0
@@ -503,7 +503,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	if cfg.BuildCover {
-		load.PrepareForCoverageBuild(pkgs)
+		load.PrepareForCoverageBuild(modload.LoaderState, pkgs)
 	}
 
 	if cfg.BuildO != "" {
@@ -694,10 +694,10 @@ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
-	modload.InitWorkfile()
-	BuildInit()
-	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{AutoVCS: true}, args)
-	if cfg.ModulesEnabled && !modload.HasModRoot() {
+	modload.InitWorkfile(modload.LoaderState)
+	BuildInit(modload.LoaderState)
+	pkgs := load.PackagesAndErrors(modload.LoaderState, ctx, load.PackageOpts{AutoVCS: true}, args)
+	if cfg.ModulesEnabled && !modload.HasModRoot(modload.LoaderState) {
 		haveErrors := false
 		allMissingErrors := true
 		for _, pkg := range pkgs {
@@ -722,7 +722,7 @@ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
 	load.CheckPackageErrors(pkgs)
 
 	if cfg.BuildCover {
-		load.PrepareForCoverageBuild(pkgs)
+		load.PrepareForCoverageBuild(modload.LoaderState, pkgs)
 	}
 
 	InstallPackages(ctx, args, pkgs)
@@ -861,9 +861,9 @@ func InstallPackages(ctx context.Context, patterns []string, pkgs []*load.Packag
 func installOutsideModule(ctx context.Context, args []string) {
 	modload.LoaderState.ForceUseModules = true
 	modload.LoaderState.RootMode = modload.NoRoot
-	modload.AllowMissingModuleImports()
-	modload.Init()
-	BuildInit()
+	modload.AllowMissingModuleImports(modload.LoaderState)
+	modload.Init(modload.LoaderState)
+	BuildInit(modload.LoaderState)
 
 	// Load packages. Ignore non-main packages.
 	// Print a warning if an argument contains "..." and matches no main packages.
@@ -872,7 +872,7 @@ func installOutsideModule(ctx context.Context, args []string) {
 	// TODO(golang.org/issue/40276): don't report errors loading non-main packages
 	// matched by a pattern.
 	pkgOpts := load.PackageOpts{MainOnly: true}
-	pkgs, err := load.PackagesAndErrorsOutsideModule(ctx, pkgOpts, args)
+	pkgs, err := load.PackagesAndErrorsOutsideModule(modload.LoaderState, ctx, pkgOpts, args)
 	if err != nil {
 		base.Fatal(err)
 	}

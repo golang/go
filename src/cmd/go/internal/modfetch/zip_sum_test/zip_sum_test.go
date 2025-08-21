@@ -94,7 +94,7 @@ func TestZipSums(t *testing.T) {
 
 	cfg.GOPROXY = "direct"
 	cfg.GOSUMDB = "off"
-	modload.Init()
+	modload.Init(modload.LoaderState)
 
 	// Shard tests by downloading only every nth module when shard flags are set.
 	// This makes it easier to test small groups of modules quickly. We avoid

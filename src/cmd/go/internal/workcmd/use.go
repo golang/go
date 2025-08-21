@@ -62,8 +62,8 @@ func init() {
 
 func runUse(ctx context.Context, cmd *base.Command, args []string) {
 	modload.LoaderState.ForceUseModules = true
-	modload.InitWorkfile()
-	gowork := modload.WorkFilePath()
+	modload.InitWorkfile(modload.LoaderState)
+	gowork := modload.WorkFilePath(modload.LoaderState)
 	if gowork == "" {
 		base.Fatalf("go: no go.work file found\n\t(run 'go work init' first or specify path using GOWORK environment variable)")
 	}

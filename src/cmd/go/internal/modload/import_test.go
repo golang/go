@@ -69,12 +69,12 @@ func TestQueryImport(t *testing.T) {
 	LoaderState.RootMode = NoRoot
 
 	ctx := context.Background()
-	rs := LoadModFile(ctx)
+	rs := LoadModFile(LoaderState, ctx)
 
 	for _, tt := range importTests {
 		t.Run(strings.ReplaceAll(tt.path, "/", "_"), func(t *testing.T) {
 			// Note that there is no build list, so Import should always fail.
-			m, err := queryImport(ctx, tt.path, rs)
+			m, err := queryImport(LoaderState, ctx, tt.path, rs)
 
 			if tt.err == "" {
 				if err != nil {
