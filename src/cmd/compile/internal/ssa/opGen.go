@@ -1693,6 +1693,14 @@ const (
 	OpARM64CSINV
 	OpARM64CSNEG
 	OpARM64CSETM
+	OpARM64CCMP
+	OpARM64CCMN
+	OpARM64CCMPconst
+	OpARM64CCMNconst
+	OpARM64CCMPW
+	OpARM64CCMNW
+	OpARM64CCMPWconst
+	OpARM64CCMNWconst
 	OpARM64CALLstatic
 	OpARM64CALLtail
 	OpARM64CALLclosure
@@ -22826,6 +22834,98 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			outputs: []outputInfo{
 				{0, 335544319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
+		name:    "CCMP",
+		auxType: auxARM64ConditionalParams,
+		argLen:  3,
+		asm:     arm64.ACCMP,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 402653183}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+				{1, 402653183}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+			},
+		},
+	},
+	{
+		name:    "CCMN",
+		auxType: auxARM64ConditionalParams,
+		argLen:  3,
+		asm:     arm64.ACCMN,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 402653183}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+				{1, 402653183}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+			},
+		},
+	},
+	{
+		name:    "CCMPconst",
+		auxType: auxARM64ConditionalParams,
+		argLen:  2,
+		asm:     arm64.ACCMP,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 402653183}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+			},
+		},
+	},
+	{
+		name:    "CCMNconst",
+		auxType: auxARM64ConditionalParams,
+		argLen:  2,
+		asm:     arm64.ACCMN,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 402653183}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+			},
+		},
+	},
+	{
+		name:    "CCMPW",
+		auxType: auxARM64ConditionalParams,
+		argLen:  3,
+		asm:     arm64.ACCMPW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 402653183}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+				{1, 402653183}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+			},
+		},
+	},
+	{
+		name:    "CCMNW",
+		auxType: auxARM64ConditionalParams,
+		argLen:  3,
+		asm:     arm64.ACCMNW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 402653183}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+				{1, 402653183}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+			},
+		},
+	},
+	{
+		name:    "CCMPWconst",
+		auxType: auxARM64ConditionalParams,
+		argLen:  2,
+		asm:     arm64.ACCMPW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 402653183}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+			},
+		},
+	},
+	{
+		name:    "CCMNWconst",
+		auxType: auxARM64ConditionalParams,
+		argLen:  2,
+		asm:     arm64.ACCMNW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 402653183}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
 			},
 		},
 	},

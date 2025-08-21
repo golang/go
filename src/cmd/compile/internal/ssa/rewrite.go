@@ -669,6 +669,17 @@ func auxIntToValAndOff(i int64) ValAndOff {
 func auxIntToArm64BitField(i int64) arm64BitField {
 	return arm64BitField(i)
 }
+func auxIntToArm64ConditionalParams(i int64) arm64ConditionalParams {
+	var params arm64ConditionalParams
+	params.cond = Op(i & 0xffff)
+	i >>= 16
+	params.nzcv = uint8(i & 0x0f)
+	i >>= 4
+	params.constValue = uint8(i & 0x1f)
+	i >>= 5
+	params.ind = i == 1
+	return params
+}
 func auxIntToFlagConstant(x int64) flagConstant {
 	return flagConstant(x)
 }
@@ -709,6 +720,20 @@ func valAndOffToAuxInt(v ValAndOff) int64 {
 }
 func arm64BitFieldToAuxInt(v arm64BitField) int64 {
 	return int64(v)
+}
+func arm64ConditionalParamsToAuxInt(v arm64ConditionalParams) int64 {
+	if v.cond&^0xffff != 0 {
+		panic("condition value exceeds 16 bits")
+	}
+
+	var i int64
+	if v.ind {
+		i = 1 << 25
+	}
+	i |= int64(v.constValue) << 20
+	i |= int64(v.nzcv) << 16
+	i |= int64(v.cond)
+	return i
 }
 func flagConstantToAuxInt(x flagConstant) int64 {
 	return int64(x)
@@ -1897,6 +1922,43 @@ func arm64BFWidth(mask, rshift int64) int64 {
 		panic("ARM64 BF mask is zero")
 	}
 	return nto(shiftedMask)
+}
+
+// encodes condition code and NZCV flags into auxint.
+func arm64ConditionalParamsAuxInt(cond Op, nzcv uint8) arm64ConditionalParams {
+	if cond < OpARM64Equal || cond > OpARM64GreaterEqualU {
+		panic("Wrong conditional operation")
+	}
+	if nzcv&0x0f != nzcv {
+		panic("Wrong value of NZCV flag")
+	}
+	return arm64ConditionalParams{cond, nzcv, 0, false}
+}
+
+// encodes condition code, NZCV flags and constant value into auxint.
+func arm64ConditionalParamsAuxIntWithValue(cond Op, nzcv uint8, value uint8) arm64ConditionalParams {
+	if value&0x1f != value {
+		panic("Wrong value of constant")
+	}
+	params := arm64ConditionalParamsAuxInt(cond, nzcv)
+	params.constValue = value
+	params.ind = true
+	return params
+}
+
+// extracts condition code from auxint.
+func (condParams arm64ConditionalParams) Cond() Op {
+	return condParams.cond
+}
+
+// extracts NZCV flags from auxint.
+func (condParams arm64ConditionalParams) Nzcv() int64 {
+	return int64(condParams.nzcv)
+}
+
+// extracts constant value from auxint if present.
+func (condParams arm64ConditionalParams) ConstValue() (int64, bool) {
+	return int64(condParams.constValue), condParams.ind
 }
 
 // registerizable reports whether t is a primitive type that fits in
