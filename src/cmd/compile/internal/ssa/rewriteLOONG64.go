@@ -468,6 +468,8 @@ func rewriteValueLOONG64(v *Value) bool {
 		return rewriteValueLOONG64_OpLOONG64SLLV(v)
 	case OpLOONG64SLLVconst:
 		return rewriteValueLOONG64_OpLOONG64SLLVconst(v)
+	case OpLOONG64SLLconst:
+		return rewriteValueLOONG64_OpLOONG64SLLconst(v)
 	case OpLOONG64SRA:
 		return rewriteValueLOONG64_OpLOONG64SRA(v)
 	case OpLOONG64SRAV:
@@ -6457,6 +6459,22 @@ func rewriteValueLOONG64_OpLOONG64SLLV(v *Value) bool {
 }
 func rewriteValueLOONG64_OpLOONG64SLLVconst(v *Value) bool {
 	v_0 := v.Args[0]
+	// match: (SLLVconst [c] (ADDV x x))
+	// result: (SLLVconst [c+1] x)
+	for {
+		c := auxIntToInt64(v.AuxInt)
+		if v_0.Op != OpLOONG64ADDV {
+			break
+		}
+		x := v_0.Args[1]
+		if x != v_0.Args[0] {
+			break
+		}
+		v.reset(OpLOONG64SLLVconst)
+		v.AuxInt = int64ToAuxInt(c + 1)
+		v.AddArg(x)
+		return true
+	}
 	// match: (SLLVconst [c] (MOVVconst [d]))
 	// result: (MOVVconst [d<<uint64(c)])
 	for {
@@ -6467,6 +6485,26 @@ func rewriteValueLOONG64_OpLOONG64SLLVconst(v *Value) bool {
 		d := auxIntToInt64(v_0.AuxInt)
 		v.reset(OpLOONG64MOVVconst)
 		v.AuxInt = int64ToAuxInt(d << uint64(c))
+		return true
+	}
+	return false
+}
+func rewriteValueLOONG64_OpLOONG64SLLconst(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (SLLconst [c] (ADDV x x))
+	// result: (SLLconst [c+1] x)
+	for {
+		c := auxIntToInt64(v.AuxInt)
+		if v_0.Op != OpLOONG64ADDV {
+			break
+		}
+		x := v_0.Args[1]
+		if x != v_0.Args[0] {
+			break
+		}
+		v.reset(OpLOONG64SLLconst)
+		v.AuxInt = int64ToAuxInt(c + 1)
+		v.AddArg(x)
 		return true
 	}
 	return false

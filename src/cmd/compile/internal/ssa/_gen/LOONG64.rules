@@ -749,6 +749,9 @@
 (SRLVconst [rc] (MOVHUreg x)) && rc >= 16 => (MOVVconst [0])
 (SRLVconst [rc] (MOVBUreg x)) && rc >= 8 => (MOVVconst [0])
 
+// (x + x) << c -> x << c+1
+((SLLV|SLL)const [c] (ADDV x x)) => ((SLLV|SLL)const [c+1] x)
+
 // mul by constant
 (MULV _ (MOVVconst [0])) => (MOVVconst [0])
 (MULV x (MOVVconst [1])) => x

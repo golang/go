@@ -121,21 +121,25 @@ func rshConst64x32(v int64) int64 {
 
 func lshConst32x1Add(x int32) int32 {
 	// amd64:"SHLL\t[$]2"
+	// loong64:"SLL\t[$]2"
 	return (x + x) << 1
 }
 
 func lshConst64x1Add(x int64) int64 {
 	// amd64:"SHLQ\t[$]2"
+	// loong64:"SLLV\t[$]2"
 	return (x + x) << 1
 }
 
 func lshConst32x2Add(x int32) int32 {
 	// amd64:"SHLL\t[$]3"
+	// loong64:"SLL\t[$]3"
 	return (x + x) << 2
 }
 
 func lshConst64x2Add(x int64) int64 {
 	// amd64:"SHLQ\t[$]3"
+	// loong64:"SLLV\t[$]3"
 	return (x + x) << 2
 }
 
