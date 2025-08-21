@@ -38,12 +38,18 @@ type context struct {
 	wvr          [2]uint64
 }
 
+//go:nosplit
 func (c *context) ip() uintptr { return uintptr(c.pc) }
+//go:nosplit
 func (c *context) sp() uintptr { return uintptr(c.xsp) }
+//go:nosplit
 func (c *context) lr() uintptr { return uintptr(c.x[30]) }
 
+//go:nosplit
 func (c *context) set_ip(x uintptr) { c.pc = uint64(x) }
+//go:nosplit
 func (c *context) set_sp(x uintptr) { c.xsp = uint64(x) }
+//go:nosplit
 func (c *context) set_lr(x uintptr) { c.x[30] = uint64(x) }
 func (c *context) set_fp(x uintptr) { c.x[29] = uint64(x) }
 
