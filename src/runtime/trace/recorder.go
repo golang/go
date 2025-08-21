@@ -41,21 +41,21 @@ func (w *recorder) Write(b []byte) (n int, err error) {
 	if len(b) == n {
 		return 0, nil
 	}
-	ba, gen, nb, err := readBatch(b[n:]) // Every write from the runtime is guaranteed to be a complete batch.
+	ba, nb, err := readBatch(b[n:]) // Every write from the runtime is guaranteed to be a complete batch.
 	if err != nil {
 		return len(b) - int(nb) - n, err
 	}
 	n += int(nb)
 
 	// Append the batch to the current generation.
-	if r.active.gen == 0 {
-		r.active.gen = gen
+	if ba.gen != 0 && r.active.gen == 0 {
+		r.active.gen = ba.gen
 	}
-	if r.active.minTime == 0 || r.active.minTime > r.freq.mul(ba.time) {
+	if ba.time != 0 && (r.active.minTime == 0 || r.active.minTime > r.freq.mul(ba.time)) {
 		r.active.minTime = r.freq.mul(ba.time)
 	}
 	r.active.size += len(ba.data)
-	r.active.batches = append(r.active.batches, ba)
+	r.active.batches = append(r.active.batches, ba.data)
 
 	return len(b), nil
 }
@@ -99,7 +99,7 @@ type rawGeneration struct {
 	gen     uint64
 	size    int
 	minTime eventTime
-	batches []batch
+	batches [][]byte
 }
 
 func traceTimeNow(freq frequency) eventTime {

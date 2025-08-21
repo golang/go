@@ -4013,15 +4013,6 @@ func (ab *AsmBuf) mediaop(ctxt *obj.Link, o *Optab, op int, osize int, z int) in
 	return z
 }
 
-var bpduff1 = []byte{
-	0x48, 0x89, 0x6c, 0x24, 0xf0, // MOVQ BP, -16(SP)
-	0x48, 0x8d, 0x6c, 0x24, 0xf0, // LEAQ -16(SP), BP
-}
-
-var bpduff2 = []byte{
-	0x48, 0x8b, 0x6d, 0x00, // MOVQ 0(BP), BP
-}
-
 // asmevex emits EVEX pregis and opcode byte.
 // In addition to asmvex r/m, vvvv and reg fields also requires optional
 // K-masking register.
@@ -4859,16 +4850,6 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 					ctxt.Diag("directly calling duff when dynamically linking Go")
 				}
 
-				if yt.zcase == Zcallduff && ctxt.Arch.Family == sys.AMD64 {
-					// Maintain BP around call, since duffcopy/duffzero can't do it
-					// (the call jumps into the middle of the function).
-					// This makes it possible to see call sites for duffcopy/duffzero in
-					// BP-based profiling tools like Linux perf (which is the
-					// whole point of maintaining frame pointers in Go).
-					// MOVQ BP, -16(SP)
-					// LEAQ -16(SP), BP
-					ab.Put(bpduff1)
-				}
 				ab.Put1(byte(op))
 				cursym.AddRel(ctxt, obj.Reloc{
 					Type: objabi.R_CALL,
@@ -4878,12 +4859,6 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 					Add:  p.To.Offset,
 				})
 				ab.PutInt32(0)
-
-				if yt.zcase == Zcallduff && ctxt.Arch.Family == sys.AMD64 {
-					// Pop BP pushed above.
-					// MOVQ 0(BP), BP
-					ab.Put(bpduff2)
-				}
 
 			// TODO: jump across functions needs reloc
 			case Zbr, Zjmp, Zloop:

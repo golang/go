@@ -92,7 +92,7 @@ type Action struct {
 
 	buggyInstall bool // is this a buggy install (see -linkshared)?
 
-	TryCache func(*Builder, *Action) bool // callback for cache bypass
+	TryCache func(*Builder, *Action, *Action) bool // callback for cache bypass
 
 	CacheExecutable bool // Whether to cache executables produced by link steps
 

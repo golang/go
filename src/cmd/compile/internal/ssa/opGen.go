@@ -1720,8 +1720,8 @@ const (
 	OpARM64GreaterEqualNoov
 	OpARM64LoweredZero
 	OpARM64LoweredZeroLoop
-	OpARM64DUFFCOPY
 	OpARM64LoweredMove
+	OpARM64LoweredMoveLoop
 	OpARM64LoweredGetClosurePtr
 	OpARM64LoweredGetCallerSP
 	OpARM64LoweredGetCallerPC
@@ -23096,31 +23096,33 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "DUFFCOPY",
-		auxType:     auxInt64,
-		argLen:      3,
-		unsafePoint: true,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 1048576}, // R21
-				{1, 524288},  // R20
-			},
-			clobbers: 303759360, // R16 R17 R20 R21 R26 R30
-		},
-	},
-	{
 		name:           "LoweredMove",
-		argLen:         4,
-		clobberFlags:   true,
+		auxType:        auxInt64,
+		argLen:         3,
 		faultOnNilArg0: true,
 		faultOnNilArg1: true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 131072},    // R17
-				{1, 65536},     // R16
-				{2, 318767103}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R26 R30
+				{0, 310378495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R26 R30
+				{1, 310378495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R26 R30
 			},
-			clobbers: 16973824, // R16 R17 R25
+			clobbers: 25165824, // R24 R25
+		},
+	},
+	{
+		name:           "LoweredMoveLoop",
+		auxType:        auxInt64,
+		argLen:         3,
+		faultOnNilArg0: true,
+		faultOnNilArg1: true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 306184191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R26 R30
+				{1, 306184191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R26 R30
+			},
+			clobbers:     29360128, // R23 R24 R25
+			clobbersArg0: true,
+			clobbersArg1: true,
 		},
 	},
 	{

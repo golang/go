@@ -1725,10 +1725,9 @@ func (s *regAllocState) regalloc(f *Func) {
 					// spilling the value with the most distant next use.
 					continue
 				}
-				// Copy input to a new clobberable register.
+				// Copy input to a different register that won't be clobbered.
 				c := s.allocValToReg(v.Args[i], m, true, v.Pos)
 				s.copies[c] = false
-				args[i] = c
 			}
 
 			// Pick a temporary register if needed.

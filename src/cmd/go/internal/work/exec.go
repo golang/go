@@ -183,7 +183,21 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
 
 		for _, a0 := range a.triggers {
 			if a.Failed != nil {
-				a0.Failed = a.Failed
+				if a0.Mode == "test barrier" {
+					// If this action was triggered by a test, there
+					// will be a test barrier action in between the test
+					// and the true trigger. But there will be other
+					// triggers that are other barriers that are waiting
+					// for this one. Propagate the failure to the true
+					// trigger, but not to the other barriers.
+					for _, bt := range a0.triggers {
+						if bt.Mode != "test barrier" {
+							bt.Failed = a.Failed
+						}
+					}
+				} else {
+					a0.Failed = a.Failed
+				}
 			}
 			if a0.pending--; a0.pending == 0 {
 				b.ready.push(a0)
