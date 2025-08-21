@@ -507,6 +507,8 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpAMD64TESTW(v)
 	case OpAMD64TESTWconst:
 		return rewriteValueAMD64_OpAMD64TESTWconst(v)
+	case OpAMD64VMOVD:
+		return rewriteValueAMD64_OpAMD64VMOVD(v)
 	case OpAMD64VMOVDQU16Masked512:
 		return rewriteValueAMD64_OpAMD64VMOVDQU16Masked512(v)
 	case OpAMD64VMOVDQU32Masked512:
@@ -515,6 +517,12 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpAMD64VMOVDQU64Masked512(v)
 	case OpAMD64VMOVDQU8Masked512:
 		return rewriteValueAMD64_OpAMD64VMOVDQU8Masked512(v)
+	case OpAMD64VMOVQ:
+		return rewriteValueAMD64_OpAMD64VMOVQ(v)
+	case OpAMD64VMOVSDf2v:
+		return rewriteValueAMD64_OpAMD64VMOVSDf2v(v)
+	case OpAMD64VMOVSSf2v:
+		return rewriteValueAMD64_OpAMD64VMOVSSf2v(v)
 	case OpAMD64VPANDQ512:
 		return rewriteValueAMD64_OpAMD64VPANDQ512(v)
 	case OpAMD64VPBROADCASTB128:
@@ -26442,6 +26450,34 @@ func rewriteValueAMD64_OpAMD64TESTWconst(v *Value) bool {
 	}
 	return false
 }
+func rewriteValueAMD64_OpAMD64VMOVD(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (VMOVD x:(MOVLload [off] {sym} ptr mem))
+	// cond: x.Uses == 1 && clobber(x)
+	// result: @x.Block (VMOVDload <v.Type> [off] {sym} ptr mem)
+	for {
+		x := v_0
+		if x.Op != OpAMD64MOVLload {
+			break
+		}
+		off := auxIntToInt32(x.AuxInt)
+		sym := auxToSym(x.Aux)
+		mem := x.Args[1]
+		ptr := x.Args[0]
+		if !(x.Uses == 1 && clobber(x)) {
+			break
+		}
+		b = x.Block
+		v0 := b.NewValue0(x.Pos, OpAMD64VMOVDload, v.Type)
+		v.copyOf(v0)
+		v0.AuxInt = int32ToAuxInt(off)
+		v0.Aux = symToAux(sym)
+		v0.AddArg2(ptr, mem)
+		return true
+	}
+	return false
+}
 func rewriteValueAMD64_OpAMD64VMOVDQU16Masked512(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -28795,6 +28831,114 @@ func rewriteValueAMD64_OpAMD64VMOVDQU8Masked512(v *Value) bool {
 		mask := v_1
 		v.reset(OpAMD64VPSUBUSBMasked512)
 		v.AddArg3(x, y, mask)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VMOVQ(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (VMOVQ x:(MOVQload [off] {sym} ptr mem))
+	// cond: x.Uses == 1 && clobber(x)
+	// result: @x.Block (VMOVQload <v.Type> [off] {sym} ptr mem)
+	for {
+		x := v_0
+		if x.Op != OpAMD64MOVQload {
+			break
+		}
+		off := auxIntToInt32(x.AuxInt)
+		sym := auxToSym(x.Aux)
+		mem := x.Args[1]
+		ptr := x.Args[0]
+		if !(x.Uses == 1 && clobber(x)) {
+			break
+		}
+		b = x.Block
+		v0 := b.NewValue0(x.Pos, OpAMD64VMOVQload, v.Type)
+		v.copyOf(v0)
+		v0.AuxInt = int32ToAuxInt(off)
+		v0.Aux = symToAux(sym)
+		v0.AddArg2(ptr, mem)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VMOVSDf2v(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (VMOVSDf2v x:(MOVSDload [off] {sym} ptr mem))
+	// cond: x.Uses == 1 && clobber(x)
+	// result: @x.Block (VMOVSDload <v.Type> [off] {sym} ptr mem)
+	for {
+		x := v_0
+		if x.Op != OpAMD64MOVSDload {
+			break
+		}
+		off := auxIntToInt32(x.AuxInt)
+		sym := auxToSym(x.Aux)
+		mem := x.Args[1]
+		ptr := x.Args[0]
+		if !(x.Uses == 1 && clobber(x)) {
+			break
+		}
+		b = x.Block
+		v0 := b.NewValue0(x.Pos, OpAMD64VMOVSDload, v.Type)
+		v.copyOf(v0)
+		v0.AuxInt = int32ToAuxInt(off)
+		v0.Aux = symToAux(sym)
+		v0.AddArg2(ptr, mem)
+		return true
+	}
+	// match: (VMOVSDf2v x:(MOVSDconst [c] ))
+	// result: (VMOVSDconst [c] )
+	for {
+		x := v_0
+		if x.Op != OpAMD64MOVSDconst {
+			break
+		}
+		c := auxIntToFloat64(x.AuxInt)
+		v.reset(OpAMD64VMOVSDconst)
+		v.AuxInt = float64ToAuxInt(c)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VMOVSSf2v(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (VMOVSSf2v x:(MOVSSload [off] {sym} ptr mem))
+	// cond: x.Uses == 1 && clobber(x)
+	// result: @x.Block (VMOVSSload <v.Type> [off] {sym} ptr mem)
+	for {
+		x := v_0
+		if x.Op != OpAMD64MOVSSload {
+			break
+		}
+		off := auxIntToInt32(x.AuxInt)
+		sym := auxToSym(x.Aux)
+		mem := x.Args[1]
+		ptr := x.Args[0]
+		if !(x.Uses == 1 && clobber(x)) {
+			break
+		}
+		b = x.Block
+		v0 := b.NewValue0(x.Pos, OpAMD64VMOVSSload, v.Type)
+		v.copyOf(v0)
+		v0.AuxInt = int32ToAuxInt(off)
+		v0.Aux = symToAux(sym)
+		v0.AddArg2(ptr, mem)
+		return true
+	}
+	// match: (VMOVSSf2v x:(MOVSSconst [c] ))
+	// result: (VMOVSSconst [c] )
+	for {
+		x := v_0
+		if x.Op != OpAMD64MOVSSconst {
+			break
+		}
+		c := auxIntToFloat32(x.AuxInt)
+		v.reset(OpAMD64VMOVSSconst)
+		v.AuxInt = float32ToAuxInt(c)
 		return true
 	}
 	return false

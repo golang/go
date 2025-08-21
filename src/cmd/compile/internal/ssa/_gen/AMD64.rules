@@ -1782,3 +1782,12 @@
 (VPBROADCASTW(128|256|512) x:(VPINSRW128 [0] (Zero128    <t>) y)) && x.Uses == 1 =>
 	(VPBROADCASTW(128|256|512)   (VMOVQ <types.TypeVec128> y))
 
+(VMOVQ x:(MOVQload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (VMOVQload <v.Type> [off] {sym} ptr mem)
+(VMOVD x:(MOVLload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (VMOVDload <v.Type> [off] {sym} ptr mem)
+
+(VMOVSDf2v x:(MOVSDload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (VMOVSDload <v.Type> [off] {sym} ptr mem)
+(VMOVSSf2v x:(MOVSSload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (VMOVSSload <v.Type> [off] {sym} ptr mem)
+
+(VMOVSDf2v x:(MOVSDconst [c] )) => (VMOVSDconst [c] )
+(VMOVSSf2v x:(MOVSSconst [c] )) => (VMOVSSconst [c] )
+

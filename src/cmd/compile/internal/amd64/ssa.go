@@ -1723,6 +1723,24 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = simdReg(v)
 
+	case ssa.OpAMD64VMOVQload, ssa.OpAMD64VMOVDload,
+		ssa.OpAMD64VMOVSSload, ssa.OpAMD64VMOVSDload:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = v.Args[0].Reg()
+		ssagen.AddAux(&p.From, v)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = simdReg(v)
+
+	case ssa.OpAMD64VMOVSSconst, ssa.OpAMD64VMOVSDconst:
+		// for loading constants directly into SIMD registers
+		x := simdReg(v)
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_FCONST
+		p.From.Val = math.Float64frombits(uint64(v.AuxInt))
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = x
+
 	case ssa.OpAMD64VMOVD, ssa.OpAMD64VMOVQ:
 		// These are for initializing the least 32/64 bits of a SIMD register from an "int".
 		p := s.Prog(v.Op.Asm())

@@ -1218,6 +1218,12 @@ const (
 	OpAMD64VMOVSSf2v
 	OpAMD64VMOVQ
 	OpAMD64VMOVD
+	OpAMD64VMOVQload
+	OpAMD64VMOVDload
+	OpAMD64VMOVSSload
+	OpAMD64VMOVSDload
+	OpAMD64VMOVSSconst
+	OpAMD64VMOVSDconst
 	OpAMD64VZEROUPPER
 	OpAMD64VZEROALL
 	OpAMD64KMOVQload
@@ -18920,6 +18926,94 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:           "VMOVQload",
+		auxType:        auxSymOff,
+		argLen:         2,
+		faultOnNilArg0: true,
+		symEffect:      SymRead,
+		asm:            x86.AVMOVQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:           "VMOVDload",
+		auxType:        auxSymOff,
+		argLen:         2,
+		faultOnNilArg0: true,
+		symEffect:      SymRead,
+		asm:            x86.AVMOVD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:           "VMOVSSload",
+		auxType:        auxSymOff,
+		argLen:         2,
+		faultOnNilArg0: true,
+		symEffect:      SymRead,
+		asm:            x86.AVMOVSS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:           "VMOVSDload",
+		auxType:        auxSymOff,
+		argLen:         2,
+		faultOnNilArg0: true,
+		symEffect:      SymRead,
+		asm:            x86.AVMOVSD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:              "VMOVSSconst",
+		auxType:           auxFloat32,
+		argLen:            0,
+		rematerializeable: true,
+		asm:               x86.AVMOVSS,
+		reg: regInfo{
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:              "VMOVSDconst",
+		auxType:           auxFloat64,
+		argLen:            0,
+		rematerializeable: true,
+		asm:               x86.AVMOVSD,
+		reg: regInfo{
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},

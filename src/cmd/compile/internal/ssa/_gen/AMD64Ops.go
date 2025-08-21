@@ -1389,6 +1389,14 @@ func init() {
 		{name: "VMOVQ", argLength: 1, reg: gpv, asm: "VMOVQ"},
 		{name: "VMOVD", argLength: 1, reg: gpv, asm: "VMOVD"},
 
+		{name: "VMOVQload", argLength: 2, reg: fpload, asm: "VMOVQ", aux: "SymOff", typ: "UInt64", faultOnNilArg0: true, symEffect: "Read"},
+		{name: "VMOVDload", argLength: 2, reg: fpload, asm: "VMOVD", aux: "SymOff", typ: "UInt32", faultOnNilArg0: true, symEffect: "Read"},
+		{name: "VMOVSSload", argLength: 2, reg: fpload, asm: "VMOVSS", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},
+		{name: "VMOVSDload", argLength: 2, reg: fpload, asm: "VMOVSD", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},
+
+		{name: "VMOVSSconst", reg: fp01, asm: "VMOVSS", aux: "Float32", rematerializeable: true},
+		{name: "VMOVSDconst", reg: fp01, asm: "VMOVSD", aux: "Float64", rematerializeable: true},
+
 		{name: "VZEROUPPER", argLength: 0, asm: "VZEROUPPER"},
 		{name: "VZEROALL", argLength: 0, asm: "VZEROALL"},
 

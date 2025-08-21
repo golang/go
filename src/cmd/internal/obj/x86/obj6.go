@@ -236,7 +236,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	// Rewrite float constants to values stored in memory.
 	switch p.As {
 	// Convert AMOVSS $(0), Xx to AXORPS Xx, Xx
-	case AMOVSS:
+	case AMOVSS, AVMOVSS:
 		if p.From.Type == obj.TYPE_FCONST {
 			//  f == 0 can't be used here due to -0, so use Float64bits
 			if f := p.From.Val.(float64); math.Float64bits(f) == 0 {
@@ -272,7 +272,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			p.From.Offset = 0
 		}
 
-	case AMOVSD:
+	case AMOVSD, AVMOVSD:
 		// Convert AMOVSD $(0), Xx to AXORPS Xx, Xx
 		if p.From.Type == obj.TYPE_FCONST {
 			//  f == 0 can't be used here due to -0, so use Float64bits
