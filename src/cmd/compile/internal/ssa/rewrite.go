@@ -1954,7 +1954,7 @@ func arm64BFWidth(mask, rshift int64) int64 {
 	return nto(shiftedMask)
 }
 
-// encodes condition code and NZCV flags into auxint.
+// encodes condition code and NZCV flags into result.
 func arm64ConditionalParamsAuxInt(cond Op, nzcv uint8) arm64ConditionalParams {
 	if cond < OpARM64Equal || cond > OpARM64GreaterEqualU {
 		panic("Wrong conditional operation")
