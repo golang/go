@@ -310,6 +310,9 @@ TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME|NOFRAME,$0
 	get_tls(R12)
 	MOVQ	g(R12), R14
 	PXOR	X15, X15
+	CMPB	internal∕cpu·X86+const_offsetX86HasAVX(SB), $1
+	JNE	2(PC)
+	VXORPS	X15, X15, X15
 
 	// Reserve space for spill slots.
 	NOP	SP		// disable vet stack checking

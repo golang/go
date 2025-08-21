@@ -18,6 +18,7 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/obj/x86"
 	"internal/abi"
+	"internal/buildcfg"
 )
 
 // ssaMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
@@ -1290,7 +1291,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	case ssa.OpAMD64CALLstatic, ssa.OpAMD64CALLtail:
 		if s.ABI == obj.ABI0 && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABIInternal {
 			// zeroing X15 when entering ABIInternal from ABI0
-			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+			zeroX15(s)
 			// set G register from TLS
 			getgFromTLS(s, x86.REG_R14)
 		}
@@ -1301,7 +1302,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		s.Call(v)
 		if s.ABI == obj.ABIInternal && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABI0 {
 			// zeroing X15 when entering ABIInternal from ABI0
-			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+			zeroX15(s)
 			// set G register from TLS
 			getgFromTLS(s, x86.REG_R14)
 		}
@@ -1827,6 +1828,34 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			v.Fatalf("genValue not implemented: %s", v.LongString())
 		}
 	}
+}
+
+// zeroX15 zeroes the X15 register.
+func zeroX15(s *ssagen.State) {
+	vxorps := func(s *ssagen.State) {
+		p := s.Prog(x86.AVXORPS)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = x86.REG_X15
+		p.AddRestSourceReg(x86.REG_X15)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = x86.REG_X15
+	}
+	if buildcfg.GOAMD64 >= 3 {
+		vxorps(s)
+		return
+	}
+	// AVX may not be available, check before zeroing the high bits.
+	p := s.Prog(x86.ACMPB)
+	p.From.Type = obj.TYPE_MEM
+	p.From.Name = obj.NAME_EXTERN
+	p.From.Sym = ir.Syms.X86HasAVX
+	p.To.Type = obj.TYPE_CONST
+	p.To.Offset = 1
+	jmp := s.Prog(x86.AJNE)
+	jmp.To.Type = obj.TYPE_BRANCH
+	vxorps(s)
+	sse := opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+	jmp.To.SetTarget(sse)
 }
 
 // Example instruction: VRSQRTPS X1, X1
