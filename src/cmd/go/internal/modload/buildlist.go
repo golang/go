@@ -108,13 +108,13 @@ func newRequirements(pruning modPruning, rootModules []module.Version, direct ma
 	mustHaveGoRoot(rootModules)
 
 	if pruning != workspace {
-		if workFilePath != "" {
+		if LoaderState.workFilePath != "" {
 			panic("in workspace mode, but pruning is not workspace in newRequirements")
 		}
 	}
 
 	if pruning != workspace {
-		if workFilePath != "" {
+		if LoaderState.workFilePath != "" {
 			panic("in workspace mode, but pruning is not workspace in newRequirements")
 		}
 		for i, m := range rootModules {

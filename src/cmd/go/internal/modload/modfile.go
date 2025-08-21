@@ -356,7 +356,7 @@ func replacementFrom(mod module.Version) (r module.Version, modroot string, from
 		return module.Version{}, "", ""
 	}
 	if _, r, ok := replacement(mod, LoaderState.MainModules.WorkFileReplaceMap()); ok {
-		return r, "", workFilePath
+		return r, "", LoaderState.workFilePath
 	}
 	for _, v := range LoaderState.MainModules.Versions() {
 		if index := LoaderState.MainModules.Index(v); index != nil {

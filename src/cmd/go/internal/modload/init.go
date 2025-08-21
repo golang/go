@@ -60,7 +60,7 @@ var (
 func EnterModule(ctx context.Context, enterModroot string) {
 	LoaderState.MainModules = nil // reset MainModules
 	LoaderState.requirements = nil
-	workFilePath = "" // Force module mode
+	LoaderState.workFilePath = "" // Force module mode
 	modfetch.Reset()
 
 	LoaderState.modRoots = []string{enterModroot}
@@ -96,12 +96,6 @@ func EnterWorkspace(ctx context.Context) (exit func(), err error) {
 		setState(oldstate)
 	}, nil
 }
-
-// Variable set in InitWorkfile
-var (
-	// Set to the path to the go.work file, or "" if workspace mode is disabled.
-	workFilePath string
-)
 
 type MainModuleSet struct {
 	// versions are the module.Version values of each of the main modules.
@@ -349,7 +343,7 @@ func InitWorkfile() {
 	if err := fsys.Init(); err != nil {
 		base.Fatal(err)
 	}
-	workFilePath = FindGoWork(base.Cwd())
+	LoaderState.workFilePath = FindGoWork(base.Cwd())
 }
 
 // FindGoWork returns the name of the go.work file for this command,
@@ -378,7 +372,7 @@ func FindGoWork(wd string) string {
 // WorkFilePath returns the absolute path of the go.work file, or "" if not in
 // workspace mode. WorkFilePath must be called after InitWorkfile.
 func WorkFilePath() string {
-	return workFilePath
+	return LoaderState.workFilePath
 }
 
 // Reset clears all the initialized, cached state about the use of modules,
@@ -404,7 +398,7 @@ func setState(s State) State {
 	cfg.ModulesEnabled = s.modulesEnabled
 	LoaderState.MainModules = s.MainModules
 	LoaderState.requirements = s.requirements
-	workFilePath = s.workFilePath
+	LoaderState.workFilePath = s.workFilePath
 	// The modfetch package's global state is used to compute
 	// the go.sum file, so save and restore it along with the
 	// modload state.
@@ -441,7 +435,10 @@ type State struct {
 	// commitRequirements functions.  All other functions that need or
 	// produce a *Requirements should accept and/or return an explicit
 	// parameter.
-	requirements  *Requirements
+	requirements *Requirements
+
+	// Set to the path to the go.work file, or "" if workspace mode is
+	// disabled
 	workFilePath  string
 	modfetchState modfetch.State
 }
@@ -507,7 +504,7 @@ func Init() {
 			base.Fatalf("go: -modfile cannot be used with commands that ignore the current module")
 		}
 		LoaderState.modRoots = nil
-	} else if workFilePath != "" {
+	} else if LoaderState.workFilePath != "" {
 		// We're in workspace mode, which implies module mode.
 		if cfg.ModFile != "" {
 			base.Fatalf("go: -modfile cannot be used in workspace mode")
@@ -651,7 +648,7 @@ func inWorkspaceMode() bool {
 	if !Enabled() {
 		return false
 	}
-	return workFilePath != ""
+	return LoaderState.workFilePath != ""
 }
 
 // HasModRoot reports whether a main module or main modules are present.
@@ -888,7 +885,7 @@ func loadModFile(ctx context.Context, opts *PackageOpts) (*Requirements, error) 
 	var workFile *modfile.WorkFile
 	if inWorkspaceMode() {
 		var err error
-		workFile, LoaderState.modRoots, err = LoadWorkFile(workFilePath)
+		workFile, LoaderState.modRoots, err = LoadWorkFile(LoaderState.workFilePath)
 		if err != nil {
 			return nil, err
 		}
@@ -896,7 +893,7 @@ func loadModFile(ctx context.Context, opts *PackageOpts) (*Requirements, error) 
 			sumFile := strings.TrimSuffix(modFilePath(modRoot), ".mod") + ".sum"
 			modfetch.WorkspaceGoSumFiles = append(modfetch.WorkspaceGoSumFiles, sumFile)
 		}
-		modfetch.GoSumFile = workFilePath + ".sum"
+		modfetch.GoSumFile = LoaderState.workFilePath + ".sum"
 	} else if len(LoaderState.modRoots) == 0 {
 		// We're in module mode, but not inside a module.
 		//
@@ -1542,8 +1539,8 @@ func setDefaultBuildMod() {
 			}
 		}
 		vendorDir := ""
-		if workFilePath != "" {
-			vendorDir = filepath.Join(filepath.Dir(workFilePath), "vendor")
+		if LoaderState.workFilePath != "" {
+			vendorDir = filepath.Join(filepath.Dir(LoaderState.workFilePath), "vendor")
 		} else {
 			if len(LoaderState.modRoots) != 1 {
 				panic(fmt.Errorf("outside workspace mode, but have %v modRoots", LoaderState.modRoots))
