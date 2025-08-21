@@ -1771,18 +1771,78 @@ const (
 	OpAMD64VPMINUWMasked128
 	OpAMD64VPMINUWMasked256
 	OpAMD64VPMINUWMasked512
+	OpAMD64VPMOVSXBD128
+	OpAMD64VPMOVSXBD256
+	OpAMD64VPMOVSXBD512
+	OpAMD64VPMOVSXBDMasked128
+	OpAMD64VPMOVSXBDMasked256
+	OpAMD64VPMOVSXBDMasked512
+	OpAMD64VPMOVSXBQ128
+	OpAMD64VPMOVSXBQ256
+	OpAMD64VPMOVSXBQ512
+	OpAMD64VPMOVSXBQMasked128
+	OpAMD64VPMOVSXBQMasked256
+	OpAMD64VPMOVSXBQMasked512
+	OpAMD64VPMOVSXBW128
+	OpAMD64VPMOVSXBW256
+	OpAMD64VPMOVSXBW512
+	OpAMD64VPMOVSXBWMasked128
+	OpAMD64VPMOVSXBWMasked256
+	OpAMD64VPMOVSXBWMasked512
+	OpAMD64VPMOVSXDQ128
+	OpAMD64VPMOVSXDQ256
+	OpAMD64VPMOVSXDQ512
+	OpAMD64VPMOVSXDQMasked128
+	OpAMD64VPMOVSXDQMasked256
+	OpAMD64VPMOVSXDQMasked512
+	OpAMD64VPMOVSXWD128
+	OpAMD64VPMOVSXWD256
+	OpAMD64VPMOVSXWD512
+	OpAMD64VPMOVSXWDMasked128
+	OpAMD64VPMOVSXWDMasked256
+	OpAMD64VPMOVSXWDMasked512
+	OpAMD64VPMOVSXWQ128
+	OpAMD64VPMOVSXWQ256
+	OpAMD64VPMOVSXWQ512
+	OpAMD64VPMOVSXWQMasked128
+	OpAMD64VPMOVSXWQMasked256
+	OpAMD64VPMOVSXWQMasked512
+	OpAMD64VPMOVZXBD128
+	OpAMD64VPMOVZXBD256
+	OpAMD64VPMOVZXBD512
+	OpAMD64VPMOVZXBDMasked128
+	OpAMD64VPMOVZXBDMasked256
+	OpAMD64VPMOVZXBDMasked512
+	OpAMD64VPMOVZXBQ128
+	OpAMD64VPMOVZXBQ256
+	OpAMD64VPMOVZXBQ512
+	OpAMD64VPMOVZXBQMasked128
+	OpAMD64VPMOVZXBQMasked256
+	OpAMD64VPMOVZXBQMasked512
 	OpAMD64VPMOVZXBW128
 	OpAMD64VPMOVZXBW256
 	OpAMD64VPMOVZXBW512
 	OpAMD64VPMOVZXBWMasked128
 	OpAMD64VPMOVZXBWMasked256
 	OpAMD64VPMOVZXBWMasked512
+	OpAMD64VPMOVZXDQ128
+	OpAMD64VPMOVZXDQ256
+	OpAMD64VPMOVZXDQ512
+	OpAMD64VPMOVZXDQMasked128
+	OpAMD64VPMOVZXDQMasked256
+	OpAMD64VPMOVZXDQMasked512
 	OpAMD64VPMOVZXWD128
 	OpAMD64VPMOVZXWD256
 	OpAMD64VPMOVZXWD512
 	OpAMD64VPMOVZXWDMasked128
 	OpAMD64VPMOVZXWDMasked256
 	OpAMD64VPMOVZXWDMasked512
+	OpAMD64VPMOVZXWQ128
+	OpAMD64VPMOVZXWQ256
+	OpAMD64VPMOVZXWQ512
+	OpAMD64VPMOVZXWQMasked128
+	OpAMD64VPMOVZXWQMasked256
+	OpAMD64VPMOVZXWQMasked512
 	OpAMD64VPMULDQ128
 	OpAMD64VPMULDQ256
 	OpAMD64VPMULHUW128
@@ -4856,18 +4916,48 @@ const (
 	OpCompressUint64x2
 	OpCompressUint64x4
 	OpCompressUint64x8
+	OpConvertToInt16Int8x16
+	OpConvertToInt16Int8x32
+	OpConvertToInt16x8Int8x16
 	OpConvertToInt32Float32x4
 	OpConvertToInt32Float32x8
 	OpConvertToInt32Float32x16
+	OpConvertToInt32Int8x16
+	OpConvertToInt32Int16x8
+	OpConvertToInt32Int16x16
+	OpConvertToInt32x4Int8x16
+	OpConvertToInt32x4Int16x8
+	OpConvertToInt32x8Int8x16
+	OpConvertToInt64Int16x8
+	OpConvertToInt64Int32x4
+	OpConvertToInt64Int32x8
+	OpConvertToInt64x2Int8x16
+	OpConvertToInt64x2Int16x8
+	OpConvertToInt64x2Int32x4
+	OpConvertToInt64x4Int8x16
+	OpConvertToInt64x8Int8x16
 	OpConvertToUint16Uint8x16
 	OpConvertToUint16Uint8x32
 	OpConvertToUint16x8Uint8x16
 	OpConvertToUint32Float32x4
 	OpConvertToUint32Float32x8
 	OpConvertToUint32Float32x16
+	OpConvertToUint32Uint8x16
 	OpConvertToUint32Uint16x8
 	OpConvertToUint32Uint16x16
+	OpConvertToUint32x4Uint8x16
 	OpConvertToUint32x4Uint16x8
+	OpConvertToUint32x8Uint8x16
+	OpConvertToUint64Uint16x8
+	OpConvertToUint64Uint32x4
+	OpConvertToUint64Uint32x8
+	OpConvertToUint64x2Uint8x16
+	OpConvertToUint64x2Uint16x8
+	OpConvertToUint64x2Uint32x4
+	OpConvertToUint64x4Int16x8
+	OpConvertToUint64x4Uint8x16
+	OpConvertToUint64x4Uint16x8
+	OpConvertToUint64x8Uint8x16
 	OpCopySignInt8x16
 	OpCopySignInt8x32
 	OpCopySignInt16x8
@@ -26949,6 +27039,654 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VPMOVSXBD128",
+		argLen: 1,
+		asm:    x86.AVPMOVSXBD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVSXBD256",
+		argLen: 1,
+		asm:    x86.AVPMOVSXBD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVSXBD512",
+		argLen: 1,
+		asm:    x86.AVPMOVSXBD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPMOVSXBDMasked128",
+		argLen: 2,
+		asm:    x86.AVPMOVSXBD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVSXBDMasked256",
+		argLen: 2,
+		asm:    x86.AVPMOVSXBD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVSXBDMasked512",
+		argLen: 2,
+		asm:    x86.AVPMOVSXBD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVSXBQ128",
+		argLen: 1,
+		asm:    x86.AVPMOVSXBQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVSXBQ256",
+		argLen: 1,
+		asm:    x86.AVPMOVSXBQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVSXBQ512",
+		argLen: 1,
+		asm:    x86.AVPMOVSXBQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPMOVSXBQMasked128",
+		argLen: 2,
+		asm:    x86.AVPMOVSXBQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVSXBQMasked256",
+		argLen: 2,
+		asm:    x86.AVPMOVSXBQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVSXBQMasked512",
+		argLen: 2,
+		asm:    x86.AVPMOVSXBQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVSXBW128",
+		argLen: 1,
+		asm:    x86.AVPMOVSXBW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVSXBW256",
+		argLen: 1,
+		asm:    x86.AVPMOVSXBW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVSXBW512",
+		argLen: 1,
+		asm:    x86.AVPMOVSXBW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPMOVSXBWMasked128",
+		argLen: 2,
+		asm:    x86.AVPMOVSXBW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVSXBWMasked256",
+		argLen: 2,
+		asm:    x86.AVPMOVSXBW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVSXBWMasked512",
+		argLen: 2,
+		asm:    x86.AVPMOVSXBW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVSXDQ128",
+		argLen: 1,
+		asm:    x86.AVPMOVSXDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVSXDQ256",
+		argLen: 1,
+		asm:    x86.AVPMOVSXDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVSXDQ512",
+		argLen: 1,
+		asm:    x86.AVPMOVSXDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPMOVSXDQMasked128",
+		argLen: 2,
+		asm:    x86.AVPMOVSXDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVSXDQMasked256",
+		argLen: 2,
+		asm:    x86.AVPMOVSXDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVSXDQMasked512",
+		argLen: 2,
+		asm:    x86.AVPMOVSXDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVSXWD128",
+		argLen: 1,
+		asm:    x86.AVPMOVSXWD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVSXWD256",
+		argLen: 1,
+		asm:    x86.AVPMOVSXWD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVSXWD512",
+		argLen: 1,
+		asm:    x86.AVPMOVSXWD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPMOVSXWDMasked128",
+		argLen: 2,
+		asm:    x86.AVPMOVSXWD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVSXWDMasked256",
+		argLen: 2,
+		asm:    x86.AVPMOVSXWD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVSXWDMasked512",
+		argLen: 2,
+		asm:    x86.AVPMOVSXWD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVSXWQ128",
+		argLen: 1,
+		asm:    x86.AVPMOVSXWQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVSXWQ256",
+		argLen: 1,
+		asm:    x86.AVPMOVSXWQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVSXWQ512",
+		argLen: 1,
+		asm:    x86.AVPMOVSXWQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPMOVSXWQMasked128",
+		argLen: 2,
+		asm:    x86.AVPMOVSXWQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVSXWQMasked256",
+		argLen: 2,
+		asm:    x86.AVPMOVSXWQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVSXWQMasked512",
+		argLen: 2,
+		asm:    x86.AVPMOVSXWQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVZXBD128",
+		argLen: 1,
+		asm:    x86.AVPMOVZXBD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVZXBD256",
+		argLen: 1,
+		asm:    x86.AVPMOVZXBD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVZXBD512",
+		argLen: 1,
+		asm:    x86.AVPMOVZXBD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPMOVZXBDMasked128",
+		argLen: 2,
+		asm:    x86.AVPMOVZXBD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVZXBDMasked256",
+		argLen: 2,
+		asm:    x86.AVPMOVZXBD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVZXBDMasked512",
+		argLen: 2,
+		asm:    x86.AVPMOVZXBD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVZXBQ128",
+		argLen: 1,
+		asm:    x86.AVPMOVZXBQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVZXBQ256",
+		argLen: 1,
+		asm:    x86.AVPMOVZXBQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVZXBQ512",
+		argLen: 1,
+		asm:    x86.AVPMOVZXBQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPMOVZXBQMasked128",
+		argLen: 2,
+		asm:    x86.AVPMOVZXBQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVZXBQMasked256",
+		argLen: 2,
+		asm:    x86.AVPMOVZXBQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVZXBQMasked512",
+		argLen: 2,
+		asm:    x86.AVPMOVZXBQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:   "VPMOVZXBW128",
 		argLen: 1,
 		asm:    x86.AVPMOVZXBW,
@@ -27030,6 +27768,87 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VPMOVZXDQ128",
+		argLen: 1,
+		asm:    x86.AVPMOVZXDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVZXDQ256",
+		argLen: 1,
+		asm:    x86.AVPMOVZXDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVZXDQ512",
+		argLen: 1,
+		asm:    x86.AVPMOVZXDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPMOVZXDQMasked128",
+		argLen: 2,
+		asm:    x86.AVPMOVZXDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVZXDQMasked256",
+		argLen: 2,
+		asm:    x86.AVPMOVZXDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVZXDQMasked512",
+		argLen: 2,
+		asm:    x86.AVPMOVZXDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:   "VPMOVZXWD128",
 		argLen: 1,
 		asm:    x86.AVPMOVZXWD,
@@ -27100,6 +27919,87 @@ var opcodeTable = [...]opInfo{
 		name:   "VPMOVZXWDMasked512",
 		argLen: 2,
 		asm:    x86.AVPMOVZXWD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVZXWQ128",
+		argLen: 1,
+		asm:    x86.AVPMOVZXWQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVZXWQ256",
+		argLen: 1,
+		asm:    x86.AVPMOVZXWQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVZXWQ512",
+		argLen: 1,
+		asm:    x86.AVPMOVZXWQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPMOVZXWQMasked128",
+		argLen: 2,
+		asm:    x86.AVPMOVZXWQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVZXWQMasked256",
+		argLen: 2,
+		asm:    x86.AVPMOVZXWQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMOVZXWQMasked512",
+		argLen: 2,
+		asm:    x86.AVPMOVZXWQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -64324,6 +65224,21 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "ConvertToInt16Int8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToInt16Int8x32",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToInt16x8Int8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
 		name:    "ConvertToInt32Float32x4",
 		argLen:  1,
 		generic: true,
@@ -64335,6 +65250,76 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "ConvertToInt32Float32x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToInt32Int8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToInt32Int16x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToInt32Int16x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToInt32x4Int8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToInt32x4Int16x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToInt32x8Int8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToInt64Int16x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToInt64Int32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToInt64Int32x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToInt64x2Int8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToInt64x2Int16x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToInt64x2Int32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToInt64x4Int8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToInt64x8Int8x16",
 		argLen:  1,
 		generic: true,
 	},
@@ -64369,6 +65354,11 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "ConvertToUint32Uint8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
 		name:    "ConvertToUint32Uint16x8",
 		argLen:  1,
 		generic: true,
@@ -64379,7 +65369,67 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "ConvertToUint32x4Uint8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
 		name:    "ConvertToUint32x4Uint16x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToUint32x8Uint8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToUint64Uint16x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToUint64Uint32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToUint64Uint32x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToUint64x2Uint8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToUint64x2Uint16x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToUint64x2Uint32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToUint64x4Int16x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToUint64x4Uint8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToUint64x4Uint16x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToUint64x8Uint8x16",
 		argLen:  1,
 		generic: true,
 	},

@@ -1,20 +1,57 @@
 !sum
 # Non-truncating conversions
-# Could be widening int<->int or uint<->uint conversions or float<->int|uint conversions.
+# int<->int or uint<->uint widening or float<->int|uint conversions.
+- go: ConvertToInt16
+  commutative: false
+  documentation: !string |-
+    // NAME converts element values to int16.
 - go: ConvertToInt32
   commutative: false
   documentation: !string |-
     // NAME converts element values to int32.
-- go: ConvertToUint32
+- go: ConvertToInt64
   commutative: false
   documentation: !string |-
-    // NAME converts element values to uint32.
+    // NAME converts element values to int64.
 - go: ConvertToUint16
   commutative: false
   documentation: !string |-
     // NAME converts element values to uint16.
+- go: ConvertToUint32
+  commutative: false
+  documentation: !string |-
+    // NAME converts element values to uint32.
+- go: ConvertToUint64
+  commutative: false
+  documentation: !string |-
+    // NAME converts element values to uint64.
 
-# Truncating conversions, int<->int or uint<->uint.
+# Truncating conversions
+# int<->int or uint<->uint widening conversions.
+- go: ConvertToInt16x8
+  commutative: false
+  documentation: !string |-
+    // NAME converts 8 lowest vector element values to int16.
+- go: ConvertToInt32x4
+  commutative: false
+  documentation: !string |-
+    // NAME converts 4 lowest vector element values to int32.
+- go: ConvertToInt32x8
+  commutative: false
+  documentation: !string |-
+    // NAME converts 8 lowest vector element values to int32.
+- go: ConvertToInt64x2
+  commutative: false
+  documentation: !string |-
+    // NAME converts 2 lowest vector element values to int64.
+- go: ConvertToInt64x4
+  commutative: false
+  documentation: !string |-
+    // NAME converts 4 lowest vector element values to int64.
+- go: ConvertToInt64x8
+  commutative: false
+  documentation: !string |-
+    // NAME converts 8 lowest vector element values to int64.
 - go: ConvertToUint16x8
   commutative: false
   documentation: !string |-
@@ -23,3 +60,19 @@
   commutative: false
   documentation: !string |-
     // NAME converts 4 lowest vector element values to uint32.
+- go: ConvertToUint32x8
+  commutative: false
+  documentation: !string |-
+    // NAME converts 8 lowest vector element values to uint32.
+- go: ConvertToUint64x2
+  commutative: false
+  documentation: !string |-
+    // NAME converts 2 lowest vector element values to uint64.
+- go: ConvertToUint64x4
+  commutative: false
+  documentation: !string |-
+    // NAME converts 4 lowest vector element values to uint64.
+- go: ConvertToUint64x8
+  commutative: false
+  documentation: !string |-
+    // NAME converts 8 lowest vector element values to uint64.

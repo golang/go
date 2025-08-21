@@ -1195,6 +1195,25 @@ func (x Uint64x4) Compress(mask Mask64x4) Uint64x4
 // Asm: VPCOMPRESSQ, CPU Feature: AVX512
 func (x Uint64x8) Compress(mask Mask64x8) Uint64x8
 
+/* ConvertToInt16 */
+
+// ConvertToInt16 converts element values to int16.
+//
+// Asm: VPMOVSXBW, CPU Feature: AVX2
+func (x Int8x16) ConvertToInt16() Int16x16
+
+// ConvertToInt16 converts element values to int16.
+//
+// Asm: VPMOVSXBW, CPU Feature: AVX512
+func (x Int8x32) ConvertToInt16() Int16x32
+
+/* ConvertToInt16x8 */
+
+// ConvertToInt16x8 converts 8 lowest vector element values to int16.
+//
+// Asm: VPMOVSXBW, CPU Feature: AVX
+func (x Int8x16) ConvertToInt16x8() Int16x8
+
 /* ConvertToInt32 */
 
 // ConvertToInt32 converts element values to int32.
@@ -1211,6 +1230,88 @@ func (x Float32x8) ConvertToInt32() Int32x8
 //
 // Asm: VCVTTPS2DQ, CPU Feature: AVX512
 func (x Float32x16) ConvertToInt32() Int32x16
+
+// ConvertToInt32 converts element values to int32.
+//
+// Asm: VPMOVSXBD, CPU Feature: AVX512
+func (x Int8x16) ConvertToInt32() Int32x16
+
+// ConvertToInt32 converts element values to int32.
+//
+// Asm: VPMOVSXWD, CPU Feature: AVX2
+func (x Int16x8) ConvertToInt32() Int32x8
+
+// ConvertToInt32 converts element values to int32.
+//
+// Asm: VPMOVSXWD, CPU Feature: AVX512
+func (x Int16x16) ConvertToInt32() Int32x16
+
+/* ConvertToInt32x4 */
+
+// ConvertToInt32x4 converts 4 lowest vector element values to int32.
+//
+// Asm: VPMOVSXBD, CPU Feature: AVX
+func (x Int8x16) ConvertToInt32x4() Int32x4
+
+// ConvertToInt32x4 converts 4 lowest vector element values to int32.
+//
+// Asm: VPMOVSXWD, CPU Feature: AVX
+func (x Int16x8) ConvertToInt32x4() Int32x4
+
+/* ConvertToInt32x8 */
+
+// ConvertToInt32x8 converts 8 lowest vector element values to int32.
+//
+// Asm: VPMOVSXBD, CPU Feature: AVX2
+func (x Int8x16) ConvertToInt32x8() Int32x8
+
+/* ConvertToInt64 */
+
+// ConvertToInt64 converts element values to int64.
+//
+// Asm: VPMOVSXWQ, CPU Feature: AVX512
+func (x Int16x8) ConvertToInt64() Int64x8
+
+// ConvertToInt64 converts element values to int64.
+//
+// Asm: VPMOVSXDQ, CPU Feature: AVX2
+func (x Int32x4) ConvertToInt64() Int64x4
+
+// ConvertToInt64 converts element values to int64.
+//
+// Asm: VPMOVSXDQ, CPU Feature: AVX512
+func (x Int32x8) ConvertToInt64() Int64x8
+
+/* ConvertToInt64x2 */
+
+// ConvertToInt64x2 converts 2 lowest vector element values to int64.
+//
+// Asm: VPMOVSXBQ, CPU Feature: AVX
+func (x Int8x16) ConvertToInt64x2() Int64x2
+
+// ConvertToInt64x2 converts 2 lowest vector element values to int64.
+//
+// Asm: VPMOVSXWQ, CPU Feature: AVX
+func (x Int16x8) ConvertToInt64x2() Int64x2
+
+// ConvertToInt64x2 converts 2 lowest vector element values to int64.
+//
+// Asm: VPMOVSXDQ, CPU Feature: AVX
+func (x Int32x4) ConvertToInt64x2() Int64x2
+
+/* ConvertToInt64x4 */
+
+// ConvertToInt64x4 converts 4 lowest vector element values to int64.
+//
+// Asm: VPMOVSXBQ, CPU Feature: AVX2
+func (x Int8x16) ConvertToInt64x4() Int64x4
+
+/* ConvertToInt64x8 */
+
+// ConvertToInt64x8 converts 8 lowest vector element values to int64.
+//
+// Asm: VPMOVSXBQ, CPU Feature: AVX512
+func (x Int8x16) ConvertToInt64x8() Int64x8
 
 /* ConvertToUint16 */
 
@@ -1250,6 +1351,11 @@ func (x Float32x16) ConvertToUint32() Uint32x16
 
 // ConvertToUint32 converts element values to uint32.
 //
+// Asm: VPMOVZXBD, CPU Feature: AVX512
+func (x Uint8x16) ConvertToUint32() Uint32x16
+
+// ConvertToUint32 converts element values to uint32.
+//
 // Asm: VPMOVZXWD, CPU Feature: AVX2
 func (x Uint16x8) ConvertToUint32() Uint32x8
 
@@ -1262,8 +1368,78 @@ func (x Uint16x16) ConvertToUint32() Uint32x16
 
 // ConvertToUint32x4 converts 4 lowest vector element values to uint32.
 //
+// Asm: VPMOVZXBD, CPU Feature: AVX
+func (x Uint8x16) ConvertToUint32x4() Uint32x4
+
+// ConvertToUint32x4 converts 4 lowest vector element values to uint32.
+//
 // Asm: VPMOVZXWD, CPU Feature: AVX
 func (x Uint16x8) ConvertToUint32x4() Uint32x4
+
+/* ConvertToUint32x8 */
+
+// ConvertToUint32x8 converts 8 lowest vector element values to uint32.
+//
+// Asm: VPMOVZXBD, CPU Feature: AVX2
+func (x Uint8x16) ConvertToUint32x8() Uint32x8
+
+/* ConvertToUint64 */
+
+// ConvertToUint64 converts element values to uint64.
+//
+// Asm: VPMOVZXWQ, CPU Feature: AVX512
+func (x Uint16x8) ConvertToUint64() Uint64x8
+
+// ConvertToUint64 converts element values to uint64.
+//
+// Asm: VPMOVZXDQ, CPU Feature: AVX2
+func (x Uint32x4) ConvertToUint64() Uint64x4
+
+// ConvertToUint64 converts element values to uint64.
+//
+// Asm: VPMOVZXDQ, CPU Feature: AVX512
+func (x Uint32x8) ConvertToUint64() Uint64x8
+
+/* ConvertToUint64x2 */
+
+// ConvertToUint64x2 converts 2 lowest vector element values to uint64.
+//
+// Asm: VPMOVZXBQ, CPU Feature: AVX
+func (x Uint8x16) ConvertToUint64x2() Uint64x2
+
+// ConvertToUint64x2 converts 2 lowest vector element values to uint64.
+//
+// Asm: VPMOVZXWQ, CPU Feature: AVX
+func (x Uint16x8) ConvertToUint64x2() Uint64x2
+
+// ConvertToUint64x2 converts 2 lowest vector element values to uint64.
+//
+// Asm: VPMOVZXDQ, CPU Feature: AVX
+func (x Uint32x4) ConvertToUint64x2() Uint64x2
+
+/* ConvertToUint64x4 */
+
+// ConvertToUint64x4 converts 4 lowest vector element values to uint64.
+//
+// Asm: VPMOVSXWQ, CPU Feature: AVX2
+func (x Int16x8) ConvertToUint64x4() Int64x4
+
+// ConvertToUint64x4 converts 4 lowest vector element values to uint64.
+//
+// Asm: VPMOVZXBQ, CPU Feature: AVX2
+func (x Uint8x16) ConvertToUint64x4() Uint64x4
+
+// ConvertToUint64x4 converts 4 lowest vector element values to uint64.
+//
+// Asm: VPMOVZXWQ, CPU Feature: AVX2
+func (x Uint16x8) ConvertToUint64x4() Uint64x4
+
+/* ConvertToUint64x8 */
+
+// ConvertToUint64x8 converts 8 lowest vector element values to uint64.
+//
+// Asm: VPMOVZXBQ, CPU Feature: AVX512
+func (x Uint8x16) ConvertToUint64x8() Uint64x8
 
 /* CopySign */
 

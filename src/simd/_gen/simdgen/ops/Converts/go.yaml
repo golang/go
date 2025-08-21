@@ -1,6 +1,6 @@
 !sum
 # Float <-> Int conversions
-# TODO: this right now only has Float32 -> Int32|Uint32, more to add.
+# float32 -> int32
 - go: ConvertToInt32
   asm: "VCVTTPS2DQ"
   in:
@@ -12,6 +12,7 @@
     go: $u
     base: int
     elemBits: 32
+# float32 -> uint32
 - go: ConvertToUint32
   asm: "VCVTPS2UDQ"
   in:
@@ -22,8 +23,8 @@
     base: uint
     elemBits: 32
 
-# Uint -> Uint widening conversions.
-# TODO: this right now only has uint8 -> uint16 and uint16->uint32.
+# Widening integer conversions.
+# uint8 -> uint16
 - go: ConvertToUint16
   asm: "VPMOVZXBW"
   in:
@@ -36,7 +37,6 @@
     base: uint
     elemBits: 16
     bits: 256
-
 - go: ConvertToUint16
   asm: "VPMOVZXBW"
   in:
@@ -49,7 +49,32 @@
     base: uint
     elemBits: 16
     bits: 512
-
+# int8 -> int16
+- go: ConvertToInt16
+  asm: "VPMOVSXBW"
+  in:
+  - &i8x16
+    base: int
+    elemBits: 8
+    bits: 128
+  out:
+  - &i16x16
+    base: int
+    elemBits: 16
+    bits: 256
+- go: ConvertToInt16
+  asm: "VPMOVSXBW"
+  in:
+  - &i8x32
+    base: int
+    elemBits: 8
+    bits: 256
+  out:
+  - &i16x32
+    base: int
+    elemBits: 16
+    bits: 512
+# uint16->uint32
 - go: ConvertToUint32
   asm: "VPMOVZXWD"
   in:
@@ -62,7 +87,6 @@
     base: uint
     elemBits: 32
     bits: 256
-
 - go: ConvertToUint32
   asm: "VPMOVZXWD"
   in:
@@ -72,21 +96,237 @@
     base: uint
     elemBits: 32
     bits: 512
+# int16->int32
+- go: ConvertToInt32
+  asm: "VPMOVSXWD"
+  in:
+  - &i16x8
+    base: int
+    elemBits: 16
+    bits: 128
+  out:
+  - &i32x8
+    base: int
+    elemBits: 32
+    bits: 256
+- go: ConvertToInt32
+  asm: "VPMOVSXWD"
+  in:
+  - *i16x16
+  out:
+  - &i32x16
+    base: int
+    elemBits: 32
+    bits: 512
+# uint32 -> uint64
+- go: ConvertToUint64
+  asm: "VPMOVZXDQ"
+  in:
+  - &u32x4
+    base: uint
+    elemBits: 32
+    bits: 128
+  out:
+  - &u64x4
+    base: uint
+    elemBits: 64
+    bits: 256
+- go: ConvertToUint64
+  asm: "VPMOVZXDQ"
+  in:
+  - *u32x8
+  out:
+  - &u64x8
+    base: uint
+    elemBits: 64
+    bits: 512
+# int32 -> int64
+- go: ConvertToInt64
+  asm: "VPMOVSXDQ"
+  in:
+  - &i32x4
+    base: int
+    elemBits: 32
+    bits: 128
+  out:
+  - &i64x4
+    base: int
+    elemBits: 64
+    bits: 256
+- go: ConvertToInt64
+  asm: "VPMOVSXDQ"
+  in:
+  - *i32x8
+  out:
+  - &i64x8
+    base: int
+    elemBits: 64
+    bits: 512
+# uint16 -> uint64
+- go: ConvertToUint64
+  asm: "VPMOVZXWQ"
+  in:
+  - *u16x8
+  out:
+  - *u64x8
+# int16 -> int64
+- go: ConvertToInt64
+  asm: "VPMOVSXWQ"
+  in:
+  - *i16x8
+  out:
+  - *i64x8
+# uint8 -> uint32
+- go: ConvertToUint32
+  asm: "VPMOVZXBD"
+  in:
+  - *u8x16
+  out:
+  - *u32x16
+# int8 -> int32
+- go: ConvertToInt32
+  asm: "VPMOVSXBD"
+  in:
+  - *i8x16
+  out:
+  - *i32x16
 
 # Truncating conversions.
-# TODO: this right now only has uint8->uint16 and uint16->uint32.
+# uint8->uint16
 - go: ConvertToUint16x8
   asm: "VPMOVZXBW"
   in:
   - *u8x16
   out:
   - *u16x8
+# int8->int16
+- go: ConvertToInt16x8
+  asm: "VPMOVSXBW"
+  in:
+  - *i8x16
+  out:
+  - *i16x8
+# uint16->uint32
 - go: ConvertToUint32x4
   asm: "VPMOVZXWD"
   in:
   - *u16x8
   out:
-  - &u32x4
+  - *u32x4
+# int16->int32
+- go: ConvertToInt32x4
+  asm: "VPMOVSXWD"
+  in:
+  - *i16x8
+  out:
+  - *i32x4
+# uint32 -> uint64
+- go: ConvertToUint64x2
+  asm: "VPMOVZXDQ"
+  in:
+  - *u32x4
+  out:
+  - &u64x2
     base: uint
-    elemBits: 32
+    elemBits: 64
     bits: 128
+# int32 -> int64
+- go: ConvertToInt64x2
+  asm: "VPMOVSXDQ"
+  in:
+  - *i32x4
+  out:
+  - &i64x2
+    base: int
+    elemBits: 64
+    bits: 128
+# uint16 -> uint64
+- go: ConvertToUint64x2
+  asm: "VPMOVZXWQ"
+  in:
+  - *u16x8
+  out:
+  - *u64x2
+- go: ConvertToUint64x4
+  asm: "VPMOVZXWQ"
+  in:
+  - *u16x8
+  out:
+  - *u64x4
+# int16 -> int64
+- go: ConvertToInt64x2
+  asm: "VPMOVSXWQ"
+  in:
+  - *i16x8
+  out:
+  - *i64x2
+- go: ConvertToUint64x4
+  asm: "VPMOVSXWQ"
+  in:
+  - *i16x8
+  out:
+  - *i64x4
+# uint8 -> uint32
+- go: ConvertToUint32x4
+  asm: "VPMOVZXBD"
+  in:
+  - *u8x16
+  out:
+  - *u32x4
+- go: ConvertToUint32x8
+  asm: "VPMOVZXBD"
+  in:
+  - *u8x16
+  out:
+  - *u32x8
+# int8 -> int32
+- go: ConvertToInt32x4
+  asm: "VPMOVSXBD"
+  in:
+  - *i8x16
+  out:
+  - *i32x4
+- go: ConvertToInt32x8
+  asm: "VPMOVSXBD"
+  in:
+  - *i8x16
+  out:
+  - *i32x8
+# uint8 -> uint64
+- go: ConvertToUint64x2
+  asm: "VPMOVZXBQ"
+  in:
+  - *u8x16
+  out:
+  - *u64x2
+- go: ConvertToUint64x4
+  asm: "VPMOVZXBQ"
+  in:
+  - *u8x16
+  out:
+  - *u64x4
+- go: ConvertToUint64x8
+  asm: "VPMOVZXBQ"
+  in:
+  - *u8x16
+  out:
+  - *u64x8
+# int8 -> int64
+- go: ConvertToInt64x2
+  asm: "VPMOVSXBQ"
+  in:
+  - *i8x16
+  out:
+  - *i64x2
+- go: ConvertToInt64x4
+  asm: "VPMOVSXBQ"
+  in:
+  - *i8x16
+  out:
+  - *i64x4
+- go: ConvertToInt64x8
+  asm: "VPMOVSXBQ"
+  in:
+  - *i8x16
+  out:
+  - *i64x8
