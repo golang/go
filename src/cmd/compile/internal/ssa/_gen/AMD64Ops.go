@@ -132,6 +132,9 @@ func init() {
 		gpspsb     = gpsp | buildReg("SB")
 		gpspsbg    = gpspsb | g
 		callerSave = gp | fp | g // runtime.setg (and anything calling it) may clobber g
+
+		vz = v | x15
+		wz = w | x15
 	)
 	// Common slices of register masks
 	var (
@@ -140,6 +143,8 @@ func init() {
 		vonly    = []regMask{v}
 		wonly    = []regMask{w}
 		maskonly = []regMask{mask}
+		vzonly   = []regMask{vz}
+		wzonly   = []regMask{wz}
 	)
 
 	// Common regInfo
@@ -207,26 +212,24 @@ func init() {
 		vloadk  = regInfo{inputs: []regMask{gpspsb, mask, 0}, outputs: vonly}
 		vstorek = regInfo{inputs: []regMask{gpspsb, mask, v, 0}}
 
-		v01   = regInfo{inputs: nil, outputs: vonly}
-		v11   = regInfo{inputs: vonly, outputs: vonly}
-		v21   = regInfo{inputs: []regMask{v, v}, outputs: vonly}
-		vk    = regInfo{inputs: vonly, outputs: maskonly}
+		v11   = regInfo{inputs: vzonly, outputs: vonly}
+		v21   = regInfo{inputs: []regMask{vz, vz}, outputs: vonly}
+		vk    = regInfo{inputs: vzonly, outputs: maskonly}
 		kv    = regInfo{inputs: maskonly, outputs: vonly}
-		v2k   = regInfo{inputs: []regMask{v, v}, outputs: maskonly}
-		vkv   = regInfo{inputs: []regMask{v, mask}, outputs: vonly}
-		v2kv  = regInfo{inputs: []regMask{v, v, mask}, outputs: vonly}
-		v2kk  = regInfo{inputs: []regMask{v, v, mask}, outputs: maskonly}
-		v31   = regInfo{inputs: []regMask{v, v, v}, outputs: vonly}
-		v3kv  = regInfo{inputs: []regMask{v, v, v, mask}, outputs: vonly}
-		vgpv  = regInfo{inputs: []regMask{v, gp}, outputs: vonly}
+		v2k   = regInfo{inputs: []regMask{vz, vz}, outputs: maskonly}
+		vkv   = regInfo{inputs: []regMask{vz, mask}, outputs: vonly}
+		v2kv  = regInfo{inputs: []regMask{vz, vz, mask}, outputs: vonly}
+		v2kk  = regInfo{inputs: []regMask{vz, vz, mask}, outputs: maskonly}
+		v31   = regInfo{inputs: []regMask{v, vz, vz}, outputs: vonly}       // used in resultInArg0 ops, arg0 must not be x15
+		v3kv  = regInfo{inputs: []regMask{v, vz, vz, mask}, outputs: vonly} // used in resultInArg0 ops, arg0 must not be x15
+		vgpv  = regInfo{inputs: []regMask{vz, gp}, outputs: vonly}
 		vgp   = regInfo{inputs: vonly, outputs: gponly}
-		vfpv  = regInfo{inputs: []regMask{v, fp}, outputs: vonly}
-		vfpkv = regInfo{inputs: []regMask{v, fp, mask}, outputs: vonly}
+		vfpv  = regInfo{inputs: []regMask{vz, fp}, outputs: vonly}
+		vfpkv = regInfo{inputs: []regMask{vz, fp, mask}, outputs: vonly}
 
-		w01   = regInfo{inputs: nil, outputs: wonly}
-		w11   = regInfo{inputs: wonly, outputs: wonly}
-		w21   = regInfo{inputs: []regMask{w, w}, outputs: wonly}
-		wk    = regInfo{inputs: wonly, outputs: maskonly}
+		w11   = regInfo{inputs: wzonly, outputs: wonly}
+		w21   = regInfo{inputs: []regMask{wz, wz}, outputs: wonly}
+		wk    = regInfo{inputs: wzonly, outputs: maskonly}
 		kw    = regInfo{inputs: maskonly, outputs: wonly}
 		w2k   = regInfo{inputs: []regMask{fp, fp}, outputs: maskonly}
 		wkw   = regInfo{inputs: []regMask{fp, mask}, outputs: fponly}
@@ -235,14 +238,16 @@ func init() {
 		w31   = regInfo{inputs: []regMask{fp, fp, fp}, outputs: fponly}
 		w3kw  = regInfo{inputs: []regMask{fp, fp, fp, mask}, outputs: fponly}
 		wgpw  = regInfo{inputs: []regMask{fp, gp}, outputs: fponly}
-		wgp   = regInfo{inputs: wonly, outputs: gponly}
-		wfpw  = regInfo{inputs: []regMask{w, fp}, outputs: wonly}
-		wfpkw = regInfo{inputs: []regMask{w, fp, mask}, outputs: wonly}
+		wgp   = regInfo{inputs: wzonly, outputs: gponly}
+		wfpw  = regInfo{inputs: []regMask{wz, fp}, outputs: wonly}
+		wfpkw = regInfo{inputs: []regMask{wz, fp, mask}, outputs: wonly}
 
 		kload  = regInfo{inputs: []regMask{gpspsb, 0}, outputs: maskonly}
 		kstore = regInfo{inputs: []regMask{gpspsb, mask, 0}}
 		gpk    = regInfo{inputs: gponly, outputs: maskonly}
 		kgp    = regInfo{inputs: maskonly, outputs: gponly}
+
+		x15only = regInfo{inputs: nil, outputs: []regMask{x15}}
 
 		prefreg = regInfo{inputs: []regMask{gpspsbg}}
 	)
@@ -1375,9 +1380,9 @@ func init() {
 		{name: "VPMOVVec64x4ToM", argLength: 1, reg: vk, asm: "VPMOVQ2M"},
 		{name: "VPMOVVec64x8ToM", argLength: 1, reg: wk, asm: "VPMOVQ2M"},
 
-		{name: "Zero128", argLength: 0, reg: v01, asm: "VPXOR"},
-		{name: "Zero256", argLength: 0, reg: v01, asm: "VPXOR"},
-		{name: "Zero512", argLength: 0, reg: w01, asm: "VPXORQ"},
+		{name: "Zero128", argLength: 0, reg: x15only, zeroWidth: true, fixedReg: true},
+		{name: "Zero256", argLength: 0, reg: x15only, zeroWidth: true, fixedReg: true},
+		{name: "Zero512", argLength: 0, reg: x15only, zeroWidth: true, fixedReg: true},
 
 		{name: "VZEROUPPER", argLength: 0, asm: "VZEROUPPER"},
 		{name: "VZEROALL", argLength: 0, asm: "VZEROALL"},
@@ -1433,7 +1438,7 @@ func init() {
 		ParamFloatRegNames: "X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14",
 		gpregmask:          gp,
 		fpregmask:          fp,
-		specialregmask:     x15 | mask,
+		specialregmask:     mask,
 		framepointerreg:    int8(num["BP"]),
 		linkreg:            -1, // not used
 	})

@@ -1713,12 +1713,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	case ssa.OpAMD64VZEROUPPER, ssa.OpAMD64VZEROALL:
 		s.Prog(v.Op.Asm())
 	case ssa.OpAMD64Zero128, ssa.OpAMD64Zero256, ssa.OpAMD64Zero512:
-		p := s.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = simdReg(v)
-		p.AddRestSourceReg(simdReg(v))
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = simdReg(v)
+		// zero-width, no instruction generated
 	case ssa.OpAMD64VPADDD4:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG

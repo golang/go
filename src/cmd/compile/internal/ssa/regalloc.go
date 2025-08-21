@@ -1440,6 +1440,13 @@ func (s *regAllocState) regalloc(f *Func) {
 					s.sb = v.ID
 				case OpARM64ZERO:
 					s.assignReg(s.ZeroIntReg, v, v)
+				case OpAMD64Zero128, OpAMD64Zero256, OpAMD64Zero512:
+					regspec := s.regspec(v)
+					m := regspec.outputs[0].regs
+					if countRegs(m) != 1 {
+						f.Fatalf("bad fixed-register op %s", v)
+					}
+					s.assignReg(pickReg(m), v, v)
 				default:
 					f.Fatalf("unknown fixed-register op %s", v)
 				}
