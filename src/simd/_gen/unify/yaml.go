@@ -316,6 +316,9 @@ func (dec *yamlDecoder) value(node *yaml.Node) (vOut *Value, errOut error) {
 			// Undo any effects on the environment. We *do* keep any named
 			// variables that were added to the vars map in case they were
 			// introduced within the element.
+			//
+			// TODO: If we change how we implement repeat nodes, we might be
+			// able to drop yamlEncoder.env and yamlDecoder.env.
 			dec.env = origEnv
 			// Add a generator function
 			gen = append(gen, func(e envSet) (*Value, envSet) {
@@ -444,7 +447,7 @@ func (c Closure) String() string {
 }
 
 func (v *Value) MarshalYAML() (any, error) {
-	enc := &yamlEncoder{}
+	enc := &yamlEncoder{e: topEnv}
 	return enc.value(v), nil
 }
 

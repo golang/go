@@ -132,10 +132,12 @@ func (t *tracer) traceUnify(v, w *Value, e envSet) {
 		return
 	}
 
+	t.enc.e = e // Interpret values w.r.t. e
 	t.logf("Unify\n%s\nwith\n%s\nin\n%s",
 		yamlf("  ", t.enc.value(v)),
 		yamlf("  ", t.enc.value(w)),
 		yamlf("  ", t.enc.env(e)))
+	t.enc.e = envSet{}
 
 	if t.saveTree {
 		if t.node == nil {
