@@ -276,9 +276,6 @@ type FD struct {
 	// I/O poller.
 	pd pollDesc
 
-	// Used to implement pread/pwrite.
-	l sync.Mutex
-
 	// The file offset for the next read or write.
 	// Overlapped IO operations don't use the real file pointer,
 	// so we need to keep track of the offset ourselves.
@@ -316,7 +313,7 @@ type FD struct {
 }
 
 // setOffset sets the offset fields of the overlapped object
-// to the given offset. The fd.l lock must be held.
+// to the given offset. The fd read/write lock must be held.
 //
 // Overlapped IO operations don't update the offset fields
 // of the overlapped object nor the file pointer automatically,
@@ -476,13 +473,16 @@ const maxRW = 1 << 30 // 1GB is large enough and keeps subsequent reads aligned
 
 // Read implements io.Reader.
 func (fd *FD) Read(buf []byte) (int, error) {
-	if err := fd.readLock(); err != nil {
-		return 0, err
-	}
-	defer fd.readUnlock()
 	if fd.kind == kindFile {
-		fd.l.Lock()
-		defer fd.l.Unlock()
+		if err := fd.readWriteLock(); err != nil {
+			return 0, err
+		}
+		defer fd.readWriteUnlock()
+	} else {
+		if err := fd.readLock(); err != nil {
+			return 0, err
+		}
+		defer fd.readUnlock()
 	}
 
 	if len(buf) > maxRW {
@@ -609,19 +609,16 @@ func (fd *FD) Pread(b []byte, off int64) (int, error) {
 		// Pread does not work with pipes
 		return 0, syscall.ESPIPE
 	}
-	// Call incref, not readLock, because since pread specifies the
-	// offset it is independent from other reads.
-	if err := fd.incref(); err != nil {
+
+	if err := fd.readWriteLock(); err != nil {
 		return 0, err
 	}
-	defer fd.decref()
+	defer fd.readWriteUnlock()
 
 	if len(b) > maxRW {
 		b = b[:maxRW]
 	}
 
-	fd.l.Lock()
-	defer fd.l.Unlock()
 	if fd.isBlocking {
 		curoffset, err := syscall.Seek(fd.Sysfd, 0, io.SeekCurrent)
 		if err != nil {
@@ -749,13 +746,16 @@ func (fd *FD) ReadFromInet6(buf []byte, sa6 *syscall.SockaddrInet6) (int, error)
 
 // Write implements io.Writer.
 func (fd *FD) Write(buf []byte) (int, error) {
-	if err := fd.writeLock(); err != nil {
-		return 0, err
-	}
-	defer fd.writeUnlock()
 	if fd.kind == kindFile {
-		fd.l.Lock()
-		defer fd.l.Unlock()
+		if err := fd.readWriteLock(); err != nil {
+			return 0, err
+		}
+		defer fd.readWriteUnlock()
+	} else {
+		if err := fd.writeLock(); err != nil {
+			return 0, err
+		}
+		defer fd.writeUnlock()
 	}
 
 	var ntotal int
@@ -848,15 +848,12 @@ func (fd *FD) Pwrite(buf []byte, off int64) (int, error) {
 		// Pwrite does not work with pipes
 		return 0, syscall.ESPIPE
 	}
-	// Call incref, not writeLock, because since pwrite specifies the
-	// offset it is independent from other writes.
-	if err := fd.incref(); err != nil {
+
+	if err := fd.readWriteLock(); err != nil {
 		return 0, err
 	}
-	defer fd.decref()
+	defer fd.readWriteUnlock()
 
-	fd.l.Lock()
-	defer fd.l.Unlock()
 	if fd.isBlocking {
 		curoffset, err := syscall.Seek(fd.Sysfd, 0, io.SeekCurrent)
 		if err != nil {
@@ -1119,13 +1116,10 @@ func (fd *FD) Seek(offset int64, whence int) (int64, error) {
 	if fd.kind == kindPipe {
 		return 0, syscall.ESPIPE
 	}
-	if err := fd.incref(); err != nil {
+	if err := fd.readWriteLock(); err != nil {
 		return 0, err
 	}
-	defer fd.decref()
-
-	fd.l.Lock()
-	defer fd.l.Unlock()
+	defer fd.readWriteUnlock()
 
 	if !fd.isBlocking && whence == io.SeekCurrent {
 		// Windows doesn't keep the file pointer for overlapped file handles.
