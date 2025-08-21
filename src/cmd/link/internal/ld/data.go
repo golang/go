@@ -2881,7 +2881,12 @@ func (ctxt *Link) address() []*sym.Segment {
 	}
 	order = append(order, &Segdata)
 	Segdata.Rwx = 06
-	Segdata.Vaddr = va
+	if *FlagDataAddr != -1 {
+		Segdata.Vaddr = uint64(Rnd(*FlagDataAddr, *FlagRound))
+		va = Segdata.Vaddr
+	} else {
+		Segdata.Vaddr = va
+	}
 	var data *sym.Section
 	var noptr *sym.Section
 	var bss *sym.Section
@@ -3135,6 +3140,19 @@ func (ctxt *Link) layout(order []*sym.Segment) uint64 {
 				// should ensure that this segment's
 				// VA ≡ Fileoff mod FlagRound.
 				seg.Fileoff = uint64(Rnd(int64(prev.Fileoff+prev.Filelen), *FlagRound))
+				// If -D flag was used to place data segment at a specific address,
+				// we may have a non-contiguous layout. In this case, we need to
+				// adjust the file offset to maintain the congruence requirement.
+				if seg == &Segdata && *FlagDataAddr != -1 {
+					// Adjust file offset to maintain VA ≡ Fileoff mod FlagRound
+					adjustment := int64(seg.Vaddr%uint64(*FlagRound)) - int64(seg.Fileoff%uint64(*FlagRound))
+					if adjustment != 0 {
+						seg.Fileoff = uint64(int64(seg.Fileoff) + adjustment)
+						if adjustment < 0 {
+							seg.Fileoff += uint64(*FlagRound)
+						}
+					}
+				}
 				if seg.Vaddr%uint64(*FlagRound) != seg.Fileoff%uint64(*FlagRound) {
 					Exitf("bad segment rounding (Vaddr=%#x Fileoff=%#x FlagRound=%#x)", seg.Vaddr, seg.Fileoff, *FlagRound)
 				}
