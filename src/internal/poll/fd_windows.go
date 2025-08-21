@@ -1165,11 +1165,29 @@ func (fd *FD) Seek(offset int64, whence int) (int64, error) {
 	}
 	defer fd.readWriteUnlock()
 
-	if !fd.isBlocking && whence == io.SeekCurrent {
-		// Windows doesn't keep the file pointer for overlapped file handles.
-		// We do it ourselves in case to account for any read or write
-		// operations that may have occurred.
-		offset += fd.offset
+	if !fd.isBlocking {
+		// Windows doesn't use the file pointer for overlapped file handles,
+		// there is no point on calling syscall.Seek.
+		var newOffset int64
+		switch whence {
+		case io.SeekStart:
+			newOffset = offset
+		case io.SeekCurrent:
+			newOffset = fd.offset + offset
+		case io.SeekEnd:
+			var size int64
+			if err := windows.GetFileSizeEx(fd.Sysfd, &size); err != nil {
+				return 0, err
+			}
+			newOffset = size + offset
+		default:
+			return 0, windows.ERROR_INVALID_PARAMETER
+		}
+		if newOffset < 0 {
+			return 0, windows.ERROR_NEGATIVE_SEEK
+		}
+		fd.setOffset(newOffset)
+		return newOffset, nil
 	}
 	n, err := syscall.Seek(fd.Sysfd, offset, whence)
 	fd.setOffset(n)
