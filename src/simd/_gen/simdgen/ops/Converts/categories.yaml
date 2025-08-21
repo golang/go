@@ -57,6 +57,14 @@
   commutative: false
   documentation: !string |-
     // NAME converts element values to uint32 with saturation.
+- go: ConvertToInt16SaturatedPacked
+  commutative: false
+  documentation: !string |-
+    // NAME converts element values to int16 with saturation.
+- go: ConvertToUint16SaturatedPacked
+  commutative: false
+  documentation: !string |-
+    // NAME converts element values to uint16 with saturation.
 
 # low-part only conversions
 # int<->int or uint<->uint widening conversions.

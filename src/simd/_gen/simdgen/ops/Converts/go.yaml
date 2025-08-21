@@ -280,6 +280,27 @@
     - base: uint
   out:
     - base: uint
+# Truncating saturated packed
+- go: ConvertToInt16SaturatedPacked
+  asm: "VPACKSSDW"
+  addDoc: &satDocPacked
+    !string |-
+    // With each 128-bit as a group:
+    // The converted group from the first input vector will be packed to the lower part of the result vector,
+    // the converted group from the second second input vector will be packed to the upper part of the result vector.
+  in:
+    - base: int
+    - base: int
+  out:
+    - base: int
+- go: ConvertToUint16SaturatedPacked
+  asm: "VPACKUSDW"
+  addDoc: *satDocPacked
+  in:
+    - base: uint
+    - base: uint
+  out:
+    - base: uint
 
 # low-part only conversions.
 # uint8->uint16

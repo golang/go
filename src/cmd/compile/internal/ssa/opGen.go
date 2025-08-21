@@ -1405,6 +1405,18 @@ const (
 	OpAMD64VPABSWMasked128
 	OpAMD64VPABSWMasked256
 	OpAMD64VPABSWMasked512
+	OpAMD64VPACKSSDW128
+	OpAMD64VPACKSSDW256
+	OpAMD64VPACKSSDW512
+	OpAMD64VPACKSSDWMasked128
+	OpAMD64VPACKSSDWMasked256
+	OpAMD64VPACKSSDWMasked512
+	OpAMD64VPACKUSDW128
+	OpAMD64VPACKUSDW256
+	OpAMD64VPACKUSDW512
+	OpAMD64VPACKUSDWMasked128
+	OpAMD64VPACKUSDWMasked256
+	OpAMD64VPACKUSDWMasked512
 	OpAMD64VPADDB128
 	OpAMD64VPADDB256
 	OpAMD64VPADDB512
@@ -5002,6 +5014,9 @@ const (
 	OpConvertToInt16SaturatedInt64x2
 	OpConvertToInt16SaturatedInt64x4
 	OpConvertToInt16SaturatedInt64x8
+	OpConvertToInt16SaturatedPackedInt32x4
+	OpConvertToInt16SaturatedPackedInt32x8
+	OpConvertToInt16SaturatedPackedInt32x16
 	OpConvertToInt16x8Int8x16
 	OpConvertToInt32Float32x4
 	OpConvertToInt32Float32x8
@@ -5044,6 +5059,9 @@ const (
 	OpConvertToUint8Uint64x2
 	OpConvertToUint8Uint64x4
 	OpConvertToUint8Uint64x8
+	OpConvertToUint16SaturatedPackedUint32x4
+	OpConvertToUint16SaturatedPackedUint32x8
+	OpConvertToUint16SaturatedPackedUint32x16
 	OpConvertToUint16SaturatedUint32x4
 	OpConvertToUint16SaturatedUint32x8
 	OpConvertToUint16SaturatedUint32x16
@@ -21602,6 +21620,180 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
 				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPACKSSDW128",
+		argLen: 2,
+		asm:    x86.AVPACKSSDW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPACKSSDW256",
+		argLen: 2,
+		asm:    x86.AVPACKSSDW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPACKSSDW512",
+		argLen: 2,
+		asm:    x86.AVPACKSSDW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPACKSSDWMasked128",
+		argLen: 3,
+		asm:    x86.AVPACKSSDW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPACKSSDWMasked256",
+		argLen: 3,
+		asm:    x86.AVPACKSSDW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPACKSSDWMasked512",
+		argLen: 3,
+		asm:    x86.AVPACKSSDW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPACKUSDW128",
+		argLen: 2,
+		asm:    x86.AVPACKUSDW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPACKUSDW256",
+		argLen: 2,
+		asm:    x86.AVPACKUSDW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPACKUSDW512",
+		argLen: 2,
+		asm:    x86.AVPACKUSDW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPACKUSDWMasked128",
+		argLen: 3,
+		asm:    x86.AVPACKUSDW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPACKUSDWMasked256",
+		argLen: 3,
+		asm:    x86.AVPACKUSDW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPACKUSDWMasked512",
+		argLen: 3,
+		asm:    x86.AVPACKUSDW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -66239,6 +66431,21 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "ConvertToInt16SaturatedPackedInt32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConvertToInt16SaturatedPackedInt32x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConvertToInt16SaturatedPackedInt32x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
 		name:    "ConvertToInt16x8Int8x16",
 		argLen:  1,
 		generic: true,
@@ -66446,6 +66653,21 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "ConvertToUint8Uint64x8",
 		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToUint16SaturatedPackedUint32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConvertToUint16SaturatedPackedUint32x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConvertToUint16SaturatedPackedUint32x16",
+		argLen:  2,
 		generic: true,
 	},
 	{

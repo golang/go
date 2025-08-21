@@ -1408,6 +1408,32 @@ func (x Int64x4) ConvertToInt16Saturated() Int16x8
 // Asm: VPMOVSQW, CPU Feature: AVX512
 func (x Int64x8) ConvertToInt16Saturated() Int16x8
 
+/* ConvertToInt16SaturatedPacked */
+
+// ConvertToInt16SaturatedPacked converts element values to int16 with saturation.
+// With each 128-bit as a group:
+// The converted group from the first input vector will be packed to the lower part of the result vector,
+// the converted group from the second second input vector will be packed to the upper part of the result vector.
+//
+// Asm: VPACKSSDW, CPU Feature: AVX
+func (x Int32x4) ConvertToInt16SaturatedPacked(y Int32x4) Int16x8
+
+// ConvertToInt16SaturatedPacked converts element values to int16 with saturation.
+// With each 128-bit as a group:
+// The converted group from the first input vector will be packed to the lower part of the result vector,
+// the converted group from the second second input vector will be packed to the upper part of the result vector.
+//
+// Asm: VPACKSSDW, CPU Feature: AVX2
+func (x Int32x8) ConvertToInt16SaturatedPacked(y Int32x8) Int16x16
+
+// ConvertToInt16SaturatedPacked converts element values to int16 with saturation.
+// With each 128-bit as a group:
+// The converted group from the first input vector will be packed to the lower part of the result vector,
+// the converted group from the second second input vector will be packed to the upper part of the result vector.
+//
+// Asm: VPACKSSDW, CPU Feature: AVX512
+func (x Int32x16) ConvertToInt16SaturatedPacked(y Int32x16) Int16x32
+
 /* ConvertToInt16x8 */
 
 // ConvertToInt16x8 converts 8 lowest vector element values to int16.
@@ -1767,6 +1793,32 @@ func (x Uint64x4) ConvertToUint16Saturated() Uint16x8
 //
 // Asm: VPMOVUSQW, CPU Feature: AVX512
 func (x Uint64x8) ConvertToUint16Saturated() Uint16x8
+
+/* ConvertToUint16SaturatedPacked */
+
+// ConvertToUint16SaturatedPacked converts element values to uint16 with saturation.
+// With each 128-bit as a group:
+// The converted group from the first input vector will be packed to the lower part of the result vector,
+// the converted group from the second second input vector will be packed to the upper part of the result vector.
+//
+// Asm: VPACKUSDW, CPU Feature: AVX
+func (x Uint32x4) ConvertToUint16SaturatedPacked(y Uint32x4) Uint16x8
+
+// ConvertToUint16SaturatedPacked converts element values to uint16 with saturation.
+// With each 128-bit as a group:
+// The converted group from the first input vector will be packed to the lower part of the result vector,
+// the converted group from the second second input vector will be packed to the upper part of the result vector.
+//
+// Asm: VPACKUSDW, CPU Feature: AVX2
+func (x Uint32x8) ConvertToUint16SaturatedPacked(y Uint32x8) Uint16x16
+
+// ConvertToUint16SaturatedPacked converts element values to uint16 with saturation.
+// With each 128-bit as a group:
+// The converted group from the first input vector will be packed to the lower part of the result vector,
+// the converted group from the second second input vector will be packed to the upper part of the result vector.
+//
+// Asm: VPACKUSDW, CPU Feature: AVX512
+func (x Uint32x16) ConvertToUint16SaturatedPacked(y Uint32x16) Uint16x32
 
 /* ConvertToUint16x8 */
 

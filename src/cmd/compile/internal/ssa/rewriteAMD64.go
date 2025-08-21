@@ -1412,6 +1412,15 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpConvertToInt16SaturatedInt64x8:
 		v.Op = OpAMD64VPMOVSQW128
 		return true
+	case OpConvertToInt16SaturatedPackedInt32x16:
+		v.Op = OpAMD64VPACKSSDW512
+		return true
+	case OpConvertToInt16SaturatedPackedInt32x4:
+		v.Op = OpAMD64VPACKSSDW128
+		return true
+	case OpConvertToInt16SaturatedPackedInt32x8:
+		v.Op = OpAMD64VPACKSSDW256
+		return true
 	case OpConvertToInt16x8Int8x16:
 		v.Op = OpAMD64VPMOVSXBW128
 		return true
@@ -1537,6 +1546,15 @@ func rewriteValueAMD64(v *Value) bool {
 		return true
 	case OpConvertToInt8SaturatedInt64x8:
 		v.Op = OpAMD64VPMOVSQB128
+		return true
+	case OpConvertToUint16SaturatedPackedUint32x16:
+		v.Op = OpAMD64VPACKUSDW512
+		return true
+	case OpConvertToUint16SaturatedPackedUint32x4:
+		v.Op = OpAMD64VPACKUSDW128
+		return true
+	case OpConvertToUint16SaturatedPackedUint32x8:
+		v.Op = OpAMD64VPACKUSDW256
 		return true
 	case OpConvertToUint16SaturatedUint32x16:
 		v.Op = OpAMD64VPMOVUSDW256
@@ -27007,6 +27025,19 @@ func rewriteValueAMD64_OpAMD64VMOVDQU32Masked512(v *Value) bool {
 		v.AddArg2(x, mask)
 		return true
 	}
+	// match: (VMOVDQU32Masked512 (VPACKSSDW512 x y) mask)
+	// result: (VPACKSSDWMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPACKSSDW512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPACKSSDWMasked512)
+		v.AddArg3(x, y, mask)
+		return true
+	}
 	// match: (VMOVDQU32Masked512 (VCVTTPS2DQ512 x) mask)
 	// result: (VCVTTPS2DQMasked512 x mask)
 	for {
@@ -27029,6 +27060,19 @@ func rewriteValueAMD64_OpAMD64VMOVDQU32Masked512(v *Value) bool {
 		mask := v_1
 		v.reset(OpAMD64VPMOVSXDQMasked512)
 		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPACKUSDW512 x y) mask)
+	// result: (VPACKUSDWMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPACKUSDW512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPACKUSDWMasked512)
+		v.AddArg3(x, y, mask)
 		return true
 	}
 	// match: (VMOVDQU32Masked512 (VCVTPS2UDQ512 x) mask)
