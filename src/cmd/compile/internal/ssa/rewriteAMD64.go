@@ -3223,6 +3223,72 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpPermute2Uint8x64:
 		v.Op = OpAMD64VPERMI2B512
 		return true
+	case OpPermuteConstantGroupedInt32x16:
+		v.Op = OpAMD64VPSHUFD512
+		return true
+	case OpPermuteConstantGroupedInt32x8:
+		v.Op = OpAMD64VPSHUFD256
+		return true
+	case OpPermuteConstantGroupedUint32x16:
+		v.Op = OpAMD64VPSHUFD512
+		return true
+	case OpPermuteConstantGroupedUint32x8:
+		v.Op = OpAMD64VPSHUFD256
+		return true
+	case OpPermuteConstantHiGroupedInt16x16:
+		v.Op = OpAMD64VPSHUFHW256
+		return true
+	case OpPermuteConstantHiGroupedInt16x32:
+		v.Op = OpAMD64VPSHUFHW512
+		return true
+	case OpPermuteConstantHiGroupedUint16x16:
+		v.Op = OpAMD64VPSHUFHW256
+		return true
+	case OpPermuteConstantHiGroupedUint16x32:
+		v.Op = OpAMD64VPSHUFHW512
+		return true
+	case OpPermuteConstantHiInt16x8:
+		v.Op = OpAMD64VPSHUFHW128
+		return true
+	case OpPermuteConstantHiInt32x4:
+		v.Op = OpAMD64VPSHUFHW128
+		return true
+	case OpPermuteConstantHiUint16x8:
+		v.Op = OpAMD64VPSHUFHW128
+		return true
+	case OpPermuteConstantHiUint32x4:
+		v.Op = OpAMD64VPSHUFHW128
+		return true
+	case OpPermuteConstantInt32x4:
+		v.Op = OpAMD64VPSHUFD128
+		return true
+	case OpPermuteConstantLoGroupedInt16x16:
+		v.Op = OpAMD64VPSHUFHW256
+		return true
+	case OpPermuteConstantLoGroupedInt16x32:
+		v.Op = OpAMD64VPSHUFHW512
+		return true
+	case OpPermuteConstantLoGroupedUint16x16:
+		v.Op = OpAMD64VPSHUFHW256
+		return true
+	case OpPermuteConstantLoGroupedUint16x32:
+		v.Op = OpAMD64VPSHUFHW512
+		return true
+	case OpPermuteConstantLoInt16x8:
+		v.Op = OpAMD64VPSHUFHW128
+		return true
+	case OpPermuteConstantLoInt32x4:
+		v.Op = OpAMD64VPSHUFHW128
+		return true
+	case OpPermuteConstantLoUint16x8:
+		v.Op = OpAMD64VPSHUFHW128
+		return true
+	case OpPermuteConstantLoUint32x4:
+		v.Op = OpAMD64VPSHUFHW128
+		return true
+	case OpPermuteConstantUint32x4:
+		v.Op = OpAMD64VPSHUFD128
+		return true
 	case OpPermuteFloat32x16:
 		v.Op = OpAMD64VPERMPS512
 		return true
@@ -3234,6 +3300,18 @@ func rewriteValueAMD64(v *Value) bool {
 		return true
 	case OpPermuteFloat64x8:
 		v.Op = OpAMD64VPERMPD512
+		return true
+	case OpPermuteGroupedInt8x32:
+		v.Op = OpAMD64VPSHUFB256
+		return true
+	case OpPermuteGroupedInt8x64:
+		v.Op = OpAMD64VPSHUFB512
+		return true
+	case OpPermuteGroupedUint8x32:
+		v.Op = OpAMD64VPSHUFB256
+		return true
+	case OpPermuteGroupedUint8x64:
+		v.Op = OpAMD64VPSHUFB512
 		return true
 	case OpPermuteInt16x16:
 		v.Op = OpAMD64VPERMW256
@@ -26618,6 +26696,20 @@ func rewriteValueAMD64_OpAMD64VMOVDQU16Masked512(v *Value) bool {
 		v.AddArg4(x, y, z, mask)
 		return true
 	}
+	// match: (VMOVDQU16Masked512 (VPSHUFHW512 [a] x) mask)
+	// result: (VPSHUFHWMasked512 [a] x mask)
+	for {
+		if v_0.Op != OpAMD64VPSHUFHW512 {
+			break
+		}
+		a := auxIntToUint8(v_0.AuxInt)
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSHUFHWMasked512)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg2(x, mask)
+		return true
+	}
 	// match: (VMOVDQU16Masked512 (VPERMW512 x y) mask)
 	// result: (VPERMWMasked512 x y mask)
 	for {
@@ -27309,6 +27401,20 @@ func rewriteValueAMD64_OpAMD64VMOVDQU32Masked512(v *Value) bool {
 		mask := v_1
 		v.reset(OpAMD64VPERMI2DMasked512)
 		v.AddArg4(x, y, z, mask)
+		return true
+	}
+	// match: (VMOVDQU32Masked512 (VPSHUFD512 [a] x) mask)
+	// result: (VPSHUFDMasked512 [a] x mask)
+	for {
+		if v_0.Op != OpAMD64VPSHUFD512 {
+			break
+		}
+		a := auxIntToUint8(v_0.AuxInt)
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSHUFDMasked512)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg2(x, mask)
 		return true
 	}
 	// match: (VMOVDQU32Masked512 (VPERMPS512 x y) mask)
@@ -28608,6 +28714,19 @@ func rewriteValueAMD64_OpAMD64VMOVDQU8Masked512(v *Value) bool {
 		mask := v_1
 		v.reset(OpAMD64VPERMI2BMasked512)
 		v.AddArg4(x, y, z, mask)
+		return true
+	}
+	// match: (VMOVDQU8Masked512 (VPSHUFB512 x y) mask)
+	// result: (VPSHUFBMasked512 x y mask)
+	for {
+		if v_0.Op != OpAMD64VPSHUFB512 {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPSHUFBMasked512)
+		v.AddArg3(x, y, mask)
 		return true
 	}
 	// match: (VMOVDQU8Masked512 (VPERMB512 x y) mask)

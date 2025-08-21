@@ -75,3 +75,31 @@
   documentation: !string |-
     // NAME copies element zero of its (128-bit) input to all elements of
     // the 512-bit output vector.
+- go: PermuteGrouped
+  commutative: false
+  documentation: !string |- # Detailed documentation will rely on the specific ops.
+    // NAME performs a grouped permutation of vector x using indices:
+- go: PermuteConstant
+  commutative: false
+  documentation: !string |- # Detailed documentation will rely on the specific ops.
+    // NAME performs a permutation of vector x using constant indices:
+- go: PermuteConstantGrouped
+  commutative: false
+  documentation: !string |- # Detailed documentation will rely on the specific ops.
+    // NAME performs a grouped permutation of vector x using constant indices:
+- go: PermuteConstantLo
+  commutative: false
+  documentation: !string |- # Detailed documentation will rely on the specific ops.
+    // NAME performs a permutation of vector x using constant indices:
+- go: PermuteConstantLoGrouped
+  commutative: false
+  documentation: !string |- # Detailed documentation will rely on the specific ops.
+    // NAME performs a grouped permutation of vector x using constant indices:
+- go: PermuteConstantHi
+  commutative: false
+  documentation: !string |- # Detailed documentation will rely on the specific ops.
+    // NAME performs a permutation of vector x using constant indices:
+- go: PermuteConstantHiGrouped
+  commutative: false
+  documentation: !string |- # Detailed documentation will rely on the specific ops.
+    // NAME performs a grouped permutation of vector x using constant indices:

@@ -2039,7 +2039,11 @@ const (
 	OpAMD64VPSHRDVWMasked256
 	OpAMD64VPSHRDVWMasked512
 	OpAMD64VPSHUFB128
+	OpAMD64VPSHUFB256
+	OpAMD64VPSHUFB512
 	OpAMD64VPSHUFBMasked128
+	OpAMD64VPSHUFBMasked256
+	OpAMD64VPSHUFBMasked512
 	OpAMD64VPSIGNB128
 	OpAMD64VPSIGNB256
 	OpAMD64VPSIGND128
@@ -2364,6 +2368,18 @@ const (
 	OpAMD64VPCMPW512
 	OpAMD64VPCMPD512
 	OpAMD64VPCMPQ512
+	OpAMD64VPSHUFD128
+	OpAMD64VPSHUFD256
+	OpAMD64VPSHUFD512
+	OpAMD64VPSHUFDMasked256
+	OpAMD64VPSHUFDMasked512
+	OpAMD64VPSHUFHW128
+	OpAMD64VPSHUFHW256
+	OpAMD64VPSHUFHW512
+	OpAMD64VPSHUFHWMasked256
+	OpAMD64VPSHUFHWMasked512
+	OpAMD64VPSHUFHWMasked128
+	OpAMD64VPSHUFDMasked128
 	OpAMD64VPROLD128
 	OpAMD64VPROLD256
 	OpAMD64VPROLD512
@@ -5505,6 +5521,10 @@ const (
 	OpPermuteFloat32x16
 	OpPermuteFloat64x4
 	OpPermuteFloat64x8
+	OpPermuteGroupedInt8x32
+	OpPermuteGroupedInt8x64
+	OpPermuteGroupedUint8x32
+	OpPermuteGroupedUint8x64
 	OpPermuteInt8x16
 	OpPermuteInt8x32
 	OpPermuteInt8x64
@@ -5868,6 +5888,28 @@ const (
 	OpGetElemUint16x8
 	OpGetElemUint32x4
 	OpGetElemUint64x2
+	OpPermuteConstantGroupedInt32x8
+	OpPermuteConstantGroupedInt32x16
+	OpPermuteConstantGroupedUint32x8
+	OpPermuteConstantGroupedUint32x16
+	OpPermuteConstantHiGroupedInt16x16
+	OpPermuteConstantHiGroupedInt16x32
+	OpPermuteConstantHiGroupedUint16x16
+	OpPermuteConstantHiGroupedUint16x32
+	OpPermuteConstantHiInt16x8
+	OpPermuteConstantHiInt32x4
+	OpPermuteConstantHiUint16x8
+	OpPermuteConstantHiUint32x4
+	OpPermuteConstantInt32x4
+	OpPermuteConstantLoGroupedInt16x16
+	OpPermuteConstantLoGroupedInt16x32
+	OpPermuteConstantLoGroupedUint16x16
+	OpPermuteConstantLoGroupedUint16x32
+	OpPermuteConstantLoInt16x8
+	OpPermuteConstantLoInt32x4
+	OpPermuteConstantLoUint16x8
+	OpPermuteConstantLoUint32x4
+	OpPermuteConstantUint32x4
 	OpRotateAllLeftInt32x4
 	OpRotateAllLeftInt32x8
 	OpRotateAllLeftInt32x16
@@ -31032,7 +31074,65 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VPSHUFB256",
+		argLen: 2,
+		asm:    x86.AVPSHUFB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSHUFB512",
+		argLen: 2,
+		asm:    x86.AVPSHUFB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
 		name:   "VPSHUFBMasked128",
+		argLen: 3,
+		asm:    x86.AVPSHUFB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSHUFBMasked256",
+		argLen: 3,
+		asm:    x86.AVPSHUFB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSHUFBMasked512",
 		argLen: 3,
 		asm:    x86.AVPSHUFB,
 		reg: regInfo{
@@ -35807,6 +35907,180 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:    "VPSHUFD128",
+		auxType: auxUInt8,
+		argLen:  1,
+		asm:     x86.AVPSHUFD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VPSHUFD256",
+		auxType: auxUInt8,
+		argLen:  1,
+		asm:     x86.AVPSHUFD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VPSHUFD512",
+		auxType: auxUInt8,
+		argLen:  1,
+		asm:     x86.AVPSHUFD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:    "VPSHUFDMasked256",
+		auxType: auxUInt8,
+		argLen:  2,
+		asm:     x86.AVPSHUFD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VPSHUFDMasked512",
+		auxType: auxUInt8,
+		argLen:  2,
+		asm:     x86.AVPSHUFD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VPSHUFHW128",
+		auxType: auxUInt8,
+		argLen:  1,
+		asm:     x86.AVPSHUFHW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:    "VPSHUFHW256",
+		auxType: auxUInt8,
+		argLen:  1,
+		asm:     x86.AVPSHUFHW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VPSHUFHW512",
+		auxType: auxUInt8,
+		argLen:  1,
+		asm:     x86.AVPSHUFHW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:    "VPSHUFHWMasked256",
+		auxType: auxUInt8,
+		argLen:  2,
+		asm:     x86.AVPSHUFHW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VPSHUFHWMasked512",
+		auxType: auxUInt8,
+		argLen:  2,
+		asm:     x86.AVPSHUFHW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VPSHUFHWMasked128",
+		auxType: auxUInt8,
+		argLen:  2,
+		asm:     x86.AVPSHUFHW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VPSHUFDMasked128",
+		auxType: auxUInt8,
+		argLen:  2,
+		asm:     x86.AVPSHUFD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -69054,6 +69328,26 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "PermuteGroupedInt8x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "PermuteGroupedInt8x64",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "PermuteGroupedUint8x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "PermuteGroupedUint8x64",
+		argLen:  2,
+		generic: true,
+	},
+	{
 		name:    "PermuteInt8x16",
 		argLen:  2,
 		generic: true,
@@ -70928,6 +71222,138 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "GetElemUint64x2",
+		auxType: auxUInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "PermuteConstantGroupedInt32x8",
+		auxType: auxUInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "PermuteConstantGroupedInt32x16",
+		auxType: auxUInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "PermuteConstantGroupedUint32x8",
+		auxType: auxUInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "PermuteConstantGroupedUint32x16",
+		auxType: auxUInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "PermuteConstantHiGroupedInt16x16",
+		auxType: auxUInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "PermuteConstantHiGroupedInt16x32",
+		auxType: auxUInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "PermuteConstantHiGroupedUint16x16",
+		auxType: auxUInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "PermuteConstantHiGroupedUint16x32",
+		auxType: auxUInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "PermuteConstantHiInt16x8",
+		auxType: auxUInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "PermuteConstantHiInt32x4",
+		auxType: auxUInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "PermuteConstantHiUint16x8",
+		auxType: auxUInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "PermuteConstantHiUint32x4",
+		auxType: auxUInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "PermuteConstantInt32x4",
+		auxType: auxUInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "PermuteConstantLoGroupedInt16x16",
+		auxType: auxUInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "PermuteConstantLoGroupedInt16x32",
+		auxType: auxUInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "PermuteConstantLoGroupedUint16x16",
+		auxType: auxUInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "PermuteConstantLoGroupedUint16x32",
+		auxType: auxUInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "PermuteConstantLoInt16x8",
+		auxType: auxUInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "PermuteConstantLoInt32x4",
+		auxType: auxUInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "PermuteConstantLoUint16x8",
+		auxType: auxUInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "PermuteConstantLoUint32x4",
+		auxType: auxUInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "PermuteConstantUint32x4",
 		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,

@@ -4564,6 +4564,266 @@ func (x Int64x8) Permute2(y Int64x8, indices Uint64x8) Int64x8
 // Asm: VPERMI2Q, CPU Feature: AVX512
 func (x Uint64x8) Permute2(y Uint64x8, indices Uint64x8) Uint64x8
 
+/* PermuteConstant */
+
+// PermuteConstant performs a permutation of vector x using constant indices:
+// result := {x[indices[0:2]], x[indices[2:4]], x[indices[4:6]], x[indices[6:8]]}
+// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFD, CPU Feature: AVX
+func (x Int32x4) PermuteConstant(indices uint8) Int32x4
+
+// PermuteConstant performs a permutation of vector x using constant indices:
+// result := {x[indices[0:2]], x[indices[2:4]], x[indices[4:6]], x[indices[6:8]]}
+// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFD, CPU Feature: AVX
+func (x Uint32x4) PermuteConstant(indices uint8) Uint32x4
+
+/* PermuteConstantGrouped */
+
+// PermuteConstantGrouped performs a grouped permutation of vector x using constant indices:
+// result := {x_group0[indices[0:2]], x_group0[indices[2:4]], x_group0[indices[4:6]], x_group0[indices[6:8]], x_group1[indices[0:2]], ...}
+// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
+// Each group is of size 128-bit.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFD, CPU Feature: AVX2
+func (x Int32x8) PermuteConstantGrouped(indices uint8) Int32x8
+
+// PermuteConstantGrouped performs a grouped permutation of vector x using constant indices:
+// result := {x_group0[indices[0:2]], x_group0[indices[2:4]], x_group0[indices[4:6]], x_group0[indices[6:8]], x_group1[indices[0:2]], ...}
+// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
+// Each group is of size 128-bit.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFD, CPU Feature: AVX512
+func (x Int32x16) PermuteConstantGrouped(indices uint8) Int32x16
+
+// PermuteConstantGrouped performs a grouped permutation of vector x using constant indices:
+// result := {x_group0[indices[0:2]], x_group0[indices[2:4]], x_group0[indices[4:6]], x_group0[indices[6:8]], x_group1[indices[0:2]], ...}
+// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
+// Each group is of size 128-bit.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFD, CPU Feature: AVX2
+func (x Uint32x8) PermuteConstantGrouped(indices uint8) Uint32x8
+
+// PermuteConstantGrouped performs a grouped permutation of vector x using constant indices:
+// result := {x_group0[indices[0:2]], x_group0[indices[2:4]], x_group0[indices[4:6]], x_group0[indices[6:8]], x_group1[indices[0:2]], ...}
+// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
+// Each group is of size 128-bit.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFD, CPU Feature: AVX512
+func (x Uint32x16) PermuteConstantGrouped(indices uint8) Uint32x16
+
+/* PermuteConstantHi */
+
+// PermuteConstantHi performs a permutation of vector x using constant indices:
+// result := {x[indices[0:2]+4], x[indices[2:4]+4], x[indices[4:6]+4], x[indices[6:8]+4]}
+// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFHW, CPU Feature: AVX512
+func (x Int16x8) PermuteConstantHi(indices uint8) Int16x8
+
+// PermuteConstantHi performs a permutation of vector x using constant indices:
+// result := {x[indices[0:2]+4], x[indices[2:4]+4], x[indices[4:6]+4], x[indices[6:8]+4]}
+// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFHW, CPU Feature: AVX
+func (x Int32x4) PermuteConstantHi(indices uint8) Int32x4
+
+// PermuteConstantHi performs a permutation of vector x using constant indices:
+// result := {x[indices[0:2]+4], x[indices[2:4]+4], x[indices[4:6]+4], x[indices[6:8]+4]}
+// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFHW, CPU Feature: AVX512
+func (x Uint16x8) PermuteConstantHi(indices uint8) Uint16x8
+
+// PermuteConstantHi performs a permutation of vector x using constant indices:
+// result := {x[indices[0:2]+4], x[indices[2:4]+4], x[indices[4:6]+4], x[indices[6:8]+4]}
+// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFHW, CPU Feature: AVX
+func (x Uint32x4) PermuteConstantHi(indices uint8) Uint32x4
+
+/* PermuteConstantHiGrouped */
+
+// PermuteConstantHiGrouped performs a grouped permutation of vector x using constant indices:
+// result := {x_group0[indices[0:2]+4], x_group0[indices[2:4]+4], x_group0[indices[4:6]+4], x_group0[indices[6:8]+4], x_group1[indices[0:2]+4], ...}
+// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
+// Each group is of size 128-bit.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFHW, CPU Feature: AVX2
+func (x Int16x16) PermuteConstantHiGrouped(indices uint8) Int16x16
+
+// PermuteConstantHiGrouped performs a grouped permutation of vector x using constant indices:
+// result := {x_group0[indices[0:2]+4], x_group0[indices[2:4]+4], x_group0[indices[4:6]+4], x_group0[indices[6:8]+4], x_group1[indices[0:2]+4], ...}
+// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
+// Each group is of size 128-bit.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFHW, CPU Feature: AVX512
+func (x Int16x32) PermuteConstantHiGrouped(indices uint8) Int16x32
+
+// PermuteConstantHiGrouped performs a grouped permutation of vector x using constant indices:
+// result := {x_group0[indices[0:2]+4], x_group0[indices[2:4]+4], x_group0[indices[4:6]+4], x_group0[indices[6:8]+4], x_group1[indices[0:2]+4], ...}
+// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
+// Each group is of size 128-bit.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFHW, CPU Feature: AVX2
+func (x Uint16x16) PermuteConstantHiGrouped(indices uint8) Uint16x16
+
+// PermuteConstantHiGrouped performs a grouped permutation of vector x using constant indices:
+// result := {x_group0[indices[0:2]+4], x_group0[indices[2:4]+4], x_group0[indices[4:6]+4], x_group0[indices[6:8]+4], x_group1[indices[0:2]+4], ...}
+// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
+// Each group is of size 128-bit.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFHW, CPU Feature: AVX512
+func (x Uint16x32) PermuteConstantHiGrouped(indices uint8) Uint16x32
+
+/* PermuteConstantLo */
+
+// PermuteConstantLo performs a permutation of vector x using constant indices:
+// result := {x[indices[0:2]], x[indices[2:4]], x[indices[4:6]], x[indices[6:8]]}
+// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFHW, CPU Feature: AVX512
+func (x Int16x8) PermuteConstantLo(indices uint8) Int16x8
+
+// PermuteConstantLo performs a permutation of vector x using constant indices:
+// result := {x[indices[0:2]], x[indices[2:4]], x[indices[4:6]], x[indices[6:8]]}
+// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFHW, CPU Feature: AVX
+func (x Int32x4) PermuteConstantLo(indices uint8) Int32x4
+
+// PermuteConstantLo performs a permutation of vector x using constant indices:
+// result := {x[indices[0:2]], x[indices[2:4]], x[indices[4:6]], x[indices[6:8]]}
+// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFHW, CPU Feature: AVX512
+func (x Uint16x8) PermuteConstantLo(indices uint8) Uint16x8
+
+// PermuteConstantLo performs a permutation of vector x using constant indices:
+// result := {x[indices[0:2]], x[indices[2:4]], x[indices[4:6]], x[indices[6:8]]}
+// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFHW, CPU Feature: AVX
+func (x Uint32x4) PermuteConstantLo(indices uint8) Uint32x4
+
+/* PermuteConstantLoGrouped */
+
+// PermuteConstantLoGrouped performs a grouped permutation of vector x using constant indices:
+// result := {x_group0[indices[0:2]], x_group0[indices[2:4]], x_group0[indices[4:6]], x_group0[indices[6:8]], x_group1[indices[0:2]], ...}
+// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
+// Each group is of size 128-bit.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFHW, CPU Feature: AVX2
+func (x Int16x16) PermuteConstantLoGrouped(indices uint8) Int16x16
+
+// PermuteConstantLoGrouped performs a grouped permutation of vector x using constant indices:
+// result := {x_group0[indices[0:2]], x_group0[indices[2:4]], x_group0[indices[4:6]], x_group0[indices[6:8]], x_group1[indices[0:2]], ...}
+// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
+// Each group is of size 128-bit.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFHW, CPU Feature: AVX512
+func (x Int16x32) PermuteConstantLoGrouped(indices uint8) Int16x32
+
+// PermuteConstantLoGrouped performs a grouped permutation of vector x using constant indices:
+// result := {x_group0[indices[0:2]], x_group0[indices[2:4]], x_group0[indices[4:6]], x_group0[indices[6:8]], x_group1[indices[0:2]], ...}
+// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
+// Each group is of size 128-bit.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFHW, CPU Feature: AVX2
+func (x Uint16x16) PermuteConstantLoGrouped(indices uint8) Uint16x16
+
+// PermuteConstantLoGrouped performs a grouped permutation of vector x using constant indices:
+// result := {x_group0[indices[0:2]], x_group0[indices[2:4]], x_group0[indices[4:6]], x_group0[indices[6:8]], x_group1[indices[0:2]], ...}
+// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
+// Each group is of size 128-bit.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFHW, CPU Feature: AVX512
+func (x Uint16x32) PermuteConstantLoGrouped(indices uint8) Uint16x32
+
+/* PermuteGrouped */
+
+// PermuteGrouped performs a grouped permutation of vector x using indices:
+// result := {x_group0[indices[0]], x_group0[indices[1]], ..., x_group1[indices[16]], x_group1[indices[17]], ...}
+// Only the needed bits to represent the index of a group of x are used in indices' elements.
+// However when the top bit is set, the low bits will be disregard and the respective element in the result vector will be zeroed.
+// Each group is of size 128-bit.
+//
+// Asm: VPSHUFB, CPU Feature: AVX2
+func (x Int8x32) PermuteGrouped(indices Int8x32) Int8x32
+
+// PermuteGrouped performs a grouped permutation of vector x using indices:
+// result := {x_group0[indices[0]], x_group0[indices[1]], ..., x_group1[indices[16]], x_group1[indices[17]], ...}
+// Only the needed bits to represent the index of a group of x are used in indices' elements.
+// However when the top bit is set, the low bits will be disregard and the respective element in the result vector will be zeroed.
+// Each group is of size 128-bit.
+//
+// Asm: VPSHUFB, CPU Feature: AVX512
+func (x Int8x64) PermuteGrouped(indices Int8x64) Int8x64
+
+// PermuteGrouped performs a grouped permutation of vector x using indices:
+// result := {x_group0[indices[0]], x_group0[indices[1]], ..., x_group1[indices[16]], x_group1[indices[17]], ...}
+// Only the needed bits to represent the index of a group of x are used in indices' elements.
+// However when the top bit is set, the low bits will be disregard and the respective element in the result vector will be zeroed.
+// Each group is of size 128-bit.
+//
+// Asm: VPSHUFB, CPU Feature: AVX2
+func (x Uint8x32) PermuteGrouped(indices Uint8x32) Uint8x32
+
+// PermuteGrouped performs a grouped permutation of vector x using indices:
+// result := {x_group0[indices[0]], x_group0[indices[1]], ..., x_group1[indices[16]], x_group1[indices[17]], ...}
+// Only the needed bits to represent the index of a group of x are used in indices' elements.
+// However when the top bit is set, the low bits will be disregard and the respective element in the result vector will be zeroed.
+// Each group is of size 128-bit.
+//
+// Asm: VPSHUFB, CPU Feature: AVX512
+func (x Uint8x64) PermuteGrouped(indices Uint8x64) Uint8x64
+
 /* Reciprocal */
 
 // Reciprocal computes an approximate reciprocal of each element.
