@@ -1919,3 +1919,36 @@ func TestRootWriteReadFile(t *testing.T) {
 		t.Fatalf("root.ReadFile(%q) = %q, %v; want %q, nil", name, got, err, want)
 	}
 }
+
+func TestRootName(t *testing.T) {
+	dir := t.TempDir()
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	if got, want := root.Name(), dir; got != want {
+		t.Errorf("root.Name() = %q, want %q", got, want)
+	}
+
+	f, err := root.Create("file")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	if got, want := f.Name(), filepath.Join(dir, "file"); got != want {
+		t.Errorf(`root.Create("file").Name() = %q, want %q`, got, want)
+	}
+
+	if err := root.Mkdir("dir", 0o777); err != nil {
+		t.Fatal(err)
+	}
+	subroot, err := root.OpenRoot("dir")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer subroot.Close()
+	if got, want := subroot.Name(), filepath.Join(dir, "dir"); got != want {
+		t.Errorf(`root.OpenRoot("dir").Name() = %q, want %q`, got, want)
+	}
+}
