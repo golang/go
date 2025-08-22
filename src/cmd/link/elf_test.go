@@ -583,34 +583,18 @@ func TestFlagD(t *testing.T) {
 	testFlagD(t, "0x10000000", "", 0x10000000)
 }
 
+func TestFlagDUnaligned(t *testing.T) {
+	// Test that using the -D flag with an unaligned address gets rounded
+	// to the default alignment boundary
+	t.Parallel()
+	testFlagD(t, "0x10000123", "", 0x10001000)
+}
+
 func TestFlagDWithR(t *testing.T) {
 	// Test that using the -D flag with -R flag works together.
 	// The unaligned data address gets rounded to the specified alignment quantum.
 	t.Parallel()
 	testFlagD(t, "0x30001234", "8192", 0x30002000)
-}
-
-// TODO: sanity check, delete this
-func TestRounding(t *testing.T) {
-	testCases := []struct {
-		input    int64
-		quantum  int64
-		expected int64
-	}{
-		{0x30000000, 0x2000, 0x30000000}, // Already aligned
-		{0x30002000, 0x2000, 0x30002000}, // Exactly on boundary
-		{0x30001234, 0x2000, 0x30002000},
-		{0x30001000, 0x2000, 0x30002000},
-		{0x30001fff, 0x2000, 0x30002000},
-	}
-
-	for _, tc := range testCases {
-		result := ld.Rnd(tc.input, tc.quantum)
-		if result != tc.expected {
-			t.Errorf("Rnd(0x%x, 0x%x) = 0x%x, expected 0x%x",
-				tc.input, tc.quantum, result, tc.expected)
-		}
-	}
 }
 
 func testFlagD(t *testing.T, dataAddr string, roundQuantum string, expectedAddr uint64) {
