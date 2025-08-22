@@ -119,7 +119,7 @@ func openRootInRoot(r *Root, name string) (*Root, error) {
 	if err != nil {
 		return nil, &PathError{Op: "openat", Path: name, Err: err}
 	}
-	return newRoot(fd, name)
+	return newRoot(fd, joinPath(r.Name(), name))
 }
 
 // rootOpenFileNolog is Root.OpenFile.
