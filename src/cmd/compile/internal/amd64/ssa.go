@@ -1708,19 +1708,11 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 
-	// XXX SIMD
-	// XXX may change depending on how we handle aliased registers
+	// SIMD ops
 	case ssa.OpAMD64VZEROUPPER, ssa.OpAMD64VZEROALL:
 		s.Prog(v.Op.Asm())
 	case ssa.OpAMD64Zero128, ssa.OpAMD64Zero256, ssa.OpAMD64Zero512:
 		// zero-width, no instruction generated
-	case ssa.OpAMD64VPADDD4:
-		p := s.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = simdReg(v.Args[0])
-		p.AddRestSourceReg(simdReg(v.Args[1]))
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = simdReg(v)
 	case ssa.OpAMD64VMOVDQUload128, ssa.OpAMD64VMOVDQUload256, ssa.OpAMD64VMOVDQUload512, ssa.OpAMD64KMOVQload:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM

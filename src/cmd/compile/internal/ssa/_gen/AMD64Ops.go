@@ -1315,9 +1315,7 @@ func init() {
 		// output[i] = (input[i] >> 7) & 1
 		{name: "PMOVMSKB", argLength: 1, reg: fpgp, asm: "PMOVMSKB"},
 
-		// XXX SIMD
-		{name: "VPADDD4", argLength: 2, reg: fp21, asm: "VPADDD", commutative: true}, // arg0 + arg1
-
+		// SIMD ops
 		{name: "VMOVDQUload128", argLength: 2, reg: fpload, asm: "VMOVDQU", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},    // load from arg0+auxint+aux, arg1 = mem
 		{name: "VMOVDQUstore128", argLength: 3, reg: fpstore, asm: "VMOVDQU", aux: "SymOff", faultOnNilArg0: true, symEffect: "Write"}, // store, *(arg0+auxint+aux) = arg1, arg2 = mem
 

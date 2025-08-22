@@ -1165,7 +1165,6 @@ const (
 	OpAMD64PSIGNB
 	OpAMD64PCMPEQB
 	OpAMD64PMOVMSKB
-	OpAMD64VPADDD4
 	OpAMD64VMOVDQUload128
 	OpAMD64VMOVDQUstore128
 	OpAMD64VMOVDQUload256
@@ -18176,21 +18175,6 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
-			},
-		},
-	},
-	{
-		name:        "VPADDD4",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPADDD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},

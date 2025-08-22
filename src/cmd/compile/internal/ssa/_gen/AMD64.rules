@@ -1639,7 +1639,7 @@
 // If we don't use the flags any more, just use the standard op.
 (Select0 a:(ADD(Q|L)constflags [c] x)) && a.Uses == 1 => (ADD(Q|L)const [c] x)
 
-// XXX SIMD
+// SIMD lowering rules
 
 // Mask loads
 (LoadMask8x16 <t> ptr mem) => (VPMOVMToVec8x16 <types.TypeVec128> (KMOVQload <t> ptr mem))
