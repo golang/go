@@ -79,12 +79,7 @@ func TestVectoredHandlerDontCrashOnLibrary(t *testing.T) {
 	if *flagQuick {
 		t.Skip("-quick")
 	}
-	if runtime.GOARCH == "arm" {
-		//TODO: remove this skip and update testwinlib/main.c
-		// once windows/arm supports c-shared buildmode.
-		// See go.dev/issues/43800.
-		t.Skip("this test can't run on windows/arm")
-	}
+
 	testenv.MustHaveGoBuild(t)
 	testenv.MustHaveCGO(t)
 	testenv.MustHaveExecPath(t, "gcc")
@@ -115,8 +110,8 @@ func TestVectoredHandlerDontCrashOnLibrary(t *testing.T) {
 		t.Fatalf("failure while running executable: %s\n%s", err, out)
 	}
 	var expectedOutput string
-	if runtime.GOARCH == "arm64" || runtime.GOARCH == "arm" {
-		// TODO: remove when windows/arm64 and windows/arm support SEH stack unwinding.
+	if runtime.GOARCH == "arm64" {
+		// TODO: remove when windows/arm64 support SEH stack unwinding.
 		expectedOutput = "exceptionCount: 1\ncontinueCount: 1\nunhandledCount: 0\n"
 	} else {
 		expectedOutput = "exceptionCount: 1\ncontinueCount: 1\nunhandledCount: 1\n"
