@@ -71,7 +71,14 @@ import (
 // mentions it. To ensure a cleanup does not get called prematurely,
 // pass the object to the [KeepAlive] function after the last point
 // where the object must remain reachable.
+//
+//go:nocheckptr
 func AddCleanup[T, S any](ptr *T, cleanup func(S), arg S) Cleanup {
+	// This is marked nocheckptr because checkptr doesn't understand the
+	// pointer manipulation done when looking at closure pointers.
+	// Similar code in mbitmap.go works because the functions are
+	// go:nosplit, which implies go:nocheckptr (CL 202158).
+
 	// Explicitly force ptr and cleanup to escape to the heap.
 	ptr = abi.Escape(ptr)
 	cleanup = abi.Escape(cleanup)
@@ -141,6 +148,23 @@ func AddCleanup[T, S any](ptr *T, cleanup func(S), arg S) Cleanup {
 			// with the value to which the cleanup is attached.
 			if span.spanclass != tinySpanClass {
 				panic("runtime.AddCleanup: ptr is within arg, cleanup will never run")
+			}
+		}
+	}
+
+	// Check that the cleanup function doesn't close over the pointer.
+	cleanupFV := unsafe.Pointer(*(**funcval)(unsafe.Pointer(&cleanup)))
+	cBase, cSpan, _ := findObject(uintptr(cleanupFV), 0, 0)
+	if cBase != 0 {
+		tp := cSpan.typePointersOfUnchecked(cBase)
+		for {
+			var addr uintptr
+			if tp, addr = tp.next(cBase + cSpan.elemsize); addr == 0 {
+				break
+			}
+			ptr := *(*uintptr)(unsafe.Pointer(addr))
+			if ptr >= base && ptr < base+span.elemsize {
+				panic("runtime.AddCleanup: cleanup function closes over ptr, cleanup will never run")
 			}
 		}
 	}

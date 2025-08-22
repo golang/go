@@ -337,7 +337,7 @@ func TestCleanupLost(t *testing.T) {
 	}
 }
 
-func TestCleanupUnreachable(t *testing.T) {
+func TestCleanupUnreachablePointer(t *testing.T) {
 	defer func() {
 		if recover() == nil {
 			t.Error("AddCleanup failed to detect self-pointer")
@@ -352,6 +352,24 @@ func TestCleanupUnreachable(t *testing.T) {
 	runtime.AddCleanup(v, func(*int) {
 		t.Error("cleanup ran unexpectedly")
 	}, &v.f)
+}
+
+func TestCleanupUnreachableClosure(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Error("AddCleanup failed to detect closure pointer")
+		}
+	}()
+
+	type T struct {
+		p *byte // use *byte to avoid tiny allocator
+		f int
+	}
+	v := &T{}
+	runtime.AddCleanup(v, func(int) {
+		t.Log(v.f)
+		t.Error("cleanup ran unexpectedly")
+	}, 0)
 }
 
 // BenchmarkAddCleanupAndStop benchmarks adding and removing a cleanup
