@@ -1,0 +1,1 @@
+pkg go/build, func ArchChar //deprecated #75129

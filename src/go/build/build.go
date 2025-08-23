@@ -2041,6 +2041,8 @@ func IsLocalImport(path string) bool {
 // the compiler and linker tool names, the default object file suffix,
 // and the default linker output name. As of Go 1.5, those strings
 // no longer vary by architecture; they are compile, link, .o, and a.out, respectively.
+//
+// Deprecated: No longer varies by architecture.
 func ArchChar(goarch string) (string, error) {
 	return "?", errors.New("architecture letter no longer used")
 }
