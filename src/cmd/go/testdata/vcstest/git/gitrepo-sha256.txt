@@ -1,3 +1,5 @@
+[!git-min-vers:v2.29] skip
+
 handle git
 
 # This is a sha256 version of gitrepo1.txt (which uses sha1 hashes)
