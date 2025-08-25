@@ -77,8 +77,7 @@ type operation struct {
 	mode       int32
 
 	// fields used only by net package
-	buf  syscall.WSABuf
-	bufs []syscall.WSABuf
+	buf syscall.WSABuf
 }
 
 func (o *operation) setEvent() {
@@ -113,34 +112,48 @@ func (o *operation) InitBuf(buf []byte) {
 	o.buf.Buf = unsafe.SliceData(buf)
 }
 
-func (o *operation) InitBufs(buf *[][]byte) {
-	if o.bufs == nil {
-		o.bufs = make([]syscall.WSABuf, 0, len(*buf))
-	} else {
-		o.bufs = o.bufs[:0]
-	}
+var wsaBufsPool = sync.Pool{
+	New: func() any {
+		buf := make([]syscall.WSABuf, 0, 16)
+		return &buf
+	},
+}
+
+func newWSABufs(buf *[][]byte) *[]syscall.WSABuf {
+	bufsPtr := wsaBufsPool.Get().(*[]syscall.WSABuf)
+	*bufsPtr = (*bufsPtr)[:0]
 	for _, b := range *buf {
 		if len(b) == 0 {
-			o.bufs = append(o.bufs, syscall.WSABuf{})
+			*bufsPtr = append(*bufsPtr, syscall.WSABuf{})
 			continue
 		}
 		for len(b) > maxRW {
-			o.bufs = append(o.bufs, syscall.WSABuf{Len: maxRW, Buf: &b[0]})
+			*bufsPtr = append(*bufsPtr, syscall.WSABuf{Len: maxRW, Buf: &b[0]})
 			b = b[maxRW:]
 		}
 		if len(b) > 0 {
-			o.bufs = append(o.bufs, syscall.WSABuf{Len: uint32(len(b)), Buf: &b[0]})
+			*bufsPtr = append(*bufsPtr, syscall.WSABuf{Len: uint32(len(b)), Buf: &b[0]})
 		}
 	}
+	return bufsPtr
 }
 
-// ClearBufs clears all pointers to Buffers parameter captured
-// by InitBufs, so it can be released by garbage collector.
-func (o *operation) ClearBufs() {
-	for i := range o.bufs {
-		o.bufs[i].Buf = nil
+func freeWSABufs(bufsPtr *[]syscall.WSABuf) {
+	// Clear pointers to buffers so they can be released by garbage collector.
+	bufs := *bufsPtr
+	for i := range bufs {
+		bufs[i].Buf = nil
 	}
-	o.bufs = o.bufs[:0]
+	// Proper usage of a sync.Pool requires each entry to have approximately
+	// the same memory cost. To obtain this property when the stored type
+	// contains a variably-sized buffer, we add a hard limit on the maximum buffer
+	// to place back in the pool.
+	//
+	// See https://go.dev/issue/23199
+	if cap(*bufsPtr) > 128 {
+		*bufsPtr = nil
+	}
+	wsaBufsPool.Put(bufsPtr)
 }
 
 // wsaMsgPool is a pool of WSAMsg structures that can only hold a single WSABuf.
@@ -939,13 +952,12 @@ func (fd *FD) Writev(buf *[][]byte) (int64, error) {
 	if race.Enabled {
 		race.ReleaseMerge(unsafe.Pointer(&ioSync))
 	}
-	o := &fd.wop
-	o.InitBufs(buf)
-	n, err := fd.execIO(o, func(o *operation) (qty uint32, err error) {
-		err = syscall.WSASend(fd.Sysfd, &o.bufs[0], uint32(len(o.bufs)), &qty, 0, &o.o, nil)
+	bufs := newWSABufs(buf)
+	defer freeWSABufs(bufs)
+	n, err := fd.execIO(&fd.wop, func(o *operation) (qty uint32, err error) {
+		err = syscall.WSASend(fd.Sysfd, &(*bufs)[0], uint32(len(*bufs)), &qty, 0, &o.o, nil)
 		return qty, err
 	})
-	o.ClearBufs()
 	TestHookDidWritev(n)
 	consume(buf, int64(n))
 	return int64(n), err
