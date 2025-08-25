@@ -78,7 +78,6 @@ type operation struct {
 
 	// fields used only by net package
 	buf  syscall.WSABuf
-	rsa  *syscall.RawSockaddrAny
 	bufs []syscall.WSABuf
 }
 
@@ -185,6 +184,12 @@ func freeWSAMsg(msg *windows.WSAMsg) {
 	msg.Buffers.Len = 0
 	msg.Buffers.Buf = nil
 	wsaMsgPool.Put(msg)
+}
+
+var wsaRsaPool = sync.Pool{
+	New: func() any {
+		return new(syscall.RawSockaddrAny)
+	},
 }
 
 // waitIO waits for the IO operation o to complete.
@@ -693,20 +698,19 @@ func (fd *FD) ReadFrom(buf []byte) (int, syscall.Sockaddr, error) {
 	defer fd.readUnlock()
 	o := &fd.rop
 	o.InitBuf(buf)
+	rsa := wsaRsaPool.Get().(*syscall.RawSockaddrAny)
+	defer wsaRsaPool.Put(rsa)
 	n, err := fd.execIO(o, func(o *operation) (qty uint32, err error) {
-		if o.rsa == nil {
-			o.rsa = new(syscall.RawSockaddrAny)
-		}
-		rsan := int32(unsafe.Sizeof(*o.rsa))
+		rsan := int32(unsafe.Sizeof(*rsa))
 		var flags uint32
-		err = syscall.WSARecvFrom(fd.Sysfd, &o.buf, 1, &qty, &flags, o.rsa, &rsan, &o.o, nil)
+		err = syscall.WSARecvFrom(fd.Sysfd, &o.buf, 1, &qty, &flags, rsa, &rsan, &o.o, nil)
 		return qty, err
 	})
 	err = fd.eofError(n, err)
 	if err != nil {
 		return n, nil, err
 	}
-	sa, _ := o.rsa.Sockaddr()
+	sa, _ := rsa.Sockaddr()
 	return n, sa, nil
 }
 
@@ -724,20 +728,19 @@ func (fd *FD) ReadFromInet4(buf []byte, sa4 *syscall.SockaddrInet4) (int, error)
 	defer fd.readUnlock()
 	o := &fd.rop
 	o.InitBuf(buf)
+	rsa := wsaRsaPool.Get().(*syscall.RawSockaddrAny)
+	defer wsaRsaPool.Put(rsa)
 	n, err := fd.execIO(o, func(o *operation) (qty uint32, err error) {
-		if o.rsa == nil {
-			o.rsa = new(syscall.RawSockaddrAny)
-		}
-		rsan := int32(unsafe.Sizeof(*o.rsa))
+		rsan := int32(unsafe.Sizeof(*rsa))
 		var flags uint32
-		err = syscall.WSARecvFrom(fd.Sysfd, &o.buf, 1, &qty, &flags, o.rsa, &rsan, &o.o, nil)
+		err = syscall.WSARecvFrom(fd.Sysfd, &o.buf, 1, &qty, &flags, rsa, &rsan, &o.o, nil)
 		return qty, err
 	})
 	err = fd.eofError(n, err)
 	if err != nil {
 		return n, err
 	}
-	rawToSockaddrInet4(o.rsa, sa4)
+	rawToSockaddrInet4(rsa, sa4)
 	return n, err
 }
 
@@ -755,20 +758,19 @@ func (fd *FD) ReadFromInet6(buf []byte, sa6 *syscall.SockaddrInet6) (int, error)
 	defer fd.readUnlock()
 	o := &fd.rop
 	o.InitBuf(buf)
+	rsa := wsaRsaPool.Get().(*syscall.RawSockaddrAny)
+	defer wsaRsaPool.Put(rsa)
 	n, err := fd.execIO(o, func(o *operation) (qty uint32, err error) {
-		if o.rsa == nil {
-			o.rsa = new(syscall.RawSockaddrAny)
-		}
-		rsan := int32(unsafe.Sizeof(*o.rsa))
+		rsan := int32(unsafe.Sizeof(*rsa))
 		var flags uint32
-		err = syscall.WSARecvFrom(fd.Sysfd, &o.buf, 1, &qty, &flags, o.rsa, &rsan, &o.o, nil)
+		err = syscall.WSARecvFrom(fd.Sysfd, &o.buf, 1, &qty, &flags, rsa, &rsan, &o.o, nil)
 		return qty, err
 	})
 	err = fd.eofError(n, err)
 	if err != nil {
 		return n, err
 	}
-	rawToSockaddrInet6(o.rsa, sa6)
+	rawToSockaddrInet6(rsa, sa6)
 	return n, err
 }
 
@@ -1321,20 +1323,18 @@ func (fd *FD) ReadMsg(p []byte, oob []byte, flags int) (int, int, int, syscall.S
 		p = p[:maxRW]
 	}
 
-	o := &fd.rop
-	if o.rsa == nil {
-		o.rsa = new(syscall.RawSockaddrAny)
-	}
-	msg := newWSAMsg(p, oob, flags, o.rsa)
+	rsa := wsaRsaPool.Get().(*syscall.RawSockaddrAny)
+	defer wsaRsaPool.Put(rsa)
+	msg := newWSAMsg(p, oob, flags, rsa)
 	defer freeWSAMsg(msg)
-	n, err := fd.execIO(o, func(o *operation) (qty uint32, err error) {
+	n, err := fd.execIO(&fd.rop, func(o *operation) (qty uint32, err error) {
 		err = windows.WSARecvMsg(fd.Sysfd, msg, &qty, &o.o, nil)
 		return qty, err
 	})
 	err = fd.eofError(n, err)
 	var sa syscall.Sockaddr
 	if err == nil {
-		sa, err = o.rsa.Sockaddr()
+		sa, err = rsa.Sockaddr()
 	}
 	return n, int(msg.Control.Len), int(msg.Flags), sa, err
 }
@@ -1350,19 +1350,17 @@ func (fd *FD) ReadMsgInet4(p []byte, oob []byte, flags int, sa4 *syscall.Sockadd
 		p = p[:maxRW]
 	}
 
-	o := &fd.rop
-	if o.rsa == nil {
-		o.rsa = new(syscall.RawSockaddrAny)
-	}
-	msg := newWSAMsg(p, oob, flags, o.rsa)
+	rsa := wsaRsaPool.Get().(*syscall.RawSockaddrAny)
+	defer wsaRsaPool.Put(rsa)
+	msg := newWSAMsg(p, oob, flags, rsa)
 	defer freeWSAMsg(msg)
-	n, err := fd.execIO(o, func(o *operation) (qty uint32, err error) {
+	n, err := fd.execIO(&fd.rop, func(o *operation) (qty uint32, err error) {
 		err = windows.WSARecvMsg(fd.Sysfd, msg, &qty, &o.o, nil)
 		return qty, err
 	})
 	err = fd.eofError(n, err)
 	if err == nil {
-		rawToSockaddrInet4(o.rsa, sa4)
+		rawToSockaddrInet4(rsa, sa4)
 	}
 	return n, int(msg.Control.Len), int(msg.Flags), err
 }
@@ -1378,19 +1376,17 @@ func (fd *FD) ReadMsgInet6(p []byte, oob []byte, flags int, sa6 *syscall.Sockadd
 		p = p[:maxRW]
 	}
 
-	o := &fd.rop
-	if o.rsa == nil {
-		o.rsa = new(syscall.RawSockaddrAny)
-	}
-	msg := newWSAMsg(p, oob, flags, o.rsa)
+	rsa := wsaRsaPool.Get().(*syscall.RawSockaddrAny)
+	defer wsaRsaPool.Put(rsa)
+	msg := newWSAMsg(p, oob, flags, rsa)
 	defer freeWSAMsg(msg)
-	n, err := fd.execIO(o, func(o *operation) (qty uint32, err error) {
+	n, err := fd.execIO(&fd.rop, func(o *operation) (qty uint32, err error) {
 		err = windows.WSARecvMsg(fd.Sysfd, msg, &qty, &o.o, nil)
 		return qty, err
 	})
 	err = fd.eofError(n, err)
 	if err == nil {
-		rawToSockaddrInet6(o.rsa, sa6)
+		rawToSockaddrInet6(rsa, sa6)
 	}
 	return n, int(msg.Control.Len), int(msg.Flags), err
 }
@@ -1406,20 +1402,21 @@ func (fd *FD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (int, int, err
 	}
 	defer fd.writeUnlock()
 
-	o := &fd.wop
-	if sa != nil && o.rsa == nil {
-		o.rsa = new(syscall.RawSockaddrAny)
+	var rsa *syscall.RawSockaddrAny
+	if sa != nil {
+		rsa = wsaRsaPool.Get().(*syscall.RawSockaddrAny)
+		defer wsaRsaPool.Put(rsa)
 	}
-	msg := newWSAMsg(p, oob, 0, o.rsa)
+	msg := newWSAMsg(p, oob, 0, rsa)
 	defer freeWSAMsg(msg)
 	if sa != nil {
 		var err error
-		msg.Namelen, err = sockaddrToRaw(o.rsa, sa)
+		msg.Namelen, err = sockaddrToRaw(rsa, sa)
 		if err != nil {
 			return 0, 0, err
 		}
 	}
-	n, err := fd.execIO(o, func(o *operation) (qty uint32, err error) {
+	n, err := fd.execIO(&fd.wop, func(o *operation) (qty uint32, err error) {
 		err = windows.WSASendMsg(fd.Sysfd, msg, 0, nil, &o.o, nil)
 		return qty, err
 	})
@@ -1437,16 +1434,17 @@ func (fd *FD) WriteMsgInet4(p []byte, oob []byte, sa *syscall.SockaddrInet4) (in
 	}
 	defer fd.writeUnlock()
 
-	o := &fd.wop
-	if sa != nil && o.rsa == nil {
-		o.rsa = new(syscall.RawSockaddrAny)
+	var rsa *syscall.RawSockaddrAny
+	if sa != nil {
+		rsa = wsaRsaPool.Get().(*syscall.RawSockaddrAny)
+		defer wsaRsaPool.Put(rsa)
 	}
-	msg := newWSAMsg(p, oob, 0, o.rsa)
+	msg := newWSAMsg(p, oob, 0, rsa)
 	defer freeWSAMsg(msg)
 	if sa != nil {
-		msg.Namelen = sockaddrInet4ToRaw(o.rsa, sa)
+		msg.Namelen = sockaddrInet4ToRaw(rsa, sa)
 	}
-	n, err := fd.execIO(o, func(o *operation) (qty uint32, err error) {
+	n, err := fd.execIO(&fd.wop, func(o *operation) (qty uint32, err error) {
 		err = windows.WSASendMsg(fd.Sysfd, msg, 0, nil, &o.o, nil)
 		return qty, err
 	})
@@ -1464,16 +1462,17 @@ func (fd *FD) WriteMsgInet6(p []byte, oob []byte, sa *syscall.SockaddrInet6) (in
 	}
 	defer fd.writeUnlock()
 
-	o := &fd.wop
-	if sa != nil && o.rsa == nil {
-		o.rsa = new(syscall.RawSockaddrAny)
+	var rsa *syscall.RawSockaddrAny
+	if sa != nil {
+		rsa = wsaRsaPool.Get().(*syscall.RawSockaddrAny)
+		defer wsaRsaPool.Put(rsa)
 	}
-	msg := newWSAMsg(p, oob, 0, o.rsa)
+	msg := newWSAMsg(p, oob, 0, rsa)
 	defer freeWSAMsg(msg)
 	if sa != nil {
-		msg.Namelen = sockaddrInet6ToRaw(o.rsa, sa)
+		msg.Namelen = sockaddrInet6ToRaw(rsa, sa)
 	}
-	n, err := fd.execIO(o, func(o *operation) (qty uint32, err error) {
+	n, err := fd.execIO(&fd.wop, func(o *operation) (qty uint32, err error) {
 		err = windows.WSASendMsg(fd.Sysfd, msg, 0, nil, &o.o, nil)
 		return qty, err
 	})
