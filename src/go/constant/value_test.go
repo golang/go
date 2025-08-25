@@ -617,6 +617,9 @@ func TestUnknown(t *testing.T) {
 			if got := Compare(x, token.EQL, y); got {
 				t.Errorf("%s == %s: got true; want false", x, y)
 			}
+			if got := Compare(x, token.NEQ, y); got {
+				t.Errorf("%s != %s: got true; want false", x, y)
+			}
 		}
 	}
 }
