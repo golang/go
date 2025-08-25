@@ -118,7 +118,7 @@ type Flags struct {
 
 	// SizeSpecializedMalloc enables malloc implementations that are specialized per size class.
 	SizeSpecializedMalloc bool
-
-	// GoroutineLeakFinderGC enables the Deadlock GC implementation.
-	GoroutineLeakFinderGC bool
+	
+	// GoleakProfiler enables the Goleak profiler.
+	GoleakProfiler bool
 }
