@@ -27,6 +27,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"unicode"
 	"unicode/utf8"
 
@@ -1756,20 +1757,23 @@ func gccMachine() []string {
 	return nil
 }
 
+var n atomic.Int64
+
 func gccTmp() string {
-	return *objDir + "_cgo_.o"
+	c := strconv.Itoa(int(n.Add(1)))
+	return *objDir + "_cgo_" + c + ".o"
 }
 
 // gccCmd returns the gcc command line to use for compiling
 // the input.
-func (p *Package) gccCmd() []string {
+func (p *Package) gccCmd(ofile string) []string {
 	c := append(gccBaseCmd,
-		"-w",          // no warnings
-		"-Wno-error",  // warnings are not errors
-		"-o"+gccTmp(), // write object to tmp
-		"-gdwarf-2",   // generate DWARF v2 debugging symbols
-		"-c",          // do not link
-		"-xc",         // input language is C
+		"-w",         // no warnings
+		"-Wno-error", // warnings are not errors
+		"-o"+ofile,   // write object to tmp
+		"-gdwarf-2",  // generate DWARF v2 debugging symbols
+		"-c",         // do not link
+		"-xc",        // input language is C
 	)
 	if p.GccIsClang {
 		c = append(c,
@@ -1806,7 +1810,8 @@ func (p *Package) gccCmd() []string {
 // gccDebug runs gcc -gdwarf-2 over the C program stdin and
 // returns the corresponding DWARF data and, if present, debug data block.
 func (p *Package) gccDebug(stdin []byte, nnames int) (d *dwarf.Data, ints []int64, floats []float64, strs []string) {
-	runGcc(stdin, p.gccCmd())
+	ofile := gccTmp()
+	runGcc(stdin, p.gccCmd(ofile))
 
 	isDebugInts := func(s string) bool {
 		// Some systems use leading _ to denote non-assembly symbols.
@@ -1856,11 +1861,11 @@ func (p *Package) gccDebug(stdin []byte, nnames int) (d *dwarf.Data, ints []int6
 		}
 	}
 
-	if f, err := macho.Open(gccTmp()); err == nil {
+	if f, err := macho.Open(ofile); err == nil {
 		defer f.Close()
 		d, err := f.DWARF()
 		if err != nil {
-			fatalf("cannot load DWARF output from %s: %v", gccTmp(), err)
+			fatalf("cannot load DWARF output from %s: %v", ofile, err)
 		}
 		bo := f.ByteOrder
 		if f.Symtab != nil {
@@ -1934,11 +1939,11 @@ func (p *Package) gccDebug(stdin []byte, nnames int) (d *dwarf.Data, ints []int6
 		return d, ints, floats, strs
 	}
 
-	if f, err := elf.Open(gccTmp()); err == nil {
+	if f, err := elf.Open(ofile); err == nil {
 		defer f.Close()
 		d, err := f.DWARF()
 		if err != nil {
-			fatalf("cannot load DWARF output from %s: %v", gccTmp(), err)
+			fatalf("cannot load DWARF output from %s: %v", ofile, err)
 		}
 		bo := f.ByteOrder
 		symtab, err := f.Symbols()
@@ -2034,11 +2039,11 @@ func (p *Package) gccDebug(stdin []byte, nnames int) (d *dwarf.Data, ints []int6
 		return d, ints, floats, strs
 	}
 
-	if f, err := pe.Open(gccTmp()); err == nil {
+	if f, err := pe.Open(ofile); err == nil {
 		defer f.Close()
 		d, err := f.DWARF()
 		if err != nil {
-			fatalf("cannot load DWARF output from %s: %v", gccTmp(), err)
+			fatalf("cannot load DWARF output from %s: %v", ofile, err)
 		}
 		bo := binary.LittleEndian
 		for _, s := range f.Symbols {
@@ -2106,11 +2111,11 @@ func (p *Package) gccDebug(stdin []byte, nnames int) (d *dwarf.Data, ints []int6
 		return d, ints, floats, strs
 	}
 
-	if f, err := xcoff.Open(gccTmp()); err == nil {
+	if f, err := xcoff.Open(ofile); err == nil {
 		defer f.Close()
 		d, err := f.DWARF()
 		if err != nil {
-			fatalf("cannot load DWARF output from %s: %v", gccTmp(), err)
+			fatalf("cannot load DWARF output from %s: %v", ofile, err)
 		}
 		bo := binary.BigEndian
 		for _, s := range f.Symbols {
@@ -2176,7 +2181,7 @@ func (p *Package) gccDebug(stdin []byte, nnames int) (d *dwarf.Data, ints []int6
 		buildStrings()
 		return d, ints, floats, strs
 	}
-	fatalf("cannot parse gcc output %s as ELF, Mach-O, PE, XCOFF object", gccTmp())
+	fatalf("cannot parse gcc output %s as ELF, Mach-O, PE, XCOFF object", ofile)
 	panic("not reached")
 }
 
@@ -2196,7 +2201,7 @@ func gccDefines(stdin []byte, gccOptions []string) string {
 // gcc to fail.
 func (p *Package) gccErrors(stdin []byte, extraArgs ...string) string {
 	// TODO(rsc): require failure
-	args := p.gccCmd()
+	args := p.gccCmd(gccTmp())
 
 	// Optimization options can confuse the error messages; remove them.
 	nargs := make([]string, 0, len(args)+len(extraArgs))
