@@ -5,6 +5,7 @@
 package slog
 
 import (
+	"bytes"
 	"context"
 	"encoding"
 	"fmt"
@@ -114,7 +115,21 @@ func appendTextValue(s *handleState, v Value) error {
 			s.buf.WriteString(strconv.Quote(string(bs)))
 			return nil
 		}
-		s.appendString(fmt.Sprintf("%+v", v.Any()))
+		if s.anyEncoder == nil {
+			s.anyEncoder = newTextMarshalEncoder()
+		}
+
+		enc := s.anyEncoder
+		enc.reset()
+		enc.encode(v.Any())
+		bs := enc.bytes()
+		if needsQuotingBytes(bs) {
+			s.buf.WriteByte('"')
+			s.buf.Write(bs)
+			s.buf.WriteByte('"')
+			return nil
+		}
+		s.buf.Write(bs)
 	default:
 		*s.buf = v.append(*s.buf)
 	}
@@ -136,12 +151,60 @@ func byteSlice(a any) ([]byte, bool) {
 	return nil, false
 }
 
-func needsQuoting(s string) bool {
-	if len(s) == 0 {
+type textMarshalEncoder struct {
+	buf *bytes.Buffer
+}
+
+func newTextMarshalEncoder() encoder {
+	if enc := textEncoderPool.Get(); enc != nil {
+		return enc.(*textMarshalEncoder)
+	}
+
+	buf := &bytes.Buffer{}
+
+	return &textMarshalEncoder{buf: buf}
+}
+
+func (e *textMarshalEncoder) reset() {
+	e.buf.Reset()
+}
+
+func (e *textMarshalEncoder) encode(v any) error {
+	fmt.Fprintf(e.buf, "%+v", v)
+	return nil
+}
+
+func (e *textMarshalEncoder) bytes() []byte {
+	return e.buf.Bytes()
+}
+
+func (e *textMarshalEncoder) free() {
+	const maxBufferSize = 4 << 10
+	if e.buf.Cap() <= maxBufferSize {
+		textEncoderPool.Put(e)
+	}
+}
+
+var textEncoderPool = sync.Pool{}
+
+func needsQuotingString(s string) bool {
+	return needsQuoting(s, func(i int) (rune, int) {
+		return utf8.DecodeRuneInString(s[i:])
+	})
+}
+
+func needsQuotingBytes(b []byte) bool {
+	return needsQuoting(b, func(i int) (rune, int) {
+		return utf8.DecodeRune(b[i:])
+	})
+}
+
+func needsQuoting[T string | []byte](text T, decodeRune func(i int) (rune, int)) bool {
+	if len(text) == 0 {
 		return true
 	}
-	for i := 0; i < len(s); {
-		b := s[i]
+	for i := 0; i < len(text); {
+		b := text[i]
 		if b < utf8.RuneSelf {
 			// Quote anything except a backslash that would need quoting in a
 			// JSON string, as well as space and '='
@@ -151,7 +214,7 @@ func needsQuoting(s string) bool {
 			i++
 			continue
 		}
-		r, size := utf8.DecodeRuneInString(s[i:])
+		r, size := decodeRune(i)
 		if r == utf8.RuneError || unicode.IsSpace(r) || !unicode.IsPrint(r) {
 			return true
 		}
