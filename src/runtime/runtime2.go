@@ -1163,8 +1163,8 @@ const (
 	waitReasonSleep                                   // "sleep"
 	waitReasonChanReceiveNilChan                      // "chan receive (nil chan)"
 	waitReasonChanSendNilChan                         // "chan send (nil chan)"
-	waitReasonSelect                                  // "select"
 	waitReasonSelectNoCases                           // "select (no cases)"
+	waitReasonSelect                                  // "select"
 	waitReasonChanReceive                             // "chan receive"
 	waitReasonChanSend                                // "chan send"
 	waitReasonSyncCondWait                            // "sync.Cond.Wait"
@@ -1268,6 +1268,16 @@ func (w waitReason) isMutexWait() bool {
 //go:nosplit
 func (w waitReason) isSyncWait() bool {
 	return waitReasonSyncCondWait <= w && w <= waitReasonSyncWaitGroupWait
+}
+
+// isChanWait returns true if the goroutine is blocked because of
+// channel operations or select statements.
+//
+//go:nosplit
+func (w waitReason) isChanWait() bool {
+	return w == waitReasonSelect ||
+		w == waitReasonChanReceive ||
+		w == waitReasonChanSend
 }
 
 func (w waitReason) isWaitingForSuspendG() bool {
