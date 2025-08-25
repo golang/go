@@ -192,9 +192,7 @@ func (p *Package) Translate(f *File) {
 		cref.Name.C = cname(cref.Name.Go)
 	}
 
-	var conv typeConv
-	conv.Init(p.PtrSize, p.IntSize)
-
+	var debugs []*debug // debug data from iterations of gccDebug
 	ft := fileTypedefs{typedefs: make(map[string]bool)}
 	numTypedefs := -1
 	for len(ft.typedefs) > numTypedefs {
@@ -213,8 +211,7 @@ func (p *Package) Translate(f *File) {
 		}
 		needType := p.guessKinds(f)
 		if len(needType) > 0 {
-			d := p.loadDWARF(f, &ft, needType)
-			p.recordTypes(f, d, &conv)
+			debugs = append(debugs, p.loadDWARF(f, &ft, needType))
 		}
 
 		// In godefs mode we're OK with the typedefs, which
@@ -223,6 +220,12 @@ func (p *Package) Translate(f *File) {
 		if *godefs {
 			break
 		}
+	}
+
+	var conv typeConv
+	conv.Init(p.PtrSize, p.IntSize)
+	for _, d := range debugs {
+		p.recordTypes(f, d, &conv)
 	}
 	p.prepareNames(f)
 	if p.rewriteCalls(f) {
