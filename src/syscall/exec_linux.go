@@ -241,7 +241,6 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 	// by an otherwise-correct change in the compiler.
 	var (
 		err2                      Errno
-		nextfd                    int
 		i                         int
 		caps                      caps
 		fd1, flags                uintptr
@@ -280,18 +279,11 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 	// Record parent PID so child can test if it has died.
 	ppid, _ := rawSyscallNoError(SYS_GETPID, 0, 0, 0)
 
-	// Guard against side effects of shuffling fds below.
-	// Make sure that nextfd is beyond any currently open files so
-	// that we can't run the risk of overwriting any of them.
+	// Used to guard against side effects of shuffling fds below.
 	fd := make([]int, len(attr.Files))
-	nextfd = len(attr.Files)
 	for i, ufd := range attr.Files {
-		if nextfd < int(ufd) {
-			nextfd = int(ufd)
-		}
 		fd[i] = int(ufd)
 	}
-	nextfd++
 
 	// Allocate another pipe for parent to child communication for
 	// synchronizing writing of User ID/Group ID mappings.
@@ -563,28 +555,26 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 		}
 	}
 
-	// Pass 1: look for fd[i] < i and move those up above len(fd)
-	// so that pass 2 won't stomp on an fd it needs later.
-	if pipe < nextfd {
-		_, _, err1 = RawSyscall(SYS_DUP3, uintptr(pipe), uintptr(nextfd), O_CLOEXEC)
-		if err1 != 0 {
-			goto childerror
-		}
-		pipe = nextfd
-		nextfd++
-	}
+	// Pass 1: duplicate any fd[i] < i as O_CLOEXEC to make sure we don't
+	// clobber them when we shuffle the fds to match the attr.Files layout.
 	for i = 0; i < len(fd); i++ {
 		if fd[i] >= 0 && fd[i] < i {
-			if nextfd == pipe { // don't stomp on pipe
-				nextfd++
-			}
-			_, _, err1 = RawSyscall(SYS_DUP3, uintptr(fd[i]), uintptr(nextfd), O_CLOEXEC)
+			fd1, _, err1 = RawSyscall(fcntl64Syscall, uintptr(fd[i]), F_DUPFD_CLOEXEC, 0)
 			if err1 != 0 {
 				goto childerror
 			}
-			fd[i] = nextfd
-			nextfd++
+			fd[i] = int(fd1)
 		}
+	}
+
+	// Guard pipe against being clobbered in the second pass by making sure
+	// it's greater than any fd we are about to dup3() on top of.
+	if pipe < len(fd) {
+		fd1, _, err1 = RawSyscall(fcntl64Syscall, uintptr(pipe), F_DUPFD_CLOEXEC, 0)
+		if err1 != 0 {
+			goto childerror
+		}
+		pipe = int(fd1)
 	}
 
 	// Pass 2: dup fd[i] down onto i.
