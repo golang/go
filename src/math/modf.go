@@ -11,8 +11,8 @@ package math
 //
 //	Modf(±Inf) = ±Inf, NaN
 //	Modf(NaN) = NaN, NaN
-func Modf(f float64) (int float64, frac float64) {
-	int = Trunc(f)
-	frac = Copysign(f-int, f)
+func Modf(f float64) (integer float64, fractional float64) {
+	integer = Trunc(f)
+	fractional = Copysign(f-integer, f)
 	return
 }
