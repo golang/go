@@ -213,7 +213,8 @@ func (p *Package) Translate(f *File) {
 		}
 		needType := p.guessKinds(f)
 		if len(needType) > 0 {
-			p.loadDWARF(f, &ft, &conv, needType)
+			d := p.loadDWARF(f, &ft, needType)
+			p.recordTypes(f, d, &conv)
 		}
 
 		// In godefs mode we're OK with the typedefs, which
@@ -522,7 +523,7 @@ func (p *Package) guessKinds(f *File) []*Name {
 // loadDWARF parses the DWARF debug information generated
 // by gcc to learn the details of the constants, variables, and types
 // being referred to as C.xxx.
-func (p *Package) loadDWARF(f *File, ft *fileTypedefs, conv *typeConv, names []*Name) {
+func (p *Package) loadDWARF(f *File, ft *fileTypedefs, names []*Name) *debug {
 	// Extract the types from the DWARF section of an object
 	// from a well-formed C program. Gcc only generates DWARF info
 	// for symbols in the object file, so it is not enough to print the
@@ -642,6 +643,21 @@ func (p *Package) loadDWARF(f *File, ft *fileTypedefs, conv *typeConv, names []*
 			r.SkipChildren()
 		}
 	}
+
+	return &debug{names, types, ints, floats, strs}
+}
+
+// debug is the data extracted by running an iteration of loadDWARF on a file.
+type debug struct {
+	names  []*Name
+	types  []dwarf.Type
+	ints   []int64
+	floats []float64
+	strs   []string
+}
+
+func (p *Package) recordTypes(f *File, data *debug, conv *typeConv) {
+	names, types, ints, floats, strs := data.names, data.types, data.ints, data.floats, data.strs
 
 	// Record types and typedef information.
 	for i, n := range names {
