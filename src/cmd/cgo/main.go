@@ -49,8 +49,6 @@ type Package struct {
 	GoFiles     []string        // list of Go files
 	GccFiles    []string        // list of gcc output files
 	Preamble    string          // collected preamble for _cgo_export.h
-	typedefs    map[string]bool // type names that appear in the types of the objects we're interested in
-	typedefList []typedefInfo
 	noCallbacks map[string]bool // C function names with #cgo nocallback directive
 	noEscapes   map[string]bool // C function names with #cgo noescape directive
 }
