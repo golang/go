@@ -666,6 +666,10 @@ const (
 	ABSTRPICKW
 	ABSTRPICKV
 
+	// 2.2.5.3
+	AMOVWP
+	AMOVVP
+
 	// 2.2.5.4. Prefetch Instructions
 	APRELD
 	APRELDX
