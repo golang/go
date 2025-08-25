@@ -1319,9 +1319,7 @@ func (p *goroutineProfileStateHolder) CompareAndSwap(old, new goroutineProfileSt
 func goroutineLeakProfileWithLabelsConcurrent(p []profilerecord.StackRecord, labels []unsafe.Pointer) (n int, ok bool) {
 	if len(p) == 0 {
 		// An empty slice is obviously too small. Return a rough
-		// allocation estimate without bothering to STW. As long as
-		// this is close, then we'll only need to STW once (on the next
-		// call).
+		// allocation estimate.
 		return int(gleakcount()), false
 	}
 
@@ -1329,12 +1327,12 @@ func goroutineLeakProfileWithLabelsConcurrent(p []profilerecord.StackRecord, lab
 	// because ultimately we still use goroutine profiles.
 	semacquire(&goroutineProfile.sema)
 
-	// Unlike in goroutineProfileWithLabelsConcurrent, we don't save the current
-	// goroutine stack, because it is obviously not a leaked goroutine.
+	// Unlike in goroutineProfileWithLabelsConcurrent, we don't need to
+	// save the current goroutine stack, because it is obviously not leaked.
 
 	pcbuf := makeProfStack() // see saveg() for explanation
-	// Using gleakcount while the world is stopped should give us a consistent view
-	// of the number of leaked goroutines.
+
+	// Prepare a profile large enough to store all leaked goroutines.
 	n = int(gleakcount())
 
 	if n > len(p) {
@@ -1345,49 +1343,15 @@ func goroutineLeakProfileWithLabelsConcurrent(p []profilerecord.StackRecord, lab
 		return n, false
 	}
 
-	// Prepare for all other goroutines to enter the profile. Every goroutine struct in the allgs list
-	// has its goroutineProfiled field cleared. Any goroutine created from this point on (while
-	// goroutineProfile.active is set) will start with its goroutineProfiled
-	// field set to goroutineProfileSatisfied.
-	goroutineProfile.active = true
-	goroutineProfile.records = p
-	goroutineProfile.labels = labels
-
-	// Visit each leaked goroutine that existed as of the startTheWorld call above.
+	// Visit each leaked goroutine and try to record its stack.
 	forEachGRace(func(gp1 *g) {
 		if readgstatus(gp1) == _Gleaked {
-			tryRecordGoroutineProfile(gp1, pcbuf, Gosched)
+			doRecordGoroutineProfile(gp1, pcbuf)
 		}
-	})
-
-	endOffset := goroutineProfile.offset.Swap(0)
-	goroutineProfile.active = false
-	goroutineProfile.records = nil
-	goroutineProfile.labels = nil
-
-	// Restore the invariant that every goroutine struct in allgs has its
-	// goroutineProfiled field cleared.
-	forEachGRace(func(gp1 *g) {
-		gp1.goroutineProfiled.Store(goroutineProfileAbsent)
 	})
 
 	if raceenabled {
 		raceacquire(unsafe.Pointer(&labelSync))
-	}
-
-	if n != int(endOffset) {
-		// It's a big surprise that the number of goroutines changed while we
-		// were collecting the profile. But probably better to return a
-		// truncated profile than to crash the whole process.
-		//
-		// For instance, needm moves a goroutine out of the _Gdead state and so
-		// might be able to change the goroutine count without interacting with
-		// the scheduler. For code like that, the race windows are small and the
-		// combination of features is uncommon, so it's hard to be (and remain)
-		// sure we've caught them all.
-		//
-		// FIXME(vsaioc): I kept this in because goroutineProfileWithLabelsConcurrent
-		// also uses it, but... is this dead code?
 	}
 
 	semrelease(&goroutineProfile.sema)
