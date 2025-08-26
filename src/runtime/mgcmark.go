@@ -151,7 +151,7 @@ func gcPrepareMarkRoots() {
 	// ignore them because they begin life without any roots, so
 	// there's nothing to scan, and any roots they create during
 	// the concurrent phase will be caught by the write barrier.
-	if work.goroutineLeakFinder.enabled {
+	if work.goleakProfiler.enabled {
 		// goroutine leak finder GC --- only prepare runnable
 		// goroutines for marking.
 		work.stackRoots, work.nMaybeRunnableStackRoots = allGsSnapshotSortedForGC()
@@ -1199,7 +1199,7 @@ func gcDrainMarkWorkerFractional(gcw *gcWork) {
 // is valid, and false if there are no more root jobs to be claimed,
 // i.e. work.markrootNext >= work.markrootJobs.
 func gcNextMarkRoot() (uint32, bool) {
-	if !work.goroutineLeakFinder.enabled {
+	if !work.goleakProfiler.enabled {
 		// If not running goroutine leak detection, behave as the GC previously did.
 		job := work.markrootNext.Add(1) - 1
 		return job, job < work.markrootJobs.Load()

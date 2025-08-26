@@ -154,6 +154,12 @@ const (
 	sweepMinHeapDistance = 1024 * 1024
 )
 
+// gleakcount is the number of leaked goroutines
+// during the last goroutine leak detection round.
+//
+// Write-protected by STW in findGoleaks.
+var gleakcount int32
+
 // heapObjectsCanMove always returns false in the current garbage collector.
 // It exists for go4.org/unsafe/assume-no-moving-gc, which is an
 // unfortunate idea that had an even more unfortunate implementation.
@@ -381,7 +387,7 @@ type workType struct {
 
 	// The following fields monitor the GC phase of the current cycle during
 	// goroutine leak detection.
-	goroutineLeakFinder struct {
+	goleakProfiler struct {
 		// Once set, it indicates that the GC will perform goroutine leak detection during
 		// the next GC cycle; it is set by goroutineLeakGC and unset during gcStart.
 		pending atomic.Bool
@@ -582,7 +588,7 @@ func runtime_goroutineLeakGC() {
 func goroutineLeakGC() {
 	// Set the pending flag to true, instructing the next GC cycle to
 	// perform goroutine leak detection.
-	work.goroutineLeakFinder.pending.Store(true)
+	work.goleakProfiler.pending.Store(true)
 
 	// Spin GC cycles until the pending flag is unset.
 	// This ensures that goroutineLeakGC waits for a GC cycle that
@@ -620,7 +626,7 @@ func goroutineLeakGC() {
 	// ...
 	// The first to pick up the pending flag will start a
 	// leak detection cycle.
-	for work.goroutineLeakFinder.pending.Load() {
+	for work.goleakProfiler.pending.Load() {
 		GC()
 	}
 }
@@ -848,9 +854,9 @@ func gcStart(trigger gcTrigger) {
 	}
 
 	// If goroutine leak detection is pending, enable it for this GC cycle.
-	if work.goroutineLeakFinder.pending.Load() {
-		work.goroutineLeakFinder.enabled = true
-		work.goroutineLeakFinder.pending.Store(false)
+	if work.goleakProfiler.pending.Load() {
+		work.goleakProfiler.enabled = true
+		work.goleakProfiler.pending.Store(false)
 		// Set all sync objects of blocked goroutines as untraceable
 		// by the GC. Only set as traceable at the end of the GC cycle.
 		setSyncObjectsUntraceable()
@@ -1067,7 +1073,7 @@ top:
 
 	// Check whether we need to resume the marking phase because of issue #27993
 	// or because of goroutine leak detection.
-	if restart || (work.goroutineLeakFinder.enabled && !work.goroutineLeakFinder.done) {
+	if restart || (work.goleakProfiler.enabled && !work.goleakProfiler.done) {
 		if restart {
 			// Restart because of issue #27993.
 			gcDebugMarkDone.restartedDueTo27993 = true
@@ -1076,7 +1082,7 @@ top:
 			//
 			// If the returned value is true, then detection was performed during this cycle.
 			// Otherwise, more runnable goroutines were discovered, requiring additional mark work.
-			work.goroutineLeakFinder.done = findGoleaks()
+			work.goleakProfiler.done = findGoleaks()
 		}
 
 		getg().m.preemptoff = ""
@@ -1266,6 +1272,8 @@ func findGoleaks() bool {
 	}
 
 	// For the remaining goroutines, mark them as unreachable and leaked.
+	gleakcount = int32(work.nStackRoots - work.nMaybeRunnableStackRoots)
+
 	for i := work.nMaybeRunnableStackRoots; i < work.nStackRoots; i++ {
 		gp := work.stackRoots[i]
 		casgstatus(gp, _Gwaiting, _Gleaked)
@@ -1428,7 +1436,7 @@ func gcMarkTermination(stw worldStop) {
 		throw("non-concurrent sweep failed to drain all sweep queues")
 	}
 
-	if work.goroutineLeakFinder.enabled {
+	if work.goleakProfiler.enabled {
 		// Restore the elem and c fields of all sudogs to their original values.
 		gcRestoreSyncObjects()
 	}
@@ -1436,9 +1444,9 @@ func gcMarkTermination(stw worldStop) {
 	var goroutineLeakDetectionDone bool
 	systemstack(func() {
 		// Pull the GC out of goroutine leak detection mode.
-		work.goroutineLeakFinder.enabled = false
-		goroutineLeakDetectionDone = work.goroutineLeakFinder.done
-		work.goroutineLeakFinder.done = false
+		work.goleakProfiler.enabled = false
+		goroutineLeakDetectionDone = work.goleakProfiler.done
+		work.goleakProfiler.done = false
 
 		// The memstats updated above must be updated with the world
 		// stopped to ensure consistency of some values, such as
