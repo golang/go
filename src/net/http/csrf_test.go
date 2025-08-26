@@ -113,6 +113,11 @@ func TestCrossOriginProtectionPatternBypass(t *testing.T) {
 	protection := http.NewCrossOriginProtection()
 	protection.AddInsecureBypassPattern("/bypass/")
 	protection.AddInsecureBypassPattern("/only/{foo}")
+	protection.AddInsecureBypassPattern("/no-trailing")
+	protection.AddInsecureBypassPattern("/yes-trailing/")
+	protection.AddInsecureBypassPattern("PUT /put-only/")
+	protection.AddInsecureBypassPattern("GET /get-only/")
+	protection.AddInsecureBypassPattern("POST /post-only/")
 	handler := protection.Handler(okHandler)
 
 	tests := []struct {
@@ -126,13 +131,23 @@ func TestCrossOriginProtectionPatternBypass(t *testing.T) {
 		{"non-bypass path without sec-fetch-site", "/api/", "", http.StatusForbidden},
 		{"non-bypass path with cross-site", "/api/", "cross-site", http.StatusForbidden},
 
-		{"redirect to bypass path without ..", "/foo/../bypass/bar", "", http.StatusOK},
-		{"redirect to bypass path with trailing slash", "/bypass", "", http.StatusOK},
+		{"redirect to bypass path without ..", "/foo/../bypass/bar", "", http.StatusForbidden},
+		{"redirect to bypass path with trailing slash", "/bypass", "", http.StatusForbidden},
 		{"redirect to non-bypass path with ..", "/foo/../api/bar", "", http.StatusForbidden},
 		{"redirect to non-bypass path with trailing slash", "/api", "", http.StatusForbidden},
 
 		{"wildcard bypass", "/only/123", "", http.StatusOK},
 		{"non-wildcard", "/only/123/foo", "", http.StatusForbidden},
+
+		// https://go.dev/issue/75054
+		{"no trailing slash exact match", "/no-trailing", "", http.StatusOK},
+		{"no trailing slash with slash", "/no-trailing/", "", http.StatusForbidden},
+		{"yes trailing slash exact match", "/yes-trailing/", "", http.StatusOK},
+		{"yes trailing slash without slash", "/yes-trailing", "", http.StatusForbidden},
+
+		{"method-specific hit", "/post-only/", "", http.StatusOK},
+		{"method-specific miss (PUT)", "/put-only/", "", http.StatusForbidden},
+		{"method-specific miss (GET)", "/get-only/", "", http.StatusForbidden},
 	}
 
 	for _, tc := range tests {
