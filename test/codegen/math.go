@@ -53,6 +53,7 @@ func sqrt(x float64) float64 {
 	// 386/sse2:"SQRTSD" 386/softfloat:-"SQRTD"
 	// arm64:"FSQRTD"
 	// arm/7:"SQRTD"
+	// loong64:"SQRTD"
 	// mips/hardfloat:"SQRTD" mips/softfloat:-"SQRTD"
 	// mips64/hardfloat:"SQRTD" mips64/softfloat:-"SQRTD"
 	// wasm:"F64Sqrt"
@@ -66,6 +67,7 @@ func sqrt32(x float32) float32 {
 	// 386/sse2:"SQRTSS" 386/softfloat:-"SQRTS"
 	// arm64:"FSQRTS"
 	// arm/7:"SQRTF"
+	// loong64:"SQRTF"
 	// mips/hardfloat:"SQRTF" mips/softfloat:-"SQRTF"
 	// mips64/hardfloat:"SQRTF" mips64/softfloat:-"SQRTF"
 	// wasm:"F32Sqrt"
@@ -78,6 +80,7 @@ func sqrt32(x float32) float32 {
 func abs(x, y float64) {
 	// amd64:"BTRQ\t[$]63"
 	// arm64:"FABSD\t"
+	// loong64:"ABSD\t"
 	// s390x:"LPDFR\t",-"MOVD\t"     (no integer load/store)
 	// ppc64x:"FABS\t"
 	// riscv64:"FABSD\t"
@@ -102,6 +105,7 @@ func abs32(x float32) float32 {
 // Check that it's using integer registers
 func copysign(a, b, c float64) {
 	// amd64:"BTRQ\t[$]63","ANDQ","ORQ"
+	// loong64:"FCOPYSGD"
 	// s390x:"CPSDR",-"MOVD"         (no integer load/store)
 	// ppc64x:"FCPSGN"
 	// riscv64:"FSGNJD"
@@ -109,6 +113,7 @@ func copysign(a, b, c float64) {
 	sink64[0] = math.Copysign(a, b)
 
 	// amd64:"BTSQ\t[$]63"
+	// loong64:"FCOPYSGD"
 	// s390x:"LNDFR\t",-"MOVD\t"     (no integer load/store)
 	// ppc64x:"FCPSGN"
 	// riscv64:"FSGNJD"
@@ -121,6 +126,7 @@ func copysign(a, b, c float64) {
 	sink64[2] = math.Float64frombits(math.Float64bits(a) | 1<<63)
 
 	// amd64:"ANDQ","ORQ"
+	// loong64:"FCOPYSGD"
 	// s390x:"CPSDR\t",-"MOVD\t"     (no integer load/store)
 	// ppc64x:"FCPSGN"
 	// riscv64:"FSGNJD"

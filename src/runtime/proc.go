@@ -252,8 +252,12 @@ func main() {
 	// by package plugin). Run through the modules in dependency
 	// order (the order they are initialized by the dynamic
 	// loader, i.e. they are added to the moduledata linked list).
-	for m := &firstmoduledata; m != nil; m = m.next {
+	last := lastmoduledatap // grab before loop starts. Any added modules after this point will do their own doInit calls.
+	for m := &firstmoduledata; true; m = m.next {
 		doInit(m.inittasks)
+		if m == last {
+			break
+		}
 	}
 
 	// Disable init tracing after main init done to avoid overhead

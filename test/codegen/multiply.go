@@ -12,7 +12,7 @@ package codegen
 func m0(x int64) int64 {
 	// amd64: "XORL"
 	// arm64: "MOVD\tZR"
-	// loong64: "MOVV\t[$]0"
+	// loong64: "MOVV\tR0"
 	return x * 0
 }
 func m2(x int64) int64 {

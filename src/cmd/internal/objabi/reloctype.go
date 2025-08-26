@@ -305,6 +305,14 @@ const (
 	// R_RISCV_BRANCH resolves a 12-bit PC-relative branch offset.
 	R_RISCV_BRANCH
 
+	// R_RISCV_ADD32 resolves a 32-bit label addition, being the stored value,
+	// plus the symbol address plus the addend (V + S + A).
+	R_RISCV_ADD32
+
+	// R_RISCV_SUB32 resolves a 32-bit label subtraction, being the stored value,
+	// minus the symbol address minus the addend (V - S - A).
+	R_RISCV_SUB32
+
 	// R_RISCV_RVC_BRANCH resolves an 8-bit PC-relative offset for a CB-type
 	// instruction.
 	R_RISCV_RVC_BRANCH
