@@ -305,7 +305,7 @@ func cansemacquire(addr *uint32) bool {
 func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool, syncSema bool) {
 	s.g = getg()
 	s.elem.set(unsafe.Pointer(addr))
-	if goexperiment.GoroutineLeakFinderGC && syncSema {
+	if goexperiment.GoleakProfiler && syncSema {
 		s.g.waiting = s
 		// When dealing with sync semaphores, hide the elem field from the GC
 		// to prevent it from prematurely marking the semaphore when running
@@ -480,7 +480,7 @@ Found:
 		}
 		tailtime = s.acquiretime
 	}
-	if goexperiment.GoroutineLeakFinderGC {
+	if goexperiment.GoleakProfiler {
 		// Goroutine is no longer blocked. Clear the waiting pointer.
 		s.g.waiting = nil
 	}
@@ -604,7 +604,7 @@ func notifyListWait(l *notifyList, t uint32) {
 	// Enqueue itself.
 	s := acquireSudog()
 	s.g = getg()
-	if goexperiment.GoroutineLeakFinderGC {
+	if goexperiment.GoleakProfiler {
 		// Storing this pointer (invisible to GC) so that we can trace
 		// the condvar address from the blocked goroutine when
 		// checking for goroutine leaks.
@@ -629,7 +629,7 @@ func notifyListWait(l *notifyList, t uint32) {
 	if t0 != 0 {
 		blockevent(s.releasetime-t0, 2)
 	}
-	if goexperiment.GoroutineLeakFinderGC {
+	if goexperiment.GoleakProfiler {
 		// Goroutine is no longer blocked. Clear up its waiting pointer,
 		// and clean up the sudog before releasing it.
 		s.g.waiting = nil
