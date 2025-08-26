@@ -470,11 +470,10 @@ func ntz32(x int32) int { return bits.TrailingZeros32(uint32(x)) }
 func ntz16(x int16) int { return bits.TrailingZeros16(uint16(x)) }
 func ntz8(x int8) int   { return bits.TrailingZeros8(uint8(x)) }
 
-func oneBit(x int64) bool   { return x&(x-1) == 0 && x != 0 }
-func oneBit8(x int8) bool   { return x&(x-1) == 0 && x != 0 }
-func oneBit16(x int16) bool { return x&(x-1) == 0 && x != 0 }
-func oneBit32(x int32) bool { return x&(x-1) == 0 && x != 0 }
-func oneBit64(x int64) bool { return x&(x-1) == 0 && x != 0 }
+// oneBit reports whether x contains exactly one set bit.
+func oneBit[T int8 | int16 | int32 | int64](x T) bool {
+	return x&(x-1) == 0 && x != 0
+}
 
 // nto returns the number of trailing ones.
 func nto(x int64) int64 {

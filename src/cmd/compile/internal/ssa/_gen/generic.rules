@@ -1896,22 +1896,10 @@
 (Neq(8|16|32|64) s:(Sub(8|16|32|64) x y) (Const(8|16|32|64) [0])) && s.Uses == 1 => (Neq(8|16|32|64) x y)
 
 // Optimize bitsets
-(Eq8 (And8 <t> x (Const8 <t> [y])) (Const8 <t> [y])) && oneBit8(y)
-  => (Neq8 (And8 <t> x (Const8 <t> [y])) (Const8 <t> [0]))
-(Eq16 (And16 <t> x (Const16 <t> [y])) (Const16 <t> [y])) && oneBit16(y)
-  => (Neq16 (And16 <t> x (Const16 <t> [y])) (Const16 <t> [0]))
-(Eq32 (And32 <t> x (Const32 <t> [y])) (Const32 <t> [y])) && oneBit32(y)
-  => (Neq32 (And32 <t> x (Const32 <t> [y])) (Const32 <t> [0]))
-(Eq64 (And64 <t> x (Const64 <t> [y])) (Const64 <t> [y])) && oneBit64(y)
-  => (Neq64 (And64 <t> x (Const64 <t> [y])) (Const64 <t> [0]))
-(Neq8 (And8 <t> x (Const8 <t> [y])) (Const8 <t> [y])) && oneBit8(y)
-  => (Eq8 (And8 <t> x (Const8 <t> [y])) (Const8 <t> [0]))
-(Neq16 (And16 <t> x (Const16 <t> [y])) (Const16 <t> [y])) && oneBit16(y)
-  => (Eq16 (And16 <t> x (Const16 <t> [y])) (Const16 <t> [0]))
-(Neq32 (And32 <t> x (Const32 <t> [y])) (Const32 <t> [y])) && oneBit32(y)
-  => (Eq32 (And32 <t> x (Const32 <t> [y])) (Const32 <t> [0]))
-(Neq64 (And64 <t> x (Const64 <t> [y])) (Const64 <t> [y])) && oneBit64(y)
-  => (Eq64 (And64 <t> x (Const64 <t> [y])) (Const64 <t> [0]))
+(Eq(8|16|32|64) (And(8|16|32|64) <t> x (Const(8|16|32|64) <t> [y])) (Const(8|16|32|64) <t> [y])) && oneBit(y)
+  => (Neq(8|16|32|64) (And(8|16|32|64) <t> x (Const(8|16|32|64) <t> [y])) (Const(8|16|32|64) <t> [0]))
+(Neq(8|16|32|64) (And(8|16|32|64) <t> x (Const(8|16|32|64) <t> [y])) (Const(8|16|32|64) <t> [y])) && oneBit(y)
+  => (Eq(8|16|32|64) (And(8|16|32|64) <t> x (Const(8|16|32|64) <t> [y])) (Const(8|16|32|64) <t> [0]))
 
 // Reassociate expressions involving
 // constants such that constants come first,
