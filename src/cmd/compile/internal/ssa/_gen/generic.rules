@@ -337,6 +337,12 @@
 (OrB ((Less|Leq)16U (Const16 [c]) x) (Leq16U x (Const16 [d]))) && uint16(c) >= uint16(d+1) && uint16(d+1) > uint16(d) => ((Less|Leq)16U (Const16 <x.Type> [c-d-1]) (Sub16 <x.Type> x (Const16 <x.Type> [d+1])))
 (OrB ((Less|Leq)8U  (Const8  [c]) x) (Leq8U  x (Const8  [d]))) && uint8(c)  >= uint8(d+1)  && uint8(d+1)  > uint8(d)  => ((Less|Leq)8U  (Const8  <x.Type> [c-d-1]) (Sub8  <x.Type> x (Const8  <x.Type> [d+1])))
 
+// single bit difference: ( x != c && x != d ) -> ( x|(c^d) != c )
+(AndB (Neq(64|32|16|8) x cv:(Const(64|32|16|8) [c])) (Neq(64|32|16|8) x (Const(64|32|16|8) [d]))) && c|d == c && oneBit(c^d) => (Neq(64|32|16|8) (Or(64|32|16|8) <x.Type> x (Const(64|32|16|8) <x.Type> [c^d])) cv)
+
+// single bit difference: ( x == c || x == d ) -> ( x|(c^d) == c )
+(OrB (Eq(64|32|16|8) x cv:(Const(64|32|16|8) [c])) (Eq(64|32|16|8) x (Const(64|32|16|8) [d]))) && c|d == c && oneBit(c^d) => (Eq(64|32|16|8) (Or(64|32|16|8) <x.Type> x (Const(64|32|16|8) <x.Type> [c^d])) cv)
+
 // NaN check: ( x != x || x (>|>=|<|<=) c ) -> ( !(c (>=|>|<=|<) x) )
 (OrB (Neq64F x x) ((Less|Leq)64F x y:(Const64F [c]))) => (Not ((Leq|Less)64F y x))
 (OrB (Neq64F x x) ((Less|Leq)64F y:(Const64F [c]) x)) => (Not ((Leq|Less)64F x y))
