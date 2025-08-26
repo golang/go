@@ -187,20 +187,18 @@ func buildTestProg(t *testing.T, binary string, flags ...string) (string, error)
 		cmd.Dir = "testdata/" + binary
 		cmd = testenv.CleanCmdEnv(cmd)
 
-		// Add the goroutineleakfindergc GOEXPERIMENT unconditionally since some tests depend on it.
-		// TODO(61405): Remove this once it's enabled by default.
-		//
-		// FIXME: Remove this once profiling is enabled and goroutineleakfindergc experiment is phased out.
+		// Add the goleakprofiler GOEXPERIMENT unconditionally since some tests depend on it.
+		// TODO(vsaioc): Remove this once it's enabled by default.
 		edited := false
 		for i := range cmd.Env {
 			e := cmd.Env[i]
 			if _, vars, ok := strings.Cut(e, "GOEXPERIMENT="); ok {
-				cmd.Env[i] = "GOEXPERIMENT=" + vars + ",goroutineleakfindergc"
+				cmd.Env[i] = "GOEXPERIMENT=" + vars + ",goleakprofiler"
 				edited = true
 			}
 		}
 		if !edited {
-			cmd.Env = append(cmd.Env, "GOEXPERIMENT=goroutineleakfindergc")
+			cmd.Env = append(cmd.Env, "GOEXPERIMENT=goleakprofiler")
 		}
 
 		out, err := cmd.CombinedOutput()

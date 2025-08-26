@@ -1105,29 +1105,33 @@ func TestGoroutineLeakGC(t *testing.T) {
 	// a set of expected leaks identified by regular expressions, and the number of times
 	// the test should be repeated.
 	//
-	// Repetitions are used to amortize flakiness in some tests.
+	// Repetitions are used to reduce flakiness in some tests.
 	type testCase struct {
 		name          string
 		simple        bool
+		repetitions   int
 		expectedLeaks map[*regexp.Regexp]bool
 
 		// flakyLeaks are goroutine leaks that are too flaky to be reliably detected.
-		// Still, they might pop up every once in a while.
-		// If these occur, do not fail the test due to unexpected leaks.
+		// Still, they might pop up every once in a while. The test will pass regardless
+		// if they occur or nor, as they are not unexpected.
+		//
+		// Note that all flaky leaks are true positives, i.e. real goroutine leaks,
+		// and it is only their detection that is unreliable due to scheduling
+		// non-determinism.
 		flakyLeaks map[*regexp.Regexp]struct{}
 	}
 
 	// makeAnyTest is a short-hand for creating test cases.
 	// Each of the leaks in the list is identified by a regular expression.
 	// If a leak is flaky, it is added to the flakyLeaks map.
-	makeAnyTest := func(
-		name string,
-		flaky bool,
-		leaks ...string) testCase {
+	makeAnyTest := func(name string, flaky bool, repetitions int, leaks ...string) testCase {
 		tc := testCase{
 			name:          name,
 			expectedLeaks: make(map[*regexp.Regexp]bool, len(leaks)),
 			flakyLeaks:    make(map[*regexp.Regexp]struct{}, len(leaks)),
+			// Make sure the test is repeated at least once.
+			repetitions: repetitions | 1,
 		}
 
 		for _, leak := range leaks {
@@ -1143,14 +1147,17 @@ func TestGoroutineLeakGC(t *testing.T) {
 
 	// makeTest is a short-hand for creating non-flaky test cases.
 	makeTest := func(name string, leaks ...string) testCase {
-		tcase := makeAnyTest(name, false, leaks...)
+		tcase := makeAnyTest(name, false, 1, leaks...)
 		tcase.simple = true
 		return tcase
 	}
 
 	// makeFlakyTest is a short-hand for creating flaky test cases.
 	makeFlakyTest := func(name string, leaks ...string) testCase {
-		return makeAnyTest(name, true, leaks...)
+		if testing.Short() {
+			return makeAnyTest(name, true, 2, leaks...)
+		}
+		return makeAnyTest(name, true, 20, leaks...)
 	}
 
 	goroutineHeader := regexp.MustCompile(`goroutine \d+ \[`)
@@ -1350,7 +1357,7 @@ func TestGoroutineLeakGC(t *testing.T) {
 			`Cockroach10214\.func2\.1\(.* \[sync\.Mutex\.Lock\]`,
 			`Cockroach10214\.func2\.2\(.* \[sync\.Mutex\.Lock\]`,
 		),
-		makeTest("Cockroach10790",
+		makeFlakyTest("Cockroach10790",
 			`\(\*Replica_cockroach10790\)\.beginCmds\.func1\(.* \[chan receive\]`,
 		),
 		makeTest("Cockroach13197",
@@ -1583,17 +1590,32 @@ func TestGoroutineLeakGC(t *testing.T) {
 				cmdEnv = append(cmdEnv, "GOMAXPROCS=1")
 			}
 
-			// Run program and get output trace.
-			output := runBuiltTestProg(t, exe, tcase.name, cmdEnv...)
-			if len(output) == 0 {
-				t.Fatalf("Test produced no output. Is the goroutine leak profile collected?")
+			var wg sync.WaitGroup
+			var mu sync.Mutex
+			var output string
+
+			wg.Add(tcase.repetitions)
+			for i := 0; i < tcase.repetitions; i++ {
+				go func() {
+					defer wg.Done()
+					// Run program for one repetition and get runOutput trace.
+					runOutput := runBuiltTestProg(t, exe, tcase.name, cmdEnv...)
+					if len(runOutput) == 0 {
+						t.Errorf("Test %s produced no output. Is the goroutine leak profile collected?", tcase.name)
+					}
+
+					// Zero tolerance policy for fatal exceptions or panics.
+					if failStates.MatchString(runOutput) {
+						t.Errorf("unexpected fatal exception or panic!\noutput:\n%s\n\n", runOutput)
+					}
+
+					mu.Lock()
+					output += runOutput + "\n\n"
+					mu.Unlock()
+				}()
 			}
 
-			// Zero tolerance policy for fatal exceptions or panics.
-			if failStates.MatchString(output) {
-				t.Errorf("unexpected fatal exception or panic!\noutput:\n%s\n\n", output)
-				return
-			}
+			wg.Wait()
 
 			// Extract all the goroutine leaks
 			foundLeaks := extractLeaks(output)
