@@ -1240,6 +1240,173 @@ func (ft *factsTable) cleanup(f *Func) {
 	f.Cache.freeBoolSlice(ft.recurseCheck)
 }
 
+// addSlicesOfSameLen finds the slices that are in the same block and whose Op
+// is OpPhi and always have the same length, then add the equality relationship
+// between them to ft. If two slices start out with the same length and decrease
+// in length by the same amount on each round of the loop (or in the if block),
+// then we think their lengths are always equal.
+//
+// See https://go.dev/issues/75144
+//
+// In fact, we are just propagating the equality
+//
+//	if len(a) == len(b) { // from here
+//		for len(a) > 4 {
+//			a = a[4:]
+//			b = b[4:]
+//		}
+//		if len(a) == len(b) { // to here
+//			return true
+//		}
+//	}
+//
+// or change the for to if:
+//
+//	if len(a) == len(b) { // from here
+//		if len(a) > 4 {
+//			a = a[4:]
+//			b = b[4:]
+//		}
+//		if len(a) == len(b) { // to here
+//			return true
+//		}
+//	}
+func addSlicesOfSameLen(ft *factsTable, b *Block) {
+	// Let w points to the first value we're interested in, and then we
+	// only process those values ​​that appear to be the same length as w,
+	// looping only once. This should be enough in most cases. And u is
+	// similar to w, see comment for predIndex.
+	var u, w *Value
+	var i, j, k sliceInfo
+	isInterested := func(v *Value) bool {
+		j = getSliceInfo(v)
+		return j.sliceWhere != sliceUnknown
+	}
+	for _, v := range b.Values {
+		if v.Uses == 0 {
+			continue
+		}
+		if v.Op == OpPhi && len(v.Args) == 2 && ft.lens[v.ID] != nil && isInterested(v) {
+			if j.predIndex == 1 && ft.lens[v.Args[0].ID] != nil {
+				// found v = (Phi x (SliceMake _ (Add64 (Const64 [n]) (SliceLen x)) _))) or
+				// v = (Phi x (SliceMake _ (Add64 (Const64 [n]) (SliceLen v)) _)))
+				if w == nil {
+					k = j
+					w = v
+					continue
+				}
+				// propagate the equality
+				if j == k && ft.orderS.Equal(ft.lens[v.Args[0].ID], ft.lens[w.Args[0].ID]) {
+					ft.update(b, ft.lens[v.ID], ft.lens[w.ID], signed, eq)
+				}
+			} else if j.predIndex == 0 && ft.lens[v.Args[1].ID] != nil {
+				// found v = (Phi (SliceMake _ (Add64 (Const64 [n]) (SliceLen x)) _)) x) or
+				// v = (Phi (SliceMake _ (Add64 (Const64 [n]) (SliceLen v)) _)) x)
+				if u == nil {
+					i = j
+					u = v
+					continue
+				}
+				// propagate the equality
+				if j == i && ft.orderS.Equal(ft.lens[v.Args[1].ID], ft.lens[u.Args[1].ID]) {
+					ft.update(b, ft.lens[v.ID], ft.lens[u.ID], signed, eq)
+				}
+			}
+		}
+	}
+}
+
+type sliceWhere int
+
+const (
+	sliceUnknown sliceWhere = iota
+	sliceInFor
+	sliceInIf
+)
+
+// predIndex is used to indicate the branch represented by the predecessor
+// block in which the slicing operation occurs.
+type predIndex int
+
+type sliceInfo struct {
+	lengthDiff int64
+	sliceWhere
+	predIndex
+}
+
+// getSliceInfo returns the negative increment of the slice length in a slice
+// operation by examine the Phi node at the merge block. So, we only interest
+// in the slice operation if it is inside a for block or an if block.
+// Otherwise it returns sliceInfo{0, sliceUnknown, 0}.
+//
+// For the following for block:
+//
+//	for len(a) > 4 {
+//	    a = a[4:]
+//	}
+//
+// vp = (Phi v3 v9)
+// v5 = (SliceLen vp)
+// v7 = (Add64 (Const64 [-4]) v5)
+// v9 = (SliceMake _ v7 _)
+//
+// returns sliceInfo{-4, sliceInFor, 1}
+//
+// For a subsequent merge block after an if block:
+//
+//	if len(a) > 4 {
+//	    a = a[4:]
+//	}
+//	a // here
+//
+// vp = (Phi v3 v9)
+// v5 = (SliceLen v3)
+// v7 = (Add64 (Const64 [-4]) v5)
+// v9 = (SliceMake _ v7 _)
+//
+// returns sliceInfo{-4, sliceInIf, 1}
+//
+// Returns sliceInfo{0, sliceUnknown, 0} if it is not the slice
+// operation we are interested in.
+func getSliceInfo(vp *Value) (inf sliceInfo) {
+	if vp.Op != OpPhi || len(vp.Args) != 2 {
+		return
+	}
+	var i predIndex
+	var l *Value // length for OpSliceMake
+	if vp.Args[0].Op != OpSliceMake && vp.Args[1].Op == OpSliceMake {
+		l = vp.Args[1].Args[1]
+		i = 1
+	} else if vp.Args[0].Op == OpSliceMake && vp.Args[1].Op != OpSliceMake {
+		l = vp.Args[0].Args[1]
+		i = 0
+	} else {
+		return
+	}
+	var op Op
+	switch l.Op {
+	case OpAdd64:
+		op = OpConst64
+	case OpAdd32:
+		op = OpConst32
+	default:
+		return
+	}
+	if l.Args[0].Op == op && l.Args[1].Op == OpSliceLen && l.Args[1].Args[0] == vp {
+		return sliceInfo{l.Args[0].AuxInt, sliceInFor, i}
+	}
+	if l.Args[1].Op == op && l.Args[0].Op == OpSliceLen && l.Args[0].Args[0] == vp {
+		return sliceInfo{l.Args[1].AuxInt, sliceInFor, i}
+	}
+	if l.Args[0].Op == op && l.Args[1].Op == OpSliceLen && l.Args[1].Args[0] == vp.Args[1-i] {
+		return sliceInfo{l.Args[0].AuxInt, sliceInIf, i}
+	}
+	if l.Args[1].Op == op && l.Args[0].Op == OpSliceLen && l.Args[0].Args[0] == vp.Args[1-i] {
+		return sliceInfo{l.Args[1].AuxInt, sliceInIf, i}
+	}
+	return
+}
+
 // prove removes redundant BlockIf branches that can be inferred
 // from previous dominating comparisons.
 //
@@ -1504,6 +1671,9 @@ func prove(f *Func) {
 			if branch != unknown {
 				addBranchRestrictions(ft, parent, branch)
 			}
+
+			// Add slices of the same length start from current block.
+			addSlicesOfSameLen(ft, node.block)
 
 			if ft.unsat {
 				// node.block is unreachable.
