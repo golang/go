@@ -382,15 +382,19 @@ type workType struct {
 	// The following fields monitor the GC phase of the current cycle during
 	// goroutine leak detection.
 	goroutineLeakFinder struct {
-		// The GC has been instructed to perform goroutine leak detection during the next GC cycle;
-		// it is set by DetectGoroutineLeaks() and unset during gcStart().
+		// Once set, it indicates that the GC will perform goroutine leak detection during
+		// the next GC cycle; it is set by goroutineLeakGC and unset during gcStart.
 		pending atomic.Bool
-		// The GC is running in goroutine leak detection mode; it is set during gcStart()
-		// and unset during gcMarkTermination(). Is protected by STW.
+		// Once set, it indicates that the GC has started a goroutine leak detection run;
+		// it is set during gcStart and unset during gcMarkTermination;
+		//
+		// Protected by STW.
 		enabled bool
-		// The GC has performed goroutine leak detection during the current GC cycle; it is set
-		// during gcMarkDone(), right after goroutine leak detection has concluded, and unset during
-		// gcMarkTermination(). Is protected by STW.
+		// Once set, it indicates that the GC has performed goroutine leak detection during
+		// the current GC cycle; it is set during gcMarkDone, right after goroutine leak detection,
+		// and unset during gcMarkTermination;
+		//
+		// Protected by STW.
 		done bool
 	}
 
@@ -583,6 +587,39 @@ func goroutineLeakGC() {
 	// Spin GC cycles until the pending flag is unset.
 	// This ensures that goroutineLeakGC waits for a GC cycle that
 	// actually performs goroutine leak detection.
+	//
+	// This is needed in case multiple concurrent calls to GC
+	// are simultaneously fired by the system, wherein some
+	// of them are dropped.
+	//
+	// In the vast majority of cases, only one loop iteration is needed;
+	// however, multiple concurrent calls to goroutineLeakGC could lead to
+	// the execution of additional GC cycles.
+	//
+	// Examples:
+	//
+	// pending? |   G1                    | G2
+	// ---------|-------------------------|-----------------------
+	//     -    | goroutineLeakGC()       | goroutineLeakGC()
+	//     -    | pending.Store(true)     | .
+	//     X    | for pending.Load()      | .
+	//     X    | GC()                    | .
+	//     X    | > gcStart()             | .
+	//     X    |   pending.Store(false)  | .
+	// ...
+	//     -    | > gcMarkDone()          | .
+	//     -    |   .                     | pending.Store(true)
+	// ...
+	//     X    | > gcMarkTermination()   | .
+	//     X    |   ...
+	//     X    | < GC returns            | .
+	//     X    | for pending.Load        | .
+	//     X    | GC()                    | .
+	//     X    | .                       | for pending.Load()
+	//     X    | .                       | GC()
+	// ...
+	// The first to pick up the pending flag will start a
+	// leak detection cycle.
 	for work.goroutineLeakFinder.pending.Load() {
 		GC()
 	}
@@ -810,10 +847,13 @@ func gcStart(trigger gcTrigger) {
 		schedEnableUser(false)
 	}
 
+	// If goroutine leak detection is pending, enable it for this GC cycle.
 	if work.goroutineLeakFinder.pending.Load() {
 		work.goroutineLeakFinder.enabled = true
 		work.goroutineLeakFinder.pending.Store(false)
-		gcUntrackSyncObjects()
+		// Set all sync objects of blocked goroutines as untraceable
+		// by the GC. Only set as traceable at the end of the GC cycle.
+		setSyncObjectsUntraceable()
 	}
 
 	// Enter concurrent mark phase and enable
@@ -1166,16 +1206,27 @@ func findMaybeRunnableGoroutines() (moreWork bool) {
 	return newRootJobs > oldRootJobs
 }
 
-// getSyncObjectsUnreachable scans allgs and sets the elem and c fields of all sudogs to
+// setSyncObjectsUntraceable scans allgs and sets the elem and c fields of all sudogs to
 // an untrackable pointer. This prevents the GC from marking these objects as live in memory
 // by following these pointers when runnning deadlock detection.
-func gcUntrackSyncObjects() {
+func setSyncObjectsUntraceable() {
 	assertWorldStopped()
 
 	forEachGRace(func(gp *g) {
-		for sg := gp.waiting; sg != nil; sg = sg.waitlink {
-			sg.elem.setUntraceable()
-			sg.c.setUntraceable()
+		// Set as untraceable all synchronization objects of goroutines
+		// blocked at concurrency operations that could leak.
+		switch {
+		case gp.waitreason.isSyncWait():
+			// Synchronization primitives are reachable from the *sudog via
+			// via the elem field.
+			for sg := gp.waiting; sg != nil; sg = sg.waitlink {
+				sg.elem.setUntraceable()
+			}
+		case gp.waitreason.isChanWait():
+			// Channels and select statements are reachable from the *sudog via the c field.
+			for sg := gp.waiting; sg != nil; sg = sg.waitlink {
+				sg.c.setUntraceable()
+			}
 		}
 	})
 }
@@ -1198,6 +1249,8 @@ func gcRestoreSyncObjects() {
 // Returns true if the goroutine leak check was performed (or unnecessary).
 // Returns false if the GC cycle has not yet computed all maybe-runnable goroutines.
 func findGoleaks() bool {
+	assertWorldStopped()
+
 	// Report goroutine leaks and mark them unreachable, and resume marking
 	// we still need to mark these unreachable *g structs as they
 	// get reused, but their stack won't get scanned
