@@ -448,6 +448,9 @@ func TestTraceStacks(t *testing.T) {
 					{"main.main.func11", 0},
 				}},
 			}...)
+			if runtime.GOOS == "darwin" {
+				want[len(want)-1].frames = append([]frame{{"syscall.syscall", 0}}, want[len(want)-1].frames...)
+			}
 		}
 		stackMatches := func(stk trace.Stack, frames []frame) bool {
 			for i, f := range slices.Collect(stk.Frames()) {
