@@ -565,6 +565,9 @@ const (
 	AMOVVF
 	AMOVVD
 
+	// 2.2.1.2
+	AADDV16
+
 	// 2.2.1.3
 	AALSLW
 	AALSLWU

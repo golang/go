@@ -282,6 +282,13 @@ lable2:
 	MOVVP	4(R5), R4		// a4040026
 	MOVVP	(R5), R4		// a4000026
 
+	// ADDU16I.D instruction
+	ADDV16	$(-32768<<16), R4, R5	// ADDV16	$-2147483648, R4, R5	// 85000012
+	ADDV16	$(0<<16), R4, R5	// ADDV16	$0, R4, R5		// 85000010
+	ADDV16	$(8<<16), R4, R5	// ADDV16	$524288, R4, R5		// 85200010
+	ADDV16	$(32767<<16), R4, R5	// ADDV16	$2147418112, R4, R5	// 85fcff11
+	ADDV16	$(16<<16), R4		// ADDV16	$1048576, R4		// 84400010
+
 	// Loong64 atomic memory access instructions
 	AMSWAPB		R14, (R13), R12 // ac395c38
 	AMSWAPH		R14, (R13), R12 // acb95c38

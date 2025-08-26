@@ -326,6 +326,18 @@ Note: In the following sections 3.1 to 3.6, "ui4" (4-bit unsigned int immediate)
             Go assembly      |      platform assembly
          MOVWP  8(R4), R5    |      ldptr.w r5, r4, $2
 
+6. Note of special add instrction
+    Mapping between Go and platform assembly:
+              Go assembly        |      platform assembly
+      ADDV16  si16<<16, Rj, Rd   |    addu16i.d  rd, rj, si16
+
+      note: si16 is a 16-bit immediate number, and si16<<16 is the actual operand.
+
+    The addu16i.d instruction logically left-shifts the 16-bit immediate number si16 by 16 bits, then
+    sign-extends it. The resulting data is added to the [63:0] bits of data in the general-purpose register
+    rj, and the sum is written into the general-purpose register rd.
+    The addu16i.d instruction is used in conjunction with the ldptr.w/d and stptr.w/d instructions to
+    accelerate access based on the GOT table in position-independent code.
 */
 
 package loong64

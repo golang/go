@@ -267,6 +267,9 @@ var optab = []Optab{
 	{AADDV, C_U12CON, C_REG, C_NONE, C_REG, C_NONE, 10, 8, 0, 0},
 	{AADDV, C_U12CON, C_NONE, C_NONE, C_REG, C_NONE, 10, 8, 0, 0},
 
+	{AADDV16, C_32CON, C_REG, C_NONE, C_REG, C_NONE, 4, 4, 0, 0},
+	{AADDV16, C_32CON, C_NONE, C_NONE, C_REG, C_NONE, 4, 4, 0, 0},
+
 	{AAND, C_UU12CON, C_REG, C_NONE, C_REG, C_NONE, 4, 4, 0, 0},
 	{AAND, C_UU12CON, C_NONE, C_NONE, C_REG, C_NONE, 4, 4, 0, 0},
 	{AAND, C_S12CON, C_REG, C_NONE, C_REG, C_NONE, 10, 8, 0, 0},
@@ -1520,6 +1523,7 @@ func buildop(ctxt *obj.Link) {
 			APRELD,
 			APRELDX,
 			AFSEL,
+			AADDV16,
 			obj.ANOP,
 			obj.ATEXT,
 			obj.AFUNCDATA,
@@ -2087,7 +2091,14 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if r == 0 {
 			r = int(p.To.Reg)
 		}
-		o1 = OP_12IRR(c.opirr(p.As), uint32(v), uint32(r), uint32(p.To.Reg))
+		if p.As == AADDV16 {
+			if v&65535 != 0 {
+				c.ctxt.Diag("%v: the constant must be a multiple of 65536.\n", p)
+			}
+			o1 = OP_16IRR(c.opirr(p.As), uint32(v>>16), uint32(r), uint32(p.To.Reg))
+		} else {
+			o1 = OP_12IRR(c.opirr(p.As), uint32(v), uint32(r), uint32(p.To.Reg))
+		}
 
 	case 5: // syscall
 		v := c.regoff(&p.From)
@@ -4033,6 +4044,8 @@ func (c *ctxt0) opirr(a obj.As) uint32 {
 		return 0x00b << 22
 	case AADDVU:
 		return 0x00b << 22
+	case AADDV16:
+		return 0x4 << 26
 
 	case AJMP:
 		return 0x14 << 26
