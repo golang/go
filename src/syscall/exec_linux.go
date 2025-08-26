@@ -244,7 +244,7 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 		nextfd                    int
 		i                         int
 		caps                      caps
-		fd1, flags                uintptr
+		fd1, flags, ppid          uintptr
 		puid, psetgroups, pgid    []byte
 		uidmap, setgroups, gidmap []byte
 		clone3                    *cloneArgs
@@ -278,7 +278,9 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 	}
 
 	// Record parent PID so child can test if it has died.
-	ppid, _ := rawSyscallNoError(SYS_GETPID, 0, 0, 0)
+	if sys.Pdeathsig != 0 {
+		ppid, _ = rawSyscallNoError(SYS_GETPID, 0, 0, 0)
+	}
 
 	// Guard against side effects of shuffling fds below.
 	// Make sure that nextfd is beyond any currently open files so
