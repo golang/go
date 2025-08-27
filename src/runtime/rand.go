@@ -64,8 +64,8 @@ func randinit() {
 	if startupRand != nil {
 		// Overwrite startupRand instead of clearing it, in case cgo programs
 		// access it after we used it.
+		buf := make([]byte, 8)
 		for len(startupRand) > 0 {
-			buf := make([]byte, 8)
 			for {
 				if x, ok := globalRand.state.Next(); ok {
 					byteorder.BEPutUint64(buf, x)
