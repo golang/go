@@ -729,10 +729,36 @@ func (sd *sysDialer) dialParallel(ctx context.Context, primaries, fallbacks addr
 func (sd *sysDialer) dialSerial(ctx context.Context, ras addrList) (Conn, error) {
 	var firstErr error // The error from the first address is most relevant.
 
-	for i := range ras {
-		conn, err := sd.dialAddr(ctx, ras, i)
+	for i, ra := range ras {
+		select {
+		case <-ctx.Done():
+			return nil, &OpError{Op: "dial", Net: sd.network, Source: sd.LocalAddr, Addr: ra, Err: mapErr(ctx.Err())}
+		default:
+		}
+
+		dialCtx := ctx
+		var cancel context.CancelFunc
+
+		if deadline, hasDeadline := ctx.Deadline(); hasDeadline {
+			partialDeadline, err := partialDeadline(time.Now(), deadline, len(ras)-i)
+			if err != nil {
+				// Ran out of time.
+				if firstErr == nil {
+					firstErr = &OpError{Op: "dial", Net: sd.network, Source: sd.LocalAddr, Addr: ra, Err: err}
+				}
+				break
+			}
+			if partialDeadline.Before(deadline) {
+				dialCtx, cancel = context.WithDeadline(ctx, partialDeadline)
+			}
+		}
+
+		c, err := sd.dialSingle(dialCtx, ra)
+		if cancel != nil {
+			cancel()
+		}
 		if err == nil {
-			return conn, nil
+			return c, nil
 		}
 		if firstErr == nil {
 			firstErr = err
@@ -743,34 +769,6 @@ func (sd *sysDialer) dialSerial(ctx context.Context, ras addrList) (Conn, error)
 		firstErr = &OpError{Op: "dial", Net: sd.network, Source: nil, Addr: nil, Err: errMissingAddress}
 	}
 	return nil, firstErr
-}
-
-// dialAddr connects to an address,
-// returning either a successful connection, or an error.
-func (sd *sysDialer) dialAddr(ctx context.Context, ras addrList, i int) (Conn, error) {
-	ra := ras[i]
-
-	select {
-	case <-ctx.Done():
-		return nil, &OpError{Op: "dial", Net: sd.network, Source: sd.LocalAddr, Addr: ra, Err: mapErr(ctx.Err())}
-	default:
-	}
-
-	dialCtx := ctx
-	if deadline, hasDeadline := ctx.Deadline(); hasDeadline {
-		partialDeadline, err := partialDeadline(time.Now(), deadline, len(ras)-i)
-		if err != nil {
-			// Ran out of time.
-			return nil, &OpError{Op: "dial", Net: sd.network, Source: sd.LocalAddr, Addr: ra, Err: err}
-		}
-		if partialDeadline.Before(deadline) {
-			var cancel context.CancelFunc
-			dialCtx, cancel = context.WithDeadline(ctx, partialDeadline)
-			defer cancel()
-		}
-	}
-
-	return sd.dialSingle(dialCtx, ra)
 }
 
 // dialSingle attempts to establish and returns a single connection to
