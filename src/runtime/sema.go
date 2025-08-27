@@ -306,11 +306,9 @@ func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool, syncSema bool) {
 	s.g = getg()
 	s.elem.set(unsafe.Pointer(addr))
 	if goexperiment.GoleakProfiler && syncSema {
+		// Storing this pointer so that we can trace the semaphore address
+		// from the blocked goroutine when checking for goroutine leaks.
 		s.g.waiting = s
-		// When dealing with sync semaphores, hide the elem field from the GC
-		// to prevent it from prematurely marking the semaphore when running
-		// goroutine leak detection.
-		s.elem.setUntraceable()
 	}
 	s.next = nil
 	s.prev = nil
@@ -605,11 +603,9 @@ func notifyListWait(l *notifyList, t uint32) {
 	s := acquireSudog()
 	s.g = getg()
 	if goexperiment.GoleakProfiler {
-		// Storing this pointer (invisible to GC) so that we can trace
-		// the condvar address from the blocked goroutine when
-		// checking for goroutine leaks.
+		// Storing this pointer so that we can trace the condvar address
+		// from the blocked goroutine when checking for goroutine leaks.
 		s.elem.set(unsafe.Pointer(l))
-		s.elem.setUntraceable()
 		s.g.waiting = s
 	}
 	s.ticket = t
