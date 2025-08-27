@@ -22,7 +22,7 @@ func ExampleMultiHandler() {
 	textHandler := slog.NewTextHandler(&textBuf, &slog.HandlerOptions{ReplaceAttr: removeTime})
 	jsonHandler := slog.NewJSONHandler(&jsonBuf, &slog.HandlerOptions{ReplaceAttr: removeTime})
 
-	multiHandler := slog.MultiHandler(textHandler, jsonHandler)
+	multiHandler := slog.NewMultiHandler(textHandler, jsonHandler)
 	logger := slog.New(multiHandler)
 
 	logger.Info("login",

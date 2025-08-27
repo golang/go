@@ -30,7 +30,7 @@ func TestMultiHandler(t *testing.T) {
 		h1 := NewTextHandler(&buf1, nil)
 		h2 := NewJSONHandler(&buf2, nil)
 
-		multi := MultiHandler(h1, h2)
+		multi := NewMultiHandler(h1, h2)
 		logger := New(multi)
 
 		logger.Info("hello world", "user", "test")
@@ -43,7 +43,7 @@ func TestMultiHandler(t *testing.T) {
 		h1 := NewTextHandler(&bytes.Buffer{}, &HandlerOptions{Level: LevelError})
 		h2 := NewTextHandler(&bytes.Buffer{}, &HandlerOptions{Level: LevelInfo})
 
-		multi := MultiHandler(h1, h2)
+		multi := NewMultiHandler(h1, h2)
 
 		if !multi.Enabled(context.Background(), LevelInfo) {
 			t.Error("Enabled should be true for INFO level, but got false")
@@ -57,7 +57,7 @@ func TestMultiHandler(t *testing.T) {
 		h1 := NewTextHandler(&bytes.Buffer{}, &HandlerOptions{Level: LevelError})
 		h2 := NewTextHandler(&bytes.Buffer{}, &HandlerOptions{Level: LevelInfo})
 
-		multi := MultiHandler(h1, h2)
+		multi := NewMultiHandler(h1, h2)
 
 		if multi.Enabled(context.Background(), LevelDebug) {
 			t.Error("Enabled should be false for DEBUG level, but got true")
@@ -69,7 +69,7 @@ func TestMultiHandler(t *testing.T) {
 		h1 := NewTextHandler(&buf1, nil)
 		h2 := NewJSONHandler(&buf2, nil)
 
-		multi := MultiHandler(h1, h2).WithAttrs([]Attr{String("request_id", "123")})
+		multi := NewMultiHandler(h1, h2).WithAttrs([]Attr{String("request_id", "123")})
 		logger := New(multi)
 
 		logger.Info("request processed")
@@ -83,7 +83,7 @@ func TestMultiHandler(t *testing.T) {
 		h1 := NewTextHandler(&buf1, &HandlerOptions{AddSource: false})
 		h2 := NewJSONHandler(&buf2, &HandlerOptions{AddSource: false})
 
-		multi := MultiHandler(h1, h2).WithGroup("req")
+		multi := NewMultiHandler(h1, h2).WithGroup("req")
 		logger := New(multi)
 
 		logger.Info("user login", "user_id", 42)
@@ -99,7 +99,7 @@ func TestMultiHandler(t *testing.T) {
 		h1 := NewTextHandler(&buf1, nil)
 		h2 := &mockFailingHandler{Handler: NewJSONHandler(&buf2, nil), err: errFail}
 
-		multi := MultiHandler(h2, h1)
+		multi := NewMultiHandler(h2, h1)
 
 		err := multi.Handle(context.Background(), NewRecord(time.Now(), LevelInfo, "test message", 0))
 		if !errors.Is(err, errFail) {
@@ -111,7 +111,7 @@ func TestMultiHandler(t *testing.T) {
 	})
 
 	t.Run("Handle with no handlers", func(t *testing.T) {
-		multi := MultiHandler()
+		multi := NewMultiHandler()
 		logger := New(multi)
 
 		logger.Info("nothing")
@@ -123,12 +123,12 @@ func TestMultiHandler(t *testing.T) {
 	})
 }
 
-// Test that MultiHandler copies the input slice and is insulated from future modification.
-func TestMultiHandlerCopy(t *testing.T) {
+// Test that NewMultiHandler copies the input slice and is insulated from future modification.
+func TestNewMultiHandlerCopy(t *testing.T) {
 	var buf1 bytes.Buffer
 	h1 := NewTextHandler(&buf1, nil)
 	slice := []Handler{h1}
-	multi := MultiHandler(slice...)
+	multi := NewMultiHandler(slice...)
 	slice[0] = nil
 
 	err := multi.Handle(context.Background(), NewRecord(time.Now(), LevelInfo, "test message", 0))
