@@ -1277,6 +1277,23 @@ func findGoleaks() bool {
 	for i := work.nMaybeRunnableStackRoots; i < work.nStackRoots; i++ {
 		gp := work.stackRoots[i]
 		casgstatus(gp, _Gwaiting, _Gleaked)
+
+		// Add the primitives causing the goroutine leaks
+		// to the GC work queue, to ensure they are marked.
+		//
+		// NOTE(vsaioc): as of Go1.25, these primitives should also be reachable
+		// from the goroutine's stack, but this is not guaranteed for future
+		// versions of Go.
+		switch {
+		case gp.waitreason.isChanWait():
+			for sg := gp.waiting; sg != nil; sg = sg.waitlink {
+				shade(sg.c.uintptr())
+			}
+		case gp.waitreason.isSyncWait():
+			for sg := gp.waiting; sg != nil; sg = sg.waitlink {
+				shade(sg.elem.uintptr())
+			}
+		}
 	}
 	// Put the remaining roots as ready for marking and drain them.
 	work.markrootJobs.Add(int32(work.nStackRoots - work.nMaybeRunnableStackRoots))

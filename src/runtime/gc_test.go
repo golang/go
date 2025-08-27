@@ -1105,7 +1105,7 @@ func TestGoroutineLeakGC(t *testing.T) {
 	// a set of expected leaks identified by regular expressions, and the number of times
 	// the test should be repeated.
 	//
-	// Repetitions are used to reduce flakiness in some tests.
+	// Repeated runs reduce flakiness in some tests.
 	type testCase struct {
 		name          string
 		simple        bool
