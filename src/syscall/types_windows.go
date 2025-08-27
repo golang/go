@@ -47,8 +47,8 @@ const (
 	O_APPEND       = 0x00400
 	O_SYNC         = 0x01000
 	O_ASYNC        = 0x02000
+	o_DIRECTORY    = 0x04000
 	O_CLOEXEC      = 0x80000
-	o_DIRECTORY    = 0x100000000 // used by internal/syscall/windows
 	o_NOFOLLOW_ANY = 0x200000000 // used by internal/syscall/windows
 	o_OPEN_REPARSE = 0x400000000 // used by internal/syscall/windows
 	o_WRITE_ATTRS  = 0x800000000 // used by internal/syscall/windows
