@@ -1147,7 +1147,7 @@ func TestGoroutineLeakGC(t *testing.T) {
 
 	// makeTest is a short-hand for creating non-flaky test cases.
 	makeTest := func(name string, leaks ...string) testCase {
-		tcase := makeAnyTest(name, false, 1, leaks...)
+		tcase := makeAnyTest(name, false, 2, leaks...)
 		tcase.simple = true
 		return tcase
 	}
