@@ -74,46 +74,32 @@ func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) (rsa sysc
 	if err := fd.pfd.Init(fd.net, true); err != nil {
 		return nil, err
 	}
-	if deadline, hasDeadline := ctx.Deadline(); hasDeadline {
-		fd.pfd.SetWriteDeadline(deadline)
-		defer fd.pfd.SetWriteDeadline(noDeadline)
-	}
 
-	// Start the "interrupter" goroutine, if this context might be canceled.
-	//
-	// The interrupter goroutine waits for the context to be done and
-	// interrupts the dial (by altering the fd's write deadline, which
-	// wakes up waitWrite).
 	ctxDone := ctx.Done()
 	if ctxDone != nil {
-		// Wait for the interrupter goroutine to exit before returning
-		// from connect.
-		done := make(chan struct{})
-		interruptRes := make(chan error)
+		if deadline, hasDeadline := ctx.Deadline(); hasDeadline {
+			fd.pfd.SetWriteDeadline(deadline)
+			defer fd.pfd.SetWriteDeadline(noDeadline)
+		}
+
+		stop := context.AfterFunc(ctx, func() {
+			// Force the runtime's poller to immediately give up
+			// waiting for writability, unblocking waitWrite
+			// below.
+			_ = fd.pfd.SetWriteDeadline(aLongTimeAgo)
+			testHookCanceledDial()
+		})
 		defer func() {
-			close(done)
-			if ctxErr := <-interruptRes; ctxErr != nil && ret == nil {
-				// The interrupter goroutine called SetWriteDeadline,
-				// but the connect code below had returned from
-				// waitWrite already and did a successful connect (ret
-				// == nil). Because we've now poisoned the connection
-				// by making it unwritable, don't return a successful
-				// dial. This was issue 16523.
-				ret = mapErr(ctxErr)
-				fd.Close() // prevent a leak
-			}
-		}()
-		go func() {
-			select {
-			case <-ctxDone:
-				// Force the runtime's poller to immediately give up
-				// waiting for writability, unblocking waitWrite
-				// below.
-				fd.pfd.SetWriteDeadline(aLongTimeAgo)
-				testHookCanceledDial()
-				interruptRes <- ctx.Err()
-			case <-done:
-				interruptRes <- nil
+			if !stop() && ret == nil {
+				// The context.AfterFunc has called or is about to call
+				// SetWriteDeadline, but the connect code below had
+				// returned from waitWrite already and did a successful
+				// connect (ret == nil). Because we've now poisoned the
+				// connection by making it unwritable, don't return a
+				// successful dial. This was issue 16523.
+				ret = mapErr(ctx.Err())
+				// The caller closes fd on error, so there's no need to
+				// wait for the SetWriteDeadline call to return.
 			}
 		}()
 	}
