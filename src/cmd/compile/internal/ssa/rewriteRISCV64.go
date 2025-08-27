@@ -405,7 +405,8 @@ func rewriteValueRISCV64(v *Value) bool {
 	case OpMove:
 		return rewriteValueRISCV64_OpMove(v)
 	case OpMul16:
-		return rewriteValueRISCV64_OpMul16(v)
+		v.Op = OpRISCV64MULW
+		return true
 	case OpMul32:
 		v.Op = OpRISCV64MULW
 		return true
@@ -425,7 +426,8 @@ func rewriteValueRISCV64(v *Value) bool {
 		v.Op = OpRISCV64LoweredMuluover
 		return true
 	case OpMul8:
-		return rewriteValueRISCV64_OpMul8(v)
+		v.Op = OpRISCV64MULW
+		return true
 	case OpNeg16:
 		v.Op = OpRISCV64NEG
 		return true
@@ -3254,44 +3256,6 @@ func rewriteValueRISCV64_OpMove(v *Value) bool {
 		return true
 	}
 	return false
-}
-func rewriteValueRISCV64_OpMul16(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (Mul16 x y)
-	// result: (MULW (SignExt16to32 x) (SignExt16to32 y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpRISCV64MULW)
-		v0 := b.NewValue0(v.Pos, OpSignExt16to32, typ.Int32)
-		v0.AddArg(x)
-		v1 := b.NewValue0(v.Pos, OpSignExt16to32, typ.Int32)
-		v1.AddArg(y)
-		v.AddArg2(v0, v1)
-		return true
-	}
-}
-func rewriteValueRISCV64_OpMul8(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (Mul8 x y)
-	// result: (MULW (SignExt8to32 x) (SignExt8to32 y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpRISCV64MULW)
-		v0 := b.NewValue0(v.Pos, OpSignExt8to32, typ.Int32)
-		v0.AddArg(x)
-		v1 := b.NewValue0(v.Pos, OpSignExt8to32, typ.Int32)
-		v1.AddArg(y)
-		v.AddArg2(v0, v1)
-		return true
-	}
 }
 func rewriteValueRISCV64_OpNeq16(v *Value) bool {
 	v_1 := v.Args[1]
