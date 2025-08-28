@@ -1,0 +1,59 @@
+name: go vet
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  go-vet:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build toolchain and test (host amd64)
+        run: |
+            # install bootstrap Go
+            set -euxo pipefail
+            BOOT=/tmp/go-bootstrap
+            curl -fsSL https://go.dev/dl/go1.25.0.linux-amd64.tar.gz -o /tmp/go.tar.gz
+            tar -C /tmp -xzf /tmp/go.tar.gz
+            mv /tmp/go "$BOOT"
+            export GOROOT_BOOTSTRAP="$BOOT"
+            
+            # build toolchain
+            cd "$GITHUB_WORKSPACE/src"
+            ./make.bash
+            # run go vet only on packages with changed Go files under src/ relative to PR base
+            export GOROOT="$GITHUB_WORKSPACE"
+            cd "$GITHUB_WORKSPACE"
+            # Determine base commit for PR; fallback to origin/${GITHUB_BASE_REF:-main}
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            if [ -z "${BASE_SHA}" ]; then
+              git fetch --no-tags origin "+refs/heads/*:refs/remotes/origin/*"
+              BASE_REF="${GITHUB_BASE_REF:-main}"
+              BASE_SHA="origin/${BASE_REF}"
+            fi
+            # Collect changed .go files under src/
+            mapfile -t CHANGED < <(git diff --name-only --diff-filter=ACMRT "${BASE_SHA}" HEAD -- '*.go' | grep -E '^src/' || true)
+            if [ ${#CHANGED[@]} -eq 0 ]; then
+              echo "No changed Go files under src/; skipping vet."
+              exit 0
+            fi
+            # Derive unique package directories relative to src/
+            mapfile -t PKG_DIRS < <(printf '%s\n' "${CHANGED[@]}" | sed 's|^src/||' | xargs -r -n1 dirname | sort -u)
+            cd "$GOROOT/src"
+            ok_dirs=()
+            for d in "${PKG_DIRS[@]}"; do
+              # Filter to valid packages (go list must succeed)
+              if GO111MODULE=off "$GOROOT/bin/go" list "./$d" >/dev/null 2>&1; then
+                ok_dirs+=("./$d")
+              fi
+            done
+            if [ ${#ok_dirs[@]} -eq 0 ]; then
+              echo "No valid Go packages to vet; exiting."
+              exit 0
+            fi
+            echo "Vetting packages:\n${ok_dirs[*]}"
+            GO111MODULE=off "$GOROOT/bin/go" vet -v "${ok_dirs[@]}"
