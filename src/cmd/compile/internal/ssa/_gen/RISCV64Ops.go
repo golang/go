@@ -317,25 +317,40 @@ func init() {
 
 		// Generic moves and zeros
 
-		// general unaligned zeroing
-		// arg0 = address of memory to zero (in X5, changed as side effect)
-		// arg1 = address of the last element to zero (inclusive)
-		// arg2 = mem
-		// auxint = element size
+		// general unrolled zeroing
+		// arg0 = address of memory to zero
+		// arg1 = mem
+		// auxint = element size and type alignment
 		// returns mem
-		//	mov	ZERO, (X5)
-		//	ADD	$sz, X5
-		//	BGEU	Rarg1, X5, -2(PC)
+		//	mov	ZERO, (OFFSET)(Rarg0)
 		{
-			name:      "LoweredZero",
-			aux:       "Int64",
-			argLength: 3,
-			reg: regInfo{
-				inputs:   []regMask{regNamed["X5"], gpMask},
-				clobbers: regNamed["X5"],
-			},
+			name:           "LoweredZero",
+			aux:            "SymValAndOff",
 			typ:            "Mem",
+			argLength:      2,
+			symEffect:      "Write",
 			faultOnNilArg0: true,
+			reg: regInfo{
+				inputs: []regMask{gpMask},
+			},
+		},
+		// general unaligned zeroing
+		// arg0 = address of memory to zero (clobber)
+		// arg2 = mem
+		// auxint = element size and type alignment
+		// returns mem
+		{
+			name:           "LoweredZeroLoop",
+			aux:            "SymValAndOff",
+			typ:            "Mem",
+			argLength:      2,
+			symEffect:      "Write",
+			needIntTemp:    true,
+			faultOnNilArg0: true,
+			reg: regInfo{
+				inputs:       []regMask{gpMask},
+				clobbersArg0: true,
+			},
 		},
 
 		// general unaligned move

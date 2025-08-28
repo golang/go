@@ -373,36 +373,14 @@
 	(MOVHstore [4] ptr (MOVDconst [0])
 		(MOVHstore [2] ptr (MOVDconst [0])
 			(MOVHstore ptr (MOVDconst [0]) mem)))
-(Zero [12] {t} ptr mem) && t.Alignment()%4 == 0 =>
-	(MOVWstore [8] ptr (MOVDconst [0])
-		(MOVWstore [4] ptr (MOVDconst [0])
-			(MOVWstore ptr (MOVDconst [0]) mem)))
-(Zero [16] {t} ptr mem) && t.Alignment()%8 == 0 =>
-	(MOVDstore [8] ptr (MOVDconst [0])
-		(MOVDstore ptr (MOVDconst [0]) mem))
-(Zero [24] {t} ptr mem) && t.Alignment()%8 == 0 =>
-	(MOVDstore [16] ptr (MOVDconst [0])
-		(MOVDstore [8] ptr (MOVDconst [0])
-			(MOVDstore ptr (MOVDconst [0]) mem)))
-(Zero [32] {t} ptr mem) && t.Alignment()%8 == 0 =>
-	(MOVDstore [24] ptr (MOVDconst [0])
-		(MOVDstore [16] ptr (MOVDconst [0])
-			(MOVDstore [8] ptr (MOVDconst [0])
-				(MOVDstore ptr (MOVDconst [0]) mem))))
 
-// Medium 8-aligned zeroing uses a Duff's device
-// 8 and 128 are magic constants, see runtime/mkduff.go
-(Zero [s] {t} ptr mem)
-	&& s%8 == 0 && s <= 8*128
-	&& t.Alignment()%8 == 0 =>
-	(DUFFZERO [8 * (128 - s/8)] ptr mem)
+// Unroll zeroing in medium size (at most 192 bytes i.e. 3 cachelines)
+(Zero [s] {t} ptr mem) && s <= 24*moveSize(t.Alignment(), config) =>
+	(LoweredZero [makeValAndOff(int32(s),int32(t.Alignment()))] ptr mem)
 
 // Generic zeroing uses a loop
-(Zero [s] {t} ptr mem) =>
-	(LoweredZero [t.Alignment()]
-		ptr
-		(ADD <ptr.Type> ptr (MOVDconst [s-moveSize(t.Alignment(), config)]))
-		mem)
+(Zero [s] {t} ptr mem) && s > 24*moveSize(t.Alignment(), config) =>
+	(LoweredZeroLoop [makeValAndOff(int32(s),int32(t.Alignment()))] ptr mem)
 
 // Checks
 (IsNonNil ...) => (SNEZ ...)

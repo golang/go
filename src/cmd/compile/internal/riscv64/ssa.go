@@ -181,6 +181,8 @@ func largestMove(alignment int64) (obj.As, int64) {
 	}
 }
 
+var fracMovOps = []obj.As{riscv.AMOVB, riscv.AMOVH, riscv.AMOVW, riscv.AMOV}
+
 // ssaMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
 // RISC-V has no flags, so this is a no-op.
 func ssaMarkMoves(s *ssagen.State, b *ssa.Block) {}
@@ -738,30 +740,86 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.RegTo2 = riscv.REG_ZERO
 
 	case ssa.OpRISCV64LoweredZero:
-		mov, sz := largestMove(v.AuxInt)
+		ptr := v.Args[0].Reg()
+		sc := v.AuxValAndOff()
+		n := sc.Val64()
 
-		//	mov	ZERO, (Rarg0)
-		//	ADD	$sz, Rarg0
-		//	BGEU	Rarg1, Rarg0, -2(PC)
+		mov, sz := largestMove(sc.Off64())
 
-		p := s.Prog(mov)
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = riscv.REG_ZERO
-		p.To.Type = obj.TYPE_MEM
-		p.To.Reg = v.Args[0].Reg()
+		// mov	ZERO, (offset)(Rarg0)
+		var off int64
+		for n >= sz {
+			zeroOp(s, mov, ptr, off)
+			off += sz
+			n -= sz
+		}
+
+		for i := len(fracMovOps) - 1; i >= 0; i-- {
+			tsz := int64(1 << i)
+			if n < tsz {
+				continue
+			}
+			zeroOp(s, fracMovOps[i], ptr, off)
+			off += tsz
+			n -= tsz
+		}
+
+	case ssa.OpRISCV64LoweredZeroLoop:
+		ptr := v.Args[0].Reg()
+		sc := v.AuxValAndOff()
+		n := sc.Val64()
+		mov, sz := largestMove(sc.Off64())
+		chunk := 8 * sz
+
+		if n <= 3*chunk {
+			v.Fatalf("ZeroLoop too small:%d, expect:%d", n, 3*chunk)
+		}
+
+		tmp := v.RegTmp()
+
+		p := s.Prog(riscv.AADD)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = n - n%chunk
+		p.Reg = ptr
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = tmp
+
+		for i := int64(0); i < 8; i++ {
+			zeroOp(s, mov, ptr, sz*i)
+		}
 
 		p2 := s.Prog(riscv.AADD)
 		p2.From.Type = obj.TYPE_CONST
-		p2.From.Offset = sz
+		p2.From.Offset = chunk
 		p2.To.Type = obj.TYPE_REG
-		p2.To.Reg = v.Args[0].Reg()
+		p2.To.Reg = ptr
 
-		p3 := s.Prog(riscv.ABGEU)
-		p3.To.Type = obj.TYPE_BRANCH
-		p3.Reg = v.Args[0].Reg()
+		p3 := s.Prog(riscv.ABNE)
+		p3.From.Reg = tmp
 		p3.From.Type = obj.TYPE_REG
-		p3.From.Reg = v.Args[1].Reg()
-		p3.To.SetTarget(p)
+		p3.Reg = ptr
+		p3.To.Type = obj.TYPE_BRANCH
+		p3.To.SetTarget(p.Link)
+
+		n %= chunk
+
+		// mov	ZERO, (offset)(Rarg0)
+		var off int64
+		for n >= sz {
+			zeroOp(s, mov, ptr, off)
+			off += sz
+			n -= sz
+		}
+
+		for i := len(fracMovOps) - 1; i >= 0; i-- {
+			tsz := int64(1 << i)
+			if n < tsz {
+				continue
+			}
+			zeroOp(s, fracMovOps[i], ptr, off)
+			off += tsz
+			n -= tsz
+		}
 
 	case ssa.OpRISCV64LoweredMove:
 		mov, sz := largestMove(v.AuxInt)
@@ -954,4 +1012,14 @@ func spillArgReg(pp *objw.Progs, p *obj.Prog, f *ssa.Func, t *types.Type, reg in
 	p.To.Sym = n.Linksym()
 	p.Pos = p.Pos.WithNotStmt()
 	return p
+}
+
+func zeroOp(s *ssagen.State, mov obj.As, reg int16, off int64) {
+	p := s.Prog(mov)
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = riscv.REG_ZERO
+	p.To.Type = obj.TYPE_MEM
+	p.To.Reg = reg
+	p.To.Offset = off
+	return
 }

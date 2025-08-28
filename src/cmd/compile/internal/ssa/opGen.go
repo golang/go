@@ -2569,6 +2569,7 @@ const (
 	OpRISCV64DUFFZERO
 	OpRISCV64DUFFCOPY
 	OpRISCV64LoweredZero
+	OpRISCV64LoweredZeroLoop
 	OpRISCV64LoweredMove
 	OpRISCV64LoweredAtomicLoad8
 	OpRISCV64LoweredAtomicLoad32
@@ -34558,15 +34559,28 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:           "LoweredZero",
-		auxType:        auxInt64,
-		argLen:         3,
+		auxType:        auxSymValAndOff,
+		argLen:         2,
 		faultOnNilArg0: true,
+		symEffect:      SymWrite,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 16},         // X5
-				{1, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
-			clobbers: 16, // X5
+		},
+	},
+	{
+		name:           "LoweredZeroLoop",
+		auxType:        auxSymValAndOff,
+		argLen:         2,
+		needIntTemp:    true,
+		faultOnNilArg0: true,
+		symEffect:      SymWrite,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+			clobbersArg0: true,
 		},
 	},
 	{
