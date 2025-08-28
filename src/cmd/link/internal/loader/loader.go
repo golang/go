@@ -2440,6 +2440,7 @@ var blockedLinknames = map[string][]string{
 	// Others
 	"net.newWindowsFile":                   {"net"},              // pushed from os
 	"testing/synctest.testingSynctestTest": {"testing/synctest"}, // pushed from testing
+	"runtime.addmoduledata":                {},                   // disallow all package
 }
 
 // check if a linkname reference to symbol s from pkg is allowed

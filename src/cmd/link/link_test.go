@@ -1613,6 +1613,7 @@ func TestCheckLinkname(t *testing.T) {
 		{"coro2.go", false},
 		// pull linkname of a builtin symbol is not ok
 		{"builtin.go", false},
+		{"addmoduledata.go", false},
 		// legacy bad linkname is ok, for now
 		{"fastrand.go", true},
 		{"badlinkname.go", true},
