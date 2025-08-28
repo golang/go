@@ -1,0 +1,30 @@
+name: test codegen
+
+on:
+  pull_request:
+  workflow_dispatch: 
+
+jobs:
+  test-codegen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build toolchain (host amd64) and run codegen tests
+        run: |
+          set -euxo pipefail
+          # 1) install bootstrap Go
+          BOOT=/tmp/go-bootstrap
+          curl -fsSL https://go.dev/dl/go1.25.0.linux-amd64.tar.gz -o /tmp/go.tar.gz
+          tar -C /tmp -xzf /tmp/go.tar.gz
+          mv /tmp/go "$BOOT"
+          export GOROOT_BOOTSTRAP="$BOOT"
+
+          # 2) build toolchain and run codegen tests
+          cd "$GITHUB_WORKSPACE/src"
+          ./make.bash
+          "$GITHUB_WORKSPACE/bin/go" test cmd/internal/testdir -run='Test/codegen' -all_codegen -v

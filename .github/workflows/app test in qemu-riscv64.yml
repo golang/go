@@ -1,0 +1,57 @@
+name: app test in qemu-riscv64
+
+on:
+  pull_request:
+  workflow_dispatch: 
+
+jobs:
+  app-tests-in-qemu-riscv64:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install deps for building QEMU 10.0
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y curl xz-utils build-essential ca-certificates git file \
+            ninja-build meson pkg-config libglib2.0-dev libpixman-1-dev libfdt-dev zlib1g-dev
+      - name: Build and install QEMU 10.0 (linux-user)
+        run: |
+          set -euxo pipefail
+          cd /tmp
+          curl -fsSL https://download.qemu.org/qemu-10.0.3.tar.xz -o qemu-10.0.3.tar.xz
+          tar -xf qemu-10.0.3.tar.xz
+          cd qemu-10.0.3
+          ./configure --target-list=riscv64-linux-user
+          make -j"$(nproc)"
+          sudo make install
+          qemu-riscv64 -version
+      - name: Build toolchain (host amd64) and run rv64 tests via qemu-user
+        run: |
+          set -euxo pipefail
+          # 1) install bootstrap Go
+          BOOT=/tmp/go-bootstrap
+          curl -fsSL https://go.dev/dl/go1.25.0.linux-amd64.tar.gz -o /tmp/go.tar.gz
+          tar -C /tmp -xzf /tmp/go.tar.gz
+          mv /tmp/go "$BOOT"
+          export GOROOT_BOOTSTRAP="$BOOT"
+          # 2) build toolchain
+          cd "$GITHUB_WORKSPACE/src"
+          ./make.bash
+          # 3) build and test
+          export GOROOT="$GITHUB_WORKSPACE"
+          TEST_DIR="$GITHUB_WORKSPACE/test/zte"
+          # If the test directory is missing OR has no *_test.go files, exit successfully
+          if [ ! -d "$TEST_DIR" ] || ! find "$TEST_DIR" -maxdepth 1 -type f -name '*_test.go' -print -quit | grep -q .; then
+            echo "No tests to run under $TEST_DIR. Exiting."
+            exit 0
+          fi
+          # Compile package tests into a riscv64 test binary and run with QEMU
+          cd "$TEST_DIR"
+          GOOS=linux GOARCH=riscv64 "$GOROOT/bin/go" test -c -o test.rv64 ./*_test.go
+          qemu-riscv64 ./test.rv64

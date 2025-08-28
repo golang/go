@@ -1,0 +1,28 @@
+name: test all in arm64 ubuntu
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-toolchain-and-test-in-amd64-ubuntu:
+    runs-on: ubuntu-22.04-arm
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build toolchain and test (host arm64)
+        run: |
+            # install bootstrap Go
+            set -euxo pipefail
+            BOOT=/tmp/go-bootstrap
+            curl -fsSL https://go.dev/dl/go1.25.0.linux-arm64.tar.gz -o /tmp/go.tar.gz
+            tar -C /tmp -xzf /tmp/go.tar.gz
+            mv /tmp/go "$BOOT"
+            export GOROOT_BOOTSTRAP="$BOOT"
+            uname -a
+
+            # build toolchain and test
+            cd "$GITHUB_WORKSPACE/src"
+            ./all.bash
