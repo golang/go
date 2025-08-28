@@ -376,6 +376,21 @@ func init() {
 			faultOnNilArg0: true,
 		},
 
+		// medium zeroing
+		// arg0 = address of memory to zero
+		// arg1 = mem
+		// auxint = number of bytes to zero
+		// returns mem
+		{
+			name:      "LoweredZero",
+			aux:       "Int64",
+			argLength: 2,
+			reg: regInfo{
+				inputs: []regMask{gp},
+			},
+			faultOnNilArg0: true,
+		},
+
 		// duffcopy
 		// arg0 = address of dst memory (in R21, changed as side effect)
 		// arg1 = address of src memory (in R20, changed as side effect)
@@ -395,25 +410,21 @@ func init() {
 			faultOnNilArg1: true,
 		},
 
-		// large or unaligned zeroing
-		// arg0 = address of memory to zero (in R20, changed as side effect)
-		// arg1 = address of the last element to zero
-		// arg2 = mem
-		// auxint = alignment
+		// large zeroing
+		// arg0 = address of memory to zero
+		// arg1 = mem
+		// auxint = number of bytes to zero
 		// returns mem
-		//	MOVx	R0, (R20)
-		//	ADDV	$sz, R20
-		//	BGEU	Rarg1, R20, -2(PC)
 		{
-			name:      "LoweredZero",
+			name:      "LoweredZeroLoop",
 			aux:       "Int64",
-			argLength: 3,
+			argLength: 2,
 			reg: regInfo{
-				inputs:   []regMask{buildReg("R20"), gp},
-				clobbers: buildReg("R20"),
+				inputs:       []regMask{gp},
+				clobbersArg0: true,
 			},
-			typ:            "Mem",
 			faultOnNilArg0: true,
+			needIntTemp:    true,
 		},
 
 		// large or unaligned move
