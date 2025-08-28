@@ -19,6 +19,8 @@ var (
 	ErrProcessDone = errors.New("os: process already finished")
 	// errProcessReleased indicates a [Process] has been released.
 	errProcessReleased = errors.New("os: process already released")
+	// ErrNoHandle indicates a [Process] does not have a handle.
+	ErrNoHandle = errors.New("os: process handle unavailable")
 )
 
 // processStatus describes the status of a [Process].
@@ -348,6 +350,18 @@ func (p *Process) Wait() (*ProcessState, error) {
 // Sending [Interrupt] on Windows is not implemented.
 func (p *Process) Signal(sig Signal) error {
 	return p.signal(sig)
+}
+
+// WithHandle calls a supplied function f with a valid process handle
+// as an argument. The handle is guaranteed to refer to process p
+// until f returns, even if p terminates. This function cannot be used
+// after [Process.Release] or [Process.Wait].
+//
+// If process handles are not supported or a handle is not available,
+// it returns [ErrNoHandle]. Currently, process handles are supported
+// on Linux 5.4 or later (pidfd) and Windows.
+func (p *Process) WithHandle(f func(handle uintptr)) error {
+	return p.withHandle(f)
 }
 
 // UserTime returns the user CPU time of the exited process and its children.
