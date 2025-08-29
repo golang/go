@@ -220,6 +220,15 @@ Note: In the following sections 3.1 to 3.6, "ui4" (4-bit unsigned int immediate)
 	XVMOVQ  offset(Rj), Xd.W8   |  xvldrepl.w  Xd, Rj, si10  |  for i in range(8) : XR[xd].w[i] = load 32 bit memory data from (GR[rj]+SignExtend(si10<<2))
 	XVMOVQ  offset(Rj), Xd.V4   |  xvldrepl.d  Xd, Rj, si9   |  for i in range(4) : XR[xd].d[i] = load 64 bit memory data from (GR[rj]+SignExtend(si9<<3))
 
+	note: In Go assembly, for ease of understanding, offset representing the actual address offset.
+	      However, during platform encoding, the offset is shifted to increase the encodable offset range, as follows:
+
+	   Go assembly           |      platform assembly
+         VMOVQ  1(R4), V5.B16    |      vldrepl.b  v5, r4, $1
+         VMOVQ  2(R4), V5.H8     |      vldrepl.h  v5, r4, $1
+         VMOVQ  8(R4), V5.W4     |      vldrepl.w  v5, r4, $2
+         VMOVQ  8(R4), V5.V2     |      vldrepl.d  v5, r4, $1
+
 # Special instruction encoding definition and description on LoongArch
 
  1. DBAR hint encoding for LA664(Loongson 3A6000) and later micro-architectures, paraphrased
