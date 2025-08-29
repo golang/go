@@ -9133,62 +9133,35 @@ func rewriteValueLOONG64_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move [s] dst src mem)
-	// cond: s%8 != 0 && s > 16
-	// result: (Move [s%8] (OffPtr <dst.Type> dst [s-s%8]) (OffPtr <src.Type> src [s-s%8]) (Move [s-s%8] dst src mem))
+	// cond: s > 16 && s < 192 && logLargeCopy(v, s)
+	// result: (LoweredMove [s] dst src mem)
 	for {
 		s := auxIntToInt64(v.AuxInt)
 		dst := v_0
 		src := v_1
 		mem := v_2
-		if !(s%8 != 0 && s > 16) {
+		if !(s > 16 && s < 192 && logLargeCopy(v, s)) {
 			break
 		}
-		v.reset(OpMove)
-		v.AuxInt = int64ToAuxInt(s % 8)
-		v0 := b.NewValue0(v.Pos, OpOffPtr, dst.Type)
-		v0.AuxInt = int64ToAuxInt(s - s%8)
-		v0.AddArg(dst)
-		v1 := b.NewValue0(v.Pos, OpOffPtr, src.Type)
-		v1.AuxInt = int64ToAuxInt(s - s%8)
-		v1.AddArg(src)
-		v2 := b.NewValue0(v.Pos, OpMove, types.TypeMem)
-		v2.AuxInt = int64ToAuxInt(s - s%8)
-		v2.AddArg3(dst, src, mem)
-		v.AddArg3(v0, v1, v2)
-		return true
-	}
-	// match: (Move [s] dst src mem)
-	// cond: s%8 == 0 && s > 16 && s <= 8*128 && logLargeCopy(v, s)
-	// result: (DUFFCOPY [16 * (128 - s/8)] dst src mem)
-	for {
-		s := auxIntToInt64(v.AuxInt)
-		dst := v_0
-		src := v_1
-		mem := v_2
-		if !(s%8 == 0 && s > 16 && s <= 8*128 && logLargeCopy(v, s)) {
-			break
-		}
-		v.reset(OpLOONG64DUFFCOPY)
-		v.AuxInt = int64ToAuxInt(16 * (128 - s/8))
+		v.reset(OpLOONG64LoweredMove)
+		v.AuxInt = int64ToAuxInt(s)
 		v.AddArg3(dst, src, mem)
 		return true
 	}
 	// match: (Move [s] dst src mem)
-	// cond: s%8 == 0 && s > 1024 && logLargeCopy(v, s)
-	// result: (LoweredMove dst src (ADDVconst <src.Type> src [s-8]) mem)
+	// cond: s >= 192 && logLargeCopy(v, s)
+	// result: (LoweredMoveLoop [s] dst src mem)
 	for {
 		s := auxIntToInt64(v.AuxInt)
 		dst := v_0
 		src := v_1
 		mem := v_2
-		if !(s%8 == 0 && s > 1024 && logLargeCopy(v, s)) {
+		if !(s >= 192 && logLargeCopy(v, s)) {
 			break
 		}
-		v.reset(OpLOONG64LoweredMove)
-		v0 := b.NewValue0(v.Pos, OpLOONG64ADDVconst, src.Type)
-		v0.AuxInt = int64ToAuxInt(s - 8)
-		v0.AddArg(src)
-		v.AddArg4(dst, src, v0, mem)
+		v.reset(OpLOONG64LoweredMoveLoop)
+		v.AuxInt = int64ToAuxInt(s)
+		v.AddArg3(dst, src, mem)
 		return true
 	}
 	return false

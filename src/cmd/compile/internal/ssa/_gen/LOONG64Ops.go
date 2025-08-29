@@ -429,27 +429,40 @@ func init() {
 			needIntTemp:    true,
 		},
 
-		// large or unaligned move
-		// arg0 = address of dst memory (in R21, changed as side effect)
-		// arg1 = address of src memory (in R20, changed as side effect)
-		// arg2 = address of the last element of src
-		// arg3 = mem
-		// auxint = alignment
+		// medium copying
+		// arg0 = address of dst memory
+		// arg1 = address of src memory
+		// arg2 = mem
+		// auxint = number of bytes to copy
 		// returns mem
-		//	MOVx	(R20), Rtmp
-		//	MOVx	Rtmp, (R21)
-		//	ADDV	$sz, R20
-		//	ADDV	$sz, R21
-		//	BGEU	Rarg2, R20, -4(PC)
 		{
 			name:      "LoweredMove",
 			aux:       "Int64",
-			argLength: 4,
+			argLength: 3,
 			reg: regInfo{
-				inputs:   []regMask{buildReg("R21"), buildReg("R20"), gp},
-				clobbers: buildReg("R20 R21"),
+				inputs:   []regMask{gp &^ buildReg("R20"), gp &^ buildReg("R20")},
+				clobbers: buildReg("R20"),
 			},
-			typ:            "Mem",
+			faultOnNilArg0: true,
+			faultOnNilArg1: true,
+		},
+
+		// large copying
+		// arg0 = address of dst memory
+		// arg1 = address of src memory
+		// arg2 = mem
+		// auxint = number of bytes to copy
+		// returns mem
+		{
+			name:      "LoweredMoveLoop",
+			aux:       "Int64",
+			argLength: 3,
+			reg: regInfo{
+				inputs:       []regMask{gp &^ buildReg("R20 R21"), gp &^ buildReg("R20 R21")},
+				clobbers:     buildReg("R20 R21"),
+				clobbersArg0: true,
+				clobbersArg1: true,
+			},
 			faultOnNilArg0: true,
 			faultOnNilArg1: true,
 		},

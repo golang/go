@@ -419,34 +419,8 @@
         (MOVVstore [8] dst (MOVVload [8] src mem)
                 (MOVVstore dst (MOVVload src mem) mem))
 
-// strip off fractional word move
-(Move [s] dst src mem) && s%8 != 0 && s > 16 =>
-        (Move [s%8]
-                (OffPtr <dst.Type> dst [s-s%8])
-                (OffPtr <src.Type> src [s-s%8])
-                (Move [s-s%8] dst src mem))
-
-// medium move uses a duff device
-(Move [s] dst src mem)
-        && s%8 == 0 && s > 16 && s <= 8*128
-        && logLargeCopy(v, s)  =>
-        (DUFFCOPY [16 * (128 - s/8)] dst src mem)
-// 16 and 128 are magic constants.  16 is the number of bytes to encode:
-//     MOVV    (R20), R30
-//     ADDV    $8, R20
-//     MOVV    R30, (R21)
-//     ADDV    $8, R21
-// and 128 is the number of such blocks. See runtime/duff_loong64.s:duffcopy.
-
-// large move uses a loop
-(Move [s] dst src mem)
-        && s%8 == 0 && s > 1024 && logLargeCopy(v, s) =>
-        (LoweredMove
-                dst
-                src
-                (ADDVconst <src.Type> src [s-8])
-                mem)
-
+(Move [s] dst src mem) && s > 16 && s < 192 && logLargeCopy(v, s) => (LoweredMove [s] dst src mem)
+(Move [s] dst src mem) && s >= 192 && logLargeCopy(v, s) => (LoweredMoveLoop [s] dst src mem)
 
 // float <=> int register moves, with no conversion.
 // These come up when compiling math.{Float64bits, Float64frombits, Float32bits, Float32frombits}.
