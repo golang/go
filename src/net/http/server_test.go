@@ -97,6 +97,7 @@ func TestFindHandler(t *testing.T) {
 		{"GET", "/foo/x", "&http.handler{i:2}"},
 		{"GET", "/bar/x", "&http.handler{i:4}"},
 		{"GET", "/bar", `&http.redirectHandler{url:"/bar/", code:301}`},
+		{"CONNECT", "", "(http.HandlerFunc)(.*)"},
 		{"CONNECT", "/", "&http.handler{i:1}"},
 		{"CONNECT", "//", "&http.handler{i:1}"},
 		{"CONNECT", "//foo", "&http.handler{i:5}"},
@@ -112,7 +113,7 @@ func TestFindHandler(t *testing.T) {
 		r.URL = &url.URL{Path: test.path}
 		gotH, _, _, _ := mux.findHandler(&r)
 		got := fmt.Sprintf("%#v", gotH)
-		if got != test.wantHandler {
+		if !regexp.MustCompile(test.wantHandler).MatchString(got) {
 			t.Errorf("%s %q: got %q, want %q", test.method, test.path, got, test.wantHandler)
 		}
 	}
