@@ -235,7 +235,6 @@ var depsRules = `
 	  internal/types/errors,
 	  mime/quotedprintable,
 	  net/internal/socktest,
-	  net/url,
 	  runtime/trace,
 	  text/scanner,
 	  text/tabwriter;
@@ -297,6 +296,12 @@ var depsRules = `
 	# templates
 	FMT
 	< text/template/parse;
+
+	internal/bytealg, internal/itoa, math/bits, slices, strconv, unique
+	< net/netip;
+
+	FMT, net/netip
+	< net/url;
 
 	net/url, text/template/parse
 	< text/template
@@ -411,9 +416,6 @@ var depsRules = `
 	os
 	< golang.org/x/net/dns/dnsmessage,
 	  golang.org/x/net/lif;
-
-	internal/bytealg, internal/itoa, math/bits, slices, strconv, unique
-	< net/netip;
 
 	os, net/netip
 	< internal/routebsd;
