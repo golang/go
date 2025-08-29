@@ -1214,10 +1214,6 @@ func unquoteBytes(s []byte) (t []byte, ok bool) {
 		if c == '\\' || c == '"' || c < ' ' {
 			break
 		}
-		if c < utf8.RuneSelf {
-			r++
-			continue
-		}
 		rr, size := utf8.DecodeRune(s[r:])
 		if rr == utf8.RuneError && size == 1 {
 			break
