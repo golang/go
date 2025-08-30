@@ -1,0 +1,6 @@
+pkg log/slog, func NewMultiHandler(...Handler) *MultiHandler #65954
+pkg log/slog, method (*MultiHandler) Enabled(context.Context, Level) bool #65954
+pkg log/slog, method (*MultiHandler) Handle(context.Context, Record) error #65954
+pkg log/slog, method (*MultiHandler) WithAttrs([]Attr) Handler #65954
+pkg log/slog, method (*MultiHandler) WithGroup(string) Handler #65954
+pkg log/slog, type MultiHandler struct #65954
