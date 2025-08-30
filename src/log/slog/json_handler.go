@@ -11,7 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog/internal/buffer"
 	"strconv"
 	"sync"
 	"time"
@@ -113,7 +112,7 @@ func appendJSONValue(s *handleState, v Value) error {
 		// json.Marshal is funny about floats; it doesn't
 		// always match strconv.AppendFloat. So just call it.
 		// That's expensive, but floats are rare.
-		if err := appendJSONMarshal(s.buf, v.Float64()); err != nil {
+		if err := appendJSONMarshal(s, v.Float64()); err != nil {
 			return err
 		}
 	case KindBool:
@@ -129,7 +128,7 @@ func appendJSONValue(s *handleState, v Value) error {
 		if err, ok := a.(error); ok && !jm {
 			s.appendString(err.Error())
 		} else {
-			return appendJSONMarshal(s.buf, a)
+			return appendJSONMarshal(s, a)
 		}
 	default:
 		panic(fmt.Sprintf("bad kind: %s", v.Kind()))
@@ -137,18 +136,62 @@ func appendJSONValue(s *handleState, v Value) error {
 	return nil
 }
 
-func appendJSONMarshal(buf *buffer.Buffer, v any) error {
-	// Use a json.Encoder to avoid escaping HTML.
-	var bb bytes.Buffer
-	enc := json.NewEncoder(&bb)
-	enc.SetEscapeHTML(false)
-	if err := enc.Encode(v); err != nil {
+func appendJSONMarshal(s *handleState, v any) error {
+	// Aquire a new encoder if not asigned.
+	if s.anyEncoder == nil {
+		s.anyEncoder = newJSONMarshalEncoder()
+	}
+
+	enc := s.anyEncoder
+	enc.reset() // reset the encoder, if was reused
+	if err := enc.encode(v); err != nil {
 		return err
 	}
-	bs := bb.Bytes()
-	buf.Write(bs[:len(bs)-1]) // remove final newline
+
+	bs := enc.bytes()
+	s.buf.Write(bs[:len(bs)-1]) // remove final newline
 	return nil
 }
+
+type jsonMarshalEncoder struct {
+	buf *bytes.Buffer
+	enc *json.Encoder
+}
+
+func newJSONMarshalEncoder() encoder {
+	if enc := jsonEncoderPool.Get(); enc != nil {
+		return enc.(*jsonMarshalEncoder)
+	}
+
+	buf := &bytes.Buffer{}
+
+	// Use a json.Encoder to avoid escaping HTML.
+	jsonEnc := json.NewEncoder(buf)
+	jsonEnc.SetEscapeHTML(false)
+
+	return &jsonMarshalEncoder{buf: buf, enc: jsonEnc}
+}
+
+func (e *jsonMarshalEncoder) reset() {
+	e.buf.Reset()
+}
+
+func (e *jsonMarshalEncoder) encode(v any) error {
+	return e.enc.Encode(v)
+}
+
+func (e *jsonMarshalEncoder) bytes() []byte {
+	return e.buf.Bytes()
+}
+
+func (e *jsonMarshalEncoder) free() {
+	const maxBufferSize = 8 << 10
+	if e.buf.Cap() <= maxBufferSize {
+		jsonEncoderPool.Put(e)
+	}
+}
+
+var jsonEncoderPool = sync.Pool{}
 
 // appendEscapedJSONString escapes s for JSON and appends it to buf.
 // It does not surround the string in quotation marks.

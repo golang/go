@@ -37,6 +37,11 @@ var (
 	testInt      = 32768
 	testDuration = 23 * time.Second
 	testError    = errors.New("fail")
+	testEvent    = &event{
+		ID:          "testing_event_#01",
+		Description: "Some text for this description to simulate a real scenario.",
+		CreatedAt:   time.Date(2025, time.July, 5, 0, 0, 0, 0, time.UTC),
+	}
 )
 
 var testAttrs = []slog.Attr{
@@ -48,3 +53,9 @@ var testAttrs = []slog.Attr{
 }
 
 const wantText = "time=1651363200 level=0 msg=Test logging, but use a somewhat realistic message length. string=7e3b3b2aaeff56a7108fe11e154200dd/7819479873059528190 status=32768 duration=23000000000 time=1651363200 error=fail\n"
+
+type event struct {
+	ID          string    `json:"id"`
+	Description string    `json:"description"`
+	CreatedAt   time.Time `json:"created_at"`
+}
