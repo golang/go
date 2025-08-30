@@ -155,6 +155,20 @@ func FullRuneInString(s string) bool {
 // out of range, or is not the shortest possible UTF-8 encoding for the
 // value. No other validation is performed.
 func DecodeRune(p []byte) (r rune, size int) {
+	// Inlineable fast path for ASCII characters; see #48195.
+	// This implementation is weird but effective at rendering the
+	// function inlineable.
+	for _, b := range p {
+		if b < RuneSelf {
+			return rune(b), 1
+		}
+		break
+	}
+	r, size = decodeRuneSlow(p)
+	return
+}
+
+func decodeRuneSlow(p []byte) (r rune, size int) {
 	n := len(p)
 	if n < 1 {
 		return RuneError, 0
@@ -203,6 +217,18 @@ func DecodeRune(p []byte) (r rune, size int) {
 // out of range, or is not the shortest possible UTF-8 encoding for the
 // value. No other validation is performed.
 func DecodeRuneInString(s string) (r rune, size int) {
+	// Inlineable fast path for ASCII characters; see #48195.
+	// This implementation is a bit weird but effective at rendering the
+	// function inlineable.
+	if s != "" && s[0] < RuneSelf {
+		return rune(s[0]), 1
+	} else {
+		r, size = decodeRuneInStringSlow(s)
+	}
+	return
+}
+
+func decodeRuneInStringSlow(s string) (rune, int) {
 	n := len(s)
 	if n < 1 {
 		return RuneError, 0

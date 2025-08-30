@@ -346,10 +346,7 @@ func (f *fmt) truncate(b []byte) []byte {
 			if n < 0 {
 				return b[:i]
 			}
-			wid := 1
-			if b[i] >= utf8.RuneSelf {
-				_, wid = utf8.DecodeRune(b[i:])
-			}
+			_, wid := utf8.DecodeRune(b[i:])
 			i += wid
 		}
 	}
