@@ -21,6 +21,7 @@ package runtime
 
 import (
 	"internal/cpu"
+	"internal/goexperiment"
 	"internal/runtime/atomic"
 	"unsafe"
 )
@@ -188,7 +189,7 @@ func semacquire1(addr *uint32, lifo bool, profile semaProfileFlags, skipframes i
 		}
 		// Any semrelease after the cansemacquire knows we're waiting
 		// (we set nwait above), so go to sleep.
-		root.queue(addr, s, lifo)
+		root.queue(addr, s, lifo, reason.isSyncWait())
 		goparkunlock(&root.lock, reason, traceBlockSync, 4+skipframes)
 		if s.ticket != 0 || cansemacquire(addr) {
 			break
@@ -301,9 +302,14 @@ func cansemacquire(addr *uint32) bool {
 }
 
 // queue adds s to the blocked goroutines in semaRoot.
-func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool) {
+func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool, syncSema bool) {
 	s.g = getg()
-	s.elem = unsafe.Pointer(addr)
+	s.elem.set(unsafe.Pointer(addr))
+	if goexperiment.GoleakProfiler && syncSema {
+		// Storing this pointer so that we can trace the semaphore address
+		// from the blocked goroutine when checking for goroutine leaks.
+		s.g.waiting = s
+	}
 	s.next = nil
 	s.prev = nil
 	s.waiters = 0
@@ -311,7 +317,7 @@ func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool) {
 	var last *sudog
 	pt := &root.treap
 	for t := *pt; t != nil; t = *pt {
-		if t.elem == unsafe.Pointer(addr) {
+		if uintptr(unsafe.Pointer(addr)) == t.elem.uintptr() {
 			// Already have addr in list.
 			if lifo {
 				// Substitute s in t's place in treap.
@@ -357,7 +363,7 @@ func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool) {
 			return
 		}
 		last = t
-		if uintptr(unsafe.Pointer(addr)) < uintptr(t.elem) {
+		if uintptr(unsafe.Pointer(addr)) < t.elem.uintptr() {
 			pt = &t.prev
 		} else {
 			pt = &t.next
@@ -402,11 +408,13 @@ func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool) {
 func (root *semaRoot) dequeue(addr *uint32) (found *sudog, now, tailtime int64) {
 	ps := &root.treap
 	s := *ps
+
 	for ; s != nil; s = *ps {
-		if s.elem == unsafe.Pointer(addr) {
+		if uintptr(unsafe.Pointer(addr)) == s.elem.uintptr() {
 			goto Found
 		}
-		if uintptr(unsafe.Pointer(addr)) < uintptr(s.elem) {
+
+		if uintptr(unsafe.Pointer(addr)) < s.elem.uintptr() {
 			ps = &s.prev
 		} else {
 			ps = &s.next
@@ -470,8 +478,12 @@ Found:
 		}
 		tailtime = s.acquiretime
 	}
+	if goexperiment.GoleakProfiler {
+		// Goroutine is no longer blocked. Clear the waiting pointer.
+		s.g.waiting = nil
+	}
 	s.parent = nil
-	s.elem = nil
+	s.elem.set(nil)
 	s.next = nil
 	s.prev = nil
 	s.ticket = 0
@@ -590,6 +602,12 @@ func notifyListWait(l *notifyList, t uint32) {
 	// Enqueue itself.
 	s := acquireSudog()
 	s.g = getg()
+	if goexperiment.GoleakProfiler {
+		// Storing this pointer so that we can trace the condvar address
+		// from the blocked goroutine when checking for goroutine leaks.
+		s.elem.set(unsafe.Pointer(l))
+		s.g.waiting = s
+	}
 	s.ticket = t
 	s.releasetime = 0
 	t0 := int64(0)
@@ -606,6 +624,12 @@ func notifyListWait(l *notifyList, t uint32) {
 	goparkunlock(&l.lock, waitReasonSyncCondWait, traceBlockCondWait, 3)
 	if t0 != 0 {
 		blockevent(s.releasetime-t0, 2)
+	}
+	if goexperiment.GoleakProfiler {
+		// Goroutine is no longer blocked. Clear up its waiting pointer,
+		// and clean up the sudog before releasing it.
+		s.g.waiting = nil
+		s.elem.set(nil)
 	}
 	releaseSudog(s)
 }
