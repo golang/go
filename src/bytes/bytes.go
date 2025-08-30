@@ -1425,6 +1425,20 @@ func CutPrefix(s, prefix []byte) (after []byte, found bool) {
 	return s[len(prefix):], true
 }
 
+// CutSpace slices s around the each instance of one or more consecutive white space
+// characters, as defined by unicode.IsSpace, returning the text before and after the
+// white space characters. The found result reports white space characters appears in s.
+// If no whitespace characters appear in s, CutSpace returns s, nil, false.
+//
+// CutSpace returns slices of the original slice s, not copies.
+func CutSpace(s []byte) (before, after []byte, found bool) {
+	i := indexFunc(s, unicode.IsSpace, true)
+	if i == -1 {
+		return s, nil, false
+	}
+	return s[:i], TrimLeftFunc(s[i:], unicode.IsSpace), true
+}
+
 // CutSuffix returns s without the provided ending suffix byte slice
 // and reports whether it found the suffix.
 // If s doesn't end with suffix, CutSuffix returns s, false.
