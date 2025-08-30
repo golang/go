@@ -310,12 +310,33 @@ func invoke(cmd *base.Command, args []string) {
 		}
 	}
 
-	cmd.Flag.Usage = func() { cmd.Usage() }
+	// Add --help flag support to all commands
+	var helpFlag bool
+	if !cmd.CustomFlags {
+		cmd.Flag.BoolVar(&helpFlag, "help", false, "show help")
+	}
+
+	cmd.Flag.Usage = func() {
+		if helpFlag {
+			// Show full help like "go help <command>"
+			help.Help(os.Stdout, strings.Fields(cmd.LongName()))
+			base.Exit()
+		} else {
+			cmd.Usage()
+		}
+	}
 	if cmd.CustomFlags {
 		args = args[1:]
 	} else {
 		base.SetFromGOFLAGS(&cmd.Flag)
 		cmd.Flag.Parse(args[1:])
+
+		// Check if --help flag was set and show full help
+		if helpFlag {
+			help.Help(os.Stdout, strings.Fields(cmd.LongName()))
+			base.Exit()
+		}
+
 		flagCounterPrefix := "go/" + strings.ReplaceAll(cfg.CmdName, " ", "-") + "/flag"
 		counter.CountFlags(flagCounterPrefix+":", cmd.Flag)
 		counter.CountFlagValue(flagCounterPrefix+"/", cmd.Flag, "buildmode")
