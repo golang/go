@@ -1280,11 +1280,6 @@
 // The -json flag prints the final go.mod file in JSON format instead of
 // writing it back to go.mod. The JSON output corresponds to these Go types:
 //
-//	type Module struct {
-//		Path    string
-//		Version string
-//	}
-//
 //	type GoMod struct {
 //		Module    ModPath
 //		Go        string
@@ -1294,6 +1289,13 @@
 //		Exclude   []Module
 //		Replace   []Replace
 //		Retract   []Retract
+//		Tool      []Tool
+//		Ignore    []Ignore
+//	}
+//
+//	type Module struct {
+//		Path    string
+//		Version string
 //	}
 //
 //	type ModPath struct {
