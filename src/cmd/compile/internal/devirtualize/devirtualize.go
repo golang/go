@@ -18,7 +18,7 @@ import (
 	"cmd/compile/internal/types"
 )
 
-const go125ImprovedConcreteTypeAnalysis = true
+const go126ImprovedConcreteTypeAnalysis = true
 
 // StaticCall devirtualizes the given call if possible when the concrete callee
 // is available statically.
@@ -43,13 +43,13 @@ func StaticCall(s *State, call *ir.CallExpr) {
 
 	sel := call.Fun.(*ir.SelectorExpr)
 	var typ *types.Type
-	if go125ImprovedConcreteTypeAnalysis {
+	if go126ImprovedConcreteTypeAnalysis {
 		typ = concreteType(s, sel.X)
 		if typ == nil {
 			return
 		}
 
-		// Don't try to devirtualize calls that we statically know that would have failed at runtime.
+		// Don't create type-assertions that would be impossible at compile-time.
 		// This can happen in such case: any(0).(interface {A()}).A(), this typechecks without
 		// any errors, but will cause a runtime panic. We statically know that int(0) does not
 		// implement that interface, thus we skip the devirtualization, as it is not possible
@@ -119,7 +119,7 @@ func StaticCall(s *State, call *ir.CallExpr) {
 
 	dt := ir.NewTypeAssertExpr(sel.Pos(), sel.X, typ)
 
-	if go125ImprovedConcreteTypeAnalysis {
+	if go126ImprovedConcreteTypeAnalysis {
 		// Consider:
 		//
 		//	var v Iface
@@ -313,9 +313,9 @@ func concreteType1(s *State, n ir.Node, seen map[*ir.Name]struct{}) (outT *types
 }
 
 // assignment can be one of:
-// - nil - assignment to an interface type.
-// - *types.Type - assignment to a concrete type (non-interface).
-// - ir.Node - assignment to a ir.Node.
+// - nil - assignment from an interface type.
+// - *types.Type - assignment from a concrete type (non-interface).
+// - ir.Node - assignment from a ir.Node.
 //
 // In most cases assignment should be an [ir.Node], but in cases where we
 // do not follow the data-flow, we return either a concrete type (*types.Type) or a nil.
@@ -395,7 +395,7 @@ func (s *State) assignments(n *ir.Name) []assignment {
 	// Analyze assignments in func, if not analyzed before.
 	if _, ok := s.analyzedFuncs[fun]; !ok {
 		if concreteTypeDebug {
-			base.Warn("concreteType(): analyzing assignments in %v func", fun)
+			base.Warn("assignments(): analyzing assignments in %v func", fun)
 		}
 		if s.analyzedFuncs == nil {
 			s.ifaceAssignments = make(map[*ir.Name][]assignment)
