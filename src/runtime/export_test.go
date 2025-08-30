@@ -1940,3 +1940,5 @@ func (t *TraceStackTable) Reset() {
 func TraceStack(gp *G, tab *TraceStackTable) {
 	traceStack(0, gp, (*traceStackTable)(tab))
 }
+
+var X86HasAVX = &x86HasAVX

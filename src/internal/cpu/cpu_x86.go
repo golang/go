@@ -114,6 +114,7 @@ func doinit() {
 	maxID, _, _, _ := cpuid(0, 0)
 
 	if maxID < 1 {
+		osInit()
 		return
 	}
 
@@ -158,6 +159,7 @@ func doinit() {
 	X86.HasAVX = isSet(ecx1, cpuid_AVX) && osSupportsAVX
 
 	if maxID < 7 {
+		osInit()
 		return
 	}
 
@@ -194,6 +196,7 @@ func doinit() {
 	maxExtendedInformation, _, _, _ = cpuid(0x80000000, 0)
 
 	if maxExtendedInformation < 0x80000001 {
+		osInit()
 		return
 	}
 
@@ -217,6 +220,8 @@ func doinit() {
 			X86.HasAVXVNNI = isSet(4, eax71)
 		}
 	}
+
+	osInit()
 }
 
 func isSet(hwc uint32, value uint32) bool {
