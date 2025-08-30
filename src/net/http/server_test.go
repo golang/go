@@ -8,6 +8,7 @@ package http
 
 import (
 	"fmt"
+	"internal/godebug"
 	"net/url"
 	"regexp"
 	"testing"
@@ -71,6 +72,9 @@ type handler struct{ i int }
 func (handler) ServeHTTP(ResponseWriter, *Request) {}
 
 func TestFindHandler(t *testing.T) {
+	if godebug.New("httpmuxgo121").Value() == "1" {
+		t.Skip("skipping test in TestFindHandler when httpmuxgo121=1")
+	}
 	mux := NewServeMux()
 	for _, ph := range []struct {
 		pat string
@@ -133,6 +137,9 @@ func TestEmptyServeMux(t *testing.T) {
 }
 
 func TestRegisterErr(t *testing.T) {
+	if godebug.New("httpmuxgo121").Value() == "1" {
+		t.Skip("skipping test in TestRegisterErr when httpmuxgo121=1")
+	}
 	mux := NewServeMux()
 	h := &handler{}
 	mux.Handle("/a", h)
