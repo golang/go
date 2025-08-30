@@ -275,32 +275,33 @@ func (c *mcache) releaseAll() {
 	dHeapLive := int64(0)
 	for i := range c.alloc {
 		s := c.alloc[i]
-		if s != &emptymspan {
-			slotsUsed := int64(s.allocCount) - int64(s.allocCountBeforeCache)
-			s.allocCountBeforeCache = 0
-
-			// Adjust smallAllocCount for whatever was allocated.
-			stats := memstats.heapStats.acquire()
-			atomic.Xadd64(&stats.smallAllocCount[spanClass(i).sizeclass()], slotsUsed)
-			memstats.heapStats.release()
-
-			// Adjust the actual allocs in inconsistent, internal stats.
-			// We assumed earlier that the full span gets allocated.
-			gcController.totalAlloc.Add(slotsUsed * int64(s.elemsize))
-
-			if s.sweepgen != sg+1 {
-				// refill conservatively counted unallocated slots in gcController.heapLive.
-				// Undo this.
-				//
-				// If this span was cached before sweep, then gcController.heapLive was totally
-				// recomputed since caching this span, so we don't do this for stale spans.
-				dHeapLive -= int64(s.nelems-s.allocCount) * int64(s.elemsize)
-			}
-
-			// Release the span to the mcentral.
-			mheap_.central[i].mcentral.uncacheSpan(s)
-			c.alloc[i] = &emptymspan
+		if s == &emptymspan {
+			continue
 		}
+		slotsUsed := int64(s.allocCount) - int64(s.allocCountBeforeCache)
+		s.allocCountBeforeCache = 0
+
+		// Adjust smallAllocCount for whatever was allocated.
+		stats := memstats.heapStats.acquire()
+		atomic.Xadd64(&stats.smallAllocCount[spanClass(i).sizeclass()], slotsUsed)
+		memstats.heapStats.release()
+
+		// Adjust the actual allocs in inconsistent, internal stats.
+		// We assumed earlier that the full span gets allocated.
+		gcController.totalAlloc.Add(slotsUsed * int64(s.elemsize))
+
+		if s.sweepgen != sg+1 {
+			// refill conservatively counted unallocated slots in gcController.heapLive.
+			// Undo this.
+			//
+			// If this span was cached before sweep, then gcController.heapLive was totally
+			// recomputed since caching this span, so we don't do this for stale spans.
+			dHeapLive -= int64(s.nelems-s.allocCount) * int64(s.elemsize)
+		}
+
+		// Release the span to the mcentral.
+		mheap_.central[i].mcentral.uncacheSpan(s)
+		c.alloc[i] = &emptymspan
 	}
 	// Clear tinyalloc pool.
 	c.tiny = 0
