@@ -340,9 +340,9 @@ type State struct {
 }
 
 type ifaceAssignRef struct {
-	name           *ir.Name // ifaceAssignments[name]
-	valOrTypeIndex int      // ifaceAssignments[name][valOrTypeIndex]
-	returnIndex    int      // (*ir.CallExpr).Result(returnIndex)
+	name            *ir.Name // ifaceAssignments[name]
+	assignmentIndex int      // ifaceAssignments[name][assignmentIndex]
+	returnIndex     int      // (*ir.CallExpr).Result(returnIndex)
 }
 
 // InlinedCall updates the [State] to take into account a newly inlined call.
@@ -365,14 +365,14 @@ func (s *State) InlinedCall(fun *ir.Func, origCall *ir.CallExpr, inlinedCall *ir
 
 	// Update assignments to reference the new ReturnVars of the inlined call.
 	for _, ref := range refs {
-		vt := &s.ifaceAssignments[ref.name][ref.valOrTypeIndex]
+		vt := &s.ifaceAssignments[ref.name][ref.assignmentIndex]
 		if *vt != nil {
 			base.Fatalf("unexpected non-nil assignment")
 		}
 		if concreteTypeDebug {
 			base.Warn(
 				"InlinedCall(%v, %v): replacing interface node in (%v,%v) to %v (typ %v)",
-				origCall, inlinedCall, ref.name, ref.valOrTypeIndex,
+				origCall, inlinedCall, ref.name, ref.assignmentIndex,
 				inlinedCall.ReturnVars[ref.returnIndex],
 				inlinedCall.ReturnVars[ref.returnIndex].Type(),
 			)
