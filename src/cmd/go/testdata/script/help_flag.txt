@@ -1,0 +1,56 @@
+# Test that --help flag works for go commands
+
+# go build --help shows full help
+go build --help
+stdout 'usage: go build'
+stdout 'Build compiles the packages'
+stdout 'For more about specifying packages'
+
+# go install --help shows full help  
+go install --help
+stdout 'usage: go install'
+stdout 'Install compiles and installs'
+stdout 'For more about specifying packages'
+
+# go get --help shows full help
+go get --help
+stdout 'usage: go get'
+stdout 'Get resolves its command-line arguments'
+stdout 'See also: go build, go install'
+
+# go fmt --help shows full help
+go fmt --help
+stdout 'usage: go fmt'
+stdout 'Fmt runs the command'
+stdout 'See also: go fix, go vet'
+
+# go run --help shows full help
+go run --help
+stdout 'usage: go run'
+stdout 'Run compiles and runs'
+stdout 'See also: go build'
+
+# go run program.go --help should pass --help to the program, not show go run help
+go run helpprog.go --help
+stdout 'Program help message'
+stdout 'Arguments: \[.*helpprog.*--help\]'
+
+-- helpprog.go --
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+)
+
+func main() {
+	var help = flag.Bool("help", false, "show help")
+	flag.Parse()
+	
+	fmt.Printf("Arguments: %v\n", os.Args)
+	
+	if *help {
+		fmt.Println("Program help message")
+	}
+}
