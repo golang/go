@@ -1,5 +1,11 @@
 # Test that --help flag works for go commands
 
+# go --help shows main help (not an error)
+go --help
+stdout 'Go is a tool for managing Go source code'
+stdout 'Usage:'
+stdout 'go <command> \[arguments\]'
+
 # go build --help shows full help
 go build --help
 stdout 'usage: go build'

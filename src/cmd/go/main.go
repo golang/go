@@ -109,12 +109,23 @@ func main() {
 	if !cmdIsGoTelemetryOff {
 		telemetry.MaybeParent() // Run the upload process. Opening the counter file is idempotent.
 	}
+	// Add global --help flag support
+	var globalHelp bool
+	flag.BoolVar(&globalHelp, "help", false, "show help")
+	
 	flag.Usage = base.Usage
 	flag.Parse()
 	counter.Inc("go/invocations")
 	counter.CountFlags("go/flag:", *flag.CommandLine)
 
 	args := flag.Args()
+	
+	// Handle global --help flag
+	if globalHelp {
+		help.Help(os.Stdout, nil)
+		return
+	}
+	
 	if len(args) < 1 {
 		base.Usage()
 	}
