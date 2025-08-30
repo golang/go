@@ -716,6 +716,8 @@
 (MOVWUreg <t> x:(MOVWload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (MOVWUload <t> [off] {sym} ptr mem)
 
 // Replace load from same location as preceding store with copy.
+(MOV(D|W|H|B)load [off] {sym} ptr1 (MOV(D|W|H|B)store [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) => (MOV(D|W|H|B)reg x)
+(MOV(W|H|B)Uload  [off] {sym} ptr1 (MOV(W|H|B)store   [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) => (MOV(W|H|B)Ureg  x)
 (MOVDload  [off] {sym} ptr1 (FMOVDstore [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) => (FMVXD x)
 (FMOVDload [off] {sym} ptr1 (MOVDstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) => (FMVDX x)
 (MOVWload  [off] {sym} ptr1 (FMOVWstore [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) => (FMVXS x)
