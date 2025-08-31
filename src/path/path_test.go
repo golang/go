@@ -188,6 +188,19 @@ func TestBase(t *testing.T) {
 	}
 }
 
+func BenchmarkBase(b *testing.B) {
+	for _, tt := range basetests {
+		b.Run(tt.path, func(b *testing.B) {
+			b.ReportAllocs()
+			for range b.N {
+				strSink = Base(tt.path)
+			}
+		})
+	}
+}
+
+var strSink string
+
 var dirtests = []PathTest{
 	{"", "."},
 	{".", "."},
