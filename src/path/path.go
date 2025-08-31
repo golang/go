@@ -195,7 +195,7 @@ func Base(path string) string {
 	}
 	// Strip trailing slashes.
 	for len(path) > 0 && path[len(path)-1] == '/' {
-		path = path[0 : len(path)-1]
+		path = path[:len(path)-1]
 	}
 	// Find the last element
 	if i := bytealg.LastIndexByteString(path, '/'); i >= 0 {

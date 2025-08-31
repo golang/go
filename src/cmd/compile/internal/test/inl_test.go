@@ -234,6 +234,7 @@ func TestIntendedInlining(t *testing.T) {
 			"(*B).Loop",
 		},
 		"path": {
+			"Base",
 			"scanChunk",
 		},
 		"path/filepath": {
