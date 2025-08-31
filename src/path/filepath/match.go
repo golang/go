@@ -94,16 +94,12 @@ func scanChunk(pattern string) (star bool, chunk, rest string) {
 		star = true
 	}
 	inrange := false
-	var i int
-Scan:
-	for i = 0; i < len(pattern); i++ {
+	for i := 0; i < len(pattern); i++ {
 		switch pattern[i] {
 		case '\\':
-			if runtime.GOOS != "windows" {
-				// error check handled in matchChunk: bad pattern.
-				if i+1 < len(pattern) {
-					i++
-				}
+			// error check handled in matchChunk: bad pattern.
+			if runtime.GOOS != "windows" && i+1 < len(pattern) {
+				i++
 			}
 		case '[':
 			inrange = true
@@ -111,11 +107,11 @@ Scan:
 			inrange = false
 		case '*':
 			if !inrange {
-				break Scan
+				return star, pattern[:i], pattern[i:]
 			}
 		}
 	}
-	return star, pattern[0:i], pattern[i:]
+	return star, pattern, ""
 }
 
 // matchChunk checks whether chunk matches the beginning of s.
