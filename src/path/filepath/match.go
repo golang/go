@@ -123,9 +123,7 @@ func matchChunk(chunk, s string) (rest string, ok bool, err error) {
 	// checking that the pattern is well-formed but no longer reading s.
 	failed := false
 	for len(chunk) > 0 {
-		if !failed && len(s) == 0 {
-			failed = true
-		}
+		failed = failed || len(s) == 0
 		switch chunk[0] {
 		case '[':
 			// character class
@@ -160,20 +158,14 @@ func matchChunk(chunk, s string) (rest string, ok bool, err error) {
 						return "", false, err
 					}
 				}
-				if lo <= r && r <= hi {
-					match = true
-				}
+				match = match || lo <= r && r <= hi
 				nrange++
 			}
-			if match == negated {
-				failed = true
-			}
+			failed = failed || match == negated
 
 		case '?':
 			if !failed {
-				if s[0] == Separator {
-					failed = true
-				}
+				failed = s[0] == Separator
 				_, n := utf8.DecodeRuneInString(s)
 				s = s[n:]
 			}
@@ -190,9 +182,7 @@ func matchChunk(chunk, s string) (rest string, ok bool, err error) {
 
 		default:
 			if !failed {
-				if chunk[0] != s[0] {
-					failed = true
-				}
+				failed = chunk[0] != s[0]
 				s = s[1:]
 			}
 			chunk = chunk[1:]
