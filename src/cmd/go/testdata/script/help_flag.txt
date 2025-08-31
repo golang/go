@@ -1,45 +1,45 @@
-# Test that --help flag works for go commands
+# Test that -help flag works for go commands
 
-# go --help shows main help (not an error)
-go --help
+# go -help shows main help (not an error)
+go -help
 stdout 'Go is a tool for managing Go source code'
 stdout 'Usage:'
 stdout 'go <command> \[arguments\]'
 
-# go build --help shows full help
-go build --help
+# go build -help shows full help
+go build -help
 stdout 'usage: go build'
 stdout 'Build compiles the packages'
 stdout 'For more about specifying packages'
 
-# go install --help shows full help  
-go install --help
+# go install -help shows full help  
+go install -help
 stdout 'usage: go install'
 stdout 'Install compiles and installs'
 stdout 'For more about specifying packages'
 
-# go get --help shows full help
-go get --help
+# go get -help shows full help
+go get -help
 stdout 'usage: go get'
 stdout 'Get resolves its command-line arguments'
 stdout 'See also: go build, go install'
 
-# go fmt --help shows full help
-go fmt --help
+# go fmt -help shows full help
+go fmt -help
 stdout 'usage: go fmt'
 stdout 'Fmt runs the command'
 stdout 'See also: go fix, go vet'
 
-# go run --help shows full help
-go run --help
+# go run -help shows full help
+go run -help
 stdout 'usage: go run'
 stdout 'Run compiles and runs'
 stdout 'See also: go build'
 
-# go run program.go --help should pass --help to the program, not show go run help
-go run helpprog.go --help
+# go run program.go -help should pass -help to the program, not show go run help
+go run helpprog.go -help
 stdout 'Program help message'
-stdout 'Arguments: \[.*helpprog.*--help\]'
+stdout 'Arguments: \[.*helpprog.*-help\]'
 
 -- helpprog.go --
 package main
