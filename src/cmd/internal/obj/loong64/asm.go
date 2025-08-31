@@ -438,8 +438,6 @@ var optab = []Optab{
 	{obj.ANOP, C_FREG, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0},
 	{obj.ADUFFZERO, C_NONE, C_NONE, C_NONE, C_BRAN, C_NONE, 11, 4, 0, 0}, // same as AJMP
 	{obj.ADUFFCOPY, C_NONE, C_NONE, C_NONE, C_BRAN, C_NONE, 11, 4, 0, 0}, // same as AJMP
-
-	{obj.AXXX, C_NONE, C_NONE, C_NONE, C_NONE, C_NONE, 0, 4, 0, 0},
 }
 
 var atomicInst = map[obj.As]uint32{
@@ -1303,31 +1301,27 @@ func buildop(ctxt *obj.Link) {
 		return
 	}
 
-	var n int
-
-	for i := 0; i < C_NCLASS; i++ {
-		for n = 0; n < C_NCLASS; n++ {
-			if cmp(n, i) {
-				xcmp[i][n] = true
+	for i := range C_NCLASS {
+		for j := range C_NCLASS {
+			if cmp(j, i) {
+				xcmp[i][j] = true
 			}
 		}
 	}
-	for n = 0; optab[n].as != obj.AXXX; n++ {
-	}
-	slices.SortFunc(optab[:n], ocmp)
-	for i := 0; i < n; i++ {
-		r := optab[i].as
-		r0 := r & obj.AMask
-		start := i
-		for optab[i].as == r {
-			i++
-		}
-		oprange[r0] = optab[start:i]
-		i--
 
-		switch r {
+	slices.SortFunc(optab, ocmp)
+	for i := 0; i < len(optab); i++ {
+		as, start := optab[i].as, i
+		for ; i < len(optab)-1; i++ {
+			if optab[i+1].as != as {
+				break
+			}
+		}
+		r0 := as & obj.AMask
+		oprange[r0] = optab[start : i+1]
+		switch as {
 		default:
-			ctxt.Diag("unknown op in build: %v", r)
+			ctxt.Diag("unknown op in build: %v", as)
 			ctxt.DiagFlush()
 			log.Fatalf("bad code")
 

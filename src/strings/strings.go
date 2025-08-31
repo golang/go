@@ -379,7 +379,7 @@ var asciiSpace = [256]uint8{'\t': 1, '\n': 1, '\v': 1, '\f': 1, '\r': 1, ' ': 1}
 // Fields splits the string s around each instance of one or more consecutive white space
 // characters, as defined by [unicode.IsSpace], returning a slice of substrings of s or an
 // empty slice if s contains only white space. Every element of the returned slice is
-// non-empty. Unlike [Split], leading and trailing runs runs of white space characters
+// non-empty. Unlike [Split], leading and trailing runs of white space characters
 // are discarded.
 func Fields(s string) []string {
 	// First count the fields.
@@ -1091,37 +1091,32 @@ func trimRightUnicode(s, cutset string) string {
 // TrimSpace returns a slice of the string s, with all leading
 // and trailing white space removed, as defined by Unicode.
 func TrimSpace(s string) string {
-	// Fast path for ASCII: look for the first ASCII non-space byte
-	start := 0
-	for ; start < len(s); start++ {
-		c := s[start]
+	// Fast path for ASCII: look for the first ASCII non-space byte.
+	for lo, c := range []byte(s) {
 		if c >= utf8.RuneSelf {
 			// If we run into a non-ASCII byte, fall back to the
-			// slower unicode-aware method on the remaining bytes
-			return TrimFunc(s[start:], unicode.IsSpace)
+			// slower unicode-aware method on the remaining bytes.
+			return TrimFunc(s[lo:], unicode.IsSpace)
 		}
-		if asciiSpace[c] == 0 {
-			break
+		if asciiSpace[c] != 0 {
+			continue
+		}
+		s = s[lo:]
+		// Now look for the first ASCII non-space byte from the end.
+		for hi := len(s) - 1; hi >= 0; hi-- {
+			c := s[hi]
+			if c >= utf8.RuneSelf {
+				return TrimRightFunc(s[:hi+1], unicode.IsSpace)
+			}
+			if asciiSpace[c] == 0 {
+				// At this point, s[:hi+1] starts and ends with ASCII
+				// non-space bytes, so we're done. Non-ASCII cases have
+				// already been handled above.
+				return s[:hi+1]
+			}
 		}
 	}
-
-	// Now look for the first ASCII non-space byte from the end
-	stop := len(s)
-	for ; stop > start; stop-- {
-		c := s[stop-1]
-		if c >= utf8.RuneSelf {
-			// start has been already trimmed above, should trim end only
-			return TrimRightFunc(s[start:stop], unicode.IsSpace)
-		}
-		if asciiSpace[c] == 0 {
-			break
-		}
-	}
-
-	// At this point s[start:stop] starts and ends with an ASCII
-	// non-space bytes, so we're done. Non-ASCII cases have already
-	// been handled above.
-	return s[start:stop]
+	return ""
 }
 
 // TrimPrefix returns s without the provided leading prefix string.

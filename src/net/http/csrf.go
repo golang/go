@@ -77,13 +77,21 @@ func (c *CrossOriginProtection) AddTrustedOrigin(origin string) error {
 	return nil
 }
 
-var noopHandler = HandlerFunc(func(w ResponseWriter, r *Request) {})
+type noopHandler struct{}
+
+func (noopHandler) ServeHTTP(ResponseWriter, *Request) {}
+
+var sentinelHandler Handler = &noopHandler{}
 
 // AddInsecureBypassPattern permits all requests that match the given pattern.
-// The pattern syntax and precedence rules are the same as [ServeMux].
 //
-// AddInsecureBypassPattern can be called concurrently with other methods
-// or request handling, and applies to future requests.
+// The pattern syntax and precedence rules are the same as [ServeMux]. Only
+// requests that match the pattern directly are permitted. Those that ServeMux
+// would redirect to a pattern (e.g. after cleaning the path or adding a
+// trailing slash) are not.
+//
+// AddInsecureBypassPattern can be called concurrently with other methods or
+// request handling, and applies to future requests.
 func (c *CrossOriginProtection) AddInsecureBypassPattern(pattern string) {
 	var bypass *ServeMux
 
@@ -99,7 +107,7 @@ func (c *CrossOriginProtection) AddInsecureBypassPattern(pattern string) {
 		}
 	}
 
-	bypass.Handle(pattern, noopHandler)
+	bypass.Handle(pattern, sentinelHandler)
 }
 
 // SetDenyHandler sets a handler to invoke when a request is rejected.
@@ -172,7 +180,7 @@ var (
 // be deferred until the last moment.
 func (c *CrossOriginProtection) isRequestExempt(req *Request) bool {
 	if bypass := c.bypass.Load(); bypass != nil {
-		if _, pattern := bypass.Handler(req); pattern != "" {
+		if h, _ := bypass.Handler(req); h == sentinelHandler {
 			// The request matches a bypass pattern.
 			return true
 		}

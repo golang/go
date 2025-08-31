@@ -12,9 +12,7 @@
 (Mul64 ...) => (MUL  ...)
 (Mul64uhilo ...) => (LoweredMuluhilo ...)
 (Mul64uover ...) => (LoweredMuluover ...)
-(Mul32 ...) => (MULW ...)
-(Mul16 x y) => (MULW (SignExt16to32 x) (SignExt16to32 y))
-(Mul8 x y)  => (MULW (SignExt8to32 x)  (SignExt8to32 y))
+(Mul(32|16|8) ...) => (MULW ...)
 (Mul(64|32)F ...) => (FMUL(D|S) ...)
 
 (Div(64|32)F ...) => (FDIV(D|S) ...)

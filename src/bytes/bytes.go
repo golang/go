@@ -1117,41 +1117,34 @@ func trimRightUnicode(s []byte, cutset string) []byte {
 // TrimSpace returns a subslice of s by slicing off all leading and
 // trailing white space, as defined by Unicode.
 func TrimSpace(s []byte) []byte {
-	// Fast path for ASCII: look for the first ASCII non-space byte
-	start := 0
-	for ; start < len(s); start++ {
-		c := s[start]
+	// Fast path for ASCII: look for the first ASCII non-space byte.
+	for lo, c := range s {
 		if c >= utf8.RuneSelf {
 			// If we run into a non-ASCII byte, fall back to the
-			// slower unicode-aware method on the remaining bytes
-			return TrimFunc(s[start:], unicode.IsSpace)
+			// slower unicode-aware method on the remaining bytes.
+			return TrimFunc(s[lo:], unicode.IsSpace)
 		}
-		if asciiSpace[c] == 0 {
-			break
+		if asciiSpace[c] != 0 {
+			continue
+		}
+		s = s[lo:]
+		// Now look for the first ASCII non-space byte from the end.
+		for hi := len(s) - 1; hi >= 0; hi-- {
+			c := s[hi]
+			if c >= utf8.RuneSelf {
+				return TrimFunc(s[:hi+1], unicode.IsSpace)
+			}
+			if asciiSpace[c] == 0 {
+				// At this point, s[:hi+1] starts and ends with ASCII
+				// non-space bytes, so we're done. Non-ASCII cases have
+				// already been handled above.
+				return s[:hi+1]
+			}
 		}
 	}
-
-	// Now look for the first ASCII non-space byte from the end
-	stop := len(s)
-	for ; stop > start; stop-- {
-		c := s[stop-1]
-		if c >= utf8.RuneSelf {
-			return TrimFunc(s[start:stop], unicode.IsSpace)
-		}
-		if asciiSpace[c] == 0 {
-			break
-		}
-	}
-
-	// At this point s[start:stop] starts and ends with an ASCII
-	// non-space bytes, so we're done. Non-ASCII cases have already
-	// been handled above.
-	if start == stop {
-		// Special case to preserve previous TrimLeftFunc behavior,
-		// returning nil instead of empty slice if all spaces.
-		return nil
-	}
-	return s[start:stop]
+	// Special case to preserve previous TrimLeftFunc behavior,
+	// returning nil instead of empty slice if all spaces.
+	return nil
 }
 
 // Runes interprets s as a sequence of UTF-8-encoded code points.

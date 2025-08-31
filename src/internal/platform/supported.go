@@ -23,7 +23,7 @@ func (p OSArch) String() string {
 func RaceDetectorSupported(goos, goarch string) bool {
 	switch goos {
 	case "linux":
-		return goarch == "amd64" || goarch == "ppc64le" || goarch == "arm64" || goarch == "s390x" || goarch == "loong64"
+		return goarch == "amd64" || goarch == "arm64" || goarch == "loong64" || goarch == "ppc64le" || goarch == "riscv64" || goarch == "s390x"
 	case "darwin":
 		return goarch == "amd64" || goarch == "arm64"
 	case "freebsd", "netbsd", "windows":

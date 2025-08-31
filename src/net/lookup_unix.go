@@ -87,8 +87,8 @@ func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int
 func (r *Resolver) lookupCNAME(ctx context.Context, name string) (string, error) {
 	order, conf := systemConf().hostLookupOrder(r, name)
 	if order == hostLookupCgo {
-		if cname, err, ok := cgoLookupCNAME(ctx, name); ok {
-			return cname, err
+		if cname, err := cgoLookupCNAME(ctx, name); err == nil {
+			return cname, nil
 		}
 	}
 	return r.goLookupCNAME(ctx, name, order, conf)

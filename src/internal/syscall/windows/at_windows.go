@@ -11,6 +11,11 @@ import (
 	"unsafe"
 )
 
+// Openat flags supported by syscall.Open.
+const (
+	O_DIRECTORY = 0x04000 // target must be a directory
+)
+
 // Openat flags not supported by syscall.Open.
 //
 // These are invented values, use values in the 33-63 bit range
@@ -20,7 +25,6 @@ import (
 // the set of invented O_ values in syscall/types_windows.go
 // to avoid overlap.
 const (
-	O_DIRECTORY    = 0x100000000 // target must be a directory
 	O_NOFOLLOW_ANY = 0x200000000 // disallow symlinks anywhere in the path
 	O_OPEN_REPARSE = 0x400000000 // FILE_OPEN_REPARSE_POINT, used by Lstat
 	O_WRITE_ATTRS  = 0x800000000 // FILE_WRITE_ATTRIBUTES, used by Chmod
