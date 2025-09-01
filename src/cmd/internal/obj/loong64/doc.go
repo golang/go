@@ -289,6 +289,34 @@ Note: In the following sections 3.1 to 3.6, "ui4" (4-bit unsigned int immediate)
 
             Go assembly      | instruction Encoding
         ALSLV $4, r4, r5, R6 |      002d9486
+
+5. Note of special memory access instructions
+    Instruction format:
+      MOVWP	offset(Rj), Rd
+      MOVVP	offset(Rj), Rd
+      MOVWP	Rd, offset(Rj)
+      MOVVP	Rd, offset(Rj)
+
+    Mapping between Go and platform assembly:
+               Go assembly      |      platform assembly
+      MOVWP  offset(Rj), Rd     |    ldptr.w  rd, rj, si14
+      MOVVP  offset(Rj), Rd     |    ldptr.d  rd, rj, si14
+      MOVWP  Rd, offset(Rj)     |    stptr.w  rd, rj, si14
+      MOVVP  Rd, offset(Rj)     |    stptr.d  rd, rj, si14
+
+      note: In Go assembly, for ease of understanding, offset is a 16-bit immediate number representing
+            the actual address offset, but in platform assembly, it need a 14-bit immediate number.
+	    si14 = offset>>2
+
+    The addressing calculation for the above instruction involves logically left-shifting the 14-bit
+    immediate number si14 by 2 bits, then sign-extending it, and finally adding it to the value in the
+    general-purpose register rj to obtain the sum.
+
+    For example:
+
+            Go assembly      |      platform assembly
+         MOVWP  8(R4), R5    |      ldptr.w r5, r4, $2
+
 */
 
 package loong64

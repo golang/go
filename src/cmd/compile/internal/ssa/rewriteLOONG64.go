@@ -11497,56 +11497,33 @@ func rewriteValueLOONG64_OpZero(v *Value) bool {
 		return true
 	}
 	// match: (Zero [s] ptr mem)
-	// cond: s%8 != 0 && s > 16
-	// result: (Zero [s%8] (OffPtr <ptr.Type> ptr [s-s%8]) (Zero [s-s%8] ptr mem))
+	// cond: s > 16 && s < 192
+	// result: (LoweredZero [s] ptr mem)
 	for {
 		s := auxIntToInt64(v.AuxInt)
 		ptr := v_0
 		mem := v_1
-		if !(s%8 != 0 && s > 16) {
+		if !(s > 16 && s < 192) {
 			break
 		}
-		v.reset(OpZero)
-		v.AuxInt = int64ToAuxInt(s % 8)
-		v0 := b.NewValue0(v.Pos, OpOffPtr, ptr.Type)
-		v0.AuxInt = int64ToAuxInt(s - s%8)
-		v0.AddArg(ptr)
-		v1 := b.NewValue0(v.Pos, OpZero, types.TypeMem)
-		v1.AuxInt = int64ToAuxInt(s - s%8)
-		v1.AddArg2(ptr, mem)
-		v.AddArg2(v0, v1)
-		return true
-	}
-	// match: (Zero [s] ptr mem)
-	// cond: s%8 == 0 && s > 16 && s <= 8*128
-	// result: (DUFFZERO [8 * (128 - s/8)] ptr mem)
-	for {
-		s := auxIntToInt64(v.AuxInt)
-		ptr := v_0
-		mem := v_1
-		if !(s%8 == 0 && s > 16 && s <= 8*128) {
-			break
-		}
-		v.reset(OpLOONG64DUFFZERO)
-		v.AuxInt = int64ToAuxInt(8 * (128 - s/8))
+		v.reset(OpLOONG64LoweredZero)
+		v.AuxInt = int64ToAuxInt(s)
 		v.AddArg2(ptr, mem)
 		return true
 	}
 	// match: (Zero [s] ptr mem)
-	// cond: s%8 == 0 && s > 8*128
-	// result: (LoweredZero ptr (ADDVconst <ptr.Type> ptr [s-8]) mem)
+	// cond: s >= 192
+	// result: (LoweredZeroLoop [s] ptr mem)
 	for {
 		s := auxIntToInt64(v.AuxInt)
 		ptr := v_0
 		mem := v_1
-		if !(s%8 == 0 && s > 8*128) {
+		if !(s >= 192) {
 			break
 		}
-		v.reset(OpLOONG64LoweredZero)
-		v0 := b.NewValue0(v.Pos, OpLOONG64ADDVconst, ptr.Type)
-		v0.AuxInt = int64ToAuxInt(s - 8)
-		v0.AddArg(ptr)
-		v.AddArg3(ptr, v0, mem)
+		v.reset(OpLOONG64LoweredZeroLoop)
+		v.AuxInt = int64ToAuxInt(s)
+		v.AddArg2(ptr, mem)
 		return true
 	}
 	return false

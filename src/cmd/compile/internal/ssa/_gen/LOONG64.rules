@@ -373,24 +373,8 @@
         (MOVVstore [8] ptr (MOVVconst [0])
                 (MOVVstore ptr (MOVVconst [0]) mem))
 
-// strip off fractional word zeroing
-(Zero [s] ptr mem) && s%8 != 0 && s > 16 =>
-    (Zero [s%8]
-        (OffPtr <ptr.Type> ptr [s-s%8])
-        (Zero [s-s%8] ptr mem))
-
-// medium zeroing uses a duff device
-(Zero [s] ptr mem)
-    && s%8 == 0 && s > 16 && s <= 8*128 =>
-    (DUFFZERO [8 * (128 - s/8)] ptr mem)
-
-// large zeroing uses a loop
-(Zero [s] ptr mem)
-    && s%8 == 0 && s > 8*128 =>
-    (LoweredZero
-        ptr
-        (ADDVconst <ptr.Type> ptr [s-8])
-        mem)
+(Zero [s] ptr mem) && s > 16 && s < 192 => (LoweredZero [s] ptr mem)
+(Zero [s] ptr mem) && s >= 192 => (LoweredZeroLoop [s] ptr mem)
 
 // moves
 (Move [0] _ _ mem) => mem
