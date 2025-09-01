@@ -1924,9 +1924,7 @@ const (
 	OpLOONG64CALLtail
 	OpLOONG64CALLclosure
 	OpLOONG64CALLinter
-	OpLOONG64DUFFZERO
 	OpLOONG64LoweredZero
-	OpLOONG64DUFFCOPY
 	OpLOONG64LoweredZeroLoop
 	OpLOONG64LoweredMove
 	OpLOONG64LoweredMoveLoop
@@ -25935,18 +25933,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "DUFFZERO",
-		auxType:        auxInt64,
-		argLen:         2,
-		faultOnNilArg0: true,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 524288}, // R20
-			},
-			clobbers: 524290, // R1 R20
-		},
-	},
-	{
 		name:           "LoweredZero",
 		auxType:        auxInt64,
 		argLen:         2,
@@ -25955,20 +25941,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
 			},
-		},
-	},
-	{
-		name:           "DUFFCOPY",
-		auxType:        auxInt64,
-		argLen:         3,
-		faultOnNilArg0: true,
-		faultOnNilArg1: true,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 1048576}, // R21
-				{1, 524288},  // R20
-			},
-			clobbers: 1572866, // R1 R20 R21
 		},
 	},
 	{

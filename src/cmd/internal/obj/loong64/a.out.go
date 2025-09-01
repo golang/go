@@ -225,8 +225,6 @@ const (
 	REGZERO = REG_R0 // set to zero
 	REGLINK = REG_R1
 	REGSP   = REG_R3
-	REGRT1  = REG_R20 // reserved for runtime, duffzero and duffcopy
-	REGRT2  = REG_R21 // reserved for runtime, duffcopy
 	REGCTXT = REG_R29 // context for closures
 	REGG    = REG_R22 // G in loong64
 	REGTMP  = REG_R30 // used by the assembler

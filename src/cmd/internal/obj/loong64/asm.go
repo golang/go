@@ -440,8 +440,6 @@ var optab = []Optab{
 	{obj.ANOP, C_DCON, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0},  // nop variants, see #40689
 	{obj.ANOP, C_REG, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0},
 	{obj.ANOP, C_FREG, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0},
-	{obj.ADUFFZERO, C_NONE, C_NONE, C_NONE, C_BRAN, C_NONE, 11, 4, 0, 0}, // same as AJMP
-	{obj.ADUFFCOPY, C_NONE, C_NONE, C_NONE, C_BRAN, C_NONE, 11, 4, 0, 0}, // same as AJMP
 }
 
 var atomicInst = map[obj.As]uint32{
@@ -1526,9 +1524,7 @@ func buildop(ctxt *obj.Link) {
 			obj.ATEXT,
 			obj.AFUNCDATA,
 			obj.APCALIGN,
-			obj.APCDATA,
-			obj.ADUFFZERO,
-			obj.ADUFFCOPY:
+			obj.APCDATA:
 			break
 
 		case ARDTIMELW:
@@ -4040,9 +4036,7 @@ func (c *ctxt0) opirr(a obj.As) uint32 {
 
 	case AJMP:
 		return 0x14 << 26
-	case AJAL,
-		obj.ADUFFZERO,
-		obj.ADUFFCOPY:
+	case AJAL:
 		return 0x15 << 26
 
 	case AJIRL:

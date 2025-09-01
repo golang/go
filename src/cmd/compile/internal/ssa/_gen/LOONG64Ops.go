@@ -360,24 +360,6 @@ func init() {
 		{name: "CALLclosure", argLength: -1, reg: regInfo{inputs: []regMask{gpsp, buildReg("R29"), 0}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, last arg=mem, auxint=argsize, returns mem
 		{name: "CALLinter", argLength: -1, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                         // call fn by pointer.  arg0=codeptr, last arg=mem, auxint=argsize, returns mem
 
-		// duffzero
-		// arg0 = address of memory to zero
-		// arg1 = mem
-		// auxint = offset into duffzero code to start executing
-		// returns mem
-		// R20 aka loong64.REGRT1 changed as side effect
-		{
-			name:      "DUFFZERO",
-			aux:       "Int64",
-			argLength: 2,
-			reg: regInfo{
-				inputs:   []regMask{buildReg("R20")},
-				clobbers: buildReg("R20 R1"),
-			},
-			typ:            "Mem",
-			faultOnNilArg0: true,
-		},
-
 		// medium zeroing
 		// arg0 = address of memory to zero
 		// arg1 = mem
@@ -391,25 +373,6 @@ func init() {
 				inputs: []regMask{gp},
 			},
 			faultOnNilArg0: true,
-		},
-
-		// duffcopy
-		// arg0 = address of dst memory (in R21, changed as side effect)
-		// arg1 = address of src memory (in R20, changed as side effect)
-		// arg2 = mem
-		// auxint = offset into duffcopy code to start executing
-		// returns mem
-		{
-			name:      "DUFFCOPY",
-			aux:       "Int64",
-			argLength: 3,
-			reg: regInfo{
-				inputs:   []regMask{buildReg("R21"), buildReg("R20")},
-				clobbers: buildReg("R20 R21 R1"),
-			},
-			typ:            "Mem",
-			faultOnNilArg0: true,
-			faultOnNilArg1: true,
 		},
 
 		// large zeroing

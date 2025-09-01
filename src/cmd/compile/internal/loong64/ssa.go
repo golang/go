@@ -552,13 +552,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 
-	case ssa.OpLOONG64DUFFZERO:
-		// runtime.duffzero expects start address in R20
-		p := s.Prog(obj.ADUFFZERO)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = ir.Syms.Duffzero
-		p.To.Offset = v.AuxInt
 	case ssa.OpLOONG64LoweredZero:
 		ptrReg := v.Args[0].Reg()
 		n := v.AuxInt
@@ -652,12 +645,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			zero8(s, ptrReg, off+n-8)
 		}
 
-	case ssa.OpLOONG64DUFFCOPY:
-		p := s.Prog(obj.ADUFFCOPY)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = ir.Syms.Duffcopy
-		p.To.Offset = v.AuxInt
 	case ssa.OpLOONG64LoweredMove:
 		dstReg := v.Args[0].Reg()
 		srcReg := v.Args[1].Reg()

@@ -34,7 +34,6 @@ import (
 func main() {
 	gen("386", notags, zero386, copy386)
 	gen("arm", notags, zeroARM, copyARM)
-	gen("loong64", notags, zeroLOONG64, copyLOONG64)
 	gen("ppc64x", tagsPPC64x, zeroPPC64x, copyPPC64x)
 	gen("mips64x", tagsMIPS64x, zeroMIPS64x, copyMIPS64x)
 	gen("riscv64", notags, zeroRISCV64, copyRISCV64)
@@ -170,30 +169,6 @@ func copyARM64(w io.Writer) {
 	for i := 0; i < 64; i++ {
 		fmt.Fprintln(w, "\tLDP.P\t16(R20), (R26, R27)")
 		fmt.Fprintln(w, "\tSTP.P\t(R26, R27), 16(R21)")
-		fmt.Fprintln(w)
-	}
-	fmt.Fprintln(w, "\tRET")
-}
-
-func zeroLOONG64(w io.Writer) {
-	// R0: always zero
-	// R20: ptr to memory to be zeroed
-	// On return, R20 points to the last zeroed dword.
-	fmt.Fprintln(w, "TEXT runtime·duffzero<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-0")
-	for i := 0; i < 128; i++ {
-		fmt.Fprintln(w, "\tMOVV\tR0, (R20)")
-		fmt.Fprintln(w, "\tADDV\t$8, R20")
-	}
-	fmt.Fprintln(w, "\tRET")
-}
-
-func copyLOONG64(w io.Writer) {
-	fmt.Fprintln(w, "TEXT runtime·duffcopy<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-0")
-	for i := 0; i < 128; i++ {
-		fmt.Fprintln(w, "\tMOVV\t(R20), R30")
-		fmt.Fprintln(w, "\tADDV\t$8, R20")
-		fmt.Fprintln(w, "\tMOVV\tR30, (R21)")
-		fmt.Fprintln(w, "\tADDV\t$8, R21")
 		fmt.Fprintln(w)
 	}
 	fmt.Fprintln(w, "\tRET")
