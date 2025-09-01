@@ -17,8 +17,8 @@
 
 (Hmul64 ...)  => (MULHV  ...)
 (Hmul64u ...) => (MULHVU ...)
-(Hmul32 x y)  => (SRAVconst (MULV (SignExt32to64 x) (SignExt32to64 y)) [32])
-(Hmul32u x y) => (SRLVconst (MULV (ZeroExt32to64 x) (ZeroExt32to64 y)) [32])
+(Hmul32 ...)  => (MULH  ...)
+(Hmul32u ...) => (MULHU ...)
 
 (Div64 x y) => (DIVV x y)
 (Div64u ...) => (DIVVU ...)

@@ -296,9 +296,11 @@ func rewriteValueLOONG64(v *Value) bool {
 		v.Op = OpLOONG64LoweredGetClosurePtr
 		return true
 	case OpHmul32:
-		return rewriteValueLOONG64_OpHmul32(v)
+		v.Op = OpLOONG64MULH
+		return true
 	case OpHmul32u:
-		return rewriteValueLOONG64_OpHmul32u(v)
+		v.Op = OpLOONG64MULHU
+		return true
 	case OpHmul64:
 		v.Op = OpLOONG64MULHV
 		return true
@@ -1573,50 +1575,6 @@ func rewriteValueLOONG64_OpEqPtr(v *Value) bool {
 		v1 := b.NewValue0(v.Pos, OpLOONG64XOR, typ.UInt64)
 		v1.AddArg2(x, y)
 		v.AddArg2(v0, v1)
-		return true
-	}
-}
-func rewriteValueLOONG64_OpHmul32(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (Hmul32 x y)
-	// result: (SRAVconst (MULV (SignExt32to64 x) (SignExt32to64 y)) [32])
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpLOONG64SRAVconst)
-		v.AuxInt = int64ToAuxInt(32)
-		v0 := b.NewValue0(v.Pos, OpLOONG64MULV, typ.Int64)
-		v1 := b.NewValue0(v.Pos, OpSignExt32to64, typ.Int64)
-		v1.AddArg(x)
-		v2 := b.NewValue0(v.Pos, OpSignExt32to64, typ.Int64)
-		v2.AddArg(y)
-		v0.AddArg2(v1, v2)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueLOONG64_OpHmul32u(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (Hmul32u x y)
-	// result: (SRLVconst (MULV (ZeroExt32to64 x) (ZeroExt32to64 y)) [32])
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpLOONG64SRLVconst)
-		v.AuxInt = int64ToAuxInt(32)
-		v0 := b.NewValue0(v.Pos, OpLOONG64MULV, typ.Int64)
-		v1 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
-		v1.AddArg(x)
-		v2 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
-		v2.AddArg(y)
-		v0.AddArg2(v1, v2)
-		v.AddArg(v0)
 		return true
 	}
 }
