@@ -1,0 +1,1 @@
+pkg net/netip, method (Prefix) Compare(Prefix) int #61642
