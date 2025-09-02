@@ -47,6 +47,10 @@ const (
 // parenthesized expressions.
 var maxStackDepth = 10000
 
+// maxPipelineCmds is the maximum number of commands permitted
+// for a single template's pipeline.
+var maxPipelineCmds = 100000
+
 // init reduces maxStackDepth for WebAssembly due to its smaller stack size.
 func init() {
 	if runtime.GOARCH == "wasm" {
@@ -513,6 +517,9 @@ decls:
 			itemNumber, itemNil, itemRawString, itemString, itemVariable, itemLeftParen:
 			t.backup()
 			pipe.append(t.command())
+			if len(pipe.Cmds) > maxPipelineCmds {
+				t.errorf("pipeline too long")
+			}
 		default:
 			t.unexpected(token, context)
 		}

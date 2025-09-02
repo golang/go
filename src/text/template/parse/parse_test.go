@@ -89,6 +89,8 @@ var numberTests = []numberTest{
 func init() {
 	// Use a small stack limit for testing to avoid creating huge expressions.
 	maxStackDepth = 3
+	// Use a small pipeline limit for testing to avoid creating huge pipelines.
+	maxPipelineCmds = 3
 }
 
 func TestNumberParse(t *testing.T) {
@@ -341,6 +343,13 @@ var parseTests = []parseTest{
 	{"paren nesting in pipeline exceeds limit", "{{ (((( 1 )))) | printf }}", hasError, "template: test:1: max expression depth exceeded"},
 	{"paren nesting with other constructs", "{{ if ((( true ))) }}YES{{ end }}", noError, "{{if (((true)))}}\"YES\"{{end}}"},
 	{"paren nesting with other constructs exceeds limit", "{{ if (((( true )))) }}YES{{ end }}", hasError, "template: test:1: max expression depth exceeded"},
+
+	// Pipeline command count tests.
+	{"pipeline command count normal", "{{ printf \"x\" | printf \"y\" }}", noError, "{{printf \"x\" | printf \"y\"}}"},
+	{"pipeline command count at limit", "{{ printf \"x\" | printf \"y\" | printf \"z\" }}", noError, "{{printf \"x\" | printf \"y\" | printf \"z\"}}"},
+	{"pipeline command count exceeds limit", "{{ printf \"x\" | printf \"y\" | printf \"z\" | printf \"w\" }}", hasError, "template: test:1: pipeline too long"},
+	{"pipeline command count with other constructs", "{{if printf \"x\" | printf \"y\"}}YES{{ end }}", noError, "{{if printf \"x\" | printf \"y\"}}\"YES\"{{end}}"},
+	{"pipeline command count with other constructs exceeds limit", "{{ if printf \"x\" | printf \"y\" | printf \"z\" | printf \"w\" | printf \"v\" | printf \"u\" | printf \"t\" }}YES{{ end }}", hasError, "template: test:1: pipeline too long"},
 }
 
 var builtins = map[string]any{
