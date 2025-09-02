@@ -407,6 +407,10 @@ const (
 	ACSRRSI
 	ACSRRCI
 
+	// 11.: Zicond Instructions
+	ACZERONEZ
+	ACZEROEQZ
+
 	// 13.1: Multiplication Operations
 	AMUL
 	AMULH
