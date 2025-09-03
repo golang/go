@@ -707,6 +707,13 @@ var parseRequestURLTests = []struct {
 	// RFC 6874.
 	{"http://[fe80::1%en0]/", false},
 	{"http://[fe80::1%en0]:8080/", false},
+
+	{"http://x:x:", true},             // malformed IPv6 but still accepted
+	{"http://x::", false},             // a colon after empty port is not allowed
+	{"http://x:1:", false},            // a colon after the port is not allowed
+	{"http://x:12:", false},           // a colon after the port is not allowed
+	{"http://x:123:", false},          // a colon after the port is not allowed
+	{"http://127.0.0.1:8080:", false}, // a colon after the port is not allowed
 }
 
 func TestParseRequestURI(t *testing.T) {
@@ -1643,6 +1650,13 @@ func TestParseErrors(t *testing.T) {
 		{"cache_object:foo", true},
 		{"cache_object:foo/bar", true},
 		{"cache_object/:foo/bar", false},
+
+		{"http://x:x:", false},           // malformed IPv6 but still accepted
+		{"http://x::", true},             // a colon after empty port is not allowed
+		{"http://x:1:", true},            // a colon after the port is not allowed
+		{"http://x:12:", true},           // a colon after the port is not allowed
+		{"http://x:123:", true},          // a colon after the port is not allowed
+		{"http://127.0.0.1:8080:", true}, // a colon after the port is not allowed
 	}
 	for _, tt := range tests {
 		u, err := Parse(tt.in)
