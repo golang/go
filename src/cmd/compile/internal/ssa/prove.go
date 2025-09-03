@@ -2174,6 +2174,65 @@ func unsignedSubUnderflows(a, b uint64) bool {
 	return a < b
 }
 
+// checkForChunkedIndexBounds looks for index expressions of the form
+// A[i+delta] where delta < K and i <= len(A)-K.  That is, this is a chunked
+// iteration where the index is not directly compared to the length.
+func checkForChunkedIndexBounds(ft *factsTable, b *Block, index, bound *Value) bool {
+	if bound.Op != OpSliceLen {
+		return false
+	}
+	lim := ft.limits[index.ID]
+	if lim.min < 0 {
+		return false
+	}
+	i, delta := isConstDelta(index)
+	if i == nil {
+		return false
+	}
+	if delta < 0 {
+		return false
+	}
+	// special case for blocked iteration over a slice.
+	// slicelen > i + delta && <==== if clauses above
+	// && index >= 0           <==== if clause above
+	// delta >= 0 &&           <==== if clause above
+	// slicelen-K >/>= x       <==== checked below
+	// && K >=/> delta         <==== checked below
+	// then v > w
+	// example: i <=/< len - 4/3 means i+{0,1,2,3} are legal indices
+	for o := ft.orderings[i.ID]; o != nil; o = o.next {
+		if o.d != signed {
+			continue
+		}
+		if ow := o.w; ow.Op == OpAdd64 {
+			var lenOffset *Value
+			if ow.Args[0] == bound {
+				lenOffset = ow.Args[1]
+			} else if ow.Args[1] == bound {
+				lenOffset = ow.Args[0]
+			}
+			if lenOffset == nil || lenOffset.Op != OpConst64 {
+				continue
+			}
+			if K := -lenOffset.AuxInt; K >= 0 {
+				or := o.r
+				if or == lt {
+					or = lt | eq
+					K++
+					if K < 0 {
+						continue
+					}
+				}
+
+				if delta < K && or == lt|eq {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
 func addLocalFacts(ft *factsTable, b *Block) {
 	// Propagate constant ranges among values in this block.
 	// We do this before the second loop so that we have the
@@ -2284,6 +2343,13 @@ func addLocalFacts(ft *factsTable, b *Block) {
 		case OpSliceCap:
 			if v.Args[0].Op == OpSliceMake {
 				ft.update(b, v, v.Args[0].Args[2], signed, eq)
+			}
+		case OpIsInBounds:
+			if checkForChunkedIndexBounds(ft, b, v.Args[0], v.Args[1]) {
+				if b.Func.pass.debug > 0 {
+					b.Func.Warnl(v.Pos, "Proved %s for blocked indexing", v.Op)
+				}
+				ft.booleanTrue(v)
 			}
 		case OpPhi:
 			addLocalFactsPhi(ft, v)
