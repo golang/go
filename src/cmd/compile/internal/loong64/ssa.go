@@ -276,6 +276,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpLOONG64ADDVconst,
+		ssa.OpLOONG64ADDV16const,
 		ssa.OpLOONG64SUBVconst,
 		ssa.OpLOONG64ANDconst,
 		ssa.OpLOONG64ORconst,

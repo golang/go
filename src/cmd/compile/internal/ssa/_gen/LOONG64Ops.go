@@ -189,10 +189,11 @@ func init() {
 		{name: "VPCNT16", argLength: 1, reg: fp11, asm: "VPCNTH"}, // count set bits for each 16-bit unit and store the result in each 16-bit unit
 
 		// binary ops
-		{name: "ADDV", argLength: 2, reg: gp21, asm: "ADDVU", commutative: true},   // arg0 + arg1
-		{name: "ADDVconst", argLength: 1, reg: gp11sp, asm: "ADDVU", aux: "Int64"}, // arg0 + auxInt. auxInt is 32-bit, also in other *const ops.
-		{name: "SUBV", argLength: 2, reg: gp21, asm: "SUBVU"},                      // arg0 - arg1
-		{name: "SUBVconst", argLength: 1, reg: gp11, asm: "SUBVU", aux: "Int64"},   // arg0 - auxInt
+		{name: "ADDV", argLength: 2, reg: gp21, asm: "ADDVU", commutative: true},      // arg0 + arg1
+		{name: "ADDVconst", argLength: 1, reg: gp11sp, asm: "ADDVU", aux: "Int64"},    // arg0 + auxInt. auxInt is 32-bit, also in other *const ops.
+		{name: "ADDV16const", argLength: 1, reg: gp11sp, asm: "ADDV16", aux: "Int64"}, // arg0 + auxInt. auxInt is signed 32-bit and is a multiple of 65536, also in other *const ops.
+		{name: "SUBV", argLength: 2, reg: gp21, asm: "SUBVU"},                         // arg0 - arg1
+		{name: "SUBVconst", argLength: 1, reg: gp11, asm: "SUBVU", aux: "Int64"},      // arg0 - auxInt
 
 		{name: "MULV", argLength: 2, reg: gp21, asm: "MULV", commutative: true, typ: "Int64"},      // arg0 * arg1
 		{name: "MULHV", argLength: 2, reg: gp21, asm: "MULHV", commutative: true, typ: "Int64"},    // (arg0 * arg1) >> 64, signed

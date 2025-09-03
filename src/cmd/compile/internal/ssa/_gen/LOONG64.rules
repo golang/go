@@ -794,6 +794,7 @@
 (SUBVconst [c] (SUBVconst [d] x)) && is32Bit(-c-d) => (ADDVconst [-c-d] x)
 (SUBVconst [c] (ADDVconst [d] x)) && is32Bit(-c+d) => (ADDVconst [-c+d] x)
 (SUBV (MOVVconst [c]) (NEGV (SUBVconst [d] x))) => (ADDVconst [c-d] x)
+(ADDVconst [c] x) && is32Bit(c) && c&0xffff == 0 && c != 0 => (ADDV16const [c] x)
 (SLLVconst [c] (MOVVconst [d]))  => (MOVVconst [d<<uint64(c)])
 (SRLVconst [c] (MOVVconst [d]))  => (MOVVconst [int64(uint64(d)>>uint64(c))])
 (SRAVconst [c] (MOVVconst [d]))  => (MOVVconst [d>>uint64(c)])

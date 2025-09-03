@@ -2008,6 +2008,20 @@ func rewriteValueLOONG64_OpLOONG64ADDVconst(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (ADDVconst [c] x)
+	// cond: is32Bit(c) && c&0xffff == 0 && c != 0
+	// result: (ADDV16const [c] x)
+	for {
+		c := auxIntToInt64(v.AuxInt)
+		x := v_0
+		if !(is32Bit(c) && c&0xffff == 0 && c != 0) {
+			break
+		}
+		v.reset(OpLOONG64ADDV16const)
+		v.AuxInt = int64ToAuxInt(c)
+		v.AddArg(x)
+		return true
+	}
 	return false
 }
 func rewriteValueLOONG64_OpLOONG64AND(v *Value) bool {
