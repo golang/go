@@ -14,9 +14,10 @@ import (
 	"strconv"
 	"strings"
 
+	"simd/_gen/unify"
+
 	"golang.org/x/arch/x86/xeddata"
 	"gopkg.in/yaml.v3"
-	"simd/_gen/unify"
 )
 
 const (
@@ -160,7 +161,13 @@ type operandAction struct {
 
 type operandMem struct {
 	operandCommon
-	// TODO
+	vecShape
+	elemBaseType scalarBaseType
+	// The following fields are not flushed to the final output
+	// Supports full-vector broadcasting; implies the operand having a "vv"(vector vector) type specified in width and
+	// the instruction is with attribute TXT=BCASTSTR.
+	vbcst   bool
+	unknown bool // unknown kind
 }
 
 type vecShape struct {
@@ -217,8 +224,19 @@ func (o operandCommon) common() operandCommon {
 }
 
 func (o operandMem) addToDef(b *unify.DefBuilder) {
-	// TODO: w, base
 	b.Add("class", strVal("memory"))
+	if o.unknown {
+		return
+	}
+	baseDomain, err := unify.NewStringRegex(o.elemBaseType.regex())
+	if err != nil {
+		panic("parsing baseRe: " + err.Error())
+	}
+	b.Add("base", unify.NewValue(baseDomain))
+	b.Add("bits", strVal(o.bits))
+	if o.elemBits != o.bits {
+		b.Add("elemBits", strVal(o.elemBits))
+	}
 }
 
 func (o operandVReg) addToDef(b *unify.DefBuilder) {
@@ -301,9 +319,33 @@ func decodeOperand(db *xeddata.Database, operand string) (operand, error) {
 
 	lhs := op.NameLHS()
 	if strings.HasPrefix(lhs, "MEM") {
-		// TODO: Width, base type
+		// looks like XED data has an inconsistency on VPADDD, marking attribute
+		// VPBROADCASTD instead of the canonical BCASTSTR.
+		if op.Width == "vv" && (op.Attributes["TXT=BCASTSTR"] ||
+			op.Attributes["TXT=VPBROADCASTD"]) {
+			baseType, elemBits, ok := decodeType(op)
+			if !ok {
+				return nil, fmt.Errorf("failed to decode memory width %q", operand)
+			}
+			// This operand has two possible width([bits]):
+			// 1. the same as the other operands
+			// 2. the element width as the other operands (broaccasting)
+			// left it default to 2, later we will set a new field in the operation
+			// to indicate this dual-width property.
+			shape := vecShape{elemBits: elemBits, bits: elemBits}
+			return operandMem{
+				operandCommon: common,
+				vecShape:      shape,
+				elemBaseType:  baseType,
+				vbcst:         true,
+				unknown:       false,
+			}, nil
+		}
+		// TODO: parse op.Width better to handle all cases
+		// Right now this will at least miss VPBROADCAST.
 		return operandMem{
 			operandCommon: common,
+			unknown:       true,
 		}, nil
 	} else if strings.HasPrefix(lhs, "REG") {
 		if op.Width == "mskw" {
@@ -516,6 +558,35 @@ func addOperandsToDef(ops []operand, instDB *unify.DefBuilder, variant instVaria
 	instDB.Add("in", unify.NewValue(unify.NewTuple(inVals...)))
 	instDB.Add("inVariant", unify.NewValue(unify.NewTuple(inVar...)))
 	instDB.Add("out", unify.NewValue(unify.NewTuple(outVals...)))
+	instDB.Add("mem", unify.NewValue(unify.NewStringExact(checkMem(ops))))
+}
+
+// checkMem checks the shapes of memory operand in the instruction and returns the shape.
+// Keep this function in sync with [decodeOperand].
+func checkMem(ops []operand) string {
+	memState := "noMem"
+	var mem *operandMem
+	memCnt := 0
+	for _, op := range ops {
+		if m, ok := op.(operandMem); ok {
+			mem = &m
+			memCnt++
+		}
+	}
+	if mem != nil {
+		if mem.unknown {
+			memState = "unknown"
+		} else if memCnt > 1 {
+			memState = "tooManyMem"
+		} else {
+			// We only have vbcst case as of now.
+			// This shape has an indication that [bits] fields has two possible value:
+			// 1. The element broadcast width, which is its peer vreg operand's [elemBits] (default val in the parsed XED data)
+			// 2. The full vector width, which is its peer vreg operand's [bits] (godefs should be aware of this)
+			memState = "vbcst"
+		}
+	}
+	return memState
 }
 
 func instToUVal(inst *xeddata.Inst, ops []operand) []*unify.Value {
