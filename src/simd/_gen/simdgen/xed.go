@@ -50,6 +50,27 @@ func loadXED(xedPath string) []*unify.Value {
 	}
 
 	var defs []*unify.Value
+	type opData struct {
+		inst *xeddata.Inst
+		ops  []operand
+		mem  string
+	}
+	// Maps from opcode to opdata(s).
+	memOps := make(map[string][]opData, 0)
+	otherOps := make(map[string][]opData, 0)
+	appendDefs := func(inst *xeddata.Inst, ops []operand, addFields map[string]string) {
+		applyQuirks(inst, ops)
+
+		defsPos := len(defs)
+		defs = append(defs, instToUVal(inst, ops, addFields)...)
+
+		if *flagDebugXED {
+			for i := defsPos; i < len(defs); i++ {
+				y, _ := yaml.Marshal(defs[i])
+				fmt.Printf("==>\n%s\n", y)
+			}
+		}
+	}
 	err = xeddata.WalkInsts(xedPath, func(inst *xeddata.Inst) {
 		inst.Pattern = xeddata.ExpandStates(db, inst.Pattern)
 
@@ -73,19 +94,72 @@ func loadXED(xedPath string) []*unify.Value {
 			}
 			return
 		}
-
-		applyQuirks(inst, ops)
-
-		defsPos := len(defs)
-		defs = append(defs, instToUVal(inst, ops)...)
-
-		if *flagDebugXED {
-			for i := defsPos; i < len(defs); i++ {
-				y, _ := yaml.Marshal(defs[i])
-				fmt.Printf("==>\n%s\n", y)
-			}
+		var data map[string][]opData
+		mem := checkMem(ops)
+		if mem == "vbcst" {
+			// A pure vreg variant might exist, wait for later to see if we can
+			// merge them
+			data = memOps
+		} else {
+			data = otherOps
+		}
+		opcode := inst.Opcode()
+		if _, ok := data[opcode]; !ok {
+			s := make([]opData, 1)
+			s[0] = opData{inst, ops, mem}
+			data[opcode] = s
+		} else {
+			data[opcode] = append(data[opcode], opData{inst, ops, mem})
 		}
 	})
+	for _, s := range otherOps {
+		for _, o := range s {
+			addFields := map[string]string{}
+			if o.mem == "noMem" {
+				opcode := o.inst.Opcode()
+				// Checking if there is a vbcst variant of this operation exist
+				// First check the opcode
+				// Keep this logic in sync with [decodeOperands]
+				if ms, ok := memOps[opcode]; ok {
+					// Then check if there exist such an operation that for all vreg
+					// shapes they are the same at the same index
+					matchIdx := -1
+				outer:
+					for i, m := range ms {
+						if len(o.ops) == len(m.ops) {
+							for j := range o.ops {
+								v1, ok1 := o.ops[j].(operandVReg)
+								v2, ok2 := m.ops[j].(operandVReg)
+								if ok1 && ok2 {
+									if v1.vecShape != v2.vecShape {
+										// A mismatch, skip this memOp
+										continue outer
+									}
+								}
+							}
+							// Found a match, break early
+							matchIdx = i
+							break
+						}
+					}
+					// Remove the match from memOps, it's now merged to this pure vreg operation
+					if matchIdx != -1 {
+						memOps[opcode] = append(memOps[opcode][:matchIdx], memOps[opcode][matchIdx+1:]...)
+					}
+					// Merge is done by adding a new field
+					// Right now we only have vbcst
+					addFields["memFeatures"] = "vbcst"
+				}
+			}
+			appendDefs(o.inst, o.ops, addFields)
+		}
+	}
+	for _, ms := range memOps {
+		for _, m := range ms {
+			log.Printf("mem op not merged: %s, %v\n", m.inst.Opcode(), m)
+			appendDefs(m.inst, m.ops, nil)
+		}
+	}
 	if err != nil {
 		log.Fatalf("walk insts: %v", err)
 	}
@@ -561,7 +635,7 @@ func addOperandsToDef(ops []operand, instDB *unify.DefBuilder, variant instVaria
 	instDB.Add("mem", unify.NewValue(unify.NewStringExact(checkMem(ops))))
 }
 
-// checkMem checks the shapes of memory operand in the instruction and returns the shape.
+// checkMem checks the shapes of memory operand in the operation and returns the shape.
 // Keep this function in sync with [decodeOperand].
 func checkMem(ops []operand) string {
 	memState := "noMem"
@@ -589,26 +663,29 @@ func checkMem(ops []operand) string {
 	return memState
 }
 
-func instToUVal(inst *xeddata.Inst, ops []operand) []*unify.Value {
+func instToUVal(inst *xeddata.Inst, ops []operand, addFields map[string]string) []*unify.Value {
 	feature, ok := decodeCPUFeature(inst)
 	if !ok {
 		return nil
 	}
 
 	var vals []*unify.Value
-	vals = append(vals, instToUVal1(inst, ops, feature, instVariantNone))
+	vals = append(vals, instToUVal1(inst, ops, feature, instVariantNone, addFields))
 	if hasOptionalMask(ops) {
-		vals = append(vals, instToUVal1(inst, ops, feature, instVariantMasked))
+		vals = append(vals, instToUVal1(inst, ops, feature, instVariantMasked, addFields))
 	}
 	return vals
 }
 
-func instToUVal1(inst *xeddata.Inst, ops []operand, feature string, variant instVariant) *unify.Value {
+func instToUVal1(inst *xeddata.Inst, ops []operand, feature string, variant instVariant, addFields map[string]string) *unify.Value {
 	var db unify.DefBuilder
 	db.Add("goarch", unify.NewValue(unify.NewStringExact("amd64")))
 	db.Add("asm", unify.NewValue(unify.NewStringExact(inst.Opcode())))
 	addOperandsToDef(ops, &db, variant)
 	db.Add("cpuFeature", unify.NewValue(unify.NewStringExact(feature)))
+	for k, v := range addFields {
+		db.Add(k, unify.NewValue(unify.NewStringExact(v)))
+	}
 
 	if strings.Contains(inst.Pattern, "ZEROING=0") {
 		// This is an EVEX instruction, but the ".Z" (zero-merging)

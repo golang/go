@@ -55,6 +55,7 @@ type rawOperation struct {
 	In            []Operand // Parameters
 	InVariant     []Operand // Optional parameters
 	Out           []Operand // Results
+	Mem           string    // Shape of memory operands
 	Commutative   bool      // Commutativity
 	CPUFeature    string    // CPUID/Has* feature name
 	Zeroing       *bool     // nil => use asm suffix ".Z"; false => do not use asm suffix ".Z"
