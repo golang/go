@@ -530,6 +530,7 @@ func TestCookieSanitizeValue(t *testing.T) {
 		{"a,z", false, `"a,z"`},
 		{",z", false, `",z"`},
 		{"a,", false, `"a,"`},
+		{"", true, `""`},
 	}
 	for _, tt := range tests {
 		if got := sanitizeCookieValue(tt.in, tt.quoted); got != tt.want {
