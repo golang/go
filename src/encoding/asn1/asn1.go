@@ -22,6 +22,7 @@ package asn1
 import (
 	"errors"
 	"fmt"
+	"internal/saferio"
 	"math"
 	"math/big"
 	"reflect"
@@ -635,10 +636,17 @@ func parseSequenceOf(bytes []byte, sliceType reflect.Type, elemType reflect.Type
 		offset += t.length
 		numElements++
 	}
-	ret = reflect.MakeSlice(sliceType, numElements, numElements)
+	elemSize := uint64(elemType.Size())
+	safeCap := saferio.SliceCapWithSize(elemSize, uint64(numElements))
+	if safeCap < 0 {
+		err = SyntaxError{fmt.Sprintf("%s slice too big: %d elements of %d bytes", elemType.Kind(), numElements, elemSize)}
+		return
+	}
+	ret = reflect.MakeSlice(sliceType, 0, safeCap)
 	params := fieldParameters{}
 	offset := 0
 	for i := 0; i < numElements; i++ {
+		ret = reflect.Append(ret, reflect.Zero(elemType))
 		offset, err = parseField(ret.Index(i), bytes, offset, params)
 		if err != nil {
 			return
