@@ -121,8 +121,9 @@
 //		The default is GOMAXPROCS, normally the number of CPUs available.
 //	-race
 //		enable data race detection.
-//		Supported only on linux/amd64, freebsd/amd64, darwin/amd64, darwin/arm64, windows/amd64,
-//		linux/ppc64le and linux/arm64 (only for 48-bit VMA).
+//		Supported only on darwin/amd64, darwin/arm64, freebsd/amd64, linux/amd64,
+//		linux/arm64 (only for 48-bit VMA), linux/ppc64le, linux/riscv64 and
+//		windows/amd64.
 //	-msan
 //		enable interoperation with memory sanitizer.
 //		Supported only on linux/amd64, linux/arm64, linux/loong64, freebsd/amd64
@@ -2407,8 +2408,10 @@
 //		The name of checksum database to use and optionally its public key and
 //		URL. See https://golang.org/ref/mod#authenticating.
 //	GOTMPDIR
-//		The directory where the go command will write
-//		temporary source files, packages, and binaries.
+//		Temporary directory used by the go command and testing package.
+//		Overrides the platform-specific temporary directory such as "/tmp".
+//		The go command and testing package will write temporary source files,
+//		packages, and binaries here.
 //	GOTOOLCHAIN
 //		Controls which Go toolchain is used. See https://go.dev/doc/toolchain.
 //	GOVCS

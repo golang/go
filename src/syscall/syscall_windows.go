@@ -401,6 +401,16 @@ func Open(name string, flag int, perm uint32) (fd Handle, err error) {
 	if perm&S_IWRITE == 0 {
 		attrs = FILE_ATTRIBUTE_READONLY
 	}
+	// fileFlags contains the high 12 bits of flag.
+	// This bit range can be used by the caller to specify the file flags
+	// passed to CreateFile. It is an error to use if the bits can't be
+	// mapped to the supported FILE_FLAG_* constants.
+	if fileFlags := uint32(flag) & fileFlagsMask; fileFlags&^validFileFlagsMask == 0 {
+		attrs |= fileFlags
+	} else {
+		return InvalidHandle, oserror.ErrInvalid
+	}
+
 	switch accessFlags {
 	case O_WRONLY, O_RDWR:
 		// Unix doesn't allow opening a directory with O_WRONLY
@@ -414,7 +424,6 @@ func Open(name string, flag int, perm uint32) (fd Handle, err error) {
 		attrs |= FILE_FLAG_BACKUP_SEMANTICS
 	}
 	if flag&O_SYNC != 0 {
-		const _FILE_FLAG_WRITE_THROUGH = 0x80000000
 		attrs |= _FILE_FLAG_WRITE_THROUGH
 	}
 	// We don't use CREATE_ALWAYS, because when opening a file with
@@ -442,6 +451,18 @@ func Open(name string, flag int, perm uint32) (fd Handle, err error) {
 			}
 		}
 		return h, err
+	}
+	if flag&o_DIRECTORY != 0 {
+		// Check if the file is a directory, else return ENOTDIR.
+		var fi ByHandleFileInformation
+		if err := GetFileInformationByHandle(h, &fi); err != nil {
+			CloseHandle(h)
+			return InvalidHandle, err
+		}
+		if fi.FileAttributes&FILE_ATTRIBUTE_DIRECTORY == 0 {
+			CloseHandle(h)
+			return InvalidHandle, ENOTDIR
+		}
 	}
 	// Ignore O_TRUNC if the file has just been created.
 	if flag&O_TRUNC == O_TRUNC &&

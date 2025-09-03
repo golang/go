@@ -228,7 +228,7 @@ func Kill(pid int, signum Signal) (err error) { return kill(pid, int(signum), 1)
 //sys	getcwd(buf []byte) (n int, err error)
 
 func init() {
-	execveDarwin = execve
+	execveLibc = execve
 }
 
 func fdopendir(fd int) (dir uintptr, err error) {

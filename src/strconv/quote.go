@@ -37,12 +37,8 @@ func appendQuotedWith(buf []byte, s string, quote byte, ASCIIonly, graphicOnly b
 		buf = nBuf
 	}
 	buf = append(buf, quote)
-	for width := 0; len(s) > 0; s = s[width:] {
-		r := rune(s[0])
-		width = 1
-		if r >= utf8.RuneSelf {
-			r, width = utf8.DecodeRuneInString(s)
-		}
+	for r, width := rune(0), 0; len(s) > 0; s = s[width:] {
+		r, width = utf8.DecodeRuneInString(s)
 		if width == 1 && r == utf8.RuneError {
 			buf = append(buf, `\x`...)
 			buf = append(buf, lowerhex[s[0]>>4])

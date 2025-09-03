@@ -692,6 +692,9 @@ func (f *File) getSymbols64(typ SectionType) ([]Symbol, []byte, error) {
 	if len(data)%Sym64Size != 0 {
 		return nil, nil, errors.New("length of symbol section is not a multiple of Sym64Size")
 	}
+	if len(data) == 0 {
+		return nil, nil, ErrNoSymbols
+	}
 
 	strdata, err := f.stringTable(symtabSection.Link)
 	if err != nil {

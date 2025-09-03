@@ -1438,7 +1438,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				case OpSB:
 					s.assignReg(s.SBReg, v, v)
 					s.sb = v.ID
-				case OpARM64ZERO:
+				case OpARM64ZERO, OpLOONG64ZERO:
 					s.assignReg(s.ZeroIntReg, v, v)
 				case OpAMD64Zero128, OpAMD64Zero256, OpAMD64Zero512:
 					regspec := s.regspec(v)

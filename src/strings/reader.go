@@ -90,10 +90,6 @@ func (r *Reader) ReadRune() (ch rune, size int, err error) {
 		return 0, 0, io.EOF
 	}
 	r.prevRune = int(r.i)
-	if c := r.s[r.i]; c < utf8.RuneSelf {
-		r.i++
-		return rune(c), 1, nil
-	}
 	ch, size = utf8.DecodeRuneInString(r.s[r.i:])
 	r.i += int64(size)
 	return

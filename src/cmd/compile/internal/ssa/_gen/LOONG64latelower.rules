@@ -7,3 +7,6 @@
 
 (EQZ (XOR x y) yes no) => (BEQ x y yes no)
 (NEZ (XOR x y) yes no) => (BNE x y yes no)
+
+// use zero register
+(MOVVconst [0]) => (ZERO)

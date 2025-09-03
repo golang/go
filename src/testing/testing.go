@@ -1318,6 +1318,8 @@ func (c *common) Cleanup(f func()) {
 // all its subtests complete.
 // Each subsequent call to TempDir returns a unique directory;
 // if the directory creation fails, TempDir terminates the test by calling Fatal.
+// If the environment variable GOTMPDIR is set, the temporary directory will
+// be created somewhere beneath it.
 func (c *common) TempDir() string {
 	c.checkFuzzFn("TempDir")
 	// Use a single parent directory for all the temporary directories
@@ -1362,7 +1364,7 @@ func (c *common) TempDir() string {
 			return -1
 		}
 		pattern = strings.Map(mapper, pattern)
-		c.tempDir, c.tempDirErr = os.MkdirTemp("", pattern)
+		c.tempDir, c.tempDirErr = os.MkdirTemp(os.Getenv("GOTMPDIR"), pattern)
 		if c.tempDirErr == nil {
 			c.Cleanup(func() {
 				if err := removeAll(c.tempDir); err != nil {

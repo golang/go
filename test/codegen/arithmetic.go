@@ -624,6 +624,11 @@ func AddMul(x int) int {
 	return 2*x + 1
 }
 
+func AddShift(a, b int) int {
+	// loong64: "ALSLV"
+	return a + (b << 4)
+}
+
 func MULA(a, b, c uint32) (uint32, uint32, uint32) {
 	// arm:`MULA`,-`MUL\s`
 	// arm64:`MADDW`,-`MULW`

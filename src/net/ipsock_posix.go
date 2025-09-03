@@ -260,9 +260,6 @@ func addrPortToSockaddrInet6(ap netip.AddrPort) (syscall.SockaddrInet6, error) {
 	// to an IPv4-mapped IPv6 address.
 	// The error message is kept consistent with ipToSockaddrInet6.
 	addr := ap.Addr()
-	if !addr.IsValid() {
-		return syscall.SockaddrInet6{}, &AddrError{Err: "non-IPv6 address", Addr: addr.String()}
-	}
 	sa := syscall.SockaddrInet6{
 		Addr:   addr.As16(),
 		Port:   int(ap.Port()),

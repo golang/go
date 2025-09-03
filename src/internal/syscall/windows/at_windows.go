@@ -11,18 +11,23 @@ import (
 	"unsafe"
 )
 
+// Openat flags supported by syscall.Open.
+const (
+	O_DIRECTORY = 0x04000 // target must be a directory
+)
+
 // Openat flags not supported by syscall.Open.
 //
-// These are invented values.
+// These are invented values, use values in the 33-63 bit range
+// to avoid overlap with flags and attributes supported by [syscall.Open].
 //
 // When adding a new flag here, add an unexported version to
 // the set of invented O_ values in syscall/types_windows.go
 // to avoid overlap.
 const (
-	O_DIRECTORY    = 0x100000   // target must be a directory
-	O_NOFOLLOW_ANY = 0x20000000 // disallow symlinks anywhere in the path
-	O_OPEN_REPARSE = 0x40000000 // FILE_OPEN_REPARSE_POINT, used by Lstat
-	O_WRITE_ATTRS  = 0x80000000 // FILE_WRITE_ATTRIBUTES, used by Chmod
+	O_NOFOLLOW_ANY = 0x200000000 // disallow symlinks anywhere in the path
+	O_OPEN_REPARSE = 0x400000000 // FILE_OPEN_REPARSE_POINT, used by Lstat
+	O_WRITE_ATTRS  = 0x800000000 // FILE_WRITE_ATTRIBUTES, used by Chmod
 )
 
 func Openat(dirfd syscall.Handle, name string, flag uint64, perm uint32) (_ syscall.Handle, e1 error) {

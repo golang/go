@@ -338,20 +338,26 @@ func shift_no_cmp(x int) int {
 
 func rev16(c uint64) (uint64, uint64, uint64) {
 	// arm64:`REV16`,-`AND`,-`LSR`,-`AND`,-`ORR\tR[0-9]+<<8`
+	// loong64:`REVB4H`,-`MOVV`,-`AND`,-`SRLV`,-`AND`,-`SLLV`,-`OR`
 	b1 := ((c & 0xff00ff00ff00ff00) >> 8) | ((c & 0x00ff00ff00ff00ff) << 8)
 	// arm64:-`ADD\tR[0-9]+<<8`
+	// loong64:-`ADDV`
 	b2 := ((c & 0xff00ff00ff00ff00) >> 8) + ((c & 0x00ff00ff00ff00ff) << 8)
 	// arm64:-`EOR\tR[0-9]+<<8`
+	// loong64:-`XOR`
 	b3 := ((c & 0xff00ff00ff00ff00) >> 8) ^ ((c & 0x00ff00ff00ff00ff) << 8)
 	return b1, b2, b3
 }
 
 func rev16w(c uint32) (uint32, uint32, uint32) {
 	// arm64:`REV16W`,-`AND`,-`UBFX`,-`AND`,-`ORR\tR[0-9]+<<8`
+	// loong64:`REVB2H`,-`AND`,-`SRL`,-`AND`,-`SLL`,-`OR`
 	b1 := ((c & 0xff00ff00) >> 8) | ((c & 0x00ff00ff) << 8)
 	// arm64:-`ADD\tR[0-9]+<<8`
+	// loong64:-`ADDV`
 	b2 := ((c & 0xff00ff00) >> 8) + ((c & 0x00ff00ff) << 8)
 	// arm64:-`EOR\tR[0-9]+<<8`
+	// loong64:-`XOR`
 	b3 := ((c & 0xff00ff00) >> 8) ^ ((c & 0x00ff00ff) << 8)
 	return b1, b2, b3
 }
@@ -367,6 +373,6 @@ func shift(x uint32, y uint16, z uint8) uint64 {
 	// loong64:-`MOVBU`,-`SRLV\t[$]8`
 	c := uint64(z) >> 8
 	// arm64:`MOVD\tZR`,-`ADD\tR[0-9]+>>16`,-`ADD\tR[0-9]+>>8`,
-	// loong64:`MOVV\t[$]0`,-`ADDVU`
+	// loong64:`MOVV\tR0`,-`ADDVU`
 	return a + b + c
 }
