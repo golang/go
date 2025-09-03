@@ -455,6 +455,10 @@
 (MOVWUload [off] {sym} ptr (MOVFstore [off] {sym} ptr val _)) => (ZeroExt32to64 (MOVWfpgp <typ.Float32> val))
 (MOVFload  [off] {sym} ptr (MOVWstore [off] {sym} ptr val _)) => (MOVWgpfp val)
 
+// If the memory load and store operations use the same ptr, they are combined into a direct move operation between registers.
+(MOV(V|W|H|B)load [off] {sym} ptr (MOV(V|W|H|B)store [off] {sym} ptr x _)) => (MOV(V|W|H|B)reg x)
+(MOV(W|H|B)Uload  [off] {sym} ptr (MOV(W|H|B)store   [off] {sym} ptr x _)) => (MOV(W|H|B)Ureg  x)
+
 // Similarly for stores, if we see a store after FPR <=> GPR move, then redirect store to use the other register set.
 (MOVVstore [off] {sym} ptr (MOVVfpgp val) mem) => (MOVDstore [off] {sym} ptr val mem)
 (MOVDstore [off] {sym} ptr (MOVVgpfp val) mem) => (MOVVstore [off] {sym} ptr val mem)
