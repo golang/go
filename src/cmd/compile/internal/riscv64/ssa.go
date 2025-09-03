@@ -822,44 +822,99 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		}
 
 	case ssa.OpRISCV64LoweredMove:
-		mov, sz := largestMove(v.AuxInt)
+		dst := v.Args[0].Reg()
+		src := v.Args[1].Reg()
+		if dst == src {
+			break
+		}
 
-		//	mov	(Rarg1), T2
-		//	mov	T2, (Rarg0)
-		//	ADD	$sz, Rarg0
-		//	ADD	$sz, Rarg1
-		//	BGEU	Rarg2, Rarg0, -4(PC)
+		sa := v.AuxValAndOff()
+		n := sa.Val64()
+		mov, sz := largestMove(sa.Off64())
 
-		p := s.Prog(mov)
-		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = v.Args[1].Reg()
+		var off int64
+		tmp := int16(riscv.REG_X5)
+		for n >= sz {
+			moveOp(s, mov, dst, src, tmp, off)
+			off += sz
+			n -= sz
+		}
+
+		for i := len(fracMovOps) - 1; i >= 0; i-- {
+			tsz := int64(1 << i)
+			if n < tsz {
+				continue
+			}
+			moveOp(s, fracMovOps[i], dst, src, tmp, off)
+			off += tsz
+			n -= tsz
+		}
+
+	case ssa.OpRISCV64LoweredMoveLoop:
+		dst := v.Args[0].Reg()
+		src := v.Args[1].Reg()
+		if dst == src {
+			break
+		}
+
+		sc := v.AuxValAndOff()
+		n := sc.Val64()
+		mov, sz := largestMove(sc.Off64())
+		chunk := 8 * sz
+
+		if n <= 3*chunk {
+			v.Fatalf("MoveLoop too small:%d, expect:%d", n, 3*chunk)
+		}
+		tmp := int16(riscv.REG_X5)
+
+		p := s.Prog(riscv.AADD)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = n - n%chunk
+		p.Reg = src
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = riscv.REG_T2
+		p.To.Reg = riscv.REG_X6
 
-		p2 := s.Prog(mov)
-		p2.From.Type = obj.TYPE_REG
-		p2.From.Reg = riscv.REG_T2
-		p2.To.Type = obj.TYPE_MEM
-		p2.To.Reg = v.Args[0].Reg()
+		for i := int64(0); i < 8; i++ {
+			moveOp(s, mov, dst, src, tmp, sz*i)
+		}
 
-		p3 := s.Prog(riscv.AADD)
-		p3.From.Type = obj.TYPE_CONST
-		p3.From.Offset = sz
-		p3.To.Type = obj.TYPE_REG
-		p3.To.Reg = v.Args[0].Reg()
+		p1 := s.Prog(riscv.AADD)
+		p1.From.Type = obj.TYPE_CONST
+		p1.From.Offset = chunk
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = src
 
-		p4 := s.Prog(riscv.AADD)
-		p4.From.Type = obj.TYPE_CONST
-		p4.From.Offset = sz
-		p4.To.Type = obj.TYPE_REG
-		p4.To.Reg = v.Args[1].Reg()
+		p2 := s.Prog(riscv.AADD)
+		p2.From.Type = obj.TYPE_CONST
+		p2.From.Offset = chunk
+		p2.To.Type = obj.TYPE_REG
+		p2.To.Reg = dst
 
-		p5 := s.Prog(riscv.ABGEU)
-		p5.To.Type = obj.TYPE_BRANCH
-		p5.Reg = v.Args[1].Reg()
-		p5.From.Type = obj.TYPE_REG
-		p5.From.Reg = v.Args[2].Reg()
-		p5.To.SetTarget(p)
+		p3 := s.Prog(riscv.ABNE)
+		p3.From.Reg = riscv.REG_X6
+		p3.From.Type = obj.TYPE_REG
+		p3.Reg = src
+		p3.To.Type = obj.TYPE_BRANCH
+		p3.To.SetTarget(p.Link)
+
+		n %= chunk
+
+		var off int64
+		for n >= sz {
+			moveOp(s, mov, dst, src, tmp, off)
+			off += sz
+			n -= sz
+		}
+
+		for i := len(fracMovOps) - 1; i >= 0; i-- {
+			tsz := int64(1 << i)
+			if n < tsz {
+				continue
+			}
+			moveOp(s, fracMovOps[i], dst, src, tmp, off)
+			off += tsz
+			n -= tsz
+		}
 
 	case ssa.OpRISCV64LoweredNilCheck:
 		// Issue a load which will fault if arg is nil.
@@ -1021,5 +1076,23 @@ func zeroOp(s *ssagen.State, mov obj.As, reg int16, off int64) {
 	p.To.Type = obj.TYPE_MEM
 	p.To.Reg = reg
 	p.To.Offset = off
+	return
+}
+
+func moveOp(s *ssagen.State, mov obj.As, dst int16, src int16, tmp int16, off int64) {
+	p := s.Prog(mov)
+	p.From.Type = obj.TYPE_MEM
+	p.From.Reg = src
+	p.From.Offset = off
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = tmp
+
+	p1 := s.Prog(mov)
+	p1.From.Type = obj.TYPE_REG
+	p1.From.Reg = tmp
+	p1.To.Type = obj.TYPE_MEM
+	p1.To.Reg = dst
+	p1.To.Offset = off
+
 	return
 }

@@ -117,6 +117,7 @@ func init() {
 
 	regCtxt := regNamed["X26"]
 	callerSave := gpMask | fpMask | regNamed["g"]
+	r5toR6 := regNamed["X5"] | regNamed["X6"]
 
 	var (
 		gpstore  = regInfo{inputs: []regMask{gpspsbMask, gpspMask, 0}} // SB in first input so we can load from a global, but not in second to avoid using SB as a temporary register
@@ -354,27 +355,51 @@ func init() {
 		},
 
 		// general unaligned move
-		// arg0 = address of dst memory (in X5, changed as side effect)
-		// arg1 = address of src memory (in X6, changed as side effect)
-		// arg2 = address of the last element of src (can't be X7 as we clobber it before using arg2)
-		// arg3 = mem
-		// auxint = alignment
-		// clobbers X7 as a tmp register.
+		// arg0 = address of dst memory (clobber)
+		// arg1 = address of src memory (clobber)
+		// arg2 = mem
+		// auxint = size and type alignment
 		// returns mem
-		//	mov	(X6), X7
-		//	mov	X7, (X5)
-		//	ADD	$sz, X5
-		//	ADD	$sz, X6
-		//	BGEU	Rarg2, X5, -4(PC)
+		//	mov	(offset)(Rarg1), TMP
+		//	mov	TMP, (offset)(Rarg0)
 		{
 			name:      "LoweredMove",
-			aux:       "Int64",
-			argLength: 4,
+			aux:       "SymValAndOff",
+			symEffect: "Write",
+			argLength: 3,
 			reg: regInfo{
-				inputs:   []regMask{regNamed["X5"], regNamed["X6"], gpMask &^ regNamed["X7"]},
-				clobbers: regNamed["X5"] | regNamed["X6"] | regNamed["X7"],
+				inputs:   []regMask{gpMask &^ regNamed["X5"], gpMask &^ regNamed["X5"]},
+				clobbers: regNamed["X5"],
 			},
-			typ:            "Mem",
+			faultOnNilArg0: true,
+			faultOnNilArg1: true,
+		},
+
+		// general unaligned move
+		// arg0 = address of dst memory (clobber)
+		// arg1 = address of src memory (clobber)
+		// arg3 = mem
+		// auxint = alignment
+		// returns mem
+		//	ADD	$sz, X6
+		//loop:
+		//	mov	(Rarg1), X5
+		//	mov	X5, (Rarg0)
+		//	...rest 7 mov...
+		//	ADD	$sz, Rarg0
+		//	ADD	$sz, Rarg1
+		//	BNE	X6, Rarg1, loop
+		{
+			name:      "LoweredMoveLoop",
+			aux:       "SymValAndOff",
+			argLength: 3,
+			symEffect: "Write",
+			reg: regInfo{
+				inputs:       []regMask{gpMask &^ r5toR6, gpMask &^ r5toR6},
+				clobbers:     r5toR6,
+				clobbersArg0: true,
+				clobbersArg1: true,
+			},
 			faultOnNilArg0: true,
 			faultOnNilArg1: true,
 		},

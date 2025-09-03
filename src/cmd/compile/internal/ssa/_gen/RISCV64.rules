@@ -442,37 +442,16 @@
 	(MOVHstore [4] dst (MOVHload [4] src mem)
 		(MOVHstore [2] dst (MOVHload [2] src mem)
 			(MOVHstore dst (MOVHload src mem) mem)))
-(Move [12] {t} dst src mem) && t.Alignment()%4 == 0 =>
-	(MOVWstore [8] dst (MOVWload [8] src mem)
-		(MOVWstore [4] dst (MOVWload [4] src mem)
-			(MOVWstore dst (MOVWload src mem) mem)))
-(Move [16] {t} dst src mem) && t.Alignment()%8 == 0 =>
-	(MOVDstore [8] dst (MOVDload [8] src mem)
-		(MOVDstore dst (MOVDload src mem) mem))
-(Move [24] {t} dst src mem) && t.Alignment()%8 == 0 =>
-	(MOVDstore [16] dst (MOVDload [16] src mem)
-		(MOVDstore [8] dst (MOVDload [8] src mem)
-			(MOVDstore dst (MOVDload src mem) mem)))
-(Move [32] {t} dst src mem) && t.Alignment()%8 == 0 =>
-	(MOVDstore [24] dst (MOVDload [24] src mem)
-		(MOVDstore [16] dst (MOVDload [16] src mem)
-			(MOVDstore [8] dst (MOVDload [8] src mem)
-				(MOVDstore dst (MOVDload src mem) mem))))
 
-// Medium 8-aligned move uses a Duff's device
-// 16 and 128 are magic constants, see runtime/mkduff.go
-(Move [s] {t} dst src mem)
-	&& s%8 == 0 && s <= 8*128 && t.Alignment()%8 == 0
+// Generic move
+(Move [s] {t} dst src mem) && s > 0 && s <= 3*8*moveSize(t.Alignment(), config)
 	&& logLargeCopy(v, s) =>
-	(DUFFCOPY [16 * (128 - s/8)] dst src mem)
+	(LoweredMove [makeValAndOff(int32(s),int32(t.Alignment()))] dst src mem)
 
 // Generic move uses a loop
-(Move [s] {t} dst src mem) && (s <= 16 || logLargeCopy(v, s)) =>
-	(LoweredMove [t.Alignment()]
-		dst
-		src
-		(ADDI <src.Type> [s-moveSize(t.Alignment(), config)] src)
-		mem)
+(Move [s] {t} dst src mem) && s > 3*8*moveSize(t.Alignment(), config)
+	&& logLargeCopy(v, s) =>
+	(LoweredMoveLoop [makeValAndOff(int32(s),int32(t.Alignment()))] dst src mem)
 
 // Boolean ops; 0=false, 1=true
 (AndB ...) => (AND ...)
