@@ -949,20 +949,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 
-	case ssa.OpRISCV64DUFFZERO:
-		p := s.Prog(obj.ADUFFZERO)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = ir.Syms.Duffzero
-		p.To.Offset = v.AuxInt
-
-	case ssa.OpRISCV64DUFFCOPY:
-		p := s.Prog(obj.ADUFFCOPY)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = ir.Syms.Duffcopy
-		p.To.Offset = v.AuxInt
-
 	case ssa.OpRISCV64LoweredPubBarrier:
 		// FENCE
 		s.Prog(v.Op.Asm())

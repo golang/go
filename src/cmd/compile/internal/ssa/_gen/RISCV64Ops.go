@@ -278,44 +278,6 @@ func init() {
 		{name: "CALLclosure", argLength: -1, reg: callClosure, aux: "CallOff", call: true},       // call function via closure. arg0=codeptr, arg1=closure, last arg=mem, auxint=argsize, returns mem
 		{name: "CALLinter", argLength: -1, reg: callInter, aux: "CallOff", call: true},           // call fn by pointer. arg0=codeptr, last arg=mem, auxint=argsize, returns mem
 
-		// duffzero
-		// arg0 = address of memory to zero (in X25, changed as side effect)
-		// arg1 = mem
-		// auxint = offset into duffzero code to start executing
-		// X1 (link register) changed because of function call
-		// returns mem
-		{
-			name:      "DUFFZERO",
-			aux:       "Int64",
-			argLength: 2,
-			reg: regInfo{
-				inputs:   []regMask{regNamed["X25"]},
-				clobbers: regNamed["X1"] | regNamed["X25"],
-			},
-			typ:            "Mem",
-			faultOnNilArg0: true,
-		},
-
-		// duffcopy
-		// arg0 = address of dst memory (in X25, changed as side effect)
-		// arg1 = address of src memory (in X24, changed as side effect)
-		// arg2 = mem
-		// auxint = offset into duffcopy code to start executing
-		// X1 (link register) changed because of function call
-		// returns mem
-		{
-			name:      "DUFFCOPY",
-			aux:       "Int64",
-			argLength: 3,
-			reg: regInfo{
-				inputs:   []regMask{regNamed["X25"], regNamed["X24"]},
-				clobbers: regNamed["X1"] | regNamed["X24"] | regNamed["X25"],
-			},
-			typ:            "Mem",
-			faultOnNilArg0: true,
-			faultOnNilArg1: true,
-		},
-
 		// Generic moves and zeros
 
 		// general unrolled zeroing
