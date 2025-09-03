@@ -167,6 +167,7 @@ func (p *Package) collectTypes(types []*Type) {
 		p.collectValues(t.Vars)
 		p.collectFuncs(t.Funcs)
 		p.collectFuncs(t.Methods)
+		p.collectInterfaceMethods(t)
 	}
 }
 
@@ -180,6 +181,33 @@ func (p *Package) collectFuncs(funcs []*Func) {
 			p.syms[r+"."+f.Name] = true
 		} else {
 			p.syms[f.Name] = true
+		}
+	}
+}
+
+// collectInterfaceMethods adds methods of interface types within t to p.syms.
+// Note that t.Methods will contain methods of non-interface types, but not interface types.
+// Adding interface methods to t.Methods might make sense, but would cause us to
+// include those methods in the documentation index. Adding interface methods to p.syms
+// here allows us to linkify references like [io.Reader.Read] without making any other
+// changes to the documentation formatting at this time.
+//
+// If we do start adding interface methods to t.Methods in the future,
+// collectInterfaceMethods can be dropped as redundant with collectFuncs(t.Methods).
+func (p *Package) collectInterfaceMethods(t *Type) {
+	for _, s := range t.Decl.Specs {
+		spec, ok := s.(*ast.TypeSpec)
+		if !ok {
+			continue
+		}
+		list, isStruct := fields(spec.Type)
+		if isStruct {
+			continue
+		}
+		for _, field := range list {
+			for _, name := range field.Names {
+				p.syms[t.Name+"."+name.Name] = true
+			}
 		}
 	}
 }
