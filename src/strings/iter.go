@@ -86,7 +86,7 @@ func FieldsSeq(s string) iter.Seq[string] {
 		for i := 0; i < len(s); {
 			size := 1
 			r := rune(s[i])
-			isSpace := asciiSpace[s[i]] != 0
+			isSpace := asciiSpace[s[i]]
 			if r >= utf8.RuneSelf {
 				r, size = utf8.DecodeRuneInString(s[i:])
 				isSpace = unicode.IsSpace(r)

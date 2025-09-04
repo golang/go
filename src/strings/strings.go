@@ -374,7 +374,14 @@ func SplitAfter(s, sep string) []string {
 	return genSplit(s, sep, len(sep), -1)
 }
 
-var asciiSpace = [256]uint8{'\t': 1, '\n': 1, '\v': 1, '\f': 1, '\r': 1, ' ': 1}
+var asciiSpace = [256]bool{
+	'\t': true,
+	'\n': true,
+	'\v': true,
+	'\f': true,
+	'\r': true,
+	' ':  true,
+}
 
 // Fields splits the string s around each instance of one or more consecutive white space
 // characters, as defined by [unicode.IsSpace], returning a slice of substrings of s or an
@@ -385,14 +392,16 @@ func Fields(s string) []string {
 	// First count the fields.
 	// This is an exact count if s is ASCII, otherwise it is an approximation.
 	n := 0
-	wasSpace := 1
+	wasSpace := true
 	// setBits is used to track which bits are set in the bytes of s.
 	setBits := uint8(0)
 	for i := 0; i < len(s); i++ {
 		r := s[i]
 		setBits |= r
-		isSpace := int(asciiSpace[r])
-		n += wasSpace & ^isSpace
+		isSpace := asciiSpace[r]
+		if wasSpace && !isSpace {
+			n++
+		}
 		wasSpace = isSpace
 	}
 
@@ -406,12 +415,12 @@ func Fields(s string) []string {
 	fieldStart := 0
 	i := 0
 	// Skip spaces in the front of the input.
-	for i < len(s) && asciiSpace[s[i]] != 0 {
+	for i < len(s) && asciiSpace[s[i]] {
 		i++
 	}
 	fieldStart = i
 	for i < len(s) {
-		if asciiSpace[s[i]] == 0 {
+		if !asciiSpace[s[i]] {
 			i++
 			continue
 		}
@@ -419,7 +428,7 @@ func Fields(s string) []string {
 		na++
 		i++
 		// Skip spaces in between fields.
-		for i < len(s) && asciiSpace[s[i]] != 0 {
+		for i < len(s) && asciiSpace[s[i]] {
 			i++
 		}
 		fieldStart = i
@@ -1095,7 +1104,7 @@ func TrimSpace(s string) string {
 			// slower unicode-aware method on the remaining bytes.
 			return TrimFunc(s[lo:], unicode.IsSpace)
 		}
-		if asciiSpace[c] != 0 {
+		if asciiSpace[c] {
 			continue
 		}
 		s = s[lo:]
@@ -1105,7 +1114,7 @@ func TrimSpace(s string) string {
 			if c >= utf8.RuneSelf {
 				return TrimRightFunc(s[:hi+1], unicode.IsSpace)
 			}
-			if asciiSpace[c] == 0 {
+			if !asciiSpace[c] {
 				// At this point, s[:hi+1] starts and ends with ASCII
 				// non-space bytes, so we're done. Non-ASCII cases have
 				// already been handled above.
