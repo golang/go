@@ -8,18 +8,32 @@ on:
 
 jobs:
 
-  build:
+  test-no-truncation:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
 
-
-    - name: Build Go-Panikint compiler
+    - name: Build Go-Panikint (truncation disabled)
       run: |
         cd src
         ./make.bash
 
-    - name: Run tests
+    - name: Run tests (truncation disabled)
       run: |
         cd tests
+        GOROOT=${{ github.workspace }} ${{ github.workspace }}/bin/go test -v .
+
+  test-with-truncation:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Build Go-Panikint (truncation enabled)
+      run: |
+        cd src
+        GOFLAGS="-gcflags=-truncationdetect=true" ./make.bash
+
+    - name: Run tests (truncation enabled)
+      run: |
+        cd tests  
         GOROOT=${{ github.workspace }} ${{ github.workspace }}/bin/go test -v .

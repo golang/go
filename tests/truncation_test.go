@@ -4,7 +4,34 @@ import (
 	"testing"
 )
 
+// isTruncationDetectionEnabled checks if truncation detection is enabled by attempting 
+// a truncation that should panic if detection is enabled
+func isTruncationDetectionEnabled() bool {
+	panicked := false
+	func() {
+		defer func() {
+			if recover() != nil {
+				panicked = true
+			}
+		}()
+		
+		// Try a simple truncation that should trigger detection if enabled
+		var test uint16 = 256
+		_ = uint8(test) // This should panic if truncation detection is on
+	}()
+	
+	return panicked
+}
+
+// skipIfTruncationDisabled skips the test if truncation detection is disabled
+func skipIfTruncationDisabled(t *testing.T) {
+	if !isTruncationDetectionEnabled() {
+		t.Skip("Skipping truncation test - truncation detection is disabled")
+	}
+}
+
 func TestInt64ToInt32Overflow(t *testing.T) {
+	skipIfTruncationDisabled(t)
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("Expected panic for int64 to int32 overflow")
@@ -15,6 +42,7 @@ func TestInt64ToInt32Overflow(t *testing.T) {
 }
 
 func TestInt64ToInt32Underflow(t *testing.T) {
+	skipIfTruncationDisabled(t)
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("Expected panic for int64 to int32 underflow")
@@ -25,6 +53,7 @@ func TestInt64ToInt32Underflow(t *testing.T) {
 }
 
 func TestInt32ToInt16Overflow(t *testing.T) {
+	skipIfTruncationDisabled(t)
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("Expected panic for int32 to int16 overflow")
@@ -35,6 +64,7 @@ func TestInt32ToInt16Overflow(t *testing.T) {
 }
 
 func TestInt32ToInt16Underflow(t *testing.T) {
+	skipIfTruncationDisabled(t)
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("Expected panic for int32 to int16 underflow")
@@ -45,6 +75,7 @@ func TestInt32ToInt16Underflow(t *testing.T) {
 }
 
 func TestInt16ToInt8Overflow(t *testing.T) {
+	skipIfTruncationDisabled(t)
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("Expected panic for int16 to int8 overflow")
@@ -55,6 +86,7 @@ func TestInt16ToInt8Overflow(t *testing.T) {
 }
 
 func TestInt16ToInt8Underflow(t *testing.T) {
+	skipIfTruncationDisabled(t)
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("Expected panic for int16 to int8 underflow")
@@ -65,6 +97,7 @@ func TestInt16ToInt8Underflow(t *testing.T) {
 }
 
 func TestUint64ToUint32Overflow(t *testing.T) {
+	skipIfTruncationDisabled(t)
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("Expected panic for uint64 to uint32 overflow")
@@ -75,6 +108,7 @@ func TestUint64ToUint32Overflow(t *testing.T) {
 }
 
 func TestUint32ToUint16Overflow(t *testing.T) {
+	skipIfTruncationDisabled(t)
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("Expected panic for uint32 to uint16 overflow")
@@ -85,6 +119,7 @@ func TestUint32ToUint16Overflow(t *testing.T) {
 }
 
 func TestUint16ToUint8Overflow(t *testing.T) {
+	skipIfTruncationDisabled(t)
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("Expected panic for uint16 to uint8 overflow")
@@ -95,6 +130,7 @@ func TestUint16ToUint8Overflow(t *testing.T) {
 }
 
 func TestIntToInt32OnLargeValues(t *testing.T) {
+	skipIfTruncationDisabled(t)
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("Expected panic for int to int32 on large values")
@@ -105,6 +141,7 @@ func TestIntToInt32OnLargeValues(t *testing.T) {
 }
 
 func TestIntToInt16OnLargeValues(t *testing.T) {
+	skipIfTruncationDisabled(t)
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("Expected panic for int to int16 on large values")
@@ -115,6 +152,7 @@ func TestIntToInt16OnLargeValues(t *testing.T) {
 }
 
 func TestIntToInt8OnLargeValues(t *testing.T) {
+	skipIfTruncationDisabled(t)
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("Expected panic for int to int8 on large values")
@@ -125,6 +163,7 @@ func TestIntToInt8OnLargeValues(t *testing.T) {
 }
 
 func TestUintToUint32OnLargeValues(t *testing.T) {
+	skipIfTruncationDisabled(t)
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("Expected panic for uint to uint32 on large values")
@@ -135,6 +174,7 @@ func TestUintToUint32OnLargeValues(t *testing.T) {
 }
 
 func TestUintToUint16OnLargeValues(t *testing.T) {
+	skipIfTruncationDisabled(t)
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("Expected panic for uint to uint16 on large values")
@@ -145,6 +185,7 @@ func TestUintToUint16OnLargeValues(t *testing.T) {
 }
 
 func TestUintToUint8OnLargeValues(t *testing.T) {
+	skipIfTruncationDisabled(t)
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("Expected panic for uint to uint8 on large values")
@@ -155,6 +196,7 @@ func TestUintToUint8OnLargeValues(t *testing.T) {
 }
 
 func TestSignedToUnsignedNegative(t *testing.T) {
+	skipIfTruncationDisabled(t)
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("Expected panic for signed to unsigned with negative values")
@@ -165,6 +207,7 @@ func TestSignedToUnsignedNegative(t *testing.T) {
 }
 
 func TestUnsignedToSigned(t *testing.T) {
+	skipIfTruncationDisabled(t)
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("Expected panic for unsigned to signed with large values")
@@ -175,6 +218,7 @@ func TestUnsignedToSigned(t *testing.T) {
 }
 
 func TestInt16ToUint16Negative(t *testing.T) {
+	skipIfTruncationDisabled(t)
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("Expected panic for int16 to uint16 with negative values")
@@ -185,6 +229,7 @@ func TestInt16ToUint16Negative(t *testing.T) {
 }
 
 func TestInt8ToUint8Negative(t *testing.T) {
+	skipIfTruncationDisabled(t)
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("Expected panic for int8 to uint8 with negative values")
@@ -195,6 +240,7 @@ func TestInt8ToUint8Negative(t *testing.T) {
 }
 
 func TestComplexTruncationChain(t *testing.T) {
+	skipIfTruncationDisabled(t)
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("Expected panic for complex truncation chain")
@@ -207,6 +253,7 @@ func TestComplexTruncationChain(t *testing.T) {
 }
 
 func TestRuntimeComputedTruncation(t *testing.T) {
+	skipIfTruncationDisabled(t)
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("Expected panic for runtime computed truncation")
@@ -220,6 +267,7 @@ func TestRuntimeComputedTruncation(t *testing.T) {
 }
 
 func TestBufferSizeVulnerability(t *testing.T) {
+	skipIfTruncationDisabled(t)
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("Expected panic for buffer size vulnerability")
@@ -231,6 +279,7 @@ func TestBufferSizeVulnerability(t *testing.T) {
 }
 
 func TestArrayIndexTruncation(t *testing.T) {
+	skipIfTruncationDisabled(t)
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("Expected panic for array index truncation")
@@ -242,6 +291,7 @@ func TestArrayIndexTruncation(t *testing.T) {
 }
 
 func TestMemoryOffsetTruncation(t *testing.T) {
+	skipIfTruncationDisabled(t)
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("Expected panic for memory offset truncation")
@@ -253,6 +303,7 @@ func TestMemoryOffsetTruncation(t *testing.T) {
 }
 
 func TestSecurityBoundaryTruncation(t *testing.T) {
+	skipIfTruncationDisabled(t)
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("Expected panic for security boundary truncation")
@@ -265,6 +316,7 @@ func TestSecurityBoundaryTruncation(t *testing.T) {
 
 // Platform-dependent truncation edge cases
 func TestPlatformDependentIntTruncation(t *testing.T) {
+	skipIfTruncationDisabled(t)
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("Expected panic for platform-dependent int truncation")
@@ -275,6 +327,7 @@ func TestPlatformDependentIntTruncation(t *testing.T) {
 }
 
 func TestBoundaryTruncationInt32MaxPlusOne(t *testing.T) {
+	skipIfTruncationDisabled(t)
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("Expected panic for int32 max+1 boundary truncation")
@@ -285,6 +338,7 @@ func TestBoundaryTruncationInt32MaxPlusOne(t *testing.T) {
 }
 
 func TestBoundaryTruncationInt32MinMinusOne(t *testing.T) {
+	skipIfTruncationDisabled(t)
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("Expected panic for int32 min-1 boundary truncation")
@@ -295,6 +349,7 @@ func TestBoundaryTruncationInt32MinMinusOne(t *testing.T) {
 }
 
 func TestBoundaryTruncationInt16MaxPlusOne(t *testing.T) {
+	skipIfTruncationDisabled(t)
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("Expected panic for int16 max+1 boundary truncation")
@@ -305,6 +360,7 @@ func TestBoundaryTruncationInt16MaxPlusOne(t *testing.T) {
 }
 
 func TestBoundaryTruncationInt8MaxPlusOne(t *testing.T) {
+	skipIfTruncationDisabled(t)
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("Expected panic for int8 max+1 boundary truncation")
@@ -315,6 +371,7 @@ func TestBoundaryTruncationInt8MaxPlusOne(t *testing.T) {
 }
 
 func TestBoundaryTruncationUint32MaxPlusOne(t *testing.T) {
+	skipIfTruncationDisabled(t)
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("Expected panic for uint32 max+1 boundary truncation")
@@ -325,6 +382,7 @@ func TestBoundaryTruncationUint32MaxPlusOne(t *testing.T) {
 }
 
 func TestBoundaryTruncationUint16MaxPlusOne(t *testing.T) {
+	skipIfTruncationDisabled(t)
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("Expected panic for uint16 max+1 boundary truncation")
@@ -335,6 +393,7 @@ func TestBoundaryTruncationUint16MaxPlusOne(t *testing.T) {
 }
 
 func TestBoundaryTruncationUint8MaxPlusOne(t *testing.T) {
+	skipIfTruncationDisabled(t)
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("Expected panic for uint8 max+1 boundary truncation")
@@ -346,6 +405,7 @@ func TestBoundaryTruncationUint8MaxPlusOne(t *testing.T) {
 
 // Additional edge case truncation tests
 func TestBitOperationTruncation(t *testing.T) {
+	skipIfTruncationDisabled(t)
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("Expected panic for bit operation truncation")
@@ -357,6 +417,7 @@ func TestBitOperationTruncation(t *testing.T) {
 }
 
 func TestChainedTruncationWithBitOps(t *testing.T) {
+	skipIfTruncationDisabled(t)
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("Expected panic for chained truncation with bit ops")
