@@ -19070,15 +19070,19 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:   "VZEROUPPER",
-		argLen: 0,
+		argLen: 1,
 		asm:    x86.AVZEROUPPER,
-		reg:    regInfo{},
+		reg: regInfo{
+			clobbers: 2147418112, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+		},
 	},
 	{
 		name:   "VZEROALL",
-		argLen: 0,
+		argLen: 1,
 		asm:    x86.AVZEROALL,
-		reg:    regInfo{},
+		reg: regInfo{
+			clobbers: 2147418112, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+		},
 	},
 	{
 		name:           "KMOVQload",

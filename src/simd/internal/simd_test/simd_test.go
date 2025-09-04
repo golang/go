@@ -518,3 +518,25 @@ func TestFlattenedTranspose(t *testing.T) {
 	checkSlices[int32](t, s, []int32{0xC, 3, 0xD, 4})
 
 }
+
+func TestClearAVXUpperBits(t *testing.T) {
+	// Test that ClearAVXUpperBits is safe even if there are SIMD values
+	// alive (although usually one should not do this).
+	if !simd.HasAVX2() {
+		t.Skip("Test requires HasAVX2, not available on this hardware")
+		return
+	}
+
+	r := make([]int64, 4)
+	s := make([]int64, 4)
+
+	x := simd.LoadInt64x4Slice([]int64{10, 20, 30, 40})
+	y := simd.LoadInt64x4Slice([]int64{1, 2, 3, 4})
+
+	x.Add(y).StoreSlice(r)
+	simd.ClearAVXUpperBits()
+	x.Sub(y).StoreSlice(s)
+
+	checkSlices[int64](t, r, []int64{11, 22, 33, 44})
+	checkSlices[int64](t, s, []int64{9, 18, 27, 36})
+}

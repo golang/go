@@ -1397,8 +1397,8 @@ func init() {
 		{name: "VMOVSSconst", reg: fp01, asm: "VMOVSS", aux: "Float32", rematerializeable: true},
 		{name: "VMOVSDconst", reg: fp01, asm: "VMOVSD", aux: "Float64", rematerializeable: true},
 
-		{name: "VZEROUPPER", argLength: 0, asm: "VZEROUPPER"},
-		{name: "VZEROALL", argLength: 0, asm: "VZEROALL"},
+		{name: "VZEROUPPER", argLength: 1, reg: regInfo{clobbers: v}, asm: "VZEROUPPER"}, // arg=mem, returns mem
+		{name: "VZEROALL", argLength: 1, reg: regInfo{clobbers: v}, asm: "VZEROALL"},     // arg=mem, returns mem
 
 		{name: "KMOVQload", argLength: 2, reg: kload, asm: "KMOVQ", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},
 		{name: "KMOVQstore", argLength: 3, reg: kstore, asm: "KMOVQ", aux: "SymOff", faultOnNilArg0: true, symEffect: "Write"},
