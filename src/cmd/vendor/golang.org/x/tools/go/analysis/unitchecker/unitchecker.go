@@ -85,6 +85,18 @@ type Config struct {
 //	-V=full         describe executable for build caching
 //	foo.cfg         perform separate modular analyze on the single
 //	                unit described by a JSON config file foo.cfg.
+//
+// Also, subject to approval of proposal #71859:
+//
+//	-fix		don't print each diagnostic, apply its first fix
+//	-diff		don't apply a fix, print the diff (requires -fix)
+//
+// Additionally, the environment variable GOVET has the value "vet" or
+// "fix" depending on whether the command is being invoked by "go vet",
+// to report diagnostics, or "go fix", to apply fixes. This is
+// necessary so that callers of Main can select their analyzer suite
+// before flag parsing. (Vet analyzers must report real code problems,
+// whereas Fix analyzers may fix non-problems such as style issues.)
 func Main(analyzers ...*analysis.Analyzer) {
 	progname := filepath.Base(os.Args[0])
 	log.SetFlags(0)
@@ -136,35 +148,14 @@ func Run(configFile string, analyzers []*analysis.Analyzer) {
 		log.Fatal(err)
 	}
 
+	code := 0
+
 	// In VetxOnly mode, the analysis is run only for facts.
 	if !cfg.VetxOnly {
-		if analysisflags.JSON {
-			// JSON output
-			tree := make(analysisflags.JSONTree)
-			for _, res := range results {
-				tree.Add(fset, cfg.ID, res.a.Name, res.diagnostics, res.err)
-			}
-			tree.Print(os.Stdout)
-		} else {
-			// plain text
-			exit := 0
-			for _, res := range results {
-				if res.err != nil {
-					log.Println(res.err)
-					exit = 1
-				}
-			}
-			for _, res := range results {
-				for _, diag := range res.diagnostics {
-					analysisflags.PrintPlain(os.Stderr, fset, analysisflags.Context, diag)
-					exit = 1
-				}
-			}
-			os.Exit(exit)
-		}
+		code = processResults(fset, cfg.ID, results)
 	}
 
-	os.Exit(0)
+	os.Exit(code)
 }
 
 func readConfig(filename string) (*Config, error) {
@@ -183,6 +174,63 @@ func readConfig(filename string) (*Config, error) {
 		return nil, fmt.Errorf("package has no files: %s", cfg.ImportPath)
 	}
 	return cfg, nil
+}
+
+func processResults(fset *token.FileSet, id string, results []result) (exit int) {
+	if analysisflags.Fix {
+		// Don't print the diagnostics,
+		// but apply all fixes from the root actions.
+
+		// Convert results to form needed by ApplyFixes.
+		fixActions := make([]analysisflags.FixAction, len(results))
+		for i, res := range results {
+			fixActions[i] = analysisflags.FixAction{
+				Name:         res.a.Name,
+				FileSet:      fset,
+				ReadFileFunc: os.ReadFile,
+				Diagnostics:  res.diagnostics,
+			}
+		}
+		if err := analysisflags.ApplyFixes(fixActions, false); err != nil {
+			// Fail when applying fixes failed.
+			log.Print(err)
+			exit = 1
+		}
+
+		// Don't proceed to print text/JSON,
+		// and don't report an error
+		// just because there were diagnostics.
+		return
+	}
+
+	// Keep consistent with analogous logic in
+	// printDiagnostics in ../internal/checker/checker.go.
+
+	if analysisflags.JSON {
+		// JSON output
+		tree := make(analysisflags.JSONTree)
+		for _, res := range results {
+			tree.Add(fset, id, res.a.Name, res.diagnostics, res.err)
+		}
+		tree.Print(os.Stdout) // ignore error
+
+	} else {
+		// plain text
+		for _, res := range results {
+			if res.err != nil {
+				log.Println(res.err)
+				exit = 1
+			}
+		}
+		for _, res := range results {
+			for _, diag := range res.diagnostics {
+				analysisflags.PrintPlain(os.Stderr, fset, analysisflags.Context, diag)
+				exit = 1
+			}
+		}
+	}
+
+	return
 }
 
 type factImporter = func(pkgPath string) ([]byte, error)

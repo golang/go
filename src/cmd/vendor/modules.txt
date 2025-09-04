@@ -73,8 +73,8 @@ golang.org/x/text/internal/tag
 golang.org/x/text/language
 golang.org/x/text/transform
 golang.org/x/text/unicode/norm
-# golang.org/x/tools v0.36.1-0.20250808220315-8866876b956f
-## explicit; go 1.23.0
+# golang.org/x/tools v0.36.1-0.20250904192731-a09a2fba1c08
+## explicit; go 1.24.0
 golang.org/x/tools/cmd/bisect
 golang.org/x/tools/cover
 golang.org/x/tools/go/analysis
@@ -128,6 +128,8 @@ golang.org/x/tools/internal/analysisinternal
 golang.org/x/tools/internal/analysisinternal/typeindex
 golang.org/x/tools/internal/astutil
 golang.org/x/tools/internal/bisect
+golang.org/x/tools/internal/diff
+golang.org/x/tools/internal/diff/lcs
 golang.org/x/tools/internal/facts
 golang.org/x/tools/internal/fmtstr
 golang.org/x/tools/internal/stdlib
