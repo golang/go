@@ -176,7 +176,7 @@ func ParseFlags() {
 	Flag.LinkShared = &Ctxt.Flag_linkshared
 	Flag.Shared = &Ctxt.Flag_shared
 	Flag.WB = true
-	Flag.TruncationDetect = true
+	Flag.TruncationDetect = false
 
 	Debug.ConcurrentOk = true
 	Debug.MaxShapeLen = 500

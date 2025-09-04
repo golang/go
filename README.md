@@ -8,7 +8,7 @@
 
 **Arithmetic operations**: Handles addition `+`, subtraction `-`, multiplication `*`, and division `/` for both signed and unsigned integer types. For signed integers, covers `int8`, `int16`, `int32`. For unsigned integers, covers `uint8`, `uint16`, `uint32`, `uint64`. The division case specifically detects the `MIN_INT / -1` overflow condition for signed integers. `int64` and `uintptr` are not checked for arithmetic operations.
 
-**Type truncation detection**: Detects when integer type conversions would result in data loss due to the target type having a smaller range than the source type. Covers all integer types: `int8`, `int16`, `int32`, `int64`, `uint8`, `uint16`, `uint32`, `uint64`. Excludes `uintptr` due to platform-dependent usage.
+**Type truncation detection**: Detects when integer type conversions would result in data loss due to the target type having a smaller range than the source type. Covers all integer types: `int8`, `int16`, `int32`, `int64`, `uint8`, `uint16`, `uint32`, `uint64`. Excludes `uintptr` due to platform-dependent usage. **Disabled** by default.
 
 
 ### Usage and installation :
@@ -27,8 +27,8 @@ export GOROOT=/path/to/go-panikint
 
 ######
 
-# Alternatively: build compiler with truncation detection disabled
-GOFLAGS="-gcflags=-truncationdetect=false" ./make.bash
+# Alternatively: build compiler with truncation detection enabled
+GOFLAGS="-gcflags=-truncationdetect=true" ./make.bash
 
 # Fuzz only
 ./bin/go test -fuzz=FuzzIntegerOverflow -v
