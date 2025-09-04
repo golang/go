@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"unicode/utf8"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/gover"
@@ -284,6 +285,11 @@ func reportError(q *query, err error) {
 	//
 	// TODO(bcmills): Use errors.As to unpack these errors instead of parsing
 	// strings with regular expressions.
+
+	if !utf8.ValidString(q.pattern) || !utf8.ValidString(q.version) {
+		base.Errorf("go: %s", errStr)
+		return
+	}
 
 	patternRE := regexp.MustCompile("(?m)(?:[ \t(\"`]|^)" + regexp.QuoteMeta(q.pattern) + "(?:[ @:;)\"`]|$)")
 	if patternRE.MatchString(errStr) {
