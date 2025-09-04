@@ -6,6 +6,8 @@
 
 package codegen
 
+import "strings"
+
 // This file contains code generation tests related to the handling of
 // string types.
 
@@ -89,3 +91,23 @@ func NotEqualSelf(s string) bool {
 }
 
 var bsink []byte
+
+func HasPrefix3(s string) bool {
+	// amd64:-`.*memequal.*`
+	return strings.HasPrefix(s, "str")
+}
+
+func HasPrefix5(s string) bool {
+	// amd64:-`.*memequal.*`
+	return strings.HasPrefix(s, "strin")
+}
+
+func HasPrefix6(s string) bool {
+	// amd64:-`.*memequal.*`
+	return strings.HasPrefix(s, "string")
+}
+
+func HasPrefix7(s string) bool {
+	// amd64:-`.*memequal.*`
+	return strings.HasPrefix(s, "strings")
+}

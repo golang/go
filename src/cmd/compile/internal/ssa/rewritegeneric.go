@@ -30884,6 +30884,390 @@ func rewriteValuegeneric_OpStaticLECall(v *Value) bool {
 		v.AddArg2(v0, mem)
 		return true
 	}
+	// match: (StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [3]) mem)
+	// cond: isSameCall(callAux, "runtime.memequal") && symIsRO(scon) && canLoadUnaligned(config)
+	// result: (MakeResult (Eq32 (Or32 <typ.Int32> (ZeroExt16to32 <typ.Int32> (Load <typ.Int16> sptr mem)) (Lsh32x32 <typ.Int32> (ZeroExt8to32 <typ.Int32> (Load <typ.Int8> (OffPtr <typ.BytePtr> [2] sptr) mem)) (Const32 <typ.Int32> [16]))) (Const32 <typ.Int32> [int32(uint32(read16(scon,0,config.ctxt.Arch.ByteOrder))|(uint32(read8(scon,2))<<16))])) mem)
+	for {
+		if len(v.Args) != 4 {
+			break
+		}
+		callAux := auxToCall(v.Aux)
+		mem := v.Args[3]
+		sptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAddr {
+			break
+		}
+		scon := auxToSym(v_1.Aux)
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpSB {
+			break
+		}
+		v_2 := v.Args[2]
+		if v_2.Op != OpConst64 || auxIntToInt64(v_2.AuxInt) != 3 || !(isSameCall(callAux, "runtime.memequal") && symIsRO(scon) && canLoadUnaligned(config)) {
+			break
+		}
+		v.reset(OpMakeResult)
+		v0 := b.NewValue0(v.Pos, OpEq32, typ.Bool)
+		v1 := b.NewValue0(v.Pos, OpOr32, typ.Int32)
+		v2 := b.NewValue0(v.Pos, OpZeroExt16to32, typ.Int32)
+		v3 := b.NewValue0(v.Pos, OpLoad, typ.Int16)
+		v3.AddArg2(sptr, mem)
+		v2.AddArg(v3)
+		v4 := b.NewValue0(v.Pos, OpLsh32x32, typ.Int32)
+		v5 := b.NewValue0(v.Pos, OpZeroExt8to32, typ.Int32)
+		v6 := b.NewValue0(v.Pos, OpLoad, typ.Int8)
+		v7 := b.NewValue0(v.Pos, OpOffPtr, typ.BytePtr)
+		v7.AuxInt = int64ToAuxInt(2)
+		v7.AddArg(sptr)
+		v6.AddArg2(v7, mem)
+		v5.AddArg(v6)
+		v8 := b.NewValue0(v.Pos, OpConst32, typ.Int32)
+		v8.AuxInt = int32ToAuxInt(16)
+		v4.AddArg2(v5, v8)
+		v1.AddArg2(v2, v4)
+		v9 := b.NewValue0(v.Pos, OpConst32, typ.Int32)
+		v9.AuxInt = int32ToAuxInt(int32(uint32(read16(scon, 0, config.ctxt.Arch.ByteOrder)) | (uint32(read8(scon, 2)) << 16)))
+		v0.AddArg2(v1, v9)
+		v.AddArg2(v0, mem)
+		return true
+	}
+	// match: (StaticLECall {callAux} (Addr {scon} (SB)) sptr (Const64 [3]) mem)
+	// cond: isSameCall(callAux, "runtime.memequal") && symIsRO(scon) && canLoadUnaligned(config)
+	// result: (MakeResult (Eq32 (Or32 <typ.Int32> (ZeroExt16to32 <typ.Int32> (Load <typ.Int16> sptr mem)) (Lsh32x32 <typ.Int32> (ZeroExt8to32 <typ.Int32> (Load <typ.Int8> (OffPtr <typ.BytePtr> [2] sptr) mem)) (Const32 <typ.Int32> [16]))) (Const32 <typ.Int32> [int32(uint32(read16(scon,0,config.ctxt.Arch.ByteOrder))|(uint32(read8(scon,2))<<16))])) mem)
+	for {
+		if len(v.Args) != 4 {
+			break
+		}
+		callAux := auxToCall(v.Aux)
+		mem := v.Args[3]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAddr {
+			break
+		}
+		scon := auxToSym(v_0.Aux)
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpSB {
+			break
+		}
+		sptr := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpConst64 || auxIntToInt64(v_2.AuxInt) != 3 || !(isSameCall(callAux, "runtime.memequal") && symIsRO(scon) && canLoadUnaligned(config)) {
+			break
+		}
+		v.reset(OpMakeResult)
+		v0 := b.NewValue0(v.Pos, OpEq32, typ.Bool)
+		v1 := b.NewValue0(v.Pos, OpOr32, typ.Int32)
+		v2 := b.NewValue0(v.Pos, OpZeroExt16to32, typ.Int32)
+		v3 := b.NewValue0(v.Pos, OpLoad, typ.Int16)
+		v3.AddArg2(sptr, mem)
+		v2.AddArg(v3)
+		v4 := b.NewValue0(v.Pos, OpLsh32x32, typ.Int32)
+		v5 := b.NewValue0(v.Pos, OpZeroExt8to32, typ.Int32)
+		v6 := b.NewValue0(v.Pos, OpLoad, typ.Int8)
+		v7 := b.NewValue0(v.Pos, OpOffPtr, typ.BytePtr)
+		v7.AuxInt = int64ToAuxInt(2)
+		v7.AddArg(sptr)
+		v6.AddArg2(v7, mem)
+		v5.AddArg(v6)
+		v8 := b.NewValue0(v.Pos, OpConst32, typ.Int32)
+		v8.AuxInt = int32ToAuxInt(16)
+		v4.AddArg2(v5, v8)
+		v1.AddArg2(v2, v4)
+		v9 := b.NewValue0(v.Pos, OpConst32, typ.Int32)
+		v9.AuxInt = int32ToAuxInt(int32(uint32(read16(scon, 0, config.ctxt.Arch.ByteOrder)) | (uint32(read8(scon, 2)) << 16)))
+		v0.AddArg2(v1, v9)
+		v.AddArg2(v0, mem)
+		return true
+	}
+	// match: (StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [5]) mem)
+	// cond: isSameCall(callAux, "runtime.memequal") && symIsRO(scon) && canLoadUnaligned(config) && config.PtrSize == 8
+	// result: (MakeResult (Eq64 (Or64 <typ.Int64> (ZeroExt32to64 <typ.Int64> (Load <typ.Int32> sptr mem)) (Lsh64x64 <typ.Int64> (ZeroExt8to64 <typ.Int64> (Load <typ.Int8> (OffPtr <typ.BytePtr> [4] sptr) mem)) (Const64 <typ.Int64> [32]))) (Const64 <typ.Int64> [int64(uint64(read32(scon,0,config.ctxt.Arch.ByteOrder))|(uint64(read8(scon,4))<<32))])) mem)
+	for {
+		if len(v.Args) != 4 {
+			break
+		}
+		callAux := auxToCall(v.Aux)
+		mem := v.Args[3]
+		sptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAddr {
+			break
+		}
+		scon := auxToSym(v_1.Aux)
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpSB {
+			break
+		}
+		v_2 := v.Args[2]
+		if v_2.Op != OpConst64 || auxIntToInt64(v_2.AuxInt) != 5 || !(isSameCall(callAux, "runtime.memequal") && symIsRO(scon) && canLoadUnaligned(config) && config.PtrSize == 8) {
+			break
+		}
+		v.reset(OpMakeResult)
+		v0 := b.NewValue0(v.Pos, OpEq64, typ.Bool)
+		v1 := b.NewValue0(v.Pos, OpOr64, typ.Int64)
+		v2 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.Int64)
+		v3 := b.NewValue0(v.Pos, OpLoad, typ.Int32)
+		v3.AddArg2(sptr, mem)
+		v2.AddArg(v3)
+		v4 := b.NewValue0(v.Pos, OpLsh64x64, typ.Int64)
+		v5 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.Int64)
+		v6 := b.NewValue0(v.Pos, OpLoad, typ.Int8)
+		v7 := b.NewValue0(v.Pos, OpOffPtr, typ.BytePtr)
+		v7.AuxInt = int64ToAuxInt(4)
+		v7.AddArg(sptr)
+		v6.AddArg2(v7, mem)
+		v5.AddArg(v6)
+		v8 := b.NewValue0(v.Pos, OpConst64, typ.Int64)
+		v8.AuxInt = int64ToAuxInt(32)
+		v4.AddArg2(v5, v8)
+		v1.AddArg2(v2, v4)
+		v9 := b.NewValue0(v.Pos, OpConst64, typ.Int64)
+		v9.AuxInt = int64ToAuxInt(int64(uint64(read32(scon, 0, config.ctxt.Arch.ByteOrder)) | (uint64(read8(scon, 4)) << 32)))
+		v0.AddArg2(v1, v9)
+		v.AddArg2(v0, mem)
+		return true
+	}
+	// match: (StaticLECall {callAux} (Addr {scon} (SB)) sptr (Const64 [5]) mem)
+	// cond: isSameCall(callAux, "runtime.memequal") && symIsRO(scon) && canLoadUnaligned(config) && config.PtrSize == 8
+	// result: (MakeResult (Eq64 (Or64 <typ.Int64> (ZeroExt32to64 <typ.Int64> (Load <typ.Int32> sptr mem)) (Lsh64x64 <typ.Int64> (ZeroExt8to64 <typ.Int64> (Load <typ.Int8> (OffPtr <typ.BytePtr> [4] sptr) mem)) (Const64 <typ.Int64> [32]))) (Const64 <typ.Int64> [int64(uint64(read32(scon,0,config.ctxt.Arch.ByteOrder))|(uint64(read8(scon,4))<<32))])) mem)
+	for {
+		if len(v.Args) != 4 {
+			break
+		}
+		callAux := auxToCall(v.Aux)
+		mem := v.Args[3]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAddr {
+			break
+		}
+		scon := auxToSym(v_0.Aux)
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpSB {
+			break
+		}
+		sptr := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpConst64 || auxIntToInt64(v_2.AuxInt) != 5 || !(isSameCall(callAux, "runtime.memequal") && symIsRO(scon) && canLoadUnaligned(config) && config.PtrSize == 8) {
+			break
+		}
+		v.reset(OpMakeResult)
+		v0 := b.NewValue0(v.Pos, OpEq64, typ.Bool)
+		v1 := b.NewValue0(v.Pos, OpOr64, typ.Int64)
+		v2 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.Int64)
+		v3 := b.NewValue0(v.Pos, OpLoad, typ.Int32)
+		v3.AddArg2(sptr, mem)
+		v2.AddArg(v3)
+		v4 := b.NewValue0(v.Pos, OpLsh64x64, typ.Int64)
+		v5 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.Int64)
+		v6 := b.NewValue0(v.Pos, OpLoad, typ.Int8)
+		v7 := b.NewValue0(v.Pos, OpOffPtr, typ.BytePtr)
+		v7.AuxInt = int64ToAuxInt(4)
+		v7.AddArg(sptr)
+		v6.AddArg2(v7, mem)
+		v5.AddArg(v6)
+		v8 := b.NewValue0(v.Pos, OpConst64, typ.Int64)
+		v8.AuxInt = int64ToAuxInt(32)
+		v4.AddArg2(v5, v8)
+		v1.AddArg2(v2, v4)
+		v9 := b.NewValue0(v.Pos, OpConst64, typ.Int64)
+		v9.AuxInt = int64ToAuxInt(int64(uint64(read32(scon, 0, config.ctxt.Arch.ByteOrder)) | (uint64(read8(scon, 4)) << 32)))
+		v0.AddArg2(v1, v9)
+		v.AddArg2(v0, mem)
+		return true
+	}
+	// match: (StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [6]) mem)
+	// cond: isSameCall(callAux, "runtime.memequal") && symIsRO(scon) && canLoadUnaligned(config) && config.PtrSize == 8
+	// result: (MakeResult (Eq64 (Or64 <typ.Int64> (ZeroExt32to64 <typ.Int64> (Load <typ.Int32> sptr mem)) (Lsh64x64 <typ.Int64> (ZeroExt16to64 <typ.Int64> (Load <typ.Int16> (OffPtr <typ.BytePtr> [4] sptr) mem)) (Const64 <typ.Int64> [32]))) (Const64 <typ.Int64> [int64(uint64(read32(scon,0,config.ctxt.Arch.ByteOrder))|(uint64(read16(scon,4,config.ctxt.Arch.ByteOrder))<<32))])) mem)
+	for {
+		if len(v.Args) != 4 {
+			break
+		}
+		callAux := auxToCall(v.Aux)
+		mem := v.Args[3]
+		sptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAddr {
+			break
+		}
+		scon := auxToSym(v_1.Aux)
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpSB {
+			break
+		}
+		v_2 := v.Args[2]
+		if v_2.Op != OpConst64 || auxIntToInt64(v_2.AuxInt) != 6 || !(isSameCall(callAux, "runtime.memequal") && symIsRO(scon) && canLoadUnaligned(config) && config.PtrSize == 8) {
+			break
+		}
+		v.reset(OpMakeResult)
+		v0 := b.NewValue0(v.Pos, OpEq64, typ.Bool)
+		v1 := b.NewValue0(v.Pos, OpOr64, typ.Int64)
+		v2 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.Int64)
+		v3 := b.NewValue0(v.Pos, OpLoad, typ.Int32)
+		v3.AddArg2(sptr, mem)
+		v2.AddArg(v3)
+		v4 := b.NewValue0(v.Pos, OpLsh64x64, typ.Int64)
+		v5 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.Int64)
+		v6 := b.NewValue0(v.Pos, OpLoad, typ.Int16)
+		v7 := b.NewValue0(v.Pos, OpOffPtr, typ.BytePtr)
+		v7.AuxInt = int64ToAuxInt(4)
+		v7.AddArg(sptr)
+		v6.AddArg2(v7, mem)
+		v5.AddArg(v6)
+		v8 := b.NewValue0(v.Pos, OpConst64, typ.Int64)
+		v8.AuxInt = int64ToAuxInt(32)
+		v4.AddArg2(v5, v8)
+		v1.AddArg2(v2, v4)
+		v9 := b.NewValue0(v.Pos, OpConst64, typ.Int64)
+		v9.AuxInt = int64ToAuxInt(int64(uint64(read32(scon, 0, config.ctxt.Arch.ByteOrder)) | (uint64(read16(scon, 4, config.ctxt.Arch.ByteOrder)) << 32)))
+		v0.AddArg2(v1, v9)
+		v.AddArg2(v0, mem)
+		return true
+	}
+	// match: (StaticLECall {callAux} (Addr {scon} (SB)) sptr (Const64 [6]) mem)
+	// cond: isSameCall(callAux, "runtime.memequal") && symIsRO(scon) && canLoadUnaligned(config) && config.PtrSize == 8
+	// result: (MakeResult (Eq64 (Or64 <typ.Int64> (ZeroExt32to64 <typ.Int64> (Load <typ.Int32> sptr mem)) (Lsh64x64 <typ.Int64> (ZeroExt16to64 <typ.Int64> (Load <typ.Int16> (OffPtr <typ.BytePtr> [4] sptr) mem)) (Const64 <typ.Int64> [32]))) (Const64 <typ.Int64> [int64(uint64(read32(scon,0,config.ctxt.Arch.ByteOrder))|(uint64(read16(scon,4,config.ctxt.Arch.ByteOrder))<<32))])) mem)
+	for {
+		if len(v.Args) != 4 {
+			break
+		}
+		callAux := auxToCall(v.Aux)
+		mem := v.Args[3]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAddr {
+			break
+		}
+		scon := auxToSym(v_0.Aux)
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpSB {
+			break
+		}
+		sptr := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpConst64 || auxIntToInt64(v_2.AuxInt) != 6 || !(isSameCall(callAux, "runtime.memequal") && symIsRO(scon) && canLoadUnaligned(config) && config.PtrSize == 8) {
+			break
+		}
+		v.reset(OpMakeResult)
+		v0 := b.NewValue0(v.Pos, OpEq64, typ.Bool)
+		v1 := b.NewValue0(v.Pos, OpOr64, typ.Int64)
+		v2 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.Int64)
+		v3 := b.NewValue0(v.Pos, OpLoad, typ.Int32)
+		v3.AddArg2(sptr, mem)
+		v2.AddArg(v3)
+		v4 := b.NewValue0(v.Pos, OpLsh64x64, typ.Int64)
+		v5 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.Int64)
+		v6 := b.NewValue0(v.Pos, OpLoad, typ.Int16)
+		v7 := b.NewValue0(v.Pos, OpOffPtr, typ.BytePtr)
+		v7.AuxInt = int64ToAuxInt(4)
+		v7.AddArg(sptr)
+		v6.AddArg2(v7, mem)
+		v5.AddArg(v6)
+		v8 := b.NewValue0(v.Pos, OpConst64, typ.Int64)
+		v8.AuxInt = int64ToAuxInt(32)
+		v4.AddArg2(v5, v8)
+		v1.AddArg2(v2, v4)
+		v9 := b.NewValue0(v.Pos, OpConst64, typ.Int64)
+		v9.AuxInt = int64ToAuxInt(int64(uint64(read32(scon, 0, config.ctxt.Arch.ByteOrder)) | (uint64(read16(scon, 4, config.ctxt.Arch.ByteOrder)) << 32)))
+		v0.AddArg2(v1, v9)
+		v.AddArg2(v0, mem)
+		return true
+	}
+	// match: (StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [7]) mem)
+	// cond: isSameCall(callAux, "runtime.memequal") && symIsRO(scon) && canLoadUnaligned(config) && config.PtrSize == 8
+	// result: (MakeResult (Eq64 (Or64 <typ.Int64> (ZeroExt32to64 <typ.Int64> (Load <typ.Int32> sptr mem)) (Lsh64x64 <typ.Int64> (ZeroExt32to64 <typ.Int64> (Load <typ.Int32> (OffPtr <typ.BytePtr> [3] sptr) mem)) (Const64 <typ.Int64> [32]))) (Const64 <typ.Int64> [int64(uint64(read32(scon,0,config.ctxt.Arch.ByteOrder))|(uint64(read32(scon,3,config.ctxt.Arch.ByteOrder))<<32))])) mem)
+	for {
+		if len(v.Args) != 4 {
+			break
+		}
+		callAux := auxToCall(v.Aux)
+		mem := v.Args[3]
+		sptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAddr {
+			break
+		}
+		scon := auxToSym(v_1.Aux)
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpSB {
+			break
+		}
+		v_2 := v.Args[2]
+		if v_2.Op != OpConst64 || auxIntToInt64(v_2.AuxInt) != 7 || !(isSameCall(callAux, "runtime.memequal") && symIsRO(scon) && canLoadUnaligned(config) && config.PtrSize == 8) {
+			break
+		}
+		v.reset(OpMakeResult)
+		v0 := b.NewValue0(v.Pos, OpEq64, typ.Bool)
+		v1 := b.NewValue0(v.Pos, OpOr64, typ.Int64)
+		v2 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.Int64)
+		v3 := b.NewValue0(v.Pos, OpLoad, typ.Int32)
+		v3.AddArg2(sptr, mem)
+		v2.AddArg(v3)
+		v4 := b.NewValue0(v.Pos, OpLsh64x64, typ.Int64)
+		v5 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.Int64)
+		v6 := b.NewValue0(v.Pos, OpLoad, typ.Int32)
+		v7 := b.NewValue0(v.Pos, OpOffPtr, typ.BytePtr)
+		v7.AuxInt = int64ToAuxInt(3)
+		v7.AddArg(sptr)
+		v6.AddArg2(v7, mem)
+		v5.AddArg(v6)
+		v8 := b.NewValue0(v.Pos, OpConst64, typ.Int64)
+		v8.AuxInt = int64ToAuxInt(32)
+		v4.AddArg2(v5, v8)
+		v1.AddArg2(v2, v4)
+		v9 := b.NewValue0(v.Pos, OpConst64, typ.Int64)
+		v9.AuxInt = int64ToAuxInt(int64(uint64(read32(scon, 0, config.ctxt.Arch.ByteOrder)) | (uint64(read32(scon, 3, config.ctxt.Arch.ByteOrder)) << 32)))
+		v0.AddArg2(v1, v9)
+		v.AddArg2(v0, mem)
+		return true
+	}
+	// match: (StaticLECall {callAux} (Addr {scon} (SB)) sptr (Const64 [7]) mem)
+	// cond: isSameCall(callAux, "runtime.memequal") && symIsRO(scon) && canLoadUnaligned(config) && config.PtrSize == 8
+	// result: (MakeResult (Eq64 (Or64 <typ.Int64> (ZeroExt32to64 <typ.Int64> (Load <typ.Int32> sptr mem)) (Lsh64x64 <typ.Int64> (ZeroExt32to64 <typ.Int64> (Load <typ.Int32> (OffPtr <typ.BytePtr> [3] sptr) mem)) (Const64 <typ.Int64> [32]))) (Const64 <typ.Int64> [int64(uint64(read32(scon,0,config.ctxt.Arch.ByteOrder))|(uint64(read32(scon,3,config.ctxt.Arch.ByteOrder))<<32))])) mem)
+	for {
+		if len(v.Args) != 4 {
+			break
+		}
+		callAux := auxToCall(v.Aux)
+		mem := v.Args[3]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAddr {
+			break
+		}
+		scon := auxToSym(v_0.Aux)
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpSB {
+			break
+		}
+		sptr := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpConst64 || auxIntToInt64(v_2.AuxInt) != 7 || !(isSameCall(callAux, "runtime.memequal") && symIsRO(scon) && canLoadUnaligned(config) && config.PtrSize == 8) {
+			break
+		}
+		v.reset(OpMakeResult)
+		v0 := b.NewValue0(v.Pos, OpEq64, typ.Bool)
+		v1 := b.NewValue0(v.Pos, OpOr64, typ.Int64)
+		v2 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.Int64)
+		v3 := b.NewValue0(v.Pos, OpLoad, typ.Int32)
+		v3.AddArg2(sptr, mem)
+		v2.AddArg(v3)
+		v4 := b.NewValue0(v.Pos, OpLsh64x64, typ.Int64)
+		v5 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.Int64)
+		v6 := b.NewValue0(v.Pos, OpLoad, typ.Int32)
+		v7 := b.NewValue0(v.Pos, OpOffPtr, typ.BytePtr)
+		v7.AuxInt = int64ToAuxInt(3)
+		v7.AddArg(sptr)
+		v6.AddArg2(v7, mem)
+		v5.AddArg(v6)
+		v8 := b.NewValue0(v.Pos, OpConst64, typ.Int64)
+		v8.AuxInt = int64ToAuxInt(32)
+		v4.AddArg2(v5, v8)
+		v1.AddArg2(v2, v4)
+		v9 := b.NewValue0(v.Pos, OpConst64, typ.Int64)
+		v9.AuxInt = int64ToAuxInt(int64(uint64(read32(scon, 0, config.ctxt.Arch.ByteOrder)) | (uint64(read32(scon, 3, config.ctxt.Arch.ByteOrder)) << 32)))
+		v0.AddArg2(v1, v9)
+		v.AddArg2(v0, mem)
+		return true
+	}
 	// match: (StaticLECall {callAux} _ _ (Const64 [0]) mem)
 	// cond: isSameCall(callAux, "runtime.memequal")
 	// result: (MakeResult (ConstBool <typ.Bool> [true]) mem)
