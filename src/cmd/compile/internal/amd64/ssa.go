@@ -2126,6 +2126,91 @@ func simdV3kv(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	return p
 }
 
+// Example instruction: VRCP14PS (DI), K6, X22
+func simdVkvload(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_MEM
+	p.From.Reg = v.Args[0].Reg()
+	ssagen.AddAux(&p.From, v)
+	p.AddRestSourceReg(maskReg(v.Args[1]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: VPSLLVD (DX), X7, X18
+func simdV21load(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_MEM
+	p.From.Reg = v.Args[1].Reg()
+	ssagen.AddAux(&p.From, v)
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: VPDPWSSD (SI), X24, X18
+func simdV31loadResultInArg0(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_MEM
+	p.From.Reg = v.Args[2].Reg()
+	ssagen.AddAux(&p.From, v)
+	p.AddRestSourceReg(simdReg(v.Args[1]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: VPDPWSSD (SI), X24, K1, X18
+func simdV3kvloadResultInArg0(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_MEM
+	p.From.Reg = v.Args[2].Reg()
+	ssagen.AddAux(&p.From, v)
+	p.AddRestSourceReg(simdReg(v.Args[1]))
+	p.AddRestSourceReg(maskReg(v.Args[3]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: VPSLLVD (SI), X1, K1, X2
+func simdV2kvload(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_MEM
+	p.From.Reg = v.Args[1].Reg()
+	ssagen.AddAux(&p.From, v)
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.AddRestSourceReg(maskReg(v.Args[2]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: VPCMPEQD (SI), X1, K1
+func simdV2kload(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_MEM
+	p.From.Reg = v.Args[1].Reg()
+	ssagen.AddAux(&p.From, v)
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = maskReg(v)
+	return p
+}
+
+// Example instruction: VCVTTPS2DQ (BX), X2
+func simdV11load(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_MEM
+	p.From.Reg = v.Args[0].Reg()
+	ssagen.AddAux(&p.From, v)
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
 var blockJump = [...]struct {
 	asm, invasm obj.As
 }{

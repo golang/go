@@ -121,20 +121,30 @@ func loadXED(xedPath string) []*unify.Value {
 				// First check the opcode
 				// Keep this logic in sync with [decodeOperands]
 				if ms, ok := memOps[opcode]; ok {
+					feat1, ok1 := decodeCPUFeature(o.inst)
 					// Then check if there exist such an operation that for all vreg
 					// shapes they are the same at the same index
 					matchIdx := -1
 				outer:
 					for i, m := range ms {
+						// Their CPU feature should match first
+						feat2, ok2 := decodeCPUFeature(m.inst)
+						if !ok1 || !ok2 {
+							continue
+						}
+						if feat1 != feat2 {
+							continue
+						}
 						if len(o.ops) == len(m.ops) {
 							for j := range o.ops {
-								v1, ok1 := o.ops[j].(operandVReg)
-								v2, ok2 := m.ops[j].(operandVReg)
-								if ok1 && ok2 {
-									if v1.vecShape != v2.vecShape {
-										// A mismatch, skip this memOp
-										continue outer
-									}
+								v1, ok3 := o.ops[j].(operandVReg)
+								v2, ok4 := m.ops[j].(operandVReg)
+								if !ok3 || !ok4 {
+									continue
+								}
+								if v1.vecShape != v2.vecShape {
+									// A mismatch, skip this memOp
+									continue outer
 								}
 							}
 							// Found a match, break early
@@ -156,7 +166,9 @@ func loadXED(xedPath string) []*unify.Value {
 	}
 	for _, ms := range memOps {
 		for _, m := range ms {
-			log.Printf("mem op not merged: %s, %v\n", m.inst.Opcode(), m)
+			if *Verbose {
+				log.Printf("mem op not merged: %s, %v\n", m.inst.Opcode(), m)
+			}
 			appendDefs(m.inst, m.ops, nil)
 		}
 	}
@@ -632,7 +644,10 @@ func addOperandsToDef(ops []operand, instDB *unify.DefBuilder, variant instVaria
 	instDB.Add("in", unify.NewValue(unify.NewTuple(inVals...)))
 	instDB.Add("inVariant", unify.NewValue(unify.NewTuple(inVar...)))
 	instDB.Add("out", unify.NewValue(unify.NewTuple(outVals...)))
-	instDB.Add("mem", unify.NewValue(unify.NewStringExact(checkMem(ops))))
+	memFeatures := checkMem(ops)
+	if memFeatures != "noMem" {
+		instDB.Add("memFeatures", unify.NewValue(unify.NewStringExact(memFeatures)))
+	}
 }
 
 // checkMem checks the shapes of memory operand in the operation and returns the shape.

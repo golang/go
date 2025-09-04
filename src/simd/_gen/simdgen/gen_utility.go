@@ -79,6 +79,7 @@ type inShape uint8
 type outShape uint8
 type maskShape uint8
 type immShape uint8
+type memShape uint8
 
 const (
 	InvalidIn     inShape = iota
@@ -111,6 +112,12 @@ const (
 	ConstImm             // const only immediate
 	VarImm               // pure imm argument provided by the users
 	ConstVarImm          // a combination of user arg and const
+)
+
+const (
+	InvalidMem memShape = iota
+	NoMem
+	VregMemIn // The instruction contains a mem input which is loading a vreg.
 )
 
 // opShape returns the several integers describing the shape of the operation,
@@ -227,17 +234,24 @@ func (op *Operation) shape() (shapeIn inShape, shapeOut outShape, maskType maskS
 }
 
 // regShape returns a string representation of the register shape.
-func (op *Operation) regShape() (string, error) {
+func (op *Operation) regShape(mem memShape) (string, error) {
 	_, _, _, _, gOp := op.shape()
 	var regInfo string
-	var vRegInCnt, gRegInCnt, kMaskInCnt, vRegOutCnt, gRegOutCnt, kMaskOutCnt int
+	var vRegInCnt, gRegInCnt, kMaskInCnt, vRegOutCnt, gRegOutCnt, kMaskOutCnt, memInCnt, memOutCnt int
 	for _, in := range gOp.In {
-		if in.Class == "vreg" {
+		switch in.Class {
+		case "vreg":
 			vRegInCnt++
-		} else if in.Class == "greg" {
+		case "greg":
 			gRegInCnt++
-		} else if in.Class == "mask" {
+		case "mask":
 			kMaskInCnt++
+		case "memory":
+			if mem != VregMemIn {
+				panic("simdgen only knows VregMemIn in regShape")
+			}
+			memInCnt++
+			vRegInCnt++
 		}
 	}
 	for _, out := range gOp.Out {
@@ -248,6 +262,12 @@ func (op *Operation) regShape() (string, error) {
 			gRegOutCnt++
 		} else if out.Class == "mask" {
 			kMaskOutCnt++
+		} else if out.Class == "memory" {
+			if mem != VregMemIn {
+				panic("simdgen only knows VregMemIn in regShape")
+			}
+			vRegOutCnt++
+			memOutCnt++
 		}
 	}
 	var inRegs, inMasks, outRegs, outMasks string
@@ -278,6 +298,16 @@ func (op *Operation) regShape() (string, error) {
 		regInfo = fmt.Sprintf("%s%s", inRegs, outRegs)
 	} else {
 		regInfo = fmt.Sprintf("%s%s%s%s", inRegs, inMasks, outRegs, outMasks)
+	}
+	if memInCnt > 0 {
+		if memInCnt == 1 {
+			regInfo += "load"
+		} else {
+			panic("simdgen does not understand more than 1 mem op as of now")
+		}
+	}
+	if memOutCnt > 0 {
+		panic("simdgen does not understand memory as output as of now")
 	}
 	return regInfo, nil
 }
@@ -496,6 +526,42 @@ func checkVecAsScalar(op Operation) (idx int, err error) {
 		}
 	}
 	return
+}
+
+func rewriteVecAsScalarRegInfo(op Operation, regInfo string) (string, error) {
+	idx, err := checkVecAsScalar(op)
+	if err != nil {
+		return "", err
+	}
+	if idx != -1 {
+		if regInfo == "v21" {
+			regInfo = "vfpv"
+		} else if regInfo == "v2kv" {
+			regInfo = "vfpkv"
+		} else {
+			return "", fmt.Errorf("simdgen does not recognize uses of treatLikeAScalarOfSize with op regShape %s in op: %s", regInfo, op)
+		}
+	}
+	return regInfo, nil
+}
+
+func rewriteLastVregToMem(op Operation) Operation {
+	newIn := make([]Operand, len(op.In))
+	lastVregIdx := -1
+	for i := range len(op.In) {
+		newIn[i] = op.In[i]
+		if op.In[i].Class == "vreg" {
+			lastVregIdx = i
+		}
+	}
+	// vbcst operations put their mem op always as the last vreg.
+	if lastVregIdx == -1 {
+		panic("simdgen cannot find one vreg in the mem op vreg original")
+	}
+	newIn[lastVregIdx].Class = "memory"
+	op.In = newIn
+
+	return op
 }
 
 // dedup is deduping operations in the full structure level.

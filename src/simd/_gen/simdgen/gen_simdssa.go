@@ -7,6 +7,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"strings"
 	"text/template"
 )
@@ -80,6 +81,13 @@ func writeSIMDSSA(ops []Operation) *bytes.Buffer {
 		"vgpvImm8",
 		"vgpImm8",
 		"v2kvImm8",
+		"vkvload",
+		"v21load",
+		"v31loadResultInArg0",
+		"v3kvloadResultInArg0",
+		"v2kvload",
+		"v2kload",
+		"v11load",
 	}
 	regInfoSet := map[string][]string{}
 	for _, key := range regInfoKeys {
@@ -88,10 +96,37 @@ func writeSIMDSSA(ops []Operation) *bytes.Buffer {
 
 	seen := map[string]struct{}{}
 	allUnseen := make(map[string][]Operation)
+	classifyOp := func(op Operation, shapeIn inShape, shapeOut outShape, caseStr string, mem memShape) error {
+		regShape, err := op.regShape(mem)
+		if err != nil {
+			return err
+		}
+		if regShape == "v01load" {
+			regShape = "vload"
+		}
+		if shapeOut == OneVregOutAtIn {
+			regShape += "ResultInArg0"
+		}
+		if shapeIn == OneImmIn || shapeIn == OneKmaskImmIn {
+			if mem == NoMem || mem == InvalidMem {
+				regShape += "Imm8"
+			} else {
+				return fmt.Errorf("simdgen cannot handle mem op with imm8 as of now")
+			}
+		}
+		regShape, err = rewriteVecAsScalarRegInfo(op, regShape)
+		if err != nil {
+			return err
+		}
+		if _, ok := regInfoSet[regShape]; !ok {
+			allUnseen[regShape] = append(allUnseen[regShape], op)
+		}
+		regInfoSet[regShape] = append(regInfoSet[regShape], caseStr)
+		return nil
+	}
 	for _, op := range ops {
 		shapeIn, shapeOut, maskType, _, gOp := op.shape()
 		asm := machineOpName(maskType, gOp)
-
 		if _, ok := seen[asm]; ok {
 			continue
 		}
@@ -102,36 +137,28 @@ func writeSIMDSSA(ops []Operation) *bytes.Buffer {
 				ZeroingMask = append(ZeroingMask, caseStr)
 			}
 		}
-		regShape, err := op.regShape()
-		if err != nil {
+		if err := classifyOp(op, shapeIn, shapeOut, caseStr, NoMem); err != nil {
 			panic(err)
 		}
-		if shapeOut == OneVregOutAtIn {
-			regShape += "ResultInArg0"
-		}
-		if shapeIn == OneImmIn || shapeIn == OneKmaskImmIn {
-			regShape += "Imm8"
-		}
-		idx, err := checkVecAsScalar(op)
-		if err != nil {
-			panic(err)
-		}
-		if idx != -1 {
-			if regShape == "v21" {
-				regShape = "vfpv"
-			} else if regShape == "v2kv" {
-				regShape = "vfpkv"
-			} else {
-				panic(fmt.Errorf("simdgen does not recognize uses of treatLikeAScalarOfSize with op regShape %s in op: %s", regShape, op))
+		if op.MemFeatures != nil && *op.MemFeatures == "vbcst" {
+			// Make a full vec memory variant
+			op = rewriteLastVregToMem(op)
+			// Ignore the error
+			// an error could be triggered by [checkVecAsScalar].
+			// TODO: make [checkVecAsScalar] aware of mem ops.
+			if err := classifyOp(op, shapeIn, shapeOut, caseStr+"load", VregMemIn); err != nil {
+				if *Verbose {
+					log.Printf("Seen error: %e", err)
+				}
 			}
 		}
-		if _, ok := regInfoSet[regShape]; !ok {
-			allUnseen[regShape] = append(allUnseen[regShape], op)
-		}
-		regInfoSet[regShape] = append(regInfoSet[regShape], caseStr)
 	}
 	if len(allUnseen) != 0 {
-		panic(fmt.Errorf("unsupported register constraint for prog, please update gen_simdssa.go and amd64/ssa.go: %+v", allUnseen))
+		allKeys := make([]string, 0)
+		for k := range allUnseen {
+			allKeys = append(allKeys, k)
+		}
+		panic(fmt.Errorf("unsupported register constraint for prog, please update gen_simdssa.go and amd64/ssa.go: %+v\nAll keys: %v", allUnseen, allKeys))
 	}
 
 	buffer := new(bytes.Buffer)
