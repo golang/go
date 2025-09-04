@@ -1407,7 +1407,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				case OpSB:
 					s.assignReg(s.SBReg, v, v)
 					s.sb = v.ID
-				case OpARM64ZERO, OpLOONG64ZERO:
+				case OpARM64ZERO, OpLOONG64ZERO, OpMIPS64ZERO:
 					s.assignReg(s.ZeroIntReg, v, v)
 				default:
 					f.Fatalf("unknown fixed-register op %s", v)
