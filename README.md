@@ -14,7 +14,10 @@
 ### Usage and installation :
 ```bash
 # Clone, change dir and compile the compiler
-git clone https://github.com/trailofbits/go-panikint && cd go-panikint/src && ./make.bash
+git clone https://github.com/trailofbits/go-panikint && cd go-panikint/src
+
+# Compile with all features
+./make.bash
 
 # Full path to the root of the forked compiler
 export GOROOT=/path/to/go-panikint
@@ -22,12 +25,10 @@ export GOROOT=/path/to/go-panikint
 # Compile and run a Go program
 ./bin/go run test_simple_overflow.go
 
-# Compile only
-./bin/go build test_simple_overflow.go
+######
 
-# Build compiler with truncation detection disabled
-cd src && GOFLAGS="-gcflags=-truncationdetect=false" ./make.bash
- 
+# Alternatively: build compiler with truncation detection disabled
+GOFLAGS="-gcflags=-truncationdetect=false" ./make.bash
 
 # Fuzz only
 ./bin/go test -fuzz=FuzzIntegerOverflow -v
