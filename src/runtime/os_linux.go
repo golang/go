@@ -356,7 +356,6 @@ func getHugePageSize() uintptr {
 func osinit() {
 	numCPUStartup = getCPUCount()
 	physHugePageSize = getHugePageSize()
-	osArchInit()
 	vgetrandomInit()
 }
 

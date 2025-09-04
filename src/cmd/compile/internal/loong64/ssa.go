@@ -185,7 +185,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpLOONG64MULD,
 		ssa.OpLOONG64DIVF,
 		ssa.OpLOONG64DIVD,
-		ssa.OpLOONG64MULV, ssa.OpLOONG64MULHV, ssa.OpLOONG64MULHVU,
+		ssa.OpLOONG64MULV, ssa.OpLOONG64MULHV, ssa.OpLOONG64MULHVU, ssa.OpLOONG64MULH, ssa.OpLOONG64MULHU,
 		ssa.OpLOONG64DIVV, ssa.OpLOONG64REMV, ssa.OpLOONG64DIVVU, ssa.OpLOONG64REMVU,
 		ssa.OpLOONG64FCOPYSGD:
 		p := s.Prog(v.Op.Asm())
@@ -659,42 +659,119 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Sym = ir.Syms.Duffcopy
 		p.To.Offset = v.AuxInt
 	case ssa.OpLOONG64LoweredMove:
-		// MOVx	(Rarg1), Rtmp
-		// MOVx	Rtmp, (Rarg0)
-		// ADDV	$sz, Rarg1
-		// ADDV	$sz, Rarg0
-		// BGEU	Rarg2, Rarg0, -4(PC)
-		mov, sz := largestMove(v.AuxInt)
-		p := s.Prog(mov)
-		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = v.Args[1].Reg()
+		dstReg := v.Args[0].Reg()
+		srcReg := v.Args[1].Reg()
+		if dstReg == srcReg {
+			break
+		}
+		tmpReg := int16(loong64.REG_R20)
+		n := v.AuxInt
+		if n < 16 {
+			v.Fatalf("Move too small %d", n)
+		}
+
+		var off int64
+		for n >= 8 {
+			// MOVV     off(srcReg), tmpReg
+			// MOVV     tmpReg, off(dstReg)
+			move8(s, srcReg, dstReg, tmpReg, off)
+			off += 8
+			n -= 8
+		}
+
+		if n != 0 {
+			// MOVV     off+n-8(srcReg), tmpReg
+			// MOVV     tmpReg, off+n-8(srcReg)
+			move8(s, srcReg, dstReg, tmpReg, off+n-8)
+		}
+	case ssa.OpLOONG64LoweredMoveLoop:
+		dstReg := v.Args[0].Reg()
+		srcReg := v.Args[1].Reg()
+		if dstReg == srcReg {
+			break
+		}
+		countReg := int16(loong64.REG_R20)
+		tmpReg := int16(loong64.REG_R21)
+		var off int64
+		n := v.AuxInt
+		loopSize := int64(64)
+		if n < 3*loopSize {
+			// - a loop count of 0 won't work.
+			// - a loop count of 1 is useless.
+			// - a loop count of 2 is a code size ~tie
+			//     4 instructions to implement the loop
+			//     8 instructions in the loop body
+			//   vs
+			//     16 instructions in the straightline code
+			//   Might as well use straightline code.
+			v.Fatalf("ZeroLoop size too small %d", n)
+		}
+
+		// Put iteration count in a register.
+		//   MOVV     $n/loopSize, countReg
+		p := s.Prog(loong64.AMOVV)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = n / loopSize
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = loong64.REGTMP
+		p.To.Reg = countReg
+		cntInit := p
 
-		p2 := s.Prog(mov)
-		p2.From.Type = obj.TYPE_REG
-		p2.From.Reg = loong64.REGTMP
-		p2.To.Type = obj.TYPE_MEM
-		p2.To.Reg = v.Args[0].Reg()
+		// Move loopSize bytes starting at srcReg to dstReg.
+		for range loopSize / 8 {
+			// MOVV     off(srcReg), tmpReg
+			// MOVV     tmpReg, off(dstReg)
+			move8(s, srcReg, dstReg, tmpReg, off)
+			off += 8
+		}
 
-		p3 := s.Prog(loong64.AADDVU)
-		p3.From.Type = obj.TYPE_CONST
-		p3.From.Offset = sz
-		p3.To.Type = obj.TYPE_REG
-		p3.To.Reg = v.Args[1].Reg()
+		// Increment srcReg and destReg by loopSize.
+		//   ADDV     $loopSize, srcReg
+		p = s.Prog(loong64.AADDV)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = loopSize
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = srcReg
+		//   ADDV     $loopSize, dstReg
+		p = s.Prog(loong64.AADDV)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = loopSize
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = dstReg
 
-		p4 := s.Prog(loong64.AADDVU)
-		p4.From.Type = obj.TYPE_CONST
-		p4.From.Offset = sz
-		p4.To.Type = obj.TYPE_REG
-		p4.To.Reg = v.Args[0].Reg()
+		// Decrement loop count.
+		//   SUBV     $1, countReg
+		p = s.Prog(loong64.ASUBV)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = 1
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = countReg
 
-		p5 := s.Prog(loong64.ABGEU)
-		p5.From.Type = obj.TYPE_REG
-		p5.From.Reg = v.Args[2].Reg()
-		p5.Reg = v.Args[1].Reg()
-		p5.To.Type = obj.TYPE_BRANCH
-		p5.To.SetTarget(p)
+		// Jump to loop header if we're not done yet.
+		//   BNE     countReg, loop header
+		p = s.Prog(loong64.ABNE)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = countReg
+		p.To.Type = obj.TYPE_BRANCH
+		p.To.SetTarget(cntInit.Link)
+
+		// Multiples of the loop size are now done.
+		n %= loopSize
+
+		off = 0
+		// Copy any fractional portion.
+		for n >= 8 {
+			// MOVV     off(srcReg), tmpReg
+			// MOVV     tmpReg, off(dstReg)
+			move8(s, srcReg, dstReg, tmpReg, off)
+			off += 8
+			n -= 8
+		}
+
+		if n != 0 {
+			// MOVV     off+n-8(srcReg), tmpReg
+			// MOVV     tmpReg, off+n-8(srcReg)
+			move8(s, srcReg, dstReg, tmpReg, off+n-8)
+		}
 
 	case ssa.OpLOONG64CALLstatic, ssa.OpLOONG64CALLclosure, ssa.OpLOONG64CALLinter:
 		s.Call(v)
@@ -1223,6 +1300,24 @@ func spillArgReg(pp *objw.Progs, p *obj.Prog, f *ssa.Func, t *types.Type, reg in
 	p.To.Sym = n.Linksym()
 	p.Pos = p.Pos.WithNotStmt()
 	return p
+}
+
+// move8 copies 8 bytes at src+off to dst+off.
+func move8(s *ssagen.State, src, dst, tmp int16, off int64) {
+	// MOVV     off(src), tmp
+	ld := s.Prog(loong64.AMOVV)
+	ld.From.Type = obj.TYPE_MEM
+	ld.From.Reg = src
+	ld.From.Offset = off
+	ld.To.Type = obj.TYPE_REG
+	ld.To.Reg = tmp
+	// MOVV     tmp, off(dst)
+	st := s.Prog(loong64.AMOVV)
+	st.From.Type = obj.TYPE_REG
+	st.From.Reg = tmp
+	st.To.Type = obj.TYPE_MEM
+	st.To.Reg = dst
+	st.To.Offset = off
 }
 
 // zero8 zeroes 8 bytes at reg+off.

@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/reflectdata"
+	"cmd/compile/internal/rttype"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/s390x"
@@ -2010,6 +2011,38 @@ func fixed32(c *Config, sym Sym, off int64) int32 {
 	}
 	base.Fatalf("fixed32 data not known for %s:%d", sym, off)
 	return 0
+}
+
+// isPtrElem returns true if sym is an instance of abi.PtrType and off
+// is equal to the offset of its Elem field.
+func isPtrElem(sym Sym, off int64) bool {
+	lsym := sym.(*obj.LSym)
+	if strings.HasPrefix(lsym.Name, "type:*") {
+		if ti, ok := (*lsym.Extra).(*obj.TypeInfo); ok {
+			t := ti.Type.(*types.Type)
+			if t.Kind() == types.TPTR {
+				if off == rttype.PtrType.OffsetOf("Elem") {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+func ptrElem(sym Sym, off int64) Sym {
+	lsym := sym.(*obj.LSym)
+	if strings.HasPrefix(lsym.Name, "type:*") {
+		if ti, ok := (*lsym.Extra).(*obj.TypeInfo); ok {
+			t := ti.Type.(*types.Type)
+			if t.Kind() == types.TPTR {
+				if off == rttype.PtrType.OffsetOf("Elem") {
+					return reflectdata.TypeLinksym(t.Elem())
+				}
+			}
+		}
+	}
+	base.Fatalf("ptrElem data not known for %s:%d", sym, off)
+	return nil
 }
 
 // isFixedSym returns true if the contents of sym at the given offset
