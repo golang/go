@@ -1,6 +1,6 @@
 ## Go-Panikint
 
-[![Go-panikint self-compile and test](https://github.com/kevin-valerio/go-panikint/actions/workflows/go.yml/badge.svg)](https://github.com/kevin-valerio/go-panikint/actions/workflows/go.yml)
+[![Go-panikint self-compile and test](https://github.com/trailofbits/go-panikint/actions/workflows/go.yml/badge.svg)](https://github.com/trailofbits/go-panikint/actions/workflows/go.yml)
 
 ### Overview
 
@@ -14,7 +14,7 @@
 ### Usage and installation :
 ```bash
 # Clone, change dir and compile the compiler
-git clone https://github.com/kevin-valerio/go-panikint && cd go-panikint/src && ./make.bash
+git clone https://github.com/trailofbits/go-panikint && cd go-panikint/src && ./make.bash
 
 # Full path to the root of the forked compiler
 export GOROOT=/path/to/go-panikint
