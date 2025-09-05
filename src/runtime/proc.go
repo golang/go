@@ -3125,7 +3125,7 @@ func handoffp(pp *p) {
 		return
 	}
 	// if it has GC work, start it straight away
-	if gcBlackenEnabled != 0 && gcMarkWorkAvailable(pp) {
+	if gcBlackenEnabled != 0 && gcShouldScheduleWorker(pp) {
 		startm(pp, false, false)
 		return
 	}
@@ -3506,7 +3506,7 @@ top:
 	//
 	// If we're in the GC mark phase, can safely scan and blacken objects,
 	// and have work to do, run idle-time marking rather than give up the P.
-	if gcBlackenEnabled != 0 && gcMarkWorkAvailable(pp) && gcController.addIdleMarkWorker() {
+	if gcBlackenEnabled != 0 && gcShouldScheduleWorker(pp) && gcController.addIdleMarkWorker() {
 		node := (*gcBgMarkWorkerNode)(gcBgMarkWorkerPool.pop())
 		if node != nil {
 			pp.gcMarkWorkerMode = gcMarkWorkerIdleMode
@@ -3913,7 +3913,7 @@ func checkIdleGCNoP() (*p, *g) {
 	if atomic.Load(&gcBlackenEnabled) == 0 || !gcController.needIdleMarkWorker() {
 		return nil, nil
 	}
-	if !gcMarkWorkAvailable(nil) {
+	if !gcShouldScheduleWorker(nil) {
 		return nil, nil
 	}
 

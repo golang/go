@@ -869,10 +869,11 @@ var gcDebugMarkDone struct {
 // all local work to the global queues where it can be discovered by
 // other workers.
 //
+// All goroutines performing GC work must call gcBeginWork to signal
+// that they're executing GC work. They must call gcEndWork when done.
 // This should be called when all local mark work has been drained and
-// there are no remaining workers. Specifically, when
-//
-//	work.nwait == work.nproc && !gcMarkWorkAvailable(p)
+// there are no remaining workers. Specifically, when gcEndWork returns
+// true.
 //
 // The calling context must be preemptible.
 //
@@ -896,7 +897,7 @@ top:
 	// empty before performing the ragged barrier. Otherwise,
 	// there could be global work that a P could take after the P
 	// has passed the ragged barrier.
-	if !(gcphase == _GCmark && work.nwait == work.nproc && !gcMarkWorkAvailable(nil)) {
+	if !(gcphase == _GCmark && gcIsMarkDone()) {
 		semrelease(&work.markDoneSema)
 		return
 	}
@@ -1514,11 +1515,7 @@ func gcBgMarkWorker(ready chan struct{}) {
 			trackLimiterEvent = pp.limiterEvent.start(limiterEventIdleMarkWork, startTime)
 		}
 
-		decnwait := atomic.Xadd(&work.nwait, -1)
-		if decnwait == work.nproc {
-			println("runtime: work.nwait=", decnwait, "work.nproc=", work.nproc)
-			throw("work.nwait was > work.nproc")
-		}
+		gcBeginWork()
 
 		systemstack(func() {
 			// Mark our goroutine preemptible so its stack can be scanned or observed
@@ -1570,15 +1567,6 @@ func gcBgMarkWorker(ready chan struct{}) {
 			atomic.Xaddint64(&pp.gcFractionalMarkTime, duration)
 		}
 
-		// Was this the last worker and did we run out
-		// of work?
-		incnwait := atomic.Xadd(&work.nwait, +1)
-		if incnwait > work.nproc {
-			println("runtime: p.gcMarkWorkerMode=", pp.gcMarkWorkerMode,
-				"work.nwait=", incnwait, "work.nproc=", work.nproc)
-			throw("work.nwait > work.nproc")
-		}
-
 		// We'll releasem after this point and thus this P may run
 		// something else. We must clear the worker mode to avoid
 		// attributing the mode to a different (non-worker) G in
@@ -1587,7 +1575,7 @@ func gcBgMarkWorker(ready chan struct{}) {
 
 		// If this worker reached a background mark completion
 		// point, signal the main GC goroutine.
-		if incnwait == work.nproc && !gcMarkWorkAvailable(nil) {
+		if gcEndWork() {
 			// We don't need the P-local buffers here, allow
 			// preemption because we may schedule like a regular
 			// goroutine in gcMarkDone (block on locks, etc).
@@ -1599,13 +1587,44 @@ func gcBgMarkWorker(ready chan struct{}) {
 	}
 }
 
-// gcMarkWorkAvailable reports whether executing a mark worker
-// on p is potentially useful. p may be nil, in which case it only
-// checks the global sources of work.
-func gcMarkWorkAvailable(p *p) bool {
+// gcShouldScheduleWorker reports whether executing a mark worker
+// on p is potentially useful. p may be nil.
+func gcShouldScheduleWorker(p *p) bool {
 	if p != nil && !p.gcw.empty() {
 		return true
 	}
+	return gcMarkWorkAvailable()
+}
+
+// gcIsMarkDone reports whether the mark phase is (probably) done.
+func gcIsMarkDone() bool {
+	return work.nwait == work.nproc && !gcMarkWorkAvailable()
+}
+
+// gcBeginWork signals to the garbage collector that a new worker is
+// about to process GC work.
+func gcBeginWork() {
+	decnwait := atomic.Xadd(&work.nwait, -1)
+	if decnwait == work.nproc {
+		println("runtime: work.nwait=", decnwait, "work.nproc=", work.nproc)
+		throw("work.nwait was > work.nproc")
+	}
+}
+
+// gcEndWork signals to the garbage collector that a new worker has just finished
+// its work. It reports whether it was the last worker and there's no more work
+// to do. If it returns true, the caller must call gcMarkDone.
+func gcEndWork() (last bool) {
+	incnwait := atomic.Xadd(&work.nwait, +1)
+	if incnwait > work.nproc {
+		println("runtime: work.nwait=", incnwait, "work.nproc=", work.nproc)
+		throw("work.nwait > work.nproc")
+	}
+	return incnwait == work.nproc && !gcMarkWorkAvailable()
+}
+
+// gcMarkWorkAvailable reports whether there's any non-local work available to do.
+func gcMarkWorkAvailable() bool {
 	if !work.full.empty() || !work.spanq.empty() {
 		return true // global work available
 	}

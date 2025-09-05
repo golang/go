@@ -675,11 +675,7 @@ func gcAssistAlloc1(gp *g, scanWork int64) {
 	startTime := nanotime()
 	trackLimiterEvent := gp.m.p.ptr().limiterEvent.start(limiterEventMarkAssist, startTime)
 
-	decnwait := atomic.Xadd(&work.nwait, -1)
-	if decnwait == work.nproc {
-		println("runtime: work.nwait =", decnwait, "work.nproc=", work.nproc)
-		throw("nwait > work.nprocs")
-	}
+	gcBeginWork()
 
 	// gcDrainN requires the caller to be preemptible.
 	casGToWaitingForSuspendG(gp, _Grunning, waitReasonGCAssistMarking)
@@ -702,14 +698,7 @@ func gcAssistAlloc1(gp *g, scanWork int64) {
 
 	// If this is the last worker and we ran out of work,
 	// signal a completion point.
-	incnwait := atomic.Xadd(&work.nwait, +1)
-	if incnwait > work.nproc {
-		println("runtime: work.nwait=", incnwait,
-			"work.nproc=", work.nproc)
-		throw("work.nwait > work.nproc")
-	}
-
-	if incnwait == work.nproc && !gcMarkWorkAvailable(nil) {
+	if gcEndWork() {
 		// This has reached a background completion point. Set
 		// gp.param to a non-nil value to indicate this. It
 		// doesn't matter what we set it to (it just has to be
