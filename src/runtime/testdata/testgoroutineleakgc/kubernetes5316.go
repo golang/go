@@ -73,6 +73,6 @@ func Kubernetes5316() {
 			}
 			return nil
 		}
-		go finishRequest_kubernetes5316(time.Millisecond, fn) // G1
+		go finishRequest_kubernetes5316(time.Microsecond, fn) // G1
 	}()
 }
