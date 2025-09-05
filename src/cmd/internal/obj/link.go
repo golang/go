@@ -464,7 +464,7 @@ type LSym struct {
 	P      []byte
 	R      []Reloc
 
-	Extra *interface{} // *FuncInfo, *VarInfo, *FileInfo, or *TypeInfo, if present
+	Extra *interface{} // *FuncInfo, *VarInfo, *FileInfo, *TypeInfo, or *ItabInfo, if present
 
 	Pkg    string
 	PkgIdx int32
@@ -604,6 +604,15 @@ func (s *LSym) NewTypeInfo() *TypeInfo {
 	return t
 }
 
+// TypeInfo returns the *TypeInfo associated with s, or else nil.
+func (s *LSym) TypeInfo() *TypeInfo {
+	if s.Extra == nil {
+		return nil
+	}
+	t, _ := (*s.Extra).(*TypeInfo)
+	return t
+}
+
 // An ItabInfo contains information for a symbol
 // that contains a runtime.itab.
 type ItabInfo struct {
@@ -618,6 +627,15 @@ func (s *LSym) NewItabInfo() *ItabInfo {
 	s.Extra = new(interface{})
 	*s.Extra = t
 	return t
+}
+
+// ItabInfo returns the *ItabInfo associated with s, or else nil.
+func (s *LSym) ItabInfo() *ItabInfo {
+	if s.Extra == nil {
+		return nil
+	}
+	i, _ := (*s.Extra).(*ItabInfo)
+	return i
 }
 
 // WasmImport represents a WebAssembly (WASM) imported function with
