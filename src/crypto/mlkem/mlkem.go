@@ -108,6 +108,9 @@ func (ek *EncapsulationKey768) Bytes() []byte {
 // encapsulation key, drawing random bytes from the default crypto/rand source.
 //
 // The shared key must be kept secret.
+//
+// For testing, derandomized encapsulation is provided by the
+// [crypto/mlkem/mlkemtest] package.
 func (ek *EncapsulationKey768) Encapsulate() (sharedKey, ciphertext []byte) {
 	return ek.key.Encapsulate()
 }
@@ -187,6 +190,9 @@ func (ek *EncapsulationKey1024) Bytes() []byte {
 // encapsulation key, drawing random bytes from the default crypto/rand source.
 //
 // The shared key must be kept secret.
+//
+// For testing, derandomized encapsulation is provided by the
+// [crypto/mlkem/mlkemtest] package.
 func (ek *EncapsulationKey1024) Encapsulate() (sharedKey, ciphertext []byte) {
 	return ek.key.Encapsulate()
 }

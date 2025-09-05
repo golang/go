@@ -730,6 +730,9 @@ var depsRules = `
 	testing
 	< internal/testhash;
 
+	CRYPTO-MATH
+	< crypto/mlkem/mlkemtest;
+
 	CRYPTO-MATH, testing, internal/testenv, internal/testhash, encoding/json
 	< crypto/internal/cryptotest;
 
