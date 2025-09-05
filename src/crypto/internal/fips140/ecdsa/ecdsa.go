@@ -167,11 +167,6 @@ func NewPrivateKey[P Point[P]](c *Curve[P], D, Q []byte) (*PrivateKey, error) {
 		return nil, err
 	}
 	priv := &PrivateKey{pub: *pub, d: d.Bytes(c.N)}
-	if err := fipsPCT(c, priv); err != nil {
-		// This can happen if the application went out of its way to make an
-		// ecdsa.PrivateKey with a mismatching PublicKey.
-		return nil, err
-	}
 	return priv, nil
 }
 
@@ -204,10 +199,7 @@ func GenerateKey[P Point[P]](c *Curve[P], rand io.Reader) (*PrivateKey, error) {
 		},
 		d: k.Bytes(c.N),
 	}
-	if err := fipsPCT(c, priv); err != nil {
-		// This clearly can't happen, but FIPS 140-3 mandates that we check it.
-		panic(err)
-	}
+	fipsPCT(c, priv)
 	return priv, nil
 }
 
