@@ -161,6 +161,27 @@ func GenerateKey[P Point[P]](c *Curve[P], rand io.Reader) (*PrivateKey, error) {
 		if err != nil {
 			continue
 		}
+
+		// A "Pairwise Consistency Test" makes no sense if we just generated the
+		// public key from an ephemeral private key. Moreover, there is no way to
+		// check it aside from redoing the exact same computation again. SP 800-56A
+		// Rev. 3, Section 5.6.2.1.4 acknowledges that, and doesn't require it.
+		// However, ISO 19790:2012, Section 7.10.3.3 has a blanket requirement for a
+		// PCT for all generated keys (AS10.35) and FIPS 140-3 IG 10.3.A, Additional
+		// Comment 1 goes out of its way to say that "the PCT shall be performed
+		// consistent [...], even if the underlying standard does not require a
+		// PCT". So we do it. And make ECDH nearly 50% slower (only) in FIPS mode.
+		fips140.PCT("ECDH PCT", func() error {
+			p1, err := c.newPoint().ScalarBaseMult(privateKey.d)
+			if err != nil {
+				return err
+			}
+			if !bytes.Equal(p1.Bytes(), privateKey.pub.q) {
+				return errors.New("crypto/ecdh: public key does not match private key")
+			}
+			return nil
+		})
+
 		return privateKey, nil
 	}
 }
@@ -186,28 +207,6 @@ func NewPrivateKey[P Point[P]](c *Curve[P], key []byte) (*PrivateKey, error) {
 		// unreachable because the only scalar that generates the identity is
 		// zero, which is rejected above.
 		panic("crypto/ecdh: internal error: public key is the identity element")
-	}
-
-	// A "Pairwise Consistency Test" makes no sense if we just generated the
-	// public key from an ephemeral private key. Moreover, there is no way to
-	// check it aside from redoing the exact same computation again. SP 800-56A
-	// Rev. 3, Section 5.6.2.1.4 acknowledges that, and doesn't require it.
-	// However, ISO 19790:2012, Section 7.10.3.3 has a blanket requirement for a
-	// PCT for all generated keys (AS10.35) and FIPS 140-3 IG 10.3.A, Additional
-	// Comment 1 goes out of its way to say that "the PCT shall be performed
-	// consistent [...], even if the underlying standard does not require a
-	// PCT". So we do it. And make ECDH nearly 50% slower (only) in FIPS mode.
-	if err := fips140.PCT("ECDH PCT", func() error {
-		p1, err := c.newPoint().ScalarBaseMult(key)
-		if err != nil {
-			return err
-		}
-		if !bytes.Equal(p1.Bytes(), publicKey) {
-			return errors.New("crypto/ecdh: public key does not match private key")
-		}
-		return nil
-	}); err != nil {
-		panic(err)
 	}
 
 	k := &PrivateKey{d: bytes.Clone(key), pub: PublicKey{curve: c.curve, q: publicKey}}
