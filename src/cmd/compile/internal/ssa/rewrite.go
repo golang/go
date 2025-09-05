@@ -2067,7 +2067,7 @@ func isFixedLoad(v *Value, sym Sym, off int64) bool {
 		for _, f := range rttype.Type.Fields() {
 			if f.Offset == off && copyCompatibleType(v.Type, f.Type) {
 				switch f.Sym.Name {
-				case "Size_", "PtrBytes", "Hash", "Kind_":
+				case "Size_", "PtrBytes", "Hash", "Kind_", "GCData":
 					return true
 				default:
 					// fmt.Println("unknown field", f.Sym.Name)
@@ -2146,6 +2146,12 @@ func rewriteFixedLoad(v *Value, sym Sym, sb *Value, off int64) *Value {
 				case "Kind_":
 					v.reset(OpConst8)
 					v.AuxInt = int64(reflectdata.ABIKindOfType(t))
+					return v
+				case "GCData":
+					gcdata, _ := reflectdata.GCSym(t, true)
+					v.reset(OpAddr)
+					v.Aux = symToAux(gcdata)
+					v.AddArg(sb)
 					return v
 				default:
 					base.Fatalf("unknown field %s for fixedLoad of %s at offset %d", f.Sym.Name, lsym.Name, off)
