@@ -439,3 +439,63 @@ func TestFormatPAXRecord(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkParsePAXTimeNoTruncatePad(b *testing.B) {
+	sample := "1.123456789"
+
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_, err := parsePAXTime(sample)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkParsePAXTimeRightTruncate(b *testing.B) {
+	sample := "1.123456789123"
+
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_, err := parsePAXTime(sample)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkParsePAXTimeRightPad(b *testing.B) {
+	sample := "1.123"
+
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_, err := parsePAXTime(sample)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkParsePAXTimeError(b *testing.B) {
+	sample := "1.123abc"
+
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_, err := parsePAXTime(sample)
+		if err == nil {
+			b.Fatal("Expected error")
+		}
+	}
+}
+
+func Benchmark_ParsePAXTimeError1(b *testing.B) {
+	sample := "1.a123abc"
+
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_, err := parsePAXTime(sample)
+		if err == nil {
+			b.Fatal("Expected error")
+		}
+	}
+}
