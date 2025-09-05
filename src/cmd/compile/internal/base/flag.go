@@ -570,7 +570,7 @@ func readEmbedCfg(file string) {
 
 // parseSpectre parses the spectre configuration from the string s.
 func parseSpectre(s string) {
-	for _, f := range strings.Split(s, ",") {
+	for f := range strings.SplitSeq(s, ",") {
 		f = strings.TrimSpace(f)
 		switch f {
 		default:

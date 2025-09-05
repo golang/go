@@ -1084,7 +1084,7 @@ func (b *Builder) loadCachedVet(a *Action) error {
 		return fmt.Errorf("reading srcfiles list: %w", err)
 	}
 	var srcfiles []string
-	for _, name := range strings.Split(string(list), "\n") {
+	for name := range strings.SplitSeq(string(list), "\n") {
 		if name == "" { // end of list
 			continue
 		}
@@ -1108,7 +1108,7 @@ func (b *Builder) loadCachedCompiledGoFiles(a *Action) error {
 		return fmt.Errorf("reading srcfiles list: %w", err)
 	}
 	var gofiles []string
-	for _, name := range strings.Split(string(list), "\n") {
+	for name := range strings.SplitSeq(string(list), "\n") {
 		if name == "" { // end of list
 			continue
 		} else if !strings.HasSuffix(name, ".go") {

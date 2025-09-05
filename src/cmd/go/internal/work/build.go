@@ -384,7 +384,7 @@ func (v *tagsFlag) Set(s string) error {
 
 	// Split on commas, ignore empty strings.
 	*v = []string{}
-	for _, s := range strings.Split(s, ",") {
+	for s := range strings.SplitSeq(s, ",") {
 		if s != "" {
 			*v = append(*v, s)
 		}

@@ -50,3 +50,59 @@ func BenchmarkSplitAfterSeqMultiByteSeparator(b *testing.B) {
 		}
 	}
 }
+
+func findKvBySplit(s string, k string) string {
+	for _, kv := range Split(s, ",") {
+		if HasPrefix(kv, k) {
+			return kv
+		}
+	}
+	return ""
+}
+
+func findKvBySplitSeq(s string, k string) string {
+	for kv := range SplitSeq(s, ",") {
+		if HasPrefix(kv, k) {
+			return kv
+		}
+	}
+	return ""
+}
+
+var testSplitString = "k1=v1,k2=v2,k3=v3,k4=v4"
+
+func BenchmarkSplitAndSplitSeqKeyFound(b *testing.B) {
+	b.Run("findKvBySplit", func(b *testing.B) {
+		b.ResetTimer()
+		b.ReportAllocs()
+		for b.Loop() {
+			findKvBySplit(testSplitString, "k3")
+		}
+	})
+
+	b.Run("findKvBySplitSeq", func(b *testing.B) {
+		b.ResetTimer()
+		b.ReportAllocs()
+		for b.Loop() {
+			findKvBySplitSeq(testSplitString, "k3")
+		}
+	})
+}
+
+func BenchmarkSplitAndSplitSeqKeyNotFound(b *testing.B) {
+	b.Run("findKvBySplit", func(b *testing.B) {
+		b.ResetTimer()
+		b.ReportAllocs()
+		for b.Loop() {
+			findKvBySplit(testSplitString, "notFoundKey")
+		}
+	})
+
+	b.Run("findKvBySplitSeq", func(b *testing.B) {
+		b.ResetTimer()
+		b.ReportAllocs()
+		for b.Loop() {
+			findKvBySplitSeq(testSplitString, "notFoundKey")
+		}
+	})
+}

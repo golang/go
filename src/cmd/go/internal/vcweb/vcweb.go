@@ -224,7 +224,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	// uniqueness: if a path exists as a directory, then it cannot exist as a
 	// ".txt" script (because the search would ignore that file).
 	scriptPath := "."
-	for _, part := range strings.Split(clean, "/") {
+	for part := range strings.SplitSeq(clean, "/") {
 		scriptPath = filepath.Join(scriptPath, part)
 		dir := filepath.Join(s.scriptDir, scriptPath)
 		if _, err := os.Stat(dir); err != nil {
