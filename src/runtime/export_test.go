@@ -1221,7 +1221,7 @@ func (t *SemTable) Enqueue(addr *uint32) {
 	s.releasetime = 0
 	s.acquiretime = 0
 	s.ticket = 0
-	t.semTable.rootFor(addr).queue(addr, s, false, false)
+	t.semTable.rootFor(addr).queue(addr, s, false)
 }
 
 // Dequeue simulates dequeuing a waiter for a semaphore (or lock) at addr.

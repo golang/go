@@ -188,7 +188,7 @@ func semacquire1(addr *uint32, lifo bool, profile semaProfileFlags, skipframes i
 		}
 		// Any semrelease after the cansemacquire knows we're waiting
 		// (we set nwait above), so go to sleep.
-		root.queue(addr, s, lifo, reason.isSyncWait())
+		root.queue(addr, s, lifo)
 		goparkunlock(&root.lock, reason, traceBlockSync, 4+skipframes)
 		if s.ticket != 0 || cansemacquire(addr) {
 			break
@@ -301,14 +301,12 @@ func cansemacquire(addr *uint32) bool {
 }
 
 // queue adds s to the blocked goroutines in semaRoot.
-func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool, syncSema bool) {
+func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool) {
 	s.g = getg()
 	s.elem.set(unsafe.Pointer(addr))
-	if syncSema {
-		// Storing this pointer so that we can trace the semaphore address
-		// from the blocked goroutine when checking for goroutine leaks.
-		s.g.waiting = s
-	}
+	// Storing this pointer so that we can trace the semaphore address
+	// from the blocked goroutine when checking for goroutine leaks.
+	s.g.waiting = s
 	s.next = nil
 	s.prev = nil
 	s.waiters = 0
