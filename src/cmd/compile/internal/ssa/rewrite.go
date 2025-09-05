@@ -1982,108 +1982,111 @@ func symIsROZero(sym Sym) bool {
 	return true
 }
 
-// isFixed32 returns true if the int32 at offset off in symbol sym
-// is known and constant.
-func isFixed32(c *Config, sym Sym, off int64) bool {
-	return isFixed(c, sym, off, 4)
-}
-
-// isFixed returns true if the range [off,off+size] of the symbol sym
-// is known and constant.
-func isFixed(c *Config, sym Sym, off, size int64) bool {
+// isFixedLoad returns true if the load can be resolved to fixed address or constant,
+// and can be rewritten by rewriteFixedLoad.
+func isFixedLoad(v *Value, sym Sym, off int64) bool {
 	lsym := sym.(*obj.LSym)
-	if lsym.Extra == nil {
+	if (v.Type.IsPtrShaped() || v.Type.IsUintptr()) && lsym.Type == objabi.SRODATA {
+		for _, r := range lsym.R {
+			if (r.Type == objabi.R_ADDR || r.Type == objabi.R_WEAKADDR) && int64(r.Off) == off && r.Add == 0 {
+				return true
+			}
+		}
 		return false
 	}
-	if _, ok := (*lsym.Extra).(*obj.TypeInfo); ok {
-		if off == 2*c.PtrSize && size == 4 {
-			return true // type hash field
-		}
-	}
-	return false
-}
-func fixed32(c *Config, sym Sym, off int64) int32 {
-	lsym := sym.(*obj.LSym)
-	if ti, ok := (*lsym.Extra).(*obj.TypeInfo); ok {
-		if off == 2*c.PtrSize {
-			return int32(types.TypeHash(ti.Type.(*types.Type)))
-		}
-	}
-	base.Fatalf("fixed32 data not known for %s:%d", sym, off)
-	return 0
-}
 
-// isPtrElem returns true if sym is an instance of abi.PtrType and off
-// is equal to the offset of its Elem field.
-func isPtrElem(sym Sym, off int64) bool {
-	lsym := sym.(*obj.LSym)
-	if strings.HasPrefix(lsym.Name, "type:*") {
-		if ti, ok := (*lsym.Extra).(*obj.TypeInfo); ok {
-			t := ti.Type.(*types.Type)
-			if t.Kind() == types.TPTR {
-				if off == rttype.PtrType.OffsetOf("Elem") {
+	if strings.HasPrefix(lsym.Name, "type:") {
+		// Type symbols do not contain information about their fields, unlike the cases above.
+		// Hand-implement field accesses.
+		// TODO: can this be replaced with reflectdata.writeType and just use the code above?
+
+		t := (*lsym.Extra).(*obj.TypeInfo).Type.(*types.Type)
+
+		for _, f := range rttype.Type.Fields() {
+			if f.Offset == off && copyCompatibleType(v.Type, f.Type) {
+				switch f.Sym.Name {
+				case "Hash":
 					return true
+				default:
+					// fmt.Println("unknown field", f.Sym.Name)
+					return false
 				}
 			}
 		}
-	}
-	return false
-}
-func ptrElem(f *Func, sym Sym, off int64) Sym {
-	lsym := sym.(*obj.LSym)
-	if strings.HasPrefix(lsym.Name, "type:*") {
-		if ti, ok := (*lsym.Extra).(*obj.TypeInfo); ok {
-			t := ti.Type.(*types.Type)
-			if t.Kind() == types.TPTR {
-				if off == rttype.PtrType.OffsetOf("Elem") {
-					elemSym := reflectdata.TypeLinksym(t.Elem())
-					reflectdata.MarkTypeSymUsedInInterface(elemSym, f.fe.Func().Linksym())
-					return elemSym
-				}
-			}
-		}
-	}
-	base.Fatalf("ptrElem data not known for %s:%d", sym, off)
-	return nil
-}
 
-// isFixedSym returns true if the contents of sym at the given offset
-// is known and is the constant address of another symbol.
-func isFixedSym(sym Sym, off int64) bool {
-	lsym := sym.(*obj.LSym)
-	switch {
-	case lsym.Type == objabi.SRODATA:
-		// itabs, dictionaries
-	default:
-		return false
-	}
-	for _, r := range lsym.R {
-		if (r.Type == objabi.R_ADDR || r.Type == objabi.R_WEAKADDR) && int64(r.Off) == off && r.Add == 0 {
+		if t.IsPtr() && off == rttype.PtrType.OffsetOf("Elem") {
 			return true
 		}
+
+		return false
 	}
+
 	return false
 }
-func fixedSym(f *Func, sym Sym, off int64) Sym {
+
+// rewriteFixedLoad rewrites a load to a fixed address or constant, if isFixedLoad returns true.
+func rewriteFixedLoad(v *Value, sym Sym, sb *Value, off int64) *Value {
+	b := v.Block
+	f := b.Func
+
 	lsym := sym.(*obj.LSym)
-	for _, r := range lsym.R {
-		if (r.Type == objabi.R_ADDR || r.Type == objabi.R_WEAKADDR) && int64(r.Off) == off {
-			if strings.HasPrefix(r.Sym.Name, "type:") {
-				// In case we're loading a type out of a dictionary, we need to record
-				// that the containing function might put that type in an interface.
-				// That information is currently recorded in relocations in the dictionary,
-				// but if we perform this load at compile time then the dictionary
-				// might be dead.
-				reflectdata.MarkTypeSymUsedInInterface(r.Sym, f.fe.Func().Linksym())
-			} else if strings.HasPrefix(r.Sym.Name, "go:itab") {
-				// Same, but if we're using an itab we need to record that the
-				// itab._type might be put in an interface.
-				reflectdata.MarkTypeSymUsedInInterface(r.Sym, f.fe.Func().Linksym())
+	if (v.Type.IsPtrShaped() || v.Type.IsUintptr()) && lsym.Type == objabi.SRODATA {
+		for _, r := range lsym.R {
+			if (r.Type == objabi.R_ADDR || r.Type == objabi.R_WEAKADDR) && int64(r.Off) == off && r.Add == 0 {
+				if strings.HasPrefix(r.Sym.Name, "type:") {
+					// In case we're loading a type out of a dictionary, we need to record
+					// that the containing function might put that type in an interface.
+					// That information is currently recorded in relocations in the dictionary,
+					// but if we perform this load at compile time then the dictionary
+					// might be dead.
+					reflectdata.MarkTypeSymUsedInInterface(r.Sym, f.fe.Func().Linksym())
+				} else if strings.HasPrefix(r.Sym.Name, "go:itab") {
+					// Same, but if we're using an itab we need to record that the
+					// itab._type might be put in an interface.
+					reflectdata.MarkTypeSymUsedInInterface(r.Sym, f.fe.Func().Linksym())
+				}
+				v.reset(OpAddr)
+				v.Aux = symToAux(r.Sym)
+				v.AddArg(sb)
+				return v
 			}
-			return r.Sym
 		}
+		base.Fatalf("fixedLoad data not known for %s:%d", sym, off)
 	}
-	base.Fatalf("fixedSym data not known for %s:%d", sym, off)
+
+	if strings.HasPrefix(lsym.Name, "type:") {
+		// Type symbols do not contain information about their fields, unlike the cases above.
+		// Hand-implement field accesses.
+		// TODO: can this be replaced with reflectdata.writeType and just use the code above?
+
+		t := (*lsym.Extra).(*obj.TypeInfo).Type.(*types.Type)
+
+		for _, f := range rttype.Type.Fields() {
+			if f.Offset == off && copyCompatibleType(v.Type, f.Type) {
+				switch f.Sym.Name {
+				case "Hash":
+					v.reset(OpConst32)
+					v.AuxInt = int64(types.TypeHash(t))
+					return v
+				default:
+					base.Fatalf("unknown field %s for fixedLoad of %s at offset %d", f.Sym.Name, lsym.Name, off)
+				}
+			}
+		}
+
+		if t.IsPtr() && off == rttype.PtrType.OffsetOf("Elem") {
+			elemSym := reflectdata.TypeLinksym(t.Elem())
+			reflectdata.MarkTypeSymUsedInInterface(elemSym, f.fe.Func().Linksym())
+			v.reset(OpAddr)
+			v.Aux = symToAux(elemSym)
+			v.AddArg(sb)
+			return v
+		}
+
+		base.Fatalf("fixedLoad data not known for %s:%d", sym, off)
+	}
+
+	base.Fatalf("fixedLoad data not known for %s:%d", sym, off)
 	return nil
 }
 
