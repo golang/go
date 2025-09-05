@@ -21,7 +21,6 @@ package runtime
 
 import (
 	"internal/cpu"
-	"internal/goexperiment"
 	"internal/runtime/atomic"
 	"unsafe"
 )
@@ -305,7 +304,7 @@ func cansemacquire(addr *uint32) bool {
 func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool, syncSema bool) {
 	s.g = getg()
 	s.elem.set(unsafe.Pointer(addr))
-	if goexperiment.GoleakProfiler && syncSema {
+	if syncSema {
 		// Storing this pointer so that we can trace the semaphore address
 		// from the blocked goroutine when checking for goroutine leaks.
 		s.g.waiting = s
@@ -478,10 +477,8 @@ Found:
 		}
 		tailtime = s.acquiretime
 	}
-	if goexperiment.GoleakProfiler {
-		// Goroutine is no longer blocked. Clear the waiting pointer.
-		s.g.waiting = nil
-	}
+	// Goroutine is no longer blocked. Clear the waiting pointer.
+	s.g.waiting = nil
 	s.parent = nil
 	s.elem.set(nil)
 	s.next = nil
@@ -602,12 +599,10 @@ func notifyListWait(l *notifyList, t uint32) {
 	// Enqueue itself.
 	s := acquireSudog()
 	s.g = getg()
-	if goexperiment.GoleakProfiler {
-		// Storing this pointer so that we can trace the condvar address
-		// from the blocked goroutine when checking for goroutine leaks.
-		s.elem.set(unsafe.Pointer(l))
-		s.g.waiting = s
-	}
+	// Storing this pointer so that we can trace the condvar address
+	// from the blocked goroutine when checking for goroutine leaks.
+	s.elem.set(unsafe.Pointer(l))
+	s.g.waiting = s
 	s.ticket = t
 	s.releasetime = 0
 	t0 := int64(0)
@@ -625,12 +620,10 @@ func notifyListWait(l *notifyList, t uint32) {
 	if t0 != 0 {
 		blockevent(s.releasetime-t0, 2)
 	}
-	if goexperiment.GoleakProfiler {
-		// Goroutine is no longer blocked. Clear up its waiting pointer,
-		// and clean up the sudog before releasing it.
-		s.g.waiting = nil
-		s.elem.set(nil)
-	}
+	// Goroutine is no longer blocked. Clear up its waiting pointer,
+	// and clean up the sudog before releasing it.
+	s.g.waiting = nil
+	s.elem.set(nil)
 	releaseSudog(s)
 }
 
