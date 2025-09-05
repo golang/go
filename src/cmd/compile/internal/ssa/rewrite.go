@@ -2029,14 +2029,16 @@ func isPtrElem(sym Sym, off int64) bool {
 	}
 	return false
 }
-func ptrElem(sym Sym, off int64) Sym {
+func ptrElem(f *Func, sym Sym, off int64) Sym {
 	lsym := sym.(*obj.LSym)
 	if strings.HasPrefix(lsym.Name, "type:*") {
 		if ti, ok := (*lsym.Extra).(*obj.TypeInfo); ok {
 			t := ti.Type.(*types.Type)
 			if t.Kind() == types.TPTR {
 				if off == rttype.PtrType.OffsetOf("Elem") {
-					return reflectdata.TypeLinksym(t.Elem())
+					elemSym := reflectdata.TypeLinksym(t.Elem())
+					reflectdata.MarkTypeSymUsedInInterface(elemSym, f.fe.Func().Linksym())
+					return elemSym
 				}
 			}
 		}

@@ -15083,7 +15083,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 	}
 	// match: (Load <t> (OffPtr [off] (Addr {s} sb) ) _)
 	// cond: t.IsPtr() && isPtrElem(s, off)
-	// result: (Addr {ptrElem(s, off)} sb)
+	// result: (Addr {ptrElem(b.Func, s, off)} sb)
 	for {
 		t := v.Type
 		if v_0.Op != OpOffPtr {
@@ -15100,13 +15100,13 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 			break
 		}
 		v.reset(OpAddr)
-		v.Aux = symToAux(ptrElem(s, off))
+		v.Aux = symToAux(ptrElem(b.Func, s, off))
 		v.AddArg(sb)
 		return true
 	}
 	// match: (Load <t> (OffPtr [off] (Convert (Addr {s} sb) _) ) _)
 	// cond: t.IsPtr() && isPtrElem(s, off)
-	// result: (Addr {ptrElem(s, off)} sb)
+	// result: (Addr {ptrElem(b.Func, s, off)} sb)
 	for {
 		t := v.Type
 		if v_0.Op != OpOffPtr {
@@ -15127,13 +15127,13 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 			break
 		}
 		v.reset(OpAddr)
-		v.Aux = symToAux(ptrElem(s, off))
+		v.Aux = symToAux(ptrElem(b.Func, s, off))
 		v.AddArg(sb)
 		return true
 	}
 	// match: (Load <t> (OffPtr [off] (ITab (IMake (Addr {s} sb) _))) _)
 	// cond: t.IsPtr() && isPtrElem(s, off)
-	// result: (Addr {ptrElem(s, off)} sb)
+	// result: (Addr {ptrElem(b.Func, s, off)} sb)
 	for {
 		t := v.Type
 		if v_0.Op != OpOffPtr {
@@ -15158,13 +15158,13 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 			break
 		}
 		v.reset(OpAddr)
-		v.Aux = symToAux(ptrElem(s, off))
+		v.Aux = symToAux(ptrElem(b.Func, s, off))
 		v.AddArg(sb)
 		return true
 	}
 	// match: (Load <t> (OffPtr [off] (ITab (IMake (Convert (Addr {s} sb) _) _))) _)
 	// cond: t.IsPtr() && isPtrElem(s, off)
-	// result: (Addr {ptrElem(s, off)} sb)
+	// result: (Addr {ptrElem(b.Func, s, off)} sb)
 	for {
 		t := v.Type
 		if v_0.Op != OpOffPtr {
@@ -15193,7 +15193,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 			break
 		}
 		v.reset(OpAddr)
-		v.Aux = symToAux(ptrElem(s, off))
+		v.Aux = symToAux(ptrElem(b.Func, s, off))
 		v.AddArg(sb)
 		return true
 	}

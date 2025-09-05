@@ -2778,10 +2778,10 @@
 (Load <typ.Uintptr> (ITab (IMake (Convert (Addr {s} sb) _) _)) _) && isFixedSym(s, 0) => (Addr {fixedSym(b.Func, s, 0)} sb)
 
 // Loading constant values from abi.PtrType.Elem.
-(Load <t> (OffPtr [off]                       (Addr {s} sb)       ) _) && t.IsPtr() && isPtrElem(s, off) => (Addr {ptrElem(s, off)} sb)
-(Load <t> (OffPtr [off]              (Convert (Addr {s} sb) _)    ) _) && t.IsPtr() && isPtrElem(s, off) => (Addr {ptrElem(s, off)} sb)
-(Load <t> (OffPtr [off] (ITab (IMake          (Addr {s} sb)    _))) _) && t.IsPtr() && isPtrElem(s, off) => (Addr {ptrElem(s, off)} sb)
-(Load <t> (OffPtr [off] (ITab (IMake (Convert (Addr {s} sb) _) _))) _) && t.IsPtr() && isPtrElem(s, off) => (Addr {ptrElem(s, off)} sb)
+(Load <t> (OffPtr [off]                       (Addr {s} sb)       ) _) && t.IsPtr() && isPtrElem(s, off) => (Addr {ptrElem(b.Func, s, off)} sb)
+(Load <t> (OffPtr [off]              (Convert (Addr {s} sb) _)    ) _) && t.IsPtr() && isPtrElem(s, off) => (Addr {ptrElem(b.Func, s, off)} sb)
+(Load <t> (OffPtr [off] (ITab (IMake          (Addr {s} sb)    _))) _) && t.IsPtr() && isPtrElem(s, off) => (Addr {ptrElem(b.Func, s, off)} sb)
+(Load <t> (OffPtr [off] (ITab (IMake (Convert (Addr {s} sb) _) _))) _) && t.IsPtr() && isPtrElem(s, off) => (Addr {ptrElem(b.Func, s, off)} sb)
 
 // Loading constant values from runtime._type.hash.
 (Load <t> (OffPtr [off]                       (Addr {sym} _)       ) _) && t.IsInteger() && t.Size() == 4 && isFixed32(config, sym, off) => (Const32 [fixed32(config, sym, off)])
