@@ -6,7 +6,7 @@ package fipstest
 
 import (
 	"bytes"
-	"crypto/internal/fips140"
+	"crypto/internal/cryptotest"
 	. "crypto/internal/fips140/check"
 	"crypto/internal/fips140/check/checktest"
 	"fmt"
@@ -31,9 +31,7 @@ func TestIntegrityCheck(t *testing.T) {
 		t.Fatalf("GODEBUG=fips140=on but verification did not run")
 	}
 
-	if err := fips140.Supported(); err != nil {
-		t.Skipf("skipping: %v", err)
-	}
+	cryptotest.MustSupportFIPS140(t)
 
 	cmd := testenv.Command(t, testenv.Executable(t), "-test.v", "-test.run=^TestIntegrityCheck$")
 	cmd.Env = append(cmd.Environ(), "GODEBUG=fips140=on")
@@ -47,9 +45,7 @@ func TestIntegrityCheck(t *testing.T) {
 func TestIntegrityCheckFailure(t *testing.T) {
 	moduleStatus(t)
 	testenv.MustHaveExec(t)
-	if err := fips140.Supported(); err != nil {
-		t.Skipf("skipping: %v", err)
-	}
+	cryptotest.MustSupportFIPS140(t)
 
 	bin, err := os.ReadFile(os.Args[0])
 	if err != nil {
@@ -90,9 +86,7 @@ func TestIntegrityCheckFailure(t *testing.T) {
 }
 
 func TestIntegrityCheckInfo(t *testing.T) {
-	if err := fips140.Supported(); err != nil {
-		t.Skipf("skipping: %v", err)
-	}
+	cryptotest.MustSupportFIPS140(t)
 
 	// Check that the checktest symbols are initialized properly.
 	if checktest.NOPTRDATA != 1 {
