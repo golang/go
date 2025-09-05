@@ -30,7 +30,7 @@ func runtime_setProfLabel(labels unsafe.Pointer)
 func runtime_getProfLabel() unsafe.Pointer
 
 // runtime_gleakcount is defined in runtime/proc.go.
-func runtime_gleakcount() int32
+func runtime_gleakcount() int
 
 // runtime_goroutineLeakGC is defined in runtime/mgc.go.
 func runtime_goroutineLeakGC()

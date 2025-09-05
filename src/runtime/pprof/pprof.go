@@ -750,7 +750,7 @@ func countGoroutine() int {
 
 // countGoroutineLeak returns the number of leaked goroutines.
 func countGoroutineLeak() int {
-	return int(runtime_gleakcount())
+	return runtime_gleakcount()
 }
 
 // writeGoroutine writes the current runtime GoroutineProfile to w.

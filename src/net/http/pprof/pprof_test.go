@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
+	"internal/goexperiment"
 	"internal/profile"
 	"internal/testenv"
 	"io"
@@ -27,6 +28,11 @@ import (
 // have a key in the description map.
 func TestDescriptions(t *testing.T) {
 	for _, p := range pprof.Profiles() {
+		// TODO(vsaioc): do not skip this once the goroutine leak profiler
+		// is no longer experimental.
+		if !goexperiment.GoleakProfiler && p.Name() == "goroutineleak" {
+			continue
+		}
 		_, ok := profileDescriptions[p.Name()]
 		if ok != true {
 			t.Errorf("%s does not exist in profileDescriptions map\n", p.Name())

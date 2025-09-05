@@ -5553,12 +5553,12 @@ func gcount(includeSys bool) int32 {
 	return n
 }
 
-// gleakcount returns the number of leaked goroutines currently reported by
+// gleakcount returns the number of leaked goroutines last reported by
 // the runtime.
 //
-//go:linkname runtime_gleakcount runtime/pprof.runtime_gleakcount
-func runtime_gleakcount() int32 {
-	return gleakcount
+//go:linkname gleakcount runtime/pprof.runtime_gleakcount
+func gleakcount() int {
+	return work.goleakProfiler.leakCount
 }
 
 func mcount() int32 {

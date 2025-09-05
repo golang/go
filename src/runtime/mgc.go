@@ -154,12 +154,6 @@ const (
 	sweepMinHeapDistance = 1024 * 1024
 )
 
-// gleakcount is the number of leaked goroutines
-// during the last goroutine leak detection round.
-//
-// Write-protected by STW in findGoleaks.
-var gleakcount int32
-
 // heapObjectsCanMove always returns false in the current garbage collector.
 // It exists for go4.org/unsafe/assume-no-moving-gc, which is an
 // unfortunate idea that had an even more unfortunate implementation.
@@ -402,6 +396,10 @@ type workType struct {
 		//
 		// Protected by STW.
 		done bool
+		// The number of leaked goroutines during the last leak detectionGC cycle.
+		//
+		// Write-protected by STW in findGoleaks.
+		leakCount int
 	}
 
 	// Base indexes of each root type. Set by gcPrepareMarkRoots.
@@ -1272,7 +1270,7 @@ func findGoleaks() bool {
 	}
 
 	// For the remaining goroutines, mark them as unreachable and leaked.
-	gleakcount = int32(work.nStackRoots - work.nMaybeRunnableStackRoots)
+	work.goleakProfiler.leakCount = work.nStackRoots - work.nMaybeRunnableStackRoots
 
 	for i := work.nMaybeRunnableStackRoots; i < work.nStackRoots; i++ {
 		gp := work.stackRoots[i]
@@ -1281,9 +1279,8 @@ func findGoleaks() bool {
 		// Add the primitives causing the goroutine leaks
 		// to the GC work queue, to ensure they are marked.
 		//
-		// NOTE(vsaioc): as of Go1.25, these primitives should also be reachable
-		// from the goroutine's stack, but this is not guaranteed for future
-		// versions of Go.
+		// NOTE(vsaioc): these primitives should also be reachable
+		// from the goroutine's stack, but let's play it safe.
 		switch {
 		case gp.waitreason.isChanWait():
 			for sg := gp.waiting; sg != nil; sg = sg.waitlink {

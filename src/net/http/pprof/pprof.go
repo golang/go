@@ -77,6 +77,7 @@ import (
 	"fmt"
 	"html"
 	"internal/godebug"
+	"internal/goexperiment"
 	"internal/profile"
 	"io"
 	"log"
@@ -361,17 +362,22 @@ var profileSupportsDelta = map[handler]bool{
 }
 
 var profileDescriptions = map[string]string{
-	"allocs":        "A sampling of all past memory allocations",
-	"block":         "Stack traces that led to blocking on synchronization primitives",
-	"cmdline":       "The command line invocation of the current program",
-	"goroutine":     "Stack traces of all current goroutines. Use debug=2 as a query parameter to export in the same format as an unrecovered panic.",
-	"goroutineleak": "Stack traces of all leaked goroutines. Use debug=2 as a query parameter to export in the same format as an unrecovered panic.",
-	"heap":          "A sampling of memory allocations of live objects. You can specify the gc GET parameter to run GC before taking the heap sample.",
-	"mutex":         "Stack traces of holders of contended mutexes",
-	"profile":       "CPU profile. You can specify the duration in the seconds GET parameter. After you get the profile file, use the go tool pprof command to investigate the profile.",
-	"symbol":        "Maps given program counters to function names. Counters can be specified in a GET raw query or POST body, multiple counters are separated by '+'.",
-	"threadcreate":  "Stack traces that led to the creation of new OS threads",
-	"trace":         "A trace of execution of the current program. You can specify the duration in the seconds GET parameter. After you get the trace file, use the go tool trace command to investigate the trace.",
+	"allocs":       "A sampling of all past memory allocations",
+	"block":        "Stack traces that led to blocking on synchronization primitives",
+	"cmdline":      "The command line invocation of the current program",
+	"goroutine":    "Stack traces of all current goroutines. Use debug=2 as a query parameter to export in the same format as an unrecovered panic.",
+	"heap":         "A sampling of memory allocations of live objects. You can specify the gc GET parameter to run GC before taking the heap sample.",
+	"mutex":        "Stack traces of holders of contended mutexes",
+	"profile":      "CPU profile. You can specify the duration in the seconds GET parameter. After you get the profile file, use the go tool pprof command to investigate the profile.",
+	"symbol":       "Maps given program counters to function names. Counters can be specified in a GET raw query or POST body, multiple counters are separated by '+'.",
+	"threadcreate": "Stack traces that led to the creation of new OS threads",
+	"trace":        "A trace of execution of the current program. You can specify the duration in the seconds GET parameter. After you get the trace file, use the go tool trace command to investigate the trace.",
+}
+
+func init() {
+	if goexperiment.GoleakProfiler {
+		profileDescriptions["goroutineleak"] = "Stack traces of all leaked goroutines. Use debug=2 as a query parameter to export in the same format as an unrecovered panic."
+	}
 }
 
 type profileEntry struct {

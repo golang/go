@@ -1270,8 +1270,8 @@ func (w waitReason) isSyncWait() bool {
 	return waitReasonSyncCondWait <= w && w <= waitReasonSyncWaitGroupWait
 }
 
-// isChanWait returns true if the goroutine is blocked because of
-// channel operations or select statements.
+// isChanWait is true if the goroutine is blocked because of non-nil
+// channel operations or a select statement with at least one case.
 //
 //go:nosplit
 func (w waitReason) isChanWait() bool {
