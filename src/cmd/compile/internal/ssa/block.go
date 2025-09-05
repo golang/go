@@ -18,6 +18,9 @@ type Block struct {
 	// Source position for block's control operation
 	Pos src.XPos
 
+	// What cpu features (AVXnnn, SVEyyy) are implied to reach/execute this block?
+	CPUfeatures CPUfeatures
+
 	// The kind of block this is.
 	Kind BlockKind
 
@@ -449,3 +452,53 @@ const (
 	HotPgoInitial          = HotPgo | HotInitial                // special case; single block loop, initial block is header block has a flow-in entry, but PGO says it is hot
 	HotPgoInitialNotFLowIn = HotPgo | HotInitial | HotNotFlowIn // PGO says it is hot, and the loop is rotated so flow enters loop with a branch
 )
+
+type CPUfeatures uint32
+
+const (
+	CPUNone CPUfeatures = 0
+	CPUAll  CPUfeatures = ^CPUfeatures(0)
+	CPUavx  CPUfeatures = 1 << iota
+	CPUavx2
+	CPUavxvnni
+	CPUavx512
+	CPUbitalg
+	CPUgfni
+	CPUvbmi
+	CPUvbmi2
+	CPUvpopcntdq
+	CPUavx512vnni
+
+	CPUneon
+	CPUsve2
+)
+
+func (f CPUfeatures) String() string {
+	if f == CPUNone {
+		return "none"
+	}
+	if f == CPUAll {
+		return "all"
+	}
+	s := ""
+	foo := func(what string, feat CPUfeatures) {
+		if feat&f != 0 {
+			if s != "" {
+				s += "+"
+			}
+			s += what
+		}
+	}
+	foo("avx", CPUavx)
+	foo("avx2", CPUavx2)
+	foo("avx512", CPUavx512)
+	foo("avxvnni", CPUavxvnni)
+	foo("bitalg", CPUbitalg)
+	foo("gfni", CPUgfni)
+	foo("vbmi", CPUvbmi)
+	foo("vbmi2", CPUvbmi2)
+	foo("popcntdq", CPUvpopcntdq)
+	foo("avx512vnni", CPUavx512vnni)
+
+	return s
+}

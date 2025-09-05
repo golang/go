@@ -989,6 +989,7 @@ func (t *Type) ArgWidth() int64 {
 	return t.extra.(*Func).Argwid
 }
 
+// Size returns the width of t in bytes.
 func (t *Type) Size() int64 {
 	if t.kind == TSSA {
 		return t.width
@@ -997,6 +998,7 @@ func (t *Type) Size() int64 {
 	return t.width
 }
 
+// Alignment returns the alignment of t in bytes.
 func (t *Type) Alignment() int64 {
 	CalcSize(t)
 	return int64(t.align)

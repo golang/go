@@ -485,6 +485,7 @@ var passes = [...]pass{
 	{name: "writebarrier", fn: writebarrier, required: true}, // expand write barrier ops
 	{name: "insert resched checks", fn: insertLoopReschedChecks,
 		disabled: !buildcfg.Experiment.PreemptibleLoops}, // insert resched checks in loops.
+	{name: "cpufeatures", fn: cpufeatures, required: buildcfg.Experiment.SIMD, disabled: !buildcfg.Experiment.SIMD},
 	{name: "lower", fn: lower, required: true},
 	{name: "addressing modes", fn: addressingModes, required: false},
 	{name: "late lower", fn: lateLower, required: true},
@@ -587,6 +588,8 @@ var passOrder = [...]constraint{
 	{"branchelim", "late opt"},
 	// ranchelim is an arch-independent pass.
 	{"branchelim", "lower"},
+	// lower needs cpu feature information (for SIMD)
+	{"cpufeatures", "lower"},
 }
 
 func init() {
