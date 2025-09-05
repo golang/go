@@ -5,9 +5,9 @@
 package fipstest
 
 import (
+	"crypto"
+	"crypto/internal/fips140"
 	"crypto/rand"
-	"crypto/x509"
-	"encoding/pem"
 	"fmt"
 	"internal/testenv"
 	"io/fs"
@@ -48,8 +48,6 @@ var allCASTs = []string{
 	"HKDF-SHA2-256",
 	"HMAC-SHA2-256",
 	"KAS-ECC-SSC P-256",
-	"ML-KEM PCT",
-	"ML-KEM PCT",
 	"ML-KEM PCT",
 	"ML-KEM PCT",
 	"ML-KEM-768",
@@ -107,60 +105,65 @@ func TestAllCASTs(t *testing.T) {
 // TestConditionals causes the conditional CASTs and PCTs to be invoked.
 func TestConditionals(t *testing.T) {
 	mlkem.GenerateKey768()
-	k, err := ecdh.GenerateKey(ecdh.P256(), rand.Reader)
+	kDH, err := ecdh.GenerateKey(ecdh.P256(), rand.Reader)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
+	} else {
+		ecdh.ECDH(ecdh.P256(), kDH, kDH.PublicKey())
 	}
-	ecdh.ECDH(ecdh.P256(), k, k.PublicKey())
 	kDSA, err := ecdsa.GenerateKey(ecdsa.P256(), rand.Reader)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
+	} else {
+		ecdsa.SignDeterministic(ecdsa.P256(), sha256.New, kDSA, make([]byte, 32))
 	}
-	ecdsa.SignDeterministic(ecdsa.P256(), sha256.New, kDSA, make([]byte, 32))
 	k25519, err := ed25519.GenerateKey()
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
+	} else {
+		ed25519.Sign(k25519, make([]byte, 32))
 	}
-	ed25519.Sign(k25519, make([]byte, 32))
-	rsa.VerifyPKCS1v15(&rsa.PublicKey{}, "", nil, nil)
-	// Parse an RSA key to hit the PCT rather than generating one (which is slow).
-	block, _ := pem.Decode([]byte(strings.ReplaceAll(
-		`-----BEGIN RSA TESTING KEY-----
-MIIEowIBAAKCAQEAsPnoGUOnrpiSqt4XynxA+HRP7S+BSObI6qJ7fQAVSPtRkqso
-tWxQYLEYzNEx5ZSHTGypibVsJylvCfuToDTfMul8b/CZjP2Ob0LdpYrNH6l5hvFE
-89FU1nZQF15oVLOpUgA7wGiHuEVawrGfey92UE68mOyUVXGweJIVDdxqdMoPvNNU
-l86BU02vlBiESxOuox+dWmuVV7vfYZ79Toh/LUK43YvJh+rhv4nKuF7iHjVjBd9s
-B6iDjj70HFldzOQ9r8SRI+9NirupPTkF5AKNe6kUhKJ1luB7S27ZkvB3tSTT3P59
-3VVJvnzOjaA1z6Cz+4+eRvcysqhrRgFlwI9TEwIDAQABAoIBAEEYiyDP29vCzx/+
-dS3LqnI5BjUuJhXUnc6AWX/PCgVAO+8A+gZRgvct7PtZb0sM6P9ZcLrweomlGezI
-FrL0/6xQaa8bBr/ve/a8155OgcjFo6fZEw3Dz7ra5fbSiPmu4/b/kvrg+Br1l77J
-aun6uUAs1f5B9wW+vbR7tzbT/mxaUeDiBzKpe15GwcvbJtdIVMa2YErtRjc1/5B2
-BGVXyvlJv0SIlcIEMsHgnAFOp1ZgQ08aDzvilLq8XVMOahAhP1O2A3X8hKdXPyrx
-IVWE9bS9ptTo+eF6eNl+d7htpKGEZHUxinoQpWEBTv+iOoHsVunkEJ3vjLP3lyI/
-fY0NQ1ECgYEA3RBXAjgvIys2gfU3keImF8e/TprLge1I2vbWmV2j6rZCg5r/AS0u
-pii5CvJ5/T5vfJPNgPBy8B/yRDs+6PJO1GmnlhOkG9JAIPkv0RBZvR0PMBtbp6nT
-Y3yo1lwamBVBfY6rc0sLTzosZh2aGoLzrHNMQFMGaauORzBFpY5lU50CgYEAzPHl
-u5DI6Xgep1vr8QvCUuEesCOgJg8Yh1UqVoY/SmQh6MYAv1I9bLGwrb3WW/7kqIoD
-fj0aQV5buVZI2loMomtU9KY5SFIsPV+JuUpy7/+VE01ZQM5FdY8wiYCQiVZYju9X
-Wz5LxMNoz+gT7pwlLCsC4N+R8aoBk404aF1gum8CgYAJ7VTq7Zj4TFV7Soa/T1eE
-k9y8a+kdoYk3BASpCHJ29M5R2KEA7YV9wrBklHTz8VzSTFTbKHEQ5W5csAhoL5Fo
-qoHzFFi3Qx7MHESQb9qHyolHEMNx6QdsHUn7rlEnaTTyrXh3ifQtD6C0yTmFXUIS
-CW9wKApOrnyKJ9nI0HcuZQKBgQCMtoV6e9VGX4AEfpuHvAAnMYQFgeBiYTkBKltQ
-XwozhH63uMMomUmtSG87Sz1TmrXadjAhy8gsG6I0pWaN7QgBuFnzQ/HOkwTm+qKw
-AsrZt4zeXNwsH7QXHEJCFnCmqw9QzEoZTrNtHJHpNboBuVnYcoueZEJrP8OnUG3r
-UjmopwKBgAqB2KYYMUqAOvYcBnEfLDmyZv9BTVNHbR2lKkMYqv5LlvDaBxVfilE0
-2riO4p6BaAdvzXjKeRrGNEKoHNBpOSfYCOM16NjL8hIZB1CaV3WbT5oY+jp7Mzd5
-7d56RZOE+ERK2uz/7JX9VSsM/LbH9pJibd4e8mikDS9ntciqOH/3
------END RSA TESTING KEY-----`, "TESTING KEY", "PRIVATE KEY")))
-	if _, err := x509.ParsePKCS1PrivateKey(block.Bytes); err != nil {
-		t.Fatal(err)
+	kRSA, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Error(err)
+	} else {
+		rsa.SignPKCS1v15(kRSA, crypto.SHA256.String(), make([]byte, 32))
 	}
 	t.Log("completed successfully")
+}
+
+func TestCASTPasses(t *testing.T) {
+	moduleStatus(t)
+	testenv.MustHaveExec(t)
+	if err := fips140.Supported(); err != nil {
+		t.Skipf("test requires FIPS 140 mode: %v", err)
+	}
+
+	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^TestConditionals$", "-test.v")
+	cmd.Env = append(cmd.Env, "GODEBUG=fips140=debug")
+	out, err := cmd.CombinedOutput()
+	t.Logf("%s", out)
+	if err != nil || !strings.Contains(string(out), "completed successfully") {
+		t.Errorf("TestConditionals did not complete successfully")
+	}
+
+	for _, name := range allCASTs {
+		t.Run(name, func(t *testing.T) {
+			if !strings.Contains(string(out), fmt.Sprintf("passed: %s\n", name)) {
+				t.Errorf("CAST/PCT %s success was not logged", name)
+			} else {
+				t.Logf("CAST/PCT succeeded: %s", name)
+			}
+		})
+	}
 }
 
 func TestCASTFailures(t *testing.T) {
 	moduleStatus(t)
 	testenv.MustHaveExec(t)
+	if err := fips140.Supported(); err != nil {
+		t.Skipf("test requires FIPS 140 mode: %v", err)
+	}
 
 	for _, name := range allCASTs {
 		t.Run(name, func(t *testing.T) {
@@ -169,7 +172,6 @@ func TestCASTFailures(t *testing.T) {
 			if !testing.Verbose() {
 				t.Parallel()
 			}
-			t.Logf("CAST/PCT succeeded: %s", name)
 			t.Logf("Testing CAST/PCT failure...")
 			cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^TestConditionals$", "-test.v")
 			cmd.Env = append(cmd.Env, fmt.Sprintf("GODEBUG=failfipscast=%s,fips140=on", name))
@@ -180,6 +182,8 @@ func TestCASTFailures(t *testing.T) {
 			}
 			if strings.Contains(string(out), "completed successfully") {
 				t.Errorf("CAST/PCT %s failure did not stop the program", name)
+			} else if !strings.Contains(string(out), "self-test failed: "+name) {
+				t.Errorf("CAST/PCT %s failure did not log the expected message", name)
 			} else {
 				t.Logf("CAST/PCT %s failed as expected and caused the program to exit", name)
 			}
