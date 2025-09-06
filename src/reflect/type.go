@@ -1314,7 +1314,8 @@ func TypeOf(i any) Type {
 
 // TypeFor returns the [Type] that represents the type argument T.
 func TypeFor[T any]() Type {
-	return toType(abi.TypeFor[T]())
+	// toRType is safe to use here; type is never nil as T is statically known.
+	return toRType(abi.TypeFor[T]())
 }
 
 // rtypeOf directly extracts the *rtype of the provided value.

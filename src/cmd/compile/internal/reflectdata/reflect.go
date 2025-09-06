@@ -717,6 +717,10 @@ func writeType(t *types.Type) *obj.LSym {
 	}
 	s.SetSiggen(true)
 
+	if !tbase.HasShape() {
+		TypeLinksym(t) // ensure lsym.Extra is set
+	}
+
 	if !NeedEmit(tbase) {
 		if i := typecheck.BaseTypeIndex(t); i >= 0 {
 			lsym.Pkg = tbase.Sym().Pkg.Prefix
