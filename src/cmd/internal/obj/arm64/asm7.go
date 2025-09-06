@@ -34,6 +34,7 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -7854,4 +7855,147 @@ func (c *ctxt7) encRegShiftOrExt(p *obj.Prog, a *obj.Addr, r int16) uint32 {
 // pack returns the encoding of the "Q" field and two arrangement specifiers.
 func pack(q uint32, arngA, arngB uint8) uint32 {
 	return uint32(q)<<16 | uint32(arngA)<<8 | uint32(arngB)
+}
+
+// ARM64RegisterExtension constructs an ARM64 register with extension or arrangement.
+func ARM64RegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, isIndex bool) error {
+	Rnum := (reg & 31) + int16(num<<5)
+	if isAmount {
+		if num < 0 || num > 7 {
+			return errors.New("index shift amount is out of range")
+		}
+	}
+	if reg <= REG_R31 && reg >= REG_R0 {
+		if !isAmount {
+			return errors.New("invalid register extension")
+		}
+		switch ext {
+		case "UXTB":
+			if a.Type == obj.TYPE_MEM {
+				return errors.New("invalid shift for the register offset addressing mode")
+			}
+			a.Reg = REG_UXTB + Rnum
+		case "UXTH":
+			if a.Type == obj.TYPE_MEM {
+				return errors.New("invalid shift for the register offset addressing mode")
+			}
+			a.Reg = REG_UXTH + Rnum
+		case "UXTW":
+			// effective address of memory is a base register value and an offset register value.
+			if a.Type == obj.TYPE_MEM {
+				a.Index = REG_UXTW + Rnum
+			} else {
+				a.Reg = REG_UXTW + Rnum
+			}
+		case "UXTX":
+			if a.Type == obj.TYPE_MEM {
+				return errors.New("invalid shift for the register offset addressing mode")
+			}
+			a.Reg = REG_UXTX + Rnum
+		case "SXTB":
+			if a.Type == obj.TYPE_MEM {
+				return errors.New("invalid shift for the register offset addressing mode")
+			}
+			a.Reg = REG_SXTB + Rnum
+		case "SXTH":
+			if a.Type == obj.TYPE_MEM {
+				return errors.New("invalid shift for the register offset addressing mode")
+			}
+			a.Reg = REG_SXTH + Rnum
+		case "SXTW":
+			if a.Type == obj.TYPE_MEM {
+				a.Index = REG_SXTW + Rnum
+			} else {
+				a.Reg = REG_SXTW + Rnum
+			}
+		case "SXTX":
+			if a.Type == obj.TYPE_MEM {
+				a.Index = REG_SXTX + Rnum
+			} else {
+				a.Reg = REG_SXTX + Rnum
+			}
+		case "LSL":
+			a.Index = REG_LSL + Rnum
+		default:
+			return errors.New("unsupported general register extension type: " + ext)
+
+		}
+	} else if reg <= REG_V31 && reg >= REG_V0 {
+		switch ext {
+		case "B8":
+			if isIndex {
+				return errors.New("invalid register extension")
+			}
+			a.Reg = REG_ARNG + (reg & 31) + ((ARNG_8B & 15) << 5)
+		case "B16":
+			if isIndex {
+				return errors.New("invalid register extension")
+			}
+			a.Reg = REG_ARNG + (reg & 31) + ((ARNG_16B & 15) << 5)
+		case "H4":
+			if isIndex {
+				return errors.New("invalid register extension")
+			}
+			a.Reg = REG_ARNG + (reg & 31) + ((ARNG_4H & 15) << 5)
+		case "H8":
+			if isIndex {
+				return errors.New("invalid register extension")
+			}
+			a.Reg = REG_ARNG + (reg & 31) + ((ARNG_8H & 15) << 5)
+		case "S2":
+			if isIndex {
+				return errors.New("invalid register extension")
+			}
+			a.Reg = REG_ARNG + (reg & 31) + ((ARNG_2S & 15) << 5)
+		case "S4":
+			if isIndex {
+				return errors.New("invalid register extension")
+			}
+			a.Reg = REG_ARNG + (reg & 31) + ((ARNG_4S & 15) << 5)
+		case "D1":
+			if isIndex {
+				return errors.New("invalid register extension")
+			}
+			a.Reg = REG_ARNG + (reg & 31) + ((ARNG_1D & 15) << 5)
+		case "D2":
+			if isIndex {
+				return errors.New("invalid register extension")
+			}
+			a.Reg = REG_ARNG + (reg & 31) + ((ARNG_2D & 15) << 5)
+		case "Q1":
+			if isIndex {
+				return errors.New("invalid register extension")
+			}
+			a.Reg = REG_ARNG + (reg & 31) + ((ARNG_1Q & 15) << 5)
+		case "B":
+			if !isIndex {
+				return nil
+			}
+			a.Reg = REG_ELEM + (reg & 31) + ((ARNG_B & 15) << 5)
+			a.Index = num
+		case "H":
+			if !isIndex {
+				return nil
+			}
+			a.Reg = REG_ELEM + (reg & 31) + ((ARNG_H & 15) << 5)
+			a.Index = num
+		case "S":
+			if !isIndex {
+				return nil
+			}
+			a.Reg = REG_ELEM + (reg & 31) + ((ARNG_S & 15) << 5)
+			a.Index = num
+		case "D":
+			if !isIndex {
+				return nil
+			}
+			a.Reg = REG_ELEM + (reg & 31) + ((ARNG_D & 15) << 5)
+			a.Index = num
+		default:
+			return errors.New("unsupported simd register extension type: " + ext)
+		}
+	} else {
+		return errors.New("invalid register and extension combination")
+	}
+	return nil
 }
