@@ -661,6 +661,13 @@ func parseHost(host string) (string, error) {
 			return host1 + host2 + host3, nil
 		}
 	} else if i := strings.LastIndex(host, ":"); i != -1 {
+		if j := strings.LastIndex(host[:i], ":"); j != -1 { // multiple colons
+			if k := strings.LastIndex(host[:j], ":"); k == -1 { // only one other colon
+				if port := host[j:i]; validOptionalPort(port) { // see issue #75223
+					return "", fmt.Errorf("a colon after port %q is not allowed", port)
+				}
+			}
+		}
 		colonPort := host[i:]
 		if !validOptionalPort(colonPort) {
 			return "", fmt.Errorf("invalid port %q after host", colonPort)
