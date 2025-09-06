@@ -439,3 +439,32 @@ func TestFormatPAXRecord(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkParsePAXTIme(b *testing.B) {
+	tests := []struct {
+		name string
+		in   string
+		ok   bool
+	}{
+		{"NoNanos", "123456", true},
+		{"ExactNanos", "1.123456789", true},
+		{"WithNanoPadding", "1.123", true},
+		{"WithNanoTruncate", "1.123456789123", true},
+		{"TrailingError", "1.123abc", false},
+		{"LeadingError", "1.abc123", false},
+	}
+	for _, tt := range tests {
+		b.Run(tt.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				_, err := parsePAXTime(tt.in)
+				if (err == nil) != tt.ok {
+					if err != nil {
+						b.Fatal(err)
+					}
+					b.Fatal("expected error")
+				}
+			}
+		})
+	}
+}
