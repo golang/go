@@ -205,11 +205,11 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *keySharePrivateKeys, *echCli
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		echConfig := pickECHConfig(echConfigs)
+		echConfig, echPK, kdf, aead := pickECHConfig(echConfigs)
 		if echConfig == nil {
 			return nil, nil, nil, errors.New("tls: EncryptedClientHelloConfigList contains no valid configs")
 		}
-		ech = &echClientContext{config: echConfig}
+		ech = &echClientContext{config: echConfig, kdfID: kdf.ID(), aeadID: aead.ID()}
 		hello.encryptedClientHello = []byte{1} // indicate inner hello
 		// We need to explicitly set these 1.2 fields to nil, as we do not
 		// marshal them when encoding the inner hello, otherwise transcripts
@@ -219,17 +219,8 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *keySharePrivateKeys, *echCli
 		hello.secureRenegotiationSupported = false
 		hello.extendedMasterSecret = false
 
-		echPK, err := hpke.ParseHPKEPublicKey(ech.config.KemID, ech.config.PublicKey)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		suite, err := pickECHCipherSuite(ech.config.SymmetricCipherSuite)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		ech.kdfID, ech.aeadID = suite.KDFID, suite.AEADID
 		info := append([]byte("tls ech\x00"), ech.config.raw...)
-		ech.encapsulatedKey, ech.hpkeContext, err = hpke.SetupSender(ech.config.KemID, suite.KDFID, suite.AEADID, echPK, info)
+		ech.encapsulatedKey, ech.hpkeContext, err = hpke.NewSender(echPK, kdf, aead, info)
 		if err != nil {
 			return nil, nil, nil, err
 		}
