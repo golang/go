@@ -69,40 +69,37 @@ func findKvBySplitSeq(s string, k string) string {
 	return ""
 }
 
-var testSplitString = "k1=v1,k2=v2,k3=v3,k4=v4"
+func BenchmarkSplitAndSplitSeq(b *testing.B) {
+	testSplitString := "k1=v1,k2=v2,k3=v3,k4=v4"
+	testCases := []struct {
+		name  string
+		input string
+	}{
+		{
+			name:  "Key found",
+			input: "k3",
+		},
+		{
+			name:  "Key not found",
+			input: "k100",
+		},
+	}
 
-func BenchmarkSplitAndSplitSeqKeyFound(b *testing.B) {
-	b.Run("findKvBySplit", func(b *testing.B) {
-		b.ResetTimer()
-		b.ReportAllocs()
-		for b.Loop() {
-			findKvBySplit(testSplitString, "k3")
-		}
-	})
+	for _, testCase := range testCases {
+		b.Run("bySplit "+testCase.name, func(b *testing.B) {
+			b.ResetTimer()
+			b.ReportAllocs()
+			for b.Loop() {
+				findKvBySplit(testSplitString, testCase.input)
+			}
+		})
 
-	b.Run("findKvBySplitSeq", func(b *testing.B) {
-		b.ResetTimer()
-		b.ReportAllocs()
-		for b.Loop() {
-			findKvBySplitSeq(testSplitString, "k3")
-		}
-	})
-}
-
-func BenchmarkSplitAndSplitSeqKeyNotFound(b *testing.B) {
-	b.Run("findKvBySplit", func(b *testing.B) {
-		b.ResetTimer()
-		b.ReportAllocs()
-		for b.Loop() {
-			findKvBySplit(testSplitString, "notFoundKey")
-		}
-	})
-
-	b.Run("findKvBySplitSeq", func(b *testing.B) {
-		b.ResetTimer()
-		b.ReportAllocs()
-		for b.Loop() {
-			findKvBySplitSeq(testSplitString, "notFoundKey")
-		}
-	})
+		b.Run("bySplitSeq "+testCase.name, func(b *testing.B) {
+			b.ResetTimer()
+			b.ReportAllocs()
+			for b.Loop() {
+				findKvBySplitSeq(testSplitString, testCase.input)
+			}
+		})
+	}
 }
