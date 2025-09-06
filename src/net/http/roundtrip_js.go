@@ -102,6 +102,17 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 			headers.Call("append", key, value)
 		}
 	}
+	// If the URL has credentials, convert to an Authorization header
+	url := *req.URL
+	if url.User != nil {
+		url.User = nil
+		if req.Header.Get("Authorization") == "" {
+			username := url.User.Username()
+			password, _ := url.User.Password()
+			authorization := "Basic " + basicAuth(username, password)
+			headers.Call("append", "Authorization", authorization)
+		}
+	}
 	opt.Set("headers", headers)
 
 	if req.Body != nil {
@@ -126,7 +137,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 		}
 	}
 
-	fetchPromise := js.Global().Call("fetch", req.URL.String(), opt)
+	fetchPromise := js.Global().Call("fetch", url.String(), opt)
 	var (
 		respCh           = make(chan *Response, 1)
 		errCh            = make(chan error, 1)
