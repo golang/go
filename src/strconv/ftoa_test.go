@@ -291,15 +291,10 @@ var ftoaBenches = []struct {
 	{"64Fixed17Hard", math.Ldexp(8887055249355788, 665), 'e', 17, 64},
 	{"64Fixed18Hard", math.Ldexp(6994187472632449, 690), 'e', 18, 64},
 
-	// Trigger slow path (see issue #15672).
-	// The shortest is: 8.034137530808823e+43
-	{"Slowpath64", 8.03413753080882349e+43, 'e', -1, 64},
-	// This denormal is pathological because the lower/upper
-	// halfways to neighboring floats are:
-	// 622666234635.321003e-320 ~= 622666234635.321e-320
-	// 622666234635.321497e-320 ~= 622666234635.3215e-320
-	// making it hard to find the 3rd digit
-	{"SlowpathDenormal64", 622666234635.3213e-320, 'e', -1, 64},
+	// Trigger the shorter interval case (3.90625e-3 = 1/256).
+	// This case is relatively rare and uses Schubfach-style algorithm instead.
+	{"ShorterIntervalCase32", 3.90625e-3, 'e', -1, 32},
+	{"ShorterIntervalCase64", 3.90625e-3, 'e', -1, 64},
 }
 
 func BenchmarkFormatFloat(b *testing.B) {
