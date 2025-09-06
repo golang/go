@@ -440,62 +440,31 @@ func TestFormatPAXRecord(t *testing.T) {
 	}
 }
 
-func BenchmarkParsePAXTimeNoTruncatePad(b *testing.B) {
-	sample := "1.123456789"
-
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		_, err := parsePAXTime(sample)
-		if err != nil {
-			b.Fatal(err)
-		}
+func BenchmarkParsePAXTIme(b *testing.B) {
+	tests := []struct {
+		name string
+		in   string
+		ok   bool
+	}{
+		{"NoNanos", "123456", true},
+		{"ExactNanos", "1.123456789", true},
+		{"WithNanoPadding", "1.123", true},
+		{"WithNanoTruncate", "1.123456789123", true},
+		{"TrailingError", "1.123abc", false},
+		{"LeadingError", "1.abc123", false},
 	}
-}
-
-func BenchmarkParsePAXTimeRightTruncate(b *testing.B) {
-	sample := "1.123456789123"
-
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		_, err := parsePAXTime(sample)
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
-}
-
-func BenchmarkParsePAXTimeRightPad(b *testing.B) {
-	sample := "1.123"
-
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		_, err := parsePAXTime(sample)
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
-}
-
-func BenchmarkParsePAXTimeError(b *testing.B) {
-	sample := "1.123abc"
-
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		_, err := parsePAXTime(sample)
-		if err == nil {
-			b.Fatal("Expected error")
-		}
-	}
-}
-
-func BenchmarkParsePAXTimeError1(b *testing.B) {
-	sample := "1.a123abc"
-
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		_, err := parsePAXTime(sample)
-		if err == nil {
-			b.Fatal("Expected error")
-		}
+	for _, tt := range tests {
+		b.Run(tt.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				_, err := parsePAXTime(tt.in)
+				if (err == nil) != tt.ok {
+					if err != nil {
+						b.Fatal(err)
+					}
+					b.Fatal("expected error")
+				}
+			}
+		})
 	}
 }

@@ -213,9 +213,9 @@ func parsePAXTime(s string) (time.Time, error) {
 	}
 
 	// Parse the nanoseconds.
-	// Initialize an array with '0's to handle right padding automatically
+	// Initialize an array with '0's to handle right padding automatically.
 	nanoDigits := [maxNanoSecondDigits]byte{'0', '0', '0', '0', '0', '0', '0', '0', '0'}
-	for i := range sn {
+	for i := range len(sn) {
 		switch c := sn[i]; {
 		case c < '0' || c > '9':
 			return time.Time{}, ErrHeader
