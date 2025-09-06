@@ -380,12 +380,13 @@ func (h *commonHandler) attrSep() string {
 // The initial value of sep determines whether to emit a separator
 // before the next key, after which it stays true.
 type handleState struct {
-	h       *commonHandler
-	buf     *buffer.Buffer
-	freeBuf bool           // should buf be freed?
-	sep     string         // separator to write before next key
-	prefix  *buffer.Buffer // for text: key prefix
-	groups  *[]string      // pool-allocated slice of active groups, for ReplaceAttr
+	h          *commonHandler
+	buf        *buffer.Buffer
+	freeBuf    bool           // should buf be freed?
+	sep        string         // separator to write before next key
+	prefix     *buffer.Buffer // for text: key prefix
+	groups     *[]string      // pool-allocated slice of active groups, for ReplaceAttr
+	anyEncoder encoder
 }
 
 var groupPool = sync.Pool{New: func() any {
@@ -415,6 +416,10 @@ func (s *handleState) free() {
 	if gs := s.groups; gs != nil {
 		*gs = (*gs)[:0]
 		groupPool.Put(gs)
+	}
+	if s.anyEncoder != nil {
+		s.anyEncoder.free()
+		s.anyEncoder = nil
 	}
 	s.prefix.Free()
 }
@@ -558,7 +563,7 @@ func (s *handleState) appendTwoStrings(x, y string) {
 		buf = appendEscapedJSONString(buf, x)
 		buf = appendEscapedJSONString(buf, y)
 		buf.WriteByte('"')
-	case !needsQuoting(x) && !needsQuoting(y):
+	case !needsQuotingString(x) && !needsQuotingString(y):
 		buf.WriteString(x)
 		buf.WriteString(y)
 	default:
@@ -574,7 +579,7 @@ func (s *handleState) appendString(str string) {
 		s.buf.WriteByte('"')
 	} else {
 		// text
-		if needsQuoting(str) {
+		if needsQuotingString(str) {
 			*s.buf = strconv.AppendQuote(*s.buf, str)
 		} else {
 			s.buf.WriteString(str)
