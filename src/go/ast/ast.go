@@ -1123,7 +1123,7 @@ func generator(file *File) (string, bool) {
 			// opt: check Contains first to avoid unnecessary array allocation in Split.
 			const prefix = "// Code generated "
 			if strings.Contains(comment.Text, prefix) {
-				for _, line := range strings.Split(comment.Text, "\n") {
+				for line := range strings.SplitSeq(comment.Text, "\n") {
 					if rest, ok := strings.CutPrefix(line, prefix); ok {
 						if gen, ok := strings.CutSuffix(rest, " DO NOT EDIT."); ok {
 							return gen, true

@@ -50,3 +50,56 @@ func BenchmarkSplitAfterSeqMultiByteSeparator(b *testing.B) {
 		}
 	}
 }
+
+func findKvBySplit(s string, k string) string {
+	for _, kv := range Split(s, ",") {
+		if HasPrefix(kv, k) {
+			return kv
+		}
+	}
+	return ""
+}
+
+func findKvBySplitSeq(s string, k string) string {
+	for kv := range SplitSeq(s, ",") {
+		if HasPrefix(kv, k) {
+			return kv
+		}
+	}
+	return ""
+}
+
+func BenchmarkSplitAndSplitSeq(b *testing.B) {
+	testSplitString := "k1=v1,k2=v2,k3=v3,k4=v4"
+	testCases := []struct {
+		name  string
+		input string
+	}{
+		{
+			name:  "Key found",
+			input: "k3",
+		},
+		{
+			name:  "Key not found",
+			input: "k100",
+		},
+	}
+
+	for _, testCase := range testCases {
+		b.Run("bySplit "+testCase.name, func(b *testing.B) {
+			b.ResetTimer()
+			b.ReportAllocs()
+			for b.Loop() {
+				findKvBySplit(testSplitString, testCase.input)
+			}
+		})
+
+		b.Run("bySplitSeq "+testCase.name, func(b *testing.B) {
+			b.ResetTimer()
+			b.ReportAllocs()
+			for b.Loop() {
+				findKvBySplitSeq(testSplitString, testCase.input)
+			}
+		})
+	}
+}

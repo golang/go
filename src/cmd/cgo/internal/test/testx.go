@@ -447,7 +447,7 @@ func issue7978check(t *testing.T, wantFunc string, badFunc string, depth int) {
 	runtime.GC()
 	buf := make([]byte, 65536)
 	trace := string(buf[:runtime.Stack(buf, true)])
-	for _, goroutine := range strings.Split(trace, "\n\n") {
+	for goroutine := range strings.SplitSeq(trace, "\n\n") {
 		if strings.Contains(goroutine, "test.issue7978go") {
 			trace := strings.Split(goroutine, "\n")
 			// look for the expected function in the stack

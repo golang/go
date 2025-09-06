@@ -406,9 +406,9 @@ func parsePlusBuildExpr(text string) (Expr, error) {
 	size := 0
 
 	var x Expr
-	for _, clause := range strings.Fields(text) {
+	for clause := range strings.FieldsSeq(text) {
 		var y Expr
-		for _, lit := range strings.Split(clause, ",") {
+		for lit := range strings.SplitSeq(clause, ",") {
 			var z Expr
 			var neg bool
 			if strings.HasPrefix(lit, "!!") || lit == "!" {

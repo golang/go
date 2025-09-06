@@ -84,14 +84,14 @@ func main() {
 
 	if *allowedRewrites != "" {
 		allowed = make(map[string]bool)
-		for _, f := range strings.Split(*allowedRewrites, ",") {
+		for f := range strings.SplitSeq(*allowedRewrites, ",") {
 			allowed[f] = true
 		}
 	}
 
 	if *forceRewrites != "" {
 		force = make(map[string]bool)
-		for _, f := range strings.Split(*forceRewrites, ",") {
+		for f := range strings.SplitSeq(*forceRewrites, ",") {
 			force[f] = true
 		}
 	}
