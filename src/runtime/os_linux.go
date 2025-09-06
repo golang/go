@@ -40,9 +40,6 @@ type mOS struct {
 	waitsema uint32 // semaphore for parking on locks
 }
 
-//go:noescape
-func futex(addr unsafe.Pointer, op int32, val uint32, ts, addr2 unsafe.Pointer, val3 uint32) int32
-
 // Linux futex.
 //
 //	futexsleep(uint32 *addr, uint32 val)
@@ -79,7 +76,7 @@ func futexsleep(addr *uint32, val uint32, ns int64) {
 
 	var ts timespec
 	ts.setNsec(ns)
-	futex(unsafe.Pointer(addr), _FUTEX_WAIT_PRIVATE, val, unsafe.Pointer(&ts), nil, 0)
+	futex(unsafe.Pointer(addr), _FUTEX_WAIT_PRIVATE, val, &ts, nil, 0)
 }
 
 // If any procs are sleeping on addr, wake up at most cnt.

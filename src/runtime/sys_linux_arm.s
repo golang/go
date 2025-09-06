@@ -30,6 +30,7 @@
 #define SYS_sigaltstack (SYS_BASE + 186)
 #define SYS_mmap2 (SYS_BASE + 192)
 #define SYS_futex (SYS_BASE + 240)
+#define SYS_futex_time64 (SYS_BASE + 422)
 #define SYS_exit_group (SYS_BASE + 248)
 #define SYS_munmap (SYS_BASE + 91)
 #define SYS_madvise (SYS_BASE + 220)
@@ -403,9 +404,10 @@ finish:
 
 	RET
 
+// Linux: kernel/futex/syscalls.c, requiring COMPAT_32BIT_TIME
 // int32 futex(int32 *uaddr, int32 op, int32 val,
-//	struct timespec *timeout, int32 *uaddr2, int32 val2);
-TEXT runtime·futex(SB),NOSPLIT,$0
+//	struct old_timespec32 *timeout, int32 *uaddr2, int32 val2);
+TEXT runtime·futex_time32(SB),NOSPLIT,$0
 	MOVW    addr+0(FP), R0
 	MOVW    op+4(FP), R1
 	MOVW    val+8(FP), R2
@@ -413,6 +415,21 @@ TEXT runtime·futex(SB),NOSPLIT,$0
 	MOVW    addr2+16(FP), R4
 	MOVW    val3+20(FP), R5
 	MOVW	$SYS_futex, R7
+	SWI	$0
+	MOVW	R0, ret+24(FP)
+	RET
+
+// Linux: kernel/futex/syscalls.c
+// int32 futex(int32 *uaddr, int32 op, int32 val,
+//	struct timespec *timeout, int32 *uaddr2, int32 val2);
+TEXT runtime·futex_time64(SB),NOSPLIT,$0
+	MOVW    addr+0(FP), R0
+	MOVW    op+4(FP), R1
+	MOVW    val+8(FP), R2
+	MOVW    ts+12(FP), R3
+	MOVW    addr2+16(FP), R4
+	MOVW    val3+20(FP), R5
+	MOVW	$SYS_futex_time64, R7
 	SWI	$0
 	MOVW	R0, ret+24(FP)
 	RET
