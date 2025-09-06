@@ -488,7 +488,7 @@ func BenchmarkParsePAXTimeError(b *testing.B) {
 	}
 }
 
-func Benchmark_ParsePAXTimeError1(b *testing.B) {
+func BenchmarkParsePAXTimeError1(b *testing.B) {
 	sample := "1.a123abc"
 
 	b.ReportAllocs()
