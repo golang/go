@@ -74,6 +74,9 @@ func TestVersion(t *testing.T) {
 			continue
 		}
 		exp := setting.Value
+		// Remove the -hash suffix, if any.
+		// The version from fips140.Version omits it.
+		exp, _, _ = strings.Cut(exp, "-")
 		if v := fips140.Version(); v != exp {
 			t.Errorf("Version is %q, expected %q", v, exp)
 		}
