@@ -18,6 +18,12 @@ import (
 
 // PKCS1v15DecryptOptions is for passing options to PKCS #1 v1.5 decryption using
 // the [crypto.Decrypter] interface.
+//
+// Deprecated: PKCS #1 v1.5 encryption is dangerous and should not be used.
+// See [draft-irtf-cfrg-rsa-guidance-05] for more information. Use
+// [EncryptOAEP] and [DecryptOAEP] instead.
+//
+// [draft-irtf-cfrg-rsa-guidance-05]: https://www.ietf.org/archive/id/draft-irtf-cfrg-rsa-guidance-05.html#name-rationale
 type PKCS1v15DecryptOptions struct {
 	// SessionKeyLen is the length of the session key that is being
 	// decrypted. If not zero, then a padding error during decryption will
@@ -37,8 +43,11 @@ type PKCS1v15DecryptOptions struct {
 // deterministically on the bytes read from random, and may change
 // between calls and/or between versions.
 //
-// WARNING: use of this function to encrypt plaintexts other than
-// session keys is dangerous. Use RSA OAEP in new protocols.
+// Deprecated: PKCS #1 v1.5 encryption is dangerous and should not be used.
+// See [draft-irtf-cfrg-rsa-guidance-05] for more information. Use
+// [EncryptOAEP] and [DecryptOAEP] instead.
+//
+// [draft-irtf-cfrg-rsa-guidance-05]: https://www.ietf.org/archive/id/draft-irtf-cfrg-rsa-guidance-05.html#name-rationale
 func EncryptPKCS1v15(random io.Reader, pub *PublicKey, msg []byte) ([]byte, error) {
 	if fips140only.Enabled {
 		return nil, errors.New("crypto/rsa: use of PKCS#1 v1.5 encryption is not allowed in FIPS 140-only mode")
@@ -91,14 +100,17 @@ func EncryptPKCS1v15(random io.Reader, pub *PublicKey, msg []byte) ([]byte, erro
 	return rsa.Encrypt(fk, em)
 }
 
-// DecryptPKCS1v15 decrypts a plaintext using RSA and the padding scheme from PKCS #1 v1.5.
-// The random parameter is legacy and ignored, and it can be nil.
+// DecryptPKCS1v15 decrypts a plaintext using RSA and the padding scheme from
+// PKCS #1 v1.5. The random parameter is legacy and ignored, and it can be nil.
 //
-// Note that whether this function returns an error or not discloses secret
-// information. If an attacker can cause this function to run repeatedly and
-// learn whether each instance returned an error then they can decrypt and
-// forge signatures as if they had the private key. See
-// DecryptPKCS1v15SessionKey for a way of solving this problem.
+// Deprecated: PKCS #1 v1.5 encryption is dangerous and should not be used.
+// Whether this function returns an error or not discloses secret information.
+// If an attacker can cause this function to run repeatedly and learn whether
+// each instance returned an error then they can decrypt and forge signatures as
+// if they had the private key. See [draft-irtf-cfrg-rsa-guidance-05] for more
+// information. Use [EncryptOAEP] and [DecryptOAEP] instead.
+//
+// [draft-irtf-cfrg-rsa-guidance-05]: https://www.ietf.org/archive/id/draft-irtf-cfrg-rsa-guidance-05.html#name-rationale
 func DecryptPKCS1v15(random io.Reader, priv *PrivateKey, ciphertext []byte) ([]byte, error) {
 	if err := checkPublicKeySize(&priv.PublicKey); err != nil {
 		return nil, err
@@ -160,6 +172,13 @@ func DecryptPKCS1v15(random io.Reader, priv *PrivateKey, ciphertext []byte) ([]b
 //     Standard PKCS #1”, Daniel Bleichenbacher, Advances in Cryptology (Crypto '98)
 //   - [1] RFC 3218, Preventing the Million Message Attack on CMS,
 //     https://www.rfc-editor.org/rfc/rfc3218.html
+//
+// Deprecated: PKCS #1 v1.5 encryption is dangerous and should not be used. The
+// protections implemented by this function are limited and fragile, as
+// explained above. See [draft-irtf-cfrg-rsa-guidance-05] for more information.
+// Use [EncryptOAEP] and [DecryptOAEP] instead.
+//
+// [draft-irtf-cfrg-rsa-guidance-05]: https://www.ietf.org/archive/id/draft-irtf-cfrg-rsa-guidance-05.html#name-rationale
 func DecryptPKCS1v15SessionKey(random io.Reader, priv *PrivateKey, ciphertext []byte, key []byte) error {
 	if err := checkPublicKeySize(&priv.PublicKey); err != nil {
 		return err
