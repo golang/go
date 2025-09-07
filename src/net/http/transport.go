@@ -2359,13 +2359,27 @@ func (pc *persistConn) readLoop() {
 		}
 
 		waitForBodyRead := make(chan bool, 2)
+
 		body := &bodyEOFSignal{
 			body: resp.Body,
-			earlyCloseFn: func() error {
-				waitForBodyRead <- false
+			earlyCloseFn: func(r io.ReadCloser) error {
+				isEOF := false
+				if b, ok := r.(*body); ok {
+					if lr, ok := b.src.(*io.LimitedReader); ok {
+						if br, ok := (lr.R).(*bufio.Reader); ok {
+							if lr.N == int64(br.Buffered()) {
+								// if bufio.Reader buffer have all bytes remaining in LimitReader,
+								// discard the buffer then reuse connection, set EOF flag.
+								b.sawEOF = true
+								br.Discard(br.Buffered())
+								isEOF = true
+							}
+						}
+					}
+				}
+				waitForBodyRead <- isEOF
 				<-eofc // will be closed by deferred call at the end of the function
 				return nil
-
 			},
 			fn: func(err error) error {
 				isEOF := err == io.EOF
@@ -2981,11 +2995,11 @@ func canonicalAddr(url *url.URL) string {
 // the return value from Close.
 type bodyEOFSignal struct {
 	body         io.ReadCloser
-	mu           sync.Mutex        // guards following 4 fields
-	closed       bool              // whether Close has been called
-	rerr         error             // sticky Read error
-	fn           func(error) error // err will be nil on Read io.EOF
-	earlyCloseFn func() error      // optional alt Close func used if io.EOF not seen
+	mu           sync.Mutex                // guards following 4 fields
+	closed       bool                      // whether Close has been called
+	rerr         error                     // sticky Read error
+	fn           func(error) error         // err will be nil on Read io.EOF
+	earlyCloseFn func(io.ReadCloser) error // optional alt Close func used if io.EOF not seen
 }
 
 var errReadOnClosedResBody = errors.New("http: read on closed response body")
@@ -3022,7 +3036,7 @@ func (es *bodyEOFSignal) Close() error {
 	}
 	es.closed = true
 	if es.earlyCloseFn != nil && es.rerr != io.EOF {
-		return es.earlyCloseFn()
+		return es.earlyCloseFn(es.body)
 	}
 	err := es.body.Close()
 	return es.condfn(err)

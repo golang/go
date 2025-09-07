@@ -845,6 +845,7 @@ func testClientInsecureTransport(t *testing.T, mode testMode) {
 		if res != nil {
 			res.Body.Close()
 		}
+		c.CloseIdleConnections()
 	}
 
 	cst.close()
