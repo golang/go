@@ -121,7 +121,7 @@ func newDRBG[H fips140.Hash](hash func() H, entropy, nonce []byte, s personaliza
 //
 // This should only be used for ACVP testing. hmacDRBG is not intended to be
 // used directly.
-func TestingOnlyNewDRBG(hash func() fips140.Hash, entropy, nonce []byte, s []byte) *hmacDRBG {
+func TestingOnlyNewDRBG[H fips140.Hash](hash func() H, entropy, nonce []byte, s []byte) *hmacDRBG {
 	return newDRBG(hash, entropy, nonce, plainPersonalizationString(s))
 }
 
