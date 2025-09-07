@@ -85,7 +85,7 @@ func gofips140() string {
 }
 
 // isFIPSVersion reports whether v is a valid FIPS version,
-// of the form vX.Y.Z.
+// of the form vX.Y.Z or vX.Y.Z-hash.
 func isFIPSVersion(v string) bool {
 	if !strings.HasPrefix(v, "v") {
 		return false
@@ -99,7 +99,8 @@ func isFIPSVersion(v string) bool {
 		return false
 	}
 	v, ok = skipNum(v[len("."):])
-	return ok && v == ""
+	hasHash := strings.HasPrefix(v, "-") && len(v) == len("-")+8
+	return ok && (v == "" || hasHash)
 }
 
 // skipNum skips the leading text matching [0-9]+
