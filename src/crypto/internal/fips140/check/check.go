@@ -100,7 +100,7 @@ func init() {
 	clear(nbuf[:])
 	h.Reset()
 
-	if godebug.Value("fips140") == "debug" {
+	if godebug.Value("#fips140") == "debug" {
 		println("fips140: verified code+data")
 	}
 
