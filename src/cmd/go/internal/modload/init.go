@@ -2242,9 +2242,12 @@ func CheckGodebug(verb, k, v string) error {
 		}
 		return nil
 	}
-	for _, info := range godebugs.All {
-		if k == info.Name {
-			return nil
+	if godebugs.Lookup(k) != nil {
+		return nil
+	}
+	for _, info := range godebugs.Removed {
+		if info.Name == k {
+			return fmt.Errorf("use of removed %s %q, see https://go.dev/doc/godebug#go-1%v", verb, k, info.Removed)
 		}
 	}
 	return fmt.Errorf("unknown %s %q", verb, k)
