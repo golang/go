@@ -444,25 +444,59 @@ func BenchmarkParsePAXTIme(b *testing.B) {
 	tests := []struct {
 		name string
 		in   string
+		want time.Time
 		ok   bool
 	}{
-		{"NoNanos", "123456", true},
-		{"ExactNanos", "1.123456789", true},
-		{"WithNanoPadding", "1.123", true},
-		{"WithNanoTruncate", "1.123456789123", true},
-		{"TrailingError", "1.123abc", false},
-		{"LeadingError", "1.abc123", false},
+		{
+			name: "NoNanos",
+			in:   "123456",
+			want: time.Unix(123456, 0),
+			ok:   true,
+		},
+		{
+			name: "ExactNanos",
+			in:   "1.123456789",
+			want: time.Unix(1, 123456789),
+			ok:   true,
+		},
+		{
+			name: "WithNanoPadding",
+			in:   "1.123",
+			want: time.Unix(1, 123000000),
+			ok:   true,
+		},
+		{
+			name: "WithNanoTruncate",
+			in:   "1.123456789123",
+			want: time.Unix(1, 123456789),
+			ok:   true,
+		},
+		{
+			name: "TrailingError",
+			in:   "1.123abc",
+			want: time.Time{},
+			ok:   false,
+		},
+		{
+			name: "LeadingError",
+			in:   "1.abc123",
+			want: time.Time{},
+			ok:   false,
+		},
 	}
 	for _, tt := range tests {
 		b.Run(tt.name, func(b *testing.B) {
 			b.ReportAllocs()
 			for b.Loop() {
-				_, err := parsePAXTime(tt.in)
+				ts, err := parsePAXTime(tt.in)
 				if (err == nil) != tt.ok {
 					if err != nil {
 						b.Fatal(err)
 					}
 					b.Fatal("expected error")
+				}
+				if !ts.Equal(tt.want) {
+					b.Fatalf("time mismatch: got %v, want %v", ts, tt.want)
 				}
 			}
 		})
