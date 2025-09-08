@@ -3298,6 +3298,68 @@ func (x Float64x4) IsNan(y Float64x4) Mask64x4
 // Asm: VCMPPD, CPU Feature: AVX512
 func (x Float64x8) IsNan(y Float64x8) Mask64x8
 
+/* LeadingZeros */
+
+// LeadingZeros counts the leading zeros of each element in x.
+//
+// Asm: VPLZCNTD, CPU Feature: AVX512
+func (x Int32x4) LeadingZeros() Int32x4
+
+// LeadingZeros counts the leading zeros of each element in x.
+//
+// Asm: VPLZCNTD, CPU Feature: AVX512
+func (x Int32x8) LeadingZeros() Int32x8
+
+// LeadingZeros counts the leading zeros of each element in x.
+//
+// Asm: VPLZCNTD, CPU Feature: AVX512
+func (x Int32x16) LeadingZeros() Int32x16
+
+// LeadingZeros counts the leading zeros of each element in x.
+//
+// Asm: VPLZCNTQ, CPU Feature: AVX512
+func (x Int64x2) LeadingZeros() Int64x2
+
+// LeadingZeros counts the leading zeros of each element in x.
+//
+// Asm: VPLZCNTQ, CPU Feature: AVX512
+func (x Int64x4) LeadingZeros() Int64x4
+
+// LeadingZeros counts the leading zeros of each element in x.
+//
+// Asm: VPLZCNTQ, CPU Feature: AVX512
+func (x Int64x8) LeadingZeros() Int64x8
+
+// LeadingZeros counts the leading zeros of each element in x.
+//
+// Asm: VPLZCNTD, CPU Feature: AVX512
+func (x Uint32x4) LeadingZeros() Uint32x4
+
+// LeadingZeros counts the leading zeros of each element in x.
+//
+// Asm: VPLZCNTD, CPU Feature: AVX512
+func (x Uint32x8) LeadingZeros() Uint32x8
+
+// LeadingZeros counts the leading zeros of each element in x.
+//
+// Asm: VPLZCNTD, CPU Feature: AVX512
+func (x Uint32x16) LeadingZeros() Uint32x16
+
+// LeadingZeros counts the leading zeros of each element in x.
+//
+// Asm: VPLZCNTQ, CPU Feature: AVX512
+func (x Uint64x2) LeadingZeros() Uint64x2
+
+// LeadingZeros counts the leading zeros of each element in x.
+//
+// Asm: VPLZCNTQ, CPU Feature: AVX512
+func (x Uint64x4) LeadingZeros() Uint64x4
+
+// LeadingZeros counts the leading zeros of each element in x.
+//
+// Asm: VPLZCNTQ, CPU Feature: AVX512
+func (x Uint64x8) LeadingZeros() Uint64x8
+
 /* Less */
 
 // Less compares for less than.

@@ -2489,6 +2489,42 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpIsNonNil(v)
 	case OpIsSliceInBounds:
 		return rewriteValueAMD64_OpIsSliceInBounds(v)
+	case OpLeadingZerosInt32x16:
+		v.Op = OpAMD64VPLZCNTD512
+		return true
+	case OpLeadingZerosInt32x4:
+		v.Op = OpAMD64VPLZCNTD128
+		return true
+	case OpLeadingZerosInt32x8:
+		v.Op = OpAMD64VPLZCNTD256
+		return true
+	case OpLeadingZerosInt64x2:
+		v.Op = OpAMD64VPLZCNTQ128
+		return true
+	case OpLeadingZerosInt64x4:
+		v.Op = OpAMD64VPLZCNTQ256
+		return true
+	case OpLeadingZerosInt64x8:
+		v.Op = OpAMD64VPLZCNTQ512
+		return true
+	case OpLeadingZerosUint32x16:
+		v.Op = OpAMD64VPLZCNTD512
+		return true
+	case OpLeadingZerosUint32x4:
+		v.Op = OpAMD64VPLZCNTD128
+		return true
+	case OpLeadingZerosUint32x8:
+		v.Op = OpAMD64VPLZCNTD256
+		return true
+	case OpLeadingZerosUint64x2:
+		v.Op = OpAMD64VPLZCNTQ128
+		return true
+	case OpLeadingZerosUint64x4:
+		v.Op = OpAMD64VPLZCNTQ256
+		return true
+	case OpLeadingZerosUint64x8:
+		v.Op = OpAMD64VPLZCNTQ512
+		return true
 	case OpLeq16:
 		return rewriteValueAMD64_OpLeq16(v)
 	case OpLeq16U:
@@ -27364,6 +27400,18 @@ func rewriteValueAMD64_OpAMD64VMOVDQU32Masked512(v *Value) bool {
 		v.AddArg3(x, y, mask)
 		return true
 	}
+	// match: (VMOVDQU32Masked512 (VPLZCNTD512 x) mask)
+	// result: (VPLZCNTDMasked512 x mask)
+	for {
+		if v_0.Op != OpAMD64VPLZCNTD512 {
+			break
+		}
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPLZCNTDMasked512)
+		v.AddArg2(x, mask)
+		return true
+	}
 	// match: (VMOVDQU32Masked512 (VMAXPS512 x y) mask)
 	// result: (VMAXPSMasked512 x y mask)
 	for {
@@ -28055,6 +28103,18 @@ func rewriteValueAMD64_OpAMD64VMOVDQU64Masked512(v *Value) bool {
 		mask := v_1
 		v.reset(OpAMD64VDIVPDMasked512)
 		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (VMOVDQU64Masked512 (VPLZCNTQ512 x) mask)
+	// result: (VPLZCNTQMasked512 x mask)
+	for {
+		if v_0.Op != OpAMD64VPLZCNTQ512 {
+			break
+		}
+		x := v_0.Args[0]
+		mask := v_1
+		v.reset(OpAMD64VPLZCNTQMasked512)
+		v.AddArg2(x, mask)
 		return true
 	}
 	// match: (VMOVDQU64Masked512 (VMAXPD512 x y) mask)

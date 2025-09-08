@@ -540,3 +540,20 @@ func TestClearAVXUpperBits(t *testing.T) {
 	checkSlices[int64](t, r, []int64{11, 22, 33, 44})
 	checkSlices[int64](t, s, []int64{9, 18, 27, 36})
 }
+
+func TestLeadingZeros(t *testing.T) {
+	if !simd.HasAVX512() {
+		t.Skip("Test requires HasAVX512, not available on this hardware")
+		return
+	}
+
+	src := []uint64{0b1111, 0}
+	want := []uint64{60, 64}
+	got := make([]uint64, 2)
+	simd.LoadUint64x2Slice(src).LeadingZeros().StoreSlice(got)
+	for i := range 2 {
+		if want[i] != got[i] {
+			t.Errorf("Result incorrect at %d: want %d, got %d", i, want[i], got[i])
+		}
+	}
+}

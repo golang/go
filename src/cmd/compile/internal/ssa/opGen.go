@@ -1682,6 +1682,18 @@ const (
 	OpAMD64VPHSUBSW256
 	OpAMD64VPHSUBW128
 	OpAMD64VPHSUBW256
+	OpAMD64VPLZCNTD128
+	OpAMD64VPLZCNTD256
+	OpAMD64VPLZCNTD512
+	OpAMD64VPLZCNTDMasked128
+	OpAMD64VPLZCNTDMasked256
+	OpAMD64VPLZCNTDMasked512
+	OpAMD64VPLZCNTQ128
+	OpAMD64VPLZCNTQ256
+	OpAMD64VPLZCNTQ512
+	OpAMD64VPLZCNTQMasked128
+	OpAMD64VPLZCNTQMasked256
+	OpAMD64VPLZCNTQMasked512
 	OpAMD64VPMADDUBSW128
 	OpAMD64VPMADDUBSW256
 	OpAMD64VPMADDUBSW512
@@ -5343,6 +5355,18 @@ const (
 	OpIsNanFloat64x2
 	OpIsNanFloat64x4
 	OpIsNanFloat64x8
+	OpLeadingZerosInt32x4
+	OpLeadingZerosInt32x8
+	OpLeadingZerosInt32x16
+	OpLeadingZerosInt64x2
+	OpLeadingZerosInt64x4
+	OpLeadingZerosInt64x8
+	OpLeadingZerosUint32x4
+	OpLeadingZerosUint32x8
+	OpLeadingZerosUint32x16
+	OpLeadingZerosUint64x2
+	OpLeadingZerosUint64x4
+	OpLeadingZerosUint64x8
 	OpLessEqualFloat32x4
 	OpLessEqualFloat32x8
 	OpLessEqualFloat32x16
@@ -25894,6 +25918,168 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPLZCNTD128",
+		argLen: 1,
+		asm:    x86.AVPLZCNTD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPLZCNTD256",
+		argLen: 1,
+		asm:    x86.AVPLZCNTD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPLZCNTD512",
+		argLen: 1,
+		asm:    x86.AVPLZCNTD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPLZCNTDMasked128",
+		argLen: 2,
+		asm:    x86.AVPLZCNTD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPLZCNTDMasked256",
+		argLen: 2,
+		asm:    x86.AVPLZCNTD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPLZCNTDMasked512",
+		argLen: 2,
+		asm:    x86.AVPLZCNTD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPLZCNTQ128",
+		argLen: 1,
+		asm:    x86.AVPLZCNTQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPLZCNTQ256",
+		argLen: 1,
+		asm:    x86.AVPLZCNTQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPLZCNTQ512",
+		argLen: 1,
+		asm:    x86.AVPLZCNTQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPLZCNTQMasked128",
+		argLen: 2,
+		asm:    x86.AVPLZCNTQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPLZCNTQMasked256",
+		argLen: 2,
+		asm:    x86.AVPLZCNTQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPLZCNTQMasked512",
+		argLen: 2,
+		asm:    x86.AVPLZCNTQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
 			},
 		},
 	},
@@ -68571,6 +68757,66 @@ var opcodeTable = [...]opInfo{
 		argLen:      2,
 		commutative: true,
 		generic:     true,
+	},
+	{
+		name:    "LeadingZerosInt32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "LeadingZerosInt32x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "LeadingZerosInt32x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "LeadingZerosInt64x2",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "LeadingZerosInt64x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "LeadingZerosInt64x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "LeadingZerosUint32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "LeadingZerosUint32x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "LeadingZerosUint32x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "LeadingZerosUint64x2",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "LeadingZerosUint64x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "LeadingZerosUint64x8",
+		argLen:  1,
+		generic: true,
 	},
 	{
 		name:    "LessEqualFloat32x4",

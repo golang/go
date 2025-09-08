@@ -1,0 +1,8 @@
+!sum
+- go: LeadingZeros
+  asm: "VPLZCNT[DQ]"
+  in:
+  - &any
+    go: $t
+  out:
+  - *any

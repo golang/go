@@ -1,0 +1,5 @@
+!sum
+- go: LeadingZeros
+  commutative: false
+  documentation: !string |-
+    // NAME counts the leading zeros of each element in x.
