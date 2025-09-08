@@ -77,6 +77,13 @@ func (f *File) spliceToFile(r io.Reader) (written int64, handled bool, err error
 		return
 	}
 
+	// Don't use splice to a pipe, since it can lead to a busy loop if the reader is not reading.
+	// See issue 75304.
+	var stat syscall.Stat_t
+	if err := syscall.Fstat(int(f.pfd.Sysfd), &stat); err == nil && stat.Mode&syscall.S_IFMT == syscall.S_IFIFO {
+		return 0, false, nil
+	}
+
 	written, handled, err = pollSplice(&f.pfd, pfd, remain)
 
 	if lr != nil {
