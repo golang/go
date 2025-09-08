@@ -80,6 +80,7 @@ import (
 	"cmp"
 	"fmt"
 	"internal/abi"
+	"internal/goexperiment"
 	"internal/profilerecord"
 	"io"
 	"runtime"
@@ -284,6 +285,13 @@ func Profiles() []*Profile {
 
 	all := make([]*Profile, 0, len(profiles.m))
 	for _, p := range profiles.m {
+		// Do not list the goroutine leak profile if the experiment is disabled.
+		//
+		// TODO(vsaioc): Remove this once the goroutine leak profiler is no longer experimental.
+		if !goexperiment.GoleakProfiler && p.Name() == "goroutineleak" {
+			continue
+		}
+
 		all = append(all, p)
 	}
 

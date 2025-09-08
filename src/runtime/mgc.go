@@ -396,7 +396,7 @@ type workType struct {
 		//
 		// Protected by STW.
 		done bool
-		// The number of leaked goroutines during the last leak detectionGC cycle.
+		// The number of leaked goroutines during the last leak detection GC cycle.
 		//
 		// Write-protected by STW in findGoleaks.
 		leakCount int
