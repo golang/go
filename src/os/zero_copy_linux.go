@@ -80,8 +80,8 @@ func (f *File) spliceToFile(r io.Reader) (written int64, handled bool, err error
 	// Don't use splice to a pipe, since it can lead to a busy loop if the
 	// reader is not reading.
 	// See issue 68303.
-	fi, err := f.Stat()
-	if err == nil && fi.Mode()&ModeNamedPipe != 0 {
+	var stat syscall.Stat_t
+	if err := syscall.Fstat(int(f.pfd.Sysfd), &stat); err == nil && stat.Mode&syscall.S_IFMT == syscall.S_IFIFO {
 		return 0, false, nil
 	}
 
