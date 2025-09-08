@@ -22,6 +22,9 @@ type tplRuleData struct {
 	MaskInConvert  string // e.g. "VPMOVVec32x8ToM"
 	MaskOutConvert string // e.g. "VPMOVMToVec32x8"
 	ElementSize    int    // e.g. 32
+	Size           int    // e.g. 128
+	ArgsLoadAddr   string // [Args] with its last vreg arg being a concrete "(VMOVDQUload* ptr mem)", and might contain mask.
+	ArgsAddr       string // [Args] with its last vreg arg being replaced by "ptr", and might contain mask, and with a "mem" at the end.
 }
 
 var (
@@ -37,6 +40,8 @@ var (
 {{define "sftimm"}}({{.Asm}} x (MOVQconst [c])) => ({{.Asm}}const [uint8(c)] x)
 {{end}}
 {{define "masksftimm"}}({{.Asm}} x (MOVQconst [c]) mask) => ({{.Asm}}const [uint8(c)] x mask)
+{{end}}
+{{define "vregMem"}}({{.Asm}} {{.ArgsLoadAddr}}) && canMergeLoad(v, l) && clobber(l) => ({{.Asm}}load {{.ArgsAddr}})
 {{end}}
 `))
 )
@@ -85,6 +90,7 @@ var tmplOrder = map[string]int{
 	"maskOut":       3,
 	"maskIn":        4,
 	"pureVreg":      5,
+	"vregMem":       6,
 }
 
 func compareTplRuleData(x, y tplRuleData) int {
@@ -118,7 +124,9 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 	buffer.WriteString(generatedHeader + "\n")
 
 	var allData []tplRuleData
-	var optData []tplRuleData // for peephole optimizations
+	var optData []tplRuleData    // for mask peephole optimizations, and other misc
+	var memOptData []tplRuleData // for memory peephole optimizations
+	memOpSeen := make(map[string]bool)
 
 	for _, opr := range ops {
 		opInShape, opOutShape, maskType, immType, gOp := opr.shape()
@@ -228,6 +236,39 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 				panic("simdgen sees unknwon special lower " + *gOp.SpecialLower + ", maybe implement it?")
 			}
 		}
+		if gOp.MemFeatures != nil && *gOp.MemFeatures == "vbcst" && immType == NoImm {
+			// sanity check
+			selected := true
+			for _, a := range gOp.In {
+				if a.TreatLikeAScalarOfSize != nil {
+					selected = false
+					break
+				}
+			}
+			if _, ok := memOpSeen[data.Asm]; ok {
+				selected = false
+			}
+			if selected {
+				memOpSeen[data.Asm] = true
+				lastVreg := gOp.In[vregInCnt-1]
+				// sanity check
+				if lastVreg.Class != "vreg" {
+					panic(fmt.Errorf("simdgen expects vbcst replaced operand to be a vreg, but %v found", lastVreg))
+				}
+				memOpData := data
+				// Remove the last vreg from the arg and change it to a load.
+				memOpData.ArgsLoadAddr = data.Args[:len(data.Args)-1] + fmt.Sprintf("l:(VMOVDQUload%d {sym} [off] ptr mem)", *lastVreg.Bits)
+				// Remove the last vreg from the arg and change it to "ptr".
+				memOpData.ArgsAddr = "{sym} [off] " + data.Args[:len(data.Args)-1] + "ptr"
+				if maskType == OneMask {
+					memOpData.ArgsAddr += " mask"
+					memOpData.ArgsLoadAddr += " mask"
+				}
+				memOpData.ArgsAddr += " mem"
+				memOpData.tplName = "vregMem"
+				memOptData = append(memOptData, memOpData)
+			}
+		}
 
 		if tplName == "pureVreg" && data.Args == data.ArgsOut {
 			data.Args = "..."
@@ -259,6 +300,12 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 			}
 			seen[rule] = true
 			buffer.WriteString(rule)
+		}
+	}
+
+	for _, data := range memOptData {
+		if err := ruleTemplates.ExecuteTemplate(buffer, data.tplName, data); err != nil {
+			panic(fmt.Errorf("failed to execute template %s for %s: %w", data.tplName, data.Asm, err))
 		}
 	}
 
