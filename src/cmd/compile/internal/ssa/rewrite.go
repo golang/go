@@ -6,9 +6,11 @@ package ssa
 
 import (
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/rttype"
+	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/s390x"
@@ -2743,4 +2745,8 @@ func panicBoundsCToAux(p PanicBoundsC) Aux {
 }
 func panicBoundsCCToAux(p PanicBoundsCC) Aux {
 	return p
+}
+
+func isDictArgSym(sym Sym) bool {
+	return sym.(*ir.Name).Sym().Name == typecheck.LocalDictName
 }

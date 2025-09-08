@@ -21393,6 +21393,21 @@ func rewriteValuegeneric_OpNilCheck(v *Value) bool {
 		v.copyOf(ptr)
 		return true
 	}
+	// match: (NilCheck ptr:(Arg {sym}) _)
+	// cond: isDictArgSym(sym)
+	// result: ptr
+	for {
+		ptr := v_0
+		if ptr.Op != OpArg {
+			break
+		}
+		sym := auxToSym(ptr.Aux)
+		if !(isDictArgSym(sym)) {
+			break
+		}
+		v.copyOf(ptr)
+		return true
+	}
 	// match: (NilCheck ptr:(NilCheck _ _) _ )
 	// result: ptr
 	for {

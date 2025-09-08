@@ -2079,6 +2079,9 @@
 	&& warnRule(fe.Debug_checknil(), v, "removed nil check")
 	=> ptr
 
+// .dict args are always non-nil.
+(NilCheck ptr:(Arg {sym}) _) && isDictArgSym(sym) => ptr
+
 // Nil checks of nil checks are redundant.
 // See comment at the end of https://go-review.googlesource.com/c/go/+/537775.
 (NilCheck ptr:(NilCheck _ _) _ ) => ptr
