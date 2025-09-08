@@ -324,6 +324,8 @@ func rewriteValueLOONG64(v *Value) bool {
 		return rewriteValueLOONG64_OpLOONG64ADDV(v)
 	case OpLOONG64ADDVconst:
 		return rewriteValueLOONG64_OpLOONG64ADDVconst(v)
+	case OpLOONG64ADDshiftLLV:
+		return rewriteValueLOONG64_OpLOONG64ADDshiftLLV(v)
 	case OpLOONG64AND:
 		return rewriteValueLOONG64_OpLOONG64AND(v)
 	case OpLOONG64ANDconst:
@@ -2019,6 +2021,29 @@ func rewriteValueLOONG64_OpLOONG64ADDVconst(v *Value) bool {
 		}
 		v.reset(OpLOONG64ADDV16const)
 		v.AuxInt = int64ToAuxInt(c)
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueLOONG64_OpLOONG64ADDshiftLLV(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (ADDshiftLLV x (MOVVconst [c]) [d])
+	// cond: is12Bit(c<<d)
+	// result: (ADDVconst x [c<<d])
+	for {
+		d := auxIntToInt64(v.AuxInt)
+		x := v_0
+		if v_1.Op != OpLOONG64MOVVconst {
+			break
+		}
+		c := auxIntToInt64(v_1.AuxInt)
+		if !(is12Bit(c << d)) {
+			break
+		}
+		v.reset(OpLOONG64ADDVconst)
+		v.AuxInt = int64ToAuxInt(c << d)
 		v.AddArg(x)
 		return true
 	}

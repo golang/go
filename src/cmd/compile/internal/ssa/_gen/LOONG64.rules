@@ -730,6 +730,9 @@
 
 (ADDV x0 x1:(SLLVconst [c] y)) && x1.Uses == 1 && c > 0 && c <= 4 => (ADDshiftLLV x0 y [c])
 
+// fold constant in ADDshift op
+(ADDshiftLLV x (MOVVconst [c]) [d]) && is12Bit(c<<d) => (ADDVconst x [c<<d])
+
 // div by constant
 (DIVVU x (MOVVconst [1])) => x
 (DIVVU x (MOVVconst [c])) && isPowerOfTwo(c) => (SRLVconst [log64(c)] x)
