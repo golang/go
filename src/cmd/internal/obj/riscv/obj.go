@@ -2785,6 +2785,48 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	AECALL & obj.AMask:  {enc: iIIEncoding},
 	AEBREAK & obj.AMask: {enc: iIIEncoding},
 
+	//10.0 "Zimop" Extension for May-Be-Operations,
+	AMOPR0 & obj.AMask:  {enc: iIIEncoding},
+	AMOPR1 & obj.AMask:  {enc: iIIEncoding},
+	AMOPR2 & obj.AMask:  {enc: iIIEncoding},
+	AMOPR3 & obj.AMask:  {enc: iIIEncoding},
+	AMOPR4 & obj.AMask:  {enc: iIIEncoding},
+	AMOPR5 & obj.AMask:  {enc: iIIEncoding},
+	AMOPR6 & obj.AMask:  {enc: iIIEncoding},
+	AMOPR7 & obj.AMask:  {enc: iIIEncoding},
+	AMOPR8 & obj.AMask:  {enc: iIIEncoding},
+	AMOPR9 & obj.AMask:  {enc: iIIEncoding},
+	AMOPR10 & obj.AMask: {enc: iIIEncoding},
+	AMOPR11 & obj.AMask: {enc: iIIEncoding},
+	AMOPR12 & obj.AMask: {enc: iIIEncoding},
+	AMOPR13 & obj.AMask: {enc: iIIEncoding},
+	AMOPR14 & obj.AMask: {enc: iIIEncoding},
+	AMOPR15 & obj.AMask: {enc: iIIEncoding},
+	AMOPR16 & obj.AMask: {enc: iIIEncoding},
+	AMOPR17 & obj.AMask: {enc: iIIEncoding},
+	AMOPR18 & obj.AMask: {enc: iIIEncoding},
+	AMOPR19 & obj.AMask: {enc: iIIEncoding},
+	AMOPR20 & obj.AMask: {enc: iIIEncoding},
+	AMOPR21 & obj.AMask: {enc: iIIEncoding},
+	AMOPR22 & obj.AMask: {enc: iIIEncoding},
+	AMOPR23 & obj.AMask: {enc: iIIEncoding},
+	AMOPR24 & obj.AMask: {enc: iIIEncoding},
+	AMOPR25 & obj.AMask: {enc: iIIEncoding},
+	AMOPR26 & obj.AMask: {enc: iIIEncoding},
+	AMOPR27 & obj.AMask: {enc: iIIEncoding},
+	AMOPR28 & obj.AMask: {enc: iIIEncoding},
+	AMOPR29 & obj.AMask: {enc: iIIEncoding},
+	AMOPR30 & obj.AMask: {enc: iIIEncoding},
+	AMOPR31 & obj.AMask: {enc: iIIEncoding},
+	AMOPRR0 & obj.AMask: {enc: rIIIEncoding},
+	AMOPRR1 & obj.AMask: {enc: rIIIEncoding},
+	AMOPRR2 & obj.AMask: {enc: rIIIEncoding},
+	AMOPRR3 & obj.AMask: {enc: rIIIEncoding},
+	AMOPRR4 & obj.AMask: {enc: rIIIEncoding},
+	AMOPRR5 & obj.AMask: {enc: rIIIEncoding},
+	AMOPRR6 & obj.AMask: {enc: rIIIEncoding},
+	AMOPRR7 & obj.AMask: {enc: rIIIEncoding},
+
 	// Escape hatch
 	AWORD & obj.AMask: {enc: rawEncoding},
 
@@ -3508,6 +3550,32 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		}
 		ins.rs1 = REG_ZERO
 		ins.imm = insEnc.csr
+	
+	case AMOPR0, AMOPR1, AMOPR2, AMOPR3, AMOPR4, AMOPR5, AMOPR6, AMOPR7, AMOPR8, AMOPR9, AMOPR10, AMOPR11, AMOPR12, 
+		AMOPR13, AMOPR14, AMOPR15, AMOPR16, AMOPR17, AMOPR18, AMOPR19, AMOPR20, AMOPR21, AMOPR22, AMOPR23, AMOPR24,
+		AMOPR25, AMOPR26, AMOPR27, AMOPR28, AMOPR29, AMOPR30, AMOPR31:
+		//MOP.R.N [31:20] represent its func, and located imm field. 
+		//range [30][27:26][21:20] specify N, others are fixed.
+		immBase := uint32(0x81c) //others fixed
+		num := uint32(ins.as - AMOPR0) // N
+		numBit := extractBitAndShift(num, 4, 10)
+		numBit |= extractBitAndShift(num, 3, 7)
+		numBit |= extractBitAndShift(num, 2, 6)
+		numBit |= extractBitAndShift(num, 1, 1)
+		numBit |= extractBitAndShift(num, 0, 0)
+		ins.rd, ins.rs1, ins.rs2 = uint32(p.To.Reg), uint32(p.From.Reg), obj.REG_NONE
+		ins.imm = int64(-1) << 12 | int64(immBase | numBit)
+	
+	case AMOPRR0, AMOPRR1, AMOPRR2, AMOPRR3, AMOPRR4, AMOPRR5, AMOPRR6, AMOPRR7:
+		//mopN := encode(p.As)
+		//MOP.RR.N [31:25] represent its func7. 
+		//range [30][27:26] specify N, others are fixed.
+		immBase := uint32(0x41) //others fixed
+		num := uint32(ins.as - AMOPRR0) // N
+		numBit := extractBitAndShift(num, 2, 5)
+		numBit |= extractBitAndShift(num, 1, 2)
+		numBit |= extractBitAndShift(num, 0, 1)
+		ins.funct7 = immBase | numBit
 
 	case ARDCYCLE, ARDTIME, ARDINSTRET:
 		ins.as = ACSRRS

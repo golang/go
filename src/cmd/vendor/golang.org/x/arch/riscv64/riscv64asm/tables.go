@@ -312,6 +312,46 @@ const (
 	MAXU
 	MIN
 	MINU
+	MOP_R_0
+	MOP_R_1
+	MOP_R_2
+	MOP_R_3
+	MOP_R_4
+	MOP_R_5
+	MOP_R_6
+	MOP_R_7
+	MOP_R_8
+	MOP_R_9
+	MOP_R_10
+	MOP_R_11
+	MOP_R_12
+	MOP_R_13
+	MOP_R_14
+	MOP_R_15
+	MOP_R_16
+	MOP_R_17
+	MOP_R_18
+	MOP_R_19
+	MOP_R_20
+	MOP_R_21
+	MOP_R_22
+	MOP_R_23
+	MOP_R_24
+	MOP_R_25
+	MOP_R_26
+	MOP_R_27
+	MOP_R_28
+	MOP_R_29
+	MOP_R_30
+	MOP_R_31
+	MOP_RR_0
+	MOP_RR_1
+	MOP_RR_2
+	MOP_RR_3
+	MOP_RR_4
+	MOP_RR_5
+	MOP_RR_6
+	MOP_RR_7
 	MUL
 	MULH
 	MULHSU
@@ -681,6 +721,46 @@ var opstr = [...]string{
 	MAXU:           "MAXU",
 	MIN:            "MIN",
 	MINU:           "MINU",
+	MOP_R_0:        "MOP.R.0",
+	MOP_R_1:        "MOP.R.1",
+	MOP_R_2:        "MOP.R.2",
+	MOP_R_3:        "MOP.R.3",
+	MOP_R_4:        "MOP.R.4",
+	MOP_R_5:        "MOP.R.5",
+	MOP_R_6:        "MOP.R.6",
+	MOP_R_7:        "MOP.R.7",
+	MOP_R_8:        "MOP.R.8",
+	MOP_R_9:        "MOP.R.9",
+	MOP_R_10:       "MOP.R.10",
+	MOP_R_11:       "MOP.R.11",
+	MOP_R_12:       "MOP.R.12",
+	MOP_R_13:       "MOP.R.13",
+	MOP_R_14:       "MOP.R.14",
+	MOP_R_15:       "MOP.R.15",
+	MOP_R_16:       "MOP.R.16",
+	MOP_R_17:       "MOP.R.17",
+	MOP_R_18:       "MOP.R.18",
+	MOP_R_19:       "MOP.R.19",
+	MOP_R_20:       "MOP.R.20",
+	MOP_R_21:       "MOP.R.21",
+	MOP_R_22:       "MOP.R.22",
+	MOP_R_23:       "MOP.R.23",
+	MOP_R_24:       "MOP.R.24",
+	MOP_R_25:       "MOP.R.25",
+	MOP_R_26:       "MOP.R.26",
+	MOP_R_27:       "MOP.R.27",
+	MOP_R_28:       "MOP.R.28",
+	MOP_R_29:       "MOP.R.29",
+	MOP_R_30:       "MOP.R.30",
+	MOP_R_31:       "MOP.R.31",
+	MOP_RR_0:       "MOP.RR.0",
+	MOP_RR_1:       "MOP.RR.1",
+	MOP_RR_2:       "MOP.RR.2",
+	MOP_RR_3:       "MOP.RR.3",
+	MOP_RR_4:       "MOP.RR.4",
+	MOP_RR_5:       "MOP.RR.5",
+	MOP_RR_6:       "MOP.RR.6",
+	MOP_RR_7:       "MOP.RR.7",
 	MUL:            "MUL",
 	MULH:           "MULH",
 	MULHSU:         "MULHSU",
@@ -1353,6 +1433,48 @@ var instFormats = [...]instFormat{
 	{mask: 0xfe00707f, value: 0x0a004033, op: MIN, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
 	// MINU rd, rs1, rs2
 	{mask: 0xfe00707f, value: 0x0a005033, op: MINU, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
+	// MOP.R.N rd, rs1
+	{mask: 0xfff0707f, value: 0x81c04073, op: MOP_R_0, args: argTypeList{arg_rd, arg_rs1}},
+	{mask: 0xfff0707f, value: 0x81d04073, op: MOP_R_1, args: argTypeList{arg_rd, arg_rs1}},
+	{mask: 0xfff0707f, value: 0x81e04073, op: MOP_R_2, args: argTypeList{arg_rd, arg_rs1}},
+	{mask: 0xfff0707f, value: 0x81f04073, op: MOP_R_3, args: argTypeList{arg_rd, arg_rs1}},
+	{mask: 0xfff0707f, value: 0x85c04073, op: MOP_R_4, args: argTypeList{arg_rd, arg_rs1}},
+	{mask: 0xfff0707f, value: 0x85d04073, op: MOP_R_5, args: argTypeList{arg_rd, arg_rs1}},
+	{mask: 0xfff0707f, value: 0x85e04073, op: MOP_R_6, args: argTypeList{arg_rd, arg_rs1}},
+	{mask: 0xfff0707f, value: 0x85f04073, op: MOP_R_7, args: argTypeList{arg_rd, arg_rs1}},
+	{mask: 0xfff0707f, value: 0x89c04073, op: MOP_R_8, args: argTypeList{arg_rd, arg_rs1}},
+	{mask: 0xfff0707f, value: 0x89d04073, op: MOP_R_9, args: argTypeList{arg_rd, arg_rs1}},
+	{mask: 0xfff0707f, value: 0x89e04073, op: MOP_R_10, args: argTypeList{arg_rd, arg_rs1}},
+	{mask: 0xfff0707f, value: 0x89f04073, op: MOP_R_11, args: argTypeList{arg_rd, arg_rs1}},
+	{mask: 0xfff0707f, value: 0x8dc04073, op: MOP_R_12, args: argTypeList{arg_rd, arg_rs1}},
+	{mask: 0xfff0707f, value: 0x8dd04073, op: MOP_R_13, args: argTypeList{arg_rd, arg_rs1}},
+	{mask: 0xfff0707f, value: 0x8de04073, op: MOP_R_14, args: argTypeList{arg_rd, arg_rs1}},
+	{mask: 0xfff0707f, value: 0x8df04073, op: MOP_R_15, args: argTypeList{arg_rd, arg_rs1}},
+	{mask: 0xfff0707f, value: 0xc1c04073, op: MOP_R_16, args: argTypeList{arg_rd, arg_rs1}},
+	{mask: 0xfff0707f, value: 0xc1d04073, op: MOP_R_17, args: argTypeList{arg_rd, arg_rs1}},
+	{mask: 0xfff0707f, value: 0xc1e04073, op: MOP_R_18, args: argTypeList{arg_rd, arg_rs1}},
+	{mask: 0xfff0707f, value: 0xc1f04073, op: MOP_R_19, args: argTypeList{arg_rd, arg_rs1}},
+	{mask: 0xfff0707f, value: 0xc5c04073, op: MOP_R_20, args: argTypeList{arg_rd, arg_rs1}},
+	{mask: 0xfff0707f, value: 0xc5d04073, op: MOP_R_21, args: argTypeList{arg_rd, arg_rs1}},
+	{mask: 0xfff0707f, value: 0xc5e04073, op: MOP_R_22, args: argTypeList{arg_rd, arg_rs1}},
+	{mask: 0xfff0707f, value: 0xc5f04073, op: MOP_R_23, args: argTypeList{arg_rd, arg_rs1}},
+	{mask: 0xfff0707f, value: 0xc9c04073, op: MOP_R_24, args: argTypeList{arg_rd, arg_rs1}},
+	{mask: 0xfff0707f, value: 0xc9d04073, op: MOP_R_25, args: argTypeList{arg_rd, arg_rs1}},
+	{mask: 0xfff0707f, value: 0xc9e04073, op: MOP_R_26, args: argTypeList{arg_rd, arg_rs1}},
+	{mask: 0xfff0707f, value: 0xc9f04073, op: MOP_R_27, args: argTypeList{arg_rd, arg_rs1}},
+	{mask: 0xfff0707f, value: 0xcdc04073, op: MOP_R_28, args: argTypeList{arg_rd, arg_rs1}},
+	{mask: 0xfff0707f, value: 0xcdd04073, op: MOP_R_29, args: argTypeList{arg_rd, arg_rs1}},
+	{mask: 0xfff0707f, value: 0xcde04073, op: MOP_R_30, args: argTypeList{arg_rd, arg_rs1}},
+	{mask: 0xfff0707f, value: 0xcdf04073, op: MOP_R_31, args: argTypeList{arg_rd, arg_rs1}},
+	// MOP.RR.N rd, rs1, rs2
+	{mask: 0xfe00707f, value: 0x82004073, op: MOP_RR_0, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
+	{mask: 0xfe00707f, value: 0x86004073, op: MOP_RR_1, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
+	{mask: 0xfe00707f, value: 0x8a004073, op: MOP_RR_2, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
+	{mask: 0xfe00707f, value: 0x8e004073, op: MOP_RR_3, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
+	{mask: 0xfe00707f, value: 0xc2004073, op: MOP_RR_4, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
+	{mask: 0xfe00707f, value: 0xc6004073, op: MOP_RR_5, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
+	{mask: 0xfe00707f, value: 0xca004073, op: MOP_RR_6, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
+	{mask: 0xfe00707f, value: 0xce004073, op: MOP_RR_7, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
 	// MUL rd, rs1, rs2
 	{mask: 0xfe00707f, value: 0x02000033, op: MUL, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
 	// MULH rd, rs1, rs2
