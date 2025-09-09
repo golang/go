@@ -1290,6 +1290,84 @@ start:
 	VMV4RV		V8, V4				// 57b2819e
 	VMV8RV		V8, V0				// 57b0839e
 
+	// 32. 
+	// Zvbb - Vector Basic Bit-manipulation
+	VANDNVV		V1, V2, V3			// d7812006
+	VANDNVV		V1, V2, V0, V3			// d7812004
+	VANDNVX		X10, V2, V3			// d7412506
+	VANDNVX		X10, V2, V0, V3			// d7412504
+	VBREVV		V2, V3				// d721254a
+	VBREVV		V2, V0, V3			// d7212548
+	VBREV8V		V2, V3				// d721244a
+	VBREV8V		V2, V0, V3			// d7212448
+	VREV8V		V2, V3				// d7a1244a
+	VREV8V		V2, V0, V3			// d7a12448
+	VCLZV		V2, V3				// d721264a
+	VCLZV		V2, V0, V3			// d7212648
+	VCTZV		V2, V3				// d7a1264a
+	VCTZV		V2, V0, V3			// d7a12648
+	VCPOPV		V2, V3				// d721274a
+	VCPOPV		V2, V0, V3			// d7212748
+	VROLVV		V1, V2, V3			// d7812056
+	VROLVV		V1, V2, V0, V3			// d7812054
+	VROLVX		X10, V2, V3			// d7412556
+	VROLVX		X10, V2, V0, V3			// d7412554
+	VWSLLVV		V1, V2, V3			// d78120d6
+	VWSLLVV		V1, V2, V0, V3			// d78120d4
+	VWSLLVX		X10, V2, V3			// d74125d6
+	VWSLLVX		X10, V2, V0, V3			// d74125d4
+	VWSLLVI		$16, V2, V3			// d73128d6
+	VWSLLVI		$16, V2, V0, V3			// d73128d4
+
+	// Zvbc - Vector Carryless Multiplication
+	VCLMULVV	V1, V2, V3			// d7a12032
+	VCLMULVV	V1, V2, V0, V3			// d7a12030
+	VCLMULVX	X10, V2, V3			// d7612532
+	VCLMULVX	X10, V2, V0, V3			// d7612530
+	VCLMULHVV	V1, V2, V3			// d7a12036
+	VCLMULHVV	V1, V2, V0, V3			// d7a12034
+	VCLMULHVX	X10, V2, V3			// d7612536
+	VCLMULHVX	X10, V2, V0, V3			// d7612534
+
+	// Zvkb - Vector Cryptography Bit-manipulation
+	VRORVV		V1, V2, V3			// d7812052
+	VRORVV		V1, V2, V0, V3			// d7812050
+	VRORVX		X10, V2, V3			// d7412552
+	VRORVX		X10, V2, V0, V3			// d7412550
+	VRORVI		$16, V2, V3			// d7312852
+	VRORVI		$16, V2, V0, V3			// d7312850
+
+	// Zvkg - Vector GCM/GMAC
+	VGHSHVV		V1, V2, V3			// f7a120b2
+	VGMULVV		V1, V2				// 77a118a2
+
+	// Zvkned - NIST Suite: Vector AES Block Cipher
+	VAESEFVV	V1, V2				// 77a111a2
+	VAESEFVS	V1, V2				// 77a111a6
+	VAESEMVV	V1, V2				// 772111a2
+	VAESEMVS	V1, V2				// 772111a6
+	VAESDFVV	V1, V2				// 77a110a2
+	VAESDFVS	V1, V2				// 77a110a6
+	VAESDMVV	V1, V2				// 772110a2
+	VAESDMVS	V1, V2				// 772110a6
+	VAESKF1VI	$16, V2, V3			// f721288a
+	VAESKF2VI	$16, V2, V3			// f72128aa
+	VAESZVS		V1, V2				// 77a113a6
+
+	// Zvknh[ab] - NIST Suite: Vector SHA-2 Secure Hash
+	VSHA2MSVV	V1, V2, V3			// f7a120b6
+	VSHA2CHVV	V1, V2, V3			// f7a120ba
+	VSHA2CLVV	V1, V2, V3			// f7a120be
+
+	// Zvksed - ShangMi Suite: SM4 Block Cipher
+	VSM4KVI		$16, V2, V3			// f7212886
+	VSM4RVV		V1, V2				// 772118a2
+	VSM4RVS		V1, V2				// 772118a6
+
+	// Zvksh - ShangMi Suite: SM3 Secure Hash
+	VSM3MEVV	V1, V2, V3			// f7a12082
+	VSM3CVI		$16, V2, V3			// f72128ae
+
 	//
 	// Privileged ISA
 	//

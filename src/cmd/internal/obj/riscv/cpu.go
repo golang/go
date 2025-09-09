@@ -1123,6 +1123,64 @@ const (
 	AVMV4RV
 	AVMV8RV
 
+	// 32. Cryptography Extensions: Vector Instructions, Version 1.0
+	// 32.2.1. Zvbb - Vector Basic Bit-manipulation
+	AVANDNVV
+	AVANDNVX
+	AVBREVV
+	AVBREV8V
+	AVREV8V
+	AVCLZV
+	AVCTZV
+	AVCPOPV
+	AVROLVV
+	AVROLVX
+	AVWSLLVV
+	AVWSLLVX
+	AVWSLLVI
+
+	// 32.2.2. Zvbc - Vector Carryless Multiplication
+	AVCLMULVV
+	AVCLMULVX
+	AVCLMULHVV
+	AVCLMULHVX
+
+	// 32.2.3. Zvkb - Vector Cryptography Bit-manipulation
+	AVRORVV 
+	AVRORVX
+	AVRORVI
+
+	// 32.2.4. Zvkg - Vector GCM/GMAC
+	AVGHSHVV
+	AVGMULVV
+
+	// 32.2.5. Zvkned - NIST Suite: Vector AES Block Cipher
+	AVAESEFVV
+	AVAESEFVS
+	AVAESEMVV
+	AVAESEMVS
+	AVAESDFVV
+	AVAESDFVS
+	AVAESDMVV
+	AVAESDMVS
+	AVAESKF1VI
+	AVAESKF2VI
+	AVAESZVS
+
+	// 32.2.6. Zvknh[ab] - NIST Suite: Vector SHA-2 Secure Hash
+	AVSHA2MSVV
+	AVSHA2CHVV
+	AVSHA2CLVV
+
+	// 32.2.7. Zvksed - ShangMi Suite: SM4 Block Cipher
+	AVSM4KVI
+	AVSM4RVV
+	AVSM4RVS
+
+	// 32.2.8. Zvksh - ShangMi Suite: SM3 Secure Hash
+	AVSM3MEVV
+	AVSM3CVI
+
 	//
 	// Privileged ISA (version 20240411)
 	//

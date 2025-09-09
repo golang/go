@@ -427,5 +427,9 @@ TEXT validation(SB),$0
 	VMV2RV		X10, V10			// ERROR "expected vector register in vs2 position"
 	VMV4RV		X10, V4				// ERROR "expected vector register in vs2 position"
 	VMV8RV		X10, V0				// ERROR "expected vector register in vs2 position"
-
+	VWSLLVI $32, V2, V4			// ERROR "signed immediate 32 must be in range [0, 31]"
+	VWSLLVI $-1, V2, V4			// ERROR "signed immediate -1 must be in range [0, 31]"
+	VRORVI $32, V2, V4			// ERROR "signed immediate 32 must be in range [0, 31]"
+	VRORVI $-1, V2, V4			// ERROR "signed immediate -1 must be in range [0, 31]"
+	
 	RET
