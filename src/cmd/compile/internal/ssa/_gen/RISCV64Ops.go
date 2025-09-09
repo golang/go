@@ -489,6 +489,10 @@ func init() {
 		{name: "FLED", argLength: 2, reg: fp2gp, asm: "FLED"},                                                                               // arg0 <= arg1
 		{name: "LoweredFMIND", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "FMIND", commutative: true, typ: "Float64"},             // min(arg0, arg1)
 		{name: "LoweredFMAXD", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "FMAXD", commutative: true, typ: "Float64"},             // max(arg0, arg1)
+		
+		// RISC-V Integer Conditional (Zicond) operations extension
+		{name: "CZEROEQZ", argLength: 2, reg: gp21, asm: "CZEROEQZ"},
+		{name: "CZERONEZ", argLength: 2, reg: gp21, asm: "CZERONEZ"},
 	}
 
 	RISCV64blocks := []blockData{

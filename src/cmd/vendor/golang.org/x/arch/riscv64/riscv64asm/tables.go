@@ -116,6 +116,8 @@ const (
 	CSRRWI
 	CTZ
 	CTZW
+	CZERO_EQZ
+	CZERO_NEZ
 	C_ADD
 	C_ADDI
 	C_ADDI16SP
@@ -483,6 +485,8 @@ var opstr = [...]string{
 	CSRRWI:         "CSRRWI",
 	CTZ:            "CTZ",
 	CTZW:           "CTZW",
+	CZERO_EQZ:      "CZERO.EQZ",
+	CZERO_NEZ:      "CZERO.NEZ",
 	C_ADD:          "C.ADD",
 	C_ADDI:         "C.ADDI",
 	C_ADDI16SP:     "C.ADDI16SP",
@@ -957,6 +961,10 @@ var instFormats = [...]instFormat{
 	{mask: 0xfff0707f, value: 0x60101013, op: CTZ, args: argTypeList{arg_rd, arg_rs1}},
 	// CTZW rd, rs1
 	{mask: 0xfff0707f, value: 0x6010101b, op: CTZW, args: argTypeList{arg_rd, arg_rs1}},
+	// CZERO.EQZ rd, rs1, rs2
+	{mask: 0xfe00707f, value: 0x0e005033, op: CZERO_EQZ, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
+	// CZERO.NEZ rd, rs1, rs2
+	{mask: 0xfe00707f, value: 0x0e007033, op: CZERO_NEZ, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
 	// C.ADD rd_rs1_n0, c_rs2_n0
 	{mask: 0x0000f003, value: 0x00009002, op: C_ADD, args: argTypeList{arg_rd_rs1_n0, arg_c_rs2_n0}},
 	// C.ADDI rd_rs1_n0, c_nzimm6

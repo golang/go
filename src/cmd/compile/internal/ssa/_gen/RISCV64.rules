@@ -851,3 +851,5 @@
 (Max64  x y) && buildcfg.GORISCV64 >= 22 => (MAX  x y)
 (Min64u x y) && buildcfg.GORISCV64 >= 22 => (MINU x y)
 (Max64u x y) && buildcfg.GORISCV64 >= 22 => (MAXU x y)
+
+
