@@ -27,7 +27,7 @@ func netpollinit() {
 	}
 	efd, errno := syscall.Eventfd(0, syscall.EFD_CLOEXEC|syscall.EFD_NONBLOCK)
 	if errno != 0 {
-		println("runtime: eventfd failed with", -errno)
+		println("runtime: eventfd failed with", errno)
 		throw("runtime: eventfd failed")
 	}
 	ev := syscall.EpollEvent{
