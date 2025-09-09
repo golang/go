@@ -1236,6 +1236,7 @@ const (
 	OpAMD64KMOVDi
 	OpAMD64KMOVWi
 	OpAMD64KMOVBi
+	OpAMD64VPTEST
 	OpAMD64VADDPD128
 	OpAMD64VADDPD256
 	OpAMD64VADDPD512
@@ -5390,6 +5391,7 @@ const (
 	OpCvtMask64x2to8
 	OpCvtMask64x4to8
 	OpCvtMask64x8to8
+	OpIsZeroVec
 	OpAbsInt8x16
 	OpAbsInt8x32
 	OpAbsInt8x64
@@ -19796,6 +19798,18 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
+		name:         "VPTEST",
+		argLen:       2,
+		clobberFlags: true,
+		asm:          x86.AVPTEST,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
 		},
 	},
@@ -75859,6 +75873,11 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "CvtMask64x8to8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "IsZeroVec",
 		argLen:  1,
 		generic: true,
 	},

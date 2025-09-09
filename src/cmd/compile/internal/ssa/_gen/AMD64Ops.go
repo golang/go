@@ -212,22 +212,23 @@ func init() {
 		vloadk  = regInfo{inputs: []regMask{gpspsb, mask, 0}, outputs: vonly}
 		vstorek = regInfo{inputs: []regMask{gpspsb, mask, v, 0}}
 
-		v11   = regInfo{inputs: vzonly, outputs: vonly}
-		v21   = regInfo{inputs: []regMask{vz, vz}, outputs: vonly}
-		vk    = regInfo{inputs: vzonly, outputs: maskonly}
-		kv    = regInfo{inputs: maskonly, outputs: vonly}
-		v2k   = regInfo{inputs: []regMask{vz, vz}, outputs: maskonly}
-		vkv   = regInfo{inputs: []regMask{vz, mask}, outputs: vonly}
-		v2kv  = regInfo{inputs: []regMask{vz, vz, mask}, outputs: vonly}
-		v2kk  = regInfo{inputs: []regMask{vz, vz, mask}, outputs: maskonly}
-		v31   = regInfo{inputs: []regMask{v, vz, vz}, outputs: vonly}       // used in resultInArg0 ops, arg0 must not be x15
-		v3kv  = regInfo{inputs: []regMask{v, vz, vz, mask}, outputs: vonly} // used in resultInArg0 ops, arg0 must not be x15
-		vgpv  = regInfo{inputs: []regMask{vz, gp}, outputs: vonly}
-		vgp   = regInfo{inputs: vonly, outputs: gponly}
-		vfpv  = regInfo{inputs: []regMask{vz, fp}, outputs: vonly}
-		vfpkv = regInfo{inputs: []regMask{vz, fp, mask}, outputs: vonly}
-		fpv   = regInfo{inputs: []regMask{fp}, outputs: vonly}
-		gpv   = regInfo{inputs: []regMask{gp}, outputs: vonly}
+		v11     = regInfo{inputs: vzonly, outputs: vonly}
+		v21     = regInfo{inputs: []regMask{vz, vz}, outputs: vonly}
+		vk      = regInfo{inputs: vzonly, outputs: maskonly}
+		kv      = regInfo{inputs: maskonly, outputs: vonly}
+		v2k     = regInfo{inputs: []regMask{vz, vz}, outputs: maskonly}
+		vkv     = regInfo{inputs: []regMask{vz, mask}, outputs: vonly}
+		v2kv    = regInfo{inputs: []regMask{vz, vz, mask}, outputs: vonly}
+		v2kk    = regInfo{inputs: []regMask{vz, vz, mask}, outputs: maskonly}
+		v31     = regInfo{inputs: []regMask{v, vz, vz}, outputs: vonly}       // used in resultInArg0 ops, arg0 must not be x15
+		v3kv    = regInfo{inputs: []regMask{v, vz, vz, mask}, outputs: vonly} // used in resultInArg0 ops, arg0 must not be x15
+		vgpv    = regInfo{inputs: []regMask{vz, gp}, outputs: vonly}
+		vgp     = regInfo{inputs: vonly, outputs: gponly}
+		vfpv    = regInfo{inputs: []regMask{vz, fp}, outputs: vonly}
+		vfpkv   = regInfo{inputs: []regMask{vz, fp, mask}, outputs: vonly}
+		fpv     = regInfo{inputs: []regMask{fp}, outputs: vonly}
+		gpv     = regInfo{inputs: []regMask{gp}, outputs: vonly}
+		v2flags = regInfo{inputs: []regMask{vz, vz}}
 
 		w11   = regInfo{inputs: wzonly, outputs: wonly}
 		w21   = regInfo{inputs: []regMask{wz, wz}, outputs: wonly}
@@ -1426,6 +1427,9 @@ func init() {
 		{name: "KMOVDi", argLength: 1, reg: kgp, asm: "KMOVD"},
 		{name: "KMOVWi", argLength: 1, reg: kgp, asm: "KMOVW"},
 		{name: "KMOVBi", argLength: 1, reg: kgp, asm: "KMOVB"},
+
+		// VPTEST
+		{name: "VPTEST", asm: "VPTEST", argLength: 2, reg: v2flags, clobberFlags: true, typ: "Flags"},
 	}
 
 	var AMD64blocks = []blockData{

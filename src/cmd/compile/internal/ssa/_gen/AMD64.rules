@@ -1732,6 +1732,9 @@
 (StoreMasked64 {t} ptr mask val mem) && t.Size() == 16 => (VPMASK64store128 ptr mask val mem)
 (StoreMasked64 {t} ptr mask val mem) && t.Size() == 32 => (VPMASK64store256 ptr mask val mem)
 
+// Misc
+(IsZeroVec x) => (SETEQ (VPTEST x x))
+
 // SIMD vector K-masked loads and stores
 
 (LoadMasked64 <t> ptr mask mem) && t.Size() == 64 => (VPMASK64load512 ptr (VPMOVVec64x8ToM  <types.TypeMask> mask) mem)

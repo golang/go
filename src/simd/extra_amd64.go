@@ -15,3 +15,131 @@ package simd
 //
 // Asm: VZEROUPPER, CPU Feature: AVX
 func ClearAVXUpperBits()
+
+// IsZero returns true if all elements of x are zeros.
+//
+// This method compiles to VPTEST x, x.
+// x.And(y).IsZero() and x.AndNot(y).IsZero() will be optimized to VPTEST x, y
+//
+// Asm: VPTEST, CPU Feature: AVX
+func (x Int8x16) IsZero() bool
+
+// IsZero returns true if all elements of x are zeros.
+//
+// This method compiles to VPTEST x, x.
+// x.And(y).IsZero() and x.AndNot(y).IsZero() will be optimized to VPTEST x, y
+//
+// Asm: VPTEST, CPU Feature: AVX
+func (x Int8x32) IsZero() bool
+
+// IsZero returns true if all elements of x are zeros.
+//
+// This method compiles to VPTEST x, x.
+// x.And(y).IsZero() and x.AndNot(y).IsZero() will be optimized to VPTEST x, y
+//
+// Asm: VPTEST, CPU Feature: AVX
+func (x Int16x8) IsZero() bool
+
+// IsZero returns true if all elements of x are zeros.
+//
+// This method compiles to VPTEST x, x.
+// x.And(y).IsZero() and x.AndNot(y).IsZero() will be optimized to VPTEST x, y
+//
+// Asm: VPTEST, CPU Feature: AVX
+func (x Int16x16) IsZero() bool
+
+// IsZero returns true if all elements of x are zeros.
+//
+// This method compiles to VPTEST x, x.
+// x.And(y).IsZero() and x.AndNot(y).IsZero() will be optimized to VPTEST x, y
+//
+// Asm: VPTEST, CPU Feature: AVX
+func (x Int32x4) IsZero() bool
+
+// IsZero returns true if all elements of x are zeros.
+//
+// This method compiles to VPTEST x, x.
+// x.And(y).IsZero() and x.AndNot(y).IsZero() will be optimized to VPTEST x, y
+//
+// Asm: VPTEST, CPU Feature: AVX
+func (x Int32x8) IsZero() bool
+
+// IsZero returns true if all elements of x are zeros.
+//
+// This method compiles to VPTEST x, x.
+// x.And(y).IsZero() and x.AndNot(y).IsZero() will be optimized to VPTEST x, y
+//
+// Asm: VPTEST, CPU Feature: AVX
+func (x Int64x2) IsZero() bool
+
+// IsZero returns true if all elements of x are zeros.
+//
+// This method compiles to VPTEST x, x.
+// x.And(y).IsZero() and x.AndNot(y).IsZero() will be optimized to VPTEST x, y
+//
+// Asm: VPTEST, CPU Feature: AVX
+func (x Int64x4) IsZero() bool
+
+// IsZero returns true if all elements of x are zeros.
+//
+// This method compiles to VPTEST x, x.
+// x.And(y).IsZero() and x.AndNot(y).IsZero() will be optimized to VPTEST x, y
+//
+// Asm: VPTEST, CPU Feature: AVX
+func (x Uint8x16) IsZero() bool
+
+// IsZero returns true if all elements of x are zeros.
+//
+// This method compiles to VPTEST x, x.
+// x.And(y).IsZero() and x.AndNot(y).IsZero() will be optimized to VPTEST x, y
+//
+// Asm: VPTEST, CPU Feature: AVX
+func (x Uint8x32) IsZero() bool
+
+// IsZero returns true if all elements of x are zeros.
+//
+// This method compiles to VPTEST x, x.
+// x.And(y).IsZero() and x.AndNot(y).IsZero() will be optimized to VPTEST x, y
+//
+// Asm: VPTEST, CPU Feature: AVX
+func (x Uint16x8) IsZero() bool
+
+// IsZero returns true if all elements of x are zeros.
+//
+// This method compiles to VPTEST x, x.
+// x.And(y).IsZero() and x.AndNot(y).IsZero() will be optimized to VPTEST x, y
+//
+// Asm: VPTEST, CPU Feature: AVX
+func (x Uint16x16) IsZero() bool
+
+// IsZero returns true if all elements of x are zeros.
+//
+// This method compiles to VPTEST x, x.
+// x.And(y).IsZero() and x.AndNot(y).IsZero() will be optimized to VPTEST x, y
+//
+// Asm: VPTEST, CPU Feature: AVX
+func (x Uint32x4) IsZero() bool
+
+// IsZero returns true if all elements of x are zeros.
+//
+// This method compiles to VPTEST x, x.
+// x.And(y).IsZero() and x.AndNot(y).IsZero() will be optimized to VPTEST x, y
+//
+// Asm: VPTEST, CPU Feature: AVX
+func (x Uint32x8) IsZero() bool
+
+// IsZero returns true if all elements of x are zeros.
+//
+// This method compiles to VPTEST x, x.
+// x.And(y).IsZero() and x.AndNot(y).IsZero() will be optimized to VPTEST x, y
+//
+// Asm: VPTEST, CPU Feature: AVX
+func (x Uint64x2) IsZero() bool
+
+// IsZero returns true if all elements of x are zeros.
+//
+// This method compiles to VPTEST x, x.
+// x.And(y).IsZero() and x.AndNot(y).IsZero() will be optimized to VPTEST x, y
+//
+// Asm: VPTEST, CPU Feature: AVX
+func (x Uint64x4) IsZero() bool

@@ -731,6 +731,9 @@ var genericOps = []opData{
 	{name: "CvtMask64x2to8", argLength: 1},   // arg0 = mask
 	{name: "CvtMask64x4to8", argLength: 1},   // arg0 = mask
 	{name: "CvtMask64x8to8", argLength: 1},   // arg0 = mask
+
+	// Returns true if arg0 is all zero.
+	{name: "IsZeroVec", argLength: 1},
 }
 
 //     kind          controls          successors   implicit exit

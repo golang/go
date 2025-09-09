@@ -557,3 +557,26 @@ func TestLeadingZeros(t *testing.T) {
 		}
 	}
 }
+
+func TestIsZero(t *testing.T) {
+	v1 := simd.LoadUint64x2Slice([]uint64{0, 1})
+	v2 := simd.LoadUint64x2Slice([]uint64{0, 0})
+	if v1.IsZero() {
+		t.Errorf("Result incorrect, want false, got true")
+	}
+	if !v2.IsZero() {
+		t.Errorf("Result incorrect, want true, got false")
+	}
+	if !v1.And(v2).IsZero() {
+		t.Errorf("Result incorrect, want true, got false")
+	}
+	if v1.AndNot(v2).IsZero() {
+		t.Errorf("Result incorrect, want false, got true")
+	}
+	if !v2.And(v1).IsZero() {
+		t.Errorf("Result incorrect, want true, got false")
+	}
+	if !v2.AndNot(v1).IsZero() {
+		t.Errorf("Result incorrect, want true, got false")
+	}
+}

@@ -1614,6 +1614,22 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 				return nil
 			},
 			sys.AMD64)
+		addF(simdPackage, "Int8x16.IsZero", opLen1(ssa.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
+		addF(simdPackage, "Int16x8.IsZero", opLen1(ssa.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
+		addF(simdPackage, "Int32x4.IsZero", opLen1(ssa.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
+		addF(simdPackage, "Int64x2.IsZero", opLen1(ssa.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
+		addF(simdPackage, "Uint8x16.IsZero", opLen1(ssa.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
+		addF(simdPackage, "Uint16x8.IsZero", opLen1(ssa.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
+		addF(simdPackage, "Uint32x4.IsZero", opLen1(ssa.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
+		addF(simdPackage, "Uint64x2.IsZero", opLen1(ssa.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
+		addF(simdPackage, "Int8x32.IsZero", opLen1(ssa.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
+		addF(simdPackage, "Int16x16.IsZero", opLen1(ssa.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
+		addF(simdPackage, "Int32x8.IsZero", opLen1(ssa.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
+		addF(simdPackage, "Int64x4.IsZero", opLen1(ssa.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
+		addF(simdPackage, "Uint8x32.IsZero", opLen1(ssa.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
+		addF(simdPackage, "Uint16x16.IsZero", opLen1(ssa.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
+		addF(simdPackage, "Uint32x8.IsZero", opLen1(ssa.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
+		addF(simdPackage, "Uint64x4.IsZero", opLen1(ssa.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
 	}
 }
 

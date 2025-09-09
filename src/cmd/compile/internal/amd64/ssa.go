@@ -1845,6 +1845,14 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
+	case ssa.OpAMD64VPTEST:
+		// Some instructions setting flags put their second operand into the destination reg.
+		// See also CMP[BWDQ].
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = simdReg(v.Args[0])
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = simdReg(v.Args[1])
 
 	default:
 		if !ssaGenSIMDValue(s, v) {

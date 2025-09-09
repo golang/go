@@ -3599,6 +3599,8 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpIsNonNil(v)
 	case OpIsSliceInBounds:
 		return rewriteValueAMD64_OpIsSliceInBounds(v)
+	case OpIsZeroVec:
+		return rewriteValueAMD64_OpIsZeroVec(v)
 	case OpLeadingZerosInt32x16:
 		v.Op = OpAMD64VPLZCNTD512
 		return true
@@ -53708,6 +53710,20 @@ func rewriteValueAMD64_OpIsSliceInBounds(v *Value) bool {
 		v.reset(OpAMD64SETBE)
 		v0 := b.NewValue0(v.Pos, OpAMD64CMPQ, types.TypeFlags)
 		v0.AddArg2(idx, len)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueAMD64_OpIsZeroVec(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (IsZeroVec x)
+	// result: (SETEQ (VPTEST x x))
+	for {
+		x := v_0
+		v.reset(OpAMD64SETEQ)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPTEST, types.TypeFlags)
+		v0.AddArg2(x, x)
 		v.AddArg(v0)
 		return true
 	}
