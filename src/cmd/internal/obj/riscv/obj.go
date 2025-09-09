@@ -1422,10 +1422,16 @@ func validateRaw(ctxt *obj.Link, ins *instruction) {
 	wantImmU(ctxt, ins, ins.imm, 32)
 }
 
-// extractBitAndShift extracts the specified bit from the given immediate,
-// before shifting it to the requested position and returning it.
-func extractBitAndShift(imm uint32, bit, pos int) uint32 {
-	return ((imm >> bit) & 1) << pos
+// encodeBitPattern encodes an immediate value by extracting the specified
+// bit pattern from the given immediate. Each value in the pattern specifies
+// the position of the bit to extract from the immediate, which are then
+// encoded in sequence.
+func encodeBitPattern(imm uint32, pattern []int) uint32 {
+	outImm := uint32(0)
+	for _, bit := range pattern {
+		outImm = outImm<<1 | (imm>>bit)&1
+	}
+	return outImm
 }
 
 // encodeR encodes an R-type RISC-V instruction.
@@ -1650,31 +1656,14 @@ func encodeJ(ins *instruction) uint32 {
 // encodeCBImmediate encodes an immediate for a CB-type RISC-V instruction.
 func encodeCBImmediate(imm uint32) uint32 {
 	// Bit order - [8|4:3|7:6|2:1|5]
-	bits := extractBitAndShift(imm, 8, 7)
-	bits |= extractBitAndShift(imm, 4, 6)
-	bits |= extractBitAndShift(imm, 3, 5)
-	bits |= extractBitAndShift(imm, 7, 4)
-	bits |= extractBitAndShift(imm, 6, 3)
-	bits |= extractBitAndShift(imm, 2, 2)
-	bits |= extractBitAndShift(imm, 1, 1)
-	bits |= extractBitAndShift(imm, 5, 0)
+	bits := encodeBitPattern(imm, []int{8, 4, 3, 7, 6, 2, 1, 5})
 	return (bits>>5)<<10 | (bits&0x1f)<<2
 }
 
 // encodeCJImmediate encodes an immediate for a CJ-type RISC-V instruction.
 func encodeCJImmediate(imm uint32) uint32 {
 	// Bit order - [11|4|9:8|10|6|7|3:1|5]
-	bits := extractBitAndShift(imm, 11, 10)
-	bits |= extractBitAndShift(imm, 4, 9)
-	bits |= extractBitAndShift(imm, 9, 8)
-	bits |= extractBitAndShift(imm, 8, 7)
-	bits |= extractBitAndShift(imm, 10, 6)
-	bits |= extractBitAndShift(imm, 6, 5)
-	bits |= extractBitAndShift(imm, 7, 4)
-	bits |= extractBitAndShift(imm, 3, 3)
-	bits |= extractBitAndShift(imm, 2, 2)
-	bits |= extractBitAndShift(imm, 1, 1)
-	bits |= extractBitAndShift(imm, 5, 0)
+	bits := encodeBitPattern(imm, []int{11, 4, 9, 8, 10, 6, 7, 3, 2, 1, 5})
 	return bits << 2
 }
 
