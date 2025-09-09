@@ -1419,9 +1419,7 @@ func validateVsetvl(ctxt *obj.Link, ins *instruction) {
 func validateRaw(ctxt *obj.Link, ins *instruction) {
 	// Treat the raw value specially as a 32-bit unsigned integer.
 	// Nobody wants to enter negative machine code.
-	if ins.imm < 0 || 1<<32 <= ins.imm {
-		ctxt.Diag("%v: immediate %d in raw position cannot be larger than 32 bits", ins.as, ins.imm)
-	}
+	wantImmU(ctxt, ins, ins.imm, 32)
 }
 
 // extractBitAndShift extracts the specified bit from the given immediate,
@@ -1706,10 +1704,7 @@ func encodeVsetvl(ins *instruction) uint32 {
 func encodeRawIns(ins *instruction) uint32 {
 	// Treat the raw value specially as a 32-bit unsigned integer.
 	// Nobody wants to enter negative machine code.
-	if ins.imm < 0 || 1<<32 <= ins.imm {
-		panic(fmt.Sprintf("immediate %d cannot fit in 32 bits", ins.imm))
-	}
-	return uint32(ins.imm)
+	return immU(ins.as, ins.imm, 32)
 }
 
 func EncodeBImmediate(imm int64) (int64, error) {
