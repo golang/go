@@ -62,6 +62,11 @@ func isFatalError(err error, flags jsonflags.Flags) bool {
 // SemanticError describes an error determining the meaning
 // of JSON data as Go data or vice-versa.
 //
+// If a [Marshaler], [MarshalerTo], [Unmarshaler], or [UnmarshalerFrom] method
+// returns a SemanticError when called by the [json] package,
+// then the ByteOffset, JSONPointer, and GoType fields are automatically
+// populated by the calling context if they are the zero value.
+//
 // The contents of this error as produced by this package may change over time.
 type SemanticError struct {
 	requireKeyedLiterals
