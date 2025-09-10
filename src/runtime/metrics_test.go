@@ -1632,15 +1632,13 @@ func TestReadMetricsSched(t *testing.T) {
 	checkEq := func(t *testing.T, s *metrics.Sample, value uint64) {
 		check(t, s, value, value)
 	}
-	spinUntil := func(f func() bool, timeout time.Duration) bool {
-		start := time.Now()
-		for time.Since(start) < timeout {
+	spinUntil := func(f func() bool) bool {
+		for {
 			if f() {
 				return true
 			}
-			time.Sleep(time.Millisecond)
+			time.Sleep(50 * time.Millisecond)
 		}
-		return false
 	}
 
 	// Check base values.
@@ -1693,12 +1691,12 @@ func TestReadMetricsSched(t *testing.T) {
 		t.Run("running", func(t *testing.T) {
 			defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(count + 4))
 			// It can take a little bit for the scheduler to
-			// distribute the goroutines to Ps, so retry for a
-			// while.
+			// distribute the goroutines to Ps, so retry until
+			// we see the count we expect or the test times out.
 			spinUntil(func() bool {
 				metrics.Read(s[:])
 				return s[running].Value.Uint64() >= count
-			}, time.Second)
+			})
 			logMetrics(t, s[:])
 			check(t, &s[running], count, count+4)
 			check(t, &s[threads], count, count+4+threadsSlack)
@@ -1761,7 +1759,7 @@ func TestReadMetricsSched(t *testing.T) {
 		spinUntil(func() bool {
 			metrics.Read(s[:])
 			return s[notInGo].Value.Uint64() >= count
-		}, time.Second)
+		})
 
 		metrics.Read(s[:])
 		logMetrics(t, s[:])
@@ -1783,7 +1781,7 @@ func TestReadMetricsSched(t *testing.T) {
 		spinUntil(func() bool {
 			metrics.Read(s[:])
 			return s[waiting].Value.Uint64() >= waitingCount
-		}, time.Second)
+		})
 
 		metrics.Read(s[:])
 		logMetrics(t, s[:])
