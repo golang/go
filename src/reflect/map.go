@@ -6,6 +6,7 @@ package reflect
 
 import (
 	"internal/abi"
+	"internal/goexperiment"
 	"internal/race"
 	"internal/runtime/maps"
 	"internal/runtime/sys"
@@ -50,7 +51,7 @@ func MapOf(key, elem Type) Type {
 		}
 	}
 
-	group, slot := groupAndSlotOf(key, elem)
+	group := groupOf(key, elem)
 
 	// Make a map type.
 	// Note: flag values must match those used in the TMAP case
@@ -67,8 +68,25 @@ func MapOf(key, elem Type) Type {
 		return typehash(ktyp, p, seed)
 	}
 	mt.GroupSize = mt.Group.Size()
-	mt.SlotSize = slot.Size()
-	mt.ElemOff = slot.Field(1).Offset
+	if goexperiment.MapSplitGroup {
+		// Split layout: field 1 is keys array, field 2 is elems array.
+		mt.KeysOff = group.Field(1).Offset
+		mt.KeyStride = group.Field(1).Type.Elem().Size()
+		mt.ElemsOff = group.Field(2).Offset
+		mt.ElemStride = group.Field(2).Type.Elem().Size()
+		mt.ElemOff = 0
+	} else {
+		// Interleaved layout: field 1 is slots array.
+		// KeyStride = ElemStride = slot stride.
+		// ElemsOff = slots offset + elem offset within slot.
+		slot := group.Field(1).Type.Elem()
+		slotSize := slot.Size()
+		mt.KeysOff = group.Field(1).Offset
+		mt.KeyStride = slotSize
+		mt.ElemsOff = group.Field(1).Offset + slot.Field(1).Offset
+		mt.ElemStride = slotSize
+		mt.ElemOff = slot.Field(1).Offset
+	}
 	mt.Flags = 0
 	if needKeyUpdate(ktyp) {
 		mt.Flags |= abi.MapNeedKeyUpdate
@@ -88,15 +106,7 @@ func MapOf(key, elem Type) Type {
 	return ti.(Type)
 }
 
-func groupAndSlotOf(ktyp, etyp Type) (Type, Type) {
-	// type group struct {
-	//     ctrl uint64
-	//     slots [abi.MapGroupSlots]struct {
-	//         key  keyType
-	//         elem elemType
-	//     }
-	// }
-
+func groupOf(ktyp, etyp Type) Type {
 	if ktyp.Size() > abi.MapMaxKeyBytes {
 		ktyp = PointerTo(ktyp)
 	}
@@ -104,7 +114,39 @@ func groupAndSlotOf(ktyp, etyp Type) (Type, Type) {
 		etyp = PointerTo(etyp)
 	}
 
-	fields := []StructField{
+	if goexperiment.MapSplitGroup {
+		// Split layout (KKKKVVVV):
+		// type group struct {
+		//     ctrl  uint64
+		//     keys  [abi.MapGroupSlots]keyType
+		//     elems [abi.MapGroupSlots]elemType
+		// }
+		fields := []StructField{
+			{
+				Name: "Ctrl",
+				Type: TypeFor[uint64](),
+			},
+			{
+				Name: "Keys",
+				Type: ArrayOf(abi.MapGroupSlots, ktyp),
+			},
+			{
+				Name: "Elems",
+				Type: ArrayOf(abi.MapGroupSlots, etyp),
+			},
+		}
+		return StructOf(fields)
+	}
+
+	// Interleaved slot layout (KVKVKVKV):
+	// type group struct {
+	//     ctrl  uint64
+	//     slots [abi.MapGroupSlots]struct {
+	//         key  keyType
+	//         elem elemType
+	//     }
+	// }
+	slotFields := []StructField{
 		{
 			Name: "Key",
 			Type: ktyp,
@@ -114,9 +156,9 @@ func groupAndSlotOf(ktyp, etyp Type) (Type, Type) {
 			Type: etyp,
 		},
 	}
-	slot := StructOf(fields)
+	slot := StructOf(slotFields)
 
-	fields = []StructField{
+	fields := []StructField{
 		{
 			Name: "Ctrl",
 			Type: TypeFor[uint64](),
@@ -126,8 +168,7 @@ func groupAndSlotOf(ktyp, etyp Type) (Type, Type) {
 			Type: ArrayOf(abi.MapGroupSlots, slot),
 		},
 	}
-	group := StructOf(fields)
-	return group, slot
+	return StructOf(fields)
 }
 
 var stringType = rtypeOf("")

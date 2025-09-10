@@ -7,6 +7,7 @@ package maps
 import (
 	"internal/abi"
 	"internal/asan"
+	"internal/goexperiment"
 	"internal/msan"
 	"internal/race"
 	"internal/runtime/sys"
@@ -124,7 +125,12 @@ func runtime_mapaccess2(typ *abi.MapType, m *Map, key unsafe.Pointer) (unsafe.Po
 				slotKey = *((*unsafe.Pointer)(slotKey))
 			}
 			if typ.Key.Equal(key, slotKey) {
-				slotElem := unsafe.Pointer(uintptr(slotKeyOrig) + typ.ElemOff)
+				var slotElem unsafe.Pointer
+				if goexperiment.MapSplitGroup {
+					slotElem = g.elem(typ, i)
+				} else {
+					slotElem = unsafe.Pointer(uintptr(slotKeyOrig) + typ.ElemOff)
+				}
 				if typ.IndirectElem() {
 					slotElem = *((*unsafe.Pointer)(slotElem))
 				}
@@ -223,7 +229,11 @@ outer:
 						typedmemmove(typ.Key, slotKey, key)
 					}
 
-					slotElem = unsafe.Pointer(uintptr(slotKeyOrig) + typ.ElemOff)
+					if goexperiment.MapSplitGroup {
+						slotElem = g.elem(typ, i)
+					} else {
+						slotElem = unsafe.Pointer(uintptr(slotKeyOrig) + typ.ElemOff)
+					}
 					if typ.IndirectElem() {
 						slotElem = *((*unsafe.Pointer)(slotElem))
 					}
@@ -265,7 +275,11 @@ outer:
 					}
 					typedmemmove(typ.Key, slotKey, key)
 
-					slotElem = unsafe.Pointer(uintptr(slotKeyOrig) + typ.ElemOff)
+					if goexperiment.MapSplitGroup {
+						slotElem = g.elem(typ, i)
+					} else {
+						slotElem = unsafe.Pointer(uintptr(slotKeyOrig) + typ.ElemOff)
+					}
 					if typ.IndirectElem() {
 						emem := newobject(typ.Elem)
 						*(*unsafe.Pointer)(slotElem) = emem

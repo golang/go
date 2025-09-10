@@ -6,6 +6,7 @@ package maps
 
 import (
 	"internal/abi"
+	"internal/goexperiment"
 	"internal/runtime/math"
 	"unsafe"
 )
@@ -615,9 +616,16 @@ func (t *table) Clear(typ *abi.MapType) {
 	//  4) But if a group is really large, do the test anyway, as
 	//     clearing is expensive.
 	fullTest := uint64(t.used)*4 <= t.groups.lengthMask // less than ~0.25 entries per group -> >3/4 empty groups
-	if typ.SlotSize > 32 {
-		// For large slots, it is always worth doing the test first.
-		fullTest = true
+	if goexperiment.MapSplitGroup {
+		if (typ.KeyStride + typ.ElemStride) > 32 {
+			// For large slots, it is always worth doing the test first.
+			fullTest = true
+		}
+	} else {
+		if typ.KeyStride > 32 { // KeyStride == SlotSize in interleaved layout
+			// For large slots, it is always worth doing the test first.
+			fullTest = true
+		}
 	}
 	if fullTest {
 		for i := uint64(0); i <= t.groups.lengthMask; i++ {

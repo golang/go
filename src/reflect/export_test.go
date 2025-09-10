@@ -154,6 +154,5 @@ var InternalIsZero = isZero
 var IsRegularMemory = isRegularMemory
 
 func MapGroupOf(x, y Type) Type {
-	grp, _ := groupAndSlotOf(x, y)
-	return grp
+	return groupOf(x, y)
 }
