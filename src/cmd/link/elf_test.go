@@ -584,17 +584,15 @@ func TestFlagD(t *testing.T) {
 }
 
 func TestFlagDUnaligned(t *testing.T) {
-	// Test that using the -D flag with an unaligned address gets rounded
-	// to the default alignment boundary
+	// Test that using the -D flag with an unaligned address errors out
 	t.Parallel()
-	testFlagD(t, "0x10000123", "", 0x10001000)
+	testFlagDError(t, "0x10000123", "", "invalid -D value 0x10000123")
 }
 
 func TestFlagDWithR(t *testing.T) {
-	// Test that using the -D flag with -R flag works together.
-	// The unaligned data address gets rounded to the specified alignment quantum.
+	// Test that using the -D flag with -R flag errors on unaligned address.
 	t.Parallel()
-	testFlagD(t, "0x30001234", "8192", 0x30002000)
+	testFlagDError(t, "0x30001234", "8192", "invalid -D value 0x30001234")
 }
 
 func testFlagD(t *testing.T, dataAddr string, roundQuantum string, expectedAddr uint64) {
@@ -653,5 +651,30 @@ func testFlagD(t *testing.T, dataAddr string, roundQuantum string, expectedAddr 
 	}
 	if firstDataSectionAddr != expectedAddr {
 		t.Errorf("data section starts at 0x%x, expected 0x%x", firstDataSectionAddr, expectedAddr)
+	}
+}
+
+func testFlagDError(t *testing.T, dataAddr string, roundQuantum string, expectedError string) {
+	testenv.MustHaveGoBuild(t)
+	tmpdir := t.TempDir()
+	src := filepath.Join(tmpdir, "x.go")
+	if err := os.WriteFile(src, []byte(goSourceWithData), 0444); err != nil {
+		t.Fatal(err)
+	}
+	exe := filepath.Join(tmpdir, "x.exe")
+
+	// Build linker flags
+	ldflags := "-D=" + dataAddr
+	if roundQuantum != "" {
+		ldflags += " -R=" + roundQuantum
+	}
+
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags="+ldflags, "-o", exe, src)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("expected build to fail with unaligned data address, but it succeeded")
+	}
+	if !strings.Contains(string(out), expectedError) {
+		t.Errorf("expected error message to contain %q, got:\n%s", expectedError, out)
 	}
 }
