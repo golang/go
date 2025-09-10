@@ -318,6 +318,10 @@ func Main(arch *sys.Arch, theArch Arch) {
 	bench.Start("Archinit")
 	thearch.Archinit(ctxt)
 
+	if *FlagDataAddr != -1 && *FlagDataAddr%*FlagRound != 0 {
+		Exitf("invalid -D value 0x%x: not aligned to rounding quantum 0x%x", *FlagDataAddr, *FlagRound)
+	}
+
 	if ctxt.linkShared && !ctxt.IsELF {
 		Exitf("-linkshared can only be used on elf systems")
 	}

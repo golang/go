@@ -2882,7 +2882,7 @@ func (ctxt *Link) address() []*sym.Segment {
 	order = append(order, &Segdata)
 	Segdata.Rwx = 06
 	if *FlagDataAddr != -1 {
-		Segdata.Vaddr = uint64(Rnd(*FlagDataAddr, *FlagRound))
+		Segdata.Vaddr = uint64(*FlagDataAddr)
 		va = Segdata.Vaddr
 	} else {
 		Segdata.Vaddr = va
