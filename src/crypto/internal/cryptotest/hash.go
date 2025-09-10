@@ -20,7 +20,7 @@ type MakeHash func() hash.Hash
 // TestHash performs a set of tests on hash.Hash implementations, checking the
 // documented requirements of Write, Sum, Reset, Size, and BlockSize.
 func TestHash(t *testing.T, mh MakeHash) {
-	if boring.Enabled || fips140.Version() == "v1.0" {
+	if boring.Enabled || fips140.Version() == "v1.0.0" {
 		testhash.TestHashWithoutClone(t, testhash.MakeHash(mh))
 		return
 	}
