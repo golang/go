@@ -96,10 +96,7 @@ func TestClearenv(t *testing.T) {
 			defer func() {
 				ret = recover()
 			}()
-			if true { // defeat vet's unreachable pass
-				panic(nil)
-			}
-			return "should not return"
+			panic(nil)
 		}
 
 		// Allow panic(nil).
