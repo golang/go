@@ -96,7 +96,9 @@ func TestClearenv(t *testing.T) {
 			defer func() {
 				ret = recover()
 			}()
-			panic(nil)
+			if true {
+				panic(nil)
+			}
 			return "should not return"
 		}
 
