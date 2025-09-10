@@ -176,7 +176,49 @@ start:
 	RDCYCLE		X5				// f32200c0
 	RDTIME		X5				// f32210c0
 	RDINSTRET	X5				// f32220c0
-    
+
+	// 10.0: Zimop Extension for May-Be-Operations
+	MOPR0 	X5, X6	 		//81c2c373
+	MOPR1 	X5, X6	 		//81d2c373
+	MOPR2 	X5, X6	 		//81e2c373
+	MOPR3 	X5, X6	 		//81f2c373
+	MOPR4 	X5, X6	 		//85c2c373
+	MOPR5 	X5, X6	 		//85d2c373
+	MOPR6 	X5, X6	 		//85e2c373
+	MOPR7 	X5, X6	 		//85f2c373
+	MOPR8 	X5, X6	 		//89c2c373
+	MOPR9 	X5, X6	 		//89d2c373
+	MOPR10 	X5, X6			//89e2c373
+	MOPR11 	X5, X6			//89f2c373
+	MOPR12 	X5, X6			//8dc2c373
+	MOPR13 	X5, X6			//8dd2c373
+	MOPR14 	X5, X6			//8de2c373
+	MOPR15 	X5, X6			//8df2c373
+	MOPR16 	X5, X6			//c1c2c373
+	MOPR17 	X5, X6			//c1d2c373
+	MOPR18 	X5, X6			//c1e2c373
+	MOPR19 	X5, X6			//c1f2c373
+	MOPR20 	X5, X6			//c5c2c373
+	MOPR21 	X5, X6			//c5d2c373
+	MOPR22 	X5, X6			//c5e2c373
+	MOPR23 	X5, X6			//c5f2c373
+	MOPR24 	X5, X6			//c9c2c373
+	MOPR25 	X5, X6			//c9d2c373
+	MOPR26 	X5, X6			//c9e2c373
+	MOPR27 	X5, X6			//c9f2c373
+	MOPR28 	X5, X6			//cdc2c373
+	MOPR29 	X5, X6			//cdd2c373
+	MOPR30 	X5, X6			//cde2c373
+	MOPR31 	X5, X6			//cdf2c373
+	MOPRR0 	X7, X8, X9		//827444f3
+	MOPRR1 	X7, X8, X9		//867444f3
+	MOPRR2 	X7, X8, X9		//8a7444f3
+	MOPRR3 	X7, X8, X9		//8e7444f3
+	MOPRR4 	X7, X8, X9		//c27444f3
+	MOPRR5 	X7, X8, X9		//c67444f3
+	MOPRR6 	X7, X8, X9		//ca7444f3
+	MOPRR7 	X7, X8, X9		//ce7444f3
+
 	// 11.: Zicond Instructions 
 	CZEROEQZ	X1, X13, X5  	// b3d2160e
 	CZEROEQZ	X1, X13			// b3d6160e
