@@ -212,12 +212,6 @@ func pairStores(f *Func) {
 	last := f.Cache.allocBoolSlice(f.NumValues())
 	defer f.Cache.freeBoolSlice(last)
 
-	type stChainElem struct {
-		v *Value
-		i int // Index in chain (0 == last store)
-	}
-	var order []stChainElem
-
 	// prevStore returns the previous store in the
 	// same block, or nil if there are none.
 	prevStore := func(v *Value) *Value {
@@ -230,27 +224,6 @@ func pairStores(f *Func) {
 		}
 		return m
 	}
-
-	// storeWidth returns the width of store,
-	// or 0 if it is not a store
-	storeWidth := func(op Op) int64 {
-		var width int64
-		switch op {
-		case OpARM64MOVDstore, OpARM64FMOVDstore:
-			width = 8
-		case OpARM64MOVWstore, OpARM64FMOVSstore:
-			width = 4
-		case OpARM64MOVHstore:
-			width = 2
-		case OpARM64MOVBstore:
-			width = 1
-		default:
-			width = 0
-		}
-		return width
-	}
-
-	const limit = 10
 
 	for _, b := range f.Blocks {
 		// Find last store in block, so we can
@@ -277,84 +250,9 @@ func pairStores(f *Func) {
 			}
 		}
 
-		order = order[:0]
-		for i, v := 0, lastMem; v != nil; v = prevStore(v) {
-			order = append(order, stChainElem{v, i})
-			i++
-		}
-	reordering:
-		for i, v_elem := range order {
-			v := v_elem.v
-			if v.Uses != 1 {
-				// We can't reorder stores if the earlier
-				// store has any use besides the next one
-				// in the store chain.
-				// (Unless we could check the aliasing of
-				// all those other uses.)
-				continue
-			}
-			widthV := storeWidth(v.Op)
-			if widthV == 0 {
-				// Can't reorder with any other memory operations.
-				// (atomics, calls, ...)
-				continue
-			}
-			chain := order[i+1:]
-			count := limit
-			// Var 'count' keeps us in O(n) territory
-			for j, w_elem := range chain {
-				if count--; count == 0 {
-					// Only look back so far.
-					// This keeps us in O(n) territory, and it
-					// also prevents us from keeping values
-					// in registers for too long (and thus
-					// needing to spill them).
-					continue reordering
-				}
-
-				w := w_elem.v
-				if w.Uses != 1 {
-					// We can't reorder stores if the earlier
-					// store has any use besides the next one
-					// in the store chain.
-					// (Unless we could check the aliasing of
-					// all those other uses.)
-					continue reordering
-				}
-
-				widthW := storeWidth(w.Op)
-				if widthW == 0 {
-					// Can't reorder with any other memory operations.
-					// (atomics, calls, ...)
-					continue reordering
-				}
-
-				// We only allow reordering with respect to other
-				// writes to the same pointer and aux, so we can
-				// compute the exact the aliasing relationship.
-				if w.Args[0] != v.Args[0] ||
-					w.Aux != v.Aux {
-					// Can't reorder with operation with incomparable destination memory pointer.
-					continue reordering
-				}
-				if overlap(w.AuxInt, widthW, v.AuxInt, widthV) {
-					// Aliases with the same slot with v's location.
-					continue reordering
-				}
-
-				// Reordering stores in increasing order of memory access
-				if v.AuxInt < w.AuxInt {
-					order[i], order[i+j+1] = order[i+j+1], order[i]
-					v = w
-					widthV = widthW
-				}
-			}
-		}
-
 		// Check all stores, from last to first.
 	memCheck:
-		for i, v_elem := range order {
-			v := v_elem.v
+		for v := lastMem; v != nil; v = prevStore(v) {
 			info := pairableStores[v.Op]
 			if info.width == 0 {
 				continue // Not pairable.
@@ -371,10 +269,8 @@ func pairStores(f *Func) {
 			// Look for earlier store we can combine with.
 			lowerOk := true
 			higherOk := true
-			count := limit // max lookback distance
-			chain := order[i+1:]
-			for _, w_elem := range chain {
-				w := w_elem.v
+			count := 10 // max lookback distance
+			for w := prevStore(v); w != nil; w = prevStore(w) {
 				if w.Uses != 1 {
 					// We can't combine stores if the earlier
 					// store has any use besides the next one
@@ -397,17 +293,11 @@ func pairStores(f *Func) {
 						args[1], args[2] = args[2], args[1]
 						off -= info.width
 					}
-
 					v.reset(info.pair)
 					v.AddArgs(args...)
 					v.Aux = aux
 					v.AuxInt = off
-					// Take position of earlier of the two stores
-					if v_elem.i < w_elem.i {
-						v.Pos = w.Pos
-					} else {
-						w.Pos = v.Pos
-					}
+					v.Pos = w.Pos // take position of earlier of the two stores (TODO: not really working?)
 
 					// Make w just a memory copy.
 					wmem := w.MemoryArg()
