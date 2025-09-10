@@ -10,6 +10,7 @@ import (
 	"crypto"
 	"crypto/internal/boring"
 	"crypto/internal/cryptotest"
+	"crypto/internal/fips140"
 	"crypto/rand"
 	. "crypto/rsa"
 	"crypto/sha1"
@@ -1245,6 +1246,9 @@ func TestModifiedPrivateKey(t *testing.T) {
 	})
 
 	t.Run("D+2", func(t *testing.T) {
+		if fips140.Version() == "v1.0" {
+			t.Skip("This was fixed after v1.0.0")
+		}
 		testModifiedPrivateKey(t, func(k *PrivateKey) {
 			k.D = new(big.Int).Add(k.D, big.NewInt(2))
 		})
