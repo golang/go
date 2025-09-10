@@ -442,3 +442,25 @@ func d()
 		t.Errorf("Trampoline b-tramp0 exists unnecessarily")
 	}
 }
+
+func TestRounding(t *testing.T) {
+	testCases := []struct {
+		input    int64
+		quantum  int64
+		expected int64
+	}{
+		{0x30000000, 0x2000, 0x30000000}, // Already aligned
+		{0x30002000, 0x2000, 0x30002000}, // Exactly on boundary
+		{0x30001234, 0x2000, 0x30002000},
+		{0x30001000, 0x2000, 0x30002000},
+		{0x30001fff, 0x2000, 0x30002000},
+	}
+
+	for _, tc := range testCases {
+		result := Rnd(tc.input, tc.quantum)
+		if result != tc.expected {
+			t.Errorf("Rnd(0x%x, 0x%x) = 0x%x, expected 0x%x",
+				tc.input, tc.quantum, result, tc.expected)
+		}
+	}
+}
