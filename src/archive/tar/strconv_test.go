@@ -440,7 +440,7 @@ func TestFormatPAXRecord(t *testing.T) {
 	}
 }
 
-func BenchmarkParsePAXTIme(b *testing.B) {
+func BenchmarkParsePAXTime(b *testing.B) {
 	tests := []struct {
 		name string
 		in   string
