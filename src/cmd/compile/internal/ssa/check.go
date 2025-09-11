@@ -152,7 +152,7 @@ func checkFunc(f *Func) {
 			case auxUInt8:
 				// Cast to int8 due to requirement of AuxInt, check its comment for details.
 				if v.AuxInt != int64(int8(v.AuxInt)) {
-					f.Fatalf("bad uint8 AuxInt value for %v", v)
+					f.Fatalf("bad uint8 AuxInt value for %v, saw %d but need %d", v, v.AuxInt, int64(int8(v.AuxInt)))
 				}
 				canHaveAuxInt = true
 			case auxFloat32:

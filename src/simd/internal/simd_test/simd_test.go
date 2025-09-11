@@ -594,3 +594,224 @@ func TestIsZero(t *testing.T) {
 		t.Errorf("Result incorrect, want true, got false")
 	}
 }
+
+func TestSelectFromPairConst(t *testing.T) {
+	x := simd.LoadInt32x4Slice([]int32{0, 1, 2, 3})
+	y := simd.LoadInt32x4Slice([]int32{4, 5, 6, 7})
+
+	llll := x.SelectFromPair(0, 1, 2, 3, y)
+	hhhh := x.SelectFromPair(4, 5, 6, 7, y)
+	llhh := x.SelectFromPair(0, 1, 6, 7, y)
+	hhll := x.SelectFromPair(6, 7, 0, 1, y)
+
+	lllh := x.SelectFromPair(0, 1, 2, 7, y)
+	llhl := x.SelectFromPair(0, 1, 7, 2, y)
+	lhll := x.SelectFromPair(0, 7, 1, 2, y)
+	hlll := x.SelectFromPair(7, 0, 1, 2, y)
+
+	hhhl := x.SelectFromPair(4, 5, 6, 0, y)
+	hhlh := x.SelectFromPair(4, 5, 0, 6, y)
+	hlhh := x.SelectFromPair(4, 0, 5, 6, y)
+	lhhh := x.SelectFromPair(0, 4, 5, 6, y)
+
+	lhlh := x.SelectFromPair(0, 4, 1, 5, y)
+	hlhl := x.SelectFromPair(4, 0, 5, 1, y)
+	lhhl := x.SelectFromPair(0, 4, 5, 1, y)
+	hllh := x.SelectFromPair(4, 0, 1, 5, y)
+
+	r := make([]int32, 4, 4)
+
+	foo := func(v simd.Int32x4, a, b, c, d int32) {
+		v.StoreSlice(r)
+		checkSlices[int32](t, r, []int32{a, b, c, d})
+	}
+
+	foo(llll, 0, 1, 2, 3)
+	foo(hhhh, 4, 5, 6, 7)
+	foo(llhh, 0, 1, 6, 7)
+	foo(hhll, 6, 7, 0, 1)
+
+	foo(lllh, 0, 1, 2, 7)
+	foo(llhl, 0, 1, 7, 2)
+	foo(lhll, 0, 7, 1, 2)
+	foo(hlll, 7, 0, 1, 2)
+
+	foo(hhhl, 4, 5, 6, 0)
+	foo(hhlh, 4, 5, 0, 6)
+	foo(hlhh, 4, 0, 5, 6)
+	foo(lhhh, 0, 4, 5, 6)
+
+	foo(lhlh, 0, 4, 1, 5)
+	foo(hlhl, 4, 0, 5, 1)
+	foo(lhhl, 0, 4, 5, 1)
+	foo(hllh, 4, 0, 1, 5)
+}
+
+//go:noinline
+func selectFromPairInt32x4(x simd.Int32x4, a, b, c, d uint8, y simd.Int32x4) simd.Int32x4 {
+	return x.SelectFromPair(a, b, c, d, y)
+}
+
+func TestSelectFromPairVar(t *testing.T) {
+	x := simd.LoadInt32x4Slice([]int32{0, 1, 2, 3})
+	y := simd.LoadInt32x4Slice([]int32{4, 5, 6, 7})
+
+	llll := selectFromPairInt32x4(x, 0, 1, 2, 3, y)
+	hhhh := selectFromPairInt32x4(x, 4, 5, 6, 7, y)
+	llhh := selectFromPairInt32x4(x, 0, 1, 6, 7, y)
+	hhll := selectFromPairInt32x4(x, 6, 7, 0, 1, y)
+
+	lllh := selectFromPairInt32x4(x, 0, 1, 2, 7, y)
+	llhl := selectFromPairInt32x4(x, 0, 1, 7, 2, y)
+	lhll := selectFromPairInt32x4(x, 0, 7, 1, 2, y)
+	hlll := selectFromPairInt32x4(x, 7, 0, 1, 2, y)
+
+	hhhl := selectFromPairInt32x4(x, 4, 5, 6, 0, y)
+	hhlh := selectFromPairInt32x4(x, 4, 5, 0, 6, y)
+	hlhh := selectFromPairInt32x4(x, 4, 0, 5, 6, y)
+	lhhh := selectFromPairInt32x4(x, 0, 4, 5, 6, y)
+
+	lhlh := selectFromPairInt32x4(x, 0, 4, 1, 5, y)
+	hlhl := selectFromPairInt32x4(x, 4, 0, 5, 1, y)
+	lhhl := selectFromPairInt32x4(x, 0, 4, 5, 1, y)
+	hllh := selectFromPairInt32x4(x, 4, 0, 1, 5, y)
+
+	r := make([]int32, 4, 4)
+
+	foo := func(v simd.Int32x4, a, b, c, d int32) {
+		v.StoreSlice(r)
+		checkSlices[int32](t, r, []int32{a, b, c, d})
+	}
+
+	foo(llll, 0, 1, 2, 3)
+	foo(hhhh, 4, 5, 6, 7)
+	foo(llhh, 0, 1, 6, 7)
+	foo(hhll, 6, 7, 0, 1)
+
+	foo(lllh, 0, 1, 2, 7)
+	foo(llhl, 0, 1, 7, 2)
+	foo(lhll, 0, 7, 1, 2)
+	foo(hlll, 7, 0, 1, 2)
+
+	foo(hhhl, 4, 5, 6, 0)
+	foo(hhlh, 4, 5, 0, 6)
+	foo(hlhh, 4, 0, 5, 6)
+	foo(lhhh, 0, 4, 5, 6)
+
+	foo(lhlh, 0, 4, 1, 5)
+	foo(hlhl, 4, 0, 5, 1)
+	foo(lhhl, 0, 4, 5, 1)
+	foo(hllh, 4, 0, 1, 5)
+}
+
+func TestSelectFromPairConstGroupedFloat32x8(t *testing.T) {
+	x := simd.LoadFloat32x8Slice([]float32{0, 1, 2, 3, 10, 11, 12, 13})
+	y := simd.LoadFloat32x8Slice([]float32{4, 5, 6, 7, 14, 15, 16, 17})
+
+	llll := x.SelectFromPairGrouped(0, 1, 2, 3, y)
+	hhhh := x.SelectFromPairGrouped(4, 5, 6, 7, y)
+	llhh := x.SelectFromPairGrouped(0, 1, 6, 7, y)
+	hhll := x.SelectFromPairGrouped(6, 7, 0, 1, y)
+
+	lllh := x.SelectFromPairGrouped(0, 1, 2, 7, y)
+	llhl := x.SelectFromPairGrouped(0, 1, 7, 2, y)
+	lhll := x.SelectFromPairGrouped(0, 7, 1, 2, y)
+	hlll := x.SelectFromPairGrouped(7, 0, 1, 2, y)
+
+	hhhl := x.SelectFromPairGrouped(4, 5, 6, 0, y)
+	hhlh := x.SelectFromPairGrouped(4, 5, 0, 6, y)
+	hlhh := x.SelectFromPairGrouped(4, 0, 5, 6, y)
+	lhhh := x.SelectFromPairGrouped(0, 4, 5, 6, y)
+
+	lhlh := x.SelectFromPairGrouped(0, 4, 1, 5, y)
+	hlhl := x.SelectFromPairGrouped(4, 0, 5, 1, y)
+	lhhl := x.SelectFromPairGrouped(0, 4, 5, 1, y)
+	hllh := x.SelectFromPairGrouped(4, 0, 1, 5, y)
+
+	r := make([]float32, 8, 8)
+
+	foo := func(v simd.Float32x8, a, b, c, d float32) {
+		v.StoreSlice(r)
+		checkSlices[float32](t, r, []float32{a, b, c, d, 10 + a, 10 + b, 10 + c, 10 + d})
+	}
+
+	foo(llll, 0, 1, 2, 3)
+	foo(hhhh, 4, 5, 6, 7)
+	foo(llhh, 0, 1, 6, 7)
+	foo(hhll, 6, 7, 0, 1)
+
+	foo(lllh, 0, 1, 2, 7)
+	foo(llhl, 0, 1, 7, 2)
+	foo(lhll, 0, 7, 1, 2)
+	foo(hlll, 7, 0, 1, 2)
+
+	foo(hhhl, 4, 5, 6, 0)
+	foo(hhlh, 4, 5, 0, 6)
+	foo(hlhh, 4, 0, 5, 6)
+	foo(lhhh, 0, 4, 5, 6)
+
+	foo(lhlh, 0, 4, 1, 5)
+	foo(hlhl, 4, 0, 5, 1)
+	foo(lhhl, 0, 4, 5, 1)
+	foo(hllh, 4, 0, 1, 5)
+}
+
+func TestSelectFromPairConstGroupedUint32x16(t *testing.T) {
+	if !simd.HasAVX512() {
+		t.Skip("Test requires HasAVX512, not available on this hardware")
+		return
+	}
+	x := simd.LoadUint32x16Slice([]uint32{0, 1, 2, 3, 10, 11, 12, 13, 20, 21, 22, 23, 30, 31, 32, 33})
+	y := simd.LoadUint32x16Slice([]uint32{4, 5, 6, 7, 14, 15, 16, 17, 24, 25, 26, 27, 34, 35, 36, 37})
+
+	llll := x.SelectFromPairGrouped(0, 1, 2, 3, y)
+	hhhh := x.SelectFromPairGrouped(4, 5, 6, 7, y)
+	llhh := x.SelectFromPairGrouped(0, 1, 6, 7, y)
+	hhll := x.SelectFromPairGrouped(6, 7, 0, 1, y)
+
+	lllh := x.SelectFromPairGrouped(0, 1, 2, 7, y)
+	llhl := x.SelectFromPairGrouped(0, 1, 7, 2, y)
+	lhll := x.SelectFromPairGrouped(0, 7, 1, 2, y)
+	hlll := x.SelectFromPairGrouped(7, 0, 1, 2, y)
+
+	hhhl := x.SelectFromPairGrouped(4, 5, 6, 0, y)
+	hhlh := x.SelectFromPairGrouped(4, 5, 0, 6, y)
+	hlhh := x.SelectFromPairGrouped(4, 0, 5, 6, y)
+	lhhh := x.SelectFromPairGrouped(0, 4, 5, 6, y)
+
+	lhlh := x.SelectFromPairGrouped(0, 4, 1, 5, y)
+	hlhl := x.SelectFromPairGrouped(4, 0, 5, 1, y)
+	lhhl := x.SelectFromPairGrouped(0, 4, 5, 1, y)
+	hllh := x.SelectFromPairGrouped(4, 0, 1, 5, y)
+
+	r := make([]uint32, 16, 16)
+
+	foo := func(v simd.Uint32x16, a, b, c, d uint32) {
+		v.StoreSlice(r)
+		checkSlices[uint32](t, r, []uint32{a, b, c, d,
+			10 + a, 10 + b, 10 + c, 10 + d,
+			20 + a, 20 + b, 20 + c, 20 + d,
+			30 + a, 30 + b, 30 + c, 30 + d,
+		})
+	}
+
+	foo(llll, 0, 1, 2, 3)
+	foo(hhhh, 4, 5, 6, 7)
+	foo(llhh, 0, 1, 6, 7)
+	foo(hhll, 6, 7, 0, 1)
+
+	foo(lllh, 0, 1, 2, 7)
+	foo(llhl, 0, 1, 7, 2)
+	foo(lhll, 0, 7, 1, 2)
+	foo(hlll, 7, 0, 1, 2)
+
+	foo(hhhl, 4, 5, 6, 0)
+	foo(hhlh, 4, 5, 0, 6)
+	foo(hlhh, 4, 0, 5, 6)
+	foo(lhhh, 0, 4, 5, 6)
+
+	foo(lhlh, 0, 4, 1, 5)
+	foo(hlhl, 4, 0, 5, 1)
+	foo(lhhl, 0, 4, 5, 1)
+	foo(hllh, 4, 0, 1, 5)
+}

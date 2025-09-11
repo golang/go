@@ -1614,6 +1614,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 				return nil
 			},
 			sys.AMD64)
+
 		addF(simdPackage, "Int8x16.IsZero", opLen1(ssa.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
 		addF(simdPackage, "Int16x8.IsZero", opLen1(ssa.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
 		addF(simdPackage, "Int32x4.IsZero", opLen1(ssa.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
@@ -1630,7 +1631,124 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		addF(simdPackage, "Uint16x16.IsZero", opLen1(ssa.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
 		addF(simdPackage, "Uint32x8.IsZero", opLen1(ssa.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
 		addF(simdPackage, "Uint64x4.IsZero", opLen1(ssa.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
+
+		sfp := func(method string, hwop ssa.Op, vectype *types.Type) {
+			addF("simd", method,
+				func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+					x, a, b, c, d, y := args[0], args[1], args[2], args[3], args[4], args[5]
+					if a.Op == ssa.OpConst8 && b.Op == ssa.OpConst8 && c.Op == ssa.OpConst8 && d.Op == ssa.OpConst8 {
+						return selectFromPair(x, a, b, c, d, y, s, hwop, vectype)
+					} else {
+						return s.callResult(n, callNormal)
+					}
+				},
+				sys.AMD64)
+		}
+
+		sfp("Int32x4.SelectFromPair", ssa.OpconcatSelectedConstantInt32x4, types.TypeVec128)
+		sfp("Uint32x4.SelectFromPair", ssa.OpconcatSelectedConstantUint32x4, types.TypeVec128)
+		sfp("Float32x4.SelectFromPair", ssa.OpconcatSelectedConstantFloat32x4, types.TypeVec128)
+
+		sfp("Int32x8.SelectFromPairGrouped", ssa.OpconcatSelectedConstantGroupedInt32x8, types.TypeVec256)
+		sfp("Uint32x8.SelectFromPairGrouped", ssa.OpconcatSelectedConstantGroupedUint32x8, types.TypeVec256)
+		sfp("Float32x8.SelectFromPairGrouped", ssa.OpconcatSelectedConstantGroupedFloat32x8, types.TypeVec256)
+
+		sfp("Int32x16.SelectFromPairGrouped", ssa.OpconcatSelectedConstantGroupedInt32x16, types.TypeVec512)
+		sfp("Uint32x16.SelectFromPairGrouped", ssa.OpconcatSelectedConstantGroupedUint32x16, types.TypeVec512)
+		sfp("Float32x16.SelectFromPairGrouped", ssa.OpconcatSelectedConstantGroupedFloat32x16, types.TypeVec512)
+
 	}
+}
+
+func cscimm(a, b, c, d uint8) int64 {
+	return se(a + b<<2 + c<<4 + d<<6)
+}
+
+const (
+	_LLLL = iota
+	_HLLL
+	_LHLL
+	_HHLL
+	_LLHL
+	_HLHL
+	_LHHL
+	_HHHL
+	_LLLH
+	_HLLH
+	_LHLH
+	_HHLH
+	_LLHH
+	_HLHH
+	_LHHH
+	_HHHH
+)
+
+func selectFromPair(x, _a, _b, _c, _d, y *ssa.Value, s *state, op ssa.Op, t *types.Type) *ssa.Value {
+	a, b, c, d := uint8(_a.AuxInt8()), uint8(_b.AuxInt8()), uint8(_c.AuxInt8()), uint8(_d.AuxInt8())
+	pattern := a>>2 + (b&4)>>1 + (c & 4) + (d&4)<<1
+
+	a, b, c, d = a&3, b&3, c&3, d&3
+
+	switch pattern {
+	case _LLLL:
+		// TODO DETECT 0,1,2,3, 0,0,0,0
+		return s.newValue2I(op, t, cscimm(a, b, c, d), x, x)
+	case _HHHH:
+		// TODO DETECT 0,1,2,3, 0,0,0,0
+		return s.newValue2I(op, t, cscimm(a, b, c, d), y, y)
+	case _LLHH:
+		return s.newValue2I(op, t, cscimm(a, b, c, d), x, y)
+	case _HHLL:
+		return s.newValue2I(op, t, cscimm(a, b, c, d), y, x)
+
+	case _HLLL:
+		z := s.newValue2I(op, t, cscimm(a, a, b, b), y, x)
+		return s.newValue2I(op, t, cscimm(0, 2, c, d), z, x)
+	case _LHLL:
+		z := s.newValue2I(op, t, cscimm(a, a, b, b), x, y)
+		return s.newValue2I(op, t, cscimm(0, 2, c, d), z, x)
+	case _HLHH:
+		z := s.newValue2I(op, t, cscimm(a, a, b, b), y, x)
+		return s.newValue2I(op, t, cscimm(0, 2, c, d), z, y)
+	case _LHHH:
+		z := s.newValue2I(op, t, cscimm(a, a, b, b), x, y)
+		return s.newValue2I(op, t, cscimm(0, 2, c, d), z, y)
+
+	case _LLLH:
+		z := s.newValue2I(op, t, cscimm(c, c, d, d), x, y)
+		return s.newValue2I(op, t, cscimm(a, b, 0, 2), x, z)
+	case _LLHL:
+		z := s.newValue2I(op, t, cscimm(c, c, d, d), y, x)
+		return s.newValue2I(op, t, cscimm(a, b, 0, 2), x, z)
+
+	case _HHLH:
+		z := s.newValue2I(op, t, cscimm(c, c, d, d), x, y)
+		return s.newValue2I(op, t, cscimm(a, b, 0, 2), y, z)
+
+	case _HHHL:
+		z := s.newValue2I(op, t, cscimm(c, c, d, d), y, x)
+		return s.newValue2I(op, t, cscimm(a, b, 0, 2), y, z)
+
+	case _LHLH:
+		z := s.newValue2I(op, t, cscimm(a, c, b, d), x, y)
+		return s.newValue2I(op, t, se(0b11_01_10_00), z, z)
+	case _HLHL:
+		z := s.newValue2I(op, t, cscimm(b, d, a, c), x, y)
+		return s.newValue2I(op, t, se(0b01_11_00_10), z, z)
+	case _HLLH:
+		z := s.newValue2I(op, t, cscimm(b, c, a, d), x, y)
+		return s.newValue2I(op, t, se(0b11_01_00_10), z, z)
+	case _LHHL:
+		z := s.newValue2I(op, t, cscimm(a, d, b, c), x, y)
+		return s.newValue2I(op, t, se(0b01_11_10_00), z, z)
+	}
+	panic("The preceding switch should have been exhaustive")
+}
+
+// se smears the not-really-a-sign bit of a uint8 to conform to the conventions
+// for representing AuxInt in ssa.
+func se(x uint8) int64 {
+	return int64(int8(x))
 }
 
 func opLen1(op ssa.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
