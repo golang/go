@@ -1823,6 +1823,8 @@ func isEnvSet(evar string) bool {
 func (t *tester) fipsSupported() bool {
 	// Keep this in sync with [crypto/internal/fips140.Supported].
 
+	// We don't test with the purego tag, so no need to check it.
+
 	// Use GOFIPS140 or GOEXPERIMENT=boringcrypto, but not both.
 	if strings.Contains(goexperiment, "boringcrypto") {
 		return false
