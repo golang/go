@@ -14,8 +14,12 @@ import (
 	"time"
 )
 
-// ErrProcessDone indicates a [Process] has finished.
-var ErrProcessDone = errors.New("os: process already finished")
+var (
+	// ErrProcessDone indicates a [Process] has finished.
+	ErrProcessDone = errors.New("os: process already finished")
+	// errProcessReleased indicates a [Process] has been released.
+	errProcessReleased = errors.New("os: process already released")
+)
 
 // processStatus describes the status of a [Process].
 type processStatus uint32

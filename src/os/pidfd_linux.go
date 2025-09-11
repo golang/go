@@ -16,7 +16,6 @@
 package os
 
 import (
-	"errors"
 	"internal/syscall/unix"
 	"runtime"
 	"sync"
@@ -130,7 +129,7 @@ func (p *Process) pidfdSendSignal(s syscall.Signal) error {
 	case statusDone:
 		return ErrProcessDone
 	case statusReleased:
-		return errors.New("os: process already released")
+		return errProcessReleased
 	}
 	defer p.handleTransientRelease()
 
