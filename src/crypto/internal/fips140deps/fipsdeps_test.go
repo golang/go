@@ -88,7 +88,8 @@ func TestImports(t *testing.T) {
 		}
 	}
 
-	// Ensure that all packages except check and check's dependencies import check.
+	// Ensure that all packages except check, check's dependencies, and the
+	// entropy source (which is used only from .../fips140/drbg) import check.
 	for pkg := range allPackages {
 		switch pkg {
 		case "crypto/internal/fips140/check":
@@ -99,6 +100,7 @@ func TestImports(t *testing.T) {
 		case "crypto/internal/fips140/sha3":
 		case "crypto/internal/fips140/sha256":
 		case "crypto/internal/fips140/sha512":
+		case "crypto/internal/fips140/entropy":
 		default:
 			if !importCheck[pkg] {
 				t.Errorf("package %s does not import crypto/internal/fips140/check", pkg)
