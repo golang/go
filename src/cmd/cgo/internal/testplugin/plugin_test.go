@@ -46,7 +46,7 @@ func prettyPrintf(format string, args ...interface{}) {
 }
 
 func testMain(m *testing.M) int {
-	if testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
+	if testing.Short() && testenv.Builder() == "" {
 		globalSkip = func(t *testing.T) { t.Skip("short mode and $GO_BUILDER_NAME not set") }
 		return m.Run()
 	}

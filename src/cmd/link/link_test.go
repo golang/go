@@ -280,7 +280,7 @@ func TestBuildForTvOS(t *testing.T) {
 	if runtime.GOOS != "darwin" {
 		t.Skip("skipping on non-darwin platform")
 	}
-	if testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
+	if testing.Short() && testenv.Builder() == "" {
 		t.Skip("skipping in -short mode with $GO_BUILDER_NAME empty")
 	}
 	if err := testenv.Command(t, "xcrun", "--help").Run(); err != nil {

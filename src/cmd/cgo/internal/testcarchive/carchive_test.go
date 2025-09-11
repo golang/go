@@ -58,7 +58,7 @@ func TestMain(m *testing.M) {
 }
 
 func testMain(m *testing.M) int {
-	if testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
+	if testing.Short() && testenv.Builder() == "" {
 		globalSkip = func(t testing.TB) { t.Skip("short mode and $GO_BUILDER_NAME not set") }
 		return m.Run()
 	}
