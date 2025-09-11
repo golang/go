@@ -73,6 +73,7 @@ type Config struct {
 	PackageVetx               map[string]string // maps package path to file of fact information
 	VetxOnly                  bool              // run analysis only for facts, not diagnostics
 	VetxOutput                string            // where to write file of fact information
+	Stdout                    string            // write stdout (e.g. JSON, unified diff) to this file
 	SucceedOnTypecheckFailure bool
 }
 
@@ -140,6 +141,15 @@ func Run(configFile string, analyzers []*analysis.Analyzer) {
 	cfg, err := readConfig(configFile)
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	// Redirect stdout to a file as requested.
+	if cfg.Stdout != "" {
+		f, err := os.Create(cfg.Stdout)
+		if err != nil {
+			log.Fatal(err)
+		}
+		os.Stdout = f
 	}
 
 	fset := token.NewFileSet()

@@ -40,7 +40,7 @@ type Cursor struct {
 // Root returns a cursor for the virtual root node,
 // whose children are the files provided to [New].
 //
-// Its [Cursor.Node] and [Cursor.Stack] methods return nil.
+// Its [Cursor.Node] method return nil.
 func (in *Inspector) Root() Cursor {
 	return Cursor{in, -1}
 }
