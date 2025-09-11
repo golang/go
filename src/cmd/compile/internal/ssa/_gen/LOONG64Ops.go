@@ -189,14 +189,17 @@ func init() {
 		{name: "VPCNT16", argLength: 1, reg: fp11, asm: "VPCNTH"}, // count set bits for each 16-bit unit and store the result in each 16-bit unit
 
 		// binary ops
-		{name: "ADDV", argLength: 2, reg: gp21, asm: "ADDVU", commutative: true},   // arg0 + arg1
-		{name: "ADDVconst", argLength: 1, reg: gp11sp, asm: "ADDVU", aux: "Int64"}, // arg0 + auxInt. auxInt is 32-bit, also in other *const ops.
-		{name: "SUBV", argLength: 2, reg: gp21, asm: "SUBVU"},                      // arg0 - arg1
-		{name: "SUBVconst", argLength: 1, reg: gp11, asm: "SUBVU", aux: "Int64"},   // arg0 - auxInt
+		{name: "ADDV", argLength: 2, reg: gp21, asm: "ADDVU", commutative: true},      // arg0 + arg1
+		{name: "ADDVconst", argLength: 1, reg: gp11sp, asm: "ADDVU", aux: "Int64"},    // arg0 + auxInt. auxInt is 32-bit, also in other *const ops.
+		{name: "ADDV16const", argLength: 1, reg: gp11sp, asm: "ADDV16", aux: "Int64"}, // arg0 + auxInt. auxInt is signed 32-bit and is a multiple of 65536, also in other *const ops.
+		{name: "SUBV", argLength: 2, reg: gp21, asm: "SUBVU"},                         // arg0 - arg1
+		{name: "SUBVconst", argLength: 1, reg: gp11, asm: "SUBVU", aux: "Int64"},      // arg0 - auxInt
 
 		{name: "MULV", argLength: 2, reg: gp21, asm: "MULV", commutative: true, typ: "Int64"},      // arg0 * arg1
 		{name: "MULHV", argLength: 2, reg: gp21, asm: "MULHV", commutative: true, typ: "Int64"},    // (arg0 * arg1) >> 64, signed
 		{name: "MULHVU", argLength: 2, reg: gp21, asm: "MULHVU", commutative: true, typ: "UInt64"}, // (arg0 * arg1) >> 64, unsigned
+		{name: "MULH", argLength: 2, reg: gp21, asm: "MULH", commutative: true, typ: "Int32"},      // (arg0 * arg1) >> 32, signed
+		{name: "MULHU", argLength: 2, reg: gp21, asm: "MULHU", commutative: true, typ: "UInt32"},   // (arg0 * arg1) >> 32, unsigned
 		{name: "DIVV", argLength: 2, reg: gp21, asm: "DIVV", typ: "Int64"},                         // arg0 / arg1, signed
 		{name: "DIVVU", argLength: 2, reg: gp21, asm: "DIVVU", typ: "UInt64"},                      // arg0 / arg1, unsigned
 		{name: "REMV", argLength: 2, reg: gp21, asm: "REMV", typ: "Int64"},                         // arg0 / arg1, signed
@@ -358,24 +361,6 @@ func init() {
 		{name: "CALLclosure", argLength: -1, reg: regInfo{inputs: []regMask{gpsp, buildReg("R29"), 0}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, last arg=mem, auxint=argsize, returns mem
 		{name: "CALLinter", argLength: -1, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                         // call fn by pointer.  arg0=codeptr, last arg=mem, auxint=argsize, returns mem
 
-		// duffzero
-		// arg0 = address of memory to zero
-		// arg1 = mem
-		// auxint = offset into duffzero code to start executing
-		// returns mem
-		// R20 aka loong64.REGRT1 changed as side effect
-		{
-			name:      "DUFFZERO",
-			aux:       "Int64",
-			argLength: 2,
-			reg: regInfo{
-				inputs:   []regMask{buildReg("R20")},
-				clobbers: buildReg("R20 R1"),
-			},
-			typ:            "Mem",
-			faultOnNilArg0: true,
-		},
-
 		// medium zeroing
 		// arg0 = address of memory to zero
 		// arg1 = mem
@@ -389,25 +374,6 @@ func init() {
 				inputs: []regMask{gp},
 			},
 			faultOnNilArg0: true,
-		},
-
-		// duffcopy
-		// arg0 = address of dst memory (in R21, changed as side effect)
-		// arg1 = address of src memory (in R20, changed as side effect)
-		// arg2 = mem
-		// auxint = offset into duffcopy code to start executing
-		// returns mem
-		{
-			name:      "DUFFCOPY",
-			aux:       "Int64",
-			argLength: 3,
-			reg: regInfo{
-				inputs:   []regMask{buildReg("R21"), buildReg("R20")},
-				clobbers: buildReg("R20 R21 R1"),
-			},
-			typ:            "Mem",
-			faultOnNilArg0: true,
-			faultOnNilArg1: true,
 		},
 
 		// large zeroing
@@ -427,27 +393,40 @@ func init() {
 			needIntTemp:    true,
 		},
 
-		// large or unaligned move
-		// arg0 = address of dst memory (in R21, changed as side effect)
-		// arg1 = address of src memory (in R20, changed as side effect)
-		// arg2 = address of the last element of src
-		// arg3 = mem
-		// auxint = alignment
+		// medium copying
+		// arg0 = address of dst memory
+		// arg1 = address of src memory
+		// arg2 = mem
+		// auxint = number of bytes to copy
 		// returns mem
-		//	MOVx	(R20), Rtmp
-		//	MOVx	Rtmp, (R21)
-		//	ADDV	$sz, R20
-		//	ADDV	$sz, R21
-		//	BGEU	Rarg2, R20, -4(PC)
 		{
 			name:      "LoweredMove",
 			aux:       "Int64",
-			argLength: 4,
+			argLength: 3,
 			reg: regInfo{
-				inputs:   []regMask{buildReg("R21"), buildReg("R20"), gp},
-				clobbers: buildReg("R20 R21"),
+				inputs:   []regMask{gp &^ buildReg("R20"), gp &^ buildReg("R20")},
+				clobbers: buildReg("R20"),
 			},
-			typ:            "Mem",
+			faultOnNilArg0: true,
+			faultOnNilArg1: true,
+		},
+
+		// large copying
+		// arg0 = address of dst memory
+		// arg1 = address of src memory
+		// arg2 = mem
+		// auxint = number of bytes to copy
+		// returns mem
+		{
+			name:      "LoweredMoveLoop",
+			aux:       "Int64",
+			argLength: 3,
+			reg: regInfo{
+				inputs:       []regMask{gp &^ buildReg("R20 R21"), gp &^ buildReg("R20 R21")},
+				clobbers:     buildReg("R20 R21"),
+				clobbersArg0: true,
+				clobbersArg1: true,
+			},
 			faultOnNilArg0: true,
 			faultOnNilArg1: true,
 		},

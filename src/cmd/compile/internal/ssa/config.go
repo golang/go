@@ -279,6 +279,8 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.RegSize = 8
 		c.lowerBlock = rewriteBlockMIPS64
 		c.lowerValue = rewriteValueMIPS64
+		c.lateLowerBlock = rewriteBlockMIPS64latelower
+		c.lateLowerValue = rewriteValueMIPS64latelower
 		c.registers = registersMIPS64[:]
 		c.gpRegMask = gpRegMaskMIPS64
 		c.fpRegMask = fpRegMaskMIPS64

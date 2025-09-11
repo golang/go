@@ -183,17 +183,15 @@ func splitQuoted(s string) (r []string, err error) {
 	return args, err
 }
 
-// Translate rewrites f.AST, the original Go input, to remove
-// references to the imported package C, replacing them with
-// references to the equivalent Go types, functions, and variables.
-func (p *Package) Translate(f *File) {
+// loadDebug runs gcc to load debug information for the File. The debug
+// information will be saved to the debugs field of the file, and be
+// processed when Translate is called on the file later.
+// loadDebug is called concurrently with different files.
+func (f *File) loadDebug(p *Package) {
 	for _, cref := range f.Ref {
 		// Convert C.ulong to C.unsigned long, etc.
 		cref.Name.C = cname(cref.Name.Go)
 	}
-
-	var conv typeConv
-	conv.Init(p.PtrSize, p.IntSize)
 
 	ft := fileTypedefs{typedefs: make(map[string]bool)}
 	numTypedefs := -1
@@ -213,8 +211,7 @@ func (p *Package) Translate(f *File) {
 		}
 		needType := p.guessKinds(f)
 		if len(needType) > 0 {
-			d := p.loadDWARF(f, &ft, needType)
-			p.recordTypes(f, d, &conv)
+			f.debugs = append(f.debugs, p.loadDWARF(f, &ft, needType))
 		}
 
 		// In godefs mode we're OK with the typedefs, which
@@ -223,6 +220,18 @@ func (p *Package) Translate(f *File) {
 		if *godefs {
 			break
 		}
+	}
+}
+
+// Translate rewrites f.AST, the original Go input, to remove
+// references to the imported package C, replacing them with
+// references to the equivalent Go types, functions, and variables.
+// Preconditions: File.loadDebug must be called prior to translate.
+func (p *Package) Translate(f *File) {
+	var conv typeConv
+	conv.Init(p.PtrSize, p.IntSize)
+	for _, d := range f.debugs {
+		p.recordTypes(f, d, &conv)
 	}
 	p.prepareNames(f)
 	if p.rewriteCalls(f) {
@@ -280,6 +289,7 @@ func (f *File) loadDefines(gccOptions []string) bool {
 // guessKinds tricks gcc into revealing the kind of each
 // name xxx for the references C.xxx in the Go input.
 // The kind is either a constant, type, or variable.
+// guessKinds is called concurrently with different files.
 func (p *Package) guessKinds(f *File) []*Name {
 	// Determine kinds for names we already know about,
 	// like #defines or 'struct foo', before bothering with gcc.
@@ -523,6 +533,7 @@ func (p *Package) guessKinds(f *File) []*Name {
 // loadDWARF parses the DWARF debug information generated
 // by gcc to learn the details of the constants, variables, and types
 // being referred to as C.xxx.
+// loadDwarf is called concurrently with different files.
 func (p *Package) loadDWARF(f *File, ft *fileTypedefs, names []*Name) *debug {
 	// Extract the types from the DWARF section of an object
 	// from a well-formed C program. Gcc only generates DWARF info
@@ -1786,6 +1797,7 @@ func gccTmp() string {
 
 // gccCmd returns the gcc command line to use for compiling
 // the input.
+// gccCommand is called concurrently for different files.
 func (p *Package) gccCmd(ofile string) []string {
 	c := append(gccBaseCmd,
 		"-w",         // no warnings
@@ -1829,6 +1841,7 @@ func (p *Package) gccCmd(ofile string) []string {
 
 // gccDebug runs gcc -gdwarf-2 over the C program stdin and
 // returns the corresponding DWARF data and, if present, debug data block.
+// gccDebug is called concurrently with different C programs.
 func (p *Package) gccDebug(stdin []byte, nnames int) (d *dwarf.Data, ints []int64, floats []float64, strs []string) {
 	ofile := gccTmp()
 	runGcc(stdin, p.gccCmd(ofile))
@@ -2219,6 +2232,7 @@ func gccDefines(stdin []byte, gccOptions []string) string {
 // gccErrors runs gcc over the C program stdin and returns
 // the errors that gcc prints. That is, this function expects
 // gcc to fail.
+// gccErrors is called concurrently with different C programs.
 func (p *Package) gccErrors(stdin []byte, extraArgs ...string) string {
 	// TODO(rsc): require failure
 	args := p.gccCmd(gccTmp())

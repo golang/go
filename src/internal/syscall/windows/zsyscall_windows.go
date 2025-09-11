@@ -54,7 +54,6 @@ var (
 	procGetSidSubAuthorityCount           = modadvapi32.NewProc("GetSidSubAuthorityCount")
 	procImpersonateLoggedOnUser           = modadvapi32.NewProc("ImpersonateLoggedOnUser")
 	procImpersonateSelf                   = modadvapi32.NewProc("ImpersonateSelf")
-	procInitializeAcl                     = modadvapi32.NewProc("InitializeAcl")
 	procIsValidSid                        = modadvapi32.NewProc("IsValidSid")
 	procLogonUserW                        = modadvapi32.NewProc("LogonUserW")
 	procLookupPrivilegeValueW             = modadvapi32.NewProc("LookupPrivilegeValueW")
@@ -63,7 +62,6 @@ var (
 	procOpenThreadToken                   = modadvapi32.NewProc("OpenThreadToken")
 	procQueryServiceStatus                = modadvapi32.NewProc("QueryServiceStatus")
 	procRevertToSelf                      = modadvapi32.NewProc("RevertToSelf")
-	procSetNamedSecurityInfoW             = modadvapi32.NewProc("SetNamedSecurityInfoW")
 	procSetTokenInformation               = modadvapi32.NewProc("SetTokenInformation")
 	procProcessPrng                       = modbcryptprimitives.NewProc("ProcessPrng")
 	procGetAdaptersAddresses              = modiphlpapi.NewProc("GetAdaptersAddresses")
@@ -168,14 +166,6 @@ func ImpersonateSelf(impersonationlevel uint32) (err error) {
 	return
 }
 
-func InitializeAcl(acl *ACL, length uint32, revision uint32) (err error) {
-	r1, _, e1 := syscall.Syscall(procInitializeAcl.Addr(), 3, uintptr(unsafe.Pointer(acl)), uintptr(length), uintptr(revision))
-	if r1 == 0 {
-		err = errnoErr(e1)
-	}
-	return
-}
-
 func IsValidSid(sid *syscall.SID) (valid bool) {
 	r0, _, _ := syscall.Syscall(procIsValidSid.Addr(), 1, uintptr(unsafe.Pointer(sid)), 0, 0)
 	valid = r0 != 0
@@ -240,23 +230,6 @@ func RevertToSelf() (err error) {
 	r1, _, e1 := syscall.Syscall(procRevertToSelf.Addr(), 0, 0, 0, 0)
 	if r1 == 0 {
 		err = errnoErr(e1)
-	}
-	return
-}
-
-func SetNamedSecurityInfo(objectName string, objectType SE_OBJECT_TYPE, securityInformation SECURITY_INFORMATION, owner *syscall.SID, group *syscall.SID, dacl *ACL, sacl *ACL) (ret error) {
-	var _p0 *uint16
-	_p0, ret = syscall.UTF16PtrFromString(objectName)
-	if ret != nil {
-		return
-	}
-	return _SetNamedSecurityInfo(_p0, objectType, securityInformation, owner, group, dacl, sacl)
-}
-
-func _SetNamedSecurityInfo(objectName *uint16, objectType SE_OBJECT_TYPE, securityInformation SECURITY_INFORMATION, owner *syscall.SID, group *syscall.SID, dacl *ACL, sacl *ACL) (ret error) {
-	r0, _, _ := syscall.Syscall9(procSetNamedSecurityInfoW.Addr(), 7, uintptr(unsafe.Pointer(objectName)), uintptr(objectType), uintptr(securityInformation), uintptr(unsafe.Pointer(owner)), uintptr(unsafe.Pointer(group)), uintptr(unsafe.Pointer(dacl)), uintptr(unsafe.Pointer(sacl)), 0, 0)
-	if r0 != 0 {
-		ret = syscall.Errno(r0)
 	}
 	return
 }

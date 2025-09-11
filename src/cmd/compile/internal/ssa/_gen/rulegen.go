@@ -1452,7 +1452,7 @@ func opHasAuxInt(op opData) bool {
 	switch op.aux {
 	case "Bool", "Int8", "Int16", "Int32", "Int64", "Int128", "UInt8", "Float32", "Float64",
 		"SymOff", "CallOff", "SymValAndOff", "TypSize", "ARM64BitField", "FlagConstant", "CCop",
-		"PanicBoundsC", "PanicBoundsCC":
+		"PanicBoundsC", "PanicBoundsCC", "ARM64ConditionalParams":
 		return true
 	}
 	return false
@@ -1860,6 +1860,8 @@ func (op opData) auxIntType() string {
 		return "flagConstant"
 	case "ARM64BitField":
 		return "arm64BitField"
+	case "ARM64ConditionalParams":
+		return "arm64ConditionalParams"
 	case "PanicBoundsC", "PanicBoundsCC":
 		return "int64"
 	default:

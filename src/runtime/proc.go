@@ -1817,10 +1817,8 @@ func startTheWorldWithSema(now int64, w worldStop) int64 {
 // via libcall.
 func usesLibcall() bool {
 	switch GOOS {
-	case "aix", "darwin", "illumos", "ios", "solaris", "windows":
+	case "aix", "darwin", "illumos", "ios", "openbsd", "solaris", "windows":
 		return true
-	case "openbsd":
-		return GOARCH != "mips64"
 	}
 	return false
 }
@@ -1829,10 +1827,8 @@ func usesLibcall() bool {
 // system-allocated stack.
 func mStackIsSystemAllocated() bool {
 	switch GOOS {
-	case "aix", "darwin", "plan9", "illumos", "ios", "solaris", "windows":
+	case "aix", "darwin", "plan9", "illumos", "ios", "openbsd", "solaris", "windows":
 		return true
-	case "openbsd":
-		return GOARCH != "mips64"
 	}
 	return false
 }

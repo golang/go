@@ -276,21 +276,3 @@ type FILE_COMPLETION_INFORMATION struct {
 // https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-osversioninfoexa
 // https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/ns-wdm-_osversioninfoexw
 const VER_NT_WORKSTATION = 0x0000001
-
-// https://learn.microsoft.com/en-us/windows/win32/api/accctrl/ne-accctrl-se_object_type
-type SE_OBJECT_TYPE uint32
-
-const (
-	SE_UNKNOWN_OBJECT_TYPE SE_OBJECT_TYPE = 0
-	SE_FILE_OBJECT         SE_OBJECT_TYPE = 1
-)
-
-// https://learn.microsoft.com/en-us/windows/win32/secauthz/security-information
-type SECURITY_INFORMATION uint32
-
-const (
-	DACL_SECURITY_INFORMATION             SECURITY_INFORMATION = 0x00000004
-	UNPROTECTED_DACL_SECURITY_INFORMATION SECURITY_INFORMATION = 0x20000000
-)
-
-const ACL_REVISION = 2

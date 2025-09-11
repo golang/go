@@ -473,10 +473,12 @@ const (
 	needStale
 )
 
-// build is the action for building a single package.
-// Note that any new influence on this logic must be reported in b.buildActionID above as well.
-func (b *Builder) build(ctx context.Context, a *Action) (err error) {
-	p := a.Package
+// checkCacheForBuild checks the cache for the outputs of the buildAction to determine
+// what work needs to be done by it and the actions preceding it. a is the action
+// currently being run, which has an actor of type *checkCacheActor and is a dependency
+// of the buildAction.
+func (b *Builder) checkCacheForBuild(a, buildAction *Action, covMetaFileName string) (_ *checkCacheProvider, err error) {
+	p := buildAction.Package
 	sh := b.Shell(a)
 
 	bit := func(x uint32, b bool) uint32 {
@@ -488,28 +490,31 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 
 	cachedBuild := false
 	needCovMeta := p.Internal.Cover.GenMeta
-	need := bit(needBuild, !b.IsCmdList && a.needBuild || b.NeedExport) |
-		bit(needCgoHdr, b.needCgoHdr(a)) |
-		bit(needVet, a.needVet) |
+	need := bit(needBuild, !b.IsCmdList && buildAction.needBuild || b.NeedExport) |
+		bit(needCgoHdr, b.needCgoHdr(buildAction)) |
+		bit(needVet, buildAction.needVet) |
 		bit(needCovMetaFile, needCovMeta) |
 		bit(needCompiledGoFiles, b.NeedCompiledGoFiles)
 
 	if !p.BinaryOnly {
-		if b.useCache(a, b.buildActionID(a), p.Target, need&needBuild != 0) {
+		// We pass 'a' (this checkCacheAction) to buildActionID so that we use its dependencies,
+		// which are the actual package dependencies, rather than the buildAction's dependencies
+		// which also includes this action and the cover action.
+		if b.useCache(buildAction, b.buildActionID(a), p.Target, need&needBuild != 0) {
 			// We found the main output in the cache.
 			// If we don't need any other outputs, we can stop.
 			// Otherwise, we need to write files to a.Objdir (needVet, needCgoHdr).
 			// Remember that we might have them in cache
 			// and check again after we create a.Objdir.
 			cachedBuild = true
-			a.output = []byte{} // start saving output in case we miss any cache results
+			buildAction.output = []byte{} // start saving output in case we miss any cache results
 			need &^= needBuild
 			if b.NeedExport {
-				p.Export = a.built
-				p.BuildID = a.buildID
+				p.Export = buildAction.built
+				p.BuildID = buildAction.buildID
 			}
 			if need&needCompiledGoFiles != 0 {
-				if err := b.loadCachedCompiledGoFiles(a); err == nil {
+				if err := b.loadCachedCompiledGoFiles(buildAction); err == nil {
 					need &^= needCompiledGoFiles
 				}
 			}
@@ -518,13 +523,13 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 		// Source files might be cached, even if the full action is not
 		// (e.g., go list -compiled -find).
 		if !cachedBuild && need&needCompiledGoFiles != 0 {
-			if err := b.loadCachedCompiledGoFiles(a); err == nil {
+			if err := b.loadCachedCompiledGoFiles(buildAction); err == nil {
 				need &^= needCompiledGoFiles
 			}
 		}
 
 		if need == 0 {
-			return nil
+			return &checkCacheProvider{need: need}, nil
 		}
 		defer b.flushOutput(a)
 	}
@@ -534,6 +539,175 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 			p.Error = &load.PackageError{Err: err}
 		}
 	}()
+
+	if p.Error != nil {
+		// Don't try to build anything for packages with errors. There may be a
+		// problem with the inputs that makes the package unsafe to build.
+		return nil, p.Error
+	}
+
+	// TODO(matloob): return early for binary-only packages so that we don't need to indent
+	// the core of this function in the if !p.BinaryOnly block above.
+	if p.BinaryOnly {
+		p.Stale = true
+		p.StaleReason = "binary-only packages are no longer supported"
+		if b.IsCmdList {
+			return &checkCacheProvider{need: 0}, nil
+		}
+		return nil, errors.New("binary-only packages are no longer supported")
+	}
+
+	if p.Module != nil && !allowedVersion(p.Module.GoVersion) {
+		return nil, errors.New("module requires Go " + p.Module.GoVersion + " or later")
+	}
+
+	if err := b.checkDirectives(buildAction); err != nil {
+		return nil, err
+	}
+
+	if err := sh.Mkdir(buildAction.Objdir); err != nil {
+		return nil, err
+	}
+
+	// Load cached cgo header, but only if we're skipping the main build (cachedBuild==true).
+	if cachedBuild && need&needCgoHdr != 0 {
+		if err := b.loadCachedCgoHdr(buildAction); err == nil {
+			need &^= needCgoHdr
+		}
+	}
+
+	// Load cached coverage meta-data file fragment, but only if we're
+	// skipping the main build (cachedBuild==true).
+	if cachedBuild && need&needCovMetaFile != 0 {
+		if err := b.loadCachedObjdirFile(buildAction, cache.Default(), covMetaFileName); err == nil {
+			need &^= needCovMetaFile
+		}
+	}
+
+	// Load cached vet config, but only if that's all we have left
+	// (need == needVet, not testing just the one bit).
+	// If we are going to do a full build anyway,
+	// we're going to regenerate the files in the build action anyway.
+	if need == needVet {
+		if err := b.loadCachedVet(buildAction); err == nil {
+			need &^= needVet
+		}
+	}
+
+	return &checkCacheProvider{need: need}, nil
+}
+
+func (b *Builder) runCover(a, buildAction *Action, objdir string, gofiles, cgofiles []string) (*coverProvider, error) {
+	p := a.Package
+	sh := b.Shell(a)
+
+	var cacheProvider *checkCacheProvider
+	for _, dep := range a.Deps {
+		if pr, ok := dep.Provider.(*checkCacheProvider); ok {
+			cacheProvider = pr
+		}
+	}
+	if cacheProvider == nil {
+		base.Fatalf("internal error: could not find checkCacheProvider")
+	}
+	need := cacheProvider.need
+
+	if need == 0 {
+		return nil, nil
+	}
+
+	if err := sh.Mkdir(a.Objdir); err != nil {
+		return nil, err
+	}
+
+	gofiles = slices.Clone(gofiles)
+	cgofiles = slices.Clone(cgofiles)
+
+	outfiles := []string{}
+	infiles := []string{}
+	for i, file := range str.StringList(gofiles, cgofiles) {
+		if base.IsTestFile(file) {
+			continue // Not covering this file.
+		}
+
+		var sourceFile string
+		var coverFile string
+		if base, found := strings.CutSuffix(file, ".cgo1.go"); found {
+			// cgo files have absolute paths
+			base = filepath.Base(base)
+			sourceFile = file
+			coverFile = objdir + base + ".cgo1.go"
+		} else {
+			sourceFile = filepath.Join(p.Dir, file)
+			coverFile = objdir + file
+		}
+		coverFile = strings.TrimSuffix(coverFile, ".go") + ".cover.go"
+		infiles = append(infiles, sourceFile)
+		outfiles = append(outfiles, coverFile)
+		if i < len(gofiles) {
+			gofiles[i] = coverFile
+		} else {
+			cgofiles[i-len(gofiles)] = coverFile
+		}
+	}
+
+	if len(infiles) != 0 {
+		// Coverage instrumentation creates new top level
+		// variables in the target package for things like
+		// meta-data containers, counter vars, etc. To avoid
+		// collisions with user variables, suffix the var name
+		// with 12 hex digits from the SHA-256 hash of the
+		// import path. Choice of 12 digits is historical/arbitrary,
+		// we just need enough of the hash to avoid accidents,
+		// as opposed to precluding determined attempts by
+		// users to break things.
+		sum := sha256.Sum256([]byte(a.Package.ImportPath))
+		coverVar := fmt.Sprintf("goCover_%x_", sum[:6])
+		mode := a.Package.Internal.Cover.Mode
+		if mode == "" {
+			panic("covermode should be set at this point")
+		}
+		if newoutfiles, err := b.cover(a, infiles, outfiles, coverVar, mode); err != nil {
+			return nil, err
+		} else {
+			outfiles = newoutfiles
+			gofiles = append([]string{newoutfiles[0]}, gofiles...)
+		}
+		if ca, ok := a.Actor.(*coverActor); ok && ca.covMetaFileName != "" {
+			b.cacheObjdirFile(buildAction, cache.Default(), ca.covMetaFileName)
+		}
+	}
+	return &coverProvider{gofiles, cgofiles}, nil
+}
+
+// build is the action for building a single package.
+// Note that any new influence on this logic must be reported in b.buildActionID above as well.
+func (b *Builder) build(ctx context.Context, a *Action) (err error) {
+	p := a.Package
+	sh := b.Shell(a)
+
+	var cacheProvider *checkCacheProvider
+	var coverPr *coverProvider
+	for _, dep := range a.Deps {
+		switch pr := dep.Provider.(type) {
+		case *coverProvider:
+			coverPr = pr
+		case *checkCacheProvider:
+			cacheProvider = pr
+		}
+	}
+	if cacheProvider == nil {
+		base.Fatalf("internal error: could not find checkCacheProvider")
+	}
+
+	need := cacheProvider.need
+	need &^= needCovMetaFile // handled by cover action
+
+	if need == 0 {
+		return
+	}
+	defer b.flushOutput(a)
+
 	if cfg.BuildN {
 		// In -n mode, print a banner between packages.
 		// The banner is five lines so that when changes to
@@ -547,62 +721,7 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 		sh.Printf("%s\n", p.ImportPath)
 	}
 
-	if p.Error != nil {
-		// Don't try to build anything for packages with errors. There may be a
-		// problem with the inputs that makes the package unsafe to build.
-		return p.Error
-	}
-
-	if p.BinaryOnly {
-		p.Stale = true
-		p.StaleReason = "binary-only packages are no longer supported"
-		if b.IsCmdList {
-			return nil
-		}
-		return errors.New("binary-only packages are no longer supported")
-	}
-
-	if p.Module != nil && !allowedVersion(p.Module.GoVersion) {
-		return errors.New("module requires Go " + p.Module.GoVersion + " or later")
-	}
-
-	if err := b.checkDirectives(a); err != nil {
-		return err
-	}
-
-	if err := sh.Mkdir(a.Objdir); err != nil {
-		return err
-	}
 	objdir := a.Objdir
-
-	// Load cached cgo header, but only if we're skipping the main build (cachedBuild==true).
-	if cachedBuild && need&needCgoHdr != 0 {
-		if err := b.loadCachedCgoHdr(a); err == nil {
-			need &^= needCgoHdr
-		}
-	}
-
-	// Load cached coverage meta-data file fragment, but only if we're
-	// skipping the main build (cachedBuild==true).
-	if cachedBuild && need&needCovMetaFile != 0 {
-		bact := a.Actor.(*buildActor)
-		if err := b.loadCachedObjdirFile(a, cache.Default(), bact.covMetaFileName); err == nil {
-			need &^= needCovMetaFile
-		}
-	}
-
-	// Load cached vet config, but only if that's all we have left
-	// (need == needVet, not testing just the one bit).
-	// If we are going to do a full build anyway,
-	// we're going to regenerate the files below anyway.
-	if need == needVet {
-		if err := b.loadCachedVet(a); err == nil {
-			need &^= needVet
-		}
-	}
-	if need == 0 {
-		return nil
-	}
 
 	if err := AllowInstall(a); err != nil {
 		return err
@@ -658,60 +777,8 @@ OverlayLoop:
 
 	// If we're doing coverage, preprocess the .go files and put them in the work directory
 	if p.Internal.Cover.Mode != "" {
-		outfiles := []string{}
-		infiles := []string{}
-		for i, file := range str.StringList(gofiles, cgofiles) {
-			if base.IsTestFile(file) {
-				continue // Not covering this file.
-			}
-
-			var sourceFile string
-			var coverFile string
-			if base, found := strings.CutSuffix(file, ".cgo1.go"); found {
-				// cgo files have absolute paths
-				base = filepath.Base(base)
-				sourceFile = file
-				coverFile = objdir + base + ".cgo1.go"
-			} else {
-				sourceFile = filepath.Join(p.Dir, file)
-				coverFile = objdir + file
-			}
-			coverFile = strings.TrimSuffix(coverFile, ".go") + ".cover.go"
-			infiles = append(infiles, sourceFile)
-			outfiles = append(outfiles, coverFile)
-			if i < len(gofiles) {
-				gofiles[i] = coverFile
-			} else {
-				cgofiles[i-len(gofiles)] = coverFile
-			}
-		}
-
-		if len(infiles) != 0 {
-			// Coverage instrumentation creates new top level
-			// variables in the target package for things like
-			// meta-data containers, counter vars, etc. To avoid
-			// collisions with user variables, suffix the var name
-			// with 12 hex digits from the SHA-256 hash of the
-			// import path. Choice of 12 digits is historical/arbitrary,
-			// we just need enough of the hash to avoid accidents,
-			// as opposed to precluding determined attempts by
-			// users to break things.
-			sum := sha256.Sum256([]byte(a.Package.ImportPath))
-			coverVar := fmt.Sprintf("goCover_%x_", sum[:6])
-			mode := a.Package.Internal.Cover.Mode
-			if mode == "" {
-				panic("covermode should be set at this point")
-			}
-			if newoutfiles, err := b.cover(a, infiles, outfiles, coverVar, mode); err != nil {
-				return err
-			} else {
-				outfiles = newoutfiles
-				gofiles = append([]string{newoutfiles[0]}, gofiles...)
-			}
-			if ba, ok := a.Actor.(*buildActor); ok && ba.covMetaFileName != "" {
-				b.cacheObjdirFile(a, cache.Default(), ba.covMetaFileName)
-			}
-		}
+		gofiles = coverPr.goSources
+		cgofiles = coverPr.cgoSources
 	}
 
 	// Run SWIG on each .swig and .swigcxx file.
@@ -1209,7 +1276,7 @@ func buildVetConfig(a *Action, srcfiles []string) {
 
 	for _, a1 := range a.Deps {
 		p1 := a1.Package
-		if p1 == nil || p1.ImportPath == "" {
+		if p1 == nil || p1.ImportPath == "" || p1 == a.Package {
 			continue
 		}
 		// Add import mapping if needed
@@ -1951,8 +2018,8 @@ func (b *Builder) writeCoverPkgInputs(a *Action, pconfigfile string, covoutputsf
 		OutConfig:   p.Internal.Cover.Cfg,
 		Local:       p.Internal.Local,
 	}
-	if ba, ok := a.Actor.(*buildActor); ok && ba.covMetaFileName != "" {
-		pcfg.EmitMetaFile = a.Objdir + ba.covMetaFileName
+	if ca, ok := a.Actor.(*coverActor); ok && ca.covMetaFileName != "" {
+		pcfg.EmitMetaFile = a.Objdir + ca.covMetaFileName
 	}
 	if a.Package.Module != nil {
 		pcfg.ModulePath = a.Package.Module.Path

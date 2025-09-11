@@ -768,6 +768,17 @@ opSwitch:
 		if n.X.Op() == ir.OINDEX && isIndexingCoverageCounter(n.X) {
 			return false
 		}
+
+	case ir.OSLICE, ir.OSLICEARR, ir.OSLICESTR, ir.OSLICE3, ir.OSLICE3ARR:
+		n := n.(*ir.SliceExpr)
+
+		// Ignore superfluous slicing.
+		if n.Low != nil && n.Low.Op() == ir.OLITERAL && ir.Int64Val(n.Low) == 0 {
+			v.budget++
+		}
+		if n.High != nil && n.High.Op() == ir.OLEN && n.High.(*ir.UnaryExpr).X == n.X {
+			v.budget += 2
+		}
 	}
 
 	v.budget--

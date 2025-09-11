@@ -177,7 +177,8 @@ func MarshalFunc[T any](fn func(T) ([]byte, error)) *Marshalers {
 	typFnc := typedMarshaler{
 		typ: t,
 		fnc: func(enc *jsontext.Encoder, va addressableValue, mo *jsonopts.Struct) error {
-			val, err := fn(va.castTo(t).Interface().(T))
+			v, _ := reflect.TypeAssert[T](va.castTo(t))
+			val, err := fn(v)
 			if err != nil {
 				err = wrapSkipFunc(err, "marshal function of type func(T) ([]byte, error)")
 				if mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
@@ -222,7 +223,8 @@ func MarshalToFunc[T any](fn func(*jsontext.Encoder, T) error) *Marshalers {
 			xe := export.Encoder(enc)
 			prevDepth, prevLength := xe.Tokens.DepthLength()
 			xe.Flags.Set(jsonflags.WithinArshalCall | 1)
-			err := fn(enc, va.castTo(t).Interface().(T))
+			v, _ := reflect.TypeAssert[T](va.castTo(t))
+			err := fn(enc, v)
 			xe.Flags.Set(jsonflags.WithinArshalCall | 0)
 			currDepth, currLength := xe.Tokens.DepthLength()
 			if err == nil && (prevDepth != currDepth || prevLength+1 != currLength) {
@@ -269,7 +271,8 @@ func UnmarshalFunc[T any](fn func([]byte, T) error) *Unmarshalers {
 			if err != nil {
 				return err // must be a syntactic or I/O error
 			}
-			err = fn(val, va.castTo(t).Interface().(T))
+			v, _ := reflect.TypeAssert[T](va.castTo(t))
+			err = fn(val, v)
 			if err != nil {
 				err = wrapSkipFunc(err, "unmarshal function of type func([]byte, T) error")
 				if uo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
@@ -304,7 +307,8 @@ func UnmarshalFromFunc[T any](fn func(*jsontext.Decoder, T) error) *Unmarshalers
 			xd := export.Decoder(dec)
 			prevDepth, prevLength := xd.Tokens.DepthLength()
 			xd.Flags.Set(jsonflags.WithinArshalCall | 1)
-			err := fn(dec, va.castTo(t).Interface().(T))
+			v, _ := reflect.TypeAssert[T](va.castTo(t))
+			err := fn(dec, v)
 			xd.Flags.Set(jsonflags.WithinArshalCall | 0)
 			currDepth, currLength := xd.Tokens.DepthLength()
 			if err == nil && (prevDepth != currDepth || prevLength+1 != currLength) {

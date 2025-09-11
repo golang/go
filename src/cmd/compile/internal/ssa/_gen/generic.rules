@@ -2088,7 +2088,7 @@
 (NilCheck ptr:(NilCheck _ _) _ ) => ptr
 
 // for late-expanded calls, recognize memequal applied to a single constant byte
-// Support is limited by 1, 2, 4, 8 byte sizes
+// Support is limited by [1-8] byte sizes
 (StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [1]) mem)
   && isSameCall(callAux, "runtime.memequal")
   && symIsRO(scon)
@@ -2134,6 +2134,118 @@
   && symIsRO(scon)
   && canLoadUnaligned(config) && config.PtrSize == 8
   => (MakeResult (Eq64 (Load <typ.Int64> sptr mem) (Const64 <typ.Int64> [int64(read64(scon,0,config.ctxt.Arch.ByteOrder))])) mem)
+
+(StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [3]) mem)
+  && isSameCall(callAux, "runtime.memequal")
+  && symIsRO(scon)
+  && canLoadUnaligned(config) =>
+  (MakeResult
+    (Eq32
+      (Or32 <typ.Int32>
+        (ZeroExt16to32 <typ.Int32> (Load <typ.Int16> sptr mem))
+        (Lsh32x32 <typ.Int32>
+          (ZeroExt8to32 <typ.Int32> (Load <typ.Int8> (OffPtr <typ.BytePtr> [2] sptr) mem))
+          (Const32 <typ.Int32> [16])))
+      (Const32 <typ.Int32> [int32(uint32(read16(scon,0,config.ctxt.Arch.ByteOrder))|(uint32(read8(scon,2))<<16))]))
+    mem)
+
+(StaticLECall {callAux} (Addr {scon} (SB)) sptr (Const64 [3]) mem)
+  && isSameCall(callAux, "runtime.memequal")
+  && symIsRO(scon)
+  && canLoadUnaligned(config) =>
+  (MakeResult
+    (Eq32
+      (Or32 <typ.Int32>
+        (ZeroExt16to32 <typ.Int32> (Load <typ.Int16> sptr mem))
+        (Lsh32x32 <typ.Int32>
+          (ZeroExt8to32 <typ.Int32> (Load <typ.Int8> (OffPtr <typ.BytePtr> [2] sptr) mem))
+          (Const32 <typ.Int32> [16])))
+      (Const32 <typ.Int32> [int32(uint32(read16(scon,0,config.ctxt.Arch.ByteOrder))|(uint32(read8(scon,2))<<16))]))
+    mem)
+
+(StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [5]) mem)
+  && isSameCall(callAux, "runtime.memequal")
+  && symIsRO(scon)
+  && canLoadUnaligned(config) && config.PtrSize == 8 =>
+  (MakeResult
+    (Eq64
+      (Or64 <typ.Int64>
+        (ZeroExt32to64 <typ.Int64> (Load <typ.Int32> sptr mem))
+        (Lsh64x64 <typ.Int64>
+          (ZeroExt8to64 <typ.Int64> (Load <typ.Int8> (OffPtr <typ.BytePtr> [4] sptr) mem))
+          (Const64 <typ.Int64> [32])))
+      (Const64 <typ.Int64> [int64(uint64(read32(scon,0,config.ctxt.Arch.ByteOrder))|(uint64(read8(scon,4))<<32))]))
+    mem)
+
+(StaticLECall {callAux} (Addr {scon} (SB)) sptr (Const64 [5]) mem)
+  && isSameCall(callAux, "runtime.memequal")
+  && symIsRO(scon)
+  && canLoadUnaligned(config) && config.PtrSize == 8 =>
+  (MakeResult
+    (Eq64
+      (Or64 <typ.Int64>
+        (ZeroExt32to64 <typ.Int64> (Load <typ.Int32> sptr mem))
+        (Lsh64x64 <typ.Int64>
+          (ZeroExt8to64 <typ.Int64> (Load <typ.Int8> (OffPtr <typ.BytePtr> [4] sptr) mem))
+          (Const64 <typ.Int64> [32])))
+      (Const64 <typ.Int64> [int64(uint64(read32(scon,0,config.ctxt.Arch.ByteOrder))|(uint64(read8(scon,4))<<32))]))
+    mem)
+
+(StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [6]) mem)
+  && isSameCall(callAux, "runtime.memequal")
+  && symIsRO(scon)
+  && canLoadUnaligned(config) && config.PtrSize == 8 =>
+  (MakeResult
+    (Eq64
+      (Or64 <typ.Int64>
+        (ZeroExt32to64 <typ.Int64> (Load <typ.Int32> sptr mem))
+        (Lsh64x64 <typ.Int64>
+          (ZeroExt16to64 <typ.Int64> (Load <typ.Int16> (OffPtr <typ.BytePtr> [4] sptr) mem))
+          (Const64 <typ.Int64> [32])))
+      (Const64 <typ.Int64> [int64(uint64(read32(scon,0,config.ctxt.Arch.ByteOrder))|(uint64(read16(scon,4,config.ctxt.Arch.ByteOrder))<<32))]))
+    mem)
+
+(StaticLECall {callAux} (Addr {scon} (SB)) sptr (Const64 [6]) mem)
+  && isSameCall(callAux, "runtime.memequal")
+  && symIsRO(scon)
+  && canLoadUnaligned(config) && config.PtrSize == 8 =>
+  (MakeResult
+    (Eq64
+      (Or64 <typ.Int64>
+        (ZeroExt32to64 <typ.Int64> (Load <typ.Int32> sptr mem))
+        (Lsh64x64 <typ.Int64>
+          (ZeroExt16to64 <typ.Int64> (Load <typ.Int16> (OffPtr <typ.BytePtr> [4] sptr) mem))
+          (Const64 <typ.Int64> [32])))
+      (Const64 <typ.Int64> [int64(uint64(read32(scon,0,config.ctxt.Arch.ByteOrder))|(uint64(read16(scon,4,config.ctxt.Arch.ByteOrder))<<32))]))
+    mem)
+
+(StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [7]) mem)
+  && isSameCall(callAux, "runtime.memequal")
+  && symIsRO(scon)
+  && canLoadUnaligned(config) && config.PtrSize == 8 =>
+  (MakeResult
+    (Eq64
+      (Or64 <typ.Int64>
+        (ZeroExt32to64 <typ.Int64> (Load <typ.Int32> sptr mem))
+        (Lsh64x64 <typ.Int64>
+          (ZeroExt32to64 <typ.Int64> (Load <typ.Int32> (OffPtr <typ.BytePtr> [3] sptr) mem))
+          (Const64 <typ.Int64> [32])))
+      (Const64 <typ.Int64> [int64(uint64(read32(scon,0,config.ctxt.Arch.ByteOrder))|(uint64(read32(scon,3,config.ctxt.Arch.ByteOrder))<<32))]))
+    mem)
+
+(StaticLECall {callAux} (Addr {scon} (SB)) sptr (Const64 [7]) mem)
+  && isSameCall(callAux, "runtime.memequal")
+  && symIsRO(scon)
+  && canLoadUnaligned(config) && config.PtrSize == 8 =>
+  (MakeResult
+    (Eq64
+      (Or64 <typ.Int64>
+        (ZeroExt32to64 <typ.Int64> (Load <typ.Int32> sptr mem))
+        (Lsh64x64 <typ.Int64>
+          (ZeroExt32to64 <typ.Int64> (Load <typ.Int32> (OffPtr <typ.BytePtr> [3] sptr) mem))
+          (Const64 <typ.Int64> [32])))
+      (Const64 <typ.Int64> [int64(uint64(read32(scon,0,config.ctxt.Arch.ByteOrder))|(uint64(read32(scon,3,config.ctxt.Arch.ByteOrder))<<32))]))
+    mem)
 
 (StaticLECall {callAux} _ _ (Const64 [0]) mem)
   && isSameCall(callAux, "runtime.memequal")
@@ -2761,21 +2873,15 @@
 (RotateLeft(64|32|16|8) (RotateLeft(64|32|16|8) x c) d) && c.Type.Size() == 2 && d.Type.Size() == 2 => (RotateLeft(64|32|16|8) x (Add16 <c.Type> c d))
 (RotateLeft(64|32|16|8) (RotateLeft(64|32|16|8) x c) d) && c.Type.Size() == 1 && d.Type.Size() == 1 => (RotateLeft(64|32|16|8) x (Add8  <c.Type> c d))
 
-// Loading constant values from dictionaries and itabs.
-(Load <typ.BytePtr> (OffPtr [off]                       (Addr {s} sb)       ) _)  && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
-(Load <typ.BytePtr> (OffPtr [off]              (Convert (Addr {s} sb) _)    ) _)  && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
-(Load <typ.BytePtr> (OffPtr [off] (ITab (IMake          (Addr {s} sb)    _))) _)  && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
-(Load <typ.BytePtr> (OffPtr [off] (ITab (IMake (Convert (Addr {s} sb) _) _))) _)  && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
-(Load <typ.Uintptr> (OffPtr [off]                       (Addr {s} sb)       ) _)  && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
-(Load <typ.Uintptr> (OffPtr [off]              (Convert (Addr {s} sb) _)    ) _)  && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
-(Load <typ.Uintptr> (OffPtr [off] (ITab (IMake          (Addr {s} sb)    _))) _)  && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
-(Load <typ.Uintptr> (OffPtr [off] (ITab (IMake (Convert (Addr {s} sb) _) _))) _)  && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
-
-// Loading constant values from runtime._type.hash.
-(Load <t> (OffPtr [off]                       (Addr {sym} _)       ) _) && t.IsInteger() && t.Size() == 4 && isFixed32(config, sym, off) => (Const32 [fixed32(config, sym, off)])
-(Load <t> (OffPtr [off]              (Convert (Addr {sym} _) _)    ) _) && t.IsInteger() && t.Size() == 4 && isFixed32(config, sym, off) => (Const32 [fixed32(config, sym, off)])
-(Load <t> (OffPtr [off] (ITab (IMake          (Addr {sym} _)    _))) _) && t.IsInteger() && t.Size() == 4 && isFixed32(config, sym, off) => (Const32 [fixed32(config, sym, off)])
-(Load <t> (OffPtr [off] (ITab (IMake (Convert (Addr {sym} _) _) _))) _) && t.IsInteger() && t.Size() == 4 && isFixed32(config, sym, off) => (Const32 [fixed32(config, sym, off)])
+// Loading fixed addresses and constants.
+(Load                                     (Addr {s} sb)         _)  && isFixedLoad(v, s,   0) => rewriteFixedLoad(v, s, sb,   0)
+(Load                            (Convert (Addr {s} sb) _)      _)  && isFixedLoad(v, s,   0) => rewriteFixedLoad(v, s, sb,   0)
+(Load               (ITab (IMake          (Addr {s} sb)    _))  _)  && isFixedLoad(v, s,   0) => rewriteFixedLoad(v, s, sb,   0)
+(Load               (ITab (IMake (Convert (Addr {s} sb) _) _))  _)  && isFixedLoad(v, s,   0) => rewriteFixedLoad(v, s, sb,   0)
+(Load (OffPtr [off]                       (Addr {s} sb)       ) _)  && isFixedLoad(v, s, off) => rewriteFixedLoad(v, s, sb, off)
+(Load (OffPtr [off]              (Convert (Addr {s} sb) _)    ) _)  && isFixedLoad(v, s, off) => rewriteFixedLoad(v, s, sb, off)
+(Load (OffPtr [off] (ITab (IMake          (Addr {s} sb)    _))) _)  && isFixedLoad(v, s, off) => rewriteFixedLoad(v, s, sb, off)
+(Load (OffPtr [off] (ITab (IMake (Convert (Addr {s} sb) _) _))) _)  && isFixedLoad(v, s, off) => rewriteFixedLoad(v, s, sb, off)
 
 // Calling cmpstring a second time with the same arguments in the
 // same memory state can reuse the results of the first call.

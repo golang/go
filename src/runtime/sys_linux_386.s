@@ -410,6 +410,25 @@ TEXT runtime·rt_sigaction(SB),NOSPLIT,$0
 	MOVL	AX, ret+16(FP)
 	RET
 
+// Call the function stored in _cgo_sigaction using the GCC calling convention.
+TEXT runtime·callCgoSigaction(SB),NOSPLIT,$0-16
+	MOVL	_cgo_sigaction(SB), AX
+	MOVL	sig+0(FP), BX
+	MOVL	new+4(FP), CX
+	MOVL	old+8(FP), DX
+	MOVL	SP, SI // align stack to call C function
+	SUBL	$32, SP
+	ANDL	$~15, SP
+	MOVL	BX, 0(SP)
+	MOVL	CX, 4(SP)
+	MOVL	DX, 8(SP)
+	MOVL	SI, 12(SP)
+	CALL	AX
+	MOVL	12(SP), BX
+	MOVL	BX, SP
+	MOVL	AX, ret+12(FP)
+	RET
+
 TEXT runtime·sigfwd(SB),NOSPLIT,$12-16
 	MOVL	fn+0(FP), AX
 	MOVL	sig+4(FP), BX

@@ -98,7 +98,12 @@ func readCOFFSymbols(fh *FileHeader, r io.ReadSeeker) ([]COFFSymbol, error) {
 // isSymNameOffset checks symbol name if it is encoded as offset into string table.
 func isSymNameOffset(name [8]byte) (bool, uint32) {
 	if name[0] == 0 && name[1] == 0 && name[2] == 0 && name[3] == 0 {
-		return true, binary.LittleEndian.Uint32(name[4:])
+		offset := binary.LittleEndian.Uint32(name[4:])
+		if offset == 0 {
+			// symbol has no name
+			return false, 0
+		}
+		return true, offset
 	}
 	return false, 0
 }

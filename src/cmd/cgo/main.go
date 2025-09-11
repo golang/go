@@ -30,6 +30,7 @@ import (
 	"cmd/internal/edit"
 	"cmd/internal/hash"
 	"cmd/internal/objabi"
+	"cmd/internal/par"
 	"cmd/internal/telemetry/counter"
 )
 
@@ -74,6 +75,8 @@ type File struct {
 	NoCallbacks map[string]bool     // C function names that with #cgo nocallback directive
 	NoEscapes   map[string]bool     // C function names that with #cgo noescape directive
 	Edit        *edit.Buffer
+
+	debugs []*debug // debug data from iterations of gccDebug. Initialized by File.loadDebug.
 }
 
 func (f *File) offset(p token.Pos) int {
@@ -391,7 +394,7 @@ func main() {
 	h := hash.New32()
 	io.WriteString(h, *importPath)
 	var once sync.Once
-	var wg sync.WaitGroup
+	q := par.NewQueue(runtime.GOMAXPROCS(0))
 	fs := make([]*File, len(goFiles))
 	for i, input := range goFiles {
 		if *srcDir != "" {
@@ -413,9 +416,7 @@ func main() {
 			fatalf("%s", err)
 		}
 
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		q.Add(func() {
 			// Apply trimpath to the file path. The path won't be read from after this point.
 			input, _ = objabi.ApplyRewrites(input, *trimpath)
 			if strings.ContainsAny(input, "\r\n") {
@@ -436,10 +437,12 @@ func main() {
 			})
 
 			fs[i] = f
-		}()
+
+			f.loadDebug(p)
+		})
 	}
 
-	wg.Wait()
+	<-q.Idle()
 
 	cPrefix = fmt.Sprintf("_%x", h.Sum(nil)[0:6])
 

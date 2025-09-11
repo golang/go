@@ -744,12 +744,6 @@ var depsRules = `
 	FMT, encoding/binary, internal/trace/version, internal/trace/internal/tracev1, container/heap, math/rand
 	< internal/trace;
 
-	regexp, internal/trace, internal/trace/raw, internal/txtar
-	< internal/trace/testtrace;
-
-	regexp, internal/txtar, internal/trace, internal/trace/raw
-	< internal/trace/internal/testgen;
-
 	# cmd/trace dependencies.
 	FMT,
 	embed,
@@ -794,14 +788,24 @@ var depsRules = `
 	< testing/internal/testdeps;
 
 	# Test-only packages can have anything they want
-	FMT, compress/gzip, embed, encoding/binary < encoding/json/internal/jsontest;
-	CGO, internal/syscall/unix < net/internal/cgotest;
-	FMT < math/big/internal/asmgen;
 
-	FMT, testing < internal/cgrouptest;
-	C, CGO < internal/runtime/cgobench;
+	FMT, compress/gzip, embed, encoding/binary
+	< encoding/json/internal/jsontest;
 
-	# Generate-only packages can have anything they want
+	CGO, internal/syscall/unix
+	< net/internal/cgotest;
+
+	FMT, testing
+	< internal/cgrouptest;
+
+	regexp, internal/trace, internal/trace/raw, internal/txtar, testing
+	< internal/trace/testtrace;
+
+	C, CGO
+	< internal/runtime/cgobench;
+
+	# Generate-only packages can have anything they want.
+
 	container/heap,
 	encoding/binary,
 	fmt,
@@ -814,6 +818,12 @@ var depsRules = `
 	strings,
 	sync
 	< internal/runtime/gc/internal/gen;
+
+	regexp, internal/txtar, internal/trace, internal/trace/raw
+	< internal/trace/internal/testgen;
+
+	FMT
+	< math/big/internal/asmgen;
 `
 
 // listStdPkgs returns the same list of packages as "go list std".

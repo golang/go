@@ -356,7 +356,6 @@ func getHugePageSize() uintptr {
 func osinit() {
 	numCPUStartup = getCPUCount()
 	physHugePageSize = getHugePageSize()
-	osArchInit()
 	vgetrandomInit()
 }
 
@@ -487,7 +486,8 @@ func setsig(i uint32, fn uintptr) {
 	sigfillset(&sa.sa_mask)
 	// Although Linux manpage says "sa_restorer element is obsolete and
 	// should not be used". x86_64 kernel requires it. Only use it on
-	// x86.
+	// x86. Note that on 386 this is cleared when using the C sigaction
+	// function via cgo; see fixSigactionForCgo.
 	if GOARCH == "386" || GOARCH == "amd64" {
 		sa.sa_restorer = abi.FuncPCABI0(sigreturn__sigaction)
 	}
@@ -562,6 +562,21 @@ func sysSigaction(sig uint32, new, old *sigactiont) {
 //
 //go:noescape
 func rt_sigaction(sig uintptr, new, old *sigactiont, size uintptr) int32
+
+// fixSigactionForCgo is called when we are using cgo to call the
+// C sigaction function. On 386 the C function does not expect the
+// SA_RESTORER flag to be set, and in some cases will fail if it is set:
+// it will pass the SA_RESTORER flag to the kernel without passing
+// the sa_restorer field. Since the C function will handle SA_RESTORER
+// for us, we need not pass it. See issue #75253.
+//
+//go:nosplit
+func fixSigactionForCgo(new *sigactiont) {
+	if GOARCH == "386" && new != nil {
+		new.sa_flags &^= _SA_RESTORER
+		new.sa_restorer = 0
+	}
+}
 
 func getpid() int
 func tgkill(tgid, tid, sig int)
