@@ -1306,7 +1306,6 @@ var VetExplicit bool
 
 func (b *Builder) vet(ctx context.Context, a *Action) error {
 	// a.Deps[0] is the build of the package being vetted.
-	// a.Deps[1] is the build of the "fmt" package.
 
 	a.Failed = nil // vet of dependency may have failed but we can still succeed
 

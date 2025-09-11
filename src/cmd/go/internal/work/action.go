@@ -716,25 +716,15 @@ func (b *Builder) vetAction(mode, depMode BuildMode, p *load.Package) *Action {
 	a := b.cacheAction("vet", p, func() *Action {
 		a1 := b.CompileAction(mode|ModeVetOnly, depMode, p)
 
-		// vet expects to be able to import "fmt".
-		var stk load.ImportStack
-		stk.Push(load.NewImportInfo("vet", nil))
-		p1, err := load.LoadImportWithFlags("fmt", p.Dir, p, &stk, nil, 0)
-		if err != nil {
-			base.Fatalf("unexpected error loading fmt package from package %s: %v", p.ImportPath, err)
-		}
-		stk.Pop()
-		aFmt := b.CompileAction(ModeBuild, depMode, p1)
-
 		var deps []*Action
 		if a1.buggyInstall {
-			// (*Builder).vet expects deps[0] to be the package
-			// and deps[1] to be "fmt". If we see buggyInstall
+			// (*Builder).vet expects deps[0] to be the package.
+			// If we see buggyInstall
 			// here then a1 is an install of a shared library,
 			// and the real package is a1.Deps[0].
-			deps = []*Action{a1.Deps[0], aFmt, a1}
+			deps = []*Action{a1.Deps[0], a1}
 		} else {
-			deps = []*Action{a1, aFmt}
+			deps = []*Action{a1}
 		}
 		for _, p1 := range p.Internal.Imports {
 			deps = append(deps, b.vetAction(mode, depMode, p1))
