@@ -709,6 +709,18 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpAMD64VMOVDQU64Masked512(v)
 	case OpAMD64VMOVDQU8Masked512:
 		return rewriteValueAMD64_OpAMD64VMOVDQU8Masked512(v)
+	case OpAMD64VMOVDQUload128:
+		return rewriteValueAMD64_OpAMD64VMOVDQUload128(v)
+	case OpAMD64VMOVDQUload256:
+		return rewriteValueAMD64_OpAMD64VMOVDQUload256(v)
+	case OpAMD64VMOVDQUload512:
+		return rewriteValueAMD64_OpAMD64VMOVDQUload512(v)
+	case OpAMD64VMOVDQUstore128:
+		return rewriteValueAMD64_OpAMD64VMOVDQUstore128(v)
+	case OpAMD64VMOVDQUstore256:
+		return rewriteValueAMD64_OpAMD64VMOVDQUstore256(v)
+	case OpAMD64VMOVDQUstore512:
+		return rewriteValueAMD64_OpAMD64VMOVDQUstore512(v)
 	case OpAMD64VMOVQ:
 		return rewriteValueAMD64_OpAMD64VMOVQ(v)
 	case OpAMD64VMOVSDf2v:
@@ -32829,6 +32841,315 @@ func rewriteValueAMD64_OpAMD64VMOVDQU8Masked512(v *Value) bool {
 		mask := v_1
 		v.reset(OpAMD64VPSUBUSBMasked512)
 		v.AddArg3(x, y, mask)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VMOVDQUload128(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VMOVDQUload128 [off1] {sym} x:(ADDQconst [off2] ptr) mem)
+	// cond: is32Bit(int64(off1)+int64(off2)) && x.Uses == 1
+	// result: (VMOVDQUload128 [off1+off2] {sym} ptr mem)
+	for {
+		off1 := auxIntToInt32(v.AuxInt)
+		sym := auxToSym(v.Aux)
+		x := v_0
+		if x.Op != OpAMD64ADDQconst {
+			break
+		}
+		off2 := auxIntToInt32(x.AuxInt)
+		ptr := x.Args[0]
+		mem := v_1
+		if !(is32Bit(int64(off1)+int64(off2)) && x.Uses == 1) {
+			break
+		}
+		v.reset(OpAMD64VMOVDQUload128)
+		v.AuxInt = int32ToAuxInt(off1 + off2)
+		v.Aux = symToAux(sym)
+		v.AddArg2(ptr, mem)
+		return true
+	}
+	// match: (VMOVDQUload128 [off1] {sym1} x:(LEAQ [off2] {sym2} base) mem)
+	// cond: is32Bit(int64(off1)+int64(off2)) && x.Uses == 1 && canMergeSym(sym1, sym2)
+	// result: (VMOVDQUload128 [off1+off2] {mergeSym(sym1, sym2)} base mem)
+	for {
+		off1 := auxIntToInt32(v.AuxInt)
+		sym1 := auxToSym(v.Aux)
+		x := v_0
+		if x.Op != OpAMD64LEAQ {
+			break
+		}
+		off2 := auxIntToInt32(x.AuxInt)
+		sym2 := auxToSym(x.Aux)
+		base := x.Args[0]
+		mem := v_1
+		if !(is32Bit(int64(off1)+int64(off2)) && x.Uses == 1 && canMergeSym(sym1, sym2)) {
+			break
+		}
+		v.reset(OpAMD64VMOVDQUload128)
+		v.AuxInt = int32ToAuxInt(off1 + off2)
+		v.Aux = symToAux(mergeSym(sym1, sym2))
+		v.AddArg2(base, mem)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VMOVDQUload256(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VMOVDQUload256 [off1] {sym} x:(ADDQconst [off2] ptr) mem)
+	// cond: is32Bit(int64(off1)+int64(off2)) && x.Uses == 1
+	// result: (VMOVDQUload256 [off1+off2] {sym} ptr mem)
+	for {
+		off1 := auxIntToInt32(v.AuxInt)
+		sym := auxToSym(v.Aux)
+		x := v_0
+		if x.Op != OpAMD64ADDQconst {
+			break
+		}
+		off2 := auxIntToInt32(x.AuxInt)
+		ptr := x.Args[0]
+		mem := v_1
+		if !(is32Bit(int64(off1)+int64(off2)) && x.Uses == 1) {
+			break
+		}
+		v.reset(OpAMD64VMOVDQUload256)
+		v.AuxInt = int32ToAuxInt(off1 + off2)
+		v.Aux = symToAux(sym)
+		v.AddArg2(ptr, mem)
+		return true
+	}
+	// match: (VMOVDQUload256 [off1] {sym1} x:(LEAQ [off2] {sym2} base) mem)
+	// cond: is32Bit(int64(off1)+int64(off2)) && x.Uses == 1 && canMergeSym(sym1, sym2)
+	// result: (VMOVDQUload256 [off1+off2] {mergeSym(sym1, sym2)} base mem)
+	for {
+		off1 := auxIntToInt32(v.AuxInt)
+		sym1 := auxToSym(v.Aux)
+		x := v_0
+		if x.Op != OpAMD64LEAQ {
+			break
+		}
+		off2 := auxIntToInt32(x.AuxInt)
+		sym2 := auxToSym(x.Aux)
+		base := x.Args[0]
+		mem := v_1
+		if !(is32Bit(int64(off1)+int64(off2)) && x.Uses == 1 && canMergeSym(sym1, sym2)) {
+			break
+		}
+		v.reset(OpAMD64VMOVDQUload256)
+		v.AuxInt = int32ToAuxInt(off1 + off2)
+		v.Aux = symToAux(mergeSym(sym1, sym2))
+		v.AddArg2(base, mem)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VMOVDQUload512(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VMOVDQUload512 [off1] {sym} x:(ADDQconst [off2] ptr) mem)
+	// cond: is32Bit(int64(off1)+int64(off2)) && x.Uses == 1
+	// result: (VMOVDQUload512 [off1+off2] {sym} ptr mem)
+	for {
+		off1 := auxIntToInt32(v.AuxInt)
+		sym := auxToSym(v.Aux)
+		x := v_0
+		if x.Op != OpAMD64ADDQconst {
+			break
+		}
+		off2 := auxIntToInt32(x.AuxInt)
+		ptr := x.Args[0]
+		mem := v_1
+		if !(is32Bit(int64(off1)+int64(off2)) && x.Uses == 1) {
+			break
+		}
+		v.reset(OpAMD64VMOVDQUload512)
+		v.AuxInt = int32ToAuxInt(off1 + off2)
+		v.Aux = symToAux(sym)
+		v.AddArg2(ptr, mem)
+		return true
+	}
+	// match: (VMOVDQUload512 [off1] {sym1} x:(LEAQ [off2] {sym2} base) mem)
+	// cond: is32Bit(int64(off1)+int64(off2)) && x.Uses == 1 && canMergeSym(sym1, sym2)
+	// result: (VMOVDQUload512 [off1+off2] {mergeSym(sym1, sym2)} base mem)
+	for {
+		off1 := auxIntToInt32(v.AuxInt)
+		sym1 := auxToSym(v.Aux)
+		x := v_0
+		if x.Op != OpAMD64LEAQ {
+			break
+		}
+		off2 := auxIntToInt32(x.AuxInt)
+		sym2 := auxToSym(x.Aux)
+		base := x.Args[0]
+		mem := v_1
+		if !(is32Bit(int64(off1)+int64(off2)) && x.Uses == 1 && canMergeSym(sym1, sym2)) {
+			break
+		}
+		v.reset(OpAMD64VMOVDQUload512)
+		v.AuxInt = int32ToAuxInt(off1 + off2)
+		v.Aux = symToAux(mergeSym(sym1, sym2))
+		v.AddArg2(base, mem)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VMOVDQUstore128(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VMOVDQUstore128 [off1] {sym} x:(ADDQconst [off2] ptr) val mem)
+	// cond: is32Bit(int64(off1)+int64(off2)) && x.Uses == 1
+	// result: (VMOVDQUstore128 [off1+off2] {sym} ptr val mem)
+	for {
+		off1 := auxIntToInt32(v.AuxInt)
+		sym := auxToSym(v.Aux)
+		x := v_0
+		if x.Op != OpAMD64ADDQconst {
+			break
+		}
+		off2 := auxIntToInt32(x.AuxInt)
+		ptr := x.Args[0]
+		val := v_1
+		mem := v_2
+		if !(is32Bit(int64(off1)+int64(off2)) && x.Uses == 1) {
+			break
+		}
+		v.reset(OpAMD64VMOVDQUstore128)
+		v.AuxInt = int32ToAuxInt(off1 + off2)
+		v.Aux = symToAux(sym)
+		v.AddArg3(ptr, val, mem)
+		return true
+	}
+	// match: (VMOVDQUstore128 [off1] {sym1} x:(LEAQ [off2] {sym2} base) val mem)
+	// cond: is32Bit(int64(off1)+int64(off2)) && x.Uses == 1 && canMergeSym(sym1, sym2)
+	// result: (VMOVDQUstore128 [off1+off2] {mergeSym(sym1, sym2)} base val mem)
+	for {
+		off1 := auxIntToInt32(v.AuxInt)
+		sym1 := auxToSym(v.Aux)
+		x := v_0
+		if x.Op != OpAMD64LEAQ {
+			break
+		}
+		off2 := auxIntToInt32(x.AuxInt)
+		sym2 := auxToSym(x.Aux)
+		base := x.Args[0]
+		val := v_1
+		mem := v_2
+		if !(is32Bit(int64(off1)+int64(off2)) && x.Uses == 1 && canMergeSym(sym1, sym2)) {
+			break
+		}
+		v.reset(OpAMD64VMOVDQUstore128)
+		v.AuxInt = int32ToAuxInt(off1 + off2)
+		v.Aux = symToAux(mergeSym(sym1, sym2))
+		v.AddArg3(base, val, mem)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VMOVDQUstore256(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VMOVDQUstore256 [off1] {sym} x:(ADDQconst [off2] ptr) val mem)
+	// cond: is32Bit(int64(off1)+int64(off2)) && x.Uses == 1
+	// result: (VMOVDQUstore256 [off1+off2] {sym} ptr val mem)
+	for {
+		off1 := auxIntToInt32(v.AuxInt)
+		sym := auxToSym(v.Aux)
+		x := v_0
+		if x.Op != OpAMD64ADDQconst {
+			break
+		}
+		off2 := auxIntToInt32(x.AuxInt)
+		ptr := x.Args[0]
+		val := v_1
+		mem := v_2
+		if !(is32Bit(int64(off1)+int64(off2)) && x.Uses == 1) {
+			break
+		}
+		v.reset(OpAMD64VMOVDQUstore256)
+		v.AuxInt = int32ToAuxInt(off1 + off2)
+		v.Aux = symToAux(sym)
+		v.AddArg3(ptr, val, mem)
+		return true
+	}
+	// match: (VMOVDQUstore256 [off1] {sym1} x:(LEAQ [off2] {sym2} base) val mem)
+	// cond: is32Bit(int64(off1)+int64(off2)) && x.Uses == 1 && canMergeSym(sym1, sym2)
+	// result: (VMOVDQUstore256 [off1+off2] {mergeSym(sym1, sym2)} base val mem)
+	for {
+		off1 := auxIntToInt32(v.AuxInt)
+		sym1 := auxToSym(v.Aux)
+		x := v_0
+		if x.Op != OpAMD64LEAQ {
+			break
+		}
+		off2 := auxIntToInt32(x.AuxInt)
+		sym2 := auxToSym(x.Aux)
+		base := x.Args[0]
+		val := v_1
+		mem := v_2
+		if !(is32Bit(int64(off1)+int64(off2)) && x.Uses == 1 && canMergeSym(sym1, sym2)) {
+			break
+		}
+		v.reset(OpAMD64VMOVDQUstore256)
+		v.AuxInt = int32ToAuxInt(off1 + off2)
+		v.Aux = symToAux(mergeSym(sym1, sym2))
+		v.AddArg3(base, val, mem)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VMOVDQUstore512(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VMOVDQUstore512 [off1] {sym} x:(ADDQconst [off2] ptr) val mem)
+	// cond: is32Bit(int64(off1)+int64(off2)) && x.Uses == 1
+	// result: (VMOVDQUstore512 [off1+off2] {sym} ptr val mem)
+	for {
+		off1 := auxIntToInt32(v.AuxInt)
+		sym := auxToSym(v.Aux)
+		x := v_0
+		if x.Op != OpAMD64ADDQconst {
+			break
+		}
+		off2 := auxIntToInt32(x.AuxInt)
+		ptr := x.Args[0]
+		val := v_1
+		mem := v_2
+		if !(is32Bit(int64(off1)+int64(off2)) && x.Uses == 1) {
+			break
+		}
+		v.reset(OpAMD64VMOVDQUstore512)
+		v.AuxInt = int32ToAuxInt(off1 + off2)
+		v.Aux = symToAux(sym)
+		v.AddArg3(ptr, val, mem)
+		return true
+	}
+	// match: (VMOVDQUstore512 [off1] {sym1} x:(LEAQ [off2] {sym2} base) val mem)
+	// cond: is32Bit(int64(off1)+int64(off2)) && x.Uses == 1 && canMergeSym(sym1, sym2)
+	// result: (VMOVDQUstore512 [off1+off2] {mergeSym(sym1, sym2)} base val mem)
+	for {
+		off1 := auxIntToInt32(v.AuxInt)
+		sym1 := auxToSym(v.Aux)
+		x := v_0
+		if x.Op != OpAMD64LEAQ {
+			break
+		}
+		off2 := auxIntToInt32(x.AuxInt)
+		sym2 := auxToSym(x.Aux)
+		base := x.Args[0]
+		val := v_1
+		mem := v_2
+		if !(is32Bit(int64(off1)+int64(off2)) && x.Uses == 1 && canMergeSym(sym1, sym2)) {
+			break
+		}
+		v.reset(OpAMD64VMOVDQUstore512)
+		v.AuxInt = int32ToAuxInt(off1 + off2)
+		v.Aux = symToAux(mergeSym(sym1, sym2))
+		v.AddArg3(base, val, mem)
 		return true
 	}
 	return false
