@@ -37,6 +37,28 @@ func AccessString2(m map[string]int) bool {
 	return ok
 }
 
+func AccessStringIntArray2(m map[string][16]int, k string) bool {
+	// amd64:-"MOVUPS"
+	_, ok := m[k]
+	return ok
+}
+
+type Struct struct {
+	A, B, C, D, E, F, G, H, I, J int
+}
+
+func AccessStringStruct2(m map[string]Struct, k string) bool {
+	// amd64:-"MOVUPS"
+	_, ok := m[k]
+	return ok
+}
+
+func AccessIntArrayLarge2(m map[int][512]int, k int) bool {
+	// amd64:-"REP",-"MOVSQ"
+	_, ok := m[k]
+	return ok
+}
+
 // ------------------- //
 //  String Conversion  //
 // ------------------- //
