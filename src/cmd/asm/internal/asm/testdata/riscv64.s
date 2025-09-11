@@ -177,7 +177,7 @@ start:
 	RDTIME		X5				// f32210c0
 	RDINSTRET	X5				// f32220c0
 
-	// 11.1: Zicond Instructions
+	// 11.1: Integer Conditional Operations (Zicond)
 	CZEROEQZ	X1, X13, X5			// b3d2160e
 	CZEROEQZ	X1, X13				// b3d6160e
 	CZERONEZ	X31, X3, X11			// b3f5f10f

@@ -116,8 +116,6 @@ const (
 	CSRRWI
 	CTZ
 	CTZW
-	CZERO_EQZ
-	CZERO_NEZ
 	C_ADD
 	C_ADDI
 	C_ADDI16SP
@@ -485,8 +483,6 @@ var opstr = [...]string{
 	CSRRWI:         "CSRRWI",
 	CTZ:            "CTZ",
 	CTZW:           "CTZW",
-	CZERO_EQZ:		"CZERO.EQZ",
-	CZERO_NEZ:		"CZERO.NEZ",
 	C_ADD:          "C.ADD",
 	C_ADDI:         "C.ADDI",
 	C_ADDI16SP:     "C.ADDI16SP",

@@ -2007,7 +2007,7 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	AFLD & obj.AMask: {enc: iFEncoding},
 	AFSD & obj.AMask: {enc: sFEncoding},
 
-	// 11.1 "Zicond" Extension for Integer Conditional Operations
+	// 11.1: "Zicond" Extension for Integer Conditional Operations
 	ACZERONEZ & obj.AMask: {enc: rIIIEncoding, ternary: true},
 	ACZEROEQZ & obj.AMask: {enc: rIIIEncoding, ternary: true},
 
