@@ -1697,11 +1697,13 @@ func immJumpTable(s *state, idx *ssa.Value, intrinsicCall *ir.CallExpr, genOp fu
 	// Make blocks we'll need.
 	bEnd := s.f.NewBlock(ssa.BlockPlain)
 
-	t := types.Types[types.TUINT8]
 	if !idx.Type.IsKind(types.TUINT8) {
 		panic("immJumpTable expects uint8 value")
 	}
+
 	// We will exhaust 0-255, so no need to check the bounds.
+	t := types.Types[types.TUINTPTR]
+	idx = s.conv(nil, idx, idx.Type, t)
 
 	b := s.curBlock
 	b.Kind = ssa.BlockJumpTable
