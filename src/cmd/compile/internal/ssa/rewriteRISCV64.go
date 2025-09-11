@@ -7185,6 +7185,42 @@ func rewriteValueRISCV64_OpRISCV64SLLI(v *Value) bool {
 		v.AuxInt = int64ToAuxInt(y << uint32(x))
 		return true
 	}
+	// match: (SLLI <t> [c] (ADD x x))
+	// cond: c < t.Size() * 8 - 1
+	// result: (SLLI <t> [c+1] x)
+	for {
+		t := v.Type
+		c := auxIntToInt64(v.AuxInt)
+		if v_0.Op != OpRISCV64ADD {
+			break
+		}
+		x := v_0.Args[1]
+		if x != v_0.Args[0] || !(c < t.Size()*8-1) {
+			break
+		}
+		v.reset(OpRISCV64SLLI)
+		v.Type = t
+		v.AuxInt = int64ToAuxInt(c + 1)
+		v.AddArg(x)
+		return true
+	}
+	// match: (SLLI <t> [c] (ADD x x))
+	// cond: c >= t.Size() * 8 - 1
+	// result: (MOVDconst [0])
+	for {
+		t := v.Type
+		c := auxIntToInt64(v.AuxInt)
+		if v_0.Op != OpRISCV64ADD {
+			break
+		}
+		x := v_0.Args[1]
+		if x != v_0.Args[0] || !(c >= t.Size()*8-1) {
+			break
+		}
+		v.reset(OpRISCV64MOVDconst)
+		v.AuxInt = int64ToAuxInt(0)
+		return true
+	}
 	return false
 }
 func rewriteValueRISCV64_OpRISCV64SLLW(v *Value) bool {
