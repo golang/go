@@ -531,12 +531,17 @@ func readGNUSparseMap1x0(r io.Reader) (sparseDatas, error) {
 		cntNewline int64
 		buf        bytes.Buffer
 		blk        block
+		totalSize  int
 	)
 
 	// feedTokens copies data in blocks from r into buf until there are
 	// at least cnt newlines in buf. It will not read more blocks than needed.
 	feedTokens := func(n int64) error {
 		for cntNewline < n {
+			totalSize += len(blk)
+			if totalSize > maxSpecialFileSize {
+				return errSparseTooLong
+			}
 			if _, err := mustReadFull(r, blk[:]); err != nil {
 				return err
 			}
@@ -569,8 +574,8 @@ func readGNUSparseMap1x0(r io.Reader) (sparseDatas, error) {
 	}
 
 	// Parse for all member entries.
-	// numEntries is trusted after this since a potential attacker must have
-	// committed resources proportional to what this library used.
+	// numEntries is trusted after this since feedTokens limits the number of
+	// tokens based on maxSpecialFileSize.
 	if err := feedTokens(2 * numEntries); err != nil {
 		return nil, err
 	}
