@@ -1184,6 +1184,7 @@ type vetConfig struct {
 	PackageVetx   map[string]string // map package path to vetx data from earlier vet run
 	VetxOnly      bool              // only compute vetx data; don't report detected problems
 	VetxOutput    string            // write vetx data to this output file
+	Stdout        string            // write stdout (JSON, unified diff) to this output file
 	GoVersion     string            // Go version for package
 
 	SucceedOnTypecheckFailure bool // awful hack; see #18395 and below
@@ -1297,6 +1298,7 @@ func (b *Builder) vet(ctx context.Context, a *Action) error {
 
 	vcfg.VetxOnly = a.VetxOnly
 	vcfg.VetxOutput = a.Objdir + "vet.out"
+	vcfg.Stdout = a.Objdir + "vet.stdout"
 	vcfg.PackageVetx = make(map[string]string)
 
 	h := cache.NewHash("vet " + a.Package.ImportPath)
@@ -1392,12 +1394,24 @@ func (b *Builder) vet(ctx context.Context, a *Action) error {
 	// If vet wrote export data, save it for input to future vets.
 	if f, err := os.Open(vcfg.VetxOutput); err == nil {
 		a.built = vcfg.VetxOutput
-		cache.Default().Put(key, f)
-		f.Close()
+		cache.Default().Put(key, f) // ignore error
+		f.Close()                   // ignore error
+	}
+
+	// If vet wrote to stdout, copy it to go's stdout, atomically.
+	if f, err := os.Open(vcfg.Stdout); err == nil {
+		stdoutMu.Lock()
+		if _, err := io.Copy(os.Stdout, f); err != nil && runErr == nil {
+			runErr = fmt.Errorf("copying vet tool stdout: %w", err)
+		}
+		f.Close() // ignore error
+		stdoutMu.Unlock()
 	}
 
 	return runErr
 }
+
+var stdoutMu sync.Mutex // serializes concurrent writes (e.g. JSON values) to stdout
 
 // linkActionID computes the action ID for a link action.
 func (b *Builder) linkActionID(a *Action) cache.ActionID {
