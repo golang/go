@@ -757,6 +757,11 @@ func arm64ConditionalParamsToAuxInt(v arm64ConditionalParams) int64 {
 	i |= int64(v.cond)
 	return i
 }
+
+func float64ExactBits(f float64, c float64) bool {
+	return math.Float64bits(f) == math.Float64bits(c)
+}
+
 func flagConstantToAuxInt(x flagConstant) int64 {
 	return int64(x)
 }
