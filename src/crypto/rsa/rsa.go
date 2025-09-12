@@ -88,8 +88,8 @@ func (pub *PublicKey) Equal(x crypto.PublicKey) bool {
 	return bigIntEqual(pub.N, xx.N) && pub.E == xx.E
 }
 
-// OAEPOptions is an interface for passing options to OAEP decryption using the
-// crypto.Decrypter interface.
+// OAEPOptions allows passing options to OAEP encryption and decryption
+// through the [PrivateKey.Decrypt] and [EncryptOAEPWithOptions] functions.
 type OAEPOptions struct {
 	// Hash is the hash function that will be used when generating the mask.
 	Hash crypto.Hash
