@@ -118,6 +118,7 @@ func init() {
 		gp11sb         = regInfo{inputs: []regMask{gpspsbg}, outputs: gponly}
 		gp21           = regInfo{inputs: []regMask{gp, gp}, outputs: gponly}
 		gp21sp         = regInfo{inputs: []regMask{gpsp, gp}, outputs: gponly}
+		gp21sp2        = regInfo{inputs: []regMask{gp, gpsp}, outputs: gponly}
 		gp21sb         = regInfo{inputs: []regMask{gpspsbg, gpsp}, outputs: gponly}
 		gp21shift      = regInfo{inputs: []regMask{gp, cx}, outputs: []regMask{gp}}
 		gp31shift      = regInfo{inputs: []regMask{gp, gp, cx}, outputs: []regMask{gp}}
@@ -262,7 +263,7 @@ func init() {
 		{name: "ADDQconstmodify", argLength: 2, reg: gpstoreconst, asm: "ADDQ", aux: "SymValAndOff", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write"},
 		{name: "ADDLconstmodify", argLength: 2, reg: gpstoreconst, asm: "ADDL", aux: "SymValAndOff", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write"},
 
-		{name: "SUBQ", argLength: 2, reg: gp21, asm: "SUBQ", resultInArg0: true, clobberFlags: true},
+		{name: "SUBQ", argLength: 2, reg: gp21sp2, asm: "SUBQ", resultInArg0: true, clobberFlags: true},
 		{name: "SUBL", argLength: 2, reg: gp21, asm: "SUBL", resultInArg0: true, clobberFlags: true},
 		{name: "SUBQconst", argLength: 1, reg: gp11, asm: "SUBQ", aux: "Int32", resultInArg0: true, clobberFlags: true},
 		{name: "SUBLconst", argLength: 1, reg: gp11, asm: "SUBL", aux: "Int32", resultInArg0: true, clobberFlags: true},

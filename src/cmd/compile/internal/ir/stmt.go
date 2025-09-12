@@ -42,6 +42,7 @@ func (*Decl) isStmt() {}
 type Stmt interface {
 	Node
 	isStmt()
+	PtrInit() *Nodes
 }
 
 // A miniStmt is a miniNode with extra fields common to statements.

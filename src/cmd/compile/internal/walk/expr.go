@@ -351,6 +351,11 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 
 	case ir.OMETHVALUE:
 		return walkMethodValue(n.(*ir.SelectorExpr), init)
+
+	case ir.OMOVE2HEAP:
+		n := n.(*ir.MoveToHeapExpr)
+		n.Slice = walkExpr(n.Slice, init)
+		return n
 	}
 
 	// No return! Each case must return (or panic),

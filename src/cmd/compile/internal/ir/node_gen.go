@@ -1175,6 +1175,34 @@ func (n *MakeExpr) editChildrenWithHidden(edit func(Node) Node) {
 	}
 }
 
+func (n *MoveToHeapExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+func (n *MoveToHeapExpr) copy() Node {
+	c := *n
+	c.init = copyNodes(c.init)
+	return &c
+}
+func (n *MoveToHeapExpr) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.Slice != nil && do(n.Slice) {
+		return true
+	}
+	return false
+}
+func (n *MoveToHeapExpr) doChildrenWithHidden(do func(Node) bool) bool {
+	return n.doChildren(do)
+}
+func (n *MoveToHeapExpr) editChildren(edit func(Node) Node) {
+	editNodes(n.init, edit)
+	if n.Slice != nil {
+		n.Slice = edit(n.Slice).(Node)
+	}
+}
+func (n *MoveToHeapExpr) editChildrenWithHidden(edit func(Node) Node) {
+	n.editChildren(edit)
+}
+
 func (n *Name) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 
 func (n *NilExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }

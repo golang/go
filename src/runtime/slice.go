@@ -399,3 +399,107 @@ func bytealg_MakeNoZero(len int) []byte {
 	cap := roundupsize(uintptr(len), true)
 	return unsafe.Slice((*byte)(mallocgc(cap, nil, false)), cap)[:len]
 }
+
+// moveSlice copies the input slice to the heap and returns it.
+// et is the element type of the slice.
+func moveSlice(et *_type, old unsafe.Pointer, len, cap int) (unsafe.Pointer, int, int) {
+	if cap == 0 {
+		if old != nil {
+			old = unsafe.Pointer(&zerobase)
+		}
+		return old, 0, 0
+	}
+	capmem := uintptr(cap) * et.Size_
+	new := mallocgc(capmem, et, true)
+	bulkBarrierPreWriteSrcOnly(uintptr(new), uintptr(old), capmem, et)
+	memmove(new, old, capmem)
+	return new, len, cap
+}
+
+// moveSliceNoScan is like moveSlice except the element type is known to
+// not have any pointers. We instead pass in the size of the element.
+func moveSliceNoScan(elemSize uintptr, old unsafe.Pointer, len, cap int) (unsafe.Pointer, int, int) {
+	if cap == 0 {
+		if old != nil {
+			old = unsafe.Pointer(&zerobase)
+		}
+		return old, 0, 0
+	}
+	capmem := uintptr(cap) * elemSize
+	new := mallocgc(capmem, nil, false)
+	memmove(new, old, capmem)
+	return new, len, cap
+}
+
+// moveSliceNoCap is like moveSlice, but can pick any appropriate capacity
+// for the returned slice.
+// Elements between len and cap in the returned slice will be zeroed.
+func moveSliceNoCap(et *_type, old unsafe.Pointer, len int) (unsafe.Pointer, int, int) {
+	if len == 0 {
+		if old != nil {
+			old = unsafe.Pointer(&zerobase)
+		}
+		return old, 0, 0
+	}
+	lenmem := uintptr(len) * et.Size_
+	capmem := roundupsize(lenmem, false)
+	new := mallocgc(capmem, et, true)
+	bulkBarrierPreWriteSrcOnly(uintptr(new), uintptr(old), lenmem, et)
+	memmove(new, old, lenmem)
+	return new, len, int(capmem / et.Size_)
+}
+
+// moveSliceNoCapNoScan is a combination of moveSliceNoScan and moveSliceNoCap.
+func moveSliceNoCapNoScan(elemSize uintptr, old unsafe.Pointer, len int) (unsafe.Pointer, int, int) {
+	if len == 0 {
+		if old != nil {
+			old = unsafe.Pointer(&zerobase)
+		}
+		return old, 0, 0
+	}
+	lenmem := uintptr(len) * elemSize
+	capmem := roundupsize(lenmem, true)
+	new := mallocgc(capmem, nil, false)
+	memmove(new, old, lenmem)
+	if capmem > lenmem {
+		memclrNoHeapPointers(add(new, lenmem), capmem-lenmem)
+	}
+	return new, len, int(capmem / elemSize)
+}
+
+// growsliceBuf is like growslice, but we can use the given buffer
+// as a backing store if we want. bufPtr must be on the stack.
+func growsliceBuf(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type, bufPtr unsafe.Pointer, bufLen int) slice {
+	if newLen > bufLen {
+		// Doesn't fit, process like a normal growslice.
+		return growslice(oldPtr, newLen, oldCap, num, et)
+	}
+	oldLen := newLen - num
+	if oldPtr != bufPtr && oldLen != 0 {
+		// Move data to start of buffer.
+		// Note: bufPtr is on the stack, so no write barrier needed.
+		memmove(bufPtr, oldPtr, uintptr(oldLen)*et.Size_)
+	}
+	// Pick a new capacity.
+	//
+	// Unlike growslice, we don't need to double the size each time.
+	// The work done here is not proportional to the length of the slice.
+	// (Unless the memmove happens above, but that is rare, and in any
+	// case there are not many elements on this path.)
+	//
+	// Instead, we try to just bump up to the next size class.
+	// This will ensure that we don't waste any space when we eventually
+	// call moveSlice with the resulting slice.
+	newCap := int(roundupsize(uintptr(newLen)*et.Size_, !et.Pointers()) / et.Size_)
+
+	// Zero slice beyond newLen.
+	// The buffer is stack memory, so NoHeapPointers is ok.
+	// Caller will overwrite [oldLen:newLen], so we don't need to zero that portion.
+	// If et.Pointers(), buffer is at least initialized so we don't need to
+	// worry about the caller overwriting junk in [oldLen:newLen].
+	if newLen < newCap {
+		memclrNoHeapPointers(add(bufPtr, uintptr(newLen)*et.Size_), uintptr(newCap-newLen)*et.Size_)
+	}
+
+	return slice{bufPtr, newLen, newCap}
+}
