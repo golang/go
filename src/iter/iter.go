@@ -26,7 +26,7 @@ Seq2 represents a sequence of paired values, conventionally key-value
 or index-value pairs.
 
 Yield returns true if the iterator should continue with the next
-element in the sequence, false if it should stop.
+element in the sequence, false if it must stop.
 
 For instance, [maps.Keys] returns an iterator that produces the sequence
 of keys of the map m, implemented as follows:
@@ -50,6 +50,9 @@ Iterator functions are most often called by a [range loop], as in:
 			fmt.Println(v)
 		}
 	}
+
+If a [range loop] terminates, e.g. by a break statement, a subsequent call
+to yield inside the iterator causes a runtime panic.
 
 # Naming Conventions
 
