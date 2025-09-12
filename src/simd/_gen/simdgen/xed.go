@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"maps"
+	"reflect"
 	"regexp"
 	"slices"
 	"strconv"
@@ -137,14 +138,24 @@ func loadXED(xedPath string) []*unify.Value {
 						}
 						if len(o.ops) == len(m.ops) {
 							for j := range o.ops {
-								v1, ok3 := o.ops[j].(operandVReg)
-								v2, ok4 := m.ops[j].(operandVReg)
-								if !ok3 || !ok4 {
-									continue
-								}
-								if v1.vecShape != v2.vecShape {
-									// A mismatch, skip this memOp
-									continue outer
+								if reflect.TypeOf(o.ops[j]) == reflect.TypeOf(m.ops[j]) {
+									v1, ok3 := o.ops[j].(operandVReg)
+									v2, _ := m.ops[j].(operandVReg)
+									if !ok3 {
+										continue
+									}
+									if v1.vecShape != v2.vecShape {
+										// A mismatch, skip this memOp
+										continue outer
+									}
+								} else {
+									_, ok3 := o.ops[j].(operandVReg)
+									_, ok4 := m.ops[j].(operandMem)
+									// The only difference must be the vreg and mem, no other cases.
+									if !ok3 || !ok4 {
+										// A mismatch, skip this memOp
+										continue outer
+									}
 								}
 							}
 							// Found a match, break early
@@ -155,10 +166,10 @@ func loadXED(xedPath string) []*unify.Value {
 					// Remove the match from memOps, it's now merged to this pure vreg operation
 					if matchIdx != -1 {
 						memOps[opcode] = append(memOps[opcode][:matchIdx], memOps[opcode][matchIdx+1:]...)
+						// Merge is done by adding a new field
+						// Right now we only have vbcst
+						addFields["memFeatures"] = "vbcst"
 					}
-					// Merge is done by adding a new field
-					// Right now we only have vbcst
-					addFields["memFeatures"] = "vbcst"
 				}
 			}
 			appendDefs(o.inst, o.ops, addFields)

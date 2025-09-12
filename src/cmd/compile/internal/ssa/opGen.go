@@ -2541,8 +2541,6 @@ const (
 	OpAMD64VPSRAQMasked128const
 	OpAMD64VPSRAQMasked256const
 	OpAMD64VPSRAQMasked512const
-	OpAMD64VPABSD128load
-	OpAMD64VPABSD256load
 	OpAMD64VPABSD512load
 	OpAMD64VPABSQ128load
 	OpAMD64VPABSQ256load
@@ -2553,38 +2551,22 @@ const (
 	OpAMD64VPABSQMasked128load
 	OpAMD64VPABSQMasked256load
 	OpAMD64VPABSQMasked512load
-	OpAMD64VADDPS128load
-	OpAMD64VADDPS256load
 	OpAMD64VADDPS512load
-	OpAMD64VADDPD128load
-	OpAMD64VADDPD256load
 	OpAMD64VADDPD512load
-	OpAMD64VPADDD128load
-	OpAMD64VPADDD256load
 	OpAMD64VPADDD512load
-	OpAMD64VPADDQ128load
-	OpAMD64VPADDQ256load
 	OpAMD64VPADDQ512load
-	OpAMD64VPDPWSSD128load
-	OpAMD64VPDPWSSD256load
 	OpAMD64VPDPWSSD512load
 	OpAMD64VPDPWSSDMasked128load
 	OpAMD64VPDPWSSDMasked256load
 	OpAMD64VPDPWSSDMasked512load
-	OpAMD64VPDPWSSDS128load
-	OpAMD64VPDPWSSDS256load
 	OpAMD64VPDPWSSDS512load
 	OpAMD64VPDPWSSDSMasked128load
 	OpAMD64VPDPWSSDSMasked256load
 	OpAMD64VPDPWSSDSMasked512load
-	OpAMD64VPDPBUSD128load
-	OpAMD64VPDPBUSD256load
 	OpAMD64VPDPBUSD512load
 	OpAMD64VPDPBUSDMasked128load
 	OpAMD64VPDPBUSDMasked256load
 	OpAMD64VPDPBUSDMasked512load
-	OpAMD64VPDPBUSDS128load
-	OpAMD64VPDPBUSDS256load
 	OpAMD64VPDPBUSDS512load
 	OpAMD64VPDPBUSDSMasked128load
 	OpAMD64VPDPBUSDSMasked256load
@@ -2617,20 +2599,14 @@ const (
 	OpAMD64VPANDNQMasked128load
 	OpAMD64VPANDNQMasked256load
 	OpAMD64VPANDNQMasked512load
-	OpAMD64VPACKSSDW128load
-	OpAMD64VPACKSSDW256load
 	OpAMD64VPACKSSDW512load
 	OpAMD64VPACKSSDWMasked128load
 	OpAMD64VPACKSSDWMasked256load
 	OpAMD64VPACKSSDWMasked512load
-	OpAMD64VCVTTPS2DQ128load
-	OpAMD64VCVTTPS2DQ256load
 	OpAMD64VCVTTPS2DQ512load
 	OpAMD64VCVTTPS2DQMasked128load
 	OpAMD64VCVTTPS2DQMasked256load
 	OpAMD64VCVTTPS2DQMasked512load
-	OpAMD64VPACKUSDW128load
-	OpAMD64VPACKUSDW256load
 	OpAMD64VPACKUSDW512load
 	OpAMD64VPACKUSDWMasked128load
 	OpAMD64VPACKUSDWMasked256load
@@ -2641,11 +2617,7 @@ const (
 	OpAMD64VCVTPS2UDQMasked128load
 	OpAMD64VCVTPS2UDQMasked256load
 	OpAMD64VCVTPS2UDQMasked512load
-	OpAMD64VDIVPS128load
-	OpAMD64VDIVPS256load
 	OpAMD64VDIVPS512load
-	OpAMD64VDIVPD128load
-	OpAMD64VDIVPD256load
 	OpAMD64VDIVPD512load
 	OpAMD64VDIVPSMasked128load
 	OpAMD64VDIVPSMasked256load
@@ -2653,29 +2625,13 @@ const (
 	OpAMD64VDIVPDMasked128load
 	OpAMD64VDIVPDMasked256load
 	OpAMD64VDIVPDMasked512load
-	OpAMD64VPCMPEQD128load
-	OpAMD64VPCMPEQD256load
 	OpAMD64VPCMPEQD512load
-	OpAMD64VPCMPEQQ128load
-	OpAMD64VPCMPEQQ256load
 	OpAMD64VPCMPEQQ512load
-	OpAMD64VPCMPGTD128load
-	OpAMD64VPCMPGTD256load
 	OpAMD64VPCMPGTD512load
-	OpAMD64VPCMPGTQ128load
-	OpAMD64VPCMPGTQ256load
 	OpAMD64VPCMPGTQ512load
-	OpAMD64VPUNPCKHDQ128load
-	OpAMD64VPUNPCKHQDQ128load
-	OpAMD64VPUNPCKHDQ256load
 	OpAMD64VPUNPCKHDQ512load
-	OpAMD64VPUNPCKHQDQ256load
 	OpAMD64VPUNPCKHQDQ512load
-	OpAMD64VPUNPCKLDQ128load
-	OpAMD64VPUNPCKLQDQ128load
-	OpAMD64VPUNPCKLDQ256load
 	OpAMD64VPUNPCKLDQ512load
-	OpAMD64VPUNPCKLQDQ256load
 	OpAMD64VPUNPCKLQDQ512load
 	OpAMD64VPLZCNTD128load
 	OpAMD64VPLZCNTD256load
@@ -2689,20 +2645,12 @@ const (
 	OpAMD64VPLZCNTQMasked128load
 	OpAMD64VPLZCNTQMasked256load
 	OpAMD64VPLZCNTQMasked512load
-	OpAMD64VMAXPS128load
-	OpAMD64VMAXPS256load
 	OpAMD64VMAXPS512load
-	OpAMD64VMAXPD128load
-	OpAMD64VMAXPD256load
 	OpAMD64VMAXPD512load
-	OpAMD64VPMAXSD128load
-	OpAMD64VPMAXSD256load
 	OpAMD64VPMAXSD512load
 	OpAMD64VPMAXSQ128load
 	OpAMD64VPMAXSQ256load
 	OpAMD64VPMAXSQ512load
-	OpAMD64VPMAXUD128load
-	OpAMD64VPMAXUD256load
 	OpAMD64VPMAXUD512load
 	OpAMD64VPMAXUQ128load
 	OpAMD64VPMAXUQ256load
@@ -2725,20 +2673,12 @@ const (
 	OpAMD64VPMAXUQMasked128load
 	OpAMD64VPMAXUQMasked256load
 	OpAMD64VPMAXUQMasked512load
-	OpAMD64VMINPS128load
-	OpAMD64VMINPS256load
 	OpAMD64VMINPS512load
-	OpAMD64VMINPD128load
-	OpAMD64VMINPD256load
 	OpAMD64VMINPD512load
-	OpAMD64VPMINSD128load
-	OpAMD64VPMINSD256load
 	OpAMD64VPMINSD512load
 	OpAMD64VPMINSQ128load
 	OpAMD64VPMINSQ256load
 	OpAMD64VPMINSQ512load
-	OpAMD64VPMINUD128load
-	OpAMD64VPMINUD256load
 	OpAMD64VPMINUD512load
 	OpAMD64VPMINUQ128load
 	OpAMD64VPMINUQ256load
@@ -2761,14 +2701,8 @@ const (
 	OpAMD64VPMINUQMasked128load
 	OpAMD64VPMINUQMasked256load
 	OpAMD64VPMINUQMasked512load
-	OpAMD64VMULPS128load
-	OpAMD64VMULPS256load
 	OpAMD64VMULPS512load
-	OpAMD64VMULPD128load
-	OpAMD64VMULPD256load
 	OpAMD64VMULPD512load
-	OpAMD64VPMULLD128load
-	OpAMD64VPMULLD256load
 	OpAMD64VPMULLD512load
 	OpAMD64VPMULLQ128load
 	OpAMD64VPMULLQ256load
@@ -2797,10 +2731,6 @@ const (
 	OpAMD64VFMADDSUB213PDMasked128load
 	OpAMD64VFMADDSUB213PDMasked256load
 	OpAMD64VFMADDSUB213PDMasked512load
-	OpAMD64VPMULDQ128load
-	OpAMD64VPMULDQ256load
-	OpAMD64VPMULUDQ128load
-	OpAMD64VPMULUDQ256load
 	OpAMD64VMULPSMasked128load
 	OpAMD64VMULPSMasked256load
 	OpAMD64VMULPSMasked512load
@@ -2845,8 +2775,6 @@ const (
 	OpAMD64VPORQMasked128load
 	OpAMD64VPORQMasked256load
 	OpAMD64VPORQMasked512load
-	OpAMD64VPERMPS256load
-	OpAMD64VPERMD256load
 	OpAMD64VPERMPS512load
 	OpAMD64VPERMD512load
 	OpAMD64VPERMPD256load
@@ -2941,11 +2869,7 @@ const (
 	OpAMD64VSCALEFPDMasked128load
 	OpAMD64VSCALEFPDMasked256load
 	OpAMD64VSCALEFPDMasked512load
-	OpAMD64VPSLLVD128load
-	OpAMD64VPSLLVD256load
 	OpAMD64VPSLLVD512load
-	OpAMD64VPSLLVQ128load
-	OpAMD64VPSLLVQ256load
 	OpAMD64VPSLLVQ512load
 	OpAMD64VPSHLDVD128load
 	OpAMD64VPSHLDVD256load
@@ -2965,17 +2889,11 @@ const (
 	OpAMD64VPSLLVQMasked128load
 	OpAMD64VPSLLVQMasked256load
 	OpAMD64VPSLLVQMasked512load
-	OpAMD64VPSRAVD128load
-	OpAMD64VPSRAVD256load
 	OpAMD64VPSRAVD512load
 	OpAMD64VPSRAVQ128load
 	OpAMD64VPSRAVQ256load
 	OpAMD64VPSRAVQ512load
-	OpAMD64VPSRLVD128load
-	OpAMD64VPSRLVD256load
 	OpAMD64VPSRLVD512load
-	OpAMD64VPSRLVQ128load
-	OpAMD64VPSRLVQ256load
 	OpAMD64VPSRLVQ512load
 	OpAMD64VPSHRDVD128load
 	OpAMD64VPSHRDVD256load
@@ -3001,11 +2919,7 @@ const (
 	OpAMD64VPSRLVQMasked128load
 	OpAMD64VPSRLVQMasked256load
 	OpAMD64VPSRLVQMasked512load
-	OpAMD64VSQRTPS128load
-	OpAMD64VSQRTPS256load
 	OpAMD64VSQRTPS512load
-	OpAMD64VSQRTPD128load
-	OpAMD64VSQRTPD256load
 	OpAMD64VSQRTPD512load
 	OpAMD64VSQRTPSMasked128load
 	OpAMD64VSQRTPSMasked256load
@@ -3013,17 +2927,9 @@ const (
 	OpAMD64VSQRTPDMasked128load
 	OpAMD64VSQRTPDMasked256load
 	OpAMD64VSQRTPDMasked512load
-	OpAMD64VSUBPS128load
-	OpAMD64VSUBPS256load
 	OpAMD64VSUBPS512load
-	OpAMD64VSUBPD128load
-	OpAMD64VSUBPD256load
 	OpAMD64VSUBPD512load
-	OpAMD64VPSUBD128load
-	OpAMD64VPSUBD256load
 	OpAMD64VPSUBD512load
-	OpAMD64VPSUBQ128load
-	OpAMD64VPSUBQ256load
 	OpAMD64VPSUBQ512load
 	OpAMD64VSUBPSMasked128load
 	OpAMD64VSUBPSMasked256load
@@ -3071,11 +2977,7 @@ const (
 	OpAMD64VREDUCEPDMasked128load
 	OpAMD64VREDUCEPDMasked256load
 	OpAMD64VREDUCEPDMasked512load
-	OpAMD64VCMPPS128load
-	OpAMD64VCMPPS256load
 	OpAMD64VCMPPS512load
-	OpAMD64VCMPPD128load
-	OpAMD64VCMPPD256load
 	OpAMD64VCMPPD512load
 	OpAMD64VCMPPSMasked128load
 	OpAMD64VCMPPSMasked256load
@@ -3111,8 +3013,6 @@ const (
 	OpAMD64VPCMPUQ512load
 	OpAMD64VPCMPD512load
 	OpAMD64VPCMPQ512load
-	OpAMD64VPSHUFD128load
-	OpAMD64VPSHUFD256load
 	OpAMD64VPSHUFD512load
 	OpAMD64VPSHUFDMasked256load
 	OpAMD64VPSHUFDMasked512load
@@ -3165,11 +3065,7 @@ const (
 	OpAMD64VPSHRDQMasked128load
 	OpAMD64VPSHRDQMasked256load
 	OpAMD64VPSHRDQMasked512load
-	OpAMD64VPSLLD128constload
-	OpAMD64VPSLLD256constload
 	OpAMD64VPSLLD512constload
-	OpAMD64VPSLLQ128constload
-	OpAMD64VPSLLQ256constload
 	OpAMD64VPSLLQ512constload
 	OpAMD64VPSLLDMasked128constload
 	OpAMD64VPSLLDMasked256constload
@@ -3177,14 +3073,8 @@ const (
 	OpAMD64VPSLLQMasked128constload
 	OpAMD64VPSLLQMasked256constload
 	OpAMD64VPSLLQMasked512constload
-	OpAMD64VPSRLD128constload
-	OpAMD64VPSRLD256constload
 	OpAMD64VPSRLD512constload
-	OpAMD64VPSRLQ128constload
-	OpAMD64VPSRLQ256constload
 	OpAMD64VPSRLQ512constload
-	OpAMD64VPSRAD128constload
-	OpAMD64VPSRAD256constload
 	OpAMD64VPSRAD512constload
 	OpAMD64VPSRAQ128constload
 	OpAMD64VPSRAQ256constload
@@ -39189,36 +39079,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:      "VPABSD128load",
-		auxType:   auxSymOff,
-		argLen:    2,
-		symEffect: SymRead,
-		asm:       x86.AVPABSD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VPABSD256load",
-		auxType:   auxSymOff,
-		argLen:    2,
-		symEffect: SymRead,
-		asm:       x86.AVPABSD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:      "VPABSD512load",
 		auxType:   auxSymOff,
 		argLen:    2,
@@ -39375,38 +39235,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:      "VADDPS128load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVADDPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VADDPS256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVADDPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:      "VADDPS512load",
 		auxType:   auxSymOff,
 		argLen:    3,
@@ -39419,38 +39247,6 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
-		name:      "VADDPD128load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVADDPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VADDPD256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVADDPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -39471,38 +39267,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:      "VPADDD128load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPADDD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VPADDD256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPADDD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:      "VPADDD512load",
 		auxType:   auxSymOff,
 		argLen:    3,
@@ -39519,38 +39283,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:      "VPADDQ128load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPADDQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VPADDQ256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPADDQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:      "VPADDQ512load",
 		auxType:   auxSymOff,
 		argLen:    3,
@@ -39563,42 +39295,6 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
-		name:         "VPDPWSSD128load",
-		auxType:      auxSymOff,
-		argLen:       4,
-		resultInArg0: true,
-		symEffect:    SymRead,
-		asm:          x86.AVPDPWSSD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{2, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:         "VPDPWSSD256load",
-		auxType:      auxSymOff,
-		argLen:       4,
-		resultInArg0: true,
-		symEffect:    SymRead,
-		asm:          x86.AVPDPWSSD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{2, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -39678,42 +39374,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "VPDPWSSDS128load",
-		auxType:      auxSymOff,
-		argLen:       4,
-		resultInArg0: true,
-		symEffect:    SymRead,
-		asm:          x86.AVPDPWSSDS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{2, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:         "VPDPWSSDS256load",
-		auxType:      auxSymOff,
-		argLen:       4,
-		resultInArg0: true,
-		symEffect:    SymRead,
-		asm:          x86.AVPDPWSSDS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{2, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:         "VPDPWSSDS512load",
 		auxType:      auxSymOff,
 		argLen:       4,
@@ -39789,42 +39449,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "VPDPBUSD128load",
-		auxType:      auxSymOff,
-		argLen:       4,
-		resultInArg0: true,
-		symEffect:    SymRead,
-		asm:          x86.AVPDPBUSD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{2, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:         "VPDPBUSD256load",
-		auxType:      auxSymOff,
-		argLen:       4,
-		resultInArg0: true,
-		symEffect:    SymRead,
-		asm:          x86.AVPDPBUSD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{2, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:         "VPDPBUSD512load",
 		auxType:      auxSymOff,
 		argLen:       4,
@@ -39896,42 +39520,6 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
-		name:         "VPDPBUSDS128load",
-		auxType:      auxSymOff,
-		argLen:       4,
-		resultInArg0: true,
-		symEffect:    SymRead,
-		asm:          x86.AVPDPBUSDS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{2, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:         "VPDPBUSDS256load",
-		auxType:      auxSymOff,
-		argLen:       4,
-		resultInArg0: true,
-		symEffect:    SymRead,
-		asm:          x86.AVPDPBUSDS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{2, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -40483,38 +40071,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:      "VPACKSSDW128load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPACKSSDW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VPACKSSDW256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPACKSSDW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:      "VPACKSSDW512load",
 		auxType:   auxSymOff,
 		argLen:    3,
@@ -40582,36 +40138,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:      "VCVTTPS2DQ128load",
-		auxType:   auxSymOff,
-		argLen:    2,
-		symEffect: SymRead,
-		asm:       x86.AVCVTTPS2DQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VCVTTPS2DQ256load",
-		auxType:   auxSymOff,
-		argLen:    2,
-		symEffect: SymRead,
-		asm:       x86.AVCVTTPS2DQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:      "VCVTTPS2DQ512load",
 		auxType:   auxSymOff,
 		argLen:    2,
@@ -40671,38 +40197,6 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
-		name:      "VPACKUSDW128load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPACKUSDW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VPACKUSDW256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPACKUSDW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -40867,38 +40361,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:      "VDIVPS128load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVDIVPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VDIVPS256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVDIVPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:      "VDIVPS512load",
 		auxType:   auxSymOff,
 		argLen:    3,
@@ -40911,38 +40373,6 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
-		name:      "VDIVPD128load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVDIVPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VDIVPD256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVDIVPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -41065,38 +40495,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:      "VPCMPEQD128load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPCMPEQD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VPCMPEQD256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPCMPEQD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:      "VPCMPEQD512load",
 		auxType:   auxSymOff,
 		argLen:    3,
@@ -41109,38 +40507,6 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
-		name:      "VPCMPEQQ128load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPCMPEQQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VPCMPEQQ256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPCMPEQQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -41161,38 +40527,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:      "VPCMPGTD128load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPCMPGTD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VPCMPGTD256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPCMPGTD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:      "VPCMPGTD512load",
 		auxType:   auxSymOff,
 		argLen:    3,
@@ -41205,38 +40539,6 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
-		name:      "VPCMPGTQ128load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPCMPGTQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VPCMPGTQ256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPCMPGTQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -41257,54 +40559,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:      "VPUNPCKHDQ128load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPUNPCKHDQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VPUNPCKHQDQ128load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPUNPCKHQDQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VPUNPCKHDQ256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPUNPCKHDQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:      "VPUNPCKHDQ512load",
 		auxType:   auxSymOff,
 		argLen:    3,
@@ -41317,22 +40571,6 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
-		name:      "VPUNPCKHQDQ256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPUNPCKHQDQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -41353,54 +40591,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:      "VPUNPCKLDQ128load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPUNPCKLDQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VPUNPCKLQDQ128load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPUNPCKLQDQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VPUNPCKLDQ256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPUNPCKLDQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:      "VPUNPCKLDQ512load",
 		auxType:   auxSymOff,
 		argLen:    3,
@@ -41413,22 +40603,6 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
-		name:      "VPUNPCKLQDQ256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPUNPCKLQDQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -41635,38 +40809,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:      "VMAXPS128load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVMAXPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VMAXPS256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVMAXPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:      "VMAXPS512load",
 		auxType:   auxSymOff,
 		argLen:    3,
@@ -41683,38 +40825,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:      "VMAXPD128load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVMAXPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VMAXPD256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVMAXPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:      "VMAXPD512load",
 		auxType:   auxSymOff,
 		argLen:    3,
@@ -41727,38 +40837,6 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
-		name:      "VPMAXSD128load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPMAXSD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VPMAXSD256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPMAXSD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -41823,38 +40901,6 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
-		name:      "VPMAXUD128load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPMAXUD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VPMAXUD256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPMAXUD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -42229,38 +41275,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:      "VMINPS128load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVMINPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VMINPS256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVMINPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:      "VMINPS512load",
 		auxType:   auxSymOff,
 		argLen:    3,
@@ -42277,38 +41291,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:      "VMINPD128load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVMINPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VMINPD256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVMINPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:      "VMINPD512load",
 		auxType:   auxSymOff,
 		argLen:    3,
@@ -42321,38 +41303,6 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
-		name:      "VPMINSD128load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPMINSD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VPMINSD256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPMINSD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -42417,38 +41367,6 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
-		name:      "VPMINUD128load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPMINUD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VPMINUD256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPMINUD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -42823,38 +41741,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:      "VMULPS128load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVMULPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VMULPS256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVMULPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:      "VMULPS512load",
 		auxType:   auxSymOff,
 		argLen:    3,
@@ -42871,38 +41757,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:      "VMULPD128load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVMULPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VMULPD256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVMULPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:      "VMULPD512load",
 		auxType:   auxSymOff,
 		argLen:    3,
@@ -42915,38 +41769,6 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
-		name:      "VPMULLD128load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPMULLD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VPMULLD256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPMULLD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -43455,70 +42277,6 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
-		name:      "VPMULDQ128load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPMULDQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VPMULDQ256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPMULDQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VPMULUDQ128load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPMULUDQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VPMULUDQ256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPMULUDQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -44265,38 +43023,6 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
-		name:      "VPERMPS256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPERMPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VPERMD256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPERMD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -45883,38 +44609,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:      "VPSLLVD128load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPSLLVD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VPSLLVD256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPSLLVD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:      "VPSLLVD512load",
 		auxType:   auxSymOff,
 		argLen:    3,
@@ -45927,38 +44621,6 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
-		name:      "VPSLLVQ128load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPSLLVQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VPSLLVQ256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPSLLVQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -46303,38 +44965,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:      "VPSRAVD128load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPSRAVD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VPSRAVD256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPSRAVD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:      "VPSRAVD512load",
 		auxType:   auxSymOff,
 		argLen:    3,
@@ -46399,38 +45029,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:      "VPSRLVD128load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPSRLVD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VPSRLVD256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPSRLVD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:      "VPSRLVD512load",
 		auxType:   auxSymOff,
 		argLen:    3,
@@ -46443,38 +45041,6 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
-		name:      "VPSRLVQ128load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPSRLVQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VPSRLVQ256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPSRLVQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -46921,36 +45487,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:      "VSQRTPS128load",
-		auxType:   auxSymOff,
-		argLen:    2,
-		symEffect: SymRead,
-		asm:       x86.AVSQRTPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VSQRTPS256load",
-		auxType:   auxSymOff,
-		argLen:    2,
-		symEffect: SymRead,
-		asm:       x86.AVSQRTPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:      "VSQRTPS512load",
 		auxType:   auxSymOff,
 		argLen:    2,
@@ -46962,36 +45498,6 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
-		name:      "VSQRTPD128load",
-		auxType:   auxSymOff,
-		argLen:    2,
-		symEffect: SymRead,
-		asm:       x86.AVSQRTPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VSQRTPD256load",
-		auxType:   auxSymOff,
-		argLen:    2,
-		symEffect: SymRead,
-		asm:       x86.AVSQRTPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -47107,38 +45613,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:      "VSUBPS128load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVSUBPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VSUBPS256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVSUBPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:      "VSUBPS512load",
 		auxType:   auxSymOff,
 		argLen:    3,
@@ -47151,38 +45625,6 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
-		name:      "VSUBPD128load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVSUBPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VSUBPD256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVSUBPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -47203,38 +45645,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:      "VPSUBD128load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPSUBD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VPSUBD256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPSUBD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:      "VPSUBD512load",
 		auxType:   auxSymOff,
 		argLen:    3,
@@ -47247,38 +45657,6 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
-		name:      "VPSUBQ128load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPSUBQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VPSUBQ256load",
-		auxType:   auxSymOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVPSUBQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -48043,38 +46421,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:      "VCMPPS128load",
-		auxType:   auxSymValAndOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVCMPPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VCMPPS256load",
-		auxType:   auxSymValAndOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVCMPPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:      "VCMPPS512load",
 		auxType:   auxSymValAndOff,
 		argLen:    3,
@@ -48087,38 +46433,6 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
-		name:      "VCMPPD128load",
-		auxType:   auxSymValAndOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVCMPPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VCMPPD256load",
-		auxType:   auxSymValAndOff,
-		argLen:    3,
-		symEffect: SymRead,
-		asm:       x86.AVCMPPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -48703,36 +47017,6 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
-		name:      "VPSHUFD128load",
-		auxType:   auxSymValAndOff,
-		argLen:    2,
-		symEffect: SymRead,
-		asm:       x86.AVPSHUFD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VPSHUFD256load",
-		auxType:   auxSymValAndOff,
-		argLen:    2,
-		symEffect: SymRead,
-		asm:       x86.AVPSHUFD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -49568,36 +47852,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:      "VPSLLD128constload",
-		auxType:   auxSymValAndOff,
-		argLen:    2,
-		symEffect: SymRead,
-		asm:       x86.AVPSLLD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VPSLLD256constload",
-		auxType:   auxSymValAndOff,
-		argLen:    2,
-		symEffect: SymRead,
-		asm:       x86.AVPSLLD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:      "VPSLLD512constload",
 		auxType:   auxSymValAndOff,
 		argLen:    2,
@@ -49609,36 +47863,6 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
-		name:      "VPSLLQ128constload",
-		auxType:   auxSymValAndOff,
-		argLen:    2,
-		symEffect: SymRead,
-		asm:       x86.AVPSLLQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VPSLLQ256constload",
-		auxType:   auxSymValAndOff,
-		argLen:    2,
-		symEffect: SymRead,
-		asm:       x86.AVPSLLQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -49754,36 +47978,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:      "VPSRLD128constload",
-		auxType:   auxSymValAndOff,
-		argLen:    2,
-		symEffect: SymRead,
-		asm:       x86.AVPSRLD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VPSRLD256constload",
-		auxType:   auxSymValAndOff,
-		argLen:    2,
-		symEffect: SymRead,
-		asm:       x86.AVPSRLD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:      "VPSRLD512constload",
 		auxType:   auxSymValAndOff,
 		argLen:    2,
@@ -49799,36 +47993,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:      "VPSRLQ128constload",
-		auxType:   auxSymValAndOff,
-		argLen:    2,
-		symEffect: SymRead,
-		asm:       x86.AVPSRLQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VPSRLQ256constload",
-		auxType:   auxSymValAndOff,
-		argLen:    2,
-		symEffect: SymRead,
-		asm:       x86.AVPSRLQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:      "VPSRLQ512constload",
 		auxType:   auxSymValAndOff,
 		argLen:    2,
@@ -49840,36 +48004,6 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
-		name:      "VPSRAD128constload",
-		auxType:   auxSymValAndOff,
-		argLen:    2,
-		symEffect: SymRead,
-		asm:       x86.AVPSRAD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:      "VPSRAD256constload",
-		auxType:   auxSymValAndOff,
-		argLen:    2,
-		symEffect: SymRead,
-		asm:       x86.AVPSRAD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},

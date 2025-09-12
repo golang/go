@@ -632,7 +632,21 @@ func dedupGodef(ops []Operation) ([]Operation, error) {
 				if isAVX512(i) && !isAVX512(j) {
 					return 1
 				}
-				return strings.Compare(i.CPUFeature, j.CPUFeature)
+				if i.CPUFeature != j.CPUFeature {
+					return strings.Compare(i.CPUFeature, j.CPUFeature)
+				}
+				// Weirdly Intel sometimes has duplicated definitions for the same instruction,
+				// this confuses the XED mem-op merge logic: [MemFeature] will only be attached to an instruction
+				// for only once, which means that for essentially duplicated instructions only one will have the
+				// proper [MemFeature] set. We have to make this sort deterministic for [MemFeature].
+				if i.MemFeatures != nil && j.MemFeatures == nil {
+					return -1
+				}
+				if i.MemFeatures == nil && j.MemFeatures != nil {
+					return 1
+				}
+				// Their order does not matter anymore, at least for now.
+				return 0
 			})
 		}
 		deduped = append(deduped, dup[0])
