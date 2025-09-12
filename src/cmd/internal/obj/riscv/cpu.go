@@ -35,6 +35,8 @@ import (
 	"cmd/internal/obj"
 )
 
+var CSRs map[uint16]string = csrs
+
 //go:generate go run ../stringer.go -i $GOFILE -o anames.go -p riscv
 
 const (
@@ -551,7 +553,7 @@ const (
 	AFNMADDQ
 	AFNMSUBQ
 
-	// 22.3 Quad-Precision Convert and Move Instructions
+	// 22.3: Quad-Precision Convert and Move Instructions
 	AFCVTWQ
 	AFCVTLQ
 	AFCVTSQ
@@ -568,13 +570,72 @@ const (
 	AFSGNJNQ
 	AFSGNJXQ
 
-	// 22.4 Quad-Precision Floating-Point Compare Instructions
+	// 22.4: Quad-Precision Floating-Point Compare Instructions
 	AFEQQ
 	AFLEQ
 	AFLTQ
 
-	// 22.5 Quad-Precision Floating-Point Classify Instruction
+	// 22.5: Quad-Precision Floating-Point Classify Instruction
 	AFCLASSQ
+
+	//
+	// "C" Extension for Compressed Instructions
+	//
+
+	// 26.3.1: Compressed Stack-Pointer-Based Loads and Stores
+	ACLWSP
+	ACFLWSP
+	ACLDSP
+	ACFLDSP
+	ACSWSP
+	ACSDSP
+	ACFSWSP
+	ACFSDSP
+
+	// 26.3.2: Compressed Register-Based Loads and Stores
+	ACLW
+	ACLD
+	ACFLW
+	ACFLD
+	ACSW
+	ACSD
+	ACFSW
+	ACFSD
+
+	// 26.4: Compressed Control Transfer Instructions
+	ACJ
+	ACJR
+	ACJALR
+	ACBEQZ
+	ACBNEZ
+
+	// 26.5.1: Compressed Integer Constant-Generation Instructions
+	ACLI
+	ACLUI
+	ACADDI
+	ACADDIW
+	ACADDI16SP
+	ACADDI4SPN
+	ACSLLI
+	ACSRLI
+	ACSRAI
+	ACANDI
+
+	// 26.5.3: Compressed Integer Register-Register Operations
+	ACMV
+	ACADD
+	ACAND
+	ACOR
+	ACXOR
+	ACSUB
+	ACADDW
+	ACSUBW
+
+	// 26.5.5: Compressed NOP Instruction
+	ACNOP
+
+	// 26.5.6: Compressed Breakpoint Instruction
+	ACEBREAK
 
 	//
 	// "B" Extension for Bit Manipulation, Version 1.0.0
@@ -1256,9 +1317,10 @@ type SpecialOperand int
 
 const (
 	SPOP_BEGIN SpecialOperand = obj.SpecialOperandRISCVBase
+	SPOP_RVV_BEGIN
 
 	// Vector mask policy.
-	SPOP_MA SpecialOperand = obj.SpecialOperandRISCVBase + iota - 1
+	SPOP_MA SpecialOperand = obj.SpecialOperandRISCVBase + iota - 2
 	SPOP_MU
 
 	// Vector tail policy.
@@ -1279,8 +1341,13 @@ const (
 	SPOP_E16
 	SPOP_E32
 	SPOP_E64
+	SPOP_RVV_END
 
-	SPOP_END
+	// CSR names.  4096 special operands are reserved for RISC-V CSR names.
+	SPOP_CSR_BEGIN = SPOP_RVV_END
+	SPOP_CSR_END   = SPOP_CSR_BEGIN + 4096
+
+	SPOP_END = SPOP_CSR_END + 1
 )
 
 var specialOperands = map[SpecialOperand]struct {
@@ -1308,17 +1375,33 @@ var specialOperands = map[SpecialOperand]struct {
 }
 
 func (so SpecialOperand) encode() uint32 {
-	op, ok := specialOperands[so]
-	if ok {
-		return op.encoding
+	switch {
+	case so >= SPOP_RVV_BEGIN && so < SPOP_RVV_END:
+		op, ok := specialOperands[so]
+		if ok {
+			return op.encoding
+		}
+	case so >= SPOP_CSR_BEGIN && so < SPOP_CSR_END:
+		csrNum := uint16(so - SPOP_CSR_BEGIN)
+		if _, ok := csrs[csrNum]; ok {
+			return uint32(csrNum)
+		}
 	}
 	return 0
 }
 
+// String returns the textual representation of a SpecialOperand.
 func (so SpecialOperand) String() string {
-	op, ok := specialOperands[so]
-	if ok {
-		return op.name
+	switch {
+	case so >= SPOP_RVV_BEGIN && so < SPOP_RVV_END:
+		op, ok := specialOperands[so]
+		if ok {
+			return op.name
+		}
+	case so >= SPOP_CSR_BEGIN && so < SPOP_CSR_END:
+		if csrName, ok := csrs[uint16(so-SPOP_CSR_BEGIN)]; ok {
+			return csrName
+		}
 	}
 	return ""
 }

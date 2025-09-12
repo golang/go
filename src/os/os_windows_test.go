@@ -64,9 +64,6 @@ func TestSameWindowsFile(t *testing.T) {
 	}
 
 	p := filepath.VolumeName(path) + filepath.Base(path)
-	if err != nil {
-		t.Fatal(err)
-	}
 	ia3, err := os.Stat(p)
 	if err != nil {
 		t.Fatal(err)
@@ -666,7 +663,7 @@ func TestOpenVolumeName(t *testing.T) {
 	}
 	slices.Sort(have)
 
-	if strings.Join(want, "/") != strings.Join(have, "/") {
+	if !slices.Equal(want, have) {
 		t.Fatalf("unexpected file list %q, want %q", have, want)
 	}
 }
@@ -1574,15 +1571,10 @@ func TestReadWriteFileOverlapped(t *testing.T) {
 	t.Parallel()
 
 	name := filepath.Join(t.TempDir(), "test.txt")
-	wname, err := syscall.UTF16PtrFromString(name)
+	f, err := os.OpenFile(name, os.O_RDWR|os.O_CREATE|windows.O_FILE_FLAG_OVERLAPPED, 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
-	h, err := syscall.CreateFile(wname, syscall.GENERIC_ALL, 0, nil, syscall.CREATE_NEW, syscall.FILE_ATTRIBUTE_NORMAL|syscall.FILE_FLAG_OVERLAPPED, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	f := os.NewFile(uintptr(h), name)
 	defer f.Close()
 
 	data := []byte("test")
@@ -1658,22 +1650,14 @@ func TestStdinOverlappedPipe(t *testing.T) {
 }
 
 func newFileOverlapped(t testing.TB, name string, overlapped bool) *os.File {
-	namep, err := syscall.UTF16PtrFromString(name)
-	if err != nil {
-		t.Fatal(err)
-	}
-	flags := syscall.FILE_ATTRIBUTE_NORMAL
+	flags := os.O_RDWR | os.O_CREATE
 	if overlapped {
-		flags |= syscall.FILE_FLAG_OVERLAPPED
+		flags |= windows.O_FILE_FLAG_OVERLAPPED
 	}
-	h, err := syscall.CreateFile(namep,
-		syscall.GENERIC_READ|syscall.GENERIC_WRITE,
-		syscall.FILE_SHARE_WRITE|syscall.FILE_SHARE_READ,
-		nil, syscall.OPEN_ALWAYS, uint32(flags), 0)
+	f, err := os.OpenFile(name, flags, 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
-	f := os.NewFile(uintptr(h), name)
 	t.Cleanup(func() {
 		if err := f.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
 			t.Fatal(err)
@@ -1709,7 +1693,7 @@ func newPipe(t testing.TB, name string, message, overlapped bool) *os.File {
 	// Create the read handle.
 	flags := windows.PIPE_ACCESS_DUPLEX
 	if overlapped {
-		flags |= syscall.FILE_FLAG_OVERLAPPED
+		flags |= windows.O_FILE_FLAG_OVERLAPPED
 	}
 	typ := windows.PIPE_TYPE_BYTE | windows.PIPE_READMODE_BYTE
 	if message {
@@ -1845,6 +1829,64 @@ func TestFile(t *testing.T) {
 			testPreadPwrite(t, rh, wh)
 			testFileReadEOF(t, rh)
 		})
+	}
+}
+
+func TestFileOverlappedSeek(t *testing.T) {
+	t.Parallel()
+	name := filepath.Join(t.TempDir(), "foo")
+	f := newFileOverlapped(t, name, true)
+	content := []byte("foo")
+	if _, err := f.Write(content); err != nil {
+		t.Fatal(err)
+	}
+	// Check that the file pointer is at the expected offset.
+	n, err := f.Seek(0, io.SeekCurrent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != int64(len(content)) {
+		t.Errorf("expected file pointer to be at offset %d, got %d", len(content), n)
+	}
+	// Set the file pointer to the start of the file.
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		t.Fatal(err)
+	}
+	// Read the first byte.
+	var buf [1]byte
+	if _, err := f.Read(buf[:]); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(buf[:], content[:len(buf)]) {
+		t.Errorf("expected %q, got %q", content[:len(buf)], buf[:])
+	}
+	// Check that the file pointer is at the expected offset.
+	n, err = f.Seek(0, io.SeekCurrent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != int64(len(buf)) {
+		t.Errorf("expected file pointer to be at offset %d, got %d", len(buf), n)
+	}
+}
+
+func TestFileOverlappedReadAtVolume(t *testing.T) {
+	// Test that we can use File.ReadAt with an overlapped volume handle.
+	// See https://go.dev/issues/74951.
+	t.Parallel()
+	name := `\\.\` + filepath.VolumeName(t.TempDir())
+	f, err := os.OpenFile(name, os.O_RDWR|os.O_CREATE|windows.O_FILE_FLAG_OVERLAPPED, 0666)
+	if err != nil {
+		if errors.Is(err, syscall.ERROR_ACCESS_DENIED) {
+			t.Skip("skipping test: access denied")
+		}
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	var buf [0]byte
+	if _, err := f.ReadAt(buf[:], 0); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -2145,4 +2187,72 @@ func TestSplitPath(t *testing.T) {
 			t.Errorf("splitPath(%q) = %q, %q, want %q, %q", tt.path, dir, base, tt.wantDir, tt.wantBase)
 		}
 	}
+}
+
+func TestOpenFileFlags(t *testing.T) {
+	t.Parallel()
+
+	// The only way to retrieve some of the flags passed in CreateFile
+	// is using NtQueryInformationFile, which returns the file flags
+	// NT equivalent. Note that FILE_SYNCHRONOUS_IO_NONALERT is always
+	// set when FILE_FLAG_OVERLAPPED is not passed.
+	// The flags that can't be retrieved using NtQueryInformationFile won't
+	// be tested in here, but we at least know that the logic to handle them is correct.
+	tests := []struct {
+		flag     uint32
+		wantMode uint32
+	}{
+		{0, windows.FILE_SYNCHRONOUS_IO_NONALERT},
+		{windows.O_FILE_FLAG_OVERLAPPED, 0},
+		{windows.O_FILE_FLAG_NO_BUFFERING, windows.FILE_NO_INTERMEDIATE_BUFFERING | windows.FILE_SYNCHRONOUS_IO_NONALERT},
+		{windows.O_FILE_FLAG_NO_BUFFERING | windows.O_FILE_FLAG_OVERLAPPED, windows.FILE_NO_INTERMEDIATE_BUFFERING},
+		{windows.O_FILE_FLAG_SEQUENTIAL_SCAN, windows.FILE_SEQUENTIAL_ONLY | windows.FILE_SYNCHRONOUS_IO_NONALERT},
+		{windows.O_FILE_FLAG_WRITE_THROUGH, windows.FILE_WRITE_THROUGH | windows.FILE_SYNCHRONOUS_IO_NONALERT},
+	}
+	for i, tt := range tests {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			t.Parallel()
+			f, err := os.OpenFile(filepath.Join(t.TempDir(), "test.txt"), syscall.O_RDWR|syscall.O_CREAT|int(tt.flag), 0666)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer f.Close()
+			var info windows.FILE_MODE_INFORMATION
+			if err := windows.NtQueryInformationFile(syscall.Handle(f.Fd()), &windows.IO_STATUS_BLOCK{},
+				unsafe.Pointer(&info), uint32(unsafe.Sizeof(info)), windows.FileModeInformation); err != nil {
+				t.Fatal(err)
+			}
+			if info.Mode != tt.wantMode {
+				t.Errorf("file mode = 0x%x; want 0x%x", info.Mode, tt.wantMode)
+			}
+		})
+	}
+}
+
+func TestOpenFileDeleteOnClose(t *testing.T) {
+	t.Parallel()
+	name := filepath.Join(t.TempDir(), "test.txt")
+	f, err := os.OpenFile(name, syscall.O_RDWR|syscall.O_CREAT|windows.O_FILE_FLAG_DELETE_ON_CLOSE, 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+	// The file should be deleted after closing.
+	if _, err := os.Stat(name); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("expected file to be deleted, got %v", err)
+	}
+}
+
+func TestOpenFileFlagInvalid(t *testing.T) {
+	t.Parallel()
+	// invalidFileFlag is the only value in the file flag range that is not supported,
+	// as it is not defined in the Windows API.
+	const invalidFileFlag = 0x00400000
+	f, err := os.OpenFile(filepath.Join(t.TempDir(), "test.txt"), syscall.O_RDWR|syscall.O_CREAT|invalidFileFlag, 0666)
+	if !errors.Is(err, os.ErrInvalid) {
+		t.Fatalf("expected os.ErrInvalid, got %v", err)
+	}
+	f.Close()
 }

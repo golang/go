@@ -842,17 +842,6 @@ func TestEINTR(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9", "windows":
 		t.Skipf("no EINTR on %s", runtime.GOOS)
-	case "linux":
-		if runtime.GOARCH == "386" {
-			// On linux-386 the Go signal handler sets
-			// a restorer function that is not preserved
-			// by the C sigaction call in the test,
-			// causing the signal handler to crash when
-			// returning the normal code. The test is not
-			// architecture-specific, so just skip on 386
-			// rather than doing a complicated workaround.
-			t.Skip("skipping on linux-386; C sigaction does not preserve Go restorer")
-		}
 	}
 	if runtime.GOOS == "freebsd" && race.Enabled {
 		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")

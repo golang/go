@@ -49,6 +49,7 @@ var bootstrapDirs = []string{
 	"cmd/internal/macho",
 	"cmd/internal/obj/...",
 	"cmd/internal/objabi",
+	"cmd/internal/par",
 	"cmd/internal/pgo",
 	"cmd/internal/pkgpath",
 	"cmd/internal/quoted",
@@ -121,7 +122,7 @@ var ignoreSuffixes = []string{
 	"~",
 }
 
-const minBootstrap = "go1.22.6"
+const minBootstrap = "go1.24.6"
 
 var tryDirs = []string{
 	"sdk/" + minBootstrap,

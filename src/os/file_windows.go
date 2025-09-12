@@ -22,14 +22,13 @@ const _UTIME_OMIT = -1
 
 // file is the real representation of *File.
 // The extra level of indirection ensures that no clients of os
-// can overwrite this data, which could cause the cleanup
+// can overwrite this data, which could cause the finalizer
 // to close the wrong file descriptor.
 type file struct {
 	pfd        poll.FD
 	name       string
 	dirinfo    atomic.Pointer[dirInfo] // nil unless directory being read
 	appendMode bool                    // whether file is opened for appending
-	cleanup    runtime.Cleanup         // cleanup closes the file when no longer referenced
 }
 
 // fd is the Windows implementation of Fd.
@@ -69,7 +68,7 @@ func newFile(h syscall.Handle, name string, kind string, nonBlocking bool) *File
 		},
 		name: name,
 	}}
-	f.cleanup = runtime.AddCleanup(f, func(f *file) { f.close() }, f.file)
+	runtime.SetFinalizer(f.file, (*file).close)
 
 	// Ignore initialization errors.
 	// Assume any problems will show up in later I/O.
@@ -121,12 +120,12 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 	if err != nil {
 		return nil, &PathError{Op: "open", Path: name, Err: err}
 	}
-	// syscall.Open always returns a non-blocking handle.
-	return newFile(r, name, "file", false), nil
+	nonblocking := flag&windows.O_FILE_FLAG_OVERLAPPED != 0
+	return newFile(r, name, "file", nonblocking), nil
 }
 
 func openDirNolog(name string) (*File, error) {
-	return openFileNolog(name, O_RDONLY, 0)
+	return openFileNolog(name, O_RDONLY|windows.O_DIRECTORY, 0)
 }
 
 func (file *file) close() error {
@@ -144,9 +143,8 @@ func (file *file) close() error {
 		err = &PathError{Op: "close", Path: file.name, Err: e}
 	}
 
-	// There is no need for a cleanup at this point. File must be alive at the point
-	// where cleanup.stop is called.
-	file.cleanup.Stop()
+	// no need for a finalizer anymore
+	runtime.SetFinalizer(file, nil)
 	return err
 }
 

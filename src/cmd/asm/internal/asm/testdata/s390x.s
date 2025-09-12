@@ -263,10 +263,15 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	NC	$8, (R15), n-8(SP)       // d407f010f000
 	OC	$8, (R15), n-8(SP)       // d607f010f000
 	MVC	$8, (R15), n-8(SP)       // d207f010f000
+	MVC	$256, 8192(R1), 8192(R2) // b90400a2c2a800002000b90400b1c2b800002000d2ffa000b000
 	MVCIN	$8, (R15), n-8(SP)       // e807f010f000
 	CLC	$8, (R15), n-8(SP)       // d507f000f010
 	XC	$256, -8(R15), -8(R15)   // b90400afc2a8fffffff8d7ffa000a000
-	MVC	$256, 8192(R1), 8192(R2) // b90400a2c2a800002000b90400b1c2b800002000d2ffa000b000
+	MVCLE   0, R4, R6                // a8640000
+	MVCLE   4095, R4, R6             // a8640fff
+	MVCLE   $4095, R4, R6            // a8640fff
+	MVCLE   (R3), R4, R6             // a8643000
+	MVCLE   10(R3), R4, R6           // a864300a
 
 	CMP	R1, R2                 // b9200012
 	CMP	R3, $32767             // a73f7fff
@@ -535,6 +540,18 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	VSTRCZBS V18, V20, V22, V24	// e78240306f8a
 	VSTRCZHS V18, V20, V22, V24	// e78241306f8a
 	VSTRCZFS V18, V20, V22, V24	// e78242306f8a
+	VFMAXSB	$1, V2, V3, V4          // e742301020ef
+	WFMAXSB	$2, V5, V6, V7          // e775602820ef
+	WFMAXSB	$2, F5, F6, F7          // e775602820ef
+	VFMAXDB	$3, V8, V9, V10		// e7a8903030ef
+	WFMAXDB	$4, V11, V12, V13	// e7dbc04830ef
+	WFMAXDB	$4, F11, F12, F13	// e7dbc04830ef
+	VFMINSB	$7, V14, V15, V16	// e70ef07028ee
+	WFMINSB	$8, V17, V18, V19	// e73120882eee
+	WFMINSB	$8, F1, F2, F3		// e731208820ee
+	VFMINDB	$9, V20, V21, V22	// e76450903eee
+	WFMINDB	$10, V23, V24, V25	// e79780a83eee
+	WFMINDB	$10, F7, F8, F9		// e79780a830ee
 
 	RET
 	RET	foo(SB)

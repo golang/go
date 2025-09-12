@@ -16,6 +16,7 @@ import (
 // between each string.
 //
 // A non-nil error returned by Join implements the Unwrap() []error method.
+// The errors may be inspected with [Is] and [As].
 func Join(errs ...error) error {
 	n := 0
 	for _, err := range errs {
@@ -28,12 +29,10 @@ func Join(errs ...error) error {
 	}
 	if n == 1 {
 		for _, err := range errs {
-			if err != nil {
-				if _, ok := err.(interface {
-					Unwrap() []error
-				}); ok {
-					return err
-				}
+			if _, ok := err.(interface {
+				Unwrap() []error
+			}); ok {
+				return err
 			}
 		}
 	}

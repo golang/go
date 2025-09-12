@@ -298,6 +298,9 @@ func (b *B) doBench() BenchmarkResult {
 	return b.result
 }
 
+// Don't run more than 1e9 times. (This also keeps n in int range on 32 bit platforms.)
+const maxBenchPredictIters = 1_000_000_000
+
 func predictN(goalns int64, prevIters int64, prevns int64, last int64) int {
 	if prevns == 0 {
 		// Round up to dodge divide by zero. See https://go.dev/issue/70709.
@@ -317,7 +320,7 @@ func predictN(goalns int64, prevIters int64, prevns int64, last int64) int {
 	// Be sure to run at least one more than last time.
 	n = max(n, last+1)
 	// Don't run more than 1e9 times. (This also keeps n in int range on 32 bit platforms.)
-	n = min(n, 1e9)
+	n = min(n, maxBenchPredictIters)
 	return int(n)
 }
 
@@ -403,7 +406,9 @@ func (b *B) stopOrScaleBLoop() bool {
 		// in big trouble.
 		panic("loop iteration target overflow")
 	}
-	return true
+	// predictN may have capped the number of iterations; make sure to
+	// terminate if we've already hit that cap.
+	return uint64(prevIters) < b.loop.n
 }
 
 func (b *B) loopSlowPath() bool {

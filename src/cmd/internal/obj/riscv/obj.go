@@ -37,7 +37,7 @@ func buildop(ctxt *obj.Link) {}
 
 func jalToSym(ctxt *obj.Link, p *obj.Prog, lr int16) {
 	switch p.As {
-	case obj.ACALL, obj.AJMP, obj.ARET, obj.ADUFFZERO, obj.ADUFFCOPY:
+	case obj.ACALL, obj.AJMP, obj.ARET:
 	default:
 		ctxt.Diag("unexpected Prog in jalToSym: %v", p)
 		return
@@ -162,42 +162,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 
 // Rewrite p, if necessary, to access global data via the global offset table.
 func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
-	if p.As == obj.ADUFFCOPY || p.As == obj.ADUFFZERO {
-		//     ADUFFxxx $offset
-		// becomes
-		//     MOV runtime.duffxxx@GOT, REG_TMP
-		//     ADD $offset, REG_TMP
-		//     CALL REG_TMP
-		var sym *obj.LSym
-		if p.As == obj.ADUFFCOPY {
-			sym = ctxt.LookupABI("runtime.duffcopy", obj.ABIInternal)
-		} else {
-			sym = ctxt.LookupABI("runtime.duffzero", obj.ABIInternal)
-		}
-		offset := p.To.Offset
-		p.As = AMOV
-		p.From.Type = obj.TYPE_MEM
-		p.From.Name = obj.NAME_GOTREF
-		p.From.Sym = sym
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_TMP
-		p.To.Name = obj.NAME_NONE
-		p.To.Offset = 0
-		p.To.Sym = nil
-
-		p1 := obj.Appendp(p, newprog)
-		p1.As = AADD
-		p1.From.Type = obj.TYPE_CONST
-		p1.From.Offset = offset
-		p1.To.Type = obj.TYPE_REG
-		p1.To.Reg = REG_TMP
-
-		p2 := obj.Appendp(p1, newprog)
-		p2.As = obj.ACALL
-		p2.To.Type = obj.TYPE_REG
-		p2.To.Reg = REG_TMP
-	}
-
 	// We only care about global data: NAME_EXTERN means a global
 	// symbol in the Go sense and p.Sym.Local is true for a few internally
 	// defined symbols.
@@ -407,7 +371,7 @@ func containsCall(sym *obj.LSym) bool {
 	// CALLs are CALL or JAL(R) with link register LR.
 	for p := sym.Func().Text; p != nil; p = p.Link {
 		switch p.As {
-		case obj.ACALL, obj.ADUFFZERO, obj.ADUFFCOPY:
+		case obj.ACALL:
 			return true
 		case AJAL, AJALR:
 			if p.From.Type == obj.TYPE_REG && p.From.Reg == REG_LR {
@@ -564,85 +528,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		prologue.To = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_SP, Offset: 0}
 	}
 
-	if cursym.Func().Text.From.Sym.Wrapper() {
-		// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
-		//
-		//   MOV g_panic(g), X5
-		//   BNE X5, ZERO, adjust
-		// end:
-		//   NOP
-		// ...rest of function..
-		// adjust:
-		//   MOV panic_argp(X5), X6
-		//   ADD $(autosize+FIXED_FRAME), SP, X7
-		//   BNE X6, X7, end
-		//   ADD $FIXED_FRAME, SP, X6
-		//   MOV X6, panic_argp(X5)
-		//   JMP end
-		//
-		// The NOP is needed to give the jumps somewhere to land.
-
-		ldpanic := obj.Appendp(prologue, newprog)
-
-		ldpanic.As = AMOV
-		ldpanic.From = obj.Addr{Type: obj.TYPE_MEM, Reg: REGG, Offset: 4 * int64(ctxt.Arch.PtrSize)} // G.panic
-		ldpanic.Reg = obj.REG_NONE
-		ldpanic.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X5}
-
-		bneadj := obj.Appendp(ldpanic, newprog)
-		bneadj.As = ABNE
-		bneadj.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X5}
-		bneadj.Reg = REG_ZERO
-		bneadj.To.Type = obj.TYPE_BRANCH
-
-		endadj := obj.Appendp(bneadj, newprog)
-		endadj.As = obj.ANOP
-
-		last := endadj
-		for last.Link != nil {
-			last = last.Link
-		}
-
-		getargp := obj.Appendp(last, newprog)
-		getargp.As = AMOV
-		getargp.From = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_X5, Offset: 0} // Panic.argp
-		getargp.Reg = obj.REG_NONE
-		getargp.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X6}
-
-		bneadj.To.SetTarget(getargp)
-
-		calcargp := obj.Appendp(getargp, newprog)
-		calcargp.As = AADDI
-		calcargp.From = obj.Addr{Type: obj.TYPE_CONST, Offset: stacksize + ctxt.Arch.FixedFrameSize}
-		calcargp.Reg = REG_SP
-		calcargp.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X7}
-
-		testargp := obj.Appendp(calcargp, newprog)
-		testargp.As = ABNE
-		testargp.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X6}
-		testargp.Reg = REG_X7
-		testargp.To.Type = obj.TYPE_BRANCH
-		testargp.To.SetTarget(endadj)
-
-		adjargp := obj.Appendp(testargp, newprog)
-		adjargp.As = AADDI
-		adjargp.From = obj.Addr{Type: obj.TYPE_CONST, Offset: int64(ctxt.Arch.PtrSize)}
-		adjargp.Reg = REG_SP
-		adjargp.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X6}
-
-		setargp := obj.Appendp(adjargp, newprog)
-		setargp.As = AMOV
-		setargp.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X6}
-		setargp.Reg = obj.REG_NONE
-		setargp.To = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_X5, Offset: 0} // Panic.argp
-
-		godone := obj.Appendp(setargp, newprog)
-		godone.As = AJAL
-		godone.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_ZERO}
-		godone.To.Type = obj.TYPE_BRANCH
-		godone.To.SetTarget(endadj)
-	}
-
 	// Update stack-based offsets.
 	for p := cursym.Func().Text; p != nil; p = p.Link {
 		stackOffset(&p.From, stacksize)
@@ -665,7 +550,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p.From.Reg = REG_SP
 			}
 
-		case obj.ACALL, obj.ADUFFZERO, obj.ADUFFCOPY:
+		case obj.ACALL:
 			switch p.To.Type {
 			case obj.TYPE_MEM:
 				jalToSym(ctxt, p, REG_LR)
@@ -1149,24 +1034,6 @@ func regF(r uint32) uint32 {
 // regV returns a vector register.
 func regV(r uint32) uint32 {
 	return regVal(r, REG_V0, REG_V31)
-}
-
-// regAddr extracts a register from an Addr.
-func regAddr(a obj.Addr, min, max uint32) uint32 {
-	if a.Type != obj.TYPE_REG {
-		panic(fmt.Sprintf("ill typed: %+v", a))
-	}
-	return regVal(uint32(a.Reg), min, max)
-}
-
-// regIAddr extracts the integer register from an Addr.
-func regIAddr(a obj.Addr) uint32 {
-	return regAddr(a, REG_X0, REG_X31)
-}
-
-// regFAddr extracts the float register from an Addr.
-func regFAddr(a obj.Addr) uint32 {
-	return regAddr(a, REG_F0, REG_F31)
 }
 
 // immEven checks that the immediate is a multiple of two. If it
@@ -2053,7 +1920,12 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	ASD & obj.AMask: {enc: sIEncoding},
 
 	// 7.1: CSR Instructions
-	ACSRRS & obj.AMask: {enc: iIIEncoding},
+	ACSRRC & obj.AMask:  {enc: iIIEncoding, immForm: ACSRRCI},
+	ACSRRCI & obj.AMask: {enc: iIIEncoding},
+	ACSRRS & obj.AMask:  {enc: iIIEncoding, immForm: ACSRRSI},
+	ACSRRSI & obj.AMask: {enc: iIIEncoding},
+	ACSRRW & obj.AMask:  {enc: iIIEncoding, immForm: ACSRRWI},
+	ACSRRWI & obj.AMask: {enc: iIIEncoding},
 
 	// 13.1: Multiplication Operations
 	AMUL & obj.AMask:    {enc: rIIIEncoding, ternary: true},
@@ -2731,8 +2603,6 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	obj.APCDATA:   {enc: pseudoOpEncoding},
 	obj.ATEXT:     {enc: pseudoOpEncoding},
 	obj.ANOP:      {enc: pseudoOpEncoding},
-	obj.ADUFFZERO: {enc: pseudoOpEncoding},
-	obj.ADUFFCOPY: {enc: pseudoOpEncoding},
 	obj.APCALIGN:  {enc: pseudoOpEncoding},
 }
 
@@ -3461,6 +3331,43 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		case ARDINSTRET:
 			ins.imm = -1022
 		}
+
+	case ACSRRC, ACSRRCI, ACSRRS, ACSRRSI, ACSRRW, ACSRRWI:
+		if len(p.RestArgs) == 0 || p.RestArgs[0].Type != obj.TYPE_SPECIAL {
+			p.Ctxt.Diag("%v: missing CSR name", p)
+			return nil
+		}
+		if p.From.Type == obj.TYPE_CONST {
+			imm := p.From.Offset
+			if imm < 0 || imm >= 32 {
+				p.Ctxt.Diag("%v: immediate out of range 0 to 31", p)
+				return nil
+			}
+			ins.rs1 = uint32(imm) + REG_ZERO
+		} else if p.From.Type == obj.TYPE_REG {
+			ins.rs1 = uint32(p.From.Reg)
+		} else {
+			p.Ctxt.Diag("%v: integer register or immediate expected for 1st operand", p)
+			return nil
+		}
+		if p.To.Type != obj.TYPE_REG {
+			p.Ctxt.Diag("%v: needs an integer register output", p)
+			return nil
+		}
+		csrNum := SpecialOperand(p.RestArgs[0].Offset).encode()
+		if csrNum >= 1<<12 {
+			p.Ctxt.Diag("%v: unknown CSR", p)
+			return nil
+		}
+		if _, ok := CSRs[uint16(csrNum)]; !ok {
+			p.Ctxt.Diag("%v: unknown CSR", p)
+			return nil
+		}
+		ins.imm = int64(csrNum)
+		if ins.imm > 2047 {
+			ins.imm -= 4096
+		}
+		ins.rs2 = obj.REG_NONE
 
 	case AFENCE:
 		ins.rd, ins.rs1, ins.rs2 = REG_ZERO, REG_ZERO, obj.REG_NONE

@@ -68,13 +68,15 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 		pgrp            _C_int
 		cred            *Credential
 		ngroups, groups uintptr
-		upid            uintptr
+		upid, ppid      uintptr
 	)
 
 	rlim := origRlimitNofile.Load()
 
 	// Record parent PID so child can test if it has died.
-	ppid, _, _ := RawSyscall(SYS_GETPID, 0, 0, 0)
+	if sys.Pdeathsig != 0 {
+		ppid, _, _ = RawSyscall(SYS_GETPID, 0, 0, 0)
+	}
 
 	// guard against side effects of shuffling fds below.
 	// Make sure that nextfd is beyond any currently open files so

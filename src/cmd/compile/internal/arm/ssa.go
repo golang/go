@@ -18,6 +18,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/arm"
+	"internal/abi"
 )
 
 // loadByType returns the load instruction of the given type.
@@ -712,18 +713,167 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Name = obj.NAME_EXTERN
 		// AuxInt encodes how many buffer entries we need.
 		p.To.Sym = ir.Syms.GCWriteBarrier[v.AuxInt-1]
-	case ssa.OpARMLoweredPanicBoundsA, ssa.OpARMLoweredPanicBoundsB, ssa.OpARMLoweredPanicBoundsC:
-		p := s.Prog(obj.ACALL)
+
+	case ssa.OpARMLoweredPanicBoundsRR, ssa.OpARMLoweredPanicBoundsRC, ssa.OpARMLoweredPanicBoundsCR, ssa.OpARMLoweredPanicBoundsCC,
+		ssa.OpARMLoweredPanicExtendRR, ssa.OpARMLoweredPanicExtendRC:
+		// Compute the constant we put in the PCData entry for this call.
+		code, signed := ssa.BoundsKind(v.AuxInt).Code()
+		xIsReg := false
+		yIsReg := false
+		xVal := 0
+		yVal := 0
+		extend := false
+		switch v.Op {
+		case ssa.OpARMLoweredPanicBoundsRR:
+			xIsReg = true
+			xVal = int(v.Args[0].Reg() - arm.REG_R0)
+			yIsReg = true
+			yVal = int(v.Args[1].Reg() - arm.REG_R0)
+		case ssa.OpARMLoweredPanicExtendRR:
+			extend = true
+			xIsReg = true
+			hi := int(v.Args[0].Reg() - arm.REG_R0)
+			lo := int(v.Args[1].Reg() - arm.REG_R0)
+			xVal = hi<<2 + lo // encode 2 register numbers
+			yIsReg = true
+			yVal = int(v.Args[2].Reg() - arm.REG_R0)
+		case ssa.OpARMLoweredPanicBoundsRC:
+			xIsReg = true
+			xVal = int(v.Args[0].Reg() - arm.REG_R0)
+			c := v.Aux.(ssa.PanicBoundsC).C
+			if c >= 0 && c <= abi.BoundsMaxConst {
+				yVal = int(c)
+			} else {
+				// Move constant to a register
+				yIsReg = true
+				if yVal == xVal {
+					yVal = 1
+				}
+				p := s.Prog(arm.AMOVW)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = c
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = arm.REG_R0 + int16(yVal)
+			}
+		case ssa.OpARMLoweredPanicExtendRC:
+			extend = true
+			xIsReg = true
+			hi := int(v.Args[0].Reg() - arm.REG_R0)
+			lo := int(v.Args[1].Reg() - arm.REG_R0)
+			xVal = hi<<2 + lo // encode 2 register numbers
+			c := v.Aux.(ssa.PanicBoundsC).C
+			if c >= 0 && c <= abi.BoundsMaxConst {
+				yVal = int(c)
+			} else {
+				// Move constant to a register
+				for yVal == hi || yVal == lo {
+					yVal++
+				}
+				p := s.Prog(arm.AMOVW)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = c
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = arm.REG_R0 + int16(yVal)
+			}
+		case ssa.OpARMLoweredPanicBoundsCR:
+			yIsReg = true
+			yVal = int(v.Args[0].Reg() - arm.REG_R0)
+			c := v.Aux.(ssa.PanicBoundsC).C
+			if c >= 0 && c <= abi.BoundsMaxConst {
+				xVal = int(c)
+			} else if signed && int64(int32(c)) == c || !signed && int64(uint32(c)) == c {
+				// Move constant to a register
+				xIsReg = true
+				if xVal == yVal {
+					xVal = 1
+				}
+				p := s.Prog(arm.AMOVW)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = c
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = arm.REG_R0 + int16(xVal)
+			} else {
+				// Move constant to two registers
+				extend = true
+				xIsReg = true
+				hi := 0
+				lo := 1
+				if hi == yVal {
+					hi = 2
+				}
+				if lo == yVal {
+					lo = 2
+				}
+				xVal = hi<<2 + lo
+				p := s.Prog(arm.AMOVW)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = c >> 32
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = arm.REG_R0 + int16(hi)
+				p = s.Prog(arm.AMOVW)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = int64(int32(c))
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = arm.REG_R0 + int16(lo)
+			}
+		case ssa.OpARMLoweredPanicBoundsCC:
+			c := v.Aux.(ssa.PanicBoundsCC).Cx
+			if c >= 0 && c <= abi.BoundsMaxConst {
+				xVal = int(c)
+			} else if signed && int64(int32(c)) == c || !signed && int64(uint32(c)) == c {
+				// Move constant to a register
+				xIsReg = true
+				p := s.Prog(arm.AMOVW)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = c
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = arm.REG_R0 + int16(xVal)
+			} else {
+				// Move constant to two registers
+				extend = true
+				xIsReg = true
+				hi := 0
+				lo := 1
+				xVal = hi<<2 + lo
+				p := s.Prog(arm.AMOVW)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = c >> 32
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = arm.REG_R0 + int16(hi)
+				p = s.Prog(arm.AMOVW)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = int64(int32(c))
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = arm.REG_R0 + int16(lo)
+			}
+			c = v.Aux.(ssa.PanicBoundsCC).Cy
+			if c >= 0 && c <= abi.BoundsMaxConst {
+				yVal = int(c)
+			} else {
+				// Move constant to a register
+				yIsReg = true
+				yVal = 2
+				p := s.Prog(arm.AMOVW)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = c
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = arm.REG_R0 + int16(yVal)
+			}
+		}
+		c := abi.BoundsEncode(code, signed, xIsReg, yIsReg, xVal, yVal)
+
+		p := s.Prog(obj.APCDATA)
+		p.From.SetConst(abi.PCDATA_PanicBounds)
+		p.To.SetConst(int64(c))
+		p = s.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = ssagen.BoundsCheckFunc[v.AuxInt]
-		s.UseArgs(8) // space used in callee args area by assembly stubs
-	case ssa.OpARMLoweredPanicExtendA, ssa.OpARMLoweredPanicExtendB, ssa.OpARMLoweredPanicExtendC:
-		p := s.Prog(obj.ACALL)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = ssagen.ExtendCheckFunc[v.AuxInt]
-		s.UseArgs(12) // space used in callee args area by assembly stubs
+		if extend {
+			p.To.Sym = ir.Syms.PanicExtend
+		} else {
+			p.To.Sym = ir.Syms.PanicBounds
+		}
+
 	case ssa.OpARMDUFFZERO:
 		p := s.Prog(obj.ADUFFZERO)
 		p.To.Type = obj.TYPE_MEM

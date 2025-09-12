@@ -468,10 +468,17 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() error {
 	return nil
 }
 
-// cloneHash uses the encoding.BinaryMarshaler and encoding.BinaryUnmarshaler
+// cloneHash uses [hash.Cloner] to clone in. If [hash.Cloner]
+// is not implemented or not supported, then it falls back to the
+// [encoding.BinaryMarshaler] and [encoding.BinaryUnmarshaler]
 // interfaces implemented by standard library hashes to clone the state of in
 // to a new instance of h. It returns nil if the operation fails.
 func cloneHash(in hash.Hash, h crypto.Hash) hash.Hash {
+	if cloner, ok := in.(hash.Cloner); ok {
+		if out, err := cloner.Clone(); err == nil {
+			return out
+		}
+	}
 	// Recreate the interface to avoid importing encoding.
 	type binaryMarshaler interface {
 		MarshalBinary() (data []byte, err error)
@@ -800,6 +807,10 @@ func (hs *serverHandshakeStateTLS13) sendServerParameters() error {
 		}
 		encryptedExtensions.quicTransportParameters = p
 		encryptedExtensions.earlyData = hs.earlyData
+	}
+
+	if !hs.c.didResume && hs.clientHello.serverName != "" {
+		encryptedExtensions.serverNameAck = true
 	}
 
 	// If client sent ECH extension, but we didn't accept it,

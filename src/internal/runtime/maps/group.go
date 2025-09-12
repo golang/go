@@ -22,10 +22,9 @@ const (
 	ctrlEmpty   ctrl = 0b10000000
 	ctrlDeleted ctrl = 0b11111110
 
-	bitsetLSB     = 0x0101010101010101
-	bitsetMSB     = 0x8080808080808080
-	bitsetEmpty   = bitsetLSB * uint64(ctrlEmpty)
-	bitsetDeleted = bitsetLSB * uint64(ctrlDeleted)
+	bitsetLSB   = 0x0101010101010101
+	bitsetMSB   = 0x8080808080808080
+	bitsetEmpty = bitsetLSB * uint64(ctrlEmpty)
 )
 
 // bitset represents a set of slots within a group.
@@ -39,7 +38,7 @@ const (
 // On other architectures, bitset uses one byte per slot, where each byte is
 // either 0x80 if the slot is part of the set or 0x00 otherwise. This makes it
 // convenient to calculate for an entire group at once using standard
-// arithemetic instructions.
+// arithmetic instructions.
 type bitset uint64
 
 // first returns the relative index of the first control byte in the group that
@@ -122,7 +121,7 @@ func (b bitset) count() int {
 // TODO(prattmic): Consider inverting the top bit so that the zero value is empty.
 type ctrl uint8
 
-// ctrlGroup is a fixed size array of abi.SwissMapGroupSlots control bytes
+// ctrlGroup is a fixed size array of abi.MapGroupSlots control bytes
 // stored in a uint64.
 type ctrlGroup uint64
 
@@ -157,7 +156,7 @@ func (g ctrlGroup) matchH2(h uintptr) bitset {
 // Portable implementation of matchH2.
 //
 // Note: On AMD64, this is an intrinsic implemented with SIMD instructions. See
-// note on bitset about the packed instrinsified return value.
+// note on bitset about the packed intrinsified return value.
 func ctrlGroupMatchH2(g ctrlGroup, h uintptr) bitset {
 	// NB: This generic matching routine produces false positive matches when
 	// h is 2^N and the control bytes have a seq of 2^N followed by 2^N+1. For
@@ -179,7 +178,7 @@ func (g ctrlGroup) matchEmpty() bitset {
 // Portable implementation of matchEmpty.
 //
 // Note: On AMD64, this is an intrinsic implemented with SIMD instructions. See
-// note on bitset about the packed instrinsified return value.
+// note on bitset about the packed intrinsified return value.
 func ctrlGroupMatchEmpty(g ctrlGroup) bitset {
 	// An empty slot is   1000 0000
 	// A deleted slot is  1111 1110
@@ -200,7 +199,7 @@ func (g ctrlGroup) matchEmptyOrDeleted() bitset {
 // Portable implementation of matchEmptyOrDeleted.
 //
 // Note: On AMD64, this is an intrinsic implemented with SIMD instructions. See
-// note on bitset about the packed instrinsified return value.
+// note on bitset about the packed intrinsified return value.
 func ctrlGroupMatchEmptyOrDeleted(g ctrlGroup) bitset {
 	// An empty slot is  1000 0000
 	// A deleted slot is 1111 1110
@@ -216,10 +215,16 @@ func (g ctrlGroup) matchFull() bitset {
 	return ctrlGroupMatchFull(g)
 }
 
+// anyFull reports whether any slots in the group are full.
+func (g ctrlGroup) anyFull() bool {
+	// A slot is full iff bit 7 is unset. Test whether any slot has bit 7 unset.
+	return (^g)&bitsetMSB != 0
+}
+
 // Portable implementation of matchFull.
 //
 // Note: On AMD64, this is an intrinsic implemented with SIMD instructions. See
-// note on bitset about the packed instrinsified return value.
+// note on bitset about the packed intrinsified return value.
 func ctrlGroupMatchFull(g ctrlGroup) bitset {
 	// An empty slot is  1000 0000
 	// A deleted slot is 1111 1110
@@ -233,7 +238,7 @@ func ctrlGroupMatchFull(g ctrlGroup) bitset {
 // groupReference is a wrapper type representing a single slot group stored at
 // data.
 //
-// A group holds abi.SwissMapGroupSlots slots (key/elem pairs) plus their
+// A group holds abi.MapGroupSlots slots (key/elem pairs) plus their
 // control word.
 type groupReference struct {
 	// data points to the group, which is described by typ.Group and has
@@ -241,7 +246,7 @@ type groupReference struct {
 	//
 	// type group struct {
 	// 	ctrls ctrlGroup
-	// 	slots [abi.SwissMapGroupSlots]slot
+	// 	slots [abi.MapGroupSlots]slot
 	// }
 	//
 	// type slot struct {
@@ -281,14 +286,14 @@ func (g *groupReference) ctrls() *ctrlGroup {
 }
 
 // key returns a pointer to the key at index i.
-func (g *groupReference) key(typ *abi.SwissMapType, i uintptr) unsafe.Pointer {
+func (g *groupReference) key(typ *abi.MapType, i uintptr) unsafe.Pointer {
 	offset := groupSlotsOffset + i*typ.SlotSize
 
 	return unsafe.Pointer(uintptr(g.data) + offset)
 }
 
 // elem returns a pointer to the element at index i.
-func (g *groupReference) elem(typ *abi.SwissMapType, i uintptr) unsafe.Pointer {
+func (g *groupReference) elem(typ *abi.MapType, i uintptr) unsafe.Pointer {
 	offset := groupSlotsOffset + i*typ.SlotSize + typ.ElemOff
 
 	return unsafe.Pointer(uintptr(g.data) + offset)
@@ -310,7 +315,7 @@ type groupsReference struct {
 // newGroups allocates a new array of length groups.
 //
 // Length must be a power of two.
-func newGroups(typ *abi.SwissMapType, length uint64) groupsReference {
+func newGroups(typ *abi.MapType, length uint64) groupsReference {
 	return groupsReference{
 		// TODO: make the length type the same throughout.
 		data:       newarray(typ.Group, int(length)),
@@ -319,7 +324,7 @@ func newGroups(typ *abi.SwissMapType, length uint64) groupsReference {
 }
 
 // group returns the group at index i.
-func (g *groupsReference) group(typ *abi.SwissMapType, i uint64) groupReference {
+func (g *groupsReference) group(typ *abi.MapType, i uint64) groupReference {
 	// TODO(prattmic): Do something here about truncation on cast to
 	// uintptr on 32-bit systems?
 	offset := uintptr(i) * typ.GroupSize
@@ -329,11 +334,11 @@ func (g *groupsReference) group(typ *abi.SwissMapType, i uint64) groupReference 
 	}
 }
 
-func cloneGroup(typ *abi.SwissMapType, newGroup, oldGroup groupReference) {
+func cloneGroup(typ *abi.MapType, newGroup, oldGroup groupReference) {
 	typedmemmove(typ.Group, newGroup.data, oldGroup.data)
 	if typ.IndirectKey() {
 		// Deep copy keys if indirect.
-		for i := uintptr(0); i < abi.SwissMapGroupSlots; i++ {
+		for i := uintptr(0); i < abi.MapGroupSlots; i++ {
 			oldKey := *(*unsafe.Pointer)(oldGroup.key(typ, i))
 			if oldKey == nil {
 				continue
@@ -345,7 +350,7 @@ func cloneGroup(typ *abi.SwissMapType, newGroup, oldGroup groupReference) {
 	}
 	if typ.IndirectElem() {
 		// Deep copy elems if indirect.
-		for i := uintptr(0); i < abi.SwissMapGroupSlots; i++ {
+		for i := uintptr(0); i < abi.MapGroupSlots; i++ {
 			oldElem := *(*unsafe.Pointer)(oldGroup.elem(typ, i))
 			if oldElem == nil {
 				continue

@@ -181,34 +181,45 @@ func cse(f *Func) {
 	for _, e := range partition {
 		slices.SortFunc(e, func(v, w *Value) int {
 			c := cmp.Compare(sdom.domorder(v.Block), sdom.domorder(w.Block))
-			if v.Op != OpLocalAddr || c != 0 {
+			if c != 0 {
 				return c
 			}
-			// compare the memory args for OpLocalAddrs in the same block
-			vm := v.Args[1]
-			wm := w.Args[1]
-			if vm == wm {
-				return 0
+			if v.Op == OpLocalAddr {
+				// compare the memory args for OpLocalAddrs in the same block
+				vm := v.Args[1]
+				wm := w.Args[1]
+				if vm == wm {
+					return 0
+				}
+				// if the two OpLocalAddrs are in the same block, and one's memory
+				// arg also in the same block, but the other one's memory arg not,
+				// the latter must be in an ancestor block
+				if vm.Block != v.Block {
+					return -1
+				}
+				if wm.Block != w.Block {
+					return +1
+				}
+				// use store order if the memory args are in the same block
+				vs := storeOrdering(vm, o)
+				ws := storeOrdering(wm, o)
+				if vs <= 0 {
+					f.Fatalf("unable to determine the order of %s", vm.LongString())
+				}
+				if ws <= 0 {
+					f.Fatalf("unable to determine the order of %s", wm.LongString())
+				}
+				return cmp.Compare(vs, ws)
 			}
-			// if the two OpLocalAddrs are in the same block, and one's memory
-			// arg also in the same block, but the other one's memory arg not,
-			// the latter must be in an ancestor block
-			if vm.Block != v.Block {
-				return -1
-			}
-			if wm.Block != w.Block {
+			vStmt := v.Pos.IsStmt() == src.PosIsStmt
+			wStmt := w.Pos.IsStmt() == src.PosIsStmt
+			if vStmt != wStmt {
+				if vStmt {
+					return -1
+				}
 				return +1
 			}
-			// use store order if the memory args are in the same block
-			vs := storeOrdering(vm, o)
-			ws := storeOrdering(wm, o)
-			if vs <= 0 {
-				f.Fatalf("unable to determine the order of %s", vm.LongString())
-			}
-			if ws <= 0 {
-				f.Fatalf("unable to determine the order of %s", wm.LongString())
-			}
-			return cmp.Compare(vs, ws)
+			return 0
 		})
 
 		for i := 0; i < len(e)-1; i++ {

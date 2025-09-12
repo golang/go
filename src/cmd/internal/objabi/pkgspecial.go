@@ -52,11 +52,13 @@ var runtimePkgs = []string{
 	"internal/runtime/cgroup",
 	"internal/runtime/exithook",
 	"internal/runtime/gc",
+	"internal/runtime/gc/scan",
 	"internal/runtime/maps",
 	"internal/runtime/math",
 	"internal/runtime/strconv",
 	"internal/runtime/sys",
-	"internal/runtime/syscall",
+	"internal/runtime/syscall/linux",
+	"internal/runtime/syscall/windows",
 
 	"internal/abi",
 	"internal/bytealg",
@@ -94,7 +96,8 @@ var allowAsmABIPkgs = []string{
 	"syscall",
 	"internal/bytealg",
 	"internal/chacha8rand",
-	"internal/runtime/syscall",
+	"internal/runtime/syscall/linux",
+	"internal/runtime/syscall/windows",
 	"internal/runtime/startlinetest",
 }
 

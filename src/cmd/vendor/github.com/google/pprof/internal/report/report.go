@@ -569,7 +569,7 @@ func symbolsFromBinaries(prof *profile.Profile, g *graph.Graph, rx *regexp.Regex
 	return objSyms
 }
 
-// objSym represents a symbol identified from a binary. It includes
+// objSymbol represents a symbol identified from a binary. It includes
 // the SymbolInfo from the disasm package and the base that must be
 // added to correspond to sample addresses
 type objSymbol struct {

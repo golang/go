@@ -392,44 +392,8 @@
 (Zero [16] ptr mem) =>
 	(STP [0] ptr (MOVDconst [0]) (MOVDconst [0]) mem)
 
-(Zero [32] ptr mem) =>
-	(STP [16] ptr (MOVDconst [0]) (MOVDconst [0])
-		(STP [0] ptr (MOVDconst [0]) (MOVDconst [0]) mem))
-
-(Zero [48] ptr mem) =>
-	(STP [32] ptr (MOVDconst [0]) (MOVDconst [0])
-		(STP [16] ptr (MOVDconst [0]) (MOVDconst [0])
-			(STP [0] ptr (MOVDconst [0]) (MOVDconst [0]) mem)))
-
-(Zero [64] ptr mem) =>
-	(STP [48] ptr (MOVDconst [0]) (MOVDconst [0])
-		(STP [32] ptr (MOVDconst [0]) (MOVDconst [0])
-			(STP [16] ptr (MOVDconst [0]) (MOVDconst [0])
-				(STP [0] ptr (MOVDconst [0]) (MOVDconst [0]) mem))))
-
-// strip off fractional word zeroing
-(Zero [s] ptr mem) && s%16 != 0 && s%16 <= 8 && s > 16 =>
-	(Zero [8]
-		(OffPtr <ptr.Type> ptr [s-8])
-		(Zero [s-s%16] ptr mem))
-(Zero [s] ptr mem) && s%16 != 0 && s%16 > 8 && s > 16 =>
-	(Zero [16]
-		(OffPtr <ptr.Type> ptr [s-16])
-		(Zero [s-s%16] ptr mem))
-
-// medium zeroing uses a duff device
-// 4, 16, and 64 are magic constants, see runtime/mkduff.go
-(Zero [s] ptr mem)
-	&& s%16 == 0 && s > 64 && s <= 16*64 =>
-	(DUFFZERO [4 * (64 - s/16)] ptr mem)
-
-// large zeroing uses a loop
-(Zero [s] ptr mem)
-	&& s%16 == 0 && s > 16*64 =>
-	(LoweredZero
-		ptr
-		(ADDconst <ptr.Type> [s-16] ptr)
-		mem)
+(Zero [s] ptr mem) && s > 16 && s < 192 => (LoweredZero [s] ptr mem)
+(Zero [s] ptr mem) && s >= 192 => (LoweredZeroLoop [s] ptr mem)
 
 // moves
 (Move [0] _   _   mem) => mem
@@ -498,39 +462,8 @@
 			(STP [16] dst (Select0 <typ.UInt64> (LDP [16] src mem)) (Select1 <typ.UInt64> (LDP [16] src mem))
 				(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem))))
 
-// strip off fractional word move
-(Move [s] dst src mem) && s%16 != 0 && s%16 <= 8 && s > 64 =>
-	(Move [8]
-		(OffPtr <dst.Type> dst [s-8])
-		(OffPtr <src.Type> src [s-8])
-		(Move [s-s%16] dst src mem))
-(Move [s] dst src mem) && s%16 != 0 && s%16 > 8 && s > 64 =>
-	(Move [16]
-		(OffPtr <dst.Type> dst [s-16])
-		(OffPtr <src.Type> src [s-16])
-		(Move [s-s%16] dst src mem))
-
-// medium move uses a duff device
-(Move [s] dst src mem)
-	&& s > 64 && s <= 16*64 && s%16 == 0
-	&& logLargeCopy(v, s) =>
-	(DUFFCOPY [8 * (64 - s/16)] dst src mem)
-// 8 is the number of bytes to encode:
-//
-// LDP.P   16(R16), (R26, R27)
-// STP.P   (R26, R27), 16(R17)
-//
-// 64 is number of these blocks. See runtime/duff_arm64.s:duffcopy
-
-// large move uses a loop
-(Move [s] dst src mem)
-	&& s%16 == 0 && s > 16*64
-	&& logLargeCopy(v, s) =>
-	(LoweredMove
-		dst
-		src
-		(ADDconst <src.Type> src [s-16])
-		mem)
+(Move [s] dst src mem) && s > 64 && s < 192 && logLargeCopy(v, s) => (LoweredMove [s] dst src mem)
+(Move [s] dst src mem) && s >= 192 && logLargeCopy(v, s) => (LoweredMoveLoop [s] dst src mem)
 
 // calls
 (StaticCall  ...) => (CALLstatic  ...)
@@ -601,9 +534,11 @@
 // Publication barrier (0xe is ST option)
 (PubBarrier mem) => (DMB [0xe] mem)
 
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 0 => (LoweredPanicBoundsA [kind] x y mem)
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 1 => (LoweredPanicBoundsB [kind] x y mem)
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 2 => (LoweredPanicBoundsC [kind] x y mem)
+(PanicBounds ...) => (LoweredPanicBoundsRR ...)
+(LoweredPanicBoundsRR [kind] x (MOVDconst [c]) mem) => (LoweredPanicBoundsRC [kind] x {PanicBoundsC{C:c}} mem)
+(LoweredPanicBoundsRR [kind] (MOVDconst [c]) y mem) => (LoweredPanicBoundsCR [kind] {PanicBoundsC{C:c}} y mem)
+(LoweredPanicBoundsRC [kind] {p} (MOVDconst [c]) mem) => (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:c, Cy:p.C}} mem)
+(LoweredPanicBoundsCR [kind] {p} (MOVDconst [c]) mem) => (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:p.C, Cy:c}} mem)
 
 // Optimizations
 
@@ -682,6 +617,14 @@
 
 ((EQ|NE) (CMPconst  [0] x) yes no) => ((Z|NZ)   x yes no)
 ((EQ|NE) (CMPWconst [0] x) yes no) => ((ZW|NZW) x yes no)
+
+((ULE|UGT) (CMPconst  [0] x)) => ((EQ|NE) (CMPconst  [0] x))
+((ULE|UGT) (CMPWconst [0] x)) => ((EQ|NE) (CMPWconst [0] x))
+
+((Z|NZ)   sub:(SUB        x y)) && sub.Uses == 1 => ((EQ|NE) (CMP                x y))
+((ZW|NZW) sub:(SUB        x y)) && sub.Uses == 1 => ((EQ|NE) (CMPW               x y))
+((Z|NZ)   sub:(SUBconst [c] y)) && sub.Uses == 1 => ((EQ|NE) (CMPconst         [c] y))
+((ZW|NZW) sub:(SUBconst [c] y)) && sub.Uses == 1 => ((EQ|NE) (CMPWconst [int32(c)] y))
 
 ((EQ|NE|LT|LE|GT|GE) (CMPconst  [0] z:(MADD a x y))  yes no) && z.Uses==1 => ((EQ|NE|LTnoov|LEnoov|GTnoov|GEnoov) (CMN  a (MUL  <x.Type> x y)) yes no)
 ((EQ|NE|LT|LE|GT|GE) (CMPconst  [0] z:(MSUB a x y))  yes no) && z.Uses==1 => ((EQ|NE|LTnoov|LEnoov|GTnoov|GEnoov) (CMP  a (MUL  <x.Type> x y)) yes no)
@@ -1657,6 +1600,10 @@
 (SRLconst [rc] (MOVWUreg x)) && rc >= 32 => (MOVDconst [0])
 (SRLconst [rc] (MOVHUreg x)) && rc >= 16 => (MOVDconst [0])
 (SRLconst [rc] (MOVBUreg x)) && rc >= 8 => (MOVDconst [0])
+
+// Special cases for slice operations
+(ADD x0 x1:(ANDshiftRA x2:(SLLconst [sl] y) z [63])) && x1.Uses == 1 && x2.Uses == 1 => (ADDshiftLL x0 (ANDshiftRA <y.Type> y z [63]) [sl])
+(ADD x0 x1:(ANDshiftLL x2:(SRAconst [63] z) y [sl])) && x1.Uses == 1 && x2.Uses == 1 => (ADDshiftLL x0 (ANDshiftRA <y.Type> y z [63]) [sl])
 
 // bitfield ops
 

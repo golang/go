@@ -102,6 +102,7 @@ package runtime
 
 import (
 	"internal/goarch"
+	"internal/goexperiment"
 	"internal/goos"
 	"internal/runtime/atomic"
 	"internal/runtime/gc"
@@ -345,6 +346,14 @@ const (
 	// metadata mappings back to the OS. That would be quite complex to do in general
 	// as the heap is likely fragmented after a reduction in heap size.
 	minHeapForMetadataHugePages = 1 << 30
+
+	// randomizeHeapBase indicates if the heap base address should be randomized.
+	// See comment in mallocinit for how the randomization is performed.
+	randomizeHeapBase = goexperiment.RandomizedHeapBase64 && goarch.PtrSize == 8 && !isSbrkPlatform
+
+	// randHeapBasePrefixMask is used to extract the top byte of the randomized
+	// heap base address.
+	randHeapBasePrefixMask = ^uintptr(0xff << (heapAddrBits - 8))
 )
 
 // physPageSize is the size in bytes of the OS's physical pages.
@@ -371,6 +380,24 @@ var (
 	physHugePageSize  uintptr
 	physHugePageShift uint
 )
+
+var (
+	// heapRandSeed is a random value that is populated in mallocinit if
+	// randomizeHeapBase is set. It is used in mallocinit, and mheap.grow, to
+	// randomize the base heap address.
+	heapRandSeed              uintptr
+	heapRandSeedBitsRemaining int
+)
+
+func nextHeapRandBits(bits int) uintptr {
+	if bits > heapRandSeedBitsRemaining {
+		throw("not enough heapRandSeed bits remaining")
+	}
+	r := heapRandSeed >> (64 - bits)
+	heapRandSeed <<= bits
+	heapRandSeedBitsRemaining -= bits
+	return r
+}
 
 func mallocinit() {
 	if gc.SizeClassToSize[tinySizeClass] != maxTinySize {
@@ -517,9 +544,64 @@ func mallocinit() {
 		//
 		// In race mode we have no choice but to just use the same hints because
 		// the race detector requires that the heap be mapped contiguously.
+		//
+		// If randomizeHeapBase is set, we attempt to randomize the base address
+		// as much as possible. We do this by generating a random uint64 via
+		// bootstrapRand and using it's bits to randomize portions of the base
+		// address as follows:
+		//   * We first generate a random heapArenaBytes aligned address that we use for
+		//     generating the hints.
+		//   * On the first call to mheap.grow, we then generate a random PallocChunkBytes
+		//     aligned offset into the mmap'd heap region, which we use as the base for
+		//     the heap region.
+		//   * We then select a page offset in that PallocChunkBytes region to start the
+		//     heap at, and mark all the pages up to that offset as allocated.
+		//
+		// Our final randomized "heap base address" becomes the first byte of
+		// the first available page returned by the page allocator. This results
+		// in an address with at least heapAddrBits-gc.PageShift-2-(1*goarch.IsAmd64)
+		// bits of entropy.
+
+		var randHeapBase uintptr
+		var randHeapBasePrefix byte
+		// heapAddrBits is 48 on most platforms, but we only use 47 of those
+		// bits in order to provide a good amount of room for the heap to grow
+		// contiguously. On amd64, there are 48 bits, but the top bit is sign
+		// extended, so we throw away another bit, just to be safe.
+		randHeapAddrBits := heapAddrBits - 1 - (goarch.IsAmd64 * 1)
+		if randomizeHeapBase {
+			// Generate a random value, and take the bottom heapAddrBits-logHeapArenaBytes
+			// bits, using them as the top bits for randHeapBase.
+			heapRandSeed, heapRandSeedBitsRemaining = uintptr(bootstrapRand()), 64
+
+			topBits := (randHeapAddrBits - logHeapArenaBytes)
+			randHeapBase = nextHeapRandBits(topBits) << (randHeapAddrBits - topBits)
+			randHeapBase = alignUp(randHeapBase, heapArenaBytes)
+			randHeapBasePrefix = byte(randHeapBase >> (randHeapAddrBits - 8))
+		}
+
+		var vmaSize int
+		if GOARCH == "riscv64" {
+			// Identify which memory layout is in use based on the system
+			// stack address, knowing that the bottom half of virtual memory
+			// is user space. This should result in 39, 48 or 57. It may be
+			// possible to use RISCV_HWPROBE_KEY_HIGHEST_VIRT_ADDRESS at some
+			// point in the future - for now use the system stack address.
+			vmaSize = sys.Len64(uint64(getg().m.g0.stack.hi)) + 1
+			if raceenabled && vmaSize != 39 && vmaSize != 48 {
+				println("vma size = ", vmaSize)
+				throw("riscv64 vma size is unknown and race mode is enabled")
+			}
+		}
+
 		for i := 0x7f; i >= 0; i-- {
 			var p uintptr
 			switch {
+			case raceenabled && GOARCH == "riscv64" && vmaSize == 39:
+				p = uintptr(i)<<28 | uintptrMask&(0x0013<<28)
+				if p >= uintptrMask&0x000f00000000 {
+					continue
+				}
 			case raceenabled:
 				// The TSAN runtime requires the heap
 				// to be in the range [0x00c000000000,
@@ -528,10 +610,15 @@ func mallocinit() {
 				if p >= uintptrMask&0x00e000000000 {
 					continue
 				}
+			case randomizeHeapBase:
+				prefix := uintptr(randHeapBasePrefix+byte(i)) << (randHeapAddrBits - 8)
+				p = prefix | (randHeapBase & randHeapBasePrefixMask)
 			case GOARCH == "arm64" && GOOS == "ios":
 				p = uintptr(i)<<40 | uintptrMask&(0x0013<<28)
 			case GOARCH == "arm64":
 				p = uintptr(i)<<40 | uintptrMask&(0x0040<<32)
+			case GOARCH == "riscv64" && vmaSize == 39:
+				p = uintptr(i)<<32 | uintptrMask&(0x0013<<28)
 			case GOOS == "aix":
 				if i == 0 {
 					// We don't use addresses directly after 0x0A00000000000000

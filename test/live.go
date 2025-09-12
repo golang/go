@@ -492,7 +492,7 @@ func f28(b bool) {
 
 func f29(b bool) {
 	if b {
-		for k := range m { // ERROR "live at call to (mapiterinit|mapIterStart): .autotmp_[0-9]+$" "live at call to (mapiternext|mapIterNext): .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ (runtime.hiter|internal/runtime/maps.Iter)$"
+		for k := range m { // ERROR "live at call to (mapiterinit|mapIterStart): .autotmp_[0-9]+$" "live at call to (mapiternext|mapIterNext): .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ internal/runtime/maps.Iter$"
 			printstring(k) // ERROR "live at call to printstring: .autotmp_[0-9]+$"
 		}
 	}
@@ -695,7 +695,7 @@ func newT40() *T40 {
 
 func good40() {
 	ret := T40{}              // ERROR "stack object ret T40$"
-	ret.m = make(map[int]int) // ERROR "live at call to rand(32)?: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ (runtime.hmap|internal/runtime/maps.Map)$"
+	ret.m = make(map[int]int) // ERROR "live at call to rand(32)?: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ internal/runtime/maps.Map$"
 	t := &ret
 	printnl() // ERROR "live at call to printnl: ret$"
 	// Note: ret is live at the printnl because the compiler moves &ret

@@ -256,3 +256,105 @@ func TestDWARFiOS(t *testing.T) {
 		testDWARF(t, "c-archive", true, cc, "CGO_ENABLED=1", "GOOS=ios", "GOARCH=arm64")
 	})
 }
+
+// This test ensures that variables promoted to the heap, specifically
+// function return parameters, have correct location lists generated.
+//
+// TODO(deparker): This test is intentionally limited to GOOS=="linux"
+// and scoped to net.sendFile, which was the function reported originally in
+// issue #65405. There is relevant discussion in https://go-review.googlesource.com/c/go/+/684377
+// pertaining to these limitations. There are other missing location lists which must be fixed
+// particularly in functions where `linkname` is involved.
+func TestDWARFLocationList(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("skipping test on non-linux OS")
+	}
+	testenv.MustHaveCGO(t)
+	testenv.MustHaveGoBuild(t)
+
+	if !platform.ExecutableHasDWARF(runtime.GOOS, runtime.GOARCH) {
+		t.Skipf("skipping on %s/%s: no DWARF symbol table in executables", runtime.GOOS, runtime.GOARCH)
+	}
+
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	exe := filepath.Join(tmpDir, "issue65405.exe")
+	dir := "./testdata/dwarf/issue65405"
+
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-toolexec", os.Args[0], "-gcflags=all=-N -l", "-o", exe, dir)
+	cmd.Env = append(os.Environ(), "CGO_CFLAGS=")
+	cmd.Env = append(cmd.Env, "LINK_TEST_TOOLEXEC=1")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("go build -o %v %v: %v\n%s", exe, dir, err, out)
+	}
+
+	f, err := objfile.Open(exe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	d, err := f.DWARF()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Find the net.sendFile function and check its return parameter location list
+	reader := d.Reader()
+
+	for {
+		entry, err := reader.Next()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if entry == nil {
+			break
+		}
+
+		// Look for the net.sendFile subprogram
+		if entry.Tag == dwarf.TagSubprogram {
+			fnName, ok := entry.Val(dwarf.AttrName).(string)
+			if !ok || fnName != "net.sendFile" {
+				reader.SkipChildren()
+				continue
+			}
+
+			for {
+				paramEntry, err := reader.Next()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if paramEntry == nil || paramEntry.Tag == 0 {
+					break
+				}
+
+				if paramEntry.Tag == dwarf.TagFormalParameter {
+					paramName, _ := paramEntry.Val(dwarf.AttrName).(string)
+
+					// Check if this parameter has a location attribute
+					if loc := paramEntry.Val(dwarf.AttrLocation); loc != nil {
+						switch locData := loc.(type) {
+						case []byte:
+							if len(locData) == 0 {
+								t.Errorf("%s return parameter %q has empty location list", fnName, paramName)
+								return
+							}
+						case int64:
+							// Location list offset - this means it has a location list
+							if locData == 0 {
+								t.Errorf("%s return parameter %q has zero location list offset", fnName, paramName)
+								return
+							}
+						default:
+							t.Errorf("%s return parameter %q has unexpected location type %T: %v", fnName, paramName, locData, locData)
+						}
+					} else {
+						t.Errorf("%s return parameter %q has no location attribute", fnName, paramName)
+					}
+				}
+			}
+		}
+	}
+}

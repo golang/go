@@ -12,9 +12,7 @@
 (Mul64 ...) => (MUL  ...)
 (Mul64uhilo ...) => (LoweredMuluhilo ...)
 (Mul64uover ...) => (LoweredMuluover ...)
-(Mul32 ...) => (MULW ...)
-(Mul16 x y) => (MULW (SignExt16to32 x) (SignExt16to32 y))
-(Mul8 x y)  => (MULW (SignExt8to32 x)  (SignExt8to32 y))
+(Mul(32|16|8) ...) => (MULW ...)
 (Mul(64|32)F ...) => (FMUL(D|S) ...)
 
 (Div(64|32)F ...) => (FDIV(D|S) ...)
@@ -299,6 +297,11 @@
 	(base.Op != OpSB || !config.ctxt.Flag_dynlink) =>
 	(MOV(B|BU|H|HU|W|WU|D)load [off1+off2] {mergeSym(sym1,sym2)} base mem)
 
+(FMOV(W|D)load [off1] {sym1} (MOVaddr [off2] {sym2} base) mem) &&
+	is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) &&
+	(base.Op != OpSB || !config.ctxt.Flag_dynlink) =>
+	(FMOV(W|D)load [off1+off2] {mergeSym(sym1,sym2)} base mem)
+
 (MOV(B|H|W|D)store [off1] {sym1} (MOVaddr [off2] {sym2} base) val mem) &&
 	is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) &&
 	(base.Op != OpSB || !config.ctxt.Flag_dynlink) =>
@@ -309,14 +312,25 @@
 	(base.Op != OpSB || !config.ctxt.Flag_dynlink) =>
 	(MOV(B|H|W|D)storezero [off1+off2] {mergeSym(sym1,sym2)} base mem)
 
+(FMOV(W|D)store [off1] {sym1} (MOVaddr [off2] {sym2} base) val mem) &&
+	is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) &&
+	(base.Op != OpSB || !config.ctxt.Flag_dynlink) =>
+	(FMOV(W|D)store [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+
 (MOV(B|BU|H|HU|W|WU|D)load [off1] {sym} (ADDI [off2] base) mem) && is32Bit(int64(off1)+off2) =>
 	(MOV(B|BU|H|HU|W|WU|D)load [off1+int32(off2)] {sym} base mem)
+
+(FMOV(W|D)load [off1] {sym} (ADDI [off2] base) mem) && is32Bit(int64(off1)+off2) =>
+	(FMOV(W|D)load [off1+int32(off2)] {sym} base mem)
 
 (MOV(B|H|W|D)store [off1] {sym} (ADDI [off2] base) val mem) && is32Bit(int64(off1)+off2) =>
 	(MOV(B|H|W|D)store [off1+int32(off2)] {sym} base val mem)
 
 (MOV(B|H|W|D)storezero [off1] {sym} (ADDI [off2] base) mem) && is32Bit(int64(off1)+off2) =>
 	(MOV(B|H|W|D)storezero [off1+int32(off2)] {sym} base mem)
+
+(FMOV(W|D)store [off1] {sym} (ADDI [off2] base) val mem) && is32Bit(int64(off1)+off2) =>
+	(FMOV(W|D)store [off1+int32(off2)] {sym} base val mem)
 
 // Similarly, fold ADDI into MOVaddr to avoid confusing live variable analysis
 // with OffPtr -> ADDI.
@@ -359,36 +373,14 @@
 	(MOVHstore [4] ptr (MOVDconst [0])
 		(MOVHstore [2] ptr (MOVDconst [0])
 			(MOVHstore ptr (MOVDconst [0]) mem)))
-(Zero [12] {t} ptr mem) && t.Alignment()%4 == 0 =>
-	(MOVWstore [8] ptr (MOVDconst [0])
-		(MOVWstore [4] ptr (MOVDconst [0])
-			(MOVWstore ptr (MOVDconst [0]) mem)))
-(Zero [16] {t} ptr mem) && t.Alignment()%8 == 0 =>
-	(MOVDstore [8] ptr (MOVDconst [0])
-		(MOVDstore ptr (MOVDconst [0]) mem))
-(Zero [24] {t} ptr mem) && t.Alignment()%8 == 0 =>
-	(MOVDstore [16] ptr (MOVDconst [0])
-		(MOVDstore [8] ptr (MOVDconst [0])
-			(MOVDstore ptr (MOVDconst [0]) mem)))
-(Zero [32] {t} ptr mem) && t.Alignment()%8 == 0 =>
-	(MOVDstore [24] ptr (MOVDconst [0])
-		(MOVDstore [16] ptr (MOVDconst [0])
-			(MOVDstore [8] ptr (MOVDconst [0])
-				(MOVDstore ptr (MOVDconst [0]) mem))))
 
-// Medium 8-aligned zeroing uses a Duff's device
-// 8 and 128 are magic constants, see runtime/mkduff.go
-(Zero [s] {t} ptr mem)
-	&& s%8 == 0 && s <= 8*128
-	&& t.Alignment()%8 == 0 =>
-	(DUFFZERO [8 * (128 - s/8)] ptr mem)
+// Unroll zeroing in medium size (at most 192 bytes i.e. 3 cachelines)
+(Zero [s] {t} ptr mem) && s <= 24*moveSize(t.Alignment(), config) =>
+	(LoweredZero [makeValAndOff(int32(s),int32(t.Alignment()))] ptr mem)
 
 // Generic zeroing uses a loop
-(Zero [s] {t} ptr mem) =>
-	(LoweredZero [t.Alignment()]
-		ptr
-		(ADD <ptr.Type> ptr (MOVDconst [s-moveSize(t.Alignment(), config)]))
-		mem)
+(Zero [s] {t} ptr mem) && s > 24*moveSize(t.Alignment(), config) =>
+	(LoweredZeroLoop [makeValAndOff(int32(s),int32(t.Alignment()))] ptr mem)
 
 // Checks
 (IsNonNil ...) => (SNEZ ...)
@@ -407,9 +399,11 @@
 // Publication barrier as intrinsic
 (PubBarrier ...) => (LoweredPubBarrier ...)
 
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 0 => (LoweredPanicBoundsA [kind] x y mem)
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 1 => (LoweredPanicBoundsB [kind] x y mem)
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 2 => (LoweredPanicBoundsC [kind] x y mem)
+(PanicBounds ...) => (LoweredPanicBoundsRR ...)
+(LoweredPanicBoundsRR [kind] x (MOVDconst [c]) mem) => (LoweredPanicBoundsRC [kind] x {PanicBoundsC{C:c}} mem)
+(LoweredPanicBoundsRR [kind] (MOVDconst [c]) y mem) => (LoweredPanicBoundsCR [kind] {PanicBoundsC{C:c}} y mem)
+(LoweredPanicBoundsRC [kind] {p} (MOVDconst [c]) mem) => (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:c, Cy:p.C}} mem)
+(LoweredPanicBoundsCR [kind] {p} (MOVDconst [c]) mem) => (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:p.C, Cy:c}} mem)
 
 // Small moves
 (Move [0] _ _ mem) => mem
@@ -448,37 +442,16 @@
 	(MOVHstore [4] dst (MOVHload [4] src mem)
 		(MOVHstore [2] dst (MOVHload [2] src mem)
 			(MOVHstore dst (MOVHload src mem) mem)))
-(Move [12] {t} dst src mem) && t.Alignment()%4 == 0 =>
-	(MOVWstore [8] dst (MOVWload [8] src mem)
-		(MOVWstore [4] dst (MOVWload [4] src mem)
-			(MOVWstore dst (MOVWload src mem) mem)))
-(Move [16] {t} dst src mem) && t.Alignment()%8 == 0 =>
-	(MOVDstore [8] dst (MOVDload [8] src mem)
-		(MOVDstore dst (MOVDload src mem) mem))
-(Move [24] {t} dst src mem) && t.Alignment()%8 == 0 =>
-	(MOVDstore [16] dst (MOVDload [16] src mem)
-		(MOVDstore [8] dst (MOVDload [8] src mem)
-			(MOVDstore dst (MOVDload src mem) mem)))
-(Move [32] {t} dst src mem) && t.Alignment()%8 == 0 =>
-	(MOVDstore [24] dst (MOVDload [24] src mem)
-		(MOVDstore [16] dst (MOVDload [16] src mem)
-			(MOVDstore [8] dst (MOVDload [8] src mem)
-				(MOVDstore dst (MOVDload src mem) mem))))
 
-// Medium 8-aligned move uses a Duff's device
-// 16 and 128 are magic constants, see runtime/mkduff.go
-(Move [s] {t} dst src mem)
-	&& s%8 == 0 && s <= 8*128 && t.Alignment()%8 == 0
+// Generic move
+(Move [s] {t} dst src mem) && s > 0 && s <= 3*8*moveSize(t.Alignment(), config)
 	&& logLargeCopy(v, s) =>
-	(DUFFCOPY [16 * (128 - s/8)] dst src mem)
+	(LoweredMove [makeValAndOff(int32(s),int32(t.Alignment()))] dst src mem)
 
 // Generic move uses a loop
-(Move [s] {t} dst src mem) && (s <= 16 || logLargeCopy(v, s)) =>
-	(LoweredMove [t.Alignment()]
-		dst
-		src
-		(ADDI <src.Type> [s-moveSize(t.Alignment(), config)] src)
-		mem)
+(Move [s] {t} dst src mem) && s > 3*8*moveSize(t.Alignment(), config)
+	&& logLargeCopy(v, s) =>
+	(LoweredMoveLoop [makeValAndOff(int32(s),int32(t.Alignment()))] dst src mem)
 
 // Boolean ops; 0=false, 1=true
 (AndB ...) => (AND ...)
@@ -699,6 +672,15 @@
 (MOVHUreg <t> x:(MOVHload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (MOVHUload <t> [off] {sym} ptr mem)
 (MOVWUreg <t> x:(MOVWload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (MOVWUload <t> [off] {sym} ptr mem)
 
+// Replace load from same location as preceding store with copy.
+(MOV(D|W|H|B)load [off] {sym} ptr1 (MOV(D|W|H|B)store [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) => (MOV(D|W|H|B)reg x)
+(MOV(W|H|B)Uload  [off] {sym} ptr1 (MOV(W|H|B)store   [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) => (MOV(W|H|B)Ureg  x)
+(MOVDload  [off] {sym} ptr1 (FMOVDstore [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) => (FMVXD x)
+(FMOVDload [off] {sym} ptr1 (MOVDstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) => (FMVDX x)
+(MOVWload  [off] {sym} ptr1 (FMOVWstore [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) => (FMVXS x)
+(MOVWUload [off] {sym} ptr1 (FMOVWstore [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) => (MOVWUreg (FMVXS x))
+(FMOVWload [off] {sym} ptr1 (MOVWstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) => (FMVSX x)
+
 // If a register move has only 1 use, just use the same register without emitting instruction
 // MOVnop does not emit an instruction, only for ensuring the type.
 (MOVDreg x) && x.Uses == 1 => (MOVDnop x)
@@ -836,6 +818,18 @@
 (F(MADD|NMADD|MSUB|NMSUB)S x y neg:(FNEGS z)) && neg.Uses == 1 => (F(MSUB|NMSUB|MADD|NMADD)S x y z)
 (F(MADD|NMADD|MSUB|NMSUB)D neg:(FNEGD x) y z) && neg.Uses == 1 => (F(NMSUB|MSUB|NMADD|MADD)D x y z)
 (F(MADD|NMADD|MSUB|NMSUB)D x y neg:(FNEGD z)) && neg.Uses == 1 => (F(MSUB|NMSUB|MADD|NMADD)D x y z)
+
+// Test for -∞ (bit 0) using 64 bit classify instruction.
+(FLTD x (FMVDX (MOVDconst [int64(math.Float64bits(-math.MaxFloat64))]))) => (ANDI [1] (FCLASSD x))
+(FLED (FMVDX (MOVDconst [int64(math.Float64bits(-math.MaxFloat64))])) x) => (SNEZ (ANDI <typ.Int64> [0xff &^ 1] (FCLASSD x)))
+(FEQD x (FMVDX (MOVDconst [int64(math.Float64bits(math.Inf(-1)))])))  => (ANDI [1] (FCLASSD x))
+(FNED x (FMVDX (MOVDconst [int64(math.Float64bits(math.Inf(-1)))])))  => (SEQZ (ANDI <typ.Int64> [1] (FCLASSD x)))
+
+// Test for +∞ (bit 7) using 64 bit classify instruction.
+(FLTD (FMVDX (MOVDconst [int64(math.Float64bits(math.MaxFloat64))])) x) => (SNEZ (ANDI <typ.Int64> [1<<7] (FCLASSD x)))
+(FLED x (FMVDX (MOVDconst [int64(math.Float64bits(math.MaxFloat64))]))) => (SNEZ (ANDI <typ.Int64> [0xff &^ (1<<7)] (FCLASSD x)))
+(FEQD x (FMVDX (MOVDconst [int64(math.Float64bits(math.Inf(1)))]))) => (SNEZ (ANDI <typ.Int64> [1<<7] (FCLASSD x)))
+(FNED x (FMVDX (MOVDconst [int64(math.Float64bits(math.Inf(1)))]))) => (SEQZ (ANDI <typ.Int64> [1<<7] (FCLASSD x)))
 
 //
 // Optimisations for rva22u64 and above.

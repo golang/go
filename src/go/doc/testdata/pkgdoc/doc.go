@@ -20,5 +20,9 @@ var _ = crand.Reader
 
 type G[T any] struct{ x T }
 
-func (g G[T]) M1() {}
+func (g G[T]) M1()  {}
 func (g *G[T]) M2() {}
+
+type I interface {
+	F()
+}

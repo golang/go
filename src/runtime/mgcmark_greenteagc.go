@@ -110,7 +110,7 @@ func (o *spanScanOwnership) or(v spanScanOwnership) spanScanOwnership {
 	return spanScanOwnership(atomic.Or32(o32, uint32(v)<<off) >> off)
 }
 
-func (imb *spanInlineMarkBits) init(class spanClass) {
+func (imb *spanInlineMarkBits) init(class spanClass, needzero bool) {
 	if imb == nil {
 		// This nil check and throw is almost pointless. Normally we would
 		// expect imb to never be nil. However, this is called on potentially
@@ -131,7 +131,13 @@ func (imb *spanInlineMarkBits) init(class spanClass) {
 		// See go.dev/issue/74375 for details.
 		throw("runtime: span inline mark bits nil?")
 	}
-	*imb = spanInlineMarkBits{}
+	if needzero {
+		// Use memclrNoHeapPointers to avoid having the compiler make a worse
+		// decision. We know that imb is both aligned and a nice power-of-two
+		// size that works well for wider SIMD instructions. The compiler likely
+		// has no idea that imb is aligned to 128 bytes.
+		memclrNoHeapPointers(unsafe.Pointer(imb), unsafe.Sizeof(spanInlineMarkBits{}))
+	}
 	imb.class = class
 }
 
@@ -180,25 +186,33 @@ func (s *mspan) initInlineMarkBits() {
 	if doubleCheckGreenTea && !gcUsesSpanInlineMarkBits(s.elemsize) {
 		throw("expected span with inline mark bits")
 	}
-	s.inlineMarkBits().init(s.spanclass)
+	// Zeroing is only necessary if this span wasn't just freshly allocated from the OS.
+	s.inlineMarkBits().init(s.spanclass, s.needzero != 0)
 }
 
-// mergeInlineMarks merges the span's inline mark bits into dst.
+// moveInlineMarks merges the span's inline mark bits into dst and clears them.
 //
 // gcUsesSpanInlineMarkBits(s.elemsize) must be true.
-func (s *mspan) mergeInlineMarks(dst *gcBits) {
+func (s *mspan) moveInlineMarks(dst *gcBits) {
 	if doubleCheckGreenTea && !gcUsesSpanInlineMarkBits(s.elemsize) {
 		throw("expected span with inline mark bits")
 	}
 	bytes := divRoundUp(uintptr(s.nelems), 8)
 	imb := s.inlineMarkBits()
-	_ = imb.marks[bytes-1]
-	for i := uintptr(0); i < bytes; i++ {
-		*dst.bytep(i) |= imb.marks[i]
+	imbMarks := (*gc.ObjMask)(unsafe.Pointer(&imb.marks))
+	for i := uintptr(0); i < bytes; i += goarch.PtrSize {
+		marks := bswapIfBigEndian(imbMarks[i/goarch.PtrSize])
+		if i/goarch.PtrSize == uintptr(len(imb.marks)+1)/goarch.PtrSize-1 {
+			marks &^= 0xff << ((goarch.PtrSize - 1) * 8) // mask out class
+		}
+		*(*uintptr)(unsafe.Pointer(dst.bytep(i))) |= bswapIfBigEndian(marks)
 	}
 	if doubleCheckGreenTea && !s.spanclass.noscan() && imb.marks != imb.scans {
 		throw("marks don't match scans for span with pointer")
 	}
+
+	// Reset the inline mark bits.
+	imb.init(s.spanclass, true /* We know these bits are always dirty now. */)
 }
 
 // inlineMarkBits returns the inline mark bits for the span.
@@ -652,7 +666,7 @@ func spanSetScans(spanBase uintptr, nelems uint16, imb *spanInlineMarkBits, toSc
 		marks := imbMarks[i/goarch.PtrSize]
 		scans = bswapIfBigEndian(scans)
 		marks = bswapIfBigEndian(marks)
-		if i/goarch.PtrSize == 64/goarch.PtrSize-1 {
+		if i/goarch.PtrSize == uintptr(len(imb.marks)+1)/goarch.PtrSize-1 {
 			scans &^= 0xff << ((goarch.PtrSize - 1) * 8) // mask out owned
 			marks &^= 0xff << ((goarch.PtrSize - 1) * 8) // mask out class
 		}
@@ -836,4 +850,108 @@ func (w *gcWork) flushScanStats(dst *[gc.NumSizeClasses]sizeClassScanStats) {
 		dst[i].sparseObjsScanned += w.stats[i].sparseObjsScanned
 	}
 	clear(w.stats[:])
+}
+
+// scanObject scans the object starting at b, adding pointers to gcw.
+// b must point to the beginning of a heap object or an oblet.
+// scanObject consults the GC bitmap for the pointer mask and the
+// spans for the size of the object.
+//
+// Used only for !gcUsesSpanInlineMarkBits spans, but supports all
+// object sizes and is safe to be called on all heap objects.
+//
+//go:nowritebarrier
+func scanObject(b uintptr, gcw *gcWork) {
+	// Prefetch object before we scan it.
+	//
+	// This will overlap fetching the beginning of the object with initial
+	// setup before we start scanning the object.
+	sys.Prefetch(b)
+
+	// Find the bits for b and the size of the object at b.
+	//
+	// b is either the beginning of an object, in which case this
+	// is the size of the object to scan, or it points to an
+	// oblet, in which case we compute the size to scan below.
+	s := spanOfUnchecked(b)
+	n := s.elemsize
+	if n == 0 {
+		throw("scanObject n == 0")
+	}
+	if s.spanclass.noscan() {
+		// Correctness-wise this is ok, but it's inefficient
+		// if noscan objects reach here.
+		throw("scanObject of a noscan object")
+	}
+
+	var tp typePointers
+	if n > maxObletBytes {
+		// Large object. Break into oblets for better
+		// parallelism and lower latency.
+		if b == s.base() {
+			// Enqueue the other oblets to scan later.
+			// Some oblets may be in b's scalar tail, but
+			// these will be marked as "no more pointers",
+			// so we'll drop out immediately when we go to
+			// scan those.
+			for oblet := b + maxObletBytes; oblet < s.base()+s.elemsize; oblet += maxObletBytes {
+				if !gcw.putObjFast(oblet) {
+					gcw.putObj(oblet)
+				}
+			}
+		}
+
+		// Compute the size of the oblet. Since this object
+		// must be a large object, s.base() is the beginning
+		// of the object.
+		n = s.base() + s.elemsize - b
+		n = min(n, maxObletBytes)
+		tp = s.typePointersOfUnchecked(s.base())
+		tp = tp.fastForward(b-tp.addr, b+n)
+	} else {
+		tp = s.typePointersOfUnchecked(b)
+	}
+
+	var scanSize uintptr
+	for {
+		var addr uintptr
+		if tp, addr = tp.nextFast(); addr == 0 {
+			if tp, addr = tp.next(b + n); addr == 0 {
+				break
+			}
+		}
+
+		// Keep track of farthest pointer we found, so we can
+		// update heapScanWork. TODO: is there a better metric,
+		// now that we can skip scalar portions pretty efficiently?
+		scanSize = addr - b + goarch.PtrSize
+
+		// Work here is duplicated in scanblock and above.
+		// If you make changes here, make changes there too.
+		obj := *(*uintptr)(unsafe.Pointer(addr))
+
+		// At this point we have extracted the next potential pointer.
+		// Quickly filter out nil and pointers back to the current object.
+		if obj != 0 && obj-b >= n {
+			// Test if obj points into the Go heap and, if so,
+			// mark the object.
+			//
+			// Note that it's possible for findObject to
+			// fail if obj points to a just-allocated heap
+			// object because of a race with growing the
+			// heap. In this case, we know the object was
+			// just allocated and hence will be marked by
+			// allocation itself.
+			if !tryDeferToSpanScan(obj, gcw) {
+				if obj, span, objIndex := findObject(obj, b, addr-b); obj != 0 {
+					greyobject(obj, b, addr-b, span, gcw, objIndex)
+				}
+			}
+		}
+	}
+	gcw.bytesMarked += uint64(n)
+	gcw.heapScanWork += int64(scanSize)
+	if debug.gctrace > 1 {
+		gcw.stats[s.spanclass.sizeclass()].sparseObjsScanned++
+	}
 }

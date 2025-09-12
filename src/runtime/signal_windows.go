@@ -18,28 +18,28 @@ const (
 )
 
 func preventErrorDialogs() {
-	errormode := stdcall0(_GetErrorMode)
-	stdcall1(_SetErrorMode, errormode|_SEM_FAILCRITICALERRORS|_SEM_NOGPFAULTERRORBOX|_SEM_NOOPENFILEERRORBOX)
+	errormode := stdcall(_GetErrorMode)
+	stdcall(_SetErrorMode, errormode|_SEM_FAILCRITICALERRORS|_SEM_NOGPFAULTERRORBOX|_SEM_NOOPENFILEERRORBOX)
 
 	// Disable WER fault reporting UI.
 	// Do this even if WER is disabled as a whole,
 	// as WER might be enabled later with setTraceback("wer")
 	// and we still want the fault reporting UI to be disabled if this happens.
 	var werflags uintptr
-	stdcall2(_WerGetFlags, currentProcess, uintptr(unsafe.Pointer(&werflags)))
-	stdcall1(_WerSetFlags, werflags|_WER_FAULT_REPORTING_NO_UI)
+	stdcall(_WerGetFlags, currentProcess, uintptr(unsafe.Pointer(&werflags)))
+	stdcall(_WerSetFlags, werflags|_WER_FAULT_REPORTING_NO_UI)
 }
 
 // enableWER re-enables Windows error reporting without fault reporting UI.
 func enableWER() {
 	// re-enable Windows Error Reporting
-	errormode := stdcall0(_GetErrorMode)
+	errormode := stdcall(_GetErrorMode)
 	if errormode&_SEM_NOGPFAULTERRORBOX != 0 {
-		stdcall1(_SetErrorMode, errormode^_SEM_NOGPFAULTERRORBOX)
+		stdcall(_SetErrorMode, errormode^_SEM_NOGPFAULTERRORBOX)
 	}
 }
 
-// in sys_windows_386.s, sys_windows_amd64.s, sys_windows_arm.s, and sys_windows_arm64.s
+// in sys_windows_386.s, sys_windows_amd64.s, and sys_windows_arm64.s
 func exceptiontramp()
 func firstcontinuetramp()
 func lastcontinuetramp()
@@ -47,14 +47,14 @@ func sehtramp()
 func sigresume()
 
 func initExceptionHandler() {
-	stdcall2(_AddVectoredExceptionHandler, 1, abi.FuncPCABI0(exceptiontramp))
+	stdcall(_AddVectoredExceptionHandler, 1, abi.FuncPCABI0(exceptiontramp))
 	if GOARCH == "386" {
 		// use SetUnhandledExceptionFilter for windows-386.
 		// note: SetUnhandledExceptionFilter handler won't be called, if debugging.
-		stdcall1(_SetUnhandledExceptionFilter, abi.FuncPCABI0(lastcontinuetramp))
+		stdcall(_SetUnhandledExceptionFilter, abi.FuncPCABI0(lastcontinuetramp))
 	} else {
-		stdcall2(_AddVectoredContinueHandler, 1, abi.FuncPCABI0(firstcontinuetramp))
-		stdcall2(_AddVectoredContinueHandler, 0, abi.FuncPCABI0(lastcontinuetramp))
+		stdcall(_AddVectoredContinueHandler, 1, abi.FuncPCABI0(firstcontinuetramp))
+		stdcall(_AddVectoredContinueHandler, 0, abi.FuncPCABI0(lastcontinuetramp))
 	}
 }
 
@@ -64,10 +64,9 @@ func initExceptionHandler() {
 //go:nosplit
 func isAbort(r *context) bool {
 	pc := r.ip()
-	if GOARCH == "386" || GOARCH == "amd64" || GOARCH == "arm" {
+	if GOARCH == "386" || GOARCH == "amd64" {
 		// In the case of an abort, the exception IP is one byte after
-		// the INT3 (this differs from UNIX OSes). Note that on ARM,
-		// this means that the exception IP is no longer aligned.
+		// the INT3 (this differs from UNIX OSes).
 		pc--
 	}
 	return isAbortPC(pc)
@@ -279,11 +278,11 @@ func sehhandler(_ *exceptionrecord, _ uint64, _ *context, dctxt *_DISPATCHER_CON
 	ctxt := dctxt.ctx()
 	var base, sp uintptr
 	for {
-		entry := stdcall3(_RtlLookupFunctionEntry, ctxt.ip(), uintptr(unsafe.Pointer(&base)), 0)
+		entry := stdcall(_RtlLookupFunctionEntry, ctxt.ip(), uintptr(unsafe.Pointer(&base)), 0)
 		if entry == 0 {
 			break
 		}
-		stdcall8(_RtlVirtualUnwind, 0, base, ctxt.ip(), entry, uintptr(unsafe.Pointer(ctxt)), 0, uintptr(unsafe.Pointer(&sp)), 0)
+		stdcall(_RtlVirtualUnwind, 0, base, ctxt.ip(), entry, uintptr(unsafe.Pointer(ctxt)), 0, uintptr(unsafe.Pointer(&sp)), 0)
 		if sp < gp.stack.lo || gp.stack.hi <= sp {
 			break
 		}
@@ -467,7 +466,7 @@ func dieFromException(info *exceptionrecord, r *context) {
 		}
 	}
 	const FAIL_FAST_GENERATE_EXCEPTION_ADDRESS = 0x1
-	stdcall3(_RaiseFailFastException, uintptr(unsafe.Pointer(info)), uintptr(unsafe.Pointer(r)), FAIL_FAST_GENERATE_EXCEPTION_ADDRESS)
+	stdcall(_RaiseFailFastException, uintptr(unsafe.Pointer(info)), uintptr(unsafe.Pointer(r)), FAIL_FAST_GENERATE_EXCEPTION_ADDRESS)
 }
 
 // gsignalStack is unused on Windows.

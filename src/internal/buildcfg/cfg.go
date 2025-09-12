@@ -392,6 +392,8 @@ func GOGOARCH() (name, value string) {
 		return "GOMIPS64", GOMIPS64
 	case "ppc64", "ppc64le":
 		return "GOPPC64", fmt.Sprintf("power%d", GOPPC64)
+	case "riscv64":
+		return "GORISCV64", fmt.Sprintf("rva%du64", GORISCV64)
 	case "wasm":
 		return "GOWASM", GOWASM.String()
 	}

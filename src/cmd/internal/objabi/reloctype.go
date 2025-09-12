@@ -305,6 +305,14 @@ const (
 	// R_RISCV_BRANCH resolves a 12-bit PC-relative branch offset.
 	R_RISCV_BRANCH
 
+	// R_RISCV_ADD32 resolves a 32-bit label addition, being the stored value,
+	// plus the symbol address plus the addend (V + S + A).
+	R_RISCV_ADD32
+
+	// R_RISCV_SUB32 resolves a 32-bit label subtraction, being the stored value,
+	// minus the symbol address minus the addend (V - S - A).
+	R_RISCV_SUB32
+
 	// R_RISCV_RVC_BRANCH resolves an 8-bit PC-relative offset for a CB-type
 	// instruction.
 	R_RISCV_RVC_BRANCH
@@ -466,7 +474,7 @@ func (r RelocType) IsDwTxtAddr() bool {
 // FuncCountToDwTxtAddrFlavor returns the correct DWARF .debug_addr
 // section relocation to use when compiling a package with a total of
 // fncount functions, along with the size of the ULEB128-encoded blob
-// needed to store the the eventual .debug_addr index.
+// needed to store the eventual .debug_addr index.
 func FuncCountToDwTxtAddrFlavor(fncount int) (RelocType, int) {
 	switch {
 	case fncount <= 127:

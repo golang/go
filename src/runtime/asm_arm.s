@@ -794,9 +794,6 @@ TEXT setg<>(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	R0, g
 
 	// Save g to thread-local storage.
-#ifdef GOOS_windows
-	B	runtime·save_g(SB)
-#else
 #ifdef GOOS_openbsd
 	B	runtime·save_g(SB)
 #else
@@ -807,7 +804,6 @@ TEXT setg<>(SB),NOSPLIT|NOFRAME,$0-0
 
 	MOVW	g, R0
 	RET
-#endif
 #endif
 
 TEXT runtime·emptyfunc(SB),0,$0-0
@@ -991,158 +987,56 @@ TEXT runtime·gcWriteBarrier8<ABIInternal>(SB),NOSPLIT,$0
 	MOVW	$32, R8
 	JMP	gcWriteBarrier<>(SB)
 
-// Note: these functions use a special calling convention to save generated code space.
-// Arguments are passed in registers, but the space for those arguments are allocated
-// in the caller's stack frame. These stubs write the args into that stack space and
-// then tail call to the corresponding runtime handler.
-// The tail call makes these stubs disappear in backtraces.
-TEXT runtime·panicIndex(SB),NOSPLIT,$0-8
-	MOVW	R0, x+0(FP)
-	MOVW	R1, y+4(FP)
-	JMP	runtime·goPanicIndex(SB)
-TEXT runtime·panicIndexU(SB),NOSPLIT,$0-8
-	MOVW	R0, x+0(FP)
-	MOVW	R1, y+4(FP)
-	JMP	runtime·goPanicIndexU(SB)
-TEXT runtime·panicSliceAlen(SB),NOSPLIT,$0-8
-	MOVW	R1, x+0(FP)
-	MOVW	R2, y+4(FP)
-	JMP	runtime·goPanicSliceAlen(SB)
-TEXT runtime·panicSliceAlenU(SB),NOSPLIT,$0-8
-	MOVW	R1, x+0(FP)
-	MOVW	R2, y+4(FP)
-	JMP	runtime·goPanicSliceAlenU(SB)
-TEXT runtime·panicSliceAcap(SB),NOSPLIT,$0-8
-	MOVW	R1, x+0(FP)
-	MOVW	R2, y+4(FP)
-	JMP	runtime·goPanicSliceAcap(SB)
-TEXT runtime·panicSliceAcapU(SB),NOSPLIT,$0-8
-	MOVW	R1, x+0(FP)
-	MOVW	R2, y+4(FP)
-	JMP	runtime·goPanicSliceAcapU(SB)
-TEXT runtime·panicSliceB(SB),NOSPLIT,$0-8
-	MOVW	R0, x+0(FP)
-	MOVW	R1, y+4(FP)
-	JMP	runtime·goPanicSliceB(SB)
-TEXT runtime·panicSliceBU(SB),NOSPLIT,$0-8
-	MOVW	R0, x+0(FP)
-	MOVW	R1, y+4(FP)
-	JMP	runtime·goPanicSliceBU(SB)
-TEXT runtime·panicSlice3Alen(SB),NOSPLIT,$0-8
-	MOVW	R2, x+0(FP)
-	MOVW	R3, y+4(FP)
-	JMP	runtime·goPanicSlice3Alen(SB)
-TEXT runtime·panicSlice3AlenU(SB),NOSPLIT,$0-8
-	MOVW	R2, x+0(FP)
-	MOVW	R3, y+4(FP)
-	JMP	runtime·goPanicSlice3AlenU(SB)
-TEXT runtime·panicSlice3Acap(SB),NOSPLIT,$0-8
-	MOVW	R2, x+0(FP)
-	MOVW	R3, y+4(FP)
-	JMP	runtime·goPanicSlice3Acap(SB)
-TEXT runtime·panicSlice3AcapU(SB),NOSPLIT,$0-8
-	MOVW	R2, x+0(FP)
-	MOVW	R3, y+4(FP)
-	JMP	runtime·goPanicSlice3AcapU(SB)
-TEXT runtime·panicSlice3B(SB),NOSPLIT,$0-8
-	MOVW	R1, x+0(FP)
-	MOVW	R2, y+4(FP)
-	JMP	runtime·goPanicSlice3B(SB)
-TEXT runtime·panicSlice3BU(SB),NOSPLIT,$0-8
-	MOVW	R1, x+0(FP)
-	MOVW	R2, y+4(FP)
-	JMP	runtime·goPanicSlice3BU(SB)
-TEXT runtime·panicSlice3C(SB),NOSPLIT,$0-8
-	MOVW	R0, x+0(FP)
-	MOVW	R1, y+4(FP)
-	JMP	runtime·goPanicSlice3C(SB)
-TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-8
-	MOVW	R0, x+0(FP)
-	MOVW	R1, y+4(FP)
-	JMP	runtime·goPanicSlice3CU(SB)
-TEXT runtime·panicSliceConvert(SB),NOSPLIT,$0-8
-	MOVW	R2, x+0(FP)
-	MOVW	R3, y+4(FP)
-	JMP	runtime·goPanicSliceConvert(SB)
+TEXT runtime·panicBounds<ABIInternal>(SB),NOSPLIT,$72-0
+	NO_LOCAL_POINTERS
+	// Save all int registers that could have an index in them.
+	// They may be pointers, but if they are they are dead.
+	MOVW	R0, 12(R13)
+	MOVW	R1, 16(R13)
+	MOVW	R2, 20(R13)
+	MOVW	R3, 24(R13)
+	MOVW	R4, 28(R13)
+	MOVW	R5, 32(R13)
+	MOVW	R6, 36(R13)
+	MOVW	R7, 40(R13)
+	MOVW	R8, 44(R13)
+	MOVW	R9, 48(R13)
+	// skip R10 aka G @ 52(R13)
+	// skip R11 aka tmp @ 56(R13)
+	MOVW	R12, 60(R13)
+	// skip R13 aka SP @ 64(R13)
+	MOVW	R14, 68(R13)
+	// skip R15 aka PC @ 72(R13)
 
-// Extended versions for 64-bit indexes.
-TEXT runtime·panicExtendIndex(SB),NOSPLIT,$0-12
-	MOVW	R4, hi+0(FP)
-	MOVW	R0, lo+4(FP)
-	MOVW	R1, y+8(FP)
-	JMP	runtime·goPanicExtendIndex(SB)
-TEXT runtime·panicExtendIndexU(SB),NOSPLIT,$0-12
-	MOVW	R4, hi+0(FP)
-	MOVW	R0, lo+4(FP)
-	MOVW	R1, y+8(FP)
-	JMP	runtime·goPanicExtendIndexU(SB)
-TEXT runtime·panicExtendSliceAlen(SB),NOSPLIT,$0-12
-	MOVW	R4, hi+0(FP)
-	MOVW	R1, lo+4(FP)
-	MOVW	R2, y+8(FP)
-	JMP	runtime·goPanicExtendSliceAlen(SB)
-TEXT runtime·panicExtendSliceAlenU(SB),NOSPLIT,$0-12
-	MOVW	R4, hi+0(FP)
-	MOVW	R1, lo+4(FP)
-	MOVW	R2, y+8(FP)
-	JMP	runtime·goPanicExtendSliceAlenU(SB)
-TEXT runtime·panicExtendSliceAcap(SB),NOSPLIT,$0-12
-	MOVW	R4, hi+0(FP)
-	MOVW	R1, lo+4(FP)
-	MOVW	R2, y+8(FP)
-	JMP	runtime·goPanicExtendSliceAcap(SB)
-TEXT runtime·panicExtendSliceAcapU(SB),NOSPLIT,$0-12
-	MOVW	R4, hi+0(FP)
-	MOVW	R1, lo+4(FP)
-	MOVW	R2, y+8(FP)
-	JMP	runtime·goPanicExtendSliceAcapU(SB)
-TEXT runtime·panicExtendSliceB(SB),NOSPLIT,$0-12
-	MOVW	R4, hi+0(FP)
-	MOVW	R0, lo+4(FP)
-	MOVW	R1, y+8(FP)
-	JMP	runtime·goPanicExtendSliceB(SB)
-TEXT runtime·panicExtendSliceBU(SB),NOSPLIT,$0-12
-	MOVW	R4, hi+0(FP)
-	MOVW	R0, lo+4(FP)
-	MOVW	R1, y+8(FP)
-	JMP	runtime·goPanicExtendSliceBU(SB)
-TEXT runtime·panicExtendSlice3Alen(SB),NOSPLIT,$0-12
-	MOVW	R4, hi+0(FP)
-	MOVW	R2, lo+4(FP)
-	MOVW	R3, y+8(FP)
-	JMP	runtime·goPanicExtendSlice3Alen(SB)
-TEXT runtime·panicExtendSlice3AlenU(SB),NOSPLIT,$0-12
-	MOVW	R4, hi+0(FP)
-	MOVW	R2, lo+4(FP)
-	MOVW	R3, y+8(FP)
-	JMP	runtime·goPanicExtendSlice3AlenU(SB)
-TEXT runtime·panicExtendSlice3Acap(SB),NOSPLIT,$0-12
-	MOVW	R4, hi+0(FP)
-	MOVW	R2, lo+4(FP)
-	MOVW	R3, y+8(FP)
-	JMP	runtime·goPanicExtendSlice3Acap(SB)
-TEXT runtime·panicExtendSlice3AcapU(SB),NOSPLIT,$0-12
-	MOVW	R4, hi+0(FP)
-	MOVW	R2, lo+4(FP)
-	MOVW	R3, y+8(FP)
-	JMP	runtime·goPanicExtendSlice3AcapU(SB)
-TEXT runtime·panicExtendSlice3B(SB),NOSPLIT,$0-12
-	MOVW	R4, hi+0(FP)
-	MOVW	R1, lo+4(FP)
-	MOVW	R2, y+8(FP)
-	JMP	runtime·goPanicExtendSlice3B(SB)
-TEXT runtime·panicExtendSlice3BU(SB),NOSPLIT,$0-12
-	MOVW	R4, hi+0(FP)
-	MOVW	R1, lo+4(FP)
-	MOVW	R2, y+8(FP)
-	JMP	runtime·goPanicExtendSlice3BU(SB)
-TEXT runtime·panicExtendSlice3C(SB),NOSPLIT,$0-12
-	MOVW	R4, hi+0(FP)
-	MOVW	R0, lo+4(FP)
-	MOVW	R1, y+8(FP)
-	JMP	runtime·goPanicExtendSlice3C(SB)
-TEXT runtime·panicExtendSlice3CU(SB),NOSPLIT,$0-12
-	MOVW	R4, hi+0(FP)
-	MOVW	R0, lo+4(FP)
-	MOVW	R1, y+8(FP)
-	JMP	runtime·goPanicExtendSlice3CU(SB)
+	MOVW	R14, 4(R13)	// PC immediately after call to panicBounds
+	ADD	$12, R13, R0	// pointer to save area
+	MOVW	R0, 8(R13)
+	CALL	runtime·panicBounds32<ABIInternal>(SB)
+	RET
+
+TEXT runtime·panicExtend<ABIInternal>(SB),NOSPLIT,$72-0
+	NO_LOCAL_POINTERS
+	// Save all int registers that could have an index in them.
+	// They may be pointers, but if they are they are dead.
+	MOVW	R0, 12(R13)
+	MOVW	R1, 16(R13)
+	MOVW	R2, 20(R13)
+	MOVW	R3, 24(R13)
+	MOVW	R4, 28(R13)
+	MOVW	R5, 32(R13)
+	MOVW	R6, 36(R13)
+	MOVW	R7, 40(R13)
+	MOVW	R8, 44(R13)
+	MOVW	R9, 48(R13)
+	// skip R10 aka G @ 52(R13)
+	// skip R11 aka tmp @ 56(R13)
+	MOVW	R12, 60(R13)
+	// skip R13 aka SP @ 64(R13)
+	// skip R14 aka LR @ 68(R13)
+	// skip R15 aka PC @ 72(R13)
+
+	MOVW	R14, 4(R13)	// PC immediately after call to panicExtend
+	ADD	$12, R13, R0	// pointer to save area
+	MOVW	R0, 8(R13)
+	CALL	runtime·panicBounds32X<ABIInternal>(SB)
+	RET

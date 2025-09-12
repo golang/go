@@ -2041,6 +2041,307 @@ func cvtBoolToUint8BCE(b bool, a [2]int64) int64 {
 	return a[c] // ERROR "Proved IsInBounds$"
 }
 
+func transitiveProofsThroughNonOverflowingUnsignedAdd(x, y, z uint64) {
+	x &= 1<<63 - 1
+	y &= 1<<63 - 1
+
+	a := x + y
+	if a > z {
+		return
+	}
+
+	if x > z { // ERROR "Disproved Less64U$"
+		return
+	}
+	if y > z { // ERROR "Disproved Less64U$"
+		return
+	}
+	if a == x {
+		return
+	}
+	if a == y {
+		return
+	}
+
+	x |= 1
+	y |= 1
+	a = x + y
+	if a == x { // ERROR "Disproved Eq64$"
+		return
+	}
+	if a == y { // ERROR "Disproved Eq64$"
+		return
+	}
+}
+
+func transitiveProofsThroughOverflowingUnsignedAdd(x, y, z uint64) {
+	a := x + y
+	if a > z {
+		return
+	}
+
+	if x > z {
+		return
+	}
+	if y > z {
+		return
+	}
+	if a == x {
+		return
+	}
+	if a == y {
+		return
+	}
+
+	x |= 1
+	y |= 1
+	a = x + y
+	if a == x {
+		return
+	}
+	if a == y {
+		return
+	}
+}
+
+func transitiveProofsThroughNonOverflowingSignedAddPositive(x, y, z int64) {
+	x &= 1<<62 - 1
+	y &= 1<<62 - 1
+
+	a := x + y
+	if a > z {
+		return
+	}
+
+	if x > z { // ERROR "Disproved Less64$"
+		return
+	}
+	if y > z { // ERROR "Disproved Less64$"
+		return
+	}
+	if a == x {
+		return
+	}
+	if a == y {
+		return
+	}
+
+	x |= 1
+	y |= 1
+	a = x + y
+	if a == x { // ERROR "Disproved Eq64$"
+		return
+	}
+	if a == y { // ERROR "Disproved Eq64$"
+		return
+	}
+}
+
+func transitiveProofsThroughOverflowingSignedAddPositive(x, y, z int64) {
+	if x < 0 || y < 0 {
+		return
+	}
+
+	a := x + y
+	if a > z {
+		return
+	}
+
+	if x > z {
+		return
+	}
+	if y > z {
+		return
+	}
+	if a == x {
+		return
+	}
+	if a == y {
+		return
+	}
+
+	x |= 1
+	y |= 1
+	a = x + y
+	if a == x { // ERROR "Disproved Eq64$"
+		return
+	}
+	if a == y { // ERROR "Disproved Eq64$"
+		return
+	}
+}
+
+func transitiveProofsThroughNonOverflowingSignedAddNegative(x, y, z int64) {
+	if x < math.MinInt64>>1 || x > 0 ||
+		y < math.MinInt64>>1 || y > 0 {
+		return
+	}
+
+	a := x + y
+	if a < z {
+		return
+	}
+
+	if x < z { // ERROR "Disproved Less64$"
+		return
+	}
+	if y < z { // ERROR "Disproved Less64$"
+		return
+	}
+	if a == x {
+		return
+	}
+	if a == y {
+		return
+	}
+
+	if x == 0 && y == 0 {
+		return
+	}
+	a = x + y
+	if a == x { // ERROR "Disproved Eq64$"
+		return
+	}
+	if a == y { // ERROR "Disproved Eq64$"
+		return
+	}
+}
+
+func transitiveProofsThroughOverflowingSignedAddNegative(x, y, z int64) {
+	if x >= 0 || y >= 0 {
+		return
+	}
+
+	a := x + y
+	if a < z {
+		return
+	}
+
+	if x < z {
+		return
+	}
+	if y < z {
+		return
+	}
+	if a == x {
+		return
+	}
+	if a == y {
+		return
+	}
+
+	x |= 1
+	y |= 1
+	a = x + y
+	if a == x {
+		return
+	}
+	if a == y {
+		return
+	}
+}
+
+func transitiveProofsThroughNonOverflowingUnsignedSub(x, y, z uint64) {
+	x |= 0xfff
+	y &= 0xfff
+
+	a := x - y
+	if a < z {
+		return
+	}
+
+	if x < z { // ERROR "Disproved Less64U$"
+		return
+	}
+	if y < z {
+		return
+	}
+	if a == x {
+		return
+	}
+	if a == y {
+		return
+	}
+
+	y |= 1
+	a = x - y
+	if a == x { // ERROR "Disproved Eq64$"
+		return
+	}
+	if a == y {
+		return
+	}
+}
+
+func transitiveProofsThroughOverflowingUnsignedSub(x, y, z uint64) {
+	a := x - y
+	if a < z {
+		return
+	}
+
+	if x < z {
+		return
+	}
+	if y < z {
+		return
+	}
+	if a == x {
+		return
+	}
+	if a == y {
+		return
+	}
+
+	y |= 1
+	a = x - y
+	if a == x {
+		return
+	}
+	if a == y {
+		return
+	}
+}
+
+func resliceString(s string) byte {
+	if len(s) >= 4 {
+		s = s[2:]   // ERROR "Proved IsSliceInBounds" "Proved slicemask not needed"
+		s = s[1:]   // ERROR "Proved IsSliceInBounds" "Proved slicemask not needed"
+		return s[0] // ERROR "Proved IsInBounds"
+	}
+	return 0
+}
+func resliceBytes(b []byte) byte {
+	if len(b) >= 4 {
+		b = b[2:]   // ERROR "Proved IsSliceInBounds" "Proved slicemask not needed"
+		b = b[1:]   // ERROR "Proved IsSliceInBounds" "Proved slicemask not needed"
+		return b[0] // ERROR "Proved IsInBounds"
+	}
+	return 0
+}
+
+func issue74473(s []uint) {
+	i := 0
+	for {
+		if i >= len(s) { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
+			break
+		}
+		_ = s[i] // ERROR "Proved IsInBounds$"
+		i++
+	}
+}
+
+func setCapMaxBasedOnElementSize(x []uint64) int {
+	c := uintptr(cap(x))
+	max := ^uintptr(0) >> 3
+	if c > max { // ERROR "Disproved Less"
+		return 42
+	}
+	if c <= max { // ERROR "Proved Leq"
+		return 1337
+	}
+	return 0
+}
+
 //go:noinline
 func useInt(a int) {
 }

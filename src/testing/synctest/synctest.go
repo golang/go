@@ -7,6 +7,14 @@
 // The [Test] function runs a function in an isolated "bubble".
 // Any goroutines started within the bubble are also part of the bubble.
 //
+// Each test should be entirely self-contained:
+// The following guidelines should apply to most tests:
+//
+//   - Avoid interacting with goroutines not started from within the test.
+//   - Avoid using the network. Use a fake network implementation as needed.
+//   - Avoid interacting with external processes.
+//   - Avoid leaking goroutines in background tasks.
+//
 // # Time
 //
 // Within a bubble, the [time] package uses a fake clock.
@@ -22,7 +30,7 @@
 //
 //	func TestTime(t *testing.T) {
 //		synctest.Test(t, func(t *testing.T) {
-//			start := time.Now() // always midnight UTC 2001-01-01
+//			start := time.Now() // always midnight UTC 2000-01-01
 //			go func() {
 //				time.Sleep(1 * time.Second)
 //				t.Log(time.Since(start)) // always logs "1s"

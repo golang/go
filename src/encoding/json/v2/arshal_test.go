@@ -1924,12 +1924,12 @@ func TestMarshal(t *testing.T) {
 }`,
 	}, {
 		name: jsontest.Name("Structs/OmitEmpty/Legacy/Zero"),
-		opts: []Options{jsonflags.OmitEmptyWithLegacyDefinition | 1},
+		opts: []Options{jsonflags.OmitEmptyWithLegacySemantics | 1},
 		in:   structOmitEmptyAll{},
 		want: `{}`,
 	}, {
 		name: jsontest.Name("Structs/OmitEmpty/Legacy/NonEmpty"),
-		opts: []Options{jsontext.Multiline(true), jsonflags.OmitEmptyWithLegacyDefinition | 1},
+		opts: []Options{jsontext.Multiline(true), jsonflags.OmitEmptyWithLegacySemantics | 1},
 		in: structOmitEmptyAll{
 			Bool:                  true,
 			PointerBool:           addr(true),
@@ -2144,7 +2144,7 @@ func TestMarshal(t *testing.T) {
 	"Default": "AQIDBA=="
 }`}, {
 		name: jsontest.Name("Structs/Format/ArrayBytes/Legacy"),
-		opts: []Options{jsontext.Multiline(true), jsonflags.FormatBytesWithLegacySemantics | 1},
+		opts: []Options{jsontext.Multiline(true), jsonflags.FormatByteArrayAsArray | jsonflags.FormatBytesWithLegacySemantics | 1},
 		in: structFormatArrayBytes{
 			Base16:    [4]byte{1, 2, 3, 4},
 			Base32:    [4]byte{1, 2, 3, 4},
@@ -3217,6 +3217,11 @@ func TestMarshal(t *testing.T) {
 		in:   struct{ X any }{[8]byte{}},
 		want: `{"X":"called"}`,
 	}, {
+		name:    jsontest.Name("Interfaces/Any/Float/NaN"),
+		in:      struct{ X any }{math.NaN()},
+		want:    `{"X"`,
+		wantErr: EM(fmt.Errorf("unsupported value: %v", math.NaN())).withType(0, reflect.TypeFor[float64]()).withPos(`{"X":`, "/X"),
+	}, {
 		name: jsontest.Name("Interfaces/Any/Maps/Nil"),
 		in:   struct{ X any }{map[string]any(nil)},
 		want: `{"X":{}}`,
@@ -3278,7 +3283,7 @@ func TestMarshal(t *testing.T) {
 			return struct{ X any }{m}
 		}(),
 		want:    `{"X"` + strings.Repeat(`:{""`, startDetectingCyclesAfter),
-		wantErr: EM(internal.ErrCycle).withPos(`{"X":`+strings.Repeat(`{"":`, startDetectingCyclesAfter), "/X"+jsontext.Pointer(strings.Repeat("/", startDetectingCyclesAfter))).withType(0, T[any]()),
+		wantErr: EM(internal.ErrCycle).withPos(`{"X":`+strings.Repeat(`{"":`, startDetectingCyclesAfter), "/X"+jsontext.Pointer(strings.Repeat("/", startDetectingCyclesAfter))).withType(0, T[map[string]any]()),
 	}, {
 		name: jsontest.Name("Interfaces/Any/Slices/Nil"),
 		in:   struct{ X any }{[]any(nil)},
@@ -4394,7 +4399,7 @@ func TestMarshal(t *testing.T) {
 	}, {
 		/* TODO(https://go.dev/issue/71631): Re-enable this test case.
 		name: jsontest.Name("Duration/Format/Legacy"),
-		opts: []Options{jsonflags.FormatTimeWithLegacySemantics | 1},
+		opts: []Options{jsonflags.FormatDurationAsNano | 1},
 		in: structDurationFormat{
 			D1: 12*time.Hour + 34*time.Minute + 56*time.Second + 78*time.Millisecond + 90*time.Microsecond + 12*time.Nanosecond,
 			D2: 12*time.Hour + 34*time.Minute + 56*time.Second + 78*time.Millisecond + 90*time.Microsecond + 12*time.Nanosecond,
@@ -4407,7 +4412,7 @@ func TestMarshal(t *testing.T) {
 		want: `{"1s":""}`,
 		}, { */
 		name: jsontest.Name("Duration/MapKey/Legacy"),
-		opts: []Options{jsonflags.FormatTimeWithLegacySemantics | 1},
+		opts: []Options{jsonflags.FormatDurationAsNano | 1},
 		in:   map[time.Duration]string{time.Second: ""},
 		want: `{"1000000000":""}`,
 	}, {
@@ -6399,7 +6404,7 @@ func TestUnmarshal(t *testing.T) {
 		wantErr: EU(errors.New("illegal character '\\r' at offset 3")).withPos(`{"Base64": `, "/Base64").withType('"', T[[]byte]()),
 	}, {
 		name:  jsontest.Name("Structs/Format/Bytes/Base64/NonAlphabet/Ignored"),
-		opts:  []Options{jsonflags.FormatBytesWithLegacySemantics | 1},
+		opts:  []Options{jsonflags.ParseBytesWithLooseRFC4648 | 1},
 		inBuf: `{"Base64": "aa=\r\n="}`,
 		inVal: new(structFormatBytes),
 		want:  &structFormatBytes{Base64: []byte{105}},
@@ -7138,7 +7143,13 @@ func TestUnmarshal(t *testing.T) {
 		inBuf:   ``,
 		inVal:   addr(structAll{}),
 		want:    addr(structAll{}),
-		wantErr: io.ErrUnexpectedEOF,
+		wantErr: &jsontext.SyntacticError{Err: io.ErrUnexpectedEOF},
+	}, {
+		name:    jsontest.Name("Structs/Invalid/ErrUnexpectedEOF"),
+		inBuf:   " \n\r\t",
+		inVal:   addr(structAll{}),
+		want:    addr(structAll{}),
+		wantErr: &jsontext.SyntacticError{Err: io.ErrUnexpectedEOF, ByteOffset: len64(" \n\r\t")},
 	}, {
 		name:    jsontest.Name("Structs/Invalid/NestedErrUnexpectedEOF"),
 		inBuf:   `{"Pointer":`,
@@ -7490,7 +7501,7 @@ func TestUnmarshal(t *testing.T) {
 		inBuf:   `"hello"`,
 		inVal:   new(io.Reader),
 		want:    new(io.Reader),
-		wantErr: EU(errNilInterface).withType(0, T[io.Reader]()),
+		wantErr: EU(internal.ErrNilInterface).withType(0, T[io.Reader]()),
 	}, {
 		name:  jsontest.Name("Interfaces/Empty/False"),
 		inBuf: `false`,
@@ -8338,7 +8349,7 @@ func TestUnmarshal(t *testing.T) {
 		inBuf:   `{"X":"hello"}`,
 		inVal:   addr(struct{ X fmt.Stringer }{nil}),
 		want:    addr(struct{ X fmt.Stringer }{nil}),
-		wantErr: EU(errNilInterface).withPos(`{"X":`, "/X").withType(0, T[fmt.Stringer]()),
+		wantErr: EU(internal.ErrNilInterface).withPos(`{"X":`, "/X").withType(0, T[fmt.Stringer]()),
 	}, {
 		name: jsontest.Name("Functions/Interface/NetIP"),
 		opts: []Options{
@@ -8879,7 +8890,7 @@ func TestUnmarshal(t *testing.T) {
 		/* TODO(https://go.dev/issue/71631): Re-enable this test case.
 		name:  jsontest.Name("Duration/Format/Legacy"),
 		inBuf: `{"D1":45296078090012,"D2":"12h34m56.078090012s"}`,
-		opts:  []Options{jsonflags.FormatTimeWithLegacySemantics | 1},
+		opts:  []Options{jsonflags.FormatDurationAsNano | 1},
 		inVal: new(structDurationFormat),
 		want: addr(structDurationFormat{
 			D1: 12*time.Hour + 34*time.Minute + 56*time.Second + 78*time.Millisecond + 90*time.Microsecond + 12*time.Nanosecond,
@@ -8893,7 +8904,7 @@ func TestUnmarshal(t *testing.T) {
 		want:  addr(map[time.Duration]string{time.Second: ""}),
 		}, { */
 		name:  jsontest.Name("Duration/MapKey/Legacy"),
-		opts:  []Options{jsonflags.FormatTimeWithLegacySemantics | 1},
+		opts:  []Options{jsonflags.FormatDurationAsNano | 1},
 		inBuf: `{"1000000000":""}`,
 		inVal: new(map[time.Duration]string),
 		want:  addr(map[time.Duration]string{time.Second: ""}),
@@ -9404,6 +9415,51 @@ func TestUnmarshalDecodeOptions(t *testing.T) {
 	dec.Reset(in, jsontext.AllowInvalidUTF8(false), opts) // earlier AllowInvalidUTF8(false) should be overridden by latter AllowInvalidUTF8(true) in opts
 	if v, _ := GetOption(dec.Options(), jsontext.AllowInvalidUTF8); v == false {
 		t.Errorf("Options.AllowInvalidUTF8 = false, want true")
+	}
+}
+
+func TestUnmarshalDecodeStream(t *testing.T) {
+	tests := []struct {
+		in   string
+		want []any
+		err  error
+	}{
+		{in: ``, err: io.EOF},
+		{in: `{`, err: &jsontext.SyntacticError{ByteOffset: len64(`{`), Err: io.ErrUnexpectedEOF}},
+		{in: `{"`, err: &jsontext.SyntacticError{ByteOffset: len64(`{"`), Err: io.ErrUnexpectedEOF}},
+		{in: `{"k"`, err: &jsontext.SyntacticError{ByteOffset: len64(`{"k"`), JSONPointer: "/k", Err: io.ErrUnexpectedEOF}},
+		{in: `{"k":`, err: &jsontext.SyntacticError{ByteOffset: len64(`{"k":`), JSONPointer: "/k", Err: io.ErrUnexpectedEOF}},
+		{in: `{"k",`, err: &jsontext.SyntacticError{ByteOffset: len64(`{"k"`), JSONPointer: "/k", Err: jsonwire.NewInvalidCharacterError(",", "after object name (expecting ':')")}},
+		{in: `{"k"}`, err: &jsontext.SyntacticError{ByteOffset: len64(`{"k"`), JSONPointer: "/k", Err: jsonwire.NewInvalidCharacterError("}", "after object name (expecting ':')")}},
+		{in: `[`, err: &jsontext.SyntacticError{ByteOffset: len64(`[`), Err: io.ErrUnexpectedEOF}},
+		{in: `[0`, err: &jsontext.SyntacticError{ByteOffset: len64(`[0`), Err: io.ErrUnexpectedEOF}},
+		{in: ` [0`, err: &jsontext.SyntacticError{ByteOffset: len64(` [0`), Err: io.ErrUnexpectedEOF}},
+		{in: `[0.`, err: &jsontext.SyntacticError{ByteOffset: len64(`[`), JSONPointer: "/0", Err: io.ErrUnexpectedEOF}},
+		{in: `[0. `, err: &jsontext.SyntacticError{ByteOffset: len64(`[0.`), JSONPointer: "/0", Err: jsonwire.NewInvalidCharacterError(" ", "in number (expecting digit)")}},
+		{in: `[0,`, err: &jsontext.SyntacticError{ByteOffset: len64(`[0,`), Err: io.ErrUnexpectedEOF}},
+		{in: `[0:`, err: &jsontext.SyntacticError{ByteOffset: len64(`[0`), Err: jsonwire.NewInvalidCharacterError(":", "after array element (expecting ',' or ']')")}},
+		{in: `n`, err: &jsontext.SyntacticError{ByteOffset: len64(`n`), Err: io.ErrUnexpectedEOF}},
+		{in: `nul`, err: &jsontext.SyntacticError{ByteOffset: len64(`nul`), Err: io.ErrUnexpectedEOF}},
+		{in: `fal `, err: &jsontext.SyntacticError{ByteOffset: len64(`fal`), Err: jsonwire.NewInvalidCharacterError(" ", "in literal false (expecting 's')")}},
+		{in: `false`, want: []any{false}, err: io.EOF},
+		{in: `false0.0[]null`, want: []any{false, 0.0, []any{}, nil}, err: io.EOF},
+	}
+	for _, tt := range tests {
+		d := jsontext.NewDecoder(strings.NewReader(tt.in))
+		var got []any
+		for {
+			var v any
+			if err := UnmarshalDecode(d, &v); err != nil {
+				if !reflect.DeepEqual(err, tt.err) {
+					t.Errorf("`%s`: UnmarshalDecode error = %v, want %v", tt.in, err, tt.err)
+				}
+				break
+			}
+			got = append(got, v)
+		}
+		if !reflect.DeepEqual(got, tt.want) {
+			t.Errorf("`%s`: UnmarshalDecode = %v, want %v", tt.in, got, tt.want)
+		}
 	}
 }
 

@@ -22,11 +22,10 @@ type root struct {
 	// refs is incremented while an operation is using fd.
 	// closed is set when Close is called.
 	// fd is closed when closed is true and refs is 0.
-	mu      sync.Mutex
-	fd      sysfdType
-	refs    int             // number of active operations
-	closed  bool            // set when closed
-	cleanup runtime.Cleanup // cleanup closes the file when no longer referenced
+	mu     sync.Mutex
+	fd     sysfdType
+	refs   int  // number of active operations
+	closed bool // set when closed
 }
 
 func (r *root) Close() error {
@@ -36,9 +35,7 @@ func (r *root) Close() error {
 		syscall.Close(r.fd)
 	}
 	r.closed = true
-	// There is no need for a cleanup at this point. Root must be alive at the point
-	// where cleanup.stop is called.
-	r.cleanup.Stop()
+	runtime.SetFinalizer(r, nil) // no need for a finalizer any more
 	return nil
 }
 
@@ -134,7 +131,9 @@ func rootMkdirAll(r *Root, fullname string, perm FileMode) error {
 			if try > 0 || !IsNotExist(err) {
 				return 0, &PathError{Op: "openat", Err: err}
 			}
-			if err := mkdirat(parent, name, perm); err != nil {
+			// Try again on EEXIST, because the directory may have been created
+			// by another process or thread between the rootOpenDir and mkdirat calls.
+			if err := mkdirat(parent, name, perm); err != nil && err != syscall.EEXIST {
 				return 0, &PathError{Op: "mkdirat", Err: err}
 			}
 		}

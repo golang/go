@@ -13,7 +13,7 @@ package syscall
 
 import (
 	"internal/itoa"
-	runtimesyscall "internal/runtime/syscall"
+	"internal/runtime/syscall/linux"
 	"runtime"
 	"slices"
 	"unsafe"
@@ -62,7 +62,7 @@ func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno) {
 //go:linkname RawSyscall6
 func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno) {
 	var errno uintptr
-	r1, r2, errno = runtimesyscall.Syscall6(trap, a1, a2, a3, a4, a5, a6)
+	r1, r2, errno = linux.Syscall6(trap, a1, a2, a3, a4, a5, a6)
 	err = Errno(errno)
 	return
 }

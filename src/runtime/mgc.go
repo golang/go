@@ -1521,18 +1521,15 @@ func gcBgMarkWorker(ready chan struct{}) {
 		}
 
 		systemstack(func() {
-			// Mark our goroutine preemptible so its stack
-			// can be scanned or observed by the execution
-			// tracer. This, for example, lets two mark workers
-			// scan each other (otherwise, they would
-			// deadlock). We must not modify anything on
-			// the G stack. However, stack shrinking is
-			// disabled for mark workers, so it is safe to
-			// read from the G stack.
+			// Mark our goroutine preemptible so its stack can be scanned or observed
+			// by the execution tracer. This, for example, lets two mark workers scan
+			// each other (otherwise, they would deadlock).
 			//
-			// N.B. The execution tracer is not aware of this status
-			// transition and handles it specially based on the
-			// wait reason.
+			// casGToWaitingForSuspendG marks the goroutine as ineligible for a
+			// stack shrink, effectively pinning the stack in memory for the duration.
+			//
+			// N.B. The execution tracer is not aware of this status transition and
+			// handles it specially based on the wait reason.
 			casGToWaitingForSuspendG(gp, _Grunning, waitReasonGCWorkerActive)
 			switch pp.gcMarkWorkerMode {
 			default:

@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"testing"
 	"testing/synctest"
+	"time"
 )
 
 // Tests for interactions between synctest bubbles and the testing package.
@@ -178,4 +179,12 @@ func runTest(t *testing.T, args []string, f func(), pattern string) {
 	if !re.Match(out) {
 		t.Errorf("got output:\n%s\nwant matching:\n%s", out, pattern)
 	}
+}
+
+func TestNow(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		if got, want := time.Now(), time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC); !got.Equal(want) {
+			t.Errorf("time.Now() = %v, want %v", got, want)
+		}
+	})
 }

@@ -144,11 +144,10 @@ func init() {
 		gpspsbg    = gpspg | buildReg("SB")
 		fp         = buildReg("F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31")
 		callerSave = gp | fp | buildReg("g") // runtime.setg (and anything calling it) may clobber g
-		r0         = buildReg("R0")
-		r1         = buildReg("R1")
-		r2         = buildReg("R2")
-		r3         = buildReg("R3")
+		r24to25    = buildReg("R24 R25")
+		r23to25    = buildReg("R23 R24 R25")
 		rz         = buildReg("ZERO")
+		first16    = buildReg("R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15")
 	)
 	// Common regInfo
 	var (
@@ -157,12 +156,14 @@ func init() {
 		gp11           = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp}}
 		gp11sp         = regInfo{inputs: []regMask{gpspg}, outputs: []regMask{gp}}
 		gp1flags       = regInfo{inputs: []regMask{gpg}}
+		gp1flagsflags  = regInfo{inputs: []regMask{gpg}}
 		gp1flags1      = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp}}
 		gp11flags      = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp, 0}}
 		gp21           = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp}}
 		gp21nog        = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
 		gp21flags      = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp, 0}}
 		gp2flags       = regInfo{inputs: []regMask{gpg, gpg}}
+		gp2flagsflags  = regInfo{inputs: []regMask{gpg, gpg}}
 		gp2flags1      = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
 		gp2flags1flags = regInfo{inputs: []regMask{gp, gp, 0}, outputs: []regMask{gp, 0}}
 		gp2load        = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{gp}}
@@ -509,6 +510,22 @@ func init() {
 		{name: "CSNEG", argLength: 3, reg: gp2flags1, asm: "CSNEG", aux: "CCop"}, // auxint(flags) ? arg0 : -arg1
 		{name: "CSETM", argLength: 1, reg: readflags, asm: "CSETM", aux: "CCop"}, // auxint(flags) ? -1 : 0
 
+		// conditional comparison instructions; auxint is
+		// combination of Cond, Nzcv and optional ConstValue
+		// Behavior:
+		//   If the condition 'Cond' evaluates to true against current flags,
+		//   flags are set to the result of the comparison operation.
+		//   Otherwise, flags are set to the fallback value 'Nzcv'.
+		{name: "CCMP", argLength: 3, reg: gp2flagsflags, asm: "CCMP", aux: "ARM64ConditionalParams", typ: "Flag"},      // If Cond then flags = CMP arg0 arg1 else flags = Nzcv
+		{name: "CCMN", argLength: 3, reg: gp2flagsflags, asm: "CCMN", aux: "ARM64ConditionalParams", typ: "Flag"},      // If Cond then flags = CMN arg0 arg1 else flags = Nzcv
+		{name: "CCMPconst", argLength: 2, reg: gp1flagsflags, asm: "CCMP", aux: "ARM64ConditionalParams", typ: "Flag"}, // If Cond then flags = CMPconst [ConstValue] arg0 else flags = Nzcv
+		{name: "CCMNconst", argLength: 2, reg: gp1flagsflags, asm: "CCMN", aux: "ARM64ConditionalParams", typ: "Flag"}, // If Cond then flags = CMNconst [ConstValue] arg0 else flags = Nzcv
+
+		{name: "CCMPW", argLength: 3, reg: gp2flagsflags, asm: "CCMPW", aux: "ARM64ConditionalParams", typ: "Flag"},      // If Cond then flags = CMPW arg0 arg1 else flags = Nzcv
+		{name: "CCMNW", argLength: 3, reg: gp2flagsflags, asm: "CCMNW", aux: "ARM64ConditionalParams", typ: "Flag"},      // If Cond then flags = CMNW arg0 arg1 else flags = Nzcv
+		{name: "CCMPWconst", argLength: 2, reg: gp1flagsflags, asm: "CCMPW", aux: "ARM64ConditionalParams", typ: "Flag"}, // If Cond then flags = CCMPWconst [ConstValue] arg0 else flags = Nzcv
+		{name: "CCMNWconst", argLength: 2, reg: gp1flagsflags, asm: "CCMNW", aux: "ARM64ConditionalParams", typ: "Flag"}, // If Cond then flags = CCMNWconst [ConstValue] arg0 else flags = Nzcv
+
 		// function calls
 		{name: "CALLstatic", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                               // call static function aux.(*obj.LSym).  last arg=mem, auxint=argsize, returns mem
 		{name: "CALLtail", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true, tailCall: true},                                 // tail call static function aux.(*obj.LSym).  last arg=mem, auxint=argsize, returns mem
@@ -539,87 +556,72 @@ func init() {
 		{name: "LessThanNoov", argLength: 1, reg: readflags},     // bool, true flags encode signed x<y but without honoring overflow, false otherwise.
 		{name: "GreaterEqualNoov", argLength: 1, reg: readflags}, // bool, true flags encode signed x>=y but without honoring overflow, false otherwise.
 
-		// duffzero
+		// medium zeroing
 		// arg0 = address of memory to zero
 		// arg1 = mem
-		// auxint = offset into duffzero code to start executing
+		// auxint = # of bytes to zero
 		// returns mem
-		// R20 changed as side effect
-		// R16 and R17 may be clobbered by linker trampoline.
 		{
-			name:      "DUFFZERO",
+			name:      "LoweredZero",
 			aux:       "Int64",
 			argLength: 2,
 			reg: regInfo{
-				inputs:   []regMask{buildReg("R20")},
-				clobbers: buildReg("R16 R17 R20 R30"),
+				inputs: []regMask{gp},
 			},
-			//faultOnNilArg0: true, // Note: removed for 73748. TODO: reenable at some point
-			unsafePoint: true, // FP maintenance around DUFFZERO can be clobbered by interrupts
-		},
-
-		// large zeroing
-		// arg0 = address of memory to zero (in R16 aka arm64.REGRT1, changed as side effect)
-		// arg1 = address of the last 16-byte unit to zero
-		// arg2 = mem
-		// returns mem
-		//	STP.P	(ZR,ZR), 16(R16)
-		//	CMP	Rarg1, R16
-		//	BLE	-2(PC)
-		// Note: the-end-of-the-memory may be not a valid pointer. it's a problem if it is spilled.
-		// the-end-of-the-memory - 16 is with the area to zero, ok to spill.
-		{
-			name:      "LoweredZero",
-			argLength: 3,
-			reg: regInfo{
-				inputs:   []regMask{buildReg("R16"), gp},
-				clobbers: buildReg("R16"),
-			},
-			clobberFlags:   true,
 			faultOnNilArg0: true,
 		},
 
-		// duffcopy
-		// arg0 = address of dst memory (in R21, changed as side effect)
-		// arg1 = address of src memory (in R20, changed as side effect)
-		// arg2 = mem
-		// auxint = offset into duffcopy code to start executing
+		// large zeroing
+		// arg0 = address of memory to zero
+		// arg1 = mem
+		// auxint = # of bytes to zero
 		// returns mem
-		// R20, R21 changed as side effect
-		// R16 and R17 may be clobbered by linker trampoline.
 		{
-			name:      "DUFFCOPY",
+			name:      "LoweredZeroLoop",
+			aux:       "Int64",
+			argLength: 2,
+			reg: regInfo{
+				inputs:       []regMask{gp},
+				clobbersArg0: true,
+			},
+			faultOnNilArg0: true,
+			needIntTemp:    true,
+		},
+
+		// medium copying
+		// arg0 = address of dst memory
+		// arg1 = address of src memory
+		// arg2 = mem
+		// auxint = # of bytes to copy
+		// returns mem
+		{
+			name:      "LoweredMove",
 			aux:       "Int64",
 			argLength: 3,
 			reg: regInfo{
-				inputs:   []regMask{buildReg("R21"), buildReg("R20")},
-				clobbers: buildReg("R16 R17 R20 R21 R26 R30"),
+				inputs:   []regMask{gp &^ r24to25, gp &^ r24to25},
+				clobbers: r24to25, // TODO: figure out needIntTemp x2
 			},
-			//faultOnNilArg0: true, // Note: removed for 73748. TODO: reenable at some point
-			//faultOnNilArg1: true,
-			unsafePoint: true, // FP maintenance around DUFFCOPY can be clobbered by interrupts
+			faultOnNilArg0: true,
+			faultOnNilArg1: true,
 		},
 
-		// large move
-		// arg0 = address of dst memory (in R17 aka arm64.REGRT2, changed as side effect)
-		// arg1 = address of src memory (in R16 aka arm64.REGRT1, changed as side effect)
-		// arg2 = address of the last element of src
-		// arg3 = mem
+		// large copying
+		// arg0 = address of dst memory
+		// arg1 = address of src memory
+		// arg2 = mem
+		// auxint = # of bytes to copy
 		// returns mem
-		//	LDP.P	16(R16), (R25, Rtmp)
-		//	STP.P	(R25, Rtmp), 16(R17)
-		//	CMP	Rarg2, R16
-		//	BLE	-3(PC)
-		// Note: the-end-of-src may be not a valid pointer. it's a problem if it is spilled.
-		// the-end-of-src - 16 is within the area to copy, ok to spill.
 		{
-			name:      "LoweredMove",
-			argLength: 4,
+			name:      "LoweredMoveLoop",
+			aux:       "Int64",
+			argLength: 3,
 			reg: regInfo{
-				inputs:   []regMask{buildReg("R17"), buildReg("R16"), gp &^ buildReg("R25")},
-				clobbers: buildReg("R16 R17 R25"),
+				inputs:       []regMask{gp &^ r23to25, gp &^ r23to25},
+				clobbers:     r23to25, // TODO: figure out needIntTemp x3
+				clobbersArg0: true,
+				clobbersArg1: true,
 			},
-			clobberFlags:   true,
 			faultOnNilArg0: true,
 			faultOnNilArg1: true,
 		},
@@ -760,12 +762,15 @@ func init() {
 		// Returns a pointer to a write barrier buffer in R25.
 		{name: "LoweredWB", argLength: 1, reg: regInfo{clobbers: (callerSave &^ gpg) | buildReg("R16 R17 R30"), outputs: []regMask{buildReg("R25")}}, clobberFlags: true, aux: "Int64"},
 
-		// There are three of these functions so that they can have three different register inputs.
-		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
-		// default registers to match so we don't need to copy registers around unnecessarily.
-		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r2, r3}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
-		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r1, r2}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
-		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r0, r1}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
+		// LoweredPanicBoundsRR takes x and y, two values that caused a bounds check to fail.
+		// the RC and CR versions are used when one of the arguments is a constant. CC is used
+		// when both are constant (normally both 0, as prove derives the fact that a [0] bounds
+		// failure means the length must have also been 0).
+		// AuxInt contains a report code (see PanicBounds in genericOps.go).
+		{name: "LoweredPanicBoundsRR", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{first16, first16}}, typ: "Mem", call: true}, // arg0=x, arg1=y, arg2=mem, returns memory.
+		{name: "LoweredPanicBoundsRC", argLength: 2, aux: "PanicBoundsC", reg: regInfo{inputs: []regMask{first16}}, typ: "Mem", call: true},   // arg0=x, arg1=mem, returns memory.
+		{name: "LoweredPanicBoundsCR", argLength: 2, aux: "PanicBoundsC", reg: regInfo{inputs: []regMask{first16}}, typ: "Mem", call: true},   // arg0=y, arg1=mem, returns memory.
+		{name: "LoweredPanicBoundsCC", argLength: 1, aux: "PanicBoundsCC", reg: regInfo{}, typ: "Mem", call: true},                            // arg0=mem, returns memory.
 
 		// Prefetch instruction
 		// Do prefetch arg0 address with option aux. arg0=addr, arg1=memory, aux=option.

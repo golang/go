@@ -59,6 +59,9 @@ func concatstrings(buf *tmpBuf, a []string) string {
 	return s
 }
 
+// concatstring2 helps make the callsite smaller (compared to concatstrings),
+// and we think this is currently more valuable than omitting one call in the
+// chain, the same goes for concatstring{3,4,5}.
 func concatstring2(buf *tmpBuf, a0, a1 string) string {
 	return concatstrings(buf, []string{a0, a1})
 }
@@ -108,6 +111,9 @@ func concatbytes(buf *tmpBuf, a []string) []byte {
 	return b
 }
 
+// concatbyte2 helps make the callsite smaller (compared to concatbytes),
+// and we think this is currently more valuable than omitting one call in
+// the chain, the same goes for concatbyte{3,4,5}.
 func concatbyte2(buf *tmpBuf, a0, a1 string) []byte {
 	return concatbytes(buf, []string{a0, a1})
 }

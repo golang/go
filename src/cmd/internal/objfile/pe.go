@@ -174,8 +174,6 @@ func (f *peFile) goarch() string {
 		return "386"
 	case pe.IMAGE_FILE_MACHINE_AMD64:
 		return "amd64"
-	case pe.IMAGE_FILE_MACHINE_ARMNT:
-		return "arm"
 	case pe.IMAGE_FILE_MACHINE_ARM64:
 		return "arm64"
 	default:

@@ -7,6 +7,7 @@
 package httptest
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"flag"
@@ -126,8 +127,24 @@ func (s *Server) Start() {
 	if s.URL != "" {
 		panic("Server already started")
 	}
+
 	if s.client == nil {
-		s.client = &http.Client{Transport: &http.Transport{}}
+		tr := &http.Transport{}
+		dialer := net.Dialer{}
+		// User code may set either of Dial or DialContext, with DialContext taking precedence.
+		// We set DialContext here to preserve any context values that are passed in,
+		// but fall back to Dial if the user has set it.
+		tr.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+			if tr.Dial != nil {
+				return tr.Dial(network, addr)
+			}
+			if addr == "example.com:80" || strings.HasSuffix(addr, ".example.com:80") {
+				addr = s.Listener.Addr().String()
+			}
+			return dialer.DialContext(ctx, network, addr)
+		}
+		s.client = &http.Client{Transport: tr}
+
 	}
 	s.URL = "http://" + s.Listener.Addr().String()
 	s.wrap()
@@ -173,12 +190,23 @@ func (s *Server) StartTLS() {
 	}
 	certpool := x509.NewCertPool()
 	certpool.AddCert(s.certificate)
-	s.client.Transport = &http.Transport{
+	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{
 			RootCAs: certpool,
 		},
 		ForceAttemptHTTP2: s.EnableHTTP2,
 	}
+	dialer := net.Dialer{}
+	tr.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		if tr.Dial != nil {
+			return tr.Dial(network, addr)
+		}
+		if addr == "example.com:443" || strings.HasSuffix(addr, ".example.com:443") {
+			addr = s.Listener.Addr().String()
+		}
+		return dialer.DialContext(ctx, network, addr)
+	}
+	s.client.Transport = tr
 	s.Listener = tls.NewListener(s.Listener, s.TLS)
 	s.URL = "https://" + s.Listener.Addr().String()
 	s.wrap()
@@ -300,6 +328,8 @@ func (s *Server) Certificate() *x509.Certificate {
 // It is configured to trust the server's TLS test certificate and will
 // close its idle connections on [Server.Close].
 // Use Server.URL as the base URL to send requests to the server.
+// The returned client will also redirect any requests to "example.com"
+// or its subdomains to the server.
 func (s *Server) Client() *http.Client {
 	return s.client
 }

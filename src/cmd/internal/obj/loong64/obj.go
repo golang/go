@@ -17,11 +17,7 @@ import (
 func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	// Rewrite JMP/JAL to symbol as TYPE_BRANCH.
 	switch p.As {
-	case AJMP,
-		AJAL,
-		ARET,
-		obj.ADUFFZERO,
-		obj.ADUFFCOPY:
+	case AJMP, AJAL, ARET:
 		if p.To.Sym != nil {
 			p.To.Type = obj.TYPE_BRANCH
 		}
@@ -93,40 +89,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 }
 
 func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
-	//     ADUFFxxx $offset
-	// becomes
-	//     MOVV runtime.duffxxx@GOT, REGTMP
-	//     ADD $offset, REGTMP
-	//     JAL REGTMP
-	if p.As == obj.ADUFFCOPY || p.As == obj.ADUFFZERO {
-		var sym *obj.LSym
-		if p.As == obj.ADUFFZERO {
-			sym = ctxt.LookupABI("runtime.duffzero", obj.ABIInternal)
-		} else {
-			sym = ctxt.LookupABI("runtime.duffcopy", obj.ABIInternal)
-		}
-		offset := p.To.Offset
-		p.As = AMOVV
-		p.From.Type = obj.TYPE_MEM
-		p.From.Sym = sym
-		p.From.Name = obj.NAME_GOTREF
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REGTMP
-		p.To.Name = obj.NAME_NONE
-		p.To.Offset = 0
-		p.To.Sym = nil
-		p1 := obj.Appendp(p, newprog)
-		p1.As = AADDV
-		p1.From.Type = obj.TYPE_CONST
-		p1.From.Offset = offset
-		p1.To.Type = obj.TYPE_REG
-		p1.To.Reg = REGTMP
-		p2 := obj.Appendp(p1, newprog)
-		p2.As = AJAL
-		p2.To.Type = obj.TYPE_MEM
-		p2.To.Reg = REGTMP
-	}
-
 	// We only care about global data: NAME_EXTERN means a global
 	// symbol in the Go sense, and p.Sym.Local is true for a few
 	// internally defined symbols.
@@ -256,9 +218,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				}
 			}
 
-		case AJAL,
-			obj.ADUFFZERO,
-			obj.ADUFFCOPY:
+		case AJAL:
 			c.cursym.Func().Text.Mark &^= LEAF
 			fallthrough
 
@@ -301,8 +261,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	var q *obj.Prog
 	var q1 *obj.Prog
 	autosize := int32(0)
-	var p1 *obj.Prog
-	var p2 *obj.Prog
 	for p := c.cursym.Func().Text; p != nil; p = p.Link {
 		o := p.As
 		switch o {
@@ -399,90 +357,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q.To.Type = obj.TYPE_MEM
 				q.To.Offset = 0
 				q.To.Reg = REGSP
-			}
-
-			if c.cursym.Func().Text.From.Sym.Wrapper() && c.cursym.Func().Text.Mark&LEAF == 0 {
-				// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
-				//
-				//	MOV	g_panic(g), R20
-				//	BEQ	R20, end
-				//	MOV	panic_argp(R20), R24
-				//	ADD	$(autosize+FIXED_FRAME), R3, R30
-				//	BNE	R24, R30, end
-				//	ADD	$FIXED_FRAME, R3, R24
-				//	MOV	R24, panic_argp(R20)
-				// end:
-				//	NOP
-				//
-				// The NOP is needed to give the jumps somewhere to land.
-				// It is a liblink NOP, not a hardware NOP: it encodes to 0 instruction bytes.
-				//
-				// We don't generate this for leaves because that means the wrapped
-				// function was inlined into the wrapper.
-
-				q = obj.Appendp(q, newprog)
-
-				q.As = mov
-				q.From.Type = obj.TYPE_MEM
-				q.From.Reg = REGG
-				q.From.Offset = 4 * int64(c.ctxt.Arch.PtrSize) // G.panic
-				q.To.Type = obj.TYPE_REG
-				q.To.Reg = REG_R20
-
-				q = obj.Appendp(q, newprog)
-				q.As = ABEQ
-				q.From.Type = obj.TYPE_REG
-				q.From.Reg = REG_R20
-				q.To.Type = obj.TYPE_BRANCH
-				q.Mark |= BRANCH
-				p1 = q
-
-				q = obj.Appendp(q, newprog)
-				q.As = mov
-				q.From.Type = obj.TYPE_MEM
-				q.From.Reg = REG_R20
-				q.From.Offset = 0 // Panic.argp
-				q.To.Type = obj.TYPE_REG
-				q.To.Reg = REG_R24
-
-				q = obj.Appendp(q, newprog)
-				q.As = add
-				q.From.Type = obj.TYPE_CONST
-				q.From.Offset = int64(autosize) + ctxt.Arch.FixedFrameSize
-				q.Reg = REGSP
-				q.To.Type = obj.TYPE_REG
-				q.To.Reg = REG_R30
-
-				q = obj.Appendp(q, newprog)
-				q.As = ABNE
-				q.From.Type = obj.TYPE_REG
-				q.From.Reg = REG_R24
-				q.Reg = REG_R30
-				q.To.Type = obj.TYPE_BRANCH
-				q.Mark |= BRANCH
-				p2 = q
-
-				q = obj.Appendp(q, newprog)
-				q.As = add
-				q.From.Type = obj.TYPE_CONST
-				q.From.Offset = ctxt.Arch.FixedFrameSize
-				q.Reg = REGSP
-				q.To.Type = obj.TYPE_REG
-				q.To.Reg = REG_R24
-
-				q = obj.Appendp(q, newprog)
-				q.As = mov
-				q.From.Type = obj.TYPE_REG
-				q.From.Reg = REG_R24
-				q.To.Type = obj.TYPE_MEM
-				q.To.Reg = REG_R20
-				q.To.Offset = 0 // Panic.argp
-
-				q = obj.Appendp(q, newprog)
-
-				q.As = obj.ANOP
-				p1.To.SetTarget(q)
-				p2.To.SetTarget(q)
 			}
 
 		case ARET:
@@ -855,14 +729,6 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	jmp.Spadj = +framesize
 
 	return end
-}
-
-func (c *ctxt0) addnop(p *obj.Prog) {
-	q := c.newprog()
-	q.As = ANOOP
-	q.Pos = p.Pos
-	q.Link = p.Link
-	p.Link = q
 }
 
 var Linkloong64 = obj.LinkArch{

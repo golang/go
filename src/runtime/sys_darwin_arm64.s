@@ -724,12 +724,8 @@ TEXT runtime·syscall9(SB),NOSPLIT,$0
 	MOVD	56(R0), R6	// a7
 	MOVD	64(R0), R7	// a8
 	MOVD	72(R0), R8	// a9
+	MOVD	R8, 0(RSP)	// the 9th arg and onwards must be passed on the stack
 	MOVD	8(R0), R0	// a1
-
-	// If fn is declared as vararg, we have to pass the vararg arguments on the stack.
-	// See syscall above. The only function this applies to is openat, for which the 4th
-	// arg must be on the stack.
-	MOVD	R3, (RSP)
 
 	BL	(R12)
 

@@ -496,6 +496,15 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 			// to the start of the first text section, even if there are multiple.
 			if sect.Name == ".text" {
 				o = ldr.SymValue(rs) - int64(Segtext.Sections[0].Vaddr) + r.Add()
+				if target.IsWasm() {
+					// On Wasm, textoff (e.g. in the method table) is just the function index,
+					// whereas the "PC" (rs's Value) is function index << 16 + block index (see
+					// ../wasm/asm.go:assignAddress).
+					if o&(1<<16-1) != 0 {
+						st.err.Errorf(s, "textoff relocation %s does not target function entry: %s %#x", rt, ldr.SymName(rs), o)
+					}
+					o >>= 16
+				}
 			} else {
 				o = ldr.SymValue(rs) - int64(ldr.SymSect(rs).Vaddr) + r.Add()
 			}
@@ -606,16 +615,16 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 			P[off] = byte(int8(o))
 		case 2:
 			if (rt == objabi.R_PCREL || rt == objabi.R_CALL) && o != int64(int16(o)) {
-				st.err.Errorf(s, "pc-relative relocation address for %s is too big: %#x", ldr.SymName(rs), o)
+				st.err.Errorf(s, "pc-relative relocation %s address for %s is too big: %#x", rt, ldr.SymName(rs), o)
 			} else if o != int64(int16(o)) && o != int64(uint16(o)) {
-				st.err.Errorf(s, "non-pc-relative relocation address for %s is too big: %#x", ldr.SymName(rs), uint64(o))
+				st.err.Errorf(s, "non-pc-relative relocation %s address for %s is too big: %#x", rt, ldr.SymName(rs), uint64(o))
 			}
 			target.Arch.ByteOrder.PutUint16(P[off:], uint16(o))
 		case 4:
 			if (rt == objabi.R_PCREL || rt == objabi.R_CALL) && o != int64(int32(o)) {
-				st.err.Errorf(s, "pc-relative relocation address for %s is too big: %#x", ldr.SymName(rs), o)
+				st.err.Errorf(s, "pc-relative relocation %s address for %s is too big: %#x", rt, ldr.SymName(rs), o)
 			} else if o != int64(int32(o)) && o != int64(uint32(o)) {
-				st.err.Errorf(s, "non-pc-relative relocation address for %s is too big: %#x", ldr.SymName(rs), uint64(o))
+				st.err.Errorf(s, "non-pc-relative relocation %s address for %s is too big: %#x", rt, ldr.SymName(rs), uint64(o))
 			}
 			target.Arch.ByteOrder.PutUint32(P[off:], uint32(o))
 		case 8:
@@ -2872,7 +2881,12 @@ func (ctxt *Link) address() []*sym.Segment {
 	}
 	order = append(order, &Segdata)
 	Segdata.Rwx = 06
-	Segdata.Vaddr = va
+	if *FlagDataAddr != -1 {
+		Segdata.Vaddr = uint64(*FlagDataAddr)
+		va = Segdata.Vaddr
+	} else {
+		Segdata.Vaddr = va
+	}
 	var data *sym.Section
 	var noptr *sym.Section
 	var bss *sym.Section

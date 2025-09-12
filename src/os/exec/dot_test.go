@@ -177,4 +177,48 @@ func TestLookPath(t *testing.T) {
 			}
 		}
 	})
+
+	checker := func(test string) func(t *testing.T) {
+		return func(t *testing.T) {
+			t.Helper()
+			t.Logf("PATH=%s", os.Getenv("PATH"))
+			p, err := LookPath(test)
+			if err == nil {
+				t.Errorf("%q: error expected, got nil", test)
+			}
+			if p != "" {
+				t.Errorf("%q: path returned should be \"\". Got %q", test, p)
+			}
+		}
+	}
+
+	// Reference behavior for the next test
+	t.Run(pathVar+"=$OTHER2", func(t *testing.T) {
+		t.Run("empty", checker(""))
+		t.Run("dot", checker("."))
+		t.Run("dotdot1", checker("abc/.."))
+		t.Run("dotdot2", checker(".."))
+	})
+
+	// Test the behavior when PATH contains an executable file which is not a directory
+	t.Run(pathVar+"=exe", func(t *testing.T) {
+		// Inject an executable file (not a directory) in PATH.
+		// Use our own binary os.Args[0].
+		t.Setenv(pathVar, testenv.Executable(t))
+		t.Run("empty", checker(""))
+		t.Run("dot", checker("."))
+		t.Run("dotdot1", checker("abc/.."))
+		t.Run("dotdot2", checker(".."))
+	})
+
+	// Test the behavior when PATH contains an executable file which is not a directory
+	t.Run(pathVar+"=exe/xx", func(t *testing.T) {
+		// Inject an executable file (not a directory) in PATH.
+		// Use our own binary os.Args[0].
+		t.Setenv(pathVar, filepath.Join(testenv.Executable(t), "xx"))
+		t.Run("empty", checker(""))
+		t.Run("dot", checker("."))
+		t.Run("dotdot1", checker("abc/.."))
+		t.Run("dotdot2", checker(".."))
+	})
 }

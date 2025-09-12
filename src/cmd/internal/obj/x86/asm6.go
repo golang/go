@@ -2037,23 +2037,6 @@ type nopPad struct {
 	n int32     // Size of the pad
 }
 
-// requireAlignment ensures that the function alignment is at
-// least as high as a, which should be a power of two
-// and between 8 and 2048, inclusive.
-//
-// the boolean result indicates whether the alignment meets those constraints
-func requireAlignment(a int64, ctxt *obj.Link, cursym *obj.LSym) bool {
-	if !((a&(a-1) == 0) && 8 <= a && a <= 2048) {
-		ctxt.Diag("alignment value of an instruction must be a power of two and in the range [8, 2048], got %d\n", a)
-		return false
-	}
-	// By default function alignment is 32 bytes for amd64
-	if cursym.Func().Align < int32(a) {
-		cursym.Func().Align = int32(a)
-	}
-	return true
-}
-
 func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	if ctxt.Retpoline && ctxt.Arch.Family == sys.I386 {
 		ctxt.Diag("-spectre=ret not supported on 386")
@@ -2137,19 +2120,6 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			c0 := c
 			c = pjc.padJump(ctxt, s, p, c)
 
-			if p.As == obj.APCALIGN || p.As == obj.APCALIGNMAX {
-				v := obj.AlignmentPadding(c, p, ctxt, s)
-				if v > 0 {
-					s.Grow(int64(c) + int64(v))
-					fillnop(s.P[c:], int(v))
-				}
-				p.Pc = int64(c)
-				c += int32(v)
-				pPrev = p
-				continue
-
-			}
-
 			if maxLoopPad > 0 && p.Back&branchLoopHead != 0 && c&(loopAlign-1) != 0 {
 				// pad with NOPs
 				v := -c & (loopAlign - 1)
@@ -2180,6 +2150,18 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 				} else {
 					binary.LittleEndian.PutUint32(s.P[q.Pc+int64(q.Isize)-4:], uint32(v))
 				}
+			}
+
+			if p.As == obj.APCALIGN || p.As == obj.APCALIGNMAX {
+				v := obj.AlignmentPadding(c, p, ctxt, s)
+				if v > 0 {
+					s.Grow(int64(c) + int64(v))
+					fillnop(s.P[c:], int(v))
+				}
+				p.Pc = int64(c)
+				c += int32(v)
+				pPrev = p
+				continue
 			}
 
 			p.Rel = nil
@@ -4030,15 +4012,6 @@ func (ab *AsmBuf) mediaop(ctxt *obj.Link, o *Optab, op int, osize int, z int) in
 	return z
 }
 
-var bpduff1 = []byte{
-	0x48, 0x89, 0x6c, 0x24, 0xf0, // MOVQ BP, -16(SP)
-	0x48, 0x8d, 0x6c, 0x24, 0xf0, // LEAQ -16(SP), BP
-}
-
-var bpduff2 = []byte{
-	0x48, 0x8b, 0x6d, 0x00, // MOVQ 0(BP), BP
-}
-
 // asmevex emits EVEX pregis and opcode byte.
 // In addition to asmvex r/m, vvvv and reg fields also requires optional
 // K-masking register.
@@ -4876,16 +4849,6 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 					ctxt.Diag("directly calling duff when dynamically linking Go")
 				}
 
-				if yt.zcase == Zcallduff && ctxt.Arch.Family == sys.AMD64 {
-					// Maintain BP around call, since duffcopy/duffzero can't do it
-					// (the call jumps into the middle of the function).
-					// This makes it possible to see call sites for duffcopy/duffzero in
-					// BP-based profiling tools like Linux perf (which is the
-					// whole point of maintaining frame pointers in Go).
-					// MOVQ BP, -16(SP)
-					// LEAQ -16(SP), BP
-					ab.Put(bpduff1)
-				}
 				ab.Put1(byte(op))
 				cursym.AddRel(ctxt, obj.Reloc{
 					Type: objabi.R_CALL,
@@ -4895,12 +4858,6 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 					Add:  p.To.Offset,
 				})
 				ab.PutInt32(0)
-
-				if yt.zcase == Zcallduff && ctxt.Arch.Family == sys.AMD64 {
-					// Pop BP pushed above.
-					// MOVQ 0(BP), BP
-					ab.Put(bpduff2)
-				}
 
 			// TODO: jump across functions needs reloc
 			case Zbr, Zjmp, Zloop:

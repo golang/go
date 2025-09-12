@@ -186,8 +186,8 @@ and flags that apply to the resulting test binary.
 
 Several of the flags control profiling and write an execution profile
 suitable for "go tool pprof"; run "go tool pprof -h" for more
-information. The --alloc_space, --alloc_objects, and --show_bytes
-options of pprof control how the information is presented.
+information. The -sample_index=alloc_space, -sample_index=alloc_objects,
+and -show_bytes options of pprof control how the information is presented.
 
 The following flags are recognized by the 'go test' command and
 control the execution of any test:
@@ -988,6 +988,15 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 			if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 && cfg.BuildCoverPkg == nil {
 				p.Internal.Cover.GenMeta = true
 			}
+
+			// Set coverage mode before building actions because it needs to be set
+			// before the first package build action for the package under test is
+			// created and cached, so that we can create the coverage action for it.
+			if cfg.BuildCover {
+				if p.Internal.Cover.GenMeta {
+					p.Internal.Cover.Mode = cfg.BuildCoverMode
+				}
+			}
 		}
 	}
 
@@ -1044,11 +1053,36 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 		prints = append(prints, printTest)
 	}
 
-	// Order runs for coordinating start JSON prints.
+	// Order runs for coordinating start JSON prints via two mechanisms:
+	// 1. Channel locking forces runTest actions to start in-order.
+	// 2. Barrier tasks force runTest actions to be scheduled in-order.
+	// We need both for performant behavior, as channel locking without the barrier tasks starves the worker pool,
+	// and barrier tasks without channel locking doesn't guarantee start in-order behavior alone.
+	var prevBarrier *work.Action
 	ch := make(chan struct{})
 	close(ch)
 	for _, a := range runs {
 		if r, ok := a.Actor.(*runTestActor); ok {
+			// Inject a barrier task between the run action and its dependencies.
+			// This barrier task wil also depend on the previous barrier task.
+			// This prevents the run task from being scheduled until all previous run dependencies have finished.
+			// The build graph will be augmented to look roughly like this:
+			//	build("a")           build("b")           build("c")
+			//	    |                   |                     |
+			//	barrier("a.test") -> barrier("b.test") -> barrier("c.test")
+			//	    |                   |                     |
+			//	run("a.test")        run("b.test")        run("c.test")
+
+			barrier := &work.Action{
+				Mode: "test barrier",
+				Deps: slices.Clip(a.Deps),
+			}
+			if prevBarrier != nil {
+				barrier.Deps = append(barrier.Deps, prevBarrier)
+			}
+			a.Deps = []*work.Action{barrier}
+			prevBarrier = barrier
+
 			r.prev = ch
 			ch = make(chan struct{})
 			r.next = ch
@@ -1091,11 +1125,6 @@ var windowsBadWords = []string{
 
 func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts, p *load.Package, imported bool, writeCoverMetaAct *work.Action) (buildAction, runAction, printAction *work.Action, perr *load.Package, err error) {
 	if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
-		if cfg.BuildCover {
-			if p.Internal.Cover.GenMeta {
-				p.Internal.Cover.Mode = cfg.BuildCoverMode
-			}
-		}
 		build := b.CompileAction(work.ModeBuild, work.ModeBuild, p)
 		run := &work.Action{
 			Mode:       "test run",
@@ -1163,7 +1192,9 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
 
 	testBinary := testBinaryName(p)
 
-	testDir := b.NewObjdir()
+	// Set testdir to compile action's objdir.
+	// so that the default file path stripping applies to _testmain.go.
+	testDir := b.CompileAction(work.ModeBuild, work.ModeBuild, pmain).Objdir
 	if err := b.BackgroundShell().Mkdir(testDir); err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -1183,10 +1214,6 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
 			return nil, nil, nil, nil, err
 		}
 	}
-
-	// Set compile objdir to testDir we've already created,
-	// so that the default file path stripping applies to _testmain.go.
-	b.CompileAction(work.ModeBuild, work.ModeBuild, pmain).Objdir = testDir
 
 	a := b.LinkAction(work.ModeBuild, work.ModeBuild, pmain)
 	a.Target = testDir + testBinary + cfg.ExeSuffix
@@ -1400,6 +1427,8 @@ func (lockedStdout) Write(b []byte) (int, error) {
 
 func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action) error {
 	sh := b.Shell(a)
+	barrierAction := a.Deps[0]
+	buildAction := barrierAction.Deps[0]
 
 	// Wait for previous test to get started and print its first json line.
 	select {
@@ -1530,7 +1559,7 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 		// we have different link inputs but the same final binary,
 		// we still reuse the cached test result.
 		// c.saveOutput will store the result under both IDs.
-		r.c.tryCacheWithID(b, a, a.Deps[0].BuildContentID())
+		r.c.tryCacheWithID(b, a, buildAction.BuildContentID())
 	}
 	if r.c.buf != nil {
 		if stdout != &buf {
@@ -1581,7 +1610,7 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 		// fresh copies of tools to test as part of the testing.
 		addToEnv = "GOCOVERDIR=" + gcd
 	}
-	args := str.StringList(execCmd, a.Deps[0].BuiltTarget(), testlogArg, panicArg, fuzzArg, coverdirArg, testArgs)
+	args := str.StringList(execCmd, buildAction.BuiltTarget(), testlogArg, panicArg, fuzzArg, coverdirArg, testArgs)
 
 	if testCoverProfile != "" {
 		// Write coverage to temporary profile, for merging later.
@@ -1741,8 +1770,8 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 // tryCache is called just before the link attempt,
 // to see if the test result is cached and therefore the link is unneeded.
 // It reports whether the result can be satisfied from cache.
-func (c *runCache) tryCache(b *work.Builder, a *work.Action) bool {
-	return c.tryCacheWithID(b, a, a.Deps[0].BuildActionID())
+func (c *runCache) tryCache(b *work.Builder, a *work.Action, linkAction *work.Action) bool {
+	return c.tryCacheWithID(b, a, linkAction.BuildActionID())
 }
 
 func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bool {

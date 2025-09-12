@@ -145,7 +145,7 @@ func checkFunc(f *Func) {
 					f.Fatalf("bad int32 AuxInt value for %v", v)
 				}
 				canHaveAuxInt = true
-			case auxInt64, auxARM64BitField:
+			case auxInt64, auxARM64BitField, auxARM64ConditionalParams:
 				canHaveAuxInt = true
 			case auxInt128:
 				// AuxInt must be zero, so leave canHaveAuxInt set to false.
@@ -214,6 +214,9 @@ func checkFunc(f *Func) {
 				if v.AuxInt < 0 || v.AuxInt > 15 {
 					f.Fatalf("bad FlagConstant AuxInt value for %v", v)
 				}
+				canHaveAuxInt = true
+			case auxPanicBoundsC, auxPanicBoundsCC:
+				canHaveAux = true
 				canHaveAuxInt = true
 			default:
 				f.Fatalf("unknown aux type for %s", v.Op)

@@ -19,6 +19,7 @@ func Mul2(f float64) float64 {
 	// amd64:"ADDSD",-"MULSD"
 	// arm/7:"ADDD",-"MULD"
 	// arm64:"FADDD",-"FMULD"
+	// loong64:"ADDD",-"MULD"
 	// ppc64x:"FADD",-"FMUL"
 	// riscv64:"FADDD",-"FMULD"
 	return f * 2.0
@@ -29,6 +30,7 @@ func DivPow2(f1, f2, f3 float64) (float64, float64, float64) {
 	// amd64:"MULSD",-"DIVSD"
 	// arm/7:"MULD",-"DIVD"
 	// arm64:"FMULD",-"FDIVD"
+	// loong64:"MULD",-"DIVD"
 	// ppc64x:"FMUL",-"FDIV"
 	// riscv64:"FMULD",-"FDIVD"
 	x := f1 / 16.0
@@ -37,6 +39,7 @@ func DivPow2(f1, f2, f3 float64) (float64, float64, float64) {
 	// amd64:"MULSD",-"DIVSD"
 	// arm/7:"MULD",-"DIVD"
 	// arm64:"FMULD",-"FDIVD"
+	// loong64:"MULD",-"DIVD"
 	// ppc64x:"FMUL",-"FDIVD"
 	// riscv64:"FMULD",-"FDIVD"
 	y := f2 / 0.125
@@ -45,6 +48,7 @@ func DivPow2(f1, f2, f3 float64) (float64, float64, float64) {
 	// amd64:"ADDSD",-"DIVSD",-"MULSD"
 	// arm/7:"ADDD",-"MULD",-"DIVD"
 	// arm64:"FADDD",-"FMULD",-"FDIVD"
+	// loong64:"ADDD",-"MULD",-"DIVD"
 	// ppc64x:"FADD",-"FMUL",-"FDIV"
 	// riscv64:"FADDD",-"FMULD",-"FDIVD"
 	z := f3 / 0.5
@@ -172,6 +176,7 @@ func Float64Min(a, b float64) float64 {
 	// riscv64:"FMIN"
 	// ppc64/power9:"XSMINJDP"
 	// ppc64/power10:"XSMINJDP"
+	// s390x: "WFMINDB"
 	return min(a, b)
 }
 
@@ -182,6 +187,7 @@ func Float64Max(a, b float64) float64 {
 	// riscv64:"FMAX"
 	// ppc64/power9:"XSMAXJDP"
 	// ppc64/power10:"XSMAXJDP"
+	// s390x: "WFMAXDB"
 	return max(a, b)
 }
 
@@ -192,6 +198,7 @@ func Float32Min(a, b float32) float32 {
 	// riscv64:"FMINS"
 	// ppc64/power9:"XSMINJDP"
 	// ppc64/power10:"XSMINJDP"
+	// s390x: "WFMINSB"
 	return min(a, b)
 }
 
@@ -202,6 +209,7 @@ func Float32Max(a, b float32) float32 {
 	// riscv64:"FMAXS"
 	// ppc64/power9:"XSMAXJDP"
 	// ppc64/power10:"XSMAXJDP"
+	// s390x: "WFMAXSB"
 	return max(a, b)
 }
 

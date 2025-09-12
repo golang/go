@@ -62,6 +62,11 @@ func isFatalError(err error, flags jsonflags.Flags) bool {
 // SemanticError describes an error determining the meaning
 // of JSON data as Go data or vice-versa.
 //
+// If a [Marshaler], [MarshalerTo], [Unmarshaler], or [UnmarshalerFrom] method
+// returns a SemanticError when called by the [json] package,
+// then the ByteOffset, JSONPointer, and GoType fields are automatically
+// populated by the calling context if they are the zero value.
+//
 // The contents of this error as produced by this package may change over time.
 type SemanticError struct {
 	requireKeyedLiterals
@@ -88,7 +93,10 @@ type SemanticError struct {
 }
 
 // coder is implemented by [jsontext.Encoder] or [jsontext.Decoder].
-type coder interface{ StackPointer() jsontext.Pointer }
+type coder interface {
+	StackPointer() jsontext.Pointer
+	Options() Options
+}
 
 // newInvalidFormatError wraps err in a SemanticError because
 // the current type t cannot handle the provided options format.
@@ -97,13 +105,13 @@ type coder interface{ StackPointer() jsontext.Pointer }
 // If [jsonflags.ReportErrorsWithLegacySemantics] is specified,
 // then this automatically skips the next value when unmarshaling
 // to ensure that the value is fully consumed.
-func newInvalidFormatError(c coder, t reflect.Type, o *jsonopts.Struct) error {
-	err := fmt.Errorf("invalid format flag %q", o.Format)
+func newInvalidFormatError(c coder, t reflect.Type) error {
+	err := fmt.Errorf("invalid format flag %q", c.Options().(*jsonopts.Struct).Format)
 	switch c := c.(type) {
 	case *jsontext.Encoder:
 		err = newMarshalErrorBefore(c, t, err)
 	case *jsontext.Decoder:
-		err = newUnmarshalErrorBeforeWithSkipping(c, o, t, err)
+		err = newUnmarshalErrorBeforeWithSkipping(c, t, err)
 	}
 	return err
 }
@@ -120,18 +128,25 @@ func newMarshalErrorBefore(e *jsontext.Encoder, t reflect.Type, err error) error
 // is positioned right before the next token or value, which causes an error.
 // It does not record the next JSON kind as this error is used to indicate
 // the receiving Go value is invalid to unmarshal into (and not a JSON error).
+// However, if [jsonflags.ReportErrorsWithLegacySemantics] is specified,
+// then it does record the next JSON kind for historical reporting reasons.
 func newUnmarshalErrorBefore(d *jsontext.Decoder, t reflect.Type, err error) error {
+	var k jsontext.Kind
+	if export.Decoder(d).Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
+		k = d.PeekKind()
+	}
 	return &SemanticError{action: "unmarshal", GoType: t, Err: err,
 		ByteOffset:  d.InputOffset() + int64(export.Decoder(d).CountNextDelimWhitespace()),
-		JSONPointer: jsontext.Pointer(export.Decoder(d).AppendStackPointer(nil, +1))}
+		JSONPointer: jsontext.Pointer(export.Decoder(d).AppendStackPointer(nil, +1)),
+		JSONKind:    k}
 }
 
 // newUnmarshalErrorBeforeWithSkipping is like [newUnmarshalErrorBefore],
 // but automatically skips the next value if
 // [jsonflags.ReportErrorsWithLegacySemantics] is specified.
-func newUnmarshalErrorBeforeWithSkipping(d *jsontext.Decoder, o *jsonopts.Struct, t reflect.Type, err error) error {
+func newUnmarshalErrorBeforeWithSkipping(d *jsontext.Decoder, t reflect.Type, err error) error {
 	err = newUnmarshalErrorBefore(d, t, err)
-	if o.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
+	if export.Decoder(d).Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
 		if err2 := export.Decoder(d).SkipValue(); err2 != nil {
 			return err2
 		}
@@ -163,9 +178,9 @@ func newUnmarshalErrorAfterWithValue(d *jsontext.Decoder, t reflect.Type, err er
 // newUnmarshalErrorAfterWithSkipping is like [newUnmarshalErrorAfter],
 // but automatically skips the remainder of the current value if
 // [jsonflags.ReportErrorsWithLegacySemantics] is specified.
-func newUnmarshalErrorAfterWithSkipping(d *jsontext.Decoder, o *jsonopts.Struct, t reflect.Type, err error) error {
+func newUnmarshalErrorAfterWithSkipping(d *jsontext.Decoder, t reflect.Type, err error) error {
 	err = newUnmarshalErrorAfter(d, t, err)
-	if o.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
+	if export.Decoder(d).Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
 		if err2 := export.Decoder(d).SkipValueRemainder(); err2 != nil {
 			return err2
 		}

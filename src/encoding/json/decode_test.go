@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"image"
+	"io"
 	"maps"
 	"math"
 	"math/big"
@@ -415,6 +416,8 @@ type DoublePtr struct {
 	J **int
 }
 
+type NestedUnamed struct{ F struct{ V int } }
+
 var unmarshalTests = []struct {
 	CaseName
 	in                    string
@@ -469,11 +472,13 @@ var unmarshalTests = []struct {
 	{CaseName: Name(""), in: `{"alphabet": "xyz"}`, ptr: new(U), err: fmt.Errorf("json: unknown field \"alphabet\""), disallowUnknownFields: true},
 
 	// syntax errors
+	{CaseName: Name(""), in: ``, ptr: new(any), err: &SyntaxError{"unexpected end of JSON input", 0}},
+	{CaseName: Name(""), in: " \n\r\t", ptr: new(any), err: &SyntaxError{"unexpected end of JSON input", 4}},
+	{CaseName: Name(""), in: `[2, 3`, ptr: new(any), err: &SyntaxError{"unexpected end of JSON input", 5}},
 	{CaseName: Name(""), in: `{"X": "foo", "Y"}`, err: &SyntaxError{"invalid character '}' after object key", 17}},
 	{CaseName: Name(""), in: `[1, 2, 3+]`, err: &SyntaxError{"invalid character '+' after array element", 9}},
 	{CaseName: Name(""), in: `{"X":12x}`, err: &SyntaxError{"invalid character 'x' after object key:value pair", 8}, useNumber: true},
-	{CaseName: Name(""), in: `[2, 3`, err: &SyntaxError{msg: "unexpected end of JSON input", Offset: 5}},
-	{CaseName: Name(""), in: `{"F3": -}`, ptr: new(V), err: &SyntaxError{msg: "invalid character '}' in numeric literal", Offset: 9}},
+	{CaseName: Name(""), in: `{"F3": -}`, ptr: new(V), err: &SyntaxError{"invalid character '}' in numeric literal", 9}},
 
 	// raw value errors
 	{CaseName: Name(""), in: "\x01 42", err: &SyntaxError{"invalid character '\\x01' looking for beginning of value", 1}},
@@ -1210,6 +1215,28 @@ var unmarshalTests = []struct {
 			F string `json:"-,omitempty"`
 		}{"hello"},
 	},
+
+	{
+		CaseName: Name("ErrorForNestedUnamed"),
+		in:       `{"F":{"V":"s"}}`,
+		ptr:      new(NestedUnamed),
+		out:      NestedUnamed{},
+		err:      &UnmarshalTypeError{Value: "string", Type: reflect.TypeFor[int](), Offset: 13, Field: "F.V"},
+	},
+	{
+		CaseName: Name("ErrorInterface"),
+		in:       `1`,
+		ptr:      new(error),
+		out:      error(nil),
+		err:      &UnmarshalTypeError{Value: "number", Type: reflect.TypeFor[error](), Offset: 1},
+	},
+	{
+		CaseName: Name("ErrorChan"),
+		in:       `1`,
+		ptr:      new(chan int),
+		out:      (chan int)(nil),
+		err:      &UnmarshalTypeError{Value: "number", Type: reflect.TypeFor[chan int](), Offset: 1},
+	},
 }
 
 func TestMarshal(t *testing.T) {
@@ -1376,6 +1403,14 @@ func TestUnmarshal(t *testing.T) {
 			}
 			if tt.disallowUnknownFields {
 				dec.DisallowUnknownFields()
+			}
+			if tt.err != nil && strings.Contains(tt.err.Error(), "unexpected end of JSON input") {
+				// In streaming mode, we expect EOF or ErrUnexpectedEOF instead.
+				if strings.TrimSpace(tt.in) == "" {
+					tt.err = io.EOF
+				} else {
+					tt.err = io.ErrUnexpectedEOF
+				}
 			}
 			if err := dec.Decode(v.Interface()); !equalError(err, tt.err) {
 				t.Fatalf("%s: Decode error:\n\tgot:  %v\n\twant: %v\n\n\tgot:  %#v\n\twant: %#v", tt.Where, err, tt.err, err, tt.err)

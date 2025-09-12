@@ -17,6 +17,7 @@ package profile
 import (
 	"encoding/binary"
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -78,12 +79,10 @@ func Merge(srcs []*Profile) (*Profile, error) {
 		}
 	}
 
-	for _, s := range p.Sample {
-		if isZeroSample(s) {
-			// If there are any zero samples, re-merge the profile to GC
-			// them.
-			return Merge([]*Profile{p})
-		}
+	if slices.ContainsFunc(p.Sample, isZeroSample) {
+		// If there are any zero samples, re-merge the profile to GC
+		// them.
+		return Merge([]*Profile{p})
 	}
 
 	return p, nil

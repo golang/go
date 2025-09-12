@@ -178,7 +178,7 @@ func selectgo(cas0 *scase, order0 *uint16, pc0 *uintptr, nsends, nrecvs int, blo
 
 		if cas.c.bubble != nil {
 			if getg().bubble != cas.c.bubble {
-				panic(plainError("select on synctest channel from outside bubble"))
+				fatal("select on synctest channel from outside bubble")
 			}
 		} else {
 			allSynctest = false

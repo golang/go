@@ -22,7 +22,7 @@ func TestSizeof(t *testing.T) {
 	}{
 		{Sym{}, 32, 64},
 		{Type{}, 60, 96},
-		{Map{}, 16, 32},
+		{Map{}, 12, 24},
 		{Forward{}, 20, 32},
 		{Func{}, 32, 56},
 		{Struct{}, 12, 24},

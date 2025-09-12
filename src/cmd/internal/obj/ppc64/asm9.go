@@ -2137,10 +2137,6 @@ func OPVCC(o uint32, xo uint32, oe uint32, rc uint32) uint32 {
 	return o<<26 | xo<<1 | oe<<10 | rc&1
 }
 
-func OPCC(o uint32, xo uint32, rc uint32) uint32 {
-	return OPVCC(o, xo, 0, rc)
-}
-
 /* Generate MD-form opcode */
 func OPMD(o, xo, rc uint32) uint32 {
 	return o<<26 | xo<<2 | rc&1

@@ -677,7 +677,7 @@ func (t *tester) registerTests() {
 			}
 			t.registerStdTest(pkg)
 		}
-		if t.race {
+		if t.race && !t.short {
 			for _, pkg := range pkgs {
 				if t.packageHasBenchmarks(pkg) {
 					t.registerRaceBenchTest(pkg)
@@ -1211,7 +1211,7 @@ func (t *tester) internalLinkPIE() bool {
 	case "darwin-amd64", "darwin-arm64",
 		"linux-amd64", "linux-arm64", "linux-loong64", "linux-ppc64le",
 		"android-arm64",
-		"windows-amd64", "windows-386", "windows-arm":
+		"windows-amd64", "windows-386":
 		return true
 	}
 	return false
@@ -1698,7 +1698,7 @@ func (t *tester) makeGOROOTUnwritable() (undo func()) {
 func raceDetectorSupported(goos, goarch string) bool {
 	switch goos {
 	case "linux":
-		return goarch == "amd64" || goarch == "ppc64le" || goarch == "arm64" || goarch == "s390x" || goarch == "loong64"
+		return goarch == "amd64" || goarch == "arm64" || goarch == "loong64" || goarch == "ppc64le" || goarch == "riscv64" || goarch == "s390x"
 	case "darwin":
 		return goarch == "amd64" || goarch == "arm64"
 	case "freebsd", "netbsd", "windows":
@@ -1773,7 +1773,7 @@ func buildModeSupported(compiler, buildmode, goos, goarch string) bool {
 			"ios/amd64", "ios/arm64",
 			"aix/ppc64",
 			"openbsd/arm64",
-			"windows/386", "windows/amd64", "windows/arm", "windows/arm64":
+			"windows/386", "windows/amd64", "windows/arm64":
 			return true
 		}
 		return false
@@ -1835,7 +1835,6 @@ func (t *tester) fipsSupported() bool {
 	switch {
 	case goarch == "wasm",
 		goos == "windows" && goarch == "386",
-		goos == "windows" && goarch == "arm",
 		goos == "openbsd",
 		goos == "aix":
 		return false

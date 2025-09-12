@@ -102,7 +102,7 @@ var (
 )
 
 func netpollinit() {
-	iocphandle = stdcall4(_CreateIoCompletionPort, _INVALID_HANDLE_VALUE, 0, 0, _DWORD_MAX)
+	iocphandle = stdcall(_CreateIoCompletionPort, _INVALID_HANDLE_VALUE, 0, 0, _DWORD_MAX)
 	if iocphandle == 0 {
 		println("runtime: CreateIoCompletionPort failed (errno=", getlasterror(), ")")
 		throw("runtime: netpollinit failed")
@@ -115,7 +115,7 @@ func netpollIsPollDescriptor(fd uintptr) bool {
 
 func netpollopen(fd uintptr, pd *pollDesc) int32 {
 	key := packNetpollKey(netpollSourceReady, pd)
-	if stdcall4(_CreateIoCompletionPort, fd, iocphandle, key, 0) == 0 {
+	if stdcall(_CreateIoCompletionPort, fd, iocphandle, key, 0) == 0 {
 		return int32(getlasterror())
 	}
 	return 0
@@ -137,7 +137,7 @@ func netpollBreak() {
 	}
 
 	key := packNetpollKey(netpollSourceBreak, nil)
-	if stdcall4(_PostQueuedCompletionStatus, iocphandle, 0, key, 0) == 0 {
+	if stdcall(_PostQueuedCompletionStatus, iocphandle, 0, key, 0) == 0 {
 		println("runtime: netpoll: PostQueuedCompletionStatus failed (errno=", getlasterror(), ")")
 		throw("runtime: netpoll: PostQueuedCompletionStatus failed")
 	}
@@ -197,7 +197,7 @@ func netpoll(delay int64) (gList, int32) {
 	if delay != 0 {
 		mp.blocked = true
 	}
-	if stdcall6(_GetQueuedCompletionStatusEx, iocphandle, uintptr(unsafe.Pointer(&entries[0])), uintptr(n), uintptr(unsafe.Pointer(&n)), uintptr(wait), 0) == 0 {
+	if stdcall(_GetQueuedCompletionStatusEx, iocphandle, uintptr(unsafe.Pointer(&entries[0])), uintptr(n), uintptr(unsafe.Pointer(&n)), uintptr(wait), 0) == 0 {
 		mp.blocked = false
 		errno := getlasterror()
 		if errno == _WAIT_TIMEOUT {
@@ -256,7 +256,7 @@ func netpollQueueTimer(delay int64) (signaled bool) {
 	// such as a netpollBreak, so we can get to this point with a timer that hasn't
 	// expired yet. In this case, the completion packet can still be picked up by
 	// another thread, so defer the cancellation until it is really necessary.
-	errno := stdcall2(_NtCancelWaitCompletionPacket, mp.waitIocpHandle, 1)
+	errno := stdcall(_NtCancelWaitCompletionPacket, mp.waitIocpHandle, 1)
 	switch errno {
 	case STATUS_CANCELLED:
 		// STATUS_CANCELLED is returned when the associated timer has already expired,
@@ -264,12 +264,12 @@ func netpollQueueTimer(delay int64) (signaled bool) {
 		fallthrough
 	case STATUS_SUCCESS:
 		dt := -delay / 100 // relative sleep (negative), 100ns units
-		if stdcall6(_SetWaitableTimer, mp.waitIocpTimer, uintptr(unsafe.Pointer(&dt)), 0, 0, 0, 0) == 0 {
+		if stdcall(_SetWaitableTimer, mp.waitIocpTimer, uintptr(unsafe.Pointer(&dt)), 0, 0, 0, 0) == 0 {
 			println("runtime: SetWaitableTimer failed; errno=", getlasterror())
 			throw("runtime: netpoll failed")
 		}
 		key := packNetpollKey(netpollSourceTimer, nil)
-		if errno := stdcall8(_NtAssociateWaitCompletionPacket, mp.waitIocpHandle, iocphandle, mp.waitIocpTimer, key, 0, 0, 0, uintptr(unsafe.Pointer(&signaled))); errno != 0 {
+		if errno := stdcall(_NtAssociateWaitCompletionPacket, mp.waitIocpHandle, iocphandle, mp.waitIocpTimer, key, 0, 0, 0, uintptr(unsafe.Pointer(&signaled))); errno != 0 {
 			println("runtime: NtAssociateWaitCompletionPacket failed; errno=", errno)
 			throw("runtime: netpoll failed")
 		}

@@ -24,12 +24,12 @@ func TestComment(t *testing.T) {
 	pkg := New(pkgs["pkgdoc"], "testdata/pkgdoc", 0)
 
 	var (
-		input           = "[T] and [U] are types, and [T.M] is a method, but [V] is a broken link. [rand.Int] and [crand.Reader] are things. [G.M1] and [G.M2] are generic methods.\n"
-		wantHTML        = `<p><a href="#T">T</a> and <a href="#U">U</a> are types, and <a href="#T.M">T.M</a> is a method, but [V] is a broken link. <a href="/math/rand#Int">rand.Int</a> and <a href="/crypto/rand#Reader">crand.Reader</a> are things. <a href="#G.M1">G.M1</a> and <a href="#G.M2">G.M2</a> are generic methods.` + "\n"
-		wantOldHTML     = "<p>[T] and [U] are <i>types</i>, and [T.M] is a method, but [V] is a broken link. [rand.Int] and [crand.Reader] are things. [G.M1] and [G.M2] are generic methods.\n"
-		wantMarkdown    = "[T](#T) and [U](#U) are types, and [T.M](#T.M) is a method, but \\[V] is a broken link. [rand.Int](/math/rand#Int) and [crand.Reader](/crypto/rand#Reader) are things. [G.M1](#G.M1) and [G.M2](#G.M2) are generic methods.\n"
-		wantText        = "T and U are types, and T.M is a method, but [V] is a broken link. rand.Int and\ncrand.Reader are things. G.M1 and G.M2 are generic methods.\n"
-		wantOldText     = "[T] and [U] are types, and [T.M] is a method, but [V] is a broken link.\n[rand.Int] and [crand.Reader] are things. [G.M1] and [G.M2] are generic methods.\n"
+		input           = "[T] and [U] are types, and [T.M] is a method, but [V] is a broken link. [rand.Int] and [crand.Reader] are things. [G.M1] and [G.M2] are generic methods. [I.F] is an interface method and [I.V] is a broken link.\n"
+		wantHTML        = `<p><a href="#T">T</a> and <a href="#U">U</a> are types, and <a href="#T.M">T.M</a> is a method, but [V] is a broken link. <a href="/math/rand#Int">rand.Int</a> and <a href="/crypto/rand#Reader">crand.Reader</a> are things. <a href="#G.M1">G.M1</a> and <a href="#G.M2">G.M2</a> are generic methods. <a href="#I.F">I.F</a> is an interface method and [I.V] is a broken link.` + "\n"
+		wantOldHTML     = "<p>[T] and [U] are <i>types</i>, and [T.M] is a method, but [V] is a broken link. [rand.Int] and [crand.Reader] are things. [G.M1] and [G.M2] are generic methods. [I.F] is an interface method and [I.V] is a broken link.\n"
+		wantMarkdown    = "[T](#T) and [U](#U) are types, and [T.M](#T.M) is a method, but \\[V] is a broken link. [rand.Int](/math/rand#Int) and [crand.Reader](/crypto/rand#Reader) are things. [G.M1](#G.M1) and [G.M2](#G.M2) are generic methods. [I.F](#I.F) is an interface method and \\[I.V] is a broken link.\n"
+		wantText        = "T and U are types, and T.M is a method, but [V] is a broken link. rand.Int and\ncrand.Reader are things. G.M1 and G.M2 are generic methods. I.F is an interface\nmethod and [I.V] is a broken link.\n"
+		wantOldText     = "[T] and [U] are types, and [T.M] is a method, but [V] is a broken link.\n[rand.Int] and [crand.Reader] are things. [G.M1] and [G.M2] are generic methods.\n[I.F] is an interface method and [I.V] is a broken link.\n"
 		wantSynopsis    = "T and U are types, and T.M is a method, but [V] is a broken link."
 		wantOldSynopsis = "[T] and [U] are types, and [T.M] is a method, but [V] is a broken link."
 	)

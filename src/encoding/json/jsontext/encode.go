@@ -107,12 +107,17 @@ func (e *Encoder) Reset(w io.Writer, opts ...Options) {
 	case e.s.Flags.Get(jsonflags.WithinArshalCall):
 		panic("jsontext: cannot reset Encoder passed to json.MarshalerTo")
 	}
-	e.s.reset(nil, w, opts...)
+	// Reuse the buffer if it does not alias a previous [bytes.Buffer].
+	b := e.s.Buf[:0]
+	if _, ok := e.s.wr.(*bytes.Buffer); ok {
+		b = nil
+	}
+	e.s.reset(b, w, opts...)
 }
 
 func (e *encoderState) reset(b []byte, w io.Writer, opts ...Options) {
 	e.state.reset()
-	e.encodeBuffer = encodeBuffer{Buf: b, wr: w, bufStats: e.bufStats}
+	e.encodeBuffer = encodeBuffer{Buf: b, wr: w, availBuffer: e.availBuffer, bufStats: e.bufStats}
 	if bb, ok := w.(*bytes.Buffer); ok && bb != nil {
 		e.Buf = bb.AvailableBuffer() // alias the unused buffer of bb
 	}

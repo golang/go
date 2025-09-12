@@ -482,11 +482,11 @@ func indirect(v reflect.Value, decodingNull bool) (Unmarshaler, encoding.TextUnm
 			v.Set(reflect.New(v.Type().Elem()))
 		}
 		if v.Type().NumMethod() > 0 && v.CanInterface() {
-			if u, ok := v.Interface().(Unmarshaler); ok {
+			if u, ok := reflect.TypeAssert[Unmarshaler](v); ok {
 				return u, nil, reflect.Value{}
 			}
 			if !decodingNull {
-				if u, ok := v.Interface().(encoding.TextUnmarshaler); ok {
+				if u, ok := reflect.TypeAssert[encoding.TextUnmarshaler](v); ok {
 					return nil, u, reflect.Value{}
 				}
 			}
@@ -1213,10 +1213,6 @@ func unquoteBytes(s []byte) (t []byte, ok bool) {
 		c := s[r]
 		if c == '\\' || c == '"' || c < ' ' {
 			break
-		}
-		if c < utf8.RuneSelf {
-			r++
-			continue
 		}
 		rr, size := utf8.DecodeRune(s[r:])
 		if rr == utf8.RuneError && size == 1 {

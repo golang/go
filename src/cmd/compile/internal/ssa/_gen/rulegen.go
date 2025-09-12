@@ -540,6 +540,13 @@ func (u *unusedInspector) node(node ast.Node) {
 			}
 		}
 	case *ast.BasicLit:
+	case *ast.CompositeLit:
+		for _, e := range node.Elts {
+			u.node(e)
+		}
+	case *ast.KeyValueExpr:
+		u.node(node.Key)
+		u.node(node.Value)
 	case *ast.ValueSpec:
 		u.exprs(node.Values)
 	default:
@@ -1431,7 +1438,8 @@ func parseValue(val string, arch arch, loc string) (op opData, oparch, typ, auxi
 func opHasAuxInt(op opData) bool {
 	switch op.aux {
 	case "Bool", "Int8", "Int16", "Int32", "Int64", "Int128", "UInt8", "Float32", "Float64",
-		"SymOff", "CallOff", "SymValAndOff", "TypSize", "ARM64BitField", "FlagConstant", "CCop":
+		"SymOff", "CallOff", "SymValAndOff", "TypSize", "ARM64BitField", "FlagConstant", "CCop",
+		"PanicBoundsC", "PanicBoundsCC", "ARM64ConditionalParams":
 		return true
 	}
 	return false
@@ -1440,7 +1448,7 @@ func opHasAuxInt(op opData) bool {
 func opHasAux(op opData) bool {
 	switch op.aux {
 	case "String", "Sym", "SymOff", "Call", "CallOff", "SymValAndOff", "Typ", "TypSize",
-		"S390XCCMask", "S390XRotateParams":
+		"S390XCCMask", "S390XRotateParams", "PanicBoundsC", "PanicBoundsCC":
 		return true
 	}
 	return false
@@ -1795,6 +1803,10 @@ func (op opData) auxType() string {
 		return "s390x.CCMask"
 	case "S390XRotateParams":
 		return "s390x.RotateParams"
+	case "PanicBoundsC":
+		return "PanicBoundsC"
+	case "PanicBoundsCC":
+		return "PanicBoundsCC"
 	default:
 		return "invalid"
 	}
@@ -1835,6 +1847,10 @@ func (op opData) auxIntType() string {
 		return "flagConstant"
 	case "ARM64BitField":
 		return "arm64BitField"
+	case "ARM64ConditionalParams":
+		return "arm64ConditionalParams"
+	case "PanicBoundsC", "PanicBoundsCC":
+		return "int64"
 	default:
 		return "invalid"
 	}

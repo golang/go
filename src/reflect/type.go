@@ -1314,7 +1314,8 @@ func TypeOf(i any) Type {
 
 // TypeFor returns the [Type] that represents the type argument T.
 func TypeFor[T any]() Type {
-	return toType(abi.TypeFor[T]())
+	// toRType is safe to use here; type is never nil as T is statically known.
+	return toRType(abi.TypeFor[T]())
 }
 
 // rtypeOf directly extracts the *rtype of the provided value.
@@ -1813,7 +1814,7 @@ func ChanOf(dir ChanDir, t Type) Type {
 	var ichan any = (chan unsafe.Pointer)(nil)
 	prototype := *(**chanType)(unsafe.Pointer(&ichan))
 	ch := *prototype
-	ch.TFlag = abi.TFlagRegularMemory
+	ch.TFlag = abi.TFlagRegularMemory | abi.TFlagDirectIface
 	ch.Dir = abi.ChanDir(dir)
 	ch.Str = resolveReflectName(newName(s, "", false, false))
 	ch.Hash = fnv1(typ.Hash, 'c', byte(dir))
@@ -1894,7 +1895,7 @@ func FuncOf(in, out []Type, variadic bool) Type {
 		hash = fnv1(hash, byte(t.t.Hash>>24), byte(t.t.Hash>>16), byte(t.t.Hash>>8), byte(t.t.Hash))
 	}
 
-	ft.TFlag = 0
+	ft.TFlag = abi.TFlagDirectIface
 	ft.Hash = hash
 	ft.InCount = uint16(len(in))
 	ft.OutCount = uint16(len(out))
@@ -2313,7 +2314,7 @@ func StructOf(fields []StructField) Type {
 						// Issue 15924.
 						panic("reflect: embedded type with methods not implemented if type is not first field")
 					}
-					if len(fields) > 1 && ft.Kind_&abi.KindDirectIface != 0 {
+					if len(fields) > 1 && ft.IsDirectIface() {
 						panic("reflect: embedded type with methods not implemented for non-pointer type")
 					}
 					for _, m := range unt.Methods() {
@@ -2524,11 +2525,11 @@ func StructOf(fields []StructField) Type {
 	}
 
 	switch {
-	case len(fs) == 1 && !fs[0].Typ.IfaceIndir():
+	case len(fs) == 1 && fs[0].Typ.IsDirectIface():
 		// structs of 1 direct iface type can be direct
-		typ.Kind_ |= abi.KindDirectIface
+		typ.TFlag |= abi.TFlagDirectIface
 	default:
-		typ.Kind_ &^= abi.KindDirectIface
+		typ.TFlag &^= abi.TFlagDirectIface
 	}
 
 	return addToCache(toType(&typ.Type))
@@ -2694,11 +2695,11 @@ func ArrayOf(length int, elem Type) Type {
 	}
 
 	switch {
-	case length == 1 && !typ.IfaceIndir():
+	case length == 1 && typ.IsDirectIface():
 		// array of 1 direct iface type can be direct
-		array.Kind_ |= abi.KindDirectIface
+		array.TFlag |= abi.TFlagDirectIface
 	default:
-		array.Kind_ &^= abi.KindDirectIface
+		array.TFlag &^= abi.TFlagDirectIface
 	}
 
 	ti, _ := lookupCache.LoadOrStore(ckey, toRType(&array.Type))
@@ -2834,7 +2835,7 @@ func addTypeBits(bv *bitVector, offset uintptr, t *abi.Type) {
 		return
 	}
 
-	switch Kind(t.Kind_ & abi.KindMask) {
+	switch Kind(t.Kind()) {
 	case Chan, Func, Map, Pointer, Slice, String, UnsafePointer:
 		// 1 pointer at start of representation
 		for bv.n < uint32(offset/goarch.PtrSize) {

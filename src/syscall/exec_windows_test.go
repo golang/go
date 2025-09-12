@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 	"testing"
@@ -48,6 +49,37 @@ func TestEscapeArg(t *testing.T) {
 	for _, test := range tests {
 		if got := syscall.EscapeArg(test.input); got != test.output {
 			t.Errorf("EscapeArg(%#q) = %#q, want %#q", test.input, got, test.output)
+		}
+	}
+}
+
+func TestEnvBlockSorted(t *testing.T) {
+	tests := []struct {
+		env  []string
+		want []string
+	}{
+		{},
+		{
+			env:  []string{"A=1"},
+			want: []string{"A=1"},
+		},
+		{
+			env:  []string{"A=1", "B=2", "C=3"},
+			want: []string{"A=1", "B=2", "C=3"},
+		},
+		{
+			env:  []string{"C=3", "B=2", "A=1"},
+			want: []string{"A=1", "B=2", "C=3"},
+		},
+		{
+			env:  []string{"c=3", "B=2", "a=1"},
+			want: []string{"a=1", "B=2", "c=3"},
+		},
+	}
+	for _, tt := range tests {
+		got := syscall.EnvSorted(tt.env)
+		if !slices.Equal(got, tt.want) {
+			t.Errorf("EnvSorted(%q) = %q, want %q", tt.env, got, tt.want)
 		}
 	}
 }

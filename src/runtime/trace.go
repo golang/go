@@ -396,7 +396,7 @@ func traceAdvance(stopTrace bool) {
 				ug.status = readgstatus(s.g) &^ _Gscan
 				ug.waitreason = s.g.waitreason
 				ug.inMarkAssist = s.g.inMarkAssist
-				ug.stackID = traceStack(0, gp, gen)
+				ug.stackID = traceStack(0, gp, &trace.stackTab[gen%2])
 			}
 			resumeG(s)
 			casgstatus(me, _Gwaiting, _Grunning)
@@ -754,24 +754,7 @@ func traceRegisterLabelsAndReasons(gen uintptr) {
 // was on has been returned, ReadTrace returns nil. The caller must copy the
 // returned data before calling ReadTrace again.
 // ReadTrace must be called from one goroutine at a time.
-func ReadTrace() []byte {
-	for {
-		buf := readTrace()
-
-		// Skip over the end-of-generation signal which must not appear
-		// in the final trace.
-		if len(buf) == 1 && tracev2.EventType(buf[0]) == tracev2.EvEndOfGeneration {
-			continue
-		}
-		return buf
-	}
-}
-
-// readTrace is the implementation of ReadTrace, except with an additional
-// in-band signal as to when the buffer is for a new generation.
-//
-//go:linkname readTrace runtime/trace.runtime_readTrace
-func readTrace() (buf []byte) {
+func ReadTrace() (buf []byte) {
 top:
 	var park bool
 	systemstack(func() {
@@ -842,7 +825,7 @@ func readTrace0() (buf []byte, park bool) {
 	if !trace.headerWritten {
 		trace.headerWritten = true
 		unlock(&trace.lock)
-		return []byte("go 1.25 trace\x00\x00\x00"), false
+		return []byte("go 1.26 trace\x00\x00\x00"), false
 	}
 
 	// Read the next buffer.

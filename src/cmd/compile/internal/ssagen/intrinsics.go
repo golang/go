@@ -1508,7 +1508,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			// No PSIGNB, simply do byte equality with ctrlEmpty.
 
 			// Load ctrlEmpty into each byte of a control word.
-			var ctrlsEmpty uint64 = abi.SwissMapCtrlEmpty
+			var ctrlsEmpty uint64 = abi.MapCtrlEmpty
 			e := s.constInt64(types.Types[types.TUINT64], int64(ctrlsEmpty))
 			// Explicit copy to fp register. See
 			// https://go.dev/issue/70451.

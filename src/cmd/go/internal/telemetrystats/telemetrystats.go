@@ -11,6 +11,7 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/modload"
 	"cmd/internal/telemetry/counter"
+	"strings"
 )
 
 func Increment() {
@@ -47,5 +48,17 @@ func incrementConfig() {
 		counter.Inc("go/platform/target/goriscv64:" + cfg.GORISCV64)
 	case "wasm":
 		counter.Inc("go/platform/target/gowasm:" + cfg.GOWASM)
+	}
+
+	// Use cfg.Experiment.String instead of cfg.Experiment.Enabled
+	// because we only want to count the experiments that differ
+	// from the baseline.
+	if cfg.Experiment != nil {
+		for exp := range strings.SplitSeq(cfg.Experiment.String(), ",") {
+			if exp == "" {
+				continue
+			}
+			counter.Inc("go/goexperiment:" + exp)
+		}
 	}
 }

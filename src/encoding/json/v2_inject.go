@@ -73,6 +73,9 @@ func transformUnmarshalError(root any, err error) error {
 		if err.Err == jsonv2.ErrUnknownName {
 			return fmt.Errorf("json: unknown field %q", err.JSONPointer.LastToken())
 		}
+		if err.Err == internal.ErrNilInterface {
+			err.Err = nil // non-descriptive for historical reasons
+		}
 
 		// Historically, UnmarshalTypeError has always been inconsistent
 		// about how it reported position information.

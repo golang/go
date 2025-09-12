@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package analysisflags defines helpers for processing flags of
-// analysis driver tools.
+// Package analysisflags defines helpers for processing flags (-help,
+// -json, -fix, -diff, etc) common to unitchecker and
+// {single,multi}checker. It is not intended for broader use.
 package analysisflags
 
 import (
@@ -24,8 +25,10 @@ import (
 
 // flags common to all {single,multi,unit}checkers.
 var (
-	JSON    = false // -json
-	Context = -1    // -c=N: if N>0, display offending line plus N lines of context
+	JSON     = false // -json
+	Context  = -1    // -c=N: if N>0, display offending line plus N lines of context
+	Fix      bool    // -fix
+	diffFlag bool    // -diff (changes [ApplyFixes] behavior)
 )
 
 // Parse creates a flag for each of the analyzer's flags,
@@ -74,6 +77,8 @@ func Parse(analyzers []*analysis.Analyzer, multi bool) []*analysis.Analyzer {
 	// flags common to all checkers
 	flag.BoolVar(&JSON, "json", JSON, "emit JSON output")
 	flag.IntVar(&Context, "c", Context, `display offending line with this many lines of context`)
+	flag.BoolVar(&Fix, "fix", false, "apply all suggested fixes")
+	flag.BoolVar(&diffFlag, "diff", false, "with -fix, don't update the files, but print a unified diff")
 
 	// Add shims for legacy vet flags to enable existing
 	// scripts that run vet to continue to work.
@@ -318,23 +323,31 @@ var vetLegacyFlags = map[string]string{
 // If contextLines is nonnegative, it also prints the
 // offending line plus this many lines of context.
 func PrintPlain(out io.Writer, fset *token.FileSet, contextLines int, diag analysis.Diagnostic) {
-	posn := fset.Position(diag.Pos)
-	fmt.Fprintf(out, "%s: %s\n", posn, diag.Message)
+	print := func(pos, end token.Pos, message string) {
+		posn := fset.Position(pos)
+		fmt.Fprintf(out, "%s: %s\n", posn, message)
 
-	// show offending line plus N lines of context.
-	if contextLines >= 0 {
-		posn := fset.Position(diag.Pos)
-		end := fset.Position(diag.End)
-		if !end.IsValid() {
-			end = posn
-		}
-		data, _ := os.ReadFile(posn.Filename)
-		lines := strings.Split(string(data), "\n")
-		for i := posn.Line - contextLines; i <= end.Line+contextLines; i++ {
-			if 1 <= i && i <= len(lines) {
-				fmt.Fprintf(out, "%d\t%s\n", i, lines[i-1])
+		// show offending line plus N lines of context.
+		if contextLines >= 0 {
+			end := fset.Position(end)
+			if !end.IsValid() {
+				end = posn
+			}
+			// TODO(adonovan): highlight the portion of the line indicated
+			// by pos...end using ASCII art, terminal colors, etc?
+			data, _ := os.ReadFile(posn.Filename)
+			lines := strings.Split(string(data), "\n")
+			for i := posn.Line - contextLines; i <= end.Line+contextLines; i++ {
+				if 1 <= i && i <= len(lines) {
+					fmt.Fprintf(out, "%d\t%s\n", i, lines[i-1])
+				}
 			}
 		}
+	}
+
+	print(diag.Pos, diag.End, diag.Message)
+	for _, rel := range diag.Related {
+		print(rel.Pos, rel.End, "\t"+rel.Message)
 	}
 }
 

@@ -281,11 +281,11 @@ dependencies, so is not suitable for distributed build systems.)
   ```
   $ go install golang.org/x/tools/cmd/toolstash@latest
   $ git clone https://go.googlesource.com/go
-  $ cd go
+  $ export PATH=$PWD/go/bin:$PATH
+  $ cd go/src
   $ git checkout -b mybranch
-  $ ./src/all.bash               # build and confirm good starting point
-  $ export PATH=$PWD/bin:$PATH
-  $ toolstash save               # save current tools
+  $ ./all.bash                      # build and confirm good starting point
+  $ toolstash save                  # save current tools
   ```
   After that, your edit/compile/test cycle can be similar to:
   ```

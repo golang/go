@@ -128,14 +128,29 @@ func Info(ctxt *obj.Link, fnsym *obj.LSym, infosym *obj.LSym, curfn obj.Func) (s
 	// already referenced by a dwarf var, attach an R_USETYPE relocation to
 	// the function symbol to insure that the type included in DWARF
 	// processing during linking.
+	// Do the same with R_USEIFACE relocations from the function symbol for the
+	// same reason.
+	// All these R_USETYPE relocations are only looked at if the function
+	// survives deadcode elimination in the linker.
 	typesyms := []*obj.LSym{}
 	for t := range fnsym.Func().Autot {
 		typesyms = append(typesyms, t)
 	}
+	for i := range fnsym.R {
+		if fnsym.R[i].Type == objabi.R_USEIFACE && !strings.HasPrefix(fnsym.R[i].Sym.Name, "go:itab.") {
+			// Types referenced through itab will be referenced from somewhere else
+			typesyms = append(typesyms, fnsym.R[i].Sym)
+		}
+	}
 	slices.SortFunc(typesyms, func(a, b *obj.LSym) int {
 		return strings.Compare(a.Name, b.Name)
 	})
+	var lastsym *obj.LSym
 	for _, sym := range typesyms {
+		if sym == lastsym {
+			continue
+		}
+		lastsym = sym
 		infosym.AddRel(ctxt, obj.Reloc{Type: objabi.R_USETYPE, Sym: sym})
 	}
 	fnsym.Func().Autot = nil
@@ -203,7 +218,7 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 				continue
 			}
 			if n.Class != ir.PPARAMOUT || !n.IsOutputParamInRegisters() {
-				panic("invalid ir.Name on debugInfo.RegOutputParams list")
+				base.Fatalf("invalid ir.Name on debugInfo.RegOutputParams list")
 			}
 			dcl = append(dcl, n)
 		}
@@ -248,11 +263,6 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 		if n.Class == ir.PPARAM || n.Class == ir.PPARAMOUT {
 			tag = dwarf.DW_TAG_formal_parameter
 		}
-		if n.Esc() == ir.EscHeap {
-			// The variable in question has been promoted to the heap.
-			// Its address is in n.Heapaddr.
-			// TODO(thanm): generate a better location expression
-		}
 		inlIndex := 0
 		if base.Flag.GenDwarfInl > 1 {
 			if n.InlFormal() || n.InlLocal() {
@@ -263,7 +273,7 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 			}
 		}
 		declpos := base.Ctxt.InnermostPos(n.Pos())
-		vars = append(vars, &dwarf.Var{
+		dvar := &dwarf.Var{
 			Name:          n.Sym().Name,
 			IsReturnValue: isReturnValue,
 			Tag:           tag,
@@ -277,8 +287,19 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 			ChildIndex:    -1,
 			DictIndex:     n.DictIndex,
 			ClosureOffset: closureOffset(n, closureVars),
-		})
-		// Record go type of to insure that it gets emitted by the linker.
+		}
+		if n.Esc() == ir.EscHeap {
+			if n.Heapaddr == nil {
+				base.Fatalf("invalid heap allocated var without Heapaddr")
+			}
+			debug := fn.DebugInfo.(*ssa.FuncDebug)
+			list := createHeapDerefLocationList(n, debug.EntryID)
+			dvar.PutLocationList = func(listSym, startPC dwarf.Sym) {
+				debug.PutLocationList(list, base.Ctxt, listSym.(*obj.LSym), startPC.(*obj.LSym))
+			}
+		}
+		vars = append(vars, dvar)
+		// Record go type to ensure that it gets emitted by the linker.
 		fnsym.Func().RecordAutoType(reflectdata.TypeLinksym(n.Type()))
 	}
 
@@ -550,11 +571,34 @@ func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID, closureVars
 	return dvar
 }
 
+// createHeapDerefLocationList creates a location list for a heap-escaped variable
+// that describes "dereference pointer at stack offset"
+func createHeapDerefLocationList(n *ir.Name, entryID ssa.ID) []byte {
+	// Get the stack offset where the heap pointer is stored
+	heapPtrOffset := n.Heapaddr.FrameOffset()
+	if base.Ctxt.Arch.FixedFrameSize == 0 {
+		heapPtrOffset -= int64(types.PtrSize)
+	}
+	if buildcfg.FramePointerEnabled {
+		heapPtrOffset -= int64(types.PtrSize)
+	}
+
+	// Create a location expression: DW_OP_fbreg <offset> DW_OP_deref
+	var locExpr []byte
+	var sizeIdx int
+	locExpr, sizeIdx = ssa.SetupLocList(base.Ctxt, entryID, locExpr, ssa.BlockStart.ID, ssa.FuncEnd.ID)
+	locExpr = append(locExpr, dwarf.DW_OP_fbreg)
+	locExpr = dwarf.AppendSleb128(locExpr, heapPtrOffset)
+	locExpr = append(locExpr, dwarf.DW_OP_deref)
+	base.Ctxt.Arch.ByteOrder.PutUint16(locExpr[sizeIdx:], uint16(len(locExpr)-sizeIdx-2))
+	return locExpr
+}
+
 // RecordFlags records the specified command-line flags to be placed
 // in the DWARF info.
 func RecordFlags(flags ...string) {
 	if base.Ctxt.Pkgpath == "" {
-		panic("missing pkgpath")
+		base.Fatalf("missing pkgpath")
 	}
 
 	type BoolFlag interface {

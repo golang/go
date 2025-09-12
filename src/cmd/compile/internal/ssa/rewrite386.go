@@ -75,6 +75,14 @@ func rewriteValue386(v *Value) bool {
 		return rewriteValue386_Op386LEAL4(v)
 	case Op386LEAL8:
 		return rewriteValue386_Op386LEAL8(v)
+	case Op386LoweredPanicBoundsRC:
+		return rewriteValue386_Op386LoweredPanicBoundsRC(v)
+	case Op386LoweredPanicBoundsRR:
+		return rewriteValue386_Op386LoweredPanicBoundsRR(v)
+	case Op386LoweredPanicExtendRC:
+		return rewriteValue386_Op386LoweredPanicExtendRC(v)
+	case Op386LoweredPanicExtendRR:
+		return rewriteValue386_Op386LoweredPanicExtendRR(v)
 	case Op386MOVBLSX:
 		return rewriteValue386_Op386MOVBLSX(v)
 	case Op386MOVBLSXload:
@@ -558,9 +566,11 @@ func rewriteValue386(v *Value) bool {
 		v.Op = Op386ORL
 		return true
 	case OpPanicBounds:
-		return rewriteValue386_OpPanicBounds(v)
+		v.Op = Op386LoweredPanicBoundsRR
+		return true
 	case OpPanicExtend:
-		return rewriteValue386_OpPanicExtend(v)
+		v.Op = Op386LoweredPanicExtendRR
+		return true
 	case OpRotateLeft16:
 		v.Op = Op386ROLW
 		return true
@@ -3394,6 +3404,135 @@ func rewriteValue386_Op386LEAL8(v *Value) bool {
 		v.AuxInt = int32ToAuxInt(off1 + off2)
 		v.Aux = symToAux(mergeSym(sym1, sym2))
 		v.AddArg2(x, y)
+		return true
+	}
+	return false
+}
+func rewriteValue386_Op386LoweredPanicBoundsRC(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (LoweredPanicBoundsRC [kind] {p} (MOVLconst [c]) mem)
+	// result: (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:int64(c), Cy:p.C}} mem)
+	for {
+		kind := auxIntToInt64(v.AuxInt)
+		p := auxToPanicBoundsC(v.Aux)
+		if v_0.Op != Op386MOVLconst {
+			break
+		}
+		c := auxIntToInt32(v_0.AuxInt)
+		mem := v_1
+		v.reset(Op386LoweredPanicBoundsCC)
+		v.AuxInt = int64ToAuxInt(kind)
+		v.Aux = panicBoundsCCToAux(PanicBoundsCC{Cx: int64(c), Cy: p.C})
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValue386_Op386LoweredPanicBoundsRR(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (LoweredPanicBoundsRR [kind] x (MOVLconst [c]) mem)
+	// result: (LoweredPanicBoundsRC [kind] x {PanicBoundsC{C:int64(c)}} mem)
+	for {
+		kind := auxIntToInt64(v.AuxInt)
+		x := v_0
+		if v_1.Op != Op386MOVLconst {
+			break
+		}
+		c := auxIntToInt32(v_1.AuxInt)
+		mem := v_2
+		v.reset(Op386LoweredPanicBoundsRC)
+		v.AuxInt = int64ToAuxInt(kind)
+		v.Aux = panicBoundsCToAux(PanicBoundsC{C: int64(c)})
+		v.AddArg2(x, mem)
+		return true
+	}
+	// match: (LoweredPanicBoundsRR [kind] (MOVLconst [c]) y mem)
+	// result: (LoweredPanicBoundsCR [kind] {PanicBoundsC{C:int64(c)}} y mem)
+	for {
+		kind := auxIntToInt64(v.AuxInt)
+		if v_0.Op != Op386MOVLconst {
+			break
+		}
+		c := auxIntToInt32(v_0.AuxInt)
+		y := v_1
+		mem := v_2
+		v.reset(Op386LoweredPanicBoundsCR)
+		v.AuxInt = int64ToAuxInt(kind)
+		v.Aux = panicBoundsCToAux(PanicBoundsC{C: int64(c)})
+		v.AddArg2(y, mem)
+		return true
+	}
+	return false
+}
+func rewriteValue386_Op386LoweredPanicExtendRC(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (LoweredPanicExtendRC [kind] {p} (MOVLconst [hi]) (MOVLconst [lo]) mem)
+	// result: (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:int64(hi)<<32+int64(uint32(lo)), Cy:p.C}} mem)
+	for {
+		kind := auxIntToInt64(v.AuxInt)
+		p := auxToPanicBoundsC(v.Aux)
+		if v_0.Op != Op386MOVLconst {
+			break
+		}
+		hi := auxIntToInt32(v_0.AuxInt)
+		if v_1.Op != Op386MOVLconst {
+			break
+		}
+		lo := auxIntToInt32(v_1.AuxInt)
+		mem := v_2
+		v.reset(Op386LoweredPanicBoundsCC)
+		v.AuxInt = int64ToAuxInt(kind)
+		v.Aux = panicBoundsCCToAux(PanicBoundsCC{Cx: int64(hi)<<32 + int64(uint32(lo)), Cy: p.C})
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValue386_Op386LoweredPanicExtendRR(v *Value) bool {
+	v_3 := v.Args[3]
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (LoweredPanicExtendRR [kind] hi lo (MOVLconst [c]) mem)
+	// result: (LoweredPanicExtendRC [kind] hi lo {PanicBoundsC{C:int64(c)}} mem)
+	for {
+		kind := auxIntToInt64(v.AuxInt)
+		hi := v_0
+		lo := v_1
+		if v_2.Op != Op386MOVLconst {
+			break
+		}
+		c := auxIntToInt32(v_2.AuxInt)
+		mem := v_3
+		v.reset(Op386LoweredPanicExtendRC)
+		v.AuxInt = int64ToAuxInt(kind)
+		v.Aux = panicBoundsCToAux(PanicBoundsC{C: int64(c)})
+		v.AddArg3(hi, lo, mem)
+		return true
+	}
+	// match: (LoweredPanicExtendRR [kind] (MOVLconst [hi]) (MOVLconst [lo]) y mem)
+	// result: (LoweredPanicBoundsCR [kind] {PanicBoundsC{C:int64(hi)<<32 + int64(uint32(lo))}} y mem)
+	for {
+		kind := auxIntToInt64(v.AuxInt)
+		if v_0.Op != Op386MOVLconst {
+			break
+		}
+		hi := auxIntToInt32(v_0.AuxInt)
+		if v_1.Op != Op386MOVLconst {
+			break
+		}
+		lo := auxIntToInt32(v_1.AuxInt)
+		y := v_2
+		mem := v_3
+		v.reset(Op386LoweredPanicBoundsCR)
+		v.AuxInt = int64ToAuxInt(kind)
+		v.Aux = panicBoundsCToAux(PanicBoundsC{C: int64(hi)<<32 + int64(uint32(lo))})
+		v.AddArg2(y, mem)
 		return true
 	}
 	return false
@@ -9312,118 +9451,6 @@ func rewriteValue386_OpOffPtr(v *Value) bool {
 		v.AddArg(ptr)
 		return true
 	}
-}
-func rewriteValue386_OpPanicBounds(v *Value) bool {
-	v_2 := v.Args[2]
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (PanicBounds [kind] x y mem)
-	// cond: boundsABI(kind) == 0
-	// result: (LoweredPanicBoundsA [kind] x y mem)
-	for {
-		kind := auxIntToInt64(v.AuxInt)
-		x := v_0
-		y := v_1
-		mem := v_2
-		if !(boundsABI(kind) == 0) {
-			break
-		}
-		v.reset(Op386LoweredPanicBoundsA)
-		v.AuxInt = int64ToAuxInt(kind)
-		v.AddArg3(x, y, mem)
-		return true
-	}
-	// match: (PanicBounds [kind] x y mem)
-	// cond: boundsABI(kind) == 1
-	// result: (LoweredPanicBoundsB [kind] x y mem)
-	for {
-		kind := auxIntToInt64(v.AuxInt)
-		x := v_0
-		y := v_1
-		mem := v_2
-		if !(boundsABI(kind) == 1) {
-			break
-		}
-		v.reset(Op386LoweredPanicBoundsB)
-		v.AuxInt = int64ToAuxInt(kind)
-		v.AddArg3(x, y, mem)
-		return true
-	}
-	// match: (PanicBounds [kind] x y mem)
-	// cond: boundsABI(kind) == 2
-	// result: (LoweredPanicBoundsC [kind] x y mem)
-	for {
-		kind := auxIntToInt64(v.AuxInt)
-		x := v_0
-		y := v_1
-		mem := v_2
-		if !(boundsABI(kind) == 2) {
-			break
-		}
-		v.reset(Op386LoweredPanicBoundsC)
-		v.AuxInt = int64ToAuxInt(kind)
-		v.AddArg3(x, y, mem)
-		return true
-	}
-	return false
-}
-func rewriteValue386_OpPanicExtend(v *Value) bool {
-	v_3 := v.Args[3]
-	v_2 := v.Args[2]
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (PanicExtend [kind] hi lo y mem)
-	// cond: boundsABI(kind) == 0
-	// result: (LoweredPanicExtendA [kind] hi lo y mem)
-	for {
-		kind := auxIntToInt64(v.AuxInt)
-		hi := v_0
-		lo := v_1
-		y := v_2
-		mem := v_3
-		if !(boundsABI(kind) == 0) {
-			break
-		}
-		v.reset(Op386LoweredPanicExtendA)
-		v.AuxInt = int64ToAuxInt(kind)
-		v.AddArg4(hi, lo, y, mem)
-		return true
-	}
-	// match: (PanicExtend [kind] hi lo y mem)
-	// cond: boundsABI(kind) == 1
-	// result: (LoweredPanicExtendB [kind] hi lo y mem)
-	for {
-		kind := auxIntToInt64(v.AuxInt)
-		hi := v_0
-		lo := v_1
-		y := v_2
-		mem := v_3
-		if !(boundsABI(kind) == 1) {
-			break
-		}
-		v.reset(Op386LoweredPanicExtendB)
-		v.AuxInt = int64ToAuxInt(kind)
-		v.AddArg4(hi, lo, y, mem)
-		return true
-	}
-	// match: (PanicExtend [kind] hi lo y mem)
-	// cond: boundsABI(kind) == 2
-	// result: (LoweredPanicExtendC [kind] hi lo y mem)
-	for {
-		kind := auxIntToInt64(v.AuxInt)
-		hi := v_0
-		lo := v_1
-		y := v_2
-		mem := v_3
-		if !(boundsABI(kind) == 2) {
-			break
-		}
-		v.reset(Op386LoweredPanicExtendC)
-		v.AuxInt = int64ToAuxInt(kind)
-		v.AddArg4(hi, lo, y, mem)
-		return true
-	}
-	return false
 }
 func rewriteValue386_OpRsh16Ux16(v *Value) bool {
 	v_1 := v.Args[1]

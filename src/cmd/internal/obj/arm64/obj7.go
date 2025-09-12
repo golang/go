@@ -319,11 +319,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 
 	// Rewrite BR/BL to symbol as TYPE_BRANCH.
 	switch p.As {
-	case AB,
-		ABL,
-		obj.ARET,
-		obj.ADUFFZERO,
-		obj.ADUFFCOPY:
+	case AB, ABL, obj.ARET:
 		if p.To.Sym != nil {
 			p.To.Type = obj.TYPE_BRANCH
 		}
@@ -400,39 +396,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 
 // Rewrite p, if necessary, to access global data via the global offset table.
 func (c *ctxt7) rewriteToUseGot(p *obj.Prog) {
-	if p.As == obj.ADUFFCOPY || p.As == obj.ADUFFZERO {
-		//     ADUFFxxx $offset
-		// becomes
-		//     MOVD runtime.duffxxx@GOT, REGTMP
-		//     ADD $offset, REGTMP
-		//     CALL REGTMP
-		var sym *obj.LSym
-		if p.As == obj.ADUFFZERO {
-			sym = c.ctxt.LookupABI("runtime.duffzero", obj.ABIInternal)
-		} else {
-			sym = c.ctxt.LookupABI("runtime.duffcopy", obj.ABIInternal)
-		}
-		offset := p.To.Offset
-		p.As = AMOVD
-		p.From.Type = obj.TYPE_MEM
-		p.From.Name = obj.NAME_GOTREF
-		p.From.Sym = sym
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REGTMP
-		p.To.Name = obj.NAME_NONE
-		p.To.Offset = 0
-		p.To.Sym = nil
-		p1 := obj.Appendp(p, c.newprog)
-		p1.As = AADD
-		p1.From.Type = obj.TYPE_CONST
-		p1.From.Offset = offset
-		p1.To.Type = obj.TYPE_REG
-		p1.To.Reg = REGTMP
-		p2 := obj.Appendp(p1, c.newprog)
-		p2.As = obj.ACALL
-		p2.To.Type = obj.TYPE_REG
-		p2.To.Reg = REGTMP
-	}
 
 	// We only care about global data: NAME_EXTERN means a global
 	// symbol in the Go sense, and p.Sym.Local is true for a few
@@ -543,9 +506,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		case obj.ATEXT:
 			p.Mark |= LEAF
 
-		case ABL,
-			obj.ADUFFZERO,
-			obj.ADUFFCOPY:
+		case ABL:
 			c.cursym.Func().Text.Mark &^= LEAF
 		}
 	}
@@ -733,111 +694,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			q1.To.Type = obj.TYPE_REG
 			q1.To.Reg = REGFP
 
-			if c.cursym.Func().Text.From.Sym.Wrapper() {
-				// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
-				//
-				//	MOV  g_panic(g), RT1
-				//	CBNZ checkargp
-				// end:
-				//	NOP
-				// ... function body ...
-				// checkargp:
-				//	MOV  panic_argp(RT1), RT2
-				//	ADD  $(autosize+8), RSP, R20
-				//	CMP  RT2, R20
-				//	BNE  end
-				//	ADD  $8, RSP, R20
-				//	MOVD R20, panic_argp(RT1)
-				//	B    end
-				//
-				// The NOP is needed to give the jumps somewhere to land.
-				// It is a liblink NOP, not an ARM64 NOP: it encodes to 0 instruction bytes.
-				q = q1
-
-				// MOV g_panic(g), RT1
-				q = obj.Appendp(q, c.newprog)
-				q.As = AMOVD
-				q.From.Type = obj.TYPE_MEM
-				q.From.Reg = REGG
-				q.From.Offset = 4 * int64(c.ctxt.Arch.PtrSize) // G.panic
-				q.To.Type = obj.TYPE_REG
-				q.To.Reg = REGRT1
-
-				// CBNZ RT1, checkargp
-				cbnz := obj.Appendp(q, c.newprog)
-				cbnz.As = ACBNZ
-				cbnz.From.Type = obj.TYPE_REG
-				cbnz.From.Reg = REGRT1
-				cbnz.To.Type = obj.TYPE_BRANCH
-
-				// Empty branch target at the top of the function body
-				end := obj.Appendp(cbnz, c.newprog)
-				end.As = obj.ANOP
-
-				// find the end of the function
-				var last *obj.Prog
-				for last = end; last.Link != nil; last = last.Link {
-				}
-
-				// MOV panic_argp(RT1), RT2
-				mov := obj.Appendp(last, c.newprog)
-				mov.As = AMOVD
-				mov.From.Type = obj.TYPE_MEM
-				mov.From.Reg = REGRT1
-				mov.From.Offset = 0 // Panic.argp
-				mov.To.Type = obj.TYPE_REG
-				mov.To.Reg = REGRT2
-
-				// CBNZ branches to the MOV above
-				cbnz.To.SetTarget(mov)
-
-				// ADD $(autosize+8), SP, R20
-				q = obj.Appendp(mov, c.newprog)
-				q.As = AADD
-				q.From.Type = obj.TYPE_CONST
-				q.From.Offset = int64(c.autosize) + 8
-				q.Reg = REGSP
-				q.To.Type = obj.TYPE_REG
-				q.To.Reg = REG_R20
-
-				// CMP RT2, R20
-				q = obj.Appendp(q, c.newprog)
-				q.As = ACMP
-				q.From.Type = obj.TYPE_REG
-				q.From.Reg = REGRT2
-				q.Reg = REG_R20
-
-				// BNE end
-				q = obj.Appendp(q, c.newprog)
-				q.As = ABNE
-				q.To.Type = obj.TYPE_BRANCH
-				q.To.SetTarget(end)
-
-				// ADD $8, SP, R20
-				q = obj.Appendp(q, c.newprog)
-				q.As = AADD
-				q.From.Type = obj.TYPE_CONST
-				q.From.Offset = 8
-				q.Reg = REGSP
-				q.To.Type = obj.TYPE_REG
-				q.To.Reg = REG_R20
-
-				// MOV R20, panic_argp(RT1)
-				q = obj.Appendp(q, c.newprog)
-				q.As = AMOVD
-				q.From.Type = obj.TYPE_REG
-				q.From.Reg = REG_R20
-				q.To.Type = obj.TYPE_MEM
-				q.To.Reg = REGRT1
-				q.To.Offset = 0 // Panic.argp
-
-				// B end
-				q = obj.Appendp(q, c.newprog)
-				q.As = AB
-				q.To.Type = obj.TYPE_BRANCH
-				q.To.SetTarget(end)
-			}
-
 		case obj.ARET:
 			nocache(p)
 			if p.From.Type == obj.TYPE_CONST {
@@ -907,18 +763,49 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p.To.Reg = REGFP
 				p.To.Offset = REGLINK
 
-				// ADD $aoffset, RSP, RSP
-				q = newprog()
-				q.As = AADD
-				q.From.Type = obj.TYPE_CONST
-				q.From.Offset = int64(aoffset)
-				q.To.Type = obj.TYPE_REG
-				q.To.Reg = REGSP
-				q.Spadj = -aoffset
-				q.Pos = p.Pos
-				q.Link = p.Link
-				p.Link = q
-				p = q
+				if aoffset < 1<<12 {
+					// ADD $aoffset, RSP, RSP
+					q = newprog()
+					q.As = AADD
+					q.From.Type = obj.TYPE_CONST
+					q.From.Offset = int64(aoffset)
+					q.To.Type = obj.TYPE_REG
+					q.To.Reg = REGSP
+					q.Spadj = -aoffset
+					q.Pos = p.Pos
+					q.Link = p.Link
+					p.Link = q
+					p = q
+				} else {
+					// Put frame size in a separate register and
+					// add it in with a single instruction,
+					// so we never have a partial frame during
+					// the epilog. See issue 73259.
+
+					// MOVD $aoffset, REGTMP
+					q = newprog()
+					q.As = AMOVD
+					q.From.Type = obj.TYPE_CONST
+					q.From.Offset = int64(aoffset)
+					q.To.Type = obj.TYPE_REG
+					q.To.Reg = REGTMP
+					q.Pos = p.Pos
+					q.Link = p.Link
+					p.Link = q
+					p = q
+					// ADD REGTMP, RSP, RSP
+					q = newprog()
+					q.As = AADD
+					q.From.Type = obj.TYPE_REG
+					q.From.Reg = REGTMP
+					q.To.Type = obj.TYPE_REG
+					q.To.Reg = REGSP
+					q.Spadj = -aoffset
+					q.Pos = p.Pos
+					q.Link = p.Link
+					p.Link = q
+					p = q
+				}
 			}
 
 			// If enabled, this code emits 'MOV PC, R27' before every 'MOV LR, PC',
@@ -986,110 +873,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p.From.Type = obj.TYPE_MEM
 				p.From.Reg = REGSP
 			}
-
-		case obj.ADUFFCOPY:
-			//  ADR	ret_addr, R27
-			//  STP	(FP, R27), -24(SP)
-			//  SUB	24, SP, FP
-			//  DUFFCOPY
-			// ret_addr:
-			//  SUB	8, SP, FP
-
-			q1 := p
-			// copy DUFFCOPY from q1 to q4
-			q4 := obj.Appendp(p, c.newprog)
-			q4.Pos = p.Pos
-			q4.As = obj.ADUFFCOPY
-			q4.To = p.To
-
-			q1.As = AADR
-			q1.From.Type = obj.TYPE_BRANCH
-			q1.To.Type = obj.TYPE_REG
-			q1.To.Reg = REG_R27
-
-			q2 := obj.Appendp(q1, c.newprog)
-			q2.Pos = p.Pos
-			q2.As = ASTP
-			q2.From.Type = obj.TYPE_REGREG
-			q2.From.Reg = REGFP
-			q2.From.Offset = int64(REG_R27)
-			q2.To.Type = obj.TYPE_MEM
-			q2.To.Reg = REGSP
-			q2.To.Offset = -24
-
-			// maintain FP for DUFFCOPY
-			q3 := obj.Appendp(q2, c.newprog)
-			q3.Pos = p.Pos
-			q3.As = ASUB
-			q3.From.Type = obj.TYPE_CONST
-			q3.From.Offset = 24
-			q3.Reg = REGSP
-			q3.To.Type = obj.TYPE_REG
-			q3.To.Reg = REGFP
-
-			q5 := obj.Appendp(q4, c.newprog)
-			q5.Pos = p.Pos
-			q5.As = ASUB
-			q5.From.Type = obj.TYPE_CONST
-			q5.From.Offset = 8
-			q5.Reg = REGSP
-			q5.To.Type = obj.TYPE_REG
-			q5.To.Reg = REGFP
-			q1.From.SetTarget(q5)
-			p = q5
-
-		case obj.ADUFFZERO:
-			//  ADR	ret_addr, R27
-			//  STP	(FP, R27), -24(SP)
-			//  SUB	24, SP, FP
-			//  DUFFZERO
-			// ret_addr:
-			//  SUB	8, SP, FP
-
-			q1 := p
-			// copy DUFFZERO from q1 to q4
-			q4 := obj.Appendp(p, c.newprog)
-			q4.Pos = p.Pos
-			q4.As = obj.ADUFFZERO
-			q4.To = p.To
-
-			q1.As = AADR
-			q1.From.Type = obj.TYPE_BRANCH
-			q1.To.Type = obj.TYPE_REG
-			q1.To.Reg = REG_R27
-
-			q2 := obj.Appendp(q1, c.newprog)
-			q2.Pos = p.Pos
-			q2.As = ASTP
-			q2.From.Type = obj.TYPE_REGREG
-			q2.From.Reg = REGFP
-			q2.From.Offset = int64(REG_R27)
-			q2.To.Type = obj.TYPE_MEM
-			q2.To.Reg = REGSP
-			q2.To.Offset = -24
-
-			// maintain FP for DUFFZERO
-			q3 := obj.Appendp(q2, c.newprog)
-			q3.Pos = p.Pos
-			q3.As = ASUB
-			q3.From.Type = obj.TYPE_CONST
-			q3.From.Offset = 24
-			q3.Reg = REGSP
-			q3.To.Type = obj.TYPE_REG
-			q3.To.Reg = REGFP
-
-			q5 := obj.Appendp(q4, c.newprog)
-			q5.Pos = p.Pos
-			q5.As = ASUB
-			q5.From.Type = obj.TYPE_CONST
-			q5.From.Offset = 8
-			q5.Reg = REGSP
-			q5.To.Type = obj.TYPE_REG
-			q5.To.Reg = REGFP
-			q1.From.SetTarget(q5)
-			p = q5
 		}
-
 		if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.Spadj == 0 {
 			f := c.cursym.Func()
 			if f.FuncFlag&abi.FuncFlagSPWrite == 0 {

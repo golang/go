@@ -44,15 +44,13 @@ type PublicKey struct {
 
 	// X, Y are the coordinates of the public key point.
 	//
-	// Modifying the raw coordinates can produce invalid keys, and may
+	// Deprecated: modifying the raw coordinates can produce invalid keys, and may
 	// invalidate internal optimizations; moreover, [big.Int] methods are not
 	// suitable for operating on cryptographic values. To encode and decode
 	// PublicKey values, use [PublicKey.Bytes] and [ParseUncompressedPublicKey]
 	// or [crypto/x509.MarshalPKIXPublicKey] and [crypto/x509.ParsePKIXPublicKey].
 	// For ECDH, use [crypto/ecdh]. For lower-level elliptic curve operations,
 	// use a third-party module like filippo.io/nistec.
-	//
-	// These fields will be deprecated in Go 1.26.
 	X, Y *big.Int
 }
 
@@ -171,14 +169,12 @@ type PrivateKey struct {
 
 	// D is the private scalar value.
 	//
-	// Modifying the raw value can produce invalid keys, and may
+	// Deprecated: modifying the raw value can produce invalid keys, and may
 	// invalidate internal optimizations; moreover, [big.Int] methods are not
 	// suitable for operating on cryptographic values. To encode and decode
 	// PrivateKey values, use [PrivateKey.Bytes] and [ParseRawPrivateKey] or
 	// [crypto/x509.MarshalPKCS8PrivateKey] and [crypto/x509.ParsePKCS8PrivateKey].
 	// For ECDH, use [crypto/ecdh].
-	//
-	// This field will be deprecated in Go 1.26.
 	D *big.Int
 }
 

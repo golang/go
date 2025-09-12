@@ -46,7 +46,6 @@ func Supported() error {
 	switch {
 	case runtime.GOARCH == "wasm",
 		runtime.GOOS == "windows" && runtime.GOARCH == "386",
-		runtime.GOOS == "windows" && runtime.GOARCH == "arm",
 		runtime.GOOS == "openbsd", // due to -fexecute-only, see #70880
 		runtime.GOOS == "aix":
 		return errors.New("FIPS 140-3 mode is not supported on " + runtime.GOOS + "-" + runtime.GOARCH)

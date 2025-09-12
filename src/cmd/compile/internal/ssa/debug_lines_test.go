@@ -115,6 +115,34 @@ func TestDebugLines_53456(t *testing.T) {
 	testDebugLinesDefault(t, "-N -l", "b53456.go", "(*T).Inc", []int{15, 16, 17, 18}, true)
 }
 
+func TestDebugLines_74576(t *testing.T) {
+	unixOnly(t)
+
+	switch testGoArch() {
+	default:
+		// Failed on linux/riscv64 (issue 74669), but conservatively
+		// skip many architectures like several other tests here.
+		t.Skip("skipped for many architectures")
+
+	case "arm64", "amd64", "loong64":
+		tests := []struct {
+			file      string
+			wantStmts []int
+		}{
+			{"i74576a.go", []int{12, 13, 13, 14}},
+			{"i74576b.go", []int{12, 13, 13, 14}},
+			{"i74576c.go", []int{12, 13, 13, 14}},
+		}
+		t.Parallel()
+		for _, test := range tests {
+			t.Run(test.file, func(t *testing.T) {
+				t.Parallel()
+				testDebugLines(t, "-N -l", test.file, "main", test.wantStmts, false)
+			})
+		}
+	}
+}
+
 func compileAndDump(t *testing.T, file, function, moreGCFlags string) []byte {
 	testenv.MustHaveGoBuild(t)
 
@@ -223,6 +251,9 @@ func testInlineStack(t *testing.T, file, function string, wantStacks [][]int) {
 // then verifies that the statement-marked lines in that file are the same as those in wantStmts
 // These files must all be short because this is super-fragile.
 // "go build" is run in a temporary directory that is normally deleted, unless -test.v
+//
+// TODO: the tests calling this are somewhat expensive; perhaps more tests can be marked t.Parallel,
+// or perhaps the mechanism here can be made more efficient.
 func testDebugLines(t *testing.T, gcflags, file, function string, wantStmts []int, ignoreRepeats bool) {
 	dumpBytes := compileAndDump(t, file, function, gcflags)
 	dump := bufio.NewScanner(bytes.NewReader(dumpBytes))

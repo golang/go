@@ -57,7 +57,7 @@ func encBoolArray(state *encoderState, v reflect.Value) bool {
 }
 
 func encBoolSlice(state *encoderState, v reflect.Value) bool {
-	slice, ok := v.Interface().([]bool)
+	slice, ok := reflect.TypeAssert[[]bool](v)
 	if !ok {
 		// It is kind bool but not type bool. TODO: We can handle this unsafely.
 		return false
@@ -83,7 +83,7 @@ func encComplex64Array(state *encoderState, v reflect.Value) bool {
 }
 
 func encComplex64Slice(state *encoderState, v reflect.Value) bool {
-	slice, ok := v.Interface().([]complex64)
+	slice, ok := reflect.TypeAssert[[]complex64](v)
 	if !ok {
 		// It is kind complex64 but not type complex64. TODO: We can handle this unsafely.
 		return false
@@ -108,7 +108,7 @@ func encComplex128Array(state *encoderState, v reflect.Value) bool {
 }
 
 func encComplex128Slice(state *encoderState, v reflect.Value) bool {
-	slice, ok := v.Interface().([]complex128)
+	slice, ok := reflect.TypeAssert[[]complex128](v)
 	if !ok {
 		// It is kind complex128 but not type complex128. TODO: We can handle this unsafely.
 		return false
@@ -133,7 +133,7 @@ func encFloat32Array(state *encoderState, v reflect.Value) bool {
 }
 
 func encFloat32Slice(state *encoderState, v reflect.Value) bool {
-	slice, ok := v.Interface().([]float32)
+	slice, ok := reflect.TypeAssert[[]float32](v)
 	if !ok {
 		// It is kind float32 but not type float32. TODO: We can handle this unsafely.
 		return false
@@ -156,7 +156,7 @@ func encFloat64Array(state *encoderState, v reflect.Value) bool {
 }
 
 func encFloat64Slice(state *encoderState, v reflect.Value) bool {
-	slice, ok := v.Interface().([]float64)
+	slice, ok := reflect.TypeAssert[[]float64](v)
 	if !ok {
 		// It is kind float64 but not type float64. TODO: We can handle this unsafely.
 		return false
@@ -179,7 +179,7 @@ func encIntArray(state *encoderState, v reflect.Value) bool {
 }
 
 func encIntSlice(state *encoderState, v reflect.Value) bool {
-	slice, ok := v.Interface().([]int)
+	slice, ok := reflect.TypeAssert[[]int](v)
 	if !ok {
 		// It is kind int but not type int. TODO: We can handle this unsafely.
 		return false
@@ -201,7 +201,7 @@ func encInt16Array(state *encoderState, v reflect.Value) bool {
 }
 
 func encInt16Slice(state *encoderState, v reflect.Value) bool {
-	slice, ok := v.Interface().([]int16)
+	slice, ok := reflect.TypeAssert[[]int16](v)
 	if !ok {
 		// It is kind int16 but not type int16. TODO: We can handle this unsafely.
 		return false
@@ -223,7 +223,7 @@ func encInt32Array(state *encoderState, v reflect.Value) bool {
 }
 
 func encInt32Slice(state *encoderState, v reflect.Value) bool {
-	slice, ok := v.Interface().([]int32)
+	slice, ok := reflect.TypeAssert[[]int32](v)
 	if !ok {
 		// It is kind int32 but not type int32. TODO: We can handle this unsafely.
 		return false
@@ -245,7 +245,7 @@ func encInt64Array(state *encoderState, v reflect.Value) bool {
 }
 
 func encInt64Slice(state *encoderState, v reflect.Value) bool {
-	slice, ok := v.Interface().([]int64)
+	slice, ok := reflect.TypeAssert[[]int64](v)
 	if !ok {
 		// It is kind int64 but not type int64. TODO: We can handle this unsafely.
 		return false
@@ -267,7 +267,7 @@ func encInt8Array(state *encoderState, v reflect.Value) bool {
 }
 
 func encInt8Slice(state *encoderState, v reflect.Value) bool {
-	slice, ok := v.Interface().([]int8)
+	slice, ok := reflect.TypeAssert[[]int8](v)
 	if !ok {
 		// It is kind int8 but not type int8. TODO: We can handle this unsafely.
 		return false
@@ -289,7 +289,7 @@ func encStringArray(state *encoderState, v reflect.Value) bool {
 }
 
 func encStringSlice(state *encoderState, v reflect.Value) bool {
-	slice, ok := v.Interface().([]string)
+	slice, ok := reflect.TypeAssert[[]string](v)
 	if !ok {
 		// It is kind string but not type string. TODO: We can handle this unsafely.
 		return false
@@ -312,7 +312,7 @@ func encUintArray(state *encoderState, v reflect.Value) bool {
 }
 
 func encUintSlice(state *encoderState, v reflect.Value) bool {
-	slice, ok := v.Interface().([]uint)
+	slice, ok := reflect.TypeAssert[[]uint](v)
 	if !ok {
 		// It is kind uint but not type uint. TODO: We can handle this unsafely.
 		return false
@@ -334,7 +334,7 @@ func encUint16Array(state *encoderState, v reflect.Value) bool {
 }
 
 func encUint16Slice(state *encoderState, v reflect.Value) bool {
-	slice, ok := v.Interface().([]uint16)
+	slice, ok := reflect.TypeAssert[[]uint16](v)
 	if !ok {
 		// It is kind uint16 but not type uint16. TODO: We can handle this unsafely.
 		return false
@@ -356,7 +356,7 @@ func encUint32Array(state *encoderState, v reflect.Value) bool {
 }
 
 func encUint32Slice(state *encoderState, v reflect.Value) bool {
-	slice, ok := v.Interface().([]uint32)
+	slice, ok := reflect.TypeAssert[[]uint32](v)
 	if !ok {
 		// It is kind uint32 but not type uint32. TODO: We can handle this unsafely.
 		return false
@@ -378,7 +378,7 @@ func encUint64Array(state *encoderState, v reflect.Value) bool {
 }
 
 func encUint64Slice(state *encoderState, v reflect.Value) bool {
-	slice, ok := v.Interface().([]uint64)
+	slice, ok := reflect.TypeAssert[[]uint64](v)
 	if !ok {
 		// It is kind uint64 but not type uint64. TODO: We can handle this unsafely.
 		return false
@@ -400,7 +400,7 @@ func encUintptrArray(state *encoderState, v reflect.Value) bool {
 }
 
 func encUintptrSlice(state *encoderState, v reflect.Value) bool {
-	slice, ok := v.Interface().([]uintptr)
+	slice, ok := reflect.TypeAssert[[]uintptr](v)
 	if !ok {
 		// It is kind uintptr but not type uintptr. TODO: We can handle this unsafely.
 		return false
