@@ -61,6 +61,8 @@ var Anames = []string{
 	"CSRRWI",
 	"CSRRSI",
 	"CSRRCI",
+	"CZEROEQZ",
+	"CZERONEZ",
 	"MUL",
 	"MULH",
 	"MULHU",
