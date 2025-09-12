@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"internal/asan"
+	"internal/race"
 	"internal/testenv"
 	"net/netip"
 	"os"
@@ -491,6 +492,12 @@ func TestAllocs(t *testing.T) {
 	case "plan9", "js", "wasip1":
 		// These implementations have not been optimized.
 		t.Skipf("skipping on %v", runtime.GOOS)
+	case "windows":
+		if race.Enabled {
+			// The Windows implementation make use of sync.Pool,
+			// which randomly drops cached items when race is enabled.
+			t.Skip("skipping test in race")
+		}
 	}
 	if !testableNetwork("udp4") {
 		t.Skipf("skipping: udp4 not available")

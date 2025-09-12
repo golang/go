@@ -196,6 +196,8 @@ func freeWSAMsg(msg *windows.WSAMsg) {
 	// Clear pointers to buffers so they can be released by garbage collector.
 	msg.Buffers.Len = 0
 	msg.Buffers.Buf = nil
+	msg.Control.Len = 0
+	msg.Control.Buf = nil
 	wsaMsgPool.Put(msg)
 }
 
