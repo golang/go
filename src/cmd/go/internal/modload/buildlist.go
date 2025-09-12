@@ -329,7 +329,7 @@ func readModGraph(ctx context.Context, pruning modPruning, roots []module.Versio
 		// so it wouldn't be useful to log when that occurs (because it happens in
 		// normal operation all the time).
 		readModGraphDebugOnce.Do(func() {
-			for _, f := range strings.Split(os.Getenv("GODEBUG"), ",") {
+			for f := range strings.SplitSeq(os.Getenv("GODEBUG"), ",") {
 				switch f {
 				case "lazymod=log":
 					debug.PrintStack()

@@ -241,7 +241,7 @@ func findCodeRoots() []Dir {
 	cmd := exec.Command(goCmd(), "list", "-m", "-f={{.Path}}\t{{.Dir}}", "all")
 	cmd.Stderr = os.Stderr
 	out, _ := cmd.Output()
-	for _, line := range strings.Split(string(out), "\n") {
+	for line := range strings.SplitSeq(string(out), "\n") {
 		path, dir, _ := strings.Cut(line, "\t")
 		if dir != "" {
 			list = append(list, Dir{importPath: path, dir: dir, inModule: true})

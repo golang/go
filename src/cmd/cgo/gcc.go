@@ -251,7 +251,7 @@ func (f *File) loadDefines(gccOptions []string) bool {
 	stdout := gccDefines(b.Bytes(), gccOptions)
 
 	var gccIsClang bool
-	for _, line := range strings.Split(stdout, "\n") {
+	for line := range strings.SplitSeq(stdout, "\n") {
 		if len(line) < 9 || line[0:7] != "#define" {
 			continue
 		}
@@ -428,7 +428,7 @@ func (p *Package) guessKinds(f *File) []*Name {
 		notDeclared
 	)
 	sawUnmatchedErrors := false
-	for _, line := range strings.Split(stderr, "\n") {
+	for line := range strings.SplitSeq(stderr, "\n") {
 		// Ignore warnings and random comments, with one
 		// exception: newer GCC versions will sometimes emit
 		// an error on a macro #define with a note referring

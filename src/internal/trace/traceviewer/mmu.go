@@ -69,7 +69,7 @@ var utilFlagNames = map[string]trace.UtilFlags{
 
 func requestUtilFlags(r *http.Request) trace.UtilFlags {
 	var flags trace.UtilFlags
-	for _, flagStr := range strings.Split(r.FormValue("flags"), "|") {
+	for flagStr := range strings.SplitSeq(r.FormValue("flags"), "|") {
 		flags |= utilFlagNames[flagStr]
 	}
 	return flags
@@ -119,7 +119,7 @@ func (m *mmu) HandlePlot(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var quantiles []float64
-	for _, flagStr := range strings.Split(r.FormValue("flags"), "|") {
+	for flagStr := range strings.SplitSeq(r.FormValue("flags"), "|") {
 		if flagStr == "mut" {
 			quantiles = []float64{0, 1 - .999, 1 - .99, 1 - .95}
 			break

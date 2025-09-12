@@ -1597,7 +1597,7 @@ func modulesTextIsForWorkspace(vendorDir string) (bool, error) {
 	}
 	line, _, _ := strings.Cut(string(buf[:n]), "\n")
 	if annotations, ok := strings.CutPrefix(line, "## "); ok {
-		for _, entry := range strings.Split(annotations, ";") {
+		for entry := range strings.SplitSeq(annotations, ";") {
 			entry = strings.TrimSpace(entry)
 			if entry == "workspace" {
 				return true, nil

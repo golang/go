@@ -381,7 +381,7 @@ func (v *jsonFlag) Set(s string) error {
 	if *v == nil {
 		*v = make(map[string]bool)
 	}
-	for _, f := range strings.Split(s, ",") {
+	for f := range strings.SplitSeq(s, ",") {
 		(*v)[f] = true
 	}
 	return nil
