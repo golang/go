@@ -358,6 +358,11 @@ start:
 	FNMSUBD	F1, F2, F3, F4				// 4b82201a
 	FNMADDD	F1, F2, F3, F4				// 4f82201a
 
+	// 21.6: Double-Precision Floating-Point Compare Instructions
+	FEQD	F0, F1, X7				// d3a300a2
+	FLTD	F0, F1, X7				// d39300a2
+	FLED	F0, F1, X7				// d38300a2
+
 	// 21.7: Double-Precision Floating-Point Classify Instruction
 	FCLASSD	F0, X5					// d31200e2
 
