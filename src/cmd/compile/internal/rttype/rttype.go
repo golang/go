@@ -49,25 +49,25 @@ func Init() {
 	// Note: this has to be called explicitly instead of being
 	// an init function so it runs after the types package has
 	// been properly initialized.
-	Type = FromReflect(reflect.TypeOf(abi.Type{}))
-	ArrayType = FromReflect(reflect.TypeOf(abi.ArrayType{}))
-	ChanType = FromReflect(reflect.TypeOf(abi.ChanType{}))
-	FuncType = FromReflect(reflect.TypeOf(abi.FuncType{}))
-	InterfaceType = FromReflect(reflect.TypeOf(abi.InterfaceType{}))
-	MapType = FromReflect(reflect.TypeOf(abi.MapType{}))
-	PtrType = FromReflect(reflect.TypeOf(abi.PtrType{}))
-	SliceType = FromReflect(reflect.TypeOf(abi.SliceType{}))
-	StructType = FromReflect(reflect.TypeOf(abi.StructType{}))
+	Type = FromReflect(reflect.TypeFor[abi.Type]())
+	ArrayType = FromReflect(reflect.TypeFor[abi.ArrayType]())
+	ChanType = FromReflect(reflect.TypeFor[abi.ChanType]())
+	FuncType = FromReflect(reflect.TypeFor[abi.FuncType]())
+	InterfaceType = FromReflect(reflect.TypeFor[abi.InterfaceType]())
+	MapType = FromReflect(reflect.TypeFor[abi.MapType]())
+	PtrType = FromReflect(reflect.TypeFor[abi.PtrType]())
+	SliceType = FromReflect(reflect.TypeFor[abi.SliceType]())
+	StructType = FromReflect(reflect.TypeFor[abi.StructType]())
 
-	IMethod = FromReflect(reflect.TypeOf(abi.Imethod{}))
-	Method = FromReflect(reflect.TypeOf(abi.Method{}))
-	StructField = FromReflect(reflect.TypeOf(abi.StructField{}))
-	UncommonType = FromReflect(reflect.TypeOf(abi.UncommonType{}))
+	IMethod = FromReflect(reflect.TypeFor[abi.Imethod]())
+	Method = FromReflect(reflect.TypeFor[abi.Method]())
+	StructField = FromReflect(reflect.TypeFor[abi.StructField]())
+	UncommonType = FromReflect(reflect.TypeFor[abi.UncommonType]())
 
-	InterfaceSwitch = FromReflect(reflect.TypeOf(abi.InterfaceSwitch{}))
-	TypeAssert = FromReflect(reflect.TypeOf(abi.TypeAssert{}))
+	InterfaceSwitch = FromReflect(reflect.TypeFor[abi.InterfaceSwitch]())
+	TypeAssert = FromReflect(reflect.TypeFor[abi.TypeAssert]())
 
-	ITab = FromReflect(reflect.TypeOf(abi.ITab{}))
+	ITab = FromReflect(reflect.TypeFor[abi.ITab]())
 
 	// Make sure abi functions are correct. These functions are used
 	// by the linker which doesn't have the ability to do type layout,
