@@ -88,6 +88,12 @@ func writeSIMDSSA(ops []Operation) *bytes.Buffer {
 		"v2kvload",
 		"v2kload",
 		"v11load",
+		"v11loadImm8",
+		"vkvloadImm8",
+		"v21loadImm8",
+		"v2kloadImm8",
+		"v2kkloadImm8",
+		"v2kvloadImm8",
 	}
 	regInfoSet := map[string][]string{}
 	for _, key := range regInfoKeys {
@@ -108,11 +114,7 @@ func writeSIMDSSA(ops []Operation) *bytes.Buffer {
 			regShape += "ResultInArg0"
 		}
 		if shapeIn == OneImmIn || shapeIn == OneKmaskImmIn {
-			if mem == NoMem || mem == InvalidMem {
-				regShape += "Imm8"
-			} else {
-				return fmt.Errorf("simdgen cannot handle mem op with imm8 as of now")
-			}
+			regShape += "Imm8"
 		}
 		regShape, err = rewriteVecAsScalarRegInfo(op, regShape)
 		if err != nil {

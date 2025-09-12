@@ -256,6 +256,7 @@ func init() {
 		w2kwload = regInfo{inputs: []regMask{wz, gpspsb, mask, 0}, outputs: wonly}
 		w11load  = regInfo{inputs: []regMask{gpspsb, 0}, outputs: wonly}
 		w3kwload = regInfo{inputs: []regMask{w, wz, gpspsb, mask, 0}, outputs: wonly} // used in resultInArg0 ops, arg0 must not be x15
+		w2kkload = regInfo{inputs: []regMask{wz, gpspsb, mask, 0}, outputs: maskonly}
 
 		kload  = regInfo{inputs: []regMask{gpspsb, 0}, outputs: maskonly}
 		kstore = regInfo{inputs: []regMask{gpspsb, mask, 0}}
@@ -1459,7 +1460,7 @@ func init() {
 		genSIMDfile: "../../amd64/simdssa.go",
 		ops: append(AMD64ops, simdAMD64Ops(v11, v21, v2k, vkv, v2kv, v2kk, v31, v3kv, vgpv, vgp, vfpv, vfpkv,
 			w11, w21, w2k, wkw, w2kw, w2kk, w31, w3kw, wgpw, wgp, wfpw, wfpkw, wkwload, v21load, v31load, v11load,
-			w21load, w31load, w2kload, w2kwload, w11load, w3kwload)...), // AMD64ops,
+			w21load, w31load, w2kload, w2kwload, w11load, w3kwload, w2kkload)...), // AMD64ops,
 		blocks:             AMD64blocks,
 		regnames:           regNamesAMD64,
 		ParamIntRegNames:   "AX BX CX DI SI R8 R9 R10 R11",

@@ -2211,6 +2211,97 @@ func simdV11load(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	return p
 }
 
+// Example instruction: VPSHUFD $7, (BX), X11
+func simdV11loadImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	sc := v.AuxValAndOff()
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_CONST
+	p.From.Offset = sc.Val64()
+	m := obj.Addr{Type: obj.TYPE_MEM, Reg: v.Args[0].Reg()}
+	ssagen.AddAux2(&m, v, sc.Off64())
+	p.AddRestSource(m)
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: VPRORD $81, -15(R14), K7, Y1
+func simdVkvloadImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	sc := v.AuxValAndOff()
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_CONST
+	p.From.Offset = sc.Val64()
+	m := obj.Addr{Type: obj.TYPE_MEM, Reg: v.Args[0].Reg()}
+	ssagen.AddAux2(&m, v, sc.Off64())
+	p.AddRestSource(m)
+	p.AddRestSourceReg(maskReg(v.Args[1]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: VPSHLDD $82, 7(SI), Y21, Y3
+func simdV21loadImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	sc := v.AuxValAndOff()
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_CONST
+	p.From.Offset = sc.Val64()
+	m := obj.Addr{Type: obj.TYPE_MEM, Reg: v.Args[1].Reg()}
+	ssagen.AddAux2(&m, v, sc.Off64())
+	p.AddRestSource(m)
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: VCMPPS $81, -7(DI), Y16, K3
+func simdV2kloadImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	sc := v.AuxValAndOff()
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_CONST
+	p.From.Offset = sc.Val64()
+	m := obj.Addr{Type: obj.TYPE_MEM, Reg: v.Args[1].Reg()}
+	ssagen.AddAux2(&m, v, sc.Off64())
+	p.AddRestSource(m)
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = maskReg(v)
+	return p
+}
+
+// Example instruction: VCMPPS $81, -7(DI), Y16, K1, K3
+func simdV2kkloadImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	sc := v.AuxValAndOff()
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_CONST
+	p.From.Offset = sc.Val64()
+	m := obj.Addr{Type: obj.TYPE_MEM, Reg: v.Args[1].Reg()}
+	ssagen.AddAux2(&m, v, sc.Off64())
+	p.AddRestSource(m)
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.AddRestSourceReg(maskReg(v.Args[2]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = maskReg(v)
+	return p
+}
+
+// Example instruction: VGF2P8AFFINEINVQB $64, -17(BP), X31, K3, X26
+func simdV2kvloadImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	sc := v.AuxValAndOff()
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_CONST
+	p.From.Offset = sc.Val64()
+	m := obj.Addr{Type: obj.TYPE_MEM, Reg: v.Args[1].Reg()}
+	ssagen.AddAux2(&m, v, sc.Off64())
+	p.AddRestSource(m)
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.AddRestSourceReg(maskReg(v.Args[2]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
 var blockJump = [...]struct {
 	asm, invasm obj.As
 }{

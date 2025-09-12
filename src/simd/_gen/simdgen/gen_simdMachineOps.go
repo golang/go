@@ -16,7 +16,7 @@ const simdMachineOpsTmpl = `
 package main
 
 func simdAMD64Ops(v11, v21, v2k, vkv, v2kv, v2kk, v31, v3kv, vgpv, vgp, vfpv, vfpkv, w11, w21, w2k, wkw, w2kw, w2kk, w31, w3kw, wgpw, wgp, wfpw, wfpkw,
-	wkwload, v21load, v31load, v11load, w21load, w31load, w2kload, w2kwload, w11load, w3kwload regInfo) []opData {
+	wkwload, v21load, v31load, v11load, w21load, w31load, w2kload, w2kwload, w11load, w3kwload, w2kkload regInfo) []opData {
 	return []opData{
 {{- range .OpsData }}
 		{name: "{{.OpName}}", argLength: {{.OpInLen}}, reg: {{.RegInfo}}, asm: "{{.Asm}}", commutative: {{.Comm}}, typ: "{{.Type}}", resultInArg0: {{.ResultInArg0}}},
@@ -24,8 +24,11 @@ func simdAMD64Ops(v11, v21, v2k, vkv, v2kv, v2kk, v31, v3kv, vgpv, vgp, vfpv, vf
 {{- range .OpsDataImm }}
 		{name: "{{.OpName}}", argLength: {{.OpInLen}}, reg: {{.RegInfo}}, asm: "{{.Asm}}", aux: "UInt8", commutative: {{.Comm}}, typ: "{{.Type}}", resultInArg0: {{.ResultInArg0}}},
 {{- end }}
-{{- range .OpsDataload}}
+{{- range .OpsDataLoad}}
 		{name: "{{.OpName}}", argLength: {{.OpInLen}}, reg: {{.RegInfo}}, asm: "{{.Asm}}", commutative: {{.Comm}}, typ: "{{.Type}}", aux: "SymOff", symEffect: "Read", resultInArg0: {{.ResultInArg0}}},
+{{- end}}
+{{- range .OpsDataImmLoad}}
+		{name: "{{.OpName}}", argLength: {{.OpInLen}}, reg: {{.RegInfo}}, asm: "{{.Asm}}", commutative: {{.Comm}}, typ: "{{.Type}}", aux: "SymValAndOff", symEffect: "Read", resultInArg0: {{.ResultInArg0}}},
 {{- end}}
 	}
 }
@@ -48,19 +51,21 @@ func writeSIMDMachineOps(ops []Operation) *bytes.Buffer {
 		ResultInArg0 bool
 	}
 	type machineOpsData struct {
-		OpsData     []opData
-		OpsDataImm  []opData
-		OpsDataload []opData
+		OpsData        []opData
+		OpsDataImm     []opData
+		OpsDataLoad    []opData
+		OpsDataImmLoad []opData
 	}
 
 	regInfoSet := map[string]bool{
 		"v11": true, "v21": true, "v2k": true, "v2kv": true, "v2kk": true, "vkv": true, "v31": true, "v3kv": true, "vgpv": true, "vgp": true, "vfpv": true, "vfpkv": true,
 		"w11": true, "w21": true, "w2k": true, "w2kw": true, "w2kk": true, "wkw": true, "w31": true, "w3kw": true, "wgpw": true, "wgp": true, "wfpw": true, "wfpkw": true,
 		"wkwload": true, "v21load": true, "v31load": true, "v11load": true, "w21load": true, "w31load": true, "w2kload": true, "w2kwload": true, "w11load": true,
-		"w3kwload": true}
+		"w3kwload": true, "w2kkload": true}
 	opsData := make([]opData, 0)
 	opsDataImm := make([]opData, 0)
-	opsDataload := make([]opData, 0)
+	opsDataLoad := make([]opData, 0)
+	opsDataImmLoad := make([]opData, 0)
 
 	// Determine the "best" version of an instruction to use
 	best := make(map[string]Operation)
@@ -141,27 +146,32 @@ func writeSIMDMachineOps(ops []Operation) *bytes.Buffer {
 		if shapeOut == OneVregOutAtIn {
 			resultInArg0 = true
 		}
+		var memOpData *opData
+		if op.MemFeatures != nil && *op.MemFeatures == "vbcst" {
+			// Right now we only have vbcst case
+			// Make a full vec memory variant.
+			op = rewriteLastVregToMem(op)
+			regInfo, err := makeRegInfo(op, VregMemIn)
+			if err != nil {
+				// Just skip it if it's non nill.
+				// an error could be triggered by [checkVecAsScalar].
+				// TODO: make [checkVecAsScalar] aware of mem ops.
+				if *Verbose {
+					log.Printf("Seen error: %e", err)
+				}
+			} else {
+				memOpData = &opData{asm + "load", gOp.Asm, len(gOp.In) + 1, regInfo, false, outType, resultInArg0}
+			}
+		}
 		if shapeIn == OneImmIn || shapeIn == OneKmaskImmIn {
 			opsDataImm = append(opsDataImm, opData{asm, gOp.Asm, len(gOp.In), regInfo, gOp.Commutative, outType, resultInArg0})
-			// TODO: right now we put the uint8 immediates in [Aux] field, but for load this field needs to be occupied by SymOff.
-			// we should handle uint8 aux in [AuxInt]. Before that we will skip memory ops with imm.
+			if memOpData != nil {
+				opsDataImmLoad = append(opsDataImmLoad, *memOpData)
+			}
 		} else {
 			opsData = append(opsData, opData{asm, gOp.Asm, len(gOp.In), regInfo, gOp.Commutative, outType, resultInArg0})
-			if op.MemFeatures != nil && *op.MemFeatures == "vbcst" {
-				// Right now we only have vbcst case
-				// Make a full vec memory variant.
-				op = rewriteLastVregToMem(op)
-				regInfo, err := makeRegInfo(op, VregMemIn)
-				if err != nil {
-					// Just skip it if it's non nill.
-					// an error could be triggered by [checkVecAsScalar].
-					// TODO: make [checkVecAsScalar] aware of mem ops.
-					if *Verbose {
-						log.Printf("Seen error: %e", err)
-					}
-				} else {
-					opsDataload = append(opsDataload, opData{asm + "load", gOp.Asm, len(gOp.In) + 1, regInfo, false, outType, resultInArg0})
-				}
+			if memOpData != nil {
+				opsDataLoad = append(opsDataLoad, *memOpData)
 			}
 		}
 	}
@@ -177,10 +187,13 @@ func writeSIMDMachineOps(ops []Operation) *bytes.Buffer {
 	sort.Slice(opsDataImm, func(i, j int) bool {
 		return compareNatural(opsData[i].OpName, opsData[j].OpName) < 0
 	})
-	sort.Slice(opsDataload, func(i, j int) bool {
+	sort.Slice(opsDataLoad, func(i, j int) bool {
 		return compareNatural(opsData[i].OpName, opsData[j].OpName) < 0
 	})
-	err := t.Execute(buffer, machineOpsData{opsData, opsDataImm, opsDataload})
+	sort.Slice(opsDataImmLoad, func(i, j int) bool {
+		return compareNatural(opsData[i].OpName, opsData[j].OpName) < 0
+	})
+	err := t.Execute(buffer, machineOpsData{opsData, opsDataImm, opsDataLoad, opsDataImmLoad})
 	if err != nil {
 		panic(fmt.Errorf("failed to execute template: %w", err))
 	}
