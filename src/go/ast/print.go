@@ -193,7 +193,7 @@ func (p *printer) print(x reflect.Value) {
 		p.printf("}")
 
 	case reflect.Slice:
-		if s, ok := x.Interface().([]byte); ok {
+		if s, ok := reflect.TypeAssert[[]byte](x); ok {
 			p.printf("%#q", s)
 			return
 		}
