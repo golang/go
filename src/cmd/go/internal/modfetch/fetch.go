@@ -214,9 +214,12 @@ func DownloadZip(ctx context.Context, mod module.Version) (zipfile string, err e
 		}
 		ziphashfile := zipfile + "hash"
 
-		// Return without locking if the zip and ziphash files exist.
+		// Return early if the zip and ziphash files exist.
 		if _, err := os.Stat(zipfile); err == nil {
 			if _, err := os.Stat(ziphashfile); err == nil {
+				if !HaveSum(mod) {
+					checkMod(ctx, mod)
+				}
 				return zipfile, nil
 			}
 		}
