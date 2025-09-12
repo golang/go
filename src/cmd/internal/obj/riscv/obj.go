@@ -29,6 +29,7 @@ import (
 	"internal/abi"
 	"internal/buildcfg"
 	"log"
+	"math"
 	"math/bits"
 	"strings"
 )
@@ -145,9 +146,29 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			p.From.Offset = 0
 		}
 
+	case AMOVF:
+		if p.From.Type == obj.TYPE_FCONST && p.From.Name == obj.NAME_NONE && p.From.Reg == obj.REG_NONE {
+			f64 := p.From.Val.(float64)
+			f32 := float32(f64)
+			if math.Float32bits(f32) == 0 {
+				p.From.Type = obj.TYPE_REG
+				p.From.Reg = REG_ZERO
+				break
+			}
+			p.From.Type = obj.TYPE_MEM
+			p.From.Sym = ctxt.Float32Sym(f32)
+			p.From.Name = obj.NAME_EXTERN
+			p.From.Offset = 0
+		}
+
 	case AMOVD:
 		if p.From.Type == obj.TYPE_FCONST && p.From.Name == obj.NAME_NONE && p.From.Reg == obj.REG_NONE {
 			f64 := p.From.Val.(float64)
+			if math.Float64bits(f64) == 0 {
+				p.From.Type = obj.TYPE_REG
+				p.From.Reg = REG_ZERO
+				break
+			}
 			p.From.Type = obj.TYPE_MEM
 			p.From.Sym = ctxt.Float64Sym(f64)
 			p.From.Name = obj.NAME_EXTERN
@@ -3254,16 +3275,37 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
 	case p.From.Type == obj.TYPE_REG && p.To.Type == obj.TYPE_REG:
 		// Handle register to register moves.
 		switch p.As {
-		case AMOV: // MOV Ra, Rb -> ADDI $0, Ra, Rb
+		case AMOV:
+			// MOV Ra, Rb -> ADDI $0, Ra, Rb
 			ins.as, ins.rs1, ins.rs2, ins.imm = AADDI, uint32(p.From.Reg), obj.REG_NONE, 0
-		case AMOVW: // MOVW Ra, Rb -> ADDIW $0, Ra, Rb
+		case AMOVW:
+			// MOVW Ra, Rb -> ADDIW $0, Ra, Rb
 			ins.as, ins.rs1, ins.rs2, ins.imm = AADDIW, uint32(p.From.Reg), obj.REG_NONE, 0
-		case AMOVBU: // MOVBU Ra, Rb -> ANDI $255, Ra, Rb
+		case AMOVBU:
+			// MOVBU Ra, Rb -> ANDI $255, Ra, Rb
 			ins.as, ins.rs1, ins.rs2, ins.imm = AANDI, uint32(p.From.Reg), obj.REG_NONE, 255
-		case AMOVF: // MOVF Ra, Rb -> FSGNJS Ra, Ra, Rb
-			ins.as, ins.rs1 = AFSGNJS, uint32(p.From.Reg)
-		case AMOVD: // MOVD Ra, Rb -> FSGNJD Ra, Ra, Rb
-			ins.as, ins.rs1 = AFSGNJD, uint32(p.From.Reg)
+		case AMOVF:
+			// MOVF Ra, Rb -> FSGNJS Ra, Ra, Rb
+			//          or -> FMVWX  Ra, Rb
+			//          or -> FMVXW  Ra, Rb
+			if ins.rs2 >= REG_X0 && ins.rs2 <= REG_X31 && ins.rd >= REG_F0 && ins.rd <= REG_F31 {
+				ins.as = AFMVWX
+			} else if ins.rs2 >= REG_F0 && ins.rs2 <= REG_F31 && ins.rd >= REG_X0 && ins.rd <= REG_X31 {
+				ins.as = AFMVXW
+			} else {
+				ins.as, ins.rs1 = AFSGNJS, uint32(p.From.Reg)
+			}
+		case AMOVD:
+			// MOVD Ra, Rb -> FSGNJD Ra, Ra, Rb
+			//          or -> FMVDX  Ra, Rb
+			//          or -> FMVXD  Ra, Rb
+			if ins.rs2 >= REG_X0 && ins.rs2 <= REG_X31 && ins.rd >= REG_F0 && ins.rd <= REG_F31 {
+				ins.as = AFMVDX
+			} else if ins.rs2 >= REG_F0 && ins.rs2 <= REG_F31 && ins.rd >= REG_X0 && ins.rd <= REG_X31 {
+				ins.as = AFMVXD
+			} else {
+				ins.as, ins.rs1 = AFSGNJD, uint32(p.From.Reg)
+			}
 		case AMOVB, AMOVH:
 			if buildcfg.GORISCV64 >= 22 {
 				// Use SEXTB or SEXTH to extend.

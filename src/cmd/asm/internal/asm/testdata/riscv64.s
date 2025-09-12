@@ -1952,12 +1952,23 @@ start:
 	MOVF	4(X5), F0				// 07a04200
 	MOVF	F0, 4(X5)				// 27a20200
 	MOVF	F0, F1					// d3000020
+	MOVF	X1, F3					// d38100f0
+	MOVF	F3, X1					// d38001e0
+	MOVF	X0, F3					// d30100f0
+	MOVF	$(0.0), F3				// d30100f0
+
+	// Converted to load of symbol (AUIPC + FLW)
+	MOVF	$(709.78271289338397), F3		// 970f000087a10f00
 
 	MOVD	4(X5), F0				// 07b04200
 	MOVD	F0, 4(X5)				// 27b20200
 	MOVD	F0, F1					// d3000022
+	MOVD	F3, X1					// d38001e2
+	MOVD	X1, F3					// d38100f2
+	MOVD	X0, F3					// d30100f2
+	MOVD	$(0.0), F3				// d30100f2
 
-	// Convert to load of symbol (AUIPC + FLD)
+	// Converted to load of symbol (AUIPC + FLD)
 	MOVD	$(709.78271289338397), F3		// 970f000087b10f00
 
 	// TLS load with local-exec (LUI + ADDIW + ADD of TP + load)
