@@ -1943,7 +1943,11 @@ func (ctxt *Link) hostlink() {
 			argv = append(argv, "-Wl,-T,"+p)
 		}
 		if *flagRace {
-			if p := ctxt.findLibPath("libsynchronization.a"); p != "libsynchronization.a" {
+			// Apparently --print-file-name doesn't work with -msvc clang.
+			// (The library name is synchronization.lib, but even with that
+			// name it still doesn't print the full path.) Assume it always
+			// it.
+			if isMSVC || ctxt.findLibPath("libsynchronization.a") != "libsynchronization.a" {
 				argv = append(argv, "-lsynchronization")
 			}
 		}
