@@ -191,11 +191,26 @@ func VerifyPSS(pub *PublicKey, hash crypto.Hash, digest []byte, sig []byte, opts
 // The message must be no longer than the length of the public modulus minus
 // twice the hash length, minus a further 2.
 func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, label []byte) ([]byte, error) {
+	return encryptOAEP(hash, hash, random, pub, msg, label)
+}
+
+// EncryptOAEPWithOptions encrypts the given message with RSA-OAEP using the provided options.
+//
+// This function should only be used over EncryptOAEP when there is a need to specify the OAEP and MGF1
+// hashes separately.
+//
+// See EncryptOAEP for additional details.
+func EncryptOAEPWithOptions(random io.Reader, pub *PublicKey, msg []byte, opts OAEPOptions) ([]byte, error) {
+	return encryptOAEP(opts.Hash.New(), opts.MGFHash.New(), random, pub, msg, opts.Label)
+}
+
+func encryptOAEP(hash hash.Hash, mgfHash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, label []byte) ([]byte, error) {
 	if err := checkPublicKeySize(pub); err != nil {
 		return nil, err
 	}
 
 	defer hash.Reset()
+	defer mgfHash.Reset()
 
 	if boring.Enabled && random == boring.RandReader {
 		hash.Reset()
@@ -227,7 +242,7 @@ func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, l
 	if err != nil {
 		return nil, err
 	}
-	return fipsError2(rsa.EncryptOAEP(hash, hash, random, k, msg, label))
+	return fipsError2(rsa.EncryptOAEP(hash, mgfHash, random, k, msg, label))
 }
 
 // DecryptOAEP decrypts ciphertext using RSA-OAEP.
