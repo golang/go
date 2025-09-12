@@ -627,30 +627,30 @@ func testFlagD(t *testing.T, dataAddr string, roundQuantum string, expectedAddr 
 	defer ef.Close()
 
 	// Find the first data-related section to verify segment placement
-	var firstDataSectionAddr uint64
-	var found bool = false
+	var firstDataSection *elf.Section
 	for _, sec := range ef.Sections {
 		if sec.Type == elf.SHT_PROGBITS || sec.Type == elf.SHT_NOBITS {
 			// These sections are writable, allocated at runtime, but not executable
+			// nor TLS.
 			isWrite := sec.Flags&elf.SHF_WRITE != 0
 			isExec := sec.Flags&elf.SHF_EXECINSTR != 0
 			isAlloc := sec.Flags&elf.SHF_ALLOC != 0
+			isTLS := sec.Flags&elf.SHF_TLS != 0
 
-			if isWrite && !isExec && isAlloc {
-				addrLower := sec.Addr < firstDataSectionAddr
-				if !found || addrLower {
-					firstDataSectionAddr = sec.Addr
-					found = true
+			if isWrite && !isExec && isAlloc && !isTLS {
+				if firstDataSection == nil || sec.Addr < firstDataSection.Addr {
+					firstDataSection = sec
 				}
 			}
 		}
 	}
 
-	if !found {
+	if firstDataSection == nil {
 		t.Fatalf("can't find any writable data sections")
 	}
-	if firstDataSectionAddr != expectedAddr {
-		t.Errorf("data section starts at 0x%x, expected 0x%x", firstDataSectionAddr, expectedAddr)
+	if firstDataSection.Addr != expectedAddr {
+		t.Errorf("data section starts at 0x%x for section %s, expected 0x%x",
+			firstDataSection.Addr, firstDataSection.Name, expectedAddr)
 	}
 }
 
