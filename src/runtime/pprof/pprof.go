@@ -194,7 +194,7 @@ var goroutineProfile = &Profile{
 
 var goroutineLeakProfile = &Profile{
 	name:  "goroutineleak",
-	count: countGoroutineLeak,
+	count: runtime_gleakcount,
 	write: writeGoroutineLeak,
 }
 
@@ -233,13 +233,15 @@ func lockProfiles() {
 	if profiles.m == nil {
 		// Initial built-in profiles.
 		profiles.m = map[string]*Profile{
-			"goroutine":     goroutineProfile,
-			"goroutineleak": goroutineLeakProfile,
-			"threadcreate":  threadcreateProfile,
-			"heap":          heapProfile,
-			"allocs":        allocsProfile,
-			"block":         blockProfile,
-			"mutex":         mutexProfile,
+			"goroutine":    goroutineProfile,
+			"threadcreate": threadcreateProfile,
+			"heap":         heapProfile,
+			"allocs":       allocsProfile,
+			"block":        blockProfile,
+			"mutex":        mutexProfile,
+		}
+		if goexperiment.GoleakProfile {
+			profiles.m["goroutineleak"] = goroutineLeakProfile
 		}
 	}
 }
@@ -285,12 +287,6 @@ func Profiles() []*Profile {
 
 	all := make([]*Profile, 0, len(profiles.m))
 	for _, p := range profiles.m {
-		// Do not list the goroutine leak profile if the experiment is disabled.
-		//
-		// TODO(vsaioc): Remove this once the goroutine leak profiler is no longer experimental.
-		if !goexperiment.GoleakProfiler && p.Name() == "goroutineleak" {
-			continue
-		}
 
 		all = append(all, p)
 	}
@@ -754,11 +750,6 @@ func writeThreadCreate(w io.Writer, debug int) error {
 // countGoroutine returns the number of goroutines.
 func countGoroutine() int {
 	return runtime.NumGoroutine()
-}
-
-// countGoroutineLeak returns the number of leaked goroutines.
-func countGoroutineLeak() int {
-	return runtime_gleakcount()
 }
 
 // writeGoroutine writes the current runtime GoroutineProfile to w.

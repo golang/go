@@ -5558,7 +5558,7 @@ func gcount(includeSys bool) int32 {
 //
 //go:linkname gleakcount runtime/pprof.runtime_gleakcount
 func gleakcount() int {
-	return work.goleakProfiler.leakCount
+	return work.goleak.count
 }
 
 func mcount() int32 {

@@ -1320,7 +1320,7 @@ func goroutineLeakProfileWithLabelsConcurrent(p []profilerecord.StackRecord, lab
 	if len(p) == 0 {
 		// An empty slice is obviously too small. Return a rough
 		// allocation estimate.
-		return work.goleakProfiler.leakCount, false
+		return work.goleak.count, false
 	}
 
 	// Use the same semaphore as goroutineProfileWithLabelsConcurrent,
@@ -1333,7 +1333,7 @@ func goroutineLeakProfileWithLabelsConcurrent(p []profilerecord.StackRecord, lab
 	pcbuf := makeProfStack() // see saveg() for explanation
 
 	// Prepare a profile large enough to store all leaked goroutines.
-	n = work.goleakProfiler.leakCount
+	n = work.goleak.count
 
 	if n > len(p) {
 		// There's not enough space in p to store the whole profile, so (per the

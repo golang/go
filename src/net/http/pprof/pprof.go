@@ -375,7 +375,7 @@ var profileDescriptions = map[string]string{
 }
 
 func init() {
-	if goexperiment.GoleakProfiler {
+	if goexperiment.GoleakProfile {
 		profileDescriptions["goroutineleak"] = "Stack traces of all leaked goroutines. Use debug=2 as a query parameter to export in the same format as an unrecovered panic."
 	}
 }
