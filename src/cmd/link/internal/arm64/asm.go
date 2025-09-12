@@ -277,6 +277,17 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		su.SetRelocSym(rIdx, syms.GOT)
 		su.SetRelocAdd(rIdx, int64(ldr.SymGot(targ)))
 		return true
+
+	case objabi.MachoRelocOffset + ld.MACHO_ARM64_RELOC_POINTER_TO_GOT*2 + pcrel:
+		if targType != sym.SDYNIMPORT {
+			ldr.Errorf(s, "unexpected GOT reloc for non-dynamic symbol %s", ldr.SymName(targ))
+		}
+		ld.AddGotSym(target, ldr, syms, targ, 0)
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_PCREL)
+		su.SetRelocSym(rIdx, syms.GOT)
+		su.SetRelocAdd(rIdx, r.Add()+int64(r.Siz())+int64(ldr.SymGot(targ)))
+		return true
 	}
 
 	// Reread the reloc to incorporate any changes in type above.
