@@ -186,6 +186,22 @@ func buildTestProg(t *testing.T, binary string, flags ...string) (string, error)
 		t.Logf("running %v", cmd)
 		cmd.Dir = "testdata/" + binary
 		cmd = testenv.CleanCmdEnv(cmd)
+
+		// If tests need any experimental flags, add them here.
+		//
+		// TODO(vsaioc): Remove `goleakprofile` once the feature is no longer experimental.
+		edited := false
+		for i := range cmd.Env {
+			e := cmd.Env[i]
+			if _, vars, ok := strings.Cut(e, "GOEXPERIMENT="); ok {
+				cmd.Env[i] = "GOEXPERIMENT=" + vars + ",goleakprofile"
+				edited = true
+			}
+		}
+		if !edited {
+			cmd.Env = append(cmd.Env, "GOEXPERIMENT=goleakprofile")
+		}
+
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			target.err = fmt.Errorf("building %s %v: %v\n%s", binary, flags, err, out)

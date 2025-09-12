@@ -2437,6 +2437,9 @@ var blockedLinknames = map[string][]string{
 	"sync_test.runtime_blockUntilEmptyCleanupQueue":  {"sync_test"},
 	"time.runtimeIsBubbled":                          {"time"},
 	"unique.runtime_blockUntilEmptyCleanupQueue":     {"unique"},
+	// Experimental features
+	"runtime.runtime_goroutineLeakGC": {"runtime/pprof"},
+	"runtime.runtime_gleakcount":      {"runtime/pprof"},
 	// Others
 	"net.newWindowsFile":                   {"net"},              // pushed from os
 	"testing/synctest.testingSynctestTest": {"testing/synctest"}, // pushed from testing
