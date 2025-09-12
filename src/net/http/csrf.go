@@ -90,6 +90,10 @@ var sentinelHandler Handler = &noopHandler{}
 // would redirect to a pattern (e.g. after cleaning the path or adding a
 // trailing slash) are not.
 //
+// AddInsecureBypassPattern panics if the pattern conflicts with one already
+// bypassed, or if the pattern is syntactically invalid (for example, an
+// improperly formed wildcard).
+//
 // AddInsecureBypassPattern can be called concurrently with other methods or
 // request handling, and applies to future requests.
 func (c *CrossOriginProtection) AddInsecureBypassPattern(pattern string) {
