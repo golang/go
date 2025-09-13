@@ -529,10 +529,7 @@ func (s *State) analyze(nodes ir.Nodes) {
 					assign(p, call.ReturnVars[i])
 				}
 			} else {
-				// TODO: can we reach here?
-				for _, p := range n.Lhs {
-					assign(p, nil)
-				}
+				base.Fatalf("unexpected type %T in OAS2FUNC Rhs[0]", call)
 			}
 		case ir.ORANGE:
 			n := n.(*ir.RangeStmt)
