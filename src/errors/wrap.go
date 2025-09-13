@@ -92,8 +92,7 @@ func is(err, target error, targetComparable bool) bool {
 // An error type might provide an As method so it can be treated as if it were a
 // different error type.
 //
-// As panics if target is not a non-nil pointer to either a type that implements
-// error, or to any interface type.
+// As panics if target is not a non-nil pointer to an interface that implements error.
 func As(err error, target any) bool {
 	if err == nil {
 		return false
@@ -108,7 +107,7 @@ func As(err error, target any) bool {
 	}
 	targetType := typ.Elem()
 	if targetType.Kind() != reflectlite.Interface && !targetType.Implements(errorType) {
-		panic("errors: *target must be interface or implement error")
+		panic("errors: *target must be interface that implements error")
 	}
 	return as(err, target, val, targetType)
 }
