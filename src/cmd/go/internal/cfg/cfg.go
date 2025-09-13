@@ -145,7 +145,8 @@ func defaultContext() build.Context {
 	if buildcfg.DefaultCGO_ENABLED == "1" {
 		defaultCgoEnabled = true
 	} else if buildcfg.DefaultCGO_ENABLED == "0" {
-	} else if runtime.GOARCH == ctxt.GOARCH && runtime.GOOS == ctxt.GOOS {
+	}
+	if runtime.GOARCH == ctxt.GOARCH && runtime.GOOS == ctxt.GOOS {
 		defaultCgoEnabled = platform.CgoSupported(ctxt.GOOS, ctxt.GOARCH)
 		// Use built-in default cgo setting for GOOS/GOARCH.
 		// Note that ctxt.GOOS/GOARCH are derived from the preference list
