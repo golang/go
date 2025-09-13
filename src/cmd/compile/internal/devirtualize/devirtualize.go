@@ -273,10 +273,7 @@ func concreteType1(s *State, n ir.Node, seen map[*ir.Name]struct{}) (outT *types
 	}
 
 	if _, ok := seen[name]; ok {
-		// Self assignment, treat it the same as a nil assignment.
-		// In case this is the only assignment then we are not going to devirtualize anything.
-		// In case there are other assignment, we still preserve the correct type.
-		return &noType
+		return &noType // Already analyzed assignments to name, no need to do that twice.
 	}
 	seen[name] = struct{}{}
 
@@ -301,8 +298,6 @@ func concreteType1(s *State, n ir.Node, seen map[*ir.Name]struct{}) (outT *types
 		}
 		typ = t
 	}
-
-	delete(seen, name)
 
 	if typ == nil {
 		// Variable either declared with zero value, or only assigned with nil.
@@ -377,6 +372,11 @@ func (s *State) InlinedCall(fun *ir.Func, origCall *ir.CallExpr, inlinedCall *ir
 				inlinedCall.ReturnVars[ref.returnIndex].Type(),
 			)
 		}
+
+		// Update ifaceAssignments with an ir.Node from the inlined function’s ReturnVars.
+		// This may enable future devirtualization of calls that reference ref.name.
+		// We will get calls to [StaticCall] from the interleaved package,
+		// to try devirtualize such calls afterwards.
 		*vt = inlinedCall.ReturnVars[ref.returnIndex]
 	}
 }
@@ -461,8 +461,7 @@ func (s *State) analyze(nodes ir.Nodes) {
 		switch n.Op() {
 		case ir.OAS:
 			n := n.(*ir.AssignStmt)
-			if n.Y != nil {
-				rhs := n.Y
+			if rhs := n.Y; rhs != nil {
 				for {
 					if r, ok := rhs.(*ir.ParenExpr); ok {
 						rhs = r.X
@@ -474,6 +473,9 @@ func (s *State) analyze(nodes ir.Nodes) {
 					retTyp := call.Fun.Type().Results()[0].Type
 					n, idx := assign(n.X, retTyp)
 					if n != nil && retTyp.IsInterface() {
+						// We have a call expression, that returns an interface, store it for later evaluation.
+						// In case this func gets inlined later, we will update the assignment (added before)
+						// with a reference to ReturnVars, see [State.InlinedCall], which might allow for future devirtualizing of n.X.
 						s.ifaceCallExprAssigns[call] = append(s.ifaceCallExprAssigns[call], ifaceAssignRef{n, idx, 0})
 					}
 				} else {
@@ -516,6 +518,9 @@ func (s *State) analyze(nodes ir.Nodes) {
 					retTyp := call.Fun.Type().Results()[i].Type
 					n, idx := assign(p, retTyp)
 					if n != nil && retTyp.IsInterface() {
+						// We have a call expression, that returns an interface, store it for later evaluation.
+						// In case this func gets inlined later, we will update the assignment (added before)
+						// with a reference to ReturnVars, see [State.InlinedCall], which might allow for future devirtualizing of n.X.
 						s.ifaceCallExprAssigns[call] = append(s.ifaceCallExprAssigns[call], ifaceAssignRef{n, idx, i})
 					}
 				}
@@ -539,7 +544,7 @@ func (s *State) analyze(nodes ir.Nodes) {
 			}
 
 			if xTyp.IsArray() || xTyp.IsSlice() {
-				assign(n.Key, nil) //  inteager does not have methods to devirtualize
+				assign(n.Key, nil) // integer does not have methods to devirtualize
 				assign(n.Value, xTyp.Elem())
 			} else if xTyp.IsChan() {
 				assign(n.Key, xTyp.Elem())
