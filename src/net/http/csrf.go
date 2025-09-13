@@ -91,7 +91,7 @@ var sentinelHandler Handler = &noopHandler{}
 // trailing slash) are not.
 //
 // AddInsecureBypassPattern panics if the pattern conflicts with one already
-// bypassed, or if the pattern is syntactically invalid (for example, an
+// registered, or if the pattern is syntactically invalid (for example, an
 // improperly formed wildcard).
 //
 // AddInsecureBypassPattern can be called concurrently with other methods or
