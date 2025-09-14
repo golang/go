@@ -1768,6 +1768,10 @@
 (VPANDQ512 x (VPMOVMToVec32x16 k)) => (VMOVDQU32Masked512 x k)
 (VPANDQ512 x (VPMOVMToVec16x32 k)) => (VMOVDQU16Masked512 x k)
 (VPANDQ512 x (VPMOVMToVec8x64 k)) => (VMOVDQU8Masked512 x k)
+(VPANDD512 x (VPMOVMToVec64x8 k)) => (VMOVDQU64Masked512 x k)
+(VPANDD512 x (VPMOVMToVec32x16 k)) => (VMOVDQU32Masked512 x k)
+(VPANDD512 x (VPMOVMToVec16x32 k)) => (VMOVDQU16Masked512 x k)
+(VPANDD512 x (VPMOVMToVec8x64 k)) => (VMOVDQU8Masked512 x k)
 
 // Insert to zero of 32/64 bit floats and ints to a zero is just MOVS[SD]
 (VPINSRQ128 [0] (Zero128 <t>) y) && y.Type.IsFloat() => (VMOVSDf2v <types.TypeVec128> y)
