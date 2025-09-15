@@ -379,10 +379,14 @@ func parseSANExtension(der cryptobyte.String) (dnsNames, emailAddresses []string
 			if err := isIA5String(email); err != nil {
 				return errors.New("x509: SAN rfc822Name is malformed")
 			}
+			parsed, ok := parseRFC2821Mailbox(email)
+			if !ok || (ok && !domainNameValid(parsed.domain, false)) {
+				return errors.New("x509: SAN rfc822Name is malformed")
+			}
 			emailAddresses = append(emailAddresses, email)
 		case nameTypeDNS:
 			name := string(data)
-			if err := isIA5String(name); err != nil {
+			if err := isIA5String(name); err != nil || (err == nil && !domainNameValid(name, false)) {
 				return errors.New("x509: SAN dNSName is malformed")
 			}
 			dnsNames = append(dnsNames, string(name))
@@ -392,13 +396,8 @@ func parseSANExtension(der cryptobyte.String) (dnsNames, emailAddresses []string
 				return errors.New("x509: SAN uniformResourceIdentifier is malformed")
 			}
 			uri, err := url.Parse(uriStr)
-			if err != nil {
+			if err != nil || (err == nil && uri.Host != "" && !domainNameValid(uri.Host, false)) {
 				return fmt.Errorf("x509: cannot parse URI %q: %s", uriStr, err)
-			}
-			if len(uri.Host) > 0 {
-				if _, ok := domainToReverseLabels(uri.Host); !ok {
-					return fmt.Errorf("x509: cannot parse URI %q: invalid domain", uriStr)
-				}
 			}
 			uris = append(uris, uri)
 		case nameTypeIP:
@@ -564,15 +563,7 @@ func parseNameConstraintsExtension(out *Certificate, e pkix.Extension) (unhandle
 					return nil, nil, nil, nil, errors.New("x509: invalid constraint value: " + err.Error())
 				}
 
-				trimmedDomain := domain
-				if len(trimmedDomain) > 0 && trimmedDomain[0] == '.' {
-					// constraints can have a leading
-					// period to exclude the domain
-					// itself, but that's not valid in a
-					// normal domain name.
-					trimmedDomain = trimmedDomain[1:]
-				}
-				if _, ok := domainToReverseLabels(trimmedDomain); !ok {
+				if !domainNameValid(domain, true) {
 					return nil, nil, nil, nil, fmt.Errorf("x509: failed to parse dnsName constraint %q", domain)
 				}
 				dnsNames = append(dnsNames, domain)
@@ -613,12 +604,7 @@ func parseNameConstraintsExtension(out *Certificate, e pkix.Extension) (unhandle
 						return nil, nil, nil, nil, fmt.Errorf("x509: failed to parse rfc822Name constraint %q", constraint)
 					}
 				} else {
-					// Otherwise it's a domain name.
-					domain := constraint
-					if len(domain) > 0 && domain[0] == '.' {
-						domain = domain[1:]
-					}
-					if _, ok := domainToReverseLabels(domain); !ok {
+					if !domainNameValid(constraint, true) {
 						return nil, nil, nil, nil, fmt.Errorf("x509: failed to parse rfc822Name constraint %q", constraint)
 					}
 				}
@@ -634,15 +620,7 @@ func parseNameConstraintsExtension(out *Certificate, e pkix.Extension) (unhandle
 					return nil, nil, nil, nil, fmt.Errorf("x509: failed to parse URI constraint %q: cannot be IP address", domain)
 				}
 
-				trimmedDomain := domain
-				if len(trimmedDomain) > 0 && trimmedDomain[0] == '.' {
-					// constraints can have a leading
-					// period to exclude the domain itself,
-					// but that's not valid in a normal
-					// domain name.
-					trimmedDomain = trimmedDomain[1:]
-				}
-				if _, ok := domainToReverseLabels(trimmedDomain); !ok {
+				if !domainNameValid(domain, true) {
 					return nil, nil, nil, nil, fmt.Errorf("x509: failed to parse URI constraint %q", domain)
 				}
 				uriDomains = append(uriDomains, domain)
@@ -1282,4 +1260,41 @@ func ParseRevocationList(der []byte) (*RevocationList, error) {
 	}
 
 	return rl, nil
+}
+
+// domainNameValid does minimal domain name validity checking. In particular it
+// enforces the following properties:
+//   - names cannot have the trailing period
+//   - names can only have a leading period if constraint is true
+//   - names must be <= 253 characters
+//   - names cannot have empty labels
+//   - names cannot labels that are longer than 63 characters
+//
+// Note that this does not enforce the LDH requirements for domain names.
+func domainNameValid(s string, constraint bool) bool {
+	if len(s) == 0 && constraint {
+		return true
+	}
+	if len(s) == 0 || (!constraint && s[0] == '.') || s[len(s)-1] == '.' || len(s) > 253 {
+		return false
+	}
+	lastDot := -1
+	if constraint && s[0] == '.' {
+		s = s[1:]
+	}
+
+	for i := 0; i <= len(s); i++ {
+		if i == len(s) || s[i] == '.' {
+			labelLen := i
+			if lastDot >= 0 {
+				labelLen -= lastDot + 1
+			}
+			if labelLen == 0 || labelLen > 63 {
+				return false
+			}
+			lastDot = i
+		}
+	}
+
+	return true
 }
