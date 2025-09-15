@@ -1372,7 +1372,10 @@ func (w *wantConn) cancel(t *Transport, err error) {
 	w.done = true
 	w.mu.Unlock()
 
-	if pc != nil {
+	// HTTP/2 connections (pc.alt != nil) aren't removed from the idle pool on use,
+	// and should not be added back here. If the pconn isn't in the idle pool,
+	// it's because we removed it due to an error.
+	if pc != nil && pc.alt == nil {
 		t.putOrCloseIdleConn(pc)
 	}
 }

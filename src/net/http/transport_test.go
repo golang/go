@@ -7559,3 +7559,37 @@ func TestTransportServerProtocols(t *testing.T) {
 		})
 	}
 }
+
+func TestIssue61474(t *testing.T) {
+	run(t, testIssue61474, []testMode{http2Mode})
+}
+func testIssue61474(t *testing.T, mode testMode) {
+	if testing.Short() {
+		return
+	}
+
+	// This test reliably exercises the condition causing #61474,
+	// but requires many iterations to do so.
+	// Keep the test around for now, but don't run it by default.
+	t.Skip("test is too large")
+
+	cst := newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {
+	}), func(tr *Transport) {
+		tr.MaxConnsPerHost = 1
+	})
+	var wg sync.WaitGroup
+	defer wg.Wait()
+	for range 100000 {
+		wg.Add(1)
+		go func() {
+			ctx, cancel := context.WithTimeout(t.Context(), 1*time.Millisecond)
+			defer cancel()
+			req, _ := NewRequestWithContext(ctx, "GET", cst.ts.URL, nil)
+			resp, err := cst.c.Do(req)
+			if err == nil {
+				resp.Body.Close()
+			}
+			wg.Done()
+		}()
+	}
+}
