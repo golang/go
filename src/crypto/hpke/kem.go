@@ -6,7 +6,7 @@ package hpke
 
 import (
 	"crypto/ecdh"
-	"crypto/rand"
+	"crypto/internal/rand"
 	"errors"
 	"internal/byteorder"
 )

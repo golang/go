@@ -178,6 +178,11 @@ includes these key/value pairs in the goroutine status header of runtime
 tracebacks and debug=2 runtime/pprof stack dumps. This format may change in the future.
 (see go.dev/issue/76349)
 
+Go 1.26 added a new `cryptocustomrand` setting that controls whether most crypto/...
+APIs ignore the random `io.Reader` parameter. For Go 1.26, it defaults
+to `cryptocustomrand=0`, ignoring the random parameters. Using `cryptocustomrand=1`
+reverts to the pre-Go 1.26 behavior.
+
 ### Go 1.25
 
 Go 1.25 added a new `decoratemappings` setting that controls whether the Go

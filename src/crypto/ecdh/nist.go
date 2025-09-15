@@ -9,6 +9,7 @@ import (
 	"crypto/internal/boring"
 	"crypto/internal/fips140/ecdh"
 	"crypto/internal/fips140only"
+	"crypto/internal/rand"
 	"errors"
 	"io"
 )
@@ -25,8 +26,8 @@ func (c *nistCurve) String() string {
 	return c.name
 }
 
-func (c *nistCurve) GenerateKey(rand io.Reader) (*PrivateKey, error) {
-	if boring.Enabled && rand == boring.RandReader {
+func (c *nistCurve) GenerateKey(r io.Reader) (*PrivateKey, error) {
+	if boring.Enabled && r == boring.RandReader {
 		key, bytes, err := boring.GenerateKeyECDH(c.name)
 		if err != nil {
 			return nil, err
@@ -44,11 +45,13 @@ func (c *nistCurve) GenerateKey(rand io.Reader) (*PrivateKey, error) {
 		return k, nil
 	}
 
-	if fips140only.Enforced() && !fips140only.ApprovedRandomReader(rand) {
+	r = rand.CustomReader(r)
+
+	if fips140only.Enforced() && !fips140only.ApprovedRandomReader(r) {
 		return nil, errors.New("crypto/ecdh: only crypto/rand.Reader is allowed in FIPS 140-only mode")
 	}
 
-	privateKey, err := c.generate(rand)
+	privateKey, err := c.generate(r)
 	if err != nil {
 		return nil, err
 	}

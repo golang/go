@@ -560,6 +560,7 @@ var depsRules = `
 	< crypto/cipher
 	< crypto/internal/boring
 	< crypto/boring
+	< crypto/internal/rand
 	< crypto/aes,
 	  crypto/des,
 	  crypto/rc4,
@@ -712,6 +713,9 @@ var depsRules = `
 
 	log/slog, testing
 	< testing/slogtest;
+
+	testing, crypto/rand
+	< testing/cryptotest;
 
 	FMT, crypto/sha256, encoding/binary, encoding/json,
 	go/ast, go/parser, go/token,

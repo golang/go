@@ -8,8 +8,9 @@ import (
 	"bytes"
 	"crypto"
 	"crypto/ecdh"
+	"crypto/internal/fips140/drbg"
+	"crypto/internal/rand"
 	"crypto/mlkem"
-	"crypto/rand"
 	"crypto/sha3"
 	"errors"
 	"internal/byteorder"
@@ -246,7 +247,7 @@ func NewHybridPrivateKey(pq crypto.Decapsulator, t ecdh.KeyExchanger) (PrivateKe
 
 func (kem *hybridKEM) GenerateKey() (PrivateKey, error) {
 	seed := make([]byte, 32)
-	rand.Read(seed)
+	drbg.Read(seed)
 	return kem.NewPrivateKey(seed)
 }
 

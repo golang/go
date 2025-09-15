@@ -1,0 +1,1 @@
+pkg testing/cryptotest, func SetGlobalRandom(*testing.T, uint64) #70942

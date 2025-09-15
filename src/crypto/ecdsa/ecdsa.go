@@ -27,7 +27,7 @@ import (
 	"crypto/internal/fips140cache"
 	"crypto/internal/fips140hash"
 	"crypto/internal/fips140only"
-	"crypto/internal/randutil"
+	"crypto/internal/rand"
 	"crypto/sha512"
 	"crypto/subtle"
 	"errors"
@@ -310,31 +310,31 @@ func privateKeyBytes[P ecdsa.Point[P]](c *ecdsa.Curve[P], priv *PrivateKey) ([]b
 // the bit-length of the private key's curve order, the hash will be truncated
 // to that length. It returns the ASN.1 encoded signature, like [SignASN1].
 //
-// If rand is not nil, the signature is randomized. Most applications should use
-// [crypto/rand.Reader] as rand. Note that the returned signature does not
-// depend deterministically on the bytes read from rand, and may change between
-// calls and/or between versions.
+// If random is not nil, the signature is randomized. Most applications should use
+// [crypto/rand.Reader] as random, but unless GODEBUG=cryptocustomrand=1 is set, a
+// secure source of random bytes is always used, and the actual Reader is ignored.
+// The GODEBUG setting will be removed in a future Go release. Instead, use
+// [testing/cryptotest.SetGlobalRandom].
 //
-// If rand is nil, Sign will produce a deterministic signature according to RFC
+// If random is nil, Sign will produce a deterministic signature according to RFC
 // 6979. When producing a deterministic signature, opts.HashFunc() must be the
 // function used to produce digest and priv.Curve must be one of
 // [elliptic.P224], [elliptic.P256], [elliptic.P384], or [elliptic.P521].
-func (priv *PrivateKey) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
-	if rand == nil {
+func (priv *PrivateKey) Sign(random io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
+	if random == nil {
 		return signRFC6979(priv, digest, opts)
 	}
-	return SignASN1(rand, priv, digest)
+	random = rand.CustomReader(random)
+	return SignASN1(random, priv, digest)
 }
 
 // GenerateKey generates a new ECDSA private key for the specified curve.
 //
-// Most applications should use [crypto/rand.Reader] as rand. Note that the
-// returned key does not depend deterministically on the bytes read from rand,
-// and may change between calls and/or between versions.
-func GenerateKey(c elliptic.Curve, rand io.Reader) (*PrivateKey, error) {
-	randutil.MaybeReadByte(rand)
-
-	if boring.Enabled && rand == boring.RandReader {
+// Since Go 1.26, a secure source of random bytes is always used, and the Reader is
+// ignored unless GODEBUG=cryptocustomrand=1 is set. This setting will be removed
+// in a future Go release. Instead, use [testing/cryptotest.SetGlobalRandom].
+func GenerateKey(c elliptic.Curve, r io.Reader) (*PrivateKey, error) {
+	if boring.Enabled && r == boring.RandReader {
 		x, y, d, err := boring.GenerateKeyECDSA(c.Params().Name)
 		if err != nil {
 			return nil, err
@@ -343,17 +343,19 @@ func GenerateKey(c elliptic.Curve, rand io.Reader) (*PrivateKey, error) {
 	}
 	boring.UnreachableExceptTests()
 
+	r = rand.CustomReader(r)
+
 	switch c.Params() {
 	case elliptic.P224().Params():
-		return generateFIPS(c, ecdsa.P224(), rand)
+		return generateFIPS(c, ecdsa.P224(), r)
 	case elliptic.P256().Params():
-		return generateFIPS(c, ecdsa.P256(), rand)
+		return generateFIPS(c, ecdsa.P256(), r)
 	case elliptic.P384().Params():
-		return generateFIPS(c, ecdsa.P384(), rand)
+		return generateFIPS(c, ecdsa.P384(), r)
 	case elliptic.P521().Params():
-		return generateFIPS(c, ecdsa.P521(), rand)
+		return generateFIPS(c, ecdsa.P521(), r)
 	default:
-		return generateLegacy(c, rand)
+		return generateLegacy(c, r)
 	}
 }
 
@@ -373,13 +375,12 @@ func generateFIPS[P ecdsa.Point[P]](curve elliptic.Curve, c *ecdsa.Curve[P], ran
 // private key's curve order, the hash will be truncated to that length. It
 // returns the ASN.1 encoded signature.
 //
-// The signature is randomized. Most applications should use [crypto/rand.Reader]
-// as rand. Note that the returned signature does not depend deterministically on
-// the bytes read from rand, and may change between calls and/or between versions.
-func SignASN1(rand io.Reader, priv *PrivateKey, hash []byte) ([]byte, error) {
-	randutil.MaybeReadByte(rand)
-
-	if boring.Enabled && rand == boring.RandReader {
+// The signature is randomized. Since Go 1.26, a secure source of random bytes
+// is always used, and the Reader is ignored unless GODEBUG=cryptocustomrand=1
+// is set. This setting will be removed in a future Go release. Instead, use
+// [testing/cryptotest.SetGlobalRandom].
+func SignASN1(r io.Reader, priv *PrivateKey, hash []byte) ([]byte, error) {
+	if boring.Enabled && r == boring.RandReader {
 		b, err := boringPrivateKey(priv)
 		if err != nil {
 			return nil, err
@@ -388,17 +389,19 @@ func SignASN1(rand io.Reader, priv *PrivateKey, hash []byte) ([]byte, error) {
 	}
 	boring.UnreachableExceptTests()
 
+	r = rand.CustomReader(r)
+
 	switch priv.Curve.Params() {
 	case elliptic.P224().Params():
-		return signFIPS(ecdsa.P224(), priv, rand, hash)
+		return signFIPS(ecdsa.P224(), priv, r, hash)
 	case elliptic.P256().Params():
-		return signFIPS(ecdsa.P256(), priv, rand, hash)
+		return signFIPS(ecdsa.P256(), priv, r, hash)
 	case elliptic.P384().Params():
-		return signFIPS(ecdsa.P384(), priv, rand, hash)
+		return signFIPS(ecdsa.P384(), priv, r, hash)
 	case elliptic.P521().Params():
-		return signFIPS(ecdsa.P521(), priv, rand, hash)
+		return signFIPS(ecdsa.P521(), priv, r, hash)
 	default:
-		return signLegacy(priv, rand, hash)
+		return signLegacy(priv, r, hash)
 	}
 }
 

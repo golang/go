@@ -18,9 +18,9 @@ import (
 type Curve interface {
 	// GenerateKey generates a random PrivateKey.
 	//
-	// Most applications should use [crypto/rand.Reader] as rand. Note that the
-	// returned key does not depend deterministically on the bytes read from rand,
-	// and may change between calls and/or between versions.
+	// Since Go 1.26, a secure source of random bytes is always used, and rand
+	// is ignored unless GODEBUG=cryptocustomrand=1 is set. This setting will be
+	// removed in a future Go release. Instead, use [testing/cryptotest.SetGlobalRandom].
 	GenerateKey(rand io.Reader) (*PrivateKey, error)
 
 	// NewPrivateKey checks that key is valid and returns a PrivateKey.

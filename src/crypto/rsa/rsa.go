@@ -48,8 +48,8 @@ import (
 	"crypto/internal/fips140/bigmod"
 	"crypto/internal/fips140/rsa"
 	"crypto/internal/fips140only"
-	"crypto/internal/randutil"
-	"crypto/rand"
+	"crypto/internal/rand"
+	cryptorand "crypto/rand"
 	"crypto/subtle"
 	"errors"
 	"fmt"
@@ -304,9 +304,9 @@ func checkPublicKeySize(k *PublicKey) error {
 // If bits is less than 1024, [GenerateKey] returns an error. See the "[Minimum
 // key size]" section for further details.
 //
-// Most applications should use [crypto/rand.Reader] as rand. Note that the
-// returned key does not depend deterministically on the bytes read from rand,
-// and may change between calls and/or between versions.
+// Since Go 1.26, a secure source of random bytes is always used, and the Reader is
+// ignored unless GODEBUG=cryptocustomrand=1 is set. This setting will be removed
+// in a future Go release. Instead, use [testing/cryptotest.SetGlobalRandom].
 //
 // [Minimum key size]: https://pkg.go.dev/crypto/rsa#hdr-Minimum_key_size
 func GenerateKey(random io.Reader, bits int) (*PrivateKey, error) {
@@ -349,6 +349,8 @@ func GenerateKey(random io.Reader, bits int) (*PrivateKey, error) {
 		}
 		return key, nil
 	}
+
+	random = rand.CustomReader(random)
 
 	if fips140only.Enforced() && bits < 2048 {
 		return nil, errors.New("crypto/rsa: use of keys smaller than 2048 bits is not allowed in FIPS 140-only mode")
@@ -415,6 +417,10 @@ func GenerateKey(random io.Reader, bits int) (*PrivateKey, error) {
 // This package does not implement CRT optimizations for multi-prime RSA, so the
 // keys with more than two primes will have worse performance.
 //
+// Since Go 1.26, a secure source of random bytes is always used, and the Reader is
+// ignored unless GODEBUG=cryptocustomrand=1 is set. This setting will be removed
+// in a future Go release. Instead, use [testing/cryptotest.SetGlobalRandom].
+//
 // Deprecated: The use of this function with a number of primes different from
 // two is not recommended for the above security, compatibility, and performance
 // reasons. Use [GenerateKey] instead.
@@ -428,7 +434,7 @@ func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey
 		return nil, errors.New("crypto/rsa: multi-prime RSA is not allowed in FIPS 140-only mode")
 	}
 
-	randutil.MaybeReadByte(random)
+	random = rand.CustomReader(random)
 
 	priv := new(PrivateKey)
 	priv.E = 65537
@@ -473,7 +479,7 @@ NextSetOfPrimes:
 		}
 		for i := 0; i < nprimes; i++ {
 			var err error
-			primes[i], err = rand.Prime(random, todo/(nprimes-i))
+			primes[i], err = cryptorand.Prime(random, todo/(nprimes-i))
 			if err != nil {
 				return nil, err
 			}

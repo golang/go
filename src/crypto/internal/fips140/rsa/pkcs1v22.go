@@ -272,8 +272,8 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash hash.Hash, hashed []byte, sa
 	checkApprovedHash(hash)
 
 	// Note that while we don't commit to deterministic execution with respect
-	// to the rand stream, we also don't apply MaybeReadByte, so per Hyrum's Law
-	// it's probably relied upon by some. It's a tolerable promise because a
+	// to the rand stream, we also never applied MaybeReadByte, so per Hyrum's
+	// Law it's probably relied upon by some. It's a tolerable promise because a
 	// well-specified number of random bytes is included in the signature, in a
 	// well-specified way.
 
@@ -286,7 +286,7 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash hash.Hash, hashed []byte, sa
 		fips140.RecordNonApproved()
 	}
 	salt := make([]byte, saltLength)
-	if err := drbg.ReadWithReaderDeterministic(rand, salt); err != nil {
+	if err := drbg.ReadWithReader(rand, salt); err != nil {
 		return nil, err
 	}
 
@@ -372,7 +372,7 @@ func checkApprovedHash(hash hash.Hash) {
 // EncryptOAEP encrypts the given message with RSAES-OAEP.
 func EncryptOAEP(hash, mgfHash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, label []byte) ([]byte, error) {
 	// Note that while we don't commit to deterministic execution with respect
-	// to the random stream, we also don't apply MaybeReadByte, so per Hyrum's
+	// to the random stream, we also never applied MaybeReadByte, so per Hyrum's
 	// Law it's probably relied upon by some. It's a tolerable promise because a
 	// well-specified number of random bytes is included in the ciphertext, in a
 	// well-specified way.
@@ -402,7 +402,7 @@ func EncryptOAEP(hash, mgfHash hash.Hash, random io.Reader, pub *PublicKey, msg 
 	db[len(db)-len(msg)-1] = 1
 	copy(db[len(db)-len(msg):], msg)
 
-	if err := drbg.ReadWithReaderDeterministic(random, seed); err != nil {
+	if err := drbg.ReadWithReader(random, seed); err != nil {
 		return nil, err
 	}
 
