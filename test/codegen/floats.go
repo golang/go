@@ -217,14 +217,36 @@ func Float32Max(a, b float32) float32 {
 //  Constant Optimizations  //
 // ------------------------ //
 
+func Float32ConstantZero() float32 {
+	// arm64:"FMOVS\tZR,"
+	return 0.0
+}
+
+func Float32ConstantChipFloat() float32 {
+	// arm64:"FMOVS\t[$]\\(2\\.25\\),"
+	return 2.25
+}
+
 func Float32Constant() float32 {
+	// arm64:"FMOVS\t[$]f32\\.42440000\\(SB\\)"
 	// ppc64x/power8:"FMOVS\t[$]f32\\.42440000\\(SB\\)"
 	// ppc64x/power9:"FMOVS\t[$]f32\\.42440000\\(SB\\)"
 	// ppc64x/power10:"XXSPLTIDP\t[$]1111752704,"
 	return 49.0
 }
 
+func Float64ConstantZero() float64 {
+	// arm64:"FMOVD\tZR,"
+	return 0.0
+}
+
+func Float64ConstantChipFloat() float64 {
+	// arm64:"FMOVD\t[$]\\(2\\.25\\),"
+	return 2.25
+}
+
 func Float64Constant() float64 {
+	// arm64:"FMOVD\t[$]f64\\.4048800000000000\\(SB\\)"
 	// ppc64x/power8:"FMOVD\t[$]f64\\.4048800000000000\\(SB\\)"
 	// ppc64x/power9:"FMOVD\t[$]f64\\.4048800000000000\\(SB\\)"
 	// ppc64x/power10:"XXSPLTIDP\t[$]1111752704,"
@@ -244,11 +266,12 @@ func Float64DenormalFloat32Constant() float64 {
 	return 0x1p-127
 }
 
-func Float64ConstantStore(p *float64) {
-	// amd64: "MOVQ\t[$]4617801906721357038"
+func Float32ConstantStore(p *float32) {
+	// amd64:"MOVL\t[$]1085133554"
 	*p = 5.432
 }
-func Float32ConstantStore(p *float32) {
-	// amd64: "MOVL\t[$]1085133554"
+
+func Float64ConstantStore(p *float64) {
+	// amd64:"MOVQ\t[$]4617801906721357038"
 	*p = 5.432
 }
