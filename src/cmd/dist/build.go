@@ -380,7 +380,7 @@ func findgoversion() string {
 		if i := strings.Index(b, "\n"); i >= 0 {
 			rest := b[i+1:]
 			b = chomp(b[:i])
-			for _, line := range strings.Split(rest, "\n") {
+			for line := range strings.SplitSeq(rest, "\n") {
 				f := strings.Fields(line)
 				if len(f) == 0 {
 					continue
@@ -1137,7 +1137,7 @@ func shouldbuild(file, pkg string) bool {
 	}
 
 	// Check file contents for //go:build lines.
-	for _, p := range strings.Split(readfile(file), "\n") {
+	for p := range strings.SplitSeq(readfile(file), "\n") {
 		p = strings.TrimSpace(p)
 		if p == "" {
 			continue
@@ -2016,7 +2016,7 @@ func cmdlist() {
 }
 
 func setNoOpt() {
-	for _, gcflag := range strings.Split(gogcflags, " ") {
+	for gcflag := range strings.SplitSeq(gogcflags, " ") {
 		if gcflag == "-N" || gcflag == "-l" {
 			noOpt = true
 			break

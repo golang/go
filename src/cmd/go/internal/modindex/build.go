@@ -426,7 +426,7 @@ Lines:
 // These lines set CFLAGS, CPPFLAGS, CXXFLAGS and LDFLAGS and pkg-config directives
 // that affect the way cgo's C code is built.
 func (ctxt *Context) saveCgo(filename string, di *build.Package, text string) error {
-	for _, line := range strings.Split(text, "\n") {
+	for line := range strings.SplitSeq(text, "\n") {
 		orig := line
 
 		// Line is
