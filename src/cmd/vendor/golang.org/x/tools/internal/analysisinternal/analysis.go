@@ -74,25 +74,6 @@ func TypeErrorEndPos(fset *token.FileSet, src []byte, start token.Pos) token.Pos
 	return end
 }
 
-// WalkASTWithParent walks the AST rooted at n. The semantics are
-// similar to ast.Inspect except it does not call f(nil).
-func WalkASTWithParent(n ast.Node, f func(n ast.Node, parent ast.Node) bool) {
-	var ancestors []ast.Node
-	ast.Inspect(n, func(n ast.Node) (recurse bool) {
-		if n == nil {
-			ancestors = ancestors[:len(ancestors)-1]
-			return false
-		}
-
-		var parent ast.Node
-		if len(ancestors) > 0 {
-			parent = ancestors[len(ancestors)-1]
-		}
-		ancestors = append(ancestors, n)
-		return f(n, parent)
-	})
-}
-
 // MatchingIdents finds the names of all identifiers in 'node' that match any of the given types.
 // 'pos' represents the position at which the identifiers may be inserted. 'pos' must be within
 // the scope of each of identifier we select. Otherwise, we will insert a variable at 'pos' that

@@ -992,7 +992,7 @@ func (ss stringSet) String() string {
 }
 
 func (ss stringSet) Set(flag string) error {
-	for _, name := range strings.Split(flag, ",") {
+	for name := range strings.SplitSeq(flag, ",") {
 		if len(name) == 0 {
 			return fmt.Errorf("empty string")
 		}
