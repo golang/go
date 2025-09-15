@@ -49,9 +49,6 @@ type pkgReader struct {
 	// but bitwise inverted so we can detect if we're missing the entry
 	// or not.
 	newindex []index
-
-	// indicates whether the data is reading during reshaping.
-	reshaping bool
 }
 
 func newPkgReader(pr pkgbits.PkgDecoder) *pkgReader {
@@ -118,10 +115,6 @@ type reader struct {
 	// function, and most of the compiler still relies on field.Nname to
 	// find parameters/results.
 	funarghack bool
-
-	// reshaping is used during reading exprReshape code, preventing
-	// the reader from shapifying the re-shaped type.
-	reshaping bool
 
 	// methodSym is the name of method's name, if reading a method.
 	// It's nil if reading a normal function or closure body.
@@ -937,8 +930,19 @@ func shapify(targ *types.Type, basic bool) *types.Type {
 	// types, and discarding struct field names and tags. However, we'll
 	// need to start tracking how type parameters are actually used to
 	// implement some of these optimizations.
+	pointerShaping := basic && targ.IsPtr() && !targ.Elem().NotInHeap()
+	// The exception is when the type parameter is a pointer to a type
+	// which `Type.HasShape()` returns true, but `Type.IsShape()` returns
+	// false, like `*[]go.shape.T`. This is because the type parameter is
+	// used to instantiate a generic function inside another generic function.
+	// In this case, we want to keep the targ as-is, otherwise, we may lose the
+	// original type after `*[]go.shape.T` is shapified to `*go.shape.uint8`.
+	// See issue #54535, #71184.
+	if pointerShaping && !targ.Elem().IsShape() && targ.Elem().HasShape() {
+		return targ
+	}
 	under := targ.Underlying()
-	if basic && targ.IsPtr() && !targ.Elem().NotInHeap() {
+	if pointerShaping {
 		under = types.NewPtr(types.Types[types.TUINT8])
 	}
 
@@ -1014,25 +1018,7 @@ func (pr *pkgReader) objDictIdx(sym *types.Sym, idx index, implicits, explicits 
 	// arguments.
 	for i, targ := range dict.targs {
 		basic := r.Bool()
-		isPointerShape := basic && targ.IsPtr() && !targ.Elem().NotInHeap()
-		// We should not do shapify during the reshaping process, see #71184.
-		// However, this only matters for shapify a pointer type, which will
-		// lose the original underlying type.
-		//
-		// Example with a pointer type:
-		//
-		// - First, shapifying *[]T -> *uint8
-		// - During the reshaping process, *uint8 is shapified to *go.shape.uint8
-		// - This ends up with a different type with the original *[]T
-		//
-		// For a non-pointer type:
-		//
-		// - int -> go.shape.int
-		// - go.shape.int -> go.shape.int
-		//
-		// We always end up with the identical type.
-		canShapify := !pr.reshaping || !isPointerShape
-		if dict.shaped && canShapify {
+		if dict.shaped {
 			dict.targs[i] = shapify(targ, basic)
 		}
 	}
@@ -2470,10 +2456,7 @@ func (r *reader) expr() (res ir.Node) {
 
 	case exprReshape:
 		typ := r.typ()
-		old := r.reshaping
-		r.reshaping = true
 		x := r.expr()
-		r.reshaping = old
 
 		if types.IdenticalStrict(x.Type(), typ) {
 			return x
@@ -2596,10 +2579,7 @@ func (r *reader) funcInst(pos src.XPos) (wrapperFn, baseFn, dictPtr ir.Node) {
 		info := r.dict.subdicts[idx]
 		explicits := r.p.typListIdx(info.explicits, r.dict)
 
-		old := r.p.reshaping
-		r.p.reshaping = r.reshaping
 		baseFn = r.p.objIdx(info.idx, implicits, explicits, true).(*ir.Name)
-		r.p.reshaping = old
 
 		// TODO(mdempsky): Is there a more robust way to get the
 		// dictionary pointer type here?
