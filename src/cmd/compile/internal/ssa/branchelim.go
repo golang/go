@@ -4,7 +4,10 @@
 
 package ssa
 
-import "cmd/internal/src"
+import (
+	"cmd/internal/src"
+	"internal/buildcfg"
+)
 
 // branchelim tries to eliminate branches by
 // generating CondSelect instructions.
