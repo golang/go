@@ -391,6 +391,7 @@ func parseRFC2821Mailbox(in string) (mailbox rfc2821Mailbox, ok bool) {
 // domainToReverseLabels converts a textual domain name like foo.example.com to
 // the list of labels in reverse order, e.g. ["com", "example", "foo"].
 func domainToReverseLabels(domain string) (reverseLabels []string, ok bool) {
+	reverseLabels = make([]string, 0, strings.Count(domain, ".")+1)
 	for len(domain) > 0 {
 		if i := strings.LastIndexByte(domain, '.'); i == -1 {
 			reverseLabels = append(reverseLabels, domain)

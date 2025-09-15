@@ -8,6 +8,7 @@ import (
 	"encoding/asn1"
 	"encoding/pem"
 	"os"
+	"strings"
 	"testing"
 
 	cryptobyte_asn1 "golang.org/x/crypto/cryptobyte/asn1"
@@ -249,5 +250,47 @@ d5l1tRhScKu2NBgm74nYmJxJYgvuTA38wGhRrGU=
 		if err == nil || err.Error() != "x509: invalid basic constraints" {
 			t.Errorf(`ParseCertificate() = %v; want = "x509: invalid basic constraints"`, err)
 		}
+	}
+}
+
+func TestDomainNameValid(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		dnsName    string
+		constraint bool
+		valid      bool
+	}{
+		{"empty name, name", "", false, false},
+		{"empty name, constraint", "", true, true},
+		{"empty label, name", "a..a", false, false},
+		{"empty label, constraint", "a..a", true, false},
+		{"period, name", ".", false, false},
+		{"period, constraint", ".", true, false}, // TODO(roland): not entirely clear if this is a valid constraint (require at least one label?)
+		{"valid, name", "a.b.c", false, true},
+		{"valid, constraint", "a.b.c", true, true},
+		{"leading period, name", ".a.b.c", false, false},
+		{"leading period, constraint", ".a.b.c", true, true},
+		{"trailing period, name", "a.", false, false},
+		{"trailing period, constraint", "a.", true, false},
+		{"bare label, name", "a", false, true},
+		{"bare label, constraint", "a", true, true},
+		{"254 char label, name", strings.Repeat("a.a", 84) + "aaa", false, false},
+		{"254 char label, constraint", strings.Repeat("a.a", 84) + "aaa", true, false},
+		{"253 char label, name", strings.Repeat("a.a", 84) + "aa", false, false},
+		{"253 char label, constraint", strings.Repeat("a.a", 84) + "aa", true, false},
+		{"64 char single label, name", strings.Repeat("a", 64), false, false},
+		{"64 char single label, constraint", strings.Repeat("a", 64), true, false},
+		{"63 char single label, name", strings.Repeat("a", 63), false, true},
+		{"63 char single label, constraint", strings.Repeat("a", 63), true, true},
+		{"64 char label, name", "a." + strings.Repeat("a", 64), false, false},
+		{"64 char label, constraint", "a." + strings.Repeat("a", 64), true, false},
+		{"63 char label, name", "a." + strings.Repeat("a", 63), false, true},
+		{"63 char label, constraint", "a." + strings.Repeat("a", 63), true, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.valid != domainNameValid(tc.dnsName, tc.constraint) {
+				t.Errorf("domainNameValid(%q, %t) = %v; want %v", tc.dnsName, tc.constraint, !tc.valid, tc.valid)
+			}
+		})
 	}
 }
