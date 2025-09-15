@@ -65,14 +65,20 @@ func TestSehLookupFunctionEntry(t *testing.T) {
 	}
 }
 
-func sehCallers() []uintptr {
-	// We don't need a real context,
-	// RtlVirtualUnwind just needs a context with
-	// valid a pc, sp and fp (aka bp).
+//go:noinline
+func newCtx() *windows.Context {
 	var ctx windows.Context
 	ctx.SetPC(sys.GetCallerPC())
 	ctx.SetSP(sys.GetCallerSP())
 	ctx.SetFP(runtime.GetCallerFp())
+	return &ctx
+}
+
+func sehCallers() []uintptr {
+	// We don't need a real context,
+	// RtlVirtualUnwind just needs a context with
+	// valid a pc, sp and fp (aka bp).
+	ctx := newCtx()
 
 	pcs := make([]uintptr, 15)
 	var base, frame uintptr
@@ -84,7 +90,7 @@ func sehCallers() []uintptr {
 		}
 		pcs[i] = ctx.PC()
 		n++
-		windows.RtlVirtualUnwind(0, base, ctx.PC(), fn, unsafe.Pointer(&ctx), nil, &frame, nil)
+		windows.RtlVirtualUnwind(0, base, ctx.PC(), fn, unsafe.Pointer(ctx), nil, &frame, nil)
 	}
 	return pcs[:n]
 }
@@ -119,6 +125,9 @@ func testSehCallersEqual(t *testing.T, pcs []uintptr, want []string) {
 		case "runtime.panicmem":
 			// These functions are skipped as they appear inconsistently depending
 			// whether inlining is on or off.
+			continue
+		case "runtime_test.sehCallers":
+			// This is an artifact of the implementation of sehCallers.
 			continue
 		}
 		got = append(got, name)
