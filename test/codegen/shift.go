@@ -148,11 +148,13 @@ func lshConst64x2Add(x int64) int64 {
 }
 
 func lshConst32x31Add(x int32) int32 {
+	// loong64:-"SLL\t","MOVV\tR0"
 	// riscv64:-"SLLI","MOV\t[$]0"
 	return (x + x) << 31
 }
 
 func lshConst64x63Add(x int64) int64 {
+	// loong64:-"SLLV","MOVV\tR0"
 	// riscv64:-"SLLI","MOV\t[$]0"
 	return (x + x) << 63
 }
