@@ -407,7 +407,7 @@ const (
 	ACSRRSI
 	ACSRRCI
 
-	// 12.1: Integer Conditional Operations (Zicond)
+	// 12.3: Integer Conditional Operations (Zicond)
 	ACZEROEQZ
 	ACZERONEZ
 

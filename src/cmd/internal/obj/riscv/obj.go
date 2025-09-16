@@ -1922,9 +1922,9 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	// 7.1: CSR Instructions
 	ACSRRS & obj.AMask: {enc: iIIEncoding},
 
-	// 12.1: "Zicond" Extension for Integer Conditional Operations
+	// 12.3: "Zicond" Extension for Integer Conditional Operations
 	ACZERONEZ & obj.AMask: {enc: rIIIEncoding, ternary: true},
-	ACZEROEQZ & obj.AMask: {enc: rIIIEncoding, ternary: true},	
+	ACZEROEQZ & obj.AMask: {enc: rIIIEncoding, ternary: true},
 
 	// 13.1: Multiplication Operations
 	AMUL & obj.AMask:    {enc: rIIIEncoding, ternary: true},
