@@ -2690,7 +2690,6 @@ func (e *edgeState) erase(loc Location) {
 // findRegFor finds a register we can use to make a temp copy of type typ.
 func (e *edgeState) findRegFor(typ *types.Type) Location {
 	// Which registers are possibilities.
-	types := &e.s.f.Config.Types
 	m := e.s.compatRegs(typ)
 
 	// Pick a register. In priority order:
@@ -2724,9 +2723,7 @@ func (e *edgeState) findRegFor(typ *types.Type) Location {
 				if !c.rematerializeable() {
 					x := e.p.NewValue1(c.Pos, OpStoreReg, c.Type, c)
 					// Allocate a temp location to spill a register to.
-					// The type of the slot is immaterial - it will not be live across
-					// any safepoint. Just use a type big enough to hold any register.
-					t := LocalSlot{N: e.s.f.NewLocal(c.Pos, types.Int64), Type: types.Int64}
+					t := LocalSlot{N: e.s.f.NewLocal(c.Pos, c.Type), Type: c.Type}
 					// TODO: reuse these slots. They'll need to be erased first.
 					e.set(t, vid, x, false, c.Pos)
 					if e.s.f.pass.debug > regDebug {
