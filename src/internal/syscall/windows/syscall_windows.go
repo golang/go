@@ -261,7 +261,7 @@ var sendRecvMsgFunc struct {
 }
 
 type WSAMsg struct {
-	Name        syscall.Pointer
+	Name        *syscall.RawSockaddrAny
 	Namelen     int32
 	Buffers     *syscall.WSABuf
 	BufferCount uint32
