@@ -451,23 +451,29 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 
 	// Check for marshaler.
 	if val.CanInterface() && typ.Implements(marshalerType) {
-		return p.marshalInterface(val.Interface().(Marshaler), defaultStart(typ, finfo, startTemplate))
+		marshaler, _ := reflect.TypeAssert[Marshaler](val)
+		return p.marshalInterface(marshaler, defaultStart(typ, finfo, startTemplate))
 	}
 	if val.CanAddr() {
 		pv := val.Addr()
-		if pv.CanInterface() && pv.Type().Implements(marshalerType) {
-			return p.marshalInterface(pv.Interface().(Marshaler), defaultStart(pv.Type(), finfo, startTemplate))
+		if pv.CanInterface() {
+			if marshaler, ok := reflect.TypeAssert[Marshaler](pv); ok {
+				return p.marshalInterface(marshaler, defaultStart(pv.Type(), finfo, startTemplate))
+			}
 		}
 	}
 
 	// Check for text marshaler.
 	if val.CanInterface() && typ.Implements(textMarshalerType) {
-		return p.marshalTextInterface(val.Interface().(encoding.TextMarshaler), defaultStart(typ, finfo, startTemplate))
+		textMarshaler, _ := reflect.TypeAssert[encoding.TextMarshaler](val)
+		return p.marshalTextInterface(textMarshaler, defaultStart(typ, finfo, startTemplate))
 	}
 	if val.CanAddr() {
 		pv := val.Addr()
-		if pv.CanInterface() && pv.Type().Implements(textMarshalerType) {
-			return p.marshalTextInterface(pv.Interface().(encoding.TextMarshaler), defaultStart(pv.Type(), finfo, startTemplate))
+		if pv.CanInterface() {
+			if textMarshaler, ok := reflect.TypeAssert[encoding.TextMarshaler](pv); ok {
+				return p.marshalTextInterface(textMarshaler, defaultStart(pv.Type(), finfo, startTemplate))
+			}
 		}
 	}
 
@@ -503,7 +509,7 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 			start.Name.Space, start.Name.Local = xmlname.xmlns, xmlname.name
 		} else {
 			fv := xmlname.value(val, dontInitNilPointers)
-			if v, ok := fv.Interface().(Name); ok && v.Local != "" {
+			if v, ok := reflect.TypeAssert[Name](fv); ok && v.Local != "" {
 				start.Name = v
 			}
 		}
@@ -581,7 +587,8 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 // marshalAttr marshals an attribute with the given name and value, adding to start.Attr.
 func (p *printer) marshalAttr(start *StartElement, name Name, val reflect.Value) error {
 	if val.CanInterface() && val.Type().Implements(marshalerAttrType) {
-		attr, err := val.Interface().(MarshalerAttr).MarshalXMLAttr(name)
+		marshaler, _ := reflect.TypeAssert[MarshalerAttr](val)
+		attr, err := marshaler.MarshalXMLAttr(name)
 		if err != nil {
 			return err
 		}
@@ -593,20 +600,23 @@ func (p *printer) marshalAttr(start *StartElement, name Name, val reflect.Value)
 
 	if val.CanAddr() {
 		pv := val.Addr()
-		if pv.CanInterface() && pv.Type().Implements(marshalerAttrType) {
-			attr, err := pv.Interface().(MarshalerAttr).MarshalXMLAttr(name)
-			if err != nil {
-				return err
+		if pv.CanInterface() {
+			if marshaler, ok := reflect.TypeAssert[MarshalerAttr](pv); ok {
+				attr, err := marshaler.MarshalXMLAttr(name)
+				if err != nil {
+					return err
+				}
+				if attr.Name.Local != "" {
+					start.Attr = append(start.Attr, attr)
+				}
+				return nil
 			}
-			if attr.Name.Local != "" {
-				start.Attr = append(start.Attr, attr)
-			}
-			return nil
 		}
 	}
 
 	if val.CanInterface() && val.Type().Implements(textMarshalerType) {
-		text, err := val.Interface().(encoding.TextMarshaler).MarshalText()
+		textMarshaler, _ := reflect.TypeAssert[encoding.TextMarshaler](val)
+		text, err := textMarshaler.MarshalText()
 		if err != nil {
 			return err
 		}
@@ -616,13 +626,15 @@ func (p *printer) marshalAttr(start *StartElement, name Name, val reflect.Value)
 
 	if val.CanAddr() {
 		pv := val.Addr()
-		if pv.CanInterface() && pv.Type().Implements(textMarshalerType) {
-			text, err := pv.Interface().(encoding.TextMarshaler).MarshalText()
-			if err != nil {
-				return err
+		if pv.CanInterface() {
+			if textMarshaler, ok := reflect.TypeAssert[encoding.TextMarshaler](pv); ok {
+				text, err := textMarshaler.MarshalText()
+				if err != nil {
+					return err
+				}
+				start.Attr = append(start.Attr, Attr{name, string(text)})
+				return nil
 			}
-			start.Attr = append(start.Attr, Attr{name, string(text)})
-			return nil
 		}
 	}
 
@@ -647,7 +659,8 @@ func (p *printer) marshalAttr(start *StartElement, name Name, val reflect.Value)
 	}
 
 	if val.Type() == attrType {
-		start.Attr = append(start.Attr, val.Interface().(Attr))
+		attr, _ := reflect.TypeAssert[Attr](val)
+		start.Attr = append(start.Attr, attr)
 		return nil
 	}
 
@@ -855,7 +868,8 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 				return err
 			}
 			if vf.CanInterface() && vf.Type().Implements(textMarshalerType) {
-				data, err := vf.Interface().(encoding.TextMarshaler).MarshalText()
+				textMarshaler, _ := reflect.TypeAssert[encoding.TextMarshaler](vf)
+				data, err := textMarshaler.MarshalText()
 				if err != nil {
 					return err
 				}
@@ -866,15 +880,17 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 			}
 			if vf.CanAddr() {
 				pv := vf.Addr()
-				if pv.CanInterface() && pv.Type().Implements(textMarshalerType) {
-					data, err := pv.Interface().(encoding.TextMarshaler).MarshalText()
-					if err != nil {
-						return err
+				if pv.CanInterface() {
+					if textMarshaler, ok := reflect.TypeAssert[encoding.TextMarshaler](pv); ok {
+						data, err := textMarshaler.MarshalText()
+						if err != nil {
+							return err
+						}
+						if err := emit(p, data); err != nil {
+							return err
+						}
+						continue
 					}
-					if err := emit(p, data); err != nil {
-						return err
-					}
-					continue
 				}
 			}
 
@@ -902,7 +918,7 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 					return err
 				}
 			case reflect.Slice:
-				if elem, ok := vf.Interface().([]byte); ok {
+				if elem, ok := reflect.TypeAssert[[]byte](vf); ok {
 					if err := emit(p, elem); err != nil {
 						return err
 					}
