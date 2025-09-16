@@ -291,7 +291,7 @@ func (d *dwctxt) newdie(parent *dwarf.DWDie, abbrev int, name string) *dwarf.DWD
 		panic("nameless DWARF DIE")
 	}
 
-	// for constant string types, we emit the nams later since it didn't use symbol name as DW_AT_name
+	// for constant string types, we defer emitting the DW_AT_name attribute because it is not identical to the symbol name.
 	if abbrev != dwarf.DW_ABRV_CONSTANT_STRINGTYPE {
 		newattr(die, dwarf.DW_AT_name, dwarf.DW_CLS_STRING, int64(len(name)), name)
 	}
