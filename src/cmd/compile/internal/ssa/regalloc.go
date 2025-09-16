@@ -2561,7 +2561,26 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XP
 			e.s.f.Fatalf("can't find source for %s->%s: %s\n", e.p, e.b, v.LongString())
 		}
 		if dstReg {
-			x = v.copyInto(e.p)
+			// Handle incompatible registers.
+			// For #70451.
+			if e.s.regspec(v).outputs[0].regs&regMask(1<<register(loc.(*Register).num)) == 0 && c != nil {
+				_, srcReg := src.(*Register)
+				if !srcReg {
+					// We need a tmp register
+					x = v.copyInto(e.p)
+					r := e.findRegFor(x.Type)
+					e.erase(r)
+					// Rematerialize to a tmp register
+					e.set(r, vid, x, false, pos)
+					// Copy from tmp to the desired register
+					x = e.p.NewValue1(pos, OpCopy, x.Type, x)
+				} else {
+					// It exist in a valid register already, so just copy it to the desired register
+					x = e.p.NewValue1(pos, OpCopy, c.Type, c)
+				}
+			} else {
+				x = v.copyInto(e.p)
+			}
 		} else {
 			// Rematerialize into stack slot. Need a free
 			// register to accomplish this.
