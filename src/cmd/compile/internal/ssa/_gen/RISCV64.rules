@@ -782,6 +782,10 @@
 (SRLI [x] (MOVDconst [y])) => (MOVDconst [int64(uint64(y) >> uint32(x))])
 (SRAI [x] (MOVDconst [y])) => (MOVDconst [int64(y) >> uint32(x)])
 
+// Combine doubling via addition with shift.
+(SLLI <t> [c] (ADD x x)) && c < t.Size() * 8 - 1 => (SLLI <t> [c+1] x)
+(SLLI <t> [c] (ADD x x)) && c >= t.Size() * 8 - 1 => (MOVDconst [0])
+
 // SLTI/SLTIU with constants.
 (SLTI  [x] (MOVDconst [y])) => (MOVDconst [b2i(int64(y) < int64(x))])
 (SLTIU [x] (MOVDconst [y])) => (MOVDconst [b2i(uint64(y) < uint64(x))])

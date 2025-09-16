@@ -1457,6 +1457,9 @@ func (ctxt *Link) hostlink() {
 	// Only macOS supports unmapped segments such as our __DWARF segment.
 	combineDwarf := ctxt.IsDarwin() && !*FlagW && machoPlatform == PLATFORM_MACOS
 
+	var isMSVC bool // used on Windows
+	wlPrefix := "-Wl,--"
+
 	switch ctxt.HeadType {
 	case objabi.Hdarwin:
 		if combineDwarf {
@@ -1501,6 +1504,15 @@ func (ctxt *Link) hostlink() {
 			argv = append(argv, "-Wl,--no-execute-only")
 		}
 	case objabi.Hwindows:
+		isMSVC = ctxt.isMSVC()
+		if isMSVC {
+			// For various options, MSVC lld-link only accepts one dash.
+			// TODO: It seems mingw clang supports one or two dashes,
+			// maybe we can always use one dash,  but I'm not sure about
+			// legacy compilers that currently work.
+			wlPrefix = "-Wl,-"
+		}
+
 		if windowsgui {
 			argv = append(argv, "-mwindows")
 		} else {
@@ -1508,15 +1520,18 @@ func (ctxt *Link) hostlink() {
 		}
 		// Mark as having awareness of terminal services, to avoid
 		// ancient compatibility hacks.
-		argv = append(argv, "-Wl,--tsaware")
+
+		argv = append(argv, wlPrefix+"tsaware")
 
 		// Enable DEP
-		argv = append(argv, "-Wl,--nxcompat")
+		argv = append(argv, wlPrefix+"nxcompat")
 
-		argv = append(argv, fmt.Sprintf("-Wl,--major-os-version=%d", PeMinimumTargetMajorVersion))
-		argv = append(argv, fmt.Sprintf("-Wl,--minor-os-version=%d", PeMinimumTargetMinorVersion))
-		argv = append(argv, fmt.Sprintf("-Wl,--major-subsystem-version=%d", PeMinimumTargetMajorVersion))
-		argv = append(argv, fmt.Sprintf("-Wl,--minor-subsystem-version=%d", PeMinimumTargetMinorVersion))
+		if !isMSVC {
+			argv = append(argv, fmt.Sprintf("-Wl,--major-os-version=%d", PeMinimumTargetMajorVersion))
+			argv = append(argv, fmt.Sprintf("-Wl,--minor-os-version=%d", PeMinimumTargetMinorVersion))
+			argv = append(argv, fmt.Sprintf("-Wl,--major-subsystem-version=%d", PeMinimumTargetMajorVersion))
+			argv = append(argv, fmt.Sprintf("-Wl,--minor-subsystem-version=%d", PeMinimumTargetMinorVersion))
+		}
 	case objabi.Haix:
 		argv = append(argv, "-pthread")
 		// prevent ld to reorder .text functions to keep the same
@@ -1557,16 +1572,21 @@ func (ctxt *Link) hostlink() {
 		// an ancient compiler with ancient defaults.
 		var dbopt string
 		var heopt string
-		dbon := "--dynamicbase"
-		heon := "--high-entropy-va"
-		dboff := "--disable-dynamicbase"
-		heoff := "--disable-high-entropy-va"
+		dbon := wlPrefix + "dynamicbase"
+		heon := wlPrefix + "high-entropy-va"
+		dboff := wlPrefix + "disable-dynamicbase"
+		heoff := wlPrefix + "disable-high-entropy-va"
+		if isMSVC {
+			heon = wlPrefix + "highentropyva"
+			heoff = wlPrefix + "highentropyva:no"
+			dboff = wlPrefix + "dynamicbase:no"
+		}
 		if val {
 			dbopt = dbon
 			heopt = heon
 		} else {
 			// Test to see whether "--disable-dynamicbase" works.
-			newer := linkerFlagSupported(ctxt.Arch, argv[0], "", "-Wl,"+dboff)
+			newer := linkerFlagSupported(ctxt.Arch, argv[0], "", dboff)
 			if newer {
 				// Newer compiler, which supports both on/off options.
 				dbopt = dboff
@@ -1579,11 +1599,11 @@ func (ctxt *Link) hostlink() {
 			}
 		}
 		if dbopt != "" {
-			argv = append(argv, "-Wl,"+dbopt)
+			argv = append(argv, dbopt)
 		}
 		// enable high-entropy ASLR on 64-bit.
 		if ctxt.Arch.PtrSize >= 8 && heopt != "" {
-			argv = append(argv, "-Wl,"+heopt)
+			argv = append(argv, heopt)
 		}
 		return argv
 	}
@@ -1923,13 +1943,19 @@ func (ctxt *Link) hostlink() {
 			argv = append(argv, "-Wl,-T,"+p)
 		}
 		if *flagRace {
-			if p := ctxt.findLibPath("libsynchronization.a"); p != "libsynchronization.a" {
+			// Apparently --print-file-name doesn't work with -msvc clang.
+			// (The library name is synchronization.lib, but even with that
+			// name it still doesn't print the full path.) Assume it always
+			// it.
+			if isMSVC || ctxt.findLibPath("libsynchronization.a") != "libsynchronization.a" {
 				argv = append(argv, "-lsynchronization")
 			}
 		}
-		// libmingw32 and libmingwex have some inter-dependencies,
-		// so must use linker groups.
-		argv = append(argv, "-Wl,--start-group", "-lmingwex", "-lmingw32", "-Wl,--end-group")
+		if !isMSVC {
+			// libmingw32 and libmingwex have some inter-dependencies,
+			// so must use linker groups.
+			argv = append(argv, "-Wl,--start-group", "-lmingwex", "-lmingw32", "-Wl,--end-group")
+		}
 		argv = append(argv, peimporteddlls()...)
 	}
 
@@ -2182,6 +2208,7 @@ func trimLinkerArgv(argv []string) []string {
 		"-isysroot",
 		"--sysroot",
 		"-target",
+		"--target",
 	}
 	prefixesToKeep := []string{
 		"-f",
@@ -2192,6 +2219,7 @@ func trimLinkerArgv(argv []string) []string {
 		"-isysroot",
 		"--sysroot",
 		"-target",
+		"--target",
 	}
 
 	var flags []string
@@ -3023,4 +3051,20 @@ func (ctxt *Link) findExtLinkTool(toolname string) string {
 	}
 	cmdpath := strings.TrimRight(string(out), "\r\n")
 	return cmdpath
+}
+
+// isMSVC reports whether the C toolchain is clang with a -msvc target,
+// e.g. the clang bundled in MSVC.
+func (ctxt *Link) isMSVC() bool {
+	extld := ctxt.extld()
+	name, args := extld[0], extld[1:]
+	args = append(args, trimLinkerArgv(flagExtldflags)...)
+	args = append(args, "--version")
+	cmd := exec.Command(name, args...)
+	if out, err := cmd.CombinedOutput(); err == nil {
+		if bytes.Contains(out, []byte("-msvc\n")) || bytes.Contains(out, []byte("-msvc\r")) {
+			return true
+		}
+	}
+	return false
 }

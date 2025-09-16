@@ -53,9 +53,8 @@ func initMPTCPavailable() {
 		mptcpAvailable = true
 	}
 
-	major, minor := unix.KernelVersion()
-	// SOL_MPTCP only supported from kernel 5.16
-	hasSOLMPTCP = major > 5 || (major == 5 && minor >= 16)
+	// SOL_MPTCP only supported from kernel 5.16.
+	hasSOLMPTCP = unix.KernelVersionGE(5, 16)
 }
 
 func (sd *sysDialer) dialMPTCP(ctx context.Context, laddr, raddr *TCPAddr) (*TCPConn, error) {

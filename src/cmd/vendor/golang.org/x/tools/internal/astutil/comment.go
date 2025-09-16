@@ -15,7 +15,7 @@ import (
 // https://go.dev/wiki/Deprecated, or "" if the documented symbol is not
 // deprecated.
 func Deprecation(doc *ast.CommentGroup) string {
-	for _, p := range strings.Split(doc.Text(), "\n\n") {
+	for p := range strings.SplitSeq(doc.Text(), "\n\n") {
 		// There is still some ambiguity for deprecation message. This function
 		// only returns the paragraph introduced by "Deprecated: ". More
 		// information related to the deprecation may follow in additional

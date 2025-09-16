@@ -44,7 +44,7 @@ func TestMain(m *testing.M) {
 func testMain(m *testing.M) int {
 	log.SetFlags(log.Lshortfile)
 	flag.Parse()
-	if testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
+	if testing.Short() && testenv.Builder() == "" {
 		globalSkip = func(t *testing.T) { t.Skip("short mode and $GO_BUILDER_NAME not set") }
 		return m.Run()
 	}

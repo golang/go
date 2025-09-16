@@ -116,6 +116,9 @@ type Flags struct {
 	// platforms.
 	RandomizedHeapBase64 bool
 
+	// SizeSpecializedMalloc enables malloc implementations that are specialized per size class.
+	SizeSpecializedMalloc bool
+
 	// SIMD enables the simd package and the compiler's handling
 	// of SIMD intrinsics.
 	SIMD bool

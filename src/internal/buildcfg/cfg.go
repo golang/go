@@ -336,7 +336,7 @@ func (f gowasmFeatures) String() string {
 }
 
 func gowasm() (f gowasmFeatures) {
-	for _, opt := range strings.Split(envOr("GOWASM", ""), ",") {
+	for opt := range strings.SplitSeq(envOr("GOWASM", ""), ",") {
 		switch opt {
 		case "satconv":
 			f.SatConv = true

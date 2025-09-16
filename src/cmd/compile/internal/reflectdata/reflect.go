@@ -717,6 +717,10 @@ func writeType(t *types.Type) *obj.LSym {
 	}
 	s.SetSiggen(true)
 
+	if !tbase.HasShape() {
+		TypeLinksym(t) // ensure lsym.Extra is set
+	}
+
 	if !NeedEmit(tbase) {
 		if i := typecheck.BaseTypeIndex(t); i >= 0 {
 			lsym.Pkg = tbase.Sym().Pkg.Prefix
@@ -1225,7 +1229,7 @@ func typesStrCmp(a, b typeAndStr) int {
 // GC information is always a bitmask, never a gc program.
 // GCSym may be called in concurrent backend, so it does not emit the symbol
 // content.
-func GCSym(t *types.Type) (lsym *obj.LSym, ptrdata int64) {
+func GCSym(t *types.Type, onDemandAllowed bool) (lsym *obj.LSym, ptrdata int64) {
 	// Record that we need to emit the GC symbol.
 	gcsymmu.Lock()
 	if _, ok := gcsymset[t]; !ok {
@@ -1233,7 +1237,7 @@ func GCSym(t *types.Type) (lsym *obj.LSym, ptrdata int64) {
 	}
 	gcsymmu.Unlock()
 
-	lsym, _, ptrdata = dgcsym(t, false, false)
+	lsym, _, ptrdata = dgcsym(t, false, onDemandAllowed)
 	return
 }
 

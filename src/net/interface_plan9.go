@@ -59,7 +59,7 @@ func readInterface(i int) (*Interface, error) {
 	fields := getFields(line)
 
 	// If the interface has no device file then we see two spaces between "device" and
-	// "maxtu" and and getFields treats the two spaces as one delimiter.
+	// "maxtu" and getFields treats the two spaces as one delimiter.
 	// Insert a gap for the missing device name.
 	// See https://go.dev/issue/72060.
 	if stringslite.HasPrefix(line, "device  maxtu ") {

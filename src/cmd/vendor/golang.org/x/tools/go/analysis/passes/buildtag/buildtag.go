@@ -298,7 +298,7 @@ func (check *checker) plusBuildLine(pos token.Pos, line string) {
 	fields := strings.Fields(line[len("//"):])
 	// IsPlusBuildConstraint check above implies fields[0] == "+build"
 	for _, arg := range fields[1:] {
-		for _, elem := range strings.Split(arg, ",") {
+		for elem := range strings.SplitSeq(arg, ",") {
 			if strings.HasPrefix(elem, "!!") {
 				check.pass.Reportf(pos, "invalid double negative in build constraint: %s", arg)
 				check.crossCheck = false

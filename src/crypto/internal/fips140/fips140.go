@@ -33,6 +33,12 @@ func init() {
 func Supported() error {
 	// Keep this in sync with fipsSupported in cmd/dist/test.go.
 
+	// The purego tag changes too much of the implementation to claim the
+	// validation still applies.
+	if puregoEnabled {
+		return errors.New("FIPS 140-3 mode is incompatible with the purego build tag")
+	}
+
 	// ASAN disapproves of reading swaths of global memory in fips140/check.
 	// One option would be to expose runtime.asanunpoison through
 	// crypto/internal/fips140deps and then call it to unpoison the range

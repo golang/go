@@ -1708,7 +1708,7 @@ Lines:
 // that affect the way cgo's C code is built.
 func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup) error {
 	text := cg.Text()
-	for _, line := range strings.Split(text, "\n") {
+	for line := range strings.SplitSeq(text, "\n") {
 		orig := line
 
 		// Line is

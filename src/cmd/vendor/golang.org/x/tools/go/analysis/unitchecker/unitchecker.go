@@ -73,7 +73,9 @@ type Config struct {
 	PackageVetx               map[string]string // maps package path to file of fact information
 	VetxOnly                  bool              // run analysis only for facts, not diagnostics
 	VetxOutput                string            // where to write file of fact information
-	SucceedOnTypecheckFailure bool
+	Stdout                    string            // write stdout (e.g. JSON, unified diff) to this file
+	SucceedOnTypecheckFailure bool              // obsolete awful hack; see #18395 and below
+	WarnDiagnostics           bool              // printing diagnostics should not cause a non-zero exit
 }
 
 // Main is the main function of a vet-like analysis tool that must be
@@ -142,6 +144,15 @@ func Run(configFile string, analyzers []*analysis.Analyzer) {
 		log.Fatal(err)
 	}
 
+	// Redirect stdout to a file as requested.
+	if cfg.Stdout != "" {
+		f, err := os.Create(cfg.Stdout)
+		if err != nil {
+			log.Fatal(err)
+		}
+		os.Stdout = f
+	}
+
 	fset := token.NewFileSet()
 	results, err := run(fset, cfg, analyzers)
 	if err != nil {
@@ -152,7 +163,7 @@ func Run(configFile string, analyzers []*analysis.Analyzer) {
 
 	// In VetxOnly mode, the analysis is run only for facts.
 	if !cfg.VetxOnly {
-		code = processResults(fset, cfg.ID, results)
+		code = processResults(fset, cfg.ID, results, cfg.WarnDiagnostics)
 	}
 
 	os.Exit(code)
@@ -176,7 +187,7 @@ func readConfig(filename string) (*Config, error) {
 	return cfg, nil
 }
 
-func processResults(fset *token.FileSet, id string, results []result) (exit int) {
+func processResults(fset *token.FileSet, id string, results []result, warnDiagnostics bool) (exit int) {
 	if analysisflags.Fix {
 		// Don't print the diagnostics,
 		// but apply all fixes from the root actions.
@@ -225,7 +236,9 @@ func processResults(fset *token.FileSet, id string, results []result) (exit int)
 		for _, res := range results {
 			for _, diag := range res.diagnostics {
 				analysisflags.PrintPlain(os.Stderr, fset, analysisflags.Context, diag)
-				exit = 1
+				if !warnDiagnostics {
+					exit = 1
+				}
 			}
 		}
 	}

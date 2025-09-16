@@ -77,6 +77,23 @@ func (p *Process) kill() error {
 	return p.Signal(Kill)
 }
 
+func (p *Process) withHandle(f func(handle uintptr)) error {
+	if p.handle == nil {
+		return ErrNoHandle
+	}
+	handle, status := p.handleTransientAcquire()
+	switch status {
+	case statusDone:
+		return ErrProcessDone
+	case statusReleased:
+		return errProcessReleased
+	}
+	defer p.handleTransientRelease()
+	f(handle)
+
+	return nil
+}
+
 // ProcessState stores information about a process, as reported by Wait.
 type ProcessState struct {
 	pid    int                // The process's id.

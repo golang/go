@@ -561,7 +561,7 @@ func bzrParseStat(rev, out string) (*RevInfo, error) {
 	var revno int64
 	var tm time.Time
 	var tags []string
-	for _, line := range strings.Split(out, "\n") {
+	for line := range strings.SplitSeq(out, "\n") {
 		if line == "" || line[0] == ' ' || line[0] == '\t' {
 			// End of header, start of commit message.
 			break
@@ -614,7 +614,7 @@ func bzrParseStat(rev, out string) (*RevInfo, error) {
 }
 
 func fossilParseStat(rev, out string) (*RevInfo, error) {
-	for _, line := range strings.Split(out, "\n") {
+	for line := range strings.SplitSeq(out, "\n") {
 		if strings.HasPrefix(line, "uuid:") || strings.HasPrefix(line, "hash:") {
 			f := strings.Fields(line)
 			if len(f) != 5 || len(f[1]) != 40 || f[4] != "UTC" {

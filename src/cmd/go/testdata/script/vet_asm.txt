@@ -14,12 +14,13 @@ stderr '2		MOVW'
 stderr '3		RET'
 stderr '4'
 
-# -json causes success, even with diagnostics and errors.
+# -json causes success, even with diagnostics and errors,
+# and writes to stdout.
 go vet -json -asmdecl a
-stderr '"a": {'
-stderr   '"asmdecl":'
-stderr     '"posn": ".*asm.s:2:1",'
-stderr     '"message": ".*invalid MOVW.*"'
+stdout '"a": {'
+stdout   '"asmdecl":'
+stdout     '"posn": ".*asm.s:2:1",'
+stdout     '"message": ".*invalid MOVW.*"'
 
 -- a/a.go --
 package a
