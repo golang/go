@@ -392,21 +392,59 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 				switch r.Type {
 				case IMAGE_REL_ARM64_ADDR32:
 					rType = objabi.R_ADDR
+				case IMAGE_REL_ARM64_ADDR64:
+					rType = objabi.R_ADDR
+					rSize = 8
 				case IMAGE_REL_ARM64_ADDR32NB:
 					rType = objabi.R_PEIMAGEOFF
+				case IMAGE_REL_ARM64_BRANCH26:
+					rType = objabi.R_CALLARM64
+				case IMAGE_REL_ARM64_PAGEBASE_REL21,
+					IMAGE_REL_ARM64_PAGEOFFSET_12A,
+					IMAGE_REL_ARM64_PAGEOFFSET_12L:
+					rType = objabi.R_ARM64_PCREL
 				}
 			}
 			if rType == 0 {
 				return nil, fmt.Errorf("%s: %v: unknown relocation type %v", pn, state.sectsyms[rsect], r.Type)
 			}
-			var rAdd int64
+			var val int64
 			switch rSize {
 			default:
 				panic("unexpected relocation size " + strconv.Itoa(int(rSize)))
 			case 4:
-				rAdd = int64(int32(binary.LittleEndian.Uint32(state.sectdata[rsect][rOff:])))
+				val = int64(int32(binary.LittleEndian.Uint32(state.sectdata[rsect][rOff:])))
 			case 8:
-				rAdd = int64(binary.LittleEndian.Uint64(state.sectdata[rsect][rOff:]))
+				val = int64(binary.LittleEndian.Uint64(state.sectdata[rsect][rOff:]))
+			}
+			var rAdd int64
+			if arch.Family == sys.ARM64 {
+				switch r.Type {
+				case IMAGE_REL_ARM64_BRANCH26:
+					// This instruction doesn't support an addend.
+				case IMAGE_REL_ARM64_PAGEOFFSET_12A:
+					// The addend is stored in the immediate field of the instruction.
+					// Get the addend from the instruction.
+					rAdd = (val >> 10) & 0xfff
+				case IMAGE_REL_ARM64_PAGEOFFSET_12L:
+					// Same as IMAGE_REL_ARM64_PAGEOFFSET_12A, but taking into account the shift.
+					shift := uint32(val) >> 30
+					if shift == 0 && (val>>20)&0x048 == 0x048 { // 128-bit vector load
+						shift = 4
+					}
+					rAdd = ((val >> 10) & 0xfff) << shift
+				case IMAGE_REL_ARM64_PAGEBASE_REL21:
+					// The addend is stored in the immediate field of the instruction
+					// as a byte offset. Get the addend from the instruction and clear
+					// the immediate bits.
+					immlo := (val >> 29) & 3
+					immhi := (val >> 5) & 0x7ffff
+					rAdd = (immhi << 2) | immlo
+				default:
+					rAdd = val
+				}
+			} else {
+				rAdd = val
 			}
 			// ld -r could generate multiple section symbols for the
 			// same section but with different values, we have to take
