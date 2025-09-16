@@ -5,6 +5,7 @@
 package mips
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -17,7 +18,7 @@ func zerorange(pp *objw.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog
 	}
 
 	for cnt != 0 {
-		p = pp.Append(p, mips.AMOVW, obj.TYPE_REG, mips.REGZERO, 0, obj.TYPE_MEM, mips.REGSP, off)
+		p = pp.Append(p, mips.AMOVW, obj.TYPE_REG, mips.REGZERO, 0, obj.TYPE_MEM, mips.REGSP, base.Ctxt.Arch.FixedFrameSize+off)
 		cnt -= int64(types.PtrSize)
 		off += int64(types.PtrSize)
 	}
