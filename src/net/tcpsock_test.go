@@ -475,6 +475,9 @@ func TestTCPReadWriteAllocs(t *testing.T) {
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
+	// Optimizations are required to remove the allocs.
+	testenv.SkipIfOptimizationOff(t)
+
 	ln, err := Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -509,7 +512,7 @@ func TestTCPReadWriteAllocs(t *testing.T) {
 		}
 	})
 	if allocs > 0 {
-		t.Fatalf("got %v; want 0", allocs)
+		t.Errorf("got %v; want 0", allocs)
 	}
 
 	var bufwrt [128]byte
@@ -531,7 +534,7 @@ func TestTCPReadWriteAllocs(t *testing.T) {
 		}
 	})
 	if allocs > 0 {
-		t.Fatalf("got %v; want 0", allocs)
+		t.Errorf("got %v; want 0", allocs)
 	}
 }
 
