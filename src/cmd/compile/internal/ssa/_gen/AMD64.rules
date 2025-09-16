@@ -1802,3 +1802,13 @@
 (VMOVDQUstore(128|256|512) [off1] {sym} x:(ADDQconst [off2] ptr) val mem) && is32Bit(int64(off1)+int64(off2)) && x.Uses == 1 => (VMOVDQUstore(128|256|512) [off1+off2] {sym} ptr val mem)
 (VMOVDQUload(128|256|512) [off1] {sym1} x:(LEAQ [off2] {sym2} base) mem) && is32Bit(int64(off1)+int64(off2)) && x.Uses == 1 && canMergeSym(sym1, sym2) => (VMOVDQUload(128|256|512) [off1+off2] {mergeSym(sym1, sym2)} base mem)
 (VMOVDQUstore(128|256|512) [off1] {sym1} x:(LEAQ [off2] {sym2} base) val mem) && is32Bit(int64(off1)+int64(off2)) && x.Uses == 1 && canMergeSym(sym1, sym2) => (VMOVDQUstore(128|256|512) [off1+off2] {mergeSym(sym1, sym2)} base val mem)
+
+// 2-op VPTEST optimizations
+(SETEQ (VPTEST x:(VPAND(128|256) j k) y)) && x == y && x.Uses == 2 => (SETEQ (VPTEST j k))
+(SETEQ (VPTEST x:(VPAND(D|Q)512 j k) y)) && x == y && x.Uses == 2 => (SETEQ (VPTEST j k))
+(SETEQ (VPTEST x:(VPANDN(128|256) j k) y)) && x == y && x.Uses == 2 => (SETB (VPTEST k j)) // AndNot has swapped its operand order
+(SETEQ (VPTEST x:(VPANDN(D|Q)512 j k) y)) && x == y && x.Uses == 2 => (SETB (VPTEST k j)) // AndNot has swapped its operand order
+(EQ (VPTEST x:(VPAND(128|256) j k) y) yes no) && x == y && x.Uses == 2 => (EQ (VPTEST j k) yes no)
+(EQ (VPTEST x:(VPAND(D|Q)512 j k) y) yes no) && x == y && x.Uses == 2 => (EQ (VPTEST j k) yes no)
+(EQ (VPTEST x:(VPANDN(128|256) j k) y) yes no) && x == y && x.Uses == 2 => (ULT (VPTEST k j) yes no) // AndNot has swapped its operand order
+(EQ (VPTEST x:(VPANDN(D|Q)512 j k) y) yes no) && x == y && x.Uses == 2 => (ULT (VPTEST k j) yes no) // AndNot has swapped its operand order

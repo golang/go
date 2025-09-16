@@ -22607,6 +22607,190 @@ func rewriteValueAMD64_OpAMD64SETEQ(v *Value) bool {
 		}
 		break
 	}
+	// match: (SETEQ (VPTEST x:(VPAND128 j k) y))
+	// cond: x == y && x.Uses == 2
+	// result: (SETEQ (VPTEST j k))
+	for {
+		if v_0.Op != OpAMD64VPTEST {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		if x.Op != OpAMD64VPAND128 {
+			break
+		}
+		k := x.Args[1]
+		j := x.Args[0]
+		if !(x == y && x.Uses == 2) {
+			break
+		}
+		v.reset(OpAMD64SETEQ)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPTEST, types.TypeFlags)
+		v0.AddArg2(j, k)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (SETEQ (VPTEST x:(VPAND256 j k) y))
+	// cond: x == y && x.Uses == 2
+	// result: (SETEQ (VPTEST j k))
+	for {
+		if v_0.Op != OpAMD64VPTEST {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		if x.Op != OpAMD64VPAND256 {
+			break
+		}
+		k := x.Args[1]
+		j := x.Args[0]
+		if !(x == y && x.Uses == 2) {
+			break
+		}
+		v.reset(OpAMD64SETEQ)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPTEST, types.TypeFlags)
+		v0.AddArg2(j, k)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (SETEQ (VPTEST x:(VPANDD512 j k) y))
+	// cond: x == y && x.Uses == 2
+	// result: (SETEQ (VPTEST j k))
+	for {
+		if v_0.Op != OpAMD64VPTEST {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		if x.Op != OpAMD64VPANDD512 {
+			break
+		}
+		k := x.Args[1]
+		j := x.Args[0]
+		if !(x == y && x.Uses == 2) {
+			break
+		}
+		v.reset(OpAMD64SETEQ)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPTEST, types.TypeFlags)
+		v0.AddArg2(j, k)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (SETEQ (VPTEST x:(VPANDQ512 j k) y))
+	// cond: x == y && x.Uses == 2
+	// result: (SETEQ (VPTEST j k))
+	for {
+		if v_0.Op != OpAMD64VPTEST {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		if x.Op != OpAMD64VPANDQ512 {
+			break
+		}
+		k := x.Args[1]
+		j := x.Args[0]
+		if !(x == y && x.Uses == 2) {
+			break
+		}
+		v.reset(OpAMD64SETEQ)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPTEST, types.TypeFlags)
+		v0.AddArg2(j, k)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (SETEQ (VPTEST x:(VPANDN128 j k) y))
+	// cond: x == y && x.Uses == 2
+	// result: (SETB (VPTEST k j))
+	for {
+		if v_0.Op != OpAMD64VPTEST {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		if x.Op != OpAMD64VPANDN128 {
+			break
+		}
+		k := x.Args[1]
+		j := x.Args[0]
+		if !(x == y && x.Uses == 2) {
+			break
+		}
+		v.reset(OpAMD64SETB)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPTEST, types.TypeFlags)
+		v0.AddArg2(k, j)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (SETEQ (VPTEST x:(VPANDN256 j k) y))
+	// cond: x == y && x.Uses == 2
+	// result: (SETB (VPTEST k j))
+	for {
+		if v_0.Op != OpAMD64VPTEST {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		if x.Op != OpAMD64VPANDN256 {
+			break
+		}
+		k := x.Args[1]
+		j := x.Args[0]
+		if !(x == y && x.Uses == 2) {
+			break
+		}
+		v.reset(OpAMD64SETB)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPTEST, types.TypeFlags)
+		v0.AddArg2(k, j)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (SETEQ (VPTEST x:(VPANDND512 j k) y))
+	// cond: x == y && x.Uses == 2
+	// result: (SETB (VPTEST k j))
+	for {
+		if v_0.Op != OpAMD64VPTEST {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		if x.Op != OpAMD64VPANDND512 {
+			break
+		}
+		k := x.Args[1]
+		j := x.Args[0]
+		if !(x == y && x.Uses == 2) {
+			break
+		}
+		v.reset(OpAMD64SETB)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPTEST, types.TypeFlags)
+		v0.AddArg2(k, j)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (SETEQ (VPTEST x:(VPANDNQ512 j k) y))
+	// cond: x == y && x.Uses == 2
+	// result: (SETB (VPTEST k j))
+	for {
+		if v_0.Op != OpAMD64VPTEST {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		if x.Op != OpAMD64VPANDNQ512 {
+			break
+		}
+		k := x.Args[1]
+		j := x.Args[0]
+		if !(x == y && x.Uses == 2) {
+			break
+		}
+		v.reset(OpAMD64SETB)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPTEST, types.TypeFlags)
+		v0.AddArg2(k, j)
+		v.AddArg(v0)
+		return true
+	}
 	return false
 }
 func rewriteValueAMD64_OpAMD64SETEQstore(v *Value) bool {
@@ -61065,6 +61249,190 @@ func rewriteBlockAMD64(b *Block) bool {
 				return true
 			}
 			break
+		}
+		// match: (EQ (VPTEST x:(VPAND128 j k) y) yes no)
+		// cond: x == y && x.Uses == 2
+		// result: (EQ (VPTEST j k) yes no)
+		for b.Controls[0].Op == OpAMD64VPTEST {
+			v_0 := b.Controls[0]
+			y := v_0.Args[1]
+			x := v_0.Args[0]
+			if x.Op != OpAMD64VPAND128 {
+				break
+			}
+			_ = x.Args[1]
+			x_0 := x.Args[0]
+			x_1 := x.Args[1]
+			for _i0 := 0; _i0 <= 1; _i0, x_0, x_1 = _i0+1, x_1, x_0 {
+				j := x_0
+				k := x_1
+				if !(x == y && x.Uses == 2) {
+					continue
+				}
+				v0 := b.NewValue0(v_0.Pos, OpAMD64VPTEST, types.TypeFlags)
+				v0.AddArg2(j, k)
+				b.resetWithControl(BlockAMD64EQ, v0)
+				return true
+			}
+			break
+		}
+		// match: (EQ (VPTEST x:(VPAND256 j k) y) yes no)
+		// cond: x == y && x.Uses == 2
+		// result: (EQ (VPTEST j k) yes no)
+		for b.Controls[0].Op == OpAMD64VPTEST {
+			v_0 := b.Controls[0]
+			y := v_0.Args[1]
+			x := v_0.Args[0]
+			if x.Op != OpAMD64VPAND256 {
+				break
+			}
+			_ = x.Args[1]
+			x_0 := x.Args[0]
+			x_1 := x.Args[1]
+			for _i0 := 0; _i0 <= 1; _i0, x_0, x_1 = _i0+1, x_1, x_0 {
+				j := x_0
+				k := x_1
+				if !(x == y && x.Uses == 2) {
+					continue
+				}
+				v0 := b.NewValue0(v_0.Pos, OpAMD64VPTEST, types.TypeFlags)
+				v0.AddArg2(j, k)
+				b.resetWithControl(BlockAMD64EQ, v0)
+				return true
+			}
+			break
+		}
+		// match: (EQ (VPTEST x:(VPANDD512 j k) y) yes no)
+		// cond: x == y && x.Uses == 2
+		// result: (EQ (VPTEST j k) yes no)
+		for b.Controls[0].Op == OpAMD64VPTEST {
+			v_0 := b.Controls[0]
+			y := v_0.Args[1]
+			x := v_0.Args[0]
+			if x.Op != OpAMD64VPANDD512 {
+				break
+			}
+			_ = x.Args[1]
+			x_0 := x.Args[0]
+			x_1 := x.Args[1]
+			for _i0 := 0; _i0 <= 1; _i0, x_0, x_1 = _i0+1, x_1, x_0 {
+				j := x_0
+				k := x_1
+				if !(x == y && x.Uses == 2) {
+					continue
+				}
+				v0 := b.NewValue0(v_0.Pos, OpAMD64VPTEST, types.TypeFlags)
+				v0.AddArg2(j, k)
+				b.resetWithControl(BlockAMD64EQ, v0)
+				return true
+			}
+			break
+		}
+		// match: (EQ (VPTEST x:(VPANDQ512 j k) y) yes no)
+		// cond: x == y && x.Uses == 2
+		// result: (EQ (VPTEST j k) yes no)
+		for b.Controls[0].Op == OpAMD64VPTEST {
+			v_0 := b.Controls[0]
+			y := v_0.Args[1]
+			x := v_0.Args[0]
+			if x.Op != OpAMD64VPANDQ512 {
+				break
+			}
+			_ = x.Args[1]
+			x_0 := x.Args[0]
+			x_1 := x.Args[1]
+			for _i0 := 0; _i0 <= 1; _i0, x_0, x_1 = _i0+1, x_1, x_0 {
+				j := x_0
+				k := x_1
+				if !(x == y && x.Uses == 2) {
+					continue
+				}
+				v0 := b.NewValue0(v_0.Pos, OpAMD64VPTEST, types.TypeFlags)
+				v0.AddArg2(j, k)
+				b.resetWithControl(BlockAMD64EQ, v0)
+				return true
+			}
+			break
+		}
+		// match: (EQ (VPTEST x:(VPANDN128 j k) y) yes no)
+		// cond: x == y && x.Uses == 2
+		// result: (ULT (VPTEST k j) yes no)
+		for b.Controls[0].Op == OpAMD64VPTEST {
+			v_0 := b.Controls[0]
+			y := v_0.Args[1]
+			x := v_0.Args[0]
+			if x.Op != OpAMD64VPANDN128 {
+				break
+			}
+			k := x.Args[1]
+			j := x.Args[0]
+			if !(x == y && x.Uses == 2) {
+				break
+			}
+			v0 := b.NewValue0(v_0.Pos, OpAMD64VPTEST, types.TypeFlags)
+			v0.AddArg2(k, j)
+			b.resetWithControl(BlockAMD64ULT, v0)
+			return true
+		}
+		// match: (EQ (VPTEST x:(VPANDN256 j k) y) yes no)
+		// cond: x == y && x.Uses == 2
+		// result: (ULT (VPTEST k j) yes no)
+		for b.Controls[0].Op == OpAMD64VPTEST {
+			v_0 := b.Controls[0]
+			y := v_0.Args[1]
+			x := v_0.Args[0]
+			if x.Op != OpAMD64VPANDN256 {
+				break
+			}
+			k := x.Args[1]
+			j := x.Args[0]
+			if !(x == y && x.Uses == 2) {
+				break
+			}
+			v0 := b.NewValue0(v_0.Pos, OpAMD64VPTEST, types.TypeFlags)
+			v0.AddArg2(k, j)
+			b.resetWithControl(BlockAMD64ULT, v0)
+			return true
+		}
+		// match: (EQ (VPTEST x:(VPANDND512 j k) y) yes no)
+		// cond: x == y && x.Uses == 2
+		// result: (ULT (VPTEST k j) yes no)
+		for b.Controls[0].Op == OpAMD64VPTEST {
+			v_0 := b.Controls[0]
+			y := v_0.Args[1]
+			x := v_0.Args[0]
+			if x.Op != OpAMD64VPANDND512 {
+				break
+			}
+			k := x.Args[1]
+			j := x.Args[0]
+			if !(x == y && x.Uses == 2) {
+				break
+			}
+			v0 := b.NewValue0(v_0.Pos, OpAMD64VPTEST, types.TypeFlags)
+			v0.AddArg2(k, j)
+			b.resetWithControl(BlockAMD64ULT, v0)
+			return true
+		}
+		// match: (EQ (VPTEST x:(VPANDNQ512 j k) y) yes no)
+		// cond: x == y && x.Uses == 2
+		// result: (ULT (VPTEST k j) yes no)
+		for b.Controls[0].Op == OpAMD64VPTEST {
+			v_0 := b.Controls[0]
+			y := v_0.Args[1]
+			x := v_0.Args[0]
+			if x.Op != OpAMD64VPANDNQ512 {
+				break
+			}
+			k := x.Args[1]
+			j := x.Args[0]
+			if !(x == y && x.Uses == 2) {
+				break
+			}
+			v0 := b.NewValue0(v_0.Pos, OpAMD64VPTEST, types.TypeFlags)
+			v0.AddArg2(k, j)
+			b.resetWithControl(BlockAMD64ULT, v0)
+			return true
 		}
 	case BlockAMD64GE:
 		// match: (GE c:(CMPQconst [128] z) yes no)
