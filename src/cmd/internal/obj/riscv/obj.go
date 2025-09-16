@@ -1922,6 +1922,10 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	// 7.1: CSR Instructions
 	ACSRRS & obj.AMask: {enc: iIIEncoding},
 
+	// 12.1: "Zicond" Extension for Integer Conditional Operations
+	ACZERONEZ & obj.AMask: {enc: rIIIEncoding, ternary: true},
+	ACZEROEQZ & obj.AMask: {enc: rIIIEncoding, ternary: true},	
+
 	// 13.1: Multiplication Operations
 	AMUL & obj.AMask:    {enc: rIIIEncoding, ternary: true},
 	AMULH & obj.AMask:   {enc: rIIIEncoding, ternary: true},
@@ -2006,10 +2010,6 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	// 12.3: Double-Precision Load and Store Instructions
 	AFLD & obj.AMask: {enc: iFEncoding},
 	AFSD & obj.AMask: {enc: sFEncoding},
-
-	// 11.1: "Zicond" Extension for Integer Conditional Operations
-	ACZERONEZ & obj.AMask: {enc: rIIIEncoding, ternary: true},
-	ACZEROEQZ & obj.AMask: {enc: rIIIEncoding, ternary: true},
 
 	// 21.4: Double-Precision Floating-Point Computational Instructions
 	AFADDD & obj.AMask:   {enc: rFFFEncoding},
