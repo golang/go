@@ -487,9 +487,6 @@ func (f *peFile) addDWARFSection(name string, size int) *peSection {
 
 // addDWARF adds DWARF information to the COFF file f.
 func (f *peFile) addDWARF() {
-	if *FlagS { // disable symbol table
-		return
-	}
 	if *FlagW { // disable dwarf
 		return
 	}

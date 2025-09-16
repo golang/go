@@ -358,3 +358,53 @@ func TestDWARFLocationList(t *testing.T) {
 		}
 	}
 }
+
+func TestFlagW(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	t.Parallel()
+
+	tmpdir := t.TempDir()
+	src := filepath.Join(tmpdir, "a.go")
+	err := os.WriteFile(src, []byte(helloSrc), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		flag      string
+		wantDWARF bool
+	}{
+		{"-w", false},     // -w flag disables DWARF
+		{"-s", false},     // -s implies -w
+		{"-s -w=0", true}, // -w=0 negates the implied -w
+	}
+	for _, test := range tests {
+		name := strings.ReplaceAll(test.flag, " ", "_")
+		t.Run(name, func(t *testing.T) {
+			ldflags := "-ldflags=" + test.flag
+			exe := filepath.Join(t.TempDir(), "a.exe")
+			cmd := testenv.Command(t, testenv.GoToolPath(t), "build", ldflags, "-o", exe, src)
+			out, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Fatalf("build failed: %v\n%s", err, out)
+			}
+
+			f, err := objfile.Open(exe)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer f.Close()
+
+			d, err := f.DWARF()
+			if test.wantDWARF {
+				if err != nil {
+					t.Errorf("want binary with DWARF, got error %v", err)
+				}
+			} else {
+				if d != nil {
+					t.Errorf("want binary with no DWARF, got DWARF")
+				}
+			}
+		})
+	}
+}
