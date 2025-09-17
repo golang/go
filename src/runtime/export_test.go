@@ -9,7 +9,6 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
-	"internal/goexperiment"
 	"internal/goos"
 	"internal/runtime/atomic"
 	"internal/runtime/gc"
@@ -1156,7 +1155,7 @@ func CheckScavengedBitsCleared(mismatches []BitsMismatch) (n int, ok bool) {
 		getg().m.mallocing--
 	})
 
-	if goexperiment.RandomizedHeapBase64 && len(mismatches) > 0 {
+	if randomizeHeapBase && len(mismatches) > 0 {
 		// When goexperiment.RandomizedHeapBase64 is set we use a series of
 		// padding pages to generate randomized heap base address which have
 		// both the alloc and scav bits set. Because of this we expect exactly

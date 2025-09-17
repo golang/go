@@ -349,7 +349,7 @@ const (
 
 	// randomizeHeapBase indicates if the heap base address should be randomized.
 	// See comment in mallocinit for how the randomization is performed.
-	randomizeHeapBase = goexperiment.RandomizedHeapBase64 && goarch.PtrSize == 8 && !isSbrkPlatform
+	randomizeHeapBase = goexperiment.RandomizedHeapBase64 && goarch.PtrSize == 8 && !isSbrkPlatform && !raceenabled && !msanenabled && !asanenabled
 
 	// randHeapBasePrefixMask is used to extract the top byte of the randomized
 	// heap base address.
