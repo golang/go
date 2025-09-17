@@ -714,6 +714,26 @@ func heapSetTypeNoHeader(x, dataSize uintptr, typ *_type, span *mspan) uintptr {
 }
 
 func heapSetTypeSmallHeader(x, dataSize uintptr, typ *_type, header **_type, span *mspan) uintptr {
+	if header == nil {
+		// This nil check and throw is almost pointless. Normally we would
+		// expect header to never be nil. However, this is called on potentially
+		// freshly-allocated virtual memory. As of 2025, the compiler-inserted
+		// nil check is not a branch but a memory read that we expect to fault
+		// if the pointer really is nil.
+		//
+		// However, this causes a read of the page, and operating systems may
+		// take it as a hint to back the accessed memory with a read-only zero
+		// page. However, we immediately write to this memory, which can then
+		// force operating systems to have to update the page table and flush
+		// the TLB.
+		//
+		// This nil check is thus an explicit branch instead of what the compiler
+		// would insert circa 2025, which is a memory read instruction.
+		//
+		// See go.dev/issue/74375 for details of a similar issue in
+		// spanInlineMarkBits.
+		throw("runtime: pointer to heap type header nil?")
+	}
 	*header = typ
 	if doubleCheckHeapSetType {
 		doubleCheckHeapType(x, dataSize, typ, header, span)
