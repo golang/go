@@ -236,7 +236,7 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 				panic("simdgen sees unknwon special lower " + *gOp.SpecialLower + ", maybe implement it?")
 			}
 		}
-		if gOp.MemFeatures != nil && *gOp.MemFeatures == "vbcst" && immType == NoImm {
+		if gOp.MemFeatures != nil && *gOp.MemFeatures == "vbcst" {
 			// sanity check
 			selected := true
 			for _, a := range gOp.In {
@@ -257,9 +257,21 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 				}
 				memOpData := data
 				// Remove the last vreg from the arg and change it to a load.
-				memOpData.ArgsLoadAddr = data.Args[:len(data.Args)-1] + fmt.Sprintf("l:(VMOVDQUload%d {sym} [off] ptr mem)", *lastVreg.Bits)
+				origArgs := data.Args[:len(data.Args)-1]
+				// Prepare imm args.
+				immArg := ""
+				immArgCombineOff := " [off] "
+				if immType != NoImm && immType != InvalidImm {
+					_, after, found := strings.Cut(origArgs, "]")
+					if found {
+						origArgs = after
+					}
+					immArg = "[c] "
+					immArgCombineOff = " [makeValAndOff(int32(int8(c)),off)] "
+				}
+				memOpData.ArgsLoadAddr = immArg + origArgs + fmt.Sprintf("l:(VMOVDQUload%d {sym} [off] ptr mem)", *lastVreg.Bits)
 				// Remove the last vreg from the arg and change it to "ptr".
-				memOpData.ArgsAddr = "{sym} [off] " + data.Args[:len(data.Args)-1] + "ptr"
+				memOpData.ArgsAddr = "{sym}" + immArgCombineOff + origArgs + "ptr"
 				if maskType == OneMask {
 					memOpData.ArgsAddr += " mask"
 					memOpData.ArgsLoadAddr += " mask"
