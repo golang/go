@@ -163,23 +163,23 @@ func (f *F) Add(args ...any) {
 
 // supportedTypes represents all of the supported types which can be fuzzed.
 var supportedTypes = map[reflect.Type]bool{
-	reflect.TypeOf(([]byte)("")):  true,
-	reflect.TypeOf((string)("")):  true,
-	reflect.TypeOf((bool)(false)): true,
-	reflect.TypeOf((byte)(0)):     true,
-	reflect.TypeOf((rune)(0)):     true,
-	reflect.TypeOf((float32)(0)):  true,
-	reflect.TypeOf((float64)(0)):  true,
-	reflect.TypeOf((int)(0)):      true,
-	reflect.TypeOf((int8)(0)):     true,
-	reflect.TypeOf((int16)(0)):    true,
-	reflect.TypeOf((int32)(0)):    true,
-	reflect.TypeOf((int64)(0)):    true,
-	reflect.TypeOf((uint)(0)):     true,
-	reflect.TypeOf((uint8)(0)):    true,
-	reflect.TypeOf((uint16)(0)):   true,
-	reflect.TypeOf((uint32)(0)):   true,
-	reflect.TypeOf((uint64)(0)):   true,
+	reflect.TypeFor[[]byte]():  true,
+	reflect.TypeFor[string]():  true,
+	reflect.TypeFor[bool]():    true,
+	reflect.TypeFor[byte]():    true,
+	reflect.TypeFor[rune]():    true,
+	reflect.TypeFor[float32](): true,
+	reflect.TypeFor[float64](): true,
+	reflect.TypeFor[int]():     true,
+	reflect.TypeFor[int8]():    true,
+	reflect.TypeFor[int16]():   true,
+	reflect.TypeFor[int32]():   true,
+	reflect.TypeFor[int64]():   true,
+	reflect.TypeFor[uint]():    true,
+	reflect.TypeFor[uint8]():   true,
+	reflect.TypeFor[uint16]():  true,
+	reflect.TypeFor[uint32]():  true,
+	reflect.TypeFor[uint64]():  true,
 }
 
 // Fuzz runs the fuzz function, ff, for fuzz testing. If ff fails for a set of
@@ -224,7 +224,7 @@ func (f *F) Fuzz(ff any) {
 	if fnType.Kind() != reflect.Func {
 		panic("testing: F.Fuzz must receive a function")
 	}
-	if fnType.NumIn() < 2 || fnType.In(0) != reflect.TypeOf((*T)(nil)) {
+	if fnType.NumIn() < 2 || fnType.In(0) != reflect.TypeFor[*T]() {
 		panic("testing: fuzz target must receive at least two arguments, where the first argument is a *T")
 	}
 	if fnType.NumOut() != 0 {
