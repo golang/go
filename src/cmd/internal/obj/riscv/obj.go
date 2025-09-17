@@ -54,6 +54,38 @@ func jalToSym(ctxt *obj.Link, p *obj.Prog, lr int16) {
 // progedit is called individually for each *obj.Prog. It normalizes instruction
 // formats and eliminates as many pseudo-instructions as possible.
 func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+	// Convert CSR pseudo instructions into real riscv64 instructions.
+	switch p.As {
+	case ACSRC:
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REG_ZERO
+		p.As = ACSRRC
+	case ACSRCI:
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REG_ZERO
+		p.As = ACSRRCI
+	case ACSRR:
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = REG_ZERO
+		p.As = ACSRRS
+	case ACSRS:
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REG_ZERO
+		p.As = ACSRRS
+	case ACSRSI:
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REG_ZERO
+		p.As = ACSRRSI
+	case ACSRW:
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REG_ZERO
+		p.As = ACSRRW
+	case ACSRWI:
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REG_ZERO
+		p.As = ACSRRWI
+	}
+
 	insData, err := instructionDataForAs(p.As)
 	if err != nil {
 		panic(fmt.Sprintf("failed to lookup instruction data for %v: %v", p.As, err))

@@ -47,6 +47,25 @@ func IsRISCV64CSRO(op obj.As) (imm bool, ok bool) {
 	return
 }
 
+// IsRISCV64PseudoCSRO reports whether the op is a pseudo instruction
+// that uses CSR symbolic names, whether that instruction expects a register
+// or an immediate source operand and what the expected index of the operand
+// containing the CSR name should be.
+func IsRISCV64PseudoCSRO(op obj.As) (imm bool, index int, ok bool) {
+	index = 1
+	switch op {
+	case riscv.ACSRCI, riscv.ACSRSI, riscv.ACSRWI:
+		imm = true
+		ok = true
+	case riscv.ACSRC, riscv.ACSRR, riscv.ACSRS, riscv.ACSRW:
+		ok = true
+		if op == riscv.ACSRR {
+			index = 0
+		}
+	}
+	return
+}
+
 var riscv64SpecialOperand map[string]riscv.SpecialOperand
 
 // RISCV64SpecialOperand returns the internal representation of a special operand.
