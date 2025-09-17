@@ -2529,24 +2529,38 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 		switch v.Op {
 		case OpSlicemask:
 			// Replace OpSlicemask operations in b with constants where possible.
-			x, delta := isConstDelta(v.Args[0])
-			if x == nil {
+			cap := v.Args[0]
+			x, delta := isConstDelta(cap)
+			if x != nil {
+				// slicemask(x + y)
+				// if x is larger than -y (y is negative), then slicemask is -1.
+				lim := ft.limits[x.ID]
+				if lim.umin > uint64(-delta) {
+					if cap.Op == OpAdd64 {
+						v.reset(OpConst64)
+					} else {
+						v.reset(OpConst32)
+					}
+					if b.Func.pass.debug > 0 {
+						b.Func.Warnl(v.Pos, "Proved slicemask not needed")
+					}
+					v.AuxInt = -1
+				}
 				break
 			}
-			// slicemask(x + y)
-			// if x is larger than -y (y is negative), then slicemask is -1.
-			lim := ft.limits[x.ID]
-			if lim.umin > uint64(-delta) {
-				if v.Args[0].Op == OpAdd64 {
+			lim := ft.limits[cap.ID]
+			if lim.umin > 0 {
+				if cap.Type.Size() == 8 {
 					v.reset(OpConst64)
 				} else {
 					v.reset(OpConst32)
 				}
 				if b.Func.pass.debug > 0 {
-					b.Func.Warnl(v.Pos, "Proved slicemask not needed")
+					b.Func.Warnl(v.Pos, "Proved slicemask not needed (by limit)")
 				}
 				v.AuxInt = -1
 			}
+
 		case OpCtz8, OpCtz16, OpCtz32, OpCtz64:
 			// On some architectures, notably amd64, we can generate much better
 			// code for CtzNN if we know that the argument is non-zero.
