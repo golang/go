@@ -1766,7 +1766,8 @@ func (ft *factsTable) flowLimit(v *Value) bool {
 		b := ft.limits[v.Args[1].ID]
 		sub := ft.newLimit(v, a.sub(b, uint(v.Type.Size())*8))
 		mod := ft.detectSignedMod(v)
-		return sub || mod
+		inferred := ft.detectSliceLenRelation(v)
+		return sub || mod || inferred
 	case OpNeg64, OpNeg32, OpNeg16, OpNeg8:
 		a := ft.limits[v.Args[0].ID]
 		bitsize := uint(v.Type.Size()) * 8
@@ -1947,6 +1948,68 @@ func (ft *factsTable) detectSignedMod(v *Value) bool {
 	// TODO: non-powers-of-2
 	return false
 }
+
+// detectSliceLenRelation matches the pattern where
+//  1. v := slicelen - index, OR v := slicecap - index
+//     AND
+//  2. index <= slicelen - K
+//     THEN
+//
+// slicecap - index >= slicelen - index >= K
+//
+// Note that "index" is not useed for indexing in this pattern, but
+// in the motivating example (chunked slice iteration) it is.
+func (ft *factsTable) detectSliceLenRelation(v *Value) (inferred bool) {
+	if v.Op != OpSub64 {
+		return false
+	}
+
+	if !(v.Args[0].Op == OpSliceLen || v.Args[0].Op == OpSliceCap) {
+		return false
+	}
+
+	slice := v.Args[0].Args[0]
+	index := v.Args[1]
+
+	for o := ft.orderings[index.ID]; o != nil; o = o.next {
+		if o.d != signed {
+			continue
+		}
+		or := o.r
+		if or != lt && or != lt|eq {
+			continue
+		}
+		ow := o.w
+		if ow.Op != OpAdd64 && ow.Op != OpSub64 {
+			continue
+		}
+		var lenOffset *Value
+		if bound := ow.Args[0]; bound.Op == OpSliceLen && bound.Args[0] == slice {
+			lenOffset = ow.Args[1]
+		} else if bound := ow.Args[1]; bound.Op == OpSliceLen && bound.Args[0] == slice {
+			lenOffset = ow.Args[0]
+		}
+		if lenOffset == nil || lenOffset.Op != OpConst64 {
+			continue
+		}
+		K := lenOffset.AuxInt
+		if ow.Op == OpAdd64 {
+			K = -K
+		}
+		if K < 0 {
+			continue
+		}
+		if or == lt {
+			K++
+		}
+		if K < 0 { // We hate thinking about overflow
+			continue
+		}
+		inferred = inferred || ft.signedMin(v, K)
+	}
+	return inferred
+}
+
 func (ft *factsTable) detectSignedModByPowerOfTwo(v *Value) bool {
 	// We're looking for:
 	//
