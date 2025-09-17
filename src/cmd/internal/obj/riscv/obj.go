@@ -1948,6 +1948,10 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	ACSRRW & obj.AMask:  {enc: iIIEncoding, immForm: ACSRRWI},
 	ACSRRWI & obj.AMask: {enc: iIIEncoding},
 
+	// 12.3: "Zicond" Extension for Integer Conditional Operations
+	ACZERONEZ & obj.AMask: {enc: rIIIEncoding, ternary: true},
+	ACZEROEQZ & obj.AMask: {enc: rIIIEncoding, ternary: true},
+
 	// 13.1: Multiplication Operations
 	AMUL & obj.AMask:    {enc: rIIIEncoding, ternary: true},
 	AMULH & obj.AMask:   {enc: rIIIEncoding, ternary: true},
