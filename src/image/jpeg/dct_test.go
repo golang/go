@@ -92,7 +92,7 @@ func TestDCT(t *testing.T) {
 	}
 
 	// Check that the optimized and slow FDCT implementations agree.
-	testDCT(t, "FDCT", blocks, fdct, slowFDCT, 1, 16)
+	testDCT(t, "FDCT", blocks, fdct, slowFDCT, 1, 8)
 	testDCT(t, "IDCT", blocks, idct, slowIDCT, 1, 8)
 }
 
