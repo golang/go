@@ -59,6 +59,11 @@ func (t Time) appendFormatRFC3339(b []byte, nanos bool) []byte {
 	return b
 }
 
+var (
+	errYearOutsideOfRange   = errors.New("year outside of range [0,9999]")
+	errTZHourOutsideOfRange = errors.New("timezone hour outside of range [0,23]")
+)
+
 func (t Time) appendStrictRFC3339(b []byte) ([]byte, error) {
 	n0 := len(b)
 	b = t.appendFormatRFC3339(b, true)
@@ -69,11 +74,11 @@ func (t Time) appendStrictRFC3339(b []byte) ([]byte, error) {
 	num2 := func(b []byte) byte { return 10*(b[0]-'0') + (b[1] - '0') }
 	switch {
 	case b[n0+len("9999")] != '-': // year must be exactly 4 digits wide
-		return b, errors.New("year outside of range [0,9999]")
+		return b, errYearOutsideOfRange
 	case b[len(b)-1] != 'Z':
 		c := b[len(b)-len("Z07:00")]
 		if ('0' <= c && c <= '9') || num2(b[len(b)-len("07:00"):]) >= 24 {
-			return b, errors.New("timezone hour outside of range [0,23]")
+			return b, errTZHourOutsideOfRange
 		}
 	}
 	return b, nil
