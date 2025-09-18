@@ -61,9 +61,7 @@ func (d *Digest) Size() int { return d.outputLen }
 // Reset resets the Digest to its initial state.
 func (d *Digest) Reset() {
 	// Zero the permutation's state.
-	for i := range d.a {
-		d.a[i] = 0
-	}
+	clear(d.a[:])
 	d.state = spongeAbsorbing
 	d.n = 0
 }
