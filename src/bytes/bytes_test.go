@@ -891,9 +891,7 @@ func BenchmarkCountSingle(b *testing.B) {
 				b.Fatal("bad count", j, expect)
 			}
 		}
-		for i := 0; i < len(buf); i++ {
-			buf[i] = 0
-		}
+		clear(buf)
 	})
 }
 
