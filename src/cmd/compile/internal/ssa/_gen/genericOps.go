@@ -675,9 +675,8 @@ var genericOps = []opData{
 	{name: "PrefetchCache", argLength: 2, hasSideEffects: true},         // Do prefetch arg0 to cache. arg0=addr, arg1=memory.
 	{name: "PrefetchCacheStreamed", argLength: 2, hasSideEffects: true}, // Do non-temporal or streamed prefetch arg0 to cache. arg0=addr, arg1=memory.
 
-	// XXX SIMD
-	{name: "Add32x4", argLength: 2}, // arg0 + arg1
-	{name: "ZeroSIMD", argLength: 0},
+	// SIMD
+	{name: "ZeroSIMD", argLength: 0},      // zero value of a vector
 	{name: "LoadMask8x16", argLength: 2},  // arg0 = ptr, arg1 = mem
 	{name: "LoadMask8x32", argLength: 2},  // arg0 = ptr, arg1 = mem
 	{name: "LoadMask8x64", argLength: 2},  // arg0 = ptr, arg1 = mem

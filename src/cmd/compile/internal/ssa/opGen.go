@@ -5341,7 +5341,6 @@ const (
 	OpClobberReg
 	OpPrefetchCache
 	OpPrefetchCacheStreamed
-	OpAdd32x4
 	OpZeroSIMD
 	OpLoadMask8x16
 	OpLoadMask8x32
@@ -75613,11 +75612,6 @@ var opcodeTable = [...]opInfo{
 		argLen:         2,
 		hasSideEffects: true,
 		generic:        true,
-	},
-	{
-		name:    "Add32x4",
-		argLen:  2,
-		generic: true,
 	},
 	{
 		name:    "ZeroSIMD",
