@@ -48,6 +48,7 @@
 #define SYS_madvise		219
 #define SYS_gettid		224
 #define SYS_futex		240
+#define SYS_futex_time64	422
 #define SYS_sched_getaffinity	242
 #define SYS_set_thread_area	243
 #define SYS_exit_group		252
@@ -532,10 +533,26 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
 	MOVL	AX, ret+12(FP)
 	RET
 
+// Linux: kernel/futex/syscalls.c, requiring COMPAT_32BIT_TIME
+// int32 futex(int32 *uaddr, int32 op, int32 val,
+//	struct old_timespec32 *timeout, int32 *uaddr2, int32 val2);
+TEXT runtime·futex_time32(SB),NOSPLIT,$0
+	MOVL	$SYS_futex, AX
+	MOVL	addr+0(FP), BX
+	MOVL	op+4(FP), CX
+	MOVL	val+8(FP), DX
+	MOVL	ts+12(FP), SI
+	MOVL	addr2+16(FP), DI
+	MOVL	val3+20(FP), BP
+	INVOKE_SYSCALL
+	MOVL	AX, ret+24(FP)
+	RET
+
+// Linux: kernel/futex/syscalls.c
 // int32 futex(int32 *uaddr, int32 op, int32 val,
 //	struct timespec *timeout, int32 *uaddr2, int32 val2);
-TEXT runtime·futex(SB),NOSPLIT,$0
-	MOVL	$SYS_futex, AX
+TEXT runtime·futex_time64(SB),NOSPLIT,$0
+	MOVL	$SYS_futex_time64, AX
 	MOVL	addr+0(FP), BX
 	MOVL	op+4(FP), CX
 	MOVL	val+8(FP), DX
