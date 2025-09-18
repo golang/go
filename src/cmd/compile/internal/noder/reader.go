@@ -2431,8 +2431,16 @@ func (r *reader) expr() (res ir.Node) {
 
 	case exprNew:
 		pos := r.pos()
-		typ := r.exprType()
-		return typecheck.Expr(ir.NewUnaryExpr(pos, ir.ONEW, typ))
+		if r.Bool() {
+			// new(expr) -> tmp := expr; &tmp
+			x := r.expr()
+			var init ir.Nodes
+			addr := ir.NewAddrExpr(pos, r.tempCopy(pos, x, &init))
+			addr.SetInit(init)
+			return typecheck.Expr(addr)
+		}
+		// new(T)
+		return typecheck.Expr(ir.NewUnaryExpr(pos, ir.ONEW, r.exprType()))
 
 	case exprSizeof:
 		return ir.NewUintptr(r.pos(), r.typ().Size())
@@ -3239,6 +3247,7 @@ func (r *reader) exprType() ir.Node {
 	var rtype, itab ir.Node
 
 	if r.Bool() {
+		// non-empty interface
 		typ, rtype, _, _, itab = r.itab(pos)
 		if !typ.IsInterface() {
 			rtype = nil // TODO(mdempsky): Leave set?
