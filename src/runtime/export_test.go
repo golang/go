@@ -1936,3 +1936,7 @@ func (t *TraceStackTable) Reset() {
 func TraceStack(gp *G, tab *TraceStackTable) {
 	traceStack(0, gp, (*traceStackTable)(tab))
 }
+
+var DebugDecorateMappings = &debug.decoratemappings
+
+func SetVMANameSupported() bool { return setVMANameSupported() }

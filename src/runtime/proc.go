@@ -789,7 +789,9 @@ func cpuinit(env string) {
 // getGodebugEarly extracts the environment variable GODEBUG from the environment on
 // Unix-like operating systems and returns it. This function exists to extract GODEBUG
 // early before much of the runtime is initialized.
-func getGodebugEarly() string {
+//
+// Returns nil, false if OS doesn't provide env vars early in the init sequence.
+func getGodebugEarly() (string, bool) {
 	const prefix = "GODEBUG="
 	var env string
 	switch GOOS {
@@ -807,12 +809,16 @@ func getGodebugEarly() string {
 			s := unsafe.String(p, findnull(p))
 
 			if stringslite.HasPrefix(s, prefix) {
-				env = gostring(p)[len(prefix):]
+				env = gostringnocopy(p)[len(prefix):]
 				break
 			}
 		}
+		break
+
+	default:
+		return "", false
 	}
-	return env
+	return env, true
 }
 
 // The bootstrap sequence is:
@@ -859,12 +865,15 @@ func schedinit() {
 	// The world starts stopped.
 	worldStopped()
 
+	godebug, parsedGodebug := getGodebugEarly()
+	if parsedGodebug {
+		parseRuntimeDebugVars(godebug)
+	}
 	ticks.init() // run as early as possible
 	moduledataverify()
 	stackinit()
 	randinit() // must run before mallocinit, alginit, mcommoninit
 	mallocinit()
-	godebug := getGodebugEarly()
 	cpuinit(godebug) // must run before alginit
 	alginit()        // maps, hash, rand must not be used before this call
 	mcommoninit(gp.m, -1)
@@ -880,7 +889,12 @@ func schedinit() {
 	goenvs()
 	secure()
 	checkfds()
-	parsedebugvars()
+	if !parsedGodebug {
+		// Some platforms, e.g., Windows, didn't make env vars available "early",
+		// so try again now.
+		parseRuntimeDebugVars(gogetenv("GODEBUG"))
+	}
+	finishDebugVarsSetup()
 	gcinit()
 
 	// Allocate stack space that can be used when crashing due to bad stack
