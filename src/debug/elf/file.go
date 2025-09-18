@@ -830,13 +830,13 @@ func (f *File) applyRelocationsAMD64(dst []byte, rels []byte) error {
 
 		switch t {
 		case R_X86_64_64:
-			if rela.Off+8 >= uint64(len(dst)) || rela.Addend < 0 {
+			if !saferio.InBounds64(dst, rela.Off, 8) || rela.Addend < 0 {
 				continue
 			}
 			val64 := sym.Value + uint64(rela.Addend)
 			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], val64)
 		case R_X86_64_32:
-			if rela.Off+4 >= uint64(len(dst)) || rela.Addend < 0 {
+			if !saferio.InBounds64(dst, rela.Off, 4) || rela.Addend < 0 {
 				continue
 			}
 			val32 := uint32(sym.Value) + uint32(rela.Addend)
@@ -872,7 +872,7 @@ func (f *File) applyRelocations386(dst []byte, rels []byte) error {
 		sym := &symbols[symNo-1]
 
 		if t == R_386_32 {
-			if rel.Off+4 >= uint32(len(dst)) {
+			if !saferio.InBounds32(dst, rel.Off, 4) {
 				continue
 			}
 			val := f.ByteOrder.Uint32(dst[rel.Off : rel.Off+4])
@@ -910,7 +910,7 @@ func (f *File) applyRelocationsARM(dst []byte, rels []byte) error {
 
 		switch t {
 		case R_ARM_ABS32:
-			if rel.Off+4 >= uint32(len(dst)) {
+			if !saferio.InBounds32(dst, rel.Off, 4) {
 				continue
 			}
 			val := f.ByteOrder.Uint32(dst[rel.Off : rel.Off+4])
@@ -955,13 +955,13 @@ func (f *File) applyRelocationsARM64(dst []byte, rels []byte) error {
 
 		switch t {
 		case R_AARCH64_ABS64:
-			if rela.Off+8 >= uint64(len(dst)) || rela.Addend < 0 {
+			if !saferio.InBounds64(dst, rela.Off, 8) || rela.Addend < 0 {
 				continue
 			}
 			val64 := sym.Value + uint64(rela.Addend)
 			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], val64)
 		case R_AARCH64_ABS32:
-			if rela.Off+4 >= uint64(len(dst)) || rela.Addend < 0 {
+			if !saferio.InBounds64(dst, rela.Off, 4) || rela.Addend < 0 {
 				continue
 			}
 			val32 := uint32(sym.Value) + uint32(rela.Addend)
@@ -1001,7 +1001,7 @@ func (f *File) applyRelocationsPPC(dst []byte, rels []byte) error {
 
 		switch t {
 		case R_PPC_ADDR32:
-			if rela.Off+4 >= uint32(len(dst)) || rela.Addend < 0 {
+			if !saferio.InBounds32(dst, rela.Off, 4) || rela.Addend < 0 {
 				continue
 			}
 			val32 := uint32(sym.Value) + uint32(rela.Addend)
@@ -1041,13 +1041,13 @@ func (f *File) applyRelocationsPPC64(dst []byte, rels []byte) error {
 
 		switch t {
 		case R_PPC64_ADDR64:
-			if rela.Off+8 >= uint64(len(dst)) || rela.Addend < 0 {
+			if !saferio.InBounds64(dst, rela.Off, 8) || rela.Addend < 0 {
 				continue
 			}
 			val64 := sym.Value + uint64(rela.Addend)
 			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], val64)
 		case R_PPC64_ADDR32:
-			if rela.Off+4 >= uint64(len(dst)) || rela.Addend < 0 {
+			if !saferio.InBounds64(dst, rela.Off, 4) || rela.Addend < 0 {
 				continue
 			}
 			val32 := uint32(sym.Value) + uint32(rela.Addend)
@@ -1084,7 +1084,7 @@ func (f *File) applyRelocationsMIPS(dst []byte, rels []byte) error {
 
 		switch t {
 		case R_MIPS_32:
-			if rel.Off+4 >= uint32(len(dst)) {
+			if !saferio.InBounds32(dst, rel.Off, 4) {
 				continue
 			}
 			val := f.ByteOrder.Uint32(dst[rel.Off : rel.Off+4])
@@ -1132,13 +1132,13 @@ func (f *File) applyRelocationsMIPS64(dst []byte, rels []byte) error {
 
 		switch t {
 		case R_MIPS_64:
-			if rela.Off+8 >= uint64(len(dst)) || rela.Addend < 0 {
+			if !saferio.InBounds64(dst, rela.Off, 8) || rela.Addend < 0 {
 				continue
 			}
 			val64 := sym.Value + uint64(rela.Addend)
 			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], val64)
 		case R_MIPS_32:
-			if rela.Off+4 >= uint64(len(dst)) || rela.Addend < 0 {
+			if !saferio.InBounds64(dst, rela.Off, 4) || rela.Addend < 0 {
 				continue
 			}
 			val32 := uint32(sym.Value) + uint32(rela.Addend)
@@ -1180,13 +1180,13 @@ func (f *File) applyRelocationsLOONG64(dst []byte, rels []byte) error {
 
 		switch t {
 		case R_LARCH_64:
-			if rela.Off+8 >= uint64(len(dst)) || rela.Addend < 0 {
+			if !saferio.InBounds64(dst, rela.Off, 8) || rela.Addend < 0 {
 				continue
 			}
 			val64 := sym.Value + uint64(rela.Addend)
 			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], val64)
 		case R_LARCH_32:
-			if rela.Off+4 >= uint64(len(dst)) || rela.Addend < 0 {
+			if !saferio.InBounds64(dst, rela.Off, 4) || rela.Addend < 0 {
 				continue
 			}
 			val32 := uint32(sym.Value) + uint32(rela.Addend)
@@ -1226,13 +1226,13 @@ func (f *File) applyRelocationsRISCV64(dst []byte, rels []byte) error {
 
 		switch t {
 		case R_RISCV_64:
-			if rela.Off+8 >= uint64(len(dst)) || rela.Addend < 0 {
+			if !saferio.InBounds64(dst, rela.Off, 8) || rela.Addend < 0 {
 				continue
 			}
 			val64 := sym.Value + uint64(rela.Addend)
 			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], val64)
 		case R_RISCV_32:
-			if rela.Off+4 >= uint64(len(dst)) || rela.Addend < 0 {
+			if !saferio.InBounds64(dst, rela.Off, 4) || rela.Addend < 0 {
 				continue
 			}
 			val32 := uint32(sym.Value) + uint32(rela.Addend)
@@ -1272,13 +1272,13 @@ func (f *File) applyRelocationss390x(dst []byte, rels []byte) error {
 
 		switch t {
 		case R_390_64:
-			if rela.Off+8 >= uint64(len(dst)) || rela.Addend < 0 {
+			if !saferio.InBounds64(dst, rela.Off, 8) || rela.Addend < 0 {
 				continue
 			}
 			val64 := sym.Value + uint64(rela.Addend)
 			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], val64)
 		case R_390_32:
-			if rela.Off+4 >= uint64(len(dst)) || rela.Addend < 0 {
+			if !saferio.InBounds64(dst, rela.Off, 4) || rela.Addend < 0 {
 				continue
 			}
 			val32 := uint32(sym.Value) + uint32(rela.Addend)
@@ -1318,13 +1318,13 @@ func (f *File) applyRelocationsSPARC64(dst []byte, rels []byte) error {
 
 		switch t {
 		case R_SPARC_64, R_SPARC_UA64:
-			if rela.Off+8 >= uint64(len(dst)) || rela.Addend < 0 {
+			if !saferio.InBounds64(dst, rela.Off, 8) || rela.Addend < 0 {
 				continue
 			}
 			val64 := sym.Value + uint64(rela.Addend)
 			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], val64)
 		case R_SPARC_32, R_SPARC_UA32:
-			if rela.Off+4 >= uint64(len(dst)) || rela.Addend < 0 {
+			if !saferio.InBounds64(dst, rela.Off, 4) || rela.Addend < 0 {
 				continue
 			}
 			val32 := uint32(sym.Value) + uint32(rela.Addend)

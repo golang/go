@@ -11,6 +11,7 @@ package saferio
 
 import (
 	"io"
+	"math"
 	"unsafe"
 )
 
@@ -129,4 +130,22 @@ func SliceCap[E any](c uint64) int {
 	var v E
 	size := uint64(unsafe.Sizeof(v))
 	return SliceCapWithSize(size, c)
+}
+
+// InBounds32 reports whether S[start : start+length] can be taken
+// without panicking.
+func InBounds32[S ~[]E, E any](slice S, start, length uint32) bool {
+	if start+length >= uint32(len(slice)) || math.MaxUint32-start < length {
+		return false
+	}
+	return true
+}
+
+// InBounds64 reports whether S[start : start+length] can be taken
+// without panicking.
+func InBounds64[S ~[]E, E any](slice S, start, length uint64) bool {
+	if start+length >= uint64(len(slice)) || math.MaxUint64-start < length {
+		return false
+	}
+	return true
 }
