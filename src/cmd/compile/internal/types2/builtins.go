@@ -636,11 +636,30 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		}
 
 	case _New:
-		// new(T)
+		// new(T) or new(expr)
 		// (no argument evaluated yet)
-		T := check.varType(argList[0])
-		if !isValid(T) {
-			return
+		arg := argList[0]
+		check.exprOrType(x, arg, true)
+		var T Type
+		switch x.mode {
+		case builtin:
+			check.errorf(x, UncalledBuiltin, "%s must be called", x)
+			x.mode = invalid
+		case typexpr:
+			// new(T)
+			T = x.typ
+			if !isValid(T) {
+				return
+			}
+		default:
+			// new(expr)
+			check.verifyVersionf(call.Fun, go1_26, "new(expr)")
+			T = Default(x.typ)
+			if T != x.typ {
+				// untyped constant: check for overflow.
+				check.assignment(x, T, "argument to new")
+			}
+			check.validVarType(arg, T)
 		}
 
 		x.mode = value

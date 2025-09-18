@@ -609,24 +609,48 @@ func min2() {
 	)
 }
 
-func new1() {
-	_ = new() // ERROR "not enough arguments"
-	_ = new(1, 2) // ERROR "too many arguments"
-	_ = new("foo" /* ERROR "not a type" */)
-	p := new(float64)
-	_ = new(struct{ x, y int })
-	q := new(*float64)
-	_ = *p == **q
-	new /* ERROR "not used" */ (int)
-        _ = &new /* ERROR "cannot take address" */ (int)
+func newInvalid() {
+	f2 := func() (x, y int) { return }
 
-	_ = new(int... /* ERROR "invalid use of ..." */ )
+	_ = new()     // ERROR "not enough arguments"
+	_ = new(1, 2) // ERROR "too many arguments"
+	new /* ERROR "not used" */ (int)
+	_ = &new /* ERROR "cannot take address" */ (int)
+	_ = new(int... /* ERROR "invalid use of ..." */)
+	_ = new(f0 /* ERROR "f0() (no value) used as value or type" */ ())
+	_ = new(len /* ERROR "len (built-in) must be called" */)
+	_ = new(1 /* ERROR "argument to new (overflows)" */ << 70)
+	_ = new(f2 /* ERRORx "multiple-value.*in single-value context" */ ())
 }
 
-func new2() {
+// new(T)
+func newType() {
+	_ = new(struct{ x, y int })
+
+	p := new(float64)
+	q := new(*float64)
+	_ = *p == **q
+}
+
+// new(expr), added in go1.26
+func newExpr() {
 	f1 := func() (x []int) { return }
-	_ = new(f0 /* ERROR "not a type" */ ())
-	_ = new(f1 /* ERROR "not a type" */ ())
+	var (
+		_ *[]int        = new(f1())
+		_ *func() []int = new(f1)
+		_ *bool         = new(false)
+		_ *int          = new(123)
+		_ *float64      = new(1.0)
+		_ *uint         = new(uint(3))
+		_ *rune         = new('a')
+		_ *string       = new("A")
+		_ *struct{}     = new(struct{}{})
+		_ *any          = new(any)
+
+		// from issue 43125
+		_ = new(-1)
+		_ = new(1 + 1)
+	)
 }
 
 func panic1() {
