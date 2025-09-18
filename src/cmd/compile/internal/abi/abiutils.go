@@ -661,9 +661,7 @@ func (state *assignState) tryAllocRegs(typ *types.Type) []RegIndex {
 func (pa *ABIParamAssignment) ComputePadding(storage []uint64) []uint64 {
 	nr := len(pa.Registers)
 	padding := storage[:nr]
-	for i := 0; i < nr; i++ {
-		padding[i] = 0
-	}
+	clear(padding)
 	if pa.Type.Kind() != types.TSTRUCT || nr == 0 {
 		return padding
 	}
