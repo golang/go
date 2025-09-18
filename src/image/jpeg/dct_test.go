@@ -13,14 +13,11 @@ import (
 )
 
 func benchmarkDCT(b *testing.B, f func(*block)) {
-	b.StopTimer()
-	blocks := make([]block, 0, b.N*len(testBlocks))
-	for i := 0; i < b.N; i++ {
-		blocks = append(blocks, testBlocks[:]...)
-	}
-	b.StartTimer()
-	for i := range blocks {
-		f(&blocks[i])
+	var blk block // avoid potential allocation in loop
+	for b.Loop() {
+		for _, blk = range testBlocks {
+			f(&blk)
+		}
 	}
 }
 
@@ -52,16 +49,13 @@ func TestDCT(t *testing.T) {
 	// floats to ints.
 	for i, b := range blocks {
 		got, want := b, b
-		for j := range got {
-			got[j] = (got[j] - 128) * 8
-		}
 		slowFDCT(&got)
 		slowIDCT(&got)
 		for j := range got {
 			got[j] = got[j]/8 + 128
 		}
-		if differ(&got, &want) {
-			t.Errorf("i=%d: IDCT(FDCT)\nsrc\n%s\ngot\n%s\nwant\n%s\n", i, &b, &got, &want)
+		if d := differ(&got, &want, 2); d >= 0 {
+			t.Errorf("i=%d: IDCT(FDCT) (diff at %d,%d)\nsrc\n%s\ngot\n%s\nwant\n%s\n", i, d/8, d%8, &b, &got, &want)
 		}
 	}
 
@@ -70,12 +64,9 @@ func TestDCT(t *testing.T) {
 	for i, b := range blocks {
 		got, want := b, b
 		fdct(&got)
-		for j := range want {
-			want[j] = (want[j] - 128) * 8
-		}
 		slowFDCT(&want)
-		if differ(&got, &want) {
-			t.Errorf("i=%d: FDCT\nsrc\n%s\ngot\n%s\nwant\n%s\n", i, &b, &got, &want)
+		if d := differ(&got, &want, 2); d >= 0 {
+			t.Errorf("i=%d: FDCT (diff at %d,%d)\nsrc\n%s\ngot\n%s\nwant\n%s\n", i, d/8, d%8, &b, &got, &want)
 		}
 	}
 
@@ -84,24 +75,26 @@ func TestDCT(t *testing.T) {
 		got, want := b, b
 		idct(&got)
 		slowIDCT(&want)
-		if differ(&got, &want) {
-			t.Errorf("i=%d: IDCT\nsrc\n%s\ngot\n%s\nwant\n%s\n", i, &b, &got, &want)
+		if d := differ(&got, &want, 2); d >= 0 {
+			t.Errorf("i=%d: IDCT (diff at %d,%d)\nsrc\n%s\ngot\n%s\nwant\n%s\n", i, d/8, d%8, &b, &got, &want)
 		}
 	}
 }
 
-// differ reports whether any pair-wise elements in b0 and b1 differ by 2 or
-// more. That tolerance is because there isn't a single definitive decoding of
+// differ reports whether any pair-wise elements in b0 and b1 differ by more than 'ok'.
+// That tolerance is because there isn't a single definitive decoding of
 // a given JPEG image, even before the YCbCr to RGB conversion; implementations
 // can have different IDCT rounding errors.
-func differ(b0, b1 *block) bool {
+// If there is a difference, differ returns the index of the first difference.
+// Otherwise it returns -1.
+func differ(b0, b1 *block, ok int32) int {
 	for i := range b0 {
 		delta := b0[i] - b1[i]
-		if delta < -2 || +2 < delta {
-			return true
+		if delta < -ok || ok < delta {
+			return i
 		}
 	}
-	return false
+	return -1
 }
 
 // alpha returns 1 if i is 0 and returns √2 otherwise.
@@ -166,12 +159,12 @@ func slowFDCT(b *block) {
 			sum := 0.0
 			for y := 0; y < 8; y++ {
 				for x := 0; x < 8; x++ {
-					sum += alpha(u) * alpha(v) * float64(b[8*y+x]) *
+					sum += alpha(u) * alpha(v) * float64(b[8*y+x]-128) *
 						cosines[((2*x+1)*u)%32] *
 						cosines[((2*y+1)*v)%32]
 				}
 			}
-			dst[8*v+u] = sum / 8
+			dst[8*v+u] = sum
 		}
 	}
 	// Convert from float64 to int32.
