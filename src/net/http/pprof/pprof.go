@@ -352,13 +352,13 @@ func collectProfile(p *pprof.Profile) (*profile.Profile, error) {
 }
 
 var profileSupportsDelta = map[handler]bool{
-	"allocs":        true,
-	"block":         true,
-	"goroutine":     true,
-	"goroutineleak": true,
-	"heap":          true,
-	"mutex":         true,
-	"threadcreate":  true,
+	"allocs":       true,
+	"block":        true,
+	"gleak":        true,
+	"goroutine":    true,
+	"heap":         true,
+	"mutex":        true,
+	"threadcreate": true,
 }
 
 var profileDescriptions = map[string]string{
@@ -375,8 +375,8 @@ var profileDescriptions = map[string]string{
 }
 
 func init() {
-	if goexperiment.GoleakProfile {
-		profileDescriptions["goroutineleak"] = "Stack traces of all leaked goroutines. Use debug=2 as a query parameter to export in the same format as an unrecovered panic."
+	if goexperiment.GLeakProfile {
+		profileDescriptions["gleak"] = "Stack traces of all leaked goroutines. Use debug=2 as a query parameter to export in the same format as an unrecovered panic."
 	}
 }
 

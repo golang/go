@@ -107,7 +107,7 @@ import (
 // Each Profile has a unique name. A few profiles are predefined:
 //
 //	goroutine      - stack traces of all current goroutines
-//	goroutineleak  - stack traces of all leaked goroutines
+//	gleak          - stack traces of all leaked goroutines
 //	allocs         - a sampling of all past memory allocations
 //	heap           - a sampling of memory allocations of live objects
 //	threadcreate   - stack traces that led to the creation of new OS threads
@@ -192,10 +192,10 @@ var goroutineProfile = &Profile{
 	write: writeGoroutine,
 }
 
-var goroutineLeakProfile = &Profile{
-	name:  "goroutineleak",
+var gleakProfile = &Profile{
+	name:  "gleak",
 	count: runtime_gleakcount,
-	write: writeGoroutineLeak,
+	write: writeGLeak,
 }
 
 var threadcreateProfile = &Profile{
@@ -240,8 +240,8 @@ func lockProfiles() {
 			"block":        blockProfile,
 			"mutex":        mutexProfile,
 		}
-		if goexperiment.GoleakProfile {
-			profiles.m["goroutineleak"] = goroutineLeakProfile
+		if goexperiment.GLeakProfile {
+			profiles.m["gleak"] = gleakProfile
 		}
 	}
 }
@@ -760,12 +760,12 @@ func writeGoroutine(w io.Writer, debug int) error {
 	return writeRuntimeProfile(w, debug, "goroutine", pprof_goroutineProfileWithLabels)
 }
 
-// writeGoroutineLeak first invokes a GC cycle that performs goroutine leak detection.
+// writeGLeak first invokes a GC cycle that performs goroutine leak detection.
 // It then writes the goroutine profile, filtering for leaked goroutines.
-func writeGoroutineLeak(w io.Writer, debug int) error {
+func writeGLeak(w io.Writer, debug int) error {
 	// Run the GC with leak detection first so that leaked goroutines
 	// may transition to the leaked state.
-	runtime_goroutineLeakGC()
+	runtime_gleakGC()
 
 	// If the debug flag is set sufficiently high, just defer to writing goroutine stacks
 	// like in a regular goroutine profile. Include non-leaked goroutines, too.
@@ -774,7 +774,7 @@ func writeGoroutineLeak(w io.Writer, debug int) error {
 	}
 
 	// Otherwise, write the goroutine leak profile.
-	return writeRuntimeProfile(w, debug, "goroutineleak", pprof_goroutineLeakProfileWithLabels)
+	return writeRuntimeProfile(w, debug, "gleak", pprof_gleakProfileWithLabels)
 }
 
 func writeGoroutineStacks(w io.Writer) error {
@@ -999,8 +999,8 @@ func writeProfileInternal(w io.Writer, debug int, name string, runtimeProfile fu
 //go:linkname pprof_goroutineProfileWithLabels runtime.pprof_goroutineProfileWithLabels
 func pprof_goroutineProfileWithLabels(p []profilerecord.StackRecord, labels []unsafe.Pointer) (n int, ok bool)
 
-//go:linkname pprof_goroutineLeakProfileWithLabels runtime.pprof_goroutineLeakProfileWithLabels
-func pprof_goroutineLeakProfileWithLabels(p []profilerecord.StackRecord, labels []unsafe.Pointer) (n int, ok bool)
+//go:linkname pprof_gleakProfileWithLabels runtime.pprof_gleakProfileWithLabels
+func pprof_gleakProfileWithLabels(p []profilerecord.StackRecord, labels []unsafe.Pointer) (n int, ok bool)
 
 //go:linkname pprof_cyclesPerSecond runtime/pprof.runtime_cyclesPerSecond
 func pprof_cyclesPerSecond() int64

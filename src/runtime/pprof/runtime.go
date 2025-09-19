@@ -32,8 +32,8 @@ func runtime_getProfLabel() unsafe.Pointer
 // runtime_gleakcount is defined in runtime/proc.go.
 func runtime_gleakcount() int
 
-// runtime_goroutineLeakGC is defined in runtime/mgc.go.
-func runtime_goroutineLeakGC()
+// runtime_gleakGC is defined in runtime/mgc.go.
+func runtime_gleakGC()
 
 // SetGoroutineLabels sets the current goroutine's labels to match ctx.
 // A new goroutine inherits the labels of the goroutine that created it.

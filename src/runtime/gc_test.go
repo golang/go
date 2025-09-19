@@ -1098,7 +1098,7 @@ func TestDetectFinalizerAndCleanupLeaks(t *testing.T) {
 }
 
 // This tests the goroutine leak garbage collector.
-func TestGoroutineLeakGC(t *testing.T) {
+func TestGLeakGC(t *testing.T) {
 	// Goroutine leak test case.
 	//
 	// Test cases can be configured with test name, the name of the entry point function,
@@ -1169,15 +1169,15 @@ func TestGoroutineLeakGC(t *testing.T) {
 	//
 	// goroutine 1 [wait reason (leaked)]:
 	// main.leaked()
-	// 	./testgoroutineleakgc/foo.go:37 +0x100
+	// 	./testgleakgc/foo.go:37 +0x100
 	// created by main.main()
-	// 	./testgoroutineleakgc/main.go:10 +0x20
+	// 	./testgleakgc/main.go:10 +0x20
 	//
 	// goroutine 2 [wait reason (leaked)]:
 	// main.leaked2()
-	// 	./testgoroutineleakgc/foo.go:37 +0x100
+	// 	./testgleakgc/foo.go:37 +0x100
 	// created by main.main()
-	// 	./testgoroutineleakgc/main.go:10 +0x20
+	// 	./testgleakgc/main.go:10 +0x20
 	//
 	// The output is (as a list of strings):
 	//
@@ -1312,8 +1312,7 @@ func TestGoroutineLeakGC(t *testing.T) {
 	}
 
 	// GoKer tests from "GoBench: A Benchmark Suite of Real-World Go Concurrency Bugs".
-	// White paper found at https://lujie.ac.cn/files/papers/GoBench.pdf
-	// doi:10.1109/CGO51591.2021.9370317.
+	// Refer to testgleakgc/goker/README.md.
 	//
 	// This list is curated for tests that are not excessively flaky.
 	// Some tests are also excluded because they are redundant.
@@ -1564,125 +1563,130 @@ func TestGoroutineLeakGC(t *testing.T) {
 	// Combine all test cases into a single list.
 	testCases := append(microTests, stressTestCases...)
 	testCases = append(testCases, patternTestCases...)
-	testCases = append(testCases, gokerTestCases...)
 
 	// Test cases must not panic or cause fatal exceptions.
 	failStates := regexp.MustCompile(`fatal|panic`)
 
-	// Build the test program once.
-	exe, err := buildTestProg(t, "testgoroutineleakgc")
-	if err != nil {
-		t.Fatal(fmt.Sprintf("building testgoroutineleakgc failed: %v", err))
-	}
+	testApp := func(exepath string, testCases []testCase) {
 
-	for _, tcase := range testCases {
-		t.Run(tcase.name, func(t *testing.T) {
-			t.Parallel()
+		// Build the test program once.
+		exe, err := buildTestProg(t, exepath)
+		if err != nil {
+			t.Fatal(fmt.Sprintf("building testgleakgc failed: %v", err))
+		}
 
-			cmdEnv := []string{
-				"GODEBUG=asyncpreemptoff=1",
-				"GOEXPERIMENT=greenteagc",
-			}
+		for _, tcase := range testCases {
+			t.Run(tcase.name, func(t *testing.T) {
+				t.Parallel()
 
-			if tcase.simple {
-				// If the test is simple, set GOMAXPROCS=1 in order to better
-				// control the behavior of the scheduler.
-				cmdEnv = append(cmdEnv, "GOMAXPROCS=1")
-			}
+				cmdEnv := []string{
+					"GODEBUG=asyncpreemptoff=1",
+					"GOEXPERIMENT=greenteagc,gleakprofile",
+				}
 
-			var wg sync.WaitGroup
-			var mu sync.Mutex
-			var output string
+				if tcase.simple {
+					// If the test is simple, set GOMAXPROCS=1 in order to better
+					// control the behavior of the scheduler.
+					cmdEnv = append(cmdEnv, "GOMAXPROCS=1")
+				}
 
-			wg.Add(tcase.repetitions)
-			for i := 0; i < tcase.repetitions; i++ {
-				go func() {
-					defer wg.Done()
-					// Run program for one repetition and get runOutput trace.
-					runOutput := runBuiltTestProg(t, exe, tcase.name, cmdEnv...)
-					if len(runOutput) == 0 {
-						t.Errorf("Test %s produced no output. Is the goroutine leak profile collected?", tcase.name)
-					}
+				var wg sync.WaitGroup
+				var mu sync.Mutex
+				var output string
 
-					// Zero tolerance policy for fatal exceptions or panics.
-					if failStates.MatchString(runOutput) {
-						t.Errorf("unexpected fatal exception or panic!\noutput:\n%s\n\n", runOutput)
-					}
-
-					mu.Lock()
-					output += runOutput + "\n\n"
-					mu.Unlock()
-				}()
-			}
-
-			wg.Wait()
-
-			// Extract all the goroutine leaks
-			foundLeaks := extractLeaks(output)
-
-			// If the test case was not expected to produce leaks, but some were reported,
-			// stop the test immediately. Zero tolerance policy for false positives.
-			if len(tcase.expectedLeaks)+len(tcase.flakyLeaks) == 0 && len(foundLeaks) > 0 {
-				t.Errorf("output:\n%s\n\ngoroutines leaks detected in case with no leaks", output)
-			}
-
-			unexpectedLeaks := make([]string, 0, len(foundLeaks))
-
-			// Parse every leak and check if it is expected (maybe as a flaky leak).
-		LEAKS:
-			for _, leak := range foundLeaks {
-				// Check if the leak is expected.
-				// If it is, check whether it has been encountered before.
-				var foundNew bool
-				var leakPattern *regexp.Regexp
-
-				for expectedLeak, ok := range tcase.expectedLeaks {
-					if expectedLeak.MatchString(leak) {
-						if !ok {
-							foundNew = true
+				wg.Add(tcase.repetitions)
+				for i := 0; i < tcase.repetitions; i++ {
+					go func() {
+						defer wg.Done()
+						// Run program for one repetition and get runOutput trace.
+						runOutput := runBuiltTestProg(t, exe, tcase.name, cmdEnv...)
+						if len(runOutput) == 0 {
+							t.Errorf("Test %s produced no output. Is the goroutine leak profile collected?", tcase.name)
 						}
 
-						leakPattern = expectedLeak
-						break
-					}
+						// Zero tolerance policy for fatal exceptions or panics.
+						if failStates.MatchString(runOutput) {
+							t.Errorf("unexpected fatal exception or panic!\noutput:\n%s\n\n", runOutput)
+						}
+
+						mu.Lock()
+						output += runOutput + "\n\n"
+						mu.Unlock()
+					}()
 				}
 
-				if foundNew {
-					// Only bother writing if we found a new leak.
-					tcase.expectedLeaks[leakPattern] = true
+				wg.Wait()
+
+				// Extract all the goroutine leaks
+				foundLeaks := extractLeaks(output)
+
+				// If the test case was not expected to produce leaks, but some were reported,
+				// stop the test immediately. Zero tolerance policy for false positives.
+				if len(tcase.expectedLeaks)+len(tcase.flakyLeaks) == 0 && len(foundLeaks) > 0 {
+					t.Errorf("output:\n%s\n\ngoroutines leaks detected in case with no leaks", output)
 				}
 
-				if leakPattern == nil {
-					// We are dealing with a leak not marked as expected.
-					// Check if it is a flaky leak.
-					for flakyLeak := range tcase.flakyLeaks {
-						if flakyLeak.MatchString(leak) {
-							// The leak is flaky. Carry on to the next line.
-							continue LEAKS
+				unexpectedLeaks := make([]string, 0, len(foundLeaks))
+
+				// Parse every leak and check if it is expected (maybe as a flaky leak).
+			LEAKS:
+				for _, leak := range foundLeaks {
+					// Check if the leak is expected.
+					// If it is, check whether it has been encountered before.
+					var foundNew bool
+					var leakPattern *regexp.Regexp
+
+					for expectedLeak, ok := range tcase.expectedLeaks {
+						if expectedLeak.MatchString(leak) {
+							if !ok {
+								foundNew = true
+							}
+
+							leakPattern = expectedLeak
+							break
 						}
 					}
 
-					unexpectedLeaks = append(unexpectedLeaks, leak)
-				}
-			}
+					if foundNew {
+						// Only bother writing if we found a new leak.
+						tcase.expectedLeaks[leakPattern] = true
+					}
 
-			missingLeakStrs := make([]string, 0, len(tcase.expectedLeaks))
-			for expectedLeak, found := range tcase.expectedLeaks {
-				if !found {
-					missingLeakStrs = append(missingLeakStrs, expectedLeak.String())
-				}
-			}
+					if leakPattern == nil {
+						// We are dealing with a leak not marked as expected.
+						// Check if it is a flaky leak.
+						for flakyLeak := range tcase.flakyLeaks {
+							if flakyLeak.MatchString(leak) {
+								// The leak is flaky. Carry on to the next line.
+								continue LEAKS
+							}
+						}
 
-			var errors []error
-			if len(unexpectedLeaks) > 0 {
-				errors = append(errors, fmt.Errorf("unexpected goroutine leaks:\n%s\n", strings.Join(unexpectedLeaks, "\n")))
-			}
-			if len(missingLeakStrs) > 0 {
-				errors = append(errors, fmt.Errorf("missing expected leaks:\n%s\n", strings.Join(missingLeakStrs, ", ")))
-			}
-			if len(errors) > 0 {
-				t.Fatalf("Failed with the following errors:\n%s\n\noutput:\n%s", errors, output)
-			}
-		})
+						unexpectedLeaks = append(unexpectedLeaks, leak)
+					}
+				}
+
+				missingLeakStrs := make([]string, 0, len(tcase.expectedLeaks))
+				for expectedLeak, found := range tcase.expectedLeaks {
+					if !found {
+						missingLeakStrs = append(missingLeakStrs, expectedLeak.String())
+					}
+				}
+
+				var errors []error
+				if len(unexpectedLeaks) > 0 {
+					errors = append(errors, fmt.Errorf("unexpected goroutine leaks:\n%s\n", strings.Join(unexpectedLeaks, "\n")))
+				}
+				if len(missingLeakStrs) > 0 {
+					errors = append(errors, fmt.Errorf("missing expected leaks:\n%s\n", strings.Join(missingLeakStrs, ", ")))
+				}
+				if len(errors) > 0 {
+					t.Fatalf("Failed with the following errors:\n%s\n\noutput:\n%s", errors, output)
+				}
+			})
+		}
 	}
+
+	testApp("testgleakgc", testCases)
+	testApp("testgleakgc/goker", gokerTestCases)
 }
