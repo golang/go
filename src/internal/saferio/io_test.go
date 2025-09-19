@@ -139,27 +139,29 @@ func TestSliceCap(t *testing.T) {
 func TestInBounds32(t *testing.T) {
 	tests := []struct {
 		name   string
-		slice  []byte
+		slice  []struct{}
 		start  uint32
 		length uint32
 		want   bool
 	}{
-		{"valid range", []byte{1, 2, 3, 4, 5}, 1, 3, true},
-		{"start+length equals len", []byte{1, 2, 3}, 0, 3, false},
-		{"start+length exceeds len", []byte{1, 2, 3}, 2, 2, false},
-		{"start at end", []byte{1, 2, 3}, 3, 0, false},
-		{"zero length", []byte{1, 2, 3}, 1, 0, true},
-		{"empty slice", []byte{}, 0, 0, false},
-		{"maxuint32 overflow", []byte{1, 2, 3}, math.MaxUint32, 1, false},
-		{"maxuint32 no overflow", []byte{1, 2, 3}, 0, math.MaxUint32, false},
-		{"maxuint32 edge", []byte{1, 2, 3}, math.MaxUint32 - 1, 1, false},
+		{"valid range", make([]struct{}, 5), 1, 3, true},
+		{"start+length equals len", make([]struct{}, 3), 0, 3, false},
+		{"start+length exceeds len", make([]struct{}, 3), 2, 2, false},
+		{"start at end", make([]struct{}, 3), 3, 0, false},
+		{"zero length", make([]struct{}, 3), 1, 0, true},
+		{"empty slice", make([]struct{}, 0), 0, 0, false},
+		{"maxuint32 overflow", make([]struct{}, 3), math.MaxUint32, 1, false},
+		{"maxuint32 no overflow", make([]struct{}, 3), 0, math.MaxUint32, false},
+		{"maxuint32 edge", make([]struct{}, 3), math.MaxUint32 - 1, 1, false},
+		{"large slice", make([]struct{}, 0x100000000), math.MaxUint32 - 1, 1, true},
+		{"large slice overflow", make([]struct{}, 0x100000000), math.MaxUint32, 1, false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := InBounds32(tt.slice, tt.start, tt.length)
 			if got != tt.want {
-				t.Errorf("InBounds32(%v, %d, %d) = %v, want %v", tt.slice, tt.start, tt.length, got, tt.want)
+				t.Errorf("InBounds32(%v, %d, %d) = %v, want %v", len(tt.slice), tt.start, tt.length, got, tt.want)
 			}
 		})
 	}
@@ -168,20 +170,20 @@ func TestInBounds32(t *testing.T) {
 func TestInBounds64(t *testing.T) {
 	tests := []struct {
 		name   string
-		slice  []byte
+		slice  []struct{}
 		start  uint64
 		length uint64
 		want   bool
 	}{
-		{"valid range", []byte{1, 2, 3, 4, 5}, 1, 3, true},
-		{"start+length equals len", []byte{1, 2, 3}, 0, 3, false},
-		{"start+length exceeds len", []byte{1, 2, 3}, 2, 2, false},
-		{"start at end", []byte{1, 2, 3}, 3, 0, false},
-		{"zero length", []byte{1, 2, 3}, 1, 0, true},
-		{"empty slice", []byte{}, 0, 0, false},
-		{"maxuint64 overflow", []byte{1, 2, 3}, math.MaxUint64, 1, false},
-		{"maxuint64 no overflow", []byte{1, 2, 3}, 0, math.MaxUint64, false},
-		{"maxuint64 edge", []byte{1, 2, 3}, math.MaxUint64 - 1, 1, false},
+		{"valid range", make([]struct{}, 5), 1, 3, true},
+		{"start+length equals len", make([]struct{}, 3), 0, 3, false},
+		{"start+length exceeds len", make([]struct{}, 3), 2, 2, false},
+		{"start at end", make([]struct{}, 3), 3, 0, false},
+		{"zero length", make([]struct{}, 3), 1, 0, true},
+		{"empty slice", make([]struct{}, 0), 0, 0, false},
+		{"maxuint64 overflow", make([]struct{}, 3), math.MaxUint64, 1, false},
+		{"maxuint64 no overflow", make([]struct{}, 3), 0, math.MaxUint64, false},
+		{"maxuint64 edge", make([]struct{}, 3), math.MaxUint64 - 1, 1, false},
 	}
 
 	for _, tt := range tests {
