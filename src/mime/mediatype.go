@@ -244,8 +244,8 @@ func decode2231Enc(v string) (string, bool) {
 		// TODO: unsupported encoding
 		return "", false
 	}
-	encv, err := percentHexUnescape(sv[2])
-	if err != nil {
+	encv, ok := percentHexUnescape(sv[2])
+	if !ok {
 		return "", false
 	}
 	return encv, true
@@ -335,7 +335,7 @@ func consumeMediaParam(v string) (param, value, rest string) {
 	return param, value, rest
 }
 
-func percentHexUnescape(s string) (string, error) {
+func percentHexUnescape(s string) (string, bool) {
 	// Count %, check that they're well-formed.
 	percents := 0
 	for i := 0; i < len(s); {
@@ -349,12 +349,12 @@ func percentHexUnescape(s string) (string, error) {
 			if len(s) > 3 {
 				s = s[0:3]
 			}
-			return "", fmt.Errorf("mime: bogus characters after %%: %q", s)
+			return "", false
 		}
 		i += 3
 	}
 	if percents == 0 {
-		return s, nil
+		return s, true
 	}
 
 	t := make([]byte, len(s)-2*percents)
@@ -371,7 +371,7 @@ func percentHexUnescape(s string) (string, error) {
 			i++
 		}
 	}
-	return string(t), nil
+	return string(t), true
 }
 
 func ishex(c byte) bool {
