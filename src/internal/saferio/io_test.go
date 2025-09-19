@@ -135,6 +135,7 @@ func TestSliceCap(t *testing.T) {
 		}
 	})
 }
+
 func TestInBounds32(t *testing.T) {
 	tests := []struct {
 		name   string
