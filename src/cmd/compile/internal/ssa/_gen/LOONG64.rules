@@ -504,6 +504,8 @@
 (MOVBUreg x:((SGT|SGTU) _ _)) => x
 (MOVBUreg x:(XOR (MOVVconst [1]) ((SGT|SGTU) _ _))) => x
 
+(JumpTable idx) => (JUMPTABLE {makeJumpTableSym(b)} idx (MOVVaddr <typ.Uintptr> {makeJumpTableSym(b)} (SB)))
+
 // Write barrier.
 (WB ...) => (LoweredWB ...)
 

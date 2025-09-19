@@ -707,6 +707,15 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	// so instruction sequences that use REGTMP are unsafe to
 	// preempt asynchronously.
 	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func().Text, c.newprog, c.isUnsafePoint, c.isRestartable)
+
+	// Now that we know byte offsets, we can generate jump table entries.
+	for _, jt := range cursym.Func().JumpTables {
+		for i, p := range jt.Targets {
+			// The ith jumptable entry points to the p.Pc'th
+			// byte in the function symbol s.
+			jt.Sym.WriteAddr(ctxt, int64(i)*8, 8, cursym, p.Pc)
+		}
+	}
 }
 
 // isUnsafePoint returns whether p is an unsafe point.
