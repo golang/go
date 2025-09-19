@@ -1274,8 +1274,14 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		for _, ap := range v.Block.Func.RegArgs {
 			// Pass the spill/unspill information along to the assembler, offset by size of return PC pushed on stack.
 			addr := ssagen.SpillSlotAddr(ap, x86.REG_SP, v.Block.Func.Config.PtrSize)
+			reg := ap.Reg
+			t := ap.Type
+			sz := t.Size()
+			if t.IsSIMD() {
+				reg = simdRegBySize(reg, sz)
+			}
 			s.FuncInfo().AddSpill(
-				obj.RegSpill{Reg: ap.Reg, Addr: addr, Unspill: loadByRegWidth(ap.Reg, ap.Type.Size()), Spill: storeByRegWidth(ap.Reg, ap.Type.Size())})
+				obj.RegSpill{Reg: reg, Addr: addr, Unspill: loadByRegWidth(reg, sz), Spill: storeByRegWidth(reg, sz)})
 		}
 		v.Block.Func.RegArgs = nil
 		ssagen.CheckArgReg(v)
@@ -2448,15 +2454,19 @@ func simdReg(v *ssa.Value) int16 {
 	if !t.IsSIMD() {
 		base.Fatalf("simdReg: not a simd type; v=%s, b=b%d, f=%s", v.LongString(), v.Block.ID, v.Block.Func.Name)
 	}
-	switch t.Size() {
+	return simdRegBySize(v.Reg(), t.Size())
+}
+
+func simdRegBySize(reg int16, size int64) int16 {
+	switch size {
 	case 16:
-		return v.Reg()
+		return reg
 	case 32:
-		return v.Reg() + (x86.REG_Y0 - x86.REG_X0)
+		return reg + (x86.REG_Y0 - x86.REG_X0)
 	case 64:
-		return v.Reg() + (x86.REG_Z0 - x86.REG_X0)
+		return reg + (x86.REG_Z0 - x86.REG_X0)
 	}
-	panic("unreachable")
+	panic("simdRegBySize: bad size")
 }
 
 // XXX k mask
