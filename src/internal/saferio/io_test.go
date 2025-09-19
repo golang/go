@@ -154,7 +154,7 @@ func TestInBounds32(t *testing.T) {
 		{"maxuint32 no overflow", make([]struct{}, 3), 0, math.MaxUint32, false},
 		{"maxuint32 edge", make([]struct{}, 3), math.MaxUint32 - 1, 1, false},
 		{"large slice", make([]struct{}, 0x100000000), math.MaxUint32 - 1, 1, true},
-		{"large slice overflow", make([]struct{}, 0x100000000), math.MaxUint32, 1, false},
+		{"large slice exceeds len", make([]struct{}, 0x100000000), math.MaxUint32, 1, false},
 	}
 
 	for _, tt := range tests {
