@@ -132,8 +132,9 @@ func SliceCap[E any](c uint64) int {
 	return SliceCapWithSize(size, c)
 }
 
-// InBounds32 reports whether S[start : start+length] can be taken
-// without panicking.
+// InBounds64 reports whether the range [start, start+length] is a valid
+// slice of the given slice. It returns false if the range is out of bounds
+// or if the addition of start and length would overflow.
 func InBounds32[S ~[]E, E any](slice S, start, length uint32) bool {
 	if start+length >= uint32(len(slice)) || math.MaxUint32-start < length {
 		return false
@@ -141,8 +142,7 @@ func InBounds32[S ~[]E, E any](slice S, start, length uint32) bool {
 	return true
 }
 
-// InBounds64 reports whether S[start : start+length] can be taken
-// without panicking.
+// InBounds64 is like InBounds32 but using uint64.
 func InBounds64[S ~[]E, E any](slice S, start, length uint64) bool {
 	if start+length >= uint64(len(slice)) || math.MaxUint64-start < length {
 		return false
