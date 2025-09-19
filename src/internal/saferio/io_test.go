@@ -164,6 +164,7 @@ func TestInBounds32(t *testing.T) {
 		})
 	}
 }
+
 func TestInBounds64(t *testing.T) {
 	tests := []struct {
 		name   string
