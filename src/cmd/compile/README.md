@@ -57,7 +57,7 @@ terms of these, so the next step after type checking is to convert the syntax
 and types2 representations to ir and types. This process is referred to as
 "noding."
 
-Noding using a process called Unified IR, which builds a node representation
+Noding uses a process called Unified IR, which builds a node representation
 using a serialized version of the typechecked code from step 2.
 Unified IR is also involved in import/export of packages and inlining.
 
