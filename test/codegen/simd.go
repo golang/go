@@ -27,3 +27,33 @@ func vptest2() bool {
 	// amd64:`SETEQ\s(.*)$`
 	return v1.And(v2).IsZero()
 }
+
+type Args2 struct {
+	V0 simd.Uint8x32
+	V1 simd.Uint8x32
+	x  string
+}
+
+//go:noinline
+func simdStructNoSpill(a Args2) simd.Uint8x32 {
+	// amd64:-`VMOVDQU\s.*$`
+	return a.V0.Xor(a.V1)
+}
+
+func simdStructWrapperNoSpill(a Args2) simd.Uint8x32 {
+	// amd64:-`VMOVDQU\s.*$`
+	a.x = "test"
+	return simdStructNoSpill(a)
+}
+
+//go:noinline
+func simdArrayNoSpill(a [1]Args2) simd.Uint8x32 {
+	// amd64:-`VMOVDQU\s.*$`
+	return a[0].V0.Xor(a[0].V1)
+}
+
+func simdArrayWrapperNoSpill(a [1]Args2) simd.Uint8x32 {
+	// amd64:-`VMOVDQU\s.*$`
+	a[0].x = "test"
+	return simdArrayNoSpill(a)
+}
