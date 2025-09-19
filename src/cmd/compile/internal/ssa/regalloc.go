@@ -2576,22 +2576,25 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XP
 			e.s.f.Fatalf("can't find source for %s->%s: %s\n", e.p, e.b, v.LongString())
 		}
 		if dstReg {
-			// Handle incompatible registers.
+			// We want to rematerialize v into a register that is incompatible with v's op's register mask.
+			// Instead of setting the wrong register for the rematerialized v, we should find the right register
+			// for it and emit an additional copy to move to the desired register.
 			// For #70451.
-			if e.s.regspec(v).outputs[0].regs&regMask(1<<register(loc.(*Register).num)) == 0 && c != nil {
+			if e.s.regspec(v).outputs[0].regs&regMask(1<<register(loc.(*Register).num)) == 0 {
 				_, srcReg := src.(*Register)
-				if !srcReg {
+				if srcReg {
+					// It exists in a valid register already, so just copy it to the desired register
+					// If src is a Register, c must have already been set.
+					x = e.p.NewValue1(pos, OpCopy, c.Type, c)
+				} else {
 					// We need a tmp register
 					x = v.copyInto(e.p)
 					r := e.findRegFor(x.Type)
 					e.erase(r)
-					// Rematerialize to a tmp register
+					// Rematerialize to the tmp register
 					e.set(r, vid, x, false, pos)
 					// Copy from tmp to the desired register
 					x = e.p.NewValue1(pos, OpCopy, x.Type, x)
-				} else {
-					// It exist in a valid register already, so just copy it to the desired register
-					x = e.p.NewValue1(pos, OpCopy, c.Type, c)
 				}
 			} else {
 				x = v.copyInto(e.p)
