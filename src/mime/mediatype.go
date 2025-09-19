@@ -103,10 +103,11 @@ func checkMediaTypeDisposition(s string) error {
 	if rest == "" {
 		return nil
 	}
-	if !strings.HasPrefix(rest, "/") {
+	var ok bool
+	if rest, ok = strings.CutPrefix(rest, "/"); !ok {
 		return errors.New("mime: expected slash after first token")
 	}
-	subtype, rest := consumeToken(rest[1:])
+	subtype, rest := consumeToken(rest)
 	if subtype == "" {
 		return errors.New("mime: expected token after slash")
 	}
@@ -309,11 +310,11 @@ func consumeValue(v string) (value, rest string) {
 
 func consumeMediaParam(v string) (param, value, rest string) {
 	rest = strings.TrimLeftFunc(v, unicode.IsSpace)
-	if !strings.HasPrefix(rest, ";") {
+	var ok bool
+	if rest, ok = strings.CutPrefix(rest, ";"); !ok {
 		return "", "", v
 	}
 
-	rest = rest[1:] // consume semicolon
 	rest = strings.TrimLeftFunc(rest, unicode.IsSpace)
 	param, rest = consumeToken(rest)
 	param = strings.ToLower(param)
@@ -322,10 +323,9 @@ func consumeMediaParam(v string) (param, value, rest string) {
 	}
 
 	rest = strings.TrimLeftFunc(rest, unicode.IsSpace)
-	if !strings.HasPrefix(rest, "=") {
+	if rest, ok = strings.CutPrefix(rest, "="); !ok {
 		return "", "", v
 	}
-	rest = rest[1:] // consume equals sign
 	rest = strings.TrimLeftFunc(rest, unicode.IsSpace)
 	value, rest2 := consumeValue(rest)
 	if value == "" && rest2 == rest {
