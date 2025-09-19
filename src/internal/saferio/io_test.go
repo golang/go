@@ -171,6 +171,7 @@ func TestInBounds32LargeSlice(t *testing.T) {
 		t.Skip("skip on 32-bit architectures")
 	}
 
+	size := 0x100000000
 	tests := []struct {
 		name   string
 		slice  []struct{}
@@ -178,8 +179,8 @@ func TestInBounds32LargeSlice(t *testing.T) {
 		length uint32
 		want   bool
 	}{
-		{"large slice", make([]struct{}, 0x100000000), math.MaxUint32 - 1, 1, true},
-		{"large slice exceeds len", make([]struct{}, 0x100000000), math.MaxUint32, 1, false},
+		{"large slice", make([]struct{}, size), math.MaxUint32 - 1, 1, true},
+		{"large slice exceeds len", make([]struct{}, size), math.MaxUint32, 1, false},
 	}
 
 	for _, tt := range tests {
