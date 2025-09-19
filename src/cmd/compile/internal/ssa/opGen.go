@@ -2444,6 +2444,8 @@ const (
 	OpAMD64VPRORQMasked128
 	OpAMD64VPRORQMasked256
 	OpAMD64VPRORQMasked512
+	OpAMD64VPERM2F128256
+	OpAMD64VPERM2I128256
 	OpAMD64VPINSRD128
 	OpAMD64VPINSRQ128
 	OpAMD64VPINSRB128
@@ -6594,6 +6596,12 @@ const (
 	OpRoundToEvenScaledResidueFloat64x2
 	OpRoundToEvenScaledResidueFloat64x4
 	OpRoundToEvenScaledResidueFloat64x8
+	OpSelect128FromPairFloat32x8
+	OpSelect128FromPairFloat64x4
+	OpSelect128FromPairInt32x8
+	OpSelect128FromPairInt64x4
+	OpSelect128FromPairUint32x8
+	OpSelect128FromPairUint64x4
 	OpSetElemFloat32x4
 	OpSetElemFloat64x2
 	OpSetElemInt8x16
@@ -37653,6 +37661,36 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:    "VPERM2F128256",
+		auxType: auxUInt8,
+		argLen:  2,
+		asm:     x86.AVPERM2F128,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VPERM2I128256",
+		auxType: auxUInt8,
+		argLen:  2,
+		asm:     x86.AVPERM2I128,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -82358,6 +82396,42 @@ var opcodeTable = [...]opInfo{
 		name:    "RoundToEvenScaledResidueFloat64x8",
 		auxType: auxUInt8,
 		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Select128FromPairFloat32x8",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Select128FromPairFloat64x4",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Select128FromPairInt32x8",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Select128FromPairInt64x4",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Select128FromPairUint32x8",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Select128FromPairUint64x4",
+		auxType: auxUInt8,
+		argLen:  2,
 		generic: true,
 	},
 	{

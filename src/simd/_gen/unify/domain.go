@@ -106,8 +106,8 @@ func (b *DefBuilder) Add(name string, v *Value) {
 	if b.fields == nil {
 		b.fields = make(map[string]*Value)
 	}
-	if _, ok := b.fields[name]; ok {
-		panic(fmt.Sprintf("duplicate field %q", name))
+	if old, ok := b.fields[name]; ok {
+		panic(fmt.Sprintf("duplicate field %q, added value is %v, old value is %v", name, v, old))
 	}
 	b.fields[name] = v
 }

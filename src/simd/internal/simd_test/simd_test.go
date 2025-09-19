@@ -815,3 +815,77 @@ func TestSelectFromPairConstGroupedUint32x16(t *testing.T) {
 	foo(lhhl, 0, 4, 5, 1)
 	foo(hllh, 4, 0, 1, 5)
 }
+
+func TestSelect128FromPair(t *testing.T) {
+	x := simd.LoadUint64x4Slice([]uint64{0, 1, 2, 3})
+	y := simd.LoadUint64x4Slice([]uint64{4, 5, 6, 7})
+
+	aa := x.Select128FromPair(0, 0, y)
+	ab := x.Select128FromPair(0, 1, y)
+	bc := x.Select128FromPair(1, 2, y)
+	cd := x.Select128FromPair(2, 3, y)
+	da := x.Select128FromPair(3, 0, y)
+	dc := x.Select128FromPair(3, 2, y)
+
+	r := make([]uint64, 4, 4)
+
+	foo := func(v simd.Uint64x4, a, b uint64) {
+		a, b = 2*a, 2*b
+		v.StoreSlice(r)
+		checkSlices[uint64](t, r, []uint64{a, a + 1, b, b + 1})
+	}
+
+	foo(aa, 0, 0)
+	foo(ab, 0, 1)
+	foo(bc, 1, 2)
+	foo(cd, 2, 3)
+	foo(da, 3, 0)
+	foo(dc, 3, 2)
+}
+
+func TestSelect128FromPairError(t *testing.T) {
+	x := simd.LoadUint64x4Slice([]uint64{0, 1, 2, 3})
+	y := simd.LoadUint64x4Slice([]uint64{4, 5, 6, 7})
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Logf("Saw expected panic %v", r)
+		}
+	}()
+	_ = x.Select128FromPair(0, 4, y)
+
+	t.Errorf("Should have panicked")
+}
+
+//go:noinline
+func select128FromPair(x simd.Uint64x4, lo, hi uint8, y simd.Uint64x4) simd.Uint64x4 {
+	return x.Select128FromPair(lo, hi, y)
+}
+
+func TestSelect128FromPairVar(t *testing.T) {
+	x := simd.LoadUint64x4Slice([]uint64{0, 1, 2, 3})
+	y := simd.LoadUint64x4Slice([]uint64{4, 5, 6, 7})
+
+	aa := select128FromPair(x, 0, 0, y)
+	ab := select128FromPair(x, 0, 1, y)
+	bc := select128FromPair(x, 1, 2, y)
+	cd := select128FromPair(x, 2, 3, y)
+	da := select128FromPair(x, 3, 0, y)
+	dc := select128FromPair(x, 3, 2, y)
+
+	r := make([]uint64, 4, 4)
+
+	foo := func(v simd.Uint64x4, a, b uint64) {
+		a, b = 2*a, 2*b
+		v.StoreSlice(r)
+		checkSlices[uint64](t, r, []uint64{a, a + 1, b, b + 1})
+	}
+
+	foo(aa, 0, 0)
+	foo(ab, 0, 1)
+	foo(bc, 1, 2)
+	foo(cd, 2, 3)
+	foo(da, 3, 0)
+	foo(dc, 3, 2)
+
+}

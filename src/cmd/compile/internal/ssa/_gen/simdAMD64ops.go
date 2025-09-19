@@ -1212,6 +1212,8 @@ func simdAMD64Ops(v11, v21, v2k, vkv, v2kv, v2kk, v31, v3kv, vgpv, vgp, vfpv, vf
 		{name: "VPRORQMasked128", argLength: 2, reg: wkw, asm: "VPRORQ", aux: "UInt8", commutative: false, typ: "Vec128", resultInArg0: false},
 		{name: "VPRORQMasked256", argLength: 2, reg: wkw, asm: "VPRORQ", aux: "UInt8", commutative: false, typ: "Vec256", resultInArg0: false},
 		{name: "VPRORQMasked512", argLength: 2, reg: wkw, asm: "VPRORQ", aux: "UInt8", commutative: false, typ: "Vec512", resultInArg0: false},
+		{name: "VPERM2F128256", argLength: 2, reg: v21, asm: "VPERM2F128", aux: "UInt8", commutative: false, typ: "Vec256", resultInArg0: false},
+		{name: "VPERM2I128256", argLength: 2, reg: v21, asm: "VPERM2I128", aux: "UInt8", commutative: false, typ: "Vec256", resultInArg0: false},
 		{name: "VPINSRD128", argLength: 2, reg: vgpv, asm: "VPINSRD", aux: "UInt8", commutative: false, typ: "Vec128", resultInArg0: false},
 		{name: "VPINSRQ128", argLength: 2, reg: vgpv, asm: "VPINSRQ", aux: "UInt8", commutative: false, typ: "Vec128", resultInArg0: false},
 		{name: "VPINSRB128", argLength: 2, reg: vgpv, asm: "VPINSRB", aux: "UInt8", commutative: false, typ: "Vec128", resultInArg0: false},

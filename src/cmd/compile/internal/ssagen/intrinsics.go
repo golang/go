@@ -1842,7 +1842,9 @@ func immJumpTable(s *state, idx *ssa.Value, intrinsicCall *ir.CallExpr, genOp fu
 	for i, t := range targets {
 		s.startBlock(t)
 		genOp(s, i)
-		t.AddEdgeTo(bEnd)
+		if t.Kind != ssa.BlockExit {
+			t.AddEdgeTo(bEnd)
+		}
 		s.endBlock()
 	}
 
@@ -1895,6 +1897,28 @@ func opLen2Imm8_2I(op ssa.Op, t *types.Type, offset int) func(s *state, n *ir.Ca
 		return immJumpTable(s, args[2], n, func(sNew *state, idx int) {
 			// Encode as int8 due to requirement of AuxInt, check its comment for details.
 			s.vars[n] = sNew.newValue2I(op, t, int64(int8(idx<<offset)), args[0], args[1])
+		})
+	}
+}
+
+// Two immediates instead of just 1.  Offset is ignored, so it is a _ parameter instead.
+func opLen2Imm8_II(op ssa.Op, t *types.Type, _ int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		if args[1].Op == ssa.OpConst8 && args[2].Op == ssa.OpConst8 && args[1].AuxInt & ^3 == 0 && args[2].AuxInt & ^3 == 0 {
+			i1, i2 := args[1].AuxInt, args[2].AuxInt
+			return s.newValue2I(op, t, i1+i2<<4, args[0], args[3])
+		}
+		four := s.constInt64(types.Types[types.TUINT8], 4)
+		shifted := s.newValue2(ssa.OpLsh8x8, types.Types[types.TUINT8], args[2], four)
+		combined := s.newValue2(ssa.OpAdd8, types.Types[types.TUINT8], args[1], shifted)
+		return immJumpTable(s, combined, n, func(sNew *state, idx int) {
+			// Encode as int8 due to requirement of AuxInt, check its comment for details.
+			// TODO for "zeroing" values, panic instead.
+			if idx & ^(3+3<<4) == 0 {
+				s.vars[n] = sNew.newValue2I(op, t, int64(int8(idx)), args[0], args[3])
+			} else {
+				sNew.rtcall(ir.Syms.PanicSimdImm, false, nil)
+			}
 		})
 	}
 }

@@ -141,6 +141,7 @@ func InitConfig() {
 	ir.Syms.Panicnildottype = typecheck.LookupRuntimeFunc("panicnildottype")
 	ir.Syms.Panicoverflow = typecheck.LookupRuntimeFunc("panicoverflow")
 	ir.Syms.Panicshift = typecheck.LookupRuntimeFunc("panicshift")
+	ir.Syms.PanicSimdImm = typecheck.LookupRuntimeFunc("panicSimdImm")
 	ir.Syms.Racefuncenter = typecheck.LookupRuntimeFunc("racefuncenter")
 	ir.Syms.Racefuncexit = typecheck.LookupRuntimeFunc("racefuncexit")
 	ir.Syms.Raceread = typecheck.LookupRuntimeFunc("raceread")

@@ -4991,6 +4991,24 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpSelect0(v)
 	case OpSelect1:
 		return rewriteValueAMD64_OpSelect1(v)
+	case OpSelect128FromPairFloat32x8:
+		v.Op = OpAMD64VPERM2F128256
+		return true
+	case OpSelect128FromPairFloat64x4:
+		v.Op = OpAMD64VPERM2F128256
+		return true
+	case OpSelect128FromPairInt32x8:
+		v.Op = OpAMD64VPERM2I128256
+		return true
+	case OpSelect128FromPairInt64x4:
+		v.Op = OpAMD64VPERM2I128256
+		return true
+	case OpSelect128FromPairUint32x8:
+		v.Op = OpAMD64VPERM2I128256
+		return true
+	case OpSelect128FromPairUint64x4:
+		v.Op = OpAMD64VPERM2I128256
+		return true
 	case OpSelectN:
 		return rewriteValueAMD64_OpSelectN(v)
 	case OpSetElemFloat32x4:

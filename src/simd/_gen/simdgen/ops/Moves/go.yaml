@@ -721,7 +721,6 @@
   out:
   - *v
 
-
 - go: concatSelectedConstantGrouped
   asm: VSHUFPD
   in:
@@ -768,6 +767,77 @@
   - class: immediate
     immOffset: 0
     name: hilos
+  inVariant: []
+  out:
+  - *v
+
+- go: Select128FromPair
+  asm: VPERM2F128
+  operandOrder: II
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: float
+    bits: 256
+  - *v
+  - class: immediate
+    immOffset: 0
+    name: "lo, hi"
+  inVariant: []
+  out:
+  - *v
+
+- go: Select128FromPair
+  asm: VPERM2F128
+  operandOrder: II
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: float
+    bits: 256
+    OverwriteElementBits: 32
+  - *v
+  - class: immediate
+    immOffset: 0
+    name: "lo, hi"
+  inVariant: []
+  out:
+  - *v
+
+- go: Select128FromPair
+  asm: VPERM2I128
+  operandOrder: II
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: int|uint
+    bits: 256
+    OverwriteElementBits: 64
+  - *v
+  - class: immediate
+    immOffset: 0
+    name: "lo, hi"
+  inVariant: []
+  out:
+  - *v
+
+- go: Select128FromPair
+  asm: VPERM2I128
+  operandOrder: II
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: int|uint
+    bits: 256
+    OverwriteElementBits: 32
+  - *v
+  - class: immediate
+    immOffset: 0
+    name: "lo, hi"
   inVariant: []
   out:
   - *v

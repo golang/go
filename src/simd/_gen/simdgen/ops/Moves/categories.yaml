@@ -175,3 +175,9 @@
     // selecting element 1 from y's upper 128 bits (11).
     // This differs from the same method applied to a 32x8 vector, where
     // the 8-bit constant performs the same selection on both subvectors.
+
+- go: Select128FromPair
+  commutative: false
+  documentation: !string |-
+    // NAME selects the low and high 128-bit halves from the 128-bit halves
+    // of its two 256-bit inputs, numbering those halves 0, 1, 2, 3.

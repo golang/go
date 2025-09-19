@@ -354,6 +354,15 @@ func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} uint8, {{.Op2NameAndType "y"
 func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op2NameAndType "y"}}, {{.ImmName}} uint8) {{.GoType}}
 {{end}}
 
+{{define "op2Imm8_II"}}
+{{if .Documentation}}{{.Documentation}}
+//{{end}}
+// {{.ImmName}} result in better performance when they are constants, non-constant values will be translated into a jump table.
+// {{.ImmName}} should be between 0 and 3, inclusive; other values will result in a runtime panic.
+//
+// Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
+func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} uint8, {{.Op2NameAndType "y"}}) {{.GoType}}
+{{end}}
 
 {{define "op3Imm8"}}
 {{if .Documentation}}{{.Documentation}}

@@ -5576,6 +5576,62 @@ func (x Float64x4) Scale(y Float64x4) Float64x4
 // Asm: VSCALEFPD, CPU Feature: AVX512
 func (x Float64x8) Scale(y Float64x8) Float64x8
 
+/* Select128FromPair */
+
+// Select128FromPair selects the low and high 128-bit halves from the 128-bit halves
+// of its two 256-bit inputs, numbering those halves 0, 1, 2, 3.
+//
+// lo, hi result in better performance when they are constants, non-constant values will be translated into a jump table.
+// lo, hi should be between 0 and 3, inclusive; other values will result in a runtime panic.
+//
+// Asm: VPERM2F128, CPU Feature: AVX
+func (x Float32x8) Select128FromPair(lo, hi uint8, y Float32x8) Float32x8
+
+// Select128FromPair selects the low and high 128-bit halves from the 128-bit halves
+// of its two 256-bit inputs, numbering those halves 0, 1, 2, 3.
+//
+// lo, hi result in better performance when they are constants, non-constant values will be translated into a jump table.
+// lo, hi should be between 0 and 3, inclusive; other values will result in a runtime panic.
+//
+// Asm: VPERM2F128, CPU Feature: AVX
+func (x Float64x4) Select128FromPair(lo, hi uint8, y Float64x4) Float64x4
+
+// Select128FromPair selects the low and high 128-bit halves from the 128-bit halves
+// of its two 256-bit inputs, numbering those halves 0, 1, 2, 3.
+//
+// lo, hi result in better performance when they are constants, non-constant values will be translated into a jump table.
+// lo, hi should be between 0 and 3, inclusive; other values will result in a runtime panic.
+//
+// Asm: VPERM2I128, CPU Feature: AVX2
+func (x Int32x8) Select128FromPair(lo, hi uint8, y Int32x8) Int32x8
+
+// Select128FromPair selects the low and high 128-bit halves from the 128-bit halves
+// of its two 256-bit inputs, numbering those halves 0, 1, 2, 3.
+//
+// lo, hi result in better performance when they are constants, non-constant values will be translated into a jump table.
+// lo, hi should be between 0 and 3, inclusive; other values will result in a runtime panic.
+//
+// Asm: VPERM2I128, CPU Feature: AVX2
+func (x Int64x4) Select128FromPair(lo, hi uint8, y Int64x4) Int64x4
+
+// Select128FromPair selects the low and high 128-bit halves from the 128-bit halves
+// of its two 256-bit inputs, numbering those halves 0, 1, 2, 3.
+//
+// lo, hi result in better performance when they are constants, non-constant values will be translated into a jump table.
+// lo, hi should be between 0 and 3, inclusive; other values will result in a runtime panic.
+//
+// Asm: VPERM2I128, CPU Feature: AVX2
+func (x Uint32x8) Select128FromPair(lo, hi uint8, y Uint32x8) Uint32x8
+
+// Select128FromPair selects the low and high 128-bit halves from the 128-bit halves
+// of its two 256-bit inputs, numbering those halves 0, 1, 2, 3.
+//
+// lo, hi result in better performance when they are constants, non-constant values will be translated into a jump table.
+// lo, hi should be between 0 and 3, inclusive; other values will result in a runtime panic.
+//
+// Asm: VPERM2I128, CPU Feature: AVX2
+func (x Uint64x4) Select128FromPair(lo, hi uint8, y Uint64x4) Uint64x4
+
 /* SetElem */
 
 // SetElem sets a single constant-indexed element's value.
