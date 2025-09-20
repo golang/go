@@ -48,8 +48,7 @@ However, certain types don't come from Go and are special; below we will cover
 
 Some operators contain an auxiliary field. The aux fields are usually printed as
 enclosed in `[]` or `{}`, and could be the constant op argument, argument type,
-etc.
-for example:
+etc. For example:
 
 	v13 (?) = Const64 <int> [1]
 
