@@ -826,6 +826,27 @@ func TestAddressParsing(t *testing.T) {
 			}},
 		},
 	}
+
+	// Checks for failures from parsing invalid addresses.
+	failedTests := []struct {
+		addrsStr string
+		exp      []*Address
+	}{
+		// No whitespace allowed in domain
+		{
+			`jdoe@   machine.example`,
+			nil,
+		},
+		{
+			`John Doe <jdoe@             machine.example>`,
+			nil,
+		},
+		{
+			` , joe@where.test,,John <jdoe@ one.test>,,`,
+			nil,
+		},
+	}
+
 	for _, test := range tests {
 		if len(test.exp) == 1 {
 			addr, err := ParseAddress(test.addrsStr)
@@ -845,6 +866,22 @@ func TestAddressParsing(t *testing.T) {
 		}
 		if !reflect.DeepEqual(addrs, test.exp) {
 			t.Errorf("Parse (list) of %q: got %+v, want %+v", test.addrsStr, addrs, test.exp)
+		}
+	}
+
+	for _, test := range failedTests {
+		if len(test.exp) == 1 {
+			_, err := ParseAddress(test.addrsStr)
+			if err == nil {
+				t.Errorf("Parsing should fail (single) %q: %v", test.addrsStr, err)
+				continue
+			}
+		}
+
+		_, err := ParseAddressList(test.addrsStr)
+		if err == nil {
+			t.Errorf("Parsing should fail (list) %q: %v", test.addrsStr, err)
+			continue
 		}
 	}
 }
