@@ -16,6 +16,7 @@ import (
  * Encodings
  */
 
+ type MappingFunc func (in uint) byte
 // An Encoding is a radix 64 encoding/decoding scheme, defined by a
 // 64-character alphabet. The most common encoding is the "base64"
 // encoding defined in RFC 4648 and used in MIME (RFC 2045) and PEM
@@ -26,6 +27,8 @@ type Encoding struct {
 	decodeMap [256]uint8 // mapping of symbol byte value to symbol index
 	padChar   rune
 	strict    bool
+	encodeMapFunc MappingFunc // optional mapping function to replace table look-ups when encoding
+	decodeMapFunc MappingFunc // optional mapping function to replace table look-ups when decoding
 }
 
 const (
@@ -83,6 +86,10 @@ func NewEncoding(encoder string) *Encoding {
 		}
 		e.decodeMap[encoder[i]] = uint8(i)
 	}
+	var encodeFunc = e.encodeMapDefault
+	e.encodeMapFunc = encodeFunc
+	var decodeFunc = e.decodeMapDefault
+	e.decodeMapFunc = decodeFunc
 	return e
 }
 
@@ -104,6 +111,17 @@ func (enc Encoding) WithPadding(padding rune) *Encoding {
 	return &enc
 }
 
+// WithDecodeMappingFunc sets the value fo encodeMapFunc
+func (enc Encoding) WithDecodeMappingFunc(f MappingFunc) *Encoding {
+	enc.decodeMapFunc = f
+	return &enc
+}
+// WithEncodeMappingFunc sets the value fo encodeMapFunc
+func (enc Encoding) WithEncodeMappingFunc(f MappingFunc) *Encoding {
+	enc.encodeMapFunc = f
+	return &enc
+}
+
 // Strict creates a new encoding identical to enc except with
 // strict decoding enabled. In this mode, the decoder requires that
 // trailing padding bits are zero, as described in RFC 4648 section 3.5.
@@ -116,11 +134,15 @@ func (enc Encoding) Strict() *Encoding {
 }
 
 // StdEncoding is the standard base64 encoding, as defined in RFC 4648.
-var StdEncoding = NewEncoding("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")
+var StdEncoding = NewEncoding("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/").
+	WithEncodeMappingFunc(StandardBase64Encode).
+	WithDecodeMappingFunc(StandardBase64Decode)
 
 // URLEncoding is the alternate base64 encoding defined in RFC 4648.
 // It is typically used in URLs and file names.
-var URLEncoding = NewEncoding("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_")
+var URLEncoding = NewEncoding("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_").
+	WithEncodeMappingFunc(UrlSafeBase64Encode).
+	WithDecodeMappingFunc(UrlSafeBase64Decode)
 
 // RawStdEncoding is the standard raw, unpadded base64 encoding,
 // as defined in RFC 4648 section 3.2.
@@ -157,10 +179,10 @@ func (enc *Encoding) Encode(dst, src []byte) {
 		// Convert 3x 8bit source bytes into 4 bytes
 		val := uint(src[si+0])<<16 | uint(src[si+1])<<8 | uint(src[si+2])
 
-		dst[di+0] = enc.encode[val>>18&0x3F]
-		dst[di+1] = enc.encode[val>>12&0x3F]
-		dst[di+2] = enc.encode[val>>6&0x3F]
-		dst[di+3] = enc.encode[val&0x3F]
+		dst[di+0] = enc.encodeMapFunc(val>>18&0x3F)
+		dst[di+1] = enc.encodeMapFunc(val>>12&0x3F)
+		dst[di+2] = enc.encodeMapFunc(val>>6&0x3F)
+		dst[di+3] = enc.encodeMapFunc(val&0x3F)
 
 		si += 3
 		di += 4
@@ -176,8 +198,8 @@ func (enc *Encoding) Encode(dst, src []byte) {
 		val |= uint(src[si+1]) << 8
 	}
 
-	dst[di+0] = enc.encode[val>>18&0x3F]
-	dst[di+1] = enc.encode[val>>12&0x3F]
+	dst[di+0] = enc.encodeMapFunc(val>>18&0x3F)
+	dst[di+1] = enc.encodeMapFunc(val>>12&0x3F)
 
 	switch remain {
 	case 2:
@@ -330,8 +352,7 @@ func (enc *Encoding) decodeQuantum(dst, src []byte, si int) (nsi, n int, err err
 		}
 		in := src[si]
 		si++
-
-		out := enc.decodeMap[in]
+		out := enc.decodeMapFunc(uint(in))
 		if out != 0xff {
 			dbuf[j] = out
 			continue
@@ -529,14 +550,14 @@ func (enc *Encoding) Decode(dst, src []byte) (n int, err error) {
 	for strconv.IntSize >= 64 && len(src)-si >= 8 && len(dst)-n >= 8 {
 		src2 := src[si : si+8]
 		if dn, ok := assemble64(
-			enc.decodeMap[src2[0]],
-			enc.decodeMap[src2[1]],
-			enc.decodeMap[src2[2]],
-			enc.decodeMap[src2[3]],
-			enc.decodeMap[src2[4]],
-			enc.decodeMap[src2[5]],
-			enc.decodeMap[src2[6]],
-			enc.decodeMap[src2[7]],
+			enc.decodeMapFunc(uint(src2[0])),
+			enc.decodeMapFunc(uint(src2[1])),
+			enc.decodeMapFunc(uint(src2[2])),
+			enc.decodeMapFunc(uint(src2[3])),
+			enc.decodeMapFunc(uint(src2[4])),
+			enc.decodeMapFunc(uint(src2[5])),
+			enc.decodeMapFunc(uint(src2[6])),
+			enc.decodeMapFunc(uint(src2[7])),
 		); ok {
 			byteorder.BEPutUint64(dst[n:], dn)
 			n += 6
@@ -554,10 +575,10 @@ func (enc *Encoding) Decode(dst, src []byte) (n int, err error) {
 	for len(src)-si >= 4 && len(dst)-n >= 4 {
 		src2 := src[si : si+4]
 		if dn, ok := assemble32(
-			enc.decodeMap[src2[0]],
-			enc.decodeMap[src2[1]],
-			enc.decodeMap[src2[2]],
-			enc.decodeMap[src2[3]],
+			enc.decodeMapFunc(uint(src2[0])),
+			enc.decodeMapFunc(uint(src2[1])),
+			enc.decodeMapFunc(uint(src2[2])),
+			enc.decodeMapFunc(uint(src2[3])),
 		); ok {
 			byteorder.BEPutUint32(dst[n:], dn)
 			n += 3
