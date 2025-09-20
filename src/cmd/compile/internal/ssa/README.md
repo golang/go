@@ -58,7 +58,7 @@ value of 1. One more example:
 
 	v17 (361) = Store <mem> {int} v16 v14 v8
 
-Here the aux field is the type of the value being `Store`ed, which is int.
+Here the aux field is the type of the value being stored, which is int.
 
 See [value.go](value.go) and `_gen/*Ops.go` for more information.
 
