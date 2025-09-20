@@ -258,12 +258,15 @@ func (d *Decoder) unmarshalAttr(val reflect.Value, attr Attr) error {
 	if val.CanInterface() && val.Type().Implements(unmarshalerAttrType) {
 		// This is an unmarshaler with a non-pointer receiver,
 		// so it's likely to be incorrect, but we do what we're told.
-		return val.Interface().(UnmarshalerAttr).UnmarshalXMLAttr(attr)
+		unmarshaler, _ := reflect.TypeAssert[UnmarshalerAttr](val)
+		return unmarshaler.UnmarshalXMLAttr(attr)
 	}
 	if val.CanAddr() {
 		pv := val.Addr()
-		if pv.CanInterface() && pv.Type().Implements(unmarshalerAttrType) {
-			return pv.Interface().(UnmarshalerAttr).UnmarshalXMLAttr(attr)
+		if pv.CanInterface() {
+			if unmarshaler, ok := reflect.TypeAssert[UnmarshalerAttr](pv); ok {
+				return unmarshaler.UnmarshalXMLAttr(attr)
+			}
 		}
 	}
 
@@ -271,12 +274,15 @@ func (d *Decoder) unmarshalAttr(val reflect.Value, attr Attr) error {
 	if val.CanInterface() && val.Type().Implements(textUnmarshalerType) {
 		// This is an unmarshaler with a non-pointer receiver,
 		// so it's likely to be incorrect, but we do what we're told.
-		return val.Interface().(encoding.TextUnmarshaler).UnmarshalText([]byte(attr.Value))
+		textUnmarshaler, _ := reflect.TypeAssert[encoding.TextUnmarshaler](val)
+		return textUnmarshaler.UnmarshalText([]byte(attr.Value))
 	}
 	if val.CanAddr() {
 		pv := val.Addr()
-		if pv.CanInterface() && pv.Type().Implements(textUnmarshalerType) {
-			return pv.Interface().(encoding.TextUnmarshaler).UnmarshalText([]byte(attr.Value))
+		if pv.CanInterface() {
+			if textUnmarshaler, ok := reflect.TypeAssert[encoding.TextUnmarshaler](pv); ok {
+				return textUnmarshaler.UnmarshalText([]byte(attr.Value))
+			}
 		}
 	}
 
@@ -355,24 +361,30 @@ func (d *Decoder) unmarshal(val reflect.Value, start *StartElement, depth int) e
 	if val.CanInterface() && val.Type().Implements(unmarshalerType) {
 		// This is an unmarshaler with a non-pointer receiver,
 		// so it's likely to be incorrect, but we do what we're told.
-		return d.unmarshalInterface(val.Interface().(Unmarshaler), start)
+		unmarshaler, _ := reflect.TypeAssert[Unmarshaler](val)
+		return d.unmarshalInterface(unmarshaler, start)
 	}
 
 	if val.CanAddr() {
 		pv := val.Addr()
-		if pv.CanInterface() && pv.Type().Implements(unmarshalerType) {
-			return d.unmarshalInterface(pv.Interface().(Unmarshaler), start)
+		if pv.CanInterface() {
+			if unmarshaler, ok := reflect.TypeAssert[Unmarshaler](pv); ok {
+				return d.unmarshalInterface(unmarshaler, start)
+			}
 		}
 	}
 
 	if val.CanInterface() && val.Type().Implements(textUnmarshalerType) {
-		return d.unmarshalTextInterface(val.Interface().(encoding.TextUnmarshaler))
+		textUnmarshaler, _ := reflect.TypeAssert[encoding.TextUnmarshaler](val)
+		return d.unmarshalTextInterface(textUnmarshaler)
 	}
 
 	if val.CanAddr() {
 		pv := val.Addr()
-		if pv.CanInterface() && pv.Type().Implements(textUnmarshalerType) {
-			return d.unmarshalTextInterface(pv.Interface().(encoding.TextUnmarshaler))
+		if pv.CanInterface() {
+			if textUnmarshaler, ok := reflect.TypeAssert[encoding.TextUnmarshaler](pv); ok {
+				return d.unmarshalTextInterface(textUnmarshaler)
+			}
 		}
 	}
 
@@ -453,7 +465,7 @@ func (d *Decoder) unmarshal(val reflect.Value, start *StartElement, depth int) e
 				return UnmarshalError(e)
 			}
 			fv := finfo.value(sv, initNilPointers)
-			if _, ok := fv.Interface().(Name); ok {
+			if _, ok := reflect.TypeAssert[Name](fv); ok {
 				fv.Set(reflect.ValueOf(start.Name))
 			}
 		}
@@ -579,7 +591,8 @@ Loop:
 	}
 
 	if saveData.IsValid() && saveData.CanInterface() && saveData.Type().Implements(textUnmarshalerType) {
-		if err := saveData.Interface().(encoding.TextUnmarshaler).UnmarshalText(data); err != nil {
+		textUnmarshaler, _ := reflect.TypeAssert[encoding.TextUnmarshaler](saveData)
+		if err := textUnmarshaler.UnmarshalText(data); err != nil {
 			return err
 		}
 		saveData = reflect.Value{}
@@ -587,11 +600,13 @@ Loop:
 
 	if saveData.IsValid() && saveData.CanAddr() {
 		pv := saveData.Addr()
-		if pv.CanInterface() && pv.Type().Implements(textUnmarshalerType) {
-			if err := pv.Interface().(encoding.TextUnmarshaler).UnmarshalText(data); err != nil {
-				return err
+		if pv.CanInterface() {
+			if textUnmarshaler, ok := reflect.TypeAssert[encoding.TextUnmarshaler](pv); ok {
+				if err := textUnmarshaler.UnmarshalText(data); err != nil {
+					return err
+				}
+				saveData = reflect.Value{}
 			}
-			saveData = reflect.Value{}
 		}
 	}
 
