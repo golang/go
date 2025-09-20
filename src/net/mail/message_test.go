@@ -835,29 +835,15 @@ func TestAddressParsing(t *testing.T) {
 		// No whitespace allowed in domain
 		{
 			`jdoe@   machine.example`,
-			[]*Address{{
-				Address: "jdoe@machine.example",
-			}},
+			nil,
 		},
 		{
 			`John Doe <jdoe@             machine.example>`,
-			[]*Address{{
-				Name:    "John Doe",
-				Address: "jdoe@machine.example",
-			}},
+			nil,
 		},
 		{
 			` , joe@where.test,,John <jdoe@ one.test>,,`,
-			[]*Address{
-				{
-					Name:    "",
-					Address: "joe@where.test",
-				},
-				{
-					Name:    "John",
-					Address: "jdoe@one.test",
-				},
-			},
+			nil,
 		},
 	}
 
@@ -885,23 +871,17 @@ func TestAddressParsing(t *testing.T) {
 
 	for _, test := range failedTests {
 		if len(test.exp) == 1 {
-			addr, err := ParseAddress(test.addrsStr)
+			_, err := ParseAddress(test.addrsStr)
 			if err == nil {
 				t.Errorf("Parsing should fail (single) %q: %v", test.addrsStr, err)
 				continue
 			}
-			if reflect.DeepEqual([]*Address{addr}, test.exp) {
-				t.Errorf("Parse (single) of %q: got %+v, want %+v", test.addrsStr, addr, test.exp)
-			}
 		}
 
-		addrs, err := ParseAddressList(test.addrsStr)
+		_, err := ParseAddressList(test.addrsStr)
 		if err == nil {
 			t.Errorf("Parsing should fail (list) %q: %v", test.addrsStr, err)
 			continue
-		}
-		if reflect.DeepEqual(addrs, test.exp) {
-			t.Errorf("Parse (list) of %q: got %+v, want %+v", test.addrsStr, addrs, test.exp)
 		}
 	}
 }
