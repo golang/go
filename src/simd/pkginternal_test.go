@@ -99,53 +99,53 @@ func select2x4x32(x Int32x4, a, b, c, d uint8, y Int32x4) Int32x4 {
 
 	switch pattern {
 	case _LLLL:
-		return x.concatSelectedConstant(cscimm(a, b, c, d), x)
+		return x.concatSelectedConstant(cscimm4(a, b, c, d), x)
 	case _HHHH:
-		return y.concatSelectedConstant(cscimm(a, b, c, d), y)
+		return y.concatSelectedConstant(cscimm4(a, b, c, d), y)
 	case _LLHH:
-		return x.concatSelectedConstant(cscimm(a, b, c, d), y)
+		return x.concatSelectedConstant(cscimm4(a, b, c, d), y)
 	case _HHLL:
-		return y.concatSelectedConstant(cscimm(a, b, c, d), x)
+		return y.concatSelectedConstant(cscimm4(a, b, c, d), x)
 
 	case _HLLL:
-		z := y.concatSelectedConstant(cscimm(a, a, b, b), x)
-		return z.concatSelectedConstant(cscimm(0, 2, c, d), x)
+		z := y.concatSelectedConstant(cscimm4(a, a, b, b), x)
+		return z.concatSelectedConstant(cscimm4(0, 2, c, d), x)
 	case _LHLL:
-		z := x.concatSelectedConstant(cscimm(a, a, b, b), y)
-		return z.concatSelectedConstant(cscimm(0, 2, c, d), x)
+		z := x.concatSelectedConstant(cscimm4(a, a, b, b), y)
+		return z.concatSelectedConstant(cscimm4(0, 2, c, d), x)
 
 	case _HLHH:
-		z := y.concatSelectedConstant(cscimm(a, a, b, b), x)
-		return z.concatSelectedConstant(cscimm(0, 2, c, d), y)
+		z := y.concatSelectedConstant(cscimm4(a, a, b, b), x)
+		return z.concatSelectedConstant(cscimm4(0, 2, c, d), y)
 	case _LHHH:
-		z := x.concatSelectedConstant(cscimm(a, a, b, b), y)
-		return z.concatSelectedConstant(cscimm(0, 2, c, d), y)
+		z := x.concatSelectedConstant(cscimm4(a, a, b, b), y)
+		return z.concatSelectedConstant(cscimm4(0, 2, c, d), y)
 
 	case _LLLH:
-		z := x.concatSelectedConstant(cscimm(c, c, d, d), y)
-		return x.concatSelectedConstant(cscimm(a, b, 0, 2), z)
+		z := x.concatSelectedConstant(cscimm4(c, c, d, d), y)
+		return x.concatSelectedConstant(cscimm4(a, b, 0, 2), z)
 	case _LLHL:
-		z := y.concatSelectedConstant(cscimm(c, c, d, d), x)
-		return x.concatSelectedConstant(cscimm(a, b, 0, 2), z)
+		z := y.concatSelectedConstant(cscimm4(c, c, d, d), x)
+		return x.concatSelectedConstant(cscimm4(a, b, 0, 2), z)
 	case _HHLH:
-		z := x.concatSelectedConstant(cscimm(c, c, d, d), y)
-		return y.concatSelectedConstant(cscimm(a, b, 0, 2), z)
+		z := x.concatSelectedConstant(cscimm4(c, c, d, d), y)
+		return y.concatSelectedConstant(cscimm4(a, b, 0, 2), z)
 	case _HHHL:
-		z := y.concatSelectedConstant(cscimm(c, c, d, d), x)
-		return y.concatSelectedConstant(cscimm(a, b, 0, 2), z)
+		z := y.concatSelectedConstant(cscimm4(c, c, d, d), x)
+		return y.concatSelectedConstant(cscimm4(a, b, 0, 2), z)
 
 	case _LHLH:
-		z := x.concatSelectedConstant(cscimm(a, c, b, d), y)
-		return z.concatSelectedConstant(0b11_01_10_00 /* =cscimm(0, 2, 1, 3) */, z)
+		z := x.concatSelectedConstant(cscimm4(a, c, b, d), y)
+		return z.concatSelectedConstant(0b11_01_10_00 /* =cscimm4(0, 2, 1, 3) */, z)
 	case _HLHL:
-		z := x.concatSelectedConstant(cscimm(b, d, a, c), y)
-		return z.concatSelectedConstant(0b01_11_00_10 /* =cscimm(2, 0, 3, 1) */, z)
+		z := x.concatSelectedConstant(cscimm4(b, d, a, c), y)
+		return z.concatSelectedConstant(0b01_11_00_10 /* =cscimm4(2, 0, 3, 1) */, z)
 	case _HLLH:
-		z := x.concatSelectedConstant(cscimm(b, c, a, d), y)
-		return z.concatSelectedConstant(0b11_01_00_10 /* =cscimm(2, 0, 1, 3) */, z)
+		z := x.concatSelectedConstant(cscimm4(b, c, a, d), y)
+		return z.concatSelectedConstant(0b11_01_00_10 /* =cscimm4(2, 0, 1, 3) */, z)
 	case _LHHL:
-		z := x.concatSelectedConstant(cscimm(a, d, b, c), y)
-		return z.concatSelectedConstant(0b01_11_10_00 /* =cscimm(0, 2, 3, 1) */, z)
+		z := x.concatSelectedConstant(cscimm4(a, d, b, c), y)
+		return z.concatSelectedConstant(0b01_11_10_00 /* =cscimm4(0, 2, 3, 1) */, z)
 	}
 	panic("missing case, switch should be exhaustive")
 }
@@ -180,53 +180,53 @@ func select2x8x32Grouped(x Int32x8, a, b, c, d uint8, y Int32x8) Int32x8 {
 
 	switch pattern {
 	case _LLLL:
-		return x.concatSelectedConstantGrouped(cscimm(a, b, c, d), x)
+		return x.concatSelectedConstantGrouped(cscimm4(a, b, c, d), x)
 	case _HHHH:
-		return y.concatSelectedConstantGrouped(cscimm(a, b, c, d), y)
+		return y.concatSelectedConstantGrouped(cscimm4(a, b, c, d), y)
 	case _LLHH:
-		return x.concatSelectedConstantGrouped(cscimm(a, b, c, d), y)
+		return x.concatSelectedConstantGrouped(cscimm4(a, b, c, d), y)
 	case _HHLL:
-		return y.concatSelectedConstantGrouped(cscimm(a, b, c, d), x)
+		return y.concatSelectedConstantGrouped(cscimm4(a, b, c, d), x)
 
 	case _HLLL:
-		z := y.concatSelectedConstantGrouped(cscimm(a, a, b, b), x)
-		return z.concatSelectedConstantGrouped(cscimm(0, 2, c, d), x)
+		z := y.concatSelectedConstantGrouped(cscimm4(a, a, b, b), x)
+		return z.concatSelectedConstantGrouped(cscimm4(0, 2, c, d), x)
 	case _LHLL:
-		z := x.concatSelectedConstantGrouped(cscimm(a, a, b, b), y)
-		return z.concatSelectedConstantGrouped(cscimm(0, 2, c, d), x)
+		z := x.concatSelectedConstantGrouped(cscimm4(a, a, b, b), y)
+		return z.concatSelectedConstantGrouped(cscimm4(0, 2, c, d), x)
 
 	case _HLHH:
-		z := y.concatSelectedConstantGrouped(cscimm(a, a, b, b), x)
-		return z.concatSelectedConstantGrouped(cscimm(0, 2, c, d), y)
+		z := y.concatSelectedConstantGrouped(cscimm4(a, a, b, b), x)
+		return z.concatSelectedConstantGrouped(cscimm4(0, 2, c, d), y)
 	case _LHHH:
-		z := x.concatSelectedConstantGrouped(cscimm(a, a, b, b), y)
-		return z.concatSelectedConstantGrouped(cscimm(0, 2, c, d), y)
+		z := x.concatSelectedConstantGrouped(cscimm4(a, a, b, b), y)
+		return z.concatSelectedConstantGrouped(cscimm4(0, 2, c, d), y)
 
 	case _LLLH:
-		z := x.concatSelectedConstantGrouped(cscimm(c, c, d, d), y)
-		return x.concatSelectedConstantGrouped(cscimm(a, b, 0, 2), z)
+		z := x.concatSelectedConstantGrouped(cscimm4(c, c, d, d), y)
+		return x.concatSelectedConstantGrouped(cscimm4(a, b, 0, 2), z)
 	case _LLHL:
-		z := y.concatSelectedConstantGrouped(cscimm(c, c, d, d), x)
-		return x.concatSelectedConstantGrouped(cscimm(a, b, 0, 2), z)
+		z := y.concatSelectedConstantGrouped(cscimm4(c, c, d, d), x)
+		return x.concatSelectedConstantGrouped(cscimm4(a, b, 0, 2), z)
 	case _HHLH:
-		z := x.concatSelectedConstantGrouped(cscimm(c, c, d, d), y)
-		return y.concatSelectedConstantGrouped(cscimm(a, b, 0, 2), z)
+		z := x.concatSelectedConstantGrouped(cscimm4(c, c, d, d), y)
+		return y.concatSelectedConstantGrouped(cscimm4(a, b, 0, 2), z)
 	case _HHHL:
-		z := y.concatSelectedConstantGrouped(cscimm(c, c, d, d), x)
-		return y.concatSelectedConstantGrouped(cscimm(a, b, 0, 2), z)
+		z := y.concatSelectedConstantGrouped(cscimm4(c, c, d, d), x)
+		return y.concatSelectedConstantGrouped(cscimm4(a, b, 0, 2), z)
 
 	case _LHLH:
-		z := x.concatSelectedConstantGrouped(cscimm(a, c, b, d), y)
-		return z.concatSelectedConstantGrouped(0b11_01_10_00 /* =cscimm(0, 2, 1, 3) */, z)
+		z := x.concatSelectedConstantGrouped(cscimm4(a, c, b, d), y)
+		return z.concatSelectedConstantGrouped(0b11_01_10_00 /* =cscimm4(0, 2, 1, 3) */, z)
 	case _HLHL:
-		z := x.concatSelectedConstantGrouped(cscimm(b, d, a, c), y)
-		return z.concatSelectedConstantGrouped(0b01_11_00_10 /* =cscimm(2, 0, 3, 1) */, z)
+		z := x.concatSelectedConstantGrouped(cscimm4(b, d, a, c), y)
+		return z.concatSelectedConstantGrouped(0b01_11_00_10 /* =cscimm4(2, 0, 3, 1) */, z)
 	case _HLLH:
-		z := x.concatSelectedConstantGrouped(cscimm(b, c, a, d), y)
-		return z.concatSelectedConstantGrouped(0b11_01_00_10 /* =cscimm(2, 0, 1, 3) */, z)
+		z := x.concatSelectedConstantGrouped(cscimm4(b, c, a, d), y)
+		return z.concatSelectedConstantGrouped(0b11_01_00_10 /* =cscimm4(2, 0, 1, 3) */, z)
 	case _LHHL:
-		z := x.concatSelectedConstantGrouped(cscimm(a, d, b, c), y)
-		return z.concatSelectedConstantGrouped(0b01_11_10_00 /* =cscimm(0, 2, 3, 1) */, z)
+		z := x.concatSelectedConstantGrouped(cscimm4(a, d, b, c), y)
+		return z.concatSelectedConstantGrouped(0b01_11_10_00 /* =cscimm4(0, 2, 3, 1) */, z)
 	}
 	panic("missing case, switch should be exhaustive")
 }

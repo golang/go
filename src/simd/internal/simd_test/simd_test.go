@@ -595,7 +595,7 @@ func TestIsZero(t *testing.T) {
 	}
 }
 
-func TestSelectFromPairConst(t *testing.T) {
+func TestSelect4FromPairConst(t *testing.T) {
 	x := simd.LoadInt32x4Slice([]int32{0, 1, 2, 3})
 	y := simd.LoadInt32x4Slice([]int32{4, 5, 6, 7})
 
@@ -652,7 +652,7 @@ func selectFromPairInt32x4(x simd.Int32x4, a, b, c, d uint8, y simd.Int32x4) sim
 	return x.SelectFromPair(a, b, c, d, y)
 }
 
-func TestSelectFromPairVar(t *testing.T) {
+func TestSelect4FromPairVar(t *testing.T) {
 	x := simd.LoadInt32x4Slice([]int32{0, 1, 2, 3})
 	y := simd.LoadInt32x4Slice([]int32{4, 5, 6, 7})
 
@@ -704,7 +704,7 @@ func TestSelectFromPairVar(t *testing.T) {
 	foo(hllh, 4, 0, 1, 5)
 }
 
-func TestSelectFromPairConstGroupedFloat32x8(t *testing.T) {
+func TestSelect4FromPairConstGrouped(t *testing.T) {
 	x := simd.LoadFloat32x8Slice([]float32{0, 1, 2, 3, 10, 11, 12, 13})
 	y := simd.LoadFloat32x8Slice([]float32{4, 5, 6, 7, 14, 15, 16, 17})
 
@@ -887,5 +887,119 @@ func TestSelect128FromPairVar(t *testing.T) {
 	foo(cd, 2, 3)
 	foo(da, 3, 0)
 	foo(dc, 3, 2)
+}
 
+func TestSelect2FromPairConst(t *testing.T) {
+	x := simd.LoadUint64x2Slice([]uint64{0, 1})
+	y := simd.LoadUint64x2Slice([]uint64{2, 3})
+
+	ll := x.SelectFromPair(0, 1, y)
+	hh := x.SelectFromPair(3, 2, y)
+	lh := x.SelectFromPair(0, 3, y)
+	hl := x.SelectFromPair(2, 1, y)
+
+	r := make([]uint64, 2, 2)
+
+	foo := func(v simd.Uint64x2, a, b uint64) {
+		v.StoreSlice(r)
+		checkSlices[uint64](t, r, []uint64{a, b})
+	}
+
+	foo(ll, 0, 1)
+	foo(hh, 3, 2)
+	foo(lh, 0, 3)
+	foo(hl, 2, 1)
+}
+
+func TestSelect2FromPairConstGroupedUint(t *testing.T) {
+	x := simd.LoadUint64x4Slice([]uint64{0, 1, 10, 11})
+	y := simd.LoadUint64x4Slice([]uint64{2, 3, 12, 13})
+
+	ll := x.SelectFromPairGrouped(0, 1, y)
+	hh := x.SelectFromPairGrouped(3, 2, y)
+	lh := x.SelectFromPairGrouped(0, 3, y)
+	hl := x.SelectFromPairGrouped(2, 1, y)
+
+	r := make([]uint64, 4, 4)
+
+	foo := func(v simd.Uint64x4, a, b uint64) {
+		v.StoreSlice(r)
+		checkSlices[uint64](t, r, []uint64{a, b, a + 10, b + 10})
+	}
+
+	foo(ll, 0, 1)
+	foo(hh, 3, 2)
+	foo(lh, 0, 3)
+	foo(hl, 2, 1)
+}
+
+func TestSelect2FromPairConstGroupedFloat(t *testing.T) {
+	x := simd.LoadFloat64x4Slice([]float64{0, 1, 10, 11})
+	y := simd.LoadFloat64x4Slice([]float64{2, 3, 12, 13})
+
+	ll := x.SelectFromPairGrouped(0, 1, y)
+	hh := x.SelectFromPairGrouped(3, 2, y)
+	lh := x.SelectFromPairGrouped(0, 3, y)
+	hl := x.SelectFromPairGrouped(2, 1, y)
+
+	r := make([]float64, 4, 4)
+
+	foo := func(v simd.Float64x4, a, b float64) {
+		v.StoreSlice(r)
+		checkSlices[float64](t, r, []float64{a, b, a + 10, b + 10})
+	}
+
+	foo(ll, 0, 1)
+	foo(hh, 3, 2)
+	foo(lh, 0, 3)
+	foo(hl, 2, 1)
+}
+
+func TestSelect2FromPairConstGroupedInt(t *testing.T) {
+	x := simd.LoadInt64x4Slice([]int64{0, 1, 10, 11})
+	y := simd.LoadInt64x4Slice([]int64{2, 3, 12, 13})
+
+	ll := x.SelectFromPairGrouped(0, 1, y)
+	hh := x.SelectFromPairGrouped(3, 2, y)
+	lh := x.SelectFromPairGrouped(0, 3, y)
+	hl := x.SelectFromPairGrouped(2, 1, y)
+
+	r := make([]int64, 4, 4)
+
+	foo := func(v simd.Int64x4, a, b int64) {
+		v.StoreSlice(r)
+		checkSlices[int64](t, r, []int64{a, b, a + 10, b + 10})
+	}
+
+	foo(ll, 0, 1)
+	foo(hh, 3, 2)
+	foo(lh, 0, 3)
+	foo(hl, 2, 1)
+}
+
+func TestSelect2FromPairConstGroupedInt512(t *testing.T) {
+	if !simd.HasAVX512() {
+		t.Skip("Test requires HasAVX512, not available on this hardware")
+		return
+	}
+
+	x := simd.LoadInt64x8Slice([]int64{0, 1, 10, 11, 20, 21, 30, 31})
+	y := simd.LoadInt64x8Slice([]int64{2, 3, 12, 13, 22, 23, 32, 33})
+
+	ll := x.SelectFromPairGrouped(0, 1, y)
+	hh := x.SelectFromPairGrouped(3, 2, y)
+	lh := x.SelectFromPairGrouped(0, 3, y)
+	hl := x.SelectFromPairGrouped(2, 1, y)
+
+	r := make([]int64, 8, 8)
+
+	foo := func(v simd.Int64x8, a, b int64) {
+		v.StoreSlice(r)
+		checkSlices[int64](t, r, []int64{a, b, a + 10, b + 10, a + 20, b + 20, a + 30, b + 30})
+	}
+
+	foo(ll, 0, 1)
+	foo(hh, 3, 2)
+	foo(lh, 0, 3)
+	foo(hl, 2, 1)
 }
