@@ -156,7 +156,6 @@ func packEfaceData(v Value) unsafe.Pointer {
 // unpackEface converts the empty interface i to a Value.
 func unpackEface(i any) Value {
 	e := (*abi.EmptyInterface)(unsafe.Pointer(&i))
-	// NOTE: don't read e.word until we know whether it is really a pointer or not.
 	t := e.Type
 	if t == nil {
 		return Value{}
