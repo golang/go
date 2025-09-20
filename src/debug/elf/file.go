@@ -640,7 +640,7 @@ func (f *File) getSymbols32(typ SectionType) ([]Symbol, []byte, error) {
 		return nil, nil, fmt.Errorf("cannot load symbol section: %w", err)
 	}
 	if len(data) == 0 {
-		return nil, nil, errors.New("symbol section is empty")
+		return nil, nil, ErrNoSymbols
 	}
 	if len(data)%Sym32Size != 0 {
 		return nil, nil, errors.New("length of symbol section is not a multiple of SymSize")
@@ -689,11 +689,11 @@ func (f *File) getSymbols64(typ SectionType) ([]Symbol, []byte, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot load symbol section: %w", err)
 	}
-	if len(data)%Sym64Size != 0 {
-		return nil, nil, errors.New("length of symbol section is not a multiple of Sym64Size")
-	}
 	if len(data) == 0 {
 		return nil, nil, ErrNoSymbols
+	}
+	if len(data)%Sym64Size != 0 {
+		return nil, nil, errors.New("length of symbol section is not a multiple of Sym64Size")
 	}
 
 	strdata, err := f.stringTable(symtabSection.Link)
