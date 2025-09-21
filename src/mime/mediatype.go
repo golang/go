@@ -228,21 +228,25 @@ func ParseMediaType(v string) (mediatype string, params map[string]string, err e
 }
 
 func decode2231Enc(v string) (string, bool) {
-	sv := strings.SplitN(v, "'", 3)
-	if len(sv) != 3 {
+	charset, v, ok := strings.Cut(v, "'")
+	if !ok {
 		return "", false
 	}
-	// TODO: ignoring lang in sv[1] for now. If anybody needs it we'll
+	// TODO: ignoring the language part for now. If anybody needs it, we'll
 	// need to decide how to expose it in the API. But I'm not sure
 	// anybody uses it in practice.
-	charset := strings.ToLower(sv[0])
+	_, extOtherVals, ok := strings.Cut(v, "'")
+	if !ok {
+		return "", false
+	}
+	charset = strings.ToLower(charset)
 	switch charset {
 	case "us-ascii", "utf-8":
 	default:
 		// Empty or unsupported encoding.
 		return "", false
 	}
-	return percentHexUnescape(sv[2])
+	return percentHexUnescape(extOtherVals)
 }
 
 // consumeToken consumes a token from the beginning of provided
