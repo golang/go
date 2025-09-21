@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"math"
 	"math/rand"
 	"runtime"
 	"testing"
@@ -40,6 +41,34 @@ func BenchmarkEncode(b *testing.B) {
 	})
 }
 
+func TestWriterMemUsage(t *testing.T) {
+	testMem := func(t *testing.T, fn func()) {
+		var before, after runtime.MemStats
+		runtime.GC()
+		runtime.ReadMemStats(&before)
+		fn()
+		runtime.GC()
+		runtime.ReadMemStats(&after)
+		t.Logf("%s: Memory Used: %dKB, %d allocs", t.Name(), (after.HeapInuse-before.HeapInuse)/1024, after.HeapObjects-before.HeapObjects)
+	}
+	data := make([]byte, 100000)
+
+	for level := HuffmanOnly; level <= BestCompression; level++ {
+		t.Run(fmt.Sprint("level-", level), func(t *testing.T) {
+			var zr *Writer
+			var err error
+			testMem(t, func() {
+				zr, err = NewWriter(io.Discard, level)
+				if err != nil {
+					t.Fatal(err)
+				}
+				zr.Write(data)
+			})
+			zr.Close()
+		})
+	}
+}
+
 // errorWriter is a writer that fails after N writes.
 type errorWriter struct {
 	N int
@@ -67,7 +96,7 @@ func TestWriteError(t *testing.T) {
 	in := buf.Bytes()
 	// We create our own buffer to control number of writes.
 	copyBuffer := make([]byte, 128)
-	for l := 0; l < 10; l++ {
+	for l := range 10 {
 		for fail := 1; fail <= 256; fail *= 2 {
 			// Fail after 'fail' writes
 			ew := &errorWriter{N: fail}
@@ -107,6 +136,75 @@ func TestWriteError(t *testing.T) {
 				return
 			}
 		}
+	}
+}
+
+// Test if errors from the underlying writer is passed upwards.
+func TestWriter_Reset(t *testing.T) {
+	buf := new(bytes.Buffer)
+	n := 65536
+	if !testing.Short() {
+		n *= 4
+	}
+	for i := 0; i < n; i++ {
+		fmt.Fprintf(buf, "asdasfasf%d%dfghfgujyut%dyutyu\n", i, i, i)
+	}
+	in := buf.Bytes()
+	for l := range 10 {
+		l := l
+		if testing.Short() && l > 1 {
+			continue
+		}
+		t.Run(fmt.Sprintf("level-%d", l), func(t *testing.T) {
+			t.Parallel()
+			offset := 1
+			if testing.Short() {
+				offset = 256
+			}
+			for ; offset <= 256; offset *= 2 {
+				// Fail after 'fail' writes
+				w, err := NewWriter(io.Discard, l)
+				if err != nil {
+					t.Fatalf("NewWriter: level %d: %v", l, err)
+				}
+				if w.d.fast == nil {
+					t.Skip("Not Fast...")
+					return
+				}
+				for i := 0; i < (bufferReset-len(in)-offset-maxMatchOffset)/maxMatchOffset; i++ {
+					// skip ahead to where we are close to wrap around...
+					w.d.fast.Reset()
+				}
+				w.d.fast.Reset()
+				_, err = w.Write(in)
+				if err != nil {
+					t.Fatal(err)
+				}
+				for range 50 {
+					// skip ahead again... This should wrap around...
+					w.d.fast.Reset()
+				}
+				w.d.fast.Reset()
+
+				_, err = w.Write(in)
+				if err != nil {
+					t.Fatal(err)
+				}
+				for range (math.MaxUint32 - bufferReset) / maxMatchOffset {
+					// skip ahead to where we are close to wrap around...
+					w.d.fast.Reset()
+				}
+
+				_, err = w.Write(in)
+				if err != nil {
+					t.Fatal(err)
+				}
+				err = w.Close()
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+		})
 	}
 }
 
@@ -170,6 +268,24 @@ func testDeterministic(i int, t *testing.T) {
 
 	if !bytes.Equal(b1b, b2b) {
 		t.Errorf("level %d did not produce deterministic result, result mismatch, len(a) = %d, len(b) = %d", i, len(b1b), len(b2b))
+	}
+
+	// Test using io.WriterTo interface.
+	var b3 bytes.Buffer
+	br = bytes.NewBuffer(t1)
+	w, err = NewWriter(&b3, i)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = br.WriteTo(w)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w.Close()
+
+	b3b := b3.Bytes()
+	if !bytes.Equal(b1b, b3b) {
+		t.Errorf("level %d (io.WriterTo) did not produce deterministic result, result mismatch, len(a) = %d, len(b) = %d", i, len(b1b), len(b3b))
 	}
 }
 

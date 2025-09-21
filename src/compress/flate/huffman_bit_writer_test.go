@@ -32,7 +32,9 @@ func TestBlockHuff(t *testing.T) {
 		if strings.HasSuffix(in, ".in") {
 			out = in[:len(in)-len(".in")] + ".golden"
 		}
-		testBlockHuff(t, in, out)
+		t.Run(in, func(t *testing.T) {
+			testBlockHuff(t, in, out)
+		})
 	}
 }
 
@@ -44,7 +46,8 @@ func testBlockHuff(t *testing.T, in, out string) {
 	}
 	var buf bytes.Buffer
 	bw := newHuffmanBitWriter(&buf)
-	bw.writeBlockHuff(false, all)
+	bw.logNewTablePenalty = 8
+	bw.writeBlockHuff(false, all, false)
 	bw.flush()
 	got := buf.Bytes()
 
@@ -79,7 +82,7 @@ func testBlockHuff(t *testing.T, in, out string) {
 	// Test if the writer produces the same output after reset.
 	buf.Reset()
 	bw.reset(&buf)
-	bw.writeBlockHuff(false, all)
+	bw.writeBlockHuff(false, all, false)
 	bw.flush()
 	got = buf.Bytes()
 	if !bytes.Equal(got, want) {
@@ -175,13 +178,23 @@ func TestWriteBlockDynamic(t *testing.T) {
 	}
 }
 
+// TestWriteBlockDynamic tests if the writeBlockDynamic encoding has changed.
+// To update the reference files use the "-update" flag on the test.
+func TestWriteBlockDynamicSync(t *testing.T) {
+	for _, test := range writeBlockTests {
+		testBlock(t, test, "sync")
+	}
+}
+
 // testBlock tests a block against its references,
 // or regenerate the references, if "-update" flag is set.
 func testBlock(t *testing.T, test huffTest, ttype string) {
 	if test.want != "" {
 		test.want = fmt.Sprintf(test.want, ttype)
 	}
+	const gotSuffix = ".got"
 	test.wantNoInput = fmt.Sprintf(test.wantNoInput, ttype)
+	tokens := indexTokens(test.tokens)
 	if *update {
 		if test.input != "" {
 			t.Logf("Updating %q", test.want)
@@ -198,7 +211,7 @@ func testBlock(t *testing.T, test huffTest, ttype string) {
 			}
 			defer f.Close()
 			bw := newHuffmanBitWriter(f)
-			writeToType(t, ttype, bw, test.tokens, input)
+			writeToType(t, ttype, bw, tokens, input)
 		}
 
 		t.Logf("Updating %q", test.wantNoInput)
@@ -209,7 +222,7 @@ func testBlock(t *testing.T, test huffTest, ttype string) {
 		}
 		defer f.Close()
 		bw := newHuffmanBitWriter(f)
-		writeToType(t, ttype, bw, test.tokens, nil)
+		writeToType(t, ttype, bw, tokens, nil)
 		return
 	}
 
@@ -227,12 +240,12 @@ func testBlock(t *testing.T, test huffTest, ttype string) {
 		}
 		var buf bytes.Buffer
 		bw := newHuffmanBitWriter(&buf)
-		writeToType(t, ttype, bw, test.tokens, input)
+		writeToType(t, ttype, bw, tokens, input)
 
 		got := buf.Bytes()
 		if !bytes.Equal(got, want) {
-			t.Errorf("writeBlock did not yield expected result for file %q with input. See %q", test.want, test.want+".got")
-			if err := os.WriteFile(test.want+".got", got, 0666); err != nil {
+			t.Errorf("writeBlock did not yield expected result for file %q with input. See %q", test.want, test.want+gotSuffix)
+			if err := os.WriteFile(test.want+gotSuffix, got, 0666); err != nil {
 				t.Error(err)
 			}
 		}
@@ -241,12 +254,12 @@ func testBlock(t *testing.T, test huffTest, ttype string) {
 		// Test if the writer produces the same output after reset.
 		buf.Reset()
 		bw.reset(&buf)
-		writeToType(t, ttype, bw, test.tokens, input)
+		writeToType(t, ttype, bw, tokens, input)
 		bw.flush()
 		got = buf.Bytes()
 		if !bytes.Equal(got, want) {
-			t.Errorf("reset: writeBlock did not yield expected result for file %q with input. See %q", test.want, test.want+".reset.got")
-			if err := os.WriteFile(test.want+".reset.got", got, 0666); err != nil {
+			t.Errorf("reset: writeBlock did not yield expected result for file %q with input. See %q", test.want, test.want+".reset"+gotSuffix)
+			if err := os.WriteFile(test.want+".reset"+gotSuffix, got, 0666); err != nil {
 				t.Error(err)
 			}
 			return
@@ -262,12 +275,12 @@ func testBlock(t *testing.T, test huffTest, ttype string) {
 	}
 	var buf bytes.Buffer
 	bw := newHuffmanBitWriter(&buf)
-	writeToType(t, ttype, bw, test.tokens, nil)
+	writeToType(t, ttype, bw, tokens, nil)
 
 	got := buf.Bytes()
 	if !bytes.Equal(got, wantNI) {
-		t.Errorf("writeBlock did not yield expected result for file %q with input. See %q", test.wantNoInput, test.wantNoInput+".got")
-		if err := os.WriteFile(test.want+".got", got, 0666); err != nil {
+		t.Errorf("writeBlock did not yield expected result for file %q with input. See %q", test.wantNoInput, test.wantNoInput+gotSuffix)
+		if err := os.WriteFile(test.wantNoInput+gotSuffix, got, 0666); err != nil {
 			t.Error(err)
 		}
 	} else if got[0]&1 == 1 {
@@ -280,12 +293,12 @@ func testBlock(t *testing.T, test huffTest, ttype string) {
 	// Test if the writer produces the same output after reset.
 	buf.Reset()
 	bw.reset(&buf)
-	writeToType(t, ttype, bw, test.tokens, nil)
+	writeToType(t, ttype, bw, tokens, nil)
 	bw.flush()
 	got = buf.Bytes()
 	if !bytes.Equal(got, wantNI) {
-		t.Errorf("reset: writeBlock did not yield expected result for file %q without input. See %q", test.want, test.want+".reset.got")
-		if err := os.WriteFile(test.want+".reset.got", got, 0666); err != nil {
+		t.Errorf("reset: writeBlock did not yield expected result for file %q without input. See %q", test.wantNoInput, test.wantNoInput+".reset"+gotSuffix)
+		if err := os.WriteFile(test.wantNoInput+".reset"+gotSuffix, got, 0666); err != nil {
 			t.Error(err)
 		}
 		return
@@ -294,12 +307,14 @@ func testBlock(t *testing.T, test huffTest, ttype string) {
 	testWriterEOF(t, "wb", test, false)
 }
 
-func writeToType(t *testing.T, ttype string, bw *huffmanBitWriter, tok []token, input []byte) {
+func writeToType(t *testing.T, ttype string, bw *huffmanBitWriter, tok tokens, input []byte) {
 	switch ttype {
 	case "wb":
-		bw.writeBlock(tok, false, input)
+		bw.writeBlock(&tok, false, input)
 	case "dyn":
-		bw.writeBlockDynamic(tok, false, input)
+		bw.writeBlockDynamic(&tok, false, input, false)
+	case "sync":
+		bw.writeBlockDynamic(&tok, false, input, true)
 	default:
 		panic("unknown test type")
 	}
@@ -332,13 +347,14 @@ func testWriterEOF(t *testing.T, ttype string, test huffTest, useInput bool) {
 	}
 	var buf bytes.Buffer
 	bw := newHuffmanBitWriter(&buf)
+	tokens := indexTokens(test.tokens)
 	switch ttype {
 	case "wb":
-		bw.writeBlock(test.tokens, true, input)
+		bw.writeBlock(&tokens, true, input)
 	case "dyn":
-		bw.writeBlockDynamic(test.tokens, true, input)
+		bw.writeBlockDynamic(&tokens, true, input, true)
 	case "huff":
-		bw.writeBlockHuff(true, input)
+		bw.writeBlockHuff(true, input, true)
 	default:
 		panic("unknown test type")
 	}
