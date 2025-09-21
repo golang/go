@@ -98,24 +98,31 @@ func FormatMediaType(t string, param map[string]string) string {
 func checkMediaTypeDisposition(s string) error {
 	typ, rest := consumeToken(s)
 	if typ == "" {
-		return errors.New("mime: no media type")
+		return errNoMediaType
 	}
 	if rest == "" {
 		return nil
 	}
 	var ok bool
 	if rest, ok = strings.CutPrefix(rest, "/"); !ok {
-		return errors.New("mime: expected slash after first token")
+		return errNoSlashAfterFirstToken
 	}
 	subtype, rest := consumeToken(rest)
 	if subtype == "" {
-		return errors.New("mime: expected token after slash")
+		return errNoTokenAfterSlash
 	}
 	if rest != "" {
-		return errors.New("mime: unexpected content after media subtype")
+		return errUnexpectedContentAfterMediaSubtype
 	}
 	return nil
 }
+
+var (
+	errNoMediaType                        = errors.New("mime: no media type")
+	errNoSlashAfterFirstToken             = errors.New("mime: expected slash after first token")
+	errNoTokenAfterSlash                  = errors.New("mime: expected token after slash")
+	errUnexpectedContentAfterMediaSubtype = errors.New("mime: unexpected content after media subtype")
+)
 
 // ErrInvalidMediaParameter is returned by [ParseMediaType] if
 // the media type value was found but there was an error parsing
@@ -177,7 +184,7 @@ func ParseMediaType(v string) (mediatype string, params map[string]string, err e
 		}
 		if v, exists := pmap[key]; exists && v != value {
 			// Duplicate parameter names are incorrect, but we allow them if they are equal.
-			return "", nil, errors.New("mime: duplicate parameter name")
+			return "", nil, errDuplicateParamName
 		}
 		pmap[key] = value
 		v = rest
@@ -226,6 +233,8 @@ func ParseMediaType(v string) (mediatype string, params map[string]string, err e
 
 	return
 }
+
+var errDuplicateParamName = errors.New("mime: duplicate parameter name")
 
 func decode2231Enc(v string) (string, bool) {
 	charset, v, ok := strings.Cut(v, "'")
