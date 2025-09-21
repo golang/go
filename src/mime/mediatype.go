@@ -170,7 +170,6 @@ func ParseMediaType(v string) (mediatype string, params map[string]string, err e
 			if continuation == nil {
 				continuation = make(map[string]map[string]string)
 			}
-			var ok bool
 			if pmap, ok = continuation[baseName]; !ok {
 				continuation[baseName] = make(map[string]string)
 				pmap = continuation[baseName]
@@ -237,18 +236,13 @@ func decode2231Enc(v string) (string, bool) {
 	// need to decide how to expose it in the API. But I'm not sure
 	// anybody uses it in practice.
 	charset := strings.ToLower(sv[0])
-	if len(charset) == 0 {
+	switch charset {
+	case "us-ascii", "utf-8":
+	default:
+		// Empty or unsupported encoding.
 		return "", false
 	}
-	if charset != "us-ascii" && charset != "utf-8" {
-		// TODO: unsupported encoding
-		return "", false
-	}
-	encv, ok := percentHexUnescape(sv[2])
-	if !ok {
-		return "", false
-	}
-	return encv, true
+	return percentHexUnescape(sv[2])
 }
 
 // consumeToken consumes a token from the beginning of provided
@@ -345,10 +339,6 @@ func percentHexUnescape(s string) (string, bool) {
 		}
 		percents++
 		if i+2 >= len(s) || !ishex(s[i+1]) || !ishex(s[i+2]) {
-			s = s[i:]
-			if len(s) > 3 {
-				s = s[0:3]
-			}
 			return "", false
 		}
 		i += 3
