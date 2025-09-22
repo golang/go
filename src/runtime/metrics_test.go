@@ -1760,8 +1760,6 @@ func TestReadMetricsSched(t *testing.T) {
 			metrics.Read(s[:])
 			return s[notInGo].Value.Uint64() >= count
 		})
-
-		metrics.Read(s[:])
 		logMetrics(t, s[:])
 		check(t, &s[notInGo], count, count+generalSlack)
 
@@ -1782,8 +1780,6 @@ func TestReadMetricsSched(t *testing.T) {
 			metrics.Read(s[:])
 			return s[waiting].Value.Uint64() >= waitingCount
 		})
-
-		metrics.Read(s[:])
 		logMetrics(t, s[:])
 		check(t, &s[waiting], waitingCount, waitingCount+waitingSlack)
 
