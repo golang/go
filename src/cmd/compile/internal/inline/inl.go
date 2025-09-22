@@ -179,6 +179,16 @@ func CanInlineFuncs(funcs []*ir.Func, profile *pgoir.Profile) {
 	})
 }
 
+func simdCreditMultiplier(fn *ir.Func) int32 {
+	for _, field := range fn.Type().RecvParamsResults() {
+		if field.Type.IsSIMD() {
+			return 3
+			break
+		}
+	}
+	return 1
+}
+
 // inlineBudget determines the max budget for function 'fn' prior to
 // analyzing the hairiness of the body of 'fn'. We pass in the pgo
 // profile if available (which can change the budget), also a
@@ -186,9 +196,14 @@ func CanInlineFuncs(funcs []*ir.Func, profile *pgoir.Profile) {
 // possibility that a call to the function might have its score
 // adjusted downwards. If 'verbose' is set, then print a remark where
 // we boost the budget due to PGO.
+// Note that inlineCostOk has the final say on whether an inline will
+// happen; changes here merely make inlines possible.
 func inlineBudget(fn *ir.Func, profile *pgoir.Profile, relaxed bool, verbose bool) int32 {
 	// Update the budget for profile-guided inlining.
 	budget := int32(inlineMaxBudget)
+
+	budget *= simdCreditMultiplier(fn)
+
 	if IsPgoHotFunc(fn, profile) {
 		budget = inlineHotMaxBudget
 		if verbose {
@@ -420,8 +435,8 @@ type hairyVisitor struct {
 }
 
 func isDebugFn(fn *ir.Func) bool {
-	// if n := fn.Nname; n != nil && n.Sym().Pkg.Path == "0" {
-	// 	if n.Sym().Name == "BroadcastInt64x4" {
+	// if n := fn.Nname; n != nil {
+	// 	if n.Sym().Name == "Int32x8.Transpose8" && n.Sym().Pkg.Path == "simd" {
 	// 		fmt.Printf("isDebugFn '%s' DOT '%s'\n", n.Sym().Pkg.Path, n.Sym().Name)
 	// 		return true
 	// 	}
@@ -944,12 +959,16 @@ func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller, closureCal
 		maxCost = inlineBigFunctionMaxCost
 	}
 
+	simdMaxCost := simdCreditMultiplier(callee) * maxCost
+
 	if callee.ClosureParent != nil {
 		maxCost *= 2           // favor inlining closures
 		if closureCalledOnce { // really favor inlining the one call to this closure
 			maxCost = max(maxCost, inlineClosureCalledOnceCost)
 		}
 	}
+
+	maxCost = max(maxCost, simdMaxCost)
 
 	metric := callee.Inl.Cost
 	if inlheur.Enabled() {
