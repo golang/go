@@ -11,7 +11,10 @@
 // [NIST FIPS 203]: https://doi.org/10.6028/NIST.FIPS.203
 package mlkem
 
-import "crypto/internal/fips140/mlkem"
+import (
+	"crypto"
+	"crypto/internal/fips140/mlkem"
+)
 
 const (
 	// SharedKeySize is the size of a shared key produced by ML-KEM.
@@ -81,6 +84,16 @@ func (dk *DecapsulationKey768) Decapsulate(ciphertext []byte) (sharedKey []byte,
 func (dk *DecapsulationKey768) EncapsulationKey() *EncapsulationKey768 {
 	return &EncapsulationKey768{dk.key.EncapsulationKey()}
 }
+
+// Encapsulator returns the encapsulation key, like
+// [DecapsulationKey768.EncapsulationKey].
+//
+// It implements [crypto.Decapsulator].
+func (dk *DecapsulationKey768) Encapsulator() crypto.Encapsulator {
+	return dk.EncapsulationKey()
+}
+
+var _ crypto.Decapsulator = (*DecapsulationKey768)(nil)
 
 // An EncapsulationKey768 is the public key used to produce ciphertexts to be
 // decapsulated by the corresponding DecapsulationKey768.
@@ -163,6 +176,16 @@ func (dk *DecapsulationKey1024) Decapsulate(ciphertext []byte) (sharedKey []byte
 func (dk *DecapsulationKey1024) EncapsulationKey() *EncapsulationKey1024 {
 	return &EncapsulationKey1024{dk.key.EncapsulationKey()}
 }
+
+// Encapsulator returns the encapsulation key, like
+// [DecapsulationKey1024.EncapsulationKey].
+//
+// It implements [crypto.Decapsulator].
+func (dk *DecapsulationKey1024) Encapsulator() crypto.Encapsulator {
+	return dk.EncapsulationKey()
+}
+
+var _ crypto.Decapsulator = (*DecapsulationKey1024)(nil)
 
 // An EncapsulationKey1024 is the public key used to produce ciphertexts to be
 // decapsulated by the corresponding DecapsulationKey1024.
