@@ -827,26 +827,6 @@ func TestAddressParsing(t *testing.T) {
 		},
 	}
 
-	// Checks for failures from parsing invalid addresses.
-	failedTests := []struct {
-		addrsStr string
-		exp      []*Address
-	}{
-		// No whitespace allowed in domain
-		{
-			`jdoe@   machine.example`,
-			nil,
-		},
-		{
-			`John Doe <jdoe@             machine.example>`,
-			nil,
-		},
-		{
-			` , joe@where.test,,John <jdoe@ one.test>,,`,
-			nil,
-		},
-	}
-
 	for _, test := range tests {
 		if len(test.exp) == 1 {
 			addr, err := ParseAddress(test.addrsStr)
@@ -869,19 +849,37 @@ func TestAddressParsing(t *testing.T) {
 		}
 	}
 
+	// Checks for failures from parsing invalid addresses.
+	failedTests := []struct {
+		addrsStr string
+	}{
+		// No whitespace allowed in domain
+		{
+			`jdoe@   machine.example`,
+		},
+		{
+			`John Doe <jdoe@             machine.example>`,
+		},
+		{
+			` , joe@where.test,,John <jdoe@ one.test>,,`,
+		},
+		{
+			`Mary Smith <mary@ x.test>, jdoe@ example.org`,
+		},
+	}
+
 	for _, test := range failedTests {
-		if len(test.exp) == 1 {
-			_, err := ParseAddress(test.addrsStr)
-			if err == nil {
-				t.Errorf("Parsing should fail (single) %q: %v", test.addrsStr, err)
-				continue
-			}
+		_, err := ParseAddress(test.addrsStr)
+		if err == nil {
+			t.Errorf("Parsing should fail (single) %q", test.addrsStr)
+			continue
 		}
 
-		_, err := ParseAddressList(test.addrsStr)
+		// ParseAddress always fail when parsing a mail list
+		// It needs to check again with ParseAddressList if it's a list.
+		_, err = ParseAddressList(test.addrsStr)
 		if err == nil {
-			t.Errorf("Parsing should fail (list) %q: %v", test.addrsStr, err)
-			continue
+			t.Errorf("Parsing should fail (list) %q", test.addrsStr)
 		}
 	}
 }
