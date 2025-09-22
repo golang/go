@@ -1249,6 +1249,7 @@ func goroutineheader(gp *g) {
 		print(" (scan)")
 	}
 	if bubble := gp.bubble; bubble != nil &&
+		gpstatus == _Gwaiting &&
 		gp.waitreason.isIdleInSynctest() &&
 		!stringslite.HasSuffix(status, "(durable)") {
 		// If this isn't a status where the name includes a (durable)
