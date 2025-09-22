@@ -621,3 +621,25 @@ func TestRemoveFileRace(t *testing.T) {
 		start <- struct{}{}
 	}
 }
+
+func TestRemovedFileFileReturnsNil(t *testing.T) {
+	fset := NewFileSet()
+
+	// Create bunch of files.
+	var files []*File
+	for i := range 1000 {
+		f := fset.AddFile("f", -1, (i+1)*100)
+		files = append(files, f)
+	}
+
+	rand.Shuffle(len(files), func(i, j int) {
+		files[i], files[j] = files[j], files[i]
+	})
+
+	for _, f := range files {
+		fset.RemoveFile(f)
+		if got := fset.File(Pos(f.Base()) + 10); got != nil {
+			t.Fatalf("file was not removed correctly; got file with base: %v", got.Base())
+		}
+	}
+}
