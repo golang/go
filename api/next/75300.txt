@@ -1,0 +1,4 @@
+pkg crypto/ecdh, type KeyExchanger interface { Curve, ECDH, PublicKey } #75300
+pkg crypto/ecdh, type KeyExchanger interface, Curve() Curve #75300
+pkg crypto/ecdh, type KeyExchanger interface, ECDH(*PublicKey) ([]uint8, error) #75300
+pkg crypto/ecdh, type KeyExchanger interface, PublicKey() *PublicKey #75300
