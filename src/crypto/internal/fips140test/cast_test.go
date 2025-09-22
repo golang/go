@@ -48,8 +48,8 @@ var allCASTs = []string{
 	"HKDF-SHA2-256",
 	"HMAC-SHA2-256",
 	"KAS-ECC-SSC P-256",
-	"ML-KEM PCT",
-	"ML-KEM PCT",
+	"ML-KEM PCT", // -768
+	"ML-KEM PCT", // -1024
 	"ML-KEM-768",
 	"PBKDF2",
 	"RSA sign and verify PCT",
@@ -104,29 +104,44 @@ func TestAllCASTs(t *testing.T) {
 
 // TestConditionals causes the conditional CASTs and PCTs to be invoked.
 func TestConditionals(t *testing.T) {
-	mlkem.GenerateKey768()
+	// ML-KEM PCT
+	kMLKEM, err := mlkem.GenerateKey768()
+	if err != nil {
+		t.Error(err)
+	} else {
+		// ML-KEM-768
+		kMLKEM.EncapsulationKey().Encapsulate()
+	}
+	// ECDH PCT
 	kDH, err := ecdh.GenerateKey(ecdh.P256(), rand.Reader)
 	if err != nil {
 		t.Error(err)
 	} else {
+		// KAS-ECC-SSC P-256
 		ecdh.ECDH(ecdh.P256(), kDH, kDH.PublicKey())
 	}
+	// ECDSA PCT
 	kDSA, err := ecdsa.GenerateKey(ecdsa.P256(), rand.Reader)
 	if err != nil {
 		t.Error(err)
 	} else {
+		// ECDSA P-256 SHA2-512 sign and verify
 		ecdsa.SignDeterministic(ecdsa.P256(), sha256.New, kDSA, make([]byte, 32))
 	}
+	// Ed25519 sign and verify PCT
 	k25519, err := ed25519.GenerateKey()
 	if err != nil {
 		t.Error(err)
 	} else {
+		// Ed25519 sign and verify
 		ed25519.Sign(k25519, make([]byte, 32))
 	}
+	// RSA sign and verify PCT
 	kRSA, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		t.Error(err)
 	} else {
+		// RSASSA-PKCS-v1.5 2048-bit sign and verify
 		rsa.SignPKCS1v15(kRSA, crypto.SHA256.String(), make([]byte, 32))
 	}
 	t.Log("completed successfully")
