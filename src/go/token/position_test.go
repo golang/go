@@ -579,3 +579,45 @@ func fsetString(fset *FileSet) string {
 	buf.WriteRune('}')
 	return buf.String()
 }
+
+// Test that File() does not return the already removed file, while used concurrently.
+func TestRemoveFileRace(t *testing.T) {
+	fset := NewFileSet()
+
+	// Create bunch of files.
+	var files []*File
+	for i := range 20000 {
+		f := fset.AddFile("f", -1, (i+1)*10)
+		files = append(files, f)
+	}
+
+	// governor goroutine
+	race1, race2 := make(chan *File), make(chan *File)
+	start := make(chan struct{})
+	go func() {
+		for _, f := range files {
+			<-start
+			race1 <- f
+			race2 <- f
+		}
+		<-start // unlock main test goroutine
+		close(race1)
+		close(race2)
+	}()
+
+	go func() {
+		for f := range race1 {
+			fset.File(Pos(f.Base()) + 5) // populates s.last with f
+		}
+	}()
+
+	start <- struct{}{}
+	for f := range race2 {
+		fset.RemoveFile(f)
+		got := fset.File(Pos(f.Base()) + 5)
+		if got != nil {
+			t.Fatalf("file was not removed correctly")
+		}
+		start <- struct{}{}
+	}
+}

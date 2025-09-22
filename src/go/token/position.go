@@ -531,10 +531,10 @@ func (s *FileSet) AddExistingFiles(files ...*File) {
 //
 // Removing a file that does not belong to the set has no effect.
 func (s *FileSet) RemoveFile(file *File) {
-	s.last.CompareAndSwap(file, nil) // clear last file cache
-
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
+
+	s.last.CompareAndSwap(file, nil) // clear last file cache
 
 	pn, _ := s.tree.locate(file.key())
 	if *pn != nil && (*pn).file == file {
