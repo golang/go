@@ -129,7 +129,7 @@ const simdTypesTemplates = `
 {{define "sizeTmpl"}}
 // v{{.}} is a tag type that tells the compiler that this is really {{.}}-bit SIMD
 type v{{.}} struct {
-	_{{.}} struct{}
+	_{{.}} [0]func() // uncomparable
 }
 {{end}}
 

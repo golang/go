@@ -465,7 +465,7 @@ func CalcSize(t *Type) {
 // by the compiler except for the space that they reserve.
 func simdify(st *Type, isTag bool) {
 	st.align = 8
-	st.alg = AMEM
+	st.alg = ANOALG // not comparable with ==
 	st.intRegs = 0
 	st.isSIMD = true
 	if isTag {

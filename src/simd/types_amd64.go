@@ -6,7 +6,7 @@ package simd
 
 // v128 is a tag type that tells the compiler that this is really 128-bit SIMD
 type v128 struct {
-	_128 struct{}
+	_128 [0]func() // uncomparable
 }
 
 // Float32x4 is a 128-bit SIMD vector of 4 float32
@@ -433,7 +433,7 @@ func (x Mask64x2) ToBits() uint8
 
 // v256 is a tag type that tells the compiler that this is really 256-bit SIMD
 type v256 struct {
-	_256 struct{}
+	_256 [0]func() // uncomparable
 }
 
 // Float32x8 is a 256-bit SIMD vector of 8 float32
@@ -860,7 +860,7 @@ func (x Mask64x4) ToBits() uint8
 
 // v512 is a tag type that tells the compiler that this is really 512-bit SIMD
 type v512 struct {
-	_512 struct{}
+	_512 [0]func() // uncomparable
 }
 
 // Float32x16 is a 512-bit SIMD vector of 16 float32
