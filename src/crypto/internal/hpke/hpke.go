@@ -43,6 +43,43 @@ type Recipient struct {
 func newContext(sharedSecret []byte, kemID uint16, kdf KDF, aead AEAD, info []byte) (*context, error) {
 	sid := suiteID(kemID, kdf.ID(), aead.ID())
 
+	if kdf.oneStage() {
+		secrets := make([]byte, 0, 2+2+len(sharedSecret))
+		secrets = binary.BigEndian.AppendUint16(secrets, 0) // empty psk
+		secrets = binary.BigEndian.AppendUint16(secrets, uint16(len(sharedSecret)))
+		secrets = append(secrets, sharedSecret...)
+
+		ksContext := make([]byte, 0, 1+2+2+len(info))
+		ksContext = append(ksContext, 0)                        // mode 0
+		ksContext = binary.BigEndian.AppendUint16(ksContext, 0) // empty psk_id
+		ksContext = binary.BigEndian.AppendUint16(ksContext, uint16(len(info)))
+		ksContext = append(ksContext, info...)
+
+		secret, err := kdf.labeledDerive(sid, secrets, "secret", ksContext,
+			uint16(aead.keySize()+aead.nonceSize()+kdf.size()))
+		if err != nil {
+			return nil, err
+		}
+		key := secret[:aead.keySize()]
+		baseNonce := secret[aead.keySize() : aead.keySize()+aead.nonceSize()]
+		expSecret := secret[aead.keySize()+aead.nonceSize():]
+
+		a, err := aead.aead(key)
+		if err != nil {
+			return nil, err
+		}
+		export := func(exporterContext string, length uint16) ([]byte, error) {
+			return kdf.labeledDerive(sid, expSecret, "sec", []byte(exporterContext), length)
+		}
+
+		return &context{
+			aead:      a,
+			suiteID:   sid,
+			export:    export,
+			baseNonce: baseNonce,
+		}, nil
+	}
+
 	pskIDHash, err := kdf.labeledExtract(sid, nil, "psk_id_hash", nil)
 	if err != nil {
 		return nil, err
@@ -70,7 +107,7 @@ func newContext(sharedSecret []byte, kemID uint16, kdf KDF, aead AEAD, info []by
 	if err != nil {
 		return nil, err
 	}
-	expSecret, err := kdf.labeledExpand(sid, secret, "exp", ksContext, uint16(len(secret)))
+	expSecret, err := kdf.labeledExpand(sid, secret, "exp", ksContext, uint16(kdf.size()))
 	if err != nil {
 		return nil, err
 	}

@@ -7,6 +7,8 @@ package hpke
 import (
 	"bytes"
 	"crypto/ecdh"
+	"crypto/mlkem"
+	"crypto/mlkem/mlkemtest"
 	"crypto/sha3"
 	"encoding/hex"
 	"encoding/json"
@@ -26,7 +28,16 @@ func mustDecodeHex(t *testing.T, in string) []byte {
 }
 
 func TestVectors(t *testing.T) {
-	vectorsJSON, err := os.ReadFile("testdata/rfc9180.json")
+	t.Run("rfc9180", func(t *testing.T) {
+		testVectors(t, "rfc9180")
+	})
+	t.Run("hpke-pq", func(t *testing.T) {
+		testVectors(t, "hpke-pq")
+	})
+}
+
+func testVectors(t *testing.T, name string) {
+	vectorsJSON, err := os.ReadFile("testdata/" + name + ".json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,8 +52,22 @@ func TestVectors(t *testing.T) {
 		SkRm        string `json:"skRm"`
 		PkRm        string `json:"pkRm"`
 		Enc         string `json:"enc"`
-		Encryptions string `json:"encryptions"`
-		Exports     string `json:"exports"`
+		Encryptions []struct {
+			Aad   string `json:"aad"`
+			Ct    string `json:"ct"`
+			Nonce string `json:"nonce"`
+			Pt    string `json:"pt"`
+		} `json:"encryptions"`
+		Exports []struct {
+			Context string `json:"exporter_context"`
+			L       int    `json:"L"`
+			Value   string `json:"exported_value"`
+		} `json:"exports"`
+
+		// Instead of checking in a very large rfc9180.json, we computed
+		// alternative accumulated values.
+		AccEncryptions string `json:"encryptions_accumulated"`
+		AccExports     string `json:"exports_accumulated"`
 	}
 	if err := json.Unmarshal(vectorsJSON, &vectors); err != nil {
 		t.Fatal(err)
@@ -88,7 +113,7 @@ func TestVectors(t *testing.T) {
 			}
 
 			ikmE := mustDecodeHex(t, vector.IkmE)
-			setupDerandomizedEncap(t, vector.KEM, ikmE)
+			setupDerandomizedEncap(t, vector.KEM, ikmE, kemSender)
 
 			info := mustDecodeHex(t, vector.Info)
 			encap, sender, err := NewSender(kemSender, kdf, aead, info)
@@ -137,20 +162,24 @@ func TestVectors(t *testing.T) {
 				t.Errorf("unexpected KEM sender bytes: got %x, want %x", kemRecipient.KEMSender().Bytes(), pubKeyBytes)
 			}
 
-			seed := mustDecodeHex(t, vector.IkmR)
-			seedRecipient, err := NewKEMRecipientFromSeed(vector.KEM, seed)
-			if err != nil {
-				t.Fatal(err)
-			}
-			seedRecipientBytes, err := seedRecipient.Bytes()
-			if err != nil {
-				t.Fatal(err)
-			}
-			if !bytes.Equal(seedRecipientBytes, privKeyBytes) && vector.KEM != 0x0020 {
-				t.Errorf("unexpected KEM bytes from seed: got %x, want %x", seedRecipientBytes, privKeyBytes)
-			}
-			if !bytes.Equal(seedRecipient.KEMSender().Bytes(), pubKeyBytes) {
-				t.Errorf("unexpected KEM sender bytes from seed: got %x, want %x", seedRecipient.KEMSender().Bytes(), pubKeyBytes)
+			// NewKEMRecipientFromSeed is not implemented for the PQ KEMs yet.
+			if vector.KEM != mlkem768 && vector.KEM != mlkem1024 && vector.KEM != mlkem768X25519 &&
+				vector.KEM != mlkem768P256 && vector.KEM != mlkem1024P384 {
+				seed := mustDecodeHex(t, vector.IkmR)
+				seedRecipient, err := NewKEMRecipientFromSeed(vector.KEM, seed)
+				if err != nil {
+					t.Fatal(err)
+				}
+				seedRecipientBytes, err := seedRecipient.Bytes()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !bytes.Equal(seedRecipientBytes, privKeyBytes) && vector.KEM != dhkemX25519 {
+					t.Errorf("unexpected KEM bytes from seed: got %x, want %x", seedRecipientBytes, privKeyBytes)
+				}
+				if !bytes.Equal(seedRecipient.KEMSender().Bytes(), pubKeyBytes) {
+					t.Errorf("unexpected KEM sender bytes from seed: got %x, want %x", seedRecipient.KEMSender().Bytes(), pubKeyBytes)
+				}
 			}
 
 			recipient, err := NewRecipient(encap, kemRecipient, kdf, aead, info)
@@ -158,7 +187,7 @@ func TestVectors(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if aead != ExportOnly() {
+			if aead != ExportOnly() && len(vector.AccEncryptions) != 0 {
 				source, sink := sha3.NewSHAKE128(), sha3.NewSHAKE128()
 				for range 1000 {
 					aad, plaintext := drawRandomInput(t, source), drawRandomInput(t, source)
@@ -177,9 +206,31 @@ func TestVectors(t *testing.T) {
 				}
 				encryptions := make([]byte, 16)
 				sink.Read(encryptions)
-				expectedEncryptions := mustDecodeHex(t, vector.Encryptions)
+				expectedEncryptions := mustDecodeHex(t, vector.AccEncryptions)
 				if !bytes.Equal(encryptions, expectedEncryptions) {
 					t.Errorf("unexpected accumulated encryptions, got: %x, want %x", encryptions, expectedEncryptions)
+				}
+			} else if aead != ExportOnly() {
+				for _, enc := range vector.Encryptions {
+					aad := mustDecodeHex(t, enc.Aad)
+					plaintext := mustDecodeHex(t, enc.Pt)
+					expectedCiphertext := mustDecodeHex(t, enc.Ct)
+
+					ciphertext, err := sender.Seal(aad, plaintext)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if !bytes.Equal(ciphertext, expectedCiphertext) {
+						t.Errorf("unexpected ciphertext, got: %x, want %x", ciphertext, expectedCiphertext)
+					}
+
+					got, err := recipient.Open(aad, ciphertext)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if !bytes.Equal(got, plaintext) {
+						t.Errorf("unexpected plaintext: got %x want %x", got, plaintext)
+					}
 				}
 			} else {
 				if _, err := sender.Seal(nil, nil); err == nil {
@@ -190,27 +241,50 @@ func TestVectors(t *testing.T) {
 				}
 			}
 
-			source, sink := sha3.NewSHAKE128(), sha3.NewSHAKE128()
-			for l := range 1000 {
-				context := string(drawRandomInput(t, source))
-				value, err := sender.Export(context, l)
-				if err != nil {
-					t.Fatal(err)
+			if len(vector.AccExports) != 0 {
+				source, sink := sha3.NewSHAKE128(), sha3.NewSHAKE128()
+				for l := range 1000 {
+					context := string(drawRandomInput(t, source))
+					value, err := sender.Export(context, l)
+					if err != nil {
+						t.Fatal(err)
+					}
+					sink.Write(value)
+					got, err := recipient.Export(context, l)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if !bytes.Equal(got, value) {
+						t.Errorf("recipient: unexpected exported secret: got %x want %x", got, value)
+					}
 				}
-				sink.Write(value)
-				got, err := recipient.Export(context, l)
-				if err != nil {
-					t.Fatal(err)
+				exports := make([]byte, 16)
+				sink.Read(exports)
+				expectedExports := mustDecodeHex(t, vector.AccExports)
+				if !bytes.Equal(exports, expectedExports) {
+					t.Errorf("unexpected accumulated exports, got: %x, want %x", exports, expectedExports)
 				}
-				if !bytes.Equal(got, value) {
-					t.Errorf("recipient: unexpected exported secret: got %x want %x", got, value)
+			} else {
+				for _, exp := range vector.Exports {
+					context := string(mustDecodeHex(t, exp.Context))
+					expectedValue := mustDecodeHex(t, exp.Value)
+
+					value, err := sender.Export(context, exp.L)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if !bytes.Equal(value, expectedValue) {
+						t.Errorf("unexpected exported value, got: %x, want %x", value, expectedValue)
+					}
+
+					got, err := recipient.Export(context, exp.L)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if !bytes.Equal(got, value) {
+						t.Errorf("recipient: unexpected exported secret: got %x want %x", got, value)
+					}
 				}
-			}
-			exports := make([]byte, 16)
-			sink.Read(exports)
-			expectedExports := mustDecodeHex(t, vector.Exports)
-			if !bytes.Equal(exports, expectedExports) {
-				t.Errorf("unexpected accumulated exports, got: %x, want %x", exports, expectedExports)
 			}
 		})
 	}
@@ -230,17 +304,94 @@ func drawRandomInput(t *testing.T, r io.Reader) []byte {
 	return b
 }
 
-func setupDerandomizedEncap(t *testing.T, kemID uint16, randBytes []byte) {
-	r, err := NewKEMRecipientFromSeed(kemID, randBytes)
-	if err != nil {
-		t.Fatal(err)
-	}
-	testingOnlyGenerateKey = func() *ecdh.PrivateKey {
-		return r.(*dhKEMRecipient).priv.(*ecdh.PrivateKey)
-	}
+func setupDerandomizedEncap(t *testing.T, kemID uint16, randBytes []byte, kem KEMSender) {
 	t.Cleanup(func() {
 		testingOnlyGenerateKey = nil
+		testingOnlyEncapsulate = nil
 	})
+	switch kemID {
+	case dhkemP256, dhkemP384, dhkemP521, dhkemX25519:
+		r, err := NewKEMRecipientFromSeed(kemID, randBytes)
+		if err != nil {
+			t.Fatal(err)
+		}
+		testingOnlyGenerateKey = func() *ecdh.PrivateKey {
+			return r.(*dhKEMRecipient).priv.(*ecdh.PrivateKey)
+		}
+	case mlkem768:
+		pq := kem.(*mlkemSender).pq.(*mlkem.EncapsulationKey768)
+		testingOnlyEncapsulate = func() ([]byte, []byte) {
+			ss, ct, err := mlkemtest.Encapsulate768(pq, randBytes)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return ss, ct
+		}
+	case mlkem1024:
+		pq := kem.(*mlkemSender).pq.(*mlkem.EncapsulationKey1024)
+		testingOnlyEncapsulate = func() ([]byte, []byte) {
+			ss, ct, err := mlkemtest.Encapsulate1024(pq, randBytes)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return ss, ct
+		}
+	case mlkem768X25519:
+		pqRand, tRand := randBytes[:32], randBytes[32:]
+		pq := kem.(*hybridSender).pq.(*mlkem.EncapsulationKey768)
+		k, err := ecdh.X25519().NewPrivateKey(tRand)
+		if err != nil {
+			t.Fatal(err)
+		}
+		testingOnlyGenerateKey = func() *ecdh.PrivateKey {
+			return k
+		}
+		testingOnlyEncapsulate = func() ([]byte, []byte) {
+			ss, ct, err := mlkemtest.Encapsulate768(pq, pqRand)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return ss, ct
+		}
+	case mlkem768P256:
+		// The rest of randBytes are the following candidates for rejection
+		// sampling, but they are never reached.
+		pqRand, tRand := randBytes[:32], randBytes[32:64]
+		pq := kem.(*hybridSender).pq.(*mlkem.EncapsulationKey768)
+		k, err := ecdh.P256().NewPrivateKey(tRand)
+		if err != nil {
+			t.Fatal(err)
+		}
+		testingOnlyGenerateKey = func() *ecdh.PrivateKey {
+			return k
+		}
+		testingOnlyEncapsulate = func() ([]byte, []byte) {
+			ss, ct, err := mlkemtest.Encapsulate768(pq, pqRand)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return ss, ct
+		}
+	case mlkem1024P384:
+		pqRand, tRand := randBytes[:32], randBytes[32:]
+		pq := kem.(*hybridSender).pq.(*mlkem.EncapsulationKey1024)
+		k, err := ecdh.P384().NewPrivateKey(tRand)
+		if err != nil {
+			t.Fatal(err)
+		}
+		testingOnlyGenerateKey = func() *ecdh.PrivateKey {
+			return k
+		}
+		testingOnlyEncapsulate = func() ([]byte, []byte) {
+			ss, ct, err := mlkemtest.Encapsulate1024(pq, pqRand)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return ss, ct
+		}
+	default:
+		t.Fatalf("unsupported KEM %04x", kemID)
+	}
 }
 
 func TestSingletons(t *testing.T) {

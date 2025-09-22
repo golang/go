@@ -6,6 +6,7 @@ package hpke
 
 import (
 	"crypto/ecdh"
+	"crypto/mlkem"
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
@@ -61,6 +62,63 @@ func NewKEMSender(id uint16, pub []byte) (KEMSender, error) {
 			return nil, err
 		}
 		return NewECDHSender(k)
+	case mlkem768:
+		if len(pub) != mlkem.EncapsulationKeySize768 {
+			return nil, errors.New("invalid public key size")
+		}
+		pq, err := mlkem.NewEncapsulationKey768(pub)
+		if err != nil {
+			return nil, err
+		}
+		return NewMLKEMSender(pq)
+	case mlkem1024:
+		if len(pub) != mlkem.EncapsulationKeySize1024 {
+			return nil, errors.New("invalid public key size")
+		}
+		pq, err := mlkem.NewEncapsulationKey1024(pub)
+		if err != nil {
+			return nil, err
+		}
+		return NewMLKEMSender(pq)
+	case mlkem768X25519:
+		if len(pub) != mlkem.EncapsulationKeySize768+32 {
+			return nil, errors.New("invalid public key size")
+		}
+		pq, err := mlkem.NewEncapsulationKey768(pub[:mlkem.EncapsulationKeySize768])
+		if err != nil {
+			return nil, err
+		}
+		k, err := ecdh.X25519().NewPublicKey(pub[mlkem.EncapsulationKeySize768:])
+		if err != nil {
+			return nil, err
+		}
+		return NewHybridSender(k, pq)
+	case mlkem768P256:
+		if len(pub) != mlkem.EncapsulationKeySize768+65 {
+			return nil, errors.New("invalid public key size")
+		}
+		pq, err := mlkem.NewEncapsulationKey768(pub[:mlkem.EncapsulationKeySize768])
+		if err != nil {
+			return nil, err
+		}
+		k, err := ecdh.P256().NewPublicKey(pub[mlkem.EncapsulationKeySize768:])
+		if err != nil {
+			return nil, err
+		}
+		return NewHybridSender(k, pq)
+	case mlkem1024P384:
+		if len(pub) != mlkem.EncapsulationKeySize1024+97 {
+			return nil, errors.New("invalid public key size")
+		}
+		pq, err := mlkem.NewEncapsulationKey1024(pub[:mlkem.EncapsulationKeySize1024])
+		if err != nil {
+			return nil, err
+		}
+		k, err := ecdh.P384().NewPublicKey(pub[mlkem.EncapsulationKeySize1024:])
+		if err != nil {
+			return nil, err
+		}
+		return NewHybridSender(k, pq)
 	default:
 		return nil, errors.New("unsupported KEM")
 	}
@@ -116,6 +174,20 @@ func NewKEMRecipient(id uint16, priv []byte) (KEMRecipient, error) {
 			return nil, err
 		}
 		return NewECDHRecipient(k)
+	case mlkem768:
+		pq, err := mlkem.NewDecapsulationKey768(priv)
+		if err != nil {
+			return nil, err
+		}
+		return NewMLKEMRecipient(pq)
+	case mlkem1024:
+		pq, err := mlkem.NewDecapsulationKey1024(priv)
+		if err != nil {
+			return nil, err
+		}
+		return NewMLKEMRecipient(pq)
+	case mlkem768X25519, mlkem768P256, mlkem1024P384:
+		return newHybridRecipientFromSeed(id, priv)
 	default:
 		return nil, errors.New("unsupported KEM")
 	}
@@ -125,6 +197,8 @@ func NewKEMRecipient(id uint16, priv []byte) (KEMRecipient, error) {
 // returns a KEMRecipient for the given KEM ID and private key seed.
 //
 // Currently, it only supports the KEMs based on ECDH (DHKEM).
+//
+// TODO: rename to something about deriving.
 func NewKEMRecipientFromSeed(id uint16, seed []byte) (KEMRecipient, error) {
 	// DeriveKeyPair from RFC 9180 Section 7.1.3.
 	var curve ecdh.Curve
@@ -147,6 +221,8 @@ func NewKEMRecipientFromSeed(id uint16, seed []byte) (KEMRecipient, error) {
 		curve = ecdh.X25519()
 		dh, _ = dhKEMForCurve(curve)
 		Nsk = 32
+	// Do not implement the PQ KEMs for now, as the seed input is not
+	// stable yet. See https://github.com/hpkewg/hpke-pq/issues/30.
 	default:
 		return nil, errors.New("unsupported KEM")
 	}
