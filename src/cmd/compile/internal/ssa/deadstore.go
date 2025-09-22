@@ -7,6 +7,7 @@ package ssa
 import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
+	"cmd/internal/obj"
 )
 
 // dse does dead-store elimination on the Function.
@@ -213,7 +214,7 @@ func elimDeadAutosGeneric(f *Func) {
 		case OpAddr, OpLocalAddr:
 			// Propagate the address if it points to an auto.
 			n, ok := v.Aux.(*ir.Name)
-			if !ok || n.Class != ir.PAUTO {
+			if !ok || (n.Class != ir.PAUTO && !isABIInternalParam(f, n)) {
 				return
 			}
 			if addr[v] == nil {
@@ -224,7 +225,7 @@ func elimDeadAutosGeneric(f *Func) {
 		case OpVarDef:
 			// v should be eliminated if we eliminate the auto.
 			n, ok := v.Aux.(*ir.Name)
-			if !ok || n.Class != ir.PAUTO {
+			if !ok || (n.Class != ir.PAUTO && !isABIInternalParam(f, n)) {
 				return
 			}
 			if elim[v] == nil {
@@ -240,7 +241,7 @@ func elimDeadAutosGeneric(f *Func) {
 			// may not be used by the inline code, but will be used by
 			// panic processing).
 			n, ok := v.Aux.(*ir.Name)
-			if !ok || n.Class != ir.PAUTO {
+			if !ok || (n.Class != ir.PAUTO && !isABIInternalParam(f, n)) {
 				return
 			}
 			if !used.Has(n) {
@@ -373,7 +374,7 @@ func elimUnreadAutos(f *Func) {
 			if !ok {
 				continue
 			}
-			if n.Class != ir.PAUTO {
+			if n.Class != ir.PAUTO && !isABIInternalParam(f, n) {
 				continue
 			}
 
@@ -412,4 +413,17 @@ func elimUnreadAutos(f *Func) {
 		store.AuxInt = 0
 		store.Op = OpCopy
 	}
+}
+
+// isABIInternalParam returns whether n is a parameter of an ABIInternal
+// function. For dead store elimination, we can treat parameters the same
+// way as autos. Storing to a parameter can be removed if it is not read
+// or address-taken.
+//
+// We check ABI here because for a cgo_unsafe_arg function (which is ABI0),
+// all the args are effectively address-taken, but not necessarily have
+// an Addr or LocalAddr op. We could probably just check for cgo_unsafe_arg,
+// but ABIInternal is mostly what matters.
+func isABIInternalParam(f *Func, n *ir.Name) bool {
+	return n.Class == ir.PPARAM && f.ABISelf.Which() == obj.ABIInternal
 }
