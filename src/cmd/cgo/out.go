@@ -1005,12 +1005,8 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 		}
 
 		// Build the wrapper function compiled by gcc.
-		gccExport := ""
-		if goos == "windows" {
-			gccExport = "__declspec(dllexport) "
-		}
 		var s strings.Builder
-		fmt.Fprintf(&s, "%s%s %s(", gccExport, gccResult, exp.ExpName)
+		fmt.Fprintf(&s, "%s %s(", gccResult, exp.ExpName)
 		if fn.Recv != nil {
 			s.WriteString(p.cgoType(fn.Recv.List[0].Type).C.String())
 			s.WriteString(" recv")

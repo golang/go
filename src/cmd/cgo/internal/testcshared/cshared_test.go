@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"cmd/cgo/internal/cgotest"
+	"cmp"
 	"debug/elf"
 	"debug/pe"
 	"encoding/binary"
@@ -272,7 +273,7 @@ func createHeaders() error {
 		// which results in the linkers output implib getting overwritten at each step. So instead build the
 		// import library the traditional way, using a def file.
 		err = os.WriteFile("libgo.def",
-			[]byte("LIBRARY libgo.dll\nEXPORTS\n\tDidInitRun\n\tDidMainRun\n\tDivu\n\tFromPkg\n\t_cgo_dummy_export\n"),
+			[]byte("LIBRARY libgo.dll\nEXPORTS\n\tDidInitRun\n\tDidMainRun\n\tDivu\n\tFromPkg\n"),
 			0644)
 		if err != nil {
 			return fmt.Errorf("unable to write def file: %v", err)
@@ -375,8 +376,22 @@ func TestExportedSymbols(t *testing.T) {
 	}
 }
 
-func checkNumberOfExportedFunctionsWindows(t *testing.T, prog string, exportedFunctions int, wantAll bool) {
+func checkNumberOfExportedSymbolsWindows(t *testing.T, exportedSymbols int, wantAll bool) {
+	t.Parallel()
 	tmpdir := t.TempDir()
+
+	prog := `
+package main
+import "C"
+func main() {}
+`
+
+	for i := range exportedSymbols {
+		prog += fmt.Sprintf(`
+//export GoFunc%d
+func GoFunc%d() {}
+`, i, i)
+	}
 
 	srcfile := filepath.Join(tmpdir, "test.go")
 	objfile := filepath.Join(tmpdir, "test.dll")
@@ -443,18 +458,19 @@ func checkNumberOfExportedFunctionsWindows(t *testing.T, prog string, exportedFu
 		t.Fatalf("binary.Read failed: %v", err)
 	}
 
-	// Only the two exported functions and _cgo_dummy_export should be exported.
+	exportedSymbols = cmp.Or(exportedSymbols, 1) // _cgo_stub_export is exported if there are no other symbols exported
+
 	// NumberOfNames is the number of functions exported with a unique name.
 	// NumberOfFunctions can be higher than that because it also counts
 	// functions exported only by ordinal, a unique number asigned by the linker,
 	// and linkers might add an unknown number of their own ordinal-only functions.
 	if wantAll {
-		if e.NumberOfNames <= uint32(exportedFunctions) {
-			t.Errorf("got %d exported names, want > %d", e.NumberOfNames, exportedFunctions)
+		if e.NumberOfNames <= uint32(exportedSymbols) {
+			t.Errorf("got %d exported names, want > %d", e.NumberOfNames, exportedSymbols)
 		}
 	} else {
-		if e.NumberOfNames > uint32(exportedFunctions) {
-			t.Errorf("got %d exported names, want <= %d", e.NumberOfNames, exportedFunctions)
+		if e.NumberOfNames != uint32(exportedSymbols) {
+			t.Errorf("got %d exported names, want %d", e.NumberOfNames, exportedSymbols)
 		}
 	}
 }
@@ -470,43 +486,14 @@ func TestNumberOfExportedFunctions(t *testing.T) {
 
 	t.Parallel()
 
-	const prog0 = `
-package main
-
-import "C"
-
-func main() {
-}
-`
-
-	const prog2 = `
-package main
-
-import "C"
-
-//export GoFunc
-func GoFunc() {
-	println(42)
-}
-
-//export GoFunc2
-func GoFunc2() {
-	println(24)
-}
-
-func main() {
-}
-`
-	// All programs export _cgo_dummy_export, so add 1 to the expected counts.
-	t.Run("OnlyExported/0", func(t *testing.T) {
-		checkNumberOfExportedFunctionsWindows(t, prog0, 0+1, false)
-	})
-	t.Run("OnlyExported/2", func(t *testing.T) {
-		checkNumberOfExportedFunctionsWindows(t, prog2, 2+1, false)
-	})
-	t.Run("All", func(t *testing.T) {
-		checkNumberOfExportedFunctionsWindows(t, prog2, 2+1, true)
-	})
+	for i := range 3 {
+		t.Run(fmt.Sprintf("OnlyExported/%d", i), func(t *testing.T) {
+			checkNumberOfExportedSymbolsWindows(t, i, false)
+		})
+		t.Run(fmt.Sprintf("All/%d", i), func(t *testing.T) {
+			checkNumberOfExportedSymbolsWindows(t, i, true)
+		})
+	}
 }
 
 // test1: shared library can be dynamically loaded and exported symbols are accessible.
