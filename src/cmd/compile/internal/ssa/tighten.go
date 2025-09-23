@@ -124,18 +124,21 @@ func tighten(f *Func) {
 
 		// If the target location is inside a loop,
 		// move the target location up to just before the loop head.
-		for _, b := range f.Blocks {
-			origloop := loops.b2l[b.ID]
-			for _, v := range b.Values {
-				t := target[v.ID]
-				if t == nil {
-					continue
-				}
-				targetloop := loops.b2l[t.ID]
-				for targetloop != nil && (origloop == nil || targetloop.depth > origloop.depth) {
-					t = idom[targetloop.header.ID]
-					target[v.ID] = t
-					targetloop = loops.b2l[t.ID]
+		if !loops.hasIrreducible {
+			// Loop info might not be correct for irreducible loops. See issue 75569.
+			for _, b := range f.Blocks {
+				origloop := loops.b2l[b.ID]
+				for _, v := range b.Values {
+					t := target[v.ID]
+					if t == nil {
+						continue
+					}
+					targetloop := loops.b2l[t.ID]
+					for targetloop != nil && (origloop == nil || targetloop.depth > origloop.depth) {
+						t = idom[targetloop.header.ID]
+						target[v.ID] = t
+						targetloop = loops.b2l[t.ID]
+					}
 				}
 			}
 		}
