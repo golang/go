@@ -705,6 +705,7 @@ func (t *tester) registerTests() {
 				timeout: 300 * time.Second,
 				tags:    []string{"purego"},
 				pkg:     "hash/maphash",
+				env:     []string{"GODEBUG=fips140=off"}, // FIPS 140-3 mode is incompatible with purego
 			})
 	}
 

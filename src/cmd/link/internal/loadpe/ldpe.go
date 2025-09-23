@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 )
 
@@ -348,11 +349,11 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 				return nil, fmt.Errorf("relocation number %d symbol index idx=%d cannot be large then number of symbols %d", j, r.SymbolTableIndex, len(f.COFFSymbols))
 			}
 			pesym := &f.COFFSymbols[r.SymbolTableIndex]
-			_, gosym, err := state.readpesym(pesym)
+			_, rSym, err := state.readpesym(pesym)
 			if err != nil {
 				return nil, err
 			}
-			if gosym == 0 {
+			if rSym == 0 {
 				name, err := pesym.FullName(f.StringTable)
 				if err != nil {
 					name = string(pesym.Name[:])
@@ -360,90 +361,53 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 				return nil, fmt.Errorf("reloc of invalid sym %s idx=%d type=%d", name, r.SymbolTableIndex, pesym.Type)
 			}
 
-			rSym := gosym
 			rSize := uint8(4)
 			rOff := int32(r.VirtualAddress)
-			var rAdd int64
 			var rType objabi.RelocType
 			switch arch.Family {
 			default:
 				return nil, fmt.Errorf("%s: unsupported arch %v", pn, arch.Family)
-			case sys.I386, sys.AMD64:
+			case sys.I386:
 				switch r.Type {
-				default:
-					return nil, fmt.Errorf("%s: %v: unknown relocation type %v", pn, state.sectsyms[rsect], r.Type)
-
-				case IMAGE_REL_I386_REL32, IMAGE_REL_AMD64_REL32,
-					IMAGE_REL_AMD64_ADDR32, // R_X86_64_PC32
-					IMAGE_REL_AMD64_ADDR32NB:
-					if r.Type == IMAGE_REL_AMD64_ADDR32NB {
-						rType = objabi.R_PEIMAGEOFF
-					} else {
-						rType = objabi.R_PCREL
-					}
-
-					rAdd = int64(int32(binary.LittleEndian.Uint32(state.sectdata[rsect][rOff:])))
-
-				case IMAGE_REL_I386_DIR32NB, IMAGE_REL_I386_DIR32:
-					if r.Type == IMAGE_REL_I386_DIR32NB {
-						rType = objabi.R_PEIMAGEOFF
-					} else {
-						rType = objabi.R_ADDR
-					}
-
-					// load addend from image
-					rAdd = int64(int32(binary.LittleEndian.Uint32(state.sectdata[rsect][rOff:])))
-
-				case IMAGE_REL_AMD64_ADDR64: // R_X86_64_64
-					rSize = 8
-
-					rType = objabi.R_ADDR
-
-					// load addend from image
-					rAdd = int64(binary.LittleEndian.Uint64(state.sectdata[rsect][rOff:]))
-				}
-
-			case sys.ARM:
-				switch r.Type {
-				default:
-					return nil, fmt.Errorf("%s: %v: unknown ARM relocation type %v", pn, state.sectsyms[rsect], r.Type)
-
-				case IMAGE_REL_ARM_SECREL:
+				case IMAGE_REL_I386_REL32:
 					rType = objabi.R_PCREL
-
-					rAdd = int64(int32(binary.LittleEndian.Uint32(state.sectdata[rsect][rOff:])))
-
-				case IMAGE_REL_ARM_ADDR32, IMAGE_REL_ARM_ADDR32NB:
-					if r.Type == IMAGE_REL_ARM_ADDR32NB {
-						rType = objabi.R_PEIMAGEOFF
-					} else {
-						rType = objabi.R_ADDR
-					}
-
-					rAdd = int64(int32(binary.LittleEndian.Uint32(state.sectdata[rsect][rOff:])))
-
-				case IMAGE_REL_ARM_BRANCH24:
-					rType = objabi.R_CALLARM
-
-					rAdd = int64(int32(binary.LittleEndian.Uint32(state.sectdata[rsect][rOff:])))
+				case IMAGE_REL_I386_DIR32:
+					rType = objabi.R_ADDR
+				case IMAGE_REL_I386_DIR32NB:
+					rType = objabi.R_PEIMAGEOFF
 				}
-
+			case sys.AMD64:
+				switch r.Type {
+				case IMAGE_REL_AMD64_REL32:
+					rType = objabi.R_PCREL
+				case IMAGE_REL_AMD64_ADDR32:
+					rType = objabi.R_ADDR
+				case IMAGE_REL_AMD64_ADDR64:
+					rType = objabi.R_ADDR
+					rSize = 8
+				case IMAGE_REL_AMD64_ADDR32NB:
+					rType = objabi.R_PEIMAGEOFF
+				}
 			case sys.ARM64:
 				switch r.Type {
-				default:
-					return nil, fmt.Errorf("%s: %v: unknown ARM64 relocation type %v", pn, state.sectsyms[rsect], r.Type)
-
-				case IMAGE_REL_ARM64_ADDR32, IMAGE_REL_ARM64_ADDR32NB:
-					if r.Type == IMAGE_REL_ARM64_ADDR32NB {
-						rType = objabi.R_PEIMAGEOFF
-					} else {
-						rType = objabi.R_ADDR
-					}
-
-					rAdd = int64(int32(binary.LittleEndian.Uint32(state.sectdata[rsect][rOff:])))
+				case IMAGE_REL_ARM64_ADDR32:
+					rType = objabi.R_ADDR
+				case IMAGE_REL_ARM64_ADDR32NB:
+					rType = objabi.R_PEIMAGEOFF
 				}
 			}
-
+			if rType == 0 {
+				return nil, fmt.Errorf("%s: %v: unknown relocation type %v", pn, state.sectsyms[rsect], r.Type)
+			}
+			var rAdd int64
+			switch rSize {
+			default:
+				panic("unexpected relocation size " + strconv.Itoa(int(rSize)))
+			case 4:
+				rAdd = int64(int32(binary.LittleEndian.Uint32(state.sectdata[rsect][rOff:])))
+			case 8:
+				rAdd = int64(binary.LittleEndian.Uint64(state.sectdata[rsect][rOff:]))
+			}
 			// ld -r could generate multiple section symbols for the
 			// same section but with different values, we have to take
 			// that into account, or in the case of split resources,

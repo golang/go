@@ -1064,7 +1064,7 @@ type File struct {
 	Scope              *Scope          // package scope (this file only). Deprecated: see Object
 	Imports            []*ImportSpec   // imports in this file
 	Unresolved         []*Ident        // unresolved identifiers in this file. Deprecated: see Object
-	Comments           []*CommentGroup // list of all comments in the source file
+	Comments           []*CommentGroup // comments in the file, in lexical order
 	GoVersion          string          // minimum Go version required by //go:build or // +build directives
 }
 

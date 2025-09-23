@@ -6561,20 +6561,39 @@ func rewriteValueLOONG64_OpLOONG64SLLV(v *Value) bool {
 }
 func rewriteValueLOONG64_OpLOONG64SLLVconst(v *Value) bool {
 	v_0 := v.Args[0]
-	// match: (SLLVconst [c] (ADDV x x))
+	// match: (SLLVconst <t> [c] (ADDV x x))
+	// cond: c < t.Size() * 8 - 1
 	// result: (SLLVconst [c+1] x)
 	for {
+		t := v.Type
 		c := auxIntToInt64(v.AuxInt)
 		if v_0.Op != OpLOONG64ADDV {
 			break
 		}
 		x := v_0.Args[1]
-		if x != v_0.Args[0] {
+		if x != v_0.Args[0] || !(c < t.Size()*8-1) {
 			break
 		}
 		v.reset(OpLOONG64SLLVconst)
 		v.AuxInt = int64ToAuxInt(c + 1)
 		v.AddArg(x)
+		return true
+	}
+	// match: (SLLVconst <t> [c] (ADDV x x))
+	// cond: c >= t.Size() * 8 - 1
+	// result: (MOVVconst [0])
+	for {
+		t := v.Type
+		c := auxIntToInt64(v.AuxInt)
+		if v_0.Op != OpLOONG64ADDV {
+			break
+		}
+		x := v_0.Args[1]
+		if x != v_0.Args[0] || !(c >= t.Size()*8-1) {
+			break
+		}
+		v.reset(OpLOONG64MOVVconst)
+		v.AuxInt = int64ToAuxInt(0)
 		return true
 	}
 	// match: (SLLVconst [c] (MOVVconst [d]))
@@ -6593,20 +6612,39 @@ func rewriteValueLOONG64_OpLOONG64SLLVconst(v *Value) bool {
 }
 func rewriteValueLOONG64_OpLOONG64SLLconst(v *Value) bool {
 	v_0 := v.Args[0]
-	// match: (SLLconst [c] (ADDV x x))
+	// match: (SLLconst <t> [c] (ADDV x x))
+	// cond: c < t.Size() * 8 - 1
 	// result: (SLLconst [c+1] x)
 	for {
+		t := v.Type
 		c := auxIntToInt64(v.AuxInt)
 		if v_0.Op != OpLOONG64ADDV {
 			break
 		}
 		x := v_0.Args[1]
-		if x != v_0.Args[0] {
+		if x != v_0.Args[0] || !(c < t.Size()*8-1) {
 			break
 		}
 		v.reset(OpLOONG64SLLconst)
 		v.AuxInt = int64ToAuxInt(c + 1)
 		v.AddArg(x)
+		return true
+	}
+	// match: (SLLconst <t> [c] (ADDV x x))
+	// cond: c >= t.Size() * 8 - 1
+	// result: (MOVVconst [0])
+	for {
+		t := v.Type
+		c := auxIntToInt64(v.AuxInt)
+		if v_0.Op != OpLOONG64ADDV {
+			break
+		}
+		x := v_0.Args[1]
+		if x != v_0.Args[0] || !(c >= t.Size()*8-1) {
+			break
+		}
+		v.reset(OpLOONG64MOVVconst)
+		v.AuxInt = int64ToAuxInt(0)
 		return true
 	}
 	return false

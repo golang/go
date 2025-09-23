@@ -463,6 +463,8 @@ func (c *cancelCtx) Done() <-chan struct{} {
 func (c *cancelCtx) Err() error {
 	// An atomic load is ~5x faster than a mutex, which can matter in tight loops.
 	if err := c.err.Load(); err != nil {
+		// Ensure the done channel has been closed before returning a non-nil error.
+		<-c.Done()
 		return err.(error)
 	}
 	return nil

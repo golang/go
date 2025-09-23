@@ -31,12 +31,19 @@ import (
 
 const testMessage = "Test logging, but use a somewhat realistic message length."
 
+type event struct {
+	ID    string
+	Index int
+	Flag  bool
+}
+
 var (
 	testTime     = time.Date(2022, time.May, 1, 0, 0, 0, 0, time.UTC)
 	testString   = "7e3b3b2aaeff56a7108fe11e154200dd/7819479873059528190"
 	testInt      = 32768
 	testDuration = 23 * time.Second
 	testError    = errors.New("fail")
+	testEvent    = event{"abcdefgh", 65536, true}
 )
 
 var testAttrs = []slog.Attr{

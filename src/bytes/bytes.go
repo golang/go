@@ -508,7 +508,7 @@ func Fields(s []byte) [][]byte {
 // It splits the slice s at each run of code points c satisfying f(c) and
 // returns a slice of subslices of s. If all code points in s satisfy f(c), or
 // len(s) == 0, an empty slice is returned. Every element of the returned slice is
-// non-empty. Unlike [SplitFunc], leading and trailing runs of code points
+// non-empty. Unlike [Split], leading and trailing runs of code points
 // satisfying f(c) are discarded.
 //
 // FieldsFunc makes no guarantees about the order in which it calls f(c)

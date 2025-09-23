@@ -1620,6 +1620,13 @@ func BenchmarkParseDuration(b *testing.B) {
 	}
 }
 
+func BenchmarkParseDurationError(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		ParseDuration("9223372036854775810ns") // overflow
+		ParseDuration("9007199254.740993")     // missing unit
+	}
+}
+
 func BenchmarkHour(b *testing.B) {
 	t := Now()
 	for i := 0; i < b.N; i++ {

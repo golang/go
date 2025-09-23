@@ -717,7 +717,8 @@
 (SRLVconst [rc] (MOVBUreg x)) && rc >= 8 => (MOVVconst [0])
 
 // (x + x) << c -> x << c+1
-((SLLV|SLL)const [c] (ADDV x x)) => ((SLLV|SLL)const [c+1] x)
+((SLLV|SLL)const <t> [c] (ADDV x x)) && c < t.Size() * 8 - 1  => ((SLLV|SLL)const [c+1] x)
+((SLLV|SLL)const <t> [c] (ADDV x x)) && c >= t.Size() * 8 - 1 => (MOVVconst [0])
 
 // mul by constant
 (MULV _ (MOVVconst [0])) => (MOVVconst [0])

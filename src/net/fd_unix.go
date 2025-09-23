@@ -82,6 +82,9 @@ func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) (rsa sysc
 			defer fd.pfd.SetWriteDeadline(noDeadline)
 		}
 
+		// Load the hook function synchronously to prevent a race
+		// with test code that restores the old value.
+		testHookCanceledDial := testHookCanceledDial
 		stop := context.AfterFunc(ctx, func() {
 			// Force the runtime's poller to immediately give up
 			// waiting for writability, unblocking waitWrite

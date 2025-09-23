@@ -28,6 +28,8 @@ or index-value pairs.
 Yield returns true if the iterator should continue with the next
 element in the sequence, false if it should stop.
 
+Yield panics if called after it returns false.
+
 For instance, [maps.Keys] returns an iterator that produces the sequence
 of keys of the map m, implemented as follows:
 

@@ -465,7 +465,7 @@ func appendDurationISO8601(b []byte, d time.Duration) []byte {
 }
 
 // daysPerYear is the exact average number of days in a year according to
-// the Gregorian calender, which has an extra day each year that is
+// the Gregorian calendar, which has an extra day each year that is
 // a multiple of 4, unless it is evenly divisible by 100 but not by 400.
 // This does not take into account leap seconds, which are not deterministic.
 const daysPerYear = 365.2425
