@@ -9,6 +9,36 @@ import "cmd/compile/internal/types"
 
 func rewriteValueAMD64(v *Value) bool {
 	switch v.Op {
+	case OpAESDecryptLastRoundUint8x16:
+		v.Op = OpAMD64VAESDECLAST128
+		return true
+	case OpAESDecryptLastRoundUint8x32:
+		v.Op = OpAMD64VAESDECLAST256
+		return true
+	case OpAESDecryptRoundUint8x16:
+		v.Op = OpAMD64VAESDEC128
+		return true
+	case OpAESDecryptRoundUint8x32:
+		v.Op = OpAMD64VAESDEC256
+		return true
+	case OpAESEncryptLastRoundUint8x16:
+		v.Op = OpAMD64VAESENCLAST128
+		return true
+	case OpAESEncryptLastRoundUint8x32:
+		v.Op = OpAMD64VAESENCLAST256
+		return true
+	case OpAESEncryptRoundUint8x16:
+		v.Op = OpAMD64VAESENC128
+		return true
+	case OpAESEncryptRoundUint8x32:
+		v.Op = OpAMD64VAESENC256
+		return true
+	case OpAESInvMixColumnsUint32x4:
+		v.Op = OpAMD64VAESIMC128
+		return true
+	case OpAESRoundKeyGenAssistUint32x4:
+		v.Op = OpAMD64VAESKEYGENASSIST128
+		return true
 	case OpAMD64ADCQ:
 		return rewriteValueAMD64_OpAMD64ADCQ(v)
 	case OpAMD64ADCQconst:

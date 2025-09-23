@@ -28,6 +28,7 @@ const (
 	cpuid_AVX512VBMI2     = 1 << 6
 	cpuid_SSSE3           = 1 << 9
 	cpuid_AVX512GFNI      = 1 << 8
+	cpuid_AVX512VAES      = 1 << 9
 	cpuid_AVX512VNNI      = 1 << 11
 	cpuid_AVX512BITALG    = 1 << 12
 	cpuid_FMA             = 1 << 12
@@ -182,6 +183,7 @@ func doinit() {
 		X86.HasAVX512VPOPCNTDQ = isSet(ecx7, cpuid_AVX512VPOPCNTDQ)
 		X86.HasAVX512VBMI = isSet(ecx7, cpuid_AVX512VBMI)
 		X86.HasAVX512VBMI2 = isSet(ecx7, cpuid_AVX512VBMI2)
+		X86.HasAVX512VAES = isSet(ecx7, cpuid_AVX512VAES)
 		X86.HasAVX512VNNI = isSet(ecx7, cpuid_AVX512VNNI)
 		X86.HasAVX512VPCLMULQDQ = isSet(ecx7, cpuid_AVX512VPCLMULQDQ)
 		X86.HasAVX512VBMI = isSet(ecx7, cpuid_AVX512_VBMI)

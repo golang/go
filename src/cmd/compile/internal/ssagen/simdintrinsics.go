@@ -12,6 +12,16 @@ import (
 const simdPackage = "simd"
 
 func simdIntrinsics(addF func(pkg, fn string, b intrinsicBuilder, archFamilies ...sys.ArchFamily)) {
+	addF(simdPackage, "Uint8x16.AESDecryptLastRound", opLen2(ssa.OpAESDecryptLastRoundUint8x16, types.TypeVec128), sys.AMD64)
+	addF(simdPackage, "Uint8x32.AESDecryptLastRound", opLen2(ssa.OpAESDecryptLastRoundUint8x32, types.TypeVec256), sys.AMD64)
+	addF(simdPackage, "Uint8x16.AESDecryptRound", opLen2(ssa.OpAESDecryptRoundUint8x16, types.TypeVec128), sys.AMD64)
+	addF(simdPackage, "Uint8x32.AESDecryptRound", opLen2(ssa.OpAESDecryptRoundUint8x32, types.TypeVec256), sys.AMD64)
+	addF(simdPackage, "Uint8x16.AESEncryptLastRound", opLen2(ssa.OpAESEncryptLastRoundUint8x16, types.TypeVec128), sys.AMD64)
+	addF(simdPackage, "Uint8x32.AESEncryptLastRound", opLen2(ssa.OpAESEncryptLastRoundUint8x32, types.TypeVec256), sys.AMD64)
+	addF(simdPackage, "Uint8x16.AESEncryptRound", opLen2(ssa.OpAESEncryptRoundUint8x16, types.TypeVec128), sys.AMD64)
+	addF(simdPackage, "Uint8x32.AESEncryptRound", opLen2(ssa.OpAESEncryptRoundUint8x32, types.TypeVec256), sys.AMD64)
+	addF(simdPackage, "Uint32x4.AESInvMixColumns", opLen1(ssa.OpAESInvMixColumnsUint32x4, types.TypeVec128), sys.AMD64)
+	addF(simdPackage, "Uint32x4.AESRoundKeyGenAssist", opLen1Imm8(ssa.OpAESRoundKeyGenAssistUint32x4, types.TypeVec128, 0), sys.AMD64)
 	addF(simdPackage, "Int8x16.Abs", opLen1(ssa.OpAbsInt8x16, types.TypeVec128), sys.AMD64)
 	addF(simdPackage, "Int8x32.Abs", opLen1(ssa.OpAbsInt8x32, types.TypeVec256), sys.AMD64)
 	addF(simdPackage, "Int8x64.Abs", opLen1(ssa.OpAbsInt8x64, types.TypeVec512), sys.AMD64)

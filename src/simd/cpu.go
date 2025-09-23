@@ -51,6 +51,14 @@ func HasAVX512GFNI() bool {
 	return cpu.X86.HasAVX512GFNI
 }
 
+// HasAVX512VAES returns whether the CPU supports the AVX512VAES feature.
+//
+// HasAVX512VAES is defined on all GOARCHes, but will only return true on
+// GOARCH amd64.
+func HasAVX512VAES() bool {
+	return cpu.X86.HasAVX512VAES
+}
+
 // HasAVX512VBMI returns whether the CPU supports the AVX512VBMI feature.
 //
 // HasAVX512VBMI is defined on all GOARCHes, but will only return true on

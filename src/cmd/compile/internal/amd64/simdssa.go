@@ -12,7 +12,8 @@ import (
 func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 	var p *obj.Prog
 	switch v.Op {
-	case ssa.OpAMD64VPABSB128,
+	case ssa.OpAMD64VAESIMC128,
+		ssa.OpAMD64VPABSB128,
 		ssa.OpAMD64VPABSB256,
 		ssa.OpAMD64VPABSB512,
 		ssa.OpAMD64VPABSW128,
@@ -148,7 +149,15 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssa.OpAMD64VSQRTPD512:
 		p = simdV11(s, v)
 
-	case ssa.OpAMD64VADDPS128,
+	case ssa.OpAMD64VAESDECLAST128,
+		ssa.OpAMD64VAESDECLAST256,
+		ssa.OpAMD64VAESDEC128,
+		ssa.OpAMD64VAESDEC256,
+		ssa.OpAMD64VAESENCLAST128,
+		ssa.OpAMD64VAESENCLAST256,
+		ssa.OpAMD64VAESENC128,
+		ssa.OpAMD64VAESENC256,
+		ssa.OpAMD64VADDPS128,
 		ssa.OpAMD64VADDPS256,
 		ssa.OpAMD64VADDPS512,
 		ssa.OpAMD64VADDPD128,
@@ -917,7 +926,8 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssa.OpAMD64VPBLENDVB256:
 		p = simdV31(s, v)
 
-	case ssa.OpAMD64VROUNDPS128,
+	case ssa.OpAMD64VAESKEYGENASSIST128,
+		ssa.OpAMD64VROUNDPS128,
 		ssa.OpAMD64VROUNDPS256,
 		ssa.OpAMD64VROUNDPD128,
 		ssa.OpAMD64VROUNDPD256,

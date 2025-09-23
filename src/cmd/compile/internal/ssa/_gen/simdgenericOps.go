@@ -4,6 +4,15 @@ package main
 
 func simdGenericOps() []opData {
 	return []opData{
+		{name: "AESDecryptLastRoundUint8x16", argLength: 2, commutative: false},
+		{name: "AESDecryptLastRoundUint8x32", argLength: 2, commutative: false},
+		{name: "AESDecryptRoundUint8x16", argLength: 2, commutative: false},
+		{name: "AESDecryptRoundUint8x32", argLength: 2, commutative: false},
+		{name: "AESEncryptLastRoundUint8x16", argLength: 2, commutative: false},
+		{name: "AESEncryptLastRoundUint8x32", argLength: 2, commutative: false},
+		{name: "AESEncryptRoundUint8x16", argLength: 2, commutative: false},
+		{name: "AESEncryptRoundUint8x32", argLength: 2, commutative: false},
+		{name: "AESInvMixColumnsUint32x4", argLength: 1, commutative: false},
 		{name: "AbsInt8x16", argLength: 1, commutative: false},
 		{name: "AbsInt8x32", argLength: 1, commutative: false},
 		{name: "AbsInt8x64", argLength: 1, commutative: false},
@@ -1101,6 +1110,7 @@ func simdGenericOps() []opData {
 		{name: "moveMaskedUint16x32", argLength: 2, commutative: false},
 		{name: "moveMaskedUint32x16", argLength: 2, commutative: false},
 		{name: "moveMaskedUint64x8", argLength: 2, commutative: false},
+		{name: "AESRoundKeyGenAssistUint32x4", argLength: 1, commutative: false, aux: "UInt8"},
 		{name: "CeilScaledFloat32x4", argLength: 1, commutative: false, aux: "UInt8"},
 		{name: "CeilScaledFloat32x8", argLength: 1, commutative: false, aux: "UInt8"},
 		{name: "CeilScaledFloat32x16", argLength: 1, commutative: false, aux: "UInt8"},

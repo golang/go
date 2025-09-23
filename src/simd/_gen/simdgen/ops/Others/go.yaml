@@ -6,3 +6,50 @@
     go: $t
   out:
   - *any
+- go: AESEncryptRound
+  asm: VAESENC
+  in:
+  - &uint8s
+    base: uint
+    overwriteElementBits: 8
+  - &uint32s
+    base: uint
+    overwriteElementBits: 32
+  out:
+  - *uint8s
+- go: AESEncryptLastRound
+  asm: VAESENCLAST
+  in:
+  - *uint8s
+  - *uint32s
+  out:
+  - *uint8s
+- go: AESRoundKeyGenAssist
+  asm: VAESKEYGENASSIST
+  in:
+  - *uint32s
+  - class: immediate
+    immOffset: 0
+    name: rconVal
+  out:
+  - *uint32s
+- go: AESDecryptRound
+  asm: VAESDEC
+  in:
+  - *uint8s
+  - *uint32s
+  out:
+  - *uint8s
+- go: AESDecryptLastRound
+  asm: VAESDECLAST
+  in:
+  - *uint8s
+  - *uint32s
+  out:
+  - *uint8s
+- go: AESInvMixColumns
+  asm: VAESIMC
+  in:
+  - *uint32s
+  out:
+  - *uint32s

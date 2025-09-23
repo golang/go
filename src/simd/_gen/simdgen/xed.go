@@ -770,6 +770,7 @@ var cpuFeatureMap = map[cpuFeatureKey]string{
 	{"AVX", ""}:              "AVX",
 	{"AVX_VNNI", "AVX_VNNI"}: "AVXVNNI",
 	{"AVX2", ""}:             "AVX2",
+	{"AVXAES", ""}:           "AVX, AES",
 
 	// AVX-512 foundational features. We combine all of these into one "AVX512" feature.
 	{"AVX512EVEX", "AVX512F"}:  "AVX512",
@@ -786,6 +787,7 @@ var cpuFeatureMap = map[cpuFeatureKey]string{
 	{"AVX512EVEX", "AVX512_VBMI"}:      "AVX512VBMI",
 	{"AVX512EVEX", "AVX512_VNNI"}:      "AVX512VNNI",
 	{"AVX512EVEX", "AVX512_VPOPCNTDQ"}: "AVX512VPOPCNTDQ",
+	{"AVX512EVEX", "AVX512_VAES"}:      "AVX512VAES",
 
 	// AVX 10.2 (not yet supported)
 	{"AVX512EVEX", "AVX10_2_RC"}: "ignore",

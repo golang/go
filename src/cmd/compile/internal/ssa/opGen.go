@@ -1253,6 +1253,15 @@ const (
 	OpAMD64VADDSUBPD256
 	OpAMD64VADDSUBPS128
 	OpAMD64VADDSUBPS256
+	OpAMD64VAESDEC128
+	OpAMD64VAESDEC256
+	OpAMD64VAESDECLAST128
+	OpAMD64VAESDECLAST256
+	OpAMD64VAESENC128
+	OpAMD64VAESENC256
+	OpAMD64VAESENCLAST128
+	OpAMD64VAESENCLAST256
+	OpAMD64VAESIMC128
 	OpAMD64VBROADCASTSD256
 	OpAMD64VBROADCASTSD512
 	OpAMD64VBROADCASTSDMasked256
@@ -2316,6 +2325,7 @@ const (
 	OpAMD64VSUBPSMasked128
 	OpAMD64VSUBPSMasked256
 	OpAMD64VSUBPSMasked512
+	OpAMD64VAESKEYGENASSIST128
 	OpAMD64VROUNDPS128
 	OpAMD64VROUNDPS256
 	OpAMD64VROUNDPD128
@@ -5401,6 +5411,15 @@ const (
 	OpCvtMask64x4to8
 	OpCvtMask64x8to8
 	OpIsZeroVec
+	OpAESDecryptLastRoundUint8x16
+	OpAESDecryptLastRoundUint8x32
+	OpAESDecryptRoundUint8x16
+	OpAESDecryptRoundUint8x32
+	OpAESEncryptLastRoundUint8x16
+	OpAESEncryptLastRoundUint8x32
+	OpAESEncryptRoundUint8x16
+	OpAESEncryptRoundUint8x32
+	OpAESInvMixColumnsUint32x4
 	OpAbsInt8x16
 	OpAbsInt8x32
 	OpAbsInt8x64
@@ -6498,6 +6517,7 @@ const (
 	OpmoveMaskedUint16x32
 	OpmoveMaskedUint32x16
 	OpmoveMaskedUint64x8
+	OpAESRoundKeyGenAssistUint32x4
 	OpCeilScaledFloat32x4
 	OpCeilScaledFloat32x8
 	OpCeilScaledFloat32x16
@@ -20082,6 +20102,131 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VAESDEC128",
+		argLen: 2,
+		asm:    x86.AVAESDEC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VAESDEC256",
+		argLen: 2,
+		asm:    x86.AVAESDEC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VAESDECLAST128",
+		argLen: 2,
+		asm:    x86.AVAESDECLAST,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VAESDECLAST256",
+		argLen: 2,
+		asm:    x86.AVAESDECLAST,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VAESENC128",
+		argLen: 2,
+		asm:    x86.AVAESENC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VAESENC256",
+		argLen: 2,
+		asm:    x86.AVAESENC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VAESENCLAST128",
+		argLen: 2,
+		asm:    x86.AVAESENCLAST,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VAESENCLAST256",
+		argLen: 2,
+		asm:    x86.AVAESENCLAST,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VAESIMC128",
+		argLen: 1,
+		asm:    x86.AVAESIMC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -35711,6 +35856,20 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:    "VAESKEYGENASSIST128",
+		auxType: auxUInt8,
+		argLen:  1,
+		asm:     x86.AVAESKEYGENASSIST,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -76062,6 +76221,51 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "AESDecryptLastRoundUint8x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "AESDecryptLastRoundUint8x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "AESDecryptRoundUint8x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "AESDecryptRoundUint8x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "AESEncryptLastRoundUint8x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "AESEncryptLastRoundUint8x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "AESEncryptRoundUint8x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "AESEncryptRoundUint8x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "AESInvMixColumnsUint32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
 		name:    "AbsInt8x16",
 		argLen:  1,
 		generic: true,
@@ -81808,6 +82012,12 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "moveMaskedUint64x8",
 		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "AESRoundKeyGenAssistUint32x4",
+		auxType: auxUInt8,
+		argLen:  1,
 		generic: true,
 	},
 	{

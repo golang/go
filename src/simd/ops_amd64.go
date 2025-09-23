@@ -4,6 +4,102 @@
 
 package simd
 
+/* AESDecryptLastRound */
+
+// AESDecryptLastRound performs a series of operations in AES cipher algorithm defined in FIPS 197.
+// x is the state array, starting from low index to high are s00, s10, s20, s30, s01, ..., s33.
+// y is the chunk of dw array in use.
+// result = AddRoundKey(InvShiftRows(InvSubBytes(x)), y)
+//
+// Asm: VAESDECLAST, CPU Feature: AVX, AES
+func (x Uint8x16) AESDecryptLastRound(y Uint32x4) Uint8x16
+
+// AESDecryptLastRound performs a series of operations in AES cipher algorithm defined in FIPS 197.
+// x is the state array, starting from low index to high are s00, s10, s20, s30, s01, ..., s33.
+// y is the chunk of dw array in use.
+// result = AddRoundKey(InvShiftRows(InvSubBytes(x)), y)
+//
+// Asm: VAESDECLAST, CPU Feature: AVX512VAES
+func (x Uint8x32) AESDecryptLastRound(y Uint32x8) Uint8x32
+
+/* AESDecryptRound */
+
+// AESDecryptRound performs a series of operations in AES cipher algorithm defined in FIPS 197.
+// x is the state array, starting from low index to high are s00, s10, s20, s30, s01, ..., s33.
+// y is the chunk of dw array in use.
+// result = AddRoundKey(InvMixColumns(InvShiftRows(InvSubBytes(x))), y)
+//
+// Asm: VAESDEC, CPU Feature: AVX, AES
+func (x Uint8x16) AESDecryptRound(y Uint32x4) Uint8x16
+
+// AESDecryptRound performs a series of operations in AES cipher algorithm defined in FIPS 197.
+// x is the state array, starting from low index to high are s00, s10, s20, s30, s01, ..., s33.
+// y is the chunk of dw array in use.
+// result = AddRoundKey(InvMixColumns(InvShiftRows(InvSubBytes(x))), y)
+//
+// Asm: VAESDEC, CPU Feature: AVX512VAES
+func (x Uint8x32) AESDecryptRound(y Uint32x8) Uint8x32
+
+/* AESEncryptLastRound */
+
+// AESEncryptLastRound performs a series of operations in AES cipher algorithm defined in FIPS 197.
+// x is the state array, starting from low index to high are s00, s10, s20, s30, s01, ..., s33.
+// y is the chunk of w array in use.
+// result = AddRoundKey((ShiftRows(SubBytes(x))), y)
+//
+// Asm: VAESENCLAST, CPU Feature: AVX, AES
+func (x Uint8x16) AESEncryptLastRound(y Uint32x4) Uint8x16
+
+// AESEncryptLastRound performs a series of operations in AES cipher algorithm defined in FIPS 197.
+// x is the state array, starting from low index to high are s00, s10, s20, s30, s01, ..., s33.
+// y is the chunk of w array in use.
+// result = AddRoundKey((ShiftRows(SubBytes(x))), y)
+//
+// Asm: VAESENCLAST, CPU Feature: AVX512VAES
+func (x Uint8x32) AESEncryptLastRound(y Uint32x8) Uint8x32
+
+/* AESEncryptRound */
+
+// AESEncryptRound performs a series of operations in AES cipher algorithm defined in FIPS 197.
+// x is the state array, starting from low index to high are s00, s10, s20, s30, s01, ..., s33.
+// y is the chunk of w array in use.
+// result = AddRoundKey(MixColumns(ShiftRows(SubBytes(x))), y)
+//
+// Asm: VAESENC, CPU Feature: AVX, AES
+func (x Uint8x16) AESEncryptRound(y Uint32x4) Uint8x16
+
+// AESEncryptRound performs a series of operations in AES cipher algorithm defined in FIPS 197.
+// x is the state array, starting from low index to high are s00, s10, s20, s30, s01, ..., s33.
+// y is the chunk of w array in use.
+// result = AddRoundKey(MixColumns(ShiftRows(SubBytes(x))), y)
+//
+// Asm: VAESENC, CPU Feature: AVX512VAES
+func (x Uint8x32) AESEncryptRound(y Uint32x8) Uint8x32
+
+/* AESInvMixColumns */
+
+// AESInvMixColumns performs the InvMixColumns operation in AES cipher algorithm defined in FIPS 197.
+// x is the chunk of w array in use.
+// result = InvMixColumns(x)
+//
+// Asm: VAESIMC, CPU Feature: AVX, AES
+func (x Uint32x4) AESInvMixColumns() Uint32x4
+
+/* AESRoundKeyGenAssist */
+
+// AESRoundKeyGenAssist performs some components of KeyExpansion in AES cipher algorithm defined in FIPS 197.
+// x is an array of AES words, but only x[0] and x[2] are used.
+// r is a value from the Rcon constant array.
+// result[0] = XOR(SubWord(RotWord(x[0])), r)
+// result[1] = SubWord(x[1])
+// result[2] = XOR(SubWord(RotWord(x[2])), r)
+// result[3] = SubWord(x[3])
+//
+// rconVal results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VAESKEYGENASSIST, CPU Feature: AVX, AES
+func (x Uint32x4) AESRoundKeyGenAssist(rconVal uint8) Uint32x4
+
 /* Abs */
 
 // Abs computes the absolute value of each element.

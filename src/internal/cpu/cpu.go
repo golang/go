@@ -34,6 +34,7 @@ var X86 struct {
 	HasAVX512DQ         bool
 	HasAVX512VL         bool
 	HasAVX512GFNI       bool
+	HasAVX512VAES       bool
 	HasAVX512VNNI       bool
 	HasAVX512VBMI       bool
 	HasAVX512VBMI2      bool

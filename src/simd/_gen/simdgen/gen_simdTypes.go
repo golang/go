@@ -563,7 +563,10 @@ func writeSIMDFeatures(ops []Operation) *bytes.Buffer {
 	}
 	featureSet := make(map[featureKey]struct{})
 	for _, op := range ops {
-		featureSet[featureKey{op.GoArch, op.CPUFeature}] = struct{}{}
+		if !strings.Contains(op.CPUFeature, ",") {
+			featureSet[featureKey{op.GoArch, op.CPUFeature}] = struct{}{}
+		}
+		// Don't generate feature checks for composite features.
 	}
 	features := slices.SortedFunc(maps.Keys(featureSet), func(a, b featureKey) int {
 		if c := cmp.Compare(a.GoArch, b.GoArch); c != 0 {
