@@ -7,47 +7,67 @@
 package codegen
 
 //go:noinline
-func testIfxZero(a, b int) int {
-	r := b
+func testNoZicondUnderRva20u64(a, b int) int {
+	result := b
 	if a == 0 {
-		r = a
+		result = a
 	}
-	// riscv64/rva23u64:`CZEROEQZ`, -`CZERONEZ`
-	return r
+	// riscv64/rva20u64:-`CZEROEQZ`, -`CZERONEZ`
+	return result
 }
 
 //go:noinline
-func testZicond(a, b int) int {
-	var c int
+func testNoZicondUnderRva22u64(a, b int) int {
+	result := b
+	if a == 0 {
+		result = a
+	}
+	// riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	return result
+}
+
+//go:noinline
+func testGenZicondUnderRva23u64(a, b int) int {
+	result := b
+	if a == 0 {
+		result = a
+	}
+	// riscv64/rva23u64:`CZEROEQZ`, -`CZERONEZ`
+	return result
+}
+
+//go:noinline
+func testGenZicond(a, b int) int {
+	var result int
 	if a > b {
-		c = a
+		result = a
 	} else {
-		c = b
+		result = b
 	}
 	// riscv64/rva23u64:`CZERONEZ`,`CZEROEQZ`
-	return c
+	return result
 }
 
 //go:noinline
 func selectIfZero(cond, a, b int) int {
-	r := a
+	result := a
 	if cond == 0 {
-		r = b
+		result = b
 	}
 	// riscv64/rva23u64:`CZERONEZ`,`CZEROEQZ`, `OR`
 	// riscv64/rva23u64:-`SEQZ`
-	return r
+	return result
 }
 
 //go:noinline
 func testSelectIfNotZero(cond, a, b int) int {
-	r := a
+	result := a
 	if cond != 0 {
-		r = b
+		result = b
 	}
 	// riscv64/rva23u64:`CZERONEZ`,`CZEROEQZ`, `OR`
 	// riscv64/rva23u64:-`SNEZ`
-	return r
+	return result
 }
 
 //go:noinline
@@ -60,7 +80,7 @@ func testCondAddZero(cond, a, b int) int {
 	// riscv64/rva23u64:-`SEQZ`, -`CZEROEQZ`, -`OR`
 	return result
 }
-   
+
 //go:noinline
 func testCondAddNonZero(cond, a, b int) int {
 	var result int
@@ -102,11 +122,11 @@ func testCondSubNonZero(cond, a, b int) int {
 
 //go:noinline
 func testCondOrZero(cond, a, b int) int {
-	var result int	
-	if cond == 0 {	
+	var result int
+	if cond == 0 {
 		result = a | b
-	} else {	
-		result = a	
+	} else {
+		result = a
 	}
 	// riscv64/rva23u64:`CZERONEZ`, `OR`
 	// riscv64/rva23u64:-`SEQZ`, -`CZEROEQZ`
@@ -115,16 +135,16 @@ func testCondOrZero(cond, a, b int) int {
 
 //go:noinline
 func testCondOrNonZero(cond, a, b int) int {
-	var result int	
-	if cond != 0 {	
+	var result int
+	if cond != 0 {
 		result = a | b
-	} else {	
-		result = a	
+	} else {
+		result = a
 	}
 	// riscv64/rva23u64:`CZEROEQZ`, `OR`
 	// riscv64/rva23u64:-`SNEZ`, -`CZERONEZ`
 	return result
-}	
+}
 
 //go:noinline
 func testCondXorZero(cond, a, b int) int {
@@ -138,7 +158,7 @@ func testCondXorZero(cond, a, b int) int {
 	// riscv64/rva23u64:-`SEQZ`, -`CZEROEQZ`, -`OR`
 	return result
 }
-   
+
 //go:noinline
 func testCondXorNonZero(cond, a, b int) int {
 	var result int
@@ -164,7 +184,7 @@ func testCondAndZero(cond, a, b int) int {
 	// riscv64/rva23u64:-`SEQZ`, -`CZERONEZ`
 	return result
 }
-	
+
 //go:noinline
 func testCondAndNonZero(cond, a, b int) int {
 	var result int
@@ -177,4 +197,3 @@ func testCondAndNonZero(cond, a, b int) int {
 	// riscv64/rva23u64:-`SNEZ`, -`CZEROEQZ`
 	return result
 }
-   
