@@ -249,7 +249,13 @@ func init() {
 }
 
 const (
-	BIG = 2046
+	BIG_8  = 128 - 2 // FIXME (not sure if -2 is appropriate)
+	BIG_9  = 256 - 2
+	BIG_10 = 512 - 2
+	BIG_11 = 1024 - 2
+	BIG_12 = 2046
+	BIG_16 = 32768 - 2
+	BIG_32 = 2147483648 - 2
 )
 
 const (
@@ -397,10 +403,16 @@ const (
 	C_BRAN
 	C_SAUTO
 	C_LAUTO
-	C_ZOREG
-	C_SOREG
-	C_LOREG
-	C_ROFF // register offset
+	C_ZOREG    // An $0+reg memory op
+	C_SOREG_8  // An $n+reg memory arg where n is a 8 bit signed offset
+	C_SOREG_9  // An $n+reg memory arg where n is a 9 bit signed offset
+	C_SOREG_10 // An $n+reg memory arg where n is a 10 bit signed offset
+	C_SOREG_11 // An $n+reg memory arg where n is a 11 bit signed offset
+	C_SOREG_12 // An $n+reg memory arg where n is a 12 bit signed offset
+	C_SOREG_16 // An $n+reg memory arg where n is a 16 bit signed offset
+	C_LOREG_32 // An $n+reg memory arg where n is a 32 bit signed offset
+	C_LOREG_64 // An $n+reg memory arg where n is a 64 bit signed offset
+	C_ROFF     // register offset
 	C_ADDR
 	C_TLS_LE
 	C_TLS_IE
