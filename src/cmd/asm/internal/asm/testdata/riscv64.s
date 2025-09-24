@@ -216,6 +216,9 @@ start:
 	CZEROEQZ	X5, X7				// b3d3530e
 	CZERONEZ	X5, X6, X7			// b373530e
 	CZERONEZ	X5, X7				// b3f3530e
+	
+	// 10.1: Zihintpause Extension for Pause Hint
+	PAUSE						// 0f000001
 
 	// 13.1: Multiplication Operations
 	MUL	X5, X6, X7				// b3035302

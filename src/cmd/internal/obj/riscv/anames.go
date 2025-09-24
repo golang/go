@@ -984,6 +984,7 @@ var Anames = []string{
 	"NEG",
 	"NEGW",
 	"NOT",
+	"PAUSE",
 	"RDCYCLE",
 	"RDINSTRET",
 	"RDTIME",
