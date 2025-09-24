@@ -364,25 +364,41 @@ func escape(s string, mode encoding) string {
 // A consequence is that it is impossible to tell which slashes in the Path were
 // slashes in the raw URL and which were %2f. This distinction is rarely important,
 // but when it is, the code should use the [URL.EscapedPath] method, which preserves
-// the original encoding of Path.
+// the original encoding of Path. The Fragment field is also stored in decoded form,
+// use [URL.EscapedFragment] to retrieve the original encoding.
 //
-// The RawPath field is an optional field which is only set when the default
-// encoding of Path is different from the escaped path. See the EscapedPath method
-// for more details.
-//
-// URL's String method uses the EscapedPath method to obtain the path.
+// The [URL.String] method uses the [URL.EscapedPath] method to obtain the path.
 type URL struct {
-	Scheme      string
-	Opaque      string    // encoded opaque data
-	User        *Userinfo // username and password information
-	Host        string    // host or host:port (see Hostname and Port methods)
-	Path        string    // path (relative paths may omit leading slash)
-	RawPath     string    // encoded path hint (see EscapedPath method)
-	OmitHost    bool      // do not emit empty host (authority)
-	ForceQuery  bool      // append a query ('?') even if RawQuery is empty
-	RawQuery    string    // encoded query values, without '?'
-	Fragment    string    // fragment for references, without '#'
-	RawFragment string    // encoded fragment hint (see EscapedFragment method)
+	Scheme   string
+	Opaque   string    // encoded opaque data
+	User     *Userinfo // username and password information
+	Host     string    // "host" or "host:port" (see Hostname and Port methods)
+	Path     string    // path (relative paths may omit leading slash)
+	Fragment string    // fragment for references (without '#')
+
+	// RawQuery contains the encoded query values, without the initial '?'.
+	// Use URL.Query to decode the query.
+	RawQuery string
+
+	// RawPath is an optional field containing an encoded path hint.
+	// See the EscapedPath method for more details.
+	//
+	// In general, code should call EscapedPath instead of reading RawPath.
+	RawPath string
+
+	// RawFragment is an optional field containing an encoded fragment hint.
+	// See the EscapedFragment method for more details.
+	//
+	// In general, code should call EscapedFragment instead of reading RawFragment.
+	RawFragment string
+
+	// ForceQuery indicates whether the original URL contained a query ('?') character.
+	// When set, the String method will include a trailing '?', even when RawQuery is empty.
+	ForceQuery bool
+
+	// OmitHost indicates the URL has an empty host (authority).
+	// When set, the String method will not include the host when it is empty.
+	OmitHost bool
 }
 
 // User returns a [Userinfo] containing the provided username
