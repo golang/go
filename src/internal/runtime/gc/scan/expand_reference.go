@@ -16,7 +16,7 @@ func ExpandReference(sizeClass int, packed *gc.ObjMask, unpacked *gc.PtrMask) {
 	// Look up the size and derive the number of objects in a span.
 	// We're only concerned with small objects in single-page spans,
 	// and gc.PtrMask enforces this by being statically sized to
-	// accomodate only such spans.
+	// accommodate only such spans.
 	size := uintptr(gc.SizeClassToSize[sizeClass])
 	nObj := uintptr(gc.SizeClassToNPages[sizeClass]) * gc.PageSize / size
 
