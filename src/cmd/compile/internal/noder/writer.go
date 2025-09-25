@@ -2035,10 +2035,16 @@ func (w *writer) expr(expr syntax.Expr) {
 			case "new":
 				assert(len(expr.ArgList) == 1)
 				assert(!expr.HasDots)
+				arg := expr.ArgList[0]
 
 				w.Code(exprNew)
 				w.pos(expr)
-				w.exprType(nil, expr.ArgList[0])
+				tv := w.p.typeAndValue(arg)
+				if w.Bool(!tv.IsType()) {
+					w.expr(arg) // new(expr), go1.26
+				} else {
+					w.exprType(nil, arg) // new(T)
+				}
 				return
 
 			case "Sizeof":

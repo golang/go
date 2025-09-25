@@ -232,7 +232,7 @@ func (x *Uintptr) Add(delta uintptr) (new uintptr) { return AddUintptr(&x.v, del
 func (x *Uintptr) And(mask uintptr) (old uintptr) { return AndUintptr(&x.v, mask) }
 
 // Or atomically performs a bitwise OR operation on x using the bitmask
-// provided as mask and returns the updated value after the OR operation.
+// provided as mask and returns the old value.
 func (x *Uintptr) Or(mask uintptr) (old uintptr) { return OrUintptr(&x.v, mask) }
 
 // noCopy may be added to structs which must not be copied

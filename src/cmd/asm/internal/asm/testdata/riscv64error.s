@@ -73,6 +73,7 @@ TEXT errors(SB),$0
 	//
 	VSETIVLI	X10, E32, M2, TA, MA, X12	// ERROR "expected immediate value"
 	VLE8V		(X10), V1, V3			// ERROR "invalid vector mask register"
+	VLE8FFV		(X10), V1, V3			// ERROR "invalid vector mask register"
 	VSE8V		V3, V1, (X10)			// ERROR "invalid vector mask register"
 	VLSE8V		(X10), X10, V1, V3		// ERROR "invalid vector mask register"
 	VSSE8V		V3, X11, V1, (X10)		// ERROR "invalid vector mask register"

@@ -31,19 +31,14 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"go/format"
 	"io"
-	"log"
 	"math"
 	"math/bits"
-	"os"
 )
 
 // Generate internal/runtime/gc/msize.go
 
-var stdout = flag.Bool("stdout", false, "write to stdout instead of sizeclasses.go")
-
-func main() {
+func generateSizeClasses(classes []class) []byte {
 	flag.Parse()
 
 	var b bytes.Buffer
@@ -51,38 +46,13 @@ func main() {
 	fmt.Fprintln(&b, "//go:generate go -C ../../../runtime/_mkmalloc run mksizeclasses.go")
 	fmt.Fprintln(&b)
 	fmt.Fprintln(&b, "package gc")
-	classes := makeClasses()
 
 	printComment(&b, classes)
 
 	printClasses(&b, classes)
 
-	out, err := format.Source(b.Bytes())
-	if err != nil {
-		log.Fatal(err)
-	}
-	if *stdout {
-		_, err = os.Stdout.Write(out)
-	} else {
-		err = os.WriteFile("../../internal/runtime/gc/sizeclasses.go", out, 0666)
-	}
-	if err != nil {
-		log.Fatal(err)
-	}
+	return b.Bytes()
 }
-
-const (
-	// Constants that we use and will transfer to the runtime.
-	minHeapAlign = 8
-	maxSmallSize = 32 << 10
-	smallSizeDiv = 8
-	smallSizeMax = 1024
-	largeSizeDiv = 128
-	pageShift    = 13
-
-	// Derived constants.
-	pageSize = 1 << pageShift
-)
 
 type class struct {
 	size   int // max size
@@ -294,6 +264,15 @@ func maxNPages(classes []class) int {
 }
 
 func printClasses(w io.Writer, classes []class) {
+	sizeToSizeClass := func(size int) int {
+		for j, c := range classes {
+			if c.size >= size {
+				return j
+			}
+		}
+		panic("unreachable")
+	}
+
 	fmt.Fprintln(w, "const (")
 	fmt.Fprintf(w, "MinHeapAlign = %d\n", minHeapAlign)
 	fmt.Fprintf(w, "MaxSmallSize = %d\n", maxSmallSize)
@@ -304,6 +283,8 @@ func printClasses(w io.Writer, classes []class) {
 	fmt.Fprintf(w, "PageShift = %d\n", pageShift)
 	fmt.Fprintf(w, "MaxObjsPerSpan = %d\n", maxObjsPerSpan(classes))
 	fmt.Fprintf(w, "MaxSizeClassNPages = %d\n", maxNPages(classes))
+	fmt.Fprintf(w, "TinySize = %d\n", tinySize)
+	fmt.Fprintf(w, "TinySizeClass = %d\n", sizeToSizeClass(tinySize))
 	fmt.Fprintln(w, ")")
 
 	fmt.Fprint(w, "var SizeClassToSize = [NumSizeClasses]uint16 {")
@@ -332,12 +313,7 @@ func printClasses(w io.Writer, classes []class) {
 	sc := make([]int, smallSizeMax/smallSizeDiv+1)
 	for i := range sc {
 		size := i * smallSizeDiv
-		for j, c := range classes {
-			if c.size >= size {
-				sc[i] = j
-				break
-			}
-		}
+		sc[i] = sizeToSizeClass(size)
 	}
 	fmt.Fprint(w, "var SizeToSizeClass8 = [SmallSizeMax/SmallSizeDiv+1]uint8 {")
 	for _, v := range sc {
@@ -349,12 +325,7 @@ func printClasses(w io.Writer, classes []class) {
 	sc = make([]int, (maxSmallSize-smallSizeMax)/largeSizeDiv+1)
 	for i := range sc {
 		size := smallSizeMax + i*largeSizeDiv
-		for j, c := range classes {
-			if c.size >= size {
-				sc[i] = j
-				break
-			}
-		}
+		sc[i] = sizeToSizeClass(size)
 	}
 	fmt.Fprint(w, "var SizeToSizeClass128 = [(MaxSmallSize-SmallSizeMax)/LargeSizeDiv+1]uint8 {")
 	for _, v := range sc {

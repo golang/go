@@ -362,6 +362,7 @@ func TestStdKen(t *testing.T) {
 var excluded = map[string]bool{
 	"builtin":                       true,
 	"cmd/compile/internal/ssa/_gen": true,
+	"runtime/_mkmalloc":             true,
 	"simd/_gen/simdgen":             true,
 	"simd/_gen/unify":               true,
 }

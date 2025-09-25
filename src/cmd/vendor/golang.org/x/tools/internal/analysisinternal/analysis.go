@@ -193,18 +193,23 @@ func CheckReadable(pass *analysis.Pass, filename string) error {
 	return fmt.Errorf("Pass.ReadFile: %s is not among OtherFiles, IgnoredFiles, or names of Files", filename)
 }
 
-// AddImport checks whether this file already imports pkgpath and
-// that import is in scope at pos. If so, it returns the name under
-// which it was imported and a zero edit. Otherwise, it adds a new
-// import of pkgpath, using a name derived from the preferred name,
-// and returns the chosen name, a prefix to be concatenated with member
-// to form a qualified name, and the edit for the new import.
+// AddImport checks whether this file already imports pkgpath and that
+// the import is in scope at pos. If so, it returns the name under
+// which it was imported and no edits. Otherwise, it adds a new import
+// of pkgpath, using a name derived from the preferred name, and
+// returns the chosen name, a prefix to be concatenated with member to
+// form a qualified name, and the edit for the new import.
 //
-// In the special case that pkgpath is dot-imported then member, the
-// identifier for which the import is being added, is consulted. If
-// member is not shadowed at pos, AddImport returns (".", "", nil).
-// (AddImport accepts the caller's implicit claim that the imported
-// package declares member.)
+// The member argument indicates the name of the desired symbol within
+// the imported package. This is needed in the case when the existing
+// import is a dot import, because then it is possible that the
+// desired symbol is shadowed by other declarations in the current
+// package. If member is not shadowed at pos, AddImport returns (".",
+// "", nil). (AddImport accepts the caller's implicit claim that the
+// imported package declares member.)
+//
+// Use a preferredName of "_" to request a blank import;
+// member is ignored in this case.
 //
 // It does not mutate its arguments.
 func AddImport(info *types.Info, file *ast.File, preferredName, pkgpath, member string, pos token.Pos) (name, prefix string, newImport []analysis.TextEdit) {
@@ -220,6 +225,10 @@ func AddImport(info *types.Info, file *ast.File, preferredName, pkgpath, member 
 		pkgname := info.PkgNameOf(spec)
 		if pkgname != nil && pkgname.Imported().Path() == pkgpath {
 			name = pkgname.Name()
+			if preferredName == "_" {
+				// Request for blank import; any existing import will do.
+				return name, "", nil
+			}
 			if name == "." {
 				// The scope of ident must be the file scope.
 				if s, _ := scope.LookupParent(member, pos); s == info.Scopes[file] {
@@ -232,8 +241,12 @@ func AddImport(info *types.Info, file *ast.File, preferredName, pkgpath, member 
 	}
 
 	// We must add a new import.
+
 	// Ensure we have a fresh name.
-	newName := FreshName(scope, pos, preferredName)
+	newName := preferredName
+	if preferredName != "_" {
+		newName = FreshName(scope, pos, preferredName)
+	}
 
 	// Create a new import declaration either before the first existing
 	// declaration (which must exist), including its comments; or
@@ -246,6 +259,7 @@ func AddImport(info *types.Info, file *ast.File, preferredName, pkgpath, member 
 	if newName != preferredName || newName != pathpkg.Base(pkgpath) {
 		newText = fmt.Sprintf("%s %q", newName, pkgpath)
 	}
+
 	decl0 := file.Decls[0]
 	var before ast.Node = decl0
 	switch decl0 := decl0.(type) {

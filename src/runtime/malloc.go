@@ -127,8 +127,8 @@ const (
 	_64bit = 1 << (^uintptr(0) >> 63) / 2
 
 	// Tiny allocator parameters, see "Tiny allocator" comment in malloc.go.
-	_TinySize      = 16
-	_TinySizeClass = int8(2)
+	_TinySize      = gc.TinySize
+	_TinySizeClass = int8(gc.TinySizeClass)
 
 	_FixAllocChunk = 16 << 10 // Chunk size for FixAlloc
 
@@ -1080,6 +1080,12 @@ func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, checkGCTrigger 
 // at scale.
 const doubleCheckMalloc = false
 
+// sizeSpecializedMallocEnabled is the set of conditions where we enable the size-specialized
+// mallocgc implementation: the experiment must be enabled, and none of the sanitizers should
+// be enabled. The tables used to select the size-specialized malloc function do not compile
+// properly on plan9, so size-specialized malloc is also disabled on plan9.
+const sizeSpecializedMallocEnabled = goexperiment.SizeSpecializedMalloc && GOOS != "plan9" && !asanenabled && !raceenabled && !msanenabled && !valgrindenabled
+
 // Allocate an object of size bytes.
 // Small objects are allocated from the per-P cache's free lists.
 // Large objects (> 32 kB) are allocated straight from the heap.
@@ -1110,6 +1116,17 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		return unsafe.Pointer(&zerobase)
 	}
 
+	if sizeSpecializedMallocEnabled && heapBitsInSpan(size) {
+		if typ == nil || !typ.Pointers() {
+			return mallocNoScanTable[size](size, typ, needzero)
+		} else {
+			if !needzero {
+				throw("objects with pointers must be zeroed")
+			}
+			return mallocScanTable[size](size, typ, needzero)
+		}
+	}
+
 	// It's possible for any malloc to trigger sweeping, which may in
 	// turn queue finalizers. Record this dynamic lock edge.
 	// N.B. Compiled away if lockrank experiment is not enabled.
@@ -1138,25 +1155,41 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	// Actually do the allocation.
 	var x unsafe.Pointer
 	var elemsize uintptr
-	if size <= maxSmallSize-gc.MallocHeaderSize {
-		if typ == nil || !typ.Pointers() {
-			if size < maxTinySize {
-				x, elemsize = mallocgcTiny(size, typ)
-			} else {
+	if sizeSpecializedMallocEnabled {
+		// we know that heapBitsInSpan is true.
+		if size <= maxSmallSize-gc.MallocHeaderSize {
+			if typ == nil || !typ.Pointers() {
 				x, elemsize = mallocgcSmallNoscan(size, typ, needzero)
-			}
-		} else {
-			if !needzero {
-				throw("objects with pointers must be zeroed")
-			}
-			if heapBitsInSpan(size) {
-				x, elemsize = mallocgcSmallScanNoHeader(size, typ)
 			} else {
+				if !needzero {
+					throw("objects with pointers must be zeroed")
+				}
 				x, elemsize = mallocgcSmallScanHeader(size, typ)
 			}
+		} else {
+			x, elemsize = mallocgcLarge(size, typ, needzero)
 		}
 	} else {
-		x, elemsize = mallocgcLarge(size, typ, needzero)
+		if size <= maxSmallSize-gc.MallocHeaderSize {
+			if typ == nil || !typ.Pointers() {
+				if size < maxTinySize {
+					x, elemsize = mallocgcTiny(size, typ)
+				} else {
+					x, elemsize = mallocgcSmallNoscan(size, typ, needzero)
+				}
+			} else {
+				if !needzero {
+					throw("objects with pointers must be zeroed")
+				}
+				if heapBitsInSpan(size) {
+					x, elemsize = mallocgcSmallScanNoHeader(size, typ)
+				} else {
+					x, elemsize = mallocgcSmallScanHeader(size, typ)
+				}
+			}
+		} else {
+			x, elemsize = mallocgcLarge(size, typ, needzero)
+		}
 	}
 
 	// Notify sanitizers, if enabled.

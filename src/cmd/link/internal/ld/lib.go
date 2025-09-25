@@ -1451,6 +1451,8 @@ func (ctxt *Link) hostlink() {
 		} else {
 			argv = append(argv, "-s")
 		}
+	} else if *FlagW {
+		argv = append(argv, "-Wl,-S") // suppress debugging symbols
 	}
 
 	// On darwin, whether to combine DWARF into executable.

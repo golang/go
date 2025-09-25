@@ -87,7 +87,7 @@ constant for file bases and hence not encoded.
               [ Sync ]
               StringRef       // the (absolute) file name for the base
               Bool            // true if a file base, else a line base
-              // The below is ommitted for file bases.
+              // The below is omitted for file bases.
               [ Pos
                 Uint64        // line
                 Uint64 ]      // column
@@ -99,7 +99,7 @@ without a PosBase have no line or column.
 
     Pos     = [ Sync ]
               Bool             // true if the position has a base
-              // The below is ommitted if the position has no base.
+              // The below is omitted if the position has no base.
               [ Ref[PosBase]
                 Uint64         // line
                 Uint64 ]       // column
@@ -125,7 +125,7 @@ packages. The below package paths have special meaning.
     Pkg        = RefTable
                  [ Sync ]
                  StringRef      // path
-                 // The below is ommitted for the special package paths
+                 // The below is omitted for the special package paths
                  // "builtin" and "unsafe".
                  [ StringRef    // name
                    Imports ]

@@ -8783,6 +8783,9 @@ func TestTypeAssertAllocs(t *testing.T) {
 
 	typeAssertAllocs[time.Time](t, ValueOf(new(time.Time)).Elem(), 0)
 	typeAssertAllocs[time.Time](t, ValueOf(*new(time.Time)), 0)
+
+	type I interface{ foo() }
+	typeAssertAllocs[I](t, ValueOf(new(string)).Elem(), 0) // assert fail doesn't alloc
 }
 
 func typeAssertAllocs[T any](t *testing.T, val Value, wantAllocs int) {

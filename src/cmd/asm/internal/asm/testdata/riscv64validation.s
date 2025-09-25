@@ -20,6 +20,8 @@ TEXT validation(SB),$0
 	VSETVL		X10, X11			// ERROR "expected integer register in rs1 position"
 	VLE8V		(X10), X10			// ERROR "expected vector register in vd position"
 	VLE8V		(V1), V3			// ERROR "expected integer register in rs1 position"
+	VLE8FFV		(X10), X10			// ERROR "expected vector register in vd position"
+	VLE8FFV		(V1), V3			// ERROR "expected integer register in rs1 position"
 	VSE8V		X10, (X10)			// ERROR "expected vector register in vs1 position"
 	VSE8V		V3, (V1)			// ERROR "expected integer register in rd position"
 	VLSE8V		(X10), V3			// ERROR "expected integer register in rs2 position"

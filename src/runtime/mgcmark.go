@@ -666,6 +666,7 @@ func gcAssistAlloc1(gp *g, scanWork int64) {
 		gp.gcAssistBytes = 0
 		return
 	}
+
 	// Track time spent in this assist. Since we're on the
 	// system stack, this is non-preemptible, so we can
 	// just measure start and end time.
@@ -675,11 +676,7 @@ func gcAssistAlloc1(gp *g, scanWork int64) {
 	startTime := nanotime()
 	trackLimiterEvent := gp.m.p.ptr().limiterEvent.start(limiterEventMarkAssist, startTime)
 
-	decnwait := atomic.Xadd(&work.nwait, -1)
-	if decnwait == work.nproc {
-		println("runtime: work.nwait =", decnwait, "work.nproc=", work.nproc)
-		throw("nwait > work.nprocs")
-	}
+	gcBeginWork()
 
 	// gcDrainN requires the caller to be preemptible.
 	casGToWaitingForSuspendG(gp, _Grunning, waitReasonGCAssistMarking)
@@ -702,14 +699,7 @@ func gcAssistAlloc1(gp *g, scanWork int64) {
 
 	// If this is the last worker and we ran out of work,
 	// signal a completion point.
-	incnwait := atomic.Xadd(&work.nwait, +1)
-	if incnwait > work.nproc {
-		println("runtime: work.nwait=", incnwait,
-			"work.nproc=", work.nproc)
-		throw("work.nwait > work.nproc")
-	}
-
-	if incnwait == work.nproc && !gcMarkWorkAvailable(nil) {
+	if gcEndWork() {
 		// This has reached a background completion point. Set
 		// gp.param to a non-nil value to indicate this. It
 		// doesn't matter what we set it to (it just has to be
@@ -1242,14 +1232,18 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 		var b uintptr
 		var s objptr
 		if b = gcw.tryGetObjFast(); b == 0 {
-			if s = gcw.tryGetSpan(false); s == 0 {
+			if s = gcw.tryGetSpanFast(); s == 0 {
 				if b = gcw.tryGetObj(); b == 0 {
-					// Flush the write barrier
-					// buffer; this may create
-					// more work.
-					wbBufFlush()
-					if b = gcw.tryGetObj(); b == 0 {
-						s = gcw.tryGetSpan(true)
+					if s = gcw.tryGetSpan(); s == 0 {
+						// Flush the write barrier
+						// buffer; this may create
+						// more work.
+						wbBufFlush()
+						if b = gcw.tryGetObj(); b == 0 {
+							if s = gcw.tryGetSpan(); s == 0 {
+								s = gcw.tryStealSpan()
+							}
+						}
 					}
 				}
 			}
@@ -1338,22 +1332,26 @@ func gcDrainN(gcw *gcWork, scanWork int64) int64 {
 		var b uintptr
 		var s objptr
 		if b = gcw.tryGetObjFast(); b == 0 {
-			if s = gcw.tryGetSpan(false); s == 0 {
+			if s = gcw.tryGetSpanFast(); s == 0 {
 				if b = gcw.tryGetObj(); b == 0 {
-					// Flush the write barrier
-					// buffer; this may create
-					// more work.
-					wbBufFlush()
-					if b = gcw.tryGetObj(); b == 0 {
-						// Try to do a root job.
-						if work.markrootNext < work.markrootJobs {
-							job := atomic.Xadd(&work.markrootNext, +1) - 1
-							if job < work.markrootJobs {
-								workFlushed += markroot(gcw, job, false)
-								continue
+					if s = gcw.tryGetSpan(); s == 0 {
+						// Flush the write barrier
+						// buffer; this may create
+						// more work.
+						wbBufFlush()
+						if b = gcw.tryGetObj(); b == 0 {
+							if s = gcw.tryGetSpan(); s == 0 {
+								// Try to do a root job.
+								if work.markrootNext < work.markrootJobs {
+									job := atomic.Xadd(&work.markrootNext, +1) - 1
+									if job < work.markrootJobs {
+										workFlushed += markroot(gcw, job, false)
+										continue
+									}
+								}
+								s = gcw.tryStealSpan()
 							}
 						}
-						s = gcw.tryGetSpan(true)
 					}
 				}
 			}

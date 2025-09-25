@@ -49,7 +49,7 @@ func NewSignatureType(recv *Var, recvTypeParams, typeParams []*TypeParam, params
 		}
 		last := params.At(n - 1).typ
 		var S *Slice
-		typeset(last, func(t, _ Type) bool {
+		for t := range typeset(last) {
 			var s *Slice
 			if isString(t) {
 				s = NewSlice(universeByte)
@@ -60,10 +60,9 @@ func NewSignatureType(recv *Var, recvTypeParams, typeParams []*TypeParam, params
 				S = s
 			} else if !Identical(S, s) {
 				S = nil
-				return false
+				break
 			}
-			return true
-		})
+		}
 		if S == nil {
 			panic(fmt.Sprintf("got %s, want variadic parameter of unnamed slice or string type", last))
 		}

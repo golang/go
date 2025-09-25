@@ -32,6 +32,7 @@ static CRITICAL_SECTION runtime_init_cs;
 static HANDLE runtime_init_wait;
 static int runtime_init_done;
 
+// No pthreads on Windows, these are always zero.
 uintptr_t x_cgo_pthread_key_created;
 void (*x_crosscall2_ptr)(void (*fn)(void *), void *, int, size_t);
 
@@ -81,7 +82,7 @@ _cgo_is_runtime_initialized() {
 
 uintptr_t
 _cgo_wait_runtime_init_done(void) {
-	void (*pfn)(struct context_arg*);
+	void (*pfn)(struct cgoContextArg*);
 
 	 _cgo_maybe_run_preinit();
 	while (!_cgo_is_runtime_initialized()) {
@@ -89,7 +90,7 @@ _cgo_wait_runtime_init_done(void) {
 	}
 	pfn = _cgo_get_context_function();
 	if (pfn != nil) {
-		struct context_arg arg;
+		struct cgoContextArg arg;
 
 		arg.Context = 0;
 		(*pfn)(&arg);
@@ -118,25 +119,84 @@ x_cgo_notify_runtime_init_done(void* dummy) {
 	}
 }
 
-// The context function, used when tracing back C calls into Go.
-static void (*cgo_context_function)(struct context_arg*);
+// The traceback function, used when tracing C calls.
+static void (*cgo_traceback_function)(struct cgoTracebackArg*);
 
-// Sets the context function to call to record the traceback context
-// when calling a Go function from C code. Called from runtime.SetCgoTraceback.
-void x_cgo_set_context_function(void (*context)(struct context_arg*)) {
+// The context function, used when tracing back C calls into Go.
+static void (*cgo_context_function)(struct cgoContextArg*);
+
+// The symbolizer function, used when symbolizing C frames.
+static void (*cgo_symbolizer_function)(struct cgoSymbolizerArg*);
+
+// Sets the traceback, context, and symbolizer functions. Called from
+// runtime.SetCgoTraceback.
+void x_cgo_set_traceback_functions(struct cgoSetTracebackFunctionsArg* arg) {
 	EnterCriticalSection(&runtime_init_cs);
-	cgo_context_function = context;
+	cgo_traceback_function = arg->Traceback;
+	cgo_context_function = arg->Context;
+	cgo_symbolizer_function = arg->Symbolizer;
 	LeaveCriticalSection(&runtime_init_cs);
 }
 
-// Gets the context function.
-void (*(_cgo_get_context_function(void)))(struct context_arg*) {
-	void (*ret)(struct context_arg*);
+// Gets the traceback function to call to trace C calls.
+void (*(_cgo_get_traceback_function(void)))(struct cgoTracebackArg*) {
+	void (*ret)(struct cgoTracebackArg*);
+
+	EnterCriticalSection(&runtime_init_cs);
+	ret = cgo_traceback_function;
+	LeaveCriticalSection(&runtime_init_cs);
+	return ret;
+}
+
+// Call the traceback function registered with x_cgo_set_traceback_functions.
+//
+// On other platforms, this coordinates with C/C++ TSAN. On Windows, there is
+// no C/C++ TSAN.
+void x_cgo_call_traceback_function(struct cgoTracebackArg* arg) {
+	void (*pfn)(struct cgoTracebackArg*);
+
+	pfn = _cgo_get_traceback_function();
+	if (pfn == nil) {
+		return;
+	}
+
+	(*pfn)(arg);
+}
+
+// Gets the context function to call to record the traceback context
+// when calling a Go function from C code.
+void (*(_cgo_get_context_function(void)))(struct cgoContextArg*) {
+	void (*ret)(struct cgoContextArg*);
 
 	EnterCriticalSection(&runtime_init_cs);
 	ret = cgo_context_function;
 	LeaveCriticalSection(&runtime_init_cs);
 	return ret;
+}
+
+// Gets the symbolizer function to call to symbolize C frames.
+void (*(_cgo_get_symbolizer_function(void)))(struct cgoSymbolizerArg*) {
+	void (*ret)(struct cgoSymbolizerArg*);
+
+	EnterCriticalSection(&runtime_init_cs);
+	ret = cgo_symbolizer_function;
+	LeaveCriticalSection(&runtime_init_cs);
+	return ret;
+}
+
+// Call the symbolizer function registered with x_cgo_set_symbolizer_functions.
+//
+// On other platforms, this coordinates with C/C++ TSAN. On Windows, there is
+// no C/C++ TSAN.
+void x_cgo_call_symbolizer_function(struct cgoSymbolizerArg* arg) {
+	void (*pfn)(struct cgoSymbolizerArg*);
+
+	pfn = _cgo_get_symbolizer_function();
+	if (pfn == nil) {
+		return;
+	}
+
+	(*pfn)(arg);
 }
 
 void _cgo_beginthread(unsigned long (__stdcall *func)(void*), void* arg) {
@@ -145,7 +205,7 @@ void _cgo_beginthread(unsigned long (__stdcall *func)(void*), void* arg) {
 
 	for (tries = 0; tries < 20; tries++) {
 		thandle = CreateThread(NULL, 0, func, arg, 0, NULL);
-		if (thandle == 0 && GetLastError() == ERROR_NOT_ENOUGH_MEMORY) {
+		if (thandle == 0 && GetLastError() == ERROR_ACCESS_DENIED) {
 			// "Insufficient resources", try again in a bit.
 			//
 			// Note that the first Sleep(0) is a yield.

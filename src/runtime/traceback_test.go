@@ -8,6 +8,9 @@ import (
 	"bytes"
 	"fmt"
 	"internal/abi"
+	"internal/asan"
+	"internal/msan"
+	"internal/race"
 	"internal/testenv"
 	"regexp"
 	"runtime"
@@ -865,5 +868,17 @@ func TestTracebackGeneric(t *testing.T) {
 		if bytes.Contains(got, []byte("shape")) { // should not contain shape name
 			t.Errorf("traceback contains shape name: got\n%s", got)
 		}
+	}
+}
+
+func TestSetCgoTracebackNoCgo(t *testing.T) {
+	if asan.Enabled || msan.Enabled || race.Enabled {
+		t.Skip("skipped test: sanitizer builds use cgo")
+	}
+
+	output := runTestProg(t, "testprog", "SetCgoTracebackNoCgo")
+	want := "OK\n"
+	if output != want {
+		t.Fatalf("want %s, got %s\n", want, output)
 	}
 }
