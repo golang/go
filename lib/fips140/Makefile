@@ -30,7 +30,7 @@ v%.zip:
 	go run ../../src/cmd/go/internal/fips140/mkzip.go v$*
 
 # normally mkzip refuses to overwrite an existing zip file.
-# make v1.2.3.rm removes the zip file and and unpacked
+# make v1.2.3.rm removes the zip file and unpacked
 # copy from the module cache.
 v%.rm:
 	rm -f v$*.zip

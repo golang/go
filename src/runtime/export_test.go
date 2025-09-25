@@ -9,7 +9,6 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
-	"internal/goexperiment"
 	"internal/goos"
 	"internal/runtime/atomic"
 	"internal/runtime/gc"
@@ -1122,8 +1121,6 @@ func CheckScavengedBitsCleared(mismatches []BitsMismatch) (n int, ok bool) {
 		// Lock so that we can safely access the bitmap.
 		lock(&mheap_.lock)
 
-		heapBase := mheap_.pages.inUse.ranges[0].base.addr()
-		secondArenaBase := arenaBase(arenaIndex(heapBase) + 1)
 	chunkLoop:
 		for i := mheap_.pages.start; i < mheap_.pages.end; i++ {
 			chunk := mheap_.pages.tryChunkOf(i)
@@ -1140,14 +1137,6 @@ func CheckScavengedBitsCleared(mismatches []BitsMismatch) (n int, ok bool) {
 				want := chunk.scavenged[j] &^ chunk.pallocBits[j]
 				got := chunk.scavenged[j]
 				if want != got {
-					// When goexperiment.RandomizedHeapBase64 is set we use a
-					// series of padding pages to generate randomized heap base
-					// address which have both the alloc and scav bits set. If
-					// we see this for a chunk between the address of the heap
-					// base, and the address of the second arena continue.
-					if goexperiment.RandomizedHeapBase64 && (cb >= heapBase && cb < secondArenaBase) {
-						continue
-					}
 					ok = false
 					if n >= len(mismatches) {
 						break chunkLoop
@@ -1165,6 +1154,37 @@ func CheckScavengedBitsCleared(mismatches []BitsMismatch) (n int, ok bool) {
 
 		getg().m.mallocing--
 	})
+
+	if randomizeHeapBase && len(mismatches) > 0 {
+		// When goexperiment.RandomizedHeapBase64 is set we use a series of
+		// padding pages to generate randomized heap base address which have
+		// both the alloc and scav bits set. Because of this we expect exactly
+		// one arena will have mismatches, so check for that explicitly and
+		// remove the mismatches if that property holds. If we see more than one
+		// arena with this property, that is an indication something has
+		// actually gone wrong, so return the mismatches.
+		//
+		// We do this, instead of ignoring the mismatches in the chunkLoop, because
+		// it's not easy to determine which arena we added the padding pages to
+		// programmatically, without explicitly recording the base address somewhere
+		// in a global variable (which we'd rather not do as the address of that variable
+		// is likely to be somewhat predictable, potentially defeating the purpose
+		// of our randomization).
+		affectedArenas := map[arenaIdx]bool{}
+		for _, mismatch := range mismatches {
+			if mismatch.Base > 0 {
+				affectedArenas[arenaIndex(mismatch.Base)] = true
+			}
+		}
+		if len(affectedArenas) == 1 {
+			ok = true
+			// zero the mismatches
+			for i := range n {
+				mismatches[i] = BitsMismatch{}
+			}
+		}
+	}
+
 	return
 }
 
@@ -1267,30 +1287,6 @@ func MSpanCountAlloc(ms *MSpan, bits []byte) int {
 	result := s.countAlloc()
 	s.gcmarkBits = nil
 	return result
-}
-
-type MSpanQueue mSpanQueue
-
-func (q *MSpanQueue) Size() int {
-	return (*mSpanQueue)(q).n
-}
-
-func (q *MSpanQueue) Push(s *MSpan) {
-	(*mSpanQueue)(q).push((*mspan)(s))
-}
-
-func (q *MSpanQueue) Pop() *MSpan {
-	s := (*mSpanQueue)(q).pop()
-	return (*MSpan)(s)
-}
-
-func (q *MSpanQueue) TakeAll(p *MSpanQueue) {
-	(*mSpanQueue)(q).takeAll((*mSpanQueue)(p))
-}
-
-func (q *MSpanQueue) PopN(n int) MSpanQueue {
-	p := (*mSpanQueue)(q).popN(n)
-	return (MSpanQueue)(p)
 }
 
 const (

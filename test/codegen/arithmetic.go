@@ -51,6 +51,11 @@ func AddLargeConst(a uint64, out []uint64) {
 	out[9] = a - 32769
 }
 
+func AddLargeConst2(a int, out []int) {
+	// loong64: -"ADDVU","ADDV16"
+	out[0] = a + 0x10000
+}
+
 // ----------------- //
 //    Subtraction    //
 // ----------------- //

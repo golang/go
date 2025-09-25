@@ -7806,12 +7806,32 @@ min(x, y, z) == min(min(x, y), z)
 <h3 id="Allocation">Allocation</h3>
 
 <p>
-The built-in function <code>new</code> takes a type <code>T</code>,
-allocates storage for a <a href="#Variables">variable</a> of that type
-at run time, and returns a value of type <code>*T</code>
-<a href="#Pointer_types">pointing</a> to it.
-The variable is initialized as described in the section on
-<a href="#The_zero_value">initial values</a>.
+  The built-in function <code>new</code> creates a new, initialized
+  <a href="#Variables">variable</a> and returns
+  a <a href="#Pointer_types">pointer</a> to it.
+
+  It accepts a single argument, which may be either an expression or a type.
+</p>
+<p>
+  If the argument <code>expr</code> is an expression of
+  type <code>T</code>, or an untyped constant expression
+  whose <a href="#Constants">default type</a> is <code>T</code>,
+  then <code>new(expr)</code> allocates a variable of
+  type <code>T</code>, initializes it to the value
+  of <code>expr</code>, and returns its address, a value of
+  type <code>*T</code>.
+</p>
+<p>
+  If the argument is a type <code>T</code>, then <code>new(T)</code>
+  allocates a variable initialized to
+  the <a href="#The_zero_value">zero value</a> of type <code>T</code>.
+</p>
+<p>
+  For example, <code>new(123)</code> and <code>new(int)</code> each
+  return a pointer to a new variable of type <code>int</code>.
+
+  The value of the first variable is <code>123</code>, and the value
+  of the second is <code>0</code>.
 </p>
 
 <pre class="grammar">

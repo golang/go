@@ -345,30 +345,29 @@ func (p *parser) expectClosing(tok token.Token, context string) token.Pos {
 
 // expectSemi consumes a semicolon and returns the applicable line comment.
 func (p *parser) expectSemi() (comment *ast.CommentGroup) {
-	// semicolon is optional before a closing ')' or '}'
-	if p.tok != token.RPAREN && p.tok != token.RBRACE {
-		switch p.tok {
-		case token.COMMA:
-			// permit a ',' instead of a ';' but complain
-			p.errorExpected(p.pos, "';'")
-			fallthrough
-		case token.SEMICOLON:
-			if p.lit == ";" {
-				// explicit semicolon
-				p.next()
-				comment = p.lineComment // use following comments
-			} else {
-				// artificial semicolon
-				comment = p.lineComment // use preceding comments
-				p.next()
-			}
-			return comment
-		default:
-			p.errorExpected(p.pos, "';'")
-			p.advance(stmtStart)
+	switch p.tok {
+	case token.RPAREN, token.RBRACE:
+		return nil // semicolon is optional before a closing ')' or '}'
+	case token.COMMA:
+		// permit a ',' instead of a ';' but complain
+		p.errorExpected(p.pos, "';'")
+		fallthrough
+	case token.SEMICOLON:
+		if p.lit == ";" {
+			// explicit semicolon
+			p.next()
+			comment = p.lineComment // use following comments
+		} else {
+			// artificial semicolon
+			comment = p.lineComment // use preceding comments
+			p.next()
 		}
+		return comment
+	default:
+		p.errorExpected(p.pos, "';'")
+		p.advance(stmtStart)
+		return nil
 	}
-	return nil
 }
 
 func (p *parser) atComma(context string, follow token.Token) bool {

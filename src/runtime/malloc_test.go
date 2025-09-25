@@ -452,3 +452,13 @@ func BenchmarkGoroutineIdle(b *testing.B) {
 	close(quit)
 	time.Sleep(10 * time.Millisecond)
 }
+
+func TestMkmalloc(t *testing.T) {
+	testenv.MustHaveGoRun(t)
+	testenv.MustHaveExternalNetwork(t) // To download the golang.org/x/tools dependency.
+	output, err := exec.Command("go", "-C", "_mkmalloc", "test").CombinedOutput()
+	t.Logf("test output:\n%s", output)
+	if err != nil {
+		t.Errorf("_mkmalloc tests failed: %v", err)
+	}
+}

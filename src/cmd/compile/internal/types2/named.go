@@ -162,12 +162,25 @@ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
 }
 
 // resolve resolves the type parameters, methods, and underlying type of n.
-// This information may be loaded from a provided loader function, or computed
-// from an origin type (in the case of instances).
 //
-// After resolution, the type parameters, methods, and underlying type of n are
-// accessible; but if n is an instantiated type, its methods may still be
-// unexpanded.
+// For the purposes of resolution, there are three categories of named types:
+//  1. Instantiated Types
+//  2. Lazy Loaded Types
+//  3. All Others
+//
+// Note that the above form a partition.
+//
+// Instantiated types:
+// Type parameters, methods, and underlying type of n become accessible,
+// though methods are lazily populated as needed.
+//
+// Lazy loaded types:
+// Type parameters, methods, and underlying type of n become accessible
+// and are fully expanded.
+//
+// All others:
+// Effectively, nothing happens. The underlying type of n may still be
+// a named type.
 func (n *Named) resolve() *Named {
 	if n.state() > unresolved { // avoid locking below
 		return n

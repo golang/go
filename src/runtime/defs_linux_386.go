@@ -9,6 +9,7 @@ const (
 	_EINTR  = 0x4
 	_EAGAIN = 0xb
 	_ENOMEM = 0xc
+	_ENOSYS = 0x26
 
 	_PROT_NONE  = 0x0
 	_PROT_READ  = 0x1
@@ -136,14 +137,28 @@ type fpstate struct {
 	anon0     [48]byte
 }
 
-type timespec struct {
+// The timespec structs and types are defined in Linux in
+// include/uapi/linux/time_types.h and include/uapi/asm-generic/posix_types.h.
+type timespec32 struct {
 	tv_sec  int32
 	tv_nsec int32
 }
 
 //go:nosplit
-func (ts *timespec) setNsec(ns int64) {
+func (ts *timespec32) setNsec(ns int64) {
 	ts.tv_sec = timediv(ns, 1e9, &ts.tv_nsec)
+}
+
+type timespec struct {
+	tv_sec  int64
+	tv_nsec int64
+}
+
+//go:nosplit
+func (ts *timespec) setNsec(ns int64) {
+	var newNS int32
+	ts.tv_sec = int64(timediv(ns, 1e9, &newNS))
+	ts.tv_nsec = int64(newNS)
 }
 
 type timeval struct {
@@ -223,8 +238,8 @@ type ucontext struct {
 }
 
 type itimerspec struct {
-	it_interval timespec
-	it_value    timespec
+	it_interval timespec32
+	it_value    timespec32
 }
 
 type itimerval struct {

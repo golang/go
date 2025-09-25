@@ -215,7 +215,7 @@ const (
 	ORSH              // X >> Y
 	OAND              // X & Y
 	OANDNOT           // X &^ Y
-	ONEW              // new(X); corresponds to calls to new in source code
+	ONEW              // new(X); corresponds to calls to new(T) in source code
 	ONOT              // !X
 	OBITNOT           // ^X
 	OPLUS             // +X

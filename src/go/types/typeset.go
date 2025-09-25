@@ -107,13 +107,12 @@ func (s *_TypeSet) hasTerms() bool { return !s.terms.isEmpty() && !s.terms.isAll
 // subsetOf reports whether s1 ⊆ s2.
 func (s1 *_TypeSet) subsetOf(s2 *_TypeSet) bool { return s1.terms.subsetOf(s2.terms) }
 
-// typeset is an iterator over the (type/underlying type) pairs in s.
-// If s has no specific terms, typeset calls yield with (nil, nil).
-// In any case, typeset is guaranteed to call yield at least once.
-func (s *_TypeSet) typeset(yield func(t, u Type) bool) {
+// all reports whether f(t, u) is true for each (type/underlying type) pairs in s.
+// If s has no specific terms, all calls f(nil, nil).
+// In any case, all is guaranteed to call f at least once.
+func (s *_TypeSet) all(f func(t, u Type) bool) bool {
 	if !s.hasTerms() {
-		yield(nil, nil)
-		return
+		return f(nil, nil)
 	}
 
 	for _, t := range s.terms {
@@ -126,10 +125,11 @@ func (s *_TypeSet) typeset(yield func(t, u Type) bool) {
 		if debug {
 			assert(Identical(u, under(u)))
 		}
-		if !yield(t.typ, u) {
-			break
+		if !f(t.typ, u) {
+			return false
 		}
 	}
+	return true
 }
 
 // is calls f with the specific type terms of s and reports whether

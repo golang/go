@@ -717,7 +717,8 @@
 (SRLVconst [rc] (MOVBUreg x)) && rc >= 8 => (MOVVconst [0])
 
 // (x + x) << c -> x << c+1
-((SLLV|SLL)const [c] (ADDV x x)) => ((SLLV|SLL)const [c+1] x)
+((SLLV|SLL)const <t> [c] (ADDV x x)) && c < t.Size() * 8 - 1  => ((SLLV|SLL)const [c+1] x)
+((SLLV|SLL)const <t> [c] (ADDV x x)) && c >= t.Size() * 8 - 1 => (MOVVconst [0])
 
 // mul by constant
 (MULV _ (MOVVconst [0])) => (MOVVconst [0])
@@ -729,6 +730,9 @@
 (MULV (NEGV x) (NEGV y)) => (MULV x y)
 
 (ADDV x0 x1:(SLLVconst [c] y)) && x1.Uses == 1 && c > 0 && c <= 4 => (ADDshiftLLV x0 y [c])
+
+// fold constant in ADDshift op
+(ADDshiftLLV x (MOVVconst [c]) [d]) && is12Bit(c<<d) => (ADDVconst x [c<<d])
 
 // div by constant
 (DIVVU x (MOVVconst [1])) => x
@@ -794,6 +798,7 @@
 (SUBVconst [c] (SUBVconst [d] x)) && is32Bit(-c-d) => (ADDVconst [-c-d] x)
 (SUBVconst [c] (ADDVconst [d] x)) && is32Bit(-c+d) => (ADDVconst [-c+d] x)
 (SUBV (MOVVconst [c]) (NEGV (SUBVconst [d] x))) => (ADDVconst [c-d] x)
+(ADDVconst [c] x) && is32Bit(c) && c&0xffff == 0 && c != 0 => (ADDV16const [c] x)
 (SLLVconst [c] (MOVVconst [d]))  => (MOVVconst [d<<uint64(c)])
 (SRLVconst [c] (MOVVconst [d]))  => (MOVVconst [int64(uint64(d)>>uint64(c))])
 (SRAVconst [c] (MOVVconst [d]))  => (MOVVconst [d>>uint64(c)])
@@ -948,3 +953,12 @@
 	&& isInlinableMemmove(dst, src, sz, config)
 	&& clobber(call)
 	=> (Move [sz] dst src mem)
+
+// fold readonly sym load
+(MOVBUload [off] {sym} (SB) _) && symIsRO(sym) => (MOVVconst [int64(read8(sym, int64(off)))])
+(MOVHUload [off] {sym} (SB) _) && symIsRO(sym) => (MOVVconst [int64(read16(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+(MOVWUload [off] {sym} (SB) _) && symIsRO(sym) => (MOVVconst [int64(read32(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+(MOVVload [off] {sym} (SB) _) && symIsRO(sym) => (MOVVconst [int64(read64(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+(MOVBload [off] {sym} (SB) _) && symIsRO(sym) => (MOVVconst [int64(int8(read8(sym, int64(off))))])
+(MOVHload [off] {sym} (SB) _) && symIsRO(sym) => (MOVVconst [int64(int16(read16(sym, int64(off), config.ctxt.Arch.ByteOrder)))])
+(MOVWload [off] {sym} (SB) _) && symIsRO(sym) => (MOVVconst [int64(int32(read32(sym, int64(off), config.ctxt.Arch.ByteOrder)))])

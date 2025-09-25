@@ -21,7 +21,7 @@ var pathExts = sync.OnceValue(func() []string {
 	}
 
 	var exts []string
-	for _, e := range strings.Split(strings.ToLower(x), `;`) {
+	for e := range strings.SplitSeq(strings.ToLower(x), `;`) {
 		if e == "" {
 			continue
 		}

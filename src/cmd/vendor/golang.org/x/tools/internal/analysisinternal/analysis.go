@@ -22,6 +22,7 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/ast/inspector"
+	"golang.org/x/tools/internal/moreiters"
 	"golang.org/x/tools/internal/typesinternal"
 )
 
@@ -71,25 +72,6 @@ func TypeErrorEndPos(fset *token.FileSet, src []byte, start token.Pos) token.Pos
 		end += token.Pos(width)
 	}
 	return end
-}
-
-// WalkASTWithParent walks the AST rooted at n. The semantics are
-// similar to ast.Inspect except it does not call f(nil).
-func WalkASTWithParent(n ast.Node, f func(n ast.Node, parent ast.Node) bool) {
-	var ancestors []ast.Node
-	ast.Inspect(n, func(n ast.Node) (recurse bool) {
-		if n == nil {
-			ancestors = ancestors[:len(ancestors)-1]
-			return false
-		}
-
-		var parent ast.Node
-		if len(ancestors) > 0 {
-			parent = ancestors[len(ancestors)-1]
-		}
-		ancestors = append(ancestors, n)
-		return f(n, parent)
-	})
 }
 
 // MatchingIdents finds the names of all identifiers in 'node' that match any of the given types.
@@ -211,18 +193,23 @@ func CheckReadable(pass *analysis.Pass, filename string) error {
 	return fmt.Errorf("Pass.ReadFile: %s is not among OtherFiles, IgnoredFiles, or names of Files", filename)
 }
 
-// AddImport checks whether this file already imports pkgpath and
-// that import is in scope at pos. If so, it returns the name under
-// which it was imported and a zero edit. Otherwise, it adds a new
-// import of pkgpath, using a name derived from the preferred name,
-// and returns the chosen name, a prefix to be concatenated with member
-// to form a qualified name, and the edit for the new import.
+// AddImport checks whether this file already imports pkgpath and that
+// the import is in scope at pos. If so, it returns the name under
+// which it was imported and no edits. Otherwise, it adds a new import
+// of pkgpath, using a name derived from the preferred name, and
+// returns the chosen name, a prefix to be concatenated with member to
+// form a qualified name, and the edit for the new import.
 //
-// In the special case that pkgpath is dot-imported then member, the
-// identifier for which the import is being added, is consulted. If
-// member is not shadowed at pos, AddImport returns (".", "", nil).
-// (AddImport accepts the caller's implicit claim that the imported
-// package declares member.)
+// The member argument indicates the name of the desired symbol within
+// the imported package. This is needed in the case when the existing
+// import is a dot import, because then it is possible that the
+// desired symbol is shadowed by other declarations in the current
+// package. If member is not shadowed at pos, AddImport returns (".",
+// "", nil). (AddImport accepts the caller's implicit claim that the
+// imported package declares member.)
+//
+// Use a preferredName of "_" to request a blank import;
+// member is ignored in this case.
 //
 // It does not mutate its arguments.
 func AddImport(info *types.Info, file *ast.File, preferredName, pkgpath, member string, pos token.Pos) (name, prefix string, newImport []analysis.TextEdit) {
@@ -238,6 +225,10 @@ func AddImport(info *types.Info, file *ast.File, preferredName, pkgpath, member 
 		pkgname := info.PkgNameOf(spec)
 		if pkgname != nil && pkgname.Imported().Path() == pkgpath {
 			name = pkgname.Name()
+			if preferredName == "_" {
+				// Request for blank import; any existing import will do.
+				return name, "", nil
+			}
 			if name == "." {
 				// The scope of ident must be the file scope.
 				if s, _ := scope.LookupParent(member, pos); s == info.Scopes[file] {
@@ -250,8 +241,12 @@ func AddImport(info *types.Info, file *ast.File, preferredName, pkgpath, member 
 	}
 
 	// We must add a new import.
+
 	// Ensure we have a fresh name.
-	newName := FreshName(scope, pos, preferredName)
+	newName := preferredName
+	if preferredName != "_" {
+		newName = FreshName(scope, pos, preferredName)
+	}
 
 	// Create a new import declaration either before the first existing
 	// declaration (which must exist), including its comments; or
@@ -264,6 +259,7 @@ func AddImport(info *types.Info, file *ast.File, preferredName, pkgpath, member 
 	if newName != preferredName || newName != pathpkg.Base(pkgpath) {
 		newText = fmt.Sprintf("%s %q", newName, pkgpath)
 	}
+
 	decl0 := file.Decls[0]
 	var before ast.Node = decl0
 	switch decl0 := decl0.(type) {
@@ -276,19 +272,27 @@ func AddImport(info *types.Info, file *ast.File, preferredName, pkgpath, member 
 			before = decl0.Doc
 		}
 	}
-	// If the first decl is an import group, add this new import at the end.
 	if gd, ok := before.(*ast.GenDecl); ok && gd.Tok == token.IMPORT && gd.Rparen.IsValid() {
-		pos = gd.Rparen
-		// if it's a std lib, we should append it at the beginning of import group.
-		// otherwise we may see the std package is put at the last behind a 3rd module which doesn't follow our convention.
-		// besides, gofmt doesn't help in this case.
-		if IsStdPackage(pkgpath) && len(gd.Specs) != 0 {
-			pos = gd.Specs[0].Pos()
+		// Have existing grouped import ( ... ) decl.
+		if IsStdPackage(pkgpath) && len(gd.Specs) > 0 {
+			// Add spec for a std package before
+			// first existing spec, followed by
+			// a blank line if the next one is non-std.
+			first := gd.Specs[0].(*ast.ImportSpec)
+			pos = first.Pos()
+			if !IsStdPackage(first.Path.Value) {
+				newText += "\n"
+			}
 			newText += "\n\t"
 		} else {
+			// Add spec at end of group.
+			pos = gd.Rparen
 			newText = "\t" + newText + "\n"
 		}
 	} else {
+		// No import decl, or non-grouped import.
+		// Add a new import decl before first decl.
+		// (gofmt will merge multiple import decls.)
 		pos = before.Pos()
 		newText = "import " + newText + "\n\n"
 	}
@@ -519,24 +523,11 @@ func CanImport(from, to string) bool {
 	return true
 }
 
-// DeleteStmt returns the edits to remove stmt if it is contained
-// in a BlockStmt, CaseClause, CommClause, or is the STMT in switch STMT; ... {...}
-// The report function abstracts gopls' bug.Report.
-func DeleteStmt(fset *token.FileSet, astFile *ast.File, stmt ast.Stmt, report func(string, ...any)) []analysis.TextEdit {
-	// TODO: pass in the cursor to a ast.Stmt. callers should provide the Cursor
-	insp := inspector.New([]*ast.File{astFile})
-	root := insp.Root()
-	cstmt, ok := root.FindNode(stmt)
-	if !ok {
-		report("%s not found in file", stmt.Pos())
-		return nil
-	}
-	// some paranoia
-	if !stmt.Pos().IsValid() || !stmt.End().IsValid() {
-		report("%s: stmt has invalid position", stmt.Pos())
-		return nil
-	}
-
+// DeleteStmt returns the edits to remove the [ast.Stmt] identified by
+// curStmt, if it is contained within a BlockStmt, CaseClause,
+// CommClause, or is the STMT in switch STMT; ... {...}. It returns nil otherwise.
+func DeleteStmt(fset *token.FileSet, curStmt inspector.Cursor) []analysis.TextEdit {
+	stmt := curStmt.Node().(ast.Stmt)
 	// if the stmt is on a line by itself delete the whole line
 	// otherwise just delete the statement.
 
@@ -562,7 +553,7 @@ func DeleteStmt(fset *token.FileSet, astFile *ast.File, stmt ast.Stmt, report fu
 	// (removing the blocks requires more rewriting than this routine would do)
 	// CommCase   = "case" ( SendStmt | RecvStmt ) | "default" .
 	// (removing the stmt requires more rewriting, and it's unclear what the user means)
-	switch parent := cstmt.Parent().Node().(type) {
+	switch parent := curStmt.Parent().Node().(type) {
 	case *ast.SwitchStmt:
 		limits(parent.Switch, parent.Body.Lbrace)
 	case *ast.TypeSwitchStmt:
@@ -573,12 +564,12 @@ func DeleteStmt(fset *token.FileSet, astFile *ast.File, stmt ast.Stmt, report fu
 	case *ast.BlockStmt:
 		limits(parent.Lbrace, parent.Rbrace)
 	case *ast.CommClause:
-		limits(parent.Colon, cstmt.Parent().Parent().Node().(*ast.BlockStmt).Rbrace)
+		limits(parent.Colon, curStmt.Parent().Parent().Node().(*ast.BlockStmt).Rbrace)
 		if parent.Comm == stmt {
 			return nil // maybe the user meant to remove the entire CommClause?
 		}
 	case *ast.CaseClause:
-		limits(parent.Colon, cstmt.Parent().Parent().Node().(*ast.BlockStmt).Rbrace)
+		limits(parent.Colon, curStmt.Parent().Parent().Node().(*ast.BlockStmt).Rbrace)
 	case *ast.ForStmt:
 		limits(parent.For, parent.Body.Lbrace)
 
@@ -586,15 +577,15 @@ func DeleteStmt(fset *token.FileSet, astFile *ast.File, stmt ast.Stmt, report fu
 		return nil // not one of ours
 	}
 
-	if prev, found := cstmt.PrevSibling(); found && lineOf(prev.Node().End()) == stmtStartLine {
+	if prev, found := curStmt.PrevSibling(); found && lineOf(prev.Node().End()) == stmtStartLine {
 		from = prev.Node().End() // preceding statement ends on same line
 	}
-	if next, found := cstmt.NextSibling(); found && lineOf(next.Node().Pos()) == stmtEndLine {
+	if next, found := curStmt.NextSibling(); found && lineOf(next.Node().Pos()) == stmtEndLine {
 		to = next.Node().Pos() // following statement begins on same line
 	}
 	// and now for the comments
 Outer:
-	for _, cg := range astFile.Comments {
+	for _, cg := range enclosingFile(curStmt).Comments {
 		for _, co := range cg.List {
 			if lineOf(co.End()) < stmtStartLine {
 				continue
@@ -681,3 +672,9 @@ type tokenRange struct{ StartPos, EndPos token.Pos }
 
 func (r tokenRange) Pos() token.Pos { return r.StartPos }
 func (r tokenRange) End() token.Pos { return r.EndPos }
+
+// enclosingFile returns the syntax tree for the file enclosing c.
+func enclosingFile(c inspector.Cursor) *ast.File {
+	c, _ = moreiters.First(c.Enclosing((*ast.File)(nil)))
+	return c.Node().(*ast.File)
+}

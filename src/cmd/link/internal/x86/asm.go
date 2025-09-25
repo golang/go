@@ -224,51 +224,6 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		su := ldr.MakeSymbolUpdater(s)
 		su.SetRelocType(rIdx, objabi.R_ADDR)
 		return true
-
-	case objabi.MachoRelocOffset + ld.MACHO_GENERIC_RELOC_VANILLA*2 + 0:
-		su := ldr.MakeSymbolUpdater(s)
-		su.SetRelocType(rIdx, objabi.R_ADDR)
-		if targType == sym.SDYNIMPORT {
-			ldr.Errorf(s, "unexpected reloc for dynamic symbol %s", ldr.SymName(targ))
-		}
-		return true
-
-	case objabi.MachoRelocOffset + ld.MACHO_GENERIC_RELOC_VANILLA*2 + 1:
-		su := ldr.MakeSymbolUpdater(s)
-		if targType == sym.SDYNIMPORT {
-			addpltsym(target, ldr, syms, targ)
-			su.SetRelocSym(rIdx, syms.PLT)
-			su.SetRelocAdd(rIdx, int64(ldr.SymPlt(targ)))
-			su.SetRelocType(rIdx, objabi.R_PCREL)
-			return true
-		}
-
-		su.SetRelocType(rIdx, objabi.R_PCREL)
-		return true
-
-	case objabi.MachoRelocOffset + ld.MACHO_FAKE_GOTPCREL:
-		su := ldr.MakeSymbolUpdater(s)
-		if targType != sym.SDYNIMPORT {
-			// have symbol
-			// turn MOVL of GOT entry into LEAL of symbol itself
-			sData := ldr.Data(s)
-			if r.Off() < 2 || sData[r.Off()-2] != 0x8b {
-				ldr.Errorf(s, "unexpected GOT reloc for non-dynamic symbol %s", ldr.SymName(targ))
-				return false
-			}
-
-			su.MakeWritable()
-			writeableData := su.Data()
-			writeableData[r.Off()-2] = 0x8d
-			su.SetRelocType(rIdx, objabi.R_PCREL)
-			return true
-		}
-
-		ld.AddGotSym(target, ldr, syms, targ, uint32(elf.R_386_GLOB_DAT))
-		su.SetRelocSym(rIdx, syms.GOT)
-		su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymGot(targ)))
-		su.SetRelocType(rIdx, objabi.R_PCREL)
-		return true
 	}
 
 	// Handle references to ELF symbols from our own object files.

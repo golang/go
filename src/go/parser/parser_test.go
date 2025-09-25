@@ -896,3 +896,53 @@ func test() {
 		t.Fatalf("unexpected f.Comments got:\n%v\nwant:\n%v", got.String(), want.String())
 	}
 }
+
+// TestBothLineAndLeadComment makes sure that we populate the
+// p.lineComment field even though there is a comment after the
+// line comment.
+func TestBothLineAndLeadComment(t *testing.T) {
+	const src = `package test
+
+var _ int; /* line comment */
+// Doc comment
+func _() {}
+
+var _ int; /* line comment */
+// Some comment
+
+func _() {}
+`
+
+	fset := token.NewFileSet()
+	f, _ := ParseFile(fset, "", src, ParseComments|SkipObjectResolution)
+
+	lineComment := f.Decls[0].(*ast.GenDecl).Specs[0].(*ast.ValueSpec).Comment
+	docComment := f.Decls[1].(*ast.FuncDecl).Doc
+
+	if lineComment == nil {
+		t.Fatal("missing line comment")
+	}
+	if docComment == nil {
+		t.Fatal("missing doc comment")
+	}
+
+	if lineComment.List[0].Text != "/* line comment */" {
+		t.Errorf(`unexpected line comment got = %q; want "/* line comment */"`, lineComment.List[0].Text)
+	}
+	if docComment.List[0].Text != "// Doc comment" {
+		t.Errorf(`unexpected line comment got = %q; want "// Doc comment"`, docComment.List[0].Text)
+	}
+
+	lineComment2 := f.Decls[2].(*ast.GenDecl).Specs[0].(*ast.ValueSpec).Comment
+	if lineComment2 == nil {
+		t.Fatal("missing line comment")
+	}
+	if lineComment.List[0].Text != "/* line comment */" {
+		t.Errorf(`unexpected line comment got = %q; want "/* line comment */"`, lineComment.List[0].Text)
+	}
+
+	docComment2 := f.Decls[3].(*ast.FuncDecl).Doc
+	if docComment2 != nil {
+		t.Errorf("unexpected doc comment %v", docComment2)
+	}
+}

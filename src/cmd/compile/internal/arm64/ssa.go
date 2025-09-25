@@ -1050,6 +1050,27 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Offset = int64(condCode)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
+	case ssa.OpARM64CCMP,
+		ssa.OpARM64CCMN,
+		ssa.OpARM64CCMPconst,
+		ssa.OpARM64CCMNconst,
+		ssa.OpARM64CCMPW,
+		ssa.OpARM64CCMNW,
+		ssa.OpARM64CCMPWconst,
+		ssa.OpARM64CCMNWconst:
+		p := s.Prog(v.Op.Asm())
+		p.Reg = v.Args[0].Reg()
+		params := v.AuxArm64ConditionalParams()
+		p.From.Type = obj.TYPE_SPECIAL // assembler encodes conditional bits in Offset
+		p.From.Offset = int64(condBits[params.Cond()])
+		constValue, ok := params.ConstValue()
+		if ok {
+			p.AddRestSourceConst(constValue)
+		} else {
+			p.AddRestSourceReg(v.Args[1].Reg())
+		}
+		p.To.Type = obj.TYPE_CONST
+		p.To.Offset = params.Nzcv()
 	case ssa.OpARM64LoweredZero:
 		ptrReg := v.Args[0].Reg()
 		n := v.AuxInt
@@ -1319,7 +1340,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			}
 		case ssa.OpARM64LoweredPanicBoundsCR:
 			yIsReg = true
-			yVal := int(v.Args[0].Reg() - arm64.REG_R0)
+			yVal = int(v.Args[0].Reg() - arm64.REG_R0)
 			c := v.Aux.(ssa.PanicBoundsC).C
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				xVal = int(c)

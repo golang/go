@@ -42,7 +42,9 @@ func KernelVersion() (major, minor int) {
 // This function will examine both the kernel version and the availability of the system call.
 var SupportCopyFileRange = sync.OnceValue(func() bool {
 	// The copy_file_range() function first appeared in FreeBSD 13.0.
-	major, _ := KernelVersion()
+	if !KernelVersionGE(13, 0) {
+		return false
+	}
 	_, err := CopyFileRange(0, nil, 0, nil, 0, 0)
-	return major >= 13 && err != syscall.ENOSYS
+	return err != syscall.ENOSYS
 })

@@ -7,6 +7,7 @@ package pkgpattern
 import (
 	"regexp"
 	"strings"
+	"unicode/utf8"
 )
 
 // Note: most of this code was originally part of the cmd/go/internal/search
@@ -71,7 +72,7 @@ func matchPatternInternal(pattern string, vendorExclude bool) func(name string) 
 
 	const vendorChar = "\x00"
 
-	if vendorExclude && strings.Contains(pattern, vendorChar) {
+	if vendorExclude && strings.Contains(pattern, vendorChar) || !utf8.ValidString(pattern) {
 		return func(name string) bool { return false }
 	}
 

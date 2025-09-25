@@ -1194,7 +1194,7 @@ func dumpNode(w io.Writer, n Node, depth int) {
 	}
 }
 
-var nodeType = reflect.TypeOf((*Node)(nil)).Elem()
+var nodeType = reflect.TypeFor[Node]()
 
 func dumpNodes(w io.Writer, list Nodes, depth int) {
 	if len(list) == 0 {

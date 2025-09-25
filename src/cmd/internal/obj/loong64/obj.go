@@ -17,11 +17,7 @@ import (
 func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	// Rewrite JMP/JAL to symbol as TYPE_BRANCH.
 	switch p.As {
-	case AJMP,
-		AJAL,
-		ARET,
-		obj.ADUFFZERO,
-		obj.ADUFFCOPY:
+	case AJMP, AJAL, ARET:
 		if p.To.Sym != nil {
 			p.To.Type = obj.TYPE_BRANCH
 		}
@@ -93,40 +89,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 }
 
 func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
-	//     ADUFFxxx $offset
-	// becomes
-	//     MOVV runtime.duffxxx@GOT, REGTMP
-	//     ADD $offset, REGTMP
-	//     JAL REGTMP
-	if p.As == obj.ADUFFCOPY || p.As == obj.ADUFFZERO {
-		var sym *obj.LSym
-		if p.As == obj.ADUFFZERO {
-			sym = ctxt.LookupABI("runtime.duffzero", obj.ABIInternal)
-		} else {
-			sym = ctxt.LookupABI("runtime.duffcopy", obj.ABIInternal)
-		}
-		offset := p.To.Offset
-		p.As = AMOVV
-		p.From.Type = obj.TYPE_MEM
-		p.From.Sym = sym
-		p.From.Name = obj.NAME_GOTREF
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REGTMP
-		p.To.Name = obj.NAME_NONE
-		p.To.Offset = 0
-		p.To.Sym = nil
-		p1 := obj.Appendp(p, newprog)
-		p1.As = AADDV
-		p1.From.Type = obj.TYPE_CONST
-		p1.From.Offset = offset
-		p1.To.Type = obj.TYPE_REG
-		p1.To.Reg = REGTMP
-		p2 := obj.Appendp(p1, newprog)
-		p2.As = AJAL
-		p2.To.Type = obj.TYPE_MEM
-		p2.To.Reg = REGTMP
-	}
-
 	// We only care about global data: NAME_EXTERN means a global
 	// symbol in the Go sense, and p.Sym.Local is true for a few
 	// internally defined symbols.
@@ -256,9 +218,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				}
 			}
 
-		case AJAL,
-			obj.ADUFFZERO,
-			obj.ADUFFCOPY:
+		case AJAL:
 			c.cursym.Func().Text.Mark &^= LEAF
 			fallthrough
 
@@ -364,7 +324,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q = c.ctxt.StartUnsafePoint(q, c.newprog)
 
 				q = obj.Appendp(q, newprog)
-				q.As = mov
+				q.As = AMOVVP
 				q.Pos = p.Pos
 				q.From.Type = obj.TYPE_REG
 				q.From.Reg = REGLINK

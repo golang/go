@@ -1590,9 +1590,7 @@ var getConfigForClientTests = []struct {
 		},
 		func(clientHello *ClientHelloInfo) (*Config, error) {
 			config := testConfig.Clone()
-			for i := range config.SessionTicketKey {
-				config.SessionTicketKey[i] = 0
-			}
+			clear(config.SessionTicketKey[:])
 			config.sessionTicketKeys = nil
 			return config, nil
 		},

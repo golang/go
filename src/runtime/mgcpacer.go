@@ -714,7 +714,7 @@ func (c *gcControllerState) enlistWorker() {
 		// (the scheduler will already prefer to spin up a new
 		// dedicated worker over an idle one).
 		if sched.npidle.Load() != 0 && sched.nmspinning.Load() == 0 {
-			wakep()
+			wakep() // Likely to consume our worker request.
 			return
 		}
 	}
@@ -767,8 +767,8 @@ func (c *gcControllerState) findRunnableGCWorker(pp *p, now int64) (*g, int64) {
 		gcCPULimiter.update(now)
 	}
 
-	if !gcMarkWorkAvailable(pp) {
-		// No work to be done right now. This can happen at
+	if !gcShouldScheduleWorker(pp) {
+		// No good reason to schedule a worker. This can happen at
 		// the end of the mark phase when there are still
 		// assists tapering off. Don't bother running a worker
 		// now because it'll just return immediately.

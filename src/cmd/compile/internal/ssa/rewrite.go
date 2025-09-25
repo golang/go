@@ -669,6 +669,17 @@ func auxIntToValAndOff(i int64) ValAndOff {
 func auxIntToArm64BitField(i int64) arm64BitField {
 	return arm64BitField(i)
 }
+func auxIntToArm64ConditionalParams(i int64) arm64ConditionalParams {
+	var params arm64ConditionalParams
+	params.cond = Op(i & 0xffff)
+	i >>= 16
+	params.nzcv = uint8(i & 0x0f)
+	i >>= 4
+	params.constValue = uint8(i & 0x1f)
+	i >>= 5
+	params.ind = i == 1
+	return params
+}
 func auxIntToFlagConstant(x int64) flagConstant {
 	return flagConstant(x)
 }
@@ -709,6 +720,20 @@ func valAndOffToAuxInt(v ValAndOff) int64 {
 }
 func arm64BitFieldToAuxInt(v arm64BitField) int64 {
 	return int64(v)
+}
+func arm64ConditionalParamsToAuxInt(v arm64ConditionalParams) int64 {
+	if v.cond&^0xffff != 0 {
+		panic("condition value exceeds 16 bits")
+	}
+
+	var i int64
+	if v.ind {
+		i = 1 << 25
+	}
+	i |= int64(v.constValue) << 20
+	i |= int64(v.nzcv) << 16
+	i |= int64(v.cond)
+	return i
 }
 func flagConstantToAuxInt(x flagConstant) int64 {
 	return int64(x)
@@ -1899,6 +1924,43 @@ func arm64BFWidth(mask, rshift int64) int64 {
 	return nto(shiftedMask)
 }
 
+// encodes condition code and NZCV flags into auxint.
+func arm64ConditionalParamsAuxInt(cond Op, nzcv uint8) arm64ConditionalParams {
+	if cond < OpARM64Equal || cond > OpARM64GreaterEqualU {
+		panic("Wrong conditional operation")
+	}
+	if nzcv&0x0f != nzcv {
+		panic("Wrong value of NZCV flag")
+	}
+	return arm64ConditionalParams{cond, nzcv, 0, false}
+}
+
+// encodes condition code, NZCV flags and constant value into auxint.
+func arm64ConditionalParamsAuxIntWithValue(cond Op, nzcv uint8, value uint8) arm64ConditionalParams {
+	if value&0x1f != value {
+		panic("Wrong value of constant")
+	}
+	params := arm64ConditionalParamsAuxInt(cond, nzcv)
+	params.constValue = value
+	params.ind = true
+	return params
+}
+
+// extracts condition code from auxint.
+func (condParams arm64ConditionalParams) Cond() Op {
+	return condParams.cond
+}
+
+// extracts NZCV flags from auxint.
+func (condParams arm64ConditionalParams) Nzcv() int64 {
+	return int64(condParams.nzcv)
+}
+
+// extracts constant value from auxint if present.
+func (condParams arm64ConditionalParams) ConstValue() (int64, bool) {
+	return int64(condParams.constValue), condParams.ind
+}
+
 // registerizable reports whether t is a primitive type that fits in
 // a register. It assumes float64 values will always fit into registers
 // even if that isn't strictly true.
@@ -1982,106 +2044,134 @@ func symIsROZero(sym Sym) bool {
 	return true
 }
 
-// isFixed32 returns true if the int32 at offset off in symbol sym
-// is known and constant.
-func isFixed32(c *Config, sym Sym, off int64) bool {
-	return isFixed(c, sym, off, 4)
-}
-
-// isFixed returns true if the range [off,off+size] of the symbol sym
-// is known and constant.
-func isFixed(c *Config, sym Sym, off, size int64) bool {
+// isFixedLoad returns true if the load can be resolved to fixed address or constant,
+// and can be rewritten by rewriteFixedLoad.
+func isFixedLoad(v *Value, sym Sym, off int64) bool {
 	lsym := sym.(*obj.LSym)
-	if lsym.Extra == nil {
+	if (v.Type.IsPtrShaped() || v.Type.IsUintptr()) && lsym.Type == objabi.SRODATA {
+		for _, r := range lsym.R {
+			if (r.Type == objabi.R_ADDR || r.Type == objabi.R_WEAKADDR) && int64(r.Off) == off && r.Add == 0 {
+				return true
+			}
+		}
 		return false
 	}
-	if _, ok := (*lsym.Extra).(*obj.TypeInfo); ok {
-		if off == 2*c.PtrSize && size == 4 {
-			return true // type hash field
-		}
-	}
-	return false
-}
-func fixed32(c *Config, sym Sym, off int64) int32 {
-	lsym := sym.(*obj.LSym)
-	if ti, ok := (*lsym.Extra).(*obj.TypeInfo); ok {
-		if off == 2*c.PtrSize {
-			return int32(types.TypeHash(ti.Type.(*types.Type)))
-		}
-	}
-	base.Fatalf("fixed32 data not known for %s:%d", sym, off)
-	return 0
-}
 
-// isPtrElem returns true if sym is an instance of abi.PtrType and off
-// is equal to the offset of its Elem field.
-func isPtrElem(sym Sym, off int64) bool {
-	lsym := sym.(*obj.LSym)
-	if strings.HasPrefix(lsym.Name, "type:*") {
-		if ti, ok := (*lsym.Extra).(*obj.TypeInfo); ok {
-			t := ti.Type.(*types.Type)
-			if t.Kind() == types.TPTR {
-				if off == rttype.PtrType.OffsetOf("Elem") {
+	if strings.HasPrefix(lsym.Name, "type:") {
+		// Type symbols do not contain information about their fields, unlike the cases above.
+		// Hand-implement field accesses.
+		// TODO: can this be replaced with reflectdata.writeType and just use the code above?
+
+		t := (*lsym.Extra).(*obj.TypeInfo).Type.(*types.Type)
+
+		for _, f := range rttype.Type.Fields() {
+			if f.Offset == off && copyCompatibleType(v.Type, f.Type) {
+				switch f.Sym.Name {
+				case "Size_", "PtrBytes", "Hash", "Kind_", "GCData":
 					return true
+				default:
+					// fmt.Println("unknown field", f.Sym.Name)
+					return false
 				}
 			}
 		}
-	}
-	return false
-}
-func ptrElem(sym Sym, off int64) Sym {
-	lsym := sym.(*obj.LSym)
-	if strings.HasPrefix(lsym.Name, "type:*") {
-		if ti, ok := (*lsym.Extra).(*obj.TypeInfo); ok {
-			t := ti.Type.(*types.Type)
-			if t.Kind() == types.TPTR {
-				if off == rttype.PtrType.OffsetOf("Elem") {
-					return reflectdata.TypeLinksym(t.Elem())
-				}
-			}
-		}
-	}
-	base.Fatalf("ptrElem data not known for %s:%d", sym, off)
-	return nil
-}
 
-// isFixedSym returns true if the contents of sym at the given offset
-// is known and is the constant address of another symbol.
-func isFixedSym(sym Sym, off int64) bool {
-	lsym := sym.(*obj.LSym)
-	switch {
-	case lsym.Type == objabi.SRODATA:
-		// itabs, dictionaries
-	default:
-		return false
-	}
-	for _, r := range lsym.R {
-		if (r.Type == objabi.R_ADDR || r.Type == objabi.R_WEAKADDR) && int64(r.Off) == off && r.Add == 0 {
+		if t.IsPtr() && off == rttype.PtrType.OffsetOf("Elem") {
 			return true
 		}
+
+		return false
 	}
+
 	return false
 }
-func fixedSym(f *Func, sym Sym, off int64) Sym {
+
+// rewriteFixedLoad rewrites a load to a fixed address or constant, if isFixedLoad returns true.
+func rewriteFixedLoad(v *Value, sym Sym, sb *Value, off int64) *Value {
+	b := v.Block
+	f := b.Func
+
 	lsym := sym.(*obj.LSym)
-	for _, r := range lsym.R {
-		if (r.Type == objabi.R_ADDR || r.Type == objabi.R_WEAKADDR) && int64(r.Off) == off {
-			if strings.HasPrefix(r.Sym.Name, "type:") {
-				// In case we're loading a type out of a dictionary, we need to record
-				// that the containing function might put that type in an interface.
-				// That information is currently recorded in relocations in the dictionary,
-				// but if we perform this load at compile time then the dictionary
-				// might be dead.
-				reflectdata.MarkTypeSymUsedInInterface(r.Sym, f.fe.Func().Linksym())
-			} else if strings.HasPrefix(r.Sym.Name, "go:itab") {
-				// Same, but if we're using an itab we need to record that the
-				// itab._type might be put in an interface.
-				reflectdata.MarkTypeSymUsedInInterface(r.Sym, f.fe.Func().Linksym())
+	if (v.Type.IsPtrShaped() || v.Type.IsUintptr()) && lsym.Type == objabi.SRODATA {
+		for _, r := range lsym.R {
+			if (r.Type == objabi.R_ADDR || r.Type == objabi.R_WEAKADDR) && int64(r.Off) == off && r.Add == 0 {
+				if strings.HasPrefix(r.Sym.Name, "type:") {
+					// In case we're loading a type out of a dictionary, we need to record
+					// that the containing function might put that type in an interface.
+					// That information is currently recorded in relocations in the dictionary,
+					// but if we perform this load at compile time then the dictionary
+					// might be dead.
+					reflectdata.MarkTypeSymUsedInInterface(r.Sym, f.fe.Func().Linksym())
+				} else if strings.HasPrefix(r.Sym.Name, "go:itab") {
+					// Same, but if we're using an itab we need to record that the
+					// itab._type might be put in an interface.
+					reflectdata.MarkTypeSymUsedInInterface(r.Sym, f.fe.Func().Linksym())
+				}
+				v.reset(OpAddr)
+				v.Aux = symToAux(r.Sym)
+				v.AddArg(sb)
+				return v
 			}
-			return r.Sym
 		}
+		base.Fatalf("fixedLoad data not known for %s:%d", sym, off)
 	}
-	base.Fatalf("fixedSym data not known for %s:%d", sym, off)
+
+	if strings.HasPrefix(lsym.Name, "type:") {
+		// Type symbols do not contain information about their fields, unlike the cases above.
+		// Hand-implement field accesses.
+		// TODO: can this be replaced with reflectdata.writeType and just use the code above?
+
+		t := (*lsym.Extra).(*obj.TypeInfo).Type.(*types.Type)
+
+		ptrSizedOpConst := OpConst64
+		if f.Config.PtrSize == 4 {
+			ptrSizedOpConst = OpConst32
+		}
+
+		for _, f := range rttype.Type.Fields() {
+			if f.Offset == off && copyCompatibleType(v.Type, f.Type) {
+				switch f.Sym.Name {
+				case "Size_":
+					v.reset(ptrSizedOpConst)
+					v.AuxInt = int64(t.Size())
+					return v
+				case "PtrBytes":
+					v.reset(ptrSizedOpConst)
+					v.AuxInt = int64(types.PtrDataSize(t))
+					return v
+				case "Hash":
+					v.reset(OpConst32)
+					v.AuxInt = int64(types.TypeHash(t))
+					return v
+				case "Kind_":
+					v.reset(OpConst8)
+					v.AuxInt = int64(reflectdata.ABIKindOfType(t))
+					return v
+				case "GCData":
+					gcdata, _ := reflectdata.GCSym(t, true)
+					v.reset(OpAddr)
+					v.Aux = symToAux(gcdata)
+					v.AddArg(sb)
+					return v
+				default:
+					base.Fatalf("unknown field %s for fixedLoad of %s at offset %d", f.Sym.Name, lsym.Name, off)
+				}
+			}
+		}
+
+		if t.IsPtr() && off == rttype.PtrType.OffsetOf("Elem") {
+			elemSym := reflectdata.TypeLinksym(t.Elem())
+			reflectdata.MarkTypeSymUsedInInterface(elemSym, f.fe.Func().Linksym())
+			v.reset(OpAddr)
+			v.Aux = symToAux(elemSym)
+			v.AddArg(sb)
+			return v
+		}
+
+		base.Fatalf("fixedLoad data not known for %s:%d", sym, off)
+	}
+
+	base.Fatalf("fixedLoad data not known for %s:%d", sym, off)
 	return nil
 }
 

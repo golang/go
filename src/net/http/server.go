@@ -2868,8 +2868,10 @@ func (mux *ServeMux) ServeHTTP(w ResponseWriter, r *Request) {
 // always refers to user code.
 
 // Handle registers the handler for the given pattern.
-// If the given pattern conflicts with one that is already registered, Handle
-// panics.
+// If the given pattern conflicts with one that is already registered
+// or if the pattern is invalid, Handle panics.
+//
+// See [ServeMux] for details on valid patterns and conflict rules.
 func (mux *ServeMux) Handle(pattern string, handler Handler) {
 	if use121 {
 		mux.mux121.handle(pattern, handler)
@@ -2879,8 +2881,10 @@ func (mux *ServeMux) Handle(pattern string, handler Handler) {
 }
 
 // HandleFunc registers the handler function for the given pattern.
-// If the given pattern conflicts with one that is already registered, HandleFunc
-// panics.
+// If the given pattern conflicts with one that is already registered
+// or if the pattern is invalid, HandleFunc panics.
+//
+// See [ServeMux] for details on valid patterns and conflict rules.
 func (mux *ServeMux) HandleFunc(pattern string, handler func(ResponseWriter, *Request)) {
 	if use121 {
 		mux.mux121.handleFunc(pattern, handler)

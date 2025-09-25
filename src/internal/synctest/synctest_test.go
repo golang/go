@@ -779,6 +779,28 @@ func TestWaitGroupHeapAllocated(t *testing.T) {
 	})
 }
 
+// Issue #75134: Many racing bubble associations.
+func TestWaitGroupManyBubbles(t *testing.T) {
+	var wg sync.WaitGroup
+	for range 100 {
+		wg.Go(func() {
+			synctest.Run(func() {
+				cancelc := make(chan struct{})
+				var wg2 sync.WaitGroup
+				for range 100 {
+					wg2.Go(func() {
+						<-cancelc
+					})
+				}
+				synctest.Wait()
+				close(cancelc)
+				wg2.Wait()
+			})
+		})
+	}
+	wg.Wait()
+}
+
 func TestHappensBefore(t *testing.T) {
 	// Use two parallel goroutines accessing different vars to ensure that
 	// we correctly account for multiple goroutines in the bubble.

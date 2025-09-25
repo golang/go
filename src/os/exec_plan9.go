@@ -88,6 +88,10 @@ func (p *Process) wait() (ps *ProcessState, err error) {
 	return ps, nil
 }
 
+func (p *Process) withHandle(_ func(handle uintptr)) error {
+	return ErrNoHandle
+}
+
 func findProcess(pid int) (p *Process, err error) {
 	// NOOP for Plan 9.
 	return newPIDProcess(pid), nil

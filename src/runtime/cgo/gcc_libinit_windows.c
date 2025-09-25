@@ -145,7 +145,7 @@ void _cgo_beginthread(unsigned long (__stdcall *func)(void*), void* arg) {
 
 	for (tries = 0; tries < 20; tries++) {
 		thandle = CreateThread(NULL, 0, func, arg, 0, NULL);
-		if (thandle == 0 && GetLastError() == ERROR_NOT_ENOUGH_MEMORY) {
+		if (thandle == 0 && GetLastError() == ERROR_ACCESS_DENIED) {
 			// "Insufficient resources", try again in a bit.
 			//
 			// Note that the first Sleep(0) is a yield.

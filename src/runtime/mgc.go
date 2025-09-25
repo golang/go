@@ -326,7 +326,7 @@ type workType struct {
 	full  lfstack          // lock-free list of full blocks workbuf
 	_     cpu.CacheLinePad // prevents false-sharing between full and empty
 	empty lfstack          // lock-free list of empty blocks workbuf
-	_     cpu.CacheLinePad // prevents false-sharing between empty and nproc/nwait
+	_     cpu.CacheLinePad // prevents false-sharing between empty and wbufSpans
 
 	wbufSpans struct {
 		lock mutex
@@ -337,12 +337,24 @@ type workType struct {
 		// one of the workbuf lists.
 		busy mSpanList
 	}
-	_ cpu.CacheLinePad // prevents false-sharing between wbufSpans and spanq
+	_ cpu.CacheLinePad // prevents false-sharing between wbufSpans and spanWorkMask
 
-	// Global queue of spans to scan.
+	// spanqMask is a bitmap indicating which Ps have local work worth stealing.
+	// Set or cleared by the owning P, cleared by stealing Ps.
+	//
+	// spanqMask is like a proxy for a global queue. An important invariant is that
+	// forced flushing like gcw.dispose must set this bit on any P that has local
+	// span work.
+	spanqMask pMask
+	_         cpu.CacheLinePad // prevents false-sharing between spanqMask and everything else
+
+	// List of all spanSPMCs.
 	//
 	// Only used if goexperiment.GreenTeaGC.
-	spanq spanQueue
+	spanSPMCs struct {
+		lock mutex // no lock rank because it's a leaf lock (see mklockrank.go).
+		all  *spanSPMC
+	}
 
 	// Restore 64-bit alignment on 32-bit.
 	// _ uint32
@@ -711,8 +723,9 @@ func gcStart(trigger gcTrigger) {
 		traceRelease(trace)
 	}
 
-	// Check that all Ps have finished deferred mcache flushes.
+	// Check and setup per-P state.
 	for _, p := range allp {
+		// Check that all Ps have finished deferred mcache flushes.
 		if fg := p.mcache.flushGen.Load(); fg != mheap_.sweepgen {
 			println("runtime: p", p.id, "flushGen", fg, "!= sweepgen", mheap_.sweepgen)
 			throw("p mcache not flushed")
@@ -869,10 +882,11 @@ var gcDebugMarkDone struct {
 // all local work to the global queues where it can be discovered by
 // other workers.
 //
+// All goroutines performing GC work must call gcBeginWork to signal
+// that they're executing GC work. They must call gcEndWork when done.
 // This should be called when all local mark work has been drained and
-// there are no remaining workers. Specifically, when
-//
-//	work.nwait == work.nproc && !gcMarkWorkAvailable(p)
+// there are no remaining workers. Specifically, when gcEndWork returns
+// true.
 //
 // The calling context must be preemptible.
 //
@@ -896,7 +910,7 @@ top:
 	// empty before performing the ragged barrier. Otherwise,
 	// there could be global work that a P could take after the P
 	// has passed the ragged barrier.
-	if !(gcphase == _GCmark && work.nwait == work.nproc && !gcMarkWorkAvailable(nil)) {
+	if !(gcphase == _GCmark && gcIsMarkDone()) {
 		semrelease(&work.markDoneSema)
 		return
 	}
@@ -922,6 +936,7 @@ top:
 		// TODO(austin): Break up these workbufs to
 		// better distribute work.
 		pp.gcw.dispose()
+
 		// Collect the flushedWork flag.
 		if pp.gcw.flushedWork {
 			atomic.Xadd(&gcMarkDoneFlushed, 1)
@@ -1514,11 +1529,7 @@ func gcBgMarkWorker(ready chan struct{}) {
 			trackLimiterEvent = pp.limiterEvent.start(limiterEventIdleMarkWork, startTime)
 		}
 
-		decnwait := atomic.Xadd(&work.nwait, -1)
-		if decnwait == work.nproc {
-			println("runtime: work.nwait=", decnwait, "work.nproc=", work.nproc)
-			throw("work.nwait was > work.nproc")
-		}
+		gcBeginWork()
 
 		systemstack(func() {
 			// Mark our goroutine preemptible so its stack can be scanned or observed
@@ -1570,15 +1581,6 @@ func gcBgMarkWorker(ready chan struct{}) {
 			atomic.Xaddint64(&pp.gcFractionalMarkTime, duration)
 		}
 
-		// Was this the last worker and did we run out
-		// of work?
-		incnwait := atomic.Xadd(&work.nwait, +1)
-		if incnwait > work.nproc {
-			println("runtime: p.gcMarkWorkerMode=", pp.gcMarkWorkerMode,
-				"work.nwait=", incnwait, "work.nproc=", work.nproc)
-			throw("work.nwait > work.nproc")
-		}
-
 		// We'll releasem after this point and thus this P may run
 		// something else. We must clear the worker mode to avoid
 		// attributing the mode to a different (non-worker) G in
@@ -1587,7 +1589,7 @@ func gcBgMarkWorker(ready chan struct{}) {
 
 		// If this worker reached a background mark completion
 		// point, signal the main GC goroutine.
-		if incnwait == work.nproc && !gcMarkWorkAvailable(nil) {
+		if gcEndWork() {
 			// We don't need the P-local buffers here, allow
 			// preemption because we may schedule like a regular
 			// goroutine in gcMarkDone (block on locks, etc).
@@ -1599,20 +1601,40 @@ func gcBgMarkWorker(ready chan struct{}) {
 	}
 }
 
-// gcMarkWorkAvailable reports whether executing a mark worker
-// on p is potentially useful. p may be nil, in which case it only
-// checks the global sources of work.
-func gcMarkWorkAvailable(p *p) bool {
+// gcShouldScheduleWorker reports whether executing a mark worker
+// on p is potentially useful. p may be nil.
+func gcShouldScheduleWorker(p *p) bool {
 	if p != nil && !p.gcw.empty() {
 		return true
 	}
-	if !work.full.empty() || !work.spanq.empty() {
-		return true // global work available
+	return gcMarkWorkAvailable()
+}
+
+// gcIsMarkDone reports whether the mark phase is (probably) done.
+func gcIsMarkDone() bool {
+	return work.nwait == work.nproc && !gcMarkWorkAvailable()
+}
+
+// gcBeginWork signals to the garbage collector that a new worker is
+// about to process GC work.
+func gcBeginWork() {
+	decnwait := atomic.Xadd(&work.nwait, -1)
+	if decnwait == work.nproc {
+		println("runtime: work.nwait=", decnwait, "work.nproc=", work.nproc)
+		throw("work.nwait was > work.nproc")
 	}
-	if work.markrootNext < work.markrootJobs {
-		return true // root scan work available
+}
+
+// gcEndWork signals to the garbage collector that a new worker has just finished
+// its work. It reports whether it was the last worker and there's no more work
+// to do. If it returns true, the caller must call gcMarkDone.
+func gcEndWork() (last bool) {
+	incnwait := atomic.Xadd(&work.nwait, +1)
+	if incnwait > work.nproc {
+		println("runtime: work.nwait=", incnwait, "work.nproc=", work.nproc)
+		throw("work.nwait > work.nproc")
 	}
-	return false
+	return incnwait == work.nproc && !gcMarkWorkAvailable()
 }
 
 // gcMark runs the mark (or, for concurrent GC, mark termination)
@@ -1625,8 +1647,8 @@ func gcMark(startTime int64) {
 	work.tstart = startTime
 
 	// Check that there's no marking work remaining.
-	if work.full != 0 || work.markrootNext < work.markrootJobs || !work.spanq.empty() {
-		print("runtime: full=", hex(work.full), " next=", work.markrootNext, " jobs=", work.markrootJobs, " nDataRoots=", work.nDataRoots, " nBSSRoots=", work.nBSSRoots, " nSpanRoots=", work.nSpanRoots, " nStackRoots=", work.nStackRoots, " spanq.n=", work.spanq.size(), "\n")
+	if work.full != 0 || work.markrootNext < work.markrootJobs {
+		print("runtime: full=", hex(work.full), " next=", work.markrootNext, " jobs=", work.markrootJobs, " nDataRoots=", work.nDataRoots, " nBSSRoots=", work.nBSSRoots, " nSpanRoots=", work.nSpanRoots, " nStackRoots=", work.nStackRoots, "\n")
 		panic("non-empty mark queue after concurrent mark")
 	}
 
@@ -1742,9 +1764,11 @@ func gcSweep(mode gcMode) bool {
 		// Sweep all spans eagerly.
 		for sweepone() != ^uintptr(0) {
 		}
-		// Free workbufs eagerly.
+		// Free workbufs and span rings eagerly.
 		prepareFreeWorkbufs()
 		for freeSomeWbufs(false) {
+		}
+		for freeSomeSpanSPMCs(false) {
 		}
 		// All "free" events for this mark/sweep cycle have
 		// now happened, so we can make this profile cycle

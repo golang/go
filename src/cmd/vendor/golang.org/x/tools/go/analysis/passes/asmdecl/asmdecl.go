@@ -237,7 +237,7 @@ Files:
 					// so accumulate them all and then prefer the one that
 					// matches build.Default.GOARCH.
 					var archCandidates []*asmArch
-					for _, fld := range strings.Fields(m[1]) {
+					for fld := range strings.FieldsSeq(m[1]) {
 						for _, a := range arches {
 							if a.name == fld {
 								archCandidates = append(archCandidates, a)

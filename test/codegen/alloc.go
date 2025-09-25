@@ -10,25 +10,28 @@
 package codegen
 
 func zeroAllocNew1() *struct{} {
-	// 386:-`CALL\truntime\.newobject`
-	// amd64:-`CALL\truntime\.newobject`
-	// arm:-`CALL\truntime\.newobject`
-	// arm64:-`CALL\truntime\.newobject`
+	// 386:-`CALL\truntime\.newobject`, `LEAL\truntime.zerobase`
+	// amd64:-`CALL\truntime\.newobject`, `LEAQ\truntime.zerobase`
+	// arm:-`CALL\truntime\.newobject`, `MOVW\t[$]runtime.zerobase`
+	// arm64:-`CALL\truntime\.newobject`, `MOVD\t[$]runtime.zerobase`
+	// riscv64:-`CALL\truntime\.newobject`, `MOV\t[$]runtime.zerobase`
 	return new(struct{})
 }
 
 func zeroAllocNew2() *[0]int {
-	// 386:-`CALL\truntime\.newobject`
-	// amd64:-`CALL\truntime\.newobject`
-	// arm:-`CALL\truntime\.newobject`
-	// arm64:-`CALL\truntime\.newobject`
+	// 386:-`CALL\truntime\.newobject`, `LEAL\truntime.zerobase`
+	// amd64:-`CALL\truntime\.newobject`, `LEAQ\truntime.zerobase`
+	// arm:-`CALL\truntime\.newobject`, `MOVW\t[$]runtime.zerobase`
+	// arm64:-`CALL\truntime\.newobject`, `MOVD\t[$]runtime.zerobase`
+	// riscv64:-`CALL\truntime\.newobject`, `MOV\t[$]runtime.zerobase`
 	return new([0]int)
 }
 
 func zeroAllocSliceLit() []int {
-	// 386:-`CALL\truntime\.newobject`
-	// amd64:-`CALL\truntime\.newobject`
-	// arm:-`CALL\truntime\.newobject`
-	// arm64:-`CALL\truntime\.newobject`
+	// 386:-`CALL\truntime\.newobject`, `LEAL\truntime.zerobase`
+	// amd64:-`CALL\truntime\.newobject`, `LEAQ\truntime.zerobase`
+	// arm:-`CALL\truntime\.newobject`, `MOVW\t[$]runtime.zerobase`
+	// arm64:-`CALL\truntime\.newobject`, `MOVD\t[$]runtime.zerobase`
+	// riscv64:-`CALL\truntime\.newobject`, `MOV\t[$]runtime.zerobase`
 	return []int{}
 }

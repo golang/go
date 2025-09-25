@@ -988,6 +988,15 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 			if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 && cfg.BuildCoverPkg == nil {
 				p.Internal.Cover.GenMeta = true
 			}
+
+			// Set coverage mode before building actions because it needs to be set
+			// before the first package build action for the package under test is
+			// created and cached, so that we can create the coverage action for it.
+			if cfg.BuildCover {
+				if p.Internal.Cover.GenMeta {
+					p.Internal.Cover.Mode = cfg.BuildCoverMode
+				}
+			}
 		}
 	}
 
@@ -1116,11 +1125,6 @@ var windowsBadWords = []string{
 
 func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts, p *load.Package, imported bool, writeCoverMetaAct *work.Action) (buildAction, runAction, printAction *work.Action, perr *load.Package, err error) {
 	if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
-		if cfg.BuildCover {
-			if p.Internal.Cover.GenMeta {
-				p.Internal.Cover.Mode = cfg.BuildCoverMode
-			}
-		}
 		build := b.CompileAction(work.ModeBuild, work.ModeBuild, p)
 		run := &work.Action{
 			Mode:       "test run",
@@ -1188,7 +1192,9 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
 
 	testBinary := testBinaryName(p)
 
-	testDir := b.NewObjdir()
+	// Set testdir to compile action's objdir.
+	// so that the default file path stripping applies to _testmain.go.
+	testDir := b.CompileAction(work.ModeBuild, work.ModeBuild, pmain).Objdir
 	if err := b.BackgroundShell().Mkdir(testDir); err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -1208,10 +1214,6 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
 			return nil, nil, nil, nil, err
 		}
 	}
-
-	// Set compile objdir to testDir we've already created,
-	// so that the default file path stripping applies to _testmain.go.
-	b.CompileAction(work.ModeBuild, work.ModeBuild, pmain).Objdir = testDir
 
 	a := b.LinkAction(work.ModeBuild, work.ModeBuild, pmain)
 	a.Target = testDir + testBinary + cfg.ExeSuffix

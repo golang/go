@@ -149,7 +149,7 @@ func (f *vetFlag) Set(value string) error {
 
 	*f = vetFlag{explicit: true}
 	var single string
-	for _, arg := range strings.Split(value, ",") {
+	for arg := range strings.SplitSeq(value, ",") {
 		switch arg {
 		case "":
 			return fmt.Errorf("-vet argument contains empty list element")

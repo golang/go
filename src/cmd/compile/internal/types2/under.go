@@ -4,6 +4,8 @@
 
 package types2
 
+import "iter"
+
 // under returns the true expanded underlying type.
 // If it doesn't exist, the result is Typ[Invalid].
 // under must only be called when a type is known
@@ -18,12 +20,18 @@ func under(t Type) Type {
 // If typ is a type parameter, underIs returns the result of typ.underIs(f).
 // Otherwise, underIs returns the result of f(under(typ)).
 func underIs(typ Type, f func(Type) bool) bool {
-	var ok bool
-	typeset(typ, func(_, u Type) bool {
-		ok = f(u)
-		return ok
+	return all(typ, func(_, u Type) bool {
+		return f(u)
 	})
-	return ok
+}
+
+// all reports whether f(t, u) is true for all (type/underlying type)
+// pairs in the typeset of t. See [typeset] for details of sequence.
+func all(t Type, f func(t, u Type) bool) bool {
+	if p, _ := Unalias(t).(*TypeParam); p != nil {
+		return p.typeset(f)
+	}
+	return f(t, under(t))
 }
 
 // typeset is an iterator over the (type/underlying type) pairs of the
@@ -32,12 +40,10 @@ func underIs(typ Type, f func(Type) bool) bool {
 // In that case, if there are no specific terms, typeset calls yield with (nil, nil).
 // If t is not a type parameter, the implied type set consists of just t.
 // In any case, typeset is guaranteed to call yield at least once.
-func typeset(t Type, yield func(t, u Type) bool) {
-	if p, _ := Unalias(t).(*TypeParam); p != nil {
-		p.typeset(yield)
-		return
+func typeset(t Type) iter.Seq2[Type, Type] {
+	return func(yield func(t, u Type) bool) {
+		_ = all(t, yield)
 	}
-	yield(t, under(t))
 }
 
 // A typeError describes a type error.
@@ -80,35 +86,28 @@ func (err *typeError) format(check *Checker) string {
 // with the single type t in its type set.
 func commonUnder(t Type, cond func(t, u Type) *typeError) (Type, *typeError) {
 	var ct, cu Type // type and respective common underlying type
-	var err *typeError
-
-	bad := func(format string, args ...any) bool {
-		err = typeErrorf(format, args...)
-		return false
-	}
-
-	typeset(t, func(t, u Type) bool {
+	for t, u := range typeset(t) {
 		if cond != nil {
-			if err = cond(t, u); err != nil {
-				return false
+			if err := cond(t, u); err != nil {
+				return nil, err
 			}
 		}
 
 		if u == nil {
-			return bad("no specific type")
+			return nil, typeErrorf("no specific type")
 		}
 
 		// If this is the first type we're seeing, we're done.
 		if cu == nil {
 			ct, cu = t, u
-			return true
+			continue
 		}
 
 		// If we've seen a channel before, and we have a channel now, they must be compatible.
 		if chu, _ := cu.(*Chan); chu != nil {
 			if ch, _ := u.(*Chan); ch != nil {
 				if !Identical(chu.elem, ch.elem) {
-					return bad("channels %s and %s have different element types", ct, t)
+					return nil, typeErrorf("channels %s and %s have different element types", ct, t)
 				}
 				// If we have different channel directions, keep the restricted one
 				// and complain if they conflict.
@@ -118,22 +117,16 @@ func commonUnder(t Type, cond func(t, u Type) *typeError) (Type, *typeError) {
 				case chu.dir == SendRecv:
 					ct, cu = t, u // switch to restricted channel
 				case ch.dir != SendRecv:
-					return bad("channels %s and %s have conflicting directions", ct, t)
+					return nil, typeErrorf("channels %s and %s have conflicting directions", ct, t)
 				}
-				return true
+				continue
 			}
 		}
 
 		// Otherwise, the current type must have the same underlying type as all previous types.
 		if !Identical(cu, u) {
-			return bad("%s and %s have different underlying types", ct, t)
+			return nil, typeErrorf("%s and %s have different underlying types", ct, t)
 		}
-
-		return true
-	})
-
-	if err != nil {
-		return nil, err
 	}
 	return cu, nil
 }
