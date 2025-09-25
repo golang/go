@@ -157,7 +157,10 @@ func checkCopyLocksCallExpr(pass *analysis.Pass, ce *ast.CallExpr) {
 	}
 	if fun, ok := pass.TypesInfo.Uses[id].(*types.Builtin); ok {
 		switch fun.Name() {
-		case "new", "len", "cap", "Sizeof", "Offsetof", "Alignof":
+		case "len", "cap", "Sizeof", "Offsetof", "Alignof":
+			// The argument of this operation is used only
+			// for its type (e.g. len(array)), or the operation
+			// does not copy a lock (e.g. len(slice)).
 			return
 		}
 	}
