@@ -11,8 +11,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
-	"strings"
 	"testing"
 )
 
@@ -48,10 +48,10 @@ func genLargeBranch(buf *bytes.Buffer) {
 	fmt.Fprintln(buf, "TEXT f(SB),0,$0-0")
 	fmt.Fprintln(buf, "BEQ X0, X0, label")
 	for i := 0; i < 1<<19; i++ {
-		fmt.Fprintln(buf, "ADD $0, X0, X0")
+		fmt.Fprintln(buf, "ADD $0, X5, X0")
 	}
 	fmt.Fprintln(buf, "label:")
-	fmt.Fprintln(buf, "ADD $0, X0, X0")
+	fmt.Fprintln(buf, "ADD $0, X5, X0")
 }
 
 // TestLargeCall generates a large function (>1MB of text) with a call to
@@ -112,11 +112,11 @@ func genLargeCall(buf *bytes.Buffer) {
 	fmt.Fprintln(buf, "TEXT ·x(SB),0,$0-0")
 	fmt.Fprintln(buf, "CALL ·y(SB)")
 	for i := 0; i < 1<<19; i++ {
-		fmt.Fprintln(buf, "ADD $0, X0, X0")
+		fmt.Fprintln(buf, "ADD $0, X5, X0")
 	}
 	fmt.Fprintln(buf, "RET")
 	fmt.Fprintln(buf, "TEXT ·y(SB),0,$0-0")
-	fmt.Fprintln(buf, "ADD $0, X0, X0")
+	fmt.Fprintln(buf, "ADD $0, X5, X0")
 	fmt.Fprintln(buf, "RET")
 }
 
@@ -301,9 +301,9 @@ TEXT _stub(SB),$0-0
 	//	FENCE
 	//	NOP
 	//	FENCE
-	//	RET
-	want := "0f 00 f0 0f 13 00 00 00 0f 00 f0 0f 67 80 00 00"
-	if !strings.Contains(string(out), want) {
+	//	RET	(CJALR or JALR)
+	want := regexp.MustCompile("0x0000 0f 00 f0 0f 13 00 00 00 0f 00 f0 0f (82 80|67 80 00 00) ")
+	if !want.Match(out) {
 		t.Errorf("PCALIGN test failed - got %s\nwant %s", out, want)
 	}
 }

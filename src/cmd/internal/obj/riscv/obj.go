@@ -414,10 +414,10 @@ func containsCall(sym *obj.LSym) bool {
 
 // setPCs sets the Pc field in all instructions reachable from p.
 // It uses pc as the initial value and returns the next available pc.
-func setPCs(p *obj.Prog, pc int64) int64 {
+func setPCs(p *obj.Prog, pc int64, compress bool) int64 {
 	for ; p != nil; p = p.Link {
 		p.Pc = pc
-		for _, ins := range instructionsForProg(p) {
+		for _, ins := range instructionsForProg(p, compress) {
 			pc += int64(ins.length())
 		}
 
@@ -671,7 +671,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	// a fixed point will be reached).  No attempt to handle functions > 2GiB.
 	for {
 		big, rescan := false, false
-		maxPC := setPCs(cursym.Func().Text, 0)
+		maxPC := setPCs(cursym.Func().Text, 0, ctxt.CompressInstructions)
 		if maxPC+maxTrampSize > (1 << 20) {
 			big = true
 		}
@@ -801,7 +801,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 	// Validate all instructions - this provides nice error messages.
 	for p := cursym.Func().Text; p != nil; p = p.Link {
-		for _, ins := range instructionsForProg(p) {
+		for _, ins := range instructionsForProg(p, ctxt.CompressInstructions) {
 			ins.validate(ctxt)
 		}
 	}
@@ -1141,6 +1141,14 @@ func wantImmU(ctxt *obj.Link, ins *instruction, imm int64, nbits uint) {
 	}
 }
 
+func isScaledImmI(imm int64, nbits uint, scale int64) bool {
+	return immFits(imm, nbits, true) == nil && imm%scale == 0
+}
+
+func isScaledImmU(imm int64, nbits uint, scale int64) bool {
+	return immFits(imm, nbits, false) == nil && imm%scale == 0
+}
+
 func wantScaledImm(ctxt *obj.Link, ins *instruction, imm int64, nbits uint, scale int64, signed bool) {
 	if err := immFits(imm, nbits, signed); err != nil {
 		ctxt.Diag("%v: %v", ins, err)
@@ -1180,6 +1188,10 @@ func wantIntReg(ctxt *obj.Link, ins *instruction, pos string, r uint32) {
 	wantReg(ctxt, ins, pos, "integer", r, REG_X0, REG_X31)
 }
 
+func isIntPrimeReg(r uint32) bool {
+	return r >= REG_X8 && r <= REG_X15
+}
+
 // wantIntPrimeReg checks that r is an integer register that can be used
 // in a prime register field of a compressed instruction.
 func wantIntPrimeReg(ctxt *obj.Link, ins *instruction, pos string, r uint32) {
@@ -1189,6 +1201,10 @@ func wantIntPrimeReg(ctxt *obj.Link, ins *instruction, pos string, r uint32) {
 // wantFloatReg checks that r is a floating-point register.
 func wantFloatReg(ctxt *obj.Link, ins *instruction, pos string, r uint32) {
 	wantReg(ctxt, ins, pos, "float", r, REG_F0, REG_F31)
+}
+
+func isFloatPrimeReg(r uint32) bool {
+	return r >= REG_F8 && r <= REG_F15
 }
 
 // wantFloatPrimeReg checks that r is an floating-point register that can
@@ -3515,6 +3531,147 @@ func (ins *instruction) usesRegTmp() bool {
 	return ins.rd == REG_TMP || ins.rs1 == REG_TMP || ins.rs2 == REG_TMP
 }
 
+func (ins *instruction) compress() {
+	switch ins.as {
+	case ALW:
+		if ins.rd != REG_X0 && ins.rs1 == REG_SP && isScaledImmU(ins.imm, 8, 4) {
+			ins.as, ins.rs1, ins.rs2 = ACLWSP, obj.REG_NONE, ins.rs1
+		} else if isIntPrimeReg(ins.rd) && isIntPrimeReg(ins.rs1) && isScaledImmU(ins.imm, 7, 4) {
+			ins.as = ACLW
+		}
+
+	case ALD:
+		if ins.rs1 == REG_SP && ins.rd != REG_X0 && isScaledImmU(ins.imm, 9, 8) {
+			ins.as, ins.rs1, ins.rs2 = ACLDSP, obj.REG_NONE, ins.rs1
+		} else if isIntPrimeReg(ins.rd) && isIntPrimeReg(ins.rs1) && isScaledImmU(ins.imm, 8, 8) {
+			ins.as = ACLD
+		}
+
+	case AFLD:
+		if ins.rs1 == REG_SP && isScaledImmU(ins.imm, 9, 8) {
+			ins.as, ins.rs1, ins.rs2 = ACFLDSP, obj.REG_NONE, ins.rs1
+		} else if isFloatPrimeReg(ins.rd) && isIntPrimeReg(ins.rs1) && isScaledImmU(ins.imm, 8, 8) {
+			ins.as = ACFLD
+		}
+
+	case ASW:
+		if ins.rd == REG_SP && isScaledImmU(ins.imm, 8, 4) {
+			ins.as, ins.rs1, ins.rs2 = ACSWSP, obj.REG_NONE, ins.rs1
+		} else if isIntPrimeReg(ins.rd) && isIntPrimeReg(ins.rs1) && isScaledImmU(ins.imm, 7, 4) {
+			ins.as, ins.rd, ins.rs1, ins.rs2 = ACSW, obj.REG_NONE, ins.rd, ins.rs1
+		}
+
+	case ASD:
+		if ins.rd == REG_SP && isScaledImmU(ins.imm, 9, 8) {
+			ins.as, ins.rs1, ins.rs2 = ACSDSP, obj.REG_NONE, ins.rs1
+		} else if isIntPrimeReg(ins.rd) && isIntPrimeReg(ins.rs1) && isScaledImmU(ins.imm, 8, 8) {
+			ins.as, ins.rd, ins.rs1, ins.rs2 = ACSD, obj.REG_NONE, ins.rd, ins.rs1
+		}
+
+	case AFSD:
+		if ins.rd == REG_SP && isScaledImmU(ins.imm, 9, 8) {
+			ins.as, ins.rs1, ins.rs2 = ACFSDSP, obj.REG_NONE, ins.rs1
+		} else if isIntPrimeReg(ins.rd) && isFloatPrimeReg(ins.rs1) && isScaledImmU(ins.imm, 8, 8) {
+			ins.as, ins.rd, ins.rs1, ins.rs2 = ACFSD, obj.REG_NONE, ins.rd, ins.rs1
+		}
+
+	case AADDI:
+		if ins.rd == REG_SP && ins.rs1 == REG_SP && ins.imm != 0 && isScaledImmI(ins.imm, 10, 16) {
+			ins.as = ACADDI16SP
+		} else if ins.rd != REG_X0 && ins.rd == ins.rs1 && ins.imm != 0 && immIFits(ins.imm, 6) == nil {
+			ins.as = ACADDI
+		} else if isIntPrimeReg(ins.rd) && ins.rs1 == REG_SP && ins.imm != 0 && isScaledImmU(ins.imm, 10, 4) {
+			ins.as = ACADDI4SPN
+		} else if ins.rd != REG_X0 && ins.rs1 == REG_X0 && immIFits(ins.imm, 6) == nil {
+			ins.as, ins.rs1 = ACLI, obj.REG_NONE
+		} else if ins.rd != REG_X0 && ins.rs1 != REG_X0 && ins.imm == 0 {
+			ins.as, ins.rs1, ins.rs2 = ACMV, obj.REG_NONE, ins.rs1
+		} else if ins.rd == REG_X0 && ins.rs1 == REG_X0 && ins.imm == 0 {
+			ins.as, ins.rs1 = ACNOP, ins.rd
+		}
+
+	case AADDIW:
+		if ins.rd == ins.rs1 && immIFits(ins.imm, 6) == nil {
+			ins.as = ACADDIW
+		}
+
+	case ALUI:
+		if ins.rd != REG_X0 && ins.rd != REG_SP && ins.imm != 0 && immIFits(ins.imm, 6) == nil {
+			ins.as = ACLUI
+		}
+
+	case ASLLI:
+		if ins.rd != REG_X0 && ins.rd == ins.rs1 && ins.imm != 0 {
+			ins.as = ACSLLI
+		}
+
+	case ASRLI:
+		if isIntPrimeReg(ins.rd) && ins.rd == ins.rs1 && ins.imm != 0 {
+			ins.as = ACSRLI
+		}
+
+	case ASRAI:
+		if isIntPrimeReg(ins.rd) && ins.rd == ins.rs1 && ins.imm != 0 {
+			ins.as = ACSRAI
+		}
+
+	case AANDI:
+		if isIntPrimeReg(ins.rd) && ins.rd == ins.rs1 && immIFits(ins.imm, 6) == nil {
+			ins.as = ACANDI
+		}
+
+	case AADD:
+		if ins.rd != REG_X0 && ins.rd == ins.rs1 && ins.rs2 != REG_X0 {
+			ins.as = ACADD
+		} else if ins.rd != REG_X0 && ins.rd == ins.rs2 && ins.rs1 != REG_X0 {
+			ins.as, ins.rs1, ins.rs2 = ACADD, ins.rs2, ins.rs1
+		} else if ins.rd != REG_X0 && ins.rs1 == REG_X0 && ins.rs2 != REG_X0 {
+			ins.as = ACMV
+		}
+
+	case AADDW:
+		if isIntPrimeReg(ins.rd) && ins.rd == ins.rs1 && isIntPrimeReg(ins.rs2) {
+			ins.as = ACADDW
+		} else if isIntPrimeReg(ins.rd) && isIntPrimeReg(ins.rs1) && ins.rd == ins.rs2 {
+			ins.as, ins.rs1, ins.rs2 = ACADDW, ins.rs2, ins.rs1
+		}
+
+	case ASUB:
+		if isIntPrimeReg(ins.rd) && ins.rd == ins.rs1 && isIntPrimeReg(ins.rs2) {
+			ins.as = ACSUB
+		}
+
+	case ASUBW:
+		if isIntPrimeReg(ins.rd) && ins.rd == ins.rs1 && isIntPrimeReg(ins.rs2) {
+			ins.as = ACSUBW
+		}
+
+	case AAND:
+		if isIntPrimeReg(ins.rd) && ins.rd == ins.rs1 && isIntPrimeReg(ins.rs2) {
+			ins.as = ACAND
+		} else if isIntPrimeReg(ins.rd) && isIntPrimeReg(ins.rs1) && ins.rd == ins.rs2 {
+			ins.as, ins.rs1, ins.rs2 = ACAND, ins.rs2, ins.rs1
+		}
+
+	case AOR:
+		if isIntPrimeReg(ins.rd) && ins.rd == ins.rs1 && isIntPrimeReg(ins.rs2) {
+			ins.as = ACOR
+		} else if isIntPrimeReg(ins.rd) && isIntPrimeReg(ins.rs1) && ins.rd == ins.rs2 {
+			ins.as, ins.rs1, ins.rs2 = ACOR, ins.rs2, ins.rs1
+		}
+
+	case AXOR:
+		if isIntPrimeReg(ins.rd) && ins.rd == ins.rs1 && isIntPrimeReg(ins.rs2) {
+			ins.as = ACXOR
+		} else if isIntPrimeReg(ins.rd) && isIntPrimeReg(ins.rs1) && ins.rd == ins.rs2 {
+			ins.as, ins.rs1, ins.rs2 = ACXOR, ins.rs2, ins.rs1
+		}
+
+	case AEBREAK:
+		ins.as, ins.rd, ins.rs1 = ACEBREAK, obj.REG_NONE, obj.REG_NONE
+	}
+}
+
 // instructionForProg returns the default *obj.Prog to instruction mapping.
 func instructionForProg(p *obj.Prog) *instruction {
 	ins := &instruction{
@@ -4057,7 +4214,7 @@ func instructionsForMinMax(p *obj.Prog, ins *instruction) []*instruction {
 }
 
 // instructionsForProg returns the machine instructions for an *obj.Prog.
-func instructionsForProg(p *obj.Prog) []*instruction {
+func instructionsForProg(p *obj.Prog, compress bool) []*instruction {
 	ins := instructionForProg(p)
 	inss := []*instruction{ins}
 
@@ -4710,6 +4867,15 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		ins.rs1, ins.rs2 = obj.REG_NONE, REG_V0
 	}
 
+	// Only compress instructions when there is no relocation, since
+	// relocation relies on knowledge about the exact instructions that
+	// are in use.
+	if compress && p.Mark&NEED_RELOC == 0 {
+		for _, ins := range inss {
+			ins.compress()
+		}
+	}
+
 	for _, ins := range inss {
 		ins.p = p
 	}
@@ -4814,7 +4980,7 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		}
 
 		offset := p.Pc
-		for _, ins := range instructionsForProg(p) {
+		for _, ins := range instructionsForProg(p, ctxt.CompressInstructions) {
 			if ic, err := ins.encode(); err == nil {
 				cursym.WriteInt(ctxt, offset, ins.length(), int64(ic))
 				offset += int64(ins.length())
