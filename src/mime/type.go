@@ -51,7 +51,16 @@ func setMimeTypes(lowerExt, mixExt map[string]string) {
 }
 
 // A type is listed here if both Firefox and Chrome included them in their own
-// lists.
+// lists.  In the case where they contradict they are deconflicted using IANA's
+// listed media types https://www.iana.org/assignments/media-types/media-types.xhtml
+//
+// Chrome's MIME mappings to file extensions are defined at
+// https://chromium.googlesource.com/chromium/src.git/+/refs/heads/main/net/base/mime_util.cc
+//
+// Firefox's MIME types can be found at
+// https://github.com/mozilla-firefox/firefox/blob/main/netwerk/mime/nsMimeTypes.h
+// and the mappings to file extensions at
+// https://github.com/mozilla-firefox/firefox/blob/main/uriloader/exthandler/nsExternalHelperAppService.cpp
 var builtinTypesLower = map[string]string{
 	".ai":    "application/postscript",
 	".apk":   "application/vnd.android.package-archive",
