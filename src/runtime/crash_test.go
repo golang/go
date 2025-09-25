@@ -189,17 +189,17 @@ func buildTestProg(t *testing.T, binary string, flags ...string) (string, error)
 
 		// If tests need any experimental flags, add them here.
 		//
-		// TODO(vsaioc): Remove `gleakprofile` once the feature is no longer experimental.
+		// TODO(vsaioc): Remove `goroutineleakprofile` once the feature is no longer experimental.
 		edited := false
 		for i := range cmd.Env {
 			e := cmd.Env[i]
 			if _, vars, ok := strings.Cut(e, "GOEXPERIMENT="); ok {
-				cmd.Env[i] = "GOEXPERIMENT=" + vars + ",gleakprofile"
+				cmd.Env[i] = "GOEXPERIMENT=" + vars + ",goroutineleakprofile"
 				edited, _ = true, vars
 			}
 		}
 		if !edited {
-			cmd.Env = append(cmd.Env, "GOEXPERIMENT=gleakprofile")
+			cmd.Env = append(cmd.Env, "GOEXPERIMENT=goroutineleakprofile")
 		}
 
 		out, err := cmd.CombinedOutput()

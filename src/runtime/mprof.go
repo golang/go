@@ -1259,18 +1259,18 @@ func goroutineProfileWithLabels(p []profilerecord.StackRecord, labels []unsafe.P
 	return goroutineProfileWithLabelsConcurrent(p, labels)
 }
 
-//go:linkname pprof_gleakProfileWithLabels
-func pprof_gleakProfileWithLabels(p []profilerecord.StackRecord, labels []unsafe.Pointer) (n int, ok bool) {
-	return gleakProfileWithLabelsConcurrent(p, labels)
+//go:linkname pprof_goroutineLeakProfileWithLabels
+func pprof_goroutineLeakProfileWithLabels(p []profilerecord.StackRecord, labels []unsafe.Pointer) (n int, ok bool) {
+	return goroutineLeakProfileWithLabelsConcurrent(p, labels)
 }
 
 // labels may be nil. If labels is non-nil, it must have the same length as p.
-func gleakProfileWithLabels(p []profilerecord.StackRecord, labels []unsafe.Pointer) (n int, ok bool) {
+func goroutineLeakProfileWithLabels(p []profilerecord.StackRecord, labels []unsafe.Pointer) (n int, ok bool) {
 	if labels != nil && len(labels) != len(p) {
 		labels = nil
 	}
 
-	return gleakProfileWithLabelsConcurrent(p, labels)
+	return goroutineLeakProfileWithLabelsConcurrent(p, labels)
 }
 
 var goroutineProfile = struct {
@@ -1316,11 +1316,11 @@ func (p *goroutineProfileStateHolder) CompareAndSwap(old, new goroutineProfileSt
 	return (*atomic.Uint32)(p).CompareAndSwap(uint32(old), uint32(new))
 }
 
-func gleakProfileWithLabelsConcurrent(p []profilerecord.StackRecord, labels []unsafe.Pointer) (n int, ok bool) {
+func goroutineLeakProfileWithLabelsConcurrent(p []profilerecord.StackRecord, labels []unsafe.Pointer) (n int, ok bool) {
 	if len(p) == 0 {
 		// An empty slice is obviously too small. Return a rough
 		// allocation estimate.
-		return work.gleak.count, false
+		return work.goroutineLeak.count, false
 	}
 
 	// Use the same semaphore as goroutineProfileWithLabelsConcurrent,
@@ -1333,7 +1333,7 @@ func gleakProfileWithLabelsConcurrent(p []profilerecord.StackRecord, labels []un
 	pcbuf := makeProfStack() // see saveg() for explanation
 
 	// Prepare a profile large enough to store all leaked goroutines.
-	n = work.gleak.count
+	n = work.goroutineLeak.count
 
 	if n > len(p) {
 		// There's not enough space in p to store the whole profile, so (per the
