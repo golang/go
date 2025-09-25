@@ -108,6 +108,7 @@ var depsRules = `
 	< internal/runtime/cgroup
 	< internal/runtime/gc/scan
 	< runtime
+	< runtime/secret
 	< sync/atomic
 	< internal/sync
 	< weak

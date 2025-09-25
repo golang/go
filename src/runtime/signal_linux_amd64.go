@@ -54,3 +54,31 @@ func (c *sigctxt) set_sigcode(x uint64) { c.info.si_code = int32(x) }
 func (c *sigctxt) set_sigaddr(x uint64) {
 	*(*uintptr)(add(unsafe.Pointer(c.info), 2*goarch.PtrSize)) = uintptr(x)
 }
+
+// dumpSigStack prints a signal stack with the context, fpstate pointer field within that context and
+// the beginning of the fpstate annotated by C/F/S respectively
+func dumpSigStack(s string, sp uintptr, stackhi uintptr, ctx uintptr) {
+	println(s)
+	println("SP:\t", hex(sp))
+	println("ctx:\t", hex(ctx))
+	fpfield := ctx + unsafe.Offsetof(ucontext{}.uc_mcontext) + unsafe.Offsetof(mcontext{}.fpregs)
+	println("fpfield:\t", hex(fpfield))
+	fpbegin := uintptr(unsafe.Pointer((&sigctxt{nil, unsafe.Pointer(ctx)}).regs().fpstate))
+	println("fpstate:\t", hex(fpbegin))
+	hexdumpWords(sp, stackhi, func(p uintptr, hm hexdumpMarker) {
+		switch p {
+		case ctx:
+			hm.start()
+			print("C")
+			println()
+		case fpfield:
+			hm.start()
+			print("F")
+			println()
+		case fpbegin:
+			hm.start()
+			print("S")
+			println()
+		}
+	})
+}

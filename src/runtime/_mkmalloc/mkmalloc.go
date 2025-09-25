@@ -171,6 +171,7 @@ func specializedMallocConfig(classes []class, sizeToSizeClass []uint8) generator
 					{subBasicLit, "elemsize_", str(elemsize)},
 					{subBasicLit, "sizeclass_", str(sc)},
 					{subBasicLit, "noscanint_", str(noscan)},
+					{subBasicLit, "isTiny_", str(0)},
 				},
 			})
 		}
@@ -198,6 +199,7 @@ func specializedMallocConfig(classes []class, sizeToSizeClass []uint8) generator
 					{subBasicLit, "sizeclass_", str(tinySizeClass)},
 					{subBasicLit, "size_", str(s)},
 					{subBasicLit, "noscanint_", str(noscan)},
+					{subBasicLit, "isTiny_", str(1)},
 				},
 			})
 		}
@@ -215,6 +217,7 @@ func specializedMallocConfig(classes []class, sizeToSizeClass []uint8) generator
 					{subBasicLit, "elemsize_", str(elemsize)},
 					{subBasicLit, "sizeclass_", str(sc)},
 					{subBasicLit, "noscanint_", str(noscan)},
+					{subBasicLit, "isTiny_", str(0)},
 				},
 			})
 		}

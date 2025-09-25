@@ -125,4 +125,7 @@ type Flags struct {
 	// SIMD enables the simd package and the compiler's handling
 	// of SIMD intrinsics.
 	SIMD bool
+
+	// RuntimeSecret enables the runtime/secret package.
+	RuntimeSecret bool
 }

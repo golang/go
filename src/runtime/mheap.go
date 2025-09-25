@@ -225,6 +225,7 @@ type mheap struct {
 	specialPinCounterAlloc     fixalloc // allocator for specialPinCounter
 	specialWeakHandleAlloc     fixalloc // allocator for specialWeakHandle
 	specialBubbleAlloc         fixalloc // allocator for specialBubble
+	specialSecretAlloc         fixalloc // allocator for specialSecret
 	speciallock                mutex    // lock for special record allocators.
 	arenaHintAlloc             fixalloc // allocator for arenaHints
 
@@ -803,6 +804,7 @@ func (h *mheap) init() {
 	h.specialprofilealloc.init(unsafe.Sizeof(specialprofile{}), nil, nil, &memstats.other_sys)
 	h.specialReachableAlloc.init(unsafe.Sizeof(specialReachable{}), nil, nil, &memstats.other_sys)
 	h.specialPinCounterAlloc.init(unsafe.Sizeof(specialPinCounter{}), nil, nil, &memstats.other_sys)
+	h.specialSecretAlloc.init(unsafe.Sizeof(specialSecret{}), nil, nil, &memstats.other_sys)
 	h.specialWeakHandleAlloc.init(unsafe.Sizeof(specialWeakHandle{}), nil, nil, &memstats.gcMiscSys)
 	h.specialBubbleAlloc.init(unsafe.Sizeof(specialBubble{}), nil, nil, &memstats.other_sys)
 	h.arenaHintAlloc.init(unsafe.Sizeof(arenaHint{}), nil, nil, &memstats.other_sys)
@@ -1970,6 +1972,9 @@ const (
 	_KindSpecialCheckFinalizer = 8
 	// _KindSpecialBubble is used to associate objects with synctest bubbles.
 	_KindSpecialBubble = 9
+	// _KindSpecialSecret is a special used to mark an object
+	// as needing zeroing immediately upon freeing.
+	_KindSpecialSecret = 10
 )
 
 type special struct {
@@ -2821,6 +2826,11 @@ func freeSpecial(s *special, p unsafe.Pointer, size uintptr) {
 		st := (*specialBubble)(unsafe.Pointer(s))
 		lock(&mheap_.speciallock)
 		mheap_.specialBubbleAlloc.free(unsafe.Pointer(st))
+		unlock(&mheap_.speciallock)
+	case _KindSpecialSecret:
+		memclrNoHeapPointers(p, size)
+		lock(&mheap_.speciallock)
+		mheap_.specialSecretAlloc.free(unsafe.Pointer(s))
 		unlock(&mheap_.speciallock)
 	default:
 		throw("bad special kind")

@@ -47,6 +47,10 @@ TEXT ·rawSyscallNoError(SB),NOSPLIT,$0-48
 
 // func gettimeofday(tv *Timeval) (err uintptr)
 TEXT ·gettimeofday(SB),NOSPLIT,$0-16
+	// Usually, we'd check if we're running
+	// secret code here, but because we execute
+	// gettimeofday on the G stack, it's fine to leave
+	// the registers uncleared
 	MOVQ	tv+0(FP), DI
 	MOVQ	$0, SI
 	MOVQ	runtime·vdsoGettimeofdaySym(SB), AX
