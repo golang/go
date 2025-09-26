@@ -361,6 +361,9 @@ func TestDWARFLocationList(t *testing.T) {
 
 func TestFlagW(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
+	if runtime.GOOS == "aix" {
+		t.Skip("internal/xcoff cannot parse file without symbol table")
+	}
 	t.Parallel()
 
 	tmpdir := t.TempDir()
