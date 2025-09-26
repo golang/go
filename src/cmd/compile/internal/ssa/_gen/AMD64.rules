@@ -1798,10 +1798,10 @@
 (VMOVSDf2v x:(MOVSDconst [c] )) => (VMOVSDconst [c] )
 (VMOVSSf2v x:(MOVSSconst [c] )) => (VMOVSSconst [c] )
 
-(VMOVDQUload(128|256|512) [off1] {sym} x:(ADDQconst [off2] ptr) mem) && is32Bit(int64(off1)+int64(off2)) && x.Uses == 1 => (VMOVDQUload(128|256|512) [off1+off2] {sym} ptr mem)
-(VMOVDQUstore(128|256|512) [off1] {sym} x:(ADDQconst [off2] ptr) val mem) && is32Bit(int64(off1)+int64(off2)) && x.Uses == 1 => (VMOVDQUstore(128|256|512) [off1+off2] {sym} ptr val mem)
-(VMOVDQUload(128|256|512) [off1] {sym1} x:(LEAQ [off2] {sym2} base) mem) && is32Bit(int64(off1)+int64(off2)) && x.Uses == 1 && canMergeSym(sym1, sym2) => (VMOVDQUload(128|256|512) [off1+off2] {mergeSym(sym1, sym2)} base mem)
-(VMOVDQUstore(128|256|512) [off1] {sym1} x:(LEAQ [off2] {sym2} base) val mem) && is32Bit(int64(off1)+int64(off2)) && x.Uses == 1 && canMergeSym(sym1, sym2) => (VMOVDQUstore(128|256|512) [off1+off2] {mergeSym(sym1, sym2)} base val mem)
+(VMOVDQUload(128|256|512) [off1] {sym} x:(ADDQconst [off2] ptr) mem) && is32Bit(int64(off1)+int64(off2)) => (VMOVDQUload(128|256|512) [off1+off2] {sym} ptr mem)
+(VMOVDQUstore(128|256|512) [off1] {sym} x:(ADDQconst [off2] ptr) val mem) && is32Bit(int64(off1)+int64(off2)) => (VMOVDQUstore(128|256|512) [off1+off2] {sym} ptr val mem)
+(VMOVDQUload(128|256|512) [off1] {sym1} x:(LEAQ [off2] {sym2} base) mem) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) => (VMOVDQUload(128|256|512) [off1+off2] {mergeSym(sym1, sym2)} base mem)
+(VMOVDQUstore(128|256|512) [off1] {sym1} x:(LEAQ [off2] {sym2} base) val mem) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) => (VMOVDQUstore(128|256|512) [off1+off2] {mergeSym(sym1, sym2)} base val mem)
 
 // 2-op VPTEST optimizations
 (SETEQ (VPTEST x:(VPAND(128|256) j k) y)) && x == y && x.Uses == 2 => (SETEQ (VPTEST j k))
