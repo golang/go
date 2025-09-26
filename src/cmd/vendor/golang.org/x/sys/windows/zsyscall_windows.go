@@ -238,6 +238,7 @@ var (
 	procFindResourceW                                        = modkernel32.NewProc("FindResourceW")
 	procFindVolumeClose                                      = modkernel32.NewProc("FindVolumeClose")
 	procFindVolumeMountPointClose                            = modkernel32.NewProc("FindVolumeMountPointClose")
+	procFlushConsoleInputBuffer                              = modkernel32.NewProc("FlushConsoleInputBuffer")
 	procFlushFileBuffers                                     = modkernel32.NewProc("FlushFileBuffers")
 	procFlushViewOfFile                                      = modkernel32.NewProc("FlushViewOfFile")
 	procFormatMessageW                                       = modkernel32.NewProc("FormatMessageW")
@@ -284,6 +285,7 @@ var (
 	procGetNamedPipeHandleStateW                             = modkernel32.NewProc("GetNamedPipeHandleStateW")
 	procGetNamedPipeInfo                                     = modkernel32.NewProc("GetNamedPipeInfo")
 	procGetNamedPipeServerProcessId                          = modkernel32.NewProc("GetNamedPipeServerProcessId")
+	procGetNumberOfConsoleInputEvents                        = modkernel32.NewProc("GetNumberOfConsoleInputEvents")
 	procGetOverlappedResult                                  = modkernel32.NewProc("GetOverlappedResult")
 	procGetPriorityClass                                     = modkernel32.NewProc("GetPriorityClass")
 	procGetProcAddress                                       = modkernel32.NewProc("GetProcAddress")
@@ -2111,6 +2113,14 @@ func FindVolumeMountPointClose(findVolumeMountPoint Handle) (err error) {
 	return
 }
 
+func FlushConsoleInputBuffer(console Handle) (err error) {
+	r1, _, e1 := syscall.SyscallN(procFlushConsoleInputBuffer.Addr(), uintptr(console))
+	if r1 == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
 func FlushFileBuffers(handle Handle) (err error) {
 	r1, _, e1 := syscall.SyscallN(procFlushFileBuffers.Addr(), uintptr(handle))
 	if r1 == 0 {
@@ -2475,6 +2485,14 @@ func GetNamedPipeInfo(pipe Handle, flags *uint32, outSize *uint32, inSize *uint3
 
 func GetNamedPipeServerProcessId(pipe Handle, serverProcessID *uint32) (err error) {
 	r1, _, e1 := syscall.SyscallN(procGetNamedPipeServerProcessId.Addr(), uintptr(pipe), uintptr(unsafe.Pointer(serverProcessID)))
+	if r1 == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func GetNumberOfConsoleInputEvents(console Handle, numevents *uint32) (err error) {
+	r1, _, e1 := syscall.SyscallN(procGetNumberOfConsoleInputEvents.Addr(), uintptr(console), uintptr(unsafe.Pointer(numevents)))
 	if r1 == 0 {
 		err = errnoErr(e1)
 	}

@@ -378,10 +378,7 @@ func (e *editGraph) twoDone(df, db int) (int, bool) {
 		return 0, false // diagonals cannot overlap
 	}
 	kmin := max(-df, -db+e.delta)
-	kmax := db + e.delta
-	if df < kmax {
-		kmax = df
-	}
+	kmax := min(df, db+e.delta)
 	for k := kmin; k <= kmax; k += 2 {
 		x := e.vf.get(df, k)
 		u := e.vb.get(db, k-e.delta)
