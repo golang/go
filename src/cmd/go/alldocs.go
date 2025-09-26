@@ -18,7 +18,7 @@
 //	clean       remove object files and cached files
 //	doc         show documentation for package or symbol
 //	env         print Go environment information
-//	fix         update packages to use new APIs
+//	fix         apply fixes suggested by static checkers
 //	fmt         gofmt (reformat) package sources
 //	generate    generate Go files by processing source
 //	get         add dependencies to current module and install them
@@ -495,22 +495,34 @@
 //
 // For more about environment variables, see 'go help environment'.
 //
-// # Update packages to use new APIs
+// # Apply fixes suggested by static checkers
 //
 // Usage:
 //
-//	go fix [-fix list] [packages]
+//	go fix [build flags] [-fixtool prog] [fix flags] [packages]
 //
-// Fix runs the Go fix command on the packages named by the import paths.
+// Fix runs the Go fix tool (cmd/vet) on the named packages
+// and applies suggested fixes.
 //
-// The -fix flag sets a comma-separated list of fixes to run.
-// The default is all known fixes.
-// (Its value is passed to 'go tool fix -r'.)
+// It supports these flags:
 //
-// For more about fix, see 'go doc cmd/fix'.
+//	  -diff
+//		instead of applying each fix, print the patch as a unified diff
+//
+// The -fixtool=prog flag selects a different analysis tool with
+// alternative or additional fixes; see the documentation for go vet's
+// -vettool flag for details.
+//
 // For more about specifying packages, see 'go help packages'.
 //
-// To run fix with other options, run 'go tool fix'.
+// For a list of fixers and their flags, see 'go tool fix help'.
+//
+// For details of a specific fixer such as 'hostport',
+// see 'go tool fix help hostport'.
+//
+// The build flags supported by go fix are those that control package resolution
+// and execution, such as -C, -n, -x, -v, -tags, and -toolexec.
+// For more about these flags, see 'go help build'.
 //
 // See also: go fmt, go vet.
 //
@@ -2014,19 +2026,33 @@
 //
 //	go vet [build flags] [-vettool prog] [vet flags] [packages]
 //
-// Vet runs the Go vet command on the packages named by the import paths.
+// Vet runs the Go vet tool (cmd/vet) on the named packages
+// and reports diagnostics.
 //
-// For more about vet and its flags, see 'go doc cmd/vet'.
-// For more about specifying packages, see 'go help packages'.
-// For a list of checkers and their flags, see 'go tool vet help'.
-// For details of a specific checker such as 'printf', see 'go tool vet help printf'.
+// It supports these flags:
 //
-// The -vettool=prog flag selects a different analysis tool with alternative
-// or additional checks.
-// For example, the 'shadow' analyzer can be built and run using these commands:
+//	  -c int
+//		display offending line with this many lines of context (default -1)
+//	  -json
+//		emit JSON output
+//	  -fix
+//		instead of printing each diagnostic, apply its first fix (if any)
+//	  -diff
+//		instead of applying each fix, print the patch as a unified diff
+//
+// The -vettool=prog flag selects a different analysis tool with
+// alternative or additional checks. For example, the 'shadow' analyzer
+// can be built and run using these commands:
 //
 //	go install golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow@latest
 //	go vet -vettool=$(which shadow)
+//
+// Alternative vet tools should be built atop golang.org/x/tools/go/analysis/unitchecker,
+// which handles the interaction with go vet.
+//
+// For more about specifying packages, see 'go help packages'.
+// For a list of checkers and their flags, see 'go tool vet help'.
+// For details of a specific checker such as 'printf', see 'go tool vet help printf'.
 //
 // The build flags supported by go vet are those that control package resolution
 // and execution, such as -C, -n, -x, -v, -tags, and -toolexec.

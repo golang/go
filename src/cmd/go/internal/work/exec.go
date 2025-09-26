@@ -1265,7 +1265,8 @@ func buildVetConfig(a *Action, srcfiles []string) {
 	}
 }
 
-// VetTool is the path to an alternate vet tool binary.
+// VetTool is the path to the effective vet or fix tool binary.
+// The user may specify a non-default value using -{vet,fix}tool.
 // The caller is expected to set it (if needed) before executing any vet actions.
 var VetTool string
 
@@ -1273,7 +1274,13 @@ var VetTool string
 // The caller is expected to set them before executing any vet actions.
 var VetFlags []string
 
-// VetExplicit records whether the vet flags were set explicitly on the command line.
+// VetHandleStdout determines how the stdout output of each vet tool
+// invocation should be handled. The default behavior is to copy it to
+// the go command's stdout, atomically.
+var VetHandleStdout = copyToStdout
+
+// VetExplicit records whether the vet flags (which may include
+// -{vet,fix}tool) were set explicitly on the command line.
 var VetExplicit bool
 
 func (b *Builder) vet(ctx context.Context, a *Action) error {
@@ -1296,6 +1303,7 @@ func (b *Builder) vet(ctx context.Context, a *Action) error {
 
 	sh := b.Shell(a)
 
+	// We use "vet" terminology even when building action graphs for go fix.
 	vcfg.VetxOnly = a.VetxOnly
 	vcfg.VetxOutput = a.Objdir + "vet.out"
 	vcfg.Stdout = a.Objdir + "vet.stdout"
@@ -1322,7 +1330,7 @@ func (b *Builder) vet(ctx context.Context, a *Action) error {
 	// dependency tree turn on *more* analysis, as here.
 	// (The unsafeptr check does not write any facts for use by
 	// later vet runs, nor does unreachable.)
-	if a.Package.Goroot && !VetExplicit && VetTool == "" {
+	if a.Package.Goroot && !VetExplicit && VetTool == base.Tool("vet") {
 		// Turn off -unsafeptr checks.
 		// There's too much unsafe.Pointer code
 		// that vet doesn't like in low-level packages
@@ -1359,13 +1367,29 @@ func (b *Builder) vet(ctx context.Context, a *Action) error {
 			vcfg.PackageVetx[a1.Package.ImportPath] = a1.built
 		}
 	}
-	key := cache.ActionID(h.Sum())
+	vetxKey := cache.ActionID(h.Sum()) // for .vetx file
 
-	if vcfg.VetxOnly && !cfg.BuildA {
+	fmt.Fprintf(h, "stdout\n")
+	stdoutKey := cache.ActionID(h.Sum()) // for .stdout file
+
+	// Check the cache; -a forces a rebuild.
+	if !cfg.BuildA {
 		c := cache.Default()
-		if file, _, err := cache.GetFile(c, key); err == nil {
-			a.built = file
-			return nil
+		if vcfg.VetxOnly {
+			if file, _, err := cache.GetFile(c, vetxKey); err == nil {
+				a.built = file
+				return nil
+			}
+		} else {
+			// Copy cached vet.std files to stdout.
+			if file, _, err := cache.GetFile(c, stdoutKey); err == nil {
+				f, err := os.Open(file)
+				if err != nil {
+					return err
+				}
+				defer f.Close() // ignore error (can't fail)
+				return VetHandleStdout(f)
+			}
 		}
 	}
 
@@ -1387,31 +1411,46 @@ func (b *Builder) vet(ctx context.Context, a *Action) error {
 	p := a.Package
 	tool := VetTool
 	if tool == "" {
-		tool = base.Tool("vet")
+		panic("VetTool unset")
 	}
-	runErr := sh.run(p.Dir, p.ImportPath, env, cfg.BuildToolexec, tool, vetFlags, a.Objdir+"vet.cfg")
 
-	// If vet wrote export data, save it for input to future vets.
+	if err := sh.run(p.Dir, p.ImportPath, env, cfg.BuildToolexec, tool, vetFlags, a.Objdir+"vet.cfg"); err != nil {
+		return err
+	}
+
+	// Vet tool succeeded, possibly with facts and JSON stdout. Save both in cache.
+
+	// Save facts
 	if f, err := os.Open(vcfg.VetxOutput); err == nil {
+		defer f.Close() // ignore error
 		a.built = vcfg.VetxOutput
-		cache.Default().Put(key, f) // ignore error
-		f.Close()                   // ignore error
+		cache.Default().Put(vetxKey, f) // ignore error
 	}
 
-	// If vet wrote to stdout, copy it to go's stdout, atomically.
+	// Save stdout.
 	if f, err := os.Open(vcfg.Stdout); err == nil {
-		stdoutMu.Lock()
-		if _, err := io.Copy(os.Stdout, f); err != nil && runErr == nil {
-			runErr = fmt.Errorf("copying vet tool stdout: %w", err)
+		defer f.Close() // ignore error
+		if err := VetHandleStdout(f); err != nil {
+			return err
 		}
-		f.Close() // ignore error
-		stdoutMu.Unlock()
+		f.Seek(0, io.SeekStart)           // ignore error
+		cache.Default().Put(stdoutKey, f) // ignore error
 	}
 
-	return runErr
+	return nil
 }
 
-var stdoutMu sync.Mutex // serializes concurrent writes (e.g. JSON values) to stdout
+var stdoutMu sync.Mutex // serializes concurrent writes (of e.g. JSON values) to stdout
+
+// copyToStdout copies the stream to stdout while holding the lock.
+func copyToStdout(r io.Reader) error {
+	stdoutMu.Lock()
+	defer stdoutMu.Unlock()
+	if _, err := io.Copy(os.Stdout, r); err != nil {
+		return fmt.Errorf("copying vet tool stdout: %w", err)
+	}
+	return nil
+}
 
 // linkActionID computes the action ID for a link action.
 func (b *Builder) linkActionID(a *Action) cache.ActionID {
