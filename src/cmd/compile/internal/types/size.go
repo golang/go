@@ -411,10 +411,6 @@ func CalcSize(t *Type) {
 		}
 		CalcStructSize(t)
 		w = t.width
-		if t.IsSIMD() { // XXX
-			t.intRegs = 0
-			t.floatRegs = 1
-		}
 
 	// make fake type to check later to
 	// trigger function argument computation.
