@@ -1452,7 +1452,9 @@ func (ctxt *Link) hostlink() {
 			argv = append(argv, "-s")
 		}
 	} else if *FlagW {
-		argv = append(argv, "-Wl,-S") // suppress debugging symbols
+		if !ctxt.IsAIX() { // The AIX linker's -S has different meaning
+			argv = append(argv, "-Wl,-S") // suppress debugging symbols
+		}
 	}
 
 	// On darwin, whether to combine DWARF into executable.
