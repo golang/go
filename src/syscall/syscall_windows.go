@@ -202,6 +202,7 @@ func (e Errno) Is(target error) bool {
 		return e == ERROR_FILE_NOT_FOUND ||
 			e == _ERROR_BAD_NETPATH ||
 			e == ERROR_PATH_NOT_FOUND ||
+			e == ERROR_INVALID_NAME ||
 			e == ENOENT
 	case errorspkg.ErrUnsupported:
 		return e == _ERROR_NOT_SUPPORTED ||
