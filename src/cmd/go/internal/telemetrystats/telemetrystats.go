@@ -32,6 +32,13 @@ func incrementConfig() {
 	} else {
 		counter.Inc("go/mode:module")
 	}
+
+	if cfg.BuildContext.CgoEnabled {
+		counter.Inc("go/cgo:enabled")
+	} else {
+		counter.Inc("go/cgo:disabled")
+	}
+
 	counter.Inc("go/platform/target/goos:" + cfg.Goos)
 	counter.Inc("go/platform/target/goarch:" + cfg.Goarch)
 	switch cfg.Goarch {
