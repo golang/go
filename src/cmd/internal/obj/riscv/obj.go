@@ -3732,6 +3732,10 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		}
 		ins.imm = -1
 
+	case APAUSE:
+		ins.as, ins.rd, ins.rs1, ins.rs2 = AFENCE, REG_ZERO, REG_ZERO, obj.REG_NONE
+		ins.imm = 0x010
+
 	case ASEQZ:
 		// SEQZ rs, rd -> SLTIU $1, rs, rd
 		ins.as = ASLTIU
