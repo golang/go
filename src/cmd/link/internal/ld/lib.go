@@ -1452,7 +1452,7 @@ func (ctxt *Link) hostlink() {
 			argv = append(argv, "-s")
 		}
 	} else if *FlagW {
-		if !ctxt.IsAIX() { // The AIX linker's -S has different meaning
+		if !ctxt.IsAIX() && !ctxt.IsSolaris() { // The AIX and Solaris linkers' -S has different meaning
 			argv = append(argv, "-Wl,-S") // suppress debugging symbols
 		}
 	}
