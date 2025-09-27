@@ -1,0 +1,1 @@
+pkg errors, func AsType[$0 error](error) ($0, bool) #51945
