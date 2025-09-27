@@ -24,6 +24,7 @@ type fieldInfo struct {
 	xmlns   string
 	flags   fieldFlags
 	parents []string
+	isZero  func(reflect.Value) bool
 }
 
 type fieldFlags int
@@ -38,6 +39,7 @@ const (
 	fAny
 
 	fOmitEmpty
+	fOmitZero
 
 	fMode = fElement | fAttr | fCDATA | fCharData | fInnerXML | fComment | fAny
 
@@ -109,6 +111,12 @@ func getTypeInfo(typ reflect.Type) (*typeInfo, error) {
 	return ti.(*typeInfo), nil
 }
 
+type isZeroer interface {
+	IsZero() bool
+}
+
+var isZeroerType = reflect.TypeFor[isZeroer]()
+
 // structFieldInfo builds and returns a fieldInfo for f.
 func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, error) {
 	finfo := &fieldInfo{idx: f.Index}
@@ -141,6 +149,39 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
 				finfo.flags |= fAny
 			case "omitempty":
 				finfo.flags |= fOmitEmpty
+			case "omitzero":
+				finfo.flags |= fOmitZero
+				t := f.Type
+				// Provide a function that uses a type's IsZero method.
+				switch {
+				case t.Kind() == reflect.Interface && t.Implements(isZeroerType):
+					finfo.isZero = func(v reflect.Value) bool {
+						// Avoid panics calling IsZero on a nil interface or
+						// non-nil interface with nil pointer.
+						return v.IsNil() ||
+							(v.Elem().Kind() == reflect.Pointer && v.Elem().IsNil()) ||
+							v.Interface().(isZeroer).IsZero()
+					}
+				case t.Kind() == reflect.Pointer && t.Implements(isZeroerType):
+					finfo.isZero = func(v reflect.Value) bool {
+						// Avoid panics calling IsZero on nil pointer.
+						return v.IsNil() || v.Interface().(isZeroer).IsZero()
+					}
+				case t.Implements(isZeroerType):
+					finfo.isZero = func(v reflect.Value) bool {
+						return v.Interface().(isZeroer).IsZero()
+					}
+				case reflect.PointerTo(t).Implements(isZeroerType):
+					finfo.isZero = func(v reflect.Value) bool {
+						if !v.CanAddr() {
+							// Temporarily box v so we can take the address.
+							v2 := reflect.New(v.Type()).Elem()
+							v2.Set(v)
+							v = v2
+						}
+						return v.Addr().Interface().(isZeroer).IsZero()
+					}
+				}
 			}
 		}
 
@@ -160,7 +201,8 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
 		if finfo.flags&fMode == fAny {
 			finfo.flags |= fElement
 		}
-		if finfo.flags&fOmitEmpty != 0 && finfo.flags&(fElement|fAttr) == 0 {
+		if (finfo.flags&fOmitEmpty != 0 || finfo.flags&fOmitZero != 0) &&
+			finfo.flags&(fElement|fAttr) == 0 {
 			valid = false
 		}
 		if !valid {
