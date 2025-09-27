@@ -195,6 +195,9 @@ start:
 	RDTIME		X5				// f32210c0
 	RDINSTRET	X5				// f32220c0
 
+	// 10.1: Zihintpause Extension for Pause Hint
+	PAUSE						// 0f000001
+
 	// 12.3: Integer Conditional Operations (Zicond)
 	CZEROEQZ	X5, X6, X7			// b353530e
 	CZEROEQZ	X5, X7				// b3d3530e
