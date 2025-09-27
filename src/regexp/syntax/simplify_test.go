@@ -114,6 +114,7 @@ var simplifyTests = []struct {
 	{`(?i)[a-z]`, "[A-Za-z\u017F\u212A]"},
 	{`(?i)[\x00-\x{FFFD}]`, "[\\x00-\uFFFD]"},
 	{`(?i)[\x00-\x{10FFFF}]`, `(?s:.)`},
+	{`[xX][O-u]`, `(?i:X)[O-u]`},
 
 	// Empty string as a regular expression.
 	// The empty string must be preserved inside parens in order
