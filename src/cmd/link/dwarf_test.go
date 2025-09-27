@@ -364,6 +364,10 @@ func TestFlagW(t *testing.T) {
 	if runtime.GOOS == "aix" {
 		t.Skip("internal/xcoff cannot parse file without symbol table")
 	}
+	if !platform.ExecutableHasDWARF(runtime.GOOS, runtime.GOARCH) {
+		t.Skipf("skipping on %s/%s: no DWARF symbol table in executables", runtime.GOOS, runtime.GOARCH)
+	}
+
 	t.Parallel()
 
 	tmpdir := t.TempDir()
