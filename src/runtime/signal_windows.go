@@ -418,7 +418,8 @@ func initsig(preinit bool) {
 func sigenable(sig uint32) {
 }
 
-func sigdisable(sig uint32) {
+func sigdisable(sig uint32) bool {
+	return false
 }
 
 func sigignore(sig uint32) {
