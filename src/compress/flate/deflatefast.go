@@ -35,6 +35,7 @@ func newFastEnc(level int) fastEnc {
 const (
 	tableBits       = 15             // Bits used in the table
 	tableSize       = 1 << tableBits // Size of the table
+	hashLongBytes   = 7              // Bytes used for long table hash
 	baseMatchOffset = 1              // The smallest match offset
 	baseMatchLength = 3              // The smallest match length per the RFC section 3.2.5
 	maxMatchOffset  = 1 << 15        // The largest match offset
@@ -91,12 +92,6 @@ func (e *fastGen) addBlock(src []byte) int32 {
 type tableEntryPrev struct {
 	Cur  tableEntry
 	Prev tableEntry
-}
-
-// hash7 returns the hash of the lowest 7 bytes of u to fit in a hash table with h bits.
-// Preferably h should be a constant and should always be <64.
-func hash7(u uint64, h uint8) uint32 {
-	return uint32(((u << (64 - 56)) * prime7bytes) >> ((64 - h) & reg8SizeMask64))
 }
 
 // hashLen returns a hash of the lowest mls bytes of with length output bits.

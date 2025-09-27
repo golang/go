@@ -82,7 +82,7 @@ func (e *fastEncL4) Encode(dst *tokens, src []byte) {
 		var t int32
 		for {
 			nextHashS := hashLen(cv, tableBits, hashShortBytes)
-			nextHashL := hash7(cv, tableBits)
+			nextHashL := hashLen(cv, tableBits, hashLongBytes)
 
 			s = nextS
 			nextS = s + doEvery + (s-nextEmit)>>skipLog
@@ -106,7 +106,7 @@ func (e *fastEncL4) Encode(dst *tokens, src []byte) {
 			t = sCandidate.offset - e.cur
 			if s-t < maxMatchOffset && uint32(cv) == loadLE32(src, t) {
 				// Found a 4 match...
-				lCandidate = e.bTable[hash7(next, tableBits)]
+				lCandidate = e.bTable[hashLen(next, tableBits, hashLongBytes)]
 
 				// If the next long is a candidate, check if we should use that instead...
 				lOff := lCandidate.offset - e.cur
@@ -155,7 +155,7 @@ func (e *fastEncL4) Encode(dst *tokens, src []byte) {
 			if int(s+8) < len(src) {
 				cv := loadLE64(src, s)
 				e.table[hashLen(cv, tableBits, hashShortBytes)] = tableEntry{offset: s + e.cur}
-				e.bTable[hash7(cv, tableBits)] = tableEntry{offset: s + e.cur}
+				e.bTable[hashLen(cv, tableBits, hashLongBytes)] = tableEntry{offset: s + e.cur}
 			}
 			goto emitRemainder
 		}
@@ -166,8 +166,8 @@ func (e *fastEncL4) Encode(dst *tokens, src []byte) {
 			cv := loadLE64(src, i)
 			t := tableEntry{offset: i + e.cur}
 			t2 := tableEntry{offset: t.offset + 1}
-			e.bTable[hash7(cv, tableBits)] = t
-			e.bTable[hash7(cv>>8, tableBits)] = t2
+			e.bTable[hashLen(cv, tableBits, hashLongBytes)] = t
+			e.bTable[hashLen(cv>>8, tableBits, hashLongBytes)] = t2
 			e.table[hashLen(cv>>8, tableBits, hashShortBytes)] = t2
 
 			i += 3
@@ -175,8 +175,8 @@ func (e *fastEncL4) Encode(dst *tokens, src []byte) {
 				cv := loadLE64(src, i)
 				t := tableEntry{offset: i + e.cur}
 				t2 := tableEntry{offset: t.offset + 1}
-				e.bTable[hash7(cv, tableBits)] = t
-				e.bTable[hash7(cv>>8, tableBits)] = t2
+				e.bTable[hashLen(cv, tableBits, hashLongBytes)] = t
+				e.bTable[hashLen(cv>>8, tableBits, hashLongBytes)] = t2
 				e.table[hashLen(cv>>8, tableBits, hashShortBytes)] = t2
 			}
 		}
@@ -186,7 +186,7 @@ func (e *fastEncL4) Encode(dst *tokens, src []byte) {
 		x := loadLE64(src, s-1)
 		o := e.cur + s - 1
 		prevHashS := hashLen(x, tableBits, hashShortBytes)
-		prevHashL := hash7(x, tableBits)
+		prevHashL := hashLen(x, tableBits, hashLongBytes)
 		e.table[prevHashS] = tableEntry{offset: o}
 		e.bTable[prevHashL] = tableEntry{offset: o}
 		cv = x >> 8

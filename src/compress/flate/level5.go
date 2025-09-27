@@ -92,7 +92,7 @@ func (e *fastEncL5) Encode(dst *tokens, src []byte) {
 		var t int32
 		for {
 			nextHashS := hashLen(cv, tableBits, hashShortBytes)
-			nextHashL := hash7(cv, tableBits)
+			nextHashL := hashLen(cv, tableBits, hashLongBytes)
 
 			s = nextS
 			nextS = s + doEvery + (s-nextEmit)>>skipLog
@@ -109,7 +109,7 @@ func (e *fastEncL5) Encode(dst *tokens, src []byte) {
 			eLong.Cur, eLong.Prev = entry, eLong.Cur
 
 			nextHashS = hashLen(next, tableBits, hashShortBytes)
-			nextHashL = hash7(next, tableBits)
+			nextHashL = hashLen(next, tableBits, hashLongBytes)
 
 			t = lCandidate.Cur.offset - e.cur
 			if s-t < maxMatchOffset {
@@ -196,7 +196,7 @@ func (e *fastEncL5) Encode(dst *tokens, src []byte) {
 			// The skipped bytes are tested in Extend backwards,
 			// and still picked up as part of the match if they do.
 			const skipBeginning = 2
-			eLong := e.bTable[hash7(loadLE64(src, sAt), tableBits)].Cur.offset
+			eLong := e.bTable[hashLen(loadLE64(src, sAt), tableBits, hashLongBytes)].Cur.offset
 			t2 := eLong - e.cur - l + skipBeginning
 			s2 := s + skipBeginning
 			off := s2 - t2
@@ -241,13 +241,13 @@ func (e *fastEncL5) Encode(dst *tokens, src []byte) {
 			cv := loadLE64(src, i)
 			t := tableEntry{offset: i + e.cur}
 			e.table[hashLen(cv, tableBits, hashShortBytes)] = t
-			eLong := &e.bTable[hash7(cv, tableBits)]
+			eLong := &e.bTable[hashLen(cv, tableBits, hashLongBytes)]
 			eLong.Cur, eLong.Prev = t, eLong.Cur
 
 			// Do an long at i+1
 			cv >>= 8
 			t = tableEntry{offset: t.offset + 1}
-			eLong = &e.bTable[hash7(cv, tableBits)]
+			eLong = &e.bTable[hashLen(cv, tableBits, hashLongBytes)]
 			eLong.Cur, eLong.Prev = t, eLong.Cur
 
 			// We only have enough bits for a short entry at i+2
@@ -261,7 +261,7 @@ func (e *fastEncL5) Encode(dst *tokens, src []byte) {
 				cv := loadLE64(src, i)
 				t := tableEntry{offset: i + e.cur}
 				t2 := tableEntry{offset: t.offset + 1}
-				eLong := &e.bTable[hash7(cv, tableBits)]
+				eLong := &e.bTable[hashLen(cv, tableBits, hashLongBytes)]
 				eLong.Cur, eLong.Prev = t, eLong.Cur
 				e.table[hashLen(cv>>8, tableBits, hashShortBytes)] = t2
 			}
@@ -272,7 +272,7 @@ func (e *fastEncL5) Encode(dst *tokens, src []byte) {
 		x := loadLE64(src, s-1)
 		o := e.cur + s - 1
 		prevHashS := hashLen(x, tableBits, hashShortBytes)
-		prevHashL := hash7(x, tableBits)
+		prevHashL := hashLen(x, tableBits, hashLongBytes)
 		e.table[prevHashS] = tableEntry{offset: o}
 		eLong := &e.bTable[prevHashL]
 		eLong.Cur, eLong.Prev = tableEntry{offset: o}, eLong.Cur

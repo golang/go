@@ -92,7 +92,7 @@ func (e *fastEncL6) Encode(dst *tokens, src []byte) {
 		var t int32
 		for {
 			nextHashS := hashLen(cv, tableBits, hashShortBytes)
-			nextHashL := hash7(cv, tableBits)
+			nextHashL := hashLen(cv, tableBits, hashLongBytes)
 			s = nextS
 			nextS = s + doEvery + (s-nextEmit)>>skipLog
 			if nextS > sLimit {
@@ -109,7 +109,7 @@ func (e *fastEncL6) Encode(dst *tokens, src []byte) {
 
 			// Calculate hashes of 'next'
 			nextHashS = hashLen(next, tableBits, hashShortBytes)
-			nextHashL = hash7(next, tableBits)
+			nextHashL = hashLen(next, tableBits, hashLongBytes)
 
 			t = lCandidate.Cur.offset - e.cur
 			if s-t < maxMatchOffset {
@@ -216,7 +216,7 @@ func (e *fastEncL6) Encode(dst *tokens, src []byte) {
 			// The skipped bytes are tested in extend backwards,
 			// and still picked up as part of the match if they do.
 			const skipBeginning = 2
-			eLong := &e.bTable[hash7(loadLE64(src, sAt), tableBits)]
+			eLong := &e.bTable[hashLen(loadLE64(src, sAt), tableBits, hashLongBytes)]
 			// Test current
 			t2 := eLong.Cur.offset - e.cur - l + skipBeginning
 			s2 := s + skipBeginning
@@ -269,7 +269,7 @@ func (e *fastEncL6) Encode(dst *tokens, src []byte) {
 			for i := nextS + 1; i < int32(len(src))-8; i += 2 {
 				cv := loadLE64(src, i)
 				e.table[hashLen(cv, tableBits, hashShortBytes)] = tableEntry{offset: i + e.cur}
-				eLong := &e.bTable[hash7(cv, tableBits)]
+				eLong := &e.bTable[hashLen(cv, tableBits, hashLongBytes)]
 				eLong.Cur, eLong.Prev = tableEntry{offset: i + e.cur}, eLong.Cur
 			}
 			goto emitRemainder
@@ -280,8 +280,8 @@ func (e *fastEncL6) Encode(dst *tokens, src []byte) {
 			cv := loadLE64(src, i)
 			t := tableEntry{offset: i + e.cur}
 			t2 := tableEntry{offset: t.offset + 1}
-			eLong := &e.bTable[hash7(cv, tableBits)]
-			eLong2 := &e.bTable[hash7(cv>>8, tableBits)]
+			eLong := &e.bTable[hashLen(cv, tableBits, hashLongBytes)]
+			eLong2 := &e.bTable[hashLen(cv>>8, tableBits, hashLongBytes)]
 			e.table[hashLen(cv, tableBits, hashShortBytes)] = t
 			eLong.Cur, eLong.Prev = t, eLong.Cur
 			eLong2.Cur, eLong2.Prev = t2, eLong2.Cur

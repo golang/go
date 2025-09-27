@@ -412,8 +412,9 @@ func (w *huffmanBitWriter) storedSize(in []byte) (int, bool) {
 	return 0, false
 }
 
+// writeCode writes 'c' to the stream.
+// Inline manually when performance is critical.
 func (w *huffmanBitWriter) writeCode(c hcode) {
-	// The function does not get inlined if we "& 63" the shift.
 	w.bits |= c.code64() << (w.nbits & reg8SizeMask64)
 	w.nbits += c.len()
 	if w.nbits >= 48 {
