@@ -18,6 +18,7 @@ package reflect
 import (
 	"internal/abi"
 	"internal/goarch"
+	"iter"
 	"runtime"
 	"strconv"
 	"sync"
@@ -63,6 +64,10 @@ type Type interface {
 	// Calling this method will force the linker to retain all exported methods in all packages.
 	// This may make the executable binary larger but will not affect execution time.
 	Method(int) Method
+
+	// Methods returns an iterator over each method in the type's method set. The sequence is
+	// equivalent to calling Method successively for each index i in the range [0, NumMethod()).
+	Methods() iter.Seq[Method]
 
 	// MethodByName returns the method with that name in the type's
 	// method set and a boolean indicating if the method was found.
@@ -172,6 +177,11 @@ type Type interface {
 	// It panics if i is not in the range [0, NumField()).
 	Field(i int) StructField
 
+	// Fields returns an iterator over each struct field for struct type t. The sequence is
+	// equivalent to calling Field successively for each index i in the range [0, NumField()).
+	// It panics if the type's Kind is not Struct.
+	Fields() iter.Seq[StructField]
+
 	// FieldByIndex returns the nested field corresponding
 	// to the index sequence. It is equivalent to calling Field
 	// successively for each index i.
@@ -208,6 +218,11 @@ type Type interface {
 	// It panics if i is not in the range [0, NumIn()).
 	In(i int) Type
 
+	// Ins returns an iterator over each input parameter of function type t. The sequence
+	// is equivalent to calling In successively for each index i in the range [0, NumIn()).
+	// It panics if the type's Kind is not Func.
+	Ins() iter.Seq[Type]
+
 	// Key returns a map type's key type.
 	// It panics if the type's Kind is not Map.
 	Key() Type
@@ -232,6 +247,11 @@ type Type interface {
 	// It panics if the type's Kind is not Func.
 	// It panics if i is not in the range [0, NumOut()).
 	Out(i int) Type
+
+	// Outs returns an iterator over each output parameter of function type t. The sequence
+	// is equivalent to calling Out successively for each index i in the range [0, NumOut()).
+	// It panics if the type's Kind is not Func.
+	Outs() iter.Seq[Type]
 
 	// OverflowComplex reports whether the complex128 x cannot be represented by type t.
 	// It panics if t's Kind is not Complex64 or Complex128.
@@ -932,6 +952,55 @@ func canRangeFunc2(t *abi.Type) bool {
 	}
 	yield := y.FuncType()
 	return yield.InCount == 2 && yield.OutCount == 1 && yield.Out(0).Kind() == abi.Bool
+}
+
+func (t *rtype) Fields() iter.Seq[StructField] {
+	if t.Kind() != Struct {
+		panic("reflect: Fields of non-struct type " + t.String())
+	}
+	return func(yield func(StructField) bool) {
+		for i := range t.NumField() {
+			if !yield(t.Field(i)) {
+				return
+			}
+		}
+	}
+}
+
+func (t *rtype) Methods() iter.Seq[Method] {
+	return func(yield func(Method) bool) {
+		for i := range t.NumMethod() {
+			if !yield(t.Method(i)) {
+				return
+			}
+		}
+	}
+}
+
+func (t *rtype) Ins() iter.Seq[Type] {
+	if t.Kind() != Func {
+		panic("reflect: Ins of non-func type " + t.String())
+	}
+	return func(yield func(Type) bool) {
+		for i := range t.NumIn() {
+			if !yield(t.In(i)) {
+				return
+			}
+		}
+	}
+}
+
+func (t *rtype) Outs() iter.Seq[Type] {
+	if t.Kind() != Func {
+		panic("reflect: Outs of non-func type " + t.String())
+	}
+	return func(yield func(Type) bool) {
+		for i := range t.NumOut() {
+			if !yield(t.Out(i)) {
+				return
+			}
+		}
+	}
 }
 
 // add returns p+x.
