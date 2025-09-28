@@ -169,9 +169,10 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
 					a.Package.Incomplete = true
 				}
 			} else {
-				var ipe load.ImportPathError
-				if a.Package != nil && (!errors.As(err, &ipe) || ipe.ImportPath() != a.Package.ImportPath) {
-					err = fmt.Errorf("%s: %v", a.Package.ImportPath, err)
+				if a.Package != nil {
+					if ipe, ok := errors.AsType[load.ImportPathError](err); !ok || ipe.ImportPath() != a.Package.ImportPath {
+						err = fmt.Errorf("%s: %v", a.Package.ImportPath, err)
+					}
 				}
 				sh := b.Shell(a)
 				sh.Errorf("%s", err)

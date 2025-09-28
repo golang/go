@@ -1015,8 +1015,7 @@ func TestExecError_CustomError(t *testing.T) {
 	var b bytes.Buffer
 	err := tmpl.Execute(&b, nil)
 
-	var e *CustomError
-	if !errors.As(err, &e) {
+	if _, ok := errors.AsType[*CustomError](err); !ok {
 		t.Fatalf("expected custom error; got %s", err)
 	}
 }

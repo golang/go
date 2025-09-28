@@ -142,7 +142,7 @@ func vetFlags(args []string) (passToVet, packageNames []string) {
 			break
 		}
 
-		if nf := (cmdflag.NonFlagError{}); errors.As(err, &nf) {
+		if _, ok := errors.AsType[cmdflag.NonFlagError](err); ok {
 			// Everything from here on out — including the argument we just consumed —
 			// must be a package name.
 			packageNames = args

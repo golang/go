@@ -410,7 +410,7 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
 
 			root, isLocal, err := fetch(ctx, m)
 			if err != nil {
-				if sumErr := (*sumMissingError)(nil); errors.As(err, &sumErr) {
+				if _, ok := errors.AsType[*sumMissingError](err); ok {
 					// We are missing a sum needed to fetch a module in the build list.
 					// We can't verify that the package is unique, and we may not find
 					// the package at all. Keep checking other modules to decide which
@@ -549,7 +549,7 @@ func queryImport(ctx context.Context, path string, rs *Requirements) (module.Ver
 	for _, m := range mods {
 		root, isLocal, err := fetch(ctx, m)
 		if err != nil {
-			if sumErr := (*sumMissingError)(nil); errors.As(err, &sumErr) {
+			if _, ok := errors.AsType[*sumMissingError](err); ok {
 				return module.Version{}, &ImportMissingSumError{importPath: path}
 			}
 			return module.Version{}, err

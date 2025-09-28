@@ -1378,8 +1378,8 @@ func TestWaitInterrupt(t *testing.T) {
 		// The child process should be reported as failed,
 		// and the grandchild will exit (or die by SIGPIPE) once the
 		// stderr pipe is closed.
-		if ee := new(*exec.ExitError); !errors.As(err, ee) {
-			t.Errorf("Wait error = %v; want %T", err, *ee)
+		if ee, ok := errors.AsType[*exec.ExitError](err); !ok {
+			t.Errorf("Wait error = %v; want %T", err, ee)
 		}
 	})
 
@@ -1423,8 +1423,8 @@ func TestWaitInterrupt(t *testing.T) {
 
 		// This command ignores SIGINT, sleeping until it is killed.
 		// Wait should return the usual error for a killed process.
-		if ee := new(*exec.ExitError); !errors.As(err, ee) {
-			t.Errorf("Wait error = %v; want %T", err, *ee)
+		if ee, ok := errors.AsType[*exec.ExitError](err); !ok {
+			t.Errorf("Wait error = %v; want %T", err, ee)
 		}
 	})
 
@@ -1471,7 +1471,7 @@ func TestWaitInterrupt(t *testing.T) {
 		t.Logf("stderr:\n%s", cmd.Stderr)
 		t.Logf("[%d] %v", cmd.Process.Pid, err)
 
-		if ee := new(*exec.ExitError); !errors.As(err, ee) {
+		if _, ok := errors.AsType[*exec.ExitError](err); !ok {
 			t.Errorf("Wait error = %v; want %v", err, ctx.Err())
 		}
 

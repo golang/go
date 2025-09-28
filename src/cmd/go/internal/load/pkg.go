@@ -290,8 +290,8 @@ func (p *Package) setLoadPackageDataError(err error, path string, stk *ImportSta
 
 	// Replace (possibly wrapped) *build.NoGoError with *load.NoGoError.
 	// The latter is more specific about the cause.
-	var nogoErr *build.NoGoError
-	if errors.As(err, &nogoErr) {
+	nogoErr, ok := errors.AsType[*build.NoGoError](err)
+	if ok {
 		if p.Dir == "" && nogoErr.Dir != "" {
 			p.Dir = nogoErr.Dir
 		}

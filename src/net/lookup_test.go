@@ -1420,8 +1420,8 @@ func testLookupNoData(t *testing.T, prefix string) {
 			return
 		}
 
-		var dnsErr *DNSError
-		if errors.As(err, &dnsErr) {
+		dnsErr, ok := errors.AsType[*DNSError](err)
+		if ok {
 			succeeded := true
 			if !dnsErr.IsNotFound {
 				succeeded = false
@@ -1455,8 +1455,7 @@ func testLookupNoData(t *testing.T, prefix string) {
 func TestLookupPortNotFound(t *testing.T) {
 	allResolvers(t, func(t *testing.T) {
 		_, err := LookupPort("udp", "_-unknown-service-")
-		var dnsErr *DNSError
-		if !errors.As(err, &dnsErr) || !dnsErr.IsNotFound {
+		if dnsErr, ok := errors.AsType[*DNSError](err); !ok || !dnsErr.IsNotFound {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})
@@ -1475,8 +1474,7 @@ var tcpOnlyService = func() string {
 func TestLookupPortDifferentNetwork(t *testing.T) {
 	allResolvers(t, func(t *testing.T) {
 		_, err := LookupPort("udp", tcpOnlyService)
-		var dnsErr *DNSError
-		if !errors.As(err, &dnsErr) || !dnsErr.IsNotFound {
+		if dnsErr, ok := errors.AsType[*DNSError](err); !ok || !dnsErr.IsNotFound {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})
