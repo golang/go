@@ -8505,8 +8505,7 @@ func TestInitFuncTypes(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			ipT := TypeOf(net.IP{})
-			for i := 0; i < ipT.NumMethod(); i++ {
-				_ = ipT.Method(i)
+			for range ipT.Methods() {
 			}
 		}()
 	}
