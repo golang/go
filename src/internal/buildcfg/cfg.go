@@ -321,18 +321,13 @@ func goriscv64() int {
 }
 
 type gowasmFeatures struct {
-	SatConv bool
-	SignExt bool
+	// Legacy features, now always enabled
+	//SatConv bool
+	//SignExt bool
 }
 
 func (f gowasmFeatures) String() string {
 	var flags []string
-	if f.SatConv {
-		flags = append(flags, "satconv")
-	}
-	if f.SignExt {
-		flags = append(flags, "signext")
-	}
 	return strings.Join(flags, ",")
 }
 
@@ -340,9 +335,9 @@ func gowasm() (f gowasmFeatures) {
 	for opt := range strings.SplitSeq(envOr("GOWASM", ""), ",") {
 		switch opt {
 		case "satconv":
-			f.SatConv = true
+			// ignore, always enabled
 		case "signext":
-			f.SignExt = true
+			// ignore, always enabled
 		case "":
 			// ignore
 		default:
@@ -452,12 +447,10 @@ func gogoarchTags() []string {
 		return list
 	case "wasm":
 		var list []string
-		if GOWASM.SatConv {
-			list = append(list, GOARCH+".satconv")
-		}
-		if GOWASM.SignExt {
-			list = append(list, GOARCH+".signext")
-		}
+		// SatConv is always enabled
+		list = append(list, GOARCH+".satconv")
+		// SignExt is always enabled
+		list = append(list, GOARCH+".signext")
 		return list
 	}
 	return nil
