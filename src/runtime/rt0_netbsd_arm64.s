@@ -7,7 +7,7 @@
 TEXT _rt0_arm64_netbsd(SB),NOSPLIT,$0
 	MOVD	0(RSP), R0	// argc
 	ADD	$8, RSP, R1	// argv
-	BL	main(SB)
+	JMP	main(SB)
 
 // When building with -buildmode=c-shared, this symbol is called when the shared
 // library is loaded.
