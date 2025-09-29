@@ -12,6 +12,7 @@ import (
 	"go/constant"
 	"html"
 	"internal/buildcfg"
+	"internal/runtime/gc"
 	"os"
 	"path/filepath"
 	"slices"
@@ -124,6 +125,15 @@ func InitConfig() {
 	ir.Syms.Goschedguarded = typecheck.LookupRuntimeFunc("goschedguarded")
 	ir.Syms.Growslice = typecheck.LookupRuntimeFunc("growslice")
 	ir.Syms.InterfaceSwitch = typecheck.LookupRuntimeFunc("interfaceSwitch")
+	for i := 1; i < len(ir.Syms.MallocGCSmallNoScan); i++ {
+		ir.Syms.MallocGCSmallNoScan[i] = typecheck.LookupRuntimeFunc(fmt.Sprintf("mallocgcSmallNoScanSC%d", i))
+	}
+	for i := 1; i < len(ir.Syms.MallocGCSmallScanNoHeader); i++ {
+		ir.Syms.MallocGCSmallScanNoHeader[i] = typecheck.LookupRuntimeFunc(fmt.Sprintf("mallocgcSmallScanNoHeaderSC%d", i))
+	}
+	for i := 1; i < len(ir.Syms.MallocGCTiny); i++ {
+		ir.Syms.MallocGCTiny[i] = typecheck.LookupRuntimeFunc(fmt.Sprintf("mallocTiny%d", i))
+	}
 	ir.Syms.MallocGC = typecheck.LookupRuntimeFunc("mallocgc")
 	ir.Syms.Memmove = typecheck.LookupRuntimeFunc("memmove")
 	ir.Syms.Msanread = typecheck.LookupRuntimeFunc("msanread")
@@ -690,7 +700,7 @@ func allocAlign(t *types.Type) int64 {
 func (s *state) newHeapaddr(n *ir.Name) {
 	size := allocSize(n.Type())
 	if n.Type().HasPointers() || size >= maxAggregatedHeapAllocation || size == 0 {
-		s.setHeapaddr(n.Pos(), n, s.newObject(n.Type(), nil))
+		s.setHeapaddr(n.Pos(), n, s.newObject(n.Type()))
 		return
 	}
 
@@ -709,7 +719,7 @@ func (s *state) newHeapaddr(n *ir.Name) {
 		// Make an allocation, but the type being allocated is just
 		// the first pending object. We will come back and update it
 		// later if needed.
-		allocCall = s.newObject(n.Type(), nil)
+		allocCall = s.newObjectNonSpecialized(n.Type(), nil)
 	} else {
 		allocCall = s.pendingHeapAllocations[0].Args[0]
 	}
@@ -762,7 +772,11 @@ func (s *state) flushPendingHeapAllocations() {
 		s.constBool(true),             // needZero TODO: false is ok?
 		call.Args[1],                  // memory
 	}
-	call.Aux = ssa.StaticAuxCall(ir.Syms.MallocGC, s.f.ABIDefault.ABIAnalyzeTypes(
+	mallocSym := ir.Syms.MallocGC
+	if specialMallocSym := s.specializedMallocSym(size, false); specialMallocSym != nil {
+		mallocSym = specialMallocSym
+	}
+	call.Aux = ssa.StaticAuxCall(mallocSym, s.f.ABIDefault.ABIAnalyzeTypes(
 		[]*types.Type{args[0].Type, args[1].Type, args[2].Type},
 		[]*types.Type{types.Types[types.TUNSAFEPTR]},
 	))
@@ -772,6 +786,43 @@ func (s *state) flushPendingHeapAllocations() {
 
 	call.Type = types.NewTuple(types.Types[types.TUNSAFEPTR], types.TypeMem)
 	ptr.Type = types.Types[types.TUNSAFEPTR]
+}
+
+func (s *state) specializedMallocSym(size int64, hasPointers bool) *obj.LSym {
+	if !s.sizeSpecializedMallocEnabled() {
+		return nil
+	}
+	ptrSize := s.config.PtrSize
+	ptrBits := ptrSize * 8
+	minSizeForMallocHeader := ptrSize * ptrBits
+	heapBitsInSpan := size <= minSizeForMallocHeader
+	if !heapBitsInSpan {
+		return nil
+	}
+	divRoundUp := func(n, a uintptr) uintptr { return (n + a - 1) / a }
+	sizeClass := gc.SizeToSizeClass8[divRoundUp(uintptr(size), gc.SmallSizeDiv)]
+	if hasPointers {
+		return ir.Syms.MallocGCSmallScanNoHeader[sizeClass]
+	}
+	if size < gc.TinySize {
+		return ir.Syms.MallocGCTiny[size]
+	}
+	return ir.Syms.MallocGCSmallNoScan[sizeClass]
+}
+
+func (s *state) sizeSpecializedMallocEnabled() bool {
+	if base.Flag.CompilingRuntime {
+		// The compiler forces the values of the asan, msan, and race flags to false if
+		// we're compiling the runtime, so we lose the information about whether we're
+		// building in asan, msan, or race mode. Because the specialized functions don't
+		// work in that mode, just turn if off in that case.
+		// TODO(matloob): Save the information about whether the flags were passed in
+		// originally so we can turn off size specialized malloc in that case instead
+		// using Instrumenting below. Then we can remove this condition.
+		return false
+	}
+
+	return buildcfg.Experiment.SizeSpecializedMalloc && !base.Flag.Cfg.Instrumenting
 }
 
 // setHeapaddr allocates a new PAUTO variable to store ptr (which must be non-nil)
@@ -796,7 +847,24 @@ func (s *state) setHeapaddr(pos src.XPos, n *ir.Name, ptr *ssa.Value) {
 }
 
 // newObject returns an SSA value denoting new(typ).
-func (s *state) newObject(typ *types.Type, rtype *ssa.Value) *ssa.Value {
+func (s *state) newObject(typ *types.Type) *ssa.Value {
+	if typ.Size() == 0 {
+		return s.newValue1A(ssa.OpAddr, types.NewPtr(typ), ir.Syms.Zerobase, s.sb)
+	}
+	rtype := s.reflectType(typ)
+	if specialMallocSym := s.specializedMallocSym(typ.Size(), typ.HasPointers()); specialMallocSym != nil {
+		return s.rtcall(specialMallocSym, true, []*types.Type{types.NewPtr(typ)},
+			s.constInt(types.Types[types.TUINTPTR], typ.Size()),
+			rtype,
+			s.constBool(true),
+		)[0]
+	}
+	return s.rtcall(ir.Syms.Newobject, true, []*types.Type{types.NewPtr(typ)}, rtype)[0]
+}
+
+// newObjectNonSpecialized returns an SSA value denoting new(typ). It does
+// not produce size-specialized malloc functions.
+func (s *state) newObjectNonSpecialized(typ *types.Type, rtype *ssa.Value) *ssa.Value {
 	if typ.Size() == 0 {
 		return s.newValue1A(ssa.OpAddr, types.NewPtr(typ), ir.Syms.Zerobase, s.sb)
 	}
@@ -3594,11 +3662,10 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 
 	case ir.ONEW:
 		n := n.(*ir.UnaryExpr)
-		var rtype *ssa.Value
 		if x, ok := n.X.(*ir.DynamicType); ok && x.Op() == ir.ODYNAMICTYPE {
-			rtype = s.expr(x.RType)
+			return s.newObjectNonSpecialized(n.Type().Elem(), s.expr(x.RType))
 		}
-		return s.newObject(n.Type().Elem(), rtype)
+		return s.newObject(n.Type().Elem())
 
 	case ir.OUNSAFEADD:
 		n := n.(*ir.BinaryExpr)
