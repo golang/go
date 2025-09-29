@@ -2498,6 +2498,28 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	AAMOMINUW & obj.AMask: {enc: rIIIEncoding},
 	AAMOMINUD & obj.AMask: {enc: rIIIEncoding},
 
+	// 16.1: Byte and Halfword Atomic Memory Operation Instructions (Zabha)
+	AAMOSWAPB & obj.AMask: {enc: rIIIEncoding},
+	AAMOSWAPH & obj.AMask: {enc: rIIIEncoding},
+	AAMOADDB & obj.AMask:  {enc: rIIIEncoding},
+	AAMOADDH & obj.AMask:  {enc: rIIIEncoding},
+	AAMOANDB & obj.AMask:  {enc: rIIIEncoding},
+	AAMOANDH & obj.AMask:  {enc: rIIIEncoding},
+	AAMOORB & obj.AMask:   {enc: rIIIEncoding},
+	AAMOORH & obj.AMask:   {enc: rIIIEncoding},
+	AAMOXORB & obj.AMask:  {enc: rIIIEncoding},
+	AAMOXORH & obj.AMask:  {enc: rIIIEncoding},
+	AAMOMAXB & obj.AMask:  {enc: rIIIEncoding},
+	AAMOMAXH & obj.AMask:  {enc: rIIIEncoding},
+	AAMOMAXUB & obj.AMask: {enc: rIIIEncoding},
+	AAMOMAXUH & obj.AMask: {enc: rIIIEncoding},
+	AAMOMINB & obj.AMask:  {enc: rIIIEncoding},
+	AAMOMINH & obj.AMask:  {enc: rIIIEncoding},
+	AAMOMINUB & obj.AMask: {enc: rIIIEncoding},
+	AAMOMINUH & obj.AMask: {enc: rIIIEncoding},
+	AAMOCASB & obj.AMask:  {enc: rIIIEncoding},
+	AAMOCASH & obj.AMask:  {enc: rIIIEncoding},
+
 	// 20.5: Single-Precision Load and Store Instructions
 	AFLW & obj.AMask: {enc: iFEncoding},
 	AFSW & obj.AMask: {enc: sFEncoding},
@@ -4371,7 +4393,9 @@ func instructionsForProg(p *obj.Prog, compress bool) []*instruction {
 		ins.rd, ins.rs1, ins.rs2 = uint32(p.RegTo2), uint32(p.To.Reg), uint32(p.From.Reg)
 
 	case AAMOSWAPW, AAMOSWAPD, AAMOADDW, AAMOADDD, AAMOANDW, AAMOANDD, AAMOORW, AAMOORD,
-		AAMOXORW, AAMOXORD, AAMOMINW, AAMOMIND, AAMOMINUW, AAMOMINUD, AAMOMAXW, AAMOMAXD, AAMOMAXUW, AAMOMAXUD:
+		AAMOXORW, AAMOXORD, AAMOMINW, AAMOMIND, AAMOMINUW, AAMOMINUD, AAMOMAXW, AAMOMAXD, AAMOMAXUW, AAMOMAXUD,
+		AAMOSWAPB, AAMOSWAPH, AAMOADDB, AAMOADDH, AAMOANDB, AAMOANDH, AAMOORB, AAMOORH, AAMOXORB, AAMOXORH,
+		AAMOMINB, AAMOMINH, AAMOMINUB, AAMOMINUH, AAMOMAXB, AAMOMAXH, AAMOMAXUB, AAMOMAXUH, AAMOCASB, AAMOCASH:
 		// Set aqrl to use acquire & release access ordering
 		ins.funct7 = 3
 		ins.rd, ins.rs1, ins.rs2 = uint32(p.RegTo2), uint32(p.To.Reg), uint32(p.From.Reg)

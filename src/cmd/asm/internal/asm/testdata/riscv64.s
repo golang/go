@@ -263,6 +263,28 @@ start:
 	AMOMINUW	X5, (X6), X7			// af2353c6
 	AMOMINUD	X5, (X6), X7			// af3353c6
 
+	// 16.1: Byte and Halfword Atomic Memory Operation Instructions (Zabha)
+	AMOSWAPB	X5, (X6), X7			// af03530e
+	AMOSWAPH	X5, (X6), X7			// af13530e
+	AMOADDB		X5, (X6), X7			// af035306
+	AMOADDH		X5, (X6), X7			// af135306
+	AMOANDB		X5, (X6), X7			// af035366
+	AMOANDH		X5, (X6), X7			// af135366
+	AMOORB		X5, (X6), X7			// af035346
+	AMOORH		X5, (X6), X7			// af135346
+	AMOXORB		X5, (X6), X7			// af035326
+	AMOXORH		X5, (X6), X7			// af135326
+	AMOMAXB		X5, (X6), X7			// af0353a6
+	AMOMAXH		X5, (X6), X7			// af1353a6
+	AMOMAXUB	X5, (X6), X7			// af0353e6
+	AMOMAXUH	X5, (X6), X7			// af1353e6
+	AMOMINB		X5, (X6), X7			// af035386
+	AMOMINH		X5, (X6), X7			// af135386
+	AMOMINUB	X5, (X6), X7			// af0353c6
+	AMOMINUH	X5, (X6), X7			// af1353c6
+	AMOCASB		X5, (X6), X7			// af03532e
+	AMOCASH		X5, (X6), X7			// af13532e
+
 	// 20.5: Single-Precision Load and Store Instructions
 	FLW	(X5), F0				// 07a00200
 	FLW	4(X5), F0				// 07a04200

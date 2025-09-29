@@ -21,7 +21,12 @@ func IsRISCV64AMO(op obj.As) bool {
 	case riscv.ASCW, riscv.ASCD, riscv.AAMOSWAPW, riscv.AAMOSWAPD, riscv.AAMOADDW, riscv.AAMOADDD,
 		riscv.AAMOANDW, riscv.AAMOANDD, riscv.AAMOORW, riscv.AAMOORD, riscv.AAMOXORW, riscv.AAMOXORD,
 		riscv.AAMOMINW, riscv.AAMOMIND, riscv.AAMOMINUW, riscv.AAMOMINUD,
-		riscv.AAMOMAXW, riscv.AAMOMAXD, riscv.AAMOMAXUW, riscv.AAMOMAXUD:
+		riscv.AAMOMAXW, riscv.AAMOMAXD, riscv.AAMOMAXUW, riscv.AAMOMAXUD,
+		riscv.AAMOSWAPB, riscv.AAMOSWAPH, riscv.AAMOADDB, riscv.AAMOADDH,
+		riscv.AAMOANDB, riscv.AAMOANDH, riscv.AAMOORB, riscv.AAMOORH,
+		riscv.AAMOXORB, riscv.AAMOXORH, riscv.AAMOMINB, riscv.AAMOMINH,
+		riscv.AAMOMINUB, riscv.AAMOMINUH, riscv.AAMOMAXB, riscv.AAMOMAXH,
+		riscv.AAMOMAXUB, riscv.AAMOMAXUH, riscv.AAMOCASB, riscv.AAMOCASH:
 		return true
 	}
 	return false
