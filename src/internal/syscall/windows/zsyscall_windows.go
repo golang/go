@@ -328,7 +328,7 @@ func GetFileInformationByHandleEx(handle syscall.Handle, class uint32, info *byt
 }
 
 func GetFileSizeEx(handle syscall.Handle, size *int64) (err error) {
-	r1, _, e1 := syscall.Syscall(procGetFileSizeEx.Addr(), 2, uintptr(handle), uintptr(unsafe.Pointer(size)), 0)
+	r1, _, e1 := syscall.SyscallN(procGetFileSizeEx.Addr(), uintptr(handle), uintptr(unsafe.Pointer(size)))
 	if r1 == 0 {
 		err = errnoErr(e1)
 	}
