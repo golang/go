@@ -10,6 +10,7 @@ import (
 	"internal/diff"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"text/scanner"
@@ -55,8 +56,10 @@ func gofmtFlags(filename string, maxLines int) string {
 
 func runTest(t *testing.T, in, out string) {
 	// process flags
+	*doDiff = false
 	*simplifyAST = false
 	*rewriteRule = ""
+	exitCode := 0
 	info, err := os.Lstat(in)
 	if err != nil {
 		t.Error(err)
@@ -72,6 +75,8 @@ func runTest(t *testing.T, in, out string) {
 		switch name {
 		case "":
 			// no flags
+		case "-d":
+			*doDiff = true
 		case "-r":
 			*rewriteRule = value
 		case "-s":
@@ -79,6 +84,12 @@ func runTest(t *testing.T, in, out string) {
 		case "-stdin":
 			// fake flag - pretend input is from stdin
 			info = nil
+		case "-exitcode":
+			// fake flag - set an expected exit code
+			exitCode, err = strconv.Atoi(value)
+			if err != nil {
+				t.Errorf("couldn't convert string to int: %s", value)
+			}
 		default:
 			t.Errorf("unrecognized flag name: %s", name)
 		}
@@ -96,8 +107,13 @@ func runTest(t *testing.T, in, out string) {
 	if errBuf.Len() > 0 {
 		t.Logf("%q", errBuf.Bytes())
 	}
-	if s.GetExitCode() != 0 {
-		t.Fail()
+	if s.GetExitCode() != exitCode {
+		t.Errorf("expected exit code %d, got %d", exitCode, s.GetExitCode())
+	}
+
+	// don't try to compare output for diffs
+	if *doDiff {
+		return
 	}
 
 	expected, err := os.ReadFile(out)
@@ -139,6 +155,9 @@ func TestRewrite(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	// add exit code tests
+	match = append(match, "testdata/exitcode0", "testdata/exitcode1")
 
 	// add larger examples
 	match = append(match, "gofmt.go", "gofmt_test.go")

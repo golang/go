@@ -1,0 +1,4 @@
+//gofmt -d -exitcode=1
+
+// Input has incorrect formatting
+	package main
