@@ -5,11 +5,6 @@
 #include <pthread.h>
 
 /*
- * Initialize g->stacklo.
- */
-extern void _cgo_set_stacklo(G *, uintptr *);
-
-/*
  * Call pthread_create, retrying on EAGAIN.
  */
 extern int _cgo_try_pthread_create(pthread_t*, const pthread_attr_t*, void* (*)(void*), void*);

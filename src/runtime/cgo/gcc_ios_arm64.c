@@ -9,7 +9,6 @@
 #include <stdlib.h>
 
 #include "libcgo.h"
-#include "libcgo_unix.h"
 
 #include <TargetConditionals.h>
 
@@ -18,26 +17,15 @@
 #include <CoreFoundation/CFString.h>
 #endif
 
-static void (*setg_gcc)(void*);
+#if TARGET_OS_IPHONE
 
-extern void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
-void*
-threadentry(void *v)
+static void
+threadentry_platform(void)
 {
-	ThreadStart ts;
-
-	ts = *(ThreadStart*)v;
-	free(v);
-
 #if TARGET_OS_IPHONE
 	darwin_arm_init_thread_exception_port();
 #endif
-
-	crosscall1(ts.fn, setg_gcc, (void*)ts.g);
-	return nil;
 }
-
-#if TARGET_OS_IPHONE
 
 // init_working_dir sets the current working directory to the app root.
 // By default ios/arm64 processes start in "/".
@@ -101,16 +89,15 @@ init_working_dir()
 
 #endif // TARGET_OS_IPHONE
 
-void
-x_cgo_init(G *g, void (*setg)(void*))
+static void
+init_platform()
 {
-	//fprintf(stderr, "x_cgo_init = %p\n", &x_cgo_init); // aid debugging in presence of ASLR
-	setg_gcc = setg;
-	_cgo_set_stacklo(g, NULL);
-
 #if TARGET_OS_IPHONE
 	darwin_arm_init_mach_exception_handler();
 	darwin_arm_init_thread_exception_port();
 	init_working_dir();
 #endif
 }
+
+void (*x_cgo_init_platform)(void) = init_platform;
+void (*x_cgo_threadentry_platform)(void) = threadentry_platform;
