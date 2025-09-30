@@ -29,6 +29,7 @@ type mTraceState struct {
 	buf           [2][tracev2.NumExperiments]*traceBuf // Per-M traceBuf for writing. Indexed by trace.gen%2.
 	link          *m                                   // Snapshot of alllink or freelink.
 	reentered     uint32                               // Whether we've reentered tracing from within tracing.
+	entryGen      uintptr                              // The generation value on first entry.
 	oldthrowsplit bool                                 // gp.throwsplit upon calling traceLocker.writer. For debugging.
 }
 
@@ -212,7 +213,7 @@ func traceAcquireEnabled() traceLocker {
 	// that it is.
 	if mp.trace.seqlock.Load()%2 == 1 {
 		mp.trace.reentered++
-		return traceLocker{mp, trace.gen.Load()}
+		return traceLocker{mp, mp.trace.entryGen}
 	}
 
 	// Acquire the trace seqlock. This prevents traceAdvance from moving forward
@@ -240,6 +241,7 @@ func traceAcquireEnabled() traceLocker {
 		releasem(mp)
 		return traceLocker{}
 	}
+	mp.trace.entryGen = gen
 	return traceLocker{mp, gen}
 }
 
