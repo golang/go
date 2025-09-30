@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build aix || (!android && linux) || dragonfly || freebsd || netbsd || openbsd || solaris
+//go:build unix && !android
 
 #include <stdarg.h>
 #include <stdio.h>

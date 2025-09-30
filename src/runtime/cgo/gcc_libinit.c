@@ -12,11 +12,8 @@
 #pragma GCC diagnostic ignored "-Watomic-alignment"
 
 #include <pthread.h>
-#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h> // strerror
-#include <time.h>
 #include "libcgo.h"
 #include "libcgo_unix.h"
 
@@ -40,21 +37,6 @@ static void (*cgo_context_function)(struct cgoContextArg*);
 
 // The symbolizer function, used when symbolizing C frames.
 static void (*cgo_symbolizer_function)(struct cgoSymbolizerArg*);
-
-void
-x_cgo_sys_thread_create(void* (*func)(void*), void* arg) {
-	pthread_attr_t attr;
-	pthread_t p;
-	int err;
-
-	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	err = _cgo_try_pthread_create(&p, &attr, func, arg);
-	if (err != 0) {
-		fprintf(stderr, "pthread_create failed: %s", strerror(err));
-		abort();
-	}
-}
 
 uintptr_t
 _cgo_wait_runtime_init_done(void) {
@@ -206,29 +188,6 @@ void x_cgo_call_symbolizer_function(struct cgoSymbolizerArg* arg) {
 	_cgo_tsan_acquire();
 	(*pfn)(arg);
 	_cgo_tsan_release();
-}
-
-// _cgo_try_pthread_create retries pthread_create if it fails with
-// EAGAIN.
-int
-_cgo_try_pthread_create(pthread_t* thread, const pthread_attr_t* attr, void* (*pfn)(void*), void* arg) {
-	int tries;
-	int err;
-	struct timespec ts;
-
-	for (tries = 0; tries < 20; tries++) {
-		err = pthread_create(thread, attr, pfn, arg);
-		if (err == 0) {
-			return 0;
-		}
-		if (err != EAGAIN) {
-			return err;
-		}
-		ts.tv_sec = 0;
-		ts.tv_nsec = (tries + 1) * 1000 * 1000; // Milliseconds.
-		nanosleep(&ts, nil);
-	}
-	return EAGAIN;
 }
 
 static void

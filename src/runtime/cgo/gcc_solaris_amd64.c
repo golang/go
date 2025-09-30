@@ -2,14 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include <pthread.h>
 #include <string.h>
-#include <signal.h>
 #include <ucontext.h>
 #include "libcgo.h"
 #include "libcgo_unix.h"
 
-static void* threadentry(void*);
 static void (*setg_gcc)(void*);
 
 void
@@ -35,42 +32,8 @@ x_cgo_init(G *g, void (*setg)(void*))
 	}
 }
 
-void
-_cgo_sys_thread_start(ThreadStart *ts)
-{
-	pthread_attr_t attr;
-	sigset_t ign, oset;
-	pthread_t p;
-	void *base;
-	size_t size;
-	int err;
-
-	sigfillset(&ign);
-	pthread_sigmask(SIG_SETMASK, &ign, &oset);
-
-	pthread_attr_init(&attr);
-
-	if (pthread_attr_getstack(&attr, &base, &size) != 0)
-		perror("runtime/cgo: pthread_attr_getstack failed");
-	if (size == 0) {
-		ts->g->stackhi = 2 << 20;
-		if (pthread_attr_setstack(&attr, NULL, ts->g->stackhi) != 0)
-			perror("runtime/cgo: pthread_attr_setstack failed");
-	} else {
-		ts->g->stackhi = size;
-	}
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
-
-	pthread_sigmask(SIG_SETMASK, &oset, nil);
-
-	if (err != 0) {
-		fatalf("pthread_create failed: %s", strerror(err));
-	}
-}
-
 extern void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
-static void*
+void*
 threadentry(void *v)
 {
 	ThreadStart ts;

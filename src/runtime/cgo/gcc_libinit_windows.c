@@ -212,3 +212,5 @@ void _cgo_beginthread(unsigned long (__stdcall *func)(void*), void* arg) {
 	fprintf(stderr, "runtime: failed to create new OS thread (%lu)\n", GetLastError());
 	abort();
 }
+
+void x_cgo_getstackbound(uintptr bounds[2]) {} // no-op for now
