@@ -549,7 +549,6 @@ func (p *addrParser) consumeAddrSpec() (spec string, err error) {
 
 	// domain = dot-atom / domain-literal
 	var domain string
-
 	if p.empty() {
 		return "", errors.New("mail: no domain in addr-spec")
 	}
