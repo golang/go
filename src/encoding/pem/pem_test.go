@@ -34,7 +34,7 @@ var getLineTests = []GetLineTest{
 
 func TestGetLine(t *testing.T) {
 	for i, test := range getLineTests {
-		x, y := getLine([]byte(test.in))
+		x, y, _ := getLine([]byte(test.in))
 		if string(x) != test.out1 || string(y) != test.out2 {
 			t.Errorf("#%d got:%+v,%+v want:%s,%s", i, x, y, test.out1, test.out2)
 		}
@@ -46,6 +46,7 @@ func TestDecode(t *testing.T) {
 	if !reflect.DeepEqual(result, certificate) {
 		t.Errorf("#0 got:%#v want:%#v", result, certificate)
 	}
+
 	result, remainder = Decode(remainder)
 	if !reflect.DeepEqual(result, privateKey) {
 		t.Errorf("#1 got:%#v want:%#v", result, privateKey)
@@ -68,7 +69,7 @@ func TestDecode(t *testing.T) {
 	}
 
 	result, remainder = Decode(remainder)
-	if result == nil || result.Type != "HEADERS" || len(result.Headers) != 1 {
+	if result == nil || result.Type != "VALID HEADERS" || len(result.Headers) != 1 {
 		t.Errorf("#5 expected single header block but got :%v", result)
 	}
 
@@ -381,15 +382,15 @@ ZWAaUoVtWIQ52aKS0p19G99hhb+IVANC4akkdHV4SP8i7MVNZhfUmg==
 
 # This shouldn't be recognised because of the missing newline after the
 headers.
------BEGIN HEADERS-----
+-----BEGIN INVALID HEADERS-----
 Header: 1
------END HEADERS-----
+-----END INVALID HEADERS-----
 
 # This should be valid, however.
------BEGIN HEADERS-----
+-----BEGIN VALID HEADERS-----
 Header: 1
 
------END HEADERS-----`)
+-----END VALID HEADERS-----`)
 
 var certificate = &Block{Type: "CERTIFICATE",
 	Headers: map[string]string{},
