@@ -58,6 +58,9 @@ struct seccomp_data {
 #endif
 
 int disable_getrandom() {
+    if (SYS_getrandom == -1 || SYS_seccomp == -1) {
+        return 3;
+    }
     if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {
         return 1;
     }
