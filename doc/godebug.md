@@ -151,6 +151,16 @@ for example,
 see the [runtime documentation](/pkg/runtime#hdr-Environment_Variables)
 and the [go command documentation](/cmd/go#hdr-Build_and_test_caching).
 
+### Go 1.26
+
+Go 1.26 added a new `httpcookiemaxnum` setting that controls the maximum number
+of cookies that net/http will accept when parsing HTTP headers. If the number of
+cookie in a header exceeds the number set in `httpcookiemaxnum`, cookie parsing
+will fail early. The default value is `httpcookiemaxnum=3000`. Setting
+`httpcookiemaxnum=0` will allow the cookie parsing to accept an indefinite
+number of cookies. To avoid denial of service attacks, this setting and default
+was backported to Go 1.25.2 and Go 1.24.8.
+
 ### Go 1.24
 
 Go 1.24 added a new `fips140` setting that controls whether the Go
