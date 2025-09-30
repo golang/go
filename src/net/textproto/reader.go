@@ -284,8 +284,10 @@ func (r *Reader) ReadCodeLine(expectCode int) (code int, message string, err err
 //
 // An expectCode <= 0 disables the check of the status code.
 func (r *Reader) ReadResponse(expectCode int) (code int, message string, err error) {
-	code, continued, message, err := r.readCodeLine(expectCode)
+	code, continued, first, err := r.readCodeLine(expectCode)
 	multi := continued
+	var messageBuilder strings.Builder
+	messageBuilder.WriteString(first)
 	for continued {
 		line, err := r.ReadLine()
 		if err != nil {
@@ -296,12 +298,15 @@ func (r *Reader) ReadResponse(expectCode int) (code int, message string, err err
 		var moreMessage string
 		code2, continued, moreMessage, err = parseCodeLine(line, 0)
 		if err != nil || code2 != code {
-			message += "\n" + strings.TrimRight(line, "\r\n")
+			messageBuilder.WriteByte('\n')
+			messageBuilder.WriteString(strings.TrimRight(line, "\r\n"))
 			continued = true
 			continue
 		}
-		message += "\n" + moreMessage
+		messageBuilder.WriteByte('\n')
+		messageBuilder.WriteString(moreMessage)
 	}
+	message = messageBuilder.String()
 	if err != nil && multi && message != "" {
 		// replace one line error message with all lines (full message)
 		err = &Error{code, message}
