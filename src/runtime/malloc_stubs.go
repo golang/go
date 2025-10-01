@@ -50,6 +50,8 @@ func mallocPanic(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	panic("not defined for sizeclass")
 }
 
+// WARNING: mallocStub does not do any work for sanitizers so callers need
+// to steer out of this codepath early if sanitizers are enabled.
 func mallocStub(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
@@ -76,6 +78,13 @@ func mallocStub(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 
 	// Actually do the allocation.
 	x, elemsize := inlinedMalloc(size, typ, needzero)
+
+	// Notify valgrind, if enabled.
+	// To allow the compiler to not know about valgrind, we do valgrind instrumentation
+	// unlike the other sanitizers.
+	if valgrindenabled {
+		valgrindMalloc(x, size)
+	}
 
 	// Adjust our GC assist debt to account for internal fragmentation.
 	if gcBlackenEnabled != 0 && elemsize != 0 {
