@@ -1294,15 +1294,13 @@ func (r *resolver) loadPackages(ctx context.Context, patterns []string, findPack
 			continue
 		}
 
-		var (
-			importMissing *modload.ImportMissingError
-			ambiguous     *modload.AmbiguousImportError
-		)
-		if !errors.As(err, &importMissing) && !errors.As(err, &ambiguous) {
-			// The package, which is a dependency of something we care about, has some
-			// problem that we can't resolve with a version change.
-			// Leave the error for the final LoadPackages call.
-			continue
+		if _, ok := errors.AsType[*modload.ImportMissingError](err); !ok {
+			if _, ok := errors.AsType[*modload.AmbiguousImportError](err); !ok {
+				// The package, which is a dependency of something we care about, has some
+				// problem that we can't resolve with a version change.
+				// Leave the error for the final LoadPackages call.
+				continue
+			}
 		}
 
 		path := pkgPath
@@ -1674,7 +1672,7 @@ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []strin
 				}
 
 				base.SetExitStatus(1)
-				if ambiguousErr := (*modload.AmbiguousImportError)(nil); errors.As(err, &ambiguousErr) {
+				if ambiguousErr, ok := errors.AsType[*modload.AmbiguousImportError](err); ok {
 					for _, m := range ambiguousErr.Modules {
 						relevantMods[m] |= hasPkg
 					}
@@ -1717,7 +1715,7 @@ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []strin
 		i := i
 		r.work.Add(func() {
 			err := modload.CheckRetractions(ctx, retractions[i].m)
-			if retractErr := (*modload.ModuleRetractedError)(nil); errors.As(err, &retractErr) {
+			if _, ok := errors.AsType[*modload.ModuleRetractedError](err); ok {
 				retractions[i].message = err.Error()
 			}
 		})
@@ -1994,8 +1992,8 @@ func (r *resolver) updateBuildList(ctx context.Context, additions []module.Versi
 			toolchain.SwitchOrFatal(ctx, err)
 		}
 
-		var constraint *modload.ConstraintError
-		if !errors.As(err, &constraint) {
+		constraint, ok := errors.AsType[*modload.ConstraintError](err)
+		if !ok {
 			base.Fatal(err)
 		}
 
@@ -2066,8 +2064,11 @@ func reqsFromGoMod(f *modfile.File) []module.Version {
 // does not exist at the requested version, either because the module does not
 // exist at all or because it does not include that specific version.
 func isNoSuchModuleVersion(err error) bool {
-	var noMatch *modload.NoMatchingVersionError
-	return errors.Is(err, os.ErrNotExist) || errors.As(err, &noMatch)
+	if errors.Is(err, os.ErrNotExist) {
+		return true
+	}
+	_, ok := errors.AsType[*modload.NoMatchingVersionError](err)
+	return ok
 }
 
 // isNoSuchPackageVersion reports whether err indicates that the requested
@@ -2075,8 +2076,11 @@ func isNoSuchModuleVersion(err error) bool {
 // that could contain it exists at that version, or because every such module
 // that does exist does not actually contain the package.
 func isNoSuchPackageVersion(err error) bool {
-	var noPackage *modload.PackageNotInModuleError
-	return isNoSuchModuleVersion(err) || errors.As(err, &noPackage)
+	if isNoSuchModuleVersion(err) {
+		return true
+	}
+	_, ok := errors.AsType[*modload.PackageNotInModuleError](err)
+	return ok
 }
 
 // workspace represents the set of modules in a workspace.

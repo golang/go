@@ -1304,7 +1304,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 		}
 
 		// Add importer information to checksum errors.
-		if sumErr := (*ImportMissingSumError)(nil); errors.As(pkg.err, &sumErr) {
+		if sumErr, ok := errors.AsType[*ImportMissingSumError](pkg.err); ok {
 			if importer := pkg.stack; importer != nil {
 				sumErr.importer = importer.path
 				sumErr.importerVersion = importer.mod.Version
@@ -1312,7 +1312,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 			}
 		}
 
-		if stdErr := (*ImportMissingError)(nil); errors.As(pkg.err, &stdErr) && stdErr.isStd {
+		if stdErr, ok := errors.AsType[*ImportMissingError](pkg.err); ok && stdErr.isStd {
 			// Add importer go version information to import errors of standard
 			// library packages arising from newer releases.
 			if importer := pkg.stack; importer != nil {
@@ -1384,7 +1384,7 @@ func (ld *loader) updateRequirements(ctx context.Context) (changed bool, err err
 	var maxTooNew *gover.TooNewError
 	for _, pkg := range ld.pkgs {
 		if pkg.err != nil {
-			if tooNew := (*gover.TooNewError)(nil); errors.As(pkg.err, &tooNew) {
+			if tooNew, ok := errors.AsType[*gover.TooNewError](pkg.err); ok {
 				if maxTooNew == nil || gover.Compare(tooNew.GoVersion, maxTooNew.GoVersion) > 0 {
 					maxTooNew = tooNew
 				}
@@ -1573,7 +1573,7 @@ func (ld *loader) resolveMissingImports(ctx context.Context) (modAddedBy map[mod
 			// we should only add the missing import once.
 			continue
 		}
-		if !errors.As(pkg.err, new(*ImportMissingError)) {
+		if _, ok := errors.AsType[*ImportMissingError](pkg.err); !ok {
 			// Leave other errors for Import or load.Packages to report.
 			continue
 		}
@@ -1584,8 +1584,7 @@ func (ld *loader) resolveMissingImports(ctx context.Context) (modAddedBy map[mod
 			var err error
 			mod, err = queryImport(ctx, pkg.path, ld.requirements)
 			if err != nil {
-				var ime *ImportMissingError
-				if errors.As(err, &ime) {
+				if ime, ok := errors.AsType[*ImportMissingError](err); ok {
 					for curstack := pkg.stack; curstack != nil; curstack = curstack.stack {
 						if LoaderState.MainModules.Contains(curstack.mod.Path) {
 							ime.ImportingMainModule = curstack.mod
@@ -1625,7 +1624,7 @@ func (ld *loader) resolveMissingImports(ctx context.Context) (modAddedBy map[mod
 		maxTooNewPkg *loadPkg
 	)
 	for _, pm := range pkgMods {
-		if tooNew := (*gover.TooNewError)(nil); errors.As(pm.pkg.err, &tooNew) {
+		if tooNew, ok := errors.AsType[*gover.TooNewError](pm.pkg.err); ok {
 			if maxTooNew == nil || gover.Compare(tooNew.GoVersion, maxTooNew.GoVersion) > 0 {
 				maxTooNew = tooNew
 				maxTooNewPkg = pm.pkg
@@ -1771,8 +1770,7 @@ func (ld *loader) preloadRootModules(ctx context.Context, rootPkgs []string) (ch
 			// full module graph.
 			m, _, _, _, err := importFromModules(ctx, path, ld.requirements, nil, ld.skipImportModFiles)
 			if err != nil {
-				var missing *ImportMissingError
-				if errors.As(err, &missing) && ld.ResolveMissingImports {
+				if _, ok := errors.AsType[*ImportMissingError](err); ok && ld.ResolveMissingImports {
 					// This package isn't provided by any selected module.
 					// If we can find it, it will be a new root dependency.
 					m, err = queryImport(ctx, path, ld.requirements)
@@ -2196,14 +2194,14 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements, 
 			// module that previously provided the package to a version that no
 			// longer does, or to a version for which the module source code (but
 			// not the go.mod file in isolation) has a checksum error.
-			if missing := (*ImportMissingError)(nil); errors.As(mismatch.err, &missing) {
+			if _, ok := errors.AsType[*ImportMissingError](mismatch.err); ok {
 				selected := module.Version{
 					Path:    pkg.mod.Path,
 					Version: mg.Selected(pkg.mod.Path),
 				}
 				ld.error(fmt.Errorf("%s loaded from %v,\n\tbut go %s would fail to locate it in %s", pkg.stackText(), pkg.mod, compatVersion, selected))
 			} else {
-				if ambiguous := (*AmbiguousImportError)(nil); errors.As(mismatch.err, &ambiguous) {
+				if _, ok := errors.AsType[*AmbiguousImportError](mismatch.err); ok {
 					// TODO: Is this check needed?
 				}
 				ld.error(fmt.Errorf("%s loaded from %v,\n\tbut go %s would fail to locate it:\n\t%v", pkg.stackText(), pkg.mod, compatVersion, mismatch.err))

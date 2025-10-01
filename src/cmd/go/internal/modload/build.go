@@ -129,11 +129,10 @@ func addUpdate(ctx context.Context, m *modinfo.ModulePublic) {
 	}
 
 	info, err := Query(ctx, m.Path, "upgrade", m.Version, CheckAllowed)
-	var noVersionErr *NoMatchingVersionError
-	if errors.Is(err, ErrDisallowed) ||
+	if _, ok := errors.AsType[*NoMatchingVersionError](err); ok ||
 		errors.Is(err, fs.ErrNotExist) ||
-		errors.As(err, &noVersionErr) {
-		// Ignore "not found" and "no matching version" errors.
+		errors.Is(err, ErrDisallowed) {
+		// Ignore "no matching version" and "not found" errors.
 		// This means the proxy has no matching version or no versions at all.
 		//
 		// Ignore "disallowed" errors. This means the current version is
@@ -238,10 +237,10 @@ func addRetraction(ctx context.Context, m *modinfo.ModulePublic) {
 	}
 
 	err := CheckRetractions(ctx, module.Version{Path: m.Path, Version: m.Version})
-	var noVersionErr *NoMatchingVersionError
-	var retractErr *ModuleRetractedError
-	if err == nil || errors.Is(err, fs.ErrNotExist) || errors.As(err, &noVersionErr) {
-		// Ignore "not found" and "no matching version" errors.
+	if err == nil {
+		return
+	} else if _, ok := errors.AsType[*NoMatchingVersionError](err); ok || errors.Is(err, fs.ErrNotExist) {
+		// Ignore "no matching version" and "not found" errors.
 		// This means the proxy has no matching version or no versions at all.
 		//
 		// We should report other errors though. An attacker that controls the
@@ -250,7 +249,7 @@ func addRetraction(ctx context.Context, m *modinfo.ModulePublic) {
 		// hide versions, since the "list" and "latest" endpoints are not
 		// authenticated.
 		return
-	} else if errors.As(err, &retractErr) {
+	} else if retractErr, ok := errors.AsType[*ModuleRetractedError](err); ok {
 		if len(retractErr.Rationale) == 0 {
 			m.Retracted = []string{"retracted by module author"}
 		} else {
@@ -265,9 +264,8 @@ func addRetraction(ctx context.Context, m *modinfo.ModulePublic) {
 // author. m.Error is set if there's an error loading deprecation information.
 func addDeprecation(ctx context.Context, m *modinfo.ModulePublic) {
 	deprecation, err := CheckDeprecation(ctx, module.Version{Path: m.Path, Version: m.Version})
-	var noVersionErr *NoMatchingVersionError
-	if errors.Is(err, fs.ErrNotExist) || errors.As(err, &noVersionErr) {
-		// Ignore "not found" and "no matching version" errors.
+	if _, ok := errors.AsType[*NoMatchingVersionError](err); ok || errors.Is(err, fs.ErrNotExist) {
+		// Ignore "no matching version" and "not found" errors.
 		// This means the proxy has no matching version or no versions at all.
 		//
 		// We should report other errors though. An attacker that controls the

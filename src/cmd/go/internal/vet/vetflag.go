@@ -160,7 +160,7 @@ func toolFlags(cmd *base.Command, args []string) (passToTool, packageNames []str
 			break
 		}
 
-		if nf := (cmdflag.NonFlagError{}); errors.As(err, &nf) {
+		if _, ok := errors.AsType[cmdflag.NonFlagError](err); ok {
 			// Everything from here on out — including the argument we just consumed —
 			// must be a package name.
 			packageNames = args

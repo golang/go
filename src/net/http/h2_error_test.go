@@ -25,19 +25,18 @@ func (e externalStreamError) Error() string {
 }
 
 func TestStreamError(t *testing.T) {
-	var target externalStreamError
 	streamErr := http2streamError(42, http2ErrCodeProtocol)
-	ok := errors.As(streamErr, &target)
+	extStreamErr, ok := errors.AsType[externalStreamError](streamErr)
 	if !ok {
-		t.Fatalf("errors.As failed")
+		t.Fatalf("errors.AsType failed")
 	}
-	if target.StreamID != streamErr.StreamID {
-		t.Errorf("got StreamID %v, expected %v", target.StreamID, streamErr.StreamID)
+	if extStreamErr.StreamID != streamErr.StreamID {
+		t.Errorf("got StreamID %v, expected %v", extStreamErr.StreamID, streamErr.StreamID)
 	}
-	if target.Cause != streamErr.Cause {
-		t.Errorf("got Cause %v, expected %v", target.Cause, streamErr.Cause)
+	if extStreamErr.Cause != streamErr.Cause {
+		t.Errorf("got Cause %v, expected %v", extStreamErr.Cause, streamErr.Cause)
 	}
-	if uint32(target.Code) != uint32(streamErr.Code) {
-		t.Errorf("got Code %v, expected %v", target.Code, streamErr.Code)
+	if uint32(extStreamErr.Code) != uint32(streamErr.Code) {
+		t.Errorf("got Code %v, expected %v", extStreamErr.Code, streamErr.Code)
 	}
 }

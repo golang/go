@@ -2480,8 +2480,8 @@ func TestInstantiateErrors(t *testing.T) {
 			t.Fatalf("Instantiate(%v, %v) returned nil error, want non-nil", T, test.targs)
 		}
 
-		var argErr *ArgumentError
-		if !errors.As(err, &argErr) {
+		argErr, ok := errors.AsType[*ArgumentError](err)
+		if !ok {
 			t.Fatalf("Instantiate(%v, %v): error is not an *ArgumentError", T, test.targs)
 		}
 
@@ -2496,8 +2496,8 @@ func TestArgumentErrorUnwrapping(t *testing.T) {
 		Index: 1,
 		Err:   Error{Msg: "test"},
 	}
-	var e Error
-	if !errors.As(err, &e) {
+	e, ok := errors.AsType[Error](err)
+	if !ok {
 		t.Fatalf("error %v does not wrap types.Error", err)
 	}
 	if e.Msg != "test" {
