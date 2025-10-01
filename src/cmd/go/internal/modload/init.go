@@ -71,29 +71,29 @@ func EnterModule(ctx context.Context, enterModroot string) {
 // module to that module in the workspace. There should be no calls to any of the exported
 // functions of the modload package running concurrently with a call to EnterWorkspace as
 // EnterWorkspace will modify the global state they depend on in a non-thread-safe way.
-func EnterWorkspace(ctx context.Context) (exit func(), err error) {
+func EnterWorkspace(loaderstate *State, ctx context.Context) (exit func(), err error) {
 	// Find the identity of the main module that will be updated before we reset modload state.
-	mm := LoaderState.MainModules.mustGetSingleMainModule(LoaderState)
+	mm := loaderstate.MainModules.mustGetSingleMainModule(loaderstate)
 	// Get the updated modfile we will use for that module.
-	_, _, updatedmodfile, err := UpdateGoModFromReqs(LoaderState, ctx, WriteOpts{})
+	_, _, updatedmodfile, err := UpdateGoModFromReqs(loaderstate, ctx, WriteOpts{})
 	if err != nil {
 		return nil, err
 	}
 
 	// Reset the state to a clean state.
-	oldstate := LoaderState.setState(State{})
-	LoaderState.ForceUseModules = true
+	oldstate := loaderstate.setState(State{})
+	loaderstate.ForceUseModules = true
 
 	// Load in workspace mode.
-	InitWorkfile(LoaderState)
-	LoadModFile(LoaderState, ctx)
+	InitWorkfile(loaderstate)
+	LoadModFile(loaderstate, ctx)
 
 	// Update the content of the previous main module, and recompute the requirements.
-	*LoaderState.MainModules.ModFile(mm) = *updatedmodfile
-	LoaderState.requirements = requirementsFromModFiles(LoaderState, ctx, LoaderState.MainModules.workFile, slices.Collect(maps.Values(LoaderState.MainModules.modFiles)), nil)
+	*loaderstate.MainModules.ModFile(mm) = *updatedmodfile
+	loaderstate.requirements = requirementsFromModFiles(loaderstate, ctx, loaderstate.MainModules.workFile, slices.Collect(maps.Values(loaderstate.MainModules.modFiles)), nil)
 
 	return func() {
-		LoaderState.setState(oldstate)
+		loaderstate.setState(oldstate)
 	}, nil
 }
 
