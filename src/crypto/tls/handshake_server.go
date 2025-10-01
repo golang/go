@@ -283,6 +283,7 @@ func (hs *serverHandshakeState) processClientHello() error {
 		}
 		return err
 	}
+	hs.c.localCertificate = hs.cert
 	if hs.clientHello.scts {
 		hs.hello.scts = hs.cert.SignedCertificateTimestamps
 	}

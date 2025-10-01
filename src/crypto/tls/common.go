@@ -275,6 +275,13 @@ type ConnectionState struct {
 	// PeerCertificates and its contents should not be modified.
 	PeerCertificates []*x509.Certificate
 
+	// LocalCertificate is the local certificate sent by this side of the
+	// handshake. It's available both on the server and on the client side.
+	// May be nil if a certificate wasn't exchanged by this party in the
+	// handshake, e.g. a client opening a connection without providing a client
+	// cert.
+	LocalCertificate *Certificate
+
 	// VerifiedChains is a list of one or more chains where the first element is
 	// PeerCertificates[0] and the last element is from Config.RootCAs (on the
 	// client side) or Config.ClientCAs (on the server side).

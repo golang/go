@@ -834,6 +834,7 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 				return err
 			}
 		}
+		hs.c.localCertificate = chainToSend
 
 		signed := hs.finishedHash.hashForClientCertificate(sigType, sigHash)
 		signOpts := crypto.SignerOpts(sigHash)
