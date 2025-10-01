@@ -17,6 +17,7 @@ import (
 	"net/url"
 	"reflect"
 	"runtime"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -801,7 +802,7 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 // Certificates other than c in the returned chains should not be modified.
 //
 // WARNING: this function doesn't do any revocation checking.
-func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err error) {
+func (c *Certificate) Verify(opts VerifyOptions) ([][]*Certificate, error) {
 	// Platform-specific verification needs the ASN.1 contents so
 	// this makes the behavior consistent across platforms.
 	if len(c.Raw) == 0 {
@@ -843,15 +844,15 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
 		}
 	}
 
-	err = c.isValid(leafCertificate, nil, &opts)
+	err := c.isValid(leafCertificate, nil, &opts)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	if len(opts.DNSName) > 0 {
 		err = c.VerifyHostname(opts.DNSName)
 		if err != nil {
-			return
+			return nil, err
 		}
 	}
 
@@ -865,26 +866,12 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
 		}
 	}
 
-	chains = make([][]*Certificate, 0, len(candidateChains))
-
-	var invalidPoliciesChains int
-	for _, candidate := range candidateChains {
-		if !policiesValid(candidate, opts) {
-			invalidPoliciesChains++
-			continue
-		}
-		chains = append(chains, candidate)
-	}
-
-	if len(chains) == 0 {
-		return nil, CertificateInvalidError{c, NoValidChains, "all candidate chains have invalid policies"}
-	}
-
+	anyKeyUsage := false
 	for _, eku := range opts.KeyUsages {
 		if eku == ExtKeyUsageAny {
-			// If any key usage is acceptable, no need to check the chain for
-			// key usages.
-			return chains, nil
+			// The presence of anyExtendedKeyUsage overrides any other key usage.
+			anyKeyUsage = true
+			break
 		}
 	}
 
@@ -892,34 +879,38 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
 		opts.KeyUsages = []ExtKeyUsage{ExtKeyUsageServerAuth}
 	}
 
-	candidateChains = chains
-	chains = chains[:0]
-
+	var invalidPoliciesChains int
 	var incompatibleKeyUsageChains int
-	for _, candidate := range candidateChains {
-		if !checkChainForKeyUsage(candidate, opts.KeyUsages) {
-			incompatibleKeyUsageChains++
-			continue
+	candidateChains = slices.DeleteFunc(candidateChains, func(chain []*Certificate) bool {
+		if !policiesValid(chain, opts) {
+			invalidPoliciesChains++
+			return true
 		}
-		chains = append(chains, candidate)
-	}
+		// If any key usage is acceptable, no need to check the chain for
+		// key usages.
+		if !anyKeyUsage && !checkChainForKeyUsage(chain, opts.KeyUsages) {
+			incompatibleKeyUsageChains++
+			return true
+		}
+		return false
+	})
 
-	if len(chains) == 0 {
+	if len(candidateChains) == 0 {
 		var details []string
 		if incompatibleKeyUsageChains > 0 {
 			if invalidPoliciesChains == 0 {
 				return nil, CertificateInvalidError{c, IncompatibleUsage, ""}
 			}
-			details = append(details, fmt.Sprintf("%d chains with incompatible key usage", incompatibleKeyUsageChains))
+			details = append(details, fmt.Sprintf("%d candidate chains with incompatible key usage", incompatibleKeyUsageChains))
 		}
 		if invalidPoliciesChains > 0 {
-			details = append(details, fmt.Sprintf("%d chains with invalid policies", invalidPoliciesChains))
+			details = append(details, fmt.Sprintf("%d candidate chains with invalid policies", invalidPoliciesChains))
 		}
 		err = CertificateInvalidError{c, NoValidChains, strings.Join(details, ", ")}
 		return nil, err
 	}
 
-	return chains, nil
+	return candidateChains, nil
 }
 
 func appendToFreshChain(chain []*Certificate, cert *Certificate) []*Certificate {
