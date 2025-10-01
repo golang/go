@@ -430,6 +430,17 @@ func ssaGenValueOnStack(s *ssagen.State, v *ssa.Value, extend bool) {
 		getValue64(s, v.Args[0])
 		s.Prog(v.Op.Asm())
 
+		// 32-bit integer conversion results
+	case ssa.OpWasmI32TruncSatF32S, ssa.OpWasmI32TruncSatF64S:
+		getValue64(s, v.Args[0])
+		s.Prog(v.Op.Asm())
+		s.Prog(wasm.AI64ExtendI32S)
+
+	case ssa.OpWasmI32TruncSatF32U, ssa.OpWasmI32TruncSatF64U:
+		getValue64(s, v.Args[0])
+		s.Prog(v.Op.Asm())
+		s.Prog(wasm.AI64ExtendI32U)
+
 	case ssa.OpWasmF32DemoteF64:
 		getValue64(s, v.Args[0])
 		s.Prog(v.Op.Asm())

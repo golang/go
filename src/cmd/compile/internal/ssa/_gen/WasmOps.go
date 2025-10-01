@@ -222,10 +222,19 @@ func init() {
 		{name: "F64Mul", asm: "F64Mul", argLength: 2, reg: fp64_21, typ: "Float64"}, // arg0 * arg1
 		{name: "F64Div", asm: "F64Div", argLength: 2, reg: fp64_21, typ: "Float64"}, // arg0 / arg1
 
-		{name: "I64TruncSatF64S", asm: "I64TruncSatF64S", argLength: 1, reg: regInfo{inputs: []regMask{fp64}, outputs: []regMask{gp}}, typ: "Int64"}, // truncates the float arg0 to a signed integer (saturating)
-		{name: "I64TruncSatF64U", asm: "I64TruncSatF64U", argLength: 1, reg: regInfo{inputs: []regMask{fp64}, outputs: []regMask{gp}}, typ: "Int64"}, // truncates the float arg0 to an unsigned integer (saturating)
-		{name: "I64TruncSatF32S", asm: "I64TruncSatF32S", argLength: 1, reg: regInfo{inputs: []regMask{fp32}, outputs: []regMask{gp}}, typ: "Int64"}, // truncates the float arg0 to a signed integer (saturating)
-		{name: "I64TruncSatF32U", asm: "I64TruncSatF32U", argLength: 1, reg: regInfo{inputs: []regMask{fp32}, outputs: []regMask{gp}}, typ: "Int64"}, // truncates the float arg0 to an unsigned integer (saturating)
+		{name: "I64TruncSatF64S", asm: "I64TruncSatF64S", argLength: 1, reg: regInfo{inputs: []regMask{fp64}, outputs: []regMask{gp}}, typ: "Int64"},  // truncates the float arg0 to a signed integer (saturating)
+		{name: "I64TruncSatF64U", asm: "I64TruncSatF64U", argLength: 1, reg: regInfo{inputs: []regMask{fp64}, outputs: []regMask{gp}}, typ: "Uint64"}, // truncates the float arg0 to an unsigned integer (saturating)
+		{name: "I64TruncSatF32S", asm: "I64TruncSatF32S", argLength: 1, reg: regInfo{inputs: []regMask{fp32}, outputs: []regMask{gp}}, typ: "Int64"},  // truncates the float arg0 to a signed integer (saturating)
+		{name: "I64TruncSatF32U", asm: "I64TruncSatF32U", argLength: 1, reg: regInfo{inputs: []regMask{fp32}, outputs: []regMask{gp}}, typ: "Uint64"}, // truncates the float arg0 to an unsigned integer (saturating)
+
+		// It appears to be wasm convention that everything lands in a 64-bit register;
+		// the WASM instructions for these operations produce 32-bit width results, but
+		// wasm/ssa.go widens them appropriately to 64-bit results.
+		{name: "I32TruncSatF64S", asm: "I32TruncSatF64S", argLength: 1, reg: regInfo{inputs: []regMask{fp64}, outputs: []regMask{gp}}, typ: "Int64"},  // truncates the float arg0 to a signed integer (saturating)
+		{name: "I32TruncSatF64U", asm: "I32TruncSatF64U", argLength: 1, reg: regInfo{inputs: []regMask{fp64}, outputs: []regMask{gp}}, typ: "Uint64"}, // truncates the float arg0 to an unsigned integer (saturating)
+		{name: "I32TruncSatF32S", asm: "I32TruncSatF32S", argLength: 1, reg: regInfo{inputs: []regMask{fp32}, outputs: []regMask{gp}}, typ: "Int64"},  // truncates the float arg0 to a signed integer (saturating)
+		{name: "I32TruncSatF32U", asm: "I32TruncSatF32U", argLength: 1, reg: regInfo{inputs: []regMask{fp32}, outputs: []regMask{gp}}, typ: "Uint64"}, // truncates the float arg0 to an unsigned integer (saturating)
+
 		{name: "F32ConvertI64S", asm: "F32ConvertI64S", argLength: 1, reg: regInfo{inputs: []regMask{gp}, outputs: []regMask{fp32}}, typ: "Float32"}, // converts the signed integer arg0 to a float
 		{name: "F32ConvertI64U", asm: "F32ConvertI64U", argLength: 1, reg: regInfo{inputs: []regMask{gp}, outputs: []regMask{fp32}}, typ: "Float32"}, // converts the unsigned integer arg0 to a float
 		{name: "F64ConvertI64S", asm: "F64ConvertI64S", argLength: 1, reg: regInfo{inputs: []regMask{gp}, outputs: []regMask{fp64}}, typ: "Float64"}, // converts the signed integer arg0 to a float

@@ -2980,6 +2980,10 @@ const (
 	OpWasmI64TruncSatF64U
 	OpWasmI64TruncSatF32S
 	OpWasmI64TruncSatF32U
+	OpWasmI32TruncSatF64S
+	OpWasmI32TruncSatF64U
+	OpWasmI32TruncSatF32S
+	OpWasmI32TruncSatF32U
 	OpWasmF32ConvertI64S
 	OpWasmF32ConvertI64U
 	OpWasmF64ConvertI64S
@@ -40287,6 +40291,58 @@ var opcodeTable = [...]opInfo{
 		name:   "I64TruncSatF32U",
 		argLen: 1,
 		asm:    wasm.AI64TruncSatF32U,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+			outputs: []outputInfo{
+				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
+		name:   "I32TruncSatF64S",
+		argLen: 1,
+		asm:    wasm.AI32TruncSatF64S,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
+		name:   "I32TruncSatF64U",
+		argLen: 1,
+		asm:    wasm.AI32TruncSatF64U,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
+		name:   "I32TruncSatF32S",
+		argLen: 1,
+		asm:    wasm.AI32TruncSatF32S,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+			outputs: []outputInfo{
+				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
+		name:   "I32TruncSatF32U",
+		argLen: 1,
+		asm:    wasm.AI32TruncSatF32U,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15

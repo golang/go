@@ -76,13 +76,14 @@
 (Cvt32Uto(64|32)F x) => (F(64|32)ConvertI64U (ZeroExt32to64 x))
 (Cvt64Uto(64|32)F ...) => (F(64|32)ConvertI64U ...)
 
-(Cvt32Fto32 ...) => (I64TruncSatF32S ...)
+(Cvt32Fto32 ...) => (I32TruncSatF32S ...)
 (Cvt32Fto64 ...) => (I64TruncSatF32S ...)
-(Cvt64Fto32 ...) => (I64TruncSatF64S ...)
+(Cvt64Fto32 ...) => (I32TruncSatF64S ...)
 (Cvt64Fto64 ...) => (I64TruncSatF64S ...)
-(Cvt32Fto32U ...) => (I64TruncSatF32U ...)
+
+(Cvt32Fto32U ...) => (I32TruncSatF32U ...)
 (Cvt32Fto64U ...) => (I64TruncSatF32U ...)
-(Cvt64Fto32U ...) => (I64TruncSatF64U ...)
+(Cvt64Fto32U ...) => (I32TruncSatF64U ...)
 (Cvt64Fto64U ...) => (I64TruncSatF64U ...)
 
 (Cvt32Fto64F ...) => (F64PromoteF32 ...)
