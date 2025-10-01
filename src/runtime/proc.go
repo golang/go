@@ -2170,8 +2170,6 @@ func forEachPInternal(fn func(*p)) {
 	// Force Ps currently in a system call into _Pidle and hand them
 	// off to induce safe point function execution.
 	for _, p2 := range allp {
-		// We need to be fine-grained about tracing here, since handoffp
-		// might call into the tracer, and the tracer is non-reentrant.
 		if atomic.Load(&p2.runSafePointFn) != 1 {
 			// Already ran it.
 			continue
@@ -4344,21 +4342,26 @@ func preemptPark(gp *g) {
 	casGToPreemptScan(gp, _Grunning, _Gscan|_Gpreempted)
 	dropg()
 
-	// Be careful about how we trace this next event. The ordering
-	// is subtle.
+	// Be careful about ownership as we trace this next event.
 	//
-	// The moment we CAS into _Gpreempted, suspendG could CAS to
-	// _Gwaiting, do its work, and ready the goroutine. All of
+	// According to the tracer invariants (trace.go) it's unsafe
+	// for us to emit an event for a goroutine we do not own.
+	// The moment we CAS into _Gpreempted, suspendG could CAS the
+	// goroutine to _Gwaiting, effectively taking ownership. All of
 	// this could happen before we even get the chance to emit
 	// an event. The end result is that the events could appear
 	// out of order, and the tracer generally assumes the scheduler
 	// takes care of the ordering between GoPark and GoUnpark.
 	//
 	// The answer here is simple: emit the event while we still hold
-	// the _Gscan bit on the goroutine. We still need to traceAcquire
-	// and traceRelease across the CAS because the tracer could be
-	// what's calling suspendG in the first place, and we want the
-	// CAS and event emission to appear atomic to the tracer.
+	// the _Gscan bit on the goroutine, since the _Gscan bit means
+	// ownership over transitions.
+	//
+	// We still need to traceAcquire and traceRelease across the CAS
+	// because the tracer could be what's calling suspendG in the first
+	// place. This also upholds the tracer invariant that we must hold
+	// traceAcquire/traceRelease across the transition. However, we
+	// specifically *only* emit the event while we still have ownership.
 	trace := traceAcquire()
 	if trace.ok() {
 		trace.GoPark(traceBlockPreempted, 0)
@@ -4598,7 +4601,8 @@ func reentersyscall(pc, sp, bp uintptr) {
 	if trace.ok() {
 		// Emit a trace event. Notably, actually emitting the event must happen before
 		// the casgstatus because it mutates the P, but the traceLocker must be held
-		// across the casgstatus so the transition is atomic with respect to the event.
+		// across the casgstatus since we're transitioning out of _Grunning
+		// (see trace.go invariants).
 		systemstack(func() {
 			trace.GoSysCall()
 		})
@@ -5249,7 +5253,8 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr, parked bool, waitreaso
 	}
 	gcController.addScannableStack(pp, int64(newg.stack.hi-newg.stack.lo))
 
-	// Get a goid and switch to runnable. Make all this atomic to the tracer.
+	// Get a goid and switch to runnable. This needs to happen under traceAcquire
+	// since it's a goroutine transition. See tracer invariants in trace.go.
 	trace := traceAcquire()
 	var status uint32 = _Grunnable
 	if parked {

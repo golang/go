@@ -541,10 +541,10 @@ func (tl traceLocker) ProcSteal(pp *p) {
 	pp.trace.mSyscallID = -1
 
 	// Emit the status of the P we're stealing. We may be just about to do this when creating the event
-	// writer but it's not guaranteed, even if inSyscall is true. Although it might seem like from a
-	// syscall context we're always stealing a P for ourselves, we may have not wired it up yet (so
+	// writer but it's not guaranteed, even if we're stealing from a syscall. Although it might seem like
+	// from a syscall context we're always stealing a P for ourselves, we may have not wired it up yet (so
 	// it wouldn't be visible to eventWriter) or we may not even intend to wire it up to ourselves
-	// at all (e.g. entersyscall_gcwait).
+	// at all and plan to hand it back to the runtime.
 	if !pp.trace.statusWasTraced(tl.gen) && pp.trace.acquireStatus(tl.gen) {
 		// Careful: don't use the event writer. We never want status or in-progress events
 		// to trigger more in-progress events.
