@@ -7,6 +7,7 @@
 package template
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -62,7 +63,7 @@ func (t *Template) ParseFiles(filenames ...string) (*Template, error) {
 func parseFiles(t *Template, readFile func(string) (string, []byte, error), filenames ...string) (*Template, error) {
 	if len(filenames) == 0 {
 		// Not really a problem, but be consistent.
-		return nil, fmt.Errorf("template: no files named in call to ParseFiles")
+		return nil, errors.New("template: no files named in call to ParseFiles")
 	}
 	for _, filename := range filenames {
 		name, b, err := readFile(filename)
