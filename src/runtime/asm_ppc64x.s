@@ -21,6 +21,9 @@ TEXT _rt0_ppc64x_lib(SB),NOSPLIT|NOFRAME,$0
 	MOVD	R4, _rt0_ppc64x_lib_argv<>(SB)
 
 	// Synchronous initialization.
+	MOVD	$runtime·reginit(SB), R12
+	MOVD	R12, CTR
+	BL	(CTR)
 	MOVD	$runtime·libpreinit(SB), R12
 	MOVD	R12, CTR
 	BL	(CTR)

@@ -42,4 +42,6 @@ TEXT _main(SB),NOSPLIT,$-8
 	BR (CTR)
 
 TEXT _rt0_ppc64_aix_lib(SB),NOSPLIT,$0
+	MOVD R14, R3 // argc
+	MOVD R15, R4 // argv
 	JMP _rt0_ppc64x_lib(SB)
