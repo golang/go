@@ -355,14 +355,14 @@ func (p *Package) setLoadPackageDataError(err error, path string, stk *ImportSta
 // can produce better error messages if it starts with the original paths.
 // The initial load of p loads all the non-test imports and rewrites
 // the vendored paths, so nothing should ever call p.vendored(p.Imports).
-func (p *Package) Resolve(imports []string) []string {
+func (p *Package) Resolve(loaderstate *modload.State, imports []string) []string {
 	if len(imports) > 0 && len(p.Imports) > 0 && &imports[0] == &p.Imports[0] {
 		panic("internal error: p.Resolve(p.Imports) called")
 	}
 	seen := make(map[string]bool)
 	var all []string
 	for _, path := range imports {
-		path = ResolveImportPath(p, path)
+		path = ResolveImportPath(loaderstate, p, path)
 		if !seen[path] {
 			seen[path] = true
 			all = append(all, path)
@@ -1151,7 +1151,7 @@ func isDir(path string) bool {
 // First, there is Go 1.5 vendoring (golang.org/s/go15vendor).
 // If vendor expansion doesn't trigger, then the path is also subject to
 // Go 1.11 module legacy conversion (golang.org/issue/25069).
-func ResolveImportPath(parent *Package, path string) (found string) {
+func ResolveImportPath(loaderstate *modload.State, parent *Package, path string) (found string) {
 	var parentPath, parentDir, parentRoot string
 	parentIsStd := false
 	if parent != nil {
@@ -1160,7 +1160,7 @@ func ResolveImportPath(parent *Package, path string) (found string) {
 		parentRoot = parent.Root
 		parentIsStd = parent.Standard
 	}
-	return resolveImportPath(modload.LoaderState, path, parentPath, parentDir, parentRoot, parentIsStd)
+	return resolveImportPath(loaderstate, path, parentPath, parentDir, parentRoot, parentIsStd)
 }
 
 func resolveImportPath(loaderstate *modload.State, path, parentPath, parentDir, parentRoot string, parentIsStd bool) (found string) {

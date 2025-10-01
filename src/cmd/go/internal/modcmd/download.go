@@ -184,7 +184,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	var mods []*ModuleJSON
 	type token struct{}
 	sem := make(chan token, runtime.GOMAXPROCS(0))
-	infos, infosErr := modload.ListModules(ctx, args, 0, *downloadReuse)
+	infos, infosErr := modload.ListModules(modload.LoaderState, ctx, args, 0, *downloadReuse)
 
 	// There is a bit of a chicken-and-egg problem here: ideally we need to know
 	// which Go version to switch to download the requested modules, but if we

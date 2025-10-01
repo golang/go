@@ -83,7 +83,7 @@ func runWhy(ctx context.Context, cmd *base.Command, args []string) {
 			}
 		}
 
-		mods, err := modload.ListModules(ctx, args, 0, "")
+		mods, err := modload.ListModules(modload.LoaderState, ctx, args, 0, "")
 		if err != nil {
 			base.Fatal(err)
 		}

@@ -83,27 +83,27 @@ func PackageModRoot(loaderstate *State, ctx context.Context, pkgpath string) str
 	return root
 }
 
-func ModuleInfo(ctx context.Context, path string) *modinfo.ModulePublic {
-	if !Enabled(LoaderState) {
+func ModuleInfo(loaderstate *State, ctx context.Context, path string) *modinfo.ModulePublic {
+	if !Enabled(loaderstate) {
 		return nil
 	}
 
 	if path, vers, found := strings.Cut(path, "@"); found {
 		m := module.Version{Path: path, Version: vers}
-		return moduleInfo(LoaderState, ctx, nil, m, 0, nil)
+		return moduleInfo(loaderstate, ctx, nil, m, 0, nil)
 	}
 
-	rs := LoadModFile(LoaderState, ctx)
+	rs := LoadModFile(loaderstate, ctx)
 
 	var (
 		v  string
 		ok bool
 	)
 	if rs.pruning == pruned {
-		v, ok = rs.rootSelected(LoaderState, path)
+		v, ok = rs.rootSelected(loaderstate, path)
 	}
 	if !ok {
-		mg, err := rs.Graph(LoaderState, ctx)
+		mg, err := rs.Graph(loaderstate, ctx)
 		if err != nil {
 			base.Fatal(err)
 		}
@@ -119,16 +119,16 @@ func ModuleInfo(ctx context.Context, path string) *modinfo.ModulePublic {
 		}
 	}
 
-	return moduleInfo(LoaderState, ctx, rs, module.Version{Path: path, Version: v}, 0, nil)
+	return moduleInfo(loaderstate, ctx, rs, module.Version{Path: path, Version: v}, 0, nil)
 }
 
 // addUpdate fills in m.Update if an updated version is available.
-func addUpdate(ctx context.Context, m *modinfo.ModulePublic) {
+func addUpdate(loaderstate *State, ctx context.Context, m *modinfo.ModulePublic) {
 	if m.Version == "" {
 		return
 	}
 
-	info, err := Query(LoaderState, ctx, m.Path, "upgrade", m.Version, CheckAllowed)
+	info, err := Query(loaderstate, ctx, m.Path, "upgrade", m.Version, CheckAllowed)
 	if _, ok := errors.AsType[*NoMatchingVersionError](err); ok ||
 		errors.Is(err, fs.ErrNotExist) ||
 		errors.Is(err, ErrDisallowed) {
@@ -212,7 +212,7 @@ func mergeOrigin(m1, m2 *codehost.Origin) *codehost.Origin {
 // addVersions fills in m.Versions with the list of known versions.
 // Excluded versions will be omitted. If listRetracted is false, retracted
 // versions will also be omitted.
-func addVersions(ctx context.Context, m *modinfo.ModulePublic, listRetracted bool) {
+func addVersions(loaderstate *State, ctx context.Context, m *modinfo.ModulePublic, listRetracted bool) {
 	// TODO(bcmills): Would it make sense to check for reuse here too?
 	// Perhaps that doesn't buy us much, though: we would always have to fetch
 	// all of the version tags to list the available versions anyway.
@@ -221,7 +221,7 @@ func addVersions(ctx context.Context, m *modinfo.ModulePublic, listRetracted boo
 	if listRetracted {
 		allowed = CheckExclusions
 	}
-	v, origin, err := versions(LoaderState, ctx, m.Path, allowed)
+	v, origin, err := versions(loaderstate, ctx, m.Path, allowed)
 	if err != nil && m.Error == nil {
 		m.Error = &modinfo.ModuleError{Err: err.Error()}
 	}
@@ -262,8 +262,8 @@ func addRetraction(loaderstate *State, ctx context.Context, m *modinfo.ModulePub
 
 // addDeprecation fills in m.Deprecated if the module was deprecated by its
 // author. m.Error is set if there's an error loading deprecation information.
-func addDeprecation(ctx context.Context, m *modinfo.ModulePublic) {
-	deprecation, err := CheckDeprecation(LoaderState, ctx, module.Version{Path: m.Path, Version: m.Version})
+func addDeprecation(loaderstate *State, ctx context.Context, m *modinfo.ModulePublic) {
+	deprecation, err := CheckDeprecation(loaderstate, ctx, module.Version{Path: m.Path, Version: m.Version})
 	if _, ok := errors.AsType[*NoMatchingVersionError](err); ok || errors.Is(err, fs.ErrNotExist) {
 		// Ignore "no matching version" and "not found" errors.
 		// This means the proxy has no matching version or no versions at all.

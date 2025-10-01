@@ -479,7 +479,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		fm := template.FuncMap{
 			"join":    strings.Join,
 			"context": context,
-			"module":  func(path string) *modinfo.ModulePublic { return modload.ModuleInfo(ctx, path) },
+			"module":  func(path string) *modinfo.ModulePublic { return modload.ModuleInfo(modload.LoaderState, ctx, path) },
 		}
 		tmpl, err := template.New("main").Funcs(fm).Parse(*listFmt)
 		if err != nil {
@@ -569,7 +569,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		if *listReuse != "" && len(args) == 0 {
 			base.Fatalf("go: list -m -reuse only has an effect with module@version arguments")
 		}
-		mods, err := modload.ListModules(ctx, args, mode, *listReuse)
+		mods, err := modload.ListModules(modload.LoaderState, ctx, args, mode, *listReuse)
 		if !*listE {
 			for _, m := range mods {
 				if m.Error != nil {
@@ -648,10 +648,10 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 						sema.Release(1)
 						wg.Done()
 					}
-					pmain, ptest, pxtest = load.TestPackagesAndErrors(ctx, done, pkgOpts, p, nil)
+					pmain, ptest, pxtest = load.TestPackagesAndErrors(modload.LoaderState, ctx, done, pkgOpts, p, nil)
 				} else {
 					var perr *load.Package
-					pmain, ptest, pxtest, perr = load.TestPackagesFor(ctx, pkgOpts, p, nil)
+					pmain, ptest, pxtest, perr = load.TestPackagesFor(modload.LoaderState, ctx, pkgOpts, p, nil)
 					if perr != nil {
 						base.Fatalf("go: can't load test package: %s", perr.Error)
 					}
@@ -733,7 +733,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		// TODO: Use pkgsFilter?
 		for _, p := range pkgs {
 			if len(p.GoFiles)+len(p.CgoFiles) > 0 {
-				a.Deps = append(a.Deps, b.AutoAction(work.ModeInstall, work.ModeInstall, p))
+				a.Deps = append(a.Deps, b.AutoAction(modload.LoaderState, work.ModeInstall, work.ModeInstall, p))
 			}
 		}
 		b.Do(ctx, a)
@@ -741,8 +741,8 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 
 	for _, p := range pkgs {
 		// Show vendor-expanded paths in listing
-		p.TestImports = p.Resolve(p.TestImports)
-		p.XTestImports = p.Resolve(p.XTestImports)
+		p.TestImports = p.Resolve(modload.LoaderState, p.TestImports)
+		p.XTestImports = p.Resolve(modload.LoaderState, p.XTestImports)
 		p.DepOnly = !cmdline[p]
 
 		if *listCompiled {
@@ -850,7 +850,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 			if *listRetracted {
 				mode |= modload.ListRetracted
 			}
-			rmods, err := modload.ListModules(ctx, args, mode, *listReuse)
+			rmods, err := modload.ListModules(modload.LoaderState, ctx, args, mode, *listReuse)
 			if err != nil && !*listE {
 				base.Error(err)
 			}

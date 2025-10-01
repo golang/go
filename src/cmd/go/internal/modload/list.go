@@ -41,7 +41,7 @@ const (
 // along with any error preventing additional matches from being identified.
 //
 // The returned slice can be nonempty even if the error is non-nil.
-func ListModules(ctx context.Context, args []string, mode ListMode, reuseFile string) ([]*modinfo.ModulePublic, error) {
+func ListModules(loaderstate *State, ctx context.Context, args []string, mode ListMode, reuseFile string) ([]*modinfo.ModulePublic, error) {
 	var reuse map[module.Version]*modinfo.ModulePublic
 	if reuseFile != "" {
 		data, err := os.ReadFile(reuseFile)
@@ -69,7 +69,7 @@ func ListModules(ctx context.Context, args []string, mode ListMode, reuseFile st
 		}
 	}
 
-	rs, mods, err := listModules(ctx, LoadModFile(LoaderState, ctx), args, mode, reuse)
+	rs, mods, err := listModules(loaderstate, ctx, LoadModFile(loaderstate, ctx), args, mode, reuse)
 
 	type token struct{}
 	sem := make(chan token, runtime.GOMAXPROCS(0))
@@ -82,16 +82,16 @@ func ListModules(ctx context.Context, args []string, mode ListMode, reuseFile st
 				sem <- token{}
 				go func() {
 					if mode&ListU != 0 {
-						addUpdate(ctx, m)
+						addUpdate(loaderstate, ctx, m)
 					}
 					if mode&ListVersions != 0 {
-						addVersions(ctx, m, mode&ListRetractedVersions != 0)
+						addVersions(loaderstate, ctx, m, mode&ListRetractedVersions != 0)
 					}
 					if mode&ListRetracted != 0 {
-						addRetraction(LoaderState, ctx, m)
+						addRetraction(loaderstate, ctx, m)
 					}
 					if mode&ListDeprecated != 0 {
-						addDeprecation(ctx, m)
+						addDeprecation(loaderstate, ctx, m)
 					}
 					<-sem
 				}()
@@ -109,7 +109,7 @@ func ListModules(ctx context.Context, args []string, mode ListMode, reuseFile st
 	}
 
 	if err == nil {
-		LoaderState.requirements = rs
+		loaderstate.requirements = rs
 		// TODO(#61605): The extra ListU clause fixes a problem with Go 1.21rc3
 		// where "go mod tidy" and "go list -m -u all" fight over whether the go.sum
 		// should be considered up-to-date. The fix for now is to always treat the
@@ -117,20 +117,20 @@ func ListModules(ctx context.Context, args []string, mode ListMode, reuseFile st
 		// but in general list -u is looking up other checksums in the checksum database
 		// that won't be necessary later, so it makes sense not to write the go.sum back out.
 		if !ExplicitWriteGoMod && mode&ListU == 0 {
-			err = commitRequirements(LoaderState, ctx, WriteOpts{})
+			err = commitRequirements(loaderstate, ctx, WriteOpts{})
 		}
 	}
 	return mods, err
 }
 
-func listModules(ctx context.Context, rs *Requirements, args []string, mode ListMode, reuse map[module.Version]*modinfo.ModulePublic) (_ *Requirements, mods []*modinfo.ModulePublic, mgErr error) {
+func listModules(loaderstate *State, ctx context.Context, rs *Requirements, args []string, mode ListMode, reuse map[module.Version]*modinfo.ModulePublic) (_ *Requirements, mods []*modinfo.ModulePublic, mgErr error) {
 	if len(args) == 0 {
 		var ms []*modinfo.ModulePublic
-		for _, m := range LoaderState.MainModules.Versions() {
+		for _, m := range loaderstate.MainModules.Versions() {
 			if gover.IsToolchain(m.Path) {
 				continue
 			}
-			ms = append(ms, moduleInfo(LoaderState, ctx, rs, m, mode, reuse))
+			ms = append(ms, moduleInfo(loaderstate, ctx, rs, m, mode, reuse))
 		}
 		return rs, ms, nil
 	}
@@ -145,25 +145,25 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 		}
 		if arg == "all" || strings.Contains(arg, "...") {
 			needFullGraph = true
-			if !HasModRoot(LoaderState) {
+			if !HasModRoot(loaderstate) {
 				base.Fatalf("go: cannot match %q: %v", arg, ErrNoModRoot)
 			}
 			continue
 		}
 		if path, vers, found := strings.Cut(arg, "@"); found {
 			if vers == "upgrade" || vers == "patch" {
-				if _, ok := rs.rootSelected(LoaderState, path); !ok || rs.pruning == unpruned {
+				if _, ok := rs.rootSelected(loaderstate, path); !ok || rs.pruning == unpruned {
 					needFullGraph = true
-					if !HasModRoot(LoaderState) {
+					if !HasModRoot(loaderstate) {
 						base.Fatalf("go: cannot match %q: %v", arg, ErrNoModRoot)
 					}
 				}
 			}
 			continue
 		}
-		if _, ok := rs.rootSelected(LoaderState, arg); !ok || rs.pruning == unpruned {
+		if _, ok := rs.rootSelected(loaderstate, arg); !ok || rs.pruning == unpruned {
 			needFullGraph = true
-			if mode&ListVersions == 0 && !HasModRoot(LoaderState) {
+			if mode&ListVersions == 0 && !HasModRoot(loaderstate) {
 				base.Fatalf("go: cannot match %q without -versions or an explicit version: %v", arg, ErrNoModRoot)
 			}
 		}
@@ -171,7 +171,7 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 
 	var mg *ModuleGraph
 	if needFullGraph {
-		rs, mg, mgErr = expandGraph(LoaderState, ctx, rs)
+		rs, mg, mgErr = expandGraph(loaderstate, ctx, rs)
 	}
 
 	matchedModule := map[module.Version]bool{}
@@ -179,7 +179,7 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 		if path, vers, found := strings.Cut(arg, "@"); found {
 			var current string
 			if mg == nil {
-				current, _ = rs.rootSelected(LoaderState, path)
+				current, _ = rs.rootSelected(loaderstate, path)
 			} else {
 				current = mg.Selected(path)
 			}
@@ -198,7 +198,7 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 				// specific revision or used 'go list -retracted'.
 				allowed = nil
 			}
-			info, err := queryReuse(LoaderState, ctx, path, vers, current, allowed, reuse)
+			info, err := queryReuse(loaderstate, ctx, path, vers, current, allowed, reuse)
 			if err != nil {
 				var origin *codehost.Origin
 				if info != nil {
@@ -217,7 +217,7 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 			// *Requirements instead.
 			var noRS *Requirements
 
-			mod := moduleInfo(LoaderState, ctx, noRS, module.Version{Path: path, Version: info.Version}, mode, reuse)
+			mod := moduleInfo(loaderstate, ctx, noRS, module.Version{Path: path, Version: info.Version}, mode, reuse)
 			if vers != mod.Version {
 				mod.Query = vers
 			}
@@ -237,7 +237,7 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 			var v string
 			if mg == nil {
 				var ok bool
-				v, ok = rs.rootSelected(LoaderState, arg)
+				v, ok = rs.rootSelected(loaderstate, arg)
 				if !ok {
 					// We checked rootSelected(arg) in the earlier args loop, so if there
 					// is no such root we should have loaded a non-nil mg.
@@ -251,7 +251,7 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 				continue
 			}
 			if v != "none" {
-				mods = append(mods, moduleInfo(LoaderState, ctx, rs, module.Version{Path: arg, Version: v}, mode, reuse))
+				mods = append(mods, moduleInfo(loaderstate, ctx, rs, module.Version{Path: arg, Version: v}, mode, reuse))
 			} else if cfg.BuildMod == "vendor" {
 				// In vendor mode, we can't determine whether a missing module is “a
 				// known dependency” because the module graph is incomplete.
@@ -292,7 +292,7 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 		fetchedMods := make([]*modinfo.ModulePublic, len(matches))
 		for i, m := range matches {
 			q.Add(func() {
-				fetchedMods[i] = moduleInfo(LoaderState, ctx, rs, m, mode, reuse)
+				fetchedMods[i] = moduleInfo(loaderstate, ctx, rs, m, mode, reuse)
 			})
 		}
 		<-q.Idle()

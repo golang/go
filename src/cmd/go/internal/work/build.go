@@ -527,7 +527,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 				p.Target += cfg.ExeSuffix
 				p.Stale = true
 				p.StaleReason = "build -o flag in use"
-				a.Deps = append(a.Deps, b.AutoAction(ModeInstall, depMode, p))
+				a.Deps = append(a.Deps, b.AutoAction(modload.LoaderState, ModeInstall, depMode, p))
 			}
 			if len(a.Deps) == 0 {
 				base.Fatalf("go: no main packages to build")
@@ -544,14 +544,14 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 		p.Target = cfg.BuildO
 		p.Stale = true // must build - not up to date
 		p.StaleReason = "build -o flag in use"
-		a := b.AutoAction(ModeInstall, depMode, p)
+		a := b.AutoAction(modload.LoaderState, ModeInstall, depMode, p)
 		b.Do(ctx, a)
 		return
 	}
 
 	a := &Action{Mode: "go build"}
 	for _, p := range pkgs {
-		a.Deps = append(a.Deps, b.AutoAction(ModeBuild, depMode, p))
+		a.Deps = append(a.Deps, b.AutoAction(modload.LoaderState, ModeBuild, depMode, p))
 	}
 	if cfg.BuildBuildmode == "shared" {
 		a = b.buildmodeShared(ModeBuild, depMode, args, pkgs, a)
@@ -797,7 +797,7 @@ func InstallPackages(ctx context.Context, patterns []string, pkgs []*load.Packag
 		// If p is a tool, delay the installation until the end of the build.
 		// This avoids installing assemblers/compilers that are being executed
 		// by other steps in the build.
-		a1 := b.AutoAction(ModeInstall, depMode, p)
+		a1 := b.AutoAction(modload.LoaderState, ModeInstall, depMode, p)
 		if load.InstallTargetDir(p) == load.ToTool {
 			a.Deps = append(a.Deps, a1.Deps...)
 			a1.Deps = append(a1.Deps, a)

@@ -249,7 +249,7 @@ func run(ctx context.Context, cmd *base.Command, args []string) {
 
 	root := &work.Action{Mode: "go " + cmd.Name()}
 	for _, p := range pkgs {
-		_, ptest, pxtest, perr := load.TestPackagesFor(ctx, pkgOpts, p, nil)
+		_, ptest, pxtest, perr := load.TestPackagesFor(modload.LoaderState, ctx, pkgOpts, p, nil)
 		if perr != nil {
 			base.Errorf("%v", perr.Error)
 			continue

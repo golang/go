@@ -444,9 +444,9 @@ func (b *Builder) cacheAction(mode string, p *load.Package, f func() *Action) *A
 }
 
 // AutoAction returns the "right" action for go build or go install of p.
-func (b *Builder) AutoAction(mode, depMode BuildMode, p *load.Package) *Action {
+func (b *Builder) AutoAction(loaderstate *modload.State, mode, depMode BuildMode, p *load.Package) *Action {
 	if p.Name == "main" {
-		return b.LinkAction(modload.LoaderState, mode, depMode, p)
+		return b.LinkAction(loaderstate, mode, depMode, p)
 	}
 	return b.CompileAction(mode, depMode, p)
 }

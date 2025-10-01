@@ -169,7 +169,7 @@ func RunVendor(ctx context.Context, vendorE bool, vendorO string, args []string)
 
 		goVersion := ""
 		if includeGoVersions {
-			goVersion = modload.ModuleInfo(ctx, m.Path).GoVersion
+			goVersion = modload.ModuleInfo(modload.LoaderState, ctx, m.Path).GoVersion
 		}
 		switch {
 		case isExplicit[m] && goVersion != "":
