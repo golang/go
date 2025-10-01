@@ -32,7 +32,6 @@ x_cgo_init(G *g, void (*setg)(void*))
 	}
 }
 
-extern void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
 void*
 threadentry(void *v)
 {
