@@ -872,7 +872,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 
 		// Select for coverage all dependencies matching the -coverpkg
 		// patterns.
-		plist := load.TestPackageList(ctx, pkgOpts, pkgs)
+		plist := load.TestPackageList(modload.LoaderState, ctx, pkgOpts, pkgs)
 		testCoverPkgs = load.SelectCoverPackages(modload.LoaderState, plist, match, "test")
 		if len(testCoverPkgs) > 0 {
 			// create a new singleton action that will collect up the
@@ -951,7 +951,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 			"testing":               true,
 			"time":                  true,
 		}
-		for _, p := range load.TestPackageList(ctx, pkgOpts, pkgs) {
+		for _, p := range load.TestPackageList(modload.LoaderState, ctx, pkgOpts, pkgs) {
 			if !skipInstrumentation[p.ImportPath] {
 				p.Internal.FuzzInstrument = true
 			}
@@ -1048,7 +1048,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 			reportSetupFailed(firstErrPkg, firstErrPkg.Error)
 			continue
 		}
-		buildTest, runTest, printTest, perr, err := builderTest(b, ctx, pkgOpts, p, allImports[p], writeCoverMetaAct)
+		buildTest, runTest, printTest, perr, err := builderTest(modload.LoaderState, b, ctx, pkgOpts, p, allImports[p], writeCoverMetaAct)
 		if err != nil {
 			reportErr(perr, err)
 			reportSetupFailed(perr, err)
@@ -1129,7 +1129,7 @@ var windowsBadWords = []string{
 	"update",
 }
 
-func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts, p *load.Package, imported bool, writeCoverMetaAct *work.Action) (buildAction, runAction, printAction *work.Action, perr *load.Package, err error) {
+func builderTest(loaderstate *modload.State, b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts, p *load.Package, imported bool, writeCoverMetaAct *work.Action) (buildAction, runAction, printAction *work.Action, perr *load.Package, err error) {
 	if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
 		build := b.CompileAction(work.ModeBuild, work.ModeBuild, p)
 		run := &work.Action{
@@ -1157,7 +1157,7 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
 			run.Deps = append(run.Deps, writeCoverMetaAct)
 			writeCoverMetaAct.Deps = append(writeCoverMetaAct.Deps, build)
 		}
-		addTestVet(b, p, run, nil)
+		addTestVet(loaderstate, b, p, run, nil)
 		print := &work.Action{
 			Mode:       "test print",
 			Actor:      work.ActorFunc(builderPrintTest),
@@ -1181,7 +1181,7 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
 			Paths: cfg.BuildCoverPkg,
 		}
 	}
-	pmain, ptest, pxtest, perr := load.TestPackagesFor(modload.LoaderState, ctx, pkgOpts, p, cover)
+	pmain, ptest, pxtest, perr := load.TestPackagesFor(loaderstate, ctx, pkgOpts, p, cover)
 	if perr != nil {
 		return nil, nil, nil, perr, perr.Error
 	}
@@ -1221,7 +1221,7 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
 		}
 	}
 
-	a := b.LinkAction(modload.LoaderState, work.ModeBuild, work.ModeBuild, pmain)
+	a := b.LinkAction(loaderstate, work.ModeBuild, work.ModeBuild, pmain)
 	a.Target = testDir + testBinary + cfg.ExeSuffix
 	if cfg.Goos == "windows" {
 		// There are many reserved words on Windows that,
@@ -1347,10 +1347,10 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
 	}
 
 	if len(ptest.GoFiles)+len(ptest.CgoFiles) > 0 {
-		addTestVet(b, ptest, vetRunAction, installAction)
+		addTestVet(loaderstate, b, ptest, vetRunAction, installAction)
 	}
 	if pxtest != nil {
-		addTestVet(b, pxtest, vetRunAction, installAction)
+		addTestVet(loaderstate, b, pxtest, vetRunAction, installAction)
 	}
 
 	if installAction != nil {
@@ -1365,12 +1365,12 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
 	return buildAction, runAction, printAction, nil, nil
 }
 
-func addTestVet(b *work.Builder, p *load.Package, runAction, installAction *work.Action) {
+func addTestVet(loaderstate *modload.State, b *work.Builder, p *load.Package, runAction, installAction *work.Action) {
 	if testVet.off {
 		return
 	}
 
-	vet := b.VetAction(work.ModeBuild, work.ModeBuild, p)
+	vet := b.VetAction(loaderstate, work.ModeBuild, work.ModeBuild, p)
 	runAction.Deps = append(runAction.Deps, vet)
 	// Install will clean the build directory.
 	// Make sure vet runs first.

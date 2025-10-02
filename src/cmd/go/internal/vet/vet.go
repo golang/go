@@ -260,10 +260,10 @@ func run(ctx context.Context, cmd *base.Command, args []string) {
 		}
 		if len(ptest.GoFiles) > 0 || len(ptest.CgoFiles) > 0 {
 			// The test package includes all the files of primary package.
-			root.Deps = append(root.Deps, b.VetAction(work.ModeBuild, work.ModeBuild, ptest))
+			root.Deps = append(root.Deps, b.VetAction(modload.LoaderState, work.ModeBuild, work.ModeBuild, ptest))
 		}
 		if pxtest != nil {
-			root.Deps = append(root.Deps, b.VetAction(work.ModeBuild, work.ModeBuild, pxtest))
+			root.Deps = append(root.Deps, b.VetAction(modload.LoaderState, work.ModeBuild, work.ModeBuild, pxtest))
 		}
 	}
 	b.Do(ctx, root)

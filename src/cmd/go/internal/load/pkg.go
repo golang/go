@@ -2797,7 +2797,7 @@ func PackageList(roots []*Package) []*Package {
 // TestPackageList returns the list of packages in the dag rooted at roots
 // as visited in a depth-first post-order traversal, including the test
 // imports of the roots. This ignores errors in test packages.
-func TestPackageList(ctx context.Context, opts PackageOpts, roots []*Package) []*Package {
+func TestPackageList(loaderstate *modload.State, ctx context.Context, opts PackageOpts, roots []*Package) []*Package {
 	seen := map[*Package]bool{}
 	all := []*Package{}
 	var walk func(*Package)
@@ -2813,7 +2813,7 @@ func TestPackageList(ctx context.Context, opts PackageOpts, roots []*Package) []
 	}
 	walkTest := func(root *Package, path string) {
 		var stk ImportStack
-		p1, err := loadImport(modload.LoaderState, ctx, opts, nil, path, root.Dir, root, &stk, root.Internal.Build.TestImportPos[path], ResolveImport)
+		p1, err := loadImport(loaderstate, ctx, opts, nil, path, root.Dir, root, &stk, root.Internal.Build.TestImportPos[path], ResolveImport)
 		if err != nil && root.Error == nil {
 			// Assign error importing the package to the importer.
 			root.Error = err

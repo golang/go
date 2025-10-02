@@ -867,13 +867,13 @@ func (b *Builder) cgoAction(p *load.Package, objdir string, deps []*Action, hasC
 // It depends on the action for compiling p.
 // If the caller may be causing p to be installed, it is up to the caller
 // to make sure that the install depends on (runs after) vet.
-func (b *Builder) VetAction(mode, depMode BuildMode, p *load.Package) *Action {
-	a := b.vetAction(mode, depMode, p)
+func (b *Builder) VetAction(loaderstate *modload.State, mode, depMode BuildMode, p *load.Package) *Action {
+	a := b.vetAction(loaderstate, mode, depMode, p)
 	a.VetxOnly = false
 	return a
 }
 
-func (b *Builder) vetAction(mode, depMode BuildMode, p *load.Package) *Action {
+func (b *Builder) vetAction(loaderstate *modload.State, mode, depMode BuildMode, p *load.Package) *Action {
 	// Construct vet action.
 	a := b.cacheAction("vet", p, func() *Action {
 		a1 := b.CompileAction(mode|ModeVetOnly, depMode, p)
@@ -889,7 +889,7 @@ func (b *Builder) vetAction(mode, depMode BuildMode, p *load.Package) *Action {
 			deps = []*Action{a1}
 		}
 		for _, p1 := range p.Internal.Imports {
-			deps = append(deps, b.vetAction(mode, depMode, p1))
+			deps = append(deps, b.vetAction(loaderstate, mode, depMode, p1))
 		}
 
 		a := &Action{
