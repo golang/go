@@ -268,8 +268,8 @@ func moduleLine(m, r module.Version) string {
 	return b.String()
 }
 
-func vendorPkg(loaderstate *modload.State, vdir, pkg string) {
-	src, realPath, _ := modload.Lookup(loaderstate, "", false, pkg)
+func vendorPkg(s *modload.State, vdir, pkg string) {
+	src, realPath, _ := modload.Lookup(s, "", false, pkg)
 	if src == "" {
 		base.Errorf("internal error: no pkg for %s\n", pkg)
 		return
@@ -288,7 +288,11 @@ func vendorPkg(loaderstate *modload.State, vdir, pkg string) {
 
 	copiedFiles := make(map[string]bool)
 	dst := filepath.Join(vdir, pkg)
-	copyDir(dst, src, matchPotentialSourceFile, copiedFiles)
+	matcher := func(dir string, info fs.DirEntry) bool {
+		goVersion := s.MainModules.GoVersion(s)
+		return matchPotentialSourceFile(dir, info, goVersion)
+	}
+	copyDir(dst, src, matcher, copiedFiles)
 	if m := modload.PackageModule(realPath); m.Path != "" {
 		copyMetadata(m.Path, realPath, dst, src, copiedFiles)
 	}
@@ -315,7 +319,7 @@ func vendorPkg(loaderstate *modload.State, vdir, pkg string) {
 		}
 	}
 	var embedPatterns []string
-	if gover.Compare(loaderstate.MainModules.GoVersion(loaderstate), "1.22") >= 0 {
+	if gover.Compare(s.MainModules.GoVersion(s), "1.22") >= 0 {
 		embedPatterns = bp.EmbedPatterns
 	} else {
 		// Maintain the behavior of https://github.com/golang/go/issues/63473
@@ -426,12 +430,12 @@ func matchMetadata(dir string, info fs.DirEntry) bool {
 }
 
 // matchPotentialSourceFile reports whether info may be relevant to a build operation.
-func matchPotentialSourceFile(dir string, info fs.DirEntry) bool {
+func matchPotentialSourceFile(dir string, info fs.DirEntry, goVersion string) bool {
 	if strings.HasSuffix(info.Name(), "_test.go") {
 		return false
 	}
 	if info.Name() == "go.mod" || info.Name() == "go.sum" {
-		if gv := modload.LoaderState.MainModules.GoVersion(modload.LoaderState); gover.Compare(gv, "1.17") >= 0 {
+		if gover.Compare(goVersion, "1.17") >= 0 {
 			// As of Go 1.17, we strip go.mod and go.sum files from dependency modules.
 			// Otherwise, 'go' commands invoked within the vendor subtree may misidentify
 			// an arbitrary directory within the vendor tree as a module root.
