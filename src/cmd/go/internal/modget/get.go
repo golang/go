@@ -410,7 +410,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	// Everything succeeded. Update go.mod.
-	oldReqs := reqsFromGoMod(modload.ModFile())
+	oldReqs := reqsFromGoMod(modload.ModFile(modload.LoaderState))
 
 	if err := modload.WriteGoMod(modload.LoaderState, ctx, opts); err != nil {
 		// A TooNewError can happen for 'go get go@newversion'
@@ -421,7 +421,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 		toolchain.SwitchOrFatal(modload.LoaderState, ctx, err)
 	}
 
-	newReqs := reqsFromGoMod(modload.ModFile())
+	newReqs := reqsFromGoMod(modload.ModFile(modload.LoaderState))
 	r.reportChanges(oldReqs, newReqs)
 
 	if gowork := modload.FindGoWork(modload.LoaderState, base.Cwd()); gowork != "" {

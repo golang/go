@@ -314,11 +314,11 @@ const (
 // will be lost at the next call to WriteGoMod.
 // To make permanent changes to the require statements
 // in go.mod, edit it before loading.
-func ModFile() *modfile.File {
-	Init(LoaderState)
-	modFile := LoaderState.MainModules.ModFile(LoaderState.MainModules.mustGetSingleMainModule(LoaderState))
+func ModFile(loaderstate *State) *modfile.File {
+	Init(loaderstate)
+	modFile := loaderstate.MainModules.ModFile(loaderstate.MainModules.mustGetSingleMainModule(loaderstate))
 	if modFile == nil {
-		die(LoaderState)
+		die(loaderstate)
 	}
 	return modFile
 }
