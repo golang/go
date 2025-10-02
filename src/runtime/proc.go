@@ -4622,7 +4622,12 @@ func reentersyscall(pc, sp, bp uintptr) {
 	}
 	// As soon as we switch to _Gsyscall, we are in danger of losing our P.
 	// We must not touch it after this point.
-	casgstatus(gp, _Grunning, _Gsyscall)
+	//
+	// Try to do a quick CAS to avoid calling into casgstatus in the common case.
+	// If we have a bubble, we need to fall into casgstatus.
+	if gp.bubble != nil || !gp.atomicstatus.CompareAndSwap(_Grunning, _Gsyscall) {
+		casgstatus(gp, _Grunning, _Gsyscall)
+	}
 	if staticLockRanking {
 		// casgstatus clobbers gp.sched via systemstack under staticLockRanking. Restore it.
 		save(pc, sp, bp)
@@ -4825,7 +4830,12 @@ func exitsyscall() {
 	// need to be held ahead of time. We're effectively atomic with respect to
 	// the tracer because we're non-preemptible and in the runtime. It can't stop
 	// us to read a bad status.
-	casgstatus(gp, _Gsyscall, _Grunning)
+	//
+	// Try to do a quick CAS to avoid calling into casgstatus in the common case.
+	// If we have a bubble, we need to fall into casgstatus.
+	if gp.bubble != nil || !gp.atomicstatus.CompareAndSwap(_Gsyscall, _Grunning) {
+		casgstatus(gp, _Gsyscall, _Grunning)
+	}
 
 	// Caution: we're in a window where we may be in _Grunning without a P.
 	// Either we will grab a P or call exitsyscall0, where we'll switch to
