@@ -44,5 +44,5 @@ func runInit(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	modload.LoaderState.ForceUseModules = true
-	modload.CreateModFile(ctx, modPath) // does all the hard work
+	modload.CreateModFile(modload.LoaderState, ctx, modPath) // does all the hard work
 }

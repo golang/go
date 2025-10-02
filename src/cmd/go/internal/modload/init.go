@@ -1123,10 +1123,10 @@ func CheckReservedModulePath(path string) error {
 // translate it to go.mod directives. The resulting build list may not be
 // exactly the same as in the legacy configuration (for example, we can't get
 // packages at multiple versions from the same module).
-func CreateModFile(ctx context.Context, modPath string) {
+func CreateModFile(loaderstate *State, ctx context.Context, modPath string) {
 	modRoot := base.Cwd()
-	LoaderState.modRoots = []string{modRoot}
-	Init(LoaderState)
+	loaderstate.modRoots = []string{modRoot}
+	Init(loaderstate)
 	modFilePath := modFilePath(modRoot)
 	if _, err := fsys.Stat(modFilePath); err == nil {
 		base.Fatalf("go: %s already exists", modFilePath)
@@ -1162,16 +1162,16 @@ func CreateModFile(ctx context.Context, modPath string) {
 	fmt.Fprintf(os.Stderr, "go: creating new go.mod: module %s\n", modPath)
 	modFile := new(modfile.File)
 	modFile.AddModuleStmt(modPath)
-	LoaderState.MainModules = makeMainModules(LoaderState, []module.Version{modFile.Module.Mod}, []string{modRoot}, []*modfile.File{modFile}, []*modFileIndex{nil}, nil)
+	loaderstate.MainModules = makeMainModules(loaderstate, []module.Version{modFile.Module.Mod}, []string{modRoot}, []*modfile.File{modFile}, []*modFileIndex{nil}, nil)
 	addGoStmt(modFile, modFile.Module.Mod, gover.Local()) // Add the go directive before converted module requirements.
 
-	rs := requirementsFromModFiles(LoaderState, ctx, nil, []*modfile.File{modFile}, nil)
-	rs, err := updateRoots(LoaderState, ctx, rs.direct, rs, nil, nil, false)
+	rs := requirementsFromModFiles(loaderstate, ctx, nil, []*modfile.File{modFile}, nil)
+	rs, err := updateRoots(loaderstate, ctx, rs.direct, rs, nil, nil, false)
 	if err != nil {
 		base.Fatal(err)
 	}
-	LoaderState.requirements = rs
-	if err := commitRequirements(LoaderState, ctx, WriteOpts{}); err != nil {
+	loaderstate.requirements = rs
+	if err := commitRequirements(loaderstate, ctx, WriteOpts{}); err != nil {
 		base.Fatal(err)
 	}
 
