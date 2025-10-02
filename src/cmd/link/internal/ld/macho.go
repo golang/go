@@ -11,6 +11,7 @@ import (
 	"cmd/internal/sys"
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
+	"crypto/rand"
 	"debug/macho"
 	"encoding/binary"
 	"fmt"
@@ -492,6 +493,24 @@ func (ctxt *Link) domacho() {
 			ml.data[1] = version // OS version
 			ml.data[2] = version // SDK version
 			ml.data[3] = 0       // ntools
+		}
+	}
+
+	// Ensure LC_UUID is present for Mach-O binaries produced by the internal linker on macOS.
+	// This mimics the external linker's -random_uuid behavior so that dyld can locate LC_UUID.
+	if ctxt.LinkMode == LinkInternal && buildcfg.GOOS == "darwin" {
+		var uuid [16]byte
+		if _, err := rand.Read(uuid[:]); err == nil {
+			// Set the UUID to RFC 4122 variant 4
+			uuid[6] = (uuid[6] & 0x0f) | 0x40
+			uuid[8] = (uuid[8] & 0x3f) | 0x80
+
+			// Create a new Mach-O load command and store the UUID
+			ml := newMachoLoad(ctxt.Arch, LC_UUID, 4)
+			ml.data[0] = binary.LittleEndian.Uint32(uuid[0:4])
+			ml.data[1] = binary.LittleEndian.Uint32(uuid[4:8])
+			ml.data[2] = binary.LittleEndian.Uint32(uuid[8:12])
+			ml.data[3] = binary.LittleEndian.Uint32(uuid[12:16])
 		}
 	}
 
