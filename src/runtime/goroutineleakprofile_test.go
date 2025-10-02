@@ -6,12 +6,20 @@ package runtime_test
 
 import (
 	"fmt"
+	"internal/testenv"
+	"os"
 	"regexp"
 	"strings"
 	"testing"
 )
 
 func TestGoroutineLeakProfile(t *testing.T) {
+	if strings.Contains(os.Getenv("GOFLAGS"), "mayMoreStackPreempt") {
+		// Some tests have false negatives under mayMoreStackPreempt. This may be a test-only issue,
+		// but needs more investigation.
+		testenv.SkipFlaky(t, 75729)
+	}
+
 	// Goroutine leak test case.
 	//
 	// Test cases can be configured with test name, the name of the entry point function,
@@ -356,7 +364,7 @@ func TestGoroutineLeakProfile(t *testing.T) {
 			`\(\*Page_hugo5379\)\.initContent\.func1\.1\(.* \[sync\.Mutex\.Lock\]`,
 			`pageRenderer_hugo5379\(.* \[sync\.Mutex\.Lock\]`,
 			`Hugo5379\.func2\(.* \[sync\.WaitGroup\.Wait\]`,
-	  ),
+		),
 		makeFlakyTest("Istio16224",
 			`Istio16224\.func2\(.* \[sync\.Mutex\.Lock\]`,
 			`\(\*controller_istio16224\)\.Run\(.* \[chan send\]`,
