@@ -57,14 +57,14 @@ var (
 )
 
 // EnterModule resets MainModules and requirements to refer to just this one module.
-func EnterModule(ctx context.Context, enterModroot string) {
-	LoaderState.MainModules = nil // reset MainModules
-	LoaderState.requirements = nil
-	LoaderState.workFilePath = "" // Force module mode
+func EnterModule(loaderstate *State, ctx context.Context, enterModroot string) {
+	loaderstate.MainModules = nil // reset MainModules
+	loaderstate.requirements = nil
+	loaderstate.workFilePath = "" // Force module mode
 	modfetch.Reset()
 
-	LoaderState.modRoots = []string{enterModroot}
-	LoadModFile(LoaderState, ctx)
+	loaderstate.modRoots = []string{enterModroot}
+	LoadModFile(loaderstate, ctx)
 }
 
 // EnterWorkspace enters workspace mode from module mode, applying the updated requirements to the main

@@ -104,7 +104,7 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
 
 		// Use EnterModule to reset the global state in modload to be in
 		// single-module mode using the modroot of m.
-		modload.EnterModule(ctx, mms.ModRoot(m))
+		modload.EnterModule(modload.LoaderState, ctx, mms.ModRoot(m))
 
 		// Edit the build list in the same way that 'go get' would if we
 		// requested the relevant module versions explicitly.
