@@ -683,7 +683,7 @@ func (r *resolver) queryPattern(loaderstate *modload.State, ctx context.Context,
 
 // checkAllowedOr is like modload.CheckAllowed, but it always allows the requested
 // and current versions (even if they are retracted or otherwise excluded).
-func (r *resolver) checkAllowedOr(loaderstate *modload.State, requested string, selected func(string) string) modload.AllowedFunc {
+func (r *resolver) checkAllowedOr(s *modload.State, requested string, selected func(string) string) modload.AllowedFunc {
 	return func(ctx context.Context, m module.Version) error {
 		if m.Version == requested {
 			return modload.CheckExclusions(ctx, m)
@@ -734,7 +734,7 @@ func (r *resolver) queryNone(loaderstate *modload.State, ctx context.Context, q 
 				// However, neither of those behaviors would be consistent with the
 				// plain meaning of the query. To try to reduce confusion, reject the
 				// query explicitly.
-				return errSet(&modload.QueryMatchesMainModulesError{MainModules: []module.Version{v}, Pattern: q.pattern, Query: q.version})
+				return errSet(&modload.QueryMatchesMainModulesError{LoaderState: loaderstate, MainModules: []module.Version{v}, Pattern: q.pattern, Query: q.version})
 			}
 
 			return pathSet{mod: module.Version{Path: q.pattern, Version: "none"}}
@@ -747,7 +747,7 @@ func (r *resolver) queryNone(loaderstate *modload.State, ctx context.Context, q 
 		}
 		q.pathOnce(curM.Path, func() pathSet {
 			if modload.HasModRoot(loaderstate) && curM.Version == "" && loaderstate.MainModules.Contains(curM.Path) {
-				return errSet(&modload.QueryMatchesMainModulesError{MainModules: []module.Version{curM}, Pattern: q.pattern, Query: q.version})
+				return errSet(&modload.QueryMatchesMainModulesError{LoaderState: loaderstate, MainModules: []module.Version{curM}, Pattern: q.pattern, Query: q.version})
 			}
 			return pathSet{mod: module.Version{Path: curM.Path, Version: "none"}}
 		})
@@ -851,6 +851,7 @@ func (r *resolver) queryWildcard(loaderstate *modload.State, ctx context.Context
 			if loaderstate.MainModules.Contains(curM.Path) && !versionOkForMainModule(q.version) {
 				if q.matchesPath(curM.Path) {
 					return errSet(&modload.QueryMatchesMainModulesError{
+						LoaderState: loaderstate,
 						MainModules: []module.Version{curM},
 						Pattern:     q.pattern,
 						Query:       q.version,
@@ -1482,7 +1483,7 @@ func (r *resolver) applyUpgrades(loaderstate *modload.State, ctx context.Context
 // In the vast majority of cases, we expect only one module per pathSet,
 // but we want to give some minimal additional tools so that users can add an
 // extra argument or two on the command line to resolve simple ambiguities.
-func (r *resolver) disambiguate(loaderstate *modload.State, cs pathSet) (filtered pathSet, isPackage bool, m module.Version, unique bool) {
+func (r *resolver) disambiguate(s *modload.State, cs pathSet) (filtered pathSet, isPackage bool, m module.Version, unique bool) {
 	if len(cs.pkgMods) == 0 && cs.mod.Path == "" {
 		panic("internal error: resolveIfUnambiguous called with empty pathSet")
 	}
@@ -1494,7 +1495,7 @@ func (r *resolver) disambiguate(loaderstate *modload.State, cs pathSet) (filtere
 			continue
 		}
 
-		if loaderstate.MainModules.Contains(m.Path) {
+		if s.MainModules.Contains(m.Path) {
 			if m.Version == "" {
 				return pathSet{}, true, m, true
 			}
@@ -1944,13 +1945,14 @@ func (r *resolver) reportChanges(oldReqs, newReqs []module.Version) {
 // resolve records that module m must be at its indicated version (which may be
 // "none") due to query q. If some other query forces module m to be at a
 // different version, resolve reports a conflict error.
-func (r *resolver) resolve(loaderstate *modload.State, q *query, m module.Version) {
+func (r *resolver) resolve(s *modload.State, q *query, m module.Version) {
 	if m.Path == "" {
 		panic("internal error: resolving a module.Version with an empty path")
 	}
 
-	if loaderstate.MainModules.Contains(m.Path) && m.Version != "" {
+	if s.MainModules.Contains(m.Path) && m.Version != "" {
 		reportError(q, &modload.QueryMatchesMainModulesError{
+			LoaderState: s,
 			MainModules: []module.Version{{Path: m.Path}},
 			Pattern:     q.pattern,
 			Query:       q.version,
