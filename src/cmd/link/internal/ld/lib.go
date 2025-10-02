@@ -1787,9 +1787,13 @@ func (ctxt *Link) hostlink() {
 	case ctxt.IsAIX():
 		fileName := xcoffCreateExportFile(ctxt)
 		argv = append(argv, "-Wl,-bE:"+fileName)
-	case ctxt.IsWindows() && !slices.Contains(flagExtldflags, "-Wl,--export-all-symbols"):
+	case ctxt.IsWindows() && !slices.Contains(flagExtldflags, wlPrefix+"export-all-symbols"):
 		fileName := peCreateExportFile(ctxt, filepath.Base(outopt))
-		argv = append(argv, fileName)
+		prefix := ""
+		if isMSVC {
+			prefix = "-Wl,-def:"
+		}
+		argv = append(argv, prefix+fileName)
 	}
 
 	const unusedArguments = "-Qunused-arguments"
