@@ -768,7 +768,7 @@ func (r *resolver) performLocalQueries(ctx context.Context) {
 			// restricted to matching packages in the main module.
 			pkgPattern, mainModule := modload.LoaderState.MainModules.DirImportPath(modload.LoaderState, ctx, q.pattern)
 			if pkgPattern == "." {
-				modload.MustHaveModRoot()
+				modload.MustHaveModRoot(modload.LoaderState)
 				versions := modload.LoaderState.MainModules.Versions()
 				modRoots := make([]string, 0, len(versions))
 				for _, m := range versions {
@@ -791,7 +791,7 @@ func (r *resolver) performLocalQueries(ctx context.Context) {
 					return errSet(fmt.Errorf("no package to get in current directory"))
 				}
 				if !q.isWildcard() {
-					modload.MustHaveModRoot()
+					modload.MustHaveModRoot(modload.LoaderState)
 					return errSet(fmt.Errorf("%s%s is not a package in module rooted at %s", q.pattern, absDetail, modload.LoaderState.MainModules.ModRoot(mainModule)))
 				}
 				search.WarnUnmatched([]*search.Match{match})

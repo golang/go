@@ -51,7 +51,7 @@ func runBug(ctx context.Context, cmd *base.Command, args []string) {
 	buf.WriteString(bugHeader)
 	printGoVersion(&buf)
 	buf.WriteString("### Does this issue reproduce with the latest release?\n\n\n")
-	printEnvDetails(&buf)
+	printEnvDetails(modload.LoaderState, &buf)
 	buf.WriteString(bugFooter)
 
 	body := buf.String()
@@ -92,20 +92,20 @@ func printGoVersion(w io.Writer) {
 	fmt.Fprintf(w, "\n")
 }
 
-func printEnvDetails(w io.Writer) {
+func printEnvDetails(loaderstate *modload.State, w io.Writer) {
 	fmt.Fprintf(w, "### What operating system and processor architecture are you using (`go env`)?\n\n")
 	fmt.Fprintf(w, "<details><summary><code>go env</code> Output</summary><br><pre>\n")
 	fmt.Fprintf(w, "$ go env\n")
-	printGoEnv(w)
+	printGoEnv(loaderstate, w)
 	printGoDetails(w)
 	printOSDetails(w)
 	printCDetails(w)
 	fmt.Fprintf(w, "</pre></details>\n\n")
 }
 
-func printGoEnv(w io.Writer) {
+func printGoEnv(loaderstate *modload.State, w io.Writer) {
 	env := envcmd.MkEnv()
-	env = append(env, envcmd.ExtraEnvVars()...)
+	env = append(env, envcmd.ExtraEnvVars(loaderstate)...)
 	env = append(env, envcmd.ExtraEnvVarsCostly()...)
 	envcmd.PrintEnv(w, env, false)
 }

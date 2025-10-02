@@ -661,18 +661,18 @@ func HasModRoot(loaderstate *State) bool {
 
 // MustHaveModRoot checks that a main module or main modules are present,
 // and calls base.Fatalf if there are no main modules.
-func MustHaveModRoot() {
-	Init(LoaderState)
-	if !HasModRoot(LoaderState) {
-		die(LoaderState)
+func MustHaveModRoot(loaderstate *State) {
+	Init(loaderstate)
+	if !HasModRoot(loaderstate) {
+		die(loaderstate)
 	}
 }
 
 // ModFilePath returns the path that would be used for the go.mod
 // file, if in module mode. ModFilePath calls base.Fatalf if there is no main
 // module, even if -modfile is set.
-func ModFilePath() string {
-	MustHaveModRoot()
+func ModFilePath(loaderstate *State) string {
+	MustHaveModRoot(loaderstate)
 	return modFilePath(findModuleRoot(base.Cwd()))
 }
 
