@@ -5,6 +5,7 @@
 package driver
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -171,7 +172,7 @@ type NotNull struct {
 
 func (n NotNull) ConvertValue(v any) (Value, error) {
 	if v == nil {
-		return nil, fmt.Errorf("nil value not allowed")
+		return nil, errors.New("nil value not allowed")
 	}
 	return n.Converter.ConvertValue(v)
 }
@@ -275,7 +276,7 @@ func (defaultConverter) ConvertValue(v any) (Value, error) {
 	case reflect.Uint64:
 		u64 := rv.Uint()
 		if u64 >= 1<<63 {
-			return nil, fmt.Errorf("uint64 values with high bit set are not supported")
+			return nil, errors.New("uint64 values with high bit set are not supported")
 		}
 		return int64(u64), nil
 	case reflect.Float32, reflect.Float64:
