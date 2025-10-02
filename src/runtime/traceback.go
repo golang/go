@@ -1206,6 +1206,7 @@ var gStatusStrings = [...]string{
 	_Gwaiting:   "waiting",
 	_Gdead:      "dead",
 	_Gcopystack: "copystack",
+	_Gleaked:    "leaked",
 	_Gpreempted: "preempted",
 }
 
@@ -1226,7 +1227,7 @@ func goroutineheader(gp *g) {
 	}
 
 	// Override.
-	if gpstatus == _Gwaiting && gp.waitreason != waitReasonZero {
+	if (gpstatus == _Gwaiting || gpstatus == _Gleaked) && gp.waitreason != waitReasonZero {
 		status = gp.waitreason.String()
 	}
 
@@ -1245,6 +1246,9 @@ func goroutineheader(gp *g) {
 		}
 	}
 	print(" [", status)
+	if gpstatus == _Gleaked {
+		print(" (leaked)")
+	}
 	if isScan {
 		print(" (scan)")
 	}
