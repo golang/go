@@ -53,6 +53,55 @@ const (
 	pagesPerSpanRoot = min(512, pagesPerArena)
 )
 
+// internalBlocked returns true if the goroutine is blocked due to an
+// internal (non-leaking) waitReason, e.g. waiting for the netpoller or garbage collector.
+// Such goroutines are never leak detection candidates according to the GC.
+//
+//go:nosplit
+func (gp *g) internalBlocked() bool {
+	reason := gp.waitreason
+	return reason < waitReasonChanReceiveNilChan || waitReasonSyncWaitGroupWait < reason
+}
+
+// allGsSnapshotSortedForGC takes a snapshot of allgs and returns a sorted
+// array of Gs. The array is sorted by the G's status, with running Gs
+// first, followed by blocked Gs. The returned index indicates the cutoff
+// between runnable and blocked Gs.
+//
+// The world must be stopped or allglock must be held.
+func allGsSnapshotSortedForGC() ([]*g, int) {
+	assertWorldStoppedOrLockHeld(&allglock)
+
+	// Reset the status of leaked goroutines in order to improve
+	// the precision of goroutine leak detection.
+	for _, gp := range allgs {
+		gp.atomicstatus.CompareAndSwap(_Gleaked, _Gwaiting)
+	}
+
+	allgsSorted := make([]*g, len(allgs))
+
+	// Indices cutting off runnable and blocked Gs.
+	var currIndex, blockedIndex = 0, len(allgsSorted) - 1
+	for _, gp := range allgs {
+		// not sure if we need atomic load because we are stopping the world,
+		// but do it just to be safe for now
+		if status := readgstatus(gp); status != _Gwaiting || gp.internalBlocked() {
+			allgsSorted[currIndex] = gp
+			currIndex++
+		} else {
+			allgsSorted[blockedIndex] = gp
+			blockedIndex--
+		}
+	}
+
+	// Because the world is stopped or allglock is held, allgadd
+	// cannot happen concurrently with this. allgs grows
+	// monotonically and existing entries never change, so we can
+	// simply return a copy of the slice header. For added safety,
+	// we trim everything past len because that can still change.
+	return allgsSorted, blockedIndex + 1
+}
+
 // gcPrepareMarkRoots queues root scanning jobs (stacks, globals, and
 // some miscellany) and initializes scanning-related state.
 //
@@ -102,11 +151,20 @@ func gcPrepareMarkRoots() {
 	// ignore them because they begin life without any roots, so
 	// there's nothing to scan, and any roots they create during
 	// the concurrent phase will be caught by the write barrier.
-	work.stackRoots = allGsSnapshot()
+	if work.goroutineLeak.enabled {
+		// goroutine leak finder GC --- only prepare runnable
+		// goroutines for marking.
+		work.stackRoots, work.nMaybeRunnableStackRoots = allGsSnapshotSortedForGC()
+	} else {
+		// regular GC --- scan every goroutine
+		work.stackRoots = allGsSnapshot()
+		work.nMaybeRunnableStackRoots = len(work.stackRoots)
+	}
+
 	work.nStackRoots = len(work.stackRoots)
 
-	work.markrootNext = 0
-	work.markrootJobs = uint32(fixedRootCount + work.nDataRoots + work.nBSSRoots + work.nSpanRoots + work.nStackRoots)
+	work.markrootNext.Store(0)
+	work.markrootJobs.Store(uint32(fixedRootCount + work.nDataRoots + work.nBSSRoots + work.nSpanRoots + work.nMaybeRunnableStackRoots))
 
 	// Calculate base indexes of each root type
 	work.baseData = uint32(fixedRootCount)
@@ -119,8 +177,8 @@ func gcPrepareMarkRoots() {
 // gcMarkRootCheck checks that all roots have been scanned. It is
 // purely for debugging.
 func gcMarkRootCheck() {
-	if work.markrootNext < work.markrootJobs {
-		print(work.markrootNext, " of ", work.markrootJobs, " markroot jobs done\n")
+	if next, jobs := work.markrootNext.Load(), work.markrootJobs.Load(); next < jobs {
+		print(next, " of ", jobs, " markroot jobs done\n")
 		throw("left over markroot jobs")
 	}
 
@@ -858,7 +916,7 @@ func scanstack(gp *g, gcw *gcWork) int64 {
 	case _Grunning:
 		print("runtime: gp=", gp, ", goid=", gp.goid, ", gp->atomicstatus=", readgstatus(gp), "\n")
 		throw("scanstack: goroutine not stopped")
-	case _Grunnable, _Gsyscall, _Gwaiting:
+	case _Grunnable, _Gsyscall, _Gwaiting, _Gleaked:
 		// ok
 	}
 
@@ -1126,6 +1184,28 @@ func gcDrainMarkWorkerFractional(gcw *gcWork) {
 	gcDrain(gcw, gcDrainFractional|gcDrainUntilPreempt|gcDrainFlushBgCredit)
 }
 
+// gcNextMarkRoot safely increments work.markrootNext and returns the
+// index of the next root job. The returned boolean is true if the root job
+// is valid, and false if there are no more root jobs to be claimed,
+// i.e. work.markrootNext >= work.markrootJobs.
+func gcNextMarkRoot() (uint32, bool) {
+	if !work.goroutineLeak.enabled {
+		// If not running goroutine leak detection, assume regular GC behavior.
+		job := work.markrootNext.Add(1) - 1
+		return job, job < work.markrootJobs.Load()
+	}
+
+	// Otherwise, use a CAS loop to increment markrootNext.
+	for next, jobs := work.markrootNext.Load(), work.markrootJobs.Load(); next < jobs; next = work.markrootNext.Load() {
+		// There is still work available at the moment.
+		if work.markrootNext.CompareAndSwap(next, next+1) {
+			// We manage to snatch a root job. Return the root index.
+			return next, true
+		}
+	}
+	return 0, false
+}
+
 // gcDrain scans roots and objects in work buffers, blackening grey
 // objects until it is unable to get more work. It may return before
 // GC is done; it's the caller's responsibility to balance work from
@@ -1184,13 +1264,12 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 		}
 	}
 
-	// Drain root marking jobs.
-	if work.markrootNext < work.markrootJobs {
+	if work.markrootNext.Load() < work.markrootJobs.Load() {
 		// Stop if we're preemptible, if someone wants to STW, or if
 		// someone is calling forEachP.
 		for !(gp.preempt && (preemptible || sched.gcwaiting.Load() || pp.runSafePointFn != 0)) {
-			job := atomic.Xadd(&work.markrootNext, +1) - 1
-			if job >= work.markrootJobs {
+			job, ok := gcNextMarkRoot()
+			if !ok {
 				break
 			}
 			markroot(gcw, job, flushBgCredit)
@@ -1342,9 +1421,9 @@ func gcDrainN(gcw *gcWork, scanWork int64) int64 {
 						if b = gcw.tryGetObj(); b == 0 {
 							if s = gcw.tryGetSpan(); s == 0 {
 								// Try to do a root job.
-								if work.markrootNext < work.markrootJobs {
-									job := atomic.Xadd(&work.markrootNext, +1) - 1
-									if job < work.markrootJobs {
+								if work.markrootNext.Load() < work.markrootJobs.Load() {
+									job, ok := gcNextMarkRoot()
+									if ok {
 										workFlushed += markroot(gcw, job, false)
 										continue
 									}

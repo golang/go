@@ -1267,6 +1267,28 @@ func markBitsForSpan(base uintptr) (mbits markBits) {
 	return mbits
 }
 
+// isMarkedOrNotInHeap returns true if a pointer is in the heap and marked,
+// or if the pointer is not in the heap. Used by goroutine leak detection
+// to determine if concurrency resources are reachable in memory.
+func isMarkedOrNotInHeap(p unsafe.Pointer) bool {
+	obj, span, objIndex := findObject(uintptr(p), 0, 0)
+	if obj != 0 {
+		mbits := span.markBitsForIndex(objIndex)
+		return mbits.isMarked()
+	}
+
+	// If we fall through to get here, the object is not in the heap.
+	// In this case, it is either a pointer to a stack object or a global resource.
+	// Treat it as reachable in memory by default, to be safe.
+	//
+	// TODO(vsaioc): we could be more precise by checking against the stacks
+	// of runnable goroutines. I don't think this is necessary, based on what we've seen, but
+	// let's keep the option open in case the runtime evolves.
+	// This will (naively) lead to quadratic blow-up for goroutine leak detection,
+	// but if it is only run on demand, maybe the extra cost is not a show-stopper.
+	return true
+}
+
 // advance advances the markBits to the next object in the span.
 func (m *markBits) advance() {
 	if m.mask == 1<<7 {
