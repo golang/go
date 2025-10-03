@@ -56,7 +56,7 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
 
 	_, err := modload.LoadModGraph(ctx, "")
 	if err != nil {
-		toolchain.SwitchOrFatal(ctx, err)
+		toolchain.SwitchOrFatal(modload.LoaderState, ctx, err)
 	}
 	mustSelectFor := map[module.Version][]module.Version{}
 

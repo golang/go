@@ -116,8 +116,8 @@ var counterSwitchExec = counter.New("go/toolchain/switch-exec")
 
 // SwitchOrFatal attempts a toolchain switch based on the information in err
 // and otherwise falls back to base.Fatal(err).
-func SwitchOrFatal(ctx context.Context, err error) {
-	s := NewSwitcher(modload.LoaderState)
+func SwitchOrFatal(loaderstate *modload.State, ctx context.Context, err error) {
+	s := NewSwitcher(loaderstate)
 	s.Error(err)
 	s.Switch(ctx)
 	base.Exit()

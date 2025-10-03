@@ -570,12 +570,12 @@ func Init(loaderstate *State) {
 // of 'go get', but Init reads the -modfile flag in 'go get', so it shouldn't
 // be called until the command is installed and flags are parsed. Instead of
 // calling Init and Enabled, the main package can call this function.
-func WillBeEnabled() bool {
-	if LoaderState.modRoots != nil || cfg.ModulesEnabled {
+func WillBeEnabled(loaderstate *State) bool {
+	if loaderstate.modRoots != nil || cfg.ModulesEnabled {
 		// Already enabled.
 		return true
 	}
-	if LoaderState.initialized {
+	if loaderstate.initialized {
 		// Initialized, not enabled.
 		return false
 	}

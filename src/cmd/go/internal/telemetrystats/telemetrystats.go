@@ -22,7 +22,7 @@ func Increment() {
 // incrementConfig increments counters for the configuration
 // the command is running in.
 func incrementConfig() {
-	if !modload.WillBeEnabled() {
+	if !modload.WillBeEnabled(modload.LoaderState) {
 		counter.Inc("go/mode:gopath")
 	} else if workfile := modload.FindGoWork(modload.LoaderState, base.Cwd()); workfile != "" {
 		counter.Inc("go/mode:workspace")

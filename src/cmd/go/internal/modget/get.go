@@ -418,7 +418,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 		// but the command line is not.
 		// TODO(bcmills): modload.EditBuildList should catch this instead,
 		// and then this can be changed to base.Fatal(err).
-		toolchain.SwitchOrFatal(ctx, err)
+		toolchain.SwitchOrFatal(modload.LoaderState, ctx, err)
 	}
 
 	newReqs := reqsFromGoMod(modload.ModFile())
@@ -558,7 +558,7 @@ func newResolver(ctx context.Context, queries []*query) *resolver {
 	// methods.
 	mg, err := modload.LoadModGraph(ctx, "")
 	if err != nil {
-		toolchain.SwitchOrFatal(ctx, err)
+		toolchain.SwitchOrFatal(modload.LoaderState, ctx, err)
 	}
 
 	buildList := mg.BuildList()
@@ -1619,7 +1619,7 @@ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []strin
 			// are old enough but the go command itself is not new
 			// enough. See the related comment on the SwitchOrFatal
 			// in runGet when WriteGoMod returns an error.
-			toolchain.SwitchOrFatal(ctx, err)
+			toolchain.SwitchOrFatal(modload.LoaderState, ctx, err)
 		}
 	}
 
@@ -1989,7 +1989,7 @@ func (r *resolver) updateBuildList(ctx context.Context, additions []module.Versi
 	changed, err := modload.EditBuildList(modload.LoaderState, ctx, additions, resolved)
 	if err != nil {
 		if errors.Is(err, gover.ErrTooNew) {
-			toolchain.SwitchOrFatal(ctx, err)
+			toolchain.SwitchOrFatal(modload.LoaderState, ctx, err)
 		}
 
 		constraint, ok := errors.AsType[*modload.ConstraintError](err)
@@ -2035,7 +2035,7 @@ func (r *resolver) updateBuildList(ctx context.Context, additions []module.Versi
 
 	mg, err := modload.LoadModGraph(ctx, "")
 	if err != nil {
-		toolchain.SwitchOrFatal(ctx, err)
+		toolchain.SwitchOrFatal(modload.LoaderState, ctx, err)
 	}
 
 	r.buildList = mg.BuildList()

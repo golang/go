@@ -62,7 +62,7 @@ func runGraph(ctx context.Context, cmd *base.Command, args []string) {
 
 	goVersion := graphGo.String()
 	if goVersion != "" && gover.Compare(gover.Local(), goVersion) < 0 {
-		toolchain.SwitchOrFatal(ctx, &gover.TooNewError{
+		toolchain.SwitchOrFatal(modload.LoaderState, ctx, &gover.TooNewError{
 			What:      "-go flag",
 			GoVersion: goVersion,
 		})

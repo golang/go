@@ -158,7 +158,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 					// TODO(#64008): call base.Fatalf instead of toolchain.SwitchOrFatal
 					// here, since we can only reach this point with an outdated toolchain
 					// if the go.mod file is inconsistent.
-					toolchain.SwitchOrFatal(ctx, err)
+					toolchain.SwitchOrFatal(modload.LoaderState, ctx, err)
 				}
 
 				for _, m := range modFile.Require {
