@@ -5,6 +5,7 @@
 package template
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -31,7 +32,7 @@ type Template struct {
 }
 
 // escapeOK is a sentinel value used to indicate valid escaping.
-var escapeOK = fmt.Errorf("template escaped correctly")
+var escapeOK = errors.New("template escaped correctly")
 
 // nameSpace is the data structure shared by all templates in an association.
 type nameSpace struct {
@@ -87,7 +88,7 @@ func (t *Template) checkCanParse() error {
 	t.nameSpace.mu.Lock()
 	defer t.nameSpace.mu.Unlock()
 	if t.nameSpace.escaped {
-		return fmt.Errorf("html/template: cannot Parse after Execute")
+		return errors.New("html/template: cannot Parse after Execute")
 	}
 	return nil
 }
@@ -404,7 +405,7 @@ func parseFiles(t *Template, readFile func(string) (string, []byte, error), file
 
 	if len(filenames) == 0 {
 		// Not really a problem, but be consistent.
-		return nil, fmt.Errorf("html/template: no files named in call to ParseFiles")
+		return nil, errors.New("html/template: no files named in call to ParseFiles")
 	}
 	for _, filename := range filenames {
 		name, b, err := readFile(filename)
