@@ -523,7 +523,7 @@ func Init(loaderstate *State) {
 				base.Fatalf("go: cannot find main module, but -modfile was set.\n\t-modfile cannot be used to set the module root directory.")
 			}
 			if loaderstate.RootMode == NeedRoot {
-				base.Fatal(ErrNoModRoot)
+				base.Fatal(NewNoMainModulesError(loaderstate))
 			}
 			if !mustUseModules {
 				// GO111MODULE is 'auto', and we can't find a module root.
@@ -538,7 +538,7 @@ func Init(loaderstate *State) {
 			// when it happens. See golang.org/issue/26708.
 			fmt.Fprintf(os.Stderr, "go: warning: ignoring go.mod in system temp root %v\n", os.TempDir())
 			if loaderstate.RootMode == NeedRoot {
-				base.Fatal(ErrNoModRoot)
+				base.Fatal(NewNoMainModulesError(loaderstate))
 			}
 			if !mustUseModules {
 				return
@@ -560,7 +560,7 @@ func Init(loaderstate *State) {
 		if _, err := fsys.Stat(filepath.Join(gopath, "go.mod")); err == nil {
 			fmt.Fprintf(os.Stderr, "go: warning: ignoring go.mod in $GOPATH %v\n", gopath)
 			if loaderstate.RootMode == NeedRoot {
-				base.Fatal(ErrNoModRoot)
+				base.Fatal(NewNoMainModulesError(loaderstate))
 			}
 			if !mustUseModules {
 				return
@@ -731,21 +731,33 @@ func die(loaderstate *State) {
 			base.Fatalf("go: cannot find main module, but found %s in %s\n\tto create a module there, run:\n\t%sgo mod init", name, dir, cdCmd)
 		}
 	}
-	base.Fatal(ErrNoModRoot)
+	base.Fatal(NewNoMainModulesError(loaderstate))
 }
+
+var ErrNoModRoot = errors.New("no module root")
 
 // noMainModulesError returns the appropriate error if there is no main module or
 // main modules depending on whether the go command is in workspace mode.
-type noMainModulesError struct{}
+type noMainModulesError struct {
+	inWorkspaceMode bool
+}
 
 func (e noMainModulesError) Error() string {
-	if inWorkspaceMode(LoaderState) {
+	if e.inWorkspaceMode {
 		return "no modules were found in the current workspace; see 'go help work'"
 	}
 	return "go.mod file not found in current directory or any parent directory; see 'go help modules'"
 }
 
-var ErrNoModRoot noMainModulesError
+func (e noMainModulesError) Unwrap() error {
+	return ErrNoModRoot
+}
+
+func NewNoMainModulesError(s *State) noMainModulesError {
+	return noMainModulesError{
+		inWorkspaceMode: inWorkspaceMode(s),
+	}
+}
 
 type goModDirtyError struct{}
 
