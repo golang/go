@@ -84,7 +84,12 @@ func SchedMetrics() {
 
 	// threadsSlack is the maximum number of threads left over
 	// from the runtime (sysmon, the template thread, etc.)
-	const threadsSlack = 4
+	// Certain build modes may also cause the creation of additional
+	// threads through frequent scheduling, like mayMoreStackPreempt.
+	// A slack of 5 is arbitrary but appears to be enough to cover
+	// the leftovers plus any inflation from scheduling-heavy build
+	// modes.
+	const threadsSlack = 5
 
 	// Make sure GC isn't running, since GC workers interfere with
 	// expected counts.
