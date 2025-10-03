@@ -1938,3 +1938,7 @@ func TraceStack(gp *G, tab *TraceStackTable) {
 }
 
 var X86HasAVX = &x86HasAVX
+
+var DebugDecorateMappings = &debug.decoratemappings
+
+func SetVMANameSupported() bool { return setVMANameSupported() }

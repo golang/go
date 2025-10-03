@@ -55,12 +55,9 @@
 (ZeroExt32to64        x:(I64Load32U _ _)) => x
 (ZeroExt16to(64|32)   x:(I64Load16U _ _)) => x
 (ZeroExt8to(64|32|16) x:(I64Load8U  _ _)) => x
-(SignExt32to64        x) && buildcfg.GOWASM.SignExt => (I64Extend32S x)
-(SignExt8to(64|32|16) x) && buildcfg.GOWASM.SignExt => (I64Extend8S x)
-(SignExt16to(64|32)   x) && buildcfg.GOWASM.SignExt => (I64Extend16S x)
-(SignExt32to64        x) => (I64ShrS (I64Shl x (I64Const [32])) (I64Const [32]))
-(SignExt16to(64|32)   x) => (I64ShrS (I64Shl x (I64Const [48])) (I64Const [48]))
-(SignExt8to(64|32|16) x) => (I64ShrS (I64Shl x (I64Const [56])) (I64Const [56]))
+(SignExt32to64        x) => (I64Extend32S x)
+(SignExt8to(64|32|16) x) => (I64Extend8S x)
+(SignExt16to(64|32)   x) => (I64Extend16S x)
 (ZeroExt32to64        x) => (I64And x (I64Const [0xffffffff]))
 (ZeroExt16to(64|32)   x) => (I64And x (I64Const [0xffff]))
 (ZeroExt8to(64|32|16) x) => (I64And x (I64Const [0xff]))

@@ -402,7 +402,7 @@ var dbgvars = []*dbgVar{
 	{name: "updatemaxprocs", value: &debug.updatemaxprocs, def: 1},
 }
 
-func parsedebugvars() {
+func parseRuntimeDebugVars(godebug string) {
 	// defaults
 	debug.cgocheck = 1
 	debug.invalidptr = 1
@@ -420,12 +420,6 @@ func parsedebugvars() {
 	}
 	debug.traceadvanceperiod = defaultTraceAdvancePeriod
 
-	godebug := gogetenv("GODEBUG")
-
-	p := new(string)
-	*p = godebug
-	godebugEnv.Store(p)
-
 	// apply runtime defaults, if any
 	for _, v := range dbgvars {
 		if v.def != 0 {
@@ -437,7 +431,6 @@ func parsedebugvars() {
 			}
 		}
 	}
-
 	// apply compile-time GODEBUG settings
 	parsegodebug(godebugDefault, nil)
 
@@ -463,6 +456,12 @@ func parsedebugvars() {
 	if debug.gccheckmark > 0 {
 		debug.asyncpreemptoff = 1
 	}
+}
+
+func finishDebugVarsSetup() {
+	p := new(string)
+	*p = gogetenv("GODEBUG")
+	godebugEnv.Store(p)
 
 	setTraceback(gogetenv("GOTRACEBACK"))
 	traceback_env = traceback_cache

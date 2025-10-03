@@ -429,7 +429,7 @@ func (u *unwinder) resolveInternal(innermost, isSyscall bool) {
 			// gp._defer for a defer corresponding to this function, but that
 			// is hard to do with defer records on the stack during a stack copy.)
 			// Note: the +1 is to offset the -1 that
-			// stack.go:getStackMap does to back up a return
+			// (*stkframe).getStackMap does to back up a return
 			// address make sure the pc is in the CALL instruction.
 		} else {
 			frame.continpc = 0
@@ -1206,6 +1206,7 @@ var gStatusStrings = [...]string{
 	_Gwaiting:   "waiting",
 	_Gdead:      "dead",
 	_Gcopystack: "copystack",
+	_Gleaked:    "leaked",
 	_Gpreempted: "preempted",
 }
 
@@ -1226,7 +1227,7 @@ func goroutineheader(gp *g) {
 	}
 
 	// Override.
-	if gpstatus == _Gwaiting && gp.waitreason != waitReasonZero {
+	if (gpstatus == _Gwaiting || gpstatus == _Gleaked) && gp.waitreason != waitReasonZero {
 		status = gp.waitreason.String()
 	}
 
@@ -1245,6 +1246,9 @@ func goroutineheader(gp *g) {
 		}
 	}
 	print(" [", status)
+	if gpstatus == _Gleaked {
+		print(" (leaked)")
+	}
 	if isScan {
 		print(" (scan)")
 	}

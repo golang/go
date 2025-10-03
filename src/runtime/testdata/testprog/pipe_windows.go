@@ -2,14 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !windows
-
-package runtime_test
+package main
 
 import "syscall"
 
-func pipe() (r, w int, err error) {
-	var p [2]int
+func pipe() (r, w syscall.Handle, err error) {
+	var p [2]syscall.Handle
 	err = syscall.Pipe(p[:])
 	return p[0], p[1], err
 }

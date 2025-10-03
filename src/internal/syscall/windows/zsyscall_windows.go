@@ -73,6 +73,7 @@ var (
 	procGetConsoleCP                      = modkernel32.NewProc("GetConsoleCP")
 	procGetCurrentThread                  = modkernel32.NewProc("GetCurrentThread")
 	procGetFileInformationByHandleEx      = modkernel32.NewProc("GetFileInformationByHandleEx")
+	procGetFileSizeEx                     = modkernel32.NewProc("GetFileSizeEx")
 	procGetFinalPathNameByHandleW         = modkernel32.NewProc("GetFinalPathNameByHandleW")
 	procGetModuleFileNameW                = modkernel32.NewProc("GetModuleFileNameW")
 	procGetModuleHandleW                  = modkernel32.NewProc("GetModuleHandleW")
@@ -320,6 +321,14 @@ func GetCurrentThread() (pseudoHandle syscall.Handle, err error) {
 
 func GetFileInformationByHandleEx(handle syscall.Handle, class uint32, info *byte, bufsize uint32) (err error) {
 	r1, _, e1 := syscall.SyscallN(procGetFileInformationByHandleEx.Addr(), uintptr(handle), uintptr(class), uintptr(unsafe.Pointer(info)), uintptr(bufsize))
+	if r1 == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func GetFileSizeEx(handle syscall.Handle, size *int64) (err error) {
+	r1, _, e1 := syscall.SyscallN(procGetFileSizeEx.Addr(), uintptr(handle), uintptr(unsafe.Pointer(size)))
 	if r1 == 0 {
 		err = errnoErr(e1)
 	}

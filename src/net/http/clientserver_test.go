@@ -207,6 +207,8 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 			transportFuncs = append(transportFuncs, opt)
 		case func(*httptest.Server):
 			opt(cst.ts)
+		case func(*Server):
+			opt(cst.ts.Config)
 		default:
 			t.Fatalf("unhandled option type %T", opt)
 		}

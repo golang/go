@@ -9,21 +9,53 @@
 package drbg
 
 import (
-	"crypto/internal/entropy"
 	"crypto/internal/fips140"
+	"crypto/internal/fips140/entropy"
 	"crypto/internal/randutil"
 	"crypto/internal/sysrand"
 	"io"
 	"sync"
+	"sync/atomic"
 )
 
-var drbgs = sync.Pool{
+// memory is a scratch buffer that is accessed between samples by the entropy
+// source to expose it to memory access timings.
+//
+// We reuse it and share it between Seed calls to avoid the significant (~500µs)
+// cost of zeroing a new allocation every time. The entropy source accesses it
+// using atomics (and doesn't care about its contents).
+//
+// It should end up in the .noptrbss section, and become backed by physical pages
+// at first use. This ensures that programs that do not use the FIPS 140-3 module
+// do not incur any memory use or initialization penalties.
+var memory entropy.ScratchBuffer
+
+func getEntropy() *[SeedSize]byte {
+	var retries int
+	seed, err := entropy.Seed(&memory)
+	for err != nil {
+		// The CPU jitter-based SP 800-90B entropy source has a non-negligible
+		// chance of failing the startup health tests.
+		//
+		// Each time it does, it enters a permanent failure state, and we
+		// restart it anew. This is not expected to happen more than a few times
+		// in a row.
+		if retries++; retries > 100 {
+			panic("fips140/drbg: failed to obtain initial entropy")
+		}
+		seed, err = entropy.Seed(&memory)
+	}
+	return &seed
+}
+
+// getEntropy is very slow (~500µs), so we don't want it on the hot path.
+// We keep both a persistent DRBG instance and a pool of additional instances.
+// Occasional uses will use drbgInstance, even if the pool was emptied since the
+// last use. Frequent concurrent uses will fill the pool and use it.
+var drbgInstance atomic.Pointer[Counter]
+var drbgPool = sync.Pool{
 	New: func() any {
-		var c *Counter
-		entropy.Depleted(func(seed *[48]byte) {
-			c = NewCounter(seed)
-		})
-		return c
+		return NewCounter(getEntropy())
 	},
 }
 
@@ -44,8 +76,15 @@ func Read(b []byte) {
 	additionalInput := new([SeedSize]byte)
 	sysrand.Read(additionalInput[:16])
 
-	drbg := drbgs.Get().(*Counter)
-	defer drbgs.Put(drbg)
+	drbg := drbgInstance.Swap(nil)
+	if drbg == nil {
+		drbg = drbgPool.Get().(*Counter)
+	}
+	defer func() {
+		if !drbgInstance.CompareAndSwap(nil, drbg) {
+			drbgPool.Put(drbg)
+		}
+	}()
 
 	for len(b) > 0 {
 		size := min(len(b), maxRequestSize)
@@ -54,9 +93,7 @@ func Read(b []byte) {
 			// Section 9.3.2: if Generate reports a reseed is required, the
 			// additional input is passed to Reseed along with the entropy and
 			// then nulled before the next Generate call.
-			entropy.Depleted(func(seed *[48]byte) {
-				drbg.Reseed(seed, additionalInput)
-			})
+			drbg.Reseed(getEntropy(), additionalInput)
 			additionalInput = nil
 			continue
 		}

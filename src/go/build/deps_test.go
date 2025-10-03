@@ -487,11 +487,16 @@ var depsRules = `
 	internal/byteorder < crypto/internal/fips140deps/byteorder;
 	internal/cpu, internal/goarch < crypto/internal/fips140deps/cpu;
 	internal/godebug < crypto/internal/fips140deps/godebug;
+	time, internal/syscall/windows < crypto/internal/fips140deps/time;
+
+	crypto/internal/fips140deps/time, errors, math/bits, sync/atomic, unsafe
+	< crypto/internal/fips140/entropy;
 
 	STR, hash,
 	crypto/internal/impl,
 	crypto/internal/entropy,
 	crypto/internal/randutil,
+	crypto/internal/fips140/entropy,
 	crypto/internal/fips140deps/byteorder,
 	crypto/internal/fips140deps/cpu,
 	crypto/internal/fips140deps/godebug

@@ -124,7 +124,7 @@ func gcMarkWorkAvailable() bool {
 	if !work.full.empty() {
 		return true // global work available
 	}
-	if work.markrootNext < work.markrootJobs {
+	if work.markrootNext.Load() < work.markrootJobs.Load() {
 		return true // root scan work available
 	}
 	return false

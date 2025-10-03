@@ -108,6 +108,7 @@ const (
 	BlockLOONG64BLT
 	BlockLOONG64BGEU
 	BlockLOONG64BLTU
+	BlockLOONG64JUMPTABLE
 
 	BlockMIPSEQ
 	BlockMIPSNE
@@ -250,20 +251,21 @@ var blockString = [...]string{
 	BlockARM64GEnoov:    "GEnoov",
 	BlockARM64JUMPTABLE: "JUMPTABLE",
 
-	BlockLOONG64EQZ:  "EQZ",
-	BlockLOONG64NEZ:  "NEZ",
-	BlockLOONG64LTZ:  "LTZ",
-	BlockLOONG64LEZ:  "LEZ",
-	BlockLOONG64GTZ:  "GTZ",
-	BlockLOONG64GEZ:  "GEZ",
-	BlockLOONG64FPT:  "FPT",
-	BlockLOONG64FPF:  "FPF",
-	BlockLOONG64BEQ:  "BEQ",
-	BlockLOONG64BNE:  "BNE",
-	BlockLOONG64BGE:  "BGE",
-	BlockLOONG64BLT:  "BLT",
-	BlockLOONG64BGEU: "BGEU",
-	BlockLOONG64BLTU: "BLTU",
+	BlockLOONG64EQZ:       "EQZ",
+	BlockLOONG64NEZ:       "NEZ",
+	BlockLOONG64LTZ:       "LTZ",
+	BlockLOONG64LEZ:       "LEZ",
+	BlockLOONG64GTZ:       "GTZ",
+	BlockLOONG64GEZ:       "GEZ",
+	BlockLOONG64FPT:       "FPT",
+	BlockLOONG64FPF:       "FPF",
+	BlockLOONG64BEQ:       "BEQ",
+	BlockLOONG64BNE:       "BNE",
+	BlockLOONG64BGE:       "BGE",
+	BlockLOONG64BLT:       "BLT",
+	BlockLOONG64BGEU:      "BGEU",
+	BlockLOONG64BLTU:      "BLTU",
+	BlockLOONG64JUMPTABLE: "JUMPTABLE",
 
 	BlockMIPSEQ:  "EQ",
 	BlockMIPSNE:  "NE",

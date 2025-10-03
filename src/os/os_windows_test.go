@@ -1868,10 +1868,26 @@ func TestFileOverlappedSeek(t *testing.T) {
 	if n != int64(len(buf)) {
 		t.Errorf("expected file pointer to be at offset %d, got %d", len(buf), n)
 	}
+	if n, err = f.Seek(1, io.SeekStart); err != nil {
+		t.Fatal(err)
+	} else if n != 1 {
+		t.Errorf("expected file pointer to be at offset %d, got %d", 1, n)
+	}
+	if n, err = f.Seek(-1, io.SeekEnd); err != nil {
+		t.Fatal(err)
+	} else if n != int64(len(content)-1) {
+		t.Errorf("expected file pointer to be at offset %d, got %d", len(content)-1, n)
+	}
+	if _, err := f.Seek(-1, io.SeekStart); !errors.Is(err, windows.ERROR_NEGATIVE_SEEK) {
+		t.Errorf("expected ERROR_NEGATIVE_SEEK, got %v", err)
+	}
+	if _, err := f.Seek(0, -1); !errors.Is(err, windows.ERROR_INVALID_PARAMETER) {
+		t.Errorf("expected ERROR_INVALID_PARAMETER, got %v", err)
+	}
 }
 
-func TestFileOverlappedReadAtVolume(t *testing.T) {
-	// Test that we can use File.ReadAt with an overlapped volume handle.
+func TestFileOverlappedReadAtSeekVolume(t *testing.T) {
+	// Test that we can use File.ReadAt and File.Seek with an overlapped volume handle.
 	// See https://go.dev/issues/74951.
 	t.Parallel()
 	name := `\\.\` + filepath.VolumeName(t.TempDir())
@@ -1886,6 +1902,9 @@ func TestFileOverlappedReadAtVolume(t *testing.T) {
 
 	var buf [0]byte
 	if _, err := f.ReadAt(buf[:], 0); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.Seek(0, io.SeekCurrent); err != nil {
 		t.Fatal(err)
 	}
 }

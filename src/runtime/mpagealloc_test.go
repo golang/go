@@ -343,38 +343,6 @@ func TestPageAllocAlloc(t *testing.T) {
 				BaseChunkIdx: {{0, 25}},
 			},
 		},
-		"AllFree64": {
-			before: map[ChunkIdx][]BitRange{
-				BaseChunkIdx: {},
-			},
-			scav: map[ChunkIdx][]BitRange{
-				BaseChunkIdx: {{21, 1}, {63, 65}},
-			},
-			hits: []hit{
-				{64, PageBase(BaseChunkIdx, 0), 2 * PageSize},
-				{64, PageBase(BaseChunkIdx, 64), 64 * PageSize},
-				{64, PageBase(BaseChunkIdx, 128), 0},
-			},
-			after: map[ChunkIdx][]BitRange{
-				BaseChunkIdx: {{0, 192}},
-			},
-		},
-		"AllFree65": {
-			before: map[ChunkIdx][]BitRange{
-				BaseChunkIdx: {},
-			},
-			scav: map[ChunkIdx][]BitRange{
-				BaseChunkIdx: {{129, 1}},
-			},
-			hits: []hit{
-				{65, PageBase(BaseChunkIdx, 0), 0},
-				{65, PageBase(BaseChunkIdx, 65), PageSize},
-				{65, PageBase(BaseChunkIdx, 130), 0},
-			},
-			after: map[ChunkIdx][]BitRange{
-				BaseChunkIdx: {{0, 195}},
-			},
-		},
 		"ExhaustPallocChunkPages-3": {
 			before: map[ChunkIdx][]BitRange{
 				BaseChunkIdx: {},
@@ -408,25 +376,6 @@ func TestPageAllocAlloc(t *testing.T) {
 			},
 			after: map[ChunkIdx][]BitRange{
 				BaseChunkIdx: {{0, PallocChunkPages}},
-			},
-		},
-		"StraddlePallocChunkPages": {
-			before: map[ChunkIdx][]BitRange{
-				BaseChunkIdx:     {{0, PallocChunkPages / 2}},
-				BaseChunkIdx + 1: {{PallocChunkPages / 2, PallocChunkPages / 2}},
-			},
-			scav: map[ChunkIdx][]BitRange{
-				BaseChunkIdx:     {},
-				BaseChunkIdx + 1: {{3, 100}},
-			},
-			hits: []hit{
-				{PallocChunkPages, PageBase(BaseChunkIdx, PallocChunkPages/2), 100 * PageSize},
-				{PallocChunkPages, 0, 0},
-				{1, 0, 0},
-			},
-			after: map[ChunkIdx][]BitRange{
-				BaseChunkIdx:     {{0, PallocChunkPages}},
-				BaseChunkIdx + 1: {{0, PallocChunkPages}},
 			},
 		},
 		"StraddlePallocChunkPages+1": {
@@ -489,28 +438,6 @@ func TestPageAllocAlloc(t *testing.T) {
 				BaseChunkIdx + 0x41: {{0, PallocChunkPages}},
 			},
 		},
-		"StraddlePallocChunkPages*2": {
-			before: map[ChunkIdx][]BitRange{
-				BaseChunkIdx:     {{0, PallocChunkPages / 2}},
-				BaseChunkIdx + 1: {},
-				BaseChunkIdx + 2: {{PallocChunkPages / 2, PallocChunkPages / 2}},
-			},
-			scav: map[ChunkIdx][]BitRange{
-				BaseChunkIdx:     {{0, 7}},
-				BaseChunkIdx + 1: {{3, 5}, {121, 10}},
-				BaseChunkIdx + 2: {{PallocChunkPages/2 + 12, 2}},
-			},
-			hits: []hit{
-				{PallocChunkPages * 2, PageBase(BaseChunkIdx, PallocChunkPages/2), 15 * PageSize},
-				{PallocChunkPages * 2, 0, 0},
-				{1, 0, 0},
-			},
-			after: map[ChunkIdx][]BitRange{
-				BaseChunkIdx:     {{0, PallocChunkPages}},
-				BaseChunkIdx + 1: {{0, PallocChunkPages}},
-				BaseChunkIdx + 2: {{0, PallocChunkPages}},
-			},
-		},
 		"StraddlePallocChunkPages*5/4": {
 			before: map[ChunkIdx][]BitRange{
 				BaseChunkIdx:     {{0, PallocChunkPages}},
@@ -536,7 +463,60 @@ func TestPageAllocAlloc(t *testing.T) {
 				BaseChunkIdx + 3: {{0, PallocChunkPages}},
 			},
 		},
-		"AllFreePallocChunkPages*7+5": {
+	}
+	if PallocChunkPages >= 512 {
+		tests["AllFree64"] = test{
+			before: map[ChunkIdx][]BitRange{
+				BaseChunkIdx: {},
+			},
+			scav: map[ChunkIdx][]BitRange{
+				BaseChunkIdx: {{21, 1}, {63, 65}},
+			},
+			hits: []hit{
+				{64, PageBase(BaseChunkIdx, 0), 2 * PageSize},
+				{64, PageBase(BaseChunkIdx, 64), 64 * PageSize},
+				{64, PageBase(BaseChunkIdx, 128), 0},
+			},
+			after: map[ChunkIdx][]BitRange{
+				BaseChunkIdx: {{0, 192}},
+			},
+		}
+		tests["AllFree65"] = test{
+			before: map[ChunkIdx][]BitRange{
+				BaseChunkIdx: {},
+			},
+			scav: map[ChunkIdx][]BitRange{
+				BaseChunkIdx: {{129, 1}},
+			},
+			hits: []hit{
+				{65, PageBase(BaseChunkIdx, 0), 0},
+				{65, PageBase(BaseChunkIdx, 65), PageSize},
+				{65, PageBase(BaseChunkIdx, 130), 0},
+			},
+			after: map[ChunkIdx][]BitRange{
+				BaseChunkIdx: {{0, 195}},
+			},
+		}
+		tests["StraddlePallocChunkPages"] = test{
+			before: map[ChunkIdx][]BitRange{
+				BaseChunkIdx:     {{0, PallocChunkPages / 2}},
+				BaseChunkIdx + 1: {{PallocChunkPages / 2, PallocChunkPages / 2}},
+			},
+			scav: map[ChunkIdx][]BitRange{
+				BaseChunkIdx:     {},
+				BaseChunkIdx + 1: {{3, 100}},
+			},
+			hits: []hit{
+				{PallocChunkPages, PageBase(BaseChunkIdx, PallocChunkPages/2), 100 * PageSize},
+				{PallocChunkPages, 0, 0},
+				{1, 0, 0},
+			},
+			after: map[ChunkIdx][]BitRange{
+				BaseChunkIdx:     {{0, PallocChunkPages}},
+				BaseChunkIdx + 1: {{0, PallocChunkPages}},
+			},
+		}
+		tests["AllFreePallocChunkPages*7+5"] = test{
 			before: map[ChunkIdx][]BitRange{
 				BaseChunkIdx:     {},
 				BaseChunkIdx + 1: {},
@@ -572,7 +552,29 @@ func TestPageAllocAlloc(t *testing.T) {
 				BaseChunkIdx + 6: {{0, PallocChunkPages}},
 				BaseChunkIdx + 7: {{0, 6}},
 			},
-		},
+		}
+		tests["StraddlePallocChunkPages*2"] = test{
+			before: map[ChunkIdx][]BitRange{
+				BaseChunkIdx:     {{0, PallocChunkPages / 2}},
+				BaseChunkIdx + 1: {},
+				BaseChunkIdx + 2: {{PallocChunkPages / 2, PallocChunkPages / 2}},
+			},
+			scav: map[ChunkIdx][]BitRange{
+				BaseChunkIdx:     {{0, 7}},
+				BaseChunkIdx + 1: {{3, 5}, {121, 10}},
+				BaseChunkIdx + 2: {{PallocChunkPages/2 + 12, 2}},
+			},
+			hits: []hit{
+				{PallocChunkPages * 2, PageBase(BaseChunkIdx, PallocChunkPages/2), 15 * PageSize},
+				{PallocChunkPages * 2, 0, 0},
+				{1, 0, 0},
+			},
+			after: map[ChunkIdx][]BitRange{
+				BaseChunkIdx:     {{0, PallocChunkPages}},
+				BaseChunkIdx + 1: {{0, PallocChunkPages}},
+				BaseChunkIdx + 2: {{0, PallocChunkPages}},
+			},
+		}
 	}
 	// Disable these tests on iOS since we have a small address space.
 	// See #46860.
@@ -754,12 +756,13 @@ func TestPageAllocFree(t *testing.T) {
 	if GOOS == "openbsd" && testing.Short() {
 		t.Skip("skipping because virtual memory is limited; see #36210")
 	}
-	tests := map[string]struct {
+	type test struct {
 		before map[ChunkIdx][]BitRange
 		after  map[ChunkIdx][]BitRange
 		npages uintptr
 		frees  []uintptr
-	}{
+	}
+	tests := map[string]test{
 		"Free1": {
 			npages: 1,
 			before: map[ChunkIdx][]BitRange{
@@ -838,34 +841,6 @@ func TestPageAllocFree(t *testing.T) {
 			},
 			after: map[ChunkIdx][]BitRange{
 				BaseChunkIdx: {{25, PallocChunkPages - 25}},
-			},
-		},
-		"Free64": {
-			npages: 64,
-			before: map[ChunkIdx][]BitRange{
-				BaseChunkIdx: {{0, PallocChunkPages}},
-			},
-			frees: []uintptr{
-				PageBase(BaseChunkIdx, 0),
-				PageBase(BaseChunkIdx, 64),
-				PageBase(BaseChunkIdx, 128),
-			},
-			after: map[ChunkIdx][]BitRange{
-				BaseChunkIdx: {{192, PallocChunkPages - 192}},
-			},
-		},
-		"Free65": {
-			npages: 65,
-			before: map[ChunkIdx][]BitRange{
-				BaseChunkIdx: {{0, PallocChunkPages}},
-			},
-			frees: []uintptr{
-				PageBase(BaseChunkIdx, 0),
-				PageBase(BaseChunkIdx, 65),
-				PageBase(BaseChunkIdx, 130),
-			},
-			after: map[ChunkIdx][]BitRange{
-				BaseChunkIdx: {{195, PallocChunkPages - 195}},
 			},
 		},
 		"FreePallocChunkPages": {
@@ -964,6 +939,38 @@ func TestPageAllocFree(t *testing.T) {
 				BaseChunkIdx + 7: {{5, PallocChunkPages - 5}},
 			},
 		},
+	}
+	if PallocChunkPages >= 512 {
+		// avoid constant overflow when PallocChunkPages is small
+		var PallocChunkPages uint = PallocChunkPages
+		tests["Free64"] = test{
+			npages: 64,
+			before: map[ChunkIdx][]BitRange{
+				BaseChunkIdx: {{0, PallocChunkPages}},
+			},
+			frees: []uintptr{
+				PageBase(BaseChunkIdx, 0),
+				PageBase(BaseChunkIdx, 64),
+				PageBase(BaseChunkIdx, 128),
+			},
+			after: map[ChunkIdx][]BitRange{
+				BaseChunkIdx: {{192, PallocChunkPages - 192}},
+			},
+		}
+		tests["Free65"] = test{
+			npages: 65,
+			before: map[ChunkIdx][]BitRange{
+				BaseChunkIdx: {{0, PallocChunkPages}},
+			},
+			frees: []uintptr{
+				PageBase(BaseChunkIdx, 0),
+				PageBase(BaseChunkIdx, 65),
+				PageBase(BaseChunkIdx, 130),
+			},
+			after: map[ChunkIdx][]BitRange{
+				BaseChunkIdx: {{195, PallocChunkPages - 195}},
+			},
+		}
 	}
 	for name, v := range tests {
 		v := v

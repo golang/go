@@ -133,36 +133,6 @@ type ReverseProxy struct {
 	// At most one of Rewrite or Director may be set.
 	Rewrite func(*ProxyRequest)
 
-	// Director is a function which modifies
-	// the request into a new request to be sent
-	// using Transport. Its response is then copied
-	// back to the original client unmodified.
-	// Director must not access the provided Request
-	// after returning.
-	//
-	// By default, the X-Forwarded-For header is set to the
-	// value of the client IP address. If an X-Forwarded-For
-	// header already exists, the client IP is appended to the
-	// existing values. As a special case, if the header
-	// exists in the Request.Header map but has a nil value
-	// (such as when set by the Director func), the X-Forwarded-For
-	// header is not modified.
-	//
-	// To prevent IP spoofing, be sure to delete any pre-existing
-	// X-Forwarded-For header coming from the client or
-	// an untrusted proxy.
-	//
-	// Hop-by-hop headers are removed from the request after
-	// Director returns, which can remove headers added by
-	// Director. Use a Rewrite function instead to ensure
-	// modifications to the request are preserved.
-	//
-	// Unparsable query parameters are removed from the outbound
-	// request if Request.Form is set after Director returns.
-	//
-	// At most one of Rewrite or Director may be set.
-	Director func(*http.Request)
-
 	// The transport used to perform proxy requests.
 	// If nil, http.DefaultTransport is used.
 	Transport http.RoundTripper
@@ -210,6 +180,88 @@ type ReverseProxy struct {
 	// If nil, the default is to log the provided error and return
 	// a 502 Status Bad Gateway response.
 	ErrorHandler func(http.ResponseWriter, *http.Request, error)
+
+	// Director is deprecated. Use Rewrite instead.
+	//
+	// This function is insecure:
+	//
+	//   - Hop-by-hop headers are removed from the request after Director
+	//     returns, which can remove headers added by Director.
+	//     A client can designate headers as hop-by-hop by listing them
+	//     in the Connection header, so this permits a malicious client
+	//     to remove any headers that may be added by Director.
+	//
+	//   - X-Forwarded-For, X-Forwarded-Host, and X-Forwarded-Proto
+	//     headers in inbound requests are preserved by default,
+	//     which can permit IP spoofing if the Director function is
+	//     not careful to remove these headers.
+	//
+	// Rewrite addresses these issues.
+	//
+	// As an example of converting a Director function to Rewrite:
+	//
+	//	// ReverseProxy with a Director function.
+	//	proxy := &httputil.ReverseProxy{
+	//		Director: func(req *http.Request) {
+	//			req.URL.Scheme = "https"
+	//			req.URL.Host = proxyHost
+	//
+	//			// A malicious client can remove this header.
+	//			req.Header.Set("Some-Header", "some-header-value")
+	//
+	//			// X-Forwarded-* headers sent by the client are preserved,
+	//			// since Director did not remove them.
+	//		},
+	//	}
+	//
+	//	// ReverseProxy with a Rewrite function.
+	//	proxy := &httputil.ReverseProxy{
+	//		Rewrite: func(preq *httputil.ProxyRequest) {
+	//			// See also ProxyRequest.SetURL.
+	//			preq.Out.URL.Scheme = "https"
+	//			preq.Out.URL.Host = proxyHost
+	//
+	//			// This header cannot be affected by a malicious client.
+	//			preq.Out.Header.Set("Some-Header", "some-header-value")
+	//
+	//			// X-Forwarded- headers sent by the client have been
+	//			// removed from preq.Out.
+	//			// ProxyRequest.SetXForwarded optionally adds new ones.
+	//			preq.SetXForwarded()
+	//		},
+	//	}
+	//
+	// Director is a function which modifies
+	// the request into a new request to be sent
+	// using Transport. Its response is then copied
+	// back to the original client unmodified.
+	// Director must not access the provided Request
+	// after returning.
+	//
+	// By default, the X-Forwarded-For header is set to the
+	// value of the client IP address. If an X-Forwarded-For
+	// header already exists, the client IP is appended to the
+	// existing values. As a special case, if the header
+	// exists in the Request.Header map but has a nil value
+	// (such as when set by the Director func), the X-Forwarded-For
+	// header is not modified.
+	//
+	// To prevent IP spoofing, be sure to delete any pre-existing
+	// X-Forwarded-For header coming from the client or
+	// an untrusted proxy.
+	//
+	// Hop-by-hop headers are removed from the request after
+	// Director returns, which can remove headers added by
+	// Director. Use a Rewrite function instead to ensure
+	// modifications to the request are preserved.
+	//
+	// Unparsable query parameters are removed from the outbound
+	// request if Request.Form is set after Director returns.
+	//
+	// At most one of Rewrite or Director may be set.
+	//
+	// Deprecated: Use Rewrite instead.
+	Director func(*http.Request)
 }
 
 // A BufferPool is an interface for getting and returning temporary
@@ -258,6 +310,10 @@ func joinURLPath(a, b *url.URL) (path, rawpath string) {
 // the target request will be for /base/dir.
 //
 // NewSingleHostReverseProxy does not rewrite the Host header.
+//
+// For backwards compatibility reasons, NewSingleHostReverseProxy
+// returns a ReverseProxy using the deprecated Director function.
+// This proxy preserves X-Forwarded-* headers sent by the client.
 //
 // To customize the ReverseProxy behavior beyond what
 // NewSingleHostReverseProxy provides, use ReverseProxy directly

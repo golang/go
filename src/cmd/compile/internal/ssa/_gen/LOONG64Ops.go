@@ -577,6 +577,12 @@ func init() {
 		{name: "BLT", controls: 2},  // controls[0] < controls[1]
 		{name: "BGEU", controls: 2}, // controls[0] >= controls[1], unsigned
 		{name: "BLTU", controls: 2}, // controls[0] < controls[1], unsigned
+
+		// JUMPTABLE implements jump tables.
+		// Aux is the symbol (an *obj.LSym) for the jump table.
+		// control[0] is the index into the jump table.
+		// control[1] is the address of the jump table (the address of the symbol stored in Aux).
+		{name: "JUMPTABLE", controls: 2, aux: "Sym"},
 	}
 
 	archs = append(archs, arch{

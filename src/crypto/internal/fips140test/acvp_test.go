@@ -1624,7 +1624,7 @@ func cmdHmacDrbgAft(h func() hash.Hash) command {
 			//   * Uninstantiate
 			// See Table 7 in draft-vassilev-acvp-drbg
 			out := make([]byte, outLen)
-			drbg := ecdsa.TestingOnlyNewDRBG(func() fips140.Hash { return h() }, entropy, nonce, personalization)
+			drbg := ecdsa.TestingOnlyNewDRBG(h, entropy, nonce, personalization)
 			drbg.Generate(out)
 			drbg.Generate(out)
 

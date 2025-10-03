@@ -9,6 +9,66 @@
 #include "funcdata.h"
 #include "textflag.h"
 #include "asm_ppc64x.h"
+#include "cgo/abi_ppc64x.h"
+
+
+TEXT _rt0_ppc64x_lib(SB),NOSPLIT|NOFRAME,$0
+	// This is called with ELFv2 calling conventions. Convert to Go.
+	// Allocate argument storage for call to newosproc0.
+	STACK_AND_SAVE_HOST_TO_GO_ABI(16)
+
+	MOVD	R3, _rt0_ppc64x_lib_argc<>(SB)
+	MOVD	R4, _rt0_ppc64x_lib_argv<>(SB)
+
+	// Synchronous initialization.
+	MOVD	$runtime·reginit(SB), R12
+	MOVD	R12, CTR
+	BL	(CTR)
+	MOVD	$runtime·libpreinit(SB), R12
+	MOVD	R12, CTR
+	BL	(CTR)
+
+	// Create a new thread to do the runtime initialization and return.
+	MOVD	_cgo_sys_thread_create(SB), R12
+	CMP	$0, R12
+	BEQ	nocgo
+	MOVD	$_rt0_ppc64x_lib_go(SB), R3
+	MOVD	$0, R4
+	MOVD	R12, CTR
+	BL	(CTR)
+	BR	done
+
+nocgo:
+	MOVD	$0x800000, R12                     // stacksize = 8192KB
+	MOVD	R12, 8+FIXED_FRAME(R1)
+	MOVD	$_rt0_ppc64x_lib_go(SB), R12
+	MOVD	R12, 16+FIXED_FRAME(R1)
+	MOVD	$runtime·newosproc0(SB),R12
+	MOVD	R12, CTR
+	BL	(CTR)
+
+done:
+	// Restore and return to ELFv2 caller.
+	UNSTACK_AND_RESTORE_GO_TO_HOST_ABI(16)
+	RET
+
+#ifdef GO_PPC64X_HAS_FUNCDESC
+DEFINE_PPC64X_FUNCDESC(_rt0_ppc64x_lib_go, __rt0_ppc64x_lib_go)
+TEXT __rt0_ppc64x_lib_go(SB),NOSPLIT,$0
+#else
+TEXT _rt0_ppc64x_lib_go(SB),NOSPLIT,$0
+#endif
+	MOVD	_rt0_ppc64x_lib_argc<>(SB), R3
+	MOVD	_rt0_ppc64x_lib_argv<>(SB), R4
+	MOVD	$runtime·rt0_go(SB), R12
+	MOVD	R12, CTR
+	BR	(CTR)
+
+DATA _rt0_ppc64x_lib_argc<>(SB)/8, $0
+GLOBL _rt0_ppc64x_lib_argc<>(SB),NOPTR, $8
+DATA _rt0_ppc64x_lib_argv<>(SB)/8, $0
+GLOBL _rt0_ppc64x_lib_argv<>(SB),NOPTR, $8
+
 
 #ifdef GOOS_aix
 #define cgoCalleeStackSize 48

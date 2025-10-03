@@ -35,7 +35,7 @@ type echServerContext struct {
 	configID    uint8
 	ciphersuite echCipher
 	transcript  hash.Hash
-	// inner indicates that the initial client_hello we recieved contained an
+	// inner indicates that the initial client_hello we received contained an
 	// encrypted_client_hello extension that indicated it was an "inner" hello.
 	// We don't do any additional processing of the hello in this case, so all
 	// fields above are unset.

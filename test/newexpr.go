@@ -29,4 +29,11 @@ func main() {
 			panic("wrong value")
 		}
 	}
+	{
+		var i int
+		v := new(i > 0) // untyped expression, see issue #75617
+		if *v != false {
+			panic("wrong value")
+		}
+	}
 }
