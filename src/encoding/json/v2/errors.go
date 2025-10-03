@@ -28,8 +28,7 @@ import (
 // The name of an unknown JSON object member can be extracted as:
 //
 //	err := ...
-//	var serr json.SemanticError
-//	if errors.As(err, &serr) && serr.Err == json.ErrUnknownName {
+//	if serr, ok := errors.AsType[json.SemanticError](err); ok && serr.Err == json.ErrUnknownName {
 //		ptr := serr.JSONPointer // JSON pointer to unknown name
 //		name := ptr.LastToken() // unknown name itself
 //		...

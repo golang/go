@@ -283,7 +283,7 @@ func reportError(q *query, err error) {
 	// If err already mentions all of the relevant parts of q, just log err to
 	// reduce stutter. Otherwise, log both q and err.
 	//
-	// TODO(bcmills): Use errors.As to unpack these errors instead of parsing
+	// TODO(bcmills): Use errors.AsType to unpack these errors instead of parsing
 	// strings with regular expressions.
 
 	if !utf8.ValidString(q.pattern) || !utf8.ValidString(q.version) {

@@ -932,7 +932,7 @@ func tidyPrunedRoots(ctx context.Context, mainModule module.Version, old *Requir
 			q.Add(func() {
 				skipModFile := true
 				_, _, _, _, err := importFromModules(ctx, pkg.path, tidy, nil, skipModFile)
-				if aie := (*AmbiguousImportError)(nil); errors.As(err, &aie) {
+				if _, ok := errors.AsType[*AmbiguousImportError](err); ok {
 					disambiguateRoot.Store(pkg.mod, true)
 				}
 			})

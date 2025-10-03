@@ -2627,8 +2627,7 @@ func TestLongDNSNames(t *testing.T) {
 				}
 
 				expectedErr := DNSError{Err: errNoSuchHost.Error(), Name: v.req, IsNotFound: true}
-				var dnsErr *DNSError
-				errors.As(err, &dnsErr)
+				dnsErr, _ := errors.AsType[*DNSError](err)
 				if dnsErr == nil || *dnsErr != expectedErr {
 					t.Errorf("%v: Lookup%v: unexpected error: %v", i, testName, err)
 				}
@@ -2820,8 +2819,7 @@ func TestLookupOrderFilesNoSuchHost(t *testing.T) {
 		}
 
 		expectedErr := DNSError{Err: errNoSuchHost.Error(), Name: testName, IsNotFound: true}
-		var dnsErr *DNSError
-		errors.As(err, &dnsErr)
+		dnsErr, _ := errors.AsType[*DNSError](err)
 		if dnsErr == nil || *dnsErr != expectedErr {
 			t.Errorf("Lookup%v: unexpected error: %v", v.name, err)
 		}
@@ -2853,8 +2851,7 @@ func TestExtendedRCode(t *testing.T) {
 
 	r := &Resolver{PreferGo: true, Dial: fake.DialContext}
 	_, _, err := r.tryOneName(context.Background(), getSystemDNSConfig(), "go.dev.", dnsmessage.TypeA)
-	var dnsErr *DNSError
-	if !(errors.As(err, &dnsErr) && dnsErr.Err == errServerMisbehaving.Error()) {
+	if dnsErr, ok := errors.AsType[*DNSError](err); !ok || dnsErr.Err != errServerMisbehaving.Error() {
 		t.Fatalf("r.tryOneName(): unexpected error: %v", err)
 	}
 }

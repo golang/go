@@ -226,8 +226,10 @@ func editRequirements(ctx context.Context, rs *Requirements, tryUpgrade, mustSel
 		// conflict we discover from one or more of the original roots.
 		mg, upgradedRoots, err := extendGraph(ctx, rootPruning, roots, selectedRoot)
 		if err != nil {
-			var tooNew *gover.TooNewError
-			if mg == nil || errors.As(err, &tooNew) {
+			if mg == nil {
+				return orig, false, err
+			}
+			if _, ok := errors.AsType[*gover.TooNewError](err); ok {
 				return orig, false, err
 			}
 			// We're about to walk the entire extended module graph, so we will find

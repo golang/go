@@ -89,7 +89,7 @@ func Run(t testing.TB, e *script.Engine, s *script.State, filename string, testS
 		return e.Execute(s, filename, bufio.NewReader(testScript), log)
 	}()
 
-	if skip := (skipError{}); errors.As(err, &skip) {
+	if skip, ok := errors.AsType[skipError](err); ok {
 		if skip.msg == "" {
 			t.Skip("SKIP")
 		} else {

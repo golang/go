@@ -705,7 +705,7 @@ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
 				continue
 			}
 			haveErrors = true
-			if missingErr := (*modload.ImportMissingError)(nil); !errors.As(pkg.Error, &missingErr) {
+			if _, ok := errors.AsType[*modload.ImportMissingError](pkg.Error); !ok {
 				allMissingErrors = false
 				break
 			}

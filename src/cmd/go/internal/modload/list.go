@@ -305,13 +305,11 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 // modinfoError wraps an error to create an error message in
 // modinfo.ModuleError with minimal redundancy.
 func modinfoError(path, vers string, err error) *modinfo.ModuleError {
-	var nerr *NoMatchingVersionError
-	var merr *module.ModuleError
-	if errors.As(err, &nerr) {
+	if _, ok := errors.AsType[*NoMatchingVersionError](err); ok {
 		// NoMatchingVersionError contains the query, so we don't mention the
 		// query again in ModuleError.
 		err = &module.ModuleError{Path: path, Err: err}
-	} else if !errors.As(err, &merr) {
+	} else if _, ok := errors.AsType[*module.ModuleError](err); !ok {
 		// If the error does not contain path and version, wrap it in a
 		// module.ModuleError.
 		err = &module.ModuleError{Path: path, Version: vers, Err: err}
