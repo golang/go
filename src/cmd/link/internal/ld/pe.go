@@ -1758,7 +1758,9 @@ func peCreateExportFile(ctxt *Link, libName string) (fname string) {
 	fname = filepath.Join(*flagTmpdir, "export_file.def")
 	var buf bytes.Buffer
 
-	fmt.Fprintf(&buf, "LIBRARY %s\n", libName)
+	if ctxt.BuildMode == BuildModeCShared {
+		fmt.Fprintf(&buf, "LIBRARY %s\n", libName)
+	}
 	buf.WriteString("EXPORTS\n")
 
 	ldr := ctxt.loader
