@@ -289,9 +289,9 @@ dependencies, so is not suitable for distributed build systems.)
   ```
   After that, your edit/compile/test cycle can be similar to:
   ```
-  <... make edits to cmd/compile source ...>
+  [... make edits to cmd/compile source ...]
   $ toolstash restore && go install cmd/compile   # restore known good tools to build compiler
-  <... 'go build', 'go test', etc. ...>           # use freshly built compiler
+  [... 'go build', 'go test', etc. ...]           # use freshly built compiler
   ```
 
 * toolstash also allows comparing the installed vs. stashed copy of
