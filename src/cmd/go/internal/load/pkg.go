@@ -3398,7 +3398,7 @@ func PackagesAndErrorsOutsideModule(loaderstate *modload.State, ctx context.Cont
 	// (first result). It's possible this module won't provide packages named by
 	// later arguments, and other modules would. Let's not try to be too
 	// magical though.
-	allowed := modload.CheckAllowed
+	allowed := loaderstate.CheckAllowed
 	if modload.IsRevisionQuery(firstPath, version) {
 		// Don't check for retractions if a specific revision is requested.
 		allowed = nil

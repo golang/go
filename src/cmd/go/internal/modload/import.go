@@ -612,7 +612,7 @@ func queryImport(loaderstate *State, ctx context.Context, path string, rs *Requi
 		return module.Version{}, err
 	}
 
-	candidates, err := QueryPackages(loaderstate, ctx, path, "latest", mg.Selected, CheckAllowed)
+	candidates, err := QueryPackages(loaderstate, ctx, path, "latest", mg.Selected, loaderstate.CheckAllowed)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			// Return "cannot find module providing package […]" instead of whatever

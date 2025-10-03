@@ -116,7 +116,7 @@ func previousVersion(loaderstate *State, ctx context.Context, m module.Version) 
 		return module.Version{Path: m.Path, Version: "none"}, nil
 	}
 
-	list, _, err := versions(loaderstate, ctx, m.Path, CheckAllowed)
+	list, _, err := versions(loaderstate, ctx, m.Path, loaderstate.CheckAllowed)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return module.Version{Path: m.Path, Version: "none"}, nil

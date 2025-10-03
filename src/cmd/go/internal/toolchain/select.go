@@ -700,7 +700,7 @@ func maybeSwitchForGoInstallVersion(loaderstate *modload.State, minVers string) 
 
 	// See internal/load.PackagesAndErrorsOutsideModule
 	ctx := context.Background()
-	allowed := modload.CheckAllowed
+	allowed := loaderstate.CheckAllowed
 	if modload.IsRevisionQuery(path, version) {
 		// Don't check for retractions if a specific revision is requested.
 		allowed = nil

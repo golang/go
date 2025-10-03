@@ -686,12 +686,12 @@ func (r *resolver) queryPattern(loaderstate *modload.State, ctx context.Context,
 func (r *resolver) checkAllowedOr(s *modload.State, requested string, selected func(string) string) modload.AllowedFunc {
 	return func(ctx context.Context, m module.Version) error {
 		if m.Version == requested {
-			return modload.CheckExclusions(ctx, m)
+			return s.CheckExclusions(ctx, m)
 		}
 		if (requested == "upgrade" || requested == "patch") && m.Version == selected(m.Path) {
 			return nil
 		}
-		return modload.CheckAllowed(ctx, m)
+		return s.CheckAllowed(ctx, m)
 	}
 }
 
@@ -1715,7 +1715,7 @@ func (r *resolver) checkPackageProblems(loaderstate *modload.State, ctx context.
 	for i := range retractions {
 		i := i
 		r.work.Add(func() {
-			err := modload.CheckRetractions(loaderstate, ctx, retractions[i].m)
+			err := loaderstate.CheckRetractions(ctx, retractions[i].m)
 			if _, ok := errors.AsType[*modload.ModuleRetractedError](err); ok {
 				retractions[i].message = err.Error()
 			}

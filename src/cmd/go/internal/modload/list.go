@@ -192,7 +192,7 @@ func listModules(loaderstate *State, ctx context.Context, rs *Requirements, args
 				}
 			}
 
-			allowed := CheckAllowed
+			allowed := loaderstate.CheckAllowed
 			if IsRevisionQuery(path, vers) || mode&ListRetracted != 0 {
 				// Allow excluded and retracted versions if the user asked for a
 				// specific revision or used 'go list -retracted'.
