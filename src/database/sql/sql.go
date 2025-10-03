@@ -3366,7 +3366,7 @@ func (rs *Rows) Scan(dest ...any) error {
 	if rs.closemuScanHold {
 		// This should only be possible if the user calls Scan twice in a row
 		// without calling Next.
-		return fmt.Errorf("sql: Scan called without calling Next (closemuScanHold)")
+		return errors.New("sql: Scan called without calling Next (closemuScanHold)")
 	}
 
 	rs.closemu.RLock()
