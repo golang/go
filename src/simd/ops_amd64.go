@@ -7872,6 +7872,104 @@ func (x Uint32x16) moveMasked(mask Mask32x16) Uint32x16
 // Asm: VMOVDQU64, CPU Feature: AVX512
 func (x Uint64x8) moveMasked(mask Mask64x8) Uint64x8
 
+/* tern */
+
+// tern performs a logical operation on three vectors based on the 8-bit truth table.
+// Bitwise, the result is equal to 1 & (table >> (x<<2 + y<<1 + z))
+//
+// table results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPTERNLOGD, CPU Feature: AVX512
+func (x Int32x4) tern(table uint8, y Int32x4, z Int32x4) Int32x4
+
+// tern performs a logical operation on three vectors based on the 8-bit truth table.
+// Bitwise, the result is equal to 1 & (table >> (x<<2 + y<<1 + z))
+//
+// table results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPTERNLOGD, CPU Feature: AVX512
+func (x Int32x8) tern(table uint8, y Int32x8, z Int32x8) Int32x8
+
+// tern performs a logical operation on three vectors based on the 8-bit truth table.
+// Bitwise, the result is equal to 1 & (table >> (x<<2 + y<<1 + z))
+//
+// table results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPTERNLOGD, CPU Feature: AVX512
+func (x Int32x16) tern(table uint8, y Int32x16, z Int32x16) Int32x16
+
+// tern performs a logical operation on three vectors based on the 8-bit truth table.
+// Bitwise, the result is equal to 1 & (table >> (x<<2 + y<<1 + z))
+//
+// table results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPTERNLOGQ, CPU Feature: AVX512
+func (x Int64x2) tern(table uint8, y Int64x2, z Int64x2) Int64x2
+
+// tern performs a logical operation on three vectors based on the 8-bit truth table.
+// Bitwise, the result is equal to 1 & (table >> (x<<2 + y<<1 + z))
+//
+// table results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPTERNLOGQ, CPU Feature: AVX512
+func (x Int64x4) tern(table uint8, y Int64x4, z Int64x4) Int64x4
+
+// tern performs a logical operation on three vectors based on the 8-bit truth table.
+// Bitwise, the result is equal to 1 & (table >> (x<<2 + y<<1 + z))
+//
+// table results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPTERNLOGQ, CPU Feature: AVX512
+func (x Int64x8) tern(table uint8, y Int64x8, z Int64x8) Int64x8
+
+// tern performs a logical operation on three vectors based on the 8-bit truth table.
+// Bitwise, the result is equal to 1 & (table >> (x<<2 + y<<1 + z))
+//
+// table results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPTERNLOGD, CPU Feature: AVX512
+func (x Uint32x4) tern(table uint8, y Uint32x4, z Uint32x4) Uint32x4
+
+// tern performs a logical operation on three vectors based on the 8-bit truth table.
+// Bitwise, the result is equal to 1 & (table >> (x<<2 + y<<1 + z))
+//
+// table results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPTERNLOGD, CPU Feature: AVX512
+func (x Uint32x8) tern(table uint8, y Uint32x8, z Uint32x8) Uint32x8
+
+// tern performs a logical operation on three vectors based on the 8-bit truth table.
+// Bitwise, the result is equal to 1 & (table >> (x<<2 + y<<1 + z))
+//
+// table results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPTERNLOGD, CPU Feature: AVX512
+func (x Uint32x16) tern(table uint8, y Uint32x16, z Uint32x16) Uint32x16
+
+// tern performs a logical operation on three vectors based on the 8-bit truth table.
+// Bitwise, the result is equal to 1 & (table >> (x<<2 + y<<1 + z))
+//
+// table results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPTERNLOGQ, CPU Feature: AVX512
+func (x Uint64x2) tern(table uint8, y Uint64x2, z Uint64x2) Uint64x2
+
+// tern performs a logical operation on three vectors based on the 8-bit truth table.
+// Bitwise, the result is equal to 1 & (table >> (x<<2 + y<<1 + z))
+//
+// table results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPTERNLOGQ, CPU Feature: AVX512
+func (x Uint64x4) tern(table uint8, y Uint64x4, z Uint64x4) Uint64x4
+
+// tern performs a logical operation on three vectors based on the 8-bit truth table.
+// Bitwise, the result is equal to 1 & (table >> (x<<2 + y<<1 + z))
+//
+// table results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPTERNLOGQ, CPU Feature: AVX512
+func (x Uint64x8) tern(table uint8, y Uint64x8, z Uint64x8) Uint64x8
+
 // Float64x2 converts from Float32x4 to Float64x2
 func (from Float32x4) AsFloat64x2() (to Float64x2)
 

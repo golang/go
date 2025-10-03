@@ -1288,5 +1288,17 @@ func simdGenericOps() []opData {
 		{name: "concatSelectedConstantInt64x2", argLength: 2, commutative: false, aux: "UInt8"},
 		{name: "concatSelectedConstantUint32x4", argLength: 2, commutative: false, aux: "UInt8"},
 		{name: "concatSelectedConstantUint64x2", argLength: 2, commutative: false, aux: "UInt8"},
+		{name: "ternInt32x4", argLength: 3, commutative: false, aux: "UInt8"},
+		{name: "ternInt32x8", argLength: 3, commutative: false, aux: "UInt8"},
+		{name: "ternInt32x16", argLength: 3, commutative: false, aux: "UInt8"},
+		{name: "ternInt64x2", argLength: 3, commutative: false, aux: "UInt8"},
+		{name: "ternInt64x4", argLength: 3, commutative: false, aux: "UInt8"},
+		{name: "ternInt64x8", argLength: 3, commutative: false, aux: "UInt8"},
+		{name: "ternUint32x4", argLength: 3, commutative: false, aux: "UInt8"},
+		{name: "ternUint32x8", argLength: 3, commutative: false, aux: "UInt8"},
+		{name: "ternUint32x16", argLength: 3, commutative: false, aux: "UInt8"},
+		{name: "ternUint64x2", argLength: 3, commutative: false, aux: "UInt8"},
+		{name: "ternUint64x4", argLength: 3, commutative: false, aux: "UInt8"},
+		{name: "ternUint64x8", argLength: 3, commutative: false, aux: "UInt8"},
 	}
 }

@@ -47,6 +47,31 @@ func TestConcatSelectedConstantGrouped32(t *testing.T) {
 	test_helpers.CheckSlices[uint32](t, a, []uint32{2, 0, 5, 7, 10, 8, 13, 15})
 }
 
+func TestTern(t *testing.T) {
+	if !HasAVX512() {
+		t.Skip("This test needs AVX512")
+	}
+	x := LoadInt32x8Slice([]int32{0, 0, 0, 0, 1, 1, 1, 1})
+	y := LoadInt32x8Slice([]int32{0, 0, 1, 1, 0, 0, 1, 1})
+	z := LoadInt32x8Slice([]int32{0, 1, 0, 1, 0, 1, 0, 1})
+
+	foo := func(w Int32x8, k uint8) {
+		a := make([]int32, 8)
+		w.StoreSlice(a)
+		t.Logf("For k=%0b, w=%v", k, a)
+		for i, b := range a {
+			if (int32(k)>>i)&1 != b {
+				t.Errorf("Element %d of stored slice (=%d) did not match corresponding bit in 0b%b",
+					i, b, k)
+			}
+		}
+	}
+
+	foo(x.tern(0b1111_0000, y, z), 0b1111_0000)
+	foo(x.tern(0b1100_1100, y, z), 0b1100_1100)
+	foo(x.tern(0b1010_1010, y, z), 0b1010_1010)
+}
+
 func TestSelect2x4x32(t *testing.T) {
 	for a := range uint8(8) {
 		for b := range uint8(8) {

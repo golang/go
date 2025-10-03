@@ -126,3 +126,17 @@
   inVariant: []
   in: *twoI16x32
   out: *oneI16x32
+
+- go: tern
+  asm: "VPTERNLOGD|VPTERNLOGQ"
+  in:
+  - &tern_op
+    go: $t
+  - *tern_op
+  - *tern_op
+  - class: immediate
+    immOffset: 0
+    name: table
+  inVariant: []
+  out:
+  - *tern_op

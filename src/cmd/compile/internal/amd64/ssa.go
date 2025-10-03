@@ -2095,6 +2095,37 @@ func simdV31ResultInArg0(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	return p
 }
 
+func simdV31ResultInArg0Imm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Offset = int64(v.AuxUInt8())
+	p.From.Type = obj.TYPE_CONST
+
+	p.AddRestSourceReg(simdReg(v.Args[2]))
+	p.AddRestSourceReg(simdReg(v.Args[1]))
+	// p.AddRestSourceReg(x86.REG_K0)
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// v31loadResultInArg0Imm8
+// Example instruction:
+// for (VPTERNLOGD128load {sym} [makeValAndOff(int32(int8(c)),off)]  x y ptr mem)
+func simdV31loadResultInArg0Imm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	sc := v.AuxValAndOff()
+	p := s.Prog(v.Op.Asm())
+
+	p.From.Type = obj.TYPE_CONST
+	p.From.Offset = sc.Val64()
+
+	m := obj.Addr{Type: obj.TYPE_MEM, Reg: v.Args[2].Reg()}
+	ssagen.AddAux2(&m, v, sc.Off64())
+	p.AddRestSource(m)
+
+	p.AddRestSourceReg(simdReg(v.Args[1]))
+	return p
+}
+
 // Example instruction: VFMADD213PD Z2, Z1, K1, Z0
 func simdV3kvResultInArg0(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
