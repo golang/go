@@ -29,6 +29,10 @@ func TestWriter(t *testing.T) {
 			t.Fatalf("WriteField: %v", err)
 		}
 		part.Write([]byte("val"))
+		err = w.WriteFile("myfile2", "my-file2.txt", strings.NewReader("val2"))
+		if err != nil {
+			t.Fatalf("Close: %v", err)
+		}
 		err = w.Close()
 		if err != nil {
 			t.Fatalf("Close: %v", err)
@@ -72,6 +76,21 @@ func TestWriter(t *testing.T) {
 	}
 	if e, g := "val", string(slurp); e != g {
 		t.Errorf("part 2: want contents %q, got %q", e, g)
+	}
+
+	part, err = r.NextPart()
+	if err != nil {
+		t.Fatalf("part 3: %v", err)
+	}
+	if g, e := part.FormName(), "myfile2"; g != e {
+		t.Errorf("part 3: want form name %q, got %q", e, g)
+	}
+	slurp, err = io.ReadAll(part)
+	if err != nil {
+		t.Fatalf("part 3: ReadAll: %v", err)
+	}
+	if e, g := "val2", string(slurp); e != g {
+		t.Errorf("part 3: want contents %q, got %q", e, g)
 	}
 
 	part, err = r.NextPart()
