@@ -554,7 +554,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 		a.Deps = append(a.Deps, b.AutoAction(modload.LoaderState, ModeBuild, depMode, p))
 	}
 	if cfg.BuildBuildmode == "shared" {
-		a = b.buildmodeShared(ModeBuild, depMode, args, pkgs, a)
+		a = b.buildmodeShared(modload.LoaderState, ModeBuild, depMode, args, pkgs, a)
 	}
 	b.Do(ctx, a)
 }
@@ -819,7 +819,7 @@ func InstallPackages(ctx context.Context, patterns []string, pkgs []*load.Packag
 		// tools above did not apply, and a is just a simple Action
 		// with a list of Deps, one per package named in pkgs,
 		// the same as in runBuild.
-		a = b.buildmodeShared(ModeInstall, ModeInstall, patterns, pkgs, a)
+		a = b.buildmodeShared(modload.LoaderState, ModeInstall, ModeInstall, patterns, pkgs, a)
 	}
 
 	b.Do(ctx, a)
