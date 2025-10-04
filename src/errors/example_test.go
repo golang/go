@@ -125,55 +125,34 @@ func ExampleUnwrap() {
 }
 
 func ExampleIsAny() {
-	var (
-		ErrNotFound   = errors.New("not found")
-		ErrPermission = errors.New("permission denied")
-		ErrTimeout    = errors.New("timeout")
-	)
-
-	// Simulate receiving an error
-	err := fmt.Errorf("database query failed: %w", ErrTimeout)
-
-	// Check if the error matches any of the known errors
-	if errors.IsAny(err, ErrNotFound, ErrPermission, ErrTimeout) {
-		fmt.Println("error is one of the expected types")
+	if _, err := os.Open("non-existing"); err != nil {
+		if errors.IsAny(err, fs.ErrNotExist, fs.ErrInvalid) {
+			fmt.Println("file does not exist")
+		} else {
+			fmt.Println(err)
+		}
 	}
-
-	// Check against a different set
-	if !errors.IsAny(err, ErrNotFound, ErrPermission) {
-		fmt.Println("error is not a not-found or permission error")
-	}
-
 	// Output:
-	// error is one of the expected types
-	// error is not a not-found or permission error
+	// file does not exist
 }
 
 func ExampleMatch() {
-	var (
-		ErrNotFound     = errors.New("not found")
-		ErrNetworkIssue = errors.New("network issue")
-		ErrDiskFull     = errors.New("disk full")
-	)
+	_, err := os.Open("non-existing")
 
-	err := fmt.Errorf("operation failed: %w", ErrNetworkIssue)
-
-	// Match returns the matched error from the targets
-	if matched := errors.Match(err, ErrNotFound, ErrNetworkIssue, ErrDiskFull); matched != nil {
+	matched := errors.Match(err, fs.ErrNotExist, fs.ErrInvalid)
+	if matched != nil {
 		fmt.Println("matched error:", matched)
+	} else {
+		fmt.Println("no match")
 	}
 
-	// Can be used in a switch statement
-	switch errors.Match(err, ErrNotFound, ErrNetworkIssue, ErrDiskFull) {
-	case ErrNotFound:
-		fmt.Println("resource not found")
-	case ErrNetworkIssue:
-		fmt.Println("network issue detected")
-	case ErrDiskFull:
-		fmt.Println("disk is full")
+	switch matched {
+	case fs.ErrNotExist:
+		fmt.Println("file does not exist")
+	case fs.ErrInvalid:
+		fmt.Println("invalid argument")
 	}
-
 	// Output:
-	// matched error: network issue
-	// network issue detected
+	// matched error: file does not exist
+	// file does not exist
 }
