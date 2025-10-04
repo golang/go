@@ -212,22 +212,21 @@ func asType[E error](err error, ppe **E) (_ E, _ bool) {
 // The tree consists of err itself, followed by the errors obtained by repeatedly
 // calling its Unwrap() error or Unwrap() []error method. When err wraps multiple
 // errors, IsAny examines err followed by a depth-first traversal of its children.
-//
-// IsAny returns true if [Is](err, target) returns true for any target in targets.
 func IsAny(err error, targets ...error) bool {
 	_, found := match(err, targets)
 
 	return found
 }
 
-// Match returns the matched error in targets for err.
+// Match returns the first target error from targets that matches any error in err's tree.
 //
 // The tree consists of err itself, followed by the errors obtained by repeatedly
 // calling its Unwrap() error or Unwrap() []error method. When err wraps multiple
 // errors, Match examines err followed by a depth-first traversal of its children.
 //
-// Match returns the first target error for which [Is](err, target) returns true.
-// If no target matches, Match returns nil.
+// Match returns the first target from targets if an err is equal to that target or if
+// it implements a method Is(error) bool such that Is(target) returns true.
+// If no target matches the err, Match returns nil.
 func Match(err error, targets ...error) error {
 	matched, _ := match(err, targets)
 
