@@ -562,36 +562,15 @@ func TestMatch(t *testing.T) {
 	}
 }
 
-// TODO remove
-func BenchmarkIsAnySlow(b *testing.B) {
-	err1 := errors.New("1")
-	err2 := errors.New("2")
-	err3 := errors.New("3")
-	err := multiErr{multiErr{multiErr{err1, errorT{"a"}}, errorT{"b"}}}
-
-	b.Run("one_target", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			if !errors.IsAnySlow(err, err1) {
-				b.Fatal("IsAny failed")
-			}
+// isAnySlow is a naive implementation of IsAny for benchmarking purposes.
+func isAnySlow(err error, targets ...error) bool {
+	for _, target := range targets {
+		if errors.Is(err, target) {
+			return true
 		}
-	})
+	}
 
-	b.Run("three_targets", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			if !errors.IsAnySlow(err, err2, err3, err1) {
-				b.Fatal("IsAny failed")
-			}
-		}
-	})
-
-	b.Run("no_match", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			if errors.IsAnySlow(err, err2, err3) {
-				b.Fatal("IsAny should not match")
-			}
-		}
-	})
+	return false
 }
 
 func BenchmarkIsAny(b *testing.B) {
@@ -600,29 +579,45 @@ func BenchmarkIsAny(b *testing.B) {
 	err3 := errors.New("3")
 	err := multiErr{multiErr{multiErr{err1, errorT{"a"}}, errorT{"b"}}}
 
-	b.Run("one_target", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			if !errors.IsAny(err, err1) {
-				b.Fatal("IsAny failed")
-			}
-		}
-	})
+	testCases := []struct {
+		name string
+		fn   func(error, ...error) bool
+	}{
+		{
+			name: "IsAny",
+			fn:   errors.IsAny,
+		},
+		{
+			name: "isAnySlow",
+			fn:   isAnySlow,
+		},
+	}
 
-	b.Run("three_targets", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			if !errors.IsAny(err, err2, err3, err1) {
-				b.Fatal("IsAny failed")
+	for _, tc := range testCases {
+		b.Run(tc.name+"_one_target", func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				if !tc.fn(err, err1) {
+					b.Fatal(tc.name, "failed")
+				}
 			}
-		}
-	})
+		})
 
-	b.Run("no_match", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			if errors.IsAny(err, err2, err3) {
-				b.Fatal("IsAny should not match")
+		b.Run(tc.name+"three_targets", func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				if !tc.fn(err, err2, err3, err1) {
+					b.Fatal(tc.name, "failed")
+				}
 			}
-		}
-	})
+		})
+
+		b.Run(tc.name+"no_match", func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				if tc.fn(err, err2, err3) {
+					b.Fatal(tc.name, "should not match")
+				}
+			}
+		})
+	}
 }
 
 func BenchmarkMatch(b *testing.B) {

@@ -207,27 +207,6 @@ func asType[E error](err error, ppe **E) (_ E, _ bool) {
 	}
 }
 
-func IsAnySlow(err error, targets ...error) bool {
-	if err == nil {
-		for _, target := range targets {
-			if target == nil {
-				return true
-			}
-		}
-		return false
-	}
-	if len(targets) == 0 {
-		return false
-	}
-
-	for _, target := range targets {
-		if Is(err, target) {
-			return true
-		}
-	}
-	return false
-}
-
 // IsAny reports whether any error in err's tree matches any of the target errors.
 //
 // The tree consists of err itself, followed by the errors obtained by repeatedly
@@ -282,15 +261,15 @@ func match(err error, targets []error) (error, bool) {
 		}
 	}
 
+	return matching(err, targets, targetMap)
+}
+
+func matching(err error, targets []error, targetMap map[error]struct{}) (error, bool) {
 	isErrComparable := reflectlite.TypeOf(err).Comparable()
 	for {
 		if isErrComparable && len(targetMap) > 0 {
 			if _, ok := targetMap[err]; ok {
-				for _, target := range targets {
-					if target == err {
-						return target, true
-					}
-				}
+				return err, true
 			}
 		}
 
@@ -312,7 +291,7 @@ func match(err error, targets []error) (error, bool) {
 		case interface{ Unwrap() []error }:
 			for _, err := range x.Unwrap() {
 				if err != nil {
-					if matched, found := match(err, targets); matched != nil {
+					if matched, found := matching(err, targets, targetMap); matched != nil {
 						return matched, found
 					}
 				}
