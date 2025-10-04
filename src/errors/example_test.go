@@ -123,3 +123,57 @@ func ExampleUnwrap() {
 	// error2: [error1]
 	// error1
 }
+
+func ExampleIsAny() {
+	var (
+		ErrNotFound   = errors.New("not found")
+		ErrPermission = errors.New("permission denied")
+		ErrTimeout    = errors.New("timeout")
+	)
+
+	// Simulate receiving an error
+	err := fmt.Errorf("database query failed: %w", ErrTimeout)
+
+	// Check if the error matches any of the known errors
+	if errors.IsAny(err, ErrNotFound, ErrPermission, ErrTimeout) {
+		fmt.Println("error is one of the expected types")
+	}
+
+	// Check against a different set
+	if !errors.IsAny(err, ErrNotFound, ErrPermission) {
+		fmt.Println("error is not a not-found or permission error")
+	}
+
+	// Output:
+	// error is one of the expected types
+	// error is not a not-found or permission error
+}
+
+func ExampleMatch() {
+	var (
+		ErrNotFound     = errors.New("not found")
+		ErrNetworkIssue = errors.New("network issue")
+		ErrDiskFull     = errors.New("disk full")
+	)
+
+	err := fmt.Errorf("operation failed: %w", ErrNetworkIssue)
+
+	// Match returns the matched error from the targets
+	if matched := errors.Match(err, ErrNotFound, ErrNetworkIssue, ErrDiskFull); matched != nil {
+		fmt.Println("matched error:", matched)
+	}
+
+	// Can be used in a switch statement
+	switch errors.Match(err, ErrNotFound, ErrNetworkIssue, ErrDiskFull) {
+	case ErrNotFound:
+		fmt.Println("resource not found")
+	case ErrNetworkIssue:
+		fmt.Println("network issue detected")
+	case ErrDiskFull:
+		fmt.Println("disk is full")
+	}
+
+	// Output:
+	// matched error: network issue
+	// network issue detected
+}

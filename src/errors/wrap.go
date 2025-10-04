@@ -206,3 +206,120 @@ func asType[E error](err error, ppe **E) (_ E, _ bool) {
 		}
 	}
 }
+
+func IsAnySlow(err error, targets ...error) bool {
+	if err == nil {
+		for _, target := range targets {
+			if target == nil {
+				return true
+			}
+		}
+		return false
+	}
+	if len(targets) == 0 {
+		return false
+	}
+
+	for _, target := range targets {
+		if Is(err, target) {
+			return true
+		}
+	}
+	return false
+}
+
+// IsAny reports whether any error in err's tree matches any of the target errors.
+//
+// The tree consists of err itself, followed by the errors obtained by repeatedly
+// calling its Unwrap() error or Unwrap() []error method. When err wraps multiple
+// errors, IsAny examines err followed by a depth-first traversal of its children.
+//
+// IsAny returns true if [Is](err, target) returns true for any target in targets.
+func IsAny(err error, targets ...error) bool {
+	_, found := match(err, targets)
+
+	return found
+}
+
+// Match returns the matched error in targets for err.
+//
+// The tree consists of err itself, followed by the errors obtained by repeatedly
+// calling its Unwrap() error or Unwrap() []error method. When err wraps multiple
+// errors, Match examines err followed by a depth-first traversal of its children.
+//
+// Match returns the first target error for which [Is](err, target) returns true.
+// If no target matches, Match returns nil.
+func Match(err error, targets ...error) error {
+	matched, _ := match(err, targets)
+
+	return matched
+}
+
+func match(err error, targets []error) (error, bool) {
+	if err == nil {
+		for _, target := range targets {
+			if target == nil {
+				return nil, true
+			}
+		}
+		return nil, false
+	}
+
+	if len(targets) == 0 {
+		return nil, false
+	} else if len(targets) == 1 {
+		if Is(err, targets[0]) {
+			return targets[0], true
+		}
+
+		return nil, false
+	}
+
+	targetMap := make(map[error]struct{}, len(targets))
+	for _, target := range targets {
+		if target != nil && reflectlite.TypeOf(target).Comparable() {
+			targetMap[target] = struct{}{}
+		}
+	}
+
+	isErrComparable := reflectlite.TypeOf(err).Comparable()
+	for {
+		if isErrComparable && len(targetMap) > 0 {
+			if _, ok := targetMap[err]; ok {
+				for _, target := range targets {
+					if target == err {
+						return target, true
+					}
+				}
+			}
+		}
+
+		if x, ok := err.(interface{ Is(error) bool }); ok {
+			for _, target := range targets {
+				if target != nil && x.Is(target) {
+					return target, true
+				}
+			}
+		}
+
+		switch x := err.(type) {
+		case interface{ Unwrap() error }:
+			err = x.Unwrap()
+			if err == nil {
+				return nil, false
+			}
+			isErrComparable = reflectlite.TypeOf(err).Comparable()
+		case interface{ Unwrap() []error }:
+			for _, err := range x.Unwrap() {
+				if err != nil {
+					if matched, found := match(err, targets); matched != nil {
+						return matched, found
+					}
+				}
+			}
+			return nil, false
+		default:
+			return nil, false
+		}
+	}
+}
