@@ -775,10 +775,10 @@ func (cr *connReader) handleReadErrorLocked(err error) {
 	if cr.conn == nil {
 		return
 	}
-	if errors.Is(err, io.EOF) {
+	if errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) {
 		err = errConnectionClosed
 	}
-	cr.conn.cancelCtx(err)
+	cr.conn.cancelCtx(fmt.Errorf("connection read error: %w", err))
 	if res := cr.conn.curReq.Load(); res != nil {
 		res.closeNotify()
 	}
@@ -4081,7 +4081,10 @@ func (w checkConnErrorWriter) Write(p []byte) (n int, err error) {
 	n, err = w.c.rwc.Write(p)
 	if err != nil && w.c.werr == nil {
 		w.c.werr = err
-		w.c.cancelCtx(err)
+		if errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) {
+			err = errConnectionClosed
+		}
+		w.c.cancelCtx(fmt.Errorf("connection write error: %w", err))
 	}
 	return
 }
