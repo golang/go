@@ -64,10 +64,6 @@ var (
 	// cancelled because the client closed their connection while
 	// a request was being handled.
 	errConnectionClosed = errors.New("connection closed by client")
-
-	// errRequestHandlerReturned is used as a context Cause for contexts
-	// cancelled because the request handler already returned.
-	errRequestHandlerReturned = errors.New("request handler returned")
 )
 
 // A Handler responds to an HTTP request.
@@ -2023,7 +2019,7 @@ func (c *conn) serve(ctx context.Context) {
 
 	ctx, cancelCtx := context.WithCancelCause(ctx)
 	c.cancelCtx = cancelCtx
-	defer cancelCtx(errRequestHandlerReturned)
+	defer cancelCtx(nil)
 
 	c.r = &connReader{conn: c, rwc: c.rwc}
 	c.bufr = newBufioReader(c.r)
