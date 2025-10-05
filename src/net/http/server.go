@@ -60,13 +60,11 @@ var (
 	// compare errors against this variable.
 	ErrWriteAfterFlush = errors.New("unused")
 
-	// TODO: expose once proposal is accepted
 	// errConnectionClosed is used as a context Cause for contexts
 	// cancelled because the client closed their connection while
 	// a request was being handled.
 	errConnectionClosed = errors.New("connection closed by client")
 
-	// TODO: expose once proposal is accepted
 	// errRequestHandlerReturned is used as a context Cause for contexts
 	// cancelled because the request handler already returned.
 	errRequestHandlerReturned = errors.New("request handler returned")
