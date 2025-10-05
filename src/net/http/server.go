@@ -60,10 +60,9 @@ var (
 	// compare errors against this variable.
 	ErrWriteAfterFlush = errors.New("unused")
 
-	// errConnectionClosed is used as a context Cause for contexts
-	// cancelled because the client closed their connection while
-	// a request was being handled.
-	errConnectionClosed = errors.New("connection closed by client")
+	// errClientDisconnected is used as a context Cause for contexts
+	// cancelled because the client closed their connection.
+	errClientDisconnected = errors.New("client disconnected")
 )
 
 // A Handler responds to an HTTP request.
@@ -776,7 +775,7 @@ func (cr *connReader) handleReadErrorLocked(err error) {
 		return
 	}
 	if errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) {
-		err = errConnectionClosed
+		err = errClientDisconnected
 	}
 	cr.conn.cancelCtx(fmt.Errorf("connection read error: %w", err))
 	if res := cr.conn.curReq.Load(); res != nil {
@@ -4082,7 +4081,7 @@ func (w checkConnErrorWriter) Write(p []byte) (n int, err error) {
 	if err != nil && w.c.werr == nil {
 		w.c.werr = err
 		if errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) {
-			err = errConnectionClosed
+			err = errClientDisconnected
 		}
 		w.c.cancelCtx(fmt.Errorf("connection write error: %w", err))
 	}
