@@ -63,6 +63,9 @@ func (q *spanQueue) empty() bool {
 	return true
 }
 
+func (q *spanQueue) destroy() {
+}
+
 type spanSPMC struct {
 	_ sys.NotInHeap
 }

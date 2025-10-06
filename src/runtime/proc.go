@@ -5824,6 +5824,8 @@ func (pp *p) destroy() {
 		println("runtime: p id", pp.id, "destroyed during GC phase", phase)
 		throw("P destroyed while GC is running")
 	}
+	// We should free the queues though.
+	pp.gcw.spanq.destroy()
 
 	clear(pp.sudogbuf[:])
 	pp.sudogcache = pp.sudogbuf[:0]

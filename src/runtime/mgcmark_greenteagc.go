@@ -618,6 +618,40 @@ func (q *spanQueue) refill(r *spanSPMC) objptr {
 	return q.tryGetFast()
 }
 
+// destroy frees all chains in an empty spanQueue.
+//
+// Preconditions:
+// - World is stopped.
+// - GC is outside of the mark phase.
+// - (Therefore) the queue is empty.
+func (q *spanQueue) destroy() {
+	assertWorldStopped()
+	if gcphase != _GCoff {
+		throw("spanQueue.destroy during the mark phase")
+	}
+	if !q.empty() {
+		throw("spanQueue.destroy on non-empty queue")
+	}
+
+	lock(&work.spanSPMCs.lock)
+
+	// Mark each ring as dead. The sweeper will actually free them.
+	//
+	// N.B., we could free directly here, but work.spanSPMCs.all is a
+	// singly-linked list, so we'd need to walk the entire list to find the
+	// previous node. If the list becomes doubly-linked, we can free
+	// directly.
+	for r := (*spanSPMC)(q.chain.tail.Load()); r != nil; r = (*spanSPMC)(r.prev.Load()) {
+		r.dead.Store(true)
+	}
+
+	q.chain.head = nil
+	q.chain.tail.Store(nil)
+	q.putsSinceDrain = 0
+
+	unlock(&work.spanSPMCs.lock)
+}
+
 // spanSPMC is a ring buffer of objptrs that represent spans.
 // Accessed without a lock.
 //
