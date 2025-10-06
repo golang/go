@@ -882,3 +882,16 @@ func TestSetCgoTracebackNoCgo(t *testing.T) {
 		t.Fatalf("want %s, got %s\n", want, output)
 	}
 }
+
+// TestDeepContextChainTraceback tests that tracebackPCs completes in reasonable
+// time even with very deep context chains (issue #75583).
+// This test creates a context chain deep enough to trigger the frame limit
+// and verifies that tracing completes quickly.
+func TestDeepContextChainTraceback(t *testing.T) {
+	output := runTestProg(t, "testprog", "DeepContextChain")
+	if !strings.Contains(output, "OK") {
+		t.Fatalf("expected OK, got:\n%s", output)
+	}
+	// The test should complete in reasonable time. If it hangs or takes
+	// multiple seconds, the frame limit is not working.
+}
