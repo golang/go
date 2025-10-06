@@ -26,6 +26,11 @@ const (
 	neg32 uint32 = 1 << (expbits32 + mantbits32)
 )
 
+// If F is not NaN and not Inf, then f == (-1)**sign * mantissa * 2**(exp-52)
+// The mantissa and exp are adjusted from their stored representation  so
+// that the mantissa includes the formerly implicit 1, the exponent bias
+// is removed, and denormalized floats to put a 1 in the expected
+// (1<<mantbits64) position.
 func funpack64(f uint64) (sign, mant uint64, exp int, inf, nan bool) {
 	sign = f & (1 << (mantbits64 + expbits64))
 	mant = f & (1<<mantbits64 - 1)
@@ -371,24 +376,25 @@ func fcmp64(f, g uint64) (cmp int32, isnan bool) {
 	return 0, false
 }
 
-func f64toint(f uint64) (val int64, ok bool) {
+// returns saturated-conversion int64 value of f
+// and whether the input was NaN (in which case it
+// may not match the "hardware" conversion).
+func f64toint(f uint64) (val int64, isNan bool) {
 	fs, fm, fe, fi, fn := funpack64(f)
 
 	switch {
-	case fi, fn: // NaN
-		return 0, false
+
+	case fn: // NaN
+		return -0x8000_0000_0000_0000, false
 
 	case fe < -1: // f < 0.5
 		return 0, false
 
-	case fe > 63: // f >= 2^63
-		if fs != 0 && fm == 0 { // f == -2^63
-			return -1 << 63, true
-		}
+	case fi || fe >= 63: // |f| >= 2^63, including infinity
 		if fs != 0 {
-			return 0, false
+			return -0x8000_0000_0000_0000, true
 		}
-		return 0, false
+		return 0x7fff_ffff_ffff_ffff, true
 	}
 
 	for fe > int(mantbits64) {
@@ -400,9 +406,48 @@ func f64toint(f uint64) (val int64, ok bool) {
 		fm >>= 1
 	}
 	val = int64(fm)
+	if val < 0 {
+		if fs != 0 {
+			return -0x8000_0000_0000_0000, true
+		}
+		return 0x7fff_ffff_ffff_ffff, true
+	}
 	if fs != 0 {
 		val = -val
 	}
+	return val, true
+}
+
+// returns saturated-conversion uint64 value of f
+// and whether the input was NaN (in which case it
+// may not match the "hardware" conversion).
+func f64touint(f uint64) (val uint64, isNan bool) {
+	fs, fm, fe, fi, fn := funpack64(f)
+
+	switch {
+
+	case fn: // NaN
+		return 0xffff_ffff_ffff_ffff, false
+
+	case fs != 0: // all negative, including -Inf, are zero
+		return 0, true
+
+	case fi || fe >= 64: // positive infinity or f >= 2^64
+		return 0xffff_ffff_ffff_ffff, true
+
+	case fe < -1: // f < 0.5
+		return 0, true
+	}
+
+	for fe > int(mantbits64) {
+		fe--
+		fm <<= 1
+	}
+	for fe < int(mantbits64) {
+		fe++
+		fm >>= 1
+	}
+	val = fm
 	return val, true
 }
 
@@ -564,6 +609,12 @@ func fint64to64(x int64) uint64 {
 
 func f32toint32(x uint32) int32 {
 	val, _ := f64toint(f32to64(x))
+	if val >= 0x7fffffff {
+		return 0x7fffffff
+	}
+	if val < -0x80000000 {
+		return -0x80000000
+	}
 	return int32(val)
 }
 
@@ -574,6 +625,12 @@ func f32toint64(x uint32) int64 {
 
 func f64toint32(x uint64) int32 {
 	val, _ := f64toint(x)
+	if val >= 0x7fffffff {
+		return 0x7fffffff
+	}
+	if val < -0x80000000 {
+		return -0x80000000
+	}
 	return int32(val)
 }
 
@@ -583,23 +640,13 @@ func f64toint64(x uint64) int64 {
 }
 
 func f64touint64(x uint64) uint64 {
-	var m uint64 = 0x43e0000000000000 // float64 1<<63
-	if fgt64(m, x) {
-		return uint64(f64toint64(x))
-	}
-	y := fadd64(x, -m)
-	z := uint64(f64toint64(y))
-	return z | (1 << 63)
+	val, _ := f64touint(x)
+	return val
 }
 
 func f32touint64(x uint32) uint64 {
-	var m uint32 = 0x5f000000 // float32 1<<63
-	if fgt32(m, x) {
-		return uint64(f32toint64(x))
-	}
-	y := fadd32(x, -m)
-	z := uint64(f32toint64(y))
-	return z | (1 << 63)
+	val, _ := f64touint(f32to64(x))
+	return val
 }
 
 func fuint64to64(x uint64) uint64 {
