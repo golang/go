@@ -352,13 +352,13 @@ func collectProfile(p *pprof.Profile) (*profile.Profile, error) {
 }
 
 var profileSupportsDelta = map[handler]bool{
-	"allocs":       true,
-	"block":        true,
-	"goroutineleak":        true,
-	"goroutine":    true,
-	"heap":         true,
-	"mutex":        true,
-	"threadcreate": true,
+	"allocs":        true,
+	"block":         true,
+	"goroutineleak": true,
+	"goroutine":     true,
+	"heap":          true,
+	"mutex":         true,
+	"threadcreate":  true,
 }
 
 var profileDescriptions = map[string]string{
