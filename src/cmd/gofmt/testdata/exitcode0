@@ -1,4 +1,2 @@
-//gofmt -d -exitcode=0
-
 // Input has correct formatting
 package main

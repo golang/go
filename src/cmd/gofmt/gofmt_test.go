@@ -10,7 +10,6 @@ import (
 	"internal/diff"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 	"text/scanner"
@@ -54,12 +53,19 @@ func gofmtFlags(filename string, maxLines int) string {
 	return ""
 }
 
-func runTest(t *testing.T, in, out string) {
-	// process flags
-	*doDiff = false
-	*simplifyAST = false
+// Reset global variables for all flags to their default value.
+func resetFlags() {
+	*list = false
+	*write = false
 	*rewriteRule = ""
-	exitCode := 0
+	*simplifyAST = false
+	*doDiff = false
+	*allErrors = false
+	*cpuprofile = ""
+}
+
+func runTest(t *testing.T, in, out string) {
+	resetFlags()
 	info, err := os.Lstat(in)
 	if err != nil {
 		t.Error(err)
@@ -75,8 +81,6 @@ func runTest(t *testing.T, in, out string) {
 		switch name {
 		case "":
 			// no flags
-		case "-d":
-			*doDiff = true
 		case "-r":
 			*rewriteRule = value
 		case "-s":
@@ -84,12 +88,6 @@ func runTest(t *testing.T, in, out string) {
 		case "-stdin":
 			// fake flag - pretend input is from stdin
 			info = nil
-		case "-exitcode":
-			// fake flag - set an expected exit code
-			exitCode, err = strconv.Atoi(value)
-			if err != nil {
-				t.Errorf("couldn't convert string to int: %s", value)
-			}
 		default:
 			t.Errorf("unrecognized flag name: %s", name)
 		}
@@ -107,13 +105,8 @@ func runTest(t *testing.T, in, out string) {
 	if errBuf.Len() > 0 {
 		t.Logf("%q", errBuf.Bytes())
 	}
-	if s.GetExitCode() != exitCode {
-		t.Errorf("expected exit code %d, got %d", exitCode, s.GetExitCode())
-	}
-
-	// don't try to compare output for diffs
-	if *doDiff {
-		return
+	if s.GetExitCode() != 0 {
+		t.Fail()
 	}
 
 	expected, err := os.ReadFile(out)
@@ -156,9 +149,6 @@ func TestRewrite(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// add exit code tests
-	match = append(match, "testdata/exitcode0", "testdata/exitcode1")
-
 	// add larger examples
 	match = append(match, "gofmt.go", "gofmt_test.go")
 
@@ -175,6 +165,46 @@ func TestRewrite(t *testing.T) {
 				runTest(t, out, out)
 			}
 		})
+	}
+}
+
+// TestDiff runs gofmt with the -d flag on the input files and checks that the
+// expected exit code is set.
+func TestDiff(t *testing.T) {
+	tests := []struct {
+		in       string
+		exitCode int
+	}{
+		{in: "testdata/exitcode0", exitCode: 0},
+		{in: "testdata/exitcode1", exitCode: 1},
+	}
+
+	for _, tt := range tests {
+		resetFlags()
+		*doDiff = true
+
+		initParserMode()
+		initRewrite()
+
+		info, err := os.Lstat(tt.in)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+
+		const maxWeight = 2 << 20
+		var buf, errBuf bytes.Buffer
+		s := newSequencer(maxWeight, &buf, &errBuf)
+		s.Add(fileWeight(tt.in, info), func(r *reporter) error {
+			return processFile(tt.in, info, nil, r)
+		})
+		if errBuf.Len() > 0 {
+			t.Logf("%q", errBuf.Bytes())
+		}
+
+		if s.GetExitCode() != tt.exitCode {
+			t.Errorf("%s: expected exit code %d, got %d", tt.in, tt.exitCode, s.GetExitCode())
+		}
 	}
 }
 
