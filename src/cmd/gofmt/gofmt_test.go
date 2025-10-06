@@ -175,8 +175,8 @@ func TestDiff(t *testing.T) {
 		in       string
 		exitCode int
 	}{
-		{in: "testdata/exitcode0", exitCode: 0},
-		{in: "testdata/exitcode1", exitCode: 1},
+		{in: "testdata/exitcode.input", exitCode: 1},
+		{in: "testdata/exitcode.golden", exitCode: 0},
 	}
 
 	for _, tt := range tests {
