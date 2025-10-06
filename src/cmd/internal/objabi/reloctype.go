@@ -334,6 +334,10 @@ const (
 	R_LOONG64_ADDR_HI
 	R_LOONG64_ADDR_LO
 
+	// R_LOONG64_ADDR_PCREL20_S2 resolves to the 22-bit, 4-byte aligned offset of an
+	// external address, by encoding it into a PCADDI instruction.
+	R_LOONG64_ADDR_PCREL20_S2
+
 	// R_LOONG64_TLS_LE_HI resolves to the high 20 bits of a TLS address (offset from
 	// thread pointer), by encoding it into the instruction.
 	// R_LOONG64_TLS_LE_LO resolves to the low 12 bits of a TLS address (offset from
@@ -341,9 +345,13 @@ const (
 	R_LOONG64_TLS_LE_HI
 	R_LOONG64_TLS_LE_LO
 
-	// R_CALLLOONG64 resolves to non-PC-relative target address of a CALL (BL/JIRL)
-	// instruction, by encoding the address into the instruction.
+	// R_CALLLOONG64 resolves to the 28-bit 4-byte aligned PC-relative target
+	// address of a BL instruction, by encoding it into the instruction.
 	R_CALLLOONG64
+
+	// R_LOONG64_CALL36 resolves to the 38-bit 4-byte aligned PC-relative target
+	// address of a PCADDU18I + JIRL pair, by encoding it into the instructions.
+	R_LOONG64_CALL36
 
 	// R_LOONG64_TLS_IE_HI and R_LOONG64_TLS_IE_LO relocates a pcalau12i, ld.d
 	// pair to compute the address of the GOT slot of the tls symbol.
@@ -360,14 +368,17 @@ const (
 	// 64-bit in-place subtraction.
 	R_LOONG64_SUB64
 
-	// R_JMP16LOONG64 resolves to 18-bit PC-relative target address of a JMP instructions.
+	// R_JMP16LOONG64 resolves to the 18-bit 4-byte aligned PC-relative target
+	// address of a BEQ/BNE/BLT/BGE/BLTU/BGEU instruction, by encoding it into
+	// the instruction.
 	R_JMP16LOONG64
 
-	// R_JMP21LOONG64 resolves to 23-bit PC-relative target address of a JMP instructions.
+	// R_JMP21LOONG64 resolves to the 23-bit 4-byte aligned PC-relative target
+	// address of a BEQZ/BNEZ instruction, by encoding it into the instruction.
 	R_JMP21LOONG64
 
-	// R_JMPLOONG64 resolves to non-PC-relative target address of a JMP instruction,
-	// by encoding the address into the instruction.
+	// R_JMPLOONG64 resolves to the 28-bit 4-byte aligned PC-relative target
+	// address of a B instruction, by encoding it into the instruction.
 	R_JMPLOONG64
 
 	// R_ADDRMIPSU (only used on mips/mips64) resolves to the sign-adjusted "upper" 16
