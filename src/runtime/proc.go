@@ -5818,11 +5818,13 @@ func (pp *p) destroy() {
 	// Move all timers to the local P.
 	getg().m.p.ptr().timers.take(&pp.timers)
 
-	// Flush p's write barrier buffer.
-	if gcphase != _GCoff {
-		wbBufFlush1(pp)
-		pp.gcw.dispose()
+	// No need to flush p's write barrier buffer or span queue, as Ps
+	// cannot be destroyed during the mark phase.
+	if phase := gcphase; phase != _GCoff {
+		println("runtime: p id", pp.id, "destroyed during GC phase", phase)
+		throw("P destroyed while GC is running")
 	}
+
 	clear(pp.sudogbuf[:])
 	pp.sudogcache = pp.sudogbuf[:0]
 	pp.pinnerCache = nil
