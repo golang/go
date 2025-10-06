@@ -41,6 +41,9 @@ var (
 
 	// debugging
 	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to this file")
+
+	// errors
+	errFormattingDiffers = fmt.Errorf("formatting differs from gofmt's")
 )
 
 // Keep these in sync with go/format/format.go.
@@ -218,8 +221,12 @@ func (r *reporter) Report(err error) {
 		panic("Report with nil error")
 	}
 	st := r.getState()
-	scanner.PrintError(st.err, err)
-	st.exitCode = 2
+	if err == errFormattingDiffers {
+		st.exitCode = 1
+	} else {
+		scanner.PrintError(st.err, err)
+		st.exitCode = 2
+	}
 }
 
 func (r *reporter) ExitCode() int {
@@ -281,6 +288,7 @@ func processFile(filename string, info fs.FileInfo, in io.Reader, r *reporter) e
 			newName := filepath.ToSlash(filename)
 			oldName := newName + ".orig"
 			r.Write(diff.Diff(oldName, src, newName, res))
+			return errFormattingDiffers
 		}
 	}
 
