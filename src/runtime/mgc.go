@@ -2046,8 +2046,7 @@ func gcSweep(mode gcMode) bool {
 		prepareFreeWorkbufs()
 		for freeSomeWbufs(false) {
 		}
-		for freeSomeSpanSPMCs(false) {
-		}
+		freeDeadSpanSPMCs()
 		// All "free" events for this mark/sweep cycle have
 		// now happened, so we can make this profile cycle
 		// available immediately.

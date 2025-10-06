@@ -307,10 +307,7 @@ func bgsweep(c chan int) {
 			// N.B. freeSomeWbufs is already batched internally.
 			goschedIfBusy()
 		}
-		for freeSomeSpanSPMCs(true) {
-			// N.B. freeSomeSpanSPMCs is already batched internally.
-			goschedIfBusy()
-		}
+		freeDeadSpanSPMCs()
 		lock(&sweep.lock)
 		if !isSweepDone() {
 			// This can happen if a GC runs between
