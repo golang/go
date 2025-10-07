@@ -251,3 +251,28 @@ d5l1tRhScKu2NBgm74nYmJxJYgvuTA38wGhRrGU=
 		}
 	}
 }
+
+func TestUnsortedSETInRDN(t *testing.T) {
+	// This certificate has an unsorted SET in its RDN
+	certPEM := `-----BEGIN CERTIFICATE-----
+MIIBpTCCASqgAwIBAgIUSAlHIioJMdYgucoC5YXkJStOGb0wCgYIKoZIzj0EAwIw
+FjEUMAgGA1UECgwBQjAIBgNVBAoMAUEwHhcNMjUwNTE2MDgxOTI1WhcNMjUwNTIz
+MDgxOTI1WjAWMRQwCAYDVQQKDAFBMAgGA1UECgwBQjB2MBAGByqGSM49AgEGBSuB
+BAAiA2IABBD/90IB7qwfMYAYQg9uD9sLtydnz+GNQfXzrpvmPrhl8gCaW2cMFiiX
+gCTAJO4M2h1KUQnMa9zUoquf7PEM4K+0YZefMLIV37c5LBlXRHV/Rp/w0QK68LH7
+CWekfw2K2KM5MDcwFgYDVR0RBA8wDYILZXhhbXBsZS5jb20wHQYDVR0OBBYEFLUm
+A0XcOsTtSecCaqM1Fl0BFkL2MAoGCCqGSM49BAMCA2kAMGYCMQDL46FNOgqLXlYD
+j9OH5AhZwDUoXpZSGrWbcXbki3IWLAs/WgFxA3QGYoFj6NUneE0CMQC8bDbpsv3l
+k7tqPhTtF3W6A9ec872Fzpq9Ois0hL/WhoaYNQAbY21YFwKf2fxv/vU=
+-----END CERTIFICATE-----`
+
+	block, _ := pem.Decode([]byte(certPEM))
+	if block == nil {
+		t.Fatalf("Failed to decode PEM block")
+	}
+
+	_, err := ParseCertificate(block.Bytes)
+	if err == nil || err.Error() != "x509: invalid RDNSequence: SET values not in ascending order" {
+		t.Errorf(`ParseCertificate() = %v; want = "x509: invalid RDNSequence: SET values not in ascending order"`, err)
+	}
+}

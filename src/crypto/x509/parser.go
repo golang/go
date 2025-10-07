@@ -153,11 +153,26 @@ func parseName(raw cryptobyte.String) (*pkix.RDNSequence, error) {
 		if !raw.ReadASN1(&set, cryptobyte_asn1.SET) {
 			return nil, errors.New("x509: invalid RDNSequence")
 		}
+		var prevAttr cryptobyte.String
 		for !set.Empty() {
 			var atav cryptobyte.String
-			if !set.ReadASN1(&atav, cryptobyte_asn1.SEQUENCE) {
+			var rawAttr cryptobyte.String
+			if !set.ReadASN1Element(&rawAttr, cryptobyte_asn1.SEQUENCE) {
 				return nil, errors.New("x509: invalid RDNSequence: invalid attribute")
 			}
+
+			// Compare each attribute with the previous one
+			// In DER, they must be in ascending order when compared as octet strings
+			if prevAttr != nil && bytes.Compare(prevAttr, rawAttr) > 0 {
+				return nil, errors.New("x509: invalid RDNSequence: SET values not in ascending order")
+			}
+
+			prevAttr = rawAttr
+
+			if !rawAttr.ReadASN1(&atav, cryptobyte_asn1.SEQUENCE) {
+				return nil, errors.New("x509: invalid RDNSequence: invalid attribute")
+			}
+
 			var attr pkix.AttributeTypeAndValue
 			if !atav.ReadASN1ObjectIdentifier(&attr.Type) {
 				return nil, errors.New("x509: invalid RDNSequence: invalid attribute type")
