@@ -579,23 +579,27 @@ var ptrnames = []string{
 // |  args to callee  |
 // +------------------+ <- frame->sp
 //
-// (arm)
+// (arm64)
 // +------------------+
 // | args from caller |
 // +------------------+ <- frame->argp
-// | caller's retaddr |
+// |     <unused>     |
+// +------------------+ <- frame->fp (aka caller's sp)
+// |  return address  |
 // +------------------+
-// |  caller's FP (*) | (*) on ARM64, if framepointer_enabled && varp > sp
+// |  caller's FP     |  (frame pointer always enabled: TODO)
 // +------------------+ <- frame->varp
 // |     locals       |
 // +------------------+
 // |  args to callee  |
 // +------------------+
-// |  return address  |
+// |     <unused>     |
 // +------------------+ <- frame->sp
 //
 // varp > sp means that the function has a frame;
 // varp == sp means frameless function.
+//
+// Alignment padding, if needed, will be between "locals" and "args to callee".
 
 type adjustinfo struct {
 	old   stack
@@ -709,7 +713,8 @@ func adjustframe(frame *stkframe, adjinfo *adjustinfo) {
 	}
 
 	// Adjust saved frame pointer if there is one.
-	if (goarch.ArchFamily == goarch.AMD64 || goarch.ArchFamily == goarch.ARM64) && frame.argp-frame.varp == 2*goarch.PtrSize {
+	if goarch.ArchFamily == goarch.AMD64 && frame.argp-frame.varp == 2*goarch.PtrSize ||
+		goarch.ArchFamily == goarch.ARM64 && frame.argp-frame.varp == 3*goarch.PtrSize {
 		if stackDebug >= 3 {
 			print("      saved bp\n")
 		}
@@ -723,10 +728,7 @@ func adjustframe(frame *stkframe, adjinfo *adjustinfo) {
 				throw("bad frame pointer")
 			}
 		}
-		// On AMD64, this is the caller's frame pointer saved in the current
-		// frame.
-		// On ARM64, this is the frame pointer of the caller's caller saved
-		// by the caller in its frame (one word below its SP).
+		// This is the caller's frame pointer saved in the current frame.
 		adjustpointer(adjinfo, unsafe.Pointer(frame.varp))
 	}
 
@@ -821,7 +823,8 @@ func adjustsudogs(gp *g, adjinfo *adjustinfo) {
 	// the data elements pointed to by a SudoG structure
 	// might be in the stack.
 	for s := gp.waiting; s != nil; s = s.waitlink {
-		adjustpointer(adjinfo, unsafe.Pointer(&s.elem))
+		adjustpointer(adjinfo, unsafe.Pointer(&s.elem.vu))
+		adjustpointer(adjinfo, unsafe.Pointer(&s.elem.vp))
 	}
 }
 
@@ -834,7 +837,7 @@ func fillstack(stk stack, b byte) {
 func findsghi(gp *g, stk stack) uintptr {
 	var sghi uintptr
 	for sg := gp.waiting; sg != nil; sg = sg.waitlink {
-		p := uintptr(sg.elem) + uintptr(sg.c.elemsize)
+		p := sg.elem.uintptr() + uintptr(sg.c.get().elemsize)
 		if stk.lo <= p && p < stk.hi && p > sghi {
 			sghi = p
 		}
@@ -853,7 +856,7 @@ func syncadjustsudogs(gp *g, used uintptr, adjinfo *adjustinfo) uintptr {
 	// Lock channels to prevent concurrent send/receive.
 	var lastc *hchan
 	for sg := gp.waiting; sg != nil; sg = sg.waitlink {
-		if sg.c != lastc {
+		if sg.c.get() != lastc {
 			// There is a ranking cycle here between gscan bit and
 			// hchan locks. Normally, we only allow acquiring hchan
 			// locks and then getting a gscan bit. In this case, we
@@ -863,9 +866,9 @@ func syncadjustsudogs(gp *g, used uintptr, adjinfo *adjustinfo) uintptr {
 			// suspended. So, we get a special hchan lock rank here
 			// that is lower than gscan, but doesn't allow acquiring
 			// any other locks other than hchan.
-			lockWithRank(&sg.c.lock, lockRankHchanLeaf)
+			lockWithRank(&sg.c.get().lock, lockRankHchanLeaf)
 		}
-		lastc = sg.c
+		lastc = sg.c.get()
 	}
 
 	// Adjust sudogs.
@@ -885,10 +888,10 @@ func syncadjustsudogs(gp *g, used uintptr, adjinfo *adjustinfo) uintptr {
 	// Unlock channels.
 	lastc = nil
 	for sg := gp.waiting; sg != nil; sg = sg.waitlink {
-		if sg.c != lastc {
-			unlock(&sg.c.lock)
+		if sg.c.get() != lastc {
+			unlock(&sg.c.get().lock)
 		}
-		lastc = sg.c
+		lastc = sg.c.get()
 	}
 
 	return sgsize

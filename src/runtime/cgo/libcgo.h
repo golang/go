@@ -89,21 +89,45 @@ void darwin_arm_init_thread_exception_port(void);
 void darwin_arm_init_mach_exception_handler(void);
 
 /*
- * The cgo context function. See runtime.SetCgoTraceback.
- */
-struct context_arg {
-	uintptr_t Context;
-};
-extern void (*(_cgo_get_context_function(void)))(struct context_arg*);
-
-/*
- * The argument for the cgo traceback callback. See runtime.SetCgoTraceback.
+ * The cgo traceback callback. See runtime.SetCgoTraceback.
  */
 struct cgoTracebackArg {
 	uintptr_t  Context;
 	uintptr_t  SigContext;
 	uintptr_t* Buf;
 	uintptr_t  Max;
+};
+extern void (*(_cgo_get_traceback_function(void)))(struct cgoTracebackArg*);
+
+/*
+ * The cgo context callback. See runtime.SetCgoTraceback.
+ */
+struct cgoContextArg {
+	uintptr_t Context;
+};
+extern void (*(_cgo_get_context_function(void)))(struct cgoContextArg*);
+
+/*
+ * The argument for the cgo symbolizer callback. See runtime.SetCgoTraceback.
+ */
+struct cgoSymbolizerArg {
+	uintptr_t   PC;
+	const char* File;
+	uintptr_t   Lineno;
+	const char* Func;
+	uintptr_t   Entry;
+	uintptr_t   More;
+	uintptr_t   Data;
+};
+extern void (*(_cgo_get_symbolizer_function(void)))(struct cgoSymbolizerArg*);
+
+/*
+ * The argument for x_cgo_set_traceback_functions. See runtime.SetCgoTraceback.
+ */
+struct cgoSetTracebackFunctionsArg {
+	void (*Traceback)(struct cgoTracebackArg*);
+	void (*Context)(struct cgoContextArg*);
+	void (*Symbolizer)(struct cgoSymbolizerArg*);
 };
 
 /*
@@ -121,11 +145,21 @@ struct cgoTracebackArg {
 
 #ifdef CGO_TSAN
 
+// _cgo_tsan_acquire tells C/C++ TSAN that we are acquiring a dummy lock. We
+// call this when calling from Go to C. This is necessary because TSAN cannot
+// see the synchronization in Go. Note that C/C++ code built with TSAN is not
+// the same as the Go race detector.
+//
+// cmd/cgo generates calls to _cgo_tsan_acquire and _cgo_tsan_release. For
+// other cgo calls, manual calls are required.
+//
 // These must match the definitions in yesTsanProlog in cmd/cgo/out.go.
 // In general we should call _cgo_tsan_acquire when we enter C code,
 // and call _cgo_tsan_release when we return to Go code.
+//
 // This is only necessary when calling code that might be instrumented
 // by TSAN, which mostly means system library calls that TSAN intercepts.
+//
 // See the comment in cmd/cgo/out.go for more details.
 
 long long _cgo_sync __attribute__ ((common));

@@ -147,7 +147,7 @@
 //			cancel()
 //			synctest.Wait()
 //			if !afterFuncCalled {
-//				t.Fatalf("before context is canceled: AfterFunc not called")
+//				t.Fatalf("after context is canceled: AfterFunc not called")
 //			}
 //		})
 //	}

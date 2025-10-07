@@ -7933,6 +7933,7 @@ func defframe(s *State, e *ssafn, f *ssa.Func) {
 	// Insert code to zero ambiguously live variables so that the
 	// garbage collector only sees initialized values when it
 	// looks for pointers.
+	// Note: lo/hi are offsets from varp and will be negative.
 	var lo, hi int64
 
 	// Opaque state for backend to use. Current backends use it to
@@ -7940,7 +7941,7 @@ func defframe(s *State, e *ssafn, f *ssa.Func) {
 	var state uint32
 
 	// Iterate through declarations. Autos are sorted in decreasing
-	// frame offset order.
+	// frame offset order (least negative to most negative).
 	for _, n := range e.curfn.Dcl {
 		if !n.Needzero() {
 			continue

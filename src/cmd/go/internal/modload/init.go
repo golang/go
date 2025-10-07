@@ -60,7 +60,6 @@ var (
 
 // Variables set in Init.
 var (
-	initialized bool
 
 	// These are primarily used to initialize the MainModules, and should be
 	// eventually superseded by them but are still used in cases where the module
@@ -96,7 +95,7 @@ func EnterWorkspace(ctx context.Context) (exit func(), err error) {
 	}
 
 	// Reset the state to a clean state.
-	oldstate := setState(state{})
+	oldstate := setState(State{})
 	ForceUseModules = true
 
 	// Load in workspace mode.
@@ -401,12 +400,12 @@ func WorkFilePath() string {
 // Reset clears all the initialized, cached state about the use of modules,
 // so that we can start over.
 func Reset() {
-	setState(state{})
+	setState(State{})
 }
 
-func setState(s state) state {
-	oldState := state{
-		initialized:     initialized,
+func setState(s State) State {
+	oldState := State{
+		initialized:     LoaderState.initialized,
 		forceUseModules: ForceUseModules,
 		rootMode:        RootMode,
 		modRoots:        modRoots,
@@ -414,7 +413,7 @@ func setState(s state) state {
 		mainModules:     MainModules,
 		requirements:    requirements,
 	}
-	initialized = s.initialized
+	LoaderState.initialized = s.initialized
 	ForceUseModules = s.forceUseModules
 	RootMode = s.rootMode
 	modRoots = s.modRoots
@@ -429,7 +428,7 @@ func setState(s state) state {
 	return oldState
 }
 
-type state struct {
+type State struct {
 	initialized     bool
 	forceUseModules bool
 	rootMode        Root
@@ -441,15 +440,19 @@ type state struct {
 	modfetchState   modfetch.State
 }
 
+func NewState() *State { return &State{} }
+
+var LoaderState = NewState()
+
 // Init determines whether module mode is enabled, locates the root of the
 // current module (if any), sets environment variables for Git subprocesses, and
 // configures the cfg, codehost, load, modfetch, and search packages for use
 // with modules.
 func Init() {
-	if initialized {
+	if LoaderState.initialized {
 		return
 	}
-	initialized = true
+	LoaderState.initialized = true
 
 	fips140.Init()
 
@@ -569,7 +572,7 @@ func WillBeEnabled() bool {
 		// Already enabled.
 		return true
 	}
-	if initialized {
+	if LoaderState.initialized {
 		// Initialized, not enabled.
 		return false
 	}
@@ -636,7 +639,7 @@ func VendorDir() string {
 }
 
 func inWorkspaceMode() bool {
-	if !initialized {
+	if !LoaderState.initialized {
 		panic("inWorkspaceMode called before modload.Init called")
 	}
 	if !Enabled() {
@@ -1249,7 +1252,7 @@ func fixVersion(ctx context.Context, fixed *bool) modfile.VersionFixer {
 // This function affects the default cfg.BuildMod when outside of a module,
 // so it can only be called prior to Init.
 func AllowMissingModuleImports() {
-	if initialized {
+	if LoaderState.initialized {
 		panic("AllowMissingModuleImports after Init")
 	}
 	allowMissingModuleImports = true

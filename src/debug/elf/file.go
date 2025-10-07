@@ -25,6 +25,7 @@ import (
 	"internal/saferio"
 	"internal/zstd"
 	"io"
+	"math"
 	"os"
 	"strings"
 	"unsafe"
@@ -830,17 +831,9 @@ func (f *File) applyRelocationsAMD64(dst []byte, rels []byte) error {
 
 		switch t {
 		case R_X86_64_64:
-			if rela.Off+8 >= uint64(len(dst)) || rela.Addend < 0 {
-				continue
-			}
-			val64 := sym.Value + uint64(rela.Addend)
-			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], val64)
+			putUint(f.ByteOrder, dst, rela.Off, 8, sym.Value, rela.Addend, false)
 		case R_X86_64_32:
-			if rela.Off+4 >= uint64(len(dst)) || rela.Addend < 0 {
-				continue
-			}
-			val32 := uint32(sym.Value) + uint32(rela.Addend)
-			f.ByteOrder.PutUint32(dst[rela.Off:rela.Off+4], val32)
+			putUint(f.ByteOrder, dst, rela.Off, 4, sym.Value, rela.Addend, false)
 		}
 	}
 
@@ -872,12 +865,7 @@ func (f *File) applyRelocations386(dst []byte, rels []byte) error {
 		sym := &symbols[symNo-1]
 
 		if t == R_386_32 {
-			if rel.Off+4 >= uint32(len(dst)) {
-				continue
-			}
-			val := f.ByteOrder.Uint32(dst[rel.Off : rel.Off+4])
-			val += uint32(sym.Value)
-			f.ByteOrder.PutUint32(dst[rel.Off:rel.Off+4], val)
+			putUint(f.ByteOrder, dst, uint64(rel.Off), 4, sym.Value, 0, true)
 		}
 	}
 
@@ -910,12 +898,7 @@ func (f *File) applyRelocationsARM(dst []byte, rels []byte) error {
 
 		switch t {
 		case R_ARM_ABS32:
-			if rel.Off+4 >= uint32(len(dst)) {
-				continue
-			}
-			val := f.ByteOrder.Uint32(dst[rel.Off : rel.Off+4])
-			val += uint32(sym.Value)
-			f.ByteOrder.PutUint32(dst[rel.Off:rel.Off+4], val)
+			putUint(f.ByteOrder, dst, uint64(rel.Off), 4, sym.Value, 0, true)
 		}
 	}
 
@@ -955,17 +938,9 @@ func (f *File) applyRelocationsARM64(dst []byte, rels []byte) error {
 
 		switch t {
 		case R_AARCH64_ABS64:
-			if rela.Off+8 >= uint64(len(dst)) || rela.Addend < 0 {
-				continue
-			}
-			val64 := sym.Value + uint64(rela.Addend)
-			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], val64)
+			putUint(f.ByteOrder, dst, rela.Off, 8, sym.Value, rela.Addend, false)
 		case R_AARCH64_ABS32:
-			if rela.Off+4 >= uint64(len(dst)) || rela.Addend < 0 {
-				continue
-			}
-			val32 := uint32(sym.Value) + uint32(rela.Addend)
-			f.ByteOrder.PutUint32(dst[rela.Off:rela.Off+4], val32)
+			putUint(f.ByteOrder, dst, rela.Off, 4, sym.Value, rela.Addend, false)
 		}
 	}
 
@@ -1001,11 +976,7 @@ func (f *File) applyRelocationsPPC(dst []byte, rels []byte) error {
 
 		switch t {
 		case R_PPC_ADDR32:
-			if rela.Off+4 >= uint32(len(dst)) || rela.Addend < 0 {
-				continue
-			}
-			val32 := uint32(sym.Value) + uint32(rela.Addend)
-			f.ByteOrder.PutUint32(dst[rela.Off:rela.Off+4], val32)
+			putUint(f.ByteOrder, dst, uint64(rela.Off), 4, sym.Value, 0, false)
 		}
 	}
 
@@ -1041,17 +1012,9 @@ func (f *File) applyRelocationsPPC64(dst []byte, rels []byte) error {
 
 		switch t {
 		case R_PPC64_ADDR64:
-			if rela.Off+8 >= uint64(len(dst)) || rela.Addend < 0 {
-				continue
-			}
-			val64 := sym.Value + uint64(rela.Addend)
-			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], val64)
+			putUint(f.ByteOrder, dst, rela.Off, 8, sym.Value, rela.Addend, false)
 		case R_PPC64_ADDR32:
-			if rela.Off+4 >= uint64(len(dst)) || rela.Addend < 0 {
-				continue
-			}
-			val32 := uint32(sym.Value) + uint32(rela.Addend)
-			f.ByteOrder.PutUint32(dst[rela.Off:rela.Off+4], val32)
+			putUint(f.ByteOrder, dst, rela.Off, 4, sym.Value, rela.Addend, false)
 		}
 	}
 
@@ -1084,12 +1047,7 @@ func (f *File) applyRelocationsMIPS(dst []byte, rels []byte) error {
 
 		switch t {
 		case R_MIPS_32:
-			if rel.Off+4 >= uint32(len(dst)) {
-				continue
-			}
-			val := f.ByteOrder.Uint32(dst[rel.Off : rel.Off+4])
-			val += uint32(sym.Value)
-			f.ByteOrder.PutUint32(dst[rel.Off:rel.Off+4], val)
+			putUint(f.ByteOrder, dst, uint64(rel.Off), 4, sym.Value, 0, true)
 		}
 	}
 
@@ -1132,17 +1090,9 @@ func (f *File) applyRelocationsMIPS64(dst []byte, rels []byte) error {
 
 		switch t {
 		case R_MIPS_64:
-			if rela.Off+8 >= uint64(len(dst)) || rela.Addend < 0 {
-				continue
-			}
-			val64 := sym.Value + uint64(rela.Addend)
-			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], val64)
+			putUint(f.ByteOrder, dst, rela.Off, 8, sym.Value, rela.Addend, false)
 		case R_MIPS_32:
-			if rela.Off+4 >= uint64(len(dst)) || rela.Addend < 0 {
-				continue
-			}
-			val32 := uint32(sym.Value) + uint32(rela.Addend)
-			f.ByteOrder.PutUint32(dst[rela.Off:rela.Off+4], val32)
+			putUint(f.ByteOrder, dst, rela.Off, 4, sym.Value, rela.Addend, false)
 		}
 	}
 
@@ -1180,17 +1130,9 @@ func (f *File) applyRelocationsLOONG64(dst []byte, rels []byte) error {
 
 		switch t {
 		case R_LARCH_64:
-			if rela.Off+8 >= uint64(len(dst)) || rela.Addend < 0 {
-				continue
-			}
-			val64 := sym.Value + uint64(rela.Addend)
-			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], val64)
+			putUint(f.ByteOrder, dst, rela.Off, 8, sym.Value, rela.Addend, false)
 		case R_LARCH_32:
-			if rela.Off+4 >= uint64(len(dst)) || rela.Addend < 0 {
-				continue
-			}
-			val32 := uint32(sym.Value) + uint32(rela.Addend)
-			f.ByteOrder.PutUint32(dst[rela.Off:rela.Off+4], val32)
+			putUint(f.ByteOrder, dst, rela.Off, 4, sym.Value, rela.Addend, false)
 		}
 	}
 
@@ -1226,17 +1168,9 @@ func (f *File) applyRelocationsRISCV64(dst []byte, rels []byte) error {
 
 		switch t {
 		case R_RISCV_64:
-			if rela.Off+8 >= uint64(len(dst)) || rela.Addend < 0 {
-				continue
-			}
-			val64 := sym.Value + uint64(rela.Addend)
-			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], val64)
+			putUint(f.ByteOrder, dst, rela.Off, 8, sym.Value, rela.Addend, false)
 		case R_RISCV_32:
-			if rela.Off+4 >= uint64(len(dst)) || rela.Addend < 0 {
-				continue
-			}
-			val32 := uint32(sym.Value) + uint32(rela.Addend)
-			f.ByteOrder.PutUint32(dst[rela.Off:rela.Off+4], val32)
+			putUint(f.ByteOrder, dst, rela.Off, 4, sym.Value, rela.Addend, false)
 		}
 	}
 
@@ -1272,17 +1206,9 @@ func (f *File) applyRelocationss390x(dst []byte, rels []byte) error {
 
 		switch t {
 		case R_390_64:
-			if rela.Off+8 >= uint64(len(dst)) || rela.Addend < 0 {
-				continue
-			}
-			val64 := sym.Value + uint64(rela.Addend)
-			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], val64)
+			putUint(f.ByteOrder, dst, rela.Off, 8, sym.Value, rela.Addend, false)
 		case R_390_32:
-			if rela.Off+4 >= uint64(len(dst)) || rela.Addend < 0 {
-				continue
-			}
-			val32 := uint32(sym.Value) + uint32(rela.Addend)
-			f.ByteOrder.PutUint32(dst[rela.Off:rela.Off+4], val32)
+			putUint(f.ByteOrder, dst, rela.Off, 4, sym.Value, rela.Addend, false)
 		}
 	}
 
@@ -1318,17 +1244,10 @@ func (f *File) applyRelocationsSPARC64(dst []byte, rels []byte) error {
 
 		switch t {
 		case R_SPARC_64, R_SPARC_UA64:
-			if rela.Off+8 >= uint64(len(dst)) || rela.Addend < 0 {
-				continue
-			}
-			val64 := sym.Value + uint64(rela.Addend)
-			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], val64)
+			putUint(f.ByteOrder, dst, rela.Off, 8, sym.Value, rela.Addend, false)
+
 		case R_SPARC_32, R_SPARC_UA32:
-			if rela.Off+4 >= uint64(len(dst)) || rela.Addend < 0 {
-				continue
-			}
-			val32 := uint32(sym.Value) + uint32(rela.Addend)
-			f.ByteOrder.PutUint32(dst[rela.Off:rela.Off+4], val32)
+			putUint(f.ByteOrder, dst, rela.Off, 4, sym.Value, rela.Addend, false)
 		}
 	}
 
@@ -1902,4 +1821,39 @@ type nobitsSectionReader struct{}
 
 func (*nobitsSectionReader) ReadAt(p []byte, off int64) (n int, err error) {
 	return 0, errors.New("unexpected read from SHT_NOBITS section")
+}
+
+// putUint writes a relocation to slice
+// at offset start of length length (4 or 8 bytes),
+// adding sym+addend to the existing value if readUint is true,
+// or just writing sym+addend if readUint is false.
+// If the write would extend beyond the end of slice, putUint does nothing.
+// If the addend is negative, putUint does nothing.
+// If the addition would overflow, putUint does nothing.
+func putUint(byteOrder binary.ByteOrder, slice []byte, start, length, sym uint64, addend int64, readUint bool) {
+	if start+length > uint64(len(slice)) || math.MaxUint64-start < length {
+		return
+	}
+	if addend < 0 {
+		return
+	}
+
+	s := slice[start : start+length]
+
+	switch length {
+	case 4:
+		ae := uint32(addend)
+		if readUint {
+			ae += byteOrder.Uint32(s)
+		}
+		byteOrder.PutUint32(s, uint32(sym)+ae)
+	case 8:
+		ae := uint64(addend)
+		if readUint {
+			ae += byteOrder.Uint64(s)
+		}
+		byteOrder.PutUint64(s, sym+ae)
+	default:
+		panic("can't happen")
+	}
 }

@@ -722,13 +722,8 @@ func (r *spanSPMC) slot(i uint32) *objptr {
 	return (*objptr)(unsafe.Add(unsafe.Pointer(r.ring), idx*unsafe.Sizeof(objptr(0))))
 }
 
-// freeSomeSpanSPMCs frees some spanSPMCs back to the OS and returns
-// true if it should be called again to free more.
-func freeSomeSpanSPMCs(preemptible bool) bool {
-	// TODO(mknyszek): This is arbitrary, but some kind of limit is necessary
-	// to help bound delays to cooperatively preempt ourselves.
-	const batchSize = 64
-
+// freeDeadSpanSPMCs frees dead spanSPMCs back to the OS.
+func freeDeadSpanSPMCs() {
 	// According to the SPMC memory management invariants, we can only free
 	// spanSPMCs outside of the mark phase. We ensure we do this in two ways.
 	//
@@ -740,18 +735,21 @@ func freeSomeSpanSPMCs(preemptible bool) bool {
 	//
 	// This way, we ensure that we don't start freeing if we're in the wrong
 	// phase, and the phase can't change on us while we're freeing.
+	//
+	// TODO(go.dev/issue/75771): Due to the grow semantics in
+	// spanQueue.drain, we expect a steady-state of around one spanSPMC per
+	// P, with some spikes higher when Ps have more than one. For high
+	// GOMAXPROCS, or if this list otherwise gets long, it would be nice to
+	// have a way to batch work that allows preemption during processing.
 	lock(&work.spanSPMCs.lock)
 	if gcphase != _GCoff || work.spanSPMCs.all == nil {
 		unlock(&work.spanSPMCs.lock)
-		return false
+		return
 	}
 	rp := &work.spanSPMCs.all
-	gp := getg()
-	more := true
-	for i := 0; i < batchSize && !(preemptible && gp.preempt); i++ {
+	for {
 		r := *rp
 		if r == nil {
-			more = false
 			break
 		}
 		if r.dead.Load() {
@@ -766,7 +764,6 @@ func freeSomeSpanSPMCs(preemptible bool) bool {
 		}
 	}
 	unlock(&work.spanSPMCs.lock)
-	return more
 }
 
 // tryStealSpan attempts to steal a span from another P's local queue.
@@ -1143,7 +1140,7 @@ func gcMarkWorkAvailable() bool {
 	if !work.full.empty() {
 		return true // global work available
 	}
-	if work.markrootNext < work.markrootJobs {
+	if work.markrootNext.Load() < work.markrootJobs.Load() {
 		return true // root scan work available
 	}
 	if work.spanqMask.any() {

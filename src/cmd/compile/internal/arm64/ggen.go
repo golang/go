@@ -11,10 +11,12 @@ import (
 )
 
 func padframe(frame int64) int64 {
-	// arm64 requires that the frame size (not counting saved FP&LR)
-	// be 16 bytes aligned. If not, pad it.
-	if frame%16 != 0 {
-		frame += 16 - (frame % 16)
+	// arm64 requires frame sizes here that are 8 mod 16.
+	// With the additional (unused) slot at the bottom of the frame,
+	// that makes an aligned 16 byte frame.
+	// Adding a save region for LR+FP does not change the alignment.
+	if frame != 0 {
+		frame += (-(frame + 8)) & 15
 	}
 	return frame
 }

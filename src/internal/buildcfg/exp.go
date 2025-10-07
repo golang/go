@@ -78,11 +78,18 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 	// things like .debug_addr (needed for DWARF 5).
 	dwarf5Supported := (goos != "darwin" && goos != "ios" && goos != "aix")
 
+	// The compiler crashes while compiling some of the Green Tea code.
+	// The Green Tea code is pretty normal, so this is likely a compiler
+	// bug in the loong64 port.
+	greenTeaGCSupported := goarch != "loong64"
+
 	baseline := goexperiment.Flags{
-		RegabiWrappers:       regabiSupported,
-		RegabiArgs:           regabiSupported,
-		Dwarf5:               dwarf5Supported,
-		RandomizedHeapBase64: true,
+		RegabiWrappers:        regabiSupported,
+		RegabiArgs:            regabiSupported,
+		Dwarf5:                dwarf5Supported,
+		RandomizedHeapBase64:  true,
+		SizeSpecializedMalloc: true,
+		GreenTeaGC:            greenTeaGCSupported,
 	}
 
 	// Start with the statically enabled set of experiments.

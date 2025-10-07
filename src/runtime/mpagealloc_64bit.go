@@ -180,9 +180,6 @@ func (p *pageAlloc) sysGrow(base, limit uintptr) {
 		sysUsed(unsafe.Pointer(need.base.addr()), need.size(), need.size())
 		p.summaryMappedReady += need.size()
 	}
-
-	// Update the scavenge index.
-	p.summaryMappedReady += p.scav.index.sysGrow(base, limit, p.sysStat)
 }
 
 // sysGrow increases the index's backing store in response to a heap growth.

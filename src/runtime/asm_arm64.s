@@ -7,6 +7,76 @@
 #include "tls_arm64.h"
 #include "funcdata.h"
 #include "textflag.h"
+#include "cgo/abi_arm64.h"
+
+// _rt0_arm64 is common startup code for most arm64 systems when using
+// internal linking. This is the entry point for the program from the
+// kernel for an ordinary -buildmode=exe program. The stack holds the
+// number of arguments and the C-style argv.
+TEXT _rt0_arm64(SB),NOSPLIT,$0
+	MOVD	0(RSP), R0	// argc
+	ADD	$8, RSP, R1	// argv
+	JMP	runtime·rt0_go(SB)
+
+// main is common startup code for most amd64 systems when using
+// external linking. The C startup code will call the symbol "main"
+// passing argc and argv in the usual C ABI registers R0 and R1.
+TEXT main(SB),NOSPLIT,$0
+	JMP	runtime·rt0_go(SB)
+
+// _rt0_arm64_lib is common startup code for most arm64 systems when
+// using -buildmode=c-archive or -buildmode=c-shared. The linker will
+// arrange to invoke this function as a global constructor (for
+// c-archive) or when the shared library is loaded (for c-shared).
+// We expect argc and argv to be passed in the usual C ABI registers
+// R0 and R1.
+TEXT _rt0_arm64_lib(SB),NOSPLIT,$184
+	// Preserve callee-save registers.
+	SAVE_R19_TO_R28(24)
+	SAVE_F8_TO_F15(104)
+
+	// Initialize g as null in case of using g later e.g. sigaction in cgo_sigaction.go
+	MOVD	ZR, g
+
+	MOVD	R0, _rt0_arm64_lib_argc<>(SB)
+	MOVD	R1, _rt0_arm64_lib_argv<>(SB)
+
+	// Synchronous initialization.
+	MOVD	$runtime·libpreinit(SB), R4
+	BL	(R4)
+
+	// Create a new thread to do the runtime initialization and return.
+	MOVD	_cgo_sys_thread_create(SB), R4
+	CBZ	R4, nocgo
+	MOVD	$_rt0_arm64_lib_go(SB), R0
+	MOVD	$0, R1
+	BL	(R4)
+	B	restore
+
+nocgo:
+	MOVD	$0x800000, R0                     // stacksize = 8192KB
+	MOVD	$_rt0_arm64_lib_go(SB), R1
+	MOVD	R0, 8(RSP)
+	MOVD	R1, 16(RSP)
+	MOVD	$runtime·newosproc0(SB),R4
+	BL	(R4)
+
+restore:
+	// Restore callee-save registers.
+	RESTORE_R19_TO_R28(24)
+	RESTORE_F8_TO_F15(104)
+	RET
+
+TEXT _rt0_arm64_lib_go(SB),NOSPLIT,$0
+	MOVD	_rt0_arm64_lib_argc<>(SB), R0
+	MOVD	_rt0_arm64_lib_argv<>(SB), R1
+	MOVD	$runtime·rt0_go(SB),R4
+	B	(R4)
+
+DATA _rt0_arm64_lib_argc<>(SB)/8, $0
+GLOBL _rt0_arm64_lib_argc<>(SB),NOPTR, $8
+DATA _rt0_arm64_lib_argv<>(SB)/8, $0
+GLOBL _rt0_arm64_lib_argv<>(SB),NOPTR, $8
 
 #ifdef GOARM64_LSE
 DATA no_lse_msg<>+0x00(SB)/64, $"This program can only run on ARM64 processors with LSE support.\n"
@@ -299,7 +369,6 @@ switch:
 	BL	runtime·save_g(SB)
 	MOVD	(g_sched+gobuf_sp)(g), R0
 	MOVD	R0, RSP
-	MOVD	(g_sched+gobuf_bp)(g), R29
 	MOVD	$0, (g_sched+gobuf_sp)(g)
 	MOVD	$0, (g_sched+gobuf_bp)(g)
 	RET
@@ -309,8 +378,8 @@ noswitch:
 	// Using a tail call here cleans up tracebacks since we won't stop
 	// at an intermediate systemstack.
 	MOVD	0(R26), R3	// code pointer
-	MOVD.P	16(RSP), R30	// restore LR
-	SUB	$8, RSP, R29	// restore FP
+	ADD	$16, RSP
+	LDP.P	16(RSP), (R29,R30)	// restore FP, LR
 	B	(R3)
 
 // func switchToCrashStack0(fn func())
@@ -979,7 +1048,7 @@ again:
 // Smashes R0.
 TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
 	MOVD	$runtime·systemstack_switch(SB), R0
-	ADD	$8, R0	// get past prologue
+	ADD	$12, R0	// get past prologue
 	MOVD	R0, (g_sched+gobuf_pc)(g)
 	MOVD	RSP, R0
 	MOVD	R0, (g_sched+gobuf_sp)(g)
@@ -997,9 +1066,7 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
 TEXT ·asmcgocall_no_g(SB),NOSPLIT,$0-16
 	MOVD	fn+0(FP), R1
 	MOVD	arg+8(FP), R0
-	SUB	$16, RSP	// skip over saved frame pointer below RSP
 	BL	(R1)
-	ADD	$16, RSP	// skip over saved frame pointer below RSP
 	RET
 
 // func asmcgocall(fn, arg unsafe.Pointer) int32
@@ -1164,9 +1231,9 @@ havem:
 	BL	runtime·save_g(SB)
 	MOVD	(g_sched+gobuf_sp)(g), R4 // prepare stack as R4
 	MOVD	(g_sched+gobuf_pc)(g), R5
-	MOVD	R5, -48(R4)
+	MOVD	R5, -8(R4)
 	MOVD	(g_sched+gobuf_bp)(g), R5
-	MOVD	R5, -56(R4)
+	MOVD	R5, -16(R4)
 	// Gather our arguments into registers.
 	MOVD	fn+0(FP), R1
 	MOVD	frame+8(FP), R2
@@ -1180,7 +1247,7 @@ havem:
 	CALL	(R0) // indirect call to bypass nosplit check. We're on a different stack now.
 
 	// Restore g->sched (== m->curg->sched) from saved values.
-	MOVD	0(RSP), R5
+	MOVD	40(RSP), R5
 	MOVD	R5, (g_sched+gobuf_pc)(g)
 	MOVD	RSP, R4
 	ADD	$48, R4, R4
@@ -1418,10 +1485,57 @@ GLOBL	debugCallFrameTooLarge<>(SB), RODATA, $20	// Size duplicated below
 //
 // This is ABIInternal because Go code injects its PC directly into new
 // goroutine stacks.
+//
+// State before debugger starts doing anything:
+// |   current   |
+// |   stack     |
+// +-------------+ <- SP = origSP
+// stopped executing at PC = origPC
+// some values are in LR (origLR) and FP (origFP)
+//
+// After debugger has done steps 1-6 above:
+// |   current   |
+// |   stack     |
+// +-------------+ <- origSP
+// |    -----    | (used to be a slot to store frame pointer on entry to origPC's frame.)
+// +-------------+
+// |   origLR    |
+// +-------------+ <- SP
+// |    -----    |
+// +-------------+
+// |   argsize   |
+// +-------------+
+// LR = origPC, PC = debugCallV2
+//
+// debugCallV2 then modifies the stack up to the "good" label:
+// |   current   |
+// |   stack     |
+// +-------------+ <- origSP
+// |    -----    | (used to be a slot to store frame pointer on entry to origPC's frame.)
+// +-------------+
+// |   origLR    |
+// +-------------+ <- where debugger left SP
+// |   origPC    |
+// +-------------+
+// |   origFP    |
+// +-------------+ <- FP = SP + 256
+// |   saved     |
+// |  registers  |
+// | (224 bytes) |
+// +-------------+ <- SP + 32
+// |  space for  |
+// |   outargs   |
+// +-------------+ <- SP + 8
+// |   argsize   |
+// +-------------+ <- SP
+
 TEXT runtime·debugCallV2<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
-	STP	(R29, R30), -280(RSP)
-	SUB	$272, RSP, RSP
-	SUB	$8, RSP, R29
+	MOVD	R30, -8(RSP)		// save origPC
+	MOVD	-16(RSP), R30 		// save argsize in R30 temporarily
+	MOVD.W	R29, -16(RSP)		// push origFP
+	MOVD	RSP, R29		// frame pointer chain now set up
+	SUB	$256, RSP, RSP		// allocate frame
+	MOVD	R30, (RSP)		// Save argsize on the stack
 	// Save all registers that may contain pointers so they can be
 	// conservatively scanned.
 	//
@@ -1443,7 +1557,8 @@ TEXT runtime·debugCallV2<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
 	STP	(R0, R1), (4*8)(RSP)
 
 	// Perform a safe-point check.
-	MOVD	R30, 8(RSP) // Caller's PC
+	MOVD	264(RSP), R0 // origPC
+	MOVD	R0, 8(RSP)
 	CALL	runtime·debugCallCheck(SB)
 	MOVD	16(RSP), R0
 	CBZ	R0, good
@@ -1487,7 +1602,7 @@ good:
 	CALL	runtime·debugCallWrap(SB);	\
 	JMP	restore
 
-	MOVD	256(RSP), R0 // the argument frame size
+	MOVD	(RSP), R0 // the argument frame size
 	DEBUG_CALL_DISPATCH(debugCall32<>, 32)
 	DEBUG_CALL_DISPATCH(debugCall64<>, 64)
 	DEBUG_CALL_DISPATCH(debugCall128<>, 128)
@@ -1535,9 +1650,9 @@ restore:
 	LDP	(6*8)(RSP), (R2, R3)
 	LDP	(4*8)(RSP), (R0, R1)
 
-	LDP	-8(RSP), (R29, R27)
-	ADD	$288, RSP, RSP // Add 16 more bytes, see saveSigContext
-	MOVD	-16(RSP), R30 // restore old lr
+	MOVD	272(RSP), R30		// restore old lr (saved by (*sigctxt).pushCall)
+	LDP	256(RSP), (R29, R27)	// restore old fp, set up resumption address
+	ADD	$288, RSP, RSP		// Pop frame, LR+FP, and block pushed by (*sigctxt).pushCall
 	JMP	(R27)
 
 // runtime.debugCallCheck assumes that functions defined with the

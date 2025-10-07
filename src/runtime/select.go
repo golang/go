@@ -83,7 +83,7 @@ func selparkcommit(gp *g, _ unsafe.Pointer) bool {
 	// channels in lock order.
 	var lastc *hchan
 	for sg := gp.waiting; sg != nil; sg = sg.waitlink {
-		if sg.c != lastc && lastc != nil {
+		if sg.c.get() != lastc && lastc != nil {
 			// As soon as we unlock the channel, fields in
 			// any sudog with that channel may change,
 			// including c and waitlink. Since multiple
@@ -92,7 +92,7 @@ func selparkcommit(gp *g, _ unsafe.Pointer) bool {
 			// of a channel.
 			unlock(&lastc.lock)
 		}
-		lastc = sg.c
+		lastc = sg.c.get()
 	}
 	if lastc != nil {
 		unlock(&lastc.lock)
@@ -320,12 +320,12 @@ func selectgo(cas0 *scase, order0 *uint16, pc0 *uintptr, nsends, nrecvs int, blo
 		sg.isSelect = true
 		// No stack splits between assigning elem and enqueuing
 		// sg on gp.waiting where copystack can find it.
-		sg.elem = cas.elem
+		sg.elem.set(cas.elem)
 		sg.releasetime = 0
 		if t0 != 0 {
 			sg.releasetime = -1
 		}
-		sg.c = c
+		sg.c.set(c)
 		// Construct waiting list in lock order.
 		*nextp = sg
 		nextp = &sg.waitlink
@@ -368,8 +368,8 @@ func selectgo(cas0 *scase, order0 *uint16, pc0 *uintptr, nsends, nrecvs int, blo
 	// Clear all elem before unlinking from gp.waiting.
 	for sg1 := gp.waiting; sg1 != nil; sg1 = sg1.waitlink {
 		sg1.isSelect = false
-		sg1.elem = nil
-		sg1.c = nil
+		sg1.elem.set(nil)
+		sg1.c.set(nil)
 	}
 	gp.waiting = nil
 

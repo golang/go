@@ -393,10 +393,16 @@ func StackOffset(slot ssa.LocalSlot) int32 {
 	case ir.PAUTO:
 		off = n.FrameOffset()
 		if base.Ctxt.Arch.FixedFrameSize == 0 {
+			// x86 return address
 			off -= int64(types.PtrSize)
 		}
 		if buildcfg.FramePointerEnabled {
+			// frame pointer
 			off -= int64(types.PtrSize)
+			if buildcfg.GOARCH == "arm64" {
+				// arm64 return address also
+				off -= int64(types.PtrSize)
+			}
 		}
 	}
 	return int32(off + slot.Off)

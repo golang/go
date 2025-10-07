@@ -233,19 +233,22 @@ const (
 	//      ios/arm64         40         4MB           1  256K  (2MB)
 	//       */32-bit         32         4MB           1  1024  (4KB)
 	//     */mips(le)         31         4MB           1   512  (2KB)
+	//           wasm         32       512KB           1  8192 (64KB)
 
 	// heapArenaBytes is the size of a heap arena. The heap
 	// consists of mappings of size heapArenaBytes, aligned to
 	// heapArenaBytes. The initial heap mapping is one arena.
 	//
-	// This is currently 64MB on 64-bit non-Windows and 4MB on
-	// 32-bit and on Windows. We use smaller arenas on Windows
-	// because all committed memory is charged to the process,
-	// even if it's not touched. Hence, for processes with small
-	// heaps, the mapped arena space needs to be commensurate.
-	// This is particularly important with the race detector,
-	// since it significantly amplifies the cost of committed
-	// memory.
+	// This is currently 64MB on 64-bit non-Windows, 4MB on
+	// 32-bit and on Windows, and 512KB on Wasm. We use smaller
+	// arenas on Windows because all committed memory is charged
+	// to the process, even if it's not touched. Hence, for
+	// processes with small heaps, the mapped arena space needs
+	// to be commensurate. This is particularly important with
+	// the race detector, since it significantly amplifies the
+	// cost of committed memory. We use smaller arenas on Wasm
+	// because some Wasm programs have very small heap, and
+	// everything in the Wasm linear memory is charged.
 	heapArenaBytes = 1 << logHeapArenaBytes
 
 	heapArenaWords = heapArenaBytes / goarch.PtrSize
@@ -253,7 +256,7 @@ const (
 	// logHeapArenaBytes is log_2 of heapArenaBytes. For clarity,
 	// prefer using heapArenaBytes where possible (we need the
 	// constant to compute some other constants).
-	logHeapArenaBytes = (6+20)*(_64bit*(1-goos.IsWindows)*(1-goarch.IsWasm)*(1-goos.IsIos*goarch.IsArm64)) + (2+20)*(_64bit*goos.IsWindows) + (2+20)*(1-_64bit) + (2+20)*goarch.IsWasm + (2+20)*goos.IsIos*goarch.IsArm64
+	logHeapArenaBytes = (6+20)*(_64bit*(1-goos.IsWindows)*(1-goarch.IsWasm)*(1-goos.IsIos*goarch.IsArm64)) + (2+20)*(_64bit*goos.IsWindows) + (2+20)*(1-_64bit) + (9+10)*goarch.IsWasm + (2+20)*goos.IsIos*goarch.IsArm64
 
 	// heapArenaBitmapWords is the size of each heap arena's bitmap in uintptrs.
 	heapArenaBitmapWords = heapArenaWords / (8 * goarch.PtrSize)

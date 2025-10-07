@@ -1779,10 +1779,7 @@ func xcoffCreateExportFile(ctxt *Link) (fname string) {
 	var buf bytes.Buffer
 
 	ldr := ctxt.loader
-	for s, nsym := loader.Sym(1), loader.Sym(ldr.NSym()); s < nsym; s++ {
-		if !ldr.AttrCgoExport(s) {
-			continue
-		}
+	for s := range ldr.ForAllCgoExportStatic() {
 		extname := ldr.SymExtname(s)
 		if !strings.HasPrefix(extname, "._cgoexp_") {
 			continue

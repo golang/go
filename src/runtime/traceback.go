@@ -175,6 +175,11 @@ func (u *unwinder) initAt(pc0, sp0, lr0 uintptr, gp *g, flags unwindFlags) {
 	// Start in the caller's frame.
 	if frame.pc == 0 {
 		if usesLR {
+			// TODO: this isn't right on arm64. But also, this should
+			// ~never happen. Calling a nil function will panic
+			// when loading the PC out of the closure, not when
+			// branching to that PC. (Closures should always have
+			// valid PCs in their first word.)
 			frame.pc = *(*uintptr)(unsafe.Pointer(frame.sp))
 			frame.lr = 0
 		} else {
@@ -369,7 +374,11 @@ func (u *unwinder) resolveInternal(innermost, isSyscall bool) {
 		var lrPtr uintptr
 		if usesLR {
 			if innermost && frame.sp < frame.fp || frame.lr == 0 {
-				lrPtr = frame.sp
+				if GOARCH == "arm64" {
+					lrPtr = frame.fp - goarch.PtrSize
+				} else {
+					lrPtr = frame.sp
+				}
 				frame.lr = *(*uintptr)(unsafe.Pointer(lrPtr))
 			}
 		} else {
@@ -385,24 +394,17 @@ func (u *unwinder) resolveInternal(innermost, isSyscall bool) {
 		// On x86, call instruction pushes return PC before entering new function.
 		frame.varp -= goarch.PtrSize
 	}
+	if GOARCH == "arm64" && frame.varp > frame.sp {
+		frame.varp -= goarch.PtrSize // LR have been saved, skip over it.
+	}
 
 	// For architectures with frame pointers, if there's
 	// a frame, then there's a saved frame pointer here.
 	//
 	// NOTE: This code is not as general as it looks.
-	// On x86, the ABI is to save the frame pointer word at the
+	// On x86 and arm64, the ABI is to save the frame pointer word at the
 	// top of the stack frame, so we have to back down over it.
-	// On arm64, the frame pointer should be at the bottom of
-	// the stack (with R29 (aka FP) = RSP), in which case we would
-	// not want to do the subtraction here. But we started out without
-	// any frame pointer, and when we wanted to add it, we didn't
-	// want to break all the assembly doing direct writes to 8(RSP)
-	// to set the first parameter to a called function.
-	// So we decided to write the FP link *below* the stack pointer
-	// (with R29 = RSP - 8 in Go functions).
-	// This is technically ABI-compatible but not standard.
-	// And it happens to end up mimicking the x86 layout.
-	// Other architectures may make different decisions.
+	// No other architectures are framepointer-enabled at the moment.
 	if frame.varp > frame.sp && framepointer_enabled {
 		frame.varp -= goarch.PtrSize
 	}
@@ -429,7 +431,7 @@ func (u *unwinder) resolveInternal(innermost, isSyscall bool) {
 			// gp._defer for a defer corresponding to this function, but that
 			// is hard to do with defer records on the stack during a stack copy.)
 			// Note: the +1 is to offset the -1 that
-			// stack.go:getStackMap does to back up a return
+			// (*stkframe).getStackMap does to back up a return
 			// address make sure the pc is in the CALL instruction.
 		} else {
 			frame.continpc = 0
@@ -562,7 +564,7 @@ func (u *unwinder) finishInternal() {
 	gp := u.g.ptr()
 	if u.flags&(unwindPrintErrors|unwindSilentErrors) == 0 && u.frame.sp != gp.stktopsp {
 		print("runtime: g", gp.goid, ": frame.sp=", hex(u.frame.sp), " top=", hex(gp.stktopsp), "\n")
-		print("\tstack=[", hex(gp.stack.lo), "-", hex(gp.stack.hi), "\n")
+		print("\tstack=[", hex(gp.stack.lo), "-", hex(gp.stack.hi), "]\n")
 		throw("traceback did not unwind completely")
 	}
 }
@@ -591,7 +593,7 @@ func (u *unwinder) symPC() uintptr {
 // If the current frame is not a cgo frame or if there's no registered cgo
 // unwinder, it returns 0.
 func (u *unwinder) cgoCallers(pcBuf []uintptr) int {
-	if cgoTraceback == nil || u.frame.fn.funcID != abi.FuncID_cgocallback || u.cgoCtxt < 0 {
+	if !cgoTracebackAvailable() || u.frame.fn.funcID != abi.FuncID_cgocallback || u.cgoCtxt < 0 {
 		// We don't have a cgo unwinder (typical case), or we do but we're not
 		// in a cgo frame or we're out of cgo context.
 		return 0
@@ -1014,7 +1016,7 @@ func traceback2(u *unwinder, showRuntime bool, skip, max int) (n, lastN int) {
 			anySymbolized := false
 			stop := false
 			for _, pc := range cgoBuf[:cgoN] {
-				if cgoSymbolizer == nil {
+				if !cgoSymbolizerAvailable() {
 					if pr, stop := commitFrame(); stop {
 						break
 					} else if pr {
@@ -1206,6 +1208,7 @@ var gStatusStrings = [...]string{
 	_Gwaiting:   "waiting",
 	_Gdead:      "dead",
 	_Gcopystack: "copystack",
+	_Gleaked:    "leaked",
 	_Gpreempted: "preempted",
 }
 
@@ -1226,7 +1229,7 @@ func goroutineheader(gp *g) {
 	}
 
 	// Override.
-	if gpstatus == _Gwaiting && gp.waitreason != waitReasonZero {
+	if (gpstatus == _Gwaiting || gpstatus == _Gleaked) && gp.waitreason != waitReasonZero {
 		status = gp.waitreason.String()
 	}
 
@@ -1245,6 +1248,9 @@ func goroutineheader(gp *g) {
 		}
 	}
 	print(" [", status)
+	if gpstatus == _Gleaked {
+		print(" (leaked)")
+	}
 	if isScan {
 		print(" (scan)")
 	}
@@ -1573,16 +1579,36 @@ func SetCgoTraceback(version int, traceback, context, symbolizer unsafe.Pointer)
 	cgoContext = context
 	cgoSymbolizer = symbolizer
 
-	// The context function is called when a C function calls a Go
-	// function. As such it is only called by C code in runtime/cgo.
-	if _cgo_set_context_function != nil {
-		cgocall(_cgo_set_context_function, context)
+	if _cgo_set_traceback_functions != nil {
+		type cgoSetTracebackFunctionsArg struct {
+			traceback  unsafe.Pointer
+			context    unsafe.Pointer
+			symbolizer unsafe.Pointer
+		}
+		arg := cgoSetTracebackFunctionsArg{
+			traceback:  traceback,
+			context:    context,
+			symbolizer: symbolizer,
+		}
+		cgocall(_cgo_set_traceback_functions, noescape(unsafe.Pointer(&arg)))
 	}
 }
 
 var cgoTraceback unsafe.Pointer
 var cgoContext unsafe.Pointer
 var cgoSymbolizer unsafe.Pointer
+
+func cgoTracebackAvailable() bool {
+	// - The traceback function must be registered via SetCgoTraceback.
+	// - This must be a cgo binary (providing _cgo_call_traceback_function).
+	return cgoTraceback != nil && _cgo_call_traceback_function != nil
+}
+
+func cgoSymbolizerAvailable() bool {
+	// - The symbolizer function must be registered via SetCgoTraceback.
+	// - This must be a cgo binary (providing _cgo_call_symbolizer_function).
+	return cgoSymbolizer != nil && _cgo_call_symbolizer_function != nil
+}
 
 // cgoTracebackArg is the type passed to cgoTraceback.
 type cgoTracebackArg struct {
@@ -1610,7 +1636,7 @@ type cgoSymbolizerArg struct {
 
 // printCgoTraceback prints a traceback of callers.
 func printCgoTraceback(callers *cgoCallers) {
-	if cgoSymbolizer == nil {
+	if !cgoSymbolizerAvailable() {
 		for _, c := range callers {
 			if c == 0 {
 				break
@@ -1635,6 +1661,8 @@ func printCgoTraceback(callers *cgoCallers) {
 // printOneCgoTraceback prints the traceback of a single cgo caller.
 // This can print more than one line because of inlining.
 // It returns the "stop" result of commitFrame.
+//
+// Preconditions: cgoSymbolizerAvailable returns true.
 func printOneCgoTraceback(pc uintptr, commitFrame func() (pr, stop bool), arg *cgoSymbolizerArg) bool {
 	arg.pc = pc
 	for {
@@ -1665,6 +1693,8 @@ func printOneCgoTraceback(pc uintptr, commitFrame func() (pr, stop bool), arg *c
 }
 
 // callCgoSymbolizer calls the cgoSymbolizer function.
+//
+// Preconditions: cgoSymbolizerAvailable returns true.
 func callCgoSymbolizer(arg *cgoSymbolizerArg) {
 	call := cgocall
 	if panicking.Load() > 0 || getg().m.curg != getg() {
@@ -1678,14 +1708,13 @@ func callCgoSymbolizer(arg *cgoSymbolizerArg) {
 	if asanenabled {
 		asanwrite(unsafe.Pointer(arg), unsafe.Sizeof(cgoSymbolizerArg{}))
 	}
-	call(cgoSymbolizer, noescape(unsafe.Pointer(arg)))
+	call(_cgo_call_symbolizer_function, noescape(unsafe.Pointer(arg)))
 }
 
 // cgoContextPCs gets the PC values from a cgo traceback.
+//
+// Preconditions: cgoTracebackAvailable returns true.
 func cgoContextPCs(ctxt uintptr, buf []uintptr) {
-	if cgoTraceback == nil {
-		return
-	}
 	call := cgocall
 	if panicking.Load() > 0 || getg().m.curg != getg() {
 		// We do not want to call into the scheduler when panicking
@@ -1703,5 +1732,5 @@ func cgoContextPCs(ctxt uintptr, buf []uintptr) {
 	if asanenabled {
 		asanwrite(unsafe.Pointer(&arg), unsafe.Sizeof(arg))
 	}
-	call(cgoTraceback, noescape(unsafe.Pointer(&arg)))
+	call(_cgo_call_traceback_function, noescape(unsafe.Pointer(&arg)))
 }

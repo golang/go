@@ -989,6 +989,10 @@
     (Const64 <typ.Int> [0])
     (Const64 <typ.Int> [0]))
 
+// Special rule to help constant slicing; len > 0 implies cap > 0 implies Slicemask is all 1
+(SliceMake (AddPtr <t> x (And64 y (Slicemask _))) w:(Const64 [c]) z) && c > 0 => (SliceMake (AddPtr <t> x y) w z)
+(SliceMake (AddPtr <t> x (And32 y (Slicemask _))) w:(Const32 [c]) z) && c > 0 => (SliceMake (AddPtr <t> x y) w z)
+
 // interface ops
 (ConstInterface) =>
   (IMake
@@ -2078,6 +2082,9 @@
 (NilCheck ptr:(LocalAddr _ _) _)
 	&& warnRule(fe.Debug_checknil(), v, "removed nil check")
 	=> ptr
+
+// .dict args are always non-nil.
+(NilCheck ptr:(Arg {sym}) _) && isDictArgSym(sym) => ptr
 
 // Nil checks of nil checks are redundant.
 // See comment at the end of https://go-review.googlesource.com/c/go/+/537775.

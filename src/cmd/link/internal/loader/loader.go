@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"internal/abi"
 	"io"
+	"iter"
 	"log"
 	"math/bits"
 	"os"
@@ -1106,6 +1107,18 @@ func (l *Loader) SetAttrCgoExportStatic(i Sym, v bool) {
 		l.attrCgoExportStatic[i] = struct{}{}
 	} else {
 		delete(l.attrCgoExportStatic, i)
+	}
+}
+
+// ForAllCgoExportStatic returns an iterator over all symbols
+// marked with the "cgo_export_static" compiler directive.
+func (l *Loader) ForAllCgoExportStatic() iter.Seq[Sym] {
+	return func(yield func(Sym) bool) {
+		for s := range l.attrCgoExportStatic {
+			if !yield(s) {
+				break
+			}
+		}
 	}
 }
 
@@ -2437,6 +2450,9 @@ var blockedLinknames = map[string][]string{
 	"sync_test.runtime_blockUntilEmptyCleanupQueue":  {"sync_test"},
 	"time.runtimeIsBubbled":                          {"time"},
 	"unique.runtime_blockUntilEmptyCleanupQueue":     {"unique"},
+	// Experimental features
+	"runtime.goroutineLeakGC":    {"runtime/pprof"},
+	"runtime.goroutineleakcount": {"runtime/pprof"},
 	// Others
 	"net.newWindowsFile":                   {"net"},              // pushed from os
 	"testing/synctest.testingSynctestTest": {"testing/synctest"}, // pushed from testing
