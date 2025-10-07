@@ -4,9 +4,13 @@
 #include "textflag.h"
 
 TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
-	STP.W (R29, R30), -16(RSP)
-	MOVD RSP, R29
+	MOVD R30, -496(RSP)
 	SUB $496, RSP
+	MOVD R29, -8(RSP)
+	SUB $8, RSP, R29
+	#ifdef GOOS_ios
+	MOVD R30, (RSP)
+	#endif
 	STP (R0, R1), 8(RSP)
 	STP (R2, R3), 24(RSP)
 	STP (R4, R5), 40(RSP)
@@ -74,7 +78,8 @@ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
 	LDP 40(RSP), (R4, R5)
 	LDP 24(RSP), (R2, R3)
 	LDP 8(RSP), (R0, R1)
-	MOVD 512(RSP), R30
-	LDP 496(RSP), (R29, R27)
-	ADD $528, RSP
+	MOVD 496(RSP), R30
+	MOVD -8(RSP), R29
+	MOVD (RSP), R27
+	ADD $512, RSP
 	RET (R27)

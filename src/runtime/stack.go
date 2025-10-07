@@ -579,27 +579,23 @@ var ptrnames = []string{
 // |  args to callee  |
 // +------------------+ <- frame->sp
 //
-// (arm64)
+// (arm)
 // +------------------+
 // | args from caller |
 // +------------------+ <- frame->argp
-// |     <unused>     |
-// +------------------+ <- frame->fp (aka caller's sp)
-// |  return address  |
+// | caller's retaddr |
 // +------------------+
-// |  caller's FP     |  (frame pointer always enabled: TODO)
+// |  caller's FP (*) | (*) on ARM64, if framepointer_enabled && varp > sp
 // +------------------+ <- frame->varp
 // |     locals       |
 // +------------------+
 // |  args to callee  |
 // +------------------+
-// |     <unused>     |
+// |  return address  |
 // +------------------+ <- frame->sp
 //
 // varp > sp means that the function has a frame;
 // varp == sp means frameless function.
-//
-// Alignment padding, if needed, will be between "locals" and "args to callee".
 
 type adjustinfo struct {
 	old   stack
@@ -713,8 +709,7 @@ func adjustframe(frame *stkframe, adjinfo *adjustinfo) {
 	}
 
 	// Adjust saved frame pointer if there is one.
-	if goarch.ArchFamily == goarch.AMD64 && frame.argp-frame.varp == 2*goarch.PtrSize ||
-		goarch.ArchFamily == goarch.ARM64 && frame.argp-frame.varp == 3*goarch.PtrSize {
+	if (goarch.ArchFamily == goarch.AMD64 || goarch.ArchFamily == goarch.ARM64) && frame.argp-frame.varp == 2*goarch.PtrSize {
 		if stackDebug >= 3 {
 			print("      saved bp\n")
 		}
@@ -728,7 +723,10 @@ func adjustframe(frame *stkframe, adjinfo *adjustinfo) {
 				throw("bad frame pointer")
 			}
 		}
-		// This is the caller's frame pointer saved in the current frame.
+		// On AMD64, this is the caller's frame pointer saved in the current
+		// frame.
+		// On ARM64, this is the frame pointer of the caller's caller saved
+		// by the caller in its frame (one word below its SP).
 		adjustpointer(adjinfo, unsafe.Pointer(frame.varp))
 	}
 

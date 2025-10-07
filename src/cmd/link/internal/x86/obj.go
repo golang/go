@@ -50,14 +50,13 @@ func Init() (*sys.Arch, ld.Arch) {
 
 		Plan9Magic: uint32(4*11*11 + 7),
 
-		Adddynrel:                 adddynrel,
-		Archinit:                  archinit,
-		Archreloc:                 archreloc,
-		Archrelocvariant:          archrelocvariant,
-		Gentext:                   gentext,
-		Machoreloc1:               machoreloc1,
-		PEreloc1:                  pereloc1,
-		ReturnAddressAtTopOfFrame: true,
+		Adddynrel:        adddynrel,
+		Archinit:         archinit,
+		Archreloc:        archreloc,
+		Archrelocvariant: archrelocvariant,
+		Gentext:          gentext,
+		Machoreloc1:      machoreloc1,
+		PEreloc1:         pereloc1,
 
 		ELF: ld.ELFArch{
 			Linuxdynld:     "/lib/ld-linux.so.2",

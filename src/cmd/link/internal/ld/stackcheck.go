@@ -9,6 +9,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/link/internal/loader"
 	"fmt"
+	"internal/buildcfg"
 	"sort"
 	"strings"
 )
@@ -61,6 +62,10 @@ func (ctxt *Link) doStackCheck() {
 	// that there are at least StackLimit bytes available below SP
 	// when morestack returns.
 	limit := objabi.StackNosplit(*flagRace) - sc.callSize
+	if buildcfg.GOARCH == "arm64" {
+		// Need an extra 8 bytes below SP to save FP.
+		limit -= 8
+	}
 
 	// Compute stack heights without any back-tracking information.
 	// This will almost certainly succeed and we can simply

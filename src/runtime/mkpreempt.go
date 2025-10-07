@@ -488,18 +488,26 @@ func genARM64(g *gen) {
 		l.stack += 8 // SP needs 16-byte alignment
 	}
 
-	// allocate frame, save PC (in R30), FP (in R29) of interrupted instruction
-	p("STP.W (R29, R30), -16(RSP)")
-	p("MOVD RSP, R29") // set up new frame pointer
+	// allocate frame, save PC of interrupted instruction (in LR)
+	p("MOVD R30, %d(RSP)", -l.stack)
 	p("SUB $%d, RSP", l.stack)
+	p("MOVD R29, -8(RSP)") // save frame pointer (only used on Linux)
+	p("SUB $8, RSP, R29")  // set up new frame pointer
+	// On iOS, save the LR again after decrementing SP. We run the
+	// signal handler on the G stack (as it doesn't support sigaltstack),
+	// so any writes below SP may be clobbered.
+	p("#ifdef GOOS_ios")
+	p("MOVD R30, (RSP)")
+	p("#endif")
 
 	l.save(g)
 	p("CALL ·asyncPreempt2(SB)")
 	l.restore(g)
 
-	p("MOVD %d(RSP), R30", l.stack+16)    // sigctxt.pushCall has pushed LR (at interrupt) on stack, restore it
-	p("LDP %d(RSP), (R29, R27)", l.stack) // Restore frame pointer. Load PC into regtmp.
-	p("ADD $%d, RSP", l.stack+32)         // pop frame (including the space pushed by sigctxt.pushCall)
+	p("MOVD %d(RSP), R30", l.stack) // sigctxt.pushCall has pushed LR (at interrupt) on stack, restore it
+	p("MOVD -8(RSP), R29")          // restore frame pointer
+	p("MOVD (RSP), R27")            // load PC to REGTMP
+	p("ADD $%d, RSP", l.stack+16)   // pop frame (including the space pushed by sigctxt.pushCall)
 	p("RET (R27)")
 }
 

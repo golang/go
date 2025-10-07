@@ -221,7 +221,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 
 		for i := 0; i < len(args); i++ {
 			a := args[i]
-			// Offset by size of the unused slot before start of args.
+			// Offset by size of the saved LR slot.
 			addr := ssagen.SpillSlotAddr(a, arm64.REGSP, base.Ctxt.Arch.FixedFrameSize)
 			// Look for double-register operations if we can.
 			if i < len(args)-1 {
