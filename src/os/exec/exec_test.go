@@ -684,7 +684,7 @@ func TestExtraFiles(t *testing.T) {
 	// This test runs with cgo disabled. External linking needs cgo, so
 	// it doesn't work if external linking is required.
 	//
-	// N.B. go build below explictly doesn't pass through
+	// N.B. go build below explicitly doesn't pass through
 	// -asan/-msan/-race, so we don't care about those.
 	testenv.MustInternalLink(t, testenv.NoSpecialBuildTypes)
 
