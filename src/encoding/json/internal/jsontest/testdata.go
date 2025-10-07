@@ -198,7 +198,7 @@ type (
 		HangulSyllables                    string `json:"Hangul Syllables"`
 		Hebrew                             string `json:"Hebrew"`
 		Hiragana                           string `json:"Hiragana"`
-		IPAExtentions                      string `json:"IPA Extentions"`
+		IPAExtensions                      string `json:"IPA Extensions"`
 		KangxiRadicals                     string `json:"Kangxi Radicals"`
 		Katakana                           string `json:"Katakana"`
 		Khmer                              string `json:"Khmer"`
