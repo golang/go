@@ -11,7 +11,7 @@ import (
 	. "go/ast"
 	"go/parser"
 	"go/token"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -132,7 +132,7 @@ func TestCommentMap(t *testing.T) {
 		for n, list := range cmap {
 			out = append(out, fmt.Sprintf("\t\"%2d: %T\":\t%q,", fset.Position(n.Pos()).Line, n, ctext(list)))
 		}
-		sort.Strings(out)
+		slices.Sort(out)
 		for _, s := range out {
 			fmt.Println(s)
 		}

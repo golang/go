@@ -14,7 +14,6 @@ import (
 	"internal/goversion"
 	"internal/testenv"
 	"slices"
-	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -3162,7 +3161,7 @@ func (recv T) f(param int) (result int) {
 			got = append(got, fmt.Sprintf("%s: %v", v.Name(), v.Kind()))
 		}
 	}
-	sort.Strings(got)
+	slices.Sort(got)
 	want := []string{
 		"field: FieldVar",
 		"global: PackageVar",

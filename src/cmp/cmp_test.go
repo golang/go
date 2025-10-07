@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"math"
 	"slices"
-	"sort"
 	"strings"
 	"testing"
 	"unsafe"
@@ -94,9 +93,9 @@ func TestCompare(t *testing.T) {
 
 func TestSort(t *testing.T) {
 	// Test that our comparison function is consistent with
-	// sort.Float64s.
+	// slices.Sort.
 	input := []float64{1.0, 0.0, negzero, math.Inf(1), math.Inf(-1), math.NaN()}
-	sort.Float64s(input)
+	slices.Sort(input)
 	for i := 0; i < len(input)-1; i++ {
 		if cmp.Less(input[i+1], input[i]) {
 			t.Errorf("Less sort mismatch at %d in %v", i, input)
