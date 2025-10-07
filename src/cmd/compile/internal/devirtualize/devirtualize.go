@@ -183,11 +183,11 @@ const concreteTypeDebug = false
 // (different) types assigned to an interface.
 func concreteType(s *State, n ir.Node) (typ *types.Type) {
 	typ = concreteType1(s, n, make(map[*ir.Name]struct{}))
-	if typ != nil && typ.IsInterface() {
-		base.Fatalf("typ.IsInterface() = true; want = false; typ = %v", typ)
-	}
 	if typ == &noType {
 		return nil
+	}
+	if typ != nil && typ.IsInterface() {
+		base.Fatalf("typ.IsInterface() = true; want = false; typ = %v", typ)
 	}
 	return typ
 }
@@ -260,7 +260,7 @@ func concreteType1(s *State, n ir.Node, seen map[*ir.Name]struct{}) (outT *types
 	}
 
 	if name.Op() != ir.ONAME {
-		base.Fatalf("reassigned %v", name)
+		base.Fatalf("name.Op = %v; want = ONAME", n.Op())
 	}
 
 	// name.Curfn must be set, as we checked name.Class != ir.PAUTO before.
@@ -430,7 +430,7 @@ func (s *State) analyze(nodes ir.Nodes) {
 
 		n = n.Canonical()
 		if n.Op() != ir.ONAME {
-			base.Fatalf("reassigned %v", n)
+			base.Fatalf("n.Op = %v; want = ONAME", n.Op())
 		}
 
 		switch a := assignment.(type) {
