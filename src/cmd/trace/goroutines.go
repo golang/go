@@ -15,7 +15,6 @@ import (
 	"log"
 	"net/http"
 	"slices"
-	"sort"
 	"strings"
 	"time"
 )
@@ -182,7 +181,7 @@ func GoroutineHandler(summaries map[trace.GoID]*trace.GoroutineSummary) http.Han
 		for name := range validRangeStats {
 			allRangeStats = append(allRangeStats, name)
 		}
-		sort.Strings(allRangeStats)
+		slices.Sort(allRangeStats)
 
 		err := templGoroutine.Execute(w, struct {
 			Name                string

@@ -12,7 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -245,7 +245,7 @@ Diff:
 		for key := range hexByLine {
 			missing = append(missing, key)
 		}
-		sort.Strings(missing)
+		slices.Sort(missing)
 		for _, line := range missing {
 			t.Errorf("%s: did not find instruction encoding", line)
 		}
@@ -367,7 +367,7 @@ func testErrors(t *testing.T, goarch, file string, flags ...string) {
 	for key := range errors {
 		extra = append(extra, key)
 	}
-	sort.Strings(extra)
+	slices.Sort(extra)
 	for _, fileline := range extra {
 		t.Errorf("unexpected error on %s: %v", fileline, errors[fileline])
 	}

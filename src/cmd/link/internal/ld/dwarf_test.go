@@ -15,7 +15,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -1603,7 +1603,7 @@ func processParams(die *dwarf.Entry, ex *dwtest.Examiner) string {
 	for k, v := range foundParams {
 		found = append(found, fmt.Sprintf("%s:%s", k, v))
 	}
-	sort.Strings(found)
+	slices.Sort(found)
 
 	return fmt.Sprintf("%+v", found)
 }

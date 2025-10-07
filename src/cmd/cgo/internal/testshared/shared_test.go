@@ -22,7 +22,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -232,7 +232,7 @@ func cloneGOROOTDeps(goroot string) error {
 
 	pkgs := append(strings.Split(strings.TrimSpace(stdDeps), "\n"),
 		strings.Split(strings.TrimSpace(testdataDeps), "\n")...)
-	sort.Strings(pkgs)
+	slices.Sort(pkgs)
 	var pkgRoots []string
 	for _, pkg := range pkgs {
 		parentFound := false

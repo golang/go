@@ -24,7 +24,6 @@ import (
 	"runtime"
 	"runtime/debug"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -368,7 +367,7 @@ func (p *Package) Resolve(imports []string) []string {
 			all = append(all, path)
 		}
 	}
-	sort.Strings(all)
+	slices.Sort(all)
 	return all
 }
 
@@ -2271,14 +2270,14 @@ func resolveEmbed(pkgdir string, patterns []string) (files []string, pmap map[st
 		if len(list) == 0 {
 			return nil, nil, fmt.Errorf("no matching files found")
 		}
-		sort.Strings(list)
+		slices.Sort(list)
 		pmap[pattern] = list
 	}
 
 	for file := range have {
 		files = append(files, file)
 	}
-	sort.Strings(files)
+	slices.Sort(files)
 	return files, pmap, nil
 }
 
@@ -2739,7 +2738,7 @@ func (p *Package) mkAbs(list []string) []string {
 	for i, f := range list {
 		list[i] = filepath.Join(p.Dir, f)
 	}
-	sort.Strings(list)
+	slices.Sort(list)
 	return list
 }
 

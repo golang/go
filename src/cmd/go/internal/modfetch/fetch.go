@@ -16,7 +16,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 
@@ -994,7 +994,7 @@ func tidyGoSum(data []byte, keep map[module.Version]bool) []byte {
 	var buf bytes.Buffer
 	for _, m := range mods {
 		list := goSum.m[m]
-		sort.Strings(list)
+		slices.Sort(list)
 		str.Uniq(&list)
 		for _, h := range list {
 			st := goSum.status[modSum{m, h}]

@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -329,7 +329,7 @@ func dedupLibrariesOpenBSD(ctxt *Link, libs []string) []string {
 	for _, lib := range libraries {
 		libs = append(libs, lib)
 	}
-	sort.Strings(libs)
+	slices.Sort(libs)
 
 	return libs
 }

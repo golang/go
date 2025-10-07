@@ -19,7 +19,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -317,8 +316,8 @@ func (r *gitRepo) Tags(ctx context.Context, prefix string) (*Tags, error) {
 		}
 		tags.List = append(tags.List, Tag{tag, hash})
 	}
-	sort.Slice(tags.List, func(i, j int) bool {
-		return tags.List[i].Name < tags.List[j].Name
+	slices.SortFunc(tags.List, func(i, j Tag) int {
+		return strings.Compare(i.Name, j.Name)
 	})
 
 	dir := prefix[:strings.LastIndex(prefix, "/")+1]
@@ -341,7 +340,7 @@ func (r *gitRepo) repoSum(refs map[string]string) string {
 	for ref := range refs {
 		list = append(list, ref)
 	}
-	sort.Strings(list)
+	slices.Sort(list)
 	h := sha256.New()
 	for _, ref := range list {
 		fmt.Fprintf(h, "%q %s\n", ref, refs[ref])

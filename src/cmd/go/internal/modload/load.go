@@ -107,7 +107,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
-	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -512,7 +511,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 			loadedPackages = append(loadedPackages, pkg.path)
 		}
 	}
-	sort.Strings(loadedPackages)
+	slices.Sort(loadedPackages)
 
 	if !ExplicitWriteGoMod && opts.ResolveMissingImports {
 		if err := commitRequirements(ctx, WriteOpts{}); err != nil {
@@ -2020,7 +2019,7 @@ func (ld *loader) computePatternAll() (all []string) {
 			all = append(all, pkg.path)
 		}
 	}
-	sort.Strings(all)
+	slices.Sort(all)
 	return all
 }
 

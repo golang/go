@@ -27,7 +27,6 @@ import (
 	"regexp"
 	"runtime"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -3159,7 +3158,7 @@ func (b *Builder) dynimport(a *Action, objdir, importGo, cgoExe string, cflags, 
 		}
 	}
 	gatherSyso(a)
-	sort.Strings(syso)
+	slices.Sort(syso)
 	str.Uniq(&syso)
 	linkobj := str.StringList(ofile, outObj, syso)
 	dynobj := objdir + "_cgo_.o"

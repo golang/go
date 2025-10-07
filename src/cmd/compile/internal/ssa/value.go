@@ -10,7 +10,7 @@ import (
 	"cmd/internal/src"
 	"fmt"
 	"math"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -182,7 +182,7 @@ func (v *Value) LongString() string {
 		}
 	}
 	if len(names) != 0 {
-		sort.Strings(names) // Otherwise a source of variation in debugging output.
+		slices.Sort(names) // Otherwise a source of variation in debugging output.
 		s += " (" + strings.Join(names, ", ") + ")"
 	}
 	return s

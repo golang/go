@@ -1337,7 +1337,7 @@ func (test) updateErrors(out, file string) {
 		for e := range errs {
 			sorted = append(sorted, e)
 		}
-		sort.Strings(sorted)
+		slices.Sort(sorted)
 		lines[line] += " // ERROR"
 		for _, e := range sorted {
 			lines[line] += fmt.Sprintf(` "%s$"`, e)

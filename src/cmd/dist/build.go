@@ -17,7 +17,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -886,7 +885,7 @@ func runInstall(pkg string, ch chan struct{}) {
 	for imp := range importMap {
 		sortedImports = append(sortedImports, imp)
 	}
-	sort.Strings(sortedImports)
+	slices.Sort(sortedImports)
 
 	for _, dep := range importMap {
 		if dep == "C" {
@@ -1979,7 +1978,7 @@ func cmdlist() {
 		}
 		plats = append(plats, p)
 	}
-	sort.Strings(plats)
+	slices.Sort(plats)
 
 	if !*jsonFlag {
 		for _, p := range plats {

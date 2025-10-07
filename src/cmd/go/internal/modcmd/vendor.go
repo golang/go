@@ -15,7 +15,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"cmd/go/internal/base"
@@ -181,7 +181,7 @@ func RunVendor(ctx context.Context, vendorE bool, vendorO string, args []string)
 		}
 
 		pkgs := modpkgs[m]
-		sort.Strings(pkgs)
+		slices.Sort(pkgs)
 		for _, pkg := range pkgs {
 			fmt.Fprintf(w, "%s\n", pkg)
 			vendorPkg(vdir, pkg)

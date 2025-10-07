@@ -8,7 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -153,7 +153,7 @@ func glob(dir, pattern string, matches []string) (m []string, e error) {
 	for _, info := range list {
 		names = append(names, info.Name())
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	for _, n := range names {
 		matched, err := filepath.Match(pattern, n)

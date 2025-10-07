@@ -20,7 +20,7 @@ import (
 	"internal/coverage/decodemeta"
 	"internal/coverage/pods"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -349,7 +349,7 @@ func (d *dstate) Finish() {
 		for p := range d.pkgpaths {
 			pkgs = append(pkgs, p)
 		}
-		sort.Strings(pkgs)
+		slices.Sort(pkgs)
 		for _, p := range pkgs {
 			fmt.Printf("%s\n", p)
 		}

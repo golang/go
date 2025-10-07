@@ -16,7 +16,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 )
@@ -150,7 +150,7 @@ func Compile(f *Func) {
 		for key := range f.ruleMatches {
 			keys = append(keys, key)
 		}
-		sort.Strings(keys)
+		slices.Sort(keys)
 		buf := new(strings.Builder)
 		fmt.Fprintf(buf, "%s: ", f.Name)
 		for _, key := range keys {

@@ -13,7 +13,7 @@ import (
 	"log"
 	"os"
 	"reflect"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -294,7 +294,7 @@ func (f *DebugFlag) Set(debugstr string) error {
 				}
 				names = append(names, name)
 			}
-			sort.Strings(names)
+			slices.Sort(names)
 			// Indent multi-line help messages.
 			nl := fmt.Sprintf("\n\t%-*s\t", maxLen, "")
 			for _, name := range names {

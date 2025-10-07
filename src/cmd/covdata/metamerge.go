@@ -22,7 +22,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"time"
 	"unsafe"
 )
@@ -296,7 +296,7 @@ func (mm *metaMerge) VisitFuncs(f encodecounter.CounterVisitorFn) error {
 		for fid := range p.ctab {
 			fids = append(fids, int(fid))
 		}
-		sort.Ints(fids)
+		slices.Sort(fids)
 		if *verbflag >= 4 {
 			fmt.Printf("fids for pk=%d: %+v\n", pidx, fids)
 		}
