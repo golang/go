@@ -355,14 +355,14 @@ func (p *Package) setLoadPackageDataError(err error, path string, stk *ImportSta
 // can produce better error messages if it starts with the original paths.
 // The initial load of p loads all the non-test imports and rewrites
 // the vendored paths, so nothing should ever call p.vendored(p.Imports).
-func (p *Package) Resolve(loaderstate *modload.State, imports []string) []string {
+func (p *Package) Resolve(s *modload.State, imports []string) []string {
 	if len(imports) > 0 && len(p.Imports) > 0 && &imports[0] == &p.Imports[0] {
 		panic("internal error: p.Resolve(p.Imports) called")
 	}
 	seen := make(map[string]bool)
 	var all []string
 	for _, path := range imports {
-		path = ResolveImportPath(loaderstate, p, path)
+		path = ResolveImportPath(s, p, path)
 		if !seen[path] {
 			seen[path] = true
 			all = append(all, path)
@@ -1151,7 +1151,7 @@ func isDir(path string) bool {
 // First, there is Go 1.5 vendoring (golang.org/s/go15vendor).
 // If vendor expansion doesn't trigger, then the path is also subject to
 // Go 1.11 module legacy conversion (golang.org/issue/25069).
-func ResolveImportPath(loaderstate *modload.State, parent *Package, path string) (found string) {
+func ResolveImportPath(s *modload.State, parent *Package, path string) (found string) {
 	var parentPath, parentDir, parentRoot string
 	parentIsStd := false
 	if parent != nil {
@@ -1160,12 +1160,12 @@ func ResolveImportPath(loaderstate *modload.State, parent *Package, path string)
 		parentRoot = parent.Root
 		parentIsStd = parent.Standard
 	}
-	return resolveImportPath(loaderstate, path, parentPath, parentDir, parentRoot, parentIsStd)
+	return resolveImportPath(s, path, parentPath, parentDir, parentRoot, parentIsStd)
 }
 
-func resolveImportPath(loaderstate *modload.State, path, parentPath, parentDir, parentRoot string, parentIsStd bool) (found string) {
+func resolveImportPath(s *modload.State, path, parentPath, parentDir, parentRoot string, parentIsStd bool) (found string) {
 	if cfg.ModulesEnabled {
-		if _, p, e := modload.Lookup(loaderstate, parentPath, parentIsStd, path); e == nil {
+		if _, p, e := modload.Lookup(s, parentPath, parentIsStd, path); e == nil {
 			return p
 		}
 		return path
@@ -1935,7 +1935,7 @@ func (p *Package) load(loaderstate *modload.State, ctx context.Context, opts Pac
 
 		// The linker loads implicit dependencies.
 		if p.Name == "main" && !p.Internal.ForceLibrary {
-			ldDeps, err := LinkerDeps(p)
+			ldDeps, err := LinkerDeps(loaderstate, p)
 			if err != nil {
 				setError(err)
 				return
@@ -2635,12 +2635,12 @@ func SafeArg(name string) bool {
 }
 
 // LinkerDeps returns the list of linker-induced dependencies for main package p.
-func LinkerDeps(p *Package) ([]string, error) {
+func LinkerDeps(s *modload.State, p *Package) ([]string, error) {
 	// Everything links runtime.
 	deps := []string{"runtime"}
 
 	// External linking mode forces an import of runtime/cgo.
-	if what := externalLinkingReason(p); what != "" && cfg.BuildContext.Compiler != "gccgo" {
+	if what := externalLinkingReason(s, p); what != "" && cfg.BuildContext.Compiler != "gccgo" {
 		if !cfg.BuildContext.CgoEnabled {
 			return nil, fmt.Errorf("%s requires external (cgo) linking, but cgo is not enabled", what)
 		}
@@ -2673,7 +2673,7 @@ func LinkerDeps(p *Package) ([]string, error) {
 // externalLinkingReason reports the reason external linking is required
 // even for programs that do not use cgo, or the empty string if external
 // linking is not required.
-func externalLinkingReason(p *Package) (what string) {
+func externalLinkingReason(s *modload.State, p *Package) (what string) {
 	// Some targets must use external linking even inside GOROOT.
 	if platform.MustLinkExternal(cfg.Goos, cfg.Goarch, false) {
 		return cfg.Goos + "/" + cfg.Goarch
@@ -2716,7 +2716,7 @@ func externalLinkingReason(p *Package) (what string) {
 	// Using -ldflags=-linkmode=external forces external linking.
 	// If there are multiple -linkmode options, the last one wins.
 	if p != nil {
-		ldflags := BuildLdflags.For(p)
+		ldflags := BuildLdflags.For(s, p)
 		for i := len(ldflags) - 1; i >= 0; i-- {
 			a := ldflags[i]
 			if a == "-linkmode=external" ||
@@ -2842,7 +2842,7 @@ func TestPackageList(loaderstate *modload.State, ctx context.Context, opts Packa
 // in LoadImport instead.
 func LoadImportWithFlags(loaderstate *modload.State, path, srcDir string, parent *Package, stk *ImportStack, importPos []token.Position, mode int) (*Package, *PackageError) {
 	p, err := loadImport(loaderstate, context.TODO(), PackageOpts{}, nil, path, srcDir, parent, stk, importPos, mode)
-	setToolFlags(p)
+	setToolFlags(loaderstate, p)
 	return p, err
 }
 
@@ -2850,7 +2850,7 @@ func LoadImportWithFlags(loaderstate *modload.State, path, srcDir string, parent
 // It's then guaranteed to not return an error
 func LoadPackageWithFlags(loaderstate *modload.State, path, srcDir string, stk *ImportStack, importPos []token.Position, mode int) *Package {
 	p := LoadPackage(loaderstate, context.TODO(), PackageOpts{}, path, srcDir, stk, importPos, mode)
-	setToolFlags(p)
+	setToolFlags(loaderstate, p)
 	return p
 }
 
@@ -2992,7 +2992,7 @@ func PackagesAndErrors(loaderstate *modload.State, ctx context.Context, opts Pac
 	// compute the effective flags for all loaded packages
 	// (not just the ones matching the patterns but also
 	// their dependencies).
-	setToolFlags(pkgs...)
+	setToolFlags(loaderstate, pkgs...)
 
 	setPGOProfilePath(pkgs)
 
@@ -3231,12 +3231,12 @@ func (e *mainPackageError) ImportPath() string {
 	return e.importPath
 }
 
-func setToolFlags(pkgs ...*Package) {
+func setToolFlags(loaderstate *modload.State, pkgs ...*Package) {
 	for _, p := range PackageList(pkgs) {
-		p.Internal.Asmflags = BuildAsmflags.For(p)
-		p.Internal.Gcflags = BuildGcflags.For(p)
-		p.Internal.Ldflags = BuildLdflags.For(p)
-		p.Internal.Gccgoflags = BuildGccgoflags.For(p)
+		p.Internal.Asmflags = BuildAsmflags.For(loaderstate, p)
+		p.Internal.Gcflags = BuildGcflags.For(loaderstate, p)
+		p.Internal.Ldflags = BuildLdflags.For(loaderstate, p)
+		p.Internal.Gccgoflags = BuildGccgoflags.For(loaderstate, p)
 	}
 }
 
@@ -3327,7 +3327,7 @@ func GoFilesPackage(loaderstate *modload.State, ctx context.Context, opts Packag
 		pkg.Error = &PackageError{Err: &mainPackageError{importPath: pkg.ImportPath}}
 		pkg.Incomplete = true
 	}
-	setToolFlags(pkg)
+	setToolFlags(loaderstate, pkg)
 
 	return pkg
 }
@@ -3471,14 +3471,14 @@ func PackagesAndErrorsOutsideModule(loaderstate *modload.State, ctx context.Cont
 }
 
 // EnsureImport ensures that package p imports the named package.
-func EnsureImport(loaderstate *modload.State, p *Package, pkg string) {
+func EnsureImport(s *modload.State, p *Package, pkg string) {
 	for _, d := range p.Internal.Imports {
 		if d.Name == pkg {
 			return
 		}
 	}
 
-	p1, err := LoadImportWithFlags(loaderstate, pkg, p.Dir, p, &ImportStack{}, nil, 0)
+	p1, err := LoadImportWithFlags(s, pkg, p.Dir, p, &ImportStack{}, nil, 0)
 	if err != nil {
 		base.Fatalf("load %s: %v", pkg, err)
 	}
@@ -3494,10 +3494,10 @@ func EnsureImport(loaderstate *modload.State, p *Package, pkg string) {
 // "go test -cover"). It walks through the packages being built (and
 // dependencies) and marks them for coverage instrumentation when
 // appropriate, and possibly adding additional deps where needed.
-func PrepareForCoverageBuild(loaderstate *modload.State, pkgs []*Package) {
-	var match []func(*Package) bool
+func PrepareForCoverageBuild(s *modload.State, pkgs []*Package) {
+	var match []func(*modload.State, *Package) bool
 
-	matchMainModAndCommandLine := func(p *Package) bool {
+	matchMainModAndCommandLine := func(_ *modload.State, p *Package) bool {
 		// note that p.Standard implies p.Module == nil below.
 		return p.Internal.CmdlineFiles || p.Internal.CmdlinePkg || (p.Module != nil && p.Module.Main)
 	}
@@ -3505,24 +3505,24 @@ func PrepareForCoverageBuild(loaderstate *modload.State, pkgs []*Package) {
 	if len(cfg.BuildCoverPkg) != 0 {
 		// If -coverpkg has been specified, then we instrument only
 		// the specific packages selected by the user-specified pattern(s).
-		match = make([]func(*Package) bool, len(cfg.BuildCoverPkg))
+		match = make([]func(*modload.State, *Package) bool, len(cfg.BuildCoverPkg))
 		for i := range cfg.BuildCoverPkg {
-			match[i] = MatchPackage(loaderstate, cfg.BuildCoverPkg[i], base.Cwd())
+			match[i] = MatchPackage(cfg.BuildCoverPkg[i], base.Cwd())
 		}
 	} else {
 		// Without -coverpkg, instrument only packages in the main module
 		// (if any), as well as packages/files specifically named on the
 		// command line.
-		match = []func(*Package) bool{matchMainModAndCommandLine}
+		match = []func(*modload.State, *Package) bool{matchMainModAndCommandLine}
 	}
 
 	// Visit the packages being built or installed, along with all of
 	// their dependencies, and mark them to be instrumented, taking
 	// into account the matchers we've set up in the sequence above.
-	SelectCoverPackages(loaderstate, PackageList(pkgs), match, "build")
+	SelectCoverPackages(s, PackageList(pkgs), match, "build")
 }
 
-func SelectCoverPackages(loaderstate *modload.State, roots []*Package, match []func(*Package) bool, op string) []*Package {
+func SelectCoverPackages(s *modload.State, roots []*Package, match []func(*modload.State, *Package) bool, op string) []*Package {
 	var warntag string
 	var includeMain bool
 	switch op {
@@ -3540,7 +3540,7 @@ func SelectCoverPackages(loaderstate *modload.State, roots []*Package, match []f
 	for _, p := range roots {
 		haveMatch := false
 		for i := range match {
-			if match[i](p) {
+			if match[i](s, p) {
 				matched[i] = true
 				haveMatch = true
 			}
@@ -3602,7 +3602,7 @@ func SelectCoverPackages(loaderstate *modload.State, roots []*Package, match []f
 
 		// Force import of sync/atomic into package if atomic mode.
 		if cfg.BuildCoverMode == "atomic" {
-			EnsureImport(loaderstate, p, "sync/atomic")
+			EnsureImport(s, p, "sync/atomic")
 		}
 	}
 

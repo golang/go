@@ -395,7 +395,7 @@ func (b *Builder) NewObjdir() string {
 // at shlibpath. For the native toolchain this list is stored, newline separated, in
 // an ELF note with name "Go\x00\x00" and type 1. For GCCGO it is extracted from the
 // .go_export section.
-func readpkglist(loaderstate *modload.State, shlibpath string) (pkgs []*load.Package) {
+func readpkglist(s *modload.State, shlibpath string) (pkgs []*load.Package) {
 	var stk load.ImportStack
 	if cfg.BuildToolchainName == "gccgo" {
 		f, err := elf.Open(shlibpath)
@@ -415,7 +415,7 @@ func readpkglist(loaderstate *modload.State, shlibpath string) (pkgs []*load.Pac
 		for _, line := range bytes.Split(data, []byte{'\n'}) {
 			if path, found := bytes.CutPrefix(line, pkgpath); found {
 				path = bytes.TrimSuffix(path, []byte{';'})
-				pkgs = append(pkgs, load.LoadPackageWithFlags(loaderstate, string(path), base.Cwd(), &stk, nil, 0))
+				pkgs = append(pkgs, load.LoadPackageWithFlags(s, string(path), base.Cwd(), &stk, nil, 0))
 			}
 		}
 	} else {
@@ -426,7 +426,7 @@ func readpkglist(loaderstate *modload.State, shlibpath string) (pkgs []*load.Pac
 		scanner := bufio.NewScanner(bytes.NewBuffer(pkglistbytes))
 		for scanner.Scan() {
 			t := scanner.Text()
-			pkgs = append(pkgs, load.LoadPackageWithFlags(loaderstate, t, base.Cwd(), &stk, nil, 0))
+			pkgs = append(pkgs, load.LoadPackageWithFlags(s, t, base.Cwd(), &stk, nil, 0))
 		}
 	}
 	return
@@ -446,9 +446,9 @@ func (b *Builder) cacheAction(mode string, p *load.Package, f func() *Action) *A
 }
 
 // AutoAction returns the "right" action for go build or go install of p.
-func (b *Builder) AutoAction(loaderstate *modload.State, mode, depMode BuildMode, p *load.Package) *Action {
+func (b *Builder) AutoAction(s *modload.State, mode, depMode BuildMode, p *load.Package) *Action {
 	if p.Name == "main" {
-		return b.LinkAction(loaderstate, mode, depMode, p)
+		return b.LinkAction(s, mode, depMode, p)
 	}
 	return b.CompileAction(mode, depMode, p)
 }
@@ -869,13 +869,13 @@ func (b *Builder) cgoAction(p *load.Package, objdir string, deps []*Action, hasC
 // It depends on the action for compiling p.
 // If the caller may be causing p to be installed, it is up to the caller
 // to make sure that the install depends on (runs after) vet.
-func (b *Builder) VetAction(loaderstate *modload.State, mode, depMode BuildMode, p *load.Package) *Action {
-	a := b.vetAction(loaderstate, mode, depMode, p)
+func (b *Builder) VetAction(s *modload.State, mode, depMode BuildMode, p *load.Package) *Action {
+	a := b.vetAction(s, mode, depMode, p)
 	a.VetxOnly = false
 	return a
 }
 
-func (b *Builder) vetAction(loaderstate *modload.State, mode, depMode BuildMode, p *load.Package) *Action {
+func (b *Builder) vetAction(s *modload.State, mode, depMode BuildMode, p *load.Package) *Action {
 	// Construct vet action.
 	a := b.cacheAction("vet", p, func() *Action {
 		a1 := b.CompileAction(mode|ModeVetOnly, depMode, p)
@@ -891,7 +891,7 @@ func (b *Builder) vetAction(loaderstate *modload.State, mode, depMode BuildMode,
 			deps = []*Action{a1}
 		}
 		for _, p1 := range p.Internal.Imports {
-			deps = append(deps, b.vetAction(loaderstate, mode, depMode, p1))
+			deps = append(deps, b.vetAction(s, mode, depMode, p1))
 		}
 
 		a := &Action{
@@ -916,7 +916,7 @@ func (b *Builder) vetAction(loaderstate *modload.State, mode, depMode BuildMode,
 // LinkAction returns the action for linking p into an executable
 // and possibly installing the result (according to mode).
 // depMode is the action (build or install) to use when compiling dependencies.
-func (b *Builder) LinkAction(loaderstate *modload.State, mode, depMode BuildMode, p *load.Package) *Action {
+func (b *Builder) LinkAction(s *modload.State, mode, depMode BuildMode, p *load.Package) *Action {
 	// Construct link action.
 	a := b.cacheAction("link", p, func() *Action {
 		a := &Action{
@@ -951,7 +951,7 @@ func (b *Builder) LinkAction(loaderstate *modload.State, mode, depMode BuildMode
 		}
 		a.Target = a.Objdir + filepath.Join("exe", name) + cfg.ExeSuffix
 		a.built = a.Target
-		b.addTransitiveLinkDeps(loaderstate, a, a1, "")
+		b.addTransitiveLinkDeps(s, a, a1, "")
 
 		// Sequence the build of the main package (a1) strictly after the build
 		// of all other dependencies that go into the link. It is likely to be after
@@ -1037,7 +1037,7 @@ func (b *Builder) installAction(a1 *Action, mode BuildMode) *Action {
 // makes sure those are present in a.Deps.
 // If shlib is non-empty, then a corresponds to the build and installation of shlib,
 // so any rebuild of shlib should not be added as a dependency.
-func (b *Builder) addTransitiveLinkDeps(loaderstate *modload.State, a, a1 *Action, shlib string) {
+func (b *Builder) addTransitiveLinkDeps(s *modload.State, a, a1 *Action, shlib string) {
 	// Expand Deps to include all built packages, for the linker.
 	// Use breadth-first search to find rebuilt-for-test packages
 	// before the standard ones.
@@ -1078,7 +1078,7 @@ func (b *Builder) addTransitiveLinkDeps(loaderstate *modload.State, a, a1 *Actio
 			// we'll end up building an overall library or executable that depends at runtime
 			// on other libraries that are out-of-date, which is clearly not good either.
 			// We call it ModeBuggyInstall to make clear that this is not right.
-			a.Deps = append(a.Deps, b.linkSharedAction(loaderstate, ModeBuggyInstall, ModeBuggyInstall, p1.Shlib, nil))
+			a.Deps = append(a.Deps, b.linkSharedAction(s, ModeBuggyInstall, ModeBuggyInstall, p1.Shlib, nil))
 		}
 	}
 }
@@ -1114,26 +1114,26 @@ func (b *Builder) addInstallHeaderAction(a *Action) {
 
 // buildmodeShared takes the "go build" action a1 into the building of a shared library of a1.Deps.
 // That is, the input a1 represents "go build pkgs" and the result represents "go build -buildmode=shared pkgs".
-func (b *Builder) buildmodeShared(loaderstate *modload.State, mode, depMode BuildMode, args []string, pkgs []*load.Package, a1 *Action) *Action {
+func (b *Builder) buildmodeShared(s *modload.State, mode, depMode BuildMode, args []string, pkgs []*load.Package, a1 *Action) *Action {
 	name, err := libname(args, pkgs)
 	if err != nil {
 		base.Fatalf("%v", err)
 	}
-	return b.linkSharedAction(loaderstate, mode, depMode, name, a1)
+	return b.linkSharedAction(s, mode, depMode, name, a1)
 }
 
 // linkSharedAction takes a grouping action a1 corresponding to a list of built packages
 // and returns an action that links them together into a shared library with the name shlib.
 // If a1 is nil, shlib should be an absolute path to an existing shared library,
 // and then linkSharedAction reads that library to find out the package list.
-func (b *Builder) linkSharedAction(loaderstate *modload.State, mode, depMode BuildMode, shlib string, a1 *Action) *Action {
+func (b *Builder) linkSharedAction(s *modload.State, mode, depMode BuildMode, shlib string, a1 *Action) *Action {
 	fullShlib := shlib
 	shlib = filepath.Base(shlib)
 	a := b.cacheAction("build-shlib "+shlib, nil, func() *Action {
 		if a1 == nil {
 			// TODO(rsc): Need to find some other place to store config,
 			// not in pkg directory. See golang.org/issue/22196.
-			pkgs := readpkglist(loaderstate, fullShlib)
+			pkgs := readpkglist(s, fullShlib)
 			a1 = &Action{
 				Mode: "shlib packages",
 			}
@@ -1147,8 +1147,8 @@ func (b *Builder) linkSharedAction(loaderstate *modload.State, mode, depMode Bui
 		// we let them use the flags specified for the command-line arguments.
 		p := &load.Package{}
 		p.Internal.CmdlinePkg = true
-		p.Internal.Ldflags = load.BuildLdflags.For(p)
-		p.Internal.Gccgoflags = load.BuildGccgoflags.For(p)
+		p.Internal.Ldflags = load.BuildLdflags.For(s, p)
+		p.Internal.Gccgoflags = load.BuildGccgoflags.For(s, p)
 
 		// Add implicit dependencies to pkgs list.
 		// Currently buildmode=shared forces external linking mode, and
@@ -1176,7 +1176,7 @@ func (b *Builder) linkSharedAction(loaderstate *modload.State, mode, depMode Bui
 					}
 				}
 				var stk load.ImportStack
-				p := load.LoadPackageWithFlags(loaderstate, pkg, base.Cwd(), &stk, nil, 0)
+				p := load.LoadPackageWithFlags(s, pkg, base.Cwd(), &stk, nil, 0)
 				if p.Error != nil {
 					base.Fatalf("load %s: %v", pkg, p.Error)
 				}
@@ -1196,7 +1196,7 @@ func (b *Builder) linkSharedAction(loaderstate *modload.State, mode, depMode Bui
 
 			// The linker step still needs all the usual linker deps.
 			// (For example, the linker always opens runtime.a.)
-			ldDeps, err := load.LinkerDeps(nil)
+			ldDeps, err := load.LinkerDeps(s, nil)
 			if err != nil {
 				base.Error(err)
 			}
@@ -1204,7 +1204,7 @@ func (b *Builder) linkSharedAction(loaderstate *modload.State, mode, depMode Bui
 				add(a, dep, true)
 			}
 		}
-		b.addTransitiveLinkDeps(loaderstate, a, a1, shlib)
+		b.addTransitiveLinkDeps(s, a, a1, shlib)
 		return a
 	})
 

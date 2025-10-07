@@ -311,7 +311,7 @@ func TestPackagesAndErrors(loaderstate *modload.State, ctx context.Context, done
 	if cover != nil {
 		deps = append(deps, "internal/coverage/cfile")
 	}
-	ldDeps, err := LinkerDeps(p)
+	ldDeps, err := LinkerDeps(loaderstate, p)
 	if err != nil && pmain.Error == nil {
 		pmain.Error = &PackageError{Err: err}
 	}
@@ -337,7 +337,7 @@ func TestPackagesAndErrors(loaderstate *modload.State, ctx context.Context, done
 		allTestImports = append(allTestImports, pmain.Internal.Imports...)
 		allTestImports = append(allTestImports, imports...)
 		allTestImports = append(allTestImports, ximports...)
-		setToolFlags(allTestImports...)
+		setToolFlags(loaderstate, allTestImports...)
 
 		// Do initial scan for metadata needed for writing _testmain.go
 		// Use that metadata to update the list of imports for package main.

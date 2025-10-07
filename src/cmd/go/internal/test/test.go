@@ -865,9 +865,9 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	var writeCoverMetaAct *work.Action
 
 	if cfg.BuildCoverPkg != nil {
-		match := make([]func(*load.Package) bool, len(cfg.BuildCoverPkg))
+		match := make([]func(*modload.State, *load.Package) bool, len(cfg.BuildCoverPkg))
 		for i := range cfg.BuildCoverPkg {
-			match[i] = load.MatchPackage(modload.LoaderState, cfg.BuildCoverPkg[i], base.Cwd())
+			match[i] = load.MatchPackage(cfg.BuildCoverPkg[i], base.Cwd())
 		}
 
 		// Select for coverage all dependencies matching the -coverpkg
