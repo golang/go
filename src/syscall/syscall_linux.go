@@ -24,7 +24,7 @@ import (
 // Note that this can't be a push linkname because the runtime already has a
 // nameless linkname to export to assembly here and in x/sys. Additionally,
 // entersyscall fetches the caller PC and SP and thus can't have a wrapper
-// inbetween.
+// in between.
 
 //go:linkname runtime_entersyscall runtime.entersyscall
 func runtime_entersyscall()
