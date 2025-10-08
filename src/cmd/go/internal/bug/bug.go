@@ -42,16 +42,17 @@ func init() {
 }
 
 func runBug(ctx context.Context, cmd *base.Command, args []string) {
+	moduleLoaderState := modload.NewState()
 	if len(args) > 0 {
 		base.Fatalf("go: bug takes no arguments")
 	}
-	work.BuildInit(modload.LoaderState)
+	work.BuildInit(moduleLoaderState)
 
 	var buf strings.Builder
 	buf.WriteString(bugHeader)
 	printGoVersion(&buf)
 	buf.WriteString("### Does this issue reproduce with the latest release?\n\n\n")
-	printEnvDetails(modload.LoaderState, &buf)
+	printEnvDetails(moduleLoaderState, &buf)
 	buf.WriteString(bugFooter)
 
 	body := buf.String()
