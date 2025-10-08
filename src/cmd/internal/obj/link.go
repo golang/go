@@ -1216,6 +1216,13 @@ type Link struct {
 	Fingerprint goobj.FingerprintType // fingerprint of symbol indices, to catch index mismatch
 }
 
+// Assert to vet's printf checker that Link.DiagFunc is a printf-like.
+func _(ctxt *Link) {
+	ctxt.DiagFunc = func(format string, args ...any) {
+		_ = fmt.Sprintf(format, args...)
+	}
+}
+
 func (ctxt *Link) Diag(format string, args ...interface{}) {
 	ctxt.Errors++
 	ctxt.DiagFunc(format, args...)

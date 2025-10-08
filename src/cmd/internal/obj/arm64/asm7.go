@@ -4354,7 +4354,7 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 		// remove the NOTUSETMP flag in optab.
 		op := c.opirr(p, p.As)
 		if op&Sbit != 0 {
-			c.ctxt.Diag("can not break addition/subtraction when S bit is set", p)
+			c.ctxt.Diag("can not break addition/subtraction when S bit is set (%v)", p)
 		}
 		rt, r := p.To.Reg, p.Reg
 		if r == obj.REG_NONE {
