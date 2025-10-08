@@ -123,7 +123,9 @@ func (s *source) Sample() uint8 {
 	// Perform a few memory accesses in an unpredictable pattern to expose the
 	// next measurement to as much system noise as possible.
 	memory, lcgState := s.memory, s.lcgState
-	_ = memory[0] // hoist the nil check out of touchMemory
+	if memory == nil { // remove the nil check from the inlined touchMemory calls
+		panic("entropy: nil memory buffer")
+	}
 	for range 64 {
 		lcgState = 1664525*lcgState + 1013904223
 		// Discard the lower bits, which tend to fall into short cycles.

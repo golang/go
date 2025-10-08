@@ -241,7 +241,7 @@ func TestEntropyUnchanged(t *testing.T) {
 	// entropy source through the Entropy Source Validation program,
 	// independently of the FIPS 140-3 module. It must not change even across
 	// FIPS 140-3 module versions, in order to reuse the ESV certificate.
-	exp := "1b68d4c091ef66c6006602e4ed3ac10f8a82ad193708ec99d63b145e3baa3e6c"
+	exp := "2541273241ae8aafe55026328354ed3799df1e2fb308b2097833203a42911b53"
 	if got := hex.EncodeToString(h.Sum(nil)); got != exp {
 		t.Errorf("hash of crypto/internal/fips140/entropy = %s, want %s", got, exp)
 	}
@@ -249,12 +249,12 @@ func TestEntropyUnchanged(t *testing.T) {
 
 func TestEntropyRace(t *testing.T) {
 	// Check that concurrent calls to Seed don't trigger the race detector.
-	for range 2 {
+	for range 16 {
 		go func() {
 			_, _ = entropy.Seed(&memory)
 		}()
 	}
-	// Same, with the higher-level DRBG. More concurrent calls to hit the Pool.
+	// Same, with the higher-level DRBG.
 	for range 16 {
 		go func() {
 			var b [64]byte
