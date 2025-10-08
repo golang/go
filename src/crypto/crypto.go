@@ -154,6 +154,10 @@ type HashResult interface {
 	Truncate(maxLength int) string
 }
 
+func TruncateHash(hash HashResult, maxLength int) string {
+	return hash.Truncate(maxLength)
+}
+
 // PublicKey represents a public key using an unspecified algorithm.
 //
 // Although this type is an empty interface for backwards compatibility reasons,
