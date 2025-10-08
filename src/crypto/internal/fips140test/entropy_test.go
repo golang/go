@@ -9,8 +9,8 @@ package fipstest
 import (
 	"bytes"
 	"crypto/internal/cryptotest"
+	entropy "crypto/internal/entropy/v1.0.0"
 	"crypto/internal/fips140/drbg"
-	"crypto/internal/fips140/entropy"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/sha512"
@@ -217,7 +217,7 @@ func TestEntropyUnchanged(t *testing.T) {
 	testenv.MustHaveSource(t)
 
 	h := sha256.New()
-	root := os.DirFS("../fips140/entropy")
+	root := os.DirFS("../entropy/v1.0.0")
 	if err := fs.WalkDir(root, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -237,13 +237,13 @@ func TestEntropyUnchanged(t *testing.T) {
 		t.Fatalf("WalkDir: %v", err)
 	}
 
-	// The crypto/internal/fips140/entropy package is certified as a FIPS 140-3
+	// The crypto/internal/entropy/v1.0.0 package is certified as a FIPS 140-3
 	// entropy source through the Entropy Source Validation program,
 	// independently of the FIPS 140-3 module. It must not change even across
 	// FIPS 140-3 module versions, in order to reuse the ESV certificate.
 	exp := "2541273241ae8aafe55026328354ed3799df1e2fb308b2097833203a42911b53"
 	if got := hex.EncodeToString(h.Sum(nil)); got != exp {
-		t.Errorf("hash of crypto/internal/fips140/entropy = %s, want %s", got, exp)
+		t.Errorf("hash of crypto/internal/entropy/v1.0.0 = %s, want %s", got, exp)
 	}
 }
 

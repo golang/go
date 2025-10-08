@@ -4,8 +4,10 @@
 
 // Package entropy provides the passive entropy source for the FIPS 140-3
 // module. It is only used in FIPS mode by [crypto/internal/fips140/drbg.Read]
-// from the FIPS 140-3 Go Cryptographic Module v1.0.0. Later versions of the
-// module have an internal CPU jitter-based entropy source.
+// from the FIPS 140-3 Go Cryptographic Module v1.0.0.
+//
+// Later versions of the module use the CPU jitter-based entropy source in the
+// crypto/internal/entropy/v1.0.0 sub-package.
 //
 // This complied with IG 9.3.A, Additional Comment 12, which until January 1,
 // 2026 allows new modules to meet an [earlier version] of Resolution 2(b):
