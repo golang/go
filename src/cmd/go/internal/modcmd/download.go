@@ -153,7 +153,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 				// However, we also need to load the full module graph, to ensure that
 				// we have downloaded enough of the module graph to run 'go list all',
 				// 'go mod graph', and similar commands.
-				_, err := modload.LoadModGraph(ctx, "")
+				_, err := modload.LoadModGraph(modload.LoaderState, ctx, "")
 				if err != nil {
 					// TODO(#64008): call base.Fatalf instead of toolchain.SwitchOrFatal
 					// here, since we can only reach this point with an outdated toolchain
@@ -231,7 +231,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 		// TODO(#64008): In the future, report an error if go.mod or go.sum need to
 		// be updated after loading the build list. This may require setting
 		// the mode to "mod" or "readonly" depending on haveExplicitArgs.
-		if err := modload.WriteGoMod(ctx, modload.WriteOpts{}); err != nil {
+		if err := modload.WriteGoMod(modload.LoaderState, ctx, modload.WriteOpts{}); err != nil {
 			base.Fatal(err)
 		}
 	}
@@ -348,7 +348,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	// Don't save sums for 'go mod download' without arguments unless we're in
 	// workspace mode; see comment above.
 	if haveExplicitArgs || modload.WorkFilePath(modload.LoaderState) != "" {
-		if err := modload.WriteGoMod(ctx, modload.WriteOpts{}); err != nil {
+		if err := modload.WriteGoMod(modload.LoaderState, ctx, modload.WriteOpts{}); err != nil {
 			base.Error(err)
 		}
 	}

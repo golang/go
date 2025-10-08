@@ -412,7 +412,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	// Everything succeeded. Update go.mod.
 	oldReqs := reqsFromGoMod(modload.ModFile())
 
-	if err := modload.WriteGoMod(ctx, opts); err != nil {
+	if err := modload.WriteGoMod(modload.LoaderState, ctx, opts); err != nil {
 		// A TooNewError can happen for 'go get go@newversion'
 		// when all the required modules are old enough
 		// but the command line is not.
@@ -556,7 +556,7 @@ type matchInModuleKey struct {
 func newResolver(ctx context.Context, queries []*query) *resolver {
 	// LoadModGraph also sets modload.Target, which is needed by various resolver
 	// methods.
-	mg, err := modload.LoadModGraph(ctx, "")
+	mg, err := modload.LoadModGraph(modload.LoaderState, ctx, "")
 	if err != nil {
 		toolchain.SwitchOrFatal(modload.LoaderState, ctx, err)
 	}
@@ -2033,7 +2033,7 @@ func (r *resolver) updateBuildList(ctx context.Context, additions []module.Versi
 		return false
 	}
 
-	mg, err := modload.LoadModGraph(ctx, "")
+	mg, err := modload.LoadModGraph(modload.LoaderState, ctx, "")
 	if err != nil {
 		toolchain.SwitchOrFatal(modload.LoaderState, ctx, err)
 	}

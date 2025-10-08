@@ -1808,9 +1808,9 @@ type WriteOpts struct {
 }
 
 // WriteGoMod writes the current build list back to go.mod.
-func WriteGoMod(ctx context.Context, opts WriteOpts) error {
-	LoaderState.requirements = LoadModFile(LoaderState, ctx)
-	return commitRequirements(LoaderState, ctx, opts)
+func WriteGoMod(loaderstate *State, ctx context.Context, opts WriteOpts) error {
+	loaderstate.requirements = LoadModFile(loaderstate, ctx)
+	return commitRequirements(loaderstate, ctx, opts)
 }
 
 var errNoChange = errors.New("no update needed")

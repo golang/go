@@ -68,7 +68,7 @@ func runGraph(ctx context.Context, cmd *base.Command, args []string) {
 		})
 	}
 
-	mg, err := modload.LoadModGraph(ctx, goVersion)
+	mg, err := modload.LoadModGraph(modload.LoaderState, ctx, goVersion)
 	if err != nil {
 		base.Fatal(err)
 	}

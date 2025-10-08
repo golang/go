@@ -57,7 +57,7 @@ func runVerify(ctx context.Context, cmd *base.Command, args []string) {
 	type token struct{}
 	sem := make(chan token, runtime.GOMAXPROCS(0))
 
-	mg, err := modload.LoadModGraph(ctx, "")
+	mg, err := modload.LoadModGraph(modload.LoaderState, ctx, "")
 	if err != nil {
 		base.Fatal(err)
 	}
