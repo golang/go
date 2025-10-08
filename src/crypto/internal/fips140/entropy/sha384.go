@@ -8,19 +8,22 @@ import "math/bits"
 
 // This file includes a SHA-384 implementation to insulate the entropy source
 // from any changes in the FIPS 140-3 module's crypto/internal/fips140/sha512
-// package. We only support 1024-byte inputs.
+// package. We support 1024-byte inputs for the entropy source, and arbitrary
+// length inputs for ACVP testing.
+
+var initState = [8]uint64{
+	0xcbbb9d5dc1059ed8,
+	0x629a292a367cd507,
+	0x9159015a3070dd17,
+	0x152fecd8f70e5939,
+	0x67332667ffc00b31,
+	0x8eb44a8768581511,
+	0xdb0c2e0d64f98fa7,
+	0x47b5481dbefa4fa4,
+}
 
 func SHA384(p *[1024]byte) [48]byte {
-	h := [8]uint64{
-		0xcbbb9d5dc1059ed8,
-		0x629a292a367cd507,
-		0x9159015a3070dd17,
-		0x152fecd8f70e5939,
-		0x67332667ffc00b31,
-		0x8eb44a8768581511,
-		0xdb0c2e0d64f98fa7,
-		0x47b5481dbefa4fa4,
-	}
+	h := initState
 
 	sha384Block(&h, (*[128]byte)(p[0:128]))
 	sha384Block(&h, (*[128]byte)(p[128:256]))
@@ -36,6 +39,38 @@ func SHA384(p *[1024]byte) [48]byte {
 	bePutUint64(padlen[112+8:], 1024*8)
 	sha384Block(&h, &padlen)
 
+	return digestBytes(&h)
+}
+
+func TestingOnlySHA384(p []byte) [48]byte {
+	if len(p) == 1024 {
+		return SHA384((*[1024]byte)(p))
+	}
+
+	h := initState
+	bitLen := uint64(len(p)) * 8
+
+	// Process full 128-byte blocks.
+	for len(p) >= 128 {
+		sha384Block(&h, (*[128]byte)(p[:128]))
+		p = p[128:]
+	}
+
+	// Process final block and padding.
+	var finalBlock [128]byte
+	copy(finalBlock[:], p)
+	finalBlock[len(p)] = 0x80
+	if len(p) >= 112 {
+		sha384Block(&h, &finalBlock)
+		finalBlock = [128]byte{}
+	}
+	bePutUint64(finalBlock[112+8:], bitLen)
+	sha384Block(&h, &finalBlock)
+
+	return digestBytes(&h)
+}
+
+func digestBytes(h *[8]uint64) [48]byte {
 	var digest [48]byte
 	bePutUint64(digest[0:], h[0])
 	bePutUint64(digest[8:], h[1])

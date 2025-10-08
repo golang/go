@@ -11,6 +11,7 @@ import (
 	"crypto/internal/cryptotest"
 	"crypto/internal/fips140/drbg"
 	"crypto/internal/fips140/entropy"
+	"crypto/rand"
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/hex"
@@ -159,6 +160,16 @@ func TestEntropySHA384(t *testing.T) {
 	if got != want {
 		t.Errorf("SHA384() = %x, want %x", got, want)
 	}
+
+	for l := range 1024*3 + 1 {
+		input := make([]byte, l)
+		rand.Read(input)
+		want := sha512.Sum384(input)
+		got := entropy.TestingOnlySHA384(input)
+		if got != want {
+			t.Errorf("TestingOnlySHA384(%d bytes) = %x, want %x", l, got, want)
+		}
+	}
 }
 
 func TestEntropyRepetitionCountTest(t *testing.T) {
@@ -230,7 +241,7 @@ func TestEntropyUnchanged(t *testing.T) {
 	// entropy source through the Entropy Source Validation program,
 	// independently of the FIPS 140-3 module. It must not change even across
 	// FIPS 140-3 module versions, in order to reuse the ESV certificate.
-	exp := "35976eb8a11678c79777da07aaab5511d4325701f837777df205f6e7b20c6821"
+	exp := "1b68d4c091ef66c6006602e4ed3ac10f8a82ad193708ec99d63b145e3baa3e6c"
 	if got := hex.EncodeToString(h.Sum(nil)); got != exp {
 		t.Errorf("hash of crypto/internal/fips140/entropy = %s, want %s", got, exp)
 	}
