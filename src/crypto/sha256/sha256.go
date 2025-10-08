@@ -10,6 +10,7 @@ import (
 	"crypto"
 	"crypto/internal/boring"
 	"crypto/internal/fips140/sha256"
+	"encoding/hex"
 	"hash"
 )
 
@@ -71,4 +72,18 @@ func Sum224(data []byte) [Size224]byte {
 	var sum [Size224]byte
 	h.Sum(sum[:0])
 	return sum
+}
+
+type SHA256Hash [Size]byte
+
+func (h SHA256Hash) String() string {
+	return hex.EncodeToString(h[:])
+}
+
+func (h SHA256Hash) Truncate(maxLength int) string {
+	full := h.String()
+	if len(full) > maxLength {
+		return full[:maxLength]
+	}
+	return full
 }
