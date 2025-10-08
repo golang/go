@@ -149,6 +149,11 @@ func RegisterHash(h Hash, f func() hash.Hash) {
 	hashes[h] = f
 }
 
+type HashResult interface {
+	String() string
+	Truncate(maxLength int) string
+}
+
 // PublicKey represents a public key using an unspecified algorithm.
 //
 // Although this type is an empty interface for backwards compatibility reasons,
