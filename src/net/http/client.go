@@ -172,8 +172,13 @@ func refererForURL(lastReq, newReq *url.URL, explicitRef string) string {
 
 // didTimeout is non-nil only if err != nil.
 func (c *Client) send(req *Request, deadline time.Time) (resp *Response, didTimeout func() bool, err error) {
+	cookieURL := req.URL
+	if req.Host != "" {
+		cookieURL = cloneURL(cookieURL)
+		cookieURL.Host = req.Host
+	}
 	if c.Jar != nil {
-		for _, cookie := range c.Jar.Cookies(req.URL) {
+		for _, cookie := range c.Jar.Cookies(cookieURL) {
 			req.AddCookie(cookie)
 		}
 	}
@@ -183,7 +188,7 @@ func (c *Client) send(req *Request, deadline time.Time) (resp *Response, didTime
 	}
 	if c.Jar != nil {
 		if rc := resp.Cookies(); len(rc) > 0 {
-			c.Jar.SetCookies(req.URL, rc)
+			c.Jar.SetCookies(cookieURL, rc)
 		}
 	}
 	return resp, nil, nil

@@ -585,6 +585,36 @@ var echoCookiesRedirectHandler = HandlerFunc(func(w ResponseWriter, r *Request) 
 	}
 })
 
+func TestHostMismatchCookies(t *testing.T) { run(t, testHostMismatchCookies) }
+func testHostMismatchCookies(t *testing.T, mode testMode) {
+	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		for _, c := range r.Cookies() {
+			c.Value = "SetOnServer"
+			SetCookie(w, c)
+		}
+	})).ts
+
+	reqURL, _ := url.Parse(ts.URL)
+	hostURL := *reqURL
+	hostURL.Host = "cookies.example.com"
+
+	c := ts.Client()
+	c.Jar = new(TestJar)
+	c.Jar.SetCookies(reqURL, []*Cookie{{Name: "First", Value: "SetOnClient"}})
+	c.Jar.SetCookies(&hostURL, []*Cookie{{Name: "Second", Value: "SetOnClient"}})
+
+	req, _ := NewRequest("GET", ts.URL, NoBody)
+	req.Host = hostURL.Host
+	resp, err := c.Do(req)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	resp.Body.Close()
+
+	matchReturnedCookies(t, []*Cookie{{Name: "First", Value: "SetOnClient"}}, c.Jar.Cookies(reqURL))
+	matchReturnedCookies(t, []*Cookie{{Name: "Second", Value: "SetOnServer"}}, c.Jar.Cookies(&hostURL))
+}
+
 func TestClientSendsCookieFromJar(t *testing.T) {
 	defer afterTest(t)
 	tr := &recordingTransport{}
