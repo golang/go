@@ -87,3 +87,17 @@ func (h SHA256Hash) Truncate(maxLength int) string {
 	}
 	return full
 }
+
+type SHA224Hash [Size224]byte
+
+func (h SHA224Hash) String() string {
+	return hex.EncodeToString(h[:])
+}
+
+func (h SHA224Hash) Truncate(maxLength int) string {
+	full := h.String()
+	if len(full) > maxLength {
+		return full[:maxLength]
+	}
+	return full
+}
