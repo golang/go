@@ -1030,3 +1030,81 @@ func TestString(t *testing.T) {
 	t.Logf("y=%s", y)
 	t.Logf("z=%s", z)
 }
+
+// a returns an slice of 16 int32
+func a() []int32 {
+	return make([]int32, 16, 16)
+}
+
+// applyTo3 returns a 16-element slice of the results of
+// applying f to the respective elements of vectors x, y, and z.
+func applyTo3(x, y, z simd.Int32x16, f func(x, y, z int32) int32) []int32 {
+	ax, ay, az := a(), a(), a()
+	x.StoreSlice(ax)
+	y.StoreSlice(ay)
+	z.StoreSlice(az)
+
+	r := a()
+	for i := range r {
+		r[i] = f(ax[i], ay[i], az[i])
+	}
+	return r
+}
+
+// applyTo3 returns a 16-element slice of the results of
+// applying f to the respective elements of vectors x, y, z, and w.
+func applyTo4(x, y, z, w simd.Int32x16, f func(x, y, z, w int32) int32) []int32 {
+	ax, ay, az, aw := a(), a(), a(), a()
+	x.StoreSlice(ax)
+	y.StoreSlice(ay)
+	z.StoreSlice(az)
+	w.StoreSlice(aw)
+
+	r := make([]int32, len(ax), len(ax))
+	for i := range r {
+		r[i] = f(ax[i], ay[i], az[i], aw[i])
+	}
+	return r
+}
+
+func TestSelectTernOptInt32x16(t *testing.T) {
+	if !simd.HasAVX512() {
+		t.Skip("Test requires HasAVX512, not available on this hardware")
+		return
+	}
+	ax := []int32{0, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1}
+	ay := []int32{0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1}
+	az := []int32{0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1}
+	aw := []int32{0, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1}
+	am := []int32{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
+
+	x := simd.LoadInt32x16Slice(ax)
+	y := simd.LoadInt32x16Slice(ay)
+	z := simd.LoadInt32x16Slice(az)
+	w := simd.LoadInt32x16Slice(aw)
+	m := simd.LoadInt32x16Slice(am)
+
+	foo := func(v simd.Int32x16, s []int32) {
+		r := make([]int32, 16, 16)
+		v.StoreSlice(r)
+		checkSlices[int32](t, r, s)
+	}
+
+	t0 := w.Xor(y).Xor(z)
+	ft0 := func(w, y, z int32) int32 {
+		return w ^ y ^ z
+	}
+	foo(t0, applyTo3(w, y, z, ft0))
+
+	t1 := m.And(w.Xor(y).Xor(z.Not()))
+	ft1 := func(m, w, y, z int32) int32 {
+		return m & (w ^ y ^ ^z)
+	}
+	foo(t1, applyTo4(m, w, y, z, ft1))
+
+	t2 := x.Xor(y).Xor(z).And(x.Xor(y).Xor(z.Not()))
+	ft2 := func(x, y, z int32) int32 {
+		return (x ^ y ^ z) & (x ^ y ^ ^z)
+	}
+	foo(t2, applyTo3(x, y, z, ft2))
+}

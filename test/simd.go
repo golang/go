@@ -1,4 +1,4 @@
-// errorcheck -0 -d=ssa/cpufeatures/debug=1
+// errorcheck -0 -d=ssa/cpufeatures/debug=1,ssa/rewrite_tern/debug=1
 
 //go:build goexperiment.simd && amd64
 
@@ -94,4 +94,14 @@ b:
 	}
 c:
 	println("c")
+}
+
+func ternRewrite(m, w, x, y, z simd.Int32x16) (t0, t1, t2 simd.Int32x16) {
+	if !simd.HasAVX512() { // ERROR "has features avx[+]avx2[+]avx512$"
+		return // ERROR "has features avx[+]avx2[+]avx512$" // all blocks have it because of the vector size
+	}
+	t0 = w.Xor(y).Xor(z)                            // ERROR "Rewriting.*ternInt"
+	t1 = m.And(w.Xor(y).Xor(z.Not()))               // ERROR "Rewriting.*ternInt"
+	t2 = x.Xor(y).Xor(z).And(x.Xor(y).Xor(z.Not())) // ERROR "Rewriting.*ternInt"
+	return                                          // ERROR "has features avx[+]avx2[+]avx512$"
 }
