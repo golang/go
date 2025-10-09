@@ -67,6 +67,15 @@ func TestSqrt(t *testing.T) {
 	}
 }
 
+func TestNot(t *testing.T) {
+	testInt8x16Unary(t, simd.Int8x16.Not, map1[int8](not))
+	testInt8x32Unary(t, simd.Int8x32.Not, map1[int8](not))
+	testInt16x8Unary(t, simd.Int16x8.Not, map1[int16](not))
+	testInt16x16Unary(t, simd.Int16x16.Not, map1[int16](not))
+	testInt32x4Unary(t, simd.Int32x4.Not, map1[int32](not))
+	testInt32x8Unary(t, simd.Int32x8.Not, map1[int32](not))
+}
+
 func TestAbsolute(t *testing.T) {
 	testInt8x16Unary(t, simd.Int8x16.Abs, map1[int8](abs))
 	testInt8x32Unary(t, simd.Int8x32.Abs, map1[int8](abs))

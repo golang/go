@@ -58,11 +58,46 @@ func (sat shapeAndTemplate) shrinkTo(outType string, by int) shapeAndTemplate {
 	return newSat
 }
 
+func (s *shapes) forAllShapes(f func(seq int, t, upperT string, w, c int, out io.Writer), out io.Writer) {
+	vecs := s.vecs
+	ints := s.ints
+	uints := s.uints
+	floats := s.floats
+	seq := 0
+	for _, v := range vecs {
+		for _, w := range ints {
+			c := v / w
+			f(seq, "int", "Int", w, c, out)
+			seq++
+		}
+		for _, w := range uints {
+			c := v / w
+			f(seq, "uint", "Uint", w, c, out)
+			seq++
+		}
+		for _, w := range floats {
+			c := v / w
+			f(seq, "float", "Float", w, c, out)
+			seq++
+		}
+	}
+}
+
 var allShapes = &shapes{
 	vecs:   []int{128, 256, 512},
 	ints:   []int{8, 16, 32, 64},
 	uints:  []int{8, 16, 32, 64},
 	floats: []int{32, 64},
+}
+
+var intShapes = &shapes{
+	vecs: []int{128, 256, 512},
+	ints: []int{8, 16, 32, 64},
+}
+
+var uintShapes = &shapes{
+	vecs:  []int{128, 256, 512},
+	uints: []int{8, 16, 32, 64},
 }
 
 var avx512Shapes = &shapes{
@@ -569,6 +604,24 @@ func (x {{.VType}}) NotEqual(y {{.VType}}) Mask{{.WxC}} {
 }
 `)
 
+var bitWiseIntTemplate = shapedTemplateOf(intShapes, "bitwise int complement", `
+// Not returns the bitwise complement of x
+//
+// Emulated, CPU Feature {{.CPUfeature}}
+func (x {{.VType}}) Not() {{.VType}} {
+	return x.Xor(x.Equal(x).As{{.VType}}())
+}
+`)
+
+var bitWiseUintTemplate = shapedTemplateOf(uintShapes, "bitwise uint complement", `
+// Not returns the bitwise complement of x
+//
+// Emulated, CPU Feature {{.CPUfeature}}
+func (x {{.VType}}) Not() {{.VType}} {
+	return x.Xor(x.Equal(x).AsInt{{.WxC}}().As{{.VType}}())
+}
+`)
+
 // CPUfeatureAVX2if8 return AVX2 if the element width is 8,
 // otherwise, it returns CPUfeature.  This is for the cpufeature
 // of unsigned comparison emulation, which uses shifts for all
@@ -781,6 +834,8 @@ func main() {
 		one(*op, prologue,
 			broadcastTemplate,
 			maskCvtTemplate,
+			bitWiseIntTemplate,
+			bitWiseUintTemplate,
 		)
 	}
 	if *ush != "" {
