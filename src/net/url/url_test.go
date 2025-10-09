@@ -726,7 +726,7 @@ var parseRequestURLTests = []struct {
 	{"https://[2001:db8::1]/path", true},            // compressed IPv6 address with path
 	{"https://[fe80::1%25eth0]/path?query=1", true}, // link-local with zone, path, and query
 
-	{"https://[::ffff:192.0.2.1]", false},
+	{"https://[::ffff:192.0.2.1]", true},
 	{"https://[:1] ", false},
 	{"https://[1:2:3:4:5:6:7:8:9]", false},
 	{"https://[1::1::1]", false},
@@ -1672,16 +1672,17 @@ func TestParseErrors(t *testing.T) {
 		{"cache_object:foo/bar", true},
 		{"cache_object/:foo/bar", false},
 
-		{"http://[192.168.0.1]/", true},             // IPv4 in brackets
-		{"http://[192.168.0.1]:8080/", true},        // IPv4 in brackets with port
-		{"http://[::ffff:192.168.0.1]/", true},      // IPv4-mapped IPv6 in brackets
-		{"http://[::ffff:192.168.0.1]:8080/", true}, // IPv4-mapped IPv6 in brackets with port
-		{"http://[::ffff:c0a8:1]/", true},           // IPv4-mapped IPv6 in brackets (hex)
-		{"http://[not-an-ip]/", true},               // invalid IP string in brackets
-		{"http://[fe80::1%foo]/", true},             // invalid zone format in brackets
-		{"http://[fe80::1", true},                   // missing closing bracket
-		{"http://fe80::1]/", true},                  // missing opening bracket
-		{"http://[test.com]/", true},                // domain name in brackets
+		{"http://[192.168.0.1]/", true},              // IPv4 in brackets
+		{"http://[192.168.0.1]:8080/", true},         // IPv4 in brackets with port
+		{"http://[::ffff:192.168.0.1]/", false},      // IPv4-mapped IPv6 in brackets
+		{"http://[::ffff:192.168.0.1000]/", true},    // Out of range IPv4-mapped IPv6 in brackets
+		{"http://[::ffff:192.168.0.1]:8080/", false}, // IPv4-mapped IPv6 in brackets with port
+		{"http://[::ffff:c0a8:1]/", false},           // IPv4-mapped IPv6 in brackets (hex)
+		{"http://[not-an-ip]/", true},                // invalid IP string in brackets
+		{"http://[fe80::1%foo]/", true},              // invalid zone format in brackets
+		{"http://[fe80::1", true},                    // missing closing bracket
+		{"http://fe80::1]/", true},                   // missing opening bracket
+		{"http://[test.com]/", true},                 // domain name in brackets
 	}
 	for _, tt := range tests {
 		u, err := Parse(tt.in)
