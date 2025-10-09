@@ -5,6 +5,9 @@
 package x509
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"encoding/asn1"
 	"encoding/pem"
 	"os"
@@ -260,7 +263,31 @@ func TestDomainNameValid(t *testing.T) {
 		constraint bool
 		valid      bool
 	}{
-		{"empty name, name", "", false, false},
+		// TODO(#75835): these tests are for stricter name validation, which we
+		// had to disable. Once we reenable these strict checks, behind a
+		// GODEBUG, we should add them back in.
+		// {"empty name, name", "", false, false},
+		// {"254 char label, name", strings.Repeat("a.a", 84) + "aaa", false, false},
+		// {"254 char label, constraint", strings.Repeat("a.a", 84) + "aaa", true, false},
+		// {"253 char label, name", strings.Repeat("a.a", 84) + "aa", false, false},
+		// {"253 char label, constraint", strings.Repeat("a.a", 84) + "aa", true, false},
+		// {"64 char single label, name", strings.Repeat("a", 64), false, false},
+		// {"64 char single label, constraint", strings.Repeat("a", 64), true, false},
+		// {"64 char label, name", "a." + strings.Repeat("a", 64), false, false},
+		// {"64 char label, constraint", "a." + strings.Repeat("a", 64), true, false},
+
+		// TODO(#75835): these are the inverse of the tests above, they should be removed
+		// once the strict checking is enabled.
+		{"254 char label, name", strings.Repeat("a.a", 84) + "aaa", false, true},
+		{"254 char label, constraint", strings.Repeat("a.a", 84) + "aaa", true, true},
+		{"253 char label, name", strings.Repeat("a.a", 84) + "aa", false, true},
+		{"253 char label, constraint", strings.Repeat("a.a", 84) + "aa", true, true},
+		{"64 char single label, name", strings.Repeat("a", 64), false, true},
+		{"64 char single label, constraint", strings.Repeat("a", 64), true, true},
+		{"64 char label, name", "a." + strings.Repeat("a", 64), false, true},
+		{"64 char label, constraint", "a." + strings.Repeat("a", 64), true, true},
+
+		// Check we properly enforce properties of domain names.
 		{"empty name, constraint", "", true, true},
 		{"empty label, name", "a..a", false, false},
 		{"empty label, constraint", "a..a", true, false},
@@ -274,23 +301,60 @@ func TestDomainNameValid(t *testing.T) {
 		{"trailing period, constraint", "a.", true, false},
 		{"bare label, name", "a", false, true},
 		{"bare label, constraint", "a", true, true},
-		{"254 char label, name", strings.Repeat("a.a", 84) + "aaa", false, false},
-		{"254 char label, constraint", strings.Repeat("a.a", 84) + "aaa", true, false},
-		{"253 char label, name", strings.Repeat("a.a", 84) + "aa", false, false},
-		{"253 char label, constraint", strings.Repeat("a.a", 84) + "aa", true, false},
-		{"64 char single label, name", strings.Repeat("a", 64), false, false},
-		{"64 char single label, constraint", strings.Repeat("a", 64), true, false},
 		{"63 char single label, name", strings.Repeat("a", 63), false, true},
 		{"63 char single label, constraint", strings.Repeat("a", 63), true, true},
-		{"64 char label, name", "a." + strings.Repeat("a", 64), false, false},
-		{"64 char label, constraint", "a." + strings.Repeat("a", 64), true, false},
 		{"63 char label, name", "a." + strings.Repeat("a", 63), false, true},
 		{"63 char label, constraint", "a." + strings.Repeat("a", 63), true, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if tc.valid != domainNameValid(tc.dnsName, tc.constraint) {
+			valid := domainNameValid(tc.dnsName, tc.constraint)
+			if tc.valid != valid {
 				t.Errorf("domainNameValid(%q, %t) = %v; want %v", tc.dnsName, tc.constraint, !tc.valid, tc.valid)
+			}
+			// Also check that we enforce the same properties as domainToReverseLabels
+			trimmedName := tc.dnsName
+			if tc.constraint && len(trimmedName) > 1 && trimmedName[0] == '.' {
+				trimmedName = trimmedName[1:]
+			}
+			_, revValid := domainToReverseLabels(trimmedName)
+			if valid != revValid {
+				t.Errorf("domainNameValid(%q, %t) = %t != domainToReverseLabels(%q) = %t", tc.dnsName, tc.constraint, valid, trimmedName, revValid)
 			}
 		})
 	}
+}
+
+func TestRoundtripWeirdSANs(t *testing.T) {
+	// TODO(#75835): check that certificates we create with CreateCertificate that have malformed SAN values
+	// can be parsed by ParseCertificate. We should eventually restrict this, but for now we have to maintain
+	// this property as people have been relying on it.
+	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	badNames := []string{
+		"baredomain",
+		"baredomain.",
+		strings.Repeat("a", 255),
+		strings.Repeat("a", 65) + ".com",
+	}
+	tmpl := &Certificate{
+		EmailAddresses: badNames,
+		DNSNames:       badNames,
+	}
+	b, err := CreateCertificate(rand.Reader, tmpl, tmpl, &k.PublicKey, k)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = ParseCertificate(b)
+	if err != nil {
+		t.Fatalf("Couldn't roundtrip certificate: %v", err)
+	}
+}
+
+func FuzzDomainNameValid(f *testing.F) {
+	f.Fuzz(func(t *testing.T, data string) {
+		domainNameValid(data, false)
+		domainNameValid(data, true)
+	})
 }
