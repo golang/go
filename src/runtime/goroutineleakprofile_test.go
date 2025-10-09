@@ -487,7 +487,7 @@ func TestGoroutineLeakProfile(t *testing.T) {
 	testCases = append(testCases, patternTestCases...)
 
 	// Test cases must not panic or cause fatal exceptions.
-	failStates := regexp.MustCompile(`fatal|panic`)
+	failStates := regexp.MustCompile(`fatal|panic|DATA RACE`)
 
 	testApp := func(exepath string, testCases []testCase) {
 
@@ -520,9 +520,9 @@ func TestGoroutineLeakProfile(t *testing.T) {
 						t.Errorf("Test %s produced no output. Is the goroutine leak profile collected?", tcase.name)
 					}
 
-					// Zero tolerance policy for fatal exceptions or panics.
+					// Zero tolerance policy for fatal exceptions, panics, or data races.
 					if failStates.MatchString(runOutput) {
-						t.Errorf("unexpected fatal exception or panic!\noutput:\n%s\n\n", runOutput)
+						t.Errorf("unexpected fatal exception or panic\noutput:\n%s\n\n", runOutput)
 					}
 
 					output += runOutput + "\n\n"
@@ -540,7 +540,7 @@ func TestGoroutineLeakProfile(t *testing.T) {
 				unexpectedLeaks := make([]string, 0, len(foundLeaks))
 
 				// Parse every leak and check if it is expected (maybe as a flaky leak).
-			LEAKS:
+			leaks:
 				for _, leak := range foundLeaks {
 					// Check if the leak is expected.
 					// If it is, check whether it has been encountered before.
@@ -569,7 +569,7 @@ func TestGoroutineLeakProfile(t *testing.T) {
 						for flakyLeak := range tcase.flakyLeaks {
 							if flakyLeak.MatchString(leak) {
 								// The leak is flaky. Carry on to the next line.
-								continue LEAKS
+								continue leaks
 							}
 						}
 

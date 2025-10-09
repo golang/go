@@ -208,6 +208,7 @@ func (container *Container_moby27782) Reset() {
 }
 
 type JSONFileLogger_moby27782 struct {
+	mu      sync.Mutex
 	readers map[*LogWatcher_moby27782]struct{}
 }
 
@@ -218,11 +219,17 @@ func (l *JSONFileLogger_moby27782) ReadLogs() *LogWatcher_moby27782 {
 }
 
 func (l *JSONFileLogger_moby27782) readLogs(logWatcher *LogWatcher_moby27782) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
 	l.readers[logWatcher] = struct{}{}
 	followLogs_moby27782(logWatcher)
 }
 
 func (l *JSONFileLogger_moby27782) Close() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
 	for r := range l.readers {
 		r.Close()
 		delete(l.readers, r)
