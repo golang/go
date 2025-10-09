@@ -473,6 +473,10 @@ const (
 	CPUsve2
 )
 
+func (f CPUfeatures) hasFeature(x CPUfeatures) bool {
+	return f&x == x
+}
+
 func (f CPUfeatures) String() string {
 	if f == CPUNone {
 		return "none"

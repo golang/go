@@ -201,6 +201,7 @@ func cpufeatures(f *Func) {
 		}
 
 		b.CPUfeatures = feat
+		f.maxCPUFeatures |= feat // not necessary to refine this estimate below
 	}
 
 	// If the flow graph is irreducible, things can still change on backedges.

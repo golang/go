@@ -41,6 +41,8 @@ type Func struct {
 	ABISelf        *abi.ABIConfig // ABI for function being compiled
 	ABIDefault     *abi.ABIConfig // ABI for rtcall and other no-parsed-signature/pragma functions.
 
+	maxCPUFeatures CPUfeatures // union of all the CPU features in all the blocks.
+
 	scheduled   bool  // Values in Blocks are in final order
 	laidout     bool  // Blocks are ordered
 	NoSplit     bool  // true if function is marked as nosplit.  Used by schedule check pass.
