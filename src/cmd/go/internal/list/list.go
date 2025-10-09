@@ -419,7 +419,8 @@ func (v *jsonFlag) needAny(fields ...string) bool {
 var nl = []byte{'\n'}
 
 func runList(ctx context.Context, cmd *base.Command, args []string) {
-	modload.InitWorkfile(modload.LoaderState)
+	moduleLoaderState := modload.NewState()
+	modload.InitWorkfile(moduleLoaderState)
 
 	if *listFmt != "" && listJson {
 		base.Fatalf("go list -f cannot be used with -json")
@@ -427,11 +428,11 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 	if *listReuse != "" && !*listM {
 		base.Fatalf("go list -reuse cannot be used without -m")
 	}
-	if *listReuse != "" && modload.HasModRoot(modload.LoaderState) {
+	if *listReuse != "" && modload.HasModRoot(moduleLoaderState) {
 		base.Fatalf("go list -reuse cannot be used inside a module")
 	}
 
-	work.BuildInit(modload.LoaderState)
+	work.BuildInit(moduleLoaderState)
 	out := newTrackingWriter(os.Stdout)
 	defer out.w.Flush()
 
@@ -479,7 +480,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		fm := template.FuncMap{
 			"join":    strings.Join,
 			"context": context,
-			"module":  func(path string) *modinfo.ModulePublic { return modload.ModuleInfo(modload.LoaderState, ctx, path) },
+			"module":  func(path string) *modinfo.ModulePublic { return modload.ModuleInfo(moduleLoaderState, ctx, path) },
 		}
 		tmpl, err := template.New("main").Funcs(fm).Parse(*listFmt)
 		if err != nil {
@@ -496,12 +497,12 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
-	modload.Init(modload.LoaderState)
+	modload.Init(moduleLoaderState)
 	if *listRetracted {
 		if cfg.BuildMod == "vendor" {
 			base.Fatalf("go list -retracted cannot be used when vendoring is enabled")
 		}
-		if !modload.Enabled(modload.LoaderState) {
+		if !modload.Enabled(moduleLoaderState) {
 			base.Fatalf("go list -retracted can only be used in module-aware mode")
 		}
 	}
@@ -525,11 +526,11 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 			base.Fatalf("go list -test cannot be used with -m")
 		}
 
-		if modload.Init(modload.LoaderState); !modload.Enabled(modload.LoaderState) {
+		if modload.Init(moduleLoaderState); !modload.Enabled(moduleLoaderState) {
 			base.Fatalf("go: list -m cannot be used with GO111MODULE=off")
 		}
 
-		modload.LoadModFile(modload.LoaderState, ctx) // Sets cfg.BuildMod as a side-effect.
+		modload.LoadModFile(moduleLoaderState, ctx) // Sets cfg.BuildMod as a side-effect.
 		if cfg.BuildMod == "vendor" {
 			const actionDisabledFormat = "go: can't %s using the vendor directory\n\t(Use -mod=mod or -mod=readonly to bypass.)"
 
@@ -569,7 +570,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		if *listReuse != "" && len(args) == 0 {
 			base.Fatalf("go: list -m -reuse only has an effect with module@version arguments")
 		}
-		mods, err := modload.ListModules(modload.LoaderState, ctx, args, mode, *listReuse)
+		mods, err := modload.ListModules(moduleLoaderState, ctx, args, mode, *listReuse)
 		if !*listE {
 			for _, m := range mods {
 				if m.Error != nil {
@@ -613,7 +614,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		SuppressBuildInfo:  !*listExport && !listJsonFields.needAny("Stale", "StaleReason"),
 		SuppressEmbedFiles: !*listExport && !listJsonFields.needAny("EmbedFiles", "TestEmbedFiles", "XTestEmbedFiles"),
 	}
-	pkgs := load.PackagesAndErrors(modload.LoaderState, ctx, pkgOpts, args)
+	pkgs := load.PackagesAndErrors(moduleLoaderState, ctx, pkgOpts, args)
 	if !*listE {
 		w := 0
 		for _, pkg := range pkgs {
@@ -648,10 +649,10 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 						sema.Release(1)
 						wg.Done()
 					}
-					pmain, ptest, pxtest = load.TestPackagesAndErrors(modload.LoaderState, ctx, done, pkgOpts, p, nil)
+					pmain, ptest, pxtest = load.TestPackagesAndErrors(moduleLoaderState, ctx, done, pkgOpts, p, nil)
 				} else {
 					var perr *load.Package
-					pmain, ptest, pxtest, perr = load.TestPackagesFor(modload.LoaderState, ctx, pkgOpts, p, nil)
+					pmain, ptest, pxtest, perr = load.TestPackagesFor(moduleLoaderState, ctx, pkgOpts, p, nil)
 					if perr != nil {
 						base.Fatalf("go: can't load test package: %s", perr.Error)
 					}
@@ -713,7 +714,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 	// Do we need to run a build to gather information?
 	needStale := (listJson && listJsonFields.needAny("Stale", "StaleReason")) || strings.Contains(*listFmt, ".Stale")
 	if needStale || *listExport || *listCompiled {
-		b := work.NewBuilder("", modload.LoaderState.VendorDirOrEmpty)
+		b := work.NewBuilder("", moduleLoaderState.VendorDirOrEmpty)
 		if *listE {
 			b.AllowErrors = true
 		}
@@ -727,13 +728,13 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		b.NeedExport = *listExport
 		b.NeedCompiledGoFiles = *listCompiled
 		if cfg.BuildCover {
-			load.PrepareForCoverageBuild(modload.LoaderState, pkgs)
+			load.PrepareForCoverageBuild(moduleLoaderState, pkgs)
 		}
 		a := &work.Action{}
 		// TODO: Use pkgsFilter?
 		for _, p := range pkgs {
 			if len(p.GoFiles)+len(p.CgoFiles) > 0 {
-				a.Deps = append(a.Deps, b.AutoAction(modload.LoaderState, work.ModeInstall, work.ModeInstall, p))
+				a.Deps = append(a.Deps, b.AutoAction(moduleLoaderState, work.ModeInstall, work.ModeInstall, p))
 			}
 		}
 		b.Do(ctx, a)
@@ -741,8 +742,8 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 
 	for _, p := range pkgs {
 		// Show vendor-expanded paths in listing
-		p.TestImports = p.Resolve(modload.LoaderState, p.TestImports)
-		p.XTestImports = p.Resolve(modload.LoaderState, p.XTestImports)
+		p.TestImports = p.Resolve(moduleLoaderState, p.TestImports)
+		p.XTestImports = p.Resolve(moduleLoaderState, p.XTestImports)
 		p.DepOnly = !cmdline[p]
 
 		if *listCompiled {
@@ -850,7 +851,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 			if *listRetracted {
 				mode |= modload.ListRetracted
 			}
-			rmods, err := modload.ListModules(modload.LoaderState, ctx, args, mode, *listReuse)
+			rmods, err := modload.ListModules(moduleLoaderState, ctx, args, mode, *listReuse)
 			if err != nil && !*listE {
 				base.Error(err)
 			}
