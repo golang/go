@@ -413,14 +413,10 @@ func parseSANExtension(der cryptobyte.String) (dnsNames, emailAddresses []string
 			if err := isIA5String(email); err != nil {
 				return errors.New("x509: SAN rfc822Name is malformed")
 			}
-			parsed, ok := parseRFC2821Mailbox(email)
-			if !ok || (ok && !domainNameValid(parsed.domain, false)) {
-				return errors.New("x509: SAN rfc822Name is malformed")
-			}
 			emailAddresses = append(emailAddresses, email)
 		case nameTypeDNS:
 			name := string(data)
-			if err := isIA5String(name); err != nil || (err == nil && !domainNameValid(name, false)) {
+			if err := isIA5String(name); err != nil {
 				return errors.New("x509: SAN dNSName is malformed")
 			}
 			dnsNames = append(dnsNames, string(name))
@@ -430,8 +426,11 @@ func parseSANExtension(der cryptobyte.String) (dnsNames, emailAddresses []string
 				return errors.New("x509: SAN uniformResourceIdentifier is malformed")
 			}
 			uri, err := url.Parse(uriStr)
-			if err != nil || (err == nil && uri.Host != "" && !domainNameValid(uri.Host, false)) {
+			if err != nil {
 				return fmt.Errorf("x509: cannot parse URI %q: %s", uriStr, err)
+			}
+			if len(uri.Host) > 0 && !domainNameValid(uri.Host, false) {
+				return fmt.Errorf("x509: cannot parse URI %q: invalid domain", uriStr)
 			}
 			uris = append(uris, uri)
 		case nameTypeIP:
@@ -1296,36 +1295,58 @@ func ParseRevocationList(der []byte) (*RevocationList, error) {
 	return rl, nil
 }
 
-// domainNameValid does minimal domain name validity checking. In particular it
-// enforces the following properties:
-//   - names cannot have the trailing period
-//   - names can only have a leading period if constraint is true
-//   - names must be <= 253 characters
-//   - names cannot have empty labels
-//   - names cannot labels that are longer than 63 characters
-//
-// Note that this does not enforce the LDH requirements for domain names.
+// domainNameValid is an alloc-less version of the checks that
+// domainToReverseLabels does.
 func domainNameValid(s string, constraint bool) bool {
-	if len(s) == 0 && constraint {
+	// TODO(#75835): This function omits a number of checks which we
+	// really should be doing to enforce that domain names are valid names per
+	// RFC 1034. We previously enabled these checks, but this broke a
+	// significant number of certificates we previously considered valid, and we
+	// happily create via CreateCertificate (et al). We should enable these
+	// checks, but will need to gate them behind a GODEBUG.
+	//
+	// I have left the checks we previously enabled, noted with "TODO(#75835)" so
+	// that we can easily re-enable them once we unbreak everyone.
+
+	// TODO(#75835): this should only be true for constraints.
+	if len(s) == 0 {
 		return true
 	}
-	if len(s) == 0 || (!constraint && s[0] == '.') || s[len(s)-1] == '.' || len(s) > 253 {
+
+	// Do not allow trailing period (FQDN format is not allowed in SANs or
+	// constraints).
+	if s[len(s)-1] == '.' {
 		return false
 	}
+
+	// TODO(#75835): domains must have at least one label, cannot have
+	// a leading empty label, and cannot be longer than 253 characters.
+	// if len(s) == 0 || (!constraint && s[0] == '.') || len(s) > 253 {
+	// 	return false
+	// }
+
 	lastDot := -1
 	if constraint && s[0] == '.' {
 		s = s[1:]
 	}
 
 	for i := 0; i <= len(s); i++ {
+		if i < len(s) && (s[i] < 33 || s[i] > 126) {
+			// Invalid character.
+			return false
+		}
 		if i == len(s) || s[i] == '.' {
 			labelLen := i
 			if lastDot >= 0 {
 				labelLen -= lastDot + 1
 			}
-			if labelLen == 0 || labelLen > 63 {
+			if labelLen == 0 {
 				return false
 			}
+			// TODO(#75835): labels cannot be longer than 63 characters.
+			// if labelLen > 63 {
+			// 	return false
+			// }
 			lastDot = i
 		}
 	}

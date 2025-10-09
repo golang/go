@@ -1456,7 +1456,63 @@ var nameConstraintsTests = []nameConstraintsTest{
 		expectedError: "incompatible key usage",
 	},
 
-	// #77: if several EKUs are requested, satisfying any of them is sufficient.
+	// An invalid DNS SAN should be detected only at validation time so
+	// that we can process CA certificates in the wild that have invalid SANs.
+	// See https://github.com/golang/go/issues/23995
+
+	// #77: an invalid DNS or mail SAN will not be detected if name constraint
+	// checking is not triggered.
+	{
+		roots: make([]constraintsSpec, 1),
+		intermediates: [][]constraintsSpec{
+			{
+				{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"dns:this is invalid", "email:this @ is invalid"},
+		},
+	},
+
+	// #78: an invalid DNS SAN will be detected if any name constraint checking
+	// is triggered.
+	{
+		roots: []constraintsSpec{
+			{
+				bad: []string{"uri:"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			{
+				{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"dns:this is invalid"},
+		},
+		expectedError: "cannot parse dnsName",
+	},
+
+	// #79: an invalid email SAN will be detected if any name constraint
+	// checking is triggered.
+	{
+		roots: []constraintsSpec{
+			{
+				bad: []string{"uri:"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			{
+				{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"email:this @ is invalid"},
+		},
+		expectedError: "cannot parse rfc822Name",
+	},
+
+	// #80: if several EKUs are requested, satisfying any of them is sufficient.
 	{
 		roots: make([]constraintsSpec, 1),
 		intermediates: [][]constraintsSpec{
@@ -1471,7 +1527,7 @@ var nameConstraintsTests = []nameConstraintsTest{
 		requestedEKUs: []ExtKeyUsage{ExtKeyUsageClientAuth, ExtKeyUsageEmailProtection},
 	},
 
-	// #78: EKUs that are not asserted in VerifyOpts are not required to be
+	// #81: EKUs that are not asserted in VerifyOpts are not required to be
 	// nested.
 	{
 		roots: make([]constraintsSpec, 1),
@@ -1490,7 +1546,7 @@ var nameConstraintsTests = []nameConstraintsTest{
 		},
 	},
 
-	// #79: a certificate without SANs and CN is accepted in a constrained chain.
+	// #82: a certificate without SANs and CN is accepted in a constrained chain.
 	{
 		roots: []constraintsSpec{
 			{
@@ -1507,7 +1563,7 @@ var nameConstraintsTests = []nameConstraintsTest{
 		},
 	},
 
-	// #80: a certificate without SANs and with a CN that does not parse as a
+	// #83: a certificate without SANs and with a CN that does not parse as a
 	// hostname is accepted in a constrained chain.
 	{
 		roots: []constraintsSpec{
@@ -1526,7 +1582,7 @@ var nameConstraintsTests = []nameConstraintsTest{
 		},
 	},
 
-	// #81: a certificate with SANs and CN is accepted in a constrained chain.
+	// #84: a certificate with SANs and CN is accepted in a constrained chain.
 	{
 		roots: []constraintsSpec{
 			{
@@ -1544,7 +1600,14 @@ var nameConstraintsTests = []nameConstraintsTest{
 		},
 	},
 
-	// #82: URIs with IPv6 addresses with zones and ports are rejected
+	// #85: .example.com is an invalid DNS name, it should not match the
+	// constraint example.com.
+	{
+		roots:         []constraintsSpec{{ok: []string{"dns:example.com"}}},
+		leaf:          leafSpec{sans: []string{"dns:.example.com"}},
+		expectedError: "cannot parse dnsName \".example.com\"",
+	},
+	// #86: URIs with IPv6 addresses with zones and ports are rejected
 	{
 		roots: []constraintsSpec{
 			{

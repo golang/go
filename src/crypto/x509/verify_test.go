@@ -1352,7 +1352,7 @@ var nameConstraintTests = []struct {
 
 func TestNameConstraints(t *testing.T) {
 	for i, test := range nameConstraintTests {
-		result, err := matchDomainConstraint(test.domain, test.constraint)
+		result, err := matchDomainConstraint(test.domain, test.constraint, map[string][]string{}, map[string][]string{})
 
 		if err != nil && !test.expectError {
 			t.Errorf("unexpected error for test #%d: domain=%s, constraint=%s, err=%s", i, test.domain, test.constraint, err)
