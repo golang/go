@@ -1621,6 +1621,39 @@ func testClientStripHeadersOnRepeatedRedirect(t *testing.T, mode testMode) {
 	}
 }
 
+func TestClientStripHeadersOnPostToGetRedirect(t *testing.T) {
+	run(t, testClientStripHeadersOnPostToGetRedirect)
+}
+func testClientStripHeadersOnPostToGetRedirect(t *testing.T, mode testMode) {
+	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		if r.Method == "POST" {
+			Redirect(w, r, "/redirected", StatusFound)
+			return
+		} else if r.Method != "GET" {
+			t.Errorf("unexpected request method: %v", r.Method)
+			return
+		}
+		for key, val := range r.Header {
+			if strings.HasPrefix(key, "Content-") {
+				t.Errorf("unexpected request body header after redirect: %v: %v", key, val)
+			}
+		}
+	})).ts
+
+	c := ts.Client()
+
+	req, _ := NewRequest("POST", ts.URL, strings.NewReader("hello world"))
+	req.Header.Set("Content-Encoding", "a")
+	req.Header.Set("Content-Language", "b")
+	req.Header.Set("Content-Length", "c")
+	req.Header.Set("Content-Type", "d")
+	res, err := c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+}
+
 // Issue 22233: copy host when Client follows a relative redirect.
 func TestClientCopyHostOnRedirect(t *testing.T) { run(t, testClientCopyHostOnRedirect) }
 func testClientCopyHostOnRedirect(t *testing.T, mode testMode) {
