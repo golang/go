@@ -682,8 +682,9 @@ var defaultVetFlags = []string{
 }
 
 func runTest(ctx context.Context, cmd *base.Command, args []string) {
+	moduleLoaderState := modload.NewState()
 	pkgArgs, testArgs = testFlags(args)
-	modload.InitWorkfile(modload.LoaderState) // The test command does custom flag processing; initialize workspaces after that.
+	modload.InitWorkfile(moduleLoaderState) // The test command does custom flag processing; initialize workspaces after that.
 
 	if cfg.DebugTrace != "" {
 		var close func() error
@@ -704,13 +705,13 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 
 	work.FindExecCmd() // initialize cached result
 
-	work.BuildInit(modload.LoaderState)
+	work.BuildInit(moduleLoaderState)
 	work.VetFlags = testVet.flags
 	work.VetExplicit = testVet.explicit
 	work.VetTool = base.Tool("vet")
 
 	pkgOpts := load.PackageOpts{ModResolveTests: true}
-	pkgs = load.PackagesAndErrors(modload.LoaderState, ctx, pkgOpts, pkgArgs)
+	pkgs = load.PackagesAndErrors(moduleLoaderState, ctx, pkgOpts, pkgArgs)
 	// We *don't* call load.CheckPackageErrors here because we want to report
 	// loading errors as per-package test setup errors later.
 	if len(pkgs) == 0 {
@@ -736,12 +737,12 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 		// the module cache (or permanently alter the behavior of std tests for all
 		// users) by writing the failing input to the package's testdata directory.
 		// (See https://golang.org/issue/48495 and test_fuzz_modcache.txt.)
-		mainMods := modload.LoaderState.MainModules
+		mainMods := moduleLoaderState.MainModules
 		if m := pkgs[0].Module; m != nil && m.Path != "" {
 			if !mainMods.Contains(m.Path) {
 				base.Fatalf("cannot use -fuzz flag on package outside the main module")
 			}
-		} else if pkgs[0].Standard && modload.Enabled(modload.LoaderState) {
+		} else if pkgs[0].Standard && modload.Enabled(moduleLoaderState) {
 			// Because packages in 'std' and 'cmd' are part of the standard library,
 			// they are only treated as part of a module in 'go mod' subcommands and
 			// 'go get'. However, we still don't want to accidentally corrupt their
@@ -854,7 +855,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
-	b := work.NewBuilder("", modload.LoaderState.VendorDirOrEmpty)
+	b := work.NewBuilder("", moduleLoaderState.VendorDirOrEmpty)
 	defer func() {
 		if err := b.Close(); err != nil {
 			base.Fatal(err)
@@ -872,8 +873,8 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 
 		// Select for coverage all dependencies matching the -coverpkg
 		// patterns.
-		plist := load.TestPackageList(modload.LoaderState, ctx, pkgOpts, pkgs)
-		testCoverPkgs = load.SelectCoverPackages(modload.LoaderState, plist, match, "test")
+		plist := load.TestPackageList(moduleLoaderState, ctx, pkgOpts, pkgs)
+		testCoverPkgs = load.SelectCoverPackages(moduleLoaderState, plist, match, "test")
 		if len(testCoverPkgs) > 0 {
 			// create a new singleton action that will collect up the
 			// meta-data files from all of the packages mentioned in
@@ -951,7 +952,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 			"testing":               true,
 			"time":                  true,
 		}
-		for _, p := range load.TestPackageList(modload.LoaderState, ctx, pkgOpts, pkgs) {
+		for _, p := range load.TestPackageList(moduleLoaderState, ctx, pkgOpts, pkgs) {
 			if !skipInstrumentation[p.ImportPath] {
 				p.Internal.FuzzInstrument = true
 			}
@@ -981,7 +982,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 			// happens we'll wind up building the Q compile action
 			// before updating its deps to include sync/atomic).
 			if cfg.BuildCoverMode == "atomic" && p.ImportPath != "sync/atomic" {
-				load.EnsureImport(modload.LoaderState, p, "sync/atomic")
+				load.EnsureImport(moduleLoaderState, p, "sync/atomic")
 			}
 			// Tag the package for static meta-data generation if no
 			// test files (this works only with the new coverage
@@ -1048,7 +1049,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 			reportSetupFailed(firstErrPkg, firstErrPkg.Error)
 			continue
 		}
-		buildTest, runTest, printTest, perr, err := builderTest(modload.LoaderState, b, ctx, pkgOpts, p, allImports[p], writeCoverMetaAct)
+		buildTest, runTest, printTest, perr, err := builderTest(moduleLoaderState, b, ctx, pkgOpts, p, allImports[p], writeCoverMetaAct)
 		if err != nil {
 			reportErr(perr, err)
 			reportSetupFailed(perr, err)
