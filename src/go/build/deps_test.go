@@ -803,7 +803,7 @@ var depsRules = `
 	FMT, testing
 	< internal/cgrouptest;
 
-	regexp, internal/trace, internal/trace/raw, internal/txtar, testing
+	regexp, internal/testenv, internal/trace, internal/trace/raw, internal/txtar, testing
 	< internal/trace/testtrace;
 
 	C, CGO

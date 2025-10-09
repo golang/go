@@ -668,26 +668,14 @@ func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace
 		}
 
 		// Dump some more information on failure.
-		if t.Failed() && onBuilder {
-			// Dump directly to the test log on the builder, since this
-			// data is critical for debugging and this is the only way
-			// we can currently make sure it's retained.
-			t.Log("found bad trace; dumping to test log...")
-			s := dumpTraceToText(t, tb)
-			if onOldBuilder && len(s) > 1<<20+512<<10 {
-				// The old build infrastructure truncates logs at ~2 MiB.
-				// Let's assume we're the only failure and give ourselves
-				// up to 1.5 MiB to dump the trace.
-				//
-				// TODO(mknyszek): Remove this when we've migrated off of
-				// the old infrastructure.
-				t.Logf("text trace too large to dump (%d bytes)", len(s))
-			} else {
-				t.Log(s)
+		if t.Failed() || *dumpTraces {
+			suffix := func(stress bool) string {
+				if stress {
+					return "stress"
+				}
+				return "default"
 			}
-		} else if t.Failed() || *dumpTraces {
-			// We asked to dump the trace or failed. Write the trace to a file.
-			t.Logf("wrote trace to file: %s", dumpTraceToFile(t, testName, stress, tb))
+			testtrace.Dump(t, fmt.Sprintf("%s.%s", testName, suffix(stress)), tb, *dumpTraces)
 		}
 	}
 	t.Run("Default", func(t *testing.T) {
