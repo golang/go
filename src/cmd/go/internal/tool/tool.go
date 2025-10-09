@@ -78,9 +78,10 @@ func init() {
 }
 
 func runTool(ctx context.Context, cmd *base.Command, args []string) {
+	moduleLoaderState := modload.NewState()
 	if len(args) == 0 {
 		counter.Inc("go/subcommand:tool")
-		listTools(modload.LoaderState, ctx)
+		listTools(moduleLoaderState, ctx)
 		return
 	}
 	toolName := args[0]
@@ -108,14 +109,14 @@ func runTool(ctx context.Context, cmd *base.Command, args []string) {
 		if tool := loadBuiltinTool(toolName); tool != "" {
 			// Increment a counter for the tool subcommand with the tool name.
 			counter.Inc("go/subcommand:tool-" + toolName)
-			buildAndRunBuiltinTool(modload.LoaderState, ctx, toolName, tool, args[1:])
+			buildAndRunBuiltinTool(moduleLoaderState, ctx, toolName, tool, args[1:])
 			return
 		}
 
 		// Try to build and run mod tool.
-		tool := loadModTool(modload.LoaderState, ctx, toolName)
+		tool := loadModTool(moduleLoaderState, ctx, toolName)
 		if tool != "" {
-			buildAndRunModtool(modload.LoaderState, ctx, toolName, tool, args[1:])
+			buildAndRunModtool(moduleLoaderState, ctx, toolName, tool, args[1:])
 			return
 		}
 
