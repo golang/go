@@ -273,6 +273,7 @@ func init() {
 }
 
 func runGet(ctx context.Context, cmd *base.Command, args []string) {
+	moduleLoaderState := modload.NewState()
 	switch getU.version {
 	case "", "upgrade", "patch":
 		// ok
@@ -298,7 +299,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 		base.Fatalf("go: -insecure flag is no longer supported; use GOINSECURE instead")
 	}
 
-	modload.LoaderState.ForceUseModules = true
+	moduleLoaderState.ForceUseModules = true
 
 	// Do not allow any updating of go.mod until we've applied
 	// all the requested changes and checked that the result matches
@@ -307,14 +308,14 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 
 	// Allow looking up modules for import paths when outside of a module.
 	// 'go get' is expected to do this, unlike other commands.
-	modload.AllowMissingModuleImports(modload.LoaderState)
+	modload.AllowMissingModuleImports(moduleLoaderState)
 
 	// 'go get' no longer builds or installs packages, so there's nothing to do
 	// if there's no go.mod file.
 	// TODO(#40775): make modload.Init return ErrNoModRoot instead of exiting.
 	// We could handle that here by printing a different message.
-	modload.Init(modload.LoaderState)
-	if !modload.HasModRoot(modload.LoaderState) {
+	modload.Init(moduleLoaderState)
+	if !modload.HasModRoot(moduleLoaderState) {
 		base.Fatalf("go: go.mod file not found in current directory or any parent directory.\n" +
 			"\t'go get' is no longer supported outside a module.\n" +
 			"\tTo build and install a command, use 'go install' with a version,\n" +
@@ -323,7 +324,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 			"\tor run 'go help get' or 'go help install'.")
 	}
 
-	dropToolchain, queries := parseArgs(modload.LoaderState, ctx, args)
+	dropToolchain, queries := parseArgs(moduleLoaderState, ctx, args)
 	opts := modload.WriteOpts{
 		DropToolchain: dropToolchain,
 	}
@@ -333,17 +334,17 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
-	r := newResolver(modload.LoaderState, ctx, queries)
-	r.performLocalQueries(modload.LoaderState, ctx)
-	r.performPathQueries(modload.LoaderState, ctx)
-	r.performToolQueries(modload.LoaderState, ctx)
-	r.performWorkQueries(modload.LoaderState, ctx)
+	r := newResolver(moduleLoaderState, ctx, queries)
+	r.performLocalQueries(moduleLoaderState, ctx)
+	r.performPathQueries(moduleLoaderState, ctx)
+	r.performToolQueries(moduleLoaderState, ctx)
+	r.performWorkQueries(moduleLoaderState, ctx)
 
 	for {
-		r.performWildcardQueries(modload.LoaderState, ctx)
-		r.performPatternAllQueries(modload.LoaderState, ctx)
+		r.performWildcardQueries(moduleLoaderState, ctx)
+		r.performPatternAllQueries(moduleLoaderState, ctx)
 
-		if changed := r.resolveQueries(modload.LoaderState, ctx, queries); changed {
+		if changed := r.resolveQueries(moduleLoaderState, ctx, queries); changed {
 			// 'go get' arguments can be (and often are) package patterns rather than
 			// (just) modules. A package can be provided by any module with a prefix
 			// of its import path, and a wildcard can even match packages in modules
@@ -379,20 +380,20 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 		//
 		// - ambiguous import errors.
 		//   TODO(#27899): Try to resolve ambiguous import errors automatically.
-		upgrades := r.findAndUpgradeImports(modload.LoaderState, ctx, queries)
-		if changed := r.applyUpgrades(modload.LoaderState, ctx, upgrades); changed {
+		upgrades := r.findAndUpgradeImports(moduleLoaderState, ctx, queries)
+		if changed := r.applyUpgrades(moduleLoaderState, ctx, upgrades); changed {
 			continue
 		}
 
-		r.findMissingWildcards(modload.LoaderState, ctx)
-		if changed := r.resolveQueries(modload.LoaderState, ctx, r.wildcardQueries); changed {
+		r.findMissingWildcards(moduleLoaderState, ctx)
+		if changed := r.resolveQueries(moduleLoaderState, ctx, r.wildcardQueries); changed {
 			continue
 		}
 
 		break
 	}
 
-	r.checkWildcardVersions(modload.LoaderState, ctx)
+	r.checkWildcardVersions(moduleLoaderState, ctx)
 
 	var pkgPatterns []string
 	for _, q := range queries {
@@ -403,30 +404,30 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 
 	// If a workspace applies, checkPackageProblems will switch to the workspace
 	// using modload.EnterWorkspace when doing the final load, and then switch back.
-	r.checkPackageProblems(modload.LoaderState, ctx, pkgPatterns)
+	r.checkPackageProblems(moduleLoaderState, ctx, pkgPatterns)
 
 	if *getTool {
-		updateTools(modload.LoaderState, ctx, queries, &opts)
+		updateTools(moduleLoaderState, ctx, queries, &opts)
 	}
 
 	// Everything succeeded. Update go.mod.
-	oldReqs := reqsFromGoMod(modload.ModFile(modload.LoaderState))
+	oldReqs := reqsFromGoMod(modload.ModFile(moduleLoaderState))
 
-	if err := modload.WriteGoMod(modload.LoaderState, ctx, opts); err != nil {
+	if err := modload.WriteGoMod(moduleLoaderState, ctx, opts); err != nil {
 		// A TooNewError can happen for 'go get go@newversion'
 		// when all the required modules are old enough
 		// but the command line is not.
 		// TODO(bcmills): modload.EditBuildList should catch this instead,
 		// and then this can be changed to base.Fatal(err).
-		toolchain.SwitchOrFatal(modload.LoaderState, ctx, err)
+		toolchain.SwitchOrFatal(moduleLoaderState, ctx, err)
 	}
 
-	newReqs := reqsFromGoMod(modload.ModFile(modload.LoaderState))
+	newReqs := reqsFromGoMod(modload.ModFile(moduleLoaderState))
 	r.reportChanges(oldReqs, newReqs)
 
-	if gowork := modload.FindGoWork(modload.LoaderState, base.Cwd()); gowork != "" {
+	if gowork := modload.FindGoWork(moduleLoaderState, base.Cwd()); gowork != "" {
 		wf, err := modload.ReadWorkFile(gowork)
-		if err == nil && modload.UpdateWorkGoVersion(wf, modload.LoaderState.MainModules.GoVersion(modload.LoaderState)) {
+		if err == nil && modload.UpdateWorkGoVersion(wf, moduleLoaderState.MainModules.GoVersion(moduleLoaderState)) {
 			modload.WriteWorkFile(gowork, wf)
 		}
 	}
