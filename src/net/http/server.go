@@ -4088,9 +4088,7 @@ func (w checkConnErrorWriter) Write(p []byte) (n int, err error) {
 	n, err = w.c.rwc.Write(p)
 	if err != nil && w.c.werr == nil {
 		w.c.werr = err
-		if errors.Is(err, io.EOF) {
-			err = errClientDisconnected
-		} else if errors.Is(err, syscall.ECONNRESET) || errors.Is(err, syscall.EPIPE) {
+		if errors.Is(err, syscall.ECONNRESET) || errors.Is(err, syscall.EPIPE) {
 			err = fmt.Errorf("%w: %v", errClientDisconnected, err)
 		}
 		w.c.cancelCtx(fmt.Errorf("connection write error: %w", err))
