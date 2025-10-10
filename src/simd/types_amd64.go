@@ -301,22 +301,6 @@ type Mask8x16 struct {
 	vals    [16]int8
 }
 
-// LoadMask8x16FromBits constructs a Mask8x16 from a bitmap, where 1 means set for the indexed element, 0 means unset.
-// Only the lower 16 bits of y are used.
-//
-// CPU Features: AVX512
-//
-//go:noescape
-func LoadMask8x16FromBits(y *uint64) Mask8x16
-
-// StoreToBits stores a Mask8x16 as a bitmap, where 1 means set for the indexed element, 0 means unset.
-// Only the lower 16 bits of y are used.
-//
-// CPU Features: AVX512
-//
-//go:noescape
-func (x Mask8x16) StoreToBits(y *uint64)
-
 // Mask8x16FromBits constructs a Mask8x16 from a bitmap value, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 16 bits of y are used.
 //
@@ -334,22 +318,6 @@ type Mask16x8 struct {
 	int16x8 v128
 	vals    [8]int16
 }
-
-// LoadMask16x8FromBits constructs a Mask16x8 from a bitmap, where 1 means set for the indexed element, 0 means unset.
-// Only the lower 8 bits of y are used.
-//
-// CPU Features: AVX512
-//
-//go:noescape
-func LoadMask16x8FromBits(y *uint64) Mask16x8
-
-// StoreToBits stores a Mask16x8 as a bitmap, where 1 means set for the indexed element, 0 means unset.
-// Only the lower 8 bits of y are used.
-//
-// CPU Features: AVX512
-//
-//go:noescape
-func (x Mask16x8) StoreToBits(y *uint64)
 
 // Mask16x8FromBits constructs a Mask16x8 from a bitmap value, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 8 bits of y are used.
@@ -369,22 +337,6 @@ type Mask32x4 struct {
 	vals    [4]int32
 }
 
-// LoadMask32x4FromBits constructs a Mask32x4 from a bitmap, where 1 means set for the indexed element, 0 means unset.
-// Only the lower 4 bits of y are used.
-//
-// CPU Features: AVX512
-//
-//go:noescape
-func LoadMask32x4FromBits(y *uint64) Mask32x4
-
-// StoreToBits stores a Mask32x4 as a bitmap, where 1 means set for the indexed element, 0 means unset.
-// Only the lower 4 bits of y are used.
-//
-// CPU Features: AVX512
-//
-//go:noescape
-func (x Mask32x4) StoreToBits(y *uint64)
-
 // Mask32x4FromBits constructs a Mask32x4 from a bitmap value, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 4 bits of y are used.
 //
@@ -402,22 +354,6 @@ type Mask64x2 struct {
 	int64x2 v128
 	vals    [2]int64
 }
-
-// LoadMask64x2FromBits constructs a Mask64x2 from a bitmap, where 1 means set for the indexed element, 0 means unset.
-// Only the lower 2 bits of y are used.
-//
-// CPU Features: AVX512
-//
-//go:noescape
-func LoadMask64x2FromBits(y *uint64) Mask64x2
-
-// StoreToBits stores a Mask64x2 as a bitmap, where 1 means set for the indexed element, 0 means unset.
-// Only the lower 2 bits of y are used.
-//
-// CPU Features: AVX512
-//
-//go:noescape
-func (x Mask64x2) StoreToBits(y *uint64)
 
 // Mask64x2FromBits constructs a Mask64x2 from a bitmap value, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 2 bits of y are used.
@@ -728,22 +664,6 @@ type Mask8x32 struct {
 	vals    [32]int8
 }
 
-// LoadMask8x32FromBits constructs a Mask8x32 from a bitmap, where 1 means set for the indexed element, 0 means unset.
-// Only the lower 32 bits of y are used.
-//
-// CPU Features: AVX512
-//
-//go:noescape
-func LoadMask8x32FromBits(y *uint64) Mask8x32
-
-// StoreToBits stores a Mask8x32 as a bitmap, where 1 means set for the indexed element, 0 means unset.
-// Only the lower 32 bits of y are used.
-//
-// CPU Features: AVX512
-//
-//go:noescape
-func (x Mask8x32) StoreToBits(y *uint64)
-
 // Mask8x32FromBits constructs a Mask8x32 from a bitmap value, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 32 bits of y are used.
 //
@@ -761,22 +681,6 @@ type Mask16x16 struct {
 	int16x16 v256
 	vals     [16]int16
 }
-
-// LoadMask16x16FromBits constructs a Mask16x16 from a bitmap, where 1 means set for the indexed element, 0 means unset.
-// Only the lower 16 bits of y are used.
-//
-// CPU Features: AVX512
-//
-//go:noescape
-func LoadMask16x16FromBits(y *uint64) Mask16x16
-
-// StoreToBits stores a Mask16x16 as a bitmap, where 1 means set for the indexed element, 0 means unset.
-// Only the lower 16 bits of y are used.
-//
-// CPU Features: AVX512
-//
-//go:noescape
-func (x Mask16x16) StoreToBits(y *uint64)
 
 // Mask16x16FromBits constructs a Mask16x16 from a bitmap value, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 16 bits of y are used.
@@ -796,22 +700,6 @@ type Mask32x8 struct {
 	vals    [8]int32
 }
 
-// LoadMask32x8FromBits constructs a Mask32x8 from a bitmap, where 1 means set for the indexed element, 0 means unset.
-// Only the lower 8 bits of y are used.
-//
-// CPU Features: AVX512
-//
-//go:noescape
-func LoadMask32x8FromBits(y *uint64) Mask32x8
-
-// StoreToBits stores a Mask32x8 as a bitmap, where 1 means set for the indexed element, 0 means unset.
-// Only the lower 8 bits of y are used.
-//
-// CPU Features: AVX512
-//
-//go:noescape
-func (x Mask32x8) StoreToBits(y *uint64)
-
 // Mask32x8FromBits constructs a Mask32x8 from a bitmap value, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 8 bits of y are used.
 //
@@ -829,22 +717,6 @@ type Mask64x4 struct {
 	int64x4 v256
 	vals    [4]int64
 }
-
-// LoadMask64x4FromBits constructs a Mask64x4 from a bitmap, where 1 means set for the indexed element, 0 means unset.
-// Only the lower 4 bits of y are used.
-//
-// CPU Features: AVX512
-//
-//go:noescape
-func LoadMask64x4FromBits(y *uint64) Mask64x4
-
-// StoreToBits stores a Mask64x4 as a bitmap, where 1 means set for the indexed element, 0 means unset.
-// Only the lower 4 bits of y are used.
-//
-// CPU Features: AVX512
-//
-//go:noescape
-func (x Mask64x4) StoreToBits(y *uint64)
 
 // Mask64x4FromBits constructs a Mask64x4 from a bitmap value, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 4 bits of y are used.
@@ -1219,22 +1091,6 @@ type Mask8x64 struct {
 	vals    [64]int8
 }
 
-// LoadMask8x64FromBits constructs a Mask8x64 from a bitmap, where 1 means set for the indexed element, 0 means unset.
-// Only the lower 64 bits of y are used.
-//
-// CPU Features: AVX512
-//
-//go:noescape
-func LoadMask8x64FromBits(y *uint64) Mask8x64
-
-// StoreToBits stores a Mask8x64 as a bitmap, where 1 means set for the indexed element, 0 means unset.
-// Only the lower 64 bits of y are used.
-//
-// CPU Features: AVX512
-//
-//go:noescape
-func (x Mask8x64) StoreToBits(y *uint64)
-
 // Mask8x64FromBits constructs a Mask8x64 from a bitmap value, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 64 bits of y are used.
 //
@@ -1252,22 +1108,6 @@ type Mask16x32 struct {
 	int16x32 v512
 	vals     [32]int16
 }
-
-// LoadMask16x32FromBits constructs a Mask16x32 from a bitmap, where 1 means set for the indexed element, 0 means unset.
-// Only the lower 32 bits of y are used.
-//
-// CPU Features: AVX512
-//
-//go:noescape
-func LoadMask16x32FromBits(y *uint64) Mask16x32
-
-// StoreToBits stores a Mask16x32 as a bitmap, where 1 means set for the indexed element, 0 means unset.
-// Only the lower 32 bits of y are used.
-//
-// CPU Features: AVX512
-//
-//go:noescape
-func (x Mask16x32) StoreToBits(y *uint64)
 
 // Mask16x32FromBits constructs a Mask16x32 from a bitmap value, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 32 bits of y are used.
@@ -1287,22 +1127,6 @@ type Mask32x16 struct {
 	vals     [16]int32
 }
 
-// LoadMask32x16FromBits constructs a Mask32x16 from a bitmap, where 1 means set for the indexed element, 0 means unset.
-// Only the lower 16 bits of y are used.
-//
-// CPU Features: AVX512
-//
-//go:noescape
-func LoadMask32x16FromBits(y *uint64) Mask32x16
-
-// StoreToBits stores a Mask32x16 as a bitmap, where 1 means set for the indexed element, 0 means unset.
-// Only the lower 16 bits of y are used.
-//
-// CPU Features: AVX512
-//
-//go:noescape
-func (x Mask32x16) StoreToBits(y *uint64)
-
 // Mask32x16FromBits constructs a Mask32x16 from a bitmap value, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 16 bits of y are used.
 //
@@ -1320,22 +1144,6 @@ type Mask64x8 struct {
 	int64x8 v512
 	vals    [8]int64
 }
-
-// LoadMask64x8FromBits constructs a Mask64x8 from a bitmap, where 1 means set for the indexed element, 0 means unset.
-// Only the lower 8 bits of y are used.
-//
-// CPU Features: AVX512
-//
-//go:noescape
-func LoadMask64x8FromBits(y *uint64) Mask64x8
-
-// StoreToBits stores a Mask64x8 as a bitmap, where 1 means set for the indexed element, 0 means unset.
-// Only the lower 8 bits of y are used.
-//
-// CPU Features: AVX512
-//
-//go:noescape
-func (x Mask64x8) StoreToBits(y *uint64)
 
 // Mask64x8FromBits constructs a Mask64x8 from a bitmap value, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 8 bits of y are used.

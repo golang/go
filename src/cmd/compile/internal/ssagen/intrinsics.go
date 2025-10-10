@@ -2024,13 +2024,6 @@ func simdStore() func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 	}
 }
 
-var loadMaskOpcodes = map[int]map[int]ssa.Op{
-	8:  {16: ssa.OpLoadMask8x16, 32: ssa.OpLoadMask8x32, 64: ssa.OpLoadMask8x64},
-	16: {8: ssa.OpLoadMask16x8, 16: ssa.OpLoadMask16x16, 32: ssa.OpLoadMask16x32},
-	32: {4: ssa.OpLoadMask32x4, 8: ssa.OpLoadMask32x8, 16: ssa.OpLoadMask32x16},
-	64: {2: ssa.OpLoadMask64x2, 4: ssa.OpLoadMask64x4, 8: ssa.OpLoadMask64x8},
-}
-
 var cvtVToMaskOpcodes = map[int]map[int]ssa.Op{
 	8:  {16: ssa.OpCvt16toMask8x16, 32: ssa.OpCvt32toMask8x32, 64: ssa.OpCvt64toMask8x64},
 	16: {8: ssa.OpCvt8toMask16x8, 16: ssa.OpCvt16toMask16x16, 32: ssa.OpCvt32toMask16x32},
@@ -2043,33 +2036,6 @@ var cvtMaskToVOpcodes = map[int]map[int]ssa.Op{
 	16: {8: ssa.OpCvtMask16x8to8, 16: ssa.OpCvtMask16x16to16, 32: ssa.OpCvtMask16x32to32},
 	32: {4: ssa.OpCvtMask32x4to8, 8: ssa.OpCvtMask32x8to8, 16: ssa.OpCvtMask32x16to16},
 	64: {2: ssa.OpCvtMask64x2to8, 4: ssa.OpCvtMask64x4to8, 8: ssa.OpCvtMask64x8to8},
-}
-
-func simdLoadMask(elemBits, lanes int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-		op := loadMaskOpcodes[elemBits][lanes]
-		if op == 0 {
-			panic(fmt.Sprintf("Unknown mask shape: Mask%dx%d", elemBits, lanes))
-		}
-		return s.newValue2(op, types.TypeMask, args[0], s.mem())
-	}
-}
-
-func simdStoreMask(elemBits, lanes int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-		opCodes := map[int]map[int]ssa.Op{
-			8:  {16: ssa.OpStoreMask8x16, 32: ssa.OpStoreMask8x32, 64: ssa.OpStoreMask8x64},
-			16: {8: ssa.OpStoreMask16x8, 16: ssa.OpStoreMask16x16, 32: ssa.OpStoreMask16x32},
-			32: {4: ssa.OpStoreMask32x4, 8: ssa.OpStoreMask32x8, 16: ssa.OpStoreMask32x16},
-			64: {2: ssa.OpStoreMask64x2, 4: ssa.OpStoreMask64x4, 8: ssa.OpStoreMask64x8},
-		}
-		op := opCodes[elemBits][lanes]
-		if op == 0 {
-			panic(fmt.Sprintf("Unknown mask shape: Mask%dx%d", elemBits, lanes))
-		}
-		s.vars[memVar] = s.newValue3A(op, types.TypeMem, types.TypeMask, args[1], args[0], s.mem())
-		return nil
-	}
 }
 
 func simdCvtVToMask(elemBits, lanes int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {

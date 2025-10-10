@@ -676,32 +676,7 @@ var genericOps = []opData{
 	{name: "PrefetchCacheStreamed", argLength: 2, hasSideEffects: true}, // Do non-temporal or streamed prefetch arg0 to cache. arg0=addr, arg1=memory.
 
 	// SIMD
-	{name: "ZeroSIMD", argLength: 0},      // zero value of a vector
-	{name: "LoadMask8x16", argLength: 2},  // arg0 = ptr, arg1 = mem
-	{name: "LoadMask8x32", argLength: 2},  // arg0 = ptr, arg1 = mem
-	{name: "LoadMask8x64", argLength: 2},  // arg0 = ptr, arg1 = mem
-	{name: "LoadMask16x8", argLength: 2},  // arg0 = ptr, arg1 = mem
-	{name: "LoadMask16x16", argLength: 2}, // arg0 = ptr, arg1 = mem
-	{name: "LoadMask16x32", argLength: 2}, // arg0 = ptr, arg1 = mem
-	{name: "LoadMask32x4", argLength: 2},  // arg0 = ptr, arg1 = mem
-	{name: "LoadMask32x8", argLength: 2},  // arg0 = ptr, arg1 = mem
-	{name: "LoadMask32x16", argLength: 2}, // arg0 = ptr, arg1 = mem
-	{name: "LoadMask64x2", argLength: 2},  // arg0 = ptr, arg1 = mem
-	{name: "LoadMask64x4", argLength: 2},  // arg0 = ptr, arg1 = mem
-	{name: "LoadMask64x8", argLength: 2},  // arg0 = ptr, arg1 = mem
-
-	{name: "StoreMask8x16", argLength: 3, typ: "Mem", aux: "Typ"},  // Store arg1 to arg0.  arg2=memory, aux=type.  Returns memory.
-	{name: "StoreMask8x32", argLength: 3, typ: "Mem", aux: "Typ"},  // Store arg1 to arg0.  arg2=memory, aux=type.  Returns memory.
-	{name: "StoreMask8x64", argLength: 3, typ: "Mem", aux: "Typ"},  // Store arg1 to arg0.  arg2=memory, aux=type.  Returns memory.
-	{name: "StoreMask16x8", argLength: 3, typ: "Mem", aux: "Typ"},  // Store arg1 to arg0.  arg2=memory, aux=type.  Returns memory.
-	{name: "StoreMask16x16", argLength: 3, typ: "Mem", aux: "Typ"}, // Store arg1 to arg0.  arg2=memory, aux=type.  Returns memory.
-	{name: "StoreMask16x32", argLength: 3, typ: "Mem", aux: "Typ"}, // Store arg1 to arg0.  arg2=memory, aux=type.  Returns memory.
-	{name: "StoreMask32x4", argLength: 3, typ: "Mem", aux: "Typ"},  // Store arg1 to arg0.  arg2=memory, aux=type.  Returns memory.
-	{name: "StoreMask32x8", argLength: 3, typ: "Mem", aux: "Typ"},  // Store arg1 to arg0.  arg2=memory, aux=type.  Returns memory.
-	{name: "StoreMask32x16", argLength: 3, typ: "Mem", aux: "Typ"}, // Store arg1 to arg0.  arg2=memory, aux=type.  Returns memory.
-	{name: "StoreMask64x2", argLength: 3, typ: "Mem", aux: "Typ"},  // Store arg1 to arg0.  arg2=memory, aux=type.  Returns memory.
-	{name: "StoreMask64x4", argLength: 3, typ: "Mem", aux: "Typ"},  // Store arg1 to arg0.  arg2=memory, aux=type.  Returns memory.
-	{name: "StoreMask64x8", argLength: 3, typ: "Mem", aux: "Typ"},  // Store arg1 to arg0.  arg2=memory, aux=type.  Returns memory.
+	{name: "ZeroSIMD", argLength: 0}, // zero value of a vector
 
 	// Convert integers to masks
 	{name: "Cvt16toMask8x16", argLength: 1},  // arg0 = integer mask value

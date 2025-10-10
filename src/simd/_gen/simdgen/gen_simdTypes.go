@@ -180,22 +180,6 @@ func Load{{.Name}}(y *[{{.Lanes}}]{{.Base}}) {{.Name}}
 func (x {{.Name}}) Store(y *[{{.Lanes}}]{{.Base}})
 `
 
-const simdMaskFromBitsTemplate = `
-// Load{{.Name}}FromBits constructs a {{.Name}} from a bitmap, where 1 means set for the indexed element, 0 means unset.
-// Only the lower {{.Lanes}} bits of y are used.
-//
-// CPU Features: AVX512
-//go:noescape
-func Load{{.Name}}FromBits(y *uint64) {{.Name}}
-
-// StoreToBits stores a {{.Name}} as a bitmap, where 1 means set for the indexed element, 0 means unset.
-// Only the lower {{.Lanes}} bits of y are used.
-//
-// CPU Features: AVX512
-//go:noescape
-func (x {{.Name}}) StoreToBits(y *uint64)
-`
-
 const simdMaskFromValTemplate = `
 // {{.Name}}FromBits constructs a {{.Name}} from a bitmap value, where 1 means set for the indexed element, 0 means unset.
 // Only the lower {{.Lanes}} bits of y are used.
@@ -503,7 +487,6 @@ func writeSIMDTypes(typeMap simdTypeMap) *bytes.Buffer {
 	t := templateOf(simdTypesTemplates, "types_amd64")
 	loadStore := templateOf(simdLoadStoreTemplate, "loadstore_amd64")
 	maskedLoadStore := templateOf(simdMaskedLoadStoreTemplate, "maskedloadstore_amd64")
-	maskFromBits := templateOf(simdMaskFromBitsTemplate, "maskFromBits_amd64")
 	maskFromVal := templateOf(simdMaskFromValTemplate, "maskFromVal_amd64")
 
 	buffer := new(bytes.Buffer)
@@ -542,9 +525,6 @@ func writeSIMDTypes(typeMap simdTypeMap) *bytes.Buffer {
 					}
 				}
 			} else {
-				if err := maskFromBits.ExecuteTemplate(buffer, "maskFromBits_amd64", typeDef); err != nil {
-					panic(fmt.Errorf("failed to execute maskFromBits template for type %s: %w", typeDef.Name, err))
-				}
 				if err := maskFromVal.ExecuteTemplate(buffer, "maskFromVal_amd64", typeDef); err != nil {
 					panic(fmt.Errorf("failed to execute maskFromVal template for type %s: %w", typeDef.Name, err))
 				}

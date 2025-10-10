@@ -332,39 +332,6 @@ func testMergeLocalswrapper(t *testing.T, op func(simd.Int64x4, simd.Int64x4) si
 	}
 }
 
-func TestBitMaskLoad(t *testing.T) {
-	if !simd.HasAVX512() {
-		t.Skip("Test requires HasAVX512, not available on this hardware")
-		return
-	}
-	var bits uint64 = 0b10
-	results := [2]int64{}
-	want := [2]int64{0, 6}
-	m := simd.LoadMask64x2FromBits(&bits)
-	simd.LoadInt64x2Slice([]int64{1, 2}).Add(simd.LoadInt64x2Slice([]int64{3, 4})).Masked(m).Store(&results)
-	for i := range 2 {
-		if results[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], results[i])
-		}
-	}
-}
-
-func TestBitMaskStore(t *testing.T) {
-	if !simd.HasAVX512() {
-		t.Skip("Test requires HasAVX512, not available on this hardware")
-		return
-	}
-	var want uint64 = 0b101
-	var got uint64
-	x := simd.LoadInt32x4Slice([]int32{1, 2, 3, 4})
-	y := simd.LoadInt32x4Slice([]int32{5, 0, 5, 0})
-	m := y.Greater(x)
-	m.StoreToBits(&got)
-	if got != want {
-		t.Errorf("Result incorrect: want %b, got %b", want, got)
-	}
-}
-
 func TestBitMaskFromBits(t *testing.T) {
 	if !simd.HasAVX512() {
 		t.Skip("Test requires HasAVX512, not available on this hardware")
