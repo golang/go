@@ -29,6 +29,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 	_ "unsafe" // for linkname
 
@@ -63,6 +64,10 @@ var (
 	// errClientDisconnected is used as a context Cause for contexts
 	// cancelled because the client closed their connection.
 	errClientDisconnected = errors.New("client disconnected")
+
+	// errServerShutdown is used as a context Cause for contexts
+	// cancelled because the server shut down (Close() was called).
+	errServerShutdown = errors.New("connection closed by server shutdown")
 )
 
 // A Handler responds to an HTTP request.
@@ -774,8 +779,10 @@ func (cr *connReader) handleReadErrorLocked(err error) {
 	if cr.conn == nil {
 		return
 	}
-	if errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) {
+	if errors.Is(err, io.EOF) {
 		err = errClientDisconnected
+	} else if errors.Is(err, syscall.ECONNRESET) || errors.Is(err, syscall.EPIPE) {
+		err = fmt.Errorf("%w: %v", errClientDisconnected, err)
 	}
 	cr.conn.cancelCtx(fmt.Errorf("connection read error: %w", err))
 	if res := cr.conn.curReq.Load(); res != nil {
@@ -3155,6 +3162,7 @@ func (s *Server) Close() error {
 	s.mu.Lock()
 
 	for c := range s.activeConn {
+		c.cancelCtx(errServerShutdown)
 		c.rwc.Close()
 		delete(s.activeConn, c)
 	}
@@ -4080,8 +4088,10 @@ func (w checkConnErrorWriter) Write(p []byte) (n int, err error) {
 	n, err = w.c.rwc.Write(p)
 	if err != nil && w.c.werr == nil {
 		w.c.werr = err
-		if errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) {
+		if errors.Is(err, io.EOF) {
 			err = errClientDisconnected
+		} else if errors.Is(err, syscall.ECONNRESET) || errors.Is(err, syscall.EPIPE) {
+			err = fmt.Errorf("%w: %v", errClientDisconnected, err)
 		}
 		w.c.cancelCtx(fmt.Errorf("connection write error: %w", err))
 	}
