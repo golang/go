@@ -106,7 +106,7 @@ func printEnvDetails(loaderstate *modload.State, w io.Writer) {
 func printGoEnv(loaderstate *modload.State, w io.Writer) {
 	env := envcmd.MkEnv()
 	env = append(env, envcmd.ExtraEnvVars(loaderstate)...)
-	env = append(env, envcmd.ExtraEnvVarsCostly()...)
+	env = append(env, envcmd.ExtraEnvVarsCostly(loaderstate)...)
 	envcmd.PrintEnv(w, env, false)
 }
 

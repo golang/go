@@ -85,7 +85,7 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	work.BuildInit(modload.LoaderState)
-	b := work.NewBuilder("")
+	b := work.NewBuilder("", modload.LoaderState.VendorDirOrEmpty)
 	defer func() {
 		if err := b.Close(); err != nil {
 			base.Fatal(err)

@@ -2260,7 +2260,7 @@ func (b *Builder) ccompile(loaderstate *modload.State, a *Action, outfile string
 			} else if m.Dir == "" {
 				// The module is in the vendor directory. Replace the entire vendor
 				// directory path, because the module's Dir is not filled in.
-				from = modload.VendorDir(loaderstate)
+				from = b.getVendorDir()
 				toPath = "vendor"
 			} else {
 				from = m.Dir
@@ -3383,7 +3383,7 @@ func (b *Builder) swigDoIntSize(objdir string) (intsize string, err error) {
 	}
 	srcs := []string{src}
 
-	p := load.GoFilesPackage(modload.LoaderState, context.TODO(), load.PackageOpts{}, srcs)
+	p := load.GoFilesPackage(modload.NewState(), context.TODO(), load.PackageOpts{}, srcs)
 
 	if _, _, e := BuildToolchain.gc(b, &Action{Mode: "swigDoIntSize", Package: p, Objdir: objdir}, "", nil, nil, "", false, "", srcs); e != nil {
 		return "32", nil

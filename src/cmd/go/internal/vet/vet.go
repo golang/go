@@ -224,7 +224,7 @@ func run(ctx context.Context, cmd *base.Command, args []string) {
 		base.Fatalf("no packages to %s", cmd.Name())
 	}
 
-	b := work.NewBuilder("")
+	b := work.NewBuilder("", modload.LoaderState.VendorDirOrEmpty)
 	defer func() {
 		if err := b.Close(); err != nil {
 			base.Fatal(err)

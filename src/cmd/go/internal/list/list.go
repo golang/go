@@ -713,7 +713,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 	// Do we need to run a build to gather information?
 	needStale := (listJson && listJsonFields.needAny("Stale", "StaleReason")) || strings.Contains(*listFmt, ".Stale")
 	if needStale || *listExport || *listCompiled {
-		b := work.NewBuilder("")
+		b := work.NewBuilder("", modload.LoaderState.VendorDirOrEmpty)
 		if *listE {
 			b.AllowErrors = true
 		}

@@ -461,7 +461,7 @@ var pkgsFilter = func(pkgs []*load.Package) []*load.Package { return pkgs }
 func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 	modload.InitWorkfile(modload.LoaderState)
 	BuildInit(modload.LoaderState)
-	b := NewBuilder("")
+	b := NewBuilder("", modload.LoaderState.VendorDirOrEmpty)
 	defer func() {
 		if err := b.Close(); err != nil {
 			base.Fatal(err)
@@ -783,7 +783,7 @@ func InstallPackages(loaderstate *modload.State, ctx context.Context, patterns [
 	}
 	base.ExitIfErrors()
 
-	b := NewBuilder("")
+	b := NewBuilder("", loaderstate.VendorDirOrEmpty)
 	defer func() {
 		if err := b.Close(); err != nil {
 			base.Fatal(err)

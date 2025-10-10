@@ -40,6 +40,7 @@ import (
 // build packages in parallel, and the builder is shared.
 type Builder struct {
 	WorkDir            string                    // the temporary work directory (ends in filepath.Separator)
+	getVendorDir       func() string             // TODO(jitsu): remove this after we eliminate global module state
 	actionCache        map[cacheKey]*Action      // a cache of already-constructed actions
 	flagCache          map[[2]string]bool        // a cache of supported compiler flags
 	gccCompilerIDCache map[string]cache.ActionID // cache for gccCompilerID
@@ -275,8 +276,9 @@ const (
 // and arranges for it to be removed in case of an unclean exit.
 // The caller must Close the builder explicitly to clean up the WorkDir
 // before a clean exit.
-func NewBuilder(workDir string) *Builder {
+func NewBuilder(workDir string, getVendorDir func() string) *Builder {
 	b := new(Builder)
+	b.getVendorDir = getVendorDir
 
 	b.actionCache = make(map[cacheKey]*Action)
 	b.gccToolIDCache = make(map[string]string)

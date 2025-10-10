@@ -337,7 +337,7 @@ func buildAndRunModtool(loaderstate *modload.State, ctx context.Context, toolNam
 
 func buildAndRunTool(loaderstate *modload.State, ctx context.Context, tool string, args []string, runTool work.ActorFunc) {
 	work.BuildInit(loaderstate)
-	b := work.NewBuilder("")
+	b := work.NewBuilder("", loaderstate.VendorDirOrEmpty)
 	defer func() {
 		if err := b.Close(); err != nil {
 			base.Fatal(err)

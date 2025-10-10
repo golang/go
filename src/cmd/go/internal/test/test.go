@@ -854,7 +854,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
-	b := work.NewBuilder("")
+	b := work.NewBuilder("", modload.LoaderState.VendorDirOrEmpty)
 	defer func() {
 		if err := b.Close(); err != nil {
 			base.Fatal(err)

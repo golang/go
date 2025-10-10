@@ -211,8 +211,8 @@ func ExtraEnvVars(loaderstate *modload.State) []cfg.EnvVar {
 
 // ExtraEnvVarsCostly returns environment variables that should not leak into child processes
 // but are costly to evaluate.
-func ExtraEnvVarsCostly() []cfg.EnvVar {
-	b := work.NewBuilder("")
+func ExtraEnvVarsCostly(loaderstate *modload.State) []cfg.EnvVar {
+	b := work.NewBuilder("", loaderstate.VendorDirOrEmpty)
 	defer func() {
 		if err := b.Close(); err != nil {
 			base.Fatal(err)
@@ -337,7 +337,7 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 	}
 	if needCostly {
 		work.BuildInit(modload.LoaderState)
-		env = append(env, ExtraEnvVarsCostly()...)
+		env = append(env, ExtraEnvVarsCostly(modload.LoaderState)...)
 	}
 
 	if len(args) > 0 {

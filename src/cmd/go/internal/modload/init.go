@@ -183,17 +183,25 @@ func (mms *MainModuleSet) InGorootSrc(m module.Version) bool {
 }
 
 func (mms *MainModuleSet) mustGetSingleMainModule(loaderstate *State) module.Version {
+	mm, err := mms.getSingleMainModule(loaderstate)
+	if err != nil {
+		panic(err)
+	}
+	return mm
+}
+
+func (mms *MainModuleSet) getSingleMainModule(loaderstate *State) (module.Version, error) {
 	if mms == nil || len(mms.versions) == 0 {
-		panic("internal error: mustGetSingleMainModule called in context with no main modules")
+		return module.Version{}, errors.New("internal error: mustGetSingleMainModule called in context with no main modules")
 	}
 	if len(mms.versions) != 1 {
 		if inWorkspaceMode(loaderstate) {
-			panic("internal error: mustGetSingleMainModule called in workspace mode")
+			return module.Version{}, errors.New("internal error: mustGetSingleMainModule called in workspace mode")
 		} else {
-			panic("internal error: multiple main modules present outside of workspace mode")
+			return module.Version{}, errors.New("internal error: multiple main modules present outside of workspace mode")
 		}
 	}
-	return mms.versions[0]
+	return mms.versions[0], nil
 }
 
 func (mms *MainModuleSet) GetSingleIndexOrNil(loaderstate *State) *modFileIndex {
@@ -627,18 +635,38 @@ func Enabled(loaderstate *State) bool {
 	return loaderstate.modRoots != nil || cfg.ModulesEnabled
 }
 
-func VendorDir(loaderstate *State) string {
-	if inWorkspaceMode(loaderstate) {
-		return filepath.Join(filepath.Dir(WorkFilePath(loaderstate)), "vendor")
+func (s *State) vendorDir() (string, error) {
+	if inWorkspaceMode(s) {
+		return filepath.Join(filepath.Dir(WorkFilePath(s)), "vendor"), nil
+	}
+	mainModule, err := s.MainModules.getSingleMainModule(s)
+	if err != nil {
+		return "", err
 	}
 	// Even if -mod=vendor, we could be operating with no mod root (and thus no
 	// vendor directory). As long as there are no dependencies that is expected
 	// to work. See script/vendor_outside_module.txt.
-	modRoot := loaderstate.MainModules.ModRoot(loaderstate.MainModules.mustGetSingleMainModule(loaderstate))
+	modRoot := s.MainModules.ModRoot(mainModule)
 	if modRoot == "" {
-		panic("vendor directory does not exist when in single module mode outside of a module")
+		return "", errors.New("vendor directory does not exist when in single module mode outside of a module")
 	}
-	return filepath.Join(modRoot, "vendor")
+	return filepath.Join(modRoot, "vendor"), nil
+}
+
+func (s *State) VendorDirOrEmpty() string {
+	dir, err := s.vendorDir()
+	if err != nil {
+		return ""
+	}
+	return dir
+}
+
+func VendorDir(loaderstate *State) string {
+	dir, err := loaderstate.vendorDir()
+	if err != nil {
+		panic(err)
+	}
+	return dir
 }
 
 func inWorkspaceMode(loaderstate *State) bool {
