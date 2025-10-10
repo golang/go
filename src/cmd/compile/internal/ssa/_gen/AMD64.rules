@@ -1676,6 +1676,17 @@
 (CvtMask64x4to8 <t> x) => (KMOVBi <t> (VPMOVVec64x4ToM <types.TypeMask> x))
 (CvtMask64x8to8 <t> x) => (KMOVBi <t> (VPMOVVec64x8ToM <types.TypeMask> x))
 
+// optimizations
+(MOVBstore [off] {sym} ptr (KMOVBi mask) mem) => (KMOVBstore [off] {sym} ptr mask mem)
+(MOVWstore [off] {sym} ptr (KMOVWi mask) mem) => (KMOVWstore [off] {sym} ptr mask mem)
+(MOVLstore [off] {sym} ptr (KMOVDi mask) mem) => (KMOVDstore [off] {sym} ptr mask mem)
+(MOVQstore [off] {sym} ptr (KMOVQi mask) mem) => (KMOVQstore [off] {sym} ptr mask mem)
+
+(KMOVBk l:(MOVBload [off] {sym} ptr mem)) && canMergeLoad(v, l) && clobber(l) => (KMOVBload [off] {sym} ptr mem)
+(KMOVWk l:(MOVWload [off] {sym} ptr mem)) && canMergeLoad(v, l) && clobber(l) => (KMOVWload [off] {sym} ptr mem)
+(KMOVDk l:(MOVLload [off] {sym} ptr mem)) && canMergeLoad(v, l) && clobber(l) => (KMOVDload [off] {sym} ptr mem)
+(KMOVQk l:(MOVQload [off] {sym} ptr mem)) && canMergeLoad(v, l) && clobber(l) => (KMOVQload [off] {sym} ptr mem)
+
 // SIMD vector loads and stores
 (Load <t> ptr mem) && t.Size() == 16 => (VMOVDQUload128 ptr mem)
 (Store {t} ptr val mem) && t.Size() == 16 => (VMOVDQUstore128 ptr val mem)

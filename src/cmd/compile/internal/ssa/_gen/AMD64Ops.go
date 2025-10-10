@@ -1415,7 +1415,20 @@ func init() {
 		{name: "VZEROUPPER", argLength: 1, reg: regInfo{clobbers: v}, asm: "VZEROUPPER"}, // arg=mem, returns mem
 		{name: "VZEROALL", argLength: 1, reg: regInfo{clobbers: v}, asm: "VZEROALL"},     // arg=mem, returns mem
 
+		// KMOVxload: loads masks
+		// Load (Q=8,D=4,W=2,B=1) bytes from (arg0+auxint+aux), arg1=mem.
+		// "+auxint+aux" == add auxint and the offset of the symbol in aux (if any) to the effective address
+		{name: "KMOVBload", argLength: 2, reg: kload, asm: "KMOVB", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},
+		{name: "KMOVWload", argLength: 2, reg: kload, asm: "KMOVW", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},
+		{name: "KMOVDload", argLength: 2, reg: kload, asm: "KMOVD", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},
 		{name: "KMOVQload", argLength: 2, reg: kload, asm: "KMOVQ", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},
+
+		// KMOVxstore: stores masks
+		// Store (Q=8,D=4,W=2,B=1) low bytes of arg1.
+		// Does *(arg0+auxint+aux) = arg1, arg2=mem.
+		{name: "KMOVBstore", argLength: 3, reg: kstore, asm: "KMOVB", aux: "SymOff", faultOnNilArg0: true, symEffect: "Write"},
+		{name: "KMOVWstore", argLength: 3, reg: kstore, asm: "KMOVW", aux: "SymOff", faultOnNilArg0: true, symEffect: "Write"},
+		{name: "KMOVDstore", argLength: 3, reg: kstore, asm: "KMOVD", aux: "SymOff", faultOnNilArg0: true, symEffect: "Write"},
 		{name: "KMOVQstore", argLength: 3, reg: kstore, asm: "KMOVQ", aux: "SymOff", faultOnNilArg0: true, symEffect: "Write"},
 
 		// Move GP directly to mask register

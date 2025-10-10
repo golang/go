@@ -348,6 +348,24 @@ func TestBitMaskFromBits(t *testing.T) {
 	}
 }
 
+var maskForTestBitMaskFromBitsLoad = uint8(0b10)
+
+func TestBitMaskFromBitsLoad(t *testing.T) {
+	if !simd.HasAVX512() {
+		t.Skip("Test requires HasAVX512, not available on this hardware")
+		return
+	}
+	results := [2]int64{}
+	want := [2]int64{0, 6}
+	m := simd.Mask64x2FromBits(maskForTestBitMaskFromBitsLoad)
+	simd.LoadInt64x2Slice([]int64{1, 2}).Add(simd.LoadInt64x2Slice([]int64{3, 4})).Masked(m).Store(&results)
+	for i := range 2 {
+		if results[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], results[i])
+		}
+	}
+}
+
 func TestBitMaskToBits(t *testing.T) {
 	if !simd.HasAVX512() {
 		t.Skip("Test requires HasAVX512, not available on this hardware")
@@ -355,6 +373,19 @@ func TestBitMaskToBits(t *testing.T) {
 	}
 	if v := simd.LoadInt16x8Slice([]int16{1, 0, 1, 0, 0, 0, 0, 0}).ToMask().ToBits(); v != 0b101 {
 		t.Errorf("Want 0b101, got %b", v)
+	}
+}
+
+var maskForTestBitMaskFromBitsStore uint8
+
+func TestBitMaskToBitsStore(t *testing.T) {
+	if !simd.HasAVX512() {
+		t.Skip("Test requires HasAVX512, not available on this hardware")
+		return
+	}
+	maskForTestBitMaskFromBitsStore = simd.LoadInt16x8Slice([]int16{1, 0, 1, 0, 0, 0, 0, 0}).ToMask().ToBits()
+	if maskForTestBitMaskFromBitsStore != 0b101 {
+		t.Errorf("Want 0b101, got %b", maskForTestBitMaskFromBitsStore)
 	}
 }
 
