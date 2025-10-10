@@ -1,5 +1,5 @@
 !sum
-- go: DotProdPairs
+- go: DotProductPairs
   asm: VPMADDWD
   in:
   - &int
@@ -10,7 +10,7 @@
   - &int2 # The elemBits are different
     go: $t2
     base: int
-- go: DotProdPairsSaturated
+- go: DotProductPairsSaturated
   asm: VPMADDUBSW
   in:
   - &uint
@@ -23,7 +23,7 @@
     overwriteElementBits: 8
   out:
   - *int2
-# - go: DotProdBroadcast
+# - go: DotProductBroadcast
 #   asm: VDPP[SD]
 #   in:
 #   - &dpb_src
@@ -33,7 +33,7 @@
 #     const: 127
 #   out:
 #   - *dpb_src
-- go: AddDotProdQuadruple
+- go: AddDotProductQuadruple
   asm: "VPDPBUSD"
   operandOrder: "31" # switch operand 3 and 1
   in:
@@ -51,7 +51,7 @@
     overwriteElementBits: 8
   out:
   - *qdpa_acc
-- go: AddDotProdQuadrupleSaturated
+- go: AddDotProductQuadrupleSaturated
   asm: "VPDPBUSDS"
   operandOrder: "31" # switch operand 3 and 1
   in:
@@ -60,7 +60,7 @@
   - *qdpa_src2
   out:
   - *qdpa_acc
-- go: AddDotProdPairs
+- go: AddDotProductPairs
   asm: "VPDPWSSD"
   in:
   - &pdpa_acc
@@ -75,14 +75,6 @@
     go: $t_src2
     base: int
     overwriteElementBits: 16
-  out:
-  - *pdpa_acc
-- go: AddDotProdPairsSaturated
-  asm: "VPDPWSSDS"
-  in:
-  - *pdpa_acc
-  - *pdpa_src1
-  - *pdpa_src2
   out:
   - *pdpa_acc
 - go: MulAdd

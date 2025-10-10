@@ -1,36 +1,32 @@
 !sum
-- go: DotProdPairs
+- go: DotProductPairs
   commutative: false
   documentation: !string |-
     // NAME multiplies the elements and add the pairs together,
     // yielding a vector of half as many elements with twice the input element size.
 # TODO: maybe simplify this name within the receiver-type + method-naming scheme we use.
-- go: DotProdPairsSaturated
+- go: DotProductPairsSaturated
   commutative: false
   documentation: !string |-
     // NAME multiplies the elements and add the pairs together with saturation,
     // yielding a vector of half as many elements with twice the input element size.
-# QuadDotProd, i.e. VPDPBUSD(S) are operations with src/dst on the same register, we are not supporting this as of now.
-# - go: DotProdBroadcast
+# QuadDotProduct, i.e. VPDPBUSD(S) are operations with src/dst on the same register, we are not supporting this as of now.
+# - go: DotProductBroadcast
 #   commutative: true
 # #   documentation: !string |-
 #     // NAME multiplies all elements and broadcasts the sum.
-- go: AddDotProdQuadruple
+- go: AddDotProductQuadruple
   commutative: false
   documentation: !string |-
     // NAME performs dot products on groups of 4 elements of x and y and then adds z.
-- go: AddDotProdQuadrupleSaturated
+- go: AddDotProductQuadrupleSaturated
   commutative: false
   documentation: !string |-
     // NAME multiplies performs dot products on groups of 4 elements of x and y and then adds z.
-- go: AddDotProdPairs
+- go: AddDotProductPairs
   commutative: false
   noTypes: "true"
   noGenericOps: "true"
-  documentation: !string |-
-    // NAME performs dot products on pairs of elements of y and z and then adds x.
-- go: AddDotProdPairsSaturated
-  commutative: false
   documentation: !string |-
     // NAME performs dot products on pairs of elements of y and z and then adds x.
 - go: MulAdd

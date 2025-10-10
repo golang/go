@@ -314,56 +314,39 @@ func (x Uint64x4) Add(y Uint64x4) Uint64x4
 // Asm: VPADDQ, CPU Feature: AVX512
 func (x Uint64x8) Add(y Uint64x8) Uint64x8
 
-/* AddDotProdPairsSaturated */
+/* AddDotProductQuadruple */
 
-// AddDotProdPairsSaturated performs dot products on pairs of elements of y and z and then adds x.
-//
-// Asm: VPDPWSSDS, CPU Feature: AVXVNNI
-func (x Int32x4) AddDotProdPairsSaturated(y Int16x8, z Int16x8) Int32x4
-
-// AddDotProdPairsSaturated performs dot products on pairs of elements of y and z and then adds x.
-//
-// Asm: VPDPWSSDS, CPU Feature: AVXVNNI
-func (x Int32x8) AddDotProdPairsSaturated(y Int16x16, z Int16x16) Int32x8
-
-// AddDotProdPairsSaturated performs dot products on pairs of elements of y and z and then adds x.
-//
-// Asm: VPDPWSSDS, CPU Feature: AVX512VNNI
-func (x Int32x16) AddDotProdPairsSaturated(y Int16x32, z Int16x32) Int32x16
-
-/* AddDotProdQuadruple */
-
-// AddDotProdQuadruple performs dot products on groups of 4 elements of x and y and then adds z.
+// AddDotProductQuadruple performs dot products on groups of 4 elements of x and y and then adds z.
 //
 // Asm: VPDPBUSD, CPU Feature: AVXVNNI
-func (x Int8x16) AddDotProdQuadruple(y Uint8x16, z Int32x4) Int32x4
+func (x Int8x16) AddDotProductQuadruple(y Uint8x16, z Int32x4) Int32x4
 
-// AddDotProdQuadruple performs dot products on groups of 4 elements of x and y and then adds z.
+// AddDotProductQuadruple performs dot products on groups of 4 elements of x and y and then adds z.
 //
 // Asm: VPDPBUSD, CPU Feature: AVXVNNI
-func (x Int8x32) AddDotProdQuadruple(y Uint8x32, z Int32x8) Int32x8
+func (x Int8x32) AddDotProductQuadruple(y Uint8x32, z Int32x8) Int32x8
 
-// AddDotProdQuadruple performs dot products on groups of 4 elements of x and y and then adds z.
+// AddDotProductQuadruple performs dot products on groups of 4 elements of x and y and then adds z.
 //
 // Asm: VPDPBUSD, CPU Feature: AVX512VNNI
-func (x Int8x64) AddDotProdQuadruple(y Uint8x64, z Int32x16) Int32x16
+func (x Int8x64) AddDotProductQuadruple(y Uint8x64, z Int32x16) Int32x16
 
-/* AddDotProdQuadrupleSaturated */
+/* AddDotProductQuadrupleSaturated */
 
-// AddDotProdQuadrupleSaturated multiplies performs dot products on groups of 4 elements of x and y and then adds z.
+// AddDotProductQuadrupleSaturated multiplies performs dot products on groups of 4 elements of x and y and then adds z.
 //
 // Asm: VPDPBUSDS, CPU Feature: AVXVNNI
-func (x Int8x16) AddDotProdQuadrupleSaturated(y Uint8x16, z Int32x4) Int32x4
+func (x Int8x16) AddDotProductQuadrupleSaturated(y Uint8x16, z Int32x4) Int32x4
 
-// AddDotProdQuadrupleSaturated multiplies performs dot products on groups of 4 elements of x and y and then adds z.
+// AddDotProductQuadrupleSaturated multiplies performs dot products on groups of 4 elements of x and y and then adds z.
 //
 // Asm: VPDPBUSDS, CPU Feature: AVXVNNI
-func (x Int8x32) AddDotProdQuadrupleSaturated(y Uint8x32, z Int32x8) Int32x8
+func (x Int8x32) AddDotProductQuadrupleSaturated(y Uint8x32, z Int32x8) Int32x8
 
-// AddDotProdQuadrupleSaturated multiplies performs dot products on groups of 4 elements of x and y and then adds z.
+// AddDotProductQuadrupleSaturated multiplies performs dot products on groups of 4 elements of x and y and then adds z.
 //
 // Asm: VPDPBUSDS, CPU Feature: AVX512VNNI
-func (x Int8x64) AddDotProdQuadrupleSaturated(y Uint8x64, z Int32x16) Int32x16
+func (x Int8x64) AddDotProductQuadrupleSaturated(y Uint8x64, z Int32x16) Int32x16
 
 /* AddPairs */
 
@@ -2143,45 +2126,45 @@ func (x Float64x4) Div(y Float64x4) Float64x4
 // Asm: VDIVPD, CPU Feature: AVX512
 func (x Float64x8) Div(y Float64x8) Float64x8
 
-/* DotProdPairs */
+/* DotProductPairs */
 
-// DotProdPairs multiplies the elements and add the pairs together,
+// DotProductPairs multiplies the elements and add the pairs together,
 // yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDWD, CPU Feature: AVX
-func (x Int16x8) DotProdPairs(y Int16x8) Int32x4
+func (x Int16x8) DotProductPairs(y Int16x8) Int32x4
 
-// DotProdPairs multiplies the elements and add the pairs together,
+// DotProductPairs multiplies the elements and add the pairs together,
 // yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDWD, CPU Feature: AVX2
-func (x Int16x16) DotProdPairs(y Int16x16) Int32x8
+func (x Int16x16) DotProductPairs(y Int16x16) Int32x8
 
-// DotProdPairs multiplies the elements and add the pairs together,
+// DotProductPairs multiplies the elements and add the pairs together,
 // yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDWD, CPU Feature: AVX512
-func (x Int16x32) DotProdPairs(y Int16x32) Int32x16
+func (x Int16x32) DotProductPairs(y Int16x32) Int32x16
 
-/* DotProdPairsSaturated */
+/* DotProductPairsSaturated */
 
-// DotProdPairsSaturated multiplies the elements and add the pairs together with saturation,
+// DotProductPairsSaturated multiplies the elements and add the pairs together with saturation,
 // yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDUBSW, CPU Feature: AVX
-func (x Uint8x16) DotProdPairsSaturated(y Int8x16) Int16x8
+func (x Uint8x16) DotProductPairsSaturated(y Int8x16) Int16x8
 
-// DotProdPairsSaturated multiplies the elements and add the pairs together with saturation,
+// DotProductPairsSaturated multiplies the elements and add the pairs together with saturation,
 // yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDUBSW, CPU Feature: AVX2
-func (x Uint8x32) DotProdPairsSaturated(y Int8x32) Int16x16
+func (x Uint8x32) DotProductPairsSaturated(y Int8x32) Int16x16
 
-// DotProdPairsSaturated multiplies the elements and add the pairs together with saturation,
+// DotProductPairsSaturated multiplies the elements and add the pairs together with saturation,
 // yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDUBSW, CPU Feature: AVX512
-func (x Uint8x64) DotProdPairsSaturated(y Int8x64) Int16x32
+func (x Uint8x64) DotProductPairsSaturated(y Int8x64) Int16x32
 
 /* Equal */
 

@@ -1608,12 +1608,6 @@ const (
 	OpAMD64VPDPWSSDMasked128
 	OpAMD64VPDPWSSDMasked256
 	OpAMD64VPDPWSSDMasked512
-	OpAMD64VPDPWSSDS128
-	OpAMD64VPDPWSSDS256
-	OpAMD64VPDPWSSDS512
-	OpAMD64VPDPWSSDSMasked128
-	OpAMD64VPDPWSSDSMasked256
-	OpAMD64VPDPWSSDSMasked512
 	OpAMD64VPERMB256
 	OpAMD64VPERMB512
 	OpAMD64VPERMBMasked256
@@ -2586,10 +2580,6 @@ const (
 	OpAMD64VPDPWSSDMasked128load
 	OpAMD64VPDPWSSDMasked256load
 	OpAMD64VPDPWSSDMasked512load
-	OpAMD64VPDPWSSDS512load
-	OpAMD64VPDPWSSDSMasked128load
-	OpAMD64VPDPWSSDSMasked256load
-	OpAMD64VPDPWSSDSMasked512load
 	OpAMD64VPDPBUSD512load
 	OpAMD64VPDPBUSDMasked128load
 	OpAMD64VPDPBUSDMasked256load
@@ -5416,15 +5406,12 @@ const (
 	OpAbsInt64x2
 	OpAbsInt64x4
 	OpAbsInt64x8
-	OpAddDotProdPairsSaturatedInt32x4
-	OpAddDotProdPairsSaturatedInt32x8
-	OpAddDotProdPairsSaturatedInt32x16
-	OpAddDotProdQuadrupleInt32x4
-	OpAddDotProdQuadrupleInt32x8
-	OpAddDotProdQuadrupleInt32x16
-	OpAddDotProdQuadrupleSaturatedInt32x4
-	OpAddDotProdQuadrupleSaturatedInt32x8
-	OpAddDotProdQuadrupleSaturatedInt32x16
+	OpAddDotProductQuadrupleInt32x4
+	OpAddDotProductQuadrupleInt32x8
+	OpAddDotProductQuadrupleInt32x16
+	OpAddDotProductQuadrupleSaturatedInt32x4
+	OpAddDotProductQuadrupleSaturatedInt32x8
+	OpAddDotProductQuadrupleSaturatedInt32x16
 	OpAddFloat32x4
 	OpAddFloat32x8
 	OpAddFloat32x16
@@ -5735,12 +5722,12 @@ const (
 	OpDivFloat64x2
 	OpDivFloat64x4
 	OpDivFloat64x8
-	OpDotProdPairsInt16x8
-	OpDotProdPairsInt16x16
-	OpDotProdPairsInt16x32
-	OpDotProdPairsSaturatedUint8x16
-	OpDotProdPairsSaturatedUint8x32
-	OpDotProdPairsSaturatedUint8x64
+	OpDotProductPairsInt16x8
+	OpDotProductPairsInt16x16
+	OpDotProductPairsInt16x32
+	OpDotProductPairsSaturatedUint8x16
+	OpDotProductPairsSaturatedUint8x32
+	OpDotProductPairsSaturatedUint8x64
 	OpEqualFloat32x4
 	OpEqualFloat32x8
 	OpEqualFloat32x16
@@ -25339,105 +25326,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "VPDPWSSDS128",
-		argLen:       3,
-		resultInArg0: true,
-		asm:          x86.AVPDPWSSDS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{2, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:         "VPDPWSSDS256",
-		argLen:       3,
-		resultInArg0: true,
-		asm:          x86.AVPDPWSSDS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{2, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:         "VPDPWSSDS512",
-		argLen:       3,
-		resultInArg0: true,
-		asm:          x86.AVPDPWSSDS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-				{1, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-				{2, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-			outputs: []outputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
-		name:         "VPDPWSSDSMasked128",
-		argLen:       4,
-		resultInArg0: true,
-		asm:          x86.AVPDPWSSDS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{3, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 281472829161472},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-				{1, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-				{2, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-			outputs: []outputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
-		name:         "VPDPWSSDSMasked256",
-		argLen:       4,
-		resultInArg0: true,
-		asm:          x86.AVPDPWSSDS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{3, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 281472829161472},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-				{1, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-				{2, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-			outputs: []outputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
-		name:         "VPDPWSSDSMasked512",
-		argLen:       4,
-		resultInArg0: true,
-		asm:          x86.AVPDPWSSDS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{3, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 281472829161472},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-				{1, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-				{2, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-			outputs: []outputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
 		name:   "VPERMB256",
 		argLen: 2,
 		asm:    x86.AVPERMB,
@@ -39761,81 +39649,6 @@ var opcodeTable = [...]opInfo{
 		resultInArg0: true,
 		symEffect:    SymRead,
 		asm:          x86.AVPDPWSSD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{3, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-				{2, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-				{0, 281472829161472},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-				{1, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-			outputs: []outputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
-		name:         "VPDPWSSDS512load",
-		auxType:      auxSymOff,
-		argLen:       4,
-		resultInArg0: true,
-		symEffect:    SymRead,
-		asm:          x86.AVPDPWSSDS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-				{0, 281472829161472},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-				{1, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-			outputs: []outputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
-		name:         "VPDPWSSDSMasked128load",
-		auxType:      auxSymOff,
-		argLen:       5,
-		resultInArg0: true,
-		symEffect:    SymRead,
-		asm:          x86.AVPDPWSSDS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{3, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-				{2, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-				{0, 281472829161472},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-				{1, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-			outputs: []outputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
-		name:         "VPDPWSSDSMasked256load",
-		auxType:      auxSymOff,
-		argLen:       5,
-		resultInArg0: true,
-		symEffect:    SymRead,
-		asm:          x86.AVPDPWSSDS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{3, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-				{2, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-				{0, 281472829161472},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-				{1, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-			outputs: []outputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
-		name:         "VPDPWSSDSMasked512load",
-		auxType:      auxSymOff,
-		argLen:       5,
-		resultInArg0: true,
-		symEffect:    SymRead,
-		asm:          x86.AVPDPWSSDS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{3, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -76268,47 +76081,32 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "AddDotProdPairsSaturatedInt32x4",
+		name:    "AddDotProductQuadrupleInt32x4",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "AddDotProdPairsSaturatedInt32x8",
+		name:    "AddDotProductQuadrupleInt32x8",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "AddDotProdPairsSaturatedInt32x16",
+		name:    "AddDotProductQuadrupleInt32x16",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "AddDotProdQuadrupleInt32x4",
+		name:    "AddDotProductQuadrupleSaturatedInt32x4",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "AddDotProdQuadrupleInt32x8",
+		name:    "AddDotProductQuadrupleSaturatedInt32x8",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "AddDotProdQuadrupleInt32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "AddDotProdQuadrupleSaturatedInt32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "AddDotProdQuadrupleSaturatedInt32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "AddDotProdQuadrupleSaturatedInt32x16",
+		name:    "AddDotProductQuadrupleSaturatedInt32x16",
 		argLen:  3,
 		generic: true,
 	},
@@ -77935,32 +77733,32 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "DotProdPairsInt16x8",
+		name:    "DotProductPairsInt16x8",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "DotProdPairsInt16x16",
+		name:    "DotProductPairsInt16x16",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "DotProdPairsInt16x32",
+		name:    "DotProductPairsInt16x32",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "DotProdPairsSaturatedUint8x16",
+		name:    "DotProductPairsSaturatedUint8x16",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "DotProdPairsSaturatedUint8x32",
+		name:    "DotProductPairsSaturatedUint8x32",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "DotProdPairsSaturatedUint8x64",
+		name:    "DotProductPairsSaturatedUint8x64",
 		argLen:  2,
 		generic: true,
 	},
