@@ -272,6 +272,7 @@ func argKey(arg string) string {
 }
 
 func runEnv(ctx context.Context, cmd *base.Command, args []string) {
+	moduleLoaderState := modload.NewState()
 	if *envJson && *envU {
 		base.Fatalf("go: cannot use -json with -u")
 	}
@@ -306,7 +307,7 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	env := cfg.CmdEnv
-	env = append(env, ExtraEnvVars(modload.LoaderState)...)
+	env = append(env, ExtraEnvVars(moduleLoaderState)...)
 
 	if err := fsys.Init(); err != nil {
 		base.Fatal(err)
@@ -336,8 +337,8 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 	if needCostly {
-		work.BuildInit(modload.LoaderState)
-		env = append(env, ExtraEnvVarsCostly(modload.LoaderState)...)
+		work.BuildInit(moduleLoaderState)
+		env = append(env, ExtraEnvVarsCostly(moduleLoaderState)...)
 	}
 
 	if len(args) > 0 {
