@@ -2865,7 +2865,19 @@ func (s *state) conv(n ir.Node, v *ssa.Value, ft, tt *types.Type) *ssa.Value {
 	}
 
 	if ft.IsFloat() || tt.IsFloat() {
-		conv, ok := fpConvOpToSSA[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]
+		cft, ctt := s.concreteEtype(ft), s.concreteEtype(tt)
+		conv, ok := fpConvOpToSSA[twoTypes{cft, ctt}]
+		// there's a change to a conversion-op table, this restores the old behavior if ConvertHash is false.
+		// use salted hash to distinguish unsigned convert at a Pos from signed convert at a Pos
+		if ctt == types.TUINT32 && ft.IsFloat() && !base.ConvertHash.MatchPosWithInfo(n.Pos(), "U", nil) {
+			// revert to old behavior
+			conv.op1 = ssa.OpCvt64Fto64
+			if cft == types.TFLOAT32 {
+				conv.op1 = ssa.OpCvt32Fto64
+			}
+			conv.op2 = ssa.OpTrunc64to32
+
+		}
 		if s.config.RegSize == 4 && Arch.LinkArch.Family != sys.MIPS && !s.softFloat {
 			if conv1, ok1 := fpConvOpToSSA32[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]; ok1 {
 				conv = conv1
@@ -5862,6 +5874,7 @@ func (s *state) floatToUint(cvttab *f2uCvtTab, n ir.Node, x *ssa.Value, ft, tt *
 	// cutoff:=1<<(intY_Size-1)
 	// if x < floatX(cutoff) {
 	// 	result = uintY(x) // bThen
+	//  // gated by ConvertHash, clamp negative inputs to zero
 	// 	if x < 0 { // unlikely
 	// 		result = 0 // bZero
 	// 	}
@@ -5879,7 +5892,8 @@ func (s *state) floatToUint(cvttab *f2uCvtTab, n ir.Node, x *ssa.Value, ft, tt *
 	b.Likely = ssa.BranchLikely
 
 	var bThen, bZero *ssa.Block
-	newConversion := base.ConvertHash.MatchPos(n.Pos(), nil)
+	// use salted hash to distinguish unsigned convert at a Pos from signed convert at a Pos
+	newConversion := base.ConvertHash.MatchPosWithInfo(n.Pos(), "U", nil)
 	if newConversion {
 		bZero = s.f.NewBlock(ssa.BlockPlain)
 		bThen = s.f.NewBlock(ssa.BlockIf)
