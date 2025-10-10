@@ -4,6 +4,10 @@
 
 package main
 
+// TODO(adonovan): replace this test by a script test
+// in cmd/go/testdata/script/vet_suite.txt like we do
+// for 'go fix'.
+
 import (
 	"bytes"
 	"errors"
