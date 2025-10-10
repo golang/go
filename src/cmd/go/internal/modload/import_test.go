@@ -56,25 +56,25 @@ var importTests = []struct {
 }
 
 func TestQueryImport(t *testing.T) {
+	loaderstate := NewState()
+	loaderstate.RootMode = NoRoot
+
 	testenv.MustHaveExternalNetwork(t)
 	testenv.MustHaveExecPath(t, "git")
 
 	oldAllowMissingModuleImports := allowMissingModuleImports
-	oldRootMode := LoaderState.RootMode
 	defer func() {
 		allowMissingModuleImports = oldAllowMissingModuleImports
-		LoaderState.RootMode = oldRootMode
 	}()
 	allowMissingModuleImports = true
-	LoaderState.RootMode = NoRoot
 
 	ctx := context.Background()
-	rs := LoadModFile(LoaderState, ctx)
+	rs := LoadModFile(loaderstate, ctx)
 
 	for _, tt := range importTests {
 		t.Run(strings.ReplaceAll(tt.path, "/", "_"), func(t *testing.T) {
 			// Note that there is no build list, so Import should always fail.
-			m, err := queryImport(LoaderState, ctx, tt.path, rs)
+			m, err := queryImport(loaderstate, ctx, tt.path, rs)
 
 			if tt.err == "" {
 				if err != nil {
