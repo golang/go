@@ -2363,6 +2363,34 @@ func TestUnmarshalTypeError(t *testing.T) {
 	}
 }
 
+func TestUnmarshalTypeErrorMessage(t *testing.T) {
+	err := &UnmarshalTypeError{
+		Value:  "number 5",
+		Type:   reflect.TypeFor[int](),
+		Offset: 1234,
+		Struct: "Root",
+	}
+
+	for _, tt := range []struct {
+		field string
+		want  string
+	}{
+		{"", "json: cannot unmarshal number 5 into Go struct field Root. of type int"},
+		{"1", "json: cannot unmarshal number 5 into Root.1 of type int"},
+		{"foo", "json: cannot unmarshal number 5 into Go struct field Root.foo of type int"},
+		{"foo.1", "json: cannot unmarshal number 5 into Root.foo.1 of type int"},
+		{"foo.bar", "json: cannot unmarshal number 5 into Go struct field Root.foo.bar of type int"},
+		{"foo.bar.1", "json: cannot unmarshal number 5 into Root.foo.bar.1 of type int"},
+		{"foo.bar.baz", "json: cannot unmarshal number 5 into Go struct field Root.foo.bar.baz of type int"},
+	} {
+		err.Field = tt.field
+		got := err.Error()
+		if got != tt.want {
+			t.Errorf("Error:\n\tgot:  %v\n\twant: %v", got, tt.want)
+		}
+	}
+}
+
 func TestUnmarshalSyntax(t *testing.T) {
 	var x any
 	tests := []struct {
