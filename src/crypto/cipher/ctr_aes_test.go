@@ -20,7 +20,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/rand"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -285,7 +285,7 @@ func TestCTR_AES_multiblock_XORKeyStreamAt(t *testing.T) {
 			}
 			boundaries = append(boundaries, 0)
 			boundaries = append(boundaries, Size)
-			sort.Ints(boundaries)
+			slices.Sort(boundaries)
 
 			for _, i := range r.Perm(N + 1) {
 				begin := boundaries[i]
