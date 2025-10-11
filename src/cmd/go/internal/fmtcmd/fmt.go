@@ -68,11 +68,10 @@ func runFmt(ctx context.Context, cmd *base.Command, args []string) {
 			continue
 		}
 		if pkg.Error != nil {
-			var nogo *load.NoGoError
-			var embed *load.EmbedError
-			if (errors.As(pkg.Error, &nogo) || errors.As(pkg.Error, &embed)) && len(pkg.InternalAllGoFiles()) > 0 {
-				// Skip this error, as we will format
-				// all files regardless.
+			if _, ok := errors.AsType[*load.NoGoError](pkg.Error); ok {
+				// Skip this error, as we will format all files regardless.
+			} else if  _, ok := errors.AsType[*load.EmbedError](pkg.Error); ok && len(pkg.InternalAllGoFiles()) > 0 {
+				// Skip this error, as we will format all files regardless.
 			} else {
 				base.Errorf("%v", pkg.Error)
 				continue

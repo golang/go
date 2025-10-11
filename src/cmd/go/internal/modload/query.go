@@ -932,7 +932,7 @@ func queryPrefixModules(ctx context.Context, candidateModules []string, queryMod
 				if notExistErr == nil {
 					notExistErr = rErr
 				}
-			} else if iv := (*module.InvalidVersionError)(nil); errors.As(rErr, &iv) {
+			} else if _, ok := errors.AsType[*module.InvalidVersionError](rErr); ok {
 				if invalidVersion == nil {
 					invalidVersion = rErr
 				}

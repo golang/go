@@ -1578,9 +1578,9 @@ func (c *Conn) handshakeContext(ctx context.Context) (ret error) {
 			// the handshake (RFC 9001, Section 5.7).
 			c.quicSetReadSecret(QUICEncryptionLevelApplication, c.cipherSuite, c.in.trafficSecret)
 		} else {
-			var a alert
 			c.out.Lock()
-			if !errors.As(c.out.err, &a) {
+			a, ok := errors.AsType[alert](c.out.err)
+			if !ok {
 				a = alertInternalError
 			}
 			c.out.Unlock()

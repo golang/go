@@ -93,8 +93,8 @@ func TestFileInfoToDirEntry(t *testing.T) {
 }
 
 func errorPath(err error) string {
-	var perr *PathError
-	if !errors.As(err, &perr) {
+	perr, ok := errors.AsType[*PathError](err)
+	if !ok {
 		return ""
 	}
 	return perr.Path

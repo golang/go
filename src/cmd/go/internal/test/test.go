@@ -1741,8 +1741,7 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 		} else if errors.Is(err, exec.ErrWaitDelay) {
 			fmt.Fprintf(cmd.Stdout, "*** Test I/O incomplete %v after exiting.\n", cmd.WaitDelay)
 		}
-		var ee *exec.ExitError
-		if len(out) == 0 || !errors.As(err, &ee) || !ee.Exited() {
+		if ee, ok := errors.AsType[*exec.ExitError](err); !ok || !ee.Exited() || len(out) == 0 {
 			// If there was no test output, print the exit status so that the reason
 			// for failure is clear.
 			fmt.Fprintf(cmd.Stdout, "%s\n", err)

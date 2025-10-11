@@ -97,7 +97,7 @@ func runCmd(t *testing.T, dir string, env []string, path string, args ...string)
 	cmd.Env = env
 	out, err := cmd.Output()
 	if err != nil {
-		if ee := (*exec.ExitError)(nil); errors.As(err, &ee) {
+		if ee, ok := errors.AsType[*exec.ExitError](err); ok {
 			out = append(out, ee.Stderr...)
 		}
 		t.Fatalf("%s failed:\n%s\n%s", cmd, out, err)
