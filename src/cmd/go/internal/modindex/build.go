@@ -21,7 +21,6 @@ import (
 	"io/fs"
 	"path/filepath"
 	"slices"
-	"sort"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -291,7 +290,7 @@ func cleanDecls(m map[string][]token.Position) ([]string, map[string][]token.Pos
 	for path := range m {
 		all = append(all, path)
 	}
-	sort.Strings(all)
+	slices.Sort(all)
 	return all, m
 }
 

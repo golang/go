@@ -360,7 +360,7 @@ func TestPackagesAndErrors(ctx context.Context, done func(), opts PackageOpts, p
 
 		// Sort and dedup pmain.Imports.
 		// Only matters for go list -test output.
-		sort.Strings(pmain.Imports)
+		slices.Sort(pmain.Imports)
 		w := 0
 		for _, path := range pmain.Imports {
 			if w == 0 || path != pmain.Imports[w-1] {

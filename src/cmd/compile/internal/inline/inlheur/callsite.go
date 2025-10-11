@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -140,7 +140,7 @@ func dumpCallSiteComments(w io.Writer, tab CallSiteTab, ecst encodedCallSiteTab)
 	for k := range ecst {
 		tags = append(tags, k)
 	}
-	sort.Strings(tags)
+	slices.Sort(tags)
 	for _, s := range tags {
 		v := ecst[s]
 		fmt.Fprintf(w, "// callsite: %s flagstr %q flagval %d score %d mask %d maskstr %q\n", s, v.props.String(), v.props, v.score, v.mask, v.mask.String())

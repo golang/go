@@ -13,7 +13,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 
@@ -160,7 +160,7 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 	// Wait for all in-flight operations to complete before returning.
 	defer func() {
 		<-q.Idle()
-		sort.Strings(m.Pkgs) // sort everything we added for determinism
+		slices.Sort(m.Pkgs) // sort everything we added for determinism
 	}()
 
 	if filter == includeStd {
