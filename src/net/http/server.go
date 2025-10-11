@@ -3162,7 +3162,9 @@ func (s *Server) Close() error {
 	s.mu.Lock()
 
 	for c := range s.activeConn {
-		c.cancelCtx(errServerShutdown)
+		if c.cancelCtx != nil {
+			c.cancelCtx(errServerShutdown)
+		}
 		c.rwc.Close()
 		delete(s.activeConn, c)
 	}
