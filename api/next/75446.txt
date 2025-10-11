@@ -1,0 +1,1 @@
+pkg crypto/rsa, func EncryptOAEPWithOptions(random io.Reader, pub *PublicKey, msg []byte, opts OAEPOptions) ([]byte, error) #75446
