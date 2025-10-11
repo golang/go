@@ -7833,7 +7833,8 @@ func TestUnmarshal(t *testing.T) {
 		})),
 		wantErr: EU(errSomeError).withType(0, T[unmarshalJSONv2Func]()),
 	}, {
-		name: jsontest.Name("Methods/Invalid/JSONv2/TooFew"),
+		name:  jsontest.Name("Methods/Invalid/JSONv2/TooFew"),
+		inBuf: `{}`,
 		inVal: addr(unmarshalJSONv2Func(func(*jsontext.Decoder) error {
 			return nil // do nothing
 		})),
@@ -9232,6 +9233,43 @@ func TestUnmarshalReuse(t *testing.T) {
 			t.Errorf("input pointer was not reused")
 		}
 	})
+}
+
+type unmarshalerEOF struct{}
+
+func (unmarshalerEOF) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	return io.EOF // should be wrapped and converted by Unmarshal to io.ErrUnexpectedEOF
+}
+
+// TestUnmarshalEOF verifies that io.EOF is only ever returned by
+// UnmarshalDecode for a top-level value.
+func TestUnmarshalEOF(t *testing.T) {
+	opts := WithUnmarshalers(UnmarshalFromFunc(func(dec *jsontext.Decoder, _ *struct{}) error {
+		return io.EOF // should be wrapped and converted by Unmarshal to io.ErrUnexpectedEOF
+	}))
+
+	for _, in := range []string{"", "[", "[null", "[null]"} {
+		for _, newOut := range []func() any{
+			func() any { return new(unmarshalerEOF) },
+			func() any { return new([]unmarshalerEOF) },
+			func() any { return new(struct{}) },
+			func() any { return new([]struct{}) },
+		} {
+			wantErr := io.ErrUnexpectedEOF
+			if gotErr := Unmarshal([]byte(in), newOut(), opts); !errors.Is(gotErr, wantErr) {
+				t.Errorf("Unmarshal = %v, want %v", gotErr, wantErr)
+			}
+			if gotErr := UnmarshalRead(strings.NewReader(in), newOut(), opts); !errors.Is(gotErr, wantErr) {
+				t.Errorf("Unmarshal = %v, want %v", gotErr, wantErr)
+			}
+			switch gotErr := UnmarshalDecode(jsontext.NewDecoder(strings.NewReader(in)), newOut(), opts); {
+			case in != "" && !errors.Is(gotErr, wantErr):
+				t.Errorf("Unmarshal = %v, want %v", gotErr, wantErr)
+			case in == "" && gotErr != io.EOF:
+				t.Errorf("Unmarshal = %v, want %v", gotErr, io.EOF)
+			}
+		}
+	}
 }
 
 type ReaderFunc func([]byte) (int, error)

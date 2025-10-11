@@ -10,6 +10,7 @@ import (
 	"cmp"
 	"errors"
 	"fmt"
+	"io"
 	"reflect"
 	"strconv"
 	"strings"
@@ -118,7 +119,7 @@ func newInvalidFormatError(c coder, t reflect.Type) error {
 // newMarshalErrorBefore wraps err in a SemanticError assuming that e
 // is positioned right before the next token or value, which causes an error.
 func newMarshalErrorBefore(e *jsontext.Encoder, t reflect.Type, err error) error {
-	return &SemanticError{action: "marshal", GoType: t, Err: err,
+	return &SemanticError{action: "marshal", GoType: t, Err: toUnexpectedEOF(err),
 		ByteOffset:  e.OutputOffset() + int64(export.Encoder(e).CountNextDelimWhitespace()),
 		JSONPointer: jsontext.Pointer(export.Encoder(e).AppendStackPointer(nil, +1))}
 }
@@ -134,7 +135,7 @@ func newUnmarshalErrorBefore(d *jsontext.Decoder, t reflect.Type, err error) err
 	if export.Decoder(d).Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
 		k = d.PeekKind()
 	}
-	return &SemanticError{action: "unmarshal", GoType: t, Err: err,
+	return &SemanticError{action: "unmarshal", GoType: t, Err: toUnexpectedEOF(err),
 		ByteOffset:  d.InputOffset() + int64(export.Decoder(d).CountNextDelimWhitespace()),
 		JSONPointer: jsontext.Pointer(export.Decoder(d).AppendStackPointer(nil, +1)),
 		JSONKind:    k}
@@ -157,7 +158,7 @@ func newUnmarshalErrorBeforeWithSkipping(d *jsontext.Decoder, t reflect.Type, er
 // is positioned right after the previous token or value, which caused an error.
 func newUnmarshalErrorAfter(d *jsontext.Decoder, t reflect.Type, err error) error {
 	tokOrVal := export.Decoder(d).PreviousTokenOrValue()
-	return &SemanticError{action: "unmarshal", GoType: t, Err: err,
+	return &SemanticError{action: "unmarshal", GoType: t, Err: toUnexpectedEOF(err),
 		ByteOffset:  d.InputOffset() - int64(len(tokOrVal)),
 		JSONPointer: jsontext.Pointer(export.Decoder(d).AppendStackPointer(nil, -1)),
 		JSONKind:    jsontext.Value(tokOrVal).Kind()}
@@ -206,6 +207,7 @@ func newSemanticErrorWithPosition(c coder, t reflect.Type, prevDepth int, prevLe
 	if serr == nil {
 		serr = &SemanticError{Err: err}
 	}
+	serr.Err = toUnexpectedEOF(serr.Err)
 	var currDepth int
 	var currLength int64
 	var coderState interface{ AppendStackPointer([]byte, int) []byte }
@@ -431,4 +433,12 @@ func newDuplicateNameError(ptr jsontext.Pointer, quotedName []byte, offset int64
 		JSONPointer: ptr,
 		Err:         jsontext.ErrDuplicateName,
 	}
+}
+
+// toUnexpectedEOF converts [io.EOF] to [io.ErrUnexpectedEOF].
+func toUnexpectedEOF(err error) error {
+	if err == io.EOF {
+		return io.ErrUnexpectedEOF
+	}
+	return err
 }
