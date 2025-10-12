@@ -387,6 +387,9 @@ func (s *State) assignments(n *ir.Name) []assignment {
 	if fun == nil {
 		base.FatalfAt(n.Pos(), "n.Curfn = <nil>")
 	}
+	if n.Class != ir.PAUTO {
+		base.FatalfAt(n.Pos(), "n.Class = %v; want = PAUTO", n.Class)
+	}
 
 	if !n.Type().IsInterface() {
 		base.FatalfAt(n.Pos(), "name passed to assignments is not of an interface type: %v", n.Type())
@@ -431,6 +434,9 @@ func (s *State) analyze(nodes ir.Nodes) {
 		n = n.Canonical()
 		if n.Op() != ir.ONAME {
 			base.FatalfAt(n.Pos(), "n.Op = %v; want = ONAME", n.Op())
+		}
+		if n.Class != ir.PAUTO {
+			return nil, -1
 		}
 
 		switch a := assignment.(type) {
