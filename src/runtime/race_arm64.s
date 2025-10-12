@@ -397,7 +397,7 @@ TEXT	racecallatomic<>(SB), NOSPLIT, $0
 	// R3 = addr of incoming arg list
 
 	// Trigger SIGSEGV early.
-	MOVD	72(RSP), R3	// 1st arg is addr. after two small frames (32 bytes each), get it at 72(RSP)
+	MOVD	40(RSP), R3	// 1st arg is addr. after two times BL, get it at 40(RSP)
 	MOVB	(R3), R13	// segv here if addr is bad
 	// Check that addr is within [arenastart, arenaend) or within [racedatastart, racedataend).
 	MOVD	runtime·racearenastart(SB), R10
@@ -417,11 +417,10 @@ racecallatomic_ok:
 	// Addr is within the good range, call the atomic function.
 	load_g
 	MOVD	g_racectx(g), R0	// goroutine context
-	MOVD	56(RSP), R1	// caller pc
+	MOVD	16(RSP), R1	// caller pc
 	MOVD	R9, R2	// pc
-	ADD	$72, RSP, R3
-	BL	racecall<>(SB)
-	RET
+	ADD	$40, RSP, R3
+	JMP	racecall<>(SB)	// does not return
 racecallatomic_ignore:
 	// Addr is outside the good range.
 	// Call __tsan_go_ignore_sync_begin to ignore synchronization during the atomic op.
@@ -436,9 +435,9 @@ racecallatomic_ignore:
 	// racecall will call LLVM race code which might clobber R28 (g)
 	load_g
 	MOVD	g_racectx(g), R0	// goroutine context
-	MOVD	56(RSP), R1	// caller pc
+	MOVD	16(RSP), R1	// caller pc
 	MOVD	R9, R2	// pc
-	ADD	$72, RSP, R3	// arguments
+	ADD	$40, RSP, R3	// arguments
 	BL	racecall<>(SB)
 	// Call __tsan_go_ignore_sync_end.
 	MOVD	$__tsan_go_ignore_sync_end(SB), R9
@@ -477,6 +476,10 @@ TEXT	racecall<>(SB), NOSPLIT|NOFRAME, $0-0
 	MOVD	(g_sched+gobuf_sp)(R11), R12
 	MOVD	R12, RSP
 call:
+	// Decrement SP past where the frame pointer is saved in the Go arm64
+	// ABI (one word below the stack pointer) so the race detector library
+	// code doesn't clobber it
+	SUB	$16, RSP
 	BL	R9
 	MOVD	R19, RSP
 	JMP	(R20)

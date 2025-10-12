@@ -1396,10 +1396,10 @@ func recovery(gp *g) {
 		// the caller
 		gp.sched.bp = fp - 2*goarch.PtrSize
 	case goarch.IsArm64 != 0:
-		// on arm64, the first two words of the frame are caller's PC
-		// (the saved LR register) and the caller's BP.
-		// Coincidentally, the same as amd64.
-		gp.sched.bp = fp - 2*goarch.PtrSize
+		// on arm64, the architectural bp points one word higher
+		// than the sp. fp is totally useless to us here, because it
+		// only gets us to the caller's fp.
+		gp.sched.bp = sp - goarch.PtrSize
 	}
 	gogo(&gp.sched)
 }

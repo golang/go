@@ -171,9 +171,9 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 	}
 
 	if cfg.BuildMod == "vendor" {
-		for _, mod := range MainModules.Versions() {
-			if modRoot := MainModules.ModRoot(mod); modRoot != "" {
-				walkPkgs(modRoot, MainModules.PathPrefix(mod), pruneGoMod|pruneVendor)
+		for _, mod := range LoaderState.MainModules.Versions() {
+			if modRoot := LoaderState.MainModules.ModRoot(mod); modRoot != "" {
+				walkPkgs(modRoot, LoaderState.MainModules.PathPrefix(mod), pruneGoMod|pruneVendor)
 			}
 		}
 		if HasModRoot() {
@@ -191,12 +191,12 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 			root, modPrefix string
 			isLocal         bool
 		)
-		if MainModules.Contains(mod.Path) {
-			if MainModules.ModRoot(mod) == "" {
+		if LoaderState.MainModules.Contains(mod.Path) {
+			if LoaderState.MainModules.ModRoot(mod) == "" {
 				continue // If there is no main module, we can't search in it.
 			}
-			root = MainModules.ModRoot(mod)
-			modPrefix = MainModules.PathPrefix(mod)
+			root = LoaderState.MainModules.ModRoot(mod)
+			modPrefix = LoaderState.MainModules.PathPrefix(mod)
 			isLocal = true
 		} else {
 			var err error
@@ -330,12 +330,12 @@ func parseIgnorePatterns(ctx context.Context, treeCanMatch func(string) bool, mo
 		}
 		var modRoot string
 		var ignorePatterns []string
-		if MainModules.Contains(mod.Path) {
-			modRoot = MainModules.ModRoot(mod)
+		if LoaderState.MainModules.Contains(mod.Path) {
+			modRoot = LoaderState.MainModules.ModRoot(mod)
 			if modRoot == "" {
 				continue
 			}
-			modIndex := MainModules.Index(mod)
+			modIndex := LoaderState.MainModules.Index(mod)
 			if modIndex == nil {
 				continue
 			}

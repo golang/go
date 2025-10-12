@@ -43,7 +43,7 @@ type mvsReqs struct {
 }
 
 func (r *mvsReqs) Required(mod module.Version) ([]module.Version, error) {
-	if mod.Version == "" && MainModules.Contains(mod.Path) {
+	if mod.Version == "" && LoaderState.MainModules.Contains(mod.Path) {
 		// Use the build list as it existed when r was constructed, not the current
 		// global build list.
 		return r.roots, nil
@@ -112,7 +112,7 @@ func versions(ctx context.Context, path string, allowed AllowedFunc) (versions [
 // Since the version of a main module is not found in the version list,
 // it has no previous version.
 func previousVersion(ctx context.Context, m module.Version) (module.Version, error) {
-	if m.Version == "" && MainModules.Contains(m.Path) {
+	if m.Version == "" && LoaderState.MainModules.Contains(m.Path) {
 		return module.Version{Path: m.Path, Version: "none"}, nil
 	}
 

@@ -3026,7 +3026,7 @@ func instructionsForOpImmediate(p *obj.Prog, as obj.As, rs int16) []*instruction
 
 	low, high, err := Split32BitImmediate(ins.imm)
 	if err != nil {
-		p.Ctxt.Diag("%v: constant %d too large", p, ins.imm, err)
+		p.Ctxt.Diag("%v: constant %d too large: %v", p, ins.imm, err)
 		return nil
 	}
 	if high == 0 {

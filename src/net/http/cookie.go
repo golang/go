@@ -7,6 +7,7 @@ package http
 import (
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"log"
 	"net"
 	"net/http/internal/ascii"
@@ -15,6 +16,8 @@ import (
 	"strings"
 	"time"
 )
+
+var httpcookiemaxnum = godebug.New("httpcookiemaxnum")
 
 // A Cookie represents an HTTP cookie as sent in the Set-Cookie header of an
 // HTTP response or the Cookie header of an HTTP request.
@@ -58,16 +61,37 @@ const (
 )
 
 var (
-	errBlankCookie           = errors.New("http: blank cookie")
-	errEqualNotFoundInCookie = errors.New("http: '=' not found in cookie")
-	errInvalidCookieName     = errors.New("http: invalid cookie name")
-	errInvalidCookieValue    = errors.New("http: invalid cookie value")
+	errBlankCookie            = errors.New("http: blank cookie")
+	errEqualNotFoundInCookie  = errors.New("http: '=' not found in cookie")
+	errInvalidCookieName      = errors.New("http: invalid cookie name")
+	errInvalidCookieValue     = errors.New("http: invalid cookie value")
+	errCookieNumLimitExceeded = errors.New("http: number of cookies exceeded limit")
 )
+
+const defaultCookieMaxNum = 3000
+
+func cookieNumWithinMax(cookieNum int) bool {
+	withinDefaultMax := cookieNum <= defaultCookieMaxNum
+	if httpcookiemaxnum.Value() == "" {
+		return withinDefaultMax
+	}
+	if customMax, err := strconv.Atoi(httpcookiemaxnum.Value()); err == nil {
+		withinCustomMax := customMax == 0 || cookieNum <= customMax
+		if withinDefaultMax != withinCustomMax {
+			httpcookiemaxnum.IncNonDefault()
+		}
+		return withinCustomMax
+	}
+	return withinDefaultMax
+}
 
 // ParseCookie parses a Cookie header value and returns all the cookies
 // which were set in it. Since the same cookie name can appear multiple times
 // the returned Values can contain more than one value for a given key.
 func ParseCookie(line string) ([]*Cookie, error) {
+	if !cookieNumWithinMax(strings.Count(line, ";") + 1) {
+		return nil, errCookieNumLimitExceeded
+	}
 	parts := strings.Split(textproto.TrimString(line), ";")
 	if len(parts) == 1 && parts[0] == "" {
 		return nil, errBlankCookie
@@ -197,9 +221,19 @@ func ParseSetCookie(line string) (*Cookie, error) {
 
 // readSetCookies parses all "Set-Cookie" values from
 // the header h and returns the successfully parsed Cookies.
+//
+// If the amount of cookies exceeds CookieNumLimit, and httpcookielimitnum
+// GODEBUG option is not explicitly turned off, this function will silently
+// fail and return an empty slice.
 func readSetCookies(h Header) []*Cookie {
 	cookieCount := len(h["Set-Cookie"])
 	if cookieCount == 0 {
+		return []*Cookie{}
+	}
+	// Cookie limit was unfortunately introduced at a later point in time.
+	// As such, we can only fail by returning an empty slice rather than
+	// explicit error.
+	if !cookieNumWithinMax(cookieCount) {
 		return []*Cookie{}
 	}
 	cookies := make([]*Cookie, 0, cookieCount)
@@ -329,10 +363,25 @@ func (c *Cookie) Valid() error {
 // readCookies parses all "Cookie" values from the header h and
 // returns the successfully parsed Cookies.
 //
-// if filter isn't empty, only cookies of that name are returned.
+// If filter isn't empty, only cookies of that name are returned.
+//
+// If the amount of cookies exceeds CookieNumLimit, and httpcookielimitnum
+// GODEBUG option is not explicitly turned off, this function will silently
+// fail and return an empty slice.
 func readCookies(h Header, filter string) []*Cookie {
 	lines := h["Cookie"]
 	if len(lines) == 0 {
+		return []*Cookie{}
+	}
+
+	// Cookie limit was unfortunately introduced at a later point in time.
+	// As such, we can only fail by returning an empty slice rather than
+	// explicit error.
+	cookieCount := 0
+	for _, line := range lines {
+		cookieCount += strings.Count(line, ";") + 1
+	}
+	if !cookieNumWithinMax(cookieCount) {
 		return []*Cookie{}
 	}
 

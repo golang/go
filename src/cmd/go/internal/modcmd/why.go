@@ -64,8 +64,8 @@ func init() {
 
 func runWhy(ctx context.Context, cmd *base.Command, args []string) {
 	modload.InitWorkfile()
-	modload.ForceUseModules = true
-	modload.RootMode = modload.NeedRoot
+	modload.LoaderState.ForceUseModules = true
+	modload.LoaderState.RootMode = modload.NeedRoot
 	modload.ExplicitWriteGoMod = true // don't write go.mod in ListModules
 
 	loadOpts := modload.PackageOpts{

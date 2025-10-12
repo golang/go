@@ -192,7 +192,7 @@ func (q *query) validate() error {
 			// request that we remove all module requirements, leaving only the main
 			// module and standard library. Perhaps we should implement that someday.
 			return &modload.QueryUpgradesAllError{
-				MainModules: modload.MainModules.Versions(),
+				MainModules: modload.LoaderState.MainModules.Versions(),
 				Query:       q.version,
 			}
 		}

@@ -506,7 +506,9 @@ func ReportErrorsWithLegacySemantics(v bool) Options {
 // When marshaling, such Go values are serialized as their usual
 // JSON representation, but quoted within a JSON string.
 // When unmarshaling, such Go values must be deserialized from
-// a JSON string containing their usual JSON representation.
+// a JSON string containing their usual JSON representation or
+// Go number representation for that numeric kind.
+// Note that the Go number grammar is a superset of the JSON number grammar.
 // A JSON null quoted in a JSON string is a valid substitute for JSON null
 // while unmarshaling into a Go value that `string` takes effect on.
 //

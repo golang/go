@@ -344,6 +344,11 @@ func (h inlineWrapper) dump(pcs []uintptr) {
 
 func inlinedWrapperCallerDump(pcs []uintptr) {
 	var h inlineWrapperInterface
+
+	// Take the address of h, such that h.dump() call (below)
+	// does not get devirtualized by the compiler.
+	_ = &h
+
 	h = &inlineWrapper{}
 	h.dump(pcs)
 }
@@ -2580,7 +2585,7 @@ func TestProfilerStackDepth(t *testing.T) {
 					t.Errorf("want stack depth = %d, got %d", depth, len(stk))
 				}
 
-				if rootFn, wantFn := stk[depth-1], "runtime/pprof.produceProfileEvents"; rootFn != wantFn {
+				if rootFn, wantFn := stk[depth-1], "runtime/pprof.allocDeep"; rootFn != wantFn {
 					t.Errorf("want stack stack root %s, got %v", wantFn, rootFn)
 				}
 			}
@@ -2655,7 +2660,7 @@ func goroutineDeep(t *testing.T, n int) {
 // guaranteed to have exactly the desired depth with produceProfileEvents as
 // their root frame which is expected by TestProfilerStackDepth.
 func produceProfileEvents(t *testing.T, depth int) {
-	allocDeep(depth - 1)       // -1 for produceProfileEvents, **
+	allocDeep(depth + 1)       // +1 for produceProfileEvents, **
 	blockChanDeep(t, depth-2)  // -2 for produceProfileEvents, **, chanrecv1
 	blockMutexDeep(t, depth-2) // -2 for produceProfileEvents, **, Unlock
 	memSink = nil

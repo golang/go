@@ -576,19 +576,19 @@ A function's stack frame, after the frame is created, is laid out as
 follows:
 
     +------------------------------+
-    | return PC                    |
-    | frame pointer on entry       | ← R29 points to
     | ... locals ...               |
     | ... outgoing arguments ...   |
-    | unused word                  | ← RSP points to
+    | return PC                    | ← RSP points to
+    | frame pointer on entry       |
     +------------------------------+ ↓ lower addresses
 
 The "return PC" is loaded to the link register, R30, as part of the
 arm64 `CALL` operation.
 
-On entry, a function pushes R30 (the return address) and R29
-(the caller's frame pointer) onto the bottom of the stack. It then
-subtracts a constant from RSP to open its stack frame.
+On entry, a function subtracts from RSP to open its stack frame, and
+saves the values of R30 and R29 at the bottom of the frame.
+Specifically, R30 is saved at 0(RSP) and R29 is saved at -8(RSP),
+after RSP is updated.
 
 A leaf function that does not require any stack space may omit the
 saved R30 and R29.

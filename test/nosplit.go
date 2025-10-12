@@ -142,7 +142,7 @@ start 136
 # (CallSize is 32 on ppc64, 8 on amd64 for frame pointer.)
 start 96 nosplit
 start 100 nosplit; REJECT ppc64 ppc64le
-start 104 nosplit; REJECT ppc64 ppc64le
+start 104 nosplit; REJECT ppc64 ppc64le arm64
 start 108 nosplit; REJECT ppc64 ppc64le
 start 112 nosplit; REJECT ppc64 ppc64le arm64
 start 116 nosplit; REJECT ppc64 ppc64le
@@ -160,7 +160,7 @@ start 136 nosplit; REJECT
 # Because AMD64 uses frame pointer, it has 8 fewer bytes.
 start 96 nosplit call f; f 0 nosplit
 start 100 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le
-start 104 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le
+start 104 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le arm64
 start 108 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le
 start 112 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le amd64 arm64
 start 116 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le amd64
@@ -176,7 +176,7 @@ start 136 nosplit call f; f 0 nosplit; REJECT
 # Architectures differ in the same way as before.
 start 96 nosplit call f; f 0 call f
 start 100 nosplit call f; f 0 call f; REJECT ppc64 ppc64le
-start 104 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64
+start 104 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64 arm64
 start 108 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64
 start 112 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64 arm64
 start 116 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64
@@ -189,7 +189,7 @@ start 136 nosplit call f; f 0 call f; REJECT
 # Indirect calls are assumed to be splitting functions.
 start 96 nosplit callind
 start 100 nosplit callind; REJECT ppc64 ppc64le
-start 104 nosplit callind; REJECT ppc64 ppc64le amd64
+start 104 nosplit callind; REJECT ppc64 ppc64le amd64 arm64
 start 108 nosplit callind; REJECT ppc64 ppc64le amd64
 start 112 nosplit callind; REJECT ppc64 ppc64le amd64 arm64
 start 116 nosplit callind; REJECT ppc64 ppc64le amd64

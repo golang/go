@@ -1544,14 +1544,9 @@ func (d *dwctxt) writeframes(fs loader.Sym) dwarfSecInfo {
 				if pcsp.Value > 0 {
 					// The return address is preserved at (CFA-frame_size)
 					// after a stack frame has been allocated.
-					off := -spdelta
-					if thearch.ReturnAddressAtTopOfFrame {
-						// Except arm64, which has it at the top of frame.
-						off = -int64(d.arch.PtrSize)
-					}
 					deltaBuf = append(deltaBuf, dwarf.DW_CFA_offset_extended_sf)
 					deltaBuf = dwarf.AppendUleb128(deltaBuf, uint64(thearch.Dwarfreglr))
-					deltaBuf = dwarf.AppendSleb128(deltaBuf, off/dataAlignmentFactor)
+					deltaBuf = dwarf.AppendSleb128(deltaBuf, -spdelta/dataAlignmentFactor)
 				} else {
 					// The return address is restored into the link register
 					// when a stack frame has been de-allocated.

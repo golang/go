@@ -859,8 +859,8 @@ func InstallPackages(ctx context.Context, patterns []string, pkgs []*load.Packag
 //
 // See golang.org/issue/40276 for details and rationale.
 func installOutsideModule(ctx context.Context, args []string) {
-	modload.ForceUseModules = true
-	modload.RootMode = modload.NoRoot
+	modload.LoaderState.ForceUseModules = true
+	modload.LoaderState.RootMode = modload.NoRoot
 	modload.AllowMissingModuleImports()
 	modload.Init()
 	BuildInit()

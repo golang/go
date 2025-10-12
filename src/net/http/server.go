@@ -3066,6 +3066,9 @@ type Server struct {
 	// automatically closed when the function returns.
 	// If TLSNextProto is not nil, HTTP/2 support is not enabled
 	// automatically.
+	//
+	// Historically, TLSNextProto was used to disable HTTP/2 support.
+	// The Server.Protocols field now provides a simpler way to do this.
 	TLSNextProto map[string]func(*Server, *tls.Conn, Handler)
 
 	// ConnState specifies an optional callback function that is
@@ -3094,9 +3097,6 @@ type Server struct {
 	ConnContext func(ctx context.Context, c net.Conn) context.Context
 
 	// HTTP2 configures HTTP/2 connections.
-	//
-	// This field does not yet have any effect.
-	// See https://go.dev/issue/67813.
 	HTTP2 *HTTP2Config
 
 	// Protocols is the set of protocols accepted by the server.

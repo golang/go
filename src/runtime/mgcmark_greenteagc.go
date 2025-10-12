@@ -618,6 +618,48 @@ func (q *spanQueue) refill(r *spanSPMC) objptr {
 	return q.tryGetFast()
 }
 
+// destroy frees all chains in an empty spanQueue.
+//
+// Preconditions:
+// - World is stopped.
+// - GC is outside of the mark phase.
+// - (Therefore) the queue is empty.
+func (q *spanQueue) destroy() {
+	assertWorldStopped()
+	if gcphase != _GCoff {
+		throw("spanQueue.destroy during the mark phase")
+	}
+	if !q.empty() {
+		throw("spanQueue.destroy on non-empty queue")
+	}
+
+	lock(&work.spanSPMCs.lock)
+
+	// Remove and free each ring.
+	for r := (*spanSPMC)(q.chain.tail.Load()); r != nil; r = (*spanSPMC)(r.prev.Load()) {
+		prev := r.allprev
+		next := r.allnext
+		if prev != nil {
+			prev.allnext = next
+		}
+		if next != nil {
+			next.allprev = prev
+		}
+		if work.spanSPMCs.all == r {
+			work.spanSPMCs.all = next
+		}
+
+		r.deinit()
+		mheap_.spanSPMCAlloc.free(unsafe.Pointer(r))
+	}
+
+	q.chain.head = nil
+	q.chain.tail.Store(nil)
+	q.putsSinceDrain = 0
+
+	unlock(&work.spanSPMCs.lock)
+}
+
 // spanSPMC is a ring buffer of objptrs that represent spans.
 // Accessed without a lock.
 //
@@ -651,6 +693,11 @@ type spanSPMC struct {
 	// work.spanSPMCs.lock.
 	allnext *spanSPMC
 
+	// allprev is the link to the previous spanSPMC on the work.spanSPMCs
+	// list. This is used to find and free dead spanSPMCs. Protected by
+	// work.spanSPMCs.lock.
+	allprev *spanSPMC
+
 	// dead indicates whether the spanSPMC is no longer in use.
 	// Protected by the CAS to the prev field of the spanSPMC pointing
 	// to this spanSPMC. That is, whoever wins that CAS takes ownership
@@ -677,7 +724,11 @@ type spanSPMC struct {
 func newSpanSPMC(cap uint32) *spanSPMC {
 	lock(&work.spanSPMCs.lock)
 	r := (*spanSPMC)(mheap_.spanSPMCAlloc.alloc())
-	r.allnext = work.spanSPMCs.all
+	next := work.spanSPMCs.all
+	r.allnext = next
+	if next != nil {
+		next.allprev = r
+	}
 	work.spanSPMCs.all = r
 	unlock(&work.spanSPMCs.lock)
 
@@ -714,6 +765,8 @@ func (r *spanSPMC) deinit() {
 	r.head.Store(0)
 	r.tail.Store(0)
 	r.cap = 0
+	r.allnext = nil
+	r.allprev = nil
 }
 
 // slot returns a pointer to slot i%r.cap.
@@ -746,22 +799,26 @@ func freeDeadSpanSPMCs() {
 		unlock(&work.spanSPMCs.lock)
 		return
 	}
-	rp := &work.spanSPMCs.all
-	for {
-		r := *rp
-		if r == nil {
-			break
-		}
+	r := work.spanSPMCs.all
+	for r != nil {
+		next := r.allnext
 		if r.dead.Load() {
 			// It's dead. Deinitialize and free it.
-			*rp = r.allnext
+			prev := r.allprev
+			if prev != nil {
+				prev.allnext = next
+			}
+			if next != nil {
+				next.allprev = prev
+			}
+			if work.spanSPMCs.all == r {
+				work.spanSPMCs.all = next
+			}
+
 			r.deinit()
 			mheap_.spanSPMCAlloc.free(unsafe.Pointer(r))
-		} else {
-			// Still alive, likely in some P's chain.
-			// Skip it.
-			rp = &r.allnext
 		}
+		r = next
 	}
 	unlock(&work.spanSPMCs.lock)
 }

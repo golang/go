@@ -163,7 +163,7 @@ func listTools(ctx context.Context) {
 
 	modload.InitWorkfile()
 	modload.LoadModFile(ctx)
-	modTools := slices.Sorted(maps.Keys(modload.MainModules.Tools()))
+	modTools := slices.Sorted(maps.Keys(modload.LoaderState.MainModules.Tools()))
 	for _, tool := range modTools {
 		fmt.Println(tool)
 	}
@@ -256,7 +256,7 @@ func loadModTool(ctx context.Context, name string) string {
 	modload.LoadModFile(ctx)
 
 	matches := []string{}
-	for tool := range modload.MainModules.Tools() {
+	for tool := range modload.LoaderState.MainModules.Tools() {
 		if tool == name || defaultExecName(tool) == name {
 			matches = append(matches, tool)
 		}
@@ -308,7 +308,7 @@ func buildAndRunBuiltinTool(ctx context.Context, toolName, tool string, args []s
 	// Ignore go.mod and go.work: we don't need them, and we want to be able
 	// to run the tool even if there's an issue with the module or workspace the
 	// user happens to be in.
-	modload.RootMode = modload.NoRoot
+	modload.LoaderState.RootMode = modload.NoRoot
 
 	runFunc := func(b *work.Builder, ctx context.Context, a *work.Action) error {
 		cmdline := str.StringList(builtTool(a), a.Args)

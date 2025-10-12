@@ -40,6 +40,7 @@ To list the available checks, run "go tool vet help":
 	directive        check Go toolchain directives such as //go:debug
 	errorsas         report passing non-pointer or non-error values to errors.As
 	framepointer     report assembly that clobbers the frame pointer before saving it
+	hostport         check format of addresses passed to net.Dial
 	httpresponse     check for mistakes using HTTP responses
 	ifaceassert      detect impossible interface-to-interface type assertions
 	loopclosure      check references to loop variables from within nested functions
@@ -50,6 +51,7 @@ To list the available checks, run "go tool vet help":
 	sigchanyzer      check for unbuffered channel of os.Signal
 	slog             check for invalid structured logging calls
 	stdmethods       check signature of methods of well-known interfaces
+	stdversion       report uses of too-new standard library symbols
 	stringintconv    check for string(int) conversions
 	structtag        check that struct field tags conform to reflect.StructTag.Get
 	testinggoroutine report calls to (*testing.T).Fatal from goroutines started by a test

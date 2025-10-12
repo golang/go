@@ -1,0 +1,24 @@
+# Test that go vet's caching of vet tool actions replays
+# the recorded stderr output even after a cache hit.
+
+# Set up fresh GOCACHE.
+env GOCACHE=$WORK/gocache
+
+# First time is a cache miss.
+! go vet example.com/a
+stderr 'fmt.Sprint call has possible Printf formatting directive'
+
+# Second time is assumed to be a cache hit for the stdout JSON,
+# but we don't bother to assert it. Same diagnostics again.
+! go vet example.com/a
+stderr 'fmt.Sprint call has possible Printf formatting directive'
+
+-- go.mod --
+module example.com
+
+-- a/a.go --
+package a
+
+import "fmt"
+
+var _ = fmt.Sprint("%s") // oops!

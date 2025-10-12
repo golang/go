@@ -88,8 +88,10 @@
 (Cvt32to32F ...) => (CVTSL2SS ...)
 (Cvt32to64F ...) => (CVTSL2SD ...)
 
-(Cvt32Fto32 ...) => (CVTTSS2SL ...)
-(Cvt64Fto32 ...) => (CVTTSD2SL ...)
+(Cvt32Fto32 <t> x) && base.ConvertHash.MatchPos(v.Pos, nil) => (XORL <t> y (SARLconst <t> [31] (ANDL <t> y:(CVTTSS2SL <t> x) (NOTL <typ.Int32> (MOVLf2i x)))))
+(Cvt64Fto32 <t> x) && base.ConvertHash.MatchPos(v.Pos, nil) => (XORL <t> y (SARLconst <t> [31] (ANDL <t> y:(CVTTSD2SL <t> x) (NOTL <typ.Int32> (MOVLf2i (CVTSD2SS <typ.Float32> x))))))
+(Cvt32Fto32 <t> x) && !base.ConvertHash.MatchPos(v.Pos, nil) => (CVTTSS2SL <t> x)
+(Cvt64Fto32 <t> x) && !base.ConvertHash.MatchPos(v.Pos, nil) => (CVTTSD2SL <t> x)
 
 (Cvt32Fto64F ...) => (CVTSS2SD ...)
 (Cvt64Fto32F ...) => (CVTSD2SS ...)

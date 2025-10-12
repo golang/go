@@ -46,7 +46,7 @@ func init() {
 func runInit(ctx context.Context, cmd *base.Command, args []string) {
 	modload.InitWorkfile()
 
-	modload.ForceUseModules = true
+	modload.LoaderState.ForceUseModules = true
 
 	gowork := modload.WorkFilePath()
 	if gowork == "" {

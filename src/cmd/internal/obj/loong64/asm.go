@@ -2057,7 +2057,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 	switch o.type_ {
 	default:
-		c.ctxt.Diag("unknown type %d %v", o.type_)
+		c.ctxt.Diag("unknown type %d", o.type_)
 		prasm(p)
 
 	case 0: // pseudo ops
@@ -4438,7 +4438,7 @@ func (c *ctxt0) specialFpMovInst(a obj.As, fclass int, tclass int) uint32 {
 		}
 	}
 
-	c.ctxt.Diag("bad class combination: %s %s,%s\n", a, fclass, tclass)
+	c.ctxt.Diag("bad class combination: %s %d,%s\n", a, fclass, tclass)
 
 	return 0
 }

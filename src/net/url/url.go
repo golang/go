@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"net/netip"
 	"path"
 	"slices"
 	"strconv"
@@ -642,41 +643,64 @@ func parseAuthority(authority string) (user *Userinfo, host string, err error) {
 // parseHost parses host as an authority without user
 // information. That is, as host[:port].
 func parseHost(host string) (string, error) {
-	if strings.HasPrefix(host, "[") {
+	if openBracketIdx := strings.LastIndex(host, "["); openBracketIdx != -1 {
 		// Parse an IP-Literal in RFC 3986 and RFC 6874.
 		// E.g., "[fe80::1]", "[fe80::1%25en0]", "[fe80::1]:80".
-		i := strings.LastIndex(host, "]")
-		if i < 0 {
+		closeBracketIdx := strings.LastIndex(host, "]")
+		if closeBracketIdx < 0 {
 			return "", errors.New("missing ']' in host")
 		}
-		colonPort := host[i+1:]
+
+		colonPort := host[closeBracketIdx+1:]
 		if !validOptionalPort(colonPort) {
 			return "", fmt.Errorf("invalid port %q after host", colonPort)
 		}
+		unescapedColonPort, err := unescape(colonPort, encodeHost)
+		if err != nil {
+			return "", err
+		}
 
+		hostname := host[openBracketIdx+1 : closeBracketIdx]
+		var unescapedHostname string
 		// RFC 6874 defines that %25 (%-encoded percent) introduces
 		// the zone identifier, and the zone identifier can use basically
 		// any %-encoding it likes. That's different from the host, which
 		// can only %-encode non-ASCII bytes.
 		// We do impose some restrictions on the zone, to avoid stupidity
 		// like newlines.
-		zone := strings.Index(host[:i], "%25")
-		if zone >= 0 {
-			host1, err := unescape(host[:zone], encodeHost)
+		zoneIdx := strings.Index(hostname, "%25")
+		if zoneIdx >= 0 {
+			hostPart, err := unescape(hostname[:zoneIdx], encodeHost)
 			if err != nil {
 				return "", err
 			}
-			host2, err := unescape(host[zone:i], encodeZone)
+			zonePart, err := unescape(hostname[zoneIdx:], encodeZone)
 			if err != nil {
 				return "", err
 			}
-			host3, err := unescape(host[i:], encodeHost)
+			unescapedHostname = hostPart + zonePart
+		} else {
+			var err error
+			unescapedHostname, err = unescape(hostname, encodeHost)
 			if err != nil {
 				return "", err
 			}
-			return host1 + host2 + host3, nil
 		}
-	} else if i := strings.LastIndex(host, ":"); i != -1 {
+
+		// Per RFC 3986, only a host identified by a valid
+		// IPv6 address can be enclosed by square brackets.
+		// This excludes any IPv4, but notably not IPv4-mapped addresses.
+		addr, err := netip.ParseAddr(unescapedHostname)
+		if err != nil {
+			return "", fmt.Errorf("invalid host: %w", err)
+		}
+		if addr.Is4() {
+			return "", errors.New("invalid IP-literal")
+		}
+		return "[" + unescapedHostname + "]" + unescapedColonPort, nil
+	} else if i := strings.Index(host, ":"); i != -1 {
+		// IPv4address / reg-name
+		// E.g. 1.2.3.4, 1.2.3.4:80, example.com, example.com:80
 		colonPort := host[i:]
 		if !validOptionalPort(colonPort) {
 			return "", fmt.Errorf("invalid port %q after host", colonPort)

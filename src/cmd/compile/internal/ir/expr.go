@@ -677,6 +677,11 @@ type TypeAssertExpr struct {
 
 	// An internal/abi.TypeAssert descriptor to pass to the runtime.
 	Descriptor *obj.LSym
+
+	// When set to true, if this assert would panic, then use a nil pointer panic
+	// instead of an interface conversion panic.
+	// It must not be set for type asserts using the commaok form.
+	UseNilPanic bool
 }
 
 func NewTypeAssertExpr(pos src.XPos, x Node, typ *types.Type) *TypeAssertExpr {

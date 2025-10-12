@@ -6198,19 +6198,6 @@ func TestChanOfDir(t *testing.T) {
 }
 
 func TestChanOfGC(t *testing.T) {
-	done := make(chan bool, 1)
-	go func() {
-		select {
-		case <-done:
-		case <-time.After(5 * time.Second):
-			panic("deadlock in TestChanOfGC")
-		}
-	}()
-
-	defer func() {
-		done <- true
-	}()
-
 	type T *uintptr
 	tt := TypeOf(T(nil))
 	ct := ChanOf(BothDir, tt)

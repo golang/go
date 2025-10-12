@@ -456,6 +456,26 @@ func isSameCall(aux Aux, name string) bool {
 	return fn != nil && fn.String() == name
 }
 
+func isMalloc(aux Aux) bool {
+	return isNewObject(aux) || isSpecializedMalloc(aux)
+}
+
+func isNewObject(aux Aux) bool {
+	fn := aux.(*AuxCall).Fn
+	return fn != nil && fn.String() == "runtime.newobject"
+}
+
+func isSpecializedMalloc(aux Aux) bool {
+	fn := aux.(*AuxCall).Fn
+	if fn == nil {
+		return false
+	}
+	name := fn.String()
+	return strings.HasPrefix(name, "runtime.mallocgcSmallNoScanSC") ||
+		strings.HasPrefix(name, "runtime.mallocgcSmallScanNoHeaderSC") ||
+		strings.HasPrefix(name, "runtime.mallocTiny")
+}
+
 // canLoadUnaligned reports if the architecture supports unaligned load operations.
 func canLoadUnaligned(c *Config) bool {
 	return c.ctxt.Arch.Alignment == 1

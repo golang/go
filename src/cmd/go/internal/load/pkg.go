@@ -1552,7 +1552,7 @@ func disallowInternal(ctx context.Context, srcDir string, importer *Package, imp
 			// directory containing them.
 			// If the directory is outside the main modules, this will resolve to ".",
 			// which is not a prefix of any valid module.
-			importerPath, _ = modload.MainModules.DirImportPath(ctx, importer.Dir)
+			importerPath, _ = modload.LoaderState.MainModules.DirImportPath(ctx, importer.Dir)
 		}
 		parentOfInternal := p.ImportPath[:i]
 		if str.HasPathPrefix(importerPath, parentOfInternal) {
@@ -3348,10 +3348,10 @@ func GoFilesPackage(ctx context.Context, opts PackageOpts, gofiles []string) *Pa
 // would cause it to be interpreted differently if it were the main module
 // (replace, exclude).
 func PackagesAndErrorsOutsideModule(ctx context.Context, opts PackageOpts, args []string) ([]*Package, error) {
-	if !modload.ForceUseModules {
+	if !modload.LoaderState.ForceUseModules {
 		panic("modload.ForceUseModules must be true")
 	}
-	if modload.RootMode != modload.NoRoot {
+	if modload.LoaderState.RootMode != modload.NoRoot {
 		panic("modload.RootMode must be NoRoot")
 	}
 

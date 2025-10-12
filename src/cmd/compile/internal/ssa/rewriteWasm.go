@@ -120,10 +120,10 @@ func rewriteValueWasm(v *Value) bool {
 		v.Op = OpWasmI64Ctz
 		return true
 	case OpCvt32Fto32:
-		v.Op = OpWasmI64TruncSatF32S
+		v.Op = OpWasmI32TruncSatF32S
 		return true
 	case OpCvt32Fto32U:
-		v.Op = OpWasmI64TruncSatF32U
+		v.Op = OpWasmI32TruncSatF32U
 		return true
 	case OpCvt32Fto64:
 		v.Op = OpWasmI64TruncSatF32S
@@ -143,13 +143,13 @@ func rewriteValueWasm(v *Value) bool {
 	case OpCvt32to64F:
 		return rewriteValueWasm_OpCvt32to64F(v)
 	case OpCvt64Fto32:
-		v.Op = OpWasmI64TruncSatF64S
+		v.Op = OpWasmI32TruncSatF64S
 		return true
 	case OpCvt64Fto32F:
 		v.Op = OpWasmF32DemoteF64
 		return true
 	case OpCvt64Fto32U:
-		v.Op = OpWasmI64TruncSatF64U
+		v.Op = OpWasmI32TruncSatF64U
 		return true
 	case OpCvt64Fto64:
 		v.Op = OpWasmI64TruncSatF64S

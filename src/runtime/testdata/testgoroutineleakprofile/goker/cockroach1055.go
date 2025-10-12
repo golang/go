@@ -44,9 +44,9 @@ func (s *Stopper_cockroach1055) SetStopped() {
 func (s *Stopper_cockroach1055) Quiesce() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.draining = 1
+	atomic.StoreInt32(&s.draining, 1)
 	s.drain.Wait()
-	s.draining = 0
+	atomic.StoreInt32(&s.draining, 0)
 }
 
 func (s *Stopper_cockroach1055) Stop() {

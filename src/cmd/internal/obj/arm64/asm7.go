@@ -51,6 +51,7 @@ type ctxt7 struct {
 	blitrl     *obj.Prog
 	elitrl     *obj.Prog
 	autosize   int32
+	extrasize  int32
 	instoffset int64
 	pc         int64
 	pool       struct {
@@ -1121,7 +1122,8 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		ctxt.Diag("arm64 ops not initialized, call arm64.buildop first")
 	}
 
-	c := ctxt7{ctxt: ctxt, newprog: newprog, cursym: cursym, autosize: int32(p.To.Offset)}
+	c := ctxt7{ctxt: ctxt, newprog: newprog, cursym: cursym, autosize: int32(p.To.Offset & 0xffffffff), extrasize: int32(p.To.Offset >> 32)}
+	p.To.Offset &= 0xffffffff // extrasize is no longer needed
 
 	// Process literal pool and allocate initial program counter for each Prog, before
 	// generating branch veneers.
@@ -2117,8 +2119,8 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
 				// a.Offset is still relative to pseudo-SP.
 				a.Reg = obj.REG_NONE
 			}
-			// The frame top 16 bytes are for LR/FP
-			c.instoffset = int64(c.autosize) + a.Offset - extrasize
+			// The frame top 8 or 16 bytes are for FP
+			c.instoffset = int64(c.autosize) + a.Offset - int64(c.extrasize)
 			return autoclass(c.instoffset)
 
 		case obj.NAME_PARAM:
@@ -2178,8 +2180,8 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
 				// a.Offset is still relative to pseudo-SP.
 				a.Reg = obj.REG_NONE
 			}
-			// The frame top 16 bytes are for LR/FP
-			c.instoffset = int64(c.autosize) + a.Offset - extrasize
+			// The frame top 8 or 16 bytes are for FP
+			c.instoffset = int64(c.autosize) + a.Offset - int64(c.extrasize)
 
 		case obj.NAME_PARAM:
 			if a.Reg == REGSP {
@@ -4352,7 +4354,7 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 		// remove the NOTUSETMP flag in optab.
 		op := c.opirr(p, p.As)
 		if op&Sbit != 0 {
-			c.ctxt.Diag("can not break addition/subtraction when S bit is set", p)
+			c.ctxt.Diag("can not break addition/subtraction when S bit is set (%v)", p)
 		}
 		rt, r := p.To.Reg, p.Reg
 		if r == obj.REG_NONE {

@@ -44,6 +44,7 @@ func init() {
 	// some of them so that cmd/go knows what to do with the test output, or knows
 	// to build the test in a way that supports the use of the flag.
 
+	cf.BoolVar(&testArtifacts, "artifacts", false, "")
 	cf.StringVar(&testBench, "bench", "", "")
 	cf.Bool("benchmem", false, "")
 	cf.String("benchtime", "", "")
@@ -392,7 +393,8 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 	// directory, but 'go test' defaults it to the working directory of the 'go'
 	// command. Set it explicitly if it is needed due to some other flag that
 	// requests output.
-	if testProfile() != "" && !outputDirSet {
+	needOutputDir := testProfile() != "" || testArtifacts
+	if needOutputDir && !outputDirSet {
 		injectedFlags = append(injectedFlags, "-test.outputdir="+testOutputDir.getAbs())
 	}
 

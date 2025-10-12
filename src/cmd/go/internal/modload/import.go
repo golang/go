@@ -82,8 +82,8 @@ func (e *ImportMissingError) Error() string {
 		if e.QueryErr != nil {
 			return fmt.Sprintf("%s: %v", message, e.QueryErr)
 		}
-		if e.ImportingMainModule.Path != "" && e.ImportingMainModule != MainModules.ModContainingCWD() {
-			return fmt.Sprintf("%s; to add it:\n\tcd %s\n\tgo get %s", message, MainModules.ModRoot(e.ImportingMainModule), e.Path)
+		if e.ImportingMainModule.Path != "" && e.ImportingMainModule != LoaderState.MainModules.ModContainingCWD() {
+			return fmt.Sprintf("%s; to add it:\n\tcd %s\n\tgo get %s", message, LoaderState.MainModules.ModRoot(e.ImportingMainModule), e.Path)
 		}
 		return fmt.Sprintf("%s; to add it:\n\tgo get %s", message, e.Path)
 	}
@@ -299,12 +299,12 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
 	// Is the package in the standard library?
 	pathIsStd := search.IsStandardImportPath(path)
 	if pathIsStd && modindex.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, path) {
-		for _, mainModule := range MainModules.Versions() {
-			if MainModules.InGorootSrc(mainModule) {
-				if dir, ok, err := dirInModule(path, MainModules.PathPrefix(mainModule), MainModules.ModRoot(mainModule), true); err != nil {
-					return module.Version{}, MainModules.ModRoot(mainModule), dir, nil, err
+		for _, mainModule := range LoaderState.MainModules.Versions() {
+			if LoaderState.MainModules.InGorootSrc(mainModule) {
+				if dir, ok, err := dirInModule(path, LoaderState.MainModules.PathPrefix(mainModule), LoaderState.MainModules.ModRoot(mainModule), true); err != nil {
+					return module.Version{}, LoaderState.MainModules.ModRoot(mainModule), dir, nil, err
 				} else if ok {
-					return mainModule, MainModules.ModRoot(mainModule), dir, nil, nil
+					return mainModule, LoaderState.MainModules.ModRoot(mainModule), dir, nil, nil
 				}
 			}
 		}
@@ -321,10 +321,10 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
 	// Everything must be in the main modules or the main module's or workspace's vendor directory.
 	if cfg.BuildMod == "vendor" {
 		var mainErr error
-		for _, mainModule := range MainModules.Versions() {
-			modRoot := MainModules.ModRoot(mainModule)
+		for _, mainModule := range LoaderState.MainModules.Versions() {
+			modRoot := LoaderState.MainModules.ModRoot(mainModule)
 			if modRoot != "" {
-				dir, mainOK, err := dirInModule(path, MainModules.PathPrefix(mainModule), modRoot, true)
+				dir, mainOK, err := dirInModule(path, LoaderState.MainModules.PathPrefix(mainModule), modRoot, true)
 				if mainErr == nil {
 					mainErr = err
 				}
@@ -345,7 +345,7 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
 				// vendor/modules.txt does not exist or the user manually added directories to the vendor directory.
 				// Go 1.23 and later require vendored packages to be present in modules.txt to be imported.
 				_, ok := vendorPkgModule[path]
-				if ok || (gover.Compare(MainModules.GoVersion(), gover.ExplicitModulesTxtImportVersion) < 0) {
+				if ok || (gover.Compare(LoaderState.MainModules.GoVersion(), gover.ExplicitModulesTxtImportVersion) < 0) {
 					mods = append(mods, vendorPkgModule[path])
 					dirs = append(dirs, dir)
 					roots = append(roots, vendorDir)
@@ -471,7 +471,7 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
 			// If the module graph is pruned and this is a test-only dependency
 			// of a package in "all", we didn't necessarily load that file
 			// when we read the module graph, so do it now to be sure.
-			if !skipModFile && cfg.BuildMod != "vendor" && mods[0].Path != "" && !MainModules.Contains(mods[0].Path) {
+			if !skipModFile && cfg.BuildMod != "vendor" && mods[0].Path != "" && !LoaderState.MainModules.Contains(mods[0].Path) {
 				if _, err := goModSummary(mods[0]); err != nil {
 					return module.Version{}, "", "", nil, err
 				}
@@ -511,8 +511,8 @@ func queryImport(ctx context.Context, path string, rs *Requirements) (module.Ver
 	// To avoid spurious remote fetches, try the latest replacement for each
 	// module (golang.org/issue/26241).
 	var mods []module.Version
-	if MainModules != nil { // TODO(#48912): Ensure MainModules exists at this point, and remove the check.
-		for mp, mv := range MainModules.HighestReplaced() {
+	if LoaderState.MainModules != nil { // TODO(#48912): Ensure MainModules exists at this point, and remove the check.
+		for mp, mv := range LoaderState.MainModules.HighestReplaced() {
 			if !maybeInModule(path, mp) {
 				continue
 			}
@@ -748,7 +748,7 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
 // The isLocal return value reports whether the replacement,
 // if any, is local to the filesystem.
 func fetch(ctx context.Context, mod module.Version) (dir string, isLocal bool, err error) {
-	if modRoot := MainModules.ModRoot(mod); modRoot != "" {
+	if modRoot := LoaderState.MainModules.ModRoot(mod); modRoot != "" {
 		return modRoot, true, nil
 	}
 	if r := Replacement(mod); r.Path != "" {

@@ -11,10 +11,10 @@
 #include "asm_ppc64x.h"
 #include "cgo/abi_ppc64x.h"
 
-
+// This is called using the host ABI. argc and argv arguments
+// should be in R3 and R4 respectively.
 TEXT _rt0_ppc64x_lib(SB),NOSPLIT|NOFRAME,$0
-	// This is called with ELFv2 calling conventions. Convert to Go.
-	// Allocate argument storage for call to newosproc0.
+	// Convert to Go ABI, and Allocate argument storage for call to newosproc0.
 	STACK_AND_SAVE_HOST_TO_GO_ABI(16)
 
 	MOVD	R3, _rt0_ppc64x_lib_argc<>(SB)
@@ -48,7 +48,6 @@ nocgo:
 	BL	(CTR)
 
 done:
-	// Restore and return to ELFv2 caller.
 	UNSTACK_AND_RESTORE_GO_TO_HOST_ABI(16)
 	RET
 

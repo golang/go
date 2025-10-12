@@ -264,6 +264,9 @@ func ParseFlags() {
 		Debug.LoopVar = 1
 	}
 
+	if Debug.Converthash != "" {
+		ConvertHash = NewHashDebug("converthash", Debug.Converthash, nil)
+	}
 	if Debug.Fmahash != "" {
 		FmaHash = NewHashDebug("fmahash", Debug.Fmahash, nil)
 	}

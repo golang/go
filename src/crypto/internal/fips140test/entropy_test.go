@@ -31,11 +31,12 @@ var flagNISTSP80090B = flag.Bool("nist-sp800-90b", false, "run NIST SP 800-90B t
 
 func TestEntropySamples(t *testing.T) {
 	cryptotest.MustSupportFIPS140(t)
+	now := time.Now().UTC()
 
 	var seqSamples [1_000_000]uint8
 	samplesOrTryAgain(t, seqSamples[:])
 	seqSamplesName := fmt.Sprintf("entropy_samples_sequential_%s_%s_%s_%s_%s.bin", entropy.Version(),
-		runtime.GOOS, runtime.GOARCH, *flagEntropySamples, time.Now().Format("20060102T150405Z"))
+		runtime.GOOS, runtime.GOARCH, *flagEntropySamples, now.Format("20060102T150405Z"))
 	if *flagEntropySamples != "" {
 		if err := os.WriteFile(seqSamplesName, seqSamples[:], 0644); err != nil {
 			t.Fatalf("failed to write samples to %q: %v", seqSamplesName, err)
@@ -50,7 +51,7 @@ func TestEntropySamples(t *testing.T) {
 		copy(restartSamples[i][:], samples[:])
 	}
 	restartSamplesName := fmt.Sprintf("entropy_samples_restart_%s_%s_%s_%s_%s.bin", entropy.Version(),
-		runtime.GOOS, runtime.GOARCH, *flagEntropySamples, time.Now().Format("20060102T150405Z"))
+		runtime.GOOS, runtime.GOARCH, *flagEntropySamples, now.Format("20060102T150405Z"))
 	if *flagEntropySamples != "" {
 		f, err := os.Create(restartSamplesName)
 		if err != nil {
