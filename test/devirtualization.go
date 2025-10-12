@@ -1139,6 +1139,12 @@ func devirtWrapperType() {
 		var a A = (implWrapper)(i) // ERROR "implWrapper\(i\) does not escape$"
 		a.A()                      // ERROR "devirtualizing a.A to implWrapper$" "inlining call to implWrapper.A"
 	}
+	{
+		type anyWrapper any
+		var foo any = &Impl{} // ERROR "&Impl\{\} does not escape"
+		var bar anyWrapper = foo
+		bar.(M).M() // ERROR "devirtualizing bar\.\(M\).M to \*Impl" "inlining call to \(\*Impl\)\.M"
+	}
 }
 
 func selfAssigns() {

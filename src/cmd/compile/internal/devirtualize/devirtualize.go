@@ -223,7 +223,7 @@ func concreteType1(s *State, n ir.Node, seen map[*ir.Name]struct{}) (outT *types
 		switch n1 := n.(type) {
 		case *ir.ConvExpr:
 			if n1.Op() == ir.OCONVNOP {
-				if !n1.Type().IsInterface() || !types.Identical(n1.Type(), n1.X.Type()) {
+				if !n1.Type().IsInterface() || !types.Identical(n1.Type().Underlying(), n1.X.Type().Underlying()) {
 					// As we check (directly before this switch) whether n is an interface, thus we should only reach
 					// here for iface conversions where both operands are the same.
 					base.Fatalf("not identical/interface types found n1.Type = %v; n1.X.Type = %v", n1.Type(), n1.X.Type())
