@@ -163,19 +163,21 @@ package runtime
 type xRegs struct {
 `)
 	pos := 0
-	for _, reg := range l.regs {
-		if reg.pos != pos {
-			log.Fatalf("padding not implemented")
+	for _, seq := range l.regs {
+		for _, r := range seq.regs {
+			if r.pos != pos && !seq.fixedOffset {
+				log.Fatalf("padding not implemented")
+			}
+			typ := fmt.Sprintf("[%d]byte", r.size)
+			switch {
+			case r.size == 4 && r.pos%4 == 0:
+				typ = "uint32"
+			case r.size == 8 && r.pos%8 == 0:
+				typ = "uint64"
+			}
+			fmt.Fprintf(g.w, "\t%s %s\n", r.name, typ)
+			pos += r.size
 		}
-		typ := fmt.Sprintf("[%d]byte", reg.size)
-		switch {
-		case reg.size == 4 && reg.pos%4 == 0:
-			typ = "uint32"
-		case reg.size == 8 && reg.pos%8 == 0:
-			typ = "uint64"
-		}
-		fmt.Fprintf(g.w, "\t%s %s\n", reg.reg, typ)
-		pos += reg.size
 	}
 	fmt.Fprintf(g.w, "}\n")
 
@@ -191,16 +193,61 @@ type xRegs struct {
 
 type layout struct {
 	stack int
-	regs  []regPos
+	regs  []regSeq
 	sp    string // stack pointer register
 }
 
-type regPos struct {
-	pos, size int
+type regInfo struct {
+	size int    // register size in bytes
+	name string // register name
 
+	// Some register names may require a specific suffix.
+	// In ARM64, a suffix called an "arrangement specifier" can be added to
+	// a register name. For example:
+	//
+	//	V0.B16
+	//
+	// In this case, "V0" is the register name, and ".B16" is the suffix.
+	suffix string
+
+	pos int // position on stack
+}
+
+// Some save/restore operations can involve multiple registers in a single
+// instruction. For example, the LDP/STP instructions in ARM64:
+//
+//	LDP 8(RSP), (R0, R1)
+//	STP (R0, R1), 8(RSP)
+//
+// In these cases, a pair of registers (R0, R1) is used as a single argument.
+type regSeq struct {
 	saveOp    string
 	restoreOp string
-	reg       string
+	regs      []regInfo
+
+	// By default, all registers are saved on the stack, and the stack pointer offset
+	// is calculated based on the size of each register. For example (ARM64):
+	//
+	//   STP (R0, R1), 8(RSP)
+	//   STP (R2, R3), 24(RSP)
+	//
+	// However, automatic offset calculation may not always be desirable.
+	// In some cases, the offset must remain fixed:
+	//
+	//   VST1.P [V0.B16, V1.B16, V2.B16, V3.B16], 64(R0)
+	//   VST1.P [V4.B16, V5.B16, V6.B16, V7.B16], 64(R0)
+	//
+	// In this example, R0 is post-incremented after each instruction,
+	// so the offset should not be recalculated. For such cases,
+	// `fixedOffset` is set to true.
+	fixedOffset bool
+
+	// After conversion to a string, register names are separated by commas
+	// and may be wrapped in a custom pair of brackets. For example (ARM64):
+	//
+	//   (R0, R1) // wrapped in parentheses
+	//   [V0.B16, V1.B16, V2.B16, V3.B16] // wrapped in square brackets
+	brackets [2]string
 
 	// If this register requires special save and restore, these
 	// give those operations with a %d placeholder for the stack
@@ -208,40 +255,95 @@ type regPos struct {
 	save, restore string
 }
 
-func (l *layout) add(op, reg string, size int) {
-	l.regs = append(l.regs, regPos{saveOp: op, restoreOp: op, reg: reg, pos: l.stack, size: size})
+func (l *layout) add(op, regname string, size int) {
+	l.regs = append(l.regs, regSeq{saveOp: op, restoreOp: op, regs: []regInfo{{size, regname, "", l.stack}}})
 	l.stack += size
 }
 
-func (l *layout) add2(sop, rop, reg string, size int) {
-	l.regs = append(l.regs, regPos{saveOp: sop, restoreOp: rop, reg: reg, pos: l.stack, size: size})
-	l.stack += size
+func (l *layout) add2(sop, rop string, regs []regInfo, brackets [2]string, fixedOffset bool) {
+	l.regs = append(l.regs, regSeq{saveOp: sop, restoreOp: rop, regs: regs, brackets: brackets, fixedOffset: fixedOffset})
+	if !fixedOffset {
+		for i := range regs {
+			regs[i].pos = l.stack
+			l.stack += regs[i].size
+		}
+	}
 }
 
 func (l *layout) addSpecial(save, restore string, size int) {
-	l.regs = append(l.regs, regPos{save: save, restore: restore, pos: l.stack, size: size})
+	l.regs = append(l.regs, regSeq{save: save, restore: restore, regs: []regInfo{{size, "", "", l.stack}}})
 	l.stack += size
 }
 
+func (rs *regSeq) String() string {
+	switch len(rs.regs) {
+	case 0:
+		log.Fatal("Register sequence must not be empty!")
+	case 1:
+		return rs.regs[0].name
+	default:
+		names := make([]string, 0)
+		for _, r := range rs.regs {
+			name := r.name + r.suffix
+			names = append(names, name)
+		}
+		return rs.brackets[0] + strings.Join(names, ", ") + rs.brackets[1]
+	}
+	return ""
+}
+
 func (l *layout) save(g *gen) {
-	for _, reg := range l.regs {
-		if reg.save != "" {
-			g.p(reg.save, reg.pos)
+	for _, seq := range l.regs {
+		if len(seq.regs) < 1 {
+			log.Fatal("Register sequence must not be empty!")
+		}
+		// When dealing with a sequence of registers, we assume that only the position
+		// of the first register is relevant. For example:
+		//
+		//   STP (R0, R1), 8(RSP)
+		//   STP (R2, R3), 24(RSP)
+		//
+		// Here, R0.pos is 8. While we can infer that R1.pos is 16, it doesn't need to
+		// be explicitly specified, as the STP instruction calculates it automatically.
+		pos := seq.regs[0].pos
+		if seq.save != "" {
+			g.p(seq.save, pos)
 		} else {
-			g.p("%s %s, %d(%s)", reg.saveOp, reg.reg, reg.pos, l.sp)
+			name := seq.String()
+			g.p("%s %s, %d(%s)", seq.saveOp, name, pos, l.sp)
+		}
+	}
+}
+
+func (l *layout) restoreInOrder(g *gen, reverse bool) {
+	var seq []regSeq
+	if reverse {
+		seq = make([]regSeq, 0)
+		for i := len(l.regs) - 1; i >= 0; i-- {
+			seq = append(seq, l.regs[i])
+		}
+	} else {
+		seq = l.regs
+	}
+	for _, reg := range seq {
+		if len(reg.regs) < 1 {
+			log.Fatal("Register sequence must not be empty!")
+		}
+		pos := reg.regs[0].pos
+		if reg.restore != "" {
+			g.p(reg.restore, pos)
+		} else {
+			g.p("%s %d(%s), %s", reg.restoreOp, pos, l.sp, reg.String())
 		}
 	}
 }
 
 func (l *layout) restore(g *gen) {
-	for i := len(l.regs) - 1; i >= 0; i-- {
-		reg := l.regs[i]
-		if reg.restore != "" {
-			g.p(reg.restore, reg.pos)
-		} else {
-			g.p("%s %d(%s), %s", reg.restoreOp, reg.pos, l.sp, reg.reg)
-		}
-	}
+	l.restoreInOrder(g, true)
+}
+
+func (l *layout) restoreDirect(g *gen) {
+	l.restoreInOrder(g, false)
 }
 
 func gen386(g *gen) {
@@ -320,8 +422,11 @@ func genAMD64(g *gen) {
 	// We don't have to do this, but it results in a nice Go type. If we split
 	// this into multiple types, we probably should stop doing this.
 	for i := range lXRegs.regs {
-		lXRegs.regs[i].pos = lZRegs.regs[i].pos
-		lYRegs.regs[i].pos = lZRegs.regs[i].pos
+		for j := range lXRegs.regs[i].regs {
+			lXRegs.regs[i].regs[j].pos = lZRegs.regs[i].regs[j].pos
+			lYRegs.regs[i].regs[j].pos = lZRegs.regs[i].regs[j].pos
+		}
+
 	}
 	writeXRegs(g.goarch, &lZRegs)
 
@@ -456,6 +561,7 @@ func genARM(g *gen) {
 }
 
 func genARM64(g *gen) {
+	const vReg = "R0" // *xRegState
 	p := g.p
 	// Add integer registers R0-R26
 	// R27 (REGTMP), R28 (g), R29 (FP), R30 (LR), R31 (SP) are special
@@ -466,8 +572,11 @@ func genARM64(g *gen) {
 			i--
 			continue // R18 is not used, skip
 		}
-		reg := fmt.Sprintf("(R%d, R%d)", i, i+1)
-		l.add2("STP", "LDP", reg, 16)
+		regs := []regInfo{
+			{name: fmt.Sprintf("R%d", i), size: 8},
+			{name: fmt.Sprintf("R%d", i+1), size: 8},
+		}
+		l.add2("STP", "LDP", regs, [2]string{"(", ")"}, false)
 	}
 	// Add flag registers.
 	l.addSpecial(
@@ -480,10 +589,17 @@ func genARM64(g *gen) {
 		8)
 	// TODO: FPCR? I don't think we'll change it, so no need to save.
 	// Add floating point registers F0-F31.
-	for i := 0; i < 31; i += 2 {
-		reg := fmt.Sprintf("(F%d, F%d)", i, i+1)
-		l.add2("FSTPD", "FLDPD", reg, 16)
+	lVRegs := layout{sp: vReg} // Non-GP registers
+	for i := 0; i < 31; i += 4 {
+		regs := []regInfo{
+			{name: fmt.Sprintf("V%d", i), suffix: ".B16", size: 16, pos: 64},
+			{name: fmt.Sprintf("V%d", i+1), suffix: ".B16", size: 16, pos: 64},
+			{name: fmt.Sprintf("V%d", i+2), suffix: ".B16", size: 16, pos: 64},
+			{name: fmt.Sprintf("V%d", i+3), suffix: ".B16", size: 16, pos: 64},
+		}
+		lVRegs.add2("VST1.P", "VLD1.P", regs, [2]string{"[", "]"}, true)
 	}
+	writeXRegs(g.goarch, &lVRegs)
 	if l.stack%16 != 0 {
 		l.stack += 8 // SP needs 16-byte alignment
 	}
@@ -500,8 +616,20 @@ func genARM64(g *gen) {
 	p("MOVD R30, (RSP)")
 	p("#endif")
 
+	p("// Save GPs")
 	l.save(g)
+	p("// Save extended register state to p.xRegs.scratch")
+	p("MOVD g_m(g), %s", vReg)
+	p("MOVD m_p(%s), %s", vReg, vReg)
+	p("ADD $(p_xRegs+xRegPerP_scratch), %s, %s", vReg, vReg)
+	lVRegs.save(g)
 	p("CALL ·asyncPreempt2(SB)")
+	p("// Restore non-GPs from *p.xRegs.cache")
+	p("MOVD g_m(g), %s", vReg)
+	p("MOVD m_p(%s), %s", vReg, vReg)
+	p("MOVD (p_xRegs+xRegPerP_cache)(%s), %s", vReg, vReg)
+	lVRegs.restoreDirect(g)
+	p("// Restore GPs")
 	l.restore(g)
 
 	p("MOVD %d(RSP), R30", l.stack) // sigctxt.pushCall has pushed LR (at interrupt) on stack, restore it

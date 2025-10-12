@@ -735,9 +735,10 @@ func (f *File) ImportedSymbols() ([]string, error) {
 		const (
 			N_TYPE = 0x0e
 			N_UNDF = 0x0
+			N_EXT  = 0x01
 		)
 		for _, s := range st.Syms {
-			if s.Type&N_TYPE == N_UNDF && s.Sect == 0 {
+			if s.Type&N_TYPE == N_UNDF && s.Type&N_EXT != 0 {
 				all = append(all, s.Name)
 			}
 		}

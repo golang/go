@@ -117,10 +117,6 @@ func TestCPUProfileMultithreadMagnitude(t *testing.T) {
 		t.Skip("issue 35057 is only confirmed on Linux")
 	}
 
-	// Linux [5.9,5.16) has a kernel bug that can break CPU timers on newly
-	// created threads, breaking our CPU accounting.
-	major, minor := unix.KernelVersion()
-	t.Logf("Running on Linux %d.%d", major, minor)
 	defer func() {
 		if t.Failed() {
 			t.Logf("Failure of this test may indicate that your system suffers from a known Linux kernel bug fixed on newer kernels. See https://golang.org/issue/49065.")
@@ -131,9 +127,9 @@ func TestCPUProfileMultithreadMagnitude(t *testing.T) {
 	// it enabled to potentially warn users that they are on a broken
 	// kernel.
 	if testenv.Builder() != "" && (runtime.GOARCH == "386" || runtime.GOARCH == "amd64") {
-		have59 := major > 5 || (major == 5 && minor >= 9)
-		have516 := major > 5 || (major == 5 && minor >= 16)
-		if have59 && !have516 {
+		// Linux [5.9,5.16) has a kernel bug that can break CPU timers on newly
+		// created threads, breaking our CPU accounting.
+		if unix.KernelVersionGE(5, 9) && !unix.KernelVersionGE(5, 16) {
 			testenv.SkipFlaky(t, 49065)
 		}
 	}
@@ -348,6 +344,11 @@ func (h inlineWrapper) dump(pcs []uintptr) {
 
 func inlinedWrapperCallerDump(pcs []uintptr) {
 	var h inlineWrapperInterface
+
+	// Take the address of h, such that h.dump() call (below)
+	// does not get devirtualized by the compiler.
+	_ = &h
+
 	h = &inlineWrapper{}
 	h.dump(pcs)
 }
@@ -2584,7 +2585,7 @@ func TestProfilerStackDepth(t *testing.T) {
 					t.Errorf("want stack depth = %d, got %d", depth, len(stk))
 				}
 
-				if rootFn, wantFn := stk[depth-1], "runtime/pprof.produceProfileEvents"; rootFn != wantFn {
+				if rootFn, wantFn := stk[depth-1], "runtime/pprof.allocDeep"; rootFn != wantFn {
 					t.Errorf("want stack stack root %s, got %v", wantFn, rootFn)
 				}
 			}
@@ -2659,7 +2660,7 @@ func goroutineDeep(t *testing.T, n int) {
 // guaranteed to have exactly the desired depth with produceProfileEvents as
 // their root frame which is expected by TestProfilerStackDepth.
 func produceProfileEvents(t *testing.T, depth int) {
-	allocDeep(depth - 1)       // -1 for produceProfileEvents, **
+	allocDeep(depth + 1)       // +1 for produceProfileEvents, **
 	blockChanDeep(t, depth-2)  // -2 for produceProfileEvents, **, chanrecv1
 	blockMutexDeep(t, depth-2) // -2 for produceProfileEvents, **, Unlock
 	memSink = nil

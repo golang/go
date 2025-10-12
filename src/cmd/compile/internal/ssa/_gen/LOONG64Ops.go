@@ -143,6 +143,7 @@ func init() {
 		gp2load   = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{gp}}
 		gpstore   = regInfo{inputs: []regMask{gpspsbg, gpg}}
 		gpstore2  = regInfo{inputs: []regMask{gpspsbg, gpg, gpg | rz}}
+		gpoldatom = regInfo{inputs: []regMask{gpspsbg, gpg}}
 		gpxchg    = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{gp}}
 		gpcas     = regInfo{inputs: []regMask{gpspsbg, gpg, gpg}, outputs: []regMask{gp}}
 		preldreg  = regInfo{inputs: []regMask{gpspg}}
@@ -189,10 +190,11 @@ func init() {
 		{name: "VPCNT16", argLength: 1, reg: fp11, asm: "VPCNTH"}, // count set bits for each 16-bit unit and store the result in each 16-bit unit
 
 		// binary ops
-		{name: "ADDV", argLength: 2, reg: gp21, asm: "ADDVU", commutative: true},   // arg0 + arg1
-		{name: "ADDVconst", argLength: 1, reg: gp11sp, asm: "ADDVU", aux: "Int64"}, // arg0 + auxInt. auxInt is 32-bit, also in other *const ops.
-		{name: "SUBV", argLength: 2, reg: gp21, asm: "SUBVU"},                      // arg0 - arg1
-		{name: "SUBVconst", argLength: 1, reg: gp11, asm: "SUBVU", aux: "Int64"},   // arg0 - auxInt
+		{name: "ADDV", argLength: 2, reg: gp21, asm: "ADDVU", commutative: true},      // arg0 + arg1
+		{name: "ADDVconst", argLength: 1, reg: gp11sp, asm: "ADDVU", aux: "Int64"},    // arg0 + auxInt. auxInt is 32-bit, also in other *const ops.
+		{name: "ADDV16const", argLength: 1, reg: gp11sp, asm: "ADDV16", aux: "Int64"}, // arg0 + auxInt. auxInt is signed 32-bit and is a multiple of 65536, also in other *const ops.
+		{name: "SUBV", argLength: 2, reg: gp21, asm: "SUBVU"},                         // arg0 - arg1
+		{name: "SUBVconst", argLength: 1, reg: gp11, asm: "SUBVU", aux: "Int64"},      // arg0 - auxInt
 
 		{name: "MULV", argLength: 2, reg: gp21, asm: "MULV", commutative: true, typ: "Int64"},      // arg0 * arg1
 		{name: "MULHV", argLength: 2, reg: gp21, asm: "MULHV", commutative: true, typ: "Int64"},    // (arg0 * arg1) >> 64, signed
@@ -246,7 +248,7 @@ func init() {
 		{name: "SLL", argLength: 2, reg: gp21, asm: "SLL"},                        // arg0 << arg1, shift amount is mod 32
 		{name: "SLLV", argLength: 2, reg: gp21, asm: "SLLV"},                      // arg0 << arg1, shift amount is mod 64
 		{name: "SLLconst", argLength: 1, reg: gp11, asm: "SLL", aux: "Int64"},     // arg0 << auxInt, auxInt should be in the range 0 to 31.
-		{name: "SLLVconst", argLength: 1, reg: gp11, asm: "SLLV", aux: "Int64"},   // arg0 << auxInt
+		{name: "SLLVconst", argLength: 1, reg: gp11, asm: "SLLV", aux: "Int64"},   // arg0 << auxInt, auxInt should be in the range 0 to 63.
 		{name: "SRL", argLength: 2, reg: gp21, asm: "SRL"},                        // arg0 >> arg1, shift amount is mod 32
 		{name: "SRLV", argLength: 2, reg: gp21, asm: "SRLV"},                      // arg0 >> arg1, unsigned, shift amount is mod 64
 		{name: "SRLconst", argLength: 1, reg: gp11, asm: "SRL", aux: "Int64"},     // arg0 >> auxInt, auxInt should be in the range 0 to 31.
@@ -360,24 +362,6 @@ func init() {
 		{name: "CALLclosure", argLength: -1, reg: regInfo{inputs: []regMask{gpsp, buildReg("R29"), 0}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, last arg=mem, auxint=argsize, returns mem
 		{name: "CALLinter", argLength: -1, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                         // call fn by pointer.  arg0=codeptr, last arg=mem, auxint=argsize, returns mem
 
-		// duffzero
-		// arg0 = address of memory to zero
-		// arg1 = mem
-		// auxint = offset into duffzero code to start executing
-		// returns mem
-		// R20 aka loong64.REGRT1 changed as side effect
-		{
-			name:      "DUFFZERO",
-			aux:       "Int64",
-			argLength: 2,
-			reg: regInfo{
-				inputs:   []regMask{buildReg("R20")},
-				clobbers: buildReg("R20 R1"),
-			},
-			typ:            "Mem",
-			faultOnNilArg0: true,
-		},
-
 		// medium zeroing
 		// arg0 = address of memory to zero
 		// arg1 = mem
@@ -391,25 +375,6 @@ func init() {
 				inputs: []regMask{gp},
 			},
 			faultOnNilArg0: true,
-		},
-
-		// duffcopy
-		// arg0 = address of dst memory (in R21, changed as side effect)
-		// arg1 = address of src memory (in R20, changed as side effect)
-		// arg2 = mem
-		// auxint = offset into duffcopy code to start executing
-		// returns mem
-		{
-			name:      "DUFFCOPY",
-			aux:       "Int64",
-			argLength: 3,
-			reg: regInfo{
-				inputs:   []regMask{buildReg("R21"), buildReg("R20")},
-				clobbers: buildReg("R20 R21 R1"),
-			},
-			typ:            "Mem",
-			faultOnNilArg0: true,
-			faultOnNilArg1: true,
 		},
 
 		// large zeroing
@@ -466,6 +431,12 @@ func init() {
 			faultOnNilArg0: true,
 			faultOnNilArg1: true,
 		},
+
+		// Atomic operations.
+		//
+		// resultNotInArgs is needed by all ops lowering to LoongArch
+		// atomic memory access instructions, because these instructions
+		// are defined to require rd != rj && rd != rk per the ISA spec.
 
 		// atomic loads.
 		// load from arg0. arg1=mem.
@@ -536,8 +507,8 @@ func init() {
 
 		// Atomic 32 bit AND/OR.
 		// *arg0 &= (|=) arg1. arg2=mem. returns nil.
-		{name: "LoweredAtomicAnd32", argLength: 3, reg: gpxchg, asm: "AMANDDBW", resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
-		{name: "LoweredAtomicOr32", argLength: 3, reg: gpxchg, asm: "AMORDBW", resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicAnd32", argLength: 3, reg: gpoldatom, asm: "AMANDDBW", resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicOr32", argLength: 3, reg: gpoldatom, asm: "AMORDBW", resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
 
 		// Atomic 32,64 bit AND/OR.
 		// *arg0 &= (|=) arg1. arg2=mem. returns <old content of *arg0, memory>. auxint must be zero.
@@ -613,6 +584,12 @@ func init() {
 		{name: "BLT", controls: 2},  // controls[0] < controls[1]
 		{name: "BGEU", controls: 2}, // controls[0] >= controls[1], unsigned
 		{name: "BLTU", controls: 2}, // controls[0] < controls[1], unsigned
+
+		// JUMPTABLE implements jump tables.
+		// Aux is the symbol (an *obj.LSym) for the jump table.
+		// control[0] is the index into the jump table.
+		// control[1] is the address of the jump table (the address of the symbol stored in Aux).
+		{name: "JUMPTABLE", controls: 2, aux: "Sym"},
 	}
 
 	archs = append(archs, arch{

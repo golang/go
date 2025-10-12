@@ -50,22 +50,22 @@ lsx_chacha8:
 
 	// load contants
 	VMOVQ	(R10), V0.W4
-	VMOVQ	1(R10), V1.W4
-	VMOVQ	2(R10), V2.W4
-	VMOVQ	3(R10), V3.W4
+	VMOVQ	4(R10), V1.W4
+	VMOVQ	8(R10), V2.W4
+	VMOVQ	12(R10), V3.W4
 
 	// load 4-32bit data from incRotMatrix added to counter
 	VMOVQ	(R11), V30
 
 	// load seed
 	VMOVQ	(R4), V4.W4
-	VMOVQ	1(R4), V5.W4
-	VMOVQ	2(R4), V6.W4
-	VMOVQ	3(R4), V7.W4
-	VMOVQ	4(R4), V8.W4
-	VMOVQ	5(R4), V9.W4
-	VMOVQ	6(R4), V10.W4
-	VMOVQ	7(R4), V11.W4
+	VMOVQ	4(R4), V5.W4
+	VMOVQ	8(R4), V6.W4
+	VMOVQ	12(R4), V7.W4
+	VMOVQ	16(R4), V8.W4
+	VMOVQ	20(R4), V9.W4
+	VMOVQ	24(R4), V10.W4
+	VMOVQ	28(R4), V11.W4
 
 	// load counter and update counter
 	VMOVQ	R6, V12.W4

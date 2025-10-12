@@ -53,7 +53,7 @@ func readVendorList(vendorDir string) {
 		}
 
 		var mod module.Version
-		for _, line := range strings.Split(string(data), "\n") {
+		for line := range strings.SplitSeq(string(data), "\n") {
 			if strings.HasPrefix(line, "# ") {
 				f := strings.Fields(line)
 
@@ -103,7 +103,7 @@ func readVendorList(vendorDir string) {
 			if annotations, ok := strings.CutPrefix(line, "## "); ok {
 				// Metadata. Take the union of annotations across multiple lines, if present.
 				meta := vendorMeta[mod]
-				for _, entry := range strings.Split(annotations, ";") {
+				for entry := range strings.SplitSeq(annotations, ";") {
 					entry = strings.TrimSpace(entry)
 					if entry == "explicit" {
 						meta.Explicit = true
@@ -236,8 +236,8 @@ func checkVendorConsistency(indexes []*modFileIndex, modFiles []*modfile.File, m
 	for _, modFile := range modFiles {
 		checkReplace(modFile.Replace)
 	}
-	if MainModules.workFile != nil {
-		checkReplace(MainModules.workFile.Replace)
+	if LoaderState.MainModules.workFile != nil {
+		checkReplace(LoaderState.MainModules.workFile.Replace)
 	}
 
 	for _, mod := range vendorList {

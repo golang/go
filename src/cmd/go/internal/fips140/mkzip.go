@@ -27,10 +27,10 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"golang.org/x/mod/module"
+	"golang.org/x/mod/semver"
 	modzip "golang.org/x/mod/zip"
 )
 
@@ -61,7 +61,7 @@ func main() {
 
 	// Must have valid version, and must not overwrite existing file.
 	version := flag.Arg(0)
-	if !regexp.MustCompile(`^v\d+\.\d+\.\d+$`).MatchString(version) {
+	if semver.Canonical(version) != version {
 		log.Fatalf("invalid version %q; must be vX.Y.Z", version)
 	}
 	if _, err := os.Stat(version + ".zip"); err == nil {
@@ -117,7 +117,9 @@ func main() {
 			if !bytes.Contains(contents, []byte(returnLine)) {
 				log.Fatalf("did not find %q in fips140.go", returnLine)
 			}
-			newLine := `return "` + version + `"`
+			// Use only the vX.Y.Z part of a possible vX.Y.Z-hash version.
+			v, _, _ := strings.Cut(version, "-")
+			newLine := `return "` + v + `"`
 			contents = bytes.ReplaceAll(contents, []byte(returnLine), []byte(newLine))
 			wf, err := zw.Create(f.Name)
 			if err != nil {

@@ -1,0 +1,16 @@
+# Issue #75251: Don't panic if the package path or the package version
+# contains invalid UTF-8 characters.
+
+go mod init m
+
+! go get golang.org/x/net/http/httpgutsÿv0.43.0 # contains 0xff byte
+! stderr panic
+stderr 'malformed module path'
+
+! go get golang.org/x/net/http/httpgutsÿ@v0.43.0 # contains 0xff byte
+! stderr panic
+stderr 'malformed module path'
+
+! go get golang.org/x/net/http/httpguts@ÿv0.43.0 # contains 0xff byte
+! stderr panic
+stderr 'disallowed version string'

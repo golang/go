@@ -1407,16 +1407,6 @@ TEXT runtime·uint32tofloat64(SB),NOSPLIT,$8-12
 	FMOVDP	F0, ret+4(FP)
 	RET
 
-TEXT runtime·float64touint32(SB),NOSPLIT,$12-12
-	FMOVD	a+0(FP), F0
-	FSTCW	0(SP)
-	FLDCW	runtime·controlWord64trunc(SB)
-	FMOVVP	F0, 4(SP)
-	FLDCW	0(SP)
-	MOVL	4(SP), AX
-	MOVL	AX, ret+8(FP)
-	RET
-
 // gcWriteBarrier informs the GC about heap pointer writes.
 //
 // gcWriteBarrier returns space in a write barrier buffer which

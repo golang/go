@@ -139,7 +139,6 @@ func _() {
 	unsafe.Sizeof(t)       // ERROR "unsafe.Sizeof\(t\) .* not used"
 	_ = int                // ERROR "type int is not an expression|not an expression"
 	(x)                    // ERROR "x .* not used|not used"
-	_ = new(x2)            // ERROR "x2 is not a type|not a type"
-	// Disabled due to issue #43125.
-	// _ = new(1 + 1)         // DISABLED "1 \+ 1 is not a type"
+	_ = new(len)           // ERROR "len.*must be called"
+	_ = new(1 + 1)         // ok
 }

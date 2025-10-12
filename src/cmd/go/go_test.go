@@ -9,7 +9,6 @@ import (
 	"debug/elf"
 	"debug/macho"
 	"debug/pe"
-	"encoding/binary"
 	"flag"
 	"fmt"
 	"go/format"
@@ -2130,38 +2129,6 @@ func testBuildmodePIE(t *testing.T, useCgo, setBuildmodeToPIE bool) {
 		}
 		if (dc & pe.IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE) == 0 {
 			t.Error("IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE flag is not set")
-		}
-		if useCgo {
-			// Test that only one symbol is exported (#40795).
-			// PIE binaries don´t require .edata section but unfortunately
-			// binutils doesn´t generate a .reloc section unless there is
-			// at least one symbol exported.
-			// See https://sourceware.org/bugzilla/show_bug.cgi?id=19011
-			section := f.Section(".edata")
-			if section == nil {
-				t.Skip(".edata section is not present")
-			}
-			// TODO: deduplicate this struct from cmd/link/internal/ld/pe.go
-			type IMAGE_EXPORT_DIRECTORY struct {
-				_                 [2]uint32
-				_                 [2]uint16
-				_                 [2]uint32
-				NumberOfFunctions uint32
-				NumberOfNames     uint32
-				_                 [3]uint32
-			}
-			var e IMAGE_EXPORT_DIRECTORY
-			if err := binary.Read(section.Open(), binary.LittleEndian, &e); err != nil {
-				t.Fatalf("binary.Read failed: %v", err)
-			}
-
-			// Only _cgo_dummy_export should be exported
-			if e.NumberOfFunctions != 1 {
-				t.Fatalf("got %d exported functions; want 1", e.NumberOfFunctions)
-			}
-			if e.NumberOfNames != 1 {
-				t.Fatalf("got %d exported names; want 1", e.NumberOfNames)
-			}
 		}
 	default:
 		// testBuildmodePIE opens object files, so it needs to understand the object

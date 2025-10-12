@@ -120,10 +120,16 @@ func (v Value) pointer() unsafe.Pointer {
 
 // packEface converts v to the empty interface.
 func packEface(v Value) any {
+	return *(*any)(unsafe.Pointer(&abi.EmptyInterface{
+		Type: v.typ(),
+		Data: packEfaceData(v),
+	}))
+}
+
+// packEfaceData is a helper that packs the Data part of an interface,
+// if v were to be stored in an interface.
+func packEfaceData(v Value) unsafe.Pointer {
 	t := v.typ()
-	// Declare e as a struct (and not pointer to struct) to help escape analysis.
-	e := abi.EmptyInterface{}
-	// First, fill in the data portion of the interface.
 	switch {
 	case !t.IsDirectIface():
 		if v.flag&flagIndir == 0 {
@@ -136,24 +142,20 @@ func packEface(v Value) any {
 			typedmemmove(t, c, ptr)
 			ptr = c
 		}
-		e.Data = ptr
+		return ptr
 	case v.flag&flagIndir != 0:
 		// Value is indirect, but interface is direct. We need
 		// to load the data at v.ptr into the interface data word.
-		e.Data = *(*unsafe.Pointer)(v.ptr)
+		return *(*unsafe.Pointer)(v.ptr)
 	default:
 		// Value is direct, and so is the interface.
-		e.Data = v.ptr
+		return v.ptr
 	}
-	// Now, fill in the type portion.
-	e.Type = t
-	return *(*any)(unsafe.Pointer(&e))
 }
 
 // unpackEface converts the empty interface i to a Value.
 func unpackEface(i any) Value {
 	e := (*abi.EmptyInterface)(unsafe.Pointer(&i))
-	// NOTE: don't read e.word until we know whether it is really a pointer or not.
 	t := e.Type
 	if t == nil {
 		return Value{}
@@ -1544,8 +1546,18 @@ func TypeAssert[T any](v Value) (T, bool) {
 	//	TypeAssert[any](ValueOf(1)) == ValueOf(1).Interface().(any)
 	//	TypeAssert[error](ValueOf(&someError{})) == ValueOf(&someError{}).Interface().(error)
 	if typ.Kind() == abi.Interface {
-		v, ok := packEface(v).(T)
-		return v, ok
+		// To avoid allocating memory, in case the type assertion fails,
+		// first do the type assertion with a nil Data pointer.
+		iface := *(*any)(unsafe.Pointer(&abi.EmptyInterface{Type: v.typ(), Data: nil}))
+		if out, ok := iface.(T); ok {
+			// Now populate the Data field properly, we update the Data ptr
+			// directly to avoid an additional type asertion. We can re-use the
+			// itab we already got from the runtime (through the previous type assertion).
+			(*abi.CommonInterface)(unsafe.Pointer(&out)).Data = packEfaceData(v)
+			return out, true
+		}
+		var zero T
+		return zero, false
 	}
 
 	// Both v and T must be concrete types.

@@ -52,7 +52,7 @@ var (
 // the linux-amd64 builder that's already very fast, so we get more
 // test coverage on trybots. See https://go.dev/issue/34297.
 func defaultAllCodeGen() bool {
-	return os.Getenv("GO_BUILDER_NAME") == "linux-amd64"
+	return testenv.Builder() == "gotip-linux-amd64"
 }
 
 var (

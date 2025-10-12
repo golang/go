@@ -29,7 +29,7 @@ import "strings"
 // so that regmask stays within int64
 // Be careful when hand coding regmasks.
 var regNamesMIPS64 = []string{
-	"R0", // constant 0
+	"ZERO", // constant 0
 	"R1",
 	"R2",
 	"R3",
@@ -137,16 +137,17 @@ func init() {
 		hi         = buildReg("HI")
 		callerSave = gp | fp | lo | hi | buildReg("g") // runtime.setg (and anything calling it) may clobber g
 		first16    = buildReg("R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16")
+		rz         = buildReg("ZERO")
 	)
 	// Common regInfo
 	var (
 		gp01     = regInfo{inputs: nil, outputs: []regMask{gp}}
 		gp11     = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp}}
 		gp11sp   = regInfo{inputs: []regMask{gpspg}, outputs: []regMask{gp}}
-		gp21     = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp}}
+		gp21     = regInfo{inputs: []regMask{gpg, gpg | rz}, outputs: []regMask{gp}}
 		gp2hilo  = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{hi, lo}}
 		gpload   = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}
-		gpstore  = regInfo{inputs: []regMask{gpspsbg, gpg}}
+		gpstore  = regInfo{inputs: []regMask{gpspsbg, gpg | rz}}
 		gpstore0 = regInfo{inputs: []regMask{gpspsbg}}
 		gpxchg   = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{gp}}
 		gpcas    = regInfo{inputs: []regMask{gpspsbg, gpg, gpg}, outputs: []regMask{gp}}
@@ -242,10 +243,7 @@ func init() {
 		{name: "MOVFstore", argLength: 3, reg: fpstore, aux: "SymOff", asm: "MOVF", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 4 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
 		{name: "MOVDstore", argLength: 3, reg: fpstore, aux: "SymOff", asm: "MOVD", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 8 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
 
-		{name: "MOVBstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVB", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 1 byte of zero to arg0 + auxInt + aux.  arg1=mem.
-		{name: "MOVHstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVH", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 2 bytes of zero to arg0 + auxInt + aux.  arg1=mem.
-		{name: "MOVWstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVW", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 4 bytes of zero to arg0 + auxInt + aux.  arg1=mem.
-		{name: "MOVVstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVV", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 8 bytes of zero to arg0 + auxInt + aux.  ar12=mem.
+		{name: "ZERO", zeroWidth: true, fixedReg: true},
 
 		// moves (no conversion)
 		{name: "MOVWfpgp", argLength: 1, reg: fpgp, asm: "MOVW"}, // move float32 to int32 (no conversion). MIPS64 will perform sign-extend to 64-bit by default

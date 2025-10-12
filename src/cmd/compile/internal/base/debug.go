@@ -20,6 +20,7 @@ type DebugFlags struct {
 	Append                int    `help:"print information about append compilation"`
 	Checkptr              int    `help:"instrument unsafe pointer conversions\n0: instrumentation disabled\n1: conversions involving unsafe.Pointer are instrumented\n2: conversions to unsafe.Pointer force heap allocation" concurrent:"ok"`
 	Closure               int    `help:"print information about closure compilation"`
+	Converthash           string `help:"hash value for use in debugging changes to platform-dependent float-to-[u]int conversion" concurrent:"ok"`
 	Defer                 int    `help:"print information about defer compilation"`
 	DisableNil            int    `help:"disable nil checks" concurrent:"ok"`
 	DumpInlFuncProps      string `help:"dump function properties from inl heuristics to specified file"`

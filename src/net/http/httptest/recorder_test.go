@@ -5,6 +5,7 @@
 package httptest
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -306,6 +307,21 @@ func TestRecorder(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestBodyNotAllowed(t *testing.T) {
+	rw := NewRecorder()
+	rw.WriteHeader(204)
+
+	_, err := rw.Write([]byte("hello world"))
+	if !errors.Is(err, http.ErrBodyNotAllowed) {
+		t.Errorf("expected BodyNotAllowed for Write after 204, got: %v", err)
+	}
+
+	_, err = rw.WriteString("hello world")
+	if !errors.Is(err, http.ErrBodyNotAllowed) {
+		t.Errorf("expected BodyNotAllowed for WriteString after 204, got: %v", err)
 	}
 }
 

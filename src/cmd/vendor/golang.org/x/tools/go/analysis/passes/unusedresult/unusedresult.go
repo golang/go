@@ -188,7 +188,7 @@ func (ss *stringSetFlag) String() string {
 func (ss *stringSetFlag) Set(s string) error {
 	m := make(map[string]bool) // clobber previous value
 	if s != "" {
-		for _, name := range strings.Split(s, ",") {
+		for name := range strings.SplitSeq(s, ",") {
 			if name == "" {
 				continue // TODO: report error? proceed?
 			}

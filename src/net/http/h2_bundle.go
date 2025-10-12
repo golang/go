@@ -13,10 +13,6 @@
 //
 // See https://http2.github.io/ for more information on HTTP/2.
 //
-// Copyright 2024 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-//
 
 package http
 
@@ -1051,6 +1047,7 @@ func http2shouldRetryDial(call *http2dialCall, req *Request) bool {
 //   - If the resulting value is zero or out of range, use a default.
 type http2http2Config struct {
 	MaxConcurrentStreams         uint32
+	StrictMaxConcurrentRequests  bool
 	MaxDecoderHeaderTableSize    uint32
 	MaxEncoderHeaderTableSize    uint32
 	MaxReadFrameSize             uint32
@@ -1079,7 +1076,7 @@ func http2configFromServer(h1 *Server, h2 *http2Server) http2http2Config {
 		PermitProhibitedCipherSuites: h2.PermitProhibitedCipherSuites,
 		CountError:                   h2.CountError,
 	}
-	http2fillNetHTTPServerConfig(&conf, h1)
+	http2fillNetHTTPConfig(&conf, h1.HTTP2)
 	http2setConfigDefaults(&conf, true)
 	return conf
 }
@@ -1088,12 +1085,13 @@ func http2configFromServer(h1 *Server, h2 *http2Server) http2http2Config {
 // (the net/http Transport).
 func http2configFromTransport(h2 *http2Transport) http2http2Config {
 	conf := http2http2Config{
-		MaxEncoderHeaderTableSize: h2.MaxEncoderHeaderTableSize,
-		MaxDecoderHeaderTableSize: h2.MaxDecoderHeaderTableSize,
-		MaxReadFrameSize:          h2.MaxReadFrameSize,
-		SendPingTimeout:           h2.ReadIdleTimeout,
-		PingTimeout:               h2.PingTimeout,
-		WriteByteTimeout:          h2.WriteByteTimeout,
+		StrictMaxConcurrentRequests: h2.StrictMaxConcurrentStreams,
+		MaxEncoderHeaderTableSize:   h2.MaxEncoderHeaderTableSize,
+		MaxDecoderHeaderTableSize:   h2.MaxDecoderHeaderTableSize,
+		MaxReadFrameSize:            h2.MaxReadFrameSize,
+		SendPingTimeout:             h2.ReadIdleTimeout,
+		PingTimeout:                 h2.PingTimeout,
+		WriteByteTimeout:            h2.WriteByteTimeout,
 	}
 
 	// Unlike most config fields, where out-of-range values revert to the default,
@@ -1105,7 +1103,7 @@ func http2configFromTransport(h2 *http2Transport) http2http2Config {
 	}
 
 	if h2.t1 != nil {
-		http2fillNetHTTPTransportConfig(&conf, h2.t1)
+		http2fillNetHTTPConfig(&conf, h2.t1.HTTP2)
 	}
 	http2setConfigDefaults(&conf, false)
 	return conf
@@ -1145,22 +1143,15 @@ func http2adjustHTTP1MaxHeaderSize(n int64) int64 {
 	return n + typicalHeaders*perFieldOverhead
 }
 
-// fillNetHTTPServerConfig sets fields in conf from srv.HTTP2.
-func http2fillNetHTTPServerConfig(conf *http2http2Config, srv *Server) {
-	http2fillNetHTTPConfig(conf, srv.HTTP2)
-}
-
-// fillNetHTTPTransportConfig sets fields in conf from tr.HTTP2.
-func http2fillNetHTTPTransportConfig(conf *http2http2Config, tr *Transport) {
-	http2fillNetHTTPConfig(conf, tr.HTTP2)
-}
-
 func http2fillNetHTTPConfig(conf *http2http2Config, h2 *HTTP2Config) {
 	if h2 == nil {
 		return
 	}
 	if h2.MaxConcurrentStreams != 0 {
 		conf.MaxConcurrentStreams = uint32(h2.MaxConcurrentStreams)
+	}
+	if http2http2ConfigStrictMaxConcurrentRequests(h2) {
+		conf.StrictMaxConcurrentRequests = true
 	}
 	if h2.MaxEncoderHeaderTableSize != 0 {
 		conf.MaxEncoderHeaderTableSize = uint32(h2.MaxEncoderHeaderTableSize)
@@ -1195,6 +1186,10 @@ func http2fillNetHTTPConfig(conf *http2http2Config, h2 *HTTP2Config) {
 	if h2.CountError != nil {
 		conf.CountError = h2.CountError
 	}
+}
+
+func http2http2ConfigStrictMaxConcurrentRequests(h2 *HTTP2Config) bool {
+	return h2.StrictMaxConcurrentRequests
 }
 
 // Buffer chunks are allocated from a pool to reduce pressure on GC.
@@ -1914,7 +1909,7 @@ func (fr *http2Framer) maxHeaderListSize() uint32 {
 func (f *http2Framer) startWrite(ftype http2FrameType, flags http2Flags, streamID uint32) {
 	// Write the FrameHeader.
 	f.wbuf = append(f.wbuf[:0],
-		0, // 3 bytes of length, filled in in endWrite
+		0, // 3 bytes of length, filled in endWrite
 		0,
 		0,
 		byte(ftype),
@@ -2722,6 +2717,15 @@ type http2PriorityFrame struct {
 	http2PriorityParam
 }
 
+var http2defaultRFC9218Priority = http2PriorityParam{
+	incremental: 0,
+	urgency:     3,
+}
+
+// Note that HTTP/2 has had two different prioritization schemes, and
+// PriorityParam struct below is a superset of both schemes. The exported
+// symbols are from RFC 7540 and the non-exported ones are from RFC 9218.
+
 // PriorityParam are the stream prioritzation parameters.
 type http2PriorityParam struct {
 	// StreamDep is a 31-bit stream identifier for the
@@ -2737,6 +2741,20 @@ type http2PriorityParam struct {
 	// the spec, "Add one to the value to obtain a weight between
 	// 1 and 256."
 	Weight uint8
+
+	// "The urgency (u) parameter value is Integer (see Section 3.3.1 of
+	// [STRUCTURED-FIELDS]), between 0 and 7 inclusive, in descending order of
+	// priority. The default is 3."
+	urgency uint8
+
+	// "The incremental (i) parameter value is Boolean (see Section 3.3.6 of
+	// [STRUCTURED-FIELDS]). It indicates if an HTTP response can be processed
+	// incrementally, i.e., provide some meaningful output as chunks of the
+	// response arrive."
+	//
+	// We use uint8 (i.e. 0 is false, 1 is true) instead of bool so we can
+	// avoid unnecessary type conversions and because either type takes 1 byte.
+	incremental uint8
 }
 
 func (p http2PriorityParam) IsZero() bool {
@@ -3273,17 +3291,27 @@ func http2summarizeFrame(f http2Frame) string {
 
 var http2DebugGoroutines = os.Getenv("DEBUG_HTTP2_GOROUTINES") == "1"
 
+// Setting DebugGoroutines to false during a test to disable goroutine debugging
+// results in race detector complaints when a test leaves goroutines running before
+// returning. Tests shouldn't do this, of course, but when they do it generally shows
+// up as infrequent, hard-to-debug flakes. (See #66519.)
+//
+// Disable goroutine debugging during individual tests with an atomic bool.
+// (Note that it's safe to enable/disable debugging mid-test, so the actual race condition
+// here is harmless.)
+var http2disableDebugGoroutines atomic.Bool
+
 type http2goroutineLock uint64
 
 func http2newGoroutineLock() http2goroutineLock {
-	if !http2DebugGoroutines {
+	if !http2DebugGoroutines || http2disableDebugGoroutines.Load() {
 		return 0
 	}
 	return http2goroutineLock(http2curGoroutineID())
 }
 
 func (g http2goroutineLock) check() {
-	if !http2DebugGoroutines {
+	if !http2DebugGoroutines || http2disableDebugGoroutines.Load() {
 		return
 	}
 	if http2curGoroutineID() != uint64(g) {
@@ -3292,7 +3320,7 @@ func (g http2goroutineLock) check() {
 }
 
 func (g http2goroutineLock) checkNotOn() {
-	if !http2DebugGoroutines {
+	if !http2DebugGoroutines || http2disableDebugGoroutines.Load() {
 		return
 	}
 	if http2curGoroutineID() == uint64(g) {
@@ -3427,7 +3455,6 @@ var (
 	http2VerboseLogs    bool
 	http2logFrameWrites bool
 	http2logFrameReads  bool
-	http2inTests        bool
 
 	// Enabling extended CONNECT by causes browsers to attempt to use
 	// WebSockets-over-HTTP/2. This results in problems when the server's websocket
@@ -3647,15 +3674,13 @@ func (cw http2closeWaiter) Wait() {
 // idle memory usage with many connections.
 type http2bufferedWriter struct {
 	_           http2incomparable
-	group       http2synctestGroupInterface // immutable
-	conn        net.Conn                    // immutable
-	bw          *bufio.Writer               // non-nil when data is buffered
-	byteTimeout time.Duration               // immutable, WriteByteTimeout
+	conn        net.Conn      // immutable
+	bw          *bufio.Writer // non-nil when data is buffered
+	byteTimeout time.Duration // immutable, WriteByteTimeout
 }
 
-func http2newBufferedWriter(group http2synctestGroupInterface, conn net.Conn, timeout time.Duration) *http2bufferedWriter {
+func http2newBufferedWriter(conn net.Conn, timeout time.Duration) *http2bufferedWriter {
 	return &http2bufferedWriter{
-		group:       group,
 		conn:        conn,
 		byteTimeout: timeout,
 	}
@@ -3706,24 +3731,18 @@ func (w *http2bufferedWriter) Flush() error {
 type http2bufferedWriterTimeoutWriter http2bufferedWriter
 
 func (w *http2bufferedWriterTimeoutWriter) Write(p []byte) (n int, err error) {
-	return http2writeWithByteTimeout(w.group, w.conn, w.byteTimeout, p)
+	return http2writeWithByteTimeout(w.conn, w.byteTimeout, p)
 }
 
 // writeWithByteTimeout writes to conn.
 // If more than timeout passes without any bytes being written to the connection,
 // the write fails.
-func http2writeWithByteTimeout(group http2synctestGroupInterface, conn net.Conn, timeout time.Duration, p []byte) (n int, err error) {
+func http2writeWithByteTimeout(conn net.Conn, timeout time.Duration, p []byte) (n int, err error) {
 	if timeout <= 0 {
 		return conn.Write(p)
 	}
 	for {
-		var now time.Time
-		if group == nil {
-			now = time.Now()
-		} else {
-			now = group.Now()
-		}
-		conn.SetWriteDeadline(now.Add(timeout))
+		conn.SetWriteDeadline(time.Now().Add(timeout))
 		nn, err := conn.Write(p[n:])
 		n += nn
 		if n == len(p) || nn == 0 || !errors.Is(err, os.ErrDeadlineExceeded) {
@@ -3813,17 +3832,6 @@ func (s *http2sorter) SortStrings(ss []string) {
 // makes that struct also non-comparable, and generally doesn't add
 // any size (as long as it's first).
 type http2incomparable [0]func()
-
-// synctestGroupInterface is the methods of synctestGroup used by Server and Transport.
-// It's defined as an interface here to let us keep synctestGroup entirely test-only
-// and not a part of non-test builds.
-type http2synctestGroupInterface interface {
-	Join()
-	Now() time.Time
-	NewTimer(d time.Duration) http2timer
-	AfterFunc(d time.Duration, f func()) http2timer
-	ContextWithTimeout(ctx context.Context, d time.Duration) (context.Context, context.CancelFunc)
-}
 
 // pipe is a goroutine-safe io.Reader/io.Writer pair. It's like
 // io.Pipe except there are no PipeReader/PipeWriter halves, and the
@@ -4121,44 +4129,15 @@ type http2Server struct {
 	// so that we don't embed a Mutex in this struct, which will make the
 	// struct non-copyable, which might break some callers.
 	state *http2serverInternalState
-
-	// Synchronization group used for testing.
-	// Outside of tests, this is nil.
-	group http2synctestGroupInterface
-}
-
-func (s *http2Server) markNewGoroutine() {
-	if s.group != nil {
-		s.group.Join()
-	}
-}
-
-func (s *http2Server) now() time.Time {
-	if s.group != nil {
-		return s.group.Now()
-	}
-	return time.Now()
-}
-
-// newTimer creates a new time.Timer, or a synthetic timer in tests.
-func (s *http2Server) newTimer(d time.Duration) http2timer {
-	if s.group != nil {
-		return s.group.NewTimer(d)
-	}
-	return http2timeTimer{time.NewTimer(d)}
-}
-
-// afterFunc creates a new time.AfterFunc timer, or a synthetic timer in tests.
-func (s *http2Server) afterFunc(d time.Duration, f func()) http2timer {
-	if s.group != nil {
-		return s.group.AfterFunc(d, f)
-	}
-	return http2timeTimer{time.AfterFunc(d, f)}
 }
 
 type http2serverInternalState struct {
 	mu          sync.Mutex
 	activeConns map[*http2serverConn]struct{}
+
+	// Pool of error channels. This is per-Server rather than global
+	// because channels can't be reused across synctest bubbles.
+	errChanPool sync.Pool
 }
 
 func (s *http2serverInternalState) registerConn(sc *http2serverConn) {
@@ -4190,6 +4169,27 @@ func (s *http2serverInternalState) startGracefulShutdown() {
 	s.mu.Unlock()
 }
 
+// Global error channel pool used for uninitialized Servers.
+// We use a per-Server pool when possible to avoid using channels across synctest bubbles.
+var http2errChanPool = sync.Pool{
+	New: func() any { return make(chan error, 1) },
+}
+
+func (s *http2serverInternalState) getErrChan() chan error {
+	if s == nil {
+		return http2errChanPool.Get().(chan error) // Server used without calling ConfigureServer
+	}
+	return s.errChanPool.Get().(chan error)
+}
+
+func (s *http2serverInternalState) putErrChan(ch chan error) {
+	if s == nil {
+		http2errChanPool.Put(ch) // Server used without calling ConfigureServer
+		return
+	}
+	s.errChanPool.Put(ch)
+}
+
 // ConfigureServer adds HTTP/2 support to a net/http Server.
 //
 // The configuration conf may be nil.
@@ -4202,7 +4202,10 @@ func http2ConfigureServer(s *Server, conf *http2Server) error {
 	if conf == nil {
 		conf = new(http2Server)
 	}
-	conf.state = &http2serverInternalState{activeConns: make(map[*http2serverConn]struct{})}
+	conf.state = &http2serverInternalState{
+		activeConns: make(map[*http2serverConn]struct{}),
+		errChanPool: sync.Pool{New: func() any { return make(chan error, 1) }},
+	}
 	if h1, h2 := s, conf; h2.IdleTimeout == 0 {
 		if h1.IdleTimeout != 0 {
 			h2.IdleTimeout = h1.IdleTimeout
@@ -4368,6 +4371,9 @@ func (o *http2ServeConnOpts) handler() Handler {
 //
 // The opts parameter is optional. If nil, default values are used.
 func (s *http2Server) ServeConn(c net.Conn, opts *http2ServeConnOpts) {
+	if opts == nil {
+		opts = &http2ServeConnOpts{}
+	}
 	s.serveConn(c, opts, nil)
 }
 
@@ -4383,7 +4389,7 @@ func (s *http2Server) serveConn(c net.Conn, opts *http2ServeConnOpts, newf func(
 		conn:                        c,
 		baseCtx:                     baseCtx,
 		remoteAddrStr:               c.RemoteAddr().String(),
-		bw:                          http2newBufferedWriter(s.group, c, conf.WriteByteTimeout),
+		bw:                          http2newBufferedWriter(c, conf.WriteByteTimeout),
 		handler:                     opts.handler(),
 		streams:                     make(map[uint32]*http2stream),
 		readFrameCh:                 make(chan http2readFrameResult),
@@ -4583,11 +4589,11 @@ type http2serverConn struct {
 	pingSent                    bool
 	sentPingData                [8]byte
 	goAwayCode                  http2ErrCode
-	shutdownTimer               http2timer // nil until used
-	idleTimer                   http2timer // nil if unused
+	shutdownTimer               *time.Timer // nil until used
+	idleTimer                   *time.Timer // nil if unused
 	readIdleTimeout             time.Duration
 	pingTimeout                 time.Duration
-	readIdleTimer               http2timer // nil if unused
+	readIdleTimer               *time.Timer // nil if unused
 
 	// Owned by the writeFrameAsync goroutine:
 	headerWriteBuf bytes.Buffer
@@ -4632,12 +4638,12 @@ type http2stream struct {
 	flow             http2outflow // limits writing from Handler to client
 	inflow           http2inflow  // what the client is allowed to POST/etc to us
 	state            http2streamState
-	resetQueued      bool       // RST_STREAM queued for write; set by sc.resetStream
-	gotTrailerHeader bool       // HEADER frame for trailers was seen
-	wroteHeaders     bool       // whether we wrote headers (not status 100)
-	readDeadline     http2timer // nil if unused
-	writeDeadline    http2timer // nil if unused
-	closeErr         error      // set before cw is closed
+	resetQueued      bool        // RST_STREAM queued for write; set by sc.resetStream
+	gotTrailerHeader bool        // HEADER frame for trailers was seen
+	wroteHeaders     bool        // whether we wrote headers (not status 100)
+	readDeadline     *time.Timer // nil if unused
+	writeDeadline    *time.Timer // nil if unused
+	closeErr         error       // set before cw is closed
 
 	trailer    Header // accumulated trailers
 	reqTrailer Header // handler's Request.Trailer
@@ -4796,7 +4802,6 @@ type http2readFrameResult struct {
 // consumer is done with the frame.
 // It's run on its own goroutine.
 func (sc *http2serverConn) readFrames() {
-	sc.srv.markNewGoroutine()
 	gate := make(chan struct{})
 	gateDone := func() { gate <- struct{}{} }
 	for {
@@ -4829,7 +4834,6 @@ type http2frameWriteResult struct {
 // At most one goroutine can be running writeFrameAsync at a time per
 // serverConn.
 func (sc *http2serverConn) writeFrameAsync(wr http2FrameWriteRequest, wd *http2writeData) {
-	sc.srv.markNewGoroutine()
 	var err error
 	if wd == nil {
 		err = wr.write.writeFrame(sc)
@@ -4913,22 +4917,22 @@ func (sc *http2serverConn) serve(conf http2http2Config) {
 	sc.setConnState(StateIdle)
 
 	if sc.srv.IdleTimeout > 0 {
-		sc.idleTimer = sc.srv.afterFunc(sc.srv.IdleTimeout, sc.onIdleTimer)
+		sc.idleTimer = time.AfterFunc(sc.srv.IdleTimeout, sc.onIdleTimer)
 		defer sc.idleTimer.Stop()
 	}
 
 	if conf.SendPingTimeout > 0 {
 		sc.readIdleTimeout = conf.SendPingTimeout
-		sc.readIdleTimer = sc.srv.afterFunc(conf.SendPingTimeout, sc.onReadIdleTimer)
+		sc.readIdleTimer = time.AfterFunc(conf.SendPingTimeout, sc.onReadIdleTimer)
 		defer sc.readIdleTimer.Stop()
 	}
 
 	go sc.readFrames() // closed by defer sc.conn.Close above
 
-	settingsTimer := sc.srv.afterFunc(http2firstSettingsTimeout, sc.onSettingsTimer)
+	settingsTimer := time.AfterFunc(http2firstSettingsTimeout, sc.onSettingsTimer)
 	defer settingsTimer.Stop()
 
-	lastFrameTime := sc.srv.now()
+	lastFrameTime := time.Now()
 	loopNum := 0
 	for {
 		loopNum++
@@ -4942,7 +4946,7 @@ func (sc *http2serverConn) serve(conf http2http2Config) {
 		case res := <-sc.wroteFrameCh:
 			sc.wroteFrame(res)
 		case res := <-sc.readFrameCh:
-			lastFrameTime = sc.srv.now()
+			lastFrameTime = time.Now()
 			// Process any written frames before reading new frames from the client since a
 			// written frame could have triggered a new stream to be started.
 			if sc.writingFrameAsync {
@@ -5025,7 +5029,7 @@ func (sc *http2serverConn) handlePingTimer(lastFrameReadTime time.Time) {
 	}
 
 	pingAt := lastFrameReadTime.Add(sc.readIdleTimeout)
-	now := sc.srv.now()
+	now := time.Now()
 	if pingAt.After(now) {
 		// We received frames since arming the ping timer.
 		// Reset it for the next possible timeout.
@@ -5092,10 +5096,10 @@ func (sc *http2serverConn) readPreface() error {
 			errc <- nil
 		}
 	}()
-	timer := sc.srv.newTimer(http2prefaceTimeout) // TODO: configurable on *Server?
+	timer := time.NewTimer(http2prefaceTimeout) // TODO: configurable on *Server?
 	defer timer.Stop()
 	select {
-	case <-timer.C():
+	case <-timer.C:
 		return http2errPrefaceTimeout
 	case err := <-errc:
 		if err == nil {
@@ -5107,10 +5111,6 @@ func (sc *http2serverConn) readPreface() error {
 	}
 }
 
-var http2errChanPool = sync.Pool{
-	New: func() interface{} { return make(chan error, 1) },
-}
-
 var http2writeDataPool = sync.Pool{
 	New: func() interface{} { return new(http2writeData) },
 }
@@ -5118,7 +5118,7 @@ var http2writeDataPool = sync.Pool{
 // writeDataFromHandler writes DATA response frames from a handler on
 // the given stream.
 func (sc *http2serverConn) writeDataFromHandler(stream *http2stream, data []byte, endStream bool) error {
-	ch := http2errChanPool.Get().(chan error)
+	ch := sc.srv.state.getErrChan()
 	writeArg := http2writeDataPool.Get().(*http2writeData)
 	*writeArg = http2writeData{stream.id, data, endStream}
 	err := sc.writeFrameFromHandler(http2FrameWriteRequest{
@@ -5150,7 +5150,7 @@ func (sc *http2serverConn) writeDataFromHandler(stream *http2stream, data []byte
 			return http2errStreamClosed
 		}
 	}
-	http2errChanPool.Put(ch)
+	sc.srv.state.putErrChan(ch)
 	if frameWriteDone {
 		http2writeDataPool.Put(writeArg)
 	}
@@ -5464,7 +5464,7 @@ func (sc *http2serverConn) goAway(code http2ErrCode) {
 
 func (sc *http2serverConn) shutDownIn(d time.Duration) {
 	sc.serveG.check()
-	sc.shutdownTimer = sc.srv.afterFunc(d, sc.onShutdownTimer)
+	sc.shutdownTimer = time.AfterFunc(d, sc.onShutdownTimer)
 }
 
 func (sc *http2serverConn) resetStream(se http2StreamError) {
@@ -6069,7 +6069,7 @@ func (sc *http2serverConn) processHeaders(f *http2MetaHeadersFrame) error {
 	// (in Go 1.8), though. That's a more sane option anyway.
 	if sc.hs.ReadTimeout > 0 {
 		sc.conn.SetReadDeadline(time.Time{})
-		st.readDeadline = sc.srv.afterFunc(sc.hs.ReadTimeout, st.onReadTimeout)
+		st.readDeadline = time.AfterFunc(sc.hs.ReadTimeout, st.onReadTimeout)
 	}
 
 	return sc.scheduleHandler(id, rw, req, handler)
@@ -6167,7 +6167,7 @@ func (sc *http2serverConn) newStream(id, pusherID uint32, state http2streamState
 	st.flow.add(sc.initialStreamSendWindowSize)
 	st.inflow.init(sc.initialStreamRecvWindowSize)
 	if sc.hs.WriteTimeout > 0 {
-		st.writeDeadline = sc.srv.afterFunc(sc.hs.WriteTimeout, st.onWriteTimeout)
+		st.writeDeadline = time.AfterFunc(sc.hs.WriteTimeout, st.onWriteTimeout)
 	}
 
 	sc.streams[id] = st
@@ -6356,7 +6356,6 @@ func (sc *http2serverConn) handlerDone() {
 
 // Run on its own goroutine.
 func (sc *http2serverConn) runHandler(rw *http2responseWriter, req *Request, handler func(ResponseWriter, *Request)) {
-	sc.srv.markNewGoroutine()
 	defer sc.sendServeMsg(http2handlerDoneMsg)
 	didPanic := true
 	defer func() {
@@ -6405,7 +6404,7 @@ func (sc *http2serverConn) writeHeaders(st *http2stream, headerData *http2writeR
 		// waiting for this frame to be written, so an http.Flush mid-handler
 		// writes out the correct value of keys, before a handler later potentially
 		// mutates it.
-		errc = http2errChanPool.Get().(chan error)
+		errc = sc.srv.state.getErrChan()
 	}
 	if err := sc.writeFrameFromHandler(http2FrameWriteRequest{
 		write:  headerData,
@@ -6417,7 +6416,7 @@ func (sc *http2serverConn) writeHeaders(st *http2stream, headerData *http2writeR
 	if errc != nil {
 		select {
 		case err := <-errc:
-			http2errChanPool.Put(errc)
+			sc.srv.state.putErrChan(errc)
 			return err
 		case <-sc.doneServing:
 			return http2errClientDisconnected
@@ -6524,7 +6523,7 @@ func (b *http2requestBody) Read(p []byte) (n int, err error) {
 	if err == io.EOF {
 		b.sawEOF = true
 	}
-	if b.conn == nil && http2inTests {
+	if b.conn == nil {
 		return
 	}
 	b.conn.noteBodyReadFromHandler(b.stream, n, err)
@@ -6653,7 +6652,7 @@ func (rws *http2responseWriterState) writeChunk(p []byte) (n int, err error) {
 		var date string
 		if _, ok := rws.snapHeader["Date"]; !ok {
 			// TODO(bradfitz): be faster here, like net/http? measure.
-			date = rws.conn.srv.now().UTC().Format(TimeFormat)
+			date = time.Now().UTC().Format(TimeFormat)
 		}
 
 		for _, v := range rws.snapHeader["Trailer"] {
@@ -6775,7 +6774,7 @@ func (rws *http2responseWriterState) promoteUndeclaredTrailers() {
 
 func (w *http2responseWriter) SetReadDeadline(deadline time.Time) error {
 	st := w.rws.stream
-	if !deadline.IsZero() && deadline.Before(w.rws.conn.srv.now()) {
+	if !deadline.IsZero() && deadline.Before(time.Now()) {
 		// If we're setting a deadline in the past, reset the stream immediately
 		// so writes after SetWriteDeadline returns will fail.
 		st.onReadTimeout()
@@ -6791,9 +6790,9 @@ func (w *http2responseWriter) SetReadDeadline(deadline time.Time) error {
 		if deadline.IsZero() {
 			st.readDeadline = nil
 		} else if st.readDeadline == nil {
-			st.readDeadline = sc.srv.afterFunc(deadline.Sub(sc.srv.now()), st.onReadTimeout)
+			st.readDeadline = time.AfterFunc(deadline.Sub(time.Now()), st.onReadTimeout)
 		} else {
-			st.readDeadline.Reset(deadline.Sub(sc.srv.now()))
+			st.readDeadline.Reset(deadline.Sub(time.Now()))
 		}
 	})
 	return nil
@@ -6801,7 +6800,7 @@ func (w *http2responseWriter) SetReadDeadline(deadline time.Time) error {
 
 func (w *http2responseWriter) SetWriteDeadline(deadline time.Time) error {
 	st := w.rws.stream
-	if !deadline.IsZero() && deadline.Before(w.rws.conn.srv.now()) {
+	if !deadline.IsZero() && deadline.Before(time.Now()) {
 		// If we're setting a deadline in the past, reset the stream immediately
 		// so writes after SetWriteDeadline returns will fail.
 		st.onWriteTimeout()
@@ -6817,9 +6816,9 @@ func (w *http2responseWriter) SetWriteDeadline(deadline time.Time) error {
 		if deadline.IsZero() {
 			st.writeDeadline = nil
 		} else if st.writeDeadline == nil {
-			st.writeDeadline = sc.srv.afterFunc(deadline.Sub(sc.srv.now()), st.onWriteTimeout)
+			st.writeDeadline = time.AfterFunc(deadline.Sub(time.Now()), st.onWriteTimeout)
 		} else {
-			st.writeDeadline.Reset(deadline.Sub(sc.srv.now()))
+			st.writeDeadline.Reset(deadline.Sub(time.Now()))
 		}
 	})
 	return nil
@@ -7098,7 +7097,7 @@ func (w *http2responseWriter) Push(target string, opts *PushOptions) error {
 		method: opts.Method,
 		url:    u,
 		header: http2cloneHeader(opts.Header),
-		done:   http2errChanPool.Get().(chan error),
+		done:   sc.srv.state.getErrChan(),
 	}
 
 	select {
@@ -7115,7 +7114,7 @@ func (w *http2responseWriter) Push(target string, opts *PushOptions) error {
 	case <-st.cw:
 		return http2errStreamClosed
 	case err := <-msg.done:
-		http2errChanPool.Put(msg.done)
+		sc.srv.state.putErrChan(msg.done)
 		return err
 	}
 }
@@ -7300,20 +7299,6 @@ func (sc *http2serverConn) countError(name string, err error) error {
 	return err
 }
 
-// A timer is a time.Timer, as an interface which can be replaced in tests.
-type http2timer = interface {
-	C() <-chan time.Time
-	Reset(d time.Duration) bool
-	Stop() bool
-}
-
-// timeTimer adapts a time.Timer to the timer interface.
-type http2timeTimer struct {
-	*time.Timer
-}
-
-func (t http2timeTimer) C() <-chan time.Time { return t.Timer.C }
-
 const (
 	// transportDefaultConnFlow is how many connection-level flow control
 	// tokens we give the server at start-up, past the default 64k.
@@ -7470,50 +7455,6 @@ type http2Transport struct {
 
 type http2transportTestHooks struct {
 	newclientconn func(*http2ClientConn)
-	group         http2synctestGroupInterface
-}
-
-func (t *http2Transport) markNewGoroutine() {
-	if t != nil && t.http2transportTestHooks != nil {
-		t.http2transportTestHooks.group.Join()
-	}
-}
-
-func (t *http2Transport) now() time.Time {
-	if t != nil && t.http2transportTestHooks != nil {
-		return t.http2transportTestHooks.group.Now()
-	}
-	return time.Now()
-}
-
-func (t *http2Transport) timeSince(when time.Time) time.Duration {
-	if t != nil && t.http2transportTestHooks != nil {
-		return t.now().Sub(when)
-	}
-	return time.Since(when)
-}
-
-// newTimer creates a new time.Timer, or a synthetic timer in tests.
-func (t *http2Transport) newTimer(d time.Duration) http2timer {
-	if t.http2transportTestHooks != nil {
-		return t.http2transportTestHooks.group.NewTimer(d)
-	}
-	return http2timeTimer{time.NewTimer(d)}
-}
-
-// afterFunc creates a new time.AfterFunc timer, or a synthetic timer in tests.
-func (t *http2Transport) afterFunc(d time.Duration, f func()) http2timer {
-	if t.http2transportTestHooks != nil {
-		return t.http2transportTestHooks.group.AfterFunc(d, f)
-	}
-	return http2timeTimer{time.AfterFunc(d, f)}
-}
-
-func (t *http2Transport) contextWithTimeout(ctx context.Context, d time.Duration) (context.Context, context.CancelFunc) {
-	if t.http2transportTestHooks != nil {
-		return t.http2transportTestHooks.group.ContextWithTimeout(ctx, d)
-	}
-	return context.WithTimeout(ctx, d)
 }
 
 func (t *http2Transport) maxHeaderListSize() uint32 {
@@ -7643,7 +7584,7 @@ type http2ClientConn struct {
 	readerErr  error         // set before readerDone is closed
 
 	idleTimeout time.Duration // or 0 for never
-	idleTimer   http2timer
+	idleTimer   *time.Timer
 
 	mu               sync.Mutex   // guards following
 	cond             *sync.Cond   // hold mu; broadcast on flow/closed changes
@@ -7676,6 +7617,7 @@ type http2ClientConn struct {
 	readIdleTimeout             time.Duration
 	pingTimeout                 time.Duration
 	extendedConnectAllowed      bool
+	strictMaxConcurrentStreams  bool
 
 	// rstStreamPingsBlocked works around an unfortunate gRPC behavior.
 	// gRPC strictly limits the number of PING frames that it will receive.
@@ -7811,14 +7753,12 @@ func (cs *http2clientStream) closeReqBodyLocked() {
 	cs.reqBodyClosed = make(chan struct{})
 	reqBodyClosed := cs.reqBodyClosed
 	go func() {
-		cs.cc.t.markNewGoroutine()
 		cs.reqBody.Close()
 		close(reqBodyClosed)
 	}()
 }
 
 type http2stickyErrWriter struct {
-	group   http2synctestGroupInterface
 	conn    net.Conn
 	timeout time.Duration
 	err     *error
@@ -7828,7 +7768,7 @@ func (sew http2stickyErrWriter) Write(p []byte) (n int, err error) {
 	if *sew.err != nil {
 		return 0, *sew.err
 	}
-	n, err = http2writeWithByteTimeout(sew.group, sew.conn, sew.timeout, p)
+	n, err = http2writeWithByteTimeout(sew.conn, sew.timeout, p)
 	*sew.err = err
 	return n, err
 }
@@ -7928,9 +7868,9 @@ func (t *http2Transport) RoundTripOpt(req *Request, opt http2RoundTripOpt) (*Res
 				backoff := float64(uint(1) << (uint(retry) - 1))
 				backoff += backoff * (0.1 * mathrand.Float64())
 				d := time.Second * time.Duration(backoff)
-				tm := t.newTimer(d)
+				tm := time.NewTimer(d)
 				select {
-				case <-tm.C():
+				case <-tm.C:
 					t.vlogf("RoundTrip retrying after failure: %v", roundTripErr)
 					continue
 				case <-req.Context().Done():
@@ -7977,6 +7917,7 @@ var (
 	http2errClientConnUnusable       = errors.New("http2: client conn not usable")
 	http2errClientConnNotEstablished = errors.New("http2: client conn could not be established")
 	http2errClientConnGotGoAway      = errors.New("http2: Transport received Server's graceful shutdown GOAWAY")
+	http2errClientConnForceClosed    = errors.New("http2: client connection force closed via ClientConn.Close")
 )
 
 // shouldRetryRequest is called by RoundTrip when a request fails to get
@@ -8107,7 +8048,8 @@ func (t *http2Transport) newClientConn(c net.Conn, singleUse bool) (*http2Client
 		initialWindowSize:           65535,    // spec default
 		initialStreamRecvWindowSize: conf.MaxUploadBufferPerStream,
 		maxConcurrentStreams:        http2initialMaxConcurrentStreams, // "infinite", per spec. Use a smaller value until we have received server settings.
-		peerMaxHeaderListSize:       0xffffffffffffffff,               // "infinite", per spec. Use 2^64-1 instead.
+		strictMaxConcurrentStreams:  conf.StrictMaxConcurrentRequests,
+		peerMaxHeaderListSize:       0xffffffffffffffff, // "infinite", per spec. Use 2^64-1 instead.
 		streams:                     make(map[uint32]*http2clientStream),
 		singleUse:                   singleUse,
 		seenSettingsChan:            make(chan struct{}),
@@ -8116,14 +8058,11 @@ func (t *http2Transport) newClientConn(c net.Conn, singleUse bool) (*http2Client
 		pingTimeout:                 conf.PingTimeout,
 		pings:                       make(map[[8]byte]chan struct{}),
 		reqHeaderMu:                 make(chan struct{}, 1),
-		lastActive:                  t.now(),
+		lastActive:                  time.Now(),
 	}
-	var group http2synctestGroupInterface
 	if t.http2transportTestHooks != nil {
-		t.markNewGoroutine()
 		t.http2transportTestHooks.newclientconn(cc)
 		c = cc.tconn
-		group = t.group
 	}
 	if http2VerboseLogs {
 		t.vlogf("http2: Transport creating client conn %p to %v", cc, c.RemoteAddr())
@@ -8135,7 +8074,6 @@ func (t *http2Transport) newClientConn(c net.Conn, singleUse bool) (*http2Client
 	// TODO: adjust this writer size to account for frame size +
 	// MTU + crypto/tls record padding.
 	cc.bw = bufio.NewWriter(http2stickyErrWriter{
-		group:   group,
 		conn:    c,
 		timeout: conf.WriteByteTimeout,
 		err:     &cc.werr,
@@ -8184,7 +8122,7 @@ func (t *http2Transport) newClientConn(c net.Conn, singleUse bool) (*http2Client
 	// Start the idle timer after the connection is fully initialized.
 	if d := t.idleConnTimeout(); d != 0 {
 		cc.idleTimeout = d
-		cc.idleTimer = t.afterFunc(d, cc.onIdleTimeout)
+		cc.idleTimer = time.AfterFunc(d, cc.onIdleTimeout)
 	}
 
 	go cc.readLoop()
@@ -8195,7 +8133,7 @@ func (cc *http2ClientConn) healthCheck() {
 	pingTimeout := cc.pingTimeout
 	// We don't need to periodically ping in the health check, because the readLoop of ClientConn will
 	// trigger the healthCheck again if there is no frame received.
-	ctx, cancel := cc.t.contextWithTimeout(context.Background(), pingTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), pingTimeout)
 	defer cancel()
 	cc.vlogf("http2: Transport sending health check")
 	err := cc.Ping(ctx)
@@ -8345,7 +8283,7 @@ func (cc *http2ClientConn) idleStateLocked() (st http2clientConnIdleState) {
 		return
 	}
 	var maxConcurrentOkay bool
-	if cc.t.StrictMaxConcurrentStreams {
+	if cc.strictMaxConcurrentStreams {
 		// We'll tell the caller we can take a new request to
 		// prevent the caller from dialing a new TCP
 		// connection, but then we'll block later before
@@ -8398,7 +8336,7 @@ func (cc *http2ClientConn) tooIdleLocked() bool {
 	// times are compared based on their wall time. We don't want
 	// to reuse a connection that's been sitting idle during
 	// VM/laptop suspend if monotonic time was also frozen.
-	return cc.idleTimeout != 0 && !cc.lastIdle.IsZero() && cc.t.timeSince(cc.lastIdle.Round(0)) > cc.idleTimeout
+	return cc.idleTimeout != 0 && !cc.lastIdle.IsZero() && time.Since(cc.lastIdle.Round(0)) > cc.idleTimeout
 }
 
 // onIdleTimeout is called from a time.AfterFunc goroutine. It will
@@ -8464,7 +8402,6 @@ func (cc *http2ClientConn) Shutdown(ctx context.Context) error {
 	done := make(chan struct{})
 	cancelled := false // guarded by cc.mu
 	go func() {
-		cc.t.markNewGoroutine()
 		cc.mu.Lock()
 		defer cc.mu.Unlock()
 		for {
@@ -8535,8 +8472,7 @@ func (cc *http2ClientConn) closeForError(err error) {
 //
 // In-flight requests are interrupted. For a graceful shutdown, use Shutdown instead.
 func (cc *http2ClientConn) Close() error {
-	err := errors.New("http2: client connection force closed via ClientConn.Close")
-	cc.closeForError(err)
+	cc.closeForError(http2errClientConnForceClosed)
 	return nil
 }
 
@@ -8705,7 +8641,6 @@ func (cc *http2ClientConn) roundTrip(req *Request, streamf func(*http2clientStre
 //
 // It sends the request and performs post-request cleanup (closing Request.Body, etc.).
 func (cs *http2clientStream) doRequest(req *Request, streamf func(*http2clientStream)) {
-	cs.cc.t.markNewGoroutine()
 	err := cs.writeRequest(req, streamf)
 	cs.cleanupWriteRequest(err)
 }
@@ -8836,9 +8771,9 @@ func (cs *http2clientStream) writeRequest(req *Request, streamf func(*http2clien
 	var respHeaderTimer <-chan time.Time
 	var respHeaderRecv chan struct{}
 	if d := cc.responseHeaderTimeout(); d != 0 {
-		timer := cc.t.newTimer(d)
+		timer := time.NewTimer(d)
 		defer timer.Stop()
-		respHeaderTimer = timer.C()
+		respHeaderTimer = timer.C
 		respHeaderRecv = cs.respHeaderRecv
 	}
 	// Wait until the peer half-closes its end of the stream,
@@ -9031,7 +8966,7 @@ func (cc *http2ClientConn) awaitOpenSlotForStreamLocked(cs *http2clientStream) e
 			// Return a fatal error which aborts the retry loop.
 			return http2errClientConnNotEstablished
 		}
-		cc.lastActive = cc.t.now()
+		cc.lastActive = time.Now()
 		if cc.closed || !cc.canTakeNewRequestLocked() {
 			return http2errClientConnUnusable
 		}
@@ -9371,10 +9306,10 @@ func (cc *http2ClientConn) forgetStreamID(id uint32) {
 	if len(cc.streams) != slen-1 {
 		panic("forgetting unknown stream id")
 	}
-	cc.lastActive = cc.t.now()
+	cc.lastActive = time.Now()
 	if len(cc.streams) == 0 && cc.idleTimer != nil {
 		cc.idleTimer.Reset(cc.idleTimeout)
-		cc.lastIdle = cc.t.now()
+		cc.lastIdle = time.Now()
 	}
 	// Wake up writeRequestBody via clientStream.awaitFlowControl and
 	// wake up RoundTrip if there is a pending request.
@@ -9400,7 +9335,6 @@ type http2clientConnReadLoop struct {
 
 // readLoop runs in its own goroutine and reads and dispatches frames.
 func (cc *http2ClientConn) readLoop() {
-	cc.t.markNewGoroutine()
 	rl := &http2clientConnReadLoop{cc: cc}
 	defer rl.cleanup()
 	cc.readerErr = rl.run()
@@ -9467,9 +9401,9 @@ func (rl *http2clientConnReadLoop) cleanup() {
 	if cc.idleTimeout > 0 && unusedWaitTime > cc.idleTimeout {
 		unusedWaitTime = cc.idleTimeout
 	}
-	idleTime := cc.t.now().Sub(cc.lastActive)
+	idleTime := time.Now().Sub(cc.lastActive)
 	if atomic.LoadUint32(&cc.atomicReused) == 0 && idleTime < unusedWaitTime && !cc.closedOnIdle {
-		cc.idleTimer = cc.t.afterFunc(unusedWaitTime-idleTime, func() {
+		cc.idleTimer = time.AfterFunc(unusedWaitTime-idleTime, func() {
 			cc.t.connPool().MarkDead(cc)
 		})
 	} else {
@@ -9529,9 +9463,9 @@ func (rl *http2clientConnReadLoop) run() error {
 	cc := rl.cc
 	gotSettings := false
 	readIdleTimeout := cc.readIdleTimeout
-	var t http2timer
+	var t *time.Timer
 	if readIdleTimeout != 0 {
-		t = cc.t.afterFunc(readIdleTimeout, cc.healthCheck)
+		t = time.AfterFunc(readIdleTimeout, cc.healthCheck)
 	}
 	for {
 		f, err := cc.fr.ReadFrame()
@@ -10277,7 +10211,6 @@ func (cc *http2ClientConn) Ping(ctx context.Context) error {
 	var pingError error
 	errc := make(chan struct{})
 	go func() {
-		cc.t.markNewGoroutine()
 		cc.wmu.Lock()
 		defer cc.wmu.Unlock()
 		if pingError = cc.fr.WritePing(false, p); pingError != nil {
@@ -10510,7 +10443,7 @@ func http2traceGotConn(req *Request, cc *http2ClientConn, reused bool) {
 	cc.mu.Lock()
 	ci.WasIdle = len(cc.streams) == 0 && reused
 	if ci.WasIdle && !cc.lastActive.IsZero() {
-		ci.IdleTime = cc.t.timeSince(cc.lastActive)
+		ci.IdleTime = time.Since(cc.lastActive)
 	}
 	cc.mu.Unlock()
 
@@ -10993,6 +10926,8 @@ type http2OpenStreamOptions struct {
 	// PusherID is zero if the stream was initiated by the client. Otherwise,
 	// PusherID names the stream that pushed the newly opened stream.
 	PusherID uint32
+	// priority is used to set the priority of the newly opened stream.
+	priority http2PriorityParam
 }
 
 // FrameWriteRequest is a request to write a frame.
@@ -11204,7 +11139,7 @@ func (p *http2writeQueuePool) get() *http2writeQueue {
 }
 
 // RFC 7540, Section 5.3.5: the default weight is 16.
-const http2priorityDefaultWeight = 15 // 16 = 15 + 1
+const http2priorityDefaultWeightRFC7540 = 15 // 16 = 15 + 1
 
 // PriorityWriteSchedulerConfig configures a priorityWriteScheduler.
 type http2PriorityWriteSchedulerConfig struct {
@@ -11259,8 +11194,8 @@ func http2NewPriorityWriteScheduler(cfg *http2PriorityWriteSchedulerConfig) http
 		}
 	}
 
-	ws := &http2priorityWriteScheduler{
-		nodes:                make(map[uint32]*http2priorityNode),
+	ws := &http2priorityWriteSchedulerRFC7540{
+		nodes:                make(map[uint32]*http2priorityNodeRFC7540),
 		maxClosedNodesInTree: cfg.MaxClosedNodesInTree,
 		maxIdleNodesInTree:   cfg.MaxIdleNodesInTree,
 		enableWriteThrottle:  cfg.ThrottleOutOfOrderWrites,
@@ -11274,32 +11209,32 @@ func http2NewPriorityWriteScheduler(cfg *http2PriorityWriteSchedulerConfig) http
 	return ws
 }
 
-type http2priorityNodeState int
+type http2priorityNodeStateRFC7540 int
 
 const (
-	http2priorityNodeOpen http2priorityNodeState = iota
-	http2priorityNodeClosed
-	http2priorityNodeIdle
+	http2priorityNodeOpenRFC7540 http2priorityNodeStateRFC7540 = iota
+	http2priorityNodeClosedRFC7540
+	http2priorityNodeIdleRFC7540
 )
 
-// priorityNode is a node in an HTTP/2 priority tree.
+// priorityNodeRFC7540 is a node in an HTTP/2 priority tree.
 // Each node is associated with a single stream ID.
 // See RFC 7540, Section 5.3.
-type http2priorityNode struct {
-	q            http2writeQueue        // queue of pending frames to write
-	id           uint32                 // id of the stream, or 0 for the root of the tree
-	weight       uint8                  // the actual weight is weight+1, so the value is in [1,256]
-	state        http2priorityNodeState // open | closed | idle
-	bytes        int64                  // number of bytes written by this node, or 0 if closed
-	subtreeBytes int64                  // sum(node.bytes) of all nodes in this subtree
+type http2priorityNodeRFC7540 struct {
+	q            http2writeQueue               // queue of pending frames to write
+	id           uint32                        // id of the stream, or 0 for the root of the tree
+	weight       uint8                         // the actual weight is weight+1, so the value is in [1,256]
+	state        http2priorityNodeStateRFC7540 // open | closed | idle
+	bytes        int64                         // number of bytes written by this node, or 0 if closed
+	subtreeBytes int64                         // sum(node.bytes) of all nodes in this subtree
 
 	// These links form the priority tree.
-	parent     *http2priorityNode
-	kids       *http2priorityNode // start of the kids list
-	prev, next *http2priorityNode // doubly-linked list of siblings
+	parent     *http2priorityNodeRFC7540
+	kids       *http2priorityNodeRFC7540 // start of the kids list
+	prev, next *http2priorityNodeRFC7540 // doubly-linked list of siblings
 }
 
-func (n *http2priorityNode) setParent(parent *http2priorityNode) {
+func (n *http2priorityNodeRFC7540) setParent(parent *http2priorityNodeRFC7540) {
 	if n == parent {
 		panic("setParent to self")
 	}
@@ -11334,7 +11269,7 @@ func (n *http2priorityNode) setParent(parent *http2priorityNode) {
 	}
 }
 
-func (n *http2priorityNode) addBytes(b int64) {
+func (n *http2priorityNodeRFC7540) addBytes(b int64) {
 	n.bytes += b
 	for ; n != nil; n = n.parent {
 		n.subtreeBytes += b
@@ -11347,7 +11282,7 @@ func (n *http2priorityNode) addBytes(b int64) {
 //
 // f(n, openParent) takes two arguments: the node to visit, n, and a bool that is true
 // if any ancestor p of n is still open (ignoring the root node).
-func (n *http2priorityNode) walkReadyInOrder(openParent bool, tmp *[]*http2priorityNode, f func(*http2priorityNode, bool) bool) bool {
+func (n *http2priorityNodeRFC7540) walkReadyInOrder(openParent bool, tmp *[]*http2priorityNodeRFC7540, f func(*http2priorityNodeRFC7540, bool) bool) bool {
 	if !n.q.empty() && f(n, openParent) {
 		return true
 	}
@@ -11358,7 +11293,7 @@ func (n *http2priorityNode) walkReadyInOrder(openParent bool, tmp *[]*http2prior
 	// Don't consider the root "open" when updating openParent since
 	// we can't send data frames on the root stream (only control frames).
 	if n.id != 0 {
-		openParent = openParent || (n.state == http2priorityNodeOpen)
+		openParent = openParent || (n.state == http2priorityNodeOpenRFC7540)
 	}
 
 	// Common case: only one kid or all kids have the same weight.
@@ -11388,7 +11323,7 @@ func (n *http2priorityNode) walkReadyInOrder(openParent bool, tmp *[]*http2prior
 		*tmp = append(*tmp, n.kids)
 		n.kids.setParent(nil)
 	}
-	sort.Sort(http2sortPriorityNodeSiblings(*tmp))
+	sort.Sort(http2sortPriorityNodeSiblingsRFC7540(*tmp))
 	for i := len(*tmp) - 1; i >= 0; i-- {
 		(*tmp)[i].setParent(n) // setParent inserts at the head of n.kids
 	}
@@ -11400,13 +11335,13 @@ func (n *http2priorityNode) walkReadyInOrder(openParent bool, tmp *[]*http2prior
 	return false
 }
 
-type http2sortPriorityNodeSiblings []*http2priorityNode
+type http2sortPriorityNodeSiblingsRFC7540 []*http2priorityNodeRFC7540
 
-func (z http2sortPriorityNodeSiblings) Len() int { return len(z) }
+func (z http2sortPriorityNodeSiblingsRFC7540) Len() int { return len(z) }
 
-func (z http2sortPriorityNodeSiblings) Swap(i, k int) { z[i], z[k] = z[k], z[i] }
+func (z http2sortPriorityNodeSiblingsRFC7540) Swap(i, k int) { z[i], z[k] = z[k], z[i] }
 
-func (z http2sortPriorityNodeSiblings) Less(i, k int) bool {
+func (z http2sortPriorityNodeSiblingsRFC7540) Less(i, k int) bool {
 	// Prefer the subtree that has sent fewer bytes relative to its weight.
 	// See sections 5.3.2 and 5.3.4.
 	wi, bi := float64(z[i].weight+1), float64(z[i].subtreeBytes)
@@ -11420,13 +11355,13 @@ func (z http2sortPriorityNodeSiblings) Less(i, k int) bool {
 	return bi/bk <= wi/wk
 }
 
-type http2priorityWriteScheduler struct {
+type http2priorityWriteSchedulerRFC7540 struct {
 	// root is the root of the priority tree, where root.id = 0.
 	// The root queues control frames that are not associated with any stream.
-	root http2priorityNode
+	root http2priorityNodeRFC7540
 
 	// nodes maps stream ids to priority tree nodes.
-	nodes map[uint32]*http2priorityNode
+	nodes map[uint32]*http2priorityNodeRFC7540
 
 	// maxID is the maximum stream id in nodes.
 	maxID uint32
@@ -11434,7 +11369,7 @@ type http2priorityWriteScheduler struct {
 	// lists of nodes that have been closed or are idle, but are kept in
 	// the tree for improved prioritization. When the lengths exceed either
 	// maxClosedNodesInTree or maxIdleNodesInTree, old nodes are discarded.
-	closedNodes, idleNodes []*http2priorityNode
+	closedNodes, idleNodes []*http2priorityNodeRFC7540
 
 	// From the config.
 	maxClosedNodesInTree int
@@ -11443,19 +11378,19 @@ type http2priorityWriteScheduler struct {
 	enableWriteThrottle  bool
 
 	// tmp is scratch space for priorityNode.walkReadyInOrder to reduce allocations.
-	tmp []*http2priorityNode
+	tmp []*http2priorityNodeRFC7540
 
 	// pool of empty queues for reuse.
 	queuePool http2writeQueuePool
 }
 
-func (ws *http2priorityWriteScheduler) OpenStream(streamID uint32, options http2OpenStreamOptions) {
+func (ws *http2priorityWriteSchedulerRFC7540) OpenStream(streamID uint32, options http2OpenStreamOptions) {
 	// The stream may be currently idle but cannot be opened or closed.
 	if curr := ws.nodes[streamID]; curr != nil {
-		if curr.state != http2priorityNodeIdle {
+		if curr.state != http2priorityNodeIdleRFC7540 {
 			panic(fmt.Sprintf("stream %d already opened", streamID))
 		}
-		curr.state = http2priorityNodeOpen
+		curr.state = http2priorityNodeOpenRFC7540
 		return
 	}
 
@@ -11467,11 +11402,11 @@ func (ws *http2priorityWriteScheduler) OpenStream(streamID uint32, options http2
 	if parent == nil {
 		parent = &ws.root
 	}
-	n := &http2priorityNode{
+	n := &http2priorityNodeRFC7540{
 		q:      *ws.queuePool.get(),
 		id:     streamID,
-		weight: http2priorityDefaultWeight,
-		state:  http2priorityNodeOpen,
+		weight: http2priorityDefaultWeightRFC7540,
+		state:  http2priorityNodeOpenRFC7540,
 	}
 	n.setParent(parent)
 	ws.nodes[streamID] = n
@@ -11480,19 +11415,19 @@ func (ws *http2priorityWriteScheduler) OpenStream(streamID uint32, options http2
 	}
 }
 
-func (ws *http2priorityWriteScheduler) CloseStream(streamID uint32) {
+func (ws *http2priorityWriteSchedulerRFC7540) CloseStream(streamID uint32) {
 	if streamID == 0 {
 		panic("violation of WriteScheduler interface: cannot close stream 0")
 	}
 	if ws.nodes[streamID] == nil {
 		panic(fmt.Sprintf("violation of WriteScheduler interface: unknown stream %d", streamID))
 	}
-	if ws.nodes[streamID].state != http2priorityNodeOpen {
+	if ws.nodes[streamID].state != http2priorityNodeOpenRFC7540 {
 		panic(fmt.Sprintf("violation of WriteScheduler interface: stream %d already closed", streamID))
 	}
 
 	n := ws.nodes[streamID]
-	n.state = http2priorityNodeClosed
+	n.state = http2priorityNodeClosedRFC7540
 	n.addBytes(-n.bytes)
 
 	q := n.q
@@ -11505,7 +11440,7 @@ func (ws *http2priorityWriteScheduler) CloseStream(streamID uint32) {
 	}
 }
 
-func (ws *http2priorityWriteScheduler) AdjustStream(streamID uint32, priority http2PriorityParam) {
+func (ws *http2priorityWriteSchedulerRFC7540) AdjustStream(streamID uint32, priority http2PriorityParam) {
 	if streamID == 0 {
 		panic("adjustPriority on root")
 	}
@@ -11519,11 +11454,11 @@ func (ws *http2priorityWriteScheduler) AdjustStream(streamID uint32, priority ht
 			return
 		}
 		ws.maxID = streamID
-		n = &http2priorityNode{
+		n = &http2priorityNodeRFC7540{
 			q:      *ws.queuePool.get(),
 			id:     streamID,
-			weight: http2priorityDefaultWeight,
-			state:  http2priorityNodeIdle,
+			weight: http2priorityDefaultWeightRFC7540,
+			state:  http2priorityNodeIdleRFC7540,
 		}
 		n.setParent(&ws.root)
 		ws.nodes[streamID] = n
@@ -11535,7 +11470,7 @@ func (ws *http2priorityWriteScheduler) AdjustStream(streamID uint32, priority ht
 	parent := ws.nodes[priority.StreamDep]
 	if parent == nil {
 		n.setParent(&ws.root)
-		n.weight = http2priorityDefaultWeight
+		n.weight = http2priorityDefaultWeightRFC7540
 		return
 	}
 
@@ -11576,8 +11511,8 @@ func (ws *http2priorityWriteScheduler) AdjustStream(streamID uint32, priority ht
 	n.weight = priority.Weight
 }
 
-func (ws *http2priorityWriteScheduler) Push(wr http2FrameWriteRequest) {
-	var n *http2priorityNode
+func (ws *http2priorityWriteSchedulerRFC7540) Push(wr http2FrameWriteRequest) {
+	var n *http2priorityNodeRFC7540
 	if wr.isControl() {
 		n = &ws.root
 	} else {
@@ -11596,8 +11531,8 @@ func (ws *http2priorityWriteScheduler) Push(wr http2FrameWriteRequest) {
 	n.q.push(wr)
 }
 
-func (ws *http2priorityWriteScheduler) Pop() (wr http2FrameWriteRequest, ok bool) {
-	ws.root.walkReadyInOrder(false, &ws.tmp, func(n *http2priorityNode, openParent bool) bool {
+func (ws *http2priorityWriteSchedulerRFC7540) Pop() (wr http2FrameWriteRequest, ok bool) {
+	ws.root.walkReadyInOrder(false, &ws.tmp, func(n *http2priorityNodeRFC7540, openParent bool) bool {
 		limit := int32(math.MaxInt32)
 		if openParent {
 			limit = ws.writeThrottleLimit
@@ -11623,7 +11558,7 @@ func (ws *http2priorityWriteScheduler) Pop() (wr http2FrameWriteRequest, ok bool
 	return wr, ok
 }
 
-func (ws *http2priorityWriteScheduler) addClosedOrIdleNode(list *[]*http2priorityNode, maxSize int, n *http2priorityNode) {
+func (ws *http2priorityWriteSchedulerRFC7540) addClosedOrIdleNode(list *[]*http2priorityNodeRFC7540, maxSize int, n *http2priorityNodeRFC7540) {
 	if maxSize == 0 {
 		return
 	}
@@ -11637,12 +11572,205 @@ func (ws *http2priorityWriteScheduler) addClosedOrIdleNode(list *[]*http2priorit
 	*list = append(*list, n)
 }
 
-func (ws *http2priorityWriteScheduler) removeNode(n *http2priorityNode) {
+func (ws *http2priorityWriteSchedulerRFC7540) removeNode(n *http2priorityNodeRFC7540) {
 	for n.kids != nil {
 		n.kids.setParent(n.parent)
 	}
 	n.setParent(nil)
 	delete(ws.nodes, n.id)
+}
+
+type http2streamMetadata struct {
+	location *http2writeQueue
+	priority http2PriorityParam
+}
+
+type http2priorityWriteSchedulerRFC9218 struct {
+	// control contains control frames (SETTINGS, PING, etc.).
+	control http2writeQueue
+
+	// heads contain the head of a circular list of streams.
+	// We put these heads within a nested array that represents urgency and
+	// incremental, as defined in
+	// https://www.rfc-editor.org/rfc/rfc9218.html#name-priority-parameters.
+	// 8 represents u=0 up to u=7, and 2 represents i=false and i=true.
+	heads [8][2]*http2writeQueue
+
+	// streams contains a mapping between each stream ID and their metadata, so
+	// we can quickly locate them when needing to, for example, adjust their
+	// priority.
+	streams map[uint32]http2streamMetadata
+
+	// queuePool are empty queues for reuse.
+	queuePool http2writeQueuePool
+
+	// prioritizeIncremental is used to determine whether we should prioritize
+	// incremental streams or not, when urgency is the same in a given Pop()
+	// call.
+	prioritizeIncremental bool
+}
+
+func http2newPriorityWriteSchedulerRFC9128() http2WriteScheduler {
+	ws := &http2priorityWriteSchedulerRFC9218{
+		streams: make(map[uint32]http2streamMetadata),
+	}
+	return ws
+}
+
+func (ws *http2priorityWriteSchedulerRFC9218) OpenStream(streamID uint32, opt http2OpenStreamOptions) {
+	if ws.streams[streamID].location != nil {
+		panic(fmt.Errorf("stream %d already opened", streamID))
+	}
+	q := ws.queuePool.get()
+	ws.streams[streamID] = http2streamMetadata{
+		location: q,
+		priority: opt.priority,
+	}
+
+	u, i := opt.priority.urgency, opt.priority.incremental
+	if ws.heads[u][i] == nil {
+		ws.heads[u][i] = q
+		q.next = q
+		q.prev = q
+	} else {
+		// Queues are stored in a ring.
+		// Insert the new stream before ws.head, putting it at the end of the list.
+		q.prev = ws.heads[u][i].prev
+		q.next = ws.heads[u][i]
+		q.prev.next = q
+		q.next.prev = q
+	}
+}
+
+func (ws *http2priorityWriteSchedulerRFC9218) CloseStream(streamID uint32) {
+	metadata := ws.streams[streamID]
+	q, u, i := metadata.location, metadata.priority.urgency, metadata.priority.incremental
+	if q == nil {
+		return
+	}
+	if q.next == q {
+		// This was the only open stream.
+		ws.heads[u][i] = nil
+	} else {
+		q.prev.next = q.next
+		q.next.prev = q.prev
+		if ws.heads[u][i] == q {
+			ws.heads[u][i] = q.next
+		}
+	}
+	delete(ws.streams, streamID)
+	ws.queuePool.put(q)
+}
+
+func (ws *http2priorityWriteSchedulerRFC9218) AdjustStream(streamID uint32, priority http2PriorityParam) {
+	metadata := ws.streams[streamID]
+	q, u, i := metadata.location, metadata.priority.urgency, metadata.priority.incremental
+	if q == nil {
+		return
+	}
+
+	// Remove stream from current location.
+	if q.next == q {
+		// This was the only open stream.
+		ws.heads[u][i] = nil
+	} else {
+		q.prev.next = q.next
+		q.next.prev = q.prev
+		if ws.heads[u][i] == q {
+			ws.heads[u][i] = q.next
+		}
+	}
+
+	// Insert stream to the new queue.
+	u, i = priority.urgency, priority.incremental
+	if ws.heads[u][i] == nil {
+		ws.heads[u][i] = q
+		q.next = q
+		q.prev = q
+	} else {
+		// Queues are stored in a ring.
+		// Insert the new stream before ws.head, putting it at the end of the list.
+		q.prev = ws.heads[u][i].prev
+		q.next = ws.heads[u][i]
+		q.prev.next = q
+		q.next.prev = q
+	}
+}
+
+func (ws *http2priorityWriteSchedulerRFC9218) Push(wr http2FrameWriteRequest) {
+	if wr.isControl() {
+		ws.control.push(wr)
+		return
+	}
+	q := ws.streams[wr.StreamID()].location
+	if q == nil {
+		// This is a closed stream.
+		// wr should not be a HEADERS or DATA frame.
+		// We push the request onto the control queue.
+		if wr.DataSize() > 0 {
+			panic("add DATA on non-open stream")
+		}
+		ws.control.push(wr)
+		return
+	}
+	q.push(wr)
+}
+
+func (ws *http2priorityWriteSchedulerRFC9218) Pop() (http2FrameWriteRequest, bool) {
+	// Control and RST_STREAM frames first.
+	if !ws.control.empty() {
+		return ws.control.shift(), true
+	}
+
+	// On the next Pop(), we want to prioritize incremental if we prioritized
+	// non-incremental request of the same urgency this time. Vice-versa.
+	// i.e. when there are incremental and non-incremental requests at the same
+	// priority, we give 50% of our bandwidth to the incremental ones in
+	// aggregate and 50% to the first non-incremental one (since
+	// non-incremental streams do not use round-robin writes).
+	ws.prioritizeIncremental = !ws.prioritizeIncremental
+
+	// Always prioritize lowest u (i.e. highest urgency level).
+	for u := range ws.heads {
+		for i := range ws.heads[u] {
+			// When we want to prioritize incremental, we try to pop i=true
+			// first before i=false when u is the same.
+			if ws.prioritizeIncremental {
+				i = (i + 1) % 2
+			}
+			q := ws.heads[u][i]
+			if q == nil {
+				continue
+			}
+			for {
+				if wr, ok := q.consume(math.MaxInt32); ok {
+					if i == 1 {
+						// For incremental streams, we update head to q.next so
+						// we can round-robin between multiple streams that can
+						// immediately benefit from partial writes.
+						ws.heads[u][i] = q.next
+					} else {
+						// For non-incremental streams, we try to finish one to
+						// completion rather than doing round-robin. However,
+						// we update head here so that if q.consume() is !ok
+						// (e.g. the stream has no more frame to consume), head
+						// is updated to the next q that has frames to consume
+						// on future iterations. This way, we do not prioritize
+						// writing to unavailable stream on next Pop() calls,
+						// preventing head-of-line blocking.
+						ws.heads[u][i] = q
+					}
+					return wr, true
+				}
+				q = q.next
+				if q == ws.heads[u][i] {
+					break
+				}
+			}
+
+		}
+	}
+	return http2FrameWriteRequest{}, false
 }
 
 // NewRandomWriteScheduler constructs a WriteScheduler that ignores HTTP/2
@@ -11731,7 +11859,7 @@ type http2roundRobinWriteScheduler struct {
 }
 
 // newRoundRobinWriteScheduler constructs a new write scheduler.
-// The round robin scheduler priorizes control frames
+// The round robin scheduler prioritizes control frames
 // like SETTINGS and PING over DATA frames.
 // When there are no control frames to send, it performs a round-robin
 // selection from the ready streams.

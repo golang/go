@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build darwin || (freebsd && go1.21) || linux || (netbsd && go1.25)
+//go:build darwin || freebsd || linux || (netbsd && go1.25)
 
 package ld
 
@@ -10,6 +10,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"syscall"
 	"testing"
 )
@@ -53,12 +54,24 @@ func TestFallocate(t *testing.T) {
 		if got := stat.Size(); got != sz {
 			t.Errorf("unexpected file size: got %d, want %d", got, sz)
 		}
-		// The number of blocks must be enough for the requested size.
-		// We used to require an exact match, but it appears that
-		// some file systems allocate a few extra blocks in some cases.
-		// See issue #41127.
-		if got, want := stat.Sys().(*syscall.Stat_t).Blocks, (sz+511)/512; got < want {
-			t.Errorf("unexpected disk usage: got %d blocks, want at least %d", got, want)
+		if runtime.GOOS == "darwin" {
+			// Check the number of allocated blocks on Darwin. On Linux (and
+			// perhaps BSDs), stat's Blocks field may not be portable as it
+			// is an implementation detail of the file system. On Darwin, it
+			// is documented as "the actual number of blocks allocated for
+			// the file in 512-byte units".
+			// The check is introduced when fixing a Darwin-specific bug. On
+			// Darwin, the file allocation syscall is a bit tricky. On Linux
+			// and BSDs, it is more straightforward and unlikely to go wrong.
+			// Given these two reasons, only check it on Darwin.
+			//
+			// The number of blocks must be enough for the requested size.
+			// We used to require an exact match, but it appears that
+			// some file systems allocate a few extra blocks in some cases.
+			// See issue #41127.
+			if got, want := stat.Sys().(*syscall.Stat_t).Blocks, (sz+511)/512; got < want {
+				t.Errorf("unexpected disk usage: got %d blocks, want at least %d", got, want)
+			}
 		}
 		out.munmap()
 	}

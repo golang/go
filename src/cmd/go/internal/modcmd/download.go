@@ -112,7 +112,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	modload.InitWorkfile()
 
 	// Check whether modules are enabled and whether we're in a module.
-	modload.ForceUseModules = true
+	modload.LoaderState.ForceUseModules = true
 	modload.ExplicitWriteGoMod = true
 	haveExplicitArgs := len(args) > 0
 
@@ -120,7 +120,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 		modload.LoadModFile(ctx) // to fill MainModules
 
 		if haveExplicitArgs {
-			for _, mainModule := range modload.MainModules.Versions() {
+			for _, mainModule := range modload.LoaderState.MainModules.Versions() {
 				targetAtUpgrade := mainModule.Path + "@upgrade"
 				targetAtPatch := mainModule.Path + "@patch"
 				for _, arg := range args {
@@ -136,8 +136,8 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 			// https://go-review.googlesource.com/c/go/+/359794/comments/ce946a80_6cf53992.
 			args = []string{"all"}
 		} else {
-			mainModule := modload.MainModules.Versions()[0]
-			modFile := modload.MainModules.ModFile(mainModule)
+			mainModule := modload.LoaderState.MainModules.Versions()[0]
+			modFile := modload.LoaderState.MainModules.ModFile(mainModule)
 			if modFile.Go == nil || gover.Compare(modFile.Go.Version, gover.ExplicitIndirectVersion) < 0 {
 				if len(modFile.Require) > 0 {
 					args = []string{"all"}

@@ -7,10 +7,8 @@ package main
 import (
 	"cmd/internal/objabi"
 	"cmd/internal/telemetry/counter"
-	"flag"
 
-	"golang.org/x/tools/go/analysis/unitchecker"
-
+	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/appends"
 	"golang.org/x/tools/go/analysis/passes/asmdecl"
 	"golang.org/x/tools/go/analysis/passes/assign"
@@ -46,52 +44,57 @@ import (
 	"golang.org/x/tools/go/analysis/passes/unsafeptr"
 	"golang.org/x/tools/go/analysis/passes/unusedresult"
 	"golang.org/x/tools/go/analysis/passes/waitgroup"
+	"golang.org/x/tools/go/analysis/unitchecker"
 )
 
 func main() {
+	// Keep consistent with cmd/fix/main.go!
 	counter.Open()
 	objabi.AddVersionFlag()
-
 	counter.Inc("vet/invocations")
-	unitchecker.Main(
-		appends.Analyzer,
-		asmdecl.Analyzer,
-		assign.Analyzer,
-		atomic.Analyzer,
-		bools.Analyzer,
-		buildtag.Analyzer,
-		cgocall.Analyzer,
-		composite.Analyzer,
-		copylock.Analyzer,
-		defers.Analyzer,
-		directive.Analyzer,
-		errorsas.Analyzer,
-		framepointer.Analyzer,
-		httpresponse.Analyzer,
-		hostport.Analyzer,
-		ifaceassert.Analyzer,
-		loopclosure.Analyzer,
-		lostcancel.Analyzer,
-		nilfunc.Analyzer,
-		printf.Analyzer,
-		shift.Analyzer,
-		sigchanyzer.Analyzer,
-		slog.Analyzer,
-		stdmethods.Analyzer,
-		stdversion.Analyzer,
-		stringintconv.Analyzer,
-		structtag.Analyzer,
-		tests.Analyzer,
-		testinggoroutine.Analyzer,
-		timeformat.Analyzer,
-		unmarshal.Analyzer,
-		unreachable.Analyzer,
-		unsafeptr.Analyzer,
-		unusedresult.Analyzer,
-		waitgroup.Analyzer,
-	)
 
-	// It's possible that unitchecker will exit early. In
-	// those cases the flags won't be counted.
-	counter.CountFlags("vet/flag:", *flag.CommandLine)
+	unitchecker.Main(suite...) // (never returns)
+}
+
+// The vet suite analyzers report diagnostics.
+// (Diagnostics must describe real problems, but need not
+// suggest fixes, and fixes are not necessarily safe to apply.)
+var suite = []*analysis.Analyzer{
+	appends.Analyzer,
+	asmdecl.Analyzer,
+	assign.Analyzer,
+	atomic.Analyzer,
+	bools.Analyzer,
+	buildtag.Analyzer,
+	cgocall.Analyzer,
+	composite.Analyzer,
+	copylock.Analyzer,
+	defers.Analyzer,
+	directive.Analyzer,
+	errorsas.Analyzer,
+	// fieldalignment.Analyzer omitted: too noisy
+	framepointer.Analyzer,
+	httpresponse.Analyzer,
+	hostport.Analyzer,
+	ifaceassert.Analyzer,
+	loopclosure.Analyzer,
+	lostcancel.Analyzer,
+	nilfunc.Analyzer,
+	printf.Analyzer,
+	// shadow.Analyzer omitted: too noisy
+	shift.Analyzer,
+	sigchanyzer.Analyzer,
+	slog.Analyzer,
+	stdmethods.Analyzer,
+	stdversion.Analyzer,
+	stringintconv.Analyzer,
+	structtag.Analyzer,
+	tests.Analyzer,
+	testinggoroutine.Analyzer,
+	timeformat.Analyzer,
+	unmarshal.Analyzer,
+	unreachable.Analyzer,
+	unsafeptr.Analyzer,
+	unusedresult.Analyzer,
+	waitgroup.Analyzer,
 }

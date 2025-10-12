@@ -303,6 +303,15 @@ func writebarrier(f *Func) {
 		mem := stores[0].MemoryArg()
 		pos := stores[0].Pos
 
+		// If there is a nil check before the WB store, duplicate it to
+		// the two branches, where the store and the WB load occur. So
+		// they are more likely be removed by late nilcheck removal (which
+		// is block-local).
+		var nilcheck, nilcheckThen, nilcheckEnd *Value
+		if a := stores[0].Args[0]; a.Op == OpNilCheck && a.Args[1] == mem {
+			nilcheck = a
+		}
+
 		// If the source of a MoveWB is volatile (will be clobbered by a
 		// function call), we need to copy it to a temporary location, as
 		// marshaling the args of wbMove might clobber the value we're
@@ -377,6 +386,10 @@ func writebarrier(f *Func) {
 		// For each write barrier store, append write barrier code to bThen.
 		memThen := mem
 
+		if nilcheck != nil {
+			nilcheckThen = bThen.NewValue2(nilcheck.Pos, OpNilCheck, nilcheck.Type, nilcheck.Args[0], memThen)
+		}
+
 		// Note: we can issue the write barrier code in any order. In particular,
 		// it doesn't matter if they are in a different order *even if* they end
 		// up referring to overlapping memory regions. For instance if an OpStore
@@ -447,6 +460,9 @@ func writebarrier(f *Func) {
 				// take care of the vast majority of these. We could
 				// patch this up in the signal handler, or use XCHG to
 				// combine the read and the write.
+				if ptr == nilcheck {
+					ptr = nilcheckThen
+				}
 				oldVal := bThen.NewValue2(pos, OpLoad, types.Types[types.TUINTPTR], ptr, memThen)
 				// Save old value to write buffer.
 				addEntry(pos, oldVal)
@@ -459,9 +475,12 @@ func writebarrier(f *Func) {
 		// Now do the rare cases, Zeros and Moves.
 		for _, w := range stores {
 			pos := w.Pos
+			dst := w.Args[0]
+			if dst == nilcheck {
+				dst = nilcheckThen
+			}
 			switch w.Op {
 			case OpZeroWB:
-				dst := w.Args[0]
 				typ := reflectdata.TypeLinksym(w.Aux.(*types.Type))
 				// zeroWB(&typ, dst)
 				taddr := b.NewValue1A(pos, OpAddr, b.Func.Config.Types.Uintptr, typ, sb)
@@ -469,7 +488,6 @@ func writebarrier(f *Func) {
 				f.fe.Func().SetWBPos(pos)
 				nWBops--
 			case OpMoveWB:
-				dst := w.Args[0]
 				src := w.Args[1]
 				if isVolatile(src) {
 					for _, c := range volatiles {
@@ -491,24 +509,29 @@ func writebarrier(f *Func) {
 		// merge memory
 		mem = bEnd.NewValue2(pos, OpPhi, types.TypeMem, mem, memThen)
 
+		if nilcheck != nil {
+			nilcheckEnd = bEnd.NewValue2(nilcheck.Pos, OpNilCheck, nilcheck.Type, nilcheck.Args[0], mem)
+		}
+
 		// Do raw stores after merge point.
 		for _, w := range stores {
 			pos := w.Pos
+			dst := w.Args[0]
+			if dst == nilcheck {
+				dst = nilcheckEnd
+			}
 			switch w.Op {
 			case OpStoreWB:
-				ptr := w.Args[0]
 				val := w.Args[1]
 				if buildcfg.Experiment.CgoCheck2 {
 					// Issue cgo checking code.
-					mem = wbcall(pos, bEnd, cgoCheckPtrWrite, sp, mem, ptr, val)
+					mem = wbcall(pos, bEnd, cgoCheckPtrWrite, sp, mem, dst, val)
 				}
-				mem = bEnd.NewValue3A(pos, OpStore, types.TypeMem, w.Aux, ptr, val, mem)
+				mem = bEnd.NewValue3A(pos, OpStore, types.TypeMem, w.Aux, dst, val, mem)
 			case OpZeroWB:
-				dst := w.Args[0]
 				mem = bEnd.NewValue2I(pos, OpZero, types.TypeMem, w.AuxInt, dst, mem)
 				mem.Aux = w.Aux
 			case OpMoveWB:
-				dst := w.Args[0]
 				src := w.Args[1]
 				if isVolatile(src) {
 					for _, c := range volatiles {
@@ -529,9 +552,8 @@ func writebarrier(f *Func) {
 			case OpVarDef, OpVarLive:
 				mem = bEnd.NewValue1A(pos, w.Op, types.TypeMem, w.Aux, mem)
 			case OpStore:
-				ptr := w.Args[0]
 				val := w.Args[1]
-				mem = bEnd.NewValue3A(pos, OpStore, types.TypeMem, w.Aux, ptr, val, mem)
+				mem = bEnd.NewValue3A(pos, OpStore, types.TypeMem, w.Aux, dst, val, mem)
 			}
 		}
 
@@ -556,6 +578,9 @@ func writebarrier(f *Func) {
 			if w != last {
 				f.freeValue(w)
 			}
+		}
+		if nilcheck != nil && nilcheck.Uses == 0 {
+			nilcheck.reset(OpInvalid)
 		}
 
 		// put values after the store sequence into the end block
@@ -773,7 +798,16 @@ func IsNewObject(v *Value, select1 []*Value) (mem *Value, ok bool) {
 	if call.Op != OpStaticCall {
 		return nil, false
 	}
-	if !isSameCall(call.Aux, "runtime.newobject") {
+	// Check for new object, or for new object calls that have been transformed into size-specialized malloc calls.
+	// Calls that have return type unsafe pointer may have originally been produced by flushPendingHeapAllocations
+	// in the ssa generator, so may have not originally been newObject calls.
+	var numParameters int64
+	switch {
+	case isNewObject(call.Aux):
+		numParameters = 1
+	case isSpecializedMalloc(call.Aux) && !v.Type.IsUnsafePtr():
+		numParameters = 3
+	default:
 		return nil, false
 	}
 	if f.ABIDefault == f.ABI1 && len(c.intParamRegs) >= 1 {
@@ -788,7 +822,7 @@ func IsNewObject(v *Value, select1 []*Value) (mem *Value, ok bool) {
 	if v.Args[0].Args[0].Op != OpSP {
 		return nil, false
 	}
-	if v.Args[0].AuxInt != c.ctxt.Arch.FixedFrameSize+c.RegSize { // offset of return value
+	if v.Args[0].AuxInt != c.ctxt.Arch.FixedFrameSize+numParameters*c.RegSize { // offset of return value
 		return nil, false
 	}
 	return mem, true

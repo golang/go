@@ -621,6 +621,11 @@ func TestReader(t *testing.T) {
 			},
 			Format: FormatPAX,
 		}},
+	}, {
+		// Small compressed file that uncompresses to
+		// a file with a very large GNU 1.0 sparse map.
+		file: "testdata/gnu-sparse-many-zeros.tar.bz2",
+		err:  errSparseTooLong,
 	}}
 
 	for _, v := range vectors {

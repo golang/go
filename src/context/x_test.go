@@ -1177,3 +1177,23 @@ func (c *customContext) Err() error {
 func (c *customContext) Value(key any) any {
 	return c.parent.Value(key)
 }
+
+// Issue #75533.
+func TestContextErrDoneRace(t *testing.T) {
+	// 4 iterations reliably reproduced #75533.
+	for range 10 {
+		ctx, cancel := WithCancel(Background())
+		donec := ctx.Done()
+		go cancel()
+		for ctx.Err() == nil {
+			if runtime.GOARCH == "wasm" {
+				runtime.Gosched() // need to explicitly yield
+			}
+		}
+		select {
+		case <-donec:
+		default:
+			t.Fatalf("ctx.Err is non-nil, but ctx.Done is not closed")
+		}
+	}
+}

@@ -538,6 +538,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		ssagen.AddAux(&p.To, v)
+	case ssa.Op386MOVLf2i:
+		var p *obj.Prog
+		p = s.Prog(x86.AMOVL)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[0].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
 	case ssa.Op386ADDLconstmodify:
 		sc := v.AuxValAndOff()
 		val := sc.Val()
@@ -804,7 +811,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			}
 		case ssa.Op386LoweredPanicBoundsCR:
 			yIsReg = true
-			yVal := int(v.Args[0].Reg() - x86.REG_AX)
+			yVal = int(v.Args[0].Reg() - x86.REG_AX)
 			c := v.Aux.(ssa.PanicBoundsC).C
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				xVal = int(c)

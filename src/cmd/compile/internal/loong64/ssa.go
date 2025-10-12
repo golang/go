@@ -276,6 +276,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpLOONG64ADDVconst,
+		ssa.OpLOONG64ADDV16const,
 		ssa.OpLOONG64SUBVconst,
 		ssa.OpLOONG64ANDconst,
 		ssa.OpLOONG64ORconst,
@@ -552,13 +553,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 
-	case ssa.OpLOONG64DUFFZERO:
-		// runtime.duffzero expects start address in R20
-		p := s.Prog(obj.ADUFFZERO)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = ir.Syms.Duffzero
-		p.To.Offset = v.AuxInt
 	case ssa.OpLOONG64LoweredZero:
 		ptrReg := v.Args[0].Reg()
 		n := v.AuxInt
@@ -652,12 +646,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			zero8(s, ptrReg, off+n-8)
 		}
 
-	case ssa.OpLOONG64DUFFCOPY:
-		p := s.Prog(obj.ADUFFCOPY)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = ir.Syms.Duffcopy
-		p.To.Offset = v.AuxInt
 	case ssa.OpLOONG64LoweredMove:
 		dstReg := v.Args[0].Reg()
 		srcReg := v.Args[1].Reg()
@@ -823,7 +811,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			}
 		case ssa.OpLOONG64LoweredPanicBoundsCR:
 			yIsReg = true
-			yVal := int(v.Args[0].Reg() - loong64.REG_R4)
+			yVal = int(v.Args[0].Reg() - loong64.REG_R4)
 			c := v.Aux.(ssa.PanicBoundsC).C
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				xVal = int(c)
@@ -1278,6 +1266,29 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 				p.From.Reg = b.Controls[0].Reg()
 			}
 		}
+	case ssa.BlockLOONG64JUMPTABLE:
+		// ALSLV $3, Rarg0, Rarg1, REGTMP
+		// MOVV (REGTMP), REGTMP
+		// JMP	(REGTMP)
+		p := s.Prog(loong64.AALSLV)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = 3 // idx*8
+		p.Reg = b.Controls[0].Reg()
+		p.AddRestSourceReg(b.Controls[1].Reg())
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = loong64.REGTMP
+		p1 := s.Prog(loong64.AMOVV)
+		p1.From.Type = obj.TYPE_MEM
+		p1.From.Reg = loong64.REGTMP
+		p1.From.Offset = 0
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = loong64.REGTMP
+		p2 := s.Prog(obj.AJMP)
+		p2.To.Type = obj.TYPE_MEM
+		p2.To.Reg = loong64.REGTMP
+		// Save jump tables for later resolution of the target blocks.
+		s.JumpTables = append(s.JumpTables, b)
+
 	default:
 		b.Fatalf("branch not implemented: %s", b.LongString())
 	}

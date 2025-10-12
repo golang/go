@@ -20,6 +20,10 @@ type Decoder struct {
 	dec  *jsontext.Decoder
 	opts jsonv2.Options
 	err  error
+
+	// hadPeeked reports whether [Decoder.More] was called.
+	// It is reset by [Decoder.Decode] and [Decoder.Token].
+	hadPeeked bool
 }
 
 // NewDecoder returns a new decoder that reads from r.
@@ -76,6 +80,7 @@ func (dec *Decoder) Decode(v any) error {
 		}
 		return dec.err
 	}
+	dec.hadPeeked = false
 	return jsonv2.Unmarshal(b, v, dec.opts)
 }
 
@@ -206,6 +211,7 @@ func (dec *Decoder) Token() (Token, error) {
 		}
 		return nil, transformSyntacticError(err)
 	}
+	dec.hadPeeked = false
 	switch k := tok.Kind(); k {
 	case 'n':
 		return nil, nil
@@ -230,6 +236,7 @@ func (dec *Decoder) Token() (Token, error) {
 // More reports whether there is another element in the
 // current array or object being parsed.
 func (dec *Decoder) More() bool {
+	dec.hadPeeked = true
 	k := dec.dec.PeekKind()
 	return k > 0 && k != ']' && k != '}'
 }
@@ -238,5 +245,18 @@ func (dec *Decoder) More() bool {
 // The offset gives the location of the end of the most recently returned token
 // and the beginning of the next token.
 func (dec *Decoder) InputOffset() int64 {
-	return dec.dec.InputOffset()
+	offset := dec.dec.InputOffset()
+	if dec.hadPeeked {
+		// Historically, InputOffset reported the location of
+		// the end of the most recently returned token
+		// unless [Decoder.More] is called, in which case, it reported
+		// the beginning of the next token.
+		unreadBuffer := dec.dec.UnreadBuffer()
+		trailingTokens := bytes.TrimLeft(unreadBuffer, " \n\r\t")
+		if len(trailingTokens) > 0 {
+			leadingWhitespace := len(unreadBuffer) - len(trailingTokens)
+			offset += int64(leadingWhitespace)
+		}
+	}
+	return offset
 }

@@ -108,7 +108,7 @@ func (ci *Frames) Next() (frame Frame, more bool) {
 		}
 		funcInfo := findfunc(pc)
 		if !funcInfo.valid() {
-			if cgoSymbolizer != nil {
+			if cgoSymbolizerAvailable() {
 				// Pre-expand cgo frames. We could do this
 				// incrementally, too, but there's no way to
 				// avoid allocation in this case anyway.
@@ -295,6 +295,8 @@ func runtime_expandFinalInlineFrame(stk []uintptr) []uintptr {
 // expandCgoFrames expands frame information for pc, known to be
 // a non-Go function, using the cgoSymbolizer hook. expandCgoFrames
 // returns nil if pc could not be expanded.
+//
+// Preconditions: cgoSymbolizerAvailable returns true.
 func expandCgoFrames(pc uintptr) []Frame {
 	arg := cgoSymbolizerArg{pc: pc}
 	callCgoSymbolizer(&arg)

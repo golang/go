@@ -181,6 +181,8 @@ func largestMove(alignment int64) (obj.As, int64) {
 	}
 }
 
+var fracMovOps = []obj.As{riscv.AMOVB, riscv.AMOVH, riscv.AMOVW, riscv.AMOV}
+
 // ssaMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
 // RISC-V has no flags, so this is a no-op.
 func ssaMarkMoves(s *ssagen.State, b *ssa.Block) {}
@@ -544,7 +546,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			}
 		case ssa.OpRISCV64LoweredPanicBoundsCR:
 			yIsReg = true
-			yVal := int(v.Args[0].Reg() - riscv.REG_X5)
+			yVal = int(v.Args[0].Reg() - riscv.REG_X5)
 			c := v.Aux.(ssa.PanicBoundsC).C
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				xVal = int(c)
@@ -738,70 +740,181 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.RegTo2 = riscv.REG_ZERO
 
 	case ssa.OpRISCV64LoweredZero:
-		mov, sz := largestMove(v.AuxInt)
+		ptr := v.Args[0].Reg()
+		sc := v.AuxValAndOff()
+		n := sc.Val64()
 
-		//	mov	ZERO, (Rarg0)
-		//	ADD	$sz, Rarg0
-		//	BGEU	Rarg1, Rarg0, -2(PC)
+		mov, sz := largestMove(sc.Off64())
 
-		p := s.Prog(mov)
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = riscv.REG_ZERO
-		p.To.Type = obj.TYPE_MEM
-		p.To.Reg = v.Args[0].Reg()
+		// mov	ZERO, (offset)(Rarg0)
+		var off int64
+		for n >= sz {
+			zeroOp(s, mov, ptr, off)
+			off += sz
+			n -= sz
+		}
+
+		for i := len(fracMovOps) - 1; i >= 0; i-- {
+			tsz := int64(1 << i)
+			if n < tsz {
+				continue
+			}
+			zeroOp(s, fracMovOps[i], ptr, off)
+			off += tsz
+			n -= tsz
+		}
+
+	case ssa.OpRISCV64LoweredZeroLoop:
+		ptr := v.Args[0].Reg()
+		sc := v.AuxValAndOff()
+		n := sc.Val64()
+		mov, sz := largestMove(sc.Off64())
+		chunk := 8 * sz
+
+		if n <= 3*chunk {
+			v.Fatalf("ZeroLoop too small:%d, expect:%d", n, 3*chunk)
+		}
+
+		tmp := v.RegTmp()
+
+		p := s.Prog(riscv.AADD)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = n - n%chunk
+		p.Reg = ptr
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = tmp
+
+		for i := int64(0); i < 8; i++ {
+			zeroOp(s, mov, ptr, sz*i)
+		}
 
 		p2 := s.Prog(riscv.AADD)
 		p2.From.Type = obj.TYPE_CONST
-		p2.From.Offset = sz
+		p2.From.Offset = chunk
 		p2.To.Type = obj.TYPE_REG
-		p2.To.Reg = v.Args[0].Reg()
+		p2.To.Reg = ptr
 
-		p3 := s.Prog(riscv.ABGEU)
-		p3.To.Type = obj.TYPE_BRANCH
-		p3.Reg = v.Args[0].Reg()
+		p3 := s.Prog(riscv.ABNE)
+		p3.From.Reg = tmp
 		p3.From.Type = obj.TYPE_REG
-		p3.From.Reg = v.Args[1].Reg()
-		p3.To.SetTarget(p)
+		p3.Reg = ptr
+		p3.To.Type = obj.TYPE_BRANCH
+		p3.To.SetTarget(p.Link)
+
+		n %= chunk
+
+		// mov	ZERO, (offset)(Rarg0)
+		var off int64
+		for n >= sz {
+			zeroOp(s, mov, ptr, off)
+			off += sz
+			n -= sz
+		}
+
+		for i := len(fracMovOps) - 1; i >= 0; i-- {
+			tsz := int64(1 << i)
+			if n < tsz {
+				continue
+			}
+			zeroOp(s, fracMovOps[i], ptr, off)
+			off += tsz
+			n -= tsz
+		}
 
 	case ssa.OpRISCV64LoweredMove:
-		mov, sz := largestMove(v.AuxInt)
+		dst := v.Args[0].Reg()
+		src := v.Args[1].Reg()
+		if dst == src {
+			break
+		}
 
-		//	mov	(Rarg1), T2
-		//	mov	T2, (Rarg0)
-		//	ADD	$sz, Rarg0
-		//	ADD	$sz, Rarg1
-		//	BGEU	Rarg2, Rarg0, -4(PC)
+		sa := v.AuxValAndOff()
+		n := sa.Val64()
+		mov, sz := largestMove(sa.Off64())
 
-		p := s.Prog(mov)
-		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = v.Args[1].Reg()
+		var off int64
+		tmp := int16(riscv.REG_X5)
+		for n >= sz {
+			moveOp(s, mov, dst, src, tmp, off)
+			off += sz
+			n -= sz
+		}
+
+		for i := len(fracMovOps) - 1; i >= 0; i-- {
+			tsz := int64(1 << i)
+			if n < tsz {
+				continue
+			}
+			moveOp(s, fracMovOps[i], dst, src, tmp, off)
+			off += tsz
+			n -= tsz
+		}
+
+	case ssa.OpRISCV64LoweredMoveLoop:
+		dst := v.Args[0].Reg()
+		src := v.Args[1].Reg()
+		if dst == src {
+			break
+		}
+
+		sc := v.AuxValAndOff()
+		n := sc.Val64()
+		mov, sz := largestMove(sc.Off64())
+		chunk := 8 * sz
+
+		if n <= 3*chunk {
+			v.Fatalf("MoveLoop too small:%d, expect:%d", n, 3*chunk)
+		}
+		tmp := int16(riscv.REG_X5)
+
+		p := s.Prog(riscv.AADD)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = n - n%chunk
+		p.Reg = src
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = riscv.REG_T2
+		p.To.Reg = riscv.REG_X6
 
-		p2 := s.Prog(mov)
-		p2.From.Type = obj.TYPE_REG
-		p2.From.Reg = riscv.REG_T2
-		p2.To.Type = obj.TYPE_MEM
-		p2.To.Reg = v.Args[0].Reg()
+		for i := int64(0); i < 8; i++ {
+			moveOp(s, mov, dst, src, tmp, sz*i)
+		}
 
-		p3 := s.Prog(riscv.AADD)
-		p3.From.Type = obj.TYPE_CONST
-		p3.From.Offset = sz
-		p3.To.Type = obj.TYPE_REG
-		p3.To.Reg = v.Args[0].Reg()
+		p1 := s.Prog(riscv.AADD)
+		p1.From.Type = obj.TYPE_CONST
+		p1.From.Offset = chunk
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = src
 
-		p4 := s.Prog(riscv.AADD)
-		p4.From.Type = obj.TYPE_CONST
-		p4.From.Offset = sz
-		p4.To.Type = obj.TYPE_REG
-		p4.To.Reg = v.Args[1].Reg()
+		p2 := s.Prog(riscv.AADD)
+		p2.From.Type = obj.TYPE_CONST
+		p2.From.Offset = chunk
+		p2.To.Type = obj.TYPE_REG
+		p2.To.Reg = dst
 
-		p5 := s.Prog(riscv.ABGEU)
-		p5.To.Type = obj.TYPE_BRANCH
-		p5.Reg = v.Args[1].Reg()
-		p5.From.Type = obj.TYPE_REG
-		p5.From.Reg = v.Args[2].Reg()
-		p5.To.SetTarget(p)
+		p3 := s.Prog(riscv.ABNE)
+		p3.From.Reg = riscv.REG_X6
+		p3.From.Type = obj.TYPE_REG
+		p3.Reg = src
+		p3.To.Type = obj.TYPE_BRANCH
+		p3.To.SetTarget(p.Link)
+
+		n %= chunk
+
+		var off int64
+		for n >= sz {
+			moveOp(s, mov, dst, src, tmp, off)
+			off += sz
+			n -= sz
+		}
+
+		for i := len(fracMovOps) - 1; i >= 0; i-- {
+			tsz := int64(1 << i)
+			if n < tsz {
+				continue
+			}
+			moveOp(s, fracMovOps[i], dst, src, tmp, off)
+			off += tsz
+			n -= tsz
+		}
 
 	case ssa.OpRISCV64LoweredNilCheck:
 		// Issue a load which will fault if arg is nil.
@@ -835,20 +948,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(obj.AGETCALLERPC)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-
-	case ssa.OpRISCV64DUFFZERO:
-		p := s.Prog(obj.ADUFFZERO)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = ir.Syms.Duffzero
-		p.To.Offset = v.AuxInt
-
-	case ssa.OpRISCV64DUFFCOPY:
-		p := s.Prog(obj.ADUFFCOPY)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = ir.Syms.Duffcopy
-		p.To.Offset = v.AuxInt
 
 	case ssa.OpRISCV64LoweredPubBarrier:
 		// FENCE
@@ -954,4 +1053,32 @@ func spillArgReg(pp *objw.Progs, p *obj.Prog, f *ssa.Func, t *types.Type, reg in
 	p.To.Sym = n.Linksym()
 	p.Pos = p.Pos.WithNotStmt()
 	return p
+}
+
+func zeroOp(s *ssagen.State, mov obj.As, reg int16, off int64) {
+	p := s.Prog(mov)
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = riscv.REG_ZERO
+	p.To.Type = obj.TYPE_MEM
+	p.To.Reg = reg
+	p.To.Offset = off
+	return
+}
+
+func moveOp(s *ssagen.State, mov obj.As, dst int16, src int16, tmp int16, off int64) {
+	p := s.Prog(mov)
+	p.From.Type = obj.TYPE_MEM
+	p.From.Reg = src
+	p.From.Offset = off
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = tmp
+
+	p1 := s.Prog(mov)
+	p1.From.Type = obj.TYPE_REG
+	p1.From.Reg = tmp
+	p1.To.Type = obj.TYPE_MEM
+	p1.To.Reg = dst
+	p1.To.Offset = off
+
+	return
 }

@@ -115,7 +115,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = y
 		}
-	case ssa.OpMIPS64MOVVnop:
+	case ssa.OpMIPS64MOVVnop, ssa.OpMIPS64ZERO:
 		// nothing to do
 	case ssa.OpLoadReg:
 		if v.Type.IsFlags() {
@@ -298,16 +298,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[1].Reg()
-		p.To.Type = obj.TYPE_MEM
-		p.To.Reg = v.Args[0].Reg()
-		ssagen.AddAux(&p.To, v)
-	case ssa.OpMIPS64MOVBstorezero,
-		ssa.OpMIPS64MOVHstorezero,
-		ssa.OpMIPS64MOVWstorezero,
-		ssa.OpMIPS64MOVVstorezero:
-		p := s.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = mips.REGZERO
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		ssagen.AddAux(&p.To, v)
@@ -542,7 +532,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			}
 		case ssa.OpMIPS64LoweredPanicBoundsCR:
 			yIsReg = true
-			yVal := int(v.Args[0].Reg() - mips.REG_R1)
+			yVal = int(v.Args[0].Reg() - mips.REG_R1)
 			c := v.Aux.(ssa.PanicBoundsC).C
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				xVal = int(c)

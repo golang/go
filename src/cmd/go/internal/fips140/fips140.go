@@ -94,6 +94,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"golang.org/x/mod/module"
@@ -120,6 +121,9 @@ func Init() {
 	// selected toolchain version.
 	if cfg.ExperimentErr == nil && cfg.Experiment.BoringCrypto && Enabled() {
 		base.Fatalf("go: cannot use GOFIPS140 with GOEXPERIMENT=boringcrypto")
+	}
+	if slices.Contains(cfg.BuildContext.BuildTags, "purego") && Enabled() {
+		base.Fatalf("go: cannot use GOFIPS140 with the purego build tag")
 	}
 }
 

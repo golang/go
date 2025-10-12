@@ -453,7 +453,7 @@ func (up *socksUsernamePassword) Authenticate(ctx context.Context, rw io.ReadWri
 		b = append(b, up.Username...)
 		b = append(b, byte(len(up.Password)))
 		b = append(b, up.Password...)
-		// TODO(mikio): handle IO deadlines and cancelation if
+		// TODO(mikio): handle IO deadlines and cancellation if
 		// necessary
 		if _, err := rw.Write(b); err != nil {
 			return err

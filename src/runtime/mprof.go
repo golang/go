@@ -49,7 +49,7 @@ const (
 	// desired maximum number of frames after expansion.
 	// This should be at least as large as the largest skip value
 	// used for profiling; otherwise stacks may be truncated inconsistently
-	maxSkip = 6
+	maxSkip = 8
 
 	// maxProfStackDepth is the highest valid value for debug.profstackdepth.
 	// It's used for the bucket.stk func.
@@ -444,7 +444,7 @@ func mProf_Malloc(mp *m, p unsafe.Pointer, size uintptr) {
 	}
 	// Only use the part of mp.profStack we need and ignore the extra space
 	// reserved for delayed inline expansion with frame pointer unwinding.
-	nstk := callers(5, mp.profStack[:debug.profstackdepth])
+	nstk := callers(3, mp.profStack[:debug.profstackdepth+2])
 	index := (mProfCycle.read() + 2) % uint32(len(memRecord{}.future))
 
 	b := stkbucket(memProfile, size, mp.profStack[:nstk], true)
@@ -1259,6 +1259,20 @@ func goroutineProfileWithLabels(p []profilerecord.StackRecord, labels []unsafe.P
 	return goroutineProfileWithLabelsConcurrent(p, labels)
 }
 
+//go:linkname pprof_goroutineLeakProfileWithLabels
+func pprof_goroutineLeakProfileWithLabels(p []profilerecord.StackRecord, labels []unsafe.Pointer) (n int, ok bool) {
+	return goroutineLeakProfileWithLabelsConcurrent(p, labels)
+}
+
+// labels may be nil. If labels is non-nil, it must have the same length as p.
+func goroutineLeakProfileWithLabels(p []profilerecord.StackRecord, labels []unsafe.Pointer) (n int, ok bool) {
+	if labels != nil && len(labels) != len(p) {
+		labels = nil
+	}
+
+	return goroutineLeakProfileWithLabelsConcurrent(p, labels)
+}
+
 var goroutineProfile = struct {
 	sema    uint32
 	active  bool
@@ -1300,6 +1314,48 @@ func (p *goroutineProfileStateHolder) Store(value goroutineProfileState) {
 
 func (p *goroutineProfileStateHolder) CompareAndSwap(old, new goroutineProfileState) bool {
 	return (*atomic.Uint32)(p).CompareAndSwap(uint32(old), uint32(new))
+}
+
+func goroutineLeakProfileWithLabelsConcurrent(p []profilerecord.StackRecord, labels []unsafe.Pointer) (n int, ok bool) {
+	if len(p) == 0 {
+		// An empty slice is obviously too small. Return a rough
+		// allocation estimate.
+		return work.goroutineLeak.count, false
+	}
+
+	// Use the same semaphore as goroutineProfileWithLabelsConcurrent,
+	// because ultimately we still use goroutine profiles.
+	semacquire(&goroutineProfile.sema)
+
+	// Unlike in goroutineProfileWithLabelsConcurrent, we don't need to
+	// save the current goroutine stack, because it is obviously not leaked.
+
+	pcbuf := makeProfStack() // see saveg() for explanation
+
+	// Prepare a profile large enough to store all leaked goroutines.
+	n = work.goroutineLeak.count
+
+	if n > len(p) {
+		// There's not enough space in p to store the whole profile, so (per the
+		// contract of runtime.GoroutineProfile) we're not allowed to write to p
+		// at all and must return n, false.
+		semrelease(&goroutineProfile.sema)
+		return n, false
+	}
+
+	// Visit each leaked goroutine and try to record its stack.
+	forEachGRace(func(gp1 *g) {
+		if readgstatus(gp1) == _Gleaked {
+			doRecordGoroutineProfile(gp1, pcbuf)
+		}
+	})
+
+	if raceenabled {
+		raceacquire(unsafe.Pointer(&labelSync))
+	}
+
+	semrelease(&goroutineProfile.sema)
+	return n, true
 }
 
 func goroutineProfileWithLabelsConcurrent(p []profilerecord.StackRecord, labels []unsafe.Pointer) (n int, ok bool) {

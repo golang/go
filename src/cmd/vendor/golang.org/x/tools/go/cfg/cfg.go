@@ -53,7 +53,6 @@ import (
 //
 // The entry point is Blocks[0]; there may be multiple return blocks.
 type CFG struct {
-	fset   *token.FileSet
 	Blocks []*Block // block[0] is entry; order otherwise undefined
 }
 
@@ -63,6 +62,10 @@ type CFG struct {
 // A block may have 0-2 successors: zero for a return block or a block
 // that calls a function such as panic that never returns; one for a
 // normal (jump) block; and two for a conditional (if) block.
+//
+// In a conditional block, the last entry in Nodes is the condition and always
+// an [ast.Expr], Succs[0] is the successor if the condition is true, and
+// Succs[1] is the successor if the condition is false.
 type Block struct {
 	Nodes []ast.Node // statements, expressions, and ValueSpecs
 	Succs []*Block   // successor nodes in the graph

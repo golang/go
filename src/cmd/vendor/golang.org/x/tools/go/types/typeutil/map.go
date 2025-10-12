@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"go/types"
 	"hash/maphash"
-	"unsafe"
 
 	"golang.org/x/tools/internal/typeparams"
 )
@@ -380,22 +379,8 @@ var theSeed = maphash.MakeSeed()
 func (hasher) hashTypeName(tname *types.TypeName) uint32 {
 	// Since types.Identical uses == to compare TypeNames,
 	// the Hash function uses maphash.Comparable.
-	// TODO(adonovan): or will, when it becomes available in go1.24.
-	// In the meantime we use the pointer's numeric value.
-	//
-	//   hash := maphash.Comparable(theSeed, tname)
-	//
-	// (Another approach would be to hash the name and package
-	// path, and whether or not it is a package-level typename. It
-	// is rare for a package to define multiple local types with
-	// the same name.)
-	ptr := uintptr(unsafe.Pointer(tname))
-	if unsafe.Sizeof(ptr) == 8 {
-		hash := uint64(ptr)
-		return uint32(hash ^ (hash >> 32))
-	} else {
-		return uint32(ptr)
-	}
+	hash := maphash.Comparable(theSeed, tname)
+	return uint32(hash ^ (hash >> 32))
 }
 
 // shallowHash computes a hash of t without looking at any of its

@@ -10,7 +10,9 @@ import (
 	"fmt"
 	"go/ast"
 	"go/constant"
+	"go/token"
 	"go/types"
+	"strconv"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -57,13 +59,16 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	// checkAddr reports a diagnostic (and returns true) if e
-	// is a call of the form fmt.Sprintf("%d:%d", ...).
+	// is a call of the form fmt.Sprintf("%s:%d", ...).
 	// The diagnostic includes a fix.
 	//
 	// dialCall is non-nil if the Dial call is non-local
 	// but within the same file.
 	checkAddr := func(e ast.Expr, dialCall *ast.CallExpr) {
-		if call, ok := e.(*ast.CallExpr); ok && typeutil.Callee(info, call) == fmtSprintf {
+		if call, ok := e.(*ast.CallExpr); ok &&
+			len(call.Args) == 3 &&
+			typeutil.Callee(info, call) == fmtSprintf {
+
 			// Examine format string.
 			formatArg := call.Args[0]
 			if tv := info.Types[formatArg]; tv.Value != nil {
@@ -99,21 +104,41 @@ func run(pass *analysis.Pass) (any, error) {
 
 				// Turn numeric port into a string.
 				if numericPort {
-					//  port => fmt.Sprintf("%d", port)
-					//   123 => "123"
 					port := call.Args[2]
-					newPort := fmt.Sprintf(`fmt.Sprintf("%%d", %s)`, port)
-					if port := info.Types[port].Value; port != nil {
-						if i, ok := constant.Int64Val(port); ok {
-							newPort = fmt.Sprintf(`"%d"`, i) // numeric constant
+
+					// Is port an integer literal?
+					//
+					// (Don't allow arbitrary constants k otherwise the
+					// transformation k => fmt.Sprintf("%d", "123")
+					// loses the symbolic connection to k.)
+					var kPort int64 = -1
+					if lit, ok := port.(*ast.BasicLit); ok && lit.Kind == token.INT {
+						if v, err := strconv.ParseInt(lit.Value, 0, 64); err == nil {
+							kPort = v
 						}
 					}
-
-					edits = append(edits, analysis.TextEdit{
-						Pos:     port.Pos(),
-						End:     port.End(),
-						NewText: []byte(newPort),
-					})
+					if kPort >= 0 {
+						// literal: 0x7B  => "123"
+						edits = append(edits, analysis.TextEdit{
+							Pos:     port.Pos(),
+							End:     port.End(),
+							NewText: fmt.Appendf(nil, `"%d"`, kPort), // (decimal)
+						})
+					} else {
+						// non-literal: port => fmt.Sprintf("%d", port)
+						edits = append(edits, []analysis.TextEdit{
+							{
+								Pos:     port.Pos(),
+								End:     port.Pos(),
+								NewText: []byte(`fmt.Sprintf("%d", `),
+							},
+							{
+								Pos:     port.End(),
+								End:     port.End(),
+								NewText: []byte(`)`),
+							},
+						}...)
+					}
 				}
 
 				// Refer to Dial call, if not adjacent.

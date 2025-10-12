@@ -192,6 +192,10 @@ and -show_bytes options of pprof control how the information is presented.
 The following flags are recognized by the 'go test' command and
 control the execution of any test:
 
+	-artifacts
+	    Save test artifacts in the directory specified by -outputdir.
+	    See 'go doc testing.T.ArtifactDir'.
+
 	-bench regexp
 	    Run only those benchmarks matching a regular expression.
 	    By default, no benchmarks are run.
@@ -285,6 +289,10 @@ control the execution of any test:
 	    expression. No tests, benchmarks, fuzz tests, or examples will be run.
 	    This will only list top-level tests. No subtest or subbenchmarks will be
 	    shown.
+
+	-outputdir directory
+	    Place output files from profiling and test artifacts in the
+	    specified directory, by default the directory in which "go test" is running.
 
 	-parallel n
 	    Allow parallel execution of test functions that call t.Parallel, and
@@ -396,10 +404,6 @@ profile the tests during execution:
 	-mutexprofilefraction n
 	    Sample 1 in n stack traces of goroutines holding a
 	    contended mutex.
-
-	-outputdir directory
-	    Place output files from profiling in the specified directory,
-	    by default the directory in which "go test" is running.
 
 	-trace trace.out
 	    Write an execution trace to the specified file before exiting.
@@ -540,6 +544,7 @@ See the documentation of the testing package for more information.
 }
 
 var (
+	testArtifacts    bool                              // -artifacts flag
 	testBench        string                            // -bench flag
 	testC            bool                              // -c flag
 	testCoverPkgs    []*load.Package                   // -coverpkg flag
@@ -702,6 +707,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	work.BuildInit()
 	work.VetFlags = testVet.flags
 	work.VetExplicit = testVet.explicit
+	work.VetTool = base.Tool("vet")
 
 	pkgOpts := load.PackageOpts{ModResolveTests: true}
 	pkgs = load.PackagesAndErrors(ctx, pkgOpts, pkgArgs)
@@ -730,7 +736,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 		// the module cache (or permanently alter the behavior of std tests for all
 		// users) by writing the failing input to the package's testdata directory.
 		// (See https://golang.org/issue/48495 and test_fuzz_modcache.txt.)
-		mainMods := modload.MainModules
+		mainMods := modload.LoaderState.MainModules
 		if m := pkgs[0].Module; m != nil && m.Path != "" {
 			if !mainMods.Contains(m.Path) {
 				base.Fatalf("cannot use -fuzz flag on package outside the main module")
@@ -988,6 +994,15 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 			if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 && cfg.BuildCoverPkg == nil {
 				p.Internal.Cover.GenMeta = true
 			}
+
+			// Set coverage mode before building actions because it needs to be set
+			// before the first package build action for the package under test is
+			// created and cached, so that we can create the coverage action for it.
+			if cfg.BuildCover {
+				if p.Internal.Cover.GenMeta {
+					p.Internal.Cover.Mode = cfg.BuildCoverMode
+				}
+			}
 		}
 	}
 
@@ -1116,11 +1131,6 @@ var windowsBadWords = []string{
 
 func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts, p *load.Package, imported bool, writeCoverMetaAct *work.Action) (buildAction, runAction, printAction *work.Action, perr *load.Package, err error) {
 	if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
-		if cfg.BuildCover {
-			if p.Internal.Cover.GenMeta {
-				p.Internal.Cover.Mode = cfg.BuildCoverMode
-			}
-		}
 		build := b.CompileAction(work.ModeBuild, work.ModeBuild, p)
 		run := &work.Action{
 			Mode:       "test run",
@@ -1188,7 +1198,9 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
 
 	testBinary := testBinaryName(p)
 
-	testDir := b.NewObjdir()
+	// Set testdir to compile action's objdir.
+	// so that the default file path stripping applies to _testmain.go.
+	testDir := b.CompileAction(work.ModeBuild, work.ModeBuild, pmain).Objdir
 	if err := b.BackgroundShell().Mkdir(testDir); err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -1208,10 +1220,6 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
 			return nil, nil, nil, nil, err
 		}
 	}
-
-	// Set compile objdir to testDir we've already created,
-	// so that the default file path stripping applies to _testmain.go.
-	b.CompileAction(work.ModeBuild, work.ModeBuild, pmain).Objdir = testDir
 
 	a := b.LinkAction(work.ModeBuild, work.ModeBuild, pmain)
 	a.Target = testDir + testBinary + cfg.ExeSuffix

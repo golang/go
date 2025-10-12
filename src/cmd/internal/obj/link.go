@@ -99,7 +99,7 @@ import (
 //
 //	<symbolic constant name>
 //		Special symbolic constants for ARM64 (such as conditional flags, tlbi_op and so on)
-//		and RISCV64 (such as names for vector configuration instruction arguments).
+//		and RISCV64 (such as names for vector configuration instruction arguments and CSRs).
 //		Encoding:
 //			type = TYPE_SPECIAL
 //			offset = The constant value corresponding to this symbol
@@ -464,7 +464,7 @@ type LSym struct {
 	P      []byte
 	R      []Reloc
 
-	Extra *interface{} // *FuncInfo, *VarInfo, *FileInfo, or *TypeInfo, if present
+	Extra *interface{} // *FuncInfo, *VarInfo, *FileInfo, *TypeInfo, or *ItabInfo, if present
 
 	Pkg    string
 	PkgIdx int32
@@ -604,6 +604,15 @@ func (s *LSym) NewTypeInfo() *TypeInfo {
 	return t
 }
 
+// TypeInfo returns the *TypeInfo associated with s, or else nil.
+func (s *LSym) TypeInfo() *TypeInfo {
+	if s.Extra == nil {
+		return nil
+	}
+	t, _ := (*s.Extra).(*TypeInfo)
+	return t
+}
+
 // An ItabInfo contains information for a symbol
 // that contains a runtime.itab.
 type ItabInfo struct {
@@ -618,6 +627,15 @@ func (s *LSym) NewItabInfo() *ItabInfo {
 	s.Extra = new(interface{})
 	*s.Extra = t
 	return t
+}
+
+// ItabInfo returns the *ItabInfo associated with s, or else nil.
+func (s *LSym) ItabInfo() *ItabInfo {
+	if s.Extra == nil {
+		return nil
+	}
+	i, _ := (*s.Extra).(*ItabInfo)
+	return i
 }
 
 // WasmImport represents a WebAssembly (WASM) imported function with
@@ -1196,6 +1214,13 @@ type Link struct {
 	nonpkgrefs   []*LSym // list of referenced non-package symbols
 
 	Fingerprint goobj.FingerprintType // fingerprint of symbol indices, to catch index mismatch
+}
+
+// Assert to vet's printf checker that Link.DiagFunc is a printf-like.
+func _(ctxt *Link) {
+	ctxt.DiagFunc = func(format string, args ...any) {
+		_ = fmt.Sprintf(format, args...)
+	}
 }
 
 func (ctxt *Link) Diag(format string, args ...interface{}) {

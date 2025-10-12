@@ -25,6 +25,7 @@ func f(x string) int {
 func square(x int) int {
 	// amd64:`JMP\s\(.*\)\(.*\)$`
 	// arm64:`MOVD\s\(R.*\)\(R.*<<3\)`,`JMP\s\(R.*\)$`
+	// loong64: `ALSLV`,`MOVV`,`JMP`
 	switch x {
 	case 1:
 		return 1
@@ -51,6 +52,7 @@ func square(x int) int {
 func length(x string) int {
 	// amd64:`JMP\s\(.*\)\(.*\)$`
 	// arm64:`MOVD\s\(R.*\)\(R.*<<3\)`,`JMP\s\(R.*\)$`
+	// loong64:`ALSLV`,`MOVV`,`JMP`
 	switch x {
 	case "a":
 		return 1

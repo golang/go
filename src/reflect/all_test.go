@@ -6198,19 +6198,6 @@ func TestChanOfDir(t *testing.T) {
 }
 
 func TestChanOfGC(t *testing.T) {
-	done := make(chan bool, 1)
-	go func() {
-		select {
-		case <-done:
-		case <-time.After(5 * time.Second):
-			panic("deadlock in TestChanOfGC")
-		}
-	}()
-
-	defer func() {
-		done <- true
-	}()
-
 	type T *uintptr
 	tt := TypeOf(T(nil))
 	ct := ChanOf(BothDir, tt)
@@ -8783,6 +8770,9 @@ func TestTypeAssertAllocs(t *testing.T) {
 
 	typeAssertAllocs[time.Time](t, ValueOf(new(time.Time)).Elem(), 0)
 	typeAssertAllocs[time.Time](t, ValueOf(*new(time.Time)), 0)
+
+	type I interface{ foo() }
+	typeAssertAllocs[I](t, ValueOf(new(string)).Elem(), 0) // assert fail doesn't alloc
 }
 
 func typeAssertAllocs[T any](t *testing.T, val Value, wantAllocs int) {

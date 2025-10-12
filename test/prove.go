@@ -511,10 +511,10 @@ func f19() (e int64, err error) {
 
 func sm1(b []int, x int) {
 	// Test constant argument to slicemask.
-	useSlice(b[2:8]) // ERROR "Proved slicemask not needed$"
+	useSlice(b[2:8]) // optimized away earlier by rewrite
 	// Test non-constant argument with known limits.
 	if cap(b) > 10 {
-		useSlice(b[2:])
+		useSlice(b[2:]) // ERROR "Proved slicemask not needed$"
 	}
 }
 
@@ -773,8 +773,8 @@ func indexGT0(b []byte, n int) {
 func unrollUpExcl(a []int) int {
 	var i, x int
 	for i = 0; i < len(a)-1; i += 2 { // ERROR "Induction variable: limits \[0,\?\), increment 2$"
-		x += a[i] // ERROR "Proved IsInBounds$"
-		x += a[i+1]
+		x += a[i]   // ERROR "Proved IsInBounds$"
+		x += a[i+1] // ERROR "Proved IsInBounds( for blocked indexing)?$"
 	}
 	if i == len(a)-1 {
 		x += a[i]
@@ -786,8 +786,8 @@ func unrollUpExcl(a []int) int {
 func unrollUpIncl(a []int) int {
 	var i, x int
 	for i = 0; i <= len(a)-2; i += 2 { // ERROR "Induction variable: limits \[0,\?\], increment 2$"
-		x += a[i] // ERROR "Proved IsInBounds$"
-		x += a[i+1]
+		x += a[i]   // ERROR "Proved IsInBounds$"
+		x += a[i+1] // ERROR "Proved IsInBounds( for blocked indexing)?$"
 	}
 	if i == len(a)-1 {
 		x += a[i]
@@ -839,7 +839,7 @@ func unrollExclStepTooLarge(a []int) int {
 	var i, x int
 	for i = 0; i < len(a)-1; i += 3 {
 		x += a[i]
-		x += a[i+1]
+		x += a[i+1] // ERROR "Proved IsInBounds( for blocked indexing)?$"
 	}
 	if i == len(a)-1 {
 		x += a[i]
@@ -852,7 +852,7 @@ func unrollInclStepTooLarge(a []int) int {
 	var i, x int
 	for i = 0; i <= len(a)-2; i += 3 {
 		x += a[i]
-		x += a[i+1]
+		x += a[i+1] // ERROR "Proved IsInBounds( for blocked indexing)?$"
 	}
 	if i == len(a)-1 {
 		x += a[i]

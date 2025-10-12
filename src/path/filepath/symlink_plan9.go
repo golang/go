@@ -16,8 +16,8 @@ func evalSymlinks(path string) (string, error) {
 		// Check validity of path
 		_, err := os.Lstat(path)
 		if err != nil {
-			// Return the same error value as on other operating systems
-			if strings.HasSuffix(err.Error(), "not a directory") {
+			// Return the same error value as on other operating systems.
+			if strings.Contains(err.Error(), "not a directory") {
 				err = syscall.ENOTDIR
 			}
 			return "", err

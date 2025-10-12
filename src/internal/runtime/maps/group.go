@@ -215,6 +215,12 @@ func (g ctrlGroup) matchFull() bitset {
 	return ctrlGroupMatchFull(g)
 }
 
+// anyFull reports whether any slots in the group are full.
+func (g ctrlGroup) anyFull() bool {
+	// A slot is full iff bit 7 is unset. Test whether any slot has bit 7 unset.
+	return (^g)&bitsetMSB != 0
+}
+
 // Portable implementation of matchFull.
 //
 // Note: On AMD64, this is an intrinsic implemented with SIMD instructions. See

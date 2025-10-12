@@ -11,8 +11,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"flag"
 	"fmt"
+	"html/template"
 	"internal/byteorder"
 	"internal/testenv"
 	"io"
@@ -25,9 +27,12 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"golang.org/x/crypto/cryptobyte"
 )
+
+const boringsslModVer = "v0.0.0-20250620172916-f51d8b099832"
 
 var (
 	port   = flag.String("port", "", "")
@@ -537,6 +542,7 @@ func orderlyShutdown(tlsConn *Conn) {
 }
 
 func TestBogoSuite(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
@@ -555,9 +561,9 @@ func TestBogoSuite(t *testing.T) {
 
 	var bogoDir string
 	if *bogoLocalDir != "" {
+		ensureLocalBogo(t, *bogoLocalDir)
 		bogoDir = *bogoLocalDir
 	} else {
-		const boringsslModVer = "v0.0.0-20250620172916-f51d8b099832"
 		bogoDir = cryptotest.FetchModule(t, "boringssl.googlesource.com/boringssl.git", boringsslModVer)
 	}
 
@@ -604,6 +610,12 @@ func TestBogoSuite(t *testing.T) {
 	var results bogoResults
 	if err := json.Unmarshal(resultsJSON, &results); err != nil {
 		t.Fatalf("failed to parse results JSON: %s", err)
+	}
+
+	if *bogoReport != "" {
+		if err := generateReport(results, *bogoReport); err != nil {
+			t.Fatalf("failed to generate report: %v", err)
+		}
 	}
 
 	// assertResults contains test results we want to make sure
@@ -655,6 +667,66 @@ func TestBogoSuite(t *testing.T) {
 	}
 }
 
+// ensureLocalBogo fetches BoringSSL to localBogoDir at the correct revision
+// (from boringsslModVer) if localBogoDir doesn't already exist.
+//
+// If localBogoDir does exist, ensureLocalBogo fails the test if it isn't
+// a directory.
+func ensureLocalBogo(t *testing.T, localBogoDir string) {
+	t.Helper()
+
+	if stat, err := os.Stat(localBogoDir); err == nil {
+		if !stat.IsDir() {
+			t.Fatalf("local bogo dir (%q) exists but is not a directory", localBogoDir)
+		}
+
+		t.Logf("using local bogo checkout from %q", localBogoDir)
+		return
+	} else if !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("failed to stat local bogo dir (%q): %v", localBogoDir, err)
+	}
+
+	testenv.MustHaveExecPath(t, "git")
+
+	idx := strings.LastIndex(boringsslModVer, "-")
+	if idx == -1 || idx == len(boringsslModVer)-1 {
+		t.Fatalf("invalid boringsslModVer format: %q", boringsslModVer)
+	}
+	commitSHA := boringsslModVer[idx+1:]
+
+	t.Logf("cloning boringssl@%s to %q", commitSHA, localBogoDir)
+	cloneCmd := testenv.Command(t, "git", "clone", "--no-checkout", "https://boringssl.googlesource.com/boringssl", localBogoDir)
+	if err := cloneCmd.Run(); err != nil {
+		t.Fatalf("git clone failed: %v", err)
+	}
+
+	checkoutCmd := testenv.Command(t, "git", "checkout", commitSHA)
+	checkoutCmd.Dir = localBogoDir
+	if err := checkoutCmd.Run(); err != nil {
+		t.Fatalf("git checkout failed: %v", err)
+	}
+
+	t.Logf("using fresh local bogo checkout from %q", localBogoDir)
+	return
+}
+
+func generateReport(results bogoResults, outPath string) error {
+	data := reportData{
+		Results:   results,
+		Timestamp: time.Unix(int64(results.SecondsSinceEpoch), 0).Format("2006-01-02 15:04:05"),
+		Revision:  boringsslModVer,
+	}
+
+	tmpl := template.Must(template.New("report").Parse(reportTemplate))
+	file, err := os.Create(outPath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	return tmpl.Execute(file, data)
+}
+
 // bogoResults is a copy of boringssl.googlesource.com/boringssl/testresults.Results
 type bogoResults struct {
 	Version           int            `json:"version"`
@@ -669,3 +741,127 @@ type bogoResults struct {
 		Error        string `json:"error,omitempty"`
 	} `json:"tests"`
 }
+
+type reportData struct {
+	Results     bogoResults
+	SkipReasons map[string]string
+	Timestamp   string
+	Revision    string
+}
+
+const reportTemplate = `
+<!DOCTYPE html>
+<html>
+<head>
+    <title>BoGo Results Report</title>
+    <style>
+        body { font-family: monospace; margin: 20px; }
+        .summary { background: #f5f5f5; padding: 10px; margin-bottom: 20px; }
+        .controls { margin-bottom: 10px; }
+        .controls input, select { margin-right: 10px; }
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: top; }
+        th { background-color: #f2f2f2; cursor: pointer; }
+        .name-col { width: 30%; }
+        .status-col { width: 8%; }
+        .actual-col { width: 8%; }
+        .expected-col { width: 8%; }
+        .error-col { width: 26%; }
+        .PASS { background-color: #d4edda; }
+        .FAIL { background-color: #f8d7da; }
+        .SKIP { background-color: #fff3cd; }
+        .error {
+            font-family: monospace;
+            font-size: 0.9em;
+            color: #721c24;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+    </style>
+</head>
+<body>
+<h1>BoGo Results Report</h1>
+
+<div class="summary">
+    <strong>Generated:</strong> {{.Timestamp}} | <strong>BoGo Revision:</strong> {{.Revision}}<br>
+    {{range $status, $count := .Results.NumFailuresByType}}
+    <strong>{{$status}}:</strong> {{$count}} |
+    {{end}}
+</div>
+
+<div class="controls">
+    <input type="text" id="search" placeholder="Search tests..." onkeyup="filterTests()">
+    <select id="statusFilter" onchange="filterTests()">
+        <option value="">All</option>
+        <option value="FAIL">Failed</option>
+        <option value="PASS">Passed</option>
+        <option value="SKIP">Skipped</option>
+    </select>
+</div>
+
+<table id="resultsTable">
+    <thead>
+    <tr>
+        <th class="name-col" onclick="sortBy('name')">Test Name</th>
+        <th class="status-col" onclick="sortBy('status')">Status</th>
+        <th class="actual-col" onclick="sortBy('actual')">Actual</th>
+        <th class="expected-col" onclick="sortBy('expected')">Expected</th>
+        <th class="error-col">Error</th>
+    </tr>
+    </thead>
+    <tbody>
+    {{range $name, $test := .Results.Tests}}
+    <tr class="{{$test.Actual}}" data-name="{{$name}}" data-status="{{$test.Actual}}">
+        <td>{{$name}}</td>
+        <td>{{$test.Actual}}</td>
+        <td>{{$test.Actual}}</td>
+        <td>{{$test.Expected}}</td>
+        <td class="error">{{$test.Error}}</td>
+    </tr>
+    {{end}}
+    </tbody>
+</table>
+
+<script>
+    function filterTests() {
+        const search = document.getElementById('search').value.toLowerCase();
+        const status = document.getElementById('statusFilter').value;
+        const rows = document.querySelectorAll('#resultsTable tbody tr');
+
+        rows.forEach(row => {
+            const name = row.dataset.name.toLowerCase();
+            const rowStatus = row.dataset.status;
+            const matchesSearch = name.includes(search);
+            const matchesStatus = !status || rowStatus === status;
+
+            row.style.display = matchesSearch && matchesStatus ? '' : 'none';
+        });
+    }
+
+    function sortBy(column) {
+        const tbody = document.querySelector('#resultsTable tbody');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+
+        rows.sort((a, b) => {
+            if (column === 'status') {
+                const statusOrder = {'FAIL': 0, 'PASS': 1, 'SKIP': 2};
+                const aStatus = a.dataset.status;
+                const bStatus = b.dataset.status;
+                if (aStatus !== bStatus) {
+                    return statusOrder[aStatus] - statusOrder[bStatus];
+                }
+                return a.dataset.name.localeCompare(b.dataset.name);
+            } else {
+                return a.dataset.name.localeCompare(b.dataset.name);
+            }
+        });
+
+        rows.forEach(row => tbody.appendChild(row));
+        filterTests();
+    }
+
+    sortBy("status");
+</script>
+</body>
+</html>
+`

@@ -233,8 +233,7 @@ func checkPrivateKey(priv *PrivateKey) error {
 	// It also implies that a^de ≡ a mod p as a^(p-1) ≡ 1 mod p. Thus a^de ≡ a
 	// mod n for all a coprime to n, as required.
 	//
-	// This checks dP, dQ, and e. We don't check d because it is not actually
-	// used in the RSA private key operation.
+	// This checks dP, dQ, and e.
 	pMinus1, err := bigmod.NewModulus(p.Nat().SubOne(p).Bytes(p))
 	if err != nil {
 		return errors.New("crypto/rsa: invalid prime")
@@ -274,6 +273,17 @@ func checkPrivateKey(priv *PrivateKey) error {
 		return errors.New("crypto/rsa: invalid CRT coefficient")
 	}
 
+	// Check d against dP and dQ, even though we never actually use d,
+	// to make sure the key is consistent.
+	dP1 := bigmod.NewNat().Mod(priv.d, pMinus1)
+	if dP1.Equal(dP) != 1 {
+		return errors.New("crypto/rsa: d does not match dP")
+	}
+	dQ1 := bigmod.NewNat().Mod(priv.d, qMinus1)
+	if dQ1.Equal(dQ) != 1 {
+		return errors.New("crypto/rsa: d does not match dQ")
+	}
+
 	// Check that |p - q| > 2^(nlen/2 - 100).
 	//
 	// If p and q are very close to each other, then N=pq can be trivially
@@ -308,26 +318,6 @@ func checkPrivateKey(priv *PrivateKey) error {
 	// Likewise, the leakage of the magnitude of d is not adaptive.
 	if priv.d.BitLenVarTime() <= N.BitLen()/2 {
 		return errors.New("crypto/rsa: d too small")
-	}
-
-	// If the key is still in scope for FIPS mode, perform a Pairwise
-	// Consistency Test.
-	if priv.fipsApproved {
-		if err := fips140.PCT("RSA sign and verify PCT", func() error {
-			hash := []byte{
-				0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
-				0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
-				0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
-				0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20,
-			}
-			sig, err := signPKCS1v15(priv, "SHA-256", hash)
-			if err != nil {
-				return err
-			}
-			return verifyPKCS1v15(priv.PublicKey(), "SHA-256", hash, sig)
-		}); err != nil {
-			return err
-		}
 	}
 
 	return nil

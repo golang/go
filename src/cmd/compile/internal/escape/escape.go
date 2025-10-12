@@ -563,7 +563,10 @@ func (b *batch) rewriteWithLiterals(n ir.Node, fn *ir.Func) {
 			if ro == nil {
 				base.Fatalf("no ReassignOracle for function %v with closure parent %v", fn, fn.ClosureParent)
 			}
-			if s := ro.StaticValue(*r); s.Op() == ir.OLITERAL {
+
+			s := ro.StaticValue(*r)
+			switch s.Op() {
+			case ir.OLITERAL:
 				lit, ok := s.(*ir.BasicLit)
 				if !ok || lit.Val().Kind() != constant.Int {
 					base.Fatalf("unexpected BasicLit Kind")
@@ -576,6 +579,14 @@ func (b *batch) rewriteWithLiterals(n ir.Node, fn *ir.Func) {
 					// Preserve any side effects of the original expression, then replace it.
 					assignTemp(n.Pos(), *r, n.PtrInit())
 					*r = ir.NewBasicLit(n.Pos(), (*r).Type(), lit.Val())
+				}
+			case ir.OLEN:
+				x := ro.StaticValue(s.(*ir.UnaryExpr).X)
+				if x.Op() == ir.OSLICELIT {
+					x := x.(*ir.CompLitExpr)
+					// Preserve any side effects of the original expression, then update the value.
+					assignTemp(n.Pos(), *r, n.PtrInit())
+					*r = ir.NewBasicLit(n.Pos(), types.Types[types.TINT], constant.MakeInt64(x.Len))
 				}
 			}
 		}

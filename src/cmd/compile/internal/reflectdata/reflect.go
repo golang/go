@@ -414,6 +414,10 @@ var kinds = []abi.Kind{
 	types.TUNSAFEPTR:  abi.UnsafePointer,
 }
 
+func ABIKindOfType(t *types.Type) abi.Kind {
+	return kinds[t.Kind()]
+}
+
 var (
 	memhashvarlen  *obj.LSym
 	memequalvarlen *obj.LSym
@@ -512,8 +516,7 @@ func dcommontype(c rttype.Cursor, t *types.Type) {
 	c.Field("Align_").WriteUint8(uint8(t.Alignment()))
 	c.Field("FieldAlign_").WriteUint8(uint8(t.Alignment()))
 
-	kind := kinds[t.Kind()]
-	c.Field("Kind_").WriteUint8(uint8(kind))
+	c.Field("Kind_").WriteUint8(uint8(ABIKindOfType(t)))
 
 	c.Field("Equal").WritePtr(eqfunc)
 	c.Field("GCData").WritePtr(gcsym)
@@ -713,6 +716,10 @@ func writeType(t *types.Type) *obj.LSym {
 		return lsym
 	}
 	s.SetSiggen(true)
+
+	if !tbase.HasShape() {
+		TypeLinksym(t) // ensure lsym.Extra is set
+	}
 
 	if !NeedEmit(tbase) {
 		if i := typecheck.BaseTypeIndex(t); i >= 0 {
@@ -1222,7 +1229,7 @@ func typesStrCmp(a, b typeAndStr) int {
 // GC information is always a bitmask, never a gc program.
 // GCSym may be called in concurrent backend, so it does not emit the symbol
 // content.
-func GCSym(t *types.Type) (lsym *obj.LSym, ptrdata int64) {
+func GCSym(t *types.Type, onDemandAllowed bool) (lsym *obj.LSym, ptrdata int64) {
 	// Record that we need to emit the GC symbol.
 	gcsymmu.Lock()
 	if _, ok := gcsymset[t]; !ok {
@@ -1230,7 +1237,7 @@ func GCSym(t *types.Type) (lsym *obj.LSym, ptrdata int64) {
 	}
 	gcsymmu.Unlock()
 
-	lsym, _, ptrdata = dgcsym(t, false, false)
+	lsym, _, ptrdata = dgcsym(t, false, onDemandAllowed)
 	return
 }
 

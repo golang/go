@@ -61,7 +61,11 @@ func (l Level) String() string {
 		if val == 0 {
 			return base
 		}
-		return fmt.Sprintf("%s%+d", base, val)
+		sval := strconv.Itoa(int(val))
+		if val > 0 {
+			sval = "+" + sval
+		}
+		return base + sval
 	}
 
 	switch {

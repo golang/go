@@ -74,11 +74,9 @@ func TestVersion(t *testing.T) {
 			continue
 		}
 		exp := setting.Value
-		if exp == "v1.0.0" {
-			// Unfortunately we enshrined the version of the first module as
-			// v1.0 before deciding to go for full versions.
-			exp = "v1.0"
-		}
+		// Remove the -hash suffix, if any.
+		// The version from fips140.Version omits it.
+		exp, _, _ = strings.Cut(exp, "-")
 		if v := fips140.Version(); v != exp {
 			t.Errorf("Version is %q, expected %q", v, exp)
 		}

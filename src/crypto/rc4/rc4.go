@@ -55,9 +55,7 @@ func NewCipher(key []byte) (*Cipher, error) {
 // Deprecated: Reset can't guarantee that the key will be entirely removed from
 // the process's memory.
 func (c *Cipher) Reset() {
-	for i := range c.s {
-		c.s[i] = 0
-	}
+	clear(c.s[:])
 	c.i, c.j = 0, 0
 }
 

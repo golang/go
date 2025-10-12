@@ -59,6 +59,12 @@ package main
 func main() {}
 `
 
+var goSourceWithData = `
+package main
+var globalVar = 42
+func main() { println(&globalVar) }
+`
+
 // The linker used to crash if an ELF input file had multiple text sections
 // with the same name.
 func TestSectionsWithSameName(t *testing.T) {
@@ -567,5 +573,108 @@ func TestFlagR(t *testing.T) {
 	cmd = testenv.Command(t, exe)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Errorf("executable failed to run: %v\n%s", err, out)
+	}
+}
+
+func TestFlagD(t *testing.T) {
+	// Test that using the -D flag to specify data section address generates
+	// a working binary with data at the specified address.
+	t.Parallel()
+	testFlagD(t, "0x10000000", "", 0x10000000)
+}
+
+func TestFlagDUnaligned(t *testing.T) {
+	// Test that using the -D flag with an unaligned address errors out
+	t.Parallel()
+	testFlagDError(t, "0x10000123", "", "invalid -D value 0x10000123")
+}
+
+func TestFlagDWithR(t *testing.T) {
+	// Test that using the -D flag with -R flag errors on unaligned address.
+	t.Parallel()
+	testFlagDError(t, "0x30001234", "8192", "invalid -D value 0x30001234")
+}
+
+func testFlagD(t *testing.T, dataAddr string, roundQuantum string, expectedAddr uint64) {
+	testenv.MustHaveGoBuild(t)
+	tmpdir := t.TempDir()
+	src := filepath.Join(tmpdir, "x.go")
+	if err := os.WriteFile(src, []byte(goSourceWithData), 0444); err != nil {
+		t.Fatal(err)
+	}
+	exe := filepath.Join(tmpdir, "x.exe")
+
+	// Build linker flags
+	ldflags := "-D=" + dataAddr
+	if roundQuantum != "" {
+		ldflags += " -R=" + roundQuantum
+	}
+
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags="+ldflags, "-o", exe, src)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("build failed: %v, output:\n%s", err, out)
+	}
+
+	cmd = testenv.Command(t, exe)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Errorf("executable failed to run: %v\n%s", err, out)
+	}
+
+	ef, err := elf.Open(exe)
+	if err != nil {
+		t.Fatalf("open elf file failed: %v", err)
+	}
+	defer ef.Close()
+
+	// Find the first data-related section to verify segment placement
+	var firstDataSection *elf.Section
+	for _, sec := range ef.Sections {
+		if sec.Type == elf.SHT_PROGBITS || sec.Type == elf.SHT_NOBITS {
+			// These sections are writable, allocated at runtime, but not executable
+			// nor TLS.
+			isWrite := sec.Flags&elf.SHF_WRITE != 0
+			isExec := sec.Flags&elf.SHF_EXECINSTR != 0
+			isAlloc := sec.Flags&elf.SHF_ALLOC != 0
+			isTLS := sec.Flags&elf.SHF_TLS != 0
+
+			if isWrite && !isExec && isAlloc && !isTLS {
+				if firstDataSection == nil || sec.Addr < firstDataSection.Addr {
+					firstDataSection = sec
+				}
+			}
+		}
+	}
+
+	if firstDataSection == nil {
+		t.Fatalf("can't find any writable data sections")
+	}
+	if firstDataSection.Addr != expectedAddr {
+		t.Errorf("data section starts at 0x%x for section %s, expected 0x%x",
+			firstDataSection.Addr, firstDataSection.Name, expectedAddr)
+	}
+}
+
+func testFlagDError(t *testing.T, dataAddr string, roundQuantum string, expectedError string) {
+	testenv.MustHaveGoBuild(t)
+	tmpdir := t.TempDir()
+	src := filepath.Join(tmpdir, "x.go")
+	if err := os.WriteFile(src, []byte(goSourceWithData), 0444); err != nil {
+		t.Fatal(err)
+	}
+	exe := filepath.Join(tmpdir, "x.exe")
+
+	// Build linker flags
+	ldflags := "-D=" + dataAddr
+	if roundQuantum != "" {
+		ldflags += " -R=" + roundQuantum
+	}
+
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags="+ldflags, "-o", exe, src)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("expected build to fail with unaligned data address, but it succeeded")
+	}
+	if !strings.Contains(string(out), expectedError) {
+		t.Errorf("expected error message to contain %q, got:\n%s", expectedError, out)
 	}
 }

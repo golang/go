@@ -233,6 +233,13 @@ func TestIntendedInlining(t *testing.T) {
 		"testing": {
 			"(*B).Loop",
 		},
+		"path": {
+			"Base",
+			"scanChunk",
+		},
+		"path/filepath": {
+			"scanChunk",
+		},
 	}
 
 	if runtime.GOARCH != "386" && runtime.GOARCH != "loong64" && runtime.GOARCH != "mips64" && runtime.GOARCH != "mips64le" && runtime.GOARCH != "riscv64" {

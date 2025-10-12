@@ -271,9 +271,9 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 			case m.IsLocal():
 				// Evaluate list of file system directories on first iteration.
 				if m.Dirs == nil {
-					matchModRoots := modRoots
+					matchModRoots := LoaderState.modRoots
 					if opts.MainModule != (module.Version{}) {
-						matchModRoots = []string{MainModules.ModRoot(opts.MainModule)}
+						matchModRoots = []string{LoaderState.MainModules.ModRoot(opts.MainModule)}
 					}
 					matchLocalDirs(ctx, matchModRoots, m, rs)
 				}
@@ -324,7 +324,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 				matchPackages(ctx, m, opts.Tags, includeStd, mg.BuildList())
 
 			case m.Pattern() == "work":
-				matchModules := MainModules.Versions()
+				matchModules := LoaderState.MainModules.Versions()
 				if opts.MainModule != (module.Version{}) {
 					matchModules = []module.Version{opts.MainModule}
 				}
@@ -335,12 +335,12 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 					// The initial roots are the packages and tools in the main module.
 					// loadFromRoots will expand that to "all".
 					m.Errs = m.Errs[:0]
-					matchModules := MainModules.Versions()
+					matchModules := LoaderState.MainModules.Versions()
 					if opts.MainModule != (module.Version{}) {
 						matchModules = []module.Version{opts.MainModule}
 					}
 					matchPackages(ctx, m, opts.Tags, omitStd, matchModules)
-					for tool := range MainModules.Tools() {
+					for tool := range LoaderState.MainModules.Tools() {
 						m.Pkgs = append(m.Pkgs, tool)
 					}
 				} else {
@@ -355,7 +355,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 				}
 
 			case m.Pattern() == "tool":
-				for tool := range MainModules.Tools() {
+				for tool := range LoaderState.MainModules.Tools() {
 					m.Pkgs = append(m.Pkgs, tool)
 				}
 			default:
@@ -455,7 +455,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 		if opts.TidyDiff {
 			cfg.BuildMod = "readonly"
 			loaded = ld
-			requirements = loaded.requirements
+			LoaderState.requirements = loaded.requirements
 			currentGoMod, updatedGoMod, _, err := UpdateGoModFromReqs(ctx, WriteOpts{})
 			if err != nil {
 				base.Fatal(err)
@@ -466,7 +466,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 			// Dropping compatibility for 1.16 may result in a strictly smaller go.sum.
 			// Update the keep map with only the loaded.requirements.
 			if gover.Compare(compatVersion, "1.16") > 0 {
-				keep = keepSums(ctx, loaded, requirements, addBuildListZipSums)
+				keep = keepSums(ctx, loaded, LoaderState.requirements, addBuildListZipSums)
 			}
 			currentGoSum, tidyGoSum := modfetch.TidyGoSum(keep)
 			goSumDiff := diff.Diff("current/go.sum", currentGoSum, "tidy/go.sum", tidyGoSum)
@@ -505,7 +505,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 	// to call WriteGoMod itself) or if ResolveMissingImports is false (the
 	// command wants to examine the package graph as-is).
 	loaded = ld
-	requirements = loaded.requirements
+	LoaderState.requirements = loaded.requirements
 
 	for _, pkg := range ld.pkgs {
 		if !pkg.isTest() {
@@ -596,13 +596,13 @@ func resolveLocalPackage(ctx context.Context, dir string, rs *Requirements) (str
 		}
 	}
 
-	for _, mod := range MainModules.Versions() {
-		modRoot := MainModules.ModRoot(mod)
+	for _, mod := range LoaderState.MainModules.Versions() {
+		modRoot := LoaderState.MainModules.ModRoot(mod)
 		if modRoot != "" && absDir == modRoot {
 			if absDir == cfg.GOROOTsrc {
 				return "", errPkgIsGorootSrc
 			}
-			return MainModules.PathPrefix(mod), nil
+			return LoaderState.MainModules.PathPrefix(mod), nil
 		}
 	}
 
@@ -611,8 +611,8 @@ func resolveLocalPackage(ctx context.Context, dir string, rs *Requirements) (str
 	// It's not strictly necessary but helpful to keep the checks.
 	var pkgNotFoundErr error
 	pkgNotFoundLongestPrefix := ""
-	for _, mainModule := range MainModules.Versions() {
-		modRoot := MainModules.ModRoot(mainModule)
+	for _, mainModule := range LoaderState.MainModules.Versions() {
+		modRoot := LoaderState.MainModules.ModRoot(mainModule)
 		if modRoot != "" && str.HasFilePathPrefix(absDir, modRoot) && !strings.Contains(absDir[len(modRoot):], "@") {
 			suffix := filepath.ToSlash(str.TrimFilePathPrefix(absDir, modRoot))
 			if pkg, found := strings.CutPrefix(suffix, "vendor/"); found {
@@ -627,7 +627,7 @@ func resolveLocalPackage(ctx context.Context, dir string, rs *Requirements) (str
 				return pkg, nil
 			}
 
-			mainModulePrefix := MainModules.PathPrefix(mainModule)
+			mainModulePrefix := LoaderState.MainModules.PathPrefix(mainModule)
 			if mainModulePrefix == "" {
 				pkg := suffix
 				if pkg == "builtin" {
@@ -788,7 +788,7 @@ func ImportFromFiles(ctx context.Context, gofiles []string) {
 			return roots
 		},
 	})
-	requirements = loaded.requirements
+	LoaderState.requirements = loaded.requirements
 
 	if !ExplicitWriteGoMod {
 		if err := commitRequirements(ctx, WriteOpts{}); err != nil {
@@ -820,7 +820,7 @@ func (mms *MainModuleSet) DirImportPath(ctx context.Context, dir string) (path s
 			return mms.PathPrefix(v), v
 		}
 		if str.HasFilePathPrefix(dir, modRoot) {
-			pathPrefix := MainModules.PathPrefix(v)
+			pathPrefix := LoaderState.MainModules.PathPrefix(v)
 			if pathPrefix > longestPrefix {
 				longestPrefix = pathPrefix
 				longestPrefixVersion = v
@@ -1068,7 +1068,7 @@ func (pkg *loadPkg) fromExternalModule() bool {
 	if pkg.mod.Path == "" {
 		return false // loaded from the standard library, not a module
 	}
-	return !MainModules.Contains(pkg.mod.Path)
+	return !LoaderState.MainModules.Contains(pkg.mod.Path)
 }
 
 var errMissing = errors.New("cannot find package")
@@ -1390,7 +1390,7 @@ func (ld *loader) updateRequirements(ctx context.Context) (changed bool, err err
 				}
 			}
 		}
-		if pkg.mod.Version != "" || !MainModules.Contains(pkg.mod.Path) {
+		if pkg.mod.Version != "" || !LoaderState.MainModules.Contains(pkg.mod.Path) {
 			continue
 		}
 
@@ -1587,7 +1587,7 @@ func (ld *loader) resolveMissingImports(ctx context.Context) (modAddedBy map[mod
 				var ime *ImportMissingError
 				if errors.As(err, &ime) {
 					for curstack := pkg.stack; curstack != nil; curstack = curstack.stack {
-						if MainModules.Contains(curstack.mod.Path) {
+						if LoaderState.MainModules.Contains(curstack.mod.Path) {
 							ime.ImportingMainModule = curstack.mod
 							break
 						}
@@ -1709,7 +1709,7 @@ func (ld *loader) applyPkgFlags(ctx context.Context, pkg *loadPkg, flags loadPkg
 		// so it's ok if we call it more than is strictly necessary.
 		wantTest := false
 		switch {
-		case ld.allPatternIsRoot && MainModules.Contains(pkg.mod.Path):
+		case ld.allPatternIsRoot && LoaderState.MainModules.Contains(pkg.mod.Path):
 			// We are loading the "all" pattern, which includes packages imported by
 			// tests in the main module. This package is in the main module, so we
 			// need to identify the imports of its test even if LoadTests is not set.
@@ -1730,7 +1730,7 @@ func (ld *loader) applyPkgFlags(ctx context.Context, pkg *loadPkg, flags loadPkg
 
 		if wantTest {
 			var testFlags loadPkgFlags
-			if MainModules.Contains(pkg.mod.Path) || (ld.allClosesOverTests && new.has(pkgInAll)) {
+			if LoaderState.MainModules.Contains(pkg.mod.Path) || (ld.allClosesOverTests && new.has(pkgInAll)) {
 				// Tests of packages in the main module are in "all", in the sense that
 				// they cause the packages they import to also be in "all". So are tests
 				// of packages in "all" if "all" closes over test dependencies.
@@ -1858,7 +1858,7 @@ func (ld *loader) load(ctx context.Context, pkg *loadPkg) {
 
 	var modroot string
 	pkg.mod, modroot, pkg.dir, pkg.altMods, pkg.err = importFromModules(ctx, pkg.path, ld.requirements, mg, ld.skipImportModFiles)
-	if MainModules.Tools()[pkg.path] {
+	if LoaderState.MainModules.Tools()[pkg.path] {
 		// Tools declared by main modules are always in "all".
 		// We apply the package flags before returning so that missing
 		// tool dependencies report an error https://go.dev/issue/70582
@@ -1867,7 +1867,7 @@ func (ld *loader) load(ctx context.Context, pkg *loadPkg) {
 	if pkg.dir == "" {
 		return
 	}
-	if MainModules.Contains(pkg.mod.Path) {
+	if LoaderState.MainModules.Contains(pkg.mod.Path) {
 		// Go ahead and mark pkg as in "all". This provides the invariant that a
 		// package that is *only* imported by other packages in "all" is always
 		// marked as such before loading its imports.
@@ -1975,14 +1975,14 @@ func (ld *loader) stdVendor(parentPath, path string) string {
 	}
 
 	if str.HasPathPrefix(parentPath, "cmd") {
-		if !ld.VendorModulesInGOROOTSrc || !MainModules.Contains("cmd") {
+		if !ld.VendorModulesInGOROOTSrc || !LoaderState.MainModules.Contains("cmd") {
 			vendorPath := pathpkg.Join("cmd", "vendor", path)
 
 			if _, err := os.Stat(filepath.Join(cfg.GOROOTsrc, filepath.FromSlash(vendorPath))); err == nil {
 				return vendorPath
 			}
 		}
-	} else if !ld.VendorModulesInGOROOTSrc || !MainModules.Contains("std") || str.HasPathPrefix(parentPath, "vendor") {
+	} else if !ld.VendorModulesInGOROOTSrc || !LoaderState.MainModules.Contains("std") || str.HasPathPrefix(parentPath, "vendor") {
 		// If we are outside of the 'std' module, resolve imports from within 'std'
 		// to the vendor directory.
 		//
@@ -2067,7 +2067,7 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements, 
 		fmt.Fprintln(os.Stderr)
 
 		goFlag := ""
-		if goVersion != MainModules.GoVersion() {
+		if goVersion != LoaderState.MainModules.GoVersion() {
 			goFlag = " -go=" + goVersion
 		}
 

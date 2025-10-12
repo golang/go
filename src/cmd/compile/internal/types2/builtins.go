@@ -98,17 +98,17 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			if ok, _ := x.assignableTo(check, NewSlice(universeByte), nil); ok {
 				y := args[1]
 				hasString := false
-				typeset(y.typ, func(_, u Type) bool {
+				for _, u := range typeset(y.typ) {
 					if s, _ := u.(*Slice); s != nil && Identical(s.elem, universeByte) {
-						return true
-					}
-					if isString(u) {
+						// typeset ⊇ {[]byte}
+					} else if isString(u) {
+						// typeset ⊇ {string}
 						hasString = true
-						return true
+					} else {
+						y = nil
+						break
 					}
-					y = nil
-					return false
-				})
+				}
 				if y != nil && hasString {
 					// setting the signature also signals that we're done
 					sig = makeSig(x.typ, x.typ, y.typ)
@@ -368,16 +368,16 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		var special bool
 		if ok, _ := x.assignableTo(check, NewSlice(universeByte), nil); ok {
 			special = true
-			typeset(y.typ, func(_, u Type) bool {
+			for _, u := range typeset(y.typ) {
 				if s, _ := u.(*Slice); s != nil && Identical(s.elem, universeByte) {
-					return true
+					// typeset ⊇ {[]byte}
+				} else if isString(u) {
+					// typeset ⊇ {string}
+				} else {
+					special = false
+					break
 				}
-				if isString(u) {
-					return true
-				}
-				special = false
-				return false
-			})
+			}
 		}
 
 		// general case
@@ -636,11 +636,30 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		}
 
 	case _New:
-		// new(T)
+		// new(T) or new(expr)
 		// (no argument evaluated yet)
-		T := check.varType(argList[0])
-		if !isValid(T) {
-			return
+		arg := argList[0]
+		check.exprOrType(x, arg, true)
+		var T Type
+		switch x.mode {
+		case builtin:
+			check.errorf(x, UncalledBuiltin, "%s must be called", x)
+			x.mode = invalid
+		case typexpr:
+			// new(T)
+			T = x.typ
+			if !isValid(T) {
+				return
+			}
+		default:
+			// new(expr)
+			check.verifyVersionf(call.Fun, go1_26, "new(expr)")
+			T = Default(x.typ)
+			if T != x.typ {
+				// untyped constant: check for overflow.
+				check.assignment(x, T, "argument to new")
+			}
+			check.validVarType(arg, T)
 		}
 
 		x.mode = value
@@ -961,29 +980,22 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 // or a type error if x is not a slice (or a type set of slices).
 func sliceElem(x *operand) (Type, *typeError) {
 	var E Type
-	var err *typeError
-	typeset(x.typ, func(_, u Type) bool {
+	for _, u := range typeset(x.typ) {
 		s, _ := u.(*Slice)
 		if s == nil {
 			if x.isNil() {
 				// Printing x in this case would just print "nil".
 				// Special case this so we can emphasize "untyped".
-				err = typeErrorf("argument must be a slice; have untyped nil")
+				return nil, typeErrorf("argument must be a slice; have untyped nil")
 			} else {
-				err = typeErrorf("argument must be a slice; have %s", x)
+				return nil, typeErrorf("argument must be a slice; have %s", x)
 			}
-			return false
 		}
 		if E == nil {
 			E = s.elem
 		} else if !Identical(E, s.elem) {
-			err = typeErrorf("mismatched slice element types %s and %s in %s", E, s.elem, x)
-			return false
+			return nil, typeErrorf("mismatched slice element types %s and %s in %s", E, s.elem, x)
 		}
-		return true
-	})
-	if err != nil {
-		return nil, err
 	}
 	return E, nil
 }

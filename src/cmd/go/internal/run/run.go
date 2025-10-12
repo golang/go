@@ -76,8 +76,8 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 		// This must be done before modload.Init, but we need to call work.BuildInit
 		// before loading packages, since it affects package locations, e.g.,
 		// for -race and -msan.
-		modload.ForceUseModules = true
-		modload.RootMode = modload.NoRoot
+		modload.LoaderState.ForceUseModules = true
+		modload.LoaderState.RootMode = modload.NoRoot
 		modload.AllowMissingModuleImports()
 		modload.Init()
 	} else {

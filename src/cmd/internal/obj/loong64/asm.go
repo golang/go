@@ -267,6 +267,9 @@ var optab = []Optab{
 	{AADDV, C_U12CON, C_REG, C_NONE, C_REG, C_NONE, 10, 8, 0, 0},
 	{AADDV, C_U12CON, C_NONE, C_NONE, C_REG, C_NONE, 10, 8, 0, 0},
 
+	{AADDV16, C_32CON, C_REG, C_NONE, C_REG, C_NONE, 4, 4, 0, 0},
+	{AADDV16, C_32CON, C_NONE, C_NONE, C_REG, C_NONE, 4, 4, 0, 0},
+
 	{AAND, C_UU12CON, C_REG, C_NONE, C_REG, C_NONE, 4, 4, 0, 0},
 	{AAND, C_UU12CON, C_NONE, C_NONE, C_REG, C_NONE, 4, 4, 0, 0},
 	{AAND, C_S12CON, C_REG, C_NONE, C_REG, C_NONE, 10, 8, 0, 0},
@@ -440,8 +443,6 @@ var optab = []Optab{
 	{obj.ANOP, C_DCON, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0},  // nop variants, see #40689
 	{obj.ANOP, C_REG, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0},
 	{obj.ANOP, C_FREG, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0},
-	{obj.ADUFFZERO, C_NONE, C_NONE, C_NONE, C_BRAN, C_NONE, 11, 4, 0, 0}, // same as AJMP
-	{obj.ADUFFCOPY, C_NONE, C_NONE, C_NONE, C_BRAN, C_NONE, 11, 4, 0, 0}, // same as AJMP
 }
 
 var atomicInst = map[obj.As]uint32{
@@ -706,6 +707,15 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	// so instruction sequences that use REGTMP are unsafe to
 	// preempt asynchronously.
 	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func().Text, c.newprog, c.isUnsafePoint, c.isRestartable)
+
+	// Now that we know byte offsets, we can generate jump table entries.
+	for _, jt := range cursym.Func().JumpTables {
+		for i, p := range jt.Targets {
+			// The ith jumptable entry points to the p.Pc'th
+			// byte in the function symbol s.
+			jt.Sym.WriteAddr(ctxt, int64(i)*8, 8, cursym, p.Pc)
+		}
+	}
 }
 
 // isUnsafePoint returns whether p is an unsafe point.
@@ -1522,13 +1532,12 @@ func buildop(ctxt *obj.Link) {
 			APRELD,
 			APRELDX,
 			AFSEL,
+			AADDV16,
 			obj.ANOP,
 			obj.ATEXT,
 			obj.AFUNCDATA,
 			obj.APCALIGN,
-			obj.APCDATA,
-			obj.ADUFFZERO,
-			obj.ADUFFCOPY:
+			obj.APCDATA:
 			break
 
 		case ARDTIMELW:
@@ -1983,6 +1992,18 @@ func OP_12IRR(op uint32, i uint32, r2 uint32, r3 uint32) uint32 {
 	return op | (i&0xFFF)<<10 | (r2&0x1F)<<5 | (r3&0x1F)<<0
 }
 
+func OP_11IRR(op uint32, i uint32, r2 uint32, r3 uint32) uint32 {
+	return op | (i&0x7FF)<<10 | (r2&0x1F)<<5 | (r3&0x1F)<<0
+}
+
+func OP_10IRR(op uint32, i uint32, r2 uint32, r3 uint32) uint32 {
+	return op | (i&0x3FF)<<10 | (r2&0x1F)<<5 | (r3&0x1F)<<0
+}
+
+func OP_9IRR(op uint32, i uint32, r2 uint32, r3 uint32) uint32 {
+	return op | (i&0x1FF)<<10 | (r2&0x1F)<<5 | (r3&0x1F)<<0
+}
+
 func OP_8IRR(op uint32, i uint32, r2 uint32, r3 uint32) uint32 {
 	return op | (i&0xFF)<<10 | (r2&0x1F)<<5 | (r3&0x1F)<<0
 }
@@ -2036,7 +2057,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 	switch o.type_ {
 	default:
-		c.ctxt.Diag("unknown type %d %v", o.type_)
+		c.ctxt.Diag("unknown type %d", o.type_)
 		prasm(p)
 
 	case 0: // pseudo ops
@@ -2079,7 +2100,14 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if r == 0 {
 			r = int(p.To.Reg)
 		}
-		o1 = OP_12IRR(c.opirr(p.As), uint32(v), uint32(r), uint32(p.To.Reg))
+		if p.As == AADDV16 {
+			if v&65535 != 0 {
+				c.ctxt.Diag("%v: the constant must be a multiple of 65536.\n", p)
+			}
+			o1 = OP_16IRR(c.opirr(p.As), uint32(v>>16), uint32(r), uint32(p.To.Reg))
+		} else {
+			o1 = OP_12IRR(c.opirr(p.As), uint32(v), uint32(r), uint32(p.To.Reg))
+		}
 
 	case 5: // syscall
 		v := c.regoff(&p.From)
@@ -2535,7 +2563,28 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		si := c.regoff(&p.From)
 		Rj := uint32(p.From.Reg & EXT_REG_MASK)
 		Vd := uint32(p.To.Reg & EXT_REG_MASK)
-		o1 = v | uint32(si<<10) | (Rj << 5) | Vd
+		switch v & 0xc00000 {
+		case 0x800000: // [x]vldrepl.b
+			o1 = OP_12IRR(v, uint32(si), Rj, Vd)
+		case 0x400000: // [x]vldrepl.h
+			if si&1 != 0 {
+				c.ctxt.Diag("%v: offset must be a multiple of 2.\n", p)
+			}
+			o1 = OP_11IRR(v, uint32(si>>1), Rj, Vd)
+		case 0x0:
+			switch v & 0x300000 {
+			case 0x200000: // [x]vldrepl.w
+				if si&3 != 0 {
+					c.ctxt.Diag("%v: offset must be a multiple of 4.\n", p)
+				}
+				o1 = OP_10IRR(v, uint32(si>>2), Rj, Vd)
+			case 0x100000: // [x]vldrepl.d
+				if si&7 != 0 {
+					c.ctxt.Diag("%v: offset must be a multiple of 8.\n", p)
+				}
+				o1 = OP_9IRR(v, uint32(si>>3), Rj, Vd)
+			}
+		}
 
 	case 47: // preld  offset(Rbase), $hint
 		offs := c.regoff(&p.From)
@@ -4004,12 +4053,12 @@ func (c *ctxt0) opirr(a obj.As) uint32 {
 		return 0x00b << 22
 	case AADDVU:
 		return 0x00b << 22
+	case AADDV16:
+		return 0x4 << 26
 
 	case AJMP:
 		return 0x14 << 26
-	case AJAL,
-		obj.ADUFFZERO,
-		obj.ADUFFCOPY:
+	case AJAL:
 		return 0x15 << 26
 
 	case AJIRL:
@@ -4389,7 +4438,7 @@ func (c *ctxt0) specialFpMovInst(a obj.As, fclass int, tclass int) uint32 {
 		}
 	}
 
-	c.ctxt.Diag("bad class combination: %s %s,%s\n", a, fclass, tclass)
+	c.ctxt.Diag("bad class combination: %s %d,%s\n", a, fclass, tclass)
 
 	return 0
 }

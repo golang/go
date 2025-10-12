@@ -173,7 +173,7 @@ func (r *gitRepo) loadLocalTags(ctx context.Context) {
 		return
 	}
 
-	for _, line := range strings.Split(string(out), "\n") {
+	for line := range strings.SplitSeq(string(out), "\n") {
 		if line != "" {
 			r.localTags.Store(line, true)
 		}
@@ -273,7 +273,7 @@ func (r *gitRepo) loadRefs(ctx context.Context) (map[string]string, error) {
 		}
 
 		refs := make(map[string]string)
-		for _, line := range strings.Split(string(out), "\n") {
+		for line := range strings.SplitSeq(string(out), "\n") {
 			f := strings.Fields(line)
 			if len(f) != 2 {
 				continue
@@ -745,7 +745,7 @@ func (r *gitRepo) RecentTag(ctx context.Context, rev, prefix string, allowed fun
 
 		// prefixed tags aren't valid semver tags so compare without prefix, but only tags with correct prefix
 		var highest string
-		for _, line := range strings.Split(string(out), "\n") {
+		for line := range strings.SplitSeq(string(out), "\n") {
 			line = strings.TrimSpace(line)
 			// git do support lstrip in for-each-ref format, but it was added in v2.13.0. Stripping here
 			// instead gives support for git v2.7.0.

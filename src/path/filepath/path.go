@@ -248,7 +248,7 @@ func Rel(basepath, targpath string) (string, error) {
 			buf[n] = Separator
 			copy(buf[n+1:], targ[t0:])
 		}
-		return string(buf), nil
+		return Clean(string(buf)), nil
 	}
 	return targ[t0:], nil
 }

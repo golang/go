@@ -705,6 +705,7 @@ func (t *tester) registerTests() {
 				timeout: 300 * time.Second,
 				tags:    []string{"purego"},
 				pkg:     "hash/maphash",
+				env:     []string{"GODEBUG=fips140=off"}, // FIPS 140-3 mode is incompatible with purego
 			})
 	}
 
@@ -1211,7 +1212,7 @@ func (t *tester) internalLinkPIE() bool {
 	case "darwin-amd64", "darwin-arm64",
 		"linux-amd64", "linux-arm64", "linux-loong64", "linux-ppc64le",
 		"android-arm64",
-		"windows-amd64", "windows-386", "windows-arm":
+		"windows-amd64", "windows-386":
 		return true
 	}
 	return false
@@ -1822,6 +1823,8 @@ func isEnvSet(evar string) bool {
 
 func (t *tester) fipsSupported() bool {
 	// Keep this in sync with [crypto/internal/fips140.Supported].
+
+	// We don't test with the purego tag, so no need to check it.
 
 	// Use GOFIPS140 or GOEXPERIMENT=boringcrypto, but not both.
 	if strings.Contains(goexperiment, "boringcrypto") {

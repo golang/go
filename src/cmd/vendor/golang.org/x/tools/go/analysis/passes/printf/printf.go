@@ -515,8 +515,7 @@ func checkPrintf(pass *analysis.Pass, fileVersion string, kind Kind, call *ast.C
 		// finds are sometimes unlikely or inconsequential, and may not be worth
 		// fixing for some users. Gating on language version allows us to avoid
 		// breaking existing tests and CI scripts.
-		if !suppressNonconstants &&
-			idx == len(call.Args)-1 &&
+		if idx == len(call.Args)-1 &&
 			fileVersion != "" && // fail open
 			versions.AtLeast(fileVersion, "go1.24") {
 
@@ -993,7 +992,7 @@ func (ss stringSet) String() string {
 }
 
 func (ss stringSet) Set(flag string) error {
-	for _, name := range strings.Split(flag, ",") {
+	for name := range strings.SplitSeq(flag, ",") {
 		if len(name) == 0 {
 			return fmt.Errorf("empty string")
 		}
@@ -1004,15 +1003,6 @@ func (ss stringSet) Set(flag string) error {
 	}
 	return nil
 }
-
-// suppressNonconstants suppresses reporting printf calls with
-// non-constant formatting strings (proposal #60529) when true.
-//
-// This variable is to allow for staging the transition to newer
-// versions of x/tools by vendoring.
-//
-// Remove this after the 1.24 release.
-var suppressNonconstants bool
 
 // isHex reports whether b is a hex digit.
 func isHex(b byte) bool {
