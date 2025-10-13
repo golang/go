@@ -25,6 +25,7 @@ type tplRuleData struct {
 	Size           int    // e.g. 128
 	ArgsLoadAddr   string // [Args] with its last vreg arg being a concrete "(VMOVDQUload* ptr mem)", and might contain mask.
 	ArgsAddr       string // [Args] with its last vreg arg being replaced by "ptr", and might contain mask, and with a "mem" at the end.
+	FeatCheck      string // e.g. "v.Block.CPUfeatures.hasFeature(CPUavx512)" -- for a ssa/_gen rules file.
 }
 
 var (
@@ -42,6 +43,8 @@ var (
 {{define "masksftimm"}}({{.Asm}} x (MOVQconst [c]) mask) => ({{.Asm}}const [uint8(c)] x mask)
 {{end}}
 {{define "vregMem"}}({{.Asm}} {{.ArgsLoadAddr}}) && canMergeLoad(v, l) && clobber(l) => ({{.Asm}}load {{.ArgsAddr}})
+{{end}}
+{{define "vregMemFeatCheck"}}({{.Asm}} {{.ArgsLoadAddr}}) && {{.FeatCheck}} && canMergeLoad(v, l) && clobber(l)=> ({{.Asm}}load {{.ArgsAddr}})
 {{end}}
 `))
 )
@@ -277,7 +280,18 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 					memOpData.ArgsLoadAddr += " mask"
 				}
 				memOpData.ArgsAddr += " mem"
-				memOpData.tplName = "vregMem"
+				if gOp.MemFeaturesData != nil {
+					_, feat2 := getVbcstData(*gOp.MemFeaturesData)
+					knownFeatChecks := map[string]string{
+						"AVX":    "v.Block.CPUfeatures.hasFeature(CPUavx)",
+						"AVX2":   "v.Block.CPUfeatures.hasFeature(CPUavx2)",
+						"AVX512": "v.Block.CPUfeatures.hasFeature(CPUavx512)",
+					}
+					memOpData.FeatCheck = knownFeatChecks[feat2]
+					memOpData.tplName = "vregMemFeatCheck"
+				} else {
+					memOpData.tplName = "vregMem"
+				}
 				memOptData = append(memOptData, memOpData)
 			}
 		}

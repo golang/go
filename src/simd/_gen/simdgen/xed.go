@@ -125,16 +125,20 @@ func loadXED(xedPath string) []*unify.Value {
 					feat1, ok1 := decodeCPUFeature(o.inst)
 					// Then check if there exist such an operation that for all vreg
 					// shapes they are the same at the same index
+					var feat1Match, feat2Match string
 					matchIdx := -1
+					var featMismatchCnt int
 				outer:
 					for i, m := range ms {
 						// Their CPU feature should match first
+						var featMismatch bool
 						feat2, ok2 := decodeCPUFeature(m.inst)
 						if !ok1 || !ok2 {
 							continue
 						}
 						if feat1 != feat2 {
-							continue
+							featMismatch = true
+							featMismatchCnt++
 						}
 						if len(o.ops) == len(m.ops) {
 							for j := range o.ops {
@@ -160,7 +164,15 @@ func loadXED(xedPath string) []*unify.Value {
 							}
 							// Found a match, break early
 							matchIdx = i
-							break
+							feat1Match = feat1
+							feat2Match = feat2
+							if featMismatchCnt > 1 {
+								panic("multiple feature mismatch vbcst memops detected, simdgen failed to distinguish")
+							}
+							if !featMismatch {
+								// Mismatch feat is ok but should prioritize matching cases.
+								break
+							}
 						}
 					}
 					// Remove the match from memOps, it's now merged to this pure vreg operation
@@ -169,6 +181,9 @@ func loadXED(xedPath string) []*unify.Value {
 						// Merge is done by adding a new field
 						// Right now we only have vbcst
 						addFields["memFeatures"] = "vbcst"
+						if feat1Match != feat2Match {
+							addFields["memFeaturesData"] = fmt.Sprintf("feat1=%s;feat2=%s", feat1Match, feat2Match)
+						}
 					}
 				}
 			}

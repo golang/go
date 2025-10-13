@@ -800,6 +800,14 @@ func reportXEDInconsistency(ops []Operation) error {
 	return nil
 }
 
+func getVbcstData(s string) (feat1Match, feat2Match string) {
+	_, err := fmt.Sscanf(s, "feat1=%[^;];feat2=%s", &feat1Match, &feat2Match)
+	if err != nil {
+		panic(err)
+	}
+	return
+}
+
 func (o Operation) String() string {
 	return pprints(o)
 }

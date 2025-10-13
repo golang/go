@@ -52,15 +52,16 @@ type rawOperation struct {
 	// Should be paired with special templates in gen_simdrules.go
 	SpecialLower *string
 
-	In            []Operand // Parameters
-	InVariant     []Operand // Optional parameters
-	Out           []Operand // Results
-	MemFeatures   *string   // The memory operand feature this operation supports
-	Commutative   bool      // Commutativity
-	CPUFeature    string    // CPUID/Has* feature name
-	Zeroing       *bool     // nil => use asm suffix ".Z"; false => do not use asm suffix ".Z"
-	Documentation *string   // Documentation will be appended to the stubs comments.
-	AddDoc        *string   // Additional doc to be appended.
+	In              []Operand // Parameters
+	InVariant       []Operand // Optional parameters
+	Out             []Operand // Results
+	MemFeatures     *string   // The memory operand feature this operation supports
+	MemFeaturesData *string   // Additional data associated with MemFeatures
+	Commutative     bool      // Commutativity
+	CPUFeature      string    // CPUID/Has* feature name
+	Zeroing         *bool     // nil => use asm suffix ".Z"; false => do not use asm suffix ".Z"
+	Documentation   *string   // Documentation will be appended to the stubs comments.
+	AddDoc          *string   // Additional doc to be appended.
 	// ConstMask is a hack to reduce the size of defs the user writes for const-immediate
 	// If present, it will be copied to [In[0].Const].
 	ConstImm *string
