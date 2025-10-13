@@ -225,8 +225,8 @@ func (check *Checker) validCycle(obj Object) (valid bool) {
 	start := obj.color() - grey // index of obj in objPath
 	cycle := check.objPath[start:]
 	tparCycle := false // if set, the cycle is through a type parameter list
-	nval := 0          // number of (constant or variable) values in the cycle; valid if !generic
-	ndef := 0          // number of type definitions in the cycle; valid if !generic
+	nval := 0          // number of (constant or variable) values in the cycle
+	ndef := 0          // number of type definitions in the cycle
 loop:
 	for _, obj := range cycle {
 		switch obj := obj.(type) {
@@ -235,7 +235,7 @@ loop:
 		case *TypeName:
 			// If we reach a generic type that is part of a cycle
 			// and we are in a type parameter list, we have a cycle
-			// through a type parameter list, which is invalid.
+			// through a type parameter list.
 			if check.inTParamList && isGeneric(obj.typ) {
 				tparCycle = true
 				break loop
@@ -286,25 +286,22 @@ loop:
 		}()
 	}
 
-	if !tparCycle {
-		// A cycle involving only constants and variables is invalid but we
-		// ignore them here because they are reported via the initialization
-		// cycle check.
-		if nval == len(cycle) {
-			return true
-		}
-
-		// A cycle involving only types (and possibly functions) must have at least
-		// one type definition to be permitted: If there is no type definition, we
-		// have a sequence of alias type names which will expand ad infinitum.
-		if nval == 0 && ndef > 0 {
-			return true
-		}
+	// Cycles through type parameter lists are ok (go.dev/issue/68162).
+	if tparCycle {
+		return true
 	}
 
-	// Cycles through type parameter lists are ok (go.dev/issue/68162).
-	// TODO(gri) if we are happy with this this, remove this flag and simplify code.
-	if tparCycle {
+	// A cycle involving only constants and variables is invalid but we
+	// ignore them here because they are reported via the initialization
+	// cycle check.
+	if nval == len(cycle) {
+		return true
+	}
+
+	// A cycle involving only types (and possibly functions) must have at least
+	// one type definition to be permitted: If there is no type definition, we
+	// have a sequence of alias type names which will expand ad infinitum.
+	if nval == 0 && ndef > 0 {
 		return true
 	}
 
