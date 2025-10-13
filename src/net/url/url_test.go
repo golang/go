@@ -1108,6 +1108,17 @@ var encodeQueryTests = []EncodeQueryTest{
 		"b": {"b1", "b2", "b3"},
 		"c": {"c1", "c2", "c3"},
 	}, "a=a1&a=a2&a=a3&b=b1&b=b2&b=b3&c=c1&c=c2&c=c3"},
+	{Values{
+		"a": {"a"},
+		"b": {"b"},
+		"c": {"c"},
+		"d": {"d"},
+		"e": {"e"},
+		"f": {"f"},
+		"g": {"g"},
+		"h": {"h"},
+		"i": {"i"},
+	}, "a=a&b=b&c=c&d=d&e=e&f=f&g=g&h=h&i=i"},
 }
 
 func TestEncodeQuery(t *testing.T) {
@@ -1115,6 +1126,17 @@ func TestEncodeQuery(t *testing.T) {
 		if q := tt.m.Encode(); q != tt.expected {
 			t.Errorf(`EncodeQuery(%+v) = %q, want %q`, tt.m, q, tt.expected)
 		}
+	}
+}
+
+func BenchmarkEncodeQuery(b *testing.B) {
+	for _, tt := range encodeQueryTests {
+		b.Run(tt.expected, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				tt.m.Encode()
+			}
+		})
 	}
 }
 
