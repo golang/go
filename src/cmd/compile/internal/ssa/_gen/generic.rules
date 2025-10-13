@@ -50,10 +50,10 @@
 (Cvt32to64F  (Const32  [c])) => (Const64F [float64(c)])
 (Cvt64to32F  (Const64  [c])) => (Const32F [float32(c)])
 (Cvt64to64F  (Const64  [c])) => (Const64F [float64(c)])
-(Cvt32Fto32  (Const32F [c])) => (Const32  [int32(c)])
-(Cvt32Fto64  (Const32F [c])) => (Const64  [int64(c)])
-(Cvt64Fto32  (Const64F [c])) => (Const32  [int32(c)])
-(Cvt64Fto64  (Const64F [c])) => (Const64  [int64(c)])
+(Cvt32Fto32  (Const32F [c])) && c >= -1<<31 && c < 1<<31 => (Const32 [int32(c)])
+(Cvt32Fto64  (Const32F [c])) && c >= -1<<63 && c < 1<<63 => (Const64 [int64(c)])
+(Cvt64Fto32  (Const64F [c])) && c >= -1<<31 && c < 1<<31 => (Const32 [int32(c)])
+(Cvt64Fto64  (Const64F [c])) && c >= -1<<63 && c < 1<<63 => (Const64 [int64(c)])
 (Round32F x:(Const32F)) => x
 (Round64F x:(Const64F)) => x
 (CvtBoolToUint8 (ConstBool [false])) => (Const8 [0])
