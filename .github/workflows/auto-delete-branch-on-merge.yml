@@ -1,0 +1,43 @@
+name: Auto delete branch on PR merge
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write     # permission to delete branch
+  pull-requests: read
+
+jobs:
+  delete_branch:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Gather PR info
+        id: vars
+        run: |
+          echo "HEAD_REF=${{ github.event.pull_request.head.ref }}" >> $GITHUB_OUTPUT
+          echo "HEAD_REPO=${{ github.event.pull_request.head.repo.full_name }}" >> $GITHUB_OUTPUT
+          echo "BASE_REPO=${{ github.event.pull_request.base.repo.full_name }}" >> $GITHUB_OUTPUT
+
+      - name: Delete head branch (same repo only)
+        if: steps.vars.outputs.HEAD_REPO == steps.vars.outputs.BASE_REPO
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          # prevent deleting default branch
+          DEFAULT_BRANCH=$(gh api repos/$REPO --jq .default_branch)
+          if [ "$BRANCH" = "$DEFAULT_BRANCH" ]; then
+            echo "Head branch equals default branch ($DEFAULT_BRANCH). Skip deleting."
+            exit 0
+          fi
+
+          echo "Deleting branch '$BRANCH' from repo '$REPO' ..."
+          # delete branch failed when branch is protected, just record and continue
+          gh api -X DELETE "repos/$REPO/git/refs/heads/$BRANCH" || echo "Delete failed (maybe protected or already gone)."
+
+      - name: Skip deletion for forks
+        if: steps.vars.outputs.HEAD_REPO != steps.vars.outputs.BASE_REPO
+        run: echo "PR head comes from a fork; cannot delete branch in source repo."
