@@ -499,7 +499,6 @@ const (
 	Op386MOVBLZX
 	Op386MOVWLSX
 	Op386MOVWLZX
-	Op386MOVLf2i
 	Op386MOVLconst
 	Op386CVTTSD2SL
 	Op386CVTTSS2SL
@@ -5596,18 +5595,6 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
-			},
-			outputs: []outputInfo{
-				{0, 239}, // AX CX DX BX BP SI DI
-			},
-		},
-	},
-	{
-		name:   "MOVLf2i",
-		argLen: 1,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 			},
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
