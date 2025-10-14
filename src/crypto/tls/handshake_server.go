@@ -965,10 +965,9 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 
 		chains, err := certs[0].Verify(opts)
 		if err != nil {
-			var errCertificateInvalid x509.CertificateInvalidError
-			if errors.As(err, &x509.UnknownAuthorityError{}) {
+			if _, ok := errors.AsType[x509.UnknownAuthorityError](err); ok {
 				c.sendAlert(alertUnknownCA)
-			} else if errors.As(err, &errCertificateInvalid) && errCertificateInvalid.Reason == x509.Expired {
+			} else if errCertificateInvalid, ok := errors.AsType[x509.CertificateInvalidError](err); ok && errCertificateInvalid.Reason == x509.Expired {
 				c.sendAlert(alertCertificateExpired)
 			} else {
 				c.sendAlert(alertBadCertificate)

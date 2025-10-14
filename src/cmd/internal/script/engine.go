@@ -185,7 +185,7 @@ func (e *Engine) Execute(s *State, file string, script *bufio.Reader, log io.Wri
 
 	var lineno int
 	lineErr := func(err error) error {
-		if errors.As(err, new(*CommandError)) {
+		if _, ok := errors.AsType[*CommandError](err); ok {
 			return err
 		}
 		return fmt.Errorf("%s:%d: %w", file, lineno, err)
@@ -283,7 +283,7 @@ func (e *Engine) Execute(s *State, file string, script *bufio.Reader, log io.Wri
 		// Run the command.
 		err = e.runCommand(s, cmd, impl)
 		if err != nil {
-			if stop := (stopError{}); errors.As(err, &stop) {
+			if stop, ok := errors.AsType[stopError](err); ok {
 				// Since the 'stop' command halts execution of the entire script,
 				// log its message separately from the section in which it appears.
 				err = endSection(true)
@@ -607,13 +607,13 @@ func checkStatus(cmd *command, err error) error {
 		return nil
 	}
 
-	if s := (stopError{}); errors.As(err, &s) {
+	if _, ok := errors.AsType[stopError](err); ok {
 		// This error originated in the Stop command.
 		// Propagate it as-is.
 		return cmdError(cmd, err)
 	}
 
-	if w := (waitError{}); errors.As(err, &w) {
+	if _, ok := errors.AsType[waitError](err); ok {
 		// This error was surfaced from a background process by a call to Wait.
 		// Add a call frame for Wait itself, but ignore its "want" field.
 		// (Wait itself cannot fail to wait on commands or else it would leak

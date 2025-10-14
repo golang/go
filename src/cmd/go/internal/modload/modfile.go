@@ -76,8 +76,7 @@ func ReadModFile(gomod string, fix modfile.VersionFixer) (data []byte, f *modfil
 }
 
 func shortPathErrorList(err error) error {
-	var el modfile.ErrorList
-	if errors.As(err, &el) {
+	if el, ok := errors.AsType[modfile.ErrorList](err); ok {
 		for i := range el {
 			el[i].Filename = base.ShortPath(el[i].Filename)
 		}
@@ -175,12 +174,15 @@ func (e *excludedError) Is(err error) bool { return err == ErrDisallowed }
 // its author.
 func CheckRetractions(ctx context.Context, m module.Version) (err error) {
 	defer func() {
-		if retractErr := (*ModuleRetractedError)(nil); err == nil || errors.As(err, &retractErr) {
+		if err == nil {
+			return
+		}
+		if _, ok := errors.AsType[*ModuleRetractedError](err); ok {
 			return
 		}
 		// Attribute the error to the version being checked, not the version from
 		// which the retractions were to be loaded.
-		if mErr := (*module.ModuleError)(nil); errors.As(err, &mErr) {
+		if mErr, ok := errors.AsType[*module.ModuleError](err); ok {
 			err = mErr.Err
 		}
 		err = &retractionLoadingError{m: m, err: err}

@@ -105,8 +105,12 @@ func TestTestFSWrappedErrors(t *testing.T) {
 
 	// TestFS is expected to return a list of errors.
 	// Enforce that the list can be extracted for browsing.
-	var errs interface{ Unwrap() []error }
-	if !errors.As(err, &errs) {
+	type wrapper interface{
+		error
+		Unwrap() []error
+	}
+	errs, ok := errors.AsType[wrapper](err)
+	if !ok {
 		t.Errorf("caller should be able to extract the errors as a list: %#v", err)
 	} else {
 		for _, err := range errs.Unwrap() {

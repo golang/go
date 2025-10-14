@@ -227,9 +227,7 @@ type Options = jsonopts.Options
 //   - [jsontext.EscapeForJS]
 //   - [jsontext.PreserveRawStrings]
 //
-// All other boolean options are set to false.
-// All non-boolean options are set to the zero value,
-// except for [jsontext.WithIndent], which defaults to "\t".
+// All other options are not present.
 //
 // The [Marshal] and [Unmarshal] functions in this package are
 // semantically identical to calling the v2 equivalents with this option:

@@ -303,6 +303,12 @@ loop:
 		}
 	}
 
+	// Cycles through type parameter lists are ok (go.dev/issue/68162).
+	// TODO(gri) if we are happy with this this, remove this flag and simplify code.
+	if tparCycle {
+		return true
+	}
+
 	check.cycleError(cycle, firstInSrc(cycle))
 	return false
 }

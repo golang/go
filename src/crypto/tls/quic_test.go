@@ -368,8 +368,7 @@ func TestQUICHandshakeError(t *testing.T) {
 	if !errors.Is(err, AlertError(alertBadCertificate)) {
 		t.Errorf("connection handshake terminated with error %q, want alertBadCertificate", err)
 	}
-	var e *CertificateVerificationError
-	if !errors.As(err, &e) {
+	if _, ok := errors.AsType[*CertificateVerificationError](err); !ok {
 		t.Errorf("connection handshake terminated with error %q, want CertificateVerificationError", err)
 	}
 }

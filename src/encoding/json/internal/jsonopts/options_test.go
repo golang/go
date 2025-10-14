@@ -200,6 +200,9 @@ func TestGet(t *testing.T) {
 	if v, ok := json.GetOption(opts, json.WithUnmarshalers); v != nil || ok {
 		t.Errorf(`GetOption(..., WithUnmarshalers) = (%v, %v), want (nil, false)`, v, ok)
 	}
+	if v, ok := json.GetOption(json.DefaultOptionsV2(), json.WithMarshalers); v != nil || ok {
+		t.Errorf(`GetOption(..., WithMarshalers) = (%v, %v), want (nil, false)`, v, ok)
+	}
 }
 
 var sink struct {

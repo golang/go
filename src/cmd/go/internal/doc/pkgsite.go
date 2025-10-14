@@ -81,8 +81,7 @@ func doPkgsite(urlPath, fragment string) error {
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		var ee *exec.ExitError
-		if errors.As(err, &ee) {
+		if ee, ok := errors.AsType[*exec.ExitError](err); ok {
 			// Exit with the same exit status as pkgsite to avoid
 			// printing of "exit status" error messages.
 			// Any relevant messages have already been printed

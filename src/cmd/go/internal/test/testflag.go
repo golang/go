@@ -261,7 +261,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 			break
 		}
 
-		if nf := (cmdflag.NonFlagError{}); errors.As(err, &nf) {
+		if nf, ok := errors.AsType[cmdflag.NonFlagError](err); ok {
 			if !inPkgList && packageNames != nil {
 				// We already saw the package list previously, and this argument is not
 				// a flag, so it — and everything after it — must be either a value for
@@ -296,7 +296,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 			inPkgList = false
 		}
 
-		if nd := (cmdflag.FlagNotDefinedError{}); errors.As(err, &nd) {
+		if nd, ok := errors.AsType[cmdflag.FlagNotDefinedError](err); ok {
 			// This is a flag we do not know. We must assume that any args we see
 			// after this might be flag arguments, not package names, so make
 			// packageNames non-nil to indicate that the package list is complete.

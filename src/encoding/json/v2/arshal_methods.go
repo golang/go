@@ -9,6 +9,7 @@ package json
 import (
 	"encoding"
 	"errors"
+	"io"
 	"reflect"
 
 	"encoding/json/internal"
@@ -302,6 +303,9 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 			}
 			xd := export.Decoder(dec)
 			prevDepth, prevLength := xd.Tokens.DepthLength()
+			if prevDepth == 1 && xd.AtEOF() {
+				return io.EOF // check EOF early to avoid fn reporting an EOF
+			}
 			xd.Flags.Set(jsonflags.WithinArshalCall | 1)
 			unmarshaler, _ := reflect.TypeAssert[UnmarshalerFrom](va.Addr())
 			err := unmarshaler.UnmarshalJSONFrom(dec)

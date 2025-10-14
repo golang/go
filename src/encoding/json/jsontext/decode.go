@@ -792,6 +792,12 @@ func (d *decoderState) CheckNextValue(last bool) error {
 	return nil
 }
 
+// AtEOF reports whether the decoder is at EOF.
+func (d *decoderState) AtEOF() bool {
+	_, err := d.consumeWhitespace(d.prevEnd)
+	return err == io.ErrUnexpectedEOF
+}
+
 // CheckEOF verifies that the input has no more data.
 func (d *decoderState) CheckEOF() error {
 	return d.checkEOF(d.prevEnd)
