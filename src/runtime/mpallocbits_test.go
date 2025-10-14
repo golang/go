@@ -200,7 +200,6 @@ func TestMallocBitsPopcntRange(t *testing.T) {
 		}
 	}
 	for name, v := range tests {
-		v := v
 		t.Run(name, func(t *testing.T) {
 			b := makePallocBits(v.init)
 			for _, h := range v.tests {
@@ -291,7 +290,6 @@ func TestPallocBitsSummarize(t *testing.T) {
 		},
 	}
 	for name, v := range tests {
-		v := v
 		t.Run(name, func(t *testing.T) {
 			b := makePallocBits(v.free)
 			// In the PallocBits we create 1's represent free spots, but in our actual
@@ -436,7 +434,6 @@ func TestPallocBitsAlloc(t *testing.T) {
 		}
 	}
 	for name, v := range tests {
-		v := v
 		t.Run(name, func(t *testing.T) {
 			b := makePallocBits(v.before)
 			for iter, i := range v.hits {
@@ -498,7 +495,6 @@ func TestPallocBitsFree(t *testing.T) {
 		}
 	}
 	for name, v := range tests {
-		v := v
 		t.Run(name, func(t *testing.T) {
 			b := makePallocBits(v.beforeInv)
 			invertPallocBits(b)

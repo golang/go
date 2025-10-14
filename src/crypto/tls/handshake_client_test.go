@@ -2693,7 +2693,6 @@ func TestTLS13OnlyClientHelloCipherSuite(t *testing.T) {
 		},
 	}
 	for _, tt := range tls13Tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			testTLS13OnlyClientHelloCipherSuite(t, tt.ciphers)

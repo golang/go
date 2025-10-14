@@ -1880,7 +1880,6 @@ func testVerifyCertificates(t *testing.T, version uint16) {
 	rootCAs.AddCert(issuer)
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 

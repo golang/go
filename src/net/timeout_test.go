@@ -180,7 +180,6 @@ func TestAcceptTimeout(t *testing.T) {
 	}
 
 	for _, timeout := range timeouts {
-		timeout := timeout
 		t.Run(fmt.Sprintf("%v", timeout), func(t *testing.T) {
 			t.Parallel()
 

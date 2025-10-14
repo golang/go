@@ -347,7 +347,6 @@ func TestStop(t *testing.T) {
 	}
 
 	for _, sig := range sigs {
-		sig := sig
 		t.Run(fmt.Sprint(sig), func(t *testing.T) {
 			// When calling Notify with a specific signal,
 			// independent signals should not interfere with each other,
@@ -441,7 +440,6 @@ func TestNohup(t *testing.T) {
 			subTimeout -= subTimeout / 10 // Leave 10% headroom for propagating output.
 		}
 		for i := 1; i <= 2; i++ {
-			i := i
 			t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
 				t.Parallel()
 
@@ -484,7 +482,6 @@ func TestNohup(t *testing.T) {
 			subTimeout -= subTimeout / 10 // Leave 10% headroom for propagating output.
 		}
 		for i := 1; i <= 2; i++ {
-			i := i
 			t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
 				t.Parallel()
 
@@ -743,7 +740,6 @@ func TestNotifyContextNotifications(t *testing.T) {
 		{"multiple", 10},
 	}
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 

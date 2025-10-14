@@ -2939,7 +2939,6 @@ func TestConnExpiresFreshOutOfPool(t *testing.T) {
 	db.SetMaxOpenConns(1)
 
 	for _, ec := range execCases {
-		ec := ec
 		name := fmt.Sprintf("expired=%t,badReset=%t", ec.expired, ec.badReset)
 		t.Run(name, func(t *testing.T) {
 			db.clearAllConns(t)

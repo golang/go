@@ -374,7 +374,6 @@ func TestRecorderPanicsOnNonXXXStatusCode(t *testing.T) {
 		-100, 0, 99, 1000, 20000,
 	}
 	for _, badCode := range badCodes {
-		badCode := badCode
 		t.Run(fmt.Sprintf("Code=%d", badCode), func(t *testing.T) {
 			defer func() {
 				if r := recover(); r == nil {
