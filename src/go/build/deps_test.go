@@ -49,11 +49,13 @@ var depsRules = `
 	  internal/coverage/uleb128,
 	  internal/coverage/calloc,
 	  internal/cpu,
+	  internal/ftoa,
 	  internal/goarch,
 	  internal/godebugs,
 	  internal/goexperiment,
 	  internal/goos,
 	  internal/goversion,
+	  internal/itoa,
 	  internal/nettrace,
 	  internal/platform,
 	  internal/profilerecord,
@@ -70,7 +72,7 @@ var depsRules = `
 	internal/goarch < internal/abi;
 	internal/byteorder, internal/cpu, internal/goarch < internal/chacha8rand;
 
-	internal/cpu < simd;
+	internal/cpu, internal/ftoa, internal/itoa < simd;
 
 	# RUNTIME is the core runtime group of packages, all of them very light-weight.
 	internal/abi,
@@ -81,13 +83,13 @@ var depsRules = `
 	internal/godebugs,
 	internal/goexperiment,
 	internal/goos,
+	internal/itoa,
 	internal/profilerecord,
 	internal/trace/tracev2,
 	math/bits,
 	structs
 	< internal/bytealg
 	< internal/stringslite
-	< internal/itoa
 	< internal/unsafeheader
 	< internal/race
 	< internal/msan
@@ -175,7 +177,7 @@ var depsRules = `
 	MATH
 	< runtime/metrics;
 
-	MATH, unicode/utf8
+	MATH, unicode/utf8, internal/ftoa
 	< strconv;
 
 	unicode !< strconv;

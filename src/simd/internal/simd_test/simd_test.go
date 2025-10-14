@@ -1001,3 +1001,32 @@ func TestSelect2FromPairConstGroupedInt512(t *testing.T) {
 	foo(lh, 0, 3)
 	foo(hl, 2, 1)
 }
+
+func TestString(t *testing.T) {
+	x := simd.LoadUint32x4Slice([]uint32{0, 1, 2, 3})
+	y := simd.LoadInt64x4Slice([]int64{-4, -5, -6, -7})
+	z := simd.LoadFloat32x4Slice([]float32{0.5, 1.5, -2.5, 3.5e9})
+	w := simd.LoadFloat64x4Slice([]float64{0.5, 1.5, -2.5, 3.5e9})
+
+	sx := "{0,1,2,3}"
+	sy := "{-4,-5,-6,-7}"
+	sz := "{0.5,1.5,-2.5,3.5e+09}"
+	sw := sz
+
+	if x.String() != sx {
+		t.Errorf("x=%s wanted %s", x, sx)
+	}
+	if y.String() != sy {
+		t.Errorf("y=%s wanted %s", y, sy)
+	}
+	if z.String() != sz {
+		t.Errorf("z=%s wanted %s", z, sz)
+	}
+	if w.String() != sw {
+		t.Errorf("w=%s wanted %s", w, sw)
+	}
+	t.Logf("w=%s", w)
+	t.Logf("x=%s", x)
+	t.Logf("y=%s", y)
+	t.Logf("z=%s", z)
+}

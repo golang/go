@@ -10,7 +10,10 @@
 
 package strconv
 
-import "math"
+import (
+	"internal/ftoa"
+	"math"
+)
 
 // TODO: move elsewhere?
 type floatInfo struct {
@@ -21,6 +24,10 @@ type floatInfo struct {
 
 var float32info = floatInfo{23, 8, -127}
 var float64info = floatInfo{52, 11, -1023}
+
+func init() {
+	ftoa.SetFormatFloat(FormatFloat)
+}
 
 // FormatFloat converts the floating-point number f to a string,
 // according to the format fmt and precision prec. It rounds the

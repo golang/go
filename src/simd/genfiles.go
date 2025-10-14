@@ -263,6 +263,7 @@ func unsafePrologue(s string, out io.Writer) {
 package simd
 
 import "unsafe"
+
 `, s)
 }
 
@@ -795,6 +796,15 @@ func (from {{.Base}}{{.WxC}}) ToMask() (to Mask{{.WxC}}) {
 }
 `)
 
+var stringTemplate = shapedTemplateOf(allShapes, "String methods", `
+// String returns a string representation of SIMD vector x
+func (x {{.VType}}) String() string {
+	var s [{{.Count}}]{{.Etype}}
+	x.Store(&s)
+	return sliceToString(s[:])
+}
+`)
+
 const TD = "internal/simd_test/"
 
 func main() {
@@ -836,6 +846,7 @@ func main() {
 			maskCvtTemplate,
 			bitWiseIntTemplate,
 			bitWiseUintTemplate,
+			stringTemplate,
 		)
 	}
 	if *ush != "" {
