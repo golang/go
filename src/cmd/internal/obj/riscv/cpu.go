@@ -459,6 +459,10 @@ const (
 	AAMOMINW
 	AAMOMINUW
 
+	// 15: Wait-on-Reservation-Set Instructions (Zawrs)
+	AWRSNTO
+	AWRSSTO
+
 	// 16.1: Byte and Halfword Atomic Memory Operation Instructions (Zabha)
 	AAMOSWAPB
 	AAMOADDB

@@ -263,6 +263,10 @@ start:
 	AMOMINUW	X5, (X6), X7			// af2353c6
 	AMOMINUD	X5, (X6), X7			// af3353c6
 
+	// 15: Wait-on-Reservation-Set Instructions (Zawrs)
+	WRSNTO                              // 7300d000
+    WRSSTO                              // 7300d001
+
 	// 16.1: Byte and Halfword Atomic Memory Operation Instructions (Zabha)
 	AMOSWAPB	X5, (X6), X7			// af03530e
 	AMOSWAPH	X5, (X6), X7			// af13530e
