@@ -244,6 +244,10 @@ start:
 	AMOMINUW	X5, (X6), X7			// af2353c6
 	AMOMINUD	X5, (X6), X7			// af3353c6
 
+	// 15: Wait-on-Reservation-Set Instructions (Zawrs)
+	WRSNTO                              // 7300d000
+    WRSSTO                              // 7300d001
+
 	// 20.5: Single-Precision Load and Store Instructions
 	FLW	(X5), F0				// 07a00200
 	FLW	4(X5), F0				// 07a04200

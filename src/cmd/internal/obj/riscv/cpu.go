@@ -456,6 +456,10 @@ const (
 	AAMOMINW
 	AAMOMINUW
 
+	// 15: Wait-on-Reservation-Set Instructions (Zawrs)
+	AWRSNTO
+	AWRSSTO
+
 	// 20.5: Single-Precision Load and Store Instructions
 	AFLW
 	AFSW

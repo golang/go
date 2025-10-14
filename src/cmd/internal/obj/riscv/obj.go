@@ -2032,6 +2032,10 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	AFLD & obj.AMask: {enc: iFEncoding},
 	AFSD & obj.AMask: {enc: sFEncoding},
 
+	// 15: Wait-on-Reservation-Set Instructions (Zawrs)
+	AWRSNTO & obj.AMask: {enc: iIIEncoding},
+	AWRSSTO & obj.AMask: {enc: iIIEncoding},
+
 	// 21.4: Double-Precision Floating-Point Computational Instructions
 	AFADDD & obj.AMask:   {enc: rFFFEncoding},
 	AFSUBD & obj.AMask:   {enc: rFFFEncoding},
@@ -3609,6 +3613,14 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		// Set aqrl to use acquire & release access ordering
 		ins.funct7 = 3
 		ins.rd, ins.rs1, ins.rs2 = uint32(p.RegTo2), uint32(p.To.Reg), uint32(p.From.Reg)
+
+	case AWRSNTO, AWRSSTO:
+		ins.rd, ins.rs1 = REG_ZERO, REG_ZERO
+		if ins.as == AWRSNTO {
+			ins.imm = 0x0d
+		} else {
+			ins.imm = 0x1d
+		}
 
 	case AECALL, AEBREAK:
 		insEnc := encode(p.As)
