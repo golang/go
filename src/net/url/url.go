@@ -698,9 +698,7 @@ func parseHost(host string) (string, error) {
 			return "", errors.New("invalid IP-literal")
 		}
 		return "[" + unescapedHostname + "]" + unescapedColonPort, nil
-	} else if i := strings.Index(host, ":"); i != -1 {
-		// IPv4address / reg-name
-		// E.g. 1.2.3.4, 1.2.3.4:80, example.com, example.com:80
+	} else if i := strings.LastIndex(host, ":"); i != -1 {
 		colonPort := host[i:]
 		if !validOptionalPort(colonPort) {
 			return "", fmt.Errorf("invalid port %q after host", colonPort)
