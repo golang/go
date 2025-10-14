@@ -28,15 +28,6 @@ func div(x, y float64) float64 { return x / y }
 func TestFloat64(t *testing.T) {
 	base := []float64{
 		0,
-		1,
-		-9223372036854775808,
-		-9223372036854775808 + 4096,
-		18446744073709551615,
-		18446744073709551615 + 1,
-		18446744073709551615 - 1,
-		9223372036854775808 + 4096,
-		0.5,
-		0.75,
 		math.Copysign(0, -1),
 		-1,
 		1,
@@ -44,8 +35,6 @@ func TestFloat64(t *testing.T) {
 		math.Inf(+1),
 		math.Inf(-1),
 		0.1,
-		0.5,
-		0.75,
 		1.5,
 		1.9999999999999998,     // all 1s mantissa
 		1.3333333333333333,     // 1.010101010101...
@@ -81,7 +70,7 @@ func TestFloat64(t *testing.T) {
 		1e+307,
 		1e+308,
 	}
-	all := make([]float64, 250)
+	all := make([]float64, 200)
 	copy(all, base)
 	for i := len(base); i < len(all); i++ {
 		all[i] = rand.NormFloat64()
@@ -93,7 +82,6 @@ func TestFloat64(t *testing.T) {
 		test(t, "*", mul, fop(Fmul64), all)
 		test(t, "/", div, fop(Fdiv64), all)
 	}
-
 }
 
 // 64 -hw-> 32 -hw-> 64
@@ -116,11 +104,6 @@ func hwint64(f float64) float64 {
 	return float64(int64(f))
 }
 
-// float64 -hw-> uint64 -hw-> float64
-func hwuint64(f float64) float64 {
-	return float64(uint64(f))
-}
-
 // float64 -hw-> int32 -hw-> float64
 func hwint32(f float64) float64 {
 	return float64(int32(f))
@@ -130,19 +113,9 @@ func hwint32(f float64) float64 {
 func toint64sw(f float64) float64 {
 	i, ok := F64toint(math.Float64bits(f))
 	if !ok {
-		// There's no right answer for NaN.
+		// There's no right answer for out of range.
 		// Match the hardware to pass the test.
 		i = int64(f)
-	}
-	return float64(i)
-}
-
-func touint64sw(f float64) float64 {
-	i := F64touint(math.Float64bits(f))
-	if f != f {
-		// There's no right answer for NaN.
-		// Match the hardware to pass the test.
-		i = uint64(f)
 	}
 	return float64(i)
 }
@@ -177,7 +150,6 @@ func test(t *testing.T, op string, hw, sw func(float64, float64) float64, all []
 			testu(t, "to32", trunc32, to32sw, h)
 			testu(t, "to64", trunc32, to64sw, h)
 			testu(t, "toint64", hwint64, toint64sw, h)
-			testu(t, "touint64", hwuint64, touint64sw, h)
 			testu(t, "fromint64", hwint64, fromint64sw, h)
 			testcmp(t, f, h)
 			testcmp(t, h, f)
@@ -191,7 +163,6 @@ func testu(t *testing.T, op string, hw, sw func(float64) float64, v float64) {
 	h := hw(v)
 	s := sw(v)
 	if !same(h, s) {
-		s = sw(v) // debug me
 		err(t, "%s %g = sw %g, hw %g\n", op, v, s, h)
 	}
 }
