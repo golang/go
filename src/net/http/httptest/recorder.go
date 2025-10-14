@@ -105,13 +105,13 @@ func (rw *ResponseRecorder) writeHeader(b []byte, str string) {
 // Write implements http.ResponseWriter. The data in buf is written to
 // rw.Body, if not nil.
 func (rw *ResponseRecorder) Write(buf []byte) (int, error) {
-	code := rw.Code
-	if !bodyAllowedForStatus(code) {
-		return 0, http.ErrBodyNotAllowed
-	}
+	// Record the write, even if we're going to return an error.
 	rw.writeHeader(buf, "")
 	if rw.Body != nil {
 		rw.Body.Write(buf)
+	}
+	if !bodyAllowedForStatus(rw.Code) {
+		return 0, http.ErrBodyNotAllowed
 	}
 	return len(buf), nil
 }
@@ -119,13 +119,13 @@ func (rw *ResponseRecorder) Write(buf []byte) (int, error) {
 // WriteString implements [io.StringWriter]. The data in str is written
 // to rw.Body, if not nil.
 func (rw *ResponseRecorder) WriteString(str string) (int, error) {
-	code := rw.Code
-	if !bodyAllowedForStatus(code) {
-		return 0, http.ErrBodyNotAllowed
-	}
+	// Record the write, even if we're going to return an error.
 	rw.writeHeader(nil, str)
 	if rw.Body != nil {
 		rw.Body.WriteString(str)
+	}
+	if !bodyAllowedForStatus(rw.Code) {
+		return 0, http.ErrBodyNotAllowed
 	}
 	return len(str), nil
 }
