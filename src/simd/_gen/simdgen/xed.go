@@ -22,9 +22,10 @@ import (
 )
 
 const (
-	NOT_REG_CLASS = 0 // not a register
-	VREG_CLASS    = 1 // classify as a vector register; see
-	GREG_CLASS    = 2 // classify as a general register
+	NOT_REG_CLASS = iota // not a register
+	VREG_CLASS           // classify as a vector register; see
+	GREG_CLASS           // classify as a general register
+	REG_FIXED            // classify as a fixed  register
 )
 
 // instVariant is a bitmap indicating a variant of an instruction that has
@@ -78,8 +79,8 @@ func loadXED(xedPath string) []*unify.Value {
 		switch {
 		case inst.RealOpcode == "N":
 			return // Skip unstable instructions
-		case !strings.HasPrefix(inst.Extension, "AVX"):
-			// We're only interested in AVX instructions.
+		case !(strings.HasPrefix(inst.Extension, "AVX") || strings.HasPrefix(inst.Extension, "SHA")):
+			// We're only interested in AVX and SHA instructions.
 			return
 		}
 
@@ -283,8 +284,9 @@ type operandMem struct {
 }
 
 type vecShape struct {
-	elemBits int // Element size in bits
-	bits     int // Register width in bits (total vector bits)
+	elemBits  int    // Element size in bits
+	bits      int    // Register width in bits (total vector bits)
+	fixedName string // the fixed register name
 }
 
 type operandVReg struct { // Vector register
@@ -364,6 +366,9 @@ func (o operandVReg) addToDef(b *unify.DefBuilder) {
 	if o.elemBits != o.bits {
 		b.Add("elemBits", strVal(o.elemBits))
 	}
+	if o.fixedName != "" {
+		b.Add("fixedReg", strVal(o.fixedName))
+	}
 }
 
 func (o operandGReg) addToDef(b *unify.DefBuilder) {
@@ -377,6 +382,9 @@ func (o operandGReg) addToDef(b *unify.DefBuilder) {
 	if o.elemBits != o.bits {
 		b.Add("elemBits", strVal(o.elemBits))
 	}
+	if o.fixedName != "" {
+		b.Add("fixedReg", strVal(o.fixedName))
+	}
 }
 
 func (o operandMask) addToDef(b *unify.DefBuilder) {
@@ -387,6 +395,9 @@ func (o operandMask) addToDef(b *unify.DefBuilder) {
 	}
 	b.Add("elemBits", strVal(o.elemBits))
 	b.Add("bits", strVal(o.bits))
+	if o.fixedName != "" {
+		b.Add("fixedReg", strVal(o.fixedName))
+	}
 }
 
 func (o operandImm) addToDef(b *unify.DefBuilder) {
@@ -470,7 +481,7 @@ func decodeOperand(db *xeddata.Database, operand string) (operand, error) {
 				optional:      op.Attributes["TXT=ZEROSTR"],
 			}, nil
 		} else {
-			class, regBits := decodeReg(op)
+			class, regBits, fixedReg := decodeReg(op)
 			if class == NOT_REG_CLASS {
 				return nil, fmt.Errorf("failed to decode register %q", operand)
 			}
@@ -478,7 +489,7 @@ func decodeOperand(db *xeddata.Database, operand string) (operand, error) {
 			if !ok {
 				return nil, fmt.Errorf("failed to decode register width %q", operand)
 			}
-			shape := vecShape{elemBits: elemBits, bits: regBits}
+			shape := vecShape{elemBits: elemBits, bits: regBits, fixedName: fixedReg}
 			if class == VREG_CLASS {
 				return operandVReg{
 					operandCommon: common,
@@ -782,6 +793,8 @@ type cpuFeatureKey struct {
 // cpuFeatureMap maps from XED's "EXTENSION" and "ISA_SET" to a CPU feature name
 // that can be used in the SIMD API.
 var cpuFeatureMap = map[cpuFeatureKey]string{
+	{"SHA", "SHA"}: "SHA",
+
 	{"AVX", ""}:              "AVX",
 	{"AVX_VNNI", "AVX_VNNI"}: "AVXVNNI",
 	{"AVX2", ""}:             "AVX2",
@@ -832,10 +845,20 @@ func singular[T comparable](xs []T) (T, bool) {
 	return xs[0], true
 }
 
-// decodeReg returns class (NOT_REG_CLASS, VREG_CLASS, GREG_CLASS),
-// and width in bits.  If the operand cannot be decided as a register,
-// then the clas is NOT_REG_CLASS.
-func decodeReg(op *xeddata.Operand) (class, width int) {
+type fixedReg struct {
+	class int
+	name  string
+	width int
+}
+
+var fixedRegMap = map[string]fixedReg{
+	"XED_REG_XMM0": {REG_FIXED, "XMM0", 128},
+}
+
+// decodeReg returns class (NOT_REG_CLASS, VREG_CLASS, GREG_CLASS, VREG_CLASS_FIXED,
+// GREG_CLASS_FIXED), width in bits and reg name(if fixed).
+// If the operand cannot be decided as a register, then the clas is NOT_REG_CLASS.
+func decodeReg(op *xeddata.Operand) (class, width int, name string) {
 	// op.Width tells us the total width, e.g.,:
 	//
 	//    dq => 128 bits (XMM)
@@ -848,27 +871,30 @@ func decodeReg(op *xeddata.Operand) (class, width int) {
 	// Hence, we dig into the register sets themselves.
 
 	if !strings.HasPrefix(op.NameLHS(), "REG") {
-		return NOT_REG_CLASS, 0
+		return NOT_REG_CLASS, 0, ""
 	}
 	// TODO: We shouldn't be relying on the macro naming conventions. We should
 	// use all-dec-patterns.txt, but xeddata doesn't support that table right now.
 	rhs := op.NameRHS()
 	if !strings.HasSuffix(rhs, "()") {
-		return NOT_REG_CLASS, 0
+		if fixedReg, ok := fixedRegMap[rhs]; ok {
+			return fixedReg.class, fixedReg.width, fixedReg.name
+		}
+		return NOT_REG_CLASS, 0, ""
 	}
 	switch {
 	case strings.HasPrefix(rhs, "XMM_"):
-		return VREG_CLASS, 128
+		return VREG_CLASS, 128, ""
 	case strings.HasPrefix(rhs, "YMM_"):
-		return VREG_CLASS, 256
+		return VREG_CLASS, 256, ""
 	case strings.HasPrefix(rhs, "ZMM_"):
-		return VREG_CLASS, 512
+		return VREG_CLASS, 512, ""
 	case strings.HasPrefix(rhs, "GPR64_"), strings.HasPrefix(rhs, "VGPR64_"):
-		return GREG_CLASS, 64
+		return GREG_CLASS, 64, ""
 	case strings.HasPrefix(rhs, "GPR32_"), strings.HasPrefix(rhs, "VGPR32_"):
-		return GREG_CLASS, 32
+		return GREG_CLASS, 32, ""
 	}
-	return NOT_REG_CLASS, 0
+	return NOT_REG_CLASS, 0, ""
 }
 
 var xtypeRe = regexp.MustCompile(`^([iuf])([0-9]+)$`)
