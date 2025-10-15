@@ -575,11 +575,8 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *TypeN
 		named.underlying = Typ[Invalid]
 	}
 
-	// Disallow a lone type parameter as the RHS of a type declaration (go.dev/issue/45639).
-	// We don't need this restriction anymore if we make the underlying type of a type
-	// parameter its constraint interface: if the RHS is a lone type parameter, we will
-	// use its underlying type (like we do for any RHS in a type declaration), and its
-	// underlying type is an interface and the type declaration is well defined.
+	// spec: "In a type definition the given type cannot be a type parameter."
+	// (See also go.dev/issue/45639.)
 	if isTypeParam(rhs) {
 		check.error(tdecl.Type, MisplacedTypeParam, "cannot use a type parameter as RHS in type declaration")
 		named.underlying = Typ[Invalid]
