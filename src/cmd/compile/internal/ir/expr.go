@@ -665,7 +665,7 @@ func NewStarExpr(pos src.XPos, x Node) *StarExpr {
 func (n *StarExpr) Implicit() bool     { return n.flags&miniExprImplicit != 0 }
 func (n *StarExpr) SetImplicit(b bool) { n.flags.set(miniExprImplicit, b) }
 
-// A TypeAssertionExpr is a selector expression X.(Type).
+// A TypeAssertExpr is a selector expression X.(Type).
 // Before type-checking, the type is Ntype.
 type TypeAssertExpr struct {
 	miniExpr
