@@ -91,7 +91,12 @@ func Decode(data []byte) (p *Block, rest []byte) {
 	// the byte array, we'll accept the start string without it.
 	rest = data
 
+	endTrailerIndex := 0
 	for {
+		// If we've already tried parsing a block, skip past the END we already
+		// saw.
+		rest = rest[endTrailerIndex:]
+
 		// Find the first END line, and then find the last BEGIN line before
 		// the end line. This lets us skip any repeated BEGIN lines that don't
 		// have a matching END.
@@ -99,10 +104,10 @@ func Decode(data []byte) (p *Block, rest []byte) {
 		if endIndex < 0 {
 			return nil, data
 		}
-		endTrailerIndex := endIndex + len(pemEnd)
+		endTrailerIndex = endIndex + len(pemEnd)
 		beginIndex := bytes.LastIndex(rest[:endIndex], pemStart[1:])
-		if beginIndex < 0 || beginIndex > 0 && rest[beginIndex-1] != '\n' {
-			return nil, data
+		if beginIndex < 0 || (beginIndex > 0 && rest[beginIndex-1] != '\n') {
+			continue
 		}
 		rest = rest[beginIndex+len(pemStart)-1:]
 		endIndex -= beginIndex + len(pemStart) - 1
