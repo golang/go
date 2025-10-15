@@ -84,6 +84,22 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_ZERO
 		p.As = ACSRRWI
+	case ANTLP1, ANTLPALL, ANTLS1, ANTLALL:
+		switch p.As {
+		case ANTLP1:
+			p.From.Reg = REG_X2
+		case ANTLPALL:
+			p.From.Reg = REG_X3
+		case ANTLS1:
+			p.From.Reg = REG_X4
+		case ANTLALL:
+			p.From.Reg = REG_X5
+		}
+		p.As = AADD
+		p.From.Type = obj.TYPE_REG
+		p.Reg = REG_ZERO
+		p.To.Reg = REG_ZERO
+		p.To.Type = obj.TYPE_REG
 	}
 
 	insData, err := instructionDataForAs(p.As)
