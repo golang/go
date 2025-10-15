@@ -86,7 +86,7 @@ func Instantiate(ctxt *Context, orig Type, targs []Type, validate bool) (Type, e
 //
 // For Named types the resulting instance may be unexpanded.
 //
-// check may be nil (when not type-checking syntax); pos is used only only if check is non-nil.
+// check may be nil (when not type-checking syntax); pos is used only if check is non-nil.
 func (check *Checker) instance(pos token.Pos, orig genericType, targs []Type, expanding *Named, ctxt *Context) (res Type) {
 	// The order of the contexts below matters: we always prefer instances in the
 	// expanding instance context in order to preserve reference cycles.
