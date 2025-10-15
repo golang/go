@@ -460,7 +460,7 @@ func atof64exact(mantissa uint64, exp int, neg bool) (f float64, ok bool) {
 // If possible to compute mantissa*10^exp to 32-bit float f exactly,
 // entirely in floating-point math, do so, avoiding the machinery above.
 func atof32exact(mantissa uint64, exp int, neg bool) (f float32, ok bool) {
-	if mantissa>>float32info.mantbits != 0 {
+	if mantissa>>float32MantBits != 0 {
 		return
 	}
 	f = float32(mantissa)

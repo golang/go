@@ -40,8 +40,8 @@ func ryuFtoaFixed32(d *decimalSlice, mant uint32, exp int, prec int) {
 	//     mant*(2^e2)*(10^q) >= 10^(prec-1)
 	// Because mant >= 2^24, it is enough to choose:
 	//     2^(e2+24) >= 10^(-q+prec-1)
-	// or q = -mulByLog2Log10(e2+24) + prec - 1
-	q := -mulByLog2Log10(e2+24) + prec - 1
+	// or q = -mulLog10_2(e2+24) + prec - 1
+	q := -mulLog10_2(e2+24) + prec - 1
 
 	// Now compute mant*(2^e2)*(10^q).
 	// Is it an exact computation?
@@ -107,11 +107,11 @@ func ryuFtoaFixed64(d *decimalSlice, mant uint64, exp int, prec int) {
 	//     mant*(2^e2)*(10^q) >= 10^(prec-1)
 	// Because mant >= 2^54, it is enough to choose:
 	//     2^(e2+54) >= 10^(-q+prec-1)
-	// or q = -mulByLog2Log10(e2+54) + prec - 1
+	// or q = -mulLog10_2(e2+54) + prec - 1
 	//
-	// The minimal required exponent is -mulByLog2Log10(1025)+18 = -291
-	// The maximal required exponent is mulByLog2Log10(1074)+18 = 342
-	q := -mulByLog2Log10(e2+54) + prec - 1
+	// The minimal required exponent is -mulLog10_2(1025)+18 = -291
+	// The maximal required exponent is mulLog10_2(1074)+18 = 342
+	q := -mulLog10_2(e2+54) + prec - 1
 
 	// Now compute mant*(2^e2)*(10^q).
 	// Is it an exact computation?
@@ -242,7 +242,7 @@ func ryuFtoaShortest(d *decimalSlice, mant uint64, exp int, flt *floatInfo) {
 		return
 	}
 	// Find 10^q *larger* than 2^-e2
-	q := mulByLog2Log10(-e2) + 1
+	q := mulLog10_2(-e2) + 1
 
 	// We are going to multiply by 10^q using 128-bit arithmetic.
 	// The exponent is the same for all 3 numbers.
@@ -324,26 +324,6 @@ func ryuFtoaShortest(d *decimalSlice, mant uint64, exp int, flt *floatInfo) {
 	// render digits
 	ryuDigits(d, dl, dc, du, c0, cup)
 	d.dp -= q
-}
-
-// mulByLog2Log10 returns math.Floor(x * log(2)/log(10)) for an integer x in
-// the range -1600 <= x && x <= +1600.
-//
-// The range restriction lets us work in faster integer arithmetic instead of
-// slower floating point arithmetic. Correctness is verified by unit tests.
-func mulByLog2Log10(x int) int {
-	// log(2)/log(10) ≈ 0.30102999566 ≈ 78913 / 2^18
-	return (x * 78913) >> 18
-}
-
-// mulByLog10Log2 returns math.Floor(x * log(10)/log(2)) for an integer x in
-// the range -500 <= x && x <= +500.
-//
-// The range restriction lets us work in faster integer arithmetic instead of
-// slower floating point arithmetic. Correctness is verified by unit tests.
-func mulByLog10Log2(x int) int {
-	// log(10)/log(2) ≈ 3.32192809489 ≈ 108853 / 2^15
-	return (x * 108853) >> 15
 }
 
 // computeBounds returns a floating-point vector (l, c, u)×2^e2
@@ -482,7 +462,7 @@ func ryuDigits32(d *decimalSlice, lower, central, upper uint32,
 
 // mult64bitPow10 takes a floating-point input with a 25-bit
 // mantissa and multiplies it with 10^q. The resulting mantissa
-// is m*P >> 57 where P is a 64-bit element of the detailedPowersOfTen tables.
+// is m*P >> 57 where P is a 64-bit truncated power of 10.
 // It is typically 31 or 32-bit wide.
 // The returned boolean is true if all trimmed bits were zero.
 //
@@ -495,23 +475,23 @@ func mult64bitPow10(m uint32, e2, q int) (resM uint32, resE int, exact bool) {
 		// P == 1<<63
 		return m << 6, e2 - 6, true
 	}
-	if q < detailedPowersOfTenMinExp10 || detailedPowersOfTenMaxExp10 < q {
+	pow, exp2, ok := pow10(q)
+	if !ok {
 		// This never happens due to the range of float32/float64 exponent
 		panic("mult64bitPow10: power of 10 is out of range")
 	}
-	pow := detailedPowersOfTen[q-detailedPowersOfTenMinExp10][1]
 	if q < 0 {
 		// Inverse powers of ten must be rounded up.
-		pow += 1
+		pow.Hi++
 	}
-	hi, lo := bits.Mul64(uint64(m), pow)
-	e2 += mulByLog10Log2(q) - 63 + 57
+	hi, lo := bits.Mul64(uint64(m), pow.Hi)
+	e2 += exp2 - 63 + 57
 	return uint32(hi<<7 | lo>>57), e2, lo<<7 == 0
 }
 
 // mult128bitPow10 takes a floating-point input with a 55-bit
 // mantissa and multiplies it with 10^q. The resulting mantissa
-// is m*P >> 119 where P is a 128-bit element of the detailedPowersOfTen tables.
+// is m*P >> 119 where P is a 128-bit truncated power of 10.
 // It is typically 63 or 64-bit wide.
 // The returned boolean is true is all trimmed bits were zero.
 //
@@ -524,23 +504,19 @@ func mult128bitPow10(m uint64, e2, q int) (resM uint64, resE int, exact bool) {
 		// P == 1<<127
 		return m << 8, e2 - 8, true
 	}
-	if q < detailedPowersOfTenMinExp10 || detailedPowersOfTenMaxExp10 < q {
+	pow, exp2, ok := pow10(q)
+	if !ok {
 		// This never happens due to the range of float32/float64 exponent
 		panic("mult128bitPow10: power of 10 is out of range")
 	}
-	pow := detailedPowersOfTen[q-detailedPowersOfTenMinExp10]
 	if q < 0 {
 		// Inverse powers of ten must be rounded up.
-		pow[0] += 1
+		pow.Lo++
 	}
-	e2 += mulByLog10Log2(q) - 127 + 119
+	e2 += exp2 - 127 + 119
 
-	// long multiplication
-	l1, l0 := bits.Mul64(m, pow[0])
-	h1, h0 := bits.Mul64(m, pow[1])
-	mid, carry := bits.Add64(l1, h0, 0)
-	h1 += carry
-	return h1<<9 | mid>>55, e2, mid<<9 == 0 && l0 == 0
+	hi, mid, lo := umul192(m, pow)
+	return hi<<9 | mid>>55, e2, mid<<9 == 0 && lo == 0
 }
 
 func divisibleByPower5(m uint64, k int) bool {
