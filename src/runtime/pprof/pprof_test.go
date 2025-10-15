@@ -2549,6 +2549,9 @@ func TestProfilerStackDepth(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.profiler, func(t *testing.T) {
+			if test.profiler == "heap" {
+				testenv.SkipFlaky(t, 74029)
+			}
 			var buf bytes.Buffer
 			if err := Lookup(test.profiler).WriteTo(&buf, 0); err != nil {
 				t.Fatalf("failed to write heap profile: %v", err)
