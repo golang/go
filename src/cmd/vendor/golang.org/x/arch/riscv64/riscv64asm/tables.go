@@ -371,6 +371,8 @@ const (
 	SUB
 	SUBW
 	SW
+	WRS_NTO
+	WRS_STO
 	VAADDU_VV
 	VAADDU_VX
 	VAADD_VV
@@ -1367,6 +1369,8 @@ var opstr = [...]string{
 	SUB:               "SUB",
 	SUBW:              "SUBW",
 	SW:                "SW",
+	WRS_NTO:           "WRS.NTO",
+	WRS_STO:           "WRS.STO",
 	VAADDU_VV:         "VAADDU.VV",
 	VAADDU_VX:         "VAADDU.VX",
 	VAADD_VV:          "VAADD.VV",
@@ -2725,6 +2729,10 @@ var instFormats = [...]instFormat{
 	{mask: 0xfe00707f, value: 0x4000003b, op: SUBW, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
 	// SW rs2, rs1_store
 	{mask: 0x0000707f, value: 0x00002023, op: SW, args: argTypeList{arg_rs2, arg_rs1_store}},
+	// WRS.NTO
+	{mask: 0xffffffff, value: 0x00d00073, op: WRS_NTO, args: argTypeList{}},
+	// WRS.STO
+	{mask: 0xffffffff, value: 0x01d00073, op: WRS_STO, args: argTypeList{}},
 	// VAADDU.VV vm, vs2, vs1, vd
 	{mask: 0xfc00707f, value: 0x20002057, op: VAADDU_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
 	// VAADDU.VX vm, vs2, rs1, vd
