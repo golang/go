@@ -639,3 +639,100 @@ func TestBadEncode(t *testing.T) {
 }
 
 func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "PRIVATE KEY") }
+
+func TestDecodeStrangeCases(t *testing.T) {
+	sentinelType := "TEST BLOCK"
+	sentinelBytes := []byte("hello")
+	for _, tc := range []struct {
+		name string
+		pem  string
+	}{
+		{
+			name: "invalid section (not base64)",
+			pem: `-----BEGIN COMMENT-----
+foo foo foo
+-----END COMMENT-----
+-----BEGIN TEST BLOCK-----
+aGVsbG8=
+-----END TEST BLOCK-----`,
+		},
+		{
+			name: "leading garbage on block",
+			pem: `foo foo foo-----BEGIN CERTIFICATE-----
+MCowBQYDK2VwAyEApVjJeLW5MoP6uR3+OeITokM+rBDng6dgl1vvhcy+wws=
+-----END PUBLIC KEY-----
+-----BEGIN TEST BLOCK-----
+aGVsbG8=
+-----END TEST BLOCK-----`,
+		},
+		{
+			name: "leading garbage",
+			pem: `foo foo foo
+-----BEGIN TEST BLOCK-----
+aGVsbG8=
+-----END TEST BLOCK-----`,
+		},
+		{
+			name: "leading partial block",
+			pem: `foo foo foo
+-----END COMMENT-----
+-----BEGIN TEST BLOCK-----
+aGVsbG8=
+-----END TEST BLOCK-----`,
+		},
+		{
+			name: "multiple BEGIN",
+			pem: `-----BEGIN TEST BLOCK-----
+-----BEGIN TEST BLOCK-----
+-----BEGIN TEST BLOCK-----
+aGVsbG8=
+-----END TEST BLOCK-----`,
+		},
+		{
+			name: "multiple END",
+			pem: `-----BEGIN TEST BLOCK-----
+aGVsbG8=
+-----END TEST BLOCK-----
+-----END TEST BLOCK-----
+-----END TEST BLOCK-----`,
+		},
+		{
+			name: "leading malformed BEGIN",
+			pem: `-----BEGIN PUBLIC KEY
+aGVsbG8=
+-----END PUBLIC KEY-----
+-----BEGIN TEST BLOCK-----
+aGVsbG8=
+-----END TEST BLOCK-----`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			block, _ := Decode([]byte(tc.pem))
+			if block == nil {
+				t.Fatal("expected valid block")
+			}
+			if block.Type != sentinelType {
+				t.Fatalf("unexpected block returned, got type %q, want type %q", block.Type, sentinelType)
+			}
+			if !bytes.Equal(block.Bytes, sentinelBytes) {
+				t.Fatalf("unexpected block content, got %x, want %x", block.Bytes, sentinelBytes)
+			}
+		})
+	}
+}
+
+func TestJustEnd(t *testing.T) {
+	pemData := `
+-----END PUBLIC KEY-----`
+
+	block, _ := Decode([]byte(pemData))
+	if block != nil {
+		t.Fatal("unexpected block")
+	}
+}
+
+func FuzzDecode(f *testing.F) {
+	f.Fuzz(func(t *testing.T, data []byte) {
+		Decode(data)
+	})
+}
