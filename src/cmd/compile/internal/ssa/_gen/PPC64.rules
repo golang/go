@@ -869,10 +869,14 @@
 
 (SLDconst [c] z:(ANDconst [d] x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) && c <= (64-getPPC64ShiftMaskLength(d)) => (CLRLSLDI [newPPC64ShiftAuxInt(c,64-getPPC64ShiftMaskLength(d),63,64)] x)
 (SLDconst [c] z:(AND (MOVDconst [d]) x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) && c<=(64-getPPC64ShiftMaskLength(d)) => (CLRLSLDI [newPPC64ShiftAuxInt(c,64-getPPC64ShiftMaskLength(d),63,64)] x)
+// (x + x) << c  →  x << (c+1)
+(SLDconst [c] (ADD x x)) && c < 63 => (SLDconst [c+1] x)
 (SLWconst [c] z:(MOVBZreg x)) && z.Uses == 1 && c < 8 => (CLRLSLWI [newPPC64ShiftAuxInt(c,24,31,32)] x)
 (SLWconst [c] z:(MOVHZreg x)) && z.Uses == 1 && c < 16 => (CLRLSLWI [newPPC64ShiftAuxInt(c,16,31,32)] x)
 (SLWconst [c] z:(ANDconst [d] x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) && c<=(32-getPPC64ShiftMaskLength(d)) => (CLRLSLWI [newPPC64ShiftAuxInt(c,32-getPPC64ShiftMaskLength(d),31,32)] x)
 (SLWconst [c] z:(AND (MOVDconst [d]) x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) && c<=(32-getPPC64ShiftMaskLength(d)) => (CLRLSLWI [newPPC64ShiftAuxInt(c,32-getPPC64ShiftMaskLength(d),31,32)] x)
+// (x + x) << c  →  x << (c+1)
+(SLWconst [c] (ADD x x)) && c < 31 => (SLWconst [c+1] x)
 // special case for power9
 (SL(W|D)const [c] z:(MOVWreg x)) && c < 32 && buildcfg.GOPPC64 >= 9 => (EXTSWSLconst [c] x)
 

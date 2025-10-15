@@ -12614,6 +12614,23 @@ func rewriteValuePPC64_OpPPC64SLDconst(v *Value) bool {
 		}
 		break
 	}
+	// match: (SLDconst [c] (ADD x x))
+	// cond: c < 63
+	// result: (SLDconst [c+1] x)
+	for {
+		c := auxIntToInt64(v.AuxInt)
+		if v_0.Op != OpPPC64ADD {
+			break
+		}
+		x := v_0.Args[1]
+		if x != v_0.Args[0] || !(c < 63) {
+			break
+		}
+		v.reset(OpPPC64SLDconst)
+		v.AuxInt = int64ToAuxInt(c + 1)
+		v.AddArg(x)
+		return true
+	}
 	// match: (SLDconst [c] z:(MOVWreg x))
 	// cond: c < 32 && buildcfg.GOPPC64 >= 9
 	// result: (EXTSWSLconst [c] x)
@@ -12749,6 +12766,23 @@ func rewriteValuePPC64_OpPPC64SLWconst(v *Value) bool {
 			return true
 		}
 		break
+	}
+	// match: (SLWconst [c] (ADD x x))
+	// cond: c < 31
+	// result: (SLWconst [c+1] x)
+	for {
+		c := auxIntToInt64(v.AuxInt)
+		if v_0.Op != OpPPC64ADD {
+			break
+		}
+		x := v_0.Args[1]
+		if x != v_0.Args[0] || !(c < 31) {
+			break
+		}
+		v.reset(OpPPC64SLWconst)
+		v.AuxInt = int64ToAuxInt(c + 1)
+		v.AddArg(x)
+		return true
 	}
 	// match: (SLWconst [c] z:(MOVWreg x))
 	// cond: c < 32 && buildcfg.GOPPC64 >= 9
