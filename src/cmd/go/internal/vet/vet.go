@@ -396,7 +396,7 @@ type jsonError struct {
 	Err string `json:"error"`
 }
 
-// A TextEdit describes the replacement of a portion of a file.
+// A jsonTextEdit describes the replacement of a portion of a file.
 // Start and End are zero-based half-open indices into the original byte
 // sequence of the file, and New is the new text.
 type jsonTextEdit struct {
@@ -424,7 +424,7 @@ type jsonDiagnostic struct {
 	Related        []jsonRelatedInformation `json:"related,omitempty"`
 }
 
-// A jsonRelated describes a secondary position and message related to
+// A jsonRelatedInformation describes a secondary position and message related to
 // a primary diagnostic.
 type jsonRelatedInformation struct {
 	Posn    string `json:"posn"` // e.g. "file.go:line:column"

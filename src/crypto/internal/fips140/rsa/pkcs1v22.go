@@ -316,7 +316,7 @@ func VerifyPSS(pub *PublicKey, hash hash.Hash, digest []byte, sig []byte) error 
 	return verifyPSS(pub, hash, digest, sig, pssSaltLengthAutodetect)
 }
 
-// VerifyPSS verifies sig with RSASSA-PSS and an expected salt length.
+// VerifyPSSWithSaltLength verifies sig with RSASSA-PSS and an expected salt length.
 func VerifyPSSWithSaltLength(pub *PublicKey, hash hash.Hash, digest []byte, sig []byte, saltLength int) error {
 	if saltLength < 0 {
 		return errors.New("crypto/rsa: salt length cannot be negative")

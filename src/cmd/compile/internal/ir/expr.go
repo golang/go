@@ -617,7 +617,7 @@ func (o Op) IsSlice3() bool {
 	return false
 }
 
-// A SliceHeader expression constructs a slice header from its parts.
+// A SliceHeaderExpr constructs a slice header from its parts.
 type SliceHeaderExpr struct {
 	miniExpr
 	Ptr Node

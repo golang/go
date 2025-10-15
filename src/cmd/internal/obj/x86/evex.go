@@ -165,7 +165,7 @@ func evexZcase(zcase uint8) bool {
 	return zcase > Zevex_first && zcase < Zevex_last
 }
 
-// evexSuffixBits carries instruction EVEX suffix set flags.
+// evexSuffix carries instruction EVEX suffix set flags.
 //
 // Examples:
 //
