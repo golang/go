@@ -2991,7 +2991,7 @@ func (ins *instruction) length() int {
 func (ins *instruction) validate(ctxt *obj.Link) {
 	enc, err := encodingForAs(ins.as)
 	if err != nil {
-		ctxt.Diag(err.Error())
+		ctxt.Diag("%v", err)
 		return
 	}
 	enc.validate(ctxt, ins)

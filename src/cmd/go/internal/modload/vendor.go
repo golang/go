@@ -188,7 +188,7 @@ func checkVendorConsistency(loaderstate *State, indexes []*modFileIndex, modFile
 					// However, we can at least detect a version mismatch if packages were
 					// vendored from a non-matching version.
 					if vv, ok := vendorVersion[r.Mod.Path]; ok && vv != r.Mod.Version {
-						vendErrorf(r.Mod, fmt.Sprintf("is explicitly required in go.mod, but vendor/modules.txt indicates %s@%s", r.Mod.Path, vv))
+						vendErrorf(r.Mod, "is explicitly required in go.mod, but vendor/modules.txt indicates %s@%s", r.Mod.Path, vv)
 					}
 				} else {
 					vendErrorf(r.Mod, "is explicitly required in go.mod, but not marked as explicit in vendor/modules.txt")
