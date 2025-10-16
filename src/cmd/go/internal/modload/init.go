@@ -81,7 +81,7 @@ func EnterWorkspace(ctx context.Context) (exit func(), err error) {
 	}
 
 	// Reset the state to a clean state.
-	oldstate := setState(State{})
+	oldstate := setState(LoaderState, State{})
 	LoaderState.ForceUseModules = true
 
 	// Load in workspace mode.
@@ -93,7 +93,7 @@ func EnterWorkspace(ctx context.Context) (exit func(), err error) {
 	LoaderState.requirements = requirementsFromModFiles(LoaderState, ctx, LoaderState.MainModules.workFile, slices.Collect(maps.Values(LoaderState.MainModules.modFiles)), nil)
 
 	return func() {
-		setState(oldstate)
+		setState(LoaderState, oldstate)
 	}, nil
 }
 
@@ -378,31 +378,31 @@ func WorkFilePath(loaderstate *State) string {
 // Reset clears all the initialized, cached state about the use of modules,
 // so that we can start over.
 func Reset() {
-	setState(State{})
+	setState(LoaderState, State{})
 }
 
-func setState(s State) State {
+func setState(s *State, new State) State {
 	oldState := State{
-		initialized:     LoaderState.initialized,
-		ForceUseModules: LoaderState.ForceUseModules,
-		RootMode:        LoaderState.RootMode,
-		modRoots:        LoaderState.modRoots,
+		initialized:     s.initialized,
+		ForceUseModules: s.ForceUseModules,
+		RootMode:        s.RootMode,
+		modRoots:        s.modRoots,
 		modulesEnabled:  cfg.ModulesEnabled,
-		MainModules:     LoaderState.MainModules,
-		requirements:    LoaderState.requirements,
+		MainModules:     s.MainModules,
+		requirements:    s.requirements,
 	}
-	LoaderState.initialized = s.initialized
-	LoaderState.ForceUseModules = s.ForceUseModules
-	LoaderState.RootMode = s.RootMode
-	LoaderState.modRoots = s.modRoots
-	cfg.ModulesEnabled = s.modulesEnabled
-	LoaderState.MainModules = s.MainModules
-	LoaderState.requirements = s.requirements
-	LoaderState.workFilePath = s.workFilePath
+	s.initialized = new.initialized
+	s.ForceUseModules = new.ForceUseModules
+	s.RootMode = new.RootMode
+	s.modRoots = new.modRoots
+	cfg.ModulesEnabled = new.modulesEnabled
+	s.MainModules = new.MainModules
+	s.requirements = new.requirements
+	s.workFilePath = new.workFilePath
 	// The modfetch package's global state is used to compute
 	// the go.sum file, so save and restore it along with the
 	// modload state.
-	oldState.modfetchState = modfetch.SetState(s.modfetchState)
+	oldState.modfetchState = modfetch.SetState(new.modfetchState)
 	return oldState
 }
 
