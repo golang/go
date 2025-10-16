@@ -328,7 +328,7 @@ func (t *Type) funcType() *Func {
 	return t.extra.(*Func)
 }
 
-// StructType contains Type fields specific to struct types.
+// Struct contains Type fields specific to struct types.
 type Struct struct {
 	fields fields
 

@@ -328,7 +328,7 @@ func (obj *TypeName) IsAlias() bool {
 	}
 }
 
-// A Variable represents a declared variable (including function parameters and results, and struct fields).
+// A Var represents a declared variable (including function parameters and results, and struct fields).
 type Var struct {
 	object
 	origin   *Var // if non-nil, the Var from which this one was instantiated
