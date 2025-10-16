@@ -116,7 +116,6 @@ func unalias(a0 *Alias) Type {
 	for a := a0; a != nil; a, _ = t.(*Alias) {
 		t = a.fromRHS
 	}
-
 	// It's fine to memoize nil types since it's the zero value for actual.
 	// It accomplishes nothing.
 	a0.actual = t

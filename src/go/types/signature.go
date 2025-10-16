@@ -226,7 +226,7 @@ func (check *Checker) collectRecv(rparam *ast.Field, scopePos token.Pos) (*Var, 
 			case *Alias:
 				// Methods on generic aliases are not permitted.
 				// Only report an error if the alias type is valid.
-				if isValid(unalias(t)) {
+				if isValid(t) {
 					check.errorf(rbase, InvalidRecv, "cannot define new methods on generic alias type %s", t)
 				}
 				// Ok to continue but do not set basetype in this case so that
