@@ -1260,7 +1260,7 @@ func (r *resolver) loadPackages(ctx context.Context, patterns []string, findPack
 		LoadTests:                *getT,
 		AssumeRootsImported:      true, // After 'go get foo', imports of foo should build.
 		SilencePackageErrors:     true, // May be fixed by subsequent upgrades or downgrades.
-		Switcher:                 new(toolchain.Switcher),
+		Switcher:                 toolchain.NewSwitcher(modload.LoaderState),
 	}
 
 	opts.AllowPackage = func(ctx context.Context, path string, m module.Version) error {
@@ -1346,7 +1346,7 @@ func (r *resolver) resolveQueries(ctx context.Context, queries []*query) (change
 
 		// If we found modules that were too new, find the max of the required versions
 		// and then try to switch to a newer toolchain.
-		var sw toolchain.Switcher
+		sw := toolchain.NewSwitcher(modload.LoaderState)
 		for _, q := range queries {
 			for _, cs := range q.candidates {
 				sw.Error(cs.err)

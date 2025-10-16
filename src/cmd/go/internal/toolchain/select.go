@@ -283,7 +283,7 @@ func Select() {
 	}
 
 	counterSelectExec.Inc()
-	Exec(gotoolchain)
+	Exec(modload.LoaderState, gotoolchain)
 }
 
 var counterSelectExec = counter.New("go/toolchain/select-exec")
@@ -300,7 +300,7 @@ var TestVersionSwitch string
 // If $GOTOOLCHAIN is set to path or min+path, Exec only considers the PATH
 // as a source of Go toolchains. Otherwise Exec tries the PATH but then downloads
 // a toolchain if necessary.
-func Exec(gotoolchain string) {
+func Exec(s *modload.State, gotoolchain string) {
 	log.SetPrefix("go: ")
 
 	writeBits = sysWriteBits()
@@ -352,10 +352,10 @@ func Exec(gotoolchain string) {
 	}
 
 	// Set up modules without an explicit go.mod, to download distribution.
-	modload.LoaderState.Reset()
-	modload.LoaderState.ForceUseModules = true
-	modload.LoaderState.RootMode = modload.NoRoot
-	modload.Init(modload.LoaderState)
+	s.Reset()
+	s.ForceUseModules = true
+	s.RootMode = modload.NoRoot
+	modload.Init(s)
 
 	// Download and unpack toolchain module into module cache.
 	// Note that multiple go commands might be doing this at the same time,
@@ -709,7 +709,7 @@ func maybeSwitchForGoInstallVersion(minVers string) {
 	if errors.Is(err, gover.ErrTooNew) {
 		// Run early switch, same one go install or go run would eventually do,
 		// if it understood all the command-line flags.
-		var s Switcher
+		s := NewSwitcher(modload.LoaderState)
 		s.Error(err)
 		if s.TooNew != nil && gover.Compare(s.TooNew.GoVersion, minVers) > 0 {
 			SwitchOrFatal(ctx, err)

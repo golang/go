@@ -94,7 +94,7 @@ func workUse(ctx context.Context, gowork string, wf *modfile.WorkFile, args []st
 	// all entries for the absolute path should be removed.
 	keepDirs := make(map[string]string)
 
-	var sw toolchain.Switcher
+	sw := toolchain.NewSwitcher(modload.LoaderState)
 
 	// lookDir updates the entry in keepDirs for the directory dir,
 	// which is either absolute or relative to the current working directory

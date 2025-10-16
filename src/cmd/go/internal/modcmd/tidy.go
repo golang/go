@@ -141,6 +141,6 @@ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
 		LoadTests:                true,
 		AllowErrors:              tidyE,
 		SilenceMissingStdImports: true,
-		Switcher:                 new(toolchain.Switcher),
+		Switcher:                 toolchain.NewSwitcher(modload.LoaderState),
 	}, "all")
 }

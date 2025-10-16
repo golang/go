@@ -211,7 +211,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	// toolchain version) or only one module (as is used by the Go Module Proxy).
 
 	if infosErr != nil {
-		var sw toolchain.Switcher
+		sw := toolchain.NewSwitcher(modload.LoaderState)
 		sw.Error(infosErr)
 		if sw.NeedSwitch() {
 			sw.Switch(ctx)
@@ -292,7 +292,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	// which may include dependencies that are normally pruned out
 	// of the individual modules in the workspace.
 	if haveExplicitArgs || modload.WorkFilePath(modload.LoaderState) != "" {
-		var sw toolchain.Switcher
+		sw := toolchain.NewSwitcher(modload.LoaderState)
 		// Add errors to the Switcher in deterministic order so that they will be
 		// logged deterministically.
 		for _, m := range mods {
