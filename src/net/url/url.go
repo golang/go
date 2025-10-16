@@ -56,17 +56,9 @@ func ishex(c byte) bool {
 	return table[c]&hexChar != 0
 }
 
+// Precondition: ishex(c) is true.
 func unhex(c byte) byte {
-	switch {
-	case '0' <= c && c <= '9':
-		return c - '0'
-	case 'a' <= c && c <= 'f':
-		return c - 'a' + 10
-	case 'A' <= c && c <= 'F':
-		return c - 'A' + 10
-	default:
-		panic("invalid hex character")
-	}
+	return 9*(c>>6) + (c & 15)
 }
 
 type EscapeError string
@@ -173,6 +165,8 @@ func unescape(s string, mode encoding) (string, error) {
 	for i := 0; i < len(s); i++ {
 		switch s[i] {
 		case '%':
+			// In the loop above, we established that unhex's precondition is
+			// fulfilled for both s[i+1] and s[i+2].
 			t.WriteByte(unhex(s[i+1])<<4 | unhex(s[i+2]))
 			i += 2
 		case '+':
