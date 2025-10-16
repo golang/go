@@ -413,7 +413,7 @@ func (t *Transport) onceSetNextProtoDefaults() {
 	altProto, _ := t.altProto.Load().(map[string]RoundTripper)
 	if rv := reflect.ValueOf(altProto["https"]); rv.IsValid() && rv.Type().Kind() == reflect.Struct && rv.Type().NumField() == 1 {
 		if v := rv.Field(0); v.CanInterface() {
-			if h2i, ok := v.Interface().(h2Transport); ok {
+			if h2i, ok := reflect.TypeAssert[h2Transport](v); ok {
 				t.h2transport = h2i
 				return
 			}
