@@ -256,6 +256,8 @@ type Operand struct {
 	// because Intel's XED data is inconsistent. e.g. AVX512 VPMADDUBSW marks its operand
 	// elemBits 16, which should be 8.
 	OverwriteElementBits *int
+	// FixedReg is the name of the fixed registers
+	FixedReg *string
 }
 
 // isDigit returns true if the byte is an ASCII digit.

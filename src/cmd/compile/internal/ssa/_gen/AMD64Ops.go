@@ -135,6 +135,7 @@ func init() {
 
 		vz = v | x15
 		wz = w | x15
+		x0 = buildReg("X0")
 	)
 	// Common slices of register masks
 	var (
@@ -213,7 +214,7 @@ func init() {
 		vstorek = regInfo{inputs: []regMask{gpspsb, mask, v, 0}}
 
 		v11     = regInfo{inputs: vzonly, outputs: vonly}
-		v21     = regInfo{inputs: []regMask{vz, vz}, outputs: vonly}
+		v21     = regInfo{inputs: []regMask{v, vz}, outputs: vonly} // used in resultInArg0 ops, arg0 must not be x15
 		vk      = regInfo{inputs: vzonly, outputs: maskonly}
 		kv      = regInfo{inputs: maskonly, outputs: vonly}
 		v2k     = regInfo{inputs: []regMask{vz, vz}, outputs: maskonly}
@@ -247,17 +248,18 @@ func init() {
 
 		// These register masks are used by SIMD only, they follow the pattern:
 		// Mem last, k mask second to last (if any), address right before mem and k mask.
-		wkwload  = regInfo{inputs: []regMask{gpspsb, mask, 0}, outputs: wonly}
-		v21load  = regInfo{inputs: []regMask{vz, gpspsb, 0}, outputs: vonly}
-		v31load  = regInfo{inputs: []regMask{v, vz, gpspsb, 0}, outputs: vonly} // used in resultInArg0 ops, arg0 must not be x15
-		v11load  = regInfo{inputs: []regMask{gpspsb, 0}, outputs: vonly}
-		w21load  = regInfo{inputs: []regMask{wz, gpspsb, 0}, outputs: wonly}
-		w31load  = regInfo{inputs: []regMask{w, wz, gpspsb, 0}, outputs: wonly} // used in resultInArg0 ops, arg0 must not be x15
-		w2kload  = regInfo{inputs: []regMask{wz, gpspsb, 0}, outputs: maskonly}
-		w2kwload = regInfo{inputs: []regMask{wz, gpspsb, mask, 0}, outputs: wonly}
-		w11load  = regInfo{inputs: []regMask{gpspsb, 0}, outputs: wonly}
-		w3kwload = regInfo{inputs: []regMask{w, wz, gpspsb, mask, 0}, outputs: wonly} // used in resultInArg0 ops, arg0 must not be x15
-		w2kkload = regInfo{inputs: []regMask{wz, gpspsb, mask, 0}, outputs: maskonly}
+		wkwload    = regInfo{inputs: []regMask{gpspsb, mask, 0}, outputs: wonly}
+		v21load    = regInfo{inputs: []regMask{v, gpspsb, 0}, outputs: vonly}     // used in resultInArg0 ops, arg0 must not be x15
+		v31load    = regInfo{inputs: []regMask{v, vz, gpspsb, 0}, outputs: vonly} // used in resultInArg0 ops, arg0 must not be x15
+		v11load    = regInfo{inputs: []regMask{gpspsb, 0}, outputs: vonly}
+		w21load    = regInfo{inputs: []regMask{wz, gpspsb, 0}, outputs: wonly}
+		w31load    = regInfo{inputs: []regMask{w, wz, gpspsb, 0}, outputs: wonly} // used in resultInArg0 ops, arg0 must not be x15
+		w2kload    = regInfo{inputs: []regMask{wz, gpspsb, 0}, outputs: maskonly}
+		w2kwload   = regInfo{inputs: []regMask{wz, gpspsb, mask, 0}, outputs: wonly}
+		w11load    = regInfo{inputs: []regMask{gpspsb, 0}, outputs: wonly}
+		w3kwload   = regInfo{inputs: []regMask{w, wz, gpspsb, mask, 0}, outputs: wonly} // used in resultInArg0 ops, arg0 must not be x15
+		w2kkload   = regInfo{inputs: []regMask{wz, gpspsb, mask, 0}, outputs: maskonly}
+		v31x0AtIn2 = regInfo{inputs: []regMask{v, vz, x0}, outputs: vonly} // used in resultInArg0 ops, arg0 must not be x15
 
 		kload  = regInfo{inputs: []regMask{gpspsb, 0}, outputs: maskonly}
 		kstore = regInfo{inputs: []regMask{gpspsb, mask, 0}}
@@ -1477,7 +1479,7 @@ func init() {
 		genSIMDfile: "../../amd64/simdssa.go",
 		ops: append(AMD64ops, simdAMD64Ops(v11, v21, v2k, vkv, v2kv, v2kk, v31, v3kv, vgpv, vgp, vfpv, vfpkv,
 			w11, w21, w2k, wkw, w2kw, w2kk, w31, w3kw, wgpw, wgp, wfpw, wfpkw, wkwload, v21load, v31load, v11load,
-			w21load, w31load, w2kload, w2kwload, w11load, w3kwload, w2kkload)...), // AMD64ops,
+			w21load, w31load, w2kload, w2kwload, w11load, w3kwload, w2kkload, v31x0AtIn2)...), // AMD64ops,
 		blocks:             AMD64blocks,
 		regnames:           regNamesAMD64,
 		ParamIntRegNames:   "AX BX CX DI SI R8 R9 R10 R11",

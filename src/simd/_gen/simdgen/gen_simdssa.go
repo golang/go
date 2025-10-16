@@ -96,6 +96,9 @@ func writeSIMDSSA(ops []Operation) *bytes.Buffer {
 		"v2kvloadImm8",
 		"v31ResultInArg0Imm8",
 		"v31loadResultInArg0Imm8",
+		"v21ResultInArg0",
+		"v21ResultInArg0Imm8",
+		"v31x0AtIn2ResultInArg0",
 	}
 	regInfoSet := map[string][]string{}
 	for _, key := range regInfoKeys {

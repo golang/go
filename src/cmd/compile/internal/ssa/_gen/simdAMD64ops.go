@@ -3,8 +3,13 @@
 package main
 
 func simdAMD64Ops(v11, v21, v2k, vkv, v2kv, v2kk, v31, v3kv, vgpv, vgp, vfpv, vfpkv, w11, w21, w2k, wkw, w2kw, w2kk, w31, w3kw, wgpw, wgp, wfpw, wfpkw,
-	wkwload, v21load, v31load, v11load, w21load, w31load, w2kload, w2kwload, w11load, w3kwload, w2kkload regInfo) []opData {
+	wkwload, v21load, v31load, v11load, w21load, w31load, w2kload, w2kwload, w11load, w3kwload, w2kkload, v31x0AtIn2 regInfo) []opData {
 	return []opData{
+		{name: "SHA1MSG1128", argLength: 2, reg: v21, asm: "SHA1MSG1", commutative: false, typ: "Vec128", resultInArg0: true},
+		{name: "SHA1MSG2128", argLength: 2, reg: v21, asm: "SHA1MSG2", commutative: false, typ: "Vec128", resultInArg0: true},
+		{name: "SHA1NEXTE128", argLength: 2, reg: v21, asm: "SHA1NEXTE", commutative: false, typ: "Vec128", resultInArg0: true},
+		{name: "SHA256MSG1128", argLength: 2, reg: v21, asm: "SHA256MSG1", commutative: false, typ: "Vec128", resultInArg0: true},
+		{name: "SHA256RNDS2128", argLength: 3, reg: v31x0AtIn2, asm: "SHA256RNDS2", commutative: false, typ: "Vec128", resultInArg0: true},
 		{name: "VADDPD128", argLength: 2, reg: v21, asm: "VADDPD", commutative: true, typ: "Vec128", resultInArg0: false},
 		{name: "VADDPD256", argLength: 2, reg: v21, asm: "VADDPD", commutative: true, typ: "Vec256", resultInArg0: false},
 		{name: "VADDPD512", argLength: 2, reg: w21, asm: "VADDPD", commutative: true, typ: "Vec512", resultInArg0: false},
@@ -1216,6 +1221,7 @@ func simdAMD64Ops(v11, v21, v2k, vkv, v2kv, v2kk, v31, v3kv, vgpv, vgp, vfpv, vf
 		{name: "VPRORQMasked128", argLength: 2, reg: wkw, asm: "VPRORQ", aux: "UInt8", commutative: false, typ: "Vec128", resultInArg0: false},
 		{name: "VPRORQMasked256", argLength: 2, reg: wkw, asm: "VPRORQ", aux: "UInt8", commutative: false, typ: "Vec256", resultInArg0: false},
 		{name: "VPRORQMasked512", argLength: 2, reg: wkw, asm: "VPRORQ", aux: "UInt8", commutative: false, typ: "Vec512", resultInArg0: false},
+		{name: "SHA1RNDS4128", argLength: 2, reg: v21, asm: "SHA1RNDS4", aux: "UInt8", commutative: false, typ: "Vec128", resultInArg0: true},
 		{name: "VPERM2F128256", argLength: 2, reg: v21, asm: "VPERM2F128", aux: "UInt8", commutative: false, typ: "Vec256", resultInArg0: false},
 		{name: "VPERM2I128256", argLength: 2, reg: v21, asm: "VPERM2I128", aux: "UInt8", commutative: false, typ: "Vec256", resultInArg0: false},
 		{name: "VPINSRD128", argLength: 2, reg: vgpv, asm: "VPINSRD", aux: "UInt8", commutative: false, typ: "Vec128", resultInArg0: false},

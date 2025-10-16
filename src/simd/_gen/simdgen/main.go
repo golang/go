@@ -92,8 +92,9 @@ import (
 	"slices"
 	"strings"
 
-	"gopkg.in/yaml.v3"
 	"simd/_gen/unify"
+
+	"gopkg.in/yaml.v3"
 )
 
 var (
@@ -199,6 +200,15 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// Validate results.
+	//
+	// Don't validate if this is a command-line query because that tends to
+	// eliminate lots of required defs and is used in cases where maybe defs
+	// aren't enumerable anyway.
+	if *flagQ == "" && len(must) > 0 {
+		validate(unified, must)
+	}
+
 	// Print results.
 	switch *flagO {
 	case "yaml":
@@ -227,15 +237,6 @@ func main() {
 		} else {
 			fmt.Fprintf(os.Stderr, "XED decoding generated %d \"errors\" which is not cause for alarm, use -v for details.\n", operandRemarks)
 		}
-	}
-
-	// Validate results.
-	//
-	// Don't validate if this is a command-line query because that tends to
-	// eliminate lots of required defs and is used in cases where maybe defs
-	// aren't enumerable anyway.
-	if *flagQ == "" && len(must) > 0 {
-		validate(unified, must)
 	}
 }
 

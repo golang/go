@@ -2349,6 +2349,32 @@ func simdV2kvloadImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	return p
 }
 
+// Example instruction: SHA1NEXTE X2, X2
+func simdV21ResultInArg0(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = simdReg(v.Args[1])
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: SHA1RNDS4 $1, X2, X2
+func simdV21ResultInArg0Imm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Offset = int64(v.AuxUInt8())
+	p.From.Type = obj.TYPE_CONST
+	p.AddRestSourceReg(simdReg(v.Args[1]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: SHA256RNDS2 X0, X11, X2
+func simdV31x0AtIn2ResultInArg0(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	return simdV31ResultInArg0(s, v)
+}
+
 var blockJump = [...]struct {
 	asm, invasm obj.As
 }{

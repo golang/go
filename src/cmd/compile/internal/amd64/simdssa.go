@@ -1955,6 +1955,18 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssa.OpAMD64VPTERNLOGQ512load:
 		p = simdV31loadResultInArg0Imm8(s, v)
 
+	case ssa.OpAMD64SHA1MSG1128,
+		ssa.OpAMD64SHA1MSG2128,
+		ssa.OpAMD64SHA1NEXTE128,
+		ssa.OpAMD64SHA256MSG1128:
+		p = simdV21ResultInArg0(s, v)
+
+	case ssa.OpAMD64SHA1RNDS4128:
+		p = simdV21ResultInArg0Imm8(s, v)
+
+	case ssa.OpAMD64SHA256RNDS2128:
+		p = simdV31x0AtIn2ResultInArg0(s, v)
+
 	default:
 		// Unknown reg shape
 		return false

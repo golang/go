@@ -106,3 +106,11 @@ func HasAVX512VPOPCNTDQ() bool {
 func HasAVXVNNI() bool {
 	return cpu.X86.HasAVXVNNI
 }
+
+// HasSHA returns whether the CPU supports the SHA feature.
+//
+// HasSHA is defined on all GOARCHes, but will only return true on
+// GOARCH amd64.
+func HasSHA() bool {
+	return cpu.X86.HasSHA
+}

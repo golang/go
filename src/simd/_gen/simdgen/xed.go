@@ -25,7 +25,6 @@ const (
 	NOT_REG_CLASS = iota // not a register
 	VREG_CLASS           // classify as a vector register; see
 	GREG_CLASS           // classify as a general register
-	REG_FIXED            // classify as a fixed  register
 )
 
 // instVariant is a bitmap indicating a variant of an instruction that has
@@ -852,7 +851,7 @@ type fixedReg struct {
 }
 
 var fixedRegMap = map[string]fixedReg{
-	"XED_REG_XMM0": {REG_FIXED, "XMM0", 128},
+	"XED_REG_XMM0": {VREG_CLASS, "x0", 128},
 }
 
 // decodeReg returns class (NOT_REG_CLASS, VREG_CLASS, GREG_CLASS, VREG_CLASS_FIXED,

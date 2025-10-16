@@ -236,9 +236,9 @@ func (op *Operation) shape() (shapeIn inShape, shapeOut outShape, maskType maskS
 // regShape returns a string representation of the register shape.
 func (op *Operation) regShape(mem memShape) (string, error) {
 	_, _, _, _, gOp := op.shape()
-	var regInfo string
+	var regInfo, fixedName string
 	var vRegInCnt, gRegInCnt, kMaskInCnt, vRegOutCnt, gRegOutCnt, kMaskOutCnt, memInCnt, memOutCnt int
-	for _, in := range gOp.In {
+	for i, in := range gOp.In {
 		switch in.Class {
 		case "vreg":
 			vRegInCnt++
@@ -253,8 +253,11 @@ func (op *Operation) regShape(mem memShape) (string, error) {
 			memInCnt++
 			vRegInCnt++
 		}
+		if in.FixedReg != nil {
+			fixedName = fmt.Sprintf("%sAtIn%d", *in.FixedReg, i)
+		}
 	}
-	for _, out := range gOp.Out {
+	for i, out := range gOp.Out {
 		// If class overwrite is happening, that's not really a mask but a vreg.
 		if out.Class == "vreg" || out.OverwriteClass != nil {
 			vRegOutCnt++
@@ -268,6 +271,9 @@ func (op *Operation) regShape(mem memShape) (string, error) {
 			}
 			vRegOutCnt++
 			memOutCnt++
+		}
+		if out.FixedReg != nil {
+			fixedName = fmt.Sprintf("%sAtIn%d", *out.FixedReg, i)
 		}
 	}
 	var inRegs, inMasks, outRegs, outMasks string
@@ -309,6 +315,7 @@ func (op *Operation) regShape(mem memShape) (string, error) {
 	if memOutCnt > 0 {
 		panic("simdgen does not understand memory as output as of now")
 	}
+	regInfo += fixedName
 	return regInfo, nil
 }
 
