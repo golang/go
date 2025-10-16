@@ -81,7 +81,7 @@ func EnterWorkspace(ctx context.Context) (exit func(), err error) {
 	}
 
 	// Reset the state to a clean state.
-	oldstate := setState(LoaderState, State{})
+	oldstate := LoaderState.setState(State{})
 	LoaderState.ForceUseModules = true
 
 	// Load in workspace mode.
@@ -93,7 +93,7 @@ func EnterWorkspace(ctx context.Context) (exit func(), err error) {
 	LoaderState.requirements = requirementsFromModFiles(LoaderState, ctx, LoaderState.MainModules.workFile, slices.Collect(maps.Values(LoaderState.MainModules.modFiles)), nil)
 
 	return func() {
-		setState(LoaderState, oldstate)
+		LoaderState.setState(oldstate)
 	}, nil
 }
 
@@ -377,11 +377,11 @@ func WorkFilePath(loaderstate *State) string {
 
 // Reset clears all the initialized, cached state about the use of modules,
 // so that we can start over.
-func Reset(s *State) {
-	setState(s, State{})
+func (s *State) Reset() {
+	s.setState(State{})
 }
 
-func setState(s *State, new State) State {
+func (s *State) setState(new State) State {
 	oldState := State{
 		initialized:     s.initialized,
 		ForceUseModules: s.ForceUseModules,
