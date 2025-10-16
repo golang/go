@@ -377,8 +377,8 @@ func WorkFilePath(loaderstate *State) string {
 
 // Reset clears all the initialized, cached state about the use of modules,
 // so that we can start over.
-func Reset() {
-	setState(LoaderState, State{})
+func Reset(s *State) {
+	setState(s, State{})
 }
 
 func setState(s *State, new State) State {
