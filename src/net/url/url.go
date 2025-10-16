@@ -56,17 +56,9 @@ func ishex(c byte) bool {
 	return table[c]&hexChar != 0
 }
 
+// Precondition: ishex(c) is true.
 func unhex(c byte) byte {
-	switch {
-	case '0' <= c && c <= '9':
-		return c - '0'
-	case 'a' <= c && c <= 'f':
-		return c - 'a' + 10
-	case 'A' <= c && c <= 'F':
-		return c - 'A' + 10
-	default:
-		panic("invalid hex character")
-	}
+	return 9*(c>>6) + (c & 15)
 }
 
 type EscapeError string
