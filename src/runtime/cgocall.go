@@ -594,9 +594,9 @@ func cgoCheckPointer(ptr any, arg any) {
 const cgoCheckPointerFail = "cgo argument has Go pointer to unpinned Go pointer"
 const cgoResultFail = "cgo result is unpinned Go pointer or points to unpinned Go pointer"
 
-// cgoCheckArg is the real work of cgoCheckPointer. The argument p
-// is either a pointer to the value (of type t), or the value itself,
-// depending on indir. The top parameter is whether we are at the top
+// cgoCheckArg is the real work of cgoCheckPointer and cgoCheckResult.
+// The argument p is either a pointer to the value (of type t), or the value
+// itself, depending on indir. The top parameter is whether we are at the top
 // level, where Go pointers are allowed. Go pointers to pinned objects are
 // allowed as long as they don't reference other unpinned pointers.
 func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
