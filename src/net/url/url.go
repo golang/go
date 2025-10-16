@@ -198,8 +198,7 @@ func PathEscape(s string) string {
 
 func escape(s string, mode encoding) string {
 	spaceCount, hexCount := 0, 0
-	for i := 0; i < len(s); i++ {
-		c := s[i]
+	for _, c := range []byte(s) {
 		if shouldEscape(c, mode) {
 			if c == ' ' && mode == encodeQueryComponent {
 				spaceCount++
@@ -234,8 +233,8 @@ func escape(s string, mode encoding) string {
 	}
 
 	j := 0
-	for i := 0; i < len(s); i++ {
-		switch c := s[i]; {
+	for _, c := range []byte(s) {
+		switch {
 		case c == ' ' && mode == encodeQueryComponent:
 			t[j] = '+'
 			j++
@@ -245,7 +244,7 @@ func escape(s string, mode encoding) string {
 			t[j+2] = upperhex[c&15]
 			j += 3
 		default:
-			t[j] = s[i]
+			t[j] = c
 			j++
 		}
 	}
