@@ -782,7 +782,7 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 				}
 				// If y is a defined type, it may not match against cx which
 				// is an underlying type (incl. int, string, etc.). Use assign
-				// mode here so that the unifier automatically takes under(y)
+				// mode here so that the unifier automatically uses y.Underlying()
 				// if necessary.
 				return u.nify(cx, yorig, assign, p)
 			}

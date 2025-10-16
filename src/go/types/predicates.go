@@ -88,7 +88,7 @@ func isTypeLit(t Type) bool {
 // Safe to call from types that are not fully set up.
 func isTyped(t Type) bool {
 	// Alias and named types cannot denote untyped types
-	// so there's no need to call Unalias or under, below.
+	// so there's no need to call Unalias or Underlying, below.
 	b, _ := t.(*Basic)
 	return b == nil || b.info&IsUntyped == 0
 }
@@ -103,7 +103,7 @@ func isUntyped(t Type) bool {
 // Safe to call from types that are not fully set up.
 func isUntypedNumeric(t Type) bool {
 	// Alias and named types cannot denote untyped types
-	// so there's no need to call Unalias or under, below.
+	// so there's no need to call Unalias or Underlying, below.
 	b, _ := t.(*Basic)
 	return b != nil && b.info&IsUntyped != 0 && b.info&IsNumeric != 0
 }
@@ -522,7 +522,7 @@ func identicalInstance(xorig Type, xargs []Type, yorig Type, yargs []Type) bool 
 // for untyped nil is untyped nil.
 func Default(t Type) Type {
 	// Alias and named types cannot denote untyped types
-	// so there's no need to call Unalias or under, below.
+	// so there's no need to call Unalias or Underlying, below.
 	if t, _ := t.(*Basic); t != nil {
 		switch t.kind {
 		case UntypedBool:

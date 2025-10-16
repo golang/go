@@ -148,8 +148,8 @@ func lookupFieldOrMethodImpl(T Type, addressable bool, pkg *Package, name string
 		return // blank fields/methods are never found
 	}
 
-	// Importantly, we must not call under before the call to deref below (nor
-	// does deref call under), as doing so could incorrectly result in finding
+	// Importantly, we must not call Underlying before the call to deref below (nor
+	// does deref call Underlying), as doing so could incorrectly result in finding
 	// methods of the pointer base type when T is a (*Named) pointer type.
 	typ, isPtr := deref(T)
 

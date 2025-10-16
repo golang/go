@@ -524,8 +524,8 @@ func (n *Named) Underlying() Type {
 	n.resolve()
 
 	// The gccimporter depends on writing a nil underlying via NewNamed and
-	// immediately reading it back. Rather than putting that in under() and
-	// complicating things there, we just check for that special case here.
+	// immediately reading it back. Rather than putting that in Named.under
+	// and complicating things there, we just check for that special case here.
 	if n.fromRHS == nil {
 		assert(n.allowNilRHS)
 		if n.allowNilUnderlying {
