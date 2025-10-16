@@ -161,6 +161,13 @@ func unescape(s string, mode encoding) (string, error) {
 		return s, nil
 	}
 
+	var unescapedPlusSign byte
+	switch mode {
+	case encodeQueryComponent:
+		unescapedPlusSign = ' '
+	default:
+		unescapedPlusSign = '+'
+	}
 	var t strings.Builder
 	t.Grow(len(s) - 2*n)
 	for i := 0; i < len(s); i++ {
@@ -169,11 +176,7 @@ func unescape(s string, mode encoding) (string, error) {
 			t.WriteByte(unhex(s[i+1])<<4 | unhex(s[i+2]))
 			i += 2
 		case '+':
-			if mode == encodeQueryComponent {
-				t.WriteByte(' ')
-			} else {
-				t.WriteByte('+')
-			}
+			t.WriteByte(unescapedPlusSign)
 		default:
 			t.WriteByte(s[i])
 		}
