@@ -116,7 +116,7 @@ func (t *TypeParam) iface() *Interface {
 
 	// determine constraint interface
 	var ityp *Interface
-	switch u := under(bound).(type) {
+	switch u := bound.Underlying().(type) {
 	case *Basic:
 		if !isValid(u) {
 			// error is reported elsewhere

@@ -198,7 +198,7 @@ func operandString(x *operand, qf Qualifier) string {
 					what := compositeKind(x.typ)
 					if what == "" {
 						// x.typ must be basic type
-						what = under(x.typ).(*Basic).name
+						what = x.typ.Underlying().(*Basic).name
 					}
 					desc += what + " "
 				}
@@ -233,7 +233,7 @@ func operandString(x *operand, qf Qualifier) string {
 // ("array", "slice", etc.) or the empty string if typ is not
 // composite but a basic type.
 func compositeKind(typ Type) string {
-	switch under(typ).(type) {
+	switch typ.Underlying().(type) {
 	case *Basic:
 		return ""
 	case *Array:
@@ -323,8 +323,8 @@ func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Cod
 		return true, 0
 	}
 
-	Vu := under(V)
-	Tu := under(T)
+	Vu := V.Underlying()
+	Tu := T.Underlying()
 	Vp, _ := V.(*TypeParam)
 	Tp, _ := T.(*TypeParam)
 

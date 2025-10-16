@@ -91,7 +91,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 	// x.typ is typed
 
 	// A generic (non-instantiated) function value cannot be assigned to a variable.
-	if sig, _ := under(x.typ).(*Signature); sig != nil && sig.TypeParams().Len() > 0 {
+	if sig, _ := x.typ.Underlying().(*Signature); sig != nil && sig.TypeParams().Len() > 0 {
 		check.errorf(x, WrongTypeArgCount, "cannot use generic function %s without instantiation in %s", x, context)
 		x.mode = invalid
 		return
@@ -261,7 +261,7 @@ func (check *Checker) assignVar(lhs, rhs syntax.Expr, x *operand, context string
 		var target *target
 		// avoid calling ExprString if not needed
 		if T != nil {
-			if _, ok := under(T).(*Signature); ok {
+			if _, ok := T.Underlying().(*Signature); ok {
 				target = newTarget(T, ExprString(lhs))
 			}
 		}

@@ -270,7 +270,7 @@ func (u *unifier) inferred(tparams []*TypeParam) []Type {
 // it is a non-type parameter interface. Otherwise it returns nil.
 func asInterface(x Type) (i *Interface) {
 	if _, ok := Unalias(x).(*TypeParam); !ok {
-		i, _ = under(x).(*Interface)
+		i, _ = x.Underlying().(*Interface)
 	}
 	return i
 }
@@ -430,7 +430,7 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 						u.set(px, y)
 					default:
 						// Neither x nor y are defined types.
-						if yc, _ := under(y).(*Chan); yc != nil && yc.dir != SendRecv {
+						if yc, _ := y.Underlying().(*Chan); yc != nil && yc.dir != SendRecv {
 							// y is a directed channel type: select y.
 							u.set(px, y)
 						}

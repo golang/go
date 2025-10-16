@@ -639,7 +639,7 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
 		} else {
 			// TODO(gri) should this be fromRHS for *Named?
 			// (See discussion in #66559.)
-			typ = under(typ)
+			typ = typ.Underlying()
 		}
 	}
 

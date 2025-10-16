@@ -671,7 +671,7 @@ func coreTerm(tpar *TypeParam) (*term, bool) {
 	if n == 1 {
 		if debug {
 			u, _ := commonUnder(tpar, nil)
-			assert(under(single.typ) == u)
+			assert(single.typ.Underlying() == u)
 		}
 		return single, true
 	}

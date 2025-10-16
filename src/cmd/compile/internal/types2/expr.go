@@ -361,7 +361,7 @@ func (check *Checker) updateExprType(x syntax.Expr, typ Type, final bool) {
 	// If the new type is not final and still untyped, just
 	// update the recorded type.
 	if !final && isUntyped(typ) {
-		old.typ = under(typ).(*Basic)
+		old.typ = typ.Underlying().(*Basic)
 		check.untyped[x] = old
 		return
 	}
@@ -431,7 +431,7 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 		return nil, nil, InvalidUntypedConversion
 	}
 
-	switch u := under(target).(type) {
+	switch u := target.Underlying().(type) {
 	case *Basic:
 		if x.mode == constant_ {
 			v, code := check.representation(x, u)
@@ -616,7 +616,7 @@ Error:
 // incomparableCause returns a more specific cause why typ is not comparable.
 // If there is no more specific cause, the result is "".
 func (check *Checker) incomparableCause(typ Type) string {
-	switch under(typ).(type) {
+	switch typ.Underlying().(type) {
 	case *Slice, *Signature, *Map:
 		return compositeKind(typ) + " can only be compared to nil"
 	}
@@ -963,7 +963,7 @@ type target struct {
 // The result is nil if typ is not a signature.
 func newTarget(typ Type, desc string) *target {
 	if typ != nil {
-		if sig, _ := under(typ).(*Signature); sig != nil {
+		if sig, _ := typ.Underlying().(*Signature); sig != nil {
 			return &target{sig, desc}
 		}
 	}
@@ -1112,7 +1112,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 			check.errorf(x, InvalidAssert, invalidOp+"cannot use type assertion on type parameter value %s", x)
 			goto Error
 		}
-		if _, ok := under(x.typ).(*Interface); !ok {
+		if _, ok := x.typ.Underlying().(*Interface); !ok {
 			check.errorf(x, InvalidAssert, invalidOp+"%s is not an interface", x)
 			goto Error
 		}

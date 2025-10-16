@@ -205,7 +205,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 		case 1:
 			check.expr(nil, x, call.ArgList[0])
 			if x.mode != invalid {
-				if t, _ := under(T).(*Interface); t != nil && !isTypeParam(T) {
+				if t, _ := T.Underlying().(*Interface); t != nil && !isTypeParam(T) {
 					if !t.IsMethodSet() {
 						check.errorf(call, MisplacedConstraintIface, "cannot use interface %s in conversion (contains specific type constraints or is comparable)", T)
 						break
@@ -812,7 +812,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
 	obj, index, indirect = lookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel, false)
 	if obj == nil {
 		// Don't report another error if the underlying type was invalid (go.dev/issue/49541).
-		if !isValid(under(x.typ)) {
+		if !isValid(x.typ.Underlying()) {
 			goto Error
 		}
 

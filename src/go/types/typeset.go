@@ -117,13 +117,13 @@ func (s *_TypeSet) all(f func(t, u Type) bool) bool {
 
 	for _, t := range s.terms {
 		assert(t.typ != nil)
-		// Unalias(x) == under(x) for ~x terms
+		// Unalias(x) == x.Underlying() for ~x terms
 		u := Unalias(t.typ)
 		if !t.tilde {
-			u = under(u)
+			u = u.Underlying()
 		}
 		if debug {
-			assert(Identical(u, under(u)))
+			assert(Identical(u, u.Underlying()))
 		}
 		if !f(t.typ, u) {
 			return false
@@ -267,7 +267,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
 		}
 		var comparable bool
 		var terms termlist
-		switch u := under(typ).(type) {
+		switch u := typ.Underlying().(type) {
 		case *Interface:
 			// For now we don't permit type parameters as constraints.
 			assert(!isTypeParam(typ))
@@ -383,7 +383,7 @@ func computeUnionTypeSet(check *Checker, unionSets map[*Union]*_TypeSet, pos tok
 	var allTerms termlist
 	for _, t := range utyp.terms {
 		var terms termlist
-		u := under(t.typ)
+		u := t.typ.Underlying()
 		if ui, _ := u.(*Interface); ui != nil {
 			// For now we don't permit type parameters as constraints.
 			assert(!isTypeParam(t.typ))
