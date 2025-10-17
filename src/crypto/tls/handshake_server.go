@@ -357,7 +357,7 @@ func negotiateALPN(serverProtos, clientProtos []string, quic bool) (string, erro
 	if http11fallback {
 		return "", nil
 	}
-	return "", fmt.Errorf("tls: client requested unsupported application protocols (%s)", clientProtos)
+	return "", fmt.Errorf("tls: client requested unsupported application protocols (%q)", clientProtos)
 }
 
 // supportsECDHE returns whether ECDHE key exchanges can be used with this
@@ -965,10 +965,9 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 
 		chains, err := certs[0].Verify(opts)
 		if err != nil {
-			var errCertificateInvalid x509.CertificateInvalidError
-			if errors.As(err, &x509.UnknownAuthorityError{}) {
+			if _, ok := errors.AsType[x509.UnknownAuthorityError](err); ok {
 				c.sendAlert(alertUnknownCA)
-			} else if errors.As(err, &errCertificateInvalid) && errCertificateInvalid.Reason == x509.Expired {
+			} else if errCertificateInvalid, ok := errors.AsType[x509.CertificateInvalidError](err); ok && errCertificateInvalid.Reason == x509.Expired {
 				c.sendAlert(alertCertificateExpired)
 			} else {
 				c.sendAlert(alertBadCertificate)

@@ -15,7 +15,9 @@ import "unsafe"
 //go:linkname _cgo_sys_thread_create _cgo_sys_thread_create
 //go:linkname _cgo_notify_runtime_init_done _cgo_notify_runtime_init_done
 //go:linkname _cgo_callers _cgo_callers
-//go:linkname _cgo_set_context_function _cgo_set_context_function
+//go:linkname _cgo_set_traceback_functions _cgo_set_traceback_functions
+//go:linkname _cgo_call_traceback_function _cgo_call_traceback_function
+//go:linkname _cgo_call_symbolizer_function _cgo_call_symbolizer_function
 //go:linkname _cgo_yield _cgo_yield
 //go:linkname _cgo_pthread_key_created _cgo_pthread_key_created
 //go:linkname _cgo_bindm _cgo_bindm
@@ -27,7 +29,9 @@ var (
 	_cgo_sys_thread_create        unsafe.Pointer
 	_cgo_notify_runtime_init_done unsafe.Pointer
 	_cgo_callers                  unsafe.Pointer
-	_cgo_set_context_function     unsafe.Pointer
+	_cgo_set_traceback_functions  unsafe.Pointer
+	_cgo_call_traceback_function  unsafe.Pointer
+	_cgo_call_symbolizer_function unsafe.Pointer
 	_cgo_yield                    unsafe.Pointer
 	_cgo_pthread_key_created      unsafe.Pointer
 	_cgo_bindm                    unsafe.Pointer

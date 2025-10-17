@@ -101,17 +101,17 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			if ok, _ := x.assignableTo(check, NewSlice(universeByte), nil); ok {
 				y := args[1]
 				hasString := false
-				typeset(y.typ, func(_, u Type) bool {
+				for _, u := range typeset(y.typ) {
 					if s, _ := u.(*Slice); s != nil && Identical(s.elem, universeByte) {
-						return true
-					}
-					if isString(u) {
+						// typeset ⊇ {[]byte}
+					} else if isString(u) {
+						// typeset ⊇ {string}
 						hasString = true
-						return true
+					} else {
+						y = nil
+						break
 					}
-					y = nil
-					return false
-				})
+				}
 				if y != nil && hasString {
 					// setting the signature also signals that we're done
 					sig = makeSig(x.typ, x.typ, y.typ)
@@ -147,7 +147,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// len(x)
 		mode := invalid
 		var val constant.Value
-		switch t := arrayPtrDeref(under(x.typ)).(type) {
+		switch t := arrayPtrDeref(x.typ.Underlying()).(type) {
 		case *Basic:
 			if isString(t) && id == _Len {
 				if x.mode == constant_ {
@@ -206,7 +206,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 		if mode == invalid {
 			// avoid error if underlying type is invalid
-			if isValid(under(x.typ)) {
+			if isValid(x.typ.Underlying()) {
 				code := InvalidCap
 				if id == _Len {
 					code = InvalidLen
@@ -325,7 +325,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// (applyTypeFunc never calls f with a type parameter)
 		f := func(typ Type) Type {
 			assert(!isTypeParam(typ))
-			if t, _ := under(typ).(*Basic); t != nil {
+			if t, _ := typ.Underlying().(*Basic); t != nil {
 				switch t.kind {
 				case Float32:
 					return Typ[Complex64]
@@ -371,16 +371,16 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		var special bool
 		if ok, _ := x.assignableTo(check, NewSlice(universeByte), nil); ok {
 			special = true
-			typeset(y.typ, func(_, u Type) bool {
+			for _, u := range typeset(y.typ) {
 				if s, _ := u.(*Slice); s != nil && Identical(s.elem, universeByte) {
-					return true
+					// typeset ⊇ {[]byte}
+				} else if isString(u) {
+					// typeset ⊇ {string}
+				} else {
+					special = false
+					break
 				}
-				if isString(u) {
-					return true
-				}
-				special = false
-				return false
-			})
+			}
 		}
 
 		// general case
@@ -475,7 +475,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// (applyTypeFunc never calls f with a type parameter)
 		f := func(typ Type) Type {
 			assert(!isTypeParam(typ))
-			if t, _ := under(typ).(*Basic); t != nil {
+			if t, _ := typ.Underlying().(*Basic); t != nil {
 				switch t.kind {
 				case Complex64:
 					return Typ[Float32]
@@ -639,11 +639,30 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		}
 
 	case _New:
-		// new(T)
+		// new(T) or new(expr)
 		// (no argument evaluated yet)
-		T := check.varType(argList[0])
-		if !isValid(T) {
-			return
+		arg := argList[0]
+		check.exprOrType(x, arg, true)
+		var T Type
+		switch x.mode {
+		case builtin:
+			check.errorf(x, UncalledBuiltin, "%s must be called", x)
+			x.mode = invalid
+		case typexpr:
+			// new(T)
+			T = x.typ
+			if !isValid(T) {
+				return
+			}
+		default:
+			// new(expr)
+			check.verifyVersionf(call.Fun, go1_26, "new(expr)")
+			T = Default(x.typ)
+			if T != x.typ {
+				// untyped constant: check for overflow.
+				check.assignment(x, T, "argument to new")
+			}
+			check.validVarType(arg, T)
 		}
 
 		x.mode = value
@@ -964,29 +983,22 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 // or a type error if x is not a slice (or a type set of slices).
 func sliceElem(x *operand) (Type, *typeError) {
 	var E Type
-	var err *typeError
-	typeset(x.typ, func(_, u Type) bool {
+	for _, u := range typeset(x.typ) {
 		s, _ := u.(*Slice)
 		if s == nil {
 			if x.isNil() {
 				// Printing x in this case would just print "nil".
 				// Special case this so we can emphasize "untyped".
-				err = typeErrorf("argument must be a slice; have untyped nil")
+				return nil, typeErrorf("argument must be a slice; have untyped nil")
 			} else {
-				err = typeErrorf("argument must be a slice; have %s", x)
+				return nil, typeErrorf("argument must be a slice; have %s", x)
 			}
-			return false
 		}
 		if E == nil {
 			E = s.elem
 		} else if !Identical(E, s.elem) {
-			err = typeErrorf("mismatched slice element types %s and %s in %s", E, s.elem, x)
-			return false
+			return nil, typeErrorf("mismatched slice element types %s and %s in %s", E, s.elem, x)
 		}
-		return true
-	})
-	if err != nil {
-		return nil, err
 	}
 	return E, nil
 }
@@ -1011,7 +1023,7 @@ func hasVarSize(t Type, seen map[*Named]bool) (varSized bool) {
 		}()
 	}
 
-	switch u := under(t).(type) {
+	switch u := t.Underlying().(type) {
 	case *Array:
 		return hasVarSize(u.elem, seen)
 	case *Struct:
@@ -1103,7 +1115,7 @@ func makeSig(res Type, args ...Type) *Signature {
 // otherwise it returns typ.
 func arrayPtrDeref(typ Type) Type {
 	if p, ok := Unalias(typ).(*Pointer); ok {
-		if a, _ := under(p.base).(*Array); a != nil {
+		if a, _ := p.base.Underlying().(*Array); a != nil {
 			return a
 		}
 	}

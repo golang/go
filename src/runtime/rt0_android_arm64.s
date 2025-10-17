@@ -4,17 +4,15 @@
 
 #include "textflag.h"
 
-TEXT _rt0_arm64_android(SB),NOSPLIT|NOFRAME,$0
-	MOVD	$_rt0_arm64_linux(SB), R4
-	B	(R4)
+TEXT _rt0_arm64_android(SB),NOSPLIT,$0
+	JMP	_rt0_arm64(SB)
 
 // When building with -buildmode=c-shared, this symbol is called when the shared
 // library is loaded.
-TEXT _rt0_arm64_android_lib(SB),NOSPLIT|NOFRAME,$0
+TEXT _rt0_arm64_android_lib(SB),NOSPLIT,$0
 	MOVW	$1, R0                            // argc
 	MOVD	$_rt0_arm64_android_argv(SB), R1  // **argv
-	MOVD	$_rt0_arm64_linux_lib(SB), R4
-	B	(R4)
+	JMP	_rt0_arm64_lib(SB)
 
 DATA _rt0_arm64_android_argv+0x00(SB)/8,$_rt0_arm64_android_argv0(SB)
 DATA _rt0_arm64_android_argv+0x08(SB)/8,$0 // end argv

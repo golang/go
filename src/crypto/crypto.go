@@ -75,10 +75,10 @@ const (
 	SHA512                      // import crypto/sha512
 	MD5SHA1                     // no implementation; MD5+SHA1 used for TLS RSA
 	RIPEMD160                   // import golang.org/x/crypto/ripemd160
-	SHA3_224                    // import golang.org/x/crypto/sha3
-	SHA3_256                    // import golang.org/x/crypto/sha3
-	SHA3_384                    // import golang.org/x/crypto/sha3
-	SHA3_512                    // import golang.org/x/crypto/sha3
+	SHA3_224                    // import crypto/sha3
+	SHA3_256                    // import crypto/sha3
+	SHA3_384                    // import crypto/sha3
+	SHA3_512                    // import crypto/sha3
 	SHA512_224                  // import crypto/sha512
 	SHA512_256                  // import crypto/sha512
 	BLAKE2s_256                 // import golang.org/x/crypto/blake2s

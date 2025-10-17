@@ -481,8 +481,8 @@ TEXT runtime·arc4random_buf_trampoline(SB),NOSPLIT,$0
 	BL	libc_arc4random_buf(SB)
 	RET
 
-// syscall calls a function in libc on behalf of the syscall package.
-// syscall takes a pointer to a struct like:
+// syscall_trampoline calls a function in libc on behalf of the syscall package.
+// syscall_trampoline takes a pointer to a struct like:
 // struct {
 //	fn    uintptr
 //	a1    uintptr
@@ -490,12 +490,11 @@ TEXT runtime·arc4random_buf_trampoline(SB),NOSPLIT,$0
 //	a3    uintptr
 //	r1    uintptr
 //	r2    uintptr
-//	err   uintptr
 // }
-// syscall must be called on the g0 stack with the
+// syscall_trampoline must be called on the g0 stack with the
 // C calling convention (use libcCall).
-TEXT runtime·syscall(SB),NOSPLIT,$0
-	SUB	$16, RSP	// push structure pointer
+TEXT runtime·syscall_trampoline(SB),NOSPLIT,$0
+	SUB	$16, RSP // push structure pointer
 	MOVD	R0, 8(RSP)
 
 	MOVD	0(R0), R12	// fn
@@ -517,87 +516,10 @@ TEXT runtime·syscall(SB),NOSPLIT,$0
 	ADD	$16, RSP
 	MOVD	R0, 32(R2)	// save r1
 	MOVD	R1, 40(R2)	// save r2
-	CMPW	$-1, R0
-	BNE	ok
-	SUB	$16, RSP	// push structure pointer
-	MOVD	R2, 8(RSP)
-	BL	libc_error(SB)
-	MOVW	(R0), R0
-	MOVD	8(RSP), R2	// pop structure pointer
-	ADD	$16, RSP
-	MOVD	R0, 48(R2)	// save err
-ok:
 	RET
 
-// syscallX calls a function in libc on behalf of the syscall package.
-// syscallX takes a pointer to a struct like:
-// struct {
-//	fn    uintptr
-//	a1    uintptr
-//	a2    uintptr
-//	a3    uintptr
-//	r1    uintptr
-//	r2    uintptr
-//	err   uintptr
-// }
-// syscallX must be called on the g0 stack with the
-// C calling convention (use libcCall).
-TEXT runtime·syscallX(SB),NOSPLIT,$0
-	SUB	$16, RSP	// push structure pointer
-	MOVD	R0, (RSP)
-
-	MOVD	0(R0), R12	// fn
-	MOVD	16(R0), R1	// a2
-	MOVD	24(R0), R2	// a3
-	MOVD	8(R0), R0	// a1
-	BL	(R12)
-
-	MOVD	(RSP), R2	// pop structure pointer
-	ADD	$16, RSP
-	MOVD	R0, 32(R2)	// save r1
-	MOVD	R1, 40(R2)	// save r2
-	CMP	$-1, R0
-	BNE	ok
-	SUB	$16, RSP	// push structure pointer
-	MOVD	R2, (RSP)
-	BL	libc_error(SB)
-	MOVW	(R0), R0
-	MOVD	(RSP), R2	// pop structure pointer
-	ADD	$16, RSP
-	MOVD	R0, 48(R2)	// save err
-ok:
-	RET
-
-// syscallPtr is like syscallX except that the libc function reports an
-// error by returning NULL and setting errno.
-TEXT runtime·syscallPtr(SB),NOSPLIT,$0
-	SUB	$16, RSP	// push structure pointer
-	MOVD	R0, (RSP)
-
-	MOVD	0(R0), R12	// fn
-	MOVD	16(R0), R1	// a2
-	MOVD	24(R0), R2	// a3
-	MOVD	8(R0), R0	// a1
-	BL	(R12)
-
-	MOVD	(RSP), R2	// pop structure pointer
-	ADD	$16, RSP
-	MOVD	R0, 32(R2)	// save r1
-	MOVD	R1, 40(R2)	// save r2
-	CMP	$0, R0
-	BNE	ok
-	SUB	$16, RSP	// push structure pointer
-	MOVD	R2, (RSP)
-	BL	libc_error(SB)
-	MOVW	(R0), R0
-	MOVD	(RSP), R2	// pop structure pointer
-	ADD	$16, RSP
-	MOVD	R0, 48(R2)	// save err
-ok:
-	RET
-
-// syscall6 calls a function in libc on behalf of the syscall package.
-// syscall6 takes a pointer to a struct like:
+// syscall6_trampoline calls a function in libc on behalf of the syscall package.
+// syscall6_trampoline takes a pointer to a struct like:
 // struct {
 //	fn    uintptr
 //	a1    uintptr
@@ -608,11 +530,10 @@ ok:
 //	a6    uintptr
 //	r1    uintptr
 //	r2    uintptr
-//	err   uintptr
 // }
-// syscall6 must be called on the g0 stack with the
+// syscall6_trampoline must be called on the g0 stack with the
 // C calling convention (use libcCall).
-TEXT runtime·syscall6(SB),NOSPLIT,$0
+TEXT runtime·syscall6_trampoline(SB),NOSPLIT,$0
 	SUB	$16, RSP	// push structure pointer
 	MOVD	R0, 8(RSP)
 
@@ -625,7 +546,7 @@ TEXT runtime·syscall6(SB),NOSPLIT,$0
 	MOVD	8(R0), R0	// a1
 
 	// If fn is declared as vararg, we have to pass the vararg arguments on the stack.
-	// See syscall above. The only function this applies to is openat, for which the 4th
+	// See syscall_trampoline above. The only function this applies to is openat, for which the 4th
 	// arg must be on the stack.
 	MOVD	R3, (RSP)
 
@@ -635,65 +556,10 @@ TEXT runtime·syscall6(SB),NOSPLIT,$0
 	ADD	$16, RSP
 	MOVD	R0, 56(R2)	// save r1
 	MOVD	R1, 64(R2)	// save r2
-	CMPW	$-1, R0
-	BNE	ok
-	SUB	$16, RSP	// push structure pointer
-	MOVD	R2, 8(RSP)
-	BL	libc_error(SB)
-	MOVW	(R0), R0
-	MOVD	8(RSP), R2	// pop structure pointer
-	ADD	$16, RSP
-	MOVD	R0, 72(R2)	// save err
-ok:
 	RET
 
-// syscall6X calls a function in libc on behalf of the syscall package.
-// syscall6X takes a pointer to a struct like:
-// struct {
-//	fn    uintptr
-//	a1    uintptr
-//	a2    uintptr
-//	a3    uintptr
-//	a4    uintptr
-//	a5    uintptr
-//	a6    uintptr
-//	r1    uintptr
-//	r2    uintptr
-//	err   uintptr
-// }
-// syscall6X must be called on the g0 stack with the
-// C calling convention (use libcCall).
-TEXT runtime·syscall6X(SB),NOSPLIT,$0
-	SUB	$16, RSP	// push structure pointer
-	MOVD	R0, (RSP)
-
-	MOVD	0(R0), R12	// fn
-	MOVD	16(R0), R1	// a2
-	MOVD	24(R0), R2	// a3
-	MOVD	32(R0), R3	// a4
-	MOVD	40(R0), R4	// a5
-	MOVD	48(R0), R5	// a6
-	MOVD	8(R0), R0	// a1
-	BL	(R12)
-
-	MOVD	(RSP), R2	// pop structure pointer
-	ADD	$16, RSP
-	MOVD	R0, 56(R2)	// save r1
-	MOVD	R1, 64(R2)	// save r2
-	CMP	$-1, R0
-	BNE	ok
-	SUB	$16, RSP	// push structure pointer
-	MOVD	R2, (RSP)
-	BL	libc_error(SB)
-	MOVW	(R0), R0
-	MOVD	(RSP), R2	// pop structure pointer
-	ADD	$16, RSP
-	MOVD	R0, 72(R2)	// save err
-ok:
-	RET
-
-// syscall9 calls a function in libc on behalf of the syscall package.
-// syscall9 takes a pointer to a struct like:
+// syscall9_trampoline calls a function in libc on behalf of the syscall package.
+// syscall9_trampoline takes a pointer to a struct like:
 // struct {
 //	fn    uintptr
 //	a1    uintptr
@@ -707,11 +573,10 @@ ok:
 //	a9    uintptr
 //	r1    uintptr
 //	r2    uintptr
-//	err   uintptr
 // }
-// syscall9 must be called on the g0 stack with the
+// syscall9_trampoline must be called on the g0 stack with the
 // C calling convention (use libcCall).
-TEXT runtime·syscall9(SB),NOSPLIT,$0
+TEXT runtime·syscall9_trampoline(SB),NOSPLIT,$0
 	SUB	$16, RSP	// push structure pointer
 	MOVD	R0, 8(RSP)
 
@@ -724,12 +589,8 @@ TEXT runtime·syscall9(SB),NOSPLIT,$0
 	MOVD	56(R0), R6	// a7
 	MOVD	64(R0), R7	// a8
 	MOVD	72(R0), R8	// a9
+	MOVD	R8, 0(RSP)	// the 9th arg and onwards must be passed on the stack
 	MOVD	8(R0), R0	// a1
-
-	// If fn is declared as vararg, we have to pass the vararg arguments on the stack.
-	// See syscall above. The only function this applies to is openat, for which the 4th
-	// arg must be on the stack.
-	MOVD	R3, (RSP)
 
 	BL	(R12)
 
@@ -737,16 +598,11 @@ TEXT runtime·syscall9(SB),NOSPLIT,$0
 	ADD	$16, RSP
 	MOVD	R0, 80(R2)	// save r1
 	MOVD	R1, 88(R2)	// save r2
-	CMPW	$-1, R0
-	BNE	ok
-	SUB	$16, RSP	// push structure pointer
-	MOVD	R2, 8(RSP)
+	RET
+
+TEXT runtime·libc_error_trampoline(SB),NOSPLIT,$0
 	BL	libc_error(SB)
 	MOVW	(R0), R0
-	MOVD	8(RSP), R2	// pop structure pointer
-	ADD	$16, RSP
-	MOVD	R0, 96(R2)	// save err
-ok:
 	RET
 
 // syscall_x509 is for crypto/x509. It is like syscall6 but does not check for errors,

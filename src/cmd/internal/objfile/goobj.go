@@ -227,7 +227,7 @@ func (f *goobjFile) pcln() (textStart uint64, symtab, pclntab []byte, err error)
 	return 0, nil, nil, fmt.Errorf("pcln not available in go object file")
 }
 
-// Find returns the file name, line, and function data for the given pc.
+// PCToLine returns the file name, line, and function data for the given pc.
 // Returns "",0,nil if unknown.
 // This function implements the Liner interface in preference to pcln() above.
 func (f *goobjFile) PCToLine(pc uint64) (string, int, *gosym.Func) {

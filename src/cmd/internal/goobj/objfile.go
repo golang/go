@@ -635,27 +635,9 @@ func (r *Reader) uint64At(off uint32) uint64 {
 	return binary.LittleEndian.Uint64(b)
 }
 
-func (r *Reader) int64At(off uint32) int64 {
-	return int64(r.uint64At(off))
-}
-
 func (r *Reader) uint32At(off uint32) uint32 {
 	b := r.BytesAt(off, 4)
 	return binary.LittleEndian.Uint32(b)
-}
-
-func (r *Reader) int32At(off uint32) int32 {
-	return int32(r.uint32At(off))
-}
-
-func (r *Reader) uint16At(off uint32) uint16 {
-	b := r.BytesAt(off, 2)
-	return binary.LittleEndian.Uint16(b)
-}
-
-func (r *Reader) uint8At(off uint32) uint8 {
-	b := r.BytesAt(off, 1)
-	return b[0]
 }
 
 func (r *Reader) StringAt(off uint32, len uint32) string {

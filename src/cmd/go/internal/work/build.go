@@ -77,8 +77,9 @@ and test commands:
 		The default is GOMAXPROCS, normally the number of CPUs available.
 	-race
 		enable data race detection.
-		Supported only on linux/amd64, freebsd/amd64, darwin/amd64, darwin/arm64, windows/amd64,
-		linux/ppc64le and linux/arm64 (only for 48-bit VMA).
+		Supported only on darwin/amd64, darwin/arm64, freebsd/amd64, linux/amd64,
+		linux/arm64 (only for 48-bit VMA), linux/ppc64le, linux/riscv64 and
+		windows/amd64.
 	-msan
 		enable interoperation with memory sanitizer.
 		Supported only on linux/amd64, linux/arm64, linux/loong64, freebsd/amd64
@@ -383,7 +384,7 @@ func (v *tagsFlag) Set(s string) error {
 
 	// Split on commas, ignore empty strings.
 	*v = []string{}
-	for _, s := range strings.Split(s, ",") {
+	for s := range strings.SplitSeq(s, ",") {
 		if s != "" {
 			*v = append(*v, s)
 		}
@@ -458,8 +459,8 @@ func oneMainPkg(pkgs []*load.Package) []*load.Package {
 var pkgsFilter = func(pkgs []*load.Package) []*load.Package { return pkgs }
 
 func runBuild(ctx context.Context, cmd *base.Command, args []string) {
-	modload.InitWorkfile()
-	BuildInit()
+	modload.InitWorkfile(modload.LoaderState)
+	BuildInit(modload.LoaderState)
 	b := NewBuilder("")
 	defer func() {
 		if err := b.Close(); err != nil {
@@ -467,7 +468,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}()
 
-	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{AutoVCS: true}, args)
+	pkgs := load.PackagesAndErrors(modload.LoaderState, ctx, load.PackageOpts{AutoVCS: true}, args)
 	load.CheckPackageErrors(pkgs)
 
 	explicitO := len(cfg.BuildO) > 0
@@ -502,7 +503,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	if cfg.BuildCover {
-		load.PrepareForCoverageBuild(pkgs)
+		load.PrepareForCoverageBuild(modload.LoaderState, pkgs)
 	}
 
 	if cfg.BuildO != "" {
@@ -568,6 +569,8 @@ Executables are installed in the directory named by the GOBIN environment
 variable, which defaults to $GOPATH/bin or $HOME/go/bin if the GOPATH
 environment variable is not set. Executables in $GOROOT
 are installed in $GOROOT/bin or $GOTOOLDIR instead of $GOBIN.
+Cross compiled binaries are installed in $GOOS_$GOARCH subdirectories
+of the above.
 
 If the arguments have version suffixes (like @latest or @v1.0.0), "go install"
 builds packages in module-aware mode, ignoring the go.mod file in the current
@@ -691,10 +694,10 @@ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
-	modload.InitWorkfile()
-	BuildInit()
-	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{AutoVCS: true}, args)
-	if cfg.ModulesEnabled && !modload.HasModRoot() {
+	modload.InitWorkfile(modload.LoaderState)
+	BuildInit(modload.LoaderState)
+	pkgs := load.PackagesAndErrors(modload.LoaderState, ctx, load.PackageOpts{AutoVCS: true}, args)
+	if cfg.ModulesEnabled && !modload.HasModRoot(modload.LoaderState) {
 		haveErrors := false
 		allMissingErrors := true
 		for _, pkg := range pkgs {
@@ -702,7 +705,7 @@ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
 				continue
 			}
 			haveErrors = true
-			if missingErr := (*modload.ImportMissingError)(nil); !errors.As(pkg.Error, &missingErr) {
+			if _, ok := errors.AsType[*modload.ImportMissingError](pkg.Error); !ok {
 				allMissingErrors = false
 				break
 			}
@@ -719,7 +722,7 @@ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
 	load.CheckPackageErrors(pkgs)
 
 	if cfg.BuildCover {
-		load.PrepareForCoverageBuild(pkgs)
+		load.PrepareForCoverageBuild(modload.LoaderState, pkgs)
 	}
 
 	InstallPackages(ctx, args, pkgs)
@@ -856,11 +859,11 @@ func InstallPackages(ctx context.Context, patterns []string, pkgs []*load.Packag
 //
 // See golang.org/issue/40276 for details and rationale.
 func installOutsideModule(ctx context.Context, args []string) {
-	modload.ForceUseModules = true
-	modload.RootMode = modload.NoRoot
-	modload.AllowMissingModuleImports()
-	modload.Init()
-	BuildInit()
+	modload.LoaderState.ForceUseModules = true
+	modload.LoaderState.RootMode = modload.NoRoot
+	modload.AllowMissingModuleImports(modload.LoaderState)
+	modload.Init(modload.LoaderState)
+	BuildInit(modload.LoaderState)
 
 	// Load packages. Ignore non-main packages.
 	// Print a warning if an argument contains "..." and matches no main packages.
@@ -869,7 +872,7 @@ func installOutsideModule(ctx context.Context, args []string) {
 	// TODO(golang.org/issue/40276): don't report errors loading non-main packages
 	// matched by a pattern.
 	pkgOpts := load.PackageOpts{MainOnly: true}
-	pkgs, err := load.PackagesAndErrorsOutsideModule(ctx, pkgOpts, args)
+	pkgs, err := load.PackagesAndErrorsOutsideModule(modload.LoaderState, ctx, pkgOpts, args)
 	if err != nil {
 		base.Fatal(err)
 	}

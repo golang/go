@@ -34,7 +34,7 @@ func pickUnusedPort() (int, error) {
 	return port, nil
 }
 
-func doPkgsite(urlPath string) error {
+func doPkgsite(urlPath, fragment string) error {
 	port, err := pickUnusedPort()
 	if err != nil {
 		return fmt.Errorf("failed to find port for documentation server: %v", err)
@@ -43,6 +43,9 @@ func doPkgsite(urlPath string) error {
 	path, err := url.JoinPath("http://"+addr, urlPath)
 	if err != nil {
 		return fmt.Errorf("internal error: failed to construct url: %v", err)
+	}
+	if fragment != "" {
+		path += "#" + fragment
 	}
 
 	// Turn off the default signal handler for SIGINT (and SIGQUIT on Unix)
@@ -78,8 +81,7 @@ func doPkgsite(urlPath string) error {
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		var ee *exec.ExitError
-		if errors.As(err, &ee) {
+		if ee, ok := errors.AsType[*exec.ExitError](err); ok {
 			// Exit with the same exit status as pkgsite to avoid
 			// printing of "exit status" error messages.
 			// Any relevant messages have already been printed

@@ -10,7 +10,6 @@ package modindex
 import (
 	"bytes"
 	"cmd/go/internal/fsys"
-	"cmd/go/internal/str"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -118,94 +117,10 @@ func (ctxt *Context) joinPath(elem ...string) string {
 	return filepath.Join(elem...)
 }
 
-// splitPathList calls ctxt.SplitPathList (if not nil) or else filepath.SplitList.
-func (ctxt *Context) splitPathList(s string) []string {
-	if f := ctxt.SplitPathList; f != nil {
-		return f(s)
-	}
-	return filepath.SplitList(s)
-}
-
-// isAbsPath calls ctxt.IsAbsPath (if not nil) or else filepath.IsAbs.
-func (ctxt *Context) isAbsPath(path string) bool {
-	if f := ctxt.IsAbsPath; f != nil {
-		return f(path)
-	}
-	return filepath.IsAbs(path)
-}
-
 // isDir reports whether path is a directory.
 func isDir(path string) bool {
 	fi, err := fsys.Stat(path)
 	return err == nil && fi.IsDir()
-}
-
-// hasSubdir calls ctxt.HasSubdir (if not nil) or else uses
-// the local file system to answer the question.
-func (ctxt *Context) hasSubdir(root, dir string) (rel string, ok bool) {
-	if f := ctxt.HasSubdir; f != nil {
-		return f(root, dir)
-	}
-
-	// Try using paths we received.
-	if rel, ok = hasSubdir(root, dir); ok {
-		return
-	}
-
-	// Try expanding symlinks and comparing
-	// expanded against unexpanded and
-	// expanded against expanded.
-	rootSym, _ := filepath.EvalSymlinks(root)
-	dirSym, _ := filepath.EvalSymlinks(dir)
-
-	if rel, ok = hasSubdir(rootSym, dir); ok {
-		return
-	}
-	if rel, ok = hasSubdir(root, dirSym); ok {
-		return
-	}
-	return hasSubdir(rootSym, dirSym)
-}
-
-// hasSubdir reports if dir is within root by performing lexical analysis only.
-func hasSubdir(root, dir string) (rel string, ok bool) {
-	root = str.WithFilePathSeparator(filepath.Clean(root))
-	dir = filepath.Clean(dir)
-	if !strings.HasPrefix(dir, root) {
-		return "", false
-	}
-	return filepath.ToSlash(dir[len(root):]), true
-}
-
-// gopath returns the list of Go path directories.
-func (ctxt *Context) gopath() []string {
-	var all []string
-	for _, p := range ctxt.splitPathList(ctxt.GOPATH) {
-		if p == "" || p == ctxt.GOROOT {
-			// Empty paths are uninteresting.
-			// If the path is the GOROOT, ignore it.
-			// People sometimes set GOPATH=$GOROOT.
-			// Do not get confused by this common mistake.
-			continue
-		}
-		if strings.HasPrefix(p, "~") {
-			// Path segments starting with ~ on Unix are almost always
-			// users who have incorrectly quoted ~ while setting GOPATH,
-			// preventing it from expanding to $HOME.
-			// The situation is made more confusing by the fact that
-			// bash allows quoted ~ in $PATH (most shells do not).
-			// Do not get confused by this, and do not try to use the path.
-			// It does not exist, and printing errors about it confuses
-			// those users even more, because they think "sure ~ exists!".
-			// The go command diagnoses this situation and prints a
-			// useful error.
-			// On Windows, ~ is used in short names, such as c:\progra~1
-			// for c:\program files.
-			continue
-		}
-		all = append(all, p)
-	}
-	return all
 }
 
 var defaultToolTags, defaultReleaseTags []string
@@ -266,113 +181,11 @@ func fileListForExt(p *build.Package, ext string) *[]string {
 	return nil
 }
 
-var errNoModules = errors.New("not using modules")
-
-func findImportComment(data []byte) (s string, line int) {
-	// expect keyword package
-	word, data := parseWord(data)
-	if string(word) != "package" {
-		return "", 0
-	}
-
-	// expect package name
-	_, data = parseWord(data)
-
-	// now ready for import comment, a // or /* */ comment
-	// beginning and ending on the current line.
-	for len(data) > 0 && (data[0] == ' ' || data[0] == '\t' || data[0] == '\r') {
-		data = data[1:]
-	}
-
-	var comment []byte
-	switch {
-	case bytes.HasPrefix(data, slashSlash):
-		comment, _, _ = bytes.Cut(data[2:], newline)
-	case bytes.HasPrefix(data, slashStar):
-		var ok bool
-		comment, _, ok = bytes.Cut(data[2:], starSlash)
-		if !ok {
-			// malformed comment
-			return "", 0
-		}
-		if bytes.Contains(comment, newline) {
-			return "", 0
-		}
-	}
-	comment = bytes.TrimSpace(comment)
-
-	// split comment into `import`, `"pkg"`
-	word, arg := parseWord(comment)
-	if string(word) != "import" {
-		return "", 0
-	}
-
-	line = 1 + bytes.Count(data[:cap(data)-cap(arg)], newline)
-	return strings.TrimSpace(string(arg)), line
-}
-
 var (
 	slashSlash = []byte("//")
 	slashStar  = []byte("/*")
 	starSlash  = []byte("*/")
-	newline    = []byte("\n")
 )
-
-// skipSpaceOrComment returns data with any leading spaces or comments removed.
-func skipSpaceOrComment(data []byte) []byte {
-	for len(data) > 0 {
-		switch data[0] {
-		case ' ', '\t', '\r', '\n':
-			data = data[1:]
-			continue
-		case '/':
-			if bytes.HasPrefix(data, slashSlash) {
-				i := bytes.Index(data, newline)
-				if i < 0 {
-					return nil
-				}
-				data = data[i+1:]
-				continue
-			}
-			if bytes.HasPrefix(data, slashStar) {
-				data = data[2:]
-				i := bytes.Index(data, starSlash)
-				if i < 0 {
-					return nil
-				}
-				data = data[i+2:]
-				continue
-			}
-		}
-		break
-	}
-	return data
-}
-
-// parseWord skips any leading spaces or comments in data
-// and then parses the beginning of data as an identifier or keyword,
-// returning that word and what remains after the word.
-func parseWord(data []byte) (word, rest []byte) {
-	data = skipSpaceOrComment(data)
-
-	// Parse past leading word characters.
-	rest = data
-	for {
-		r, size := utf8.DecodeRune(rest)
-		if unicode.IsLetter(r) || '0' <= r && r <= '9' || r == '_' {
-			rest = rest[size:]
-			continue
-		}
-		break
-	}
-
-	word = data[:len(data)-len(rest)]
-	if len(word) == 0 {
-		return nil, nil
-	}
-
-	return word, rest
-}
 
 var dummyPkg build.Package
 
@@ -613,7 +426,7 @@ Lines:
 // These lines set CFLAGS, CPPFLAGS, CXXFLAGS and LDFLAGS and pkg-config directives
 // that affect the way cgo's C code is built.
 func (ctxt *Context) saveCgo(filename string, di *build.Package, text string) error {
-	for _, line := range strings.Split(text, "\n") {
+	for line := range strings.SplitSeq(text, "\n") {
 		orig := line
 
 		// Line is

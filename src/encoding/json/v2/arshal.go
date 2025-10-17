@@ -440,8 +440,9 @@ func UnmarshalRead(in io.Reader, out any, opts ...Options) (err error) {
 // Unlike [Unmarshal] and [UnmarshalRead], decode options are ignored because
 // they must have already been specified on the provided [jsontext.Decoder].
 //
-// The input may be a stream of one or more JSON values,
+// The input may be a stream of zero or more JSON values,
 // where this only unmarshals the next JSON value in the stream.
+// If there are no more top-level JSON values, it reports [io.EOF].
 // The output must be a non-nil pointer.
 // See [Unmarshal] for details about the conversion of JSON into a Go value.
 func UnmarshalDecode(in *jsontext.Decoder, out any, opts ...Options) (err error) {
@@ -470,7 +471,7 @@ func unmarshalDecode(in *jsontext.Decoder, out any, uo *jsonopts.Struct, last bo
 	// was validated before attempting to unmarshal it.
 	if uo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
 		if err := export.Decoder(in).CheckNextValue(last); err != nil {
-			if err == io.EOF {
+			if err == io.EOF && last {
 				offset := in.InputOffset() + int64(len(in.UnreadBuffer()))
 				return &jsontext.SyntacticError{ByteOffset: offset, Err: io.ErrUnexpectedEOF}
 			}
@@ -487,7 +488,7 @@ func unmarshalDecode(in *jsontext.Decoder, out any, uo *jsonopts.Struct, last bo
 		if !uo.Flags.Get(jsonflags.AllowDuplicateNames) {
 			export.Decoder(in).Tokens.InvalidateDisabledNamespaces()
 		}
-		if err == io.EOF {
+		if err == io.EOF && last {
 			offset := in.InputOffset() + int64(len(in.UnreadBuffer()))
 			return &jsontext.SyntacticError{ByteOffset: offset, Err: io.ErrUnexpectedEOF}
 		}

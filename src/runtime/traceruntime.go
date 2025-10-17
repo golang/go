@@ -457,7 +457,7 @@ func (tl traceLocker) GoPreempt() {
 
 // GoStop emits a GoStop event with the provided reason.
 func (tl traceLocker) GoStop(reason traceGoStopReason) {
-	tl.eventWriter(tracev2.GoRunning, tracev2.ProcRunning).event(tracev2.EvGoStop, traceArg(trace.goStopReasons[tl.gen%2][reason]), tl.stack(0))
+	tl.eventWriter(tracev2.GoRunning, tracev2.ProcRunning).event(tracev2.EvGoStop, trace.goStopReasons[tl.gen%2][reason], tl.stack(0))
 }
 
 // GoPark emits a GoBlock event with the provided reason.
@@ -465,7 +465,7 @@ func (tl traceLocker) GoStop(reason traceGoStopReason) {
 // TODO(mknyszek): Replace traceBlockReason with waitReason. It's silly
 // that we have both, and waitReason is way more descriptive.
 func (tl traceLocker) GoPark(reason traceBlockReason, skip int) {
-	tl.eventWriter(tracev2.GoRunning, tracev2.ProcRunning).event(tracev2.EvGoBlock, traceArg(trace.goBlockReasons[tl.gen%2][reason]), tl.stack(skip))
+	tl.eventWriter(tracev2.GoRunning, tracev2.ProcRunning).event(tracev2.EvGoBlock, trace.goBlockReasons[tl.gen%2][reason], tl.stack(skip))
 }
 
 // GoUnpark emits a GoUnblock event.

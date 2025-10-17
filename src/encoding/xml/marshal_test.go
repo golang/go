@@ -2561,7 +2561,6 @@ var closeTests = []struct {
 
 func TestClose(t *testing.T) {
 	for _, tt := range closeTests {
-		tt := tt
 		t.Run(tt.desc, func(t *testing.T) {
 			var out strings.Builder
 			enc := NewEncoder(&out)

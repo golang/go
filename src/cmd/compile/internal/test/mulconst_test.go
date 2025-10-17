@@ -143,7 +143,7 @@ func BenchmarkMulconstI32(b *testing.B) {
 		}
 		mulSinkI32 = x
 	})
-	// -120x = 8x - 120x
+	// -120x = 8x - 128x
 	b.Run("-120", func(b *testing.B) {
 		x := int32(1)
 		for i := 0; i < b.N; i++ {
@@ -202,7 +202,7 @@ func BenchmarkMulconstI64(b *testing.B) {
 		}
 		mulSinkI64 = x
 	})
-	// -120x = 8x - 120x
+	// -120x = 8x - 128x
 	b.Run("-120", func(b *testing.B) {
 		x := int64(1)
 		for i := 0; i < b.N; i++ {

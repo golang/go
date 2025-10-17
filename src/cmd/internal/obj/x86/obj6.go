@@ -852,11 +852,6 @@ func isZeroArgRuntimeCall(s *obj.LSym) bool {
 	return false
 }
 
-func indir_cx(ctxt *obj.Link, a *obj.Addr) {
-	a.Type = obj.TYPE_MEM
-	a.Reg = REG_CX
-}
-
 // loadG ensures the G is loaded into a register (either CX or REGG),
 // appending instructions to p if necessary. It returns the new last
 // instruction and the G register.

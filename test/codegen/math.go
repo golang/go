@@ -1,4 +1,4 @@
-// asmcheck
+// asmcheck -gcflags=-d=converthash=qy
 
 // Copyright 2018 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -53,6 +53,7 @@ func sqrt(x float64) float64 {
 	// 386/sse2:"SQRTSD" 386/softfloat:-"SQRTD"
 	// arm64:"FSQRTD"
 	// arm/7:"SQRTD"
+	// loong64:"SQRTD"
 	// mips/hardfloat:"SQRTD" mips/softfloat:-"SQRTD"
 	// mips64/hardfloat:"SQRTD" mips64/softfloat:-"SQRTD"
 	// wasm:"F64Sqrt"
@@ -66,6 +67,7 @@ func sqrt32(x float32) float32 {
 	// 386/sse2:"SQRTSS" 386/softfloat:-"SQRTS"
 	// arm64:"FSQRTS"
 	// arm/7:"SQRTF"
+	// loong64:"SQRTF"
 	// mips/hardfloat:"SQRTF" mips/softfloat:-"SQRTF"
 	// mips64/hardfloat:"SQRTF" mips64/softfloat:-"SQRTF"
 	// wasm:"F32Sqrt"
@@ -78,6 +80,7 @@ func sqrt32(x float32) float32 {
 func abs(x, y float64) {
 	// amd64:"BTRQ\t[$]63"
 	// arm64:"FABSD\t"
+	// loong64:"ABSD\t"
 	// s390x:"LPDFR\t",-"MOVD\t"     (no integer load/store)
 	// ppc64x:"FABS\t"
 	// riscv64:"FABSD\t"
@@ -102,6 +105,7 @@ func abs32(x float32) float32 {
 // Check that it's using integer registers
 func copysign(a, b, c float64) {
 	// amd64:"BTRQ\t[$]63","ANDQ","ORQ"
+	// loong64:"FCOPYSGD"
 	// s390x:"CPSDR",-"MOVD"         (no integer load/store)
 	// ppc64x:"FCPSGN"
 	// riscv64:"FSGNJD"
@@ -109,6 +113,7 @@ func copysign(a, b, c float64) {
 	sink64[0] = math.Copysign(a, b)
 
 	// amd64:"BTSQ\t[$]63"
+	// loong64:"FCOPYSGD"
 	// s390x:"LNDFR\t",-"MOVD\t"     (no integer load/store)
 	// ppc64x:"FCPSGN"
 	// riscv64:"FSGNJD"
@@ -121,6 +126,7 @@ func copysign(a, b, c float64) {
 	sink64[2] = math.Float64frombits(math.Float64bits(a) | 1<<63)
 
 	// amd64:"ANDQ","ORQ"
+	// loong64:"FCOPYSGD"
 	// s390x:"CPSDR\t",-"MOVD\t"     (no integer load/store)
 	// ppc64x:"FCPSGN"
 	// riscv64:"FSGNJD"
@@ -154,12 +160,73 @@ func fnma(x, y, z float64) float64 {
 	return math.FMA(x, -y, -z)
 }
 
+func isPosInf(x float64) bool {
+	// riscv64:"FCLASSD"
+	return math.IsInf(x, 1)
+}
+
+func isPosInfEq(x float64) bool {
+	// riscv64:"FCLASSD"
+	return x == math.Inf(1)
+}
+
+func isPosInfCmp(x float64) bool {
+	// riscv64:"FCLASSD"
+	return x > math.MaxFloat64
+}
+
+func isNotPosInf(x float64) bool {
+	// riscv64:"FCLASSD"
+	return !math.IsInf(x, 1)
+}
+
+func isNotPosInfEq(x float64) bool {
+	// riscv64:"FCLASSD"
+	return x != math.Inf(1)
+}
+
+func isNotPosInfCmp(x float64) bool {
+	// riscv64:"FCLASSD"
+	return x <= math.MaxFloat64
+}
+
+func isNegInf(x float64) bool {
+	// riscv64:"FCLASSD"
+	return math.IsInf(x, -1)
+}
+
+func isNegInfEq(x float64) bool {
+	// riscv64:"FCLASSD"
+	return x == math.Inf(-1)
+}
+
+func isNegInfCmp(x float64) bool {
+	// riscv64:"FCLASSD"
+	return x < -math.MaxFloat64
+}
+
+func isNotNegInf(x float64) bool {
+	// riscv64:"FCLASSD"
+	return !math.IsInf(x, -1)
+}
+
+func isNotNegInfEq(x float64) bool {
+	// riscv64:"FCLASSD"
+	return x != math.Inf(-1)
+}
+
+func isNotNegInfCmp(x float64) bool {
+	// riscv64:"FCLASSD"
+	return x >= -math.MaxFloat64
+}
+
 func fromFloat64(f64 float64) uint64 {
 	// amd64:"MOVQ\tX.*, [^X].*"
 	// arm64:"FMOVD\tF.*, R.*"
 	// loong64:"MOVV\tF.*, R.*"
 	// ppc64x:"MFVSRD"
 	// mips64/hardfloat:"MOVV\tF.*, R.*"
+	// riscv64:"FMVXD"
 	return math.Float64bits(f64+1) + 1
 }
 
@@ -168,6 +235,7 @@ func fromFloat32(f32 float32) uint32 {
 	// arm64:"FMOVS\tF.*, R.*"
 	// loong64:"MOVW\tF.*, R.*"
 	// mips64/hardfloat:"MOVW\tF.*, R.*"
+	// riscv64:"FMVXW"
 	return math.Float32bits(f32+1) + 1
 }
 
@@ -177,6 +245,7 @@ func toFloat64(u64 uint64) float64 {
 	// loong64:"MOVV\tR.*, F.*"
 	// ppc64x:"MTVSRD"
 	// mips64/hardfloat:"MOVV\tR.*, F.*"
+	// riscv64:"FMVDX"
 	return math.Float64frombits(u64+1) + 1
 }
 
@@ -185,6 +254,7 @@ func toFloat32(u32 uint32) float32 {
 	// arm64:"FMOVS\tR.*, F.*"
 	// loong64:"MOVW\tR.*, F.*"
 	// mips64/hardfloat:"MOVW\tR.*, F.*"
+	// riscv64:"FMVWX"
 	return math.Float32frombits(u32+1) + 1
 }
 
@@ -259,4 +329,49 @@ func nanGenerate32() float32 {
 	z1 := zero * inf
 	// amd64/v3:"VFMADD231SS"
 	return z0 + z1
+}
+
+func outOfBoundsConv(i32 *[2]int32, u32 *[2]uint32, i64 *[2]int64, u64 *[2]uint64) {
+	// arm64: "FCVTZSDW"
+	// amd64: "CVTTSD2SL", "CVTSD2SS"
+	i32[0] = int32(two40())
+	// arm64: "FCVTZSDW"
+	// amd64: "CVTTSD2SL", "CVTSD2SS"
+	i32[1] = int32(-two40())
+	// arm64: "FCVTZSDW"
+	// amd64: "CVTTSD2SL", "CVTSD2SS"
+	u32[0] = uint32(two41())
+	// on arm64, this uses an explicit <0 comparison, so it constant folds.
+	// on amd64, this uses an explicit <0 comparison, so it constant folds.
+	// amd64: "MOVL\t[$]0,"
+	u32[1] = uint32(minus1())
+	// arm64: "FCVTZSD"
+	// amd64: "CVTTSD2SQ"
+	i64[0] = int64(two80())
+	// arm64: "FCVTZSD"
+	// amd64: "CVTTSD2SQ"
+	i64[1] = int64(-two80())
+	// arm64: "FCVTZUD"
+	// amd64: "CVTTSD2SQ"
+	u64[0] = uint64(two81())
+	// arm64: "FCVTZUD"
+	// on amd64, this uses an explicit <0 comparison, so it constant folds.
+	// amd64: "MOVQ\t[$]0,"
+	u64[1] = uint64(minus1())
+}
+
+func two40() float64 {
+	return 1 << 40
+}
+func two41() float64 {
+	return 1 << 41
+}
+func two80() float64 {
+	return 1 << 80
+}
+func two81() float64 {
+	return 1 << 81
+}
+func minus1() float64 {
+	return -1
 }

@@ -7,7 +7,6 @@ package walk
 import (
 	"fmt"
 	"internal/abi"
-	"internal/buildcfg"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -192,42 +191,7 @@ var mapassign = mkmapnames("mapassign", "ptr")
 var mapdelete = mkmapnames("mapdelete", "")
 
 func mapfast(t *types.Type) int {
-	if buildcfg.Experiment.SwissMap {
-		return mapfastSwiss(t)
-	}
-	return mapfastOld(t)
-}
-
-func mapfastSwiss(t *types.Type) int {
-	if t.Elem().Size() > abi.OldMapMaxElemBytes {
-		return mapslow
-	}
-	switch reflectdata.AlgType(t.Key()) {
-	case types.AMEM32:
-		if !t.Key().HasPointers() {
-			return mapfast32
-		}
-		if types.PtrSize == 4 {
-			return mapfast32ptr
-		}
-		base.Fatalf("small pointer %v", t.Key())
-	case types.AMEM64:
-		if !t.Key().HasPointers() {
-			return mapfast64
-		}
-		if types.PtrSize == 8 {
-			return mapfast64ptr
-		}
-		// Two-word object, at least one of which is a pointer.
-		// Use the slow path.
-	case types.ASTRING:
-		return mapfaststr
-	}
-	return mapslow
-}
-
-func mapfastOld(t *types.Type) int {
-	if t.Elem().Size() > abi.OldMapMaxElemBytes {
+	if t.Elem().Size() > abi.MapMaxElemBytes {
 		return mapslow
 	}
 	switch reflectdata.AlgType(t.Key()) {
@@ -311,6 +275,15 @@ func backingArrayPtrLen(n ir.Node) (ptr, length ir.Node) {
 // function calls, which could clobber function call arguments/results
 // currently on the stack.
 func mayCall(n ir.Node) bool {
+	// This is intended to avoid putting constants
+	// into temporaries with the race detector (or other
+	// instrumentation) which interferes with simple
+	// "this is a constant" tests in ssagen.
+	// Also, it will generally lead to better code.
+	if n.Op() == ir.OLITERAL {
+		return false
+	}
+
 	// When instrumenting, any expression might require function calls.
 	if base.Flag.Cfg.Instrumenting {
 		return true

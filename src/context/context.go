@@ -103,7 +103,7 @@ type Context interface {
 	//  	}
 	//  }
 	//
-	// See https://blog.golang.org/pipelines for more examples of how to use
+	// See https://go.dev/blog/pipelines for more examples of how to use
 	// a Done channel for cancellation.
 	Done() <-chan struct{}
 
@@ -463,6 +463,8 @@ func (c *cancelCtx) Done() <-chan struct{} {
 func (c *cancelCtx) Err() error {
 	// An atomic load is ~5x faster than a mutex, which can matter in tight loops.
 	if err := c.err.Load(); err != nil {
+		// Ensure the done channel has been closed before returning a non-nil error.
+		<-c.Done()
 		return err.(error)
 	}
 	return nil

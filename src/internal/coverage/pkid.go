@@ -67,6 +67,7 @@ var rtPkgs = [...]string{
 	"internal/runtime/sys",
 	"internal/runtime/maps",
 	"internal/runtime/syscall/linux",
+	"internal/runtime/syscall/windows",
 	"internal/runtime/cgroup",
 	"internal/stringslite",
 	"runtime",

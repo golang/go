@@ -161,9 +161,9 @@ func listTools(ctx context.Context) {
 		fmt.Println(name)
 	}
 
-	modload.InitWorkfile()
-	modload.LoadModFile(ctx)
-	modTools := slices.Sorted(maps.Keys(modload.MainModules.Tools()))
+	modload.InitWorkfile(modload.LoaderState)
+	modload.LoadModFile(modload.LoaderState, ctx)
+	modTools := slices.Sorted(maps.Keys(modload.LoaderState.MainModules.Tools()))
 	for _, tool := range modTools {
 		fmt.Println(tool)
 	}
@@ -252,11 +252,11 @@ func loadBuiltinTool(toolName string) string {
 }
 
 func loadModTool(ctx context.Context, name string) string {
-	modload.InitWorkfile()
-	modload.LoadModFile(ctx)
+	modload.InitWorkfile(modload.LoaderState)
+	modload.LoadModFile(modload.LoaderState, ctx)
 
 	matches := []string{}
-	for tool := range modload.MainModules.Tools() {
+	for tool := range modload.LoaderState.MainModules.Tools() {
 		if tool == name || defaultExecName(tool) == name {
 			matches = append(matches, tool)
 		}
@@ -308,7 +308,7 @@ func buildAndRunBuiltinTool(ctx context.Context, toolName, tool string, args []s
 	// Ignore go.mod and go.work: we don't need them, and we want to be able
 	// to run the tool even if there's an issue with the module or workspace the
 	// user happens to be in.
-	modload.RootMode = modload.NoRoot
+	modload.LoaderState.RootMode = modload.NoRoot
 
 	runFunc := func(b *work.Builder, ctx context.Context, a *work.Action) error {
 		cmdline := str.StringList(builtTool(a), a.Args)
@@ -336,7 +336,7 @@ func buildAndRunModtool(ctx context.Context, toolName, tool string, args []strin
 }
 
 func buildAndRunTool(ctx context.Context, tool string, args []string, runTool work.ActorFunc) {
-	work.BuildInit()
+	work.BuildInit(modload.LoaderState)
 	b := work.NewBuilder("")
 	defer func() {
 		if err := b.Close(); err != nil {
@@ -345,11 +345,11 @@ func buildAndRunTool(ctx context.Context, tool string, args []string, runTool wo
 	}()
 
 	pkgOpts := load.PackageOpts{MainOnly: true}
-	p := load.PackagesAndErrors(ctx, pkgOpts, []string{tool})[0]
+	p := load.PackagesAndErrors(modload.LoaderState, ctx, pkgOpts, []string{tool})[0]
 	p.Internal.OmitDebug = true
 	p.Internal.ExeName = p.DefaultExecName()
 
-	a1 := b.LinkAction(work.ModeBuild, work.ModeBuild, p)
+	a1 := b.LinkAction(modload.LoaderState, work.ModeBuild, work.ModeBuild, p)
 	a1.CacheExecutable = true
 	a := &work.Action{Mode: "go tool", Actor: runTool, Args: args, Deps: []*work.Action{a1}}
 	b.Do(ctx, a)

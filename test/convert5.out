@@ -1,0 +1,37 @@
+Below this are 'golden' results to check for consistency across platforms.  Overflow behavior is not necessarily what we want
+
+uint8 conversions
+minus1_32 255
+minus1_64 255
+p32_plus4k_plus1 255
+p64_plus4k_plus1 255
+n32_minus4k 0
+n64_minus4k 0
+inf_32 255
+inf_64 255
+ninf_32 0
+ninf_64 0
+u64_plus4k_plus1_64 255
+u64_plust44_plus1_32 255
+u8plus2 1
+p8minus1 126
+n8plus2 130
+n8minusone 127
+
+int8 conversions
+minus1_32 -1
+minus1_64 -1
+p32_plus4k_plus1 -1
+p64_plus4k_plus1 -1
+n32_minus4k 0
+n64_minus4k 0
+inf_32 -1
+inf_64 -1
+ninf_32 0
+ninf_64 0
+u64_plus4k_plus1_64 -1
+u64_plust44_plus1_32 -1
+u8plus2 1
+p8minus1 126
+n8plus2 -126
+n8minusone 127

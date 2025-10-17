@@ -176,7 +176,7 @@ aligned:
 
 	PCALIGN	$16
 loop_zva:
-	WORD	$0xd50b7420 // DC ZVA, R0
+	DC	ZVA, R0
 	ADD	R5, R0, R0
 	SUBS	R5, R1, R1
 	BHS	loop_zva

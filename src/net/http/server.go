@@ -1614,7 +1614,7 @@ func writeStatusLine(bw *bufio.Writer, is11 bool, code int, scratch []byte) {
 // It's illegal to call this before the header has been flushed.
 func (w *response) bodyAllowed() bool {
 	if !w.wroteHeader {
-		panic("")
+		panic("net/http: bodyAllowed called before the header was written")
 	}
 	return bodyAllowedForStatus(w.status)
 }
@@ -2759,9 +2759,12 @@ func (mux *ServeMux) matchOrRedirect(host, method, path string, u *url.URL) (_ *
 	defer mux.mu.RUnlock()
 
 	n, matches := mux.tree.match(host, method, path)
-	// If we have an exact match, or we were asked not to try trailing-slash redirection,
-	// or the URL already has a trailing slash, then we're done.
-	if !exactMatch(n, path) && u != nil && !strings.HasSuffix(path, "/") {
+	// We can terminate here if any of the following is true:
+	// - We have an exact match already.
+	// - We were asked not to try trailing slash redirection.
+	// - The URL already has a trailing slash.
+	// - The URL is an empty string.
+	if !exactMatch(n, path) && u != nil && !strings.HasSuffix(path, "/") && path != "" {
 		// If there is an exact match with a trailing slash, then redirect.
 		path += "/"
 		n2, _ := mux.tree.match(host, method, path)
@@ -2865,8 +2868,10 @@ func (mux *ServeMux) ServeHTTP(w ResponseWriter, r *Request) {
 // always refers to user code.
 
 // Handle registers the handler for the given pattern.
-// If the given pattern conflicts with one that is already registered, Handle
-// panics.
+// If the given pattern conflicts with one that is already registered
+// or if the pattern is invalid, Handle panics.
+//
+// See [ServeMux] for details on valid patterns and conflict rules.
 func (mux *ServeMux) Handle(pattern string, handler Handler) {
 	if use121 {
 		mux.mux121.handle(pattern, handler)
@@ -2876,8 +2881,10 @@ func (mux *ServeMux) Handle(pattern string, handler Handler) {
 }
 
 // HandleFunc registers the handler function for the given pattern.
-// If the given pattern conflicts with one that is already registered, HandleFunc
-// panics.
+// If the given pattern conflicts with one that is already registered
+// or if the pattern is invalid, HandleFunc panics.
+//
+// See [ServeMux] for details on valid patterns and conflict rules.
 func (mux *ServeMux) HandleFunc(pattern string, handler func(ResponseWriter, *Request)) {
 	if use121 {
 		mux.mux121.handleFunc(pattern, handler)
@@ -3059,6 +3066,9 @@ type Server struct {
 	// automatically closed when the function returns.
 	// If TLSNextProto is not nil, HTTP/2 support is not enabled
 	// automatically.
+	//
+	// Historically, TLSNextProto was used to disable HTTP/2 support.
+	// The Server.Protocols field now provides a simpler way to do this.
 	TLSNextProto map[string]func(*Server, *tls.Conn, Handler)
 
 	// ConnState specifies an optional callback function that is
@@ -3087,9 +3097,6 @@ type Server struct {
 	ConnContext func(ctx context.Context, c net.Conn) context.Context
 
 	// HTTP2 configures HTTP/2 connections.
-	//
-	// This field does not yet have any effect.
-	// See https://go.dev/issue/67813.
 	HTTP2 *HTTP2Config
 
 	// Protocols is the set of protocols accepted by the server.

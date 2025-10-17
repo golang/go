@@ -6,6 +6,8 @@
 
 package codegen
 
+import "math"
+
 // Notes:
 // - these examples use channels to provide a source of
 //   unknown values that cannot be optimized away
@@ -193,5 +195,104 @@ func ui4d(c <-chan uint8) {
 	// amd64:"CMPB\t.+, [$]2","ADDL\t[$]-126,"
 	// s390x:"CLIJ\t[$]10, R[0-9]+, [$]2","ADDW\t[$]-126,"
 	for x := <-c; x < 126 || x >= 128; x = <-c {
+	}
+}
+
+// -------------------------------------//
+// merge NaN checks                     //
+// ------------------------------------ //
+
+func f64NaNOrPosInf(c <-chan float64) {
+	// This test assumes IsInf(x, 1) is implemented as x > MaxFloat rather than x == Inf(1).
+
+	// amd64:"JCS",-"JNE",-"JPS",-"JPC"
+	// riscv64:"FCLASSD",-"FLED",-"FLTD",-"FNED",-"FEQD"
+	for x := <-c; math.IsNaN(x) || math.IsInf(x, 1); x = <-c {
+	}
+}
+
+func f64NaNOrNegInf(c <-chan float64) {
+	// This test assumes IsInf(x, -1) is implemented as x < -MaxFloat rather than x == Inf(-1).
+
+	// amd64:"JCS",-"JNE",-"JPS",-"JPC"
+	// riscv64:"FCLASSD",-"FLED",-"FLTD",-"FNED",-"FEQD"
+	for x := <-c; math.IsNaN(x) || math.IsInf(x, -1); x = <-c {
+	}
+}
+
+func f64NaNOrLtOne(c <-chan float64) {
+	// amd64:"JCS",-"JNE",-"JPS",-"JPC"
+	// riscv64:"FLED",-"FLTD",-"FNED",-"FEQD"
+	for x := <-c; math.IsNaN(x) || x < 1; x = <-c {
+	}
+}
+
+func f64NaNOrLteOne(c <-chan float64) {
+	// amd64:"JLS",-"JNE",-"JPS",-"JPC"
+	// riscv64:"FLTD",-"FLED",-"FNED",-"FEQD"
+	for x := <-c; x <= 1 || math.IsNaN(x); x = <-c {
+	}
+}
+
+func f64NaNOrGtOne(c <-chan float64) {
+	// amd64:"JCS",-"JNE",-"JPS",-"JPC"
+	// riscv64:"FLED",-"FLTD",-"FNED",-"FEQD"
+	for x := <-c; math.IsNaN(x) || x > 1; x = <-c {
+	}
+}
+
+func f64NaNOrGteOne(c <-chan float64) {
+	// amd64:"JLS",-"JNE",-"JPS",-"JPC"
+	// riscv64:"FLTD",-"FLED",-"FNED",-"FEQD"
+	for x := <-c; x >= 1 || math.IsNaN(x); x = <-c {
+	}
+}
+
+func f32NaNOrLtOne(c <-chan float32) {
+	// amd64:"JCS",-"JNE",-"JPS",-"JPC"
+	// riscv64:"FLES",-"FLTS",-"FNES",-"FEQS"
+	for x := <-c; x < 1 || x != x; x = <-c {
+	}
+}
+
+func f32NaNOrLteOne(c <-chan float32) {
+	// amd64:"JLS",-"JNE",-"JPS",-"JPC"
+	// riscv64:"FLTS",-"FLES",-"FNES",-"FEQS"
+	for x := <-c; x != x || x <= 1; x = <-c {
+	}
+}
+
+func f32NaNOrGtOne(c <-chan float32) {
+	// amd64:"JCS",-"JNE",-"JPS",-"JPC"
+	// riscv64:"FLES",-"FLTS",-"FNES",-"FEQS"
+	for x := <-c; x > 1 || x != x; x = <-c {
+	}
+}
+
+func f32NaNOrGteOne(c <-chan float32) {
+	// amd64:"JLS",-"JNE",-"JPS",-"JPC"
+	// riscv64:"FLTS",-"FLES",-"FNES",-"FEQS"
+	for x := <-c; x != x || x >= 1; x = <-c {
+	}
+}
+
+// ------------------------------------ //
+// regressions                          //
+// ------------------------------------ //
+
+func gte4(x uint64) bool {
+	return x >= 4
+}
+
+func lt20(x uint64) bool {
+	return x < 20
+}
+
+func issue74915(c <-chan uint64) {
+	// Check that the optimization is not blocked by function inlining.
+
+	// amd64:"CMPQ\t.+, [$]16","ADDQ\t[$]-4,"
+	// s390x:"CLGIJ\t[$]4, R[0-9]+, [$]16","ADD\t[$]-4,"
+	for x := <-c; gte4(x) && lt20(x); x = <-c {
 	}
 }

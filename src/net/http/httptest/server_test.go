@@ -293,3 +293,40 @@ func TestTLSServerWithHTTP2(t *testing.T) {
 		})
 	}
 }
+
+func TestClientExampleCom(t *testing.T) {
+	modes := []struct {
+		proto string
+		host  string
+	}{
+		{"http", "example.com"},
+		{"http", "foo.example.com"},
+		{"https", "example.com"},
+		{"https", "foo.example.com"},
+	}
+
+	for _, tt := range modes {
+		t.Run(tt.proto+" "+tt.host, func(t *testing.T) {
+			cst := NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("requested-hostname", r.Host)
+			}))
+			switch tt.proto {
+			case "https":
+				cst.EnableHTTP2 = true
+				cst.StartTLS()
+			default:
+				cst.Start()
+			}
+
+			defer cst.Close()
+
+			res, err := cst.Client().Get(tt.proto + "://" + tt.host)
+			if err != nil {
+				t.Fatalf("Failed to make request: %v", err)
+			}
+			if got, want := res.Header.Get("requested-hostname"), tt.host; got != want {
+				t.Fatalf("Requested hostname mismatch\ngot: %q\nwant: %q", got, want)
+			}
+		})
+	}
+}

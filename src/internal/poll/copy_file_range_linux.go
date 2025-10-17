@@ -10,16 +10,11 @@ import (
 	"syscall"
 )
 
-func supportCopyFileRange() bool {
-	return isKernelVersionGE53()
-}
-
-var isKernelVersionGE53 = sync.OnceValue(func() bool {
-	major, minor := unix.KernelVersion()
+var supportCopyFileRange = sync.OnceValue(func() bool {
 	// copy_file_range(2) is broken in various ways on kernels older than 5.3,
 	// see https://go.dev/issue/42400 and
 	// https://man7.org/linux/man-pages/man2/copy_file_range.2.html#VERSIONS
-	return major > 5 || (major == 5 && minor >= 3)
+	return unix.KernelVersionGE(5, 3)
 })
 
 // For best performance, call copy_file_range() with the largest len value

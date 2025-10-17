@@ -224,7 +224,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	// uniqueness: if a path exists as a directory, then it cannot exist as a
 	// ".txt" script (because the search would ignore that file).
 	scriptPath := "."
-	for _, part := range strings.Split(clean, "/") {
+	for part := range strings.SplitSeq(clean, "/") {
 		scriptPath = filepath.Join(scriptPath, part)
 		dir := filepath.Join(s.scriptDir, scriptPath)
 		if _, err := os.Stat(dir); err != nil {
@@ -244,9 +244,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	})
 	if err != nil {
 		s.logger.Print(err)
-		if notFound := (ScriptNotFoundError{}); errors.As(err, &notFound) {
+		if _, ok := errors.AsType[ScriptNotFoundError](err); ok {
 			http.NotFound(w, req)
-		} else if notInstalled := (ServerNotInstalledError{}); errors.As(err, &notInstalled) || errors.Is(err, exec.ErrNotFound) {
+		} else if _, ok := errors.AsType[ServerNotInstalledError](err); ok || errors.Is(err, exec.ErrNotFound) {
 			http.Error(w, err.Error(), http.StatusNotImplemented)
 		} else {
 			http.Error(w, err.Error(), http.StatusInternalServerError)

@@ -21,7 +21,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 	constArg := x.mode == constant_
 
 	constConvertibleTo := func(T Type, val *constant.Value) bool {
-		switch t, _ := under(T).(*Basic); {
+		switch t, _ := T.Underlying().(*Basic); {
 		case t == nil:
 			// nothing to do
 		case representableConst(x.val, check, t, val):
@@ -145,8 +145,8 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
 	origT := T
 	V := Unalias(x.typ)
 	T = Unalias(T)
-	Vu := under(V)
-	Tu := under(T)
+	Vu := V.Underlying()
+	Tu := T.Underlying()
 	Vp, _ := V.(*TypeParam)
 	Tp, _ := T.(*TypeParam)
 
@@ -161,7 +161,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
 	// and their pointer base types are not type parameters"
 	if V, ok := V.(*Pointer); ok {
 		if T, ok := T.(*Pointer); ok {
-			if IdenticalIgnoreTags(under(V.base), under(T.base)) && !isTypeParam(V.base) && !isTypeParam(T.base) {
+			if IdenticalIgnoreTags(V.base.Underlying(), T.base.Underlying()) && !isTypeParam(V.base) && !isTypeParam(T.base) {
 				return true
 			}
 		}
@@ -214,7 +214,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
 				return false
 			}
 		case *Pointer:
-			if a, _ := under(a.Elem()).(*Array); a != nil {
+			if a, _ := a.Elem().Underlying().(*Array); a != nil {
 				if Identical(s.Elem(), a.Elem()) {
 					if check == nil || check.allowVersion(go1_17) {
 						return true
@@ -295,23 +295,23 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
 }
 
 func isUintptr(typ Type) bool {
-	t, _ := under(typ).(*Basic)
+	t, _ := typ.Underlying().(*Basic)
 	return t != nil && t.kind == Uintptr
 }
 
 func isUnsafePointer(typ Type) bool {
-	t, _ := under(typ).(*Basic)
+	t, _ := typ.Underlying().(*Basic)
 	return t != nil && t.kind == UnsafePointer
 }
 
 func isPointer(typ Type) bool {
-	_, ok := under(typ).(*Pointer)
+	_, ok := typ.Underlying().(*Pointer)
 	return ok
 }
 
 func isBytesOrRunes(typ Type) bool {
-	if s, _ := under(typ).(*Slice); s != nil {
-		t, _ := under(s.elem).(*Basic)
+	if s, _ := typ.Underlying().(*Slice); s != nil {
+		t, _ := s.elem.Underlying().(*Basic)
 		return t != nil && (t.kind == Byte || t.kind == Rune)
 	}
 	return false

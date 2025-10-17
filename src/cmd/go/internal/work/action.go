@@ -19,6 +19,7 @@ import (
 	"internal/platform"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -27,6 +28,7 @@ import (
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
+	"cmd/go/internal/modload"
 	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
 	"cmd/internal/buildid"
@@ -88,11 +90,13 @@ type Action struct {
 	TestOutput *bytes.Buffer // test output buffer
 	Args       []string      // additional args for runProgram
 
+	Provider any // Additional information to be passed to successive actions. Similar to a Bazel provider.
+
 	triggers []*Action // inverse of deps
 
 	buggyInstall bool // is this a buggy install (see -linkshared)?
 
-	TryCache func(*Builder, *Action) bool // callback for cache bypass
+	TryCache func(*Builder, *Action, *Action) bool // callback for cache bypass
 
 	CacheExecutable bool // Whether to cache executables produced by link steps
 
@@ -389,7 +393,7 @@ func (b *Builder) NewObjdir() string {
 // at shlibpath. For the native toolchain this list is stored, newline separated, in
 // an ELF note with name "Go\x00\x00" and type 1. For GCCGO it is extracted from the
 // .go_export section.
-func readpkglist(shlibpath string) (pkgs []*load.Package) {
+func readpkglist(loaderstate *modload.State, shlibpath string) (pkgs []*load.Package) {
 	var stk load.ImportStack
 	if cfg.BuildToolchainName == "gccgo" {
 		f, err := elf.Open(shlibpath)
@@ -409,7 +413,7 @@ func readpkglist(shlibpath string) (pkgs []*load.Package) {
 		for _, line := range bytes.Split(data, []byte{'\n'}) {
 			if path, found := bytes.CutPrefix(line, pkgpath); found {
 				path = bytes.TrimSuffix(path, []byte{';'})
-				pkgs = append(pkgs, load.LoadPackageWithFlags(string(path), base.Cwd(), &stk, nil, 0))
+				pkgs = append(pkgs, load.LoadPackageWithFlags(loaderstate, string(path), base.Cwd(), &stk, nil, 0))
 			}
 		}
 	} else {
@@ -420,7 +424,7 @@ func readpkglist(shlibpath string) (pkgs []*load.Package) {
 		scanner := bufio.NewScanner(bytes.NewBuffer(pkglistbytes))
 		for scanner.Scan() {
 			t := scanner.Text()
-			pkgs = append(pkgs, load.LoadPackageWithFlags(t, base.Cwd(), &stk, nil, 0))
+			pkgs = append(pkgs, load.LoadPackageWithFlags(loaderstate, t, base.Cwd(), &stk, nil, 0))
 		}
 	}
 	return
@@ -442,32 +446,15 @@ func (b *Builder) cacheAction(mode string, p *load.Package, f func() *Action) *A
 // AutoAction returns the "right" action for go build or go install of p.
 func (b *Builder) AutoAction(mode, depMode BuildMode, p *load.Package) *Action {
 	if p.Name == "main" {
-		return b.LinkAction(mode, depMode, p)
+		return b.LinkAction(modload.LoaderState, mode, depMode, p)
 	}
 	return b.CompileAction(mode, depMode, p)
 }
 
 // buildActor implements the Actor interface for package build
-// actions. For most package builds this simply means invoking th
-// *Builder.build method; in the case of "go test -cover" for
-// a package with no test files, we stores some additional state
-// information in the build actor to help with reporting.
-type buildActor struct {
-	// name of static meta-data file fragment emitted by the cover
-	// tool as part of the package build action, for selected
-	// "go test -cover" runs.
-	covMetaFileName string
-}
-
-// newBuildActor returns a new buildActor object, setting up the
-// covMetaFileName field if 'genCoverMeta' flag is set.
-func newBuildActor(p *load.Package, genCoverMeta bool) *buildActor {
-	ba := &buildActor{}
-	if genCoverMeta {
-		ba.covMetaFileName = covcmd.MetaFileForPackage(p.ImportPath)
-	}
-	return ba
-}
+// actions. For most package builds this simply means invoking the
+// *Builder.build method.
+type buildActor struct{}
 
 func (ba *buildActor) Act(b *Builder, ctx context.Context, a *Action) error {
 	return b.build(ctx, a)
@@ -536,6 +523,104 @@ func (p *pgoActor) Act(b *Builder, ctx context.Context, a *Action) error {
 	return nil
 }
 
+type checkCacheProvider struct {
+	need uint32 // What work do successive actions within this package's build need to do? Combination of need bits used in build actions.
+}
+
+// The actor to check the cache to determine what work needs to be done for the action.
+// It checks the cache and sets the need bits depending on the build mode and what's available
+// in the cache, so the cover and compile actions know what to do.
+// Currently, we don't cache the outputs of the individual actions composing the build
+// for a single package (such as the output of the cover actor) separately from the
+// output of the final build, but if we start doing so, we could schedule the run cgo
+// and cgo compile actions earlier because they wouldn't depend on the builds of the
+// dependencies of the package they belong to.
+type checkCacheActor struct {
+	covMetaFileName string
+	buildAction     *Action
+}
+
+func (cca *checkCacheActor) Act(b *Builder, ctx context.Context, a *Action) error {
+	buildAction := cca.buildAction
+	if buildAction.Mode == "build-install" {
+		// (*Builder).installAction can rewrite the build action with its install action,
+		// making the true build action its dependency. Fetch the build action in that case.
+		buildAction = buildAction.Deps[0]
+	}
+	pr, err := b.checkCacheForBuild(a, buildAction, cca.covMetaFileName)
+	if err != nil {
+		return err
+	}
+	a.Provider = pr
+	return nil
+}
+
+type coverProvider struct {
+	goSources, cgoSources []string // The go and cgo sources generated by the cover tool, which should be used instead of the raw sources on the package.
+}
+
+// The actor to run the cover tool to produce instrumented source files for cover
+// builds. In the case of a package with no test files, we store some additional state
+// information in the build actor to help with reporting.
+type coverActor struct {
+	// name of static meta-data file fragment emitted by the cover
+	// tool as part of the package cover action, for selected
+	// "go test -cover" runs.
+	covMetaFileName string
+
+	buildAction *Action
+}
+
+func (ca *coverActor) Act(b *Builder, ctx context.Context, a *Action) error {
+	pr, err := b.runCover(a, ca.buildAction, a.Objdir, a.Package.GoFiles, a.Package.CgoFiles)
+	if err != nil {
+		return err
+	}
+	a.Provider = pr
+	return nil
+}
+
+// runCgoActor implements the Actor interface for running the cgo command for the package.
+type runCgoActor struct {
+}
+
+func (c runCgoActor) Act(b *Builder, ctx context.Context, a *Action) error {
+	var cacheProvider *checkCacheProvider
+	for _, a1 := range a.Deps {
+		if pr, ok := a1.Provider.(*checkCacheProvider); ok {
+			cacheProvider = pr
+			break
+		}
+	}
+	need := cacheProvider.need
+	need &^= needCovMetaFile // handled by cover action
+	if need == 0 {
+		return nil
+	}
+	return b.runCgo(ctx, a)
+}
+
+type cgoCompileActor struct {
+	file string
+
+	compileFunc  func(*Action, string, string, []string, string) error
+	getFlagsFunc func(*runCgoProvider) []string
+
+	flags *[]string
+}
+
+func (c cgoCompileActor) Act(b *Builder, ctx context.Context, a *Action) error {
+	pr, ok := a.Deps[0].Provider.(*runCgoProvider)
+	if !ok {
+		return nil // cgo was not needed. do nothing.
+	}
+	a.nonGoOverlay = pr.nonGoOverlay
+	buildAction := a.triggers[0].triggers[0] // cgo compile -> cgo collect -> build
+
+	a.actionID = cache.Subkey(buildAction.actionID, "cgo compile "+c.file) // buildAction's action id was computed by the check cache action.
+	return c.compileFunc(a, a.Objdir, a.Target, c.getFlagsFunc(pr), c.file)
+}
+
 // CompileAction returns the action for compiling and possibly installing
 // (according to mode) the given package. The resulting action is only
 // for building packages (archives), never for linking executables.
@@ -559,7 +644,7 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
 		a := &Action{
 			Mode:    "build",
 			Package: p,
-			Actor:   newBuildActor(p, p.Internal.Cover.GenMeta),
+			Actor:   &buildActor{},
 			Objdir:  b.NewObjdir(),
 		}
 
@@ -602,6 +687,50 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
 			}
 		}
 
+		// Determine the covmeta file name.
+		var covMetaFileName string
+		if p.Internal.Cover.GenMeta {
+			covMetaFileName = covcmd.MetaFileForPackage(p.ImportPath)
+		}
+
+		// Create a cache action.
+		cacheAction := &Action{
+			Mode:    "build check cache",
+			Package: p,
+			Actor:   &checkCacheActor{buildAction: a, covMetaFileName: covMetaFileName},
+			Objdir:  a.Objdir,
+			Deps:    a.Deps, // Need outputs of dependency build actions to generate action id.
+		}
+		a.Deps = append(a.Deps, cacheAction)
+
+		// Create a cover action if we need to instrument the code for coverage.
+		// The cover action always runs in the same go build invocation as the build,
+		// and is not cached separately, so it can use the same objdir.
+		var coverAction *Action
+		if p.Internal.Cover.Mode != "" {
+			coverAction = b.cacheAction("cover", p, func() *Action {
+				return &Action{
+					Mode:    "cover",
+					Package: p,
+					Actor:   &coverActor{buildAction: a, covMetaFileName: covMetaFileName},
+					Objdir:  a.Objdir,
+					Deps:    []*Action{cacheAction},
+				}
+			})
+			a.Deps = append(a.Deps, coverAction)
+		}
+
+		// Create actions to run swig and cgo if needed. These actions always run in the
+		// same go build invocation as the build action and their actions are not cached
+		// separately, so they can use the same objdir.
+		if p.UsesCgo() || p.UsesSwig() {
+			deps := []*Action{cacheAction}
+			if coverAction != nil {
+				deps = append(deps, coverAction)
+			}
+			a.Deps = append(a.Deps, b.cgoAction(p, a.Objdir, deps, coverAction != nil))
+		}
+
 		return a
 	})
 
@@ -626,6 +755,114 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
 	return a
 }
 
+func (b *Builder) cgoAction(p *load.Package, objdir string, deps []*Action, hasCover bool) *Action {
+	cgoCollectAction := b.cacheAction("cgo collect", p, func() *Action {
+		// Run cgo
+		runCgo := b.cacheAction("cgo run", p, func() *Action {
+			return &Action{
+				Package: p,
+				Mode:    "cgo run",
+				Actor:   &runCgoActor{},
+				Objdir:  objdir,
+				Deps:    deps,
+			}
+		})
+
+		// Determine which files swig will produce in the cgo run action. We'll need to create
+		// actions to compile the C and C++ files produced by swig, as well as the C file
+		// produced by cgo processing swig's Go file outputs.
+		swigGo, swigC, swigCXX := b.swigOutputs(p, objdir)
+
+		oseq := 0
+		nextOfile := func() string {
+			oseq++
+			return objdir + fmt.Sprintf("_x%03d.o", oseq)
+		}
+		compileAction := func(file string, getFlagsFunc func(*runCgoProvider) []string, compileFunc func(*Action, string, string, []string, string) error) *Action {
+			mode := "cgo compile " + file
+			return b.cacheAction(mode, p, func() *Action {
+				return &Action{
+					Package: p,
+					Mode:    mode,
+					Actor:   &cgoCompileActor{file: file, getFlagsFunc: getFlagsFunc, compileFunc: compileFunc},
+					Deps:    []*Action{runCgo},
+					Objdir:  objdir,
+					Target:  nextOfile(),
+				}
+			})
+		}
+
+		var collectDeps []*Action
+
+		// Add compile actions for C files generated by cgo.
+		cgoFiles := p.CgoFiles
+		if hasCover {
+			cgoFiles = slices.Clone(cgoFiles)
+			for i := range cgoFiles {
+				cgoFiles[i] = strings.TrimSuffix(cgoFiles[i], ".go") + ".cover.go"
+			}
+		}
+		cfiles := []string{"_cgo_export.c"}
+		for _, fn := range slices.Concat(cgoFiles, swigGo) {
+			cfiles = append(cfiles, strings.TrimSuffix(filepath.Base(fn), ".go")+".cgo2.c")
+		}
+		for _, f := range cfiles {
+			collectDeps = append(collectDeps, compileAction(objdir+f, (*runCgoProvider).cflags, b.gcc))
+		}
+
+		// Add compile actions for S files.
+		var sfiles []string
+		// In a package using cgo, cgo compiles the C, C++ and assembly files with gcc.
+		// There is one exception: runtime/cgo's job is to bridge the
+		// cgo and non-cgo worlds, so it necessarily has files in both.
+		// In that case gcc only gets the gcc_* files.
+		if p.Standard && p.ImportPath == "runtime/cgo" {
+			for _, f := range p.SFiles {
+				if strings.HasPrefix(f, "gcc_") {
+					sfiles = append(sfiles, f)
+				}
+			}
+		} else {
+			sfiles = p.SFiles
+		}
+		for _, f := range sfiles {
+			collectDeps = append(collectDeps, compileAction(f, (*runCgoProvider).cflags, b.gas))
+		}
+
+		// Add compile actions for C files in the package, M files, and those generated by swig.
+		for _, f := range slices.Concat(p.CFiles, p.MFiles, swigC) {
+			collectDeps = append(collectDeps, compileAction(f, (*runCgoProvider).cflags, b.gcc))
+		}
+
+		// Add compile actions for C++ files in the package, and those generated by swig.
+		for _, f := range slices.Concat(p.CXXFiles, swigCXX) {
+			collectDeps = append(collectDeps, compileAction(f, (*runCgoProvider).cxxflags, b.gxx))
+		}
+
+		// Add compile actions for Fortran files in the package.
+		for _, f := range p.FFiles {
+			collectDeps = append(collectDeps, compileAction(f, (*runCgoProvider).fflags, b.gfortran))
+		}
+
+		// Add a single convenience action that does nothing to join the previous action,
+		// and better separate the cgo action dependencies of the build action from the
+		// build actions for its package dependencies.
+		return &Action{
+			Mode: "collect cgo",
+			Actor: ActorFunc(func(b *Builder, ctx context.Context, a *Action) error {
+				// Use the cgo run action's provider as our provider output,
+				// so it can be easily accessed by the build action.
+				a.Provider = a.Deps[0].Deps[0].Provider
+				return nil
+			}),
+			Deps:   collectDeps,
+			Objdir: objdir,
+		}
+	})
+
+	return cgoCollectAction
+}
+
 // VetAction returns the action for running go vet on package p.
 // It depends on the action for compiling p.
 // If the caller may be causing p to be installed, it is up to the caller
@@ -641,25 +878,15 @@ func (b *Builder) vetAction(mode, depMode BuildMode, p *load.Package) *Action {
 	a := b.cacheAction("vet", p, func() *Action {
 		a1 := b.CompileAction(mode|ModeVetOnly, depMode, p)
 
-		// vet expects to be able to import "fmt".
-		var stk load.ImportStack
-		stk.Push(load.NewImportInfo("vet", nil))
-		p1, err := load.LoadImportWithFlags("fmt", p.Dir, p, &stk, nil, 0)
-		if err != nil {
-			base.Fatalf("unexpected error loading fmt package from package %s: %v", p.ImportPath, err)
-		}
-		stk.Pop()
-		aFmt := b.CompileAction(ModeBuild, depMode, p1)
-
 		var deps []*Action
 		if a1.buggyInstall {
-			// (*Builder).vet expects deps[0] to be the package
-			// and deps[1] to be "fmt". If we see buggyInstall
+			// (*Builder).vet expects deps[0] to be the package.
+			// If we see buggyInstall
 			// here then a1 is an install of a shared library,
 			// and the real package is a1.Deps[0].
-			deps = []*Action{a1.Deps[0], aFmt, a1}
+			deps = []*Action{a1.Deps[0], a1}
 		} else {
-			deps = []*Action{a1, aFmt}
+			deps = []*Action{a1}
 		}
 		for _, p1 := range p.Internal.Imports {
 			deps = append(deps, b.vetAction(mode, depMode, p1))
@@ -687,7 +914,7 @@ func (b *Builder) vetAction(mode, depMode BuildMode, p *load.Package) *Action {
 // LinkAction returns the action for linking p into an executable
 // and possibly installing the result (according to mode).
 // depMode is the action (build or install) to use when compiling dependencies.
-func (b *Builder) LinkAction(mode, depMode BuildMode, p *load.Package) *Action {
+func (b *Builder) LinkAction(loaderstate *modload.State, mode, depMode BuildMode, p *load.Package) *Action {
 	// Construct link action.
 	a := b.cacheAction("link", p, func() *Action {
 		a := &Action{
@@ -722,7 +949,7 @@ func (b *Builder) LinkAction(mode, depMode BuildMode, p *load.Package) *Action {
 		}
 		a.Target = a.Objdir + filepath.Join("exe", name) + cfg.ExeSuffix
 		a.built = a.Target
-		b.addTransitiveLinkDeps(a, a1, "")
+		b.addTransitiveLinkDeps(loaderstate, a, a1, "")
 
 		// Sequence the build of the main package (a1) strictly after the build
 		// of all other dependencies that go into the link. It is likely to be after
@@ -808,7 +1035,7 @@ func (b *Builder) installAction(a1 *Action, mode BuildMode) *Action {
 // makes sure those are present in a.Deps.
 // If shlib is non-empty, then a corresponds to the build and installation of shlib,
 // so any rebuild of shlib should not be added as a dependency.
-func (b *Builder) addTransitiveLinkDeps(a, a1 *Action, shlib string) {
+func (b *Builder) addTransitiveLinkDeps(loaderstate *modload.State, a, a1 *Action, shlib string) {
 	// Expand Deps to include all built packages, for the linker.
 	// Use breadth-first search to find rebuilt-for-test packages
 	// before the standard ones.
@@ -849,7 +1076,7 @@ func (b *Builder) addTransitiveLinkDeps(a, a1 *Action, shlib string) {
 			// we'll end up building an overall library or executable that depends at runtime
 			// on other libraries that are out-of-date, which is clearly not good either.
 			// We call it ModeBuggyInstall to make clear that this is not right.
-			a.Deps = append(a.Deps, b.linkSharedAction(ModeBuggyInstall, ModeBuggyInstall, p1.Shlib, nil))
+			a.Deps = append(a.Deps, b.linkSharedAction(loaderstate, ModeBuggyInstall, ModeBuggyInstall, p1.Shlib, nil))
 		}
 	}
 }
@@ -890,21 +1117,21 @@ func (b *Builder) buildmodeShared(mode, depMode BuildMode, args []string, pkgs [
 	if err != nil {
 		base.Fatalf("%v", err)
 	}
-	return b.linkSharedAction(mode, depMode, name, a1)
+	return b.linkSharedAction(modload.LoaderState, mode, depMode, name, a1)
 }
 
 // linkSharedAction takes a grouping action a1 corresponding to a list of built packages
 // and returns an action that links them together into a shared library with the name shlib.
 // If a1 is nil, shlib should be an absolute path to an existing shared library,
 // and then linkSharedAction reads that library to find out the package list.
-func (b *Builder) linkSharedAction(mode, depMode BuildMode, shlib string, a1 *Action) *Action {
+func (b *Builder) linkSharedAction(loaderstate *modload.State, mode, depMode BuildMode, shlib string, a1 *Action) *Action {
 	fullShlib := shlib
 	shlib = filepath.Base(shlib)
 	a := b.cacheAction("build-shlib "+shlib, nil, func() *Action {
 		if a1 == nil {
 			// TODO(rsc): Need to find some other place to store config,
 			// not in pkg directory. See golang.org/issue/22196.
-			pkgs := readpkglist(fullShlib)
+			pkgs := readpkglist(loaderstate, fullShlib)
 			a1 = &Action{
 				Mode: "shlib packages",
 			}
@@ -947,7 +1174,7 @@ func (b *Builder) linkSharedAction(mode, depMode BuildMode, shlib string, a1 *Ac
 					}
 				}
 				var stk load.ImportStack
-				p := load.LoadPackageWithFlags(pkg, base.Cwd(), &stk, nil, 0)
+				p := load.LoadPackageWithFlags(loaderstate, pkg, base.Cwd(), &stk, nil, 0)
 				if p.Error != nil {
 					base.Fatalf("load %s: %v", pkg, p.Error)
 				}
@@ -975,7 +1202,7 @@ func (b *Builder) linkSharedAction(mode, depMode BuildMode, shlib string, a1 *Ac
 				add(a, dep, true)
 			}
 		}
-		b.addTransitiveLinkDeps(a, a1, shlib)
+		b.addTransitiveLinkDeps(loaderstate, a, a1, shlib)
 		return a
 	})
 

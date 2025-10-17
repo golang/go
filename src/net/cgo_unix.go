@@ -297,16 +297,16 @@ func cgoSockaddr(ip IP, zone string) (*_C_struct_sockaddr, _C_socklen_t) {
 	return nil, 0
 }
 
-func cgoLookupCNAME(ctx context.Context, name string) (cname string, err error, completed bool) {
+func cgoLookupCNAME(ctx context.Context, name string) (cname string, err error) {
 	resources, err := resSearch(ctx, name, int(dnsmessage.TypeCNAME), int(dnsmessage.ClassINET))
 	if err != nil {
-		return
+		return "", err
 	}
 	cname, err = parseCNAMEFromResources(resources)
 	if err != nil {
-		return "", err, false
+		return "", err
 	}
-	return cname, nil, true
+	return cname, nil
 }
 
 // resSearch will make a call to the 'res_nsearch' routine in the C library
@@ -351,7 +351,7 @@ func cgoResSearch(hostname string, rtype, class int) ([]dnsmessage.Resource, err
 
 	var size int
 	for {
-		size := _C_res_nsearch(state, (*_C_char)(unsafe.Pointer(s)), class, rtype, buf, bufSize)
+		size = _C_res_nsearch(state, (*_C_char)(unsafe.Pointer(s)), class, rtype, buf, bufSize)
 		if size <= 0 || size > 0xffff {
 			return nil, errors.New("res_nsearch failure")
 		}

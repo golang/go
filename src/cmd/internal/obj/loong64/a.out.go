@@ -225,8 +225,6 @@ const (
 	REGZERO = REG_R0 // set to zero
 	REGLINK = REG_R1
 	REGSP   = REG_R3
-	REGRT1  = REG_R20 // reserved for runtime, duffzero and duffcopy
-	REGRT2  = REG_R21 // reserved for runtime, duffcopy
 	REGCTXT = REG_R29 // context for closures
 	REGG    = REG_R22 // G in loong64
 	REGTMP  = REG_R30 // used by the assembler
@@ -567,6 +565,14 @@ const (
 	AMOVVF
 	AMOVVD
 
+	// 2.2.1.2
+	AADDV16
+
+	// 2.2.1.3
+	AALSLW
+	AALSLWU
+	AALSLV
+
 	// 2.2.1.8
 	AORN
 	AANDN
@@ -661,6 +667,10 @@ const (
 	ABSTRPICKW
 	ABSTRPICKV
 
+	// 2.2.5.3
+	AMOVWP
+	AMOVVP
+
 	// 2.2.5.4. Prefetch Instructions
 	APRELD
 	APRELDX
@@ -743,6 +753,9 @@ const (
 	AFTINTRNEVF
 	AFTINTRNEVD
 
+	// 3.2.4.2
+	AFSEL
+
 	// LSX and LASX memory access instructions
 	AVMOVQ
 	AXVMOVQ
@@ -815,6 +828,31 @@ const (
 	AXVPCNTH
 	AXVPCNTW
 	AXVPCNTV
+
+	AVBITCLRB
+	AVBITCLRH
+	AVBITCLRW
+	AVBITCLRV
+	AVBITSETB
+	AVBITSETH
+	AVBITSETW
+	AVBITSETV
+	AVBITREVB
+	AVBITREVH
+	AVBITREVW
+	AVBITREVV
+	AXVBITCLRB
+	AXVBITCLRH
+	AXVBITCLRW
+	AXVBITCLRV
+	AXVBITSETB
+	AXVBITSETH
+	AXVBITSETW
+	AXVBITSETV
+	AXVBITREVB
+	AXVBITREVH
+	AXVBITREVW
+	AXVBITREVV
 
 	// LSX and LASX integer comparison instruction
 	AVSEQB

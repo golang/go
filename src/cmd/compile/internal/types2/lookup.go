@@ -152,7 +152,7 @@ func lookupFieldOrMethodImpl(T Type, addressable bool, pkg *Package, name string
 
 	// *typ where typ is an interface (incl. a type parameter) has no methods.
 	if isPtr {
-		if _, ok := under(typ).(*Interface); ok {
+		if _, ok := typ.Underlying().(*Interface); ok {
 			return
 		}
 	}
@@ -202,7 +202,7 @@ func lookupFieldOrMethodImpl(T Type, addressable bool, pkg *Package, name string
 				}
 			}
 
-			switch t := under(typ).(type) {
+			switch t := typ.Underlying().(type) {
 			case *Struct:
 				// look for a matching field and collect embedded types
 				for i, f := range t.fields {
@@ -373,7 +373,7 @@ func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType b
 // The comparator is used to compare signatures.
 // If a method is missing and cause is not nil, *cause describes the error.
 func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y Type) bool, cause *string) (method *Func, wrongType bool) {
-	methods := under(T).(*Interface).typeSet().methods // T must be an interface
+	methods := T.Underlying().(*Interface).typeSet().methods // T must be an interface
 	if len(methods) == 0 {
 		return nil, false
 	}
@@ -393,7 +393,7 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
 	var m *Func // method on T we're trying to implement
 	var f *Func // method on V, if found (state is one of ok, wrongName, wrongSig)
 
-	if u, _ := under(V).(*Interface); u != nil {
+	if u, _ := V.Underlying().(*Interface); u != nil {
 		tset := u.typeSet()
 		for _, m = range methods {
 			_, f = tset.LookupMethod(m.pkg, m.name, false)
@@ -534,7 +534,7 @@ func (check *Checker) hasAllMethods(V, T Type, static bool, equivalent func(x, y
 // hasInvalidEmbeddedFields reports whether T is a struct (or a pointer to a struct) that contains
 // (directly or indirectly) embedded fields with invalid types.
 func hasInvalidEmbeddedFields(T Type, seen map[*Struct]bool) bool {
-	if S, _ := under(derefStructPtr(T)).(*Struct); S != nil && !seen[S] {
+	if S, _ := derefStructPtr(T).Underlying().(*Struct); S != nil && !seen[S] {
 		if seen == nil {
 			seen = make(map[*Struct]bool)
 		}
@@ -549,14 +549,14 @@ func hasInvalidEmbeddedFields(T Type, seen map[*Struct]bool) bool {
 }
 
 func isInterfacePtr(T Type) bool {
-	p, _ := under(T).(*Pointer)
+	p, _ := T.Underlying().(*Pointer)
 	return p != nil && IsInterface(p.base)
 }
 
 // check may be nil.
 func (check *Checker) interfacePtrError(T Type) string {
 	assert(isInterfacePtr(T))
-	if p, _ := under(T).(*Pointer); isTypeParam(p.base) {
+	if p, _ := T.Underlying().(*Pointer); isTypeParam(p.base) {
 		return check.sprintf("type %s is pointer to type parameter, not type parameter", T)
 	}
 	return check.sprintf("type %s is pointer to interface, not interface", T)
@@ -629,8 +629,8 @@ func deref(typ Type) (Type, bool) {
 // derefStructPtr dereferences typ if it is a (named or unnamed) pointer to a
 // (named or unnamed) struct and returns its base. Otherwise it returns typ.
 func derefStructPtr(typ Type) Type {
-	if p, _ := under(typ).(*Pointer); p != nil {
-		if _, ok := under(p.base).(*Struct); ok {
+	if p, _ := typ.Underlying().(*Pointer); p != nil {
+		if _, ok := p.base.Underlying().(*Struct); ok {
 			return p.base
 		}
 	}

@@ -111,7 +111,7 @@ func arena_newArena() unsafe.Pointer {
 //go:linkname arena_arena_New arena.runtime_arena_arena_New
 func arena_arena_New(arena unsafe.Pointer, typ any) any {
 	t := (*_type)(efaceOf(&typ).data)
-	if t.Kind_&abi.KindMask != abi.Pointer {
+	if t.Kind() != abi.Pointer {
 		throw("arena_New: non-pointer type")
 	}
 	te := (*ptrtype)(unsafe.Pointer(t)).Elem
@@ -145,7 +145,7 @@ func arena_heapify(s any) any {
 	var v unsafe.Pointer
 	e := efaceOf(&s)
 	t := e._type
-	switch t.Kind_ & abi.KindMask {
+	switch t.Kind() {
 	case abi.String:
 		v = stringStructOf((*string)(e.data)).str
 	case abi.Slice:
@@ -162,7 +162,7 @@ func arena_heapify(s any) any {
 	}
 	// Heap-allocate storage for a copy.
 	var x any
-	switch t.Kind_ & abi.KindMask {
+	switch t.Kind() {
 	case abi.String:
 		s1 := s.(string)
 		s2, b := rawstring(len(s1))
@@ -293,11 +293,11 @@ func (a *userArena) slice(sl any, cap int) {
 	}
 	i := efaceOf(&sl)
 	typ := i._type
-	if typ.Kind_&abi.KindMask != abi.Pointer {
+	if typ.Kind() != abi.Pointer {
 		panic("slice result of non-ptr type")
 	}
 	typ = (*ptrtype)(unsafe.Pointer(typ)).Elem
-	if typ.Kind_&abi.KindMask != abi.Slice {
+	if typ.Kind() != abi.Slice {
 		panic("slice of non-ptr-to-slice type")
 	}
 	typ = (*slicetype)(unsafe.Pointer(typ)).Elem
@@ -745,7 +745,9 @@ func newUserArenaChunk() (unsafe.Pointer, *mspan) {
 	// does represent additional work for the GC, but we also have no idea
 	// what that looks like until we actually allocate things into the
 	// arena).
-	deductAssistCredit(userArenaChunkBytes)
+	if gcBlackenEnabled != 0 {
+		deductAssistCredit(userArenaChunkBytes)
+	}
 
 	// Set mp.mallocing to keep from being preempted by GC.
 	mp := acquirem()

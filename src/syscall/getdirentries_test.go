@@ -8,10 +8,10 @@ package syscall_test
 
 import (
 	"fmt"
+	"internal/testenv"
 	"os"
 	"path/filepath"
 	"slices"
-	"strings"
 	"syscall"
 	"testing"
 	"unsafe"
@@ -25,7 +25,7 @@ func TestGetdirentries(t *testing.T) {
 	}
 }
 func testGetdirentries(t *testing.T, count int) {
-	if count > 100 && testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
+	if count > 100 && testing.Short() && testenv.Builder() == "" {
 		t.Skip("skipping in -short mode")
 	}
 	d := t.TempDir()
@@ -78,7 +78,7 @@ func testGetdirentries(t *testing.T, count int) {
 	names = append(names, ".", "..") // Getdirentries returns these also
 	slices.Sort(names)
 	slices.Sort(names2)
-	if strings.Join(names, ":") != strings.Join(names2, ":") {
+	if !slices.Equal(names, names2) {
 		t.Errorf("names don't match\n names: %q\nnames2: %q", names, names2)
 	}
 }

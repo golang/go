@@ -561,7 +561,14 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos 
 	pos = pos.WithNotStmt()
 	// Check if v is already in a requested register.
 	if mask&vi.regs != 0 {
-		r := pickReg(mask & vi.regs)
+		mask &= vi.regs
+		r := pickReg(mask)
+		if mask.contains(s.SPReg) {
+			// Prefer the stack pointer if it is allowed.
+			// (Needed because the op might have an Aux symbol
+			// that needs SP as its base.)
+			r = s.SPReg
+		}
 		if !s.allocatable.contains(r) {
 			return v // v is in a fixed register
 		}
@@ -602,6 +609,29 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos 
 	} else if v.rematerializeable() {
 		// Rematerialize instead of loading from the spill location.
 		c = v.copyIntoWithXPos(s.curBlock, pos)
+		// We need to consider its output mask and potentially issue a Copy
+		// if there are register mask conflicts.
+		// This currently happens for the SIMD package only between GP and FP
+		// register. Because Intel's vector extension can put integer value into
+		// FP, which is seen as a vector. Example instruction: VPSLL[BWDQ]
+		// Because GP and FP masks do not overlap, mask & outputMask == 0
+		// detects this situation thoroughly.
+		sourceMask := s.regspec(c).outputs[0].regs
+		if mask&sourceMask == 0 && !onWasmStack {
+			s.setOrig(c, v)
+			s.assignReg(s.allocReg(sourceMask, v), v, c)
+			// v.Type for the new OpCopy is likely wrong and it might delay the problem
+			// until ssa to asm lowering, which might need the types to generate the right
+			// assembly for OpCopy. For Intel's GP to FP move, it happens to be that
+			// MOV instruction has such a variant so it happens to be right.
+			// But it's unclear for other architectures or situations, and the problem
+			// might be exposed when the assembler sees illegal instructions.
+			// Right now make we still pick v.Type, because at least its size should be correct
+			// for the rematerialization case the amd64 SIMD package exposed.
+			// TODO: We might need to figure out a way to find the correct type or make
+			// the asm lowering use reg info only for OpCopy.
+			c = s.curBlock.NewValue1(pos, OpCopy, v.Type, c)
+		}
 	} else {
 		// Load v from its spill location.
 		spill := s.makeSpill(v, s.curBlock)
@@ -1400,7 +1430,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				case OpSB:
 					s.assignReg(s.SBReg, v, v)
 					s.sb = v.ID
-				case OpARM64ZERO:
+				case OpARM64ZERO, OpLOONG64ZERO, OpMIPS64ZERO:
 					s.assignReg(s.ZeroIntReg, v, v)
 				default:
 					f.Fatalf("unknown fixed-register op %s", v)
@@ -1583,6 +1613,12 @@ func (s *regAllocState) regalloc(f *Func) {
 						mask &^= desired.avoid
 					}
 				}
+				if mask&s.values[v.Args[i.idx].ID].regs&(1<<s.SPReg) != 0 {
+					// Prefer SP register. This ensures that local variables
+					// use SP as their base register (instead of a copy of the
+					// stack pointer living in another register). See issue 74836.
+					mask = 1 << s.SPReg
+				}
 				args[i.idx] = s.allocValToReg(v.Args[i.idx], mask, true, v.Pos)
 			}
 
@@ -1686,8 +1722,37 @@ func (s *regAllocState) regalloc(f *Func) {
 					}
 				}
 			}
-
 		ok:
+			for i := 0; i < 2; i++ {
+				if !(i == 0 && regspec.clobbersArg0 || i == 1 && regspec.clobbersArg1) {
+					continue
+				}
+				if !s.liveAfterCurrentInstruction(v.Args[i]) {
+					// arg is dead.  We can clobber its register.
+					continue
+				}
+				if s.values[v.Args[i].ID].rematerializeable {
+					// We can rematerialize the input, don't worry about clobbering it.
+					continue
+				}
+				if countRegs(s.values[v.Args[i].ID].regs) >= 2 {
+					// We have at least 2 copies of arg.  We can afford to clobber one.
+					continue
+				}
+				// Possible new registers to copy into.
+				m := s.compatRegs(v.Args[i].Type) &^ s.used
+				if m == 0 {
+					// No free registers.  In this case we'll just clobber the
+					// input and future uses of that input must use a restore.
+					// TODO(khr): We should really do this like allocReg does it,
+					// spilling the value with the most distant next use.
+					continue
+				}
+				// Copy input to a different register that won't be clobbered.
+				c := s.allocValToReg(v.Args[i], m, true, v.Pos)
+				s.copies[c] = false
+			}
+
 			// Pick a temporary register if needed.
 			// It should be distinct from all the input registers, so we
 			// allocate it after all the input registers, but before
@@ -1707,6 +1772,13 @@ func (s *regAllocState) regalloc(f *Func) {
 				tmpReg = s.allocReg(m, &tmpVal)
 				s.nospill |= regMask(1) << tmpReg
 				s.tmpused |= regMask(1) << tmpReg
+			}
+
+			if regspec.clobbersArg0 {
+				s.freeReg(register(s.f.getHome(args[0].ID).(*Register).num))
+			}
+			if regspec.clobbersArg1 {
+				s.freeReg(register(s.f.getHome(args[1].ID).(*Register).num))
 			}
 
 			// Now that all args are in regs, we're ready to issue the value itself.
@@ -2433,7 +2505,7 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XP
 	}
 
 	// Check if we're allowed to clobber the destination location.
-	if len(e.cache[occupant.vid]) == 1 && !e.s.values[occupant.vid].rematerializeable {
+	if len(e.cache[occupant.vid]) == 1 && !e.s.values[occupant.vid].rematerializeable && !opcodeTable[e.s.orig[occupant.vid].Op].fixedReg {
 		// We can't overwrite the last copy
 		// of a value that needs to survive.
 		return false
@@ -2489,7 +2561,29 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XP
 			e.s.f.Fatalf("can't find source for %s->%s: %s\n", e.p, e.b, v.LongString())
 		}
 		if dstReg {
-			x = v.copyInto(e.p)
+			// We want to rematerialize v into a register that is incompatible with v's op's register mask.
+			// Instead of setting the wrong register for the rematerialized v, we should find the right register
+			// for it and emit an additional copy to move to the desired register.
+			// For #70451.
+			if e.s.regspec(v).outputs[0].regs&regMask(1<<register(loc.(*Register).num)) == 0 {
+				_, srcReg := src.(*Register)
+				if srcReg {
+					// It exists in a valid register already, so just copy it to the desired register
+					// If src is a Register, c must have already been set.
+					x = e.p.NewValue1(pos, OpCopy, c.Type, c)
+				} else {
+					// We need a tmp register
+					x = v.copyInto(e.p)
+					r := e.findRegFor(x.Type)
+					e.erase(r)
+					// Rematerialize to the tmp register
+					e.set(r, vid, x, false, pos)
+					// Copy from tmp to the desired register
+					x = e.p.NewValue1(pos, OpCopy, x.Type, x)
+				}
+			} else {
+				x = v.copyInto(e.p)
+			}
 		} else {
 			// Rematerialize into stack slot. Need a free
 			// register to accomplish this.
@@ -2618,7 +2712,6 @@ func (e *edgeState) erase(loc Location) {
 // findRegFor finds a register we can use to make a temp copy of type typ.
 func (e *edgeState) findRegFor(typ *types.Type) Location {
 	// Which registers are possibilities.
-	types := &e.s.f.Config.Types
 	m := e.s.compatRegs(typ)
 
 	// Pick a register. In priority order:
@@ -2652,9 +2745,7 @@ func (e *edgeState) findRegFor(typ *types.Type) Location {
 				if !c.rematerializeable() {
 					x := e.p.NewValue1(c.Pos, OpStoreReg, c.Type, c)
 					// Allocate a temp location to spill a register to.
-					// The type of the slot is immaterial - it will not be live across
-					// any safepoint. Just use a type big enough to hold any register.
-					t := LocalSlot{N: e.s.f.NewLocal(c.Pos, types.Int64), Type: types.Int64}
+					t := LocalSlot{N: e.s.f.NewLocal(c.Pos, c.Type), Type: c.Type}
 					// TODO: reuse these slots. They'll need to be erased first.
 					e.set(t, vid, x, false, c.Pos)
 					if e.s.f.pass.debug > regDebug {
@@ -2715,6 +2806,7 @@ func (s *regAllocState) computeLive() {
 	s.live = make([][]liveInfo, f.NumBlocks())
 	s.desired = make([]desiredState, f.NumBlocks())
 	var phis []*Value
+	rematIDs := make([]ID, 0, 64)
 
 	live := f.newSparseMapPos(f.NumValues())
 	defer f.retSparseMapPos(live)
@@ -2767,9 +2859,20 @@ func (s *regAllocState) computeLive() {
 					continue
 				}
 				if opcodeTable[v.Op].call {
+					rematIDs = rematIDs[:0]
 					c := live.contents()
 					for i := range c {
 						c[i].val += unlikelyDistance
+						vid := c[i].key
+						if s.values[vid].rematerializeable {
+							rematIDs = append(rematIDs, vid)
+						}
+					}
+					// We don't spill rematerializeable values, and assuming they
+					// are live across a call would only force shuffle to add some
+					// (dead) constant rematerialization. Remove them.
+					for _, r := range rematIDs {
+						live.remove(r)
 					}
 				}
 				for _, a := range v.Args {
@@ -2935,11 +3038,6 @@ type desiredStateEntry struct {
 	// for the first element of the tuple (see desiredSecondReg for
 	// tracking the desired register for second part of a tuple).
 	regs [4]register
-}
-
-func (d *desiredState) clear() {
-	d.entries = d.entries[:0]
-	d.avoid = 0
 }
 
 // get returns a list of desired registers for value vid.

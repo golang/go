@@ -693,14 +693,14 @@ func bmIndexRuneUnicode(rt *unicode.RangeTable, needle rune) func(b *testing.B, 
 	for _, r16 := range rt.R16 {
 		for r := rune(r16.Lo); r <= rune(r16.Hi); r += rune(r16.Stride) {
 			if r != needle {
-				rs = append(rs, rune(r))
+				rs = append(rs, r)
 			}
 		}
 	}
 	for _, r32 := range rt.R32 {
 		for r := rune(r32.Lo); r <= rune(r32.Hi); r += rune(r32.Stride) {
 			if r != needle {
-				rs = append(rs, rune(r))
+				rs = append(rs, r)
 			}
 		}
 	}
@@ -891,9 +891,7 @@ func BenchmarkCountSingle(b *testing.B) {
 				b.Fatal("bad count", j, expect)
 			}
 		}
-		for i := 0; i < len(buf); i++ {
-			buf[i] = 0
-		}
+		clear(buf)
 	})
 }
 

@@ -1,3 +1,5 @@
+skip # a 5s timeout is never going to be reliable (go.dev/issue/72140)
+
 [!fuzz] skip
 [short] skip
 env GOCACHE=$WORK/cache

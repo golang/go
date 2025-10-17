@@ -747,17 +747,36 @@ func BenchmarkAppendInvalidRuneNegative(b *testing.B) {
 
 func BenchmarkDecodeASCIIRune(b *testing.B) {
 	a := []byte{'a'}
-	for i := 0; i < b.N; i++ {
-		DecodeRune(a)
+	for range b.N {
+		runeSink, sizeSink = DecodeRune(a)
 	}
 }
 
 func BenchmarkDecodeJapaneseRune(b *testing.B) {
 	nihon := []byte("本")
-	for i := 0; i < b.N; i++ {
-		DecodeRune(nihon)
+	for range b.N {
+		runeSink, sizeSink = DecodeRune(nihon)
 	}
 }
+
+func BenchmarkDecodeASCIIRuneInString(b *testing.B) {
+	a := "a"
+	for range b.N {
+		runeSink, sizeSink = DecodeRuneInString(a)
+	}
+}
+
+func BenchmarkDecodeJapaneseRuneInString(b *testing.B) {
+	nihon := "本"
+	for range b.N {
+		runeSink, sizeSink = DecodeRuneInString(nihon)
+	}
+}
+
+var (
+	runeSink rune
+	sizeSink int
+)
 
 // boolSink is used to reference the return value of benchmarked
 // functions to avoid dead code elimination.

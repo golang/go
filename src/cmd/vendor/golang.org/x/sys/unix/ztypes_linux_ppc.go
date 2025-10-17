@@ -90,7 +90,7 @@ type Stat_t struct {
 	Gid     uint32
 	Rdev    uint64
 	_       uint16
-	_       [4]byte
+	_       [6]byte
 	Size    int64
 	Blksize int32
 	_       [4]byte
@@ -285,7 +285,7 @@ type Taskstats struct {
 	Ac_exitcode               uint32
 	Ac_flag                   uint8
 	Ac_nice                   uint8
-	_                         [4]byte
+	_                         [6]byte
 	Cpu_count                 uint64
 	Cpu_delay_total           uint64
 	Blkio_count               uint64
@@ -341,6 +341,22 @@ type Taskstats struct {
 	Wpcopy_delay_total        uint64
 	Irq_count                 uint64
 	Irq_delay_total           uint64
+	Cpu_delay_max             uint64
+	Cpu_delay_min             uint64
+	Blkio_delay_max           uint64
+	Blkio_delay_min           uint64
+	Swapin_delay_max          uint64
+	Swapin_delay_min          uint64
+	Freepages_delay_max       uint64
+	Freepages_delay_min       uint64
+	Thrashing_delay_max       uint64
+	Thrashing_delay_min       uint64
+	Compact_delay_max         uint64
+	Compact_delay_min         uint64
+	Wpcopy_delay_max          uint64
+	Wpcopy_delay_min          uint64
+	Irq_delay_max             uint64
+	Irq_delay_min             uint64
 }
 
 type cpuMask uint32

@@ -10,7 +10,6 @@ import (
 	"go/ast"
 	"go/build"
 	"go/types"
-	"regexp"
 	"slices"
 
 	"golang.org/x/tools/go/analysis"
@@ -113,11 +112,6 @@ func run(pass *analysis.Pass) (any, error) {
 	})
 	return nil, nil
 }
-
-// Matches cgo generated comment as well as the proposed standard:
-//
-//	https://golang.org/s/generatedcode
-var generatedRx = regexp.MustCompile(`// .*DO NOT EDIT\.?`)
 
 // origin returns the original uninstantiated symbol for obj.
 func origin(obj types.Object) types.Object {

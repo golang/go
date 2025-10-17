@@ -98,6 +98,8 @@ var findTests = []FindTest{
 	{`\B`, "x y", nil},
 	{`\B`, "xx yy", build(2, 1, 1, 4, 4)},
 	{`(|a)*`, "aa", build(3, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2)},
+	{`0A|0[aA]`, "0a", build(1, 0, 2)},
+	{`0[aA]|0A`, "0a", build(1, 0, 2)},
 
 	// RE2 tests
 	{`[^\S\s]`, "abcd", nil},

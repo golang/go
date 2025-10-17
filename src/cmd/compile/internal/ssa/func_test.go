@@ -250,6 +250,11 @@ func Exit(arg string) ctrl {
 	return ctrl{BlockExit, arg, []string{}}
 }
 
+// Ret specifies a BlockRet.
+func Ret(arg string) ctrl {
+	return ctrl{BlockRet, arg, []string{}}
+}
+
 // Eq specifies a BlockAMD64EQ.
 func Eq(cond, sub, alt string) ctrl {
 	return ctrl{BlockAMD64EQ, cond, []string{sub, alt}}
@@ -470,7 +475,7 @@ func opcodeMap(f *Func) map[Op]int {
 	return m
 }
 
-// opcodeCounts checks that the number of opcodes listed in m agree with the
+// checkOpcodeCounts checks that the number of opcodes listed in m agree with the
 // number of opcodes that appear in the function.
 func checkOpcodeCounts(t *testing.T, f *Func, m map[Op]int) {
 	n := opcodeMap(f)

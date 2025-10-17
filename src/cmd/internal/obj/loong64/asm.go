@@ -154,6 +154,9 @@ var optab = []Optab{
 	{AFMADDF, C_FREG, C_FREG, C_NONE, C_FREG, C_NONE, 37, 4, 0, 0},
 	{AFMADDF, C_FREG, C_FREG, C_FREG, C_FREG, C_NONE, 37, 4, 0, 0},
 
+	{AFSEL, C_FCCREG, C_FREG, C_FREG, C_FREG, C_NONE, 33, 4, 0, 0},
+	{AFSEL, C_FCCREG, C_FREG, C_NONE, C_FREG, C_NONE, 33, 4, 0, 0},
+
 	{AMOVW, C_REG, C_NONE, C_NONE, C_SAUTO, C_NONE, 7, 4, REGSP, 0},
 	{AMOVWU, C_REG, C_NONE, C_NONE, C_SAUTO, C_NONE, 7, 4, REGSP, 0},
 	{AMOVV, C_REG, C_NONE, C_NONE, C_SAUTO, C_NONE, 7, 4, REGSP, 0},
@@ -209,6 +212,8 @@ var optab = []Optab{
 	{AMOVV, C_REG, C_NONE, C_NONE, C_TLS_LE, C_NONE, 53, 16, 0, 0},
 	{AMOVB, C_REG, C_NONE, C_NONE, C_TLS_LE, C_NONE, 53, 16, 0, 0},
 	{AMOVBU, C_REG, C_NONE, C_NONE, C_TLS_LE, C_NONE, 53, 16, 0, 0},
+	{AMOVWP, C_REG, C_NONE, C_NONE, C_SOREG, C_NONE, 73, 4, 0, 0},
+	{AMOVWP, C_REG, C_NONE, C_NONE, C_LOREG, C_NONE, 73, 4, 0, 0},
 
 	{AMOVW, C_LAUTO, C_NONE, C_NONE, C_REG, C_NONE, 36, 12, REGSP, 0},
 	{AMOVWU, C_LAUTO, C_NONE, C_NONE, C_REG, C_NONE, 36, 12, REGSP, 0},
@@ -230,6 +235,8 @@ var optab = []Optab{
 	{AMOVV, C_TLS_LE, C_NONE, C_NONE, C_REG, C_NONE, 54, 16, 0, 0},
 	{AMOVB, C_TLS_LE, C_NONE, C_NONE, C_REG, C_NONE, 54, 16, 0, 0},
 	{AMOVBU, C_TLS_LE, C_NONE, C_NONE, C_REG, C_NONE, 54, 16, 0, 0},
+	{AMOVWP, C_SOREG, C_NONE, C_NONE, C_REG, C_NONE, 74, 4, 0, 0},
+	{AMOVWP, C_LOREG, C_NONE, C_NONE, C_REG, C_NONE, 74, 4, 0, 0},
 
 	{AMOVW, C_SACON, C_NONE, C_NONE, C_REG, C_NONE, 3, 4, REGSP, 0},
 	{AMOVV, C_SACON, C_NONE, C_NONE, C_REG, C_NONE, 3, 4, REGSP, 0},
@@ -259,6 +266,9 @@ var optab = []Optab{
 	{AADDV, C_US12CON, C_NONE, C_NONE, C_REG, C_NONE, 4, 4, 0, 0},
 	{AADDV, C_U12CON, C_REG, C_NONE, C_REG, C_NONE, 10, 8, 0, 0},
 	{AADDV, C_U12CON, C_NONE, C_NONE, C_REG, C_NONE, 10, 8, 0, 0},
+
+	{AADDV16, C_32CON, C_REG, C_NONE, C_REG, C_NONE, 4, 4, 0, 0},
+	{AADDV16, C_32CON, C_NONE, C_NONE, C_REG, C_NONE, 4, 4, 0, 0},
 
 	{AAND, C_UU12CON, C_REG, C_NONE, C_REG, C_NONE, 4, 4, 0, 0},
 	{AAND, C_UU12CON, C_NONE, C_NONE, C_REG, C_NONE, 4, 4, 0, 0},
@@ -416,8 +426,13 @@ var optab = []Optab{
 
 	{AVMOVQ, C_ELEM, C_NONE, C_NONE, C_ARNG, C_NONE, 45, 4, 0, 0},
 
-	{APRELD, C_SOREG, C_U5CON, C_NONE, C_NONE, C_NONE, 46, 4, 0, 0},
-	{APRELDX, C_SOREG, C_DCON, C_U5CON, C_NONE, C_NONE, 47, 20, 0, 0},
+	{AVMOVQ, C_SOREG, C_NONE, C_NONE, C_ARNG, C_NONE, 46, 4, 0, 0},
+	{AXVMOVQ, C_SOREG, C_NONE, C_NONE, C_ARNG, C_NONE, 46, 4, 0, 0},
+
+	{APRELD, C_SOREG, C_U5CON, C_NONE, C_NONE, C_NONE, 47, 4, 0, 0},
+	{APRELDX, C_SOREG, C_DCON, C_U5CON, C_NONE, C_NONE, 48, 20, 0, 0},
+
+	{AALSLV, C_U3CON, C_REG, C_REG, C_REG, C_NONE, 64, 4, 0, 0},
 
 	{obj.APCALIGN, C_U12CON, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0},
 	{obj.APCDATA, C_32CON, C_NONE, C_NONE, C_32CON, C_NONE, 0, 0, 0, 0},
@@ -428,10 +443,6 @@ var optab = []Optab{
 	{obj.ANOP, C_DCON, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0},  // nop variants, see #40689
 	{obj.ANOP, C_REG, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0},
 	{obj.ANOP, C_FREG, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0},
-	{obj.ADUFFZERO, C_NONE, C_NONE, C_NONE, C_BRAN, C_NONE, 11, 4, 0, 0}, // same as AJMP
-	{obj.ADUFFCOPY, C_NONE, C_NONE, C_NONE, C_BRAN, C_NONE, 11, 4, 0, 0}, // same as AJMP
-
-	{obj.AXXX, C_NONE, C_NONE, C_NONE, C_NONE, C_NONE, 0, 4, 0, 0},
 }
 
 var atomicInst = map[obj.As]uint32{
@@ -696,6 +707,15 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	// so instruction sequences that use REGTMP are unsafe to
 	// preempt asynchronously.
 	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func().Text, c.newprog, c.isUnsafePoint, c.isRestartable)
+
+	// Now that we know byte offsets, we can generate jump table entries.
+	for _, jt := range cursym.Func().JumpTables {
+		for i, p := range jt.Targets {
+			// The ith jumptable entry points to the p.Pc'th
+			// byte in the function symbol s.
+			jt.Sym.WriteAddr(ctxt, int64(i)*8, 8, cursym, p.Pc)
+		}
+	}
 }
 
 // isUnsafePoint returns whether p is an unsafe point.
@@ -724,10 +744,6 @@ func (c *ctxt0) isRestartable(p *obj.Prog) bool {
 
 func isint32(v int64) bool {
 	return int64(int32(v)) == v
-}
-
-func isuint32(v uint64) bool {
-	return uint64(uint32(v)) == v
 }
 
 func (c *ctxt0) aclass(a *obj.Addr) int {
@@ -1299,31 +1315,27 @@ func buildop(ctxt *obj.Link) {
 		return
 	}
 
-	var n int
-
-	for i := 0; i < C_NCLASS; i++ {
-		for n = 0; n < C_NCLASS; n++ {
-			if cmp(n, i) {
-				xcmp[i][n] = true
+	for i := range C_NCLASS {
+		for j := range C_NCLASS {
+			if cmp(j, i) {
+				xcmp[i][j] = true
 			}
 		}
 	}
-	for n = 0; optab[n].as != obj.AXXX; n++ {
-	}
-	slices.SortFunc(optab[:n], ocmp)
-	for i := 0; i < n; i++ {
-		r := optab[i].as
-		r0 := r & obj.AMask
-		start := i
-		for optab[i].as == r {
-			i++
-		}
-		oprange[r0] = optab[start:i]
-		i--
 
-		switch r {
+	slices.SortFunc(optab, ocmp)
+	for i := 0; i < len(optab); i++ {
+		as, start := optab[i].as, i
+		for ; i < len(optab)-1; i++ {
+			if optab[i+1].as != as {
+				break
+			}
+		}
+		r0 := as & obj.AMask
+		oprange[r0] = optab[start : i+1]
+		switch as {
 		default:
-			ctxt.Diag("unknown op in build: %v", r)
+			ctxt.Diag("unknown op in build: %v", as)
 			ctxt.DiagFlush()
 			log.Fatalf("bad code")
 
@@ -1439,6 +1451,9 @@ func buildop(ctxt *obj.Link) {
 		case AMOVBU:
 			opset(AMOVHU, r0)
 
+		case AMOVWP:
+			opset(AMOVVP, r0)
+
 		case AMUL:
 			opset(AMULU, r0)
 			opset(AMULH, r0)
@@ -1493,6 +1508,10 @@ func buildop(ctxt *obj.Link) {
 		case ABFPT:
 			opset(ABFPF, r0)
 
+		case AALSLV:
+			opset(AALSLW, r0)
+			opset(AALSLWU, r0)
+
 		case AMOVW,
 			AMOVD,
 			AMOVF,
@@ -1512,13 +1531,13 @@ func buildop(ctxt *obj.Link) {
 			AWORD,
 			APRELD,
 			APRELDX,
+			AFSEL,
+			AADDV16,
 			obj.ANOP,
 			obj.ATEXT,
 			obj.AFUNCDATA,
 			obj.APCALIGN,
-			obj.APCDATA,
-			obj.ADUFFZERO,
-			obj.ADUFFCOPY:
+			obj.APCDATA:
 			break
 
 		case ARDTIMELW:
@@ -1830,21 +1849,33 @@ func buildop(ctxt *obj.Link) {
 			opset(AVSRLB, r0)
 			opset(AVSRAB, r0)
 			opset(AVROTRB, r0)
+			opset(AVBITCLRB, r0)
+			opset(AVBITSETB, r0)
+			opset(AVBITREVB, r0)
 
 		case AXVSLLB:
 			opset(AXVSRLB, r0)
 			opset(AXVSRAB, r0)
 			opset(AXVROTRB, r0)
+			opset(AXVBITCLRB, r0)
+			opset(AXVBITSETB, r0)
+			opset(AXVBITREVB, r0)
 
 		case AVSLLH:
 			opset(AVSRLH, r0)
 			opset(AVSRAH, r0)
 			opset(AVROTRH, r0)
+			opset(AVBITCLRH, r0)
+			opset(AVBITSETH, r0)
+			opset(AVBITREVH, r0)
 
 		case AXVSLLH:
 			opset(AXVSRLH, r0)
 			opset(AXVSRAH, r0)
 			opset(AXVROTRH, r0)
+			opset(AXVBITCLRH, r0)
+			opset(AXVBITSETH, r0)
+			opset(AXVBITREVH, r0)
 
 		case AVSLLW:
 			opset(AVSRLW, r0)
@@ -1858,6 +1889,9 @@ func buildop(ctxt *obj.Link) {
 			opset(AVSUBHU, r0)
 			opset(AVSUBWU, r0)
 			opset(AVSUBVU, r0)
+			opset(AVBITCLRW, r0)
+			opset(AVBITSETW, r0)
+			opset(AVBITREVW, r0)
 
 		case AXVSLLW:
 			opset(AXVSRLW, r0)
@@ -1871,16 +1905,25 @@ func buildop(ctxt *obj.Link) {
 			opset(AXVSUBHU, r0)
 			opset(AXVSUBWU, r0)
 			opset(AXVSUBVU, r0)
+			opset(AXVBITCLRW, r0)
+			opset(AXVBITSETW, r0)
+			opset(AXVBITREVW, r0)
 
 		case AVSLLV:
 			opset(AVSRLV, r0)
 			opset(AVSRAV, r0)
 			opset(AVROTRV, r0)
+			opset(AVBITCLRV, r0)
+			opset(AVBITSETV, r0)
+			opset(AVBITREVV, r0)
 
 		case AXVSLLV:
 			opset(AXVSRLV, r0)
 			opset(AXVSRAV, r0)
 			opset(AXVROTRV, r0)
+			opset(AXVBITCLRV, r0)
+			opset(AXVBITSETV, r0)
+			opset(AXVBITREVV, r0)
 
 		case AVSETEQV:
 			opset(AVSETNEV, r0)
@@ -1925,6 +1968,10 @@ func OP_RR(op uint32, r2 uint32, r3 uint32) uint32 {
 	return op | (r2&0x1F)<<5 | (r3&0x1F)<<0
 }
 
+func OP_2IRRR(op uint32, i uint32, r2 uint32, r3 uint32, r4 uint32) uint32 {
+	return op | (i&0x3)<<15 | (r2&0x1F)<<10 | (r3&0x1F)<<5 | (r4&0x1F)<<0
+}
+
 func OP_16IR_5I(op uint32, i uint32, r2 uint32) uint32 {
 	return op | (i&0xFFFF)<<10 | (r2&0x1F)<<5 | ((i >> 16) & 0x1F)
 }
@@ -1933,12 +1980,28 @@ func OP_16IRR(op uint32, i uint32, r2 uint32, r3 uint32) uint32 {
 	return op | (i&0xFFFF)<<10 | (r2&0x1F)<<5 | (r3&0x1F)<<0
 }
 
+func OP_14IRR(op uint32, i uint32, r2 uint32, r3 uint32) uint32 {
+	return op | (i&0x3FFF)<<10 | (r2&0x1F)<<5 | (r3&0x1F)<<0
+}
+
 func OP_12IR_5I(op uint32, i1 uint32, r2 uint32, i2 uint32) uint32 {
 	return op | (i1&0xFFF)<<10 | (r2&0x1F)<<5 | (i2&0x1F)<<0
 }
 
 func OP_12IRR(op uint32, i uint32, r2 uint32, r3 uint32) uint32 {
 	return op | (i&0xFFF)<<10 | (r2&0x1F)<<5 | (r3&0x1F)<<0
+}
+
+func OP_11IRR(op uint32, i uint32, r2 uint32, r3 uint32) uint32 {
+	return op | (i&0x7FF)<<10 | (r2&0x1F)<<5 | (r3&0x1F)<<0
+}
+
+func OP_10IRR(op uint32, i uint32, r2 uint32, r3 uint32) uint32 {
+	return op | (i&0x3FF)<<10 | (r2&0x1F)<<5 | (r3&0x1F)<<0
+}
+
+func OP_9IRR(op uint32, i uint32, r2 uint32, r3 uint32) uint32 {
+	return op | (i&0x1FF)<<10 | (r2&0x1F)<<5 | (r3&0x1F)<<0
 }
 
 func OP_8IRR(op uint32, i uint32, r2 uint32, r3 uint32) uint32 {
@@ -1994,7 +2057,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 	switch o.type_ {
 	default:
-		c.ctxt.Diag("unknown type %d %v", o.type_)
+		c.ctxt.Diag("unknown type %d", o.type_)
 		prasm(p)
 
 	case 0: // pseudo ops
@@ -2037,7 +2100,14 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if r == 0 {
 			r = int(p.To.Reg)
 		}
-		o1 = OP_12IRR(c.opirr(p.As), uint32(v), uint32(r), uint32(p.To.Reg))
+		if p.As == AADDV16 {
+			if v&65535 != 0 {
+				c.ctxt.Diag("%v: the constant must be a multiple of 65536.\n", p)
+			}
+			o1 = OP_16IRR(c.opirr(p.As), uint32(v>>16), uint32(r), uint32(p.To.Reg))
+		} else {
+			o1 = OP_12IRR(c.opirr(p.As), uint32(v), uint32(r), uint32(p.To.Reg))
+		}
 
 	case 5: // syscall
 		v := c.regoff(&p.From)
@@ -2354,6 +2424,16 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		o1 = OP_6IRR(c.opirr(p.As), uint32(v), uint32(r), uint32(p.To.Reg))
 
+	case 33: // fsel ca, fk, [fj], fd
+		ca := uint32(p.From.Reg)
+		fk := uint32(p.Reg)
+		fd := uint32(p.To.Reg)
+		fj := fd
+		if len(p.RestArgs) > 0 {
+			fj = uint32(p.GetFrom3().Reg)
+		}
+		o1 = 0x340<<18 | (ca&0x7)<<15 | (fk&0x1F)<<10 | (fj&0x1F)<<5 | (fd & 0x1F)
+
 	case 34: // mov $con,fr
 		v := c.regoff(&p.From)
 		a := AADDU
@@ -2395,7 +2475,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = uint32(c.regoff(&p.From))
 
 	case 39: // vmov Rn, Vd.<T>[index]
-		v, m := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg)
+		v, m := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg, false)
 		if v == 0 {
 			c.ctxt.Diag("illegal arng type combination: %v\n", p)
 		}
@@ -2407,7 +2487,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = v | (index << 10) | (Rj << 5) | Vd
 
 	case 40: // vmov Vd.<T>[index], Rn
-		v, m := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg)
+		v, m := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg, false)
 		if v == 0 {
 			c.ctxt.Diag("illegal arng type combination: %v\n", p)
 		}
@@ -2419,7 +2499,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = v | (index << 10) | (Vj << 5) | Rd
 
 	case 41: // vmov Rn, Vd.<T>
-		v, _ := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg)
+		v, _ := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg, false)
 		if v == 0 {
 			c.ctxt.Diag("illegal arng type combination: %v\n", p)
 		}
@@ -2429,7 +2509,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = v | (Rj << 5) | Vd
 
 	case 42: // vmov  xj, xd.<T>
-		v, _ := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg)
+		v, _ := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg, false)
 		if v == 0 {
 			c.ctxt.Diag("illegal arng type combination: %v\n", p)
 		}
@@ -2439,7 +2519,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = v | (Xj << 5) | Xd
 
 	case 43: // vmov  xj, xd.<T>[index]
-		v, m := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg)
+		v, m := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg, false)
 		if v == 0 {
 			c.ctxt.Diag("illegal arng type combination: %v\n", p)
 		}
@@ -2451,7 +2531,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = v | (index << 10) | (Xj << 5) | Xd
 
 	case 44: // vmov  xj.<T>[index], xd
-		v, m := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg)
+		v, m := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg, false)
 		if v == 0 {
 			c.ctxt.Diag("illegal arng type combination: %v\n", p)
 		}
@@ -2463,7 +2543,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = v | (index << 10) | (Xj << 5) | Xd
 
 	case 45: // vmov  vj.<T>[index], vd.<T>
-		v, m := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg)
+		v, m := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg, false)
 		if v == 0 {
 			c.ctxt.Diag("illegal arng type combination: %v\n", p)
 		}
@@ -2474,12 +2554,44 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		c.checkindex(p, index, m)
 		o1 = v | (index << 10) | (vj << 5) | vd
 
-	case 46: // preld  offset(Rbase), $hint
+	case 46: // vmov offset(vj), vd.<T>
+		v, _ := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg, true)
+		if v == 0 {
+			c.ctxt.Diag("illegal arng type combination: %v\n", p)
+		}
+
+		si := c.regoff(&p.From)
+		Rj := uint32(p.From.Reg & EXT_REG_MASK)
+		Vd := uint32(p.To.Reg & EXT_REG_MASK)
+		switch v & 0xc00000 {
+		case 0x800000: // [x]vldrepl.b
+			o1 = OP_12IRR(v, uint32(si), Rj, Vd)
+		case 0x400000: // [x]vldrepl.h
+			if si&1 != 0 {
+				c.ctxt.Diag("%v: offset must be a multiple of 2.\n", p)
+			}
+			o1 = OP_11IRR(v, uint32(si>>1), Rj, Vd)
+		case 0x0:
+			switch v & 0x300000 {
+			case 0x200000: // [x]vldrepl.w
+				if si&3 != 0 {
+					c.ctxt.Diag("%v: offset must be a multiple of 4.\n", p)
+				}
+				o1 = OP_10IRR(v, uint32(si>>2), Rj, Vd)
+			case 0x100000: // [x]vldrepl.d
+				if si&7 != 0 {
+					c.ctxt.Diag("%v: offset must be a multiple of 8.\n", p)
+				}
+				o1 = OP_9IRR(v, uint32(si>>3), Rj, Vd)
+			}
+		}
+
+	case 47: // preld  offset(Rbase), $hint
 		offs := c.regoff(&p.From)
 		hint := p.GetFrom3().Offset
 		o1 = OP_12IR_5I(c.opiir(p.As), uint32(offs), uint32(p.From.Reg), uint32(hint))
 
-	case 47: // preldx offset(Rbase), $n, $hint
+	case 48: // preldx offset(Rbase), $n, $hint
 		offs := c.regoff(&p.From)
 		hint := p.RestArgs[1].Offset
 		n := uint64(p.GetFrom3().Offset)
@@ -2683,6 +2795,14 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 62: // rdtimex rd, rj
 		o1 = OP_RR(c.oprr(p.As), uint32(p.To.Reg), uint32(p.RegTo2))
 
+	case 64: // alsl rd, rj, rk, sa2
+		sa := p.From.Offset - 1
+		if sa < 0 || sa > 3 {
+			c.ctxt.Diag("%v: shift amount out of range[1, 4].\n", p)
+		}
+		r := p.GetFrom3().Reg
+		o1 = OP_2IRRR(c.opirrr(p.As), uint32(sa), uint32(r), uint32(p.Reg), uint32(p.To.Reg))
+
 	case 65: // mov sym@GOT, r ==> pcalau12i + ld.d
 		o1 = OP_IR(c.opir(APCALAU12I), uint32(0), uint32(p.To.Reg))
 		c.cursym.AddRel(c.ctxt, obj.Reloc{
@@ -2833,6 +2953,20 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			o3 = OP_12IRR(c.opirr(ALU52ID), uint32(v>>52), uint32(REGTMP), uint32(REGTMP))
 		}
 		o4 = OP_RRR(c.oprrr(p.As), uint32(REGTMP), uint32(r), uint32(p.To.Reg))
+
+	case 73:
+		v := c.regoff(&p.To)
+		if v&3 != 0 {
+			c.ctxt.Diag("%v: offset must be a multiple of 4.\n", p)
+		}
+		o1 = OP_14IRR(c.opirr(p.As), uint32(v>>2), uint32(p.To.Reg), uint32(p.From.Reg))
+
+	case 74:
+		v := c.regoff(&p.From)
+		if v&3 != 0 {
+			c.ctxt.Diag("%v: offset must be a multiple of 4.\n", p)
+		}
+		o1 = OP_14IRR(c.opirr(-p.As), uint32(v>>2), uint32(p.From.Reg), uint32(p.To.Reg))
 	}
 
 	out[0] = o1
@@ -3504,6 +3638,54 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return 0xea75 << 15 // xvfdiv.s
 	case AXVDIVD:
 		return 0xea76 << 15 // xvfdiv.d
+	case AVBITCLRB:
+		return 0xe218 << 15 // vbitclr.b
+	case AVBITCLRH:
+		return 0xe219 << 15 // vbitclr.h
+	case AVBITCLRW:
+		return 0xe21a << 15 // vbitclr.w
+	case AVBITCLRV:
+		return 0xe21b << 15 // vbitclr.d
+	case AVBITSETB:
+		return 0xe21c << 15 // vbitset.b
+	case AVBITSETH:
+		return 0xe21d << 15 // vbitset.h
+	case AVBITSETW:
+		return 0xe21e << 15 // vbitset.w
+	case AVBITSETV:
+		return 0xe21f << 15 // vbitset.d
+	case AVBITREVB:
+		return 0xe220 << 15 // vbitrev.b
+	case AVBITREVH:
+		return 0xe221 << 15 // vbitrev.h
+	case AVBITREVW:
+		return 0xe222 << 15 // vbitrev.w
+	case AVBITREVV:
+		return 0xe223 << 15 // vbitrev.d
+	case AXVBITCLRB:
+		return 0xea18 << 15 // xvbitclr.b
+	case AXVBITCLRH:
+		return 0xea19 << 15 // xvbitclr.h
+	case AXVBITCLRW:
+		return 0xea1a << 15 // xvbitclr.w
+	case AXVBITCLRV:
+		return 0xea1b << 15 // xvbitclr.d
+	case AXVBITSETB:
+		return 0xea1c << 15 // xvbitset.b
+	case AXVBITSETH:
+		return 0xea1d << 15 // xvbitset.h
+	case AXVBITSETW:
+		return 0xea1e << 15 // xvbitset.w
+	case AXVBITSETV:
+		return 0xea1f << 15 // xvbitset.d
+	case AXVBITREVB:
+		return 0xea20 << 15 // xvbitrev.b
+	case AXVBITREVH:
+		return 0xea21 << 15 // xvbitrev.h
+	case AXVBITREVW:
+		return 0xea22 << 15 // xvbitrev.w
+	case AXVBITREVV:
+		return 0xea23 << 15 // xvbitrev.d
 	}
 
 	if a < 0 {
@@ -3871,12 +4053,12 @@ func (c *ctxt0) opirr(a obj.As) uint32 {
 		return 0x00b << 22
 	case AADDVU:
 		return 0x00b << 22
+	case AADDV16:
+		return 0x4 << 26
 
 	case AJMP:
 		return 0x14 << 26
-	case AJAL,
-		obj.ADUFFZERO,
-		obj.ADUFFCOPY:
+	case AJAL:
 		return 0x15 << 26
 
 	case AJIRL:
@@ -3918,6 +4100,10 @@ func (c *ctxt0) opirr(a obj.As) uint32 {
 		return 0x0ad << 22
 	case AMOVD:
 		return 0x0af << 22
+	case AMOVVP:
+		return 0x27 << 24 // stptr.d
+	case AMOVWP:
+		return 0x25 << 24 // stptr.w
 	case -AMOVB:
 		return 0x0a0 << 22
 	case -AMOVBU:
@@ -3936,6 +4122,10 @@ func (c *ctxt0) opirr(a obj.As) uint32 {
 		return 0x0ac << 22
 	case -AMOVD:
 		return 0x0ae << 22
+	case -AMOVVP:
+		return 0x26 << 24 // ldptr.d
+	case -AMOVWP:
+		return 0x24 << 24 // ldptr.w
 	case -AVMOVQ:
 		return 0x0b0 << 22 // vld
 	case -AXVMOVQ:
@@ -4104,6 +4294,54 @@ func (c *ctxt0) opirr(a obj.As) uint32 {
 		return 0x1de6 << 18 // xvshuf4i.w
 	case AXVSHUF4IV:
 		return 0x1de7 << 18 // xvshuf4i.d
+	case AVBITCLRB:
+		return 0x1CC4<<18 | 0x1<<13 // vbitclri.b
+	case AVBITCLRH:
+		return 0x1CC4<<18 | 0x1<<14 // vbitclri.h
+	case AVBITCLRW:
+		return 0x1CC4<<18 | 0x1<<15 // vbitclri.w
+	case AVBITCLRV:
+		return 0x1CC4<<18 | 0x1<<16 // vbitclri.d
+	case AVBITSETB:
+		return 0x1CC5<<18 | 0x1<<13 // vbitseti.b
+	case AVBITSETH:
+		return 0x1CC5<<18 | 0x1<<14 // vbitseti.h
+	case AVBITSETW:
+		return 0x1CC5<<18 | 0x1<<15 // vbitseti.w
+	case AVBITSETV:
+		return 0x1CC5<<18 | 0x1<<16 // vbitseti.d
+	case AVBITREVB:
+		return 0x1CC6<<18 | 0x1<<13 // vbitrevi.b
+	case AVBITREVH:
+		return 0x1CC6<<18 | 0x1<<14 // vbitrevi.h
+	case AVBITREVW:
+		return 0x1CC6<<18 | 0x1<<15 // vbitrevi.w
+	case AVBITREVV:
+		return 0x1CC6<<18 | 0x1<<16 // vbitrevi.d
+	case AXVBITCLRB:
+		return 0x1DC4<<18 | 0x1<<13 // xvbitclri.b
+	case AXVBITCLRH:
+		return 0x1DC4<<18 | 0x1<<14 // xvbitclri.h
+	case AXVBITCLRW:
+		return 0x1DC4<<18 | 0x1<<15 // xvbitclri.w
+	case AXVBITCLRV:
+		return 0x1DC4<<18 | 0x1<<16 // xvbitclri.d
+	case AXVBITSETB:
+		return 0x1DC5<<18 | 0x1<<13 // xvbitseti.b
+	case AXVBITSETH:
+		return 0x1DC5<<18 | 0x1<<14 // xvbitseti.h
+	case AXVBITSETW:
+		return 0x1DC5<<18 | 0x1<<15 // xvbitseti.w
+	case AXVBITSETV:
+		return 0x1DC5<<18 | 0x1<<16 // xvbitseti.d
+	case AXVBITREVB:
+		return 0x1DC6<<18 | 0x1<<13 // xvbitrevi.b
+	case AXVBITREVH:
+		return 0x1DC6<<18 | 0x1<<14 // xvbitrevi.h
+	case AXVBITREVW:
+		return 0x1DC6<<18 | 0x1<<15 // xvbitrevi.w
+	case AXVBITREVV:
+		return 0x1DC6<<18 | 0x1<<16 // xvbitrevi.d
 	}
 
 	if a < 0 {
@@ -4111,6 +4349,19 @@ func (c *ctxt0) opirr(a obj.As) uint32 {
 	} else {
 		c.ctxt.Diag("bad irr opcode %v", a)
 	}
+	return 0
+}
+
+func (c *ctxt0) opirrr(a obj.As) uint32 {
+	switch a {
+	case AALSLW:
+		return 0x2 << 17 // alsl.w
+	case AALSLWU:
+		return 0x3 << 17 // alsl.wu
+	case AALSLV:
+		return 0x16 << 17 // alsl.d
+	}
+
 	return 0
 }
 
@@ -4187,12 +4438,12 @@ func (c *ctxt0) specialFpMovInst(a obj.As, fclass int, tclass int) uint32 {
 		}
 	}
 
-	c.ctxt.Diag("bad class combination: %s %s,%s\n", a, fclass, tclass)
+	c.ctxt.Diag("bad class combination: %s %d,%d\n", a, fclass, tclass)
 
 	return 0
 }
 
-func (c *ctxt0) specialLsxMovInst(a obj.As, fReg, tReg int16) (op_code, index_mask uint32) {
+func (c *ctxt0) specialLsxMovInst(a obj.As, fReg, tReg int16, offset_flag bool) (op_code, index_mask uint32) {
 	farng := (fReg >> EXT_TYPE_SHIFT) & EXT_TYPE_MASK
 	tarng := (tReg >> EXT_TYPE_SHIFT) & EXT_TYPE_MASK
 	fclass := c.rclass(fReg)
@@ -4258,29 +4509,58 @@ func (c *ctxt0) specialLsxMovInst(a obj.As, fReg, tReg int16) (op_code, index_ma
 		}
 
 	case C_REG | (C_ARNG << 16):
-		// vmov Rn, Vd.<T>
-		switch a {
-		case AVMOVQ:
-			switch tarng {
-			case ARNG_16B:
-				return (0x1CA7C0 << 10), 0x0 // vreplgr2vr.b
-			case ARNG_8H:
-				return (0x1CA7C1 << 10), 0x0 // vreplgr2vr.h
-			case ARNG_4W:
-				return (0x1CA7C2 << 10), 0x0 // vreplgr2vr.w
-			case ARNG_2V:
-				return (0x1CA7C3 << 10), 0x0 // vreplgr2vr.d
+		switch {
+		case offset_flag:
+			// vmov offset(vj), vd.<T>
+			switch a {
+			case AVMOVQ:
+				switch tarng {
+				case ARNG_16B:
+					return (0xC2 << 22), 0x0 // vldrepl.b
+				case ARNG_8H:
+					return (0x182 << 21), 0x0 // vldrepl.h
+				case ARNG_4W:
+					return (0x302 << 20), 0x0 // vldrepl.w
+				case ARNG_2V:
+					return (0x602 << 19), 0x0 // vldrepl.d
+				}
+			case AXVMOVQ:
+				switch tarng {
+				case ARNG_32B:
+					return (0xCA << 22), 0x0 // xvldrepl.b
+				case ARNG_16H:
+					return (0x192 << 21), 0x0 // xvldrepl.h
+				case ARNG_8W:
+					return (0x322 << 20), 0x0 // xvldrepl.w
+				case ARNG_4V:
+					return (0x642 << 19), 0x0 // xvldrepl.d
+				}
 			}
-		case AXVMOVQ:
-			switch tarng {
-			case ARNG_32B:
-				return (0x1DA7C0 << 10), 0x0 // xvreplgr2vr.b
-			case ARNG_16H:
-				return (0x1DA7C1 << 10), 0x0 // xvreplgr2vr.h
-			case ARNG_8W:
-				return (0x1DA7C2 << 10), 0x0 // xvreplgr2vr.w
-			case ARNG_4V:
-				return (0x1DA7C3 << 10), 0x0 // xvreplgr2vr.d
+		default:
+			// vmov Rn, Vd.<T>
+			switch a {
+			case AVMOVQ:
+				switch tarng {
+				case ARNG_16B:
+					return (0x1CA7C0 << 10), 0x0 // vreplgr2vr.b
+				case ARNG_8H:
+					return (0x1CA7C1 << 10), 0x0 // vreplgr2vr.h
+				case ARNG_4W:
+					return (0x1CA7C2 << 10), 0x0 // vreplgr2vr.w
+				case ARNG_2V:
+					return (0x1CA7C3 << 10), 0x0 // vreplgr2vr.d
+				}
+			case AXVMOVQ:
+				switch tarng {
+				case ARNG_32B:
+					return (0x1DA7C0 << 10), 0x0 // xvreplgr2vr.b
+				case ARNG_16H:
+					return (0x1DA7C1 << 10), 0x0 // xvreplgr2vr.h
+				case ARNG_8W:
+					return (0x1DA7C2 << 10), 0x0 // xvreplgr2vr.w
+				case ARNG_4V:
+					return (0x1DA7C3 << 10), 0x0 // xvreplgr2vr.d
+				}
 			}
 		}
 

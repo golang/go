@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"internal/asan"
+	"internal/race"
 	"internal/testenv"
 	"net/netip"
 	"os"
@@ -141,36 +142,37 @@ func testWriteToConn(t *testing.T, raddr string) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	rap := ra.AddrPort()
+
+	assertErrWriteToConnected := func(t *testing.T, err error) {
+		t.Helper()
+		if e, ok := err.(*OpError); !ok || e.Err != ErrWriteToConnected {
+			t.Errorf("got %v; want ErrWriteToConnected", err)
+		}
+	}
 
 	b := []byte("CONNECTED-MODE SOCKET")
+	_, err = c.(*UDPConn).WriteToUDPAddrPort(b, rap)
+	assertErrWriteToConnected(t, err)
 	_, err = c.(*UDPConn).WriteToUDP(b, ra)
-	if err == nil {
-		t.Fatal("should fail")
-	}
-	if err != nil && err.(*OpError).Err != ErrWriteToConnected {
-		t.Fatalf("should fail as ErrWriteToConnected: %v", err)
-	}
+	assertErrWriteToConnected(t, err)
 	_, err = c.(*UDPConn).WriteTo(b, ra)
-	if err == nil {
-		t.Fatal("should fail")
-	}
-	if err != nil && err.(*OpError).Err != ErrWriteToConnected {
-		t.Fatalf("should fail as ErrWriteToConnected: %v", err)
-	}
+	assertErrWriteToConnected(t, err)
 	_, err = c.Write(b)
 	if err != nil {
-		t.Fatal(err)
+		t.Errorf("c.Write(b) = %v; want nil", err)
 	}
 	_, _, err = c.(*UDPConn).WriteMsgUDP(b, nil, ra)
-	if err == nil {
-		t.Fatal("should fail")
-	}
-	if err != nil && err.(*OpError).Err != ErrWriteToConnected {
-		t.Fatalf("should fail as ErrWriteToConnected: %v", err)
-	}
+	assertErrWriteToConnected(t, err)
 	_, _, err = c.(*UDPConn).WriteMsgUDP(b, nil, nil)
 	if err != nil {
-		t.Fatal(err)
+		t.Errorf("c.WriteMsgUDP(b, nil, nil) = %v; want nil", err)
+	}
+	_, _, err = c.(*UDPConn).WriteMsgUDPAddrPort(b, nil, rap)
+	assertErrWriteToConnected(t, err)
+	_, _, err = c.(*UDPConn).WriteMsgUDPAddrPort(b, nil, netip.AddrPort{})
+	if err != nil {
+		t.Errorf("c.WriteMsgUDPAddrPort(b, nil, netip.AddrPort{}) = %v; want nil", err)
 	}
 }
 
@@ -490,6 +492,12 @@ func TestAllocs(t *testing.T) {
 	case "plan9", "js", "wasip1":
 		// These implementations have not been optimized.
 		t.Skipf("skipping on %v", runtime.GOOS)
+	case "windows":
+		if race.Enabled {
+			// The Windows implementation make use of sync.Pool,
+			// which randomly drops cached items when race is enabled.
+			t.Skip("skipping test in race")
+		}
 	}
 	if !testableNetwork("udp4") {
 		t.Skipf("skipping: udp4 not available")
@@ -703,5 +711,42 @@ func TestIPv6WriteMsgUDPAddrPortTargetAddrIPVersion(t *testing.T) {
 	_, _, err = conn.WriteMsgUDPAddrPort(buf, nil, daddr6)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TestIPv4WriteMsgUDPAddrPortTargetAddrIPVersion verifies that
+// WriteMsgUDPAddrPort accepts IPv4 and IPv4-mapped IPv6 destination addresses,
+// and rejects IPv6 destination addresses on a "udp4" connection.
+func TestIPv4WriteMsgUDPAddrPortTargetAddrIPVersion(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9":
+		t.Skipf("not supported on %s", runtime.GOOS)
+	}
+
+	if !testableNetwork("udp4") {
+		t.Skipf("skipping: udp4 not available")
+	}
+
+	conn, err := ListenUDP("udp4", &UDPAddr{IP: IPv4(127, 0, 0, 1)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	daddr4 := netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 12345)
+	daddr4in6 := netip.AddrPortFrom(netip.MustParseAddr("::ffff:127.0.0.1"), 12345)
+	daddr6 := netip.AddrPortFrom(netip.MustParseAddr("::1"), 12345)
+	buf := make([]byte, 8)
+
+	if _, _, err = conn.WriteMsgUDPAddrPort(buf, nil, daddr4); err != nil {
+		t.Errorf("conn.WriteMsgUDPAddrPort(buf, nil, daddr4) failed: %v", err)
+	}
+
+	if _, _, err = conn.WriteMsgUDPAddrPort(buf, nil, daddr4in6); err != nil {
+		t.Errorf("conn.WriteMsgUDPAddrPort(buf, nil, daddr4in6) failed: %v", err)
+	}
+
+	if _, _, err = conn.WriteMsgUDPAddrPort(buf, nil, daddr6); err == nil {
+		t.Errorf("conn.WriteMsgUDPAddrPort(buf, nil, daddr6) should have failed, but got no error")
 	}
 }

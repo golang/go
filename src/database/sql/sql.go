@@ -3368,38 +3368,45 @@ func (rs *Rows) Scan(dest ...any) error {
 		// without calling Next.
 		return fmt.Errorf("sql: Scan called without calling Next (closemuScanHold)")
 	}
+
 	rs.closemu.RLock()
-
-	if rs.lasterr != nil && rs.lasterr != io.EOF {
-		rs.closemu.RUnlock()
-		return rs.lasterr
-	}
-	if rs.closed {
-		err := rs.lasterrOrErrLocked(errRowsClosed)
-		rs.closemu.RUnlock()
-		return err
-	}
-
-	if scanArgsContainRawBytes(dest) {
+	rs.raw = rs.raw[:0]
+	err := rs.scanLocked(dest...)
+	if err == nil && scanArgsContainRawBytes(dest) {
 		rs.closemuScanHold = true
-		rs.raw = rs.raw[:0]
 	} else {
 		rs.closemu.RUnlock()
 	}
+	return err
+}
+
+func (rs *Rows) scanLocked(dest ...any) error {
+	if rs.lasterr != nil && rs.lasterr != io.EOF {
+		return rs.lasterr
+	}
+	if rs.closed {
+		return rs.lasterrOrErrLocked(errRowsClosed)
+	}
 
 	if rs.lastcols == nil {
-		rs.closemuRUnlockIfHeldByScan()
 		return errors.New("sql: Scan called without calling Next")
 	}
 	if len(dest) != len(rs.lastcols) {
-		rs.closemuRUnlockIfHeldByScan()
 		return fmt.Errorf("sql: expected %d destination arguments in Scan, not %d", len(rs.lastcols), len(dest))
 	}
 
 	for i, sv := range rs.lastcols {
-		err := convertAssignRows(dest[i], sv, rs)
+		err := driver.ErrSkip
+
+		if rcs, ok := rs.rowsi.(driver.RowsColumnScanner); ok {
+			err = rcs.ScanColumn(dest[i], i)
+		}
+
+		if err == driver.ErrSkip {
+			err = convertAssignRows(dest[i], sv, rs)
+		}
+
 		if err != nil {
-			rs.closemuRUnlockIfHeldByScan()
 			return fmt.Errorf(`sql: Scan error on column index %d, name %q: %w`, i, rs.rowsi.Columns()[i], err)
 		}
 	}

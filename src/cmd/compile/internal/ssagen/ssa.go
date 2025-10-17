@@ -12,6 +12,7 @@ import (
 	"go/constant"
 	"html"
 	"internal/buildcfg"
+	"internal/runtime/gc"
 	"os"
 	"path/filepath"
 	"slices"
@@ -94,12 +95,8 @@ func InitConfig() {
 	_ = types.NewPtr(types.Types[types.TINT16])                             // *int16
 	_ = types.NewPtr(types.Types[types.TINT64])                             // *int64
 	_ = types.NewPtr(types.ErrorType)                                       // *error
-	if buildcfg.Experiment.SwissMap {
-		_ = types.NewPtr(reflectdata.SwissMapType()) // *internal/runtime/maps.Map
-	} else {
-		_ = types.NewPtr(reflectdata.OldMapType()) // *runtime.hmap
-	}
-	_ = types.NewPtr(deferstruct()) // *runtime._defer
+	_ = types.NewPtr(reflectdata.MapType())                                 // *internal/runtime/maps.Map
+	_ = types.NewPtr(deferstruct())                                         // *runtime._defer
 	types.NewPtrCacheEnabled = false
 	ssaConfig = ssa.NewConfig(base.Ctxt.Arch.Name, *types_, base.Ctxt, base.Flag.N == 0, Arch.SoftFloat)
 	ssaConfig.Race = base.Flag.Race
@@ -128,6 +125,15 @@ func InitConfig() {
 	ir.Syms.Goschedguarded = typecheck.LookupRuntimeFunc("goschedguarded")
 	ir.Syms.Growslice = typecheck.LookupRuntimeFunc("growslice")
 	ir.Syms.InterfaceSwitch = typecheck.LookupRuntimeFunc("interfaceSwitch")
+	for i := 1; i < len(ir.Syms.MallocGCSmallNoScan); i++ {
+		ir.Syms.MallocGCSmallNoScan[i] = typecheck.LookupRuntimeFunc(fmt.Sprintf("mallocgcSmallNoScanSC%d", i))
+	}
+	for i := 1; i < len(ir.Syms.MallocGCSmallScanNoHeader); i++ {
+		ir.Syms.MallocGCSmallScanNoHeader[i] = typecheck.LookupRuntimeFunc(fmt.Sprintf("mallocgcSmallScanNoHeaderSC%d", i))
+	}
+	for i := 1; i < len(ir.Syms.MallocGCTiny); i++ {
+		ir.Syms.MallocGCTiny[i] = typecheck.LookupRuntimeFunc(fmt.Sprintf("mallocTiny%d", i))
+	}
 	ir.Syms.MallocGC = typecheck.LookupRuntimeFunc("mallocgc")
 	ir.Syms.Memmove = typecheck.LookupRuntimeFunc("memmove")
 	ir.Syms.Msanread = typecheck.LookupRuntimeFunc("msanread")
@@ -188,42 +194,6 @@ func InitConfig() {
 		BoundsCheckFunc[ssa.BoundsSlice3C] = typecheck.LookupRuntimeFunc("goPanicSlice3C")
 		BoundsCheckFunc[ssa.BoundsSlice3CU] = typecheck.LookupRuntimeFunc("goPanicSlice3CU")
 		BoundsCheckFunc[ssa.BoundsConvert] = typecheck.LookupRuntimeFunc("goPanicSliceConvert")
-	} else {
-		BoundsCheckFunc[ssa.BoundsIndex] = typecheck.LookupRuntimeFunc("panicIndex")
-		BoundsCheckFunc[ssa.BoundsIndexU] = typecheck.LookupRuntimeFunc("panicIndexU")
-		BoundsCheckFunc[ssa.BoundsSliceAlen] = typecheck.LookupRuntimeFunc("panicSliceAlen")
-		BoundsCheckFunc[ssa.BoundsSliceAlenU] = typecheck.LookupRuntimeFunc("panicSliceAlenU")
-		BoundsCheckFunc[ssa.BoundsSliceAcap] = typecheck.LookupRuntimeFunc("panicSliceAcap")
-		BoundsCheckFunc[ssa.BoundsSliceAcapU] = typecheck.LookupRuntimeFunc("panicSliceAcapU")
-		BoundsCheckFunc[ssa.BoundsSliceB] = typecheck.LookupRuntimeFunc("panicSliceB")
-		BoundsCheckFunc[ssa.BoundsSliceBU] = typecheck.LookupRuntimeFunc("panicSliceBU")
-		BoundsCheckFunc[ssa.BoundsSlice3Alen] = typecheck.LookupRuntimeFunc("panicSlice3Alen")
-		BoundsCheckFunc[ssa.BoundsSlice3AlenU] = typecheck.LookupRuntimeFunc("panicSlice3AlenU")
-		BoundsCheckFunc[ssa.BoundsSlice3Acap] = typecheck.LookupRuntimeFunc("panicSlice3Acap")
-		BoundsCheckFunc[ssa.BoundsSlice3AcapU] = typecheck.LookupRuntimeFunc("panicSlice3AcapU")
-		BoundsCheckFunc[ssa.BoundsSlice3B] = typecheck.LookupRuntimeFunc("panicSlice3B")
-		BoundsCheckFunc[ssa.BoundsSlice3BU] = typecheck.LookupRuntimeFunc("panicSlice3BU")
-		BoundsCheckFunc[ssa.BoundsSlice3C] = typecheck.LookupRuntimeFunc("panicSlice3C")
-		BoundsCheckFunc[ssa.BoundsSlice3CU] = typecheck.LookupRuntimeFunc("panicSlice3CU")
-		BoundsCheckFunc[ssa.BoundsConvert] = typecheck.LookupRuntimeFunc("panicSliceConvert")
-	}
-	if Arch.LinkArch.PtrSize == 4 {
-		ExtendCheckFunc[ssa.BoundsIndex] = typecheck.LookupRuntimeVar("panicExtendIndex")
-		ExtendCheckFunc[ssa.BoundsIndexU] = typecheck.LookupRuntimeVar("panicExtendIndexU")
-		ExtendCheckFunc[ssa.BoundsSliceAlen] = typecheck.LookupRuntimeVar("panicExtendSliceAlen")
-		ExtendCheckFunc[ssa.BoundsSliceAlenU] = typecheck.LookupRuntimeVar("panicExtendSliceAlenU")
-		ExtendCheckFunc[ssa.BoundsSliceAcap] = typecheck.LookupRuntimeVar("panicExtendSliceAcap")
-		ExtendCheckFunc[ssa.BoundsSliceAcapU] = typecheck.LookupRuntimeVar("panicExtendSliceAcapU")
-		ExtendCheckFunc[ssa.BoundsSliceB] = typecheck.LookupRuntimeVar("panicExtendSliceB")
-		ExtendCheckFunc[ssa.BoundsSliceBU] = typecheck.LookupRuntimeVar("panicExtendSliceBU")
-		ExtendCheckFunc[ssa.BoundsSlice3Alen] = typecheck.LookupRuntimeVar("panicExtendSlice3Alen")
-		ExtendCheckFunc[ssa.BoundsSlice3AlenU] = typecheck.LookupRuntimeVar("panicExtendSlice3AlenU")
-		ExtendCheckFunc[ssa.BoundsSlice3Acap] = typecheck.LookupRuntimeVar("panicExtendSlice3Acap")
-		ExtendCheckFunc[ssa.BoundsSlice3AcapU] = typecheck.LookupRuntimeVar("panicExtendSlice3AcapU")
-		ExtendCheckFunc[ssa.BoundsSlice3B] = typecheck.LookupRuntimeVar("panicExtendSlice3B")
-		ExtendCheckFunc[ssa.BoundsSlice3BU] = typecheck.LookupRuntimeVar("panicExtendSlice3BU")
-		ExtendCheckFunc[ssa.BoundsSlice3C] = typecheck.LookupRuntimeVar("panicExtendSlice3C")
-		ExtendCheckFunc[ssa.BoundsSlice3CU] = typecheck.LookupRuntimeVar("panicExtendSlice3CU")
 	}
 
 	// Wasm (all asm funcs with special ABIs)
@@ -730,7 +700,7 @@ func allocAlign(t *types.Type) int64 {
 func (s *state) newHeapaddr(n *ir.Name) {
 	size := allocSize(n.Type())
 	if n.Type().HasPointers() || size >= maxAggregatedHeapAllocation || size == 0 {
-		s.setHeapaddr(n.Pos(), n, s.newObject(n.Type(), nil))
+		s.setHeapaddr(n.Pos(), n, s.newObject(n.Type()))
 		return
 	}
 
@@ -749,7 +719,7 @@ func (s *state) newHeapaddr(n *ir.Name) {
 		// Make an allocation, but the type being allocated is just
 		// the first pending object. We will come back and update it
 		// later if needed.
-		allocCall = s.newObject(n.Type(), nil)
+		allocCall = s.newObjectNonSpecialized(n.Type(), nil)
 	} else {
 		allocCall = s.pendingHeapAllocations[0].Args[0]
 	}
@@ -802,7 +772,11 @@ func (s *state) flushPendingHeapAllocations() {
 		s.constBool(true),             // needZero TODO: false is ok?
 		call.Args[1],                  // memory
 	}
-	call.Aux = ssa.StaticAuxCall(ir.Syms.MallocGC, s.f.ABIDefault.ABIAnalyzeTypes(
+	mallocSym := ir.Syms.MallocGC
+	if specialMallocSym := s.specializedMallocSym(size, false); specialMallocSym != nil {
+		mallocSym = specialMallocSym
+	}
+	call.Aux = ssa.StaticAuxCall(mallocSym, s.f.ABIDefault.ABIAnalyzeTypes(
 		[]*types.Type{args[0].Type, args[1].Type, args[2].Type},
 		[]*types.Type{types.Types[types.TUNSAFEPTR]},
 	))
@@ -812,6 +786,43 @@ func (s *state) flushPendingHeapAllocations() {
 
 	call.Type = types.NewTuple(types.Types[types.TUNSAFEPTR], types.TypeMem)
 	ptr.Type = types.Types[types.TUNSAFEPTR]
+}
+
+func (s *state) specializedMallocSym(size int64, hasPointers bool) *obj.LSym {
+	if !s.sizeSpecializedMallocEnabled() {
+		return nil
+	}
+	ptrSize := s.config.PtrSize
+	ptrBits := ptrSize * 8
+	minSizeForMallocHeader := ptrSize * ptrBits
+	heapBitsInSpan := size <= minSizeForMallocHeader
+	if !heapBitsInSpan {
+		return nil
+	}
+	divRoundUp := func(n, a uintptr) uintptr { return (n + a - 1) / a }
+	sizeClass := gc.SizeToSizeClass8[divRoundUp(uintptr(size), gc.SmallSizeDiv)]
+	if hasPointers {
+		return ir.Syms.MallocGCSmallScanNoHeader[sizeClass]
+	}
+	if size < gc.TinySize {
+		return ir.Syms.MallocGCTiny[size]
+	}
+	return ir.Syms.MallocGCSmallNoScan[sizeClass]
+}
+
+func (s *state) sizeSpecializedMallocEnabled() bool {
+	if base.Flag.CompilingRuntime {
+		// The compiler forces the values of the asan, msan, and race flags to false if
+		// we're compiling the runtime, so we lose the information about whether we're
+		// building in asan, msan, or race mode. Because the specialized functions don't
+		// work in that mode, just turn if off in that case.
+		// TODO(matloob): Save the information about whether the flags were passed in
+		// originally so we can turn off size specialized malloc in that case instead
+		// using Instrumenting below. Then we can remove this condition.
+		return false
+	}
+
+	return buildcfg.Experiment.SizeSpecializedMalloc && !base.Flag.Cfg.Instrumenting
 }
 
 // setHeapaddr allocates a new PAUTO variable to store ptr (which must be non-nil)
@@ -836,7 +847,24 @@ func (s *state) setHeapaddr(pos src.XPos, n *ir.Name, ptr *ssa.Value) {
 }
 
 // newObject returns an SSA value denoting new(typ).
-func (s *state) newObject(typ *types.Type, rtype *ssa.Value) *ssa.Value {
+func (s *state) newObject(typ *types.Type) *ssa.Value {
+	if typ.Size() == 0 {
+		return s.newValue1A(ssa.OpAddr, types.NewPtr(typ), ir.Syms.Zerobase, s.sb)
+	}
+	rtype := s.reflectType(typ)
+	if specialMallocSym := s.specializedMallocSym(typ.Size(), typ.HasPointers()); specialMallocSym != nil {
+		return s.rtcall(specialMallocSym, true, []*types.Type{types.NewPtr(typ)},
+			s.constInt(types.Types[types.TUINTPTR], typ.Size()),
+			rtype,
+			s.constBool(true),
+		)[0]
+	}
+	return s.rtcall(ir.Syms.Newobject, true, []*types.Type{types.NewPtr(typ)}, rtype)[0]
+}
+
+// newObjectNonSpecialized returns an SSA value denoting new(typ). It does
+// not produce size-specialized malloc functions.
+func (s *state) newObjectNonSpecialized(typ *types.Type, rtype *ssa.Value) *ssa.Value {
 	if typ.Size() == 0 {
 		return s.newValue1A(ssa.OpAddr, types.NewPtr(typ), ir.Syms.Zerobase, s.sb)
 	}
@@ -1060,6 +1088,9 @@ type state struct {
 
 	// First argument of append calls that could be stack allocated.
 	appendTargets map[ir.Node]bool
+
+	// Block starting position, indexed by block id.
+	blockStarts []src.XPos
 }
 
 type funcLine struct {
@@ -1118,6 +1149,9 @@ func (s *state) startBlock(b *ssa.Block) {
 	s.curBlock = b
 	s.vars = map[ir.Node]*ssa.Value{}
 	clear(s.fwdVars)
+	for len(s.blockStarts) <= int(b.ID) {
+		s.blockStarts = append(s.blockStarts, src.NoXPos)
+	}
 }
 
 // endBlock marks the end of generating code for the current block.
@@ -1144,6 +1178,9 @@ func (s *state) endBlock() *ssa.Block {
 		b.Pos = src.NoXPos
 	} else {
 		b.Pos = s.lastPos
+		if s.blockStarts[b.ID] == src.NoXPos {
+			s.blockStarts[b.ID] = s.lastPos
+		}
 	}
 	return b
 }
@@ -1159,6 +1196,11 @@ func (s *state) pushLine(line src.XPos) {
 		}
 	} else {
 		s.lastPos = line
+	}
+	// The first position we see for a new block is its starting position
+	// (the line number for its phis, if any).
+	if b := s.curBlock; b != nil && s.blockStarts[b.ID] == src.NoXPos {
+		s.blockStarts[b.ID] = line
 	}
 
 	s.line = append(s.line, line)
@@ -1361,9 +1403,6 @@ func (s *state) constInt(t *types.Type, c int64) *ssa.Value {
 		s.Fatalf("integer constant too big %d", c)
 	}
 	return s.constInt32(t, int32(c))
-}
-func (s *state) constOffPtrSP(t *types.Type, c int64) *ssa.Value {
-	return s.f.ConstOffPtrSP(t, c, s.sp)
 }
 
 // newValueOrSfCall* are wrappers around newValue*, which may create a call to a
@@ -2617,13 +2656,13 @@ var fpConvOpToSSA = map[twoTypes]twoOpsAndType{
 
 	{types.TFLOAT32, types.TUINT8}:  {ssa.OpCvt32Fto32, ssa.OpTrunc32to8, types.TINT32},
 	{types.TFLOAT32, types.TUINT16}: {ssa.OpCvt32Fto32, ssa.OpTrunc32to16, types.TINT32},
-	{types.TFLOAT32, types.TUINT32}: {ssa.OpCvt32Fto64, ssa.OpTrunc64to32, types.TINT64}, // go wide to dodge unsigned
-	{types.TFLOAT32, types.TUINT64}: {ssa.OpInvalid, ssa.OpCopy, types.TUINT64},          // Cvt32Fto64U, branchy code expansion instead
+	{types.TFLOAT32, types.TUINT32}: {ssa.OpInvalid, ssa.OpCopy, types.TINT64},  // Cvt64Fto32U, branchy code expansion instead
+	{types.TFLOAT32, types.TUINT64}: {ssa.OpInvalid, ssa.OpCopy, types.TUINT64}, // Cvt32Fto64U, branchy code expansion instead
 
 	{types.TFLOAT64, types.TUINT8}:  {ssa.OpCvt64Fto32, ssa.OpTrunc32to8, types.TINT32},
 	{types.TFLOAT64, types.TUINT16}: {ssa.OpCvt64Fto32, ssa.OpTrunc32to16, types.TINT32},
-	{types.TFLOAT64, types.TUINT32}: {ssa.OpCvt64Fto64, ssa.OpTrunc64to32, types.TINT64}, // go wide to dodge unsigned
-	{types.TFLOAT64, types.TUINT64}: {ssa.OpInvalid, ssa.OpCopy, types.TUINT64},          // Cvt64Fto64U, branchy code expansion instead
+	{types.TFLOAT64, types.TUINT32}: {ssa.OpInvalid, ssa.OpCopy, types.TINT64},  // Cvt64Fto32U, branchy code expansion instead
+	{types.TFLOAT64, types.TUINT64}: {ssa.OpInvalid, ssa.OpCopy, types.TUINT64}, // Cvt64Fto64U, branchy code expansion instead
 
 	// float
 	{types.TFLOAT64, types.TFLOAT32}: {ssa.OpCvt64Fto32F, ssa.OpCopy, types.TFLOAT32},
@@ -2840,7 +2879,19 @@ func (s *state) conv(n ir.Node, v *ssa.Value, ft, tt *types.Type) *ssa.Value {
 	}
 
 	if ft.IsFloat() || tt.IsFloat() {
-		conv, ok := fpConvOpToSSA[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]
+		cft, ctt := s.concreteEtype(ft), s.concreteEtype(tt)
+		conv, ok := fpConvOpToSSA[twoTypes{cft, ctt}]
+		// there's a change to a conversion-op table, this restores the old behavior if ConvertHash is false.
+		// use salted hash to distinguish unsigned convert at a Pos from signed convert at a Pos
+		if ctt == types.TUINT32 && ft.IsFloat() && !base.ConvertHash.MatchPosWithInfo(n.Pos(), "U", nil) {
+			// revert to old behavior
+			conv.op1 = ssa.OpCvt64Fto64
+			if cft == types.TFLOAT32 {
+				conv.op1 = ssa.OpCvt32Fto64
+			}
+			conv.op2 = ssa.OpTrunc64to32
+
+		}
 		if s.config.RegSize == 4 && Arch.LinkArch.Family != sys.MIPS && !s.softFloat {
 			if conv1, ok1 := fpConvOpToSSA32[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]; ok1 {
 				conv = conv1
@@ -2903,10 +2954,23 @@ func (s *state) conv(n ir.Node, v *ssa.Value, ft, tt *types.Type) *ssa.Value {
 		}
 		// ft is float32 or float64, and tt is unsigned integer
 		if ft.Size() == 4 {
-			return s.float32ToUint64(n, v, ft, tt)
+			switch tt.Size() {
+			case 8:
+				return s.float32ToUint64(n, v, ft, tt)
+			case 4, 2, 1:
+				// TODO should 2 and 1 saturate or truncate?
+				return s.float32ToUint32(n, v, ft, tt)
+			}
 		}
 		if ft.Size() == 8 {
-			return s.float64ToUint64(n, v, ft, tt)
+			switch tt.Size() {
+			case 8:
+				return s.float64ToUint64(n, v, ft, tt)
+			case 4, 2, 1:
+				// TODO should 2 and 1 saturate or truncate?
+				return s.float64ToUint32(n, v, ft, tt)
+			}
+
 		}
 		s.Fatalf("weird float to unsigned integer conversion %v -> %v", ft, tt)
 		return nil
@@ -3083,13 +3147,8 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 			return v
 		}
 
-		// map <--> *hmap
-		var mt *types.Type
-		if buildcfg.Experiment.SwissMap {
-			mt = types.NewPtr(reflectdata.SwissMapType())
-		} else {
-			mt = types.NewPtr(reflectdata.OldMapType())
-		}
+		// map <--> *internal/runtime/maps.Map
+		mt := types.NewPtr(reflectdata.MapType())
 		if to.Kind() == types.TMAP && from == mt {
 			return v
 		}
@@ -3629,11 +3688,10 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 
 	case ir.ONEW:
 		n := n.(*ir.UnaryExpr)
-		var rtype *ssa.Value
 		if x, ok := n.X.(*ir.DynamicType); ok && x.Op() == ir.ODYNAMICTYPE {
-			rtype = s.expr(x.RType)
+			return s.newObjectNonSpecialized(n.Type().Elem(), s.expr(x.RType))
 		}
-		return s.newObject(n.Type().Elem(), rtype)
+		return s.newObject(n.Type().Elem())
 
 	case ir.OUNSAFEADD:
 		n := n.(*ir.BinaryExpr)
@@ -3995,7 +4053,7 @@ func (s *state) minMax(n *ir.CallExpr) *ssa.Value {
 		if typ.IsFloat() {
 			hasIntrinsic := false
 			switch Arch.LinkArch.Family {
-			case sys.AMD64, sys.ARM64, sys.Loong64, sys.RISCV64:
+			case sys.AMD64, sys.ARM64, sys.Loong64, sys.RISCV64, sys.S390X:
 				hasIntrinsic = true
 			case sys.PPC64:
 				hasIntrinsic = buildcfg.GOPPC64 >= 9
@@ -5427,26 +5485,6 @@ func (s *state) putArg(n ir.Node, t *types.Type) *ssa.Value {
 	return a
 }
 
-func (s *state) storeArgWithBase(n ir.Node, t *types.Type, base *ssa.Value, off int64) {
-	pt := types.NewPtr(t)
-	var addr *ssa.Value
-	if base == s.sp {
-		// Use special routine that avoids allocation on duplicate offsets.
-		addr = s.constOffPtrSP(pt, off)
-	} else {
-		addr = s.newValue1I(ssa.OpOffPtr, pt, off, base)
-	}
-
-	if !ssa.CanSSA(t) {
-		a := s.addr(n)
-		s.move(t, addr, a)
-		return
-	}
-
-	a := s.expr(n)
-	s.storeType(t, addr, a, 0, false)
-}
-
 // slice computes the slice v[i:j:k] and returns ptr, len, and cap of result.
 // i,j,k may be nil, in which case they are set to their default value.
 // v may be a slice, string or pointer to an array.
@@ -5621,7 +5659,9 @@ func (s *state) uint64Tofloat(cvttab *u642fcvtTab, n ir.Node, x *ssa.Value, ft, 
 	// equal to 10000000001; that rounds up, and the 1 cannot
 	// be lost else it would round down if the LSB of the
 	// candidate mantissa is 0.
+
 	cmp := s.newValue2(cvttab.leq, types.Types[types.TBOOL], s.zeroVal(ft), x)
+
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
 	b.SetControl(cmp)
@@ -5759,13 +5799,13 @@ func (s *state) referenceTypeBuiltin(n *ir.UnaryExpr, x *ssa.Value) *ssa.Value {
 	s.startBlock(bElse)
 	switch n.Op() {
 	case ir.OLEN:
-		if buildcfg.Experiment.SwissMap && n.X.Type().IsMap() {
-			// length is stored in the first word.
-			loadType := reflectdata.SwissMapType().Field(0).Type // uint64
+		if n.X.Type().IsMap() {
+			// length is stored in the first word, but needs conversion to int.
+			loadType := reflectdata.MapType().Field(0).Type // uint64
 			load := s.load(loadType, x)
 			s.vars[n] = s.conv(nil, load, loadType, lenType) // integer conversion doesn't need Node
 		} else {
-			// length is stored in the first word for map/chan
+			// length is stored in the first word for chan, no conversion needed.
 			s.vars[n] = s.load(lenType, x)
 		}
 	case ir.OCAP:
@@ -5847,34 +5887,63 @@ func (s *state) float64ToUint32(n ir.Node, x *ssa.Value, ft, tt *types.Type) *ss
 func (s *state) floatToUint(cvttab *f2uCvtTab, n ir.Node, x *ssa.Value, ft, tt *types.Type) *ssa.Value {
 	// cutoff:=1<<(intY_Size-1)
 	// if x < floatX(cutoff) {
-	// 	result = uintY(x)
+	// 	result = uintY(x) // bThen
+	//  // gated by ConvertHash, clamp negative inputs to zero
+	// 	if x < 0 { // unlikely
+	// 		result = 0 // bZero
+	// 	}
 	// } else {
-	// 	y = x - floatX(cutoff)
+	// 	y = x - floatX(cutoff) // bElse
 	// 	z = uintY(y)
 	// 	result = z | -(cutoff)
 	// }
+
 	cutoff := cvttab.floatValue(s, ft, float64(cvttab.cutoff))
-	cmp := s.newValue2(cvttab.ltf, types.Types[types.TBOOL], x, cutoff)
+	cmp := s.newValueOrSfCall2(cvttab.ltf, types.Types[types.TBOOL], x, cutoff)
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
 	b.SetControl(cmp)
 	b.Likely = ssa.BranchLikely
 
-	bThen := s.f.NewBlock(ssa.BlockPlain)
+	var bThen, bZero *ssa.Block
+	// use salted hash to distinguish unsigned convert at a Pos from signed convert at a Pos
+	newConversion := base.ConvertHash.MatchPosWithInfo(n.Pos(), "U", nil)
+	if newConversion {
+		bZero = s.f.NewBlock(ssa.BlockPlain)
+		bThen = s.f.NewBlock(ssa.BlockIf)
+	} else {
+		bThen = s.f.NewBlock(ssa.BlockPlain)
+	}
+
 	bElse := s.f.NewBlock(ssa.BlockPlain)
 	bAfter := s.f.NewBlock(ssa.BlockPlain)
 
 	b.AddEdgeTo(bThen)
 	s.startBlock(bThen)
-	a0 := s.newValue1(cvttab.cvt2U, tt, x)
+	a0 := s.newValueOrSfCall1(cvttab.cvt2U, tt, x)
 	s.vars[n] = a0
-	s.endBlock()
-	bThen.AddEdgeTo(bAfter)
+
+	if newConversion {
+		cmpz := s.newValueOrSfCall2(cvttab.ltf, types.Types[types.TBOOL], x, cvttab.floatValue(s, ft, 0.0))
+		s.endBlock()
+		bThen.SetControl(cmpz)
+		bThen.AddEdgeTo(bZero)
+		bThen.Likely = ssa.BranchUnlikely
+		bThen.AddEdgeTo(bAfter)
+
+		s.startBlock(bZero)
+		s.vars[n] = cvttab.intValue(s, tt, 0)
+		s.endBlock()
+		bZero.AddEdgeTo(bAfter)
+	} else {
+		s.endBlock()
+		bThen.AddEdgeTo(bAfter)
+	}
 
 	b.AddEdgeTo(bElse)
 	s.startBlock(bElse)
-	y := s.newValue2(cvttab.subf, ft, x, cutoff)
-	y = s.newValue1(cvttab.cvt2U, tt, y)
+	y := s.newValueOrSfCall2(cvttab.subf, ft, x, cutoff)
+	y = s.newValueOrSfCall1(cvttab.cvt2U, tt, y)
 	z := cvttab.intValue(s, tt, int64(-cvttab.cutoff))
 	a1 := s.newValue2(cvttab.or, tt, y, z)
 	s.vars[n] = a1
@@ -5895,6 +5964,25 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
 	if n.ITab != nil {
 		targetItab = s.expr(n.ITab)
 	}
+
+	if n.UseNilPanic {
+		if commaok {
+			base.Fatalf("unexpected *ir.TypeAssertExpr with UseNilPanic == true && commaok == true")
+		}
+		if n.Type().IsInterface() {
+			// Currently we do not expect the compiler to emit type asserts with UseNilPanic, that assert to an interface type.
+			// If needed, this can be relaxed in the future, but for now we can assert that.
+			base.Fatalf("unexpected *ir.TypeAssertExpr with UseNilPanic == true && Type().IsInterface() == true")
+		}
+		typs := s.f.Config.Types
+		iface = s.newValue2(
+			ssa.OpIMake,
+			iface.Type,
+			s.nilCheck(s.newValue1(ssa.OpITab, typs.BytePtr, iface)),
+			s.newValue1(ssa.OpIData, typs.BytePtr, iface),
+		)
+	}
+
 	return s.dottype1(n.Pos(), n.X.Type(), n.Type(), iface, nil, target, targetItab, commaok, n.Descriptor)
 }
 
@@ -7767,7 +7855,4 @@ func SpillSlotAddr(spill ssa.Spill, baseReg int16, extraOffset int64) obj.Addr {
 	}
 }
 
-var (
-	BoundsCheckFunc [ssa.BoundsKindCount]*obj.LSym
-	ExtendCheckFunc [ssa.BoundsKindCount]*obj.LSym
-)
+var BoundsCheckFunc [ssa.BoundsKindCount]*obj.LSym

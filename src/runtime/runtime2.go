@@ -87,6 +87,9 @@ const (
 	// ready()ing this G.
 	_Gpreempted // 9
 
+	// _Gleaked represents a leaked goroutine caught by the GC.
+	_Gleaked // 10
+
 	// _Gscan combined with one of the above states other than
 	// _Grunning indicates that GC is scanning the stack. The
 	// goroutine is not executing user code and the stack is owned
@@ -104,6 +107,7 @@ const (
 	_Gscansyscall   = _Gscan + _Gsyscall   // 0x1003
 	_Gscanwaiting   = _Gscan + _Gwaiting   // 0x1004
 	_Gscanpreempted = _Gscan + _Gpreempted // 0x1009
+	_Gscanleaked    = _Gscan + _Gleaked    // 0x100a
 )
 
 const (
@@ -315,6 +319,78 @@ type gobuf struct {
 	bp   uintptr // for framepointer-enabled architectures
 }
 
+// maybeTraceablePtr is a special pointer that is conditionally trackable
+// by the GC. It consists of an address as a uintptr (vu) and a pointer
+// to a data element (vp).
+//
+// maybeTraceablePtr values can be in one of three states:
+// 1. Unset: vu == 0 && vp == nil
+// 2. Untracked: vu != 0 && vp == nil
+// 3. Tracked: vu != 0 && vp != nil
+//
+// Do not set fields manually. Use methods instead.
+// Extend this type with additional methods if needed.
+type maybeTraceablePtr struct {
+	vp unsafe.Pointer // For liveness only.
+	vu uintptr        // Source of truth.
+}
+
+// untrack unsets the pointer but preserves the address.
+// This is used to hide the pointer from the GC.
+//
+//go:nosplit
+func (p *maybeTraceablePtr) setUntraceable() {
+	p.vp = nil
+}
+
+// setTraceable resets the pointer to the stored address.
+// This is used to make the pointer visible to the GC.
+//
+//go:nosplit
+func (p *maybeTraceablePtr) setTraceable() {
+	p.vp = unsafe.Pointer(p.vu)
+}
+
+// set sets the pointer to the data element and updates the address.
+//
+//go:nosplit
+func (p *maybeTraceablePtr) set(v unsafe.Pointer) {
+	p.vp = v
+	p.vu = uintptr(v)
+}
+
+// get retrieves the pointer to the data element.
+//
+//go:nosplit
+func (p *maybeTraceablePtr) get() unsafe.Pointer {
+	return unsafe.Pointer(p.vu)
+}
+
+// uintptr returns the uintptr address of the pointer.
+//
+//go:nosplit
+func (p *maybeTraceablePtr) uintptr() uintptr {
+	return p.vu
+}
+
+// maybeTraceableChan extends conditionally trackable pointers (maybeTraceablePtr)
+// to track hchan pointers.
+//
+// Do not set fields manually. Use methods instead.
+type maybeTraceableChan struct {
+	maybeTraceablePtr
+}
+
+//go:nosplit
+func (p *maybeTraceableChan) set(c *hchan) {
+	p.maybeTraceablePtr.set(unsafe.Pointer(c))
+}
+
+//go:nosplit
+func (p *maybeTraceableChan) get() *hchan {
+	return (*hchan)(p.maybeTraceablePtr.get())
+}
+
 // sudog (pseudo-g) represents a g in a wait list, such as for sending/receiving
 // on a channel.
 //
@@ -334,7 +410,8 @@ type sudog struct {
 
 	next *sudog
 	prev *sudog
-	elem unsafe.Pointer // data element (may point to stack)
+
+	elem maybeTraceablePtr // data element (may point to stack)
 
 	// The following fields are never accessed concurrently.
 	// For channels, waitlink is only accessed by g.
@@ -362,10 +439,10 @@ type sudog struct {
 	// in the second entry in the list.)
 	waiters uint16
 
-	parent   *sudog // semaRoot binary tree
-	waitlink *sudog // g.waiting list or semaRoot
-	waittail *sudog // semaRoot
-	c        *hchan // channel
+	parent   *sudog             // semaRoot binary tree
+	waitlink *sudog             // g.waiting list or semaRoot
+	waittail *sudog             // semaRoot
+	c        maybeTraceableChan // channel
 }
 
 type libcall struct {
@@ -492,6 +569,10 @@ type g struct {
 	coroarg *coro // argument during coroutine transfers
 	bubble  *synctestBubble
 
+	// xRegs stores the extended register state if this G has been
+	// asynchronously preempted.
+	xRegs xRegPerG
+
 	// Per-G tracer state.
 	trace gTraceState
 
@@ -593,9 +674,7 @@ type m struct {
 	freelink    *m // on sched.freem
 	trace       mTraceState
 
-	// these are here because they are too large to be on the stack
-	// of low-level NOSPLIT functions.
-	libcall    libcall
+	// These are here to avoid using the G stack so the stack can move during the call.
 	libcallpc  uintptr // for cpu profiler
 	libcallsp  uintptr
 	libcallg   guintptr
@@ -762,6 +841,14 @@ type p struct {
 	// gcStopTime is the nanotime timestamp that this P last entered _Pgcstop.
 	gcStopTime int64
 
+	// goroutinesCreated is the total count of goroutines created by this P.
+	goroutinesCreated uint64
+
+	// xRegs is the per-P extended register state used by asynchronous
+	// preemption. This is an empty struct on platforms that don't use extended
+	// register state.
+	xRegs xRegPerP
+
 	// Padding is no longer needed. False sharing is now not a worry because p is large enough
 	// that its size class is an integer multiple of the cache line size (for any of our architectures).
 }
@@ -785,7 +872,8 @@ type schedt struct {
 	nmsys        int32    // number of system m's not counted for deadlock
 	nmfreed      int64    // cumulative number of freed m's
 
-	ngsys atomic.Int32 // number of system goroutines
+	ngsys        atomic.Int32 // number of system goroutines
+	nGsyscallNoP atomic.Int32 // number of goroutines in syscalls without a P
 
 	pidle        puintptr // idle p's
 	npidle       atomic.Int32
@@ -884,6 +972,10 @@ type schedt struct {
 	// M, but waiting for locks within the runtime. This field stores the value
 	// for Ms that have exited.
 	totalRuntimeLockWaitTime atomic.Int64
+
+	// goroutinesCreated (plus the value of goroutinesCreated on each P in allp)
+	// is the sum of all goroutines created by the program.
+	goroutinesCreated atomic.Uint64
 }
 
 // Values for the flags field of a sigTabT.
@@ -1057,24 +1149,24 @@ const (
 	waitReasonZero                  waitReason = iota // ""
 	waitReasonGCAssistMarking                         // "GC assist marking"
 	waitReasonIOWait                                  // "IO wait"
-	waitReasonChanReceiveNilChan                      // "chan receive (nil chan)"
-	waitReasonChanSendNilChan                         // "chan send (nil chan)"
 	waitReasonDumpingHeap                             // "dumping heap"
 	waitReasonGarbageCollection                       // "garbage collection"
 	waitReasonGarbageCollectionScan                   // "garbage collection scan"
 	waitReasonPanicWait                               // "panicwait"
-	waitReasonSelect                                  // "select"
-	waitReasonSelectNoCases                           // "select (no cases)"
 	waitReasonGCAssistWait                            // "GC assist wait"
 	waitReasonGCSweepWait                             // "GC sweep wait"
 	waitReasonGCScavengeWait                          // "GC scavenge wait"
-	waitReasonChanReceive                             // "chan receive"
-	waitReasonChanSend                                // "chan send"
 	waitReasonFinalizerWait                           // "finalizer wait"
 	waitReasonForceGCIdle                             // "force gc (idle)"
 	waitReasonUpdateGOMAXPROCSIdle                    // "GOMAXPROCS updater (idle)"
 	waitReasonSemacquire                              // "semacquire"
 	waitReasonSleep                                   // "sleep"
+	waitReasonChanReceiveNilChan                      // "chan receive (nil chan)"
+	waitReasonChanSendNilChan                         // "chan send (nil chan)"
+	waitReasonSelectNoCases                           // "select (no cases)"
+	waitReasonSelect                                  // "select"
+	waitReasonChanReceive                             // "chan receive"
+	waitReasonChanSend                                // "chan send"
 	waitReasonSyncCondWait                            // "sync.Cond.Wait"
 	waitReasonSyncMutexLock                           // "sync.Mutex.Lock"
 	waitReasonSyncRWMutexRLock                        // "sync.RWMutex.RLock"
@@ -1160,10 +1252,32 @@ func (w waitReason) String() string {
 	return waitReasonStrings[w]
 }
 
+// isMutexWait returns true if the goroutine is blocked because of
+// sync.Mutex.Lock or sync.RWMutex.[R]Lock.
+//
+//go:nosplit
 func (w waitReason) isMutexWait() bool {
 	return w == waitReasonSyncMutexLock ||
 		w == waitReasonSyncRWMutexRLock ||
 		w == waitReasonSyncRWMutexLock
+}
+
+// isSyncWait returns true if the goroutine is blocked because of
+// sync library primitive operations.
+//
+//go:nosplit
+func (w waitReason) isSyncWait() bool {
+	return waitReasonSyncCondWait <= w && w <= waitReasonSyncWaitGroupWait
+}
+
+// isChanWait is true if the goroutine is blocked because of non-nil
+// channel operations or a select statement with at least one case.
+//
+//go:nosplit
+func (w waitReason) isChanWait() bool {
+	return w == waitReasonSelect ||
+		w == waitReasonChanReceive ||
+		w == waitReasonChanSend
 }
 
 func (w waitReason) isWaitingForSuspendG() bool {
@@ -1210,7 +1324,9 @@ var isIdleInSynctest = [len(waitReasonStrings)]bool{
 }
 
 var (
-	allm          *m
+	// Linked-list of all Ms. Written under sched.lock, read atomically.
+	allm *m
+
 	gomaxprocs    int32
 	numCPUStartup int32
 	forcegc       forcegcstate

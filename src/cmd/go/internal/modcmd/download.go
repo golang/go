@@ -109,18 +109,18 @@ type ModuleJSON struct {
 }
 
 func runDownload(ctx context.Context, cmd *base.Command, args []string) {
-	modload.InitWorkfile()
+	modload.InitWorkfile(modload.LoaderState)
 
 	// Check whether modules are enabled and whether we're in a module.
-	modload.ForceUseModules = true
+	modload.LoaderState.ForceUseModules = true
 	modload.ExplicitWriteGoMod = true
 	haveExplicitArgs := len(args) > 0
 
-	if modload.HasModRoot() || modload.WorkFilePath() != "" {
-		modload.LoadModFile(ctx) // to fill MainModules
+	if modload.HasModRoot(modload.LoaderState) || modload.WorkFilePath(modload.LoaderState) != "" {
+		modload.LoadModFile(modload.LoaderState, ctx) // to fill MainModules
 
 		if haveExplicitArgs {
-			for _, mainModule := range modload.MainModules.Versions() {
+			for _, mainModule := range modload.LoaderState.MainModules.Versions() {
 				targetAtUpgrade := mainModule.Path + "@upgrade"
 				targetAtPatch := mainModule.Path + "@patch"
 				for _, arg := range args {
@@ -130,14 +130,14 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 					}
 				}
 			}
-		} else if modload.WorkFilePath() != "" {
+		} else if modload.WorkFilePath(modload.LoaderState) != "" {
 			// TODO(#44435): Think about what the correct query is to download the
 			// right set of modules. Also see code review comment at
 			// https://go-review.googlesource.com/c/go/+/359794/comments/ce946a80_6cf53992.
 			args = []string{"all"}
 		} else {
-			mainModule := modload.MainModules.Versions()[0]
-			modFile := modload.MainModules.ModFile(mainModule)
+			mainModule := modload.LoaderState.MainModules.Versions()[0]
+			modFile := modload.LoaderState.MainModules.ModFile(mainModule)
 			if modFile.Go == nil || gover.Compare(modFile.Go.Version, gover.ExplicitIndirectVersion) < 0 {
 				if len(modFile.Require) > 0 {
 					args = []string{"all"}
@@ -169,7 +169,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	if len(args) == 0 {
-		if modload.HasModRoot() {
+		if modload.HasModRoot(modload.LoaderState) {
 			os.Stderr.WriteString("go: no module dependencies to download\n")
 		} else {
 			base.Errorf("go: no modules specified (see 'go help mod download')")
@@ -177,7 +177,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 		base.Exit()
 	}
 
-	if *downloadReuse != "" && modload.HasModRoot() {
+	if *downloadReuse != "" && modload.HasModRoot(modload.LoaderState) {
 		base.Fatalf("go mod download -reuse cannot be used inside a module")
 	}
 
@@ -220,7 +220,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 		// when we can.
 	}
 
-	if !haveExplicitArgs && modload.WorkFilePath() == "" {
+	if !haveExplicitArgs && modload.WorkFilePath(modload.LoaderState) == "" {
 		// 'go mod download' is sometimes run without arguments to pre-populate the
 		// module cache. In modules that aren't at go 1.17 or higher, it may fetch
 		// modules that aren't needed to build packages in the main module. This is
@@ -291,7 +291,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	// with no arguments we download the module pattern "all",
 	// which may include dependencies that are normally pruned out
 	// of the individual modules in the workspace.
-	if haveExplicitArgs || modload.WorkFilePath() != "" {
+	if haveExplicitArgs || modload.WorkFilePath(modload.LoaderState) != "" {
 		var sw toolchain.Switcher
 		// Add errors to the Switcher in deterministic order so that they will be
 		// logged deterministically.
@@ -347,7 +347,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	//
 	// Don't save sums for 'go mod download' without arguments unless we're in
 	// workspace mode; see comment above.
-	if haveExplicitArgs || modload.WorkFilePath() != "" {
+	if haveExplicitArgs || modload.WorkFilePath(modload.LoaderState) != "" {
 		if err := modload.WriteGoMod(ctx, modload.WriteOpts{}); err != nil {
 			base.Error(err)
 		}

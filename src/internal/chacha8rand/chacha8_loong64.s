@@ -49,35 +49,23 @@ lsx_chacha8:
 	MOVV	$·chachaIncRot(SB), R11
 
 	// load contants
-	// VLDREPL.W  $0, R10, V0
-	WORD	$0x30200140
-	// VLDREPL.W  $1, R10, V1
-	WORD	$0x30200541
-	// VLDREPL.W  $2, R10, V2
-	WORD	$0x30200942
-	// VLDREPL.W  $3, R10, V3
-	WORD	$0x30200d43
+	VMOVQ	(R10), V0.W4
+	VMOVQ	4(R10), V1.W4
+	VMOVQ	8(R10), V2.W4
+	VMOVQ	12(R10), V3.W4
 
 	// load 4-32bit data from incRotMatrix added to counter
 	VMOVQ	(R11), V30
 
 	// load seed
-	// VLDREPL.W  $0, R4, V4
-	WORD	$0x30200084
-	// VLDREPL.W  $1, R4, V5
-	WORD	$0x30200485
-	// VLDREPL.W  $2, R4, V6
-	WORD	$0x30200886
-	// VLDREPL.W  $3, R4, V7
-	WORD	$0x30200c87
-	// VLDREPL.W  $4, R4, V8
-	WORD	$0x30201088
-	// VLDREPL.W  $5, R4, V9
-	WORD	$0x30201489
-	// VLDREPL.W  $6, R4, V10
-	WORD	$0x3020188a
-	// VLDREPL.W  $7, R4, V11
-	WORD	$0x30201c8b
+	VMOVQ	(R4), V4.W4
+	VMOVQ	4(R4), V5.W4
+	VMOVQ	8(R4), V6.W4
+	VMOVQ	12(R4), V7.W4
+	VMOVQ	16(R4), V8.W4
+	VMOVQ	20(R4), V9.W4
+	VMOVQ	24(R4), V10.W4
+	VMOVQ	28(R4), V11.W4
 
 	// load counter and update counter
 	VMOVQ	R6, V12.W4

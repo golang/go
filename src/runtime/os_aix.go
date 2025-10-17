@@ -27,6 +27,7 @@ type funcDescriptor struct {
 type mOS struct {
 	waitsema uintptr // semaphore for parking on locks
 	perrno   uintptr // pointer to tls errno
+	libcall  libcall
 }
 
 //go:nosplit

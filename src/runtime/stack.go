@@ -821,7 +821,8 @@ func adjustsudogs(gp *g, adjinfo *adjustinfo) {
 	// the data elements pointed to by a SudoG structure
 	// might be in the stack.
 	for s := gp.waiting; s != nil; s = s.waitlink {
-		adjustpointer(adjinfo, unsafe.Pointer(&s.elem))
+		adjustpointer(adjinfo, unsafe.Pointer(&s.elem.vu))
+		adjustpointer(adjinfo, unsafe.Pointer(&s.elem.vp))
 	}
 }
 
@@ -834,7 +835,7 @@ func fillstack(stk stack, b byte) {
 func findsghi(gp *g, stk stack) uintptr {
 	var sghi uintptr
 	for sg := gp.waiting; sg != nil; sg = sg.waitlink {
-		p := uintptr(sg.elem) + uintptr(sg.c.elemsize)
+		p := sg.elem.uintptr() + uintptr(sg.c.get().elemsize)
 		if stk.lo <= p && p < stk.hi && p > sghi {
 			sghi = p
 		}
@@ -853,7 +854,7 @@ func syncadjustsudogs(gp *g, used uintptr, adjinfo *adjustinfo) uintptr {
 	// Lock channels to prevent concurrent send/receive.
 	var lastc *hchan
 	for sg := gp.waiting; sg != nil; sg = sg.waitlink {
-		if sg.c != lastc {
+		if sg.c.get() != lastc {
 			// There is a ranking cycle here between gscan bit and
 			// hchan locks. Normally, we only allow acquiring hchan
 			// locks and then getting a gscan bit. In this case, we
@@ -863,9 +864,9 @@ func syncadjustsudogs(gp *g, used uintptr, adjinfo *adjustinfo) uintptr {
 			// suspended. So, we get a special hchan lock rank here
 			// that is lower than gscan, but doesn't allow acquiring
 			// any other locks other than hchan.
-			lockWithRank(&sg.c.lock, lockRankHchanLeaf)
+			lockWithRank(&sg.c.get().lock, lockRankHchanLeaf)
 		}
-		lastc = sg.c
+		lastc = sg.c.get()
 	}
 
 	// Adjust sudogs.
@@ -885,10 +886,10 @@ func syncadjustsudogs(gp *g, used uintptr, adjinfo *adjustinfo) uintptr {
 	// Unlock channels.
 	lastc = nil
 	for sg := gp.waiting; sg != nil; sg = sg.waitlink {
-		if sg.c != lastc {
-			unlock(&sg.c.lock)
+		if sg.c.get() != lastc {
+			unlock(&sg.c.get().lock)
 		}
-		lastc = sg.c
+		lastc = sg.c.get()
 	}
 
 	return sgsize
@@ -1214,15 +1215,18 @@ func isShrinkStackSafe(gp *g) bool {
 	if gp.parkingOnChan.Load() {
 		return false
 	}
-	// We also can't copy the stack while tracing is enabled, and
-	// gp is in _Gwaiting solely to make itself available to suspendG.
+	// We also can't copy the stack while a gp is in _Gwaiting solely
+	// to make itself available to suspendG.
+	//
 	// In these cases, the G is actually executing on the system
-	// stack, and the execution tracer may want to take a stack trace
-	// of the G's stack. Note: it's safe to access gp.waitreason here.
-	// We're only checking if this is true if we took ownership of the
+	// stack, and the execution tracer, mutex profiler, etc. may want
+	// to take a stack trace of the G's stack.
+	//
+	// Note: it's safe to access gp.waitreason here.
+	// We're only calling isShrinkStackSafe if we took ownership of the
 	// G with the _Gscan bit. This prevents the goroutine from transitioning,
 	// which prevents gp.waitreason from changing.
-	if traceEnabled() && readgstatus(gp)&^_Gscan == _Gwaiting && gp.waitreason.isWaitingForSuspendG() {
+	if readgstatus(gp)&^_Gscan == _Gwaiting && gp.waitreason.isWaitingForSuspendG() {
 		return false
 	}
 	return true
@@ -1256,12 +1260,6 @@ func shrinkstack(gp *g) {
 	}
 
 	if debug.gcshrinkstackoff > 0 {
-		return
-	}
-	f := findfunc(gp.startpc)
-	if f.valid() && f.funcID == abi.FuncID_gcBgMarkWorker {
-		// We're not allowed to shrink the gcBgMarkWorker
-		// stack (see gcBgMarkWorker for explanation).
 		return
 	}
 

@@ -362,23 +362,12 @@ func errprintf(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, format, args...)
 }
 
-// xsamefile reports whether f1 and f2 are the same file (or dir).
-func xsamefile(f1, f2 string) bool {
-	fi1, err1 := os.Stat(f1)
-	fi2, err2 := os.Stat(f2)
-	if err1 != nil || err2 != nil {
-		return f1 == f2
-	}
-	return os.SameFile(fi1, fi2)
-}
-
 func xgetgoarm() string {
 	// If we're building on an actual arm system, and not building
 	// a cross-compiling toolchain, try to exec ourselves
 	// to detect whether VFP is supported and set the default GOARM.
-	// Windows requires ARMv7, so we can skip the check.
-	// We've always assumed Android is ARMv7 too.
-	if gohostarch == "arm" && goarch == "arm" && goos == gohostos && goos != "windows" && goos != "android" {
+	// We've always assumed Android is ARMv7.
+	if gohostarch == "arm" && goarch == "arm" && goos == gohostos && goos != "android" {
 		// Try to exec ourselves in a mode to detect VFP support.
 		// Seeing how far it gets determines which instructions failed.
 		// The test is OS-agnostic.

@@ -731,7 +731,7 @@ func Add64MPanicOnOverflowGT(a, b [2]uint64) [2]uint64 {
 //
 // This is what happened on PPC64 when compiling
 // crypto/internal/edwards25519/field.feMulGeneric.
-func Add64MultipleChains(a, b, c, d [2]uint64) {
+func Add64MultipleChains(a, b, c, d [2]uint64) [2]uint64 {
 	var cx, d1, d2 uint64
 	a1, a2 := a[0], a[1]
 	b1, b2 := b[0], b[1]
@@ -748,6 +748,7 @@ func Add64MultipleChains(a, b, c, d [2]uint64) {
 	d2, _ = bits.Add64(c2, d2, cx)
 	d[0] = d1
 	d[1] = d2
+	return d
 }
 
 // --------------- //
@@ -938,6 +939,7 @@ func Sub64MPanicOnOverflowGT(a, b [2]uint64) [2]uint64 {
 func Mul(x, y uint) (hi, lo uint) {
 	// amd64:"MULQ"
 	// arm64:"UMULH","MUL"
+	// loong64:"MULV","MULHVU"
 	// ppc64x:"MULHDU","MULLD"
 	// s390x:"MLGR"
 	// mips64: "MULVU"
@@ -948,6 +950,7 @@ func Mul(x, y uint) (hi, lo uint) {
 func Mul64(x, y uint64) (hi, lo uint64) {
 	// amd64:"MULQ"
 	// arm64:"UMULH","MUL"
+	// loong64:"MULV","MULHVU"
 	// ppc64x:"MULHDU","MULLD"
 	// s390x:"MLGR"
 	// mips64: "MULVU"
@@ -957,6 +960,7 @@ func Mul64(x, y uint64) (hi, lo uint64) {
 
 func Mul64HiOnly(x, y uint64) uint64 {
 	// arm64:"UMULH",-"MUL"
+	// loong64:"MULHVU",-"MULV"
 	// riscv64:"MULHU",-"MUL\t"
 	hi, _ := bits.Mul64(x, y)
 	return hi
@@ -964,6 +968,7 @@ func Mul64HiOnly(x, y uint64) uint64 {
 
 func Mul64LoOnly(x, y uint64) uint64 {
 	// arm64:"MUL",-"UMULH"
+	// loong64:"MULV",-"MULHVU"
 	// riscv64:"MUL\t",-"MULHU"
 	_, lo := bits.Mul64(x, y)
 	return lo
@@ -972,6 +977,7 @@ func Mul64LoOnly(x, y uint64) uint64 {
 func Mul64Const() (uint64, uint64) {
 	// 7133701809754865664 == 99<<56
 	// arm64:"MOVD\t[$]7133701809754865664, R1", "MOVD\t[$]88, R0"
+	// loong64:"MOVV\t[$]88, R4","MOVV\t[$]7133701809754865664, R5",-"MUL"
 	return bits.Mul64(99+88<<8, 1<<56)
 }
 

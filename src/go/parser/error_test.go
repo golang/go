@@ -88,7 +88,7 @@ func expectedErrors(fset *token.FileSet, filename string, src []byte) map[token.
 			s := errRx.FindStringSubmatch(lit)
 			if len(s) == 3 {
 				if s[1] == "HERE" {
-					pos = here // start of comment
+					pos = here // position right after the previous token prior to comment
 				} else if s[1] == "AFTER" {
 					pos += token.Pos(len(lit)) // end of comment
 				} else {

@@ -102,6 +102,18 @@ func ExampleAs() {
 	// Failed at path: non-existing
 }
 
+func ExampleAsType() {
+	if _, err := os.Open("non-existing"); err != nil {
+		if pathError, ok := errors.AsType[*fs.PathError](err); ok {
+			fmt.Println("Failed at path:", pathError.Path)
+		} else {
+			fmt.Println(err)
+		}
+	}
+	// Output:
+	// Failed at path: non-existing
+}
+
 func ExampleUnwrap() {
 	err1 := errors.New("error1")
 	err2 := fmt.Errorf("error2: [%w]", err1)

@@ -410,17 +410,25 @@ func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) 
 }
 
 func sendmsgNInet4(fd int, p, oob []byte, to *SockaddrInet4, flags int) (n int, err error) {
-	ptr, salen, err := to.sockaddr()
-	if err != nil {
-		return 0, err
+	var ptr unsafe.Pointer
+	var salen _Socklen
+	if to != nil {
+		ptr, salen, err = to.sockaddr()
+		if err != nil {
+			return 0, err
+		}
 	}
 	return sendmsgN(fd, p, oob, ptr, salen, flags)
 }
 
 func sendmsgNInet6(fd int, p, oob []byte, to *SockaddrInet6, flags int) (n int, err error) {
-	ptr, salen, err := to.sockaddr()
-	if err != nil {
-		return 0, err
+	var ptr unsafe.Pointer
+	var salen _Socklen
+	if to != nil {
+		ptr, salen, err = to.sockaddr()
+		if err != nil {
+			return 0, err
+		}
 	}
 	return sendmsgN(fd, p, oob, ptr, salen, flags)
 }

@@ -160,7 +160,7 @@ func suspendG(gp *g) suspendGState {
 			s = _Gwaiting
 			fallthrough
 
-		case _Grunnable, _Gsyscall, _Gwaiting:
+		case _Grunnable, _Gsyscall, _Gwaiting, _Gleaked:
 			// Claim goroutine by setting scan bit.
 			// This may race with execution or readying of gp.
 			// The scan bit keeps it from transition state.
@@ -269,6 +269,7 @@ func resumeG(state suspendGState) {
 
 	case _Grunnable | _Gscan,
 		_Gwaiting | _Gscan,
+		_Gleaked | _Gscan,
 		_Gsyscall | _Gscan:
 		casfrom_Gscanstatus(gp, s, s&^_Gscan)
 	}
@@ -292,21 +293,52 @@ func canPreemptM(mp *m) bool {
 
 // asyncPreempt saves all user registers and calls asyncPreempt2.
 //
-// When stack scanning encounters an asyncPreempt frame, it scans that
+// It saves GP registers (anything that might contain a pointer) to the G stack.
+// Hence, when stack scanning encounters an asyncPreempt frame, it scans that
 // frame and its parent frame conservatively.
+//
+// On some platforms, it saves large additional scalar-only register state such
+// as vector registers to an "extended register state" on the P.
 //
 // asyncPreempt is implemented in assembly.
 func asyncPreempt()
 
+// asyncPreempt2 is the Go continuation of asyncPreempt.
+//
+// It must be deeply nosplit because there's untyped data on the stack from
+// asyncPreempt.
+//
+// It must not have any write barriers because we need to limit the amount of
+// stack it uses.
+//
 //go:nosplit
+//go:nowritebarrierrec
 func asyncPreempt2() {
+	// We can't grow the stack with untyped data from asyncPreempt, so switch to
+	// the system stack right away.
+	mcall(func(gp *g) {
+		gp.asyncSafePoint = true
+
+		// Move the extended register state from the P to the G. We do this now that
+		// we're on the system stack to avoid stack splits.
+		xRegSave(gp)
+
+		if gp.preemptStop {
+			preemptPark(gp)
+		} else {
+			gopreempt_m(gp)
+		}
+		// The above functions never return.
+	})
+
+	// Do not grow the stack below here!
+
 	gp := getg()
-	gp.asyncSafePoint = true
-	if gp.preemptStop {
-		mcall(preemptPark)
-	} else {
-		mcall(gopreempt_m)
-	}
+
+	// Put the extended register state back on the M so resumption can find it.
+	// We can't do this in asyncPreemptM because the park calls never return.
+	xRegRestore(gp)
+
 	gp.asyncSafePoint = false
 }
 
@@ -319,19 +351,13 @@ func init() {
 	total := funcMaxSPDelta(f)
 	f = findfunc(abi.FuncPCABIInternal(asyncPreempt2))
 	total += funcMaxSPDelta(f)
+	f = findfunc(abi.FuncPCABIInternal(xRegRestore))
+	total += funcMaxSPDelta(f)
 	// Add some overhead for return PCs, etc.
 	asyncPreemptStack = uintptr(total) + 8*goarch.PtrSize
 	if asyncPreemptStack > stackNosplit {
-		// We need more than the nosplit limit. This isn't
-		// unsafe, but it may limit asynchronous preemption.
-		//
-		// This may be a problem if we start using more
-		// registers. In that case, we should store registers
-		// in a context object. If we pre-allocate one per P,
-		// asyncPreempt can spill just a few registers to the
-		// stack, then grab its context object and spill into
-		// it. When it enters the runtime, it would allocate a
-		// new context for the P.
+		// We need more than the nosplit limit. This isn't unsafe, but it may
+		// limit asynchronous preemption. Consider moving state into xRegState.
 		print("runtime: asyncPreemptStack=", asyncPreemptStack, "\n")
 		throw("async stack too large")
 	}

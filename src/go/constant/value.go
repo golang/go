@@ -1083,7 +1083,10 @@ func match0(x, y Value) (_, _ Value) {
 			return rtof(x1), y
 		}
 	case complexVal:
-		return vtoc(x), y
+		switch x1 := x.(type) {
+		case int64Val, intVal, ratVal, floatVal:
+			return vtoc(x1), y
+		}
 	}
 
 	// force unknown and invalid values into "x position" in callers of match

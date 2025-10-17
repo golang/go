@@ -629,7 +629,7 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 //sys	Kill(pid int, signum syscall.Signal) (err error)
 //sys	Lchown(path string, uid int, gid int) (err error)
 //sys	Link(path string, link string) (err error)
-//sys	Listen(s int, backlog int) (err error) = libsocket.__xnet_llisten
+//sys	Listen(s int, backlog int) (err error) = libsocket.__xnet_listen
 //sys	Lstat(path string, stat *Stat_t) (err error)
 //sys	Madvise(b []byte, advice int) (err error)
 //sys	Mkdir(path string, mode uint32) (err error)

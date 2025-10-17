@@ -162,10 +162,19 @@
 (Cvt64to32F ...) => (CVTSQ2SS ...)
 (Cvt64to64F ...) => (CVTSQ2SD ...)
 
-(Cvt32Fto32 ...) => (CVTTSS2SL ...)
-(Cvt32Fto64 ...) => (CVTTSS2SQ ...)
-(Cvt64Fto32 ...) => (CVTTSD2SL ...)
-(Cvt64Fto64 ...) => (CVTTSD2SQ ...)
+// Float, to int.
+// To make AMD64 "overflow" return max positive instead of max negative, compute
+// y and not x, smear the sign bit, and xor.
+(Cvt32Fto32 <t> x) && base.ConvertHash.MatchPos(v.Pos, nil) => (XORL <t> y (SARLconst <t> [31] (ANDL <t> y:(CVTTSS2SL <t> x) (NOTL <typ.Int32> (MOVLf2i x)))))
+(Cvt64Fto32 <t> x) && base.ConvertHash.MatchPos(v.Pos, nil) => (XORL <t> y (SARLconst <t> [31] (ANDL <t> y:(CVTTSD2SL <t> x) (NOTL <typ.Int32> (MOVLf2i (CVTSD2SS <typ.Float32> x))))))
+
+(Cvt32Fto64 <t> x) && base.ConvertHash.MatchPos(v.Pos, nil) => (XORQ <t> y (SARQconst <t> [63] (ANDQ <t> y:(CVTTSS2SQ <t> x) (NOTQ <typ.Int64> (MOVQf2i (CVTSS2SD <typ.Float64> x))) )))
+(Cvt64Fto64 <t> x) && base.ConvertHash.MatchPos(v.Pos, nil) => (XORQ <t> y (SARQconst <t> [63] (ANDQ <t> y:(CVTTSD2SQ <t> x) (NOTQ <typ.Int64> (MOVQf2i x)))))
+
+(Cvt32Fto32 <t> x) && !base.ConvertHash.MatchPos(v.Pos, nil) => (CVTTSS2SL <t> x)
+(Cvt32Fto64 <t> x) && !base.ConvertHash.MatchPos(v.Pos, nil) => (CVTTSS2SQ <t> x)
+(Cvt64Fto32 <t> x) && !base.ConvertHash.MatchPos(v.Pos, nil) => (CVTTSD2SL <t> x)
+(Cvt64Fto64 <t> x) && !base.ConvertHash.MatchPos(v.Pos, nil) => (CVTTSD2SQ <t> x)
 
 (Cvt32Fto64F ...) => (CVTSS2SD ...)
 (Cvt64Fto32F ...) => (CVTSD2SS ...)
@@ -264,24 +273,6 @@
 (Move [8] dst src mem) => (MOVQstore dst (MOVQload src mem) mem)
 (Move [16] dst src mem) => (MOVOstore dst (MOVOload src mem) mem)
 
-(Move [32] dst src mem) =>
-	(Move [16]
-		(OffPtr <dst.Type> dst [16])
-		(OffPtr <src.Type> src [16])
-		(Move [16] dst src mem))
-
-(Move [48] dst src mem) =>
-	(Move [32]
-		(OffPtr <dst.Type> dst [16])
-		(OffPtr <src.Type> src [16])
-		(Move [16] dst src mem))
-
-(Move [64] dst src mem) =>
-	(Move [32]
-		(OffPtr <dst.Type> dst [32])
-		(OffPtr <src.Type> src [32])
-		(Move [32] dst src mem))
-
 (Move [3] dst src mem) =>
 	(MOVBstore [2] dst (MOVBload [2] src mem)
 		(MOVWstore dst (MOVWload src mem) mem))
@@ -310,28 +301,19 @@
 	(MOVQstore [int32(s-8)] dst (MOVQload [int32(s-8)] src mem)
 		(MOVQstore dst (MOVQload src mem) mem))
 
-// Adjust moves to be a multiple of 16 bytes.
-(Move [s] dst src mem)
-	&& s > 16 && s%16 != 0 && s%16 <= 8 =>
-	(Move [s-s%16]
-		(OffPtr <dst.Type> dst [s%16])
-		(OffPtr <src.Type> src [s%16])
-		(MOVQstore dst (MOVQload src mem) mem))
-(Move [s] dst src mem)
-	&& s > 16 && s%16 != 0 && s%16 > 8 =>
-	(Move [s-s%16]
-		(OffPtr <dst.Type> dst [s%16])
-		(OffPtr <src.Type> src [s%16])
-		(MOVOstore dst (MOVOload src mem) mem))
+// Copying up to 192 bytes uses straightline code.
+(Move [s] dst src mem) && s > 16 && s < 192 && logLargeCopy(v, s) => (LoweredMove [s] dst src mem)
 
-// Medium copying uses a duff device.
-(Move [s] dst src mem)
-	&& s > 64 && s <= 16*64 && s%16 == 0
-	&& logLargeCopy(v, s) =>
-	(DUFFCOPY [s] dst src mem)
+// Copying up to ~1KB uses a small loop.
+(Move [s] dst src mem) && s >= 192 && s <= repMoveThreshold && logLargeCopy(v, s) => (LoweredMoveLoop [s] dst src mem)
 
 // Large copying uses REP MOVSQ.
-(Move [s] dst src mem) && s > 16*64 && s%8 == 0 && logLargeCopy(v, s) =>
+(Move [s] dst src mem) && s > repMoveThreshold && s%8 != 0 =>
+	(Move [s-s%8]
+		(OffPtr <dst.Type> dst [s%8])
+		(OffPtr <src.Type> src [s%8])
+		(MOVQstore dst (MOVQload src mem) mem))
+(Move [s] dst src mem) && s > repMoveThreshold && s%8 == 0 && logLargeCopy(v, s) =>
 	(REPMOVSQ dst src (MOVQconst [s/8]) mem)
 
 // Lowering Zero instructions
@@ -375,34 +357,17 @@
 	(MOVQstoreconst [makeValAndOff(0,int32(s-8))] destptr
 		(MOVQstoreconst [makeValAndOff(0,0)] destptr mem))
 
-// Adjust zeros to be a multiple of 16 bytes.
-(Zero [s] destptr mem) && s%16 != 0 && s > 16 =>
-	(Zero [s-s%16] (OffPtr <destptr.Type> destptr [s%16])
-		(MOVOstoreconst [makeValAndOff(0,0)] destptr mem))
+// Zeroing up to 192 bytes uses straightline code.
+(Zero [s] destptr mem)	&& s >= 16 && s < 192 => (LoweredZero [s] destptr mem)
 
-(Zero [16] destptr mem) =>
-	(MOVOstoreconst [makeValAndOff(0,0)] destptr mem)
-(Zero [32] destptr mem) =>
-	(MOVOstoreconst [makeValAndOff(0,16)] destptr
-		(MOVOstoreconst [makeValAndOff(0,0)] destptr mem))
-(Zero [48] destptr mem) =>
-	(MOVOstoreconst [makeValAndOff(0,32)] destptr
-		(MOVOstoreconst [makeValAndOff(0,16)] destptr
-			(MOVOstoreconst [makeValAndOff(0,0)] destptr mem)))
-(Zero [64] destptr mem) =>
-	(MOVOstoreconst [makeValAndOff(0,48)] destptr
-		(MOVOstoreconst [makeValAndOff(0,32)] destptr
-			(MOVOstoreconst [makeValAndOff(0,16)] destptr
-				(MOVOstoreconst [makeValAndOff(0,0)] destptr mem))))
-
-// Medium zeroing uses a duff device.
-(Zero [s] destptr mem)
-	&& s > 64 && s <= 1024 && s%16 == 0 =>
-	(DUFFZERO [s] destptr mem)
+// Zeroing up to ~1KB uses a small loop.
+(Zero [s] destptr mem)	&& s >= 192 && s <= repZeroThreshold => (LoweredZeroLoop [s] destptr mem)
 
 // Large zeroing uses REP STOSQ.
-(Zero [s] destptr mem)
-	&& s > 1024 && s%8 == 0 =>
+(Zero [s] destptr mem) && s > repZeroThreshold && s%8 != 0 =>
+       (Zero [s-s%8] (OffPtr <destptr.Type> destptr [s%8])
+               (MOVOstoreconst [makeValAndOff(0,0)] destptr mem))
+(Zero [s] destptr mem) && s > repZeroThreshold && s%8 == 0 =>
 	(REPSTOSQ destptr (MOVQconst [s/8]) (MOVQconst [0]) mem)
 
 // Lowering constants
@@ -623,31 +588,31 @@
 // mutandis, for UGE and SETAE, and CC and SETCC.
 ((NE|EQ) (TESTL (SHLL (MOVLconst [1]) x) y)) => ((ULT|UGE) (BTL x y))
 ((NE|EQ) (TESTQ (SHLQ (MOVQconst [1]) x) y)) => ((ULT|UGE) (BTQ x y))
-((NE|EQ) (TESTLconst [c] x)) && isUint32PowerOfTwo(int64(c))
-    => ((ULT|UGE) (BTLconst [int8(log32(c))] x))
-((NE|EQ) (TESTQconst [c] x)) && isUint64PowerOfTwo(int64(c))
-    => ((ULT|UGE) (BTQconst [int8(log32(c))] x))
-((NE|EQ) (TESTQ (MOVQconst [c]) x)) && isUint64PowerOfTwo(c)
-    => ((ULT|UGE) (BTQconst [int8(log64(c))] x))
+((NE|EQ) (TESTLconst [c] x)) && isUnsignedPowerOfTwo(uint32(c))
+    => ((ULT|UGE) (BTLconst [int8(log32u(uint32(c)))] x))
+((NE|EQ) (TESTQconst [c] x)) && isUnsignedPowerOfTwo(uint64(c))
+    => ((ULT|UGE) (BTQconst [int8(log32u(uint32(c)))] x))
+((NE|EQ) (TESTQ (MOVQconst [c]) x)) && isUnsignedPowerOfTwo(uint64(c))
+    => ((ULT|UGE) (BTQconst [int8(log64u(uint64(c)))] x))
 (SET(NE|EQ) (TESTL (SHLL (MOVLconst [1]) x) y)) => (SET(B|AE)  (BTL x y))
 (SET(NE|EQ) (TESTQ (SHLQ (MOVQconst [1]) x) y)) => (SET(B|AE)  (BTQ x y))
-(SET(NE|EQ) (TESTLconst [c] x)) && isUint32PowerOfTwo(int64(c))
-    => (SET(B|AE)  (BTLconst [int8(log32(c))] x))
-(SET(NE|EQ) (TESTQconst [c] x)) && isUint64PowerOfTwo(int64(c))
-    => (SET(B|AE)  (BTQconst [int8(log32(c))] x))
-(SET(NE|EQ) (TESTQ (MOVQconst [c]) x)) && isUint64PowerOfTwo(c)
-    => (SET(B|AE)  (BTQconst [int8(log64(c))] x))
+(SET(NE|EQ) (TESTLconst [c] x)) && isUnsignedPowerOfTwo(uint32(c))
+    => (SET(B|AE)  (BTLconst [int8(log32u(uint32(c)))] x))
+(SET(NE|EQ) (TESTQconst [c] x)) && isUnsignedPowerOfTwo(uint64(c))
+    => (SET(B|AE)  (BTQconst [int8(log32u(uint32(c)))] x))
+(SET(NE|EQ) (TESTQ (MOVQconst [c]) x)) && isUnsignedPowerOfTwo(uint64(c))
+    => (SET(B|AE)  (BTQconst [int8(log64u(uint64(c)))] x))
 // SET..store variant
 (SET(NE|EQ)store [off] {sym} ptr (TESTL (SHLL (MOVLconst [1]) x) y) mem)
     => (SET(B|AE)store  [off] {sym} ptr (BTL x y) mem)
 (SET(NE|EQ)store [off] {sym} ptr (TESTQ (SHLQ (MOVQconst [1]) x) y) mem)
     => (SET(B|AE)store  [off] {sym} ptr (BTQ x y) mem)
-(SET(NE|EQ)store [off] {sym} ptr (TESTLconst [c] x) mem) && isUint32PowerOfTwo(int64(c))
-    => (SET(B|AE)store  [off] {sym} ptr (BTLconst [int8(log32(c))] x) mem)
-(SET(NE|EQ)store [off] {sym} ptr (TESTQconst [c] x) mem) && isUint64PowerOfTwo(int64(c))
-    => (SET(B|AE)store  [off] {sym} ptr (BTQconst [int8(log32(c))] x) mem)
-(SET(NE|EQ)store [off] {sym} ptr (TESTQ (MOVQconst [c]) x) mem) && isUint64PowerOfTwo(c)
-    => (SET(B|AE)store  [off] {sym} ptr (BTQconst [int8(log64(c))] x) mem)
+(SET(NE|EQ)store [off] {sym} ptr (TESTLconst [c] x) mem) && isUnsignedPowerOfTwo(uint32(c))
+    => (SET(B|AE)store  [off] {sym} ptr (BTLconst [int8(log32u(uint32(c)))] x) mem)
+(SET(NE|EQ)store [off] {sym} ptr (TESTQconst [c] x) mem) && isUnsignedPowerOfTwo(uint64(c))
+    => (SET(B|AE)store  [off] {sym} ptr (BTQconst [int8(log32u(uint32(c)))] x) mem)
+(SET(NE|EQ)store [off] {sym} ptr (TESTQ (MOVQconst [c]) x) mem) && isUnsignedPowerOfTwo(uint64(c))
+    => (SET(B|AE)store  [off] {sym} ptr (BTQconst [int8(log64u(uint64(c)))] x) mem)
 
 // Handle bit-testing in the form (a>>b)&1 != 0 by building the above rules
 // and further combining shifts.
@@ -672,14 +637,14 @@
 (XOR(Q|L) (SHL(Q|L) (MOV(Q|L)const [1]) y) x) => (BTC(Q|L) x y)
 // Note: only convert OR/XOR to BTS/BTC if the constant wouldn't fit in
 // the constant field of the OR/XOR instruction. See issue 61694.
-((OR|XOR)Q (MOVQconst [c]) x) && isUint64PowerOfTwo(c) && uint64(c) >= 1<<31 => (BT(S|C)Qconst [int8(log64(c))] x)
+((OR|XOR)Q (MOVQconst [c]) x) && isUnsignedPowerOfTwo(uint64(c)) && uint64(c) >= 1<<31 => (BT(S|C)Qconst [int8(log64u(uint64(c)))] x)
 
 // Recognize bit clearing: a &^= 1<<b
 (AND(Q|L) (NOT(Q|L) (SHL(Q|L) (MOV(Q|L)const [1]) y)) x) => (BTR(Q|L) x y)
 (ANDN(Q|L) x (SHL(Q|L) (MOV(Q|L)const [1]) y)) => (BTR(Q|L) x y)
 // Note: only convert AND to BTR if the constant wouldn't fit in
 // the constant field of the AND instruction. See issue 61694.
-(ANDQ (MOVQconst [c]) x) && isUint64PowerOfTwo(^c) && uint64(^c) >= 1<<31 => (BTRQconst [int8(log64(^c))] x)
+(ANDQ (MOVQconst [c]) x) && isUnsignedPowerOfTwo(uint64(^c)) && uint64(^c) >= 1<<31 => (BTRQconst [int8(log64u(uint64(^c)))] x)
 
 // Special-case bit patterns on first/last bit.
 // generic.rules changes ANDs of high-part/low-part masks into a couple of shifts,

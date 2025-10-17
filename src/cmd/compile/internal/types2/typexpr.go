@@ -169,11 +169,11 @@ func (check *Checker) validVarType(e syntax.Expr, typ Type) {
 		return
 	}
 
-	// We don't want to call under() or complete interfaces while we are in
+	// We don't want to call typ.Underlying() or complete interfaces while we are in
 	// the middle of type-checking parameter declarations that might belong
 	// to interface methods. Delay this check to the end of type-checking.
 	check.later(func() {
-		if t, _ := under(typ).(*Interface); t != nil {
+		if t, _ := typ.Underlying().(*Interface); t != nil {
 			pos := syntax.StartPos(e)
 			tset := computeInterfaceTypeSet(check, pos, t) // TODO(gri) is this the correct position?
 			if !tset.IsMethodSet() {
@@ -239,7 +239,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *TypeName) (T Type) {
 			check.indent--
 			var under Type
 			if T != nil {
-				// Calling under() here may lead to endless instantiations.
+				// Calling T.Underlying() here may lead to endless instantiations.
 				// Test case: type T[P any] *T[P]
 				under = safeUnderlying(T)
 			}
@@ -425,7 +425,7 @@ func setDefType(def *TypeName, typ Type) {
 		case *Basic:
 			assert(t == Typ[Invalid])
 		case *Named:
-			t.underlying = typ
+			t.fromRHS = typ
 		default:
 			panic(fmt.Sprintf("unexpected type %T", t))
 		}

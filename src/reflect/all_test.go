@@ -12,7 +12,6 @@ import (
 	"go/token"
 	"internal/asan"
 	"internal/goarch"
-	"internal/goexperiment"
 	"internal/msan"
 	"internal/race"
 	"internal/testenv"
@@ -1277,10 +1276,6 @@ var deepEqualPerfTests = []struct {
 }
 
 func TestDeepEqualAllocs(t *testing.T) {
-	// TODO(prattmic): maps on stack
-	if goexperiment.SwissMap {
-		t.Skipf("Maps on stack not yet implemented")
-	}
 	if asan.Enabled {
 		t.Skip("test allocates more with -asan; see #70079")
 	}
@@ -6203,19 +6198,6 @@ func TestChanOfDir(t *testing.T) {
 }
 
 func TestChanOfGC(t *testing.T) {
-	done := make(chan bool, 1)
-	go func() {
-		select {
-		case <-done:
-		case <-time.After(5 * time.Second):
-			panic("deadlock in TestChanOfGC")
-		}
-	}()
-
-	defer func() {
-		done <- true
-	}()
-
 	type T *uintptr
 	tt := TypeOf(T(nil))
 	ct := ChanOf(BothDir, tt)
@@ -7343,7 +7325,8 @@ func TestGCBits(t *testing.T) {
 	verifyGCBits(t, TypeOf(([][10000]Xscalar)(nil)), lit(1))
 	verifyGCBits(t, SliceOf(ArrayOf(10000, Tscalar)), lit(1))
 
-	testGCBitsMap(t)
+	// For maps, we don't manually construct GC data, instead using the
+	// public reflect API in groupAndSlotOf.
 }
 
 func rep(n int, b []byte) []byte { return bytes.Repeat(b, n) }
@@ -8787,6 +8770,9 @@ func TestTypeAssertAllocs(t *testing.T) {
 
 	typeAssertAllocs[time.Time](t, ValueOf(new(time.Time)).Elem(), 0)
 	typeAssertAllocs[time.Time](t, ValueOf(*new(time.Time)), 0)
+
+	type I interface{ foo() }
+	typeAssertAllocs[I](t, ValueOf(new(string)).Elem(), 0) // assert fail doesn't alloc
 }
 
 func typeAssertAllocs[T any](t *testing.T, val Value, wantAllocs int) {

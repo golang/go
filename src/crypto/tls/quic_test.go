@@ -231,6 +231,18 @@ func TestQUICSessionResumption(t *testing.T) {
 	if !cli2.conn.ConnectionState().DidResume {
 		t.Errorf("second connection did not use session resumption")
 	}
+
+	clientConfig.TLSConfig.SessionTicketsDisabled = true
+	cli3 := newTestQUICClient(t, clientConfig)
+	cli3.conn.SetTransportParameters(nil)
+	srv3 := newTestQUICServer(t, serverConfig)
+	srv3.conn.SetTransportParameters(nil)
+	if err := runTestQUICConnection(context.Background(), cli3, srv3, nil); err != nil {
+		t.Fatalf("error during third connection handshake: %v", err)
+	}
+	if cli3.conn.ConnectionState().DidResume {
+		t.Errorf("third connection unexpectedly used session resumption")
+	}
 }
 
 func TestQUICFragmentaryData(t *testing.T) {
@@ -356,8 +368,7 @@ func TestQUICHandshakeError(t *testing.T) {
 	if !errors.Is(err, AlertError(alertBadCertificate)) {
 		t.Errorf("connection handshake terminated with error %q, want alertBadCertificate", err)
 	}
-	var e *CertificateVerificationError
-	if !errors.As(err, &e) {
+	if _, ok := errors.AsType[*CertificateVerificationError](err); !ok {
 		t.Errorf("connection handshake terminated with error %q, want CertificateVerificationError", err)
 	}
 }

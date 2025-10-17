@@ -8,6 +8,7 @@ import (
 	"internal/abi"
 	"internal/runtime/atomic"
 	"internal/runtime/sys"
+	"internal/runtime/syscall/windows"
 	"unsafe"
 )
 
@@ -40,7 +41,6 @@ const (
 //go:cgo_import_dynamic runtime._GetThreadContext GetThreadContext%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SetThreadContext SetThreadContext%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._LoadLibraryExW LoadLibraryExW%3 "kernel32.dll"
-//go:cgo_import_dynamic runtime._LoadLibraryW LoadLibraryW%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._PostQueuedCompletionStatus PostQueuedCompletionStatus%4 "kernel32.dll"
 //go:cgo_import_dynamic runtime._QueryPerformanceCounter QueryPerformanceCounter%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._QueryPerformanceFrequency QueryPerformanceFrequency%1 "kernel32.dll"
@@ -98,7 +98,6 @@ var (
 	_GetThreadContext,
 	_SetThreadContext,
 	_LoadLibraryExW,
-	_LoadLibraryW,
 	_PostQueuedCompletionStatus,
 	_QueryPerformanceCounter,
 	_QueryPerformanceFrequency,
@@ -160,6 +159,9 @@ func tstart_stdcall(newm *m)
 func wintls()
 
 type mOS struct {
+	// This is here to avoid using the G stack so the stack can move during the call.
+	stdCallInfo windows.StdCallInfo
+
 	threadLock mutex   // protects "thread" and prevents closing
 	thread     uintptr // thread handle
 
@@ -210,19 +212,15 @@ func read(fd int32, p unsafe.Pointer, n int32) int32 {
 
 type sigset struct{}
 
-// Call a Windows function with stdcall conventions,
-// and switch to os stack during the call.
-func asmstdcall(fn unsafe.Pointer)
-
 var asmstdcallAddr unsafe.Pointer
 
-type winlibcall libcall
+type winlibcall windows.StdCallInfo
 
 func windowsFindfunc(lib uintptr, name []byte) stdFunction {
 	if name[len(name)-1] != 0 {
 		throw("usage")
 	}
-	f := stdcall2(_GetProcAddress, lib, uintptr(unsafe.Pointer(&name[0])))
+	f := stdcall(_GetProcAddress, lib, uintptr(unsafe.Pointer(&name[0])))
 	return stdFunction(unsafe.Pointer(f))
 }
 
@@ -231,7 +229,7 @@ var sysDirectory [_MAX_PATH + 1]byte
 var sysDirectoryLen uintptr
 
 func initSysDirectory() {
-	l := stdcall2(_GetSystemDirectoryA, uintptr(unsafe.Pointer(&sysDirectory[0])), uintptr(len(sysDirectory)-1))
+	l := stdcall(_GetSystemDirectoryA, uintptr(unsafe.Pointer(&sysDirectory[0])), uintptr(len(sysDirectory)-1))
 	if l == 0 || l > uintptr(len(sysDirectory)-1) {
 		throw("Unable to determine system directory")
 	}
@@ -245,20 +243,21 @@ func windows_GetSystemDirectory() string {
 }
 
 func windowsLoadSystemLib(name []uint16) uintptr {
-	return stdcall3(_LoadLibraryExW, uintptr(unsafe.Pointer(&name[0])), 0, _LOAD_LIBRARY_SEARCH_SYSTEM32)
+	const _LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x00000800
+	return stdcall(_LoadLibraryExW, uintptr(unsafe.Pointer(&name[0])), 0, _LOAD_LIBRARY_SEARCH_SYSTEM32)
 }
 
 //go:linkname windows_QueryPerformanceCounter internal/syscall/windows.QueryPerformanceCounter
 func windows_QueryPerformanceCounter() int64 {
 	var counter int64
-	stdcall1(_QueryPerformanceCounter, uintptr(unsafe.Pointer(&counter)))
+	stdcall(_QueryPerformanceCounter, uintptr(unsafe.Pointer(&counter)))
 	return counter
 }
 
 //go:linkname windows_QueryPerformanceFrequency internal/syscall/windows.QueryPerformanceFrequency
 func windows_QueryPerformanceFrequency() int64 {
 	var frequency int64
-	stdcall1(_QueryPerformanceFrequency, uintptr(unsafe.Pointer(&frequency)))
+	stdcall(_QueryPerformanceFrequency, uintptr(unsafe.Pointer(&frequency)))
 	return frequency
 }
 
@@ -309,7 +308,7 @@ func monitorSuspendResume() {
 	var fn any = func(context uintptr, changeType uint32, setting uintptr) uintptr {
 		for mp := (*m)(atomic.Loadp(unsafe.Pointer(&allm))); mp != nil; mp = mp.alllink {
 			if mp.resumesema != 0 {
-				stdcall1(_SetEvent, mp.resumesema)
+				stdcall(_SetEvent, mp.resumesema)
 			}
 		}
 		return 0
@@ -318,13 +317,13 @@ func monitorSuspendResume() {
 		callback: compileCallback(*efaceOf(&fn), true),
 	}
 	handle := uintptr(0)
-	stdcall3(powerRegisterSuspendResumeNotification, _DEVICE_NOTIFY_CALLBACK,
+	stdcall(powerRegisterSuspendResumeNotification, _DEVICE_NOTIFY_CALLBACK,
 		uintptr(unsafe.Pointer(&params)), uintptr(unsafe.Pointer(&handle)))
 }
 
 func getCPUCount() int32 {
 	var mask, sysmask uintptr
-	ret := stdcall3(_GetProcessAffinityMask, currentProcess, uintptr(unsafe.Pointer(&mask)), uintptr(unsafe.Pointer(&sysmask)))
+	ret := stdcall(_GetProcessAffinityMask, windows.CurrentProcess, uintptr(unsafe.Pointer(&mask)), uintptr(unsafe.Pointer(&sysmask)))
 	if ret != 0 {
 		n := 0
 		maskbits := int(unsafe.Sizeof(mask) * 8)
@@ -338,21 +337,16 @@ func getCPUCount() int32 {
 		}
 	}
 	// use GetSystemInfo if GetProcessAffinityMask fails
-	var info systeminfo
-	stdcall1(_GetSystemInfo, uintptr(unsafe.Pointer(&info)))
-	return int32(info.dwnumberofprocessors)
+	var info windows.SystemInfo
+	stdcall(_GetSystemInfo, uintptr(unsafe.Pointer(&info)))
+	return int32(info.NumberOfProcessors)
 }
 
 func getPageSize() uintptr {
-	var info systeminfo
-	stdcall1(_GetSystemInfo, uintptr(unsafe.Pointer(&info)))
-	return uintptr(info.dwpagesize)
+	var info windows.SystemInfo
+	stdcall(_GetSystemInfo, uintptr(unsafe.Pointer(&info)))
+	return uintptr(info.PageSize)
 }
-
-const (
-	currentProcess = ^uintptr(0) // -1 = current process
-	currentThread  = ^uintptr(1) // -2 = current thread
-)
 
 // in sys_windows_386.s and sys_windows_amd64.s:
 func getlasterror() uint32
@@ -384,9 +378,9 @@ func osRelax(relax bool) uint32 {
 	}
 
 	if relax {
-		return uint32(stdcall1(_timeEndPeriod, 1))
+		return uint32(stdcall(_timeEndPeriod, 1))
 	} else {
-		return uint32(stdcall1(_timeBeginPeriod, 1))
+		return uint32(stdcall(_timeBeginPeriod, 1))
 	}
 }
 
@@ -406,18 +400,11 @@ var haveHighResSleep = false
 // resolution timer. createHighResTimer returns new timer
 // handle or 0, if CreateWaitableTimerEx failed.
 func createHighResTimer() uintptr {
-	const (
-		// As per @jstarks, see
-		// https://github.com/golang/go/issues/8687#issuecomment-656259353
-		_CREATE_WAITABLE_TIMER_HIGH_RESOLUTION = 0x00000002
-
-		_SYNCHRONIZE        = 0x00100000
-		_TIMER_QUERY_STATE  = 0x0001
-		_TIMER_MODIFY_STATE = 0x0002
-	)
-	return stdcall4(_CreateWaitableTimerExW, 0, 0,
-		_CREATE_WAITABLE_TIMER_HIGH_RESOLUTION,
-		_SYNCHRONIZE|_TIMER_QUERY_STATE|_TIMER_MODIFY_STATE)
+	// As per @jstarks, see
+	// https://github.com/golang/go/issues/8687#issuecomment-656259353
+	return stdcall(_CreateWaitableTimerExW, 0, 0,
+		windows.CREATE_WAITABLE_TIMER_HIGH_RESOLUTION,
+		windows.SYNCHRONIZE|windows.TIMER_QUERY_STATE|windows.TIMER_MODIFY_STATE)
 }
 
 func initHighResTimer() {
@@ -425,7 +412,7 @@ func initHighResTimer() {
 	if h != 0 {
 		haveHighResTimer = true
 		haveHighResSleep = _NtCreateWaitCompletionPacket != nil
-		stdcall1(_CloseHandle, h)
+		stdcall(_CloseHandle, h)
 	} else {
 		// Only load winmm.dll if we need it.
 		// This avoids a dependency on winmm.dll for Go programs
@@ -455,24 +442,24 @@ func initLongPathSupport() {
 	)
 
 	// Check that we're ≥ 10.0.15063.
-	info := _OSVERSIONINFOW{}
-	info.osVersionInfoSize = uint32(unsafe.Sizeof(info))
-	stdcall1(_RtlGetVersion, uintptr(unsafe.Pointer(&info)))
-	if info.majorVersion < 10 || (info.majorVersion == 10 && info.minorVersion == 0 && info.buildNumber < 15063) {
+	info := windows.OSVERSIONINFOW{}
+	info.OSVersionInfoSize = uint32(unsafe.Sizeof(info))
+	stdcall(_RtlGetVersion, uintptr(unsafe.Pointer(&info)))
+	if info.MajorVersion < 10 || (info.MajorVersion == 10 && info.MinorVersion == 0 && info.BuildNumber < 15063) {
 		return
 	}
 
 	// Set the IsLongPathAwareProcess flag of the PEB's bit field.
 	// This flag is not documented, but it's known to be used
 	// by Windows to enable long path support.
-	bitField := (*byte)(unsafe.Pointer(stdcall0(_RtlGetCurrentPeb) + PebBitFieldOffset))
+	bitField := (*byte)(unsafe.Pointer(stdcall(_RtlGetCurrentPeb) + PebBitFieldOffset))
 	*bitField |= IsLongPathAwareProcess
 
 	canUseLongPaths = true
 }
 
 func osinit() {
-	asmstdcallAddr = unsafe.Pointer(abi.FuncPCABI0(asmstdcall))
+	asmstdcallAddr = unsafe.Pointer(windows.AsmStdCallAddr())
 
 	loadOptionalSyscalls()
 
@@ -494,13 +481,13 @@ func osinit() {
 	// of dedicated threads -- GUI, IO, computational, etc. Go processes use
 	// equivalent threads that all do a mix of GUI, IO, computations, etc.
 	// In such context dynamic priority boosting does nothing but harm, so we turn it off.
-	stdcall2(_SetProcessPriorityBoost, currentProcess, 1)
+	stdcall(_SetProcessPriorityBoost, windows.CurrentProcess, 1)
 }
 
 //go:nosplit
 func readRandom(r []byte) int {
 	n := 0
-	if stdcall2(_ProcessPrng, uintptr(unsafe.Pointer(&r[0])), uintptr(len(r)))&0xff != 0 {
+	if stdcall(_ProcessPrng, uintptr(unsafe.Pointer(&r[0])), uintptr(len(r)))&0xff != 0 {
 		n = len(r)
 	}
 	return n
@@ -510,7 +497,7 @@ func goenvs() {
 	// strings is a pointer to environment variable pairs in the form:
 	//     "envA=valA\x00envB=valB\x00\x00" (in UTF-16)
 	// Two consecutive zero bytes end the list.
-	strings := unsafe.Pointer(stdcall0(_GetEnvironmentStringsW))
+	strings := unsafe.Pointer(stdcall(_GetEnvironmentStringsW))
 	p := (*[1 << 24]uint16)(strings)[:]
 
 	n := 0
@@ -534,13 +521,13 @@ func goenvs() {
 		p = p[1:] // skip nil byte
 	}
 
-	stdcall1(_FreeEnvironmentStringsW, uintptr(strings))
+	stdcall(_FreeEnvironmentStringsW, uintptr(strings))
 
 	// We call these all the way here, late in init, so that malloc works
 	// for the callback functions these generate.
 	var fn any = ctrlHandler
 	ctrlHandlerPC := compileCallback(*efaceOf(&fn), true)
-	stdcall2(_SetConsoleCtrlHandler, ctrlHandlerPC, 1)
+	stdcall(_SetConsoleCtrlHandler, ctrlHandlerPC, 1)
 
 	monitorSuspendResume()
 }
@@ -556,7 +543,7 @@ func exit(code int32) {
 	// kills the suspending thread, and then this thread suspends.
 	lock(&suspendLock)
 	atomic.Store(&exiting, 1)
-	stdcall1(_ExitProcess, uintptr(code))
+	stdcall(_ExitProcess, uintptr(code))
 }
 
 // write1 must be nosplit because it's used as a last resort in
@@ -572,9 +559,9 @@ func write1(fd uintptr, buf unsafe.Pointer, n int32) int32 {
 	var handle uintptr
 	switch fd {
 	case 1:
-		handle = stdcall1(_GetStdHandle, _STD_OUTPUT_HANDLE)
+		handle = stdcall(_GetStdHandle, _STD_OUTPUT_HANDLE)
 	case 2:
-		handle = stdcall1(_GetStdHandle, _STD_ERROR_HANDLE)
+		handle = stdcall(_GetStdHandle, _STD_ERROR_HANDLE)
 	default:
 		// assume fd is real windows handle.
 		handle = fd
@@ -590,7 +577,7 @@ func write1(fd uintptr, buf unsafe.Pointer, n int32) int32 {
 
 	if !isASCII {
 		var m uint32
-		isConsole := stdcall2(_GetConsoleMode, handle, uintptr(unsafe.Pointer(&m))) != 0
+		isConsole := stdcall(_GetConsoleMode, handle, uintptr(unsafe.Pointer(&m))) != 0
 		// If this is a console output, various non-unicode code pages can be in use.
 		// Use the dedicated WriteConsole call to ensure unicode is printed correctly.
 		if isConsole {
@@ -598,7 +585,7 @@ func write1(fd uintptr, buf unsafe.Pointer, n int32) int32 {
 		}
 	}
 	var written uint32
-	stdcall5(_WriteFile, handle, uintptr(buf), uintptr(n), uintptr(unsafe.Pointer(&written)), 0)
+	stdcall(_WriteFile, handle, uintptr(buf), uintptr(n), uintptr(unsafe.Pointer(&written)), 0)
 	return int32(written)
 }
 
@@ -651,7 +638,7 @@ func writeConsoleUTF16(handle uintptr, b []uint16) {
 		return
 	}
 	var written uint32
-	stdcall5(_WriteConsoleW,
+	stdcall(_WriteConsoleW,
 		handle,
 		uintptr(unsafe.Pointer(&b[0])),
 		uintptr(l),
@@ -672,7 +659,7 @@ func semasleep(ns int64) int32 {
 
 	var result uintptr
 	if ns < 0 {
-		result = stdcall2(_WaitForSingleObject, getg().m.waitsema, uintptr(_INFINITE))
+		result = stdcall(_WaitForSingleObject, getg().m.waitsema, uintptr(windows.INFINITE))
 	} else {
 		start := nanotime()
 		elapsed := int64(0)
@@ -681,7 +668,7 @@ func semasleep(ns int64) int32 {
 			if ms == 0 {
 				ms = 1
 			}
-			result = stdcall4(_WaitForMultipleObjects, 2,
+			result = stdcall(_WaitForMultipleObjects, 2,
 				uintptr(unsafe.Pointer(&[2]uintptr{getg().m.waitsema, getg().m.resumesema})),
 				0, uintptr(ms))
 			if result != _WAIT_OBJECT_0+1 {
@@ -724,7 +711,7 @@ func semasleep(ns int64) int32 {
 
 //go:nosplit
 func semawakeup(mp *m) {
-	if stdcall1(_SetEvent, mp.waitsema) == 0 {
+	if stdcall(_SetEvent, mp.waitsema) == 0 {
 		systemstack(func() {
 			print("runtime: setevent failed; errno=", getlasterror(), "\n")
 			throw("runtime.semawakeup")
@@ -737,20 +724,20 @@ func semacreate(mp *m) {
 	if mp.waitsema != 0 {
 		return
 	}
-	mp.waitsema = stdcall4(_CreateEventA, 0, 0, 0, 0)
+	mp.waitsema = stdcall(_CreateEventA, 0, 0, 0, 0)
 	if mp.waitsema == 0 {
 		systemstack(func() {
 			print("runtime: createevent failed; errno=", getlasterror(), "\n")
 			throw("runtime.semacreate")
 		})
 	}
-	mp.resumesema = stdcall4(_CreateEventA, 0, 0, 0, 0)
+	mp.resumesema = stdcall(_CreateEventA, 0, 0, 0, 0)
 	if mp.resumesema == 0 {
 		systemstack(func() {
 			print("runtime: createevent failed; errno=", getlasterror(), "\n")
 			throw("runtime.semacreate")
 		})
-		stdcall1(_CloseHandle, mp.waitsema)
+		stdcall(_CloseHandle, mp.waitsema)
 		mp.waitsema = 0
 	}
 }
@@ -763,7 +750,7 @@ func semacreate(mp *m) {
 //go:nosplit
 func newosproc(mp *m) {
 	// We pass 0 for the stack size to use the default for this binary.
-	thandle := stdcall6(_CreateThread, 0, 0,
+	thandle := stdcall(_CreateThread, 0, 0,
 		abi.FuncPCABI0(tstart_stdcall), uintptr(unsafe.Pointer(mp)),
 		0, 0)
 
@@ -781,7 +768,7 @@ func newosproc(mp *m) {
 	}
 
 	// Close thandle to avoid leaking the thread object if it exits.
-	stdcall1(_CloseHandle, thandle)
+	stdcall(_CloseHandle, thandle)
 }
 
 // Used by the C library build mode. On Linux this function would allocate a
@@ -790,12 +777,13 @@ func newosproc(mp *m) {
 //
 //go:nowritebarrierrec
 //go:nosplit
-func newosproc0(mp *m, stk unsafe.Pointer) {
-	// TODO: this is completely broken. The args passed to newosproc0 (in asm_amd64.s)
-	// are stacksize and function, not *m and stack.
-	// Check os_linux.go for an implementation that might actually work.
+func newosproc0(stacksize uintptr, fn uintptr) {
 	throw("bad newosproc0")
 }
+
+//go:nosplit
+//go:nowritebarrierrec
+func libpreinit() {}
 
 func exitThread(wait *atomic.Uint32) {
 	// We should never reach exitThread on Windows because we let
@@ -829,7 +817,7 @@ func sigblock(exiting bool) {
 // Called on the new thread, cannot allocate Go memory.
 func minit() {
 	var thandle uintptr
-	if stdcall7(_DuplicateHandle, currentProcess, currentThread, currentProcess, uintptr(unsafe.Pointer(&thandle)), 0, 0, _DUPLICATE_SAME_ACCESS) == 0 {
+	if stdcall(_DuplicateHandle, windows.CurrentProcess, windows.CurrentThread, windows.CurrentProcess, uintptr(unsafe.Pointer(&thandle)), 0, 0, windows.DUPLICATE_SAME_ACCESS) == 0 {
 		print("runtime.minit: duplicatehandle failed; errno=", getlasterror(), "\n")
 		throw("runtime.minit: duplicatehandle failed")
 	}
@@ -837,7 +825,7 @@ func minit() {
 	mp := getg().m
 	lock(&mp.threadLock)
 	mp.thread = thandle
-	mp.procid = uint64(stdcall0(_GetCurrentThreadId))
+	mp.procid = uint64(stdcall(_GetCurrentThreadId))
 
 	// Configure usleep timer, if possible.
 	if mp.highResTimer == 0 && haveHighResTimer {
@@ -854,7 +842,7 @@ func minit() {
 			throw("CreateWaitableTimerEx when creating timer failed")
 		}
 		const GENERIC_ALL = 0x10000000
-		errno := stdcall3(_NtCreateWaitCompletionPacket, uintptr(unsafe.Pointer(&mp.waitIocpHandle)), GENERIC_ALL, 0)
+		errno := stdcall(_NtCreateWaitCompletionPacket, uintptr(unsafe.Pointer(&mp.waitIocpHandle)), GENERIC_ALL, 0)
 		if mp.waitIocpHandle == 0 {
 			print("runtime: NtCreateWaitCompletionPacket failed; errno=", errno, "\n")
 			throw("NtCreateWaitCompletionPacket failed")
@@ -864,8 +852,8 @@ func minit() {
 
 	// Query the true stack base from the OS. Currently we're
 	// running on a small assumed stack.
-	var mbi memoryBasicInformation
-	res := stdcall3(_VirtualQuery, uintptr(unsafe.Pointer(&mbi)), uintptr(unsafe.Pointer(&mbi)), unsafe.Sizeof(mbi))
+	var mbi windows.MemoryBasicInformation
+	res := stdcall(_VirtualQuery, uintptr(unsafe.Pointer(&mbi)), uintptr(unsafe.Pointer(&mbi)), unsafe.Sizeof(mbi))
 	if res == 0 {
 		print("runtime: VirtualQuery failed; errno=", getlasterror(), "\n")
 		throw("VirtualQuery for stack base failed")
@@ -876,7 +864,7 @@ func minit() {
 	// calling C functions that don't have stack checks and for
 	// lastcontinuehandler. We shouldn't be anywhere near this
 	// bound anyway.
-	base := mbi.allocationBase + 16<<10
+	base := mbi.AllocationBase + 16<<10
 	// Sanity check the stack bounds.
 	g0 := getg()
 	if base > g0.stack.hi || g0.stack.hi-base > 64<<20 {
@@ -897,7 +885,7 @@ func unminit() {
 	mp := getg().m
 	lock(&mp.threadLock)
 	if mp.thread != 0 {
-		stdcall1(_CloseHandle, mp.thread)
+		stdcall(_CloseHandle, mp.thread)
 		mp.thread = 0
 	}
 	unlock(&mp.threadLock)
@@ -914,52 +902,59 @@ func unminit() {
 //go:nosplit
 func mdestroy(mp *m) {
 	if mp.highResTimer != 0 {
-		stdcall1(_CloseHandle, mp.highResTimer)
+		stdcall(_CloseHandle, mp.highResTimer)
 		mp.highResTimer = 0
 	}
 	if mp.waitIocpTimer != 0 {
-		stdcall1(_CloseHandle, mp.waitIocpTimer)
+		stdcall(_CloseHandle, mp.waitIocpTimer)
 		mp.waitIocpTimer = 0
 	}
 	if mp.waitIocpHandle != 0 {
-		stdcall1(_CloseHandle, mp.waitIocpHandle)
+		stdcall(_CloseHandle, mp.waitIocpHandle)
 		mp.waitIocpHandle = 0
 	}
 	if mp.waitsema != 0 {
-		stdcall1(_CloseHandle, mp.waitsema)
+		stdcall(_CloseHandle, mp.waitsema)
 		mp.waitsema = 0
 	}
 	if mp.resumesema != 0 {
-		stdcall1(_CloseHandle, mp.resumesema)
+		stdcall(_CloseHandle, mp.resumesema)
 		mp.resumesema = 0
 	}
 }
 
-// asmstdcall_trampoline calls asmstdcall converting from Go to C calling convention.
-func asmstdcall_trampoline(args unsafe.Pointer)
-
-// stdcall_no_g calls asmstdcall on os stack without using g.
+// stdcall_no_g is like [stdcall] but can be called without a G.
 //
+//go:nowritebarrier
 //go:nosplit
-func stdcall_no_g(fn stdFunction, n int, args uintptr) uintptr {
-	libcall := libcall{
-		fn:   uintptr(unsafe.Pointer(fn)),
-		n:    uintptr(n),
-		args: args,
+//go:uintptrkeepalive
+func stdcall_no_g(fn stdFunction, args ...uintptr) uintptr {
+	call := windows.StdCallInfo{
+		Fn: uintptr(unsafe.Pointer(fn)),
+		N:  uintptr(len(args)),
 	}
-	asmstdcall_trampoline(noescape(unsafe.Pointer(&libcall)))
-	return libcall.r1
+	if len(args) > 0 {
+		call.Args = uintptr(abi.NoEscape(unsafe.Pointer(&args[0])))
+	}
+	windows.StdCall(&call)
+	return call.R1
 }
 
-// Calling stdcall on os stack.
+// stdcall calls fn with the given arguments using the stdcall calling convention.
+// Must be called from the system stack.
 // May run during STW, so write barriers are not allowed.
 //
 //go:nowritebarrier
 //go:nosplit
-func stdcall(fn stdFunction) uintptr {
+//go:uintptrkeepalive
+func stdcall(fn stdFunction, args ...uintptr) uintptr {
 	gp := getg()
 	mp := gp.m
-	mp.libcall.fn = uintptr(unsafe.Pointer(fn))
+	mp.stdCallInfo.Fn = uintptr(unsafe.Pointer(fn))
+	mp.stdCallInfo.N = uintptr(len(args))
+	if len(args) > 0 {
+		mp.stdCallInfo.Args = uintptr(abi.NoEscape(unsafe.Pointer(&args[0])))
+	}
 	resetLibcall := false
 	if mp.profilehz != 0 && mp.libcallsp == 0 {
 		// leave pc/sp for cpu profiler
@@ -970,112 +965,31 @@ func stdcall(fn stdFunction) uintptr {
 		mp.libcallsp = sys.GetCallerSP()
 		resetLibcall = true // See comment in sys_darwin.go:libcCall
 	}
-	asmcgocall(asmstdcallAddr, unsafe.Pointer(&mp.libcall))
+	asmcgocall(asmstdcallAddr, unsafe.Pointer(&mp.stdCallInfo))
 	if resetLibcall {
 		mp.libcallsp = 0
 	}
-	return mp.libcall.r1
-}
-
-//go:nosplit
-func stdcall0(fn stdFunction) uintptr {
-	mp := getg().m
-	mp.libcall.n = 0
-	mp.libcall.args = 0
-	return stdcall(fn)
-}
-
-//go:nosplit
-//go:cgo_unsafe_args
-func stdcall1(fn stdFunction, a0 uintptr) uintptr {
-	mp := getg().m
-	mp.libcall.n = 1
-	mp.libcall.args = uintptr(noescape(unsafe.Pointer(&a0)))
-	return stdcall(fn)
-}
-
-//go:nosplit
-//go:cgo_unsafe_args
-func stdcall2(fn stdFunction, a0, a1 uintptr) uintptr {
-	mp := getg().m
-	mp.libcall.n = 2
-	mp.libcall.args = uintptr(noescape(unsafe.Pointer(&a0)))
-	return stdcall(fn)
-}
-
-//go:nosplit
-//go:cgo_unsafe_args
-func stdcall3(fn stdFunction, a0, a1, a2 uintptr) uintptr {
-	mp := getg().m
-	mp.libcall.n = 3
-	mp.libcall.args = uintptr(noescape(unsafe.Pointer(&a0)))
-	return stdcall(fn)
-}
-
-//go:nosplit
-//go:cgo_unsafe_args
-func stdcall4(fn stdFunction, a0, a1, a2, a3 uintptr) uintptr {
-	mp := getg().m
-	mp.libcall.n = 4
-	mp.libcall.args = uintptr(noescape(unsafe.Pointer(&a0)))
-	return stdcall(fn)
-}
-
-//go:nosplit
-//go:cgo_unsafe_args
-func stdcall5(fn stdFunction, a0, a1, a2, a3, a4 uintptr) uintptr {
-	mp := getg().m
-	mp.libcall.n = 5
-	mp.libcall.args = uintptr(noescape(unsafe.Pointer(&a0)))
-	return stdcall(fn)
-}
-
-//go:nosplit
-//go:cgo_unsafe_args
-func stdcall6(fn stdFunction, a0, a1, a2, a3, a4, a5 uintptr) uintptr {
-	mp := getg().m
-	mp.libcall.n = 6
-	mp.libcall.args = uintptr(noescape(unsafe.Pointer(&a0)))
-	return stdcall(fn)
-}
-
-//go:nosplit
-//go:cgo_unsafe_args
-func stdcall7(fn stdFunction, a0, a1, a2, a3, a4, a5, a6 uintptr) uintptr {
-	mp := getg().m
-	mp.libcall.n = 7
-	mp.libcall.args = uintptr(noescape(unsafe.Pointer(&a0)))
-	return stdcall(fn)
-}
-
-//go:nosplit
-//go:cgo_unsafe_args
-func stdcall8(fn stdFunction, a0, a1, a2, a3, a4, a5, a6, a7 uintptr) uintptr {
-	mp := getg().m
-	mp.libcall.n = 8
-	mp.libcall.args = uintptr(noescape(unsafe.Pointer(&a0)))
-	return stdcall(fn)
+	return mp.stdCallInfo.R1
 }
 
 // These must run on the system stack only.
 
 //go:nosplit
 func osyield_no_g() {
-	stdcall_no_g(_SwitchToThread, 0, 0)
+	stdcall_no_g(_SwitchToThread)
 }
 
 //go:nosplit
 func osyield() {
 	systemstack(func() {
-		stdcall0(_SwitchToThread)
+		stdcall(_SwitchToThread)
 	})
 }
 
 //go:nosplit
 func usleep_no_g(us uint32) {
 	timeout := uintptr(us) / 1000 // ms units
-	args := [...]uintptr{_INVALID_HANDLE_VALUE, timeout}
-	stdcall_no_g(_WaitForSingleObject, len(args), uintptr(noescape(unsafe.Pointer(&args[0]))))
+	stdcall_no_g(_WaitForSingleObject, windows.INVALID_HANDLE_VALUE, timeout)
 }
 
 //go:nosplit
@@ -1087,13 +1001,13 @@ func usleep(us uint32) {
 		if haveHighResTimer && getg().m.highResTimer != 0 {
 			h = getg().m.highResTimer
 			dt := -10 * int64(us) // relative sleep (negative), 100ns units
-			stdcall6(_SetWaitableTimer, h, uintptr(unsafe.Pointer(&dt)), 0, 0, 0, 0)
-			timeout = _INFINITE
+			stdcall(_SetWaitableTimer, h, uintptr(unsafe.Pointer(&dt)), 0, 0, 0, 0)
+			timeout = windows.INFINITE
 		} else {
-			h = _INVALID_HANDLE_VALUE
+			h = windows.INVALID_HANDLE_VALUE
 			timeout = uintptr(us) / 1000 // ms units
 		}
-		stdcall2(_WaitForSingleObject, h, timeout)
+		stdcall(_WaitForSingleObject, h, timeout)
 	})
 }
 
@@ -1101,16 +1015,16 @@ func ctrlHandler(_type uint32) uintptr {
 	var s uint32
 
 	switch _type {
-	case _CTRL_C_EVENT, _CTRL_BREAK_EVENT:
-		s = _SIGINT
-	case _CTRL_CLOSE_EVENT, _CTRL_LOGOFF_EVENT, _CTRL_SHUTDOWN_EVENT:
-		s = _SIGTERM
+	case windows.CTRL_C_EVENT, windows.CTRL_BREAK_EVENT:
+		s = windows.SIGINT
+	case windows.CTRL_CLOSE_EVENT, windows.CTRL_LOGOFF_EVENT, windows.CTRL_SHUTDOWN_EVENT:
+		s = windows.SIGTERM
 	default:
 		return 0
 	}
 
 	if sigsend(s) {
-		if s == _SIGTERM {
+		if s == windows.SIGTERM {
 			// Windows terminates the process after this handler returns.
 			// Block indefinitely to give signal handlers a chance to clean up,
 			// but make sure to be properly parked first, so the rest of the
@@ -1129,16 +1043,16 @@ var profiletimer uintptr
 
 func profilem(mp *m, thread uintptr) {
 	// Align Context to 16 bytes.
-	var c *context
+	var c *windows.Context
 	var cbuf [unsafe.Sizeof(*c) + 15]byte
-	c = (*context)(unsafe.Pointer((uintptr(unsafe.Pointer(&cbuf[15]))) &^ 15))
+	c = (*windows.Context)(unsafe.Pointer((uintptr(unsafe.Pointer(&cbuf[15]))) &^ 15))
 
-	c.contextflags = _CONTEXT_CONTROL
-	stdcall2(_GetThreadContext, thread, uintptr(unsafe.Pointer(c)))
+	c.ContextFlags = windows.CONTEXT_CONTROL
+	stdcall(_GetThreadContext, thread, uintptr(unsafe.Pointer(c)))
 
-	gp := gFromSP(mp, c.sp())
+	gp := gFromSP(mp, c.SP())
 
-	sigprof(c.ip(), c.sp(), c.lr(), gp, mp)
+	sigprof(c.PC(), c.SP(), c.LR(), gp, mp)
 }
 
 func gFromSP(mp *m, sp uintptr) *g {
@@ -1155,10 +1069,10 @@ func gFromSP(mp *m, sp uintptr) *g {
 }
 
 func profileLoop() {
-	stdcall2(_SetThreadPriority, currentThread, _THREAD_PRIORITY_HIGHEST)
+	stdcall(_SetThreadPriority, windows.CurrentThread, windows.THREAD_PRIORITY_HIGHEST)
 
 	for {
-		stdcall2(_WaitForSingleObject, profiletimer, _INFINITE)
+		stdcall(_WaitForSingleObject, profiletimer, windows.INFINITE)
 		first := (*m)(atomic.Loadp(unsafe.Pointer(&allm)))
 		for mp := first; mp != nil; mp = mp.alllink {
 			if mp == getg().m {
@@ -1176,7 +1090,7 @@ func profileLoop() {
 			}
 			// Acquire our own handle to the thread.
 			var thread uintptr
-			if stdcall7(_DuplicateHandle, currentProcess, mp.thread, currentProcess, uintptr(unsafe.Pointer(&thread)), 0, 0, _DUPLICATE_SAME_ACCESS) == 0 {
+			if stdcall(_DuplicateHandle, windows.CurrentProcess, mp.thread, windows.CurrentProcess, uintptr(unsafe.Pointer(&thread)), 0, 0, windows.DUPLICATE_SAME_ACCESS) == 0 {
 				print("runtime: duplicatehandle failed; errno=", getlasterror(), "\n")
 				throw("duplicatehandle failed")
 			}
@@ -1186,9 +1100,9 @@ func profileLoop() {
 			// above and the SuspendThread. The handle
 			// will remain valid, but SuspendThread may
 			// fail.
-			if int32(stdcall1(_SuspendThread, thread)) == -1 {
+			if int32(stdcall(_SuspendThread, thread)) == -1 {
 				// The thread no longer exists.
-				stdcall1(_CloseHandle, thread)
+				stdcall(_CloseHandle, thread)
 				continue
 			}
 			if mp.profilehz != 0 && !mp.blocked {
@@ -1196,8 +1110,8 @@ func profileLoop() {
 				// was in the process of shutting down.
 				profilem(mp, thread)
 			}
-			stdcall1(_ResumeThread, thread)
-			stdcall1(_CloseHandle, thread)
+			stdcall(_ResumeThread, thread)
+			stdcall(_CloseHandle, thread)
 		}
 	}
 }
@@ -1208,7 +1122,7 @@ func setProcessCPUProfiler(hz int32) {
 		if haveHighResTimer {
 			timer = createHighResTimer()
 		} else {
-			timer = stdcall3(_CreateWaitableTimerA, 0, 0, 0)
+			timer = stdcall(_CreateWaitableTimerA, 0, 0, 0)
 		}
 		atomic.Storeuintptr(&profiletimer, timer)
 		newm(profileLoop, nil, -1)
@@ -1225,7 +1139,7 @@ func setThreadCPUProfiler(hz int32) {
 		}
 		due = int64(ms) * -10000
 	}
-	stdcall6(_SetWaitableTimer, profiletimer, uintptr(unsafe.Pointer(&due)), uintptr(ms), 0, 0, 0)
+	stdcall(_SetWaitableTimer, profiletimer, uintptr(unsafe.Pointer(&due)), uintptr(ms), 0, 0, 0)
 	atomic.Store((*uint32)(unsafe.Pointer(&getg().m.profilehz)), uint32(hz))
 }
 
@@ -1258,17 +1172,17 @@ func preemptM(mp *m) {
 		return
 	}
 	var thread uintptr
-	if stdcall7(_DuplicateHandle, currentProcess, mp.thread, currentProcess, uintptr(unsafe.Pointer(&thread)), 0, 0, _DUPLICATE_SAME_ACCESS) == 0 {
+	if stdcall(_DuplicateHandle, windows.CurrentProcess, mp.thread, windows.CurrentProcess, uintptr(unsafe.Pointer(&thread)), 0, 0, windows.DUPLICATE_SAME_ACCESS) == 0 {
 		print("runtime.preemptM: duplicatehandle failed; errno=", getlasterror(), "\n")
 		throw("runtime.preemptM: duplicatehandle failed")
 	}
 	unlock(&mp.threadLock)
 
 	// Prepare thread context buffer. This must be aligned to 16 bytes.
-	var c *context
+	var c *windows.Context
 	var cbuf [unsafe.Sizeof(*c) + 15]byte
-	c = (*context)(unsafe.Pointer((uintptr(unsafe.Pointer(&cbuf[15]))) &^ 15))
-	c.contextflags = _CONTEXT_CONTROL
+	c = (*windows.Context)(unsafe.Pointer((uintptr(unsafe.Pointer(&cbuf[15]))) &^ 15))
+	c.ContextFlags = windows.CONTEXT_CONTROL
 
 	// Serialize thread suspension. SuspendThread is asynchronous,
 	// so it's otherwise possible for two threads to suspend each
@@ -1278,9 +1192,9 @@ func preemptM(mp *m) {
 	lock(&suspendLock)
 
 	// Suspend the thread.
-	if int32(stdcall1(_SuspendThread, thread)) == -1 {
+	if int32(stdcall(_SuspendThread, thread)) == -1 {
 		unlock(&suspendLock)
-		stdcall1(_CloseHandle, thread)
+		stdcall(_CloseHandle, thread)
 		atomic.Store(&mp.preemptExtLock, 0)
 		// The thread no longer exists. This shouldn't be
 		// possible, but just acknowledge the request.
@@ -1297,18 +1211,18 @@ func preemptM(mp *m) {
 	// We have to get the thread context before inspecting the M
 	// because SuspendThread only requests a suspend.
 	// GetThreadContext actually blocks until it's suspended.
-	stdcall2(_GetThreadContext, thread, uintptr(unsafe.Pointer(c)))
+	stdcall(_GetThreadContext, thread, uintptr(unsafe.Pointer(c)))
 
 	unlock(&suspendLock)
 
 	// Does it want a preemption and is it safe to preempt?
-	gp := gFromSP(mp, c.sp())
+	gp := gFromSP(mp, c.SP())
 	if gp != nil && wantAsyncPreempt(gp) {
-		if ok, resumePC := isAsyncSafePoint(gp, c.ip(), c.sp(), c.lr()); ok {
+		if ok, resumePC := isAsyncSafePoint(gp, c.PC(), c.SP(), c.LR()); ok {
 			// Inject call to asyncPreempt
 			targetPC := abi.FuncPCABI0(asyncPreempt)
-			c.pushCall(targetPC, resumePC)
-			stdcall2(_SetThreadContext, thread, uintptr(unsafe.Pointer(c)))
+			c.PushCall(targetPC, resumePC)
+			stdcall(_SetThreadContext, thread, uintptr(unsafe.Pointer(c)))
 		}
 	}
 
@@ -1317,8 +1231,8 @@ func preemptM(mp *m) {
 	// Acknowledge the preemption.
 	mp.preemptGen.Add(1)
 
-	stdcall1(_ResumeThread, thread)
-	stdcall1(_CloseHandle, thread)
+	stdcall(_ResumeThread, thread)
+	stdcall(_CloseHandle, thread)
 }
 
 // osPreemptExtEnter is called before entering external code that may

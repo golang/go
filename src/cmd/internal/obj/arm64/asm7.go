@@ -34,6 +34,7 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -892,8 +893,6 @@ var optab = []Optab{
 	{obj.ANOP, C_LCON, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0}, // nop variants, see #40689
 	{obj.ANOP, C_ZREG, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},
 	{obj.ANOP, C_VREG, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},
-	{obj.ADUFFZERO, C_NONE, C_NONE, C_NONE, C_SBRA, C_NONE, 5, 4, 0, 0, 0},   // same as AB/ABL
-	{obj.ADUFFCOPY, C_NONE, C_NONE, C_NONE, C_SBRA, C_NONE, 5, 4, 0, 0, 0},   // same as AB/ABL
 	{obj.APCALIGN, C_LCON, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},    // align code
 	{obj.APCALIGNMAX, C_LCON, C_NONE, C_NONE, C_LCON, C_NONE, 0, 0, 0, 0, 0}, // align code, conditional
 }
@@ -1054,15 +1053,6 @@ var sysInstFields = map[SpecialOperand]struct {
 // Used for padding NOOP instruction
 const OP_NOOP = 0xd503201f
 
-// pcAlignPadLength returns the number of bytes required to align pc to alignedValue,
-// reporting an error if alignedValue is not a power of two or is out of range.
-func pcAlignPadLength(ctxt *obj.Link, pc int64, alignedValue int64) int {
-	if !((alignedValue&(alignedValue-1) == 0) && 8 <= alignedValue && alignedValue <= 2048) {
-		ctxt.Diag("alignment value of an instruction must be a power of two and in the range [8, 2048], got %d\n", alignedValue)
-	}
-	return int(-pc & (alignedValue - 1))
-}
-
 // size returns the size of the sequence of machine instructions when p is encoded with o.
 // Usually it just returns o.size directly, in some cases it checks whether the optimization
 // conditions are met, and if so returns the size of the optimized instruction sequence.
@@ -1207,10 +1197,6 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 type codeBuffer struct {
 	data *[]byte
-}
-
-func (cb *codeBuffer) pc() int64 {
-	return int64(len(*cb.data))
 }
 
 // Write a sequence of opcodes into the code buffer.
@@ -3032,6 +3018,13 @@ func buildop(ctxt *obj.Link) {
 			oprangeset(ANOOP, t)
 			oprangeset(ADRPS, t)
 
+			oprangeset(APACIASP, t)
+			oprangeset(AAUTIASP, t)
+			oprangeset(APACIBSP, t)
+			oprangeset(AAUTIBSP, t)
+			oprangeset(AAUTIA1716, t)
+			oprangeset(AAUTIB1716, t)
+
 		case ACBZ:
 			oprangeset(ACBZW, t)
 			oprangeset(ACBNZ, t)
@@ -3310,9 +3303,7 @@ func buildop(ctxt *obj.Link) {
 			obj.AFUNCDATA,
 			obj.APCALIGN,
 			obj.APCALIGNMAX,
-			obj.APCDATA,
-			obj.ADUFFZERO,
-			obj.ADUFFCOPY:
+			obj.APCDATA:
 			break
 		}
 	}
@@ -4371,7 +4362,7 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 		// remove the NOTUSETMP flag in optab.
 		op := c.opirr(p, p.As)
 		if op&Sbit != 0 {
-			c.ctxt.Diag("can not break addition/subtraction when S bit is set", p)
+			c.ctxt.Diag("can not break addition/subtraction when S bit is set (%v)", p)
 		}
 		rt, r := p.To.Reg, p.Reg
 		if r == obj.REG_NONE {
@@ -6984,7 +6975,7 @@ func (c *ctxt7) opbra(p *obj.Prog, a obj.As) uint32 {
 	case AB:
 		return 0<<31 | 5<<26 /* imm26 */
 
-	case obj.ADUFFZERO, obj.ADUFFCOPY, ABL:
+	case ABL:
 		return 1<<31 | 5<<26
 	}
 
@@ -7033,6 +7024,24 @@ func (c *ctxt7) op0(p *obj.Prog, a obj.As) uint32 {
 
 	case ASEVL:
 		return SYSHINT(5)
+
+	case APACIASP:
+		return SYSHINT(25)
+
+	case AAUTIASP:
+		return SYSHINT(29)
+
+	case APACIBSP:
+		return SYSHINT(27)
+
+	case AAUTIBSP:
+		return SYSHINT(31)
+
+	case AAUTIA1716:
+		return SYSHINT(12)
+
+	case AAUTIB1716:
+		return SYSHINT(14)
 	}
 
 	c.ctxt.Diag("%v: bad op0 %v", p, a)
@@ -7846,4 +7855,147 @@ func (c *ctxt7) encRegShiftOrExt(p *obj.Prog, a *obj.Addr, r int16) uint32 {
 // pack returns the encoding of the "Q" field and two arrangement specifiers.
 func pack(q uint32, arngA, arngB uint8) uint32 {
 	return uint32(q)<<16 | uint32(arngA)<<8 | uint32(arngB)
+}
+
+// ARM64RegisterExtension constructs an ARM64 register with extension or arrangement.
+func ARM64RegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, isIndex bool) error {
+	Rnum := (reg & 31) + int16(num<<5)
+	if isAmount {
+		if num < 0 || num > 7 {
+			return errors.New("index shift amount is out of range")
+		}
+	}
+	if reg <= REG_R31 && reg >= REG_R0 {
+		if !isAmount {
+			return errors.New("invalid register extension")
+		}
+		switch ext {
+		case "UXTB":
+			if a.Type == obj.TYPE_MEM {
+				return errors.New("invalid shift for the register offset addressing mode")
+			}
+			a.Reg = REG_UXTB + Rnum
+		case "UXTH":
+			if a.Type == obj.TYPE_MEM {
+				return errors.New("invalid shift for the register offset addressing mode")
+			}
+			a.Reg = REG_UXTH + Rnum
+		case "UXTW":
+			// effective address of memory is a base register value and an offset register value.
+			if a.Type == obj.TYPE_MEM {
+				a.Index = REG_UXTW + Rnum
+			} else {
+				a.Reg = REG_UXTW + Rnum
+			}
+		case "UXTX":
+			if a.Type == obj.TYPE_MEM {
+				return errors.New("invalid shift for the register offset addressing mode")
+			}
+			a.Reg = REG_UXTX + Rnum
+		case "SXTB":
+			if a.Type == obj.TYPE_MEM {
+				return errors.New("invalid shift for the register offset addressing mode")
+			}
+			a.Reg = REG_SXTB + Rnum
+		case "SXTH":
+			if a.Type == obj.TYPE_MEM {
+				return errors.New("invalid shift for the register offset addressing mode")
+			}
+			a.Reg = REG_SXTH + Rnum
+		case "SXTW":
+			if a.Type == obj.TYPE_MEM {
+				a.Index = REG_SXTW + Rnum
+			} else {
+				a.Reg = REG_SXTW + Rnum
+			}
+		case "SXTX":
+			if a.Type == obj.TYPE_MEM {
+				a.Index = REG_SXTX + Rnum
+			} else {
+				a.Reg = REG_SXTX + Rnum
+			}
+		case "LSL":
+			a.Index = REG_LSL + Rnum
+		default:
+			return errors.New("unsupported general register extension type: " + ext)
+
+		}
+	} else if reg <= REG_V31 && reg >= REG_V0 {
+		switch ext {
+		case "B8":
+			if isIndex {
+				return errors.New("invalid register extension")
+			}
+			a.Reg = REG_ARNG + (reg & 31) + ((ARNG_8B & 15) << 5)
+		case "B16":
+			if isIndex {
+				return errors.New("invalid register extension")
+			}
+			a.Reg = REG_ARNG + (reg & 31) + ((ARNG_16B & 15) << 5)
+		case "H4":
+			if isIndex {
+				return errors.New("invalid register extension")
+			}
+			a.Reg = REG_ARNG + (reg & 31) + ((ARNG_4H & 15) << 5)
+		case "H8":
+			if isIndex {
+				return errors.New("invalid register extension")
+			}
+			a.Reg = REG_ARNG + (reg & 31) + ((ARNG_8H & 15) << 5)
+		case "S2":
+			if isIndex {
+				return errors.New("invalid register extension")
+			}
+			a.Reg = REG_ARNG + (reg & 31) + ((ARNG_2S & 15) << 5)
+		case "S4":
+			if isIndex {
+				return errors.New("invalid register extension")
+			}
+			a.Reg = REG_ARNG + (reg & 31) + ((ARNG_4S & 15) << 5)
+		case "D1":
+			if isIndex {
+				return errors.New("invalid register extension")
+			}
+			a.Reg = REG_ARNG + (reg & 31) + ((ARNG_1D & 15) << 5)
+		case "D2":
+			if isIndex {
+				return errors.New("invalid register extension")
+			}
+			a.Reg = REG_ARNG + (reg & 31) + ((ARNG_2D & 15) << 5)
+		case "Q1":
+			if isIndex {
+				return errors.New("invalid register extension")
+			}
+			a.Reg = REG_ARNG + (reg & 31) + ((ARNG_1Q & 15) << 5)
+		case "B":
+			if !isIndex {
+				return nil
+			}
+			a.Reg = REG_ELEM + (reg & 31) + ((ARNG_B & 15) << 5)
+			a.Index = num
+		case "H":
+			if !isIndex {
+				return nil
+			}
+			a.Reg = REG_ELEM + (reg & 31) + ((ARNG_H & 15) << 5)
+			a.Index = num
+		case "S":
+			if !isIndex {
+				return nil
+			}
+			a.Reg = REG_ELEM + (reg & 31) + ((ARNG_S & 15) << 5)
+			a.Index = num
+		case "D":
+			if !isIndex {
+				return nil
+			}
+			a.Reg = REG_ELEM + (reg & 31) + ((ARNG_D & 15) << 5)
+			a.Index = num
+		default:
+			return errors.New("unsupported simd register extension type: " + ext)
+		}
+	} else {
+		return errors.New("invalid register and extension combination")
+	}
+	return nil
 }

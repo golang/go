@@ -104,11 +104,6 @@ writing it back to go.mod.
 The -json flag prints the final go.mod file in JSON format instead of
 writing it back to go.mod. The JSON output corresponds to these Go types:
 
-	type Module struct {
-		Path    string
-		Version string
-	}
-
 	type GoMod struct {
 		Module    ModPath
 		Go        string
@@ -118,6 +113,13 @@ writing it back to go.mod. The JSON output corresponds to these Go types:
 		Exclude   []Module
 		Replace   []Replace
 		Retract   []Retract
+		Tool      []Tool
+		Ignore    []Ignore
+	}
+
+	type Module struct {
+		Path    string
+		Version string
 	}
 
 	type ModPath struct {
@@ -234,7 +236,11 @@ func runEdit(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	if *editModule != "" {
-		if err := module.CheckImportPath(*editModule); err != nil {
+		err := module.CheckImportPath(*editModule)
+		if err == nil {
+			err = modload.CheckReservedModulePath(*editModule)
+		}
+		if err != nil {
 			base.Fatalf("go: invalid -module: %v", err)
 		}
 	}

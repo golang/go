@@ -285,6 +285,10 @@ func newUDPConn(fd *netFD) *UDPConn { return &UDPConn{conn{fd}} }
 // If the IP field of raddr is nil or an unspecified IP address, the
 // local system is assumed.
 func DialUDP(network string, laddr, raddr *UDPAddr) (*UDPConn, error) {
+	return dialUDP(context.Background(), nil, network, laddr, raddr)
+}
+
+func dialUDP(ctx context.Context, dialer *Dialer, network string, laddr, raddr *UDPAddr) (*UDPConn, error) {
 	switch network {
 	case "udp", "udp4", "udp6":
 	default:
@@ -294,7 +298,10 @@ func DialUDP(network string, laddr, raddr *UDPAddr) (*UDPConn, error) {
 		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: nil, Err: errMissingAddress}
 	}
 	sd := &sysDialer{network: network, address: raddr.String()}
-	c, err := sd.dialUDP(context.Background(), laddr, raddr)
+	if dialer != nil {
+		sd.Dialer = *dialer
+	}
+	c, err := sd.dialUDP(ctx, laddr, raddr)
 	if err != nil {
 		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
 	}

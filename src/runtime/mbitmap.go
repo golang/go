@@ -714,6 +714,26 @@ func heapSetTypeNoHeader(x, dataSize uintptr, typ *_type, span *mspan) uintptr {
 }
 
 func heapSetTypeSmallHeader(x, dataSize uintptr, typ *_type, header **_type, span *mspan) uintptr {
+	if header == nil {
+		// This nil check and throw is almost pointless. Normally we would
+		// expect header to never be nil. However, this is called on potentially
+		// freshly-allocated virtual memory. As of 2025, the compiler-inserted
+		// nil check is not a branch but a memory read that we expect to fault
+		// if the pointer really is nil.
+		//
+		// However, this causes a read of the page, and operating systems may
+		// take it as a hint to back the accessed memory with a read-only zero
+		// page. However, we immediately write to this memory, which can then
+		// force operating systems to have to update the page table and flush
+		// the TLB.
+		//
+		// This nil check is thus an explicit branch instead of what the compiler
+		// would insert circa 2025, which is a memory read instruction.
+		//
+		// See go.dev/issue/74375 for details of a similar issue in
+		// spanInlineMarkBits.
+		throw("runtime: pointer to heap type header nil?")
+	}
 	*header = typ
 	if doubleCheckHeapSetType {
 		doubleCheckHeapType(x, dataSize, typ, header, span)
@@ -947,7 +967,7 @@ func doubleCheckTypePointersOfType(s *mspan, typ *_type, addr, size uintptr) {
 	if typ == nil {
 		return
 	}
-	if typ.Kind_&abi.KindMask == abi.Interface {
+	if typ.Kind() == abi.Interface {
 		// Interfaces are unfortunately inconsistently handled
 		// when it comes to the type pointer, so it's easy to
 		// produce a lot of false positives here.
@@ -1245,6 +1265,28 @@ func markBitsForSpan(base uintptr) (mbits markBits) {
 		throw("markBitsForSpan: unaligned start")
 	}
 	return mbits
+}
+
+// isMarkedOrNotInHeap returns true if a pointer is in the heap and marked,
+// or if the pointer is not in the heap. Used by goroutine leak detection
+// to determine if concurrency resources are reachable in memory.
+func isMarkedOrNotInHeap(p unsafe.Pointer) bool {
+	obj, span, objIndex := findObject(uintptr(p), 0, 0)
+	if obj != 0 {
+		mbits := span.markBitsForIndex(objIndex)
+		return mbits.isMarked()
+	}
+
+	// If we fall through to get here, the object is not in the heap.
+	// In this case, it is either a pointer to a stack object or a global resource.
+	// Treat it as reachable in memory by default, to be safe.
+	//
+	// TODO(vsaioc): we could be more precise by checking against the stacks
+	// of runnable goroutines. I don't think this is necessary, based on what we've seen, but
+	// let's keep the option open in case the runtime evolves.
+	// This will (naively) lead to quadratic blow-up for goroutine leak detection,
+	// but if it is only run on demand, maybe the extra cost is not a show-stopper.
+	return true
 }
 
 // advance advances the markBits to the next object in the span.
@@ -1776,7 +1818,7 @@ func pointerMask(ep any) (mask []byte) {
 	t := e._type
 
 	var et *_type
-	if t.Kind_&abi.KindMask != abi.Pointer {
+	if t.Kind() != abi.Pointer {
 		throw("bad argument to getgcmask: expected type to be a pointer to the value type whose mask is being queried")
 	}
 	et = (*ptrtype)(unsafe.Pointer(t)).Elem

@@ -127,8 +127,8 @@ const (
 	_64bit = 1 << (^uintptr(0) >> 63) / 2
 
 	// Tiny allocator parameters, see "Tiny allocator" comment in malloc.go.
-	_TinySize      = 16
-	_TinySizeClass = int8(2)
+	_TinySize      = gc.TinySize
+	_TinySizeClass = int8(gc.TinySizeClass)
 
 	_FixAllocChunk = 16 << 10 // Chunk size for FixAlloc
 
@@ -233,19 +233,22 @@ const (
 	//      ios/arm64         40         4MB           1  256K  (2MB)
 	//       */32-bit         32         4MB           1  1024  (4KB)
 	//     */mips(le)         31         4MB           1   512  (2KB)
+	//           wasm         32       512KB           1  8192 (64KB)
 
 	// heapArenaBytes is the size of a heap arena. The heap
 	// consists of mappings of size heapArenaBytes, aligned to
 	// heapArenaBytes. The initial heap mapping is one arena.
 	//
-	// This is currently 64MB on 64-bit non-Windows and 4MB on
-	// 32-bit and on Windows. We use smaller arenas on Windows
-	// because all committed memory is charged to the process,
-	// even if it's not touched. Hence, for processes with small
-	// heaps, the mapped arena space needs to be commensurate.
-	// This is particularly important with the race detector,
-	// since it significantly amplifies the cost of committed
-	// memory.
+	// This is currently 64MB on 64-bit non-Windows, 4MB on
+	// 32-bit and on Windows, and 512KB on Wasm. We use smaller
+	// arenas on Windows because all committed memory is charged
+	// to the process, even if it's not touched. Hence, for
+	// processes with small heaps, the mapped arena space needs
+	// to be commensurate. This is particularly important with
+	// the race detector, since it significantly amplifies the
+	// cost of committed memory. We use smaller arenas on Wasm
+	// because some Wasm programs have very small heap, and
+	// everything in the Wasm linear memory is charged.
 	heapArenaBytes = 1 << logHeapArenaBytes
 
 	heapArenaWords = heapArenaBytes / goarch.PtrSize
@@ -253,7 +256,7 @@ const (
 	// logHeapArenaBytes is log_2 of heapArenaBytes. For clarity,
 	// prefer using heapArenaBytes where possible (we need the
 	// constant to compute some other constants).
-	logHeapArenaBytes = (6+20)*(_64bit*(1-goos.IsWindows)*(1-goarch.IsWasm)*(1-goos.IsIos*goarch.IsArm64)) + (2+20)*(_64bit*goos.IsWindows) + (2+20)*(1-_64bit) + (2+20)*goarch.IsWasm + (2+20)*goos.IsIos*goarch.IsArm64
+	logHeapArenaBytes = (6+20)*(_64bit*(1-goos.IsWindows)*(1-goarch.IsWasm)*(1-goos.IsIos*goarch.IsArm64)) + (2+20)*(_64bit*goos.IsWindows) + (2+20)*(1-_64bit) + (9+10)*goarch.IsWasm + (2+20)*goos.IsIos*goarch.IsArm64
 
 	// heapArenaBitmapWords is the size of each heap arena's bitmap in uintptrs.
 	heapArenaBitmapWords = heapArenaWords / (8 * goarch.PtrSize)
@@ -349,7 +352,7 @@ const (
 
 	// randomizeHeapBase indicates if the heap base address should be randomized.
 	// See comment in mallocinit for how the randomization is performed.
-	randomizeHeapBase = goexperiment.RandomizedHeapBase64 && goarch.PtrSize == 8 && !isSbrkPlatform
+	randomizeHeapBase = goexperiment.RandomizedHeapBase64 && goarch.PtrSize == 8 && !isSbrkPlatform && !raceenabled && !msanenabled && !asanenabled
 
 	// randHeapBasePrefixMask is used to extract the top byte of the randomized
 	// heap base address.
@@ -580,9 +583,28 @@ func mallocinit() {
 			randHeapBasePrefix = byte(randHeapBase >> (randHeapAddrBits - 8))
 		}
 
+		var vmaSize int
+		if GOARCH == "riscv64" {
+			// Identify which memory layout is in use based on the system
+			// stack address, knowing that the bottom half of virtual memory
+			// is user space. This should result in 39, 48 or 57. It may be
+			// possible to use RISCV_HWPROBE_KEY_HIGHEST_VIRT_ADDRESS at some
+			// point in the future - for now use the system stack address.
+			vmaSize = sys.Len64(uint64(getg().m.g0.stack.hi)) + 1
+			if raceenabled && vmaSize != 39 && vmaSize != 48 {
+				println("vma size = ", vmaSize)
+				throw("riscv64 vma size is unknown and race mode is enabled")
+			}
+		}
+
 		for i := 0x7f; i >= 0; i-- {
 			var p uintptr
 			switch {
+			case raceenabled && GOARCH == "riscv64" && vmaSize == 39:
+				p = uintptr(i)<<28 | uintptrMask&(0x0013<<28)
+				if p >= uintptrMask&0x000f00000000 {
+					continue
+				}
 			case raceenabled:
 				// The TSAN runtime requires the heap
 				// to be in the range [0x00c000000000,
@@ -598,6 +620,8 @@ func mallocinit() {
 				p = uintptr(i)<<40 | uintptrMask&(0x0013<<28)
 			case GOARCH == "arm64":
 				p = uintptr(i)<<40 | uintptrMask&(0x0040<<32)
+			case GOARCH == "riscv64" && vmaSize == 39:
+				p = uintptr(i)<<32 | uintptrMask&(0x0013<<28)
 			case GOOS == "aix":
 				if i == 0 {
 					// We don't use addresses directly after 0x0A00000000000000
@@ -1059,6 +1083,12 @@ func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, checkGCTrigger 
 // at scale.
 const doubleCheckMalloc = false
 
+// sizeSpecializedMallocEnabled is the set of conditions where we enable the size-specialized
+// mallocgc implementation: the experiment must be enabled, and none of the sanitizers should
+// be enabled. The tables used to select the size-specialized malloc function do not compile
+// properly on plan9, so size-specialized malloc is also disabled on plan9.
+const sizeSpecializedMallocEnabled = goexperiment.SizeSpecializedMalloc && GOOS != "plan9" && !asanenabled && !raceenabled && !msanenabled && !valgrindenabled
+
 // Allocate an object of size bytes.
 // Small objects are allocated from the per-P cache's free lists.
 // Large objects (> 32 kB) are allocated straight from the heap.
@@ -1089,6 +1119,17 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		return unsafe.Pointer(&zerobase)
 	}
 
+	if sizeSpecializedMallocEnabled && heapBitsInSpan(size) {
+		if typ == nil || !typ.Pointers() {
+			return mallocNoScanTable[size](size, typ, needzero)
+		} else {
+			if !needzero {
+				throw("objects with pointers must be zeroed")
+			}
+			return mallocScanTable[size](size, typ, needzero)
+		}
+	}
+
 	// It's possible for any malloc to trigger sweeping, which may in
 	// turn queue finalizers. Record this dynamic lock edge.
 	// N.B. Compiled away if lockrank experiment is not enabled.
@@ -1117,25 +1158,41 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	// Actually do the allocation.
 	var x unsafe.Pointer
 	var elemsize uintptr
-	if size <= maxSmallSize-gc.MallocHeaderSize {
-		if typ == nil || !typ.Pointers() {
-			if size < maxTinySize {
-				x, elemsize = mallocgcTiny(size, typ)
-			} else {
+	if sizeSpecializedMallocEnabled {
+		// we know that heapBitsInSpan is true.
+		if size <= maxSmallSize-gc.MallocHeaderSize {
+			if typ == nil || !typ.Pointers() {
 				x, elemsize = mallocgcSmallNoscan(size, typ, needzero)
-			}
-		} else {
-			if !needzero {
-				throw("objects with pointers must be zeroed")
-			}
-			if heapBitsInSpan(size) {
-				x, elemsize = mallocgcSmallScanNoHeader(size, typ)
 			} else {
+				if !needzero {
+					throw("objects with pointers must be zeroed")
+				}
 				x, elemsize = mallocgcSmallScanHeader(size, typ)
 			}
+		} else {
+			x, elemsize = mallocgcLarge(size, typ, needzero)
 		}
 	} else {
-		x, elemsize = mallocgcLarge(size, typ, needzero)
+		if size <= maxSmallSize-gc.MallocHeaderSize {
+			if typ == nil || !typ.Pointers() {
+				if size < maxTinySize {
+					x, elemsize = mallocgcTiny(size, typ)
+				} else {
+					x, elemsize = mallocgcSmallNoscan(size, typ, needzero)
+				}
+			} else {
+				if !needzero {
+					throw("objects with pointers must be zeroed")
+				}
+				if heapBitsInSpan(size) {
+					x, elemsize = mallocgcSmallScanNoHeader(size, typ)
+				} else {
+					x, elemsize = mallocgcSmallScanHeader(size, typ)
+				}
+			}
+		} else {
+			x, elemsize = mallocgcLarge(size, typ, needzero)
+		}
 	}
 
 	// Notify sanitizers, if enabled.

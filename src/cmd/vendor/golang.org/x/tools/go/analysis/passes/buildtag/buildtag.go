@@ -14,7 +14,7 @@ import (
 	"unicode"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+	"golang.org/x/tools/internal/analysisinternal"
 )
 
 const Doc = "check //go:build and // +build directives"
@@ -86,7 +86,7 @@ func checkOtherFile(pass *analysis.Pass, filename string) error {
 
 	// We cannot use the Go parser, since this may not be a Go source file.
 	// Read the raw bytes instead.
-	content, tf, err := analysisutil.ReadFile(pass, filename)
+	content, tf, err := analysisinternal.ReadFile(pass, filename)
 	if err != nil {
 		return err
 	}
@@ -298,7 +298,7 @@ func (check *checker) plusBuildLine(pos token.Pos, line string) {
 	fields := strings.Fields(line[len("//"):])
 	// IsPlusBuildConstraint check above implies fields[0] == "+build"
 	for _, arg := range fields[1:] {
-		for _, elem := range strings.Split(arg, ",") {
+		for elem := range strings.SplitSeq(arg, ",") {
 			if strings.HasPrefix(elem, "!!") {
 				check.pass.Reportf(pos, "invalid double negative in build constraint: %s", arg)
 				check.crossCheck = false

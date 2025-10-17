@@ -35,7 +35,7 @@ type echServerContext struct {
 	configID    uint8
 	ciphersuite echCipher
 	transcript  hash.Hash
-	// inner indicates that the initial client_hello we recieved contained an
+	// inner indicates that the initial client_hello we received contained an
 	// encrypted_client_hello extension that indicated it was an "inner" hello.
 	// We don't do any additional processing of the hello in this case, so all
 	// fields above are unset.
@@ -468,10 +468,17 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() error {
 	return nil
 }
 
-// cloneHash uses the encoding.BinaryMarshaler and encoding.BinaryUnmarshaler
+// cloneHash uses [hash.Cloner] to clone in. If [hash.Cloner]
+// is not implemented or not supported, then it falls back to the
+// [encoding.BinaryMarshaler] and [encoding.BinaryUnmarshaler]
 // interfaces implemented by standard library hashes to clone the state of in
 // to a new instance of h. It returns nil if the operation fails.
 func cloneHash(in hash.Hash, h crypto.Hash) hash.Hash {
+	if cloner, ok := in.(hash.Cloner); ok {
+		if out, err := cloner.Clone(); err == nil {
+			return out
+		}
+	}
 	// Recreate the interface to avoid importing encoding.
 	type binaryMarshaler interface {
 		MarshalBinary() (data []byte, err error)

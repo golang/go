@@ -8,11 +8,6 @@ package cpu
 
 import _ "unsafe" // for linkname
 
-// DebugOptions is set to true by the runtime if the OS supports reading
-// GODEBUG early in runtime startup.
-// This should not be changed after it is initialized.
-var DebugOptions bool
-
 // CacheLinePad is used to pad structs to avoid false sharing.
 type CacheLinePad struct{ _ [CacheLinePadSize]byte }
 
@@ -31,14 +26,22 @@ var X86 struct {
 	HasADX              bool
 	HasAVX              bool
 	HasAVX2             bool
+	HasAVX512           bool // Virtual feature: F+CD+BW+DQ+VL
 	HasAVX512F          bool
+	HasAVX512CD         bool
+	HasAVX512BITALG     bool
 	HasAVX512BW         bool
+	HasAVX512DQ         bool
 	HasAVX512VL         bool
+	HasAVX512VPCLMULQDQ bool
+	HasAVX512VBMI       bool
+	HasAVX512VBMI2      bool
 	HasBMI1             bool
 	HasBMI2             bool
 	HasERMS             bool
 	HasFSRM             bool
 	HasFMA              bool
+	HasGFNI             bool
 	HasOSXSAVE          bool
 	HasPCLMULQDQ        bool
 	HasPOPCNT           bool
@@ -48,7 +51,6 @@ var X86 struct {
 	HasSSSE3            bool
 	HasSSE41            bool
 	HasSSE42            bool
-	HasAVX512VPCLMULQDQ bool
 	_                   CacheLinePad
 }
 
@@ -161,6 +163,10 @@ var RISCV64 struct {
 //go:linkname S390X
 //go:linkname RISCV64
 
+// doDerived, if non-nil, is called after processing GODEBUG to set "derived"
+// feature flags.
+var doDerived func()
+
 // Initialize examines the processor and sets the relevant variables above.
 // This is called by the runtime package early in program initialization,
 // before normal init functions are run. env is set by runtime if the OS supports
@@ -168,6 +174,9 @@ var RISCV64 struct {
 func Initialize(env string) {
 	doinit()
 	processOptions(env)
+	if doDerived != nil {
+		doDerived()
+	}
 }
 
 // options contains the cpu debug options that can be used in GODEBUG.

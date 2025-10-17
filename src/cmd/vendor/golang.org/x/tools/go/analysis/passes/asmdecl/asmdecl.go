@@ -19,7 +19,7 @@ import (
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+	"golang.org/x/tools/internal/analysisinternal"
 )
 
 const Doc = "report mismatches between assembly files and Go declarations"
@@ -175,7 +175,7 @@ func run(pass *analysis.Pass) (any, error) {
 
 Files:
 	for _, fname := range sfiles {
-		content, tf, err := analysisutil.ReadFile(pass, fname)
+		content, tf, err := analysisinternal.ReadFile(pass, fname)
 		if err != nil {
 			return nil, err
 		}
@@ -211,7 +211,7 @@ Files:
 					resultStr = "result register"
 				}
 				for _, line := range retLine {
-					pass.Reportf(analysisutil.LineStart(tf, line), "[%s] %s: RET without writing to %s", arch, fnName, resultStr)
+					pass.Reportf(tf.LineStart(line), "[%s] %s: RET without writing to %s", arch, fnName, resultStr)
 				}
 			}
 			retLine = nil
@@ -227,7 +227,7 @@ Files:
 			lineno++
 
 			badf := func(format string, args ...any) {
-				pass.Reportf(analysisutil.LineStart(tf, lineno), "[%s] %s: %s", arch, fnName, fmt.Sprintf(format, args...))
+				pass.Reportf(tf.LineStart(lineno), "[%s] %s: %s", arch, fnName, fmt.Sprintf(format, args...))
 			}
 
 			if arch == "" {
@@ -237,7 +237,7 @@ Files:
 					// so accumulate them all and then prefer the one that
 					// matches build.Default.GOARCH.
 					var archCandidates []*asmArch
-					for _, fld := range strings.Fields(m[1]) {
+					for fld := range strings.FieldsSeq(m[1]) {
 						for _, a := range arches {
 							if a.name == fld {
 								archCandidates = append(archCandidates, a)

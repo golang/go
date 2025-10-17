@@ -326,11 +326,3 @@ func parseStackPCs(crash string) ([]uintptr, error) {
 	}
 	return pcs, nil
 }
-
-func min(x, y int) int {
-	if x < y {
-		return x
-	} else {
-		return y
-	}
-}

@@ -277,7 +277,7 @@ func (f *DebugFlag) Set(debugstr string) error {
 	if debugstr == "" {
 		return nil
 	}
-	for _, name := range strings.Split(debugstr, ",") {
+	for name := range strings.SplitSeq(debugstr, ",") {
 		if name == "" {
 			continue
 		}

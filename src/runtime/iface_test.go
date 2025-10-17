@@ -60,7 +60,7 @@ func TestCmpIfaceConcreteAlloc(t *testing.T) {
 		t.Skip("skipping on non-gc compiler")
 	}
 
-	n := testing.AllocsPerRun(1, func() {
+	n := testing.AllocsPerRun(100, func() {
 		_ = e == ts
 		_ = i1 == ts
 		_ = e == 1

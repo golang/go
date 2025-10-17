@@ -14,7 +14,7 @@ import (
 )
 
 // MatchPackage(pattern, cwd)(p) reports whether package p matches pattern in the working directory cwd.
-func MatchPackage(pattern, cwd string) func(*Package) bool {
+func MatchPackage(loaderstate *modload.State, pattern, cwd string) func(*Package) bool {
 	switch {
 	case search.IsRelativePath(pattern):
 		// Split pattern into leading pattern-free directory path
@@ -54,13 +54,13 @@ func MatchPackage(pattern, cwd string) func(*Package) bool {
 		return func(p *Package) bool { return p.Standard }
 	case pattern == "cmd":
 		return func(p *Package) bool { return p.Standard && strings.HasPrefix(p.ImportPath, "cmd/") }
-	case pattern == "tool" && modload.Enabled():
+	case pattern == "tool" && modload.Enabled(loaderstate):
 		return func(p *Package) bool {
-			return modload.MainModules.Tools()[p.ImportPath]
+			return loaderstate.MainModules.Tools()[p.ImportPath]
 		}
-	case pattern == "work" && modload.Enabled():
+	case pattern == "work" && modload.Enabled(loaderstate):
 		return func(p *Package) bool {
-			return p.Module != nil && modload.MainModules.Contains(p.Module.Path)
+			return p.Module != nil && loaderstate.MainModules.Contains(p.Module.Path)
 		}
 
 	default:

@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"unicode/utf8"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/gover"
@@ -183,7 +184,7 @@ func (q *query) validate() error {
 
 	if q.pattern == "all" {
 		// If there is no main module, "all" is not meaningful.
-		if !modload.HasModRoot() {
+		if !modload.HasModRoot(modload.LoaderState) {
 			return fmt.Errorf(`cannot match "all": %v`, modload.ErrNoModRoot)
 		}
 		if !versionOkForMainModule(q.version) {
@@ -191,7 +192,7 @@ func (q *query) validate() error {
 			// request that we remove all module requirements, leaving only the main
 			// module and standard library. Perhaps we should implement that someday.
 			return &modload.QueryUpgradesAllError{
-				MainModules: modload.MainModules.Versions(),
+				MainModules: modload.LoaderState.MainModules.Versions(),
 				Query:       q.version,
 			}
 		}
@@ -282,8 +283,13 @@ func reportError(q *query, err error) {
 	// If err already mentions all of the relevant parts of q, just log err to
 	// reduce stutter. Otherwise, log both q and err.
 	//
-	// TODO(bcmills): Use errors.As to unpack these errors instead of parsing
+	// TODO(bcmills): Use errors.AsType to unpack these errors instead of parsing
 	// strings with regular expressions.
+
+	if !utf8.ValidString(q.pattern) || !utf8.ValidString(q.version) {
+		base.Errorf("go: %s", errStr)
+		return
+	}
 
 	patternRE := regexp.MustCompile("(?m)(?:[ \t(\"`]|^)" + regexp.QuoteMeta(q.pattern) + "(?:[ @:;)\"`]|$)")
 	if patternRE.MatchString(errStr) {

@@ -801,9 +801,7 @@ func (sa *SockaddrPPPoE) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	// one. The kernel expects SID to be in network byte order.
 	binary.BigEndian.PutUint16(sa.raw[6:8], sa.SID)
 	copy(sa.raw[8:14], sa.Remote)
-	for i := 14; i < 14+IFNAMSIZ; i++ {
-		sa.raw[i] = 0
-	}
+	clear(sa.raw[14 : 14+IFNAMSIZ])
 	copy(sa.raw[14:], sa.Dev)
 	return unsafe.Pointer(&sa.raw), SizeofSockaddrPPPoX, nil
 }

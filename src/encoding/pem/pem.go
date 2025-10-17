@@ -37,7 +37,7 @@ type Block struct {
 // line bytes. The remainder of the byte array (also not including the new line
 // bytes) is also returned and this will always be smaller than the original
 // argument.
-func getLine(data []byte) (line, rest []byte) {
+func getLine(data []byte) (line, rest []byte, consumed int) {
 	i := bytes.IndexByte(data, '\n')
 	var j int
 	if i < 0 {
@@ -49,7 +49,7 @@ func getLine(data []byte) (line, rest []byte) {
 			i--
 		}
 	}
-	return bytes.TrimRight(data[0:i], " \t"), data[j:]
+	return bytes.TrimRight(data[0:i], " \t"), data[j:], j
 }
 
 // removeSpacesAndTabs returns a copy of its input with all spaces and tabs
@@ -90,20 +90,37 @@ func Decode(data []byte) (p *Block, rest []byte) {
 	// pemStart begins with a newline. However, at the very beginning of
 	// the byte array, we'll accept the start string without it.
 	rest = data
+
+	endTrailerIndex := 0
 	for {
-		if bytes.HasPrefix(rest, pemStart[1:]) {
-			rest = rest[len(pemStart)-1:]
-		} else if _, after, ok := bytes.Cut(rest, pemStart); ok {
-			rest = after
-		} else {
+		// If we've already tried parsing a block, skip past the END we already
+		// saw.
+		rest = rest[endTrailerIndex:]
+
+		// Find the first END line, and then find the last BEGIN line before
+		// the end line. This lets us skip any repeated BEGIN lines that don't
+		// have a matching END.
+		endIndex := bytes.Index(rest, pemEnd)
+		if endIndex < 0 {
 			return nil, data
 		}
+		endTrailerIndex = endIndex + len(pemEnd)
+		beginIndex := bytes.LastIndex(rest[:endIndex], pemStart[1:])
+		if beginIndex < 0 || (beginIndex > 0 && rest[beginIndex-1] != '\n') {
+			continue
+		}
+		rest = rest[beginIndex+len(pemStart)-1:]
+		endIndex -= beginIndex + len(pemStart) - 1
+		endTrailerIndex -= beginIndex + len(pemStart) - 1
 
 		var typeLine []byte
-		typeLine, rest = getLine(rest)
+		var consumed int
+		typeLine, rest, consumed = getLine(rest)
 		if !bytes.HasSuffix(typeLine, pemEndOfLine) {
 			continue
 		}
+		endIndex -= consumed
+		endTrailerIndex -= consumed
 		typeLine = typeLine[0 : len(typeLine)-len(pemEndOfLine)]
 
 		p = &Block{
@@ -117,7 +134,7 @@ func Decode(data []byte) (p *Block, rest []byte) {
 			if len(rest) == 0 {
 				return nil, data
 			}
-			line, next := getLine(rest)
+			line, next, consumed := getLine(rest)
 
 			key, val, ok := bytes.Cut(line, colon)
 			if !ok {
@@ -129,21 +146,13 @@ func Decode(data []byte) (p *Block, rest []byte) {
 			val = bytes.TrimSpace(val)
 			p.Headers[string(key)] = string(val)
 			rest = next
+			endIndex -= consumed
+			endTrailerIndex -= consumed
 		}
 
-		var endIndex, endTrailerIndex int
-
-		// If there were no headers, the END line might occur
-		// immediately, without a leading newline.
-		if len(p.Headers) == 0 && bytes.HasPrefix(rest, pemEnd[1:]) {
-			endIndex = 0
-			endTrailerIndex = len(pemEnd) - 1
-		} else {
-			endIndex = bytes.Index(rest, pemEnd)
-			endTrailerIndex = endIndex + len(pemEnd)
-		}
-
-		if endIndex < 0 {
+		// If there were headers, there must be a newline between the headers
+		// and the END line, so endIndex should be >= 0.
+		if len(p.Headers) > 0 && endIndex < 0 {
 			continue
 		}
 
@@ -163,21 +172,24 @@ func Decode(data []byte) (p *Block, rest []byte) {
 		}
 
 		// The line must end with only whitespace.
-		if s, _ := getLine(restOfEndLine); len(s) != 0 {
+		if s, _, _ := getLine(restOfEndLine); len(s) != 0 {
 			continue
 		}
 
-		base64Data := removeSpacesAndTabs(rest[:endIndex])
-		p.Bytes = make([]byte, base64.StdEncoding.DecodedLen(len(base64Data)))
-		n, err := base64.StdEncoding.Decode(p.Bytes, base64Data)
-		if err != nil {
-			continue
+		p.Bytes = []byte{}
+		if endIndex > 0 {
+			base64Data := removeSpacesAndTabs(rest[:endIndex])
+			p.Bytes = make([]byte, base64.StdEncoding.DecodedLen(len(base64Data)))
+			n, err := base64.StdEncoding.Decode(p.Bytes, base64Data)
+			if err != nil {
+				continue
+			}
+			p.Bytes = p.Bytes[:n]
 		}
-		p.Bytes = p.Bytes[:n]
 
 		// the -1 is because we might have only matched pemEnd without the
 		// leading newline if the PEM block was empty.
-		_, rest = getLine(rest[endIndex+len(pemEnd)-1:])
+		_, rest, _ = getLine(rest[endIndex+len(pemEnd)-1:])
 		return p, rest
 	}
 }

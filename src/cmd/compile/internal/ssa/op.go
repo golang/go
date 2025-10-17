@@ -70,6 +70,10 @@ type regInfo struct {
 	// clobbers encodes the set of registers that are overwritten by
 	// the instruction (other than the output registers).
 	clobbers regMask
+	// Instruction clobbers the register containing input 0.
+	clobbersArg0 bool
+	// Instruction clobbers the register containing input 1.
+	clobbersArg1 bool
 	// outputs is the same as inputs, but for the outputs of the instruction.
 	outputs []outputInfo
 }
@@ -371,11 +375,12 @@ const (
 	auxPanicBoundsCC // two constants for a bounds failure
 
 	// architecture specific aux types
-	auxARM64BitField     // aux is an arm64 bitfield lsb and width packed into auxInt
-	auxS390XRotateParams // aux is a s390x rotate parameters object encoding start bit, end bit and rotate amount
-	auxS390XCCMask       // aux is a s390x 4-bit condition code mask
-	auxS390XCCMaskInt8   // aux is a s390x 4-bit condition code mask, auxInt is an int8 immediate
-	auxS390XCCMaskUint8  // aux is a s390x 4-bit condition code mask, auxInt is a uint8 immediate
+	auxARM64BitField          // aux is an arm64 bitfield lsb and width packed into auxInt
+	auxARM64ConditionalParams // aux is a structure, which contains condition, NZCV flags and constant with indicator of using it
+	auxS390XRotateParams      // aux is a s390x rotate parameters object encoding start bit, end bit and rotate amount
+	auxS390XCCMask            // aux is a s390x 4-bit condition code mask
+	auxS390XCCMaskInt8        // aux is a s390x 4-bit condition code mask, auxInt is an int8 immediate
+	auxS390XCCMaskUint8       // aux is a s390x 4-bit condition code mask, auxInt is a uint8 immediate
 )
 
 // A SymEffect describes the effect that an SSA Value has on the variable
@@ -481,53 +486,6 @@ const (
 	BoundsKindCount
 )
 
-// boundsABI determines which register arguments a bounds check call should use. For an [a:b:c] slice, we do:
-//
-//	CMPQ c, cap
-//	JA   fail1
-//	CMPQ b, c
-//	JA   fail2
-//	CMPQ a, b
-//	JA   fail3
-//
-// fail1: CALL panicSlice3Acap (c, cap)
-// fail2: CALL panicSlice3B (b, c)
-// fail3: CALL panicSlice3C (a, b)
-//
-// When we register allocate that code, we want the same register to be used for
-// the first arg of panicSlice3Acap and the second arg to panicSlice3B. That way,
-// initializing that register once will satisfy both calls.
-// That desire ends up dividing the set of bounds check calls into 3 sets. This function
-// determines which set to use for a given panic call.
-// The first arg for set 0 should be the second arg for set 1.
-// The first arg for set 1 should be the second arg for set 2.
-func boundsABI(b int64) int {
-	switch BoundsKind(b) {
-	case BoundsSlice3Alen,
-		BoundsSlice3AlenU,
-		BoundsSlice3Acap,
-		BoundsSlice3AcapU,
-		BoundsConvert:
-		return 0
-	case BoundsSliceAlen,
-		BoundsSliceAlenU,
-		BoundsSliceAcap,
-		BoundsSliceAcapU,
-		BoundsSlice3B,
-		BoundsSlice3BU:
-		return 1
-	case BoundsIndex,
-		BoundsIndexU,
-		BoundsSliceB,
-		BoundsSliceBU,
-		BoundsSlice3C,
-		BoundsSlice3CU:
-		return 2
-	default:
-		panic("bad BoundsKind")
-	}
-}
-
 // Returns the bounds error code needed by the runtime, and
 // whether the x field is signed.
 func (b BoundsKind) Code() (rtabi.BoundsErrorCode, bool) {
@@ -577,3 +535,11 @@ func (b BoundsKind) Code() (rtabi.BoundsErrorCode, bool) {
 // width+lsb<64 for 64-bit variant, width+lsb<32 for 32-bit variant.
 // the meaning of width and lsb are instruction-dependent.
 type arm64BitField int16
+
+// arm64ConditionalParams is the GO type of ARM64ConditionalParams auxInt.
+type arm64ConditionalParams struct {
+	cond       Op    // Condition code to evaluate
+	nzcv       uint8 // Fallback NZCV flags value when condition is false
+	constValue uint8 // Immediate value for constant comparisons
+	ind        bool  // Constant comparison indicator
+}

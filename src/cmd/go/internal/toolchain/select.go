@@ -353,9 +353,9 @@ func Exec(gotoolchain string) {
 
 	// Set up modules without an explicit go.mod, to download distribution.
 	modload.Reset()
-	modload.ForceUseModules = true
-	modload.RootMode = modload.NoRoot
-	modload.Init()
+	modload.LoaderState.ForceUseModules = true
+	modload.LoaderState.RootMode = modload.NoRoot
+	modload.Init(modload.LoaderState)
 
 	// Download and unpack toolchain module into module cache.
 	// Note that multiple go commands might be doing this at the same time,
@@ -529,7 +529,7 @@ func raceSafeCopy(old, new string) error {
 // The toolchain line overrides the version line
 func modGoToolchain() (file, goVers, toolchain string) {
 	wd := base.UncachedCwd()
-	file = modload.FindGoWork(wd)
+	file = modload.FindGoWork(modload.LoaderState, wd)
 	// $GOWORK can be set to a file that does not yet exist, if we are running 'go work init'.
 	// Do not try to load the file in that case
 	if _, err := os.Stat(file); err != nil {
@@ -692,9 +692,9 @@ func maybeSwitchForGoInstallVersion(minVers string) {
 	// command lines if we add new flags in the future.
 
 	// Set up modules without an explicit go.mod, to download go.mod.
-	modload.ForceUseModules = true
-	modload.RootMode = modload.NoRoot
-	modload.Init()
+	modload.LoaderState.ForceUseModules = true
+	modload.LoaderState.RootMode = modload.NoRoot
+	modload.Init(modload.LoaderState)
 	defer modload.Reset()
 
 	// See internal/load.PackagesAndErrorsOutsideModule
@@ -705,7 +705,7 @@ func maybeSwitchForGoInstallVersion(minVers string) {
 		allowed = nil
 	}
 	noneSelected := func(path string) (version string) { return "none" }
-	_, err := modload.QueryPackages(ctx, path, version, noneSelected, allowed)
+	_, err := modload.QueryPackages(modload.LoaderState, ctx, path, version, noneSelected, allowed)
 	if errors.Is(err, gover.ErrTooNew) {
 		// Run early switch, same one go install or go run would eventually do,
 		// if it understood all the command-line flags.

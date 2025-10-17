@@ -38,8 +38,15 @@ func SchedSetaffinity(pid int, set *CPUSet) error {
 
 // Zero clears the set s, so that it contains no CPUs.
 func (s *CPUSet) Zero() {
+	clear(s[:])
+}
+
+// Fill adds all possible CPU bits to the set s. On Linux, [SchedSetaffinity]
+// will silently ignore any invalid CPU bits in [CPUSet] so this is an
+// efficient way of resetting the CPU affinity of a process.
+func (s *CPUSet) Fill() {
 	for i := range s {
-		s[i] = 0
+		s[i] = ^cpuMask(0)
 	}
 }
 

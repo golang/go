@@ -9,21 +9,22 @@ import (
 	"io"
 )
 
-// Expect 8 MB of memory usage for a small wasm program.
-// This reflects the current allocator. We test an exact
-// value here, but if the allocator changes, we can update
-// or relax this.
-const want = 8 << 20
+// Wasm page size.
+const pageSize = 64 * 1024
+
+// Expect less than 3 MB + 1 page of memory usage for a small wasm
+// program. This reflects the current allocator. If the allocator
+// changes, update this value.
+const want = 3<<20 + pageSize
 
 var w = io.Discard
 
 func main() {
 	fmt.Fprintln(w, "hello world")
 
-	const pageSize = 64 * 1024
 	sz := uintptr(currentMemory()) * pageSize
-	if sz != want {
-		fmt.Printf("FAIL: unexpected memory size %d, want %d\n", sz, want)
+	if sz > want {
+		fmt.Printf("FAIL: unexpected memory size %d, want <= %d\n", sz, want)
 	}
 }
 

@@ -290,7 +290,7 @@ func setBig(p *int, x int, b bigBuf) {
 func TestDeferPtrsPanic(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		c := make(chan int, 1)
-		go testDeferPtrsGoexit(c, i)
+		go testDeferPtrsPanic(c, i)
 		if n := <-c; n != 42 {
 			t.Fatalf("defer's stack references were not adjusted appropriately (i=%d n=%d)", i, n)
 		}

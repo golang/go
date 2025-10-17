@@ -22,7 +22,14 @@ const MaxAvgGroupLoad = maxAvgGroupLoad
 // we can't properly test hint alloc overflows with this.
 const maxAllocTest = 1 << 30
 
-func NewTestMap[K comparable, V any](hint uintptr) (*Map, *abi.SwissMapType) {
+func newTestMapType[K comparable, V any]() *abi.MapType {
+	var m map[K]V
+	mTyp := abi.TypeOf(m)
+	mt := (*abi.MapType)(unsafe.Pointer(mTyp))
+	return mt
+}
+
+func NewTestMap[K comparable, V any](hint uintptr) (*Map, *abi.MapType) {
 	mt := newTestMapType[K, V]()
 	return NewMap(mt, hint, nil, maxAllocTest), mt
 }
@@ -61,7 +68,7 @@ func (m *Map) GroupCount() uint64 {
 // Returns nil if there are no full groups.
 // Returns nil if a group is full but contains entirely deleted slots.
 // Returns nil if the map is small.
-func (m *Map) KeyFromFullGroup(typ *abi.SwissMapType) unsafe.Pointer {
+func (m *Map) KeyFromFullGroup(typ *abi.MapType) unsafe.Pointer {
 	if m.dirLen <= 0 {
 		return nil
 	}
@@ -82,7 +89,7 @@ func (m *Map) KeyFromFullGroup(typ *abi.SwissMapType) unsafe.Pointer {
 			}
 
 			// All full or deleted slots.
-			for j := uintptr(0); j < abi.SwissMapGroupSlots; j++ {
+			for j := uintptr(0); j < abi.MapGroupSlots; j++ {
 				if g.ctrls().get(j) == ctrlDeleted {
 					continue
 				}
@@ -99,7 +106,7 @@ func (m *Map) KeyFromFullGroup(typ *abi.SwissMapType) unsafe.Pointer {
 }
 
 // Returns nil if the map is small.
-func (m *Map) TableFor(typ *abi.SwissMapType, key unsafe.Pointer) *table {
+func (m *Map) TableFor(typ *abi.MapType, key unsafe.Pointer) *table {
 	if m.dirLen <= 0 {
 		return nil
 	}

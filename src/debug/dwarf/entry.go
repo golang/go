@@ -229,7 +229,7 @@ func formToClass(form format, attr Attr, vers int, b *buf) Class {
 	}
 }
 
-// An entry is a sequence of attribute/value pairs.
+// An Entry is a sequence of attribute/value pairs.
 type Entry struct {
 	Offset   Offset // offset of Entry in DWARF info
 	Tag      Tag    // tag (kind of Entry)
@@ -554,7 +554,7 @@ func (b *buf) entry(cu *Entry, u *unit) *Entry {
 		case formData16:
 			val = b.bytes(16)
 		case formSdata:
-			val = int64(b.int())
+			val = b.int()
 		case formUdata:
 			val = int64(b.uint())
 		case formImplicitConst:

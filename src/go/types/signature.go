@@ -62,7 +62,7 @@ func NewSignatureType(recv *Var, recvTypeParams, typeParams []*TypeParam, params
 		}
 		last := params.At(n - 1).typ
 		var S *Slice
-		typeset(last, func(t, _ Type) bool {
+		for t := range typeset(last) {
 			var s *Slice
 			if isString(t) {
 				s = NewSlice(universeByte)
@@ -73,10 +73,9 @@ func NewSignatureType(recv *Var, recvTypeParams, typeParams []*TypeParam, params
 				S = s
 			} else if !Identical(S, s) {
 				S = nil
-				return false
+				break
 			}
-			return true
-		})
+		}
 		if S == nil {
 			panic(fmt.Sprintf("got %s, want variadic parameter of unnamed slice or string type", last))
 		}
@@ -227,7 +226,7 @@ func (check *Checker) collectRecv(rparam *ast.Field, scopePos token.Pos) (*Var, 
 			case *Alias:
 				// Methods on generic aliases are not permitted.
 				// Only report an error if the alias type is valid.
-				if isValid(unalias(t)) {
+				if isValid(t) {
 					check.errorf(rbase, InvalidRecv, "cannot define new methods on generic alias type %s", t)
 				}
 				// Ok to continue but do not set basetype in this case so that
@@ -462,7 +461,7 @@ func (check *Checker) validRecv(pos positioner, recv *Var) {
 			break
 		}
 		var cause string
-		switch u := T.under().(type) {
+		switch u := T.Underlying().(type) {
 		case *Basic:
 			// unsafe.Pointer is treated like a regular pointer
 			if u.kind == UnsafePointer {

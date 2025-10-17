@@ -579,7 +579,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		}
 
 		if int64(pc) > p.Pc {
-			ctxt.Diag("PC padding invalid: want %#d, has %#d: %v", p.Pc, pc, p)
+			ctxt.Diag("PC padding invalid: want %d, has %d: %v", p.Pc, pc, p)
 		}
 		for int64(pc) != p.Pc {
 			// emit 0xe1a00000 (MOVW R0, R0)

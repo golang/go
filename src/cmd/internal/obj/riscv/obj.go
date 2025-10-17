@@ -29,6 +29,7 @@ import (
 	"internal/abi"
 	"internal/buildcfg"
 	"log"
+	"math"
 	"math/bits"
 	"strings"
 )
@@ -37,7 +38,7 @@ func buildop(ctxt *obj.Link) {}
 
 func jalToSym(ctxt *obj.Link, p *obj.Prog, lr int16) {
 	switch p.As {
-	case obj.ACALL, obj.AJMP, obj.ARET, obj.ADUFFZERO, obj.ADUFFCOPY:
+	case obj.ACALL, obj.AJMP, obj.ARET:
 	default:
 		ctxt.Diag("unexpected Prog in jalToSym: %v", p)
 		return
@@ -145,9 +146,29 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			p.From.Offset = 0
 		}
 
+	case AMOVF:
+		if p.From.Type == obj.TYPE_FCONST && p.From.Name == obj.NAME_NONE && p.From.Reg == obj.REG_NONE {
+			f64 := p.From.Val.(float64)
+			f32 := float32(f64)
+			if math.Float32bits(f32) == 0 {
+				p.From.Type = obj.TYPE_REG
+				p.From.Reg = REG_ZERO
+				break
+			}
+			p.From.Type = obj.TYPE_MEM
+			p.From.Sym = ctxt.Float32Sym(f32)
+			p.From.Name = obj.NAME_EXTERN
+			p.From.Offset = 0
+		}
+
 	case AMOVD:
 		if p.From.Type == obj.TYPE_FCONST && p.From.Name == obj.NAME_NONE && p.From.Reg == obj.REG_NONE {
 			f64 := p.From.Val.(float64)
+			if math.Float64bits(f64) == 0 {
+				p.From.Type = obj.TYPE_REG
+				p.From.Reg = REG_ZERO
+				break
+			}
 			p.From.Type = obj.TYPE_MEM
 			p.From.Sym = ctxt.Float64Sym(f64)
 			p.From.Name = obj.NAME_EXTERN
@@ -162,42 +183,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 
 // Rewrite p, if necessary, to access global data via the global offset table.
 func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
-	if p.As == obj.ADUFFCOPY || p.As == obj.ADUFFZERO {
-		//     ADUFFxxx $offset
-		// becomes
-		//     MOV runtime.duffxxx@GOT, REG_TMP
-		//     ADD $offset, REG_TMP
-		//     CALL REG_TMP
-		var sym *obj.LSym
-		if p.As == obj.ADUFFCOPY {
-			sym = ctxt.LookupABI("runtime.duffcopy", obj.ABIInternal)
-		} else {
-			sym = ctxt.LookupABI("runtime.duffzero", obj.ABIInternal)
-		}
-		offset := p.To.Offset
-		p.As = AMOV
-		p.From.Type = obj.TYPE_MEM
-		p.From.Name = obj.NAME_GOTREF
-		p.From.Sym = sym
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_TMP
-		p.To.Name = obj.NAME_NONE
-		p.To.Offset = 0
-		p.To.Sym = nil
-
-		p1 := obj.Appendp(p, newprog)
-		p1.As = AADD
-		p1.From.Type = obj.TYPE_CONST
-		p1.From.Offset = offset
-		p1.To.Type = obj.TYPE_REG
-		p1.To.Reg = REG_TMP
-
-		p2 := obj.Appendp(p1, newprog)
-		p2.As = obj.ACALL
-		p2.To.Type = obj.TYPE_REG
-		p2.To.Reg = REG_TMP
-	}
-
 	// We only care about global data: NAME_EXTERN means a global
 	// symbol in the Go sense and p.Sym.Local is true for a few internally
 	// defined symbols.
@@ -407,7 +392,7 @@ func containsCall(sym *obj.LSym) bool {
 	// CALLs are CALL or JAL(R) with link register LR.
 	for p := sym.Func().Text; p != nil; p = p.Link {
 		switch p.As {
-		case obj.ACALL, obj.ADUFFZERO, obj.ADUFFCOPY:
+		case obj.ACALL:
 			return true
 		case AJAL, AJALR:
 			if p.From.Type == obj.TYPE_REG && p.From.Reg == REG_LR {
@@ -586,7 +571,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p.From.Reg = REG_SP
 			}
 
-		case obj.ACALL, obj.ADUFFZERO, obj.ADUFFCOPY:
+		case obj.ACALL:
 			switch p.To.Type {
 			case obj.TYPE_MEM:
 				jalToSym(ctxt, p, REG_LR)
@@ -1070,24 +1055,6 @@ func regF(r uint32) uint32 {
 // regV returns a vector register.
 func regV(r uint32) uint32 {
 	return regVal(r, REG_V0, REG_V31)
-}
-
-// regAddr extracts a register from an Addr.
-func regAddr(a obj.Addr, min, max uint32) uint32 {
-	if a.Type != obj.TYPE_REG {
-		panic(fmt.Sprintf("ill typed: %+v", a))
-	}
-	return regVal(uint32(a.Reg), min, max)
-}
-
-// regIAddr extracts the integer register from an Addr.
-func regIAddr(a obj.Addr) uint32 {
-	return regAddr(a, REG_X0, REG_X31)
-}
-
-// regFAddr extracts the float register from an Addr.
-func regFAddr(a obj.Addr) uint32 {
-	return regAddr(a, REG_F0, REG_F31)
 }
 
 // immEven checks that the immediate is a multiple of two. If it
@@ -1974,7 +1941,16 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	ASD & obj.AMask: {enc: sIEncoding},
 
 	// 7.1: CSR Instructions
-	ACSRRS & obj.AMask: {enc: iIIEncoding},
+	ACSRRC & obj.AMask:  {enc: iIIEncoding, immForm: ACSRRCI},
+	ACSRRCI & obj.AMask: {enc: iIIEncoding},
+	ACSRRS & obj.AMask:  {enc: iIIEncoding, immForm: ACSRRSI},
+	ACSRRSI & obj.AMask: {enc: iIIEncoding},
+	ACSRRW & obj.AMask:  {enc: iIIEncoding, immForm: ACSRRWI},
+	ACSRRWI & obj.AMask: {enc: iIIEncoding},
+
+	// 12.3: "Zicond" Extension for Integer Conditional Operations
+	ACZERONEZ & obj.AMask: {enc: rIIIEncoding, ternary: true},
+	ACZEROEQZ & obj.AMask: {enc: rIIIEncoding, ternary: true},
 
 	// 13.1: Multiplication Operations
 	AMUL & obj.AMask:    {enc: rIIIEncoding, ternary: true},
@@ -2199,6 +2175,266 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	AVSOXEI16V & obj.AMask: {enc: sVIVEncoding},
 	AVSOXEI32V & obj.AMask: {enc: sVIVEncoding},
 	AVSOXEI64V & obj.AMask: {enc: sVIVEncoding},
+
+	// 31.7.7: Unit-stride Fault-Only-First Loads
+	AVLE8FFV & obj.AMask:  {enc: iVEncoding},
+	AVLE16FFV & obj.AMask: {enc: iVEncoding},
+	AVLE32FFV & obj.AMask: {enc: iVEncoding},
+	AVLE64FFV & obj.AMask: {enc: iVEncoding},
+
+	// 31.7.8: Vector Load/Store Segment Instructions
+	AVLSEG2E8V & obj.AMask:     {enc: iVEncoding},
+	AVLSEG3E8V & obj.AMask:     {enc: iVEncoding},
+	AVLSEG4E8V & obj.AMask:     {enc: iVEncoding},
+	AVLSEG5E8V & obj.AMask:     {enc: iVEncoding},
+	AVLSEG6E8V & obj.AMask:     {enc: iVEncoding},
+	AVLSEG7E8V & obj.AMask:     {enc: iVEncoding},
+	AVLSEG8E8V & obj.AMask:     {enc: iVEncoding},
+	AVLSEG2E16V & obj.AMask:    {enc: iVEncoding},
+	AVLSEG3E16V & obj.AMask:    {enc: iVEncoding},
+	AVLSEG4E16V & obj.AMask:    {enc: iVEncoding},
+	AVLSEG5E16V & obj.AMask:    {enc: iVEncoding},
+	AVLSEG6E16V & obj.AMask:    {enc: iVEncoding},
+	AVLSEG7E16V & obj.AMask:    {enc: iVEncoding},
+	AVLSEG8E16V & obj.AMask:    {enc: iVEncoding},
+	AVLSEG2E32V & obj.AMask:    {enc: iVEncoding},
+	AVLSEG3E32V & obj.AMask:    {enc: iVEncoding},
+	AVLSEG4E32V & obj.AMask:    {enc: iVEncoding},
+	AVLSEG5E32V & obj.AMask:    {enc: iVEncoding},
+	AVLSEG6E32V & obj.AMask:    {enc: iVEncoding},
+	AVLSEG7E32V & obj.AMask:    {enc: iVEncoding},
+	AVLSEG8E32V & obj.AMask:    {enc: iVEncoding},
+	AVLSEG2E64V & obj.AMask:    {enc: iVEncoding},
+	AVLSEG3E64V & obj.AMask:    {enc: iVEncoding},
+	AVLSEG4E64V & obj.AMask:    {enc: iVEncoding},
+	AVLSEG5E64V & obj.AMask:    {enc: iVEncoding},
+	AVLSEG6E64V & obj.AMask:    {enc: iVEncoding},
+	AVLSEG7E64V & obj.AMask:    {enc: iVEncoding},
+	AVLSEG8E64V & obj.AMask:    {enc: iVEncoding},
+	AVSSEG2E8V & obj.AMask:     {enc: sVEncoding},
+	AVSSEG3E8V & obj.AMask:     {enc: sVEncoding},
+	AVSSEG4E8V & obj.AMask:     {enc: sVEncoding},
+	AVSSEG5E8V & obj.AMask:     {enc: sVEncoding},
+	AVSSEG6E8V & obj.AMask:     {enc: sVEncoding},
+	AVSSEG7E8V & obj.AMask:     {enc: sVEncoding},
+	AVSSEG8E8V & obj.AMask:     {enc: sVEncoding},
+	AVSSEG2E16V & obj.AMask:    {enc: sVEncoding},
+	AVSSEG3E16V & obj.AMask:    {enc: sVEncoding},
+	AVSSEG4E16V & obj.AMask:    {enc: sVEncoding},
+	AVSSEG5E16V & obj.AMask:    {enc: sVEncoding},
+	AVSSEG6E16V & obj.AMask:    {enc: sVEncoding},
+	AVSSEG7E16V & obj.AMask:    {enc: sVEncoding},
+	AVSSEG8E16V & obj.AMask:    {enc: sVEncoding},
+	AVSSEG2E32V & obj.AMask:    {enc: sVEncoding},
+	AVSSEG3E32V & obj.AMask:    {enc: sVEncoding},
+	AVSSEG4E32V & obj.AMask:    {enc: sVEncoding},
+	AVSSEG5E32V & obj.AMask:    {enc: sVEncoding},
+	AVSSEG6E32V & obj.AMask:    {enc: sVEncoding},
+	AVSSEG7E32V & obj.AMask:    {enc: sVEncoding},
+	AVSSEG8E32V & obj.AMask:    {enc: sVEncoding},
+	AVSSEG2E64V & obj.AMask:    {enc: sVEncoding},
+	AVSSEG3E64V & obj.AMask:    {enc: sVEncoding},
+	AVSSEG4E64V & obj.AMask:    {enc: sVEncoding},
+	AVSSEG5E64V & obj.AMask:    {enc: sVEncoding},
+	AVSSEG6E64V & obj.AMask:    {enc: sVEncoding},
+	AVSSEG7E64V & obj.AMask:    {enc: sVEncoding},
+	AVSSEG8E64V & obj.AMask:    {enc: sVEncoding},
+	AVLSEG2E8FFV & obj.AMask:   {enc: iVEncoding},
+	AVLSEG3E8FFV & obj.AMask:   {enc: iVEncoding},
+	AVLSEG4E8FFV & obj.AMask:   {enc: iVEncoding},
+	AVLSEG5E8FFV & obj.AMask:   {enc: iVEncoding},
+	AVLSEG6E8FFV & obj.AMask:   {enc: iVEncoding},
+	AVLSEG7E8FFV & obj.AMask:   {enc: iVEncoding},
+	AVLSEG8E8FFV & obj.AMask:   {enc: iVEncoding},
+	AVLSEG2E16FFV & obj.AMask:  {enc: iVEncoding},
+	AVLSEG3E16FFV & obj.AMask:  {enc: iVEncoding},
+	AVLSEG4E16FFV & obj.AMask:  {enc: iVEncoding},
+	AVLSEG5E16FFV & obj.AMask:  {enc: iVEncoding},
+	AVLSEG6E16FFV & obj.AMask:  {enc: iVEncoding},
+	AVLSEG7E16FFV & obj.AMask:  {enc: iVEncoding},
+	AVLSEG8E16FFV & obj.AMask:  {enc: iVEncoding},
+	AVLSEG2E32FFV & obj.AMask:  {enc: iVEncoding},
+	AVLSEG3E32FFV & obj.AMask:  {enc: iVEncoding},
+	AVLSEG4E32FFV & obj.AMask:  {enc: iVEncoding},
+	AVLSEG5E32FFV & obj.AMask:  {enc: iVEncoding},
+	AVLSEG6E32FFV & obj.AMask:  {enc: iVEncoding},
+	AVLSEG7E32FFV & obj.AMask:  {enc: iVEncoding},
+	AVLSEG8E32FFV & obj.AMask:  {enc: iVEncoding},
+	AVLSEG2E64FFV & obj.AMask:  {enc: iVEncoding},
+	AVLSEG3E64FFV & obj.AMask:  {enc: iVEncoding},
+	AVLSEG4E64FFV & obj.AMask:  {enc: iVEncoding},
+	AVLSEG5E64FFV & obj.AMask:  {enc: iVEncoding},
+	AVLSEG6E64FFV & obj.AMask:  {enc: iVEncoding},
+	AVLSEG7E64FFV & obj.AMask:  {enc: iVEncoding},
+	AVLSEG8E64FFV & obj.AMask:  {enc: iVEncoding},
+	AVLSSEG2E8V & obj.AMask:    {enc: iIIVEncoding},
+	AVLSSEG3E8V & obj.AMask:    {enc: iIIVEncoding},
+	AVLSSEG4E8V & obj.AMask:    {enc: iIIVEncoding},
+	AVLSSEG5E8V & obj.AMask:    {enc: iIIVEncoding},
+	AVLSSEG6E8V & obj.AMask:    {enc: iIIVEncoding},
+	AVLSSEG7E8V & obj.AMask:    {enc: iIIVEncoding},
+	AVLSSEG8E8V & obj.AMask:    {enc: iIIVEncoding},
+	AVLSSEG2E16V & obj.AMask:   {enc: iIIVEncoding},
+	AVLSSEG3E16V & obj.AMask:   {enc: iIIVEncoding},
+	AVLSSEG4E16V & obj.AMask:   {enc: iIIVEncoding},
+	AVLSSEG5E16V & obj.AMask:   {enc: iIIVEncoding},
+	AVLSSEG6E16V & obj.AMask:   {enc: iIIVEncoding},
+	AVLSSEG7E16V & obj.AMask:   {enc: iIIVEncoding},
+	AVLSSEG8E16V & obj.AMask:   {enc: iIIVEncoding},
+	AVLSSEG2E32V & obj.AMask:   {enc: iIIVEncoding},
+	AVLSSEG3E32V & obj.AMask:   {enc: iIIVEncoding},
+	AVLSSEG4E32V & obj.AMask:   {enc: iIIVEncoding},
+	AVLSSEG5E32V & obj.AMask:   {enc: iIIVEncoding},
+	AVLSSEG6E32V & obj.AMask:   {enc: iIIVEncoding},
+	AVLSSEG7E32V & obj.AMask:   {enc: iIIVEncoding},
+	AVLSSEG8E32V & obj.AMask:   {enc: iIIVEncoding},
+	AVLSSEG2E64V & obj.AMask:   {enc: iIIVEncoding},
+	AVLSSEG3E64V & obj.AMask:   {enc: iIIVEncoding},
+	AVLSSEG4E64V & obj.AMask:   {enc: iIIVEncoding},
+	AVLSSEG5E64V & obj.AMask:   {enc: iIIVEncoding},
+	AVLSSEG6E64V & obj.AMask:   {enc: iIIVEncoding},
+	AVLSSEG7E64V & obj.AMask:   {enc: iIIVEncoding},
+	AVLSSEG8E64V & obj.AMask:   {enc: iIIVEncoding},
+	AVSSSEG2E8V & obj.AMask:    {enc: sVIIEncoding},
+	AVSSSEG3E8V & obj.AMask:    {enc: sVIIEncoding},
+	AVSSSEG4E8V & obj.AMask:    {enc: sVIIEncoding},
+	AVSSSEG5E8V & obj.AMask:    {enc: sVIIEncoding},
+	AVSSSEG6E8V & obj.AMask:    {enc: sVIIEncoding},
+	AVSSSEG7E8V & obj.AMask:    {enc: sVIIEncoding},
+	AVSSSEG8E8V & obj.AMask:    {enc: sVIIEncoding},
+	AVSSSEG2E16V & obj.AMask:   {enc: sVIIEncoding},
+	AVSSSEG3E16V & obj.AMask:   {enc: sVIIEncoding},
+	AVSSSEG4E16V & obj.AMask:   {enc: sVIIEncoding},
+	AVSSSEG5E16V & obj.AMask:   {enc: sVIIEncoding},
+	AVSSSEG6E16V & obj.AMask:   {enc: sVIIEncoding},
+	AVSSSEG7E16V & obj.AMask:   {enc: sVIIEncoding},
+	AVSSSEG8E16V & obj.AMask:   {enc: sVIIEncoding},
+	AVSSSEG2E32V & obj.AMask:   {enc: sVIIEncoding},
+	AVSSSEG3E32V & obj.AMask:   {enc: sVIIEncoding},
+	AVSSSEG4E32V & obj.AMask:   {enc: sVIIEncoding},
+	AVSSSEG5E32V & obj.AMask:   {enc: sVIIEncoding},
+	AVSSSEG6E32V & obj.AMask:   {enc: sVIIEncoding},
+	AVSSSEG7E32V & obj.AMask:   {enc: sVIIEncoding},
+	AVSSSEG8E32V & obj.AMask:   {enc: sVIIEncoding},
+	AVSSSEG2E64V & obj.AMask:   {enc: sVIIEncoding},
+	AVSSSEG3E64V & obj.AMask:   {enc: sVIIEncoding},
+	AVSSSEG4E64V & obj.AMask:   {enc: sVIIEncoding},
+	AVSSSEG5E64V & obj.AMask:   {enc: sVIIEncoding},
+	AVSSSEG6E64V & obj.AMask:   {enc: sVIIEncoding},
+	AVSSSEG7E64V & obj.AMask:   {enc: sVIIEncoding},
+	AVSSSEG8E64V & obj.AMask:   {enc: sVIIEncoding},
+	AVLOXSEG2EI8V & obj.AMask:  {enc: iVIVEncoding},
+	AVLOXSEG3EI8V & obj.AMask:  {enc: iVIVEncoding},
+	AVLOXSEG4EI8V & obj.AMask:  {enc: iVIVEncoding},
+	AVLOXSEG5EI8V & obj.AMask:  {enc: iVIVEncoding},
+	AVLOXSEG6EI8V & obj.AMask:  {enc: iVIVEncoding},
+	AVLOXSEG7EI8V & obj.AMask:  {enc: iVIVEncoding},
+	AVLOXSEG8EI8V & obj.AMask:  {enc: iVIVEncoding},
+	AVLOXSEG2EI16V & obj.AMask: {enc: iVIVEncoding},
+	AVLOXSEG3EI16V & obj.AMask: {enc: iVIVEncoding},
+	AVLOXSEG4EI16V & obj.AMask: {enc: iVIVEncoding},
+	AVLOXSEG5EI16V & obj.AMask: {enc: iVIVEncoding},
+	AVLOXSEG6EI16V & obj.AMask: {enc: iVIVEncoding},
+	AVLOXSEG7EI16V & obj.AMask: {enc: iVIVEncoding},
+	AVLOXSEG8EI16V & obj.AMask: {enc: iVIVEncoding},
+	AVLOXSEG2EI32V & obj.AMask: {enc: iVIVEncoding},
+	AVLOXSEG3EI32V & obj.AMask: {enc: iVIVEncoding},
+	AVLOXSEG4EI32V & obj.AMask: {enc: iVIVEncoding},
+	AVLOXSEG5EI32V & obj.AMask: {enc: iVIVEncoding},
+	AVLOXSEG6EI32V & obj.AMask: {enc: iVIVEncoding},
+	AVLOXSEG7EI32V & obj.AMask: {enc: iVIVEncoding},
+	AVLOXSEG8EI32V & obj.AMask: {enc: iVIVEncoding},
+	AVLOXSEG2EI64V & obj.AMask: {enc: iVIVEncoding},
+	AVLOXSEG3EI64V & obj.AMask: {enc: iVIVEncoding},
+	AVLOXSEG4EI64V & obj.AMask: {enc: iVIVEncoding},
+	AVLOXSEG5EI64V & obj.AMask: {enc: iVIVEncoding},
+	AVLOXSEG6EI64V & obj.AMask: {enc: iVIVEncoding},
+	AVLOXSEG7EI64V & obj.AMask: {enc: iVIVEncoding},
+	AVLOXSEG8EI64V & obj.AMask: {enc: iVIVEncoding},
+	AVSOXSEG2EI8V & obj.AMask:  {enc: sVIVEncoding},
+	AVSOXSEG3EI8V & obj.AMask:  {enc: sVIVEncoding},
+	AVSOXSEG4EI8V & obj.AMask:  {enc: sVIVEncoding},
+	AVSOXSEG5EI8V & obj.AMask:  {enc: sVIVEncoding},
+	AVSOXSEG6EI8V & obj.AMask:  {enc: sVIVEncoding},
+	AVSOXSEG7EI8V & obj.AMask:  {enc: sVIVEncoding},
+	AVSOXSEG8EI8V & obj.AMask:  {enc: sVIVEncoding},
+	AVSOXSEG2EI16V & obj.AMask: {enc: sVIVEncoding},
+	AVSOXSEG3EI16V & obj.AMask: {enc: sVIVEncoding},
+	AVSOXSEG4EI16V & obj.AMask: {enc: sVIVEncoding},
+	AVSOXSEG5EI16V & obj.AMask: {enc: sVIVEncoding},
+	AVSOXSEG6EI16V & obj.AMask: {enc: sVIVEncoding},
+	AVSOXSEG7EI16V & obj.AMask: {enc: sVIVEncoding},
+	AVSOXSEG8EI16V & obj.AMask: {enc: sVIVEncoding},
+	AVSOXSEG2EI32V & obj.AMask: {enc: sVIVEncoding},
+	AVSOXSEG3EI32V & obj.AMask: {enc: sVIVEncoding},
+	AVSOXSEG4EI32V & obj.AMask: {enc: sVIVEncoding},
+	AVSOXSEG5EI32V & obj.AMask: {enc: sVIVEncoding},
+	AVSOXSEG6EI32V & obj.AMask: {enc: sVIVEncoding},
+	AVSOXSEG7EI32V & obj.AMask: {enc: sVIVEncoding},
+	AVSOXSEG8EI32V & obj.AMask: {enc: sVIVEncoding},
+	AVSOXSEG2EI64V & obj.AMask: {enc: sVIVEncoding},
+	AVSOXSEG3EI64V & obj.AMask: {enc: sVIVEncoding},
+	AVSOXSEG4EI64V & obj.AMask: {enc: sVIVEncoding},
+	AVSOXSEG5EI64V & obj.AMask: {enc: sVIVEncoding},
+	AVSOXSEG6EI64V & obj.AMask: {enc: sVIVEncoding},
+	AVSOXSEG7EI64V & obj.AMask: {enc: sVIVEncoding},
+	AVSOXSEG8EI64V & obj.AMask: {enc: sVIVEncoding},
+	AVLUXSEG2EI8V & obj.AMask:  {enc: iVIVEncoding},
+	AVLUXSEG3EI8V & obj.AMask:  {enc: iVIVEncoding},
+	AVLUXSEG4EI8V & obj.AMask:  {enc: iVIVEncoding},
+	AVLUXSEG5EI8V & obj.AMask:  {enc: iVIVEncoding},
+	AVLUXSEG6EI8V & obj.AMask:  {enc: iVIVEncoding},
+	AVLUXSEG7EI8V & obj.AMask:  {enc: iVIVEncoding},
+	AVLUXSEG8EI8V & obj.AMask:  {enc: iVIVEncoding},
+	AVLUXSEG2EI16V & obj.AMask: {enc: iVIVEncoding},
+	AVLUXSEG3EI16V & obj.AMask: {enc: iVIVEncoding},
+	AVLUXSEG4EI16V & obj.AMask: {enc: iVIVEncoding},
+	AVLUXSEG5EI16V & obj.AMask: {enc: iVIVEncoding},
+	AVLUXSEG6EI16V & obj.AMask: {enc: iVIVEncoding},
+	AVLUXSEG7EI16V & obj.AMask: {enc: iVIVEncoding},
+	AVLUXSEG8EI16V & obj.AMask: {enc: iVIVEncoding},
+	AVLUXSEG2EI32V & obj.AMask: {enc: iVIVEncoding},
+	AVLUXSEG3EI32V & obj.AMask: {enc: iVIVEncoding},
+	AVLUXSEG4EI32V & obj.AMask: {enc: iVIVEncoding},
+	AVLUXSEG5EI32V & obj.AMask: {enc: iVIVEncoding},
+	AVLUXSEG6EI32V & obj.AMask: {enc: iVIVEncoding},
+	AVLUXSEG7EI32V & obj.AMask: {enc: iVIVEncoding},
+	AVLUXSEG8EI32V & obj.AMask: {enc: iVIVEncoding},
+	AVLUXSEG2EI64V & obj.AMask: {enc: iVIVEncoding},
+	AVLUXSEG3EI64V & obj.AMask: {enc: iVIVEncoding},
+	AVLUXSEG4EI64V & obj.AMask: {enc: iVIVEncoding},
+	AVLUXSEG5EI64V & obj.AMask: {enc: iVIVEncoding},
+	AVLUXSEG6EI64V & obj.AMask: {enc: iVIVEncoding},
+	AVLUXSEG7EI64V & obj.AMask: {enc: iVIVEncoding},
+	AVLUXSEG8EI64V & obj.AMask: {enc: iVIVEncoding},
+	AVSUXSEG2EI8V & obj.AMask:  {enc: sVIVEncoding},
+	AVSUXSEG3EI8V & obj.AMask:  {enc: sVIVEncoding},
+	AVSUXSEG4EI8V & obj.AMask:  {enc: sVIVEncoding},
+	AVSUXSEG5EI8V & obj.AMask:  {enc: sVIVEncoding},
+	AVSUXSEG6EI8V & obj.AMask:  {enc: sVIVEncoding},
+	AVSUXSEG7EI8V & obj.AMask:  {enc: sVIVEncoding},
+	AVSUXSEG8EI8V & obj.AMask:  {enc: sVIVEncoding},
+	AVSUXSEG2EI16V & obj.AMask: {enc: sVIVEncoding},
+	AVSUXSEG3EI16V & obj.AMask: {enc: sVIVEncoding},
+	AVSUXSEG4EI16V & obj.AMask: {enc: sVIVEncoding},
+	AVSUXSEG5EI16V & obj.AMask: {enc: sVIVEncoding},
+	AVSUXSEG6EI16V & obj.AMask: {enc: sVIVEncoding},
+	AVSUXSEG7EI16V & obj.AMask: {enc: sVIVEncoding},
+	AVSUXSEG8EI16V & obj.AMask: {enc: sVIVEncoding},
+	AVSUXSEG2EI32V & obj.AMask: {enc: sVIVEncoding},
+	AVSUXSEG3EI32V & obj.AMask: {enc: sVIVEncoding},
+	AVSUXSEG4EI32V & obj.AMask: {enc: sVIVEncoding},
+	AVSUXSEG5EI32V & obj.AMask: {enc: sVIVEncoding},
+	AVSUXSEG6EI32V & obj.AMask: {enc: sVIVEncoding},
+	AVSUXSEG7EI32V & obj.AMask: {enc: sVIVEncoding},
+	AVSUXSEG8EI32V & obj.AMask: {enc: sVIVEncoding},
+	AVSUXSEG2EI64V & obj.AMask: {enc: sVIVEncoding},
+	AVSUXSEG3EI64V & obj.AMask: {enc: sVIVEncoding},
+	AVSUXSEG4EI64V & obj.AMask: {enc: sVIVEncoding},
+	AVSUXSEG5EI64V & obj.AMask: {enc: sVIVEncoding},
+	AVSUXSEG6EI64V & obj.AMask: {enc: sVIVEncoding},
+	AVSUXSEG7EI64V & obj.AMask: {enc: sVIVEncoding},
+	AVSUXSEG8EI64V & obj.AMask: {enc: sVIVEncoding},
 
 	// 31.7.9: Vector Load/Store Whole Register Instructions
 	AVL1RE8V & obj.AMask:  {enc: iVEncoding},
@@ -2652,8 +2888,6 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	obj.APCDATA:   {enc: pseudoOpEncoding},
 	obj.ATEXT:     {enc: pseudoOpEncoding},
 	obj.ANOP:      {enc: pseudoOpEncoding},
-	obj.ADUFFZERO: {enc: pseudoOpEncoding},
-	obj.ADUFFCOPY: {enc: pseudoOpEncoding},
 	obj.APCALIGN:  {enc: pseudoOpEncoding},
 }
 
@@ -2757,7 +2991,7 @@ func (ins *instruction) length() int {
 func (ins *instruction) validate(ctxt *obj.Link) {
 	enc, err := encodingForAs(ins.as)
 	if err != nil {
-		ctxt.Diag(err.Error())
+		ctxt.Diag("%v", err)
 		return
 	}
 	enc.validate(ctxt, ins)
@@ -2792,7 +3026,7 @@ func instructionsForOpImmediate(p *obj.Prog, as obj.As, rs int16) []*instruction
 
 	low, high, err := Split32BitImmediate(ins.imm)
 	if err != nil {
-		p.Ctxt.Diag("%v: constant %d too large", p, ins.imm, err)
+		p.Ctxt.Diag("%v: constant %d too large: %v", p, ins.imm, err)
 		return nil
 	}
 	if high == 0 {
@@ -3051,16 +3285,37 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
 	case p.From.Type == obj.TYPE_REG && p.To.Type == obj.TYPE_REG:
 		// Handle register to register moves.
 		switch p.As {
-		case AMOV: // MOV Ra, Rb -> ADDI $0, Ra, Rb
+		case AMOV:
+			// MOV Ra, Rb -> ADDI $0, Ra, Rb
 			ins.as, ins.rs1, ins.rs2, ins.imm = AADDI, uint32(p.From.Reg), obj.REG_NONE, 0
-		case AMOVW: // MOVW Ra, Rb -> ADDIW $0, Ra, Rb
+		case AMOVW:
+			// MOVW Ra, Rb -> ADDIW $0, Ra, Rb
 			ins.as, ins.rs1, ins.rs2, ins.imm = AADDIW, uint32(p.From.Reg), obj.REG_NONE, 0
-		case AMOVBU: // MOVBU Ra, Rb -> ANDI $255, Ra, Rb
+		case AMOVBU:
+			// MOVBU Ra, Rb -> ANDI $255, Ra, Rb
 			ins.as, ins.rs1, ins.rs2, ins.imm = AANDI, uint32(p.From.Reg), obj.REG_NONE, 255
-		case AMOVF: // MOVF Ra, Rb -> FSGNJS Ra, Ra, Rb
-			ins.as, ins.rs1 = AFSGNJS, uint32(p.From.Reg)
-		case AMOVD: // MOVD Ra, Rb -> FSGNJD Ra, Ra, Rb
-			ins.as, ins.rs1 = AFSGNJD, uint32(p.From.Reg)
+		case AMOVF:
+			// MOVF Ra, Rb -> FSGNJS Ra, Ra, Rb
+			//          or -> FMVWX  Ra, Rb
+			//          or -> FMVXW  Ra, Rb
+			if ins.rs2 >= REG_X0 && ins.rs2 <= REG_X31 && ins.rd >= REG_F0 && ins.rd <= REG_F31 {
+				ins.as = AFMVWX
+			} else if ins.rs2 >= REG_F0 && ins.rs2 <= REG_F31 && ins.rd >= REG_X0 && ins.rd <= REG_X31 {
+				ins.as = AFMVXW
+			} else {
+				ins.as, ins.rs1 = AFSGNJS, uint32(p.From.Reg)
+			}
+		case AMOVD:
+			// MOVD Ra, Rb -> FSGNJD Ra, Ra, Rb
+			//          or -> FMVDX  Ra, Rb
+			//          or -> FMVXD  Ra, Rb
+			if ins.rs2 >= REG_X0 && ins.rs2 <= REG_X31 && ins.rd >= REG_F0 && ins.rd <= REG_F31 {
+				ins.as = AFMVDX
+			} else if ins.rs2 >= REG_F0 && ins.rs2 <= REG_F31 && ins.rd >= REG_X0 && ins.rd <= REG_X31 {
+				ins.as = AFMVXD
+			} else {
+				ins.as, ins.rs1 = AFSGNJD, uint32(p.From.Reg)
+			}
 		case AMOVB, AMOVH:
 			if buildcfg.GORISCV64 >= 22 {
 				// Use SEXTB or SEXTH to extend.
@@ -3383,6 +3638,43 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 			ins.imm = -1022
 		}
 
+	case ACSRRC, ACSRRCI, ACSRRS, ACSRRSI, ACSRRW, ACSRRWI:
+		if len(p.RestArgs) == 0 || p.RestArgs[0].Type != obj.TYPE_SPECIAL {
+			p.Ctxt.Diag("%v: missing CSR name", p)
+			return nil
+		}
+		if p.From.Type == obj.TYPE_CONST {
+			imm := p.From.Offset
+			if imm < 0 || imm >= 32 {
+				p.Ctxt.Diag("%v: immediate out of range 0 to 31", p)
+				return nil
+			}
+			ins.rs1 = uint32(imm) + REG_ZERO
+		} else if p.From.Type == obj.TYPE_REG {
+			ins.rs1 = uint32(p.From.Reg)
+		} else {
+			p.Ctxt.Diag("%v: integer register or immediate expected for 1st operand", p)
+			return nil
+		}
+		if p.To.Type != obj.TYPE_REG {
+			p.Ctxt.Diag("%v: needs an integer register output", p)
+			return nil
+		}
+		csrNum := SpecialOperand(p.RestArgs[0].Offset).encode()
+		if csrNum >= 1<<12 {
+			p.Ctxt.Diag("%v: unknown CSR", p)
+			return nil
+		}
+		if _, ok := CSRs[uint16(csrNum)]; !ok {
+			p.Ctxt.Diag("%v: unknown CSR", p)
+			return nil
+		}
+		ins.imm = int64(csrNum)
+		if ins.imm > 2047 {
+			ins.imm -= 4096
+		}
+		ins.rs2 = obj.REG_NONE
+
 	case AFENCE:
 		ins.rd, ins.rs1, ins.rs2 = REG_ZERO, REG_ZERO, obj.REG_NONE
 		ins.imm = 0x0ff
@@ -3553,7 +3845,19 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 			ins.rs1 = uint32(p.From.Offset)
 		}
 
-	case AVLE8V, AVLE16V, AVLE32V, AVLE64V, AVSE8V, AVSE16V, AVSE32V, AVSE64V, AVLMV, AVSMV:
+	case AVLE8V, AVLE16V, AVLE32V, AVLE64V, AVSE8V, AVSE16V, AVSE32V, AVSE64V, AVLE8FFV, AVLE16FFV, AVLE32FFV, AVLE64FFV, AVLMV, AVSMV,
+		AVLSEG2E8V, AVLSEG3E8V, AVLSEG4E8V, AVLSEG5E8V, AVLSEG6E8V, AVLSEG7E8V, AVLSEG8E8V,
+		AVLSEG2E16V, AVLSEG3E16V, AVLSEG4E16V, AVLSEG5E16V, AVLSEG6E16V, AVLSEG7E16V, AVLSEG8E16V,
+		AVLSEG2E32V, AVLSEG3E32V, AVLSEG4E32V, AVLSEG5E32V, AVLSEG6E32V, AVLSEG7E32V, AVLSEG8E32V,
+		AVLSEG2E64V, AVLSEG3E64V, AVLSEG4E64V, AVLSEG5E64V, AVLSEG6E64V, AVLSEG7E64V, AVLSEG8E64V,
+		AVSSEG2E8V, AVSSEG3E8V, AVSSEG4E8V, AVSSEG5E8V, AVSSEG6E8V, AVSSEG7E8V, AVSSEG8E8V,
+		AVSSEG2E16V, AVSSEG3E16V, AVSSEG4E16V, AVSSEG5E16V, AVSSEG6E16V, AVSSEG7E16V, AVSSEG8E16V,
+		AVSSEG2E32V, AVSSEG3E32V, AVSSEG4E32V, AVSSEG5E32V, AVSSEG6E32V, AVSSEG7E32V, AVSSEG8E32V,
+		AVSSEG2E64V, AVSSEG3E64V, AVSSEG4E64V, AVSSEG5E64V, AVSSEG6E64V, AVSSEG7E64V, AVSSEG8E64V,
+		AVLSEG2E8FFV, AVLSEG3E8FFV, AVLSEG4E8FFV, AVLSEG5E8FFV, AVLSEG6E8FFV, AVLSEG7E8FFV, AVLSEG8E8FFV,
+		AVLSEG2E16FFV, AVLSEG3E16FFV, AVLSEG4E16FFV, AVLSEG5E16FFV, AVLSEG6E16FFV, AVLSEG7E16FFV, AVLSEG8E16FFV,
+		AVLSEG2E32FFV, AVLSEG3E32FFV, AVLSEG4E32FFV, AVLSEG5E32FFV, AVLSEG6E32FFV, AVLSEG7E32FFV, AVLSEG8E32FFV,
+		AVLSEG2E64FFV, AVLSEG3E64FFV, AVLSEG4E64FFV, AVLSEG5E64FFV, AVLSEG6E64FFV, AVLSEG7E64FFV, AVLSEG8E64FFV:
 		// Set mask bit
 		switch {
 		case ins.rs1 == obj.REG_NONE:
@@ -3564,7 +3868,19 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		ins.rd, ins.rs1, ins.rs2 = uint32(p.To.Reg), uint32(p.From.Reg), obj.REG_NONE
 
 	case AVLSE8V, AVLSE16V, AVLSE32V, AVLSE64V,
-		AVLUXEI8V, AVLUXEI16V, AVLUXEI32V, AVLUXEI64V, AVLOXEI8V, AVLOXEI16V, AVLOXEI32V, AVLOXEI64V:
+		AVLUXEI8V, AVLUXEI16V, AVLUXEI32V, AVLUXEI64V, AVLOXEI8V, AVLOXEI16V, AVLOXEI32V, AVLOXEI64V,
+		AVLSSEG2E8V, AVLSSEG3E8V, AVLSSEG4E8V, AVLSSEG5E8V, AVLSSEG6E8V, AVLSSEG7E8V, AVLSSEG8E8V,
+		AVLSSEG2E16V, AVLSSEG3E16V, AVLSSEG4E16V, AVLSSEG5E16V, AVLSSEG6E16V, AVLSSEG7E16V, AVLSSEG8E16V,
+		AVLSSEG2E32V, AVLSSEG3E32V, AVLSSEG4E32V, AVLSSEG5E32V, AVLSSEG6E32V, AVLSSEG7E32V, AVLSSEG8E32V,
+		AVLSSEG2E64V, AVLSSEG3E64V, AVLSSEG4E64V, AVLSSEG5E64V, AVLSSEG6E64V, AVLSSEG7E64V, AVLSSEG8E64V,
+		AVLOXSEG2EI8V, AVLOXSEG3EI8V, AVLOXSEG4EI8V, AVLOXSEG5EI8V, AVLOXSEG6EI8V, AVLOXSEG7EI8V, AVLOXSEG8EI8V,
+		AVLOXSEG2EI16V, AVLOXSEG3EI16V, AVLOXSEG4EI16V, AVLOXSEG5EI16V, AVLOXSEG6EI16V, AVLOXSEG7EI16V, AVLOXSEG8EI16V,
+		AVLOXSEG2EI32V, AVLOXSEG3EI32V, AVLOXSEG4EI32V, AVLOXSEG5EI32V, AVLOXSEG6EI32V, AVLOXSEG7EI32V, AVLOXSEG8EI32V,
+		AVLOXSEG2EI64V, AVLOXSEG3EI64V, AVLOXSEG4EI64V, AVLOXSEG5EI64V, AVLOXSEG6EI64V, AVLOXSEG7EI64V, AVLOXSEG8EI64V,
+		AVLUXSEG2EI8V, AVLUXSEG3EI8V, AVLUXSEG4EI8V, AVLUXSEG5EI8V, AVLUXSEG6EI8V, AVLUXSEG7EI8V, AVLUXSEG8EI8V,
+		AVLUXSEG2EI16V, AVLUXSEG3EI16V, AVLUXSEG4EI16V, AVLUXSEG5EI16V, AVLUXSEG6EI16V, AVLUXSEG7EI16V, AVLUXSEG8EI16V,
+		AVLUXSEG2EI32V, AVLUXSEG3EI32V, AVLUXSEG4EI32V, AVLUXSEG5EI32V, AVLUXSEG6EI32V, AVLUXSEG7EI32V, AVLUXSEG8EI32V,
+		AVLUXSEG2EI64V, AVLUXSEG3EI64V, AVLUXSEG4EI64V, AVLUXSEG5EI64V, AVLUXSEG6EI64V, AVLUXSEG7EI64V, AVLUXSEG8EI64V:
 		// Set mask bit
 		switch {
 		case ins.rs3 == obj.REG_NONE:
@@ -3575,7 +3891,19 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		ins.rs1, ins.rs2, ins.rs3 = ins.rs2, ins.rs1, obj.REG_NONE
 
 	case AVSSE8V, AVSSE16V, AVSSE32V, AVSSE64V,
-		AVSUXEI8V, AVSUXEI16V, AVSUXEI32V, AVSUXEI64V, AVSOXEI8V, AVSOXEI16V, AVSOXEI32V, AVSOXEI64V:
+		AVSUXEI8V, AVSUXEI16V, AVSUXEI32V, AVSUXEI64V, AVSOXEI8V, AVSOXEI16V, AVSOXEI32V, AVSOXEI64V,
+		AVSSSEG2E8V, AVSSSEG3E8V, AVSSSEG4E8V, AVSSSEG5E8V, AVSSSEG6E8V, AVSSSEG7E8V, AVSSSEG8E8V,
+		AVSSSEG2E16V, AVSSSEG3E16V, AVSSSEG4E16V, AVSSSEG5E16V, AVSSSEG6E16V, AVSSSEG7E16V, AVSSSEG8E16V,
+		AVSSSEG2E32V, AVSSSEG3E32V, AVSSSEG4E32V, AVSSSEG5E32V, AVSSSEG6E32V, AVSSSEG7E32V, AVSSSEG8E32V,
+		AVSSSEG2E64V, AVSSSEG3E64V, AVSSSEG4E64V, AVSSSEG5E64V, AVSSSEG6E64V, AVSSSEG7E64V, AVSSSEG8E64V,
+		AVSOXSEG2EI8V, AVSOXSEG3EI8V, AVSOXSEG4EI8V, AVSOXSEG5EI8V, AVSOXSEG6EI8V, AVSOXSEG7EI8V, AVSOXSEG8EI8V,
+		AVSOXSEG2EI16V, AVSOXSEG3EI16V, AVSOXSEG4EI16V, AVSOXSEG5EI16V, AVSOXSEG6EI16V, AVSOXSEG7EI16V, AVSOXSEG8EI16V,
+		AVSOXSEG2EI32V, AVSOXSEG3EI32V, AVSOXSEG4EI32V, AVSOXSEG5EI32V, AVSOXSEG6EI32V, AVSOXSEG7EI32V, AVSOXSEG8EI32V,
+		AVSOXSEG2EI64V, AVSOXSEG3EI64V, AVSOXSEG4EI64V, AVSOXSEG5EI64V, AVSOXSEG6EI64V, AVSOXSEG7EI64V, AVSOXSEG8EI64V,
+		AVSUXSEG2EI8V, AVSUXSEG3EI8V, AVSUXSEG4EI8V, AVSUXSEG5EI8V, AVSUXSEG6EI8V, AVSUXSEG7EI8V, AVSUXSEG8EI8V,
+		AVSUXSEG2EI16V, AVSUXSEG3EI16V, AVSUXSEG4EI16V, AVSUXSEG5EI16V, AVSUXSEG6EI16V, AVSUXSEG7EI16V, AVSUXSEG8EI16V,
+		AVSUXSEG2EI32V, AVSUXSEG3EI32V, AVSUXSEG4EI32V, AVSUXSEG5EI32V, AVSUXSEG6EI32V, AVSUXSEG7EI32V, AVSUXSEG8EI32V,
+		AVSUXSEG2EI64V, AVSUXSEG3EI64V, AVSUXSEG4EI64V, AVSUXSEG5EI64V, AVSUXSEG6EI64V, AVSUXSEG7EI64V, AVSUXSEG8EI64V:
 		// Set mask bit
 		switch {
 		case ins.rs3 == obj.REG_NONE:

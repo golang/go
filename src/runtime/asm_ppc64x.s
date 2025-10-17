@@ -9,6 +9,65 @@
 #include "funcdata.h"
 #include "textflag.h"
 #include "asm_ppc64x.h"
+#include "cgo/abi_ppc64x.h"
+
+// This is called using the host ABI. argc and argv arguments
+// should be in R3 and R4 respectively.
+TEXT _rt0_ppc64x_lib(SB),NOSPLIT|NOFRAME,$0
+	// Convert to Go ABI, and Allocate argument storage for call to newosproc0.
+	STACK_AND_SAVE_HOST_TO_GO_ABI(16)
+
+	MOVD	R3, _rt0_ppc64x_lib_argc<>(SB)
+	MOVD	R4, _rt0_ppc64x_lib_argv<>(SB)
+
+	// Synchronous initialization.
+	MOVD	$runtime·reginit(SB), R12
+	MOVD	R12, CTR
+	BL	(CTR)
+	MOVD	$runtime·libpreinit(SB), R12
+	MOVD	R12, CTR
+	BL	(CTR)
+
+	// Create a new thread to do the runtime initialization and return.
+	MOVD	_cgo_sys_thread_create(SB), R12
+	CMP	$0, R12
+	BEQ	nocgo
+	MOVD	$_rt0_ppc64x_lib_go(SB), R3
+	MOVD	$0, R4
+	MOVD	R12, CTR
+	BL	(CTR)
+	BR	done
+
+nocgo:
+	MOVD	$0x800000, R12                     // stacksize = 8192KB
+	MOVD	R12, 8+FIXED_FRAME(R1)
+	MOVD	$_rt0_ppc64x_lib_go(SB), R12
+	MOVD	R12, 16+FIXED_FRAME(R1)
+	MOVD	$runtime·newosproc0(SB),R12
+	MOVD	R12, CTR
+	BL	(CTR)
+
+done:
+	UNSTACK_AND_RESTORE_GO_TO_HOST_ABI(16)
+	RET
+
+#ifdef GO_PPC64X_HAS_FUNCDESC
+DEFINE_PPC64X_FUNCDESC(_rt0_ppc64x_lib_go, __rt0_ppc64x_lib_go)
+TEXT __rt0_ppc64x_lib_go(SB),NOSPLIT,$0
+#else
+TEXT _rt0_ppc64x_lib_go(SB),NOSPLIT,$0
+#endif
+	MOVD	_rt0_ppc64x_lib_argc<>(SB), R3
+	MOVD	_rt0_ppc64x_lib_argv<>(SB), R4
+	MOVD	$runtime·rt0_go(SB), R12
+	MOVD	R12, CTR
+	BR	(CTR)
+
+DATA _rt0_ppc64x_lib_argc<>(SB)/8, $0
+GLOBL _rt0_ppc64x_lib_argc<>(SB),NOPTR, $8
+DATA _rt0_ppc64x_lib_argv<>(SB)/8, $0
+GLOBL _rt0_ppc64x_lib_argv<>(SB),NOPTR, $8
+
 
 #ifdef GOOS_aix
 #define cgoCalleeStackSize 48
@@ -1349,67 +1408,29 @@ TEXT runtime·debugCallPanicked(SB),NOSPLIT,$32-16
 	TW	$31, R0, R0
 	RET
 #endif
-// Note: these functions use a special calling convention to save generated code space.
-// Arguments are passed in registers, but the space for those arguments are allocated
-// in the caller's stack frame. These stubs write the args into that stack space and
-// then tail call to the corresponding runtime handler.
-// The tail call makes these stubs disappear in backtraces.
-TEXT runtime·panicIndex<ABIInternal>(SB),NOSPLIT,$0-16
-	JMP	runtime·goPanicIndex<ABIInternal>(SB)
-TEXT runtime·panicIndexU<ABIInternal>(SB),NOSPLIT,$0-16
-	JMP	runtime·goPanicIndexU<ABIInternal>(SB)
-TEXT runtime·panicSliceAlen<ABIInternal>(SB),NOSPLIT,$0-16
-	MOVD	R4, R3
-	MOVD	R5, R4
-	JMP	runtime·goPanicSliceAlen<ABIInternal>(SB)
-TEXT runtime·panicSliceAlenU<ABIInternal>(SB),NOSPLIT,$0-16
-	MOVD	R4, R3
-	MOVD	R5, R4
-	JMP	runtime·goPanicSliceAlenU<ABIInternal>(SB)
-TEXT runtime·panicSliceAcap<ABIInternal>(SB),NOSPLIT,$0-16
-	MOVD	R4, R3
-	MOVD	R5, R4
-	JMP	runtime·goPanicSliceAcap<ABIInternal>(SB)
-TEXT runtime·panicSliceAcapU<ABIInternal>(SB),NOSPLIT,$0-16
-	MOVD	R4, R3
-	MOVD	R5, R4
-	JMP	runtime·goPanicSliceAcapU<ABIInternal>(SB)
-TEXT runtime·panicSliceB<ABIInternal>(SB),NOSPLIT,$0-16
-	JMP	runtime·goPanicSliceB<ABIInternal>(SB)
-TEXT runtime·panicSliceBU<ABIInternal>(SB),NOSPLIT,$0-16
-	JMP	runtime·goPanicSliceBU<ABIInternal>(SB)
-TEXT runtime·panicSlice3Alen<ABIInternal>(SB),NOSPLIT,$0-16
-	MOVD	R5, R3
-	MOVD	R6, R4
-	JMP	runtime·goPanicSlice3Alen<ABIInternal>(SB)
-TEXT runtime·panicSlice3AlenU<ABIInternal>(SB),NOSPLIT,$0-16
-	MOVD	R5, R3
-	MOVD	R6, R4
-	JMP	runtime·goPanicSlice3AlenU<ABIInternal>(SB)
-TEXT runtime·panicSlice3Acap<ABIInternal>(SB),NOSPLIT,$0-16
-	MOVD	R5, R3
-	MOVD	R6, R4
-	JMP	runtime·goPanicSlice3Acap<ABIInternal>(SB)
-TEXT runtime·panicSlice3AcapU<ABIInternal>(SB),NOSPLIT,$0-16
-	MOVD	R5, R3
-	MOVD	R6, R4
-	JMP	runtime·goPanicSlice3AcapU<ABIInternal>(SB)
-TEXT runtime·panicSlice3B<ABIInternal>(SB),NOSPLIT,$0-16
-	MOVD	R4, R3
-	MOVD	R5, R4
-	JMP	runtime·goPanicSlice3B<ABIInternal>(SB)
-TEXT runtime·panicSlice3BU<ABIInternal>(SB),NOSPLIT,$0-16
-	MOVD	R4, R3
-	MOVD	R5, R4
-	JMP	runtime·goPanicSlice3BU<ABIInternal>(SB)
-TEXT runtime·panicSlice3C<ABIInternal>(SB),NOSPLIT,$0-16
-	JMP	runtime·goPanicSlice3C<ABIInternal>(SB)
-TEXT runtime·panicSlice3CU<ABIInternal>(SB),NOSPLIT,$0-16
-	JMP	runtime·goPanicSlice3CU<ABIInternal>(SB)
-TEXT runtime·panicSliceConvert<ABIInternal>(SB),NOSPLIT,$0-16
-	MOVD	R5, R3
-	MOVD	R6, R4
-	JMP	runtime·goPanicSliceConvert<ABIInternal>(SB)
+
+TEXT runtime·panicBounds<ABIInternal>(SB),NOSPLIT,$88-0
+	// Note: frame size is 16 bytes larger than necessary
+	// in order to pacify vet. Vet doesn't understand ppc64
+	// layout properly.
+	NO_LOCAL_POINTERS
+	// Save all 7 int registers that could have an index in them.
+	// They may be pointers, but if so they are dead.
+	// Skip R0 aka ZERO, R1 aka SP, R2 aka SB
+	MOVD	R3, 48(R1)
+	MOVD	R4, 56(R1)
+	MOVD	R5, 64(R1)
+	MOVD	R6, 72(R1)
+	MOVD	R7, 80(R1)
+	MOVD	R8, 88(R1)
+	MOVD	R9, 96(R1)
+	// Note: we only save 7 registers to keep under nosplit stack limit
+	// Also, R11 is clobbered in dynamic linking situations
+
+	MOVD	LR, R3		// PC immediately after call to panicBounds
+	ADD	$48, R1, R4	// pointer to save area
+	CALL	runtime·panicBounds64<ABIInternal>(SB)
+	RET
 
 // These functions are used when internal linking cgo with external
 // objects compiled with the -Os on gcc. They reduce prologue/epilogue

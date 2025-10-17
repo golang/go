@@ -298,7 +298,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 		base.Fatalf("go: -insecure flag is no longer supported; use GOINSECURE instead")
 	}
 
-	modload.ForceUseModules = true
+	modload.LoaderState.ForceUseModules = true
 
 	// Do not allow any updating of go.mod until we've applied
 	// all the requested changes and checked that the result matches
@@ -307,14 +307,14 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 
 	// Allow looking up modules for import paths when outside of a module.
 	// 'go get' is expected to do this, unlike other commands.
-	modload.AllowMissingModuleImports()
+	modload.AllowMissingModuleImports(modload.LoaderState)
 
 	// 'go get' no longer builds or installs packages, so there's nothing to do
 	// if there's no go.mod file.
 	// TODO(#40775): make modload.Init return ErrNoModRoot instead of exiting.
 	// We could handle that here by printing a different message.
-	modload.Init()
-	if !modload.HasModRoot() {
+	modload.Init(modload.LoaderState)
+	if !modload.HasModRoot(modload.LoaderState) {
 		base.Fatalf("go: go.mod file not found in current directory or any parent directory.\n" +
 			"\t'go get' is no longer supported outside a module.\n" +
 			"\tTo build and install a command, use 'go install' with a version,\n" +
@@ -424,9 +424,9 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	newReqs := reqsFromGoMod(modload.ModFile())
 	r.reportChanges(oldReqs, newReqs)
 
-	if gowork := modload.FindGoWork(base.Cwd()); gowork != "" {
+	if gowork := modload.FindGoWork(modload.LoaderState, base.Cwd()); gowork != "" {
 		wf, err := modload.ReadWorkFile(gowork)
-		if err == nil && modload.UpdateWorkGoVersion(wf, modload.MainModules.GoVersion()) {
+		if err == nil && modload.UpdateWorkGoVersion(wf, modload.LoaderState.MainModules.GoVersion(modload.LoaderState)) {
 			modload.WriteWorkFile(gowork, wf)
 		}
 	}
@@ -448,12 +448,12 @@ func updateTools(ctx context.Context, queries []*query, opts *modload.WriteOpts)
 		patterns = append(patterns, q.pattern)
 	}
 
-	matches, _ := modload.LoadPackages(ctx, pkgOpts, patterns...)
+	matches, _ := modload.LoadPackages(modload.LoaderState, ctx, pkgOpts, patterns...)
 	for i, m := range matches {
 		if queries[i].version == "none" {
 			opts.DropTools = append(opts.DropTools, m.Pkgs...)
 		} else {
-			opts.AddTools = append(opts.DropTools, m.Pkgs...)
+			opts.AddTools = append(opts.AddTools, m.Pkgs...)
 		}
 	}
 }
@@ -574,7 +574,7 @@ func newResolver(ctx context.Context, queries []*query) *resolver {
 		buildListVersion: initialVersion,
 		initialVersion:   initialVersion,
 		nonesByPath:      map[string]*query{},
-		workspace:        loadWorkspace(modload.FindGoWork(base.Cwd())),
+		workspace:        loadWorkspace(modload.FindGoWork(modload.LoaderState, base.Cwd())),
 	}
 
 	for _, q := range queries {
@@ -645,7 +645,7 @@ func (r *resolver) noneForPath(mPath string) (nq *query, found bool) {
 // allowed versions.
 func (r *resolver) queryModule(ctx context.Context, mPath, query string, selected func(string) string) (module.Version, error) {
 	current := r.initialSelected(mPath)
-	rev, err := modload.Query(ctx, mPath, query, current, r.checkAllowedOr(query, selected))
+	rev, err := modload.Query(modload.LoaderState, ctx, mPath, query, current, r.checkAllowedOr(query, selected))
 	if err != nil {
 		return module.Version{}, err
 	}
@@ -655,7 +655,7 @@ func (r *resolver) queryModule(ctx context.Context, mPath, query string, selecte
 // queryPackages wraps modload.QueryPackage, substituting r.checkAllowedOr to
 // decide allowed versions.
 func (r *resolver) queryPackages(ctx context.Context, pattern, query string, selected func(string) string) (pkgMods []module.Version, err error) {
-	results, err := modload.QueryPackages(ctx, pattern, query, selected, r.checkAllowedOr(query, selected))
+	results, err := modload.QueryPackages(modload.LoaderState, ctx, pattern, query, selected, r.checkAllowedOr(query, selected))
 	if len(results) > 0 {
 		pkgMods = make([]module.Version, 0, len(results))
 		for _, qr := range results {
@@ -668,7 +668,7 @@ func (r *resolver) queryPackages(ctx context.Context, pattern, query string, sel
 // queryPattern wraps modload.QueryPattern, substituting r.checkAllowedOr to
 // decide allowed versions.
 func (r *resolver) queryPattern(ctx context.Context, pattern, query string, selected func(string) string) (pkgMods []module.Version, mod module.Version, err error) {
-	results, modOnly, err := modload.QueryPattern(ctx, pattern, query, selected, r.checkAllowedOr(query, selected))
+	results, modOnly, err := modload.QueryPattern(modload.LoaderState, ctx, pattern, query, selected, r.checkAllowedOr(query, selected))
 	if len(results) > 0 {
 		pkgMods = make([]module.Version, 0, len(results))
 		for _, qr := range results {
@@ -721,8 +721,8 @@ func (r *resolver) queryNone(ctx context.Context, q *query) {
 
 	if !q.isWildcard() {
 		q.pathOnce(q.pattern, func() pathSet {
-			hasModRoot := modload.HasModRoot()
-			if hasModRoot && modload.MainModules.Contains(q.pattern) {
+			hasModRoot := modload.HasModRoot(modload.LoaderState)
+			if hasModRoot && modload.LoaderState.MainModules.Contains(q.pattern) {
 				v := module.Version{Path: q.pattern}
 				// The user has explicitly requested to downgrade their own module to
 				// version "none". This is not an entirely unreasonable request: it
@@ -746,7 +746,7 @@ func (r *resolver) queryNone(ctx context.Context, q *query) {
 			continue
 		}
 		q.pathOnce(curM.Path, func() pathSet {
-			if modload.HasModRoot() && curM.Version == "" && modload.MainModules.Contains(curM.Path) {
+			if modload.HasModRoot(modload.LoaderState) && curM.Version == "" && modload.LoaderState.MainModules.Contains(curM.Path) {
 				return errSet(&modload.QueryMatchesMainModulesError{MainModules: []module.Version{curM}, Pattern: q.pattern, Query: q.version})
 			}
 			return pathSet{mod: module.Version{Path: curM.Path, Version: "none"}}
@@ -766,13 +766,13 @@ func (r *resolver) performLocalQueries(ctx context.Context) {
 
 			// Absolute paths like C:\foo and relative paths like ../foo... are
 			// restricted to matching packages in the main module.
-			pkgPattern, mainModule := modload.MainModules.DirImportPath(ctx, q.pattern)
+			pkgPattern, mainModule := modload.LoaderState.MainModules.DirImportPath(modload.LoaderState, ctx, q.pattern)
 			if pkgPattern == "." {
 				modload.MustHaveModRoot()
-				versions := modload.MainModules.Versions()
+				versions := modload.LoaderState.MainModules.Versions()
 				modRoots := make([]string, 0, len(versions))
 				for _, m := range versions {
-					modRoots = append(modRoots, modload.MainModules.ModRoot(m))
+					modRoots = append(modRoots, modload.LoaderState.MainModules.ModRoot(m))
 				}
 				var plural string
 				if len(modRoots) != 1 {
@@ -792,7 +792,7 @@ func (r *resolver) performLocalQueries(ctx context.Context) {
 				}
 				if !q.isWildcard() {
 					modload.MustHaveModRoot()
-					return errSet(fmt.Errorf("%s%s is not a package in module rooted at %s", q.pattern, absDetail, modload.MainModules.ModRoot(mainModule)))
+					return errSet(fmt.Errorf("%s%s is not a package in module rooted at %s", q.pattern, absDetail, modload.LoaderState.MainModules.ModRoot(mainModule)))
 				}
 				search.WarnUnmatched([]*search.Match{match})
 				return pathSet{}
@@ -848,7 +848,7 @@ func (r *resolver) queryWildcard(ctx context.Context, q *query) {
 				return pathSet{}
 			}
 
-			if modload.MainModules.Contains(curM.Path) && !versionOkForMainModule(q.version) {
+			if modload.LoaderState.MainModules.Contains(curM.Path) && !versionOkForMainModule(q.version) {
 				if q.matchesPath(curM.Path) {
 					return errSet(&modload.QueryMatchesMainModulesError{
 						MainModules: []module.Version{curM},
@@ -1065,7 +1065,7 @@ func (r *resolver) queryPath(ctx context.Context, q *query) {
 // pattern is "tool".
 func (r *resolver) performToolQueries(ctx context.Context) {
 	for _, q := range r.toolQueries {
-		for tool := range modload.MainModules.Tools() {
+		for tool := range modload.LoaderState.MainModules.Tools() {
 			q.pathOnce(tool, func() pathSet {
 				pkgMods, err := r.queryPackages(ctx, tool, q.version, r.initialSelected)
 				return pathSet{pkgMods: pkgMods, err: err}
@@ -1082,10 +1082,10 @@ func (r *resolver) performWorkQueries(ctx context.Context) {
 			// TODO(matloob): Maybe export MainModules.mustGetSingleMainModule and call that.
 			// There are a few other places outside the modload package where we expect
 			// a single main module.
-			if len(modload.MainModules.Versions()) != 1 {
+			if len(modload.LoaderState.MainModules.Versions()) != 1 {
 				panic("internal error: number of main modules is not exactly one in resolution phase of go get")
 			}
-			mainModule := modload.MainModules.Versions()[0]
+			mainModule := modload.LoaderState.MainModules.Versions()[0]
 
 			// We know what the result is going to be, assuming the main module is not
 			// empty, (it's the main module itself) but first check to see that there
@@ -1275,13 +1275,13 @@ func (r *resolver) loadPackages(ctx context.Context, patterns []string, findPack
 		return nil
 	}
 
-	_, pkgs := modload.LoadPackages(ctx, opts, patterns...)
+	_, pkgs := modload.LoadPackages(modload.LoaderState, ctx, opts, patterns...)
 	for _, pkgPath := range pkgs {
 		const (
 			parentPath  = ""
 			parentIsStd = false
 		)
-		_, _, err := modload.Lookup(parentPath, parentIsStd, pkgPath)
+		_, _, err := modload.Lookup(modload.LoaderState, parentPath, parentIsStd, pkgPath)
 		if err == nil {
 			continue
 		}
@@ -1294,15 +1294,13 @@ func (r *resolver) loadPackages(ctx context.Context, patterns []string, findPack
 			continue
 		}
 
-		var (
-			importMissing *modload.ImportMissingError
-			ambiguous     *modload.AmbiguousImportError
-		)
-		if !errors.As(err, &importMissing) && !errors.As(err, &ambiguous) {
-			// The package, which is a dependency of something we care about, has some
-			// problem that we can't resolve with a version change.
-			// Leave the error for the final LoadPackages call.
-			continue
+		if _, ok := errors.AsType[*modload.ImportMissingError](err); !ok {
+			if _, ok := errors.AsType[*modload.AmbiguousImportError](err); !ok {
+				// The package, which is a dependency of something we care about, has some
+				// problem that we can't resolve with a version change.
+				// Leave the error for the final LoadPackages call.
+				continue
+			}
 		}
 
 		path := pkgPath
@@ -1496,7 +1494,7 @@ func (r *resolver) disambiguate(cs pathSet) (filtered pathSet, isPackage bool, m
 			continue
 		}
 
-		if modload.MainModules.Contains(m.Path) {
+		if modload.LoaderState.MainModules.Contains(m.Path) {
 			if m.Version == "" {
 				return pathSet{}, true, m, true
 			}
@@ -1612,7 +1610,7 @@ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []strin
 	// info, but switch back to single module mode when fetching sums so that we update
 	// the single module's go.sum file.
 	var exitWorkspace func()
-	if r.workspace != nil && r.workspace.hasModule(modload.MainModules.Versions()[0].Path) {
+	if r.workspace != nil && r.workspace.hasModule(modload.LoaderState.MainModules.Versions()[0].Path) {
 		var err error
 		exitWorkspace, err = modload.EnterWorkspace(ctx)
 		if err != nil {
@@ -1653,7 +1651,7 @@ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []strin
 			AllowErrors:              true,
 			SilenceNoGoErrors:        true,
 		}
-		matches, pkgs := modload.LoadPackages(ctx, pkgOpts, pkgPatterns...)
+		matches, pkgs := modload.LoadPackages(modload.LoaderState, ctx, pkgOpts, pkgPatterns...)
 		for _, m := range matches {
 			if len(m.Errs) > 0 {
 				base.SetExitStatus(1)
@@ -1661,7 +1659,7 @@ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []strin
 			}
 		}
 		for _, pkg := range pkgs {
-			if dir, _, err := modload.Lookup("", false, pkg); err != nil {
+			if dir, _, err := modload.Lookup(modload.LoaderState, "", false, pkg); err != nil {
 				if dir != "" && errors.Is(err, imports.ErrNoGo) {
 					// Since dir is non-empty, we must have located source files
 					// associated with either the package or its test — ErrNoGo must
@@ -1674,7 +1672,7 @@ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []strin
 				}
 
 				base.SetExitStatus(1)
-				if ambiguousErr := (*modload.AmbiguousImportError)(nil); errors.As(err, &ambiguousErr) {
+				if ambiguousErr, ok := errors.AsType[*modload.AmbiguousImportError](err); ok {
 					for _, m := range ambiguousErr.Modules {
 						relevantMods[m] |= hasPkg
 					}
@@ -1692,7 +1690,7 @@ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []strin
 		}
 	}
 
-	reqs := modload.LoadModFile(ctx)
+	reqs := modload.LoadModFile(modload.LoaderState, ctx)
 	for m := range relevantMods {
 		if reqs.IsDirect(m.Path) {
 			relevantMods[m] |= direct
@@ -1716,8 +1714,8 @@ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []strin
 	for i := range retractions {
 		i := i
 		r.work.Add(func() {
-			err := modload.CheckRetractions(ctx, retractions[i].m)
-			if retractErr := (*modload.ModuleRetractedError)(nil); errors.As(err, &retractErr) {
+			err := modload.CheckRetractions(modload.LoaderState, ctx, retractions[i].m)
+			if _, ok := errors.AsType[*modload.ModuleRetractedError](err); ok {
 				retractions[i].message = err.Error()
 			}
 		})
@@ -1737,7 +1735,7 @@ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []strin
 	for i := range deprecations {
 		i := i
 		r.work.Add(func() {
-			deprecation, err := modload.CheckDeprecation(ctx, deprecations[i].m)
+			deprecation, err := modload.CheckDeprecation(modload.LoaderState, ctx, deprecations[i].m)
 			if err != nil || deprecation == "" {
 				return
 			}
@@ -1767,7 +1765,7 @@ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []strin
 		i := i
 		m := r.buildList[i]
 		mActual := m
-		if mRepl := modload.Replacement(m); mRepl.Path != "" {
+		if mRepl := modload.Replacement(modload.LoaderState, m); mRepl.Path != "" {
 			mActual = mRepl
 		}
 		old := module.Version{Path: m.Path, Version: r.initialVersion[m.Path]}
@@ -1775,7 +1773,7 @@ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []strin
 			continue
 		}
 		oldActual := old
-		if oldRepl := modload.Replacement(old); oldRepl.Path != "" {
+		if oldRepl := modload.Replacement(modload.LoaderState, old); oldRepl.Path != "" {
 			oldActual = oldRepl
 		}
 		if mActual == oldActual || mActual.Version == "" || !modfetch.HaveSum(oldActual) {
@@ -1951,7 +1949,7 @@ func (r *resolver) resolve(q *query, m module.Version) {
 		panic("internal error: resolving a module.Version with an empty path")
 	}
 
-	if modload.MainModules.Contains(m.Path) && m.Version != "" {
+	if modload.LoaderState.MainModules.Contains(m.Path) && m.Version != "" {
 		reportError(q, &modload.QueryMatchesMainModulesError{
 			MainModules: []module.Version{{Path: m.Path}},
 			Pattern:     q.pattern,
@@ -1983,19 +1981,19 @@ func (r *resolver) updateBuildList(ctx context.Context, additions []module.Versi
 
 	resolved := make([]module.Version, 0, len(r.resolvedVersion))
 	for mPath, rv := range r.resolvedVersion {
-		if !modload.MainModules.Contains(mPath) {
+		if !modload.LoaderState.MainModules.Contains(mPath) {
 			resolved = append(resolved, module.Version{Path: mPath, Version: rv.version})
 		}
 	}
 
-	changed, err := modload.EditBuildList(ctx, additions, resolved)
+	changed, err := modload.EditBuildList(modload.LoaderState, ctx, additions, resolved)
 	if err != nil {
 		if errors.Is(err, gover.ErrTooNew) {
 			toolchain.SwitchOrFatal(ctx, err)
 		}
 
-		var constraint *modload.ConstraintError
-		if !errors.As(err, &constraint) {
+		constraint, ok := errors.AsType[*modload.ConstraintError](err)
+		if !ok {
 			base.Fatal(err)
 		}
 
@@ -2066,8 +2064,11 @@ func reqsFromGoMod(f *modfile.File) []module.Version {
 // does not exist at the requested version, either because the module does not
 // exist at all or because it does not include that specific version.
 func isNoSuchModuleVersion(err error) bool {
-	var noMatch *modload.NoMatchingVersionError
-	return errors.Is(err, os.ErrNotExist) || errors.As(err, &noMatch)
+	if errors.Is(err, os.ErrNotExist) {
+		return true
+	}
+	_, ok := errors.AsType[*modload.NoMatchingVersionError](err)
+	return ok
 }
 
 // isNoSuchPackageVersion reports whether err indicates that the requested
@@ -2075,8 +2076,11 @@ func isNoSuchModuleVersion(err error) bool {
 // that could contain it exists at that version, or because every such module
 // that does exist does not actually contain the package.
 func isNoSuchPackageVersion(err error) bool {
-	var noPackage *modload.PackageNotInModuleError
-	return isNoSuchModuleVersion(err) || errors.As(err, &noPackage)
+	if isNoSuchModuleVersion(err) {
+		return true
+	}
+	_, ok := errors.AsType[*modload.PackageNotInModuleError](err)
+	return ok
 }
 
 // workspace represents the set of modules in a workspace.

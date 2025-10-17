@@ -108,7 +108,7 @@ func pinnerGetPtr(i *any) unsafe.Pointer {
 	if etyp == nil {
 		panic(errorString("runtime.Pinner: argument is nil"))
 	}
-	if kind := etyp.Kind_ & abi.KindMask; kind != abi.Pointer && kind != abi.UnsafePointer {
+	if kind := etyp.Kind(); kind != abi.Pointer && kind != abi.UnsafePointer {
 		panic(errorString("runtime.Pinner: argument is not a pointer: " + toRType(etyp).string()))
 	}
 	if inUserArenaChunk(uintptr(e.data)) {

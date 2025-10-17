@@ -7,12 +7,9 @@ package runtime
 import (
 	"internal/goarch"
 	"internal/runtime/atomic"
+	"internal/runtime/syscall/windows"
 	"unsafe"
 )
-
-const _DWORD_MAX = 0xffffffff
-
-const _INVALID_HANDLE_VALUE = ^uintptr(0)
 
 // Sources are used to identify the event that created an overlapped entry.
 // The source values are arbitrary. There is no risk of collision with user
@@ -59,7 +56,7 @@ func unpackNetpollSource(key uintptr) uint8 {
 // Keep these in sync.
 type pollOperation struct {
 	// used by windows
-	_ overlapped
+	_ windows.Overlapped
 	// used by netpoll
 	pd   *pollDesc
 	mode int32
@@ -90,19 +87,19 @@ func pollOperationFromOverlappedEntry(e *overlappedEntry) *pollOperation {
 // https://learn.microsoft.com/en-us/windows/win32/api/minwinbase/ns-minwinbase-overlapped_entry
 type overlappedEntry struct {
 	key      uintptr
-	ov       *overlapped
+	ov       *windows.Overlapped
 	internal uintptr
 	qty      uint32
 }
 
 var (
-	iocphandle uintptr = _INVALID_HANDLE_VALUE // completion port io handle
+	iocphandle uintptr = windows.INVALID_HANDLE_VALUE // completion port io handle
 
 	netpollWakeSig atomic.Uint32 // used to avoid duplicate calls of netpollBreak
 )
 
 func netpollinit() {
-	iocphandle = stdcall4(_CreateIoCompletionPort, _INVALID_HANDLE_VALUE, 0, 0, _DWORD_MAX)
+	iocphandle = stdcall(_CreateIoCompletionPort, windows.INVALID_HANDLE_VALUE, 0, 0, windows.DWORD_MAX)
 	if iocphandle == 0 {
 		println("runtime: CreateIoCompletionPort failed (errno=", getlasterror(), ")")
 		throw("runtime: netpollinit failed")
@@ -115,7 +112,7 @@ func netpollIsPollDescriptor(fd uintptr) bool {
 
 func netpollopen(fd uintptr, pd *pollDesc) int32 {
 	key := packNetpollKey(netpollSourceReady, pd)
-	if stdcall4(_CreateIoCompletionPort, fd, iocphandle, key, 0) == 0 {
+	if stdcall(_CreateIoCompletionPort, fd, iocphandle, key, 0) == 0 {
 		return int32(getlasterror())
 	}
 	return 0
@@ -137,7 +134,7 @@ func netpollBreak() {
 	}
 
 	key := packNetpollKey(netpollSourceBreak, nil)
-	if stdcall4(_PostQueuedCompletionStatus, iocphandle, 0, key, 0) == 0 {
+	if stdcall(_PostQueuedCompletionStatus, iocphandle, 0, key, 0) == 0 {
 		println("runtime: netpoll: PostQueuedCompletionStatus failed (errno=", getlasterror(), ")")
 		throw("runtime: netpoll: PostQueuedCompletionStatus failed")
 	}
@@ -152,7 +149,7 @@ func netpollBreak() {
 // delay == 0: does not block, just polls
 // delay > 0: block for up to that many nanoseconds
 func netpoll(delay int64) (gList, int32) {
-	if iocphandle == _INVALID_HANDLE_VALUE {
+	if iocphandle == windows.INVALID_HANDLE_VALUE {
 		return gList{}, 0
 	}
 
@@ -182,7 +179,7 @@ func netpoll(delay int64) (gList, int32) {
 		}
 	}
 	if delay < 0 {
-		wait = _INFINITE
+		wait = windows.INFINITE
 	} else if delay == 0 {
 		wait = 0
 	} else if delay < 1e6 {
@@ -197,10 +194,10 @@ func netpoll(delay int64) (gList, int32) {
 	if delay != 0 {
 		mp.blocked = true
 	}
-	if stdcall6(_GetQueuedCompletionStatusEx, iocphandle, uintptr(unsafe.Pointer(&entries[0])), uintptr(n), uintptr(unsafe.Pointer(&n)), uintptr(wait), 0) == 0 {
+	if stdcall(_GetQueuedCompletionStatusEx, iocphandle, uintptr(unsafe.Pointer(&entries[0])), uintptr(n), uintptr(unsafe.Pointer(&n)), uintptr(wait), 0) == 0 {
 		mp.blocked = false
 		errno := getlasterror()
-		if errno == _WAIT_TIMEOUT {
+		if errno == windows.WAIT_TIMEOUT {
 			return gList{}, 0
 		}
 		println("runtime: GetQueuedCompletionStatusEx failed (errno=", errno, ")")
@@ -243,11 +240,6 @@ func netpoll(delay int64) (gList, int32) {
 // netpollQueueTimer queues a timer to wake up the poller after the given delay.
 // It returns true if the timer expired during this call.
 func netpollQueueTimer(delay int64) (signaled bool) {
-	const (
-		STATUS_SUCCESS   = 0x00000000
-		STATUS_PENDING   = 0x00000103
-		STATUS_CANCELLED = 0xC0000120
-	)
 	mp := getg().m
 	// A wait completion packet can only be associated with one timer at a time,
 	// so we need to cancel the previous one if it exists. This wouldn't be necessary
@@ -256,24 +248,24 @@ func netpollQueueTimer(delay int64) (signaled bool) {
 	// such as a netpollBreak, so we can get to this point with a timer that hasn't
 	// expired yet. In this case, the completion packet can still be picked up by
 	// another thread, so defer the cancellation until it is really necessary.
-	errno := stdcall2(_NtCancelWaitCompletionPacket, mp.waitIocpHandle, 1)
+	errno := stdcall(_NtCancelWaitCompletionPacket, mp.waitIocpHandle, 1)
 	switch errno {
-	case STATUS_CANCELLED:
+	case windows.STATUS_CANCELLED:
 		// STATUS_CANCELLED is returned when the associated timer has already expired,
 		// in which automatically cancels the wait completion packet.
 		fallthrough
-	case STATUS_SUCCESS:
+	case windows.STATUS_SUCCESS:
 		dt := -delay / 100 // relative sleep (negative), 100ns units
-		if stdcall6(_SetWaitableTimer, mp.waitIocpTimer, uintptr(unsafe.Pointer(&dt)), 0, 0, 0, 0) == 0 {
+		if stdcall(_SetWaitableTimer, mp.waitIocpTimer, uintptr(unsafe.Pointer(&dt)), 0, 0, 0, 0) == 0 {
 			println("runtime: SetWaitableTimer failed; errno=", getlasterror())
 			throw("runtime: netpoll failed")
 		}
 		key := packNetpollKey(netpollSourceTimer, nil)
-		if errno := stdcall8(_NtAssociateWaitCompletionPacket, mp.waitIocpHandle, iocphandle, mp.waitIocpTimer, key, 0, 0, 0, uintptr(unsafe.Pointer(&signaled))); errno != 0 {
+		if errno := stdcall(_NtAssociateWaitCompletionPacket, mp.waitIocpHandle, iocphandle, mp.waitIocpTimer, key, 0, 0, 0, uintptr(unsafe.Pointer(&signaled))); errno != 0 {
 			println("runtime: NtAssociateWaitCompletionPacket failed; errno=", errno)
 			throw("runtime: netpoll failed")
 		}
-	case STATUS_PENDING:
+	case windows.STATUS_PENDING:
 		// STATUS_PENDING is returned if the wait operation can't be canceled yet.
 		// This can happen if this thread was woken up by another event, such as a netpollBreak,
 		// and the timer expired just while calling NtCancelWaitCompletionPacket, in which case

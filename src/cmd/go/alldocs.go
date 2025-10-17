@@ -18,7 +18,7 @@
 //	clean       remove object files and cached files
 //	doc         show documentation for package or symbol
 //	env         print Go environment information
-//	fix         update packages to use new APIs
+//	fix         apply fixes suggested by static checkers
 //	fmt         gofmt (reformat) package sources
 //	generate    generate Go files by processing source
 //	get         add dependencies to current module and install them
@@ -121,8 +121,9 @@
 //		The default is GOMAXPROCS, normally the number of CPUs available.
 //	-race
 //		enable data race detection.
-//		Supported only on linux/amd64, freebsd/amd64, darwin/amd64, darwin/arm64, windows/amd64,
-//		linux/ppc64le and linux/arm64 (only for 48-bit VMA).
+//		Supported only on darwin/amd64, darwin/arm64, freebsd/amd64, linux/amd64,
+//		linux/arm64 (only for 48-bit VMA), linux/ppc64le, linux/riscv64 and
+//		windows/amd64.
 //	-msan
 //		enable interoperation with memory sanitizer.
 //		Supported only on linux/amd64, linux/arm64, linux/loong64, freebsd/amd64
@@ -494,22 +495,34 @@
 //
 // For more about environment variables, see 'go help environment'.
 //
-// # Update packages to use new APIs
+// # Apply fixes suggested by static checkers
 //
 // Usage:
 //
-//	go fix [-fix list] [packages]
+//	go fix [build flags] [-fixtool prog] [fix flags] [packages]
 //
-// Fix runs the Go fix command on the packages named by the import paths.
+// Fix runs the Go fix tool (cmd/vet) on the named packages
+// and applies suggested fixes.
 //
-// The -fix flag sets a comma-separated list of fixes to run.
-// The default is all known fixes.
-// (Its value is passed to 'go tool fix -r'.)
+// It supports these flags:
 //
-// For more about fix, see 'go doc cmd/fix'.
+//	  -diff
+//		instead of applying each fix, print the patch as a unified diff
+//
+// The -fixtool=prog flag selects a different analysis tool with
+// alternative or additional fixes; see the documentation for go vet's
+// -vettool flag for details.
+//
 // For more about specifying packages, see 'go help packages'.
 //
-// To run fix with other options, run 'go tool fix'.
+// For a list of fixers and their flags, see 'go tool fix help'.
+//
+// For details of a specific fixer such as 'hostport',
+// see 'go tool fix help hostport'.
+//
+// The build flags supported by go fix are those that control package resolution
+// and execution, such as -C, -n, -x, -v, -tags, and -toolexec.
+// For more about these flags, see 'go help build'.
 //
 // See also: go fmt, go vet.
 //
@@ -758,6 +771,8 @@
 // variable, which defaults to $GOPATH/bin or $HOME/go/bin if the GOPATH
 // environment variable is not set. Executables in $GOROOT
 // are installed in $GOROOT/bin or $GOTOOLDIR instead of $GOBIN.
+// Cross compiled binaries are installed in $GOOS_$GOARCH subdirectories
+// of the above.
 //
 // If the arguments have version suffixes (like @latest or @v1.0.0), "go install"
 // builds packages in module-aware mode, ignoring the go.mod file in the current
@@ -1277,11 +1292,6 @@
 // The -json flag prints the final go.mod file in JSON format instead of
 // writing it back to go.mod. The JSON output corresponds to these Go types:
 //
-//	type Module struct {
-//		Path    string
-//		Version string
-//	}
-//
 //	type GoMod struct {
 //		Module    ModPath
 //		Go        string
@@ -1291,6 +1301,13 @@
 //		Exclude   []Module
 //		Replace   []Replace
 //		Retract   []Retract
+//		Tool      []Tool
+//		Ignore    []Ignore
+//	}
+//
+//	type Module struct {
+//		Path    string
+//		Version string
 //	}
 //
 //	type ModPath struct {
@@ -2009,19 +2026,33 @@
 //
 //	go vet [build flags] [-vettool prog] [vet flags] [packages]
 //
-// Vet runs the Go vet command on the packages named by the import paths.
+// Vet runs the Go vet tool (cmd/vet) on the named packages
+// and reports diagnostics.
 //
-// For more about vet and its flags, see 'go doc cmd/vet'.
-// For more about specifying packages, see 'go help packages'.
-// For a list of checkers and their flags, see 'go tool vet help'.
-// For details of a specific checker such as 'printf', see 'go tool vet help printf'.
+// It supports these flags:
 //
-// The -vettool=prog flag selects a different analysis tool with alternative
-// or additional checks.
-// For example, the 'shadow' analyzer can be built and run using these commands:
+//	  -c int
+//		display offending line with this many lines of context (default -1)
+//	  -json
+//		emit JSON output
+//	  -fix
+//		instead of printing each diagnostic, apply its first fix (if any)
+//	  -diff
+//		instead of applying each fix, print the patch as a unified diff
+//
+// The -vettool=prog flag selects a different analysis tool with
+// alternative or additional checks. For example, the 'shadow' analyzer
+// can be built and run using these commands:
 //
 //	go install golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow@latest
 //	go vet -vettool=$(which shadow)
+//
+// Alternative vet tools should be built atop golang.org/x/tools/go/analysis/unitchecker,
+// which handles the interaction with go vet.
+//
+// For more about specifying packages, see 'go help packages'.
+// For a list of checkers and their flags, see 'go tool vet help'.
+// For details of a specific checker such as 'printf', see 'go tool vet help printf'.
 //
 // The build flags supported by go vet are those that control package resolution
 // and execution, such as -C, -n, -x, -v, -tags, and -toolexec.
@@ -2405,8 +2436,10 @@
 //		The name of checksum database to use and optionally its public key and
 //		URL. See https://golang.org/ref/mod#authenticating.
 //	GOTMPDIR
-//		The directory where the go command will write
-//		temporary source files, packages, and binaries.
+//		Temporary directory used by the go command and testing package.
+//		Overrides the platform-specific temporary directory such as "/tmp".
+//		The go command and testing package will write temporary source files,
+//		packages, and binaries here.
 //	GOTOOLCHAIN
 //		Controls which Go toolchain is used. See https://go.dev/doc/toolchain.
 //	GOVCS
@@ -2527,7 +2560,7 @@
 //		The default is GOFIPS140=off, which makes no FIPS-140 changes at all.
 //		Other values enable FIPS-140 compliance measures and select alternate
 //		versions of the cryptography source code.
-//		See https://go.dev/security/fips140 for details.
+//		See https://go.dev/doc/security/fips140 for details.
 //	GO_EXTLINK_ENABLED
 //		Whether the linker should use external linking mode
 //		when using -linkmode=auto with code that uses cgo.
@@ -3231,11 +3264,15 @@
 //
 // Several of the flags control profiling and write an execution profile
 // suitable for "go tool pprof"; run "go tool pprof -h" for more
-// information. The --alloc_space, --alloc_objects, and --show_bytes
-// options of pprof control how the information is presented.
+// information. The -sample_index=alloc_space, -sample_index=alloc_objects,
+// and -show_bytes options of pprof control how the information is presented.
 //
 // The following flags are recognized by the 'go test' command and
 // control the execution of any test:
+//
+//	-artifacts
+//	    Save test artifacts in the directory specified by -outputdir.
+//	    See 'go doc testing.T.ArtifactDir'.
 //
 //	-bench regexp
 //	    Run only those benchmarks matching a regular expression.
@@ -3330,6 +3367,10 @@
 //	    expression. No tests, benchmarks, fuzz tests, or examples will be run.
 //	    This will only list top-level tests. No subtest or subbenchmarks will be
 //	    shown.
+//
+//	-outputdir directory
+//	    Place output files from profiling and test artifacts in the
+//	    specified directory, by default the directory in which "go test" is running.
 //
 //	-parallel n
 //	    Allow parallel execution of test functions that call t.Parallel, and
@@ -3441,10 +3482,6 @@
 //	-mutexprofilefraction n
 //	    Sample 1 in n stack traces of goroutines holding a
 //	    contended mutex.
-//
-//	-outputdir directory
-//	    Place output files from profiling in the specified directory,
-//	    by default the directory in which "go test" is running.
 //
 //	-trace trace.out
 //	    Write an execution trace to the specified file before exiting.

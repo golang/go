@@ -610,7 +610,6 @@ func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace
 			buildCmd.Args = append(buildCmd.Args, "-race")
 		}
 		buildCmd.Args = append(buildCmd.Args, testPath)
-		buildCmd.Env = append(os.Environ(), "GOEXPERIMENT=rangefunc")
 		buildOutput, err := buildCmd.CombinedOutput()
 		if err != nil {
 			t.Fatalf("failed to build %s: %v: output:\n%s", testPath, err, buildOutput)
@@ -695,6 +694,9 @@ func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace
 		runTest(t, false, "")
 	})
 	t.Run("AsyncPreemptOff", func(t *testing.T) {
+		if testing.Short() && runtime.NumCPU() < 2 {
+			t.Skip("skipping trace async preempt off tests in short mode")
+		}
 		runTest(t, false, "asyncpreemptoff=1")
 	})
 	t.Run("Stress", func(t *testing.T) {

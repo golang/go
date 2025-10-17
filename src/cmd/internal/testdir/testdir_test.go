@@ -52,7 +52,7 @@ var (
 // the linux-amd64 builder that's already very fast, so we get more
 // test coverage on trybots. See https://go.dev/issue/34297.
 func defaultAllCodeGen() bool {
-	return os.Getenv("GO_BUILDER_NAME") == "linux-amd64"
+	return testenv.Builder() == "gotip-linux-amd64"
 }
 
 var (
@@ -233,19 +233,23 @@ var stdlibImportcfgFile = sync.OnceValue(func() string {
 	return filename
 })
 
-func linkFile(runcmd runCmd, goname string, importcfg string, ldflags []string) (err error) {
+// linkFile links infile with the given importcfg and ldflags, writes to outfile.
+// infile can be the name of an object file or a go source file.
+func linkFile(runcmd runCmd, outfile, infile string, importcfg string, ldflags []string) (err error) {
 	if importcfg == "" {
 		importcfg = stdlibImportcfgFile()
 	}
-	pfile := strings.ReplaceAll(goname, ".go", ".o")
-	cmd := []string{goTool, "tool", "link", "-w", "-o", "a.exe", "-importcfg=" + importcfg}
+	if strings.HasSuffix(infile, ".go") {
+		infile = infile[:len(infile)-3] + ".o"
+	}
+	cmd := []string{goTool, "tool", "link", "-s", "-w", "-buildid=test", "-o", outfile, "-importcfg=" + importcfg}
 	if *linkshared {
 		cmd = append(cmd, "-linkshared", "-installsuffix=dynlink")
 	}
 	if ldflags != nil {
 		cmd = append(cmd, ldflags...)
 	}
-	cmd = append(cmd, pfile)
+	cmd = append(cmd, infile)
 	_, err = runcmd(cmd...)
 	return
 }
@@ -853,7 +857,7 @@ func (t test) run() error {
 			}
 
 			if i == len(pkgs)-1 {
-				err = linkFile(runcmd, pkg.files[0], importcfgfile, ldflags)
+				err = linkFile(runcmd, "a.exe", pkg.files[0], importcfgfile, ldflags)
 				if err != nil {
 					return err
 				}
@@ -974,8 +978,7 @@ func (t test) run() error {
 		if err != nil {
 			return err
 		}
-		cmd = []string{goTool, "tool", "link", "-importcfg=" + stdlibImportcfgFile(), "-o", "a.exe", "all.a"}
-		_, err = runcmd(cmd...)
+		err = linkFile(runcmd, "a.exe", "all.a", stdlibImportcfgFile(), nil)
 		if err != nil {
 			return err
 		}
@@ -1033,9 +1036,7 @@ func (t test) run() error {
 				return err
 			}
 			exe := filepath.Join(tempDir, "test.exe")
-			cmd := []string{goTool, "tool", "link", "-s", "-w", "-importcfg=" + stdlibImportcfgFile()}
-			cmd = append(cmd, "-o", exe, pkg)
-			if _, err := runcmd(cmd...); err != nil {
+			if err := linkFile(runcmd, exe, pkg, stdlibImportcfgFile(), nil); err != nil {
 				return err
 			}
 			out, err = runcmd(append([]string{exe}, args...)...)
@@ -1462,9 +1463,10 @@ func (t test) wantedErrors(file, short string) (errs []wantedError) {
 
 const (
 	// Regexp to match a single opcode check: optionally begin with "-" (to indicate
-	// a negative check), followed by a string literal enclosed in "" or ``. For "",
+	// a negative check) or a positive number (to specify the expected number of
+	// matches), followed by a string literal enclosed in "" or ``. For "",
 	// backslashes must be handled.
-	reMatchCheck = `-?(?:\x60[^\x60]*\x60|"(?:[^"\\]|\\.)*")`
+	reMatchCheck = `(-|[1-9]\d*)?(?:\x60[^\x60]*\x60|"(?:[^"\\]|\\.)*")`
 )
 
 var (
@@ -1516,6 +1518,8 @@ type wantedAsmOpcode struct {
 	fileline string         // original source file/line (eg: "/path/foo.go:45")
 	line     int            // original source line
 	opcode   *regexp.Regexp // opcode check to be performed on assembly output
+	expected int            // expected number of matches
+	actual   int            // actual number that matched
 	negative bool           // true if the check is supposed to fail rather than pass
 	found    bool           // true if the opcode check matched at least one in the output
 }
@@ -1622,9 +1626,16 @@ func (t test) wantedAsmOpcodes(fn string) asmChecks {
 
 			for _, m := range rxAsmCheck.FindAllString(allchecks, -1) {
 				negative := false
+				expected := 0
 				if m[0] == '-' {
 					negative = true
 					m = m[1:]
+				} else if '1' <= m[0] && m[0] <= '9' {
+					for '0' <= m[0] && m[0] <= '9' {
+						expected *= 10
+						expected += int(m[0] - '0')
+						m = m[1:]
+					}
 				}
 
 				rxsrc, err := strconv.Unquote(m)
@@ -1650,6 +1661,7 @@ func (t test) wantedAsmOpcodes(fn string) asmChecks {
 						ops[env] = make(map[string][]wantedAsmOpcode)
 					}
 					ops[env][lnum] = append(ops[env][lnum], wantedAsmOpcode{
+						expected: expected,
 						negative: negative,
 						fileline: lnum,
 						line:     i + 1,
@@ -1698,7 +1710,8 @@ func (t test) asmCheck(outStr string, fn string, env buildEnv, fullops map[strin
 		// run the checks.
 		if ops, found := fullops[srcFileLine]; found {
 			for i := range ops {
-				if !ops[i].found && ops[i].opcode.FindString(asm) != "" {
+				if (!ops[i].found || ops[i].expected > 0) && ops[i].opcode.FindString(asm) != "" {
+					ops[i].actual++
 					ops[i].found = true
 				}
 			}
@@ -1712,6 +1725,9 @@ func (t test) asmCheck(outStr string, fn string, env buildEnv, fullops map[strin
 			// There's a failure if a negative match was found,
 			// or a positive match was not found.
 			if o.negative == o.found {
+				failed = append(failed, o)
+			}
+			if o.expected > 0 && o.expected != o.actual {
 				failed = append(failed, o)
 			}
 		}
@@ -1737,6 +1753,8 @@ func (t test) asmCheck(outStr string, fn string, env buildEnv, fullops map[strin
 
 		if o.negative {
 			fmt.Fprintf(&errbuf, "%s:%d: %s: wrong opcode found: %q\n", t.goFileName(), o.line, env, o.opcode.String())
+		} else if o.expected > 0 {
+			fmt.Fprintf(&errbuf, "%s:%d: %s: wrong number of opcodes: %q\n", t.goFileName(), o.line, env, o.opcode.String())
 		} else {
 			fmt.Fprintf(&errbuf, "%s:%d: %s: opcode not found: %q\n", t.goFileName(), o.line, env, o.opcode.String())
 		}

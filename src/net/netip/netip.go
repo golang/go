@@ -1330,21 +1330,23 @@ func (p Prefix) isZero() bool { return p == Prefix{} }
 // IsSingleIP reports whether p contains exactly one IP.
 func (p Prefix) IsSingleIP() bool { return p.IsValid() && p.Bits() == p.ip.BitLen() }
 
-// compare returns an integer comparing two prefixes.
+// Compare returns an integer comparing two prefixes.
 // The result will be 0 if p == p2, -1 if p < p2, and +1 if p > p2.
 // Prefixes sort first by validity (invalid before valid), then
-// address family (IPv4 before IPv6), then prefix length, then
-// address.
-//
-// Unexported for Go 1.22 because we may want to compare by p.Addr first.
-// See post-acceptance discussion on go.dev/issue/61642.
-func (p Prefix) compare(p2 Prefix) int {
-	if c := cmp.Compare(p.Addr().BitLen(), p2.Addr().BitLen()); c != 0 {
+// address family (IPv4 before IPv6), then masked prefix address, then
+// prefix length, then unmasked address.
+func (p Prefix) Compare(p2 Prefix) int {
+	// Aside from sorting based on the masked address, this use of
+	// Addr.Compare also enforces the valid vs. invalid and address
+	// family ordering for the prefix.
+	if c := p.Masked().Addr().Compare(p2.Masked().Addr()); c != 0 {
 		return c
 	}
+
 	if c := cmp.Compare(p.Bits(), p2.Bits()); c != 0 {
 		return c
 	}
+
 	return p.Addr().Compare(p2.Addr())
 }
 

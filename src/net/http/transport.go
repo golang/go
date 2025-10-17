@@ -11,6 +11,7 @@ package http
 
 import (
 	"bufio"
+	"compress/flate"
 	"compress/gzip"
 	"container/list"
 	"context"
@@ -248,6 +249,9 @@ type Transport struct {
 	// must return a RoundTripper that then handles the request.
 	// If TLSNextProto is not nil, HTTP/2 support is not enabled
 	// automatically.
+	//
+	// Historically, TLSNextProto was used to disable HTTP/2 support.
+	// The Transport.Protocols field now provides a simpler way to do this.
 	TLSNextProto map[string]func(authority string, c *tls.Conn) RoundTripper
 
 	// ProxyConnectHeader optionally specifies headers to send to
@@ -295,9 +299,6 @@ type Transport struct {
 	ForceAttemptHTTP2 bool
 
 	// HTTP2 configures HTTP/2 connections.
-	//
-	// This field does not yet have any effect.
-	// See https://go.dev/issue/67813.
 	HTTP2 *HTTP2Config
 
 	// Protocols is the set of protocols supported by the transport.
@@ -323,6 +324,13 @@ func (t *Transport) readBufferSize() int {
 		return t.ReadBufferSize
 	}
 	return 4 << 10
+}
+
+func (t *Transport) maxHeaderResponseSize() int64 {
+	if t.MaxResponseHeaderBytes > 0 {
+		return t.MaxResponseHeaderBytes
+	}
+	return 10 << 20 // conservative default; same as http2
 }
 
 // Clone returns a deep copy of t's exported fields.
@@ -722,7 +730,7 @@ func (t *Transport) roundTrip(req *Request) (_ *Response, err error) {
 			if e, ok := err.(transportReadFromServerError); ok {
 				err = e.err
 			}
-			if b, ok := req.Body.(*readTrackingBody); ok && !b.didClose {
+			if b, ok := req.Body.(*readTrackingBody); ok && !b.didClose.Load() {
 				// Issue 49621: Close the request body if pconn.roundTrip
 				// didn't do so already. This can happen if the pconn
 				// write loop exits without reading the write request.
@@ -752,8 +760,8 @@ var errCannotRewind = errors.New("net/http: cannot rewind body after connection 
 
 type readTrackingBody struct {
 	io.ReadCloser
-	didRead  bool
-	didClose bool
+	didRead  bool // not atomic.Bool because only one goroutine (the user's) should be accessing
+	didClose atomic.Bool
 }
 
 func (r *readTrackingBody) Read(data []byte) (int, error) {
@@ -762,7 +770,9 @@ func (r *readTrackingBody) Read(data []byte) (int, error) {
 }
 
 func (r *readTrackingBody) Close() error {
-	r.didClose = true
+	if !r.didClose.CompareAndSwap(false, true) {
+		return nil
+	}
 	return r.ReadCloser.Close()
 }
 
@@ -784,10 +794,10 @@ func setupRewindBody(req *Request) *Request {
 // rewindBody takes care of closing req.Body when appropriate
 // (in all cases except when rewindBody returns req unmodified).
 func rewindBody(req *Request) (rewound *Request, err error) {
-	if req.Body == nil || req.Body == NoBody || (!req.Body.(*readTrackingBody).didRead && !req.Body.(*readTrackingBody).didClose) {
+	if req.Body == nil || req.Body == NoBody || (!req.Body.(*readTrackingBody).didRead && !req.Body.(*readTrackingBody).didClose.Load()) {
 		return req, nil // nothing to rewind
 	}
-	if !req.Body.(*readTrackingBody).didClose {
+	if !req.Body.(*readTrackingBody).didClose.Load() {
 		req.closeBody()
 	}
 	if req.GetBody == nil {
@@ -1372,7 +1382,10 @@ func (w *wantConn) cancel(t *Transport) {
 	w.done = true
 	w.mu.Unlock()
 
-	if pc != nil {
+	// HTTP/2 connections (pc.alt != nil) aren't removed from the idle pool on use,
+	// and should not be added back here. If the pconn isn't in the idle pool,
+	// it's because we removed it due to an error.
+	if pc != nil && pc.alt == nil {
 		t.putOrCloseIdleConn(pc)
 	}
 }
@@ -1869,7 +1882,7 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 			}
 			// Okay to use and discard buffered reader here, because
 			// TLS server will not speak until spoken to.
-			br := bufio.NewReader(conn)
+			br := bufio.NewReader(&io.LimitedReader{R: conn, N: t.maxHeaderResponseSize()})
 			resp, err = ReadResponse(br, connectReq)
 		}()
 		select {
@@ -2106,10 +2119,7 @@ type persistConn struct {
 }
 
 func (pc *persistConn) maxHeaderResponseSize() int64 {
-	if v := pc.t.MaxResponseHeaderBytes; v != 0 {
-		return v
-	}
-	return 10 << 20 // conservative default; same as http2
+	return pc.t.maxHeaderResponseSize()
 }
 
 func (pc *persistConn) Read(p []byte) (n int, err error) {
@@ -2982,6 +2992,7 @@ type bodyEOFSignal struct {
 }
 
 var errReadOnClosedResBody = errors.New("http: read on closed response body")
+var errConcurrentReadOnResBody = errors.New("http: concurrent read on response body")
 
 func (es *bodyEOFSignal) Read(p []byte) (n int, err error) {
 	es.mu.Lock()
@@ -3031,37 +3042,98 @@ func (es *bodyEOFSignal) condfn(err error) error {
 }
 
 // gzipReader wraps a response body so it can lazily
-// call gzip.NewReader on the first call to Read
+// get gzip.Reader from the pool on the first call to Read.
+// After Close is called it puts gzip.Reader to the pool immediately
+// if there is no Read in progress or later when Read completes.
 type gzipReader struct {
 	_    incomparable
 	body *bodyEOFSignal // underlying HTTP/1 response body framing
-	zr   *gzip.Reader   // lazily-initialized gzip reader
-	zerr error          // any error from gzip.NewReader; sticky
+	mu   sync.Mutex     // guards zr and zerr
+	zr   *gzip.Reader   // stores gzip reader from the pool between reads
+	zerr error          // sticky gzip reader init error or sentinel value to detect concurrent read and read after close
+}
+
+type eofReader struct{}
+
+func (eofReader) Read([]byte) (int, error) { return 0, io.EOF }
+func (eofReader) ReadByte() (byte, error)  { return 0, io.EOF }
+
+var gzipPool = sync.Pool{New: func() any { return new(gzip.Reader) }}
+
+// gzipPoolGet gets a gzip.Reader from the pool and resets it to read from r.
+func gzipPoolGet(r io.Reader) (*gzip.Reader, error) {
+	zr := gzipPool.Get().(*gzip.Reader)
+	if err := zr.Reset(r); err != nil {
+		gzipPoolPut(zr)
+		return nil, err
+	}
+	return zr, nil
+}
+
+// gzipPoolPut puts a gzip.Reader back into the pool.
+func gzipPoolPut(zr *gzip.Reader) {
+	// Reset will allocate bufio.Reader if we pass it anything
+	// other than a flate.Reader, so ensure that it's getting one.
+	var r flate.Reader = eofReader{}
+	zr.Reset(r)
+	gzipPool.Put(zr)
+}
+
+// acquire returns a gzip.Reader for reading response body.
+// The reader must be released after use.
+func (gz *gzipReader) acquire() (*gzip.Reader, error) {
+	gz.mu.Lock()
+	defer gz.mu.Unlock()
+	if gz.zerr != nil {
+		return nil, gz.zerr
+	}
+	if gz.zr == nil {
+		gz.zr, gz.zerr = gzipPoolGet(gz.body)
+		if gz.zerr != nil {
+			return nil, gz.zerr
+		}
+	}
+	ret := gz.zr
+	gz.zr, gz.zerr = nil, errConcurrentReadOnResBody
+	return ret, nil
+}
+
+// release returns the gzip.Reader to the pool if Close was called during Read.
+func (gz *gzipReader) release(zr *gzip.Reader) {
+	gz.mu.Lock()
+	defer gz.mu.Unlock()
+	if gz.zerr == errConcurrentReadOnResBody {
+		gz.zr, gz.zerr = zr, nil
+	} else { // errReadOnClosedResBody
+		gzipPoolPut(zr)
+	}
+}
+
+// close returns the gzip.Reader to the pool immediately or
+// signals release to do so after Read completes.
+func (gz *gzipReader) close() {
+	gz.mu.Lock()
+	defer gz.mu.Unlock()
+	if gz.zerr == nil && gz.zr != nil {
+		gzipPoolPut(gz.zr)
+		gz.zr = nil
+	}
+	gz.zerr = errReadOnClosedResBody
 }
 
 func (gz *gzipReader) Read(p []byte) (n int, err error) {
-	if gz.zr == nil {
-		if gz.zerr == nil {
-			gz.zr, gz.zerr = gzip.NewReader(gz.body)
-		}
-		if gz.zerr != nil {
-			return 0, gz.zerr
-		}
-	}
-
-	gz.body.mu.Lock()
-	if gz.body.closed {
-		err = errReadOnClosedResBody
-	}
-	gz.body.mu.Unlock()
-
+	zr, err := gz.acquire()
 	if err != nil {
 		return 0, err
 	}
-	return gz.zr.Read(p)
+	defer gz.release(zr)
+
+	return zr.Read(p)
 }
 
 func (gz *gzipReader) Close() error {
+	gz.close()
+
 	return gz.body.Close()
 }
 

@@ -1506,6 +1506,7 @@ var reltests = []RelTests{
 	{"/../../a/b", "/../../a/b/c/d", "c/d"},
 	{".", "a/b", "a/b"},
 	{".", "..", ".."},
+	{"", "../../.", "../.."},
 
 	// can't do purely lexically
 	{"..", ".", "err"},

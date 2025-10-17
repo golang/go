@@ -7,6 +7,14 @@
 // The [Test] function runs a function in an isolated "bubble".
 // Any goroutines started within the bubble are also part of the bubble.
 //
+// Each test should be entirely self-contained:
+// The following guidelines should apply to most tests:
+//
+//   - Avoid interacting with goroutines not started from within the test.
+//   - Avoid using the network. Use a fake network implementation as needed.
+//   - Avoid interacting with external processes.
+//   - Avoid leaking goroutines in background tasks.
+//
 // # Time
 //
 // Within a bubble, the [time] package uses a fake clock.
@@ -139,7 +147,7 @@
 //			cancel()
 //			synctest.Wait()
 //			if !afterFuncCalled {
-//				t.Fatalf("before context is canceled: AfterFunc not called")
+//				t.Fatalf("after context is canceled: AfterFunc not called")
 //			}
 //		})
 //	}

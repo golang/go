@@ -5,58 +5,15 @@
 package astutil
 
 import (
-	"fmt"
 	"go/ast"
+	"go/printer"
 	"go/token"
-	"strconv"
-	"unicode/utf8"
+	"strings"
+
+	"golang.org/x/tools/go/ast/edge"
+	"golang.org/x/tools/go/ast/inspector"
+	"golang.org/x/tools/internal/moreiters"
 )
-
-// RangeInStringLiteral calculates the positional range within a string literal
-// corresponding to the specified start and end byte offsets within the logical string.
-func RangeInStringLiteral(lit *ast.BasicLit, start, end int) (token.Pos, token.Pos, error) {
-	startPos, err := PosInStringLiteral(lit, start)
-	if err != nil {
-		return 0, 0, fmt.Errorf("start: %v", err)
-	}
-	endPos, err := PosInStringLiteral(lit, end)
-	if err != nil {
-		return 0, 0, fmt.Errorf("end: %v", err)
-	}
-	return startPos, endPos, nil
-}
-
-// PosInStringLiteral returns the position within a string literal
-// corresponding to the specified byte offset within the logical
-// string that it denotes.
-func PosInStringLiteral(lit *ast.BasicLit, offset int) (token.Pos, error) {
-	raw := lit.Value
-
-	value, err := strconv.Unquote(raw)
-	if err != nil {
-		return 0, err
-	}
-	if !(0 <= offset && offset <= len(value)) {
-		return 0, fmt.Errorf("invalid offset")
-	}
-
-	// remove quotes
-	quote := raw[0] // '"' or '`'
-	raw = raw[1 : len(raw)-1]
-
-	var (
-		i   = 0                // byte index within logical value
-		pos = lit.ValuePos + 1 // position within literal
-	)
-	for raw != "" && i < offset {
-		r, _, rest, _ := strconv.UnquoteChar(raw, quote) // can't fail
-		sz := len(raw) - len(rest)                       // length of literal char in raw bytes
-		pos += token.Pos(sz)
-		raw = raw[sz:]
-		i += utf8.RuneLen(r)
-	}
-	return pos, nil
-}
 
 // PreorderStack traverses the tree rooted at root,
 // calling f before visiting each node.
@@ -90,4 +47,73 @@ func PreorderStack(root ast.Node, stack []ast.Node, f func(n ast.Node, stack []a
 	if len(stack) != before {
 		panic("push/pop mismatch")
 	}
+}
+
+// NodeContains reports whether the Pos/End range of node n encloses
+// the given position pos.
+//
+// It is inclusive of both end points, to allow hovering (etc) when
+// the cursor is immediately after a node.
+//
+// For unfortunate historical reasons, the Pos/End extent of an
+// ast.File runs from the start of its package declaration---excluding
+// copyright comments, build tags, and package documentation---to the
+// end of its last declaration, excluding any trailing comments. So,
+// as a special case, if n is an [ast.File], NodeContains uses
+// n.FileStart <= pos && pos <= n.FileEnd to report whether the
+// position lies anywhere within the file.
+//
+// Precondition: n must not be nil.
+func NodeContains(n ast.Node, pos token.Pos) bool {
+	var start, end token.Pos
+	if file, ok := n.(*ast.File); ok {
+		start, end = file.FileStart, file.FileEnd // entire file
+	} else {
+		start, end = n.Pos(), n.End()
+	}
+	return start <= pos && pos <= end
+}
+
+// IsChildOf reports whether cur.ParentEdge is ek.
+//
+// TODO(adonovan): promote to a method of Cursor.
+func IsChildOf(cur inspector.Cursor, ek edge.Kind) bool {
+	got, _ := cur.ParentEdge()
+	return got == ek
+}
+
+// EnclosingFile returns the syntax tree for the file enclosing c.
+//
+// TODO(adonovan): promote this to a method of Cursor.
+func EnclosingFile(c inspector.Cursor) *ast.File {
+	c, _ = moreiters.First(c.Enclosing((*ast.File)(nil)))
+	return c.Node().(*ast.File)
+}
+
+// DocComment returns the doc comment for a node, if any.
+func DocComment(n ast.Node) *ast.CommentGroup {
+	switch n := n.(type) {
+	case *ast.FuncDecl:
+		return n.Doc
+	case *ast.GenDecl:
+		return n.Doc
+	case *ast.ValueSpec:
+		return n.Doc
+	case *ast.TypeSpec:
+		return n.Doc
+	case *ast.File:
+		return n.Doc
+	case *ast.ImportSpec:
+		return n.Doc
+	case *ast.Field:
+		return n.Doc
+	}
+	return nil
+}
+
+// Format returns a string representation of the node n.
+func Format(fset *token.FileSet, n ast.Node) string {
+	var buf strings.Builder
+	printer.Fprint(&buf, fset, n) // ignore errors
+	return buf.String()
 }

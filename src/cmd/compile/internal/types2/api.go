@@ -187,10 +187,6 @@ type Config struct {
 	EnableAlias bool
 }
 
-func srcimporter_setUsesCgo(conf *Config) {
-	conf.go115UsesCgo = true
-}
-
 // Info holds result type information for a type-checked package.
 // Only the information for which a map is provided is collected.
 // If the package has type errors, the collected information may

@@ -1064,7 +1064,7 @@ type File struct {
 	Scope              *Scope          // package scope (this file only). Deprecated: see Object
 	Imports            []*ImportSpec   // imports in this file
 	Unresolved         []*Ident        // unresolved identifiers in this file. Deprecated: see Object
-	Comments           []*CommentGroup // list of all comments in the source file
+	Comments           []*CommentGroup // comments in the file, in lexical order
 	GoVersion          string          // minimum Go version required by //go:build or // +build directives
 }
 
@@ -1123,7 +1123,7 @@ func generator(file *File) (string, bool) {
 			// opt: check Contains first to avoid unnecessary array allocation in Split.
 			const prefix = "// Code generated "
 			if strings.Contains(comment.Text, prefix) {
-				for _, line := range strings.Split(comment.Text, "\n") {
+				for line := range strings.SplitSeq(comment.Text, "\n") {
 					if rest, ok := strings.CutPrefix(line, prefix); ok {
 						if gen, ok := strings.CutSuffix(rest, " DO NOT EDIT."); ok {
 							return gen, true

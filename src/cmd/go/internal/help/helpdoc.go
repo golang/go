@@ -573,8 +573,10 @@ General-purpose environment variables:
 		The name of checksum database to use and optionally its public key and
 		URL. See https://golang.org/ref/mod#authenticating.
 	GOTMPDIR
-		The directory where the go command will write
-		temporary source files, packages, and binaries.
+		Temporary directory used by the go command and testing package.
+		Overrides the platform-specific temporary directory such as "/tmp".
+		The go command and testing package will write temporary source files,
+		packages, and binaries here.
 	GOTOOLCHAIN
 		Controls which Go toolchain is used. See https://go.dev/doc/toolchain.
 	GOVCS
@@ -695,7 +697,7 @@ Special-purpose environment variables:
 		The default is GOFIPS140=off, which makes no FIPS-140 changes at all.
 		Other values enable FIPS-140 compliance measures and select alternate
 		versions of the cryptography source code.
-		See https://go.dev/security/fips140 for details.
+		See https://go.dev/doc/security/fips140 for details.
 	GO_EXTLINK_ENABLED
 		Whether the linker should use external linking mode
 		when using -linkmode=auto with code that uses cgo.

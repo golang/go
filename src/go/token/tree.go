@@ -325,7 +325,7 @@ func (t *tree) set(file *File, pos **node, parent *node) {
 		// This code path isn't currently needed
 		// because FileSet never updates an existing entry.
 		// Remove this assertion if things change.
-		if true {
+		if true { // defeat vet's unreachable pass
 			panic("unreachable according to current FileSet requirements")
 		}
 		x.file = file
@@ -346,7 +346,7 @@ func (t *tree) delete(pos **node) {
 		// This code path isn't currently needed because FileSet
 		// only calls delete after a positive locate.
 		// Remove this assertion if things change.
-		if true {
+		if true { // defeat vet's unreachable pass
 			panic("unreachable according to current FileSet requirements")
 		}
 		return

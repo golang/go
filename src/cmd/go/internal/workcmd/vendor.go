@@ -46,8 +46,8 @@ func init() {
 }
 
 func runVendor(ctx context.Context, cmd *base.Command, args []string) {
-	modload.InitWorkfile()
-	if modload.WorkFilePath() == "" {
+	modload.InitWorkfile(modload.LoaderState)
+	if modload.WorkFilePath(modload.LoaderState) == "" {
 		base.Fatalf("go: no go.work file found\n\t(run 'go work init' first or specify path using GOWORK environment variable)")
 	}
 

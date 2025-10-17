@@ -235,9 +235,22 @@ type Pusher interface {
 // both [Transport] and [Server].
 type HTTP2Config struct {
 	// MaxConcurrentStreams optionally specifies the number of
-	// concurrent streams that a peer may have open at a time.
+	// concurrent streams that a client may have open at a time.
 	// If zero, MaxConcurrentStreams defaults to at least 100.
+	//
+	// This parameter only applies to Servers.
 	MaxConcurrentStreams int
+
+	// StrictMaxConcurrentRequests controls whether an HTTP/2 server's
+	// concurrency limit should be respected across all connections
+	// to that server.
+	// If true, new requests sent when a connection's concurrency limit
+	// has been exceeded will block until an existing request completes.
+	// If false, an additional connection will be opened if all
+	// existing connections are at their limit.
+	//
+	// This parameter only applies to Transports.
+	StrictMaxConcurrentRequests bool
 
 	// MaxDecoderHeaderTableSize optionally specifies an upper limit for the
 	// size of the header compression table used for decoding headers sent

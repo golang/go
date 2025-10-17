@@ -44,11 +44,11 @@ func init() {
 }
 
 func runInit(ctx context.Context, cmd *base.Command, args []string) {
-	modload.InitWorkfile()
+	modload.InitWorkfile(modload.LoaderState)
 
-	modload.ForceUseModules = true
+	modload.LoaderState.ForceUseModules = true
 
-	gowork := modload.WorkFilePath()
+	gowork := modload.WorkFilePath(modload.LoaderState)
 	if gowork == "" {
 		gowork = filepath.Join(base.Cwd(), "go.work")
 	}

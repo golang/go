@@ -44,6 +44,10 @@ func (b *batch) isSyncBatch(ver version.Version) bool {
 			(tracev2.EventType(b.data[0]) == tracev2.EvSync && ver >= version.Go125))
 }
 
+func (b *batch) isEndOfGeneration() bool {
+	return b.exp == tracev2.NoExperiment && len(b.data) > 0 && tracev2.EventType(b.data[0]) == tracev2.EvEndOfGeneration
+}
+
 // readBatch reads the next full batch from r.
 func readBatch(r interface {
 	io.Reader
@@ -53,6 +57,9 @@ func readBatch(r interface {
 	b, err := r.ReadByte()
 	if err != nil {
 		return batch{}, 0, err
+	}
+	if typ := tracev2.EventType(b); typ == tracev2.EvEndOfGeneration {
+		return batch{m: NoThread, exp: tracev2.NoExperiment, data: []byte{b}}, 0, nil
 	}
 	if typ := tracev2.EventType(b); typ != tracev2.EvEventBatch && typ != tracev2.EvExperimentalBatch {
 		return batch{}, 0, fmt.Errorf("expected batch event, got event %d", typ)

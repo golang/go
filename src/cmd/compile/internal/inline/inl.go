@@ -738,6 +738,17 @@ opSwitch:
 		if n.X.Op() == ir.OINDEX && isIndexingCoverageCounter(n.X) {
 			return false
 		}
+
+	case ir.OSLICE, ir.OSLICEARR, ir.OSLICESTR, ir.OSLICE3, ir.OSLICE3ARR:
+		n := n.(*ir.SliceExpr)
+
+		// Ignore superfluous slicing.
+		if n.Low != nil && n.Low.Op() == ir.OLITERAL && ir.Int64Val(n.Low) == 0 {
+			v.budget++
+		}
+		if n.High != nil && n.High.Op() == ir.OLEN && n.High.(*ir.UnaryExpr).X == n.X {
+			v.budget += 2
+		}
 	}
 
 	v.budget--
@@ -1209,17 +1220,6 @@ func pruneUnusedAutos(ll []*ir.Name, vis *hairyVisitor) []*ir.Name {
 		s = append(s, n)
 	}
 	return s
-}
-
-// numNonClosures returns the number of functions in list which are not closures.
-func numNonClosures(list []*ir.Func) int {
-	count := 0
-	for _, fn := range list {
-		if fn.OClosure == nil {
-			count++
-		}
-	}
-	return count
 }
 
 func doList(list []ir.Node, do func(ir.Node) bool) bool {

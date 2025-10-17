@@ -381,7 +381,7 @@ func (v *jsonFlag) Set(s string) error {
 	if *v == nil {
 		*v = make(map[string]bool)
 	}
-	for _, f := range strings.Split(s, ",") {
+	for f := range strings.SplitSeq(s, ",") {
 		(*v)[f] = true
 	}
 	return nil
@@ -419,7 +419,7 @@ func (v *jsonFlag) needAny(fields ...string) bool {
 var nl = []byte{'\n'}
 
 func runList(ctx context.Context, cmd *base.Command, args []string) {
-	modload.InitWorkfile()
+	modload.InitWorkfile(modload.LoaderState)
 
 	if *listFmt != "" && listJson {
 		base.Fatalf("go list -f cannot be used with -json")
@@ -427,11 +427,11 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 	if *listReuse != "" && !*listM {
 		base.Fatalf("go list -reuse cannot be used without -m")
 	}
-	if *listReuse != "" && modload.HasModRoot() {
+	if *listReuse != "" && modload.HasModRoot(modload.LoaderState) {
 		base.Fatalf("go list -reuse cannot be used inside a module")
 	}
 
-	work.BuildInit()
+	work.BuildInit(modload.LoaderState)
 	out := newTrackingWriter(os.Stdout)
 	defer out.w.Flush()
 
@@ -496,12 +496,12 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
-	modload.Init()
+	modload.Init(modload.LoaderState)
 	if *listRetracted {
 		if cfg.BuildMod == "vendor" {
 			base.Fatalf("go list -retracted cannot be used when vendoring is enabled")
 		}
-		if !modload.Enabled() {
+		if !modload.Enabled(modload.LoaderState) {
 			base.Fatalf("go list -retracted can only be used in module-aware mode")
 		}
 	}
@@ -525,11 +525,11 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 			base.Fatalf("go list -test cannot be used with -m")
 		}
 
-		if modload.Init(); !modload.Enabled() {
+		if modload.Init(modload.LoaderState); !modload.Enabled(modload.LoaderState) {
 			base.Fatalf("go: list -m cannot be used with GO111MODULE=off")
 		}
 
-		modload.LoadModFile(ctx) // Sets cfg.BuildMod as a side-effect.
+		modload.LoadModFile(modload.LoaderState, ctx) // Sets cfg.BuildMod as a side-effect.
 		if cfg.BuildMod == "vendor" {
 			const actionDisabledFormat = "go: can't %s using the vendor directory\n\t(Use -mod=mod or -mod=readonly to bypass.)"
 
@@ -613,7 +613,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		SuppressBuildInfo:  !*listExport && !listJsonFields.needAny("Stale", "StaleReason"),
 		SuppressEmbedFiles: !*listExport && !listJsonFields.needAny("EmbedFiles", "TestEmbedFiles", "XTestEmbedFiles"),
 	}
-	pkgs := load.PackagesAndErrors(ctx, pkgOpts, args)
+	pkgs := load.PackagesAndErrors(modload.LoaderState, ctx, pkgOpts, args)
 	if !*listE {
 		w := 0
 		for _, pkg := range pkgs {
@@ -727,7 +727,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		b.NeedExport = *listExport
 		b.NeedCompiledGoFiles = *listCompiled
 		if cfg.BuildCover {
-			load.PrepareForCoverageBuild(pkgs)
+			load.PrepareForCoverageBuild(modload.LoaderState, pkgs)
 		}
 		a := &work.Action{}
 		// TODO: Use pkgsFilter?

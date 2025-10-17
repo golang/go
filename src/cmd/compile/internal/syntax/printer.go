@@ -138,10 +138,6 @@ func impliesSemi(tok token) bool {
 
 // TODO(gri) provide table of []byte values for all tokens to avoid repeated string conversion
 
-func lineComment(text string) bool {
-	return strings.HasPrefix(text, "//")
-}
-
 func (p *printer) addWhitespace(kind ctrlSymbol, text string) {
 	p.pending = append(p.pending, whitespace{p.lastTok, kind /*text*/})
 	switch kind {

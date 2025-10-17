@@ -245,7 +245,7 @@ static void *thread(void *p) {
 	return NULL;
 }
 void testSendSIG() {
-	const int N = 20;
+	enum { N = 20 };
 	int i;
 	pthread_t tid[N];
 	for (i = 0; i < N; i++) {
@@ -1096,6 +1096,12 @@ func testErrno(t *testing.T) {
 }
 
 func testMultipleAssign(t *testing.T) {
+	if runtime.GOOS == "windows" && usesUCRT(t) {
+		// UCRT's strtol throws an unrecoverable crash when
+		// using an invalid base (that is, not 0 or 2..36).
+		// See go.dev/issue/62887.
+		t.Skip("skipping test on Windows when linking with UCRT")
+	}
 	p := C.CString("234")
 	n, m := C.strtol(p, nil, 345), C.strtol(p, nil, 10)
 	defer C.free(unsafe.Pointer(p))

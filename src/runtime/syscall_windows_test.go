@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"internal/abi"
 	"internal/race"
+	"internal/runtime/syscall/windows"
 	"internal/syscall/windows/sysdll"
 	"internal/testenv"
 	"io"
@@ -776,7 +777,7 @@ func TestSyscallN(t *testing.T) {
 		t.Skipf("skipping test: GOARCH=%s", runtime.GOARCH)
 	}
 
-	for arglen := 0; arglen <= runtime.MaxArgs; arglen++ {
+	for arglen := 0; arglen <= windows.MaxArgs; arglen++ {
 		arglen := arglen
 		t.Run(fmt.Sprintf("arg-%d", arglen), func(t *testing.T) {
 			t.Parallel()

@@ -35,7 +35,7 @@ import (
 //
 //	var Analyzer = &analysis.Analyzer{
 //		Name:             "halting",
-//		Doc:              analysisutil.MustExtractDoc(doc, "halting"),
+//		Doc:              analysisinternal.MustExtractDoc(doc, "halting"),
 //		...
 //	}
 func MustExtractDoc(content, name string) string {
@@ -97,7 +97,7 @@ func ExtractDoc(content, name string) (string, error) {
 	if f.Doc == nil {
 		return "", fmt.Errorf("Go source file has no package doc comment")
 	}
-	for _, section := range strings.Split(f.Doc.Text(), "\n# ") {
+	for section := range strings.SplitSeq(f.Doc.Text(), "\n# ") {
 		if body := strings.TrimPrefix(section, "Analyzer "+name); body != section &&
 			body != "" &&
 			body[0] == '\r' || body[0] == '\n' {

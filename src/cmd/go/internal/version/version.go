@@ -168,7 +168,7 @@ func scanFile(file string, info fs.FileInfo, mustPrint bool) bool {
 	bi, err := buildinfo.ReadFile(file)
 	if err != nil {
 		if mustPrint {
-			if pathErr := (*os.PathError)(nil); errors.As(err, &pathErr) && filepath.Clean(pathErr.Path) == filepath.Clean(file) {
+			if pathErr, ok := errors.AsType[*os.PathError](err); ok && filepath.Clean(pathErr.Path) == filepath.Clean(file) {
 				fmt.Fprintf(os.Stderr, "%v\n", file)
 			} else {
 				// Skip errors for non-Go binaries.

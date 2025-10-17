@@ -568,16 +568,6 @@ func parseECHExt(ext []byte) (echType echExtType, cs echCipher, configID uint8, 
 	return echType, cs, configID, bytes.Clone(encap), bytes.Clone(payload), nil
 }
 
-func marshalEncryptedClientHelloConfigList(configs []EncryptedClientHelloKey) ([]byte, error) {
-	builder := cryptobyte.NewBuilder(nil)
-	builder.AddUint16LengthPrefixed(func(builder *cryptobyte.Builder) {
-		for _, c := range configs {
-			builder.AddBytes(c.Config)
-		}
-	})
-	return builder.Bytes()
-}
-
 func (c *Conn) processECHClientHello(outer *clientHelloMsg, echKeys []EncryptedClientHelloKey) (*clientHelloMsg, *echServerContext, error) {
 	echType, echCiphersuite, configID, encap, payload, err := parseECHExt(outer.encryptedClientHello)
 	if err != nil {

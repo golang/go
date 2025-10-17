@@ -9,6 +9,7 @@ package json
 import (
 	"encoding"
 	"errors"
+	"io"
 	"reflect"
 
 	"encoding/json/internal"
@@ -41,6 +42,10 @@ var (
 //
 // It is recommended that implementations return a buffer that is safe
 // for the caller to retain and potentially mutate.
+//
+// If the returned error is a [SemanticError], then unpopulated fields
+// of the error may be populated by [json] with additional context.
+// Errors of other types are wrapped within a [SemanticError].
 type Marshaler interface {
 	MarshalJSON() ([]byte, error)
 }
@@ -54,6 +59,11 @@ type Marshaler interface {
 //
 // The implementation must write only one JSON value to the Encoder and
 // must not retain the pointer to [jsontext.Encoder].
+//
+// If the returned error is a [SemanticError], then unpopulated fields
+// of the error may be populated by [json] with additional context.
+// Errors of other types are wrapped within a [SemanticError],
+// unless it is an IO error.
 type MarshalerTo interface {
 	MarshalJSONTo(*jsontext.Encoder) error
 
@@ -72,6 +82,10 @@ type MarshalerTo interface {
 // unmarshaling into a pre-populated value.
 //
 // Implementations must not retain or mutate the input []byte.
+//
+// If the returned error is a [SemanticError], then unpopulated fields
+// of the error may be populated by [json] with additional context.
+// Errors of other types are wrapped within a [SemanticError].
 type Unmarshaler interface {
 	UnmarshalJSON([]byte) error
 }
@@ -88,6 +102,11 @@ type Unmarshaler interface {
 // unmarshaling into a pre-populated value.
 //
 // Implementations must not retain the pointer to [jsontext.Decoder].
+//
+// If the returned error is a [SemanticError], then unpopulated fields
+// of the error may be populated by [json] with additional context.
+// Errors of other types are wrapped within a [SemanticError],
+// unless it is a [jsontext.SyntacticError] or an IO error.
 type UnmarshalerFrom interface {
 	UnmarshalJSONFrom(*jsontext.Decoder) error
 
@@ -111,7 +130,7 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 				(needAddr && va.forcedAddr) {
 				return prevMarshal(enc, va, mo)
 			}
-			marshaler := va.Addr().Interface().(encoding.TextMarshaler)
+			marshaler, _ := reflect.TypeAssert[encoding.TextMarshaler](va.Addr())
 			if err := export.Encoder(enc).AppendRaw('"', false, func(b []byte) ([]byte, error) {
 				b2, err := marshaler.MarshalText()
 				return append(b, b2...), err
@@ -137,7 +156,7 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 				(needAddr && va.forcedAddr) {
 				return prevMarshal(enc, va, mo)
 			}
-			appender := va.Addr().Interface().(encoding.TextAppender)
+			appender, _ := reflect.TypeAssert[encoding.TextAppender](va.Addr())
 			if err := export.Encoder(enc).AppendRaw('"', false, appender.AppendText); err != nil {
 				err = wrapSkipFunc(err, "append method")
 				if mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
@@ -160,7 +179,7 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 				((needAddr && va.forcedAddr) || export.Encoder(enc).Tokens.Last.NeedObjectName()) {
 				return prevMarshal(enc, va, mo)
 			}
-			marshaler := va.Addr().Interface().(Marshaler)
+			marshaler, _ := reflect.TypeAssert[Marshaler](va.Addr())
 			val, err := marshaler.MarshalJSON()
 			if err != nil {
 				err = wrapSkipFunc(err, "marshal method")
@@ -194,7 +213,8 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 			xe := export.Encoder(enc)
 			prevDepth, prevLength := xe.Tokens.DepthLength()
 			xe.Flags.Set(jsonflags.WithinArshalCall | 1)
-			err := va.Addr().Interface().(MarshalerTo).MarshalJSONTo(enc)
+			marshaler, _ := reflect.TypeAssert[MarshalerTo](va.Addr())
+			err := marshaler.MarshalJSONTo(enc)
 			xe.Flags.Set(jsonflags.WithinArshalCall | 0)
 			currDepth, currLength := xe.Tokens.DepthLength()
 			if (prevDepth != currDepth || prevLength+1 != currLength) && err == nil {
@@ -233,7 +253,7 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 				return newUnmarshalErrorAfter(dec, t, errNonStringValue)
 			}
 			s := jsonwire.UnquoteMayCopy(val, flags.IsVerbatim())
-			unmarshaler := va.Addr().Interface().(encoding.TextUnmarshaler)
+			unmarshaler, _ := reflect.TypeAssert[encoding.TextUnmarshaler](va.Addr())
 			if err := unmarshaler.UnmarshalText(s); err != nil {
 				err = wrapSkipFunc(err, "unmarshal method")
 				if uo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
@@ -260,7 +280,7 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 			if err != nil {
 				return err // must be a syntactic or I/O error
 			}
-			unmarshaler := va.Addr().Interface().(Unmarshaler)
+			unmarshaler, _ := reflect.TypeAssert[Unmarshaler](va.Addr())
 			if err := unmarshaler.UnmarshalJSON(val); err != nil {
 				err = wrapSkipFunc(err, "unmarshal method")
 				if uo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
@@ -283,8 +303,12 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 			}
 			xd := export.Decoder(dec)
 			prevDepth, prevLength := xd.Tokens.DepthLength()
+			if prevDepth == 1 && xd.AtEOF() {
+				return io.EOF // check EOF early to avoid fn reporting an EOF
+			}
 			xd.Flags.Set(jsonflags.WithinArshalCall | 1)
-			err := va.Addr().Interface().(UnmarshalerFrom).UnmarshalJSONFrom(dec)
+			unmarshaler, _ := reflect.TypeAssert[UnmarshalerFrom](va.Addr())
+			err := unmarshaler.UnmarshalJSONFrom(dec)
 			xd.Flags.Set(jsonflags.WithinArshalCall | 0)
 			currDepth, currLength := xd.Tokens.DepthLength()
 			if (prevDepth != currDepth || prevLength+1 != currLength) && err == nil {

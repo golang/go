@@ -34,5 +34,3 @@ var TestAppendToMarshal = testAppendToMarshal
 
 func (a Addr) IsZero() bool   { return a.isZero() }
 func (p Prefix) IsZero() bool { return p.isZero() }
-
-func (p Prefix) Compare(p2 Prefix) int { return p.compare(p2) }

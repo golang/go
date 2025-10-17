@@ -44,14 +44,14 @@ func init() {
 }
 
 func runVerify(ctx context.Context, cmd *base.Command, args []string) {
-	modload.InitWorkfile()
+	modload.InitWorkfile(modload.LoaderState)
 
 	if len(args) != 0 {
 		// NOTE(rsc): Could take a module pattern.
 		base.Fatalf("go: verify takes no arguments")
 	}
-	modload.ForceUseModules = true
-	modload.RootMode = modload.NeedRoot
+	modload.LoaderState.ForceUseModules = true
+	modload.LoaderState.RootMode = modload.NeedRoot
 
 	// Only verify up to GOMAXPROCS zips at once.
 	type token struct{}
@@ -94,7 +94,7 @@ func verifyMod(ctx context.Context, mod module.Version) []error {
 		// "go" and "toolchain" have no disk footprint; nothing to verify.
 		return nil
 	}
-	if modload.MainModules.Contains(mod.Path) {
+	if modload.LoaderState.MainModules.Contains(mod.Path) {
 		return nil
 	}
 	var errs []error

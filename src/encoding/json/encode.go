@@ -475,7 +475,7 @@ func marshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 		e.WriteString("null")
 		return
 	}
-	m, ok := v.Interface().(Marshaler)
+	m, ok := reflect.TypeAssert[Marshaler](v)
 	if !ok {
 		e.WriteString("null")
 		return
@@ -498,7 +498,7 @@ func addrMarshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 		e.WriteString("null")
 		return
 	}
-	m := va.Interface().(Marshaler)
+	m, _ := reflect.TypeAssert[Marshaler](va)
 	b, err := m.MarshalJSON()
 	if err == nil {
 		e.Grow(len(b))
@@ -516,7 +516,7 @@ func textMarshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 		e.WriteString("null")
 		return
 	}
-	m, ok := v.Interface().(encoding.TextMarshaler)
+	m, ok := reflect.TypeAssert[encoding.TextMarshaler](v)
 	if !ok {
 		e.WriteString("null")
 		return
@@ -534,7 +534,7 @@ func addrTextMarshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 		e.WriteString("null")
 		return
 	}
-	m := va.Interface().(encoding.TextMarshaler)
+	m, _ := reflect.TypeAssert[encoding.TextMarshaler](va)
 	b, err := m.MarshalText()
 	if err != nil {
 		e.error(&MarshalerError{v.Type(), err, "MarshalText"})
@@ -991,7 +991,7 @@ func resolveKeyName(k reflect.Value) (string, error) {
 	if k.Kind() == reflect.String {
 		return k.String(), nil
 	}
-	if tm, ok := k.Interface().(encoding.TextMarshaler); ok {
+	if tm, ok := reflect.TypeAssert[encoding.TextMarshaler](k); ok {
 		if k.Kind() == reflect.Pointer && k.IsNil() {
 			return "", nil
 		}

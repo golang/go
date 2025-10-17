@@ -769,7 +769,7 @@ func (lv *Liveness) epilogue() {
 					// its stack copy is not live.
 					continue
 				}
-				// Note: zeroing is handled by zeroResults in walk.go.
+				// Note: zeroing is handled by zeroResults in ../ssagen/ssa.go.
 				livedefer.Set(int32(i))
 			}
 			if n.IsOutputParamHeapAddr() {
@@ -1493,7 +1493,7 @@ func (lv *Liveness) emitStackObjects() *obj.LSym {
 		if sz != int64(int32(sz)) {
 			base.Fatalf("stack object too big: %v of type %v, size %d", v, t, sz)
 		}
-		lsym, ptrBytes := reflectdata.GCSym(t)
+		lsym, ptrBytes := reflectdata.GCSym(t, false)
 		off = objw.Uint32(x, off, uint32(sz))
 		off = objw.Uint32(x, off, uint32(ptrBytes))
 		off = objw.SymPtrOff(x, off, lsym)

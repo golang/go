@@ -253,7 +253,7 @@ func (s *phiState) insertVarPhis(n int, var_ ir.Node, defs []*ssa.Block, typ *ty
 				}
 				// Add a phi to block c for variable n.
 				hasPhi.add(c.ID)
-				v := c.NewValue0I(currentRoot.Pos, ssa.OpPhi, typ, int64(n)) // TODO: line number right?
+				v := c.NewValue0I(s.s.blockStarts[b.ID], ssa.OpPhi, typ, int64(n))
 				// Note: we store the variable number in the phi's AuxInt field. Used temporarily by phi building.
 				if var_.Op() == ir.ONAME {
 					s.s.addNamedValue(var_.(*ir.Name), v)
@@ -513,6 +513,7 @@ loop:
 				v.Op = ssa.OpPhi
 				v.AddArgs(args...)
 				v.Aux = nil
+				v.Pos = s.s.blockStarts[b.ID]
 				continue loop
 			}
 			w = a // save witness
