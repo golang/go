@@ -12,7 +12,7 @@ type fastEncL6 struct {
 	bTable [tableSize]tableEntryPrev
 }
 
-func (e *fastEncL6) Encode(dst *tokens, src []byte) {
+func (e *fastEncL6) encode(dst *tokens, src []byte) {
 	const (
 		inputMargin            = 12 - 1
 		minNonLiteralBlockSize = 1 + 1 + inputMargin
@@ -22,12 +22,8 @@ func (e *fastEncL6) Encode(dst *tokens, src []byte) {
 	// Protect against e.cur wraparound.
 	for e.cur >= bufferReset {
 		if len(e.hist) == 0 {
-			for i := range e.table[:] {
-				e.table[i] = tableEntry{}
-			}
-			for i := range e.bTable[:] {
-				e.bTable[i] = tableEntryPrev{}
-			}
+			clear(e.table[:])
+			clear(e.bTable[:])
 			e.cur = maxMatchOffset
 			break
 		}
@@ -44,15 +40,15 @@ func (e *fastEncL6) Encode(dst *tokens, src []byte) {
 		}
 		for i := range e.bTable[:] {
 			v := e.bTable[i]
-			if v.Cur.offset <= minOff {
-				v.Cur.offset = 0
-				v.Prev.offset = 0
+			if v.cur.offset <= minOff {
+				v.cur.offset = 0
+				v.prev.offset = 0
 			} else {
-				v.Cur.offset = v.Cur.offset - e.cur + maxMatchOffset
-				if v.Prev.offset <= minOff {
-					v.Prev.offset = 0
+				v.cur.offset = v.cur.offset - e.cur + maxMatchOffset
+				if v.prev.offset <= minOff {
+					v.prev.offset = 0
 				} else {
-					v.Prev.offset = v.Prev.offset - e.cur + maxMatchOffset
+					v.prev.offset = v.prev.offset - e.cur + maxMatchOffset
 				}
 			}
 			e.bTable[i] = v
@@ -105,13 +101,13 @@ func (e *fastEncL6) Encode(dst *tokens, src []byte) {
 			entry := tableEntry{offset: s + e.cur}
 			e.table[nextHashS] = entry
 			eLong := &e.bTable[nextHashL]
-			eLong.Cur, eLong.Prev = entry, eLong.Cur
+			eLong.cur, eLong.prev = entry, eLong.cur
 
 			// Calculate hashes of 'next'
 			nextHashS = hashLen(next, tableBits, hashShortBytes)
 			nextHashL = hashLen(next, tableBits, hashLongBytes)
 
-			t = lCandidate.Cur.offset - e.cur
+			t = lCandidate.cur.offset - e.cur
 			if s-t < maxMatchOffset {
 				if uint32(cv) == loadLE32(src, t) {
 					// Long candidate matches at least 4 bytes.
@@ -119,10 +115,10 @@ func (e *fastEncL6) Encode(dst *tokens, src []byte) {
 					// Store the next match
 					e.table[nextHashS] = tableEntry{offset: nextS + e.cur}
 					eLong := &e.bTable[nextHashL]
-					eLong.Cur, eLong.Prev = tableEntry{offset: nextS + e.cur}, eLong.Cur
+					eLong.cur, eLong.prev = tableEntry{offset: nextS + e.cur}, eLong.cur
 
 					// Check the previous long candidate as well.
-					t2 := lCandidate.Prev.offset - e.cur
+					t2 := lCandidate.prev.offset - e.cur
 					if s-t2 < maxMatchOffset && uint32(cv) == loadLE32(src, t2) {
 						l = e.matchLenLimited(int(s+4), int(t+4), src) + 4
 						ml1 := e.matchLenLimited(int(s+4), int(t2+4), src) + 4
@@ -135,12 +131,12 @@ func (e *fastEncL6) Encode(dst *tokens, src []byte) {
 					break
 				}
 				// Current value did not match, but check if previous long value does.
-				t = lCandidate.Prev.offset - e.cur
+				t = lCandidate.prev.offset - e.cur
 				if s-t < maxMatchOffset && uint32(cv) == loadLE32(src, t) {
 					// Store the next match
 					e.table[nextHashS] = tableEntry{offset: nextS + e.cur}
 					eLong := &e.bTable[nextHashL]
-					eLong.Cur, eLong.Prev = tableEntry{offset: nextS + e.cur}, eLong.Cur
+					eLong.cur, eLong.prev = tableEntry{offset: nextS + e.cur}, eLong.cur
 					break
 				}
 			}
@@ -156,7 +152,7 @@ func (e *fastEncL6) Encode(dst *tokens, src []byte) {
 				// Store the next match
 				e.table[nextHashS] = tableEntry{offset: nextS + e.cur}
 				eLong := &e.bTable[nextHashL]
-				eLong.Cur, eLong.Prev = tableEntry{offset: nextS + e.cur}, eLong.Cur
+				eLong.cur, eLong.prev = tableEntry{offset: nextS + e.cur}, eLong.cur
 
 				// Check repeat at s + repOff
 				const repOff = 1
@@ -173,7 +169,7 @@ func (e *fastEncL6) Encode(dst *tokens, src []byte) {
 				}
 
 				// If the next long is a candidate, use that...
-				t2 = lCandidate.Cur.offset - e.cur
+				t2 = lCandidate.cur.offset - e.cur
 				if nextS-t2 < maxMatchOffset {
 					if loadLE32(src, t2) == uint32(next) {
 						ml := e.matchLenLimited(int(nextS+4), int(t2+4), src) + 4
@@ -185,7 +181,7 @@ func (e *fastEncL6) Encode(dst *tokens, src []byte) {
 						}
 					}
 					// If the previous long is a candidate, use that...
-					t2 = lCandidate.Prev.offset - e.cur
+					t2 = lCandidate.prev.offset - e.cur
 					if nextS-t2 < maxMatchOffset && loadLE32(src, t2) == uint32(next) {
 						ml := e.matchLenLimited(int(nextS+4), int(t2+4), src) + 4
 						if ml > l {
@@ -218,7 +214,7 @@ func (e *fastEncL6) Encode(dst *tokens, src []byte) {
 			const skipBeginning = 2
 			eLong := &e.bTable[hashLen(loadLE64(src, sAt), tableBits, hashLongBytes)]
 			// Test current
-			t2 := eLong.Cur.offset - e.cur - l + skipBeginning
+			t2 := eLong.cur.offset - e.cur - l + skipBeginning
 			s2 := s + skipBeginning
 			off := s2 - t2
 			if off < maxMatchOffset {
@@ -230,7 +226,7 @@ func (e *fastEncL6) Encode(dst *tokens, src []byte) {
 					}
 				}
 				// Test previous entry:
-				t2 = eLong.Prev.offset - e.cur - l + skipBeginning
+				t2 = eLong.prev.offset - e.cur - l + skipBeginning
 				off := s2 - t2
 				if off > 0 && off < maxMatchOffset && t2 >= 0 {
 					if l2 := e.matchlenLong(int(s2), int(t2), src); l2 > l {
@@ -270,7 +266,7 @@ func (e *fastEncL6) Encode(dst *tokens, src []byte) {
 				cv := loadLE64(src, i)
 				e.table[hashLen(cv, tableBits, hashShortBytes)] = tableEntry{offset: i + e.cur}
 				eLong := &e.bTable[hashLen(cv, tableBits, hashLongBytes)]
-				eLong.Cur, eLong.Prev = tableEntry{offset: i + e.cur}, eLong.Cur
+				eLong.cur, eLong.prev = tableEntry{offset: i + e.cur}, eLong.cur
 			}
 			goto emitRemainder
 		}
@@ -283,8 +279,8 @@ func (e *fastEncL6) Encode(dst *tokens, src []byte) {
 			eLong := &e.bTable[hashLen(cv, tableBits, hashLongBytes)]
 			eLong2 := &e.bTable[hashLen(cv>>8, tableBits, hashLongBytes)]
 			e.table[hashLen(cv, tableBits, hashShortBytes)] = t
-			eLong.Cur, eLong.Prev = t, eLong.Cur
-			eLong2.Cur, eLong2.Prev = t2, eLong2.Cur
+			eLong.cur, eLong.prev = t, eLong.cur
+			eLong2.cur, eLong2.prev = t2, eLong2.cur
 		}
 		cv = loadLE64(src, s)
 	}

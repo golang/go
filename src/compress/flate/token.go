@@ -10,10 +10,10 @@ import (
 
 const (
 	// Token is a compound value:
-	// bits 0-16  	xoffset = offset - MIN_OFFSET_SIZE, or literal - 16 bits
-	// bits 16-22	offsetcode - 5 bits
-	// bits 22-30   xlength = length - MIN_MATCH_LENGTH - 8 bits
-	// bits 30-32   type   0 = literal  1=EOF  2=Match   3=Unused - 2 bits
+	// bits 0-16  xoffset = offset - MIN_OFFSET_SIZE, or literal - 16 bits
+	// bits 16-22 offset code - 5 bits
+	// bits 22-30 xlength = length - MIN_MATCH_LENGTH - 8 bits
+	// bits 30-32 type, 0 = literal  1=EOF  2=Match   3=Unused - 2 bits
 	lengthShift         = 22
 	offsetMask          = 1<<lengthShift - 1
 	typeMask            = 3 << 30

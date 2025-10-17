@@ -10,7 +10,7 @@ type fastEncL1 struct {
 	table [tableSize]tableEntry
 }
 
-func (e *fastEncL1) Encode(dst *tokens, src []byte) {
+func (e *fastEncL1) encode(dst *tokens, src []byte) {
 	const (
 		inputMargin            = 12 - 1
 		minNonLiteralBlockSize = 1 + 1 + inputMargin
@@ -20,9 +20,7 @@ func (e *fastEncL1) Encode(dst *tokens, src []byte) {
 	// Protect against e.cur wraparound.
 	for e.cur >= bufferReset {
 		if len(e.hist) == 0 {
-			for i := range e.table[:] {
-				e.table[i] = tableEntry{}
-			}
+			clear(e.table[:])
 			e.cur = maxMatchOffset
 			break
 		}

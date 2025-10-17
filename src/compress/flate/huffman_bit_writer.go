@@ -944,13 +944,9 @@ func (w *huffmanBitWriter) writeBlockHuff(eof bool, input []byte, sync bool) {
 	}
 
 	// Clear histogram
-	for i := range w.literalFreq[:] {
-		w.literalFreq[i] = 0
-	}
+	clear(w.literalFreq[:])
 	if !w.lastHuffMan {
-		for i := range w.offsetFreq[:] {
-			w.offsetFreq[i] = 0
-		}
+		clear(w.offsetFreq[:])
 	}
 
 	const numLiterals = endBlockMarker + 1

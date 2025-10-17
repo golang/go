@@ -201,7 +201,7 @@ func (d *compressor) fillWindow(b []byte) {
 		if len(b) > maxMatchOffset {
 			b = b[len(b)-maxMatchOffset:]
 		}
-		d.fast.Encode(&d.tokens, b)
+		d.fast.encode(&d.tokens, b)
 		d.tokens.Reset()
 		return
 	}
@@ -652,12 +652,12 @@ func (d *compressor) storeFast() {
 			}
 			d.tokens.Reset()
 			d.windowEnd = 0
-			d.fast.Reset()
+			d.fast.reset()
 			return
 		}
 	}
 
-	d.fast.Encode(&d.tokens, d.window[:d.windowEnd])
+	d.fast.encode(&d.tokens, d.window[:d.windowEnd])
 	// If we made zero matches, store the block as is.
 	if d.tokens.n == 0 {
 		d.err = d.writeStoredBlock(d.window[:d.windowEnd])
@@ -723,7 +723,7 @@ func (d *compressor) init(w io.Writer, level int) (err error) {
 	case level == DefaultCompression:
 		level = 6
 		fallthrough
-	case level >= 1 && level <= 6:
+	case 1 <= level && level <= 6:
 		d.w.logNewTablePenalty = 7
 		d.fast = newFastEnc(level)
 		d.window = make([]byte, maxStoreBlockSize)
@@ -749,7 +749,7 @@ func (d *compressor) reset(w io.Writer) {
 	d.err = nil
 	// We only need to reset a few things for Snappy.
 	if d.fast != nil {
-		d.fast.Reset()
+		d.fast.reset()
 		d.windowEnd = 0
 		d.tokens.Reset()
 		return
@@ -887,13 +887,4 @@ func (w *Writer) Reset(dst io.Writer) {
 		// w was created with NewWriter
 		w.d.reset(dst)
 	}
-}
-
-// ResetDict discards the writer's state and makes it equivalent to
-// the result of NewWriter or NewWriterDict called with dst
-// and w's level, but sets a specific dictionary.
-func (w *Writer) ResetDict(dst io.Writer, dict []byte) {
-	w.dict = dict
-	w.d.reset(dst)
-	w.d.fillWindow(w.dict)
 }

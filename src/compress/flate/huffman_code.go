@@ -30,6 +30,15 @@ func (h hcode) zero() bool {
 	return h == 0
 }
 
+// set sets the code and length of an hcode.
+func (h *hcode) set(code uint16, length uint8) {
+	*h = hcode(length) | (hcode(code) << 8)
+}
+
+func newhcode(code uint16, length uint8) hcode {
+	return hcode(length) | (hcode(code) << 8)
+}
+
 type huffmanEncoder struct {
 	codes    []hcode
 	bitCount [17]int32
@@ -40,10 +49,18 @@ type huffmanEncoder struct {
 	freqcache [literalCount + 1]literalNode
 }
 
+func newHuffmanEncoder(size int) *huffmanEncoder {
+	// Make capacity to next power of two.
+	c := uint(bits.Len32(uint32(size - 1)))
+	return &huffmanEncoder{codes: make([]hcode, size, 1<<c)}
+}
+
 type literalNode struct {
 	literal uint16
 	freq    uint16
 }
+
+func maxNode() literalNode { return literalNode{math.MaxUint16, math.MaxUint16} }
 
 // A levelInfo describes the state of the constructed tree for a given depth.
 type levelInfo struct {
@@ -65,25 +82,8 @@ type levelInfo struct {
 	needed int32
 }
 
-// set sets the code and length of an hcode.
-func (h *hcode) set(code uint16, length uint8) {
-	*h = hcode(length) | (hcode(code) << 8)
-}
-
-func newhcode(code uint16, length uint8) hcode {
-	return hcode(length) | (hcode(code) << 8)
-}
-
 func reverseBits(number uint16, bitLength byte) uint16 {
 	return bits.Reverse16(number << ((16 - bitLength) & 15))
-}
-
-func maxNode() literalNode { return literalNode{math.MaxUint16, math.MaxUint16} }
-
-func newHuffmanEncoder(size int) *huffmanEncoder {
-	// Make capacity to next power of two.
-	c := uint(bits.Len32(uint32(size - 1)))
-	return &huffmanEncoder{codes: make([]hcode, size, 1<<c)}
 }
 
 // Generates a HuffmanCode corresponding to the fixed literal table
@@ -167,19 +167,16 @@ func (h *huffmanEncoder) canReuseBits(freq []uint16) int {
 // This method is only called when list.length >= 3
 // The cases of 0, 1, and 2 literals are handled by special case code.
 //
-// list  An array of the literals with non-zero frequencies
+// list is an array of the literals with non-zero frequencies
+// and their associated frequencies. The array is in order of increasing
+// frequency and has as its last element a special element with frequency
+// MaxInt32.
 //
-//	and their associated frequencies. The array is in order of increasing
-//	frequency, and has as its last element a special element with frequency
-//	MaxInt32
+// maxBits is the maximum number of bits that should be used to encode any literal.
+// It must be less than 16.
 //
-// maxBits     The maximum number of bits that should be used to encode any literal.
-//
-//	Must be less than 16.
-//
-// return      An integer array in which array[i] indicates the number of literals
-//
-//	that should be encoded in i bits.
+// bitCounts returns an integer slice in which slice[i] indicates the number of literals
+// that should be encoded in i bits.
 func (h *huffmanEncoder) bitCounts(list []literalNode, maxBits int32) []int32 {
 	if maxBits >= maxBitsLimit {
 		panic("flate: maxBits too large")

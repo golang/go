@@ -41,30 +41,22 @@ func BenchmarkEncode(b *testing.B) {
 	})
 }
 
-func TestWriterMemUsage(t *testing.T) {
-	testMem := func(t *testing.T, fn func()) {
-		var before, after runtime.MemStats
-		runtime.GC()
-		runtime.ReadMemStats(&before)
-		fn()
-		runtime.GC()
-		runtime.ReadMemStats(&after)
-		t.Logf("%s: Memory Used: %dKB, %d allocs", t.Name(), (after.HeapInuse-before.HeapInuse)/1024, after.HeapObjects-before.HeapObjects)
-	}
+func BenchmarkWriterMemUsage(b *testing.B) {
 	data := make([]byte, 100000)
 
 	for level := HuffmanOnly; level <= BestCompression; level++ {
-		t.Run(fmt.Sprint("level-", level), func(t *testing.T) {
+		b.Run(fmt.Sprint("level-", level), func(b *testing.B) {
 			var zr *Writer
 			var err error
-			testMem(t, func() {
+			b.ReportAllocs()
+			for b.Loop() {
 				zr, err = NewWriter(io.Discard, level)
 				if err != nil {
-					t.Fatal(err)
+					b.Fatal(err)
 				}
 				zr.Write(data)
-			})
-			zr.Close()
+				zr.Close()
+			}
 		})
 	}
 }
@@ -153,7 +145,7 @@ func TestWriter_Reset(t *testing.T) {
 	for l := range 10 {
 		l := l
 		if testing.Short() && l > 1 {
-			continue
+			break
 		}
 		t.Run(fmt.Sprintf("level-%d", l), func(t *testing.T) {
 			t.Parallel()
@@ -173,18 +165,18 @@ func TestWriter_Reset(t *testing.T) {
 				}
 				for i := 0; i < (bufferReset-len(in)-offset-maxMatchOffset)/maxMatchOffset; i++ {
 					// skip ahead to where we are close to wrap around...
-					w.d.fast.Reset()
+					w.d.fast.reset()
 				}
-				w.d.fast.Reset()
+				w.d.fast.reset()
 				_, err = w.Write(in)
 				if err != nil {
 					t.Fatal(err)
 				}
 				for range 50 {
 					// skip ahead again... This should wrap around...
-					w.d.fast.Reset()
+					w.d.fast.reset()
 				}
-				w.d.fast.Reset()
+				w.d.fast.reset()
 
 				_, err = w.Write(in)
 				if err != nil {
@@ -192,7 +184,7 @@ func TestWriter_Reset(t *testing.T) {
 				}
 				for range (math.MaxUint32 - bufferReset) / maxMatchOffset {
 					// skip ahead to where we are close to wrap around...
-					w.d.fast.Reset()
+					w.d.fast.reset()
 				}
 
 				_, err = w.Write(in)

@@ -9,8 +9,8 @@ import (
 )
 
 type fastEnc interface {
-	Encode(dst *tokens, src []byte)
-	Reset()
+	encode(dst *tokens, src []byte)
+	reset()
 }
 
 func newFastEnc(level int) fastEnc {
@@ -90,8 +90,8 @@ func (e *fastGen) addBlock(src []byte) int32 {
 }
 
 type tableEntryPrev struct {
-	Cur  tableEntry
-	Prev tableEntry
+	cur  tableEntry
+	prev tableEntry
 }
 
 // hashLen returns a hash of the lowest mls bytes of with length output bits.
@@ -131,7 +131,7 @@ func (e *fastGen) matchlenLong(s, t int, src []byte) int32 {
 }
 
 // Reset the encoding table.
-func (e *fastGen) Reset() {
+func (e *fastGen) reset() {
 	if cap(e.hist) < allocHistory {
 		e.hist = make([]byte, 0, allocHistory)
 	}
@@ -166,3 +166,11 @@ func matchLen(a, b []byte) (n int) {
 	}
 	return n
 }
+
+// Used to get the embedded fastGen from each level struct.
+func (f *fastEncL1) getFastGen() *fastGen { return &f.fastGen }
+func (f *fastEncL2) getFastGen() *fastGen { return &f.fastGen }
+func (f *fastEncL3) getFastGen() *fastGen { return &f.fastGen }
+func (f *fastEncL4) getFastGen() *fastGen { return &f.fastGen }
+func (f *fastEncL5) getFastGen() *fastGen { return &f.fastGen }
+func (f *fastEncL6) getFastGen() *fastGen { return &f.fastGen }
