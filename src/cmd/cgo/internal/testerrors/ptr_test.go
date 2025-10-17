@@ -694,7 +694,7 @@ func testOne(t *testing.T, pt ptrTest, exe, exe2 string) {
 		if err == nil {
 			t.Logf("%s", buf)
 			t.Fatalf("did not fail as expected")
-		} else if !bytes.Contains(buf, []byte("Go pointer")) {
+		} else if !bytes.Contains(buf, []byte("unpinned Go")) {
 			t.Logf("%s", buf)
 			t.Fatalf("did not print expected error (failed with %v)", err)
 		}

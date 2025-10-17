@@ -591,15 +591,18 @@ func cgoCheckPointer(ptr any, arg any) {
 	cgoCheckArg(t, ep.data, !t.IsDirectIface(), top, cgoCheckPointerFail)
 }
 
-const cgoCheckPointerFail = "cgo argument has Go pointer to unpinned Go pointer"
-const cgoResultFail = "cgo result is unpinned Go pointer or points to unpinned Go pointer"
+type cgoErrorMsg int
+const (
+	cgoCheckPointerFail cgoErrorMsg = iota
+	cgoResultFail
+)
 
-// cgoCheckArg is the real work of cgoCheckPointer. The argument p
-// is either a pointer to the value (of type t), or the value itself,
-// depending on indir. The top parameter is whether we are at the top
+// cgoCheckArg is the real work of cgoCheckPointer and cgoCheckResult.
+// The argument p is either a pointer to the value (of type t), or the value
+// itself, depending on indir. The top parameter is whether we are at the top
 // level, where Go pointers are allowed. Go pointers to pinned objects are
 // allowed as long as they don't reference other unpinned pointers.
-func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
+func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg cgoErrorMsg) {
 	if !t.Pointers() || p == nil {
 		// If the type has no pointers there is nothing to do.
 		return
@@ -625,7 +628,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 		// These types contain internal pointers that will
 		// always be allocated in the Go heap. It's never OK
 		// to pass them to C.
-		panic(errorString(msg))
+		panic(cgoFormatErr(msg, t.Kind()))
 	case abi.Func:
 		if indir {
 			p = *(*unsafe.Pointer)(p)
@@ -633,7 +636,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 		if !cgoIsGoPointer(p) {
 			return
 		}
-		panic(errorString(msg))
+		panic(cgoFormatErr(msg, t.Kind()))
 	case abi.Interface:
 		it := *(**_type)(p)
 		if it == nil {
@@ -643,14 +646,14 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 		// constant. A type not known at compile time will be
 		// in the heap and will not be OK.
 		if inheap(uintptr(unsafe.Pointer(it))) {
-			panic(errorString(msg))
+			panic(cgoFormatErr(msg, t.Kind()))
 		}
 		p = *(*unsafe.Pointer)(add(p, goarch.PtrSize))
 		if !cgoIsGoPointer(p) {
 			return
 		}
 		if !top && !isPinned(p) {
-			panic(errorString(msg))
+			panic(cgoFormatErr(msg, t.Kind()))
 		}
 		cgoCheckArg(it, p, !it.IsDirectIface(), false, msg)
 	case abi.Slice:
@@ -661,7 +664,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 			return
 		}
 		if !top && !isPinned(p) {
-			panic(errorString(msg))
+			panic(cgoFormatErr(msg, t.Kind()))
 		}
 		if !st.Elem.Pointers() {
 			return
@@ -676,7 +679,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 			return
 		}
 		if !top && !isPinned(ss.str) {
-			panic(errorString(msg))
+			panic(cgoFormatErr(msg, t.Kind()))
 		}
 	case abi.Struct:
 		st := (*structtype)(unsafe.Pointer(t))
@@ -705,7 +708,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 			return
 		}
 		if !top && !isPinned(p) {
-			panic(errorString(msg))
+			panic(cgoFormatErr(msg, t.Kind()))
 		}
 
 		cgoCheckUnknownPointer(p, msg)
@@ -716,7 +719,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 // memory. It checks whether that Go memory contains any other
 // pointer into unpinned Go memory. If it does, we panic.
 // The return values are unused but useful to see in panic tracebacks.
-func cgoCheckUnknownPointer(p unsafe.Pointer, msg string) (base, i uintptr) {
+func cgoCheckUnknownPointer(p unsafe.Pointer, msg cgoErrorMsg) (base, i uintptr) {
 	if inheap(uintptr(p)) {
 		b, span, _ := findObject(uintptr(p), 0, 0)
 		base = b
@@ -731,7 +734,7 @@ func cgoCheckUnknownPointer(p unsafe.Pointer, msg string) (base, i uintptr) {
 			}
 			pp := *(*unsafe.Pointer)(unsafe.Pointer(addr))
 			if cgoIsGoPointer(pp) && !isPinned(pp) {
-				panic(errorString(msg))
+				panic(cgoFormatErr(msg, abi.Pointer))
 			}
 		}
 		return
@@ -741,7 +744,7 @@ func cgoCheckUnknownPointer(p unsafe.Pointer, msg string) (base, i uintptr) {
 		if cgoInRange(p, datap.data, datap.edata) || cgoInRange(p, datap.bss, datap.ebss) {
 			// We have no way to know the size of the object.
 			// We have to assume that it might contain a pointer.
-			panic(errorString(msg))
+			panic(cgoFormatErr(msg, abi.Pointer))
 		}
 		// In the text or noptr sections, we know that the
 		// pointer does not point to a Go pointer.
@@ -793,4 +796,69 @@ func cgoCheckResult(val any) {
 	ep := efaceOf(&val)
 	t := ep._type
 	cgoCheckArg(t, ep.data, !t.IsDirectIface(), false, cgoResultFail)
+}
+
+// cgoFormatErr is called to format an error message with the caller name.
+func cgoFormatErr(error cgoErrorMsg, kind abi.Kind) errorString {
+	pcs := make([]uintptr, 10)
+	var msg, kindname string
+	var callerName string = " "
+
+	// Built from a truncated copy of the abi slice
+	// https://go.dev/src/internal/abi/type.go
+	var kindNames = map[abi.Kind]string{
+		abi.Chan:          "channel",
+		abi.Func:          "function",
+		abi.Interface:     "interface",
+		abi.Map:           "map",
+		abi.Pointer:       "pointer",
+		abi.Slice:         "slice",
+		abi.String:        "string",
+		abi.Struct:        "struct",
+		abi.UnsafePointer: "unsafe pointer",
+	}
+
+	// kindnames match the switch case statement in cgoCheckArg
+	kindname, ok := kindNames[kind]
+	if !ok {
+		throw("can't happen")
+	}
+
+	n := Callers(0, pcs)
+	pcs = pcs[:n]
+
+	frames := CallersFrames(pcs)
+
+	for {
+		frame, more := frames.Next()
+
+		// The caller name should be within the top ten frames.
+		if !more {
+			throw("can't happen")
+			break
+		}
+
+		// Expected format of cgo caller name: _cgoexp_3c910ddb72c4_foo
+		if error == cgoResultFail && frame.Function[0:8] == "_cgoexp_" {
+			callerName += frame.Function[21:] + " "
+			break
+		}
+
+		// Expected format of cgo callee name: GoRoutineName.ModuleName.funcX
+		// It's the first function on the stack out of the runtime package
+		if error == cgoCheckPointerFail && frame.Function[0:8] != "runtime." {
+			callerName += frame.Function + " "
+			break
+		}
+	}
+
+	if error == cgoResultFail {
+		msg = "result of cgo function" + callerName
+		msg += "is unpinned Go " + kindname + " or points to unpinned Go " + kindname
+	} else if error == cgoCheckPointerFail {
+		msg = "cgo argument of function" + callerName
+		msg += "has Go pointer to unpinned Go " + kindname
+	}
+
+	return errorString(msg)
 }
