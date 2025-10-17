@@ -1784,7 +1784,7 @@ func peCreateExportFile(ctxt *Link, libName string) (fname string) {
 		// See runtime/cgo/windows.go for details.
 		exports = append(exports, "_cgo_stub_export")
 	}
-	sort.Strings(exports)
+	slices.Sort(exports)
 	buf.WriteString(strings.Join(exports, "\n"))
 
 	err := os.WriteFile(fname, buf.Bytes(), 0666)

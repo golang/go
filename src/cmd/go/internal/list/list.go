@@ -16,6 +16,7 @@ import (
 	"os"
 	"reflect"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -392,7 +393,7 @@ func (v *jsonFlag) String() string {
 	for f := range *v {
 		fields = append(fields, f)
 	}
-	sort.Strings(fields)
+	slices.Sort(fields)
 	return strings.Join(fields, ",")
 }
 
@@ -927,7 +928,7 @@ func collectDeps(p *load.Package) {
 	for dep := range deps {
 		p.Deps = append(p.Deps, dep)
 	}
-	sort.Strings(p.Deps)
+	slices.Sort(p.Deps)
 }
 
 // collectDepsErrors populates p.DepsErrors by iterating over p.Internal.Imports.

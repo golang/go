@@ -13,7 +13,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -337,8 +337,8 @@ func (r *vcsRepo) Tags(ctx context.Context, prefix string) (*Tags, error) {
 			tags.List = append(tags.List, Tag{tag, ""})
 		}
 	}
-	sort.Slice(tags.List, func(i, j int) bool {
-		return tags.List[i].Name < tags.List[j].Name
+	slices.SortFunc(tags.List, func(i, j Tag) int {
+		return strings.Compare(i.Name, j.Name)
 	})
 	return tags, nil
 }
@@ -542,7 +542,7 @@ func hgParseStat(rev, out string) (*RevInfo, error) {
 			tags = append(tags, tag)
 		}
 	}
-	sort.Strings(tags)
+	slices.Sort(tags)
 
 	info := &RevInfo{
 		Origin: &Origin{
