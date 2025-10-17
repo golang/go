@@ -210,7 +210,7 @@ start:
 	RDCYCLE		X5				// f32200c0
 	RDTIME		X5				// f32210c0
 	RDINSTRET	X5				// f32220c0
-	
+
 	// 9: Zihintntl Extension
 	NTLP1					// 33002000
 	NTLPALL					// 33003000
@@ -492,6 +492,94 @@ start:
 
 	// 26.5.6: Compressed Breakpoint Instruction
 	CEBREAK						// 0290
+	// 24: "Zfa" Extension for Additional Floating-Point Instructions
+	// 24.1: Load-Immediate Instructions
+	FLIS $(NaN), F1                // d3801ff0
+	FLIS $(-1.0), F1               // d30010f0
+	FLIS $(-Inf), F1               // d38010f0
+	FLIS $(1.52587890625e-05), F1  // d30011f0
+	FLIS $(3.0517578125e-05),  F1  // d38011f0
+	FLIS $(0.00390625), F1         // d30012f0
+	FLIS $(0.0078125), F1          // d38012f0
+	FLIS $(0.0625), F1             // d30013f0
+	FLIS $(0.125), F1              // d38013f0
+	FLIS $(0.25), F1               // d30014f0
+	FLIS $(0.3125), F1             // d38014f0
+	FLIS $(0.375), F1              // d30015f0
+	FLIS $(0.4375), F1             // d38015f0
+	FLIS $(0.5), F1                // d30016f0
+	FLIS $(0.625), F1              // d38016f0
+	FLIS $(0.75), F1               // d30017f0
+	FLIS $(0.875), F1              // d38017f0
+	FLIS $(1.0), F1                // d30018f0
+	FLIS $(1.25), F1               // d38018f0
+	FLIS $(1.5), F1                // d30019f0
+	FLIS $(1.75), F1               // d38019f0
+	FLIS $(2.0), F1                // d3001af0
+	FLIS $(2.5), F1                // d3801af0
+	FLIS $(3.0), F1                // d3001bf0
+	FLIS $(4.0), F1                // d3801bf0
+	FLIS $(8.0), F1                // d3001cf0
+	FLIS $(1.6000000000000001), F1 // d3801cf0
+	FLIS $(1.28), F1               // d3001df0
+	FLIS $(2.5600000000000001), F1 // d3801df0
+	FLIS $(3.27), F1               // d3001ef0
+	FLIS $(6.5499999999999998), F1 // d3801ef0
+	FLIS $(+Inf), F1               // d3001ff0
+	FLIS $(NaN), F1                // d3801ff0
+	FLID $(-1.0), F1               // d30010f2
+	FLID $(-Inf), F1               // d38010f2
+	FLID $(1.52587890625e-05), F1  // d30011f2
+	FLID $(3.0517578125e-05), F1   // d38011f2
+	FLID $(0.00390625), F1         // d30012f2
+	FLID $(0.0078125), F1          // d38012f2
+	FLID $(0.0625), F1             // d30013f2
+	FLID $(0.125), F1              // d38013f2
+	FLID $(0.25), F1               // d30014f2
+	FLID $(0.3125), F1             // d38014f2
+	FLID $(0.375), F1              // d30015f2
+	FLID $(0.4375), F1             // d38015f2
+	FLID $(0.5), F1                // d30016f2
+	FLID $(0.625), F1              // d38016f2
+	FLID $(0.75), F1               // d30017f2
+	FLID $(0.875), F1              // d38017f2
+	FLID $(1.0), F1                // d30018f2
+	FLID $(1.25), F1               // d38018f2
+	FLID $(1.5), F1                // d30019f2
+	FLID $(1.75), F1               // d38019f2
+	FLID $(2.0), F1                // d3001af2
+	FLID $(2.5), F1                // d3801af2
+	FLID $(3.0), F1                // d3001bf2
+	FLID $(4.0), F1                // d3801bf2
+	FLID $(8.0), F1                // d3001cf2
+	FLID $(1.6000000000000001), F1 // d3801cf2
+	FLID $(1.28), F1               // d3001df2
+	FLID $(2.5600000000000001), F1 // d3801df2
+	FLID $(3.27), F1               // d3001ef2
+	FLID $(6.5499999999999998), F1 // d3801ef2
+	FLID $(+Inf), F1               // d3001ff2
+	FLID $(NaN), F1                // d3801ff2
+
+	// 24.2: Minimum and Maximum Instructions
+	FMAXMD F21, F20, F19           // d3395a2b
+	FMAXMS F21, F20, F19           // d3395a29
+	FMINMD F12, F11, F10           // 53a5c52a
+	FMINMS F12, F11, F10           // 53a5c528
+
+	// 24.3: Round-to-Integer Instructions
+	FROUNDD F18, F9                // d3044942
+	FROUNDS F18, F9                // d3044940
+	FROUNDNXD F18, F9              // d3045942
+	FROUNDNXS F18, F9              // d3045940
+
+	// 24.4: Modular Convert-to-Integer Instruction
+	FCVTMODWD F1, X11              // d39580c2
+
+	// 24.6: Comparison Instructions
+	FLEQD F2, F1, X11              // d3c520a2
+	FLEQS F2, F1, X11              // d3c520a0
+	FLTQD F18, F9, X11             // d3d524a3
+	FLTQS F18, F9, X11             // d3d524a1
 
 	// 28.4.1: Address Generation Instructions (Zba)
 	ADDUW		X10, X11, X12			// 3b86a508
@@ -2175,6 +2263,12 @@ start:
 	// Converted to load of symbol (AUIPC + FLW)
 	MOVF	$(709.78271289338397), F3		// 970f000087a10f00
 
+	// Convert to load of immediate via Zfa (FLIS)
+	MOVF $(1.52587890625e-05), F1  // 970f000087a00f00 or d30011f0
+	MOVF $(3.0517578125e-05),  F1  // 970f000087a00f00 or d38011f0
+	MOVF $(0.00390625), F1         // 970f000087a00f00 or d30012f0
+	MOVF $(0.0078125), F1          // 970f000087a00f00 or d38012f0
+
 	MOVD	4(X5), F0				// 07b04200
 	MOVD	F0, 4(X5)				// 27b20200
 	MOVD	F0, F1					// d3000022
@@ -2185,6 +2279,12 @@ start:
 
 	// Converted to load of symbol (AUIPC + FLD)
 	MOVD	$(709.78271289338397), F3		// 970f000087b10f00
+
+	// Convert to load of immediate via Zfa (FLID)
+	MOVD $(1.52587890625e-05), F1  // 970f000087b00f00 or d30011f2
+	MOVD $(3.0517578125e-05), F1   // 970f000087b00f00 or d38011f2
+	MOVD $(0.00390625), F1         // 970f000087b00f00 or d30012f2
+	MOVD $(0.0078125), F1          // 970f000087b00f00 or d38012f2
 
 	// TLS load with local-exec (LUI + ADDIW + ADD of TP + load)
 	MOV	tls(SB), X5				// b70f00009b8f0f00b38f4f0083b20f00

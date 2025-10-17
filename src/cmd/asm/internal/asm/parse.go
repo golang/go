@@ -493,7 +493,7 @@ func (p *Parser) operand(a *obj.Addr) {
 	}
 	if haveConstant {
 		p.back()
-		if p.have(scanner.Float) {
+		if p.have(scanner.Float) || p.haveIndent("Inf") || p.haveIndent("NaN") {
 			if prefix != '$' {
 				p.errorf("floating-point constant must be an immediate")
 			}
@@ -1284,7 +1284,7 @@ func (p *Parser) floatExpr() float64 {
 		return +p.floatExpr()
 	case '-':
 		return -p.floatExpr()
-	case scanner.Float:
+	case scanner.Float, scanner.Ident:
 		return p.atof(tok.String())
 	}
 	p.errorf("unexpected %s evaluating float expression", tok)
@@ -1461,6 +1461,16 @@ func (p *Parser) expect(expectedToken lex.ScanToken, expectedMessage string) {
 func (p *Parser) have(token lex.ScanToken) bool {
 	for i := p.inputPos; i < len(p.input); i++ {
 		if p.input[i].ScanToken == token {
+			return true
+		}
+	}
+	return false
+}
+
+// have reports whether the remaining tokens (including the current one) contain the specified token.
+func (p *Parser) haveIndent(token string) bool {
+	for i := p.inputPos; i < len(p.input); i++ {
+		if p.input[i].String() == token {
 			return true
 		}
 	}
