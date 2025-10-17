@@ -6,8 +6,8 @@ package strconv_test
 
 import (
 	"bufio"
+	_ "embed"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -92,15 +92,11 @@ func myatof32(s string) (f float32, ok bool) {
 	return f1, true
 }
 
+//go:embed testdata/testfp.txt
+var testfp string
+
 func TestFp(t *testing.T) {
-	f, err := os.Open("testdata/testfp.txt")
-	if err != nil {
-		t.Fatal("testfp: open testdata/testfp.txt:", err)
-	}
-	defer f.Close()
-
-	s := bufio.NewScanner(f)
-
+	s := bufio.NewScanner(strings.NewReader(testfp))
 	for lineno := 1; s.Scan(); lineno++ {
 		line := s.Text()
 		if len(line) == 0 || line[0] == '#' {
