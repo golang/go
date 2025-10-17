@@ -189,6 +189,7 @@ type eface struct {
 	data  unsafe.Pointer
 }
 
+//go:nosplit
 func efaceOf(ep *any) *eface {
 	return (*eface)(unsafe.Pointer(ep))
 }
