@@ -30,4 +30,4 @@ cmp stdout $WORK/net-deps.txt
 env GOPROXY=
 env GOWORK=off
 go mod why -m golang.org/x/net
-stdout '^# golang.org/x/net\nnet\ngolang.org/x/net'
+stdout '^# golang.org/x/net\nnet\ngolang.org/x/net(/dns/dnsmessage)?'
