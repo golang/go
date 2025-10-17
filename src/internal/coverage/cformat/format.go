@@ -38,7 +38,6 @@ import (
 	"io"
 	"maps"
 	"slices"
-	"sort"
 	"strings"
 	"text/tabwriter"
 )
@@ -183,7 +182,7 @@ func (fm *Formatter) EmitTextual(pkgs []string, w io.Writer) error {
 	if _, err := fmt.Fprintf(w, "mode: %s\n", fm.cm.String()); err != nil {
 		return err
 	}
-	sort.Strings(pkgs)
+	slices.Sort(pkgs)
 	for _, importpath := range pkgs {
 		p := fm.pm[importpath]
 		if p == nil {
