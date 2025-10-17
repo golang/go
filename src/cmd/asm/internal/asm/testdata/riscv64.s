@@ -295,6 +295,14 @@ start:
 	AMOCASB		X5, (X6), X7			// af03532e
 	AMOCASH		X5, (X6), X7			// af13532e
 
+	// 19.6.1: Cache-Block Management Instructions (Zicbom)
+	CBOCLEAN	(X5)					// 0fa01200
+	CBOFLUSH	(X5)					// 0fa02200
+	CBOINVAL	(X5)					// 0fa00200
+
+	// 19.6.2: Cache-Block Zero Instructions (Zicboz)
+	CBOZERO		(X5)					// 0fa04200
+
 	// 20.5: Single-Precision Load and Store Instructions
 	FLW	(X5), F0				// 07a00200
 	FLW	4(X5), F0				// 07a04200
