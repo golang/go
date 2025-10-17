@@ -175,8 +175,8 @@ func TestReflectCallABI(t *testing.T) {
 				t.Fatalf("test case has different number of inputs and outputs: %d in, %d out", typ.NumIn(), typ.NumOut())
 			}
 			var args []reflect.Value
-			for i := 0; i < typ.NumIn(); i++ {
-				args = append(args, genValue(t, typ.In(i), r))
+			for arg := range typ.Ins() {
+				args = append(args, genValue(t, arg, r))
 			}
 			results := fn.Call(args)
 			for i := range results {
