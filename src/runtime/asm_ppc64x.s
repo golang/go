@@ -614,6 +614,8 @@ CALLFN(·call1073741824, 1073741824)
 
 TEXT runtime·procyieldAsm(SB),NOSPLIT|NOFRAME,$0-4
 	MOVW	cycles+0(FP), R7
+	CMP	$0, R7
+	BEQ	done
 	// POWER does not have a pause/yield instruction equivalent.
 	// Instead, we can lower the program priority by setting the
 	// Program Priority Register prior to the wait loop and set it
@@ -625,6 +627,7 @@ again:
 	CMP	$0, R7
 	BNE	again
 	OR	R6, R6, R6	// Set PPR priority back to medium-low
+done:
 	RET
 
 // Save state of caller into g->sched,

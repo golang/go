@@ -283,13 +283,6 @@ func procyield(cycles uint32) {
 }
 
 // procyieldAsm is the assembly implementation of procyield.
-//
-// It may loop infinitely if called with cycles == 0. Prefer
-// procyield, which will compile down to nothing in such cases,
-// instead.
-//
-// FIXME: The implementation really should not loop infinitely if
-// the number of cycles is 0.
 func procyieldAsm(cycles uint32)
 
 type neverCallThisFunction struct{}
