@@ -1036,7 +1036,7 @@ aesloop:
 	VMOV	V0.D[0], R0
 	RET
 
-TEXT runtime·procyield(SB),NOSPLIT,$0-0
+TEXT runtime·procyieldAsm(SB),NOSPLIT,$0-0
 	MOVWU	cycles+0(FP), R0
 again:
 	YIELD

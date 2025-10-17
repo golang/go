@@ -612,7 +612,7 @@ CALLFN(·call268435456, 268435456)
 CALLFN(·call536870912, 536870912)
 CALLFN(·call1073741824, 1073741824)
 
-TEXT runtime·procyield(SB),NOSPLIT|NOFRAME,$0-4
+TEXT runtime·procyieldAsm(SB),NOSPLIT|NOFRAME,$0-4
 	MOVW	cycles+0(FP), R7
 	// POWER does not have a pause/yield instruction equivalent.
 	// Instead, we can lower the program priority by setting the

@@ -274,7 +274,23 @@ func reflectcall(stackArgsType *_type, fn, stackArgs unsafe.Pointer, stackArgsSi
 // See go.dev/issue/67401.
 //
 //go:linkname procyield
-func procyield(cycles uint32)
+//go:nosplit
+func procyield(cycles uint32) {
+	if cycles == 0 {
+		return
+	}
+	procyieldAsm(cycles)
+}
+
+// procyieldAsm is the assembly implementation of procyield.
+//
+// It may loop infinitely if called with cycles == 0. Prefer
+// procyield, which will compile down to nothing in such cases,
+// instead.
+//
+// FIXME: The implementation really should not loop infinitely if
+// the number of cycles is 0.
+func procyieldAsm(cycles uint32)
 
 type neverCallThisFunction struct{}
 
