@@ -15,7 +15,6 @@ package url
 import (
 	"errors"
 	"fmt"
-	"maps"
 	"net/netip"
 	"path"
 	"slices"
@@ -1046,7 +1045,16 @@ func (v Values) Encode() string {
 		return ""
 	}
 	var buf strings.Builder
-	for _, k := range slices.Sorted(maps.Keys(v)) {
+	// To minimize allocations, we eschew iterators and pre-size the slice in
+	// which we collect v's keys.
+	keys := make([]string, len(v))
+	var i int
+	for k := range v {
+		keys[i] = k
+		i++
+	}
+	slices.Sort(keys)
+	for _, k := range keys {
 		vs := v[k]
 		keyEscaped := QueryEscape(k)
 		for _, v := range vs {
