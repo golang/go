@@ -163,6 +163,11 @@ will fail early. The default value is `httpcookiemaxnum=3000`. Setting
 number of cookies. To avoid denial of service attacks, this setting and default
 was backported to Go 1.25.2 and Go 1.24.8.
 
+Go 1.26 added a new `urlstrictcolons` setting that controls whether `net/url.Parse`
+allows malformed hostnames containing colons outside of a bracketed IPv6 address.
+The default `urlstrictcolons=1` rejects URLs such as `http://localhost:1:2` or `http://::1/`.
+Colons are permitted as part of a bracketed IPv6 address, such as `http://[::1]/`.
+
 ### Go 1.25
 
 Go 1.25 added a new `decoratemappings` setting that controls whether the Go
