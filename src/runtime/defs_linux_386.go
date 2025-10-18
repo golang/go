@@ -237,9 +237,13 @@ type ucontext struct {
 	uc_sigmask  uint32
 }
 
-type itimerspec struct {
+type itimerspec32 struct {
 	it_interval timespec32
 	it_value    timespec32
+}
+type itimerspec struct {
+	it_interval timespec
+	it_value    timespec
 }
 
 type itimerval struct {

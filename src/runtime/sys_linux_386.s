@@ -54,6 +54,7 @@
 #define SYS_exit_group		252
 #define SYS_timer_create	259
 #define SYS_timer_settime	260
+#define SYS_timer_settime64	409
 #define SYS_timer_delete	263
 #define SYS_clock_gettime	265
 #define SYS_tgkill		270
@@ -209,8 +210,19 @@ TEXT runtime·timer_create(SB),NOSPLIT,$0-16
 	MOVL	AX, ret+12(FP)
 	RET
 
-TEXT runtime·timer_settime(SB),NOSPLIT,$0-20
+// Linux: kernel/time/posix-timer.c, requiring COMPAT_32BIT_TIME
+TEXT runtime·timer_settime32(SB),NOSPLIT,$0-20
 	MOVL	$SYS_timer_settime, AX
+	MOVL	timerid+0(FP), BX
+	MOVL	flags+4(FP), CX
+	MOVL	new+8(FP), DX
+	MOVL	old+12(FP), SI
+	INVOKE_SYSCALL
+	MOVL	AX, ret+16(FP)
+	RET
+
+TEXT runtime·timer_settime64(SB),NOSPLIT,$0-20
+	MOVL	$SYS_timer_settime64, AX
 	MOVL	timerid+0(FP), BX
 	MOVL	flags+4(FP), CX
 	MOVL	new+8(FP), DX

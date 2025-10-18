@@ -44,6 +44,7 @@
 #define SYS_clock_gettime (SYS_BASE + 263)
 #define SYS_timer_create (SYS_BASE + 257)
 #define SYS_timer_settime (SYS_BASE + 258)
+#define SYS_timer_settime64 (SYS_BASE + 409)
 #define SYS_timer_delete (SYS_BASE + 261)
 #define SYS_pipe2 (SYS_BASE + 359)
 #define SYS_access (SYS_BASE + 33)
@@ -231,13 +232,23 @@ TEXT runtime·timer_create(SB),NOSPLIT,$0-16
 	SWI	$0
 	MOVW	R0, ret+12(FP)
 	RET
-
-TEXT runtime·timer_settime(SB),NOSPLIT,$0-20
+// Linux: kernel/time/posix-timer.c, requiring COMPAT_32BIT_TIME.
+TEXT runtime·timer_settime32(SB),NOSPLIT,$0-20
 	MOVW	timerid+0(FP), R0
 	MOVW	flags+4(FP), R1
 	MOVW	new+8(FP), R2
 	MOVW	old+12(FP), R3
 	MOVW	$SYS_timer_settime, R7
+	SWI	$0
+	MOVW	R0, ret+16(FP)
+	RET
+
+TEXT runtime·timer_settime64(SB),NOSPLIT,$0-20
+	MOVW	timerid+0(FP), R0
+	MOVW	flags+4(FP), R1
+	MOVW	new+8(FP), R2
+	MOVW	old+12(FP), R3
+	MOVW	$SYS_timer_settime64, R7
 	SWI	$0
 	MOVW	R0, ret+16(FP)
 	RET

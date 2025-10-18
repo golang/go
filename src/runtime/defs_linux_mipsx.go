@@ -152,9 +152,14 @@ type siginfo struct {
 	_ [_si_max_size - unsafe.Sizeof(siginfoFields{})]byte
 }
 
-type itimerspec struct {
+type itimerspec32 struct {
 	it_interval timespec32
 	it_value    timespec32
+}
+
+type itimerspec struct {
+	it_interval timespec
+	it_value    timespec
 }
 
 type itimerval struct {
