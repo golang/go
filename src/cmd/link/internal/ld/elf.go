@@ -343,8 +343,8 @@ func elf32phdr(out *OutBuf, e *ElfPhdr) {
 
 func elf64shdr(out *OutBuf, e *ElfShdr) {
 	out.Write32(e.Name)
-	out.Write32(uint32(e.Type))
-	out.Write64(uint64(e.Flags))
+	out.Write32(e.Type)
+	out.Write64(e.Flags)
 	out.Write64(e.Addr)
 	out.Write64(e.Off)
 	out.Write64(e.Size)
@@ -356,7 +356,7 @@ func elf64shdr(out *OutBuf, e *ElfShdr) {
 
 func elf32shdr(out *OutBuf, e *ElfShdr) {
 	out.Write32(e.Name)
-	out.Write32(uint32(e.Type))
+	out.Write32(e.Type)
 	out.Write32(uint32(e.Flags))
 	out.Write32(uint32(e.Addr))
 	out.Write32(uint32(e.Off))
@@ -442,9 +442,9 @@ func getElfEhdr() *ElfEhdr {
 
 func elf64writehdr(out *OutBuf) uint32 {
 	out.Write(ehdr.Ident[:])
-	out.Write16(uint16(ehdr.Type))
-	out.Write16(uint16(ehdr.Machine))
-	out.Write32(uint32(ehdr.Version))
+	out.Write16(ehdr.Type)
+	out.Write16(ehdr.Machine)
+	out.Write32(ehdr.Version)
 	out.Write64(ehdr.Entry)
 	out.Write64(ehdr.Phoff)
 	out.Write64(ehdr.Shoff)
@@ -460,9 +460,9 @@ func elf64writehdr(out *OutBuf) uint32 {
 
 func elf32writehdr(out *OutBuf) uint32 {
 	out.Write(ehdr.Ident[:])
-	out.Write16(uint16(ehdr.Type))
-	out.Write16(uint16(ehdr.Machine))
-	out.Write32(uint32(ehdr.Version))
+	out.Write16(ehdr.Type)
+	out.Write16(ehdr.Machine)
+	out.Write32(ehdr.Version)
 	out.Write32(uint32(ehdr.Entry))
 	out.Write32(uint32(ehdr.Phoff))
 	out.Write32(uint32(ehdr.Shoff))
@@ -1379,7 +1379,7 @@ func elfEmitReloc(ctxt *Link) {
 	for i := 0; i < len(Segdwarf.Sections); i++ {
 		sect := Segdwarf.Sections[i]
 		si := dwarfp[i]
-		if si.secSym() != loader.Sym(sect.Sym) ||
+		if si.secSym() != sect.Sym ||
 			ctxt.loader.SymSect(si.secSym()) != sect {
 			panic("inconsistency between dwarfp and Segdwarf")
 		}
@@ -1426,7 +1426,7 @@ func (ctxt *Link) doelf() {
 
 	shstrtabAddstring := func(s string) {
 		off := addshstr(s)
-		elfsetstring(ctxt, 0, s, int(off))
+		elfsetstring(ctxt, 0, s, off)
 	}
 
 	shstrtabAddstring("")

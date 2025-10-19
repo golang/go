@@ -2655,7 +2655,7 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 	case 9: /* RLDC Ra, $sh, $mb, Rb */
 		sh := uint32(p.RestArgs[0].Addr.Offset) & 0x3F
 		mb := uint32(p.RestArgs[1].Addr.Offset) & 0x3F
-		o1 = AOP_RRR(c.opirr(p.As), uint32(p.From.Reg), uint32(p.To.Reg), (uint32(sh) & 0x1F))
+		o1 = AOP_RRR(c.opirr(p.As), uint32(p.From.Reg), uint32(p.To.Reg), (sh & 0x1F))
 		o1 |= (sh & 0x20) >> 4 // sh[5] is placed in bit 1.
 		o1 |= (mb & 0x1F) << 6 // mb[0:4] is placed in bits 6-10.
 		o1 |= (mb & 0x20)      // mb[5] is placed in bit 5
@@ -2784,7 +2784,7 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 			if n > b || b > 63 {
 				c.ctxt.Diag("Invalid n or b for CLRLSLDI: %x %x\n%v", n, b, p)
 			}
-			o1 = AOP_MD(OP_RLDIC, uint32(p.To.Reg), uint32(r), uint32(n), uint32(b)-uint32(n))
+			o1 = AOP_MD(OP_RLDIC, uint32(p.To.Reg), r, uint32(n), uint32(b)-uint32(n))
 
 		default:
 			c.ctxt.Diag("unexpected op in rldc case\n%v", p)
@@ -2967,7 +2967,7 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 			c.ctxt.Diag("%v is not supported", p)
 		}
 		if o.ispfx {
-			o1, o2 = pfxadd(int16(p.To.Reg), int16(r), PFX_R_ABS, d)
+			o1, o2 = pfxadd(p.To.Reg, int16(r), PFX_R_ABS, d)
 		} else if o.size == 8 {
 			o1 = LOP_IRR(OP_ORI, REGTMP, REGZERO, uint32(int32(d)))          // tmp = uint16(d)
 			o2 = AOP_RRR(c.oprrr(p.As), uint32(p.To.Reg), REGTMP, uint32(r)) // to = tmp + from
@@ -2979,7 +2979,7 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 		} else {
 			// For backwards compatibility with GOPPC64 < 10, generate 34b constants in register.
 			o1 = LOP_IRR(OP_ADDIS, REGZERO, REGTMP, uint32(d>>32)) // tmp = sign_extend((d>>32)&0xFFFF0000)
-			o2 = loadl16(REGTMP, int64(d>>16))                     // tmp |= (d>>16)&0xFFFF
+			o2 = loadl16(REGTMP, d>>16)                            // tmp |= (d>>16)&0xFFFF
 			o3 = AOP_MD(OP_RLDICR, REGTMP, REGTMP, 16, 63-16)      // tmp <<= 16
 			o4 = loadl16(REGTMP, int64(uint16(d)))                 // tmp |= d&0xFFFF
 			o5 = AOP_RRR(c.oprrr(p.As), uint32(p.To.Reg), REGTMP, uint32(r))
@@ -3080,9 +3080,9 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 
 		if o.ispfx {
 			if rel == nil {
-				o1, o2 = pfxadd(int16(p.To.Reg), int16(r), PFX_R_ABS, v)
+				o1, o2 = pfxadd(p.To.Reg, int16(r), PFX_R_ABS, v)
 			} else {
-				o1, o2 = pfxadd(int16(p.To.Reg), REG_R0, PFX_R_PCREL, 0)
+				o1, o2 = pfxadd(p.To.Reg, REG_R0, PFX_R_PCREL, 0)
 				rel.Type = objabi.R_ADDRPOWER_PCREL34
 			}
 		}
@@ -3519,7 +3519,7 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 			v |= 1 << 8
 		}
 
-		o1 = AOP_RRR(OP_MTCRF, uint32(p.From.Reg), 0, 0) | uint32(v)<<12
+		o1 = AOP_RRR(OP_MTCRF, uint32(p.From.Reg), 0, 0) | v<<12
 
 	case 70: /* cmp* r,r,cr or cmp*i r,i,cr or fcmp f,f,cr or cmpeqb r,r */
 		r := uint32(p.Reg&7) << 2

@@ -44,7 +44,7 @@ func (f *xcoffFile) symbols() ([]Sym, error) {
 		case N_DEBUG:
 			sym.Code = '?'
 		default:
-			if s.SectionNumber < 0 || len(f.xcoff.Sections) < int(s.SectionNumber) {
+			if s.SectionNumber < 0 || len(f.xcoff.Sections) < s.SectionNumber {
 				return nil, fmt.Errorf("invalid section number in symbol table")
 			}
 			sect := f.xcoff.Sections[s.SectionNumber-1]
@@ -116,7 +116,7 @@ func findXCOFFSymbol(f *xcoff.File, name string) (*xcoff.Symbol, error) {
 		if s.SectionNumber <= 0 {
 			return nil, fmt.Errorf("symbol %s: invalid section number %d", name, s.SectionNumber)
 		}
-		if len(f.Sections) < int(s.SectionNumber) {
+		if len(f.Sections) < s.SectionNumber {
 			return nil, fmt.Errorf("symbol %s: section number %d is larger than max %d", name, s.SectionNumber, len(f.Sections))
 		}
 		return s, nil

@@ -469,42 +469,42 @@ func initMetrics() {
 			deps: makeStatDepSet(schedStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
-				out.scalar = uint64(in.schedStats.gTotal)
+				out.scalar = in.schedStats.gTotal
 			},
 		},
 		"/sched/goroutines/not-in-go:goroutines": {
 			deps: makeStatDepSet(schedStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
-				out.scalar = uint64(in.schedStats.gNonGo)
+				out.scalar = in.schedStats.gNonGo
 			},
 		},
 		"/sched/goroutines/running:goroutines": {
 			deps: makeStatDepSet(schedStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
-				out.scalar = uint64(in.schedStats.gRunning)
+				out.scalar = in.schedStats.gRunning
 			},
 		},
 		"/sched/goroutines/runnable:goroutines": {
 			deps: makeStatDepSet(schedStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
-				out.scalar = uint64(in.schedStats.gRunnable)
+				out.scalar = in.schedStats.gRunnable
 			},
 		},
 		"/sched/goroutines/waiting:goroutines": {
 			deps: makeStatDepSet(schedStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
-				out.scalar = uint64(in.schedStats.gWaiting)
+				out.scalar = in.schedStats.gWaiting
 			},
 		},
 		"/sched/goroutines-created:goroutines": {
 			deps: makeStatDepSet(schedStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
-				out.scalar = uint64(in.schedStats.gCreated)
+				out.scalar = in.schedStats.gCreated
 			},
 		},
 		"/sched/latencies:seconds": {
@@ -536,7 +536,7 @@ func initMetrics() {
 			deps: makeStatDepSet(schedStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
-				out.scalar = uint64(in.schedStats.threads)
+				out.scalar = in.schedStats.threads
 			},
 		},
 		"/sync/mutex/wait/total:seconds": {

@@ -1254,7 +1254,7 @@ func machoEmitReloc(ctxt *Link) {
 	for i := 0; i < len(Segdwarf.Sections); i++ {
 		sect := Segdwarf.Sections[i]
 		si := dwarfp[i]
-		if si.secSym() != loader.Sym(sect.Sym) ||
+		if si.secSym() != sect.Sym ||
 			ctxt.loader.SymSect(si.secSym()) != sect {
 			panic("inconsistency between dwarfp and Segdwarf")
 		}
@@ -1535,11 +1535,11 @@ func machoCodeSign(ctxt *Link, fname string) error {
 		// Uodate the __LINKEDIT segment.
 		segSz := sigOff + sz - int64(linkeditSeg.Offset)
 		mf.ByteOrder.PutUint64(tmp[:8], uint64(segSz))
-		_, err = f.WriteAt(tmp[:8], int64(linkeditOff)+int64(unsafe.Offsetof(macho.Segment64{}.Memsz)))
+		_, err = f.WriteAt(tmp[:8], linkeditOff+int64(unsafe.Offsetof(macho.Segment64{}.Memsz)))
 		if err != nil {
 			return err
 		}
-		_, err = f.WriteAt(tmp[:8], int64(linkeditOff)+int64(unsafe.Offsetof(macho.Segment64{}.Filesz)))
+		_, err = f.WriteAt(tmp[:8], linkeditOff+int64(unsafe.Offsetof(macho.Segment64{}.Filesz)))
 		if err != nil {
 			return err
 		}

@@ -1163,7 +1163,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		switch p.As {
 		case obj.APCALIGN, obj.APCALIGNMAX:
 			v := obj.AlignmentPaddingLength(int32(p.Pc), p, c.ctxt)
-			for i := 0; i < int(v/4); i++ {
+			for i := 0; i < v/4; i++ {
 				// emit ANOOP instruction by the padding size
 				buf.emit(OP_NOOP)
 			}
@@ -4017,7 +4017,7 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 
 		// Handle smaller unaligned and negative offsets via addition or subtraction.
 		if v >= -4095 && v <= 4095 {
-			o1 = c.oaddi12(p, v, REGTMP, int16(rt))
+			o1 = c.oaddi12(p, v, REGTMP, rt)
 			o2 = c.olsr12u(p, c.opstr(p, p.As), 0, REGTMP, rf)
 			break
 		}
@@ -4073,7 +4073,7 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 
 		// Handle smaller unaligned and negative offsets via addition or subtraction.
 		if v >= -4095 && v <= 4095 {
-			o1 = c.oaddi12(p, v, REGTMP, int16(rf))
+			o1 = c.oaddi12(p, v, REGTMP, rf)
 			o2 = c.olsr12u(p, c.opldr(p, p.As), 0, REGTMP, rt)
 			break
 		}
@@ -4852,7 +4852,7 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 		if p.Pool != nil {
 			c.ctxt.Diag("%v: unused constant in pool (%v)\n", p, v)
 		}
-		o1 = c.oaddi(p, AADD, lo, REGTMP, int16(rf))
+		o1 = c.oaddi(p, AADD, lo, REGTMP, rf)
 		o2 = c.oaddi(p, AADD, hi, REGTMP, REGTMP)
 		o3 = c.opldpstp(p, o, 0, REGTMP, rt1, rt2, 1)
 		break
@@ -4917,7 +4917,7 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 		if p.Pool != nil {
 			c.ctxt.Diag("%v: unused constant in pool (%v)\n", p, v)
 		}
-		o1 = c.oaddi(p, AADD, lo, REGTMP, int16(rt))
+		o1 = c.oaddi(p, AADD, lo, REGTMP, rt)
 		o2 = c.oaddi(p, AADD, hi, REGTMP, REGTMP)
 		o3 = c.opldpstp(p, o, 0, REGTMP, rf1, rf2, 0)
 		break
@@ -5293,7 +5293,7 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 		}
 
 		o1 = c.opirr(p, p.As)
-		o1 |= (uint32(r&31) << 5) | (uint32((imm>>3)&0xfff) << 10) | (uint32(v & 31))
+		o1 |= (uint32(r&31) << 5) | ((imm >> 3) & 0xfff << 10) | (v & 31)
 
 	case 92: /* vmov Vn.<T>[index], Vd.<T>[index] */
 		rf := int(p.From.Reg)
@@ -5846,7 +5846,7 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 	out[3] = o4
 	out[4] = o5
 
-	return int(o.size(c.ctxt, p) / 4)
+	return o.size(c.ctxt, p) / 4
 }
 
 func (c *ctxt7) addrRelocType(p *obj.Prog) objabi.RelocType {
@@ -7854,12 +7854,12 @@ func (c *ctxt7) encRegShiftOrExt(p *obj.Prog, a *obj.Addr, r int16) uint32 {
 
 // pack returns the encoding of the "Q" field and two arrangement specifiers.
 func pack(q uint32, arngA, arngB uint8) uint32 {
-	return uint32(q)<<16 | uint32(arngA)<<8 | uint32(arngB)
+	return q<<16 | uint32(arngA)<<8 | uint32(arngB)
 }
 
 // ARM64RegisterExtension constructs an ARM64 register with extension or arrangement.
 func ARM64RegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, isIndex bool) error {
-	Rnum := (reg & 31) + int16(num<<5)
+	Rnum := (reg & 31) + num<<5
 	if isAmount {
 		if num < 0 || num > 7 {
 			return errors.New("index shift amount is out of range")

@@ -76,7 +76,7 @@ func testMain(m *testing.M) int {
 	start := 0
 	lastSpace := true
 	backslash := false
-	s := string(out)
+	s := out
 	for i, c := range s {
 		if quote == '\000' && unicode.IsSpace(c) {
 			if !lastSpace {

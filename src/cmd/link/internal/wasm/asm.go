@@ -302,11 +302,11 @@ func writeTypeSec(ctxt *ld.Link, types []*wasmFuncType) {
 		ctxt.Out.WriteByte(0x60) // functype
 		writeUleb128(ctxt.Out, uint64(len(t.Params)))
 		for _, v := range t.Params {
-			ctxt.Out.WriteByte(byte(v))
+			ctxt.Out.WriteByte(v)
 		}
 		writeUleb128(ctxt.Out, uint64(len(t.Results)))
 		for _, v := range t.Results {
-			ctxt.Out.WriteByte(byte(v))
+			ctxt.Out.WriteByte(v)
 		}
 	}
 
