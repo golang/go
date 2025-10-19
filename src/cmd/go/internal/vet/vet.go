@@ -280,7 +280,7 @@ func printJSONDiagnostics(r io.Reader) error {
 		// unitchecker emits a JSON map of the form:
 		// output maps Package ID -> Analyzer.Name -> (error | []Diagnostic);
 		var tree jsonTree
-		if err := json.Unmarshal([]byte(stdout), &tree); err != nil {
+		if err := json.Unmarshal(stdout, &tree); err != nil {
 			return fmt.Errorf("parsing JSON: %v", err)
 		}
 		for _, units := range tree {

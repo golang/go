@@ -2154,7 +2154,7 @@ func (p *Package) gccDebug(stdin []byte, nnames int) (d *dwarf.Data, ints []int6
 		for _, s := range f.Symbols {
 			switch {
 			case isDebugInts(s.Name):
-				if i := int(s.SectionNumber) - 1; 0 <= i && i < len(f.Sections) {
+				if i := s.SectionNumber - 1; 0 <= i && i < len(f.Sections) {
 					sect := f.Sections[i]
 					if s.Value < sect.Size {
 						if sdat, err := sect.Data(); err == nil {
@@ -2167,7 +2167,7 @@ func (p *Package) gccDebug(stdin []byte, nnames int) (d *dwarf.Data, ints []int6
 					}
 				}
 			case isDebugFloats(s.Name):
-				if i := int(s.SectionNumber) - 1; 0 <= i && i < len(f.Sections) {
+				if i := s.SectionNumber - 1; 0 <= i && i < len(f.Sections) {
 					sect := f.Sections[i]
 					if s.Value < sect.Size {
 						if sdat, err := sect.Data(); err == nil {
@@ -2181,7 +2181,7 @@ func (p *Package) gccDebug(stdin []byte, nnames int) (d *dwarf.Data, ints []int6
 				}
 			default:
 				if n := indexOfDebugStr(s.Name); n != -1 {
-					if i := int(s.SectionNumber) - 1; 0 <= i && i < len(f.Sections) {
+					if i := s.SectionNumber - 1; 0 <= i && i < len(f.Sections) {
 						sect := f.Sections[i]
 						if s.Value < sect.Size {
 							if sdat, err := sect.Data(); err == nil {
@@ -2193,7 +2193,7 @@ func (p *Package) gccDebug(stdin []byte, nnames int) (d *dwarf.Data, ints []int6
 					break
 				}
 				if n := indexOfDebugStrlen(s.Name); n != -1 {
-					if i := int(s.SectionNumber) - 1; 0 <= i && i < len(f.Sections) {
+					if i := s.SectionNumber - 1; 0 <= i && i < len(f.Sections) {
 						sect := f.Sections[i]
 						if s.Value < sect.Size {
 							if sdat, err := sect.Data(); err == nil {

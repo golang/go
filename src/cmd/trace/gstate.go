@@ -147,7 +147,7 @@ func (gs *gState[R]) start(ts trace.Time, resource R, ctx *traceContext) {
 			Name:         gs.startCause.name,
 			Start:        ctx.elapsed(gs.startCause.time),
 			End:          ctx.elapsed(ts),
-			FromResource: uint64(gs.startCause.resource),
+			FromResource: gs.startCause.resource,
 			ToResource:   uint64(resource),
 			FromStack:    ctx.Stack(viewerFrames(gs.startCause.stack)),
 		})

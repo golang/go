@@ -273,7 +273,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			} else {
 				ldr.Errorf(s, "unexpected relocation for dynamic symbol %s", ldr.SymName(targ))
 			}
-			rela.AddAddrPlus(target.Arch, targ, int64(r.Add()))
+			rela.AddAddrPlus(target.Arch, targ, r.Add())
 			return true
 		}
 
@@ -496,30 +496,30 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		pc := ldr.SymValue(s) + int64(r.Off())
 		t := calculatePCAlignedReloc(r.Type(), ldr.SymAddr(rs)+r.Add(), pc)
 		if r.Type() == objabi.R_LOONG64_ADDR_LO {
-			return int64(val&0xffc003ff | (t << 10)), noExtReloc, isOk
+			return val&0xffc003ff | (t << 10), noExtReloc, isOk
 		}
-		return int64(val&0xfe00001f | (t << 5)), noExtReloc, isOk
+		return val&0xfe00001f | (t << 5), noExtReloc, isOk
 	case objabi.R_LOONG64_TLS_LE_HI,
 		objabi.R_LOONG64_TLS_LE_LO:
 		t := ldr.SymAddr(rs) + r.Add()
 		if r.Type() == objabi.R_LOONG64_TLS_LE_LO {
-			return int64(val&0xffc003ff | ((t & 0xfff) << 10)), noExtReloc, isOk
+			return val&0xffc003ff | ((t & 0xfff) << 10), noExtReloc, isOk
 		}
-		return int64(val&0xfe00001f | (((t) >> 12 << 5) & 0x1ffffe0)), noExtReloc, isOk
+		return val&0xfe00001f | (((t) >> 12 << 5) & 0x1ffffe0), noExtReloc, isOk
 	case objabi.R_CALLLOONG64,
 		objabi.R_JMPLOONG64:
 		pc := ldr.SymValue(s) + int64(r.Off())
 		t := ldr.SymAddr(rs) + r.Add() - pc
-		return int64(val&0xfc000000 | (((t >> 2) & 0xffff) << 10) | (((t >> 2) & 0x3ff0000) >> 16)), noExtReloc, isOk
+		return val&0xfc000000 | (((t >> 2) & 0xffff) << 10) | (((t >> 2) & 0x3ff0000) >> 16), noExtReloc, isOk
 
 	case objabi.R_JMP16LOONG64,
 		objabi.R_JMP21LOONG64:
 		pc := ldr.SymValue(s) + int64(r.Off())
 		t := ldr.SymAddr(rs) + r.Add() - pc
 		if r.Type() == objabi.R_JMP16LOONG64 {
-			return int64(val&0xfc0003ff | (((t >> 2) & 0xffff) << 10)), noExtReloc, isOk
+			return val&0xfc0003ff | (((t >> 2) & 0xffff) << 10), noExtReloc, isOk
 		}
-		return int64(val&0xfc0003e0 | (((t >> 2) & 0xffff) << 10) | (((t >> 2) & 0x1f0000) >> 16)), noExtReloc, isOk
+		return val&0xfc0003e0 | (((t >> 2) & 0xffff) << 10) | (((t >> 2) & 0x1f0000) >> 16), noExtReloc, isOk
 
 	case objabi.R_LOONG64_TLS_IE_HI,
 		objabi.R_LOONG64_TLS_IE_LO:
@@ -540,9 +540,9 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 
 	case objabi.R_LOONG64_ADD64, objabi.R_LOONG64_SUB64:
 		if r.Type() == objabi.R_LOONG64_ADD64 {
-			return int64(val + ldr.SymAddr(rs) + r.Add()), noExtReloc, isOk
+			return val + ldr.SymAddr(rs) + r.Add(), noExtReloc, isOk
 		}
-		return int64(val - (ldr.SymAddr(rs) + r.Add())), noExtReloc, isOk
+		return val - (ldr.SymAddr(rs) + r.Add()), noExtReloc, isOk
 	}
 
 	return val, 0, false
@@ -628,7 +628,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 			for i := 0; ; i++ {
 				oName := ldr.SymName(rs)
 				name := oName + fmt.Sprintf("%+x-tramp%d", r.Add(), i)
-				tramp = ldr.LookupOrCreateSym(name, int(ldr.SymVersion(rs)))
+				tramp = ldr.LookupOrCreateSym(name, ldr.SymVersion(rs))
 				ldr.SetAttrReachable(tramp, true)
 				if ldr.SymType(tramp) == sym.SDYNIMPORT {
 					// don't reuse trampoline defined in other module
