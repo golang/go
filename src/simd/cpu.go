@@ -6,6 +6,14 @@ package simd
 
 import "internal/cpu"
 
+// HasAES returns whether the CPU supports the AES feature.
+//
+// HasAES is defined on all GOARCHes, but will only return true on
+// GOARCH amd64.
+func HasAES() bool {
+	return cpu.X86.HasAES
+}
+
 // HasAVX returns whether the CPU supports the AVX feature.
 //
 // HasAVX is defined on all GOARCHes, but will only return true on
