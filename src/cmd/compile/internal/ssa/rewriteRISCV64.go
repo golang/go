@@ -133,6 +133,8 @@ func rewriteValueRISCV64(v *Value) bool {
 	case OpCom8:
 		v.Op = OpRISCV64NOT
 		return true
+	case OpCondSelect:
+		return rewriteValueRISCV64_OpCondSelect(v)
 	case OpConst16:
 		return rewriteValueRISCV64_OpConst16(v)
 	case OpConst32:
@@ -1080,6 +1082,32 @@ func rewriteValueRISCV64_OpBswap32(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+}
+func rewriteValueRISCV64_OpCondSelect(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (CondSelect <t> x y cond)
+	// cond: buildcfg.GORISCV64 >= 23
+	// result: (OR (CZEROEQZ <t> x cond) (CZERONEZ <t> y cond))
+	for {
+		t := v.Type
+		x := v_0
+		y := v_1
+		cond := v_2
+		if !(buildcfg.GORISCV64 >= 23) {
+			break
+		}
+		v.reset(OpRISCV64OR)
+		v0 := b.NewValue0(v.Pos, OpRISCV64CZEROEQZ, t)
+		v0.AddArg2(x, cond)
+		v1 := b.NewValue0(v.Pos, OpRISCV64CZERONEZ, t)
+		v1.AddArg2(y, cond)
+		v.AddArg2(v0, v1)
+		return true
+	}
+	return false
 }
 func rewriteValueRISCV64_OpConst16(v *Value) bool {
 	// match: (Const16 [val])
