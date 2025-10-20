@@ -36,7 +36,7 @@ import (
 // In cases 1, 3, and 4, it is possible that the underlying type or methods of
 // N may not be immediately available.
 //  - During type-checking, we allocate N before type-checking its underlying
-//    type or methods, so that we may resolve recursive references.
+//    type or methods, so that we can create recursive references.
 //  - When loading from export data, we may load its methods and underlying
 //    type lazily using a provided load function.
 //  - After instantiating, we lazily expand the underlying type and methods
@@ -60,12 +60,14 @@ import (
 //    declaration in the source. Instantiated named types correspond to a type
 //    instantiation in the source, not a declaration. But their Origin type is
 //    a declared type.
-//  - We say that a Named type is "resolved" if its RHS information has been
-//    loaded or fully type-checked. For Named types constructed from export
-//    data, this may involve invoking a loader function to extract information
-//    from export data. For instantiated Named types this involves reading
-//    information from their origin and substituting type arguments into a
-//    "synthetic" RHS; this process is called "expanding" the RHS (see below).
+//  - We say that a Named type is "unpacked" if its RHS information has been
+//    populated, normalizing its representation for use in type-checking
+//    operations and abstracting away how it was created:
+//      - For a Named type constructed from unified IR, this involves invoking
+//        a lazy loader function to extract details from UIR as needed.
+//      - For an instantiated Named type, this involves extracting information
+//        from its origin and substituting type arguments into a "synthetic"
+//        RHS; this process is called "expanding" the RHS (see below).
 //  - We say that a Named type is "expanded" if it is an instantiated type and
 //    type parameters in its RHS and methods have been substituted with the type
 //    arguments from the instantiation. A type may be partially expanded if some
@@ -141,16 +143,16 @@ type instance struct {
 
 // stateMask represents each state in the lifecycle of a named type.
 //
-// Each named type begins in the unresolved state. A named type may transition to a new state
+// Each named type begins in the initial state. A named type may transition to a new state
 // according to the below diagram:
 //
-//	unresolved
+//	initial
 //	lazyLoaded
-//	resolved
+//	unpacked
 //	└── hasMethods
 //	└── hasUnder
 //
-// That is, descent down the tree is mostly linear (unresolved through resolved), except upon
+// That is, descent down the tree is mostly linear (initial through unpacked), except upon
 // reaching the leaves (hasMethods and hasUnder). A type may occupy any combination of the
 // leaf states at once (they are independent states).
 //
@@ -160,20 +162,20 @@ type instance struct {
 // The above constraints significantly narrow the possible bit sets for a named type. With bits
 // set left-to-right, they are:
 //
-//	0000 | unresolved
+//	0000 | initial
 //	1000 | lazyLoaded
-//	1100 | resolved, which implies lazyLoaded
-//	1110 | hasMethods, which implies resolved (which in turn implies lazyLoaded)
-//	1101 | hasUnder, which implies resolved ...
-//	1111 | both hasMethods and hasUnder which implies resolved ...
+//	1100 | unpacked, which implies lazyLoaded
+//	1110 | hasMethods, which implies unpacked (which in turn implies lazyLoaded)
+//	1101 | hasUnder, which implies unpacked ...
+//	1111 | both hasMethods and hasUnder which implies unpacked ...
 //
 // To read the state of a named type, use [Named.stateHas]; to write, use [Named.setState].
 type stateMask uint32
 
 const (
-	// before resolved, type parameters, RHS, underlying, and methods might be unavailable
+	// initially, type parameters, RHS, underlying, and methods might be unavailable
 	lazyLoaded stateMask = 1 << iota // methods are available, but constraints might be unexpanded (for generic types)
-	resolved                         // methods might be unexpanded (for instances)
+	unpacked                         // methods might be unexpanded (for instances)
 	hasMethods                       // methods are all expanded (for instances)
 	hasUnder                         // underlying type is available
 )
@@ -196,27 +198,27 @@ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
 
 }
 
-// resolve resolves the type parameters, methods, and RHS of n.
+// unpack populates the type parameters, methods, and RHS of n.
 //
-// For the purposes of resolution, there are three categories of named types:
-//  1. Instantiated Types
-//  2. Lazy Loaded Types
-//  3. All Others
+// For the purposes of unpacking, there are three categories of named types:
+//  1. Lazy loaded types
+//  2. Instantiated types
+//  3. All others
 //
 // Note that the above form a partition.
-//
-// Instantiated types:
-// Type parameters, methods, and RHS of n become accessible, though methods
-// are lazily populated as needed.
 //
 // Lazy loaded types:
 // Type parameters, methods, and RHS of n become accessible and are fully
 // expanded.
 //
+// Instantiated types:
+// Type parameters, methods, and RHS of n become accessible, though methods
+// are lazily populated as needed.
+//
 // All others:
 // Effectively, nothing happens.
-func (n *Named) resolve() *Named {
-	if n.stateHas(resolved | lazyLoaded) { // avoid locking below
+func (n *Named) unpack() *Named {
+	if n.stateHas(unpacked | lazyLoaded) { // avoid locking below
 		return n
 	}
 
@@ -226,11 +228,11 @@ func (n *Named) resolve() *Named {
 	defer n.mu.Unlock()
 
 	// only atomic for consistency; we are holding the mutex
-	if n.stateHas(resolved | lazyLoaded) {
+	if n.stateHas(unpacked | lazyLoaded) {
 		return n
 	}
 
-	// underlying comes after resolving, do not set it
+	// underlying comes after unpacking, do not set it
 	defer (func() { assert(!n.stateHas(hasUnder)) })()
 
 	if n.inst != nil {
@@ -238,16 +240,16 @@ func (n *Named) resolve() *Named {
 		assert(n.loader == nil)  // cannot import an instantiation
 
 		orig := n.inst.orig
-		orig.resolve()
+		orig.unpack()
 
 		n.fromRHS = n.expandRHS()
 		n.tparams = orig.tparams
 
 		if len(orig.methods) == 0 {
-			n.setState(resolved | hasMethods) // nothing further to do
+			n.setState(unpacked | hasMethods) // nothing further to do
 			n.inst.ctxt = nil
 		} else {
-			n.setState(resolved)
+			n.setState(unpacked)
 		}
 		return n
 	}
@@ -276,7 +278,7 @@ func (n *Named) resolve() *Named {
 		}
 	}
 
-	n.setState(resolved | hasMethods)
+	n.setState(unpacked | hasMethods)
 	return n
 }
 
@@ -362,13 +364,13 @@ func (t *Named) Origin() *Named {
 
 // TypeParams returns the type parameters of the named type t, or nil.
 // The result is non-nil for an (originally) generic type even if it is instantiated.
-func (t *Named) TypeParams() *TypeParamList { return t.resolve().tparams }
+func (t *Named) TypeParams() *TypeParamList { return t.unpack().tparams }
 
 // SetTypeParams sets the type parameters of the named type t.
 // t must not have type arguments.
 func (t *Named) SetTypeParams(tparams []*TypeParam) {
 	assert(t.inst == nil)
-	t.resolve().tparams = bindTParams(tparams)
+	t.unpack().tparams = bindTParams(tparams)
 }
 
 // TypeArgs returns the type arguments used to instantiate the named type t.
@@ -381,7 +383,7 @@ func (t *Named) TypeArgs() *TypeList {
 
 // NumMethods returns the number of explicit methods defined for t.
 func (t *Named) NumMethods() int {
-	return len(t.Origin().resolve().methods)
+	return len(t.Origin().unpack().methods)
 }
 
 // Method returns the i'th method of named type t for 0 <= i < t.NumMethods().
@@ -396,7 +398,7 @@ func (t *Named) NumMethods() int {
 // But the specific ordering is not specified and must not be relied on as it may
 // change in the future.
 func (t *Named) Method(i int) *Func {
-	t.resolve()
+	t.unpack()
 
 	if t.stateHas(hasMethods) {
 		return t.methods[i]
@@ -504,7 +506,7 @@ func (t *Named) SetUnderlying(u Type) {
 
 	t.fromRHS = u
 	t.allowNilRHS = false
-	t.setState(resolved | hasMethods) // TODO(markfreeman): Why hasMethods?
+	t.setState(unpacked | hasMethods) // TODO(markfreeman): Why hasMethods?
 
 	t.underlying = u
 	t.allowNilUnderlying = false
@@ -517,7 +519,7 @@ func (t *Named) SetUnderlying(u Type) {
 func (t *Named) AddMethod(m *Func) {
 	assert(samePkg(t.obj.pkg, m.pkg))
 	assert(t.inst == nil)
-	t.resolve()
+	t.unpack()
 	if t.methodIndex(m.name, false) < 0 {
 		t.methods = append(t.methods, m)
 	}
@@ -552,7 +554,7 @@ func (t *Named) methodIndex(name string, foldCase bool) int {
 //
 // [underlying type]: https://go.dev/ref/spec#Underlying_types.
 func (n *Named) Underlying() Type {
-	n.resolve()
+	n.unpack()
 
 	// The gccimporter depends on writing a nil underlying via NewNamed and
 	// immediately reading it back. Rather than putting that in Named.under
@@ -586,12 +588,12 @@ func (t *Named) String() string { return TypeString(t, nil) }
 // skipped because their underlying type is not memoized.
 //
 // This function also checks for instantiated layout cycles, which are
-// reachable only in the case where resolve() expanded an instantiated
+// reachable only in the case where unpack() expanded an instantiated
 // type which became self-referencing without indirection.
 // If such a cycle is found, the underlying type is set to Typ[Invalid]
 // and a cycle is reported.
 func (n *Named) resolveUnderlying() {
-	assert(n.stateHas(resolved))
+	assert(n.stateHas(unpacked))
 
 	var seen map[*Named]int // allocated lazily
 	var u Type
@@ -629,7 +631,7 @@ func (n *Named) resolveUnderlying() {
 			}
 			seen[t] = len(seen)
 
-			t.resolve()
+			t.unpack()
 			t.mu.Lock()
 			defer t.mu.Unlock()
 
@@ -655,7 +657,7 @@ func (n *Named) resolveUnderlying() {
 }
 
 func (n *Named) lookupMethod(pkg *Package, name string, foldCase bool) (int, *Func) {
-	n.resolve()
+	n.unpack()
 	if samePkg(n.obj.pkg, pkg) || isExported(name) || foldCase {
 		// If n is an instance, we may not have yet instantiated all of its methods.
 		// Look up the method index in orig, and only instantiate method at the
@@ -718,8 +720,8 @@ func (n *Named) expandRHS() (rhs Type) {
 		}()
 	}
 
-	assert(!n.stateHas(resolved))
-	assert(n.inst.orig.stateHas(resolved | lazyLoaded))
+	assert(!n.stateHas(unpacked))
+	assert(n.inst.orig.stateHas(unpacked | lazyLoaded))
 
 	if n.inst.ctxt == nil {
 		n.inst.ctxt = NewContext()

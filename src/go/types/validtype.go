@@ -122,7 +122,7 @@ func (check *Checker) validType0(pos token.Pos, typ Type, nest, path []*Named) b
 				assert(t.obj.pkg == check.pkg)
 				assert(t.Origin().obj.pkg == check.pkg)
 
-				// let t become invalid when it resolves
+				// let t become invalid when it is unpacked
 				t.Origin().fromRHS = Typ[Invalid]
 
 				// Find the starting point of the cycle and report it.
