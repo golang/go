@@ -1,6 +1,12 @@
 ! go list all
 ! stderr 'panic'
-stderr 'invalid import path'
+[!GOOS:windows] [!GOOS:solaris] stderr 'invalid import path'
+# #73976: Allow 'no errors' on Windows and Solaris until issue
+# is resolved to prevent flakes. 'no errors' is printed by
+# empty scanner.ErrorList errors so that's probably where the
+# message is coming from, though we don't know how.
+[GOOS:windows] stderr 'invalid import path|no errors'
+[GOOS:solaris] stderr 'invalid import path|no errors'
 
 # go list produces a package for 'p' but not for ''
 go list -e all
