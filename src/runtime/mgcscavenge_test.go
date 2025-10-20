@@ -285,7 +285,6 @@ func TestPallocDataFindScavengeCandidate(t *testing.T) {
 		}
 	}
 	for name, v := range tests {
-		v := v
 		t.Run(name, func(t *testing.T) {
 			b := makePallocData(v.alloc, v.scavenged)
 			start, size := b.FindScavengeCandidate(PallocChunkPages-1, v.min, v.max)
@@ -447,7 +446,6 @@ func TestPageAllocScavenge(t *testing.T) {
 		}
 	}
 	for name, v := range tests {
-		v := v
 		t.Run(name, func(t *testing.T) {
 			b := NewPageAlloc(v.beforeAlloc, v.beforeScav)
 			defer FreePageAlloc(b)
@@ -811,7 +809,6 @@ func TestScavengeIndex(t *testing.T) {
 		)
 	}
 	for _, test := range tests {
-		test := test
 		t.Run("Bg/"+test.name, func(t *testing.T) {
 			mark, find, nextGen := setup(t, false)
 			test.mark(mark)

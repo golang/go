@@ -139,7 +139,7 @@ func (sb *SymbolBuilder) SetRelocAdd(i int, a int64) {
 	sb.relocs[i].SetAdd(a)
 }
 
-// SetRelocAdd sets the size of the 'i'-th relocation on this sym to 'sz'
+// SetRelocSiz sets the size of the 'i'-th relocation on this sym to 'sz'
 func (sb *SymbolBuilder) SetRelocSiz(i int, sz uint8) {
 	sb.relocs[i].SetSiz(sz)
 }

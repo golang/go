@@ -683,7 +683,7 @@ var defaultVetFlags = []string{
 
 func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	pkgArgs, testArgs = testFlags(args)
-	modload.InitWorkfile() // The test command does custom flag processing; initialize workspaces after that.
+	modload.InitWorkfile(modload.LoaderState) // The test command does custom flag processing; initialize workspaces after that.
 
 	if cfg.DebugTrace != "" {
 		var close func() error
@@ -704,13 +704,13 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 
 	work.FindExecCmd() // initialize cached result
 
-	work.BuildInit()
+	work.BuildInit(modload.LoaderState)
 	work.VetFlags = testVet.flags
 	work.VetExplicit = testVet.explicit
 	work.VetTool = base.Tool("vet")
 
 	pkgOpts := load.PackageOpts{ModResolveTests: true}
-	pkgs = load.PackagesAndErrors(ctx, pkgOpts, pkgArgs)
+	pkgs = load.PackagesAndErrors(modload.LoaderState, ctx, pkgOpts, pkgArgs)
 	// We *don't* call load.CheckPackageErrors here because we want to report
 	// loading errors as per-package test setup errors later.
 	if len(pkgs) == 0 {
@@ -741,7 +741,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 			if !mainMods.Contains(m.Path) {
 				base.Fatalf("cannot use -fuzz flag on package outside the main module")
 			}
-		} else if pkgs[0].Standard && modload.Enabled() {
+		} else if pkgs[0].Standard && modload.Enabled(modload.LoaderState) {
 			// Because packages in 'std' and 'cmd' are part of the standard library,
 			// they are only treated as part of a module in 'go mod' subcommands and
 			// 'go get'. However, we still don't want to accidentally corrupt their
@@ -867,13 +867,13 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	if cfg.BuildCoverPkg != nil {
 		match := make([]func(*load.Package) bool, len(cfg.BuildCoverPkg))
 		for i := range cfg.BuildCoverPkg {
-			match[i] = load.MatchPackage(cfg.BuildCoverPkg[i], base.Cwd())
+			match[i] = load.MatchPackage(modload.LoaderState, cfg.BuildCoverPkg[i], base.Cwd())
 		}
 
 		// Select for coverage all dependencies matching the -coverpkg
 		// patterns.
 		plist := load.TestPackageList(ctx, pkgOpts, pkgs)
-		testCoverPkgs = load.SelectCoverPackages(plist, match, "test")
+		testCoverPkgs = load.SelectCoverPackages(modload.LoaderState, plist, match, "test")
 		if len(testCoverPkgs) > 0 {
 			// create a new singleton action that will collect up the
 			// meta-data files from all of the packages mentioned in
@@ -981,7 +981,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 			// happens we'll wind up building the Q compile action
 			// before updating its deps to include sync/atomic).
 			if cfg.BuildCoverMode == "atomic" && p.ImportPath != "sync/atomic" {
-				load.EnsureImport(p, "sync/atomic")
+				load.EnsureImport(modload.LoaderState, p, "sync/atomic")
 			}
 			// Tag the package for static meta-data generation if no
 			// test files (this works only with the new coverage
@@ -1221,7 +1221,7 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
 		}
 	}
 
-	a := b.LinkAction(work.ModeBuild, work.ModeBuild, pmain)
+	a := b.LinkAction(modload.LoaderState, work.ModeBuild, work.ModeBuild, pmain)
 	a.Target = testDir + testBinary + cfg.ExeSuffix
 	if cfg.Goos == "windows" {
 		// There are many reserved words on Windows that,

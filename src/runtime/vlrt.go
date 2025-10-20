@@ -40,15 +40,8 @@ func float64toint64(d float64) (y uint64) {
 }
 
 func float64touint64(d float64) (y uint64) {
-	_d2vu(&y, d)
+	_d2v(&y, d)
 	return
-}
-
-func float64touint32(a float64) uint32 {
-	if a >= 0xffffffff {
-		return 0xffffffff
-	}
-	return uint32(float64touint64(a))
 }
 
 func int64tofloat64(y int64) float64 {
@@ -124,16 +117,12 @@ func _d2v(y *uint64, d float64) {
 	} else {
 		/* v = (hi||lo) << -sh */
 		sh := uint32(-sh)
-		if sh <= 10 {
+		if sh <= 11 {
 			ylo = xlo << sh
 			yhi = xhi<<sh | xlo>>(32-sh)
 		} else {
-			if x&sign64 != 0 {
-				*y = 0x8000000000000000
-			} else {
-				*y = 0x7fffffffffffffff
-			}
-			return
+			/* overflow */
+			yhi = uint32(d) /* causes something awful */
 		}
 	}
 	if x&sign64 != 0 {
@@ -145,50 +134,6 @@ func _d2v(y *uint64, d float64) {
 		}
 	}
 
-	*y = uint64(yhi)<<32 | uint64(ylo)
-}
-func _d2vu(y *uint64, d float64) {
-	x := *(*uint64)(unsafe.Pointer(&d))
-	if x&sign64 != 0 {
-		*y = 0
-		return
-	}
-
-	xhi := uint32(x>>32)&0xfffff | 0x100000
-	xlo := uint32(x)
-	sh := 1075 - int32(uint32(x>>52)&0x7ff)
-
-	var ylo, yhi uint32
-	if sh >= 0 {
-		sh := uint32(sh)
-		/* v = (hi||lo) >> sh */
-		if sh < 32 {
-			if sh == 0 {
-				ylo = xlo
-				yhi = xhi
-			} else {
-				ylo = xlo>>sh | xhi<<(32-sh)
-				yhi = xhi >> sh
-			}
-		} else {
-			if sh == 32 {
-				ylo = xhi
-			} else if sh < 64 {
-				ylo = xhi >> (sh - 32)
-			}
-		}
-	} else {
-		/* v = (hi||lo) << -sh */
-		sh := uint32(-sh)
-		if sh <= 11 {
-			ylo = xlo << sh
-			yhi = xhi<<sh | xlo>>(32-sh)
-		} else {
-			/* overflow */
-			*y = 0xffffffffffffffff
-			return
-		}
-	}
 	*y = uint64(yhi)<<32 | uint64(ylo)
 }
 func uint64div(n, d uint64) uint64 {

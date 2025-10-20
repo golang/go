@@ -118,7 +118,7 @@ func (x *term) includes(t Type) bool {
 
 	u := t
 	if x.tilde {
-		u = under(u)
+		u = u.Underlying()
 	}
 	return Identical(x.typ, u)
 }
@@ -158,11 +158,11 @@ func (x *term) disjoint(y *term) bool {
 	}
 	ux := x.typ
 	if y.tilde {
-		ux = under(ux)
+		ux = ux.Underlying()
 	}
 	uy := y.typ
 	if x.tilde {
-		uy = under(uy)
+		uy = uy.Underlying()
 	}
 	return !Identical(ux, uy)
 }

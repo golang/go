@@ -538,13 +538,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		ssagen.AddAux(&p.To, v)
-	case ssa.Op386MOVLf2i:
-		var p *obj.Prog
-		p = s.Prog(x86.AMOVL)
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = v.Args[0].Reg()
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = v.Reg()
 	case ssa.Op386ADDLconstmodify:
 		sc := v.AuxValAndOff()
 		val := sc.Val()

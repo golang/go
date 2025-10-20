@@ -4438,7 +4438,7 @@ func (c *ctxt0) specialFpMovInst(a obj.As, fclass int, tclass int) uint32 {
 		}
 	}
 
-	c.ctxt.Diag("bad class combination: %s %d,%s\n", a, fclass, tclass)
+	c.ctxt.Diag("bad class combination: %s %d,%d\n", a, fclass, tclass)
 
 	return 0
 }

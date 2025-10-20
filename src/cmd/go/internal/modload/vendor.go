@@ -140,10 +140,10 @@ func readVendorList(vendorDir string) {
 // checkVendorConsistency verifies that the vendor/modules.txt file matches (if
 // go 1.14) or at least does not contradict (go 1.13 or earlier) the
 // requirements and replacements listed in the main module's go.mod file.
-func checkVendorConsistency(indexes []*modFileIndex, modFiles []*modfile.File, modRoots []string) {
+func checkVendorConsistency(loaderstate *State, indexes []*modFileIndex, modFiles []*modfile.File, modRoots []string) {
 	// readVendorList only needs the main module to get the directory
 	// the vendor directory is in.
-	readVendorList(VendorDir())
+	readVendorList(VendorDir(loaderstate))
 
 	if len(modFiles) < 1 {
 		// We should never get here if there are zero modfiles. Either
@@ -154,7 +154,7 @@ func checkVendorConsistency(indexes []*modFileIndex, modFiles []*modfile.File, m
 	}
 
 	pre114 := false
-	if !inWorkspaceMode() { // workspace mode was added after Go 1.14
+	if !inWorkspaceMode(loaderstate) { // workspace mode was added after Go 1.14
 		if len(indexes) != 1 {
 			panic(fmt.Errorf("not in workspace mode but number of indexes is %v, not 1", len(indexes)))
 		}
@@ -188,7 +188,7 @@ func checkVendorConsistency(indexes []*modFileIndex, modFiles []*modfile.File, m
 					// However, we can at least detect a version mismatch if packages were
 					// vendored from a non-matching version.
 					if vv, ok := vendorVersion[r.Mod.Path]; ok && vv != r.Mod.Version {
-						vendErrorf(r.Mod, fmt.Sprintf("is explicitly required in go.mod, but vendor/modules.txt indicates %s@%s", r.Mod.Path, vv))
+						vendErrorf(r.Mod, "is explicitly required in go.mod, but vendor/modules.txt indicates %s@%s", r.Mod.Path, vv)
 					}
 				} else {
 					vendErrorf(r.Mod, "is explicitly required in go.mod, but not marked as explicit in vendor/modules.txt")
@@ -215,8 +215,8 @@ func checkVendorConsistency(indexes []*modFileIndex, modFiles []*modfile.File, m
 				continue // Don't print the same error more than once
 			}
 			seenrep[r.Old] = true
-			rNew, modRoot, replacementSource := replacementFrom(r.Old)
-			rNewCanonical := canonicalizeReplacePath(rNew, modRoot)
+			rNew, modRoot, replacementSource := replacementFrom(loaderstate, r.Old)
+			rNewCanonical := canonicalizeReplacePath(loaderstate, rNew, modRoot)
 			vr := vendorMeta[r.Old].Replacement
 			if vr == (module.Version{}) {
 				if rNewCanonical == (module.Version{}) {
@@ -236,8 +236,8 @@ func checkVendorConsistency(indexes []*modFileIndex, modFiles []*modfile.File, m
 	for _, modFile := range modFiles {
 		checkReplace(modFile.Replace)
 	}
-	if LoaderState.MainModules.workFile != nil {
-		checkReplace(LoaderState.MainModules.workFile.Replace)
+	if loaderstate.MainModules.workFile != nil {
+		checkReplace(loaderstate.MainModules.workFile.Replace)
 	}
 
 	for _, mod := range vendorList {
@@ -252,7 +252,7 @@ func checkVendorConsistency(indexes []*modFileIndex, modFiles []*modfile.File, m
 			}
 			if !foundRequire {
 				article := ""
-				if inWorkspaceMode() {
+				if inWorkspaceMode(loaderstate) {
 					article = "a "
 				}
 				vendErrorf(mod, "is marked as explicit in vendor/modules.txt, but not explicitly required in %vgo.mod", article)
@@ -262,9 +262,9 @@ func checkVendorConsistency(indexes []*modFileIndex, modFiles []*modfile.File, m
 	}
 
 	for _, mod := range vendorReplaced {
-		r := Replacement(mod)
+		r := Replacement(loaderstate, mod)
 		replacementSource := "go.mod"
-		if inWorkspaceMode() {
+		if inWorkspaceMode(loaderstate) {
 			replacementSource = "the workspace"
 		}
 		if r == (module.Version{}) {
@@ -276,9 +276,9 @@ func checkVendorConsistency(indexes []*modFileIndex, modFiles []*modfile.File, m
 
 	if vendErrors.Len() > 0 {
 		subcmd := "mod"
-		if inWorkspaceMode() {
+		if inWorkspaceMode(loaderstate) {
 			subcmd = "work"
 		}
-		base.Fatalf("go: inconsistent vendoring in %s:%s\n\n\tTo ignore the vendor directory, use -mod=readonly or -mod=mod.\n\tTo sync the vendor directory, run:\n\t\tgo %s vendor", filepath.Dir(VendorDir()), vendErrors, subcmd)
+		base.Fatalf("go: inconsistent vendoring in %s:%s\n\n\tTo ignore the vendor directory, use -mod=readonly or -mod=mod.\n\tTo sync the vendor directory, run:\n\t\tgo %s vendor", filepath.Dir(VendorDir(loaderstate)), vendErrors, subcmd)
 	}
 }

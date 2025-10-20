@@ -181,7 +181,6 @@ func TestPageAllocGrow(t *testing.T) {
 		}
 	}
 	for name, v := range tests {
-		v := v
 		t.Run(name, func(t *testing.T) {
 			// By creating a new pageAlloc, we will
 			// grow it for each chunk defined in x.
@@ -678,7 +677,6 @@ func TestPageAllocAlloc(t *testing.T) {
 		}
 	}
 	for name, v := range tests {
-		v := v
 		t.Run(name, func(t *testing.T) {
 			b := NewPageAlloc(v.before, v.scav)
 			defer FreePageAlloc(b)
@@ -705,7 +703,6 @@ func TestPageAllocExhaust(t *testing.T) {
 		t.Skip("skipping because virtual memory is limited; see #36210")
 	}
 	for _, npages := range []uintptr{1, 2, 3, 4, 5, 8, 16, 64, 1024, 1025, 2048, 2049} {
-		npages := npages
 		t.Run(fmt.Sprintf("%d", npages), func(t *testing.T) {
 			// Construct b.
 			bDesc := make(map[ChunkIdx][]BitRange)
@@ -973,7 +970,6 @@ func TestPageAllocFree(t *testing.T) {
 		}
 	}
 	for name, v := range tests {
-		v := v
 		t.Run(name, func(t *testing.T) {
 			b := NewPageAlloc(v.before, nil)
 			defer FreePageAlloc(b)
@@ -1028,7 +1024,6 @@ func TestPageAllocAllocAndFree(t *testing.T) {
 		},
 	}
 	for name, v := range tests {
-		v := v
 		t.Run(name, func(t *testing.T) {
 			b := NewPageAlloc(v.init, nil)
 			defer FreePageAlloc(b)

@@ -2193,7 +2193,7 @@ func (noToolchain) cc(b *Builder, a *Action, ofile, cfile string) error {
 // gcc runs the gcc C compiler to create an object from a single C file.
 func (b *Builder) gcc(a *Action, workdir, out string, flags []string, cfile string) error {
 	p := a.Package
-	return b.ccompile(a, out, flags, cfile, b.GccCmd(p.Dir, workdir))
+	return b.ccompile(modload.LoaderState, a, out, flags, cfile, b.GccCmd(p.Dir, workdir))
 }
 
 // gas runs the gcc c compiler to create an object file from a single C assembly file.
@@ -2207,23 +2207,23 @@ func (b *Builder) gas(a *Action, workdir, out string, flags []string, sfile stri
 			return fmt.Errorf("package using cgo has Go assembly file %s", sfile)
 		}
 	}
-	return b.ccompile(a, out, flags, sfile, b.GccCmd(p.Dir, workdir))
+	return b.ccompile(modload.LoaderState, a, out, flags, sfile, b.GccCmd(p.Dir, workdir))
 }
 
 // gxx runs the g++ C++ compiler to create an object from a single C++ file.
 func (b *Builder) gxx(a *Action, workdir, out string, flags []string, cxxfile string) error {
 	p := a.Package
-	return b.ccompile(a, out, flags, cxxfile, b.GxxCmd(p.Dir, workdir))
+	return b.ccompile(modload.LoaderState, a, out, flags, cxxfile, b.GxxCmd(p.Dir, workdir))
 }
 
 // gfortran runs the gfortran Fortran compiler to create an object from a single Fortran file.
 func (b *Builder) gfortran(a *Action, workdir, out string, flags []string, ffile string) error {
 	p := a.Package
-	return b.ccompile(a, out, flags, ffile, b.gfortranCmd(p.Dir, workdir))
+	return b.ccompile(modload.LoaderState, a, out, flags, ffile, b.gfortranCmd(p.Dir, workdir))
 }
 
 // ccompile runs the given C or C++ compiler and creates an object from a single source file.
-func (b *Builder) ccompile(a *Action, outfile string, flags []string, file string, compiler []string) error {
+func (b *Builder) ccompile(loaderstate *modload.State, a *Action, outfile string, flags []string, file string, compiler []string) error {
 	p := a.Package
 	sh := b.Shell(a)
 	file = mkAbs(p.Dir, file)
@@ -2260,7 +2260,7 @@ func (b *Builder) ccompile(a *Action, outfile string, flags []string, file strin
 			} else if m.Dir == "" {
 				// The module is in the vendor directory. Replace the entire vendor
 				// directory path, because the module's Dir is not filled in.
-				from = modload.VendorDir()
+				from = modload.VendorDir(loaderstate)
 				toPath = "vendor"
 			} else {
 				from = m.Dir
@@ -2310,7 +2310,7 @@ func (b *Builder) ccompile(a *Action, outfile string, flags []string, file strin
 			}
 		}
 		if len(newFlags) < len(flags) {
-			return b.ccompile(a, outfile, newFlags, file, compiler)
+			return b.ccompile(loaderstate, a, outfile, newFlags, file, compiler)
 		}
 	}
 
@@ -3383,7 +3383,7 @@ func (b *Builder) swigDoIntSize(objdir string) (intsize string, err error) {
 	}
 	srcs := []string{src}
 
-	p := load.GoFilesPackage(context.TODO(), load.PackageOpts{}, srcs)
+	p := load.GoFilesPackage(modload.LoaderState, context.TODO(), load.PackageOpts{}, srcs)
 
 	if _, _, e := BuildToolchain.gc(b, &Action{Mode: "swigDoIntSize", Package: p, Objdir: objdir}, "", nil, nil, "", false, "", srcs); e != nil {
 		return "32", nil

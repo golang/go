@@ -11,6 +11,7 @@ import (
 	"crypto/internal/cryptotest"
 	"crypto/internal/fips140/drbg"
 	"crypto/internal/fips140/entropy"
+	"crypto/rand"
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/hex"
@@ -159,6 +160,16 @@ func TestEntropySHA384(t *testing.T) {
 	if got != want {
 		t.Errorf("SHA384() = %x, want %x", got, want)
 	}
+
+	for l := range 1024*3 + 1 {
+		input := make([]byte, l)
+		rand.Read(input)
+		want := sha512.Sum384(input)
+		got := entropy.TestingOnlySHA384(input)
+		if got != want {
+			t.Errorf("TestingOnlySHA384(%d bytes) = %x, want %x", l, got, want)
+		}
+	}
 }
 
 func TestEntropyRepetitionCountTest(t *testing.T) {
@@ -230,7 +241,7 @@ func TestEntropyUnchanged(t *testing.T) {
 	// entropy source through the Entropy Source Validation program,
 	// independently of the FIPS 140-3 module. It must not change even across
 	// FIPS 140-3 module versions, in order to reuse the ESV certificate.
-	exp := "35976eb8a11678c79777da07aaab5511d4325701f837777df205f6e7b20c6821"
+	exp := "2541273241ae8aafe55026328354ed3799df1e2fb308b2097833203a42911b53"
 	if got := hex.EncodeToString(h.Sum(nil)); got != exp {
 		t.Errorf("hash of crypto/internal/fips140/entropy = %s, want %s", got, exp)
 	}
@@ -238,12 +249,12 @@ func TestEntropyUnchanged(t *testing.T) {
 
 func TestEntropyRace(t *testing.T) {
 	// Check that concurrent calls to Seed don't trigger the race detector.
-	for range 2 {
+	for range 16 {
 		go func() {
 			_, _ = entropy.Seed(&memory)
 		}()
 	}
-	// Same, with the higher-level DRBG. More concurrent calls to hit the Pool.
+	// Same, with the higher-level DRBG.
 	for range 16 {
 		go func() {
 			var b [64]byte

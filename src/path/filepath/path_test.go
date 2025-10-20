@@ -936,7 +936,6 @@ func TestWalkSymlinkRoot(t *testing.T) {
 			buggyGOOS: []string{"darwin", "ios"}, // https://go.dev/issue/59586
 		},
 	} {
-		tt := tt
 		t.Run(tt.desc, func(t *testing.T) {
 			var walked []string
 			err := filepath.Walk(tt.root, func(path string, info fs.FileInfo, err error) error {

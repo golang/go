@@ -1894,4 +1894,12 @@ next:
 	BTI	J                                  // 9f2403d5
 	BTI	JC                                 // df2403d5
 
+// Pointer Authentication Codes (PAC)
+	PACIASP                                    // 3f2303d5
+	AUTIASP                                    // bf2303d5
+	PACIBSP                                    // 7f2303d5
+	AUTIBSP                                    // ff2303d5
+	AUTIA1716                                  // 9f2103d5
+	AUTIB1716                                  // df2103d5
+
 	END

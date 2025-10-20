@@ -54,9 +54,11 @@ can be built and run using these commands:
 Alternative vet tools should be built atop golang.org/x/tools/go/analysis/unitchecker,
 which handles the interaction with go vet.
 
-For more about specifying packages, see 'go help packages'.
-For a list of checkers and their flags, see 'go tool vet help'.
+The default vet tool is 'go tool vet' or cmd/vet.
+For help on its checkers and their flags, run 'go tool vet help'.
 For details of a specific checker such as 'printf', see 'go tool vet help printf'.
+
+For more about specifying packages, see 'go help packages'.
 
 The build flags supported by go vet are those that control package resolution
 and execution, such as -C, -n, -x, -v, -tags, and -toolexec.
@@ -71,7 +73,7 @@ var CmdFix = &base.Command{
 	UsageLine:   "go fix [build flags] [-fixtool prog] [fix flags] [packages]",
 	Short:       "apply fixes suggested by static checkers",
 	Long: `
-Fix runs the Go fix tool (cmd/vet) on the named packages
+Fix runs the Go fix tool (cmd/fix) on the named packages
 and applies suggested fixes.
 
 It supports these flags:
@@ -80,15 +82,14 @@ It supports these flags:
 	instead of applying each fix, print the patch as a unified diff
 
 The -fixtool=prog flag selects a different analysis tool with
-alternative or additional fixes; see the documentation for go vet's
+alternative or additional fixers; see the documentation for go vet's
 -vettool flag for details.
 
+The default fix tool is 'go tool fix' or cmd/fix.
+For help on its fixers and their flags, run 'go tool fix help'.
+For details of a specific fixer such as 'hostport', see 'go tool fix help hostport'.
+
 For more about specifying packages, see 'go help packages'.
-
-For a list of fixers and their flags, see 'go tool fix help'.
-
-For details of a specific fixer such as 'hostport',
-see 'go tool fix help hostport'.
 
 The build flags supported by go fix are those that control package resolution
 and execution, such as -C, -n, -x, -v, -tags, and -toolexec.
@@ -123,7 +124,7 @@ func run(ctx context.Context, cmd *base.Command, args []string) {
 
 	// The vet/fix commands do custom flag processing;
 	// initialize workspaces after that.
-	modload.InitWorkfile()
+	modload.InitWorkfile(modload.LoaderState)
 
 	if cfg.DebugTrace != "" {
 		var close func() error
@@ -142,7 +143,7 @@ func run(ctx context.Context, cmd *base.Command, args []string) {
 	ctx, span := trace.StartSpan(ctx, fmt.Sprint("Running ", cmd.Name(), " command"))
 	defer span.Done()
 
-	work.BuildInit()
+	work.BuildInit(modload.LoaderState)
 
 	// Flag theory:
 	//
@@ -217,7 +218,7 @@ func run(ctx context.Context, cmd *base.Command, args []string) {
 	work.VetFlags = toolFlags
 
 	pkgOpts := load.PackageOpts{ModResolveTests: true}
-	pkgs := load.PackagesAndErrors(ctx, pkgOpts, pkgArgs)
+	pkgs := load.PackagesAndErrors(modload.LoaderState, ctx, pkgOpts, pkgArgs)
 	load.CheckPackageErrors(pkgs)
 	if len(pkgs) == 0 {
 		base.Fatalf("no packages to %s", cmd.Name())
@@ -396,7 +397,7 @@ type jsonError struct {
 	Err string `json:"error"`
 }
 
-// A TextEdit describes the replacement of a portion of a file.
+// A jsonTextEdit describes the replacement of a portion of a file.
 // Start and End are zero-based half-open indices into the original byte
 // sequence of the file, and New is the new text.
 type jsonTextEdit struct {
@@ -424,7 +425,7 @@ type jsonDiagnostic struct {
 	Related        []jsonRelatedInformation `json:"related,omitempty"`
 }
 
-// A jsonRelated describes a secondary position and message related to
+// A jsonRelatedInformation describes a secondary position and message related to
 // a primary diagnostic.
 type jsonRelatedInformation struct {
 	Posn    string `json:"posn"` // e.g. "file.go:line:column"

@@ -427,7 +427,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 				// Note that if t0 was a signature, t1 must be a signature, and t1
 				// can only be a generic signature if it originated from a generic
 				// function argument. Those signatures are never defined types and
-				// thus there is no need to call under below.
+				// thus there is no need to call Underlying below.
 				// TODO(gri) Consider doing this in Checker.subst.
 				//           Then this would fall out automatically here and also
 				//           in instantiation (where we also explicitly nil out
@@ -668,7 +668,7 @@ func coreTerm(tpar *TypeParam) (*term, bool) {
 	if n == 1 {
 		if debug {
 			u, _ := commonUnder(tpar, nil)
-			assert(under(single.typ) == u)
+			assert(single.typ.Underlying() == u)
 		}
 		return single, true
 	}

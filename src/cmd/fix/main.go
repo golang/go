@@ -22,10 +22,13 @@ package main
 import (
 	"cmd/internal/objabi"
 	"cmd/internal/telemetry/counter"
+	"slices"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/buildtag"
 	"golang.org/x/tools/go/analysis/passes/hostport"
+	"golang.org/x/tools/go/analysis/passes/inline"
+	"golang.org/x/tools/go/analysis/passes/modernize"
 	"golang.org/x/tools/go/analysis/unitchecker"
 )
 
@@ -38,22 +41,23 @@ func main() {
 	unitchecker.Main(suite...) // (never returns)
 }
 
-// The fix suite analyzers produce fixes that are safe to apply.
-// (Diagnostics may not describe actual problems,
-// but their fixes must be unambiguously safe to apply.)
-var suite = []*analysis.Analyzer{
-	buildtag.Analyzer,
-	hostport.Analyzer,
-	// TODO(adonovan): now the modernize (proposal #75266) and
-	// inline (proposal #75267) analyzers are published, revendor
-	// x/tools and add them here.
-	//
-	// TODO(adonovan):add any other vet analyzers whose fixes are always safe.
+// The fix suite analyzers produce fixes are unambiguously safe to apply,
+// even if the diagnostics might not describe actual problems.
+var suite = slices.Concat(
+	[]*analysis.Analyzer{
+		buildtag.Analyzer,
+		hostport.Analyzer,
+		inline.Analyzer,
+	},
+	modernize.Suite,
+	// TODO(adonovan): add any other vet analyzers whose fixes are always safe.
 	// Candidates to audit: sigchanyzer, printf, assign, unreachable.
+	// Many of staticcheck's analyzers would make good candidates
+	//   (e.g. rewriting WriteString(fmt.Sprintf()) to Fprintf.)
 	// Rejected:
 	// - composites: some types (e.g. PointXY{1,2}) don't want field names.
 	// - timeformat: flipping MM/DD is a behavior change, but the code
 	//    could potentially be a workaround for another bug.
 	// - stringintconv: offers two fixes, user input required to choose.
 	// - fieldalignment: poor signal/noise; fix could be a regression.
-}
+)

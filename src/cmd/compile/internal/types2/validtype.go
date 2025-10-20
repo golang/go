@@ -91,13 +91,6 @@ func (check *Checker) validType0(pos syntax.Pos, typ Type, nest, path []*Named) 
 		// 	break
 		// }
 
-		// Don't report a 2nd error if we already know the type is invalid
-		// (e.g., if a cycle was detected earlier, via under).
-		// Note: ensure that t.orig is fully resolved by calling Underlying().
-		if !isValid(t.Underlying()) {
-			return false
-		}
-
 		// If the current type t is also found in nest, (the memory of) t is
 		// embedded in itself, indicating an invalid recursive type.
 		for _, e := range nest {
@@ -125,8 +118,9 @@ func (check *Checker) validType0(pos syntax.Pos, typ Type, nest, path []*Named) 
 				// are not yet available to other goroutines).
 				assert(t.obj.pkg == check.pkg)
 				assert(t.Origin().obj.pkg == check.pkg)
-				t.underlying = Typ[Invalid]
-				t.Origin().underlying = Typ[Invalid]
+
+				// let t become invalid when it resolves
+				t.Origin().fromRHS = Typ[Invalid]
 
 				// Find the starting point of the cycle and report it.
 				// Because each type in nest must also appear in path (see invariant below),

@@ -49,8 +49,8 @@ func init() {
 
 func runSync(ctx context.Context, cmd *base.Command, args []string) {
 	modload.LoaderState.ForceUseModules = true
-	modload.InitWorkfile()
-	if modload.WorkFilePath() == "" {
+	modload.InitWorkfile(modload.LoaderState)
+	if modload.WorkFilePath(modload.LoaderState) == "" {
 		base.Fatalf("go: no go.work file found\n\t(run 'go work init' first or specify path using GOWORK environment variable)")
 	}
 
@@ -73,7 +73,7 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
 	}
 	for _, m := range mms.Versions() {
 		opts.MainModule = m
-		_, pkgs := modload.LoadPackages(ctx, opts, "all")
+		_, pkgs := modload.LoadPackages(modload.LoaderState, ctx, opts, "all")
 		opts.MainModule = module.Version{} // reset
 
 		var (
@@ -91,7 +91,7 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
 		mustSelectFor[m] = mustSelect
 	}
 
-	workFilePath := modload.WorkFilePath() // save go.work path because EnterModule clobbers it.
+	workFilePath := modload.WorkFilePath(modload.LoaderState) // save go.work path because EnterModule clobbers it.
 
 	var goV string
 	for _, m := range mms.Versions() {
@@ -114,12 +114,12 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
 		// so we don't write some go.mods with the "before" toolchain
 		// and others with the "after" toolchain. If nothing else, that
 		// discrepancy could show up in auto-recorded toolchain lines.
-		changed, err := modload.EditBuildList(ctx, nil, mustSelectFor[m])
+		changed, err := modload.EditBuildList(modload.LoaderState, ctx, nil, mustSelectFor[m])
 		if err != nil {
 			continue
 		}
 		if changed {
-			modload.LoadPackages(ctx, modload.PackageOpts{
+			modload.LoadPackages(modload.LoaderState, ctx, modload.PackageOpts{
 				Tags:                     imports.AnyTags(),
 				Tidy:                     true,
 				VendorModulesInGOROOTSrc: true,
@@ -131,7 +131,7 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
 			}, "all")
 			modload.WriteGoMod(ctx, modload.WriteOpts{})
 		}
-		goV = gover.Max(goV, modload.LoaderState.MainModules.GoVersion())
+		goV = gover.Max(goV, modload.LoaderState.MainModules.GoVersion(modload.LoaderState))
 	}
 
 	wf, err := modload.ReadWorkFile(workFilePath)

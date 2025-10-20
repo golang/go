@@ -225,8 +225,8 @@ func (check *Checker) validCycle(obj Object) (valid bool) {
 	start := obj.color() - grey // index of obj in objPath
 	cycle := check.objPath[start:]
 	tparCycle := false // if set, the cycle is through a type parameter list
-	nval := 0          // number of (constant or variable) values in the cycle; valid if !generic
-	ndef := 0          // number of type definitions in the cycle; valid if !generic
+	nval := 0          // number of (constant or variable) values in the cycle
+	ndef := 0          // number of type definitions in the cycle
 loop:
 	for _, obj := range cycle {
 		switch obj := obj.(type) {
@@ -235,7 +235,7 @@ loop:
 		case *TypeName:
 			// If we reach a generic type that is part of a cycle
 			// and we are in a type parameter list, we have a cycle
-			// through a type parameter list, which is invalid.
+			// through a type parameter list.
 			if check.inTParamList && isGeneric(obj.typ) {
 				tparCycle = true
 				break loop
@@ -286,25 +286,22 @@ loop:
 		}()
 	}
 
-	if !tparCycle {
-		// A cycle involving only constants and variables is invalid but we
-		// ignore them here because they are reported via the initialization
-		// cycle check.
-		if nval == len(cycle) {
-			return true
-		}
-
-		// A cycle involving only types (and possibly functions) must have at least
-		// one type definition to be permitted: If there is no type definition, we
-		// have a sequence of alias type names which will expand ad infinitum.
-		if nval == 0 && ndef > 0 {
-			return true
-		}
+	// Cycles through type parameter lists are ok (go.dev/issue/68162).
+	if tparCycle {
+		return true
 	}
 
-	// Cycles through type parameter lists are ok (go.dev/issue/68162).
-	// TODO(gri) if we are happy with this this, remove this flag and simplify code.
-	if tparCycle {
+	// A cycle involving only constants and variables is invalid but we
+	// ignore them here because they are reported via the initialization
+	// cycle check.
+	if nval == len(cycle) {
+		return true
+	}
+
+	// A cycle involving only types (and possibly functions) must have at least
+	// one type definition to be permitted: If there is no type definition, we
+	// have a sequence of alias type names which will expand ad infinitum.
+	if nval == 0 && ndef > 0 {
 		return true
 	}
 
@@ -394,7 +391,7 @@ func (check *Checker) constDecl(obj *Const, typ, init syntax.Expr, inherited boo
 		if !isConstType(t) {
 			// don't report an error if the type is an invalid C (defined) type
 			// (go.dev/issue/22090)
-			if isValid(under(t)) {
+			if isValid(t.Underlying()) {
 				check.errorf(typ, InvalidConstType, "invalid constant type %s", t)
 			}
 			obj.typ = Typ[Invalid]
@@ -479,7 +476,7 @@ func (check *Checker) isImportedConstraint(typ Type) bool {
 	if named == nil || named.obj.pkg == check.pkg || named.obj.pkg == nil {
 		return false
 	}
-	u, _ := named.under().(*Interface)
+	u, _ := named.Underlying().(*Interface)
 	return u != nil && !u.IsMethodSet()
 }
 
@@ -561,31 +558,33 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *TypeN
 	named := check.newNamed(obj, nil, nil)
 	setDefType(def, named)
 
+	// The RHS of a named N can be nil if, for example, N is defined as a cycle of aliases with
+	// gotypesalias=0. Consider:
+	//
+	//   type D N    // N.resolve() will panic
+	//   type N A
+	//   type A = N  // N.fromRHS is not set before N.resolve(), since A does not call setDefType
+	//
+	// There is likely a better way to detect such cases, but it may not be worth the effort.
+	// Instead, we briefly permit a nil N.fromRHS while type-checking D.
+	named.allowNilRHS = true
+	defer (func() { named.allowNilRHS = false })()
+
 	if tdecl.TParamList != nil {
 		check.openScope(tdecl, "type parameters")
 		defer check.closeScope()
 		check.collectTypeParams(&named.tparams, tdecl.TParamList)
 	}
 
-	// determine underlying type of named
 	rhs = check.definedType(tdecl.Type, obj)
 	assert(rhs != nil)
 	named.fromRHS = rhs
 
-	// If the underlying type was not set while type-checking the right-hand
-	// side, it is invalid and an error should have been reported elsewhere.
-	if named.underlying == nil {
-		named.underlying = Typ[Invalid]
-	}
-
-	// Disallow a lone type parameter as the RHS of a type declaration (go.dev/issue/45639).
-	// We don't need this restriction anymore if we make the underlying type of a type
-	// parameter its constraint interface: if the RHS is a lone type parameter, we will
-	// use its underlying type (like we do for any RHS in a type declaration), and its
-	// underlying type is an interface and the type declaration is well defined.
+	// spec: "In a type definition the given type cannot be a type parameter."
+	// (See also go.dev/issue/45639.)
 	if isTypeParam(rhs) {
 		check.error(tdecl.Type, MisplacedTypeParam, "cannot use a type parameter as RHS in type declaration")
-		named.underlying = Typ[Invalid]
+		named.fromRHS = Typ[Invalid]
 	}
 }
 
@@ -727,7 +726,7 @@ func (check *Checker) collectMethods(obj *TypeName) {
 }
 
 func (check *Checker) checkFieldUniqueness(base *Named) {
-	if t, _ := base.under().(*Struct); t != nil {
+	if t, _ := base.Underlying().(*Struct); t != nil {
 		var mset objset
 		for i := 0; i < base.NumMethods(); i++ {
 			m := base.Method(i)

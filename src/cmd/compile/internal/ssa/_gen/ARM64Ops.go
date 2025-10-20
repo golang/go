@@ -144,8 +144,9 @@ func init() {
 		gpspsbg    = gpspg | buildReg("SB")
 		fp         = buildReg("F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31")
 		callerSave = gp | fp | buildReg("g") // runtime.setg (and anything calling it) may clobber g
+		r25        = buildReg("R25")
 		r24to25    = buildReg("R24 R25")
-		r23to25    = buildReg("R23 R24 R25")
+		f16to17    = buildReg("F16 F17")
 		rz         = buildReg("ZERO")
 		first16    = buildReg("R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15")
 	)
@@ -599,8 +600,8 @@ func init() {
 			aux:       "Int64",
 			argLength: 3,
 			reg: regInfo{
-				inputs:   []regMask{gp &^ r24to25, gp &^ r24to25},
-				clobbers: r24to25, // TODO: figure out needIntTemp x2
+				inputs:   []regMask{gp &^ r25, gp &^ r25},
+				clobbers: r25 | f16to17, // TODO: figure out needIntTemp + x2 for floats
 			},
 			faultOnNilArg0: true,
 			faultOnNilArg1: true,
@@ -617,8 +618,8 @@ func init() {
 			aux:       "Int64",
 			argLength: 3,
 			reg: regInfo{
-				inputs:       []regMask{gp &^ r23to25, gp &^ r23to25},
-				clobbers:     r23to25, // TODO: figure out needIntTemp x3
+				inputs:       []regMask{gp &^ r24to25, gp &^ r24to25},
+				clobbers:     r24to25 | f16to17, // TODO: figure out needIntTemp x2 + x2 for floats
 				clobbersArg0: true,
 				clobbersArg1: true,
 			},

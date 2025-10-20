@@ -407,7 +407,7 @@ func (p *atomicMSpanPointer) Load() *mspan {
 	return (*mspan)(p.p.Load())
 }
 
-// Store stores an *mspan.
+// StoreNoWB stores an *mspan.
 func (p *atomicMSpanPointer) StoreNoWB(s *mspan) {
 	p.p.StoreNoWB(unsafe.Pointer(s))
 }

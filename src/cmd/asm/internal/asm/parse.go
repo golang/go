@@ -775,7 +775,7 @@ func (p *Parser) registerExtension(a *obj.Addr, name string, prefix rune) {
 
 	switch p.arch.Family {
 	case sys.ARM64:
-		err := arch.ARM64RegisterExtension(a, ext, reg, num, isAmount, isIndex)
+		err := arm64.ARM64RegisterExtension(a, ext, reg, num, isAmount, isIndex)
 		if err != nil {
 			p.errorf("%v", err)
 		}

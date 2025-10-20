@@ -499,7 +499,6 @@ const (
 	Op386MOVBLZX
 	Op386MOVWLSX
 	Op386MOVWLZX
-	Op386MOVLf2i
 	Op386MOVLconst
 	Op386CVTTSD2SL
 	Op386CVTTSS2SL
@@ -2980,10 +2979,6 @@ const (
 	OpWasmI64TruncSatF64U
 	OpWasmI64TruncSatF32S
 	OpWasmI64TruncSatF32U
-	OpWasmI32TruncSatF64S
-	OpWasmI32TruncSatF64U
-	OpWasmI32TruncSatF32S
-	OpWasmI32TruncSatF32U
 	OpWasmF32ConvertI64S
 	OpWasmF32ConvertI64U
 	OpWasmF64ConvertI64S
@@ -5600,18 +5595,6 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
-			},
-			outputs: []outputInfo{
-				{0, 239}, // AX CX DX BX BP SI DI
-			},
-		},
-	},
-	{
-		name:   "MOVLf2i",
-		argLen: 1,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 			},
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
@@ -23216,10 +23199,10 @@ var opcodeTable = [...]opInfo{
 		faultOnNilArg1: true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 310378495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R26 R30
-				{1, 310378495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R26 R30
+				{0, 318767103}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R26 R30
+				{1, 318767103}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R26 R30
 			},
-			clobbers: 25165824, // R24 R25
+			clobbers: 422212481843200, // R25 F16 F17
 		},
 	},
 	{
@@ -23230,10 +23213,10 @@ var opcodeTable = [...]opInfo{
 		faultOnNilArg1: true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 306184191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R26 R30
-				{1, 306184191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R26 R30
+				{0, 310378495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R26 R30
+				{1, 310378495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R26 R30
 			},
-			clobbers:     29360128, // R23 R24 R25
+			clobbers:     422212490231808, // R24 R25 F16 F17
 			clobbersArg0: true,
 			clobbersArg1: true,
 		},
@@ -40285,58 +40268,6 @@ var opcodeTable = [...]opInfo{
 		name:   "I64TruncSatF32U",
 		argLen: 1,
 		asm:    wasm.AI64TruncSatF32U,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
-			},
-			outputs: []outputInfo{
-				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
-			},
-		},
-	},
-	{
-		name:   "I32TruncSatF64S",
-		argLen: 1,
-		asm:    wasm.AI32TruncSatF64S,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
-			},
-			outputs: []outputInfo{
-				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
-			},
-		},
-	},
-	{
-		name:   "I32TruncSatF64U",
-		argLen: 1,
-		asm:    wasm.AI32TruncSatF64U,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
-			},
-			outputs: []outputInfo{
-				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
-			},
-		},
-	},
-	{
-		name:   "I32TruncSatF32S",
-		argLen: 1,
-		asm:    wasm.AI32TruncSatF32S,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
-			},
-			outputs: []outputInfo{
-				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
-			},
-		},
-	},
-	{
-		name:   "I32TruncSatF32U",
-		argLen: 1,
-		asm:    wasm.AI32TruncSatF32U,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15

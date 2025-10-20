@@ -145,7 +145,6 @@ func TestCTR_AES_multiblock_random_IV(t *testing.T) {
 	const Size = 100
 
 	for _, keySize := range []int{16, 24, 32} {
-		keySize := keySize
 		t.Run(fmt.Sprintf("keySize=%d", keySize), func(t *testing.T) {
 			key := randBytes(t, r, keySize)
 			aesBlock, err := aes.NewCipher(key)
@@ -164,10 +163,8 @@ func TestCTR_AES_multiblock_random_IV(t *testing.T) {
 			// individually using multiblock implementation to catch edge cases.
 
 			for part1 := 0; part1 <= Size; part1++ {
-				part1 := part1
 				t.Run(fmt.Sprintf("part1=%d", part1), func(t *testing.T) {
 					for part2 := 0; part2 <= Size-part1; part2++ {
-						part2 := part2
 						t.Run(fmt.Sprintf("part2=%d", part2), func(t *testing.T) {
 							_, multiblockCtr := makeTestingCiphers(aesBlock, iv)
 							multiblockCiphertext := make([]byte, len(plaintext))
@@ -216,7 +213,6 @@ func TestCTR_AES_multiblock_overflow_IV(t *testing.T) {
 	}
 
 	for _, keySize := range []int{16, 24, 32} {
-		keySize := keySize
 		t.Run(fmt.Sprintf("keySize=%d", keySize), func(t *testing.T) {
 			for _, iv := range ivs {
 				key := randBytes(t, r, keySize)
@@ -227,7 +223,6 @@ func TestCTR_AES_multiblock_overflow_IV(t *testing.T) {
 
 				t.Run(fmt.Sprintf("iv=%s", hex.EncodeToString(iv)), func(t *testing.T) {
 					for _, offset := range []int{0, 1, 16, 1024} {
-						offset := offset
 						t.Run(fmt.Sprintf("offset=%d", offset), func(t *testing.T) {
 							genericCtr, multiblockCtr := makeTestingCiphers(aesBlock, iv)
 
@@ -260,7 +255,6 @@ func TestCTR_AES_multiblock_XORKeyStreamAt(t *testing.T) {
 	plaintext := randBytes(t, r, Size)
 
 	for _, keySize := range []int{16, 24, 32} {
-		keySize := keySize
 		t.Run(fmt.Sprintf("keySize=%d", keySize), func(t *testing.T) {
 			key := randBytes(t, r, keySize)
 			iv := randBytes(t, r, aesBlockSize)

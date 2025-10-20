@@ -2583,6 +2583,7 @@ func TestProfilerStackDepth(t *testing.T) {
 				t.Logf("matched stack=%s", stk)
 				if len(stk) != depth {
 					t.Errorf("want stack depth = %d, got %d", depth, len(stk))
+					continue
 				}
 
 				if rootFn, wantFn := stk[depth-1], "runtime/pprof.allocDeep"; rootFn != wantFn {
@@ -2660,7 +2661,7 @@ func goroutineDeep(t *testing.T, n int) {
 // guaranteed to have exactly the desired depth with produceProfileEvents as
 // their root frame which is expected by TestProfilerStackDepth.
 func produceProfileEvents(t *testing.T, depth int) {
-	allocDeep(depth + 1)       // +1 for produceProfileEvents, **
+	allocDeep(depth - 1)       // -1 for produceProfileEvents, **
 	blockChanDeep(t, depth-2)  // -2 for produceProfileEvents, **, chanrecv1
 	blockMutexDeep(t, depth-2) // -2 for produceProfileEvents, **, Unlock
 	memSink = nil

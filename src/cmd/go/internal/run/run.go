@@ -78,13 +78,13 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 		// for -race and -msan.
 		modload.LoaderState.ForceUseModules = true
 		modload.LoaderState.RootMode = modload.NoRoot
-		modload.AllowMissingModuleImports()
-		modload.Init()
+		modload.AllowMissingModuleImports(modload.LoaderState)
+		modload.Init(modload.LoaderState)
 	} else {
-		modload.InitWorkfile()
+		modload.InitWorkfile(modload.LoaderState)
 	}
 
-	work.BuildInit()
+	work.BuildInit(modload.LoaderState)
 	b := work.NewBuilder("")
 	defer func() {
 		if err := b.Close(); err != nil {
@@ -107,18 +107,18 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 				base.Fatalf("go: cannot run *_test.go files (%s)", file)
 			}
 		}
-		p = load.GoFilesPackage(ctx, pkgOpts, files)
+		p = load.GoFilesPackage(modload.LoaderState, ctx, pkgOpts, files)
 	} else if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
 		arg := args[0]
 		var pkgs []*load.Package
 		if strings.Contains(arg, "@") && !build.IsLocalImport(arg) && !filepath.IsAbs(arg) {
 			var err error
-			pkgs, err = load.PackagesAndErrorsOutsideModule(ctx, pkgOpts, args[:1])
+			pkgs, err = load.PackagesAndErrorsOutsideModule(modload.LoaderState, ctx, pkgOpts, args[:1])
 			if err != nil {
 				base.Fatal(err)
 			}
 		} else {
-			pkgs = load.PackagesAndErrors(ctx, pkgOpts, args[:1])
+			pkgs = load.PackagesAndErrors(modload.LoaderState, ctx, pkgOpts, args[:1])
 		}
 
 		if len(pkgs) == 0 {
@@ -140,7 +140,7 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 	load.CheckPackageErrors([]*load.Package{p})
 
 	if cfg.BuildCover {
-		load.PrepareForCoverageBuild([]*load.Package{p})
+		load.PrepareForCoverageBuild(modload.LoaderState, []*load.Package{p})
 	}
 
 	p.Internal.OmitDebug = true
@@ -166,7 +166,7 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 		p.Internal.ExeName = p.DefaultExecName()
 	}
 
-	a1 := b.LinkAction(work.ModeBuild, work.ModeBuild, p)
+	a1 := b.LinkAction(modload.LoaderState, work.ModeBuild, work.ModeBuild, p)
 	a1.CacheExecutable = true
 	a := &work.Action{Mode: "go run", Actor: work.ActorFunc(buildRunProgram), Args: cmdArgs, Deps: []*work.Action{a1}}
 	b.Do(ctx, a)

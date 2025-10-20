@@ -33,7 +33,6 @@ func TestReaderGolden(t *testing.T) {
 		t.Fatalf("failed to glob for tests: %v", err)
 	}
 	for _, testPath := range matches {
-		testPath := testPath
 		testName, err := filepath.Rel("./testdata", testPath)
 		if err != nil {
 			t.Fatalf("failed to relativize testdata path: %v", err)

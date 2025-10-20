@@ -988,7 +988,6 @@ func TestConcurrentCleanup(t *T) {
 		var wg sync.WaitGroup
 		wg.Add(2)
 		for i := 0; i < 2; i++ {
-			i := i
 			go func() {
 				t.Cleanup(func() {
 					// Although the calls to Cleanup are concurrent, the functions passed

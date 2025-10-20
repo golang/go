@@ -1092,6 +1092,9 @@ type state struct {
 
 	// First argument of append calls that could be stack allocated.
 	appendTargets map[ir.Node]bool
+
+	// Block starting position, indexed by block id.
+	blockStarts []src.XPos
 }
 
 type funcLine struct {
@@ -1150,6 +1153,9 @@ func (s *state) startBlock(b *ssa.Block) {
 	s.curBlock = b
 	s.vars = map[ir.Node]*ssa.Value{}
 	clear(s.fwdVars)
+	for len(s.blockStarts) <= int(b.ID) {
+		s.blockStarts = append(s.blockStarts, src.NoXPos)
+	}
 }
 
 // endBlock marks the end of generating code for the current block.
@@ -1176,6 +1182,9 @@ func (s *state) endBlock() *ssa.Block {
 		b.Pos = src.NoXPos
 	} else {
 		b.Pos = s.lastPos
+		if s.blockStarts[b.ID] == src.NoXPos {
+			s.blockStarts[b.ID] = s.lastPos
+		}
 	}
 	return b
 }
@@ -1191,6 +1200,11 @@ func (s *state) pushLine(line src.XPos) {
 		}
 	} else {
 		s.lastPos = line
+	}
+	// The first position we see for a new block is its starting position
+	// (the line number for its phis, if any).
+	if b := s.curBlock; b != nil && s.blockStarts[b.ID] == src.NoXPos {
+		s.blockStarts[b.ID] = line
 	}
 
 	s.line = append(s.line, line)

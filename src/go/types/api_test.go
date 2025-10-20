@@ -2432,7 +2432,6 @@ type K = Nested[string]
 		)
 		var wg sync.WaitGroup
 		for i := 0; i < 2; i++ {
-			i := i
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
@@ -2613,7 +2612,6 @@ func fn() {
 	})
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			if got := len(idents[test.name]); got != 1 {
 				t.Fatalf("found %d identifiers named %s, want 1", got, test.name)

@@ -2342,6 +2342,148 @@ func setCapMaxBasedOnElementSize(x []uint64) int {
 	return 0
 }
 
+func issue75144for(a, b []uint64) bool {
+	if len(a) == len(b) {
+		for len(a) > 4 {
+			a = a[4:] // ERROR "Proved slicemask not needed$" "Proved IsSliceInBounds$"
+			b = b[4:] // ERROR "Proved slicemask not needed$" "Proved IsSliceInBounds$"
+		}
+		if len(a) == len(b) { // ERROR "Proved Eq64$"
+			return true
+		}
+	}
+	return false
+}
+
+func issue75144if(a, b []uint64) bool {
+	if len(a) == len(b) {
+		if len(a) > 4 {
+			a = a[4:] // ERROR "Proved slicemask not needed$" "Proved IsSliceInBounds$"
+			b = b[4:] // ERROR "Proved slicemask not needed$" "Proved IsSliceInBounds$"
+		}
+		if len(a) == len(b) { // ERROR "Proved Eq64$"
+			return true
+		}
+	}
+	return false
+}
+
+func issue75144if2(a, b, c, d []uint64) (r bool) {
+	if len(a) != len(b) || len(c) != len(d) {
+		return
+	}
+	if len(a) <= 4 || len(c) <= 4 {
+		return
+	}
+	if len(a) < len(c) {
+		c = c[4:] // ERROR "Proved slicemask not needed$" "Proved IsSliceInBounds$"
+		d = d[4:] // ERROR "Proved slicemask not needed$" "Proved IsSliceInBounds$"
+	} else {
+		a = a[4:] // ERROR "Proved slicemask not needed$" "Proved IsSliceInBounds$"
+		b = b[4:] // ERROR "Proved slicemask not needed$" "Proved IsSliceInBounds$"
+	}
+	if len(a) == len(c) {
+		return
+	}
+	if len(a) == len(b) { // ERROR "Proved Eq64$"
+		r = true
+	}
+	if len(c) == len(d) { // ERROR "Proved Eq64$"
+		r = true
+	}
+	return
+}
+
+func issue75144forCannot(a, b []uint64) bool {
+	if len(a) == len(b) {
+		for len(a) > 4 {
+			a = a[4:] // ERROR "Proved slicemask not needed$" "Proved IsSliceInBounds$"
+			b = b[4:]
+			for len(a) > 2 {
+				a = a[2:] // ERROR "Proved slicemask not needed$" "Proved IsSliceInBounds$"
+				b = b[2:]
+			}
+		}
+		if len(a) == len(b) {
+			return true
+		}
+	}
+	return false
+}
+
+func issue75144ifCannot(a, b []uint64) bool {
+	if len(a) == len(b) {
+		if len(a) > 4 {
+			a = a[4:] // ERROR "Proved slicemask not needed$" "Proved IsSliceInBounds$"
+			b = b[4:] // ERROR "Proved slicemask not needed$" "Proved IsSliceInBounds$"
+			if len(a) > 2 {
+				a = a[2:] // ERROR "Proved slicemask not needed$" "Proved IsSliceInBounds$"
+				b = b[2:]
+			}
+		}
+		if len(a) == len(b) {
+			return true
+		}
+	}
+	return false
+}
+
+func issue75144ifCannot2(a, b []uint64) bool {
+	if len(a) == len(b) {
+		if len(a) > 4 {
+			a = a[4:] // ERROR "Proved slicemask not needed$" "Proved IsSliceInBounds$"
+			b = b[4:] // ERROR "Proved slicemask not needed$" "Proved IsSliceInBounds$"
+		} else if len(a) > 2 {
+			a = a[2:] // ERROR "Proved slicemask not needed$" "Proved IsSliceInBounds$"
+			b = b[2:] // ERROR "Proved slicemask not needed$" "Proved IsSliceInBounds$"
+		}
+		if len(a) == len(b) {
+			return true
+		}
+	}
+	return false
+}
+
+func issue75144forNot(a, b []uint64) bool {
+	if len(a) == len(b) {
+		for len(a) > 4 {
+			a = a[4:] // ERROR "Proved slicemask not needed$" "Proved IsSliceInBounds$"
+			b = b[3:]
+		}
+		if len(a) == len(b) {
+			return true
+		}
+	}
+	return false
+}
+
+func issue75144forNot2(a, b, c []uint64) bool {
+	if len(a) == len(b) {
+		for len(a) > 4 {
+			a = a[4:] // ERROR "Proved slicemask not needed$" "Proved IsSliceInBounds$"
+			b = c[4:]
+		}
+		if len(a) == len(b) {
+			return true
+		}
+	}
+	return false
+}
+
+func issue75144ifNot(a, b []uint64) bool {
+	if len(a) == len(b) {
+		if len(a) > 4 {
+			a = a[4:] // ERROR "Proved slicemask not needed$" "Proved IsSliceInBounds$"
+		} else {
+			b = b[4:]
+		}
+		if len(a) == len(b) {
+			return true
+		}
+	}
+	return false
+}
+
 //go:noinline
 func useInt(a int) {
 }

@@ -212,7 +212,6 @@ func TestEverything(t *testing.T) {
 		max = 2048
 	}
 	for size := min; size <= max; size++ {
-		size := size
 		t.Run(fmt.Sprintf("%d", size), func(t *testing.T) {
 			t.Parallel()
 			priv, err := GenerateKey(rand.Reader, size)

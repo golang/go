@@ -53,7 +53,7 @@ func (r *mvsReqs) Required(mod module.Version) ([]module.Version, error) {
 		return nil, nil
 	}
 
-	summary, err := goModSummary(mod)
+	summary, err := goModSummary(LoaderState, mod)
 	if err != nil {
 		return nil, err
 	}
@@ -79,11 +79,11 @@ func (*mvsReqs) Upgrade(m module.Version) (module.Version, error) {
 	return m, nil
 }
 
-func versions(ctx context.Context, path string, allowed AllowedFunc) (versions []string, origin *codehost.Origin, err error) {
+func versions(loaderstate *State, ctx context.Context, path string, allowed AllowedFunc) (versions []string, origin *codehost.Origin, err error) {
 	// Note: modfetch.Lookup and repo.Versions are cached,
 	// so there's no need for us to add extra caching here.
 	err = modfetch.TryProxies(func(proxy string) error {
-		repo, err := lookupRepo(ctx, proxy, path)
+		repo, err := lookupRepo(loaderstate, ctx, proxy, path)
 		if err != nil {
 			return err
 		}
@@ -111,12 +111,12 @@ func versions(ctx context.Context, path string, allowed AllowedFunc) (versions [
 //
 // Since the version of a main module is not found in the version list,
 // it has no previous version.
-func previousVersion(ctx context.Context, m module.Version) (module.Version, error) {
-	if m.Version == "" && LoaderState.MainModules.Contains(m.Path) {
+func previousVersion(loaderstate *State, ctx context.Context, m module.Version) (module.Version, error) {
+	if m.Version == "" && loaderstate.MainModules.Contains(m.Path) {
 		return module.Version{Path: m.Path, Version: "none"}, nil
 	}
 
-	list, _, err := versions(ctx, m.Path, CheckAllowed)
+	list, _, err := versions(loaderstate, ctx, m.Path, CheckAllowed)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return module.Version{Path: m.Path, Version: "none"}, nil
@@ -132,5 +132,5 @@ func previousVersion(ctx context.Context, m module.Version) (module.Version, err
 
 func (*mvsReqs) Previous(m module.Version) (module.Version, error) {
 	// TODO(golang.org/issue/38714): thread tracing context through MVS.
-	return previousVersion(context.TODO(), m)
+	return previousVersion(LoaderState, context.TODO(), m)
 }

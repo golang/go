@@ -2806,6 +2806,7 @@ func (s *regAllocState) computeLive() {
 	s.live = make([][]liveInfo, f.NumBlocks())
 	s.desired = make([]desiredState, f.NumBlocks())
 	var phis []*Value
+	rematIDs := make([]ID, 0, 64)
 
 	live := f.newSparseMapPos(f.NumValues())
 	defer f.retSparseMapPos(live)
@@ -2858,9 +2859,20 @@ func (s *regAllocState) computeLive() {
 					continue
 				}
 				if opcodeTable[v.Op].call {
+					rematIDs = rematIDs[:0]
 					c := live.contents()
 					for i := range c {
 						c[i].val += unlikelyDistance
+						vid := c[i].key
+						if s.values[vid].rematerializeable {
+							rematIDs = append(rematIDs, vid)
+						}
+					}
+					// We don't spill rematerializeable values, and assuming they
+					// are live across a call would only force shuffle to add some
+					// (dead) constant rematerialization. Remove them.
+					for _, r := range rematIDs {
+						live.remove(r)
 					}
 				}
 				for _, a := range v.Args {

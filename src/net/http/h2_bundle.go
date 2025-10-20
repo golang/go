@@ -11695,6 +11695,12 @@ func (ws *http2priorityWriteSchedulerRFC9218) AdjustStream(streamID uint32, prio
 		q.prev.next = q
 		q.next.prev = q
 	}
+
+	// Update the metadata.
+	ws.streams[streamID] = http2streamMetadata{
+		location: q,
+		priority: priority,
+	}
 }
 
 func (ws *http2priorityWriteSchedulerRFC9218) Push(wr http2FrameWriteRequest) {

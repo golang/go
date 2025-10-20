@@ -4526,7 +4526,6 @@ func TestTransportContentEncodingCaseInsensitive(t *testing.T) {
 }
 func testTransportContentEncodingCaseInsensitive(t *testing.T, mode testMode) {
 	for _, ce := range []string{"gzip", "GZIP"} {
-		ce := ce
 		t.Run(ce, func(t *testing.T) {
 			const encodedString = "Hello Gopher"
 			ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {

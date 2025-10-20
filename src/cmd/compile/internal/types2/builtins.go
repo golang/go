@@ -144,7 +144,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// len(x)
 		mode := invalid
 		var val constant.Value
-		switch t := arrayPtrDeref(under(x.typ)).(type) {
+		switch t := arrayPtrDeref(x.typ.Underlying()).(type) {
 		case *Basic:
 			if isString(t) && id == _Len {
 				if x.mode == constant_ {
@@ -203,7 +203,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 		if mode == invalid {
 			// avoid error if underlying type is invalid
-			if isValid(under(x.typ)) {
+			if isValid(x.typ.Underlying()) {
 				code := InvalidCap
 				if id == _Len {
 					code = InvalidLen
@@ -322,7 +322,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// (applyTypeFunc never calls f with a type parameter)
 		f := func(typ Type) Type {
 			assert(!isTypeParam(typ))
-			if t, _ := under(typ).(*Basic); t != nil {
+			if t, _ := typ.Underlying().(*Basic); t != nil {
 				switch t.kind {
 				case Float32:
 					return Typ[Complex64]
@@ -472,7 +472,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// (applyTypeFunc never calls f with a type parameter)
 		f := func(typ Type) Type {
 			assert(!isTypeParam(typ))
-			if t, _ := under(typ).(*Basic); t != nil {
+			if t, _ := typ.Underlying().(*Basic); t != nil {
 				switch t.kind {
 				case Complex64:
 					return Typ[Float32]
@@ -1020,7 +1020,7 @@ func hasVarSize(t Type, seen map[*Named]bool) (varSized bool) {
 		}()
 	}
 
-	switch u := under(t).(type) {
+	switch u := t.Underlying().(type) {
 	case *Array:
 		return hasVarSize(u.elem, seen)
 	case *Struct:
@@ -1112,7 +1112,7 @@ func makeSig(res Type, args ...Type) *Signature {
 // otherwise it returns typ.
 func arrayPtrDeref(typ Type) Type {
 	if p, ok := Unalias(typ).(*Pointer); ok {
-		if a, _ := under(p.base).(*Array); a != nil {
+		if a, _ := p.base.Underlying().(*Array); a != nil {
 			return a
 		}
 	}

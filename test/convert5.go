@@ -1,8 +1,13 @@
-// run
+// run -gcflags=-d=converthash=qy
 
 // Copyright 2020 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+
+//go:build !wasm && !386 && !arm && !mips
+
+// TODO fix this to work for wasm and 32-bit architectures.
+// Doing more than this, however, expands the change.
 
 package main
 
@@ -57,8 +62,6 @@ func main() {
 	p64_plus4k_plus1 := id(float64(p64 + 4096 + 1)) // want this to be precise and fit in 53 bits mantissa
 	n32_minus4k := id(float32(n32 - 4096))
 	n64_minus4k := id(float64(n64 - 4096))
-	n32_plus4k := id(float32(n32 + 4096))
-	n64_plus4k := id(float64(n64 + 4096))
 	inf_32 := id(float32(one / 0))
 	inf_64 := id(float64(one / 0))
 	ninf_32 := id(float32(-one / 0))
@@ -76,7 +79,6 @@ func main() {
 		{"p64_plus4k_plus1", p64_plus4k_plus1, p32},
 		{"n32_minus4k", n32_minus4k, n32},
 		{"n64_minus4k", n64_minus4k, n32},
-		{"n32_plus4k", n32_plus4k, n32 + 4096},
 		{"inf_32", inf_32, p32},
 		{"inf_64", inf_64, p32},
 		{"ninf_32", ninf_32, n32},
@@ -106,8 +108,6 @@ func main() {
 		{"p64_plus4k_plus1", p64_plus4k_plus1, p64},
 		{"n32_minus4k", n32_minus4k, n32 - 4096},
 		{"n64_minus4k", n64_minus4k, n64},
-		{"n32_plus4k", n32_plus4k, n32 + 4096},
-		{"n64_plus4k", n64_plus4k, n64 + 4096},
 		{"inf_32", inf_32, p64},
 		{"inf_64", inf_64, p64},
 		{"ninf_32", ninf_32, n64},

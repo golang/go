@@ -187,7 +187,7 @@ func concreteType(s *State, n ir.Node) (typ *types.Type) {
 		return nil
 	}
 	if typ != nil && typ.IsInterface() {
-		base.Fatalf("typ.IsInterface() = true; want = false; typ = %v", typ)
+		base.FatalfAt(n.Pos(), "typ.IsInterface() = true; want = false; typ = %v", typ)
 	}
 	return typ
 }
@@ -223,10 +223,10 @@ func concreteType1(s *State, n ir.Node, seen map[*ir.Name]struct{}) (outT *types
 		switch n1 := n.(type) {
 		case *ir.ConvExpr:
 			if n1.Op() == ir.OCONVNOP {
-				if !n1.Type().IsInterface() || !types.Identical(n1.Type(), n1.X.Type()) {
+				if !n1.Type().IsInterface() || !types.Identical(n1.Type().Underlying(), n1.X.Type().Underlying()) {
 					// As we check (directly before this switch) whether n is an interface, thus we should only reach
 					// here for iface conversions where both operands are the same.
-					base.Fatalf("not identical/interface types found n1.Type = %v; n1.X.Type = %v", n1.Type(), n1.X.Type())
+					base.FatalfAt(n1.Pos(), "not identical/interface types found n1.Type = %v; n1.X.Type = %v", n1.Type(), n1.X.Type())
 				}
 				n = n1.X
 				continue
@@ -260,12 +260,12 @@ func concreteType1(s *State, n ir.Node, seen map[*ir.Name]struct{}) (outT *types
 	}
 
 	if name.Op() != ir.ONAME {
-		base.Fatalf("name.Op = %v; want = ONAME", n.Op())
+		base.FatalfAt(name.Pos(), "name.Op = %v; want = ONAME", n.Op())
 	}
 
 	// name.Curfn must be set, as we checked name.Class != ir.PAUTO before.
 	if name.Curfn == nil {
-		base.Fatalf("name.Curfn = nil; want not nil")
+		base.FatalfAt(name.Pos(), "name.Curfn = nil; want not nil")
 	}
 
 	if name.Addrtaken() {
@@ -385,11 +385,14 @@ func (s *State) InlinedCall(fun *ir.Func, origCall *ir.CallExpr, inlinedCall *ir
 func (s *State) assignments(n *ir.Name) []assignment {
 	fun := n.Curfn
 	if fun == nil {
-		base.Fatalf("n.Curfn = <nil>")
+		base.FatalfAt(n.Pos(), "n.Curfn = <nil>")
+	}
+	if n.Class != ir.PAUTO {
+		base.FatalfAt(n.Pos(), "n.Class = %v; want = PAUTO", n.Class)
 	}
 
 	if !n.Type().IsInterface() {
-		base.Fatalf("name passed to assignments is not of an interface type: %v", n.Type())
+		base.FatalfAt(n.Pos(), "name passed to assignments is not of an interface type: %v", n.Type())
 	}
 
 	// Analyze assignments in func, if not analyzed before.
@@ -430,7 +433,10 @@ func (s *State) analyze(nodes ir.Nodes) {
 
 		n = n.Canonical()
 		if n.Op() != ir.ONAME {
-			base.Fatalf("n.Op = %v; want = ONAME", n.Op())
+			base.FatalfAt(n.Pos(), "n.Op = %v; want = ONAME", n.Op())
+		}
+		if n.Class != ir.PAUTO {
+			return nil, -1
 		}
 
 		switch a := assignment.(type) {
@@ -492,14 +498,14 @@ func (s *State) analyze(nodes ir.Nodes) {
 		case ir.OAS2DOTTYPE:
 			n := n.(*ir.AssignListStmt)
 			if n.Rhs[0] == nil {
-				base.Fatalf("n.Rhs[0] == nil; n = %v", n)
+				base.FatalfAt(n.Pos(), "n.Rhs[0] == nil; n = %v", n)
 			}
 			assign(n.Lhs[0], n.Rhs[0])
 			assign(n.Lhs[1], nil) // boolean does not have methods to devirtualize
 		case ir.OAS2MAPR, ir.OAS2RECV, ir.OSELRECV2:
 			n := n.(*ir.AssignListStmt)
 			if n.Rhs[0] == nil {
-				base.Fatalf("n.Rhs[0] == nil; n = %v", n)
+				base.FatalfAt(n.Pos(), "n.Rhs[0] == nil; n = %v", n)
 			}
 			assign(n.Lhs[0], n.Rhs[0].Type())
 			assign(n.Lhs[1], nil) // boolean does not have methods to devirtualize
@@ -529,7 +535,7 @@ func (s *State) analyze(nodes ir.Nodes) {
 					assign(p, call.ReturnVars[i])
 				}
 			} else {
-				base.Fatalf("unexpected type %T in OAS2FUNC Rhs[0]", call)
+				base.FatalfAt(n.Pos(), "unexpected type %T in OAS2FUNC Rhs[0]", call)
 			}
 		case ir.ORANGE:
 			n := n.(*ir.RangeStmt)
@@ -545,7 +551,7 @@ func (s *State) analyze(nodes ir.Nodes) {
 				assign(n.Value, xTyp.Elem())
 			} else if xTyp.IsChan() {
 				assign(n.Key, xTyp.Elem())
-				base.Assertf(n.Value == nil, "n.Value != nil in range over chan")
+				base.AssertfAt(n.Value == nil, n.Pos(), "n.Value != nil in range over chan")
 			} else if xTyp.IsMap() {
 				assign(n.Key, xTyp.Key())
 				assign(n.Value, xTyp.Elem())
@@ -556,7 +562,7 @@ func (s *State) analyze(nodes ir.Nodes) {
 			} else {
 				// We will not reach here in case of an range-over-func, as it is
 				// rewrtten to function calls in the noder package.
-				base.Fatalf("range over unexpected type %v", n.X.Type())
+				base.FatalfAt(n.Pos(), "range over unexpected type %v", n.X.Type())
 			}
 		case ir.OSWITCH:
 			n := n.(*ir.SwitchStmt)
