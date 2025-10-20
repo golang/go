@@ -609,36 +609,38 @@ func min2() {
 	)
 }
 
-func newInvalid() {
-	f2 := func() (x, y int) { return }
 
+func new1() {
 	_ = new()     // ERROR "not enough arguments"
 	_ = new(1, 2) // ERROR "too many arguments"
+	_ = new(unsafe /* ERROR "use of package unsafe not in selector" */ )
+
+	_ = new(struct{ x, y int })
+	p := new(float64)
+	q := new(*float64)
+	_ = *p == **q
+
+	type G[P any] struct{}
+	_ = new(G[int])
+	_ = new(G /* ERROR "cannot use generic type G without instantiation" */ )
+
 	new /* ERROR "not used" */ (int)
 	_ = &new /* ERROR "cannot take address" */ (int)
 	_ = new(int... /* ERROR "invalid use of ..." */)
 	_ = new(f0 /* ERROR "f0() (no value) used as value or type" */ ())
 	_ = new(len /* ERROR "len (built-in) must be called" */)
 	_ = new(1 /* ERROR "argument to new (overflows)" */ << 70)
-	_ = new(f2 /* ERRORx "multiple-value.*in single-value context" */ ())
 }
 
-// new(T)
-func newType() {
-	_ = new(struct{ x, y int })
-
-	p := new(float64)
-	q := new(*float64)
-	_ = *p == **q
-}
-
-// new(expr), added in go1.26
-func newExpr() {
-	f1 := func() (x []int) { return }
+func new2() {
+	// new(expr), added in go1.26
+	f1 := func() []int { panic(0) }
+	f2 := func() (int, int) { panic(0) }
 	var (
 		_ *[]int        = new(f1())
 		_ *func() []int = new(f1)
 		_ *bool         = new(false)
+		_ *bool         = new(1 < 2)
 		_ *int          = new(123)
 		_ *float64      = new(1.0)
 		_ *uint         = new(uint(3))
@@ -646,6 +648,14 @@ func newExpr() {
 		_ *string       = new("A")
 		_ *struct{}     = new(struct{}{})
 		_ *any          = new(any)
+
+		_ = new(f2 /* ERRORx "multiple-value.*in single-value context" */ ())
+		_ = new(1 << /* ERROR "constant shift overflow" */ 1000)
+		_ = new(1e10000 /* ERROR "cannot use 1e10000 (untyped float constant 1e+10000) as float64 value in argument to new (overflows)" */ )
+		_ = new(nil /* ERROR "use of untyped nil in argument to new" */ )
+		_ = new(comparable /* ERROR "cannot use type comparable outside a type constraint" */ )
+		_ = new(new /* ERROR "new (built-in) must be called" */ )
+		_ = new(panic /* ERROR "panic(0) (no value) used as value or type" */ (0))
 
 		// from issue 43125
 		_ = new(-1)

@@ -639,31 +639,31 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// new(T) or new(expr)
 		// (no argument evaluated yet)
 		arg := argList[0]
-		check.exprOrType(x, arg, true)
-		var T Type
+		check.exprOrType(x, arg, false)
+		check.exclude(x, 1<<novalue|1<<builtin)
 		switch x.mode {
-		case builtin:
-			check.errorf(x, UncalledBuiltin, "%s must be called", x)
-			x.mode = invalid
+		case invalid:
+			return
 		case typexpr:
 			// new(T)
-			T = x.typ
-			if !isValid(T) {
-				return
-			}
+			check.validVarType(arg, x.typ)
 		default:
 			// new(expr)
-			check.verifyVersionf(call.Fun, go1_26, "new(expr)")
-			T = Default(x.typ)
-			if T != x.typ {
-				// untyped constant: check for overflow.
-				check.assignment(x, T, "argument to new")
+			if isUntyped(x.typ) {
+				// check for overflow and untyped nil
+				check.assignment(x, nil, "argument to new")
+				if x.mode == invalid {
+					return
+				}
+				assert(isTyped(x.typ))
 			}
-			check.validVarType(arg, T)
+			// report version error only if there are no other errors
+			check.verifyVersionf(call.Fun, go1_26, "new(%s)", arg)
 		}
 
+		T := x.typ
 		x.mode = value
-		x.typ = &Pointer{base: T}
+		x.typ = NewPointer(T)
 		if check.recordTypes() {
 			check.recordBuiltinType(call.Fun, makeSig(x.typ, T))
 		}
