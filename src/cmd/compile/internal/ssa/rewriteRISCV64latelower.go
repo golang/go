@@ -6,8 +6,6 @@ import "internal/buildcfg"
 
 func rewriteValueRISCV64latelower(v *Value) bool {
 	switch v.Op {
-	case OpCondSelect:
-		return rewriteValueRISCV64latelower_OpCondSelect(v)
 	case OpRISCV64AND:
 		return rewriteValueRISCV64latelower_OpRISCV64AND(v)
 	case OpRISCV64NOT:
@@ -22,373 +20,6 @@ func rewriteValueRISCV64latelower(v *Value) bool {
 		return rewriteValueRISCV64latelower_OpRISCV64SRLI(v)
 	case OpRISCV64XOR:
 		return rewriteValueRISCV64latelower_OpRISCV64XOR(v)
-	}
-	return false
-}
-func rewriteValueRISCV64latelower_OpCondSelect(v *Value) bool {
-	v_2 := v.Args[2]
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (CondSelect <t> x y (SEQZ x))
-	// cond: buildcfg.GORISCV64 >= 23
-	// result: (CZEROEQZ <t> y x)
-	for {
-		t := v.Type
-		x := v_0
-		y := v_1
-		if v_2.Op != OpRISCV64SEQZ || x != v_2.Args[0] || !(buildcfg.GORISCV64 >= 23) {
-			break
-		}
-		v.reset(OpRISCV64CZEROEQZ)
-		v.Type = t
-		v.AddArg2(y, x)
-		return true
-	}
-	// match: (CondSelect <t> (ADD x y) x (SEQZ z))
-	// cond: buildcfg.GORISCV64 >= 23
-	// result: (ADD x (CZERONEZ <t> y z))
-	for {
-		t := v.Type
-		if v_0.Op != OpRISCV64ADD {
-			break
-		}
-		_ = v_0.Args[1]
-		v_0_0 := v_0.Args[0]
-		v_0_1 := v_0.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
-			x := v_0_0
-			y := v_0_1
-			if x != v_1 || v_2.Op != OpRISCV64SEQZ {
-				continue
-			}
-			z := v_2.Args[0]
-			if !(buildcfg.GORISCV64 >= 23) {
-				continue
-			}
-			v.reset(OpRISCV64ADD)
-			v0 := b.NewValue0(v.Pos, OpRISCV64CZERONEZ, t)
-			v0.AddArg2(y, z)
-			v.AddArg2(x, v0)
-			return true
-		}
-		break
-	}
-	// match: (CondSelect <t> (ADD x y) x (SNEZ z))
-	// cond: buildcfg.GORISCV64 >= 23
-	// result: (ADD x (CZEROEQZ <t> y z))
-	for {
-		t := v.Type
-		if v_0.Op != OpRISCV64ADD {
-			break
-		}
-		_ = v_0.Args[1]
-		v_0_0 := v_0.Args[0]
-		v_0_1 := v_0.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
-			x := v_0_0
-			y := v_0_1
-			if x != v_1 || v_2.Op != OpRISCV64SNEZ {
-				continue
-			}
-			z := v_2.Args[0]
-			if !(buildcfg.GORISCV64 >= 23) {
-				continue
-			}
-			v.reset(OpRISCV64ADD)
-			v0 := b.NewValue0(v.Pos, OpRISCV64CZEROEQZ, t)
-			v0.AddArg2(y, z)
-			v.AddArg2(x, v0)
-			return true
-		}
-		break
-	}
-	// match: (CondSelect <t> (SUB x y) x (SEQZ z))
-	// cond: buildcfg.GORISCV64 >= 23
-	// result: (SUB x (CZERONEZ <t> y z))
-	for {
-		t := v.Type
-		if v_0.Op != OpRISCV64SUB {
-			break
-		}
-		y := v_0.Args[1]
-		x := v_0.Args[0]
-		if x != v_1 || v_2.Op != OpRISCV64SEQZ {
-			break
-		}
-		z := v_2.Args[0]
-		if !(buildcfg.GORISCV64 >= 23) {
-			break
-		}
-		v.reset(OpRISCV64SUB)
-		v0 := b.NewValue0(v.Pos, OpRISCV64CZERONEZ, t)
-		v0.AddArg2(y, z)
-		v.AddArg2(x, v0)
-		return true
-	}
-	// match: (CondSelect <t> (SUB x y) x (SNEZ z))
-	// cond: buildcfg.GORISCV64 >= 23
-	// result: (SUB x (CZEROEQZ <t> y z))
-	for {
-		t := v.Type
-		if v_0.Op != OpRISCV64SUB {
-			break
-		}
-		y := v_0.Args[1]
-		x := v_0.Args[0]
-		if x != v_1 || v_2.Op != OpRISCV64SNEZ {
-			break
-		}
-		z := v_2.Args[0]
-		if !(buildcfg.GORISCV64 >= 23) {
-			break
-		}
-		v.reset(OpRISCV64SUB)
-		v0 := b.NewValue0(v.Pos, OpRISCV64CZEROEQZ, t)
-		v0.AddArg2(y, z)
-		v.AddArg2(x, v0)
-		return true
-	}
-	// match: (CondSelect <t> (OR x y) x (SEQZ z))
-	// cond: buildcfg.GORISCV64 >= 23
-	// result: (OR x (CZERONEZ <t> y z))
-	for {
-		t := v.Type
-		if v_0.Op != OpRISCV64OR {
-			break
-		}
-		_ = v_0.Args[1]
-		v_0_0 := v_0.Args[0]
-		v_0_1 := v_0.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
-			x := v_0_0
-			y := v_0_1
-			if x != v_1 || v_2.Op != OpRISCV64SEQZ {
-				continue
-			}
-			z := v_2.Args[0]
-			if !(buildcfg.GORISCV64 >= 23) {
-				continue
-			}
-			v.reset(OpRISCV64OR)
-			v0 := b.NewValue0(v.Pos, OpRISCV64CZERONEZ, t)
-			v0.AddArg2(y, z)
-			v.AddArg2(x, v0)
-			return true
-		}
-		break
-	}
-	// match: (CondSelect <t> (OR x y) x (SNEZ z))
-	// cond: buildcfg.GORISCV64 >= 23
-	// result: (OR x (CZEROEQZ <t> y z))
-	for {
-		t := v.Type
-		if v_0.Op != OpRISCV64OR {
-			break
-		}
-		_ = v_0.Args[1]
-		v_0_0 := v_0.Args[0]
-		v_0_1 := v_0.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
-			x := v_0_0
-			y := v_0_1
-			if x != v_1 || v_2.Op != OpRISCV64SNEZ {
-				continue
-			}
-			z := v_2.Args[0]
-			if !(buildcfg.GORISCV64 >= 23) {
-				continue
-			}
-			v.reset(OpRISCV64OR)
-			v0 := b.NewValue0(v.Pos, OpRISCV64CZEROEQZ, t)
-			v0.AddArg2(y, z)
-			v.AddArg2(x, v0)
-			return true
-		}
-		break
-	}
-	// match: (CondSelect <t> (XOR x y) x (SEQZ z))
-	// cond: buildcfg.GORISCV64 >= 23
-	// result: (XOR x (CZERONEZ <t> y z))
-	for {
-		t := v.Type
-		if v_0.Op != OpRISCV64XOR {
-			break
-		}
-		_ = v_0.Args[1]
-		v_0_0 := v_0.Args[0]
-		v_0_1 := v_0.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
-			x := v_0_0
-			y := v_0_1
-			if x != v_1 || v_2.Op != OpRISCV64SEQZ {
-				continue
-			}
-			z := v_2.Args[0]
-			if !(buildcfg.GORISCV64 >= 23) {
-				continue
-			}
-			v.reset(OpRISCV64XOR)
-			v0 := b.NewValue0(v.Pos, OpRISCV64CZERONEZ, t)
-			v0.AddArg2(y, z)
-			v.AddArg2(x, v0)
-			return true
-		}
-		break
-	}
-	// match: (CondSelect <t> (XOR x y) x (SNEZ z))
-	// cond: buildcfg.GORISCV64 >= 23
-	// result: (XOR x (CZEROEQZ <t> y z))
-	for {
-		t := v.Type
-		if v_0.Op != OpRISCV64XOR {
-			break
-		}
-		_ = v_0.Args[1]
-		v_0_0 := v_0.Args[0]
-		v_0_1 := v_0.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
-			x := v_0_0
-			y := v_0_1
-			if x != v_1 || v_2.Op != OpRISCV64SNEZ {
-				continue
-			}
-			z := v_2.Args[0]
-			if !(buildcfg.GORISCV64 >= 23) {
-				continue
-			}
-			v.reset(OpRISCV64XOR)
-			v0 := b.NewValue0(v.Pos, OpRISCV64CZEROEQZ, t)
-			v0.AddArg2(y, z)
-			v.AddArg2(x, v0)
-			return true
-		}
-		break
-	}
-	// match: (CondSelect <t> (AND x y) x (SEQZ z))
-	// cond: buildcfg.GORISCV64 >= 23
-	// result: (OR (AND <t> x y) (CZEROEQZ <t> x z))
-	for {
-		t := v.Type
-		if v_0.Op != OpRISCV64AND {
-			break
-		}
-		_ = v_0.Args[1]
-		v_0_0 := v_0.Args[0]
-		v_0_1 := v_0.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
-			x := v_0_0
-			y := v_0_1
-			if x != v_1 || v_2.Op != OpRISCV64SEQZ {
-				continue
-			}
-			z := v_2.Args[0]
-			if !(buildcfg.GORISCV64 >= 23) {
-				continue
-			}
-			v.reset(OpRISCV64OR)
-			v0 := b.NewValue0(v.Pos, OpRISCV64AND, t)
-			v0.AddArg2(x, y)
-			v1 := b.NewValue0(v.Pos, OpRISCV64CZEROEQZ, t)
-			v1.AddArg2(x, z)
-			v.AddArg2(v0, v1)
-			return true
-		}
-		break
-	}
-	// match: (CondSelect <t> (AND x y) x (SNEZ z))
-	// cond: buildcfg.GORISCV64 >= 23
-	// result: (OR (AND <t> x y) (CZERONEZ <t> x z))
-	for {
-		t := v.Type
-		if v_0.Op != OpRISCV64AND {
-			break
-		}
-		_ = v_0.Args[1]
-		v_0_0 := v_0.Args[0]
-		v_0_1 := v_0.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
-			x := v_0_0
-			y := v_0_1
-			if x != v_1 || v_2.Op != OpRISCV64SNEZ {
-				continue
-			}
-			z := v_2.Args[0]
-			if !(buildcfg.GORISCV64 >= 23) {
-				continue
-			}
-			v.reset(OpRISCV64OR)
-			v0 := b.NewValue0(v.Pos, OpRISCV64AND, t)
-			v0.AddArg2(x, y)
-			v1 := b.NewValue0(v.Pos, OpRISCV64CZERONEZ, t)
-			v1.AddArg2(x, z)
-			v.AddArg2(v0, v1)
-			return true
-		}
-		break
-	}
-	// match: (CondSelect <t> x y (SEQZ z))
-	// cond: buildcfg.GORISCV64 >= 23
-	// result: (OR (CZERONEZ <t> x z) (CZEROEQZ <t> y z))
-	for {
-		t := v.Type
-		x := v_0
-		y := v_1
-		if v_2.Op != OpRISCV64SEQZ {
-			break
-		}
-		z := v_2.Args[0]
-		if !(buildcfg.GORISCV64 >= 23) {
-			break
-		}
-		v.reset(OpRISCV64OR)
-		v0 := b.NewValue0(v.Pos, OpRISCV64CZERONEZ, t)
-		v0.AddArg2(x, z)
-		v1 := b.NewValue0(v.Pos, OpRISCV64CZEROEQZ, t)
-		v1.AddArg2(y, z)
-		v.AddArg2(v0, v1)
-		return true
-	}
-	// match: (CondSelect <t> x y (SNEZ z))
-	// cond: buildcfg.GORISCV64 >= 23
-	// result: (OR (CZEROEQZ <t> x z) (CZERONEZ <t> y z))
-	for {
-		t := v.Type
-		x := v_0
-		y := v_1
-		if v_2.Op != OpRISCV64SNEZ {
-			break
-		}
-		z := v_2.Args[0]
-		if !(buildcfg.GORISCV64 >= 23) {
-			break
-		}
-		v.reset(OpRISCV64OR)
-		v0 := b.NewValue0(v.Pos, OpRISCV64CZEROEQZ, t)
-		v0.AddArg2(x, z)
-		v1 := b.NewValue0(v.Pos, OpRISCV64CZERONEZ, t)
-		v1.AddArg2(y, z)
-		v.AddArg2(v0, v1)
-		return true
-	}
-	// match: (CondSelect <t> x y cond)
-	// cond: buildcfg.GORISCV64 >= 23
-	// result: (OR (CZEROEQZ <t> x cond) (CZERONEZ <t> y cond))
-	for {
-		t := v.Type
-		x := v_0
-		y := v_1
-		cond := v_2
-		if !(buildcfg.GORISCV64 >= 23) {
-			break
-		}
-		v.reset(OpRISCV64OR)
-		v0 := b.NewValue0(v.Pos, OpRISCV64CZEROEQZ, t)
-		v0.AddArg2(x, cond)
-		v1 := b.NewValue0(v.Pos, OpRISCV64CZERONEZ, t)
-		v1.AddArg2(y, cond)
-		v.AddArg2(v0, v1)
-		return true
 	}
 	return false
 }
@@ -431,6 +62,7 @@ func rewriteValueRISCV64latelower_OpRISCV64NOT(v *Value) bool {
 func rewriteValueRISCV64latelower_OpRISCV64OR(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	b := v.Block
 	// match: (OR x (NOT y))
 	// result: (ORN x y)
 	for {
@@ -443,6 +75,478 @@ func rewriteValueRISCV64latelower_OpRISCV64OR(v *Value) bool {
 			v.reset(OpRISCV64ORN)
 			v.AddArg2(x, y)
 			return true
+		}
+		break
+	}
+	// match: (OR (CZEROEQZ <t> x (SEQZ x)) (CZERONEZ <t> y (SEQZ x)))
+	// cond: buildcfg.GORISCV64 >= 23
+	// result: (CZEROEQZ <t> y x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpRISCV64CZEROEQZ {
+				continue
+			}
+			t := v_0.Type
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpRISCV64SEQZ || x != v_0_1.Args[0] || v_1.Op != OpRISCV64CZERONEZ || v_1.Type != t {
+				continue
+			}
+			_ = v_1.Args[1]
+			y := v_1.Args[0]
+			v_1_1 := v_1.Args[1]
+			if v_1_1.Op != OpRISCV64SEQZ || x != v_1_1.Args[0] || !(buildcfg.GORISCV64 >= 23) {
+				continue
+			}
+			v.reset(OpRISCV64CZEROEQZ)
+			v.Type = t
+			v.AddArg2(y, x)
+			return true
+		}
+		break
+	}
+	// match: (OR (CZEROEQZ <t> (ADD x y) (SEQZ z)) (CZERONEZ <t> x (SEQZ z)))
+	// cond: buildcfg.GORISCV64 >= 23
+	// result: (ADD x (CZERONEZ <t> y z))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpRISCV64CZEROEQZ {
+				continue
+			}
+			t := v_0.Type
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpRISCV64ADD {
+				continue
+			}
+			_ = v_0_0.Args[1]
+			v_0_0_0 := v_0_0.Args[0]
+			v_0_0_1 := v_0_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_0_0_0, v_0_0_1 = _i1+1, v_0_0_1, v_0_0_0 {
+				x := v_0_0_0
+				y := v_0_0_1
+				v_0_1 := v_0.Args[1]
+				if v_0_1.Op != OpRISCV64SEQZ {
+					continue
+				}
+				z := v_0_1.Args[0]
+				if v_1.Op != OpRISCV64CZERONEZ || v_1.Type != t {
+					continue
+				}
+				_ = v_1.Args[1]
+				if x != v_1.Args[0] {
+					continue
+				}
+				v_1_1 := v_1.Args[1]
+				if v_1_1.Op != OpRISCV64SEQZ || z != v_1_1.Args[0] || !(buildcfg.GORISCV64 >= 23) {
+					continue
+				}
+				v.reset(OpRISCV64ADD)
+				v0 := b.NewValue0(v.Pos, OpRISCV64CZERONEZ, t)
+				v0.AddArg2(y, z)
+				v.AddArg2(x, v0)
+				return true
+			}
+		}
+		break
+	}
+	// match: (OR (CZEROEQZ <t> (ADD x y) (SNEZ z)) (CZERONEZ <t> x (SNEZ z)))
+	// cond: buildcfg.GORISCV64 >= 23
+	// result: (ADD x (CZEROEQZ <t> y z))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpRISCV64CZEROEQZ {
+				continue
+			}
+			t := v_0.Type
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpRISCV64ADD {
+				continue
+			}
+			_ = v_0_0.Args[1]
+			v_0_0_0 := v_0_0.Args[0]
+			v_0_0_1 := v_0_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_0_0_0, v_0_0_1 = _i1+1, v_0_0_1, v_0_0_0 {
+				x := v_0_0_0
+				y := v_0_0_1
+				v_0_1 := v_0.Args[1]
+				if v_0_1.Op != OpRISCV64SNEZ {
+					continue
+				}
+				z := v_0_1.Args[0]
+				if v_1.Op != OpRISCV64CZERONEZ || v_1.Type != t {
+					continue
+				}
+				_ = v_1.Args[1]
+				if x != v_1.Args[0] {
+					continue
+				}
+				v_1_1 := v_1.Args[1]
+				if v_1_1.Op != OpRISCV64SNEZ || z != v_1_1.Args[0] || !(buildcfg.GORISCV64 >= 23) {
+					continue
+				}
+				v.reset(OpRISCV64ADD)
+				v0 := b.NewValue0(v.Pos, OpRISCV64CZEROEQZ, t)
+				v0.AddArg2(y, z)
+				v.AddArg2(x, v0)
+				return true
+			}
+		}
+		break
+	}
+	// match: (OR (CZEROEQZ <t> (SUB x y) (SEQZ z)) (CZERONEZ <t> x (SEQZ z)))
+	// cond: buildcfg.GORISCV64 >= 23
+	// result: (SUB x (CZERONEZ <t> y z))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpRISCV64CZEROEQZ {
+				continue
+			}
+			t := v_0.Type
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpRISCV64SUB {
+				continue
+			}
+			y := v_0_0.Args[1]
+			x := v_0_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpRISCV64SEQZ {
+				continue
+			}
+			z := v_0_1.Args[0]
+			if v_1.Op != OpRISCV64CZERONEZ || v_1.Type != t {
+				continue
+			}
+			_ = v_1.Args[1]
+			if x != v_1.Args[0] {
+				continue
+			}
+			v_1_1 := v_1.Args[1]
+			if v_1_1.Op != OpRISCV64SEQZ || z != v_1_1.Args[0] || !(buildcfg.GORISCV64 >= 23) {
+				continue
+			}
+			v.reset(OpRISCV64SUB)
+			v0 := b.NewValue0(v.Pos, OpRISCV64CZERONEZ, t)
+			v0.AddArg2(y, z)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
+	// match: (OR (CZEROEQZ <t> (SUB x y) (SNEZ z)) (CZERONEZ <t> x (SNEZ z)))
+	// cond: buildcfg.GORISCV64 >= 23
+	// result: (SUB x (CZEROEQZ <t> y z))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpRISCV64CZEROEQZ {
+				continue
+			}
+			t := v_0.Type
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpRISCV64SUB {
+				continue
+			}
+			y := v_0_0.Args[1]
+			x := v_0_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpRISCV64SNEZ {
+				continue
+			}
+			z := v_0_1.Args[0]
+			if v_1.Op != OpRISCV64CZERONEZ || v_1.Type != t {
+				continue
+			}
+			_ = v_1.Args[1]
+			if x != v_1.Args[0] {
+				continue
+			}
+			v_1_1 := v_1.Args[1]
+			if v_1_1.Op != OpRISCV64SNEZ || z != v_1_1.Args[0] || !(buildcfg.GORISCV64 >= 23) {
+				continue
+			}
+			v.reset(OpRISCV64SUB)
+			v0 := b.NewValue0(v.Pos, OpRISCV64CZEROEQZ, t)
+			v0.AddArg2(y, z)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
+	// match: (OR (CZEROEQZ <t> (OR x y) (SEQZ z)) (CZERONEZ <t> x (SEQZ z)))
+	// cond: buildcfg.GORISCV64 >= 23
+	// result: (OR x (CZERONEZ <t> y z))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpRISCV64CZEROEQZ {
+				continue
+			}
+			t := v_0.Type
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpRISCV64OR {
+				continue
+			}
+			_ = v_0_0.Args[1]
+			v_0_0_0 := v_0_0.Args[0]
+			v_0_0_1 := v_0_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_0_0_0, v_0_0_1 = _i1+1, v_0_0_1, v_0_0_0 {
+				x := v_0_0_0
+				y := v_0_0_1
+				v_0_1 := v_0.Args[1]
+				if v_0_1.Op != OpRISCV64SEQZ {
+					continue
+				}
+				z := v_0_1.Args[0]
+				if v_1.Op != OpRISCV64CZERONEZ || v_1.Type != t {
+					continue
+				}
+				_ = v_1.Args[1]
+				if x != v_1.Args[0] {
+					continue
+				}
+				v_1_1 := v_1.Args[1]
+				if v_1_1.Op != OpRISCV64SEQZ || z != v_1_1.Args[0] || !(buildcfg.GORISCV64 >= 23) {
+					continue
+				}
+				v.reset(OpRISCV64OR)
+				v0 := b.NewValue0(v.Pos, OpRISCV64CZERONEZ, t)
+				v0.AddArg2(y, z)
+				v.AddArg2(x, v0)
+				return true
+			}
+		}
+		break
+	}
+	// match: (OR (CZEROEQZ <t> (OR x y) (SNEZ z)) (CZERONEZ <t> x (SNEZ z)))
+	// cond: buildcfg.GORISCV64 >= 23
+	// result: (OR x (CZEROEQZ <t> y z))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpRISCV64CZEROEQZ {
+				continue
+			}
+			t := v_0.Type
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpRISCV64OR {
+				continue
+			}
+			_ = v_0_0.Args[1]
+			v_0_0_0 := v_0_0.Args[0]
+			v_0_0_1 := v_0_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_0_0_0, v_0_0_1 = _i1+1, v_0_0_1, v_0_0_0 {
+				x := v_0_0_0
+				y := v_0_0_1
+				v_0_1 := v_0.Args[1]
+				if v_0_1.Op != OpRISCV64SNEZ {
+					continue
+				}
+				z := v_0_1.Args[0]
+				if v_1.Op != OpRISCV64CZERONEZ || v_1.Type != t {
+					continue
+				}
+				_ = v_1.Args[1]
+				if x != v_1.Args[0] {
+					continue
+				}
+				v_1_1 := v_1.Args[1]
+				if v_1_1.Op != OpRISCV64SNEZ || z != v_1_1.Args[0] || !(buildcfg.GORISCV64 >= 23) {
+					continue
+				}
+				v.reset(OpRISCV64OR)
+				v0 := b.NewValue0(v.Pos, OpRISCV64CZEROEQZ, t)
+				v0.AddArg2(y, z)
+				v.AddArg2(x, v0)
+				return true
+			}
+		}
+		break
+	}
+	// match: (OR (CZEROEQZ <t> (XOR x y) (SEQZ z)) (CZERONEZ <t> x (SEQZ z)))
+	// cond: buildcfg.GORISCV64 >= 23
+	// result: (XOR x (CZERONEZ <t> y z))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpRISCV64CZEROEQZ {
+				continue
+			}
+			t := v_0.Type
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpRISCV64XOR {
+				continue
+			}
+			_ = v_0_0.Args[1]
+			v_0_0_0 := v_0_0.Args[0]
+			v_0_0_1 := v_0_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_0_0_0, v_0_0_1 = _i1+1, v_0_0_1, v_0_0_0 {
+				x := v_0_0_0
+				y := v_0_0_1
+				v_0_1 := v_0.Args[1]
+				if v_0_1.Op != OpRISCV64SEQZ {
+					continue
+				}
+				z := v_0_1.Args[0]
+				if v_1.Op != OpRISCV64CZERONEZ || v_1.Type != t {
+					continue
+				}
+				_ = v_1.Args[1]
+				if x != v_1.Args[0] {
+					continue
+				}
+				v_1_1 := v_1.Args[1]
+				if v_1_1.Op != OpRISCV64SEQZ || z != v_1_1.Args[0] || !(buildcfg.GORISCV64 >= 23) {
+					continue
+				}
+				v.reset(OpRISCV64XOR)
+				v0 := b.NewValue0(v.Pos, OpRISCV64CZERONEZ, t)
+				v0.AddArg2(y, z)
+				v.AddArg2(x, v0)
+				return true
+			}
+		}
+		break
+	}
+	// match: (OR (CZEROEQZ <t> (XOR x y) (SNEZ z)) (CZERONEZ <t> x (SNEZ z)))
+	// cond: buildcfg.GORISCV64 >= 23
+	// result: (XOR x (CZEROEQZ <t> y z))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpRISCV64CZEROEQZ {
+				continue
+			}
+			t := v_0.Type
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpRISCV64XOR {
+				continue
+			}
+			_ = v_0_0.Args[1]
+			v_0_0_0 := v_0_0.Args[0]
+			v_0_0_1 := v_0_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_0_0_0, v_0_0_1 = _i1+1, v_0_0_1, v_0_0_0 {
+				x := v_0_0_0
+				y := v_0_0_1
+				v_0_1 := v_0.Args[1]
+				if v_0_1.Op != OpRISCV64SNEZ {
+					continue
+				}
+				z := v_0_1.Args[0]
+				if v_1.Op != OpRISCV64CZERONEZ || v_1.Type != t {
+					continue
+				}
+				_ = v_1.Args[1]
+				if x != v_1.Args[0] {
+					continue
+				}
+				v_1_1 := v_1.Args[1]
+				if v_1_1.Op != OpRISCV64SNEZ || z != v_1_1.Args[0] || !(buildcfg.GORISCV64 >= 23) {
+					continue
+				}
+				v.reset(OpRISCV64XOR)
+				v0 := b.NewValue0(v.Pos, OpRISCV64CZEROEQZ, t)
+				v0.AddArg2(y, z)
+				v.AddArg2(x, v0)
+				return true
+			}
+		}
+		break
+	}
+	// match: (OR (CZEROEQZ <t> (AND x y) (SEQZ z)) (CZERONEZ <t> x (SEQZ z)))
+	// cond: buildcfg.GORISCV64 >= 23
+	// result: (OR (AND <t> x y) (CZEROEQZ <t> x z))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpRISCV64CZEROEQZ {
+				continue
+			}
+			t := v_0.Type
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpRISCV64AND {
+				continue
+			}
+			_ = v_0_0.Args[1]
+			v_0_0_0 := v_0_0.Args[0]
+			v_0_0_1 := v_0_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_0_0_0, v_0_0_1 = _i1+1, v_0_0_1, v_0_0_0 {
+				x := v_0_0_0
+				y := v_0_0_1
+				v_0_1 := v_0.Args[1]
+				if v_0_1.Op != OpRISCV64SEQZ {
+					continue
+				}
+				z := v_0_1.Args[0]
+				if v_1.Op != OpRISCV64CZERONEZ || v_1.Type != t {
+					continue
+				}
+				_ = v_1.Args[1]
+				if x != v_1.Args[0] {
+					continue
+				}
+				v_1_1 := v_1.Args[1]
+				if v_1_1.Op != OpRISCV64SEQZ || z != v_1_1.Args[0] || !(buildcfg.GORISCV64 >= 23) {
+					continue
+				}
+				v.reset(OpRISCV64OR)
+				v0 := b.NewValue0(v.Pos, OpRISCV64AND, t)
+				v0.AddArg2(x, y)
+				v1 := b.NewValue0(v.Pos, OpRISCV64CZEROEQZ, t)
+				v1.AddArg2(x, z)
+				v.AddArg2(v0, v1)
+				return true
+			}
+		}
+		break
+	}
+	// match: (OR (CZEROEQZ <t> (AND x y) (SNEZ z)) (CZERONEZ <t> x (SNEZ z)))
+	// cond: buildcfg.GORISCV64 >= 23
+	// result: (OR (AND <t> x y) (CZERONEZ <t> x z))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpRISCV64CZEROEQZ {
+				continue
+			}
+			t := v_0.Type
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpRISCV64AND {
+				continue
+			}
+			_ = v_0_0.Args[1]
+			v_0_0_0 := v_0_0.Args[0]
+			v_0_0_1 := v_0_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_0_0_0, v_0_0_1 = _i1+1, v_0_0_1, v_0_0_0 {
+				x := v_0_0_0
+				y := v_0_0_1
+				v_0_1 := v_0.Args[1]
+				if v_0_1.Op != OpRISCV64SNEZ {
+					continue
+				}
+				z := v_0_1.Args[0]
+				if v_1.Op != OpRISCV64CZERONEZ || v_1.Type != t {
+					continue
+				}
+				_ = v_1.Args[1]
+				if x != v_1.Args[0] {
+					continue
+				}
+				v_1_1 := v_1.Args[1]
+				if v_1_1.Op != OpRISCV64SNEZ || z != v_1_1.Args[0] || !(buildcfg.GORISCV64 >= 23) {
+					continue
+				}
+				v.reset(OpRISCV64OR)
+				v0 := b.NewValue0(v.Pos, OpRISCV64AND, t)
+				v0.AddArg2(x, y)
+				v1 := b.NewValue0(v.Pos, OpRISCV64CZERONEZ, t)
+				v1.AddArg2(x, z)
+				v.AddArg2(v0, v1)
+				return true
+			}
 		}
 		break
 	}
