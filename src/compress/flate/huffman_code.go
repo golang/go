@@ -7,6 +7,7 @@ package flate
 import (
 	"math"
 	"math/bits"
+	"slices"
 )
 
 const (
@@ -316,7 +317,9 @@ func (h *huffmanEncoder) assignEncodingAndSize(bitCount []int32, list []literalN
 		// assigned in literal order (not frequency order).
 		chunk := list[len(list)-int(bits):]
 
-		sortByLiteral(chunk)
+		slices.SortFunc(chunk, func(a, b literalNode) int {
+			return int(a.literal) - int(b.literal)
+		})
 		for _, node := range chunk {
 			h.codes[node.literal] = newhcode(reverseBits(code, uint8(n)), uint8(n))
 			code++
@@ -355,7 +358,10 @@ func (h *huffmanEncoder) generate(freq []uint16, maxBits int32) {
 		}
 		return
 	}
-	sortByFreq(list)
+	slices.SortFunc(list, func(a, b literalNode) int {
+		// Literals can be contained in 9 bits, so we shift freq to be branchless.
+		return (int(a.freq)<<10 + int(a.literal)) - (int(b.freq)<<10 + int(b.literal))
+	})
 
 	// Get the number of literals for each bit count
 	bitCount := h.bitCounts(list, maxBits)
