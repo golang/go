@@ -142,7 +142,7 @@ type instance struct {
 // according to the below diagram:
 //
 //	unresolved
-//	loaded
+//	lazyLoaded
 //	resolved
 //	└── hasMethods
 //	└── hasUnder
@@ -158,9 +158,9 @@ type instance struct {
 // set left-to-right, they are:
 //
 //	0000 | unresolved
-//	1000 | loaded
-//	1100 | resolved, which implies loaded
-//	1110 | hasMethods, which implies resolved (which in turn implies loaded)
+//	1000 | lazyLoaded
+//	1100 | resolved, which implies lazyLoaded
+//	1110 | hasMethods, which implies resolved (which in turn implies lazyLoaded)
 //	1101 | hasUnder, which implies resolved ...
 //	1111 | both hasMethods and hasUnder which implies resolved ...
 //
@@ -169,9 +169,9 @@ type stateMask uint32
 
 const (
 	// before resolved, type parameters, RHS, underlying, and methods might be unavailable
-	resolved   stateMask = 1 << iota // methods might be unexpanded (for instances)
+	lazyLoaded stateMask = 1 << iota // methods are available, but constraints might be unexpanded (for generic types)
+	resolved                         // methods might be unexpanded (for instances)
 	hasMethods                       // methods are all expanded (for instances)
-	loaded                           // methods are available, but constraints might be unexpanded (for generic types)
 	hasUnder                         // underlying type is available
 )
 
@@ -213,7 +213,7 @@ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
 // All others:
 // Effectively, nothing happens.
 func (n *Named) resolve() *Named {
-	if n.stateHas(resolved | loaded) { // avoid locking below
+	if n.stateHas(resolved | lazyLoaded) { // avoid locking below
 		return n
 	}
 
@@ -223,7 +223,7 @@ func (n *Named) resolve() *Named {
 	defer n.mu.Unlock()
 
 	// only atomic for consistency; we are holding the mutex
-	if n.stateHas(resolved | loaded) {
+	if n.stateHas(resolved | lazyLoaded) {
 		return n
 	}
 
@@ -267,7 +267,7 @@ func (n *Named) resolve() *Named {
 		n.fromRHS = underlying // for cycle detection
 		n.methods = methods
 
-		n.setState(loaded) // avoid deadlock calling delayed functions
+		n.setState(lazyLoaded) // avoid deadlock calling delayed functions
 		for _, f := range delayed {
 			f()
 		}
@@ -716,7 +716,7 @@ func (n *Named) expandRHS() (rhs Type) {
 	}
 
 	assert(!n.stateHas(resolved))
-	assert(n.inst.orig.stateHas(resolved | loaded))
+	assert(n.inst.orig.stateHas(resolved | lazyLoaded))
 
 	if n.inst.ctxt == nil {
 		n.inst.ctxt = NewContext()
