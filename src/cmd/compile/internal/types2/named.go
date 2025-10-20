@@ -68,7 +68,6 @@ import (
 //    arguments from the instantiation. A type may be partially expanded if some
 //    but not all of these details have been substituted. Similarly, we refer to
 //    these individual details (RHS or method) as being "expanded".
-//  - When all information is known for a named type, we say it is "complete".
 //
 // Some invariants to keep in mind: each declared Named type has a single
 // corresponding object, and that object's type is the (possibly generic) Named
@@ -85,8 +84,8 @@ import (
 // presence of a cycle of named types, expansion will eventually find an
 // existing instance in the Context and short-circuit the expansion.
 //
-// Once an instance is complete, we can nil out this shared Context to unpin
-// memory, though this Context may still be held by other incomplete instances
+// Once an instance is fully expanded, we can nil out this shared Context to unpin
+// memory, though the Context may still be held by other incomplete instances
 // in its "lineage".
 
 // A Named represents a named (defined) type.
@@ -145,11 +144,11 @@ type instance struct {
 //	unresolved
 //	loaded
 //	resolved
-//	└── complete
-//	└── underlying
+//	└── hasMethods
+//	└── hasUnder
 //
 // That is, descent down the tree is mostly linear (unresolved through resolved), except upon
-// reaching the leaves (complete and underlying). A type may occupy any combination of the
+// reaching the leaves (hasMethods and hasUnder). A type may occupy any combination of the
 // leaf states at once (they are independent states).
 //
 // To represent this independence, the set of active states is represented with a bit set. State
@@ -161,9 +160,9 @@ type instance struct {
 //	0000 | unresolved
 //	1000 | loaded
 //	1100 | resolved, which implies loaded
-//	1110 | completed, which implies resolved (which in turn implies loaded)
-//	1101 | underlying, which implies resolved ...
-//	1111 | both completed and underlying which implies resolved ...
+//	1110 | hasMethods, which implies resolved (which in turn implies loaded)
+//	1101 | hasUnder, which implies resolved ...
+//	1111 | both hasMethods and hasUnder which implies resolved ...
 //
 // To read the state of a named type, use [Named.stateHas]; to write, use [Named.setState].
 type stateMask uint32
@@ -171,9 +170,9 @@ type stateMask uint32
 const (
 	// before resolved, type parameters, RHS, underlying, and methods might be unavailable
 	resolved   stateMask = 1 << iota // methods might be unexpanded (for instances)
-	complete                         // methods are all expanded (for instances)
+	hasMethods                       // methods are all expanded (for instances)
 	loaded                           // methods are available, but constraints might be unexpanded (for generic types)
-	underlying                       // underlying type is available
+	hasUnder                         // underlying type is available
 )
 
 // NewNamed returns a new named type for the given type name, underlying type, and associated methods.
@@ -229,7 +228,7 @@ func (n *Named) resolve() *Named {
 	}
 
 	// underlying comes after resolving, do not set it
-	defer (func() { assert(!n.stateHas(underlying)) })()
+	defer (func() { assert(!n.stateHas(hasUnder)) })()
 
 	if n.inst != nil {
 		assert(n.fromRHS == nil) // instantiated types are not declared types
@@ -242,7 +241,7 @@ func (n *Named) resolve() *Named {
 		n.tparams = orig.tparams
 
 		if len(orig.methods) == 0 {
-			n.setState(resolved | complete) // nothing further to do
+			n.setState(resolved | hasMethods) // nothing further to do
 			n.inst.ctxt = nil
 		} else {
 			n.setState(resolved)
@@ -274,7 +273,7 @@ func (n *Named) resolve() *Named {
 		}
 	}
 
-	n.setState(resolved | complete)
+	n.setState(resolved | hasMethods)
 	return n
 }
 
@@ -396,11 +395,11 @@ func (t *Named) NumMethods() int {
 func (t *Named) Method(i int) *Func {
 	t.resolve()
 
-	if t.stateHas(complete) {
+	if t.stateHas(hasMethods) {
 		return t.methods[i]
 	}
 
-	assert(t.inst != nil) // only instances should have incomplete methods
+	assert(t.inst != nil) // only instances should have unexpanded methods
 	orig := t.inst.orig
 
 	t.mu.Lock()
@@ -417,9 +416,9 @@ func (t *Named) Method(i int) *Func {
 		t.inst.expandedMethods++
 
 		// Check if we've created all methods at this point. If we have, mark the
-		// type as fully expanded.
+		// type as having all of its methods.
 		if t.inst.expandedMethods == len(orig.methods) {
-			t.setState(complete)
+			t.setState(hasMethods)
 			t.inst.ctxt = nil // no need for a context anymore
 		}
 	}
@@ -502,11 +501,11 @@ func (t *Named) SetUnderlying(u Type) {
 
 	t.fromRHS = u
 	t.allowNilRHS = false
-	t.setState(resolved | complete) // TODO(markfreeman): Why complete?
+	t.setState(resolved | hasMethods) // TODO(markfreeman): Why hasMethods?
 
 	t.underlying = u
 	t.allowNilUnderlying = false
-	t.setState(underlying)
+	t.setState(hasUnder)
 }
 
 // AddMethod adds method m unless it is already in the method list.
@@ -562,7 +561,7 @@ func (n *Named) Underlying() Type {
 		}
 	}
 
-	if !n.stateHas(underlying) {
+	if !n.stateHas(hasUnder) {
 		n.resolveUnderlying()
 	}
 
@@ -617,7 +616,7 @@ func (n *Named) resolveUnderlying() {
 			}
 
 			// avoid acquiring the lock if we can
-			if t.stateHas(underlying) {
+			if t.stateHas(hasUnder) {
 				u = t.underlying
 				break
 			}
@@ -644,11 +643,11 @@ func (n *Named) resolveUnderlying() {
 		// Careful, t.underlying has lock-free readers. Since we might be racing
 		// another call to resolveUnderlying, we have to avoid overwriting
 		// t.underlying. Otherwise, the race detector will be tripped.
-		if t.stateHas(underlying) {
+		if t.stateHas(hasUnder) {
 			continue
 		}
 		t.underlying = u
-		t.setState(underlying)
+		t.setState(hasUnder)
 	}
 }
 
