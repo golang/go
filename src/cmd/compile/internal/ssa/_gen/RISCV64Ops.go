@@ -99,7 +99,7 @@ func init() {
 		}
 	}
 
-	// Floating pointer registers.
+	// Floating point registers.
 	for r := 32; r <= 63; r++ {
 		mask := addreg(r, "")
 		fpMask |= mask
