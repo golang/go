@@ -596,9 +596,7 @@ func (n *Named) resolveUnderlying() {
 		return
 	}
 
-	seen := make(map[*Named]int)
-	var path []Object
-
+	var seen map[*Named]int // allocated lazily
 	var u Type
 	for rhs := Type(n); u == nil; {
 		switch t := rhs.(type) {
@@ -610,9 +608,15 @@ func (n *Named) resolveUnderlying() {
 
 		case *Named:
 			if i, ok := seen[t]; ok {
+				// compute cycle path
+				path := make([]Object, len(seen))
+				for t, j := range seen {
+					path[j] = t.obj
+				}
+				path = path[i:]
 				// Note: This code may only be called during type checking,
 				//       hence n.check != nil.
-				n.check.cycleError(path[i:], firstInSrc(path[i:]))
+				n.check.cycleError(path, firstInSrc(path))
 				u = Typ[Invalid]
 				break
 			}
@@ -628,8 +632,10 @@ func (n *Named) resolveUnderlying() {
 				break
 			}
 
+			if seen == nil {
+				seen = make(map[*Named]int)
+			}
 			seen[t] = len(seen)
-			path = append(path, t.obj)
 
 			assert(t.fromRHS != nil || t.allowNilRHS)
 			rhs = t.fromRHS
