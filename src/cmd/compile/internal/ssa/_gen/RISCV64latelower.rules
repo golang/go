@@ -25,31 +25,31 @@
 (SLLI [0] x) => x
 
 //  "Zicond" Extension for Integer Conditional Operations
-// (x == 0) ? x : y
-(CondSelect <t> x y (SEQZ x)) && buildcfg.GORISCV64 >= 23 => (CZEROEQZ <t> y x)
-// (z == 0) ? (x + y) : y
-(CondSelect <t> (ADD x y) x (SEQZ z)) && buildcfg.GORISCV64 >= 23 => (ADD x (CZERONEZ <t> y z))
-// (z != 0) ? (x + y) : y
-(CondSelect <t> (ADD x y) x (SNEZ z)) && buildcfg.GORISCV64 >= 23 => (ADD x (CZEROEQZ <t> y z))
-// (z == 0) ? (x - y) : y
-(CondSelect <t> (SUB x y) x (SEQZ z)) && buildcfg.GORISCV64 >= 23 => (SUB x (CZERONEZ <t> y z))
-// (z != 0) ? (x - y) : y
-(CondSelect <t> (SUB x y) x (SNEZ z)) && buildcfg.GORISCV64 >= 23 => (SUB x (CZEROEQZ <t> y z))
-// (z == 0) ? (x | y) : y
-(CondSelect <t> (OR x y) x (SEQZ z)) && buildcfg.GORISCV64 >= 23 => (OR x (CZERONEZ <t> y z))
-// (z != 0) ? (x | y) : y
-(CondSelect <t> (OR x y) x (SNEZ z)) && buildcfg.GORISCV64 >= 23 => (OR x (CZEROEQZ <t> y z))
-// (z == 0) ? (x ^ y) : y
-(CondSelect <t> (XOR x y) x (SEQZ z)) && buildcfg.GORISCV64 >= 23 => (XOR x (CZERONEZ <t> y z))
-// (z != 0) ? (x ^ y) : y
-(CondSelect <t> (XOR x y) x (SNEZ z)) && buildcfg.GORISCV64 >= 23 => (XOR x (CZEROEQZ <t> y z))
-// (z == 0) ? (x & y) : y
-(CondSelect <t> (AND x y) x (SEQZ z)) && buildcfg.GORISCV64 >= 23 => (OR (AND <t> x y) (CZEROEQZ <t> x z))
-// (z != 0) ? (x & y) : y
-(CondSelect <t> (AND x y) x (SNEZ z)) && buildcfg.GORISCV64 >= 23 => (OR (AND <t> x y) (CZERONEZ <t> x z))
-// (z == 0) ? x : y
-(CondSelect <t> x y (SEQZ z)) && buildcfg.GORISCV64 >= 23 => (OR (CZERONEZ <t> x z) (CZEROEQZ <t> y z))
-// (z != 0) ? x : y
-(CondSelect <t> x y (SNEZ z)) && buildcfg.GORISCV64 >= 23 => (OR (CZEROEQZ <t> x z) (CZERONEZ <t> y z))
-// Make sure we can rewrite all CondSelects.
-(CondSelect <t> x y cond) && buildcfg.GORISCV64 >= 23 => (OR (CZEROEQZ <t> x cond) (CZERONEZ <t> y cond))
+// Optimize specific patterns based on the unified OR(CZEROEQZ, CZERONEZ) form
+// (x == 0) ? x : y -> CZEROEQZ y x (when x is the condition)
+(OR (CZEROEQZ <t> x (SEQZ x)) (CZERONEZ <t> y (SEQZ x))) && buildcfg.GORISCV64 >= 23 => (CZEROEQZ <t> y x)
+
+// (z == 0) ? (x + y) : x -> ADD x (CZERONEZ y z)
+(OR (CZEROEQZ <t> (ADD x y) (SEQZ z)) (CZERONEZ <t> x (SEQZ z))) && buildcfg.GORISCV64 >= 23 => (ADD x (CZERONEZ <t> y z))
+// (z != 0) ? (x + y) : x -> ADD x (CZEROEQZ y z)
+(OR (CZEROEQZ <t> (ADD x y) (SNEZ z)) (CZERONEZ <t> x (SNEZ z))) && buildcfg.GORISCV64 >= 23 => (ADD x (CZEROEQZ <t> y z))
+
+// (z == 0) ? (x - y) : x -> SUB x (CZERONEZ y z)
+(OR (CZEROEQZ <t> (SUB x y) (SEQZ z)) (CZERONEZ <t> x (SEQZ z))) && buildcfg.GORISCV64 >= 23 => (SUB x (CZERONEZ <t> y z))
+// (z != 0) ? (x - y) : x -> SUB x (CZEROEQZ y z)
+(OR (CZEROEQZ <t> (SUB x y) (SNEZ z)) (CZERONEZ <t> x (SNEZ z))) && buildcfg.GORISCV64 >= 23 => (SUB x (CZEROEQZ <t> y z))
+
+// (z == 0) ? (x | y) : x -> OR x (CZERONEZ y z)
+(OR (CZEROEQZ <t> (OR x y) (SEQZ z)) (CZERONEZ <t> x (SEQZ z))) && buildcfg.GORISCV64 >= 23 => (OR x (CZERONEZ <t> y z))
+// (z != 0) ? (x | y) : x -> OR x (CZEROEQZ y z)
+(OR (CZEROEQZ <t> (OR x y) (SNEZ z)) (CZERONEZ <t> x (SNEZ z))) && buildcfg.GORISCV64 >= 23 => (OR x (CZEROEQZ <t> y z))
+
+// (z == 0) ? (x ^ y) : x -> XOR x (CZERONEZ y z)
+(OR (CZEROEQZ <t> (XOR x y) (SEQZ z)) (CZERONEZ <t> x (SEQZ z))) && buildcfg.GORISCV64 >= 23 => (XOR x (CZERONEZ <t> y z))
+// (z != 0) ? (x ^ y) : x -> XOR x (CZEROEQZ y z)
+(OR (CZEROEQZ <t> (XOR x y) (SNEZ z)) (CZERONEZ <t> x (SNEZ z))) && buildcfg.GORISCV64 >= 23 => (XOR x (CZEROEQZ <t> y z))
+
+// (z == 0) ? (x & y) : x -> OR (AND x y) (CZEROEQZ x z)
+(OR (CZEROEQZ <t> (AND x y) (SEQZ z)) (CZERONEZ <t> x (SEQZ z))) && buildcfg.GORISCV64 >= 23 => (OR (AND <t> x y) (CZEROEQZ <t> x z))
+// (z != 0) ? (x & y) : x -> OR (AND x y) (CZERONEZ x z)
+(OR (CZEROEQZ <t> (AND x y) (SNEZ z)) (CZERONEZ <t> x (SNEZ z))) && buildcfg.GORISCV64 >= 23 => (OR (AND <t> x y) (CZERONEZ <t> x z))
