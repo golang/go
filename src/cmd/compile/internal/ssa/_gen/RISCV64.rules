@@ -861,6 +861,5 @@
 (Max64u x y) && buildcfg.GORISCV64 >= 22 => (MAXU x y)
 
 // Zicond Extension for Integer Conditional Operations
-
 // General lowering rule: always lower CondSelect to OR(CZEROEQZ, CZERONEZ) form
 (CondSelect <t> x y cond) && buildcfg.GORISCV64 >= 23 => (OR (CZEROEQZ <t> x cond) (CZERONEZ <t> y cond))
