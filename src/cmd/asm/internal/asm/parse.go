@@ -1174,7 +1174,7 @@ ListLoop:
 	case sys.ARM:
 		a.Offset = int64(bits)
 	case sys.ARM64:
-		offset, err := arch.ARM64RegisterListOffset(firstReg, regCnt, arrangement)
+		offset, err := arm64.ARM64RegisterListOffset(firstReg, regCnt, arrangement)
 		if err != nil {
 			p.errorf("%v", err)
 		}

@@ -5016,7 +5016,7 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 			}
 		}
 		o1 |= uint32(p.To.Offset)
-		// cmd/asm/internal/arch/arm64.go:ARM64RegisterListOffset
+		// ARM64RegisterListOffset
 		// add opcode(bit 12-15) for vld1, mask it off if it's not vld1
 		o1 = c.maskOpvldvst(p, o1)
 
@@ -5125,7 +5125,7 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 			}
 		}
 		o1 |= uint32(p.From.Offset)
-		// cmd/asm/internal/arch/arm64.go:ARM64RegisterListOffset
+		// ARM64RegisterListOffset
 		// add opcode(bit 12-15) for vst1, mask it off if it's not vst1
 		o1 = c.maskOpvldvst(p, o1)
 		o1 |= uint32(r&31) << 5
@@ -7983,4 +7983,24 @@ func ARM64RegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, i
 		return errors.New("invalid register and extension combination")
 	}
 	return nil
+}
+
+// ARM64RegisterListOffset generates offset encoding according to AArch64 specification.
+func ARM64RegisterListOffset(firstReg, regCnt int, arrangement int64) (int64, error) {
+	offset := int64(firstReg)
+	switch regCnt {
+	case 1:
+		offset |= 0x7 << 12
+	case 2:
+		offset |= 0xa << 12
+	case 3:
+		offset |= 0x6 << 12
+	case 4:
+		offset |= 0x2 << 12
+	default:
+		return 0, errors.New("invalid register numbers in ARM64 register list")
+	}
+	offset |= arrangement
+	offset |= obj.RegListARM64Lo
+	return offset, nil
 }
