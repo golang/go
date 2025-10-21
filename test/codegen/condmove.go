@@ -708,12 +708,10 @@ func CondAndNonZero(cond, a, b int) int {
 	return a
 }
 
-// Immediate variants tests
 func cmoveAddiZero(cond, a int) int {
 	if cond == 0 {
 		a += 42
 	}
-	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
 	// riscv64/rva23u64:`CZERONEZ`, `ADD`, -`SEQZ`, -`CZEROEQZ`, -`OR`
 	return a
 }
@@ -722,7 +720,6 @@ func cmoveAddiNonZero(cond, a int) int {
 	if cond != 0 {
 		a += 42
 	}
-	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
 	// riscv64/rva23u64:`CZEROEQZ`, `ADD`, -`SNEZ`, -`CZERONEZ`, -`OR`
 	return a
 }
@@ -731,7 +728,6 @@ func cmoveOriZero(cond, a int) int {
 	if cond == 0 {
 		a |= 0xFF
 	}
-	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
 	// riscv64/rva23u64:`CZERONEZ`, -`SEQZ`, -`CZEROEQZ`
 	return a
 }
@@ -781,7 +777,6 @@ func cmoveAddiwZero(cond int32, a int32) int32 {
 	if cond == 0 {
 		a += 42
 	}
-	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
 	// riscv64/rva23u64:`CZERONEZ`, `ADD`, -`SEQZ`, -`CZEROEQZ`, -`OR`
 	return a
 }
@@ -790,7 +785,6 @@ func cmoveAddiwNonZero(cond int32, a int32) int32 {
 	if cond != 0 {
 		a += 42
 	}
-	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
 	// riscv64/rva23u64:`CZEROEQZ`, `ADD`, -`SNEZ`, -`CZERONEZ`, -`OR`
 	return a
 }
@@ -799,7 +793,6 @@ func cmoveAddwZero(cond int32, a, b int32) int32 {
 	if cond == 0 {
 		a += b
 	}
-	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
 	// riscv64/rva23u64:`CZERONEZ`, `ADD`, -`SEQZ`, -`CZEROEQZ`, -`OR`
 	return a
 }
@@ -808,7 +801,6 @@ func cmoveAddwNonZero(cond int32, a, b int32) int32 {
 	if cond != 0 {
 		a += b
 	}
-	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
 	// riscv64/rva23u64:`CZEROEQZ`, `ADD`, -`SNEZ`, -`CZERONEZ`, -`OR`
 	return a
 }
@@ -817,7 +809,6 @@ func cmoveSubwZero(cond int32, a, b int32) int32 {
 	if cond == 0 {
 		a -= b
 	}
-	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
 	// riscv64/rva23u64:`CZERONEZ`, `SUB`, -`SEQZ`, -`CZEROEQZ`, -`OR`
 	return a
 }
@@ -826,7 +817,6 @@ func cmoveSubwNonZero(cond int32, a, b int32) int32 {
 	if cond != 0 {
 		a -= b
 	}
-	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
 	// riscv64/rva23u64:`CZEROEQZ`, `SUB`, -`SNEZ`, -`CZERONEZ`, -`OR`
 	return a
 }
