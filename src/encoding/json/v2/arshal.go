@@ -571,5 +571,6 @@ func putStrings(s *stringSlice) {
 	if cap(*s) > 1<<10 {
 		*s = nil // avoid pinning arbitrarily large amounts of memory
 	}
+	clear(*s) // avoid pinning a reference to each string
 	stringsPools.Put(s)
 }
