@@ -562,7 +562,10 @@ func (n *Named) Underlying() Type {
 		}
 	}
 
-	n.resolveUnderlying()
+	if !n.stateHas(underlying) {
+		n.resolveUnderlying()
+	}
+
 	return n.underlying
 }
 
@@ -587,11 +590,6 @@ func (t *Named) String() string { return TypeString(t, nil) }
 // and a cycle is reported.
 func (n *Named) resolveUnderlying() {
 	assert(n.stateHas(resolved))
-
-	// optimization for likely case
-	if n.stateHas(underlying) {
-		return
-	}
 
 	var seen map[*Named]int // allocated lazily
 	var u Type
@@ -618,12 +616,7 @@ func (n *Named) resolveUnderlying() {
 				break
 			}
 
-			// acquire the lock without checking; performance is probably fine
-			t.resolve()
-			t.mu.Lock()
-			defer t.mu.Unlock()
-
-			// t.underlying might have been set while we were locking
+			// avoid acquiring the lock if we can
 			if t.stateHas(underlying) {
 				u = t.underlying
 				break
@@ -634,6 +627,9 @@ func (n *Named) resolveUnderlying() {
 			}
 			seen[t] = len(seen)
 
+			t.resolve()
+			t.mu.Lock()
+			defer t.mu.Unlock()
 			assert(t.fromRHS != nil || t.allowNilRHS)
 			rhs = t.fromRHS
 
