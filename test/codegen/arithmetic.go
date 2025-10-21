@@ -55,6 +55,14 @@ func AddLargeConst2(a int, out []int) {
 }
 
 // Subtraction
+func AddWithLower32Bits(a uint64, b int64) uint64 {
+	// riscv64/rva22u64: "ADDUW"
+	return a + uint64(uint32(b))
+}
+
+// ----------------- //
+//    Subtraction    //
+// ----------------- //
 
 var ef int
 
