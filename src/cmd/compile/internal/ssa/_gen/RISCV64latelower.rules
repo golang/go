@@ -29,27 +29,53 @@
 // (x == 0) ? x : y -> CZEROEQZ y x (when x is the condition)
 (OR (CZEROEQZ <t> x (SEQZ x)) (CZERONEZ <t> y (SEQZ x))) && buildcfg.GORISCV64 >= 23 => (CZEROEQZ <t> y x)
 
-// (z == 0) ? (x + y) : x -> ADD x (CZERONEZ y z)
-(OR (CZEROEQZ <t> (ADD x y) (SEQZ z)) (CZERONEZ <t> x (SEQZ z))) && buildcfg.GORISCV64 >= 23 => (ADD x (CZERONEZ <t> y z))
-// (z != 0) ? (x + y) : x -> ADD x (CZEROEQZ y z)
-(OR (CZEROEQZ <t> (ADD x y) (SNEZ z)) (CZERONEZ <t> x (SNEZ z))) && buildcfg.GORISCV64 >= 23 => (ADD x (CZEROEQZ <t> y z))
+// OR-form optimizations for arithmetic/logic ops (64-bit and 32-bit)
+// (z == 0) ? ((OP x y)) : x  =>  (OP x (CZERONEZ y z))
+(OR (CZEROEQZ <t> ((ADD|SUB|OR|XOR|SUBW) x y) (SEQZ z)) (CZERONEZ <t> x (SEQZ z))) && buildcfg.GORISCV64 >= 23
+  => ((ADD|SUB|OR|XOR|SUBW) x (CZERONEZ <t> y z))
+// (z != 0) ? ((OP x y)) : x  =>  (OP x (CZEROEQZ y z))
+(OR (CZEROEQZ <t> ((ADD|SUB|OR|XOR|SUBW) x y) (SNEZ z)) (CZERONEZ <t> x (SNEZ z))) && buildcfg.GORISCV64 >= 23
+  => ((ADD|SUB|OR|XOR|SUBW) x (CZEROEQZ <t> y z))
 
-// (z == 0) ? (x - y) : x -> SUB x (CZERONEZ y z)
-(OR (CZEROEQZ <t> (SUB x y) (SEQZ z)) (CZERONEZ <t> x (SEQZ z))) && buildcfg.GORISCV64 >= 23 => (SUB x (CZERONEZ <t> y z))
-// (z != 0) ? (x - y) : x -> SUB x (CZEROEQZ y z)
-(OR (CZEROEQZ <t> (SUB x y) (SNEZ z)) (CZERONEZ <t> x (SNEZ z))) && buildcfg.GORISCV64 >= 23 => (SUB x (CZEROEQZ <t> y z))
+// AND-specific optimizations
+// (z == 0) ? (x & y) : x  =>  OR(AND x y, CZEROEQZ x z)
+(OR (CZEROEQZ <t> (AND x y) (SEQZ z)) (CZERONEZ <t> x (SEQZ z))) && buildcfg.GORISCV64 >= 23
+  => (OR (AND <t> x y) (CZEROEQZ <t> x z))
+// (z != 0) ? (x & y) : x  =>  OR(AND x y, CZERONEZ x z)
+(OR (CZEROEQZ <t> (AND x y) (SNEZ z)) (CZERONEZ <t> x (SNEZ z))) && buildcfg.GORISCV64 >= 23
+  => (OR (AND <t> x y) (CZERONEZ <t> x z))
 
-// (z == 0) ? (x | y) : x -> OR x (CZERONEZ y z)
-(OR (CZEROEQZ <t> (OR x y) (SEQZ z)) (CZERONEZ <t> x (SEQZ z))) && buildcfg.GORISCV64 >= 23 => (OR x (CZERONEZ <t> y z))
-// (z != 0) ? (x | y) : x -> OR x (CZEROEQZ y z)
-(OR (CZEROEQZ <t> (OR x y) (SNEZ z)) (CZERONEZ <t> x (SNEZ z))) && buildcfg.GORISCV64 >= 23 => (OR x (CZEROEQZ <t> y z))
+// ANDI-specific optimizations (immediate version of AND)
+// (z == 0) ? (x & c) : x  =>  OR(AND x c, CZEROEQZ x z)
+(OR (CZEROEQZ <t> (ANDI [c] x) (SEQZ z)) (CZERONEZ <t> x (SEQZ z))) && buildcfg.GORISCV64 >= 23
+  => (OR (AND <t> x (MOVDconst [c])) (CZEROEQZ <t> x z))
+// (z != 0) ? (x & c) : x  =>  OR(AND x c, CZERONEZ x z)
+(OR (CZEROEQZ <t> (ANDI [c] x) (SNEZ z)) (CZERONEZ <t> x (SNEZ z))) && buildcfg.GORISCV64 >= 23
+  => (OR (AND <t> x (MOVDconst [c])) (CZERONEZ <t> x z))
 
-// (z == 0) ? (x ^ y) : x -> XOR x (CZERONEZ y z)
-(OR (CZEROEQZ <t> (XOR x y) (SEQZ z)) (CZERONEZ <t> x (SEQZ z))) && buildcfg.GORISCV64 >= 23 => (XOR x (CZERONEZ <t> y z))
-// (z != 0) ? (x ^ y) : x -> XOR x (CZEROEQZ y z)
-(OR (CZEROEQZ <t> (XOR x y) (SNEZ z)) (CZERONEZ <t> x (SNEZ z))) && buildcfg.GORISCV64 >= 23 => (XOR x (CZEROEQZ <t> y z))
+// Immediate variants (64-bit only) - immediate is on the right
+// (z == 0) ? ((OPI [c] x)) : x  =>  (OP x (CZERONEZ c z))
+(OR (CZEROEQZ <t> ((ADDI|ORI|XORI) [c] x) (SEQZ z)) (CZERONEZ <t> x (SEQZ z))) && buildcfg.GORISCV64 >= 23
+  => ((ADD|OR|XOR) x (CZERONEZ <t> (MOVDconst [c]) z))
+// (z != 0) ? ((OPI [c] x)) : x  =>  (OP x (CZEROEQZ c z))
+(OR (CZEROEQZ <t> ((ADDI|ORI|XORI) [c] x) (SNEZ z)) (CZERONEZ <t> x (SNEZ z))) && buildcfg.GORISCV64 >= 23
+  => ((ADD|OR|XOR) x (CZEROEQZ <t> (MOVDconst [c]) z))
 
-// (z == 0) ? (x & y) : x -> OR (AND x y) (CZEROEQZ x z)
-(OR (CZEROEQZ <t> (AND x y) (SEQZ z)) (CZERONEZ <t> x (SEQZ z))) && buildcfg.GORISCV64 >= 23 => (OR (AND <t> x y) (CZEROEQZ <t> x z))
-// (z != 0) ? (x & y) : x -> OR (AND x y) (CZERONEZ x z)
-(OR (CZEROEQZ <t> (AND x y) (SNEZ z)) (CZERONEZ <t> x (SNEZ z))) && buildcfg.GORISCV64 >= 23 => (OR (AND <t> x y) (CZERONEZ <t> x z))
+// 32-bit immediate variant (only ADDIW exists, no SUBIW/ORIW/XORIW/ANDIW)
+// (z == 0) ? (ADDIW [c] x) : x
+(OR (CZEROEQZ <t> (ADDIW [c] x) (SEQZ z)) (CZERONEZ <t> x (SEQZ z))) && buildcfg.GORISCV64 >= 23
+  => (ADD x (CZERONEZ <t> (MOVDconst [int64(int32(c))]) z))
+// (z != 0) ? (ADDIW [c] x) : x
+(OR (CZEROEQZ <t> (ADDIW [c] x) (SNEZ z)) (CZERONEZ <t> x (SNEZ z))) && buildcfg.GORISCV64 >= 23
+  => (ADD x (CZEROEQZ <t> (MOVDconst [int64(int32(c))]) z))
+
+// Optimize conditional selection of constant or zero to single CZERO instruction
+// (cond == 0) ? 0 : const  =>  CZERONEZ const cond
+(OR (CZEROEQZ <t> (MOVDconst [0]) (SEQZ cond)) (CZERONEZ <t> (MOVDconst [c]) (SEQZ cond))) && buildcfg.GORISCV64 >= 23
+  => (CZERONEZ <t> (MOVDconst [c]) cond)
+// (cond != 0) ? 0 : const  =>  CZEROEQZ const cond  
+(OR (CZEROEQZ <t> (MOVDconst [0]) (SNEZ cond)) (CZERONEZ <t> (MOVDconst [c]) (SNEZ cond))) && buildcfg.GORISCV64 >= 23
+  => (CZEROEQZ <t> (MOVDconst [c]) cond)
+
+// Constant propagation through CZERO(EQ|NE)Z
+(CZERO(EQ|NE)Z <t> (MOVDconst [0]) _) && buildcfg.GORISCV64 >= 23 => (MOVDconst <t> [0])

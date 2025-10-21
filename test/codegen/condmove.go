@@ -365,7 +365,7 @@ func cmovsetm(cond bool, x int) {
 	// arm64:"CSETM NE", -"CSEL"
 	// riscv64/rva20u64:-`CZEROEQZ`, -`CZERONEZ`
 	// riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
-	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`
+	// riscv64/rva23u64:`CZEROEQZ`, -`CZERONEZ`
 	r0 = x0
 
 	if cond {
@@ -376,7 +376,7 @@ func cmovsetm(cond bool, x int) {
 	// arm64:"CSETM EQ", -"CSEL"
 	// riscv64/rva20u64:-`CZEROEQZ`, -`CZERONEZ`
 	// riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
-	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`
+	// riscv64/rva23u64:`CZERONEZ`, -`CZEROEQZ`
 	r1 = x1
 }
 
@@ -424,7 +424,7 @@ func cmovFcmp0(s, t float64, a, b int) {
 	// arm64:"CSETM LS", -"CSEL"
 	// riscv64/rva20u64:-`CZEROEQZ`, -`CZERONEZ`
 	// riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
-	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`
+	// riscv64/rva23u64:`CZEROEQZ`, -`CZERONEZ`
 	r3 = x3
 
 	if s == t {
@@ -494,7 +494,7 @@ func cmovFcmp1(s, t float64, a, b int) {
 	// arm64:"CSETM HI", -"CSEL"
 	// riscv64/rva20u64:-`CZEROEQZ`, -`CZERONEZ`
 	// riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
-	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`
+	// riscv64/rva23u64:`CZERONEZ`,-`CZEROEQZ`
 	r3 = x3
 
 	if s == t {
@@ -528,7 +528,7 @@ func cmovzero1(c bool) int {
 	// loong64:"MASKEQZ", -"MASKNEZ"
 	// riscv64/rva20u64:-`CZEROEQZ`, -`CZERONEZ`
 	// riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
-	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`
+	// riscv64/rva23u64:`CZEROEQZ`, -`CZERONEZ`
 	return x
 }
 
@@ -540,7 +540,7 @@ func cmovzero2(c bool) int {
 	// loong64:"MASKNEZ", -"MASKEQZ"
 	// riscv64/rva20u64:-`CZEROEQZ`, -`CZERONEZ`
 	// riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
-	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`
+	// riscv64/rva23u64:`CZERONEZ`, -`CZEROEQZ`
 	return x
 }
 
@@ -548,7 +548,7 @@ func cmovzero2(c bool) int {
 // an extra load of 0 to a register on PPC64 by using R0 (which always
 // holds the value $0) instead. Verify both cases where either arg1
 // or arg2 is zero.
-func cmovzeroreg0(a, b int) int {
+func cmovzeroregZero(a, b int) int {
 	x := 0
 	if a == b {
 		x = a
@@ -556,7 +556,7 @@ func cmovzeroreg0(a, b int) int {
 	// ppc64x:"ISEL [$]2, R[0-9]+, R0, R[0-9]+"
 	// riscv64/rva20u64:-`CZEROEQZ`, -`CZERONEZ`
 	// riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
-	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`
+	// riscv64/rva23u64:`CZEROEQZ`,-`CZERONEZ`
 	return x
 }
 
@@ -568,7 +568,7 @@ func cmovzeroreg1(a, b int) int {
 	// ppc64x:"ISEL [$]2, R0, R[0-9]+, R[0-9]+"
 	// riscv64/rva20u64:-`CZEROEQZ`, -`CZERONEZ`
 	// riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
-	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`
+	// riscv64/rva23u64:`CZERONEZ`, -`CZEROEQZ`
 	return x
 }
 
@@ -648,110 +648,102 @@ func cmovFromMulFromFlags64sext(x int64, b bool) int64 {
 	return x * r
 }
 
+func branchlessBoolToUint8(b bool) (r uint8) {
+	if b {
+		r = 1
+	}
+	return
+}
+
+func cmovFromMulFromFlags64(x uint64, b bool) uint64 {
+	// amd64:-"MOVB.ZX"
+	r := uint64(branchlessBoolToUint8(b))
+	// amd64:"CMOV",-"MOVB.ZX",-"MUL"
+	return x * r
+}
+func cmovFromMulFromFlags64sext(x int64, b bool) int64 {
+	// amd64:-"MOVB.ZX"
+	r := int64(int8(branchlessBoolToUint8(b)))
+	// amd64:"CMOV",-"MOVB.ZX",-"MUL"
+	return x * r
+}
+
 func cmoveAddZero(cond, a, b int) int {
-	result := a
 	if cond == 0 {
-		result = a + b
+		a += b
 	}
 	// riscv64/rva23u64:`CZERONEZ`, `ADD`, -`SEQZ`, -`CZEROEQZ`, -`OR`
-	return result
+	return a
 }
 
 func cmoveAddNonZero(cond, a, b int) int {
-	var result int
 	if cond != 0 {
-		result = a + b
-	} else {
-		result = a
+		a += b
 	}
 	// riscv64/rva23u64:`CZEROEQZ`, `ADD`, -`SNEZ`, -`CZERONEZ`, -`OR`
-	return result
+	return a
 }
 
 func cmoveSubZero(cond, a, b int) int {
-	var result int
 	if cond == 0 {
-		result = a - b
-	} else {
-		result = a
+		a -= b
 	}
 	// riscv64/rva23u64:`CZERONEZ`, `SUB`, -`SEQZ`, -`CZEROEQZ`, -`OR`
-	return result
+	return a
 }
 
 func cmoveSubNonZero(cond, a, b int) int {
-	var result int
 	if cond != 0 {
-		result = a - b
-	} else {
-		result = a
+		a -= b
 	}
 	// riscv64/rva23u64:`CZEROEQZ`, `SUB`, -`SNEZ`, -`CZERONEZ`, -`OR`
-	return result
+	return a
 }
 
 func cmoveOrZero(cond, a, b int) int {
-	var result int
 	if cond == 0 {
-		result = a | b
-	} else {
-		result = a
+		a |= b
 	}
 	// riscv64/rva23u64:`CZERONEZ`, `OR`, -`SEQZ`, -`CZEROEQZ`
-	return result
+	return a
 }
 
 func cmoveOrNonZero(cond, a, b int) int {
-	var result int
 	if cond != 0 {
-		result = a | b
-	} else {
-		result = a
+		a |= b
 	}
 	// riscv64/rva23u64:`CZEROEQZ`, `OR`, -`SNEZ`, -`CZERONEZ`
-	return result
+	return a
 }
 
 func cmoveXorZero(cond, a, b int) int {
-	var result int
 	if cond == 0 {
-		result = a ^ b
-	} else {
-		result = a
+		a ^= b
 	}
 	// riscv64/rva23u64:`CZERONEZ`, `XOR`, -`SEQZ`, -`CZEROEQZ`, -`OR`
-	return result
+	return a
 }
 
 func cmoveXorNonZero(cond, a, b int) int {
-	var result int
 	if cond != 0 {
-		result = a ^ b
-	} else {
-		result = a
+		a ^= b
 	}
 	// riscv64/rva23u64:`CZEROEQZ`, `XOR`, -`SNEZ`, -`CZERONEZ`, -`OR`
-	return result
+	return a
 }
 
 func cmoveAndZero(cond, a, b int) int {
-	var result int
 	if cond == 0 {
-		result = a & b
-	} else {
-		result = a
+		a &= b
 	}
 	// riscv64/rva23u64:`CZEROEQZ`, `AND`, `OR`, -`SEQZ`, -`CZERONEZ`
-	return result
+	return a
 }
 
 func CondAndNonZero(cond, a, b int) int {
-	var result int
 	if cond != 0 {
-		result = a & b
-	} else {
-		result = a
+		a &= b
 	}
 	// riscv64/rva23u64:`CZERONEZ`, `AND`, `OR`, -`SNEZ`, -`CZEROEQZ`
-	return result
+	return a
 }
