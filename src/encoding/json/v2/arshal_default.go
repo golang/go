@@ -843,7 +843,7 @@ func makeMapArshaler(t reflect.Type) *arshaler {
 					k.SetIterKey(iter)
 					(*names)[i] = k.String()
 				}
-				names.Sort()
+				slices.Sort(*names)
 				for _, name := range *names {
 					if err := enc.WriteToken(jsontext.String(name)); err != nil {
 						return err

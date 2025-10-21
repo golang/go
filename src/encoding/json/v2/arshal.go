@@ -11,8 +11,6 @@ import (
 	"encoding"
 	"io"
 	"reflect"
-	"slices"
-	"strings"
 	"sync"
 	"time"
 
@@ -574,8 +572,4 @@ func putStrings(s *stringSlice) {
 		*s = nil // avoid pinning arbitrarily large amounts of memory
 	}
 	stringsPools.Put(s)
-}
-
-func (ss *stringSlice) Sort() {
-	slices.SortFunc(*ss, func(x, y string) int { return strings.Compare(x, y) })
 }
