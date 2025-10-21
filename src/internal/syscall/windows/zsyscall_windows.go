@@ -86,6 +86,7 @@ var (
 	procModule32NextW                     = modkernel32.NewProc("Module32NextW")
 	procMoveFileExW                       = modkernel32.NewProc("MoveFileExW")
 	procMultiByteToWideChar               = modkernel32.NewProc("MultiByteToWideChar")
+	procReOpenFile                        = modkernel32.NewProc("ReOpenFile")
 	procRtlLookupFunctionEntry            = modkernel32.NewProc("RtlLookupFunctionEntry")
 	procRtlVirtualUnwind                  = modkernel32.NewProc("RtlVirtualUnwind")
 	procSetFileInformationByHandle        = modkernel32.NewProc("SetFileInformationByHandle")
@@ -435,6 +436,15 @@ func MultiByteToWideChar(codePage uint32, dwFlags uint32, str *byte, nstr int32,
 	r0, _, e1 := syscall.SyscallN(procMultiByteToWideChar.Addr(), uintptr(codePage), uintptr(dwFlags), uintptr(unsafe.Pointer(str)), uintptr(nstr), uintptr(unsafe.Pointer(wchar)), uintptr(nwchar))
 	nwrite = int32(r0)
 	if nwrite == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func ReOpenFile(filehandle syscall.Handle, desiredAccess uint32, shareMode uint32, flagAndAttributes uint32) (handle syscall.Handle, err error) {
+	r0, _, e1 := syscall.SyscallN(procReOpenFile.Addr(), uintptr(filehandle), uintptr(desiredAccess), uintptr(shareMode), uintptr(flagAndAttributes))
+	handle = syscall.Handle(r0)
+	if handle == 0 {
 		err = errnoErr(e1)
 	}
 	return
