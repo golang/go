@@ -27,8 +27,8 @@ func timer_settime(timerid int32, flags int32, new, old *itimerspec) int32 {
 		timer32bitOnly.Store(true)
 	}
 
-	var newts,oldts itimerspec32
-	var new32,old32 *itimerspec32
+	var newts, oldts itimerspec32
+	var new32, old32 *itimerspec32
 
 	if new != nil {
 		newts.it_interval.setNsec(new.it_interval.tv_sec*1e9 + new.it_interval.tv_nsec)

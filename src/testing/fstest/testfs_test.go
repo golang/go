@@ -105,7 +105,7 @@ func TestTestFSWrappedErrors(t *testing.T) {
 
 	// TestFS is expected to return a list of errors.
 	// Enforce that the list can be extracted for browsing.
-	type wrapper interface{
+	type wrapper interface {
 		error
 		Unwrap() []error
 	}
