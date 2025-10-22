@@ -863,3 +863,9 @@
 // Zicond Extension for Integer Conditional Operations
 // General lowering rule: always lower CondSelect to OR(CZEROEQZ, CZERONEZ) form
 (CondSelect <t> x y cond) && buildcfg.GORISCV64 >= 23 => (OR (CZEROEQZ <t> x cond) (CZERONEZ <t> y cond))
+(CZERO(EQ|NE)Z <t> x (SNEZ y)) => (CZERO(EQ|NE)Z <t> x y)
+(CZERO(EQ|NE)Z <t> x (SEQZ y)) => (CZERO(NE|EQ)Z <t> x y)
+(CZEROEQZ <t> x x) => x
+(CZERONEZ <t> x x) => (MOVDconst <t> [0])
+(CZERO(EQ|NE)Z <t> (MOVDconst [0]) _) => (MOVDconst <t> [0])
+(OR (MOVDconst [0]) x) => x

@@ -127,7 +127,7 @@ func cmovfloatint2(x, y float64) float64 {
 		// ppc64x:"ISEL [$]0"
 		// wasm:"Select"
 		// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
-		// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`
+		// riscv64/rva23u64:`CZEROEQZ`, -`CZERONEZ`, -`OR`
 		r = r - ldexp(y, rexp-yexp)
 	}
 	return r
@@ -144,7 +144,7 @@ func cmovloaded(x [4]int, y int) int {
 	// ppc64x:"ISEL [$]2"
 	// wasm:"Select"
 	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
-	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`, -`SNEZ`
+	// riscv64/rva23u64:`CZERONEZ`, `OR`, -`CZEROEQZ`, -`SNEZ`
 	return y
 }
 
@@ -158,7 +158,7 @@ func cmovuintptr2(x, y uintptr) uintptr {
 	// ppc64x:"ISEL [$]2"
 	// wasm:"Select"
 	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
-	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`, -`SEQZ`
+	// riscv64/rva23u64:`CZERONEZ`, `OR`, -`CZEROEQZ`, -`SEQZ`
 	return a
 }
 
@@ -248,7 +248,7 @@ func cmovstore(a []int, i int, b bool) {
 	}
 	// amd64:"CMOVQNE"
 	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
-	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`
+	// riscv64/rva23u64:`CZEROEQZ`, -`CZERONEZ`
 	a[i] = 7
 }
 
@@ -517,7 +517,7 @@ func cmovzeroregZero(a, b int) int {
 	}
 	// ppc64x:"ISEL [$]2, R[0-9]+, R0, R[0-9]+"
 	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
-	// riscv64/rva23u64:`CZEROEQZ`,-`CZERONEZ`
+	// riscv64/rva23u64:`CZERONEZ`, -`CZEROEQZ`
 	return x
 }
 
@@ -528,7 +528,7 @@ func cmovzeroreg1(a, b int) int {
 	}
 	// ppc64x:"ISEL [$]2, R0, R[0-9]+, R[0-9]+"
 	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
-	// riscv64/rva23u64:`CZERONEZ`, -`CZEROEQZ`
+	// riscv64/rva23u64:`CZEROEQZ`, -`CZERONEZ`
 	return x
 }
 
