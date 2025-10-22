@@ -2555,7 +2555,7 @@ func rewriteStructStore(v *Value) *Value {
 
 // isDirectType reports whether v represents a type
 // (a *runtime._type) whose value is stored directly in an
-// interface (i.e., is pointer or pointer-like).
+// interface (i.e., is pointer or pointer-like) and is comparable.
 func isDirectType(v *Value) bool {
 	return isDirectType1(v)
 }
@@ -2571,7 +2571,8 @@ func isDirectType1(v *Value) bool {
 			return false
 		}
 		if ti, ok := (*lsym.Extra).(*obj.TypeInfo); ok {
-			return types.IsDirectIface(ti.Type.(*types.Type))
+			t := ti.Type.(*types.Type)
+			return types.IsDirectIface(t) && types.IsComparable(t)
 		}
 	}
 	return false
@@ -2588,7 +2589,7 @@ func isDirectType2(v *Value) bool {
 
 // isDirectIface reports whether v represents an itab
 // (a *runtime._itab) for a type whose value is stored directly
-// in an interface (i.e., is pointer or pointer-like).
+// in an interface (i.e., is pointer or pointer-like) and is comparable.
 func isDirectIface(v *Value) bool {
 	return isDirectIface1(v, 9)
 }
@@ -2607,7 +2608,8 @@ func isDirectIface1(v *Value, depth int) bool {
 			return false
 		}
 		if ii, ok := (*lsym.Extra).(*obj.ItabInfo); ok {
-			return types.IsDirectIface(ii.Type.(*types.Type))
+			t := ii.Type.(*types.Type)
+			return types.IsDirectIface(t) && types.IsComparable(t)
 		}
 	case OpConstNil:
 		// We can treat this as direct, because if the itab is
