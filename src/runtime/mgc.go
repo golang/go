@@ -195,6 +195,7 @@ func gcinit() {
 
 	work.startSema = 1
 	work.markDoneSema = 1
+	work.spanSPMCs.list.init(unsafe.Offsetof(spanSPMC{}.allnode))
 	lockInit(&work.sweepWaiters.lock, lockRankSweepWaiters)
 	lockInit(&work.assistQueue.lock, lockRankAssistQueue)
 	lockInit(&work.strongFromWeak.lock, lockRankStrongFromWeakQueue)
@@ -354,7 +355,7 @@ type workType struct {
 	// Only used if goexperiment.GreenTeaGC.
 	spanSPMCs struct {
 		lock mutex
-		all  *spanSPMC
+		list listHeadManual // *spanSPMC
 	}
 
 	// Restore 64-bit alignment on 32-bit.

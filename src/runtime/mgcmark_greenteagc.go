@@ -635,20 +635,9 @@ func (q *spanQueue) destroy() {
 
 	lock(&work.spanSPMCs.lock)
 
-	// Remove and free each ring.
+	// Remove, deinitialize, and free each ring.
 	for r := (*spanSPMC)(q.chain.tail.Load()); r != nil; r = (*spanSPMC)(r.prev.Load()) {
-		prev := r.allprev
-		next := r.allnext
-		if prev != nil {
-			prev.allnext = next
-		}
-		if next != nil {
-			next.allprev = prev
-		}
-		if work.spanSPMCs.all == r {
-			work.spanSPMCs.all = next
-		}
-
+		work.spanSPMCs.list.remove(unsafe.Pointer(r))
 		r.deinit()
 		mheap_.spanSPMCAlloc.free(unsafe.Pointer(r))
 	}
@@ -688,15 +677,10 @@ func (q *spanQueue) destroy() {
 type spanSPMC struct {
 	_ sys.NotInHeap
 
-	// allnext is the link to the next spanSPMC on the work.spanSPMCs list.
-	// This is used to find and free dead spanSPMCs. Protected by
+	// allnode is the linked list node for work.spanSPMCs list. This is
+	// used to find and free dead spanSPMCs. Protected by
 	// work.spanSPMCs.lock.
-	allnext *spanSPMC
-
-	// allprev is the link to the previous spanSPMC on the work.spanSPMCs
-	// list. This is used to find and free dead spanSPMCs. Protected by
-	// work.spanSPMCs.lock.
-	allprev *spanSPMC
+	allnode listNodeManual
 
 	// dead indicates whether the spanSPMC is no longer in use.
 	// Protected by the CAS to the prev field of the spanSPMC pointing
@@ -724,12 +708,7 @@ type spanSPMC struct {
 func newSpanSPMC(cap uint32) *spanSPMC {
 	lock(&work.spanSPMCs.lock)
 	r := (*spanSPMC)(mheap_.spanSPMCAlloc.alloc())
-	next := work.spanSPMCs.all
-	r.allnext = next
-	if next != nil {
-		next.allprev = r
-	}
-	work.spanSPMCs.all = r
+	work.spanSPMCs.list.push(unsafe.Pointer(r))
 	unlock(&work.spanSPMCs.lock)
 
 	// If cap < the capacity of a single physical page, round up.
@@ -765,8 +744,7 @@ func (r *spanSPMC) deinit() {
 	r.head.Store(0)
 	r.tail.Store(0)
 	r.cap = 0
-	r.allnext = nil
-	r.allprev = nil
+	r.allnode = listNodeManual{}
 }
 
 // slot returns a pointer to slot i%r.cap.
@@ -795,26 +773,16 @@ func freeDeadSpanSPMCs() {
 	// GOMAXPROCS, or if this list otherwise gets long, it would be nice to
 	// have a way to batch work that allows preemption during processing.
 	lock(&work.spanSPMCs.lock)
-	if gcphase != _GCoff || work.spanSPMCs.all == nil {
+	if gcphase != _GCoff || work.spanSPMCs.list.empty() {
 		unlock(&work.spanSPMCs.lock)
 		return
 	}
-	r := work.spanSPMCs.all
+	r := (*spanSPMC)(work.spanSPMCs.list.head())
 	for r != nil {
-		next := r.allnext
+		next := (*spanSPMC)(unsafe.Pointer(r.allnode.next))
 		if r.dead.Load() {
-			// It's dead. Deinitialize and free it.
-			prev := r.allprev
-			if prev != nil {
-				prev.allnext = next
-			}
-			if next != nil {
-				next.allprev = prev
-			}
-			if work.spanSPMCs.all == r {
-				work.spanSPMCs.all = next
-			}
-
+			// It's dead. Remove, deinitialize and free it.
+			work.spanSPMCs.list.remove(unsafe.Pointer(r))
 			r.deinit()
 			mheap_.spanSPMCAlloc.free(unsafe.Pointer(r))
 		}
