@@ -218,7 +218,7 @@ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
 // All others:
 // Effectively, nothing happens.
 func (n *Named) unpack() *Named {
-	if n.stateHas(unpacked | lazyLoaded) { // avoid locking below
+	if n.stateHas(lazyLoaded | unpacked) { // avoid locking below
 		return n
 	}
 
@@ -228,7 +228,7 @@ func (n *Named) unpack() *Named {
 	defer n.mu.Unlock()
 
 	// only atomic for consistency; we are holding the mutex
-	if n.stateHas(unpacked | lazyLoaded) {
+	if n.stateHas(lazyLoaded | unpacked) {
 		return n
 	}
 
@@ -246,10 +246,10 @@ func (n *Named) unpack() *Named {
 		n.tparams = orig.tparams
 
 		if len(orig.methods) == 0 {
-			n.setState(unpacked | hasMethods) // nothing further to do
+			n.setState(lazyLoaded | unpacked | hasMethods) // nothing further to do
 			n.inst.ctxt = nil
 		} else {
-			n.setState(unpacked)
+			n.setState(lazyLoaded | unpacked)
 		}
 		return n
 	}
@@ -278,19 +278,36 @@ func (n *Named) unpack() *Named {
 		}
 	}
 
-	n.setState(unpacked | hasMethods)
+	n.setState(lazyLoaded | unpacked | hasMethods)
 	return n
 }
 
 // stateHas atomically determines whether the current state includes any active bit in sm.
-func (n *Named) stateHas(sm stateMask) bool {
-	return atomic.LoadUint32(&n.state_)&uint32(sm) != 0
+func (n *Named) stateHas(m stateMask) bool {
+	return stateMask(atomic.LoadUint32(&n.state_))&m != 0
 }
 
 // setState atomically sets the current state to include each active bit in sm.
 // Must only be called while holding n.mu.
-func (n *Named) setState(sm stateMask) {
-	atomic.OrUint32(&n.state_, uint32(sm))
+func (n *Named) setState(m stateMask) {
+	atomic.OrUint32(&n.state_, uint32(m))
+	// verify state transitions
+	if debug {
+		m := stateMask(atomic.LoadUint32(&n.state_))
+		u := m&unpacked != 0
+		// unpacked => lazyLoaded
+		if u {
+			assert(m&lazyLoaded != 0)
+		}
+		// hasMethods => unpacked
+		if m&hasMethods != 0 {
+			assert(u)
+		}
+		// hasUnder => unpacked
+		if m&hasUnder != 0 {
+			assert(u)
+		}
+	}
 }
 
 // newNamed is like NewNamed but with a *Checker receiver.
@@ -506,7 +523,7 @@ func (t *Named) SetUnderlying(u Type) {
 
 	t.fromRHS = u
 	t.allowNilRHS = false
-	t.setState(unpacked | hasMethods) // TODO(markfreeman): Why hasMethods?
+	t.setState(lazyLoaded | unpacked | hasMethods) // TODO(markfreeman): Why hasMethods?
 
 	t.underlying = u
 	t.allowNilUnderlying = false
