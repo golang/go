@@ -260,7 +260,7 @@ func (t *Time) mono() int64 {
 // IsZero reports whether t represents the zero time instant,
 // January 1, year 1, 00:00:00 UTC.
 func (t Time) IsZero() bool {
-	return t.sec() == 0 && t.nsec() == 0
+	return t.wall == 0 && t.ext == 0
 }
 
 // After reports whether the time instant t is after u.
