@@ -246,6 +246,22 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			p.From.Name = obj.NAME_EXTERN
 			p.From.Offset = 0
 		}
+
+	case APREFETCHI, APREFETCHR, APREFETCHW:
+		p.From.Offset = p.From.Offset &^ 0b11111
+		switch p.As {
+		case APREFETCHI:
+			p.From.Offset |= 0b00000
+		case APREFETCHR:
+			p.From.Offset |= 0b00001
+		case APREFETCHW:
+			p.From.Offset |= 0b00011
+		}
+		p.From.Offset = signExtend(p.From.Offset, 12)
+		p.As = AORI
+		p.To.Reg = REG_ZERO
+		// AORI used instructionsForOpImmediate to encode. so p.Reg will used by rs1 and rs2 will be REG_NONE
+		p.Reg = p.From.Reg
 	}
 
 	if ctxt.Flag_dynlink {
