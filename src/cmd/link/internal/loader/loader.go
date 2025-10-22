@@ -241,6 +241,7 @@ type Loader struct {
 	plt         map[Sym]int32       // stores dynimport for pe objects
 	got         map[Sym]int32       // stores got for pe objects
 	dynid       map[Sym]int32       // stores Dynid for symbol
+	weakBinding map[Sym]bool        // stores whether a symbol has a weak binding
 
 	relocVariant map[relocId]sym.RelocVariant // stores variant relocs
 
@@ -326,6 +327,7 @@ func NewLoader(flags uint32, reporter *ErrorReporter) *Loader {
 		plt:                  make(map[Sym]int32),
 		got:                  make(map[Sym]int32),
 		dynid:                make(map[Sym]int32),
+		weakBinding:          make(map[Sym]bool),
 		attrCgoExportDynamic: make(map[Sym]struct{}),
 		attrCgoExportStatic:  make(map[Sym]struct{}),
 		deferReturnTramp:     make(map[Sym]bool),
@@ -1445,6 +1447,18 @@ func (l *Loader) SetSymExtname(i Sym, value string) {
 	} else {
 		l.extname[i] = value
 	}
+}
+
+func (l *Loader) SymWeakBinding(i Sym) bool {
+	return l.weakBinding[i]
+}
+
+func (l *Loader) SetSymWeakBinding(i Sym, v bool) {
+	// reject bad symbols
+	if i >= Sym(len(l.objSyms)) || i == 0 {
+		panic("bad symbol index in SetSymWeakBinding")
+	}
+	l.weakBinding[i] = v
 }
 
 // SymElfType returns the previously recorded ELF type for a symbol

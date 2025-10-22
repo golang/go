@@ -180,6 +180,8 @@ const (
 	BIND_SPECIAL_DYLIB_FLAT_LOOKUP     = -2
 	BIND_SPECIAL_DYLIB_WEAK_LOOKUP     = -3
 
+	BIND_SYMBOL_FLAGS_WEAK_IMPORT = 0x1
+
 	BIND_OPCODE_MASK                                         = 0xF0
 	BIND_IMMEDIATE_MASK                                      = 0x0F
 	BIND_OPCODE_DONE                                         = 0x00
@@ -1429,7 +1431,11 @@ func machoDyldInfo(ctxt *Link) {
 			bind.AddUint8(BIND_OPCODE_SET_DYLIB_SPECIAL_IMM | uint8(d)&0xf)
 		}
 
-		bind.AddUint8(BIND_OPCODE_SET_SYMBOL_TRAILING_FLAGS_IMM)
+		flags := uint8(0)
+		if ldr.SymWeakBinding(r.targ) {
+			flags |= BIND_SYMBOL_FLAGS_WEAK_IMPORT
+		}
+		bind.AddUint8(BIND_OPCODE_SET_SYMBOL_TRAILING_FLAGS_IMM | flags)
 		// target symbol name as a C string, with _ prefix
 		bind.AddUint8('_')
 		bind.Addstring(ldr.SymExtname(r.targ))
