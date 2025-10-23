@@ -3243,7 +3243,8 @@ func compressSyms(ctxt *Link, syms []loader.Sym) []byte {
 	if err := z.Close(); err != nil {
 		log.Fatalf("compression failed: %s", err)
 	}
-	if int64(buf.Len()) >= total {
+	// TODO: Re-enable check when https://github.com/golang/go/issues/76022 is resolved.
+	if false && int64(buf.Len()) >= total {
 		// Compression didn't save any space.
 		return nil
 	}
