@@ -26,12 +26,20 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64), text 
 		symname = func(uint64) (string, uint64) { return "", 0 }
 	}
 
+	hasVectorArg := false
 	var args []string
 	for _, a := range inst.Args {
 		if a == nil {
 			break
 		}
 		args = append(args, plan9Arg(&inst, pc, symname, a))
+		if r, ok := a.(Reg); ok {
+			hasVectorArg = hasVectorArg || (r >= V0 && r <= V31)
+		}
+	}
+
+	if hasVectorArg {
+		return plan9VectorOp(inst, args)
 	}
 
 	op := inst.Op.String()
@@ -180,6 +188,22 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64), text 
 		FNMSUB_D, FNMSUB_H, FNMSUB_Q, FNMSUB_S:
 		args[1], args[3] = args[3], args[1]
 
+	case FMV_W_X:
+		if inst.Args[1].(Reg) == X0 {
+			args[1] = "$(0.0)"
+		}
+		fallthrough
+	case FMV_X_W:
+		op = "MOVF"
+
+	case FMV_D_X:
+		if inst.Args[1].(Reg) == X0 {
+			args[1] = "$(0.0)"
+		}
+		fallthrough
+	case FMV_X_D:
+		op = "MOVD"
+
 	case FSGNJ_S:
 		if inst.Args[2] == inst.Args[1] {
 			op = "MOVF"
@@ -251,13 +275,13 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64), text 
 
 	case FLW, FSW:
 		op = "MOVF"
-		if inst.Op == FLW {
+		if inst.Op == FSW {
 			args[0], args[1] = args[1], args[0]
 		}
 
 	case FLD, FSD:
 		op = "MOVD"
-		if inst.Op == FLD {
+		if inst.Op == FSD {
 			args[0], args[1] = args[1], args[0]
 		}
 
@@ -317,6 +341,12 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64), text 
 		} else {
 			args[0], args[1] = args[1], args[0]
 		}
+
+	case VSETVLI, VSETIVLI:
+		args[0], args[1], args[2] = args[2], args[0], args[1]
+
+	case VSETVL:
+		args[0], args[2] = args[2], args[0]
 	}
 
 	// Reverse args, placing dest last.
@@ -354,13 +384,6 @@ func plan9Arg(inst *Inst, pc uint64, symname func(uint64) (string, uint64), arg 
 		}
 		return fmt.Sprintf("$%d", int32(imm))
 
-	case Reg:
-		if a <= 31 {
-			return fmt.Sprintf("X%d", a)
-		} else {
-			return fmt.Sprintf("F%d", a-32)
-		}
-
 	case RegOffset:
 		if a.Ofs.Imm == 0 {
 			return fmt.Sprintf("(X%d)", a.OfsReg)
@@ -368,10 +391,66 @@ func plan9Arg(inst *Inst, pc uint64, symname func(uint64) (string, uint64), arg 
 			return fmt.Sprintf("%s(X%d)", a.Ofs.String(), a.OfsReg)
 		}
 
-	case AmoReg:
+	case RegPtr:
 		return fmt.Sprintf("(X%d)", a.reg)
 
 	default:
 		return strings.ToUpper(arg.String())
 	}
+}
+
+func plan9VectorOp(inst Inst, args []string) string {
+	// Instruction is either a vector load, store or an arithmetic
+	// operation. We can use the inst.Enc to figure out which. Whatever
+	// it is, it has at least one argument.
+
+	var op string
+	rawArgs := inst.Args[:]
+
+	var mask string
+	if inst.Enc&(1<<25) == 0 {
+		mask = "V0"
+		if !implicitMask(inst.Op) {
+			args = args[1:]
+			rawArgs = rawArgs[1:]
+		}
+	}
+
+	if len(args) > 1 {
+		if inst.Enc&0x7f == 0x7 {
+			// It's a load
+			if len(args) == 3 {
+				args[0], args[1] = args[1], args[0]
+			}
+			op = pseudoRVVLoad(inst.Op)
+		} else if inst.Enc&0x7f == 0x27 {
+			// It's a store
+			if len(args) == 3 {
+				args[0], args[1], args[2] = args[2], args[0], args[1]
+			} else if len(args) == 2 {
+				args[0], args[1] = args[1], args[0]
+			}
+		} else {
+			// It's an arithmetic instruction
+
+			op, args = pseudoRVVArith(inst.Op, rawArgs, args)
+
+			if len(args) == 3 && !imaOrFma(inst.Op) {
+				args[0], args[1] = args[1], args[0]
+			}
+		}
+	}
+
+	// The mask is always the penultimate argument
+
+	if mask != "" {
+		args = append(args[:len(args)-1], mask, args[len(args)-1])
+	}
+
+	if op == "" {
+		op = inst.Op.String()
+	}
+
+	op = strings.Replace(op, ".", "", -1)
+	return op + " " + strings.Join(args, ", ")
 }
