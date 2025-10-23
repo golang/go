@@ -12,3 +12,6 @@ import (
 
 //go:noescape
 func futex(addr unsafe.Pointer, op int32, val uint32, ts *timespec, addr2 unsafe.Pointer, val3 uint32) int32
+
+//go:noescape
+func timer_settime(timerid int32, flags int32, new, old *itimerspec) int32

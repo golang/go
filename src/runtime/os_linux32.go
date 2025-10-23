@@ -6,9 +6,38 @@
 
 package runtime
 
-import "internal/runtime/atomic"
+import (
+	"internal/runtime/atomic"
+	"unsafe"
+)
 
-var timer32bitOnly atomic.Bool
+//go:noescape
+func futex_time32(addr unsafe.Pointer, op int32, val uint32, ts *timespec32, addr2 unsafe.Pointer, val3 uint32) int32
+
+//go:noescape
+func futex_time64(addr unsafe.Pointer, op int32, val uint32, ts *timespec, addr2 unsafe.Pointer, val3 uint32) int32
+
+var isFutexTime32bitOnly atomic.Bool
+
+//go:nosplit
+func futex(addr unsafe.Pointer, op int32, val uint32, ts *timespec, addr2 unsafe.Pointer, val3 uint32) int32 {
+	if !isFutexTime32bitOnly.Load() {
+		ret := futex_time64(addr, op, val, ts, addr2, val3)
+		// futex_time64 is only supported on Linux 5.0+
+		if ret != -_ENOSYS {
+			return ret
+		}
+		isFutexTime32bitOnly.Store(true)
+	}
+	// Downgrade ts.
+	var ts32 timespec32
+	var pts32 *timespec32
+	if ts != nil {
+		ts32.setNsec(ts.tv_sec*1e9 + ts.tv_nsec)
+		pts32 = &ts32
+	}
+	return futex_time32(addr, op, val, pts32, addr2, val3)
+}
 
 //go:noescape
 func timer_settime32(timerid int32, flags int32, new, old *itimerspec32) int32
@@ -16,15 +45,17 @@ func timer_settime32(timerid int32, flags int32, new, old *itimerspec32) int32
 //go:noescape
 func timer_settime64(timerid int32, flags int32, new, old *itimerspec) int32
 
+var isSetTime32bitOnly atomic.Bool
+
 //go:nosplit
 func timer_settime(timerid int32, flags int32, new, old *itimerspec) int32 {
-	if !timer32bitOnly.Load() {
+	if !isSetTime32bitOnly.Load() {
 		ret := timer_settime64(timerid, flags, new, old)
 		// timer_settime64 is only supported on Linux 5.0+
 		if ret != -_ENOSYS {
 			return ret
 		}
-		timer32bitOnly.Store(true)
+		isSetTime32bitOnly.Store(true)
 	}
 
 	var newts, oldts itimerspec32
