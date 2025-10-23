@@ -377,7 +377,7 @@ func (t *worklist) visitValue(val *Value) {
 		// re-visit all uses of value if its lattice is changed
 		newLt := t.getLatticeCell(val)
 		if !equals(newLt, oldLt) {
-			if int8(oldLt.tag) > int8(newLt.tag) {
+			if oldLt.tag > newLt.tag {
 				t.f.Fatalf("Must lower lattice\n")
 			}
 			t.addUses(val)

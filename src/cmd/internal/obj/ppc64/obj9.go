@@ -903,44 +903,38 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					q.To.Reg = REGSP
 					q.Spadj = autosize
 				} else {
-					// Frame size is too large for a MOVDU instruction.
-					// Store link register before decrementing SP, so if a signal comes
-					// during the execution of the function prologue, the traceback
-					// code will not see a half-updated stack frame.
-					// This sequence is not async preemptible, as if we open a frame
-					// at the current SP, it will clobber the saved LR.
+					// Frame size is too large for an stdu MOVDU instruction, use stdux MOVDU.
 					q = obj.Appendp(q, c.newprog)
 					q.As = AMOVD
 					q.Pos = p.Pos
 					q.From.Type = obj.TYPE_REG
 					q.From.Reg = REG_LR
 					q.To.Type = obj.TYPE_REG
-					q.To.Reg = REG_R29 // REGTMP may be used to synthesize large offset in the next instruction
+					q.To.Reg = REG_R29
 
-					q = c.ctxt.StartUnsafePoint(q, c.newprog)
-
+					// Create stack adjustment in REGTMP
 					q = obj.Appendp(q, c.newprog)
 					q.As = AMOVD
-					q.Pos = p.Pos
-					q.From.Type = obj.TYPE_REG
-					q.From.Reg = REG_R29
-					q.To.Type = obj.TYPE_MEM
-					q.To.Offset = int64(-autosize)
-					q.To.Reg = REGSP
-
-					prologueEnd = q
-
-					q = obj.Appendp(q, c.newprog)
-					q.As = AADD
 					q.Pos = p.Pos
 					q.From.Type = obj.TYPE_CONST
 					q.From.Offset = int64(-autosize)
 					q.To.Type = obj.TYPE_REG
-					q.To.Reg = REGSP
-					q.Spadj = +autosize
+					q.To.Reg = REGTMP
 
-					q = c.ctxt.EndUnsafePoint(q, c.newprog, -1)
+					prologueEnd = q
+
+					// MOVDU R29, R31(R1)
+					q = obj.Appendp(q, c.newprog)
+					q.As = AMOVDU
+					q.Pos = p.Pos
+					q.From.Type = obj.TYPE_REG
+					q.From.Reg = REG_R29
+					q.To.Type = obj.TYPE_MEM
+					q.To.Reg = REGTMP
+					q.To.Index = REGSP
+					q.Spadj = autosize
 				}
+
 				prologueEnd.Pos = prologueEnd.Pos.WithXlogue(src.PosPrologueEnd)
 			} else if c.cursym.Func().Text.Mark&LEAF == 0 {
 				// A very few functions that do not return to their caller

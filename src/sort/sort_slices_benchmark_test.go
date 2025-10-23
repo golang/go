@@ -34,14 +34,6 @@ func makeSortedInts(n int) []int {
 	return ints
 }
 
-func makeReversedInts(n int) []int {
-	ints := make([]int, n)
-	for i := 0; i < n; i++ {
-		ints[i] = n - i
-	}
-	return ints
-}
-
 func makeSortedStrings(n int) []string {
 	x := make([]string, n)
 	for i := 0; i < n; i++ {

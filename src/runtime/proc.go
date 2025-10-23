@@ -517,7 +517,7 @@ func acquireSudog() *sudog {
 	s := pp.sudogcache[n-1]
 	pp.sudogcache[n-1] = nil
 	pp.sudogcache = pp.sudogcache[:n-1]
-	if s.elem != nil {
+	if s.elem.get() != nil {
 		throw("acquireSudog: found s.elem != nil in cache")
 	}
 	releasem(mp)
@@ -526,7 +526,7 @@ func acquireSudog() *sudog {
 
 //go:nosplit
 func releaseSudog(s *sudog) {
-	if s.elem != nil {
+	if s.elem.get() != nil {
 		throw("runtime: sudog with non-nil elem")
 	}
 	if s.isSelect {
@@ -541,7 +541,7 @@ func releaseSudog(s *sudog) {
 	if s.waitlink != nil {
 		throw("runtime: sudog with non-nil waitlink")
 	}
-	if s.c != nil {
+	if s.c.get() != nil {
 		throw("runtime: sudog with non-nil c")
 	}
 	gp := getg()
@@ -789,7 +789,9 @@ func cpuinit(env string) {
 // getGodebugEarly extracts the environment variable GODEBUG from the environment on
 // Unix-like operating systems and returns it. This function exists to extract GODEBUG
 // early before much of the runtime is initialized.
-func getGodebugEarly() string {
+//
+// Returns nil, false if OS doesn't provide env vars early in the init sequence.
+func getGodebugEarly() (string, bool) {
 	const prefix = "GODEBUG="
 	var env string
 	switch GOOS {
@@ -807,12 +809,16 @@ func getGodebugEarly() string {
 			s := unsafe.String(p, findnull(p))
 
 			if stringslite.HasPrefix(s, prefix) {
-				env = gostring(p)[len(prefix):]
+				env = gostringnocopy(p)[len(prefix):]
 				break
 			}
 		}
+		break
+
+	default:
+		return "", false
 	}
-	return env
+	return env, true
 }
 
 // The bootstrap sequence is:
@@ -859,12 +865,15 @@ func schedinit() {
 	// The world starts stopped.
 	worldStopped()
 
+	godebug, parsedGodebug := getGodebugEarly()
+	if parsedGodebug {
+		parseRuntimeDebugVars(godebug)
+	}
 	ticks.init() // run as early as possible
 	moduledataverify()
 	stackinit()
 	randinit() // must run before mallocinit, alginit, mcommoninit
 	mallocinit()
-	godebug := getGodebugEarly()
 	cpuinit(godebug) // must run before alginit
 	alginit()        // maps, hash, rand must not be used before this call
 	mcommoninit(gp.m, -1)
@@ -880,7 +889,12 @@ func schedinit() {
 	goenvs()
 	secure()
 	checkfds()
-	parsedebugvars()
+	if !parsedGodebug {
+		// Some platforms, e.g., Windows, didn't make env vars available "early",
+		// so try again now.
+		parseRuntimeDebugVars(gogetenv("GODEBUG"))
+	}
+	finishDebugVarsSetup()
 	gcinit()
 
 	// Allocate stack space that can be used when crashing due to bad stack
@@ -1208,7 +1222,9 @@ func casfrom_Gscanstatus(gp *g, oldval, newval uint32) {
 		_Gscanwaiting,
 		_Gscanrunning,
 		_Gscansyscall,
-		_Gscanpreempted:
+		_Gscanleaked,
+		_Gscanpreempted,
+		_Gscandeadextra:
 		if newval == oldval&^_Gscan {
 			success = gp.atomicstatus.CompareAndSwap(oldval, newval)
 		}
@@ -1228,7 +1244,9 @@ func castogscanstatus(gp *g, oldval, newval uint32) bool {
 	case _Grunnable,
 		_Grunning,
 		_Gwaiting,
-		_Gsyscall:
+		_Gleaked,
+		_Gsyscall,
+		_Gdeadextra:
 		if newval == oldval|_Gscan {
 			r := gp.atomicstatus.CompareAndSwap(oldval, newval)
 			if r {
@@ -2443,7 +2461,7 @@ func needm(signal bool) {
 	}
 
 	// mp.curg is now a real goroutine.
-	casgstatus(mp.curg, _Gdead, _Gsyscall)
+	casgstatus(mp.curg, _Gdeadextra, _Gsyscall)
 	sched.ngsys.Add(-1)
 	sched.nGsyscallNoP.Add(1)
 
@@ -2499,11 +2517,10 @@ func oneNewExtraM() {
 	gp.syscallpc = gp.sched.pc
 	gp.syscallsp = gp.sched.sp
 	gp.stktopsp = gp.sched.sp
-	// malg returns status as _Gidle. Change to _Gdead before
-	// adding to allg where GC can see it. We use _Gdead to hide
-	// this from tracebacks and stack scans since it isn't a
-	// "real" goroutine until needm grabs it.
-	casgstatus(gp, _Gidle, _Gdead)
+	// malg returns status as _Gidle. Change to _Gdeadextra before
+	// adding to allg where GC can see it. _Gdeadextra hides this
+	// from traceback and stack scans.
+	casgstatus(gp, _Gidle, _Gdeadextra)
 	gp.m = mp
 	mp.curg = gp
 	mp.isextra = true
@@ -2577,8 +2594,8 @@ func dropm() {
 		trace = traceAcquire()
 	}
 
-	// Return mp.curg to dead state.
-	casgstatus(mp.curg, _Gsyscall, _Gdead)
+	// Return mp.curg to _Gdeadextra state.
+	casgstatus(mp.curg, _Gsyscall, _Gdeadextra)
 	mp.curg.preemptStop = false
 	sched.ngsys.Add(1)
 	sched.nGsyscallNoP.Add(-1)
@@ -3125,7 +3142,7 @@ func handoffp(pp *p) {
 		return
 	}
 	// if it has GC work, start it straight away
-	if gcBlackenEnabled != 0 && gcMarkWorkAvailable(pp) {
+	if gcBlackenEnabled != 0 && gcShouldScheduleWorker(pp) {
 		startm(pp, false, false)
 		return
 	}
@@ -3506,7 +3523,7 @@ top:
 	//
 	// If we're in the GC mark phase, can safely scan and blacken objects,
 	// and have work to do, run idle-time marking rather than give up the P.
-	if gcBlackenEnabled != 0 && gcMarkWorkAvailable(pp) && gcController.addIdleMarkWorker() {
+	if gcBlackenEnabled != 0 && gcShouldScheduleWorker(pp) && gcController.addIdleMarkWorker() {
 		node := (*gcBgMarkWorkerNode)(gcBgMarkWorkerPool.pop())
 		if node != nil {
 			pp.gcMarkWorkerMode = gcMarkWorkerIdleMode
@@ -3913,7 +3930,7 @@ func checkIdleGCNoP() (*p, *g) {
 	if atomic.Load(&gcBlackenEnabled) == 0 || !gcController.needIdleMarkWorker() {
 		return nil, nil
 	}
-	if !gcMarkWorkAvailable(nil) {
+	if !gcShouldScheduleWorker(nil) {
 		return nil, nil
 	}
 
@@ -5551,6 +5568,14 @@ func gcount(includeSys bool) int32 {
 	return n
 }
 
+// goroutineleakcount returns the number of leaked goroutines last reported by
+// the runtime.
+//
+//go:linkname goroutineleakcount runtime/pprof.runtime_goroutineleakcount
+func goroutineleakcount() int {
+	return work.goroutineLeak.count
+}
+
 func mcount() int32 {
 	return int32(sched.mnext - sched.nmfreed)
 }
@@ -5735,6 +5760,7 @@ func setcpuprofilerate(hz int32) {
 // previously destroyed p, and transitions it to status _Pgcstop.
 func (pp *p) init(id int32) {
 	pp.id = id
+	pp.gcw.id = id
 	pp.status = _Pgcstop
 	pp.sudogcache = pp.sudogbuf[:0]
 	pp.deferpool = pp.deferpoolbuf[:0]
@@ -5793,11 +5819,15 @@ func (pp *p) destroy() {
 	// Move all timers to the local P.
 	getg().m.p.ptr().timers.take(&pp.timers)
 
-	// Flush p's write barrier buffer.
-	if gcphase != _GCoff {
-		wbBufFlush1(pp)
-		pp.gcw.dispose()
+	// No need to flush p's write barrier buffer or span queue, as Ps
+	// cannot be destroyed during the mark phase.
+	if phase := gcphase; phase != _GCoff {
+		println("runtime: p id", pp.id, "destroyed during GC phase", phase)
+		throw("P destroyed while GC is running")
 	}
+	// We should free the queues though.
+	pp.gcw.spanq.destroy()
+
 	clear(pp.sudogbuf[:])
 	pp.sudogcache = pp.sudogbuf[:0]
 	pp.pinnerCache = nil
@@ -5873,8 +5903,6 @@ func procresize(nprocs int32) *p {
 	}
 	sched.procresizetime = now
 
-	maskWords := (nprocs + 31) / 32
-
 	// Grow allp if necessary.
 	if nprocs > int32(len(allp)) {
 		// Synchronize with retake, which could be running
@@ -5890,19 +5918,9 @@ func procresize(nprocs int32) *p {
 			allp = nallp
 		}
 
-		if maskWords <= int32(cap(idlepMask)) {
-			idlepMask = idlepMask[:maskWords]
-			timerpMask = timerpMask[:maskWords]
-		} else {
-			nidlepMask := make([]uint32, maskWords)
-			// No need to copy beyond len, old Ps are irrelevant.
-			copy(nidlepMask, idlepMask)
-			idlepMask = nidlepMask
-
-			ntimerpMask := make([]uint32, maskWords)
-			copy(ntimerpMask, timerpMask)
-			timerpMask = ntimerpMask
-		}
+		idlepMask = idlepMask.resize(nprocs)
+		timerpMask = timerpMask.resize(nprocs)
+		work.spanqMask = work.spanqMask.resize(nprocs)
 		unlock(&allpLock)
 	}
 
@@ -5965,8 +5983,9 @@ func procresize(nprocs int32) *p {
 	if int32(len(allp)) != nprocs {
 		lock(&allpLock)
 		allp = allp[:nprocs]
-		idlepMask = idlepMask[:maskWords]
-		timerpMask = timerpMask[:maskWords]
+		idlepMask = idlepMask.resize(nprocs)
+		timerpMask = timerpMask.resize(nprocs)
+		work.spanqMask = work.spanqMask.resize(nprocs)
 		unlock(&allpLock)
 	}
 
@@ -6903,6 +6922,32 @@ func (p pMask) clear(id int32) {
 	word := id / 32
 	mask := uint32(1) << (id % 32)
 	atomic.And(&p[word], ^mask)
+}
+
+// any returns true if any bit in p is set.
+func (p pMask) any() bool {
+	for i := range p {
+		if atomic.Load(&p[i]) != 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// resize resizes the pMask and returns a new one.
+//
+// The result may alias p, so callers are encouraged to
+// discard p. Not safe for concurrent use.
+func (p pMask) resize(nprocs int32) pMask {
+	maskWords := (nprocs + 31) / 32
+
+	if maskWords <= int32(cap(p)) {
+		return p[:maskWords]
+	}
+	newMask := make([]uint32, maskWords)
+	// No need to copy beyond len, old Ps are irrelevant.
+	copy(newMask, p)
+	return newMask
 }
 
 // pidleput puts p on the _Pidle list. now must be a relatively recent call

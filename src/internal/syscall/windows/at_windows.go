@@ -209,7 +209,7 @@ func Deleteat(dirfd syscall.Handle, name string, options uint32) error {
 	var h syscall.Handle
 	err := NtOpenFile(
 		&h,
-		SYNCHRONIZE|DELETE,
+		SYNCHRONIZE|FILE_READ_ATTRIBUTES|DELETE,
 		objAttrs,
 		&IO_STATUS_BLOCK{},
 		FILE_SHARE_DELETE|FILE_SHARE_READ|FILE_SHARE_WRITE,
@@ -220,14 +220,22 @@ func Deleteat(dirfd syscall.Handle, name string, options uint32) error {
 	}
 	defer syscall.CloseHandle(h)
 
-	const (
-		FileDispositionInformation   = 13
-		FileDispositionInformationEx = 64
-	)
+	if TestDeleteatFallback {
+		return deleteatFallback(h)
+	}
+
+	const FileDispositionInformationEx = 64
 
 	// First, attempt to delete the file using POSIX semantics
 	// (which permit a file to be deleted while it is still open).
 	// This matches the behavior of DeleteFileW.
+	//
+	// The following call uses features available on different Windows versions:
+	// - FILE_DISPOSITION_INFORMATION_EX: Windows 10, version 1607 (aka RS1)
+	// - FILE_DISPOSITION_POSIX_SEMANTICS: Windows 10, version 1607 (aka RS1)
+	// - FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE: Windows 10, version 1809 (aka RS5)
+	//
+	// Also, some file systems, like FAT32, don't support POSIX semantics.
 	err = NtSetInformationFile(
 		h,
 		&IO_STATUS_BLOCK{},
@@ -246,28 +254,57 @@ func Deleteat(dirfd syscall.Handle, name string, options uint32) error {
 	switch err {
 	case nil:
 		return nil
-	case STATUS_CANNOT_DELETE, STATUS_DIRECTORY_NOT_EMPTY:
+	case STATUS_INVALID_INFO_CLASS, // the operating system doesn't support FileDispositionInformationEx
+		STATUS_INVALID_PARAMETER, // the operating system doesn't support one of the flags
+		STATUS_NOT_SUPPORTED:     // the file system doesn't support FILE_DISPOSITION_INFORMATION_EX or one of the flags
+		return deleteatFallback(h)
+	default:
 		return err.(NTStatus).Errno()
 	}
+}
 
-	// If the prior deletion failed, the filesystem either doesn't support
-	// POSIX semantics (for example, FAT), or hasn't implemented
-	// FILE_DISPOSITION_INFORMATION_EX.
-	//
-	// Try again.
-	err = NtSetInformationFile(
+// TestDeleteatFallback should only be used for testing purposes.
+// When set, [Deleteat] uses the fallback path unconditionally.
+var TestDeleteatFallback bool
+
+// deleteatFallback is a deleteat implementation that strives
+// for compatibility with older Windows versions and file systems
+// over performance.
+func deleteatFallback(h syscall.Handle) error {
+	var data syscall.ByHandleFileInformation
+	if err := syscall.GetFileInformationByHandle(h, &data); err == nil && data.FileAttributes&syscall.FILE_ATTRIBUTE_READONLY != 0 {
+		// Remove read-only attribute. Reopen the file, as it was previously open without FILE_WRITE_ATTRIBUTES access
+		// in order to maximize compatibility in the happy path.
+		wh, err := ReOpenFile(h,
+			FILE_WRITE_ATTRIBUTES,
+			FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,
+			syscall.FILE_FLAG_OPEN_REPARSE_POINT|syscall.FILE_FLAG_BACKUP_SEMANTICS,
+		)
+		if err != nil {
+			return err
+		}
+		err = SetFileInformationByHandle(
+			wh,
+			FileBasicInfo,
+			unsafe.Pointer(&FILE_BASIC_INFO{
+				FileAttributes: data.FileAttributes &^ FILE_ATTRIBUTE_READONLY,
+			}),
+			uint32(unsafe.Sizeof(FILE_BASIC_INFO{})),
+		)
+		syscall.CloseHandle(wh)
+		if err != nil {
+			return err
+		}
+	}
+
+	return SetFileInformationByHandle(
 		h,
-		&IO_STATUS_BLOCK{},
-		unsafe.Pointer(&FILE_DISPOSITION_INFORMATION{
+		FileDispositionInfo,
+		unsafe.Pointer(&FILE_DISPOSITION_INFO{
 			DeleteFile: true,
 		}),
-		uint32(unsafe.Sizeof(FILE_DISPOSITION_INFORMATION{})),
-		FileDispositionInformation,
+		uint32(unsafe.Sizeof(FILE_DISPOSITION_INFO{})),
 	)
-	if st, ok := err.(NTStatus); ok {
-		return st.Errno()
-	}
-	return err
 }
 
 func Renameat(olddirfd syscall.Handle, oldpath string, newdirfd syscall.Handle, newpath string) error {

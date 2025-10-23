@@ -169,9 +169,10 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
 					a.Package.Incomplete = true
 				}
 			} else {
-				var ipe load.ImportPathError
-				if a.Package != nil && (!errors.As(err, &ipe) || ipe.ImportPath() != a.Package.ImportPath) {
-					err = fmt.Errorf("%s: %v", a.Package.ImportPath, err)
+				if a.Package != nil {
+					if ipe, ok := errors.AsType[load.ImportPathError](err); !ok || ipe.ImportPath() != a.Package.ImportPath {
+						err = fmt.Errorf("%s: %v", a.Package.ImportPath, err)
+					}
 				}
 				sh := b.Shell(a)
 				sh.Errorf("%s", err)
@@ -1265,7 +1266,8 @@ func buildVetConfig(a *Action, srcfiles []string) {
 	}
 }
 
-// VetTool is the path to an alternate vet tool binary.
+// VetTool is the path to the effective vet or fix tool binary.
+// The user may specify a non-default value using -{vet,fix}tool.
 // The caller is expected to set it (if needed) before executing any vet actions.
 var VetTool string
 
@@ -1273,7 +1275,13 @@ var VetTool string
 // The caller is expected to set them before executing any vet actions.
 var VetFlags []string
 
-// VetExplicit records whether the vet flags were set explicitly on the command line.
+// VetHandleStdout determines how the stdout output of each vet tool
+// invocation should be handled. The default behavior is to copy it to
+// the go command's stdout, atomically.
+var VetHandleStdout = copyToStdout
+
+// VetExplicit records whether the vet flags (which may include
+// -{vet,fix}tool) were set explicitly on the command line.
 var VetExplicit bool
 
 func (b *Builder) vet(ctx context.Context, a *Action) error {
@@ -1296,6 +1304,7 @@ func (b *Builder) vet(ctx context.Context, a *Action) error {
 
 	sh := b.Shell(a)
 
+	// We use "vet" terminology even when building action graphs for go fix.
 	vcfg.VetxOnly = a.VetxOnly
 	vcfg.VetxOutput = a.Objdir + "vet.out"
 	vcfg.Stdout = a.Objdir + "vet.stdout"
@@ -1322,7 +1331,7 @@ func (b *Builder) vet(ctx context.Context, a *Action) error {
 	// dependency tree turn on *more* analysis, as here.
 	// (The unsafeptr check does not write any facts for use by
 	// later vet runs, nor does unreachable.)
-	if a.Package.Goroot && !VetExplicit && VetTool == "" {
+	if a.Package.Goroot && !VetExplicit && VetTool == base.Tool("vet") {
 		// Turn off -unsafeptr checks.
 		// There's too much unsafe.Pointer code
 		// that vet doesn't like in low-level packages
@@ -1359,13 +1368,29 @@ func (b *Builder) vet(ctx context.Context, a *Action) error {
 			vcfg.PackageVetx[a1.Package.ImportPath] = a1.built
 		}
 	}
-	key := cache.ActionID(h.Sum())
+	vetxKey := cache.ActionID(h.Sum()) // for .vetx file
 
-	if vcfg.VetxOnly && !cfg.BuildA {
+	fmt.Fprintf(h, "stdout\n")
+	stdoutKey := cache.ActionID(h.Sum()) // for .stdout file
+
+	// Check the cache; -a forces a rebuild.
+	if !cfg.BuildA {
 		c := cache.Default()
-		if file, _, err := cache.GetFile(c, key); err == nil {
-			a.built = file
-			return nil
+		if vcfg.VetxOnly {
+			if file, _, err := cache.GetFile(c, vetxKey); err == nil {
+				a.built = file
+				return nil
+			}
+		} else {
+			// Copy cached vet.std files to stdout.
+			if file, _, err := cache.GetFile(c, stdoutKey); err == nil {
+				f, err := os.Open(file)
+				if err != nil {
+					return err
+				}
+				defer f.Close() // ignore error (can't fail)
+				return VetHandleStdout(f)
+			}
 		}
 	}
 
@@ -1387,31 +1412,46 @@ func (b *Builder) vet(ctx context.Context, a *Action) error {
 	p := a.Package
 	tool := VetTool
 	if tool == "" {
-		tool = base.Tool("vet")
+		panic("VetTool unset")
 	}
-	runErr := sh.run(p.Dir, p.ImportPath, env, cfg.BuildToolexec, tool, vetFlags, a.Objdir+"vet.cfg")
 
-	// If vet wrote export data, save it for input to future vets.
+	if err := sh.run(p.Dir, p.ImportPath, env, cfg.BuildToolexec, tool, vetFlags, a.Objdir+"vet.cfg"); err != nil {
+		return err
+	}
+
+	// Vet tool succeeded, possibly with facts and JSON stdout. Save both in cache.
+
+	// Save facts
 	if f, err := os.Open(vcfg.VetxOutput); err == nil {
+		defer f.Close() // ignore error
 		a.built = vcfg.VetxOutput
-		cache.Default().Put(key, f) // ignore error
-		f.Close()                   // ignore error
+		cache.Default().Put(vetxKey, f) // ignore error
 	}
 
-	// If vet wrote to stdout, copy it to go's stdout, atomically.
+	// Save stdout.
 	if f, err := os.Open(vcfg.Stdout); err == nil {
-		stdoutMu.Lock()
-		if _, err := io.Copy(os.Stdout, f); err != nil && runErr == nil {
-			runErr = fmt.Errorf("copying vet tool stdout: %w", err)
+		defer f.Close() // ignore error
+		if err := VetHandleStdout(f); err != nil {
+			return err
 		}
-		f.Close() // ignore error
-		stdoutMu.Unlock()
+		f.Seek(0, io.SeekStart)           // ignore error
+		cache.Default().Put(stdoutKey, f) // ignore error
 	}
 
-	return runErr
+	return nil
 }
 
-var stdoutMu sync.Mutex // serializes concurrent writes (e.g. JSON values) to stdout
+var stdoutMu sync.Mutex // serializes concurrent writes (of e.g. JSON values) to stdout
+
+// copyToStdout copies the stream to stdout while holding the lock.
+func copyToStdout(r io.Reader) error {
+	stdoutMu.Lock()
+	defer stdoutMu.Unlock()
+	if _, err := io.Copy(os.Stdout, r); err != nil {
+		return fmt.Errorf("copying vet tool stdout: %w", err)
+	}
+	return nil
+}
 
 // linkActionID computes the action ID for a link action.
 func (b *Builder) linkActionID(a *Action) cache.ActionID {
@@ -2153,7 +2193,7 @@ func (noToolchain) cc(b *Builder, a *Action, ofile, cfile string) error {
 // gcc runs the gcc C compiler to create an object from a single C file.
 func (b *Builder) gcc(a *Action, workdir, out string, flags []string, cfile string) error {
 	p := a.Package
-	return b.ccompile(a, out, flags, cfile, b.GccCmd(p.Dir, workdir))
+	return b.ccompile(modload.LoaderState, a, out, flags, cfile, b.GccCmd(p.Dir, workdir))
 }
 
 // gas runs the gcc c compiler to create an object file from a single C assembly file.
@@ -2167,23 +2207,23 @@ func (b *Builder) gas(a *Action, workdir, out string, flags []string, sfile stri
 			return fmt.Errorf("package using cgo has Go assembly file %s", sfile)
 		}
 	}
-	return b.ccompile(a, out, flags, sfile, b.GccCmd(p.Dir, workdir))
+	return b.ccompile(modload.LoaderState, a, out, flags, sfile, b.GccCmd(p.Dir, workdir))
 }
 
 // gxx runs the g++ C++ compiler to create an object from a single C++ file.
 func (b *Builder) gxx(a *Action, workdir, out string, flags []string, cxxfile string) error {
 	p := a.Package
-	return b.ccompile(a, out, flags, cxxfile, b.GxxCmd(p.Dir, workdir))
+	return b.ccompile(modload.LoaderState, a, out, flags, cxxfile, b.GxxCmd(p.Dir, workdir))
 }
 
 // gfortran runs the gfortran Fortran compiler to create an object from a single Fortran file.
 func (b *Builder) gfortran(a *Action, workdir, out string, flags []string, ffile string) error {
 	p := a.Package
-	return b.ccompile(a, out, flags, ffile, b.gfortranCmd(p.Dir, workdir))
+	return b.ccompile(modload.LoaderState, a, out, flags, ffile, b.gfortranCmd(p.Dir, workdir))
 }
 
 // ccompile runs the given C or C++ compiler and creates an object from a single source file.
-func (b *Builder) ccompile(a *Action, outfile string, flags []string, file string, compiler []string) error {
+func (b *Builder) ccompile(loaderstate *modload.State, a *Action, outfile string, flags []string, file string, compiler []string) error {
 	p := a.Package
 	sh := b.Shell(a)
 	file = mkAbs(p.Dir, file)
@@ -2220,7 +2260,7 @@ func (b *Builder) ccompile(a *Action, outfile string, flags []string, file strin
 			} else if m.Dir == "" {
 				// The module is in the vendor directory. Replace the entire vendor
 				// directory path, because the module's Dir is not filled in.
-				from = modload.VendorDir()
+				from = modload.VendorDir(loaderstate)
 				toPath = "vendor"
 			} else {
 				from = m.Dir
@@ -2270,7 +2310,7 @@ func (b *Builder) ccompile(a *Action, outfile string, flags []string, file strin
 			}
 		}
 		if len(newFlags) < len(flags) {
-			return b.ccompile(a, outfile, newFlags, file, compiler)
+			return b.ccompile(loaderstate, a, outfile, newFlags, file, compiler)
 		}
 	}
 
@@ -3343,7 +3383,7 @@ func (b *Builder) swigDoIntSize(objdir string) (intsize string, err error) {
 	}
 	srcs := []string{src}
 
-	p := load.GoFilesPackage(context.TODO(), load.PackageOpts{}, srcs)
+	p := load.GoFilesPackage(modload.LoaderState, context.TODO(), load.PackageOpts{}, srcs)
 
 	if _, _, e := BuildToolchain.gc(b, &Action{Mode: "swigDoIntSize", Package: p, Objdir: objdir}, "", nil, nil, "", false, "", srcs); e != nil {
 		return "32", nil

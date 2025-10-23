@@ -16,10 +16,10 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
 	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/internal/typesinternal"
 )
 
 const badFormat = "2006-02-01"
@@ -30,7 +30,7 @@ var doc string
 
 var Analyzer = &analysis.Analyzer{
 	Name:     "timeformat",
-	Doc:      analysisutil.MustExtractDoc(doc, "timeformat"),
+	Doc:      analysisinternal.MustExtractDoc(doc, "timeformat"),
 	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/timeformat",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
@@ -39,7 +39,7 @@ var Analyzer = &analysis.Analyzer{
 func run(pass *analysis.Pass) (any, error) {
 	// Note: (time.Time).Format is a method and can be a typeutil.Callee
 	// without directly importing "time". So we cannot just skip this package
-	// when !analysisutil.Imports(pass.Pkg, "time").
+	// when !analysisinternal.Imports(pass.Pkg, "time").
 	// TODO(taking): Consider using a prepass to collect typeutil.Callees.
 
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
@@ -50,8 +50,8 @@ func run(pass *analysis.Pass) (any, error) {
 	inspect.Preorder(nodeFilter, func(n ast.Node) {
 		call := n.(*ast.CallExpr)
 		obj := typeutil.Callee(pass.TypesInfo, call)
-		if !analysisinternal.IsMethodNamed(obj, "time", "Time", "Format") &&
-			!analysisinternal.IsFunctionNamed(obj, "time", "Parse") {
+		if !typesinternal.IsMethodNamed(obj, "time", "Time", "Format") &&
+			!typesinternal.IsFunctionNamed(obj, "time", "Parse") {
 			return
 		}
 		if len(call.Args) > 0 {

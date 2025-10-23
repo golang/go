@@ -696,7 +696,6 @@ func BenchmarkCreateGoroutinesCapture(b *testing.B) {
 		var wg sync.WaitGroup
 		wg.Add(N)
 		for i := 0; i < N; i++ {
-			i := i
 			go func() {
 				if i >= N {
 					b.Logf("bad") // just to capture b

@@ -1,4 +1,4 @@
-// asmcheck
+// asmcheck -gcflags=-d=converthash=qy
 
 // Copyright 2018 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -329,4 +329,49 @@ func nanGenerate32() float32 {
 	z1 := zero * inf
 	// amd64/v3:"VFMADD231SS"
 	return z0 + z1
+}
+
+func outOfBoundsConv(i32 *[2]int32, u32 *[2]uint32, i64 *[2]int64, u64 *[2]uint64) {
+	// arm64: "FCVTZSDW"
+	// amd64: "CVTTSD2SL", "CVTSD2SS"
+	i32[0] = int32(two40())
+	// arm64: "FCVTZSDW"
+	// amd64: "CVTTSD2SL", "CVTSD2SS"
+	i32[1] = int32(-two40())
+	// arm64: "FCVTZSDW"
+	// amd64: "CVTTSD2SL", "CVTSD2SS"
+	u32[0] = uint32(two41())
+	// on arm64, this uses an explicit <0 comparison, so it constant folds.
+	// on amd64, this uses an explicit <0 comparison, so it constant folds.
+	// amd64: "MOVL\t[$]0,"
+	u32[1] = uint32(minus1())
+	// arm64: "FCVTZSD"
+	// amd64: "CVTTSD2SQ"
+	i64[0] = int64(two80())
+	// arm64: "FCVTZSD"
+	// amd64: "CVTTSD2SQ"
+	i64[1] = int64(-two80())
+	// arm64: "FCVTZUD"
+	// amd64: "CVTTSD2SQ"
+	u64[0] = uint64(two81())
+	// arm64: "FCVTZUD"
+	// on amd64, this uses an explicit <0 comparison, so it constant folds.
+	// amd64: "MOVQ\t[$]0,"
+	u64[1] = uint64(minus1())
+}
+
+func two40() float64 {
+	return 1 << 40
+}
+func two41() float64 {
+	return 1 << 41
+}
+func two80() float64 {
+	return 1 << 80
+}
+func two81() float64 {
+	return 1 << 81
+}
+func minus1() float64 {
+	return -1
 }

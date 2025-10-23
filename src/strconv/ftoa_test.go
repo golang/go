@@ -172,6 +172,11 @@ var ftoatests = []ftoaTest{
 	{3.999969482421875, 'x', 2, "0x1.00p+02"},
 	{3.999969482421875, 'x', 1, "0x1.0p+02"},
 	{3.999969482421875, 'x', 0, "0x1p+02"},
+
+	// Cases that Java once mishandled, from David Chase.
+	{1.801439850948199e+16, 'g', -1, "1.801439850948199e+16"},
+	{5.960464477539063e-08, 'g', -1, "5.960464477539063e-08"},
+	{1.012e-320, 'g', -1, "1.012e-320"},
 }
 
 func TestFtoa(t *testing.T) {
@@ -186,13 +191,20 @@ func TestFtoa(t *testing.T) {
 			t.Error("AppendFloat testN=64", test.f, string(test.fmt), test.prec, "want", "abc"+test.s, "got", string(x))
 		}
 		if float64(float32(test.f)) == test.f && test.fmt != 'b' {
+			test_s := test.s
+			if test.f == 5.960464477539063e-08 {
+				// This test is an exact float32 but asking for float64 precision in the string.
+				// (All our other float64-only tests fail to exactness check above.)
+				test_s = "5.9604645e-08"
+				continue
+			}
 			s := FormatFloat(test.f, test.fmt, test.prec, 32)
 			if s != test.s {
-				t.Error("testN=32", test.f, string(test.fmt), test.prec, "want", test.s, "got", s)
+				t.Error("testN=32", test.f, string(test.fmt), test.prec, "want", test_s, "got", s)
 			}
 			x := AppendFloat([]byte("abc"), test.f, test.fmt, test.prec, 32)
-			if string(x) != "abc"+test.s {
-				t.Error("AppendFloat testN=32", test.f, string(test.fmt), test.prec, "want", "abc"+test.s, "got", string(x))
+			if string(x) != "abc"+test_s {
+				t.Error("AppendFloat testN=32", test.f, string(test.fmt), test.prec, "want", "abc"+test_s, "got", string(x))
 			}
 		}
 	}

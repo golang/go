@@ -2156,7 +2156,7 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 				v := obj.AlignmentPadding(c, p, ctxt, s)
 				if v > 0 {
 					s.Grow(int64(c) + int64(v))
-					fillnop(s.P[c:], int(v))
+					fillnop(s.P[c:], v)
 				}
 				p.Pc = int64(c)
 				c += int32(v)
@@ -3277,7 +3277,7 @@ func (ab *AsmBuf) Put(b []byte) {
 // Literal Z cases usually have "Zlit" in their name (Zlit, Zlitr_m, Zlitm_r).
 func (ab *AsmBuf) PutOpBytesLit(offset int, op *opBytes) {
 	for int(op[offset]) != 0 {
-		ab.Put1(byte(op[offset]))
+		ab.Put1(op[offset])
 		offset++
 	}
 }

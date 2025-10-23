@@ -344,6 +344,11 @@ func (h inlineWrapper) dump(pcs []uintptr) {
 
 func inlinedWrapperCallerDump(pcs []uintptr) {
 	var h inlineWrapperInterface
+
+	// Take the address of h, such that h.dump() call (below)
+	// does not get devirtualized by the compiler.
+	_ = &h
+
 	h = &inlineWrapper{}
 	h.dump(pcs)
 }
@@ -2578,9 +2583,10 @@ func TestProfilerStackDepth(t *testing.T) {
 				t.Logf("matched stack=%s", stk)
 				if len(stk) != depth {
 					t.Errorf("want stack depth = %d, got %d", depth, len(stk))
+					continue
 				}
 
-				if rootFn, wantFn := stk[depth-1], "runtime/pprof.produceProfileEvents"; rootFn != wantFn {
+				if rootFn, wantFn := stk[depth-1], "runtime/pprof.allocDeep"; rootFn != wantFn {
 					t.Errorf("want stack stack root %s, got %v", wantFn, rootFn)
 				}
 			}

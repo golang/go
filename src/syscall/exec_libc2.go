@@ -59,7 +59,6 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 		r1              uintptr
 		nextfd          int
 		i               int
-		err             error
 		pgrp            _C_int
 		cred            *Credential
 		ngroups, groups uintptr
@@ -99,8 +98,12 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 
 	// Enable tracing if requested.
 	if sys.Ptrace {
-		if err = ptrace(PTRACE_TRACEME, 0, 0, 0); err != nil {
-			err1 = err.(Errno)
+		if runtime.GOOS == "ios" {
+			err1 = ENOSYS
+			goto childerror
+		}
+		_, _, err1 = rawSyscall6(abi.FuncPCABI0(libc_ptrace_trampoline), PTRACE_TRACEME, 0, 0, 0, 0, 0)
+		if err1 != 0 {
 			goto childerror
 		}
 	}

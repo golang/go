@@ -8,6 +8,7 @@
 package ld
 
 import (
+	"bytes"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/loader"
@@ -17,6 +18,8 @@ import (
 	"fmt"
 	"internal/buildcfg"
 	"math"
+	"os"
+	"path/filepath"
 	"slices"
 	"sort"
 	"strconv"
@@ -487,9 +490,6 @@ func (f *peFile) addDWARFSection(name string, size int) *peSection {
 
 // addDWARF adds DWARF information to the COFF file f.
 func (f *peFile) addDWARF() {
-	if *FlagS { // disable symbol table
-		return
-	}
 	if *FlagW { // disable dwarf
 		return
 	}
@@ -653,7 +653,7 @@ dwarfLoop:
 	for i := 0; i < len(Segdwarf.Sections); i++ {
 		sect := Segdwarf.Sections[i]
 		si := dwarfp[i]
-		if si.secSym() != loader.Sym(sect.Sym) ||
+		if si.secSym() != sect.Sym ||
 			ldr.SymSect(si.secSym()) != sect {
 			panic("inconsistency between dwarfp and Segdwarf")
 		}
@@ -1506,7 +1506,7 @@ func (rt *peBaseRelocTable) addentry(ldr *loader.Loader, s loader.Sym, r *loader
 	const pageSize = 0x1000
 	const pageMask = pageSize - 1
 
-	addr := ldr.SymValue(s) + int64(r.Off()) - int64(PEBASE)
+	addr := ldr.SymValue(s) + int64(r.Off()) - PEBASE
 	page := uint32(addr &^ pageMask)
 	off := uint32(addr & pageMask)
 
@@ -1750,4 +1750,47 @@ func asmbPe(ctxt *Link) {
 	}
 
 	pewrite(ctxt)
+}
+
+// peCreateExportFile creates a file with exported symbols for Windows .def files.
+// ld will export all symbols, even those not marked for export, unless a .def file is provided.
+func peCreateExportFile(ctxt *Link, libName string) (fname string) {
+	fname = filepath.Join(*flagTmpdir, "export_file.def")
+	var buf bytes.Buffer
+
+	if ctxt.BuildMode == BuildModeCShared {
+		fmt.Fprintf(&buf, "LIBRARY %s\n", libName)
+	}
+	buf.WriteString("EXPORTS\n")
+
+	ldr := ctxt.loader
+	var exports []string
+	for s := range ldr.ForAllCgoExportStatic() {
+		extname := ldr.SymExtname(s)
+		if !strings.HasPrefix(extname, "_cgoexp_") {
+			continue
+		}
+		if ldr.IsFileLocal(s) {
+			continue // Only export non-static symbols
+		}
+		// Retrieve the name of the initial symbol
+		// exported by cgo.
+		// The corresponding Go symbol is:
+		// _cgoexp_hashcode_symname.
+		name := strings.SplitN(extname, "_", 4)[3]
+		exports = append(exports, name)
+	}
+	if len(exports) == 0 {
+		// See runtime/cgo/windows.go for details.
+		exports = append(exports, "_cgo_stub_export")
+	}
+	sort.Strings(exports)
+	buf.WriteString(strings.Join(exports, "\n"))
+
+	err := os.WriteFile(fname, buf.Bytes(), 0666)
+	if err != nil {
+		Errorf("WriteFile %s failed: %v", fname, err)
+	}
+
+	return fname
 }

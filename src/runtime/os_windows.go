@@ -777,12 +777,13 @@ func newosproc(mp *m) {
 //
 //go:nowritebarrierrec
 //go:nosplit
-func newosproc0(mp *m, stk unsafe.Pointer) {
-	// TODO: this is completely broken. The args passed to newosproc0 (in asm_amd64.s)
-	// are stacksize and function, not *m and stack.
-	// Check os_linux.go for an implementation that might actually work.
+func newosproc0(stacksize uintptr, fn uintptr) {
 	throw("bad newosproc0")
 }
+
+//go:nosplit
+//go:nowritebarrierrec
+func libpreinit() {}
 
 func exitThread(wait *atomic.Uint32) {
 	// We should never reach exitThread on Windows because we let

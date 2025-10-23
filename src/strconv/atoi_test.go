@@ -501,11 +501,11 @@ func TestAtoi(t *testing.T) {
 }
 
 func bitSizeErrStub(name string, bitSize int) error {
-	return BitSizeError(name, "0", bitSize)
+	return bitSizeError(name, "0", bitSize)
 }
 
 func baseErrStub(name string, base int) error {
-	return BaseError(name, "0", base)
+	return baseError(name, "0", base)
 }
 
 func noErrStub(name string, arg int) error {

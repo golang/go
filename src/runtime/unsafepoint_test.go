@@ -43,7 +43,7 @@ func TestUnsafePoint(t *testing.T) {
 	cmd := exec.Command(testenv.GoToolPath(t), "tool", "objdump", "-s", "setGlobalPointer", os.Args[0])
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("can't objdump %v", err)
+		t.Fatalf("can't objdump %v:\n%s", err, out)
 	}
 	lines := strings.Split(string(out), "\n")[1:]
 

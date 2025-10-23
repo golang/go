@@ -61,9 +61,9 @@ func init() {
 }
 
 func runUse(ctx context.Context, cmd *base.Command, args []string) {
-	modload.ForceUseModules = true
-	modload.InitWorkfile()
-	gowork := modload.WorkFilePath()
+	modload.LoaderState.ForceUseModules = true
+	modload.InitWorkfile(modload.LoaderState)
+	gowork := modload.WorkFilePath(modload.LoaderState)
 	if gowork == "" {
 		base.Fatalf("go: no go.work file found\n\t(run 'go work init' first or specify path using GOWORK environment variable)")
 	}
@@ -94,7 +94,7 @@ func workUse(ctx context.Context, gowork string, wf *modfile.WorkFile, args []st
 	// all entries for the absolute path should be removed.
 	keepDirs := make(map[string]string)
 
-	var sw toolchain.Switcher
+	sw := toolchain.NewSwitcher(modload.LoaderState)
 
 	// lookDir updates the entry in keepDirs for the directory dir,
 	// which is either absolute or relative to the current working directory

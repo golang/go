@@ -75,7 +75,6 @@ type Config struct {
 	VetxOutput                string            // where to write file of fact information
 	Stdout                    string            // write stdout (e.g. JSON, unified diff) to this file
 	SucceedOnTypecheckFailure bool              // obsolete awful hack; see #18395 and below
-	WarnDiagnostics           bool              // printing diagnostics should not cause a non-zero exit
 }
 
 // Main is the main function of a vet-like analysis tool that must be
@@ -87,18 +86,9 @@ type Config struct {
 //	-V=full         describe executable for build caching
 //	foo.cfg         perform separate modular analyze on the single
 //	                unit described by a JSON config file foo.cfg.
-//
-// Also, subject to approval of proposal #71859:
-//
 //	-fix		don't print each diagnostic, apply its first fix
 //	-diff		don't apply a fix, print the diff (requires -fix)
-//
-// Additionally, the environment variable GOVET has the value "vet" or
-// "fix" depending on whether the command is being invoked by "go vet",
-// to report diagnostics, or "go fix", to apply fixes. This is
-// necessary so that callers of Main can select their analyzer suite
-// before flag parsing. (Vet analyzers must report real code problems,
-// whereas Fix analyzers may fix non-problems such as style issues.)
+//	-json		print diagnostics and fixes in JSON form
 func Main(analyzers ...*analysis.Analyzer) {
 	progname := filepath.Base(os.Args[0])
 	log.SetFlags(0)
@@ -163,7 +153,7 @@ func Run(configFile string, analyzers []*analysis.Analyzer) {
 
 	// In VetxOnly mode, the analysis is run only for facts.
 	if !cfg.VetxOnly {
-		code = processResults(fset, cfg.ID, results, cfg.WarnDiagnostics)
+		code = processResults(fset, cfg.ID, results)
 	}
 
 	os.Exit(code)
@@ -187,7 +177,7 @@ func readConfig(filename string) (*Config, error) {
 	return cfg, nil
 }
 
-func processResults(fset *token.FileSet, id string, results []result, warnDiagnostics bool) (exit int) {
+func processResults(fset *token.FileSet, id string, results []result) (exit int) {
 	if analysisflags.Fix {
 		// Don't print the diagnostics,
 		// but apply all fixes from the root actions.
@@ -236,9 +226,7 @@ func processResults(fset *token.FileSet, id string, results []result, warnDiagno
 		for _, res := range results {
 			for _, diag := range res.diagnostics {
 				analysisflags.PrintPlain(os.Stderr, fset, analysisflags.Context, diag)
-				if !warnDiagnostics {
-					exit = 1
-				}
+				exit = 1
 			}
 		}
 	}

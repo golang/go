@@ -80,7 +80,7 @@ func mustHaveCxx(t *testing.T) {
 	if len(args) == 0 {
 		t.Skip("no C++ compiler")
 	}
-	testenv.MustHaveExecPath(t, string(args[0]))
+	testenv.MustHaveExecPath(t, args[0])
 }
 
 var (

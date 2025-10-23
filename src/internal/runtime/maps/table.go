@@ -716,7 +716,7 @@ func (it *Iter) Key() unsafe.Pointer {
 	return it.key
 }
 
-// Key returns a pointer to the current element. nil indicates end of
+// Elem returns a pointer to the current element. nil indicates end of
 // iteration.
 //
 // Must not be called prior to Next.

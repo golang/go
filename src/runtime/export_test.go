@@ -1289,30 +1289,6 @@ func MSpanCountAlloc(ms *MSpan, bits []byte) int {
 	return result
 }
 
-type MSpanQueue mSpanQueue
-
-func (q *MSpanQueue) Size() int {
-	return (*mSpanQueue)(q).n
-}
-
-func (q *MSpanQueue) Push(s *MSpan) {
-	(*mSpanQueue)(q).push((*mspan)(s))
-}
-
-func (q *MSpanQueue) Pop() *MSpan {
-	s := (*mSpanQueue)(q).pop()
-	return (*MSpan)(s)
-}
-
-func (q *MSpanQueue) TakeAll(p *MSpanQueue) {
-	(*mSpanQueue)(q).takeAll((*mSpanQueue)(p))
-}
-
-func (q *MSpanQueue) PopN(n int) MSpanQueue {
-	p := (*mSpanQueue)(q).popN(n)
-	return (MSpanQueue)(p)
-}
-
 const (
 	TimeHistSubBucketBits = timeHistSubBucketBits
 	TimeHistNumSubBuckets = timeHistNumSubBuckets
@@ -1960,3 +1936,7 @@ func (t *TraceStackTable) Reset() {
 func TraceStack(gp *G, tab *TraceStackTable) {
 	traceStack(0, gp, (*traceStackTable)(tab))
 }
+
+var DebugDecorateMappings = &debug.decoratemappings
+
+func SetVMANameSupported() bool { return setVMANameSupported() }

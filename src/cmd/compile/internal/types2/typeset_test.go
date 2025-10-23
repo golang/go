@@ -64,7 +64,7 @@ func TestTypeSetString(t *testing.T) {
 		if obj == nil {
 			t.Fatalf("%s: T not found (invalid test case)", body)
 		}
-		T, ok := under(obj.Type()).(*Interface)
+		T, ok := obj.Type().Underlying().(*Interface)
 		if !ok {
 			t.Fatalf("%s: %v is not an interface (invalid test case)", body, obj)
 		}

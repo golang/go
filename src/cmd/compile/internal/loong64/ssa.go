@@ -1175,8 +1175,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
 		p.AddRestSourceArgs([]obj.Addr{
-			{Type: obj.TYPE_CONST, Offset: int64((v.AuxInt >> 5) & 0x1fffffffff)},
-			{Type: obj.TYPE_CONST, Offset: int64((v.AuxInt >> 0) & 0x1f)},
+			{Type: obj.TYPE_CONST, Offset: (v.AuxInt >> 5) & 0x1fffffffff},
+			{Type: obj.TYPE_CONST, Offset: (v.AuxInt >> 0) & 0x1f},
 		})
 
 	case ssa.OpLOONG64ADDshiftLLV:
@@ -1266,6 +1266,29 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 				p.From.Reg = b.Controls[0].Reg()
 			}
 		}
+	case ssa.BlockLOONG64JUMPTABLE:
+		// ALSLV $3, Rarg0, Rarg1, REGTMP
+		// MOVV (REGTMP), REGTMP
+		// JMP	(REGTMP)
+		p := s.Prog(loong64.AALSLV)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = 3 // idx*8
+		p.Reg = b.Controls[0].Reg()
+		p.AddRestSourceReg(b.Controls[1].Reg())
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = loong64.REGTMP
+		p1 := s.Prog(loong64.AMOVV)
+		p1.From.Type = obj.TYPE_MEM
+		p1.From.Reg = loong64.REGTMP
+		p1.From.Offset = 0
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = loong64.REGTMP
+		p2 := s.Prog(obj.AJMP)
+		p2.To.Type = obj.TYPE_MEM
+		p2.To.Reg = loong64.REGTMP
+		// Save jump tables for later resolution of the target blocks.
+		s.JumpTables = append(s.JumpTables, b)
+
 	default:
 		b.Fatalf("branch not implemented: %s", b.LongString())
 	}

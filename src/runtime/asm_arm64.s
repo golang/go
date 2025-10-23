@@ -7,6 +7,78 @@
 #include "tls_arm64.h"
 #include "funcdata.h"
 #include "textflag.h"
+#include "cgo/abi_arm64.h"
+
+// _rt0_arm64 is common startup code for most arm64 systems when using
+// internal linking. This is the entry point for the program from the
+// kernel for an ordinary -buildmode=exe program. The stack holds the
+// number of arguments and the C-style argv.
+TEXT _rt0_arm64(SB),NOSPLIT,$0
+	MOVD	0(RSP), R0	// argc
+	ADD	$8, RSP, R1	// argv
+	JMP	runtime·rt0_go(SB)
+
+// main is common startup code for most amd64 systems when using
+// external linking. The C startup code will call the symbol "main"
+// passing argc and argv in the usual C ABI registers R0 and R1.
+TEXT main(SB),NOSPLIT,$0
+	JMP	runtime·rt0_go(SB)
+
+// _rt0_arm64_lib is common startup code for most arm64 systems when
+// using -buildmode=c-archive or -buildmode=c-shared. The linker will
+// arrange to invoke this function as a global constructor (for
+// c-archive) or when the shared library is loaded (for c-shared).
+// We expect argc and argv to be passed in the usual C ABI registers
+// R0 and R1.
+TEXT _rt0_arm64_lib(SB),NOSPLIT,$184
+	// Preserve callee-save registers.
+	SAVE_R19_TO_R28(24)
+	SAVE_F8_TO_F15(104)
+
+	// Initialize g as null in case of using g later e.g. sigaction in cgo_sigaction.go
+	MOVD	ZR, g
+
+	MOVD	R0, _rt0_arm64_lib_argc<>(SB)
+	MOVD	R1, _rt0_arm64_lib_argv<>(SB)
+
+	// Synchronous initialization.
+	MOVD	$runtime·libpreinit(SB), R4
+	BL	(R4)
+
+	// Create a new thread to do the runtime initialization and return.
+	MOVD	_cgo_sys_thread_create(SB), R4
+	CBZ	R4, nocgo
+	MOVD	$_rt0_arm64_lib_go(SB), R0
+	MOVD	$0, R1
+	SUB	$16, RSP		// reserve 16 bytes for sp-8 where fp may be saved.
+	BL	(R4)
+	ADD	$16, RSP
+	B	restore
+
+nocgo:
+	MOVD	$0x800000, R0                     // stacksize = 8192KB
+	MOVD	$_rt0_arm64_lib_go(SB), R1
+	MOVD	R0, 8(RSP)
+	MOVD	R1, 16(RSP)
+	MOVD	$runtime·newosproc0(SB),R4
+	BL	(R4)
+
+restore:
+	// Restore callee-save registers.
+	RESTORE_R19_TO_R28(24)
+	RESTORE_F8_TO_F15(104)
+	RET
+
+TEXT _rt0_arm64_lib_go(SB),NOSPLIT,$0
+	MOVD	_rt0_arm64_lib_argc<>(SB), R0
+	MOVD	_rt0_arm64_lib_argv<>(SB), R1
+	MOVD	$runtime·rt0_go(SB),R4
+	B	(R4)
+
+DATA _rt0_arm64_lib_argc<>(SB)/8, $0
+GLOBL _rt0_arm64_lib_argc<>(SB),NOPTR, $8
+DATA _rt0_arm64_lib_argv<>(SB)/8, $0
+GLOBL _rt0_arm64_lib_argv<>(SB),NOPTR, $8
 
 #ifdef GOARM64_LSE
 DATA no_lse_msg<>+0x00(SB)/64, $"This program can only run on ARM64 processors with LSE support.\n"
@@ -964,12 +1036,61 @@ aesloop:
 	VMOV	V0.D[0], R0
 	RET
 
-TEXT runtime·procyield(SB),NOSPLIT,$0-0
+// The Arm architecture provides a user space accessible counter-timer which
+// is incremented at a fixed but machine-specific rate. Software can (spin)
+// wait until the counter-timer reaches some desired value.
+//
+// Armv8.7-A introduced the WFET (FEAT_WFxT) instruction, which allows the
+// processor to enter a low power state for a set time, or until an event is
+// received.
+//
+// However, WFET is not used here because it is only available on newer hardware,
+// and we aim to maintain compatibility with older Armv8-A platforms that do not
+// support this feature.
+//
+// As a fallback, we can instead use the ISB instruction to decrease processor
+// activity and thus power consumption between checks of the counter-timer.
+// Note that we do not depend on the latency of the ISB instruction which is
+// implementation specific. Actual delay comes from comparing against a fresh
+// read of the counter-timer value.
+//
+// Read more in this Arm blog post:
+// https://community.arm.com/arm-community-blogs/b/architectures-and-processors-blog/posts/multi-threaded-applications-arm
+
+TEXT runtime·procyieldAsm(SB),NOSPLIT,$0-0
 	MOVWU	cycles+0(FP), R0
-again:
-	YIELD
-	SUBW	$1, R0
-	CBNZ	R0, again
+	CBZ	 R0, done
+	//Prevent speculation of subsequent counter/timer reads and memory accesses.
+	ISB     $15
+	// If the delay is very short, just return.
+	// Hardcode 18ns as the first ISB delay.
+	CMP     $18, R0
+	BLS     done
+	// Adjust for overhead of initial ISB.
+	SUB     $18, R0, R0
+	// Convert the delay from nanoseconds to counter/timer ticks.
+	// Read the counter/timer frequency.
+	// delay_ticks = (delay * CNTFRQ_EL0) / 1e9
+	// With the below simplifications and adjustments,
+	// we are usually within 2% of the correct value:
+	// delay_ticks = (delay + delay / 16) * CNTFRQ_EL0 >> 30
+	MRS     CNTFRQ_EL0, R1
+	ADD     R0>>4, R0, R0
+	MUL     R1, R0, R0
+	LSR     $30, R0, R0
+	CBZ     R0, done
+	// start = current counter/timer value
+	MRS     CNTVCT_EL0, R2
+delay:
+	// Delay using ISB for all ticks.
+	ISB     $15
+	// Substract and compare to handle counter roll-over.
+	// counter_read() - start < delay_ticks
+	MRS     CNTVCT_EL0, R1
+	SUB     R2, R1, R1
+	CMP     R0, R1
+	BCC     delay
+done:
 	RET
 
 // Save state of caller into g->sched,

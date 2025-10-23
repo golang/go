@@ -55,6 +55,15 @@ func TestErrorf(t *testing.T) {
 		err:      noVetErrorf("%w is not an error", "not-an-error"),
 		wantText: "%!w(string=not-an-error) is not an error",
 	}, {
+		err:      fmt.Errorf("no verbs"),
+		wantText: "no verbs",
+	}, {
+		err:      noVetErrorf("no verbs with extra arg", "extra"),
+		wantText: "no verbs with extra arg%!(EXTRA string=extra)",
+	}, {
+		err:      noVetErrorf("too many verbs: %w %v"),
+		wantText: "too many verbs: %!w(MISSING) %!v(MISSING)",
+	}, {
 		err:       noVetErrorf("wrapped two errors: %w %w", errString("1"), errString("2")),
 		wantText:  "wrapped two errors: 1 2",
 		wantSplit: []error{errString("1"), errString("2")},

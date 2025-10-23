@@ -142,6 +142,39 @@ func jsonValueString(v Value) string {
 	return string(buf)
 }
 
+func TestJSONAllocs(t *testing.T) {
+	ctx := t.Context()
+	l := New(NewJSONHandler(io.Discard, &HandlerOptions{}))
+	testErr := errors.New("an error occurred")
+	testEvent := struct {
+		ID      int
+		Scope   string
+		Enabled bool
+	}{
+		123456, "abcdefgh", true,
+	}
+
+	t.Run("message", func(t *testing.T) {
+		wantAllocs(t, 0, func() {
+			l.LogAttrs(ctx, LevelInfo,
+				"hello world",
+			)
+		})
+	})
+	t.Run("attrs", func(t *testing.T) {
+		wantAllocs(t, 1, func() {
+			l.LogAttrs(ctx, LevelInfo,
+				"hello world",
+				String("component", "subtest"),
+				Int("id", 67890),
+				Bool("flag", true),
+				Any("error", testErr),
+				Any("event", testEvent),
+			)
+		})
+	})
+}
+
 func BenchmarkJSONHandler(b *testing.B) {
 	for _, bench := range []struct {
 		name string

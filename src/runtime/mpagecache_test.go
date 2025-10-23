@@ -164,7 +164,6 @@ func TestPageCacheAlloc(t *testing.T) {
 		},
 	}
 	for name, test := range tests {
-		test := test
 		t.Run(name, func(t *testing.T) {
 			c := test.cache
 			for i, h := range test.hits {
@@ -269,23 +268,6 @@ func TestPageAllocAllocToCache(t *testing.T) {
 		afterScav   map[ChunkIdx][]BitRange
 	}
 	tests := map[string]test{
-		"AllFree": {
-			beforeAlloc: map[ChunkIdx][]BitRange{
-				BaseChunkIdx: {},
-			},
-			beforeScav: map[ChunkIdx][]BitRange{
-				BaseChunkIdx: {{1, 1}, {64, 64}},
-			},
-			hits: []PageCache{
-				NewPageCache(PageBase(BaseChunkIdx, 0), ^uint64(0), 0x2),
-				NewPageCache(PageBase(BaseChunkIdx, 64), ^uint64(0), ^uint64(0)),
-				NewPageCache(PageBase(BaseChunkIdx, 128), ^uint64(0), 0),
-				NewPageCache(PageBase(BaseChunkIdx, 192), ^uint64(0), 0),
-			},
-			afterAlloc: map[ChunkIdx][]BitRange{
-				BaseChunkIdx: {{0, 256}},
-			},
-		},
 		"ManyArena": {
 			beforeAlloc: map[ChunkIdx][]BitRange{
 				BaseChunkIdx:     {{0, PallocChunkPages}},
@@ -306,42 +288,7 @@ func TestPageAllocAllocToCache(t *testing.T) {
 				BaseChunkIdx + 2: {{0, PallocChunkPages}},
 			},
 		},
-		"NotContiguous": {
-			beforeAlloc: map[ChunkIdx][]BitRange{
-				BaseChunkIdx:        {{0, PallocChunkPages}},
-				BaseChunkIdx + 0xff: {{0, 0}},
-			},
-			beforeScav: map[ChunkIdx][]BitRange{
-				BaseChunkIdx:        {{0, PallocChunkPages}},
-				BaseChunkIdx + 0xff: {{31, 67}},
-			},
-			hits: []PageCache{
-				NewPageCache(PageBase(BaseChunkIdx+0xff, 0), ^uint64(0), ((uint64(1)<<33)-1)<<31),
-			},
-			afterAlloc: map[ChunkIdx][]BitRange{
-				BaseChunkIdx:        {{0, PallocChunkPages}},
-				BaseChunkIdx + 0xff: {{0, 64}},
-			},
-			afterScav: map[ChunkIdx][]BitRange{
-				BaseChunkIdx:        {{0, PallocChunkPages}},
-				BaseChunkIdx + 0xff: {{64, 34}},
-			},
-		},
-		"First": {
-			beforeAlloc: map[ChunkIdx][]BitRange{
-				BaseChunkIdx: {{0, 32}, {33, 31}, {96, 32}},
-			},
-			beforeScav: map[ChunkIdx][]BitRange{
-				BaseChunkIdx: {{1, 4}, {31, 5}, {66, 2}},
-			},
-			hits: []PageCache{
-				NewPageCache(PageBase(BaseChunkIdx, 0), 1<<32, 1<<32),
-				NewPageCache(PageBase(BaseChunkIdx, 64), (uint64(1)<<32)-1, 0x3<<2),
-			},
-			afterAlloc: map[ChunkIdx][]BitRange{
-				BaseChunkIdx: {{0, 128}},
-			},
-		},
+
 		"Fail": {
 			beforeAlloc: map[ChunkIdx][]BitRange{
 				BaseChunkIdx: {{0, PallocChunkPages}},
@@ -372,6 +319,61 @@ func TestPageAllocAllocToCache(t *testing.T) {
 				BaseChunkIdx: {{0, 1}, {11, 1}},
 			},
 		},
+	}
+	if PallocChunkPages >= 512 {
+		tests["AllFree"] = test{
+			beforeAlloc: map[ChunkIdx][]BitRange{
+				BaseChunkIdx: {},
+			},
+			beforeScav: map[ChunkIdx][]BitRange{
+				BaseChunkIdx: {{1, 1}, {64, 64}},
+			},
+			hits: []PageCache{
+				NewPageCache(PageBase(BaseChunkIdx, 0), ^uint64(0), 0x2),
+				NewPageCache(PageBase(BaseChunkIdx, 64), ^uint64(0), ^uint64(0)),
+				NewPageCache(PageBase(BaseChunkIdx, 128), ^uint64(0), 0),
+				NewPageCache(PageBase(BaseChunkIdx, 192), ^uint64(0), 0),
+			},
+			afterAlloc: map[ChunkIdx][]BitRange{
+				BaseChunkIdx: {{0, 256}},
+			},
+		}
+		tests["NotContiguous"] = test{
+			beforeAlloc: map[ChunkIdx][]BitRange{
+				BaseChunkIdx:        {{0, PallocChunkPages}},
+				BaseChunkIdx + 0xff: {{0, 0}},
+			},
+			beforeScav: map[ChunkIdx][]BitRange{
+				BaseChunkIdx:        {{0, PallocChunkPages}},
+				BaseChunkIdx + 0xff: {{31, 67}},
+			},
+			hits: []PageCache{
+				NewPageCache(PageBase(BaseChunkIdx+0xff, 0), ^uint64(0), ((uint64(1)<<33)-1)<<31),
+			},
+			afterAlloc: map[ChunkIdx][]BitRange{
+				BaseChunkIdx:        {{0, PallocChunkPages}},
+				BaseChunkIdx + 0xff: {{0, 64}},
+			},
+			afterScav: map[ChunkIdx][]BitRange{
+				BaseChunkIdx:        {{0, PallocChunkPages}},
+				BaseChunkIdx + 0xff: {{64, 34}},
+			},
+		}
+		tests["First"] = test{
+			beforeAlloc: map[ChunkIdx][]BitRange{
+				BaseChunkIdx: {{0, 32}, {33, 31}, {96, 32}},
+			},
+			beforeScav: map[ChunkIdx][]BitRange{
+				BaseChunkIdx: {{1, 4}, {31, 5}, {66, 2}},
+			},
+			hits: []PageCache{
+				NewPageCache(PageBase(BaseChunkIdx, 0), 1<<32, 1<<32),
+				NewPageCache(PageBase(BaseChunkIdx, 64), (uint64(1)<<32)-1, 0x3<<2),
+			},
+			afterAlloc: map[ChunkIdx][]BitRange{
+				BaseChunkIdx: {{0, 128}},
+			},
+		}
 	}
 	// Disable these tests on iOS since we have a small address space.
 	// See #46860.
@@ -404,7 +406,6 @@ func TestPageAllocAllocToCache(t *testing.T) {
 		}
 	}
 	for name, v := range tests {
-		v := v
 		t.Run(name, func(t *testing.T) {
 			b := NewPageAlloc(v.beforeAlloc, v.beforeScav)
 			defer FreePageAlloc(b)

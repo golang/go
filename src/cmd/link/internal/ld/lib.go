@@ -1451,6 +1451,10 @@ func (ctxt *Link) hostlink() {
 		} else {
 			argv = append(argv, "-s")
 		}
+	} else if *FlagW {
+		if !ctxt.IsAIX() && !ctxt.IsSolaris() { // The AIX and Solaris linkers' -S has different meaning
+			argv = append(argv, "-Wl,-S") // suppress debugging symbols
+		}
 	}
 
 	// On darwin, whether to combine DWARF into executable.
@@ -1768,7 +1772,8 @@ func (ctxt *Link) hostlink() {
 	}
 
 	// Force global symbols to be exported for dlopen, etc.
-	if ctxt.IsELF {
+	switch {
+	case ctxt.IsELF:
 		if ctxt.DynlinkingGo() || ctxt.BuildMode == BuildModeCShared || !linkerFlagSupported(ctxt.Arch, argv[0], altLinker, "-Wl,--export-dynamic-symbol=main") {
 			argv = append(argv, "-rdynamic")
 		} else {
@@ -1779,10 +1784,16 @@ func (ctxt *Link) hostlink() {
 			sort.Strings(exports)
 			argv = append(argv, exports...)
 		}
-	}
-	if ctxt.HeadType == objabi.Haix {
+	case ctxt.IsAIX():
 		fileName := xcoffCreateExportFile(ctxt)
 		argv = append(argv, "-Wl,-bE:"+fileName)
+	case ctxt.IsWindows() && !slices.Contains(flagExtldflags, wlPrefix+"export-all-symbols"):
+		fileName := peCreateExportFile(ctxt, filepath.Base(outopt))
+		prefix := ""
+		if isMSVC {
+			prefix = "-Wl,-def:"
+		}
+		argv = append(argv, prefix+fileName)
 	}
 
 	const unusedArguments = "-Qunused-arguments"

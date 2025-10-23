@@ -23,7 +23,7 @@ func CountBytes(s []byte) int {
 
 func ToByteSlice() []byte { // Issue #24698
 	// amd64:`LEAQ\ttype:\[3\]uint8`
-	// amd64:`CALL\truntime\.newobject`
+	// amd64:`CALL\truntime\.mallocTiny3`
 	// amd64:-`.*runtime.stringtoslicebyte`
 	return []byte("foo")
 }

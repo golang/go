@@ -24,8 +24,7 @@ import (
 // The name of a duplicate JSON object member can be extracted as:
 //
 //	err := ...
-//	var serr jsontext.SyntacticError
-//	if errors.As(err, &serr) && serr.Err == jsontext.ErrDuplicateName {
+//	if serr, ok := errors.AsType[jsontext.SyntacticError](err); ok && serr.Err == jsontext.ErrDuplicateName {
 //		ptr := serr.JSONPointer // JSON pointer to duplicate name
 //		name := ptr.LastToken() // duplicate name itself
 //		...

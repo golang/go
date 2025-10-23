@@ -506,7 +506,7 @@ CALLFN(·call1073741824, 1073741824)
 TEXT callfnMVC<>(SB),NOSPLIT|NOFRAME,$0-0
 	MVC	$1, 0(R4), 0(R6)
 
-TEXT runtime·procyield(SB),NOSPLIT,$0-0
+TEXT runtime·procyieldAsm(SB),NOSPLIT,$0-0
 	RET
 
 // Save state of caller into g->sched,

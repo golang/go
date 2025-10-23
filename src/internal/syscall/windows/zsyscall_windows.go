@@ -73,6 +73,7 @@ var (
 	procGetConsoleCP                      = modkernel32.NewProc("GetConsoleCP")
 	procGetCurrentThread                  = modkernel32.NewProc("GetCurrentThread")
 	procGetFileInformationByHandleEx      = modkernel32.NewProc("GetFileInformationByHandleEx")
+	procGetFileSizeEx                     = modkernel32.NewProc("GetFileSizeEx")
 	procGetFinalPathNameByHandleW         = modkernel32.NewProc("GetFinalPathNameByHandleW")
 	procGetModuleFileNameW                = modkernel32.NewProc("GetModuleFileNameW")
 	procGetModuleHandleW                  = modkernel32.NewProc("GetModuleHandleW")
@@ -85,6 +86,7 @@ var (
 	procModule32NextW                     = modkernel32.NewProc("Module32NextW")
 	procMoveFileExW                       = modkernel32.NewProc("MoveFileExW")
 	procMultiByteToWideChar               = modkernel32.NewProc("MultiByteToWideChar")
+	procReOpenFile                        = modkernel32.NewProc("ReOpenFile")
 	procRtlLookupFunctionEntry            = modkernel32.NewProc("RtlLookupFunctionEntry")
 	procRtlVirtualUnwind                  = modkernel32.NewProc("RtlVirtualUnwind")
 	procSetFileInformationByHandle        = modkernel32.NewProc("SetFileInformationByHandle")
@@ -326,6 +328,14 @@ func GetFileInformationByHandleEx(handle syscall.Handle, class uint32, info *byt
 	return
 }
 
+func GetFileSizeEx(handle syscall.Handle, size *int64) (err error) {
+	r1, _, e1 := syscall.SyscallN(procGetFileSizeEx.Addr(), uintptr(handle), uintptr(unsafe.Pointer(size)))
+	if r1 == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
 func GetFinalPathNameByHandle(file syscall.Handle, filePath *uint16, filePathSize uint32, flags uint32) (n uint32, err error) {
 	r0, _, e1 := syscall.SyscallN(procGetFinalPathNameByHandleW.Addr(), uintptr(file), uintptr(unsafe.Pointer(filePath)), uintptr(filePathSize), uintptr(flags))
 	n = uint32(r0)
@@ -426,6 +436,15 @@ func MultiByteToWideChar(codePage uint32, dwFlags uint32, str *byte, nstr int32,
 	r0, _, e1 := syscall.SyscallN(procMultiByteToWideChar.Addr(), uintptr(codePage), uintptr(dwFlags), uintptr(unsafe.Pointer(str)), uintptr(nstr), uintptr(unsafe.Pointer(wchar)), uintptr(nwchar))
 	nwrite = int32(r0)
 	if nwrite == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func ReOpenFile(filehandle syscall.Handle, desiredAccess uint32, shareMode uint32, flagAndAttributes uint32) (handle syscall.Handle, err error) {
+	r0, _, e1 := syscall.SyscallN(procReOpenFile.Addr(), uintptr(filehandle), uintptr(desiredAccess), uintptr(shareMode), uintptr(flagAndAttributes))
+	handle = syscall.Handle(r0)
+	if handle == 0 {
 		err = errnoErr(e1)
 	}
 	return

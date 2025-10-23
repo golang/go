@@ -1039,7 +1039,6 @@ var relocationTests = []relocationTest{
 
 func TestDWARFRelocations(t *testing.T) {
 	for _, test := range relocationTests {
-		test := test
 		t.Run(test.file, func(t *testing.T) {
 			t.Parallel()
 			f, err := Open(test.file)

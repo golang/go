@@ -12148,6 +12148,19 @@ func rewriteBlockLOONG64(b *Block) bool {
 			b.resetWithControl(BlockLOONG64NEZ, v0)
 			return true
 		}
+	case BlockJumpTable:
+		// match: (JumpTable idx)
+		// result: (JUMPTABLE {makeJumpTableSym(b)} idx (MOVVaddr <typ.Uintptr> {makeJumpTableSym(b)} (SB)))
+		for {
+			idx := b.Controls[0]
+			v0 := b.NewValue0(b.Pos, OpLOONG64MOVVaddr, typ.Uintptr)
+			v0.Aux = symToAux(makeJumpTableSym(b))
+			v1 := b.NewValue0(b.Pos, OpSB, typ.Uintptr)
+			v0.AddArg(v1)
+			b.resetWithControl2(BlockLOONG64JUMPTABLE, idx, v0)
+			b.Aux = symToAux(makeJumpTableSym(b))
+			return true
+		}
 	case BlockLOONG64LEZ:
 		// match: (LEZ (MOVVconst [c]) yes no)
 		// cond: c <= 0

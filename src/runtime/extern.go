@@ -171,13 +171,6 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	silently default to 1024. Future versions of Go may remove this limitation
 	and extend profstackdepth to apply to the CPU profiler and execution tracer.
 
-	pagetrace: setting pagetrace=/path/to/file will write out a trace of page events
-	that can be viewed, analyzed, and visualized using the x/debug/cmd/pagetrace tool.
-	Build your program with GOEXPERIMENT=pagetrace to enable this functionality. Do not
-	enable this functionality if your program is a setuid binary as it introduces a security
-	risk in that scenario. Currently not supported on Windows, plan9 or js/wasm. Setting this
-	option for some applications can produce large traces, so use with care.
-
 	panicnil: setting panicnil=1 disables the runtime error when calling panic with nil
 	interface value or an untyped nil.
 

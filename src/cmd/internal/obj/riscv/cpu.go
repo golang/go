@@ -588,22 +588,18 @@ const (
 
 	// 26.3.1: Compressed Stack-Pointer-Based Loads and Stores
 	ACLWSP
-	ACFLWSP
 	ACLDSP
 	ACFLDSP
 	ACSWSP
 	ACSDSP
-	ACFSWSP
 	ACFSDSP
 
 	// 26.3.2: Compressed Register-Based Loads and Stores
 	ACLW
 	ACLD
-	ACFLW
 	ACFLD
 	ACSW
 	ACSD
-	ACFSW
 	ACFSD
 
 	// 26.4: Compressed Control Transfer Instructions

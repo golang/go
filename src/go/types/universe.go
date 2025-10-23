@@ -119,7 +119,7 @@ func defPredeclaredTypes() {
 	{
 		obj := NewTypeName(nopos, nil, "error", nil)
 		obj.setColor(black)
-		typ := NewNamed(obj, nil, nil)
+		typ := (*Checker)(nil).newNamed(obj, nil, nil)
 
 		// error.Error() string
 		recv := newVar(RecvVar, nopos, nil, "", typ)
@@ -131,7 +131,8 @@ func defPredeclaredTypes() {
 		ityp := &Interface{methods: []*Func{err}, complete: true}
 		computeInterfaceTypeSet(nil, nopos, ityp) // prevent races due to lazy computation of tset
 
-		typ.SetUnderlying(ityp)
+		typ.fromRHS = ityp
+		typ.Underlying()
 		def(obj)
 	}
 
@@ -139,12 +140,13 @@ func defPredeclaredTypes() {
 	{
 		obj := NewTypeName(nopos, nil, "comparable", nil)
 		obj.setColor(black)
-		typ := NewNamed(obj, nil, nil)
+		typ := (*Checker)(nil).newNamed(obj, nil, nil)
 
 		// interface{} // marked as comparable
 		ityp := &Interface{complete: true, tset: &_TypeSet{nil, allTermlist, true}}
 
-		typ.SetUnderlying(ityp)
+		typ.fromRHS = ityp
+		typ.Underlying()
 		def(obj)
 	}
 }

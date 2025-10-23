@@ -168,3 +168,9 @@ func getp1() *[4]int {
 func getp2() *[4]int {
 	return nil
 }
+
+// Store to an argument without read can be removed.
+func storeArg(a [2]int) {
+	// amd64:-`MOVQ\t\$123,.*\.a\+\d+\(SP\)`
+	a[1] = 123
+}

@@ -155,10 +155,10 @@ func TestScripts(t *testing.T) {
 				t.Log(buf)
 			}
 			if err != nil {
-				if notInstalled := (vcweb.ServerNotInstalledError{}); errors.As(err, &notInstalled) || errors.Is(err, exec.ErrNotFound) {
+				if _, ok := errors.AsType[vcweb.ServerNotInstalledError](err); ok || errors.Is(err, exec.ErrNotFound) {
 					t.Skip(err)
 				}
-				if skip := (vcweb.SkipError{}); errors.As(err, &skip) {
+				if skip, ok := errors.AsType[vcweb.SkipError](err); ok {
 					if skip.Msg == "" {
 						t.Skip("SKIP")
 					} else {

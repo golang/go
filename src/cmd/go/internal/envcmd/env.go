@@ -189,16 +189,16 @@ func findEnv(env []cfg.EnvVar, name string) string {
 }
 
 // ExtraEnvVars returns environment variables that should not leak into child processes.
-func ExtraEnvVars() []cfg.EnvVar {
+func ExtraEnvVars(loaderstate *modload.State) []cfg.EnvVar {
 	gomod := ""
-	modload.Init()
-	if modload.HasModRoot() {
-		gomod = modload.ModFilePath()
-	} else if modload.Enabled() {
+	modload.Init(loaderstate)
+	if modload.HasModRoot(loaderstate) {
+		gomod = modload.ModFilePath(loaderstate)
+	} else if modload.Enabled(loaderstate) {
 		gomod = os.DevNull
 	}
-	modload.InitWorkfile()
-	gowork := modload.WorkFilePath()
+	modload.InitWorkfile(loaderstate)
+	gowork := modload.WorkFilePath(loaderstate)
 	// As a special case, if a user set off explicitly, report that in GOWORK.
 	if cfg.Getenv("GOWORK") == "off" {
 		gowork = "off"
@@ -306,7 +306,7 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	env := cfg.CmdEnv
-	env = append(env, ExtraEnvVars()...)
+	env = append(env, ExtraEnvVars(modload.LoaderState)...)
 
 	if err := fsys.Init(); err != nil {
 		base.Fatal(err)
@@ -336,7 +336,7 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 	if needCostly {
-		work.BuildInit()
+		work.BuildInit(modload.LoaderState)
 		env = append(env, ExtraEnvVarsCostly()...)
 	}
 

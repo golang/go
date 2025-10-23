@@ -31,11 +31,11 @@ func isString(t Type) bool         { return isBasic(t, IsString) }
 func isIntegerOrFloat(t Type) bool { return isBasic(t, IsInteger|IsFloat) }
 func isConstType(t Type) bool      { return isBasic(t, IsConstType) }
 
-// isBasic reports whether under(t) is a basic type with the specified info.
+// isBasic reports whether t.Underlying() is a basic type with the specified info.
 // If t is a type parameter the result is false; i.e.,
 // isBasic does not look inside a type parameter.
 func isBasic(t Type, info BasicInfo) bool {
-	u, _ := under(t).(*Basic)
+	u, _ := t.Underlying().(*Basic)
 	return u != nil && u.info&info != 0
 }
 
@@ -51,7 +51,7 @@ func allString(t Type) bool          { return allBasic(t, IsString) }
 func allOrdered(t Type) bool         { return allBasic(t, IsOrdered) }
 func allNumericOrString(t Type) bool { return allBasic(t, IsNumeric|IsString) }
 
-// allBasic reports whether under(t) is a basic type with the specified info.
+// allBasic reports whether t.Underlying() is a basic type with the specified info.
 // If t is a type parameter, the result is true if isBasic(t, info) is true
 // for all specific types of the type parameter's type set.
 func allBasic(t Type, info BasicInfo) bool {
@@ -88,7 +88,7 @@ func isTypeLit(t Type) bool {
 // Safe to call from types that are not fully set up.
 func isTyped(t Type) bool {
 	// Alias and named types cannot denote untyped types
-	// so there's no need to call Unalias or under, below.
+	// so there's no need to call Unalias or Underlying, below.
 	b, _ := t.(*Basic)
 	return b == nil || b.info&IsUntyped == 0
 }
@@ -103,14 +103,14 @@ func isUntyped(t Type) bool {
 // Safe to call from types that are not fully set up.
 func isUntypedNumeric(t Type) bool {
 	// Alias and named types cannot denote untyped types
-	// so there's no need to call Unalias or under, below.
+	// so there's no need to call Unalias or Underlying, below.
 	b, _ := t.(*Basic)
 	return b != nil && b.info&IsUntyped != 0 && b.info&IsNumeric != 0
 }
 
 // IsInterface reports whether t is an interface type.
 func IsInterface(t Type) bool {
-	_, ok := under(t).(*Interface)
+	_, ok := t.Underlying().(*Interface)
 	return ok
 }
 
@@ -166,7 +166,7 @@ func comparableType(T Type, dynamic bool, seen map[Type]bool) *typeError {
 	}
 	seen[T] = true
 
-	switch t := under(T).(type) {
+	switch t := T.Underlying().(type) {
 	case *Basic:
 		// assume invalid types to be comparable to avoid follow-up errors
 		if t.kind == UntypedNil {
@@ -209,7 +209,7 @@ func comparableType(T Type, dynamic bool, seen map[Type]bool) *typeError {
 
 // hasNil reports whether type t includes the nil value.
 func hasNil(t Type) bool {
-	switch u := under(t).(type) {
+	switch u := t.Underlying().(type) {
 	case *Basic:
 		return u.kind == UnsafePointer
 	case *Slice, *Pointer, *Signature, *Map, *Chan:
@@ -522,7 +522,7 @@ func identicalInstance(xorig Type, xargs []Type, yorig Type, yargs []Type) bool 
 // for untyped nil is untyped nil.
 func Default(t Type) Type {
 	// Alias and named types cannot denote untyped types
-	// so there's no need to call Unalias or under, below.
+	// so there's no need to call Unalias or Underlying, below.
 	if t, _ := t.(*Basic); t != nil {
 		switch t.kind {
 		case UntypedBool:

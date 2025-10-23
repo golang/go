@@ -238,16 +238,13 @@ func TestReadFile(t *testing.T) {
 	}
 
 	for _, p := range platforms {
-		p := p
 		t.Run(p.goos+"_"+p.goarch, func(t *testing.T) {
 			if p != runtimePlatform && !*flagAll {
 				t.Skipf("skipping platforms other than %s_%s because -all was not set", runtimePlatform.goos, runtimePlatform.goarch)
 			}
 			for _, mode := range buildModes {
-				mode := mode
 				t.Run(mode, func(t *testing.T) {
 					for _, tc := range cases {
-						tc := tc
 						t.Run(tc.name, func(t *testing.T) {
 							t.Parallel()
 							name := tc.build(t, p.goos, p.goarch, mode)

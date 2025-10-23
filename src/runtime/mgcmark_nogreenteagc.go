@@ -54,31 +54,37 @@ func (q *spanInlineMarkBits) tryAcquire() bool {
 }
 
 type spanQueue struct {
-	_ uint32 // To match alignment padding requirements for atomically-accessed variables in workType.
+}
+
+func (q *spanQueue) flush() {
 }
 
 func (q *spanQueue) empty() bool {
 	return true
 }
 
-func (q *spanQueue) size() int {
-	return 0
+func (q *spanQueue) destroy() {
 }
 
-type localSpanQueue struct {
+type spanSPMC struct {
+	_ sys.NotInHeap
 }
 
-func (q *localSpanQueue) drain() bool {
-	return false
-}
-
-func (q *localSpanQueue) empty() bool {
-	return true
+func freeDeadSpanSPMCs() {
+	return
 }
 
 type objptr uintptr
 
-func (w *gcWork) tryGetSpan(steal bool) objptr {
+func (w *gcWork) tryGetSpanFast() objptr {
+	return 0
+}
+
+func (w *gcWork) tryGetSpan() objptr {
+	return 0
+}
+
+func (w *gcWork) tryStealSpan() objptr {
 	return 0
 }
 
@@ -114,6 +120,17 @@ func (w *gcWork) flushScanStats(dst *[gc.NumSizeClasses]sizeClassScanStats) {
 		dst[i].sparseObjsScanned += w.stats[i].sparseObjsScanned
 	}
 	clear(w.stats[:])
+}
+
+// gcMarkWorkAvailable reports whether there's any non-local work available to do.
+func gcMarkWorkAvailable() bool {
+	if !work.full.empty() {
+		return true // global work available
+	}
+	if work.markrootNext.Load() < work.markrootJobs.Load() {
+		return true // root scan work available
+	}
+	return false
 }
 
 // scanObject scans the object starting at b, adding pointers to gcw.

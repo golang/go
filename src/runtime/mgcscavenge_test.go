@@ -121,13 +121,17 @@ func TestPallocDataFindScavengeCandidate(t *testing.T) {
 			max:       PallocChunkPages,
 			want:      BitRange{41, 1},
 		},
-		"MultiMin1": {
-			alloc:     []BitRange{{0, 63}, {65, 20}, {87, PallocChunkPages - 87}},
+	}
+	if PallocChunkPages >= 512 {
+		// avoid constant overflow when PallocChunkPages is small
+		var pallocChunkPages uint = PallocChunkPages
+		tests["MultiMin1"] = test{
+			alloc:     []BitRange{{0, 63}, {65, 20}, {87, pallocChunkPages - 87}},
 			scavenged: []BitRange{{86, 1}},
 			min:       1,
 			max:       PallocChunkPages,
 			want:      BitRange{85, 1},
-		},
+		}
 	}
 	// Try out different page minimums.
 	for m := uintptr(1); m <= 64; m *= 2 {
@@ -162,25 +166,27 @@ func TestPallocDataFindScavengeCandidate(t *testing.T) {
 			max:   PallocChunkPages,
 			want:  BitRange{PallocChunkPages - uint(m), uint(m)},
 		}
-		tests["Straddle64"+suffix] = test{
-			alloc: []BitRange{{0, 64 - uint(m)}, {64 + uint(m), PallocChunkPages - (64 + uint(m))}},
-			min:   m,
-			max:   2 * m,
-			want:  BitRange{64 - uint(m), 2 * uint(m)},
-		}
-		tests["BottomEdge64WithFull"+suffix] = test{
-			alloc:     []BitRange{{64, 64}, {128 + 3*uint(m), PallocChunkPages - (128 + 3*uint(m))}},
-			scavenged: []BitRange{{1, 10}},
-			min:       m,
-			max:       3 * m,
-			want:      BitRange{128, 3 * uint(m)},
-		}
-		tests["BottomEdge64WithPocket"+suffix] = test{
-			alloc:     []BitRange{{64, 62}, {127, 1}, {128 + 3*uint(m), PallocChunkPages - (128 + 3*uint(m))}},
-			scavenged: []BitRange{{1, 10}},
-			min:       m,
-			max:       3 * m,
-			want:      BitRange{128, 3 * uint(m)},
+		if PallocChunkPages >= 512 {
+			tests["Straddle64"+suffix] = test{
+				alloc: []BitRange{{0, 64 - uint(m)}, {64 + uint(m), PallocChunkPages - (64 + uint(m))}},
+				min:   m,
+				max:   2 * m,
+				want:  BitRange{64 - uint(m), 2 * uint(m)},
+			}
+			tests["BottomEdge64WithFull"+suffix] = test{
+				alloc:     []BitRange{{64, 64}, {128 + 3*uint(m), PallocChunkPages - (128 + 3*uint(m))}},
+				scavenged: []BitRange{{1, 10}},
+				min:       m,
+				max:       3 * m,
+				want:      BitRange{128, 3 * uint(m)},
+			}
+			tests["BottomEdge64WithPocket"+suffix] = test{
+				alloc:     []BitRange{{64, 62}, {127, 1}, {128 + 3*uint(m), PallocChunkPages - (128 + 3*uint(m))}},
+				scavenged: []BitRange{{1, 10}},
+				min:       m,
+				max:       3 * m,
+				want:      BitRange{128, 3 * uint(m)},
+			}
 		}
 		tests["Max0"+suffix] = test{
 			scavenged: []BitRange{{0, PallocChunkPages - uint(m)}},
@@ -204,23 +210,29 @@ func TestPallocDataFindScavengeCandidate(t *testing.T) {
 			}
 		}
 		if m > 1 {
-			tests["MaxUnaligned"+suffix] = test{
-				scavenged: []BitRange{{0, PallocChunkPages - uint(m*2-1)}},
-				min:       m,
-				max:       m - 2,
-				want:      BitRange{PallocChunkPages - uint(m), uint(m)},
+			if PallocChunkPages >= m*2 {
+				tests["MaxUnaligned"+suffix] = test{
+					scavenged: []BitRange{{0, PallocChunkPages - uint(m*2-1)}},
+					min:       m,
+					max:       m - 2,
+					want:      BitRange{PallocChunkPages - uint(m), uint(m)},
+				}
 			}
-			tests["SkipSmall"+suffix] = test{
-				alloc: []BitRange{{0, 64 - uint(m)}, {64, 5}, {70, 11}, {82, PallocChunkPages - 82}},
-				min:   m,
-				max:   m,
-				want:  BitRange{64 - uint(m), uint(m)},
-			}
-			tests["SkipMisaligned"+suffix] = test{
-				alloc: []BitRange{{0, 64 - uint(m)}, {64, 63}, {127 + uint(m), PallocChunkPages - (127 + uint(m))}},
-				min:   m,
-				max:   m,
-				want:  BitRange{64 - uint(m), uint(m)},
+			if PallocChunkPages >= 512 {
+				// avoid constant overflow when PallocChunkPages is small
+				var PallocChunkPages uint = PallocChunkPages
+				tests["SkipSmall"+suffix] = test{
+					alloc: []BitRange{{0, 64 - uint(m)}, {64, 5}, {70, 11}, {82, PallocChunkPages - 82}},
+					min:   m,
+					max:   m,
+					want:  BitRange{64 - uint(m), uint(m)},
+				}
+				tests["SkipMisaligned"+suffix] = test{
+					alloc: []BitRange{{0, 64 - uint(m)}, {64, 63}, {127 + uint(m), PallocChunkPages - (127 + uint(m))}},
+					min:   m,
+					max:   m,
+					want:  BitRange{64 - uint(m), uint(m)},
+				}
 			}
 			tests["MaxLessThan"+suffix] = test{
 				scavenged: []BitRange{{0, PallocChunkPages - uint(m)}},
@@ -273,7 +285,6 @@ func TestPallocDataFindScavengeCandidate(t *testing.T) {
 		}
 	}
 	for name, v := range tests {
-		v := v
 		t.Run(name, func(t *testing.T) {
 			b := makePallocData(v.alloc, v.scavenged)
 			start, size := b.FindScavengeCandidate(PallocChunkPages-1, v.min, v.max)
@@ -435,7 +446,6 @@ func TestPageAllocScavenge(t *testing.T) {
 		}
 	}
 	for name, v := range tests {
-		v := v
 		t.Run(name, func(t *testing.T) {
 			b := NewPageAlloc(v.beforeAlloc, v.beforeScav)
 			defer FreePageAlloc(b)
@@ -641,7 +651,7 @@ func TestScavengeIndex(t *testing.T) {
 		mark func(markFunc)
 		find func(findFunc)
 	}
-	for _, test := range []testCase{
+	tests := []testCase{
 		{
 			name: "Uninitialized",
 			mark: func(_ markFunc) {},
@@ -690,26 +700,6 @@ func TestScavengeIndex(t *testing.T) {
 			},
 			find: func(find findFunc) {
 				find(BaseChunkIdx, PallocChunkPages-1)
-			},
-		},
-		{
-			name: "TwoChunks",
-			mark: func(mark markFunc) {
-				mark(PageBase(BaseChunkIdx, 128), PageBase(BaseChunkIdx+1, 128))
-			},
-			find: func(find findFunc) {
-				find(BaseChunkIdx+1, 127)
-				find(BaseChunkIdx, PallocChunkPages-1)
-			},
-		},
-		{
-			name: "TwoChunksOffset",
-			mark: func(mark markFunc) {
-				mark(PageBase(BaseChunkIdx+7, 128), PageBase(BaseChunkIdx+8, 129))
-			},
-			find: func(find findFunc) {
-				find(BaseChunkIdx+8, 128)
-				find(BaseChunkIdx+7, PallocChunkPages-1)
 			},
 		},
 		{
@@ -793,8 +783,32 @@ func TestScavengeIndex(t *testing.T) {
 				}
 			},
 		},
-	} {
-		test := test
+	}
+	if PallocChunkPages >= 512 {
+		tests = append(tests,
+			testCase{
+				name: "TwoChunks",
+				mark: func(mark markFunc) {
+					mark(PageBase(BaseChunkIdx, 128), PageBase(BaseChunkIdx+1, 128))
+				},
+				find: func(find findFunc) {
+					find(BaseChunkIdx+1, 127)
+					find(BaseChunkIdx, PallocChunkPages-1)
+				},
+			},
+			testCase{
+				name: "TwoChunksOffset",
+				mark: func(mark markFunc) {
+					mark(PageBase(BaseChunkIdx+7, 128), PageBase(BaseChunkIdx+8, 129))
+				},
+				find: func(find findFunc) {
+					find(BaseChunkIdx+8, 128)
+					find(BaseChunkIdx+7, PallocChunkPages-1)
+				},
+			},
+		)
+	}
+	for _, test := range tests {
 		t.Run("Bg/"+test.name, func(t *testing.T) {
 			mark, find, nextGen := setup(t, false)
 			test.mark(mark)
@@ -830,8 +844,10 @@ func TestScavengeIndex(t *testing.T) {
 }
 
 func TestScavChunkDataPack(t *testing.T) {
-	if !CheckPackScavChunkData(1918237402, 512, 512, 0b11) {
-		t.Error("failed pack/unpack check for scavChunkData 1")
+	if PallocChunkPages >= 512 {
+		if !CheckPackScavChunkData(1918237402, 512, 512, 0b11) {
+			t.Error("failed pack/unpack check for scavChunkData 1")
+		}
 	}
 	if !CheckPackScavChunkData(^uint32(0), 12, 0, 0b00) {
 		t.Error("failed pack/unpack check for scavChunkData 2")

@@ -30,9 +30,9 @@
 //	import "testing"
 //
 //	func TestAbs(t *testing.T) {
-//	    got := Abs(-1)
+//	    got := abs(-1)
 //	    if got != 1 {
-//	        t.Errorf("Abs(-1) = %d; want 1", got)
+//	        t.Errorf("abs(-1) = %d; want 1", got)
 //	    }
 //	}
 //
@@ -420,7 +420,6 @@ import (
 	"sync/atomic"
 	"time"
 	"unicode"
-	"unicode/utf8"
 	_ "unsafe" // for linkname
 )
 
@@ -456,6 +455,7 @@ func Init() {
 	// this flag lets "go test" tell the binary to write the files in the directory where
 	// the "go test" command is run.
 	outputDir = flag.String("test.outputdir", "", "write profiles to `dir`")
+	artifacts = flag.Bool("test.artifacts", false, "store test artifacts in test.,outputdir")
 	// Report as tests are run; default is silent for success.
 	flag.Var(&chatty, "test.v", "verbose: print additional output")
 	count = flag.Uint("test.count", 1, "run tests and benchmarks `n` times")
@@ -489,6 +489,7 @@ var (
 	short                *bool
 	failFast             *bool
 	outputDir            *string
+	artifacts            *bool
 	chatty               chattyFlag
 	count                *uint
 	coverProfile         *string
@@ -516,6 +517,7 @@ var (
 
 	cpuList     []int
 	testlogFile *os.File
+	artifactDir string
 
 	numFailed atomic.Uint32 // number of test failures
 
@@ -653,15 +655,17 @@ type common struct {
 	runner         string         // Function name of tRunner running the test.
 	isParallel     bool           // Whether the test is parallel.
 
-	parent   *common
-	level    int               // Nesting depth of test or benchmark.
-	creator  []uintptr         // If level > 0, the stack trace at the point where the parent called t.Run.
-	name     string            // Name of test or benchmark.
-	start    highPrecisionTime // Time test or benchmark started
-	duration time.Duration
-	barrier  chan bool // To signal parallel subtests they may start. Nil when T.Parallel is not present (B) or not usable (when fuzzing).
-	signal   chan bool // To signal a test is done.
-	sub      []*T      // Queue of subtests to be run in parallel.
+	parent     *common
+	level      int       // Nesting depth of test or benchmark.
+	creator    []uintptr // If level > 0, the stack trace at the point where the parent called t.Run.
+	modulePath string
+	importPath string
+	name       string            // Name of test or benchmark.
+	start      highPrecisionTime // Time test or benchmark started
+	duration   time.Duration
+	barrier    chan bool // To signal parallel subtests they may start. Nil when T.Parallel is not present (B) or not usable (when fuzzing).
+	signal     chan bool // To signal a test is done.
+	sub        []*T      // Queue of subtests to be run in parallel.
 
 	lastRaceErrors  atomic.Int64 // Max value of race.Errors seen during the test or its subtests.
 	raceErrorLogged atomic.Bool
@@ -670,6 +674,10 @@ type common struct {
 	tempDir    string
 	tempDirErr error
 	tempDirSeq int32
+
+	artifactDirOnce sync.Once
+	artifactDir     string
+	artifactDirErr  error
 
 	ctx       context.Context
 	cancelCtx context.CancelFunc
@@ -879,6 +887,7 @@ func fmtDuration(d time.Duration) string {
 
 // TB is the interface common to [T], [B], and [F].
 type TB interface {
+	ArtifactDir() string
 	Attr(key, value string)
 	Cleanup(func())
 	Error(args ...any)
@@ -1313,6 +1322,96 @@ func (c *common) Cleanup(f func()) {
 	c.cleanups = append(c.cleanups, fn)
 }
 
+// ArtifactDir returns a directory in which the test should store output files.
+// When the -artifacts flag is provided, this directory is located
+// under the output directory. Otherwise, ArtifactDir returns a temporary directory
+// that is removed after the test completes.
+//
+// Each test or subtest within each test package has a unique artifact directory.
+// Repeated calls to ArtifactDir in the same test or subtest return the same directory.
+// Subtest outputs are not located under the parent test's output directory.
+func (c *common) ArtifactDir() string {
+	c.checkFuzzFn("ArtifactDir")
+	c.artifactDirOnce.Do(func() {
+		c.artifactDir, c.artifactDirErr = c.makeArtifactDir()
+	})
+	if c.artifactDirErr != nil {
+		c.Fatalf("ArtifactDir: %v", c.artifactDirErr)
+	}
+	return c.artifactDir
+}
+
+func hashString(s string) (h uint64) {
+	// FNV, used here to avoid a dependency on maphash.
+	for i := 0; i < len(s); i++ {
+		h ^= uint64(s[i])
+		h *= 1099511628211
+	}
+	return
+}
+
+// makeArtifactDir creates the artifact directory for a test.
+// The artifact directory is:
+//
+//	<output dir>/_artifacts/<test package>/<test name>/<random>
+//
+// The test package is the package import path with the module name prefix removed.
+// The test name is truncated if too long.
+// Special characters are removed from the path.
+func (c *common) makeArtifactDir() (string, error) {
+	if !*artifacts {
+		return c.makeTempDir()
+	}
+
+	// If the test name is longer than maxNameSize, truncate it and replace the last
+	// hashSize bytes with a hash of the full name.
+	const maxNameSize = 64
+	name := strings.ReplaceAll(c.name, "/", "__")
+	if len(name) > maxNameSize {
+		h := fmt.Sprintf("%0x", hashString(name))
+		name = name[:maxNameSize-len(h)] + h
+	}
+
+	// Remove the module path prefix from the import path.
+	pkg := strings.TrimPrefix(c.importPath, c.modulePath+"/")
+
+	// Join with /, not filepath.Join: the import path is /-separated,
+	// and we don't want removeSymbolsExcept to strip \ separators on Windows.
+	base := "/" + pkg + "/" + name
+	base = removeSymbolsExcept(base, "!#$%&()+,-.=@^_{}~ /")
+	base, err := filepath.Localize(base)
+	if err != nil {
+		// This name can't be safely converted into a local filepath.
+		// Drop it and just use _artifacts/<random>.
+		base = ""
+	}
+
+	artifactBase := filepath.Join(artifactDir, base)
+	if err := os.MkdirAll(artifactBase, 0o777); err != nil {
+		return "", err
+	}
+	dir, err := os.MkdirTemp(artifactBase, "")
+	if err != nil {
+		return "", err
+	}
+	if c.chatty != nil {
+		c.chatty.Updatef(c.name, "=== ARTIFACTS %s %v\n", c.name, dir)
+	}
+	return dir, nil
+}
+
+func removeSymbolsExcept(s, allowed string) string {
+	mapper := func(r rune) rune {
+		if unicode.IsLetter(r) ||
+			unicode.IsNumber(r) ||
+			strings.ContainsRune(allowed, r) {
+			return r
+		}
+		return -1 // disallowed symbol
+	}
+	return strings.Map(mapper, s)
+}
+
 // TempDir returns a temporary directory for the test to use.
 // The directory is automatically removed when the test and
 // all its subtests complete.
@@ -1322,6 +1421,14 @@ func (c *common) Cleanup(f func()) {
 // be created somewhere beneath it.
 func (c *common) TempDir() string {
 	c.checkFuzzFn("TempDir")
+	dir, err := c.makeTempDir()
+	if err != nil {
+		c.Fatalf("TempDir: %v", err)
+	}
+	return dir
+}
+
+func (c *common) makeTempDir() (string, error) {
 	// Use a single parent directory for all the temporary directories
 	// created by a test, each numbered sequentially.
 	c.tempDirMu.Lock()
@@ -1332,7 +1439,7 @@ func (c *common) TempDir() string {
 		_, err := os.Stat(c.tempDir)
 		nonExistent = os.IsNotExist(err)
 		if err != nil && !nonExistent {
-			c.Fatalf("TempDir: %v", err)
+			return "", err
 		}
 	}
 
@@ -1347,23 +1454,9 @@ func (c *common) TempDir() string {
 		// Drop unusual characters (such as path separators or
 		// characters interacting with globs) from the directory name to
 		// avoid surprising os.MkdirTemp behavior.
-		mapper := func(r rune) rune {
-			if r < utf8.RuneSelf {
-				const allowed = "!#$%&()+,-.=@^_{}~ "
-				if '0' <= r && r <= '9' ||
-					'a' <= r && r <= 'z' ||
-					'A' <= r && r <= 'Z' {
-					return r
-				}
-				if strings.ContainsRune(allowed, r) {
-					return r
-				}
-			} else if unicode.IsLetter(r) || unicode.IsNumber(r) {
-				return r
-			}
-			return -1
-		}
-		pattern = strings.Map(mapper, pattern)
+		const allowed = "!#$%&()+,-.=@^_{}~ "
+		pattern = removeSymbolsExcept(pattern, allowed)
+
 		c.tempDir, c.tempDirErr = os.MkdirTemp(os.Getenv("GOTMPDIR"), pattern)
 		if c.tempDirErr == nil {
 			c.Cleanup(func() {
@@ -1381,14 +1474,14 @@ func (c *common) TempDir() string {
 	c.tempDirMu.Unlock()
 
 	if c.tempDirErr != nil {
-		c.Fatalf("TempDir: %v", c.tempDirErr)
+		return "", c.tempDirErr
 	}
 
 	dir := fmt.Sprintf("%s%c%03d", c.tempDir, os.PathSeparator, seq)
 	if err := os.Mkdir(dir, 0o777); err != nil {
-		c.Fatalf("TempDir: %v", err)
+		return "", err
 	}
-	return dir
+	return dir, nil
 }
 
 // removeAll is like os.RemoveAll, but retries Windows "Access is denied."
@@ -1971,15 +2064,17 @@ func (t *T) Run(name string, f func(t *T)) bool {
 	ctx, cancelCtx := context.WithCancel(context.Background())
 	t = &T{
 		common: common{
-			barrier:   make(chan bool),
-			signal:    make(chan bool, 1),
-			name:      testName,
-			parent:    &t.common,
-			level:     t.level + 1,
-			creator:   pc[:n],
-			chatty:    t.chatty,
-			ctx:       ctx,
-			cancelCtx: cancelCtx,
+			barrier:    make(chan bool),
+			signal:     make(chan bool, 1),
+			name:       testName,
+			modulePath: t.modulePath,
+			importPath: t.importPath,
+			parent:     &t.common,
+			level:      t.level + 1,
+			creator:    pc[:n],
+			chatty:     t.chatty,
+			ctx:        ctx,
+			cancelCtx:  cancelCtx,
 		},
 		tstate: t.tstate,
 	}
@@ -2140,6 +2235,7 @@ func (f matchStringOnly) MatchString(pat, str string) (bool, error)   { return f
 func (f matchStringOnly) StartCPUProfile(w io.Writer) error           { return errMain }
 func (f matchStringOnly) StopCPUProfile()                             {}
 func (f matchStringOnly) WriteProfileTo(string, io.Writer, int) error { return errMain }
+func (f matchStringOnly) ModulePath() string                          { return "" }
 func (f matchStringOnly) ImportPath() string                          { return "" }
 func (f matchStringOnly) StartTestLog(io.Writer)                      {}
 func (f matchStringOnly) StopTestLog() error                          { return errMain }
@@ -2193,6 +2289,7 @@ type M struct {
 // testing/internal/testdeps's TestDeps.
 type testDeps interface {
 	ImportPath() string
+	ModulePath() string
 	MatchString(pat, str string) (bool, error)
 	SetPanicOnExit0(bool)
 	StartCPUProfile(io.Writer) error
@@ -2336,7 +2433,7 @@ func (m *M) Run() (code int) {
 	if !*isFuzzWorker {
 		deadline := m.startAlarm()
 		haveExamples = len(m.examples) > 0
-		testRan, testOk := runTests(m.deps.MatchString, m.tests, deadline)
+		testRan, testOk := runTests(m.deps.ModulePath(), m.deps.ImportPath(), m.deps.MatchString, m.tests, deadline)
 		fuzzTargetsRan, fuzzTargetsOk := runFuzzTests(m.deps, m.fuzzTargets, deadline)
 		exampleRan, exampleOk := runExamples(m.deps.MatchString, m.examples)
 		m.stopAlarm()
@@ -2437,14 +2534,14 @@ func RunTests(matchString func(pat, str string) (bool, error), tests []InternalT
 	if *timeout > 0 {
 		deadline = time.Now().Add(*timeout)
 	}
-	ran, ok := runTests(matchString, tests, deadline)
+	ran, ok := runTests("", "", matchString, tests, deadline)
 	if !ran && !haveExamples {
 		fmt.Fprintln(os.Stderr, "testing: warning: no tests to run")
 	}
 	return ok
 }
 
-func runTests(matchString func(pat, str string) (bool, error), tests []InternalTest, deadline time.Time) (ran, ok bool) {
+func runTests(modulePath, importPath string, matchString func(pat, str string) (bool, error), tests []InternalTest, deadline time.Time) (ran, ok bool) {
 	ok = true
 	for _, procs := range cpuList {
 		runtime.GOMAXPROCS(procs)
@@ -2463,11 +2560,13 @@ func runTests(matchString func(pat, str string) (bool, error), tests []InternalT
 			tstate.deadline = deadline
 			t := &T{
 				common: common{
-					signal:    make(chan bool, 1),
-					barrier:   make(chan bool),
-					w:         os.Stdout,
-					ctx:       ctx,
-					cancelCtx: cancelCtx,
+					signal:     make(chan bool, 1),
+					barrier:    make(chan bool),
+					w:          os.Stdout,
+					ctx:        ctx,
+					cancelCtx:  cancelCtx,
+					modulePath: modulePath,
+					importPath: importPath,
 				},
 				tstate: tstate,
 			}
@@ -2535,6 +2634,18 @@ func (m *M) before() {
 	if *gocoverdir != "" && CoverMode() == "" {
 		fmt.Fprintf(os.Stderr, "testing: cannot use -test.gocoverdir because test binary was not built with coverage enabled\n")
 		os.Exit(2)
+	}
+	if *artifacts {
+		var err error
+		artifactDir, err = filepath.Abs(toOutputDir("_artifacts"))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "testing: cannot make -test.outputdir absolute: %v\n", err)
+			os.Exit(2)
+		}
+		if err := os.Mkdir(artifactDir, 0o777); err != nil && !errors.Is(err, os.ErrExist) {
+			fmt.Fprintf(os.Stderr, "testing: %v\n", err)
+			os.Exit(2)
+		}
 	}
 	if *testlog != "" {
 		// Note: Not using toOutputDir.

@@ -237,7 +237,6 @@ var depsRules = `
 	  internal/types/errors,
 	  mime/quotedprintable,
 	  net/internal/socktest,
-	  net/url,
 	  runtime/trace,
 	  text/scanner,
 	  text/tabwriter;
@@ -299,6 +298,12 @@ var depsRules = `
 	# templates
 	FMT
 	< text/template/parse;
+
+	internal/bytealg, internal/itoa, math/bits, slices, strconv, unique
+	< net/netip;
+
+	FMT, net/netip
+	< net/url;
 
 	net/url, text/template/parse
 	< text/template
@@ -414,9 +419,6 @@ var depsRules = `
 	< golang.org/x/net/dns/dnsmessage,
 	  golang.org/x/net/lif;
 
-	internal/bytealg, internal/itoa, math/bits, slices, strconv, unique
-	< net/netip;
-
 	os, net/netip
 	< internal/routebsd;
 
@@ -485,11 +487,16 @@ var depsRules = `
 	internal/byteorder < crypto/internal/fips140deps/byteorder;
 	internal/cpu, internal/goarch < crypto/internal/fips140deps/cpu;
 	internal/godebug < crypto/internal/fips140deps/godebug;
+	time, internal/syscall/windows < crypto/internal/fips140deps/time;
+
+	crypto/internal/fips140deps/time, errors, math/bits, sync/atomic, unsafe
+	< crypto/internal/entropy/v1.0.0;
 
 	STR, hash,
 	crypto/internal/impl,
 	crypto/internal/entropy,
 	crypto/internal/randutil,
+	crypto/internal/entropy/v1.0.0,
 	crypto/internal/fips140deps/byteorder,
 	crypto/internal/fips140deps/cpu,
 	crypto/internal/fips140deps/godebug
@@ -559,7 +566,7 @@ var depsRules = `
 
 	# CRYPTO-MATH is crypto that exposes math/big APIs - no cgo, net; fmt now ok.
 
-	CRYPTO, FMT, math/big
+	CRYPTO, FMT, math/big, internal/saferio
 	< crypto/internal/boring/bbig
 	< crypto/internal/fips140cache
 	< crypto/rand
@@ -796,7 +803,7 @@ var depsRules = `
 	FMT, testing
 	< internal/cgrouptest;
 
-	regexp, internal/trace, internal/trace/raw, internal/txtar, testing
+	regexp, internal/testenv, internal/trace, internal/trace/raw, internal/txtar, testing
 	< internal/trace/testtrace;
 
 	C, CGO

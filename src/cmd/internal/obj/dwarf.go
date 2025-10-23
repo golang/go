@@ -219,7 +219,7 @@ func (c dwCtxt) AddUint16(s dwarf.Sym, i uint16) {
 	c.AddInt(s, 2, int64(i))
 }
 func (c dwCtxt) AddUint8(s dwarf.Sym, i uint8) {
-	b := []byte{byte(i)}
+	b := []byte{i}
 	c.AddBytes(s, b)
 }
 func (c dwCtxt) AddBytes(s dwarf.Sym, b []byte) {

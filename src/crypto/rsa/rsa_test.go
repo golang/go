@@ -212,7 +212,6 @@ func TestEverything(t *testing.T) {
 		max = 2048
 	}
 	for size := min; size <= max; size++ {
-		size := size
 		t.Run(fmt.Sprintf("%d", size), func(t *testing.T) {
 			t.Parallel()
 			priv, err := GenerateKey(rand.Reader, size)
@@ -1246,7 +1245,7 @@ func TestModifiedPrivateKey(t *testing.T) {
 	})
 
 	t.Run("D+2", func(t *testing.T) {
-		if fips140.Version() == "v1.0" {
+		if fips140.Version() == "v1.0.0" {
 			t.Skip("This was fixed after v1.0.0")
 		}
 		testModifiedPrivateKey(t, func(k *PrivateKey) {

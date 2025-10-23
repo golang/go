@@ -2,7 +2,6 @@
 
 package ssa
 
-import "internal/buildcfg"
 import "math"
 import "cmd/compile/internal/types"
 
@@ -3202,8 +3201,6 @@ func rewriteValueWasm_OpRsh8x8(v *Value) bool {
 }
 func rewriteValueWasm_OpSignExt16to32(v *Value) bool {
 	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
 	// match: (SignExt16to32 x:(I64Load16S _ _))
 	// result: x
 	for {
@@ -3215,34 +3212,16 @@ func rewriteValueWasm_OpSignExt16to32(v *Value) bool {
 		return true
 	}
 	// match: (SignExt16to32 x)
-	// cond: buildcfg.GOWASM.SignExt
 	// result: (I64Extend16S x)
 	for {
 		x := v_0
-		if !(buildcfg.GOWASM.SignExt) {
-			break
-		}
 		v.reset(OpWasmI64Extend16S)
 		v.AddArg(x)
-		return true
-	}
-	// match: (SignExt16to32 x)
-	// result: (I64ShrS (I64Shl x (I64Const [48])) (I64Const [48]))
-	for {
-		x := v_0
-		v.reset(OpWasmI64ShrS)
-		v0 := b.NewValue0(v.Pos, OpWasmI64Shl, typ.Int64)
-		v1 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v1.AuxInt = int64ToAuxInt(48)
-		v0.AddArg2(x, v1)
-		v.AddArg2(v0, v1)
 		return true
 	}
 }
 func rewriteValueWasm_OpSignExt16to64(v *Value) bool {
 	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
 	// match: (SignExt16to64 x:(I64Load16S _ _))
 	// result: x
 	for {
@@ -3254,34 +3233,16 @@ func rewriteValueWasm_OpSignExt16to64(v *Value) bool {
 		return true
 	}
 	// match: (SignExt16to64 x)
-	// cond: buildcfg.GOWASM.SignExt
 	// result: (I64Extend16S x)
 	for {
 		x := v_0
-		if !(buildcfg.GOWASM.SignExt) {
-			break
-		}
 		v.reset(OpWasmI64Extend16S)
 		v.AddArg(x)
-		return true
-	}
-	// match: (SignExt16to64 x)
-	// result: (I64ShrS (I64Shl x (I64Const [48])) (I64Const [48]))
-	for {
-		x := v_0
-		v.reset(OpWasmI64ShrS)
-		v0 := b.NewValue0(v.Pos, OpWasmI64Shl, typ.Int64)
-		v1 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v1.AuxInt = int64ToAuxInt(48)
-		v0.AddArg2(x, v1)
-		v.AddArg2(v0, v1)
 		return true
 	}
 }
 func rewriteValueWasm_OpSignExt32to64(v *Value) bool {
 	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
 	// match: (SignExt32to64 x:(I64Load32S _ _))
 	// result: x
 	for {
@@ -3293,34 +3254,16 @@ func rewriteValueWasm_OpSignExt32to64(v *Value) bool {
 		return true
 	}
 	// match: (SignExt32to64 x)
-	// cond: buildcfg.GOWASM.SignExt
 	// result: (I64Extend32S x)
 	for {
 		x := v_0
-		if !(buildcfg.GOWASM.SignExt) {
-			break
-		}
 		v.reset(OpWasmI64Extend32S)
 		v.AddArg(x)
-		return true
-	}
-	// match: (SignExt32to64 x)
-	// result: (I64ShrS (I64Shl x (I64Const [32])) (I64Const [32]))
-	for {
-		x := v_0
-		v.reset(OpWasmI64ShrS)
-		v0 := b.NewValue0(v.Pos, OpWasmI64Shl, typ.Int64)
-		v1 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v1.AuxInt = int64ToAuxInt(32)
-		v0.AddArg2(x, v1)
-		v.AddArg2(v0, v1)
 		return true
 	}
 }
 func rewriteValueWasm_OpSignExt8to16(v *Value) bool {
 	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
 	// match: (SignExt8to16 x:(I64Load8S _ _))
 	// result: x
 	for {
@@ -3332,34 +3275,16 @@ func rewriteValueWasm_OpSignExt8to16(v *Value) bool {
 		return true
 	}
 	// match: (SignExt8to16 x)
-	// cond: buildcfg.GOWASM.SignExt
 	// result: (I64Extend8S x)
 	for {
 		x := v_0
-		if !(buildcfg.GOWASM.SignExt) {
-			break
-		}
 		v.reset(OpWasmI64Extend8S)
 		v.AddArg(x)
-		return true
-	}
-	// match: (SignExt8to16 x)
-	// result: (I64ShrS (I64Shl x (I64Const [56])) (I64Const [56]))
-	for {
-		x := v_0
-		v.reset(OpWasmI64ShrS)
-		v0 := b.NewValue0(v.Pos, OpWasmI64Shl, typ.Int64)
-		v1 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v1.AuxInt = int64ToAuxInt(56)
-		v0.AddArg2(x, v1)
-		v.AddArg2(v0, v1)
 		return true
 	}
 }
 func rewriteValueWasm_OpSignExt8to32(v *Value) bool {
 	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
 	// match: (SignExt8to32 x:(I64Load8S _ _))
 	// result: x
 	for {
@@ -3371,34 +3296,16 @@ func rewriteValueWasm_OpSignExt8to32(v *Value) bool {
 		return true
 	}
 	// match: (SignExt8to32 x)
-	// cond: buildcfg.GOWASM.SignExt
 	// result: (I64Extend8S x)
 	for {
 		x := v_0
-		if !(buildcfg.GOWASM.SignExt) {
-			break
-		}
 		v.reset(OpWasmI64Extend8S)
 		v.AddArg(x)
-		return true
-	}
-	// match: (SignExt8to32 x)
-	// result: (I64ShrS (I64Shl x (I64Const [56])) (I64Const [56]))
-	for {
-		x := v_0
-		v.reset(OpWasmI64ShrS)
-		v0 := b.NewValue0(v.Pos, OpWasmI64Shl, typ.Int64)
-		v1 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v1.AuxInt = int64ToAuxInt(56)
-		v0.AddArg2(x, v1)
-		v.AddArg2(v0, v1)
 		return true
 	}
 }
 func rewriteValueWasm_OpSignExt8to64(v *Value) bool {
 	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
 	// match: (SignExt8to64 x:(I64Load8S _ _))
 	// result: x
 	for {
@@ -3410,27 +3317,11 @@ func rewriteValueWasm_OpSignExt8to64(v *Value) bool {
 		return true
 	}
 	// match: (SignExt8to64 x)
-	// cond: buildcfg.GOWASM.SignExt
 	// result: (I64Extend8S x)
 	for {
 		x := v_0
-		if !(buildcfg.GOWASM.SignExt) {
-			break
-		}
 		v.reset(OpWasmI64Extend8S)
 		v.AddArg(x)
-		return true
-	}
-	// match: (SignExt8to64 x)
-	// result: (I64ShrS (I64Shl x (I64Const [56])) (I64Const [56]))
-	for {
-		x := v_0
-		v.reset(OpWasmI64ShrS)
-		v0 := b.NewValue0(v.Pos, OpWasmI64Shl, typ.Int64)
-		v1 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v1.AuxInt = int64ToAuxInt(56)
-		v0.AddArg2(x, v1)
-		v.AddArg2(v0, v1)
 		return true
 	}
 }

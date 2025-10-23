@@ -905,7 +905,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
 		to_done = p
 	} else {
 		// large stack: SP-framesize < stackguard-StackSmall
-		offset := int64(framesize) - abi.StackSmall
+		offset := framesize - abi.StackSmall
 		if framesize > abi.StackBig {
 			// Such a large stack we need to protect against underflow.
 			// The runtime guarantees SP > objabi.StackBig, but
@@ -1419,9 +1419,7 @@ func validateVsetvl(ctxt *obj.Link, ins *instruction) {
 func validateRaw(ctxt *obj.Link, ins *instruction) {
 	// Treat the raw value specially as a 32-bit unsigned integer.
 	// Nobody wants to enter negative machine code.
-	if ins.imm < 0 || 1<<32 <= ins.imm {
-		ctxt.Diag("%v: immediate %d in raw position cannot be larger than 32 bits", ins.as, ins.imm)
-	}
+	wantImmU(ctxt, ins, ins.imm, 32)
 }
 
 // extractBitAndShift extracts the specified bit from the given immediate,
@@ -1706,10 +1704,7 @@ func encodeVsetvl(ins *instruction) uint32 {
 func encodeRawIns(ins *instruction) uint32 {
 	// Treat the raw value specially as a 32-bit unsigned integer.
 	// Nobody wants to enter negative machine code.
-	if ins.imm < 0 || 1<<32 <= ins.imm {
-		panic(fmt.Sprintf("immediate %d cannot fit in 32 bits", ins.imm))
-	}
-	return uint32(ins.imm)
+	return immU(ins.as, ins.imm, 32)
 }
 
 func EncodeBImmediate(imm int64) (int64, error) {
@@ -2175,6 +2170,12 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	AVSOXEI16V & obj.AMask: {enc: sVIVEncoding},
 	AVSOXEI32V & obj.AMask: {enc: sVIVEncoding},
 	AVSOXEI64V & obj.AMask: {enc: sVIVEncoding},
+
+	// 31.7.7: Unit-stride Fault-Only-First Loads
+	AVLE8FFV & obj.AMask:  {enc: iVEncoding},
+	AVLE16FFV & obj.AMask: {enc: iVEncoding},
+	AVLE32FFV & obj.AMask: {enc: iVEncoding},
+	AVLE64FFV & obj.AMask: {enc: iVEncoding},
 
 	// 31.7.8: Vector Load/Store Segment Instructions
 	AVLSEG2E8V & obj.AMask:     {enc: iVEncoding},
@@ -2985,7 +2986,7 @@ func (ins *instruction) length() int {
 func (ins *instruction) validate(ctxt *obj.Link) {
 	enc, err := encodingForAs(ins.as)
 	if err != nil {
-		ctxt.Diag(err.Error())
+		ctxt.Diag("%v", err)
 		return
 	}
 	enc.validate(ctxt, ins)
@@ -3020,7 +3021,7 @@ func instructionsForOpImmediate(p *obj.Prog, as obj.As, rs int16) []*instruction
 
 	low, high, err := Split32BitImmediate(ins.imm)
 	if err != nil {
-		p.Ctxt.Diag("%v: constant %d too large", p, ins.imm, err)
+		p.Ctxt.Diag("%v: constant %d too large: %v", p, ins.imm, err)
 		return nil
 	}
 	if high == 0 {
@@ -3831,7 +3832,7 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		if err != nil {
 			p.Ctxt.Diag("%v: %v", p, err)
 		}
-		ins.imm = int64(vtype)
+		ins.imm = vtype
 		if ins.as == AVSETIVLI {
 			if p.From.Type != obj.TYPE_CONST {
 				p.Ctxt.Diag("%v: expected immediate value", p)
@@ -3839,7 +3840,7 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 			ins.rs1 = uint32(p.From.Offset)
 		}
 
-	case AVLE8V, AVLE16V, AVLE32V, AVLE64V, AVSE8V, AVSE16V, AVSE32V, AVSE64V, AVLMV, AVSMV,
+	case AVLE8V, AVLE16V, AVLE32V, AVLE64V, AVSE8V, AVSE16V, AVSE32V, AVSE64V, AVLE8FFV, AVLE16FFV, AVLE32FFV, AVLE64FFV, AVLMV, AVSMV,
 		AVLSEG2E8V, AVLSEG3E8V, AVLSEG4E8V, AVLSEG5E8V, AVLSEG6E8V, AVLSEG7E8V, AVLSEG8E8V,
 		AVLSEG2E16V, AVLSEG3E16V, AVLSEG4E16V, AVLSEG5E16V, AVLSEG6E16V, AVLSEG7E16V, AVLSEG8E16V,
 		AVLSEG2E32V, AVLSEG3E32V, AVLSEG4E32V, AVLSEG5E32V, AVLSEG6E32V, AVLSEG7E32V, AVLSEG8E32V,

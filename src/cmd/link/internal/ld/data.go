@@ -427,7 +427,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 			}
 		case objabi.R_DWTXTADDR_U1, objabi.R_DWTXTADDR_U2, objabi.R_DWTXTADDR_U3, objabi.R_DWTXTADDR_U4:
 			unit := ldr.SymUnit(rs)
-			if idx, ok := unit.Addrs[sym.LoaderSym(rs)]; ok {
+			if idx, ok := unit.Addrs[rs]; ok {
 				o = int64(idx)
 			} else {
 				st.err.Errorf(s, "missing .debug_addr index relocation target %s", ldr.SymName(rs))
@@ -512,7 +512,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 		case objabi.R_ADDRCUOFF:
 			// debug_range and debug_loc elements use this relocation type to get an
 			// offset from the start of the compile unit.
-			o = ldr.SymValue(rs) + r.Add() - ldr.SymValue(loader.Sym(ldr.SymUnit(rs).Textp[0]))
+			o = ldr.SymValue(rs) + r.Add() - ldr.SymValue(ldr.SymUnit(rs).Textp[0])
 
 		// r.Sym() can be 0 when CALL $(constant) is transformed from absolute PC to relative PC call.
 		case objabi.R_GOTPCREL:
@@ -560,7 +560,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 							if rst != sym.SHOSTOBJ {
 								o += int64(uint64(ldr.SymValue(rs)) - ldr.SymSect(rs).Vaddr)
 							}
-							o -= int64(off) // relative to section offset, not symbol
+							o -= off // relative to section offset, not symbol
 						}
 					} else {
 						o += int64(siz)
@@ -698,7 +698,7 @@ func extreloc(ctxt *Link, ldr *loader.Loader, s loader.Sym, r loader.Reloc) (loa
 			return rr, false
 		}
 		rs := r.Sym()
-		rr.Xsym = loader.Sym(ldr.SymSect(rs).Sym)
+		rr.Xsym = ldr.SymSect(rs).Sym
 		rr.Xadd = r.Add() + ldr.SymValue(rs) - int64(ldr.SymSect(rs).Vaddr)
 
 	// r.Sym() can be 0 when CALL $(constant) is transformed from absolute PC to relative PC call.
@@ -2268,7 +2268,7 @@ func (state *dodataState) allocateDwarfSections(ctxt *Link) {
 		s := dwarfp[i].secSym()
 		sect := state.allocateNamedDataSection(&Segdwarf, ldr.SymName(s), []sym.SymKind{}, 04)
 		ldr.SetSymSect(s, sect)
-		sect.Sym = sym.LoaderSym(s)
+		sect.Sym = s
 		curType := ldr.SymType(s)
 		state.setSymType(s, sym.SRODATA)
 		ldr.SetSymValue(s, int64(uint64(state.datsize)-sect.Vaddr))

@@ -298,7 +298,8 @@ func NewTypeName(pos token.Pos, pkg *Package, name string, typ Type) *TypeName {
 // lazily calls resolve to finish constructing the Named object.
 func _NewTypeNameLazy(pos token.Pos, pkg *Package, name string, load func(*Named) ([]*TypeParam, Type, []*Func, []func())) *TypeName {
 	obj := NewTypeName(pos, pkg, name, nil)
-	NewNamed(obj, nil, nil).loader = load
+	n := (*Checker)(nil).newNamed(obj, nil, nil)
+	n.loader = load
 	return obj
 }
 
@@ -330,7 +331,7 @@ func (obj *TypeName) IsAlias() bool {
 	}
 }
 
-// A Variable represents a declared variable (including function parameters and results, and struct fields).
+// A Var represents a declared variable (including function parameters and results, and struct fields).
 type Var struct {
 	object
 	origin   *Var // if non-nil, the Var from which this one was instantiated
@@ -641,7 +642,7 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
 		} else {
 			// TODO(gri) should this be fromRHS for *Named?
 			// (See discussion in #66559.)
-			typ = under(typ)
+			typ = typ.Underlying()
 		}
 	}
 

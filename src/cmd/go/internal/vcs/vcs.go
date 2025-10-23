@@ -237,7 +237,7 @@ func parseRevTime(out []byte) (string, time.Time, error) {
 	}
 	rev := buf[:i]
 
-	secs, err := strconv.ParseInt(string(buf[i+1:]), 10, 64)
+	secs, err := strconv.ParseInt(buf[i+1:], 10, 64)
 	if err != nil {
 		return "", time.Time{}, fmt.Errorf("unrecognized VCS tool output: %v", err)
 	}

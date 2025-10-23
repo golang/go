@@ -6,9 +6,11 @@ package ssa
 
 import (
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/rttype"
+	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/s390x"
@@ -454,6 +456,26 @@ func isSameCall(aux Aux, name string) bool {
 	return fn != nil && fn.String() == name
 }
 
+func isMalloc(aux Aux) bool {
+	return isNewObject(aux) || isSpecializedMalloc(aux)
+}
+
+func isNewObject(aux Aux) bool {
+	fn := aux.(*AuxCall).Fn
+	return fn != nil && fn.String() == "runtime.newobject"
+}
+
+func isSpecializedMalloc(aux Aux) bool {
+	fn := aux.(*AuxCall).Fn
+	if fn == nil {
+		return false
+	}
+	name := fn.String()
+	return strings.HasPrefix(name, "runtime.mallocgcSmallNoScanSC") ||
+		strings.HasPrefix(name, "runtime.mallocgcSmallScanNoHeaderSC") ||
+		strings.HasPrefix(name, "runtime.mallocTiny")
+}
+
 // canLoadUnaligned reports if the architecture supports unaligned load operations.
 func canLoadUnaligned(c *Config) bool {
 	return c.ctxt.Arch.Alignment == 1
@@ -704,7 +726,7 @@ func int32ToAuxInt(i int32) int64 {
 	return int64(i)
 }
 func int64ToAuxInt(i int64) int64 {
-	return int64(i)
+	return i
 }
 func uint8ToAuxInt(i uint8) int64 {
 	return int64(int8(i))
@@ -1581,7 +1603,7 @@ func encodePPC64RotateMask(rotate, mask, nbits int64) int64 {
 		mb, me = men, mbn
 	}
 
-	return int64(me) | int64(mb<<8) | int64(rotate<<16) | int64(nbits<<24)
+	return int64(me) | int64(mb<<8) | rotate<<16 | nbits<<24
 }
 
 // Merge (RLDICL [encoded] (SRDconst [s] x)) into (RLDICL [new_encoded] x)
@@ -1690,7 +1712,7 @@ func mergePPC64AndSldi(m, s int64) int64 {
 func mergePPC64ClrlsldiSrw(sld, srw int64) int64 {
 	mask_1 := uint64(0xFFFFFFFF >> uint(srw))
 	// for CLRLSLDI, it's more convenient to think of it as a mask left bits then rotate left.
-	mask_2 := uint64(0xFFFFFFFFFFFFFFFF) >> uint(GetPPC64Shiftmb(int64(sld)))
+	mask_2 := uint64(0xFFFFFFFFFFFFFFFF) >> uint(GetPPC64Shiftmb(sld))
 
 	// Rewrite mask to apply after the final left shift.
 	mask_3 := (mask_1 & mask_2) << uint(GetPPC64Shiftsh(sld))
@@ -1702,7 +1724,7 @@ func mergePPC64ClrlsldiSrw(sld, srw int64) int64 {
 	if uint64(uint32(mask_3)) != mask_3 || mask_3 == 0 {
 		return 0
 	}
-	return encodePPC64RotateMask(int64(r_3), int64(mask_3), 32)
+	return encodePPC64RotateMask(r_3, int64(mask_3), 32)
 }
 
 // Test if a doubleword shift right feeding into a CLRLSLDI can be merged into RLWINM.
@@ -1710,7 +1732,7 @@ func mergePPC64ClrlsldiSrw(sld, srw int64) int64 {
 func mergePPC64ClrlsldiSrd(sld, srd int64) int64 {
 	mask_1 := uint64(0xFFFFFFFFFFFFFFFF) >> uint(srd)
 	// for CLRLSLDI, it's more convenient to think of it as a mask left bits then rotate left.
-	mask_2 := uint64(0xFFFFFFFFFFFFFFFF) >> uint(GetPPC64Shiftmb(int64(sld)))
+	mask_2 := uint64(0xFFFFFFFFFFFFFFFF) >> uint(GetPPC64Shiftmb(sld))
 
 	// Rewrite mask to apply after the final left shift.
 	mask_3 := (mask_1 & mask_2) << uint(GetPPC64Shiftsh(sld))
@@ -1727,7 +1749,7 @@ func mergePPC64ClrlsldiSrd(sld, srd int64) int64 {
 	if v1&mask_3 != 0 {
 		return 0
 	}
-	return encodePPC64RotateMask(int64(r_3&31), int64(mask_3), 32)
+	return encodePPC64RotateMask(r_3&31, int64(mask_3), 32)
 }
 
 // Test if a RLWINM feeding into a CLRLSLDI can be merged into RLWINM.  Return
@@ -2057,12 +2079,12 @@ func isFixedLoad(v *Value, sym Sym, off int64) bool {
 		return false
 	}
 
-	if strings.HasPrefix(lsym.Name, "type:") {
+	if ti := lsym.TypeInfo(); ti != nil {
 		// Type symbols do not contain information about their fields, unlike the cases above.
 		// Hand-implement field accesses.
 		// TODO: can this be replaced with reflectdata.writeType and just use the code above?
 
-		t := (*lsym.Extra).(*obj.TypeInfo).Type.(*types.Type)
+		t := ti.Type.(*types.Type)
 
 		for _, f := range rttype.Type.Fields() {
 			if f.Offset == off && copyCompatibleType(v.Type, f.Type) {
@@ -2116,12 +2138,12 @@ func rewriteFixedLoad(v *Value, sym Sym, sb *Value, off int64) *Value {
 		base.Fatalf("fixedLoad data not known for %s:%d", sym, off)
 	}
 
-	if strings.HasPrefix(lsym.Name, "type:") {
+	if ti := lsym.TypeInfo(); ti != nil {
 		// Type symbols do not contain information about their fields, unlike the cases above.
 		// Hand-implement field accesses.
 		// TODO: can this be replaced with reflectdata.writeType and just use the code above?
 
-		t := (*lsym.Extra).(*obj.TypeInfo).Type.(*types.Type)
+		t := ti.Type.(*types.Type)
 
 		ptrSizedOpConst := OpConst64
 		if f.Config.PtrSize == 4 {
@@ -2133,11 +2155,11 @@ func rewriteFixedLoad(v *Value, sym Sym, sb *Value, off int64) *Value {
 				switch f.Sym.Name {
 				case "Size_":
 					v.reset(ptrSizedOpConst)
-					v.AuxInt = int64(t.Size())
+					v.AuxInt = t.Size()
 					return v
 				case "PtrBytes":
 					v.reset(ptrSizedOpConst)
-					v.AuxInt = int64(types.PtrDataSize(t))
+					v.AuxInt = types.PtrDataSize(t)
 					return v
 				case "Hash":
 					v.reset(OpConst32)
@@ -2611,10 +2633,7 @@ func isDirectType1(v *Value) bool {
 		return isDirectType2(v.Args[0])
 	case OpAddr:
 		lsym := v.Aux.(*obj.LSym)
-		if lsym.Extra == nil {
-			return false
-		}
-		if ti, ok := (*lsym.Extra).(*obj.TypeInfo); ok {
+		if ti := lsym.TypeInfo(); ti != nil {
 			return types.IsDirectIface(ti.Type.(*types.Type))
 		}
 	}
@@ -2647,10 +2666,7 @@ func isDirectIface1(v *Value, depth int) bool {
 		return isDirectIface2(v.Args[0], depth-1)
 	case OpAddr:
 		lsym := v.Aux.(*obj.LSym)
-		if lsym.Extra == nil {
-			return false
-		}
-		if ii, ok := (*lsym.Extra).(*obj.ItabInfo); ok {
+		if ii := lsym.ItabInfo(); ii != nil {
 			return types.IsDirectIface(ii.Type.(*types.Type))
 		}
 	case OpConstNil:
@@ -2743,4 +2759,8 @@ func panicBoundsCToAux(p PanicBoundsC) Aux {
 }
 func panicBoundsCCToAux(p PanicBoundsCC) Aux {
 	return p
+}
+
+func isDictArgSym(sym Sym) bool {
+	return sym.(*ir.Name).Sym().Name == typecheck.LocalDictName
 }

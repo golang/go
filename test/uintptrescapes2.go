@@ -33,8 +33,8 @@ func (T) M1(a uintptr) {} // ERROR "escaping uintptr"
 func (T) M2(a ...uintptr) {} // ERROR "escaping ...uintptr"
 
 func TestF1() {
-	var t int                        // ERROR "moved to heap"
-	F1(uintptr(unsafe.Pointer(&t)))  // ERROR "live at call to F1: .?autotmp" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
+	var t int                       // ERROR "moved to heap"
+	F1(uintptr(unsafe.Pointer(&t))) // ERROR "live at call to F1: .?autotmp" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
 }
 
 func TestF3() {
@@ -49,17 +49,17 @@ func TestM1() {
 }
 
 func TestF2() {
-	var v int                                 // ERROR "moved to heap"
-	F2(0, 1, uintptr(unsafe.Pointer(&v)), 2)  // ERROR "live at call to newobject: .?autotmp" "live at call to F2: .?autotmp" "escapes to heap" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
+	var v int                                // ERROR "moved to heap"
+	F2(0, 1, uintptr(unsafe.Pointer(&v)), 2) // ERROR "live at call to mallocgcSmallNoScanSC[0-9]+: .?autotmp" "live at call to F2: .?autotmp" "escapes to heap" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
 }
 
 func TestF4() {
 	var v2 int                                // ERROR "moved to heap"
-	F4(0, 1, uintptr(unsafe.Pointer(&v2)), 2) // ERROR "live at call to newobject: .?autotmp" "live at call to F4: .?autotmp" "escapes to heap" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
+	F4(0, 1, uintptr(unsafe.Pointer(&v2)), 2) // ERROR "live at call to mallocgcSmallNoScanSC[0-9]+: .?autotmp" "live at call to F4: .?autotmp" "escapes to heap" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
 }
 
 func TestM2() {
 	var t T
 	var v int                                  // ERROR "moved to heap"
-	t.M2(0, 1, uintptr(unsafe.Pointer(&v)), 2) // ERROR "live at call to newobject: .?autotmp" "live at call to T.M2: .?autotmp"  "escapes to heap" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
+	t.M2(0, 1, uintptr(unsafe.Pointer(&v)), 2) // ERROR "live at call to mallocgcSmallNoScanSC[0-9]+: .?autotmp" "live at call to T.M2: .?autotmp"  "escapes to heap" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
 }

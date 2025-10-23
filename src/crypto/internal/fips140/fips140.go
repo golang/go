@@ -7,7 +7,6 @@ package fips140
 import (
 	"crypto/internal/fips140deps/godebug"
 	"errors"
-	"hash"
 	"runtime"
 )
 
@@ -49,6 +48,8 @@ func Supported() error {
 	}
 
 	// See EnableFIPS in cmd/internal/obj/fips.go for commentary.
+	// Also, js/wasm and windows/386 don't have good enough timers
+	// for the CPU jitter entropy source.
 	switch {
 	case runtime.GOARCH == "wasm",
 		runtime.GOOS == "windows" && runtime.GOARCH == "386",
@@ -68,16 +69,10 @@ func Name() string {
 	return "Go Cryptographic Module"
 }
 
-// Version returns the formal version (such as "v1.0") if building against a
+// Version returns the formal version (such as "v1.0.0") if building against a
 // frozen module with GOFIPS140. Otherwise, it returns "latest".
 func Version() string {
 	// This return value is replaced by mkzip.go, it must not be changed or
 	// moved to a different file.
 	return "latest" //mkzip:version
 }
-
-// Hash is a legacy compatibility alias for hash.Hash.
-//
-// It's only here because [crypto/internal/fips140/ecdsa.TestingOnlyNewDRBG]
-// takes a "func() fips140.Hash" in v1.0.0, instead of being generic.
-type Hash = hash.Hash

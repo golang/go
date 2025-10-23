@@ -455,7 +455,7 @@ func (w *typeWriter) tuple(tup *Tuple, variadic bool) {
 				} else {
 					// special case:
 					// append(s, "foo"...) leads to signature func([]byte, string...)
-					if t, _ := under(typ).(*Basic); t == nil || t.kind != String {
+					if t, _ := typ.Underlying().(*Basic); t == nil || t.kind != String {
 						w.error("expected string type")
 						continue
 					}

@@ -166,7 +166,7 @@ func WriteObjFile(ctxt *Link, b *bio.Writer) {
 			w.Uint32(uint32(dataOff))
 			dataOff += int64(len(s.P))
 			if file := s.File(); file != nil {
-				dataOff += int64(file.Size)
+				dataOff += file.Size
 			}
 		}
 	}

@@ -324,7 +324,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q = c.ctxt.StartUnsafePoint(q, c.newprog)
 
 				q = obj.Appendp(q, newprog)
-				q.As = AMOVVP
+				q.As = mov
 				q.Pos = p.Pos
 				q.From.Type = obj.TYPE_REG
 				q.From.Reg = REGLINK

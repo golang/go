@@ -137,17 +137,17 @@ func TestStmtLines(t *testing.T) {
 		}
 	}
 
-	var m int
+	var m float64
 	if runtime.GOARCH == "amd64" {
-		m = 1 // > 99% obtained on amd64, no backsliding
+		m = 0.011 // > 98.9% obtained on amd64, no backsliding
 	} else if runtime.GOARCH == "riscv64" {
-		m = 3 // XXX temporary update threshold to 97% for regabi
+		m = 0.03 // XXX temporary update threshold to 97% for regabi
 	} else {
-		m = 2 // expect 98% elsewhere.
+		m = 0.02 // expect 98% elsewhere.
 	}
 
-	if len(nonStmtLines)*100 > m*len(lines) {
-		t.Errorf("Saw too many (%s, > %d%%) lines without statement marks, total=%d, nostmt=%d ('-run TestStmtLines -v' lists failing lines)\n", runtime.GOARCH, m, len(lines), len(nonStmtLines))
+	if float64(len(nonStmtLines)) > m*float64(len(lines)) {
+		t.Errorf("Saw too many (%s, > %.1f%%) lines without statement marks, total=%d, nostmt=%d ('-run TestStmtLines -v' lists failing lines)\n", runtime.GOARCH, m*100, len(lines), len(nonStmtLines))
 	}
 	t.Logf("Saw %d out of %d lines without statement marks", len(nonStmtLines), len(lines))
 	if testing.Verbose() {

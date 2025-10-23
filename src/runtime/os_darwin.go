@@ -15,6 +15,11 @@ type mOS struct {
 	mutex       pthreadmutex
 	cond        pthreadcond
 	count       int
+
+	// address of errno variable for this thread.
+	// This is an optimization to avoid calling libc_error
+	// on every syscall_rawsyscalln.
+	errnoAddr *int32
 }
 
 func unimplemented(name string) {
@@ -330,6 +335,7 @@ func minit() {
 	}
 	minitSignalMask()
 	getg().m.procid = uint64(pthread_self())
+	libc_error_addr(&getg().m.errnoAddr)
 }
 
 // Called from dropm to undo the effect of an minit.

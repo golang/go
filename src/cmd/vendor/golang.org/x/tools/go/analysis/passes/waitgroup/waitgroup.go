@@ -13,10 +13,10 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
 	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/internal/typesinternal"
 )
 
 //go:embed doc.go
@@ -24,14 +24,14 @@ var doc string
 
 var Analyzer = &analysis.Analyzer{
 	Name:     "waitgroup",
-	Doc:      analysisutil.MustExtractDoc(doc, "waitgroup"),
+	Doc:      analysisinternal.MustExtractDoc(doc, "waitgroup"),
 	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/waitgroup",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }
 
 func run(pass *analysis.Pass) (any, error) {
-	if !analysisinternal.Imports(pass.Pkg, "sync") {
+	if !typesinternal.Imports(pass.Pkg, "sync") {
 		return nil, nil // doesn't directly import sync
 	}
 
@@ -44,7 +44,7 @@ func run(pass *analysis.Pass) (any, error) {
 		if push {
 			call := n.(*ast.CallExpr)
 			obj := typeutil.Callee(pass.TypesInfo, call)
-			if analysisinternal.IsMethodNamed(obj, "sync", "WaitGroup", "Add") &&
+			if typesinternal.IsMethodNamed(obj, "sync", "WaitGroup", "Add") &&
 				hasSuffix(stack, wantSuffix) &&
 				backindex(stack, 1) == backindex(stack, 2).(*ast.BlockStmt).List[0] { // ExprStmt must be Block's first stmt
 

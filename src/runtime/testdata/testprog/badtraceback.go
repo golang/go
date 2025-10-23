@@ -44,6 +44,8 @@ func badLR2(arg int) {
 	lrPtr := (*uintptr)(unsafe.Pointer(uintptr(unsafe.Pointer(&arg)) - lrOff))
 	*lrPtr = 0xbad
 
+	runtime.KeepAlive(lrPtr) // prevent dead store elimination
+
 	// Print a backtrace. This should include diagnostics for the
 	// bad return PC and a hex dump.
 	panic("backtrace")

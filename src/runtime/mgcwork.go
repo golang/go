@@ -55,9 +55,10 @@ func init() {
 // | Priority | Work queue | Restrictions | Function          |
 // |----------------------------------------------------------|
 // | 1        | Workbufs   | P-local      | tryGetObjFast     |
-// | 2        | Span queue | P-local      | tryGetSpan(false) | [greenteagc]
+// | 2        | Span queue | P-local      | tryGetSpanFast    | [greenteagc]
 // | 3        | Workbufs   | None         | tryGetObj         |
-// | 4        | Span queue | None         | tryGetSpan(true)  | [greenteagc]
+// | 4        | Span queue | None         | tryGetSpan        | [greenteagc]
+// | 5        | Span queue | None         | tryStealSpan      | [greenteagc]
 // +----------------------------------------------------------+
 //
 // The rationale behind this ordering comes from two insights:
@@ -80,6 +81,8 @@ func init() {
 // gcWork may locally hold GC work buffers. This can be done by
 // disabling preemption (systemstack or acquirem).
 type gcWork struct {
+	id int32 // same ID as the parent P
+
 	// wbuf1 and wbuf2 are the primary and secondary work buffers.
 	//
 	// This can be thought of as a stack of both work buffers'
@@ -103,7 +106,7 @@ type gcWork struct {
 	// spanq is a queue of spans to process.
 	//
 	// Only used if goexperiment.GreenTeaGC.
-	spanq localSpanQueue
+	spanq spanQueue
 
 	// ptrBuf is a temporary buffer used by span scanning.
 	ptrBuf *[pageSize / goarch.PtrSize]uintptr
@@ -318,7 +321,18 @@ func (w *gcWork) dispose() {
 		}
 		w.wbuf2 = nil
 	}
-	if w.spanq.drain() {
+	if !w.spanq.empty() {
+		w.spanq.flush() // Flush any local work.
+
+		// There's globally-visible work now, so make everyone aware of it.
+		//
+		// Note that we need to make everyone aware even if flush didn't
+		// flush any local work. The global work was always visible, but
+		// the bitmap bit may have been unset.
+		//
+		// See the comment in tryStealSpan, which explains how it relies
+		// on this behavior.
+		work.spanqMask.set(w.id)
 		w.flushedWork = true
 	}
 	if w.bytesMarked != 0 {

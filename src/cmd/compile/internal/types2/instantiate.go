@@ -83,7 +83,7 @@ func Instantiate(ctxt *Context, orig Type, targs []Type, validate bool) (Type, e
 //
 // For Named types the resulting instance may be unexpanded.
 //
-// check may be nil (when not type-checking syntax); pos is used only only if check is non-nil.
+// check may be nil (when not type-checking syntax); pos is used only if check is non-nil.
 func (check *Checker) instance(pos syntax.Pos, orig genericType, targs []Type, expanding *Named, ctxt *Context) (res Type) {
 	// The order of the contexts below matters: we always prefer instances in the
 	// expanding instance context in order to preserve reference cycles.
@@ -226,12 +226,12 @@ func (check *Checker) verify(pos syntax.Pos, tparams []*TypeParam, targs []Type,
 // If the provided cause is non-nil, it may be set to an error string
 // explaining why V does not implement (or satisfy, for constraints) T.
 func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool {
-	Vu := under(V)
-	Tu := under(T)
+	Vu := V.Underlying()
+	Tu := T.Underlying()
 	if !isValid(Vu) || !isValid(Tu) {
 		return true // avoid follow-on errors
 	}
-	if p, _ := Vu.(*Pointer); p != nil && !isValid(under(p.base)) {
+	if p, _ := Vu.(*Pointer); p != nil && !isValid(p.base.Underlying()) {
 		return true // avoid follow-on errors (see go.dev/issue/49541 for an example)
 	}
 
@@ -339,7 +339,7 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
 			// If V ∉ t.typ but V ∈ ~t.typ then remember this type
 			// so we can suggest it as an alternative in the error
 			// message.
-			if alt == nil && !t.tilde && Identical(t.typ, under(t.typ)) {
+			if alt == nil && !t.tilde && Identical(t.typ, t.typ.Underlying()) {
 				tt := *t
 				tt.tilde = true
 				if tt.includes(V) {

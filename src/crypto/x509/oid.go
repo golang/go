@@ -286,7 +286,7 @@ func (oid OID) EqualASN1OID(other asn1.ObjectIdentifier) bool {
 	return i == len(other)
 }
 
-// Strings returns the string representation of the Object Identifier.
+// String returns the string representation of the Object Identifier.
 func (oid OID) String() string {
 	var b strings.Builder
 	b.Grow(32)

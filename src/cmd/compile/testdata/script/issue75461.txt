@@ -1,0 +1,78 @@
+go build main.go
+! stdout .
+! stderr .
+
+-- main.go --
+package main
+
+import (
+	"demo/registry"
+)
+
+func main() {
+	_ = registry.NewUserRegistry()
+}
+
+-- go.mod --
+module demo
+
+go 1.24
+
+-- model/user.go --
+package model
+
+type User struct {
+	ID int
+}
+
+func (c *User) String() string {
+	return ""
+}
+
+-- ordered/map.go --
+package ordered
+
+type OrderedMap[K comparable, V any] struct {
+	m map[K]V
+}
+
+func New[K comparable, V any](options ...any) *OrderedMap[K, V] {
+	orderedMap := &OrderedMap[K, V]{}
+	return orderedMap
+}
+
+-- registry/user.go --
+package registry
+
+import (
+	"demo/model"
+	"demo/ordered"
+)
+
+type baseRegistry = Registry[model.User, *model.User]
+
+type UserRegistry struct {
+	*baseRegistry
+}
+
+type Registry[T any, P PStringer[T]] struct {
+	m *ordered.OrderedMap[string, P]
+}
+
+type PStringer[T any] interface {
+	*T
+	String() string
+}
+
+func NewRegistry[T any, P PStringer[T]]() *Registry[T, P] {
+	r := &Registry[T, P]{
+		m: ordered.New[string, P](),
+	}
+	return r
+}
+
+func NewUserRegistry() *UserRegistry {
+	return &UserRegistry{
+		baseRegistry: NewRegistry[model.User](),
+	}
+}

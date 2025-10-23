@@ -227,7 +227,7 @@ func (f *goobjFile) pcln() (textStart uint64, symtab, pclntab []byte, err error)
 	return 0, nil, nil, fmt.Errorf("pcln not available in go object file")
 }
 
-// Find returns the file name, line, and function data for the given pc.
+// PCToLine returns the file name, line, and function data for the given pc.
 // Returns "",0,nil if unknown.
 // This function implements the Liner interface in preference to pcln() above.
 func (f *goobjFile) PCToLine(pc uint64) (string, int, *gosym.Func) {
@@ -240,7 +240,7 @@ func (f *goobjFile) PCToLine(pc uint64) (string, int, *gosym.Func) {
 			// We don't need the data for non-hashed symbols, yet.
 			panic("not supported")
 		}
-		i := uint32(s.SymIdx + uint32(r.NSym()+r.NHashed64def()))
+		i := s.SymIdx + uint32(r.NSym()+r.NHashed64def())
 		return r.BytesAt(r.DataOff(i), r.DataSize(i))
 	}
 
@@ -325,7 +325,7 @@ func readvarint(p *[]byte) uint32 {
 // We treat the whole object file as the text section.
 func (f *goobjFile) text() (textStart uint64, text []byte, err error) {
 	text = make([]byte, f.goobj.Size)
-	_, err = f.f.ReadAt(text, int64(f.goobj.Offset))
+	_, err = f.f.ReadAt(text, f.goobj.Offset)
 	return
 }
 

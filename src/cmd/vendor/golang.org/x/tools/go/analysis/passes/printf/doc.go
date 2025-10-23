@@ -82,6 +82,16 @@
 //		...
 //	}
 //
+// A local function may also be inferred as a printf wrapper. If it
+// is assigned to a variable, each call made through that variable will
+// be checked just like a call to a function:
+//
+//	logf := func(format string, args ...any) {
+//		message := fmt.Sprintf(format, args...)
+//		log.Printf("%s: %s", prefix, message)
+//	}
+//	logf("%s", 123) // logf format %s has arg 123 of wrong type int
+//
 // # Specifying printf wrappers by flag
 //
 // The -funcs flag specifies a comma-separated list of names of

@@ -33,7 +33,7 @@ func (check *Checker) overflow(x *operand, opPos syntax.Pos) {
 	// x.typ cannot be a type parameter (type
 	// parameters cannot be constant types).
 	if isTyped(x.typ) {
-		check.representable(x, under(x.typ).(*Basic))
+		check.representable(x, x.typ.Underlying().(*Basic))
 		return
 	}
 
