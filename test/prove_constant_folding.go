@@ -1,6 +1,6 @@
 // errorcheck -0 -d=ssa/prove/debug=2
 
-//go:build amd64
+//go:build amd64 || arm64
 
 // Copyright 2022 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -17,7 +17,7 @@ func f0i(x int) int {
 		return x + 5 // ERROR "Proved.+is constant 0$" "Proved.+is constant 5$" "x\+d >=? w"
 	}
 
-	return x / 2
+	return x + 1
 }
 
 func f0u(x uint) uint {
@@ -29,5 +29,5 @@ func f0u(x uint) uint {
 		return x + 5 // ERROR "Proved.+is constant 0$" "Proved.+is constant 5$" "x\+d >=? w"
 	}
 
-	return x / 2
+	return x + 1
 }

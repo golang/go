@@ -13,14 +13,14 @@ import (
 // decompose converts phi ops on compound builtin types into phi
 // ops on simple types, then invokes rewrite rules to decompose
 // other ops on those types.
-func decomposeBuiltIn(f *Func) {
+func decomposeBuiltin(f *Func) {
 	// Decompose phis
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			if v.Op != OpPhi {
 				continue
 			}
-			decomposeBuiltInPhi(v)
+			decomposeBuiltinPhi(v)
 		}
 	}
 
@@ -121,7 +121,7 @@ func maybeAppend2(f *Func, ss []*LocalSlot, s1, s2 *LocalSlot) []*LocalSlot {
 	return maybeAppend(f, maybeAppend(f, ss, s1), s2)
 }
 
-func decomposeBuiltInPhi(v *Value) {
+func decomposeBuiltinPhi(v *Value) {
 	switch {
 	case v.Type.IsInteger() && v.Type.Size() > v.Block.Func.Config.RegSize:
 		decomposeInt64Phi(v)

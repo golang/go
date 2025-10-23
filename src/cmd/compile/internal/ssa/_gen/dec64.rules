@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // This file contains rules to decompose [u]int64 types on 32-bit
-// architectures. These rules work together with the decomposeBuiltIn
+// architectures. These rules work together with the decomposeBuiltin
 // pass which handles phis of these typ.
 
 (Int64Hi (Int64Make hi _)) => hi
@@ -217,10 +217,31 @@
 (Rsh8x64 x y)   => (Rsh8x32   x (Or32 <typ.UInt32> (Zeromask (Int64Hi y)) (Int64Lo y)))
 (Rsh8Ux64 x y)  => (Rsh8Ux32  x (Or32 <typ.UInt32> (Zeromask (Int64Hi y)) (Int64Lo y)))
 
+
 (RotateLeft64 x (Int64Make hi lo)) => (RotateLeft64 x lo)
 (RotateLeft32 x (Int64Make hi lo)) => (RotateLeft32 x lo)
 (RotateLeft16 x (Int64Make hi lo)) => (RotateLeft16 x lo)
 (RotateLeft8  x (Int64Make hi lo)) => (RotateLeft8  x lo)
+
+// RotateLeft64 by constant, for use in divmod.
+(RotateLeft64 <t> x (Const(64|32|16|8) [c])) && c&63 == 0 => x
+(RotateLeft64 <t> x (Const(64|32|16|8) [c])) && c&63 == 32 => (Int64Make <t> (Int64Lo x) (Int64Hi x))
+(RotateLeft64 <t> x (Const(64|32|16|8) [c])) && 0 < c&63 && c&63 < 32 =>
+	(Int64Make <t>
+		(Or32 <typ.UInt32>
+			(Lsh32x32  <typ.UInt32> (Int64Hi x) (Const32 <typ.UInt32> [int32(c&31)]))
+			(Rsh32Ux32 <typ.UInt32> (Int64Lo x) (Const32 <typ.UInt32> [int32(32-c&31)])))
+		(Or32 <typ.UInt32>
+			(Lsh32x32  <typ.UInt32> (Int64Lo x) (Const32 <typ.UInt32> [int32(c&31)]))
+			(Rsh32Ux32 <typ.UInt32> (Int64Hi x) (Const32 <typ.UInt32> [int32(32-c&31)]))))
+(RotateLeft64 <t> x (Const(64|32|16|8) [c])) && 32 < c&63 && c&63 < 64 =>
+	(Int64Make <t>
+		(Or32 <typ.UInt32>
+			(Lsh32x32  <typ.UInt32> (Int64Lo x) (Const32 <typ.UInt32> [int32(c&31)]))
+			(Rsh32Ux32 <typ.UInt32> (Int64Hi x) (Const32 <typ.UInt32> [int32(32-c&31)])))
+		(Or32 <typ.UInt32>
+			(Lsh32x32  <typ.UInt32> (Int64Hi x) (Const32 <typ.UInt32> [int32(c&31)]))
+			(Rsh32Ux32 <typ.UInt32> (Int64Lo x) (Const32 <typ.UInt32> [int32(32-c&31)]))))
 
 // Clean up constants a little
 (Or32 <typ.UInt32> (Zeromask (Const32 [c])) y) && c == 0 => y

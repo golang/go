@@ -10,9 +10,7 @@ package codegen
 // simplifications and optimizations on integer types.
 // For codegen tests on float types, see floats.go.
 
-// ----------------- //
-//    Addition       //
-// ----------------- //
+// Addition
 
 func AddLargeConst(a uint64, out []uint64) {
 	// ppc64x/power10:"ADD [$]4294967296,"
@@ -56,9 +54,7 @@ func AddLargeConst2(a int, out []int) {
 	out[0] = a + 0x10000
 }
 
-// ----------------- //
-//    Subtraction    //
-// ----------------- //
+// Subtraction
 
 var ef int
 
@@ -90,58 +86,58 @@ func SubMem(arr []int, b, c, d int) int {
 
 func SubFromConst(a int) int {
 	// ppc64x: `SUBC R[0-9]+,\s[$]40,\sR`
-	// riscv64: "ADDI \\$-40" "NEG"
+	// riscv64: "ADDI [$]-40" "NEG"
 	b := 40 - a
 	return b
 }
 
 func SubFromConstNeg(a int) int {
-	// arm64: "ADD \\$40"
-	// loong64: "ADDV[U] \\$40"
-	// mips: "ADD[U] \\$40"
-	// mips64: "ADDV[U] \\$40"
+	// arm64: "ADD [$]40"
+	// loong64: "ADDV[U] [$]40"
+	// mips: "ADD[U] [$]40"
+	// mips64: "ADDV[U] [$]40"
 	// ppc64x: `ADD [$]40,\sR[0-9]+,\sR`
-	// riscv64: "ADDI \\$40" -"NEG"
+	// riscv64: "ADDI [$]40" -"NEG"
 	c := 40 - (-a)
 	return c
 }
 
 func SubSubFromConst(a int) int {
-	// arm64: "ADD \\$20"
-	// loong64: "ADDV[U] \\$20"
-	// mips: "ADD[U] \\$20"
-	// mips64: "ADDV[U] \\$20"
+	// arm64: "ADD [$]20"
+	// loong64: "ADDV[U] [$]20"
+	// mips: "ADD[U] [$]20"
+	// mips64: "ADDV[U] [$]20"
 	// ppc64x: `ADD [$]20,\sR[0-9]+,\sR`
-	// riscv64: "ADDI \\$20" -"NEG"
+	// riscv64: "ADDI [$]20" -"NEG"
 	c := 40 - (20 - a)
 	return c
 }
 
 func AddSubFromConst(a int) int {
 	// ppc64x: `SUBC R[0-9]+,\s[$]60,\sR`
-	// riscv64: "ADDI \\$-60" "NEG"
+	// riscv64: "ADDI [$]-60" "NEG"
 	c := 40 + (20 - a)
 	return c
 }
 
 func NegSubFromConst(a int) int {
-	// arm64: "SUB \\$20"
-	// loong64: "ADDV[U] \\$-20"
-	// mips: "ADD[U] \\$-20"
-	// mips64: "ADDV[U] \\$-20"
+	// arm64: "SUB [$]20"
+	// loong64: "ADDV[U] [$]-20"
+	// mips: "ADD[U] [$]-20"
+	// mips64: "ADDV[U] [$]-20"
 	// ppc64x: `ADD [$]-20,\sR[0-9]+,\sR`
-	// riscv64: "ADDI \\$-20"
+	// riscv64: "ADDI [$]-20"
 	c := -(20 - a)
 	return c
 }
 
 func NegAddFromConstNeg(a int) int {
-	// arm64: "SUB \\$40" "NEG"
-	// loong64: "ADDV[U] \\$-40" "SUBV"
-	// mips: "ADD[U] \\$-40" "SUB"
-	// mips64: "ADDV[U] \\$-40" "SUBV"
+	// arm64: "SUB [$]40" "NEG"
+	// loong64: "ADDV[U] [$]-40" "SUBV"
+	// mips: "ADD[U] [$]-40" "SUB"
+	// mips64: "ADDV[U] [$]-40" "SUBV"
 	// ppc64x: `SUBC R[0-9]+,\s[$]40,\sR`
-	// riscv64: "ADDI \\$-40" "NEG"
+	// riscv64: "ADDI [$]-40" "NEG"
 	c := -(-40 + a)
 	return c
 }
@@ -361,16 +357,16 @@ func Pow2Divs(n1 uint, n2 int) (uint, int) {
 
 // Check that constant divisions get turned into MULs
 func ConstDivs(n1 uint, n2 int) (uint, int) {
-	// amd64:"MOVQ [$]-1085102592571150095" "MULQ" -"DIVQ"
-	// 386:"MOVL [$]-252645135" "MULL" -"DIVL"
-	// arm64:`MOVD`,`UMULH`,-`DIV`
-	// arm:`MOVW`,`MUL`,-`.*udiv`
+	// amd64: "MOVQ [$]-1085102592571150095" "MULQ" -"DIVQ"
+	// 386: "MOVL [$]-252645135" "MULL" -"DIVL"
+	// arm64: `MOVD`,`UMULH`,-`DIV`
+	// arm: `MOVW`,`MUL`,-`.*udiv`
 	a := n1 / 17 // unsigned
 
-	// amd64:"MOVQ [$]-1085102592571150095" "IMULQ" -"IDIVQ"
-	// 386:"IMULL" -"IDIVL"
-	// arm64:`SMULH`,-`DIV`
-	// arm:`MOVW`,`MUL`,-`.*udiv`
+	// amd64: "MOVQ [$]-1085102592571150095" "IMULQ" -"IDIVQ"
+	// 386: "IMULL" "SARL [$]4," "SARL [$]31," "SUBL" -".*DIV"
+	// arm64: `SMULH` -`DIV`
+	// arm: `MOVW` `MUL` -`.*udiv`
 	b := n2 / 17 // signed
 
 	return a, b
@@ -421,16 +417,16 @@ func Pow2DivisibleSigned(n1, n2 int) (bool, bool) {
 
 // Check that constant modulo divs get turned into MULs
 func ConstMods(n1 uint, n2 int) (uint, int) {
-	// amd64:"MOVQ [$]-1085102592571150095" "MULQ" -"DIVQ"
-	// 386:"MOVL [$]-252645135" "MULL" -"DIVL"
-	// arm64:`MOVD`,`UMULH`,-`DIV`
-	// arm:`MOVW`,`MUL`,-`.*udiv`
+	// amd64: "MOVQ [$]-1085102592571150095" "MULQ" -"DIVQ"
+	// 386: "MOVL [$]-252645135" "MULL" -".*DIVL"
+	// arm64: `MOVD` `UMULH` -`DIV`
+	// arm: `MOVW` `MUL` -`.*udiv`
 	a := n1 % 17 // unsigned
 
-	// amd64:"MOVQ [$]-1085102592571150095" "IMULQ" -"IDIVQ"
-	// 386: "IMULL" -"IDIVL"
-	// arm64:`SMULH`,-`DIV`
-	// arm:`MOVW`,`MUL`,-`.*udiv`
+	// amd64: "MOVQ [$]-1085102592571150095" "IMULQ" -"IDIVQ"
+	// 386: "IMULL" "SARL [$]4," "SARL [$]31," "SUBL" "SHLL [$]4," "SUBL" -".*DIV"
+	// arm64: `SMULH` -`DIV`
+	// arm: `MOVW` `MUL` -`.*udiv`
 	b := n2 % 17 // signed
 
 	return a, b
@@ -675,12 +671,13 @@ func addSpecial(a, b, c uint32) (uint32, uint32, uint32) {
 }
 
 // Divide -> shift rules usually require fixup for negative inputs.
-// If the input is non-negative, make sure the fixup is eliminated.
+// If the input is non-negative, make sure the unsigned form is generated.
 func divInt(v int64) int64 {
 	if v < 0 {
-		return 0
+		// amd64:`SARQ.*63,`, `SHRQ.*56,`, `SARQ.*8,`
+		return v / 256
 	}
-	// amd64:-`.*SARQ.*63,`, -".*SHRQ", ".*SARQ.*[$]9,"
+	// amd64:-`.*SARQ`, `SHRQ.*9,`
 	return v / 512
 }
 
@@ -721,9 +718,7 @@ func constantFold3(i, j int) int {
 	return r
 }
 
-// ----------------- //
-//  Integer Min/Max  //
-// ----------------- //
+// Integer Min/Max
 
 func Int64Min(a, b int64) int64 {
 	// amd64: "CMPQ" "CMOVQLT"

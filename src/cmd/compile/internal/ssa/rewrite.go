@@ -57,11 +57,15 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter, deadcode deadValu
 	var iters int
 	var states map[string]bool
 	for {
+		if debug > 1 {
+			fmt.Printf("%s: iter %d\n", f.pass.name, iters)
+		}
 		change := false
 		deadChange := false
 		for _, b := range f.Blocks {
 			var b0 *Block
 			if debug > 1 {
+				fmt.Printf("%s: start block\n", f.pass.name)
 				b0 = new(Block)
 				*b0 = *b
 				b0.Succs = append([]Edge{}, b.Succs...) // make a new copy, not aliasing
@@ -79,6 +83,9 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter, deadcode deadValu
 				}
 			}
 			for j, v := range b.Values {
+				if debug > 1 {
+					fmt.Printf("%s: consider %v\n", f.pass.name, v.LongString())
+				}
 				var v0 *Value
 				if debug > 1 {
 					v0 = new(Value)
@@ -1260,10 +1267,8 @@ func logRule(s string) {
 		}
 		ruleFile = w
 	}
-	_, err := fmt.Fprintln(ruleFile, s)
-	if err != nil {
-		panic(err)
-	}
+	// Ignore errors in case of multiple processes fighting over the file.
+	fmt.Fprintln(ruleFile, s)
 }
 
 var ruleFile io.Writer
