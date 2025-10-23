@@ -610,15 +610,14 @@ func (t *Named) String() string { return TypeString(t, nil) }
 
 // resolveUnderlying computes the underlying type of n.
 //
-// It does so by following RHS type chains. If a type literal is found, each
-// named type in the chain has its underlying set to that type. Aliases are
-// skipped because their underlying type is not memoized.
+// It does so by following RHS type chains for alias and named types. If any
+// other type T is found, each named type in the chain has its underlying
+// type set to T. Aliases are skipped because their underlying type is
+// not memoized.
 //
-// This function also checks for instantiated layout cycles, which are
-// reachable only in the case where unpack() expanded an instantiated
-// type which became self-referencing without indirection.
-// If such a cycle is found, the underlying type is set to Typ[Invalid]
-// and a cycle is reported.
+// This method also checks for cycles among alias and named types, which will
+// yield no underlying type. If such a cycle is found, the underlying type is
+// set to Typ[Invalid] and a cycle is reported.
 func (n *Named) resolveUnderlying() {
 	assert(n.stateHas(unpacked))
 
@@ -666,7 +665,7 @@ func (n *Named) resolveUnderlying() {
 			rhs = t.rhs()
 
 		default:
-			u = rhs // any type literal works
+			u = rhs // any type literal or predeclared type works
 		}
 	}
 
