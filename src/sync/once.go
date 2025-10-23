@@ -21,7 +21,7 @@ type Once struct {
 	_ noCopy
 
 	// done indicates whether the action has been performed.
-	// It is first in the struct because it is used in the hot path.
+	// It is first (ignoring noCopy) in the struct because it is used in the hot path.
 	// The hot path is inlined at every call site.
 	// Placing done first allows more compact instructions on some architectures (amd64/386),
 	// and fewer instructions (to calculate offset) on other architectures.
@@ -52,7 +52,7 @@ type Once struct {
 func (o *Once) Do(f func()) {
 	// Note: Here is an incorrect implementation of Do:
 	//
-	//	if o.done.CompareAndSwap(0, 1) {
+	//	if o.done.CompareAndSwap(false, true) {
 	//		f()
 	//	}
 	//
