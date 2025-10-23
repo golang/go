@@ -2427,6 +2427,12 @@ const (
 	OpAMD64VINSERTF128256
 	OpAMD64VINSERTI64X4512
 	OpAMD64VINSERTI128256
+	OpAMD64VPALIGNR128
+	OpAMD64VPALIGNR256
+	OpAMD64VPALIGNR512
+	OpAMD64VPALIGNRMasked128
+	OpAMD64VPALIGNRMasked256
+	OpAMD64VPALIGNRMasked512
 	OpAMD64VPCMPB512
 	OpAMD64VPCMPBMasked128
 	OpAMD64VPCMPBMasked256
@@ -3584,6 +3590,9 @@ const (
 	OpAMD64VSUBPSMasked128Merging
 	OpAMD64VSUBPSMasked256Merging
 	OpAMD64VSUBPSMasked512Merging
+	OpAMD64VPALIGNRMasked128Merging
+	OpAMD64VPALIGNRMasked256Merging
+	OpAMD64VPALIGNRMasked512Merging
 	OpAMD64VPROLDMasked128Merging
 	OpAMD64VPROLDMasked256Merging
 	OpAMD64VPROLDMasked512Merging
@@ -7057,6 +7066,9 @@ const (
 	OpCeilScaledResidueFloat64x2
 	OpCeilScaledResidueFloat64x4
 	OpCeilScaledResidueFloat64x8
+	OpConcatShiftBytesRightGroupedUint8x32
+	OpConcatShiftBytesRightGroupedUint8x64
+	OpConcatShiftBytesRightUint8x16
 	OpFloorScaledFloat32x4
 	OpFloorScaledFloat32x8
 	OpFloorScaledFloat32x16
@@ -37829,6 +37841,99 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "VPALIGNR128",
+		auxType: auxUInt8,
+		argLen:  2,
+		asm:     x86.AVPALIGNR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VPALIGNR256",
+		auxType: auxUInt8,
+		argLen:  2,
+		asm:     x86.AVPALIGNR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VPALIGNR512",
+		auxType: auxUInt8,
+		argLen:  2,
+		asm:     x86.AVPALIGNR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:    "VPALIGNRMasked128",
+		auxType: auxUInt8,
+		argLen:  3,
+		asm:     x86.AVPALIGNR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 281472829161472},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:    "VPALIGNRMasked256",
+		auxType: auxUInt8,
+		argLen:  3,
+		asm:     x86.AVPALIGNR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 281472829161472},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:    "VPALIGNRMasked512",
+		auxType: auxUInt8,
+		argLen:  3,
+		asm:     x86.AVPALIGNR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 281472829161472},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
 		name:    "VPCMPB512",
 		auxType: auxUInt8,
 		argLen:  2,
@@ -56749,6 +56854,60 @@ var opcodeTable = [...]opInfo{
 		argLen:       4,
 		resultInArg0: true,
 		asm:          x86.AVSUBPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 281472829161472},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{2, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:         "VPALIGNRMasked128Merging",
+		auxType:      auxUInt8,
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVPALIGNR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 281472829161472},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{2, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:         "VPALIGNRMasked256Merging",
+		auxType:      auxUInt8,
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVPALIGNR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 281472829161472},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{2, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:         "VPALIGNRMasked512Merging",
+		auxType:      auxUInt8,
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVPALIGNR,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{3, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -91435,6 +91594,24 @@ var opcodeTable = [...]opInfo{
 		name:    "CeilScaledResidueFloat64x8",
 		auxType: auxUInt8,
 		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConcatShiftBytesRightGroupedUint8x32",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConcatShiftBytesRightGroupedUint8x64",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConcatShiftBytesRightUint8x16",
+		auxType: auxUInt8,
+		argLen:  2,
 		generic: true,
 	},
 	{

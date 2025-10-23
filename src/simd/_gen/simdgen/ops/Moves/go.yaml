@@ -824,3 +824,30 @@
   inVariant: []
   out:
   - *v
+
+- go: ConcatShiftBytesRight
+  asm: VPALIGNR
+  in:
+  - &uint128
+    go: $t
+    base: uint
+    bits: 128
+  - *uint128
+  - class: immediate
+    immOffset: 0
+  out:
+  - *uint128
+
+- go: ConcatShiftBytesRightGrouped
+  asm: VPALIGNR
+  in:
+  - &uint256512
+    go: $t
+    base: uint
+    bits: 256|512
+  - *uint256512
+  - class: immediate
+    immOffset: 0
+  out:
+  - *uint256512
+ 

@@ -1274,6 +1274,36 @@ func (x Uint64x4) Compress(mask Mask64x4) Uint64x4
 // Asm: VPCOMPRESSQ, CPU Feature: AVX512
 func (x Uint64x8) Compress(mask Mask64x8) Uint64x8
 
+/* ConcatShiftBytesRight */
+
+// ConcatShiftBytesRight concatenates x and y and shift it right by constant bytes.
+// The result vector will be the lower half of the concatenated vector.
+//
+// constant results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPALIGNR, CPU Feature: AVX
+func (x Uint8x16) ConcatShiftBytesRight(constant uint8, y Uint8x16) Uint8x16
+
+/* ConcatShiftBytesRightGrouped */
+
+// ConcatShiftBytesRightGrouped concatenates x and y and shift it right by constant bytes.
+// The result vector will be the lower half of the concatenated vector.
+// This operation is performed grouped by each 16 byte.
+//
+// constant results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPALIGNR, CPU Feature: AVX2
+func (x Uint8x32) ConcatShiftBytesRightGrouped(constant uint8, y Uint8x32) Uint8x32
+
+// ConcatShiftBytesRightGrouped concatenates x and y and shift it right by constant bytes.
+// The result vector will be the lower half of the concatenated vector.
+// This operation is performed grouped by each 16 byte.
+//
+// constant results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPALIGNR, CPU Feature: AVX512
+func (x Uint8x64) ConcatShiftBytesRightGrouped(constant uint8, y Uint8x64) Uint8x64
+
 /* ConvertToInt8 */
 
 // ConvertToInt8 converts element values to int8.

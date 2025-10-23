@@ -220,3 +220,16 @@
   documentation: !string |-
     // NAME selects the low and high 128-bit halves from the 128-bit halves
     // of its two 256-bit inputs, numbering those halves 0, 1, 2, 3.
+
+- go: ConcatShiftBytesRight
+  commutative: false
+  documentation: !string |-
+    // NAME concatenates x and y and shift it right by constant bytes.
+    // The result vector will be the lower half of the concatenated vector.
+
+- go: ConcatShiftBytesRightGrouped
+  commutative: false
+  documentation: !string |-
+    // NAME concatenates x and y and shift it right by constant bytes.
+    // The result vector will be the lower half of the concatenated vector.
+    // This operation is performed grouped by each 16 byte.
