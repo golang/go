@@ -5016,7 +5016,7 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 			}
 		}
 		o1 |= uint32(p.To.Offset)
-		// ARM64RegisterListOffset
+		// RegisterListOffset
 		// add opcode(bit 12-15) for vld1, mask it off if it's not vld1
 		o1 = c.maskOpvldvst(p, o1)
 
@@ -5125,7 +5125,7 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 			}
 		}
 		o1 |= uint32(p.From.Offset)
-		// ARM64RegisterListOffset
+		// RegisterListOffset
 		// add opcode(bit 12-15) for vst1, mask it off if it's not vst1
 		o1 = c.maskOpvldvst(p, o1)
 		o1 |= uint32(r&31) << 5
@@ -7842,8 +7842,8 @@ func pack(q uint32, arngA, arngB uint8) uint32 {
 	return q<<16 | uint32(arngA)<<8 | uint32(arngB)
 }
 
-// ARM64RegisterExtension constructs an ARM64 register with extension or arrangement.
-func ARM64RegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, isIndex bool) error {
+// EncodeRegisterExtension constructs an ARM64 register with extension or arrangement in the argument a.
+func EncodeRegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, isIndex bool) error {
 	Rnum := (reg & 31) + num<<5
 	if isAmount {
 		if num < 0 || num > 7 {
@@ -7985,8 +7985,8 @@ func ARM64RegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, i
 	return nil
 }
 
-// ARM64RegisterListOffset generates offset encoding according to AArch64 specification.
-func ARM64RegisterListOffset(firstReg, regCnt int, arrangement int64) (int64, error) {
+// RegisterListOffset generates offset encoding according to AArch64 specification.
+func RegisterListOffset(firstReg, regCnt int, arrangement int64) (int64, error) {
 	offset := int64(firstReg)
 	switch regCnt {
 	case 1:
