@@ -156,10 +156,6 @@ const nSmalls = 100
 // smalls is the formatting of 00..99 concatenated.
 // It is then padded out with 56 x's to 256 bytes,
 // so that smalls[x&0xFF] has no bounds check.
-//
-// TODO(rsc): Once the compiler does a better job
-// at tracking mod bounds, the &0xFF should not be needed:
-// go.dev/issue/75954 and go.dev/issue/63110.
 const smalls = "00010203040506070809" +
 	"10111213141516171819" +
 	"20212223242526272829" +
@@ -169,13 +165,7 @@ const smalls = "00010203040506070809" +
 	"60616263646566676869" +
 	"70717273747576777879" +
 	"80818283848586878889" +
-	"90919293949596979899" +
-	"xxxxxxxxxxxxxxxxxxxx" +
-	"xxxxxxxxxxxxxxxxxxxx" +
-	"xxxxxxxxxxxxxxxxxxxx" +
-	"xxxxxxxxxxxxxxxxxxxx" +
-	"xxxxxxxxxxxxxxxxxxxx" +
-	"xxxxxx"
+	"90919293949596979899"
 
 const host64bit = ^uint(0)>>32 != 0
 
@@ -215,15 +205,15 @@ func formatBase10(a []byte, u uint64) int {
 			var dd uint
 			u, dd = u/100, (u%100)*2
 			i -= 2
-			a[i+0], a[i+1] = smalls[(dd+0)&0xFF], smalls[(dd+1)&0xFF]
+			a[i+0], a[i+1] = smalls[dd+0], smalls[dd+1]
 		}
 
 		dd := u * 2
 		i--
-		a[i] = smalls[(dd+1)&0xFF]
+		a[i] = smalls[dd+1]
 		if u >= 10 {
 			i--
-			a[i] = smalls[(dd+0)&0xFF]
+			a[i] = smalls[dd]
 		}
 		return i
 	}
@@ -275,10 +265,10 @@ func formatBase10(a []byte, u uint64) int {
 			var dd uint32
 			lo, dd = lo/100, (lo%100)*2
 			i -= 2
-			a[i+0], a[i+1] = smalls[(dd+0)&0xFF], smalls[(dd+1)&0xFF]
+			a[i+0], a[i+1] = smalls[dd+0], smalls[dd+1]
 		}
 		i--
-		a[i] = smalls[(lo*2+1)&0xFF]
+		a[i] = smalls[lo*2+1]
 
 		// If we'd been using u >= 1e9 then we would be guaranteed that u/1e9 > 0,
 		// but since we used u>>29 != 0, u/1e9 might be 0, so we might be done.
@@ -295,14 +285,14 @@ func formatBase10(a []byte, u uint64) int {
 		var dd uint32
 		lo, dd = lo/100, (lo%100)*2
 		i -= 2
-		a[i+0], a[i+1] = smalls[(dd+0)&0xFF], smalls[(dd+1)&0xFF]
+		a[i+0], a[i+1] = smalls[dd+0], smalls[dd+1]
 	}
 	i--
 	dd := lo * 2
-	a[i] = smalls[(dd+1)&0xFF]
+	a[i] = smalls[dd+1]
 	if lo >= 10 {
 		i--
-		a[i] = smalls[(dd+0)&0xFF]
+		a[i] = smalls[dd+0]
 	}
 	return i
 }
