@@ -12,6 +12,9 @@ TEXT validation(SB),$0
 	SRLI	$1, X5, F1			// ERROR "expected integer register in rd position but got non-integer register F1"
 	SRLI	$1, F1, X5			// ERROR "expected integer register in rs1 position but got non-integer register F1"
 
+	WORD	$-1				// ERROR "must be in range [0x0, 0xffffffff]"
+	WORD	$0x100000000			// ERROR "must be in range [0x0, 0xffffffff]"
+
 	//
 	// "V" Standard Extension for Vector Operations, Version 1.0
 	//

@@ -173,19 +173,20 @@ func unixAbs(path string) (string, error) {
 	return Join(wd, path), nil
 }
 
-// Rel returns a relative path that is lexically equivalent to targpath when
-// joined to basepath with an intervening separator. That is,
-// [Join](basepath, Rel(basepath, targpath)) is equivalent to targpath itself.
-// On success, the returned path will always be relative to basepath,
-// even if basepath and targpath share no elements.
-// An error is returned if targpath can't be made relative to basepath or if
-// knowing the current working directory would be necessary to compute it.
-// Rel calls [Clean] on the result.
-func Rel(basepath, targpath string) (string, error) {
-	baseVol := VolumeName(basepath)
-	targVol := VolumeName(targpath)
-	base := Clean(basepath)
-	targ := Clean(targpath)
+// Rel returns a relative path that is lexically equivalent to targPath when
+// joined to basePath with an intervening separator. That is,
+// [Join](basePath, Rel(basePath, targPath)) is equivalent to targPath itself.
+//
+// The returned path will always be relative to basePath, even if basePath and
+// targPath share no elements. Rel calls [Clean] on the result.
+//
+// An error is returned if targPath can't be made relative to basePath
+// or if knowing the current working directory would be necessary to compute it.
+func Rel(basePath, targPath string) (string, error) {
+	baseVol := VolumeName(basePath)
+	targVol := VolumeName(targPath)
+	base := Clean(basePath)
+	targ := Clean(targPath)
 	if sameWord(targ, base) {
 		return ".", nil
 	}
@@ -194,7 +195,7 @@ func Rel(basepath, targpath string) (string, error) {
 	if base == "." {
 		base = ""
 	} else if base == "" && filepathlite.VolumeNameLen(baseVol) > 2 /* isUNC */ {
-		// Treat any targetpath matching `\\host\share` basepath as absolute path.
+		// Treat any targetpath matching `\\host\share` basePath as absolute path.
 		base = string(Separator)
 	}
 
@@ -202,7 +203,7 @@ func Rel(basepath, targpath string) (string, error) {
 	baseSlashed := len(base) > 0 && base[0] == Separator
 	targSlashed := len(targ) > 0 && targ[0] == Separator
 	if baseSlashed != targSlashed || !sameWord(baseVol, targVol) {
-		return "", errors.New("Rel: can't make " + targpath + " relative to " + basepath)
+		return "", errors.New("Rel: can't make " + targPath + " relative to " + basePath)
 	}
 	// Position base[b0:bi] and targ[t0:ti] at the first differing elements.
 	bl := len(base)
@@ -228,7 +229,7 @@ func Rel(basepath, targpath string) (string, error) {
 		t0 = ti
 	}
 	if base[b0:bi] == ".." {
-		return "", errors.New("Rel: can't make " + targpath + " relative to " + basepath)
+		return "", errors.New("Rel: can't make " + targPath + " relative to " + basePath)
 	}
 	if b0 != bl {
 		// Base elements left. Must go up before going down.

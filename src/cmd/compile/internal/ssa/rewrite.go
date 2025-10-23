@@ -726,7 +726,7 @@ func int32ToAuxInt(i int32) int64 {
 	return int64(i)
 }
 func int64ToAuxInt(i int64) int64 {
-	return int64(i)
+	return i
 }
 func uint8ToAuxInt(i uint8) int64 {
 	return int64(int8(i))
@@ -1603,7 +1603,7 @@ func encodePPC64RotateMask(rotate, mask, nbits int64) int64 {
 		mb, me = men, mbn
 	}
 
-	return int64(me) | int64(mb<<8) | int64(rotate<<16) | int64(nbits<<24)
+	return int64(me) | int64(mb<<8) | rotate<<16 | nbits<<24
 }
 
 // Merge (RLDICL [encoded] (SRDconst [s] x)) into (RLDICL [new_encoded] x)
@@ -1712,7 +1712,7 @@ func mergePPC64AndSldi(m, s int64) int64 {
 func mergePPC64ClrlsldiSrw(sld, srw int64) int64 {
 	mask_1 := uint64(0xFFFFFFFF >> uint(srw))
 	// for CLRLSLDI, it's more convenient to think of it as a mask left bits then rotate left.
-	mask_2 := uint64(0xFFFFFFFFFFFFFFFF) >> uint(GetPPC64Shiftmb(int64(sld)))
+	mask_2 := uint64(0xFFFFFFFFFFFFFFFF) >> uint(GetPPC64Shiftmb(sld))
 
 	// Rewrite mask to apply after the final left shift.
 	mask_3 := (mask_1 & mask_2) << uint(GetPPC64Shiftsh(sld))
@@ -1724,7 +1724,7 @@ func mergePPC64ClrlsldiSrw(sld, srw int64) int64 {
 	if uint64(uint32(mask_3)) != mask_3 || mask_3 == 0 {
 		return 0
 	}
-	return encodePPC64RotateMask(int64(r_3), int64(mask_3), 32)
+	return encodePPC64RotateMask(r_3, int64(mask_3), 32)
 }
 
 // Test if a doubleword shift right feeding into a CLRLSLDI can be merged into RLWINM.
@@ -1732,7 +1732,7 @@ func mergePPC64ClrlsldiSrw(sld, srw int64) int64 {
 func mergePPC64ClrlsldiSrd(sld, srd int64) int64 {
 	mask_1 := uint64(0xFFFFFFFFFFFFFFFF) >> uint(srd)
 	// for CLRLSLDI, it's more convenient to think of it as a mask left bits then rotate left.
-	mask_2 := uint64(0xFFFFFFFFFFFFFFFF) >> uint(GetPPC64Shiftmb(int64(sld)))
+	mask_2 := uint64(0xFFFFFFFFFFFFFFFF) >> uint(GetPPC64Shiftmb(sld))
 
 	// Rewrite mask to apply after the final left shift.
 	mask_3 := (mask_1 & mask_2) << uint(GetPPC64Shiftsh(sld))
@@ -1749,7 +1749,7 @@ func mergePPC64ClrlsldiSrd(sld, srd int64) int64 {
 	if v1&mask_3 != 0 {
 		return 0
 	}
-	return encodePPC64RotateMask(int64(r_3&31), int64(mask_3), 32)
+	return encodePPC64RotateMask(r_3&31, int64(mask_3), 32)
 }
 
 // Test if a RLWINM feeding into a CLRLSLDI can be merged into RLWINM.  Return
@@ -2155,11 +2155,11 @@ func rewriteFixedLoad(v *Value, sym Sym, sb *Value, off int64) *Value {
 				switch f.Sym.Name {
 				case "Size_":
 					v.reset(ptrSizedOpConst)
-					v.AuxInt = int64(t.Size())
+					v.AuxInt = t.Size()
 					return v
 				case "PtrBytes":
 					v.reset(ptrSizedOpConst)
-					v.AuxInt = int64(types.PtrDataSize(t))
+					v.AuxInt = types.PtrDataSize(t)
 					return v
 				case "Hash":
 					v.reset(OpConst32)

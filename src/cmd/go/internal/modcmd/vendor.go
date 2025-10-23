@@ -70,15 +70,15 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
 	if modload.WorkFilePath(modload.LoaderState) != "" {
 		base.Fatalf("go: 'go mod vendor' cannot be run in workspace mode. Run 'go work vendor' to vendor the workspace or set 'GOWORK=off' to exit workspace mode.")
 	}
-	RunVendor(ctx, vendorE, vendorO, args)
+	RunVendor(modload.LoaderState, ctx, vendorE, vendorO, args)
 }
 
-func RunVendor(ctx context.Context, vendorE bool, vendorO string, args []string) {
+func RunVendor(loaderstate *modload.State, ctx context.Context, vendorE bool, vendorO string, args []string) {
 	if len(args) != 0 {
 		base.Fatalf("go: 'go mod vendor' accepts no arguments")
 	}
-	modload.LoaderState.ForceUseModules = true
-	modload.LoaderState.RootMode = modload.NeedRoot
+	loaderstate.ForceUseModules = true
+	loaderstate.RootMode = modload.NeedRoot
 
 	loadOpts := modload.PackageOpts{
 		Tags:                     imports.AnyTags(),
@@ -88,7 +88,7 @@ func RunVendor(ctx context.Context, vendorE bool, vendorO string, args []string)
 		AllowErrors:              vendorE,
 		SilenceMissingStdImports: true,
 	}
-	_, pkgs := modload.LoadPackages(modload.LoaderState, ctx, loadOpts, "all")
+	_, pkgs := modload.LoadPackages(loaderstate, ctx, loadOpts, "all")
 
 	var vdir string
 	switch {
@@ -97,7 +97,7 @@ func RunVendor(ctx context.Context, vendorE bool, vendorO string, args []string)
 	case vendorO != "":
 		vdir = filepath.Join(base.Cwd(), vendorO)
 	default:
-		vdir = filepath.Join(modload.VendorDir(modload.LoaderState))
+		vdir = filepath.Join(modload.VendorDir(loaderstate))
 	}
 	if err := os.RemoveAll(vdir); err != nil {
 		base.Fatal(err)
@@ -106,7 +106,7 @@ func RunVendor(ctx context.Context, vendorE bool, vendorO string, args []string)
 	modpkgs := make(map[module.Version][]string)
 	for _, pkg := range pkgs {
 		m := modload.PackageModule(pkg)
-		if m.Path == "" || modload.LoaderState.MainModules.Contains(m.Path) {
+		if m.Path == "" || loaderstate.MainModules.Contains(m.Path) {
 			continue
 		}
 		modpkgs[m] = append(modpkgs[m], pkg)
@@ -116,13 +116,13 @@ func RunVendor(ctx context.Context, vendorE bool, vendorO string, args []string)
 	includeAllReplacements := false
 	includeGoVersions := false
 	isExplicit := map[module.Version]bool{}
-	gv := modload.LoaderState.MainModules.GoVersion(modload.LoaderState)
-	if gover.Compare(gv, "1.14") >= 0 && (modload.FindGoWork(modload.LoaderState, base.Cwd()) != "" || modload.ModFile().Go != nil) {
+	gv := loaderstate.MainModules.GoVersion(loaderstate)
+	if gover.Compare(gv, "1.14") >= 0 && (modload.FindGoWork(loaderstate, base.Cwd()) != "" || modload.ModFile(loaderstate).Go != nil) {
 		// If the Go version is at least 1.14, annotate all explicit 'require' and
 		// 'replace' targets found in the go.mod file so that we can perform a
 		// stronger consistency check when -mod=vendor is set.
-		for _, m := range modload.LoaderState.MainModules.Versions() {
-			if modFile := modload.LoaderState.MainModules.ModFile(m); modFile != nil {
+		for _, m := range loaderstate.MainModules.Versions() {
+			if modFile := loaderstate.MainModules.ModFile(m); modFile != nil {
 				for _, r := range modFile.Require {
 					isExplicit[r.Mod] = true
 				}
@@ -156,20 +156,20 @@ func RunVendor(ctx context.Context, vendorE bool, vendorO string, args []string)
 		w = io.MultiWriter(&buf, os.Stderr)
 	}
 
-	if modload.LoaderState.MainModules.WorkFile() != nil {
+	if loaderstate.MainModules.WorkFile() != nil {
 		fmt.Fprintf(w, "## workspace\n")
 	}
 
 	replacementWritten := make(map[module.Version]bool)
 	for _, m := range vendorMods {
-		replacement := modload.Replacement(modload.LoaderState, m)
+		replacement := modload.Replacement(loaderstate, m)
 		line := moduleLine(m, replacement)
 		replacementWritten[m] = true
 		io.WriteString(w, line)
 
 		goVersion := ""
 		if includeGoVersions {
-			goVersion = modload.ModuleInfo(ctx, m.Path).GoVersion
+			goVersion = modload.ModuleInfo(loaderstate, ctx, m.Path).GoVersion
 		}
 		switch {
 		case isExplicit[m] && goVersion != "":
@@ -184,7 +184,7 @@ func RunVendor(ctx context.Context, vendorE bool, vendorO string, args []string)
 		sort.Strings(pkgs)
 		for _, pkg := range pkgs {
 			fmt.Fprintf(w, "%s\n", pkg)
-			vendorPkg(vdir, pkg)
+			vendorPkg(loaderstate, vdir, pkg)
 		}
 	}
 
@@ -192,8 +192,8 @@ func RunVendor(ctx context.Context, vendorE bool, vendorO string, args []string)
 		// Record unused and wildcard replacements at the end of the modules.txt file:
 		// without access to the complete build list, the consumer of the vendor
 		// directory can't otherwise determine that those replacements had no effect.
-		for _, m := range modload.LoaderState.MainModules.Versions() {
-			if workFile := modload.LoaderState.MainModules.WorkFile(); workFile != nil {
+		for _, m := range loaderstate.MainModules.Versions() {
+			if workFile := loaderstate.MainModules.WorkFile(); workFile != nil {
 				for _, r := range workFile.Replace {
 					if replacementWritten[r.Old] {
 						// We already recorded this replacement.
@@ -208,14 +208,14 @@ func RunVendor(ctx context.Context, vendorE bool, vendorO string, args []string)
 					}
 				}
 			}
-			if modFile := modload.LoaderState.MainModules.ModFile(m); modFile != nil {
+			if modFile := loaderstate.MainModules.ModFile(m); modFile != nil {
 				for _, r := range modFile.Replace {
 					if replacementWritten[r.Old] {
 						// We already recorded this replacement.
 						continue
 					}
 					replacementWritten[r.Old] = true
-					rNew := modload.Replacement(modload.LoaderState, r.Old)
+					rNew := modload.Replacement(loaderstate, r.Old)
 					if rNew == (module.Version{}) {
 						// There is no replacement. Don't try to write it.
 						continue
@@ -268,8 +268,8 @@ func moduleLine(m, r module.Version) string {
 	return b.String()
 }
 
-func vendorPkg(vdir, pkg string) {
-	src, realPath, _ := modload.Lookup(modload.LoaderState, "", false, pkg)
+func vendorPkg(s *modload.State, vdir, pkg string) {
+	src, realPath, _ := modload.Lookup(s, "", false, pkg)
 	if src == "" {
 		base.Errorf("internal error: no pkg for %s\n", pkg)
 		return
@@ -288,7 +288,11 @@ func vendorPkg(vdir, pkg string) {
 
 	copiedFiles := make(map[string]bool)
 	dst := filepath.Join(vdir, pkg)
-	copyDir(dst, src, matchPotentialSourceFile, copiedFiles)
+	matcher := func(dir string, info fs.DirEntry) bool {
+		goVersion := s.MainModules.GoVersion(s)
+		return matchPotentialSourceFile(dir, info, goVersion)
+	}
+	copyDir(dst, src, matcher, copiedFiles)
 	if m := modload.PackageModule(realPath); m.Path != "" {
 		copyMetadata(m.Path, realPath, dst, src, copiedFiles)
 	}
@@ -315,7 +319,7 @@ func vendorPkg(vdir, pkg string) {
 		}
 	}
 	var embedPatterns []string
-	if gover.Compare(modload.LoaderState.MainModules.GoVersion(modload.LoaderState), "1.22") >= 0 {
+	if gover.Compare(s.MainModules.GoVersion(s), "1.22") >= 0 {
 		embedPatterns = bp.EmbedPatterns
 	} else {
 		// Maintain the behavior of https://github.com/golang/go/issues/63473
@@ -426,12 +430,12 @@ func matchMetadata(dir string, info fs.DirEntry) bool {
 }
 
 // matchPotentialSourceFile reports whether info may be relevant to a build operation.
-func matchPotentialSourceFile(dir string, info fs.DirEntry) bool {
+func matchPotentialSourceFile(dir string, info fs.DirEntry, goVersion string) bool {
 	if strings.HasSuffix(info.Name(), "_test.go") {
 		return false
 	}
 	if info.Name() == "go.mod" || info.Name() == "go.sum" {
-		if gv := modload.LoaderState.MainModules.GoVersion(modload.LoaderState); gover.Compare(gv, "1.17") >= 0 {
+		if gover.Compare(goVersion, "1.17") >= 0 {
 			// As of Go 1.17, we strip go.mod and go.sum files from dependency modules.
 			// Otherwise, 'go' commands invoked within the vendor subtree may misidentify
 			// an arbitrary directory within the vendor tree as a module root.

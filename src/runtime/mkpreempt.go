@@ -713,10 +713,11 @@ func genMIPS(g *gen, _64bit bool) {
 }
 
 func genLoong64(g *gen) {
-	p := g.p
+	const xReg = "R4" // *xRegState
+
+	p, label := g.p, g.label
 
 	mov := "MOVV"
-	movf := "MOVD"
 	add := "ADDV"
 	sub := "SUBV"
 	regsize := 8
@@ -730,12 +731,6 @@ func genLoong64(g *gen) {
 		}
 		reg := fmt.Sprintf("R%d", i)
 		l.add(mov, reg, regsize)
-	}
-
-	// Add floating point registers F0-F31.
-	for i := 0; i <= 31; i++ {
-		reg := fmt.Sprintf("F%d", i)
-		l.add(movf, reg, regsize)
 	}
 
 	// Add condition flag register fcc0-fcc7
@@ -764,12 +759,80 @@ func genLoong64(g *gen) {
 		mov+" %d(R3), R5\n"+rs,
 		regsize)
 
+	// Create layouts for lasx, lsx and fp registers.
+	lasxRegs := layout{sp: xReg}
+	lsxRegs := lasxRegs
+	fpRegs := lasxRegs
+	for i := 0; i <= 31; i++ {
+		lasxRegs.add("XVMOVQ", fmt.Sprintf("X%d", i), 256/8)
+		lsxRegs.add("VMOVQ", fmt.Sprintf("V%d", i), 128/8)
+		fpRegs.add("MOVD", fmt.Sprintf("F%d", i), 64/8)
+	}
+
+	for i := range lsxRegs.regs {
+		for j := range lsxRegs.regs[i].regs {
+			lsxRegs.regs[i].regs[j].pos = lasxRegs.regs[i].regs[j].pos
+			fpRegs.regs[i].regs[j].pos = lasxRegs.regs[i].regs[j].pos
+		}
+	}
+	writeXRegs(g.goarch, &lasxRegs)
+
 	// allocate frame, save PC of interrupted instruction (in LR)
 	p(mov+" R1, -%d(R3)", l.stack)
 	p(sub+" $%d, R3", l.stack)
 
+	p("// Save GPs")
 	l.save(g)
+
+	p("// Save extended register state to p.xRegs.scratch")
+	p("MOVV g_m(g), %s", xReg)
+	p("MOVV m_p(%s), %s", xReg, xReg)
+	p("ADDV $(p_xRegs+xRegPerP_scratch), %s, %s", xReg, xReg)
+
+	p("MOVBU internal∕cpu·Loong64+const_offsetLOONG64HasLASX(SB), R5")
+	p("BNE R5, saveLASX")
+
+	p("MOVBU internal∕cpu·Loong64+const_offsetLOONG64HasLSX(SB), R5")
+	p("BNE R5, saveLSX")
+
+	label("saveFP:")
+	fpRegs.save(g)
+	p("JMP preempt")
+
+	label("saveLSX:")
+	lsxRegs.save(g)
+	p("JMP preempt")
+
+	label("saveLASX:")
+	lasxRegs.save(g)
+
+	label("preempt:")
 	p("CALL ·asyncPreempt2(SB)")
+
+	p("// Restore non-GPs from *p.xRegs.cache")
+	p("MOVV g_m(g), %s", xReg)
+	p("MOVV m_p(%s), %s", xReg, xReg)
+	p("MOVV (p_xRegs+xRegPerP_cache)(%s), %s", xReg, xReg)
+
+	p("MOVBU internal∕cpu·Loong64+const_offsetLOONG64HasLASX(SB), R5")
+	p("BNE R5, restoreLASX")
+
+	p("MOVBU internal∕cpu·Loong64+const_offsetLOONG64HasLSX(SB), R5")
+	p("BNE R5, restoreLSX")
+
+	label("restoreFP:")
+	fpRegs.restore(g)
+	p("JMP restoreGPs")
+
+	label("restoreLSX:")
+	lsxRegs.restore(g)
+	p("JMP restoreGPs")
+
+	label("restoreLASX:")
+	lasxRegs.restore(g)
+
+	p("// Restore GPs")
+	label("restoreGPs:")
 	l.restore(g)
 
 	p(mov+" %d(R3), R1", l.stack)      // sigctxt.pushCall has pushed LR (at interrupt) on stack, restore it

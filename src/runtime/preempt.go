@@ -134,7 +134,7 @@ func suspendG(gp *g) suspendGState {
 			dumpgstatus(gp)
 			throw("invalid g status")
 
-		case _Gdead:
+		case _Gdead, _Gdeadextra:
 			// Nothing to suspend.
 			//
 			// preemptStop may need to be cleared, but

@@ -727,7 +727,7 @@ func (r *Reader) NNonpkgref() int {
 
 // SymOff returns the offset of the i-th symbol.
 func (r *Reader) SymOff(i uint32) uint32 {
-	return r.h.Offsets[BlkSymdef] + uint32(i*SymSize)
+	return r.h.Offsets[BlkSymdef] + i*SymSize
 }
 
 // Sym returns a pointer to the i-th symbol.
@@ -752,7 +752,7 @@ func (r *Reader) RefFlags(i int) *RefFlags {
 // Note: here i is the index of short hashed symbols, not all symbols
 // (unlike other accessors).
 func (r *Reader) Hash64(i uint32) uint64 {
-	off := r.h.Offsets[BlkHash64] + uint32(i*Hash64Size)
+	off := r.h.Offsets[BlkHash64] + i*Hash64Size
 	return r.uint64At(off)
 }
 
@@ -760,19 +760,19 @@ func (r *Reader) Hash64(i uint32) uint64 {
 // Note: here i is the index of hashed symbols, not all symbols
 // (unlike other accessors).
 func (r *Reader) Hash(i uint32) *HashType {
-	off := r.h.Offsets[BlkHash] + uint32(i*HashSize)
+	off := r.h.Offsets[BlkHash] + i*HashSize
 	return (*HashType)(unsafe.Pointer(&r.b[off]))
 }
 
 // NReloc returns the number of relocations of the i-th symbol.
 func (r *Reader) NReloc(i uint32) int {
-	relocIdxOff := r.h.Offsets[BlkRelocIdx] + uint32(i*4)
+	relocIdxOff := r.h.Offsets[BlkRelocIdx] + i*4
 	return int(r.uint32At(relocIdxOff+4) - r.uint32At(relocIdxOff))
 }
 
 // RelocOff returns the offset of the j-th relocation of the i-th symbol.
 func (r *Reader) RelocOff(i uint32, j int) uint32 {
-	relocIdxOff := r.h.Offsets[BlkRelocIdx] + uint32(i*4)
+	relocIdxOff := r.h.Offsets[BlkRelocIdx] + i*4
 	relocIdx := r.uint32At(relocIdxOff)
 	return r.h.Offsets[BlkReloc] + (relocIdx+uint32(j))*uint32(RelocSize)
 }

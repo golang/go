@@ -4,7 +4,7 @@ go 1.26
 
 require (
 	github.com/google/pprof v0.0.0-20250630185457-6e76a2b096b5
-	golang.org/x/arch v0.20.1-0.20250808194827-46ba08e3ae58
+	golang.org/x/arch v0.22.1-0.20251016010524-fea4a9ec4938
 	golang.org/x/build v0.0.0-20250806225920-b7c66c047964
 	golang.org/x/mod v0.29.0
 	golang.org/x/sync v0.17.0

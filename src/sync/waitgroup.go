@@ -204,12 +204,13 @@ func (wg *WaitGroup) Wait() {
 				}
 			}
 			runtime_SemacquireWaitGroup(&wg.sema, synctestDurable)
-			if wg.state.Load() != 0 {
-				panic("sync: WaitGroup is reused before previous Wait has returned")
-			}
+			isReset := wg.state.Load() != 0
 			if race.Enabled {
 				race.Enable()
 				race.Acquire(unsafe.Pointer(wg))
+			}
+			if isReset {
+				panic("sync: WaitGroup is reused before previous Wait has returned")
 			}
 			return
 		}

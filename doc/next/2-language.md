@@ -19,10 +19,14 @@ type Person struct {
 	Age  *int     `json:"age"` // age if known; nil otherwise
 }
 
-func personJSON(name string, age int) ([]byte, error) {
+func personJSON(name string, born time.Time) ([]byte, error) {
 	return json.Marshal(Person{
 		Name: name,
-		Age:  new(age),
+		Age:  new(yearsSince(born)),
 	})
+}
+
+func yearsSince(t time.Time) int {
+	return int(time.Since(t).Hours() / (365.25 * 24)) // approximately
 }
 ```

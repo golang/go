@@ -531,6 +531,8 @@ const (
 //sys	GetOverlappedResult(handle syscall.Handle, overlapped *syscall.Overlapped, done *uint32, wait bool) (err error)
 //sys	CreateNamedPipe(name *uint16, flags uint32, pipeMode uint32, maxInstances uint32, outSize uint32, inSize uint32, defaultTimeout uint32, sa *syscall.SecurityAttributes) (handle syscall.Handle, err error)  [failretval==syscall.InvalidHandle] = CreateNamedPipeW
 
+//sys	ReOpenFile(filehandle syscall.Handle, desiredAccess uint32, shareMode uint32, flagAndAttributes uint32) (handle syscall.Handle, err error)
+
 // NTStatus corresponds with NTSTATUS, error values returned by ntdll.dll and
 // other native functions.
 type NTStatus uint32
@@ -556,6 +558,9 @@ const (
 	STATUS_NOT_A_DIRECTORY           NTStatus = 0xC0000103
 	STATUS_CANNOT_DELETE             NTStatus = 0xC0000121
 	STATUS_REPARSE_POINT_ENCOUNTERED NTStatus = 0xC000050B
+	STATUS_NOT_SUPPORTED             NTStatus = 0xC00000BB
+	STATUS_INVALID_PARAMETER         NTStatus = 0xC000000D
+	STATUS_INVALID_INFO_CLASS        NTStatus = 0xC0000003
 )
 
 const (

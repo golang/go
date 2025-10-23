@@ -249,7 +249,7 @@ func run(ctx context.Context, cmd *base.Command, args []string) {
 
 	root := &work.Action{Mode: "go " + cmd.Name()}
 	for _, p := range pkgs {
-		_, ptest, pxtest, perr := load.TestPackagesFor(ctx, pkgOpts, p, nil)
+		_, ptest, pxtest, perr := load.TestPackagesFor(modload.LoaderState, ctx, pkgOpts, p, nil)
 		if perr != nil {
 			base.Errorf("%v", perr.Error)
 			continue
@@ -260,10 +260,10 @@ func run(ctx context.Context, cmd *base.Command, args []string) {
 		}
 		if len(ptest.GoFiles) > 0 || len(ptest.CgoFiles) > 0 {
 			// The test package includes all the files of primary package.
-			root.Deps = append(root.Deps, b.VetAction(work.ModeBuild, work.ModeBuild, ptest))
+			root.Deps = append(root.Deps, b.VetAction(modload.LoaderState, work.ModeBuild, work.ModeBuild, ptest))
 		}
 		if pxtest != nil {
-			root.Deps = append(root.Deps, b.VetAction(work.ModeBuild, work.ModeBuild, pxtest))
+			root.Deps = append(root.Deps, b.VetAction(modload.LoaderState, work.ModeBuild, work.ModeBuild, pxtest))
 		}
 	}
 	b.Do(ctx, root)
@@ -281,7 +281,7 @@ func printJSONDiagnostics(r io.Reader) error {
 		// unitchecker emits a JSON map of the form:
 		// output maps Package ID -> Analyzer.Name -> (error | []Diagnostic);
 		var tree jsonTree
-		if err := json.Unmarshal([]byte(stdout), &tree); err != nil {
+		if err := json.Unmarshal(stdout, &tree); err != nil {
 			return fmt.Errorf("parsing JSON: %v", err)
 		}
 		for _, units := range tree {

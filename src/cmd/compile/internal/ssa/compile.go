@@ -585,7 +585,7 @@ var passOrder = [...]constraint{
 	{"memcombine", "lower"},
 	// late opt transform some CondSelects into math.
 	{"branchelim", "late opt"},
-	// ranchelim is an arch-independent pass.
+	// branchelim is an arch-independent pass.
 	{"branchelim", "lower"},
 }
 

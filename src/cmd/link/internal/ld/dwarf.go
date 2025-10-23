@@ -1011,7 +1011,7 @@ func (d *dwctxt) addDwarfAddrRef(sb *loader.SymbolBuilder, t loader.Sym) {
 func (d *dwctxt) calcCompUnitRanges() {
 	var prevUnit *sym.CompilationUnit
 	for _, s := range d.linkctxt.Textp {
-		sym := loader.Sym(s)
+		sym := s
 
 		fi := d.ldr.FuncInfo(sym)
 		if !fi.Valid() {
@@ -1033,7 +1033,7 @@ func (d *dwctxt) calcCompUnitRanges() {
 		// only create boundaries between symbols from
 		// different units.
 		sval := d.ldr.SymValue(sym)
-		u0val := d.ldr.SymValue(loader.Sym(unit.Textp[0]))
+		u0val := d.ldr.SymValue(unit.Textp[0])
 		if prevUnit != unit {
 			unit.PCs = append(unit.PCs, dwarf.Range{Start: sval - u0val})
 			prevUnit = unit
@@ -1339,7 +1339,7 @@ func (d *dwctxt) writelines(unit *sym.CompilationUnit, lineProlog loader.Sym) []
 
 	// Output the state machine for each function remaining.
 	for _, s := range unit.Textp {
-		fnSym := loader.Sym(s)
+		fnSym := s
 		_, _, _, lines := d.ldr.GetFuncDwarfAuxSyms(fnSym)
 
 		// Chain the line symbol onto the list.
@@ -1399,7 +1399,7 @@ func (d *dwctxt) writepcranges(unit *sym.CompilationUnit, base loader.Sym, pcs [
 	// Collect up the ranges for functions in the unit.
 	rsize := uint64(rsu.Size())
 	for _, ls := range unit.RangeSyms {
-		s := loader.Sym(ls)
+		s := ls
 		syms = append(syms, s)
 		rsize += uint64(d.ldr.SymSize(s))
 	}
@@ -1501,7 +1501,7 @@ func (d *dwctxt) writeframes(fs loader.Sym) dwarfSecInfo {
 	var deltaBuf []byte
 	pcsp := obj.NewPCIter(uint32(d.arch.MinLC))
 	for _, s := range d.linkctxt.Textp {
-		fn := loader.Sym(s)
+		fn := s
 		fi := d.ldr.FuncInfo(fn)
 		if !fi.Valid() {
 			continue
@@ -1646,7 +1646,7 @@ func (d *dwctxt) writeUnitInfo(u *sym.CompilationUnit, abbrevsym loader.Sym, add
 	cu = append(cu, u.AbsFnDIEs...)
 	cu = append(cu, u.FuncDIEs...)
 	if u.Consts != 0 {
-		cu = append(cu, loader.Sym(u.Consts))
+		cu = append(cu, u.Consts)
 	}
 	cu = append(cu, u.VarDIEs...)
 	var cusize int64
@@ -1772,7 +1772,7 @@ func (d *dwctxt) assignDebugAddrSlot(unit *sym.CompilationUnit, fnsym loader.Sym
 	if unit.Addrs == nil {
 		unit.Addrs = make(map[sym.LoaderSym]uint32)
 	}
-	if _, ok := unit.Addrs[sym.LoaderSym(rsym)]; ok {
+	if _, ok := unit.Addrs[rsym]; ok {
 		// already present, no work needed
 	} else {
 		sl := len(unit.Addrs)
@@ -1781,7 +1781,7 @@ func (d *dwctxt) assignDebugAddrSlot(unit *sym.CompilationUnit, fnsym loader.Sym
 		if sl > lim {
 			log.Fatalf("internal error: %s relocation overflow on infosym for %s", rt.String(), d.ldr.SymName(fnsym))
 		}
-		unit.Addrs[sym.LoaderSym(rsym)] = uint32(sl)
+		unit.Addrs[rsym] = uint32(sl)
 		sb.AddAddrPlus(d.arch, rsym, 0)
 		data := sb.Data()
 		if d.arch.PtrSize == 4 {
@@ -1805,11 +1805,11 @@ func (d *dwctxt) dwarfVisitFunction(fnSym loader.Sym, unit *sym.CompilationUnit)
 	}
 	d.ldr.SetAttrNotInSymbolTable(infosym, true)
 	d.ldr.SetAttrReachable(infosym, true)
-	unit.FuncDIEs = append(unit.FuncDIEs, sym.LoaderSym(infosym))
+	unit.FuncDIEs = append(unit.FuncDIEs, infosym)
 	if rangesym != 0 {
 		d.ldr.SetAttrNotInSymbolTable(rangesym, true)
 		d.ldr.SetAttrReachable(rangesym, true)
-		unit.RangeSyms = append(unit.RangeSyms, sym.LoaderSym(rangesym))
+		unit.RangeSyms = append(unit.RangeSyms, rangesym)
 	}
 
 	// Walk the relocations of the subprogram DIE symbol to discover
@@ -1836,7 +1836,7 @@ func (d *dwctxt) dwarfVisitFunction(fnSym loader.Sym, unit *sym.CompilationUnit)
 			if !d.ldr.AttrOnList(rsym) {
 				// abstract function
 				d.ldr.SetAttrOnList(rsym, true)
-				unit.AbsFnDIEs = append(unit.AbsFnDIEs, sym.LoaderSym(rsym))
+				unit.AbsFnDIEs = append(unit.AbsFnDIEs, rsym)
 				d.importInfoSymbol(rsym)
 			}
 			continue
@@ -1942,7 +1942,7 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 		for _, unit := range lib.Units {
 			// We drop the constants into the first CU.
 			if consts != 0 {
-				unit.Consts = sym.LoaderSym(consts)
+				unit.Consts = consts
 				d.importInfoSymbol(consts)
 				consts = 0
 			}
@@ -2008,7 +2008,7 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 			// abstract functions, visit range symbols. Note that
 			// Textp has been dead-code-eliminated already.
 			for _, s := range unit.Textp {
-				d.dwarfVisitFunction(loader.Sym(s), unit)
+				d.dwarfVisitFunction(s, unit)
 			}
 		}
 	}
@@ -2073,7 +2073,7 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 		if varDIE != 0 {
 			unit := d.ldr.SymUnit(idx)
 			d.defgotype(gt)
-			unit.VarDIEs = append(unit.VarDIEs, sym.LoaderSym(varDIE))
+			unit.VarDIEs = append(unit.VarDIEs, varDIE)
 		}
 	}
 
@@ -2125,7 +2125,7 @@ type dwUnitSyms struct {
 func (d *dwctxt) dwUnitPortion(u *sym.CompilationUnit, abbrevsym loader.Sym, us *dwUnitSyms) {
 	if u.DWInfo.Abbrev != dwarf.DW_ABRV_COMPUNIT_TEXTLESS {
 		us.linesyms = d.writelines(u, us.lineProlog)
-		base := loader.Sym(u.Textp[0])
+		base := u.Textp[0]
 		if buildcfg.Experiment.Dwarf5 {
 			d.writedebugaddr(u, us.addrsym)
 		}
@@ -2145,7 +2145,7 @@ func (d *dwctxt) writedebugaddr(unit *sym.CompilationUnit, debugaddr loader.Sym)
 
 	var dsyms []loader.Sym
 	for _, s := range unit.Textp {
-		fnSym := loader.Sym(s)
+		fnSym := s
 		// NB: this looks at SDWARFFCN; it will need to also look
 		// at range and loc when they get there.
 		infosym, locsym, rangessym, _ := d.ldr.GetFuncDwarfAuxSyms(fnSym)
@@ -2305,8 +2305,8 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
 		len += uint64(d.ldr.SymSize(hdrsym))
 		su := d.ldr.MakeSymbolUpdater(hdrsym)
 		if isDwarf64(d.linkctxt) {
-			len -= 12                          // sub size of length field
-			su.SetUint(d.arch, 4, uint64(len)) // 4 because of 0XFFFFFFFF
+			len -= 12                  // sub size of length field
+			su.SetUint(d.arch, 4, len) // 4 because of 0XFFFFFFFF
 		} else {
 			len -= 4 // subtract size of length field
 			su.SetUint32(d.arch, 0, uint32(len))
@@ -2377,7 +2377,7 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
 func (d *dwctxt) collectUnitLocs(u *sym.CompilationUnit) []loader.Sym {
 	syms := []loader.Sym{}
 	for _, fn := range u.FuncDIEs {
-		relocs := d.ldr.Relocs(loader.Sym(fn))
+		relocs := d.ldr.Relocs(fn)
 		for i := 0; i < relocs.Count(); i++ {
 			reloc := relocs.At(i)
 			if reloc.Type() != objabi.R_DWARFSECREF {
@@ -2510,7 +2510,7 @@ func dwarfcompress(ctxt *Link) {
 			ldr.SetSymValue(s, int64(pos))
 			sect := ldr.SymSect(s)
 			if sect != prevSect {
-				sect.Vaddr = uint64(pos)
+				sect.Vaddr = pos
 				prevSect = sect
 			}
 			if ldr.SubSym(s) != 0 {

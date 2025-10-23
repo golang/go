@@ -490,13 +490,13 @@ var depsRules = `
 	time, internal/syscall/windows < crypto/internal/fips140deps/time;
 
 	crypto/internal/fips140deps/time, errors, math/bits, sync/atomic, unsafe
-	< crypto/internal/fips140/entropy;
+	< crypto/internal/entropy/v1.0.0;
 
 	STR, hash,
 	crypto/internal/impl,
 	crypto/internal/entropy,
 	crypto/internal/randutil,
-	crypto/internal/fips140/entropy,
+	crypto/internal/entropy/v1.0.0,
 	crypto/internal/fips140deps/byteorder,
 	crypto/internal/fips140deps/cpu,
 	crypto/internal/fips140deps/godebug
@@ -803,7 +803,7 @@ var depsRules = `
 	FMT, testing
 	< internal/cgrouptest;
 
-	regexp, internal/trace, internal/trace/raw, internal/txtar, testing
+	regexp, internal/testenv, internal/trace, internal/trace/raw, internal/txtar, testing
 	< internal/trace/testtrace;
 
 	C, CGO

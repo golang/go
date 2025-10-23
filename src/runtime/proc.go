@@ -1223,7 +1223,8 @@ func casfrom_Gscanstatus(gp *g, oldval, newval uint32) {
 		_Gscanrunning,
 		_Gscansyscall,
 		_Gscanleaked,
-		_Gscanpreempted:
+		_Gscanpreempted,
+		_Gscandeadextra:
 		if newval == oldval&^_Gscan {
 			success = gp.atomicstatus.CompareAndSwap(oldval, newval)
 		}
@@ -1244,7 +1245,8 @@ func castogscanstatus(gp *g, oldval, newval uint32) bool {
 		_Grunning,
 		_Gwaiting,
 		_Gleaked,
-		_Gsyscall:
+		_Gsyscall,
+		_Gdeadextra:
 		if newval == oldval|_Gscan {
 			r := gp.atomicstatus.CompareAndSwap(oldval, newval)
 			if r {
@@ -2459,7 +2461,7 @@ func needm(signal bool) {
 	}
 
 	// mp.curg is now a real goroutine.
-	casgstatus(mp.curg, _Gdead, _Gsyscall)
+	casgstatus(mp.curg, _Gdeadextra, _Gsyscall)
 	sched.ngsys.Add(-1)
 	sched.nGsyscallNoP.Add(1)
 
@@ -2515,11 +2517,10 @@ func oneNewExtraM() {
 	gp.syscallpc = gp.sched.pc
 	gp.syscallsp = gp.sched.sp
 	gp.stktopsp = gp.sched.sp
-	// malg returns status as _Gidle. Change to _Gdead before
-	// adding to allg where GC can see it. We use _Gdead to hide
-	// this from tracebacks and stack scans since it isn't a
-	// "real" goroutine until needm grabs it.
-	casgstatus(gp, _Gidle, _Gdead)
+	// malg returns status as _Gidle. Change to _Gdeadextra before
+	// adding to allg where GC can see it. _Gdeadextra hides this
+	// from traceback and stack scans.
+	casgstatus(gp, _Gidle, _Gdeadextra)
 	gp.m = mp
 	mp.curg = gp
 	mp.isextra = true
@@ -2593,8 +2594,8 @@ func dropm() {
 		trace = traceAcquire()
 	}
 
-	// Return mp.curg to dead state.
-	casgstatus(mp.curg, _Gsyscall, _Gdead)
+	// Return mp.curg to _Gdeadextra state.
+	casgstatus(mp.curg, _Gsyscall, _Gdeadextra)
 	mp.curg.preemptStop = false
 	sched.ngsys.Add(1)
 	sched.nGsyscallNoP.Add(-1)

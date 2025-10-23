@@ -153,12 +153,12 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 				// However, we also need to load the full module graph, to ensure that
 				// we have downloaded enough of the module graph to run 'go list all',
 				// 'go mod graph', and similar commands.
-				_, err := modload.LoadModGraph(ctx, "")
+				_, err := modload.LoadModGraph(modload.LoaderState, ctx, "")
 				if err != nil {
 					// TODO(#64008): call base.Fatalf instead of toolchain.SwitchOrFatal
 					// here, since we can only reach this point with an outdated toolchain
 					// if the go.mod file is inconsistent.
-					toolchain.SwitchOrFatal(ctx, err)
+					toolchain.SwitchOrFatal(modload.LoaderState, ctx, err)
 				}
 
 				for _, m := range modFile.Require {
@@ -184,7 +184,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	var mods []*ModuleJSON
 	type token struct{}
 	sem := make(chan token, runtime.GOMAXPROCS(0))
-	infos, infosErr := modload.ListModules(ctx, args, 0, *downloadReuse)
+	infos, infosErr := modload.ListModules(modload.LoaderState, ctx, args, 0, *downloadReuse)
 
 	// There is a bit of a chicken-and-egg problem here: ideally we need to know
 	// which Go version to switch to download the requested modules, but if we
@@ -211,7 +211,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	// toolchain version) or only one module (as is used by the Go Module Proxy).
 
 	if infosErr != nil {
-		var sw toolchain.Switcher
+		sw := toolchain.NewSwitcher(modload.LoaderState)
 		sw.Error(infosErr)
 		if sw.NeedSwitch() {
 			sw.Switch(ctx)
@@ -231,7 +231,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 		// TODO(#64008): In the future, report an error if go.mod or go.sum need to
 		// be updated after loading the build list. This may require setting
 		// the mode to "mod" or "readonly" depending on haveExplicitArgs.
-		if err := modload.WriteGoMod(ctx, modload.WriteOpts{}); err != nil {
+		if err := modload.WriteGoMod(modload.LoaderState, ctx, modload.WriteOpts{}); err != nil {
 			base.Fatal(err)
 		}
 	}
@@ -292,7 +292,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	// which may include dependencies that are normally pruned out
 	// of the individual modules in the workspace.
 	if haveExplicitArgs || modload.WorkFilePath(modload.LoaderState) != "" {
-		var sw toolchain.Switcher
+		sw := toolchain.NewSwitcher(modload.LoaderState)
 		// Add errors to the Switcher in deterministic order so that they will be
 		// logged deterministically.
 		for _, m := range mods {
@@ -348,7 +348,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	// Don't save sums for 'go mod download' without arguments unless we're in
 	// workspace mode; see comment above.
 	if haveExplicitArgs || modload.WorkFilePath(modload.LoaderState) != "" {
-		if err := modload.WriteGoMod(ctx, modload.WriteOpts{}); err != nil {
+		if err := modload.WriteGoMod(modload.LoaderState, ctx, modload.WriteOpts{}); err != nil {
 			base.Error(err)
 		}
 	}

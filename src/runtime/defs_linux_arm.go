@@ -169,9 +169,14 @@ func (tv *timeval) set_usec(x int32) {
 	tv.tv_usec = x
 }
 
-type itimerspec struct {
+type itimerspec32 struct {
 	it_interval timespec32
 	it_value    timespec32
+}
+
+type itimerspec struct {
+	it_interval timespec
+	it_value    timespec
 }
 
 type itimerval struct {

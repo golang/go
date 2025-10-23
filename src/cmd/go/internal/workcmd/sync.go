@@ -54,9 +54,9 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
 		base.Fatalf("go: no go.work file found\n\t(run 'go work init' first or specify path using GOWORK environment variable)")
 	}
 
-	_, err := modload.LoadModGraph(ctx, "")
+	_, err := modload.LoadModGraph(modload.LoaderState, ctx, "")
 	if err != nil {
-		toolchain.SwitchOrFatal(ctx, err)
+		toolchain.SwitchOrFatal(modload.LoaderState, ctx, err)
 	}
 	mustSelectFor := map[module.Version][]module.Version{}
 
@@ -104,7 +104,7 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
 
 		// Use EnterModule to reset the global state in modload to be in
 		// single-module mode using the modroot of m.
-		modload.EnterModule(ctx, mms.ModRoot(m))
+		modload.EnterModule(modload.LoaderState, ctx, mms.ModRoot(m))
 
 		// Edit the build list in the same way that 'go get' would if we
 		// requested the relevant module versions explicitly.
@@ -129,7 +129,7 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
 				SilenceMissingStdImports: true,
 				SilencePackageErrors:     true,
 			}, "all")
-			modload.WriteGoMod(ctx, modload.WriteOpts{})
+			modload.WriteGoMod(modload.LoaderState, ctx, modload.WriteOpts{})
 		}
 		goV = gover.Max(goV, modload.LoaderState.MainModules.GoVersion(modload.LoaderState))
 	}

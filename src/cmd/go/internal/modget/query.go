@@ -139,7 +139,7 @@ func errSet(err error) pathSet { return pathSet{err: err} }
 
 // newQuery returns a new query parsed from the raw argument,
 // which must be either path or path@version.
-func newQuery(raw string) (*query, error) {
+func newQuery(loaderstate *modload.State, raw string) (*query, error) {
 	pattern, rawVers, found := strings.Cut(raw, "@")
 	if found && (strings.Contains(rawVers, "@") || rawVers == "") {
 		return nil, fmt.Errorf("invalid module version syntax %q", raw)
@@ -167,14 +167,14 @@ func newQuery(raw string) (*query, error) {
 		q.matchWildcard = pkgpattern.MatchPattern(q.pattern)
 		q.canMatchWildcardInModule = pkgpattern.TreeCanMatchPattern(q.pattern)
 	}
-	if err := q.validate(); err != nil {
+	if err := q.validate(loaderstate); err != nil {
 		return q, err
 	}
 	return q, nil
 }
 
 // validate reports a non-nil error if q is not sensible and well-formed.
-func (q *query) validate() error {
+func (q *query) validate(loaderstate *modload.State) error {
 	if q.patternIsLocal {
 		if q.rawVersion != "" {
 			return fmt.Errorf("can't request explicit version %q of path %q in main module", q.rawVersion, q.pattern)
@@ -184,7 +184,7 @@ func (q *query) validate() error {
 
 	if q.pattern == "all" {
 		// If there is no main module, "all" is not meaningful.
-		if !modload.HasModRoot(modload.LoaderState) {
+		if !modload.HasModRoot(loaderstate) {
 			return fmt.Errorf(`cannot match "all": %v`, modload.ErrNoModRoot)
 		}
 		if !versionOkForMainModule(q.version) {
@@ -192,7 +192,7 @@ func (q *query) validate() error {
 			// request that we remove all module requirements, leaving only the main
 			// module and standard library. Perhaps we should implement that someday.
 			return &modload.QueryUpgradesAllError{
-				MainModules: modload.LoaderState.MainModules.Versions(),
+				MainModules: loaderstate.MainModules.Versions(),
 				Query:       q.version,
 			}
 		}

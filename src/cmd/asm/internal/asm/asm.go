@@ -248,7 +248,7 @@ func (p *Parser) asmData(operands [][]lex.Token) {
 	case obj.TYPE_CONST:
 		switch sz {
 		case 1, 2, 4, 8:
-			nameAddr.Sym.WriteInt(p.ctxt, nameAddr.Offset, int(sz), valueAddr.Offset)
+			nameAddr.Sym.WriteInt(p.ctxt, nameAddr.Offset, sz, valueAddr.Offset)
 		default:
 			p.errorf("bad int size for DATA argument: %d", sz)
 		}
@@ -262,10 +262,10 @@ func (p *Parser) asmData(operands [][]lex.Token) {
 			p.errorf("bad float size for DATA argument: %d", sz)
 		}
 	case obj.TYPE_SCONST:
-		nameAddr.Sym.WriteString(p.ctxt, nameAddr.Offset, int(sz), valueAddr.Val.(string))
+		nameAddr.Sym.WriteString(p.ctxt, nameAddr.Offset, sz, valueAddr.Val.(string))
 	case obj.TYPE_ADDR:
 		if sz == p.arch.PtrSize {
-			nameAddr.Sym.WriteAddr(p.ctxt, nameAddr.Offset, int(sz), valueAddr.Sym, valueAddr.Offset)
+			nameAddr.Sym.WriteAddr(p.ctxt, nameAddr.Offset, sz, valueAddr.Sym, valueAddr.Offset)
 		} else {
 			p.errorf("bad addr size for DATA argument: %d", sz)
 		}

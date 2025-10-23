@@ -283,20 +283,20 @@ func walkFromIndex(index *modindex.Module, importPathRoot string, isMatch, treeC
 //
 // If m is the zero module.Version, MatchInModule matches the pattern
 // against the standard library (std and cmd) in GOROOT/src.
-func MatchInModule(ctx context.Context, pattern string, m module.Version, tags map[string]bool) *search.Match {
+func MatchInModule(loaderstate *State, ctx context.Context, pattern string, m module.Version, tags map[string]bool) *search.Match {
 	match := search.NewMatch(pattern)
 	if m == (module.Version{}) {
-		matchPackages(LoaderState, ctx, match, tags, includeStd, nil)
+		matchPackages(loaderstate, ctx, match, tags, includeStd, nil)
 	}
 
-	LoadModFile(LoaderState, ctx) // Sets Target, needed by fetch and matchPackages.
+	LoadModFile(loaderstate, ctx) // Sets Target, needed by fetch and matchPackages.
 
 	if !match.IsLiteral() {
-		matchPackages(LoaderState, ctx, match, tags, omitStd, []module.Version{m})
+		matchPackages(loaderstate, ctx, match, tags, omitStd, []module.Version{m})
 		return match
 	}
 
-	root, isLocal, err := fetch(LoaderState, ctx, m)
+	root, isLocal, err := fetch(loaderstate, ctx, m)
 	if err != nil {
 		match.Errs = []error{err}
 		return match

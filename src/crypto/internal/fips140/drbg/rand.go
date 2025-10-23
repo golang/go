@@ -9,8 +9,8 @@
 package drbg
 
 import (
+	entropy "crypto/internal/entropy/v1.0.0"
 	"crypto/internal/fips140"
-	"crypto/internal/fips140/entropy"
 	"crypto/internal/randutil"
 	"crypto/internal/sysrand"
 	"io"

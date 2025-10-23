@@ -58,7 +58,7 @@ func main() {
 		// nothing
 	case "index":
 		// known to compiler; ignore here so people can use
-		// the same list with -gcflags=-spectre=LIST and -asmflags=-spectrre=LIST
+		// the same list with -gcflags=-spectre=LIST and -asmflags=-spectre=LIST
 	case "all", "ret":
 		ctxt.Retpoline = true
 	}

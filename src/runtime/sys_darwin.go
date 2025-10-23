@@ -10,186 +10,65 @@ import (
 	"unsafe"
 )
 
-//go:nosplit
-func libcError() uintptr {
-	errPtr, _ := syscall(abi.FuncPCABI0(libc_error_trampoline), 0, 0, 0)
-	return errPtr
-}
 func libc_error_trampoline()
 
-// The X versions of syscall expect the libc call to return a 64-bit result.
-// Otherwise (the non-X version) expects a 32-bit result.
-// This distinction is required because an error is indicated by returning -1,
-// and we need to know whether to check 32 or 64 bits of the result.
-// (Some libc functions that return 32 bits put junk in the upper 32 bits of AX.)
-
-//go:nosplit
-func syscall(fn, a1, a2, a3 uintptr) (r1, r2 uintptr) {
-	args := struct{ fn, a1, a2, a3, r1, r2 uintptr }{fn, a1, a2, a3, r1, r2}
-	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscall_trampoline)), unsafe.Pointer(&args))
-	return args.r1, args.r2
-}
-func syscall_trampoline()
-
-// golang.org/x/sys linknames syscall_syscall
-// (in addition to standard package syscall).
-// Do not remove or change the type signature.
+// libc_error_addr puts the libc error
+// address into addr.
 //
-//go:linkname syscall_syscall syscall.syscall
 //go:nosplit
-func syscall_syscall(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+//go:cgo_unsafe_args
+func libc_error_addr(addr **int32) {
+	libcCall(unsafe.Pointer(abi.FuncPCABI0(libc_error_trampoline)), unsafe.Pointer(&addr))
+}
+
+// libcCallInfo is a structure used to pass parameters to the system call.
+type libcCallInfo struct {
+	fn     uintptr
+	n      uintptr // number of parameters
+	args   uintptr // parameters
+	r1, r2 uintptr // return values
+}
+
+// syscall_syscalln is a wrapper around the libc call with variable arguments.
+//
+//go:linkname syscall_syscalln syscall.syscalln
+//go:nosplit
+//go:uintptrkeepalive
+func syscall_syscalln(fn uintptr, args ...uintptr) (r1, r2, err uintptr) {
 	entersyscall()
-	r1, r2, err = syscall_rawSyscall(fn, a1, a2, a3)
+	r1, r2, err = syscall_rawsyscalln(fn, args...)
 	exitsyscall()
 	return r1, r2, err
 }
 
-//go:linkname syscall_syscallX syscall.syscallX
-//go:nosplit
-func syscall_syscallX(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
-	entersyscall()
-	r1, r2, err = syscall_rawSyscallX(fn, a1, a2, a3)
-	exitsyscall()
-	return r1, r2, err
-}
-
-//go:nosplit
-func syscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr) {
-	args := struct{ fn, a1, a2, a3, a4, a5, a6, r1, r2 uintptr }{fn, a1, a2, a3, a4, a5, a6, r1, r2}
-	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscall6_trampoline)), unsafe.Pointer(&args))
-	return args.r1, args.r2
-}
-func syscall6_trampoline()
-
-// golang.org/x/sys linknames syscall.syscall6
-// (in addition to standard package syscall).
-// Do not remove or change the type signature.
+// syscall_rawsyscalln is a wrapper around the libc call with variable arguments.
+// The scheduler is not notified about the system call.
+// The syscall is executed on the current goroutine thread rather than on a
+// dedicated syscall thread.
 //
-// syscall.syscall6 is meant for package syscall (and x/sys),
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
-//   - github.com/tetratelabs/wazero
-//
-// See go.dev/issue/67401.
-//
-//go:linkname syscall_syscall6 syscall.syscall6
+//go:linkname syscall_rawsyscalln syscall.rawsyscalln
 //go:nosplit
-func syscall_syscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
-	entersyscall()
-	r1, r2, err = syscall_rawSyscall6(fn, a1, a2, a3, a4, a5, a6)
-	exitsyscall()
-	return r1, r2, err
-}
-
-//go:linkname syscall_syscall6X syscall.syscall6X
-//go:nosplit
-func syscall_syscall6X(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
-	entersyscall()
-	r1, r2, err = syscall_rawSyscall6X(fn, a1, a2, a3, a4, a5, a6)
-	exitsyscall()
-	return r1, r2, err
-}
-
-//go:nosplit
-func syscall9(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr) {
-	args := struct{ fn, a1, a2, a3, a4, a5, a6, a7, a8, a9, r1, r2 uintptr }{fn, a1, a2, a3, a4, a5, a6, a7, a8, a9, r1, r2}
-	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscall9_trampoline)), unsafe.Pointer(&args))
-	return args.r1, args.r2
-}
-func syscall9_trampoline()
-
-// golang.org/x/sys linknames syscall.syscall9
-// (in addition to standard package syscall).
-// Do not remove or change the type signature.
-//
-//go:linkname syscall_syscall9 syscall.syscall9
-//go:nosplit
-func syscall_syscall9(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, err uintptr) {
-	entersyscall()
-	r1, r2, err = syscall_rawSyscall9(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9)
-	exitsyscall()
-	return r1, r2, err
-}
-
-// golang.org/x/sys linknames syscall.syscallPtr
-// (in addition to standard package syscall).
-// Do not remove or change the type signature.
-//
-//go:linkname syscall_syscallPtr syscall.syscallPtr
-//go:nosplit
-func syscall_syscallPtr(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
-	entersyscall()
-	r1, r2, err = syscall_rawSyscallPtr(fn, a1, a2, a3)
-	exitsyscall()
-	return r1, r2, err
-}
-
-// golang.org/x/sys linknames syscall_rawSyscall
-// (in addition to standard package syscall).
-// Do not remove or change the type signature.
-//
-//go:linkname syscall_rawSyscall syscall.rawSyscall
-//go:nosplit
-func syscall_rawSyscall(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
-	r1, r2 = syscall(fn, a1, a2, a3)
-	// Check if r1 low 32 bits is -1, indicating an error.
-	if int32(r1) == -1 {
-		err = libcError()
+//go:uintptrkeepalive
+func syscall_rawsyscalln(fn uintptr, args ...uintptr) (r1, r2, err uintptr) {
+	c := &libcCallInfo{
+		fn: fn,
+		n:  uintptr(len(args)),
 	}
-	return r1, r2, err
+	if c.n != 0 {
+		c.args = uintptr(noescape(unsafe.Pointer(&args[0])))
+	}
+	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscallN_trampoline)), unsafe.Pointer(c))
+	if gp := getg(); gp != nil && gp.m != nil && gp.m.errnoAddr != nil {
+		err = uintptr(*gp.m.errnoAddr)
+	} else {
+		var errnoAddr *int32
+		libc_error_addr(&errnoAddr)
+		err = uintptr(*errnoAddr)
+	}
+	return c.r1, c.r2, err
 }
 
-//go:nosplit
-func syscall_rawSyscallX(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
-	r1, r2 = syscall(fn, a1, a2, a3)
-	if r1 == ^uintptr(0) {
-		err = libcError()
-	}
-	return r1, r2, err
-}
-
-//go:nosplit
-func syscall_rawSyscallPtr(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
-	r1, r2 = syscall(fn, a1, a2, a3)
-	if r1 == 0 {
-		err = libcError()
-	}
-	return r1, r2, err
-}
-
-// golang.org/x/sys linknames syscall_rawSyscall6
-// (in addition to standard package syscall).
-// Do not remove or change the type signature.
-//
-//go:linkname syscall_rawSyscall6 syscall.rawSyscall6
-//go:nosplit
-func syscall_rawSyscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
-	r1, r2 = syscall6(fn, a1, a2, a3, a4, a5, a6)
-	// Check if r1 low 32 bits is -1, indicating an error.
-	if int32(r1) == -1 {
-		err = libcError()
-	}
-	return r1, r2, err
-}
-
-//go:nosplit
-func syscall_rawSyscall6X(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
-	r1, r2 = syscall6(fn, a1, a2, a3, a4, a5, a6)
-	if r1 == ^uintptr(0) {
-		err = libcError()
-	}
-	return r1, r2, err
-}
-
-//go:nosplit
-func syscall_rawSyscall9(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, err uintptr) {
-	r1, r2 = syscall9(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9)
-	// Check if r1 low 32 bits is -1, indicating an error.
-	if int32(r1) == -1 {
-		err = libcError()
-	}
-	return r1, r2, err
-}
+func syscallN_trampoline()
 
 // crypto_x509_syscall is used in crypto/x509/internal/macos to call into Security.framework and CF.
 

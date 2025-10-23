@@ -134,7 +134,7 @@ func goStatusToTraceGoStatus(status uint32, wr waitReason) tracev2.GoStatus {
 		if status == _Gwaiting && wr.isWaitingForSuspendG() {
 			tgs = tracev2.GoRunning
 		}
-	case _Gdead:
+	case _Gdead, _Gdeadextra:
 		throw("tried to trace dead goroutine")
 	default:
 		throw("tried to trace goroutine with invalid or unsupported status")

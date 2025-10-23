@@ -436,9 +436,6 @@ func setitimer(mode int32, new, old *itimerval)
 func timer_create(clockid int32, sevp *sigevent, timerid *int32) int32
 
 //go:noescape
-func timer_settime(timerid int32, flags int32, new, old *itimerspec) int32
-
-//go:noescape
 func timer_delete(timerid int32) int32
 
 //go:noescape

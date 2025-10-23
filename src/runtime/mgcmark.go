@@ -911,7 +911,7 @@ func scanstack(gp *g, gcw *gcWork) int64 {
 	default:
 		print("runtime: gp=", gp, ", goid=", gp.goid, ", gp->atomicstatus=", readgstatus(gp), "\n")
 		throw("mark - bad status")
-	case _Gdead:
+	case _Gdead, _Gdeadextra:
 		return 0
 	case _Grunning:
 		print("runtime: gp=", gp, ", goid=", gp.goid, ", gp->atomicstatus=", readgstatus(gp), "\n")

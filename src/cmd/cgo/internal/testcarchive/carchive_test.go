@@ -102,14 +102,14 @@ func testMain(m *testing.M) int {
 	bin = cmdToRun("./testp")
 
 	ccOut := goEnv("CC")
-	cc = []string{string(ccOut)}
+	cc = []string{ccOut}
 
 	out := goEnv("GOGCCFLAGS")
 	quote := '\000'
 	start := 0
 	lastSpace := true
 	backslash := false
-	s := string(out)
+	s := out
 	for i, c := range s {
 		if quote == '\000' && unicode.IsSpace(c) {
 			if !lastSpace {

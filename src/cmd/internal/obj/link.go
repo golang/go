@@ -753,12 +753,12 @@ func (ft *WasmFuncType) Read(b []byte) {
 	ft.Params = make([]WasmField, readUint32())
 	for i := range ft.Params {
 		ft.Params[i].Type = WasmFieldType(readByte())
-		ft.Params[i].Offset = int64(readInt64())
+		ft.Params[i].Offset = readInt64()
 	}
 	ft.Results = make([]WasmField, readUint32())
 	for i := range ft.Results {
 		ft.Results[i].Type = WasmFieldType(readByte())
-		ft.Results[i].Offset = int64(readInt64())
+		ft.Results[i].Offset = readInt64()
 	}
 }
 

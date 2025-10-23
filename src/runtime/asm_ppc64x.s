@@ -14,8 +14,14 @@
 // This is called using the host ABI. argc and argv arguments
 // should be in R3 and R4 respectively.
 TEXT _rt0_ppc64x_lib(SB),NOSPLIT|NOFRAME,$0
-	// Convert to Go ABI, and Allocate argument storage for call to newosproc0.
-	STACK_AND_SAVE_HOST_TO_GO_ABI(16)
+	// Start with standard C stack frame layout and linkage, allocate
+	// 16 bytes of argument space, save callee-save regs, and set R0 to $0.
+	// Allocate an extra 16 bytes to account for the larger fixed frame size
+	// of aix/elfv1 (48 vs 32) to ensure 16 bytes of parameter save space.
+	STACK_AND_SAVE_HOST_TO_GO_ABI(32)
+	// The above will not preserve R2 (TOC). Save it in case Go is
+	// compiled without a TOC pointer (e.g -buildmode=default).
+	MOVD	R2, 24(R1)
 
 	MOVD	R3, _rt0_ppc64x_lib_argc<>(SB)
 	MOVD	R4, _rt0_ppc64x_lib_argv<>(SB)
@@ -28,14 +34,28 @@ TEXT _rt0_ppc64x_lib(SB),NOSPLIT|NOFRAME,$0
 	MOVD	R12, CTR
 	BL	(CTR)
 
+#ifdef GOOS_aix
+	// See runtime/cgo/gcc_aix_ppc64.c
+	MOVBZ	runtime·isarchive(SB), R3	// Check buildmode = c-archive
+	CMP		$0, R3
+	BEQ		done
+#endif
+
 	// Create a new thread to do the runtime initialization and return.
+	// _cgo_sys_thread_create is a C function.
 	MOVD	_cgo_sys_thread_create(SB), R12
 	CMP	$0, R12
 	BEQ	nocgo
 	MOVD	$_rt0_ppc64x_lib_go(SB), R3
 	MOVD	$0, R4
+#ifdef GO_PPC64X_HAS_FUNCDESC
+	// Load the real entry address from the first slot of the function descriptor.
+	MOVD	8(R12), R2
+	MOVD	(R12), R12
+#endif
 	MOVD	R12, CTR
 	BL	(CTR)
+	MOVD	24(R1), R2 // Restore the old frame, and R2.
 	BR	done
 
 nocgo:
@@ -48,7 +68,7 @@ nocgo:
 	BL	(CTR)
 
 done:
-	UNSTACK_AND_RESTORE_GO_TO_HOST_ABI(16)
+	UNSTACK_AND_RESTORE_GO_TO_HOST_ABI(32)
 	RET
 
 #ifdef GO_PPC64X_HAS_FUNCDESC
@@ -592,8 +612,10 @@ CALLFN(·call268435456, 268435456)
 CALLFN(·call536870912, 536870912)
 CALLFN(·call1073741824, 1073741824)
 
-TEXT runtime·procyield(SB),NOSPLIT|NOFRAME,$0-4
+TEXT runtime·procyieldAsm(SB),NOSPLIT|NOFRAME,$0-4
 	MOVW	cycles+0(FP), R7
+	CMP	$0, R7
+	BEQ	done
 	// POWER does not have a pause/yield instruction equivalent.
 	// Instead, we can lower the program priority by setting the
 	// Program Priority Register prior to the wait loop and set it
@@ -605,6 +627,7 @@ again:
 	CMP	$0, R7
 	BNE	again
 	OR	R6, R6, R6	// Set PPR priority back to medium-low
+done:
 	RET
 
 // Save state of caller into g->sched,

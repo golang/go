@@ -444,9 +444,9 @@ func (b *Builder) cacheAction(mode string, p *load.Package, f func() *Action) *A
 }
 
 // AutoAction returns the "right" action for go build or go install of p.
-func (b *Builder) AutoAction(mode, depMode BuildMode, p *load.Package) *Action {
+func (b *Builder) AutoAction(loaderstate *modload.State, mode, depMode BuildMode, p *load.Package) *Action {
 	if p.Name == "main" {
-		return b.LinkAction(modload.LoaderState, mode, depMode, p)
+		return b.LinkAction(loaderstate, mode, depMode, p)
 	}
 	return b.CompileAction(mode, depMode, p)
 }
@@ -867,13 +867,13 @@ func (b *Builder) cgoAction(p *load.Package, objdir string, deps []*Action, hasC
 // It depends on the action for compiling p.
 // If the caller may be causing p to be installed, it is up to the caller
 // to make sure that the install depends on (runs after) vet.
-func (b *Builder) VetAction(mode, depMode BuildMode, p *load.Package) *Action {
-	a := b.vetAction(mode, depMode, p)
+func (b *Builder) VetAction(loaderstate *modload.State, mode, depMode BuildMode, p *load.Package) *Action {
+	a := b.vetAction(loaderstate, mode, depMode, p)
 	a.VetxOnly = false
 	return a
 }
 
-func (b *Builder) vetAction(mode, depMode BuildMode, p *load.Package) *Action {
+func (b *Builder) vetAction(loaderstate *modload.State, mode, depMode BuildMode, p *load.Package) *Action {
 	// Construct vet action.
 	a := b.cacheAction("vet", p, func() *Action {
 		a1 := b.CompileAction(mode|ModeVetOnly, depMode, p)
@@ -889,7 +889,7 @@ func (b *Builder) vetAction(mode, depMode BuildMode, p *load.Package) *Action {
 			deps = []*Action{a1}
 		}
 		for _, p1 := range p.Internal.Imports {
-			deps = append(deps, b.vetAction(mode, depMode, p1))
+			deps = append(deps, b.vetAction(loaderstate, mode, depMode, p1))
 		}
 
 		a := &Action{
@@ -1112,12 +1112,12 @@ func (b *Builder) addInstallHeaderAction(a *Action) {
 
 // buildmodeShared takes the "go build" action a1 into the building of a shared library of a1.Deps.
 // That is, the input a1 represents "go build pkgs" and the result represents "go build -buildmode=shared pkgs".
-func (b *Builder) buildmodeShared(mode, depMode BuildMode, args []string, pkgs []*load.Package, a1 *Action) *Action {
+func (b *Builder) buildmodeShared(loaderstate *modload.State, mode, depMode BuildMode, args []string, pkgs []*load.Package, a1 *Action) *Action {
 	name, err := libname(args, pkgs)
 	if err != nil {
 		base.Fatalf("%v", err)
 	}
-	return b.linkSharedAction(modload.LoaderState, mode, depMode, name, a1)
+	return b.linkSharedAction(loaderstate, mode, depMode, name, a1)
 }
 
 // linkSharedAction takes a grouping action a1 corresponding to a list of built packages

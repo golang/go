@@ -552,14 +552,14 @@ func (mg *ModuleGraph) allRootsSelected(loaderstate *State) bool {
 // Modules are loaded automatically (and lazily) in LoadPackages:
 // LoadModGraph need only be called if LoadPackages is not,
 // typically in commands that care about modules but no particular package.
-func LoadModGraph(ctx context.Context, goVersion string) (*ModuleGraph, error) {
-	rs, err := loadModFile(LoaderState, ctx, nil)
+func LoadModGraph(loaderstate *State, ctx context.Context, goVersion string) (*ModuleGraph, error) {
+	rs, err := loadModFile(loaderstate, ctx, nil)
 	if err != nil {
 		return nil, err
 	}
 
 	if goVersion != "" {
-		v, _ := rs.rootSelected(LoaderState, "go")
+		v, _ := rs.rootSelected(loaderstate, "go")
 		if gover.Compare(v, gover.GoStrictVersion) >= 0 && gover.Compare(goVersion, v) < 0 {
 			return nil, fmt.Errorf("requested Go version %s cannot load module graph (requires Go >= %s)", goVersion, v)
 		}
@@ -569,17 +569,17 @@ func LoadModGraph(ctx context.Context, goVersion string) (*ModuleGraph, error) {
 			// Use newRequirements instead of convertDepth because convertDepth
 			// also updates roots; here, we want to report the unmodified roots
 			// even though they may seem inconsistent.
-			rs = newRequirements(LoaderState, unpruned, rs.rootModules, rs.direct)
+			rs = newRequirements(loaderstate, unpruned, rs.rootModules, rs.direct)
 		}
 
-		return rs.Graph(LoaderState, ctx)
+		return rs.Graph(loaderstate, ctx)
 	}
 
-	rs, mg, err := expandGraph(LoaderState, ctx, rs)
+	rs, mg, err := expandGraph(loaderstate, ctx, rs)
 	if err != nil {
 		return nil, err
 	}
-	LoaderState.requirements = rs
+	loaderstate.requirements = rs
 	return mg, nil
 }
 

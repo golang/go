@@ -481,128 +481,98 @@ TEXT runtime·arc4random_buf_trampoline(SB),NOSPLIT,$0
 	BL	libc_arc4random_buf(SB)
 	RET
 
-// syscall_trampoline calls a function in libc on behalf of the syscall package.
-// syscall_trampoline takes a pointer to a struct like:
-// struct {
-//	fn    uintptr
-//	a1    uintptr
-//	a2    uintptr
-//	a3    uintptr
-//	r1    uintptr
-//	r2    uintptr
-// }
-// syscall_trampoline must be called on the g0 stack with the
-// C calling convention (use libcCall).
-TEXT runtime·syscall_trampoline(SB),NOSPLIT,$0
-	SUB	$16, RSP // push structure pointer
-	MOVD	R0, 8(RSP)
+TEXT runtime·syscallN_trampoline(SB),NOSPLIT,$16
+	STP	(R19, R20), 16(RSP)	// save old R19, R20
+	MOVD	R0, R19	// save struct pointer
+	MOVD	RSP, R20	// save stack pointer
+	SUB	$16, RSP	// reserve 16 bytes for sp-8 where fp may be saved.
 
-	MOVD	0(R0), R12	// fn
-	MOVD	16(R0), R1	// a2
-	MOVD	24(R0), R2	// a3
-	MOVD	8(R0), R0	// a1
+	MOVD	libcCallInfo_args(R19), R12
+	// Do we have more than 8 arguments?
+	MOVD	libcCallInfo_n(R19), R0
+	CMP	$0, R0; BEQ _0args
+	CMP	$1, R0; BEQ _1args
+	CMP	$2, R0; BEQ _2args
+	CMP	$3, R0; BEQ _3args
+	CMP	$4, R0; BEQ _4args
+	CMP	$5, R0; BEQ _5args
+	CMP	$6, R0; BEQ _6args
+	CMP	$7, R0; BEQ _7args
+	CMP	$8, R0; BEQ _8args
+
+	// Reserve stack space for remaining args
+	SUB	$8, R0, R2
+	ADD	$1, R2, R3	// make even number of words for stack alignment
+	AND	$~1, R3
+	LSL	$3, R3
+	SUB	R3, RSP
+
+	// R4: size of stack arguments (n-8)*8
+	// R5: &args[8]
+	// R6: loop counter, from 0 to (n-8)*8
+	// R7: scratch
+	// R8: copy of RSP - (R2)(RSP) assembles as (R2)(ZR)
+	SUB	$8, R0, R4
+	LSL	$3, R4
+	ADD	$(8*8), R12, R5
+	MOVD	$0, R6
+	MOVD	RSP, R8
+stackargs:
+	MOVD	(R6)(R5), R7
+	MOVD	R7, (R6)(R8)
+	ADD	$8, R6
+	CMP	R6, R4
+	BNE	stackargs
+
+_8args:
+	MOVD	(7*8)(R12), R7
+_7args:
+	MOVD	(6*8)(R12), R6
+_6args:
+	MOVD	(5*8)(R12), R5
+_5args:
+	MOVD	(4*8)(R12), R4
+_4args:
+	MOVD	(3*8)(R12), R3
+_3args:
+	MOVD	(2*8)(R12), R2
+_2args:
+	MOVD	(1*8)(R12), R1
+_1args:
+	MOVD	(0*8)(R12), R0
+_0args:
 
 	// If fn is declared as vararg, we have to pass the vararg arguments on the stack.
 	// (Because ios decided not to adhere to the standard arm64 calling convention, sigh...)
-	// The only libSystem calls we support that are vararg are open, fcntl, and ioctl,
-	// which are all of the form fn(x, y, ...). So we just need to put the 3rd arg
-	// on the stack as well.
+	// The only libSystem calls we support with vararg are open, fcntl, ioctl,
+	// which are all of the form fn(x, y, ...), and openat, which is of the form fn(x, y, z, ...).
+	// So we just need to put the  3rd and the 4th arg on the stack as well.
+	// Note that historically openat has been called with syscall6, so we need to handle that case too.
 	// If we ever have other vararg libSystem calls, we might need to handle more cases.
+	MOVD	libcCallInfo_n(R19), R12
+	CMP	$3, R12; BNE 2(PC);
 	MOVD	R2, (RSP)
-
-	BL	(R12)
-
-	MOVD	8(RSP), R2	// pop structure pointer
-	ADD	$16, RSP
-	MOVD	R0, 32(R2)	// save r1
-	MOVD	R1, 40(R2)	// save r2
-	RET
-
-// syscall6_trampoline calls a function in libc on behalf of the syscall package.
-// syscall6_trampoline takes a pointer to a struct like:
-// struct {
-//	fn    uintptr
-//	a1    uintptr
-//	a2    uintptr
-//	a3    uintptr
-//	a4    uintptr
-//	a5    uintptr
-//	a6    uintptr
-//	r1    uintptr
-//	r2    uintptr
-// }
-// syscall6_trampoline must be called on the g0 stack with the
-// C calling convention (use libcCall).
-TEXT runtime·syscall6_trampoline(SB),NOSPLIT,$0
-	SUB	$16, RSP	// push structure pointer
-	MOVD	R0, 8(RSP)
-
-	MOVD	0(R0), R12	// fn
-	MOVD	16(R0), R1	// a2
-	MOVD	24(R0), R2	// a3
-	MOVD	32(R0), R3	// a4
-	MOVD	40(R0), R4	// a5
-	MOVD	48(R0), R5	// a6
-	MOVD	8(R0), R0	// a1
-
-	// If fn is declared as vararg, we have to pass the vararg arguments on the stack.
-	// See syscall_trampoline above. The only function this applies to is openat, for which the 4th
-	// arg must be on the stack.
+	CMP $4, R12; BNE 2(PC);
+	MOVD	R3, (RSP)
+	CMP $6, R12; BNE 2(PC);
 	MOVD	R3, (RSP)
 
+	MOVD	libcCallInfo_fn(R19), R12
 	BL	(R12)
 
-	MOVD	8(RSP), R2	// pop structure pointer
-	ADD	$16, RSP
-	MOVD	R0, 56(R2)	// save r1
-	MOVD	R1, 64(R2)	// save r2
-	RET
+	MOVD	R20, RSP	// free stack space
 
-// syscall9_trampoline calls a function in libc on behalf of the syscall package.
-// syscall9_trampoline takes a pointer to a struct like:
-// struct {
-//	fn    uintptr
-//	a1    uintptr
-//	a2    uintptr
-//	a3    uintptr
-//	a4    uintptr
-//	a5    uintptr
-//	a6    uintptr
-//	a7    uintptr
-//	a8    uintptr
-//	a9    uintptr
-//	r1    uintptr
-//	r2    uintptr
-// }
-// syscall9_trampoline must be called on the g0 stack with the
-// C calling convention (use libcCall).
-TEXT runtime·syscall9_trampoline(SB),NOSPLIT,$0
-	SUB	$16, RSP	// push structure pointer
-	MOVD	R0, 8(RSP)
+	MOVD	R0, libcCallInfo_r1(R19)
+	MOVD	R1, libcCallInfo_r2(R19)
 
-	MOVD	0(R0), R12	// fn
-	MOVD	16(R0), R1	// a2
-	MOVD	24(R0), R2	// a3
-	MOVD	32(R0), R3	// a4
-	MOVD	40(R0), R4	// a5
-	MOVD	48(R0), R5	// a6
-	MOVD	56(R0), R6	// a7
-	MOVD	64(R0), R7	// a8
-	MOVD	72(R0), R8	// a9
-	MOVD	R8, 0(RSP)	// the 9th arg and onwards must be passed on the stack
-	MOVD	8(R0), R0	// a1
-
-	BL	(R12)
-
-	MOVD	8(RSP), R2	// pop structure pointer
-	ADD	$16, RSP
-	MOVD	R0, 80(R2)	// save r1
-	MOVD	R1, 88(R2)	// save r2
-	RET
+	// Restore callee-saved registers.
+	LDP	16(RSP), (R19, R20)
+    RET
 
 TEXT runtime·libc_error_trampoline(SB),NOSPLIT,$0
+	MOVD	0(R0), R20
 	BL	libc_error(SB)
-	MOVW	(R0), R0
+	MOVD	R0, (R20)
 	RET
 
 // syscall_x509 is for crypto/x509. It is like syscall6 but does not check for errors,

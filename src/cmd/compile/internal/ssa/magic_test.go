@@ -33,7 +33,7 @@ func testMagicExhaustive(t *testing.T, n uint) {
 	min := -int64(1) << (n - 1)
 	max := int64(1) << (n - 1)
 	for c := int64(1); c < max; c++ {
-		if !smagicOK(n, int64(c)) {
+		if !smagicOK(n, c) {
 			continue
 		}
 		m := int64(smagic(n, c).m)
@@ -164,11 +164,11 @@ func TestMagicSigned(t *testing.T) {
 			if c>>(n-1) != 0 {
 				continue // not appropriate for the given n.
 			}
-			if !smagicOK(n, int64(c)) {
+			if !smagicOK(n, c) {
 				t.Errorf("expected n=%d c=%d to pass\n", n, c)
 			}
-			m := smagic(n, int64(c)).m
-			s := smagic(n, int64(c)).s
+			m := smagic(n, c).m
+			s := smagic(n, c).s
 
 			C := new(big.Int).SetInt64(c)
 			M := new(big.Int).SetUint64(m)
@@ -308,13 +308,13 @@ func testDivisibleExhaustive(t *testing.T, n uint) {
 	minI := -int64(1) << (n - 1)
 	maxI := int64(1) << (n - 1)
 	for c := int64(1); c < maxI; c++ {
-		if !sdivisibleOK(n, int64(c)) {
+		if !sdivisibleOK(n, c) {
 			continue
 		}
-		k := sdivisible(n, int64(c)).k
-		m := sdivisible(n, int64(c)).m
-		a := sdivisible(n, int64(c)).a
-		max := sdivisible(n, int64(c)).max
+		k := sdivisible(n, c).k
+		m := sdivisible(n, c).m
+		a := sdivisible(n, c).a
+		max := sdivisible(n, c).max
 		mask := ^uint64(0) >> (64 - n)
 		for i := minI; i < maxI; i++ {
 			want := i%c == 0
@@ -369,13 +369,13 @@ func TestDivisibleSigned(t *testing.T) {
 			if c>>(n-1) != 0 {
 				continue // not appropriate for the given n.
 			}
-			if !sdivisibleOK(n, int64(c)) {
+			if !sdivisibleOK(n, c) {
 				t.Errorf("expected n=%d c=%d to pass\n", n, c)
 			}
-			k := sdivisible(n, int64(c)).k
-			m := sdivisible(n, int64(c)).m
-			a := sdivisible(n, int64(c)).a
-			max := sdivisible(n, int64(c)).max
+			k := sdivisible(n, c).k
+			m := sdivisible(n, c).m
+			a := sdivisible(n, c).a
+			max := sdivisible(n, c).max
 			mask := ^uint64(0) >> (64 - n)
 
 			C := new(big.Int).SetInt64(c)
