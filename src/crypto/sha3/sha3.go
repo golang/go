@@ -97,6 +97,7 @@ func sumSHAKE256(out, data []byte, length int) []byte {
 }
 
 // SHA3 is an instance of a SHA-3 hash. It implements [hash.Hash].
+// The zero value is a usable SHA3-256 hash.
 type SHA3 struct {
 	s sha3.Digest
 }
@@ -126,43 +127,57 @@ func New512() *SHA3 {
 	return &SHA3{*sha3.New512()}
 }
 
+func (s *SHA3) init() {
+	if s.s.Size() == 0 {
+		*s = *New256()
+	}
+}
+
 // Write absorbs more data into the hash's state.
 func (s *SHA3) Write(p []byte) (n int, err error) {
+	s.init()
 	return s.s.Write(p)
 }
 
 // Sum appends the current hash to b and returns the resulting slice.
 func (s *SHA3) Sum(b []byte) []byte {
+	s.init()
 	return s.s.Sum(b)
 }
 
 // Reset resets the hash to its initial state.
 func (s *SHA3) Reset() {
+	s.init()
 	s.s.Reset()
 }
 
 // Size returns the number of bytes Sum will produce.
 func (s *SHA3) Size() int {
+	s.init()
 	return s.s.Size()
 }
 
 // BlockSize returns the hash's rate.
 func (s *SHA3) BlockSize() int {
+	s.init()
 	return s.s.BlockSize()
 }
 
 // MarshalBinary implements [encoding.BinaryMarshaler].
 func (s *SHA3) MarshalBinary() ([]byte, error) {
+	s.init()
 	return s.s.MarshalBinary()
 }
 
 // AppendBinary implements [encoding.BinaryAppender].
 func (s *SHA3) AppendBinary(p []byte) ([]byte, error) {
+	s.init()
 	return s.s.AppendBinary(p)
 }
 
 // UnmarshalBinary implements [encoding.BinaryUnmarshaler].
 func (s *SHA3) UnmarshalBinary(data []byte) error {
+	s.init()
 	return s.s.UnmarshalBinary(data)
 }
 
