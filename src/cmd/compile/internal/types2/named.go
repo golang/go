@@ -630,6 +630,7 @@ func (n *Named) resolveUnderlying() {
 			t.resolve()
 			t.mu.Lock()
 			defer t.mu.Unlock()
+
 			assert(t.fromRHS != nil || t.allowNilRHS)
 			rhs = t.fromRHS
 
@@ -640,6 +641,12 @@ func (n *Named) resolveUnderlying() {
 
 	// set underlying for all Named types in the chain
 	for t := range seen {
+		// Careful, t.underlying has lock-free readers. Since we might be racing
+		// another call to resolveUnderlying, we have to avoid overwriting
+		// t.underlying. Otherwise, the race detector will be tripped.
+		if t.stateHas(underlying) {
+			continue
+		}
 		t.underlying = u
 		t.setState(underlying)
 	}
