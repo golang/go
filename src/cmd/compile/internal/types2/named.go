@@ -562,6 +562,16 @@ func (t *Named) methodIndex(name string, foldCase bool) int {
 	return -1
 }
 
+// rhs returns [Named.fromRHS].
+//
+// In debug mode, it also asserts that n is in an appropriate state.
+func (n *Named) rhs() Type {
+	if debug {
+		assert(n.stateHas(lazyLoaded | unpacked))
+	}
+	return n.fromRHS
+}
+
 // Underlying returns the [underlying type] of the named type t, resolving all
 // forwarding declarations. Underlying types are never Named, TypeParam, or
 // Alias types.
@@ -573,7 +583,7 @@ func (n *Named) Underlying() Type {
 	// The gccimporter depends on writing a nil underlying via NewNamed and
 	// immediately reading it back. Rather than putting that in Named.under
 	// and complicating things there, we just check for that special case here.
-	if n.fromRHS == nil {
+	if n.rhs() == nil {
 		assert(n.allowNilRHS)
 		if n.allowNilUnderlying {
 			return nil
@@ -649,8 +659,8 @@ func (n *Named) resolveUnderlying() {
 			t.mu.Lock()
 			defer t.mu.Unlock()
 
-			assert(t.fromRHS != nil || t.allowNilRHS)
-			rhs = t.fromRHS
+			assert(t.rhs() != nil || t.allowNilRHS)
+			rhs = t.rhs()
 
 		default:
 			u = rhs // any type literal works
@@ -735,7 +745,7 @@ func (n *Named) expandRHS() (rhs Type) {
 	}
 
 	assert(!n.stateHas(unpacked))
-	assert(n.inst.orig.stateHas(unpacked | lazyLoaded))
+	assert(n.inst.orig.stateHas(lazyLoaded | unpacked))
 
 	if n.inst.ctxt == nil {
 		n.inst.ctxt = NewContext()
@@ -760,7 +770,7 @@ func (n *Named) expandRHS() (rhs Type) {
 		ctxt = check.context()
 	}
 
-	rhs = check.subst(n.obj.pos, orig.fromRHS, m, n, ctxt)
+	rhs = check.subst(n.obj.pos, orig.rhs(), m, n, ctxt)
 
 	// TODO(markfreeman): Can we handle this in substitution?
 	// If the RHS is an interface, we must set the receiver of interface methods
@@ -769,7 +779,7 @@ func (n *Named) expandRHS() (rhs Type) {
 		if methods, copied := replaceRecvType(iface.methods, orig, n); copied {
 			// If the RHS doesn't use type parameters, it may not have been
 			// substituted; we need to craft a new interface first.
-			if iface == orig.fromRHS {
+			if iface == orig.rhs() {
 				assert(iface.complete) // otherwise we are copying incomplete data
 
 				crafted := check.newInterface()

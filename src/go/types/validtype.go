@@ -144,7 +144,8 @@ func (check *Checker) validType0(pos token.Pos, typ Type, nest, path []*Named) b
 		// Every type added to nest is also added to path; thus every type that is in nest
 		// must also be in path (invariant). But not every type in path is in nest, since
 		// nest may be pruned (see below, *TypeParam case).
-		if !check.validType0(pos, t.Origin().fromRHS, append(nest, t), append(path, t)) {
+		t.Origin().unpack()
+		if !check.validType0(pos, t.Origin().rhs(), append(nest, t), append(path, t)) {
 			return false
 		}
 
