@@ -16,8 +16,7 @@ import (
 	"testing"
 )
 
-// MustHaveSyscallEvents skips the current test if the current
-// platform does not support true system call events.
+// Dump saves the trace to a file or the test log.
 func Dump(t *testing.T, testName string, traceBytes []byte, forceToFile bool) {
 	onBuilder := testenv.Builder() != ""
 	onOldBuilder := !strings.Contains(testenv.Builder(), "gotip") && !strings.Contains(testenv.Builder(), "go1")
