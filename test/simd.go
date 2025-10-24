@@ -105,3 +105,41 @@ func ternRewrite(m, w, x, y, z simd.Int32x16) (t0, t1, t2 simd.Int32x16) {
 	t2 = x.Xor(y).Xor(z).And(x.Xor(y).Xor(z.Not())) // ERROR "Rewriting.*ternInt"
 	return                                          // ERROR "has features avx[+]avx2[+]avx512$"
 }
+
+func ternTricky1(x, y, z simd.Int32x8) simd.Int32x8 {
+	// Int32x8 is a 256-bit vector and does not guarantee AVX-512
+	// a is a 3-variable logical expression occurring outside AVX-512 feature check
+	a := x.Xor(y).Xor(z)
+	var w simd.Int32x8
+	if !simd.HasAVX512() { // ERROR "has features avx$"
+		// do nothing
+	} else {
+		w = y.AndNot(a) // ERROR "has features avx[+]avx2[+]avx512" "Rewriting.*ternInt"
+	}
+	// a is a common subexpression
+	return a.Or(w) // ERROR "has features avx$"
+}
+
+func ternTricky2(x, y, z simd.Int32x8) simd.Int32x8 {
+	// Int32x8 is a 256-bit vector and does not guarantee AVX-512
+	var a, w simd.Int32x8
+	if !simd.HasAVX512() { // ERROR "has features avx$"
+		// do nothing
+	} else {
+		a = x.Xor(y).Xor(z)
+		w = y.AndNot(a) // ERROR "has features avx[+]avx2[+]avx512" "Rewriting.*ternInt"
+	}
+	// a is a common subexpression
+	return a.Or(w) // ERROR "has features avx$"
+}
+
+func ternTricky3(x, y, z simd.Int32x8) simd.Int32x8 {
+	// Int32x8 is a 256-bit vector and does not guarantee AVX-512
+	a := x.Xor(y).Xor(z)
+	w := y.AndNot(a)
+	if !simd.HasAVX512() { // ERROR "has features avx$"
+		return a // ERROR "has features avx$"
+	}
+	// a is a common subexpression
+	return a.Or(w) // ERROR "has features avx[+]avx2[+]avx512"  // This does not rewrite, do we want it to?
+}
