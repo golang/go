@@ -1306,7 +1306,7 @@ func parsePostForm(r *Request) (vs url.Values, err error) {
 	return
 }
 
-func parseMultiPartForm(maxMemory int64) error {
+func parseMultiPartForm(r *Request, maxMemory int64) error {
 	if r.MultipartForm == multipartByReader {
 		return errors.New("http: multipart handled by MultipartReader")
 	}
@@ -1401,12 +1401,24 @@ func (r *Request) ParseForm() error {
 // The whole request body is parsed and up to a total of maxMemory bytes of
 // its file parts are stored in memory, with the remainder stored on
 // disk in temporary files.
+// ParseMultipartForm calls [Request.ParseForm] if necessary.
+// If ParseForm returns an error, ParseMultipartForm returns it but also
+// continues parsing the request body.
+// After one call to ParseMultipartForm, subsequent calls have no effect.
+func (r *Request) ParseMultipartForm(maxMemory int64) error {
+	return parseMultiPartForm(r, maxMemory)
+}
+
+// ParseMultipartForm parses a request body as multipart/form-data.
+// The whole request body is parsed and up to a total of maxMemory bytes of
+// its file parts are stored in memory, with the remainder stored on
+// disk in temporary files.
 // Also, deleteFiles is a boolean flag that determines whether to delete the temporary files after parsing.
 // ParseMultipartForm calls [Request.ParseForm] if necessary.
 // If ParseForm returns an error, ParseMultipartForm returns it but also
 // continues parsing the request body.
 // After one call to ParseMultipartForm, subsequent calls have no effect.
-func (r *Request) ParseMultipartForm(maxMemory int64, deleteFiles bool = false) error {
+func (r *Request) ParseMultipartFormWithPartDeletion(maxMemory int64, deleteFiles bool) error {
 	if deleteFiles {
 		defer func() {
 			if r.MultipartForm != nil {
@@ -1414,7 +1426,7 @@ func (r *Request) ParseMultipartForm(maxMemory int64, deleteFiles bool = false) 
 			}
 		}()
 	}
-	return parseMultiPartForm(maxMemory)
+	return parseMultiPartForm(r, maxMemory)
 }
 
 // FormValue returns the first value for the named component of the query.
@@ -1435,9 +1447,9 @@ func (r *Request) FormValue(key string) string {
 	if vs := r.Form[key]; len(vs) > 0 {
 		return vs[0]
 	}
-	return ""dasdas
+	return ""
 }
-sdasdad
+
 // PostFormValue returns the first value for the named component of the POST,
 // PUT, or PATCH request body. URL query parameters are ignored.
 // PostFormValue calls [Request.ParseMultipartForm] and [Request.ParseForm] if necessary and ignores
