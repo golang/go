@@ -849,6 +849,8 @@ func schedinit() {
 
 	lockVerifyMSize()
 
+	sched.midle.init(unsafe.Offsetof(m{}.idleNode))
+
 	// raceinit must be the first call to race detector.
 	// In particular, it must be done before mallocinit below calls racemapshadow.
 	gp := getg()
@@ -6976,8 +6978,7 @@ func schedEnabled(gp *g) bool {
 func mput(mp *m) {
 	assertLockHeld(&sched.lock)
 
-	mp.schedlink = sched.midle
-	sched.midle.set(mp)
+	sched.midle.push(unsafe.Pointer(mp))
 	sched.nmidle++
 	checkdead()
 }
@@ -6990,9 +6991,8 @@ func mput(mp *m) {
 func mget() *m {
 	assertLockHeld(&sched.lock)
 
-	mp := sched.midle.ptr()
+	mp := (*m)(sched.midle.pop())
 	if mp != nil {
-		sched.midle = mp.schedlink
 		sched.nmidle--
 	}
 	return mp

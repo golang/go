@@ -665,6 +665,7 @@ type m struct {
 	park            note
 	alllink         *m // on allm
 	schedlink       muintptr
+	idleNode        listNodeManual
 	lockedg         guintptr
 	createstack     [32]uintptr // stack that created this thread, it's used for StackRecord.Stack0, so it must align with it.
 	lockedExt       uint32      // tracking for external LockOSThread
@@ -875,7 +876,7 @@ type schedt struct {
 	// When increasing nmidle, nmidlelocked, nmsys, or nmfreed, be
 	// sure to call checkdead().
 
-	midle        muintptr // idle m's waiting for work
+	midle        listHeadManual // idle m's waiting for work
 	nmidle       int32    // number of idle m's waiting for work
 	nmidlelocked int32    // number of locked m's waiting for work
 	mnext        int64    // number of m's that have been created and next M ID
