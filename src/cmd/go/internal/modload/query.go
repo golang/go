@@ -763,10 +763,10 @@ func QueryPattern(loaderstate *State, ctx context.Context, pattern, query string
 			return nil, modOnly, nil
 		} else if len(mainModuleMatches) != 0 {
 			return nil, nil, &QueryMatchesMainModulesError{
-				LoaderState: loaderstate,
-				MainModules: mainModuleMatches,
-				Pattern:     pattern,
-				Query:       query,
+				MainModules:     mainModuleMatches,
+				Pattern:         pattern,
+				Query:           query,
+				PatternIsModule: loaderstate.MainModules.Contains(pattern),
 			}
 		} else {
 			return nil, nil, &PackageNotInModuleError{
@@ -827,9 +827,9 @@ func QueryPattern(loaderstate *State, ctx context.Context, pattern, query string
 
 	if len(mainModuleMatches) > 0 && len(results) == 0 && modOnly == nil && errors.Is(err, fs.ErrNotExist) {
 		return nil, nil, &QueryMatchesMainModulesError{
-			LoaderState: loaderstate,
-			Pattern:     pattern,
-			Query:       query,
+			Pattern:         pattern,
+			Query:           query,
+			PatternIsModule: loaderstate.MainModules.Contains(pattern),
 		}
 	}
 	return slices.Clip(results), modOnly, err
@@ -1287,15 +1287,14 @@ func (rr *replacementRepo) replacementStat(v string) (*modfetch.RevInfo, error) 
 // a version of the main module that cannot be satisfied.
 // (The main module's version cannot be changed.)
 type QueryMatchesMainModulesError struct {
-	LoaderState *State
-	MainModules []module.Version
-	Pattern     string
-	Query       string
+	MainModules     []module.Version
+	Pattern         string
+	Query           string
+	PatternIsModule bool // true if pattern is one of the main modules
 }
 
 func (e *QueryMatchesMainModulesError) Error() string {
-	// TODO(jitsu): break dependency on loaderstate
-	if e.LoaderState.MainModules.Contains(e.Pattern) {
+	if e.PatternIsModule {
 		return fmt.Sprintf("can't request version %q of the main module (%s)", e.Query, e.Pattern)
 	}
 

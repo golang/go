@@ -735,7 +735,12 @@ func (r *resolver) queryNone(loaderstate *modload.State, ctx context.Context, q 
 				// However, neither of those behaviors would be consistent with the
 				// plain meaning of the query. To try to reduce confusion, reject the
 				// query explicitly.
-				return errSet(&modload.QueryMatchesMainModulesError{LoaderState: loaderstate, MainModules: []module.Version{v}, Pattern: q.pattern, Query: q.version})
+				return errSet(&modload.QueryMatchesMainModulesError{
+					MainModules:     []module.Version{v},
+					Pattern:         q.pattern,
+					Query:           q.version,
+					PatternIsModule: loaderstate.MainModules.Contains(q.pattern),
+				})
 			}
 
 			return pathSet{mod: module.Version{Path: q.pattern, Version: "none"}}
@@ -748,7 +753,12 @@ func (r *resolver) queryNone(loaderstate *modload.State, ctx context.Context, q 
 		}
 		q.pathOnce(curM.Path, func() pathSet {
 			if modload.HasModRoot(loaderstate) && curM.Version == "" && loaderstate.MainModules.Contains(curM.Path) {
-				return errSet(&modload.QueryMatchesMainModulesError{LoaderState: loaderstate, MainModules: []module.Version{curM}, Pattern: q.pattern, Query: q.version})
+				return errSet(&modload.QueryMatchesMainModulesError{
+					MainModules:     []module.Version{curM},
+					Pattern:         q.pattern,
+					Query:           q.version,
+					PatternIsModule: loaderstate.MainModules.Contains(q.pattern),
+				})
 			}
 			return pathSet{mod: module.Version{Path: curM.Path, Version: "none"}}
 		})
@@ -852,10 +862,10 @@ func (r *resolver) queryWildcard(loaderstate *modload.State, ctx context.Context
 			if loaderstate.MainModules.Contains(curM.Path) && !versionOkForMainModule(q.version) {
 				if q.matchesPath(curM.Path) {
 					return errSet(&modload.QueryMatchesMainModulesError{
-						LoaderState: loaderstate,
-						MainModules: []module.Version{curM},
-						Pattern:     q.pattern,
-						Query:       q.version,
+						MainModules:     []module.Version{curM},
+						Pattern:         q.pattern,
+						Query:           q.version,
+						PatternIsModule: loaderstate.MainModules.Contains(q.pattern),
 					})
 				}
 
@@ -1953,10 +1963,10 @@ func (r *resolver) resolve(s *modload.State, q *query, m module.Version) {
 
 	if s.MainModules.Contains(m.Path) && m.Version != "" {
 		reportError(q, &modload.QueryMatchesMainModulesError{
-			LoaderState: s,
-			MainModules: []module.Version{{Path: m.Path}},
-			Pattern:     q.pattern,
-			Query:       q.version,
+			MainModules:     []module.Version{{Path: m.Path}},
+			Pattern:         q.pattern,
+			Query:           q.version,
+			PatternIsModule: s.MainModules.Contains(q.pattern),
 		})
 		return
 	}
