@@ -272,13 +272,13 @@ func ParseMultipartFormWithPartDeletion(t *testing.T) {
 		Header: Header{"Content-Type": {`multipart/form-data; boundary="foo123"`}},
 		Body:   io.NopCloser(new(bytes.Buffer)),
 	}
-	err := req.ParseMultipartForm(25, true)
+	err := req.ParseMultipartFormWithPartDeletion(25)
 	if err == nil {
 		t.Error("expected multipart EOF, got nil")
 	}
 
 	req.Header = Header{"Content-Type": {"text/plain"}}
-	err = req.ParseMultipartForm(25, true)
+	err = req.ParseMultipartFormWithPartDeletion(25)
 	if err != ErrNotMultipart {
 		t.Error("expected ErrNotMultipart for text/plain")
 	}
