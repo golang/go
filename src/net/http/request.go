@@ -1409,15 +1409,15 @@ func (r *Request) ParseMultipartForm(maxMemory int64) error {
 	return parseMultiPartForm(r, maxMemory)
 }
 
-// ParseMultipartForm parses a request body as multipart/form-data.
+// ParseMultipartFormWithPartDeletion parses a request body as multipart/form-data.
 // The whole request body is parsed and up to a total of maxMemory bytes of
 // its file parts are stored in memory, with the remainder stored on
 // disk in temporary files.
 // Also, deleteFiles is a boolean flag that determines whether to delete the temporary files after parsing.
-// ParseMultipartForm calls [Request.ParseForm] if necessary.
-// If ParseForm returns an error, ParseMultipartForm returns it but also
+// ParseMultipartFormWithPartDeletion calls [Request.ParseForm] if necessary.
+// If ParseForm returns an error, ParseMultipartFormWithPartDeletion returns it but also
 // continues parsing the request body.
-// After one call to ParseMultipartForm, subsequent calls have no effect.
+// After one call to ParseMultipartFormWithPartDeletion, subsequent calls have no effect.
 func (r *Request) ParseMultipartFormWithPartDeletion(maxMemory int64, deleteFiles bool) error {
 	if deleteFiles {
 		defer func() {

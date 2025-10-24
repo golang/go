@@ -266,6 +266,24 @@ func TestParseMultipartForm(t *testing.T) {
 	}
 }
 
+func ParseMultipartFormWithPartDeletion(t *testing.T) {
+	req := &Request{
+		Method: "POST",
+		Header: Header{"Content-Type": {`multipart/form-data; boundary="foo123"`}},
+		Body:   io.NopCloser(new(bytes.Buffer)),
+	}
+	err := req.ParseMultipartForm(25, true)
+	if err == nil {
+		t.Error("expected multipart EOF, got nil")
+	}
+
+	req.Header = Header{"Content-Type": {"text/plain"}}
+	err = req.ParseMultipartForm(25, true)
+	if err != ErrNotMultipart {
+		t.Error("expected ErrNotMultipart for text/plain")
+	}
+}
+
 // Issue 45789: multipart form should not include directory path in filename
 func TestParseMultipartFormFilename(t *testing.T) {
 	postData :=
