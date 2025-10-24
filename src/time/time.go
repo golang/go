@@ -259,6 +259,7 @@ func (t *Time) mono() int64 {
 
 // IsZero reports whether t represents the zero time instant,
 // January 1, year 1, 00:00:00 UTC.
+// Equivalent to t.sec() == 0 && t.nsec() == 0 
 func (t Time) IsZero() bool {
 	return t.wall == 0 && t.ext == 0
 }
