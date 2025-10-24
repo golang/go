@@ -62,6 +62,6 @@ func runInit(ctx context.Context, cmd *base.Command, args []string) {
 	wf := new(modfile.WorkFile)
 	wf.Syntax = new(modfile.FileSyntax)
 	wf.AddGoStmt(goV)
-	workUse(moduleLoaderState, ctx, gowork, wf, args)
+	workUse(ctx, moduleLoaderState, gowork, wf, args)
 	modload.WriteWorkFile(gowork, wf)
 }

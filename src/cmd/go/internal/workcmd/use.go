@@ -72,11 +72,11 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
 	if err != nil {
 		base.Fatal(err)
 	}
-	workUse(moduleLoaderState, ctx, gowork, wf, args)
+	workUse(ctx, moduleLoaderState, gowork, wf, args)
 	modload.WriteWorkFile(gowork, wf)
 }
 
-func workUse(loaderstate *modload.State, ctx context.Context, gowork string, wf *modfile.WorkFile, args []string) {
+func workUse(ctx context.Context, s *modload.State, gowork string, wf *modfile.WorkFile, args []string) {
 	workDir := filepath.Dir(gowork) // absolute, since gowork itself is absolute
 
 	haveDirs := make(map[string][]string) // absolute → original(s)
@@ -95,7 +95,7 @@ func workUse(loaderstate *modload.State, ctx context.Context, gowork string, wf 
 	// all entries for the absolute path should be removed.
 	keepDirs := make(map[string]string)
 
-	sw := toolchain.NewSwitcher(loaderstate)
+	sw := toolchain.NewSwitcher(s)
 
 	// lookDir updates the entry in keepDirs for the directory dir,
 	// which is either absolute or relative to the current working directory
