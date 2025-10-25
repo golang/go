@@ -19,6 +19,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path"
+	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
@@ -148,6 +149,8 @@ func listTools(loaderstate *modload.State, ctx context.Context) {
 		return
 	}
 
+	toolSet := make(map[string]bool)
+
 	sort.Strings(names)
 	for _, name := range names {
 		// Unify presentation by going to lower case.
@@ -159,7 +162,34 @@ func listTools(loaderstate *modload.State, ctx context.Context) {
 		if cfg.BuildToolchainName == "gccgo" && !isGccgoTool(name) {
 			continue
 		}
+		toolSet[name] = true
 		fmt.Println(name)
+	}
+
+	// Also list builtin tools that can be built on demand.
+	// These are packages in cmd/ that would be installed to the tool directory.
+	cmdDir := filepath.Join(cfg.GOROOT, "src", "cmd")
+	entries, err := os.ReadDir(cmdDir)
+	if err == nil {
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+			toolName := entry.Name()
+			// Skip packages that are not tools.
+			if toolName == "internal" || toolName == "vendor" {
+				continue
+			}
+			// Check if this tool is already in the tool directory.
+			if toolSet[toolName] {
+				continue
+			}
+			// Check if it's a valid builtin tool.
+			if tool := loadBuiltinTool(toolName); tool != "" {
+				toolSet[toolName] = true
+				fmt.Println(toolName)
+			}
+		}
 	}
 
 	modload.InitWorkfile(loaderstate)
