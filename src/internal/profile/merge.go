@@ -6,7 +6,7 @@ package profile
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -183,13 +183,13 @@ func (sample *Sample) key() sampleKey {
 	for k, v := range sample.Label {
 		labels = append(labels, fmt.Sprintf("%q%q", k, v))
 	}
-	sort.Strings(labels)
+	slices.Sort(labels)
 
 	numlabels := make([]string, 0, len(sample.NumLabel))
 	for k, v := range sample.NumLabel {
 		numlabels = append(numlabels, fmt.Sprintf("%q%x%x", k, v, sample.NumUnit[k]))
 	}
-	sort.Strings(numlabels)
+	slices.Sort(numlabels)
 
 	return sampleKey{
 		strings.Join(ids, "|"),

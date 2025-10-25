@@ -7,7 +7,7 @@ package profile
 import (
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 )
 
 func (p *Profile) decoder() []decoder {
@@ -32,7 +32,7 @@ func (p *Profile) preEncode() {
 		for k := range s.Label {
 			keys = append(keys, k)
 		}
-		sort.Strings(keys)
+		slices.Sort(keys)
 		for _, k := range keys {
 			vs := s.Label[k]
 			for _, v := range vs {
@@ -48,7 +48,7 @@ func (p *Profile) preEncode() {
 		for k := range s.NumLabel {
 			numKeys = append(numKeys, k)
 		}
-		sort.Strings(numKeys)
+		slices.Sort(numKeys)
 		for _, k := range numKeys {
 			vs := s.NumLabel[k]
 			for _, v := range vs {
