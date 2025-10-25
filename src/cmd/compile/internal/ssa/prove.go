@@ -171,6 +171,9 @@ func (l limit) unsignedMinMax(minimum, maximum uint64) limit {
 func (l limit) nonzero() bool {
 	return l.min > 0 || l.umin > 0 || l.max < 0
 }
+func (l limit) maybeZero() bool {
+	return !l.nonzero()
+}
 func (l limit) nonnegative() bool {
 	return l.min >= 0
 }
@@ -2403,40 +2406,40 @@ func addLocalFacts(ft *factsTable, b *Block) {
 			y := ft.limits[v.Args[1].ID]
 			if !unsignedAddOverflows(x.umax, y.umax, v.Type) {
 				r := gt
-				if !x.nonzero() {
+				if x.maybeZero() {
 					r |= eq
 				}
 				ft.update(b, v, v.Args[1], unsigned, r)
 				r = gt
-				if !y.nonzero() {
+				if y.maybeZero() {
 					r |= eq
 				}
 				ft.update(b, v, v.Args[0], unsigned, r)
 			}
 			if x.min >= 0 && !signedAddOverflowsOrUnderflows(x.max, y.max, v.Type) {
 				r := gt
-				if !x.nonzero() {
+				if x.maybeZero() {
 					r |= eq
 				}
 				ft.update(b, v, v.Args[1], signed, r)
 			}
 			if y.min >= 0 && !signedAddOverflowsOrUnderflows(x.max, y.max, v.Type) {
 				r := gt
-				if !y.nonzero() {
+				if y.maybeZero() {
 					r |= eq
 				}
 				ft.update(b, v, v.Args[0], signed, r)
 			}
 			if x.max <= 0 && !signedAddOverflowsOrUnderflows(x.min, y.min, v.Type) {
 				r := lt
-				if !x.nonzero() {
+				if x.maybeZero() {
 					r |= eq
 				}
 				ft.update(b, v, v.Args[1], signed, r)
 			}
 			if y.max <= 0 && !signedAddOverflowsOrUnderflows(x.min, y.min, v.Type) {
 				r := lt
-				if !y.nonzero() {
+				if y.maybeZero() {
 					r |= eq
 				}
 				ft.update(b, v, v.Args[0], signed, r)
@@ -2446,7 +2449,7 @@ func addLocalFacts(ft *factsTable, b *Block) {
 			y := ft.limits[v.Args[1].ID]
 			if !unsignedSubUnderflows(x.umin, y.umax) {
 				r := lt
-				if !y.nonzero() {
+				if y.maybeZero() {
 					r |= eq
 				}
 				ft.update(b, v, v.Args[0], unsigned, r)
