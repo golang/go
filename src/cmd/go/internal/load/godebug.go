@@ -10,7 +10,7 @@ import (
 	"go/build"
 	"internal/godebugs"
 	"maps"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -112,7 +112,7 @@ func defaultGODEBUG(loaderstate *modload.State, p *Package, directives, testDire
 	for k := range m {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	var b strings.Builder
 	for _, k := range keys {
 		if b.Len() > 0 {

@@ -12,7 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -40,7 +40,7 @@ func filter(list []string, f func(string) bool) []string {
 func uniq(list []string) []string {
 	out := make([]string, len(list))
 	copy(out, list)
-	sort.Strings(out)
+	slices.Sort(out)
 	keep := out[:0]
 	for _, x := range out {
 		if len(keep) == 0 || keep[len(keep)-1] != x {

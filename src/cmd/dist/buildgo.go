@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -77,7 +77,7 @@ func defaultCCFunc(name string, defaultcc map[string]string) string {
 			keys = append(keys, k)
 		}
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	for _, k := range keys {
 		fmt.Fprintf(&buf, "\tcase %s:\n\t\treturn %s\n", quote(k), quote(defaultcc[k]))
 	}

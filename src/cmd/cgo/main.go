@@ -23,7 +23,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 
@@ -88,7 +88,7 @@ func nameKeys(m map[string]*Name) []string {
 	for k := range m {
 		ks = append(ks, k)
 	}
-	sort.Strings(ks)
+	slices.Sort(ks)
 	return ks
 }
 

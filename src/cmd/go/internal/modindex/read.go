@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -656,14 +657,14 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 	for tag := range allTags {
 		p.AllTags = append(p.AllTags, tag)
 	}
-	sort.Strings(p.AllTags)
+	slices.Sort(p.AllTags)
 
 	if len(p.CgoFiles) > 0 {
 		p.SFiles = append(p.SFiles, Sfiles...)
-		sort.Strings(p.SFiles)
+		slices.Sort(p.SFiles)
 	} else {
 		p.IgnoredOtherFiles = append(p.IgnoredOtherFiles, Sfiles...)
-		sort.Strings(p.IgnoredOtherFiles)
+		slices.Sort(p.IgnoredOtherFiles)
 	}
 
 	if badGoError != nil {
@@ -778,7 +779,7 @@ func keys(m map[string]bool) []string {
 	for k := range m {
 		list = append(list, k)
 	}
-	sort.Strings(list)
+	slices.Sort(list)
 	return list
 }
 

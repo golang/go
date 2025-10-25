@@ -25,7 +25,7 @@ import (
 	"os"
 	"path"
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -170,7 +170,7 @@ func genRulesSuffix(arch arch, suff string) {
 	for op := range oprules {
 		ops = append(ops, op)
 	}
-	sort.Strings(ops)
+	slices.Sort(ops)
 
 	genFile := &File{Arch: arch, Suffix: suff}
 	// Main rewrite routine is a switch on v.Op.
@@ -257,7 +257,7 @@ func genRulesSuffix(arch arch, suff string) {
 	for op := range blockrules {
 		ops = append(ops, op)
 	}
-	sort.Strings(ops)
+	slices.Sort(ops)
 	for _, op := range ops {
 		name, data := getBlockInfo(op, arch)
 		swc := &Case{Expr: exprf("%s", name)}

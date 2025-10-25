@@ -20,7 +20,6 @@ import (
 	"os/signal"
 	"path"
 	"slices"
-	"sort"
 	"strings"
 
 	"cmd/go/internal/base"
@@ -148,7 +147,7 @@ func listTools(loaderstate *modload.State, ctx context.Context) {
 		return
 	}
 
-	sort.Strings(names)
+	slices.Sort(names)
 	for _, name := range names {
 		// Unify presentation by going to lower case.
 		// If it's windows, don't show the .exe suffix.

@@ -45,7 +45,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -1781,7 +1780,7 @@ func (ctxt *Link) hostlink() {
 			ctxt.loader.ForAllCgoExportDynamic(func(s loader.Sym) {
 				exports = append(exports, "-Wl,--export-dynamic-symbol="+ctxt.loader.SymExtname(s))
 			})
-			sort.Strings(exports)
+			slices.Sort(exports)
 			argv = append(argv, exports...)
 		}
 	case ctxt.IsAIX():

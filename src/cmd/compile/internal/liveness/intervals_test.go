@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
-	"sort"
+	"slices"
 	"testing"
 )
 
@@ -306,7 +306,7 @@ func TestRandomIntervalsOverlap(t *testing.T) {
 		// decide how many segments
 		segs := rand.Intn(int(*segsflag))
 		picked := vals[:(segs * 2)]
-		sort.Ints(picked)
+		slices.Sort(picked)
 		ii, err := makeIntervals(picked...)
 		if err != nil {
 			t.Fatalf("makeIntervals(%+v) returns err %v", picked, err)

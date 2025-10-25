@@ -20,7 +20,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 	"unicode"
 )
@@ -120,7 +120,7 @@ func (p *Package) writeDefs() {
 		}
 		typedefNames = append(typedefNames, name)
 	}
-	sort.Strings(typedefNames)
+	slices.Sort(typedefNames)
 	for _, name := range typedefNames {
 		def := typedef[name]
 		fmt.Fprintf(fgo2, "type %s ", name)

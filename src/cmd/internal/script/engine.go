@@ -55,7 +55,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 )
@@ -650,7 +650,7 @@ func (e *Engine) ListCmds(w io.Writer, verbose bool, names ...string) error {
 		for name := range e.Cmds {
 			names = append(names, name)
 		}
-		sort.Strings(names)
+		slices.Sort(names)
 	}
 
 	for _, name := range names {
@@ -727,7 +727,7 @@ func (e *Engine) ListConds(w io.Writer, s *State, tags ...string) error {
 		for name := range e.Conds {
 			tags = append(tags, name)
 		}
-		sort.Strings(tags)
+		slices.Sort(tags)
 	}
 
 	for _, tag := range tags {
