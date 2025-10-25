@@ -83,6 +83,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 		RegabiArgs:            regabiSupported,
 		Dwarf5:                dwarf5Supported,
 		RandomizedHeapBase64:  true,
+		RuntimeFree:           true,
 		SizeSpecializedMalloc: true,
 		GreenTeaGC:            true,
 	}
