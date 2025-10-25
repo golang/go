@@ -3857,7 +3857,6 @@ func (h *timeoutHandler) ServeHTTP(w ResponseWriter, r *Request) {
 		defer cancelCtx()
 	}
 	r = r.WithContext(ctx)
-	done := make(chan struct{})
 	tw := &timeoutWriter{
 		w:   w,
 		h:   make(Header),
@@ -3871,12 +3870,13 @@ func (h *timeoutHandler) ServeHTTP(w ResponseWriter, r *Request) {
 			}
 		}()
 		h.handler.ServeHTTP(tw, r)
-		close(done)
+		close(panicChan)
 	}()
 	select {
 	case p := <-panicChan:
-		panic(p)
-	case <-done:
+		if p != nil {
+			panic(p)
+		}
 		tw.mu.Lock()
 		defer tw.mu.Unlock()
 		dst := w.Header()
