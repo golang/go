@@ -16,7 +16,7 @@ import (
 //go:generate go run . -out ../../ctr_amd64.s
 
 func main() {
-	Package("crypto/aes")
+	Package("crypto/internal/fips140/aes")
 	ConstraintExpr("!purego")
 
 	ctrBlocks(1)
