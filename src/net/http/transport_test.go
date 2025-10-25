@@ -474,6 +474,56 @@ func testTransportReadToEndReusesConn(t *testing.T, mode testMode) {
 	}
 }
 
+// Tests that the HTTP transport re-uses connections when a client
+// early closes a response Body but the content is fully read into the underlying
+// buffer. So we can discard the body buffer and reuse the connection.
+func TestTransportReusesEarlyCloseButAllReceivedConn(t *testing.T) {
+	run(t, testTransportReusesEarlyCloseButAllReceivedConn)
+}
+func testTransportReusesEarlyCloseButAllReceivedConn(t *testing.T, mode testMode) {
+	const msg = "foobar"
+
+	var addrSeen map[string]int
+	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		addrSeen[r.RemoteAddr]++
+		w.Header().Set("Content-Length", strconv.Itoa(len(msg)))
+		w.WriteHeader(200)
+		w.Write([]byte(msg))
+	})).ts
+
+	wantLen := len(msg)
+	addrSeen = make(map[string]int)
+	total := 5
+	for i := 0; i < total; i++ {
+		res, err := ts.Client().Get(ts.URL)
+		if err != nil {
+			t.Errorf("Get /: %v", err)
+			continue
+		}
+
+		if res.ContentLength != int64(wantLen) {
+			t.Errorf("res.ContentLength = %d; want %d", res.ContentLength, wantLen)
+		}
+
+		if i+1 < total {
+			// Close body directly. The body is small enough, so probably the underlying bufio.Reader
+			// has read entire body into buffer. Thus even if the body is not read, the buffer is discarded
+			// then connection is reused.
+			res.Body.Close()
+		} else {
+			// when reading body, everything should be same.
+			got, err := io.ReadAll(res.Body)
+			if string(got) != msg || err != nil {
+				t.Errorf("ReadAll(Body) = %q, %v; want %q, nil", string(got), err, msg)
+			}
+		}
+	}
+
+	if len(addrSeen) != 1 {
+		t.Errorf("server saw %d distinct client addresses; want 1", len(addrSeen))
+	}
+}
+
 func TestTransportMaxPerHostIdleConns(t *testing.T) {
 	run(t, testTransportMaxPerHostIdleConns, []testMode{http1Mode})
 }
