@@ -2473,6 +2473,41 @@ func addLocalFacts(ft *factsTable, b *Block) {
 			OpRsh16Ux64, OpRsh16Ux32, OpRsh16Ux16, OpRsh16Ux8,
 			OpRsh32Ux64, OpRsh32Ux32, OpRsh32Ux16, OpRsh32Ux8,
 			OpRsh64Ux64, OpRsh64Ux32, OpRsh64Ux16, OpRsh64Ux8:
+			switch add := v.Args[0]; add.Op {
+			// round-up division pattern; given:
+			// v = (x + y) / z
+			// if y < z then v <= x
+			case OpAdd64, OpAdd32, OpAdd16, OpAdd8:
+				z := v.Args[1]
+				zl := ft.limits[z.ID]
+				var uminDivisor uint64
+				switch v.Op {
+				case OpDiv64u, OpDiv32u, OpDiv16u, OpDiv8u:
+					uminDivisor = zl.umin
+				case OpRsh8Ux64, OpRsh8Ux32, OpRsh8Ux16, OpRsh8Ux8,
+					OpRsh16Ux64, OpRsh16Ux32, OpRsh16Ux16, OpRsh16Ux8,
+					OpRsh32Ux64, OpRsh32Ux32, OpRsh32Ux16, OpRsh32Ux8,
+					OpRsh64Ux64, OpRsh64Ux32, OpRsh64Ux16, OpRsh64Ux8:
+					uminDivisor = 1 << zl.umin
+				default:
+					panic("unreachable")
+				}
+
+				x := add.Args[0]
+				xl := ft.limits[x.ID]
+				y := add.Args[1]
+				yl := ft.limits[y.ID]
+				if unsignedAddOverflows(xl.umax, yl.umax, add.Type) {
+					continue
+				}
+
+				if xl.umax < uminDivisor {
+					ft.update(b, v, y, unsigned, lt|eq)
+				}
+				if yl.umax < uminDivisor {
+					ft.update(b, v, x, unsigned, lt|eq)
+				}
+			}
 			ft.update(b, v, v.Args[0], unsigned, lt|eq)
 		case OpMod64, OpMod32, OpMod16, OpMod8:
 			a := ft.limits[v.Args[0].ID]
