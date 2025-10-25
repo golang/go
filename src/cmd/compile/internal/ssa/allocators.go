@@ -331,3 +331,29 @@ func (c *Cache) freeIDSlice(s []ID) {
 	}
 	c.freeLimitSlice(*(*[]limit)(unsafe.Pointer(&b)))
 }
+func (c *Cache) allocUintSlice(n int) []uint {
+	var base limit
+	var derived uint
+	if unsafe.Sizeof(base)%unsafe.Sizeof(derived) != 0 {
+		panic("bad")
+	}
+	scale := unsafe.Sizeof(base) / unsafe.Sizeof(derived)
+	b := c.allocLimitSlice(int((uintptr(n) + scale - 1) / scale))
+	s := unsafeheader.Slice{
+		Data: unsafe.Pointer(&b[0]),
+		Len:  n,
+		Cap:  cap(b) * int(scale),
+	}
+	return *(*[]uint)(unsafe.Pointer(&s))
+}
+func (c *Cache) freeUintSlice(s []uint) {
+	var base limit
+	var derived uint
+	scale := unsafe.Sizeof(base) / unsafe.Sizeof(derived)
+	b := unsafeheader.Slice{
+		Data: unsafe.Pointer(&s[0]),
+		Len:  int((uintptr(len(s)) + scale - 1) / scale),
+		Cap:  int((uintptr(cap(s)) + scale - 1) / scale),
+	}
+	c.freeLimitSlice(*(*[]limit)(unsafe.Pointer(&b)))
+}

@@ -6,9 +6,11 @@ package ssa
 
 import (
 	"cmd/internal/src"
+	"cmp"
 	"fmt"
 	"math"
 	"math/bits"
+	"slices"
 )
 
 type branch int
@@ -414,6 +416,9 @@ type factsTable struct {
 	// more than one len(s) for a slice. We could keep a list if necessary.
 	lens map[ID]*Value
 	caps map[ID]*Value
+
+	// reusedTopoSortScoresTable recycle allocations for topo-sort
+	reusedTopoSortScoresTable []uint
 }
 
 // checkpointBound is an invalid value used for checkpointing
@@ -1240,6 +1245,9 @@ func (ft *factsTable) cleanup(f *Func) {
 	}
 	f.Cache.freeLimitSlice(ft.limits)
 	f.Cache.freeBoolSlice(ft.recurseCheck)
+	if cap(ft.reusedTopoSortScoresTable) > 0 {
+		f.Cache.freeUintSlice(ft.reusedTopoSortScoresTable)
+	}
 }
 
 // prove removes redundant BlockIf branches that can be inferred
@@ -2015,23 +2023,13 @@ func addRestrictions(parent *Block, ft *factsTable, t domain, v, w *Value, r rel
 }
 
 func addLocalFacts(ft *factsTable, b *Block) {
-	// Propagate constant ranges among values in this block.
-	// We do this before the second loop so that we have the
-	// most up-to-date constant bounds for isNonNegative calls.
-	for {
-		changed := false
-		for _, v := range b.Values {
-			changed = ft.flowLimit(v) || changed
-		}
-		if !changed {
-			break
-		}
-	}
+	ft.topoSortValuesInBlock(b)
 
-	// Add facts about individual operations.
 	for _, v := range b.Values {
-		// FIXME(go.dev/issue/68857): this loop only set up limits properly when b.Values is in topological order.
-		// flowLimit can also depend on limits given by this loop which right now is not handled.
+		// Propagate constant ranges before relative relations to get
+		// the most up-to-date constant bounds for isNonNegative calls.
+		ft.flowLimit(v)
+
 		switch v.Op {
 		case OpAnd64, OpAnd32, OpAnd16, OpAnd8:
 			ft.update(b, v, v.Args[0], unsigned, lt|eq)
@@ -2423,4 +2421,58 @@ func isCleanExt(v *Value) bool {
 		return !v.Args[0].Type.IsSigned()
 	}
 	return false
+}
+
+func getDependencyScore(scores []uint, v *Value) (score uint) {
+	if score = scores[v.ID]; score != 0 {
+		return score
+	}
+	defer func() {
+		scores[v.ID] = score
+	}()
+	if v.Op == OpPhi {
+		return 1
+	}
+	score = 2 // NIT(@Jorropo): always order phis first to make GOSSAFUNC pretty.
+	for _, a := range v.Args {
+		if a.Block != v.Block {
+			continue
+		}
+		score = max(score, getDependencyScore(scores, a)+1)
+	}
+	return score
+}
+
+// topoSortValuesInBlock ensure ranging over b.Values visit values before they are being used.
+// It does not consider dependencies with other blocks; thus Phi nodes are considered to not have any dependecies.
+// The result is always determistic and does not depend on the previous slice ordering.
+func (ft *factsTable) topoSortValuesInBlock(b *Block) {
+	f := b.Func
+	want := f.NumValues()
+
+	scores := ft.reusedTopoSortScoresTable
+	if len(scores) < want {
+		if want <= cap(scores) {
+			scores = scores[:want]
+		} else {
+			if cap(scores) > 0 {
+				f.Cache.freeUintSlice(scores)
+			}
+			scores = f.Cache.allocUintSlice(want)
+			ft.reusedTopoSortScoresTable = scores
+		}
+	}
+
+	for _, v := range b.Values {
+		scores[v.ID] = 0 // sentinel
+	}
+
+	slices.SortFunc(b.Values, func(a, b *Value) int {
+		dependencyScoreA := getDependencyScore(scores, a)
+		dependencyScoreB := getDependencyScore(scores, b)
+		if dependencyScoreA != dependencyScoreB {
+			return cmp.Compare(dependencyScoreA, dependencyScoreB)
+		}
+		return cmp.Compare(a.ID, b.ID)
+	})
 }
