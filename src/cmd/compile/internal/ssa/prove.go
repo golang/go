@@ -1962,19 +1962,6 @@ func (ft *factsTable) flowLimit(v *Value) bool {
 		b := ft.limits[v.Args[1].ID]
 		bitsize := uint(v.Type.Size()) * 8
 		return ft.newLimit(v, a.mul(b.exp2(bitsize), bitsize))
-	case OpMod64, OpMod32, OpMod16, OpMod8:
-		a := ft.limits[v.Args[0].ID]
-		b := ft.limits[v.Args[1].ID]
-		if !(a.nonnegative() && b.nonnegative()) {
-			// TODO: we could handle signed limits but I didn't bother.
-			break
-		}
-		fallthrough
-	case OpMod64u, OpMod32u, OpMod16u, OpMod8u:
-		a := ft.limits[v.Args[0].ID]
-		b := ft.limits[v.Args[1].ID]
-		// Underflow in the arithmetic below is ok, it gives to MaxUint64 which does nothing to the limit.
-		return ft.unsignedMax(v, min(a.umax, b.umax-1))
 	case OpDiv64, OpDiv32, OpDiv16, OpDiv8:
 		a := ft.limits[v.Args[0].ID]
 		b := ft.limits[v.Args[1].ID]
@@ -2484,6 +2471,14 @@ func addLocalFacts(ft *factsTable, b *Block) {
 			OpRsh32Ux64, OpRsh32Ux32, OpRsh32Ux16, OpRsh32Ux8,
 			OpRsh64Ux64, OpRsh64Ux32, OpRsh64Ux16, OpRsh64Ux8:
 			ft.update(b, v, v.Args[0], unsigned, lt|eq)
+		case OpMod64, OpMod32, OpMod16, OpMod8:
+			a := ft.limits[v.Args[0].ID]
+			b := ft.limits[v.Args[1].ID]
+			if !(a.nonnegative() && b.nonnegative()) {
+				// TODO: we could handle signed limits but I didn't bother.
+				break
+			}
+			fallthrough
 		case OpMod64u, OpMod32u, OpMod16u, OpMod8u:
 			ft.update(b, v, v.Args[0], unsigned, lt|eq)
 			// Note: we have to be careful that this doesn't imply
