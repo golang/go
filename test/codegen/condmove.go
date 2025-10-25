@@ -15,6 +15,8 @@ func cmovint(c int) int {
 	// arm64:"CSEL\tLT"
 	// ppc64x:"ISEL\t[$]0"
 	// wasm:"Select"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`
 	return x
 }
 
@@ -26,6 +28,8 @@ func cmovchan(x, y chan int) chan int {
 	// arm64:"CSEL\tNE"
 	// ppc64x:"ISEL\t[$]2"
 	// wasm:"Select"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`
 	return x
 }
 
@@ -37,6 +41,8 @@ func cmovuintptr(x, y uintptr) uintptr {
 	// arm64:"CSNEG\tLS"
 	// ppc64x:"ISEL\t[$]1"
 	// wasm:"Select"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`
 	return x
 }
 
@@ -48,6 +54,8 @@ func cmov32bit(x, y uint32) uint32 {
 	// arm64:"CSNEG\t(LS|HS)"
 	// ppc64x:"ISEL\t[$]1"
 	// wasm:"Select"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`
 	return x
 }
 
@@ -59,6 +67,8 @@ func cmov16bit(x, y uint16) uint16 {
 	// arm64:"CSNEG\t(LS|HS)"
 	// ppc64x:"ISEL\t[$][01]"
 	// wasm:"Select"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`
 	return x
 }
 
@@ -73,6 +83,8 @@ func cmovfloateq(x, y float64) int {
 	// arm64:"CSEL\tEQ"
 	// ppc64x:"ISEL\t[$]2"
 	// wasm:"Select"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`
 	return a
 }
 
@@ -85,6 +97,8 @@ func cmovfloatne(x, y float64) int {
 	// arm64:"CSEL\tNE"
 	// ppc64x:"ISEL\t[$]2"
 	// wasm:"Select"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`
 	return a
 }
 
@@ -112,6 +126,8 @@ func cmovfloatint2(x, y float64) float64 {
 		// arm64:"CSEL\tMI"
 		// ppc64x:"ISEL\t[$]0"
 		// wasm:"Select"
+		// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+		// riscv64/rva23u64:`CZEROEQZ`, -`CZERONEZ`, -`OR`
 		r = r - ldexp(y, rexp-yexp)
 	}
 	return r
@@ -127,6 +143,8 @@ func cmovloaded(x [4]int, y int) int {
 	// arm64:"CSEL\tNE"
 	// ppc64x:"ISEL\t[$]2"
 	// wasm:"Select"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZERONEZ`, `OR`, -`CZEROEQZ`, -`SNEZ`
 	return y
 }
 
@@ -139,6 +157,8 @@ func cmovuintptr2(x, y uintptr) uintptr {
 	// arm64:"CSEL\tEQ"
 	// ppc64x:"ISEL\t[$]2"
 	// wasm:"Select"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZERONEZ`, `OR`, -`CZEROEQZ`, -`SEQZ`
 	return a
 }
 
@@ -165,6 +185,8 @@ func cmovinvert1(x, y int64) int64 {
 		y = -y
 	}
 	// amd64:"CMOVQGT"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`
 	return y
 }
 func cmovinvert2(x, y int64) int64 {
@@ -179,6 +201,8 @@ func cmovinvert3(x, y int64) int64 {
 		y = -y
 	}
 	// amd64:"CMOVQEQ"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`
 	return y
 }
 func cmovinvert4(x, y int64) int64 {
@@ -186,6 +210,8 @@ func cmovinvert4(x, y int64) int64 {
 		y = -y
 	}
 	// amd64:"CMOVQNE"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`
 	return y
 }
 func cmovinvert5(x, y uint64) uint64 {
@@ -193,6 +219,8 @@ func cmovinvert5(x, y uint64) uint64 {
 		y = -y
 	}
 	// amd64:"CMOVQCS"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`
 	return y
 }
 func cmovinvert6(x, y uint64) uint64 {
@@ -200,6 +228,8 @@ func cmovinvert6(x, y uint64) uint64 {
 		y = -y
 	}
 	// amd64:"CMOVQLS"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`
 	return y
 }
 
@@ -217,6 +247,8 @@ func cmovstore(a []int, i int, b bool) {
 		i += 42
 	}
 	// amd64:"CMOVQNE"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZEROEQZ`, -`CZERONEZ`
 	a[i] = 7
 }
 
@@ -231,6 +263,8 @@ func cmovinc(cond bool, a, b, c int) {
 		x0 = b + 1
 	}
 	// arm64:"CSINC\tNE", -"CSEL"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`
 	r0 = x0
 
 	if cond {
@@ -239,6 +273,8 @@ func cmovinc(cond bool, a, b, c int) {
 		x1 = a
 	}
 	// arm64:"CSINC\tEQ", -"CSEL"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`
 	r1 = x1
 
 	if cond {
@@ -257,6 +293,8 @@ func cmovinv(cond bool, a, b int) {
 		x0 = ^b
 	}
 	// arm64:"CSINV\tNE", -"CSEL"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`
 	r0 = x0
 
 	if cond {
@@ -265,6 +303,8 @@ func cmovinv(cond bool, a, b int) {
 		x1 = a
 	}
 	// arm64:"CSINV\tEQ", -"CSEL"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`
 	r1 = x1
 }
 
@@ -277,6 +317,8 @@ func cmovneg(cond bool, a, b, c int) {
 		x0 = -b
 	}
 	// arm64:"CSNEG\tNE", -"CSEL"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`
 	r0 = x0
 
 	if cond {
@@ -285,6 +327,8 @@ func cmovneg(cond bool, a, b, c int) {
 		x1 = a
 	}
 	// arm64:"CSNEG\tEQ", -"CSEL"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`
 	r1 = x1
 }
 
@@ -297,6 +341,8 @@ func cmovsetm(cond bool, x int) {
 		x0 = 0
 	}
 	// arm64:"CSETM\tNE", -"CSEL"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZEROEQZ`, -`CZERONEZ`
 	r0 = x0
 
 	if cond {
@@ -305,6 +351,8 @@ func cmovsetm(cond bool, x int) {
 		x1 = -1
 	}
 	// arm64:"CSETM\tEQ", -"CSEL"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZERONEZ`, -`CZEROEQZ`
 	r1 = x1
 }
 
@@ -317,6 +365,8 @@ func cmovFcmp0(s, t float64, a, b int) {
 		x0 = b + 1
 	}
 	// arm64:"CSINC\tMI", -"CSEL"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`
 	r0 = x0
 
 	if s <= t {
@@ -325,6 +375,8 @@ func cmovFcmp0(s, t float64, a, b int) {
 		x1 = ^b
 	}
 	// arm64:"CSINV\tLS", -"CSEL"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`
 	r1 = x1
 
 	if s > t {
@@ -333,6 +385,8 @@ func cmovFcmp0(s, t float64, a, b int) {
 		x2 = -b
 	}
 	// arm64:"CSNEG\tMI", -"CSEL"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`
 	r2 = x2
 
 	if s >= t {
@@ -341,6 +395,8 @@ func cmovFcmp0(s, t float64, a, b int) {
 		x3 = 0
 	}
 	// arm64:"CSETM\tLS", -"CSEL"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZEROEQZ`, -`CZERONEZ`
 	r3 = x3
 
 	if s == t {
@@ -349,6 +405,8 @@ func cmovFcmp0(s, t float64, a, b int) {
 		x4 = b + 1
 	}
 	// arm64:"CSINC\tEQ", -"CSEL"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`
 	r4 = x4
 
 	if s != t {
@@ -357,6 +415,8 @@ func cmovFcmp0(s, t float64, a, b int) {
 		x5 = b + 1
 	}
 	// arm64:"CSINC\tNE", -"CSEL"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`
 	r5 = x5
 }
 
@@ -369,6 +429,8 @@ func cmovFcmp1(s, t float64, a, b int) {
 		x0 = a
 	}
 	// arm64:"CSINC\tPL", -"CSEL"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`
 	r0 = x0
 
 	if s <= t {
@@ -377,6 +439,8 @@ func cmovFcmp1(s, t float64, a, b int) {
 		x1 = a
 	}
 	// arm64:"CSINV\tHI", -"CSEL"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`
 	r1 = x1
 
 	if s > t {
@@ -385,6 +449,8 @@ func cmovFcmp1(s, t float64, a, b int) {
 		x2 = a
 	}
 	// arm64:"CSNEG\tPL", -"CSEL"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`
 	r2 = x2
 
 	if s >= t {
@@ -393,6 +459,8 @@ func cmovFcmp1(s, t float64, a, b int) {
 		x3 = -1
 	}
 	// arm64:"CSETM\tHI", -"CSEL"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZERONEZ`,-`CZEROEQZ`
 	r3 = x3
 
 	if s == t {
@@ -401,6 +469,8 @@ func cmovFcmp1(s, t float64, a, b int) {
 		x4 = a
 	}
 	// arm64:"CSINC\tNE", -"CSEL"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`
 	r4 = x4
 
 	if s != t {
@@ -409,6 +479,8 @@ func cmovFcmp1(s, t float64, a, b int) {
 		x5 = a
 	}
 	// arm64:"CSINC\tEQ", -"CSEL"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZEROEQZ`, `CZERONEZ`, `OR`
 	r5 = x5
 }
 
@@ -418,6 +490,8 @@ func cmovzero1(c bool) int {
 		x = 182
 	}
 	// loong64:"MASKEQZ", -"MASKNEZ"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZEROEQZ`, -`CZERONEZ`
 	return x
 }
 
@@ -427,6 +501,8 @@ func cmovzero2(c bool) int {
 		x = 182
 	}
 	// loong64:"MASKNEZ", -"MASKEQZ"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZERONEZ`, -`CZEROEQZ`
 	return x
 }
 
@@ -440,6 +516,8 @@ func cmovzeroreg0(a, b int) int {
 		x = a
 	}
 	// ppc64x:"ISEL\t[$]2, R[0-9]+, R0, R[0-9]+"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZERONEZ`, -`CZEROEQZ`
 	return x
 }
 
@@ -449,6 +527,8 @@ func cmovzeroreg1(a, b int) int {
 		x = 0
 	}
 	// ppc64x:"ISEL\t[$]2, R0, R[0-9]+, R[0-9]+"
+	// riscv64/rva20u64, riscv64/rva22u64:-`CZEROEQZ`, -`CZERONEZ`
+	// riscv64/rva23u64:`CZEROEQZ`, -`CZERONEZ`
 	return x
 }
 
@@ -505,5 +585,198 @@ func cmovmathhalveu(a uint, b bool) uint {
 	// amd64/v3:"SHR", -"CMOV", -"MOV"
 	// arm64:"LSR", -"CSEL"
 	// wasm:"I64ShrU", -"Select"
+	return a
+}
+
+func cmoveAddZero(cond, a, b int) int {
+	if cond == 0 {
+		a += b
+	}
+	// riscv64/rva23u64:`CZERONEZ`, `ADD`, -`SEQZ`, -`CZEROEQZ`, -`OR`
+	return a
+}
+
+func cmoveAddNonZero(cond, a, b int) int {
+	if cond != 0 {
+		a += b
+	}
+	// riscv64/rva23u64:`CZEROEQZ`, `ADD`, -`SNEZ`, -`CZERONEZ`, -`OR`
+	return a
+}
+
+func cmoveSubZero(cond, a, b int) int {
+	if cond == 0 {
+		a -= b
+	}
+	// riscv64/rva23u64:`CZERONEZ`, `SUB`, -`SEQZ`, -`CZEROEQZ`, -`OR`
+	return a
+}
+
+func cmoveSubNonZero(cond, a, b int) int {
+	if cond != 0 {
+		a -= b
+	}
+	// riscv64/rva23u64:`CZEROEQZ`, `SUB`, -`SNEZ`, -`CZERONEZ`, -`OR`
+	return a
+}
+
+func cmoveOrZero(cond, a, b int) int {
+	if cond == 0 {
+		a |= b
+	}
+	// riscv64/rva23u64:`CZERONEZ`, `OR`, -`SEQZ`, -`CZEROEQZ`
+	return a
+}
+
+func cmoveOrNonZero(cond, a, b int) int {
+	if cond != 0 {
+		a |= b
+	}
+	// riscv64/rva23u64:`CZEROEQZ`, `OR`, -`SNEZ`, -`CZERONEZ`
+	return a
+}
+
+func cmoveXorZero(cond, a, b int) int {
+	if cond == 0 {
+		a ^= b
+	}
+	// riscv64/rva23u64:`CZERONEZ`, `XOR`, -`SEQZ`, -`CZEROEQZ`, -`OR`
+	return a
+}
+
+func cmoveXorNonZero(cond, a, b int) int {
+	if cond != 0 {
+		a ^= b
+	}
+	// riscv64/rva23u64:`CZEROEQZ`, `XOR`, -`SNEZ`, -`CZERONEZ`, -`OR`
+	return a
+}
+
+func cmoveAndZero(cond, a, b int) int {
+	if cond == 0 {
+		a &= b
+	}
+	// riscv64/rva23u64:`CZEROEQZ`, `AND`, `OR`, -`SEQZ`, -`CZERONEZ`
+	return a
+}
+
+func CondAndNonZero(cond, a, b int) int {
+	if cond != 0 {
+		a &= b
+	}
+	// riscv64/rva23u64:`CZERONEZ`, `AND`, `OR`, -`SNEZ`, -`CZEROEQZ`
+	return a
+}
+
+func cmoveAddiZero(cond, a int) int {
+	if cond == 0 {
+		a += 42
+	}
+	// riscv64/rva23u64:`CZERONEZ`, `ADD`, -`SEQZ`, -`CZEROEQZ`, -`OR`
+	return a
+}
+
+func cmoveAddiNonZero(cond, a int) int {
+	if cond != 0 {
+		a += 42
+	}
+	// riscv64/rva23u64:`CZEROEQZ`, `ADD`, -`SNEZ`, -`CZERONEZ`, -`OR`
+	return a
+}
+
+func cmoveOriZero(cond, a int) int {
+	if cond == 0 {
+		a |= 0xFF
+	}
+	// riscv64/rva23u64:`CZERONEZ`, -`SEQZ`, -`CZEROEQZ`
+	return a
+}
+
+func cmoveOriNonZero(cond, a int) int {
+	if cond != 0 {
+		a |= 0xFF
+	}
+	// riscv64/rva23u64:`CZEROEQZ`, -`SNEZ`, -`CZERONEZ`
+	return a
+}
+
+func cmoveXoriZero(cond, a int) int {
+	if cond == 0 {
+		a ^= 0xFFFF
+	}
+	// riscv64/rva23u64:`CZERONEZ`, `XOR`, -`SEQZ`, -`CZEROEQZ`, -`OR`
+	return a
+}
+
+func cmoveXoriNonZero(cond, a int) int {
+	if cond != 0 {
+		a ^= 0xFFFF
+	}
+	// riscv64/rva23u64:`CZEROEQZ`, `XOR`, -`SNEZ`, -`CZERONEZ`, -`OR`
+	return a
+}
+
+func cmoveAndiZero(cond, a int) int {
+	if cond == 0 {
+		a &= 0xFF
+	}
+	// riscv64/rva23u64:`CZEROEQZ`, `AND`, `OR`, -`SEQZ`, -`CZERONEZ`
+	return a
+}
+
+func cmoveAndiNonZero(cond, a int) int {
+	if cond != 0 {
+		a &= 0xFF
+	}
+	// riscv64/rva23u64:`CZERONEZ`, `AND`, `OR`, -`SNEZ`, -`CZEROEQZ`
+	return a
+}
+
+// 32-bit immediate variant tests
+func cmoveAddiwZero(cond int32, a int32) int32 {
+	if cond == 0 {
+		a += 42
+	}
+	// riscv64/rva23u64:`CZERONEZ`, `ADD`, -`SEQZ`, -`CZEROEQZ`, -`OR`
+	return a
+}
+
+func cmoveAddiwNonZero(cond int32, a int32) int32 {
+	if cond != 0 {
+		a += 42
+	}
+	// riscv64/rva23u64:`CZEROEQZ`, `ADD`, -`SNEZ`, -`CZERONEZ`, -`OR`
+	return a
+}
+
+func cmoveAddwZero(cond int32, a, b int32) int32 {
+	if cond == 0 {
+		a += b
+	}
+	// riscv64/rva23u64:`CZERONEZ`, `ADD`, -`SEQZ`, -`CZEROEQZ`, -`OR`
+	return a
+}
+
+func cmoveAddwNonZero(cond int32, a, b int32) int32 {
+	if cond != 0 {
+		a += b
+	}
+	// riscv64/rva23u64:`CZEROEQZ`, `ADD`, -`SNEZ`, -`CZERONEZ`, -`OR`
+	return a
+}
+
+func cmoveSubwZero(cond int32, a, b int32) int32 {
+	if cond == 0 {
+		a -= b
+	}
+	// riscv64/rva23u64:`CZERONEZ`, `SUB`, -`SEQZ`, -`CZEROEQZ`, -`OR`
+	return a
+}
+
+func cmoveSubwNonZero(cond int32, a, b int32) int32 {
+	if cond != 0 {
+		a -= b
+	}
+	// riscv64/rva23u64:`CZEROEQZ`, `SUB`, -`SNEZ`, -`CZERONEZ`, -`OR`
 	return a
 }
