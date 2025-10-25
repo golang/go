@@ -1306,6 +1306,44 @@ func parsePostForm(r *Request) (vs url.Values, err error) {
 	return
 }
 
+func parseMultiPartForm(r *Request, maxMemory int64) error {
+	if r.MultipartForm == multipartByReader {
+		return errors.New("http: multipart handled by MultipartReader")
+	}
+	var parseFormErr error
+	if r.Form == nil {
+		// Let errors in ParseForm fall through, and just
+		// return it at the end.
+		parseFormErr = r.ParseForm()
+	}
+	if r.MultipartForm != nil {
+		return nil
+	}
+
+	mr, err := r.multipartReader(false)
+	if err != nil {
+		return err
+	}
+
+	f, err := mr.ReadForm(maxMemory)
+	if err != nil {
+		return err
+	}
+
+	if r.PostForm == nil {
+		r.PostForm = make(url.Values)
+	}
+	for k, v := range f.Value {
+		r.Form[k] = append(r.Form[k], v...)
+		// r.PostForm should also be populated. See Issue 9305.
+		r.PostForm[k] = append(r.PostForm[k], v...)
+	}
+
+	r.MultipartForm = f
+
+	return parseFormErr
+}
+
 // ParseForm populates r.Form and r.PostForm.
 //
 // For all requests, ParseForm parses the raw query from the URL and updates
@@ -1368,41 +1406,24 @@ func (r *Request) ParseForm() error {
 // continues parsing the request body.
 // After one call to ParseMultipartForm, subsequent calls have no effect.
 func (r *Request) ParseMultipartForm(maxMemory int64) error {
-	if r.MultipartForm == multipartByReader {
-		return errors.New("http: multipart handled by MultipartReader")
-	}
-	var parseFormErr error
-	if r.Form == nil {
-		// Let errors in ParseForm fall through, and just
-		// return it at the end.
-		parseFormErr = r.ParseForm()
-	}
-	if r.MultipartForm != nil {
-		return nil
-	}
+	return parseMultiPartForm(r, maxMemory)
+}
 
-	mr, err := r.multipartReader(false)
-	if err != nil {
-		return err
-	}
-
-	f, err := mr.ReadForm(maxMemory)
-	if err != nil {
-		return err
-	}
-
-	if r.PostForm == nil {
-		r.PostForm = make(url.Values)
-	}
-	for k, v := range f.Value {
-		r.Form[k] = append(r.Form[k], v...)
-		// r.PostForm should also be populated. See Issue 9305.
-		r.PostForm[k] = append(r.PostForm[k], v...)
-	}
-
-	r.MultipartForm = f
-
-	return parseFormErr
+// ParseMultipartFormWithPartDeletion parses a request body as multipart/form-data.
+// The whole request body is parsed and up to a total of maxMemory bytes of
+// its file parts are stored in memory, with the remainder stored on
+// disk in temporary files, and then deleted.
+// ParseMultipartFormWithPartDeletion calls [Request.ParseForm] if necessary.
+// If ParseForm returns an error, ParseMultipartFormWithPartDeletion returns it but also
+// continues parsing the request body.
+// After one call to ParseMultipartFormWithPartDeletion, subsequent calls have no effect.
+func (r *Request) ParseMultipartFormWithPartDeletion(maxMemory int64) error {
+	defer func() {
+		if r.MultipartForm != nil {
+			_ = r.MultipartForm.RemoveAll()
+		}
+	}()
+	return parseMultiPartForm(r, maxMemory)
 }
 
 // FormValue returns the first value for the named component of the query.
