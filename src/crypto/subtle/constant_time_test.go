@@ -128,6 +128,17 @@ func TestConstantTimeLessOrEq(t *testing.T) {
 
 var benchmarkGlobal uint8
 
+func BenchmarkConstantTimeSelect(b *testing.B) {
+	x := int(benchmarkGlobal)
+	var y, z int
+
+	for range b.N {
+		y, z, x = ConstantTimeSelect(x, y, z), y, z
+	}
+
+	benchmarkGlobal = uint8(x)
+}
+
 func BenchmarkConstantTimeByteEq(b *testing.B) {
 	var x, y uint8
 

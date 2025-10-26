@@ -1602,6 +1602,36 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			return s.newValue1(ssa.OpZeroExt8to64, types.Types[types.TUINT64], out)
 		},
 		sys.AMD64)
+
+	/******** crypto/subtle ********/
+	// We implement a superset of the ConstantTimeSelect promise:
+	// ConstantTimeSelect returns x if v != 0 and y if v == 0.
+	add("crypto/subtle", "ConstantTimeSelect",
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+			v, x, y := args[0], args[1], args[2]
+
+			var checkOp ssa.Op
+			var zero *ssa.Value
+			switch s.config.PtrSize {
+			case 8:
+				checkOp = ssa.OpNeq64
+				zero = s.constInt64(types.Types[types.TINT], 0)
+			case 4:
+				checkOp = ssa.OpNeq32
+				zero = s.constInt32(types.Types[types.TINT], 0)
+			default:
+				panic("unreachable")
+			}
+			check := s.newValue2(checkOp, types.Types[types.TBOOL], zero, v)
+
+			return s.newValue3(ssa.OpCondSelect, types.Types[types.TINT], x, y, check)
+		},
+		sys.ArchAMD64, sys.ArchARM64, sys.ArchLoong64, sys.ArchPPC64, sys.ArchPPC64LE, sys.ArchWasm) // all with CMOV support.
+	add("crypto/subtle", "constantTimeBoolToUint8",
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+			return s.newValue1(ssa.OpCvtBoolToUint8, types.Types[types.TUINT8], args[0])
+		},
+		all...)
 }
 
 // findIntrinsic returns a function which builds the SSA equivalent of the
