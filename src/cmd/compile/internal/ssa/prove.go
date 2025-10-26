@@ -2640,6 +2640,13 @@ var mostNegativeDividend = map[Op]int64{
 	OpDiv64: -1 << 63,
 	OpMod64: -1 << 63}
 
+var bytesizeToConst = [...]Op{
+	8 / 8:  OpConst8,
+	16 / 8: OpConst16,
+	32 / 8: OpConst32,
+	64 / 8: OpConst64,
+}
+
 // simplifyBlock simplifies some constant values in b and evaluates
 // branches to non-uniquely dominated successors of b.
 func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
@@ -2702,18 +2709,7 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 				if b.Func.pass.debug > 0 {
 					b.Func.Warnl(v.Pos, "Proved %v shifts to zero", v.Op)
 				}
-				switch bits {
-				case 64:
-					v.reset(OpConst64)
-				case 32:
-					v.reset(OpConst32)
-				case 16:
-					v.reset(OpConst16)
-				case 8:
-					v.reset(OpConst8)
-				default:
-					panic("unexpected integer size")
-				}
+				v.reset(bytesizeToConst[bits/8])
 				v.AuxInt = 0
 				break // Be sure not to fallthrough - this is no longer OpRsh.
 			}
