@@ -50,6 +50,7 @@ type Config struct {
 	haveBswap64    bool      // architecture implements Bswap64
 	haveBswap32    bool      // architecture implements Bswap32
 	haveBswap16    bool      // architecture implements Bswap16
+	haveCondSelect bool      // architecture implements CondSelect
 
 	// mulRecipes[x] = function to build v * x from v.
 	mulRecipes map[int64]mulRecipe
@@ -191,6 +192,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.haveBswap64 = true
 		c.haveBswap32 = true
 		c.haveBswap16 = true
+		c.haveCondSelect = true
 	case "386":
 		c.PtrSize = 4
 		c.RegSize = 4
@@ -236,6 +238,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.haveBswap64 = true
 		c.haveBswap32 = true
 		c.haveBswap16 = true
+		c.haveCondSelect = true
 	case "ppc64":
 		c.BigEndian = true
 		fallthrough
@@ -263,6 +266,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.haveBswap64 = true
 		c.haveBswap32 = true
 		c.haveBswap16 = true
+		c.haveCondSelect = true
 	case "mips64":
 		c.BigEndian = true
 		fallthrough
@@ -296,6 +300,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.LinkReg = linkRegLOONG64
 		c.hasGReg = true
 		c.unalignedOK = true
+		c.haveCondSelect = true
 	case "s390x":
 		c.PtrSize = 8
 		c.RegSize = 8
@@ -357,6 +362,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.useAvg = false
 		c.useHmul = false
 		c.unalignedOK = true
+		c.haveCondSelect = true
 	default:
 		ctxt.Diag("arch %s not implemented", arch)
 	}

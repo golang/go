@@ -21,10 +21,7 @@ import "cmd/internal/src"
 // rewrite Phis in the postdominator as CondSelects.
 func branchelim(f *Func) {
 	// FIXME: add support for lowering CondSelects on more architectures
-	switch f.Config.arch {
-	case "arm64", "ppc64le", "ppc64", "amd64", "wasm", "loong64":
-		// implemented
-	default:
+	if !f.Config.haveCondSelect {
 		return
 	}
 
