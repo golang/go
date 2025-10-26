@@ -2501,6 +2501,19 @@ func issue75144ifNot(a, b []uint64) bool {
 	return false
 }
 
+func mulIntoAnd(a, b uint) uint {
+	if a > 1 || b > 1 {
+		return 0
+	}
+	return a * b // ERROR "Rewrote Mul v[0-9]+ into And$"
+}
+func mulIntoCondSelect(a, b uint) uint {
+	if a > 1 {
+		return 0
+	}
+	return a * b // ERROR "Rewrote Mul v[0-9]+ into CondSelect"
+}
+
 //go:noinline
 func useInt(a int) {
 }

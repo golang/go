@@ -2646,11 +2646,23 @@ var bytesizeToConst = [...]Op{
 	32 / 8: OpConst32,
 	64 / 8: OpConst64,
 }
+var bytesizeToNeq = [...]Op{
+	8 / 8:  OpNeq8,
+	16 / 8: OpNeq16,
+	32 / 8: OpNeq32,
+	64 / 8: OpNeq64,
+}
+var bytesizeToAnd = [...]Op{
+	8 / 8:  OpAnd8,
+	16 / 8: OpAnd16,
+	32 / 8: OpAnd32,
+	64 / 8: OpAnd64,
+}
 
 // simplifyBlock simplifies some constant values in b and evaluates
 // branches to non-uniquely dominated successors of b.
 func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
-	for _, v := range b.Values {
+	for iv, v := range b.Values {
 		switch v.Op {
 		case OpSlicemask:
 			// Replace OpSlicemask operations in b with constants where possible.
@@ -2755,6 +2767,43 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 				v.AuxInt = 1
 				if b.Func.pass.debug > 0 {
 					b.Func.Warnl(v.Pos, "Proved %v does not need fix-up", v.Op)
+				}
+			}
+		case OpMul64, OpMul32, OpMul16, OpMul8:
+			x := v.Args[0]
+			xl := ft.limits[x.ID]
+			y := v.Args[1]
+			yl := ft.limits[y.ID]
+			switch xOne, yOne := xl.umax <= 1, yl.umax <= 1; {
+			case xOne && yOne:
+				v.Op = bytesizeToAnd[v.Type.Size()]
+				if b.Func.pass.debug > 0 {
+					b.Func.Warnl(v.Pos, "Rewrote Mul %v into And", v)
+				}
+			case yOne && b.Func.Config.haveCondSelect:
+				x, y = y, x
+				fallthrough
+			case xOne && b.Func.Config.haveCondSelect:
+				if !canCondSelect(v, b.Func.Config.arch, nil) {
+					break
+				}
+				zero := b.Func.constVal(bytesizeToConst[v.Type.Size()], v.Type, 0, true)
+				ft.initLimitForNewValue(zero)
+				check := b.NewValue2(v.Pos, bytesizeToNeq[v.Type.Size()], types.Types[types.TBOOL], zero, x)
+				ft.initLimitForNewValue(check)
+				v.reset(OpCondSelect)
+				v.AddArg3(y, zero, check)
+
+				// FIXME: workaround for go.dev/issues/76060
+				// we need to schedule the Neq before the CondSelect even tho
+				// scheduling is meaningless until we reach the schedule pass.
+				if b.Values[len(b.Values)-1] != check {
+					panic("unreachable; failed sanity check, new value isn't at the end of the block")
+				}
+				b.Values[iv], b.Values[len(b.Values)-1] = b.Values[len(b.Values)-1], b.Values[iv]
+
+				if b.Func.pass.debug > 0 {
+					b.Func.Warnl(v.Pos, "Rewrote Mul %v into CondSelect; %v is bool", v, x)
 				}
 			}
 		}
