@@ -259,7 +259,7 @@ func (frame *stkframe) getStackMap(debug bool) (locals, args bitvector, objs []s
 	return
 }
 
-var methodValueCallFrameObjs [1]stackObjectRecord // initialized in stackobjectinit
+var methodValueCallFrameObjs [1]stackObjectRecord // initialized in stkobjinit
 
 func stkobjinit() {
 	var abiRegArgsEface any = abi.RegArgs{}
