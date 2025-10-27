@@ -1184,7 +1184,7 @@ func loadFromRoots(loaderstate *State, ctx context.Context, params loaderParams)
 			continue
 		}
 
-		if !ld.ResolveMissingImports || (!HasModRoot(loaderstate) && !allowMissingModuleImports) {
+		if !ld.ResolveMissingImports || (!HasModRoot(loaderstate) && !loaderstate.allowMissingModuleImports) {
 			// We've loaded as much as we can without resolving missing imports.
 			break
 		}

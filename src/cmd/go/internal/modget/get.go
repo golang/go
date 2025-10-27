@@ -308,7 +308,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 
 	// Allow looking up modules for import paths when outside of a module.
 	// 'go get' is expected to do this, unlike other commands.
-	modload.AllowMissingModuleImports(moduleLoaderState)
+	moduleLoaderState.AllowMissingModuleImports()
 
 	// 'go get' no longer builds or installs packages, so there's nothing to do
 	// if there's no go.mod file.

@@ -863,7 +863,7 @@ func InstallPackages(loaderstate *modload.State, ctx context.Context, patterns [
 func installOutsideModule(loaderstate *modload.State, ctx context.Context, args []string) {
 	loaderstate.ForceUseModules = true
 	loaderstate.RootMode = modload.NoRoot
-	modload.AllowMissingModuleImports(loaderstate)
+	loaderstate.AllowMissingModuleImports()
 	modload.Init(loaderstate)
 	BuildInit(loaderstate)
 

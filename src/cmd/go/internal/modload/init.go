@@ -38,8 +38,6 @@ import (
 //
 // TODO(#40775): See if these can be plumbed as explicit parameters.
 var (
-	allowMissingModuleImports bool
-
 	// ExplicitWriteGoMod prevents LoadPackages, ListModules, and other functions
 	// from updating go.mod and go.sum or reporting errors when updates are
 	// needed. A package should set this if it would cause go.mod to be written
@@ -415,7 +413,8 @@ func (s *State) setState(new State) State {
 }
 
 type State struct {
-	initialized bool
+	initialized               bool
+	allowMissingModuleImports bool
 
 	// ForceUseModules may be set to force modules to be enabled when
 	// GO111MODULE=auto or to report an error when GO111MODULE=off.
@@ -1292,11 +1291,11 @@ func fixVersion(loaderstate *State, ctx context.Context, fixed *bool) modfile.Ve
 //
 // This function affects the default cfg.BuildMod when outside of a module,
 // so it can only be called prior to Init.
-func AllowMissingModuleImports(loaderstate *State) {
-	if loaderstate.initialized {
+func (s *State) AllowMissingModuleImports() {
+	if s.initialized {
 		panic("AllowMissingModuleImports after Init")
 	}
-	allowMissingModuleImports = true
+	s.allowMissingModuleImports = true
 }
 
 // makeMainModules creates a MainModuleSet and associated variables according to
@@ -1553,7 +1552,7 @@ func setDefaultBuildMod(loaderstate *State) {
 		return
 	}
 	if loaderstate.modRoots == nil {
-		if allowMissingModuleImports {
+		if loaderstate.allowMissingModuleImports {
 			cfg.BuildMod = "mod"
 		} else {
 			cfg.BuildMod = "readonly"
