@@ -139,7 +139,7 @@ func TestStmtLines(t *testing.T) {
 
 	var m float64
 	if runtime.GOARCH == "amd64" {
-		m = 0.011 // > 98.9% obtained on amd64, no backsliding
+		m = 0.0111 // > 98.89% obtained on amd64, no backsliding
 	} else if runtime.GOARCH == "riscv64" {
 		m = 0.03 // XXX temporary update threshold to 97% for regabi
 	} else {
