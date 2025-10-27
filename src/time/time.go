@@ -259,8 +259,11 @@ func (t *Time) mono() int64 {
 
 // IsZero reports whether t represents the zero time instant,
 // January 1, year 1, 00:00:00 UTC.
-// Equivalent to t.sec() == 0 && t.nsec() == 0 
 func (t Time) IsZero() bool {
+	// If hasMonotonic is set in t.wall, then the time can't be before 1885, so it can't be the year 1. 
+	// If hasMonotonic is zero, then all the bits in wall other than the nanoseconds field should be 0. 
+	// So if there are no nanoseconds then t.wall == 0, and if there are no seconds then t.ext == 0. 
+	// This is equivalent to t.sec() == 0 && t.nsec() == 0, but is more efficient.
 	return t.wall == 0 && t.ext == 0
 }
 
