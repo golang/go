@@ -1584,7 +1584,7 @@ func TestGoroutineLeakProfileConcurrency(t *testing.T) {
 	// Regular goroutine profile. Used to check that there is no interference between
 	// the two profile types.
 	goroutineProf := Lookup("goroutine")
-	goroutineLeakProf := Lookup("goroutineleak")
+	goroutineLeakProf := goroutineLeakProfile
 
 	// Check that a profile with debug information contains
 	includesLeak := func(t *testing.T, name, s string) {
