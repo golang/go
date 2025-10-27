@@ -150,7 +150,7 @@ var filemap = map[string]action{
 		renameIdents(f, "syntax->ast")
 		renameSelectors(f, "ElemList->Elts")
 	},
-	"lookup.go":    func(f *ast.File) { fixTokenPos(f) },
+	"lookup.go":    fixTokenPos,
 	"main_test.go": nil,
 	"map.go":       nil,
 	"mono.go": func(f *ast.File) {
