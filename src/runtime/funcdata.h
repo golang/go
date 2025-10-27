@@ -12,6 +12,7 @@
 #define PCDATA_StackMapIndex 1
 #define PCDATA_InlTreeIndex 2
 #define PCDATA_ArgLiveIndex 3
+#define PCDATA_PanicBounds 4
 
 #define FUNCDATA_ArgsPointerMaps 0 /* garbage collector blocks */
 #define FUNCDATA_LocalsPointerMaps 1
