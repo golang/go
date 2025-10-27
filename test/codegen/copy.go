@@ -43,8 +43,8 @@ var x [256]byte
 func moveDisjointStack32() {
 	var s [32]byte
 	// ppc64x:-".*memmove"
-	// ppc64x/power8:"LXVD2X",-"ADD",-"BC"
-	// ppc64x/power9:"LXV",-"LXVD2X",-"ADD",-"BC"
+	// ppc64x/power8:"LXVD2X" -"ADD" -"BC"
+	// ppc64x/power9:"LXV" -"LXVD2X" -"ADD" -"BC"
 	copy(s[:], x[:32])
 	runtime.KeepAlive(&s)
 }
@@ -52,8 +52,8 @@ func moveDisjointStack32() {
 func moveDisjointStack64() {
 	var s [96]byte
 	// ppc64x:-".*memmove"
-	// ppc64x/power8:"LXVD2X","ADD","BC"
-	// ppc64x/power9:"LXV",-"LXVD2X",-"ADD",-"BC"
+	// ppc64x/power8:"LXVD2X" "ADD" "BC"
+	// ppc64x/power9:"LXV" -"LXVD2X" -"ADD" -"BC"
 	copy(s[:], x[:96])
 	runtime.KeepAlive(&s)
 }
@@ -64,7 +64,7 @@ func moveDisjointStack() {
 	// amd64:-".*memmove"
 	// ppc64x:-".*memmove"
 	// ppc64x/power8:"LXVD2X"
-	// ppc64x/power9:"LXV",-"LXVD2X"
+	// ppc64x/power9:"LXV" -"LXVD2X"
 	copy(s[:], x[:])
 	runtime.KeepAlive(&s)
 }
@@ -75,7 +75,7 @@ func moveDisjointArg(b *[256]byte) {
 	// amd64:-".*memmove"
 	// ppc64x:-".*memmove"
 	// ppc64x/power8:"LXVD2X"
-	// ppc64x/power9:"LXV",-"LXVD2X"
+	// ppc64x/power9:"LXV" -"LXVD2X"
 	copy(s[:], b[:])
 	runtime.KeepAlive(&s)
 }
@@ -85,7 +85,7 @@ func moveDisjointNoOverlap(a *[256]byte) {
 	// amd64:-".*memmove"
 	// ppc64x:-".*memmove"
 	// ppc64x/power8:"LXVD2X"
-	// ppc64x/power9:"LXV",-"LXVD2X"
+	// ppc64x/power9:"LXV" -"LXVD2X"
 	copy(a[:], a[128:])
 }
 
@@ -135,28 +135,28 @@ func moveArchLowering16(b []byte, x *[16]byte) {
 // Check that no branches are generated when the pointers are [not] equal.
 
 func ptrEqual() {
-	// amd64:-"JEQ",-"JNE"
-	// ppc64x:-"BEQ",-"BNE"
-	// s390x:-"BEQ",-"BNE"
+	// amd64:-"JEQ" -"JNE"
+	// ppc64x:-"BEQ" -"BNE"
+	// s390x:-"BEQ" -"BNE"
 	copy(x[:], x[:])
 }
 
 func ptrOneOffset() {
-	// amd64:-"JEQ",-"JNE"
-	// ppc64x:-"BEQ",-"BNE"
-	// s390x:-"BEQ",-"BNE"
+	// amd64:-"JEQ" -"JNE"
+	// ppc64x:-"BEQ" -"BNE"
+	// s390x:-"BEQ" -"BNE"
 	copy(x[1:], x[:])
 }
 
 func ptrBothOffset() {
-	// amd64:-"JEQ",-"JNE"
-	// ppc64x:-"BEQ",-"BNE"
-	// s390x:-"BEQ",-"BNE"
+	// amd64:-"JEQ" -"JNE"
+	// ppc64x:-"BEQ" -"BNE"
+	// s390x:-"BEQ" -"BNE"
 	copy(x[1:], x[2:])
 }
 
 // Verify #62698 on PPC64.
 func noMaskOnCopy(a []int, s string, x int) int {
-	// ppc64x:-"MOVD\t$-1", -"AND"
+	// ppc64x:-"MOVD [$]-1", -"AND"
 	return a[x&^copy([]byte{}, s)]
 }

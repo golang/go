@@ -47,41 +47,41 @@ func blsr32(x int32) int32 {
 }
 
 func isPowerOfTwo64(x int64) bool {
-	// amd64/v3:"BLSRQ",-"TESTQ",-"CALL"
+	// amd64/v3:"BLSRQ" -"TESTQ" -"CALL"
 	return blsr64(x) == 0
 }
 
 func isPowerOfTwo32(x int32) bool {
-	// amd64/v3:"BLSRL",-"TESTL",-"CALL"
+	// amd64/v3:"BLSRL" -"TESTL" -"CALL"
 	return blsr32(x) == 0
 }
 
 func isPowerOfTwoSelect64(x, a, b int64) int64 {
 	var r int64
-	// amd64/v3:"BLSRQ",-"TESTQ",-"CALL"
+	// amd64/v3:"BLSRQ" -"TESTQ" -"CALL"
 	if isPowerOfTwo64(x) {
 		r = a
 	} else {
 		r = b
 	}
-	// amd64/v3:"CMOVQEQ",-"TESTQ",-"CALL"
+	// amd64/v3:"CMOVQEQ" -"TESTQ" -"CALL"
 	return r * 2 // force return blocks joining
 }
 
 func isPowerOfTwoSelect32(x, a, b int32) int32 {
 	var r int32
-	// amd64/v3:"BLSRL",-"TESTL",-"CALL"
+	// amd64/v3:"BLSRL" -"TESTL" -"CALL"
 	if isPowerOfTwo32(x) {
 		r = a
 	} else {
 		r = b
 	}
-	// amd64/v3:"CMOVLEQ",-"TESTL",-"CALL"
+	// amd64/v3:"CMOVLEQ" -"TESTL" -"CALL"
 	return r * 2 // force return blocks joining
 }
 
 func isPowerOfTwoBranch64(x int64, a func(bool), b func(string)) {
-	// amd64/v3:"BLSRQ",-"TESTQ",-"CALL"
+	// amd64/v3:"BLSRQ" -"TESTQ" -"CALL"
 	if isPowerOfTwo64(x) {
 		a(true)
 	} else {
@@ -90,7 +90,7 @@ func isPowerOfTwoBranch64(x int64, a func(bool), b func(string)) {
 }
 
 func isPowerOfTwoBranch32(x int32, a func(bool), b func(string)) {
-	// amd64/v3:"BLSRL",-"TESTL",-"CALL"
+	// amd64/v3:"BLSRL" -"TESTL" -"CALL"
 	if isPowerOfTwo32(x) {
 		a(true)
 	} else {
@@ -99,41 +99,41 @@ func isPowerOfTwoBranch32(x int32, a func(bool), b func(string)) {
 }
 
 func isNotPowerOfTwo64(x int64) bool {
-	// amd64/v3:"BLSRQ",-"TESTQ",-"CALL"
+	// amd64/v3:"BLSRQ" -"TESTQ" -"CALL"
 	return blsr64(x) != 0
 }
 
 func isNotPowerOfTwo32(x int32) bool {
-	// amd64/v3:"BLSRL",-"TESTL",-"CALL"
+	// amd64/v3:"BLSRL" -"TESTL" -"CALL"
 	return blsr32(x) != 0
 }
 
 func isNotPowerOfTwoSelect64(x, a, b int64) int64 {
 	var r int64
-	// amd64/v3:"BLSRQ",-"TESTQ",-"CALL"
+	// amd64/v3:"BLSRQ" -"TESTQ" -"CALL"
 	if isNotPowerOfTwo64(x) {
 		r = a
 	} else {
 		r = b
 	}
-	// amd64/v3:"CMOVQNE",-"TESTQ",-"CALL"
+	// amd64/v3:"CMOVQNE" -"TESTQ" -"CALL"
 	return r * 2 // force return blocks joining
 }
 
 func isNotPowerOfTwoSelect32(x, a, b int32) int32 {
 	var r int32
-	// amd64/v3:"BLSRL",-"TESTL",-"CALL"
+	// amd64/v3:"BLSRL" -"TESTL" -"CALL"
 	if isNotPowerOfTwo32(x) {
 		r = a
 	} else {
 		r = b
 	}
-	// amd64/v3:"CMOVLNE",-"TESTL",-"CALL"
+	// amd64/v3:"CMOVLNE" -"TESTL" -"CALL"
 	return r * 2 // force return blocks joining
 }
 
 func isNotPowerOfTwoBranch64(x int64, a func(bool), b func(string)) {
-	// amd64/v3:"BLSRQ",-"TESTQ",-"CALL"
+	// amd64/v3:"BLSRQ" -"TESTQ" -"CALL"
 	if isNotPowerOfTwo64(x) {
 		a(true)
 	} else {
@@ -142,7 +142,7 @@ func isNotPowerOfTwoBranch64(x int64, a func(bool), b func(string)) {
 }
 
 func isNotPowerOfTwoBranch32(x int32, a func(bool), b func(string)) {
-	// amd64/v3:"BLSRL",-"TESTL",-"CALL"
+	// amd64/v3:"BLSRL" -"TESTL" -"CALL"
 	if isNotPowerOfTwo32(x) {
 		a(true)
 	} else {
@@ -161,17 +161,17 @@ func sarx32(x, y int32) int32 {
 }
 
 func sarx64_load(x []int64, i int) int64 {
-	// amd64/v3: `SARXQ\t[A-Z]+[0-9]*, \([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), [A-Z]+[0-9]*`
+	// amd64/v3: `SARXQ [A-Z]+[0-9]*, \([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), [A-Z]+[0-9]*`
 	s := x[i] >> (i & 63)
-	// amd64/v3: `SARXQ\t[A-Z]+[0-9]*, 8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), [A-Z]+[0-9]*`
+	// amd64/v3: `SARXQ [A-Z]+[0-9]*, 8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), [A-Z]+[0-9]*`
 	s = x[i+1] >> (s & 63)
 	return s
 }
 
 func sarx32_load(x []int32, i int) int32 {
-	// amd64/v3: `SARXL\t[A-Z]+[0-9]*, \([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), [A-Z]+[0-9]*`
+	// amd64/v3: `SARXL [A-Z]+[0-9]*, \([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), [A-Z]+[0-9]*`
 	s := x[i] >> (i & 63)
-	// amd64/v3: `SARXL\t[A-Z]+[0-9]*, 4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), [A-Z]+[0-9]*`
+	// amd64/v3: `SARXL [A-Z]+[0-9]*, 4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), [A-Z]+[0-9]*`
 	s = x[i+1] >> (s & 63)
 	return s
 }
@@ -193,17 +193,17 @@ func shlrx32(x, y uint32) uint32 {
 }
 
 func shlrx64_load(x []uint64, i int, s uint64) uint64 {
-	// amd64/v3: `SHRXQ\t[A-Z]+[0-9]*, \([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), [A-Z]+[0-9]*`
+	// amd64/v3: `SHRXQ [A-Z]+[0-9]*, \([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), [A-Z]+[0-9]*`
 	s = x[i] >> i
-	// amd64/v3: `SHLXQ\t[A-Z]+[0-9]*, 8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), [A-Z]+[0-9]*`
+	// amd64/v3: `SHLXQ [A-Z]+[0-9]*, 8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), [A-Z]+[0-9]*`
 	s = x[i+1] << s
 	return s
 }
 
 func shlrx32_load(x []uint32, i int, s uint32) uint32 {
-	// amd64/v3: `SHRXL\t[A-Z]+[0-9]*, \([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), [A-Z]+[0-9]*`
+	// amd64/v3: `SHRXL [A-Z]+[0-9]*, \([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), [A-Z]+[0-9]*`
 	s = x[i] >> i
-	// amd64/v3: `SHLXL\t[A-Z]+[0-9]*, 4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), [A-Z]+[0-9]*`
+	// amd64/v3: `SHLXL [A-Z]+[0-9]*, 4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), [A-Z]+[0-9]*`
 	s = x[i+1] << s
 	return s
 }
