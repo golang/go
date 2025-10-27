@@ -95,6 +95,9 @@ func Decode(data []byte) (p *Block, rest []byte) {
 	for {
 		// If we've already tried parsing a block, skip past the END we already
 		// saw.
+		if endTrailerIndex < 0 || endTrailerIndex > len(rest) {
+			return nil, data
+		}
 		rest = rest[endTrailerIndex:]
 
 		// Find the first END line, and then find the last BEGIN line before
