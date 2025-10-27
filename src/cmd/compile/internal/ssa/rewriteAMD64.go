@@ -24380,7 +24380,6 @@ func rewriteValueAMD64_OpCondSelect(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	typ := &b.Func.Config.Types
 	// match: (CondSelect <t> x y (SETEQ cond))
 	// cond: (is64BitInt(t) || isPtr(t))
 	// result: (CMOVQEQ y x cond)
@@ -25138,60 +25137,6 @@ func rewriteValueAMD64_OpCondSelect(v *Value) bool {
 		return true
 	}
 	// match: (CondSelect <t> x y check)
-	// cond: !check.Type.IsFlags() && check.Type.Size() == 1
-	// result: (CondSelect <t> x y (MOVBQZX <typ.UInt64> check))
-	for {
-		t := v.Type
-		x := v_0
-		y := v_1
-		check := v_2
-		if !(!check.Type.IsFlags() && check.Type.Size() == 1) {
-			break
-		}
-		v.reset(OpCondSelect)
-		v.Type = t
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVBQZX, typ.UInt64)
-		v0.AddArg(check)
-		v.AddArg3(x, y, v0)
-		return true
-	}
-	// match: (CondSelect <t> x y check)
-	// cond: !check.Type.IsFlags() && check.Type.Size() == 2
-	// result: (CondSelect <t> x y (MOVWQZX <typ.UInt64> check))
-	for {
-		t := v.Type
-		x := v_0
-		y := v_1
-		check := v_2
-		if !(!check.Type.IsFlags() && check.Type.Size() == 2) {
-			break
-		}
-		v.reset(OpCondSelect)
-		v.Type = t
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVWQZX, typ.UInt64)
-		v0.AddArg(check)
-		v.AddArg3(x, y, v0)
-		return true
-	}
-	// match: (CondSelect <t> x y check)
-	// cond: !check.Type.IsFlags() && check.Type.Size() == 4
-	// result: (CondSelect <t> x y (MOVLQZX <typ.UInt64> check))
-	for {
-		t := v.Type
-		x := v_0
-		y := v_1
-		check := v_2
-		if !(!check.Type.IsFlags() && check.Type.Size() == 4) {
-			break
-		}
-		v.reset(OpCondSelect)
-		v.Type = t
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVLQZX, typ.UInt64)
-		v0.AddArg(check)
-		v.AddArg3(x, y, v0)
-		return true
-	}
-	// match: (CondSelect <t> x y check)
 	// cond: !check.Type.IsFlags() && check.Type.Size() == 8 && (is64BitInt(t) || isPtr(t))
 	// result: (CMOVQNE y x (CMPQconst [0] check))
 	for {
@@ -25241,6 +25186,168 @@ func rewriteValueAMD64_OpCondSelect(v *Value) bool {
 		v.reset(OpAMD64CMOVWNE)
 		v0 := b.NewValue0(v.Pos, OpAMD64CMPQconst, types.TypeFlags)
 		v0.AuxInt = int32ToAuxInt(0)
+		v0.AddArg(check)
+		v.AddArg3(y, x, v0)
+		return true
+	}
+	// match: (CondSelect <t> x y check)
+	// cond: !check.Type.IsFlags() && check.Type.Size() == 4 && (is64BitInt(t) || isPtr(t))
+	// result: (CMOVQNE y x (CMPLconst [0] check))
+	for {
+		t := v.Type
+		x := v_0
+		y := v_1
+		check := v_2
+		if !(!check.Type.IsFlags() && check.Type.Size() == 4 && (is64BitInt(t) || isPtr(t))) {
+			break
+		}
+		v.reset(OpAMD64CMOVQNE)
+		v0 := b.NewValue0(v.Pos, OpAMD64CMPLconst, types.TypeFlags)
+		v0.AuxInt = int32ToAuxInt(0)
+		v0.AddArg(check)
+		v.AddArg3(y, x, v0)
+		return true
+	}
+	// match: (CondSelect <t> x y check)
+	// cond: !check.Type.IsFlags() && check.Type.Size() == 4 && is32BitInt(t)
+	// result: (CMOVLNE y x (CMPLconst [0] check))
+	for {
+		t := v.Type
+		x := v_0
+		y := v_1
+		check := v_2
+		if !(!check.Type.IsFlags() && check.Type.Size() == 4 && is32BitInt(t)) {
+			break
+		}
+		v.reset(OpAMD64CMOVLNE)
+		v0 := b.NewValue0(v.Pos, OpAMD64CMPLconst, types.TypeFlags)
+		v0.AuxInt = int32ToAuxInt(0)
+		v0.AddArg(check)
+		v.AddArg3(y, x, v0)
+		return true
+	}
+	// match: (CondSelect <t> x y check)
+	// cond: !check.Type.IsFlags() && check.Type.Size() == 4 && is16BitInt(t)
+	// result: (CMOVWNE y x (CMPLconst [0] check))
+	for {
+		t := v.Type
+		x := v_0
+		y := v_1
+		check := v_2
+		if !(!check.Type.IsFlags() && check.Type.Size() == 4 && is16BitInt(t)) {
+			break
+		}
+		v.reset(OpAMD64CMOVWNE)
+		v0 := b.NewValue0(v.Pos, OpAMD64CMPLconst, types.TypeFlags)
+		v0.AuxInt = int32ToAuxInt(0)
+		v0.AddArg(check)
+		v.AddArg3(y, x, v0)
+		return true
+	}
+	// match: (CondSelect <t> x y check)
+	// cond: !check.Type.IsFlags() && check.Type.Size() == 2 && (is64BitInt(t) || isPtr(t))
+	// result: (CMOVQNE y x (CMPWconst [0] check))
+	for {
+		t := v.Type
+		x := v_0
+		y := v_1
+		check := v_2
+		if !(!check.Type.IsFlags() && check.Type.Size() == 2 && (is64BitInt(t) || isPtr(t))) {
+			break
+		}
+		v.reset(OpAMD64CMOVQNE)
+		v0 := b.NewValue0(v.Pos, OpAMD64CMPWconst, types.TypeFlags)
+		v0.AuxInt = int16ToAuxInt(0)
+		v0.AddArg(check)
+		v.AddArg3(y, x, v0)
+		return true
+	}
+	// match: (CondSelect <t> x y check)
+	// cond: !check.Type.IsFlags() && check.Type.Size() == 2 && is32BitInt(t)
+	// result: (CMOVLNE y x (CMPWconst [0] check))
+	for {
+		t := v.Type
+		x := v_0
+		y := v_1
+		check := v_2
+		if !(!check.Type.IsFlags() && check.Type.Size() == 2 && is32BitInt(t)) {
+			break
+		}
+		v.reset(OpAMD64CMOVLNE)
+		v0 := b.NewValue0(v.Pos, OpAMD64CMPWconst, types.TypeFlags)
+		v0.AuxInt = int16ToAuxInt(0)
+		v0.AddArg(check)
+		v.AddArg3(y, x, v0)
+		return true
+	}
+	// match: (CondSelect <t> x y check)
+	// cond: !check.Type.IsFlags() && check.Type.Size() == 2 && is16BitInt(t)
+	// result: (CMOVWNE y x (CMPWconst [0] check))
+	for {
+		t := v.Type
+		x := v_0
+		y := v_1
+		check := v_2
+		if !(!check.Type.IsFlags() && check.Type.Size() == 2 && is16BitInt(t)) {
+			break
+		}
+		v.reset(OpAMD64CMOVWNE)
+		v0 := b.NewValue0(v.Pos, OpAMD64CMPWconst, types.TypeFlags)
+		v0.AuxInt = int16ToAuxInt(0)
+		v0.AddArg(check)
+		v.AddArg3(y, x, v0)
+		return true
+	}
+	// match: (CondSelect <t> x y check)
+	// cond: !check.Type.IsFlags() && check.Type.Size() == 1 && (is64BitInt(t) || isPtr(t))
+	// result: (CMOVQNE y x (CMPBconst [0] check))
+	for {
+		t := v.Type
+		x := v_0
+		y := v_1
+		check := v_2
+		if !(!check.Type.IsFlags() && check.Type.Size() == 1 && (is64BitInt(t) || isPtr(t))) {
+			break
+		}
+		v.reset(OpAMD64CMOVQNE)
+		v0 := b.NewValue0(v.Pos, OpAMD64CMPBconst, types.TypeFlags)
+		v0.AuxInt = int8ToAuxInt(0)
+		v0.AddArg(check)
+		v.AddArg3(y, x, v0)
+		return true
+	}
+	// match: (CondSelect <t> x y check)
+	// cond: !check.Type.IsFlags() && check.Type.Size() == 1 && is32BitInt(t)
+	// result: (CMOVLNE y x (CMPBconst [0] check))
+	for {
+		t := v.Type
+		x := v_0
+		y := v_1
+		check := v_2
+		if !(!check.Type.IsFlags() && check.Type.Size() == 1 && is32BitInt(t)) {
+			break
+		}
+		v.reset(OpAMD64CMOVLNE)
+		v0 := b.NewValue0(v.Pos, OpAMD64CMPBconst, types.TypeFlags)
+		v0.AuxInt = int8ToAuxInt(0)
+		v0.AddArg(check)
+		v.AddArg3(y, x, v0)
+		return true
+	}
+	// match: (CondSelect <t> x y check)
+	// cond: !check.Type.IsFlags() && check.Type.Size() == 1 && is16BitInt(t)
+	// result: (CMOVWNE y x (CMPBconst [0] check))
+	for {
+		t := v.Type
+		x := v_0
+		y := v_1
+		check := v_2
+		if !(!check.Type.IsFlags() && check.Type.Size() == 1 && is16BitInt(t)) {
+			break
+		}
+		v.reset(OpAMD64CMOVWNE)
+		v0 := b.NewValue0(v.Pos, OpAMD64CMPBconst, types.TypeFlags)
+		v0.AuxInt = int8ToAuxInt(0)
 		v0.AddArg(check)
 		v.AddArg3(y, x, v0)
 		return true
