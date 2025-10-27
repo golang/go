@@ -11,7 +11,6 @@ import (
 	"context"
 	"fmt"
 	"internal/abi"
-	"internal/goexperiment"
 	"internal/profile"
 	"internal/syscall/unix"
 	"internal/testenv"
@@ -1576,10 +1575,6 @@ func goroutineLeakExample() {
 }
 
 func TestGoroutineLeakProfileConcurrency(t *testing.T) {
-	if !goexperiment.GoroutineLeakProfile {
-		// Do not run this test if the experimental flag is not enabled.
-		t.Skip("goroutine leak profile is not enabled")
-	}
 	const leakCount = 3
 
 	testenv.MustHaveParallelism(t)
@@ -1620,12 +1615,12 @@ func TestGoroutineLeakProfileConcurrency(t *testing.T) {
 	// when bulk-running tests.
 	//
 	// The two mismatching outcomes are therefore:
-	// 	- More leaks than expected, which is a correctness issue with other tests.
+	//	- More leaks than expected, which is a correctness issue with other tests.
 	//		In this case, this test effectively checks other tests wrt
-	// 		goroutine leaks running tests in bulk (e.g., by running all.bash).
+	//		goroutine leaks during bulk executions (e.g., running all.bash).
 	//
-	// 	- Fewer leaks than expected; this is an unfortunate symptom of scheduling
-	// 		non-determinism, which may occur once in a blue moon. We make
+	//	- Fewer leaks than expected; this is an unfortunate symptom of scheduling
+	//		non-determinism, which may occur once in a blue moon. We make
 	//		a best-effort attempt to allow the expected leaks to occur, by yielding
 	//		the main thread, but it is never a guarantee.
 	countLeaks := func(t *testing.T, number int, s string) {
@@ -1732,13 +1727,15 @@ func TestGoroutineLeakProfileConcurrency(t *testing.T) {
 					for ctx.Err() == nil {
 						var w strings.Builder
 						goroutineLeakProf.WriteTo(&w, 1)
-						// NOTE(vsaioc): We cannot always guarantee that the leak will actually be recorded in
-						// the profile when making concurrent goroutine leak requests, because the GC runs
-						// concurrently with the profiler and may reset the leaked goroutine status before
-						// a concurrent profiler has the chance to record it.
+						// NOTE(vsaioc): We cannot always guarantee that the leak will
+						// actually be recorded in the profile when making concurrent
+						// goroutine leak requests, because the GC runs concurrently with
+						// the profiler and may reset the leaked goroutines' status before
+						// a concurrent profiler has the chance to record them. However,
+						// the goroutine leak count will persist throughout.
 						//
-						// However, the goroutine leak count will persist. Still, we give some leeway by making
-						// it an inequality, just in case other tests in the suite start leaking goroutines.
+						// Other tests are not expected to leak goroutines,
+						// so the count should be consistent.
 						countLeaks(t, 2*leakCount, w.String())
 					}
 				}()
@@ -1764,14 +1761,14 @@ func TestGoroutineLeakProfileConcurrency(t *testing.T) {
 						var w strings.Builder
 						goroutineLeakProf.WriteTo(&w, 1)
 						// NOTE(vsaioc): We cannot always guarantee that the leak will
-						// actually be recorded in the profile during concurrent
-						// goroutine leak profile requests. The GC runs concurrently with
-						// the profiler and may reset the leaked goroutine status before
-						// the profiler has the chance to record the leaked stacks.
+						// actually be recorded in the profile when making concurrent
+						// goroutine leak requests, because the GC runs concurrently with
+						// the profiler and may reset the leaked goroutines' status before
+						// a concurrent profiler has the chance to record them. However,
+						// the goroutine leak count will persist throughout.
 						//
-						// However, the leaked goroutine count is not reset.
 						// Other tests are not expected to leak goroutines,
-						// so the leak count is expected to be consistent.
+						// so the count should be consistent.
 						countLeaks(t, 2*leakCount, w.String())
 					}
 				}()
