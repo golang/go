@@ -7,6 +7,7 @@
 (Add(32|64)F ...) => (ADDS(S|D) ...)
 (Add32carry ...) => (ADDLcarry ...)
 (Add32withcarry ...) => (ADCL ...)
+(Add32carrywithcarry ...) => (ADCLcarry ...)
 
 (Sub(Ptr|32|16|8) ...) => (SUBL ...)
 (Sub(32|64)F ...) => (SUBS(S|D) ...)

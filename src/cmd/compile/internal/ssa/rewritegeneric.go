@@ -14724,7 +14724,7 @@ func rewriteValuegeneric_OpMod16u(v *Value) bool {
 		return true
 	}
 	// match: (Mod16u <t> x (Const16 [c]))
-	// cond: x.Op != OpConst16 && c > 0 && umagicOK16(c)
+	// cond: x.Op != OpConst16 && c != 0
 	// result: (Sub16 x (Mul16 <t> (Div16u <t> x (Const16 <t> [c])) (Const16 <t> [c])))
 	for {
 		t := v.Type
@@ -14733,7 +14733,7 @@ func rewriteValuegeneric_OpMod16u(v *Value) bool {
 			break
 		}
 		c := auxIntToInt16(v_1.AuxInt)
-		if !(x.Op != OpConst16 && c > 0 && umagicOK16(c)) {
+		if !(x.Op != OpConst16 && c != 0) {
 			break
 		}
 		v.reset(OpSub16)
@@ -14878,7 +14878,7 @@ func rewriteValuegeneric_OpMod32u(v *Value) bool {
 		return true
 	}
 	// match: (Mod32u <t> x (Const32 [c]))
-	// cond: x.Op != OpConst32 && c > 0 && umagicOK32(c)
+	// cond: x.Op != OpConst32 && c != 0
 	// result: (Sub32 x (Mul32 <t> (Div32u <t> x (Const32 <t> [c])) (Const32 <t> [c])))
 	for {
 		t := v.Type
@@ -14887,7 +14887,7 @@ func rewriteValuegeneric_OpMod32u(v *Value) bool {
 			break
 		}
 		c := auxIntToInt32(v_1.AuxInt)
-		if !(x.Op != OpConst32 && c > 0 && umagicOK32(c)) {
+		if !(x.Op != OpConst32 && c != 0) {
 			break
 		}
 		v.reset(OpSub32)
@@ -15043,7 +15043,7 @@ func rewriteValuegeneric_OpMod64u(v *Value) bool {
 		return true
 	}
 	// match: (Mod64u <t> x (Const64 [c]))
-	// cond: x.Op != OpConst64 && c > 0 && umagicOK64(c)
+	// cond: x.Op != OpConst64 && c != 0
 	// result: (Sub64 x (Mul64 <t> (Div64u <t> x (Const64 <t> [c])) (Const64 <t> [c])))
 	for {
 		t := v.Type
@@ -15052,7 +15052,7 @@ func rewriteValuegeneric_OpMod64u(v *Value) bool {
 			break
 		}
 		c := auxIntToInt64(v_1.AuxInt)
-		if !(x.Op != OpConst64 && c > 0 && umagicOK64(c)) {
+		if !(x.Op != OpConst64 && c != 0) {
 			break
 		}
 		v.reset(OpSub64)
@@ -15197,7 +15197,7 @@ func rewriteValuegeneric_OpMod8u(v *Value) bool {
 		return true
 	}
 	// match: (Mod8u <t> x (Const8 [c]))
-	// cond: x.Op != OpConst8 && c > 0 && umagicOK8( c)
+	// cond: x.Op != OpConst8 && c != 0
 	// result: (Sub8 x (Mul8 <t> (Div8u <t> x (Const8 <t> [c])) (Const8 <t> [c])))
 	for {
 		t := v.Type
@@ -15206,7 +15206,7 @@ func rewriteValuegeneric_OpMod8u(v *Value) bool {
 			break
 		}
 		c := auxIntToInt8(v_1.AuxInt)
-		if !(x.Op != OpConst8 && c > 0 && umagicOK8(c)) {
+		if !(x.Op != OpConst8 && c != 0) {
 			break
 		}
 		v.reset(OpSub8)

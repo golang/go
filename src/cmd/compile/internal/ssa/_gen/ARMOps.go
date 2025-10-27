@@ -102,36 +102,37 @@ func init() {
 	)
 	// Common regInfo
 	var (
-		gp01      = regInfo{inputs: nil, outputs: []regMask{gp}}
-		gp11      = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp}}
-		gp11carry = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp, 0}}
-		gp11sp    = regInfo{inputs: []regMask{gpspg}, outputs: []regMask{gp}}
-		gp1flags  = regInfo{inputs: []regMask{gpg}}
-		gp1flags1 = regInfo{inputs: []regMask{gp}, outputs: []regMask{gp}}
-		gp21      = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp}}
-		gp21carry = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp, 0}}
-		gp2flags  = regInfo{inputs: []regMask{gpg, gpg}}
-		gp2flags1 = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
-		gp22      = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp, gp}}
-		gp31      = regInfo{inputs: []regMask{gp, gp, gp}, outputs: []regMask{gp}}
-		gp31carry = regInfo{inputs: []regMask{gp, gp, gp}, outputs: []regMask{gp, 0}}
-		gp3flags  = regInfo{inputs: []regMask{gp, gp, gp}}
-		gp3flags1 = regInfo{inputs: []regMask{gp, gp, gp}, outputs: []regMask{gp}}
-		gpload    = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}
-		gpstore   = regInfo{inputs: []regMask{gpspsbg, gpg}}
-		gp2load   = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{gp}}
-		gp2store  = regInfo{inputs: []regMask{gpspsbg, gpg, gpg}}
-		fp01      = regInfo{inputs: nil, outputs: []regMask{fp}}
-		fp11      = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
-		fp1flags  = regInfo{inputs: []regMask{fp}}
-		fpgp      = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}, clobbers: buildReg("F15")} // int-float conversion uses F15 as tmp
-		gpfp      = regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}, clobbers: buildReg("F15")}
-		fp21      = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
-		fp31      = regInfo{inputs: []regMask{fp, fp, fp}, outputs: []regMask{fp}}
-		fp2flags  = regInfo{inputs: []regMask{fp, fp}}
-		fpload    = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{fp}}
-		fpstore   = regInfo{inputs: []regMask{gpspsbg, fp}}
-		readflags = regInfo{inputs: nil, outputs: []regMask{gp}}
+		gp01           = regInfo{inputs: nil, outputs: []regMask{gp}}
+		gp11           = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp}}
+		gp11carry      = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp, 0}}
+		gp11sp         = regInfo{inputs: []regMask{gpspg}, outputs: []regMask{gp}}
+		gp1flags       = regInfo{inputs: []regMask{gpg}}
+		gp1flags1      = regInfo{inputs: []regMask{gp}, outputs: []regMask{gp}}
+		gp21           = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp}}
+		gp21carry      = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp, 0}}
+		gp2flags       = regInfo{inputs: []regMask{gpg, gpg}}
+		gp2flags1      = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
+		gp2flags1carry = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp, 0}}
+		gp22           = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp, gp}}
+		gp31           = regInfo{inputs: []regMask{gp, gp, gp}, outputs: []regMask{gp}}
+		gp31carry      = regInfo{inputs: []regMask{gp, gp, gp}, outputs: []regMask{gp, 0}}
+		gp3flags       = regInfo{inputs: []regMask{gp, gp, gp}}
+		gp3flags1      = regInfo{inputs: []regMask{gp, gp, gp}, outputs: []regMask{gp}}
+		gpload         = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}
+		gpstore        = regInfo{inputs: []regMask{gpspsbg, gpg}}
+		gp2load        = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{gp}}
+		gp2store       = regInfo{inputs: []regMask{gpspsbg, gpg, gpg}}
+		fp01           = regInfo{inputs: nil, outputs: []regMask{fp}}
+		fp11           = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
+		fp1flags       = regInfo{inputs: []regMask{fp}}
+		fpgp           = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}, clobbers: buildReg("F15")} // int-float conversion uses F15 as tmp
+		gpfp           = regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}, clobbers: buildReg("F15")}
+		fp21           = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
+		fp31           = regInfo{inputs: []regMask{fp, fp, fp}, outputs: []regMask{fp}}
+		fp2flags       = regInfo{inputs: []regMask{fp, fp}}
+		fpload         = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{fp}}
+		fpstore        = regInfo{inputs: []regMask{gpspsbg, fp}}
+		readflags      = regInfo{inputs: nil, outputs: []regMask{gp}}
 	)
 	ops := []opData{
 		// binary ops
@@ -161,16 +162,17 @@ func init() {
 			call:         false, // TODO(mdempsky): Should this be true?
 		},
 
-		{name: "ADDS", argLength: 2, reg: gp21carry, asm: "ADD", commutative: true}, // arg0 + arg1, set carry flag
-		{name: "ADDSconst", argLength: 1, reg: gp11carry, asm: "ADD", aux: "Int32"}, // arg0 + auxInt, set carry flag
-		{name: "ADC", argLength: 3, reg: gp2flags1, asm: "ADC", commutative: true},  // arg0 + arg1 + carry, arg2=flags
-		{name: "ADCconst", argLength: 2, reg: gp1flags1, asm: "ADC", aux: "Int32"},  // arg0 + auxInt + carry, arg1=flags
-		{name: "SUBS", argLength: 2, reg: gp21carry, asm: "SUB"},                    // arg0 - arg1, set carry flag
-		{name: "SUBSconst", argLength: 1, reg: gp11carry, asm: "SUB", aux: "Int32"}, // arg0 - auxInt, set carry flag
-		{name: "RSBSconst", argLength: 1, reg: gp11carry, asm: "RSB", aux: "Int32"}, // auxInt - arg0, set carry flag
-		{name: "SBC", argLength: 3, reg: gp2flags1, asm: "SBC"},                     // arg0 - arg1 - carry, arg2=flags
-		{name: "SBCconst", argLength: 2, reg: gp1flags1, asm: "SBC", aux: "Int32"},  // arg0 - auxInt - carry, arg1=flags
-		{name: "RSCconst", argLength: 2, reg: gp1flags1, asm: "RSC", aux: "Int32"},  // auxInt - arg0 - carry, arg1=flags
+		{name: "ADDS", argLength: 2, reg: gp21carry, asm: "ADD", commutative: true},      // arg0 + arg1, set carry flag
+		{name: "ADDSconst", argLength: 1, reg: gp11carry, asm: "ADD", aux: "Int32"},      // arg0 + auxInt, set carry flag
+		{name: "ADC", argLength: 3, reg: gp2flags1, asm: "ADC", commutative: true},       // arg0 + arg1 + carry, arg2=flags
+		{name: "ADCconst", argLength: 2, reg: gp1flags1, asm: "ADC", aux: "Int32"},       // arg0 + auxInt + carry, arg1=flags
+		{name: "ADCS", argLength: 3, reg: gp2flags1carry, asm: "ADC", commutative: true}, // arg0 + arg1 + carrry, sets carry
+		{name: "SUBS", argLength: 2, reg: gp21carry, asm: "SUB"},                         // arg0 - arg1, set carry flag
+		{name: "SUBSconst", argLength: 1, reg: gp11carry, asm: "SUB", aux: "Int32"},      // arg0 - auxInt, set carry flag
+		{name: "RSBSconst", argLength: 1, reg: gp11carry, asm: "RSB", aux: "Int32"},      // auxInt - arg0, set carry flag
+		{name: "SBC", argLength: 3, reg: gp2flags1, asm: "SBC"},                          // arg0 - arg1 - carry, arg2=flags
+		{name: "SBCconst", argLength: 2, reg: gp1flags1, asm: "SBC", aux: "Int32"},       // arg0 - auxInt - carry, arg1=flags
+		{name: "RSCconst", argLength: 2, reg: gp1flags1, asm: "RSC", aux: "Int32"},       // auxInt - arg0 - carry, arg1=flags
 
 		{name: "MULLU", argLength: 2, reg: gp22, asm: "MULLU", commutative: true}, // arg0 * arg1, high 32 bits in out0, low 32 bits in out1
 		{name: "MULA", argLength: 3, reg: gp31, asm: "MULA"},                      // arg0 * arg1 + arg2

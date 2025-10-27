@@ -16,6 +16,9 @@ package main
 // are signed or unsigned.
 
 var genericOps = []opData{
+	// Pseudo-op.
+	{name: "Last", argLength: -1}, // return last element of tuple; for "let" bindings
+
 	// 2-input arithmetic
 	// Types must be consistent with Go typing. Add, for example, must take two values
 	// of the same type and produces that same type.
@@ -557,8 +560,9 @@ var genericOps = []opData{
 	{name: "Int64Hi", argLength: 1, typ: "UInt32"},   // high 32-bit of arg0
 	{name: "Int64Lo", argLength: 1, typ: "UInt32"},   // low 32-bit of arg0
 
-	{name: "Add32carry", argLength: 2, commutative: true, typ: "(UInt32,Flags)"}, // arg0 + arg1, returns (value, carry)
-	{name: "Add32withcarry", argLength: 3, commutative: true},                    // arg0 + arg1 + arg2, arg2=carry (0 or 1)
+	{name: "Add32carry", argLength: 2, commutative: true, typ: "(UInt32,Flags)"},          // arg0 + arg1, returns (value, carry)
+	{name: "Add32withcarry", argLength: 3, commutative: true},                             // arg0 + arg1 + arg2, arg2=carry (0 or 1)
+	{name: "Add32carrywithcarry", argLength: 3, commutative: true, typ: "(UInt32,Flags)"}, // arg0 + arg1 + arg2, arg2=carry, returns (value, carry)
 
 	{name: "Sub32carry", argLength: 2, typ: "(UInt32,Flags)"}, // arg0 - arg1, returns (value, carry)
 	{name: "Sub32withcarry", argLength: 3},                    // arg0 - arg1 - arg2, arg2=carry (0 or 1)

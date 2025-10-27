@@ -1106,13 +1106,13 @@
   => (Sub32 x (Mul32 <t> (Div32  <t> x (Const32 <t> [c])) (Const32 <t> [c])))
 (Mod64  <t> x (Const64 [c])) && x.Op != OpConst64 && (c > 0 || c == -1<<63)
   => (Sub64 x (Mul64 <t> (Div64  <t> x (Const64 <t> [c])) (Const64 <t> [c])))
-(Mod8u  <t> x (Const8  [c])) && x.Op != OpConst8  && c > 0 && umagicOK8( c)
+(Mod8u  <t> x (Const8  [c])) && x.Op != OpConst8  && c != 0
   => (Sub8  x (Mul8  <t> (Div8u  <t> x (Const8  <t> [c])) (Const8  <t> [c])))
-(Mod16u <t> x (Const16 [c])) && x.Op != OpConst16 && c > 0 && umagicOK16(c)
+(Mod16u <t> x (Const16 [c])) && x.Op != OpConst16 && c != 0
   => (Sub16 x (Mul16 <t> (Div16u <t> x (Const16 <t> [c])) (Const16 <t> [c])))
-(Mod32u <t> x (Const32 [c])) && x.Op != OpConst32 && c > 0 && umagicOK32(c)
+(Mod32u <t> x (Const32 [c])) && x.Op != OpConst32 && c != 0
   => (Sub32 x (Mul32 <t> (Div32u <t> x (Const32 <t> [c])) (Const32 <t> [c])))
-(Mod64u <t> x (Const64 [c])) && x.Op != OpConst64 && c > 0 && umagicOK64(c)
+(Mod64u <t> x (Const64 [c])) && x.Op != OpConst64 && c != 0
   => (Sub64 x (Mul64 <t> (Div64u <t> x (Const64 <t> [c])) (Const64 <t> [c])))
 
 // Set up for mod->mul+rot optimization in genericlateopt.rules.
