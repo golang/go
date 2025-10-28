@@ -63,113 +63,76 @@ func (check *Checker) objDecl(obj Object, def *TypeName) {
 		if check.indent == 0 {
 			fmt.Println() // empty line between top-level objects for readability
 		}
-		check.trace(obj.Pos(), "-- checking %s (%s, objPath = %s)", obj, obj.color(), pathString(check.objPath))
+		check.trace(obj.Pos(), "-- checking %s (objPath = %s)", obj, pathString(check.objPath))
 		check.indent++
 		defer func() {
 			check.indent--
-			check.trace(obj.Pos(), "=> %s (%s)", obj, obj.color())
+			check.trace(obj.Pos(), "=> %s", obj)
 		}()
 	}
 
-	// Checking the declaration of obj means inferring its type
-	// (and possibly its value, for constants).
-	// An object's type (and thus the object) may be in one of
-	// three states which are expressed by colors:
+	// Checking the declaration of an object means determining its type
+	// (and also its value for constants). An object (and thus its type)
+	// may be in 1 of 3 states:
 	//
-	// - an object whose type is not yet known is painted white (initial color)
-	// - an object whose type is in the process of being inferred is painted grey
-	// - an object whose type is fully inferred is painted black
+	// - not in Checker.objPathIdx and type == nil : type is not yet known (white)
+	// -     in Checker.objPathIdx                 : type is pending       (grey)
+	// - not in Checker.objPathIdx and type != nil : type is known         (black)
 	//
-	// During type inference, an object's color changes from white to grey
-	// to black (pre-declared objects are painted black from the start).
-	// A black object (i.e., its type) can only depend on (refer to) other black
-	// ones. White and grey objects may depend on white and black objects.
-	// A dependency on a grey object indicates a cycle which may or may not be
-	// valid.
+	// During type-checking, an object changes from white to grey to black.
+	// Predeclared objects start as black (their type is known without checking).
 	//
-	// When objects turn grey, they are pushed on the object path (a stack);
-	// they are popped again when they turn black. Thus, if a grey object (a
-	// cycle) is encountered, it is on the object path, and all the objects
-	// it depends on are the remaining objects on that path. Color encoding
-	// is such that the color value of a grey object indicates the index of
-	// that object in the object path.
+	// A black object may only depend on (refer to) to other black objects. White
+	// and grey objects may depend on white or black objects. A dependency on a
+	// grey object indicates a (possibly invalid) cycle.
+	//
+	// When an object is marked grey, it is pushed onto the object path (a stack)
+	// and its index in the path is recorded in the path index map. It is popped
+	// and removed from the map when its type is determined (and marked black).
 
-	// During type-checking, white objects may be assigned a type without
-	// traversing through objDecl; e.g., when initializing constants and
-	// variables. Update the colors of those objects here (rather than
-	// everywhere where we set the type) to satisfy the color invariants.
-	if obj.color() == white && obj.Type() != nil {
-		obj.setColor(black)
-		return
-	}
-
-	switch obj.color() {
-	case white:
-		assert(obj.Type() == nil)
-		// All color values other than white and black are considered grey.
-		// Because black and white are < grey, all values >= grey are grey.
-		// Use those values to encode the object's index into the object path.
-		obj.setColor(grey + color(check.push(obj)))
-		defer func() {
-			check.pop().setColor(black)
-		}()
-
-	case black:
-		assert(obj.Type() != nil)
-		return
-
-	default:
-		// Color values other than white or black are considered grey.
-		fallthrough
-
-	case grey:
-		// We have a (possibly invalid) cycle.
-		// In the existing code, this is marked by a non-nil type
-		// for the object except for constants and variables whose
-		// type may be non-nil (known), or nil if it depends on the
-		// not-yet known initialization value.
-		// In the former case, set the type to Typ[Invalid] because
-		// we have an initialization cycle. The cycle error will be
-		// reported later, when determining initialization order.
-		// TODO(gri) Report cycle here and simplify initialization
-		// order code.
+	// If this object is grey, we have a (possibly invalid) cycle. This is signaled
+	// by a non-nil type for the object, except for constants and variables whose
+	// type may be non-nil (known), or nil if it depends on a not-yet known
+	// initialization value.
+	//
+	// In the former case, set the type to Typ[Invalid] because we have an
+	// initialization cycle. The cycle error will be reported later, when
+	// determining initialization order.
+	//
+	// TODO(gri) Report cycle here and simplify initialization order code.
+	if _, ok := check.objPathIdx[obj]; ok {
 		switch obj := obj.(type) {
-		case *Const:
-			if !check.validCycle(obj) || obj.typ == nil {
-				obj.typ = Typ[Invalid]
+		case *Const, *Var:
+			if !check.validCycle(obj) || obj.Type() == nil {
+				obj.setType(Typ[Invalid])
 			}
-
-		case *Var:
-			if !check.validCycle(obj) || obj.typ == nil {
-				obj.typ = Typ[Invalid]
-			}
-
 		case *TypeName:
 			if !check.validCycle(obj) {
-				// break cycle
-				// (without this, calling underlying()
-				// below may lead to an endless loop
-				// if we have a cycle for a defined
-				// (*Named) type)
-				obj.typ = Typ[Invalid]
+				obj.setType(Typ[Invalid])
 			}
-
 		case *Func:
 			if !check.validCycle(obj) {
-				// Don't set obj.typ to Typ[Invalid] here
-				// because plenty of code type-asserts that
-				// functions have a *Signature type. Grey
-				// functions have their type set to an empty
-				// signature which makes it impossible to
+				// Don't set type to Typ[Invalid]; plenty of code asserts that
+				// functions have a *Signature type. Instead, leave the type
+				// as an empty signature, which makes it impossible to
 				// initialize a variable with the function.
 			}
-
 		default:
 			panic("unreachable")
 		}
+
 		assert(obj.Type() != nil)
 		return
 	}
+
+	if obj.Type() != nil { // black, meaning it's already type-checked
+		return
+	}
+
+	// white, meaning it must be type-checked
+
+	check.push(obj) // mark as grey
+	defer check.pop()
 
 	d := check.objMap[obj]
 	if d == nil {
@@ -222,8 +185,8 @@ func (check *Checker) validCycle(obj Object) (valid bool) {
 	}
 
 	// Count cycle objects.
-	assert(obj.color() >= grey)
-	start := obj.color() - grey // index of obj in objPath
+	start, found := check.objPathIdx[obj]
+	assert(found)
 	cycle := check.objPath[start:]
 	tparCycle := false // if set, the cycle is through a type parameter list
 	nval := 0          // number of (constant or variable) values in the cycle
@@ -857,17 +820,8 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 	sig := new(Signature)
 	obj.typ = sig // guard against cycles
 
-	// Avoid cycle error when referring to method while type-checking the signature.
-	// This avoids a nuisance in the best case (non-parameterized receiver type) and
-	// since the method is not a type, we get an error. If we have a parameterized
-	// receiver type, instantiating the receiver type leads to the instantiation of
-	// its methods, and we don't want a cycle error in that case.
-	// TODO(gri) review if this is correct and/or whether we still need this?
-	saved := obj.color_
-	obj.color_ = black
 	fdecl := decl.fdecl
 	check.funcType(sig, fdecl.Recv, fdecl.Type)
-	obj.color_ = saved
 
 	// Set the scope's extent to the complete "func (...) { ... }"
 	// so that Scope.Innermost works correctly.
@@ -980,10 +934,9 @@ func (check *Checker) declStmt(d ast.Decl) {
 			// the innermost containing block."
 			scopePos := d.spec.Name.Pos()
 			check.declare(check.scope, d.spec.Name, obj, scopePos)
-			// mark and unmark type before calling typeDecl; its type is still nil (see Checker.objDecl)
-			obj.setColor(grey + color(check.push(obj)))
+			check.push(obj) // mark as grey
+			defer check.pop()
 			check.typeDecl(obj, d.spec, nil)
-			check.pop().setColor(black)
 		default:
 			check.errorf(d.node(), InvalidSyntaxTree, "unknown ast.Decl node %T", d.node())
 		}
