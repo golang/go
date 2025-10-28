@@ -4,7 +4,10 @@
 
 package ssa
 
-import "cmd/internal/src"
+import (
+	"cmd/internal/src"
+	"internal/buildcfg"
+)
 
 // branchelim tries to eliminate branches by
 // generating CondSelect instructions.
@@ -24,6 +27,10 @@ func branchelim(f *Func) {
 	switch f.Config.arch {
 	case "arm64", "ppc64le", "ppc64", "amd64", "wasm", "loong64":
 		// implemented
+	case "riscv64":
+		if buildcfg.GORISCV64 < 23 {
+			return
+		}
 	default:
 		return
 	}

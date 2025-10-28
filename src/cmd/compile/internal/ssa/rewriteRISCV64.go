@@ -132,6 +132,8 @@ func rewriteValueRISCV64(v *Value) bool {
 	case OpCom8:
 		v.Op = OpRISCV64NOT
 		return true
+	case OpCondSelect:
+		return rewriteValueRISCV64_OpCondSelect(v)
 	case OpConst16:
 		return rewriteValueRISCV64_OpConst16(v)
 	case OpConst32:
@@ -513,6 +515,10 @@ func rewriteValueRISCV64(v *Value) bool {
 		return rewriteValueRISCV64_OpRISCV64AND(v)
 	case OpRISCV64ANDI:
 		return rewriteValueRISCV64_OpRISCV64ANDI(v)
+	case OpRISCV64CZEROEQZ:
+		return rewriteValueRISCV64_OpRISCV64CZEROEQZ(v)
+	case OpRISCV64CZERONEZ:
+		return rewriteValueRISCV64_OpRISCV64CZERONEZ(v)
 	case OpRISCV64FADDD:
 		return rewriteValueRISCV64_OpRISCV64FADDD(v)
 	case OpRISCV64FADDS:
@@ -1079,6 +1085,32 @@ func rewriteValueRISCV64_OpBswap32(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+}
+func rewriteValueRISCV64_OpCondSelect(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (CondSelect <t> x y cond)
+	// cond: buildcfg.GORISCV64 >= 23
+	// result: (OR (CZEROEQZ <t> x cond) (CZERONEZ <t> y cond))
+	for {
+		t := v.Type
+		x := v_0
+		y := v_1
+		cond := v_2
+		if !(buildcfg.GORISCV64 >= 23) {
+			break
+		}
+		v.reset(OpRISCV64OR)
+		v0 := b.NewValue0(v.Pos, OpRISCV64CZEROEQZ, t)
+		v0.AddArg2(x, cond)
+		v1 := b.NewValue0(v.Pos, OpRISCV64CZERONEZ, t)
+		v1.AddArg2(y, cond)
+		v.AddArg2(v0, v1)
+		return true
+	}
+	return false
 }
 func rewriteValueRISCV64_OpConst16(v *Value) bool {
 	// match: (Const16 [val])
@@ -3523,6 +3555,119 @@ func rewriteValueRISCV64_OpRISCV64ANDI(v *Value) bool {
 		v.reset(OpRISCV64ANDI)
 		v.AuxInt = int64ToAuxInt(x & y)
 		v.AddArg(z)
+		return true
+	}
+	return false
+}
+func rewriteValueRISCV64_OpRISCV64CZEROEQZ(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (CZEROEQZ <t> x (SNEZ y))
+	// result: (CZEROEQZ <t> x y)
+	for {
+		t := v.Type
+		x := v_0
+		if v_1.Op != OpRISCV64SNEZ {
+			break
+		}
+		y := v_1.Args[0]
+		v.reset(OpRISCV64CZEROEQZ)
+		v.Type = t
+		v.AddArg2(x, y)
+		return true
+	}
+	// match: (CZEROEQZ <t> x (SEQZ y))
+	// result: (CZERONEZ <t> x y)
+	for {
+		t := v.Type
+		x := v_0
+		if v_1.Op != OpRISCV64SEQZ {
+			break
+		}
+		y := v_1.Args[0]
+		v.reset(OpRISCV64CZERONEZ)
+		v.Type = t
+		v.AddArg2(x, y)
+		return true
+	}
+	// match: (CZEROEQZ <t> x x)
+	// result: x
+	for {
+		x := v_0
+		if x != v_1 {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
+	// match: (CZEROEQZ <t> (MOVDconst [0]) _)
+	// result: (MOVDconst <t> [0])
+	for {
+		t := v.Type
+		if v_0.Op != OpRISCV64MOVDconst || auxIntToInt64(v_0.AuxInt) != 0 {
+			break
+		}
+		v.reset(OpRISCV64MOVDconst)
+		v.Type = t
+		v.AuxInt = int64ToAuxInt(0)
+		return true
+	}
+	return false
+}
+func rewriteValueRISCV64_OpRISCV64CZERONEZ(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (CZERONEZ <t> x (SNEZ y))
+	// result: (CZERONEZ <t> x y)
+	for {
+		t := v.Type
+		x := v_0
+		if v_1.Op != OpRISCV64SNEZ {
+			break
+		}
+		y := v_1.Args[0]
+		v.reset(OpRISCV64CZERONEZ)
+		v.Type = t
+		v.AddArg2(x, y)
+		return true
+	}
+	// match: (CZERONEZ <t> x (SEQZ y))
+	// result: (CZEROEQZ <t> x y)
+	for {
+		t := v.Type
+		x := v_0
+		if v_1.Op != OpRISCV64SEQZ {
+			break
+		}
+		y := v_1.Args[0]
+		v.reset(OpRISCV64CZEROEQZ)
+		v.Type = t
+		v.AddArg2(x, y)
+		return true
+	}
+	// match: (CZERONEZ <t> x x)
+	// result: (MOVDconst <t> [0])
+	for {
+		t := v.Type
+		x := v_0
+		if x != v_1 {
+			break
+		}
+		v.reset(OpRISCV64MOVDconst)
+		v.Type = t
+		v.AuxInt = int64ToAuxInt(0)
+		return true
+	}
+	// match: (CZERONEZ <t> (MOVDconst [0]) _)
+	// result: (MOVDconst <t> [0])
+	for {
+		t := v.Type
+		if v_0.Op != OpRISCV64MOVDconst || auxIntToInt64(v_0.AuxInt) != 0 {
+			break
+		}
+		v.reset(OpRISCV64MOVDconst)
+		v.Type = t
+		v.AuxInt = int64ToAuxInt(0)
 		return true
 	}
 	return false
@@ -6929,6 +7074,19 @@ func rewriteValueRISCV64_OpRISCV64OR(v *Value) bool {
 		}
 		v.copyOf(x)
 		return true
+	}
+	// match: (OR (MOVDconst [0]) x)
+	// result: x
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpRISCV64MOVDconst || auxIntToInt64(v_0.AuxInt) != 0 {
+				continue
+			}
+			x := v_1
+			v.copyOf(x)
+			return true
+		}
+		break
 	}
 	return false
 }
