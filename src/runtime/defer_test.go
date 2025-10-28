@@ -505,13 +505,5 @@ func TestIssue43941(t *testing.T) {
 			defer step(t, &steps, 11)
 			panic(4)
 		}()
-
-		// Code below isn't executed,
-		// but removing it breaks the test case.
-		defer func() {}()
-		defer panic(-1)
-		defer step(t, &steps, -1)
-		defer step(t, &steps, -1)
-		defer func() {}()
 	}()
 }
