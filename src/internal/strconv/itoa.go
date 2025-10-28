@@ -191,10 +191,6 @@ func formatBase10(a []byte, u uint64) int {
 		// On most systems, the uint32 math is faster, but not all.
 		// The decision here is based on benchmarking.
 		itoaPure64 = host64bit && goarch.GOARCH != "amd64" && goarch.GOARCH != "arm64" && goarch.GOARCH != "s390x"
-
-		// 64-bit systems can all use 64-bit div and mod by a constant,
-		// which the compiler rewrites to use 64x64→128-bit multiplies.
-		itoaDivMod64 = host64bit // can use 64-bit div/mod by constant
 	)
 
 	if itoaPure64 {
@@ -218,47 +214,13 @@ func formatBase10(a []byte, u uint64) int {
 		return i
 	}
 
-	// Convert 9-digit chunks using 32-bit math.
+	// Split into 9-digit chunks that fit in uint32s and convert each chunk using 32-bit math.
 	// Most numbers are small, so the comparison u >= 1e9 is usually pure overhead,
 	// so we approximate it by u>>29 != 0, which is usually faster and good enough.
 	i := len(a)
 	for (host64bit && u>>29 != 0) || (!host64bit && (u>>32 != 0 || uint32(u)>>29 != 0)) {
 		var lo uint32
-		if itoaDivMod64 {
-			u, lo = u/1e9, uint32(u%1e9)
-		} else {
-			// On 64-bit systems the compiler rewrites the div and mod above
-			// into a 64x64→128-bit multiply (https://godbolt.org/z/EPnK8zvMK):
-			//	hi, _ := bits.Mul64(u>>1, 0x89705f4136b4a598)
-			//	q := hi >> 28
-			//	lo = uint32(u - q*1e9)
-			//	u = q
-			// On 32-bit systems, the compiler invokes a uint64 software divide,
-			// which is quite slow. We could write the bits.Mul64 code above
-			// but even that is slower than we'd like, since it calls a software mul64
-			// instead of having a hardware instruction to use.
-			// Instead we inline bits.Mul64 here and change y0/y1 to constants.
-			// The compiler does use direct 32x32→64-bit multiplies for this code.
-			//
-			// For lots more about division by multiplication see Warren, _Hacker's Delight_.
-			// For a concise overview, see the first two sections of
-			// https://ridiculousfish.com/blog/posts/labor-of-division-episode-iii.html.
-			const mask32 = 1<<32 - 1
-			x0 := ((u >> 1) & mask32)
-			x1 := (u >> 1) >> 32
-			const y0 = 0x36b4a598
-			const y1 = 0x89705f41
-			w0 := x0 * y0
-			t := x1*y0 + w0>>32
-			w1 := t & mask32
-			w2 := t >> 32
-			w1 += x0 * y1
-			hi := x1*y1 + w2 + w1>>32
-			q := hi >> 28
-
-			lo = uint32(u) - uint32(q)*1e9 // uint32(u - q*1e9) but faster
-			u = q
-		}
+		u, lo = u/1e9, uint32(u%1e9)
 
 		// Convert 9 digits.
 		for range 4 {
