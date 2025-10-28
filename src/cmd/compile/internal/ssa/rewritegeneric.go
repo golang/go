@@ -32612,7 +32612,7 @@ func rewriteValuegeneric_OpStaticLECall(v *Value) bool {
 		return true
 	}
 	// match: (StaticLECall {f} typ_ x y mem)
-	// cond: isSameCall(f, "runtime.efaceeq") && isDirectType(typ_) && clobber(v)
+	// cond: isSameCall(f, "runtime.efaceeq") && isDirectAndComparableType(typ_) && clobber(v)
 	// result: (MakeResult (EqPtr x y) mem)
 	for {
 		if len(v.Args) != 4 {
@@ -32623,7 +32623,7 @@ func rewriteValuegeneric_OpStaticLECall(v *Value) bool {
 		typ_ := v.Args[0]
 		x := v.Args[1]
 		y := v.Args[2]
-		if !(isSameCall(f, "runtime.efaceeq") && isDirectType(typ_) && clobber(v)) {
+		if !(isSameCall(f, "runtime.efaceeq") && isDirectAndComparableType(typ_) && clobber(v)) {
 			break
 		}
 		v.reset(OpMakeResult)
@@ -32633,7 +32633,7 @@ func rewriteValuegeneric_OpStaticLECall(v *Value) bool {
 		return true
 	}
 	// match: (StaticLECall {f} itab x y mem)
-	// cond: isSameCall(f, "runtime.ifaceeq") && isDirectIface(itab) && clobber(v)
+	// cond: isSameCall(f, "runtime.ifaceeq") && isDirectAndComparableIface(itab) && clobber(v)
 	// result: (MakeResult (EqPtr x y) mem)
 	for {
 		if len(v.Args) != 4 {
@@ -32644,7 +32644,7 @@ func rewriteValuegeneric_OpStaticLECall(v *Value) bool {
 		itab := v.Args[0]
 		x := v.Args[1]
 		y := v.Args[2]
-		if !(isSameCall(f, "runtime.ifaceeq") && isDirectIface(itab) && clobber(v)) {
+		if !(isSameCall(f, "runtime.ifaceeq") && isDirectAndComparableIface(itab) && clobber(v)) {
 			break
 		}
 		v.reset(OpMakeResult)
