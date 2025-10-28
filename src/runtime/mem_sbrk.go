@@ -296,3 +296,7 @@ func sysReserveAlignedSbrk(size, align uintptr) (unsafe.Pointer, uintptr) {
 	})
 	return unsafe.Pointer(p), size
 }
+
+func needZeroAfterSysUnusedOS() bool {
+	return true
+}

@@ -85,3 +85,7 @@ func sysMapOS(v unsafe.Pointer, n uintptr, _ string) {
 		throw("runtime: cannot map pages in arena address space")
 	}
 }
+
+func needZeroAfterSysUnusedOS() bool {
+	return true
+}
