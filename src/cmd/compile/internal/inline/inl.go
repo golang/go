@@ -183,9 +183,18 @@ func simdCreditMultiplier(fn *ir.Func) int32 {
 	for _, field := range fn.Type().RecvParamsResults() {
 		if field.Type.IsSIMD() {
 			return 3
-			break
 		}
 	}
+	// Sometimes code uses closures, that do not take simd
+	// parameters, to perform repetitive SIMD operations.
+	// fn.  These really need to be inlined, or the anticipated
+	// awesome SIMD performance will be missed.
+	for _, v := range fn.ClosureVars {
+		if v.Type().IsSIMD() {
+			return 11 // 11 ought to be enough.
+		}
+	}
+
 	return 1
 }
 
