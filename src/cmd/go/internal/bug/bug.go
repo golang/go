@@ -42,16 +42,17 @@ func init() {
 }
 
 func runBug(ctx context.Context, cmd *base.Command, args []string) {
+	moduleLoaderState := modload.NewState()
 	if len(args) > 0 {
 		base.Fatalf("go: bug takes no arguments")
 	}
-	work.BuildInit(modload.LoaderState)
+	work.BuildInit(moduleLoaderState)
 
 	var buf strings.Builder
 	buf.WriteString(bugHeader)
 	printGoVersion(&buf)
 	buf.WriteString("### Does this issue reproduce with the latest release?\n\n\n")
-	printEnvDetails(modload.LoaderState, &buf)
+	printEnvDetails(moduleLoaderState, &buf)
 	buf.WriteString(bugFooter)
 
 	body := buf.String()
@@ -106,7 +107,7 @@ func printEnvDetails(loaderstate *modload.State, w io.Writer) {
 func printGoEnv(loaderstate *modload.State, w io.Writer) {
 	env := envcmd.MkEnv()
 	env = append(env, envcmd.ExtraEnvVars(loaderstate)...)
-	env = append(env, envcmd.ExtraEnvVarsCostly()...)
+	env = append(env, envcmd.ExtraEnvVarsCostly(loaderstate)...)
 	envcmd.PrintEnv(w, env, false)
 }
 

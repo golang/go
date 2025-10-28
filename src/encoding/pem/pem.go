@@ -116,11 +116,11 @@ func Decode(data []byte) (p *Block, rest []byte) {
 		var typeLine []byte
 		var consumed int
 		typeLine, rest, consumed = getLine(rest)
+		endIndex -= consumed
+		endTrailerIndex -= consumed
 		if !bytes.HasSuffix(typeLine, pemEndOfLine) {
 			continue
 		}
-		endIndex -= consumed
-		endTrailerIndex -= consumed
 		typeLine = typeLine[0 : len(typeLine)-len(pemEndOfLine)]
 
 		p = &Block{

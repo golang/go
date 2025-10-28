@@ -397,20 +397,30 @@
 (CondSelect <t> x y (SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) cond)) && is16BitInt(t)
     => (CMOVW(EQ|NE|LT|GT|LE|GE|HI|CS|CC|LS|EQF|NEF|GTF|GEF) y x cond)
 
-// If the condition does not set the flags, we need to generate a comparison.
-(CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 1
-    => (CondSelect <t> x y (MOVBQZX <typ.UInt64> check))
-(CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 2
-    => (CondSelect <t> x y (MOVWQZX <typ.UInt64> check))
-(CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 4
-    => (CondSelect <t> x y (MOVLQZX <typ.UInt64> check))
-
 (CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 8 && (is64BitInt(t) || isPtr(t))
     => (CMOVQNE y x (CMPQconst [0] check))
 (CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 8 && is32BitInt(t)
     => (CMOVLNE y x (CMPQconst [0] check))
 (CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 8 && is16BitInt(t)
     => (CMOVWNE y x (CMPQconst [0] check))
+(CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 4 && (is64BitInt(t) || isPtr(t))
+    => (CMOVQNE y x (CMPLconst [0] check))
+(CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 4 && is32BitInt(t)
+    => (CMOVLNE y x (CMPLconst [0] check))
+(CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 4 && is16BitInt(t)
+    => (CMOVWNE y x (CMPLconst [0] check))
+(CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 2 && (is64BitInt(t) || isPtr(t))
+    => (CMOVQNE y x (CMPWconst [0] check))
+(CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 2 && is32BitInt(t)
+    => (CMOVLNE y x (CMPWconst [0] check))
+(CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 2 && is16BitInt(t)
+    => (CMOVWNE y x (CMPWconst [0] check))
+(CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 1 && (is64BitInt(t) || isPtr(t))
+    => (CMOVQNE y x (CMPBconst [0] check))
+(CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 1 && is32BitInt(t)
+    => (CMOVLNE y x (CMPBconst [0] check))
+(CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 1 && is16BitInt(t)
+    => (CMOVWNE y x (CMPBconst [0] check))
 
 // Absorb InvertFlags
 (CMOVQ(EQ|NE|LT|GT|LE|GE|HI|CS|CC|LS) x y (InvertFlags cond))

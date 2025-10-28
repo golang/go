@@ -138,11 +138,11 @@ func pruningForGoVersion(goVersion string) modPruning {
 // CheckAllowed returns an error equivalent to ErrDisallowed if m is excluded by
 // the main module's go.mod or retracted by its author. Most version queries use
 // this to filter out versions that should not be used.
-func CheckAllowed(ctx context.Context, m module.Version) error {
-	if err := CheckExclusions(ctx, m); err != nil {
+func (s *State) CheckAllowed(ctx context.Context, m module.Version) error {
+	if err := s.CheckExclusions(ctx, m); err != nil {
 		return err
 	}
-	if err := CheckRetractions(LoaderState, ctx, m); err != nil {
+	if err := s.CheckRetractions(ctx, m); err != nil {
 		return err
 	}
 	return nil
@@ -154,9 +154,9 @@ var ErrDisallowed = errors.New("disallowed module version")
 
 // CheckExclusions returns an error equivalent to ErrDisallowed if module m is
 // excluded by the main module's go.mod file.
-func CheckExclusions(ctx context.Context, m module.Version) error {
-	for _, mainModule := range LoaderState.MainModules.Versions() {
-		if index := LoaderState.MainModules.Index(mainModule); index != nil && index.exclude[m] {
+func (s *State) CheckExclusions(ctx context.Context, m module.Version) error {
+	for _, mainModule := range s.MainModules.Versions() {
+		if index := s.MainModules.Index(mainModule); index != nil && index.exclude[m] {
 			return module.VersionError(m, errExcluded)
 		}
 	}
@@ -172,7 +172,7 @@ func (e *excludedError) Is(err error) bool { return err == ErrDisallowed }
 
 // CheckRetractions returns an error if module m has been retracted by
 // its author.
-func CheckRetractions(loaderstate *State, ctx context.Context, m module.Version) (err error) {
+func (s *State) CheckRetractions(ctx context.Context, m module.Version) (err error) {
 	defer func() {
 		if err == nil {
 			return
@@ -193,7 +193,7 @@ func CheckRetractions(loaderstate *State, ctx context.Context, m module.Version)
 		// Cannot be retracted.
 		return nil
 	}
-	if repl := Replacement(loaderstate, module.Version{Path: m.Path}); repl.Path != "" {
+	if repl := Replacement(s, module.Version{Path: m.Path}); repl.Path != "" {
 		// All versions of the module were replaced.
 		// Don't load retractions, since we'd just load the replacement.
 		return nil
@@ -210,11 +210,11 @@ func CheckRetractions(loaderstate *State, ctx context.Context, m module.Version)
 	// We load the raw file here: the go.mod file may have a different module
 	// path that we expect if the module or its repository was renamed.
 	// We still want to apply retractions to other aliases of the module.
-	rm, err := queryLatestVersionIgnoringRetractions(loaderstate, ctx, m.Path)
+	rm, err := queryLatestVersionIgnoringRetractions(s, ctx, m.Path)
 	if err != nil {
 		return err
 	}
-	summary, err := rawGoModSummary(loaderstate, rm)
+	summary, err := rawGoModSummary(s, rm)
 	if err != nil && !errors.Is(err, gover.ErrTooNew) {
 		return err
 	}

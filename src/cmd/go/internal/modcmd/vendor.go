@@ -66,11 +66,12 @@ func init() {
 }
 
 func runVendor(ctx context.Context, cmd *base.Command, args []string) {
-	modload.InitWorkfile(modload.LoaderState)
-	if modload.WorkFilePath(modload.LoaderState) != "" {
+	moduleLoaderState := modload.NewState()
+	modload.InitWorkfile(moduleLoaderState)
+	if modload.WorkFilePath(moduleLoaderState) != "" {
 		base.Fatalf("go: 'go mod vendor' cannot be run in workspace mode. Run 'go work vendor' to vendor the workspace or set 'GOWORK=off' to exit workspace mode.")
 	}
-	RunVendor(modload.LoaderState, ctx, vendorE, vendorO, args)
+	RunVendor(moduleLoaderState, ctx, vendorE, vendorO, args)
 }
 
 func RunVendor(loaderstate *modload.State, ctx context.Context, vendorE bool, vendorO string, args []string) {

@@ -913,6 +913,23 @@ func windynrelocsym(ctxt *Link, rel *loader.SymbolBuilder, s loader.Sym) error {
 				rel.AddPCRelPlus(ctxt.Arch, targ, 0)
 				rel.AddUint8(0x90)
 				rel.AddUint8(0x90)
+			case sys.ARM64:
+				// adrp x16, addr
+				rel.AddUint32(ctxt.Arch, 0x90000010)
+				r, _ := rel.AddRel(objabi.R_ARM64_PCREL)
+				r.SetOff(int32(rel.Size() - 4))
+				r.SetSiz(4)
+				r.SetSym(targ)
+
+				// ldr x17, [x16, <offset>]
+				rel.AddUint32(ctxt.Arch, 0xf9400211)
+				r, _ = rel.AddRel(objabi.R_ARM64_PCREL)
+				r.SetOff(int32(rel.Size() - 4))
+				r.SetSiz(4)
+				r.SetSym(targ)
+
+				// br x17
+				rel.AddUint32(ctxt.Arch, 0xd61f0220)
 			}
 		} else if tplt >= 0 {
 			if su == nil {

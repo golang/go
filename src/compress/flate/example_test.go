@@ -176,7 +176,7 @@ func Example_synchronization() {
 		}
 
 		b := make([]byte, 256)
-		for _, m := range strings.Fields("A long time ago in a galaxy far, far away...") {
+		for m := range strings.FieldsSeq("A long time ago in a galaxy far, far away...") {
 			// We use a simple framing format where the first byte is the
 			// message length, followed the message itself.
 			b[0] = uint8(copy(b[1:], m))

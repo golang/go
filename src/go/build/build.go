@@ -1139,7 +1139,7 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode) 
 	// we must not being doing special things like AllowBinary or IgnoreVendor,
 	// and all the file system callbacks must be nil (we're meant to use the local file system).
 	if mode&AllowBinary != 0 || mode&IgnoreVendor != 0 ||
-		ctxt.JoinPath != nil || ctxt.SplitPathList != nil || ctxt.IsAbsPath != nil || ctxt.IsDir != nil || ctxt.HasSubdir != nil || ctxt.ReadDir != nil || ctxt.OpenFile != nil || !equal(ctxt.ToolTags, defaultToolTags) || !equal(ctxt.ReleaseTags, defaultReleaseTags) {
+		ctxt.JoinPath != nil || ctxt.SplitPathList != nil || ctxt.IsAbsPath != nil || ctxt.IsDir != nil || ctxt.HasSubdir != nil || ctxt.ReadDir != nil || ctxt.OpenFile != nil || !slices.Equal(ctxt.ToolTags, defaultToolTags) || !slices.Equal(ctxt.ReleaseTags, defaultReleaseTags) {
 		return errNoModules
 	}
 
@@ -1277,18 +1277,6 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode) 
 	p.Root = f[2]
 	p.Goroot = f[3] == "true"
 	return nil
-}
-
-func equal(x, y []string) bool {
-	if len(x) != len(y) {
-		return false
-	}
-	for i, xi := range x {
-		if xi != y[i] {
-			return false
-		}
-	}
-	return true
 }
 
 // hasGoFiles reports whether dir contains any files with names ending in .go.

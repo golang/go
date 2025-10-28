@@ -536,7 +536,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *TypeN
 			assert(rhs != nil)
 
 			alias.fromRHS = rhs
-			unalias(alias) // resolve alias.actual
+			unalias(alias) // populate alias.actual
 		} else {
 			if !versionErr && tparam0 != nil {
 				check.error(tdecl, UnsupportedFeature, "generic type alias requires GODEBUG=gotypesalias=1 or unset")
@@ -561,9 +561,9 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *TypeN
 	// The RHS of a named N can be nil if, for example, N is defined as a cycle of aliases with
 	// gotypesalias=0. Consider:
 	//
-	//   type D N    // N.resolve() will panic
+	//   type D N    // N.unpack() will panic
 	//   type N A
-	//   type A = N  // N.fromRHS is not set before N.resolve(), since A does not call setDefType
+	//   type A = N  // N.fromRHS is not set before N.unpack(), since A does not call setDefType
 	//
 	// There is likely a better way to detect such cases, but it may not be worth the effort.
 	// Instead, we briefly permit a nil N.fromRHS while type-checking D.

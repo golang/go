@@ -132,6 +132,7 @@ func init() {
 }
 
 func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
+	moduleLoaderState := modload.NewState()
 	if *editJSON && *editPrint {
 		base.Fatalf("go: cannot use both -json and -print")
 	}
@@ -143,8 +144,8 @@ func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) == 1 {
 		gowork = args[0]
 	} else {
-		modload.InitWorkfile(modload.LoaderState)
-		gowork = modload.WorkFilePath(modload.LoaderState)
+		modload.InitWorkfile(moduleLoaderState)
+		gowork = modload.WorkFilePath(moduleLoaderState)
 	}
 	if gowork == "" {
 		base.Fatalf("go: no go.work file found\n\t(run 'go work init' first or specify path using GOWORK environment variable)")

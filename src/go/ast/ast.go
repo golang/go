@@ -134,10 +134,10 @@ func (g *CommentGroup) Text() string {
 		}
 
 		// Split on newlines.
-		cl := strings.Split(c, "\n")
+		cl := strings.SplitSeq(c, "\n")
 
 		// Walk lines, stripping trailing white space and adding to list.
-		for _, l := range cl {
+		for l := range cl {
 			lines = append(lines, stripTrailingWhitespace(l))
 		}
 	}

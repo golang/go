@@ -763,9 +763,10 @@ func QueryPattern(loaderstate *State, ctx context.Context, pattern, query string
 			return nil, modOnly, nil
 		} else if len(mainModuleMatches) != 0 {
 			return nil, nil, &QueryMatchesMainModulesError{
-				MainModules: mainModuleMatches,
-				Pattern:     pattern,
-				Query:       query,
+				MainModules:     mainModuleMatches,
+				Pattern:         pattern,
+				Query:           query,
+				PatternIsModule: loaderstate.MainModules.Contains(pattern),
 			}
 		} else {
 			return nil, nil, &PackageNotInModuleError{
@@ -826,8 +827,9 @@ func QueryPattern(loaderstate *State, ctx context.Context, pattern, query string
 
 	if len(mainModuleMatches) > 0 && len(results) == 0 && modOnly == nil && errors.Is(err, fs.ErrNotExist) {
 		return nil, nil, &QueryMatchesMainModulesError{
-			Pattern: pattern,
-			Query:   query,
+			Pattern:         pattern,
+			Query:           query,
+			PatternIsModule: loaderstate.MainModules.Contains(pattern),
 		}
 	}
 	return slices.Clip(results), modOnly, err
@@ -1112,7 +1114,7 @@ type versionRepo interface {
 	CheckReuse(context.Context, *codehost.Origin) error
 	Versions(ctx context.Context, prefix string) (*modfetch.Versions, error)
 	Stat(ctx context.Context, rev string) (*modfetch.RevInfo, error)
-	Latest(context.Context) (*modfetch.RevInfo, error)
+	Latest(ctx context.Context) (*modfetch.RevInfo, error)
 }
 
 var _ versionRepo = modfetch.Repo(nil)
@@ -1130,7 +1132,7 @@ func lookupRepo(loaderstate *State, ctx context.Context, proxy, path string) (re
 	if loaderstate.MainModules == nil {
 		return repo, err
 	} else if _, ok := loaderstate.MainModules.HighestReplaced()[path]; ok {
-		return &replacementRepo{repo: repo}, nil
+		return &replacementRepo{repo: repo, loaderstate: loaderstate}, nil
 	}
 
 	return repo, err
@@ -1163,7 +1165,8 @@ func (er emptyRepo) Latest(ctx context.Context) (*modfetch.RevInfo, error) { ret
 // modules, so a replacementRepo should only be constructed for a module that
 // actually has one or more valid replacements.
 type replacementRepo struct {
-	repo versionRepo
+	repo        versionRepo
+	loaderstate *State
 }
 
 var _ versionRepo = (*replacementRepo)(nil)
@@ -1186,8 +1189,8 @@ func (rr *replacementRepo) Versions(ctx context.Context, prefix string) (*modfet
 	}
 
 	versions := repoVersions.List
-	for _, mm := range LoaderState.MainModules.Versions() {
-		if index := LoaderState.MainModules.Index(mm); index != nil && len(index.replace) > 0 {
+	for _, mm := range rr.loaderstate.MainModules.Versions() {
+		if index := rr.loaderstate.MainModules.Index(mm); index != nil && len(index.replace) > 0 {
 			path := rr.ModulePath()
 			for m := range index.replace {
 				if m.Path == path && strings.HasPrefix(m.Version, prefix) && m.Version != "" && !module.IsPseudoVersion(m.Version) {
@@ -1215,8 +1218,8 @@ func (rr *replacementRepo) Stat(ctx context.Context, rev string) (*modfetch.RevI
 		return info, err
 	}
 	var hasReplacements bool
-	for _, v := range LoaderState.MainModules.Versions() {
-		if index := LoaderState.MainModules.Index(v); index != nil && len(index.replace) > 0 {
+	for _, v := range rr.loaderstate.MainModules.Versions() {
+		if index := rr.loaderstate.MainModules.Index(v); index != nil && len(index.replace) > 0 {
 			hasReplacements = true
 		}
 	}
@@ -1239,7 +1242,7 @@ func (rr *replacementRepo) Stat(ctx context.Context, rev string) (*modfetch.RevI
 		}
 	}
 
-	if r := Replacement(LoaderState, module.Version{Path: path, Version: v}); r.Path == "" {
+	if r := Replacement(rr.loaderstate, module.Version{Path: path, Version: v}); r.Path == "" {
 		return info, err
 	}
 	return rr.replacementStat(v)
@@ -1249,7 +1252,7 @@ func (rr *replacementRepo) Latest(ctx context.Context) (*modfetch.RevInfo, error
 	info, err := rr.repo.Latest(ctx)
 	path := rr.ModulePath()
 
-	if v, ok := LoaderState.MainModules.HighestReplaced()[path]; ok {
+	if v, ok := rr.loaderstate.MainModules.HighestReplaced()[path]; ok {
 		if v == "" {
 			// The only replacement is a wildcard that doesn't specify a version, so
 			// synthesize a pseudo-version with an appropriate major version and a
@@ -1284,13 +1287,14 @@ func (rr *replacementRepo) replacementStat(v string) (*modfetch.RevInfo, error) 
 // a version of the main module that cannot be satisfied.
 // (The main module's version cannot be changed.)
 type QueryMatchesMainModulesError struct {
-	MainModules []module.Version
-	Pattern     string
-	Query       string
+	MainModules     []module.Version
+	Pattern         string
+	Query           string
+	PatternIsModule bool // true if pattern is one of the main modules
 }
 
 func (e *QueryMatchesMainModulesError) Error() string {
-	if LoaderState.MainModules.Contains(e.Pattern) {
+	if e.PatternIsModule {
 		return fmt.Sprintf("can't request version %q of the main module (%s)", e.Query, e.Pattern)
 	}
 

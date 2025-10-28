@@ -146,7 +146,7 @@ func listModules(loaderstate *State, ctx context.Context, rs *Requirements, args
 		if arg == "all" || strings.Contains(arg, "...") {
 			needFullGraph = true
 			if !HasModRoot(loaderstate) {
-				base.Fatalf("go: cannot match %q: %v", arg, ErrNoModRoot)
+				base.Fatalf("go: cannot match %q: %v", arg, NewNoMainModulesError(loaderstate))
 			}
 			continue
 		}
@@ -155,7 +155,7 @@ func listModules(loaderstate *State, ctx context.Context, rs *Requirements, args
 				if _, ok := rs.rootSelected(loaderstate, path); !ok || rs.pruning == unpruned {
 					needFullGraph = true
 					if !HasModRoot(loaderstate) {
-						base.Fatalf("go: cannot match %q: %v", arg, ErrNoModRoot)
+						base.Fatalf("go: cannot match %q: %v", arg, NewNoMainModulesError(loaderstate))
 					}
 				}
 			}
@@ -164,7 +164,7 @@ func listModules(loaderstate *State, ctx context.Context, rs *Requirements, args
 		if _, ok := rs.rootSelected(loaderstate, arg); !ok || rs.pruning == unpruned {
 			needFullGraph = true
 			if mode&ListVersions == 0 && !HasModRoot(loaderstate) {
-				base.Fatalf("go: cannot match %q without -versions or an explicit version: %v", arg, ErrNoModRoot)
+				base.Fatalf("go: cannot match %q without -versions or an explicit version: %v", arg, NewNoMainModulesError(loaderstate))
 			}
 		}
 	}
@@ -192,7 +192,7 @@ func listModules(loaderstate *State, ctx context.Context, rs *Requirements, args
 				}
 			}
 
-			allowed := CheckAllowed
+			allowed := loaderstate.CheckAllowed
 			if IsRevisionQuery(path, vers) || mode&ListRetracted != 0 {
 				// Allow excluded and retracted versions if the user asked for a
 				// specific revision or used 'go list -retracted'.

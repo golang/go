@@ -629,6 +629,10 @@
 (Sub(64|32|16|8) (Com(64|32|16|8) x) (Neg(64|32|16|8) x)) => (Const(64|32|16|8) [-1])
 (Add(64|32|16|8) (Com(64|32|16|8) x)                  x)  => (Const(64|32|16|8) [-1])
 
+// Prove does not simplify this because x + y might overflow into carry,
+// however if no one care about the carry, let it overflow in a normal add.
+(Select0 a:(Add64carry x y (Const64 [0]))) && a.Uses == 1 => (Add64 x y)
+
 // Simplification when involving common integer
 // (t + x) - (t + y) == x - y
 // (t + x) - (y + t) == x - y
@@ -2980,3 +2984,17 @@
 // if b { x >>= 1 } => x >>= b
 (CondSelect (Rsh(64|32|16|8)x64 x (Const64 [1])) x bool) => (Rsh(64|32|16|8)x8 [true] x (CvtBoolToUint8 <types.Types[types.TUINT8]> bool))
 (CondSelect (Rsh(64|32|16|8)Ux64 x (Const64 [1])) x bool) => (Rsh(64|32|16|8)Ux8 [true] x (CvtBoolToUint8 <types.Types[types.TUINT8]> bool))
+
+// bool(int(x)) => x
+(Neq8                                (CvtBoolToUint8 x)  (Const8          [0])) => x
+(Neq8                                (CvtBoolToUint8 x)  (Const8          [1])) => (Not x)
+(Eq8                                 (CvtBoolToUint8 x)  (Const8          [1])) => x
+(Eq8                                 (CvtBoolToUint8 x)  (Const8          [0])) => (Not x)
+(Neq(64|32|16) (ZeroExt8to(64|32|16) (CvtBoolToUint8 x)) (Const(64|32|16) [0])) => x
+(Neq(64|32|16) (ZeroExt8to(64|32|16) (CvtBoolToUint8 x)) (Const(64|32|16) [1])) => (Not x)
+(Eq(64|32|16)  (ZeroExt8to(64|32|16) (CvtBoolToUint8 x)) (Const(64|32|16) [1])) => x
+(Eq(64|32|16)  (ZeroExt8to(64|32|16) (CvtBoolToUint8 x)) (Const(64|32|16) [0])) => (Not x)
+(Neq(64|32|16) (SignExt8to(64|32|16) (CvtBoolToUint8 x)) (Const(64|32|16) [0])) => x
+(Neq(64|32|16) (SignExt8to(64|32|16) (CvtBoolToUint8 x)) (Const(64|32|16) [1])) => (Not x)
+(Eq(64|32|16)  (SignExt8to(64|32|16) (CvtBoolToUint8 x)) (Const(64|32|16) [1])) => x
+(Eq(64|32|16)  (SignExt8to(64|32|16) (CvtBoolToUint8 x)) (Const(64|32|16) [0])) => (Not x)

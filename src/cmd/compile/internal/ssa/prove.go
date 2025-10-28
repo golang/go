@@ -7,9 +7,11 @@ package ssa
 import (
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
+	"cmp"
 	"fmt"
 	"math"
 	"math/bits"
+	"slices"
 )
 
 type branch int
@@ -168,6 +170,9 @@ func (l limit) unsignedMinMax(minimum, maximum uint64) limit {
 
 func (l limit) nonzero() bool {
 	return l.min > 0 || l.umin > 0 || l.max < 0
+}
+func (l limit) maybeZero() bool {
+	return !l.nonzero()
 }
 func (l limit) nonnegative() bool {
 	return l.min >= 0
@@ -412,6 +417,9 @@ type factsTable struct {
 	// more than one len(s) for a slice. We could keep a list if necessary.
 	lens map[ID]*Value
 	caps map[ID]*Value
+
+	// reusedTopoSortScoresTable recycle allocations for topo-sort
+	reusedTopoSortScoresTable []uint
 }
 
 // checkpointBound is an invalid value used for checkpointing
@@ -1238,6 +1246,9 @@ func (ft *factsTable) cleanup(f *Func) {
 	}
 	f.Cache.freeLimitSlice(ft.limits)
 	f.Cache.freeBoolSlice(ft.recurseCheck)
+	if cap(ft.reusedTopoSortScoresTable) > 0 {
+		f.Cache.freeUintSlice(ft.reusedTopoSortScoresTable)
+	}
 }
 
 // addSlicesOfSameLen finds the slices that are in the same block and whose Op
@@ -1954,19 +1965,6 @@ func (ft *factsTable) flowLimit(v *Value) bool {
 		b := ft.limits[v.Args[1].ID]
 		bitsize := uint(v.Type.Size()) * 8
 		return ft.newLimit(v, a.mul(b.exp2(bitsize), bitsize))
-	case OpMod64, OpMod32, OpMod16, OpMod8:
-		a := ft.limits[v.Args[0].ID]
-		b := ft.limits[v.Args[1].ID]
-		if !(a.nonnegative() && b.nonnegative()) {
-			// TODO: we could handle signed limits but I didn't bother.
-			break
-		}
-		fallthrough
-	case OpMod64u, OpMod32u, OpMod16u, OpMod8u:
-		a := ft.limits[v.Args[0].ID]
-		b := ft.limits[v.Args[1].ID]
-		// Underflow in the arithmetic below is ok, it gives to MaxUint64 which does nothing to the limit.
-		return ft.unsignedMax(v, min(a.umax, b.umax-1))
 	case OpDiv64, OpDiv32, OpDiv16, OpDiv8:
 		a := ft.limits[v.Args[0].ID]
 		b := ft.limits[v.Args[1].ID]
@@ -1988,89 +1986,6 @@ func (ft *factsTable) flowLimit(v *Value) bool {
 		return ft.newLimit(v, lim)
 
 	case OpPhi:
-		{
-			// Work around for go.dev/issue/68857, look for min(x, y) and max(x, y).
-			b := v.Block
-			if len(b.Preds) != 2 {
-				goto notMinNorMax
-			}
-			// FIXME: this code searches for the following losange pattern
-			// because that what ssagen produce for min and max builtins:
-			// conditionBlock → (firstBlock, secondBlock) → v.Block
-			// there are three non losange equivalent constructions
-			// we could match for, but I didn't bother:
-			// conditionBlock → (v.Block, secondBlock → v.Block)
-			// conditionBlock → (firstBlock → v.Block, v.Block)
-			// conditionBlock → (v.Block, v.Block)
-			firstBlock, secondBlock := b.Preds[0].b, b.Preds[1].b
-			if firstBlock.Kind != BlockPlain || secondBlock.Kind != BlockPlain {
-				goto notMinNorMax
-			}
-			if len(firstBlock.Preds) != 1 || len(secondBlock.Preds) != 1 {
-				goto notMinNorMax
-			}
-			conditionBlock := firstBlock.Preds[0].b
-			if conditionBlock != secondBlock.Preds[0].b {
-				goto notMinNorMax
-			}
-			if conditionBlock.Kind != BlockIf {
-				goto notMinNorMax
-			}
-
-			less := conditionBlock.Controls[0]
-			var unsigned bool
-			switch less.Op {
-			case OpLess64U, OpLess32U, OpLess16U, OpLess8U,
-				OpLeq64U, OpLeq32U, OpLeq16U, OpLeq8U:
-				unsigned = true
-			case OpLess64, OpLess32, OpLess16, OpLess8,
-				OpLeq64, OpLeq32, OpLeq16, OpLeq8:
-			default:
-				goto notMinNorMax
-			}
-			small, big := less.Args[0], less.Args[1]
-			truev, falsev := v.Args[0], v.Args[1]
-			if conditionBlock.Succs[0].b == secondBlock {
-				truev, falsev = falsev, truev
-			}
-
-			bigl, smalll := ft.limits[big.ID], ft.limits[small.ID]
-			if truev == big {
-				if falsev == small {
-					// v := big if small <¿=? big else small
-					if unsigned {
-						maximum := max(bigl.umax, smalll.umax)
-						minimum := max(bigl.umin, smalll.umin)
-						return ft.unsignedMinMax(v, minimum, maximum)
-					} else {
-						maximum := max(bigl.max, smalll.max)
-						minimum := max(bigl.min, smalll.min)
-						return ft.signedMinMax(v, minimum, maximum)
-					}
-				} else {
-					goto notMinNorMax
-				}
-			} else if truev == small {
-				if falsev == big {
-					// v := small if small <¿=? big else big
-					if unsigned {
-						maximum := min(bigl.umax, smalll.umax)
-						minimum := min(bigl.umin, smalll.umin)
-						return ft.unsignedMinMax(v, minimum, maximum)
-					} else {
-						maximum := min(bigl.max, smalll.max)
-						minimum := min(bigl.min, smalll.min)
-						return ft.signedMinMax(v, minimum, maximum)
-					}
-				} else {
-					goto notMinNorMax
-				}
-			} else {
-				goto notMinNorMax
-			}
-		}
-	notMinNorMax:
-
 		// Compute the union of all the input phis.
 		// Often this will convey no information, because the block
 		// is not dominated by its predecessors and hence the
@@ -2478,63 +2393,53 @@ func checkForChunkedIndexBounds(ft *factsTable, b *Block, index, bound *Value, i
 }
 
 func addLocalFacts(ft *factsTable, b *Block) {
-	// Propagate constant ranges among values in this block.
-	// We do this before the second loop so that we have the
-	// most up-to-date constant bounds for isNonNegative calls.
-	for {
-		changed := false
-		for _, v := range b.Values {
-			changed = ft.flowLimit(v) || changed
-		}
-		if !changed {
-			break
-		}
-	}
+	ft.topoSortValuesInBlock(b)
 
-	// Add facts about individual operations.
 	for _, v := range b.Values {
-		// FIXME(go.dev/issue/68857): this loop only set up limits properly when b.Values is in topological order.
-		// flowLimit can also depend on limits given by this loop which right now is not handled.
+		// Propagate constant ranges before relative relations to get
+		// the most up-to-date constant bounds for isNonNegative calls.
+		ft.flowLimit(v)
+
 		switch v.Op {
 		case OpAdd64, OpAdd32, OpAdd16, OpAdd8:
 			x := ft.limits[v.Args[0].ID]
 			y := ft.limits[v.Args[1].ID]
 			if !unsignedAddOverflows(x.umax, y.umax, v.Type) {
 				r := gt
-				if !x.nonzero() {
+				if x.maybeZero() {
 					r |= eq
 				}
 				ft.update(b, v, v.Args[1], unsigned, r)
 				r = gt
-				if !y.nonzero() {
+				if y.maybeZero() {
 					r |= eq
 				}
 				ft.update(b, v, v.Args[0], unsigned, r)
 			}
 			if x.min >= 0 && !signedAddOverflowsOrUnderflows(x.max, y.max, v.Type) {
 				r := gt
-				if !x.nonzero() {
+				if x.maybeZero() {
 					r |= eq
 				}
 				ft.update(b, v, v.Args[1], signed, r)
 			}
 			if y.min >= 0 && !signedAddOverflowsOrUnderflows(x.max, y.max, v.Type) {
 				r := gt
-				if !y.nonzero() {
+				if y.maybeZero() {
 					r |= eq
 				}
 				ft.update(b, v, v.Args[0], signed, r)
 			}
 			if x.max <= 0 && !signedAddOverflowsOrUnderflows(x.min, y.min, v.Type) {
 				r := lt
-				if !x.nonzero() {
+				if x.maybeZero() {
 					r |= eq
 				}
 				ft.update(b, v, v.Args[1], signed, r)
 			}
 			if y.max <= 0 && !signedAddOverflowsOrUnderflows(x.min, y.min, v.Type) {
 				r := lt
-				if !y.nonzero() {
+				if y.maybeZero() {
 					r |= eq
 				}
 				ft.update(b, v, v.Args[0], signed, r)
@@ -2544,7 +2449,7 @@ func addLocalFacts(ft *factsTable, b *Block) {
 			y := ft.limits[v.Args[1].ID]
 			if !unsignedSubUnderflows(x.umin, y.umax) {
 				r := lt
-				if !y.nonzero() {
+				if y.maybeZero() {
 					r |= eq
 				}
 				ft.update(b, v, v.Args[0], unsigned, r)
@@ -2568,7 +2473,50 @@ func addLocalFacts(ft *factsTable, b *Block) {
 			OpRsh16Ux64, OpRsh16Ux32, OpRsh16Ux16, OpRsh16Ux8,
 			OpRsh32Ux64, OpRsh32Ux32, OpRsh32Ux16, OpRsh32Ux8,
 			OpRsh64Ux64, OpRsh64Ux32, OpRsh64Ux16, OpRsh64Ux8:
+			switch add := v.Args[0]; add.Op {
+			// round-up division pattern; given:
+			// v = (x + y) / z
+			// if y < z then v <= x
+			case OpAdd64, OpAdd32, OpAdd16, OpAdd8:
+				z := v.Args[1]
+				zl := ft.limits[z.ID]
+				var uminDivisor uint64
+				switch v.Op {
+				case OpDiv64u, OpDiv32u, OpDiv16u, OpDiv8u:
+					uminDivisor = zl.umin
+				case OpRsh8Ux64, OpRsh8Ux32, OpRsh8Ux16, OpRsh8Ux8,
+					OpRsh16Ux64, OpRsh16Ux32, OpRsh16Ux16, OpRsh16Ux8,
+					OpRsh32Ux64, OpRsh32Ux32, OpRsh32Ux16, OpRsh32Ux8,
+					OpRsh64Ux64, OpRsh64Ux32, OpRsh64Ux16, OpRsh64Ux8:
+					uminDivisor = 1 << zl.umin
+				default:
+					panic("unreachable")
+				}
+
+				x := add.Args[0]
+				xl := ft.limits[x.ID]
+				y := add.Args[1]
+				yl := ft.limits[y.ID]
+				if unsignedAddOverflows(xl.umax, yl.umax, add.Type) {
+					continue
+				}
+
+				if xl.umax < uminDivisor {
+					ft.update(b, v, y, unsigned, lt|eq)
+				}
+				if yl.umax < uminDivisor {
+					ft.update(b, v, x, unsigned, lt|eq)
+				}
+			}
 			ft.update(b, v, v.Args[0], unsigned, lt|eq)
+		case OpMod64, OpMod32, OpMod16, OpMod8:
+			a := ft.limits[v.Args[0].ID]
+			b := ft.limits[v.Args[1].ID]
+			if !(a.nonnegative() && b.nonnegative()) {
+				// TODO: we could handle signed limits but I didn't bother.
+				break
+			}
+			fallthrough
 		case OpMod64u, OpMod32u, OpMod16u, OpMod8u:
 			ft.update(b, v, v.Args[0], unsigned, lt|eq)
 			// Note: we have to be careful that this doesn't imply
@@ -2692,6 +2640,13 @@ var mostNegativeDividend = map[Op]int64{
 	OpDiv64: -1 << 63,
 	OpMod64: -1 << 63}
 
+var bytesizeToConst = [...]Op{
+	8 / 8:  OpConst8,
+	16 / 8: OpConst16,
+	32 / 8: OpConst32,
+	64 / 8: OpConst64,
+}
+
 // simplifyBlock simplifies some constant values in b and evaluates
 // branches to non-uniquely dominated successors of b.
 func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
@@ -2754,18 +2709,7 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 				if b.Func.pass.debug > 0 {
 					b.Func.Warnl(v.Pos, "Proved %v shifts to zero", v.Op)
 				}
-				switch bits {
-				case 64:
-					v.reset(OpConst64)
-				case 32:
-					v.reset(OpConst32)
-				case 16:
-					v.reset(OpConst16)
-				case 8:
-					v.reset(OpConst8)
-				default:
-					panic("unexpected integer size")
-				}
+				v.reset(bytesizeToConst[bits/8])
 				v.AuxInt = 0
 				break // Be sure not to fallthrough - this is no longer OpRsh.
 			}
@@ -2972,4 +2916,58 @@ func isCleanExt(v *Value) bool {
 		return !v.Args[0].Type.IsSigned()
 	}
 	return false
+}
+
+func getDependencyScore(scores []uint, v *Value) (score uint) {
+	if score = scores[v.ID]; score != 0 {
+		return score
+	}
+	defer func() {
+		scores[v.ID] = score
+	}()
+	if v.Op == OpPhi {
+		return 1
+	}
+	score = 2 // NIT(@Jorropo): always order phis first to make GOSSAFUNC pretty.
+	for _, a := range v.Args {
+		if a.Block != v.Block {
+			continue
+		}
+		score = max(score, getDependencyScore(scores, a)+1)
+	}
+	return score
+}
+
+// topoSortValuesInBlock ensure ranging over b.Values visit values before they are being used.
+// It does not consider dependencies with other blocks; thus Phi nodes are considered to not have any dependecies.
+// The result is always determistic and does not depend on the previous slice ordering.
+func (ft *factsTable) topoSortValuesInBlock(b *Block) {
+	f := b.Func
+	want := f.NumValues()
+
+	scores := ft.reusedTopoSortScoresTable
+	if len(scores) < want {
+		if want <= cap(scores) {
+			scores = scores[:want]
+		} else {
+			if cap(scores) > 0 {
+				f.Cache.freeUintSlice(scores)
+			}
+			scores = f.Cache.allocUintSlice(want)
+			ft.reusedTopoSortScoresTable = scores
+		}
+	}
+
+	for _, v := range b.Values {
+		scores[v.ID] = 0 // sentinel
+	}
+
+	slices.SortFunc(b.Values, func(a, b *Value) int {
+		dependencyScoreA := getDependencyScore(scores, a)
+		dependencyScoreB := getDependencyScore(scores, b)
+		if dependencyScoreA != dependencyScoreB {
+			return cmp.Compare(dependencyScoreA, dependencyScoreB)
+		}
+		return cmp.Compare(a.ID, b.ID)
+	})
 }

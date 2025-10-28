@@ -39,11 +39,12 @@ func cmpVersion(p string, v1, v2 string) int {
 // mvsReqs implements mvs.Reqs for module semantic versions,
 // with any exclusions or replacements applied internally.
 type mvsReqs struct {
-	roots []module.Version
+	loaderstate *State // TODO(jitsu): Is there a way we can not depend on the entire loader state?
+	roots       []module.Version
 }
 
 func (r *mvsReqs) Required(mod module.Version) ([]module.Version, error) {
-	if mod.Version == "" && LoaderState.MainModules.Contains(mod.Path) {
+	if mod.Version == "" && r.loaderstate.MainModules.Contains(mod.Path) {
 		// Use the build list as it existed when r was constructed, not the current
 		// global build list.
 		return r.roots, nil
@@ -53,7 +54,7 @@ func (r *mvsReqs) Required(mod module.Version) ([]module.Version, error) {
 		return nil, nil
 	}
 
-	summary, err := goModSummary(LoaderState, mod)
+	summary, err := goModSummary(r.loaderstate, mod)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +117,7 @@ func previousVersion(loaderstate *State, ctx context.Context, m module.Version) 
 		return module.Version{Path: m.Path, Version: "none"}, nil
 	}
 
-	list, _, err := versions(loaderstate, ctx, m.Path, CheckAllowed)
+	list, _, err := versions(loaderstate, ctx, m.Path, loaderstate.CheckAllowed)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return module.Version{Path: m.Path, Version: "none"}, nil
@@ -130,7 +131,7 @@ func previousVersion(loaderstate *State, ctx context.Context, m module.Version) 
 	return module.Version{Path: m.Path, Version: "none"}, nil
 }
 
-func (*mvsReqs) Previous(m module.Version) (module.Version, error) {
+func (r *mvsReqs) Previous(m module.Version) (module.Version, error) {
 	// TODO(golang.org/issue/38714): thread tracing context through MVS.
-	return previousVersion(LoaderState, context.TODO(), m)
+	return previousVersion(r.loaderstate, context.TODO(), m)
 }

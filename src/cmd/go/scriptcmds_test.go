@@ -54,7 +54,8 @@ func scriptCC(cmdExec script.Cmd) script.Cmd {
 			Args:    "args...",
 		},
 		func(s *script.State, args ...string) (script.WaitFunc, error) {
-			b := work.NewBuilder(s.Getwd())
+			fakeVendorDirProvider := func() string { return "" }
+			b := work.NewBuilder(s.Getwd(), fakeVendorDirProvider)
 			wait, err := cmdExec.Run(s, append(b.GccCmd(".", ""), args...)...)
 			if err != nil {
 				return wait, err

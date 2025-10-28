@@ -1351,9 +1351,6 @@ func (l *Loader) SetSymAlign(i Sym, align int32) {
 	if int(i) >= len(l.align) {
 		l.align = append(l.align, make([]uint8, l.NSym()-len(l.align))...)
 	}
-	if align == 0 {
-		l.align[i] = 0
-	}
 	l.align[i] = uint8(bits.Len32(uint32(align)))
 }
 

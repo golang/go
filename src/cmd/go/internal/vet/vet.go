@@ -118,13 +118,15 @@ var (
 )
 
 // run implements both "go vet" and "go fix".
+
 func run(ctx context.Context, cmd *base.Command, args []string) {
+	moduleLoaderState := modload.NewState()
 	// Compute flags for the vet/fix tool (e.g. cmd/{vet,fix}).
 	toolFlags, pkgArgs := toolFlags(cmd, args)
 
 	// The vet/fix commands do custom flag processing;
 	// initialize workspaces after that.
-	modload.InitWorkfile(modload.LoaderState)
+	modload.InitWorkfile(moduleLoaderState)
 
 	if cfg.DebugTrace != "" {
 		var close func() error
@@ -143,7 +145,7 @@ func run(ctx context.Context, cmd *base.Command, args []string) {
 	ctx, span := trace.StartSpan(ctx, fmt.Sprint("Running ", cmd.Name(), " command"))
 	defer span.Done()
 
-	work.BuildInit(modload.LoaderState)
+	work.BuildInit(moduleLoaderState)
 
 	// Flag theory:
 	//
@@ -218,13 +220,13 @@ func run(ctx context.Context, cmd *base.Command, args []string) {
 	work.VetFlags = toolFlags
 
 	pkgOpts := load.PackageOpts{ModResolveTests: true}
-	pkgs := load.PackagesAndErrors(modload.LoaderState, ctx, pkgOpts, pkgArgs)
+	pkgs := load.PackagesAndErrors(moduleLoaderState, ctx, pkgOpts, pkgArgs)
 	load.CheckPackageErrors(pkgs)
 	if len(pkgs) == 0 {
 		base.Fatalf("no packages to %s", cmd.Name())
 	}
 
-	b := work.NewBuilder("")
+	b := work.NewBuilder("", moduleLoaderState.VendorDirOrEmpty)
 	defer func() {
 		if err := b.Close(); err != nil {
 			base.Fatal(err)
@@ -249,7 +251,7 @@ func run(ctx context.Context, cmd *base.Command, args []string) {
 
 	root := &work.Action{Mode: "go " + cmd.Name()}
 	for _, p := range pkgs {
-		_, ptest, pxtest, perr := load.TestPackagesFor(modload.LoaderState, ctx, pkgOpts, p, nil)
+		_, ptest, pxtest, perr := load.TestPackagesFor(moduleLoaderState, ctx, pkgOpts, p, nil)
 		if perr != nil {
 			base.Errorf("%v", perr.Error)
 			continue
@@ -260,10 +262,10 @@ func run(ctx context.Context, cmd *base.Command, args []string) {
 		}
 		if len(ptest.GoFiles) > 0 || len(ptest.CgoFiles) > 0 {
 			// The test package includes all the files of primary package.
-			root.Deps = append(root.Deps, b.VetAction(modload.LoaderState, work.ModeBuild, work.ModeBuild, ptest))
+			root.Deps = append(root.Deps, b.VetAction(moduleLoaderState, work.ModeBuild, work.ModeBuild, ptest))
 		}
 		if pxtest != nil {
-			root.Deps = append(root.Deps, b.VetAction(modload.LoaderState, work.ModeBuild, work.ModeBuild, pxtest))
+			root.Deps = append(root.Deps, b.VetAction(moduleLoaderState, work.ModeBuild, work.ModeBuild, pxtest))
 		}
 	}
 	b.Do(ctx, root)

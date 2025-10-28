@@ -183,17 +183,25 @@ func (mms *MainModuleSet) InGorootSrc(m module.Version) bool {
 }
 
 func (mms *MainModuleSet) mustGetSingleMainModule(loaderstate *State) module.Version {
+	mm, err := mms.getSingleMainModule(loaderstate)
+	if err != nil {
+		panic(err)
+	}
+	return mm
+}
+
+func (mms *MainModuleSet) getSingleMainModule(loaderstate *State) (module.Version, error) {
 	if mms == nil || len(mms.versions) == 0 {
-		panic("internal error: mustGetSingleMainModule called in context with no main modules")
+		return module.Version{}, errors.New("internal error: mustGetSingleMainModule called in context with no main modules")
 	}
 	if len(mms.versions) != 1 {
 		if inWorkspaceMode(loaderstate) {
-			panic("internal error: mustGetSingleMainModule called in workspace mode")
+			return module.Version{}, errors.New("internal error: mustGetSingleMainModule called in workspace mode")
 		} else {
-			panic("internal error: multiple main modules present outside of workspace mode")
+			return module.Version{}, errors.New("internal error: multiple main modules present outside of workspace mode")
 		}
 	}
-	return mms.versions[0]
+	return mms.versions[0], nil
 }
 
 func (mms *MainModuleSet) GetSingleIndexOrNil(loaderstate *State) *modFileIndex {
@@ -445,8 +453,6 @@ type State struct {
 
 func NewState() *State { return &State{} }
 
-var LoaderState = NewState()
-
 // Init determines whether module mode is enabled, locates the root of the
 // current module (if any), sets environment variables for Git subprocesses, and
 // configures the cfg, codehost, load, modfetch, and search packages for use
@@ -515,7 +521,7 @@ func Init(loaderstate *State) {
 				base.Fatalf("go: cannot find main module, but -modfile was set.\n\t-modfile cannot be used to set the module root directory.")
 			}
 			if loaderstate.RootMode == NeedRoot {
-				base.Fatal(ErrNoModRoot)
+				base.Fatal(NewNoMainModulesError(loaderstate))
 			}
 			if !mustUseModules {
 				// GO111MODULE is 'auto', and we can't find a module root.
@@ -530,7 +536,7 @@ func Init(loaderstate *State) {
 			// when it happens. See golang.org/issue/26708.
 			fmt.Fprintf(os.Stderr, "go: warning: ignoring go.mod in system temp root %v\n", os.TempDir())
 			if loaderstate.RootMode == NeedRoot {
-				base.Fatal(ErrNoModRoot)
+				base.Fatal(NewNoMainModulesError(loaderstate))
 			}
 			if !mustUseModules {
 				return
@@ -552,7 +558,7 @@ func Init(loaderstate *State) {
 		if _, err := fsys.Stat(filepath.Join(gopath, "go.mod")); err == nil {
 			fmt.Fprintf(os.Stderr, "go: warning: ignoring go.mod in $GOPATH %v\n", gopath)
 			if loaderstate.RootMode == NeedRoot {
-				base.Fatal(ErrNoModRoot)
+				base.Fatal(NewNoMainModulesError(loaderstate))
 			}
 			if !mustUseModules {
 				return
@@ -627,18 +633,38 @@ func Enabled(loaderstate *State) bool {
 	return loaderstate.modRoots != nil || cfg.ModulesEnabled
 }
 
-func VendorDir(loaderstate *State) string {
-	if inWorkspaceMode(loaderstate) {
-		return filepath.Join(filepath.Dir(WorkFilePath(loaderstate)), "vendor")
+func (s *State) vendorDir() (string, error) {
+	if inWorkspaceMode(s) {
+		return filepath.Join(filepath.Dir(WorkFilePath(s)), "vendor"), nil
+	}
+	mainModule, err := s.MainModules.getSingleMainModule(s)
+	if err != nil {
+		return "", err
 	}
 	// Even if -mod=vendor, we could be operating with no mod root (and thus no
 	// vendor directory). As long as there are no dependencies that is expected
 	// to work. See script/vendor_outside_module.txt.
-	modRoot := loaderstate.MainModules.ModRoot(loaderstate.MainModules.mustGetSingleMainModule(loaderstate))
+	modRoot := s.MainModules.ModRoot(mainModule)
 	if modRoot == "" {
-		panic("vendor directory does not exist when in single module mode outside of a module")
+		return "", errors.New("vendor directory does not exist when in single module mode outside of a module")
 	}
-	return filepath.Join(modRoot, "vendor")
+	return filepath.Join(modRoot, "vendor"), nil
+}
+
+func (s *State) VendorDirOrEmpty() string {
+	dir, err := s.vendorDir()
+	if err != nil {
+		return ""
+	}
+	return dir
+}
+
+func VendorDir(loaderstate *State) string {
+	dir, err := loaderstate.vendorDir()
+	if err != nil {
+		panic(err)
+	}
+	return dir
 }
 
 func inWorkspaceMode(loaderstate *State) bool {
@@ -703,21 +729,33 @@ func die(loaderstate *State) {
 			base.Fatalf("go: cannot find main module, but found %s in %s\n\tto create a module there, run:\n\t%sgo mod init", name, dir, cdCmd)
 		}
 	}
-	base.Fatal(ErrNoModRoot)
+	base.Fatal(NewNoMainModulesError(loaderstate))
 }
+
+var ErrNoModRoot = errors.New("no module root")
 
 // noMainModulesError returns the appropriate error if there is no main module or
 // main modules depending on whether the go command is in workspace mode.
-type noMainModulesError struct{}
+type noMainModulesError struct {
+	inWorkspaceMode bool
+}
 
 func (e noMainModulesError) Error() string {
-	if inWorkspaceMode(LoaderState) {
+	if e.inWorkspaceMode {
 		return "no modules were found in the current workspace; see 'go help work'"
 	}
 	return "go.mod file not found in current directory or any parent directory; see 'go help modules'"
 }
 
-var ErrNoModRoot noMainModulesError
+func (e noMainModulesError) Unwrap() error {
+	return ErrNoModRoot
+}
+
+func NewNoMainModulesError(s *State) noMainModulesError {
+	return noMainModulesError{
+		inWorkspaceMode: inWorkspaceMode(s),
+	}
+}
 
 type goModDirtyError struct{}
 

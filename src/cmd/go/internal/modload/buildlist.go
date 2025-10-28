@@ -1319,7 +1319,7 @@ func tidyUnprunedRoots(loaderstate *State, ctx context.Context, mainModule modul
 
 	// Construct a build list with a minimal set of roots.
 	// This may remove or downgrade modules in altMods.
-	reqs := &mvsReqs{roots: keep}
+	reqs := &mvsReqs{loaderstate: loaderstate, roots: keep}
 	min, err := mvs.Req(mainModule, rootPaths, reqs)
 	if err != nil {
 		return nil, err
@@ -1445,7 +1445,7 @@ func updateUnprunedRoots(loaderstate *State, ctx context.Context, direct map[str
 
 	var roots []module.Version
 	for _, mainModule := range loaderstate.MainModules.Versions() {
-		min, err := mvs.Req(mainModule, rootPaths, &mvsReqs{roots: keep})
+		min, err := mvs.Req(mainModule, rootPaths, &mvsReqs{loaderstate: loaderstate, roots: keep})
 		if err != nil {
 			return rs, err
 		}

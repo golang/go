@@ -16,8 +16,8 @@ github.com/google/pprof/third_party/svgpan
 # github.com/ianlancetaylor/demangle v0.0.0-20250417193237-f615e6bd150b
 ## explicit; go 1.13
 github.com/ianlancetaylor/demangle
-# golang.org/x/arch v0.20.1-0.20250808194827-46ba08e3ae58
-## explicit; go 1.23.0
+# golang.org/x/arch v0.22.1-0.20251016010524-fea4a9ec4938
+## explicit; go 1.24.0
 golang.org/x/arch/arm/armasm
 golang.org/x/arch/arm64/arm64asm
 golang.org/x/arch/loong64/loong64asm

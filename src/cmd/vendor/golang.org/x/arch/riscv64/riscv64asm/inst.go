@@ -59,7 +59,7 @@ func (i Inst) String() string {
 type Reg uint16
 
 const (
-	// General-purpose register
+	// General-purpose registers
 	X0 Reg = iota
 	X1
 	X2
@@ -93,7 +93,7 @@ const (
 	X30
 	X31
 
-	//Float point register
+	// Floating point registers
 	F0
 	F1
 	F2
@@ -126,6 +126,40 @@ const (
 	F29
 	F30
 	F31
+
+	// Vector registers
+	V0
+	V1
+	V2
+	V3
+	V4
+	V5
+	V6
+	V7
+	V8
+	V9
+	V10
+	V11
+	V12
+	V13
+	V14
+	V15
+	V16
+	V17
+	V18
+	V19
+	V20
+	V21
+	V22
+	V23
+	V24
+	V25
+	V26
+	V27
+	V28
+	V29
+	V30
+	V31
 )
 
 func (r Reg) String() string {
@@ -135,6 +169,9 @@ func (r Reg) String() string {
 
 	case r >= F0 && r <= F31:
 		return fmt.Sprintf("f%d", r-F0)
+
+	case r >= V0 && r <= V31:
+		return fmt.Sprintf("v%d", r-V0)
 
 	default:
 		return fmt.Sprintf("Unknown(%d)", r)
@@ -455,13 +492,13 @@ func (si Simm) String() string {
 	return fmt.Sprintf("%#x", si.Imm)
 }
 
-// An AmoReg is an atomic address register used in AMO instructions
-type AmoReg struct {
+// A RegPtr is an address register with no offset
+type RegPtr struct {
 	reg Reg // Avoid promoted String method
 }
 
-func (amoReg AmoReg) String() string {
-	return fmt.Sprintf("(%s)", amoReg.reg)
+func (regPtr RegPtr) String() string {
+	return fmt.Sprintf("(%s)", regPtr.reg)
 }
 
 // A RegOffset is a register with offset value
@@ -492,4 +529,22 @@ func (memOrder MemOrder) String() string {
 		str += "w"
 	}
 	return str
+}
+
+// A VType represents the vtype field of VSETIVLI and VSETVLI instructions
+type VType uint32
+
+var vlmulName = []string{"M1", "M2", "M4", "M8", "", "MF8", "MF4", "MF2"}
+var vsewName = []string{"E8", "E16", "E32", "E64", "", "", "", ""}
+var vtaName = []string{"TU", "TA"}
+var vmaName = []string{"MU", "MA"}
+
+func (vtype VType) String() string {
+
+	vlmul := vtype & 0x7
+	vsew := (vtype >> 3) & 0x7
+	vta := (vtype >> 6) & 0x1
+	vma := (vtype >> 7) & 0x1
+
+	return fmt.Sprintf("%s, %s, %s, %s", vsewName[vsew], vlmulName[vlmul], vtaName[vta], vmaName[vma])
 }

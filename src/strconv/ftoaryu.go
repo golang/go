@@ -192,30 +192,9 @@ func formatDecimal(d *decimalSlice, m uint64, trunc bool, roundUp bool, prec int
 		m /= 10
 		trimmed++
 	}
-	// render digits (similar to formatBits)
-	n := uint(prec)
+	// render digits
+	formatBase10(d.d[:prec], m)
 	d.nd = prec
-	v := m
-	for v >= 100 {
-		var v1, v2 uint64
-		if v>>32 == 0 {
-			v1, v2 = uint64(uint32(v)/100), uint64(uint32(v)%100)
-		} else {
-			v1, v2 = v/100, v%100
-		}
-		n -= 2
-		d.d[n+1] = smallsString[2*v2+1]
-		d.d[n+0] = smallsString[2*v2+0]
-		v = v1
-	}
-	if v > 0 {
-		n--
-		d.d[n] = smallsString[2*v+1]
-	}
-	if v >= 10 {
-		n--
-		d.d[n] = smallsString[2*v]
-	}
 	for d.d[d.nd-1] == '0' {
 		d.nd--
 		trimmed++
@@ -448,8 +427,8 @@ func ryuDigits32(d *decimalSlice, lower, central, upper uint32,
 	n := endindex
 	for n > d.nd {
 		v1, v2 := v/100, v%100
-		d.d[n] = smallsString[2*v2+1]
-		d.d[n-1] = smallsString[2*v2+0]
+		d.d[n] = smalls[2*v2+1]
+		d.d[n-1] = smalls[2*v2+0]
 		n -= 2
 		v = v1
 	}
@@ -535,7 +514,7 @@ func divisibleByPower5(m uint64, k int) bool {
 // divmod1e9 computes quotient and remainder of division by 1e9,
 // avoiding runtime uint64 division on 32-bit platforms.
 func divmod1e9(x uint64) (uint32, uint32) {
-	if !host32bit {
+	if host64bit {
 		return uint32(x / 1e9), uint32(x % 1e9)
 	}
 	// Use the same sequence of operations as the amd64 compiler.
