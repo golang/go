@@ -2852,9 +2852,6 @@ func (ctxt *Link) address() []*sym.Segment {
 		// will be such that the last page of the text segment will be
 		// mapped twice, once r-x and once starting out rw- and, after
 		// relocation processing, changed to r--.
-		//
-		// Ideally the last page of the text segment would not be
-		// writable even for this short period.
 		va = uint64(Rnd(int64(va), *FlagRound))
 
 		order = append(order, &Segrodata)
