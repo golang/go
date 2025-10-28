@@ -244,7 +244,7 @@ func genelfsym(ctxt *Link, elfbind elf.SymBind) {
 			continue
 		}
 		st := ldr.SymType(s)
-		if st >= sym.SELFRXSECT && st < sym.SXREF {
+		if st >= sym.SELFRXSECT && st < sym.SFirstUnallocated {
 			typ := elf.STT_OBJECT
 			if st == sym.STLSBSS {
 				if ctxt.IsInternal() {
@@ -345,7 +345,7 @@ func asmbPlan9Sym(ctxt *Link) {
 			continue
 		}
 		t := ldr.SymType(s)
-		if t >= sym.SELFRXSECT && t < sym.SXREF { // data sections handled in dodata
+		if t >= sym.SELFRXSECT && t < sym.SFirstUnallocated { // data sections handled in dodata
 			if t == sym.STLSBSS {
 				continue
 			}
@@ -843,7 +843,7 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 }
 
 // CarrierSymByType tracks carrier symbols and their sizes.
-var CarrierSymByType [sym.SXREF]struct {
+var CarrierSymByType [sym.SFirstUnallocated]struct {
 	Sym  loader.Sym
 	Size int64
 }

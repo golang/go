@@ -1121,7 +1121,7 @@ func (f *xcoffFile) asmaixsym(ctxt *Link) {
 				putaixsym(ctxt, s, BSSSym)
 			}
 
-		case st >= sym.SELFRXSECT && st < sym.SXREF: // data sections handled in dodata
+		case st >= sym.SELFRXSECT && st < sym.SFirstUnallocated: // data sections handled in dodata
 			if ldr.AttrReachable(s) {
 				putaixsym(ctxt, s, DataSym)
 			}

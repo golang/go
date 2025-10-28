@@ -125,6 +125,7 @@ const (
 	STLSBSS                 // Thread-local zeroed data.
 
 	// Unallocated segment.
+	SFirstUnallocated
 	SXREF             // Reference from non-Go object file.
 	SMACHOSYMSTR      // Mach-O string table.
 	SMACHOSYMTAB      // Mach-O symbol table.
