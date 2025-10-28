@@ -130,7 +130,6 @@ const (
 	SMACHOSYMTAB      // Mach-O symbol table.
 	SMACHOINDIRECTPLT // Mach-O indirect PLT.
 	SMACHOINDIRECTGOT // Mach-O indirect GOT.
-	SFILEPATH         // Unused?
 	SDYNIMPORT        // Reference to symbol defined in shared library.
 	SHOSTOBJ          // Symbol defined in non-Go object file.
 	SUNDEFEXT         // Undefined symbol for resolution by external linker.
