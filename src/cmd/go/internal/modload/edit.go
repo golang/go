@@ -532,7 +532,7 @@ func editRequirements(loaderstate *State, ctx context.Context, rs *Requirements,
 			}
 		}
 
-		roots, err = mvs.Req(loaderstate.MainModules.mustGetSingleMainModule(loaderstate), rootPaths, &mvsReqs{roots: roots})
+		roots, err = mvs.Req(loaderstate.MainModules.mustGetSingleMainModule(loaderstate), rootPaths, &mvsReqs{loaderstate: loaderstate, roots: roots})
 		if err != nil {
 			return nil, false, err
 		}

@@ -459,16 +459,17 @@ func oneMainPkg(pkgs []*load.Package) []*load.Package {
 var pkgsFilter = func(pkgs []*load.Package) []*load.Package { return pkgs }
 
 func runBuild(ctx context.Context, cmd *base.Command, args []string) {
-	modload.InitWorkfile(modload.LoaderState)
-	BuildInit(modload.LoaderState)
-	b := NewBuilder("")
+	moduleLoaderState := modload.NewState()
+	modload.InitWorkfile(moduleLoaderState)
+	BuildInit(moduleLoaderState)
+	b := NewBuilder("", moduleLoaderState.VendorDirOrEmpty)
 	defer func() {
 		if err := b.Close(); err != nil {
 			base.Fatal(err)
 		}
 	}()
 
-	pkgs := load.PackagesAndErrors(modload.LoaderState, ctx, load.PackageOpts{AutoVCS: true}, args)
+	pkgs := load.PackagesAndErrors(moduleLoaderState, ctx, load.PackageOpts{AutoVCS: true}, args)
 	load.CheckPackageErrors(pkgs)
 
 	explicitO := len(cfg.BuildO) > 0
@@ -503,7 +504,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	if cfg.BuildCover {
-		load.PrepareForCoverageBuild(modload.LoaderState, pkgs)
+		load.PrepareForCoverageBuild(moduleLoaderState, pkgs)
 	}
 
 	if cfg.BuildO != "" {
@@ -527,7 +528,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 				p.Target += cfg.ExeSuffix
 				p.Stale = true
 				p.StaleReason = "build -o flag in use"
-				a.Deps = append(a.Deps, b.AutoAction(modload.LoaderState, ModeInstall, depMode, p))
+				a.Deps = append(a.Deps, b.AutoAction(moduleLoaderState, ModeInstall, depMode, p))
 			}
 			if len(a.Deps) == 0 {
 				base.Fatalf("go: no main packages to build")
@@ -544,17 +545,17 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 		p.Target = cfg.BuildO
 		p.Stale = true // must build - not up to date
 		p.StaleReason = "build -o flag in use"
-		a := b.AutoAction(modload.LoaderState, ModeInstall, depMode, p)
+		a := b.AutoAction(moduleLoaderState, ModeInstall, depMode, p)
 		b.Do(ctx, a)
 		return
 	}
 
 	a := &Action{Mode: "go build"}
 	for _, p := range pkgs {
-		a.Deps = append(a.Deps, b.AutoAction(modload.LoaderState, ModeBuild, depMode, p))
+		a.Deps = append(a.Deps, b.AutoAction(moduleLoaderState, ModeBuild, depMode, p))
 	}
 	if cfg.BuildBuildmode == "shared" {
-		a = b.buildmodeShared(modload.LoaderState, ModeBuild, depMode, args, pkgs, a)
+		a = b.buildmodeShared(moduleLoaderState, ModeBuild, depMode, args, pkgs, a)
 	}
 	b.Do(ctx, a)
 }
@@ -687,17 +688,18 @@ func libname(args []string, pkgs []*load.Package) (string, error) {
 }
 
 func runInstall(ctx context.Context, cmd *base.Command, args []string) {
+	moduleLoaderState := modload.NewState()
 	for _, arg := range args {
 		if strings.Contains(arg, "@") && !build.IsLocalImport(arg) && !filepath.IsAbs(arg) {
-			installOutsideModule(modload.LoaderState, ctx, args)
+			installOutsideModule(moduleLoaderState, ctx, args)
 			return
 		}
 	}
 
-	modload.InitWorkfile(modload.LoaderState)
-	BuildInit(modload.LoaderState)
-	pkgs := load.PackagesAndErrors(modload.LoaderState, ctx, load.PackageOpts{AutoVCS: true}, args)
-	if cfg.ModulesEnabled && !modload.HasModRoot(modload.LoaderState) {
+	modload.InitWorkfile(moduleLoaderState)
+	BuildInit(moduleLoaderState)
+	pkgs := load.PackagesAndErrors(moduleLoaderState, ctx, load.PackageOpts{AutoVCS: true}, args)
+	if cfg.ModulesEnabled && !modload.HasModRoot(moduleLoaderState) {
 		haveErrors := false
 		allMissingErrors := true
 		for _, pkg := range pkgs {
@@ -722,10 +724,10 @@ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
 	load.CheckPackageErrors(pkgs)
 
 	if cfg.BuildCover {
-		load.PrepareForCoverageBuild(modload.LoaderState, pkgs)
+		load.PrepareForCoverageBuild(moduleLoaderState, pkgs)
 	}
 
-	InstallPackages(modload.LoaderState, ctx, args, pkgs)
+	InstallPackages(moduleLoaderState, ctx, args, pkgs)
 }
 
 // omitTestOnly returns pkgs with test-only packages removed.
@@ -783,7 +785,7 @@ func InstallPackages(loaderstate *modload.State, ctx context.Context, patterns [
 	}
 	base.ExitIfErrors()
 
-	b := NewBuilder("")
+	b := NewBuilder("", loaderstate.VendorDirOrEmpty)
 	defer func() {
 		if err := b.Close(); err != nil {
 			base.Fatal(err)

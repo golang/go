@@ -185,7 +185,7 @@ func (q *query) validate(loaderstate *modload.State) error {
 	if q.pattern == "all" {
 		// If there is no main module, "all" is not meaningful.
 		if !modload.HasModRoot(loaderstate) {
-			return fmt.Errorf(`cannot match "all": %v`, modload.ErrNoModRoot)
+			return fmt.Errorf(`cannot match "all": %v`, modload.NewNoMainModulesError(loaderstate))
 		}
 		if !versionOkForMainModule(q.version) {
 			// TODO(bcmills): "all@none" seems like a totally reasonable way to

@@ -268,10 +268,12 @@ func Float64DenormalFloat32Constant() float64 {
 
 func Float32ConstantStore(p *float32) {
 	// amd64:"MOVL\t[$]1085133554"
+	// riscv64: "MOVF\t[$]f32.40add2f2"
 	*p = 5.432
 }
 
 func Float64ConstantStore(p *float64) {
-	// amd64:"MOVQ\t[$]4617801906721357038"
+	// amd64: "MOVQ\t[$]4617801906721357038"
+	// riscv64: "MOVD\t[$]f64.4015ba5e353f7cee"
 	*p = 5.432
 }

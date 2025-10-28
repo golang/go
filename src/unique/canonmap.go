@@ -232,7 +232,7 @@ func (m *canonMap[T]) cleanup(hash uintptr, wp weak.Pointer[T]) {
 			// which requires the parents' lock.
 			for i.parent != nil && i.empty() {
 				if hashShift == 8*goarch.PtrSize {
-					panic("internal/sync.HashTrieMap: ran out of hash bits while iterating")
+					panic("unique.canonMap: ran out of hash bits while iterating")
 				}
 				hashShift += nChildrenLog2
 

@@ -3031,7 +3031,7 @@ func TestInvalidPolicyWithAnyKeyUsage(t *testing.T) {
 	testOID3 := mustNewOIDFromInts([]uint64{1, 2, 840, 113554, 4, 1, 72585, 2, 3})
 	root, intermediate, leaf := loadTestCert(t, "testdata/policy_root.pem"), loadTestCert(t, "testdata/policy_intermediate_require.pem"), loadTestCert(t, "testdata/policy_leaf.pem")
 
-	expectedErr := "x509: no valid chains built: all candidate chains have invalid policies"
+	expectedErr := "x509: no valid chains built: 1 candidate chains with invalid policies"
 
 	roots, intermediates := NewCertPool(), NewCertPool()
 	roots.AddCert(root)

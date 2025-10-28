@@ -27,7 +27,7 @@ import (
 // can get a derived key for e.g. AES-256 (which needs a 32-byte key) by
 // doing:
 //
-//	dk := pbkdf2.Key(sha1.New, "some password", salt, 4096, 32)
+//	dk, err := pbkdf2.Key(sha1.New, "some password", salt, 4096, 32)
 //
 // Remember to get a good random salt. At least 8 bytes is recommended by the
 // RFC.

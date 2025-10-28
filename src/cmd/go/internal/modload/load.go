@@ -1588,6 +1588,7 @@ func (ld *loader) resolveMissingImports(loaderstate *State, ctx context.Context)
 					for curstack := pkg.stack; curstack != nil; curstack = curstack.stack {
 						if loaderstate.MainModules.Contains(curstack.mod.Path) {
 							ime.ImportingMainModule = curstack.mod
+							ime.modRoot = loaderstate.MainModules.ModRoot(ime.ImportingMainModule)
 							break
 						}
 					}

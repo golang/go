@@ -128,7 +128,7 @@ func addUpdate(loaderstate *State, ctx context.Context, m *modinfo.ModulePublic)
 		return
 	}
 
-	info, err := Query(loaderstate, ctx, m.Path, "upgrade", m.Version, CheckAllowed)
+	info, err := Query(loaderstate, ctx, m.Path, "upgrade", m.Version, loaderstate.CheckAllowed)
 	if _, ok := errors.AsType[*NoMatchingVersionError](err); ok ||
 		errors.Is(err, fs.ErrNotExist) ||
 		errors.Is(err, ErrDisallowed) {
@@ -217,9 +217,9 @@ func addVersions(loaderstate *State, ctx context.Context, m *modinfo.ModulePubli
 	// Perhaps that doesn't buy us much, though: we would always have to fetch
 	// all of the version tags to list the available versions anyway.
 
-	allowed := CheckAllowed
+	allowed := loaderstate.CheckAllowed
 	if listRetracted {
-		allowed = CheckExclusions
+		allowed = loaderstate.CheckExclusions
 	}
 	v, origin, err := versions(loaderstate, ctx, m.Path, allowed)
 	if err != nil && m.Error == nil {
@@ -236,7 +236,7 @@ func addRetraction(loaderstate *State, ctx context.Context, m *modinfo.ModulePub
 		return
 	}
 
-	err := CheckRetractions(loaderstate, ctx, module.Version{Path: m.Path, Version: m.Version})
+	err := loaderstate.CheckRetractions(ctx, module.Version{Path: m.Path, Version: m.Version})
 	if err == nil {
 		return
 	} else if _, ok := errors.AsType[*NoMatchingVersionError](err); ok || errors.Is(err, fs.ErrNotExist) {

@@ -446,6 +446,14 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
+	case ssa.OpRISCV64FMOVDconst, ssa.OpRISCV64FMOVFconst:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_FCONST
+		p.From.Val = v.AuxFloat()
+		p.From.Name = obj.NAME_NONE
+		p.From.Reg = obj.REG_NONE
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
 	case ssa.OpRISCV64MOVaddr:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_ADDR

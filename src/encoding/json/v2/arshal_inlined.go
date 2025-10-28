@@ -11,6 +11,7 @@ import (
 	"errors"
 	"io"
 	"reflect"
+	"slices"
 
 	"encoding/json/internal/jsonflags"
 	"encoding/json/internal/jsonopts"
@@ -146,7 +147,7 @@ func marshalInlinedFallbackAll(enc *jsontext.Encoder, va addressableValue, mo *j
 				mk.SetIterKey(iter)
 				(*names)[i] = mk.String()
 			}
-			names.Sort()
+			slices.Sort(*names)
 			for _, name := range *names {
 				mk.SetString(name)
 				if err := marshalKey(mk); err != nil {

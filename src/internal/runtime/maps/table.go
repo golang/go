@@ -6,7 +6,6 @@ package maps
 
 import (
 	"internal/abi"
-	"internal/goarch"
 	"internal/runtime/math"
 	"unsafe"
 )
@@ -1170,7 +1169,7 @@ func (t *table) rehash(typ *abi.MapType, m *Map) {
 
 // Bitmask for the last selection bit at this depth.
 func localDepthMask(localDepth uint8) uintptr {
-	if goarch.PtrSize == 4 {
+	if !Use64BitHash {
 		return uintptr(1) << (32 - localDepth)
 	}
 	return uintptr(1) << (64 - localDepth)

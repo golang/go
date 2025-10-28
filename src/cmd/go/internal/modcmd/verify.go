@@ -44,20 +44,21 @@ func init() {
 }
 
 func runVerify(ctx context.Context, cmd *base.Command, args []string) {
-	modload.InitWorkfile(modload.LoaderState)
+	moduleLoaderState := modload.NewState()
+	modload.InitWorkfile(moduleLoaderState)
 
 	if len(args) != 0 {
 		// NOTE(rsc): Could take a module pattern.
 		base.Fatalf("go: verify takes no arguments")
 	}
-	modload.LoaderState.ForceUseModules = true
-	modload.LoaderState.RootMode = modload.NeedRoot
+	moduleLoaderState.ForceUseModules = true
+	moduleLoaderState.RootMode = modload.NeedRoot
 
 	// Only verify up to GOMAXPROCS zips at once.
 	type token struct{}
 	sem := make(chan token, runtime.GOMAXPROCS(0))
 
-	mg, err := modload.LoadModGraph(modload.LoaderState, ctx, "")
+	mg, err := modload.LoadModGraph(moduleLoaderState, ctx, "")
 	if err != nil {
 		base.Fatal(err)
 	}
@@ -71,7 +72,7 @@ func runVerify(ctx context.Context, cmd *base.Command, args []string) {
 		errsChans[i] = errsc
 		mod := mod // use a copy to avoid data races
 		go func() {
-			errsc <- verifyMod(modload.LoaderState, ctx, mod)
+			errsc <- verifyMod(moduleLoaderState, ctx, mod)
 			<-sem
 		}()
 	}

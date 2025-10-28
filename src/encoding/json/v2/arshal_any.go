@@ -10,6 +10,7 @@ import (
 	"cmp"
 	"math"
 	"reflect"
+	"slices"
 	"strconv"
 
 	"encoding/json/internal"
@@ -153,7 +154,7 @@ func marshalObjectAny(enc *jsontext.Encoder, obj map[string]any, mo *jsonopts.St
 			(*names)[i] = name
 			i++
 		}
-		names.Sort()
+		slices.Sort(*names)
 		for _, name := range *names {
 			if err := enc.WriteToken(jsontext.String(name)); err != nil {
 				return err

@@ -63,9 +63,10 @@ func init() {
 }
 
 func runWhy(ctx context.Context, cmd *base.Command, args []string) {
-	modload.InitWorkfile(modload.LoaderState)
-	modload.LoaderState.ForceUseModules = true
-	modload.LoaderState.RootMode = modload.NeedRoot
+	moduleLoaderState := modload.NewState()
+	modload.InitWorkfile(moduleLoaderState)
+	moduleLoaderState.ForceUseModules = true
+	moduleLoaderState.RootMode = modload.NeedRoot
 	modload.ExplicitWriteGoMod = true // don't write go.mod in ListModules
 
 	loadOpts := modload.PackageOpts{
@@ -83,13 +84,13 @@ func runWhy(ctx context.Context, cmd *base.Command, args []string) {
 			}
 		}
 
-		mods, err := modload.ListModules(modload.LoaderState, ctx, args, 0, "")
+		mods, err := modload.ListModules(moduleLoaderState, ctx, args, 0, "")
 		if err != nil {
 			base.Fatal(err)
 		}
 
 		byModule := make(map[string][]string)
-		_, pkgs := modload.LoadPackages(modload.LoaderState, ctx, loadOpts, "all")
+		_, pkgs := modload.LoadPackages(moduleLoaderState, ctx, loadOpts, "all")
 		for _, path := range pkgs {
 			m := modload.PackageModule(path)
 			if m.Path != "" {
@@ -120,9 +121,9 @@ func runWhy(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	} else {
 		// Resolve to packages.
-		matches, _ := modload.LoadPackages(modload.LoaderState, ctx, loadOpts, args...)
+		matches, _ := modload.LoadPackages(moduleLoaderState, ctx, loadOpts, args...)
 
-		modload.LoadPackages(modload.LoaderState, ctx, loadOpts, "all") // rebuild graph, from main module (not from named packages)
+		modload.LoadPackages(moduleLoaderState, ctx, loadOpts, "all") // rebuild graph, from main module (not from named packages)
 
 		sep := ""
 		for _, m := range matches {
