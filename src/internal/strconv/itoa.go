@@ -5,8 +5,8 @@
 package strconv
 
 import (
+	"internal/goarch"
 	"math/bits"
-	"runtime"
 )
 
 // FormatUint returns the string representation of i in the given base,
@@ -200,7 +200,7 @@ func formatBase10(a []byte, u uint64) int {
 		// or can split the uint64 into uint32-sized chunks.
 		// On most systems, the uint32 math is faster, but not all.
 		// The decision here is based on benchmarking.
-		itoaPure64 = host64bit && runtime.GOARCH != "amd64" && runtime.GOARCH != "arm64" && runtime.GOARCH != "s390x"
+		itoaPure64 = host64bit && goarch.GOARCH != "amd64" && goarch.GOARCH != "arm64" && goarch.GOARCH != "s390x"
 
 		// 64-bit systems can all use 64-bit div and mod by a constant,
 		// which the compiler rewrites to use 64x64→128-bit multiplies.

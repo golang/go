@@ -5,7 +5,7 @@
 package strconv_test
 
 import (
-	. "strconv"
+	. "internal/strconv"
 	"testing"
 )
 

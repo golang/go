@@ -18,7 +18,6 @@ package strconv
 // https://github.com/nigeltao/parse-number-fxx-test-data/blob/5280dcfccf6d0b02a65ae282dad0b6d9de50e039/script/test-go-strconv.go
 
 import (
-	"math"
 	"math/bits"
 )
 
@@ -29,7 +28,7 @@ func eiselLemire64(man uint64, exp10 int, neg bool) (f float64, ok bool) {
 	// Exp10 Range.
 	if man == 0 {
 		if neg {
-			f = math.Float64frombits(0x8000000000000000) // Negative zero.
+			f = float64frombits(0x8000000000000000) // Negative zero.
 		}
 		return f, true
 	}
@@ -88,7 +87,7 @@ func eiselLemire64(man uint64, exp10 int, neg bool) (f float64, ok bool) {
 	if neg {
 		retBits |= 0x8000000000000000
 	}
-	return math.Float64frombits(retBits), true
+	return float64frombits(retBits), true
 }
 
 func eiselLemire32(man uint64, exp10 int, neg bool) (f float32, ok bool) {
@@ -104,7 +103,7 @@ func eiselLemire32(man uint64, exp10 int, neg bool) (f float32, ok bool) {
 	// Exp10 Range.
 	if man == 0 {
 		if neg {
-			f = math.Float32frombits(0x80000000) // Negative zero.
+			f = float32frombits(0x80000000) // Negative zero.
 		}
 		return f, true
 	}
@@ -163,5 +162,5 @@ func eiselLemire32(man uint64, exp10 int, neg bool) (f float32, ok bool) {
 	if neg {
 		retBits |= 0x80000000
 	}
-	return math.Float32frombits(uint32(retBits)), true
+	return float32frombits(uint32(retBits)), true
 }

@@ -8,7 +8,7 @@ import (
 	"math"
 	"math/rand"
 	"reflect"
-	. "strconv"
+	. "internal/strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -446,21 +446,6 @@ func initAtof() {
 }
 
 func initAtofOnce() {
-	// The atof routines return NumErrors wrapping
-	// the error and the string. Convert the table above.
-	for i := range atoftests {
-		test := &atoftests[i]
-		if test.err != nil {
-			test.err = &NumError{"ParseFloat", test.in, test.err}
-		}
-	}
-	for i := range atof32tests {
-		test := &atof32tests[i]
-		if test.err != nil {
-			test.err = &NumError{"ParseFloat", test.in, test.err}
-		}
-	}
-
 	// Generate random inputs for tests and benchmarks
 	if testing.Short() {
 		atofRandomTests = make([]atofSimpleTest, 100)
@@ -497,7 +482,7 @@ func TestParseFloatPrefix(t *testing.T) {
 		// correctly as "inf" with suffix.
 		for _, suffix := range []string{" ", "q", "+", "-", "<", "=", ">", "(", ")", "i", "init"} {
 			in := test.in + suffix
-			_, n, err := ParseFloatPrefix(in, 64)
+			_, n, err := parseFloatPrefix(in, 64)
 			if err != nil {
 				t.Errorf("ParseFloatPrefix(%q, 64): err = %v; want no error", in, err)
 			}
