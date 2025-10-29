@@ -590,7 +590,7 @@ func (n *Named) Underlying() Type {
 		}
 	}
 
-	if !n.stateHas(hasUnder) {
+	if !n.stateHas(hasUnder) { // minor performance optimization
 		n.resolveUnderlying()
 	}
 
@@ -605,7 +605,8 @@ func (t *Named) String() string { return TypeString(t, nil) }
 // TODO(rfindley): reorganize the loading and expansion methods under this
 // heading.
 
-// resolveUnderlying computes the underlying type of n.
+// resolveUnderlying computes the underlying type of n. If n already has an
+// underlying type, nothing happens.
 //
 // It does so by following RHS type chains for alias and named types. If any
 // other type T is found, each named type in the chain has its underlying
@@ -636,14 +637,13 @@ func (n *Named) resolveUnderlying() {
 					path[j] = t.obj
 				}
 				path = path[i:]
-				// Note: This code may only be called during type checking,
-				//       hence n.check != nil.
+				// only called during type checking, hence n.check != nil
 				n.check.cycleError(path, firstInSrc(path))
 				u = Typ[Invalid]
 				break
 			}
 
-			// avoid acquiring the lock if we can
+			// don't recalculate the underlying
 			if t.stateHas(hasUnder) {
 				u = t.underlying
 				break
@@ -655,9 +655,6 @@ func (n *Named) resolveUnderlying() {
 			seen[t] = len(seen)
 
 			t.unpack()
-			t.mu.Lock()
-			defer t.mu.Unlock()
-
 			assert(t.rhs() != nil || t.allowNilRHS)
 			rhs = t.rhs()
 
@@ -666,16 +663,18 @@ func (n *Named) resolveUnderlying() {
 		}
 	}
 
-	// set underlying for all Named types in the chain
 	for t := range seen {
-		// Careful, t.underlying has lock-free readers. Since we might be racing
-		// another call to resolveUnderlying, we have to avoid overwriting
-		// t.underlying. Otherwise, the race detector will be tripped.
-		if t.stateHas(hasUnder) {
-			continue
-		}
-		t.underlying = u
-		t.setState(hasUnder)
+		func() {
+			t.mu.Lock()
+			defer t.mu.Unlock()
+			// Careful, t.underlying has lock-free readers. Since we might be racing
+			// another call to resolveUnderlying, we have to avoid overwriting
+			// t.underlying. Otherwise, the race detector will be tripped.
+			if !t.stateHas(hasUnder) {
+				t.underlying = u
+				t.setState(hasUnder)
+			}
+		}()
 	}
 }
 

@@ -86,7 +86,24 @@ loop:
 
 	// Collect just the pointers from the greyed objects into the scan buffer,
 	// i.e., copy the word indices in the mask from Z1 into contiguous memory.
-	VPCOMPRESSQ Z1, K1, (DI)(DX*8)
+	//
+	// N.B. VPCOMPRESSQ supports a memory destination. Unfortunately, on
+	// AMD Genoa / Zen 4, using VPCOMPRESSQ with a memory destination
+	// imposes a severe performance penalty of around an order of magnitude
+	// compared to a register destination.
+	//
+	// This workaround is unfortunate on other microarchitectures, where a
+	// memory destination is slightly faster than adding an additional move
+	// instruction, but no where near an order of magnitude. It would be
+	// nice to have a Genoa-only variant here.
+	//
+	// AMD Turin / Zen 5 fixes this issue.
+	//
+	// See
+	// https://lemire.me/blog/2025/02/14/avx-512-gotcha-avoid-compressing-words-to-memory-with-amd-zen-4-processors/.
+	VPCOMPRESSQ Z1, K1, Z2
+	VMOVDQU64 Z2, (DI)(DX*8)
+
 	// Advance the scan buffer position by the number of pointers.
 	MOVBQZX 128(AX), CX
 	ADDQ CX, DX

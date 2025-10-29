@@ -150,7 +150,7 @@ func TestAbortedPanic(t *testing.T) {
 // This tests that recover() does not succeed unless it is called directly from a
 // defer function that is directly called by the panic.  Here, we first call it
 // from a defer function that is created by the defer function called directly by
-// the panic.  In
+// the panic.
 func TestRecoverMatching(t *testing.T) {
 	defer func() {
 		r := recover()

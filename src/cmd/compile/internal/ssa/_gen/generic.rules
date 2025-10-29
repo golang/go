@@ -2927,7 +2927,7 @@
 // we know the underlying type is pointer-ish.
 (StaticLECall {f} typ_ x y mem)
 	&& isSameCall(f, "runtime.efaceeq")
-	&& isDirectType(typ_)
+	&& isDirectAndComparableType(typ_)
 	&& clobber(v)
 	=> (MakeResult (EqPtr x y) mem)
 
@@ -2935,7 +2935,7 @@
 // we know the underlying type is pointer-ish.
 (StaticLECall {f} itab x y mem)
 	&& isSameCall(f, "runtime.ifaceeq")
-	&& isDirectIface(itab)
+	&& isDirectAndComparableIface(itab)
 	&& clobber(v)
 	=> (MakeResult (EqPtr x y) mem)
 

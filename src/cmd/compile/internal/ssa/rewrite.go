@@ -2624,55 +2624,57 @@ func rewriteStructStore(v *Value) *Value {
 	return mem
 }
 
-// isDirectType reports whether v represents a type
+// isDirectAndComparableType reports whether v represents a type
 // (a *runtime._type) whose value is stored directly in an
-// interface (i.e., is pointer or pointer-like).
-func isDirectType(v *Value) bool {
-	return isDirectType1(v)
+// interface (i.e., is pointer or pointer-like) and is comparable.
+func isDirectAndComparableType(v *Value) bool {
+	return isDirectAndComparableType1(v)
 }
 
 // v is a type
-func isDirectType1(v *Value) bool {
+func isDirectAndComparableType1(v *Value) bool {
 	switch v.Op {
 	case OpITab:
-		return isDirectType2(v.Args[0])
+		return isDirectAndComparableType2(v.Args[0])
 	case OpAddr:
 		lsym := v.Aux.(*obj.LSym)
 		if ti := lsym.TypeInfo(); ti != nil {
-			return types.IsDirectIface(ti.Type.(*types.Type))
+			t := ti.Type.(*types.Type)
+			return types.IsDirectIface(t) && types.IsComparable(t)
 		}
 	}
 	return false
 }
 
 // v is an empty interface
-func isDirectType2(v *Value) bool {
+func isDirectAndComparableType2(v *Value) bool {
 	switch v.Op {
 	case OpIMake:
-		return isDirectType1(v.Args[0])
+		return isDirectAndComparableType1(v.Args[0])
 	}
 	return false
 }
 
-// isDirectIface reports whether v represents an itab
+// isDirectAndComparableIface reports whether v represents an itab
 // (a *runtime._itab) for a type whose value is stored directly
-// in an interface (i.e., is pointer or pointer-like).
-func isDirectIface(v *Value) bool {
-	return isDirectIface1(v, 9)
+// in an interface (i.e., is pointer or pointer-like) and is comparable.
+func isDirectAndComparableIface(v *Value) bool {
+	return isDirectAndComparableIface1(v, 9)
 }
 
 // v is an itab
-func isDirectIface1(v *Value, depth int) bool {
+func isDirectAndComparableIface1(v *Value, depth int) bool {
 	if depth == 0 {
 		return false
 	}
 	switch v.Op {
 	case OpITab:
-		return isDirectIface2(v.Args[0], depth-1)
+		return isDirectAndComparableIface2(v.Args[0], depth-1)
 	case OpAddr:
 		lsym := v.Aux.(*obj.LSym)
 		if ii := lsym.ItabInfo(); ii != nil {
-			return types.IsDirectIface(ii.Type.(*types.Type))
+			t := ii.Type.(*types.Type)
+			return types.IsDirectIface(t) && types.IsComparable(t)
 		}
 	case OpConstNil:
 		// We can treat this as direct, because if the itab is
@@ -2683,16 +2685,16 @@ func isDirectIface1(v *Value, depth int) bool {
 }
 
 // v is an interface
-func isDirectIface2(v *Value, depth int) bool {
+func isDirectAndComparableIface2(v *Value, depth int) bool {
 	if depth == 0 {
 		return false
 	}
 	switch v.Op {
 	case OpIMake:
-		return isDirectIface1(v.Args[0], depth-1)
+		return isDirectAndComparableIface1(v.Args[0], depth-1)
 	case OpPhi:
 		for _, a := range v.Args {
-			if !isDirectIface2(a, depth-1) {
+			if !isDirectAndComparableIface2(a, depth-1) {
 				return false
 			}
 		}
