@@ -1778,6 +1778,7 @@ func buildop(ctxt *obj.Link) {
 			opset(AVSHUF4IH, r0)
 			opset(AVSHUF4IW, r0)
 			opset(AVSHUF4IV, r0)
+			opset(AVPERMIW, r0)
 
 		case AXVANDB:
 			opset(AXVORB, r0)
@@ -1787,6 +1788,9 @@ func buildop(ctxt *obj.Link) {
 			opset(AXVSHUF4IH, r0)
 			opset(AXVSHUF4IW, r0)
 			opset(AXVSHUF4IV, r0)
+			opset(AXVPERMIW, r0)
+			opset(AXVPERMIV, r0)
+			opset(AXVPERMIQ, r0)
 
 		case AVANDV:
 			opset(AVORV, r0)
@@ -4362,6 +4366,14 @@ func (c *ctxt0) opirr(a obj.As) uint32 {
 		return 0x1de6 << 18 // xvshuf4i.w
 	case AXVSHUF4IV:
 		return 0x1de7 << 18 // xvshuf4i.d
+	case AVPERMIW:
+		return 0x1cf9 << 18 // vpermi.w
+	case AXVPERMIW:
+		return 0x1df9 << 18 // xvpermi.w
+	case AXVPERMIV:
+		return 0x1dfa << 18 // xvpermi.d
+	case AXVPERMIQ:
+		return 0x1dfb << 18 // xvpermi.q
 	case AVBITCLRB:
 		return 0x1CC4<<18 | 0x1<<13 // vbitclri.b
 	case AVBITCLRH:
