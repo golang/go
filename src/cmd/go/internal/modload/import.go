@@ -341,7 +341,7 @@ func importFromModules(loaderstate *State, ctx context.Context, path string, rs 
 			}
 		}
 
-		if HasModRoot(loaderstate) {
+		if loaderstate.HasModRoot() {
 			vendorDir := VendorDir(loaderstate)
 			dir, inVendorDir, _ := dirInModule(path, "", vendorDir, false)
 			if inVendorDir {
@@ -356,7 +356,7 @@ func importFromModules(loaderstate *State, ctx context.Context, path string, rs 
 					roots = append(roots, vendorDir)
 				} else {
 					subCommand := "mod"
-					if inWorkspaceMode(loaderstate) {
+					if loaderstate.inWorkspaceMode() {
 						subCommand = "work"
 					}
 					fmt.Fprintf(os.Stderr, "go: ignoring package %s which exists in the vendor directory but is missing from vendor/modules.txt. To sync the vendor directory run go %s vendor.\n", path, subCommand)
@@ -492,7 +492,7 @@ func importFromModules(loaderstate *State, ctx context.Context, path string, rs 
 			// We checked the full module graph and still didn't find the
 			// requested package.
 			var queryErr error
-			if !HasModRoot(loaderstate) {
+			if !loaderstate.HasModRoot() {
 				queryErr = NewNoMainModulesError(loaderstate)
 			}
 			return module.Version{}, "", "", nil, &ImportMissingError{
@@ -828,7 +828,7 @@ func fetch(loaderstate *State, ctx context.Context, mod module.Version) (dir str
 // mustHaveSums reports whether we require that all checksums
 // needed to load or build packages are already present in the go.sum file.
 func mustHaveSums(loaderstate *State) bool {
-	return HasModRoot(loaderstate) && cfg.BuildMod == "readonly" && !inWorkspaceMode(loaderstate)
+	return loaderstate.HasModRoot() && cfg.BuildMod == "readonly" && !loaderstate.inWorkspaceMode()
 }
 
 type sumMissingError struct {

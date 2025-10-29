@@ -176,7 +176,7 @@ func matchPackages(loaderstate *State, ctx context.Context, m *search.Match, tag
 				walkPkgs(modRoot, loaderstate.MainModules.PathPrefix(mod), pruneGoMod|pruneVendor)
 			}
 		}
-		if HasModRoot(loaderstate) {
+		if loaderstate.HasModRoot() {
 			walkPkgs(VendorDir(loaderstate), "", pruneVendor)
 		}
 		return

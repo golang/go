@@ -82,7 +82,7 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 		moduleLoaderState.AllowMissingModuleImports()
 		modload.Init(moduleLoaderState)
 	} else {
-		modload.InitWorkfile(moduleLoaderState)
+		moduleLoaderState.InitWorkfile()
 	}
 
 	work.BuildInit(moduleLoaderState)

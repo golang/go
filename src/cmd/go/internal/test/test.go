@@ -684,7 +684,7 @@ var defaultVetFlags = []string{
 func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	moduleLoaderState := modload.NewState()
 	pkgArgs, testArgs = testFlags(args)
-	modload.InitWorkfile(moduleLoaderState) // The test command does custom flag processing; initialize workspaces after that.
+	moduleLoaderState.InitWorkfile() // The test command does custom flag processing; initialize workspaces after that.
 
 	if cfg.DebugTrace != "" {
 		var close func() error
@@ -742,7 +742,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 			if !mainMods.Contains(m.Path) {
 				base.Fatalf("cannot use -fuzz flag on package outside the main module")
 			}
-		} else if pkgs[0].Standard && modload.Enabled(moduleLoaderState) {
+		} else if pkgs[0].Standard && moduleLoaderState.Enabled() {
 			// Because packages in 'std' and 'cmd' are part of the standard library,
 			// they are only treated as part of a module in 'go mod' subcommands and
 			// 'go get'. However, we still don't want to accidentally corrupt their

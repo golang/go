@@ -57,9 +57,9 @@ func MatchPackage(pattern, cwd string) func(*modload.State, *Package) bool {
 	default:
 		return func(s *modload.State, p *Package) bool {
 			switch {
-			case pattern == "tool" && modload.Enabled(s):
+			case pattern == "tool" && s.Enabled():
 				return s.MainModules.Tools()[p.ImportPath]
-			case pattern == "work" && modload.Enabled(s):
+			case pattern == "work" && s.Enabled():
 				return p.Module != nil && s.MainModules.Contains(p.Module.Path)
 			default:
 				matchPath := pkgpattern.MatchPattern(pattern)

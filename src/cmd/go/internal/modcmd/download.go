@@ -110,14 +110,14 @@ type ModuleJSON struct {
 
 func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	moduleLoaderState := modload.NewState()
-	modload.InitWorkfile(moduleLoaderState)
+	moduleLoaderState.InitWorkfile()
 
 	// Check whether modules are enabled and whether we're in a module.
 	moduleLoaderState.ForceUseModules = true
 	modload.ExplicitWriteGoMod = true
 	haveExplicitArgs := len(args) > 0
 
-	if modload.HasModRoot(moduleLoaderState) || modload.WorkFilePath(moduleLoaderState) != "" {
+	if moduleLoaderState.HasModRoot() || modload.WorkFilePath(moduleLoaderState) != "" {
 		modload.LoadModFile(moduleLoaderState, ctx) // to fill MainModules
 
 		if haveExplicitArgs {
@@ -170,7 +170,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	if len(args) == 0 {
-		if modload.HasModRoot(moduleLoaderState) {
+		if moduleLoaderState.HasModRoot() {
 			os.Stderr.WriteString("go: no module dependencies to download\n")
 		} else {
 			base.Errorf("go: no modules specified (see 'go help mod download')")
@@ -178,7 +178,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 		base.Exit()
 	}
 
-	if *downloadReuse != "" && modload.HasModRoot(moduleLoaderState) {
+	if *downloadReuse != "" && moduleLoaderState.HasModRoot() {
 		base.Fatalf("go mod download -reuse cannot be used inside a module")
 	}
 

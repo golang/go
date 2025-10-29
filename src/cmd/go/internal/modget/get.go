@@ -315,7 +315,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	// TODO(#40775): make modload.Init return ErrNoModRoot instead of exiting.
 	// We could handle that here by printing a different message.
 	modload.Init(moduleLoaderState)
-	if !modload.HasModRoot(moduleLoaderState) {
+	if !moduleLoaderState.HasModRoot() {
 		base.Fatalf("go: go.mod file not found in current directory or any parent directory.\n" +
 			"\t'go get' is no longer supported outside a module.\n" +
 			"\tTo build and install a command, use 'go install' with a version,\n" +
@@ -425,7 +425,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	newReqs := reqsFromGoMod(modload.ModFile(moduleLoaderState))
 	r.reportChanges(oldReqs, newReqs)
 
-	if gowork := modload.FindGoWork(moduleLoaderState, base.Cwd()); gowork != "" {
+	if gowork := moduleLoaderState.FindGoWork(base.Cwd()); gowork != "" {
 		wf, err := modload.ReadWorkFile(gowork)
 		if err == nil && modload.UpdateWorkGoVersion(wf, moduleLoaderState.MainModules.GoVersion(moduleLoaderState)) {
 			modload.WriteWorkFile(gowork, wf)
@@ -575,7 +575,7 @@ func newResolver(loaderstate *modload.State, ctx context.Context, queries []*que
 		buildListVersion: initialVersion,
 		initialVersion:   initialVersion,
 		nonesByPath:      map[string]*query{},
-		workspace:        loadWorkspace(modload.FindGoWork(loaderstate, base.Cwd())),
+		workspace:        loadWorkspace(loaderstate.FindGoWork(base.Cwd())),
 	}
 
 	for _, q := range queries {
@@ -722,7 +722,7 @@ func (r *resolver) queryNone(loaderstate *modload.State, ctx context.Context, q 
 
 	if !q.isWildcard() {
 		q.pathOnce(q.pattern, func() pathSet {
-			hasModRoot := modload.HasModRoot(loaderstate)
+			hasModRoot := loaderstate.HasModRoot()
 			if hasModRoot && loaderstate.MainModules.Contains(q.pattern) {
 				v := module.Version{Path: q.pattern}
 				// The user has explicitly requested to downgrade their own module to
@@ -752,7 +752,7 @@ func (r *resolver) queryNone(loaderstate *modload.State, ctx context.Context, q 
 			continue
 		}
 		q.pathOnce(curM.Path, func() pathSet {
-			if modload.HasModRoot(loaderstate) && curM.Version == "" && loaderstate.MainModules.Contains(curM.Path) {
+			if loaderstate.HasModRoot() && curM.Version == "" && loaderstate.MainModules.Contains(curM.Path) {
 				return errSet(&modload.QueryMatchesMainModulesError{
 					MainModules:     []module.Version{curM},
 					Pattern:         q.pattern,
@@ -779,7 +779,7 @@ func (r *resolver) performLocalQueries(loaderstate *modload.State, ctx context.C
 			// restricted to matching packages in the main module.
 			pkgPattern, mainModule := loaderstate.MainModules.DirImportPath(loaderstate, ctx, q.pattern)
 			if pkgPattern == "." {
-				modload.MustHaveModRoot(loaderstate)
+				loaderstate.MustHaveModRoot()
 				versions := loaderstate.MainModules.Versions()
 				modRoots := make([]string, 0, len(versions))
 				for _, m := range versions {
@@ -802,7 +802,7 @@ func (r *resolver) performLocalQueries(loaderstate *modload.State, ctx context.C
 					return errSet(fmt.Errorf("no package to get in current directory"))
 				}
 				if !q.isWildcard() {
-					modload.MustHaveModRoot(loaderstate)
+					loaderstate.MustHaveModRoot()
 					return errSet(fmt.Errorf("%s%s is not a package in module rooted at %s", q.pattern, absDetail, loaderstate.MainModules.ModRoot(mainModule)))
 				}
 				search.WarnUnmatched([]*search.Match{match})

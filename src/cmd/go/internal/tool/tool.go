@@ -162,7 +162,7 @@ func listTools(loaderstate *modload.State, ctx context.Context) {
 		fmt.Println(name)
 	}
 
-	modload.InitWorkfile(loaderstate)
+	loaderstate.InitWorkfile()
 	modload.LoadModFile(loaderstate, ctx)
 	modTools := slices.Sorted(maps.Keys(loaderstate.MainModules.Tools()))
 	for _, tool := range modTools {
@@ -253,7 +253,7 @@ func loadBuiltinTool(toolName string) string {
 }
 
 func loadModTool(loaderstate *modload.State, ctx context.Context, name string) string {
-	modload.InitWorkfile(loaderstate)
+	loaderstate.InitWorkfile()
 	modload.LoadModFile(loaderstate, ctx)
 
 	matches := []string{}
