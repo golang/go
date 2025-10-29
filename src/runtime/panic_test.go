@@ -18,10 +18,10 @@ func TestPanicWithDirectlyPrintableCustomTypes(t *testing.T) {
 		wantPanicPrefix string
 	}{
 		{"panicCustomBool", `panic: main.MyBool(true)`},
-		{"panicCustomComplex128", `panic: main.MyComplex128(+3.210000e+001+1.000000e+001i)`},
-		{"panicCustomComplex64", `panic: main.MyComplex64(+1.100000e-001+3.000000e+000i)`},
-		{"panicCustomFloat32", `panic: main.MyFloat32(-9.370000e+001)`},
-		{"panicCustomFloat64", `panic: main.MyFloat64(-9.370000e+001)`},
+		{"panicCustomComplex128", `panic: main.MyComplex128(32.1+10i)`},
+		{"panicCustomComplex64", `panic: main.MyComplex64(0.11+3i)`},
+		{"panicCustomFloat32", `panic: main.MyFloat32(-93.7)`},
+		{"panicCustomFloat64", `panic: main.MyFloat64(-93.7)`},
 		{"panicCustomInt", `panic: main.MyInt(93)`},
 		{"panicCustomInt8", `panic: main.MyInt8(93)`},
 		{"panicCustomInt16", `panic: main.MyInt16(93)`},
