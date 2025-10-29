@@ -324,9 +324,9 @@ func computeBounds(mant uint64, exp int, flt *floatInfo) (lower, central, upper 
 
 func ryuDigits(d *decimalSlice, lower, central, upper uint64,
 	c0, cup bool) {
-	lhi, llo := divmod1e9(lower)
-	chi, clo := divmod1e9(central)
-	uhi, ulo := divmod1e9(upper)
+	lhi, llo := uint32(lower/1e9), uint32(lower%1e9)
+	chi, clo := uint32(central/1e9), uint32(central%1e9)
+	uhi, ulo := uint32(upper/1e9), uint32(upper%1e9)
 	if uhi == 0 {
 		// only low digits (for denormals)
 		ryuDigits32(d, llo, clo, ulo, c0, cup, 8)
@@ -509,16 +509,4 @@ func divisibleByPower5(m uint64, k int) bool {
 		m /= 5
 	}
 	return true
-}
-
-// divmod1e9 computes quotient and remainder of division by 1e9,
-// avoiding runtime uint64 division on 32-bit platforms.
-func divmod1e9(x uint64) (uint32, uint32) {
-	if host64bit {
-		return uint32(x / 1e9), uint32(x % 1e9)
-	}
-	// Use the same sequence of operations as the amd64 compiler.
-	hi, _ := bits.Mul64(x>>1, 0x89705f4136b4a598) // binary digits of 1e-9
-	q := hi >> 28
-	return uint32(q), uint32(x - q*1e9)
 }
