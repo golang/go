@@ -1472,8 +1472,6 @@ func Releasem() {
 	releasem(getg().m)
 }
 
-var Timediv = timediv
-
 type PIController struct {
 	piController
 }
