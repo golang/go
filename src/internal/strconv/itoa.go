@@ -4,10 +4,7 @@
 
 package strconv
 
-import (
-	"internal/goarch"
-	"math/bits"
-)
+import "math/bits"
 
 // FormatUint returns the string representation of i in the given base,
 // for 2 <= base <= 36. The result uses the lower-case letters 'a' to 'z'
@@ -184,41 +181,13 @@ func small(i int) string {
 //
 // the decimal representation is in a[i:].
 func formatBase10(a []byte, u uint64) int {
-	// Decide implementation strategy based on architecture.
-	const (
-		// 64-bit systems can work in 64-bit math the whole time
-		// or can split the uint64 into uint32-sized chunks.
-		// On most systems, the uint32 math is faster, but not all.
-		// The decision here is based on benchmarking.
-		itoaPure64 = host64bit && goarch.GOARCH != "amd64" && goarch.GOARCH != "arm64" && goarch.GOARCH != "s390x"
-	)
-
-	if itoaPure64 {
-		// Convert 2 digits at a time, using 64-bit math.
-		i := len(a)
-		u := uint(u)
-		for u >= 100 {
-			var dd uint
-			u, dd = u/100, (u%100)*2
-			i -= 2
-			a[i+0], a[i+1] = smalls[dd+0], smalls[dd+1]
-		}
-
-		dd := u * 2
-		i--
-		a[i] = smalls[dd+1]
-		if u >= 10 {
-			i--
-			a[i] = smalls[dd]
-		}
-		return i
-	}
-
-	// Split into 9-digit chunks that fit in uint32s and convert each chunk using 32-bit math.
-	// Most numbers are small, so the comparison u >= 1e9 is usually pure overhead,
-	// so we approximate it by u>>29 != 0, which is usually faster and good enough.
+	// Split into 9-digit chunks that fit in uint32s
+	// and convert each chunk using uint32 math instead of uint64 math.
+	// The obvious way to write the outer loop is "for u >= 1e9", but most numbers are small,
+	// so the setup for the comparison u >= 1e9 is usually pure overhead.
+	// Instead, we approximate it by u>>29 != 0, which is usually faster and good enough.
 	i := len(a)
-	for (host64bit && u>>29 != 0) || (!host64bit && (u>>32 != 0 || uint32(u)>>29 != 0)) {
+	for (host64bit && u>>29 != 0) || (!host64bit && uint32(u)>>29|uint32(u>>32) != 0) {
 		var lo uint32
 		u, lo = u/1e9, uint32(u%1e9)
 
