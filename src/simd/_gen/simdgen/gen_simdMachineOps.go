@@ -185,13 +185,13 @@ func writeSIMDMachineOps(ops []Operation) *bytes.Buffer {
 		return compareNatural(opsData[i].OpName, opsData[j].OpName) < 0
 	})
 	sort.Slice(opsDataImm, func(i, j int) bool {
-		return compareNatural(opsData[i].OpName, opsData[j].OpName) < 0
+		return compareNatural(opsDataImm[i].OpName, opsDataImm[j].OpName) < 0
 	})
 	sort.Slice(opsDataLoad, func(i, j int) bool {
-		return compareNatural(opsData[i].OpName, opsData[j].OpName) < 0
+		return compareNatural(opsDataLoad[i].OpName, opsDataLoad[j].OpName) < 0
 	})
 	sort.Slice(opsDataImmLoad, func(i, j int) bool {
-		return compareNatural(opsData[i].OpName, opsData[j].OpName) < 0
+		return compareNatural(opsDataImmLoad[i].OpName, opsDataImmLoad[j].OpName) < 0
 	})
 	err := t.Execute(buffer, machineOpsData{opsData, opsDataImm, opsDataLoad, opsDataImmLoad})
 	if err != nil {
