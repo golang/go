@@ -55,7 +55,6 @@ var runtimePkgs = []string{
 	"internal/runtime/gc/scan",
 	"internal/runtime/maps",
 	"internal/runtime/math",
-	"internal/runtime/strconv",
 	"internal/runtime/sys",
 	"internal/runtime/syscall/linux",
 	"internal/runtime/syscall/windows",
@@ -71,6 +70,7 @@ var runtimePkgs = []string{
 	"internal/goexperiment",
 	"internal/goos",
 	"internal/profilerecord",
+	"internal/strconv",
 	"internal/stringslite",
 }
 

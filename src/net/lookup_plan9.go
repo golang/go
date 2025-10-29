@@ -8,7 +8,7 @@ import (
 	"context"
 	"errors"
 	"internal/bytealg"
-	"internal/itoa"
+	"internal/strconv"
 	"internal/stringslite"
 	"io"
 	"os"
@@ -87,7 +87,7 @@ func queryCS1(ctx context.Context, net string, ip IP, port int) (clone, dest str
 	if len(ip) != 0 && !ip.IsUnspecified() {
 		ips = ip.String()
 	}
-	lines, err := queryCS(ctx, net, ips, itoa.Itoa(port))
+	lines, err := queryCS(ctx, net, ips, strconv.Itoa(port))
 	if err != nil {
 		return
 	}

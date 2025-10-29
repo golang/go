@@ -87,7 +87,6 @@ var depsRules = `
 	structs
 	< internal/bytealg
 	< internal/stringslite
-	< internal/itoa
 	< internal/unsafeheader
 	< internal/race
 	< internal/msan
@@ -100,7 +99,6 @@ var depsRules = `
 	< internal/runtime/gc
 	< internal/runtime/math
 	< internal/runtime/maps
-	< internal/runtime/strconv
 	< internal/runtime/cgroup
 	< internal/runtime/gc/scan
 	< runtime
@@ -301,7 +299,7 @@ var depsRules = `
 	FMT
 	< text/template/parse;
 
-	internal/bytealg, internal/itoa, math/bits, slices, strconv, unique
+	internal/bytealg, math/bits, slices, strconv, unique
 	< net/netip;
 
 	FMT, net/netip

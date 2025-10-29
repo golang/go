@@ -11,8 +11,8 @@ import (
 	"internal/goos"
 	"internal/runtime/atomic"
 	"internal/runtime/exithook"
-	"internal/runtime/strconv"
 	"internal/runtime/sys"
+	"internal/strconv"
 	"internal/stringslite"
 	"unsafe"
 )
@@ -918,8 +918,8 @@ func schedinit() {
 	lock(&sched.lock)
 	sched.lastpoll.Store(nanotime())
 	var procs int32
-	if n, ok := strconv.Atoi32(gogetenv("GOMAXPROCS")); ok && n > 0 {
-		procs = n
+	if n, err := strconv.ParseInt(gogetenv("GOMAXPROCS"), 10, 32); err == nil && n > 0 {
+		procs = int32(n)
 		sched.customGOMAXPROCS = true
 	} else {
 		// Use numCPUStartup for initial GOMAXPROCS for two reasons:

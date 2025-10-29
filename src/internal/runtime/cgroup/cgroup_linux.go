@@ -6,8 +6,8 @@ package cgroup
 
 import (
 	"internal/bytealg"
-	"internal/runtime/strconv"
 	"internal/runtime/syscall/linux"
+	"internal/strconv"
 )
 
 var (
@@ -220,8 +220,8 @@ func parseV1Number(buf []byte) (int64, error) {
 	}
 	buf = buf[:i]
 
-	val, ok := strconv.Atoi64(string(buf))
-	if !ok {
+	val, err := strconv.ParseInt(string(buf), 10, 64)
+	if err != nil {
 		return 0, errMalformedFile
 	}
 
@@ -280,13 +280,13 @@ func parseV2Limit(buf []byte) (float64, bool, error) {
 	}
 	periodStr = periodStr[:i]
 
-	quota, ok := strconv.Atoi64(string(quotaStr))
-	if !ok {
+	quota, err := strconv.ParseInt(string(quotaStr), 10, 64)
+	if err != nil {
 		return 0, false, errMalformedFile
 	}
 
-	period, ok := strconv.Atoi64(string(periodStr))
-	if !ok {
+	period, err := strconv.ParseInt(string(periodStr), 10, 64)
+	if err != nil {
 		return 0, false, errMalformedFile
 	}
 
