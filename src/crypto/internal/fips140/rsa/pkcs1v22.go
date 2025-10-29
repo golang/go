@@ -9,6 +9,7 @@ package rsa
 
 import (
 	"bytes"
+	"crypto/internal/constanttime"
 	"crypto/internal/fips140"
 	"crypto/internal/fips140/drbg"
 	"crypto/internal/fips140/sha256"
@@ -432,7 +433,7 @@ func DecryptOAEP(hash, mgfHash hash.Hash, priv *PrivateKey, ciphertext []byte, l
 	hash.Write(label)
 	lHash := hash.Sum(nil)
 
-	firstByteIsZero := subtle.ConstantTimeByteEq(em[0], 0)
+	firstByteIsZero := constanttime.ByteEq(em[0], 0)
 
 	seed := em[1 : hash.Size()+1]
 	db := em[hash.Size()+1:]
@@ -458,11 +459,11 @@ func DecryptOAEP(hash, mgfHash hash.Hash, priv *PrivateKey, ciphertext []byte, l
 	rest := db[hash.Size():]
 
 	for i := 0; i < len(rest); i++ {
-		equals0 := subtle.ConstantTimeByteEq(rest[i], 0)
-		equals1 := subtle.ConstantTimeByteEq(rest[i], 1)
-		index = subtle.ConstantTimeSelect(lookingForIndex&equals1, i, index)
-		lookingForIndex = subtle.ConstantTimeSelect(equals1, 0, lookingForIndex)
-		invalid = subtle.ConstantTimeSelect(lookingForIndex&^equals0, 1, invalid)
+		equals0 := constanttime.ByteEq(rest[i], 0)
+		equals1 := constanttime.ByteEq(rest[i], 1)
+		index = constanttime.Select(lookingForIndex&equals1, i, index)
+		lookingForIndex = constanttime.Select(equals1, 0, lookingForIndex)
+		invalid = constanttime.Select(lookingForIndex&^equals0, 1, invalid)
 	}
 
 	if firstByteIsZero&lHash2Good&^invalid&^lookingForIndex != 1 {
