@@ -58,6 +58,8 @@ var optab = []Optab{
 
 	{AMOVW, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 1, 4, 0, 0},
 	{AMOVV, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 1, 4, 0, 0},
+	{AVMOVQ, C_VREG, C_NONE, C_NONE, C_VREG, C_NONE, 1, 4, 0, 0},
+	{AXVMOVQ, C_XREG, C_NONE, C_NONE, C_XREG, C_NONE, 1, 4, 0, 0},
 	{AMOVB, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 12, 4, 0, 0},
 	{AMOVBU, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 12, 4, 0, 0},
 	{AMOVWU, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 12, 4, 0, 0},
@@ -2101,12 +2103,19 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 0: // pseudo ops
 		break
 
-	case 1: // mov r1,r2 ==> OR r1,r0,r2
-		a := AOR
-		if p.As == AMOVW {
-			a = ASLL
+	case 1: // mov rj, rd
+		switch p.As {
+		case AMOVW:
+			o1 = OP_RRR(c.oprrr(ASLL), uint32(REGZERO), uint32(p.From.Reg), uint32(p.To.Reg))
+		case AMOVV:
+			o1 = OP_RRR(c.oprrr(AOR), uint32(REGZERO), uint32(p.From.Reg), uint32(p.To.Reg))
+		case AVMOVQ:
+			o1 = OP_6IRR(c.opirr(AVSLLV), uint32(0), uint32(p.From.Reg), uint32(p.To.Reg))
+		case AXVMOVQ:
+			o1 = OP_6IRR(c.opirr(AXVSLLV), uint32(0), uint32(p.From.Reg), uint32(p.To.Reg))
+		default:
+			c.ctxt.Diag("unexpected encoding\n%v", p)
 		}
-		o1 = OP_RRR(c.oprrr(a), uint32(REGZERO), uint32(p.From.Reg), uint32(p.To.Reg))
 
 	case 2: // add/sub r1,[r2],r3
 		r := int(p.Reg)

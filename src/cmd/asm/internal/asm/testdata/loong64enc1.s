@@ -533,11 +533,17 @@ lable2:
 	XVMOVQ		X28.V[3], X8    // 88ef0377
 	XVMOVQ		X27.V[0], X9    // 69e30377
 
-	//Move vector element to vector.
+	// Move vector element to vector.
 	VMOVQ		V1.B[3], V9.B16 // 298cf772
 	VMOVQ		V2.H[2], V8.H8  // 48c8f772
 	VMOVQ		V3.W[1], V7.W4  // 67e4f772
 	VMOVQ		V4.V[0], V6.V2  // 86f0f772
+
+	// Move vector register to vector register.
+	VMOVQ		V1, V9		// 29002d73
+	VMOVQ		V2, V8		// 48002d73
+	XVMOVQ		X3, X7		// 67002d77
+	XVMOVQ		X4, X6		// 86002d77
 
 	// Load data from memory and broadcast to each element of a vector register: VMOVQ    offset(Rj), <Vd>.<T>
 	VMOVQ		(R4), V0.B16	// 80008030

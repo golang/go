@@ -203,6 +203,15 @@ Note: In the following sections 3.1 to 3.6, "ui4" (4-bit unsigned int immediate)
 	VMOVQ Vj.W[index], Vd.W4  | vreplvei.w vd, vj, ui2 | for i in range(4) : VR[vd].w[i] = VR[vj].w[ui2]
 	VMOVQ Vj.V[index], Vd.V2  | vreplvei.d vd, vj, ui1 | for i in range(2) : VR[vd].d[i] = VR[vj].d[ui1]
 
+3.7 Move vector register to vector register.
+        Instruction format:
+        VMOVQ     Vj, Vd
+
+        Mapping between Go and platform assembly:
+          Go assembly   |   platform assembly   |                         semantics
+        VMOVQ   Vj, Vd  |  vslli.d vd, vj, 0x0  | for i in range(2) : VR[vd].D[i] = SLL(VR[vj].D[i], 0)
+        VXMOVQ  Xj, Xd  | xvslli.d xd, xj, 0x0  | for i in range(4) : XR[xd].D[i] = SLL(XR[xj].D[i], 0)
+
 3.7 Load data from memory and broadcast to each element of a vector register.
 
 	Instruction format:
