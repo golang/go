@@ -25,6 +25,7 @@ func Unwrap(err error) error {
 }
 
 // Is reports whether any error in err's tree matches target.
+// The target must be comparable.
 //
 // The tree consists of err itself, followed by the errors obtained by repeatedly
 // calling its Unwrap() error or Unwrap() []error method. When err wraps multiple

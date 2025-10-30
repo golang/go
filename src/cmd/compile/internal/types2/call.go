@@ -931,6 +931,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
 
 Error:
 	x.mode = invalid
+	x.typ = Typ[Invalid]
 	x.expr = e
 }
 

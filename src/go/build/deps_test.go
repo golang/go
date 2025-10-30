@@ -69,6 +69,7 @@ var depsRules = `
 
 	internal/goarch < internal/abi;
 	internal/byteorder, internal/cpu, internal/goarch < internal/chacha8rand;
+	internal/goarch, math/bits < internal/strconv;
 
 	# RUNTIME is the core runtime group of packages, all of them very light-weight.
 	internal/abi,
@@ -80,12 +81,12 @@ var depsRules = `
 	internal/goexperiment,
 	internal/goos,
 	internal/profilerecord,
+	internal/strconv,
 	internal/trace/tracev2,
 	math/bits,
 	structs
 	< internal/bytealg
 	< internal/stringslite
-	< internal/itoa
 	< internal/unsafeheader
 	< internal/race
 	< internal/msan
@@ -98,7 +99,6 @@ var depsRules = `
 	< internal/runtime/gc
 	< internal/runtime/math
 	< internal/runtime/maps
-	< internal/runtime/strconv
 	< internal/runtime/cgroup
 	< internal/runtime/gc/scan
 	< runtime
@@ -299,7 +299,7 @@ var depsRules = `
 	FMT
 	< text/template/parse;
 
-	internal/bytealg, internal/itoa, math/bits, slices, strconv, unique
+	internal/bytealg, math/bits, slices, strconv, unique
 	< net/netip;
 
 	FMT, net/netip

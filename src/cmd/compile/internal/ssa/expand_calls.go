@@ -15,7 +15,7 @@ import (
 
 func postExpandCallsDecompose(f *Func) {
 	decomposeUser(f)    // redo user decompose to cleanup after expand calls
-	decomposeBuiltIn(f) // handles both regular decomposition and cleanup.
+	decomposeBuiltin(f) // handles both regular decomposition and cleanup.
 }
 
 func expandCalls(f *Func) {

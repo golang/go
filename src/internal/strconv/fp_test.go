@@ -8,7 +8,7 @@ import (
 	"bufio"
 	_ "embed"
 	"fmt"
-	"strconv"
+	"internal/strconv"
 	"strings"
 	"testing"
 )

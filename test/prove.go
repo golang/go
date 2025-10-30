@@ -1,6 +1,6 @@
 // errorcheck -0 -d=ssa/prove/debug=1
 
-//go:build amd64
+//go:build amd64 || arm64
 
 // Copyright 2016 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -1018,21 +1018,21 @@ func divShiftClean(n int) int {
 	if n < 0 {
 		return n
 	}
-	return n / int(8) // ERROR "Proved Rsh64x64 shifts to zero"
+	return n / int(8) // ERROR "Proved Div64 is unsigned$"
 }
 
 func divShiftClean64(n int64) int64 {
 	if n < 0 {
 		return n
 	}
-	return n / int64(16) // ERROR "Proved Rsh64x64 shifts to zero"
+	return n / int64(16)  // ERROR "Proved Div64 is unsigned$"
 }
 
 func divShiftClean32(n int32) int32 {
 	if n < 0 {
 		return n
 	}
-	return n / int32(16) // ERROR "Proved Rsh32x64 shifts to zero"
+	return n / int32(16)  // ERROR "Proved Div32 is unsigned$"
 }
 
 // Bounds check elimination
@@ -1112,7 +1112,7 @@ func modu2(x, y uint) int {
 }
 
 func issue57077(s []int) (left, right []int) {
-	middle := len(s) / 2
+	middle := len(s) / 2 // ERROR "Proved Div64 is unsigned$"
 	left = s[:middle]  // ERROR "Proved IsSliceInBounds$"
 	right = s[middle:] // ERROR "Proved IsSliceInBounds$"
 	return
@@ -1501,7 +1501,7 @@ func mod64sPositiveWithSmallerDividendMax(a, b int64, ensureBothBranchesCouldHap
 	a = min(a, 0xff)
 	b = min(b, 0xfff)
 
-	z := a % b // ERROR "Proved Mod64 does not need fix-up$"
+	z := a % b // ERROR "Proved Mod64 is unsigned$"
 
 	if ensureBothBranchesCouldHappen {
 		if z > 0xff { // ERROR "Disproved Less64$"
@@ -1521,7 +1521,7 @@ func mod64sPositiveWithSmallerDivisorMax(a, b int64, ensureBothBranchesCouldHapp
 	a = min(a, 0xfff)
 	b = min(b, 0xff)
 
-	z := a % b // ERROR "Proved Mod64 does not need fix-up$"
+	z := a % b // ERROR "Proved Mod64 is unsigned$"
 
 	if ensureBothBranchesCouldHappen {
 		if z > 0xff-1 { // ERROR "Disproved Less64$"
@@ -1541,7 +1541,7 @@ func mod64sPositiveWithIdenticalMax(a, b int64, ensureBothBranchesCouldHappen bo
 	a = min(a, 0xfff)
 	b = min(b, 0xfff)
 
-	z := a % b // ERROR "Proved Mod64 does not need fix-up$"
+	z := a % b // ERROR "Proved Mod64 is unsigned$"
 
 	if ensureBothBranchesCouldHappen {
 		if z > 0xfff-1 { // ERROR "Disproved Less64$"
@@ -1586,7 +1586,7 @@ func div64s(a, b int64, ensureAllBranchesCouldHappen func() bool) int64 {
 	b = min(b, 0xff)
 	b = max(b, 0xf)
 
-	z := a / b // ERROR "(Proved Div64 does not need fix-up|Proved Neq64)$"
+	z := a / b // ERROR "Proved Div64 is unsigned|Proved Neq64"
 
 	if ensureAllBranchesCouldHappen() && z > 0xffff/0xf { // ERROR "Disproved Less64$"
 		return 42
@@ -2499,6 +2499,89 @@ func issue75144ifNot(a, b []uint64) bool {
 		}
 	}
 	return false
+}
+
+func mulIntoAnd(a, b uint) uint {
+	if a > 1 || b > 1 {
+		return 0
+	}
+	return a * b // ERROR "Rewrote Mul v[0-9]+ into And$"
+}
+
+func mulIntoCondSelect(a, b uint) uint {
+	if a > 1 {
+		return 0
+	}
+	return a * b // ERROR "Rewrote Mul v[0-9]+ into CondSelect"
+}
+
+func div7pos(x int32) bool {
+	if x > 0 {
+		return x%7 == 0 // ERROR "Proved Div32 is unsigned"
+	}
+	return false
+}
+
+func div2pos(x []int) int {
+	return len(x) / 2 // ERROR "Proved Div64 is unsigned"
+}
+
+func div3pos(x []int) int {
+	return len(x) / 3 // ERROR "Proved Div64 is unsigned"
+}
+
+
+var len200 [200]int
+
+func modbound1(u uint64) int {
+	s := 0
+	for u > 0 {
+		var d uint64
+		u, d = u/100, u%100
+		s += len200[d*2+1] // ERROR "Proved IsInBounds"
+	}
+	return s
+}
+
+func modbound2(p *[10]int, x uint) int {
+	return p[x%9+1] // ERROR "Proved IsInBounds"
+}
+
+func shiftbound(x int) int {
+	return 1 << (x % 11) // ERROR "Proved Lsh(32x32|64x64) bounded" "Proved Div64 does not need fix-up"
+}
+
+func shiftbound2(x int) int {
+	return 1 << (x % 8) // ERROR "Proved Lsh(32x32|64x64) bounded" "Proved Div64 does not need fix-up"
+}
+
+func rangebound1(x []int) int {
+	s := 0
+	for i := range 1000 { // ERROR "Induction variable"
+		if i < len(x) {
+			s += x[i] // ERROR "Proved IsInBounds"
+		}
+	}
+	return s
+}
+
+func rangebound2(x []int) int {
+	s := 0
+	if len(x) > 0 {
+		for i := range 1000 { // ERROR "Induction variable"
+			s += x[i%len(x)] // ERROR "Proved Mod64 is unsigned" "Proved Neq64" "Proved IsInBounds"
+		}
+	}
+	return s
+}
+
+func swapbound(v []int) {
+	for i := 0; i < len(v)/2; i++ { // ERROR "Proved Div64 is unsigned|Induction variable"
+		v[i], // ERROR "Proved IsInBounds"
+		v[len(v)-1-i] = // ERROR "Proved IsInBounds"
+		v[len(v)-1-i],
+		v[i] // ERROR "Proved IsInBounds"
+	}
 }
 
 //go:noinline

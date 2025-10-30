@@ -9,7 +9,7 @@ import (
 	"internal/goexperiment"
 	"internal/runtime/atomic"
 	"internal/runtime/math"
-	"internal/runtime/strconv"
+	"internal/strconv"
 	_ "unsafe" // for go:linkname
 )
 
@@ -1313,8 +1313,8 @@ func readGOGC() int32 {
 	if p == "off" {
 		return -1
 	}
-	if n, ok := strconv.Atoi32(p); ok {
-		return n
+	if n, err := strconv.ParseInt(p, 10, 32); err == nil {
+		return int32(n)
 	}
 	return 100
 }

@@ -7,7 +7,7 @@
 package net
 
 import (
-	"internal/itoa"
+	"internal/strconv"
 	"syscall"
 	"time"
 )
@@ -22,7 +22,7 @@ func setKeepAliveIdle(fd *netFD, d time.Duration) error {
 		return nil
 	}
 
-	cmd := "keepalive " + itoa.Itoa(int(d/time.Millisecond))
+	cmd := "keepalive " + strconv.Itoa(int(d/time.Millisecond))
 	_, e := fd.ctl.WriteAt([]byte(cmd), 0)
 	return e
 }

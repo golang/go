@@ -8,8 +8,8 @@ package codegen
 
 func f(n int) int {
 	r := 0
-	// arm64:-"MOVD\t R"
-	// amd64:-"LEAQ","INCQ"
+	// arm64:-"MOVD  R"
+	// amd64:-"LEAQ" "INCQ"
 	for i := range n {
 		r += i
 	}

@@ -8,8 +8,8 @@ package syscall
 
 import (
 	"errors"
-	"internal/itoa"
 	"internal/oserror"
+	"internal/strconv"
 	"unsafe"
 )
 
@@ -71,7 +71,7 @@ func (e Errno) Error() string {
 			return s
 		}
 	}
-	return "errno " + itoa.Itoa(int(e))
+	return "errno " + strconv.Itoa(int(e))
 }
 
 func (e Errno) Is(target error) bool {
@@ -201,7 +201,7 @@ func (s Signal) String() string {
 	case SIGSYS:
 		return "bad system call"
 	default:
-		return "signal " + itoa.Itoa(int(s))
+		return "signal " + strconv.Itoa(int(s))
 	}
 }
 

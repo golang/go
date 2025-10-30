@@ -10,10 +10,10 @@ import (
 	errorspkg "errors"
 	"internal/asan"
 	"internal/bytealg"
-	"internal/itoa"
 	"internal/msan"
 	"internal/oserror"
 	"internal/race"
+	"internal/strconv"
 	"sync"
 	"unsafe"
 )
@@ -170,7 +170,7 @@ func (e Errno) error() string {
 	if err != nil {
 		n, err = formatMessage(flags, 0, uint32(e), 0, b, nil)
 		if err != nil {
-			return "winapi error #" + itoa.Itoa(int(e))
+			return "winapi error #" + strconv.Itoa(int(e))
 		}
 	}
 	// trim terminating \r and \n
@@ -1358,7 +1358,7 @@ func (s Signal) String() string {
 			return str
 		}
 	}
-	return "signal " + itoa.Itoa(int(s))
+	return "signal " + strconv.Itoa(int(s))
 }
 
 func LoadCreateSymbolicLink() error {

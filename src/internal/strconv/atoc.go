@@ -4,23 +4,6 @@
 
 package strconv
 
-import "internal/stringslite"
-
-const fnParseComplex = "ParseComplex"
-
-// convErr splits an error returned by parseFloatPrefix
-// into a syntax or range error for ParseComplex.
-func convErr(err error, s string) (syntax, range_ error) {
-	if x, ok := err.(*NumError); ok {
-		x.Func = fnParseComplex
-		x.Num = stringslite.Clone(s)
-		if x.Err == ErrRange {
-			return nil, x
-		}
-	}
-	return err, nil
-}
-
 // ParseComplex converts the string s to a complex number
 // with the precision specified by bitSize: 64 for complex64, or 128 for complex128.
 // When bitSize=64, the result still has type complex128, but it will be
@@ -47,8 +30,6 @@ func ParseComplex(s string, bitSize int) (complex128, error) {
 		size = 32 // complex64 uses float32 parts
 	}
 
-	orig := s
-
 	// Remove parentheses, if any.
 	if len(s) >= 2 && s[0] == '(' && s[len(s)-1] == ')' {
 		s = s[1 : len(s)-1]
@@ -59,10 +40,10 @@ func ParseComplex(s string, bitSize int) (complex128, error) {
 	// Read real part (possibly imaginary part if followed by 'i').
 	re, n, err := parseFloatPrefix(s, size)
 	if err != nil {
-		err, pending = convErr(err, orig)
-		if err != nil {
+		if err != ErrRange {
 			return 0, err
 		}
+		pending = err
 	}
 	s = s[n:]
 
@@ -88,20 +69,20 @@ func ParseComplex(s string, bitSize int) (complex128, error) {
 		}
 		fallthrough
 	default:
-		return 0, syntaxError(fnParseComplex, orig)
+		return 0, ErrSyntax
 	}
 
 	// Read imaginary part.
 	im, n, err := parseFloatPrefix(s, size)
 	if err != nil {
-		err, pending = convErr(err, orig)
-		if err != nil {
+		if err != ErrRange {
 			return 0, err
 		}
+		pending = err
 	}
 	s = s[n:]
 	if s != "i" {
-		return 0, syntaxError(fnParseComplex, orig)
+		return 0, ErrSyntax
 	}
 	return complex(re, im), pending
 }

@@ -7,8 +7,7 @@ package strconv_test
 import (
 	"math"
 	"math/cmplx"
-	"reflect"
-	. "strconv"
+	. "internal/strconv"
 	"testing"
 )
 
@@ -188,28 +187,22 @@ func TestParseComplex(t *testing.T) {
 	}
 	for i := range tests {
 		test := &tests[i]
-		if test.err != nil {
-			test.err = &NumError{Func: "ParseComplex", Num: test.in, Err: test.err}
+		c, e := ParseComplex(test.in, 128)
+		if !sameComplex(c, test.out) || e != test.err {
+			t.Errorf("ParseComplex(%s, 128) = %v, %v, want %v, %v", test.in, c, e, test.out, test.err)
 		}
-		got, err := ParseComplex(test.in, 128)
-		if !reflect.DeepEqual(err, test.err) {
-			t.Fatalf("ParseComplex(%q, 128) = %v, %v; want %v, %v", test.in, got, err, test.out, test.err)
-		}
-		if !(cmplx.IsNaN(test.out) && cmplx.IsNaN(got)) && got != test.out {
-			t.Fatalf("ParseComplex(%q, 128) = %v, %v; want %v, %v", test.in, got, err, test.out, test.err)
-		}
-
 		if complex128(complex64(test.out)) == test.out {
-			got, err := ParseComplex(test.in, 64)
-			if !reflect.DeepEqual(err, test.err) {
-				t.Fatalf("ParseComplex(%q, 64) = %v, %v; want %v, %v", test.in, got, err, test.out, test.err)
-			}
-			got64 := complex64(got)
-			if complex128(got64) != test.out {
-				t.Fatalf("ParseComplex(%q, 64) = %v, %v; want %v, %v", test.in, got, err, test.out, test.err)
+			c, e := ParseComplex(test.in, 64)
+			c64 := complex64(c)
+			if !sameComplex(complex128(c64) , test.out) || e != test.err {
+				t.Errorf("ParseComplex(%s, 64) = %v, %v, want %v, %v", test.in, c, e, test.out, test.err)
 			}
 		}
 	}
+}
+
+func sameComplex(c1, c2 complex128) bool {
+	return cmplx.IsNaN(c1) && cmplx.IsNaN(c2) || c1 == c2
 }
 
 // Issue 42297: allow ParseComplex(s, not_32_or_64) for legacy reasons

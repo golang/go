@@ -8,7 +8,7 @@ import (
 	"internal/bytealg"
 	"internal/goarch"
 	"internal/runtime/atomic"
-	"internal/runtime/strconv"
+	"internal/strconv"
 	"unsafe"
 )
 
@@ -532,17 +532,17 @@ func parsegodebug(godebug string, seen map[string]bool) {
 		// is int, not int32, and should only be updated
 		// if specified in GODEBUG.
 		if seen == nil && key == "memprofilerate" {
-			if n, ok := strconv.Atoi(value); ok {
+			if n, err := strconv.Atoi(value); err == nil {
 				MemProfileRate = n
 			}
 		} else {
 			for _, v := range dbgvars {
 				if v.name == key {
-					if n, ok := strconv.Atoi32(value); ok {
+					if n, err := strconv.ParseInt(value, 10, 32); err == nil {
 						if seen == nil && v.value != nil {
-							*v.value = n
+							*v.value = int32(n)
 						} else if v.atomic != nil {
-							v.atomic.Store(n)
+							v.atomic.Store(int32(n))
 						}
 					}
 				}
@@ -578,7 +578,7 @@ func setTraceback(level string) {
 		fallthrough
 	default:
 		t = tracebackAll
-		if n, ok := strconv.Atoi(level); ok && n == int(uint32(n)) {
+		if n, err := strconv.Atoi(level); err == nil && n == int(uint32(n)) {
 			t |= uint32(n) << tracebackShift
 		}
 	}

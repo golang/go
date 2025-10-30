@@ -34,12 +34,17 @@ func TestEntropySamples(t *testing.T) {
 	cryptotest.MustSupportFIPS140(t)
 	now := time.Now().UTC()
 
-	var seqSamples [1_000_000]uint8
-	samplesOrTryAgain(t, seqSamples[:])
+	seqSampleCount := 1_000_000
+	if *flagEntropySamples != "" {
+		// The lab requested 300 million samples for a new heuristic procedure.
+		seqSampleCount = 300_000_000
+	}
+	seqSamples := make([]uint8, seqSampleCount)
+	samplesOrTryAgain(t, seqSamples)
 	seqSamplesName := fmt.Sprintf("entropy_samples_sequential_%s_%s_%s_%s_%s.bin", entropy.Version(),
 		runtime.GOOS, runtime.GOARCH, *flagEntropySamples, now.Format("20060102T150405Z"))
 	if *flagEntropySamples != "" {
-		if err := os.WriteFile(seqSamplesName, seqSamples[:], 0644); err != nil {
+		if err := os.WriteFile(seqSamplesName, seqSamples, 0644); err != nil {
 			t.Fatalf("failed to write samples to %q: %v", seqSamplesName, err)
 		}
 		t.Logf("wrote %s", seqSamplesName)

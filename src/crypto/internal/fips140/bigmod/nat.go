@@ -1088,7 +1088,7 @@ func (x *Nat) GCDVarTime(a, b *Nat) (*Nat, error) {
 	return x.set(u), nil
 }
 
-// extendedGCD computes u and A such that a = GCD(a, m) and u = A*a - B*m.
+// extendedGCD computes u and A such that u = GCD(a, m) = A*a - B*m.
 //
 // u will have the size of the larger of a and m, and A will have the size of m.
 //

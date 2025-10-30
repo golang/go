@@ -7,7 +7,7 @@ package strconv_test
 import (
 	"math"
 	"math/rand"
-	. "strconv"
+	. "internal/strconv"
 	"testing"
 )
 

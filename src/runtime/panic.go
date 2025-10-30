@@ -1125,7 +1125,7 @@ func gorecover() any {
 	// frame between gopanic and gorecover.
 	//
 	// We don't recover this:
-	//     defer func() { func() { recover() }() }
+	//     defer func() { func() { recover() }() }()
 	// because there are 2 non-wrapper frames.
 	//
 	// We don't recover this:

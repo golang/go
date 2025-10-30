@@ -10,7 +10,10 @@
 
 package strconv
 
-import "math"
+const (
+	lowerhex = "0123456789abcdef"
+	upperhex = "0123456789ABCDEF"
+)
 
 type floatInfo struct {
 	mantbits uint
@@ -71,10 +74,10 @@ func genericFtoa(dst []byte, val float64, fmt byte, prec, bitSize int) []byte {
 	var flt *floatInfo
 	switch bitSize {
 	case 32:
-		bits = uint64(math.Float32bits(float32(val)))
+		bits = uint64(float32bits(float32(val)))
 		flt = &float32info
 	case 64:
-		bits = math.Float64bits(val)
+		bits = float64bits(val)
 		flt = &float64info
 	default:
 		panic("strconv: illegal AppendFloat/FormatFloat bitSize")

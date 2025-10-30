@@ -6,7 +6,7 @@ package strconv_test
 
 import (
 	"bytes"
-	. "strconv"
+	. "internal/strconv"
 	"testing"
 )
 
@@ -36,23 +36,8 @@ var atobtests = []atobTest{
 func TestParseBool(t *testing.T) {
 	for _, test := range atobtests {
 		b, e := ParseBool(test.in)
-		if test.err != nil {
-			// expect an error
-			if e == nil {
-				t.Errorf("ParseBool(%s) = nil; want %s", test.in, test.err)
-			} else {
-				// NumError assertion must succeed; it's the only thing we return.
-				if e.(*NumError).Err != test.err {
-					t.Errorf("ParseBool(%s) = %s; want %s", test.in, e, test.err)
-				}
-			}
-		} else {
-			if e != nil {
-				t.Errorf("ParseBool(%s) = %s; want nil", test.in, e)
-			}
-			if b != test.out {
-				t.Errorf("ParseBool(%s) = %t; want %t", test.in, b, test.out)
-			}
+		if b != test.out || e != test.err {
+			t.Errorf("ParseBool(%s) = %v, %v, want %v, %v", test.in, b, e, test.out, test.err)
 		}
 	}
 }

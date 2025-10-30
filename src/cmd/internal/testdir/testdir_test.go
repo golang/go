@@ -1488,7 +1488,7 @@ var (
 	//	"\s*,\s*` matches " , "
 	//	second reMatchCheck matches "`SUB`"
 	//	")*)" closes started groups; "*" means that there might be other elements in the comma-separated list
-	rxAsmPlatform = regexp.MustCompile(`(\w+)(/[\w.]+)?(/\w*)?\s*:\s*(` + reMatchCheck + `(?:\s*,\s*` + reMatchCheck + `)*)`)
+	rxAsmPlatform = regexp.MustCompile(`(\w+)(/[\w.]+)?(/\w*)?\s*:\s*(` + reMatchCheck + `(?:\s+` + reMatchCheck + `)*)`)
 
 	// Regexp to extract a single opcoded check
 	rxAsmCheck = regexp.MustCompile(reMatchCheck)
@@ -1701,6 +1701,9 @@ func (t test) asmCheck(outStr string, fn string, env buildEnv, fullops map[strin
 		}
 		srcFileLine, asm := matches[1], matches[2]
 
+		// Replace tabs with single spaces to make matches easier to write.
+		asm = strings.ReplaceAll(asm, "\t", " ")
+
 		// Associate the original file/line information to the current
 		// function in the output; it will be useful to dump it in case
 		// of error.
@@ -1752,11 +1755,11 @@ func (t test) asmCheck(outStr string, fn string, env buildEnv, fullops map[strin
 		}
 
 		if o.negative {
-			fmt.Fprintf(&errbuf, "%s:%d: %s: wrong opcode found: %q\n", t.goFileName(), o.line, env, o.opcode.String())
+			fmt.Fprintf(&errbuf, "%s:%d: %s: wrong opcode found: %#q\n", t.goFileName(), o.line, env, o.opcode.String())
 		} else if o.expected > 0 {
-			fmt.Fprintf(&errbuf, "%s:%d: %s: wrong number of opcodes: %q\n", t.goFileName(), o.line, env, o.opcode.String())
+			fmt.Fprintf(&errbuf, "%s:%d: %s: wrong number of opcodes: %#q\n", t.goFileName(), o.line, env, o.opcode.String())
 		} else {
-			fmt.Fprintf(&errbuf, "%s:%d: %s: opcode not found: %q\n", t.goFileName(), o.line, env, o.opcode.String())
+			fmt.Fprintf(&errbuf, "%s:%d: %s: opcode not found: %#q\n", t.goFileName(), o.line, env, o.opcode.String())
 		}
 	}
 	return errors.New(errbuf.String())
