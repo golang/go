@@ -1781,6 +1781,10 @@ func buildop(ctxt *obj.Link) {
 			opset(AVSHUF4IW, r0)
 			opset(AVSHUF4IV, r0)
 			opset(AVPERMIW, r0)
+			opset(AVEXTRINSB, r0)
+			opset(AVEXTRINSH, r0)
+			opset(AVEXTRINSW, r0)
+			opset(AVEXTRINSV, r0)
 
 		case AXVANDB:
 			opset(AXVORB, r0)
@@ -1793,6 +1797,10 @@ func buildop(ctxt *obj.Link) {
 			opset(AXVPERMIW, r0)
 			opset(AXVPERMIV, r0)
 			opset(AXVPERMIQ, r0)
+			opset(AXVEXTRINSB, r0)
+			opset(AXVEXTRINSH, r0)
+			opset(AXVEXTRINSW, r0)
+			opset(AXVEXTRINSV, r0)
 
 		case AVANDV:
 			opset(AVORV, r0)
@@ -4383,6 +4391,22 @@ func (c *ctxt0) opirr(a obj.As) uint32 {
 		return 0x1dfa << 18 // xvpermi.d
 	case AXVPERMIQ:
 		return 0x1dfb << 18 // xvpermi.q
+	case AVEXTRINSB:
+		return 0x1ce3 << 18 // vextrins.b
+	case AVEXTRINSH:
+		return 0x1ce2 << 18 // vextrins.h
+	case AVEXTRINSW:
+		return 0x1ce1 << 18 // vextrins.w
+	case AVEXTRINSV:
+		return 0x1ce0 << 18 // vextrins.d
+	case AXVEXTRINSB:
+		return 0x1de3 << 18 // xvextrins.b
+	case AXVEXTRINSH:
+		return 0x1de2 << 18 // xvextrins.h
+	case AXVEXTRINSW:
+		return 0x1de1 << 18 // xvextrins.w
+	case AXVEXTRINSV:
+		return 0x1de0 << 18 // xvextrins.d
 	case AVBITCLRB:
 		return 0x1CC4<<18 | 0x1<<13 // vbitclri.b
 	case AVBITCLRH:
