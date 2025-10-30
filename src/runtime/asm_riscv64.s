@@ -369,6 +369,15 @@ TEXT gogo<>(SB), NOSPLIT|NOFRAME, $0
 
 // func procyieldAsm(cycles uint32)
 TEXT runtime·procyieldAsm(SB),NOSPLIT,$0-0
+#ifdef EnableRISCV64RuntimeSpinlock
+	MOVWU	cycles+0(FP), T0
+	BEQZ	T0, done
+again:
+	PAUSE
+	SUBW	$1, T0
+	BNEZ	T0, again
+done:
+#endif
 	RET
 
 // Switch to m->g0's stack, call fn(g).
