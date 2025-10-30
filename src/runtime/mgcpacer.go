@@ -427,7 +427,7 @@ func (c *gcControllerState) startCycle(markStartTime int64, procs int, trigger g
 	// Clear per-P state
 	for _, p := range allp {
 		p.gcAssistTime = 0
-		p.gcFractionalMarkTime = 0
+		p.gcFractionalMarkTime.Store(0)
 	}
 
 	if trigger.kind == gcTriggerTime {
@@ -830,7 +830,7 @@ func (c *gcControllerState) findRunnableGCWorker(pp *p, now int64) (*g, int64) {
 		//
 		// This should be kept in sync with pollFractionalWorkerExit.
 		delta := now - c.markStartTime
-		if delta > 0 && float64(pp.gcFractionalMarkTime)/float64(delta) > c.fractionalUtilizationGoal {
+		if delta > 0 && float64(pp.gcFractionalMarkTime.Load())/float64(delta) > c.fractionalUtilizationGoal {
 			// Nope. No need to run a fractional worker.
 			gcBgMarkWorkerPool.push(&node.node)
 			return nil, now

@@ -794,7 +794,7 @@ type p struct {
 
 	// Per-P GC state
 	gcAssistTime         int64 // Nanoseconds in assistAlloc
-	gcFractionalMarkTime int64 // Nanoseconds in fractional mark worker (atomic)
+	gcFractionalMarkTime atomic.Int64 // Nanoseconds in fractional mark worker
 
 	// limiterEvent tracks events for the GC CPU limiter.
 	limiterEvent limiterEvent
