@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/bloop"
 	"cmd/compile/internal/coverage"
 	"cmd/compile/internal/deadlocals"
 	"cmd/compile/internal/dwarfgen"
@@ -233,6 +234,9 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 			log.Fatalf("%s: PGO error: %v", base.Flag.PgoProfile, err)
 		}
 	}
+
+	// Apply bloop markings.
+	bloop.BloopWalk(typecheck.Target)
 
 	// Interleaved devirtualization and inlining.
 	base.Timer.Start("fe", "devirtualize-and-inline")

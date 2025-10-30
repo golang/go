@@ -249,6 +249,7 @@ var runtimeDecls = [...]struct {
 	{"loong64HasLSX", varTag, 6},
 	{"riscv64HasZbb", varTag, 6},
 	{"asanregisterglobals", funcTag, 136},
+	{"KeepAlive", funcTag, 11},
 }
 
 func runtimeTypes() []*types.Type {

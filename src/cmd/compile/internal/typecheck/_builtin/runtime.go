@@ -303,3 +303,6 @@ var loong64HasLSX bool
 var riscv64HasZbb bool
 
 func asanregisterglobals(unsafe.Pointer, uintptr)
+
+// used by testing.B.Loop
+func KeepAlive(interface{})
