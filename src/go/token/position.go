@@ -511,7 +511,7 @@ func (s *FileSet) AddExistingFiles(files ...*File) {
 	//	}
 	//
 	// because all calls to AddFile must be in increasing order.
-	// AddExistingFilesFiles lets us augment an existing FileSet
+	// AddExistingFiles lets us augment an existing FileSet
 	// sequentially, so long as all sets of files have disjoint ranges.
 	// This approach also does not preserve line directives.
 
