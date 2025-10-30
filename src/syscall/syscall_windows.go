@@ -468,6 +468,14 @@ func Open(name string, flag int, perm uint32) (fd Handle, err error) {
 	if flag&O_TRUNC == O_TRUNC &&
 		(createmode == OPEN_EXISTING || (createmode == OPEN_ALWAYS && err == ERROR_ALREADY_EXISTS)) {
 		err = Ftruncate(h, 0)
+		if err == _ERROR_INVALID_PARAMETER {
+			// ERROR_INVALID_PARAMETER means truncation is not supported on this file handle.
+			// Unix's O_TRUNC specification says to ignore O_TRUNC on named pipes and terminal devices.
+			// We do the same here.
+			if t, err1 := GetFileType(h); err1 == nil && (t == FILE_TYPE_PIPE || t == FILE_TYPE_CHAR) {
+				err = nil
+			}
+		}
 		if err != nil {
 			CloseHandle(h)
 			return InvalidHandle, err
