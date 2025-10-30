@@ -1364,7 +1364,7 @@ func goroutineLeakProfileWithLabelsConcurrent(p []profilerecord.StackRecord, lab
 		//	G1 completes profile  |/\/\/\/\/\/\/\/\/\/\/\/\/\/\/| G2 misses leaks
 		//
 		// While this is a bug, normal use cases presume that goroutine leak profile
-		// requests are issued on a single track. Adding synchronization between over
+		// requests are issued on a single track. Adding synchronization between
 		// goroutine leak profile requests would only needlessly increase overhead.
 		if readgstatus(gp1)&^_Gscan == _Gleaked {
 			systemstack(func() { saveg(^uintptr(0), ^uintptr(0), gp1, &p[offset], pcbuf) })
