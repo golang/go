@@ -4658,6 +4658,11 @@ func reentersyscall(pc, sp, bp uintptr) {
 	gp.m.locks--
 }
 
+// debugExtendGrunningNoP is a debug mode that extends the windows in which
+// we're _Grunning without a P in order to try to shake out bugs with code
+// assuming this state is impossible.
+const debugExtendGrunningNoP = false
+
 // Standard syscall entry used by the go syscall library and normal cgo calls.
 //
 // This is exported via linkname to assembly in the syscall package and x/sys.
@@ -4770,6 +4775,9 @@ func entersyscallblock() {
 	// <--
 	// Caution: we're in a small window where we are in _Grunning without a P.
 	// -->
+	if debugExtendGrunningNoP {
+		usleep(10)
+	}
 	casgstatus(gp, _Grunning, _Gsyscall)
 	if gp.syscallsp < gp.stack.lo || gp.stack.hi < gp.syscallsp {
 		systemstack(func() {
@@ -4852,6 +4860,9 @@ func exitsyscall() {
 	// Caution: we're in a window where we may be in _Grunning without a P.
 	// Either we will grab a P or call exitsyscall0, where we'll switch to
 	// _Grunnable.
+	if debugExtendGrunningNoP {
+		usleep(10)
+	}
 
 	// Grab and clear our old P.
 	oldp := gp.m.oldp.ptr()
