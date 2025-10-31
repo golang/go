@@ -245,6 +245,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 	case ssa.OpARMADDS,
+		ssa.OpARMADCS,
 		ssa.OpARMSUBS:
 		r := v.Reg0()
 		r1 := v.Args[0].Reg()

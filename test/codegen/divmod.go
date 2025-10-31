@@ -279,7 +279,10 @@ func div3_uint32(i uint32) uint32 {
 }
 
 func div3_uint64(i uint64) uint64 {
-	// 386 "CALL"
+	// 386: "MOVL [$]-1431655766"
+	// 386: "MULL"
+	// 386: "SHRL [$]1"
+	// 386 -".*CALL"
 	// arm64: "MOVD [$]-6148914691236517205,"
 	// arm64: "UMULH"
 	// arm64: "LSR [$]1,"
@@ -308,7 +311,10 @@ func div14_uint32(i uint32) uint32 {
 }
 
 func div14_uint64(i uint64) uint64 {
-	// 386 "CALL"
+	// 386: "MOVL [$]-1840700270,"
+	// 386: "MULL"
+	// 386: "SHRL [$]2,"
+	// 386: -".*CALL"
 	// arm64: "MOVD [$]-7905747460161236406,"
 	// arm64: "UMULH"
 	// arm64: "LSR [$]2,"
@@ -343,7 +349,10 @@ func div7_uint32(i uint32) uint32 {
 }
 
 func div7_uint64(i uint64) uint64 {
-	// 386 "CALL"
+	// 386: "MOVL [$]-1840700269,"
+	// 386: "MULL"
+	// 386: "SHRL [$]2,"
+	// 386: -".*CALL"
 	// arm64: "MOVD [$]2635249153387078803,"
 	// arm64: "UMULH"
 	// arm64: "SUB",
@@ -353,7 +362,11 @@ func div7_uint64(i uint64) uint64 {
 }
 
 func div12345_uint64(i uint64) uint64 {
-	// 386 "CALL"
+	// 386: "MOVL [$]-1444876402,"
+	// 386: "MOVL [$]835683390,"
+	// 386: "MULL"
+	// 386: "SHRL [$]13,"
+	// 386: "SHLL [$]19,"
 	// arm64: "MOVD [$]-6205696892516465602,"
 	// arm64: "UMULH"
 	// arm64: "LSR [$]13,"
@@ -869,7 +882,12 @@ func ndivis6_int32(i int32) bool {
 }
 
 func divis6_int64(i int64) bool {
-	// 386 "CALL"
+	// 386: "IMUL3L [$]-1431655766,"
+	// 386: "IMUL3L [$]-1431655765,"
+	// 386: "ADCL [$]715827882,"
+	// 386: "CMPL .*, [$]715827882"
+	// 386: "CMPL .*, [$]-1431655766"
+	// 386: "SETLS"
 	// arm64: "MOVD [$]-6148914691236517205,"
 	// arm64: "MUL "
 	// arm64: "MOVD [$]3074457345618258602,"
@@ -880,7 +898,12 @@ func divis6_int64(i int64) bool {
 }
 
 func ndivis6_int64(i int64) bool {
-	// 386 "CALL"
+	// 386: "IMUL3L [$]-1431655766,"
+	// 386: "IMUL3L [$]-1431655765,"
+	// 386: "ADCL [$]715827882,"
+	// 386: "CMPL .*, [$]715827882"
+	// 386: "CMPL .*, [$]-1431655766"
+	// 386: "SETHI"
 	// arm64: "MOVD [$]-6148914691236517205,"
 	// arm64: "MUL "
 	// arm64: "MOVD [$]3074457345618258602,"
@@ -973,7 +996,14 @@ func div_ndivis6_uint32(i uint32) (uint32, bool) {
 }
 
 func div_divis6_uint64(i uint64) (uint64, bool) {
-	// 386 "CALL"
+	// 386: "MOVL [$]-1431655766,"
+	// 386: "MOVL [$]-1431655765,"
+	// 386: "MULL"
+	// 386: "SHRL [$]2,"
+	// 386: "SHLL [$]30,"
+	// 386: "SETEQ"
+	// 386: -".*CALL"
+	// 386: -"RO[RL]"
 	// arm64: "MOVD [$]-6148914691236517205,"
 	// arm64: "UMULH"
 	// arm64: "LSR [$]2,"
@@ -983,7 +1013,14 @@ func div_divis6_uint64(i uint64) (uint64, bool) {
 }
 
 func div_ndivis6_uint64(i uint64) (uint64, bool) {
-	// 386 "CALL"
+	// 386: "MOVL [$]-1431655766,"
+	// 386: "MOVL [$]-1431655765,"
+	// 386: "MULL"
+	// 386: "SHRL [$]2,"
+	// 386: "SHLL [$]30,"
+	// 386: "SETNE"
+	// 386: -".*CALL"
+	// 386: -"RO[RL]"
 	// arm64: "MOVD [$]-6148914691236517205,"
 	// arm64: "UMULH"
 	// arm64: "LSR [$]2,"
@@ -1091,7 +1128,16 @@ func div_ndivis6_int32(i int32) (int32, bool) {
 }
 
 func div_divis6_int64(i int64) (int64, bool) {
-	// 386 "CALL"
+	// 386: "ANDL [$]-1431655766,"
+	// 386: "ANDL [$]-1431655765,"
+	// 386: "MOVL [$]-1431655766,"
+	// 386: "MOVL [$]-1431655765,"
+	// 386: "SUBL" "SBBL"
+	// 386: "MULL"
+	// 386: "SETEQ"
+	// 386: -"SET(LS|HI)"
+	// 386: -".*CALL"
+	// 386: -"RO[RL]"
 	// arm64: "MOVD [$]-6148914691236517205,"
 	// arm64: "SMULH"
 	// arm64: "ADD"
@@ -1103,7 +1149,16 @@ func div_divis6_int64(i int64) (int64, bool) {
 }
 
 func div_ndivis6_int64(i int64) (int64, bool) {
-	// 386 "CALL"
+	// 386: "ANDL [$]-1431655766,"
+	// 386: "ANDL [$]-1431655765,"
+	// 386: "MOVL [$]-1431655766,"
+	// 386: "MOVL [$]-1431655765,"
+	// 386: "SUBL" "SBBL"
+	// 386: "MULL"
+	// 386: "SETNE"
+	// 386: -"SET(LS|HI)"
+	// 386: -".*CALL"
+	// 386: -"RO[RL]"
 	// arm64: "MOVD [$]-6148914691236517205,"
 	// arm64: "SMULH"
 	// arm64: "ADD"

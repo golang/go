@@ -971,40 +971,6 @@ func negIndex2(n int) {
 	useSlice(c)
 }
 
-// Check that prove is zeroing these right shifts of positive ints by bit-width - 1.
-// e.g (Rsh64x64 <t> n (Const64 <typ.UInt64> [63])) && ft.isNonNegative(n) -> 0
-func sh64(n int64) int64 {
-	if n < 0 {
-		return n
-	}
-	return n >> 63 // ERROR "Proved Rsh64x64 shifts to zero"
-}
-
-func sh32(n int32) int32 {
-	if n < 0 {
-		return n
-	}
-	return n >> 31 // ERROR "Proved Rsh32x64 shifts to zero"
-}
-
-func sh32x64(n int32) int32 {
-	if n < 0 {
-		return n
-	}
-	return n >> uint64(31) // ERROR "Proved Rsh32x64 shifts to zero"
-}
-
-func sh16(n int16) int16 {
-	if n < 0 {
-		return n
-	}
-	return n >> 15 // ERROR "Proved Rsh16x64 shifts to zero"
-}
-
-func sh64noopt(n int64) int64 {
-	return n >> 63 // not optimized; n could be negative
-}
-
 // These cases are division of a positive signed integer by a power of 2.
 // The opt pass doesnt have sufficient information to see that n is positive.
 // So, instead, opt rewrites the division with a less-than-optimal replacement.
@@ -2582,6 +2548,103 @@ func swapbound(v []int) {
 		v[len(v)-1-i],
 		v[i] // ERROR "Proved IsInBounds"
 	}
+}
+
+func rightshift(v *[256]int) int {
+	for i := range 1024 { // ERROR "Induction"
+		if v[i/32] == 0 { // ERROR "Proved Div64 is unsigned" "Proved IsInBounds"
+			return i
+		}
+	}
+	for i := range 1024 { // ERROR "Induction"
+		if v[i>>2] == 0 { // ERROR "Proved IsInBounds"
+			return i
+		}
+	}
+	return -1
+}
+
+func rightShiftBounds(v, s int) {
+	// The ignored "Proved" messages on the shift itself are about whether s >= 0 or s < 32 or 64.
+	// We care about the bounds for x printed on the prove(x) lines.
+
+	if -8 <= v && v <= -2 && 1 <= s && s <= 3 {
+		x := v>>s // ERROR "Proved"
+		prove(x) // ERROR "Proved sm,SM=-4,-1 "
+	}
+	if -80 <= v && v <= -20 && 1 <= s && s <= 3 {
+		x := v>>s // ERROR "Proved"
+		prove(x) // ERROR "Proved sm,SM=-40,-3 "
+	}
+	if -8 <= v && v <= 10 && 1 <= s && s <= 3 {
+		x := v>>s // ERROR "Proved"
+		prove(x) // ERROR "Proved sm,SM=-4,5 "
+	}
+	if 2 <= v && v <= 10 && 1 <= s && s <= 3 {
+		x := v>>s // ERROR "Proved"
+		prove(x) // ERROR "Proved sm,SM=0,5 "
+	}
+
+	if -8 <= v && v <= -2 && 0 <= s && s <= 3 {
+		x := v>>s // ERROR "Proved"
+		prove(x) // ERROR "Proved sm,SM=-8,-1 "
+	}
+	if -80 <= v && v <= -20 && 0 <= s && s <= 3 {
+		x := v>>s // ERROR "Proved"
+		prove(x) // ERROR "Proved sm,SM=-80,-3 "
+	}
+	if -8 <= v && v <= 10 && 0 <= s && s <= 3 {
+		x := v>>s // ERROR "Proved"
+		prove(x) // ERROR "Proved sm,SM=-8,10 "
+	}
+	if 2 <= v && v <= 10 && 0 <= s && s <= 3 {
+		x := v>>s // ERROR "Proved"
+		prove(x) // ERROR "Proved sm,SM=0,10 "
+	}
+
+	if -8 <= v && v <= -2 && -1 <= s && s <= 3 {
+		x := v>>s // ERROR "Proved"
+		prove(x) // ERROR "Proved sm,SM=-8,-1 "
+	}
+	if -80 <= v && v <= -20 && -1 <= s && s <= 3 {
+		x := v>>s // ERROR "Proved"
+		prove(x) // ERROR "Proved sm,SM=-80,-3 "
+	}
+	if -8 <= v && v <= 10 && -1 <= s && s <= 3 {
+		x := v>>s // ERROR "Proved"
+		prove(x) // ERROR "Proved sm,SM=-8,10 "
+	}
+	if 2 <= v && v <= 10 && -1 <= s && s <= 3 {
+		x := v>>s // ERROR "Proved"
+		prove(x) // ERROR "Proved sm,SM=0,10 "
+	}
+}
+
+func unsignedRightShiftBounds(v uint, s int) {
+	if 2 <= v && v <= 10 && -1 <= s && s <= 3 {
+		x := v>>s // ERROR "Proved"
+		proveu(x) // ERROR "Proved sm,SM=0,10 "
+	}
+	if 2 <= v && v <= 10 && 0 <= s && s <= 3 {
+		x := v>>s // ERROR "Proved"
+		proveu(x) // ERROR "Proved sm,SM=0,10 "
+	}
+	if 2 <= v && v <= 10 && 1 <= s && s <= 3 {
+		x := v>>s // ERROR "Proved"
+		proveu(x) // ERROR "Proved sm,SM=0,5 "
+	}
+	if 20 <= v && v <= 100 && 1 <= s && s <= 3 {
+		x := v>>s // ERROR "Proved"
+		proveu(x) // ERROR "Proved sm,SM=2,50 "
+	}
+}
+
+//go:noinline
+func prove(x int) {
+}
+
+//go:noinline
+func proveu(x uint) {
 }
 
 //go:noinline

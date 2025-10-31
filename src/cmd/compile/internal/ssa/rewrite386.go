@@ -257,6 +257,9 @@ func rewriteValue386(v *Value) bool {
 	case OpAdd32carry:
 		v.Op = Op386ADDLcarry
 		return true
+	case OpAdd32carrywithcarry:
+		v.Op = Op386ADCLcarry
+		return true
 	case OpAdd32withcarry:
 		v.Op = Op386ADCL
 		return true

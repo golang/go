@@ -118,7 +118,7 @@
       (Hmul32 <t> x (Const32 <typ.UInt32> [int32(smagic32(c).m/2)]))
       (Const64 <typ.UInt64> [smagic32(c).s - 1]))
     (Rsh32x64 <t> x (Const64 <typ.UInt64> [31])))
-(Div64 <t> x (Const64 [c])) && smagicOK64(c) && config.RegSize == 8 && smagic64(c).m&1 == 0 && config.useHmul =>
+(Div64 <t> x (Const64 [c])) && smagicOK64(c) && smagic64(c).m&1 == 0 && config.useHmul =>
   (Sub64 <t>
     (Rsh64x64 <t>
       (Hmul64 <t> x (Const64 <typ.UInt64> [int64(smagic64(c).m/2)]))
@@ -132,7 +132,7 @@
       (Add32 <t> x (Hmul32 <t> x (Const32 <typ.UInt32> [int32(smagic32(c).m)])))
       (Const64 <typ.UInt64> [smagic32(c).s]))
     (Rsh32x64 <t> x (Const64 <typ.UInt64> [31])))
-(Div64 <t> x (Const64 [c])) && smagicOK64(c) && config.RegSize == 8 && smagic64(c).m&1 != 0 && config.useHmul =>
+(Div64 <t> x (Const64 [c])) && smagicOK64(c) && smagic64(c).m&1 != 0 && config.useHmul =>
   (Sub64 <t>
     (Rsh64x64 <t>
       (Add64 <t> x (Hmul64 <t> x (Const64 <typ.UInt64> [int64(smagic64(c).m)])))
@@ -153,7 +153,7 @@
   (Rsh32Ux64 <t>
     (Hmul32u <typ.UInt32> x (Const32 <typ.UInt32> [int32(smagic32(c).m)]))
     (Const64 <typ.UInt64> [smagic32(c).s]))
-(Div64u <t> x (Const64 [c])) && t.IsSigned() && smagicOK64(c) && config.RegSize == 8 && config.useHmul =>
+(Div64u <t> x (Const64 [c])) && t.IsSigned() && smagicOK64(c) && config.useHmul =>
   (Rsh64Ux64 <t>
     (Hmul64u <typ.UInt64> x (Const64 <typ.UInt64> [int64(smagic64(c).m)]))
     (Const64 <typ.UInt64> [smagic64(c).s]))
@@ -185,7 +185,7 @@
   (Rsh32Ux64 <t>
     (Hmul32u <typ.UInt32> x (Const32 <typ.UInt32> [int32(1<<31 + umagic32(c).m/2)]))
     (Const64 <typ.UInt64> [umagic32(c).s - 1]))
-(Div64u <t> x (Const64 [c])) && umagicOK64(c) && umagic64(c).m&1 == 0 && config.RegSize == 8 && config.useHmul =>
+(Div64u <t> x (Const64 [c])) && umagicOK64(c) && umagic64(c).m&1 == 0 && config.useHmul =>
   (Rsh64Ux64 <t>
     (Hmul64u <typ.UInt64> x (Const64 <typ.UInt64> [int64(1<<63 + umagic64(c).m/2)]))
     (Const64 <typ.UInt64> [umagic64(c).s - 1]))
@@ -211,7 +211,7 @@
       (Rsh32Ux64 <typ.UInt32> x (Const64 <typ.UInt64> [1]))
       (Const32 <typ.UInt32> [int32(1<<31 + (umagic32(c).m+1)/2)]))
     (Const64 <typ.UInt64> [umagic32(c).s - 2]))
-(Div64u <t> x (Const64 [c])) && umagicOK64(c) && config.RegSize == 8 && c&1 == 0 && config.useHmul =>
+(Div64u <t> x (Const64 [c])) && umagicOK64(c) && c&1 == 0 && config.useHmul =>
   (Rsh64Ux64 <t>
     (Hmul64u <typ.UInt64>
       (Rsh64Ux64 <typ.UInt64> x (Const64 <typ.UInt64> [1]))
@@ -237,52 +237,7 @@
   (Rsh32Ux64 <t>
     (Avg32u x (Hmul32u <typ.UInt32> x (Const32 <typ.UInt32> [int32(umagic32(c).m)])))
     (Const64 <typ.UInt64> [umagic32(c).s - 1]))
-(Div64u <t> x (Const64 [c])) && umagicOK64(c) && config.RegSize == 8 && config.useAvg && config.useHmul =>
+(Div64u <t> x (Const64 [c])) && umagicOK64(c) && config.useAvg && config.useHmul =>
   (Rsh64Ux64 <t>
     (Avg64u x (Hmul64u <typ.UInt64> x (Const64 <typ.UInt64> [int64(umagic64(c).m)])))
     (Const64 <typ.UInt64> [umagic64(c).s - 1]))
-
-// Case 9. For unsigned 64-bit divides on 32-bit machines,
-// if the constant fits in 16 bits (so that the last term
-// fits in 32 bits), convert to three 32-bit divides by a constant.
-//
-// If 1<<32 = Q * c + R
-// and    x = hi << 32 + lo
-//
-// Then x = (hi/c*c + hi%c) << 32 + lo
-//        = hi/c*c<<32 + hi%c<<32 + lo
-//        = hi/c*c<<32 + (hi%c)*(Q*c+R) + lo/c*c + lo%c
-//        = hi/c*c<<32 + (hi%c)*Q*c + lo/c*c + (hi%c*R+lo%c)
-// and x / c = (hi/c)<<32 + (hi%c)*Q + lo/c + (hi%c*R+lo%c)/c
-(Div64u x (Const64 [c])) && c > 0 && c <= 0xFFFF && umagicOK32(int32(c)) && config.RegSize == 4 && config.useHmul =>
-  (Add64
-    (Add64 <typ.UInt64>
-      (Add64 <typ.UInt64>
-        (Lsh64x64 <typ.UInt64>
-          (ZeroExt32to64
-            (Div32u <typ.UInt32>
-              (Trunc64to32 <typ.UInt32> (Rsh64Ux64 <typ.UInt64> x (Const64 <typ.UInt64> [32])))
-              (Const32 <typ.UInt32> [int32(c)])))
-          (Const64 <typ.UInt64> [32]))
-        (ZeroExt32to64 (Div32u <typ.UInt32> (Trunc64to32 <typ.UInt32> x) (Const32 <typ.UInt32> [int32(c)]))))
-      (Mul64 <typ.UInt64>
-        (ZeroExt32to64 <typ.UInt64>
-          (Mod32u <typ.UInt32>
-            (Trunc64to32 <typ.UInt32> (Rsh64Ux64 <typ.UInt64> x (Const64 <typ.UInt64> [32])))
-            (Const32 <typ.UInt32> [int32(c)])))
-        (Const64 <typ.UInt64> [int64((1<<32)/c)])))
-      (ZeroExt32to64
-        (Div32u <typ.UInt32>
-          (Add32 <typ.UInt32>
-            (Mod32u <typ.UInt32> (Trunc64to32 <typ.UInt32> x) (Const32 <typ.UInt32> [int32(c)]))
-            (Mul32 <typ.UInt32>
-              (Mod32u <typ.UInt32>
-                (Trunc64to32 <typ.UInt32> (Rsh64Ux64 <typ.UInt64> x (Const64 <typ.UInt64> [32])))
-                (Const32 <typ.UInt32> [int32(c)]))
-              (Const32 <typ.UInt32> [int32((1<<32)%c)])))
-          (Const32 <typ.UInt32> [int32(c)]))))
-
-// Repeated from generic.rules, for expanding the expression above
-// (which can then be further expanded to handle the nested Div32u).
-(Mod32u <t> x (Const32 [c])) && x.Op != OpConst32 && c > 0 && umagicOK32(c)
-  => (Sub32 x (Mul32 <t> (Div32u <t> x (Const32 <t> [c])) (Const32 <t> [c])))

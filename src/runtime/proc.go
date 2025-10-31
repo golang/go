@@ -288,13 +288,6 @@ func main() {
 	fn := main_main // make an indirect call, as the linker doesn't know the address of the main package when laying down the runtime
 	fn()
 
-	exitHooksRun := false
-	if raceenabled {
-		runExitHooks(0) // run hooks now, since racefini does not return
-		exitHooksRun = true
-		racefini()
-	}
-
 	// Check for C memory leaks if using ASAN and we've made cgo calls,
 	// or if we are running as a library in a C program.
 	// We always make one cgo call, above, to notify_runtime_init_done,
@@ -302,6 +295,7 @@ func main() {
 	// No point in leak checking if no cgo calls, since leak checking
 	// just looks for objects allocated using malloc and friends.
 	// Just checking iscgo doesn't help because asan implies iscgo.
+	exitHooksRun := false
 	if asanenabled && (isarchive || islibrary || NumCgoCall() > 1) {
 		runExitHooks(0) // lsandoleakcheck may not return
 		exitHooksRun = true
@@ -326,6 +320,9 @@ func main() {
 	}
 	if !exitHooksRun {
 		runExitHooks(0)
+	}
+	if raceenabled {
+		racefini() // does not return
 	}
 
 	exit(0)
@@ -1316,8 +1313,9 @@ func casgstatus(gp *g, oldval, newval uint32) {
 		})
 	}
 
-	if oldval == _Grunning {
-		// Track every gTrackingPeriod time a goroutine transitions out of running.
+	if (oldval == _Grunning || oldval == _Gsyscall) && (newval != _Grunning && newval != _Gsyscall) {
+		// Track every gTrackingPeriod time a goroutine transitions out of _Grunning or _Gsyscall.
+		// Do not track _Grunning <-> _Gsyscall transitions, since they're two very similar states.
 		if casgstatusAlwaysTrack || gp.trackingSeq%gTrackingPeriod == 0 {
 			gp.tracking = true
 		}
@@ -1654,29 +1652,21 @@ func stopTheWorldWithSema(reason stwReason) worldStop {
 	sched.stopwait = gomaxprocs
 	sched.gcwaiting.Store(true)
 	preemptall()
-	// stop current P
+
+	// Stop current P.
 	gp.m.p.ptr().status = _Pgcstop // Pgcstop is only diagnostic.
 	gp.m.p.ptr().gcStopTime = start
 	sched.stopwait--
-	// try to retake all P's in Psyscall status
-	trace = traceAcquire()
+
+	// Try to retake all P's in syscalls.
 	for _, pp := range allp {
-		s := pp.status
-		if s == _Psyscall && atomic.Cas(&pp.status, s, _Pgcstop) {
-			if trace.ok() {
-				trace.ProcSteal(pp, false)
-			}
-			sched.nGsyscallNoP.Add(1)
-			pp.syscalltick++
-			pp.gcStopTime = nanotime()
-			sched.stopwait--
+		if thread, ok := setBlockOnExitSyscall(pp); ok {
+			thread.gcstopP()
+			thread.resume()
 		}
 	}
-	if trace.ok() {
-		traceRelease(trace)
-	}
 
-	// stop idle P's
+	// Stop idle Ps.
 	now := nanotime()
 	for {
 		pp, _ := pidleget(now)
@@ -1690,7 +1680,7 @@ func stopTheWorldWithSema(reason stwReason) worldStop {
 	wait := sched.stopwait > 0
 	unlock(&sched.lock)
 
-	// wait for remaining P's to stop voluntarily
+	// Wait for remaining Ps to stop voluntarily.
 	if wait {
 		for {
 			// wait for 100us, then try to re-preempt in case of any races
@@ -2156,9 +2146,9 @@ func forEachPInternal(fn func(*p)) {
 	}
 	preemptall()
 
-	// Any P entering _Pidle or _Psyscall from now on will observe
+	// Any P entering _Pidle or a system call from now on will observe
 	// p.runSafePointFn == 1 and will call runSafePointFn when
-	// changing its status to _Pidle/_Psyscall.
+	// changing its status to _Pidle.
 
 	// Run safe point function for all idle Ps. sched.pidle will
 	// not change because we hold sched.lock.
@@ -2175,25 +2165,17 @@ func forEachPInternal(fn func(*p)) {
 	// Run fn for the current P.
 	fn(pp)
 
-	// Force Ps currently in _Psyscall into _Pidle and hand them
+	// Force Ps currently in a system call into _Pidle and hand them
 	// off to induce safe point function execution.
 	for _, p2 := range allp {
-		s := p2.status
-
-		// We need to be fine-grained about tracing here, since handoffp
-		// might call into the tracer, and the tracer is non-reentrant.
-		trace := traceAcquire()
-		if s == _Psyscall && p2.runSafePointFn == 1 && atomic.Cas(&p2.status, s, _Pidle) {
-			if trace.ok() {
-				// It's important that we traceRelease before we call handoffp, which may also traceAcquire.
-				trace.ProcSteal(p2, false)
-				traceRelease(trace)
-			}
-			sched.nGsyscallNoP.Add(1)
-			p2.syscalltick++
+		if atomic.Load(&p2.runSafePointFn) != 1 {
+			// Already ran it.
+			continue
+		}
+		if thread, ok := setBlockOnExitSyscall(p2); ok {
+			thread.takeP()
+			thread.resume()
 			handoffp(p2)
-		} else if trace.ok() {
-			traceRelease(trace)
 		}
 	}
 
@@ -2234,9 +2216,9 @@ func forEachPInternal(fn func(*p)) {
 //	}
 //
 // runSafePointFn must be checked on any transition in to _Pidle or
-// _Psyscall to avoid a race where forEachP sees that the P is running
-// just before the P goes into _Pidle/_Psyscall and neither forEachP
-// nor the P run the safe-point function.
+// when entering a system call to avoid a race where forEachP sees
+// that the P is running just before the P goes into _Pidle/system call
+// and neither forEachP nor the P run the safe-point function.
 func runSafePointFn() {
 	p := getg().m.p.ptr()
 	// Resolve the race between forEachP running the safe-point
@@ -2571,7 +2553,7 @@ func oneNewExtraM() {
 // So that the destructor would invoke dropm while the non-Go thread is exiting.
 // This is much faster since it avoids expensive signal-related syscalls.
 //
-// This always runs without a P, so //go:nowritebarrierrec is required.
+// This may run without a P, so //go:nowritebarrierrec is required.
 //
 // This may run with a different stack than was recorded in g0 (there is no
 // call to callbackUpdateSystemStack prior to dropm), so this must be
@@ -4358,21 +4340,26 @@ func preemptPark(gp *g) {
 	casGToPreemptScan(gp, _Grunning, _Gscan|_Gpreempted)
 	dropg()
 
-	// Be careful about how we trace this next event. The ordering
-	// is subtle.
+	// Be careful about ownership as we trace this next event.
 	//
-	// The moment we CAS into _Gpreempted, suspendG could CAS to
-	// _Gwaiting, do its work, and ready the goroutine. All of
+	// According to the tracer invariants (trace.go) it's unsafe
+	// for us to emit an event for a goroutine we do not own.
+	// The moment we CAS into _Gpreempted, suspendG could CAS the
+	// goroutine to _Gwaiting, effectively taking ownership. All of
 	// this could happen before we even get the chance to emit
 	// an event. The end result is that the events could appear
 	// out of order, and the tracer generally assumes the scheduler
 	// takes care of the ordering between GoPark and GoUnpark.
 	//
 	// The answer here is simple: emit the event while we still hold
-	// the _Gscan bit on the goroutine. We still need to traceAcquire
-	// and traceRelease across the CAS because the tracer could be
-	// what's calling suspendG in the first place, and we want the
-	// CAS and event emission to appear atomic to the tracer.
+	// the _Gscan bit on the goroutine, since the _Gscan bit means
+	// ownership over transitions.
+	//
+	// We still need to traceAcquire and traceRelease across the CAS
+	// because the tracer could be what's calling suspendG in the first
+	// place. This also upholds the tracer invariant that we must hold
+	// traceAcquire/traceRelease across the transition. However, we
+	// specifically *only* emit the event while we still have ownership.
 	trace := traceAcquire()
 	if trace.ok() {
 		trace.GoPark(traceBlockPreempted, 0)
@@ -4566,7 +4553,6 @@ func save(pc, sp, bp uintptr) {
 //
 //go:nosplit
 func reentersyscall(pc, sp, bp uintptr) {
-	trace := traceAcquire()
 	gp := getg()
 
 	// Disable preemption because during this function g is in Gsyscall status,
@@ -4580,17 +4566,23 @@ func reentersyscall(pc, sp, bp uintptr) {
 	gp.stackguard0 = stackPreempt
 	gp.throwsplit = true
 
+	// Copy the syscalltick over so we can identify if the P got stolen later.
+	gp.m.syscalltick = gp.m.p.ptr().syscalltick
+
+	pp := gp.m.p.ptr()
+	if pp.runSafePointFn != 0 {
+		// runSafePointFn may stack split if run on this stack
+		systemstack(runSafePointFn)
+	}
+	gp.m.oldp.set(pp)
+
 	// Leave SP around for GC and traceback.
 	save(pc, sp, bp)
 	gp.syscallsp = sp
 	gp.syscallpc = pc
 	gp.syscallbp = bp
-	casgstatus(gp, _Grunning, _Gsyscall)
-	if staticLockRanking {
-		// When doing static lock ranking casgstatus can call
-		// systemstack which clobbers g.sched.
-		save(pc, sp, bp)
-	}
+
+	// Double-check sp and bp.
 	if gp.syscallsp < gp.stack.lo || gp.stack.hi < gp.syscallsp {
 		systemstack(func() {
 			print("entersyscall inconsistent sp ", hex(gp.syscallsp), " [", hex(gp.stack.lo), ",", hex(gp.stack.hi), "]\n")
@@ -4603,40 +4595,51 @@ func reentersyscall(pc, sp, bp uintptr) {
 			throw("entersyscall")
 		})
 	}
-
+	trace := traceAcquire()
 	if trace.ok() {
+		// Emit a trace event. Notably, actually emitting the event must happen before
+		// the casgstatus because it mutates the P, but the traceLocker must be held
+		// across the casgstatus since we're transitioning out of _Grunning
+		// (see trace.go invariants).
 		systemstack(func() {
 			trace.GoSysCall()
-			traceRelease(trace)
 		})
-		// systemstack itself clobbers g.sched.{pc,sp} and we might
-		// need them later when the G is genuinely blocked in a
-		// syscall
+		// systemstack clobbered gp.sched, so restore it.
 		save(pc, sp, bp)
 	}
-
-	if sched.sysmonwait.Load() {
-		systemstack(entersyscall_sysmon)
-		save(pc, sp, bp)
-	}
-
-	if gp.m.p.ptr().runSafePointFn != 0 {
-		// runSafePointFn may stack split if run on this stack
-		systemstack(runSafePointFn)
-		save(pc, sp, bp)
-	}
-
-	gp.m.syscalltick = gp.m.p.ptr().syscalltick
-	pp := gp.m.p.ptr()
-	pp.m = 0
-	gp.m.oldp.set(pp)
-	gp.m.p = 0
-	atomic.Store(&pp.status, _Psyscall)
 	if sched.gcwaiting.Load() {
-		systemstack(entersyscall_gcwait)
+		// Optimization: If there's a pending STW, do the equivalent of
+		// entersyscallblock here at the last minute and immediately give
+		// away our P.
+		systemstack(func() {
+			entersyscallHandleGCWait(trace)
+		})
+		// systemstack clobbered gp.sched, so restore it.
 		save(pc, sp, bp)
 	}
-
+	// As soon as we switch to _Gsyscall, we are in danger of losing our P.
+	// We must not touch it after this point.
+	//
+	// Try to do a quick CAS to avoid calling into casgstatus in the common case.
+	// If we have a bubble, we need to fall into casgstatus.
+	if gp.bubble != nil || !gp.atomicstatus.CompareAndSwap(_Grunning, _Gsyscall) {
+		casgstatus(gp, _Grunning, _Gsyscall)
+	}
+	if staticLockRanking {
+		// casgstatus clobbers gp.sched via systemstack under staticLockRanking. Restore it.
+		save(pc, sp, bp)
+	}
+	if trace.ok() {
+		// N.B. We don't need to go on the systemstack because traceRelease is very
+		// carefully recursively nosplit. This also means we don't need to worry
+		// about clobbering gp.sched.
+		traceRelease(trace)
+	}
+	if sched.sysmonwait.Load() {
+		systemstack(entersyscallWakeSysmon)
+		// systemstack clobbered gp.sched, so restore it.
+		save(pc, sp, bp)
+	}
 	gp.m.locks--
 }
 
@@ -4663,7 +4666,7 @@ func entersyscall() {
 	reentersyscall(sys.GetCallerPC(), sys.GetCallerSP(), fp)
 }
 
-func entersyscall_sysmon() {
+func entersyscallWakeSysmon() {
 	lock(&sched.lock)
 	if sched.sysmonwait.Load() {
 		sched.sysmonwait.Store(false)
@@ -4672,25 +4675,19 @@ func entersyscall_sysmon() {
 	unlock(&sched.lock)
 }
 
-func entersyscall_gcwait() {
+func entersyscallHandleGCWait(trace traceLocker) {
 	gp := getg()
-	pp := gp.m.oldp.ptr()
 
 	lock(&sched.lock)
-	trace := traceAcquire()
-	if sched.stopwait > 0 && atomic.Cas(&pp.status, _Psyscall, _Pgcstop) {
+	if sched.stopwait > 0 {
+		// Set our P to _Pgcstop so the STW can take it.
+		pp := gp.m.p.ptr()
+		pp.m = 0
+		gp.m.p = 0
+		atomic.Store(&pp.status, _Pgcstop)
+
 		if trace.ok() {
-			// This is a steal in the new tracer. While it's very likely
-			// that we were the ones to put this P into _Psyscall, between
-			// then and now it's totally possible it had been stolen and
-			// then put back into _Psyscall for us to acquire here. In such
-			// case ProcStop would be incorrect.
-			//
-			// TODO(mknyszek): Consider emitting a ProcStop instead when
-			// gp.m.syscalltick == pp.syscalltick, since then we know we never
-			// lost the P.
-			trace.ProcSteal(pp, true)
-			traceRelease(trace)
+			trace.ProcStop(pp)
 		}
 		sched.nGsyscallNoP.Add(1)
 		pp.gcStopTime = nanotime()
@@ -4698,8 +4695,6 @@ func entersyscall_gcwait() {
 		if sched.stopwait--; sched.stopwait == 0 {
 			notewakeup(&sched.stopnote)
 		}
-	} else if trace.ok() {
-		traceRelease(trace)
 	}
 	unlock(&sched.lock)
 }
@@ -4744,6 +4739,22 @@ func entersyscallblock() {
 			throw("entersyscallblock")
 		})
 	}
+
+	// Once we switch to _Gsyscall, we can't safely touch
+	// our P anymore, so we need to hand it off beforehand.
+	// The tracer also needs to see the syscall before the P
+	// handoff, so the order here must be (1) trace,
+	// (2) handoff, (3) _Gsyscall switch.
+	trace := traceAcquire()
+	systemstack(func() {
+		if trace.ok() {
+			trace.GoSysCall()
+		}
+		handoffp(releasep())
+	})
+	// <--
+	// Caution: we're in a small window where we are in _Grunning without a P.
+	// -->
 	casgstatus(gp, _Grunning, _Gsyscall)
 	if gp.syscallsp < gp.stack.lo || gp.stack.hi < gp.syscallsp {
 		systemstack(func() {
@@ -4757,22 +4768,16 @@ func entersyscallblock() {
 			throw("entersyscallblock")
 		})
 	}
-
-	systemstack(entersyscallblock_handoff)
+	if trace.ok() {
+		systemstack(func() {
+			traceRelease(trace)
+		})
+	}
 
 	// Resave for traceback during blocked call.
 	save(sys.GetCallerPC(), sys.GetCallerSP(), getcallerfp())
 
 	gp.m.locks--
-}
-
-func entersyscallblock_handoff() {
-	trace := traceAcquire()
-	if trace.ok() {
-		trace.GoSysCall()
-		traceRelease(trace)
-	}
-	handoffp(releasep())
 }
 
 // The goroutine g exited its system call.
@@ -4802,13 +4807,92 @@ func exitsyscall() {
 	if sys.GetCallerSP() > gp.syscallsp {
 		throw("exitsyscall: syscall frame is no longer valid")
 	}
-
 	gp.waitsince = 0
+
+	if sched.stopwait == freezeStopWait {
+		// Wedge ourselves if there's an outstanding freezetheworld.
+		// If we transition to running, we might end up with our traceback
+		// being taken twice.
+		systemstack(func() {
+			lock(&deadlock)
+			lock(&deadlock)
+		})
+	}
+
+	// Optimistically assume we're going to keep running, and switch to running.
+	// Before this point, our P wiring is not ours. Once we get past this point,
+	// we can access our P if we have it, otherwise we lost it.
+	//
+	// N.B. Because we're transitioning to _Grunning here, traceAcquire doesn't
+	// need to be held ahead of time. We're effectively atomic with respect to
+	// the tracer because we're non-preemptible and in the runtime. It can't stop
+	// us to read a bad status.
+	//
+	// Try to do a quick CAS to avoid calling into casgstatus in the common case.
+	// If we have a bubble, we need to fall into casgstatus.
+	if gp.bubble != nil || !gp.atomicstatus.CompareAndSwap(_Gsyscall, _Grunning) {
+		casgstatus(gp, _Gsyscall, _Grunning)
+	}
+
+	// Caution: we're in a window where we may be in _Grunning without a P.
+	// Either we will grab a P or call exitsyscall0, where we'll switch to
+	// _Grunnable.
+
+	// Grab and clear our old P.
 	oldp := gp.m.oldp.ptr()
-	gp.m.oldp = 0
-	if exitsyscallfast(oldp) {
-		// When exitsyscallfast returns success, we have a P so can now use
-		// write barriers
+	gp.m.oldp.set(nil)
+
+	// Check if we still have a P, and if not, try to acquire an idle P.
+	pp := gp.m.p.ptr()
+	if pp != nil {
+		// Fast path: we still have our P. Just emit a syscall exit event.
+		if trace := traceAcquire(); trace.ok() {
+			systemstack(func() {
+				// The truth is we truly never lost the P, but syscalltick
+				// is used to indicate whether the P should be treated as
+				// lost anyway. For example, when syscalltick is trashed by
+				// dropm.
+				//
+				// TODO(mknyszek): Consider a more explicit mechanism for this.
+				// Then syscalltick doesn't need to be trashed, and can be used
+				// exclusively by sysmon for deciding when it's time to retake.
+				if pp.syscalltick == gp.m.syscalltick {
+					trace.GoSysExit(false)
+				} else {
+					// Since we need to pretend we lost the P, but nobody ever
+					// took it, we need a ProcSteal event to model the loss.
+					// Then, continue with everything else we'd do if we lost
+					// the P.
+					trace.ProcSteal(pp)
+					trace.ProcStart()
+					trace.GoSysExit(true)
+					trace.GoStart()
+				}
+				traceRelease(trace)
+			})
+		}
+	} else {
+		// Slow path: we lost our P. Try to get another one.
+		systemstack(func() {
+			// Try to get some other P.
+			if pp := exitsyscallTryGetP(oldp); pp != nil {
+				// Install the P.
+				acquirepNoTrace(pp)
+
+				// We're going to start running again, so emit all the relevant events.
+				if trace := traceAcquire(); trace.ok() {
+					trace.ProcStart()
+					trace.GoSysExit(true)
+					trace.GoStart()
+					traceRelease(trace)
+				}
+			}
+		})
+		pp = gp.m.p.ptr()
+	}
+
+	// If we have a P, clean up and exit.
+	if pp != nil {
 		if goroutineProfile.active {
 			// Make sure that gp has had its stack written out to the goroutine
 			// profile, exactly as it was when the goroutine profiler first
@@ -4817,41 +4901,19 @@ func exitsyscall() {
 				tryRecordGoroutineProfileWB(gp)
 			})
 		}
-		trace := traceAcquire()
-		if trace.ok() {
-			lostP := oldp != gp.m.p.ptr() || gp.m.syscalltick != gp.m.p.ptr().syscalltick
-			systemstack(func() {
-				// Write out syscall exit eagerly.
-				//
-				// It's important that we write this *after* we know whether we
-				// lost our P or not (determined by exitsyscallfast).
-				trace.GoSysExit(lostP)
-				if lostP {
-					// We lost the P at some point, even though we got it back here.
-					// Trace that we're starting again, because there was a tracev2.GoSysBlock
-					// call somewhere in exitsyscallfast (indicating that this goroutine
-					// had blocked) and we're about to start running again.
-					trace.GoStart()
-				}
-			})
-		}
-		// There's a cpu for us, so we can run.
-		gp.m.p.ptr().syscalltick++
-		// We need to cas the status and scan before resuming...
-		casgstatus(gp, _Gsyscall, _Grunning)
-		if trace.ok() {
-			traceRelease(trace)
-		}
+
+		// Increment the syscalltick for P, since we're exiting a syscall.
+		pp.syscalltick++
 
 		// Garbage collector isn't running (since we are),
 		// so okay to clear syscallsp.
 		gp.syscallsp = 0
 		gp.m.locks--
 		if gp.preempt {
-			// restore the preemption request in case we've cleared it in newstack
+			// Restore the preemption request in case we cleared it in newstack.
 			gp.stackguard0 = stackPreempt
 		} else {
-			// otherwise restore the real stackGuard, we've spoiled it in entersyscall/entersyscallblock
+			// Otherwise restore the real stackGuard, we clobbered it in entersyscall/entersyscallblock.
 			gp.stackguard0 = gp.stack.lo + stackGuard
 		}
 		gp.throwsplit = false
@@ -4860,14 +4922,13 @@ func exitsyscall() {
 			// Scheduling of this goroutine is disabled.
 			Gosched()
 		}
-
 		return
 	}
-
+	// Slowest path: We couldn't get a P, so call into the scheduler.
 	gp.m.locks--
 
 	// Call the scheduler.
-	mcall(exitsyscall0)
+	mcall(exitsyscallNoP)
 
 	// Scheduler returned, so we're allowed to run now.
 	// Delete the syscallsp information that we left for
@@ -4880,78 +4941,38 @@ func exitsyscall() {
 	gp.throwsplit = false
 }
 
-//go:nosplit
-func exitsyscallfast(oldp *p) bool {
-	// Freezetheworld sets stopwait but does not retake P's.
-	if sched.stopwait == freezeStopWait {
-		return false
-	}
-
-	// Try to re-acquire the last P.
-	trace := traceAcquire()
-	if oldp != nil && oldp.status == _Psyscall && atomic.Cas(&oldp.status, _Psyscall, _Pidle) {
-		// There's a cpu for us, so we can run.
-		wirep(oldp)
-		exitsyscallfast_reacquired(trace)
-		if trace.ok() {
-			traceRelease(trace)
-		}
-		return true
-	}
-	if trace.ok() {
-		traceRelease(trace)
-	}
-
-	// Try to get any other idle P.
-	if sched.pidle != 0 {
-		var ok bool
-		systemstack(func() {
-			ok = exitsyscallfast_pidle()
-		})
-		if ok {
-			return true
-		}
-	}
-	return false
-}
-
-// exitsyscallfast_reacquired is the exitsyscall path on which this G
-// has successfully reacquired the P it was running on before the
-// syscall.
+// exitsyscall's attempt to try to get any P, if it's missing one.
+// Returns true on success.
 //
-//go:nosplit
-func exitsyscallfast_reacquired(trace traceLocker) {
-	gp := getg()
-	if gp.m.syscalltick != gp.m.p.ptr().syscalltick {
-		if trace.ok() {
-			// The p was retaken and then enter into syscall again (since gp.m.syscalltick has changed).
-			// tracev2.GoSysBlock for this syscall was already emitted,
-			// but here we effectively retake the p from the new syscall running on the same p.
-			systemstack(func() {
-				// We're stealing the P. It's treated
-				// as if it temporarily stopped running. Then, start running.
-				trace.ProcSteal(gp.m.p.ptr(), true)
-				trace.ProcStart()
-			})
+// Must execute on the systemstack because exitsyscall is nosplit.
+//
+//go:systemstack
+func exitsyscallTryGetP(oldp *p) *p {
+	// Try to steal our old P back.
+	if oldp != nil {
+		if thread, ok := setBlockOnExitSyscall(oldp); ok {
+			thread.takeP()
+			thread.resume()
+			sched.nGsyscallNoP.Add(-1) // takeP adds 1.
+			return oldp
 		}
-		gp.m.p.ptr().syscalltick++
 	}
-}
 
-func exitsyscallfast_pidle() bool {
-	lock(&sched.lock)
-	pp, _ := pidleget(0)
-	if pp != nil && sched.sysmonwait.Load() {
-		sched.sysmonwait.Store(false)
-		notewakeup(&sched.sysmonnote)
+	// Try to get an idle P.
+	if sched.pidle != 0 {
+		lock(&sched.lock)
+		pp, _ := pidleget(0)
+		if pp != nil && sched.sysmonwait.Load() {
+			sched.sysmonwait.Store(false)
+			notewakeup(&sched.sysmonnote)
+		}
+		unlock(&sched.lock)
+		if pp != nil {
+			sched.nGsyscallNoP.Add(-1)
+			return pp
+		}
 	}
-	unlock(&sched.lock)
-	if pp != nil {
-		sched.nGsyscallNoP.Add(-1)
-		acquirep(pp)
-		return true
-	}
-	return false
+	return nil
 }
 
 // exitsyscall slow path on g0.
@@ -4960,11 +4981,10 @@ func exitsyscallfast_pidle() bool {
 // Called via mcall, so gp is the calling g from this M.
 //
 //go:nowritebarrierrec
-func exitsyscall0(gp *g) {
-	var trace traceLocker
+func exitsyscallNoP(gp *g) {
 	traceExitingSyscall()
-	trace = traceAcquire()
-	casgstatus(gp, _Gsyscall, _Grunnable)
+	trace := traceAcquire()
+	casgstatus(gp, _Grunning, _Grunnable)
 	traceExitedSyscall()
 	if trace.ok() {
 		// Write out syscall exit eagerly.
@@ -5241,7 +5261,8 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr, parked bool, waitreaso
 	}
 	gcController.addScannableStack(pp, int64(newg.stack.hi-newg.stack.lo))
 
-	// Get a goid and switch to runnable. Make all this atomic to the tracer.
+	// Get a goid and switch to runnable. This needs to happen under traceAcquire
+	// since it's a goroutine transition. See tracer invariants in trace.go.
 	trace := traceAcquire()
 	var status uint32 = _Grunnable
 	if parked {
@@ -6021,6 +6042,21 @@ func procresize(nprocs int32) *p {
 //
 //go:yeswritebarrierrec
 func acquirep(pp *p) {
+	// Do the work.
+	acquirepNoTrace(pp)
+
+	// Emit the event.
+	trace := traceAcquire()
+	if trace.ok() {
+		trace.ProcStart()
+		traceRelease(trace)
+	}
+}
+
+// Internals of acquirep, just skipping the trace events.
+//
+//go:yeswritebarrierrec
+func acquirepNoTrace(pp *p) {
 	// Do the part that isn't allowed to have write barriers.
 	wirep(pp)
 
@@ -6029,12 +6065,6 @@ func acquirep(pp *p) {
 	// Perform deferred mcache flush before this P can allocate
 	// from a potentially stale mcache.
 	pp.mcache.prepareForSweep()
-
-	trace := traceAcquire()
-	if trace.ok() {
-		trace.ProcStart()
-		traceRelease(trace)
-	}
 }
 
 // wirep is the first step of acquirep, which actually associates the
@@ -6382,71 +6412,203 @@ func retake(now int64) uint32 {
 	// temporarily drop the allpLock. Hence, we need to re-fetch
 	// allp each time around the loop.
 	for i := 0; i < len(allp); i++ {
+		// Quickly filter out non-running Ps. Running Ps are either
+		// in a syscall or are actually executing. Idle Ps don't
+		// need to be retaken.
+		//
+		// This is best-effort, so it's OK that it's racy. Our target
+		// is to retake Ps that have been running or in a syscall for
+		// a long time (milliseconds), so the state has plenty of time
+		// to stabilize.
 		pp := allp[i]
-		if pp == nil {
-			// This can happen if procresize has grown
+		if pp == nil || atomic.Load(&pp.status) != _Prunning {
+			// pp can be nil if procresize has grown
 			// allp but not yet created new Ps.
 			continue
 		}
 		pd := &pp.sysmontick
-		s := pp.status
 		sysretake := false
-		if s == _Prunning || s == _Psyscall {
-			// Preempt G if it's running on the same schedtick for
-			// too long. This could be from a single long-running
-			// goroutine or a sequence of goroutines run via
-			// runnext, which share a single schedtick time slice.
-			t := int64(pp.schedtick)
-			if int64(pd.schedtick) != t {
-				pd.schedtick = uint32(t)
-				pd.schedwhen = now
-			} else if pd.schedwhen+forcePreemptNS <= now {
-				preemptone(pp)
-				// In case of syscall, preemptone() doesn't
-				// work, because there is no M wired to P.
-				sysretake = true
-			}
+
+		// Preempt G if it's running on the same schedtick for
+		// too long. This could be from a single long-running
+		// goroutine or a sequence of goroutines run via
+		// runnext, which share a single schedtick time slice.
+		schedt := int64(pp.schedtick)
+		if int64(pd.schedtick) != schedt {
+			pd.schedtick = uint32(schedt)
+			pd.schedwhen = now
+		} else if pd.schedwhen+forcePreemptNS <= now {
+			preemptone(pp)
+			// If pp is in a syscall, preemptone doesn't work.
+			// The goroutine nor the thread can respond to a
+			// preemption request because they're not in Go code,
+			// so we need to take the P ourselves.
+			sysretake = true
 		}
-		if s == _Psyscall {
-			// Retake P from syscall if it's there for more than 1 sysmon tick (at least 20us).
-			t := int64(pp.syscalltick)
-			if !sysretake && int64(pd.syscalltick) != t {
-				pd.syscalltick = uint32(t)
-				pd.syscallwhen = now
-				continue
-			}
-			// On the one hand we don't want to retake Ps if there is no other work to do,
-			// but on the other hand we want to retake them eventually
-			// because they can prevent the sysmon thread from deep sleep.
-			if runqempty(pp) && sched.nmspinning.Load()+sched.npidle.Load() > 0 && pd.syscallwhen+10*1000*1000 > now {
-				continue
-			}
-			// Drop allpLock so we can take sched.lock.
-			unlock(&allpLock)
-			// Need to decrement number of idle locked M's
-			// (pretending that one more is running) before the CAS.
-			// Otherwise the M from which we retake can exit the syscall,
-			// increment nmidle and report deadlock.
-			incidlelocked(-1)
-			trace := traceAcquire()
-			if atomic.Cas(&pp.status, s, _Pidle) {
-				if trace.ok() {
-					trace.ProcSteal(pp, false)
-					traceRelease(trace)
-				}
-				sched.nGsyscallNoP.Add(1)
-				n++
-				pp.syscalltick++
-				handoffp(pp)
-			} else if trace.ok() {
-				traceRelease(trace)
-			}
-			incidlelocked(1)
-			lock(&allpLock)
+
+		// Drop allpLock so we can take sched.lock.
+		unlock(&allpLock)
+
+		// Need to decrement number of idle locked M's (pretending that
+		// one more is running) before we take the P and resume.
+		// Otherwise the M from which we retake can exit the syscall,
+		// increment nmidle and report deadlock.
+		//
+		// Can't call incidlelocked once we setBlockOnExitSyscall, due
+		// to a lock ordering violation between sched.lock and _Gscan.
+		incidlelocked(-1)
+
+		// Try to prevent the P from continuing in the syscall, if it's in one at all.
+		thread, ok := setBlockOnExitSyscall(pp)
+		if !ok {
+			// Not in a syscall, or something changed out from under us.
+			goto done
 		}
+
+		// Retake the P if it's there for more than 1 sysmon tick (at least 20us).
+		if syst := int64(pp.syscalltick); !sysretake && int64(pd.syscalltick) != syst {
+			pd.syscalltick = uint32(syst)
+			pd.syscallwhen = now
+			thread.resume()
+			goto done
+		}
+
+		// On the one hand we don't want to retake Ps if there is no other work to do,
+		// but on the other hand we want to retake them eventually
+		// because they can prevent the sysmon thread from deep sleep.
+		if runqempty(pp) && sched.nmspinning.Load()+sched.npidle.Load() > 0 && pd.syscallwhen+10*1000*1000 > now {
+			thread.resume()
+			goto done
+		}
+
+		// Take the P. Note: because we have the scan bit, the goroutine
+		// is at worst stuck spinning in exitsyscall.
+		thread.takeP()
+		thread.resume()
+		n++
+
+		// Handoff the P for some other thread to run it.
+		handoffp(pp)
+
+		// The P has been handed off to another thread, so risk of a false
+		// deadlock report while we hold onto it is gone.
+	done:
+		incidlelocked(1)
+		lock(&allpLock)
 	}
 	unlock(&allpLock)
 	return uint32(n)
+}
+
+// syscallingThread represents a thread in a system call that temporarily
+// cannot advance out of the system call.
+type syscallingThread struct {
+	gp     *g
+	mp     *m
+	pp     *p
+	status uint32
+}
+
+// setBlockOnExitSyscall prevents pp's thread from advancing out of
+// exitsyscall. On success, returns the g/m/p state of the thread
+// and true. At that point, the caller owns the g/m/p links referenced,
+// the goroutine is in _Gsyscall, and prevented from transitioning out
+// of it. On failure, it returns false, and none of these guarantees are
+// made.
+//
+// Callers must call resume on the resulting thread state once
+// they're done with thread, otherwise it will remain blocked forever.
+//
+// This function races with state changes on pp, and thus may fail
+// if pp is not in a system call, or exits a system call concurrently
+// with this function. However, this function is safe to call without
+// any additional synchronization.
+func setBlockOnExitSyscall(pp *p) (syscallingThread, bool) {
+	if pp.status != _Prunning {
+		return syscallingThread{}, false
+	}
+	// Be very careful here, these reads are intentionally racy.
+	// Once we notice the G is in _Gsyscall, acquire its scan bit,
+	// and validate that it's still connected to the *same* M and P,
+	// we can actually get to work. Holding the scan bit will prevent
+	// the G from exiting the syscall.
+	//
+	// Our goal here is to interrupt long syscalls. If it turns out
+	// that we're wrong and the G switched to another syscall while
+	// we were trying to do this, that's completely fine. It's
+	// probably making more frequent syscalls and the typical
+	// preemption paths should be effective.
+	mp := pp.m.ptr()
+	if mp == nil {
+		// Nothing to do.
+		return syscallingThread{}, false
+	}
+	gp := mp.curg
+	if gp == nil {
+		// Nothing to do.
+		return syscallingThread{}, false
+	}
+	status := readgstatus(gp) &^ _Gscan
+
+	// A goroutine is considered in a syscall, and may have a corresponding
+	// P, if it's in _Gsyscall *or* _Gdeadextra. In the latter case, it's an
+	// extra M goroutine.
+	if status != _Gsyscall && status != _Gdeadextra {
+		// Not in a syscall, nothing to do.
+		return syscallingThread{}, false
+	}
+	if !castogscanstatus(gp, status, status|_Gscan) {
+		// Not in _Gsyscall or _Gdeadextra anymore. Nothing to do.
+		return syscallingThread{}, false
+	}
+	if gp.m != mp || gp.m.p.ptr() != pp {
+		// This is not what we originally observed. Nothing to do.
+		casfrom_Gscanstatus(gp, status|_Gscan, status)
+		return syscallingThread{}, false
+	}
+	return syscallingThread{gp, mp, pp, status}, true
+}
+
+// gcstopP unwires the P attached to the syscalling thread
+// and moves it into the _Pgcstop state.
+//
+// The caller must be stopping the world.
+func (s syscallingThread) gcstopP() {
+	assertLockHeld(&sched.lock)
+
+	s.releaseP(_Pgcstop)
+	s.pp.gcStopTime = nanotime()
+	sched.stopwait--
+}
+
+// takeP unwires the P attached to the syscalling thread
+// and moves it into the _Pidle state.
+func (s syscallingThread) takeP() {
+	s.releaseP(_Pidle)
+}
+
+// releaseP unwires the P from the syscalling thread, moving
+// it to the provided state. Callers should prefer to use
+// takeP and gcstopP.
+func (s syscallingThread) releaseP(state uint32) {
+	if state != _Pidle && state != _Pgcstop {
+		throw("attempted to release P into a bad state")
+	}
+	trace := traceAcquire()
+	s.pp.m = 0
+	s.mp.p = 0
+	atomic.Store(&s.pp.status, state)
+	if trace.ok() {
+		trace.ProcSteal(s.pp)
+		traceRelease(trace)
+	}
+	sched.nGsyscallNoP.Add(1)
+	s.pp.syscalltick++
+}
+
+// resume allows a syscalling thread to advance beyond exitsyscall.
+func (s syscallingThread) resume() {
+	casfrom_Gscanstatus(s.gp, s.status|_Gscan, s.status)
 }
 
 // Tell all goroutines that they have been preempted and they should stop.
@@ -6484,6 +6646,10 @@ func preemptone(pp *p) bool {
 	}
 	gp := mp.curg
 	if gp == nil || gp == mp.g0 {
+		return false
+	}
+	if readgstatus(gp)&^_Gscan == _Gsyscall {
+		// Don't bother trying to preempt a goroutine in a syscall.
 		return false
 	}
 

@@ -113,7 +113,7 @@ func futexsleep1(addr *uint32, val uint32, ns int64) {
 		// The timeout is specified in microseconds - ensure that we
 		// do not end up dividing to zero, which would put us to sleep
 		// indefinitely...
-		timeout = timediv(ns, 1000, nil)
+		timeout = int32(ns / 1000)
 		if timeout == 0 {
 			timeout = 1
 		}

@@ -42,12 +42,16 @@ const (
 
 	// _Grunning means this goroutine may execute user code. The
 	// stack is owned by this goroutine. It is not on a run queue.
-	// It is assigned an M and a P (g.m and g.m.p are valid).
+	// It is assigned an M (g.m is valid) and it usually has a P
+	// (g.m.p is valid), but there are small windows of time where
+	// it might not, namely upon entering and exiting _Gsyscall.
 	_Grunning // 2
 
 	// _Gsyscall means this goroutine is executing a system call.
 	// It is not executing user code. The stack is owned by this
 	// goroutine. It is not on a run queue. It is assigned an M.
+	// It may have a P attached, but it does not own it. Code
+	// executing in this state must not touch g.m.p.
 	_Gsyscall // 3
 
 	// _Gwaiting means this goroutine is blocked in the runtime.
@@ -131,22 +135,15 @@ const (
 	// run user code or the scheduler. Only the M that owns this P
 	// is allowed to change the P's status from _Prunning. The M
 	// may transition the P to _Pidle (if it has no more work to
-	// do), _Psyscall (when entering a syscall), or _Pgcstop (to
-	// halt for the GC). The M may also hand ownership of the P
-	// off directly to another M (e.g., to schedule a locked G).
+	// do), or _Pgcstop (to halt for the GC). The M may also hand
+	// ownership of the P off directly to another M (for example,
+	// to schedule a locked G).
 	_Prunning
 
-	// _Psyscall means a P is not running user code. It has
-	// affinity to an M in a syscall but is not owned by it and
-	// may be stolen by another M. This is similar to _Pidle but
-	// uses lightweight transitions and maintains M affinity.
-	//
-	// Leaving _Psyscall must be done with a CAS, either to steal
-	// or retake the P. Note that there's an ABA hazard: even if
-	// an M successfully CASes its original P back to _Prunning
-	// after a syscall, it must understand the P may have been
-	// used by another M in the interim.
-	_Psyscall
+	// _Psyscall_unused is a now-defunct state for a P. A P is
+	// identified as "in a system call" by looking at the goroutine's
+	// state.
+	_Psyscall_unused
 
 	// _Pgcstop means a P is halted for STW and owned by the M
 	// that stopped the world. The M that stopped the world
@@ -620,18 +617,27 @@ type m struct {
 	morebuf gobuf  // gobuf arg to morestack
 	divmod  uint32 // div/mod denominator for arm - known to liblink (cmd/internal/obj/arm/obj5.go)
 
-	// Fields not known to debuggers.
-	procid          uint64            // for debuggers, but offset not hard-coded
-	gsignal         *g                // signal-handling g
-	goSigStack      gsignalStack      // Go-allocated signal handling stack
-	sigmask         sigset            // storage for saved signal mask
-	tls             [tlsSlots]uintptr // thread-local storage (for x86 extern register)
-	mstartfn        func()
-	curg            *g       // current running goroutine
-	caughtsig       guintptr // goroutine running during fatal signal
-	p               puintptr // attached p for executing go code (nil if not executing go code)
-	nextp           puintptr
-	oldp            puintptr // the p that was attached before executing a syscall
+	// Fields whose offsets are not known to debuggers.
+
+	procid     uint64            // for debuggers, but offset not hard-coded
+	gsignal    *g                // signal-handling g
+	goSigStack gsignalStack      // Go-allocated signal handling stack
+	sigmask    sigset            // storage for saved signal mask
+	tls        [tlsSlots]uintptr // thread-local storage (for x86 extern register)
+	mstartfn   func()
+	curg       *g       // current running goroutine
+	caughtsig  guintptr // goroutine running during fatal signal
+
+	// p is the currently attached P for executing Go code, nil if not executing user Go code.
+	//
+	// A non-nil p implies exclusive ownership of the P, unless curg is in _Gsyscall.
+	// In _Gsyscall the scheduler may mutate this instead. The point of synchronization
+	// is the _Gscan bit on curg's status. The scheduler must arrange to prevent curg
+	// from transitioning out of _Gsyscall if it intends to mutate p.
+	p puintptr
+
+	nextp           puintptr // The next P to install before executing. Implies exclusive ownership of this P.
+	oldp            puintptr // The P that was attached before executing a syscall.
 	id              int64
 	mallocing       int32
 	throwing        throwType

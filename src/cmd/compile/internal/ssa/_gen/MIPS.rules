@@ -9,6 +9,12 @@
 (Select1 (Add32carry <t> x y)) => (SGTU <typ.Bool> x (ADD <t.FieldType(0)> x y))
 (Add32withcarry <t> x y c) => (ADD c (ADD <t> x y))
 
+(Select0 (Add32carrywithcarry <t> x y c)) => (ADD <t.FieldType(0)> c (ADD <t.FieldType(0)> x y))
+(Select1 (Add32carrywithcarry <t> x y c)) =>
+	(OR <typ.Bool>
+		(SGTU <typ.Bool> x xy:(ADD <t.FieldType(0)> x y))
+		(SGTU <typ.Bool> xy (ADD <t.FieldType(0)> c xy)))
+
 (Sub(Ptr|32|16|8) ...) => (SUB ...)
 (Sub(32|64)F ...) => (SUB(F|D) ...)
 

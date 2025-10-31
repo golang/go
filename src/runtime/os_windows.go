@@ -191,8 +191,8 @@ type mOS struct {
 	// complete.
 	//
 	// TODO(austin): We may not need this if preemption were more
-	// tightly synchronized on the G/P status and preemption
-	// blocked transition into _Gsyscall/_Psyscall.
+	// tightly synchronized on the G status and preemption
+	// blocked transition into _Gsyscall.
 	preemptExtLock uint32
 }
 
@@ -664,7 +664,7 @@ func semasleep(ns int64) int32 {
 		start := nanotime()
 		elapsed := int64(0)
 		for {
-			ms := int64(timediv(ns-elapsed, 1000000, nil))
+			ms := (ns - elapsed) / 1000000
 			if ms == 0 {
 				ms = 1
 			}

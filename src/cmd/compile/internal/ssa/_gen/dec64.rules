@@ -6,8 +6,12 @@
 // architectures. These rules work together with the decomposeBuiltin
 // pass which handles phis of these typ.
 
+(Last ___) => v.Args[len(v.Args)-1]
+
 (Int64Hi (Int64Make hi _)) => hi
 (Int64Lo (Int64Make _ lo)) => lo
+(Select0 (MakeTuple x y)) => x
+(Select1 (MakeTuple x y)) => y
 
 (Load <t> ptr mem) && is64BitInt(t) && !config.BigEndian && t.IsSigned() =>
 	(Int64Make
@@ -60,30 +64,85 @@
     (Arg <typ.UInt32> {n} [off])
     (Arg <typ.UInt32> {n} [off+4]))
 
-(Add64 x y) =>
-	(Int64Make
-		(Add32withcarry <typ.Int32>
-			(Int64Hi x)
-			(Int64Hi y)
-			(Select1 <types.TypeFlags> (Add32carry (Int64Lo x) (Int64Lo y))))
-		(Select0 <typ.UInt32> (Add32carry (Int64Lo x) (Int64Lo y))))
+(Add64 <t> x y) =>
+	(Last <t>
+		x0: (Int64Lo x)
+		x1: (Int64Hi x)
+		y0: (Int64Lo y)
+		y1: (Int64Hi y)
+		add: (Add32carry x0 y0)
+		(Int64Make
+			(Add32withcarry <typ.UInt32> x1 y1 (Select1 <types.TypeFlags> add))
+			(Select0 <typ.UInt32> add)))
 
-(Sub64 x y) =>
-	(Int64Make
-		(Sub32withcarry <typ.Int32>
-			(Int64Hi x)
-			(Int64Hi y)
-			(Select1 <types.TypeFlags> (Sub32carry (Int64Lo x) (Int64Lo y))))
-		(Select0 <typ.UInt32> (Sub32carry (Int64Lo x) (Int64Lo y))))
+(Sub64 <t> x y) =>
+	(Last <t>
+		x0: (Int64Lo x)
+		x1: (Int64Hi x)
+		y0: (Int64Lo y)
+		y1: (Int64Hi y)
+		sub: (Sub32carry x0 y0)
+		(Int64Make
+			(Sub32withcarry <typ.UInt32> x1 y1 (Select1 <types.TypeFlags> sub))
+			(Select0 <typ.UInt32> sub)))
 
-(Mul64 x y) =>
-	(Int64Make
-		(Add32 <typ.UInt32>
-			(Mul32 <typ.UInt32> (Int64Lo x) (Int64Hi y))
-			(Add32 <typ.UInt32>
-				(Mul32 <typ.UInt32> (Int64Hi x) (Int64Lo y))
-				(Select0 <typ.UInt32> (Mul32uhilo (Int64Lo x) (Int64Lo y)))))
-		(Select1 <typ.UInt32> (Mul32uhilo (Int64Lo x) (Int64Lo y))))
+(Mul64 <t> x y) =>
+	(Last <t>
+		x0: (Int64Lo x)
+		x1: (Int64Hi x)
+		y0: (Int64Lo y)
+		y1: (Int64Hi y)
+		x0y0: (Mul32uhilo x0 y0)
+		x0y0Hi: (Select0 <typ.UInt32> x0y0)
+		x0y0Lo: (Select1 <typ.UInt32> x0y0)
+		(Int64Make
+			(Add32 <typ.UInt32> x0y0Hi
+				(Add32 <typ.UInt32>
+					(Mul32 <typ.UInt32> x0 y1)
+					(Mul32 <typ.UInt32> x1 y0)))
+			x0y0Lo))
+
+(Mul64uhilo <t> x y) =>
+	(Last <t>
+		x0: (Int64Lo x)
+		x1: (Int64Hi x)
+		y0: (Int64Lo y)
+		y1: (Int64Hi y)
+		x0y0: (Mul32uhilo x0 y0)
+		x0y1: (Mul32uhilo x0 y1)
+		x1y0: (Mul32uhilo x1 y0)
+		x1y1: (Mul32uhilo x1 y1)
+		x0y0Hi: (Select0 <typ.UInt32> x0y0)
+		x0y0Lo: (Select1 <typ.UInt32> x0y0)
+		x0y1Hi: (Select0 <typ.UInt32> x0y1)
+		x0y1Lo: (Select1 <typ.UInt32> x0y1)
+		x1y0Hi: (Select0 <typ.UInt32> x1y0)
+		x1y0Lo: (Select1 <typ.UInt32> x1y0)
+		x1y1Hi: (Select0 <typ.UInt32> x1y1)
+		x1y1Lo: (Select1 <typ.UInt32> x1y1)
+		w1a: (Add32carry x0y0Hi x0y1Lo)
+		w2a: (Add32carrywithcarry x0y1Hi x1y0Hi (Select1 <types.TypeFlags> w1a))
+		w3a: (Add32withcarry <typ.UInt32> x1y1Hi (Const32 <typ.UInt32> [0]) (Select1 <types.TypeFlags> w2a))
+		w1b: (Add32carry x1y0Lo (Select0 <typ.UInt32> w1a))
+		w2b: (Add32carrywithcarry x1y1Lo (Select0 <typ.UInt32> w2a) (Select1 <types.TypeFlags> w1b))
+		w3b: (Add32withcarry <typ.UInt32> w3a (Const32 <typ.UInt32> [0]) (Select1 <types.TypeFlags> w2b))
+		(MakeTuple <types.NewTuple(typ.UInt64,typ.UInt64)>
+			(Int64Make w3b (Select0 <typ.UInt32> w2b))
+			(Int64Make (Select0 <typ.UInt32> w1b) x0y0Lo)))
+
+(Hmul64u x y) => (Select0 (Mul64uhilo x y))
+
+// Hacker's Delight p. 175: signed hmul = unsigned hmul - (x<0)&y - (y<0)&x.
+(Hmul64 x y) =>
+	(Last
+		p: (Hmul64u <typ.UInt64> x y)
+		xSign: (Int64Make xs:(Rsh32x32 <typ.UInt32> (Int64Hi x) (Const32 <typ.UInt32> [31])) xs)
+		ySign: (Int64Make ys:(Rsh32x32 <typ.UInt32> (Int64Hi y) (Const32 <typ.UInt32> [31])) ys)
+		(Sub64 <typ.Int64> (Sub64 <typ.Int64> p (And64 <typ.Int64> xSign y)) (And64 <typ.Int64> ySign x)))
+
+// (x+y)/2 => (x-y)/2 + y
+(Avg64u <t> x y) => (Add64 (Rsh64Ux32 <t> (Sub64 <t> x y) (Const32 <typ.UInt32> [1])) y)
+
 
 (And64 x y) =>
 	(Int64Make
