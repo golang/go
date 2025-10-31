@@ -1144,6 +1144,10 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 					if !p.hasPointer(nil, atype, false) {
 						return
 					}
+
+					// Use the export'ed file/line in error messages.
+					pos := fset.Position(exp.Func.Pos())
+					fmt.Fprintf(fgo2, "//line %s:%d\n", pos.Filename, pos.Line)
 					fmt.Fprintf(fgo2, "\t_cgoCheckResult(a.r%d)\n", i)
 				})
 		}
