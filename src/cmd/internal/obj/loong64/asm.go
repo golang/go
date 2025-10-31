@@ -155,6 +155,8 @@ var optab = []Optab{
 
 	{AFMADDF, C_FREG, C_FREG, C_NONE, C_FREG, C_NONE, 37, 4, 0, 0},
 	{AFMADDF, C_FREG, C_FREG, C_FREG, C_FREG, C_NONE, 37, 4, 0, 0},
+	{AVSHUFB, C_VREG, C_VREG, C_VREG, C_VREG, C_NONE, 37, 4, 0, 0},
+	{AXVSHUFB, C_XREG, C_XREG, C_XREG, C_XREG, C_NONE, 37, 4, 0, 0},
 
 	{AFSEL, C_FCCREG, C_FREG, C_FREG, C_FREG, C_NONE, 33, 4, 0, 0},
 	{AFSEL, C_FCCREG, C_FREG, C_NONE, C_FREG, C_NONE, 33, 4, 0, 0},
@@ -1561,6 +1563,8 @@ func buildop(ctxt *obj.Link) {
 			AMOVWU,
 			AVMOVQ,
 			AXVMOVQ,
+			AVSHUFB,
+			AXVSHUFB,
 			ANEGW,
 			ANEGV,
 			AWORD,
@@ -1698,6 +1702,9 @@ func buildop(ctxt *obj.Link) {
 			opset(AVMULD, r0)
 			opset(AVDIVF, r0)
 			opset(AVDIVD, r0)
+			opset(AVSHUFH, r0)
+			opset(AVSHUFW, r0)
+			opset(AVSHUFV, r0)
 
 		case AXVSEQB:
 			opset(AXVSEQH, r0)
@@ -1771,6 +1778,9 @@ func buildop(ctxt *obj.Link) {
 			opset(AXVMULD, r0)
 			opset(AXVDIVF, r0)
 			opset(AXVDIVD, r0)
+			opset(AXVSHUFH, r0)
+			opset(AXVSHUFW, r0)
+			opset(AXVSHUFV, r0)
 
 		case AVANDB:
 			opset(AVORB, r0)
@@ -3107,6 +3117,10 @@ func (c *ctxt0) oprrrr(a obj.As) uint32 {
 		return 0x8d << 20 // fnmsub.s
 	case AFNMSUBD:
 		return 0x8e << 20 // fnmsub.d
+	case AVSHUFB:
+		return 0x0D5 << 20 // vshuf.b
+	case AXVSHUFB:
+		return 0x0D6 << 20 // xvshuf.b
 	}
 
 	c.ctxt.Diag("bad rrrr opcode %v", a)
@@ -3775,6 +3789,18 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return 0xea22 << 15 // xvbitrev.w
 	case AXVBITREVV:
 		return 0xea23 << 15 // xvbitrev.d
+	case AVSHUFH:
+		return 0x0E2F5 << 15 // vshuf.h
+	case AVSHUFW:
+		return 0x0E2F6 << 15 // vshuf.w
+	case AVSHUFV:
+		return 0x0E2F7 << 15 // vshuf.d
+	case AXVSHUFH:
+		return 0x0EAF5 << 15 // xvshuf.h
+	case AXVSHUFW:
+		return 0x0EAF6 << 15 // xvshuf.w
+	case AXVSHUFV:
+		return 0x0EAF7 << 15 // xvshuf.d
 	}
 
 	if a < 0 {
