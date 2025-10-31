@@ -37,6 +37,7 @@ func Dump(t *testing.T, testName string, traceBytes []byte, forceToFile bool) {
 			t.Logf("text trace too large to dump (%d bytes)", len(s))
 		} else {
 			t.Log(s)
+			t.Log("Convert this to a raw trace with `go test internal/trace/testtrace -covert in.tracetxt -out out.trace`")
 		}
 	} else {
 		// We asked to dump the trace or failed. Write the trace to a file.
