@@ -1090,7 +1090,6 @@ type _defer struct {
 	heap      bool
 	rangefunc bool    // true for rangefunc list
 	sp        uintptr // sp at time of defer
-	pc        uintptr // pc at time of defer
 	fn        func()  // can be nil for open-coded defers
 	link      *_defer // next defer on G; can point to either heap or stack!
 
