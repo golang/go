@@ -8,9 +8,15 @@
 // TODO: Consider moving this to internal/runtime, see golang.org/issue/65355.
 package profilerecord
 
+import "unsafe"
+
 type StackRecord struct {
 	Stack []uintptr
 }
+
+func (r StackRecord) GetStack() []uintptr           { return r.Stack }
+func (r StackRecord) GetLabels() unsafe.Pointer     { return nil }
+func (r StackRecord) GetGoroutine() GoroutineRecord { return GoroutineRecord{} }
 
 type MemProfileRecord struct {
 	AllocBytes, FreeBytes     int64
@@ -26,3 +32,12 @@ type BlockProfileRecord struct {
 	Cycles int64
 	Stack  []uintptr
 }
+
+type GoroutineRecord struct {
+	Labels unsafe.Pointer
+	Stack  []uintptr
+}
+
+func (r GoroutineRecord) GetStack() []uintptr           { return r.Stack }
+func (r GoroutineRecord) GetLabels() unsafe.Pointer     { return r.Labels }
+func (r GoroutineRecord) GetGoroutine() GoroutineRecord { return r }
