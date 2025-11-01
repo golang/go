@@ -1571,7 +1571,7 @@ func TestGoroutineProfileConcurrency(t *testing.T) {
 	goroutineProf := Lookup("goroutine")
 
 	profilerCalls := func(s string) int {
-		return strings.Count(s, "\truntime/pprof.runtime_goroutineProfileWithLabels+")
+		return strings.Count(s, "\truntime/pprof.runtime_goroutineProfile+")
 	}
 
 	includesFinalizerOrCleanup := func(s string) bool {
