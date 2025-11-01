@@ -496,7 +496,7 @@ func FuncCountToDwTxtAddrFlavor(fncount int) (RelocType, int) {
 //
 // Background/motivation: let's say we have a package P with some
 // assembly functions (in "a.s") and some Go functions (in
-// "b.go"). The compilation sequence used by the Go commmand will be:
+// "b.go"). The compilation sequence used by the Go command will be:
 //
 // 1. run the assembler on a.s to generate a "symabis" file
 // 2. run the compiler on b.go passing it the symabis file and generating a "go_defs.h" asm header
