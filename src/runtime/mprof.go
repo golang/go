@@ -1261,7 +1261,7 @@ func goroutineProfileWithLabels(p []profilerecord.StackRecord, labels []unsafe.P
 
 //go:linkname pprof_goroutineLeakProfileWithLabels
 func pprof_goroutineLeakProfileWithLabels(p []profilerecord.StackRecord, labels []unsafe.Pointer) (n int, ok bool) {
-	return goroutineLeakProfileWithLabelsConcurrent(p, labels)
+	return goroutineLeakProfileWithLabels(p, labels)
 }
 
 // labels may be nil. If labels is non-nil, it must have the same length as p.
@@ -1323,30 +1323,55 @@ func goroutineLeakProfileWithLabelsConcurrent(p []profilerecord.StackRecord, lab
 		return work.goroutineLeak.count, false
 	}
 
-	// Use the same semaphore as goroutineProfileWithLabelsConcurrent,
-	// because ultimately we still use goroutine profiles.
-	semacquire(&goroutineProfile.sema)
-
 	// Unlike in goroutineProfileWithLabelsConcurrent, we don't need to
 	// save the current goroutine stack, because it is obviously not leaked.
-
+	// We also do not need acquire any semaphores on goroutineProfile, because
+	// we don't use it for storage.
 	pcbuf := makeProfStack() // see saveg() for explanation
 
 	// Prepare a profile large enough to store all leaked goroutines.
 	n = work.goroutineLeak.count
 
 	if n > len(p) {
-		// There's not enough space in p to store the whole profile, so (per the
-		// contract of runtime.GoroutineProfile) we're not allowed to write to p
-		// at all and must return n, false.
-		semrelease(&goroutineProfile.sema)
+		// There's not enough space in p to store the whole profile, so
+		// we're not allowed to write to p at all and must return n, false.
 		return n, false
 	}
 
 	// Visit each leaked goroutine and try to record its stack.
+	var offset int
 	forEachGRace(func(gp1 *g) {
-		if readgstatus(gp1) == _Gleaked {
-			doRecordGoroutineProfile(gp1, pcbuf)
+		// NOTE(vsaioc): Each goroutine leak profile request is preceded by a run of the GC
+		// in goroutine leak detection mode. At the beginning of the GC cycle, all previously
+		// reported goroutine leaks are reset to _Gwaiting. As a result, incomplete goroutine
+		// leak profiles may be produced if multiple goroutine leak profile requests are issued
+		// concurrently.
+		//
+		// Example trace:
+		//
+		//	G1                    | GC                          | G2
+		//	----------------------+-----------------------------+---------------------
+		//	Request profile       | .                           | .
+		//	.                     | .                           | Request profile
+		//	.                     | [G1] Resets leaked g status | .
+		//	.                     | [G1] Leaks detected         | .
+		//	.                     | <New cycle>                 | .
+		//	.                     | [G2] Resets leaked g status | .
+		//	.                     | .                           | Write profile
+		//	.                     | [G2] Leaks detected         | .
+		//	Write profile         | .                           | .
+		//	----------------------+-----------------------------+---------------------
+		//	G1 completes profile  |/\/\/\/\/\/\/\/\/\/\/\/\/\/\/| G2 misses leaks
+		//
+		// While this is a bug, normal use cases presume that goroutine leak profile
+		// requests are issued on a single track. Adding synchronization between
+		// goroutine leak profile requests would only needlessly increase overhead.
+		if readgstatus(gp1)&^_Gscan == _Gleaked {
+			systemstack(func() { saveg(^uintptr(0), ^uintptr(0), gp1, &p[offset], pcbuf) })
+			if labels != nil {
+				labels[offset] = gp1.labels
+			}
+			offset++
 		}
 	})
 
@@ -1354,7 +1379,6 @@ func goroutineLeakProfileWithLabelsConcurrent(p []profilerecord.StackRecord, lab
 		raceacquire(unsafe.Pointer(&labelSync))
 	}
 
-	semrelease(&goroutineProfile.sema)
 	return n, true
 }
 
