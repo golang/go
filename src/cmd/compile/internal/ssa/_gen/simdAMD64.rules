@@ -1360,6 +1360,60 @@
 (permuteScalarsLoGroupedInt16x32 ...) => (VPSHUFLW512 ...)
 (permuteScalarsLoGroupedUint16x16 ...) => (VPSHUFLW256 ...)
 (permuteScalarsLoGroupedUint16x32 ...) => (VPSHUFLW512 ...)
+(VPSLLW128const [a] x) && a==0 => x
+(VPSLLW256const [a] x) && a==0 => x
+(VPSLLW512const [a] x) && a==0 => x
+(VPSLLD128const [a] x) && a==0 => x
+(VPSLLD256const [a] x) && a==0 => x
+(VPSLLD512const [a] x) && a==0 => x
+(VPSLLQ128const [a] x) && a==0 => x
+(VPSLLQ256const [a] x) && a==0 => x
+(VPSLLQ512const [a] x) && a==0 => x
+(VPSLLWMasked128const [a] x mask) && a==0 => x
+(VPSLLWMasked256const [a] x mask) && a==0 => x
+(VPSLLWMasked512const [a] x mask) && a==0 => x
+(VPSLLDMasked128const [a] x mask) && a==0 => x
+(VPSLLDMasked256const [a] x mask) && a==0 => x
+(VPSLLDMasked512const [a] x mask) && a==0 => x
+(VPSLLQMasked128const [a] x mask) && a==0 => x
+(VPSLLQMasked256const [a] x mask) && a==0 => x
+(VPSLLQMasked512const [a] x mask) && a==0 => x
+(VPSRLW128const [a] x) && a==0 => x
+(VPSRLW256const [a] x) && a==0 => x
+(VPSRLW512const [a] x) && a==0 => x
+(VPSRLD128const [a] x) && a==0 => x
+(VPSRLD256const [a] x) && a==0 => x
+(VPSRLD512const [a] x) && a==0 => x
+(VPSRLQ128const [a] x) && a==0 => x
+(VPSRLQ256const [a] x) && a==0 => x
+(VPSRLQ512const [a] x) && a==0 => x
+(VPSRAW128const [a] x) && a==0 => x
+(VPSRAW256const [a] x) && a==0 => x
+(VPSRAW512const [a] x) && a==0 => x
+(VPSRAD128const [a] x) && a==0 => x
+(VPSRAD256const [a] x) && a==0 => x
+(VPSRAD512const [a] x) && a==0 => x
+(VPSRAQ128const [a] x) && a==0 => x
+(VPSRAQ256const [a] x) && a==0 => x
+(VPSRAQ512const [a] x) && a==0 => x
+(VPSRLWMasked128const [a] x mask) && a==0 => x
+(VPSRLWMasked256const [a] x mask) && a==0 => x
+(VPSRLWMasked512const [a] x mask) && a==0 => x
+(VPSRLDMasked128const [a] x mask) && a==0 => x
+(VPSRLDMasked256const [a] x mask) && a==0 => x
+(VPSRLDMasked512const [a] x mask) && a==0 => x
+(VPSRLQMasked128const [a] x mask) && a==0 => x
+(VPSRLQMasked256const [a] x mask) && a==0 => x
+(VPSRLQMasked512const [a] x mask) && a==0 => x
+(VPSRAWMasked128const [a] x mask) && a==0 => x
+(VPSRAWMasked256const [a] x mask) && a==0 => x
+(VPSRAWMasked512const [a] x mask) && a==0 => x
+(VPSRADMasked128const [a] x mask) && a==0 => x
+(VPSRADMasked256const [a] x mask) && a==0 => x
+(VPSRADMasked512const [a] x mask) && a==0 => x
+(VPSRAQMasked128const [a] x mask) && a==0 => x
+(VPSRAQMasked256const [a] x mask) && a==0 => x
+(VPSRAQMasked512const [a] x mask) && a==0 => x
 (ternInt32x4 ...) => (VPTERNLOGD128 ...)
 (ternInt32x8 ...) => (VPTERNLOGD256 ...)
 (ternInt32x16 ...) => (VPTERNLOGD512 ...)

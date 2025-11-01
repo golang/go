@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"text/template"
+	"unicode"
 )
 
 type tplRuleData struct {
@@ -26,6 +27,8 @@ type tplRuleData struct {
 	ArgsLoadAddr   string // [Args] with its last vreg arg being a concrete "(VMOVDQUload* ptr mem)", and might contain mask.
 	ArgsAddr       string // [Args] with its last vreg arg being replaced by "ptr", and might contain mask, and with a "mem" at the end.
 	FeatCheck      string // e.g. "v.Block.CPUfeatures.hasFeature(CPUavx512)" -- for a ssa/_gen rules file.
+	RuleCond       string // e.g. "a==0" -- condition for asmRule.
+	RuleOut        string // e.g. "y" -- output of an asmRule.
 }
 
 var (
@@ -39,6 +42,8 @@ var (
 {{define "maskInMaskOut"}}({{.GoOp}}{{.GoType}} {{.Args}} mask) => ({{.MaskOutConvert}} ({{.Asm}} {{.ArgsOut}} ({{.MaskInConvert}} <types.TypeMask> mask)))
 {{end}}
 {{define "sftimm"}}({{.Asm}} x (MOVQconst [c])) => ({{.Asm}}const [uint8(c)] x)
+{{end}}
+{{define "asmRule"}}({{.Asm}} {{.Args}}) && {{.RuleCond}} => {{.RuleOut}}
 {{end}}
 {{define "masksftimm"}}({{.Asm}} x (MOVQconst [c]) mask) => ({{.Asm}}const [uint8(c)] x mask)
 {{end}}
@@ -94,6 +99,7 @@ var tmplOrder = map[string]int{
 	"maskIn":        4,
 	"pureVreg":      5,
 	"vregMem":       6,
+	"asmRule":       7,
 }
 
 func compareTplRuleData(x, y tplRuleData) int {
@@ -120,6 +126,38 @@ func compareTplRuleData(x, y tplRuleData) int {
 	return xo - yo
 }
 
+// parseAsmRule tries to parse given string as it would be asmRule:
+// if <cond> => <out>
+// Return false, "", "" if not matched, otherwise true, condition, rule output.
+// For example:
+// rule:"if a==0 => (VADD4S x y)" can be used to provide addional
+// lowering for an instruction which doesn't support zero immediate encoding:
+// (VUSRA4S [a] x y) && a==0 => (VADD4S x y)
+func parseAsmRule(rule string) (bool, string, string) {
+	arrowIndex := strings.Index(rule, "=>")
+	if arrowIndex == -1 {
+		return false, "", ""
+	}
+
+	condPart := rule[:arrowIndex]
+	outPart := rule[arrowIndex+len("=>"):]
+
+	// Check if condPart starts with "if" followed by at least one space.
+	cond := strings.TrimPrefix(condPart, "if")
+	if cond == condPart || len(cond) == 0 || !unicode.IsSpace(rune(cond[0])) {
+		return false, "", ""
+	}
+
+	// Trim any spaces around <cond> and <out>.
+	cond = strings.TrimSpace(cond)
+	out := strings.TrimSpace(outPart)
+	if cond == "" || out == "" {
+		return false, "", ""
+	}
+
+	return true, cond, out
+}
+
 // writeSIMDRules generates the lowering and rewrite rules for ssa and writes it to simdAMD64.rules
 // within the specified directory.
 func writeSIMDRules(ops []Operation) *bytes.Buffer {
@@ -134,6 +172,7 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 	var optData []tplRuleData    // for mask peephole optimizations, and other misc
 	var memOptData []tplRuleData // for memory peephole optimizations
 	memOpSeen := make(map[string]bool)
+	ruleDone := make(map[string]struct{})
 
 	for _, opr := range ops {
 		opInShape, opOutShape, maskType, immType, gOp := opr.shape()
@@ -240,8 +279,20 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 					allData = append(allData, sftImmData)
 					asmCheck[sftImmData.Asm+"const"] = true
 				}
+			} else if ok, cond, out := parseAsmRule(*gOp.SpecialLower); ok {
+				if _, done := ruleDone[data.Asm]; !done {
+					ruleDone[data.Asm] = struct{}{}
+					optData := data
+					optData.tplName = "asmRule"
+					optData.RuleCond = cond
+					optData.RuleOut = out
+					if maskType == OneMask {
+						optData.Args += " mask"
+					}
+					allData = append(allData, optData)
+				}
 			} else {
-				panic("simdgen sees unknwon special lower " + *gOp.SpecialLower + ", maybe implement it?")
+				panic("simdgen sees unknown special lower " + *gOp.SpecialLower + ", maybe implement it?")
 			}
 		}
 		if gOp.MemFeatures != nil && *gOp.MemFeatures == "vbcst" {

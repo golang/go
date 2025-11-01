@@ -25,6 +25,7 @@
   SSAVariant: "const" # to avoid its name colliding with reg version of this instruction, amend this to its ssa op name.
   nameAndSizeCheck: true
   commutative: false
+  specialLower: "if a==0 => x"
 - go: shiftAllRightConst # no APIs, only ssa ops.
   noTypes: "true"
   noGenericOps: "true"
@@ -32,6 +33,7 @@
   signed: false
   nameAndSizeCheck: true
   commutative: false
+  specialLower: "if a==0 => x"
 - go: shiftAllRightConst # no APIs, only ssa ops.
   noTypes: "true"
   noGenericOps: "true"
@@ -39,6 +41,7 @@
   signed: true
   nameAndSizeCheck: true
   commutative: false
+  specialLower: "if a==0 => x"
 
 - go: ShiftLeft
   nameAndSizeCheck: true
