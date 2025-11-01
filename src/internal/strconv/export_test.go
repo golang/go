@@ -18,6 +18,9 @@ var (
 	Pow10            = pow10
 	Umul128          = umul128
 	Umul192          = umul192
+	Div5Tab          = div5Tab
+	DivisiblePow5    = divisiblePow5
+	TrimZeros        = trimZeros
 )
 
 func NewDecimal(i uint64) *decimal {

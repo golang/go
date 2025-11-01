@@ -20,4 +20,7 @@ var (
 	pow10            = Pow10
 	umul128          = Umul128
 	umul192          = Umul192
+	div5Tab          = Div5Tab
+	divisiblePow5    = DivisiblePow5
+	trimZeros        = TrimZeros
 )

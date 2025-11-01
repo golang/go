@@ -123,16 +123,17 @@ func genericFtoa(dst []byte, val float64, fmt byte, prec, bitSize int) []byte {
 		return bigFtoa(dst, prec, fmt, neg, mant, exp, flt)
 	}
 
-	var digs decimalSlice
-	ok := false
 	// Negative precision means "only as much as needed to be exact."
 	shortest := prec < 0
+	var digs decimalSlice
+	if mant == 0 {
+		return formatDigits(dst, shortest, neg, digs, prec, fmt)
+	}
 	if shortest {
 		// Use Ryu algorithm.
 		var buf [32]byte
 		digs.d = buf[:]
 		ryuFtoaShortest(&digs, mant, exp-int(flt.mantbits), flt)
-		ok = true
 		// Precision for shortest representation mode.
 		switch fmt {
 		case 'e', 'E':
@@ -142,7 +143,11 @@ func genericFtoa(dst []byte, val float64, fmt byte, prec, bitSize int) []byte {
 		case 'g', 'G':
 			prec = digs.nd
 		}
-	} else if fmt != 'f' {
+		return formatDigits(dst, shortest, neg, digs, prec, fmt)
+	}
+
+	// TODO figure out when we can use fast code for f
+	if fmt != 'f' {
 		// Fixed number of digits.
 		digits := prec
 		switch fmt {
@@ -157,21 +162,15 @@ func genericFtoa(dst []byte, val float64, fmt byte, prec, bitSize int) []byte {
 			// Invalid mode.
 			digits = 1
 		}
-		var buf [24]byte
-		if bitSize == 32 && digits <= 9 {
+		if digits <= 18 {
+			var buf [24]byte
 			digs.d = buf[:]
-			ryuFtoaFixed32(&digs, uint32(mant), exp-int(flt.mantbits), digits)
-			ok = true
-		} else if digits <= 18 {
-			digs.d = buf[:]
-			ryuFtoaFixed64(&digs, mant, exp-int(flt.mantbits), digits)
-			ok = true
+			fixedFtoa(&digs, mant, exp-int(flt.mantbits), digits)
+			return formatDigits(dst, false, neg, digs, prec, fmt)
 		}
 	}
-	if !ok {
-		return bigFtoa(dst, prec, fmt, neg, mant, exp, flt)
-	}
-	return formatDigits(dst, shortest, neg, digs, prec, fmt)
+
+	return bigFtoa(dst, prec, fmt, neg, mant, exp, flt)
 }
 
 // bigFtoa uses multiprecision computations to format a float.

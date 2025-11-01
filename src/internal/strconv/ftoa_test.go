@@ -177,6 +177,16 @@ var ftoatests = []ftoaTest{
 	{1.801439850948199e+16, 'g', -1, "1.801439850948199e+16"},
 	{5.960464477539063e-08, 'g', -1, "5.960464477539063e-08"},
 	{1.012e-320, 'g', -1, "1.012e-320"},
+
+	// Cases from TestFtoaRandom that caught bugs in fixedFtoa.
+	{8177880169308380. * (1 << 1), 'e', 14, "1.63557603386168e+16"},
+	{8393378656576888. * (1 << 1), 'e', 15, "1.678675731315378e+16"},
+	{8738676561280626. * (1 << 4), 'e', 16, "1.3981882498049002e+17"},
+	{8291032395191335. / (1 << 30), 'e', 5, "7.72163e+06"},
+
+	// Exercise divisiblePow5 case in fixedFtoa
+	{2384185791015625. * (1 << 12), 'e', 5, "9.76562e+18"},
+	{2384185791015625. * (1 << 13), 'e', 5, "1.95312e+19"},
 }
 
 func TestFtoa(t *testing.T) {
@@ -253,7 +263,7 @@ func TestFtoaRandom(t *testing.T) {
 		shortSlow = FormatFloat(x, 'e', prec, 64)
 		SetOptimize(true)
 		if shortSlow != shortFast {
-			t.Errorf("%b printed as %s, want %s", x, shortFast, shortSlow)
+			t.Errorf("%b printed with %%.%de as %s, want %s", x, prec, shortFast, shortSlow)
 		}
 	}
 }

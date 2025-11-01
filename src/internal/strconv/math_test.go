@@ -93,3 +93,73 @@ func TestMulLog2_10(t *testing.T) {
 		}
 	}
 }
+
+func pow5(p int) uint64 {
+	x := uint64(1)
+	for range p {
+		x *= 5
+	}
+	return x
+}
+
+func TestDivisiblePow5(t *testing.T) {
+	for p := 1; p <= 22; p++ {
+		x := pow5(p)
+		if divisiblePow5(1, p) {
+			t.Errorf("divisiblePow5(1, %d) = true, want, false", p)
+		}
+		if divisiblePow5(x-1, p) {
+			t.Errorf("divisiblePow5(%d, %d) = true, want false", x-1, p)
+		}
+		if divisiblePow5(x+1, p) {
+			t.Errorf("divisiblePow5(%d, %d) = true, want false", x-1, p)
+		}
+		if divisiblePow5(x/5, p) {
+			t.Errorf("divisiblePow5(%d, %d) = true, want false", x/5, p)
+		}
+		if !divisiblePow5(0, p) {
+			t.Errorf("divisiblePow5(0, %d) = false, want true", p)
+		}
+		if !divisiblePow5(x, p) {
+			t.Errorf("divisiblePow5(%d, %d) = false, want true", x, p)
+		}
+		if 2*x > x && !divisiblePow5(2*x, p) {
+			t.Errorf("divisiblePow5(%d, %d) = false, want true", 2*x, p)
+		}
+	}
+}
+
+func TestDiv5Tab(t *testing.T) {
+	for p := 1; p <= 22; p++ {
+		m := div5Tab[p-1][0]
+		le := div5Tab[p-1][1]
+
+		// See comment in math.go on div5Tab.
+		// m needs to be multiplicative inverse of pow5(p).
+		if m*pow5(p) != 1 {
+			t.Errorf("pow5Tab[%d-1][0] = %#x, but %#x * (5**%d) = %d, want 1", p, m, m, p, m*pow5(p))
+		}
+
+		// le needs to be ⌊(1<<64 - 1) / 5^p⌋.
+		want := (1<<64 - 1) / pow5(p)
+		if le != want {
+			t.Errorf("pow5Tab[%d-1][1] = %#x, want %#x", p, le, want)
+		}
+	}
+}
+
+func TestTrimZeros(t *testing.T) {
+	for _, x := range []uint64{1, 2, 3, 4, 101, 123} {
+		want := x
+		for p := range 20 {
+			haveX, haveP := trimZeros(x)
+			if haveX != want || haveP != p {
+				t.Errorf("trimZeros(%d) = %d, %d, want %d, %d", x, haveX, haveP, want, p)
+			}
+			if x >= (1<<64-1)/10 {
+				break
+			}
+			x *= 10
+		}
+	}
+}
