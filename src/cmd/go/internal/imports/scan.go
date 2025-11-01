@@ -7,8 +7,9 @@ package imports
 import (
 	"fmt"
 	"io/fs"
+	"maps"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -93,16 +94,7 @@ Files:
 	if numFiles == 0 {
 		return nil, nil, ErrNoGo
 	}
-	return keys(imports), keys(testImports), nil
+	return slices.Sorted(maps.Keys(imports)), slices.Sorted(maps.Keys(testImports)), nil
 }
 
 var ErrNoGo = fmt.Errorf("no Go source files")
-
-func keys(m map[string]bool) []string {
-	list := make([]string, 0, len(m))
-	for k := range m {
-		list = append(list, k)
-	}
-	sort.Strings(list)
-	return list
-}

@@ -13,7 +13,6 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -235,7 +234,7 @@ func UserRegionHandlerFunc(t *parsedTrace) http.HandlerFunc {
 		for name := range validRangeStats {
 			allRangeStats = append(allRangeStats, name)
 		}
-		sort.Strings(allRangeStats)
+		slices.Sort(allRangeStats)
 
 		err = templUserRegionType.Execute(w, struct {
 			MaxTotal            time.Duration
