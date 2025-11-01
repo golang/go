@@ -7276,6 +7276,8 @@ func (c *ctxt7) opldrr(p *obj.Prog, a obj.As, rt, rn, rm int16, extension bool) 
 		op = OptionS<<10 | 0x3<<21 | 0x17<<27 | 1<<26
 	case AFMOVD:
 		op = OptionS<<10 | 0x3<<21 | 0x1f<<27 | 1<<26
+	case AFMOVQ:
+		op = OptionS<<10 | 0x7<<21 | 0x07<<27 | 1<<26
 	default:
 		c.ctxt.Diag("bad opldrr %v\n%v", a, p)
 		return 0
@@ -7308,6 +7310,8 @@ func (c *ctxt7) opstrr(p *obj.Prog, a obj.As, rt, rn, rm int16, extension bool) 
 		op = OptionS<<10 | 0x1<<21 | 0x17<<27 | 1<<26
 	case AFMOVD:
 		op = OptionS<<10 | 0x1<<21 | 0x1f<<27 | 1<<26
+	case AFMOVQ:
+		op = OptionS<<10 | 0x5<<21 | 0x07<<27 | 1<<26
 	default:
 		c.ctxt.Diag("bad opstrr %v\n%v", a, p)
 		return 0
