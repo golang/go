@@ -636,6 +636,9 @@ func (t *timer) modify(when, period int64, f func(arg any, seq uintptr, delay in
 		}
 		if t.state&timerHeaped == 0 && when <= bubble.now {
 			systemstack(func() {
+				if !async && t.isChan {
+					unlock(&t.sendLock)
+				}
 				t.unlockAndRun(bubble.now, bubble)
 			})
 			return pending
