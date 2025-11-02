@@ -6,6 +6,11 @@ package strconv
 
 type Uint128 = uint128
 
+const (
+	Pow10Min = pow10Min
+	Pow10Max = pow10Max
+)
+
 var (
 	MulLog10_2       = mulLog10_2
 	MulLog2_10       = mulLog2_10

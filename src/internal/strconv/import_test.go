@@ -8,6 +8,11 @@ import . "internal/strconv"
 
 type uint128 = Uint128
 
+const (
+	pow10Min = Pow10Min
+	pow10Max = Pow10Max
+)
+
 var (
 	mulLog10_2       = MulLog10_2
 	mulLog2_10       = MulLog2_10

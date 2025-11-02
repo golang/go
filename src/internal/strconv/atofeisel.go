@@ -40,7 +40,7 @@ func eiselLemire64(man uint64, exp10 int, neg bool) (f float64, ok bool) {
 	// Normalization.
 	clz := bits.LeadingZeros64(man)
 	man <<= uint(clz)
-	retExp2 := uint64(exp2+64-float64Bias) - uint64(clz)
+	retExp2 := uint64(exp2+63-float64Bias) - uint64(clz)
 
 	// Multiplication.
 	xHi, xLo := bits.Mul64(man, pow.Hi)
@@ -115,7 +115,7 @@ func eiselLemire32(man uint64, exp10 int, neg bool) (f float32, ok bool) {
 	// Normalization.
 	clz := bits.LeadingZeros64(man)
 	man <<= uint(clz)
-	retExp2 := uint64(exp2+64-float32Bias) - uint64(clz)
+	retExp2 := uint64(exp2+63-float32Bias) - uint64(clz)
 
 	// Multiplication.
 	xHi, xLo := bits.Mul64(man, pow.Hi)

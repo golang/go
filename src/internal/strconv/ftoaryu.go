@@ -464,7 +464,7 @@ func mult64bitPow10(m uint32, e2, q int) (resM uint32, resE int, exact bool) {
 		pow.Hi++
 	}
 	hi, lo := bits.Mul64(uint64(m), pow.Hi)
-	e2 += exp2 - 63 + 57
+	e2 += exp2 - 64 + 57
 	return uint32(hi<<7 | lo>>57), e2, lo<<7 == 0
 }
 
@@ -492,7 +492,7 @@ func mult128bitPow10(m uint64, e2, q int) (resM uint64, resE int, exact bool) {
 		// Inverse powers of ten must be rounded up.
 		pow.Lo++
 	}
-	e2 += exp2 - 127 + 119
+	e2 += exp2 - 128 + 119
 
 	hi, mid, lo := umul192(m, pow)
 	return hi<<9 | mid>>55, e2, mid<<9 == 0 && lo == 0

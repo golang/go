@@ -27,13 +27,14 @@ func umul192(x uint64, y uint128) (hi, mid, lo uint64) {
 	return hi + carry, mid, lo
 }
 
-// pow10 returns the 128-bit mantissa and binary exponent of 10**e
+// pow10 returns the 128-bit mantissa and binary exponent of 10**e.
+// That is, 10^e = mant/2^128 * 2**exp.
 // If e is out of range, pow10 returns ok=false.
 func pow10(e int) (mant uint128, exp int, ok bool) {
 	if e < pow10Min || e > pow10Max {
 		return
 	}
-	return pow10Tab[e-pow10Min], mulLog2_10(e), true
+	return pow10Tab[e-pow10Min], 1 + mulLog2_10(e), true
 }
 
 // mulLog10_2 returns math.Floor(x * log(2)/log(10)) for an integer x in
