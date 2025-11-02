@@ -13,7 +13,9 @@ var uint64pow10 = [...]uint64{
 
 // fixedFtoa formats a number of decimal digits of mant*(2^exp) into d,
 // where mant > 0 and 1 ≤ digits ≤ 18.
-func fixedFtoa(d *decimalSlice, mant uint64, exp, digits int) {
+// If fmt == 'f', digits is a conservative overestimate, and the final
+// number of digits is prec past the decimal point.
+func fixedFtoa(d *decimalSlice, mant uint64, exp, digits, prec int, fmt byte) {
 	// The strategy here is to multiply (mant * 2^exp) by a power of 10
 	// to make the resulting integer be the number of digits we want.
 	//
@@ -133,6 +135,28 @@ func fixedFtoa(d *decimalSlice, mant uint64, exp, digits int) {
 		d.dp++
 	}
 
+	// If this is %.*f we may have overestimated the digits needed.
+	// Now that we know where the decimal point is,
+	// trim to the actual number of digits, which is d.dp+prec.
+	if fmt == 'f' && digits != d.dp+prec {
+		for digits > d.dp+prec {
+			var r uint
+			dm, r = dm/10, uint(dm%10)
+			dt |= bool2uint(r != 0)
+			digits--
+		}
+
+		// Dropping those digits can create a new leftmost
+		// non-zero digit, like if we are formatting %.1f and
+		// convert 0.09 -> 0.1. Detect and adjust for that.
+		if digits <= 0 {
+			digits = 1
+			d.dp++
+		}
+
+		max = uint64pow10[digits] << 1
+	}
+
 	// Round and shift away rounding bit.
 	// We want to round up when
 	// (a) the fractional part is > 0.5 (dm&1 != 0 and dt == 1)
@@ -148,9 +172,13 @@ func fixedFtoa(d *decimalSlice, mant uint64, exp, digits int) {
 	}
 
 	// Format digits into d.
-	formatBase10(d.d[:digits], dm)
-	d.nd = digits
-	for d.d[d.nd-1] == '0' {
-		d.nd--
+	if dm != 0 {
+		if formatBase10(d.d[:digits], dm) != 0 {
+			panic("formatBase10")
+		}
+		d.nd = digits
+		for d.d[d.nd-1] == '0' {
+			d.nd--
+		}
 	}
 }
