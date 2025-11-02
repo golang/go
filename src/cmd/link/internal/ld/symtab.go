@@ -446,7 +446,6 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 	ctxt.xdefine("runtime.ecovctrs", sym.SNOPTRBSS, 0)
 	ctxt.xdefine("runtime.end", sym.SBSS, 0)
 	ctxt.xdefine("runtime.epclntab", sym.SRODATA, 0)
-	ctxt.xdefine("runtime.esymtab", sym.SRODATA, 0)
 
 	// garbage collection symbols
 	s := ldr.CreateSymForUpdate("runtime.gcdata", 0)
@@ -505,11 +504,6 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 	if ctxt.UseRelro() {
 		symgofuncrel = groupSym("go:funcrel.*", sym.SGOFUNCRELRO)
 	}
-
-	symt := ldr.CreateSymForUpdate("runtime.symtab", 0)
-	symt.SetType(sym.SSYMTAB)
-	symt.SetSize(0)
-	symt.SetLocal(true)
 
 	// assign specific types so that they sort together.
 	// within a type they sort by size, so the .* symbols

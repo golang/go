@@ -37,7 +37,7 @@ func TestMachoSectionsReadOnly(t *testing.T) {
 			args:             []string{"-ldflags", "-linkmode=internal"},
 			prog:             prog,
 			mustInternalLink: true,
-			wantSecsRO:       []string{"__got", "__rodata", "__itablink", "__typelink", "__gosymtab", "__gopclntab"},
+			wantSecsRO:       []string{"__got", "__rodata", "__itablink", "__typelink", "__gopclntab"},
 		},
 		{
 			name:        "linkmode-external",

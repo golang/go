@@ -1477,7 +1477,6 @@ func (ctxt *Link) doelf() {
 	}
 	shstrtabAddstring(relro_prefix + ".typelink")
 	shstrtabAddstring(relro_prefix + ".itablink")
-	shstrtabAddstring(relro_prefix + ".gosymtab")
 	shstrtabAddstring(relro_prefix + ".gopclntab")
 
 	if ctxt.IsExternal() {
@@ -1487,7 +1486,6 @@ func (ctxt *Link) doelf() {
 		shstrtabAddstring(elfRelType + ".rodata")
 		shstrtabAddstring(elfRelType + relro_prefix + ".typelink")
 		shstrtabAddstring(elfRelType + relro_prefix + ".itablink")
-		shstrtabAddstring(elfRelType + relro_prefix + ".gosymtab")
 		shstrtabAddstring(elfRelType + relro_prefix + ".gopclntab")
 		shstrtabAddstring(elfRelType + ".noptrdata")
 		shstrtabAddstring(elfRelType + ".data")

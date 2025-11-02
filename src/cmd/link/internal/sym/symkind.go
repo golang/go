@@ -91,7 +91,6 @@ const (
 
 	STYPELINK // Type links.
 	SITABLINK // Itab links.
-	SSYMTAB   // Used for runtime.symtab, which is always empty.
 	SPCLNTAB  // Pclntab data.
 
 	// Allocated writable segment.

@@ -2238,11 +2238,6 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	state.checkdatsize(sym.SITABLINK)
 	sect.Length = uint64(state.datsize) - sect.Vaddr
 
-	/* gosymtab */
-	sect = state.allocateNamedSectionAndAssignSyms(seg, genrelrosecname(".gosymtab"), sym.SSYMTAB, sym.SRODATA, relroSecPerm)
-	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.symtab", 0), sect)
-	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.esymtab", 0), sect)
-
 	/* gopclntab */
 	sect = state.allocateNamedSectionAndAssignSyms(seg, genrelrosecname(".gopclntab"), sym.SPCLNTAB, sym.SRODATA, relroSecPerm)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.pclntab", 0), sect)
@@ -2985,7 +2980,6 @@ func (ctxt *Link) address() []*sym.Segment {
 	ldr := ctxt.loader
 	var (
 		rodata  = ldr.SymSect(ldr.LookupOrCreateSym("runtime.rodata", 0))
-		symtab  = ldr.SymSect(ldr.LookupOrCreateSym("runtime.symtab", 0))
 		pclntab = ldr.SymSect(ldr.LookupOrCreateSym("runtime.pclntab", 0))
 		types   = ldr.SymSect(ldr.LookupOrCreateSym("runtime.types", 0))
 	)
@@ -3065,8 +3059,6 @@ func (ctxt *Link) address() []*sym.Segment {
 	ctxt.xdefine("runtime.egcbss", sym.SRODATA, ldr.SymAddr(s)+ldr.SymSize(s))
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.egcbss", 0), ldr.SymSect(s))
 
-	ctxt.xdefine("runtime.symtab", sym.SRODATA, int64(symtab.Vaddr))
-	ctxt.xdefine("runtime.esymtab", sym.SRODATA, int64(symtab.Vaddr+symtab.Length))
 	ctxt.xdefine("runtime.pclntab", sym.SRODATA, int64(pclntab.Vaddr))
 	ctxt.defineInternal("runtime.pcheader", sym.SRODATA)
 	ctxt.defineInternal("runtime.funcnametab", sym.SRODATA)
