@@ -5,9 +5,9 @@
 package strconv_test
 
 import (
+	. "internal/strconv"
 	"math"
 	"math/rand"
-	. "internal/strconv"
 	"testing"
 )
 
@@ -294,14 +294,20 @@ var ftoaBenches = []struct {
 
 	{"64Fixed1", 123456, 'e', 3, 64},
 	{"64Fixed2", 123.456, 'e', 3, 64},
+	{"64Fixed2.5", 1.2345e+06, 'e', 3, 64},
 	{"64Fixed3", 1.23456e+78, 'e', 3, 64},
 	{"64Fixed4", 1.23456e-78, 'e', 3, 64},
+	{"64Fixed5Hard", 4.096e+25, 'e', 5, 64}, // needs divisiblePow5(..., 20)
 	{"64Fixed12", 1.23456e-78, 'e', 12, 64},
 	{"64Fixed16", 1.23456e-78, 'e', 16, 64},
 	// From testdata/testfp.txt
 	{"64Fixed12Hard", math.Ldexp(6965949469487146, -249), 'e', 12, 64},
 	{"64Fixed17Hard", math.Ldexp(8887055249355788, 665), 'e', 17, 64},
 	{"64Fixed18Hard", math.Ldexp(6994187472632449, 690), 'e', 18, 64},
+
+	{"64FixedF1", 123.456, 'f', 6, 64},
+	{"64FixedF2", 0.0123, 'f', 6, 64},
+	{"64FixedF3", 12.3456, 'f', 2, 64},
 
 	// Trigger slow path (see issue #15672).
 	// The shortest is: 8.034137530808823e+43
