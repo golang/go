@@ -36,6 +36,22 @@ func TestRecordAttrs(t *testing.T) {
 			t.Errorf("got %v, want %v", got, want)
 		}
 	}
+
+	// Early return with iterator.
+	// Hit both loops in Record.Attrs: front and back.
+	for _, stop := range []int{2, 6} {
+		var got []Attr
+		for a := range r.AttrsIter() {
+			got = append(got, a)
+			if len(got) < stop {
+				break
+			}
+		}
+		want := as[:stop]
+		if !attrsEqual(got, want) {
+			t.Errorf("got %v, want %v", got, want)
+		}
+	}
 }
 
 func TestRecordSource(t *testing.T) {

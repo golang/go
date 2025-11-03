@@ -5,6 +5,7 @@
 package slog
 
 import (
+	"iter"
 	"runtime"
 	"slices"
 	"time"
@@ -89,6 +90,13 @@ func (r Record) Attrs(f func(Attr) bool) {
 		if !f(a) {
 			return
 		}
+	}
+}
+
+// AttrsIter returns an iterator over every attribute in the [Record].
+func (r Record) AttrsIter() iter.Seq[Attr] {
+	return func(yield func(Attr) bool) {
+		r.Attrs(yield)
 	}
 }
 
