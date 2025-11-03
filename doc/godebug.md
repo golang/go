@@ -163,6 +163,13 @@ will fail early. The default value is `httpcookiemaxnum=3000`. Setting
 number of cookies. To avoid denial of service attacks, this setting and default
 was backported to Go 1.25.2 and Go 1.24.8.
 
+Go 1.26 added a new `urlmaxqueryparams` setting that controls the maximum number
+of query parameters that net/url will accept when parsing a URL-encoded query string.
+If the number of parameters exceeds the number set in `urlmaxqueryparams`,
+parsing will fail early. The default value is `urlmaxqueryparams=10000`.
+Setting `urlmaxqueryparams=0`bles the limit. To avoid denial of service attacks,
+this setting and default was backported to Go 1.25.4 and Go 1.24.10.
+
 Go 1.26 added a new `urlstrictcolons` setting that controls whether `net/url.Parse`
 allows malformed hostnames containing colons outside of a bracketed IPv6 address.
 The default `urlstrictcolons=1` rejects URLs such as `http://localhost:1:2` or `http://::1/`.
