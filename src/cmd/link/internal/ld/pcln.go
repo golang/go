@@ -243,7 +243,6 @@ func makeInlSyms(ctxt *Link, funcs []loader.Sym, nameOffsets map[loader.Sym]uint
 // generator to fill in its data later.
 func (state *pclntab) generatePCHeader(ctxt *Link) {
 	ldr := ctxt.loader
-	textStartOff := int64(8 + 2*ctxt.Arch.PtrSize)
 	size := int64(8 + 8*ctxt.Arch.PtrSize)
 	writeHeader := func(ctxt *Link, s loader.Sym) {
 		header := ctxt.loader.MakeSymbolUpdater(s)
@@ -264,10 +263,7 @@ func (state *pclntab) generatePCHeader(ctxt *Link) {
 		header.SetUint8(ctxt.Arch, 7, uint8(ctxt.Arch.PtrSize))
 		off := header.SetUint(ctxt.Arch, 8, uint64(state.nfunc))
 		off = header.SetUint(ctxt.Arch, off, uint64(state.nfiles))
-		if off != textStartOff {
-			panic(fmt.Sprintf("pcHeader textStartOff: %d != %d", off, textStartOff))
-		}
-		off += int64(ctxt.Arch.PtrSize) // skip runtimeText relocation
+		off = header.SetUintptr(ctxt.Arch, off, 0) // unused
 		off = writeSymOffset(off, state.funcnametab)
 		off = writeSymOffset(off, state.cutab)
 		off = writeSymOffset(off, state.filetab)
@@ -279,9 +275,6 @@ func (state *pclntab) generatePCHeader(ctxt *Link) {
 	}
 
 	state.pcheader = state.addGeneratedSym(ctxt, "runtime.pcheader", size, writeHeader)
-	// Create the runtimeText relocation.
-	sb := ldr.MakeSymbolUpdater(state.pcheader)
-	sb.SetAddr(ctxt.Arch, textStartOff, ldr.Lookup("runtime.text", 0))
 }
 
 // walkFuncs iterates over the funcs, calling a function for each unique
