@@ -644,6 +644,25 @@ func Freegc(p unsafe.Pointer, size uintptr, noscan bool) {
 	freegc(p, size, noscan)
 }
 
+// Expose gcAssistBytes for the current g for testing.
+func AssistCredit() int64 {
+	assistG := getg()
+	if assistG.m.curg != nil {
+		assistG = assistG.m.curg
+	}
+	return assistG.gcAssistBytes
+}
+
+// Expose gcBlackenEnabled for testing.
+func GcBlackenEnable() bool {
+	// Note we do a non-atomic load here.
+	// Some checks against gcBlackenEnabled (e.g., in mallocgc)
+	// are currently done via non-atomic load for performance reasons,
+	// but other checks are done via atomic load (e.g., in mgcmark.go),
+	// so interpreting this value in a test may be subtle.
+	return gcBlackenEnabled != 0
+}
+
 const SizeSpecializedMallocEnabled = sizeSpecializedMallocEnabled
 
 const RuntimeFreegcEnabled = runtimeFreegcEnabled
@@ -1485,6 +1504,15 @@ func Acquirem() {
 
 func Releasem() {
 	releasem(getg().m)
+}
+
+// GoschedIfBusy is an explicit preemption check to call back
+// into the scheduler. This is useful for tests that run code
+// which spend most of their time as non-preemptible, as it
+// can be placed right after becoming preemptible again to ensure
+// that the scheduler gets a chance to preempt the goroutine.
+func GoschedIfBusy() {
+	goschedIfBusy()
 }
 
 type PIController struct {

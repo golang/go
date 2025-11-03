@@ -249,6 +249,7 @@ func TestFreegc(t *testing.T) {
 		{"size=500", testFreegc[[500]byte], true},
 		{"size=512", testFreegc[[512]byte], true},
 		{"size=4096", testFreegc[[4096]byte], true},
+		{"size=20000", testFreegc[[20000]byte], true},       // not power of 2 or spc boundary
 		{"size=32KiB-8", testFreegc[[1<<15 - 8]byte], true}, // max noscan small object for 64-bit
 	}
 
@@ -300,7 +301,7 @@ func testFreegc[T comparable](noscan bool) func(*testing.T) {
 			t.Helper()
 			var zero T
 			if *p != zero {
-				t.Fatalf("found non-zero memory before freeing (tests do not modify memory): %v", *p)
+				t.Fatalf("found non-zero memory before freegc (tests do not modify memory): %v", *p)
 			}
 			runtime.Freegc(unsafe.Pointer(p), unsafe.Sizeof(*p), noscan)
 		}
@@ -405,7 +406,7 @@ func testFreegc[T comparable](noscan bool) func(*testing.T) {
 			// Confirm we are graceful if we have more freed elements at once
 			// than the max free list size.
 			s := make([]*T, 0, 1000)
-			iterations := stressMultiple * stressMultiple // currently 1 or 100 depending on -short
+			iterations := stressMultiple * stressMultiple // currently 1 (-short) or 100
 			for range iterations {
 				s = s[:0]
 				for range 1000 {
@@ -431,7 +432,7 @@ func testFreegc[T comparable](noscan bool) func(*testing.T) {
 					p := alloc()
 					uptr := uintptr(unsafe.Pointer(p))
 					if live[uptr] {
-						t.Fatalf("TestFreeLive: found duplicate pointer (0x%x). i: %d j: %d", uptr, i, j)
+						t.Fatalf("found duplicate pointer (0x%x). i: %d j: %d", uptr, i, j)
 					}
 					live[uptr] = true
 					s = append(s, p)
@@ -451,7 +452,7 @@ func testFreegc[T comparable](noscan bool) func(*testing.T) {
 			// Use explicit free, but the free happens on a different goroutine than the alloc.
 			// This also lightly simulates how the free code sees P migration or flushing
 			// the mcache, assuming we have > 1 P. (Not using testing.AllocsPerRun here).
-			iterations := 10 * stressMultiple * stressMultiple // currently 10 or 1000 depending on -short
+			iterations := 10 * stressMultiple * stressMultiple // currently 10 (-short) or 1000
 			for _, capacity := range []int{2} {
 				for range iterations {
 					ch := make(chan *T, capacity)
@@ -499,6 +500,90 @@ func testFreegc[T comparable](noscan bool) func(*testing.T) {
 					}()
 				}
 				wg.Wait()
+			}
+		})
+
+		t.Run("assist-credit", func(t *testing.T) {
+			// Allocate and free using the same span class repeatedly while
+			// verifying it results in a net zero change in assist credit.
+			// This helps double-check our manipulation of the assist credit
+			// during mallocgc/freegc, including in cases when there is
+			// internal fragmentation when the requested mallocgc size is
+			// smaller than the size class.
+			//
+			// See https://go.dev/cl/717520 for some additional discussion,
+			// including how we can deliberately cause the test to fail currently
+			// if we purposefully introduce some assist credit bugs.
+			if SizeSpecializedMallocEnabled {
+				// TODO(thepudds): skip this test at this point in the stack; later CL has
+				// integration with sizespecializedmalloc.
+				t.Skip("temporarily skip assist credit test for GOEXPERIMENT=sizespecializedmalloc")
+			}
+			if !RuntimeFreegcEnabled {
+				t.Skip("skipping assist credit test with runtime.freegc disabled")
+			}
+
+			// Use a background goroutine to continuously run the GC.
+			done := make(chan struct{})
+			defer close(done)
+			go func() {
+				for {
+					select {
+					case <-done:
+						return
+					default:
+						runtime.GC()
+					}
+				}
+			}()
+
+			// If making changes related to this test, consider testing locally with
+			// larger counts, like 100K or 1M.
+			counts := []int{1, 2, 10, 100 * stressMultiple}
+			// Dropping down to GOMAXPROCS=1 might help reduce noise.
+			defer GOMAXPROCS(GOMAXPROCS(1))
+			size := int64(unsafe.Sizeof(*new(T)))
+			for _, count := range counts {
+				// Start by forcing a GC to reset this g's assist credit
+				// and perhaps help us get a cleaner measurement of GC cycle count.
+				runtime.GC()
+				for i := range count {
+					// We disable preemption to reduce other code's ability to adjust this g's
+					// assist credit or otherwise change things while we are measuring.
+					Acquirem()
+
+					// We do two allocations per loop, with the second allocation being
+					// the one we measure. The first allocation tries to ensure at least one
+					// reusable object on the mspan's free list when we do our measured allocation.
+					p := alloc()
+					free(p)
+
+					// Now do our primary allocation of interest, bracketed by measurements.
+					// We measure more than we strictly need (to log details in case of a failure).
+					creditStart := AssistCredit()
+					blackenStart := GcBlackenEnable()
+					p = alloc()
+					blackenAfterAlloc := GcBlackenEnable()
+					creditAfterAlloc := AssistCredit()
+					free(p)
+					blackenEnd := GcBlackenEnable()
+					creditEnd := AssistCredit()
+
+					Releasem()
+					GoschedIfBusy()
+
+					delta := creditEnd - creditStart
+					if delta != 0 {
+						t.Logf("assist credit non-zero delta: %d", delta)
+						t.Logf("\t| size: %d i: %d count: %d", size, i, count)
+						t.Logf("\t| credit before: %d credit after: %d", creditStart, creditEnd)
+						t.Logf("\t| alloc delta: %d free delta: %d",
+							creditAfterAlloc-creditStart, creditEnd-creditAfterAlloc)
+						t.Logf("\t| gcBlackenEnable (start / after alloc / end): %v/%v/%v",
+							blackenStart, blackenAfterAlloc, blackenEnd)
+						t.FailNow()
+					}
+				}
 			}
 		})
 	}
