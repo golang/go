@@ -29,61 +29,61 @@ The baseline runtime overhead of cgo calls has been reduced by ~30%.
 
 ### Goroutine leak profiles {#goroutineleak-profiles}
 
-We introduce a new profile type for goroutine leaks. With the experimental flag set to `GOEXPERIMENT=goroutineleakprofile`, it becomes accessible through `pprof` under the name `"goroutineleak"`.
+We introduce a new profile type for goroutine leaks. With the experimental
+flag set to `GOEXPERIMENT=goroutineleakprofile`, it becomes accessible
+through `pprof` under the name `"goroutineleak"`.
 
-The following snippet showcases a common anti-pattern that leads to goroutine leaks:
+The following snippet showcases a common, but erroneous pattern
+that leads to goroutine leaks:
 ```go
-// AggregateResults concurrently processes each request and aggregates the results.
-// If one of the requests returns an error, the function returns immediately with the error.
-func (s *Server[T, R]) AggregateResults(reqs []T) ([]R, error) {
-	ch := make(chan wrap[R])
-	for _, req := range reqs {
-		go func(req T) {
-      res, err := s.processRequest(req)
-      ch <- wrap[R]{
-        res: res,
-        err: err,
-      }
-		}(req)
+type result struct{
+		res workResult
+		err error
+}
+
+func processWorkItems(ws []workItem) ([]workResult, error) {
+	// Process work items in parallel, aggregating results in ch.
+	ch := make(chan result)
+	for _, w := range ws {
+		go func() {
+			res, err := processWorkItem(w)
+			ch <- result{res, err}
+		}()
 	}
 
-	var results []R
-	for range len(reqs) {
-		x := <-ch
-		if x.err != nil {
-			return nil, x.err
+	// Collect the results from ch, or return an error if one is found.
+	var results []workResult
+	for range len(ws) {
+		r := <-ch
+		if r.err != nil {
+			// This premature return may cause goroutine leaks
+			return nil, r.err
 		}
-		results = append(results, x.res)
+		results = append(results, r.res)
 	}
 	return results, nil
 }
 ```
-Channel `ch` is used to synchronize when concurrently processing each request in the slice `reqs`.
-The responses are aggregated in a slice if all requests succeed.
-Conversely, if any request produces an error, `AggregateResults` is shortcircuited to
-return the error.
-However, because `ch` is unbuffered, all pending request goroutines beyond the first to produce
-the error will leak.
+Because `ch` is unbuffered, if `processWorkItems` returns early due to an error,
+all remaining work item goroutines will leak.
+However, also note that, soon after the leak occurs, `ch` is inaccessible
+to any other goroutine, except those involved in the leak.
 
-The key insight is that `ch` is inaccessible outside the scope of `AggregateResults`.
-The Go runtime is now equipped to detect such patterns as they occur at execution time,
-and record them in the goroutine leak profile.
-For the case above, the goroutine leak profile would appear as:
-```
-Samples:
-goroutineleak/count
-          6: 1 2 3 4
-Locations
-     1: 0x104235daf M=1 runtime.gopark src/runtime/proc.go:464:0 s=447
-     2: 0x1041c1ce7 M=1 runtime.chansend src/runtime/chan.go:283:0 s=176
-     3: 0x1041c18f7 M=1 runtime.chansend1 src/runtime/chan.go:161:0 s=160
-     4: 0x10428dd6b M=1 app.(*Server[go.shape.int,go.shape.int]).AggregateResults.func1 app/server.go:37:0 s=35
-```
-The leaked goroutines' stack precisely pinpoints the leaking operation in the source code.
+To generalize, a goroutine is leaked if it is blocked by concurrency
+primitives (specifically channels, and `sync` primitives such as mutex) that
+are only referenced by the blocked goroutine itself, or other leaked goroutines.
+The Go runtime is now equipped to reveal leaked goroutines by recording their stacks in
+goroutine leak profiles.
+In the example above, the stacks of work item goroutines point to the culprit channel send
+operation.
 
-The main advantage of goroutine leak profiles is that they have **no false positives**, but, for theoretical reasons, they may nevertheless
-miss some goroutine leaks, e.g., when caused by global channels.
-The underlying theory is presented in detail in [this publication by Saioc et al.](https://dl.acm.org/doi/pdf/10.1145/3676641.3715990).
+Note that, while goroutine leak profiles only include true positives, goroutine leaks may be
+missed when caused by concurrency primitives that are accessible globally, or referenced
+by runnable goroutines.
 
-More details about the implementation are presented in the [design document](https://github.com/golang/proposal/blob/master/design/74609-goroutine-leak-detection-gc.md).
-We encourage users to experiment with the new feature in different environments (tests, CI, production), and welcome feedback on the [proposal issue](https://github.com/golang/go/issues/74609).
+Special thanks to Vlad Saioc at Uber for contributing this work.
+The underlying theory is presented in detail by Saioc et al. in [this publication](https://dl.acm.org/doi/pdf/10.1145/3676641.3715990).
+
+<!-- More details about the implementation are presented in the [design document](https://github.com/golang/proposal/blob/master/design/74609-goroutine-leak-detection-gc.md). -->
+We encourage users to experiment with the new feature in different environments
+(tests, CI, production), and welcome feedback on the [proposal issue](https://github.com/golang/go/issues/74609).
