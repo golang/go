@@ -61,6 +61,7 @@ var All = []Info{
 	{Name: "tlsmlkem", Package: "crypto/tls", Changed: 24, Old: "0", Opaque: true},
 	{Name: "tlsrsakex", Package: "crypto/tls", Changed: 22, Old: "1"},
 	{Name: "tlsunsafeekm", Package: "crypto/tls", Changed: 22, Old: "1"},
+	{Name: "urlmaxqueryparams", Package: "net/url", Changed: 24, Old: "0"},
 	{Name: "winreadlinkvolume", Package: "os", Changed: 23, Old: "0"},
 	{Name: "winsymlink", Package: "os", Changed: 23, Old: "0"},
 	{Name: "x509keypairleaf", Package: "crypto/tls", Changed: 23, Old: "0"},

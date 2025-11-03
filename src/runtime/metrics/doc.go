@@ -354,6 +354,11 @@ Below is the full list of supported metrics, ordered lexicographically.
 		The number of non-default behaviors executed by the crypto/tls
 		package due to a non-default GODEBUG=tlsunsafeekm=... setting.
 
+	/godebug/non-default-behavior/urlmaxqueryparams:events
+		The number of non-default behaviors executed by the net/url
+		package due to a non-default GODEBUG=urlmaxqueryparams=...
+		setting.
+
 	/godebug/non-default-behavior/winreadlinkvolume:events
 		The number of non-default behaviors executed by the os package
 		due to a non-default GODEBUG=winreadlinkvolume=... setting.
