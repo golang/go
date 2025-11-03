@@ -692,3 +692,215 @@ func TestOffsetWriter_Write(t *testing.T) {
 		checkContent(name, f)
 	})
 }
+
+var errLimit = errors.New("limit exceeded")
+
+func TestLimitedReader(t *testing.T) {
+	src := strings.NewReader("abc")
+	r := LimitReader(src, 5)
+	lr, ok := r.(*LimitedReader)
+	if !ok {
+		t.Fatalf("LimitReader should return *LimitedReader, got %T", r)
+	}
+	if lr.R != src || lr.N != 5 || lr.Err != nil {
+		t.Fatalf("LimitReader() = {R: %v, N: %d, Err: %v}, want {R: %v, N: 5, Err: nil}", lr.R, lr.N, lr.Err, src)
+	}
+
+	t.Run("WithoutCustomErr", func(t *testing.T) {
+		tests := []struct {
+			name   string
+			data   string
+			limit  int64
+			want1N int
+			want1E error
+			want2E error
+		}{
+			{"UnderLimit", "hello", 10, 5, nil, EOF},
+			{"ExactLimit", "hello", 5, 5, nil, EOF},
+			{"OverLimit", "hello world", 5, 5, nil, EOF},
+			{"ZeroLimit", "hello", 0, 0, EOF, EOF},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				lr := &LimitedReader{R: strings.NewReader(tt.data), N: tt.limit}
+				buf := make([]byte, 10)
+
+				n, err := lr.Read(buf)
+				if n != tt.want1N || err != tt.want1E {
+					t.Errorf("first Read() = (%d, %v), want (%d, %v)", n, err, tt.want1N, tt.want1E)
+				}
+
+				n, err = lr.Read(buf)
+				if n != 0 || err != tt.want2E {
+					t.Errorf("second Read() = (%d, %v), want (0, %v)", n, err, tt.want2E)
+				}
+			})
+		}
+	})
+
+	t.Run("WithCustomErr", func(t *testing.T) {
+		tests := []struct {
+			name      string
+			data      string
+			limit     int64
+			err       error
+			wantFirst string
+			wantErr1  error
+			wantErr2  error
+		}{
+			{"ExactLimit", "hello", 5, errLimit, "hello", nil, EOF},
+			{"OverLimit", "hello world", 5, errLimit, "hello", nil, errLimit},
+			{"UnderLimit", "hi", 5, errLimit, "hi", nil, EOF},
+			{"ZeroLimitEmpty", "", 0, errLimit, "", EOF, EOF},
+			{"ZeroLimitNonEmpty", "hello", 0, errLimit, "", errLimit, errLimit},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				lr := &LimitedReader{R: strings.NewReader(tt.data), N: tt.limit, Err: tt.err}
+				buf := make([]byte, 10)
+
+				n, err := lr.Read(buf)
+				if n != len(tt.wantFirst) || string(buf[:n]) != tt.wantFirst || err != tt.wantErr1 {
+					t.Errorf("first Read() = (%d, %q, %v), want (%d, %q, %v)", n, buf[:n], err, len(tt.wantFirst), tt.wantFirst, tt.wantErr1)
+				}
+
+				n, err = lr.Read(buf)
+				if n != 0 || err != tt.wantErr2 {
+					t.Errorf("second Read() = (%d, %v), want (0, %v)", n, err, tt.wantErr2)
+				}
+			})
+		}
+	})
+
+	t.Run("CustomErrPersists", func(t *testing.T) {
+		lr := &LimitedReader{R: strings.NewReader("hello world"), N: 5, Err: errLimit}
+		buf := make([]byte, 10)
+
+		n, err := lr.Read(buf)
+		if n != 5 || err != nil || string(buf[:5]) != "hello" {
+			t.Errorf("Read() = (%d, %v, %q), want (5, nil, \"hello\")", n, err, buf[:5])
+		}
+
+		n, err = lr.Read(buf)
+		if n != 0 || err != errLimit {
+			t.Errorf("Read() = (%d, %v), want (0, errLimit)", n, err)
+		}
+
+		n, err = lr.Read(buf)
+		if n != 0 || err != errLimit {
+			t.Errorf("Read() = (%d, %v), want (0, errLimit)", n, err)
+		}
+	})
+
+	t.Run("ErrEOF", func(t *testing.T) {
+		lr := &LimitedReader{R: strings.NewReader("hello world"), N: 5, Err: EOF}
+		buf := make([]byte, 10)
+
+		n, err := lr.Read(buf)
+		if n != 5 || err != nil {
+			t.Errorf("Read() = (%d, %v), want (5, nil)", n, err)
+		}
+
+		n, err = lr.Read(buf)
+		if n != 0 || err != EOF {
+			t.Errorf("Read() = (%d, %v), want (0, EOF)", n, err)
+		}
+	})
+
+	t.Run("NoSideEffects", func(t *testing.T) {
+		lr := &LimitedReader{R: strings.NewReader("hello"), N: 5, Err: errLimit}
+		buf := make([]byte, 0)
+
+		for i := 0; i < 3; i++ {
+			n, err := lr.Read(buf)
+			if n != 0 || err != nil {
+				t.Errorf("zero-length read #%d = (%d, %v), want (0, nil)", i+1, n, err)
+			}
+			if lr.N != 5 {
+				t.Errorf("N after zero-length read #%d = %d, want 5", i+1, lr.N)
+			}
+		}
+
+		buf = make([]byte, 10)
+		n, err := lr.Read(buf)
+		if n != 5 || string(buf[:5]) != "hello" || err != nil {
+			t.Errorf("normal Read() = (%d, %q, %v), want (5, \"hello\", nil)", n, buf[:5], err)
+		}
+	})
+}
+
+type errorReader struct {
+	data []byte
+	pos  int
+	err  error
+}
+
+func (r *errorReader) Read(p []byte) (int, error) {
+	if r.pos >= len(r.data) {
+		return 0, r.err
+	}
+	n := copy(p, r.data[r.pos:])
+	r.pos += n
+	return n, nil
+}
+
+func TestLimitedReaderErrors(t *testing.T) {
+	t.Run("UnderlyingError", func(t *testing.T) {
+		underlyingErr := errors.New("boom")
+		lr := &LimitedReader{R: &errorReader{data: []byte("hello"), err: underlyingErr}, N: 10}
+		buf := make([]byte, 10)
+
+		n, err := lr.Read(buf)
+		if n != 5 || string(buf[:5]) != "hello" || err != nil {
+			t.Errorf("first Read() = (%d, %q, %v), want (5, \"hello\", nil)", n, buf[:5], err)
+		}
+
+		n, err = lr.Read(buf)
+		if n != 0 || err != underlyingErr {
+			t.Errorf("second Read() = (%d, %v), want (0, %v)", n, err, underlyingErr)
+		}
+	})
+
+	t.Run("SentinelMasksProbeError", func(t *testing.T) {
+		probeErr := errors.New("probe failed")
+		lr := &LimitedReader{R: &errorReader{data: []byte("hello"), err: probeErr}, N: 5, Err: errLimit}
+		buf := make([]byte, 10)
+
+		n, err := lr.Read(buf)
+		if n != 5 || string(buf[:5]) != "hello" || err != nil {
+			t.Errorf("first Read() = (%d, %q, %v), want (5, \"hello\", nil)", n, buf[:5], err)
+		}
+
+		n, err = lr.Read(buf)
+		if n != 0 || err != errLimit {
+			t.Errorf("second Read() = (%d, %v), want (0, errLimit)", n, err)
+		}
+	})
+}
+
+func TestLimitedReaderCopy(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		limit   int64
+		wantN   int64
+		wantErr error
+	}{
+		{"Exact", "hello", 5, 5, nil},
+		{"Under", "hi", 5, 2, nil},
+		{"Over", "hello world", 5, 5, errLimit},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			lr := &LimitedReader{R: strings.NewReader(tt.input), N: tt.limit, Err: errLimit}
+			var dst Buffer
+			n, err := Copy(&dst, lr)
+			if n != tt.wantN || err != tt.wantErr {
+				t.Errorf("Copy() = (%d, %v), want (%d, %v)", n, err, tt.wantN, tt.wantErr)
+			}
+		})
+	}
+}

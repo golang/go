@@ -457,28 +457,66 @@ func copyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
 
 // LimitReader returns a Reader that reads from r
 // but stops with EOF after n bytes.
-// The underlying implementation is a *LimitedReader.
-func LimitReader(r Reader, n int64) Reader { return &LimitedReader{r, n} }
+// To return a custom error when the limit is reached, construct
+// a *LimitedReader directly with the desired Err field.
+func LimitReader(r Reader, n int64) Reader { return &LimitedReader{R: r, N: n} }
 
 // A LimitedReader reads from R but limits the amount of
 // data returned to just N bytes. Each call to Read
 // updates N to reflect the new amount remaining.
-// Read returns EOF when N <= 0 or when the underlying R returns EOF.
+//
+// Negative values of N mean that the limit has been exceeded.
+// Read returns Err when more than N bytes are read from R.
+// If Err is nil or EOF, Read returns EOF instead.
 type LimitedReader struct {
-	R Reader // underlying reader
-	N int64  // max bytes remaining
+	R   Reader // underlying reader
+	N   int64  // max bytes remaining
+	Err error  // error to return when limit is exceeded; defaults to EOF if nil
 }
 
 func (l *LimitedReader) Read(p []byte) (n int, err error) {
-	if l.N <= 0 {
+	if len(p) == 0 {
+		return 0, nil
+	}
+	// We use negative l.N values to signal that we've exceeded the limit and cached the result:
+	// -1 means more data is available
+	// -2 means hit EOF exactly
+
+	if l.N > 0 {
+		if int64(len(p)) > l.N {
+			p = p[0:l.N]
+		}
+		n, err = l.R.Read(p)
+		l.N -= int64(n)
+		return
+	}
+
+	if l.N < 0 {
+		if l.N == -1 && l.Err != nil && l.Err != EOF {
+			return 0, l.Err // limit was exceeded
+		}
+		return 0, EOF // stream was exactly N bytes, or already past limit
+	}
+
+	// At limit (N == 0) - need to determine if stream has more data
+
+	if l.Err == nil || l.Err == EOF {
 		return 0, EOF
 	}
-	if int64(len(p)) > l.N {
-		p = p[0:l.N]
+
+	// Probe with one byte to distinguish two cases:
+	// - Stream had exactly N bytes -> return EOF
+	// - Stream has more than N bytes -> return custom error
+	// We can't tell without reading ahead. This probe permanently consumes
+	// a byte from R, so we cache the result in N to avoid re-probing.
+	var probe [1]byte
+	probeN, probeErr := l.R.Read(probe[:])
+	if probeN > 0 || (probeErr != nil && probeErr != EOF) {
+		l.N = -1 // more data available, limit exceeded
+		return 0, l.Err
 	}
-	n, err = l.R.Read(p)
-	l.N -= int64(n)
-	return
+	l.N = -2 // hit EOF, stream was exactly N bytes
+	return 0, EOF
 }
 
 // NewSectionReader returns a [SectionReader] that reads from r
@@ -518,8 +556,10 @@ func (s *SectionReader) Read(p []byte) (n int, err error) {
 	return
 }
 
-var errWhence = errors.New("Seek: invalid whence")
-var errOffset = errors.New("Seek: invalid offset")
+var (
+	errWhence = errors.New("Seek: invalid whence")
+	errOffset = errors.New("Seek: invalid offset")
+)
 
 func (s *SectionReader) Seek(offset int64, whence int) (int64, error) {
 	switch whence {
