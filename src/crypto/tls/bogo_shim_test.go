@@ -476,11 +476,11 @@ func bogoShim() {
 				log.Fatal("did not expect ECH, but it was accepted")
 			}
 
-			if *expectHRR && !cs.testingOnlyDidHRR {
+			if *expectHRR && !cs.HelloRetryRequest {
 				log.Fatal("expected HRR but did not do it")
 			}
 
-			if *expectNoHRR && cs.testingOnlyDidHRR {
+			if *expectNoHRR && cs.HelloRetryRequest {
 				log.Fatal("expected no HRR but did do it")
 			}
 

@@ -2090,17 +2090,17 @@ func TestHandshakeMLKEM(t *testing.T) {
 				}
 			}
 			if test.expectHRR {
-				if !ss.testingOnlyDidHRR {
+				if !ss.HelloRetryRequest {
 					t.Error("server did not use HRR")
 				}
-				if !cs.testingOnlyDidHRR {
+				if !cs.HelloRetryRequest {
 					t.Error("client did not use HRR")
 				}
 			} else {
-				if ss.testingOnlyDidHRR {
+				if ss.HelloRetryRequest {
 					t.Error("server used HRR")
 				}
-				if cs.testingOnlyDidHRR {
+				if cs.HelloRetryRequest {
 					t.Error("client used HRR")
 				}
 			}

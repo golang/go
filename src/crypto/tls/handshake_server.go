@@ -1021,6 +1021,7 @@ func clientHelloInfo(ctx context.Context, c *Conn, clientHello *clientHelloMsg) 
 		SupportedVersions: supportedVersions,
 		Extensions:        clientHello.extensions,
 		Conn:              c.conn,
+		HelloRetryRequest: c.didHRR,
 		config:            c.config,
 		ctx:               ctx,
 	}
