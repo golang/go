@@ -93,8 +93,8 @@ func (r Record) Attrs(f func(Attr) bool) {
 	}
 }
 
-// AttrsIter returns an iterator over every attribute in the [Record].
-func (r Record) AttrsIter() iter.Seq[Attr] {
+// AllAttrs returns an iterator over every attribute in the [Record].
+func (r Record) AllAttrs() iter.Seq[Attr] {
 	return func(yield func(Attr) bool) {
 		r.Attrs(yield)
 	}

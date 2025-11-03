@@ -41,7 +41,7 @@ func TestRecordAttrs(t *testing.T) {
 	// Hit both loops in Record.Attrs: front and back.
 	for _, stop := range []int{2, 6} {
 		var got []Attr
-		for a := range r.AttrsIter() {
+		for a := range r.AllAttrs() {
 			got = append(got, a)
 			if len(got) < stop {
 				break
