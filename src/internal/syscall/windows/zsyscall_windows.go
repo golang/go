@@ -435,7 +435,7 @@ func MultiByteToWideChar(codePage uint32, dwFlags uint32, str *byte, nstr int32,
 func ReOpenFile(filehandle syscall.Handle, desiredAccess uint32, shareMode uint32, flagAndAttributes uint32) (handle syscall.Handle, err error) {
 	r0, _, e1 := syscall.Syscall6(procReOpenFile.Addr(), 4, uintptr(filehandle), uintptr(desiredAccess), uintptr(shareMode), uintptr(flagAndAttributes), 0, 0)
 	handle = syscall.Handle(r0)
-	if handle == 0 {
+	if handle == syscall.InvalidHandle {
 		err = errnoErr(e1)
 	}
 	return
