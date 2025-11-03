@@ -781,7 +781,7 @@ func (cr *connReader) handleReadErrorLocked(err error) {
 	if errors.Is(err, io.EOF) {
 		err = errClientDisconnected
 	} else if isClientDisconnected(err) {
-		err = fmt.Errorf("%w: %v", errClientDisconnected, err)
+		err = fmt.Errorf("%w: %w", errClientDisconnected, err)
 	}
 	cr.conn.cancelCtx(fmt.Errorf("connection read error: %w", err))
 	if res := cr.conn.curReq.Load(); res != nil {
@@ -4090,7 +4090,7 @@ func (w checkConnErrorWriter) Write(p []byte) (n int, err error) {
 	if err != nil && w.c.werr == nil {
 		w.c.werr = err
 		if isClientDisconnected(err) {
-			err = fmt.Errorf("%w: %v", errClientDisconnected, err)
+			err = fmt.Errorf("%w: %w", errClientDisconnected, err)
 		}
 		w.c.cancelCtx(fmt.Errorf("connection write error: %w", err))
 	}
