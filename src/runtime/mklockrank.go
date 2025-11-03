@@ -196,6 +196,9 @@ defer,
 # xRegState allocator
 sched < xRegAlloc;
 
+# spanSPMCs allocator and list
+WB, sched < spanSPMCs;
+
 # Span allocator
 stackLarge,
   stackpool,
@@ -209,7 +212,7 @@ stackLarge,
 # Pinner bits might be freed by the span allocator.
 mheap, mspanSpecial < mheapSpecial;
 # Fixallocs
-mheap, mheapSpecial, xRegAlloc < globalAlloc;
+mheap, mheapSpecial, xRegAlloc, spanSPMCs < globalAlloc;
 
 # Execution tracer events (with a P)
 hchan,

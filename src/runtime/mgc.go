@@ -199,6 +199,7 @@ func gcinit() {
 	lockInit(&work.assistQueue.lock, lockRankAssistQueue)
 	lockInit(&work.strongFromWeak.lock, lockRankStrongFromWeakQueue)
 	lockInit(&work.wbufSpans.lock, lockRankWbufSpans)
+	lockInit(&work.spanSPMCs.lock, lockRankSpanSPMCs)
 	lockInit(&gcCleanups.lock, lockRankCleanupQueue)
 }
 
@@ -352,7 +353,7 @@ type workType struct {
 	//
 	// Only used if goexperiment.GreenTeaGC.
 	spanSPMCs struct {
-		lock mutex // no lock rank because it's a leaf lock (see mklockrank.go).
+		lock mutex
 		all  *spanSPMC
 	}
 
