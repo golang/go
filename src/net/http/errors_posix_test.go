@@ -18,7 +18,7 @@ import (
 // Receive a single HTTP request on the given server socket, then close recvCh.
 // Wait for the context to close while handling this request, then record the
 // context Cause and return it over the causeCh.
-func getClosingCause(ln net.Listener, recvCh chan<-struct{}, causeCh chan<- error) {
+func getClosingCause(ln net.Listener, recvCh chan<- struct{}, causeCh chan<- error) {
 	mux := NewServeMux()
 	server := Server{
 		Handler: mux,
@@ -44,7 +44,7 @@ func getClosingCause(ln net.Listener, recvCh chan<-struct{}, causeCh chan<- erro
 func TestClientDisconnectedError(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
-	
+
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -80,7 +80,7 @@ func TestClientDisconnectedError(t *testing.T) {
 func TestClientConnectionResetError(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
-	
+
 	ln, err := net.Listen("tcp", ":0")
 	if err != nil {
 		t.Fatal(err)
