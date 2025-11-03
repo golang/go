@@ -953,6 +953,12 @@ typedef struct {
 } issue69086struct;
 static int issue690861(issue69086struct* p) { p->b = 1234; return p->c; }
 static int issue690862(unsigned long ul1, unsigned long ul2, unsigned int u, issue69086struct s) { return (int)(s.b); }
+
+char issue75751v = 1;
+char * const issue75751p = &issue75751v;
+#define issue75751m issue75751p
+char * const volatile issue75751p2 = &issue75751v;
+#define issue75751m2 issue75751p2
 */
 import "C"
 
@@ -2395,4 +2401,9 @@ func test69086(t *testing.T) {
 	if got != 1234 {
 		t.Errorf("call: got %d, want 1234", got)
 	}
+}
+
+// Issue 75751: no runtime test, just make sure it compiles.
+func test75751() int {
+	return int(*C.issue75751m) + int(*C.issue75751m2)
 }
