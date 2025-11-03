@@ -95,9 +95,7 @@ func (r Record) Attrs(f func(Attr) bool) {
 
 // AllAttrs returns an iterator over every attribute in the [Record].
 func (r Record) AllAttrs() iter.Seq[Attr] {
-	return func(yield func(Attr) bool) {
-		r.Attrs(yield)
-	}
+	return r.Attrs
 }
 
 // AddAttrs appends the given Attrs to the [Record]'s list of Attrs.
