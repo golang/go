@@ -40,7 +40,7 @@ func nestedCall(f func()) {
 	callbackMutex.Unlock()
 
 	// Pass the address of i because the C function was written to
-	// take a pointer.  We could pass an int if we felt like
+	// take a pointer. We could pass an int if we felt like
 	// rewriting the C code.
 	C.callback(unsafe.Pointer(&i))
 

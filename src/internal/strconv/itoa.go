@@ -174,6 +174,14 @@ func small(i int) string {
 	return smalls[i*2 : i*2+2]
 }
 
+// RuntimeFormatBase10 formats u into the tail of a
+// and returns the offset to the first byte written to a.
+// It is only for use by package runtime.
+// Other packages should use AppendUint.
+func RuntimeFormatBase10(a []byte, u uint64) int {
+	return formatBase10(a, u)
+}
+
 // formatBase10 formats the decimal representation of u into the tail of a
 // and returns the offset of the first byte written to a. That is, after
 //

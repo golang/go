@@ -99,12 +99,14 @@ func TestFp(t *testing.T) {
 	s := bufio.NewScanner(strings.NewReader(testfp))
 	for lineno := 1; s.Scan(); lineno++ {
 		line := s.Text()
-		if len(line) == 0 || line[0] == '#' {
+		line, _, _ = strings.Cut(line, "#")
+		line = strings.TrimSpace(line)
+		if line == "" {
 			continue
 		}
 		a := strings.Split(line, " ")
 		if len(a) != 4 {
-			t.Error("testdata/testfp.txt:", lineno, ": wrong field count")
+			t.Errorf("testdata/testfp.txt:%d: wrong field count", lineno)
 			continue
 		}
 		var s string
@@ -114,22 +116,21 @@ func TestFp(t *testing.T) {
 			var ok bool
 			v, ok = myatof64(a[2])
 			if !ok {
-				t.Error("testdata/testfp.txt:", lineno, ": cannot atof64 ", a[2])
+				t.Errorf("testdata/testfp.txt:%d: cannot atof64 %s", lineno, a[2])
 				continue
 			}
 			s = fmt.Sprintf(a[1], v)
 		case "float32":
 			v1, ok := myatof32(a[2])
 			if !ok {
-				t.Error("testdata/testfp.txt:", lineno, ": cannot atof32 ", a[2])
+				t.Errorf("testdata/testfp.txt:%d: cannot atof32 %s", lineno, a[2])
 				continue
 			}
 			s = fmt.Sprintf(a[1], v1)
 			v = float64(v1)
 		}
 		if s != a[3] {
-			t.Error("testdata/testfp.txt:", lineno, ": ", a[0], " ", a[1], " ", a[2], " (", v, ") ",
-				"want ", a[3], " got ", s)
+			t.Errorf("testdata/testfp.txt:%d: %s %s %s %s: have %s want %s", lineno, a[0], a[1], a[2], a[3], s, a[3])
 		}
 	}
 	if s.Err() != nil {

@@ -533,11 +533,17 @@ lable2:
 	XVMOVQ		X28.V[3], X8    // 88ef0377
 	XVMOVQ		X27.V[0], X9    // 69e30377
 
-	//Move vector element to vector.
+	// Move vector element to vector.
 	VMOVQ		V1.B[3], V9.B16 // 298cf772
 	VMOVQ		V2.H[2], V8.H8  // 48c8f772
 	VMOVQ		V3.W[1], V7.W4  // 67e4f772
 	VMOVQ		V4.V[0], V6.V2  // 86f0f772
+
+	// Move vector register to vector register.
+	VMOVQ		V1, V9		// 29002d73
+	VMOVQ		V2, V8		// 48002d73
+	XVMOVQ		X3, X7		// 67002d77
+	XVMOVQ		X4, X6		// 86002d77
 
 	// Load data from memory and broadcast to each element of a vector register: VMOVQ    offset(Rj), <Vd>.<T>
 	VMOVQ		(R4), V0.B16	// 80008030
@@ -1016,6 +1022,12 @@ lable2:
 	XVSHUF4IV	$0, X1, X2	// 22009c77
 	XVSHUF4IV	$8, X1, X2	// 22209c77
 	XVSHUF4IV	$15, X1, X2	// 223c9c77
+
+	// VPERMIW, XVPERMI{W,V,Q} instructions
+	VPERMIW		$0x1B, V1, V2 	// VPERMIW	$27, V1, V2 // 226ce473
+	XVPERMIW	$0x2B, X1, X2 	// XVPERMIW	$43, X1, X2 // 22ace477
+	XVPERMIV	$0x3B, X1, X2 	// XVPERMIV	$59, X1, X2 // 22ece877
+	XVPERMIQ	$0x4B, X1, X2 	// XVPERMIQ	$75, X1, X2 // 222ced77
 
 	// [X]VSETEQZ.V, [X]VSETNEZ.V
 	VSETEQV		V1, FCC0	// 20989c72

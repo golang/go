@@ -203,6 +203,15 @@ Note: In the following sections 3.1 to 3.6, "ui4" (4-bit unsigned int immediate)
 	VMOVQ Vj.W[index], Vd.W4  | vreplvei.w vd, vj, ui2 | for i in range(4) : VR[vd].w[i] = VR[vj].w[ui2]
 	VMOVQ Vj.V[index], Vd.V2  | vreplvei.d vd, vj, ui1 | for i in range(2) : VR[vd].d[i] = VR[vj].d[ui1]
 
+3.7 Move vector register to vector register.
+        Instruction format:
+        VMOVQ     Vj, Vd
+
+        Mapping between Go and platform assembly:
+          Go assembly   |   platform assembly   |                         semantics
+        VMOVQ   Vj, Vd  |  vslli.d vd, vj, 0x0  | for i in range(2) : VR[vd].D[i] = SLL(VR[vj].D[i], 0)
+        VXMOVQ  Xj, Xd  | xvslli.d xd, xj, 0x0  | for i in range(4) : XR[xd].D[i] = SLL(XR[xj].D[i], 0)
+
 3.7 Load data from memory and broadcast to each element of a vector register.
 
 	Instruction format:
@@ -228,6 +237,23 @@ Note: In the following sections 3.1 to 3.6, "ui4" (4-bit unsigned int immediate)
          VMOVQ  2(R4), V5.H8     |      vldrepl.h  v5, r4, $1
          VMOVQ  8(R4), V5.W4     |      vldrepl.w  v5, r4, $2
          VMOVQ  8(R4), V5.V2     |      vldrepl.d  v5, r4, $1
+
+3.8 Vector permutation instruction
+	Instruction format:
+	VPERMIW    ui8, Vj, Vd
+
+	Mapping between Go and platform assembly:
+	     Go assembly     |   platform assembly   |                                 semantics
+	VPERMIW  ui8, Vj, Vd |  vpermi.w vd, vj, ui8 | VR[vd].W[0] = VR[vj].W[ui8[1:0]], VR[vd].W[1] = VR[vj].W[ui8[3:2]],
+	                     |                       | VR[vd].W[2] = VR[vd].W[ui8[5:4]], VR[vd].W[3] = VR[vd].W[ui8[7:6]]
+	XVPERMIW ui8, Xj, Xd | xvpermi.w xd, xj, ui8 | XR[xd].W[0] = XR[xj].W[ui8[1:0]],   XR[xd].W[1] = XR[xj].W[ui8[3:2]],
+	                     |                       | XR[xd].W[3] = XR[xd].W[ui8[7:6]],   XR[xd].W[2] = XR[xd].W[ui8[5:4]],
+	                     |                       | XR[xd].W[4] = XR[xj].W[ui8[1:0]+4], XR[xd].W[5] = XR[xj].W[ui8[3:2]+4],
+	                     |                       | XR[xd].W[6] = XR[xd].W[ui8[5:4]+4], XR[xd].W[7] = XR[xd].W[ui8[7:6]+4]
+	XVPERMIV ui8, Xj, Xd | xvpermi.d xd, xj, ui8 | XR[xd].D[0] = XR[xj].D[ui8[1:0]], XR[xd].D[1] = XR[xj].D[ui8[3:2]],
+	                     |                       | XR[xd].D[2] = XR[xj].D[ui8[5:4]], XR[xd].D[3] = XR[xj].D[ui8[7:6]]
+	XVPERMIQ ui8, Xj, Xd | xvpermi.q xd, xj, ui8 | vec = {XR[xd], XR[xj]}, XR[xd].Q[0] = vec.Q[ui8[1:0]], XR[xd].Q[1] = vec.Q[ui8[5:4]]
+
 
 # Special instruction encoding definition and description on LoongArch
 

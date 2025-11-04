@@ -420,7 +420,7 @@ var nl = []byte{'\n'}
 
 func runList(ctx context.Context, cmd *base.Command, args []string) {
 	moduleLoaderState := modload.NewState()
-	modload.InitWorkfile(moduleLoaderState)
+	moduleLoaderState.InitWorkfile()
 
 	if *listFmt != "" && listJson {
 		base.Fatalf("go list -f cannot be used with -json")
@@ -428,7 +428,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 	if *listReuse != "" && !*listM {
 		base.Fatalf("go list -reuse cannot be used without -m")
 	}
-	if *listReuse != "" && modload.HasModRoot(moduleLoaderState) {
+	if *listReuse != "" && moduleLoaderState.HasModRoot() {
 		base.Fatalf("go list -reuse cannot be used inside a module")
 	}
 
@@ -502,7 +502,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		if cfg.BuildMod == "vendor" {
 			base.Fatalf("go list -retracted cannot be used when vendoring is enabled")
 		}
-		if !modload.Enabled(moduleLoaderState) {
+		if !moduleLoaderState.Enabled() {
 			base.Fatalf("go list -retracted can only be used in module-aware mode")
 		}
 	}
@@ -526,7 +526,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 			base.Fatalf("go list -test cannot be used with -m")
 		}
 
-		if modload.Init(moduleLoaderState); !modload.Enabled(moduleLoaderState) {
+		if modload.Init(moduleLoaderState); !moduleLoaderState.Enabled() {
 			base.Fatalf("go: list -m cannot be used with GO111MODULE=off")
 		}
 

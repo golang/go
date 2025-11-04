@@ -79,10 +79,10 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 		// for -race and -msan.
 		moduleLoaderState.ForceUseModules = true
 		moduleLoaderState.RootMode = modload.NoRoot
-		modload.AllowMissingModuleImports(moduleLoaderState)
+		moduleLoaderState.AllowMissingModuleImports()
 		modload.Init(moduleLoaderState)
 	} else {
-		modload.InitWorkfile(moduleLoaderState)
+		moduleLoaderState.InitWorkfile()
 	}
 
 	work.BuildInit(moduleLoaderState)

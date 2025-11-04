@@ -72,8 +72,8 @@ type File struct {
 	ExpFunc     []*ExpFunc          // exported functions for this file
 	Name        map[string]*Name    // map from Go name to Name
 	NamePos     map[*Name]token.Pos // map from Name to position of the first reference
-	NoCallbacks map[string]bool     // C function names that with #cgo nocallback directive
-	NoEscapes   map[string]bool     // C function names that with #cgo noescape directive
+	NoCallbacks map[string]bool     // C function names with #cgo nocallback directive
+	NoEscapes   map[string]bool     // C function names with #cgo noescape directive
 	Edit        *edit.Buffer
 
 	debugs []*debug // debug data from iterations of gccDebug. Initialized by File.loadDebug.

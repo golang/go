@@ -140,13 +140,32 @@ func printcomplex64(c complex64) {
 }
 
 func printuint(v uint64) {
+	// Note: Avoiding strconv.AppendUint so that it's clearer
+	// that there are no allocations in this routine.
+	// cmd/link/internal/ld.TestAbstractOriginSanity
+	// sees the append and doesn't realize it doesn't allocate.
 	var buf [20]byte
-	gwrite(strconv.AppendUint(buf[:0], v, 10))
+	i := strconv.RuntimeFormatBase10(buf[:], v)
+	gwrite(buf[i:])
 }
 
 func printint(v int64) {
+	// Note: Avoiding strconv.AppendUint so that it's clearer
+	// that there are no allocations in this routine.
+	// cmd/link/internal/ld.TestAbstractOriginSanity
+	// sees the append and doesn't realize it doesn't allocate.
+	neg := v < 0
+	u := uint64(v)
+	if neg {
+		u = -u
+	}
 	var buf [20]byte
-	gwrite(strconv.AppendInt(buf[:0], v, 10))
+	i := strconv.RuntimeFormatBase10(buf[:], u)
+	if neg {
+		i--
+		buf[i] = '-'
+	}
+	gwrite(buf[i:])
 }
 
 var minhexdigits = 0 // protected by printlock

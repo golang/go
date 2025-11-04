@@ -7,8 +7,8 @@
 package nistec
 
 import (
+	"crypto/internal/constanttime"
 	"crypto/internal/fips140/nistec/fiat"
-	"crypto/internal/fips140/subtle"
 	"errors"
 	"sync"
 )
@@ -333,7 +333,7 @@ func (table *p521Table) Select(p *P521Point, n uint8) {
 	}
 	p.Set(NewP521Point())
 	for i := uint8(1); i < 16; i++ {
-		cond := subtle.ConstantTimeByteEq(i, n)
+		cond := constanttime.ByteEq(i, n)
 		p.Select(table[i-1], p, cond)
 	}
 }

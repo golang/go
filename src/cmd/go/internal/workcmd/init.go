@@ -45,7 +45,7 @@ func init() {
 
 func runInit(ctx context.Context, cmd *base.Command, args []string) {
 	moduleLoaderState := modload.NewState()
-	modload.InitWorkfile(moduleLoaderState)
+	moduleLoaderState.InitWorkfile()
 
 	moduleLoaderState.ForceUseModules = true
 

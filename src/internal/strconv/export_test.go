@@ -6,6 +6,11 @@ package strconv
 
 type Uint128 = uint128
 
+const (
+	Pow10Min = pow10Min
+	Pow10Max = pow10Max
+)
+
 var (
 	MulLog10_2       = mulLog10_2
 	MulLog2_10       = mulLog2_10
@@ -13,6 +18,9 @@ var (
 	Pow10            = pow10
 	Umul128          = umul128
 	Umul192          = umul192
+	Div5Tab          = div5Tab
+	DivisiblePow5    = divisiblePow5
+	TrimZeros        = trimZeros
 )
 
 func NewDecimal(i uint64) *decimal {

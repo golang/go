@@ -70,6 +70,12 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
 	sysUnusedOS(v, n)
 }
 
+// needZeroAfterSysUnused reports whether memory returned by sysUnused must be
+// zeroed for use.
+func needZeroAfterSysUnused() bool {
+	return needZeroAfterSysUnusedOS()
+}
+
 // sysUsed transitions a memory region from Prepared to Ready. It notifies the
 // operating system that the memory region is needed and ensures that the region
 // may be safely accessed. This is typically a no-op on systems that don't have

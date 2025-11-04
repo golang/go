@@ -1254,8 +1254,8 @@ func castogscanstatus(gp *g, oldval, newval uint32) bool {
 		}
 	}
 	print("runtime: castogscanstatus oldval=", hex(oldval), " newval=", hex(newval), "\n")
-	throw("castogscanstatus")
-	panic("not reached")
+	throw("bad oldval passed to castogscanstatus")
+	return false
 }
 
 // casgstatusAlwaysTrack is a debug flag that causes casgstatus to always track

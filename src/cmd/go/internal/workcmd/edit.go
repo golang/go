@@ -144,7 +144,7 @@ func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) == 1 {
 		gowork = args[0]
 	} else {
-		modload.InitWorkfile(moduleLoaderState)
+		moduleLoaderState.InitWorkfile()
 		gowork = modload.WorkFilePath(moduleLoaderState)
 	}
 	if gowork == "" {

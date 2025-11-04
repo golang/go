@@ -5,7 +5,7 @@
 //go:build test_run
 
 // Compute Fibonacci numbers with two goroutines
-// that pass integers back and forth.  No actual
+// that pass integers back and forth. No actual
 // concurrency, just threads and synchronization
 // and foreign code on multiple pthreads.
 

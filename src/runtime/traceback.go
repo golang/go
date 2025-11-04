@@ -1314,7 +1314,16 @@ func tracebacksomeothers(me *g, showf func(*g) bool) {
 		// from a signal handler initiated during a systemstack call.
 		// The original G is still in the running state, and we want to
 		// print its stack.
-		if gp.m != getg().m && readgstatus(gp)&^_Gscan == _Grunning {
+		//
+		// There's a small window of time in exitsyscall where a goroutine could be
+		// in _Grunning as it's exiting a syscall. This could be the case even if the
+		// world is stopped or frozen.
+		//
+		// This is OK because the goroutine will not exit the syscall while the world
+		// is stopped or frozen. This is also why it's safe to check syscallsp here,
+		// and safe to take the goroutine's stack trace. The syscall path mutates
+		// syscallsp only just before exiting the syscall.
+		if gp.m != getg().m && readgstatus(gp)&^_Gscan == _Grunning && gp.syscallsp == 0 {
 			print("\tgoroutine running on other thread; stack unavailable\n")
 			printcreatedby(gp)
 		} else {

@@ -371,7 +371,6 @@ func deferproc(fn func()) {
 	d.link = gp._defer
 	gp._defer = d
 	d.fn = fn
-	d.pc = sys.GetCallerPC()
 	// We must not be preempted between calling GetCallerSP and
 	// storing it to d.sp because GetCallerSP's result is a
 	// uintptr stack pointer.
@@ -475,7 +474,6 @@ func deferrangefunc() any {
 	d := newdefer()
 	d.link = gp._defer
 	gp._defer = d
-	d.pc = sys.GetCallerPC()
 	// We must not be preempted between calling GetCallerSP and
 	// storing it to d.sp because GetCallerSP's result is a
 	// uintptr stack pointer.
@@ -535,7 +533,6 @@ func deferconvert(d0 *_defer) {
 	}
 	for d1 := d; ; d1 = d1.link {
 		d1.sp = d0.sp
-		d1.pc = d0.pc
 		if d1.link == nil {
 			d1.link = tail
 			break
@@ -564,17 +561,14 @@ func deferprocStack(d *_defer) {
 	d.heap = false
 	d.rangefunc = false
 	d.sp = sys.GetCallerSP()
-	d.pc = sys.GetCallerPC()
 	// The lines below implement:
-	//   d.panic = nil
-	//   d.fd = nil
 	//   d.link = gp._defer
 	//   d.head = nil
 	//   gp._defer = d
-	// But without write barriers. The first three are writes to
+	// But without write barriers. The first two are writes to
 	// the stack so they don't need a write barrier, and furthermore
 	// are to uninitialized memory, so they must not use a write barrier.
-	// The fourth write does not require a write barrier because we
+	// The third write does not require a write barrier because we
 	// explicitly mark all the defer structures, so we don't need to
 	// keep track of pointers to them with a write barrier.
 	*(*uintptr)(unsafe.Pointer(&d.link)) = uintptr(unsafe.Pointer(gp._defer))
@@ -994,8 +988,6 @@ func (p *_panic) nextDefer() (func(), bool) {
 
 			fn := d.fn
 
-			p.retpc = d.pc
-
 			// Unlink and free.
 			popDefer(gp)
 
@@ -1035,6 +1027,12 @@ func (p *_panic) nextFrame() (ok bool) {
 			// it's non-zero.
 
 			if u.frame.sp == limit {
+				f := u.frame.fn
+				if f.deferreturn == 0 {
+					throw("no deferreturn")
+				}
+				p.retpc = f.entry() + uintptr(f.deferreturn)
+
 				break // found a frame with linked defers
 			}
 
@@ -1290,15 +1288,6 @@ func recovery(gp *g) {
 	pc, sp, fp := p.retpc, uintptr(p.sp), uintptr(p.fp)
 	p0, saveOpenDeferState := p, p.deferBitsPtr != nil && *p.deferBitsPtr != 0
 
-	// The linker records the f-relative address of a call to deferreturn in f's funcInfo.
-	// Assuming a "normal" call to recover() inside one of f's deferred functions
-	// invoked for a panic, that is the desired PC for exiting f.
-	f := findfunc(pc)
-	if f.deferreturn == 0 {
-		throw("no deferreturn")
-	}
-	gotoPc := f.entry() + uintptr(f.deferreturn)
-
 	// Unwind the panic stack.
 	for ; p != nil && uintptr(p.startSP) < sp; p = p.link {
 		// Don't allow jumping past a pending Goexit.
@@ -1321,7 +1310,7 @@ func recovery(gp *g) {
 		// With how subtle defer handling is, this might not actually be
 		// worthwhile though.
 		if p.goexit {
-			gotoPc, sp = p.startPC, uintptr(p.startSP)
+			pc, sp = p.startPC, uintptr(p.startSP)
 			saveOpenDeferState = false // goexit is unwinding the stack anyway
 			break
 		}
@@ -1384,7 +1373,7 @@ func recovery(gp *g) {
 
 	// branch directly to the deferreturn
 	gp.sched.sp = sp
-	gp.sched.pc = gotoPc
+	gp.sched.pc = pc
 	gp.sched.lr = 0
 	// Restore the bp on platforms that support frame pointers.
 	// N.B. It's fine to not set anything for platforms that don't

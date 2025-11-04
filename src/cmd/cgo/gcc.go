@@ -1056,7 +1056,7 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
 func (p *Package) needsPointerCheck(f *File, t ast.Expr, arg ast.Expr) bool {
 	// An untyped nil does not need a pointer check, and when
 	// _cgoCheckPointer returns the untyped nil the type assertion we
-	// are going to insert will fail.  Easier to just skip nil arguments.
+	// are going to insert will fail. Easier to just skip nil arguments.
 	// TODO: Note that this fails if nil is shadowed.
 	if id, ok := arg.(*ast.Ident); ok && id.Name == "nil" {
 		return false
@@ -3010,7 +3010,7 @@ func (c *typeConv) FuncType(dtype *dwarf.FuncType, pos token.Pos) *FuncType {
 	for i, f := range dtype.ParamType {
 		// gcc's DWARF generator outputs a single DotDotDotType parameter for
 		// function pointers that specify no parameters (e.g. void
-		// (*__cgo_0)()).  Treat this special case as void. This case is
+		// (*__cgo_0)()). Treat this special case as void. This case is
 		// invalid according to ISO C anyway (i.e. void (*__cgo_1)(...) is not
 		// legal).
 		if _, ok := f.(*dwarf.DotDotDotType); ok && i == 0 {
@@ -3081,7 +3081,7 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
 	off := int64(0)
 
 	// Rename struct fields that happen to be named Go keywords into
-	// _{keyword}.  Create a map from C ident -> Go ident. The Go ident will
+	// _{keyword}. Create a map from C ident -> Go ident. The Go ident will
 	// be mangled. Any existing identifier that already has the same name on
 	// the C-side will cause the Go-mangled version to be prefixed with _.
 	// (e.g. in a struct with fields '_type' and 'type', the latter would be
@@ -3309,7 +3309,7 @@ func godefsFields(fld []*ast.Field) {
 // fieldPrefix returns the prefix that should be removed from all the
 // field names when generating the C or Go code. For generated
 // C, we leave the names as is (tv_sec, tv_usec), since that's what
-// people are used to seeing in C.  For generated Go code, such as
+// people are used to seeing in C. For generated Go code, such as
 // package syscall's data structures, we drop a common prefix
 // (so sec, usec, which will get turned into Sec, Usec for exporting).
 func fieldPrefix(fld []*ast.Field) string {
@@ -3456,7 +3456,7 @@ func (c *typeConv) badCFType(dt *dwarf.TypedefType) bool {
 // Tagged pointer support
 // Low-bit set means tagged object, next 3 bits (currently)
 // define the tagged object class, next 4 bits are for type
-// information for the specific tagged object class.  Thus,
+// information for the specific tagged object class. Thus,
 // the low byte is for type info, and the rest of a pointer
 // (32 or 64-bit) is for payload, whatever the tagged class.
 //

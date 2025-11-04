@@ -4,9 +4,9 @@
 
 package cgotest
 
-// Test that we have no more than one build ID.  In the past we used
+// Test that we have no more than one build ID. In the past we used
 // to generate a separate build ID for each package using cgo, and the
-// linker concatenated them all.  We don't want that--we only want
+// linker concatenated them all. We don't want that--we only want
 // one.
 
 import (
@@ -42,7 +42,7 @@ sections:
 		for len(d) > 0 {
 
 			// ELF standards differ as to the sizes in
-			// note sections.  Both the GNU linker and
+			// note sections. Both the GNU linker and
 			// gold always generate 32-bit sizes, so that
 			// is what we assume here.
 

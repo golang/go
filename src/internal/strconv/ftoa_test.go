@@ -5,9 +5,9 @@
 package strconv_test
 
 import (
+	. "internal/strconv"
 	"math"
 	"math/rand"
-	. "internal/strconv"
 	"testing"
 )
 
@@ -177,6 +177,16 @@ var ftoatests = []ftoaTest{
 	{1.801439850948199e+16, 'g', -1, "1.801439850948199e+16"},
 	{5.960464477539063e-08, 'g', -1, "5.960464477539063e-08"},
 	{1.012e-320, 'g', -1, "1.012e-320"},
+
+	// Cases from TestFtoaRandom that caught bugs in fixedFtoa.
+	{8177880169308380. * (1 << 1), 'e', 14, "1.63557603386168e+16"},
+	{8393378656576888. * (1 << 1), 'e', 15, "1.678675731315378e+16"},
+	{8738676561280626. * (1 << 4), 'e', 16, "1.3981882498049002e+17"},
+	{8291032395191335. / (1 << 30), 'e', 5, "7.72163e+06"},
+
+	// Exercise divisiblePow5 case in fixedFtoa
+	{2384185791015625. * (1 << 12), 'e', 5, "9.76562e+18"},
+	{2384185791015625. * (1 << 13), 'e', 5, "1.95312e+19"},
 }
 
 func TestFtoa(t *testing.T) {
@@ -253,7 +263,7 @@ func TestFtoaRandom(t *testing.T) {
 		shortSlow = FormatFloat(x, 'e', prec, 64)
 		SetOptimize(true)
 		if shortSlow != shortFast {
-			t.Errorf("%b printed as %s, want %s", x, shortFast, shortSlow)
+			t.Errorf("%b printed with %%.%de as %s, want %s", x, prec, shortFast, shortSlow)
 		}
 	}
 }
@@ -294,14 +304,20 @@ var ftoaBenches = []struct {
 
 	{"64Fixed1", 123456, 'e', 3, 64},
 	{"64Fixed2", 123.456, 'e', 3, 64},
+	{"64Fixed2.5", 1.2345e+06, 'e', 3, 64},
 	{"64Fixed3", 1.23456e+78, 'e', 3, 64},
 	{"64Fixed4", 1.23456e-78, 'e', 3, 64},
+	{"64Fixed5Hard", 4.096e+25, 'e', 5, 64}, // needs divisiblePow5(..., 20)
 	{"64Fixed12", 1.23456e-78, 'e', 12, 64},
 	{"64Fixed16", 1.23456e-78, 'e', 16, 64},
 	// From testdata/testfp.txt
 	{"64Fixed12Hard", math.Ldexp(6965949469487146, -249), 'e', 12, 64},
 	{"64Fixed17Hard", math.Ldexp(8887055249355788, 665), 'e', 17, 64},
 	{"64Fixed18Hard", math.Ldexp(6994187472632449, 690), 'e', 18, 64},
+
+	{"64FixedF1", 123.456, 'f', 6, 64},
+	{"64FixedF2", 0.0123, 'f', 6, 64},
+	{"64FixedF3", 12.3456, 'f', 2, 64},
 
 	// Trigger slow path (see issue #15672).
 	// The shortest is: 8.034137530808823e+43

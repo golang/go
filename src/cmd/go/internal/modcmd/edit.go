@@ -233,7 +233,7 @@ func runEdit(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) == 1 {
 		gomod = args[0]
 	} else {
-		gomod = modload.ModFilePath(moduleLoaderState)
+		gomod = moduleLoaderState.ModFilePath()
 	}
 
 	if *editModule != "" {

@@ -574,7 +574,7 @@ type retraction struct {
 //
 // The caller must not modify the returned summary.
 func goModSummary(loaderstate *State, m module.Version) (*modFileSummary, error) {
-	if m.Version == "" && !inWorkspaceMode(loaderstate) && loaderstate.MainModules.Contains(m.Path) {
+	if m.Version == "" && !loaderstate.inWorkspaceMode() && loaderstate.MainModules.Contains(m.Path) {
 		panic("internal error: goModSummary called on a main module")
 	}
 	if gover.IsToolchain(m.Path) {
@@ -686,7 +686,7 @@ func rawGoModSummary(loaderstate *State, m module.Version) (*modFileSummary, err
 		}
 		return &modFileSummary{module: m}, nil
 	}
-	if m.Version == "" && !inWorkspaceMode(loaderstate) && loaderstate.MainModules.Contains(m.Path) {
+	if m.Version == "" && !loaderstate.inWorkspaceMode() && loaderstate.MainModules.Contains(m.Path) {
 		// Calling rawGoModSummary implies that we are treating m as a module whose
 		// requirements aren't the roots of the module graph and can't be modified.
 		//
@@ -694,12 +694,12 @@ func rawGoModSummary(loaderstate *State, m module.Version) (*modFileSummary, err
 		// are the roots of the module graph and we expect them to be kept consistent.
 		panic("internal error: rawGoModSummary called on a main module")
 	}
-	if m.Version == "" && inWorkspaceMode(loaderstate) && m.Path == "command-line-arguments" {
+	if m.Version == "" && loaderstate.inWorkspaceMode() && m.Path == "command-line-arguments" {
 		// "go work sync" calls LoadModGraph to make sure the module graph is valid.
 		// If there are no modules in the workspace, we synthesize an empty
 		// command-line-arguments module, which rawGoModData cannot read a go.mod for.
 		return &modFileSummary{module: m}, nil
-	} else if m.Version == "" && inWorkspaceMode(loaderstate) && loaderstate.MainModules.Contains(m.Path) {
+	} else if m.Version == "" && loaderstate.inWorkspaceMode() && loaderstate.MainModules.Contains(m.Path) {
 		// When go get uses EnterWorkspace to check that the workspace loads properly,
 		// it will update the contents of the workspace module's modfile in memory. To use the updated
 		// contents of the modfile when doing the load, don't read from disk and instead
@@ -785,7 +785,7 @@ func rawGoModData(loaderstate *State, m module.Version) (name string, data []byt
 	if m.Version == "" {
 		dir := m.Path
 		if !filepath.IsAbs(dir) {
-			if inWorkspaceMode(loaderstate) && loaderstate.MainModules.Contains(m.Path) {
+			if loaderstate.inWorkspaceMode() && loaderstate.MainModules.Contains(m.Path) {
 				dir = loaderstate.MainModules.ModRoot(m)
 			} else {
 				// m is a replacement module with only a file path.

@@ -145,7 +145,7 @@ func listModules(loaderstate *State, ctx context.Context, rs *Requirements, args
 		}
 		if arg == "all" || strings.Contains(arg, "...") {
 			needFullGraph = true
-			if !HasModRoot(loaderstate) {
+			if !loaderstate.HasModRoot() {
 				base.Fatalf("go: cannot match %q: %v", arg, NewNoMainModulesError(loaderstate))
 			}
 			continue
@@ -154,7 +154,7 @@ func listModules(loaderstate *State, ctx context.Context, rs *Requirements, args
 			if vers == "upgrade" || vers == "patch" {
 				if _, ok := rs.rootSelected(loaderstate, path); !ok || rs.pruning == unpruned {
 					needFullGraph = true
-					if !HasModRoot(loaderstate) {
+					if !loaderstate.HasModRoot() {
 						base.Fatalf("go: cannot match %q: %v", arg, NewNoMainModulesError(loaderstate))
 					}
 				}
@@ -163,7 +163,7 @@ func listModules(loaderstate *State, ctx context.Context, rs *Requirements, args
 		}
 		if _, ok := rs.rootSelected(loaderstate, arg); !ok || rs.pruning == unpruned {
 			needFullGraph = true
-			if mode&ListVersions == 0 && !HasModRoot(loaderstate) {
+			if mode&ListVersions == 0 && !loaderstate.HasModRoot() {
 				base.Fatalf("go: cannot match %q without -versions or an explicit version: %v", arg, NewNoMainModulesError(loaderstate))
 			}
 		}
