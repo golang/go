@@ -41,8 +41,6 @@ type Config struct {
 	hasGReg        bool      // has hardware g register
 	ctxt           *obj.Link // Generic arch information
 	optimize       bool      // Do optimization
-	useAvg         bool      // Use optimizations that need Avg* operations
-	useHmul        bool      // Use optimizations that need Hmul* operations
 	SoftFloat      bool      //
 	Race           bool      // race detector enabled
 	BigEndian      bool      //
@@ -168,8 +166,6 @@ type Frontend interface {
 // NewConfig returns a new configuration object for the given architecture.
 func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat bool) *Config {
 	c := &Config{arch: arch, Types: types}
-	c.useAvg = true
-	c.useHmul = true
 	switch arch {
 	case "amd64":
 		c.PtrSize = 8
@@ -359,8 +355,6 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.FPReg = framepointerRegWasm
 		c.LinkReg = linkRegWasm
 		c.hasGReg = true
-		c.useAvg = false
-		c.useHmul = false
 		c.unalignedOK = true
 		c.haveCondSelect = true
 	default:

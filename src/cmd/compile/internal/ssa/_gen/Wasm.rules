@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+(Last ___) => v.Args[len(v.Args)-1]
+
 // Lowering arithmetic
 (Add(64|32|16|8|Ptr) ...) => (I64Add ...)
 (Add(64|32)F ...) => (F(64|32)Add ...)
@@ -43,6 +45,37 @@
 (Com(64|32|16|8) x) => (I64Xor x (I64Const [-1]))
 
 (Not ...) => (I64Eqz ...)
+
+(Avg64u x y) => (I64Add (I64ShrU (I64Sub x y) (I64Const [1])) y)
+
+// High word of multiply without carry bits; see Hacker's Delight, 2nd. ed, Figure 8-2, p. 174.
+(Hmul64 <t> x y) =>
+	(Last <t>
+		x0: (ZeroExt32to64 x)
+		x1: (I64ShrS x (I64Const [32]))
+		y0: (ZeroExt32to64 y)
+		y1: (I64ShrS y (I64Const [32]))
+		x0y0: (I64Mul x0 y0)
+		tt: (I64Add (I64Mul x1 y0) (I64ShrU x0y0 (I64Const [32])))
+		w1: (I64Add (I64Mul x0 y1) (ZeroExt32to64 tt))
+		w2: (I64ShrS tt (I64Const [32]))
+		(I64Add (I64Add (I64Mul x1 y1) w2) (I64ShrS w1 (I64Const [32]))))
+
+// Same as Hmul64 but signed shifts now unsigned.
+(Hmul64u <t> x y) =>
+	(Last <t>
+		x0: (ZeroExt32to64 x)
+		x1: (I64ShrU x (I64Const [32]))
+		y0: (ZeroExt32to64 y)
+		y1: (I64ShrU y (I64Const [32]))
+		w0: (I64Mul x0 y0)
+		tt: (I64Add (I64Mul x1 y0) (I64ShrU w0 (I64Const [32])))
+		w1: (I64Add (I64Mul x0 y1) (ZeroExt32to64 tt))
+		w2: (I64ShrU tt (I64Const [32]))
+		hi: (I64Add (I64Add (I64Mul x1 y1) w2) (I64ShrU w1 (I64Const [32]))))
+
+(Select0 <t> (Mul64uhilo x y)) => (Hmul64u <t> x y)
+(Select1 <t> (Mul64uhilo x y)) => (I64Mul x y)
 
 // Lowering pointer arithmetic
 (OffPtr ...) => (I64AddConst ...)

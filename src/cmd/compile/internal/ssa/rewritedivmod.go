@@ -212,7 +212,7 @@ func rewriteValuedivmod_OpDiv16u(v *Value) bool {
 		return true
 	}
 	// match: (Div16u <t> x (Const16 [c]))
-	// cond: umagicOK16(c) && config.RegSize == 4 && config.useAvg
+	// cond: umagicOK16(c) && config.RegSize == 4
 	// result: (Trunc32to16 <t> (Rsh32Ux64 <typ.UInt32> (Avg32u (Lsh32x64 <typ.UInt32> (ZeroExt16to32 x) (Const64 <typ.UInt64> [16])) (Mul32 <typ.UInt32> (ZeroExt16to32 x) (Const32 <typ.UInt32> [int32(umagic16(c).m)]))) (Const64 <typ.UInt64> [16 + umagic16(c).s - 1])))
 	for {
 		t := v.Type
@@ -221,7 +221,7 @@ func rewriteValuedivmod_OpDiv16u(v *Value) bool {
 			break
 		}
 		c := auxIntToInt16(v_1.AuxInt)
-		if !(umagicOK16(c) && config.RegSize == 4 && config.useAvg) {
+		if !(umagicOK16(c) && config.RegSize == 4) {
 			break
 		}
 		v.reset(OpTrunc32to16)
@@ -315,7 +315,7 @@ func rewriteValuedivmod_OpDiv32(v *Value) bool {
 		return true
 	}
 	// match: (Div32 <t> x (Const32 [c]))
-	// cond: smagicOK32(c) && config.RegSize == 4 && smagic32(c).m&1 == 0 && config.useHmul
+	// cond: smagicOK32(c) && config.RegSize == 4 && smagic32(c).m&1 == 0
 	// result: (Sub32 <t> (Rsh32x64 <t> (Hmul32 <t> x (Const32 <typ.UInt32> [int32(smagic32(c).m/2)])) (Const64 <typ.UInt64> [smagic32(c).s - 1])) (Rsh32x64 <t> x (Const64 <typ.UInt64> [31])))
 	for {
 		t := v.Type
@@ -324,7 +324,7 @@ func rewriteValuedivmod_OpDiv32(v *Value) bool {
 			break
 		}
 		c := auxIntToInt32(v_1.AuxInt)
-		if !(smagicOK32(c) && config.RegSize == 4 && smagic32(c).m&1 == 0 && config.useHmul) {
+		if !(smagicOK32(c) && config.RegSize == 4 && smagic32(c).m&1 == 0) {
 			break
 		}
 		v.reset(OpSub32)
@@ -345,7 +345,7 @@ func rewriteValuedivmod_OpDiv32(v *Value) bool {
 		return true
 	}
 	// match: (Div32 <t> x (Const32 [c]))
-	// cond: smagicOK32(c) && config.RegSize == 4 && smagic32(c).m&1 != 0 && config.useHmul
+	// cond: smagicOK32(c) && config.RegSize == 4 && smagic32(c).m&1 != 0
 	// result: (Sub32 <t> (Rsh32x64 <t> (Add32 <t> x (Hmul32 <t> x (Const32 <typ.UInt32> [int32(smagic32(c).m)]))) (Const64 <typ.UInt64> [smagic32(c).s])) (Rsh32x64 <t> x (Const64 <typ.UInt64> [31])))
 	for {
 		t := v.Type
@@ -354,7 +354,7 @@ func rewriteValuedivmod_OpDiv32(v *Value) bool {
 			break
 		}
 		c := auxIntToInt32(v_1.AuxInt)
-		if !(smagicOK32(c) && config.RegSize == 4 && smagic32(c).m&1 != 0 && config.useHmul) {
+		if !(smagicOK32(c) && config.RegSize == 4 && smagic32(c).m&1 != 0) {
 			break
 		}
 		v.reset(OpSub32)
@@ -411,7 +411,7 @@ func rewriteValuedivmod_OpDiv32u(v *Value) bool {
 		return true
 	}
 	// match: (Div32u <t> x (Const32 [c]))
-	// cond: t.IsSigned() && smagicOK32(c) && config.RegSize == 4 && config.useHmul
+	// cond: t.IsSigned() && smagicOK32(c) && config.RegSize == 4
 	// result: (Rsh32Ux64 <t> (Hmul32u <typ.UInt32> x (Const32 <typ.UInt32> [int32(smagic32(c).m)])) (Const64 <typ.UInt64> [smagic32(c).s]))
 	for {
 		t := v.Type
@@ -420,7 +420,7 @@ func rewriteValuedivmod_OpDiv32u(v *Value) bool {
 			break
 		}
 		c := auxIntToInt32(v_1.AuxInt)
-		if !(t.IsSigned() && smagicOK32(c) && config.RegSize == 4 && config.useHmul) {
+		if !(t.IsSigned() && smagicOK32(c) && config.RegSize == 4) {
 			break
 		}
 		v.reset(OpRsh32Ux64)
@@ -463,7 +463,7 @@ func rewriteValuedivmod_OpDiv32u(v *Value) bool {
 		return true
 	}
 	// match: (Div32u <t> x (Const32 [c]))
-	// cond: umagicOK32(c) && umagic32(c).m&1 == 0 && config.RegSize == 4 && config.useHmul
+	// cond: umagicOK32(c) && umagic32(c).m&1 == 0 && config.RegSize == 4
 	// result: (Rsh32Ux64 <t> (Hmul32u <typ.UInt32> x (Const32 <typ.UInt32> [int32(1<<31 + umagic32(c).m/2)])) (Const64 <typ.UInt64> [umagic32(c).s - 1]))
 	for {
 		t := v.Type
@@ -472,7 +472,7 @@ func rewriteValuedivmod_OpDiv32u(v *Value) bool {
 			break
 		}
 		c := auxIntToInt32(v_1.AuxInt)
-		if !(umagicOK32(c) && umagic32(c).m&1 == 0 && config.RegSize == 4 && config.useHmul) {
+		if !(umagicOK32(c) && umagic32(c).m&1 == 0 && config.RegSize == 4) {
 			break
 		}
 		v.reset(OpRsh32Ux64)
@@ -519,7 +519,7 @@ func rewriteValuedivmod_OpDiv32u(v *Value) bool {
 		return true
 	}
 	// match: (Div32u <t> x (Const32 [c]))
-	// cond: umagicOK32(c) && config.RegSize == 4 && c&1 == 0 && config.useHmul
+	// cond: umagicOK32(c) && config.RegSize == 4 && c&1 == 0
 	// result: (Rsh32Ux64 <t> (Hmul32u <typ.UInt32> (Rsh32Ux64 <typ.UInt32> x (Const64 <typ.UInt64> [1])) (Const32 <typ.UInt32> [int32(1<<31 + (umagic32(c).m+1)/2)])) (Const64 <typ.UInt64> [umagic32(c).s - 2]))
 	for {
 		t := v.Type
@@ -528,7 +528,7 @@ func rewriteValuedivmod_OpDiv32u(v *Value) bool {
 			break
 		}
 		c := auxIntToInt32(v_1.AuxInt)
-		if !(umagicOK32(c) && config.RegSize == 4 && c&1 == 0 && config.useHmul) {
+		if !(umagicOK32(c) && config.RegSize == 4 && c&1 == 0) {
 			break
 		}
 		v.reset(OpRsh32Ux64)
@@ -547,7 +547,7 @@ func rewriteValuedivmod_OpDiv32u(v *Value) bool {
 		return true
 	}
 	// match: (Div32u <t> x (Const32 [c]))
-	// cond: umagicOK32(c) && config.RegSize == 8 && config.useAvg
+	// cond: umagicOK32(c) && config.RegSize == 8
 	// result: (Trunc64to32 <t> (Rsh64Ux64 <typ.UInt64> (Avg64u (Lsh64x64 <typ.UInt64> (ZeroExt32to64 x) (Const64 <typ.UInt64> [32])) (Mul64 <typ.UInt64> (ZeroExt32to64 x) (Const64 <typ.UInt32> [int64(umagic32(c).m)]))) (Const64 <typ.UInt64> [32 + umagic32(c).s - 1])))
 	for {
 		t := v.Type
@@ -556,7 +556,7 @@ func rewriteValuedivmod_OpDiv32u(v *Value) bool {
 			break
 		}
 		c := auxIntToInt32(v_1.AuxInt)
-		if !(umagicOK32(c) && config.RegSize == 8 && config.useAvg) {
+		if !(umagicOK32(c) && config.RegSize == 8) {
 			break
 		}
 		v.reset(OpTrunc64to32)
@@ -581,7 +581,7 @@ func rewriteValuedivmod_OpDiv32u(v *Value) bool {
 		return true
 	}
 	// match: (Div32u <t> x (Const32 [c]))
-	// cond: umagicOK32(c) && config.RegSize == 4 && config.useAvg && config.useHmul
+	// cond: umagicOK32(c) && config.RegSize == 4
 	// result: (Rsh32Ux64 <t> (Avg32u x (Hmul32u <typ.UInt32> x (Const32 <typ.UInt32> [int32(umagic32(c).m)]))) (Const64 <typ.UInt64> [umagic32(c).s - 1]))
 	for {
 		t := v.Type
@@ -590,7 +590,7 @@ func rewriteValuedivmod_OpDiv32u(v *Value) bool {
 			break
 		}
 		c := auxIntToInt32(v_1.AuxInt)
-		if !(umagicOK32(c) && config.RegSize == 4 && config.useAvg && config.useHmul) {
+		if !(umagicOK32(c) && config.RegSize == 4) {
 			break
 		}
 		v.reset(OpRsh32Ux64)
@@ -612,7 +612,6 @@ func rewriteValuedivmod_OpDiv64(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	config := b.Func.Config
 	typ := &b.Func.Config.Types
 	// match: (Div64 <t> n (Const64 [c]))
 	// cond: isPowerOfTwo(c)
@@ -644,7 +643,7 @@ func rewriteValuedivmod_OpDiv64(v *Value) bool {
 		return true
 	}
 	// match: (Div64 <t> x (Const64 [c]))
-	// cond: smagicOK64(c) && smagic64(c).m&1 == 0 && config.useHmul
+	// cond: smagicOK64(c) && smagic64(c).m&1 == 0
 	// result: (Sub64 <t> (Rsh64x64 <t> (Hmul64 <t> x (Const64 <typ.UInt64> [int64(smagic64(c).m/2)])) (Const64 <typ.UInt64> [smagic64(c).s - 1])) (Rsh64x64 <t> x (Const64 <typ.UInt64> [63])))
 	for {
 		t := v.Type
@@ -653,7 +652,7 @@ func rewriteValuedivmod_OpDiv64(v *Value) bool {
 			break
 		}
 		c := auxIntToInt64(v_1.AuxInt)
-		if !(smagicOK64(c) && smagic64(c).m&1 == 0 && config.useHmul) {
+		if !(smagicOK64(c) && smagic64(c).m&1 == 0) {
 			break
 		}
 		v.reset(OpSub64)
@@ -674,7 +673,7 @@ func rewriteValuedivmod_OpDiv64(v *Value) bool {
 		return true
 	}
 	// match: (Div64 <t> x (Const64 [c]))
-	// cond: smagicOK64(c) && smagic64(c).m&1 != 0 && config.useHmul
+	// cond: smagicOK64(c) && smagic64(c).m&1 != 0
 	// result: (Sub64 <t> (Rsh64x64 <t> (Add64 <t> x (Hmul64 <t> x (Const64 <typ.UInt64> [int64(smagic64(c).m)]))) (Const64 <typ.UInt64> [smagic64(c).s])) (Rsh64x64 <t> x (Const64 <typ.UInt64> [63])))
 	for {
 		t := v.Type
@@ -683,7 +682,7 @@ func rewriteValuedivmod_OpDiv64(v *Value) bool {
 			break
 		}
 		c := auxIntToInt64(v_1.AuxInt)
-		if !(smagicOK64(c) && smagic64(c).m&1 != 0 && config.useHmul) {
+		if !(smagicOK64(c) && smagic64(c).m&1 != 0) {
 			break
 		}
 		v.reset(OpSub64)
@@ -711,10 +710,9 @@ func rewriteValuedivmod_OpDiv64u(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	config := b.Func.Config
 	typ := &b.Func.Config.Types
 	// match: (Div64u <t> x (Const64 [c]))
-	// cond: t.IsSigned() && smagicOK64(c) && config.useHmul
+	// cond: t.IsSigned() && smagicOK64(c)
 	// result: (Rsh64Ux64 <t> (Hmul64u <typ.UInt64> x (Const64 <typ.UInt64> [int64(smagic64(c).m)])) (Const64 <typ.UInt64> [smagic64(c).s]))
 	for {
 		t := v.Type
@@ -723,7 +721,7 @@ func rewriteValuedivmod_OpDiv64u(v *Value) bool {
 			break
 		}
 		c := auxIntToInt64(v_1.AuxInt)
-		if !(t.IsSigned() && smagicOK64(c) && config.useHmul) {
+		if !(t.IsSigned() && smagicOK64(c)) {
 			break
 		}
 		v.reset(OpRsh64Ux64)
@@ -738,7 +736,7 @@ func rewriteValuedivmod_OpDiv64u(v *Value) bool {
 		return true
 	}
 	// match: (Div64u <t> x (Const64 [c]))
-	// cond: umagicOK64(c) && umagic64(c).m&1 == 0 && config.useHmul
+	// cond: umagicOK64(c) && umagic64(c).m&1 == 0
 	// result: (Rsh64Ux64 <t> (Hmul64u <typ.UInt64> x (Const64 <typ.UInt64> [int64(1<<63 + umagic64(c).m/2)])) (Const64 <typ.UInt64> [umagic64(c).s - 1]))
 	for {
 		t := v.Type
@@ -747,7 +745,7 @@ func rewriteValuedivmod_OpDiv64u(v *Value) bool {
 			break
 		}
 		c := auxIntToInt64(v_1.AuxInt)
-		if !(umagicOK64(c) && umagic64(c).m&1 == 0 && config.useHmul) {
+		if !(umagicOK64(c) && umagic64(c).m&1 == 0) {
 			break
 		}
 		v.reset(OpRsh64Ux64)
@@ -762,7 +760,7 @@ func rewriteValuedivmod_OpDiv64u(v *Value) bool {
 		return true
 	}
 	// match: (Div64u <t> x (Const64 [c]))
-	// cond: umagicOK64(c) && c&1 == 0 && config.useHmul
+	// cond: umagicOK64(c) && c&1 == 0
 	// result: (Rsh64Ux64 <t> (Hmul64u <typ.UInt64> (Rsh64Ux64 <typ.UInt64> x (Const64 <typ.UInt64> [1])) (Const64 <typ.UInt64> [int64(1<<63 + (umagic64(c).m+1)/2)])) (Const64 <typ.UInt64> [umagic64(c).s - 2]))
 	for {
 		t := v.Type
@@ -771,7 +769,7 @@ func rewriteValuedivmod_OpDiv64u(v *Value) bool {
 			break
 		}
 		c := auxIntToInt64(v_1.AuxInt)
-		if !(umagicOK64(c) && c&1 == 0 && config.useHmul) {
+		if !(umagicOK64(c) && c&1 == 0) {
 			break
 		}
 		v.reset(OpRsh64Ux64)
@@ -790,7 +788,7 @@ func rewriteValuedivmod_OpDiv64u(v *Value) bool {
 		return true
 	}
 	// match: (Div64u <t> x (Const64 [c]))
-	// cond: umagicOK64(c) && config.useAvg && config.useHmul
+	// cond: umagicOK64(c)
 	// result: (Rsh64Ux64 <t> (Avg64u x (Hmul64u <typ.UInt64> x (Const64 <typ.UInt64> [int64(umagic64(c).m)]))) (Const64 <typ.UInt64> [umagic64(c).s - 1]))
 	for {
 		t := v.Type
@@ -799,7 +797,7 @@ func rewriteValuedivmod_OpDiv64u(v *Value) bool {
 			break
 		}
 		c := auxIntToInt64(v_1.AuxInt)
-		if !(umagicOK64(c) && config.useAvg && config.useHmul) {
+		if !(umagicOK64(c)) {
 			break
 		}
 		v.reset(OpRsh64Ux64)
