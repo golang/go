@@ -1395,11 +1395,23 @@ const (
 	OpAMD64VMINPSMasked128
 	OpAMD64VMINPSMasked256
 	OpAMD64VMINPSMasked512
+	OpAMD64VMOVDQU8Masked128
+	OpAMD64VMOVDQU8Masked256
 	OpAMD64VMOVDQU8Masked512
+	OpAMD64VMOVDQU16Masked128
+	OpAMD64VMOVDQU16Masked256
 	OpAMD64VMOVDQU16Masked512
+	OpAMD64VMOVDQU32Masked128
+	OpAMD64VMOVDQU32Masked256
 	OpAMD64VMOVDQU32Masked512
+	OpAMD64VMOVDQU64Masked128
+	OpAMD64VMOVDQU64Masked256
 	OpAMD64VMOVDQU64Masked512
+	OpAMD64VMOVUPDMasked128
+	OpAMD64VMOVUPDMasked256
 	OpAMD64VMOVUPDMasked512
+	OpAMD64VMOVUPSMasked128
+	OpAMD64VMOVUPSMasked256
 	OpAMD64VMOVUPSMasked512
 	OpAMD64VMULPD128
 	OpAMD64VMULPD256
@@ -6508,16 +6520,6 @@ const (
 	OpblendMaskedInt16x32
 	OpblendMaskedInt32x16
 	OpblendMaskedInt64x8
-	OpmoveMaskedFloat32x16
-	OpmoveMaskedFloat64x8
-	OpmoveMaskedInt8x64
-	OpmoveMaskedInt16x32
-	OpmoveMaskedInt32x16
-	OpmoveMaskedInt64x8
-	OpmoveMaskedUint8x64
-	OpmoveMaskedUint16x32
-	OpmoveMaskedUint32x16
-	OpmoveMaskedUint64x8
 	OpAESRoundKeyGenAssistUint32x4
 	OpCeilScaledFloat32x4
 	OpCeilScaledFloat32x8
@@ -22219,9 +22221,65 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VMOVDQU8Masked128",
+		argLen: 2,
+		asm:    x86.AVMOVDQU8,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VMOVDQU8Masked256",
+		argLen: 2,
+		asm:    x86.AVMOVDQU8,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
 		name:   "VMOVDQU8Masked512",
 		argLen: 2,
 		asm:    x86.AVMOVDQU8,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VMOVDQU16Masked128",
+		argLen: 2,
+		asm:    x86.AVMOVDQU16,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VMOVDQU16Masked256",
+		argLen: 2,
+		asm:    x86.AVMOVDQU16,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -22247,9 +22305,65 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VMOVDQU32Masked128",
+		argLen: 2,
+		asm:    x86.AVMOVDQU32,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VMOVDQU32Masked256",
+		argLen: 2,
+		asm:    x86.AVMOVDQU32,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
 		name:   "VMOVDQU32Masked512",
 		argLen: 2,
 		asm:    x86.AVMOVDQU32,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VMOVDQU64Masked128",
+		argLen: 2,
+		asm:    x86.AVMOVDQU64,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VMOVDQU64Masked256",
+		argLen: 2,
+		asm:    x86.AVMOVDQU64,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -22275,9 +22389,65 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VMOVUPDMasked128",
+		argLen: 2,
+		asm:    x86.AVMOVUPD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VMOVUPDMasked256",
+		argLen: 2,
+		asm:    x86.AVMOVUPD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
 		name:   "VMOVUPDMasked512",
 		argLen: 2,
 		asm:    x86.AVMOVUPD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VMOVUPSMasked128",
+		argLen: 2,
+		asm:    x86.AVMOVUPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VMOVUPSMasked256",
+		argLen: 2,
+		asm:    x86.AVMOVUPS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -82108,56 +82278,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "blendMaskedInt64x8",
 		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "moveMaskedFloat32x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "moveMaskedFloat64x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "moveMaskedInt8x64",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "moveMaskedInt16x32",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "moveMaskedInt32x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "moveMaskedInt64x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "moveMaskedUint8x64",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "moveMaskedUint16x32",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "moveMaskedUint32x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "moveMaskedUint64x8",
-		argLen:  2,
 		generic: true,
 	},
 	{

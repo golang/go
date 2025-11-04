@@ -4,6 +4,8 @@
 
 package simd
 
+/* blend */
+
 // blend blends two vectors based on mask values, choosing either
 // the first or the second based on whether the third is false or true
 //
@@ -15,6 +17,8 @@ func (x Int8x16) blend(y Int8x16, mask Int8x16) Int8x16
 //
 // Asm: VPBLENDVB, CPU Feature: AVX2
 func (x Int8x32) blend(y Int8x32, mask Int8x32) Int8x32
+
+/* blendMasked */
 
 // blendMasked blends two vectors based on mask values, choosing either
 // the first or the second based on whether the third is false or true
@@ -47,6 +51,8 @@ func (x Int32x16) blendMasked(y Int32x16, mask Mask32x16) Int32x16
 //
 // Asm: VPBLENDMQ, CPU Feature: AVX512
 func (x Int64x8) blendMasked(y Int64x8, mask Mask64x8) Int64x8
+
+/* concatSelectedConstant */
 
 // concatSelectedConstant concatenates selected elements from x and y into the lower and upper
 // halves of the output.  The selection is chosen by the constant parameter h1h0l1l0
@@ -116,6 +122,8 @@ func (x Uint32x4) concatSelectedConstant(h1h0l1l0 uint8, y Uint32x4) Uint32x4
 //
 // Asm: VSHUFPD, CPU Feature: AVX
 func (x Uint64x2) concatSelectedConstant(hilo uint8, y Uint64x2) Uint64x2
+
+/* concatSelectedConstantGrouped */
 
 // concatSelectedConstantGrouped concatenates selected elements from 128-bit subvectors of x and y
 // into the lower and upper halves of corresponding subvectors of the output.
@@ -330,85 +338,7 @@ func (x Uint64x4) concatSelectedConstantGrouped(hilos uint8, y Uint64x4) Uint64x
 // Asm: VSHUFPD, CPU Feature: AVX512
 func (x Uint64x8) concatSelectedConstantGrouped(hilos uint8, y Uint64x8) Uint64x8
 
-// moveMasked blends a vector with zero, with the original value where the mask is true
-// and zero where the mask is false.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VMOVUPS, CPU Feature: AVX512
-func (x Float32x16) moveMasked(mask Mask32x16) Float32x16
-
-// moveMasked blends a vector with zero, with the original value where the mask is true
-// and zero where the mask is false.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VMOVUPD, CPU Feature: AVX512
-func (x Float64x8) moveMasked(mask Mask64x8) Float64x8
-
-// moveMasked blends a vector with zero, with the original value where the mask is true
-// and zero where the mask is false.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VMOVDQU8, CPU Feature: AVX512
-func (x Int8x64) moveMasked(mask Mask8x64) Int8x64
-
-// moveMasked blends a vector with zero, with the original value where the mask is true
-// and zero where the mask is false.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VMOVDQU16, CPU Feature: AVX512
-func (x Int16x32) moveMasked(mask Mask16x32) Int16x32
-
-// moveMasked blends a vector with zero, with the original value where the mask is true
-// and zero where the mask is false.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VMOVDQU32, CPU Feature: AVX512
-func (x Int32x16) moveMasked(mask Mask32x16) Int32x16
-
-// moveMasked blends a vector with zero, with the original value where the mask is true
-// and zero where the mask is false.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VMOVDQU64, CPU Feature: AVX512
-func (x Int64x8) moveMasked(mask Mask64x8) Int64x8
-
-// moveMasked blends a vector with zero, with the original value where the mask is true
-// and zero where the mask is false.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VMOVDQU8, CPU Feature: AVX512
-func (x Uint8x64) moveMasked(mask Mask8x64) Uint8x64
-
-// moveMasked blends a vector with zero, with the original value where the mask is true
-// and zero where the mask is false.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VMOVDQU16, CPU Feature: AVX512
-func (x Uint16x32) moveMasked(mask Mask16x32) Uint16x32
-
-// moveMasked blends a vector with zero, with the original value where the mask is true
-// and zero where the mask is false.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VMOVDQU32, CPU Feature: AVX512
-func (x Uint32x16) moveMasked(mask Mask32x16) Uint32x16
-
-// moveMasked blends a vector with zero, with the original value where the mask is true
-// and zero where the mask is false.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VMOVDQU64, CPU Feature: AVX512
-func (x Uint64x8) moveMasked(mask Mask64x8) Uint64x8
+/* tern */
 
 // tern performs a logical operation on three vectors based on the 8-bit truth table.
 // Bitwise, the result is equal to 1 & (table >> (x<<2 + y<<1 + z))

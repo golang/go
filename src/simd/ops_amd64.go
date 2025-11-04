@@ -7606,18 +7606,6 @@ func (x Uint64x4) Xor(y Uint64x4) Uint64x4
 // Asm: VPXORQ, CPU Feature: AVX512
 func (x Uint64x8) Xor(y Uint64x8) Uint64x8
 
-/* blend */
-
-/* blendMasked */
-
-/* concatSelectedConstant */
-
-/* concatSelectedConstantGrouped */
-
-/* moveMasked */
-
-/* tern */
-
 // Float64x2 converts from Float32x4 to Float64x2
 func (from Float32x4) AsFloat64x2() (to Float64x2)
 

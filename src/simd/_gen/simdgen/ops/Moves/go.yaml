@@ -291,7 +291,6 @@
   in:
   - &v
     go: $t
-    bits: 512
     class: vreg
     base: int|uint
   inVariant:
@@ -307,7 +306,6 @@
   in:
   - &v
     go: $t
-    bits: 512
     class: vreg
     base: float
   inVariant:

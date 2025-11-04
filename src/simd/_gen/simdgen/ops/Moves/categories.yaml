@@ -52,9 +52,8 @@
     // the first or the second based on whether the third is false or true
 - go: move
   commutative: false
-  documentation: !string |-
-    // NAME blends a vector with zero, with the original value where the mask is true
-    // and zero where the mask is false.
+  noTypes: "true"
+  noGenericOps: "true"
 - go: Expand
   commutative: false
   documentation: !string |-

@@ -613,7 +613,11 @@ func writeSIMDStubs(ops []Operation, typeMap simdTypeMap) (f, fI *bytes.Buffer) 
 				}
 			}
 			if i == 0 || op.Go != ops[i-1].Go {
-				fmt.Fprintf(f, "\n/* %s */\n", op.Go)
+				if unicode.IsUpper([]rune(op.Go)[0]) {
+					fmt.Fprintf(f, "\n/* %s */\n", op.Go)
+				} else {
+					fmt.Fprintf(fI, "\n/* %s */\n", op.Go)
+				}
 			}
 			if unicode.IsUpper([]rune(op.Go)[0]) {
 				if err := t.ExecuteTemplate(f, s, op); err != nil {
