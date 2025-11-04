@@ -692,7 +692,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			//   vs
 			//     16 instructions in the straightline code
 			//   Might as well use straightline code.
-			v.Fatalf("ZeroLoop size too small %d", n)
+			v.Fatalf("MoveLoop size too small %d", n)
 		}
 
 		// Put iteration count in a register.
