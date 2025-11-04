@@ -518,6 +518,7 @@ var depsRules = `
 	< crypto/internal/fips140/aes/gcm
 	< crypto/internal/fips140/hkdf
 	< crypto/internal/fips140/mlkem
+	< crypto/internal/fips140/mldsa
 	< crypto/internal/fips140/ssh
 	< crypto/internal/fips140/tls12
 	< crypto/internal/fips140/tls13
