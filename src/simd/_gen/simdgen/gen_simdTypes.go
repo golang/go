@@ -12,6 +12,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"unicode"
 )
 
 type simdType struct {
@@ -586,10 +587,12 @@ func writeSIMDFeatures(ops []Operation) *bytes.Buffer {
 
 // writeSIMDStubs generates the simd vector intrinsic stubs and writes it to ops_amd64.go and ops_internal_amd64.go
 // within the specified directory.
-func writeSIMDStubs(ops []Operation, typeMap simdTypeMap) *bytes.Buffer {
+func writeSIMDStubs(ops []Operation, typeMap simdTypeMap) (f, fI *bytes.Buffer) {
 	t := templateOf(simdStubsTmpl, "simdStubs")
-	buffer := new(bytes.Buffer)
-	buffer.WriteString(simdPackageHeader)
+	f = new(bytes.Buffer)
+	fI = new(bytes.Buffer)
+	f.WriteString(simdPackageHeader)
+	fI.WriteString(simdPackageHeader)
 
 	slices.SortFunc(ops, compareOperations)
 
@@ -610,10 +613,16 @@ func writeSIMDStubs(ops []Operation, typeMap simdTypeMap) *bytes.Buffer {
 				}
 			}
 			if i == 0 || op.Go != ops[i-1].Go {
-				fmt.Fprintf(buffer, "\n/* %s */\n", op.Go)
+				fmt.Fprintf(f, "\n/* %s */\n", op.Go)
 			}
-			if err := t.ExecuteTemplate(buffer, s, op); err != nil {
-				panic(fmt.Errorf("failed to execute template %s for op %v: %w", s, op, err))
+			if unicode.IsUpper([]rune(op.Go)[0]) {
+				if err := t.ExecuteTemplate(f, s, op); err != nil {
+					panic(fmt.Errorf("failed to execute template %s for op %v: %w", s, op, err))
+				}
+			} else {
+				if err := t.ExecuteTemplate(fI, s, op); err != nil {
+					panic(fmt.Errorf("failed to execute template %s for op %v: %w", s, op, err))
+				}
 			}
 		} else {
 			panic(fmt.Errorf("failed to classify op %v: %w", op.Go, err))
@@ -622,17 +631,17 @@ func writeSIMDStubs(ops []Operation, typeMap simdTypeMap) *bytes.Buffer {
 
 	vectorConversions := vConvertFromTypeMap(typeMap)
 	for _, conv := range vectorConversions {
-		if err := t.ExecuteTemplate(buffer, "vectorConversion", conv); err != nil {
+		if err := t.ExecuteTemplate(f, "vectorConversion", conv); err != nil {
 			panic(fmt.Errorf("failed to execute vectorConversion template: %w", err))
 		}
 	}
 
 	masks := masksFromTypeMap(typeMap)
 	for _, mask := range masks {
-		if err := t.ExecuteTemplate(buffer, "mask", mask); err != nil {
+		if err := t.ExecuteTemplate(f, "mask", mask); err != nil {
 			panic(fmt.Errorf("failed to execute mask template for mask %s: %w", mask.Name, err))
 		}
 	}
 
-	return buffer
+	return
 }
