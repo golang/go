@@ -435,7 +435,7 @@ type mspan struct {
 	// indicating a free object. freeindex is then adjusted so that subsequent scans begin
 	// just past the newly discovered free object.
 	//
-	// If freeindex == nelems, this span has no free objects.
+	// If freeindex == nelems, this span has no free objects, though might have reusable objects.
 	//
 	// allocBits is a bitmap of objects in this span.
 	// If n >= freeindex and allocBits[n/8] & (1<<(n%8)) is 0

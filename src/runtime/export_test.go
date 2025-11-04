@@ -639,6 +639,15 @@ func RunGetgThreadSwitchTest() {
 	}
 }
 
+// Expose freegc for testing.
+func Freegc(p unsafe.Pointer, size uintptr, noscan bool) {
+	freegc(p, size, noscan)
+}
+
+const SizeSpecializedMallocEnabled = sizeSpecializedMallocEnabled
+
+const RuntimeFreegcEnabled = runtimeFreegcEnabled
+
 const (
 	PageSize         = pageSize
 	PallocChunkPages = pallocChunkPages

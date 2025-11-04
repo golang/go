@@ -2464,10 +2464,11 @@ var blockedLinknames = map[string][]string{
 	// Experimental features
 	"runtime.goroutineLeakGC":    {"runtime/pprof"},
 	"runtime.goroutineleakcount": {"runtime/pprof"},
+	"runtime.freegc":             {}, // disallow all packages
 	// Others
 	"net.newWindowsFile":                   {"net"},              // pushed from os
 	"testing/synctest.testingSynctestTest": {"testing/synctest"}, // pushed from testing
-	"runtime.addmoduledata":                {},                   // disallow all package
+	"runtime.addmoduledata":                {},                   // disallow all packages
 }
 
 // check if a linkname reference to symbol s from pkg is allowed

@@ -1616,6 +1616,7 @@ func TestCheckLinkname(t *testing.T) {
 		// pull linkname of a builtin symbol is not ok
 		{"builtin.go", false},
 		{"addmoduledata.go", false},
+		{"freegc.go", false},
 		// legacy bad linkname is ok, for now
 		{"fastrand.go", true},
 		{"badlinkname.go", true},

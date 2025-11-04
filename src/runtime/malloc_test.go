@@ -16,6 +16,7 @@ import (
 	"runtime"
 	. "runtime"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -234,6 +235,275 @@ func TestTinyAllocIssue37262(t *testing.T) {
 	runtime.Releasem()
 }
 
+// TestFreegc does basic testing of explicit frees.
+func TestFreegc(t *testing.T) {
+	tests := []struct {
+		size   string
+		f      func(noscan bool) func(*testing.T)
+		noscan bool
+	}{
+		// Types without pointers.
+		{"size=16", testFreegc[[16]byte], true}, // smallest we support currently
+		{"size=17", testFreegc[[17]byte], true},
+		{"size=64", testFreegc[[64]byte], true},
+		{"size=500", testFreegc[[500]byte], true},
+		{"size=512", testFreegc[[512]byte], true},
+		{"size=4096", testFreegc[[4096]byte], true},
+		{"size=32KiB-8", testFreegc[[1<<15 - 8]byte], true}, // max noscan small object for 64-bit
+	}
+
+	// Run the tests twice if not in -short mode or not otherwise saving test time.
+	// First while manually calling runtime.GC to slightly increase isolation (perhaps making
+	// problems more reproducible).
+	for _, tt := range tests {
+		runtime.GC()
+		t.Run(fmt.Sprintf("gc=yes/ptrs=%v/%s", !tt.noscan, tt.size), tt.f(tt.noscan))
+	}
+	runtime.GC()
+
+	if testing.Short() || !RuntimeFreegcEnabled || runtime.Raceenabled {
+		return
+	}
+
+	// Again, but without manually calling runtime.GC in the loop (perhaps less isolation might
+	// trigger problems).
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("gc=no/ptrs=%v/%s", !tt.noscan, tt.size), tt.f(tt.noscan))
+	}
+	runtime.GC()
+}
+
+func testFreegc[T comparable](noscan bool) func(*testing.T) {
+	// We use stressMultiple to influence the duration of the tests.
+	// When testing freegc changes, stressMultiple can be increased locally
+	// to test longer or in some cases with more goroutines.
+	// It can also be helpful to test with GODEBUG=clobberfree=1 and
+	// with and without doubleCheckMalloc and doubleCheckReusable enabled.
+	stressMultiple := 10
+	if testing.Short() || !RuntimeFreegcEnabled || runtime.Raceenabled {
+		stressMultiple = 1
+	}
+
+	return func(t *testing.T) {
+		alloc := func() *T {
+			// Force heap alloc, plus some light validation of zeroed memory.
+			t.Helper()
+			p := Escape(new(T))
+			var zero T
+			if *p != zero {
+				t.Fatalf("allocator returned non-zero memory: %v", *p)
+			}
+			return p
+		}
+
+		free := func(p *T) {
+			t.Helper()
+			var zero T
+			if *p != zero {
+				t.Fatalf("found non-zero memory before freeing (tests do not modify memory): %v", *p)
+			}
+			runtime.Freegc(unsafe.Pointer(p), unsafe.Sizeof(*p), noscan)
+		}
+
+		t.Run("basic-free", func(t *testing.T) {
+			// Test that freeing a live heap object doesn't crash.
+			for range 100 {
+				p := alloc()
+				free(p)
+			}
+		})
+
+		t.Run("stack-free", func(t *testing.T) {
+			// Test that freeing a stack object doesn't crash.
+			for range 100 {
+				var x [32]byte
+				var y [32]*int
+				runtime.Freegc(unsafe.Pointer(&x), unsafe.Sizeof(x), true)  // noscan
+				runtime.Freegc(unsafe.Pointer(&y), unsafe.Sizeof(y), false) // !noscan
+			}
+		})
+
+		// Check our allocations. These tests rely on the
+		// current implementation treating a re-used object
+		// as not adding to the allocation counts seen
+		// by testing.AllocsPerRun. (This is not the desired
+		// long-term behavior, but it is the current behavior and
+		// makes these tests convenient).
+
+		t.Run("allocs-baseline", func(t *testing.T) {
+			// Baseline result without any explicit free.
+			allocs := testing.AllocsPerRun(100, func() {
+				for range 100 {
+					p := alloc()
+					_ = p
+				}
+			})
+			if allocs < 100 {
+				// TODO(thepudds): we get exactly 100 for almost all the tests, but investigate why
+				// ~101 allocs for TestFreegc/ptrs=true/size=32KiB-8.
+				t.Fatalf("expected >=100 allocations, got %v", allocs)
+			}
+		})
+
+		t.Run("allocs-with-free", func(t *testing.T) {
+			// Same allocations, but now using explicit free so that
+			// no allocs get reported. (Again, not the desired long-term behavior).
+			if SizeSpecializedMallocEnabled {
+				t.Skip("temporarily skipping alloc tests for GOEXPERIMENT=sizespecializedmalloc")
+			}
+			if !RuntimeFreegcEnabled {
+				t.Skip("skipping alloc tests with runtime.freegc disabled")
+			}
+			allocs := testing.AllocsPerRun(100, func() {
+				for range 100 {
+					p := alloc()
+					free(p)
+				}
+			})
+			if allocs != 0 {
+				t.Fatalf("expected 0 allocations, got %v", allocs)
+			}
+		})
+
+		t.Run("free-multiple", func(t *testing.T) {
+			// Multiple allocations outstanding before explicitly freeing,
+			// but still within the limit of our smallest free list size
+			// so that no allocs are reported. (Again, not long-term behavior).
+			if SizeSpecializedMallocEnabled {
+				t.Skip("temporarily skipping alloc tests for GOEXPERIMENT=sizespecializedmalloc")
+			}
+			if !RuntimeFreegcEnabled {
+				t.Skip("skipping alloc tests with runtime.freegc disabled")
+			}
+			const maxOutstanding = 20
+			s := make([]*T, 0, maxOutstanding)
+			allocs := testing.AllocsPerRun(100*stressMultiple, func() {
+				s = s[:0]
+				for range maxOutstanding {
+					p := alloc()
+					s = append(s, p)
+				}
+				for _, p := range s {
+					free(p)
+				}
+			})
+			if allocs != 0 {
+				t.Fatalf("expected 0 allocations, got %v", allocs)
+			}
+		})
+
+		if runtime.GOARCH == "wasm" {
+			// TODO(thepudds): for wasm, double-check if just slow, vs. some test logic problem,
+			// vs. something else. It might have been wasm was slowest with tests that spawn
+			// many goroutines, which might be expected for wasm. This skip might no longer be
+			// needed now that we have tuned test execution time more, or perhaps wasm should just
+			// always run in short mode, which might also let us remove this skip.
+			t.Skip("skipping remaining freegc tests, was timing out on wasm")
+		}
+
+		t.Run("free-many", func(t *testing.T) {
+			// Confirm we are graceful if we have more freed elements at once
+			// than the max free list size.
+			s := make([]*T, 0, 1000)
+			iterations := stressMultiple * stressMultiple // currently 1 or 100 depending on -short
+			for range iterations {
+				s = s[:0]
+				for range 1000 {
+					p := alloc()
+					s = append(s, p)
+				}
+				for _, p := range s {
+					free(p)
+				}
+			}
+		})
+
+		t.Run("duplicate-check", func(t *testing.T) {
+			// A simple duplicate allocation test. We track what should be the set
+			// of live pointers in a map across a series of allocs and frees,
+			// and fail if a live pointer value is returned by an allocation.
+			// TODO: maybe add randomness? allow more live pointers? do across goroutines?
+			live := make(map[uintptr]bool)
+			for i := range 100 * stressMultiple {
+				var s []*T
+				// Alloc 10 times, tracking the live pointer values.
+				for j := range 10 {
+					p := alloc()
+					uptr := uintptr(unsafe.Pointer(p))
+					if live[uptr] {
+						t.Fatalf("TestFreeLive: found duplicate pointer (0x%x). i: %d j: %d", uptr, i, j)
+					}
+					live[uptr] = true
+					s = append(s, p)
+				}
+				// Explicitly free those pointers, removing them from the live map.
+				for k := range s {
+					p := s[k]
+					s[k] = nil
+					uptr := uintptr(unsafe.Pointer(p))
+					free(p)
+					delete(live, uptr)
+				}
+			}
+		})
+
+		t.Run("free-other-goroutine", func(t *testing.T) {
+			// Use explicit free, but the free happens on a different goroutine than the alloc.
+			// This also lightly simulates how the free code sees P migration or flushing
+			// the mcache, assuming we have > 1 P. (Not using testing.AllocsPerRun here).
+			iterations := 10 * stressMultiple * stressMultiple // currently 10 or 1000 depending on -short
+			for _, capacity := range []int{2} {
+				for range iterations {
+					ch := make(chan *T, capacity)
+					var wg sync.WaitGroup
+					for range 2 {
+						wg.Add(1)
+						go func() {
+							defer wg.Done()
+							for p := range ch {
+								free(p)
+							}
+						}()
+					}
+					for range 100 {
+						p := alloc()
+						ch <- p
+					}
+					close(ch)
+					wg.Wait()
+				}
+			}
+		})
+
+		t.Run("many-goroutines", func(t *testing.T) {
+			// Allocate across multiple goroutines, freeing on the same goroutine.
+			// TODO: probably remove the duplicate checking here; not that useful.
+			counts := []int{1, 2, 4, 8, 10 * stressMultiple}
+			for _, goroutines := range counts {
+				var wg sync.WaitGroup
+				for range goroutines {
+					wg.Add(1)
+					go func() {
+						defer wg.Done()
+						live := make(map[uintptr]bool)
+						for range 100 * stressMultiple {
+							p := alloc()
+							uptr := uintptr(unsafe.Pointer(p))
+							if live[uptr] {
+								panic("TestFreeLive: found duplicate pointer")
+							}
+							live[uptr] = true
+							free(p)
+							delete(live, uptr)
+						}
+					}()
+				}
+				wg.Wait()
+			}
+		})
+	}
+}
+
 func TestPageCacheLeak(t *testing.T) {
 	defer GOMAXPROCS(GOMAXPROCS(1))
 	leaked := PageCachePagesLeaked()
@@ -337,6 +607,13 @@ func BenchmarkMalloc16(b *testing.B) {
 	}
 }
 
+func BenchmarkMalloc32(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		p := new([4]int64)
+		Escape(p)
+	}
+}
+
 func BenchmarkMallocTypeInfo8(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		p := new(struct {
@@ -350,6 +627,15 @@ func BenchmarkMallocTypeInfo16(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		p := new(struct {
 			p [16 / unsafe.Sizeof(uintptr(0))]*int
+		})
+		Escape(p)
+	}
+}
+
+func BenchmarkMallocTypeInfo32(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		p := new(struct {
+			p [32 / unsafe.Sizeof(uintptr(0))]*int
 		})
 		Escape(p)
 	}
