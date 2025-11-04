@@ -57,3 +57,13 @@ func simdArrayWrapperNoSpill(a [1]Args2) simd.Uint8x32 {
 	a[0].x = "test"
 	return simdArrayNoSpill(a)
 }
+
+func simdFeatureGuardedMaskOpt() simd.Int16x16 {
+	var x, y simd.Int16x16
+	if simd.HasAVX512() {
+		mask := simd.Mask16x16FromBits(5)
+		return x.Add(y).Masked(mask) // amd64:`VPADDW.Z\s.*$`
+	}
+	mask := simd.Mask16x16FromBits(5)
+	return x.Add(y).Masked(mask) // amd64:`VPAND\s.*$`
+}

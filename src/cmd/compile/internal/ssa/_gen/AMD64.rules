@@ -1752,6 +1752,16 @@
 (VPANDD512 x (VPMOVMToVec16x32 k)) => (VMOVDQU16Masked512 x k)
 (VPANDD512 x (VPMOVMToVec8x64 k)) => (VMOVDQU8Masked512 x k)
 
+(VPAND128 x (VPMOVMToVec8x16 k)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VMOVDQU8Masked128 x k)
+(VPAND128 x (VPMOVMToVec16x8 k)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VMOVDQU16Masked128 x k)
+(VPAND128 x (VPMOVMToVec32x4 k)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VMOVDQU32Masked128 x k)
+(VPAND128 x (VPMOVMToVec64x2 k)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VMOVDQU64Masked128 x k)
+
+(VPAND256 x (VPMOVMToVec8x32 k)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VMOVDQU8Masked256 x k)
+(VPAND256 x (VPMOVMToVec16x16 k)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VMOVDQU16Masked256 x k)
+(VPAND256 x (VPMOVMToVec32x8 k)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VMOVDQU32Masked256 x k)
+(VPAND256 x (VPMOVMToVec64x4 k)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VMOVDQU64Masked256 x k)
+
 // Insert to zero of 32/64 bit floats and ints to a zero is just MOVS[SD]
 (VPINSRQ128 [0] (Zero128 <t>) y) && y.Type.IsFloat() => (VMOVSDf2v <types.TypeVec128> y)
 (VPINSRD128 [0] (Zero128 <t>) y) && y.Type.IsFloat() => (VMOVSSf2v <types.TypeVec128> y)

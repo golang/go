@@ -139,9 +139,11 @@ func writeSIMDSSA(ops []Operation) *bytes.Buffer {
 		}
 		seen[asm] = struct{}{}
 		caseStr := fmt.Sprintf("ssa.OpAMD64%s", asm)
+		isZeroMasking := false
 		if shapeIn == OneKmaskIn || shapeIn == OneKmaskImmIn {
 			if gOp.Zeroing == nil || *gOp.Zeroing {
 				ZeroingMask = append(ZeroingMask, caseStr)
+				isZeroMasking = true
 			}
 		}
 		if err := classifyOp(op, shapeIn, shapeOut, caseStr, NoMem); err != nil {
@@ -157,6 +159,8 @@ func writeSIMDSSA(ops []Operation) *bytes.Buffer {
 				if *Verbose {
 					log.Printf("Seen error: %e", err)
 				}
+			} else if isZeroMasking {
+				ZeroingMask = append(ZeroingMask, caseStr+"load")
 			}
 		}
 	}

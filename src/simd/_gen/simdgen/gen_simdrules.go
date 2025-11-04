@@ -49,12 +49,15 @@ var (
 `))
 )
 
-func (d tplRuleData) MaskOptimization() string {
+func (d tplRuleData) MaskOptimization(asmCheck map[string]bool) string {
 	asmNoMask := d.Asm
 	if i := strings.Index(asmNoMask, "Masked"); i == -1 {
 		return ""
 	}
 	asmNoMask = strings.ReplaceAll(asmNoMask, "Masked", "")
+	if asmCheck[asmNoMask] == false {
+		return ""
+	}
 
 	for _, nope := range []string{"VMOVDQU", "VPCOMPRESS", "VCOMPRESS", "VPEXPAND", "VEXPAND", "VPBLENDM", "VMOVUP"} {
 		if strings.HasPrefix(asmNoMask, nope) {
@@ -68,10 +71,7 @@ func (d tplRuleData) MaskOptimization() string {
 		size = asmNoMask[len(asmNoMask)-sufLen:][:3]
 	}
 	switch size {
-	case "128", "256":
-		// TODO don't handle these yet because they will require a feature guard check in rewrite
-		return ""
-	case "512":
+	case "128", "256", "512":
 	default:
 		panic("Unexpected operation size on " + d.Asm)
 	}
@@ -82,7 +82,7 @@ func (d tplRuleData) MaskOptimization() string {
 		panic(fmt.Errorf("Unexpected operation width %d on %v", d.ElementSize, d.Asm))
 	}
 
-	return fmt.Sprintf("(VMOVDQU%dMasked512 (%s %s) mask) => (%s %s mask)\n", d.ElementSize, asmNoMask, d.Args, d.Asm, d.Args)
+	return fmt.Sprintf("(VMOVDQU%dMasked%s (%s %s) mask) => (%s %s mask)\n", d.ElementSize, size, asmNoMask, d.Args, d.Asm, d.Args)
 }
 
 // SSA rewrite rules need to appear in a most-to-least-specific order.  This works for that.
@@ -126,6 +126,7 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 	buffer := new(bytes.Buffer)
 	buffer.WriteString(generatedHeader + "\n")
 
+	asmCheck := map[string]bool{}
 	var allData []tplRuleData
 	var optData []tplRuleData    // for mask peephole optimizations, and other misc
 	var memOptData []tplRuleData // for memory peephole optimizations
@@ -234,6 +235,7 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 						sftImmData.tplName = "sftimm"
 					}
 					allData = append(allData, sftImmData)
+					asmCheck[sftImmData.Asm+"const"] = true
 				}
 			} else {
 				panic("simdgen sees unknwon special lower " + *gOp.SpecialLower + ", maybe implement it?")
@@ -306,6 +308,7 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 			continue
 		}
 		allData = append(allData, data)
+		asmCheck[data.Asm] = true
 	}
 
 	slices.SortFunc(allData, compareTplRuleData)
@@ -320,7 +323,7 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 
 	for _, data := range optData {
 		if data.tplName == "maskIn" {
-			rule := data.MaskOptimization()
+			rule := data.MaskOptimization(asmCheck)
 			if seen[rule] {
 				continue
 			}
