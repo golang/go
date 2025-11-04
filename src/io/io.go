@@ -471,16 +471,17 @@ func LimitReader(r Reader, n int64) Reader { return &LimitedReader{R: r, N: n} }
 type LimitedReader struct {
 	R   Reader // underlying reader
 	N   int64  // max bytes remaining
-	Err error  // error to return when limit is exceeded; defaults to EOF if nil
+	Err error  // error to return when limit is exceeded
 }
 
 func (l *LimitedReader) Read(p []byte) (n int, err error) {
-	if len(p) == 0 {
+	// We use negative l.N values to signal that we've exceeded the limit and cached the result.
+	const sentinelExceeded = -1   // Probed and found more data available
+	const sentinelExactMatch = -2 // Probed and found EOF (exactly N bytes)
+
+	if len(p) == 0 && l.N <= 0 {
 		return 0, nil
 	}
-	// We use negative l.N values to signal that we've exceeded the limit and cached the result:
-	// -1 means more data is available
-	// -2 means hit EOF exactly
 
 	if l.N > 0 {
 		if int64(len(p)) > l.N {
@@ -491,11 +492,13 @@ func (l *LimitedReader) Read(p []byte) (n int, err error) {
 		return
 	}
 
+	// Sentinel
 	if l.N < 0 {
-		if l.N == -1 && l.Err != nil {
-			return 0, l.Err // limit was exceeded
+		if l.N == sentinelExceeded && l.Err != nil {
+			return 0, l.Err
 		}
-		return 0, EOF // stream was exactly N bytes, or already past limit
+
+		return 0, EOF
 	}
 
 	// At limit (N == 0) - need to determine if stream has more data
@@ -504,18 +507,17 @@ func (l *LimitedReader) Read(p []byte) (n int, err error) {
 		return 0, EOF
 	}
 
-	// Probe with one byte to distinguish two cases:
-	// - Stream had exactly N bytes -> return EOF
-	// - Stream has more than N bytes -> return custom error
+	// Probe with one byte to distinguish two sentinels.
 	// We can't tell without reading ahead. This probe permanently consumes
 	// a byte from R, so we cache the result in N to avoid re-probing.
 	var probe [1]byte
 	probeN, probeErr := l.R.Read(probe[:])
 	if probeN > 0 || probeErr != EOF {
-		l.N = -1 // more data available, limit exceeded
+		l.N = sentinelExceeded
 		return 0, l.Err
 	}
-	l.N = -2 // hit EOF, stream was exactly N bytes
+
+	l.N = sentinelExactMatch
 	return 0, EOF
 }
 
