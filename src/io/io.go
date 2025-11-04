@@ -467,7 +467,7 @@ func LimitReader(r Reader, n int64) Reader { return &LimitedReader{R: r, N: n} }
 //
 // Negative values of N mean that the limit has been exceeded.
 // Read returns Err when more than N bytes are read from R.
-// If Err is nil or EOF, Read returns EOF instead.
+// If Err is nil, Read returns EOF.
 type LimitedReader struct {
 	R   Reader // underlying reader
 	N   int64  // max bytes remaining
@@ -492,7 +492,7 @@ func (l *LimitedReader) Read(p []byte) (n int, err error) {
 	}
 
 	if l.N < 0 {
-		if l.N == -1 && l.Err != nil && l.Err != EOF {
+		if l.N == -1 && l.Err != nil {
 			return 0, l.Err // limit was exceeded
 		}
 		return 0, EOF // stream was exactly N bytes, or already past limit
@@ -500,7 +500,7 @@ func (l *LimitedReader) Read(p []byte) (n int, err error) {
 
 	// At limit (N == 0) - need to determine if stream has more data
 
-	if l.Err == nil || l.Err == EOF {
+	if l.Err == nil {
 		return 0, EOF
 	}
 
@@ -511,7 +511,7 @@ func (l *LimitedReader) Read(p []byte) (n int, err error) {
 	// a byte from R, so we cache the result in N to avoid re-probing.
 	var probe [1]byte
 	probeN, probeErr := l.R.Read(probe[:])
-	if probeN > 0 || (probeErr != nil && probeErr != EOF) {
+	if probeN > 0 || probeErr != EOF {
 		l.N = -1 // more data available, limit exceeded
 		return 0, l.Err
 	}
