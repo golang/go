@@ -132,17 +132,15 @@ func ExampleLimitedReader_Err() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("read %d bytes: %q\n", n, buf[:n])
+	fmt.Printf("%d; %q\n", n, buf[:n])
 
 	// try to read more and get the custom error
 	n, err = lr.Read(buf)
-	if errors.Is(err, sentinel) {
-		fmt.Println("error:", err)
-	}
+	fmt.Printf("%d; error: %v\n", n, err)
 
 	// Output:
-	// read 4 bytes: "some"
-	// error: read limit reached
+	// 4; "some"
+	// 0; error: read limit reached
 }
 
 func ExampleMultiReader() {

@@ -556,10 +556,8 @@ func (s *SectionReader) Read(p []byte) (n int, err error) {
 	return
 }
 
-var (
-	errWhence = errors.New("Seek: invalid whence")
-	errOffset = errors.New("Seek: invalid offset")
-)
+var errWhence = errors.New("Seek: invalid whence")
+var errOffset = errors.New("Seek: invalid offset")
 
 func (s *SectionReader) Seek(offset int64, whence int) (int64, error) {
 	switch whence {
