@@ -23,38 +23,3 @@
 (SRAI [0] x) => x
 (SRLI [0] x) => x
 (SLLI [0] x) => x
-
-// "Zicond" Extension for Integer Conditional Operations
-// Optimize specific patterns based on the unified OR(CZEROEQZ, CZERONEZ) form
-// (x == 0) ? x : y -> CZEROEQZ y x (when x is the condition)
-(OR (CZERONEZ <t> x x) (CZEROEQZ <t> y x)) => (CZEROEQZ <t> y x)
-
-// (z == 0) ? ((OP x y)) : x  =>  (OP x (CZERONEZ y z))
-(OR (CZERONEZ <t> ((ADD|SUB|OR|XOR|SUBW) x y) z) (CZEROEQZ <t> x z)) => ((ADD|SUB|OR|XOR|SUBW) x (CZERONEZ <t> y z))
-// (z != 0) ? ((OP x y)) : x  =>  (OP x (CZEROEQZ y z))
-(OR (CZEROEQZ <t> ((ADD|SUB|OR|XOR|SUBW) x y) z) (CZERONEZ <t> x z)) => ((ADD|SUB|OR|XOR|SUBW) x (CZEROEQZ <t> y z))
-
-// (z == 0) ? (x & y) : x  =>  OR(AND x y, CZEROEQZ x z)
-(OR (CZERONEZ <t> (AND x y) z) (CZEROEQZ <t> x z)) => (OR (AND <t> x y) (CZEROEQZ <t> x z))
-// (z != 0) ? (x & y) : x  =>  OR(AND x y, CZERONEZ x z)
-(OR (CZEROEQZ <t> (AND x y) z) (CZERONEZ <t> x z)) => (OR (AND <t> x y) (CZERONEZ <t> x z))
-
-// (z == 0) ? (x & c) : x  =>  OR(AND x c, CZEROEQZ x z)
-(OR (CZERONEZ <t> (ANDI [c] x) z) (CZEROEQZ <t> x z)) => (OR (AND <t> x (MOVDconst [c])) (CZEROEQZ <t> x z))
-// (z != 0) ? (x & c) : x  =>  OR(AND x c, CZERONEZ x z)
-(OR (CZEROEQZ <t> (ANDI [c] x) z) (CZERONEZ <t> x z)) => (OR (AND <t> x (MOVDconst [c])) (CZERONEZ <t> x z))
-
-// (z == 0) ? ((OPI [c] x)) : x  =>  (OP x (CZERONEZ c z))
-(OR (CZERONEZ <t> ((ADDI|ORI|XORI) [c] x) z) (CZEROEQZ <t> x z)) => ((ADD|OR|XOR) x (CZERONEZ <t> (MOVDconst [c]) z))
-// (z != 0) ? ((OPI [c] x)) : x  =>  (OP x (CZEROEQZ c z))
-(OR (CZEROEQZ <t> ((ADDI|ORI|XORI) [c] x) z) (CZERONEZ <t> x z)) => ((ADD|OR|XOR) x (CZEROEQZ <t> (MOVDconst [c]) z))
-
-// (z == 0) ? (ADDIW [c] x) : x
-(OR (CZERONEZ <t> (ADDIW [c] x) z) (CZEROEQZ <t> x z)) => (ADD x (CZERONEZ <t> (MOVDconst [int64(int32(c))]) z))
-// (z != 0) ? (ADDIW [c] x) : x
-(OR (CZEROEQZ <t> (ADDIW [c] x) z) (CZERONEZ <t> x z)) => (ADD x (CZEROEQZ <t> (MOVDconst [int64(int32(c))]) z))
-
-// (cond == 0) ? 0 : const  =>  CZERONEZ const cond
-(OR (CZERONEZ <t> (MOVDconst [0]) cond) (CZEROEQZ <t> (MOVDconst [c]) cond)) => (CZERONEZ <t> (MOVDconst [c]) cond)
-// (cond != 0) ? 0 : const  =>  CZEROEQZ const cond
-(OR (CZEROEQZ <t> (MOVDconst [0]) cond) (CZERONEZ <t> (MOVDconst [c]) cond)) => (CZEROEQZ <t> (MOVDconst [c]) cond)

@@ -608,26 +608,6 @@ func cmovFromMulFromFlags64sext(x int64, b bool) int64 {
 	return x * r
 }
 
-func branchlessBoolToUint8(b bool) (r uint8) {
-	if b {
-		r = 1
-	}
-	return
-}
-
-func cmovFromMulFromFlags64(x uint64, b bool) uint64 {
-	// amd64:-"MOVB.ZX"
-	r := uint64(branchlessBoolToUint8(b))
-	// amd64:"CMOV",-"MOVB.ZX",-"MUL"
-	return x * r
-}
-func cmovFromMulFromFlags64sext(x int64, b bool) int64 {
-	// amd64:-"MOVB.ZX"
-	r := int64(int8(branchlessBoolToUint8(b)))
-	// amd64:"CMOV",-"MOVB.ZX",-"MUL"
-	return x * r
-}
-
 func cmoveAddZero(cond, a, b int) int {
 	if cond == 0 {
 		a += b
