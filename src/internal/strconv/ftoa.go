@@ -146,28 +146,38 @@ func genericFtoa(dst []byte, val float64, fmt byte, prec, bitSize int) []byte {
 		return formatDigits(dst, shortest, neg, digs, prec, fmt)
 	}
 
-	// TODO figure out when we can use fast code for f
-	if fmt != 'f' {
-		// Fixed number of digits.
-		digits := prec
-		switch fmt {
-		case 'e', 'E':
-			digits++
-		case 'g', 'G':
-			if prec == 0 {
-				prec = 1
-			}
-			digits = prec
-		default:
-			// Invalid mode.
-			digits = 1
+	// Fixed number of digits.
+	digits := prec
+	switch fmt {
+	case 'f':
+		// %f precision specifies digits after the decimal point.
+		// Estimate an upper bound on the total number of digits needed.
+		// ftoaFixed will shorten as needed according to prec.
+		if exp >= 0 {
+			digits = 1 + mulLog10_2(1+exp) + prec
+		} else {
+			digits = 1 + prec - mulLog10_2(-exp)
 		}
-		if digits <= 18 {
+	case 'e', 'E':
+		digits++
+	case 'g', 'G':
+		if prec == 0 {
+			prec = 1
+		}
+		digits = prec
+	default:
+		// Invalid mode.
+		digits = 1
+	}
+	if digits <= 18 {
+		// digits <= 0 happens for %f on very small numbers
+		// and means that we're guaranteed to print all zeros.
+		if digits > 0 {
 			var buf [24]byte
 			digs.d = buf[:]
-			fixedFtoa(&digs, mant, exp-int(flt.mantbits), digits)
-			return formatDigits(dst, false, neg, digs, prec, fmt)
+			fixedFtoa(&digs, mant, exp-int(flt.mantbits), digits, prec, fmt)
 		}
+		return formatDigits(dst, false, neg, digs, prec, fmt)
 	}
 
 	return bigFtoa(dst, prec, fmt, neg, mant, exp, flt)
