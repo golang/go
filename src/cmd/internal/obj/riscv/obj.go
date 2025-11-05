@@ -3615,7 +3615,7 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		ins.rd, ins.rs1, ins.rs2 = uint32(p.RegTo2), uint32(p.To.Reg), uint32(p.From.Reg)
 
 	case AWRSNTO, AWRSSTO:
-		ins.rd, ins.rs1, ins.imm = REG_ZERO, REG_ZERO, encode(p.As).csr
+		ins.rd, ins.rs1 = REG_ZERO, REG_ZERO
 
 	case AECALL, AEBREAK:
 		insEnc := encode(p.As)

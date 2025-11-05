@@ -246,7 +246,7 @@ start:
 
 	// 15: Wait-on-Reservation-Set Instructions (Zawrs)
 	WRSNTO                              // 7300d000
-    WRSSTO                              // 7300d001
+	WRSSTO                              // 7300d001
 
 	// 20.5: Single-Precision Load and Store Instructions
 	FLW	(X5), F0				// 07a00200
