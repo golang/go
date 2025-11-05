@@ -14,6 +14,7 @@ stdout '"Version": "v0.0.0-20170922010558-fc3a09f3dc5c"'
 stdout '"VCS": "git"'
 stdout '"URL": ".*/git/hello"'
 stdout '"Hash": "fc3a09f3dc5cfe0d7a743ea18f1f5226e68b3777"'
+! stdout '"RepoSum"'
 go clean -modcache
 
 # go mod download vcstest/hello should invoke git, print origin info
@@ -28,6 +29,7 @@ stdout '"Query": "latest"'
 stdout '"TagSum": "t1:47DEQpj8HBSa[+]/TImW[+]5JCeuQeRkm5NMpJWZG3hSuFU="'
 stdout '"Ref": "HEAD"'
 stdout '"Hash": "fc3a09f3dc5cfe0d7a743ea18f1f5226e68b3777"'
+! stdout '"RepoSum"'
 
 # pseudo-version again should not invoke git fetch (it has the version from the @latest query)
 # but still be careful not to include a TagSum or a Ref, especially not Ref set to HEAD,
@@ -47,6 +49,7 @@ stdout '"VCS": "git"'
 stdout '"URL": ".*/git/hello"'
 stdout '"TagSum": "t1:47DEQpj8HBSa[+]/TImW[+]5JCeuQeRkm5NMpJWZG3hSuFU="'
 stdout '"Hash": "fc3a09f3dc5cfe0d7a743ea18f1f5226e68b3777"'
+! stdout '"RepoSum"'
 
 # go mod download vcstest/hello/v9 should fail, still print origin info
 ! go mod download -x -json vcs-test.golang.org/git/hello.git/v9@latest
@@ -108,6 +111,7 @@ stdout '"URL": ".*/git/tagtests"'
 stdout '"TagSum": "t1:Dp7yRKDuE8WjG0429PN9hYWjqhy2te7P9Oki/sMEOGo="'
 stdout '"Ref": "refs/tags/v0.2.2"'
 stdout '"Hash": "59356c8cd18c5fe9a598167d98a6843e52d57952"'
+! stdout '"RepoSum"'
 
 # go mod download vcstest/tagtests@v0.2.2 should print origin info, no TagSum needed
 go mod download -x -json vcs-test.golang.org/git/tagtests.git@v0.2.2
@@ -120,6 +124,7 @@ stdout '"URL": ".*/git/tagtests"'
 ! stdout '"TagSum"'
 stdout '"Ref": "refs/tags/v0.2.2"'
 stdout '"Hash": "59356c8cd18c5fe9a598167d98a6843e52d57952"'
+! stdout '"RepoSum"'
 
 # go mod download vcstest/tagtests@master needs a TagSum again
 go mod download -x -json vcs-test.golang.org/git/tagtests.git@master
@@ -132,6 +137,7 @@ stdout '"URL": ".*/git/tagtests"'
 stdout '"TagSum": "t1:Dp7yRKDuE8WjG0429PN9hYWjqhy2te7P9Oki/sMEOGo="'
 stdout '"Ref": "refs/heads/master"'
 stdout '"Hash": "c7818c24fa2f3f714c67d0a6d3e411c85a518d1f"'
+! stdout '"RepoSum"'
 
 # go mod download vcstest/prefixtagtests should invoke git, print origin info
 go mod download -x -json vcs-test.golang.org/git/prefixtagtests.git/sub@latest
@@ -146,6 +152,7 @@ stdout '"TagPrefix": "sub/"'
 stdout '"TagSum": "t1:YGSbWkJ8dn9ORAr[+]BlKHFK/2ZhXLb9hVuYfTZ9D8C7g="'
 stdout '"Ref": "refs/tags/sub/v0.0.10"'
 stdout '"Hash": "2b7c4692e12c109263cab51b416fcc835ddd7eae"'
+! stdout '"RepoSum"'
 
 # go mod download of a bunch of these should fail (some are invalid) but write good JSON for later
 ! go mod download -json vcs-test.golang.org/git/hello.git@latest vcs-test.golang.org/git/hello.git/v9@latest vcs-test.golang.org/git/hello.git/sub/v9@latest vcs-test.golang.org/git/tagtests.git@latest vcs-test.golang.org/git/tagtests.git@v0.2.2 vcs-test.golang.org/git/tagtests.git@master
@@ -158,6 +165,7 @@ stderr 'git( .*)* fetch'
 go clean -modcache
 
 # reuse go mod download vcstest/hello result
+go clean -modcache
 go mod download -reuse=hello.json -x -json vcs-test.golang.org/git/hello.git@latest
 ! stderr 'git( .*)* fetch'
 stdout '"Reuse": true'
@@ -168,12 +176,10 @@ stdout '"URL": ".*/git/hello"'
 stdout '"TagSum": "t1:47DEQpj8HBSa[+]/TImW[+]5JCeuQeRkm5NMpJWZG3hSuFU="'
 stdout '"Ref": "HEAD"'
 stdout '"Hash": "fc3a09f3dc5cfe0d7a743ea18f1f5226e68b3777"'
-! stdout '"Dir"'
-! stdout '"Info"'
-! stdout '"GoMod"'
-! stdout '"Zip"'
+! stdout '"(Dir|Info|GoMod|Zip|RepoSum)"'
 
 # reuse go mod download vcstest/hello pseudoversion result
+go clean -modcache
 go mod download -reuse=hellopseudo.json -x -json vcs-test.golang.org/git/hello.git@v0.0.0-20170922010558-fc3a09f3dc5c
 ! stderr 'git( .*)* fetch'
 stdout '"Reuse": true'
@@ -182,9 +188,10 @@ stdout '"VCS": "git"'
 stdout '"URL": ".*/git/hello"'
 ! stdout '"(Query|TagPrefix|TagSum|Ref)"'
 stdout '"Hash": "fc3a09f3dc5cfe0d7a743ea18f1f5226e68b3777"'
-! stdout '"(Dir|Info|GoMod|Zip)"'
+! stdout '"(Dir|Info|GoMod|Zip|RepoSum)"'
 
 # reuse go mod download vcstest/hello@hash
+go clean -modcache
 go mod download -reuse=hellohash.json -x -json vcs-test.golang.org/git/hello.git@fc3a09f3dc5c
 ! stderr 'git( .*)* fetch'
 stdout '"Reuse": true'
@@ -195,9 +202,10 @@ stdout '"URL": ".*/git/hello"'
 ! stdout '"(TagPrefix|Ref)"'
 stdout '"TagSum": "t1:47DEQpj8HBSa[+]/TImW[+]5JCeuQeRkm5NMpJWZG3hSuFU="'
 stdout '"Hash": "fc3a09f3dc5cfe0d7a743ea18f1f5226e68b3777"'
-! stdout '"(Dir|Info|GoMod|Zip)"'
+! stdout '"(Dir|Info|GoMod|Zip|RepoSum)"'
 
 # reuse go mod download vcstest/hello/v9 error result
+go clean -modcache
 ! go mod download -reuse=hellov9.json -x -json vcs-test.golang.org/git/hello.git/v9@latest
 ! stderr 'git( .*)* fetch'
 stdout '"Reuse": true'
@@ -206,9 +214,10 @@ stdout '"Error":.*no matching versions'
 stdout '"TagSum": "t1:47DEQpj8HBSa[+]/TImW[+]5JCeuQeRkm5NMpJWZG3hSuFU="'
 stdout '"Ref": "HEAD"'
 stdout '"Hash": "fc3a09f3dc5cfe0d7a743ea18f1f5226e68b3777"'
-! stdout '"(Dir|Info|GoMod|Zip)"'
+! stdout '"(Dir|Info|GoMod|Zip|RepoSum)"'
 
 # reuse go mod download vcstest/hello/sub/v9 error result
+go clean -modcache
 ! go mod download -reuse=hellosubv9.json -x -json vcs-test.golang.org/git/hello.git/sub/v9@latest
 ! stderr 'git( .*)* fetch'
 stdout '"Reuse": true'
@@ -217,9 +226,10 @@ stdout '"TagPrefix": "sub/"'
 stdout '"TagSum": "t1:47DEQpj8HBSa[+]/TImW[+]5JCeuQeRkm5NMpJWZG3hSuFU="'
 stdout '"Ref": "HEAD"'
 stdout '"Hash": "fc3a09f3dc5cfe0d7a743ea18f1f5226e68b3777"'
-! stdout '"(Dir|Info|GoMod|Zip)"'
+! stdout '"(Dir|Info|GoMod|Zip|RepoSum)"'
 
 # reuse go mod download vcstest/hello@nonexist
+go clean -modcache
 ! go mod download -reuse=hellononexist.json -x -json vcs-test.golang.org/git/hello.git@nonexist
 ! stderr 'git( .*)* fetch'
 stdout '"Reuse": true'
@@ -230,6 +240,7 @@ stdout '"RepoSum": "r1:c0/9JCZ25lxoBiK3[+]3BhACU4giH49flcJmBynJ[+]Jvmc="'
 ! stdout '"(Dir|Info|GoMod|Zip)"'
 
 # reuse go mod download vcstest/hello@1234567890123456789012345678901234567890
+go clean -modcache
 ! go mod download -reuse=hellononhash.json -x -json vcs-test.golang.org/git/hello.git@1234567890123456789012345678901234567890
 ! stderr 'git( .*)* fetch'
 stdout '"Reuse": true'
@@ -240,6 +251,7 @@ stdout '"RepoSum": "r1:c0/9JCZ25lxoBiK3[+]3BhACU4giH49flcJmBynJ[+]Jvmc="'
 ! stdout '"(Dir|Info|GoMod|Zip)"'
 
 # reuse go mod download vcstest/hello@v0.0.0-20220101120101-123456789abc
+go clean -modcache
 ! go mod download -reuse=hellononpseudo.json -x -json vcs-test.golang.org/git/hello.git@v0.0.0-20220101120101-123456789abc
 ! stderr 'git( .*)* fetch'
 stdout '"Reuse": true'
@@ -250,6 +262,7 @@ stdout '"RepoSum": "r1:c0/9JCZ25lxoBiK3[+]3BhACU4giH49flcJmBynJ[+]Jvmc="'
 ! stdout '"(Dir|Info|GoMod|Zip)"'
 
 # reuse go mod download vcstest/tagtests result
+go clean -modcache
 go mod download -reuse=tagtests.json -x -json vcs-test.golang.org/git/tagtests.git@latest
 ! stderr 'git( .*)* fetch'
 stdout '"Reuse": true'
@@ -261,9 +274,10 @@ stdout '"URL": ".*/git/tagtests"'
 stdout '"TagSum": "t1:Dp7yRKDuE8WjG0429PN9hYWjqhy2te7P9Oki/sMEOGo="'
 stdout '"Ref": "refs/tags/v0.2.2"'
 stdout '"Hash": "59356c8cd18c5fe9a598167d98a6843e52d57952"'
-! stdout '"(Dir|Info|GoMod|Zip)"'
+! stdout '"(Dir|Info|GoMod|Zip|RepoSum)"'
 
 # reuse go mod download vcstest/tagtests@v0.2.2 result
+go clean -modcache
 go mod download -reuse=tagtestsv022.json -x -json vcs-test.golang.org/git/tagtests.git@v0.2.2
 ! stderr 'git( .*)* fetch'
 stdout '"Reuse": true'
@@ -275,9 +289,10 @@ stdout '"URL": ".*/git/tagtests"'
 ! stdout '"TagSum"'
 stdout '"Ref": "refs/tags/v0.2.2"'
 stdout '"Hash": "59356c8cd18c5fe9a598167d98a6843e52d57952"'
-! stdout '"(Dir|Info|GoMod|Zip)"'
+! stdout '"(Dir|Info|GoMod|Zip|RepoSum)"'
 
 # reuse go mod download vcstest/tagtests@master result
+go clean -modcache
 go mod download -reuse=tagtestsmaster.json -x -json vcs-test.golang.org/git/tagtests.git@master
 ! stderr 'git( .*)* fetch'
 stdout '"Reuse": true'
@@ -289,9 +304,10 @@ stdout '"URL": ".*/git/tagtests"'
 stdout '"TagSum": "t1:Dp7yRKDuE8WjG0429PN9hYWjqhy2te7P9Oki/sMEOGo="'
 stdout '"Ref": "refs/heads/master"'
 stdout '"Hash": "c7818c24fa2f3f714c67d0a6d3e411c85a518d1f"'
-! stdout '"(Dir|Info|GoMod|Zip)"'
+! stdout '"(Dir|Info|GoMod|Zip|RepoSum)"'
 
 # reuse go mod download vcstest/tagtests@master result again with all.json
+go clean -modcache
 go mod download -reuse=all.json -x -json vcs-test.golang.org/git/tagtests.git@master
 ! stderr 'git( .*)* fetch'
 stdout '"Reuse": true'
@@ -303,9 +319,10 @@ stdout '"URL": ".*/git/tagtests"'
 stdout '"TagSum": "t1:Dp7yRKDuE8WjG0429PN9hYWjqhy2te7P9Oki/sMEOGo="'
 stdout '"Ref": "refs/heads/master"'
 stdout '"Hash": "c7818c24fa2f3f714c67d0a6d3e411c85a518d1f"'
-! stdout '"(Dir|Info|GoMod|Zip)"'
+! stdout '"(Dir|Info|GoMod|Zip|RepoSum)"'
 
 # go mod download vcstest/prefixtagtests result with json
+go clean -modcache
 go mod download -reuse=prefixtagtests.json -x -json vcs-test.golang.org/git/prefixtagtests.git/sub@latest
 ! stderr 'git( .*)* fetch'
 stdout '"Version": "v0.0.10"'
@@ -320,12 +337,14 @@ stdout '"Hash": "2b7c4692e12c109263cab51b416fcc835ddd7eae"'
 ! stdout '"(Dir|Info|GoMod|Zip)"'
 
 # reuse the bulk results with all.json
+go clean -modcache
 ! go mod download -reuse=all.json -json vcs-test.golang.org/git/hello.git@latest vcs-test.golang.org/git/hello.git/v9@latest vcs-test.golang.org/git/hello.git/sub/v9@latest vcs-test.golang.org/git/tagtests.git@latest vcs-test.golang.org/git/tagtests.git@v0.2.2 vcs-test.golang.org/git/tagtests.git@master
 ! stderr 'git( .*)* fetch'
 stdout '"Reuse": true'
 ! stdout '"(Dir|Info|GoMod|Zip)"'
 
 # reuse attempt with stale hash should reinvoke git, not report reuse
+go clean -modcache
 cp tagtestsv022.json tagtestsv022badhash.json
 replace '57952' '56952XXX' tagtestsv022badhash.json
 go mod download -reuse=tagtestsv022badhash.json -x -json vcs-test.golang.org/git/tagtests.git@v0.2.2
@@ -335,7 +354,7 @@ stdout '"Version": "v0.2.2"'
 ! stdout '"Query"'
 stdout '"VCS": "git"'
 stdout '"URL": ".*/git/tagtests"'
-! stdout '"(TagPrefix|TagSum)"'
+! stdout '"(TagPrefix|TagSum|RepoSum)"'
 stdout '"Ref": "refs/tags/v0.2.2"'
 stdout '"Hash": "59356c8cd18c5fe9a598167d98a6843e52d57952"'
 stdout '"Dir"'
@@ -344,6 +363,7 @@ stdout '"GoMod"'
 stdout '"Zip"'
 
 # reuse with stale repo URL
+go clean -modcache
 cp tagtestsv022.json tagtestsv022badurl.json
 replace 'git/tagtests\"' 'git/tagtestsXXX\"' tagtestsv022badurl.json
 go mod download -reuse=tagtestsv022badurl.json -x -json vcs-test.golang.org/git/tagtests.git@v0.2.2
@@ -355,22 +375,107 @@ stdout '"GoMod"'
 stdout '"Zip"'
 
 # reuse with stale VCS
+go clean -modcache
 cp tagtestsv022.json tagtestsv022badvcs.json
 replace '\"git\"' '\"gitXXX\"' tagtestsv022badvcs.json
 go mod download -reuse=tagtestsv022badvcs.json -x -json vcs-test.golang.org/git/tagtests.git@v0.2.2
 ! stdout '"Reuse": true'
 stdout '"URL": ".*/git/tagtests"'
+! stdout '"RepoSum"'
 
 # reuse with stale Dir
+go clean -modcache
 cp tagtestsv022.json tagtestsv022baddir.json
 replace '\t\t\"Ref\":' '\t\t\"Subdir\": \"subdir\",\n\t\t\"Ref\":' tagtestsv022baddir.json
 go mod download -reuse=tagtestsv022baddir.json -x -json vcs-test.golang.org/git/tagtests.git@v0.2.2
 ! stdout '"Reuse": true'
 stdout '"URL": ".*/git/tagtests"'
+! stdout '"RepoSum"'
 
 # reuse with stale TagSum
+go clean -modcache
 cp tagtests.json tagtestsbadtagsum.json
 replace 'sMEOGo=' 'sMEoGo=XXX' tagtestsbadtagsum.json
 go mod download -reuse=tagtestsbadtagsum.json -x -json vcs-test.golang.org/git/tagtests.git@latest
+! stdout '"Reuse": true'
+stdout '"TagSum": "t1:Dp7yRKDuE8WjG0429PN9hYWjqhy2te7P9Oki/sMEOGo="'
+! stdout '"RepoSum"'
+
+# go list on repo with no tags
+go clean -modcache
+go list -x -json -m -retracted -versions vcs-test.golang.org/git/hello.git@latest
+stderr 'git( .*)* fetch'
+cp stdout hellolist.json
+! stdout '"Versions"'
+stdout '"Version": "v0.0.0-20170922010558-fc3a09f3dc5c"'
+stdout '"VCS": "git"'
+stdout '"URL": ".*/git/hello"'
+stdout '"Query": "latest"'
+! stdout '"TagPrefix"'
+stdout '"TagSum": "t1:47DEQpj8HBSa[+]/TImW[+]5JCeuQeRkm5NMpJWZG3hSuFU="'
+stdout '"Hash": "fc3a09f3dc5cfe0d7a743ea18f1f5226e68b3777"'
+! stdout '"RepoSum"'
+
+# reuse go list on repo with no tags
+go clean -modcache
+go list -x -reuse=hellolist.json -json -m -retracted -versions vcs-test.golang.org/git/hello.git@latest
+! stderr 'git( .*)* fetch'
+stdout '"Reuse": true'
+! stdout '"Versions"'
+stdout '"Version": "v0.0.0-20170922010558-fc3a09f3dc5c"'
+stdout '"VCS": "git"'
+stdout '"URL": ".*/git/hello"'
+stdout '"Query": "latest"'
+! stdout '"TagPrefix"'
+stdout '"TagSum": "t1:47DEQpj8HBSa[+]/TImW[+]5JCeuQeRkm5NMpJWZG3hSuFU="'
+stdout '"Hash": "fc3a09f3dc5cfe0d7a743ea18f1f5226e68b3777"'
+! stdout '"RepoSum"'
+
+# reuse with stale list
+go clean -modcache
+cp hellolist.json hellolistbad.json
+replace '47DEQ' 'ZZZ' hellolistbad.json
+go clean -modcache
+go list -x -reuse=hellolistbad.json -json -m -retracted -versions vcs-test.golang.org/git/hello.git@latest
+stderr 'git( .*)* fetch'
+! stdout '"Reuse": true'
+stdout '"TagSum": "t1:47DEQpj8HBSa[+]/TImW[+]5JCeuQeRkm5NMpJWZG3hSuFU="'
+
+# go list on repo with tags
+go clean -modcache
+go list -x -json -m -retracted -versions vcs-test.golang.org/git/tagtests.git@latest
+cp stdout taglist.json
+stderr 'git( .*)* fetch'
+stdout '"Versions":'
+stdout '"v0.2.1"'
+stdout '"v0.2.2"'
+stdout '"Version": "v0.2.2"'
+stdout '"VCS": "git"'
+stdout '"URL": ".*/git/tagtests"'
+stdout '"Hash": "59356c8cd18c5fe9a598167d98a6843e52d57952"'
+stdout '"TagSum": "t1:Dp7yRKDuE8WjG0429PN9hYWjqhy2te7P9Oki/sMEOGo="'
+stdout '"Ref": "refs/tags/v0.2.2"'
+
+# reuse go list on repo with tags
+go clean -modcache
+go list -reuse=taglist.json -x -json -m -retracted -versions vcs-test.golang.org/git/tagtests.git@latest
+! stderr 'git( .*)* fetch'
+stdout '"Reuse": true'
+stdout '"Versions":'
+stdout '"v0.2.1"'
+stdout '"v0.2.2"'
+stdout '"Version": "v0.2.2"'
+stdout '"VCS": "git"'
+stdout '"URL": ".*/git/tagtests"'
+stdout '"Hash": "59356c8cd18c5fe9a598167d98a6843e52d57952"'
+stdout '"TagSum": "t1:Dp7yRKDuE8WjG0429PN9hYWjqhy2te7P9Oki/sMEOGo="'
+stdout '"Ref": "refs/tags/v0.2.2"'
+
+# reuse with stale list
+go clean -modcache
+cp taglist.json taglistbad.json
+replace 'Dp7yRKDu' 'ZZZ' taglistbad.json
+go list -reuse=taglistbad.json -x -json -m -retracted -versions vcs-test.golang.org/git/tagtests.git@latest
+stderr 'git( .*)* fetch'
 ! stdout '"Reuse": true'
 stdout '"TagSum": "t1:Dp7yRKDuE8WjG0429PN9hYWjqhy2te7P9Oki/sMEOGo="'
