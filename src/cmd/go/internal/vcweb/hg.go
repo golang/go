@@ -109,6 +109,13 @@ func (h *hgHandler) Handler(dir string, env []string, logger *log.Logger) (http.
 			wg.Done()
 		}()
 
+		// On some systems,
+		// hg serve --address=localhost --print-url prints in-addr.arpa hostnames
+		// even though they cannot be looked up.
+		// Replace them with IP literals.
+		line = strings.ReplaceAll(line, "//1.0.0.127.in-addr.arpa", "//127.0.0.1")
+		line = strings.ReplaceAll(line, "//1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa", "//[::1]")
+
 		u, err := url.Parse(strings.TrimSpace(line))
 		if err != nil {
 			logger.Printf("%v: %v", cmd, err)
