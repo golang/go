@@ -5,7 +5,7 @@
 #include "go_asm.h"
 #include "funcdata.h"
 #include "textflag.h"
-
+#include "asm_riscv64.h"
 
 // When building with -buildmode=c-shared, this symbol is called when the shared
 // library is loaded.
@@ -367,8 +367,16 @@ TEXT gogo<>(SB), NOSPLIT|NOFRAME, $0
 	MOV	gobuf_pc(T0), T0
 	JALR	ZERO, T0
 
+
 // func procyieldAsm(cycles uint32)
 TEXT runtime·procyieldAsm(SB),NOSPLIT,$0-0
+#ifdef hasZihintpause
+	MOVWU	cycles+0(FP), T0
+yieldloop:
+	PAUSE
+	SUBW	$1, T0
+	BNEZ	T0, yieldloop
+#endif
 	RET
 
 // Switch to m->g0's stack, call fn(g).
