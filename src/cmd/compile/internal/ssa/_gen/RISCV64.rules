@@ -868,18 +868,12 @@
 (CZERONEZ x x) => (MOVDconst [0])
 (CZERO(EQ|NE)Z (MOVDconst [0]) _) => (MOVDconst [0])
 
-// Fold OR(CZERONEZ(OP x y), CZEROEQZ x) into OP x (CZERONEZ y)
+// Optimize conditional arithmetic operations
 (OR (CZERONEZ <t> ((ADD|SUB|OR|XOR|SUBW) x y) cond) (CZEROEQZ <t> x cond)) => ((ADD|SUB|OR|XOR|SUBW) x (CZERONEZ <t> y cond))
 (OR (CZEROEQZ <t> ((ADD|SUB|OR|XOR|SUBW) x y) cond) (CZERONEZ <t> x cond)) => ((ADD|SUB|OR|XOR|SUBW) x (CZEROEQZ <t> y cond))
-
-// Fold OR(CZERONEZ(AND), CZEROEQZ) when operands match
 (OR (CZERONEZ x:(AND z _) cond) y:(CZEROEQZ z cond)) => (OR x y)
 (OR (CZEROEQZ x:(AND z _) cond) y:(CZERONEZ z cond)) => (OR x y)
-
-// Fold OR(CZERONEZ(ANDI), CZEROEQZ) when operands match
 (OR (CZERONEZ x:(ANDI <t> [c] z) cond) y:(CZEROEQZ z cond)) => (OR x y)
 (OR (CZEROEQZ x:(ANDI <t> [c] z) cond) y:(CZERONEZ z cond)) => (OR x y)
-
-// Fold OR(CZERONEZ(OPI [c] x), CZEROEQZ x) into OP x (CZERONEZ c)
 (OR (CZERONEZ <t> ((ADDI|ORI|XORI) [c] x) cond) (CZEROEQZ <t> x cond)) => ((ADD|OR|XOR) x (CZERONEZ <t> (MOVDconst [c]) cond))
 (OR (CZEROEQZ <t> ((ADDI|ORI|XORI) [c] x) cond) (CZERONEZ <t> x cond)) => ((ADD|OR|XOR) x (CZEROEQZ <t> (MOVDconst [c]) cond))
