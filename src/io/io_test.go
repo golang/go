@@ -780,7 +780,7 @@ func TestLimitedReader(t *testing.T) {
 
 		n, err := lr.Read(buf)
 		if n != 5 || err != nil || string(buf[:5]) != "hello" {
-			t.Errorf("Read() = (%d, %v, %q), want (5, nil, \"hello\")", n, err, buf[:5])
+			t.Errorf(`Read() = (%d, %v, %q), want (5, nil, "hello")`, n, err, buf[:5])
 		}
 
 		n, err = lr.Read(buf)
@@ -826,7 +826,7 @@ func TestLimitedReader(t *testing.T) {
 		buf = make([]byte, 10)
 		n, err := lr.Read(buf)
 		if n != 5 || string(buf[:5]) != "hello" || err != nil {
-			t.Errorf("normal Read() = (%d, %q, %v), want (5, \"hello\", nil)", n, buf[:5], err)
+			t.Errorf(`normal Read() = (%d, %q, %v), want (5, "hello", nil)`, n, buf[:5], err)
 		}
 	})
 }
@@ -854,7 +854,7 @@ func TestLimitedReaderErrors(t *testing.T) {
 
 		n, err := lr.Read(buf)
 		if n != 5 || string(buf[:5]) != "hello" || err != nil {
-			t.Errorf("first Read() = (%d, %q, %v), want (5, \"hello\", nil)", n, buf[:5], err)
+			t.Errorf(`first Read() = (%d, %q, %v), want (5, "hello", nil)`, n, buf[:5], err)
 		}
 
 		n, err = lr.Read(buf)
@@ -870,7 +870,7 @@ func TestLimitedReaderErrors(t *testing.T) {
 
 		n, err := lr.Read(buf)
 		if n != 5 || string(buf[:5]) != "hello" || err != nil {
-			t.Errorf("first Read() = (%d, %q, %v), want (5, \"hello\", nil)", n, buf[:5], err)
+			t.Errorf(`first Read() = (%d, %q, %v), want (5, "hello", nil)`, n, buf[:5], err)
 		}
 
 		n, err = lr.Read(buf)
