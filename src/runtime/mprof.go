@@ -1323,10 +1323,6 @@ func goroutineLeakProfileWithLabelsConcurrent(p []profilerecord.StackRecord, lab
 		return work.goroutineLeak.count, false
 	}
 
-	// Unlike in goroutineProfileWithLabelsConcurrent, we don't need to
-	// save the current goroutine stack, because it is obviously not leaked.
-	// We also do not need acquire any semaphores on goroutineProfile, because
-	// we don't use it for storage.
 	pcbuf := makeProfStack() // see saveg() for explanation
 
 	// Prepare a profile large enough to store all leaked goroutines.
