@@ -1341,31 +1341,6 @@ func goroutineLeakProfileWithLabelsConcurrent(p []profilerecord.StackRecord, lab
 	// Visit each leaked goroutine and try to record its stack.
 	var offset int
 	forEachGRace(func(gp1 *g) {
-		// NOTE(vsaioc): Each goroutine leak profile request is preceded by a run of the GC
-		// in goroutine leak detection mode. At the beginning of the GC cycle, all previously
-		// reported goroutine leaks are reset to _Gwaiting. As a result, incomplete goroutine
-		// leak profiles may be produced if multiple goroutine leak profile requests are issued
-		// concurrently.
-		//
-		// Example trace:
-		//
-		//	G1                    | GC                          | G2
-		//	----------------------+-----------------------------+---------------------
-		//	Request profile       | .                           | .
-		//	.                     | .                           | Request profile
-		//	.                     | [G1] Resets leaked g status | .
-		//	.                     | [G1] Leaks detected         | .
-		//	.                     | <New cycle>                 | .
-		//	.                     | [G2] Resets leaked g status | .
-		//	.                     | .                           | Write profile
-		//	.                     | [G2] Leaks detected         | .
-		//	Write profile         | .                           | .
-		//	----------------------+-----------------------------+---------------------
-		//	G1 completes profile  |/\/\/\/\/\/\/\/\/\/\/\/\/\/\/| G2 misses leaks
-		//
-		// While this is a bug, normal use cases presume that goroutine leak profile
-		// requests are issued on a single track. Adding synchronization between
-		// goroutine leak profile requests would only needlessly increase overhead.
 		if readgstatus(gp1)&^_Gscan == _Gleaked {
 			systemstack(func() { saveg(^uintptr(0), ^uintptr(0), gp1, &p[offset], pcbuf) })
 			if labels != nil {

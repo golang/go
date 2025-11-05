@@ -228,6 +228,15 @@ var mutexProfile = &Profile{
 	write: writeMutex,
 }
 
+// goroutineLeakProfileLock ensures that the goroutine leak profile writer observes the
+// leaked goroutines discovered during the goroutine leak detection GC cycle
+// that was triggered when the profile was requested.
+//
+// This is needed to prevent a race condition between the garbage collector
+// and the goroutine leak profile writer when multiple profile requests are
+// issued concurrently.
+var goroutineLeakProfileLock sync.Mutex
+
 func lockProfiles() {
 	profiles.mu.Lock()
 	if profiles.m == nil {
@@ -763,6 +772,15 @@ func writeGoroutine(w io.Writer, debug int) error {
 // writeGoroutineLeak first invokes a GC cycle that performs goroutine leak detection.
 // It then writes the goroutine profile, filtering for leaked goroutines.
 func writeGoroutineLeak(w io.Writer, debug int) error {
+	// Acquire the goroutine leak detection lock and release
+	// it after the goroutine leak profile is written.
+	//
+	// While the critical section is long, this is needed to prevent
+	// a race condition between the garbage collector and the goroutine
+	// leak profile writer when multiple profile requests are issued concurrently.
+	goroutineLeakProfileLock.Lock()
+	defer goroutineLeakProfileLock.Unlock()
+
 	// Run the GC with leak detection first so that leaked goroutines
 	// may transition to the leaked state.
 	runtime_goroutineLeakGC()

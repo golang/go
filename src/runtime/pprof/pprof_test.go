@@ -1727,16 +1727,8 @@ func TestGoroutineLeakProfileConcurrency(t *testing.T) {
 					for ctx.Err() == nil {
 						var w strings.Builder
 						goroutineLeakProf.WriteTo(&w, 1)
-						// NOTE(vsaioc): We cannot always guarantee that the leak will
-						// actually be recorded in the profile when making concurrent
-						// goroutine leak requests, because the GC runs concurrently with
-						// the profiler and may reset the leaked goroutines' status before
-						// a concurrent profiler has the chance to record them. However,
-						// the goroutine leak count will persist throughout.
-						//
-						// Other tests are not expected to leak goroutines,
-						// so the count should be consistent.
 						countLeaks(t, 2*leakCount, w.String())
+						includesLeak(t, "goroutineleak", w.String())
 					}
 				}()
 			})
@@ -1760,16 +1752,8 @@ func TestGoroutineLeakProfileConcurrency(t *testing.T) {
 					for ctx.Err() == nil {
 						var w strings.Builder
 						goroutineLeakProf.WriteTo(&w, 1)
-						// NOTE(vsaioc): We cannot always guarantee that the leak will
-						// actually be recorded in the profile when making concurrent
-						// goroutine leak requests, because the GC runs concurrently with
-						// the profiler and may reset the leaked goroutines' status before
-						// a concurrent profiler has the chance to record them. However,
-						// the goroutine leak count will persist throughout.
-						//
-						// Other tests are not expected to leak goroutines,
-						// so the count should be consistent.
 						countLeaks(t, 2*leakCount, w.String())
+						includesLeak(t, "goroutineleak", w.String())
 					}
 				}()
 				go func() {
