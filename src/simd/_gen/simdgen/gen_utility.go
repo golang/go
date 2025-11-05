@@ -523,10 +523,6 @@ func checkVecAsScalar(op Operation) (idx int, err error) {
 		}
 	}
 	if idx >= 0 {
-		if idx != 1 {
-			err = fmt.Errorf("simdgen only supports TreatLikeAScalarOfSize at the 2nd arg of the arg list: %s", op)
-			return
-		}
 		if sSize != 8 && sSize != 16 && sSize != 32 && sSize != 64 {
 			err = fmt.Errorf("simdgen does not recognize this uint size: %d, %s", sSize, op)
 			return
@@ -545,6 +541,10 @@ func rewriteVecAsScalarRegInfo(op Operation, regInfo string) (string, error) {
 			regInfo = "vfpv"
 		} else if regInfo == "v2kv" {
 			regInfo = "vfpkv"
+		} else if regInfo == "v31" {
+			regInfo = "v2fpv"
+		} else if regInfo == "v3kv" {
+			regInfo = "v2fpkv"
 		} else {
 			return "", fmt.Errorf("simdgen does not recognize uses of treatLikeAScalarOfSize with op regShape %s in op: %s", regInfo, op)
 		}
@@ -805,6 +805,12 @@ func reportXEDInconsistency(ops []Operation) error {
 		}
 	}
 	return nil
+}
+
+func (o *Operation) hasMaskedMerging(maskType maskShape, outType outShape) bool {
+	// BLEND and VMOVDQU are not user-facing ops so we should filter them out.
+	return o.OperandOrder == nil && o.SpecialLower == nil && maskType == OneMask && outType == OneVregOut &&
+		len(o.InVariant) == 1 && !strings.Contains(o.Asm, "BLEND") && !strings.Contains(o.Asm, "VMOVDQU")
 }
 
 func getVbcstData(s string) (feat1Match, feat2Match string) {

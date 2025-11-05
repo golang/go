@@ -299,21 +299,6 @@
   out:
   - *v
 
-  # For AVX512
-- go: move
-  asm: VMOVUP[SD]
-  zeroing: true
-  in:
-  - &v
-    go: $t
-    class: vreg
-    base: float
-  inVariant:
-  -
-    class: mask
-  out:
-  - *v
-
 - go: Expand
   asm: "VPEXPAND[BWDQ]|VEXPANDP[SD]"
   in:

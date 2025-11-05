@@ -889,10 +889,18 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpAMD64VPANDQMasked256(v)
 	case OpAMD64VPANDQMasked512:
 		return rewriteValueAMD64_OpAMD64VPANDQMasked512(v)
+	case OpAMD64VPBLENDMBMasked512:
+		return rewriteValueAMD64_OpAMD64VPBLENDMBMasked512(v)
 	case OpAMD64VPBLENDMDMasked512:
 		return rewriteValueAMD64_OpAMD64VPBLENDMDMasked512(v)
 	case OpAMD64VPBLENDMQMasked512:
 		return rewriteValueAMD64_OpAMD64VPBLENDMQMasked512(v)
+	case OpAMD64VPBLENDMWMasked512:
+		return rewriteValueAMD64_OpAMD64VPBLENDMWMasked512(v)
+	case OpAMD64VPBLENDVB128:
+		return rewriteValueAMD64_OpAMD64VPBLENDVB128(v)
+	case OpAMD64VPBLENDVB256:
+		return rewriteValueAMD64_OpAMD64VPBLENDVB256(v)
 	case OpAMD64VPBROADCASTB128:
 		return rewriteValueAMD64_OpAMD64VPBROADCASTB128(v)
 	case OpAMD64VPBROADCASTB256:
@@ -40256,10 +40264,879 @@ func rewriteValueAMD64_OpAMD64VPANDQMasked512(v *Value) bool {
 	}
 	return false
 }
+func rewriteValueAMD64_OpAMD64VPBLENDMBMasked512(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VPBLENDMBMasked512 dst (VGF2P8MULB512 x y) mask)
+	// result: (VGF2P8MULBMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VGF2P8MULB512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VGF2P8MULBMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMBMasked512 dst (VPOPCNTB512 x) mask)
+	// result: (VPOPCNTBMasked512Merging dst x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPOPCNTB512 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPOPCNTBMasked512Merging)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMBMasked512 dst (VPSUBSB512 x y) mask)
+	// result: (VPSUBSBMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSUBSB512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPSUBSBMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMBMasked512 dst (VPSUBB512 x y) mask)
+	// result: (VPSUBBMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSUBB512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPSUBBMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMBMasked512 dst (VPMINSB512 x y) mask)
+	// result: (VPMINSBMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMINSB512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMINSBMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMBMasked512 dst (VPADDB512 x y) mask)
+	// result: (VPADDBMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPADDB512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPADDBMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMBMasked512 dst (VPMAXUB512 x y) mask)
+	// result: (VPMAXUBMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMAXUB512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMAXUBMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMBMasked512 dst (VPADDUSB512 x y) mask)
+	// result: (VPADDUSBMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPADDUSB512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPADDUSBMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMBMasked512 dst (VPAVGB512 x y) mask)
+	// result: (VPAVGBMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPAVGB512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPAVGBMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMBMasked512 dst (VPMINUB512 x y) mask)
+	// result: (VPMINUBMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMINUB512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMINUBMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMBMasked512 dst (VPMAXSB512 x y) mask)
+	// result: (VPMAXSBMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMAXSB512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMAXSBMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMBMasked512 dst (VPSUBUSB512 x y) mask)
+	// result: (VPSUBUSBMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSUBUSB512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPSUBUSBMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMBMasked512 dst (VPSHUFB512 x y) mask)
+	// result: (VPSHUFBMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSHUFB512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPSHUFBMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMBMasked512 dst (VPABSB512 x) mask)
+	// result: (VPABSBMasked512Merging dst x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPABSB512 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPABSBMasked512Merging)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMBMasked512 dst (VPADDSB512 x y) mask)
+	// result: (VPADDSBMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPADDSB512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPADDSBMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	return false
+}
 func rewriteValueAMD64_OpAMD64VPBLENDMDMasked512(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	// match: (VPBLENDMDMasked512 dst (VPMOVSDW256 x) mask)
+	// result: (VPMOVSDWMasked256Merging dst x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVSDW256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMOVSDWMasked256Merging)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VPLZCNTD512 x) mask)
+	// result: (VPLZCNTDMasked512Merging dst x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPLZCNTD512 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPLZCNTDMasked512Merging)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VPMULLD512 x y) mask)
+	// result: (VPMULLDMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMULLD512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMULLDMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VMAXPS512 x y) mask)
+	// result: (VMAXPSMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VMAXPS512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VMAXPSMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VPMOVUSDB128 x) mask)
+	// result: (VPMOVUSDBMasked128Merging dst x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVUSDB128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMOVUSDBMasked128Merging)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VRSQRT14PS512 x) mask)
+	// result: (VRSQRT14PSMasked512Merging dst x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VRSQRT14PS512 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VRSQRT14PSMasked512Merging)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VPMOVDW256 x) mask)
+	// result: (VPMOVDWMasked256Merging dst x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVDW256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMOVDWMasked256Merging)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VRCP14PS512 x) mask)
+	// result: (VRCP14PSMasked512Merging dst x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VRCP14PS512 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VRCP14PSMasked512Merging)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VREDUCEPS512 [a] x) mask)
+	// result: (VREDUCEPSMasked512Merging dst [a] x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VREDUCEPS512 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VREDUCEPSMasked512Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VDIVPS512 x y) mask)
+	// result: (VDIVPSMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VDIVPS512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VDIVPSMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VPSRLVD512 x y) mask)
+	// result: (VPSRLVDMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSRLVD512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPSRLVDMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VPSUBD512 x y) mask)
+	// result: (VPSUBDMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSUBD512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPSUBDMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VPROLD512 [a] x) mask)
+	// result: (VPROLDMasked512Merging dst [a] x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPROLD512 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPROLDMasked512Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VPORD512 x y) mask)
+	// result: (VPORDMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPORD512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPORDMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VPSHLDD512 [a] x y) mask)
+	// result: (VPSHLDDMasked512Merging dst [a] x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSHLDD512 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPSHLDDMasked512Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VPACKUSDW512 x y) mask)
+	// result: (VPACKUSDWMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPACKUSDW512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPACKUSDWMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VPMAXSD512 x y) mask)
+	// result: (VPMAXSDMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMAXSD512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMAXSDMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VADDPS512 x y) mask)
+	// result: (VADDPSMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VADDPS512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VADDPSMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VPMOVUSDW256 x) mask)
+	// result: (VPMOVUSDWMasked256Merging dst x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVUSDW256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMOVUSDWMasked256Merging)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VPMOVSDB128 x) mask)
+	// result: (VPMOVSDBMasked128Merging dst x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVSDB128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMOVSDBMasked128Merging)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VSUBPS512 x y) mask)
+	// result: (VSUBPSMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VSUBPS512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VSUBPSMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VPMAXUD512 x y) mask)
+	// result: (VPMAXUDMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMAXUD512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMAXUDMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VPRORD512 [a] x) mask)
+	// result: (VPRORDMasked512Merging dst [a] x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPRORD512 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPRORDMasked512Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VPROLVD512 x y) mask)
+	// result: (VPROLVDMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPROLVD512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPROLVDMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VCVTTPS2DQ512 x) mask)
+	// result: (VCVTTPS2DQMasked512Merging dst x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VCVTTPS2DQ512 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VCVTTPS2DQMasked512Merging)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VPACKSSDW512 x y) mask)
+	// result: (VPACKSSDWMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPACKSSDW512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPACKSSDWMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VPRORVD512 x y) mask)
+	// result: (VPRORVDMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPRORVD512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPRORVDMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VPADDD512 x y) mask)
+	// result: (VPADDDMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPADDD512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPADDDMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VRNDSCALEPS512 [a] x) mask)
+	// result: (VRNDSCALEPSMasked512Merging dst [a] x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VRNDSCALEPS512 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VRNDSCALEPSMasked512Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VCVTPS2UDQ512 x) mask)
+	// result: (VCVTPS2UDQMasked512Merging dst x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VCVTPS2UDQ512 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VCVTPS2UDQMasked512Merging)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VPSHRDD512 [a] x y) mask)
+	// result: (VPSHRDDMasked512Merging dst [a] x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSHRDD512 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPSHRDDMasked512Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VPOPCNTD512 x) mask)
+	// result: (VPOPCNTDMasked512Merging dst x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPOPCNTD512 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPOPCNTDMasked512Merging)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VPMOVDB128 x) mask)
+	// result: (VPMOVDBMasked128Merging dst x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVDB128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMOVDBMasked128Merging)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VPSRAD512const [a] x) mask)
+	// result: (VPSRADMasked512constMerging dst [a] x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSRAD512const {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPSRADMasked512constMerging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VMINPS512 x y) mask)
+	// result: (VMINPSMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VMINPS512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VMINPSMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VPANDD512 x y) mask)
+	// result: (VPANDDMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPANDD512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPANDDMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VPSHUFD512 [a] x) mask)
+	// result: (VPSHUFDMasked512Merging dst [a] x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSHUFD512 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPSHUFDMasked512Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VPMINSD512 x y) mask)
+	// result: (VPMINSDMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMINSD512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMINSDMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VPSRAVD512 x y) mask)
+	// result: (VPSRAVDMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSRAVD512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPSRAVDMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VPXORD512 x y) mask)
+	// result: (VPXORDMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPXORD512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPXORDMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VPSLLVD512 x y) mask)
+	// result: (VPSLLVDMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSLLVD512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPSLLVDMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VPSLLD512const [a] x) mask)
+	// result: (VPSLLDMasked512constMerging dst [a] x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSLLD512const {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPSLLDMasked512constMerging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VPMINUD512 x y) mask)
+	// result: (VPMINUDMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMINUD512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMINUDMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VSCALEFPS512 x y) mask)
+	// result: (VSCALEFPSMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VSCALEFPS512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VSCALEFPSMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VSQRTPS512 x) mask)
+	// result: (VSQRTPSMasked512Merging dst x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VSQRTPS512 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VSQRTPSMasked512Merging)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VPABSD512 x) mask)
+	// result: (VPABSDMasked512Merging dst x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPABSD512 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPABSDMasked512Merging)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMDMasked512 dst (VMULPS512 x y) mask)
+	// result: (VMULPSMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VMULPS512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VMULPSMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
 	// match: (VPBLENDMDMasked512 x l:(VMOVDQUload512 {sym} [off] ptr mem) mask)
 	// cond: canMergeLoad(v, l) && clobber(l)
 	// result: (VPBLENDMDMasked512load {sym} [off] x ptr mask mem)
@@ -40289,6 +41166,631 @@ func rewriteValueAMD64_OpAMD64VPBLENDMQMasked512(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	// match: (VPBLENDMQMasked512 dst (VPSLLQ512const [a] x) mask)
+	// result: (VPSLLQMasked512constMerging dst [a] x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSLLQ512const {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPSLLQMasked512constMerging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VPSUBQ512 x y) mask)
+	// result: (VPSUBQMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSUBQ512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPSUBQMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VPROLQ512 [a] x) mask)
+	// result: (VPROLQMasked512Merging dst [a] x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPROLQ512 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPROLQMasked512Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VPSLLVQ512 x y) mask)
+	// result: (VPSLLVQMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSLLVQ512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPSLLVQMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VPMOVUSQB128 x) mask)
+	// result: (VPMOVUSQBMasked128Merging dst x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVUSQB128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMOVUSQBMasked128Merging)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VPADDQ512 x y) mask)
+	// result: (VPADDQMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPADDQ512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPADDQMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VRNDSCALEPD512 [a] x) mask)
+	// result: (VRNDSCALEPDMasked512Merging dst [a] x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VRNDSCALEPD512 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VRNDSCALEPDMasked512Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VPABSQ512 x) mask)
+	// result: (VPABSQMasked512Merging dst x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPABSQ512 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPABSQMasked512Merging)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VPMOVUSQD256 x) mask)
+	// result: (VPMOVUSQDMasked256Merging dst x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVUSQD256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMOVUSQDMasked256Merging)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VADDPD512 x y) mask)
+	// result: (VADDPDMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VADDPD512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VADDPDMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VRCP14PD512 x) mask)
+	// result: (VRCP14PDMasked512Merging dst x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VRCP14PD512 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VRCP14PDMasked512Merging)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VPSRLVQ512 x y) mask)
+	// result: (VPSRLVQMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSRLVQ512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPSRLVQMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VPRORVQ512 x y) mask)
+	// result: (VPRORVQMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPRORVQ512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPRORVQMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VPSRAVQ512 x y) mask)
+	// result: (VPSRAVQMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSRAVQ512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPSRAVQMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VPANDQ512 x y) mask)
+	// result: (VPANDQMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPANDQ512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPANDQMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VPMOVQB128 x) mask)
+	// result: (VPMOVQBMasked128Merging dst x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVQB128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMOVQBMasked128Merging)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VPSHLDQ512 [a] x y) mask)
+	// result: (VPSHLDQMasked512Merging dst [a] x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSHLDQ512 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPSHLDQMasked512Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VDIVPD512 x y) mask)
+	// result: (VDIVPDMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VDIVPD512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VDIVPDMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VPROLVQ512 x y) mask)
+	// result: (VPROLVQMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPROLVQ512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPROLVQMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VPRORQ512 [a] x) mask)
+	// result: (VPRORQMasked512Merging dst [a] x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPRORQ512 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPRORQMasked512Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VPMINSQ512 x y) mask)
+	// result: (VPMINSQMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMINSQ512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMINSQMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VSQRTPD512 x) mask)
+	// result: (VSQRTPDMasked512Merging dst x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VSQRTPD512 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VSQRTPDMasked512Merging)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VPMOVSQD256 x) mask)
+	// result: (VPMOVSQDMasked256Merging dst x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVSQD256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMOVSQDMasked256Merging)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VMINPD512 x y) mask)
+	// result: (VMINPDMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VMINPD512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VMINPDMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VPMULLQ512 x y) mask)
+	// result: (VPMULLQMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMULLQ512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMULLQMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VMAXPD512 x y) mask)
+	// result: (VMAXPDMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VMAXPD512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VMAXPDMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VMULPD512 x y) mask)
+	// result: (VMULPDMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VMULPD512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VMULPDMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VPORQ512 x y) mask)
+	// result: (VPORQMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPORQ512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPORQMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VPMOVUSQW128 x) mask)
+	// result: (VPMOVUSQWMasked128Merging dst x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVUSQW128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMOVUSQWMasked128Merging)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VREDUCEPD512 [a] x) mask)
+	// result: (VREDUCEPDMasked512Merging dst [a] x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VREDUCEPD512 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VREDUCEPDMasked512Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VPOPCNTQ512 x) mask)
+	// result: (VPOPCNTQMasked512Merging dst x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPOPCNTQ512 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPOPCNTQMasked512Merging)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VPXORQ512 x y) mask)
+	// result: (VPXORQMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPXORQ512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPXORQMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VPMOVQD256 x) mask)
+	// result: (VPMOVQDMasked256Merging dst x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVQD256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMOVQDMasked256Merging)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VPMAXUQ512 x y) mask)
+	// result: (VPMAXUQMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMAXUQ512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMAXUQMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VSUBPD512 x y) mask)
+	// result: (VSUBPDMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VSUBPD512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VSUBPDMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VPMOVQW128 x) mask)
+	// result: (VPMOVQWMasked128Merging dst x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVQW128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMOVQWMasked128Merging)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VPSHRDQ512 [a] x y) mask)
+	// result: (VPSHRDQMasked512Merging dst [a] x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSHRDQ512 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPSHRDQMasked512Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VPLZCNTQ512 x) mask)
+	// result: (VPLZCNTQMasked512Merging dst x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPLZCNTQ512 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPLZCNTQMasked512Merging)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VSCALEFPD512 x y) mask)
+	// result: (VSCALEFPDMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VSCALEFPD512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VSCALEFPDMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VPMOVSQW128 x) mask)
+	// result: (VPMOVSQWMasked128Merging dst x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVSQW128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMOVSQWMasked128Merging)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VPMINUQ512 x y) mask)
+	// result: (VPMINUQMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMINUQ512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMINUQMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VPMOVSQB128 x) mask)
+	// result: (VPMOVSQBMasked128Merging dst x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVSQB128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMOVSQBMasked128Merging)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VRSQRT14PD512 x) mask)
+	// result: (VRSQRT14PDMasked512Merging dst x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VRSQRT14PD512 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VRSQRT14PDMasked512Merging)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VPSRAQ512const [a] x) mask)
+	// result: (VPSRAQMasked512constMerging dst [a] x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSRAQ512const {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPSRAQMasked512constMerging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMQMasked512 dst (VPMAXSQ512 x y) mask)
+	// result: (VPMAXSQMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMAXSQ512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMAXSQMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
 	// match: (VPBLENDMQMasked512 x l:(VMOVDQUload512 {sym} [off] ptr mem) mask)
 	// cond: canMergeLoad(v, l) && clobber(l)
 	// result: (VPBLENDMQMasked512load {sym} [off] x ptr mask mem)
@@ -40310,6 +41812,6036 @@ func rewriteValueAMD64_OpAMD64VPBLENDMQMasked512(v *Value) bool {
 		v.AuxInt = int32ToAuxInt(off)
 		v.Aux = symToAux(sym)
 		v.AddArg4(x, ptr, mask, mem)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VPBLENDMWMasked512(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VPBLENDMWMasked512 dst (VPMAXSW512 x y) mask)
+	// result: (VPMAXSWMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMAXSW512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMAXSWMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMWMasked512 dst (VPMULHW512 x y) mask)
+	// result: (VPMULHWMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMULHW512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMULHWMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMWMasked512 dst (VPMOVWB256 x) mask)
+	// result: (VPMOVWBMasked256Merging dst x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVWB256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMOVWBMasked256Merging)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMWMasked512 dst (VPMADDUBSW512 x y) mask)
+	// result: (VPMADDUBSWMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMADDUBSW512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMADDUBSWMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMWMasked512 dst (VPSHLDW512 [a] x y) mask)
+	// result: (VPSHLDWMasked512Merging dst [a] x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSHLDW512 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPSHLDWMasked512Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMWMasked512 dst (VPMULHUW512 x y) mask)
+	// result: (VPMULHUWMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMULHUW512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMULHUWMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMWMasked512 dst (VPMOVUSWB256 x) mask)
+	// result: (VPMOVUSWBMasked256Merging dst x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVUSWB256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMOVUSWBMasked256Merging)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMWMasked512 dst (VPMINSW512 x y) mask)
+	// result: (VPMINSWMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMINSW512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMINSWMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMWMasked512 dst (VPSRAVW512 x y) mask)
+	// result: (VPSRAVWMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSRAVW512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPSRAVWMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMWMasked512 dst (VPADDW512 x y) mask)
+	// result: (VPADDWMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPADDW512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPADDWMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMWMasked512 dst (VPSHUFHW512 [a] x) mask)
+	// result: (VPSHUFHWMasked512Merging dst [a] x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSHUFHW512 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPSHUFHWMasked512Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMWMasked512 dst (VPSHRDW512 [a] x y) mask)
+	// result: (VPSHRDWMasked512Merging dst [a] x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSHRDW512 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPSHRDWMasked512Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMWMasked512 dst (VPSUBSW512 x y) mask)
+	// result: (VPSUBSWMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSUBSW512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPSUBSWMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMWMasked512 dst (VPSUBUSW512 x y) mask)
+	// result: (VPSUBUSWMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSUBUSW512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPSUBUSWMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMWMasked512 dst (VPSUBW512 x y) mask)
+	// result: (VPSUBWMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSUBW512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPSUBWMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMWMasked512 dst (VPMADDWD512 x y) mask)
+	// result: (VPMADDWDMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMADDWD512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMADDWDMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMWMasked512 dst (VPSLLVW512 x y) mask)
+	// result: (VPSLLVWMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSLLVW512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPSLLVWMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMWMasked512 dst (VPABSW512 x) mask)
+	// result: (VPABSWMasked512Merging dst x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPABSW512 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPABSWMasked512Merging)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMWMasked512 dst (VPSRAW512const [a] x) mask)
+	// result: (VPSRAWMasked512constMerging dst [a] x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSRAW512const {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPSRAWMasked512constMerging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMWMasked512 dst (VPADDUSW512 x y) mask)
+	// result: (VPADDUSWMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPADDUSW512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPADDUSWMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMWMasked512 dst (VPOPCNTW512 x) mask)
+	// result: (VPOPCNTWMasked512Merging dst x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPOPCNTW512 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPOPCNTWMasked512Merging)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMWMasked512 dst (VPMINUW512 x y) mask)
+	// result: (VPMINUWMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMINUW512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMINUWMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMWMasked512 dst (VPAVGW512 x y) mask)
+	// result: (VPAVGWMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPAVGW512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPAVGWMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMWMasked512 dst (VPMOVSWB256 x) mask)
+	// result: (VPMOVSWBMasked256Merging dst x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVSWB256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMOVSWBMasked256Merging)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMWMasked512 dst (VPMAXUW512 x y) mask)
+	// result: (VPMAXUWMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMAXUW512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMAXUWMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMWMasked512 dst (VPSRLVW512 x y) mask)
+	// result: (VPSRLVWMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSRLVW512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPSRLVWMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMWMasked512 dst (VPSLLW512const [a] x) mask)
+	// result: (VPSLLWMasked512constMerging dst [a] x mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSLLW512const {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPSLLWMasked512constMerging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v.AddArg3(dst, x, mask)
+		return true
+	}
+	// match: (VPBLENDMWMasked512 dst (VPADDSW512 x y) mask)
+	// result: (VPADDSWMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPADDSW512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPADDSWMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	// match: (VPBLENDMWMasked512 dst (VPMULLW512 x y) mask)
+	// result: (VPMULLWMasked512Merging dst x y mask)
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMULLW512 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		v.reset(OpAMD64VPMULLWMasked512Merging)
+		v.AddArg4(dst, x, y, mask)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VPBLENDVB128(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (VPBLENDVB128 dst (VPMINUD128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMINUDMasked128Merging dst x y (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMINUD128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMINUDMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPROLQ128 [a] x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPROLQMasked128Merging dst [a] x (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPROLQ128 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPROLQMasked128Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMADDUBSW128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMADDUBSWMasked128Merging dst x y (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMADDUBSW128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMADDUBSWMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMAXSB128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMAXSBMasked128Merging dst x y (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMAXSB128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMAXSBMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPADDSB128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPADDSBMasked128Merging dst x y (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPADDSB128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPADDSBMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VBROADCASTSS256 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VBROADCASTSSMasked256Merging dst x (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VBROADCASTSS256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VBROADCASTSSMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMOVSXBW128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVSXBWMasked128Merging dst x (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVSXBW128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVSXBWMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMINSQ128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMINSQMasked128Merging dst x y (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMINSQ128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMINSQMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPSUBUSW128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSUBUSWMasked128Merging dst x y (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSUBUSW128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSUBUSWMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMOVSXBQ512 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVSXBQMasked512Merging dst x (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVSXBQ512 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVSXBQMasked512Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMOVZXWQ256 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVZXWQMasked256Merging dst x (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVZXWQ256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVZXWQMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMULLW128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMULLWMasked128Merging dst x y (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMULLW128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMULLWMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPSHLDQ128 [a] x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSHLDQMasked128Merging dst [a] x y (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSHLDQ128 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSHLDQMasked128Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMOVZXBQ256 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVZXBQMasked256Merging dst x (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVZXBQ256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVZXBQMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMAXSQ128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMAXSQMasked128Merging dst x y (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMAXSQ128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMAXSQMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPOPCNTW128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPOPCNTWMasked128Merging dst x (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPOPCNTW128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPOPCNTWMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPBROADCASTW128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPBROADCASTWMasked128Merging dst x (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPBROADCASTW128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPBROADCASTWMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPRORVD128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPRORVDMasked128Merging dst x y (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPRORVD128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPRORVDMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VBROADCASTSD256 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VBROADCASTSDMasked256Merging dst x (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VBROADCASTSD256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VBROADCASTSDMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMOVZXDQ128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVZXDQMasked128Merging dst x (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVZXDQ128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVZXDQMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPSRAQ128const [a] x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSRAQMasked128constMerging dst [a] x (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSRAQ128const {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSRAQMasked128constMerging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPACKUSDW128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPACKUSDWMasked128Merging dst x y (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPACKUSDW128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPACKUSDWMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPLZCNTD128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPLZCNTDMasked128Merging dst x (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPLZCNTD128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPLZCNTDMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMAXUD128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMAXUDMasked128Merging dst x y (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMAXUD128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMAXUDMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPOPCNTB128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPOPCNTBMasked128Merging dst x (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPOPCNTB128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPOPCNTBMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VBROADCASTSD512 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VBROADCASTSDMasked512Merging dst x (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VBROADCASTSD512 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VBROADCASTSDMasked512Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VMINPD128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VMINPDMasked128Merging dst x y (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VMINPD128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VMINPDMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPSHRDW128 [a] x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSHRDWMasked128Merging dst [a] x y (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSHRDW128 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSHRDWMasked128Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VADDPD128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VADDPDMasked128Merging dst x y (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VADDPD128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VADDPDMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMOVZXWD256 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVZXWDMasked256Merging dst x (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVZXWD256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVZXWDMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMOVSXWQ256 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVSXWQMasked256Merging dst x (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVSXWQ256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVSXWQMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPSUBSW128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSUBSWMasked128Merging dst x y (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSUBSW128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSUBSWMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VREDUCEPD128 [a] x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VREDUCEPDMasked128Merging dst [a] x (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VREDUCEPD128 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VREDUCEPDMasked128Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMOVZXBD256 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVZXBDMasked256Merging dst x (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVZXBD256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVZXBDMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPRORQ128 [a] x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPRORQMasked128Merging dst [a] x (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPRORQ128 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPRORQMasked128Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPSLLVW128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSLLVWMasked128Merging dst x y (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSLLVW128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSLLVWMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMOVSXBW256 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVSXBWMasked256Merging dst x (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVSXBW256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVSXBWMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMINSD128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMINSDMasked128Merging dst x y (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMINSD128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMINSDMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VADDPS128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VADDPSMasked128Merging dst x y (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VADDPS128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VADDPSMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMOVSXBD256 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVSXBDMasked256Merging dst x (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVSXBD256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVSXBDMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMOVSXDQ128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVSXDQMasked128Merging dst x (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVSXDQ128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVSXDQMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPROLVD128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPROLVDMasked128Merging dst x y (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPROLVD128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPROLVDMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPSRLVQ128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSRLVQMasked128Merging dst x y (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSRLVQ128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSRLVQMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMAXSD128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMAXSDMasked128Merging dst x y (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMAXSD128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMAXSDMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMINUB128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMINUBMasked128Merging dst x y (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMINUB128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMINUBMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMULLQ128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMULLQMasked128Merging dst x y (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMULLQ128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMULLQMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPSUBD128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSUBDMasked128Merging dst x y (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSUBD128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSUBDMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPBROADCASTD512 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPBROADCASTDMasked512Merging dst x (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPBROADCASTD512 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPBROADCASTDMasked512Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMADDWD128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMADDWDMasked128Merging dst x y (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMADDWD128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMADDWDMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPROLD128 [a] x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPROLDMasked128Merging dst [a] x (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPROLD128 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPROLDMasked128Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPSRAD128const [a] x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSRADMasked128constMerging dst [a] x (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSRAD128const {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSRADMasked128constMerging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPSUBUSB128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSUBUSBMasked128Merging dst x y (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSUBUSB128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSUBUSBMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPADDUSB128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPADDUSBMasked128Merging dst x y (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPADDUSB128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPADDUSBMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMOVZXBW128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVZXBWMasked128Merging dst x (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVZXBW128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVZXBWMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMOVZXDQ256 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVZXDQMasked256Merging dst x (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVZXDQ256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVZXDQMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPROLVQ128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPROLVQMasked128Merging dst x y (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPROLVQ128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPROLVQMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPADDB128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPADDBMasked128Merging dst x y (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPADDB128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPADDBMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPADDQ128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPADDQMasked128Merging dst x y (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPADDQ128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPADDQMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPADDUSW128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPADDUSWMasked128Merging dst x y (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPADDUSW128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPADDUSWMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPBROADCASTB128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPBROADCASTBMasked128Merging dst x (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPBROADCASTB128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPBROADCASTBMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VRNDSCALEPS128 [a] x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VRNDSCALEPSMasked128Merging dst [a] x (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VRNDSCALEPS128 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VRNDSCALEPSMasked128Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMINUW128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMINUWMasked128Merging dst x y (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMINUW128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMINUWMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMINSW128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMINSWMasked128Merging dst x y (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMINSW128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMINSWMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMULLD128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMULLDMasked128Merging dst x y (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMULLD128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMULLDMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPSHUFB128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSHUFBMasked128Merging dst x y (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSHUFB128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSHUFBMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPRORD128 [a] x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPRORDMasked128Merging dst [a] x (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPRORD128 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPRORDMasked128Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VCVTTPS2DQ128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VCVTTPS2DQMasked128Merging dst x (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VCVTTPS2DQ128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VCVTTPS2DQMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VMINPS128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VMINPSMasked128Merging dst x y (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VMINPS128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VMINPSMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VSUBPD128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VSUBPDMasked128Merging dst x y (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VSUBPD128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VSUBPDMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPBROADCASTB512 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPBROADCASTBMasked512Merging dst x (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPBROADCASTB512 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPBROADCASTBMasked512Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VRCP14PD128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VRCP14PDMasked128Merging dst x (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VRCP14PD128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VRCP14PDMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMOVSXWD256 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVSXWDMasked256Merging dst x (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVSXWD256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVSXWDMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPBROADCASTW256 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPBROADCASTWMasked256Merging dst x (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPBROADCASTW256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPBROADCASTWMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPBROADCASTD256 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPBROADCASTDMasked256Merging dst x (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPBROADCASTD256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPBROADCASTDMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPADDD128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPADDDMasked128Merging dst x y (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPADDD128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPADDDMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VBROADCASTSS128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VBROADCASTSSMasked128Merging dst x (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VBROADCASTSS128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VBROADCASTSSMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMOVSXDQ256 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVSXDQMasked256Merging dst x (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVSXDQ256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVSXDQMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMOVSXBD512 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVSXBDMasked512Merging dst x (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVSXBD512 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVSXBDMasked512Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPSHLDW128 [a] x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSHLDWMasked128Merging dst [a] x y (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSHLDW128 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSHLDWMasked128Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMAXUQ128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMAXUQMasked128Merging dst x y (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMAXUQ128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMAXUQMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPSHLDD128 [a] x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSHLDDMasked128Merging dst [a] x y (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSHLDD128 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSHLDDMasked128Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VSUBPS128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VSUBPSMasked128Merging dst x y (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VSUBPS128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VSUBPSMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPBROADCASTQ128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPBROADCASTQMasked128Merging dst x (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPBROADCASTQ128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPBROADCASTQMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPRORVQ128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPRORVQMasked128Merging dst x y (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPRORVQ128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPRORVQMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VBROADCASTSS512 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VBROADCASTSSMasked512Merging dst x (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VBROADCASTSS512 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VBROADCASTSSMasked512Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMOVZXBD128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVZXBDMasked128Merging dst x (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVZXBD128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVZXBDMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMOVZXBQ128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVZXBQMasked128Merging dst x (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVZXBQ128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVZXBQMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPABSW128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPABSWMasked128Merging dst x (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPABSW128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPABSWMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPSUBW128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSUBWMasked128Merging dst x y (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSUBW128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSUBWMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMOVZXWQ128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVZXWQMasked128Merging dst x (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVZXWQ128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVZXWQMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VGF2P8MULB128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VGF2P8MULBMasked128Merging dst x y (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VGF2P8MULB128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VGF2P8MULBMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPABSD128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPABSDMasked128Merging dst x (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPABSD128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPABSDMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPBROADCASTB256 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPBROADCASTBMasked256Merging dst x (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPBROADCASTB256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPBROADCASTBMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VMAXPD128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VMAXPDMasked128Merging dst x y (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VMAXPD128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VMAXPDMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMINUQ128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMINUQMasked128Merging dst x y (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMINUQ128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMINUQMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VMULPS128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VMULPSMasked128Merging dst x y (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VMULPS128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VMULPSMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMULHUW128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMULHUWMasked128Merging dst x y (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMULHUW128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMULHUWMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VMULPD128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VMULPDMasked128Merging dst x y (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VMULPD128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VMULPDMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPSUBB128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSUBBMasked128Merging dst x y (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSUBB128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSUBBMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VCVTPS2UDQ128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VCVTPS2UDQMasked128Merging dst x (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VCVTPS2UDQ128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VCVTPS2UDQMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VSCALEFPS128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VSCALEFPSMasked128Merging dst x y (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VSCALEFPS128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VSCALEFPSMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPSLLVQ128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSLLVQMasked128Merging dst x y (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSLLVQ128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSLLVQMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMOVSXBQ256 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVSXBQMasked256Merging dst x (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVSXBQ256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVSXBQMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPADDW128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPADDWMasked128Merging dst x y (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPADDW128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPADDWMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMOVSXWD128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVSXWDMasked128Merging dst x (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVSXWD128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVSXWDMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VRSQRT14PD128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VRSQRT14PDMasked128Merging dst x (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VRSQRT14PD128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VRSQRT14PDMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPSRAW128const [a] x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSRAWMasked128constMerging dst [a] x (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSRAW128const {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSRAWMasked128constMerging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMULHW128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMULHWMasked128Merging dst x y (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMULHW128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMULHWMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPSHRDD128 [a] x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSHRDDMasked128Merging dst [a] x y (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSHRDD128 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSHRDDMasked128Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPSUBSB128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSUBSBMasked128Merging dst x y (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSUBSB128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSUBSBMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPADDSW128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPADDSWMasked128Merging dst x y (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPADDSW128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPADDSWMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMINSB128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMINSBMasked128Merging dst x y (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMINSB128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMINSBMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPSHUFD128 [a] x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSHUFDMasked128Merging dst [a] x (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSHUFD128 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSHUFDMasked128Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPBROADCASTQ512 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPBROADCASTQMasked512Merging dst x (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPBROADCASTQ512 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPBROADCASTQMasked512Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VREDUCEPS128 [a] x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VREDUCEPSMasked128Merging dst [a] x (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VREDUCEPS128 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VREDUCEPSMasked128Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMOVZXWQ512 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVZXWQMasked512Merging dst x (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVZXWQ512 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVZXWQMasked512Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPSRAVW128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSRAVWMasked128Merging dst x y (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSRAVW128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSRAVWMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VSQRTPD128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VSQRTPDMasked128Merging dst x (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VSQRTPD128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VSQRTPDMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPAVGW128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPAVGWMasked128Merging dst x y (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPAVGW128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPAVGWMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VDIVPS128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VDIVPSMasked128Merging dst x y (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VDIVPS128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VDIVPSMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VDIVPD128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VDIVPDMasked128Merging dst x y (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VDIVPD128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VDIVPDMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPOPCNTD128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPOPCNTDMasked128Merging dst x (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPOPCNTD128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPOPCNTDMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPBROADCASTQ256 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPBROADCASTQMasked256Merging dst x (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPBROADCASTQ256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPBROADCASTQMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VRNDSCALEPD128 [a] x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VRNDSCALEPDMasked128Merging dst [a] x (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VRNDSCALEPD128 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VRNDSCALEPDMasked128Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMOVSXWQ128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVSXWQMasked128Merging dst x (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVSXWQ128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVSXWQMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPOPCNTQ128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPOPCNTQMasked128Merging dst x (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPOPCNTQ128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPOPCNTQMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPAVGB128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPAVGBMasked128Merging dst x y (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPAVGB128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPAVGBMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMOVSXBQ128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVSXBQMasked128Merging dst x (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVSXBQ128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVSXBQMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMAXSW128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMAXSWMasked128Merging dst x y (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMAXSW128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMAXSWMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMOVZXBW256 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVZXBWMasked256Merging dst x (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVZXBW256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVZXBWMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMOVZXBD512 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVZXBDMasked512Merging dst x (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVZXBD512 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVZXBDMasked512Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPSHUFHW128 [a] x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSHUFHWMasked128Merging dst [a] x (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSHUFHW128 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSHUFHWMasked128Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPSLLW128const [a] x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSLLWMasked128constMerging dst [a] x (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSLLW128const {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSLLWMasked128constMerging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPSLLVD128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSLLVDMasked128Merging dst x y (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSLLVD128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSLLVDMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPSRLVD128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSRLVDMasked128Merging dst x y (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSRLVD128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSRLVDMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMOVSXWQ512 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVSXWQMasked512Merging dst x (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVSXWQ512 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVSXWQMasked512Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPSUBQ128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSUBQMasked128Merging dst x y (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSUBQ128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSUBQMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPSLLD128const [a] x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSLLDMasked128constMerging dst [a] x (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSLLD128const {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSLLDMasked128constMerging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPSRLVW128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSRLVWMasked128Merging dst x y (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSRLVW128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSRLVWMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPSLLQ128const [a] x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSLLQMasked128constMerging dst [a] x (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSLLQ128const {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSLLQMasked128constMerging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPSRAVD128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSRAVDMasked128Merging dst x y (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSRAVD128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSRAVDMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMOVSXBD128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVSXBDMasked128Merging dst x (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVSXBD128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVSXBDMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMOVZXBQ512 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVZXBQMasked512Merging dst x (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVZXBQ512 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVZXBQMasked512Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPLZCNTQ128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPLZCNTQMasked128Merging dst x (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPLZCNTQ128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPLZCNTQMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPACKSSDW128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPACKSSDWMasked128Merging dst x y (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPACKSSDW128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPACKSSDWMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMOVZXWD128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVZXWDMasked128Merging dst x (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVZXWD128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVZXWDMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPSRAVQ128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSRAVQMasked128Merging dst x y (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSRAVQ128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSRAVQMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPBROADCASTD128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPBROADCASTDMasked128Merging dst x (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPBROADCASTD128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPBROADCASTDMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VMAXPS128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VMAXPSMasked128Merging dst x y (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VMAXPS128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VMAXPSMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPSHRDQ128 [a] x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSHRDQMasked128Merging dst [a] x y (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSHRDQ128 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSHRDQMasked128Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMAXUW128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMAXUWMasked128Merging dst x y (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMAXUW128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMAXUWMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPABSB128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPABSBMasked128Merging dst x (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPABSB128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPABSBMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPABSQ128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPABSQMasked128Merging dst x (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPABSQ128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPABSQMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VSCALEFPD128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VSCALEFPDMasked128Merging dst x y (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VSCALEFPD128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VSCALEFPDMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VSQRTPS128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VSQRTPSMasked128Merging dst x (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VSQRTPS128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VSQRTPSMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPBROADCASTW512 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPBROADCASTWMasked512Merging dst x (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPBROADCASTW512 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPBROADCASTWMasked512Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 dst (VPMAXUB128 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMAXUBMasked128Merging dst x y (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMAXUB128 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMAXUBMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64VPBLENDVB256(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (VPBLENDVB256 dst (VPMOVSXBW512 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVSXBWMasked512Merging dst x (VPMOVVec8x32ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVSXBW512 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVSXBWMasked512Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x32ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPADDUSB256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPADDUSBMasked256Merging dst x y (VPMOVVec8x32ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPADDUSB256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPADDUSBMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x32ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VMULPS256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VMULPSMasked256Merging dst x y (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VMULPS256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VMULPSMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPOPCNTB256 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPOPCNTBMasked256Merging dst x (VPMOVVec8x32ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPOPCNTB256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPOPCNTBMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x32ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VSUBPS256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VSUBPSMasked256Merging dst x y (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VSUBPS256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VSUBPSMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPMAXUQ256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMAXUQMasked256Merging dst x y (VPMOVVec64x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMAXUQ256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMAXUQMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPROLD256 [a] x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPROLDMasked256Merging dst [a] x (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPROLD256 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPROLDMasked256Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPSRAVD256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSRAVDMasked256Merging dst x y (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSRAVD256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSRAVDMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VADDPS256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VADDPSMasked256Merging dst x y (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VADDPS256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VADDPSMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPMOVSXDQ512 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVSXDQMasked512Merging dst x (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVSXDQ512 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVSXDQMasked512Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPMOVUSWB128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVUSWBMasked128Merging dst x (VPMOVVec16x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVUSWB128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVUSWBMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPSRAQ256const [a] x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSRAQMasked256constMerging dst [a] x (VPMOVVec64x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSRAQ256const {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSRAQMasked256constMerging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VCVTPS2UDQ256 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VCVTPS2UDQMasked256Merging dst x (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VCVTPS2UDQ256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VCVTPS2UDQMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPMINSW256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMINSWMasked256Merging dst x y (VPMOVVec16x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMINSW256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMINSWMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPSHLDD256 [a] x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSHLDDMasked256Merging dst [a] x y (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSHLDD256 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSHLDDMasked256Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPSLLVW256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSLLVWMasked256Merging dst x y (VPMOVVec16x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSLLVW256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSLLVWMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPSRLVQ256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSRLVQMasked256Merging dst x y (VPMOVVec64x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSRLVQ256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSRLVQMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPSUBUSB256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSUBUSBMasked256Merging dst x y (VPMOVVec8x32ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSUBUSB256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSUBUSBMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x32ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPMAXSW256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMAXSWMasked256Merging dst x y (VPMOVVec16x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMAXSW256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMAXSWMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VMINPS256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VMINPSMasked256Merging dst x y (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VMINPS256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VMINPSMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPMINSD256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMINSDMasked256Merging dst x y (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMINSD256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMINSDMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPADDSW256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPADDSWMasked256Merging dst x y (VPMOVVec16x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPADDSW256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPADDSWMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VRNDSCALEPS256 [a] x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VRNDSCALEPSMasked256Merging dst [a] x (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VRNDSCALEPS256 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VRNDSCALEPSMasked256Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPROLVQ256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPROLVQMasked256Merging dst x y (VPMOVVec64x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPROLVQ256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPROLVQMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPMULHW256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMULHWMasked256Merging dst x y (VPMOVVec16x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMULHW256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMULHWMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VDIVPD256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VDIVPDMasked256Merging dst x y (VPMOVVec64x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VDIVPD256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VDIVPDMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPLZCNTQ256 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPLZCNTQMasked256Merging dst x (VPMOVVec64x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPLZCNTQ256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPLZCNTQMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPSRLVD256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSRLVDMasked256Merging dst x y (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSRLVD256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSRLVDMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPADDD256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPADDDMasked256Merging dst x y (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPADDD256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPADDDMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPMOVSDW128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVSDWMasked128Merging dst x (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVSDW128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVSDWMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPOPCNTD256 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPOPCNTDMasked256Merging dst x (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPOPCNTD256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPOPCNTDMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPADDUSW256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPADDUSWMasked256Merging dst x y (VPMOVVec16x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPADDUSW256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPADDUSWMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VSQRTPD256 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VSQRTPDMasked256Merging dst x (VPMOVVec64x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VSQRTPD256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VSQRTPDMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VREDUCEPS256 [a] x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VREDUCEPSMasked256Merging dst [a] x (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VREDUCEPS256 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VREDUCEPSMasked256Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPSUBQ256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSUBQMasked256Merging dst x y (VPMOVVec64x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSUBQ256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSUBQMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPMOVSXWD512 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVSXWDMasked512Merging dst x (VPMOVVec16x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVSXWD512 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVSXWDMasked512Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VGF2P8MULB256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VGF2P8MULBMasked256Merging dst x y (VPMOVVec8x32ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VGF2P8MULB256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VGF2P8MULBMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x32ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPSLLVD256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSLLVDMasked256Merging dst x y (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSLLVD256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSLLVDMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPSRLVW256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSRLVWMasked256Merging dst x y (VPMOVVec16x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSRLVW256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSRLVWMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPADDW256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPADDWMasked256Merging dst x y (VPMOVVec16x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPADDW256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPADDWMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VREDUCEPD256 [a] x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VREDUCEPDMasked256Merging dst [a] x (VPMOVVec64x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VREDUCEPD256 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VREDUCEPDMasked256Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VRNDSCALEPD256 [a] x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VRNDSCALEPDMasked256Merging dst [a] x (VPMOVVec64x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VRNDSCALEPD256 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VRNDSCALEPDMasked256Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPRORVD256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPRORVDMasked256Merging dst x y (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPRORVD256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPRORVDMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPSHLDW256 [a] x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSHLDWMasked256Merging dst [a] x y (VPMOVVec16x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSHLDW256 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSHLDWMasked256Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VCVTTPS2DQ256 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VCVTTPS2DQMasked256Merging dst x (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VCVTTPS2DQ256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VCVTTPS2DQMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VSUBPD256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VSUBPDMasked256Merging dst x y (VPMOVVec64x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VSUBPD256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VSUBPDMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPSUBD256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSUBDMasked256Merging dst x y (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSUBD256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSUBDMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VSQRTPS256 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VSQRTPSMasked256Merging dst x (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VSQRTPS256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VSQRTPSMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPACKUSDW256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPACKUSDWMasked256Merging dst x y (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPACKUSDW256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPACKUSDWMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPMULLD256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMULLDMasked256Merging dst x y (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMULLD256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMULLDMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPADDB256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPADDBMasked256Merging dst x y (VPMOVVec8x32ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPADDB256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPADDBMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x32ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPMOVWB128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVWBMasked128Merging dst x (VPMOVVec16x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVWB128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVWBMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPMADDWD256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMADDWDMasked256Merging dst x y (VPMOVVec16x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMADDWD256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMADDWDMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPMOVQD128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVQDMasked128Merging dst x (VPMOVVec64x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVQD128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVQDMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPMULHUW256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMULHUWMasked256Merging dst x y (VPMOVVec16x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMULHUW256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMULHUWMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPMULLQ256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMULLQMasked256Merging dst x y (VPMOVVec64x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMULLQ256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMULLQMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPROLVD256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPROLVDMasked256Merging dst x y (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPROLVD256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPROLVDMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPMOVUSDW128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVUSDWMasked128Merging dst x (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVUSDW128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVUSDWMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPMULLW256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMULLWMasked256Merging dst x y (VPMOVVec16x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMULLW256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMULLWMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPRORD256 [a] x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPRORDMasked256Merging dst [a] x (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPRORD256 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPRORDMasked256Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPSRAVW256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSRAVWMasked256Merging dst x y (VPMOVVec16x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSRAVW256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSRAVWMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPMINUD256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMINUDMasked256Merging dst x y (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMINUD256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMINUDMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPSHUFD256 [a] x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSHUFDMasked256Merging dst [a] x (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSHUFD256 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSHUFDMasked256Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPSLLVQ256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSLLVQMasked256Merging dst x y (VPMOVVec64x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSLLVQ256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSLLVQMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPMOVUSQD128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVUSQDMasked128Merging dst x (VPMOVVec64x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVUSQD128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVUSQDMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPSUBUSW256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSUBUSWMasked256Merging dst x y (VPMOVVec16x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSUBUSW256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSUBUSWMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VRSQRT14PD256 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VRSQRT14PDMasked256Merging dst x (VPMOVVec64x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VRSQRT14PD256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VRSQRT14PDMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPADDSB256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPADDSBMasked256Merging dst x y (VPMOVVec8x32ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPADDSB256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPADDSBMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x32ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPMOVZXWD512 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVZXWDMasked512Merging dst x (VPMOVVec16x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVZXWD512 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVZXWDMasked512Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPROLQ256 [a] x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPROLQMasked256Merging dst [a] x (VPMOVVec64x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPROLQ256 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPROLQMasked256Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPAVGB256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPAVGBMasked256Merging dst x y (VPMOVVec8x32ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPAVGB256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPAVGBMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x32ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPRORVQ256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPRORVQMasked256Merging dst x y (VPMOVVec64x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPRORVQ256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPRORVQMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPMOVZXDQ512 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVZXDQMasked512Merging dst x (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVZXDQ512 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVZXDQMasked512Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPMINUB256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMINUBMasked256Merging dst x y (VPMOVVec8x32ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMINUB256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMINUBMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x32ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPSLLW256const [a] x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSLLWMasked256constMerging dst [a] x (VPMOVVec16x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSLLW256const {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSLLWMasked256constMerging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VSCALEFPS256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VSCALEFPSMasked256Merging dst x y (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VSCALEFPS256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VSCALEFPSMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPSLLQ256const [a] x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSLLQMasked256constMerging dst [a] x (VPMOVVec64x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSLLQ256const {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSLLQMasked256constMerging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPMINSB256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMINSBMasked256Merging dst x y (VPMOVVec8x32ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMINSB256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMINSBMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x32ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPABSQ256 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPABSQMasked256Merging dst x (VPMOVVec64x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPABSQ256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPABSQMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPSHUFHW256 [a] x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSHUFHWMasked256Merging dst [a] x (VPMOVVec16x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSHUFHW256 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSHUFHWMasked256Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPSUBB256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSUBBMasked256Merging dst x y (VPMOVVec8x32ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSUBB256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSUBBMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x32ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VMAXPS256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VMAXPSMasked256Merging dst x y (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VMAXPS256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VMAXPSMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPMAXSD256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMAXSDMasked256Merging dst x y (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMAXSD256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMAXSDMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VMULPD256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VMULPDMasked256Merging dst x y (VPMOVVec64x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VMULPD256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VMULPDMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VDIVPS256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VDIVPSMasked256Merging dst x y (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VDIVPS256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VDIVPSMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPMAXSQ256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMAXSQMasked256Merging dst x y (VPMOVVec64x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMAXSQ256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMAXSQMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VMINPD256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VMINPDMasked256Merging dst x y (VPMOVVec64x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VMINPD256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VMINPDMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPSHLDQ256 [a] x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSHLDQMasked256Merging dst [a] x y (VPMOVVec64x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSHLDQ256 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSHLDQMasked256Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VSCALEFPD256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VSCALEFPDMasked256Merging dst x y (VPMOVVec64x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VSCALEFPD256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VSCALEFPDMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPMOVSWB128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVSWBMasked128Merging dst x (VPMOVVec16x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVSWB128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVSWBMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPMINSQ256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMINSQMasked256Merging dst x y (VPMOVVec64x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMINSQ256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMINSQMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPABSD256 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPABSDMasked256Merging dst x (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPABSD256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPABSDMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPMINUW256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMINUWMasked256Merging dst x y (VPMOVVec16x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMINUW256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMINUWMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPSHRDW256 [a] x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSHRDWMasked256Merging dst [a] x y (VPMOVVec16x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSHRDW256 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSHRDWMasked256Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPMOVZXBW512 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVZXBWMasked512Merging dst x (VPMOVVec8x32ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVZXBW512 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVZXBWMasked512Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x32ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPMAXUD256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMAXUDMasked256Merging dst x y (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMAXUD256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMAXUDMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPMAXSB256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMAXSBMasked256Merging dst x y (VPMOVVec8x32ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMAXSB256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMAXSBMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x32ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPSHRDQ256 [a] x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSHRDQMasked256Merging dst [a] x y (VPMOVVec64x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSHRDQ256 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSHRDQMasked256Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPMADDUBSW256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMADDUBSWMasked256Merging dst x y (VPMOVVec16x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMADDUBSW256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMADDUBSWMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPSLLD256const [a] x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSLLDMasked256constMerging dst [a] x (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSLLD256const {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSLLDMasked256constMerging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPMINUQ256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMINUQMasked256Merging dst x y (VPMOVVec64x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMINUQ256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMINUQMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VRCP14PD256 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VRCP14PDMasked256Merging dst x (VPMOVVec64x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VRCP14PD256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VRCP14PDMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPSHRDD256 [a] x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSHRDDMasked256Merging dst [a] x y (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSHRDD256 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSHRDDMasked256Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPADDQ256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPADDQMasked256Merging dst x y (VPMOVVec64x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPADDQ256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPADDQMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPMAXUB256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMAXUBMasked256Merging dst x y (VPMOVVec8x32ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMAXUB256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMAXUBMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x32ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPRORQ256 [a] x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPRORQMasked256Merging dst [a] x (VPMOVVec64x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPRORQ256 {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPRORQMasked256Merging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VADDPD256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VADDPDMasked256Merging dst x y (VPMOVVec64x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VADDPD256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VADDPDMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPSHUFB256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSHUFBMasked256Merging dst x y (VPMOVVec8x32ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSHUFB256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSHUFBMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x32ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPSRAD256const [a] x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSRADMasked256constMerging dst [a] x (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSRAD256const {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSRADMasked256constMerging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPSUBW256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSUBWMasked256Merging dst x y (VPMOVVec16x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSUBW256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSUBWMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPSRAW256const [a] x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSRAWMasked256constMerging dst [a] x (VPMOVVec16x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSRAW256const {
+			break
+		}
+		a := auxIntToUint8(v_1.AuxInt)
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSRAWMasked256constMerging)
+		v.AuxInt = uint8ToAuxInt(a)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPABSW256 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPABSWMasked256Merging dst x (VPMOVVec16x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPABSW256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPABSWMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPACKSSDW256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPACKSSDWMasked256Merging dst x y (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPACKSSDW256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPACKSSDWMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPMOVSQD128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVSQDMasked128Merging dst x (VPMOVVec64x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVSQD128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVSQDMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPLZCNTD256 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPLZCNTDMasked256Merging dst x (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPLZCNTD256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPLZCNTDMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VMAXPD256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VMAXPDMasked256Merging dst x y (VPMOVVec64x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VMAXPD256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VMAXPDMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPAVGW256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPAVGWMasked256Merging dst x y (VPMOVVec16x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPAVGW256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPAVGWMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPOPCNTQ256 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPOPCNTQMasked256Merging dst x (VPMOVVec64x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPOPCNTQ256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPOPCNTQMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPSUBSW256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSUBSWMasked256Merging dst x y (VPMOVVec16x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSUBSW256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSUBSWMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPMAXUW256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMAXUWMasked256Merging dst x y (VPMOVVec16x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMAXUW256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMAXUWMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPOPCNTW256 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPOPCNTWMasked256Merging dst x (VPMOVVec16x16ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPOPCNTW256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPOPCNTWMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPSRAVQ256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSRAVQMasked256Merging dst x y (VPMOVVec64x4ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSRAVQ256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSRAVQMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPABSB256 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPABSBMasked256Merging dst x (VPMOVVec8x32ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPABSB256 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPABSBMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x32ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPMOVDW128 x) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPMOVDWMasked128Merging dst x (VPMOVVec32x8ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPMOVDW128 {
+			break
+		}
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPMOVDWMasked128Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(dst, x, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 dst (VPSUBSB256 x y) mask)
+	// cond: v.Block.CPUfeatures.hasFeature(CPUavx512)
+	// result: (VPSUBSBMasked256Merging dst x y (VPMOVVec8x32ToM <types.TypeMask> mask))
+	for {
+		dst := v_0
+		if v_1.Op != OpAMD64VPSUBSB256 {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		mask := v_2
+		if !(v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			break
+		}
+		v.reset(OpAMD64VPSUBSBMasked256Merging)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x32ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(dst, x, y, v0)
 		return true
 	}
 	return false

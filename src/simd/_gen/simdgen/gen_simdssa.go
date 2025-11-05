@@ -99,6 +99,7 @@ func writeSIMDSSA(ops []Operation) *bytes.Buffer {
 		"v21ResultInArg0",
 		"v21ResultInArg0Imm8",
 		"v31x0AtIn2ResultInArg0",
+		"v2kvResultInArg0",
 	}
 	regInfoSet := map[string][]string{}
 	for _, key := range regInfoKeys {
@@ -107,7 +108,8 @@ func writeSIMDSSA(ops []Operation) *bytes.Buffer {
 
 	seen := map[string]struct{}{}
 	allUnseen := make(map[string][]Operation)
-	classifyOp := func(op Operation, shapeIn inShape, shapeOut outShape, caseStr string, mem memShape) error {
+	allUnseenCaseStr := make(map[string][]string)
+	classifyOp := func(op Operation, maskType maskShape, shapeIn inShape, shapeOut outShape, caseStr string, mem memShape) error {
 		regShape, err := op.regShape(mem)
 		if err != nil {
 			return err
@@ -127,8 +129,31 @@ func writeSIMDSSA(ops []Operation) *bytes.Buffer {
 		}
 		if _, ok := regInfoSet[regShape]; !ok {
 			allUnseen[regShape] = append(allUnseen[regShape], op)
+			allUnseenCaseStr[regShape] = append(allUnseenCaseStr[regShape], caseStr)
 		}
 		regInfoSet[regShape] = append(regInfoSet[regShape], caseStr)
+		if mem == NoMem && op.hasMaskedMerging(maskType, shapeOut) {
+			regShapeMerging := regShape
+			if shapeOut != OneVregOutAtIn {
+				// We have to copy the slice here becasue the sort will be visible from other
+				// aliases when no reslicing is happening.
+				newIn := make([]Operand, len(op.In), len(op.In)+1)
+				copy(newIn, op.In)
+				op.In = newIn
+				op.In = append(op.In, op.Out[0])
+				op.sortOperand()
+				regShapeMerging, err = op.regShape(mem)
+				regShapeMerging += "ResultInArg0"
+			}
+			if err != nil {
+				return err
+			}
+			if _, ok := regInfoSet[regShapeMerging]; !ok {
+				allUnseen[regShapeMerging] = append(allUnseen[regShapeMerging], op)
+				allUnseenCaseStr[regShapeMerging] = append(allUnseenCaseStr[regShapeMerging], caseStr+"Merging")
+			}
+			regInfoSet[regShapeMerging] = append(regInfoSet[regShapeMerging], caseStr+"Merging")
+		}
 		return nil
 	}
 	for _, op := range ops {
@@ -146,7 +171,7 @@ func writeSIMDSSA(ops []Operation) *bytes.Buffer {
 				isZeroMasking = true
 			}
 		}
-		if err := classifyOp(op, shapeIn, shapeOut, caseStr, NoMem); err != nil {
+		if err := classifyOp(op, maskType, shapeIn, shapeOut, caseStr, NoMem); err != nil {
 			panic(err)
 		}
 		if op.MemFeatures != nil && *op.MemFeatures == "vbcst" {
@@ -155,7 +180,7 @@ func writeSIMDSSA(ops []Operation) *bytes.Buffer {
 			// Ignore the error
 			// an error could be triggered by [checkVecAsScalar].
 			// TODO: make [checkVecAsScalar] aware of mem ops.
-			if err := classifyOp(op, shapeIn, shapeOut, caseStr+"load", VregMemIn); err != nil {
+			if err := classifyOp(op, maskType, shapeIn, shapeOut, caseStr+"load", VregMemIn); err != nil {
 				if *Verbose {
 					log.Printf("Seen error: %e", err)
 				}
@@ -169,7 +194,7 @@ func writeSIMDSSA(ops []Operation) *bytes.Buffer {
 		for k := range allUnseen {
 			allKeys = append(allKeys, k)
 		}
-		panic(fmt.Errorf("unsupported register constraint for prog, please update gen_simdssa.go and amd64/ssa.go: %+v\nAll keys: %v", allUnseen, allKeys))
+		panic(fmt.Errorf("unsupported register constraint for prog, please update gen_simdssa.go and amd64/ssa.go: %+v\nAll keys: %v\n, cases: %v\n", allUnseen, allKeys, allUnseenCaseStr))
 	}
 
 	buffer := new(bytes.Buffer)

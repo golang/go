@@ -1963,6 +1963,22 @@ func simdV2kv(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	return p
 }
 
+// Example instruction: VPABSB X1, X2, K3 (masking merging)
+func simdV2kvResultInArg0(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = simdReg(v.Args[1])
+	// These "simd*" series of functions assumes:
+	// Any "K" register that serves as the write-mask
+	// or "predicate" for "predicated AVX512 instructions"
+	// sits right at the end of the operand list.
+	// TODO: verify this assumption.
+	p.AddRestSourceReg(maskReg(v.Args[2]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
 // This function is to accustomize the shifts.
 // The 2nd arg is an XMM, and this function merely checks that.
 // Example instruction: VPSLLQ Z1, X1, K1, Z2

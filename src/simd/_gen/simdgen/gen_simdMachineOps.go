@@ -30,6 +30,12 @@ func simdAMD64Ops(v11, v21, v2k, vkv, v2kv, v2kk, v31, v3kv, vgpv, vgp, vfpv, vf
 {{- range .OpsDataImmLoad}}
 		{name: "{{.OpName}}", argLength: {{.OpInLen}}, reg: {{.RegInfo}}, asm: "{{.Asm}}", commutative: {{.Comm}}, typ: "{{.Type}}", aux: "SymValAndOff", symEffect: "Read", resultInArg0: {{.ResultInArg0}}},
 {{- end}}
+{{- range .OpsDataMerging }}
+		{name: "{{.OpName}}Merging", argLength: {{.OpInLen}}, reg: {{.RegInfo}}, asm: "{{.Asm}}", commutative: false, typ: "{{.Type}}", resultInArg0: true},
+{{- end }}
+{{- range .OpsDataImmMerging }}
+		{name: "{{.OpName}}Merging", argLength: {{.OpInLen}}, reg: {{.RegInfo}}, asm: "{{.Asm}}", aux: "UInt8", commutative: false, typ: "{{.Type}}", resultInArg0: true},
+{{- end }}
 	}
 }
 `
@@ -51,10 +57,12 @@ func writeSIMDMachineOps(ops []Operation) *bytes.Buffer {
 		ResultInArg0 bool
 	}
 	type machineOpsData struct {
-		OpsData        []opData
-		OpsDataImm     []opData
-		OpsDataLoad    []opData
-		OpsDataImmLoad []opData
+		OpsData           []opData
+		OpsDataImm        []opData
+		OpsDataLoad       []opData
+		OpsDataImmLoad    []opData
+		OpsDataMerging    []opData
+		OpsDataImmMerging []opData
 	}
 
 	regInfoSet := map[string]bool{
@@ -66,6 +74,8 @@ func writeSIMDMachineOps(ops []Operation) *bytes.Buffer {
 	opsDataImm := make([]opData, 0)
 	opsDataLoad := make([]opData, 0)
 	opsDataImmLoad := make([]opData, 0)
+	opsDataMerging := make([]opData, 0)
+	opsDataImmMerging := make([]opData, 0)
 
 	// Determine the "best" version of an instruction to use
 	best := make(map[string]Operation)
@@ -98,7 +108,7 @@ func writeSIMDMachineOps(ops []Operation) *bytes.Buffer {
 	regInfoMissing := make(map[string]bool, 0)
 	for _, asm := range mOpOrder {
 		op := best[asm]
-		shapeIn, shapeOut, _, _, gOp := op.shape()
+		shapeIn, shapeOut, maskType, _, gOp := op.shape()
 
 		// TODO: all our masked operations are now zeroing, we need to generate machine ops with merging masks, maybe copy
 		// one here with a name suffix "Merging". The rewrite rules will need them.
@@ -147,11 +157,13 @@ func writeSIMDMachineOps(ops []Operation) *bytes.Buffer {
 			resultInArg0 = true
 		}
 		var memOpData *opData
+		regInfoMerging := regInfo
+		hasMerging := false
 		if op.MemFeatures != nil && *op.MemFeatures == "vbcst" {
 			// Right now we only have vbcst case
 			// Make a full vec memory variant.
-			op = rewriteLastVregToMem(op)
-			regInfo, err := makeRegInfo(op, VregMemIn)
+			opMem := rewriteLastVregToMem(op)
+			regInfo, err := makeRegInfo(opMem, VregMemIn)
 			if err != nil {
 				// Just skip it if it's non nill.
 				// an error could be triggered by [checkVecAsScalar].
@@ -163,15 +175,50 @@ func writeSIMDMachineOps(ops []Operation) *bytes.Buffer {
 				memOpData = &opData{asm + "load", gOp.Asm, len(gOp.In) + 1, regInfo, false, outType, resultInArg0}
 			}
 		}
+		hasMerging = gOp.hasMaskedMerging(maskType, shapeOut)
+		if hasMerging && !resultInArg0 {
+			// We have to copy the slice here becasue the sort will be visible from other
+			// aliases when no reslicing is happening.
+			newIn := make([]Operand, len(op.In), len(op.In)+1)
+			copy(newIn, op.In)
+			op.In = newIn
+			op.In = append(op.In, op.Out[0])
+			op.sortOperand()
+			regInfoMerging, err = makeRegInfo(op, NoMem)
+			if err != nil {
+				panic(err)
+			}
+		}
+
 		if shapeIn == OneImmIn || shapeIn == OneKmaskImmIn {
 			opsDataImm = append(opsDataImm, opData{asm, gOp.Asm, len(gOp.In), regInfo, gOp.Commutative, outType, resultInArg0})
 			if memOpData != nil {
+				if *op.MemFeatures != "vbcst" {
+					panic("simdgen only knows vbcst for mem ops for now")
+				}
 				opsDataImmLoad = append(opsDataImmLoad, *memOpData)
+			}
+			if hasMerging {
+				mergingLen := len(gOp.In)
+				if !resultInArg0 {
+					mergingLen++
+				}
+				opsDataImmMerging = append(opsDataImmMerging, opData{asm, gOp.Asm, mergingLen, regInfoMerging, gOp.Commutative, outType, resultInArg0})
 			}
 		} else {
 			opsData = append(opsData, opData{asm, gOp.Asm, len(gOp.In), regInfo, gOp.Commutative, outType, resultInArg0})
 			if memOpData != nil {
+				if *op.MemFeatures != "vbcst" {
+					panic("simdgen only knows vbcst for mem ops for now")
+				}
 				opsDataLoad = append(opsDataLoad, *memOpData)
+			}
+			if hasMerging {
+				mergingLen := len(gOp.In)
+				if !resultInArg0 {
+					mergingLen++
+				}
+				opsDataMerging = append(opsDataMerging, opData{asm, gOp.Asm, mergingLen, regInfoMerging, gOp.Commutative, outType, resultInArg0})
 			}
 		}
 	}
@@ -193,7 +240,14 @@ func writeSIMDMachineOps(ops []Operation) *bytes.Buffer {
 	sort.Slice(opsDataImmLoad, func(i, j int) bool {
 		return compareNatural(opsDataImmLoad[i].OpName, opsDataImmLoad[j].OpName) < 0
 	})
-	err := t.Execute(buffer, machineOpsData{opsData, opsDataImm, opsDataLoad, opsDataImmLoad})
+	sort.Slice(opsDataMerging, func(i, j int) bool {
+		return compareNatural(opsDataMerging[i].OpName, opsDataMerging[j].OpName) < 0
+	})
+	sort.Slice(opsDataImmMerging, func(i, j int) bool {
+		return compareNatural(opsDataImmMerging[i].OpName, opsDataImmMerging[j].OpName) < 0
+	})
+	err := t.Execute(buffer, machineOpsData{opsData, opsDataImm, opsDataLoad, opsDataImmLoad,
+		opsDataMerging, opsDataImmMerging})
 	if err != nil {
 		panic(fmt.Errorf("failed to execute template: %w", err))
 	}

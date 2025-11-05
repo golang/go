@@ -126,6 +126,9 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 	buffer := new(bytes.Buffer)
 	buffer.WriteString(generatedHeader + "\n")
 
+	// asm -> masked merging rules
+	maskedMergeOpts := make(map[string]string)
+	s2n := map[int]string{8: "B", 16: "W", 32: "D", 64: "Q"}
 	asmCheck := map[string]bool{}
 	var allData []tplRuleData
 	var optData []tplRuleData    // for mask peephole optimizations, and other misc
@@ -295,6 +298,33 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 					memOpData.tplName = "vregMem"
 				}
 				memOptData = append(memOptData, memOpData)
+				asmCheck[memOpData.Asm+"load"] = true
+			}
+		}
+		// Generate the masked merging optimization rules
+		if gOp.hasMaskedMerging(maskType, opOutShape) {
+			// TODO: handle customized operand order and special lower.
+			maskElem := gOp.In[len(gOp.In)-1]
+			if maskElem.Bits == nil {
+				panic("mask has no bits")
+			}
+			if maskElem.ElemBits == nil {
+				panic("mask has no elemBits")
+			}
+			if maskElem.Lanes == nil {
+				panic("mask has no lanes")
+			}
+			switch *maskElem.Bits {
+			case 128, 256:
+				// VPBLENDVB cases.
+				noMaskName := machineOpName(NoMask, gOp)
+				maskedMergeOpts[noMaskName] = fmt.Sprintf("(VPBLENDVB%d dst (%s %s) mask) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (%sMerging dst %s (VPMOVVec%dx%dToM <types.TypeMask> mask))\n",
+					*maskElem.Bits, noMaskName, data.Args, data.Asm, data.Args, *maskElem.ElemBits, *maskElem.Lanes)
+			case 512:
+				// VPBLENDM[BWDQ] cases.
+				noMaskName := machineOpName(NoMask, gOp)
+				maskedMergeOpts[noMaskName] = fmt.Sprintf("(VPBLENDM%sMasked%d dst (%s %s) mask) => (%sMerging dst %s mask)\n",
+					s2n[*maskElem.ElemBits], *maskElem.Bits, noMaskName, data.Args, data.Asm, data.Args)
 			}
 		}
 
@@ -330,6 +360,13 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 			seen[rule] = true
 			buffer.WriteString(rule)
 		}
+	}
+
+	for asm, rule := range maskedMergeOpts {
+		if !asmCheck[asm] {
+			continue
+		}
+		buffer.WriteString(rule)
 	}
 
 	for _, data := range memOptData {

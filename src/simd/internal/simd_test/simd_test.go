@@ -1108,3 +1108,22 @@ func TestSelectTernOptInt32x16(t *testing.T) {
 	}
 	foo(t2, applyTo3(x, y, z, ft2))
 }
+
+func TestMaskedMerge(t *testing.T) {
+	x := simd.LoadInt64x4Slice([]int64{1, 2, 3, 4})
+	y := simd.LoadInt64x4Slice([]int64{5, 6, 1, 1})
+	z := simd.LoadInt64x4Slice([]int64{-1, -2, -3, -4})
+	res := make([]int64, 4)
+	expected := []int64{6, 8, -3, -4}
+	mask := x.Less(y)
+	if simd.HasAVX512() {
+		x.Add(y).Merge(z, mask).StoreSlice(res)
+	} else {
+		x.Add(y).Merge(z, mask).StoreSlice(res)
+	}
+	for i := range 4 {
+		if res[i] != expected[i] {
+			t.Errorf("got %d wanted %d", res[i], expected[i])
+		}
+	}
+}

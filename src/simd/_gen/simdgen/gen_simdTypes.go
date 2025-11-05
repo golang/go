@@ -585,8 +585,8 @@ func writeSIMDFeatures(ops []Operation) *bytes.Buffer {
 	return buffer
 }
 
-// writeSIMDStubs generates the simd vector intrinsic stubs and writes it to ops_amd64.go and ops_internal_amd64.go
-// within the specified directory.
+// writeSIMDStubs returns two bytes.Buffers containing the declarations for the public
+// and internal-use vector intrinsics.
 func writeSIMDStubs(ops []Operation, typeMap simdTypeMap) (f, fI *bytes.Buffer) {
 	t := templateOf(simdStubsTmpl, "simdStubs")
 	f = new(bytes.Buffer)

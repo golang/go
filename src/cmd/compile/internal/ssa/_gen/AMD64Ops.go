@@ -213,7 +213,7 @@ func init() {
 		vloadk  = regInfo{inputs: []regMask{gpspsb, mask, 0}, outputs: vonly}
 		vstorek = regInfo{inputs: []regMask{gpspsb, mask, v, 0}}
 
-		v11     = regInfo{inputs: vzonly, outputs: vonly}
+		v11     = regInfo{inputs: vonly, outputs: vonly}            // used in resultInArg0 ops, arg0 must not be x15
 		v21     = regInfo{inputs: []regMask{v, vz}, outputs: vonly} // used in resultInArg0 ops, arg0 must not be x15
 		vk      = regInfo{inputs: vzonly, outputs: maskonly}
 		kv      = regInfo{inputs: maskonly, outputs: vonly}
@@ -231,13 +231,13 @@ func init() {
 		gpv     = regInfo{inputs: []regMask{gp}, outputs: vonly}
 		v2flags = regInfo{inputs: []regMask{vz, vz}}
 
-		w11   = regInfo{inputs: wzonly, outputs: wonly}
+		w11   = regInfo{inputs: wonly, outputs: wonly} // used in resultInArg0 ops, arg0 must not be x15
 		w21   = regInfo{inputs: []regMask{wz, wz}, outputs: wonly}
 		wk    = regInfo{inputs: wzonly, outputs: maskonly}
 		kw    = regInfo{inputs: maskonly, outputs: wonly}
 		w2k   = regInfo{inputs: []regMask{wz, wz}, outputs: maskonly}
 		wkw   = regInfo{inputs: []regMask{wz, mask}, outputs: wonly}
-		w2kw  = regInfo{inputs: []regMask{wz, wz, mask}, outputs: wonly}
+		w2kw  = regInfo{inputs: []regMask{w, wz, mask}, outputs: wonly} // used in resultInArg0 ops, arg0 must not be x15
 		w2kk  = regInfo{inputs: []regMask{wz, wz, mask}, outputs: maskonly}
 		w31   = regInfo{inputs: []regMask{w, wz, wz}, outputs: wonly}       // used in resultInArg0 ops, arg0 must not be x15
 		w3kw  = regInfo{inputs: []regMask{w, wz, wz, mask}, outputs: wonly} // used in resultInArg0 ops, arg0 must not be x15
