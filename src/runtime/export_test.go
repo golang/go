@@ -238,6 +238,12 @@ func SetEnvs(e []string) { envs = e }
 
 const PtrSize = goarch.PtrSize
 
+const ClobberdeadPtr = clobberdeadPtr
+
+func Clobberfree() bool {
+	return debug.clobberfree != 0
+}
+
 var ForceGCPeriod = &forcegcperiod
 
 // SetTracebackEnv is like runtime/debug.SetTraceback, but it raises
