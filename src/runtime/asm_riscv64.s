@@ -369,9 +369,9 @@ TEXT gogo<>(SB), NOSPLIT|NOFRAME, $0
 
 
 // func procyieldAsm(cycles uint32)
-TEXT runtime·procyieldAsm(SB),NOSPLIT,$0-0
+TEXT runtime·procyieldAsm<ABIInternal>(SB),NOSPLIT,$0-0
 #ifdef hasZihintpause
-	MOVWU	cycles+0(FP), T0
+	MOVWU	X10, T0
 yieldloop:
 	PAUSE
 	SUBW	$1, T0
