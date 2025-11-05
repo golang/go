@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 	"internal/obscuretestdata"
 	"io"
 	"io/fs"
@@ -1831,4 +1832,84 @@ func TestBaseOffsetPlusOverflow(t *testing.T) {
 	// an io.SectionReader which would access a slice at a negative offset
 	// as the section reader offset & size were < 0.
 	NewReader(bytes.NewReader(data), int64(len(data))+1875)
+}
+
+func BenchmarkReaderOneDeepDir(b *testing.B) {
+	var buf bytes.Buffer
+	zw := NewWriter(&buf)
+
+	for i := range 4000 {
+		name := strings.Repeat("a/", i) + "data"
+		zw.CreateHeader(&FileHeader{
+			Name:   name,
+			Method: Store,
+		})
+	}
+
+	if err := zw.Close(); err != nil {
+		b.Fatal(err)
+	}
+	data := buf.Bytes()
+
+	for b.Loop() {
+		zr, err := NewReader(bytes.NewReader(data), int64(len(data)))
+		if err != nil {
+			b.Fatal(err)
+		}
+		zr.Open("does-not-exist")
+	}
+}
+
+func BenchmarkReaderManyDeepDirs(b *testing.B) {
+	var buf bytes.Buffer
+	zw := NewWriter(&buf)
+
+	for i := range 2850 {
+		name := fmt.Sprintf("%x", i)
+		name = strings.Repeat("/"+name, i+1)[1:]
+
+		zw.CreateHeader(&FileHeader{
+			Name:   name,
+			Method: Store,
+		})
+	}
+
+	if err := zw.Close(); err != nil {
+		b.Fatal(err)
+	}
+	data := buf.Bytes()
+
+	for b.Loop() {
+		zr, err := NewReader(bytes.NewReader(data), int64(len(data)))
+		if err != nil {
+			b.Fatal(err)
+		}
+		zr.Open("does-not-exist")
+	}
+}
+
+func BenchmarkReaderManyShallowFiles(b *testing.B) {
+	var buf bytes.Buffer
+	zw := NewWriter(&buf)
+
+	for i := range 310000 {
+		name := fmt.Sprintf("%v", i)
+		zw.CreateHeader(&FileHeader{
+			Name:   name,
+			Method: Store,
+		})
+	}
+
+	if err := zw.Close(); err != nil {
+		b.Fatal(err)
+	}
+	data := buf.Bytes()
+
+	for b.Loop() {
+		zr, err := NewReader(bytes.NewReader(data), int64(len(data)))
+		if err != nil {
+			b.Fatal(err)
+		}
+		zr.Open("does-not-exist")
+	}
 }
