@@ -2044,6 +2044,10 @@ func (fr *http2Framer) ErrorDetail() error {
 // sends a frame that is larger than declared with SetMaxReadFrameSize.
 var http2ErrFrameTooLarge = errors.New("http2: frame too large")
 
+// ErrFrameHeadersMalformed is returned from Framer.ReadFrame when the
+// peer sends a http2FrameHeaders frame with a malformed header block.
+var http2ErrFrameHeadersMalformed = errors.New("http2: malformed header frame")
+
 // terminalReadFrameError reports whether err is an unrecoverable
 // error from ReadFrame and no other frames should be read.
 func http2terminalReadFrameError(err error) bool {
@@ -2099,7 +2103,12 @@ func (fr *http2Framer) ReadFrame() (http2Frame, error) {
 		fr.debugReadLoggerf("http2: Framer %p: read %v", fr, http2summarizeFrame(f))
 	}
 	if fh.Type == http2FrameHeaders && fr.ReadMetaHeaders != nil {
-		return fr.readMetaFrame(f.(*http2HeadersFrame))
+		hf, ok := f.(*http2HeadersFrame)
+		if !ok {
+			return nil, http2ErrFrameHeadersMalformed
+		}
+
+		return fr.readMetaFrame(hf)
 	}
 	return f, nil
 }
