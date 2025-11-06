@@ -1169,6 +1169,20 @@ top:
 	// allocations since the ragged barrier.
 	gcController.endCycle(now, int(gomaxprocs))
 
+	// TODO(thepudds): this is not at all the right place for this (sorry!),
+	// but dropping here as a (crude) example of resetting the racelite
+	// state during a STW so that all user goroutines can make a consistent
+	// set of decisions about which addresses and words of heap objects
+	// are checked during racelite mode.
+	// TODO(thepudds): initial test program does not generate much garbage,
+	// so this not much exercised yet, but presumably it is possible
+	// to set two variables with rand values during STW somewhere, or
+	// maybe a better spot outside STW.
+	if debug.racelite > 0 {
+		raceliteCheckAddrRand = cheaprand()
+		raceliteCheckWordRand = cheaprand()
+	}
+
 	// Perform mark termination. This will restart the world.
 	gcMarkTermination(stw)
 }

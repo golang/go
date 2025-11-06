@@ -176,7 +176,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 
 	ssagen.Arch.LinkArch.Init(base.Ctxt)
 	startProfile()
-	if base.Flag.Race || base.Flag.MSan || base.Flag.ASan {
+	if base.Flag.Race || base.Flag.MSan || base.Flag.ASan || base.Flag.Racelite {
 		base.Flag.Cfg.Instrumenting = true
 	}
 	if base.Flag.Dwarf {

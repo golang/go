@@ -955,6 +955,11 @@ func schedinit() {
 		// to ensure runtime·modinfo is kept in the resulting binary.
 		modinfo = ""
 	}
+
+	// TODO(thepudds): this is not the right place for this (sorry!),
+	// but initialize racelite state.
+	raceliteCheckAddrRand = cheaprand()
+	raceliteCheckWordRand = cheaprand()
 }
 
 func dumpgstatus(gp *g) {

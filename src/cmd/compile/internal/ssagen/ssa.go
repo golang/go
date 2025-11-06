@@ -186,6 +186,8 @@ func InitConfig() {
 	ir.Syms.WriteBarrier = typecheck.LookupRuntimeVar("writeBarrier") // struct { bool; ... }
 	ir.Syms.Zerobase = typecheck.LookupRuntimeVar("zerobase")
 	ir.Syms.ZeroVal = typecheck.LookupRuntimeVar("zeroVal")
+	ir.Syms.Racelitewrite = typecheck.LookupRuntimeFunc("racelitewrite")
+	ir.Syms.Raceliteread = typecheck.LookupRuntimeFunc("raceliteread")
 
 	if Arch.LinkArch.Family == sys.Wasm {
 		BoundsCheckFunc[ssa.BoundsIndex] = typecheck.LookupRuntimeFunc("goPanicIndex")
@@ -339,7 +341,9 @@ func buildssa(fn *ir.Func, worker int, isPgoHot bool) *ssa.Func {
 	s.checkPtrEnabled = ir.ShouldCheckPtr(fn, 1)
 
 	if base.Flag.Cfg.Instrumenting && fn.Pragma&ir.Norace == 0 && !fn.Linksym().ABIWrapper() {
-		if !base.Flag.Race || !objabi.LookupPkgSpecial(fn.Sym().Pkg.Path).NoRaceFunc {
+		// TODO(thepudds): add Racelite here? this check is not what I would expect... We would
+		// want to respect NoRaceFunc probably.
+		if (!base.Flag.Race && !base.Flag.Racelite) || !objabi.LookupPkgSpecial(fn.Sym().Pkg.Path).NoRaceFunc {
 			s.instrumentMemory = true
 		}
 		if base.Flag.Race {
@@ -1572,6 +1576,16 @@ func (s *state) instrument2(t *types.Type, addr, addr2 *ssa.Value, kind instrume
 			fn = ir.Syms.Raceread
 		case instrumentWrite:
 			fn = ir.Syms.Racewrite
+		default:
+			panic("unreachable")
+		}
+	} else if base.Flag.Racelite {
+		// TODO(thepudds): probably need to handle composite objects.
+		switch kind {
+		case instrumentRead:
+			fn = ir.Syms.Raceliteread
+		case instrumentWrite:
+			fn = ir.Syms.Racelitewrite
 		default:
 			panic("unreachable")
 		}
