@@ -188,7 +188,7 @@ For example, a tree implementation might provide:
 	// It is only valid during the yield call it is passed to.
 	type Pos[V any] struct { ... }
 
-	// Pos returns the value at the cursor.
+	// Value returns the value at the cursor.
 	func (p *Pos[V]) Value() V
 
 	// Delete deletes the value at this point in the iteration.
