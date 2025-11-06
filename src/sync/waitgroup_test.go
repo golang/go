@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"sync"
 	. "sync"
 	"sync/atomic"
 	"testing"
@@ -120,27 +119,23 @@ func TestWaitGroupGo(t *testing.T) {
 // the process without causing Wait to unblock; previously there was a race.
 func TestIssue76126(t *testing.T) {
 	testenv.MustHaveExec(t)
-	// Call child in a child process
-	// and inspect its failure message.
-	cmd := exec.Command(os.Args[0], "-test.run=^TestIssue76126Child$")
-	cmd.Env = append(os.Environ(), "SYNC_TEST_CHILD=1")
-	buf := new(bytes.Buffer)
-	cmd.Stderr = buf
-	cmd.Run() // ignore error
-
-	got := buf.String()
-	if strings.Contains(got, "panic: test") {
-		// ok
-	} else {
-		t.Errorf("missing panic: test\n%s", got)
-	}
-}
-
-func TestIssue76126Child(t *testing.T) {
 	if os.Getenv("SYNC_TEST_CHILD") != "1" {
-		t.Skip("not child")
+		// Call child in a child process
+		// and inspect its failure message.
+		cmd := exec.Command(os.Args[0], "-test.run=^TestIssue76126$")
+		cmd.Env = append(os.Environ(), "SYNC_TEST_CHILD=1")
+		buf := new(bytes.Buffer)
+		cmd.Stderr = buf
+		cmd.Run() // ignore error
+		got := buf.String()
+		if strings.Contains(got, "panic: test") {
+			// ok
+		} else {
+			t.Errorf("missing panic: test\n%s", got)
+		}
+		return
 	}
-	var wg sync.WaitGroup
+	var wg WaitGroup
 	wg.Go(func() {
 		panic("test")
 	})
