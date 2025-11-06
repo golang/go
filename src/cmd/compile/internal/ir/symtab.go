@@ -90,6 +90,10 @@ type symsStruct struct {
 	WasmTruncS *obj.LSym
 	// Wasm
 	WasmTruncU *obj.LSym
+
+	// Racelite
+	Raceliteread  *obj.LSym
+	Racelitewrite *obj.LSym
 }
 
 // Pkgs holds known packages.
