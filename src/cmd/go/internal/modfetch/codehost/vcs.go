@@ -25,6 +25,8 @@ import (
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/str"
 	"cmd/internal/par"
+
+	"golang.org/x/mod/semver"
 )
 
 // A VCSError indicates an error using a version control system.
@@ -167,6 +169,8 @@ type vcsCmd struct {
 	parseStat          func(rev, out string) (*RevInfo, error)           // func to parse output of statLocal
 	fetch              []string                                          // cmd to fetch everything from remote
 	latest             string                                            // name of latest commit on remote (tip, HEAD, etc)
+	descendsFrom       func(rev, tag string) []string                    // cmd to check whether rev descends from tag
+	recentTags         func(rev string) []string                         // cmd to print tag ancestors of rev
 	readFile           func(rev, file, remote string) []string           // cmd to read rev's file
 	readZip            func(rev, subdir, remote, target string) []string // cmd to read rev's subdir as zip file
 
@@ -217,6 +221,12 @@ var vcsCmds = map[string]*vcsCmd{
 		parseStat: hgParseStat,
 		fetch:     []string{"hg", "pull", "-f"},
 		latest:    "tip",
+		descendsFrom: func(rev, tag string) []string {
+			return []string{"hg", "log", "-r", "ancestors(" + rev + ") and " + tag}
+		},
+		recentTags: func(rev string) []string {
+			return []string{"hg", "log", "-r", "ancestors(" + rev + ") and tag()", "--template", "{tags}\n"}
+		},
 		readFile: func(rev, file, remote string) []string {
 			return []string{"hg", "cat", "-r", rev, file}
 		},
@@ -558,16 +568,37 @@ func (r *vcsRepo) ReadFile(ctx context.Context, rev, file string, maxSize int64)
 }
 
 func (r *vcsRepo) RecentTag(ctx context.Context, rev, prefix string, allowed func(string) bool) (tag string, err error) {
-	// We don't technically need to lock here since we're returning an error
-	// unconditionally, but doing so anyway will help to avoid baking in
-	// lock-inversion bugs.
+	// Only lock for the subprocess execution, not for the tag scan.
+	// allowed may call other methods that acquire the lock.
 	unlock, err := r.mu.Lock()
 	if err != nil {
 		return "", err
 	}
-	defer unlock()
 
-	return "", vcsErrorf("vcs %s: RecentTag: %w", r.cmd.vcs, errors.ErrUnsupported)
+	if r.cmd.recentTags == nil {
+		unlock()
+		return "", vcsErrorf("vcs %s: RecentTag: %w", r.cmd.vcs, errors.ErrUnsupported)
+	}
+	out, err := Run(ctx, r.dir, r.cmd.recentTags(rev))
+	unlock()
+	if err != nil {
+		return "", err
+	}
+
+	highest := ""
+	for _, tag := range strings.Fields(string(out)) {
+		if !strings.HasPrefix(tag, prefix) || !allowed(tag) {
+			continue
+		}
+		semtag := tag[len(prefix):]
+		if semver.Compare(semtag, highest) > 0 {
+			highest = semtag
+		}
+	}
+	if highest != "" {
+		return prefix + highest, nil
+	}
+	return "", nil
 }
 
 func (r *vcsRepo) DescendsFrom(ctx context.Context, rev, tag string) (bool, error) {
@@ -577,7 +608,15 @@ func (r *vcsRepo) DescendsFrom(ctx context.Context, rev, tag string) (bool, erro
 	}
 	defer unlock()
 
-	return false, vcsErrorf("vcs %s: DescendsFrom: %w", r.cmd.vcs, errors.ErrUnsupported)
+	if r.cmd.descendsFrom == nil {
+		return false, vcsErrorf("vcs %s: DescendsFrom: %w", r.cmd.vcs, errors.ErrUnsupported)
+	}
+
+	out, err := Run(ctx, r.dir, r.cmd.descendsFrom(rev, tag))
+	if err != nil {
+		return false, err
+	}
+	return strings.TrimSpace(string(out)) != "", nil
 }
 
 func (r *vcsRepo) ReadZip(ctx context.Context, rev, subdir string, maxSize int64) (zip io.ReadCloser, err error) {

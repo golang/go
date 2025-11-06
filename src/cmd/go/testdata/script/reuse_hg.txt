@@ -128,7 +128,7 @@ stdout '"Hash": "1e531550e864b16f25013cfbbf2d8e7cf07a0374"'
 # go mod download vcstest/tagtests@default needs a RepoSum again
 go mod download -x -json vcs-test.golang.org/hg/tagtests.hg@default
 cp stdout tagtestsdefault.json
-stdout '"Version": "v0.0.0-20190509225625-8d0b18b816df"'
+stdout '"Version": "v0.2.3-0.20190509225625-8d0b18b816df"'
 stdout '"Query": "default"'
 stdout '"VCS": "hg"'
 stdout '"URL": ".*/hg/tagtests"'
@@ -292,10 +292,7 @@ go clean -modcache
 go mod download -reuse=tagtestsdefault.json -x -json vcs-test.golang.org/hg/tagtests.hg@default
 ! stderr 'hg( .*)* pull'
 stdout '"Reuse": true'
-  # NOTE: Strictly speaking this should be v0.2.3-... but we never
-  # implemented Mercurial support for finding ancestor tags to
-  # create pseudo-versions.
-stdout '"Version": "v0.0.0-20190509225625-8d0b18b816df"'
+stdout '"Version": "v0.2.3-0.20190509225625-8d0b18b816df"'
 stdout '"Query": "default"'
 stdout '"VCS": "hg"'
 stdout '"URL": ".*/hg/tagtests"'
@@ -310,7 +307,7 @@ go clean -modcache
 go mod download -reuse=all.json -x -json vcs-test.golang.org/hg/tagtests.hg@default
 ! stderr 'hg( .*)* pull'
 stdout '"Reuse": true'
-stdout '"Version": "v0.0.0-20190509225625-8d0b18b816df"'
+stdout '"Version": "v0.2.3-0.20190509225625-8d0b18b816df"'
 stdout '"Query": "default"'
 stdout '"VCS": "hg"'
 stdout '"URL": ".*/hg/tagtests"'
