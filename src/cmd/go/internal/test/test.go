@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -1968,20 +1969,21 @@ var testlogMagic = []byte("# test log\n") // known to testing/internal/testdeps/
 
 // hashCoveredPackages writes to h a hash of the source files of the covered packages.
 func hashCoveredPackages(h io.Writer, pkgs []*load.Package) {
+	sort.Slice(pkgs, func(i, j int) bool { return pkgs[i].ImportPath < pkgs[j].ImportPath })
+
 	for _, pkg := range pkgs {
 		fmt.Fprintf(h, "coverpkg %s", pkg.ImportPath)
-		// Include source file hashes to detect changes
-		for _, file := range pkg.GoFiles {
-			if fh := hashStat(filepath.Join(pkg.Dir, file)); fh != (cache.ActionID{}) {
-				fmt.Fprintf(h, " %x", fh)
+		files := make([]string, 0, len(pkg.GoFiles)+len(pkg.CgoFiles))
+		files = append(files, pkg.GoFiles...)
+		files = append(files, pkg.CgoFiles...)
+		sort.Strings(files)
+
+		for _, f := range files {
+			fh := hashStat(filepath.Join(pkg.Dir, f))
+			if fh != (cache.ActionID{}) {
+				h.Write(fh[:])
 			}
 		}
-		for _, file := range pkg.CgoFiles {
-			if fh := hashStat(filepath.Join(pkg.Dir, file)); fh != (cache.ActionID{}) {
-				fmt.Fprintf(h, " %x", fh)
-			}
-		}
-		fmt.Fprintf(h, "\n")
 	}
 }
 
