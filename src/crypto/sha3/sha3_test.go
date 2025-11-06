@@ -37,10 +37,11 @@ var testShakes = map[string]struct {
 	defCustomStr string
 }{
 	// NewCSHAKE without customization produces same result as SHAKE
-	"SHAKE128":  {NewCSHAKE128, "", ""},
-	"SHAKE256":  {NewCSHAKE256, "", ""},
-	"cSHAKE128": {NewCSHAKE128, "CSHAKE128", "CustomString"},
-	"cSHAKE256": {NewCSHAKE256, "CSHAKE256", "CustomString"},
+	"SHAKE128":   {NewCSHAKE128, "", ""},
+	"SHAKE256":   {NewCSHAKE256, "", ""},
+	"cSHAKE128":  {NewCSHAKE128, "CSHAKE128", "CustomString"},
+	"cSHAKE256":  {NewCSHAKE256, "CSHAKE256", "CustomString"},
+	"SHAKE-Zero": {func(N []byte, S []byte) *SHAKE { return &SHAKE{} }, "", ""},
 }
 
 func TestSHA3Hash(t *testing.T) {

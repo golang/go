@@ -188,8 +188,15 @@ func (d *SHA3) Clone() (hash.Cloner, error) {
 }
 
 // SHAKE is an instance of a SHAKE extendable output function.
+// The zero value is a usable SHAKE256 hash.
 type SHAKE struct {
 	s sha3.SHAKE
+}
+
+func (s *SHAKE) init() {
+	if s.s.Size() == 0 {
+		*s = *NewSHAKE256()
+	}
 }
 
 // NewSHAKE128 creates a new SHAKE128 XOF.
@@ -224,6 +231,7 @@ func NewCSHAKE256(N, S []byte) *SHAKE {
 //
 // It panics if any output has already been read.
 func (s *SHAKE) Write(p []byte) (n int, err error) {
+	s.init()
 	return s.s.Write(p)
 }
 
@@ -231,30 +239,36 @@ func (s *SHAKE) Write(p []byte) (n int, err error) {
 //
 // Any call to Write after a call to Read will panic.
 func (s *SHAKE) Read(p []byte) (n int, err error) {
+	s.init()
 	return s.s.Read(p)
 }
 
 // Reset resets the XOF to its initial state.
 func (s *SHAKE) Reset() {
+	s.init()
 	s.s.Reset()
 }
 
 // BlockSize returns the rate of the XOF.
 func (s *SHAKE) BlockSize() int {
+	s.init()
 	return s.s.BlockSize()
 }
 
 // MarshalBinary implements [encoding.BinaryMarshaler].
 func (s *SHAKE) MarshalBinary() ([]byte, error) {
+	s.init()
 	return s.s.MarshalBinary()
 }
 
 // AppendBinary implements [encoding.BinaryAppender].
 func (s *SHAKE) AppendBinary(p []byte) ([]byte, error) {
+	s.init()
 	return s.s.AppendBinary(p)
 }
 
 // UnmarshalBinary implements [encoding.BinaryUnmarshaler].
 func (s *SHAKE) UnmarshalBinary(data []byte) error {
+	s.init()
 	return s.s.UnmarshalBinary(data)
 }
