@@ -1250,11 +1250,12 @@ func elfshbits(linkmode LinkMode, sect *sym.Section) *ElfShdr {
 
 func elfshreloc(arch *sys.Arch, sect *sym.Section) *ElfShdr {
 	// If main section is SHT_NOBITS, nothing to relocate.
-	// Also nothing to relocate in .shstrtab or notes.
+	// Also nothing to relocate in .shstrtab or notes or .gopclntab.
 	if sect.Vaddr >= sect.Seg.Vaddr+sect.Seg.Filelen {
 		return nil
 	}
-	if sect.Name == ".shstrtab" || sect.Name == ".tbss" {
+	switch sect.Name {
+	case ".shstrtab", ".tbss", ".gopclntab":
 		return nil
 	}
 	if sect.Elfsect.(*ElfShdr).Type == uint32(elf.SHT_NOTE) {
@@ -1469,6 +1470,7 @@ func (ctxt *Link) doelf() {
 	}
 	shstrtabAddstring(".elfdata")
 	shstrtabAddstring(".rodata")
+	shstrtabAddstring(".gopclntab")
 	// See the comment about data.rel.ro.FOO section names in data.go.
 	relro_prefix := ""
 	if ctxt.UseRelro() {
@@ -1477,7 +1479,6 @@ func (ctxt *Link) doelf() {
 	}
 	shstrtabAddstring(relro_prefix + ".typelink")
 	shstrtabAddstring(relro_prefix + ".itablink")
-	shstrtabAddstring(relro_prefix + ".gopclntab")
 
 	if ctxt.IsExternal() {
 		*FlagD = true
@@ -1486,7 +1487,6 @@ func (ctxt *Link) doelf() {
 		shstrtabAddstring(elfRelType + ".rodata")
 		shstrtabAddstring(elfRelType + relro_prefix + ".typelink")
 		shstrtabAddstring(elfRelType + relro_prefix + ".itablink")
-		shstrtabAddstring(elfRelType + relro_prefix + ".gopclntab")
 		shstrtabAddstring(elfRelType + ".noptrdata")
 		shstrtabAddstring(elfRelType + ".data")
 		if ctxt.UseRelro() {

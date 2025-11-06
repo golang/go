@@ -64,6 +64,7 @@ const (
 	SRODATAFIPSEND   // End of FIPS read-only data.
 	SRODATAEND       // End of read-only data.
 	SFUNCTAB         // Appears to be unused, except for runtime.etypes.
+	SPCLNTAB         // Pclntab data.
 	SELFROSECT       // ELF read-only data: relocs, dynamic linking info.
 
 	// Read-only, non-executable, dynamically relocatable segment.
@@ -91,7 +92,6 @@ const (
 
 	STYPELINK // Type links.
 	SITABLINK // Itab links.
-	SPCLNTAB  // Pclntab data.
 
 	// Allocated writable segment.
 	SFirstWritable

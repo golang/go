@@ -1581,7 +1581,7 @@ func (state *dodataState) makeRelroForSharedLib(target *Link) {
 					// the relro data.
 					isRelro = true
 				}
-			case sym.SGOFUNC:
+			case sym.SGOFUNC, sym.SPCLNTAB:
 				// The only SGOFUNC symbols that contain relocations are .stkobj,
 				// and their relocations are of type objabi.R_ADDROFF,
 				// which always get resolved during linking.
@@ -2119,6 +2119,21 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 		}
 	}
 
+	/* gopclntab */
+	sect = state.allocateNamedSectionAndAssignSyms(segro, ".gopclntab", sym.SPCLNTAB, sym.SRODATA, 04)
+	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.pclntab", 0), sect)
+	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.pcheader", 0), sect)
+	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.funcnametab", 0), sect)
+	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.cutab", 0), sect)
+	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.filetab", 0), sect)
+	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.pctab", 0), sect)
+	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.functab", 0), sect)
+	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.epclntab", 0), sect)
+	setCarrierSize(sym.SPCLNTAB, int64(sect.Length))
+	if ctxt.HeadType == objabi.Haix {
+		xcoffUpdateOuterSize(ctxt, int64(sect.Length), sym.SPCLNTAB)
+	}
+
 	/* read-only ELF, Mach-O sections */
 	state.allocateSingleSymSections(segro, sym.SELFROSECT, sym.SRODATA, 04)
 
@@ -2237,21 +2252,6 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	state.datsize += itablink.Size()
 	state.checkdatsize(sym.SITABLINK)
 	sect.Length = uint64(state.datsize) - sect.Vaddr
-
-	/* gopclntab */
-	sect = state.allocateNamedSectionAndAssignSyms(seg, genrelrosecname(".gopclntab"), sym.SPCLNTAB, sym.SRODATA, relroSecPerm)
-	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.pclntab", 0), sect)
-	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.pcheader", 0), sect)
-	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.funcnametab", 0), sect)
-	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.cutab", 0), sect)
-	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.filetab", 0), sect)
-	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.pctab", 0), sect)
-	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.functab", 0), sect)
-	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.epclntab", 0), sect)
-	setCarrierSize(sym.SPCLNTAB, int64(sect.Length))
-	if ctxt.HeadType == objabi.Haix {
-		xcoffUpdateOuterSize(ctxt, int64(sect.Length), sym.SPCLNTAB)
-	}
 
 	// 6g uses 4-byte relocation offsets, so the entire segment must fit in 32 bits.
 	if state.datsize != int64(uint32(state.datsize)) {
