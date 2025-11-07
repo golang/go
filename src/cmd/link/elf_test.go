@@ -678,3 +678,61 @@ func testFlagDError(t *testing.T, dataAddr string, roundQuantum string, expected
 		t.Errorf("expected error message to contain %q, got:\n%s", expectedError, out)
 	}
 }
+
+func TestELFHeadersSorted(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	// We can only test this for internal linking mode.
+	// For external linking the external linker will
+	// decide how to sort the sections.
+	testenv.MustInternalLink(t, testenv.NoSpecialBuildTypes)
+
+	t.Parallel()
+
+	tmpdir := t.TempDir()
+	src := filepath.Join(tmpdir, "x.go")
+	if err := os.WriteFile(src, []byte(goSourceWithData), 0o444); err != nil {
+		t.Fatal(err)
+	}
+
+	exe := filepath.Join(tmpdir, "x.exe")
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-toolexec", os.Args[0], "-ldflags=-linkmode=internal", "-o", exe, src)
+	cmd = testenv.CleanCmdEnv(cmd)
+	cmd.Env = append(cmd.Env, "LINK_TEST_TOOLEXEC=1")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("build failed: %v, output:\n%s", err, out)
+	}
+
+	ef, err := elf.Open(exe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ef.Close()
+
+	// After the first zero section header,
+	// we should see allocated sections,
+	// then unallocated sections.
+	// The allocated sections should be sorted by address.
+	i := 1
+	lastAddr := uint64(0)
+	for i < len(ef.Sections) {
+		sec := ef.Sections[i]
+		if sec.Flags&elf.SHF_ALLOC == 0 {
+			break
+		}
+		if sec.Addr < lastAddr {
+			t.Errorf("section %d %q address %#x less than previous address %#x", i, sec.Name, sec.Addr, lastAddr)
+		}
+		lastAddr = sec.Addr
+		i++
+	}
+
+	firstUnalc := i
+	for i < len(ef.Sections) {
+		sec := ef.Sections[i]
+		if sec.Flags&elf.SHF_ALLOC != 0 {
+			t.Errorf("allocated section %d %q follows first unallocated section %d %q", i, sec.Name, firstUnalc, ef.Sections[firstUnalc].Name)
+		}
+		i++
+	}
+}

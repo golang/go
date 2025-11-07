@@ -2428,7 +2428,7 @@ func dwarfaddelfsectionsyms(ctxt *Link) {
 	for _, si := range dwarfp {
 		s := si.secSym()
 		sect := ldr.SymSect(si.secSym())
-		putelfsectionsym(ctxt, ctxt.Out, s, sect.Elfsect.(*ElfShdr).shnum)
+		putelfsectionsym(ctxt, ctxt.Out, s, elfShdrShnum(sect.Elfsect.(*ElfShdr)))
 	}
 }
 

@@ -101,7 +101,7 @@ func putelfsym(ctxt *Link, x loader.Sym, typ elf.SymType, curbind elf.SymBind) {
 			ldr.Errorf(x, "missing ELF section in putelfsym")
 			return
 		}
-		elfshnum = xosect.Elfsect.(*ElfShdr).shnum
+		elfshnum = elfShdrShnum(xosect.Elfsect.(*ElfShdr))
 	}
 
 	sname := ldr.SymExtname(x)
