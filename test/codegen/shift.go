@@ -623,6 +623,19 @@ func checkLeftShiftWithAddition(a int64, b int64) int64 {
 	return a
 }
 
+func checkLeftShiftLeastSignificantWordWithAddition(a uint64, b []int64) uint64 {
+	// riscv64/rva20u64: "SLLI" "SRLI" "ADD"
+	// riscv64/rva22u64,riscv64/rva23u64: "SH1ADDUW"
+	x := a + uint64(uint32(b[0]))<<1
+	// riscv64/rva20u64: "SLLI" "SRLI" "ADD"
+	// riscv64/rva22u64,riscv64/rva23u64: "SH2ADDUW"
+	y := a + uint64(uint32(b[1]))<<2
+	// riscv64/rva20u64: "SLLI" "SRLI" "ADD"
+	// riscv64/rva22u64,riscv64/rva23u64: "SH3ADDUW"
+	z := a + uint64(uint32(b[2]))<<3
+	return x + y + z
+}
+
 //
 // Convert and shift.
 //
@@ -685,6 +698,12 @@ func rsh64to8(v int64) int8 {
 		x >>= 2
 	}
 	return x
+}
+
+func lsh32Uto64U(a int64) uint64 {
+	// riscv64/rva20u64:"SLLI" "SRLI"
+	// riscv64/rva22u64,riscv64/rva23u64:"SLLIUW"
+	return uint64(uint32(a)) << 6
 }
 
 // We don't need to worry about shifting

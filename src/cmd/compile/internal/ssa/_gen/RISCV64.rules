@@ -838,10 +838,14 @@
 // Optimisations for rva22u64 and above.
 //
 
+// Combine truncate and logic shift left. 
+(SLLI [i] (MOVWUreg x)) && i < 64 && buildcfg.GORISCV64 >= 22 => (SLLIUW [i] x)
+
 // Combine left shift and addition.
-(ADD (SLLI [1] x) y) && buildcfg.GORISCV64 >= 22 => (SH1ADD x y)
-(ADD (SLLI [2] x) y) && buildcfg.GORISCV64 >= 22 => (SH2ADD x y)
-(ADD (SLLI [3] x) y) && buildcfg.GORISCV64 >= 22 => (SH3ADD x y)
+(ADD (MOVWUreg x) y) && buildcfg.GORISCV64 >= 22 => (ADDUW x y)
+(ADD (SLLIUW [1] x) y) && buildcfg.GORISCV64 >= 22 => (SH1ADDUW x y)
+(ADD (SLLIUW [2] x) y) && buildcfg.GORISCV64 >= 22 => (SH2ADDUW x y)
+(ADD (SLLIUW [3] x) y) && buildcfg.GORISCV64 >= 22 => (SH3ADDUW x y)
 
 // Integer minimum and maximum.
 (Min64  x y) && buildcfg.GORISCV64 >= 22 => (MIN  x y)

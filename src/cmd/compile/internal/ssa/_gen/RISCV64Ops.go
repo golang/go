@@ -151,6 +151,7 @@ func init() {
 		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true}, // arg0 + arg1
 		{name: "ADDI", argLength: 1, reg: gp11sb, asm: "ADDI", aux: "Int64"},  // arg0 + auxint
 		{name: "ADDIW", argLength: 1, reg: gp11, asm: "ADDIW", aux: "Int64"},  // 32 low bits of arg0 + auxint, sign extended to 64 bits
+		{name: "ADDUW", argLength: 2, reg: gp21, asm: "ADDUW"},                // add least significant word of arg0 to arg1
 		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},                    // -arg0
 		{name: "NEGW", argLength: 1, reg: gp11, asm: "NEGW"},                  // -arg0 of 32 bits, sign extended to 64 bits
 		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                    // arg0 - arg1
@@ -222,6 +223,7 @@ func init() {
 		{name: "SRLW", argLength: 2, reg: gp21, asm: "SRLW"},                 // arg0 >> (aux1 & 31), logical right shift of 32 bit value, sign extended to 64 bits
 		{name: "SLLI", argLength: 1, reg: gp11, asm: "SLLI", aux: "Int64"},   // arg0 << auxint, shift amount 0-63, logical left shift
 		{name: "SLLIW", argLength: 1, reg: gp11, asm: "SLLIW", aux: "Int64"}, // arg0 << auxint, shift amount 0-31, logical left shift of 32 bit value, sign extended to 64 bits
+		{name: "SLLIUW", argLength: 1, reg: gp11, asm: "SLLIUW", aux: "Int64"}, // arg0 << auxint, shift amount 0-31, logical left shift of 32 bit value, zero extended to 64 bits
 		{name: "SRAI", argLength: 1, reg: gp11, asm: "SRAI", aux: "Int64"},   // arg0 >> auxint, shift amount 0-63, arithmetic right shift
 		{name: "SRAIW", argLength: 1, reg: gp11, asm: "SRAIW", aux: "Int64"}, // arg0 >> auxint, shift amount 0-31, arithmetic right shift of 32 bit value, sign extended to 64 bits
 		{name: "SRLI", argLength: 1, reg: gp11, asm: "SRLI", aux: "Int64"},   // arg0 >> auxint, shift amount 0-63, logical right shift
@@ -231,6 +233,9 @@ func init() {
 		{name: "SH1ADD", argLength: 2, reg: gp21, asm: "SH1ADD"}, // arg0 << 1 + arg1
 		{name: "SH2ADD", argLength: 2, reg: gp21, asm: "SH2ADD"}, // arg0 << 2 + arg1
 		{name: "SH3ADD", argLength: 2, reg: gp21, asm: "SH3ADD"}, // arg0 << 3 + arg1
+		{name: "SH1ADDUW", argLength: 2, reg: gp21, asm: "SH1ADDUW"}, // shift the least significant word of arg0 left by 1 and add it to arg1
+		{name: "SH2ADDUW", argLength: 2, reg: gp21, asm: "SH2ADDUW"}, // shift the least significant word of arg0 left by 2 and add it to arg1
+		{name: "SH3ADDUW", argLength: 2, reg: gp21, asm: "SH3ADDUW"}, // shift the least significant word of arg0 left by 3 and add it to arg1
 
 		// Bitwise ops
 		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true},   // arg0 & arg1

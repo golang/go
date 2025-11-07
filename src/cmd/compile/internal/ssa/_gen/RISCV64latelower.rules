@@ -23,3 +23,8 @@
 (SRAI [0] x) => x
 (SRLI [0] x) => x
 (SLLI [0] x) => x
+
+// Combine left shift and addition.
+(ADD (SLLI [1] x) y) && buildcfg.GORISCV64 >= 22 => (SH1ADD x y)
+(ADD (SLLI [2] x) y) && buildcfg.GORISCV64 >= 22 => (SH2ADD x y)
+(ADD (SLLI [3] x) y) && buildcfg.GORISCV64 >= 22 => (SH3ADD x y)
