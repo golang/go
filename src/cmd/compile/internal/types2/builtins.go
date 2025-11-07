@@ -91,6 +91,17 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// to type []byte with a second argument of string type followed by ... .
 		// This form appends the bytes of the string."
 
+		// In either case, the first argument must be a slice; in particular it
+		// cannot be the predeclared nil value. Note that nil is not excluded by
+		// the assignability requirement alone for the special case (go.dev/issue/76220).
+		// spec: "If S is a type parameter, all types in its type set
+		// must have the same underlying slice type []E."
+		E, err := sliceElem(x)
+		if err != nil {
+			check.errorf(x, InvalidAppend, "invalid append: %s", err.format(check))
+			return
+		}
+
 		// Handle append(bytes, y...) special case, where
 		// the type set of y is {string} or {string, []byte}.
 		var sig *Signature
@@ -119,13 +130,6 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 		// general case
 		if sig == nil {
-			// spec: "If S is a type parameter, all types in its type set
-			// must have the same underlying slice type []E."
-			E, err := sliceElem(x)
-			if err != nil {
-				check.errorf(x, InvalidAppend, "invalid append: %s", err.format(check))
-				return
-			}
 			// check arguments by creating custom signature
 			sig = makeSig(x.typ, x.typ, NewSlice(E)) // []E required for variadic signature
 			sig.variadic = true
