@@ -238,9 +238,16 @@ func (wg *WaitGroup) Go(f func()) {
 	go func() {
 		defer func() {
 			if x := recover(); x != nil {
-				// Don't call Done as it may cause Wait to unblock,
-				// so that the main goroutine races with the runtime.fatal
-				// resulting from unhandled panic.
+				// f panicked, which will be fatal because
+				// this is a new goroutine.
+				//
+				// Calling Done will unblock Wait in the main goroutine,
+				// allowing it to race with the fatal panic and
+				// possibly even exit the process (os.Exit(0))
+				// before the panic completes.
+				//
+				// This is almost certainly undesirable,
+				// so instead avoid calling Done and simply panic.
 				panic(x)
 			}
 
