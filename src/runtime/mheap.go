@@ -2534,7 +2534,15 @@ func getOrAddWeakHandle(p unsafe.Pointer) *atomic.Uintptr {
 	s := (*specialWeakHandle)(mheap_.specialWeakHandleAlloc.alloc())
 	unlock(&mheap_.speciallock)
 
-	handle := new(atomic.Uintptr)
+	// N.B. Pad the weak handle to ensure it doesn't share a tiny
+	// block with any other allocations. This can lead to leaks, such
+	// as in go.dev/issue/76007. As an alternative, we could consider
+	// using the currently-unused 8-byte noscan size class.
+	type weakHandleBox struct {
+		h atomic.Uintptr
+		_ [maxTinySize - unsafe.Sizeof(atomic.Uintptr{})]byte
+	}
+	handle := &(new(weakHandleBox).h)
 	s.special.kind = _KindSpecialWeakHandle
 	s.handle = handle
 	handle.Store(uintptr(p))

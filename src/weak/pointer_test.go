@@ -16,8 +16,10 @@ import (
 )
 
 type T struct {
-	// N.B. This must contain a pointer, otherwise the weak handle might get placed
-	// in a tiny block making the tests in this package flaky.
+	// N.B. T is what it is to avoid having test values get tiny-allocated
+	// in the same block as the weak handle, but since the fix to
+	// go.dev/issue/76007, this should no longer be possible.
+	// TODO(mknyszek): Consider using tiny-allocated values for all the tests.
 	t *T
 	a int
 	b int
@@ -325,5 +327,39 @@ func TestImmortalPointer(t *testing.T) {
 	}
 	if got, want := w0b.Value(), &immortal.b; got != want {
 		t.Errorf("immortal weak pointer to %p has unexpected Value %p", want, got)
+	}
+}
+
+func TestPointerTiny(t *testing.T) {
+	runtime.GC() // Clear tiny-alloc caches.
+
+	const N = 1000
+	wps := make([]weak.Pointer[int], N)
+	for i := range N {
+		// N.B. *x is just an int, so the value is very likely
+		// tiny-allocated alongside the weak handle, assuming bug
+		// from go.dev/issue/76007 exists.
+		x := new(int)
+		*x = i
+		wps[i] = weak.Make(x)
+	}
+
+	// Get the cleanups to start running.
+	runtime.GC()
+
+	// Expect at least 3/4ths of the weak pointers to have gone nil.
+	//
+	// Note that we provide some leeway since it's possible our allocation
+	// gets grouped with some other long-lived tiny allocation, but this
+	// shouldn't be the case for the vast majority of allocations.
+	n := 0
+	for _, wp := range wps {
+		if wp.Value() == nil {
+			n++
+		}
+	}
+	const want = 3 * N / 4
+	if n < want {
+		t.Fatalf("not enough weak pointers are nil: expected at least %v, got %v", want, n)
 	}
 }
