@@ -2394,28 +2394,6 @@ func (d *dwctxt) collectUnitLocs(u *sym.CompilationUnit) []loader.Sym {
 	return syms
 }
 
-// Add DWARF section names to the section header string table, by calling add
-// on each name. ELF only.
-func dwarfaddshstrings(ctxt *Link, add func(string)) {
-	if *FlagW { // disable dwarf
-		return
-	}
-
-	secs := []string{"abbrev", "frame", "info", "loc", "line", "gdb_scripts"}
-	if buildcfg.Experiment.Dwarf5 {
-		secs = append(secs, "addr", "rnglists", "loclists")
-	} else {
-		secs = append(secs, "ranges", "loc")
-	}
-
-	for _, sec := range secs {
-		add(".debug_" + sec)
-		if ctxt.IsExternal() {
-			add(elfRelType + ".debug_" + sec)
-		}
-	}
-}
-
 func dwarfaddelfsectionsyms(ctxt *Link) {
 	if *FlagW { // disable dwarf
 		return
