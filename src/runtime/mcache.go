@@ -50,7 +50,7 @@ type mcache struct {
 
 	// flushGen indicates the sweepgen during which this mcache
 	// was last flushed. If flushGen != mheap_.sweepgen, the spans
-	// in this mcache are stale and need to the flushed so they
+	// in this mcache are stale and need to be flushed so they
 	// can be swept. This is done in acquirep.
 	flushGen atomic.Uint32
 }
