@@ -365,16 +365,16 @@ func elf32shdr(out *OutBuf, e *ElfShdr) {
 
 func elfwriteshdrs(out *OutBuf) uint32 {
 	if elf64 {
-		for i := 0; i < int(ehdr.Shnum); i++ {
-			elf64shdr(out, shdr[i])
+		for _, sh := range shdr {
+			elf64shdr(out, sh)
 		}
-		return uint32(ehdr.Shnum) * ELF64SHDRSIZE
+		return uint32(len(shdr)) * ELF64SHDRSIZE
 	}
 
-	for i := 0; i < int(ehdr.Shnum); i++ {
-		elf32shdr(out, shdr[i])
+	for _, sh := range shdr {
+		elf32shdr(out, sh)
 	}
-	return uint32(ehdr.Shnum) * ELF32SHDRSIZE
+	return uint32(len(shdr)) * ELF32SHDRSIZE
 }
 
 // elfSortShdrs sorts the section headers so that allocated sections
@@ -460,7 +460,6 @@ func newElfShdr(name int64) *ElfShdr {
 	e.Name = uint32(name)
 	e.shnum = -1 // make invalid for now, set by elfSortShdrs
 	shdr = append(shdr, e)
-	ehdr.Shnum++
 	return e
 }
 
@@ -1172,8 +1171,7 @@ func elfshname(name string) *ElfShdr {
 			continue
 		}
 		off := elfstr[i].off
-		for i = 0; i < int(ehdr.Shnum); i++ {
-			sh := shdr[i]
+		for _, sh := range shdr {
 			if sh.Name == uint32(off) {
 				return sh
 			}
@@ -2379,6 +2377,11 @@ elfobj:
 		pph.Filesz = uint64(eh.Phnum) * uint64(eh.Phentsize)
 		pph.Memsz = pph.Filesz
 	}
+
+	if len(shdr) >= 0xffff {
+		Errorf("too many ELF sections")
+	}
+	eh.Shnum = uint16(len(shdr))
 
 	ctxt.Out.SeekSet(0)
 	a := int64(0)
