@@ -1205,7 +1205,13 @@ func (u *URL) UnmarshalBinary(text []byte) error {
 // JoinPath returns a new [URL] with the provided path elements joined to
 // any existing path and the resulting path cleaned of any ./ or ../ elements.
 // Any sequences of multiple / characters will be reduced to a single /.
+// Path elements must already be in escaped form, as produced by [PathEscape].
 func (u *URL) JoinPath(elem ...string) *URL {
+	url, _ := u.joinPath(elem...)
+	return url
+}
+
+func (u *URL) joinPath(elem ...string) (*URL, error) {
 	elem = append([]string{u.EscapedPath()}, elem...)
 	var p string
 	if !strings.HasPrefix(elem[0], "/") {
@@ -1222,8 +1228,8 @@ func (u *URL) JoinPath(elem ...string) *URL {
 		p += "/"
 	}
 	url := *u
-	url.setPath(p)
-	return &url
+	err := url.setPath(p)
+	return &url, err
 }
 
 // validUserinfo reports whether s is a valid userinfo string per RFC 3986
@@ -1281,11 +1287,15 @@ func stringContainsCTLByte(s string) bool {
 
 // JoinPath returns a [URL] string with the provided path elements joined to
 // the existing path of base and the resulting path cleaned of any ./ or ../ elements.
+// Path elements must already be in escaped form, as produced by [PathEscape].
 func JoinPath(base string, elem ...string) (result string, err error) {
 	url, err := Parse(base)
 	if err != nil {
 		return
 	}
-	result = url.JoinPath(elem...).String()
-	return
+	res, err := url.joinPath(elem...)
+	if err != nil {
+		return "", err
+	}
+	return res.String(), nil
 }
