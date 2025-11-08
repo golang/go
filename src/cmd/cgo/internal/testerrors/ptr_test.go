@@ -154,6 +154,7 @@ var ptrTests = []ptrTest{
 		support: `var hello13 = [...]*C.char{new(C.char)}`,
 		body:    `parg := [1]**C.char{&hello13[0]}; C.f13(&parg[0])`,
 		fail:    true,
+		errTextRegexp: `.*argument of cgo function has Go pointer to unpinned Go pointer.*`,
 	},
 	{
 		// Storing a Go pointer into C memory should fail.
@@ -490,6 +491,7 @@ var ptrTests = []ptrTest{
 		imports: []string{"unsafe"},
 		body:    `i := 0; a := &[2]unsafe.Pointer{nil, unsafe.Pointer(&i)}; C.f45(&a[0])`,
 		fail:    true,
+		errTextRegexp: `.*argument of cgo function has Go pointer to unpinned Go unsafe pointer`,
 	},
 	{
 		// Passing a Go map as argument to C.
