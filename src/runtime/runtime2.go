@@ -1009,7 +1009,7 @@ const (
 type _func struct {
 	sys.NotInHeap // Only in static data
 
-	entryOff uint32 // start pc, as offset from moduledata.text/pcHeader.textStart
+	entryOff uint32 // start pc, as offset from moduledata.text
 	nameOff  int32  // function name, as index into moduledata.funcnametab.
 
 	args        int32  // in/out args size
@@ -1090,6 +1090,7 @@ type _defer struct {
 	heap      bool
 	rangefunc bool    // true for rangefunc list
 	sp        uintptr // sp at time of defer
+	pc        uintptr // pc at time of defer
 	fn        func()  // can be nil for open-coded defers
 	link      *_defer // next defer on G; can point to either heap or stack!
 

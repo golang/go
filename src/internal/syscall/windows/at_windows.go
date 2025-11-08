@@ -131,6 +131,14 @@ func Openat(dirfd syscall.Handle, name string, flag uint64, perm uint32) (_ sysc
 
 	if flag&syscall.O_TRUNC != 0 {
 		err = syscall.Ftruncate(h, 0)
+		if err == ERROR_INVALID_PARAMETER {
+			// ERROR_INVALID_PARAMETER means truncation is not supported on this file handle.
+			// Unix's O_TRUNC specification says to ignore O_TRUNC on named pipes and terminal devices.
+			// We do the same here.
+			if t, err1 := syscall.GetFileType(h); err1 == nil && (t == syscall.FILE_TYPE_PIPE || t == syscall.FILE_TYPE_CHAR) {
+				err = nil
+			}
+		}
 		if err != nil {
 			syscall.CloseHandle(h)
 			return syscall.InvalidHandle, err

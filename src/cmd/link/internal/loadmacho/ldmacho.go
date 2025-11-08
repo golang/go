@@ -613,6 +613,9 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 		}
 		if machsym.desc&(N_WEAK_REF|N_WEAK_DEF) != 0 {
 			l.SetAttrDuplicateOK(s, true)
+			if machsym.desc&N_WEAK_REF != 0 {
+				l.SetSymWeakBinding(s, true)
+			}
 		}
 		machsym.sym = s
 		if machsym.sectnum == 0 { // undefined

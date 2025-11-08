@@ -20,7 +20,8 @@ stderr '-unsafeptr'
 ! stderr '-unsafeptr=false'
 
 # -unreachable is disabled during test but on during plain vet.
-go test -n runtime
+# The -a makes sure the vet result is not cached, or else we won't print the command line.
+go test -a -n runtime
 stderr '-unreachable=false'
 
 # A flag terminator should be allowed before the package list.
@@ -63,16 +64,16 @@ go test -n -vet= -run=none .
 stderr '[/\\]vet'$GOEXE'["]? .* -errorsas .* ["]?\$WORK[/\\][^ ]*[/\\]vet\.cfg'
 
 # "go test" on a standard package should by default disable an explicit list.
-go test -n -run=none encoding/binary
+go test -a -n -run=none encoding/binary
 stderr '[/\\]vet'$GOEXE'["]? -unsafeptr=false -unreachable=false ["]?\$WORK[/\\][^ ]*[/\\]vet\.cfg'
 
-go test -n -vet= -run=none encoding/binary
+go test -a -n -vet= -run=none encoding/binary
 stderr '[/\\]vet'$GOEXE'["]? -unsafeptr=false -unreachable=false ["]?\$WORK[/\\][^ ]*[/\\]vet\.cfg'
 
 # Both should allow users to override via the -vet flag.
-go test -n -vet=unreachable -run=none .
+go test -a -n -vet=unreachable -run=none .
 stderr '[/\\]vet'$GOEXE'["]? -unreachable ["]?\$WORK[/\\][^ ]*[/\\]vet\.cfg'
-go test -n -vet=unreachable -run=none encoding/binary
+go test -a -n -vet=unreachable -run=none encoding/binary
 stderr '[/\\]vet'$GOEXE'["]? -unreachable ["]?\$WORK[/\\][^ ]*[/\\]vet\.cfg'
 
 -- go.mod --

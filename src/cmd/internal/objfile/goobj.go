@@ -221,10 +221,10 @@ func (f *goobjFile) symbols() ([]Sym, error) {
 	return syms, nil
 }
 
-func (f *goobjFile) pcln() (textStart uint64, symtab, pclntab []byte, err error) {
+func (f *goobjFile) pcln() (textStart uint64, pclntab []byte, err error) {
 	// Should never be called. We implement Liner below, callers
 	// should use that instead.
-	return 0, nil, nil, fmt.Errorf("pcln not available in go object file")
+	return 0, nil, fmt.Errorf("pcln not available in go object file")
 }
 
 // PCToLine returns the file name, line, and function data for the given pc.

@@ -254,6 +254,23 @@ Note: In the following sections 3.1 to 3.6, "ui4" (4-bit unsigned int immediate)
 	                     |                       | XR[xd].D[2] = XR[xj].D[ui8[5:4]], XR[xd].D[3] = XR[xj].D[ui8[7:6]]
 	XVPERMIQ ui8, Xj, Xd | xvpermi.q xd, xj, ui8 | vec = {XR[xd], XR[xj]}, XR[xd].Q[0] = vec.Q[ui8[1:0]], XR[xd].Q[1] = vec.Q[ui8[5:4]]
 
+3.9 Vector misc instruction
+
+3.9.1 {,X}VEXTRINS.{B,H,W,V}
+
+	Instruction format:
+	VEXTRINSB   ui8, Vj, Vd
+
+	Mapping between Go and platform assembly:
+	      Go assembly      |    platform assembly    |             semantics
+	 VEXTRINSB ui8, Vj, Vd |  vextrins.b vd, vj, ui8 | VR[vd].B[ui8[7:4]] = VR[vj].B[ui8[3:0]]
+	 VEXTRINSH ui8, Vj, Vd |  vextrins.h vd, vj, ui8 | VR[vd].H[ui8[6:4]] = VR[vj].H[ui8[2:0]]
+	 VEXTRINSW ui8, Vj, Vd |  vextrins.w vd, vj, ui8 | VR[vd].W[ui8[5:4]] = VR[vj].W[ui8[1:0]]
+	 VEXTRINSV ui8, Vj, Vd |  vextrins.d vd, vj, ui8 | VR[vd].D[ui8[4]] = VR[vj].D[ui8[0]]
+	XVEXTRINSB ui8, Vj, Vd | xvextrins.b vd, vj, ui8 | XR[xd].B[ui8[7:4]] = XR[xj].B[ui8[3:0]], XR[xd].B[ui8[7:4]+16] = XR[xj].B[ui8[3:0]+16]
+	XVEXTRINSH ui8, Vj, Vd | xvextrins.h vd, vj, ui8 | XR[xd].H[ui8[6:4]] = XR[xj].H[ui8[2:0]], XR[xd].H[ui8[6:4]+8] = XR[xj].H[ui8[2:0]+8]
+	XVEXTRINSW ui8, Vj, Vd | xvextrins.w vd, vj, ui8 | XR[xd].W[ui8[5:4]] = XR[xj].W[ui8[1:0]], XR[xd].W[ui8[5:4]+4] = XR[xj].W[ui8[1:0]+4]
+	XVEXTRINSV ui8, Vj, Vd | xvextrins.d vd, vj, ui8 | XR[xd].D[ui8[4]] = XR[xj].D[ui8[0]],XR[xd].D[ui8[4]+2] = XR[xj].D[ui8[0]+2]
 
 # Special instruction encoding definition and description on LoongArch
 

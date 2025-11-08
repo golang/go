@@ -649,13 +649,15 @@ func (p *Package) writeDefsFunc(fgo2 io.Writer, n *Name, callsMalloc *bool) {
 	if p.noEscapes[n.C] && p.noCallbacks[n.C] {
 		touchFunc = "_Cgo_keepalive"
 	}
-	fmt.Fprintf(fgo2, "\tif _Cgo_always_false {\n")
-	if d.Type.Params != nil {
+
+	if len(paramnames) > 0 {
+		fmt.Fprintf(fgo2, "\tif _Cgo_always_false {\n")
 		for _, name := range paramnames {
 			fmt.Fprintf(fgo2, "\t\t%s(%s)\n", touchFunc, name)
 		}
+		fmt.Fprintf(fgo2, "\t}\n")
 	}
-	fmt.Fprintf(fgo2, "\t}\n")
+
 	fmt.Fprintf(fgo2, "\treturn\n")
 	fmt.Fprintf(fgo2, "}\n")
 }

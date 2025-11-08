@@ -35,6 +35,10 @@ const (
 )
 
 const (
+	_ERROR_INVALID_PARAMETER Errno = 87
+)
+
+const (
 	// Invented values to support what package os expects.
 	O_RDONLY       = 0x00000
 	O_WRONLY       = 0x00001

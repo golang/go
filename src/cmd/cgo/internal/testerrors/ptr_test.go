@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -24,15 +25,16 @@ var tmp = flag.String("tmp", "", "use `dir` for temporary files and do not clean
 
 // ptrTest is the tests without the boilerplate.
 type ptrTest struct {
-	name      string   // for reporting
-	c         string   // the cgo comment
-	c1        string   // cgo comment forced into non-export cgo file
-	imports   []string // a list of imports
-	support   string   // supporting functions
-	body      string   // the body of the main function
-	extra     []extra  // extra files
-	fail      bool     // whether the test should fail
-	expensive bool     // whether the test requires the expensive check
+	name          string   // for reporting
+	c             string   // the cgo comment
+	c1            string   // cgo comment forced into non-export cgo file
+	imports       []string // a list of imports
+	support       string   // supporting functions
+	body          string   // the body of the main function
+	extra         []extra  // extra files
+	fail          bool     // whether the test should fail
+	expensive     bool     // whether the test requires the expensive check
+	errTextRegexp string   // error text regexp; if empty, use the pattern `.*unpinned Go.*`
 }
 
 type extra struct {
@@ -489,6 +491,27 @@ var ptrTests = []ptrTest{
 		body:    `i := 0; a := &[2]unsafe.Pointer{nil, unsafe.Pointer(&i)}; C.f45(&a[0])`,
 		fail:    true,
 	},
+	{
+		// Passing a Go map as argument to C.
+		name:          "argmap",
+		c:             `void f46(void* p) {}`,
+		imports:       []string{"unsafe"},
+		body:          `m := map[int]int{0: 1,}; C.f46(unsafe.Pointer(&m))`,
+		fail:          true,
+		errTextRegexp: `.*argument of cgo function has Go pointer to unpinned Go map`,
+	},
+	{
+		// Returning a Go map to C.
+		name: "retmap",
+		c:    `extern void f47();`,
+		support: `//export GoMap47
+		          func GoMap47() map[int]int { return map[int]int{0: 1,} }`,
+		body: `C.f47()`,
+		c1: `extern void* GoMap47();
+		     void f47() { GoMap47(); }`,
+		fail:          true,
+		errTextRegexp: `.*result of Go function GoMap47 called from cgo is unpinned Go map or points to unpinned Go map.*`,
+	},
 }
 
 func TestPointerChecks(t *testing.T) {
@@ -519,7 +542,6 @@ func TestPointerChecks(t *testing.T) {
 	// after testOne finishes.
 	var pending int32
 	for _, pt := range ptrTests {
-		pt := pt
 		t.Run(pt.name, func(t *testing.T) {
 			atomic.AddInt32(&pending, +1)
 			defer func() {
@@ -690,11 +712,17 @@ func testOne(t *testing.T, pt ptrTest, exe, exe2 string) {
 	}
 
 	buf, err := runcmd(cgocheck)
+
+	var pattern string = pt.errTextRegexp
+	if pt.errTextRegexp == "" {
+		pattern = `.*unpinned Go.*`
+	}
+
 	if pt.fail {
 		if err == nil {
 			t.Logf("%s", buf)
 			t.Fatalf("did not fail as expected")
-		} else if !bytes.Contains(buf, []byte("Go pointer")) {
+		} else if ok, _ := regexp.Match(pattern, buf); !ok {
 			t.Logf("%s", buf)
 			t.Fatalf("did not print expected error (failed with %v)", err)
 		}

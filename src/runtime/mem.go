@@ -19,7 +19,7 @@ import "unsafe"
 //               fault, may give back unexpected zeroes, etc.).
 // 4) Ready - may be accessed safely.
 //
-// This set of states is more than is strictly necessary to support all the
+// This set of states is more than strictly necessary to support all the
 // currently supported platforms. One could get by with just None, Reserved, and
 // Ready. However, the Prepared state gives us flexibility for performance
 // purposes. For example, on POSIX-y operating systems, Reserved is usually a

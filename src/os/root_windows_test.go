@@ -228,3 +228,22 @@ func TestRootSymlinkToDirectory(t *testing.T) {
 		})
 	}
 }
+
+func TestRootOpenFileTruncateNamedPipe(t *testing.T) {
+	t.Parallel()
+	name := pipeName()
+	pipe := newBytePipe(t, name, false)
+	defer pipe.Close()
+
+	root, err := os.OpenRoot(filepath.Dir(name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+
+	f, err := root.OpenFile(filepath.Base(name), os.O_TRUNC|os.O_RDWR|os.O_CREATE, 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+}

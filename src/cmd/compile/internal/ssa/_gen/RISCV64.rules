@@ -823,16 +823,16 @@
 (F(MADD|NMADD|MSUB|NMSUB)D x y neg:(FNEGD z)) && neg.Uses == 1 => (F(MSUB|NMSUB|MADD|NMADD)D x y z)
 
 // Test for -∞ (bit 0) using 64 bit classify instruction.
-(FLTD x (FMOVDconst [c])) && float64ExactBits(c, -math.MaxFloat64) => (ANDI [1] (FCLASSD x))
-(FLED (FMOVDconst [c]) x) && float64ExactBits(c, -math.MaxFloat64) => (SNEZ (ANDI <typ.Int64> [0xff &^ 1] (FCLASSD x)))
-(FEQD x (FMOVDconst [c])) && float64ExactBits(c, math.Inf(-1)) => (ANDI [1] (FCLASSD x))
-(FNED x (FMOVDconst [c])) && float64ExactBits(c, math.Inf(-1)) => (SEQZ (ANDI <typ.Int64> [1] (FCLASSD x)))
+(FLTD x (FMOVDconst [-math.MaxFloat64])) => (ANDI [0b00_0000_0001] (FCLASSD x))
+(FLED (FMOVDconst [-math.MaxFloat64]) x) => (SNEZ (ANDI <typ.Int64> [0b00_1111_1110] (FCLASSD x)))
+(FEQD x (FMOVDconst [math.Inf(-1)])) => (ANDI [0b00_0000_0001] (FCLASSD x))
+(FNED x (FMOVDconst [math.Inf(-1)])) => (SEQZ (ANDI <typ.Int64> [0b00_0000_0001] (FCLASSD x)))
 
 // Test for +∞ (bit 7) using 64 bit classify instruction.
-(FLTD (FMOVDconst [c]) x) && float64ExactBits(c, math.MaxFloat64) => (SNEZ (ANDI <typ.Int64> [1<<7] (FCLASSD x)))
-(FLED x (FMOVDconst [c])) && float64ExactBits(c, math.MaxFloat64) => (SNEZ (ANDI <typ.Int64> [0xff &^ (1<<7)] (FCLASSD x)))
-(FEQD x (FMOVDconst [c])) && float64ExactBits(c, math.Inf(1)) => (SNEZ (ANDI <typ.Int64> [1<<7] (FCLASSD x)))
-(FNED x (FMOVDconst [c])) && float64ExactBits(c, math.Inf(1)) => (SEQZ (ANDI <typ.Int64> [1<<7] (FCLASSD x)))
+(FLTD (FMOVDconst [math.MaxFloat64]) x) => (SNEZ (ANDI <typ.Int64> [0b00_1000_0000] (FCLASSD x)))
+(FLED x (FMOVDconst [math.MaxFloat64])) => (SNEZ (ANDI <typ.Int64> [0b00_0111_1111] (FCLASSD x)))
+(FEQD x (FMOVDconst [math.Inf(1)])) => (SNEZ (ANDI <typ.Int64> [0b00_1000_0000] (FCLASSD x)))
+(FNED x (FMOVDconst [math.Inf(1)])) => (SEQZ (ANDI <typ.Int64> [0b00_1000_0000] (FCLASSD x)))
 
 //
 // Optimisations for rva22u64 and above.

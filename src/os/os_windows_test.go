@@ -2275,3 +2275,16 @@ func TestOpenFileFlagInvalid(t *testing.T) {
 	}
 	f.Close()
 }
+
+func TestOpenFileTruncateNamedPipe(t *testing.T) {
+	t.Parallel()
+	name := pipeName()
+	pipe := newBytePipe(t, name, false)
+	defer pipe.Close()
+
+	f, err := os.OpenFile(name, os.O_TRUNC|os.O_RDWR|os.O_CREATE, 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+}

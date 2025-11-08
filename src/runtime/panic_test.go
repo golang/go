@@ -34,6 +34,8 @@ func TestPanicWithDirectlyPrintableCustomTypes(t *testing.T) {
 		{"panicCustomUint32", `panic: main.MyUint32(93)`},
 		{"panicCustomUint64", `panic: main.MyUint64(93)`},
 		{"panicCustomUintptr", `panic: main.MyUintptr(93)`},
+		{"panicDeferFatal", "panic: runtime.errorString(\"invalid memory address or nil pointer dereference\")\n\tfatal error: sync: unlock of unlocked mutex"},
+		{"panicDoublieDeferFatal", "panic: runtime.errorString(\"invalid memory address or nil pointer dereference\") [recovered, repanicked]\n\tfatal error: sync: unlock of unlocked mutex"},
 	}
 
 	for _, tt := range tests {

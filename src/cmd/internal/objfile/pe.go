@@ -90,10 +90,10 @@ func (f *peFile) symbols() ([]Sym, error) {
 	return syms, nil
 }
 
-func (f *peFile) pcln() (textStart uint64, symtab, pclntab []byte, err error) {
+func (f *peFile) pcln() (textStart uint64, pclntab []byte, err error) {
 	imageBase, err := f.imageBase()
 	if err != nil {
-		return 0, nil, nil, err
+		return 0, nil, err
 	}
 
 	if sect := f.pe.Section(".text"); sect != nil {
@@ -104,17 +104,10 @@ func (f *peFile) pcln() (textStart uint64, symtab, pclntab []byte, err error) {
 		// TODO: Remove code looking for the old symbols when we no longer care about 1.3.
 		var err2 error
 		if pclntab, err2 = loadPETable(f.pe, "pclntab", "epclntab"); err2 != nil {
-			return 0, nil, nil, err
+			return 0, nil, err
 		}
 	}
-	if symtab, err = loadPETable(f.pe, "runtime.symtab", "runtime.esymtab"); err != nil {
-		// Same as above.
-		var err2 error
-		if symtab, err2 = loadPETable(f.pe, "symtab", "esymtab"); err2 != nil {
-			return 0, nil, nil, err
-		}
-	}
-	return textStart, symtab, pclntab, nil
+	return textStart, pclntab, nil
 }
 
 func (f *peFile) text() (textStart uint64, text []byte, err error) {

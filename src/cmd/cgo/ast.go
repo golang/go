@@ -363,7 +363,8 @@ func (f *File) walk(x interface{}, context astContext, visit func(*File, interfa
 
 	// everything else just recurs
 	default:
-		f.walkUnexpected(x, context, visit)
+		error_(token.NoPos, "unexpected type %T in walk", x)
+		panic("unexpected type")
 
 	case nil:
 
@@ -396,6 +397,9 @@ func (f *File) walk(x interface{}, context astContext, visit func(*File, interfa
 	case *ast.IndexExpr:
 		f.walk(&n.X, ctxExpr, visit)
 		f.walk(&n.Index, ctxExpr, visit)
+	case *ast.IndexListExpr:
+		f.walk(&n.X, ctxExpr, visit)
+		f.walk(n.Indices, ctxExpr, visit)
 	case *ast.SliceExpr:
 		f.walk(&n.X, ctxExpr, visit)
 		if n.Low != nil {
@@ -434,8 +438,8 @@ func (f *File) walk(x interface{}, context astContext, visit func(*File, interfa
 	case *ast.StructType:
 		f.walk(n.Fields, ctxField, visit)
 	case *ast.FuncType:
-		if tparams := funcTypeTypeParams(n); tparams != nil {
-			f.walk(tparams, ctxParam, visit)
+		if n.TypeParams != nil {
+			f.walk(n.TypeParams, ctxParam, visit)
 		}
 		f.walk(n.Params, ctxParam, visit)
 		if n.Results != nil {
@@ -524,8 +528,8 @@ func (f *File) walk(x interface{}, context astContext, visit func(*File, interfa
 			f.walk(n.Values, ctxExpr, visit)
 		}
 	case *ast.TypeSpec:
-		if tparams := typeSpecTypeParams(n); tparams != nil {
-			f.walk(tparams, ctxParam, visit)
+		if n.TypeParams != nil {
+			f.walk(n.TypeParams, ctxParam, visit)
 		}
 		f.walk(&n.Type, ctxType, visit)
 
