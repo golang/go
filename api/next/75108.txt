@@ -1,0 +1,3 @@
+pkg crypto/tls, const QUICErrorEvent = 10 #75108
+pkg crypto/tls, const QUICErrorEvent QUICEventKind #75108
+pkg crypto/tls, type QUICEvent struct, Err error #75108
