@@ -98,6 +98,7 @@ func drainCleanupQueue(t *testing.T) {
 }
 
 func checkMapsFor[T comparable](t *testing.T, value T) {
+	t.Helper()
 	// Manually load the value out of the map.
 	typ := abi.TypeFor[T]()
 	a, ok := uniqueMaps.Load(typ)
