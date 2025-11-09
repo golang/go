@@ -1094,6 +1094,8 @@ const sizeSpecializedMallocEnabled = goexperiment.SizeSpecializedMalloc && GOOS 
 // implementation and the corresponding allocation-related changes: the experiment must be
 // enabled, and none of the memory sanitizers should be enabled. We allow the race detector,
 // in contrast to sizeSpecializedMallocEnabled.
+// TODO(thepudds): it would be nice to check Valgrind integration, though there are some hints
+// there might not be any canned tests in tree for Go's integration with Valgrind.
 const runtimeFreegcEnabled = goexperiment.RuntimeFreegc && !asanenabled && !msanenabled && !valgrindenabled
 
 // Allocate an object of size bytes.
@@ -1966,10 +1968,15 @@ const (
 // or roughly when the liveness analysis of the compiler
 // would otherwise have determined ptr's object is reclaimable by the GC.
 func freegc(ptr unsafe.Pointer, size uintptr, noscan bool) bool {
-	if !runtimeFreegcEnabled || sizeSpecializedMallocEnabled || !reusableSize(size) {
-		// TODO(thepudds): temporarily disable freegc with SizeSpecializedMalloc until we finish integrating.
+	if !runtimeFreegcEnabled || !reusableSize(size) {
 		return false
 	}
+	if sizeSpecializedMallocEnabled && !noscan {
+		// TODO(thepudds): temporarily disable freegc with SizeSpecializedMalloc for pointer types
+		// until we finish integrating.
+		return false
+	}
+
 	if ptr == nil {
 		throw("freegc nil")
 	}

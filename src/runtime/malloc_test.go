@@ -349,8 +349,10 @@ func testFreegc[T comparable](noscan bool) func(*testing.T) {
 		t.Run("allocs-with-free", func(t *testing.T) {
 			// Same allocations, but now using explicit free so that
 			// no allocs get reported. (Again, not the desired long-term behavior).
-			if SizeSpecializedMallocEnabled {
-				t.Skip("temporarily skipping alloc tests for GOEXPERIMENT=sizespecializedmalloc")
+			if SizeSpecializedMallocEnabled && !noscan {
+				// TODO(thepudds): skip at this point in the stack for size-specialized malloc
+				// with !noscan. Additional integration with sizespecializedmalloc is in a later CL.
+				t.Skip("temporarily skipping alloc tests for GOEXPERIMENT=sizespecializedmalloc for pointer types")
 			}
 			if !RuntimeFreegcEnabled {
 				t.Skip("skipping alloc tests with runtime.freegc disabled")
@@ -370,8 +372,10 @@ func testFreegc[T comparable](noscan bool) func(*testing.T) {
 			// Multiple allocations outstanding before explicitly freeing,
 			// but still within the limit of our smallest free list size
 			// so that no allocs are reported. (Again, not long-term behavior).
-			if SizeSpecializedMallocEnabled {
-				t.Skip("temporarily skipping alloc tests for GOEXPERIMENT=sizespecializedmalloc")
+			if SizeSpecializedMallocEnabled && !noscan {
+				// TODO(thepudds): skip at this point in the stack for size-specialized malloc
+				// with !noscan. Additional integration with sizespecializedmalloc is in a later CL.
+				t.Skip("temporarily skipping alloc tests for GOEXPERIMENT=sizespecializedmalloc for pointer types")
 			}
 			if !RuntimeFreegcEnabled {
 				t.Skip("skipping alloc tests with runtime.freegc disabled")
@@ -514,10 +518,10 @@ func testFreegc[T comparable](noscan bool) func(*testing.T) {
 			// See https://go.dev/cl/717520 for some additional discussion,
 			// including how we can deliberately cause the test to fail currently
 			// if we purposefully introduce some assist credit bugs.
-			if SizeSpecializedMallocEnabled {
+			if SizeSpecializedMallocEnabled && !noscan {
 				// TODO(thepudds): skip this test at this point in the stack; later CL has
 				// integration with sizespecializedmalloc.
-				t.Skip("temporarily skip assist credit test for GOEXPERIMENT=sizespecializedmalloc")
+				t.Skip("temporarily skip assist credit tests for GOEXPERIMENT=sizespecializedmalloc for pointer types")
 			}
 			if !RuntimeFreegcEnabled {
 				t.Skip("skipping assist credit test with runtime.freegc disabled")
