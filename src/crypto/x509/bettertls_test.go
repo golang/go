@@ -12,11 +12,10 @@
 // https://github.com/netflix/bettertls
 // https://netflixtechblog.com/bettertls-c9915cd255c0
 
-package tls_test
+package x509
 
 import (
 	"crypto/internal/cryptotest"
-	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"internal/testenv"
@@ -40,7 +39,7 @@ import (
 func TestBetterTLS(t *testing.T) {
 	testenv.SkipIfShortAndSlow(t)
 
-	data, roots := testData(t)
+	data, roots := betterTLSTestData(t)
 
 	for _, suite := range []string{"pathbuilding", "nameconstraints"} {
 		t.Run(suite, func(t *testing.T) {
@@ -49,7 +48,7 @@ func TestBetterTLS(t *testing.T) {
 	}
 }
 
-func runTestSuite(t *testing.T, suiteName string, data *betterTLS, roots *x509.CertPool) {
+func runTestSuite(t *testing.T, suiteName string, data *betterTLS, roots *CertPool) {
 	suite, exists := data.Suites[suiteName]
 	if !exists {
 		t.Fatalf("missing %s suite", suiteName)
@@ -73,7 +72,7 @@ func runTestSuite(t *testing.T, suiteName string, data *betterTLS, roots *x509.C
 			t.Fatalf("test case %d has no certificates", tc.ID)
 		}
 
-		eeCert, err := x509.ParseCertificate(certsDER[0])
+		eeCert, err := ParseCertificate(certsDER[0])
 		if err != nil {
 			// Several constraint test cases contain invalid end-entity
 			// certificate extensions that we reject ahead of verification
@@ -94,9 +93,9 @@ func runTestSuite(t *testing.T, suiteName string, data *betterTLS, roots *x509.C
 				tc.ID, err)
 		}
 
-		intermediates := x509.NewCertPool()
+		intermediates := NewCertPool()
 		for i, certDER := range certsDER[1:] {
-			cert, err := x509.ParseCertificate(certDER)
+			cert, err := ParseCertificate(certDER)
 			if err != nil {
 				t.Fatalf(
 					"failed to parse intermediate certificate %d for test case %d: %v",
@@ -105,11 +104,11 @@ func runTestSuite(t *testing.T, suiteName string, data *betterTLS, roots *x509.C
 			intermediates.AddCert(cert)
 		}
 
-		_, err = eeCert.Verify(x509.VerifyOptions{
+		_, err = eeCert.Verify(VerifyOptions{
 			Roots:         roots,
 			Intermediates: intermediates,
 			DNSName:       tc.Hostname,
-			KeyUsages:     []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+			KeyUsages:     []ExtKeyUsage{ExtKeyUsageServerAuth},
 		})
 
 		switch tc.Expected {
@@ -133,7 +132,7 @@ func runTestSuite(t *testing.T, suiteName string, data *betterTLS, roots *x509.C
 	}
 }
 
-func testData(t *testing.T) (betterTLS, *x509.CertPool) {
+func betterTLSTestData(t *testing.T) (betterTLS, *CertPool) {
 	const (
 		bettertlsModule  = "github.com/Netflix/bettertls"
 		bettertlsVersion = "v0.0.0-20250909192348-e1e99e353074"
@@ -178,12 +177,12 @@ func testData(t *testing.T) (betterTLS, *x509.CertPool) {
 		t.Fatalf("failed to decode trust root: %v", err)
 	}
 
-	rootCert, err := x509.ParseCertificate(rootDER)
+	rootCert, err := ParseCertificate(rootDER)
 	if err != nil {
 		t.Fatalf("failed to parse trust root certificate: %v", err)
 	}
 
-	roots := x509.NewCertPool()
+	roots := NewCertPool()
 	roots.AddCert(rootCert)
 
 	return data, roots
