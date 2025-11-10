@@ -32,7 +32,7 @@ func TestConvertDump(t *testing.T) {
 		t.Skip("Set -convert to convert a trace text file")
 	}
 	if *output == "" {
-		t.Fatal("Set -o to specify conversion output")
+		t.Fatal("Set -out to specify conversion output")
 	}
 
 	if err := convertDump(*convert, *output); err != nil {
