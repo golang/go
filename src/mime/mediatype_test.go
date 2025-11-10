@@ -413,6 +413,9 @@ func init() {
 		// Issue #48866: duplicate parameters containing equal values should be allowed
 		{`text; charset=utf-8; charset=utf-8; format=fixed`, "text", m("charset", "utf-8", "format", "fixed")},
 		{`text; charset=utf-8; format=flowed; charset=utf-8`, "text", m("charset", "utf-8", "format", "flowed")},
+
+		// Issue #76236: '{' and '}' are token chars.
+		{"attachment; filename={file}.png", "attachment", m("filename", "{file}.png")},
 	}
 }
 
