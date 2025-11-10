@@ -128,9 +128,7 @@ func TestIssue76126(t *testing.T) {
 		cmd.Stderr = buf
 		cmd.Run() // ignore error
 		got := buf.String()
-		if strings.Contains(got, "panic: test") {
-			// ok
-		} else {
+		if !strings.Contains(got, "panic: test") {
 			t.Errorf("missing panic: test\n%s", got)
 		}
 		return
