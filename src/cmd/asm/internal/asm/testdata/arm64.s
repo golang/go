@@ -315,6 +315,8 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VREV32	V5.B16, V5.B16                  // a508206e
 	VREV64	V2.S2, V3.S2                    // 4308a00e
 	VREV64	V2.S4, V3.S4                    // 4308a04e
+	VREV16	V7.B16, V5.B16                  // e518204e
+	VREV16	V7.B8, V5.B8                    // e518200e
 
 // logical ops
 //

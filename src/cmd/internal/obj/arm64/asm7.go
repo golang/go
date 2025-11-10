@@ -281,6 +281,30 @@ func MOVCONST(d int64, s int, rt int) uint32 {
 	return uint32(((d>>uint(s*16))&0xFFFF)<<5) | uint32(s)&3<<21 | uint32(rt&31)
 }
 
+func ASIMDALL(u, size, opcode uint32) uint32 {
+	return u<<29 | 0x7<<25 | size<<22 | 3<<20 | opcode<<12 | 1<<11
+}
+
+func ASIMDDIFF(u, opcode uint32) uint32 {
+	return u<<29 | 0x7<<25 | 1<<21 | opcode<<12
+}
+
+func ASIMDMISC(u, size, opcode uint32) uint32 {
+	return u<<29 | 0x7<<25 | size<<22 | 1<<21 | opcode<<12 | 1<<11
+}
+
+func ASIMDPERM(opcode uint32) uint32 {
+	return 0x7<<25 | opcode<<12 | 1<<11
+}
+
+func ASIMDSAME(u, size, opcode uint32) uint32 {
+	return u<<29 | 0x7<<25 | size<<22 | 1<<21 | opcode<<11 | 1<<10
+}
+
+func ASIMDSHF(u, opcode uint32) uint32 {
+	return u<<29 | 0xF<<24 | opcode<<11 | 1<<10
+}
+
 const (
 	// Optab.flag
 	LFROM        = 1 << iota // p.From uses constant pool
@@ -5664,8 +5688,11 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 			af = uint8((p.From.Reg >> 5) & 15)
 			shift = 0
 		}
+		var Q uint32
+		if p.As == AVUXTL2 || p.As == AVUSHLL2 {
+			Q = 1
+		}
 
-		Q := (o1 >> 30) & 1
 		var immh, width uint8
 		switch pack(Q, af, at) {
 		case pack(0, ARNG_8B, ARNG_8H):
@@ -5686,7 +5713,7 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 		if !(0 <= shift && shift <= int(width-1)) {
 			c.ctxt.Diag("shift amount out of range: %v\n", p)
 		}
-		o1 |= uint32(immh)<<19 | uint32(shift)<<16 | uint32(rf&31)<<5 | uint32(p.To.Reg&31)
+		o1 |= Q<<30 | uint32(immh)<<19 | uint32(shift)<<16 | uint32(rf&31)<<5 | uint32(p.To.Reg&31)
 
 	case 103: /* VEOR3/VBCAX Va.B16, Vm.B16, Vn.B16, Vd.B16 */
 		ta := (p.From.Reg >> 5) & 15
@@ -6424,73 +6451,73 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As, rd, rn, rm int16) uint32 {
 		op = FPOP1S(0, 0, 3, 5)
 
 	case AVADD:
-		op = 7<<25 | 1<<21 | 1<<15 | 1<<10
+		op = ASIMDSAME(0, 0, 0x10)
 
 	case AVSUB:
-		op = 0x17<<25 | 1<<21 | 1<<15 | 1<<10
+		op = ASIMDSAME(1, 0, 0x10)
 
 	case AVADDP:
-		op = 7<<25 | 1<<21 | 1<<15 | 15<<10
+		op = ASIMDSAME(0, 0, 0x17)
 
 	case AVAND:
-		op = 7<<25 | 1<<21 | 7<<10
+		op = ASIMDSAME(0, 0, 0x03)
 
 	case AVBCAX:
 		op = 0xCE<<24 | 1<<21
 
 	case AVCMEQ:
-		op = 1<<29 | 0x71<<21 | 0x23<<10
+		op = ASIMDSAME(1, 0, 0x11)
 
 	case AVCNT:
-		op = 0xE<<24 | 0x10<<17 | 5<<12 | 2<<10
+		op = ASIMDMISC(0, 0, 0x05)
 
 	case AVZIP1:
-		op = 0xE<<24 | 3<<12 | 2<<10
+		op = ASIMDPERM(0x3)
 
 	case AVZIP2:
-		op = 0xE<<24 | 1<<14 | 3<<12 | 2<<10
+		op = ASIMDPERM(0x7)
 
 	case AVEOR:
-		op = 1<<29 | 0x71<<21 | 7<<10
+		op = ASIMDSAME(1, 0, 0x03)
 
 	case AVEOR3:
 		op = 0xCE << 24
 
 	case AVORR:
-		op = 7<<25 | 5<<21 | 7<<10
-
-	case AVREV16:
-		op = 3<<26 | 2<<24 | 1<<21 | 3<<11
+		op = ASIMDSAME(0, 2, 0x03)
 
 	case AVRAX1:
 		op = 0xCE<<24 | 3<<21 | 1<<15 | 3<<10
 
+	case AVREV16:
+		op = ASIMDMISC(0, 0, 0x01)
+
 	case AVREV32:
-		op = 11<<26 | 2<<24 | 1<<21 | 1<<11
+		op = ASIMDMISC(1, 0, 0x00)
 
 	case AVREV64:
-		op = 3<<26 | 2<<24 | 1<<21 | 1<<11
+		op = ASIMDMISC(0, 0, 0x00)
 
 	case AVMOV:
 		op = 7<<25 | 5<<21 | 7<<10
 
 	case AVADDV:
-		op = 7<<25 | 3<<20 | 3<<15 | 7<<11
+		op = ASIMDALL(0, 0, 0x1B)
 
 	case AVUADDLV:
-		op = 1<<29 | 7<<25 | 3<<20 | 7<<11
+		op = ASIMDALL(1, 0, 0x03)
 
 	case AVFMLA:
-		op = 7<<25 | 0<<23 | 1<<21 | 3<<14 | 3<<10
+		op = ASIMDSAME(0, 0, 0x19)
 
 	case AVFMLS:
-		op = 7<<25 | 1<<23 | 1<<21 | 3<<14 | 3<<10
+		op = ASIMDSAME(0, 2, 0x19)
 
 	case AVPMULL, AVPMULL2:
-		op = 0xE<<24 | 1<<21 | 0x38<<10
+		op = ASIMDDIFF(0, 0xE)
 
 	case AVRBIT:
-		op = 0x2E<<24 | 1<<22 | 0x10<<17 | 5<<12 | 2<<10
+		op = ASIMDMISC(1, 1, 0x05)
 
 	case AVLD1, AVLD2, AVLD3, AVLD4:
 		op = 3<<26 | 1<<22
@@ -6502,37 +6529,37 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As, rd, rn, rm int16) uint32 {
 		op = 0xD<<24 | 3<<21
 
 	case AVBIF:
-		op = 1<<29 | 7<<25 | 7<<21 | 7<<10
+		op = ASIMDSAME(1, 3, 0x03)
 
 	case AVBIT:
-		op = 1<<29 | 0x75<<21 | 7<<10
+		op = ASIMDSAME(1, 2, 0x03)
 
 	case AVBSL:
-		op = 1<<29 | 0x73<<21 | 7<<10
+		op = ASIMDSAME(1, 1, 0x03)
 
 	case AVCMTST:
-		op = 0xE<<24 | 1<<21 | 0x23<<10
+		op = ASIMDSAME(0, 0, 0x11)
 
 	case AVUMAX:
-		op = 1<<29 | 7<<25 | 1<<21 | 0x19<<10
+		op = ASIMDSAME(1, 0, 0x0C)
 
 	case AVUMIN:
-		op = 1<<29 | 7<<25 | 1<<21 | 0x1b<<10
+		op = ASIMDSAME(1, 0, 0x0D)
 
 	case AVUZP1:
-		op = 7<<25 | 3<<11
+		op = ASIMDPERM(0x1)
 
 	case AVUZP2:
-		op = 7<<25 | 1<<14 | 3<<11
+		op = ASIMDPERM(0x5)
 
 	case AVUADDW, AVUADDW2:
-		op = 0x17<<25 | 1<<21 | 1<<12
+		op = ASIMDDIFF(1, 0x1)
 
 	case AVTRN1:
-		op = 7<<25 | 5<<11
+		op = ASIMDPERM(0x2)
 
 	case AVTRN2:
-		op = 7<<25 | 1<<14 | 5<<11
+		op = ASIMDPERM(0x6)
 
 	default:
 		c.ctxt.Diag("%v: bad rrr %d %v", p, a, a)
@@ -6733,28 +6760,25 @@ func (c *ctxt7) opirr(p *obj.Prog, a obj.As) uint32 {
 		return 0x2E<<24 | 0<<23 | 0<<21 | 0<<15
 
 	case AVUSHR:
-		return 0x5E<<23 | 1<<10
+		return ASIMDSHF(1, 0x00)
 
 	case AVSHL:
-		return 0x1E<<23 | 21<<10
+		return ASIMDSHF(0, 0x0A)
 
 	case AVSRI:
-		return 0x5E<<23 | 17<<10
+		return ASIMDSHF(1, 0x08)
 
 	case AVSLI:
-		return 0x5E<<23 | 21<<10
+		return ASIMDSHF(1, 0x0A)
 
-	case AVUSHLL, AVUXTL:
-		return 1<<29 | 15<<24 | 0x29<<10
-
-	case AVUSHLL2, AVUXTL2:
-		return 3<<29 | 15<<24 | 0x29<<10
+	case AVUSHLL, AVUXTL, AVUSHLL2, AVUXTL2:
+		return ASIMDSHF(1, 0x14)
 
 	case AVXAR:
 		return 0xCE<<24 | 1<<23
 
 	case AVUSRA:
-		return 1<<29 | 15<<24 | 5<<10
+		return ASIMDSHF(1, 0x02)
 
 	case APRFM:
 		return 0xf9<<24 | 2<<22
