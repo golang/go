@@ -1890,6 +1890,22 @@ func buildop(ctxt *obj.Link) {
 			opset(AVSUBW, r0)
 			opset(AVSUBV, r0)
 			opset(AVSUBQ, r0)
+			opset(AVSADDB, r0)
+			opset(AVSADDH, r0)
+			opset(AVSADDW, r0)
+			opset(AVSADDV, r0)
+			opset(AVSSUBB, r0)
+			opset(AVSSUBH, r0)
+			opset(AVSSUBW, r0)
+			opset(AVSSUBV, r0)
+			opset(AVSADDBU, r0)
+			opset(AVSADDHU, r0)
+			opset(AVSADDWU, r0)
+			opset(AVSADDVU, r0)
+			opset(AVSSUBBU, r0)
+			opset(AVSSUBHU, r0)
+			opset(AVSSUBWU, r0)
+			opset(AVSSUBVU, r0)
 
 		case AXVADDB:
 			opset(AXVADDH, r0)
@@ -1901,6 +1917,22 @@ func buildop(ctxt *obj.Link) {
 			opset(AXVSUBW, r0)
 			opset(AXVSUBV, r0)
 			opset(AXVSUBQ, r0)
+			opset(AXVSADDB, r0)
+			opset(AXVSADDH, r0)
+			opset(AXVSADDW, r0)
+			opset(AXVSADDV, r0)
+			opset(AXVSSUBB, r0)
+			opset(AXVSSUBH, r0)
+			opset(AXVSSUBW, r0)
+			opset(AXVSSUBV, r0)
+			opset(AXVSADDBU, r0)
+			opset(AXVSADDHU, r0)
+			opset(AXVSADDWU, r0)
+			opset(AXVSADDVU, r0)
+			opset(AXVSSUBBU, r0)
+			opset(AXVSSUBHU, r0)
+			opset(AXVSSUBWU, r0)
+			opset(AXVSSUBVU, r0)
 
 		case AVSLLB:
 			opset(AVSRLB, r0)
@@ -3629,6 +3661,70 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return 0xe81b << 15 // xvsub.d
 	case AXVSUBQ:
 		return 0xea5b << 15 // xvsub.q
+	case AVSADDB:
+		return 0x0E08C << 15 // vsadd.b
+	case AVSADDH:
+		return 0x0E08D << 15 // vsadd.h
+	case AVSADDW:
+		return 0x0E08E << 15 // vsadd.w
+	case AVSADDV:
+		return 0x0E08F << 15 // vsadd.d
+	case AVSSUBB:
+		return 0x0E090 << 15 // vssub.b
+	case AVSSUBH:
+		return 0x0E091 << 15 // vssub.w
+	case AVSSUBW:
+		return 0x0E092 << 15 // vssub.h
+	case AVSSUBV:
+		return 0x0E093 << 15 // vssub.d
+	case AVSADDBU:
+		return 0x0E094 << 15 // vsadd.bu
+	case AVSADDHU:
+		return 0x0E095 << 15 // vsadd.hu
+	case AVSADDWU:
+		return 0x0E096 << 15 // vsadd.wu
+	case AVSADDVU:
+		return 0x0E097 << 15 // vsadd.du
+	case AVSSUBBU:
+		return 0x0E098 << 15 // vssub.bu
+	case AVSSUBHU:
+		return 0x0E099 << 15 // vssub.wu
+	case AVSSUBWU:
+		return 0x0E09A << 15 // vssub.hu
+	case AVSSUBVU:
+		return 0x0E09B << 15 // vssub.du
+	case AXVSADDB:
+		return 0x0E88C << 15 // vxsadd.b
+	case AXVSADDH:
+		return 0x0E88D << 15 // vxsadd.h
+	case AXVSADDW:
+		return 0x0E88E << 15 // vxsadd.w
+	case AXVSADDV:
+		return 0x0E88F << 15 // vxsadd.d
+	case AXVSSUBB:
+		return 0x0E890 << 15 // xvssub.b
+	case AXVSSUBH:
+		return 0x0E891 << 15 // xvssub.h
+	case AXVSSUBW:
+		return 0x0E892 << 15 // xvssub.w
+	case AXVSSUBV:
+		return 0x0E893 << 15 // xvssub.d
+	case AXVSADDBU:
+		return 0x0E894 << 15 // vxsadd.bu
+	case AXVSADDHU:
+		return 0x0E896 << 15 // vxsadd.hu
+	case AXVSADDWU:
+		return 0x0E896 << 15 // vxsadd.wu
+	case AXVSADDVU:
+		return 0x0E897 << 15 // vxsadd.du
+	case AXVSSUBBU:
+		return 0x0E898 << 15 // xvssub.bu
+	case AXVSSUBHU:
+		return 0x0E899 << 15 // xvssub.hu
+	case AXVSSUBWU:
+		return 0x0E89A << 15 // xvssub.wu
+	case AXVSSUBVU:
+		return 0x0E89B << 15 // xvssub.du
 	case AVILVLB:
 		return 0xe234 << 15 // vilvl.b
 	case AVILVLH:
