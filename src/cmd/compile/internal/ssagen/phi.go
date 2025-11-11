@@ -396,11 +396,11 @@ type blockHeap struct {
 func (h *blockHeap) Len() int      { return len(h.a) }
 func (h *blockHeap) Swap(i, j int) { a := h.a; a[i], a[j] = a[j], a[i] }
 
-func (h *blockHeap) Push(x interface{}) {
+func (h *blockHeap) Push(x any) {
 	v := x.(*ssa.Block)
 	h.a = append(h.a, v)
 }
-func (h *blockHeap) Pop() interface{} {
+func (h *blockHeap) Pop() any {
 	old := h.a
 	n := len(old)
 	x := old[n-1]

@@ -42,14 +42,14 @@ func Exit(code int) {
 	os.Exit(code)
 }
 
-func dbgtrace(vlevel int, s string, a ...interface{}) {
+func dbgtrace(vlevel int, s string, a ...any) {
 	if *verbflag >= vlevel {
 		fmt.Printf(s, a...)
 		fmt.Printf("\n")
 	}
 }
 
-func warn(s string, a ...interface{}) {
+func warn(s string, a ...any) {
 	fmt.Fprintf(os.Stderr, "warning: ")
 	fmt.Fprintf(os.Stderr, s, a...)
 	fmt.Fprintf(os.Stderr, "\n")
@@ -58,7 +58,7 @@ func warn(s string, a ...interface{}) {
 	}
 }
 
-func fatal(s string, a ...interface{}) {
+func fatal(s string, a ...any) {
 	fmt.Fprintf(os.Stderr, "error: ")
 	fmt.Fprintf(os.Stderr, s, a...)
 	fmt.Fprintf(os.Stderr, "\n")

@@ -206,7 +206,7 @@ func (c *Conf) Fun(entry string, blocs ...bloc) fun {
 // Bloc defines a block for Fun. The bloc name should be unique
 // across the containing Fun. entries should consist of calls to valu,
 // as well as one call to Goto, If, or Exit to specify the block kind.
-func Bloc(name string, entries ...interface{}) bloc {
+func Bloc(name string, entries ...any) bloc {
 	b := bloc{}
 	b.name = name
 	seenCtrl := false

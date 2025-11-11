@@ -168,7 +168,7 @@ type lines [][]string
 
 func (lines *lines) add(label string, n int, dt, tot time.Duration, events []*event) {
 	var line []string
-	add := func(format string, args ...interface{}) {
+	add := func(format string, args ...any) {
 		line = append(line, fmt.Sprintf(format, args...))
 	}
 

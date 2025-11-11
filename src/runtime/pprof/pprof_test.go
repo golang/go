@@ -1627,7 +1627,7 @@ func TestGoroutineProfileConcurrency(t *testing.T) {
 		obj := new(T)
 		ch1, ch2 := make(chan int), make(chan int)
 		defer close(ch2)
-		runtime.SetFinalizer(obj, func(_ interface{}) {
+		runtime.SetFinalizer(obj, func(_ any) {
 			close(ch1)
 			<-ch2
 		})
@@ -1829,7 +1829,7 @@ func TestGoroutineProfileIssue74090(t *testing.T) {
 		var objs []*T
 		for range 10000 {
 			obj := new(T)
-			runtime.SetFinalizer(obj, func(_ interface{}) {})
+			runtime.SetFinalizer(obj, func(_ any) {})
 			objs = append(objs, obj)
 		}
 		objs = nil

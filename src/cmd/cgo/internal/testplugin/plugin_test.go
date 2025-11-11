@@ -37,7 +37,7 @@ func TestMain(m *testing.M) {
 var tmpDir string
 
 // prettyPrintf prints lines with tmpDir sanitized.
-func prettyPrintf(format string, args ...interface{}) {
+func prettyPrintf(format string, args ...any) {
 	s := fmt.Sprintf(format, args...)
 	if tmpDir != "" {
 		s = strings.ReplaceAll(s, tmpDir, "$TMPDIR")

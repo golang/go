@@ -953,7 +953,7 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 		npad := 0
 		// the align is at least 1 (for char)
 		maxAlign := int64(1)
-		argField := func(typ ast.Expr, namePat string, args ...interface{}) {
+		argField := func(typ ast.Expr, namePat string, args ...any) {
 			name := fmt.Sprintf(namePat, args...)
 			t := p.cgoType(typ)
 			if off%t.Align != 0 {
@@ -1412,7 +1412,7 @@ func forFieldList(fl *ast.FieldList, fn func(int, string, ast.Expr)) {
 	}
 }
 
-func c(repr string, args ...interface{}) *TypeRepr {
+func c(repr string, args ...any) *TypeRepr {
 	return &TypeRepr{repr, args}
 }
 

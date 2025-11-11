@@ -97,7 +97,7 @@ func TestForgetUnshared(t *testing.T) {
 	key := "key"
 	firstCh := make(chan struct{})
 	go func() {
-		g.Do(key, func() (i interface{}, e error) {
+		g.Do(key, func() (i any, e error) {
 			firstStarted.Done()
 			<-firstCh
 			return
@@ -110,7 +110,7 @@ func TestForgetUnshared(t *testing.T) {
 
 	secondCh := make(chan struct{})
 	go func() {
-		g.Do(key, func() (i interface{}, e error) {
+		g.Do(key, func() (i any, e error) {
 			// Notify that we started
 			secondCh <- struct{}{}
 			<-secondCh
@@ -120,7 +120,7 @@ func TestForgetUnshared(t *testing.T) {
 
 	<-secondCh
 
-	resultCh := g.DoChan(key, func() (i interface{}, e error) {
+	resultCh := g.DoChan(key, func() (i any, e error) {
 		panic("third must not be started")
 	})
 
@@ -155,7 +155,7 @@ func TestDoAndForgetUnsharedRace(t *testing.T) {
 		wg.Add(n)
 		for i := 0; i < n; i++ {
 			go func() {
-				g.Do(key, func() (interface{}, error) {
+				g.Do(key, func() (any, error) {
 					time.Sleep(d)
 					return calls.Add(1), nil
 				})

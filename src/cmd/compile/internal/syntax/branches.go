@@ -61,7 +61,7 @@ type block struct {
 	lstmt  *LabeledStmt // labeled statement associated with this block, or nil
 }
 
-func (ls *labelScope) errf(pos Pos, format string, args ...interface{}) {
+func (ls *labelScope) errf(pos Pos, format string, args ...any) {
 	ls.errh(Error{pos, fmt.Sprintf(format, args...)})
 }
 

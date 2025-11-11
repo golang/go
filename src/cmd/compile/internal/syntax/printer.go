@@ -247,7 +247,7 @@ func mayCombine(prev token, next byte) (b bool) {
 	// return
 }
 
-func (p *printer) print(args ...interface{}) {
+func (p *printer) print(args ...any) {
 	for i := 0; i < len(args); i++ {
 		switch x := args[i].(type) {
 		case nil:
@@ -455,7 +455,7 @@ func (p *printer) printRawNode(n Node) {
 		p.printExprList(n.ElemList)
 
 	case *ArrayType:
-		var len interface{} = _DotDotDot
+		var len any = _DotDotDot
 		if n.Len != nil {
 			len = n.Len
 		}

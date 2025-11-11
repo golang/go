@@ -126,17 +126,17 @@ func (t *Types) SetTypPtrs() {
 
 type Logger interface {
 	// Logf logs a message from the compiler.
-	Logf(string, ...interface{})
+	Logf(string, ...any)
 
 	// Log reports whether logging is not a no-op
 	// some logging calls account for more than a few heap allocations.
 	Log() bool
 
 	// Fatalf reports a compiler error and exits.
-	Fatalf(pos src.XPos, msg string, args ...interface{})
+	Fatalf(pos src.XPos, msg string, args ...any)
 
 	// Warnl writes compiler messages in the form expected by "errorcheck" tests
-	Warnl(pos src.XPos, fmt_ string, args ...interface{})
+	Warnl(pos src.XPos, fmt_ string, args ...any)
 
 	// Forwards the Debug flags from gc
 	Debug_checknil() bool

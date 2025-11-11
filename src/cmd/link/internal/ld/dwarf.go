@@ -100,7 +100,7 @@ func (c dwctxt) AddString(s dwarf.Sym, v string) {
 	dsu.Addstring(v)
 }
 
-func (c dwctxt) AddAddress(s dwarf.Sym, data interface{}, value int64) {
+func (c dwctxt) AddAddress(s dwarf.Sym, data any, value int64) {
 	ds := loader.Sym(s.(dwSym))
 	dsu := c.ldr.MakeSymbolUpdater(ds)
 	if value != 0 {
@@ -110,7 +110,7 @@ func (c dwctxt) AddAddress(s dwarf.Sym, data interface{}, value int64) {
 	dsu.AddAddrPlus(c.arch, tgtds, value)
 }
 
-func (c dwctxt) AddCURelativeAddress(s dwarf.Sym, data interface{}, value int64) {
+func (c dwctxt) AddCURelativeAddress(s dwarf.Sym, data any, value int64) {
 	ds := loader.Sym(s.(dwSym))
 	dsu := c.ldr.MakeSymbolUpdater(ds)
 	if value != 0 {
@@ -120,7 +120,7 @@ func (c dwctxt) AddCURelativeAddress(s dwarf.Sym, data interface{}, value int64)
 	dsu.AddCURelativeAddrPlus(c.arch, tgtds, value)
 }
 
-func (c dwctxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64) {
+func (c dwctxt) AddSectionOffset(s dwarf.Sym, size int, t any, ofs int64) {
 	ds := loader.Sym(s.(dwSym))
 	dsu := c.ldr.MakeSymbolUpdater(ds)
 	tds := loader.Sym(t.(dwSym))
@@ -132,7 +132,7 @@ func (c dwctxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64
 	dsu.AddSymRef(c.arch, tds, ofs, objabi.R_ADDROFF, size)
 }
 
-func (c dwctxt) AddDWARFAddrSectionOffset(s dwarf.Sym, t interface{}, ofs int64) {
+func (c dwctxt) AddDWARFAddrSectionOffset(s dwarf.Sym, t any, ofs int64) {
 	size := 4
 	if isDwarf64(c.linkctxt) {
 		size = 8
@@ -148,14 +148,14 @@ func (c dwctxt) AddDWARFAddrSectionOffset(s dwarf.Sym, t interface{}, ofs int64)
 	dsu.AddSymRef(c.arch, tds, ofs, objabi.R_DWARFSECREF, size)
 }
 
-func (c dwctxt) AddIndirectTextRef(s dwarf.Sym, t interface{}) {
+func (c dwctxt) AddIndirectTextRef(s dwarf.Sym, t any) {
 	ds := loader.Sym(s.(dwSym))
 	dsu := c.ldr.MakeSymbolUpdater(ds)
 	tds := loader.Sym(t.(dwSym))
 	dsu.AddSymRef(c.arch, tds, 0, objabi.R_DWTXTADDR_U4, 4)
 }
 
-func (c dwctxt) Logf(format string, args ...interface{}) {
+func (c dwctxt) Logf(format string, args ...any) {
 	c.linkctxt.Logf(format, args...)
 }
 
@@ -239,7 +239,7 @@ var dwtypes dwarf.DWDie
 // up all attrs in a single large table, then store indices into the
 // table in the DIE. This would allow us to common up storage for
 // attributes that are shared by many DIEs (ex: byte size of N).
-func newattr(die *dwarf.DWDie, attr uint16, cls int, value int64, data interface{}) {
+func newattr(die *dwarf.DWDie, attr uint16, cls int, value int64, data any) {
 	a := new(dwarf.DWAttr)
 	a.Link = die.Attr
 	die.Attr = a
