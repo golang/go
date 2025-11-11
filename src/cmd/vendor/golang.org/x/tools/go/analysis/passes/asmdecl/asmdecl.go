@@ -19,7 +19,7 @@ import (
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
 )
 
 const Doc = "report mismatches between assembly files and Go declarations"
@@ -175,7 +175,7 @@ func run(pass *analysis.Pass) (any, error) {
 
 Files:
 	for _, fname := range sfiles {
-		content, tf, err := analysisinternal.ReadFile(pass, fname)
+		content, tf, err := analyzerutil.ReadFile(pass, fname)
 		if err != nil {
 			return nil, err
 		}

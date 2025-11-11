@@ -35,7 +35,7 @@ type Tree struct {
 // A future backwards-incompatible encoding would use a different
 // first line (for example, "go.sum database tree v2").
 func FormatTree(tree Tree) []byte {
-	return []byte(fmt.Sprintf("go.sum database tree\n%d\n%s\n", tree.N, tree.Hash))
+	return fmt.Appendf(nil, "go.sum database tree\n%d\n%s\n", tree.N, tree.Hash)
 }
 
 var errMalformedTree = errors.New("malformed tree note")
@@ -87,7 +87,7 @@ func FormatRecord(id int64, text []byte) (msg []byte, err error) {
 	if !isValidRecordText(text) {
 		return nil, errMalformedRecord
 	}
-	msg = []byte(fmt.Sprintf("%d\n", id))
+	msg = fmt.Appendf(nil, "%d\n", id)
 	msg = append(msg, text...)
 	msg = append(msg, '\n')
 	return msg, nil

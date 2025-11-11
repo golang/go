@@ -12,4 +12,5 @@ var (
 	ErrorsAsTypeModernizer *analysis.Analyzer // = modernize.errorsastypeAnalyzer
 	StdIteratorsModernizer *analysis.Analyzer // = modernize.stditeratorsAnalyzer
 	PlusBuildModernizer    *analysis.Analyzer // = modernize.plusbuildAnalyzer
+	StringsCutModernizer   *analysis.Analyzer // = modernize.stringscutAnalyzer
 )

@@ -13,25 +13,21 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
-	"golang.org/x/tools/internal/analysisinternal"
-	"golang.org/x/tools/internal/analysisinternal/generated"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
 	"golang.org/x/tools/internal/astutil"
 	"golang.org/x/tools/internal/refactor"
 	"golang.org/x/tools/internal/typesinternal"
+	"golang.org/x/tools/internal/versions"
 )
 
 // Warning: this analyzer is not safe to enable by default.
 var AppendClippedAnalyzer = &analysis.Analyzer{
-	Name: "appendclipped",
-	Doc:  analysisinternal.MustExtractDoc(doc, "appendclipped"),
-	Requires: []*analysis.Analyzer{
-		generated.Analyzer,
-		inspect.Analyzer,
-	},
-	Run: appendclipped,
-	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#appendclipped",
+	Name:     "appendclipped",
+	Doc:      analyzerutil.MustExtractDoc(doc, "appendclipped"),
+	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Run:      appendclipped,
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#appendclipped",
 }
 
 // The appendclipped pass offers to simplify a tower of append calls:
@@ -59,8 +55,6 @@ var AppendClippedAnalyzer = &analysis.Analyzer{
 // The fix does not always preserve nilness the of base slice when the
 // addends (a, b, c) are all empty (see #73557).
 func appendclipped(pass *analysis.Pass) (any, error) {
-	skipGenerated(pass)
-
 	// Skip the analyzer in packages where its
 	// fixes would create an import cycle.
 	if within(pass, "slices", "bytes", "runtime") {
@@ -205,8 +199,7 @@ func appendclipped(pass *analysis.Pass) (any, error) {
 	skip := make(map[*ast.CallExpr]bool)
 
 	// Visit calls of form append(x, y...).
-	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
-	for curFile := range filesUsing(inspect, info, "go1.21") {
+	for curFile := range filesUsingGoVersion(pass, versions.Go1_21) {
 		file := curFile.Node().(*ast.File)
 
 		for curCall := range curFile.Preorder((*ast.CallExpr)(nil)) {
@@ -266,7 +259,7 @@ func clippedSlice(info *types.Info, e ast.Expr) (res ast.Expr, empty bool) {
 		// x[:0:0], x[:len(x):len(x)], x[:k:k]
 		if e.Slice3 && e.High != nil && e.Max != nil && astutil.EqualSyntax(e.High, e.Max) { // x[:k:k]
 			res = e
-			empty = isZeroIntLiteral(info, e.High) // x[:0:0]
+			empty = isZeroIntConst(info, e.High) // x[:0:0]
 			if call, ok := e.High.(*ast.CallExpr); ok &&
 				typeutil.Callee(info, call) == builtinLen &&
 				astutil.EqualSyntax(call.Args[0], e.X) {

@@ -16,9 +16,12 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/analysis/passes/internal/ctrlflowinternal"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/cfg"
 	"golang.org/x/tools/go/types/typeutil"
+	"golang.org/x/tools/internal/cfginternal"
+	"golang.org/x/tools/internal/typesinternal"
 )
 
 var Analyzer = &analysis.Analyzer{
@@ -26,7 +29,7 @@ var Analyzer = &analysis.Analyzer{
 	Doc:        "build a control-flow graph",
 	URL:        "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/ctrlflow",
 	Run:        run,
-	ResultType: reflect.TypeOf(new(CFGs)),
+	ResultType: reflect.TypeFor[*CFGs](),
 	FactTypes:  []analysis.Fact{new(noReturn)},
 	Requires:   []*analysis.Analyzer{inspect.Analyzer},
 }
@@ -44,7 +47,20 @@ type CFGs struct {
 	defs      map[*ast.Ident]types.Object // from Pass.TypesInfo.Defs
 	funcDecls map[*types.Func]*declInfo
 	funcLits  map[*ast.FuncLit]*litInfo
-	pass      *analysis.Pass // transient; nil after construction
+	noReturn  map[*types.Func]bool // functions lacking a reachable return statement
+	pass      *analysis.Pass       // transient; nil after construction
+}
+
+// TODO(adonovan): add (*CFGs).NoReturn to public API.
+func (c *CFGs) isNoReturn(fn *types.Func) bool {
+	return c.noReturn[fn]
+}
+
+func init() {
+	// Expose the hidden method to callers in x/tools.
+	ctrlflowinternal.NoReturn = func(c any, fn *types.Func) bool {
+		return c.(*CFGs).isNoReturn(fn)
+	}
 }
 
 // CFGs has two maps: funcDecls for named functions and funcLits for
@@ -54,15 +70,14 @@ type CFGs struct {
 // *types.Func but not the other way.
 
 type declInfo struct {
-	decl     *ast.FuncDecl
-	cfg      *cfg.CFG // iff decl.Body != nil
-	started  bool     // to break cycles
-	noReturn bool
+	decl    *ast.FuncDecl
+	cfg     *cfg.CFG // iff decl.Body != nil
+	started bool     // to break cycles
 }
 
 type litInfo struct {
 	cfg      *cfg.CFG
-	noReturn bool
+	noReturn bool // (currently unused)
 }
 
 // FuncDecl returns the control-flow graph for a named function.
@@ -118,6 +133,7 @@ func run(pass *analysis.Pass) (any, error) {
 		defs:      pass.TypesInfo.Defs,
 		funcDecls: funcDecls,
 		funcLits:  funcLits,
+		noReturn:  make(map[*types.Func]bool),
 		pass:      pass,
 	}
 
@@ -138,7 +154,7 @@ func run(pass *analysis.Pass) (any, error) {
 		li := funcLits[lit]
 		if li.cfg == nil {
 			li.cfg = cfg.New(lit.Body, c.callMayReturn)
-			if !hasReachableReturn(li.cfg) {
+			if cfginternal.IsNoReturn(li.cfg) {
 				li.noReturn = true
 			}
 		}
@@ -158,26 +174,27 @@ func (c *CFGs) buildDecl(fn *types.Func, di *declInfo) {
 	// The buildDecl call tree thus resembles the static call graph.
 	// We mark each node when we start working on it to break cycles.
 
-	if !di.started { // break cycle
-		di.started = true
+	if di.started {
+		return // break cycle
+	}
+	di.started = true
 
-		if isIntrinsicNoReturn(fn) {
-			di.noReturn = true
-		}
-		if di.decl.Body != nil {
-			di.cfg = cfg.New(di.decl.Body, c.callMayReturn)
-			if !hasReachableReturn(di.cfg) {
-				di.noReturn = true
-			}
-		}
-		if di.noReturn {
-			c.pass.ExportObjectFact(fn, new(noReturn))
-		}
+	noreturn := isIntrinsicNoReturn(fn)
 
-		// debugging
-		if false {
-			log.Printf("CFG for %s:\n%s (noreturn=%t)\n", fn, di.cfg.Format(c.pass.Fset), di.noReturn)
+	if di.decl.Body != nil {
+		di.cfg = cfg.New(di.decl.Body, c.callMayReturn)
+		if cfginternal.IsNoReturn(di.cfg) {
+			noreturn = true
 		}
+	}
+	if noreturn {
+		c.pass.ExportObjectFact(fn, new(noReturn))
+		c.noReturn[fn] = true
+	}
+
+	// debugging
+	if false {
+		log.Printf("CFG for %s:\n%s (noreturn=%t)\n", fn, di.cfg.Format(c.pass.Fset), noreturn)
 	}
 }
 
@@ -201,31 +218,26 @@ func (c *CFGs) callMayReturn(call *ast.CallExpr) (r bool) {
 	// Function or method declared in this package?
 	if di, ok := c.funcDecls[fn]; ok {
 		c.buildDecl(fn, di)
-		return !di.noReturn
+		return !c.noReturn[fn]
 	}
 
 	// Not declared in this package.
 	// Is there a fact from another package?
-	return !c.pass.ImportObjectFact(fn, new(noReturn))
+	if c.pass.ImportObjectFact(fn, new(noReturn)) {
+		c.noReturn[fn] = true
+		return false
+	}
+
+	return true
 }
 
 var panicBuiltin = types.Universe.Lookup("panic").(*types.Builtin)
-
-func hasReachableReturn(g *cfg.CFG) bool {
-	for _, b := range g.Blocks {
-		if b.Live && b.Return() != nil {
-			return true
-		}
-	}
-	return false
-}
 
 // isIntrinsicNoReturn reports whether a function intrinsically never
 // returns because it stops execution of the calling thread.
 // It is the base case in the recursion.
 func isIntrinsicNoReturn(fn *types.Func) bool {
 	// Add functions here as the need arises, but don't allocate memory.
-	path, name := fn.Pkg().Path(), fn.Name()
-	return path == "syscall" && (name == "Exit" || name == "ExitProcess" || name == "ExitThread") ||
-		path == "runtime" && name == "Goexit"
+	return typesinternal.IsFunctionNamed(fn, "syscall", "Exit", "ExitProcess", "ExitThread") ||
+		typesinternal.IsFunctionNamed(fn, "runtime", "Goexit")
 }

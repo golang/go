@@ -12,22 +12,20 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
-	"golang.org/x/tools/internal/analysisinternal"
-	"golang.org/x/tools/internal/analysisinternal/generated"
-	typeindexanalyzer "golang.org/x/tools/internal/analysisinternal/typeindex"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
+	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
 	"golang.org/x/tools/internal/astutil"
 	"golang.org/x/tools/internal/refactor"
 	"golang.org/x/tools/internal/typesinternal"
 	"golang.org/x/tools/internal/typesinternal/typeindex"
+	"golang.org/x/tools/internal/versions"
 )
 
 var StringsCutPrefixAnalyzer = &analysis.Analyzer{
 	Name: "stringscutprefix",
-	Doc:  analysisinternal.MustExtractDoc(doc, "stringscutprefix"),
+	Doc:  analyzerutil.MustExtractDoc(doc, "stringscutprefix"),
 	Requires: []*analysis.Analyzer{
-		generated.Analyzer,
 		inspect.Analyzer,
 		typeindexanalyzer.Analyzer,
 	},
@@ -56,12 +54,9 @@ var StringsCutPrefixAnalyzer = &analysis.Analyzer{
 // Variants:
 // - bytes.HasPrefix/HasSuffix usage as pattern 1.
 func stringscutprefix(pass *analysis.Pass) (any, error) {
-	skipGenerated(pass)
-
 	var (
-		inspect = pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
-		index   = pass.ResultOf[typeindexanalyzer.Analyzer].(*typeindex.Index)
-		info    = pass.TypesInfo
+		index = pass.ResultOf[typeindexanalyzer.Analyzer].(*typeindex.Index)
+		info  = pass.TypesInfo
 
 		stringsTrimPrefix = index.Object("strings", "TrimPrefix")
 		bytesTrimPrefix   = index.Object("bytes", "TrimPrefix")
@@ -72,7 +67,7 @@ func stringscutprefix(pass *analysis.Pass) (any, error) {
 		return nil, nil
 	}
 
-	for curFile := range filesUsing(inspect, pass.TypesInfo, "go1.20") {
+	for curFile := range filesUsingGoVersion(pass, versions.Go1_20) {
 		for curIfStmt := range curFile.Preorder((*ast.IfStmt)(nil)) {
 			ifStmt := curIfStmt.Node().(*ast.IfStmt)
 
@@ -206,6 +201,7 @@ func stringscutprefix(pass *analysis.Pass) (any, error) {
 
 					if astutil.EqualSyntax(lhs, bin.X) && astutil.EqualSyntax(call.Args[0], bin.Y) ||
 						(astutil.EqualSyntax(lhs, bin.Y) && astutil.EqualSyntax(call.Args[0], bin.X)) {
+						// TODO(adonovan): avoid FreshName when not needed; see errorsastype.
 						okVarName := refactor.FreshName(info.Scopes[ifStmt], ifStmt.Pos(), "ok")
 						// Have one of:
 						//   if rest := TrimPrefix(s, prefix); rest != s { (ditto Suffix)

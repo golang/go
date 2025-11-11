@@ -14,21 +14,21 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/ast/edge"
 	"golang.org/x/tools/go/ast/inspector"
-	"golang.org/x/tools/internal/analysisinternal"
-	"golang.org/x/tools/internal/analysisinternal/generated"
-	typeindexanalyzer "golang.org/x/tools/internal/analysisinternal/typeindex"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
+	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
 	"golang.org/x/tools/internal/astutil"
 	"golang.org/x/tools/internal/goplsexport"
 	"golang.org/x/tools/internal/refactor"
 	"golang.org/x/tools/internal/typesinternal"
 	"golang.org/x/tools/internal/typesinternal/typeindex"
+	"golang.org/x/tools/internal/versions"
 )
 
 var errorsastypeAnalyzer = &analysis.Analyzer{
 	Name:     "errorsastype",
-	Doc:      analysisinternal.MustExtractDoc(doc, "errorsastype"),
+	Doc:      analyzerutil.MustExtractDoc(doc, "errorsastype"),
 	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#errorsastype",
-	Requires: []*analysis.Analyzer{generated.Analyzer, typeindexanalyzer.Analyzer},
+	Requires: []*analysis.Analyzer{typeindexanalyzer.Analyzer},
 	Run:      errorsastype,
 }
 
@@ -78,8 +78,6 @@ func init() {
 //
 // - if errors.As(err, myerr) && othercond { ... }
 func errorsastype(pass *analysis.Pass) (any, error) {
-	skipGenerated(pass)
-
 	var (
 		index = pass.ResultOf[typeindexanalyzer.Analyzer].(*typeindex.Index)
 		info  = pass.TypesInfo
@@ -97,7 +95,7 @@ func errorsastype(pass *analysis.Pass) (any, error) {
 		}
 
 		file := astutil.EnclosingFile(curDeclStmt)
-		if !fileUses(info, file, "go1.26") {
+		if !analyzerutil.FileUsesGoVersion(pass, file, versions.Go1_26) {
 			continue // errors.AsType is too new
 		}
 
@@ -127,6 +125,8 @@ func errorsastype(pass *analysis.Pass) (any, error) {
 		errtype := types.TypeString(v.Type(), qual)
 
 		// Choose a name for the "ok" variable.
+		// TODO(adonovan): this pattern also appears in stditerators,
+		// and is wanted elsewhere; factor.
 		okName := "ok"
 		if okVar := lookup(info, curCall, "ok"); okVar != nil {
 			// The name 'ok' is already declared, but

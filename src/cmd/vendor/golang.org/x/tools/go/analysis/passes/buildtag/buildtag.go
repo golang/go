@@ -14,7 +14,7 @@ import (
 	"unicode"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
 )
 
 const Doc = "check //go:build and // +build directives"
@@ -86,7 +86,7 @@ func checkOtherFile(pass *analysis.Pass, filename string) error {
 
 	// We cannot use the Go parser, since this may not be a Go source file.
 	// Read the raw bytes instead.
-	content, tf, err := analysisinternal.ReadFile(pass, filename)
+	content, tf, err := analyzerutil.ReadFile(pass, filename)
 	if err != nil {
 		return err
 	}

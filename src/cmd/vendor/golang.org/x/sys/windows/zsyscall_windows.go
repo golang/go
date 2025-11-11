@@ -182,13 +182,17 @@ var (
 	procDwmGetWindowAttribute                                = moddwmapi.NewProc("DwmGetWindowAttribute")
 	procDwmSetWindowAttribute                                = moddwmapi.NewProc("DwmSetWindowAttribute")
 	procCancelMibChangeNotify2                               = modiphlpapi.NewProc("CancelMibChangeNotify2")
+	procFreeMibTable                                         = modiphlpapi.NewProc("FreeMibTable")
 	procGetAdaptersAddresses                                 = modiphlpapi.NewProc("GetAdaptersAddresses")
 	procGetAdaptersInfo                                      = modiphlpapi.NewProc("GetAdaptersInfo")
 	procGetBestInterfaceEx                                   = modiphlpapi.NewProc("GetBestInterfaceEx")
 	procGetIfEntry                                           = modiphlpapi.NewProc("GetIfEntry")
 	procGetIfEntry2Ex                                        = modiphlpapi.NewProc("GetIfEntry2Ex")
+	procGetIpForwardEntry2                                   = modiphlpapi.NewProc("GetIpForwardEntry2")
+	procGetIpForwardTable2                                   = modiphlpapi.NewProc("GetIpForwardTable2")
 	procGetUnicastIpAddressEntry                             = modiphlpapi.NewProc("GetUnicastIpAddressEntry")
 	procNotifyIpInterfaceChange                              = modiphlpapi.NewProc("NotifyIpInterfaceChange")
+	procNotifyRouteChange2                                   = modiphlpapi.NewProc("NotifyRouteChange2")
 	procNotifyUnicastIpAddressChange                         = modiphlpapi.NewProc("NotifyUnicastIpAddressChange")
 	procAddDllDirectory                                      = modkernel32.NewProc("AddDllDirectory")
 	procAssignProcessToJobObject                             = modkernel32.NewProc("AssignProcessToJobObject")
@@ -1624,6 +1628,11 @@ func CancelMibChangeNotify2(notificationHandle Handle) (errcode error) {
 	return
 }
 
+func FreeMibTable(memory unsafe.Pointer) {
+	syscall.SyscallN(procFreeMibTable.Addr(), uintptr(memory))
+	return
+}
+
 func GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapterAddresses *IpAdapterAddresses, sizePointer *uint32) (errcode error) {
 	r0, _, _ := syscall.SyscallN(procGetAdaptersAddresses.Addr(), uintptr(family), uintptr(flags), uintptr(reserved), uintptr(unsafe.Pointer(adapterAddresses)), uintptr(unsafe.Pointer(sizePointer)))
 	if r0 != 0 {
@@ -1664,6 +1673,22 @@ func GetIfEntry2Ex(level uint32, row *MibIfRow2) (errcode error) {
 	return
 }
 
+func GetIpForwardEntry2(row *MibIpForwardRow2) (errcode error) {
+	r0, _, _ := syscall.SyscallN(procGetIpForwardEntry2.Addr(), uintptr(unsafe.Pointer(row)))
+	if r0 != 0 {
+		errcode = syscall.Errno(r0)
+	}
+	return
+}
+
+func GetIpForwardTable2(family uint16, table **MibIpForwardTable2) (errcode error) {
+	r0, _, _ := syscall.SyscallN(procGetIpForwardTable2.Addr(), uintptr(family), uintptr(unsafe.Pointer(table)))
+	if r0 != 0 {
+		errcode = syscall.Errno(r0)
+	}
+	return
+}
+
 func GetUnicastIpAddressEntry(row *MibUnicastIpAddressRow) (errcode error) {
 	r0, _, _ := syscall.SyscallN(procGetUnicastIpAddressEntry.Addr(), uintptr(unsafe.Pointer(row)))
 	if r0 != 0 {
@@ -1678,6 +1703,18 @@ func NotifyIpInterfaceChange(family uint16, callback uintptr, callerContext unsa
 		_p0 = 1
 	}
 	r0, _, _ := syscall.SyscallN(procNotifyIpInterfaceChange.Addr(), uintptr(family), uintptr(callback), uintptr(callerContext), uintptr(_p0), uintptr(unsafe.Pointer(notificationHandle)))
+	if r0 != 0 {
+		errcode = syscall.Errno(r0)
+	}
+	return
+}
+
+func NotifyRouteChange2(family uint16, callback uintptr, callerContext unsafe.Pointer, initialNotification bool, notificationHandle *Handle) (errcode error) {
+	var _p0 uint32
+	if initialNotification {
+		_p0 = 1
+	}
+	r0, _, _ := syscall.SyscallN(procNotifyRouteChange2.Addr(), uintptr(family), uintptr(callback), uintptr(callerContext), uintptr(_p0), uintptr(unsafe.Pointer(notificationHandle)))
 	if r0 != 0 {
 		errcode = syscall.Errno(r0)
 	}

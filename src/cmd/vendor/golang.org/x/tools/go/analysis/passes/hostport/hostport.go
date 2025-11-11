@@ -17,7 +17,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/types/typeutil"
-	typeindexanalyzer "golang.org/x/tools/internal/analysisinternal/typeindex"
+	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
 	"golang.org/x/tools/internal/typesinternal/typeindex"
 )
 

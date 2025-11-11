@@ -13,18 +13,17 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/edge"
-	"golang.org/x/tools/internal/analysisinternal"
-	"golang.org/x/tools/internal/analysisinternal/generated"
-	typeindexanalyzer "golang.org/x/tools/internal/analysisinternal/typeindex"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
+	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
 	"golang.org/x/tools/internal/astutil"
 	"golang.org/x/tools/internal/typesinternal/typeindex"
+	"golang.org/x/tools/internal/versions"
 )
 
 var FmtAppendfAnalyzer = &analysis.Analyzer{
 	Name: "fmtappendf",
-	Doc:  analysisinternal.MustExtractDoc(doc, "fmtappendf"),
+	Doc:  analyzerutil.MustExtractDoc(doc, "fmtappendf"),
 	Requires: []*analysis.Analyzer{
-		generated.Analyzer,
 		inspect.Analyzer,
 		typeindexanalyzer.Analyzer,
 	},
@@ -35,8 +34,6 @@ var FmtAppendfAnalyzer = &analysis.Analyzer{
 // The fmtappend function replaces []byte(fmt.Sprintf(...)) by
 // fmt.Appendf(nil, ...), and similarly for Sprint, Sprintln.
 func fmtappendf(pass *analysis.Pass) (any, error) {
-	skipGenerated(pass)
-
 	index := pass.ResultOf[typeindexanalyzer.Analyzer].(*typeindex.Index)
 	for _, fn := range []types.Object{
 		index.Object("fmt", "Sprintf"),
@@ -50,7 +47,7 @@ func fmtappendf(pass *analysis.Pass) (any, error) {
 				conv := curCall.Parent().Node().(*ast.CallExpr)
 				tv := pass.TypesInfo.Types[conv.Fun]
 				if tv.IsType() && types.Identical(tv.Type, byteSliceType) &&
-					fileUses(pass.TypesInfo, astutil.EnclosingFile(curCall), "go1.19") {
+					analyzerutil.FileUsesGoVersion(pass, astutil.EnclosingFile(curCall), versions.Go1_19) {
 					// Have: []byte(fmt.SprintX(...))
 
 					// Find "Sprint" identifier.

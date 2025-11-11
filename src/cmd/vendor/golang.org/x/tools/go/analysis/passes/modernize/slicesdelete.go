@@ -12,24 +12,20 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/go/ast/inspector"
-	"golang.org/x/tools/internal/analysisinternal"
-	"golang.org/x/tools/internal/analysisinternal/generated"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
 	"golang.org/x/tools/internal/astutil"
 	"golang.org/x/tools/internal/refactor"
 	"golang.org/x/tools/internal/typesinternal"
+	"golang.org/x/tools/internal/versions"
 )
 
 // Warning: this analyzer is not safe to enable by default (not nil-preserving).
 var SlicesDeleteAnalyzer = &analysis.Analyzer{
-	Name: "slicesdelete",
-	Doc:  analysisinternal.MustExtractDoc(doc, "slicesdelete"),
-	Requires: []*analysis.Analyzer{
-		generated.Analyzer,
-		inspect.Analyzer,
-	},
-	Run: slicesdelete,
-	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#slicesdelete",
+	Name:     "slicesdelete",
+	Doc:      analyzerutil.MustExtractDoc(doc, "slicesdelete"),
+	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Run:      slicesdelete,
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#slicesdelete",
 }
 
 // The slicesdelete pass attempts to replace instances of append(s[:i], s[i+k:]...)
@@ -37,15 +33,12 @@ var SlicesDeleteAnalyzer = &analysis.Analyzer{
 // Other variations that will also have suggested replacements include:
 // append(s[:i-1], s[i:]...) and append(s[:i+k1], s[i+k2:]) where k2 > k1.
 func slicesdelete(pass *analysis.Pass) (any, error) {
-	skipGenerated(pass)
-
 	// Skip the analyzer in packages where its
 	// fixes would create an import cycle.
 	if within(pass, "slices", "runtime") {
 		return nil, nil
 	}
 
-	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 	info := pass.TypesInfo
 	report := func(file *ast.File, call *ast.CallExpr, slice1, slice2 *ast.SliceExpr) {
 		insert := func(pos token.Pos, text string) analysis.TextEdit {
@@ -55,7 +48,7 @@ func slicesdelete(pass *analysis.Pass) (any, error) {
 			return types.Identical(types.Default(info.TypeOf(e)), builtinInt.Type())
 		}
 		isIntShadowed := func() bool {
-			scope := pass.TypesInfo.Scopes[file].Innermost(call.Lparen)
+			scope := info.Scopes[file].Innermost(call.Lparen)
 			if _, obj := scope.LookupParent("int", call.Lparen); obj != builtinInt {
 				return true // int type is shadowed
 			}
@@ -130,7 +123,7 @@ func slicesdelete(pass *analysis.Pass) (any, error) {
 			}},
 		})
 	}
-	for curFile := range filesUsing(inspect, info, "go1.21") {
+	for curFile := range filesUsingGoVersion(pass, versions.Go1_21) {
 		file := curFile.Node().(*ast.File)
 		for curCall := range curFile.Preorder((*ast.CallExpr)(nil)) {
 			call := curCall.Node().(*ast.CallExpr)

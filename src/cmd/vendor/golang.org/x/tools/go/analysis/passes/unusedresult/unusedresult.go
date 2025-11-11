@@ -25,7 +25,8 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
-	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
+	"golang.org/x/tools/internal/astutil"
 )
 
 //go:embed doc.go
@@ -33,7 +34,7 @@ var doc string
 
 var Analyzer = &analysis.Analyzer{
 	Name:     "unusedresult",
-	Doc:      analysisinternal.MustExtractDoc(doc, "unusedresult"),
+	Doc:      analyzerutil.MustExtractDoc(doc, "unusedresult"),
 	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/unusedresult",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
@@ -149,11 +150,11 @@ func run(pass *analysis.Pass) (any, error) {
 		if !ok {
 			return // e.g. var or builtin
 		}
-		if sig := fn.Type().(*types.Signature); sig.Recv() != nil {
+		if sig := fn.Signature(); sig.Recv() != nil {
 			// method (e.g. foo.String())
 			if types.Identical(sig, sigNoArgsStringResult) {
 				if stringMethods[fn.Name()] {
-					pass.ReportRangef(analysisinternal.Range(call.Pos(), call.Lparen),
+					pass.ReportRangef(astutil.RangeOf(call.Pos(), call.Lparen),
 						"result of (%s).%s call not used",
 						sig.Recv().Type(), fn.Name())
 				}
@@ -161,7 +162,7 @@ func run(pass *analysis.Pass) (any, error) {
 		} else {
 			// package-level function (e.g. fmt.Errorf)
 			if pkgFuncs[[2]string{fn.Pkg().Path(), fn.Name()}] {
-				pass.ReportRangef(analysisinternal.Range(call.Pos(), call.Lparen),
+				pass.ReportRangef(astutil.RangeOf(call.Pos(), call.Lparen),
 					"result of %s.%s call not used",
 					fn.Pkg().Path(), fn.Name())
 			}

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package analysisinternal
+package analyzerutil
 
 import (
 	"fmt"
@@ -35,7 +35,7 @@ import (
 //
 //	var Analyzer = &analysis.Analyzer{
 //		Name:             "halting",
-//		Doc:              analysisinternal.MustExtractDoc(doc, "halting"),
+//		Doc:              analyzerutil.MustExtractDoc(doc, "halting"),
 //		...
 //	}
 func MustExtractDoc(content, name string) string {
