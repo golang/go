@@ -876,7 +876,6 @@ func TestURLRedacted(t *testing.T) {
 	}
 
 	for _, tt := range cases {
-		t := t
 		t.Run(tt.name, func(t *testing.T) {
 			if g, w := tt.url.Redacted(), tt.want; g != w {
 				t.Fatalf("got: %q\nwant: %q", g, w)
