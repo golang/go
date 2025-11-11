@@ -43559,8 +43559,8 @@ var registersS390X = [...]Register{
 	{31, s390x.REG_F15, "F15"},
 	{32, 0, "SB"},
 }
-var paramIntRegS390X = []int8(nil)
-var paramFloatRegS390X = []int8(nil)
+var paramIntRegS390X = []int8{2, 3, 4, 5, 6, 7, 8, 9}
+var paramFloatRegS390X = []int8{16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31}
 var gpRegMaskS390X = regMask(23551)
 var fpRegMaskS390X = regMask(4294901760)
 var specialRegMaskS390X = regMask(0)

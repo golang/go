@@ -540,6 +540,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
 		ssagen.AddrAuto(&p.To, v)
+	case ssa.OpArgIntReg, ssa.OpArgFloatReg:
+		ssagen.CheckArgReg(v)
 	case ssa.OpS390XLoweredGetClosurePtr:
 		// Closure pointer is R12 (already)
 		ssagen.CheckLoweredGetClosurePtr(v)

@@ -305,6 +305,8 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.registers = registersS390X[:]
 		c.gpRegMask = gpRegMaskS390X
 		c.fpRegMask = fpRegMaskS390X
+		//c.intParamRegs = paramIntRegS390X
+		//c.floatParamRegs = paramFloatRegS390X
 		c.FPReg = framepointerRegS390X
 		c.LinkReg = linkRegS390X
 		c.hasGReg = true
