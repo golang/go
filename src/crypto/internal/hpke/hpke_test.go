@@ -18,6 +18,57 @@ import (
 	"testing"
 )
 
+func Example() {
+	// In this example, we use MLKEM768-X25519 as the KEM, HKDF-SHA256 as the
+	// KDF, and AES-256-GCM as the AEAD to encrypt a single message from a
+	// sender to a recipient using the one-shot API.
+
+	kem, kdf, aead := MLKEM768X25519(), HKDFSHA256(), AES256GCM()
+
+	// Recipient side
+	var (
+		recipientPrivateKey PrivateKey
+		publicKeyBytes      []byte
+	)
+	{
+		k, err := kem.GenerateKey()
+		if err != nil {
+			panic(err)
+		}
+		recipientPrivateKey = k
+		publicKeyBytes = k.PublicKey().Bytes()
+	}
+
+	// Sender side
+	var ciphertext []byte
+	{
+		publicKey, err := kem.NewPublicKey(publicKeyBytes)
+		if err != nil {
+			panic(err)
+		}
+
+		message := []byte("|-()-|")
+		ct, err := Seal(publicKey, kdf, aead, []byte("example"), message)
+		if err != nil {
+			panic(err)
+		}
+
+		ciphertext = ct
+	}
+
+	// Recipient side
+	{
+		plaintext, err := Open(recipientPrivateKey, kdf, aead, []byte("example"), ciphertext)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Printf("Decrypted message: %s\n", plaintext)
+	}
+
+	// Output:
+	// Decrypted message: |-()-|
+}
+
 func mustDecodeHex(t *testing.T, in string) []byte {
 	t.Helper()
 	b, err := hex.DecodeString(in)
@@ -83,6 +134,12 @@ func testVectors(t *testing.T, name string) {
 			if vector.KEM == 0x0021 {
 				t.Skip("KEM 0x0021 (DHKEM(X448)) not supported")
 			}
+			if vector.KEM == 0x0040 {
+				t.Skip("KEM 0x0040 (ML-KEM-512) not supported")
+			}
+			if vector.KDF == 0x0012 || vector.KDF == 0x0013 {
+				t.Skipf("TurboSHAKE KDF not supported")
+			}
 
 			kdf, err := NewKDF(vector.KDF)
 			if err != nil {
@@ -100,25 +157,36 @@ func testVectors(t *testing.T, name string) {
 				t.Errorf("unexpected AEAD ID: got %04x, want %04x", aead.ID(), vector.AEAD)
 			}
 
-			pubKeyBytes := mustDecodeHex(t, vector.PkRm)
-			kemSender, err := NewKEMSender(vector.KEM, pubKeyBytes)
+			kem, err := NewKEM(vector.KEM)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if kemSender.ID() != vector.KEM {
-				t.Errorf("unexpected KEM ID: got %04x, want %04x", kemSender.ID(), vector.KEM)
+			if kem.ID() != vector.KEM {
+				t.Errorf("unexpected KEM ID: got %04x, want %04x", kem.ID(), vector.KEM)
+			}
+
+			pubKeyBytes := mustDecodeHex(t, vector.PkRm)
+			kemSender, err := kem.NewPublicKey(pubKeyBytes)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if kemSender.KEM() != kem {
+				t.Errorf("unexpected KEM from sender: got %04x, want %04x", kemSender.KEM().ID(), kem.ID())
 			}
 			if !bytes.Equal(kemSender.Bytes(), pubKeyBytes) {
 				t.Errorf("unexpected KEM bytes: got %x, want %x", kemSender.Bytes(), pubKeyBytes)
 			}
 
 			ikmE := mustDecodeHex(t, vector.IkmE)
-			setupDerandomizedEncap(t, vector.KEM, ikmE, kemSender)
+			setupDerandomizedEncap(t, ikmE, kemSender)
 
 			info := mustDecodeHex(t, vector.Info)
 			encap, sender, err := NewSender(kemSender, kdf, aead, info)
 			if err != nil {
 				t.Fatal(err)
+			}
+			if len(encap) != kem.encSize() {
+				t.Errorf("unexpected encapsulated key size: got %d, want %d", len(encap), kem.encSize())
 			}
 
 			expectedEncap := mustDecodeHex(t, vector.Enc)
@@ -127,23 +195,23 @@ func testVectors(t *testing.T, name string) {
 			}
 
 			privKeyBytes := mustDecodeHex(t, vector.SkRm)
-			kemRecipient, err := NewKEMRecipient(vector.KEM, privKeyBytes)
+			kemRecipient, err := kem.NewPrivateKey(privKeyBytes)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if kemRecipient.ID() != vector.KEM {
-				t.Errorf("unexpected KEM ID: got %04x, want %04x", kemRecipient.ID(), vector.KEM)
+			if kemRecipient.KEM() != kem {
+				t.Errorf("unexpected KEM from recipient: got %04x, want %04x", kemRecipient.KEM().ID(), kem.ID())
 			}
 			kemRecipientBytes, err := kemRecipient.Bytes()
 			if err != nil {
 				t.Fatal(err)
 			}
 			// X25519 serialized keys must be clamped, so the bytes might not match.
-			if !bytes.Equal(kemRecipientBytes, privKeyBytes) && vector.KEM != dhkemX25519 {
+			if !bytes.Equal(kemRecipientBytes, privKeyBytes) && vector.KEM != DHKEM(ecdh.X25519()).ID() {
 				t.Errorf("unexpected KEM bytes: got %x, want %x", kemRecipientBytes, privKeyBytes)
 			}
-			if vector.KEM == dhkemX25519 {
-				kem2, err := NewKEMRecipient(vector.KEM, kemRecipientBytes)
+			if vector.KEM == DHKEM(ecdh.X25519()).ID() {
+				kem2, err := kem.NewPrivateKey(kemRecipientBytes)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -154,32 +222,28 @@ func testVectors(t *testing.T, name string) {
 				if !bytes.Equal(kemRecipientBytes2, kemRecipientBytes) {
 					t.Errorf("X25519 re-serialized key differs: got %x, want %x", kemRecipientBytes2, kemRecipientBytes)
 				}
-				if !bytes.Equal(kem2.KEMSender().Bytes(), pubKeyBytes) {
-					t.Errorf("X25519 re-derived public key differs: got %x, want %x", kem2.KEMSender().Bytes(), pubKeyBytes)
+				if !bytes.Equal(kem2.PublicKey().Bytes(), pubKeyBytes) {
+					t.Errorf("X25519 re-derived public key differs: got %x, want %x", kem2.PublicKey().Bytes(), pubKeyBytes)
 				}
 			}
-			if !bytes.Equal(kemRecipient.KEMSender().Bytes(), pubKeyBytes) {
-				t.Errorf("unexpected KEM sender bytes: got %x, want %x", kemRecipient.KEMSender().Bytes(), pubKeyBytes)
+			if !bytes.Equal(kemRecipient.PublicKey().Bytes(), pubKeyBytes) {
+				t.Errorf("unexpected KEM sender bytes: got %x, want %x", kemRecipient.PublicKey().Bytes(), pubKeyBytes)
 			}
 
-			// NewKEMRecipientFromSeed is not implemented for the PQ KEMs yet.
-			if vector.KEM != mlkem768 && vector.KEM != mlkem1024 && vector.KEM != mlkem768X25519 &&
-				vector.KEM != mlkem768P256 && vector.KEM != mlkem1024P384 {
-				seed := mustDecodeHex(t, vector.IkmR)
-				seedRecipient, err := NewKEMRecipientFromSeed(vector.KEM, seed)
-				if err != nil {
-					t.Fatal(err)
-				}
-				seedRecipientBytes, err := seedRecipient.Bytes()
-				if err != nil {
-					t.Fatal(err)
-				}
-				if !bytes.Equal(seedRecipientBytes, privKeyBytes) && vector.KEM != dhkemX25519 {
-					t.Errorf("unexpected KEM bytes from seed: got %x, want %x", seedRecipientBytes, privKeyBytes)
-				}
-				if !bytes.Equal(seedRecipient.KEMSender().Bytes(), pubKeyBytes) {
-					t.Errorf("unexpected KEM sender bytes from seed: got %x, want %x", seedRecipient.KEMSender().Bytes(), pubKeyBytes)
-				}
+			ikm := mustDecodeHex(t, vector.IkmR)
+			derivRecipient, err := kem.DeriveKeyPair(ikm)
+			if err != nil {
+				t.Fatal(err)
+			}
+			derivRecipientBytes, err := derivRecipient.Bytes()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(derivRecipientBytes, privKeyBytes) && vector.KEM != DHKEM(ecdh.X25519()).ID() {
+				t.Errorf("unexpected KEM bytes from seed: got %x, want %x", derivRecipientBytes, privKeyBytes)
+			}
+			if !bytes.Equal(derivRecipient.PublicKey().Bytes(), pubKeyBytes) {
+				t.Errorf("unexpected KEM sender bytes from seed: got %x, want %x", derivRecipient.PublicKey().Bytes(), pubKeyBytes)
 			}
 
 			recipient, err := NewRecipient(encap, kemRecipient, kdf, aead, info)
@@ -304,22 +368,22 @@ func drawRandomInput(t *testing.T, r io.Reader) []byte {
 	return b
 }
 
-func setupDerandomizedEncap(t *testing.T, kemID uint16, randBytes []byte, kem KEMSender) {
+func setupDerandomizedEncap(t *testing.T, randBytes []byte, pk PublicKey) {
 	t.Cleanup(func() {
 		testingOnlyGenerateKey = nil
 		testingOnlyEncapsulate = nil
 	})
-	switch kemID {
-	case dhkemP256, dhkemP384, dhkemP521, dhkemX25519:
-		r, err := NewKEMRecipientFromSeed(kemID, randBytes)
+	switch pk.KEM() {
+	case DHKEM(ecdh.P256()), DHKEM(ecdh.P384()), DHKEM(ecdh.P521()), DHKEM(ecdh.X25519()):
+		r, err := pk.KEM().DeriveKeyPair(randBytes)
 		if err != nil {
 			t.Fatal(err)
 		}
 		testingOnlyGenerateKey = func() *ecdh.PrivateKey {
-			return r.(*dhKEMRecipient).priv.(*ecdh.PrivateKey)
+			return r.(*dhKEMPrivateKey).priv.(*ecdh.PrivateKey)
 		}
 	case mlkem768:
-		pq := kem.(*mlkemSender).pq.(*mlkem.EncapsulationKey768)
+		pq := pk.(*mlkemPublicKey).pq.(*mlkem.EncapsulationKey768)
 		testingOnlyEncapsulate = func() ([]byte, []byte) {
 			ss, ct, err := mlkemtest.Encapsulate768(pq, randBytes)
 			if err != nil {
@@ -328,7 +392,7 @@ func setupDerandomizedEncap(t *testing.T, kemID uint16, randBytes []byte, kem KE
 			return ss, ct
 		}
 	case mlkem1024:
-		pq := kem.(*mlkemSender).pq.(*mlkem.EncapsulationKey1024)
+		pq := pk.(*mlkemPublicKey).pq.(*mlkem.EncapsulationKey1024)
 		testingOnlyEncapsulate = func() ([]byte, []byte) {
 			ss, ct, err := mlkemtest.Encapsulate1024(pq, randBytes)
 			if err != nil {
@@ -338,7 +402,7 @@ func setupDerandomizedEncap(t *testing.T, kemID uint16, randBytes []byte, kem KE
 		}
 	case mlkem768X25519:
 		pqRand, tRand := randBytes[:32], randBytes[32:]
-		pq := kem.(*hybridSender).pq.(*mlkem.EncapsulationKey768)
+		pq := pk.(*hybridPublicKey).pq.(*mlkem.EncapsulationKey768)
 		k, err := ecdh.X25519().NewPrivateKey(tRand)
 		if err != nil {
 			t.Fatal(err)
@@ -357,7 +421,7 @@ func setupDerandomizedEncap(t *testing.T, kemID uint16, randBytes []byte, kem KE
 		// The rest of randBytes are the following candidates for rejection
 		// sampling, but they are never reached.
 		pqRand, tRand := randBytes[:32], randBytes[32:64]
-		pq := kem.(*hybridSender).pq.(*mlkem.EncapsulationKey768)
+		pq := pk.(*hybridPublicKey).pq.(*mlkem.EncapsulationKey768)
 		k, err := ecdh.P256().NewPrivateKey(tRand)
 		if err != nil {
 			t.Fatal(err)
@@ -374,7 +438,7 @@ func setupDerandomizedEncap(t *testing.T, kemID uint16, randBytes []byte, kem KE
 		}
 	case mlkem1024P384:
 		pqRand, tRand := randBytes[:32], randBytes[32:]
-		pq := kem.(*hybridSender).pq.(*mlkem.EncapsulationKey1024)
+		pq := pk.(*hybridPublicKey).pq.(*mlkem.EncapsulationKey1024)
 		k, err := ecdh.P384().NewPrivateKey(tRand)
 		if err != nil {
 			t.Fatal(err)
@@ -390,7 +454,7 @@ func setupDerandomizedEncap(t *testing.T, kemID uint16, randBytes []byte, kem KE
 			return ss, ct
 		}
 	default:
-		t.Fatalf("unsupported KEM %04x", kemID)
+		t.Fatalf("unsupported KEM %04x", pk.KEM().ID())
 	}
 }
 
@@ -415,5 +479,32 @@ func TestSingletons(t *testing.T) {
 	}
 	if ExportOnly() != ExportOnly() {
 		t.Error("ExportOnly() != ExportOnly()")
+	}
+	if DHKEM(ecdh.P256()) != DHKEM(ecdh.P256()) {
+		t.Error("DHKEM(P-256) != DHKEM(P-256)")
+	}
+	if DHKEM(ecdh.P384()) != DHKEM(ecdh.P384()) {
+		t.Error("DHKEM(P-384) != DHKEM(P-384)")
+	}
+	if DHKEM(ecdh.P521()) != DHKEM(ecdh.P521()) {
+		t.Error("DHKEM(P-521) != DHKEM(P-521)")
+	}
+	if DHKEM(ecdh.X25519()) != DHKEM(ecdh.X25519()) {
+		t.Error("DHKEM(X25519) != DHKEM(X25519)")
+	}
+	if MLKEM768() != MLKEM768() {
+		t.Error("MLKEM768() != MLKEM768()")
+	}
+	if MLKEM1024() != MLKEM1024() {
+		t.Error("MLKEM1024() != MLKEM1024()")
+	}
+	if MLKEM768X25519() != MLKEM768X25519() {
+		t.Error("MLKEM768X25519() != MLKEM768X25519()")
+	}
+	if MLKEM768P256() != MLKEM768P256() {
+		t.Error("MLKEM768P256() != MLKEM768P256()")
+	}
+	if MLKEM1024P384() != MLKEM1024P384() {
+		t.Error("MLKEM1024P384() != MLKEM1024P384()")
 	}
 }

@@ -132,12 +132,12 @@ func newContext(sharedSecret []byte, kemID uint16, kdf KDF, aead AEAD, info []by
 //
 // The returned enc ciphertext can be used to instantiate a matching receiving
 // HPKE context with the corresponding KEM decapsulation key.
-func NewSender(kem KEMSender, kdf KDF, aead AEAD, info []byte) (enc []byte, s *Sender, err error) {
-	sharedSecret, encapsulatedKey, err := kem.encap()
+func NewSender(pk PublicKey, kdf KDF, aead AEAD, info []byte) (enc []byte, s *Sender, err error) {
+	sharedSecret, encapsulatedKey, err := pk.encap()
 	if err != nil {
 		return nil, nil, err
 	}
-	context, err := newContext(sharedSecret, kem.ID(), kdf, aead, info)
+	context, err := newContext(sharedSecret, pk.KEM().ID(), kdf, aead, info)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -151,12 +151,12 @@ func NewSender(kem KEMSender, kdf KDF, aead AEAD, info []byte) (enc []byte, s *S
 // The enc parameter must have been produced by a matching sending HPKE context
 // with the corresponding KEM encapsulation key. The info parameter is
 // additional public information that must match between sender and recipient.
-func NewRecipient(enc []byte, kem KEMRecipient, kdf KDF, aead AEAD, info []byte) (*Recipient, error) {
-	sharedSecret, err := kem.decap(enc)
+func NewRecipient(enc []byte, k PrivateKey, kdf KDF, aead AEAD, info []byte) (*Recipient, error) {
+	sharedSecret, err := k.decap(enc)
 	if err != nil {
 		return nil, err
 	}
-	context, err := newContext(sharedSecret, kem.ID(), kdf, aead, info)
+	context, err := newContext(sharedSecret, k.KEM().ID(), kdf, aead, info)
 	if err != nil {
 		return nil, err
 	}
@@ -179,16 +179,17 @@ func (s *Sender) Seal(aad, plaintext []byte) ([]byte, error) {
 
 // Seal instantiates a single-use HPKE sending HPKE context like [NewSender],
 // and then encrypts the provided plaintext like [Sender.Seal] (with no aad).
-func Seal(kem KEMSender, kdf KDF, aead AEAD, info, plaintext []byte) (enc, ct []byte, err error) {
-	enc, s, err := NewSender(kem, kdf, aead, info)
+// Seal returns the concatenation of the encapsulated key and the ciphertext.
+func Seal(pk PublicKey, kdf KDF, aead AEAD, info, plaintext []byte) ([]byte, error) {
+	enc, s, err := NewSender(pk, kdf, aead, info)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	ct, err = s.Seal(nil, plaintext)
+	ct, err := s.Seal(nil, plaintext)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return enc, ct, err
+	return append(enc, ct...), nil
 }
 
 // Export produces a secret value derived from the shared key between sender and
@@ -219,8 +220,14 @@ func (r *Recipient) Open(aad, ciphertext []byte) ([]byte, error) {
 
 // Open instantiates a single-use HPKE receiving HPKE context like [NewRecipient],
 // and then decrypts the provided ciphertext like [Recipient.Open] (with no aad).
-func Open(enc []byte, kem KEMRecipient, kdf KDF, aead AEAD, info, ciphertext []byte) ([]byte, error) {
-	r, err := NewRecipient(enc, kem, kdf, aead, info)
+// ciphertext must be the concatenation of the encapsulated key and the actual ciphertext.
+func Open(k PrivateKey, kdf KDF, aead AEAD, info, ciphertext []byte) ([]byte, error) {
+	encSize := k.KEM().encSize()
+	if len(ciphertext) < encSize {
+		return nil, errors.New("ciphertext too short")
+	}
+	enc, ciphertext := ciphertext[:encSize], ciphertext[encSize:]
+	r, err := NewRecipient(enc, k, kdf, aead, info)
 	if err != nil {
 		return nil, err
 	}

@@ -149,7 +149,7 @@ func parseECHConfigList(data []byte) ([]echConfig, error) {
 	return configs, nil
 }
 
-func pickECHConfig(list []echConfig) (*echConfig, hpke.KEMSender, hpke.KDF, hpke.AEAD) {
+func pickECHConfig(list []echConfig) (*echConfig, hpke.PublicKey, hpke.KDF, hpke.AEAD) {
 	for _, ec := range list {
 		if !validDNSName(string(ec.PublicName)) {
 			continue
@@ -166,8 +166,14 @@ func pickECHConfig(list []echConfig) (*echConfig, hpke.KEMSender, hpke.KDF, hpke
 		if unsupportedExt {
 			continue
 		}
-		s, err := hpke.NewKEMSender(ec.KemID, ec.PublicKey)
+		kem, err := hpke.NewKEM(ec.KemID)
 		if err != nil {
+			continue
+		}
+		pub, err := kem.NewPublicKey(ec.PublicKey)
+		if err != nil {
+			// This is an error in the config, but killing the connection feels
+			// excessive.
 			continue
 		}
 		for _, cs := range ec.SymmetricCipherSuite {
@@ -182,7 +188,7 @@ func pickECHConfig(list []echConfig) (*echConfig, hpke.KEMSender, hpke.KDF, hpke
 			if err != nil {
 				continue
 			}
-			return &ec, s, kdf, aead
+			return &ec, pub, kdf, aead
 		}
 	}
 	return nil, nil, nil, nil
@@ -568,7 +574,12 @@ func (c *Conn) processECHClientHello(outer *clientHelloMsg, echKeys []EncryptedC
 		if skip {
 			continue
 		}
-		echPriv, err := hpke.NewKEMRecipient(config.KemID, echKey.PrivateKey)
+		kem, err := hpke.NewKEM(config.KemID)
+		if err != nil {
+			c.sendAlert(alertInternalError)
+			return nil, nil, fmt.Errorf("tls: invalid EncryptedClientHelloKey Config KEM: %s", err)
+		}
+		echPriv, err := kem.NewPrivateKey(echKey.PrivateKey)
 		if err != nil {
 			c.sendAlert(alertInternalError)
 			return nil, nil, fmt.Errorf("tls: invalid EncryptedClientHelloKey PrivateKey: %s", err)
