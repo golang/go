@@ -1075,7 +1075,7 @@ func (ctxt *Link) findfunctab(state *pclntab, container loader.Bitmap) {
 		}
 	}
 
-	state.findfunctab = ctxt.createGeneratorSymbol("runtime.findfunctab", 0, sym.SRODATA, size, writeFindFuncTab)
+	state.findfunctab = ctxt.createGeneratorSymbol("runtime.findfunctab", 0, sym.SPCLNTAB, size, writeFindFuncTab)
 	ldr.SetAttrReachable(state.findfunctab, true)
 	ldr.SetAttrLocal(state.findfunctab, true)
 }
