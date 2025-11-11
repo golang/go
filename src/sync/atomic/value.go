@@ -98,8 +98,7 @@ func (v *Value) Swap(new any) (old any) {
 		if typ == nil {
 			// Attempt to start first store.
 			// Disable preemption so that other goroutines can use
-			// active spin wait to wait for completion; and so that
-			// GC does not see the fake type accidentally.
+			// active spin wait to wait for completion.
 			runtime_procPin()
 			if !CompareAndSwapPointer(&vp.typ, nil, unsafe.Pointer(&firstStoreInProgress)) {
 				runtime_procUnpin()
@@ -150,8 +149,7 @@ func (v *Value) CompareAndSwap(old, new any) (swapped bool) {
 			}
 			// Attempt to start first store.
 			// Disable preemption so that other goroutines can use
-			// active spin wait to wait for completion; and so that
-			// GC does not see the fake type accidentally.
+			// active spin wait to wait for completion.
 			runtime_procPin()
 			if !CompareAndSwapPointer(&vp.typ, nil, unsafe.Pointer(&firstStoreInProgress)) {
 				runtime_procUnpin()
