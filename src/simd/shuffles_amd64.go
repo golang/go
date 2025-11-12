@@ -6,14 +6,6 @@
 
 package simd
 
-// FlattenedTranspose tranposes x and y, regarded as a pair of 2x2
-// matrices, but then flattens the rows in order, i.e
-// x: ABCD ==> a: A1B2
-// y: 1234     b: C3D4
-func (x Int32x4) FlattenedTranspose(y Int32x4) (a, b Int32x4) {
-	return x.InterleaveLo(y), x.InterleaveHi(y)
-}
-
 // These constants represent the source pattern for the four parameters
 // (a, b, c, d) passed to SelectFromPair and SelectFromPairGrouped.
 // L means the element comes from the 'x' vector (Low), and
