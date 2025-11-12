@@ -1562,8 +1562,7 @@ func getSliceInfo(vp *Value) (inf sliceInfo) {
 // its negation. If either leads to a contradiction, it can trim that
 // successor.
 func prove(f *Func) {
-	// Find induction variables. Currently, findIndVars
-	// is limited to one induction variable per block.
+	// Find induction variables.
 	var indVars map[*Block]indVar
 	for _, v := range findIndVar(f) {
 		ind := v.ind

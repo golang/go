@@ -23,9 +23,9 @@ type indVar struct {
 	nxt   *Value // the incremented variable
 	min   *Value // minimum value, inclusive/exclusive depends on flags
 	max   *Value // maximum value, inclusive/exclusive depends on flags
-	entry *Block // entry block in the loop.
+	entry *Block // the block where the edge from the succeeded comparison of the induction variable goes to, means when the bound check has passed.
 	flags indVarFlags
-	// Invariant: for all blocks strictly dominated by entry:
+	// Invariant: for all blocks dominated by entry:
 	//	min <= ind <  max    [if flags == 0]
 	//	min <  ind <  max    [if flags == indVarMinExc]
 	//	min <= ind <= max    [if flags == indVarMaxInc]
@@ -83,12 +83,43 @@ func parseIndVar(ind *Value) (min, inc, nxt *Value, loopReturn Edge) {
 //		goto loop
 //
 //	 exit_loop:
+//
+// We may have more than one induction variables, the loop in the go
+// source code may looks like this:
+//
+//	for i >= 0 && j >= 0 {
+//		// use i and j
+//		i--
+//		j--
+//	}
+//
+// So, also look for variables and blocks that satisfy the following
+//
+//	loop:
+//	  i = (Phi maxi nxti)
+//	  j = (Phi maxj nxtj)
+//	  if i >= mini
+//	    then goto check_j
+//	    else goto exit_loop
+//
+//	check_j:
+//	  if j >= minj
+//	    then goto enter_loop
+//	    else goto exit_loop
+//
+//	enter_loop:
+//	  do something
+//	  nxti = i - di
+//	  nxtj = j - dj
+//	  goto loop
+//
+//	exit_loop:
 func findIndVar(f *Func) []indVar {
 	var iv []indVar
 	sdom := f.Sdom()
 
 	for _, b := range f.Blocks {
-		if b.Kind != BlockIf || len(b.Preds) != 2 {
+		if b.Kind != BlockIf {
 			continue
 		}
 
@@ -130,10 +161,9 @@ func findIndVar(f *Func) []indVar {
 			less = false
 		}
 
-		if ind.Block != b {
-			// TODO: Could be extended to include disjointed loop headers.
-			// I don't think this is causing missed optimizations in real world code often.
-			// See https://go.dev/issue/63955
+		// This is ind.Block.Preds, not b.Preds. That's a restriction on the loop header,
+		// not the comparison block.
+		if len(ind.Block.Preds) != 2 {
 			continue
 		}
 
@@ -184,9 +214,10 @@ func findIndVar(f *Func) []indVar {
 		// Two conditions must happen listed below to accept ind
 		// as an induction variable.
 
-		// First condition: loop entry has a single predecessor, which
-		// is the header block.  This implies that b.Succs[0] is
-		// reached iff ind < limit.
+		// First condition: the entry block has a single predecessor.
+		// The entry now means the in-loop edge where the induction variable
+		// comparison succeeded. Its predecessor is not necessarily the header
+		// block. This implies that b.Succs[0] is reached iff ind < limit.
 		if len(startBody.b.Preds) != 1 {
 			// the other successor must exit the loop.
 			continue
@@ -195,7 +226,8 @@ func findIndVar(f *Func) []indVar {
 		// Second condition: startBody.b dominates nxt so that
 		// nxt is computed when inc < limit.
 		if !sdom.IsAncestorEq(startBody.b, nxt.Block) {
-			// inc+ind can only be reached through the branch that enters the loop.
+			// inc+ind can only be reached through the branch that confirmed the
+			// induction variable is in bounds.
 			continue
 		}
 
@@ -309,10 +341,13 @@ func findIndVar(f *Func) []indVar {
 			}
 
 			iv = append(iv, indVar{
-				ind:   ind,
-				nxt:   nxt,
-				min:   min,
-				max:   max,
+				ind: ind,
+				nxt: nxt,
+				min: min,
+				max: max,
+				// This is startBody.b, where startBody is the edge from the comparison for the
+				// induction variable, not necessarily the in-loop edge from the loop header.
+				// Induction variable bounds are not valid in the loop before this edge.
 				entry: startBody.b,
 				flags: flags,
 			})

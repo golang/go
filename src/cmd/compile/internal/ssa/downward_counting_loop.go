@@ -4,8 +4,6 @@
 
 package ssa
 
-import "fmt"
-
 // maybeRewriteLoopToDownwardCountingLoop tries to rewrite the loop to a
 // downward counting loop checking against start if the loop body does
 // not depend on ind or nxt and end is known before the loop.
@@ -76,32 +74,37 @@ func maybeRewriteLoopToDownwardCountingLoop(f *Func, v indVar) {
 		return
 	}
 
-	check := ind.Block.Controls[0]
-	// invert the check
-	check.Args[0], check.Args[1] = check.Args[1], check.Args[0]
+	check := v.entry.Preds[0].b.Controls[0]
+
+	idxEnd, idxStart := -1, -1
+	for i, v := range check.Args {
+		if v == end {
+			idxEnd = i
+			break
+		}
+	}
+	for i, v := range ind.Args {
+		if v == start {
+			idxStart = i
+			break
+		}
+	}
+	if idxEnd < 0 || idxStart < 0 {
+		return
+	}
+
+	sdom := f.Sdom()
+	// the end may not dominate the ind after rewrite, check it first
+	if !sdom.IsAncestorEq(end.Block, ind.Block) {
+		return
+	}
 
 	// swap start and end in the loop
-	for i, v := range check.Args {
-		if v != end {
-			continue
-		}
+	check.SetArg(idxEnd, start)
+	ind.SetArg(idxStart, end)
 
-		check.SetArg(i, start)
-		goto replacedEnd
-	}
-	panic(fmt.Sprintf("unreachable, ind: %v, start: %v, end: %v", ind, start, end))
-replacedEnd:
-
-	for i, v := range ind.Args {
-		if v != start {
-			continue
-		}
-
-		ind.SetArg(i, end)
-		goto replacedStart
-	}
-	panic(fmt.Sprintf("unreachable, ind: %v, start: %v, end: %v", ind, start, end))
-replacedStart:
+	// invert the check
+	check.Args[0], check.Args[1] = check.Args[1], check.Args[0]
 
 	if nxt.Args[0] != ind {
 		// unlike additions subtractions are not commutative so be sure we get it right

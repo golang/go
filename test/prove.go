@@ -2493,6 +2493,40 @@ func issue75144ifNot(a, b []uint64) bool {
 	return false
 }
 
+func issue76269(a, b []byte) byte {
+	lenA := len(a)
+	lenB := len(b)
+	idxA := lenA - 1
+	idxB := lenB - 1
+
+	c := byte(0)
+
+	for idxA >= 0 && idxB >= 0 { // ERROR "Induction variable: limits \[0,\?\], increment 1$"
+		c ^= a[idxA] // ERROR "Proved IsInBounds$"
+		c ^= b[idxB] // ERROR "Proved IsInBounds$"
+		idxA--
+		idxB--
+	}
+	return c
+}
+
+func ex76269shouldNotIndVar() {
+	i, j := 0, 0
+	var a [4]byte
+	for {
+		if i >= 4 {
+			goto next
+		} // looks like a loop exit, but isn't!
+		if j >= 4 { // ERROR "Disproved Leq64$"
+			break
+		}
+	next:
+		_, _ = a[i], a[j] // ERROR "Proved IsInBounds$"
+		i++
+		j++
+	}
+}
+
 func mulIntoAnd(a, b uint) uint {
 	if a > 1 || b > 1 {
 		return 0
