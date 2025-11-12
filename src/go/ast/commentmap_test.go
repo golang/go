@@ -109,7 +109,7 @@ func TestCommentMap(t *testing.T) {
 	}
 	cmap := NewCommentMap(fset, f, f.Comments)
 
-	// very correct association of comments
+	// verify correct association of comments
 	for n, list := range cmap {
 		key := fmt.Sprintf("%2d: %T", fset.Position(n.Pos()).Line, n)
 		got := ctext(list)

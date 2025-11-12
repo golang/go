@@ -335,6 +335,7 @@ var depsRules = `
 	< internal/gover
 	< go/version
 	< go/token
+	< go/internal/scannerhooks
 	< go/scanner
 	< go/ast
 	< go/internal/typeparams;
