@@ -127,6 +127,11 @@ func (f *File) Size() int {
 	return f.size
 }
 
+// End returns the end position of file f as registered with AddFile.
+func (f *File) End() Pos {
+	return Pos(f.base + f.size)
+}
+
 // LineCount returns the number of lines in file f.
 func (f *File) LineCount() int {
 	f.mutex.Lock()

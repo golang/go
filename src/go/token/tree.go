@@ -313,8 +313,8 @@ func (t *tree) add(file *File) {
 	}
 	if prev := (*pos).file; prev != file {
 		panic(fmt.Sprintf("file %s (%d-%d) overlaps with file %s (%d-%d)",
-			prev.Name(), prev.Base(), prev.Base()+prev.Size(),
-			file.Name(), file.Base(), file.Base()+file.Size()))
+			prev.Name(), prev.Base(), prev.End(),
+			file.Name(), file.Base(), file.End()))
 	}
 }
 
