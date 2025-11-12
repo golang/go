@@ -93,7 +93,7 @@ func main() {
 	for _, f := range flag.Args() {
 		lexer := lex.NewLexer(f)
 		parser := asm.NewParser(ctxt, architecture, lexer)
-		ctxt.DiagFunc = func(format string, args ...interface{}) {
+		ctxt.DiagFunc = func(format string, args ...any) {
 			diag = true
 			log.Printf(format, args...)
 		}

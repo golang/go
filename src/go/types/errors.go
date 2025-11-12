@@ -57,7 +57,7 @@ func (check *Checker) newError(code Code) *error_ {
 // Subsequent calls to addf provide additional information in the form of additional lines
 // in the error message (types2) or continuation errors identified by a tab-indented error
 // message (go/types).
-func (err *error_) addf(at positioner, format string, args ...interface{}) {
+func (err *error_) addf(at positioner, format string, args ...any) {
 	err.desc = append(err.desc, errorDesc{at, err.check.sprintf(format, args...)})
 }
 

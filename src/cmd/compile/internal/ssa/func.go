@@ -336,7 +336,7 @@ func (f *Func) newValueNoBlock(op Op, t *types.Type, pos src.XPos) *Value {
 // context to allow item-by-item comparisons across runs.
 // For example:
 // awk 'BEGIN {FS="\t"} $3~/TIME/{sum+=$4} END{print "t(ns)=",sum}' t.log
-func (f *Func) LogStat(key string, args ...interface{}) {
+func (f *Func) LogStat(key string, args ...any) {
 	value := ""
 	for _, a := range args {
 		value += fmt.Sprintf("\t%v", a)
@@ -729,12 +729,12 @@ func (f *Func) ConstOffPtrSP(t *types.Type, c int64, sp *Value) *Value {
 	return v
 }
 
-func (f *Func) Frontend() Frontend                                  { return f.fe }
-func (f *Func) Warnl(pos src.XPos, msg string, args ...interface{}) { f.fe.Warnl(pos, msg, args...) }
-func (f *Func) Logf(msg string, args ...interface{})                { f.fe.Logf(msg, args...) }
-func (f *Func) Log() bool                                           { return f.fe.Log() }
+func (f *Func) Frontend() Frontend                          { return f.fe }
+func (f *Func) Warnl(pos src.XPos, msg string, args ...any) { f.fe.Warnl(pos, msg, args...) }
+func (f *Func) Logf(msg string, args ...any)                { f.fe.Logf(msg, args...) }
+func (f *Func) Log() bool                                   { return f.fe.Log() }
 
-func (f *Func) Fatalf(msg string, args ...interface{}) {
+func (f *Func) Fatalf(msg string, args ...any) {
 	stats := "crashed"
 	if f.Log() {
 		f.Logf("  pass %s end %s\n", f.pass.name, stats)

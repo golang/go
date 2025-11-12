@@ -1340,7 +1340,7 @@ func opset(a, b0 obj.As) {
 
 func buildop(ctxt *obj.Link) {
 	if ctxt.DiagFunc == nil {
-		ctxt.DiagFunc = func(format string, args ...interface{}) {
+		ctxt.DiagFunc = func(format string, args ...any) {
 			log.Printf(format, args...)
 		}
 	}

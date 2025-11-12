@@ -471,7 +471,7 @@ func BenchmarkReadMetricsLatency(b *testing.B) {
 	b.ReportMetric(float64(latencies[len(latencies)*99/100]), "p99-ns")
 }
 
-var readMetricsSink [1024]interface{}
+var readMetricsSink [1024]any
 
 func TestReadMetricsCumulative(t *testing.T) {
 	// Set up the set of metrics marked cumulative.

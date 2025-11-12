@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Language version go1.26 (Oct 1, 2025)",
+	"Subtitle": "Language version go1.26 (Nov 9, 2025)",
 	"Path": "/ref/spec"
 }-->
 
@@ -7383,8 +7383,8 @@ The values <code>x</code> are passed to a parameter of type <code>...E</code>
 where <code>E</code> is the element type of <code>S</code>
 and the respective <a href="#Passing_arguments_to_..._parameters">parameter
 passing rules</a> apply.
-As a special case, <code>append</code> also accepts a first argument assignable
-to type <code>[]byte</code> with a second argument of string type followed by
+As a special case, <code>append</code> also accepts a slice whose type is assignable to
+type <code>[]byte</code> with a second argument of <code>string</code> type followed by
 <code>...</code>.
 This form appends the bytes of the string.
 </p>

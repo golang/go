@@ -141,7 +141,7 @@ func (u *unifier) unify(x, y Type, mode unifyMode) bool {
 	return u.nify(x, y, mode, nil)
 }
 
-func (u *unifier) tracef(format string, args ...interface{}) {
+func (u *unifier) tracef(format string, args ...any) {
 	fmt.Println(strings.Repeat(".  ", u.depth) + sprintf(nil, true, format, args...))
 }
 

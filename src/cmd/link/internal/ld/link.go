@@ -126,7 +126,7 @@ type cgodata struct {
 	directives [][]string
 }
 
-func (ctxt *Link) Logf(format string, args ...interface{}) {
+func (ctxt *Link) Logf(format string, args ...any) {
 	fmt.Fprintf(ctxt.Bso, format, args...)
 	ctxt.Bso.Flush()
 }

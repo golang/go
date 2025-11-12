@@ -404,7 +404,7 @@ func TestFIPSCertAlgs(t *testing.T) {
 	L2_I := fipsCert(t, "L2_I", fipsRSAKey(t, 1024), I_R1, fipsCertLeaf)
 
 	// client verifying server cert
-	testServerCert := func(t *testing.T, desc string, pool *x509.CertPool, key interface{}, list [][]byte, ok bool) {
+	testServerCert := func(t *testing.T, desc string, pool *x509.CertPool, key any, list [][]byte, ok bool) {
 		clientConfig := testConfig.Clone()
 		clientConfig.RootCAs = pool
 		clientConfig.InsecureSkipVerify = false
@@ -432,7 +432,7 @@ func TestFIPSCertAlgs(t *testing.T) {
 	}
 
 	// server verifying client cert
-	testClientCert := func(t *testing.T, desc string, pool *x509.CertPool, key interface{}, list [][]byte, ok bool) {
+	testClientCert := func(t *testing.T, desc string, pool *x509.CertPool, key any, list [][]byte, ok bool) {
 		clientConfig := testConfig.Clone()
 		clientConfig.ServerName = "example.com"
 		clientConfig.Certificates = []Certificate{{Certificate: list, PrivateKey: key}}
@@ -574,11 +574,11 @@ type fipsCertificate struct {
 	parentOrg string
 	der       []byte
 	cert      *x509.Certificate
-	key       interface{}
+	key       any
 	fipsOK    bool
 }
 
-func fipsCert(t *testing.T, name string, key interface{}, parent *fipsCertificate, mode int) *fipsCertificate {
+func fipsCert(t *testing.T, name string, key any, parent *fipsCertificate, mode int) *fipsCertificate {
 	org := name
 	parentOrg := ""
 	if i := strings.Index(org, "_"); i >= 0 {
@@ -605,7 +605,7 @@ func fipsCert(t *testing.T, name string, key interface{}, parent *fipsCertificat
 	}
 
 	var pcert *x509.Certificate
-	var pkey interface{}
+	var pkey any
 	if parent != nil {
 		pcert = parent.cert
 		pkey = parent.key
@@ -614,7 +614,7 @@ func fipsCert(t *testing.T, name string, key interface{}, parent *fipsCertificat
 		pkey = key
 	}
 
-	var pub interface{}
+	var pub any
 	var desc string
 	switch k := key.(type) {
 	case *rsa.PrivateKey:

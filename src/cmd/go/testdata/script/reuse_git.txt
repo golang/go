@@ -5,16 +5,15 @@ env GO111MODULE=on
 env GOPROXY=direct
 env GOSUMDB=off
 
-# go mod download with the pseudo-version should invoke git but not have a TagSum or Ref.
+# go mod download with the pseudo-version should invoke git but not have a TagSum or Ref or RepoSum.
 go mod download -x -json vcs-test.golang.org/git/hello.git@v0.0.0-20170922010558-fc3a09f3dc5c
 stderr 'git( .*)* fetch'
 cp stdout hellopseudo.json
-! stdout '"(Query|TagPrefix|TagSum|Ref)"'
+! stdout '"(Query|TagPrefix|TagSum|Ref|RepoSum)"'
 stdout '"Version": "v0.0.0-20170922010558-fc3a09f3dc5c"'
 stdout '"VCS": "git"'
 stdout '"URL": ".*/git/hello"'
 stdout '"Hash": "fc3a09f3dc5cfe0d7a743ea18f1f5226e68b3777"'
-! stdout '"RepoSum"'
 go clean -modcache
 
 # go mod download vcstest/hello should invoke git, print origin info

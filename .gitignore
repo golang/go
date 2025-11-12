@@ -34,6 +34,7 @@ _testmain.go
 /misc/cgo/testso/main
 /pkg/
 /src/*.*/
+/src/_artifacts/
 /src/cmd/cgo/zdefaultcc.go
 /src/cmd/dist/dist
 /src/cmd/go/internal/cfg/zdefaultcc.go

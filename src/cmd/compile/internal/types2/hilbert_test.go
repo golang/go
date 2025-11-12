@@ -68,7 +68,7 @@ type gen struct {
 	bytes.Buffer
 }
 
-func (g *gen) p(format string, args ...interface{}) {
+func (g *gen) p(format string, args ...any) {
 	fmt.Fprintf(&g.Buffer, format, args...)
 }
 

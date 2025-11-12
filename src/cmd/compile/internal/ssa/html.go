@@ -53,13 +53,13 @@ func NewHTMLWriter(path string, f *Func, cfgMask string) *HTMLWriter {
 }
 
 // Fatalf reports an error and exits.
-func (w *HTMLWriter) Fatalf(msg string, args ...interface{}) {
+func (w *HTMLWriter) Fatalf(msg string, args ...any) {
 	fe := w.Func.Frontend()
 	fe.Fatalf(src.NoXPos, msg, args...)
 }
 
 // Logf calls the (w *HTMLWriter).Func's Logf method passing along a msg and args.
-func (w *HTMLWriter) Logf(msg string, args ...interface{}) {
+func (w *HTMLWriter) Logf(msg string, args ...any) {
 	w.Func.Logf(msg, args...)
 }
 
@@ -945,7 +945,7 @@ func (w *HTMLWriter) WriteMultiTitleColumn(phase string, titles []string, class,
 	w.WriteString("</td>\n")
 }
 
-func (w *HTMLWriter) Printf(msg string, v ...interface{}) {
+func (w *HTMLWriter) Printf(msg string, v ...any) {
 	if _, err := fmt.Fprintf(w.w, msg, v...); err != nil {
 		w.Fatalf("%v", err)
 	}

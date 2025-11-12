@@ -195,10 +195,12 @@ func gcinit() {
 
 	work.startSema = 1
 	work.markDoneSema = 1
+	work.spanSPMCs.list.init(unsafe.Offsetof(spanSPMC{}.allnode))
 	lockInit(&work.sweepWaiters.lock, lockRankSweepWaiters)
 	lockInit(&work.assistQueue.lock, lockRankAssistQueue)
 	lockInit(&work.strongFromWeak.lock, lockRankStrongFromWeakQueue)
 	lockInit(&work.wbufSpans.lock, lockRankWbufSpans)
+	lockInit(&work.spanSPMCs.lock, lockRankSpanSPMCs)
 	lockInit(&gcCleanups.lock, lockRankCleanupQueue)
 }
 
@@ -352,8 +354,8 @@ type workType struct {
 	//
 	// Only used if goexperiment.GreenTeaGC.
 	spanSPMCs struct {
-		lock mutex // no lock rank because it's a leaf lock (see mklockrank.go).
-		all  *spanSPMC
+		lock mutex
+		list listHeadManual // *spanSPMC
 	}
 
 	// Restore 64-bit alignment on 32-bit.

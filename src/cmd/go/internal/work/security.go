@@ -100,7 +100,6 @@ var validCompilerFlags = []*lazyregexp.Regexp{
 	re(`-m(abi|arch|cpu|fpu|simd|tls-dialect|tune)=([^@\-].*)`),
 	re(`-m(no-)?v?aes`),
 	re(`-marm`),
-	re(`-m(no-)?avx[0-9a-z]*`),
 	re(`-mcmodel=[0-9a-z-]+`),
 	re(`-mfloat-abi=([^@\-].*)`),
 	re(`-m(soft|single|double)-float`),

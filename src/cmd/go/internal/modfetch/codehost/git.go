@@ -794,15 +794,18 @@ func (r *gitRepo) RecentTag(ctx context.Context, rev, prefix string, allowed fun
 	// There are plausible tags, but we don't know if rev is a descendent of any of them.
 	// Fetch the history to find out.
 
+	// Note: do not use defer unlock, because describe calls allowed,
+	// which uses retracted, which calls ReadFile, which may end up
+	// back at a method that acquires r.mu.
 	unlock, err := r.mu.Lock()
 	if err != nil {
 		return "", err
 	}
-	defer unlock()
-
 	if err := r.fetchRefsLocked(ctx); err != nil {
+		unlock()
 		return "", err
 	}
+	unlock()
 
 	// If we've reached this point, we have all of the commits that are reachable
 	// from all heads and tags.

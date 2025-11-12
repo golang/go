@@ -1,0 +1,81 @@
+env GO111MODULE=on
+
+[!exec:hg] skip
+[short] skip
+
+# Testing hg->module converter's generation of +incompatible tags; turn off proxy.
+env GOPROXY=direct
+env GOSUMDB=off
+
+# get default
+go get vcs-test.golang.org/hg/legacytest.hg@default
+go list -m all
+stdout '^vcs-test.golang.org/hg/legacytest.hg v1\.2\.1-0\.20180717164942-2840708d1294$'
+
+# get should include incompatible tags in "latest" calculation.
+go mod edit -droprequire vcs-test.golang.org/hg/legacytest.hg
+go get vcs-test.golang.org/hg/legacytest.hg@latest
+go list
+go list -m all
+stdout '^vcs-test.golang.org/hg/legacytest.hg v2\.0\.0\+incompatible$'
+
+# v2.0.1-0.pseudo+incompatible
+go get ...test.hg@d6ad6040
+go list -m all
+stdout '^vcs-test.golang.org/hg/legacytest.hg v2\.0\.1-0\.\d{14}-d6ad604046f6\+incompatible$'
+
+# v2.0.0+incompatible by tag+incompatible
+go get ...test.hg@v2.0.0+incompatible
+go list -m all
+stdout '^vcs-test.golang.org/hg/legacytest.hg v2\.0\.0\+incompatible$'
+
+# v2.0.0+incompatible by tag
+go get ...test.hg@v2.0.0
+go list -m all
+stdout '^vcs-test.golang.org/hg/legacytest.hg v2\.0\.0\+incompatible$'
+
+# v2.0.0+incompatible by hash (back on master)
+go get ...test.hg@e64782f
+go list -m all
+stdout '^vcs-test.golang.org/hg/legacytest.hg v2\.0\.0\+incompatible$'
+
+# v1.2.1-0.pseudo
+go get ...test.hg@ed9a22e
+go list -m all
+stdout '^vcs-test.golang.org/hg/legacytest.hg v1\.2\.1-0\.\d{14}-ed9a22ebb8a1$'
+
+# v1.2.0
+go get ...test.hg@07462d
+go list -m all
+stdout '^vcs-test.golang.org/hg/legacytest.hg v1\.2\.0$'
+
+# v1.1.0-pre.0.pseudo
+go get ...test.hg@accb16
+go list -m all
+stdout '^vcs-test.golang.org/hg/legacytest.hg v1\.1\.0-pre\.0\.\d{14}-accb169a3696$'
+
+# v1.1.0-pre (no longer on master)
+go get ...test.hg@90da67a9
+go list -m all
+stdout '^vcs-test.golang.org/hg/legacytest.hg v1\.1\.0-pre$'
+
+# v1.0.1-0.pseudo
+go get ...test.hg@c6260a
+go list -m all
+stdout '^vcs-test.golang.org/hg/legacytest.hg v1\.0\.1-0\.\d{14}-c6260ab8dc3e$'
+
+# v1.0.0
+go get ...test.hg@d6ad17
+go list -m all
+stdout '^vcs-test.golang.org/hg/legacytest.hg v1\.0\.0$'
+
+# v0.0.0-pseudo
+go get ...test.hg@ee0106d
+go list -m all
+stdout '^vcs-test.golang.org/hg/legacytest.hg v0\.0\.0-\d{14}-ee0106da3c7c$'
+
+-- go.mod --
+module x
+-- x.go --
+package x
+import "vcs-test.golang.org/hg/legacytest.hg"

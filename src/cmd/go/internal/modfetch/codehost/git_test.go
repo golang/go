@@ -383,6 +383,7 @@ func TestLatest(t *testing.T) {
 				Origin: &Origin{
 					VCS:  "hg",
 					URL:  hgrepo1,
+					Ref:  "tip",
 					Hash: "745aacc8b24decc44ac2b13870f5472b479f4d72",
 				},
 				Name:    "745aacc8b24decc44ac2b13870f5472b479f4d72",

@@ -90,7 +90,7 @@ type Func struct {
 	Marks []Mark
 
 	FieldTrack map[*obj.LSym]struct{}
-	DebugInfo  interface{}
+	DebugInfo  any
 	LSym       *obj.LSym // Linker object in this function's native ABI (Func.ABI)
 
 	Inl *Inline

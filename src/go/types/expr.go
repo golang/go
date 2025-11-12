@@ -1198,7 +1198,7 @@ Error:
 // represented as an integer (such as 1.0) it is returned as an integer value.
 // This ensures that constants of different kind but equal value (such as
 // 1.0 + 0i, 1.0, 1) result in the same value.
-func keyVal(x constant.Value) interface{} {
+func keyVal(x constant.Value) any {
 	switch x.Kind() {
 	case constant.Complex:
 		f := constant.ToFloat(x)

@@ -1108,7 +1108,7 @@ func (t *tester) registerTest(heading string, test *goTest, opts ...registerTest
 // dirCmd constructs a Cmd intended to be run in the foreground.
 // The command will be run in dir, and Stdout and Stderr will go to os.Stdout
 // and os.Stderr.
-func (t *tester) dirCmd(dir string, cmdline ...interface{}) *exec.Cmd {
+func (t *tester) dirCmd(dir string, cmdline ...any) *exec.Cmd {
 	bin, args := flattenCmdline(cmdline)
 	cmd := exec.Command(bin, args...)
 	if filepath.IsAbs(dir) {
@@ -1126,7 +1126,7 @@ func (t *tester) dirCmd(dir string, cmdline ...interface{}) *exec.Cmd {
 
 // flattenCmdline flattens a mixture of string and []string as single list
 // and then interprets it as a command line: first element is binary, then args.
-func flattenCmdline(cmdline []interface{}) (bin string, args []string) {
+func flattenCmdline(cmdline []any) (bin string, args []string) {
 	var list []string
 	for _, x := range cmdline {
 		switch x := x.(type) {

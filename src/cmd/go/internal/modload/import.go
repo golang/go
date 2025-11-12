@@ -268,7 +268,7 @@ func (e *invalidImportError) Unwrap() error {
 // 1.20, preventing unnecessary go.sum churn and network access in those
 // modules.
 func importFromModules(loaderstate *State, ctx context.Context, path string, rs *Requirements, mg *ModuleGraph, skipModFile bool) (m module.Version, modroot, dir string, altMods []module.Version, err error) {
-	invalidf := func(format string, args ...interface{}) (module.Version, string, string, []module.Version, error) {
+	invalidf := func(format string, args ...any) (module.Version, string, string, []module.Version, error) {
 		return module.Version{}, "", "", nil, &invalidImportError{
 			importPath: path,
 			err:        fmt.Errorf(format, args...),

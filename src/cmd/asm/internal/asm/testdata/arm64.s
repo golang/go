@@ -400,6 +400,8 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	MOVD	$0x11110000, R1               // MOVD	$286326784, R1              // 2122a2d2
 	MOVD	$0xaaaa0000aaaa1111, R1       // MOVD	$-6149102338357718767, R1   // 212282d24155b5f24155f5f2
 	MOVD	$0x1111ffff1111aaaa, R1       // MOVD	$1230045644216969898, R1    // a1aa8a922122a2f22122e2f2
+	MOVD	$0xaaaaaaaaaaaaaaab, R1       // MOVD	$-6148914691236517205, R1   // e1f301b2615595f2
+	MOVD	$0x0ff019940ff00ff0, R1       // MOVD	$1148446028692721648, R1    // e19f0cb28132c3f2
 	MOVD	$0, R1                        // e1031faa
 	MOVD	$-1, R1                       // 01008092
 	MOVD	$0x210000, R0                 // MOVD	$2162688, R0                // 2004a0d2

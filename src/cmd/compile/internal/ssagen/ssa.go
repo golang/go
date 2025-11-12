@@ -1119,13 +1119,13 @@ func (s *state) label(sym *types.Sym) *ssaLabel {
 	return lab
 }
 
-func (s *state) Logf(msg string, args ...interface{}) { s.f.Logf(msg, args...) }
-func (s *state) Log() bool                            { return s.f.Log() }
-func (s *state) Fatalf(msg string, args ...interface{}) {
+func (s *state) Logf(msg string, args ...any) { s.f.Logf(msg, args...) }
+func (s *state) Log() bool                    { return s.f.Log() }
+func (s *state) Fatalf(msg string, args ...any) {
 	s.f.Frontend().Fatalf(s.peekPos(), msg, args...)
 }
-func (s *state) Warnl(pos src.XPos, msg string, args ...interface{}) { s.f.Warnl(pos, msg, args...) }
-func (s *state) Debug_checknil() bool                                { return s.f.Frontend().Debug_checknil() }
+func (s *state) Warnl(pos src.XPos, msg string, args ...any) { s.f.Warnl(pos, msg, args...) }
+func (s *state) Debug_checknil() bool                        { return s.f.Frontend().Debug_checknil() }
 
 func ssaMarker(name string) *ir.Name {
 	return ir.NewNameAt(base.Pos, &types.Sym{Name: name}, nil)
@@ -8497,7 +8497,7 @@ func (e *ssafn) SplitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t 
 }
 
 // Logf logs a message from the compiler.
-func (e *ssafn) Logf(msg string, args ...interface{}) {
+func (e *ssafn) Logf(msg string, args ...any) {
 	if e.log {
 		fmt.Printf(msg, args...)
 	}
@@ -8508,15 +8508,15 @@ func (e *ssafn) Log() bool {
 }
 
 // Fatalf reports a compiler error and exits.
-func (e *ssafn) Fatalf(pos src.XPos, msg string, args ...interface{}) {
+func (e *ssafn) Fatalf(pos src.XPos, msg string, args ...any) {
 	base.Pos = pos
-	nargs := append([]interface{}{ir.FuncName(e.curfn)}, args...)
+	nargs := append([]any{ir.FuncName(e.curfn)}, args...)
 	base.Fatalf("'%s': "+msg, nargs...)
 }
 
 // Warnl reports a "warning", which is usually flag-triggered
 // logging output for the benefit of tests.
-func (e *ssafn) Warnl(pos src.XPos, fmt_ string, args ...interface{}) {
+func (e *ssafn) Warnl(pos src.XPos, fmt_ string, args ...any) {
 	base.WarnfAt(pos, fmt_, args...)
 }
 

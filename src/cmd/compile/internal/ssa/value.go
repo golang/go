@@ -471,9 +471,9 @@ func (v *Value) copyIntoWithXPos(b *Block, pos src.XPos) *Value {
 	return c
 }
 
-func (v *Value) Logf(msg string, args ...interface{}) { v.Block.Logf(msg, args...) }
-func (v *Value) Log() bool                            { return v.Block.Log() }
-func (v *Value) Fatalf(msg string, args ...interface{}) {
+func (v *Value) Logf(msg string, args ...any) { v.Block.Logf(msg, args...) }
+func (v *Value) Log() bool                    { return v.Block.Log() }
+func (v *Value) Fatalf(msg string, args ...any) {
 	v.Block.Func.fe.Fatalf(v.Pos, msg, args...)
 }
 

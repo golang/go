@@ -36,7 +36,7 @@ type ErrorHandler func(err error)
 // A Pragma value augments a package, import, const, func, type, or var declaration.
 // Its meaning is entirely up to the PragmaHandler,
 // except that nil is used to mean “no pragma seen.”
-type Pragma interface{}
+type Pragma any
 
 // A PragmaHandler is used to process //go: directives while scanning.
 // It is passed the current pragma value, which starts out being nil,

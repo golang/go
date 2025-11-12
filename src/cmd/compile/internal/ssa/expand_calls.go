@@ -951,7 +951,7 @@ func (x *expandState) indent(n int) {
 }
 
 // Printf does an indented fmt.Printf on the format and args.
-func (x *expandState) Printf(format string, a ...interface{}) (n int, err error) {
+func (x *expandState) Printf(format string, a ...any) (n int, err error) {
 	if x.indentLevel > 0 {
 		fmt.Printf("%[1]*s", x.indentLevel, "")
 	}

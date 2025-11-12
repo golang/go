@@ -242,7 +242,7 @@ func parseArmAttributes(e binary.ByteOrder, data []byte) (found bool, ehdrFlags 
 // object, and the returned ehdrFlags contains what this Load function computes.
 // TODO: find a better place for this logic.
 func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, pkg string, length int64, pn string, initEhdrFlags uint32) (textp []loader.Sym, ehdrFlags uint32, err error) {
-	errorf := func(str string, args ...interface{}) ([]loader.Sym, uint32, error) {
+	errorf := func(str string, args ...any) ([]loader.Sym, uint32, error) {
 		return nil, 0, fmt.Errorf("loadelf: %s: %v", pn, fmt.Sprintf(str, args...))
 	}
 

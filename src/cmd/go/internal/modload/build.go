@@ -189,6 +189,12 @@ func mergeOrigin(m1, m2 *codehost.Origin) *codehost.Origin {
 		merged.TagSum = m2.TagSum
 		merged.TagPrefix = m2.TagPrefix
 	}
+	if m2.RepoSum != "" {
+		if m1.RepoSum != "" && m1.RepoSum != m2.RepoSum {
+			return nil
+		}
+		merged.RepoSum = m2.RepoSum
+	}
 	if m2.Ref != "" {
 		if m1.Ref != "" && m1.Ref != m2.Ref {
 			return nil

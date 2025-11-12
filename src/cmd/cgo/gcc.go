@@ -1158,7 +1158,7 @@ func (p *Package) hasPointer(f *File, t ast.Expr, top bool) bool {
 // If addPosition is true, add position info to the idents of C names in arg.
 func (p *Package) mangle(f *File, arg *ast.Expr, addPosition bool) (ast.Expr, bool) {
 	needsUnsafe := false
-	f.walk(arg, ctxExpr, func(f *File, arg interface{}, context astContext) {
+	f.walk(arg, ctxExpr, func(f *File, arg any, context astContext) {
 		px, ok := arg.(*ast.Expr)
 		if !ok {
 			return
@@ -2439,7 +2439,7 @@ func (tr *TypeRepr) Empty() bool {
 // Set modifies the type representation.
 // If fargs are provided, repr is used as a format for fmt.Sprintf.
 // Otherwise, repr is used unprocessed as the type representation.
-func (tr *TypeRepr) Set(repr string, fargs ...interface{}) {
+func (tr *TypeRepr) Set(repr string, fargs ...any) {
 	tr.Repr = repr
 	tr.FormatArgs = fargs
 }
@@ -2713,7 +2713,7 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
 			// so execute the basic things that the struct case would do
 			// other than try to determine a Go representation.
 			tt := *t
-			tt.C = &TypeRepr{"%s %s", []interface{}{dt.Kind, tag}}
+			tt.C = &TypeRepr{"%s %s", []any{dt.Kind, tag}}
 			// We don't know what the representation of this struct is, so don't let
 			// anyone allocate one on the Go side. As a side effect of this annotation,
 			// pointers to this type will not be considered pointers in Go. They won't
@@ -2743,7 +2743,7 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
 			t.Align = align
 			tt := *t
 			if tag != "" {
-				tt.C = &TypeRepr{"struct %s", []interface{}{tag}}
+				tt.C = &TypeRepr{"struct %s", []any{tag}}
 			}
 			tt.Go = g
 			if c.incompleteStructs[tag] {
