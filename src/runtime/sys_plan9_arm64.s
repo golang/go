@@ -143,23 +143,39 @@ TEXT runtime·plan9_tsemacquire(SB),NOSPLIT,$0-20
 	RET
 
 // func timesplit(u uint64) (sec int64, nsec int32)
-TEXT runtime·timesplit(SB),NOSPLIT,$0-16
-	// load u (nanoseconds)
-	MOVD	u+0(FP), R0
+TEXT runtime·timesplit(SB), NOSPLIT, $0
+	// R1 = u (nanoseconds)
+	MOVD	u+0(FP), R1
 
-	// compute sec = u / 1e9
-	MOVD	R0, R1
-	MOVD	$1000000000, R2
-	UDIV	R2, R1		// R1 = R1 / R2  -> seconds
+	// --- reciprocal multiply to get seconds ---
+	MOVW	$0x89705f41, R2      // reciprocal constant ≈ 2^61 / 1e9
+	UMULH	R1, R2, R3           // high 64 bits of (u * constant)
+	LSR	$29, R3, R4          // R4 = seconds (int64)
 
-	// compute rem = u - sec * 1e9
-	MOVD	R1, R3
-	MUL	R3, R2		// R2 = sec * 1e9
-	SUB	R2, R0		// R0 = u - (sec*1e9) -> remainder (nsec)
+	// --- compute remainder = u - sec*1e9 ---
+	MOVD	$1000000000, R5
+	MUL	R4, R5, R6
+	SUB	R6, R1, R1           // R1 = remainder
 
-	// store results
-	MOVD	R1, sec+0(FP)
-	MOVWU	R0, nsec+8(FP)
+	// --- branchless correction ---
+	// if remainder >= 1e9:
+	//    remainder -= 1e9
+	//    sec += 1
+
+	SUB	R5, R1, R7           // R7 = remainder - 1e9
+	LSR	$63, R7, R8          // R8 = 1 if remainder < 1e9, else 0
+	EOR	$1, R8               // invert: R8 = 1 if remainder >= 1e9, else 0
+
+	// remainder -= R8 * 1e9
+	NEG	R8, R9               // R9 = -R8 (0 or -1)
+	MADD	R9, R5, R1, R1       // R1 = R1 + R9*R5 → subtract 1e9 if flag=1
+
+	// sec += R8
+	ADD	R8, R4, R4
+
+	// --- store results ---
+	MOVD	R4, sec+0(FP)
+	MOVW	R1, nsec+8(FP)
 	RET
 
 //func nsec(*int64) int64
@@ -172,7 +188,6 @@ TEXT runtime·nsec(SB),NOSPLIT|NOFRAME,$0-16
 // func walltime() (sec int64, nsec int32)
 TEXT runtime·walltime(SB),NOSPLIT,$16-12
 	// use nsec system call to get current time in nanoseconds
-
 	MOVD	$SYS_NSEC, R0
 	SVC	$0
 
