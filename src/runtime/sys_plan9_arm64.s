@@ -101,6 +101,13 @@ TEXT runtime·closefd(SB),NOSPLIT,$0-12
 	MOVWU	R0, ret+8(FP)
 	RET
 
+//func dupfd(old, new int32) int32
+TEXT runtime·dupfd(SB),NOSPLIT,$0-12
+	MOVD	$SYS_DUP, R0
+	SVC	$0
+	MOVWU	R0, ret+8(FP)
+	RET
+
 //func exits(msg *byte)
 TEXT runtime·exits(SB),NOSPLIT,$0-8
 	MOVD    $SYS_EXITS, R0
@@ -133,6 +140,26 @@ TEXT runtime·plan9_tsemacquire(SB),NOSPLIT,$0-20
 	MOVD	$SYS_TSEMACQUIRE, R0
 	SVC	$0
 	MOVWU	R0, ret+16(FP)
+	RET
+
+// func timesplit(u uint64) (sec int64, nsec int32)
+TEXT runtime·timesplit(SB),NOSPLIT,$0-16
+	// load u (nanoseconds)
+	MOVD	u+0(FP), R0
+
+	// compute sec = u / 1e9
+	MOVD	R0, R1
+	MOVD	$1000000000, R2
+	UDIV	R2, R1		// R1 = R1 / R2  -> seconds
+
+	// compute rem = u - sec * 1e9
+	MOVD	R1, R3
+	MUL	R3, R2		// R2 = sec * 1e9
+	SUB	R2, R0		// R0 = u - (sec*1e9) -> remainder (nsec)
+
+	// store results
+	MOVD	R1, sec+0(FP)
+	MOVWU	R0, nsec+8(FP)
 	RET
 
 //func nsec(*int64) int64
