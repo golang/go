@@ -48,7 +48,7 @@ func TestConcatSelectedConstantGrouped32(t *testing.T) {
 }
 
 func TestTern(t *testing.T) {
-	if !HasAVX512() {
+	if !X86.AVX512() {
 		t.Skip("This test needs AVX512")
 	}
 	x := LoadInt32x8Slice([]int32{0, 0, 0, 0, 1, 1, 1, 1})

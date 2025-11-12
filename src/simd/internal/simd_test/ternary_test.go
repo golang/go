@@ -12,7 +12,7 @@ import (
 )
 
 func TestFMA(t *testing.T) {
-	if simd.HasAVX512() {
+	if simd.X86.AVX512() {
 		testFloat32x4TernaryFlaky(t, simd.Float32x4.MulAdd, fmaSlice[float32], 0.001)
 		testFloat32x8TernaryFlaky(t, simd.Float32x8.MulAdd, fmaSlice[float32], 0.001)
 		testFloat32x16TernaryFlaky(t, simd.Float32x16.MulAdd, fmaSlice[float32], 0.001)

@@ -44,12 +44,12 @@ var a int
 
 func f() {
 	if a == 0 {
-		if !simd.HasAVX512() {
+		if !simd.X86.AVX512() {
 			return
 		}
 		println("has avx512") // ERROR "has features avx[+]avx2[+]avx512$"
 	} else {
-		if !simd.HasAVX2() {
+		if !simd.X86.AVX2() {
 			return
 		}
 		println("has avx2") // ERROR "has features avx[+]avx2$"
@@ -58,7 +58,7 @@ func f() {
 } // ERROR "has features avx[+]avx2$"
 
 func g() {
-	if simd.HasAVX2() { // ERROR "has features avx[+]avx2$"
+	if simd.X86.AVX2() { // ERROR "has features avx[+]avx2$"
 		for range 5 { // ERROR "has features avx[+]avx2$"
 			if a < 0 { // ERROR "has features avx[+]avx2$"
 				a++ // ERROR "has features avx[+]avx2$"
@@ -77,7 +77,7 @@ func p() bool {
 }
 
 func hasIrreducibleLoop() {
-	if simd.HasAVX2() {
+	if simd.X86.AVX2() {
 		goto a // ERROR "has features avx[+]avx2$"
 	} else {
 		goto b
@@ -97,7 +97,7 @@ c:
 }
 
 func ternRewrite(m, w, x, y, z simd.Int32x16) (t0, t1, t2 simd.Int32x16) {
-	if !simd.HasAVX512() { // ERROR "has features avx[+]avx2[+]avx512$"
+	if !simd.X86.AVX512() { // ERROR "has features avx[+]avx2[+]avx512$"
 		return // ERROR "has features avx[+]avx2[+]avx512$" // all blocks have it because of the vector size
 	}
 	t0 = w.Xor(y).Xor(z)                            // ERROR "Rewriting.*ternInt"
@@ -111,7 +111,7 @@ func ternTricky1(x, y, z simd.Int32x8) simd.Int32x8 {
 	// a is a 3-variable logical expression occurring outside AVX-512 feature check
 	a := x.Xor(y).Xor(z)
 	var w simd.Int32x8
-	if !simd.HasAVX512() { // ERROR "has features avx$"
+	if !simd.X86.AVX512() { // ERROR "has features avx$"
 		// do nothing
 	} else {
 		w = y.AndNot(a) // ERROR "has features avx[+]avx2[+]avx512" "Rewriting.*ternInt"
@@ -123,7 +123,7 @@ func ternTricky1(x, y, z simd.Int32x8) simd.Int32x8 {
 func ternTricky2(x, y, z simd.Int32x8) simd.Int32x8 {
 	// Int32x8 is a 256-bit vector and does not guarantee AVX-512
 	var a, w simd.Int32x8
-	if !simd.HasAVX512() { // ERROR "has features avx$"
+	if !simd.X86.AVX512() { // ERROR "has features avx$"
 		// do nothing
 	} else {
 		a = x.Xor(y).Xor(z)
@@ -137,7 +137,7 @@ func ternTricky3(x, y, z simd.Int32x8) simd.Int32x8 {
 	// Int32x8 is a 256-bit vector and does not guarantee AVX-512
 	a := x.Xor(y).Xor(z)
 	w := y.AndNot(a)
-	if !simd.HasAVX512() { // ERROR "has features avx$"
+	if !simd.X86.AVX512() { // ERROR "has features avx$"
 		return a // ERROR "has features avx$"
 	}
 	// a is a common subexpression

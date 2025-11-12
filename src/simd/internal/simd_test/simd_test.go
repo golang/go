@@ -38,8 +38,8 @@ func TestType(t *testing.T) {
 	v.y = &y
 	sink = y
 
-	if !simd.HasAVX512GFNI() {
-		t.Skip("Test requires HasAVX512, not available on this hardware")
+	if !simd.X86.AVX512GFNI() {
+		t.Skip("Test requires X86.AVX512, not available on this hardware")
 		return
 	}
 	v.z = maskT(simd.Mask32x4FromBits(0b0011))
@@ -111,8 +111,8 @@ func TestReflectMethod(t *testing.T) {
 }
 
 func TestVectorConversion(t *testing.T) {
-	if !simd.HasAVX512GFNI() {
-		t.Skip("Test requires HasAVX512, not available on this hardware")
+	if !simd.X86.AVX512GFNI() {
+		t.Skip("Test requires X86.AVX512, not available on this hardware")
 		return
 	}
 	xv := [4]int32{1, 2, 3, 4}
@@ -129,8 +129,8 @@ func TestVectorConversion(t *testing.T) {
 }
 
 func TestMaskConversion(t *testing.T) {
-	if !simd.HasAVX512GFNI() {
-		t.Skip("Test requires HasAVX512, not available on this hardware")
+	if !simd.X86.AVX512GFNI() {
+		t.Skip("Test requires X86.AVX512, not available on this hardware")
 		return
 	}
 	x := simd.LoadInt32x4Slice([]int32{5, 0, 7, 0})
@@ -147,8 +147,8 @@ func TestMaskConversion(t *testing.T) {
 }
 
 func TestPermute(t *testing.T) {
-	if !simd.HasAVX512() {
-		t.Skip("Test requires HasAVX512, not available on this hardware")
+	if !simd.X86.AVX512() {
+		t.Skip("Test requires X86.AVX512, not available on this hardware")
 		return
 	}
 	x := []int64{1, 2, 3, 4, 5, 6, 7, 8}
@@ -164,8 +164,8 @@ func TestPermute(t *testing.T) {
 }
 
 func TestPermute2(t *testing.T) {
-	if !simd.HasAVX512() {
-		t.Skip("Test requires HasAVX512, not available on this hardware")
+	if !simd.X86.AVX512() {
+		t.Skip("Test requires X86.AVX512, not available on this hardware")
 		return
 	}
 	x := []int64{1, 2, 3, 4, 5, 6, 7, 8}
@@ -182,8 +182,8 @@ func TestPermute2(t *testing.T) {
 }
 
 func TestCompress(t *testing.T) {
-	if !simd.HasAVX512() {
-		t.Skip("Test requires HasAVX512, not available on this hardware")
+	if !simd.X86.AVX512() {
+		t.Skip("Test requires X86.AVX512, not available on this hardware")
 		return
 	}
 	v1234 := simd.LoadInt32x4Slice([]int32{1, 2, 3, 4})
@@ -197,8 +197,8 @@ func TestCompress(t *testing.T) {
 }
 
 func TestExpand(t *testing.T) {
-	if !simd.HasAVX512() {
-		t.Skip("Test requires HasAVX512, not available on this hardware")
+	if !simd.X86.AVX512() {
+		t.Skip("Test requires X86.AVX512, not available on this hardware")
 		return
 	}
 	v3400 := simd.LoadInt32x4Slice([]int32{3, 4, 0, 0})
@@ -333,8 +333,8 @@ func testMergeLocalswrapper(t *testing.T, op func(simd.Int64x4, simd.Int64x4) si
 }
 
 func TestBitMaskFromBits(t *testing.T) {
-	if !simd.HasAVX512() {
-		t.Skip("Test requires HasAVX512, not available on this hardware")
+	if !simd.X86.AVX512() {
+		t.Skip("Test requires X86.AVX512, not available on this hardware")
 		return
 	}
 	results := [2]int64{}
@@ -351,8 +351,8 @@ func TestBitMaskFromBits(t *testing.T) {
 var maskForTestBitMaskFromBitsLoad = uint8(0b10)
 
 func TestBitMaskFromBitsLoad(t *testing.T) {
-	if !simd.HasAVX512() {
-		t.Skip("Test requires HasAVX512, not available on this hardware")
+	if !simd.X86.AVX512() {
+		t.Skip("Test requires X86.AVX512, not available on this hardware")
 		return
 	}
 	results := [2]int64{}
@@ -367,8 +367,8 @@ func TestBitMaskFromBitsLoad(t *testing.T) {
 }
 
 func TestBitMaskToBits(t *testing.T) {
-	if !simd.HasAVX512() {
-		t.Skip("Test requires HasAVX512, not available on this hardware")
+	if !simd.X86.AVX512() {
+		t.Skip("Test requires X86.AVX512, not available on this hardware")
 		return
 	}
 	if v := simd.LoadInt16x8Slice([]int16{1, 0, 1, 0, 0, 0, 0, 0}).ToMask().ToBits(); v != 0b101 {
@@ -379,8 +379,8 @@ func TestBitMaskToBits(t *testing.T) {
 var maskForTestBitMaskFromBitsStore uint8
 
 func TestBitMaskToBitsStore(t *testing.T) {
-	if !simd.HasAVX512() {
-		t.Skip("Test requires HasAVX512, not available on this hardware")
+	if !simd.X86.AVX512() {
+		t.Skip("Test requires X86.AVX512, not available on this hardware")
 		return
 	}
 	maskForTestBitMaskFromBitsStore = simd.LoadInt16x8Slice([]int16{1, 0, 1, 0, 0, 0, 0, 0}).ToMask().ToBits()
@@ -406,8 +406,8 @@ func TestMergeFloat(t *testing.T) {
 }
 
 func TestMergeFloat512(t *testing.T) {
-	if !simd.HasAVX512() {
-		t.Skip("Test requires HasAVX512, not available on this hardware")
+	if !simd.X86.AVX512() {
+		t.Skip("Test requires X86.AVX512, not available on this hardware")
 		return
 	}
 
@@ -433,8 +433,8 @@ func TestMergeFloat512(t *testing.T) {
 var ro uint8 = 2
 
 func TestRotateAllVariable(t *testing.T) {
-	if !simd.HasAVX512() {
-		t.Skip("Test requires HasAVX512, not available on this hardware")
+	if !simd.X86.AVX512() {
+		t.Skip("Test requires X86.AVX512, not available on this hardware")
 		return
 	}
 	got := make([]int32, 4)
@@ -487,8 +487,8 @@ func TestBroadcastInt8x32(t *testing.T) {
 }
 
 func TestMaskOpt512(t *testing.T) {
-	if !simd.HasAVX512() {
-		t.Skip("Test requires HasAVX512, not available on this hardware")
+	if !simd.X86.AVX512() {
+		t.Skip("Test requires X86.AVX512, not available on this hardware")
 		return
 	}
 
@@ -534,8 +534,8 @@ func TestFlattenedTranspose(t *testing.T) {
 func TestClearAVXUpperBits(t *testing.T) {
 	// Test that ClearAVXUpperBits is safe even if there are SIMD values
 	// alive (although usually one should not do this).
-	if !simd.HasAVX2() {
-		t.Skip("Test requires HasAVX2, not available on this hardware")
+	if !simd.X86.AVX2() {
+		t.Skip("Test requires X86.AVX2, not available on this hardware")
 		return
 	}
 
@@ -554,8 +554,8 @@ func TestClearAVXUpperBits(t *testing.T) {
 }
 
 func TestLeadingZeros(t *testing.T) {
-	if !simd.HasAVX512() {
-		t.Skip("Test requires HasAVX512, not available on this hardware")
+	if !simd.X86.AVX512() {
+		t.Skip("Test requires X86.AVX512, not available on this hardware")
 		return
 	}
 
@@ -755,8 +755,8 @@ func TestSelect4FromPairConstGrouped(t *testing.T) {
 }
 
 func TestSelectFromPairConstGroupedUint32x16(t *testing.T) {
-	if !simd.HasAVX512() {
-		t.Skip("Test requires HasAVX512, not available on this hardware")
+	if !simd.X86.AVX512() {
+		t.Skip("Test requires X86.AVX512, not available on this hardware")
 		return
 	}
 	x := simd.LoadUint32x16Slice([]uint32{0, 1, 2, 3, 10, 11, 12, 13, 20, 21, 22, 23, 30, 31, 32, 33})
@@ -976,8 +976,8 @@ func TestSelect2FromPairConstGroupedInt(t *testing.T) {
 }
 
 func TestSelect2FromPairConstGroupedInt512(t *testing.T) {
-	if !simd.HasAVX512() {
-		t.Skip("Test requires HasAVX512, not available on this hardware")
+	if !simd.X86.AVX512() {
+		t.Skip("Test requires X86.AVX512, not available on this hardware")
 		return
 	}
 
@@ -1068,8 +1068,8 @@ func applyTo4(x, y, z, w simd.Int32x16, f func(x, y, z, w int32) int32) []int32 
 }
 
 func TestSelectTernOptInt32x16(t *testing.T) {
-	if !simd.HasAVX512() {
-		t.Skip("Test requires HasAVX512, not available on this hardware")
+	if !simd.X86.AVX512() {
+		t.Skip("Test requires X86.AVX512, not available on this hardware")
 		return
 	}
 	ax := []int32{0, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1}
@@ -1116,7 +1116,7 @@ func TestMaskedMerge(t *testing.T) {
 	res := make([]int64, 4)
 	expected := []int64{6, 8, -3, -4}
 	mask := x.Less(y)
-	if simd.HasAVX512() {
+	if simd.X86.AVX512() {
 		x.Add(y).Merge(z, mask).StoreSlice(res)
 	} else {
 		x.Add(y).Merge(z, mask).StoreSlice(res)

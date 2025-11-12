@@ -17,7 +17,7 @@ func TestCeil(t *testing.T) {
 	testFloat32x8Unary(t, simd.Float32x8.Ceil, ceilSlice[float32])
 	testFloat64x2Unary(t, simd.Float64x2.Ceil, ceilSlice[float64])
 	testFloat64x4Unary(t, simd.Float64x4.Ceil, ceilSlice[float64])
-	if simd.HasAVX512() {
+	if simd.X86.AVX512() {
 		// testFloat32x16Unary(t, simd.Float32x16.Ceil, ceilSlice[float32]) // missing
 		// testFloat64x8Unary(t, simd.Float64x8.Ceil, ceilSlice[float64])   // missing
 	}
@@ -28,7 +28,7 @@ func TestFloor(t *testing.T) {
 	testFloat32x8Unary(t, simd.Float32x8.Floor, floorSlice[float32])
 	testFloat64x2Unary(t, simd.Float64x2.Floor, floorSlice[float64])
 	testFloat64x4Unary(t, simd.Float64x4.Floor, floorSlice[float64])
-	if simd.HasAVX512() {
+	if simd.X86.AVX512() {
 		// testFloat32x16Unary(t, simd.Float32x16.Floor, floorSlice[float32]) // missing
 		// testFloat64x8Unary(t, simd.Float64x8.Floor, floorSlice[float64])   // missing
 	}
@@ -39,7 +39,7 @@ func TestTrunc(t *testing.T) {
 	testFloat32x8Unary(t, simd.Float32x8.Trunc, truncSlice[float32])
 	testFloat64x2Unary(t, simd.Float64x2.Trunc, truncSlice[float64])
 	testFloat64x4Unary(t, simd.Float64x4.Trunc, truncSlice[float64])
-	if simd.HasAVX512() {
+	if simd.X86.AVX512() {
 		// testFloat32x16Unary(t, simd.Float32x16.Trunc, truncSlice[float32]) // missing
 		// testFloat64x8Unary(t, simd.Float64x8.Trunc, truncSlice[float64])   // missing
 	}
@@ -50,7 +50,7 @@ func TestRound(t *testing.T) {
 	testFloat32x8Unary(t, simd.Float32x8.RoundToEven, roundSlice[float32])
 	testFloat64x2Unary(t, simd.Float64x2.RoundToEven, roundSlice[float64])
 	testFloat64x4Unary(t, simd.Float64x4.RoundToEven, roundSlice[float64])
-	if simd.HasAVX512() {
+	if simd.X86.AVX512() {
 		// testFloat32x16Unary(t, simd.Float32x16.Round, roundSlice[float32]) // missing
 		// testFloat64x8Unary(t, simd.Float64x8.Round, roundSlice[float64])   // missing
 	}
@@ -61,7 +61,7 @@ func TestSqrt(t *testing.T) {
 	testFloat32x8Unary(t, simd.Float32x8.Sqrt, sqrtSlice[float32])
 	testFloat64x2Unary(t, simd.Float64x2.Sqrt, sqrtSlice[float64])
 	testFloat64x4Unary(t, simd.Float64x4.Sqrt, sqrtSlice[float64])
-	if simd.HasAVX512() {
+	if simd.X86.AVX512() {
 		testFloat32x16Unary(t, simd.Float32x16.Sqrt, sqrtSlice[float32])
 		testFloat64x8Unary(t, simd.Float64x8.Sqrt, sqrtSlice[float64])
 	}
@@ -83,7 +83,7 @@ func TestAbsolute(t *testing.T) {
 	testInt16x16Unary(t, simd.Int16x16.Abs, map1[int16](abs))
 	testInt32x4Unary(t, simd.Int32x4.Abs, map1[int32](abs))
 	testInt32x8Unary(t, simd.Int32x8.Abs, map1[int32](abs))
-	if simd.HasAVX512() {
+	if simd.X86.AVX512() {
 		testInt8x64Unary(t, simd.Int8x64.Abs, map1[int8](abs))
 		testInt16x32Unary(t, simd.Int16x32.Abs, map1[int16](abs))
 		testInt32x16Unary(t, simd.Int32x16.Abs, map1[int32](abs))
@@ -94,7 +94,7 @@ func TestAbsolute(t *testing.T) {
 }
 
 func TestCeilScaledResidue(t *testing.T) {
-	if !simd.HasAVX512() {
+	if !simd.X86.AVX512() {
 		t.Skip("Needs AVX512")
 	}
 	testFloat64x8UnaryFlaky(t,
@@ -111,7 +111,7 @@ func TestCeilScaledResidue(t *testing.T) {
 }
 
 func TestToUint32(t *testing.T) {
-	if !simd.HasAVX512() {
+	if !simd.X86.AVX512() {
 		t.Skip("Needs AVX512")
 	}
 	testFloat32x4ConvertToUint32(t, simd.Float32x4.ConvertToUint32, map1[float32](toUint32))
@@ -130,7 +130,7 @@ func TestConverts(t *testing.T) {
 }
 
 func TestConvertsAVX512(t *testing.T) {
-	if !simd.HasAVX512() {
+	if !simd.X86.AVX512() {
 		t.Skip("Needs AVX512")
 	}
 	testUint8x32ConvertToUint16(t, simd.Uint8x32.ConvertToUint16, map1[uint8](toUint16))

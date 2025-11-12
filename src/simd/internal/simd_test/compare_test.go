@@ -13,7 +13,7 @@ import (
 
 // AVX 2 lacks most comparisons, but they can be synthesized
 // from > and =
-var comparisonFixed bool = simd.HasAVX512()
+var comparisonFixed bool = simd.X86.AVX512()
 
 func TestLess(t *testing.T) {
 	testFloat32x4Compare(t, simd.Float32x4.Less, lessSlice[float32])
@@ -48,7 +48,7 @@ func TestLess(t *testing.T) {
 	testUint8x16Compare(t, simd.Uint8x16.Less, lessSlice[uint8])
 	testUint8x32Compare(t, simd.Uint8x32.Less, lessSlice[uint8])
 
-	if simd.HasAVX512() {
+	if simd.X86.AVX512() {
 		testUint16x16Compare(t, simd.Uint16x16.Less, lessSlice[uint16])
 		testUint16x8Compare(t, simd.Uint16x8.Less, lessSlice[uint16])
 		testUint32x4Compare(t, simd.Uint32x4.Less, lessSlice[uint32])
@@ -95,7 +95,7 @@ func TestLessEqual(t *testing.T) {
 	testUint8x16Compare(t, simd.Uint8x16.LessEqual, lessEqualSlice[uint8])
 	testUint8x32Compare(t, simd.Uint8x32.LessEqual, lessEqualSlice[uint8])
 
-	if simd.HasAVX512() {
+	if simd.X86.AVX512() {
 		testFloat32x16Compare(t, simd.Float32x16.LessEqual, lessEqualSlice[float32])
 		testFloat64x8Compare(t, simd.Float64x8.LessEqual, lessEqualSlice[float64])
 		testInt8x64Compare(t, simd.Int8x64.LessEqual, lessEqualSlice[int8])
@@ -135,7 +135,7 @@ func TestGreater(t *testing.T) {
 	testUint8x16Compare(t, simd.Uint8x16.Greater, greaterSlice[uint8])
 	testUint8x32Compare(t, simd.Uint8x32.Greater, greaterSlice[uint8])
 
-	if simd.HasAVX512() {
+	if simd.X86.AVX512() {
 
 		testFloat32x16Compare(t, simd.Float32x16.Greater, greaterSlice[float32])
 		testFloat64x8Compare(t, simd.Float64x8.Greater, greaterSlice[float64])
@@ -174,7 +174,7 @@ func TestGreaterEqual(t *testing.T) {
 	testUint8x16Compare(t, simd.Uint8x16.GreaterEqual, greaterEqualSlice[uint8])
 	testUint8x32Compare(t, simd.Uint8x32.GreaterEqual, greaterEqualSlice[uint8])
 
-	if simd.HasAVX512() {
+	if simd.X86.AVX512() {
 		testFloat32x16Compare(t, simd.Float32x16.GreaterEqual, greaterEqualSlice[float32])
 		testFloat64x8Compare(t, simd.Float64x8.GreaterEqual, greaterEqualSlice[float64])
 		testInt8x64Compare(t, simd.Int8x64.GreaterEqual, greaterEqualSlice[int8])
@@ -212,7 +212,7 @@ func TestEqual(t *testing.T) {
 	testUint8x16Compare(t, simd.Uint8x16.Equal, equalSlice[uint8])
 	testUint8x32Compare(t, simd.Uint8x32.Equal, equalSlice[uint8])
 
-	if simd.HasAVX512() {
+	if simd.X86.AVX512() {
 		testFloat32x16Compare(t, simd.Float32x16.Equal, equalSlice[float32])
 		testFloat64x8Compare(t, simd.Float64x8.Equal, equalSlice[float64])
 		testInt8x64Compare(t, simd.Int8x64.Equal, equalSlice[int8])
@@ -250,7 +250,7 @@ func TestNotEqual(t *testing.T) {
 	testUint8x16Compare(t, simd.Uint8x16.NotEqual, notEqualSlice[uint8])
 	testUint8x32Compare(t, simd.Uint8x32.NotEqual, notEqualSlice[uint8])
 
-	if simd.HasAVX512() {
+	if simd.X86.AVX512() {
 		testFloat32x16Compare(t, simd.Float32x16.NotEqual, notEqualSlice[float32])
 		testFloat64x8Compare(t, simd.Float64x8.NotEqual, notEqualSlice[float64])
 		testInt8x64Compare(t, simd.Int8x64.NotEqual, notEqualSlice[int8])

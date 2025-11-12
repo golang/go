@@ -146,21 +146,25 @@ type {{.Name}} struct {
 const simdFeaturesTemplate = `
 import "internal/cpu"
 
+type X86Features struct {}
+
+var X86 X86Features
+
 {{range .}}
 {{- if eq .Feature "AVX512"}}
-// Has{{.Feature}} returns whether the CPU supports the AVX512F+CD+BW+DQ+VL features.
+// {{.Feature}} returns whether the CPU supports the AVX512F+CD+BW+DQ+VL features.
 //
 // These five CPU features are bundled together, and no use of AVX-512
 // is allowed unless all of these features are supported together.
 // Nearly every CPU that has shipped with any support for AVX-512 has
 // supported all five of these features.
 {{- else -}}
-// Has{{.Feature}} returns whether the CPU supports the {{.Feature}} feature.
+// {{.Feature}} returns whether the CPU supports the {{.Feature}} feature.
 {{- end}}
 //
-// Has{{.Feature}} is defined on all GOARCHes, but will only return true on
+// {{.Feature}} is defined on all GOARCHes, but will only return true on
 // GOARCH {{.GoArch}}.
-func Has{{.Feature}}() bool {
+func (X86Features) {{.Feature}}() bool {
 	return cpu.X86.Has{{.Feature}}
 }
 {{end}}

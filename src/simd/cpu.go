@@ -6,111 +6,115 @@ package simd
 
 import "internal/cpu"
 
-// HasAES returns whether the CPU supports the AES feature.
+type X86Features struct{}
+
+var X86 X86Features
+
+// AES returns whether the CPU supports the AES feature.
 //
-// HasAES is defined on all GOARCHes, but will only return true on
+// AES is defined on all GOARCHes, but will only return true on
 // GOARCH amd64.
-func HasAES() bool {
+func (X86Features) AES() bool {
 	return cpu.X86.HasAES
 }
 
-// HasAVX returns whether the CPU supports the AVX feature.
+// AVX returns whether the CPU supports the AVX feature.
 //
-// HasAVX is defined on all GOARCHes, but will only return true on
+// AVX is defined on all GOARCHes, but will only return true on
 // GOARCH amd64.
-func HasAVX() bool {
+func (X86Features) AVX() bool {
 	return cpu.X86.HasAVX
 }
 
-// HasAVX2 returns whether the CPU supports the AVX2 feature.
+// AVX2 returns whether the CPU supports the AVX2 feature.
 //
-// HasAVX2 is defined on all GOARCHes, but will only return true on
+// AVX2 is defined on all GOARCHes, but will only return true on
 // GOARCH amd64.
-func HasAVX2() bool {
+func (X86Features) AVX2() bool {
 	return cpu.X86.HasAVX2
 }
 
-// HasAVX512 returns whether the CPU supports the AVX512F+CD+BW+DQ+VL features.
+// AVX512 returns whether the CPU supports the AVX512F+CD+BW+DQ+VL features.
 //
 // These five CPU features are bundled together, and no use of AVX-512
 // is allowed unless all of these features are supported together.
 // Nearly every CPU that has shipped with any support for AVX-512 has
 // supported all five of these features.
 //
-// HasAVX512 is defined on all GOARCHes, but will only return true on
+// AVX512 is defined on all GOARCHes, but will only return true on
 // GOARCH amd64.
-func HasAVX512() bool {
+func (X86Features) AVX512() bool {
 	return cpu.X86.HasAVX512
 }
 
-// HasAVX512BITALG returns whether the CPU supports the AVX512BITALG feature.
+// AVX512BITALG returns whether the CPU supports the AVX512BITALG feature.
 //
-// HasAVX512BITALG is defined on all GOARCHes, but will only return true on
+// AVX512BITALG is defined on all GOARCHes, but will only return true on
 // GOARCH amd64.
-func HasAVX512BITALG() bool {
+func (X86Features) AVX512BITALG() bool {
 	return cpu.X86.HasAVX512BITALG
 }
 
-// HasAVX512GFNI returns whether the CPU supports the AVX512GFNI feature.
+// AVX512GFNI returns whether the CPU supports the AVX512GFNI feature.
 //
-// HasAVX512GFNI is defined on all GOARCHes, but will only return true on
+// AVX512GFNI is defined on all GOARCHes, but will only return true on
 // GOARCH amd64.
-func HasAVX512GFNI() bool {
+func (X86Features) AVX512GFNI() bool {
 	return cpu.X86.HasAVX512GFNI
 }
 
-// HasAVX512VAES returns whether the CPU supports the AVX512VAES feature.
+// AVX512VAES returns whether the CPU supports the AVX512VAES feature.
 //
-// HasAVX512VAES is defined on all GOARCHes, but will only return true on
+// AVX512VAES is defined on all GOARCHes, but will only return true on
 // GOARCH amd64.
-func HasAVX512VAES() bool {
+func (X86Features) AVX512VAES() bool {
 	return cpu.X86.HasAVX512VAES
 }
 
-// HasAVX512VBMI returns whether the CPU supports the AVX512VBMI feature.
+// AVX512VBMI returns whether the CPU supports the AVX512VBMI feature.
 //
-// HasAVX512VBMI is defined on all GOARCHes, but will only return true on
+// AVX512VBMI is defined on all GOARCHes, but will only return true on
 // GOARCH amd64.
-func HasAVX512VBMI() bool {
+func (X86Features) AVX512VBMI() bool {
 	return cpu.X86.HasAVX512VBMI
 }
 
-// HasAVX512VBMI2 returns whether the CPU supports the AVX512VBMI2 feature.
+// AVX512VBMI2 returns whether the CPU supports the AVX512VBMI2 feature.
 //
-// HasAVX512VBMI2 is defined on all GOARCHes, but will only return true on
+// AVX512VBMI2 is defined on all GOARCHes, but will only return true on
 // GOARCH amd64.
-func HasAVX512VBMI2() bool {
+func (X86Features) AVX512VBMI2() bool {
 	return cpu.X86.HasAVX512VBMI2
 }
 
-// HasAVX512VNNI returns whether the CPU supports the AVX512VNNI feature.
+// AVX512VNNI returns whether the CPU supports the AVX512VNNI feature.
 //
-// HasAVX512VNNI is defined on all GOARCHes, but will only return true on
+// AVX512VNNI is defined on all GOARCHes, but will only return true on
 // GOARCH amd64.
-func HasAVX512VNNI() bool {
+func (X86Features) AVX512VNNI() bool {
 	return cpu.X86.HasAVX512VNNI
 }
 
-// HasAVX512VPOPCNTDQ returns whether the CPU supports the AVX512VPOPCNTDQ feature.
+// AVX512VPOPCNTDQ returns whether the CPU supports the AVX512VPOPCNTDQ feature.
 //
-// HasAVX512VPOPCNTDQ is defined on all GOARCHes, but will only return true on
+// AVX512VPOPCNTDQ is defined on all GOARCHes, but will only return true on
 // GOARCH amd64.
-func HasAVX512VPOPCNTDQ() bool {
+func (X86Features) AVX512VPOPCNTDQ() bool {
 	return cpu.X86.HasAVX512VPOPCNTDQ
 }
 
-// HasAVXVNNI returns whether the CPU supports the AVXVNNI feature.
+// AVXVNNI returns whether the CPU supports the AVXVNNI feature.
 //
-// HasAVXVNNI is defined on all GOARCHes, but will only return true on
+// AVXVNNI is defined on all GOARCHes, but will only return true on
 // GOARCH amd64.
-func HasAVXVNNI() bool {
+func (X86Features) AVXVNNI() bool {
 	return cpu.X86.HasAVXVNNI
 }
 
-// HasSHA returns whether the CPU supports the SHA feature.
+// SHA returns whether the CPU supports the SHA feature.
 //
-// HasSHA is defined on all GOARCHes, but will only return true on
+// SHA is defined on all GOARCHes, but will only return true on
 // GOARCH amd64.
-func HasSHA() bool {
+func (X86Features) SHA() bool {
 	return cpu.X86.HasSHA
 }

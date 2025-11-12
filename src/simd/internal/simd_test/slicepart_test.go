@@ -345,8 +345,8 @@ func TestSlicePartFloat32(t *testing.T) {
 // 512-bit load
 
 func TestSlicePartInt64(t *testing.T) {
-	if !simd.HasAVX512() {
-		t.Skip("Test requires HasAVX512, not available on this hardware")
+	if !simd.X86.AVX512() {
+		t.Skip("Test requires X86.AVX512, not available on this hardware")
 		return
 	}
 

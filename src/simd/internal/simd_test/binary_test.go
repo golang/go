@@ -35,7 +35,7 @@ func TestAdd(t *testing.T) {
 	testUint8x16Binary(t, simd.Uint8x16.Add, addSlice[uint8])
 	testUint8x32Binary(t, simd.Uint8x32.Add, addSlice[uint8])
 
-	if simd.HasAVX512() {
+	if simd.X86.AVX512() {
 		testFloat32x16Binary(t, simd.Float32x16.Add, addSlice[float32])
 		testFloat64x8Binary(t, simd.Float64x8.Add, addSlice[float64])
 		testInt8x64Binary(t, simd.Int8x64.Add, addSlice[int8])
@@ -73,7 +73,7 @@ func TestSub(t *testing.T) {
 	testUint8x16Binary(t, simd.Uint8x16.Sub, subSlice[uint8])
 	testUint8x32Binary(t, simd.Uint8x32.Sub, subSlice[uint8])
 
-	if simd.HasAVX512() {
+	if simd.X86.AVX512() {
 		testFloat32x16Binary(t, simd.Float32x16.Sub, subSlice[float32])
 		testFloat64x8Binary(t, simd.Float64x8.Sub, subSlice[float64])
 		testInt8x64Binary(t, simd.Int8x64.Sub, subSlice[int8])
@@ -98,7 +98,7 @@ func TestMax(t *testing.T) {
 	testInt32x4Binary(t, simd.Int32x4.Max, maxSlice[int32])
 	testInt32x8Binary(t, simd.Int32x8.Max, maxSlice[int32])
 
-	if simd.HasAVX512() {
+	if simd.X86.AVX512() {
 		testInt64x2Binary(t, simd.Int64x2.Max, maxSlice[int64])
 		testInt64x4Binary(t, simd.Int64x4.Max, maxSlice[int64])
 	}
@@ -111,7 +111,7 @@ func TestMax(t *testing.T) {
 	testUint32x4Binary(t, simd.Uint32x4.Max, maxSlice[uint32])
 	testUint32x8Binary(t, simd.Uint32x8.Max, maxSlice[uint32])
 
-	if simd.HasAVX512() {
+	if simd.X86.AVX512() {
 		testUint64x2Binary(t, simd.Uint64x2.Max, maxSlice[uint64])
 		testUint64x4Binary(t, simd.Uint64x4.Max, maxSlice[uint64])
 	}
@@ -119,7 +119,7 @@ func TestMax(t *testing.T) {
 	testUint8x16Binary(t, simd.Uint8x16.Max, maxSlice[uint8])
 	testUint8x32Binary(t, simd.Uint8x32.Max, maxSlice[uint8])
 
-	if simd.HasAVX512() {
+	if simd.X86.AVX512() {
 		// testFloat32x16Binary(t, simd.Float32x16.Max, maxSlice[float32]) // nan is wrong
 		// testFloat64x8Binary(t, simd.Float64x8.Max, maxSlice[float64]) // nan is wrong
 		testInt8x64Binary(t, simd.Int8x64.Max, maxSlice[int8])
@@ -144,7 +144,7 @@ func TestMin(t *testing.T) {
 	testInt32x4Binary(t, simd.Int32x4.Min, minSlice[int32])
 	testInt32x8Binary(t, simd.Int32x8.Min, minSlice[int32])
 
-	if simd.HasAVX512() {
+	if simd.X86.AVX512() {
 		testInt64x2Binary(t, simd.Int64x2.Min, minSlice[int64])
 		testInt64x4Binary(t, simd.Int64x4.Min, minSlice[int64])
 	}
@@ -157,7 +157,7 @@ func TestMin(t *testing.T) {
 	testUint32x4Binary(t, simd.Uint32x4.Min, minSlice[uint32])
 	testUint32x8Binary(t, simd.Uint32x8.Min, minSlice[uint32])
 
-	if simd.HasAVX512() {
+	if simd.X86.AVX512() {
 		testUint64x2Binary(t, simd.Uint64x2.Min, minSlice[uint64])
 		testUint64x4Binary(t, simd.Uint64x4.Min, minSlice[uint64])
 	}
@@ -165,7 +165,7 @@ func TestMin(t *testing.T) {
 	testUint8x16Binary(t, simd.Uint8x16.Min, minSlice[uint8])
 	testUint8x32Binary(t, simd.Uint8x32.Min, minSlice[uint8])
 
-	if simd.HasAVX512() {
+	if simd.X86.AVX512() {
 		// testFloat32x16Binary(t, simd.Float32x16.Min, minSlice[float32]) // nan is wrong
 		// testFloat64x8Binary(t, simd.Float64x8.Min, minSlice[float64]) // nan is wrong
 		testInt8x64Binary(t, simd.Int8x64.Min, minSlice[int8])
@@ -198,7 +198,7 @@ func TestAnd(t *testing.T) {
 	testUint8x16Binary(t, simd.Uint8x16.And, andSlice[uint8])
 	testUint8x32Binary(t, simd.Uint8x32.And, andSlice[uint8])
 
-	if simd.HasAVX512() {
+	if simd.X86.AVX512() {
 		//	testInt8x64Binary(t, simd.Int8x64.And, andISlice[int8]) // missing
 		//	testInt16x32Binary(t, simd.Int16x32.And, andISlice[int16]) // missing
 		testInt32x16Binary(t, simd.Int32x16.And, andSlice[int32])
@@ -229,7 +229,7 @@ func TestAndNot(t *testing.T) {
 	testUint8x16Binary(t, simd.Uint8x16.AndNot, andNotSlice[uint8])
 	testUint8x32Binary(t, simd.Uint8x32.AndNot, andNotSlice[uint8])
 
-	if simd.HasAVX512() {
+	if simd.X86.AVX512() {
 		testInt8x64Binary(t, simd.Int8x64.AndNot, andNotSlice[int8])
 		testInt16x32Binary(t, simd.Int16x32.AndNot, andNotSlice[int16])
 		testInt32x16Binary(t, simd.Int32x16.AndNot, andNotSlice[int32])
@@ -260,7 +260,7 @@ func TestXor(t *testing.T) {
 	testUint8x16Binary(t, simd.Uint8x16.Xor, xorSlice[uint8])
 	testUint8x32Binary(t, simd.Uint8x32.Xor, xorSlice[uint8])
 
-	if simd.HasAVX512() {
+	if simd.X86.AVX512() {
 		//	testInt8x64Binary(t, simd.Int8x64.Xor, andISlice[int8]) // missing
 		//	testInt16x32Binary(t, simd.Int16x32.Xor, andISlice[int16]) // missing
 		testInt32x16Binary(t, simd.Int32x16.Xor, xorSlice[int32])
@@ -291,7 +291,7 @@ func TestOr(t *testing.T) {
 	testUint8x16Binary(t, simd.Uint8x16.Or, orSlice[uint8])
 	testUint8x32Binary(t, simd.Uint8x32.Or, orSlice[uint8])
 
-	if simd.HasAVX512() {
+	if simd.X86.AVX512() {
 		//	testInt8x64Binary(t, simd.Int8x64.Or, andISlice[int8]) // missing
 		//	testInt16x32Binary(t, simd.Int16x32.Or, andISlice[int16]) // missing
 		testInt32x16Binary(t, simd.Int32x16.Or, orSlice[int32])
@@ -328,7 +328,7 @@ func TestMul(t *testing.T) {
 	// testUint8x16Binary(t, simd.Uint8x16.Mul, mulSlice[uint8]) // nope
 	// testUint8x32Binary(t, simd.Uint8x32.Mul, mulSlice[uint8])
 
-	if simd.HasAVX512() {
+	if simd.X86.AVX512() {
 		testInt64x2Binary(t, simd.Int64x2.Mul, mulSlice[int64]) // avx512 only
 		testInt64x4Binary(t, simd.Int64x4.Mul, mulSlice[int64])
 
@@ -354,7 +354,7 @@ func TestDiv(t *testing.T) {
 	testFloat64x2Binary(t, simd.Float64x2.Div, divSlice[float64])
 	testFloat64x4Binary(t, simd.Float64x4.Div, divSlice[float64])
 
-	if simd.HasAVX512() {
+	if simd.X86.AVX512() {
 		testFloat32x16Binary(t, simd.Float32x16.Div, divSlice[float32])
 		testFloat64x8Binary(t, simd.Float64x8.Div, divSlice[float64])
 	}
