@@ -172,20 +172,26 @@ func SubAddSimplify2(a, b, c int) (int, int, int, int, int, int) {
 	// mips:"SUB" -"ADD"
 	// mips64:"SUBV" -"ADDV"
 	// loong64:"SUBV" -"ADDV"
+	// riscv64:-"ADD"
 	r := (a + b) - (a + c)
 	// amd64:-"ADDQ"
+	// riscv64:-"ADD"
 	r1 := (a + b) - (c + a)
 	// amd64:-"ADDQ"
+	// riscv64:-"ADD"
 	r2 := (b + a) - (a + c)
 	// amd64:-"ADDQ"
+	// riscv64:-"ADD"
 	r3 := (b + a) - (c + a)
 	// amd64:-"SUBQ"
 	// arm64:-"SUB"
 	// mips:"ADD" -"SUB"
 	// mips64:"ADDV" -"SUBV"
 	// loong64:"ADDV" -"SUBV"
+	// riscv64:-"SUB"
 	r4 := (a - c) + (c + b)
 	// amd64:-"SUBQ"
+	// riscv64:-"SUB"
 	r5 := (a - c) + (b + c)
 	return r, r1, r2, r3, r4, r5
 }
