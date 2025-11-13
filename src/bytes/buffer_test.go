@@ -545,6 +545,7 @@ var peekTests = []struct {
 	{"helloworld", 4, 3, "owo", nil},
 	{"helloworld", 5, 5, "world", nil},
 	{"helloworld", 5, 6, "world", io.EOF},
+	{"helloworld", 10, 1, "", io.EOF},
 }
 
 func TestPeek(t *testing.T) {
