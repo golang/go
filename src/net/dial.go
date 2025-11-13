@@ -9,6 +9,7 @@ import (
 	"internal/bytealg"
 	"internal/godebug"
 	"internal/nettrace"
+	"math/rand/v2"
 	"net/netip"
 	"syscall"
 	"time"
@@ -547,14 +548,29 @@ func (d *Dialer) DialContext(ctx context.Context, network, address string) (Conn
 		address: address,
 	}
 
+	// Multiple hosts implements load-balancing for DNS by randomly sorts the list of A or AAAA records.
+	// See https://github.com/golang/go/issues/34511
+	// See https://github.com/grafana/loki/issues/3301
+	// See https://github.com/grafana/loki/issues/9239
+	// See https://github.com/restic/restic/issues/4444
+	// See https://github.com/golang/go/issues/31698
 	var primaries, fallbacks addrList
 	if d.dualStack() && network == "tcp" {
 		primaries, fallbacks = addrs.partition(isIPv4)
+		randAddrList(fallbacks)
 	} else {
 		primaries = addrs
 	}
+	randAddrList(primaries)
 
 	return sd.dialParallel(ctx, primaries, fallbacks)
+}
+
+// randAddrList randomly sorts the list of addresses.
+func randAddrList(addrs addrList) {
+	rand.Shuffle(len(addrs), func(i, j int) {
+		addrs[i], addrs[j] = addrs[j], addrs[i]
+	})
 }
 
 func (d *Dialer) dialCtx(ctx context.Context) (context.Context, context.CancelFunc) {
