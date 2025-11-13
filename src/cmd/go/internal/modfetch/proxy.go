@@ -54,7 +54,7 @@ type proxySpec struct {
 	// fallBackOnError is true if a request should be attempted on the next proxy
 	// in the list after any error from this proxy. If fallBackOnError is false,
 	// the request will only be attempted on the next proxy if the error is
-	// equivalent to os.ErrNotFound, which is true for 404 and 410 responses.
+	// equivalent to fs.ErrNotExist, which is true for 404 and 410 responses.
 	fallBackOnError bool
 }
 
