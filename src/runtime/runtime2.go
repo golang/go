@@ -42,12 +42,16 @@ const (
 
 	// _Grunning means this goroutine may execute user code. The
 	// stack is owned by this goroutine. It is not on a run queue.
-	// It is assigned an M and a P (g.m and g.m.p are valid).
+	// It is assigned an M (g.m is valid) and it usually has a P
+	// (g.m.p is valid), but there are small windows of time where
+	// it might not, namely upon entering and exiting _Gsyscall.
 	_Grunning // 2
 
 	// _Gsyscall means this goroutine is executing a system call.
 	// It is not executing user code. The stack is owned by this
 	// goroutine. It is not on a run queue. It is assigned an M.
+	// It may have a P attached, but it does not own it. Code
+	// executing in this state must not touch g.m.p.
 	_Gsyscall // 3
 
 	// _Gwaiting means this goroutine is blocked in the runtime.
@@ -90,6 +94,10 @@ const (
 	// _Gleaked represents a leaked goroutine caught by the GC.
 	_Gleaked // 10
 
+	// _Gdeadextra is a _Gdead goroutine that's attached to an extra M
+	// used for cgo callbacks.
+	_Gdeadextra // 11
+
 	// _Gscan combined with one of the above states other than
 	// _Grunning indicates that GC is scanning the stack. The
 	// goroutine is not executing user code and the stack is owned
@@ -108,6 +116,7 @@ const (
 	_Gscanwaiting   = _Gscan + _Gwaiting   // 0x1004
 	_Gscanpreempted = _Gscan + _Gpreempted // 0x1009
 	_Gscanleaked    = _Gscan + _Gleaked    // 0x100a
+	_Gscandeadextra = _Gscan + _Gdeadextra // 0x100b
 )
 
 const (
@@ -126,22 +135,15 @@ const (
 	// run user code or the scheduler. Only the M that owns this P
 	// is allowed to change the P's status from _Prunning. The M
 	// may transition the P to _Pidle (if it has no more work to
-	// do), _Psyscall (when entering a syscall), or _Pgcstop (to
-	// halt for the GC). The M may also hand ownership of the P
-	// off directly to another M (e.g., to schedule a locked G).
+	// do), or _Pgcstop (to halt for the GC). The M may also hand
+	// ownership of the P off directly to another M (for example,
+	// to schedule a locked G).
 	_Prunning
 
-	// _Psyscall means a P is not running user code. It has
-	// affinity to an M in a syscall but is not owned by it and
-	// may be stolen by another M. This is similar to _Pidle but
-	// uses lightweight transitions and maintains M affinity.
-	//
-	// Leaving _Psyscall must be done with a CAS, either to steal
-	// or retake the P. Note that there's an ABA hazard: even if
-	// an M successfully CASes its original P back to _Prunning
-	// after a syscall, it must understand the P may have been
-	// used by another M in the interim.
-	_Psyscall
+	// _Psyscall_unused is a now-defunct state for a P. A P is
+	// identified as "in a system call" by looking at the goroutine's
+	// state.
+	_Psyscall_unused
 
 	// _Pgcstop means a P is halted for STW and owned by the M
 	// that stopped the world. The M that stopped the world
@@ -615,18 +617,27 @@ type m struct {
 	morebuf gobuf  // gobuf arg to morestack
 	divmod  uint32 // div/mod denominator for arm - known to liblink (cmd/internal/obj/arm/obj5.go)
 
-	// Fields not known to debuggers.
-	procid          uint64            // for debuggers, but offset not hard-coded
-	gsignal         *g                // signal-handling g
-	goSigStack      gsignalStack      // Go-allocated signal handling stack
-	sigmask         sigset            // storage for saved signal mask
-	tls             [tlsSlots]uintptr // thread-local storage (for x86 extern register)
-	mstartfn        func()
-	curg            *g       // current running goroutine
-	caughtsig       guintptr // goroutine running during fatal signal
-	p               puintptr // attached p for executing go code (nil if not executing go code)
-	nextp           puintptr
-	oldp            puintptr // the p that was attached before executing a syscall
+	// Fields whose offsets are not known to debuggers.
+
+	procid     uint64            // for debuggers, but offset not hard-coded
+	gsignal    *g                // signal-handling g
+	goSigStack gsignalStack      // Go-allocated signal handling stack
+	sigmask    sigset            // storage for saved signal mask
+	tls        [tlsSlots]uintptr // thread-local storage (for x86 extern register)
+	mstartfn   func()
+	curg       *g       // current running goroutine
+	caughtsig  guintptr // goroutine running during fatal signal
+
+	// p is the currently attached P for executing Go code, nil if not executing user Go code.
+	//
+	// A non-nil p implies exclusive ownership of the P, unless curg is in _Gsyscall.
+	// In _Gsyscall the scheduler may mutate this instead. The point of synchronization
+	// is the _Gscan bit on curg's status. The scheduler must arrange to prevent curg
+	// from transitioning out of _Gsyscall if it intends to mutate p.
+	p puintptr
+
+	nextp           puintptr // The next P to install before executing. Implies exclusive ownership of this P.
+	oldp            puintptr // The P that was attached before executing a syscall.
 	id              int64
 	mallocing       int32
 	throwing        throwType
@@ -654,6 +665,7 @@ type m struct {
 	park            note
 	alllink         *m // on allm
 	schedlink       muintptr
+	idleNode        listNodeManual
 	lockedg         guintptr
 	createstack     [32]uintptr // stack that created this thread, it's used for StackRecord.Stack0, so it must align with it.
 	lockedExt       uint32      // tracking for external LockOSThread
@@ -704,6 +716,9 @@ type m struct {
 	// Up to 10 locks held by this m, maintained by the lock ranking code.
 	locksHeldLen int
 	locksHeld    [10]heldLockInfo
+
+	// self points this M until mexit clears it to return nil.
+	self mWeakPointer
 }
 
 const mRedZoneSize = (16 << 3) * asanenabledBit // redZoneSize(2048)
@@ -718,6 +733,37 @@ type mPadded struct {
 	_ [(1 - goarch.IsWasm) * (2048 - mallocHeaderSize - mRedZoneSize - unsafe.Sizeof(m{}))]byte
 }
 
+// mWeakPointer is a "weak" pointer to an M. A weak pointer for each M is
+// available as m.self. Users may copy mWeakPointer arbitrarily, and get will
+// return the M if it is still live, or nil after mexit.
+//
+// The zero value is treated as a nil pointer.
+//
+// Note that get may race with M exit. A successful get will keep the m object
+// alive, but the M itself may be exited and thus not actually usable.
+type mWeakPointer struct {
+	m *atomic.Pointer[m]
+}
+
+func newMWeakPointer(mp *m) mWeakPointer {
+	w := mWeakPointer{m: new(atomic.Pointer[m])}
+	w.m.Store(mp)
+	return w
+}
+
+func (w mWeakPointer) get() *m {
+	if w.m == nil {
+		return nil
+	}
+	return w.m.Load()
+}
+
+// clear sets the weak pointer to nil. It cannot be used on zero value
+// mWeakPointers.
+func (w mWeakPointer) clear() {
+	w.m.Store(nil)
+}
+
 type p struct {
 	id          int32
 	status      uint32 // one of pidle/prunning/...
@@ -729,6 +775,17 @@ type p struct {
 	mcache      *mcache
 	pcache      pageCache
 	raceprocctx uintptr
+
+	// oldm is the previous m this p ran on.
+	//
+	// We are not assosciated with this m, so we have no control over its
+	// lifecycle. This value is an m.self object which points to the m
+	// until the m exits.
+	//
+	// Note that this m may be idle, running, or exiting. It should only be
+	// used with mgetSpecific, which will take ownership of the m only if
+	// it is idle.
+	oldm mWeakPointer
 
 	deferpool    []*_defer // pool of available defer structs (see panic.go)
 	deferpoolbuf [32]*_defer
@@ -782,7 +839,7 @@ type p struct {
 
 	// Per-P GC state
 	gcAssistTime         int64 // Nanoseconds in assistAlloc
-	gcFractionalMarkTime int64 // Nanoseconds in fractional mark worker (atomic)
+	gcFractionalMarkTime atomic.Int64 // Nanoseconds in fractional mark worker
 
 	// limiterEvent tracks events for the GC CPU limiter.
 	limiterEvent limiterEvent
@@ -864,7 +921,7 @@ type schedt struct {
 	// When increasing nmidle, nmidlelocked, nmsys, or nmfreed, be
 	// sure to call checkdead().
 
-	midle        muintptr // idle m's waiting for work
+	midle        listHeadManual // idle m's waiting for work
 	nmidle       int32    // number of idle m's waiting for work
 	nmidlelocked int32    // number of locked m's waiting for work
 	mnext        int64    // number of m's that have been created and next M ID
@@ -998,7 +1055,7 @@ const (
 type _func struct {
 	sys.NotInHeap // Only in static data
 
-	entryOff uint32 // start pc, as offset from moduledata.text/pcHeader.textStart
+	entryOff uint32 // start pc, as offset from moduledata.text
 	nameOff  int32  // function name, as index into moduledata.funcnametab.
 
 	args        int32  // in/out args size
@@ -1347,7 +1404,7 @@ var (
 	// be atomic. Length may change at safe points.
 	//
 	// Each P must update only its own bit. In order to maintain
-	// consistency, a P going idle must the idle mask simultaneously with
+	// consistency, a P going idle must set the idle mask simultaneously with
 	// updates to the idle P list under the sched.lock, otherwise a racing
 	// pidleget may clear the mask before pidleput sets the mask,
 	// corrupting the bitmap.

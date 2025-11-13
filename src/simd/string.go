@@ -7,8 +7,7 @@
 package simd
 
 import (
-	"internal/ftoa"
-	"internal/itoa"
+	"internal/strconv"
 )
 
 type number interface {
@@ -23,25 +22,25 @@ func sliceToString[T number](x []T) string {
 		pfx = ","
 		switch e := any(y).(type) {
 		case int8:
-			s += itoa.Itoa(int(e))
+			s += strconv.Itoa(int(e))
 		case int16:
-			s += itoa.Itoa(int(e))
+			s += strconv.Itoa(int(e))
 		case int32:
-			s += itoa.Itoa(int(e))
+			s += strconv.Itoa(int(e))
 		case int64:
-			s += itoa.Itoa(int(e))
+			s += strconv.Itoa(int(e))
 		case uint8:
-			s += itoa.Uitoa(uint(e))
+			s += strconv.FormatUint(uint64(e), 10)
 		case uint16:
-			s += itoa.Uitoa(uint(e))
+			s += strconv.FormatUint(uint64(e), 10)
 		case uint32:
-			s += itoa.Uitoa(uint(e))
+			s += strconv.FormatUint(uint64(e), 10)
 		case uint64:
-			s += itoa.Uitoa(uint(e))
+			s += strconv.FormatUint(uint64(e), 10)
 		case float32:
-			s += ftoa.FormatFloat(float64(e), 'g', -1, 32)
+			s += strconv.FormatFloat(float64(e), 'g', -1, 32)
 		case float64:
-			s += ftoa.FormatFloat(e, 'g', -1, 64)
+			s += strconv.FormatFloat(e, 'g', -1, 64)
 		}
 	}
 	s += "}"

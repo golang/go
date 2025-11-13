@@ -315,7 +315,7 @@ func CanInline(fn *ir.Func, profile *pgoir.Profile) {
 // function is inlinable.
 func noteInlinableFunc(n *ir.Name, fn *ir.Func, cost int32) {
 	if base.Flag.LowerM > 1 {
-		fmt.Printf("%v: can inline %v with cost %d as: %v { %v }\n", ir.Line(fn), n, cost, fn.Type(), ir.Nodes(fn.Body))
+		fmt.Printf("%v: can inline %v with cost %d as: %v { %v }\n", ir.Line(fn), n, cost, fn.Type(), fn.Body)
 	} else if base.Flag.LowerM != 0 {
 		fmt.Printf("%v: can inline %v\n", ir.Line(fn), n)
 	}

@@ -1,0 +1,118 @@
+handle git
+
+env GIT_AUTHOR_NAME='Russ Cox'
+env GIT_AUTHOR_EMAIL='rsc@golang.org'
+env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+
+git init
+git branch -M master
+
+at 2018-07-17T12:41:39-04:00
+cp x_cf92c7b.go x.go
+git add x.go
+git commit -m 'initial commit'
+
+at 2018-07-17T12:41:57-04:00
+cp x_52853eb.go x.go
+git commit -m 'add X' x.go
+
+at 2018-07-17T12:42:07-04:00
+cp x_7fff7f3.go x.go
+git commit -m 'gofmt' x.go
+git tag v1.0.0
+
+at 2018-07-17T12:42:28-04:00
+cp x_fa4f5d6.go x.go
+git commit -m 'X->XX' x.go
+
+at 2018-07-17T12:42:36-04:00
+cp x_d7ae1e4.go x.go
+git commit -m 'gofmt' x.go
+git tag v2.0.0
+
+at 2018-07-17T12:42:53-04:00
+cp x_7303f77.go x.go
+git commit -m 'add XXX' x.go
+
+at 2018-07-17T12:47:59-04:00
+git checkout v1.0.0
+cp x_1abc5ff.go x.go
+git commit -m 'comment' x.go
+
+at 2018-07-17T12:48:22-04:00
+cp x_731e3b1.go x.go
+git commit -m 'prerelease' x.go
+git tag v1.1.0-pre
+
+at 2018-07-17T12:48:49-04:00
+cp x_fb3c628.go x.go
+git commit -m 'working' x.go
+
+at 2018-07-17T12:49:05-04:00
+cp x_9f6f860.go x.go
+git commit -m 'v1.2.0' x.go
+git tag v1.2.0
+
+at 2018-07-17T12:49:42-04:00
+cp x_d2d4c3e.go x.go
+git commit -m 'more' x.go
+git tag morework
+
+git show-ref --tags --heads
+cmp stdout .git-refs
+
+-- .git-refs --
+7303f77963648d5f1ec5e55eccfad8e14035866c refs/heads/master
+d2d4c3ea66230e7ad6fbd8f0ecd8c0f851392364 refs/tags/morework
+7fff7f3417faa4a795f9518bc2bef05147a1d6c0 refs/tags/v1.0.0
+731e3b12a0272dcafb560b8fa6a4e9ffb20ef5c9 refs/tags/v1.1.0-pre
+9f6f860fe5c92cd835fdde2913aca8db9ce63373 refs/tags/v1.2.0
+d7ae1e4b368320e7a577fc8a9efc1e78aacac52a refs/tags/v2.0.0
+-- x_1abc5ff.go --
+package legacytest
+
+// add comment
+const X = 1
+-- x_52853eb.go --
+package legacytest
+const X = 1
+-- x_7303f77.go --
+package legacytest
+
+const XX = 2
+
+const XXX = 3
+-- x_731e3b1.go --
+package legacytest
+
+// add comment again
+const X = 1
+-- x_7fff7f3.go --
+package legacytest
+
+const X = 1
+-- x_9f6f860.go --
+package legacytest
+
+// add comment again!!!
+const X = 1
+-- x_cf92c7b.go --
+package legacytest
+-- x_d2d4c3e.go --
+package legacytest
+
+// add comment hack hack hack
+const X = 1
+-- x_d7ae1e4.go --
+package legacytest
+
+const XX = 2
+-- x_fa4f5d6.go --
+package legacytest
+const XX = 2
+-- x_fb3c628.go --
+package legacytest
+
+// add comment fixed
+const X = 1

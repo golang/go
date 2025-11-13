@@ -221,8 +221,6 @@ func TestMemmoveAtomicity(t *testing.T) {
 
 	for _, backward := range []bool{true, false} {
 		for _, n := range []int{3, 4, 5, 6, 7, 8, 9, 10, 15, 25, 49} {
-			n := n
-
 			// test copying [N]*int.
 			sz := uintptr(n * PtrSize)
 			name := fmt.Sprint(sz)

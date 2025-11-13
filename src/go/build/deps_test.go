@@ -49,7 +49,6 @@ var depsRules = `
 	  internal/coverage/uleb128,
 	  internal/coverage/calloc,
 	  internal/cpu,
-	  internal/ftoa,
 	  internal/goarch,
 	  internal/godebugs,
 	  internal/goexperiment,
@@ -71,8 +70,9 @@ var depsRules = `
 
 	internal/goarch < internal/abi;
 	internal/byteorder, internal/cpu, internal/goarch < internal/chacha8rand;
+	internal/goarch, math/bits < internal/strconv;
 
-	internal/cpu, internal/ftoa, internal/itoa < simd;
+	internal/cpu, internal/strconv < simd;
 
 	# RUNTIME is the core runtime group of packages, all of them very light-weight.
 	internal/abi,
@@ -85,6 +85,7 @@ var depsRules = `
 	internal/goos,
 	internal/itoa,
 	internal/profilerecord,
+	internal/strconv,
 	internal/trace/tracev2,
 	math/bits,
 	structs
@@ -102,7 +103,6 @@ var depsRules = `
 	< internal/runtime/gc
 	< internal/runtime/math
 	< internal/runtime/maps
-	< internal/runtime/strconv
 	< internal/runtime/cgroup
 	< internal/runtime/gc/scan
 	< runtime
@@ -177,7 +177,7 @@ var depsRules = `
 	MATH
 	< runtime/metrics;
 
-	MATH, unicode/utf8, internal/ftoa
+	MATH, unicode/utf8
 	< strconv;
 
 	unicode !< strconv;
@@ -241,7 +241,6 @@ var depsRules = `
 	  internal/types/errors,
 	  mime/quotedprintable,
 	  net/internal/socktest,
-	  net/url,
 	  runtime/trace,
 	  text/scanner,
 	  text/tabwriter;
@@ -303,6 +302,12 @@ var depsRules = `
 	# templates
 	FMT
 	< text/template/parse;
+
+	internal/bytealg, math/bits, slices, strconv, unique
+	< net/netip;
+
+	FMT, net/netip
+	< net/url;
 
 	net/url, text/template/parse
 	< text/template
@@ -418,9 +423,6 @@ var depsRules = `
 	< golang.org/x/net/dns/dnsmessage,
 	  golang.org/x/net/lif;
 
-	internal/bytealg, internal/itoa, math/bits, slices, strconv, unique
-	< net/netip;
-
 	os, net/netip
 	< internal/routebsd;
 
@@ -481,6 +483,8 @@ var depsRules = `
 
 	io, math/rand/v2 < crypto/internal/randutil;
 
+	NONE < crypto/internal/constanttime;
+
 	STR < crypto/internal/impl;
 
 	OS < crypto/internal/sysrand
@@ -492,13 +496,14 @@ var depsRules = `
 	time, internal/syscall/windows < crypto/internal/fips140deps/time;
 
 	crypto/internal/fips140deps/time, errors, math/bits, sync/atomic, unsafe
-	< crypto/internal/fips140/entropy;
+	< crypto/internal/entropy/v1.0.0;
 
 	STR, hash,
 	crypto/internal/impl,
 	crypto/internal/entropy,
 	crypto/internal/randutil,
-	crypto/internal/fips140/entropy,
+	crypto/internal/constanttime,
+	crypto/internal/entropy/v1.0.0,
 	crypto/internal/fips140deps/byteorder,
 	crypto/internal/fips140deps/cpu,
 	crypto/internal/fips140deps/godebug
@@ -568,7 +573,7 @@ var depsRules = `
 
 	# CRYPTO-MATH is crypto that exposes math/big APIs - no cgo, net; fmt now ok.
 
-	CRYPTO, FMT, math/big
+	CRYPTO, FMT, math/big, internal/saferio
 	< crypto/internal/boring/bbig
 	< crypto/internal/fips140cache
 	< crypto/rand
@@ -808,7 +813,7 @@ var depsRules = `
 	FMT, testing
 	< internal/cgrouptest;
 
-	regexp, internal/trace, internal/trace/raw, internal/txtar, testing
+	regexp, internal/testenv, internal/trace, internal/trace/raw, internal/txtar, testing
 	< internal/trace/testtrace;
 
 	C, CGO

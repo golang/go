@@ -1394,7 +1394,7 @@ HaveSpan:
 	}
 
 	// Initialize the span.
-	h.initSpan(s, typ, spanclass, base, npages)
+	h.initSpan(s, typ, spanclass, base, npages, scav)
 
 	if valgrindenabled {
 		valgrindMempoolMalloc(unsafe.Pointer(arenaBase(arenaIndex(base))), unsafe.Pointer(base), npages*pageSize)
@@ -1440,11 +1440,17 @@ HaveSpan:
 
 // initSpan initializes a blank span s which will represent the range
 // [base, base+npages*pageSize). typ is the type of span being allocated.
-func (h *mheap) initSpan(s *mspan, typ spanAllocType, spanclass spanClass, base, npages uintptr) {
+func (h *mheap) initSpan(s *mspan, typ spanAllocType, spanclass spanClass, base, npages, scav uintptr) {
 	// At this point, both s != nil and base != 0, and the heap
 	// lock is no longer held. Initialize the span.
 	s.init(base, npages)
-	if h.allocNeedsZero(base, npages) {
+	// Always call allocNeedsZero to update the arena's zeroedBase watermark
+	// and determine if the memory is considered dirty.
+	needZero := h.allocNeedsZero(base, npages)
+	// If these pages were scavenged (returned to the OS), the kernel guarantees
+	// they will be zero-filled on next use (fault-in), so we can treat them as
+	// already zeroed and skip explicit clearing.
+	if (needZeroAfterSysUnused() || scav != npages*pageSize) && needZero {
 		s.needzero = 1
 	}
 	nbytes := npages * pageSize

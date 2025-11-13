@@ -1,0 +1,125 @@
+# Test basic features of "go vet"/"go fix" CLI.
+#
+# The example relies on two analyzers:
+# - hostport (which is included in both the fix and vet suites), and
+# - printf (which is only in the vet suite).
+# Each reports one diagnostic with a fix.
+
+# vet default flags print diagnostics to stderr. Diagnostic => nonzero exit.
+! go vet example.com/x
+stderr 'does not work with IPv6'
+stderr 'non-constant format string in call to fmt.Sprintf'
+
+# -hostport runs only one analyzer. Diagnostic => failure.
+! go vet -hostport example.com/x
+stderr 'does not work with IPv6'
+! stderr 'non-constant format string'
+
+# -timeformat runs only one analyzer. No diagnostics => success.
+go vet -timeformat example.com/x
+! stderr .
+
+# JSON output includes diagnostics and fixes. Always success.
+go vet -json example.com/x
+! stderr .
+stdout '"example.com/x": {'
+stdout '"hostport":'
+stdout '"message": "address format .* does not work with IPv6",'
+stdout '"suggested_fixes":'
+stdout '"message": "Replace fmt.Sprintf with net.JoinHostPort",'
+
+# vet -fix -diff displays a diff.
+go vet -fix -diff example.com/x
+stdout '\-var _ = fmt.Sprintf\(s\)'
+stdout '\+var _ = fmt.Sprintf\("%s", s\)'
+stdout '\-var _, _ = net.Dial\("tcp", fmt.Sprintf\("%s:%d", s, 80\)\)'
+stdout '\+var _, _ = net.Dial\("tcp", net.JoinHostPort\(s, "80"\)\)'
+
+# vet -fix quietly applies the vet suite fixes.
+cp x.go x.go.bak
+go vet -fix example.com/x
+grep 'fmt.Sprintf\("%s", s\)' x.go
+grep 'net.JoinHostPort' x.go
+! stderr .
+cp x.go.bak x.go
+
+! go vet -diff example.com/x
+stderr 'go vet -diff flag requires -fix'
+
+# go fix applies the fix suite fixes.
+go fix example.com/x
+grep 'net.JoinHostPort' x.go
+! grep 'fmt.Sprintf\("%s", s\)' x.go
+! stderr .
+cp x.go.bak x.go
+
+# Show diff of fixes from the fix suite.
+go fix -diff example.com/x
+! stdout '\-var _ = fmt.Sprintf\(s\)'
+stdout '\-var _, _ = net.Dial\("tcp", fmt.Sprintf\("%s:%d", s, 80\)\)'
+stdout '\+var _, _ = net.Dial\("tcp", net.JoinHostPort\(s, "80"\)\)'
+
+# Show fix-suite fixes in JSON form.
+go fix -json example.com/x
+! stderr .
+stdout '"example.com/x": {'
+stdout '"hostport":'
+stdout '"message": "address format .* does not work with IPv6",'
+stdout '"suggested_fixes":'
+stdout '"message": "Replace fmt.Sprintf with net.JoinHostPort",'
+! stdout '"printf":'
+! stdout '"message": "non-constant format string.*",'
+! stdout '"message": "Insert.*%s.*format.string",'
+
+# Show vet-suite fixes in JSON form.
+go vet -fix -json example.com/x
+! stderr .
+stdout '"example.com/x": {'
+stdout '"hostport":'
+stdout '"message": "address format .* does not work with IPv6",'
+stdout '"suggested_fixes":'
+stdout '"message": "Replace fmt.Sprintf with net.JoinHostPort",'
+stdout '"printf":'
+stdout '"message": "non-constant format string.*",'
+stdout '"suggested_fixes":'
+stdout '"message": "Insert.*%s.*format.string",'
+
+# Reject -diff + -json.
+! go fix -diff -json example.com/x
+stderr '-json and -diff cannot be used together'
+
+# Legacy way of selecting fixers is a no-op.
+go fix -fix=old1,old2 example.com/x
+stderr 'go fix: the -fix=old1,old2 flag is obsolete and has no effect'
+
+# -c=n flag shows n lines of context.
+! go vet -c=2 -printf example.com/x
+stderr 'x.go:12:21: non-constant format string in call to fmt.Sprintf'
+! stderr '9	'
+stderr '10	'
+stderr '11	// This call...'
+stderr '12	var _ = fmt.Sprintf\(s\)'
+stderr '13	'
+stderr '14	'
+! stderr '15	'
+
+-- go.mod --
+module example.com/x
+go 1.25
+
+-- x.go --
+package x
+
+
+import (
+	"fmt"
+	"net"
+)
+
+var s string
+
+// This call yields a "non-constant format string" diagnostic, with a fix (go vet only).
+var _ = fmt.Sprintf(s)
+
+// This call yields a hostport diagnostic, with a fix (go vet and go fix).
+var _, _ = net.Dial("tcp", fmt.Sprintf("%s:%d", s, 80))

@@ -21,7 +21,7 @@ func TestXAESAllocations(t *testing.T) {
 		t.Skip("Test reports non-zero allocation count. See issue #70448")
 	}
 	cryptotest.SkipTestAllocations(t)
-	if allocs := testing.AllocsPerRun(10, func() {
+	if allocs := testing.AllocsPerRun(100, func() {
 		key := make([]byte, 32)
 		nonce := make([]byte, 24)
 		plaintext := make([]byte, 16)

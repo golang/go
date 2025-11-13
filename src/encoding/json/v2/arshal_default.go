@@ -474,10 +474,21 @@ func makeIntArshaler(t reflect.Type) *arshaler {
 				break
 			}
 			val = jsonwire.UnquoteMayCopy(val, flags.IsVerbatim())
-			if uo.Flags.Get(jsonflags.StringifyWithLegacySemantics) && string(val) == "null" {
-				if !uo.Flags.Get(jsonflags.MergeWithLegacySemantics) {
-					va.SetInt(0)
+			if uo.Flags.Get(jsonflags.StringifyWithLegacySemantics) {
+				// For historical reasons, v1 parsed a quoted number
+				// according to the Go syntax and permitted a quoted null.
+				// See https://go.dev/issue/75619
+				n, err := strconv.ParseInt(string(val), 10, bits)
+				if err != nil {
+					if string(val) == "null" {
+						if !uo.Flags.Get(jsonflags.MergeWithLegacySemantics) {
+							va.SetInt(0)
+						}
+						return nil
+					}
+					return newUnmarshalErrorAfterWithValue(dec, t, errors.Unwrap(err))
 				}
+				va.SetInt(n)
 				return nil
 			}
 			fallthrough
@@ -561,10 +572,21 @@ func makeUintArshaler(t reflect.Type) *arshaler {
 				break
 			}
 			val = jsonwire.UnquoteMayCopy(val, flags.IsVerbatim())
-			if uo.Flags.Get(jsonflags.StringifyWithLegacySemantics) && string(val) == "null" {
-				if !uo.Flags.Get(jsonflags.MergeWithLegacySemantics) {
-					va.SetUint(0)
+			if uo.Flags.Get(jsonflags.StringifyWithLegacySemantics) {
+				// For historical reasons, v1 parsed a quoted number
+				// according to the Go syntax and permitted a quoted null.
+				// See https://go.dev/issue/75619
+				n, err := strconv.ParseUint(string(val), 10, bits)
+				if err != nil {
+					if string(val) == "null" {
+						if !uo.Flags.Get(jsonflags.MergeWithLegacySemantics) {
+							va.SetUint(0)
+						}
+						return nil
+					}
+					return newUnmarshalErrorAfterWithValue(dec, t, errors.Unwrap(err))
 				}
+				va.SetUint(n)
 				return nil
 			}
 			fallthrough
@@ -671,10 +693,21 @@ func makeFloatArshaler(t reflect.Type) *arshaler {
 			if !stringify {
 				break
 			}
-			if uo.Flags.Get(jsonflags.StringifyWithLegacySemantics) && string(val) == "null" {
-				if !uo.Flags.Get(jsonflags.MergeWithLegacySemantics) {
-					va.SetFloat(0)
+			if uo.Flags.Get(jsonflags.StringifyWithLegacySemantics) {
+				// For historical reasons, v1 parsed a quoted number
+				// according to the Go syntax and permitted a quoted null.
+				// See https://go.dev/issue/75619
+				n, err := strconv.ParseFloat(string(val), bits)
+				if err != nil {
+					if string(val) == "null" {
+						if !uo.Flags.Get(jsonflags.MergeWithLegacySemantics) {
+							va.SetFloat(0)
+						}
+						return nil
+					}
+					return newUnmarshalErrorAfterWithValue(dec, t, errors.Unwrap(err))
 				}
+				va.SetFloat(n)
 				return nil
 			}
 			if n, err := jsonwire.ConsumeNumber(val); n != len(val) || err != nil {
@@ -810,7 +843,7 @@ func makeMapArshaler(t reflect.Type) *arshaler {
 					k.SetIterKey(iter)
 					(*names)[i] = k.String()
 				}
-				names.Sort()
+				slices.Sort(*names)
 				for _, name := range *names {
 					if err := enc.WriteToken(jsontext.String(name)); err != nil {
 						return err

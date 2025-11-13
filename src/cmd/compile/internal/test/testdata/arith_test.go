@@ -1390,11 +1390,17 @@ func div19_int64(n int64) bool {
 	return n%19 == 0
 }
 
+var (
+	// These have to be global to avoid getting constant-folded in the function body:
+	// as locals, prove can see that they are actually constants.
+	sixU, nineteenU uint64 = 6, 19
+	sixS, nineteenS int64 = 6, 19
+)
+
 // testDivisibility confirms that rewrite rules x%c ==0 for c constant are correct.
 func testDivisibility(t *testing.T) {
 	// unsigned tests
 	// test an even and an odd divisor
-	var sixU, nineteenU uint64 = 6, 19
 	// test all inputs for uint8, uint16
 	for i := uint64(0); i <= math.MaxUint16; i++ {
 		if i <= math.MaxUint8 {
@@ -1402,7 +1408,7 @@ func testDivisibility(t *testing.T) {
 				t.Errorf("div6_uint8(%d) = %v want %v", i, got, want)
 			}
 			if want, got := uint8(i)%uint8(nineteenU) == 0, div19_uint8(uint8(i)); got != want {
-				t.Errorf("div6_uint19(%d) = %v want %v", i, got, want)
+				t.Errorf("div19_uint8(%d) = %v want %v", i, got, want)
 			}
 		}
 		if want, got := uint16(i)%uint16(sixU) == 0, div6_uint16(uint16(i)); got != want {
@@ -1450,7 +1456,6 @@ func testDivisibility(t *testing.T) {
 
 	// signed tests
 	// test an even and an odd divisor
-	var sixS, nineteenS int64 = 6, 19
 	// test all inputs for int8, int16
 	for i := int64(math.MinInt16); i <= math.MaxInt16; i++ {
 		if math.MinInt8 <= i && i <= math.MaxInt8 {
@@ -1458,7 +1463,7 @@ func testDivisibility(t *testing.T) {
 				t.Errorf("div6_int8(%d) = %v want %v", i, got, want)
 			}
 			if want, got := int8(i)%int8(nineteenS) == 0, div19_int8(int8(i)); got != want {
-				t.Errorf("div6_int19(%d) = %v want %v", i, got, want)
+				t.Errorf("div19_int8(%d) = %v want %v", i, got, want)
 			}
 		}
 		if want, got := int16(i)%int16(sixS) == 0, div6_int16(int16(i)); got != want {

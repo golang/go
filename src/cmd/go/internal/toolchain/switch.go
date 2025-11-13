@@ -16,6 +16,7 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/gover"
 	"cmd/go/internal/modfetch"
+	"cmd/go/internal/modload"
 	"cmd/internal/telemetry/counter"
 )
 
@@ -31,8 +32,15 @@ import (
 //
 // See https://go.dev/doc/toolchain#switch.
 type Switcher struct {
-	TooNew *gover.TooNewError // max go requirement observed
-	Errors []error            // errors collected so far
+	TooNew      *gover.TooNewError // max go requirement observed
+	Errors      []error            // errors collected so far
+	loaderstate *modload.State     // temporarily here while we eliminate global module loader state
+}
+
+func NewSwitcher(s *modload.State) *Switcher {
+	sw := new(Switcher)
+	sw.loaderstate = s
+	return sw
 }
 
 // Error reports the error to the Switcher,
@@ -100,7 +108,7 @@ func (s *Switcher) Switch(ctx context.Context) {
 
 	fmt.Fprintf(os.Stderr, "go: %v requires go >= %v; switching to %v\n", s.TooNew.What, s.TooNew.GoVersion, tv)
 	counterSwitchExec.Inc()
-	Exec(tv)
+	Exec(s.loaderstate, tv)
 	panic("unreachable")
 }
 
@@ -108,8 +116,8 @@ var counterSwitchExec = counter.New("go/toolchain/switch-exec")
 
 // SwitchOrFatal attempts a toolchain switch based on the information in err
 // and otherwise falls back to base.Fatal(err).
-func SwitchOrFatal(ctx context.Context, err error) {
-	var s Switcher
+func SwitchOrFatal(loaderstate *modload.State, ctx context.Context, err error) {
+	s := NewSwitcher(loaderstate)
 	s.Error(err)
 	s.Switch(ctx)
 	base.Exit()

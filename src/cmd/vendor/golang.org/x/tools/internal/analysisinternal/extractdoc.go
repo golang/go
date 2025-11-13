@@ -35,7 +35,7 @@ import (
 //
 //	var Analyzer = &analysis.Analyzer{
 //		Name:             "halting",
-//		Doc:              analysisutil.MustExtractDoc(doc, "halting"),
+//		Doc:              analysisinternal.MustExtractDoc(doc, "halting"),
 //		...
 //	}
 func MustExtractDoc(content, name string) string {

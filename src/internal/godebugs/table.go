@@ -42,6 +42,7 @@ var All = []Info{
 	{Name: "http2client", Package: "net/http"},
 	{Name: "http2debug", Package: "net/http", Opaque: true},
 	{Name: "http2server", Package: "net/http"},
+	{Name: "httpcookiemaxnum", Package: "net/http", Changed: 24, Old: "0"},
 	{Name: "httplaxcontentlength", Package: "net/http", Changed: 22, Old: "1"},
 	{Name: "httpmuxgo121", Package: "net/http", Changed: 22, Old: "1"},
 	{Name: "httpservecontentkeepheaders", Package: "net/http", Changed: 23, Old: "1"},
@@ -66,6 +67,7 @@ var All = []Info{
 	{Name: "tlssha1", Package: "crypto/tls", Changed: 25, Old: "1"},
 	{Name: "tlsunsafeekm", Package: "crypto/tls", Changed: 22, Old: "1"},
 	{Name: "updatemaxprocs", Package: "runtime", Changed: 25, Old: "0"},
+	{Name: "urlstrictcolons", Package: "net/url", Changed: 26, Old: "0"},
 	{Name: "winreadlinkvolume", Package: "os", Changed: 23, Old: "0"},
 	{Name: "winsymlink", Package: "os", Changed: 23, Old: "0"},
 	{Name: "x509keypairleaf", Package: "crypto/tls", Changed: 23, Old: "0"},
@@ -75,6 +77,16 @@ var All = []Info{
 	{Name: "x509usefallbackroots", Package: "crypto/x509"},
 	{Name: "x509usepolicies", Package: "crypto/x509", Changed: 24, Old: "0"},
 	{Name: "zipinsecurepath", Package: "archive/zip"},
+}
+
+type RemovedInfo struct {
+	Name    string // name of the removed GODEBUG setting.
+	Removed int    // minor version of Go, when the removal happened
+}
+
+// Removed contains all GODEBUGs that we have removed.
+var Removed = []RemovedInfo{
+	{Name: "x509sha1", Removed: 24},
 }
 
 // Lookup returns the Info with the given name.

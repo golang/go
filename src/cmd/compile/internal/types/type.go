@@ -174,7 +174,7 @@ type Type struct {
 	// TARRAY: *Array
 	// TSLICE: Slice
 	// TSSA: string
-	extra interface{}
+	extra any
 
 	// width is the width of this Type in bytes.
 	width int64 // valid if Align > 0
@@ -329,7 +329,7 @@ func (t *Type) funcType() *Func {
 	return t.extra.(*Func)
 }
 
-// StructType contains Type fields specific to struct types.
+// Struct contains Type fields specific to struct types.
 type Struct struct {
 	fields fields
 

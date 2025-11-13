@@ -618,6 +618,37 @@ func (q *spanQueue) refill(r *spanSPMC) objptr {
 	return q.tryGetFast()
 }
 
+// destroy frees all chains in an empty spanQueue.
+//
+// Preconditions:
+// - World is stopped.
+// - GC is outside of the mark phase.
+// - (Therefore) the queue is empty.
+func (q *spanQueue) destroy() {
+	assertWorldStopped()
+	if gcphase != _GCoff {
+		throw("spanQueue.destroy during the mark phase")
+	}
+	if !q.empty() {
+		throw("spanQueue.destroy on non-empty queue")
+	}
+
+	lock(&work.spanSPMCs.lock)
+
+	// Remove, deinitialize, and free each ring.
+	for r := (*spanSPMC)(q.chain.tail.Load()); r != nil; r = (*spanSPMC)(r.prev.Load()) {
+		work.spanSPMCs.list.remove(unsafe.Pointer(r))
+		r.deinit()
+		mheap_.spanSPMCAlloc.free(unsafe.Pointer(r))
+	}
+
+	q.chain.head = nil
+	q.chain.tail.Store(nil)
+	q.putsSinceDrain = 0
+
+	unlock(&work.spanSPMCs.lock)
+}
+
 // spanSPMC is a ring buffer of objptrs that represent spans.
 // Accessed without a lock.
 //
@@ -646,10 +677,10 @@ func (q *spanQueue) refill(r *spanSPMC) objptr {
 type spanSPMC struct {
 	_ sys.NotInHeap
 
-	// allnext is the link to the next spanSPMC on the work.spanSPMCs list.
-	// This is used to find and free dead spanSPMCs. Protected by
+	// allnode is the linked list node for work.spanSPMCs list. This is
+	// used to find and free dead spanSPMCs. Protected by
 	// work.spanSPMCs.lock.
-	allnext *spanSPMC
+	allnode listNodeManual
 
 	// dead indicates whether the spanSPMC is no longer in use.
 	// Protected by the CAS to the prev field of the spanSPMC pointing
@@ -677,8 +708,7 @@ type spanSPMC struct {
 func newSpanSPMC(cap uint32) *spanSPMC {
 	lock(&work.spanSPMCs.lock)
 	r := (*spanSPMC)(mheap_.spanSPMCAlloc.alloc())
-	r.allnext = work.spanSPMCs.all
-	work.spanSPMCs.all = r
+	work.spanSPMCs.list.push(unsafe.Pointer(r))
 	unlock(&work.spanSPMCs.lock)
 
 	// If cap < the capacity of a single physical page, round up.
@@ -714,6 +744,7 @@ func (r *spanSPMC) deinit() {
 	r.head.Store(0)
 	r.tail.Store(0)
 	r.cap = 0
+	r.allnode = listNodeManual{}
 }
 
 // slot returns a pointer to slot i%r.cap.
@@ -722,13 +753,8 @@ func (r *spanSPMC) slot(i uint32) *objptr {
 	return (*objptr)(unsafe.Add(unsafe.Pointer(r.ring), idx*unsafe.Sizeof(objptr(0))))
 }
 
-// freeSomeSpanSPMCs frees some spanSPMCs back to the OS and returns
-// true if it should be called again to free more.
-func freeSomeSpanSPMCs(preemptible bool) bool {
-	// TODO(mknyszek): This is arbitrary, but some kind of limit is necessary
-	// to help bound delays to cooperatively preempt ourselves.
-	const batchSize = 64
-
+// freeDeadSpanSPMCs frees dead spanSPMCs back to the OS.
+func freeDeadSpanSPMCs() {
 	// According to the SPMC memory management invariants, we can only free
 	// spanSPMCs outside of the mark phase. We ensure we do this in two ways.
 	//
@@ -740,33 +766,29 @@ func freeSomeSpanSPMCs(preemptible bool) bool {
 	//
 	// This way, we ensure that we don't start freeing if we're in the wrong
 	// phase, and the phase can't change on us while we're freeing.
+	//
+	// TODO(go.dev/issue/75771): Due to the grow semantics in
+	// spanQueue.drain, we expect a steady-state of around one spanSPMC per
+	// P, with some spikes higher when Ps have more than one. For high
+	// GOMAXPROCS, or if this list otherwise gets long, it would be nice to
+	// have a way to batch work that allows preemption during processing.
 	lock(&work.spanSPMCs.lock)
-	if gcphase != _GCoff || work.spanSPMCs.all == nil {
+	if gcphase != _GCoff || work.spanSPMCs.list.empty() {
 		unlock(&work.spanSPMCs.lock)
-		return false
+		return
 	}
-	rp := &work.spanSPMCs.all
-	gp := getg()
-	more := true
-	for i := 0; i < batchSize && !(preemptible && gp.preempt); i++ {
-		r := *rp
-		if r == nil {
-			more = false
-			break
-		}
+	r := (*spanSPMC)(work.spanSPMCs.list.head())
+	for r != nil {
+		next := (*spanSPMC)(unsafe.Pointer(r.allnode.next))
 		if r.dead.Load() {
-			// It's dead. Deinitialize and free it.
-			*rp = r.allnext
+			// It's dead. Remove, deinitialize and free it.
+			work.spanSPMCs.list.remove(unsafe.Pointer(r))
 			r.deinit()
 			mheap_.spanSPMCAlloc.free(unsafe.Pointer(r))
-		} else {
-			// Still alive, likely in some P's chain.
-			// Skip it.
-			rp = &r.allnext
 		}
+		r = next
 	}
 	unlock(&work.spanSPMCs.lock)
-	return more
 }
 
 // tryStealSpan attempts to steal a span from another P's local queue.

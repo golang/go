@@ -114,7 +114,8 @@ func benchmarkScanSpanPackedAllSizeClasses(b *testing.B, nPages int) {
 		if sc == 0 {
 			continue
 		}
-		if sc >= gc.MinSizeForMallocHeader {
+		size := gc.SizeClassToSize[sc]
+		if size >= gc.MinSizeForMallocHeader {
 			break
 		}
 		b.Run(fmt.Sprintf("sizeclass=%d", sc), func(b *testing.B) {

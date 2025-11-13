@@ -162,10 +162,19 @@
 (Cvt64to32F ...) => (CVTSQ2SS ...)
 (Cvt64to64F ...) => (CVTSQ2SD ...)
 
-(Cvt32Fto32 ...) => (CVTTSS2SL ...)
-(Cvt32Fto64 ...) => (CVTTSS2SQ ...)
-(Cvt64Fto32 ...) => (CVTTSD2SL ...)
-(Cvt64Fto64 ...) => (CVTTSD2SQ ...)
+// Float, to int.
+// To make AMD64 "overflow" return max positive instead of max negative, compute
+// y and not x, smear the sign bit, and xor.
+(Cvt32Fto32 <t> x) && base.ConvertHash.MatchPos(v.Pos, nil) => (XORL <t> y (SARLconst <t> [31] (ANDL <t> y:(CVTTSS2SL <t> x) (NOTL <typ.Int32> (MOVLf2i x)))))
+(Cvt64Fto32 <t> x) && base.ConvertHash.MatchPos(v.Pos, nil) => (XORL <t> y (SARLconst <t> [31] (ANDL <t> y:(CVTTSD2SL <t> x) (NOTL <typ.Int32> (MOVLf2i (CVTSD2SS <typ.Float32> x))))))
+
+(Cvt32Fto64 <t> x) && base.ConvertHash.MatchPos(v.Pos, nil) => (XORQ <t> y (SARQconst <t> [63] (ANDQ <t> y:(CVTTSS2SQ <t> x) (NOTQ <typ.Int64> (MOVQf2i (CVTSS2SD <typ.Float64> x))) )))
+(Cvt64Fto64 <t> x) && base.ConvertHash.MatchPos(v.Pos, nil) => (XORQ <t> y (SARQconst <t> [63] (ANDQ <t> y:(CVTTSD2SQ <t> x) (NOTQ <typ.Int64> (MOVQf2i x)))))
+
+(Cvt32Fto32 <t> x) && !base.ConvertHash.MatchPos(v.Pos, nil) => (CVTTSS2SL <t> x)
+(Cvt32Fto64 <t> x) && !base.ConvertHash.MatchPos(v.Pos, nil) => (CVTTSS2SQ <t> x)
+(Cvt64Fto32 <t> x) && !base.ConvertHash.MatchPos(v.Pos, nil) => (CVTTSD2SL <t> x)
+(Cvt64Fto64 <t> x) && !base.ConvertHash.MatchPos(v.Pos, nil) => (CVTTSD2SQ <t> x)
 
 (Cvt32Fto64F ...) => (CVTSS2SD ...)
 (Cvt64Fto32F ...) => (CVTSD2SS ...)
@@ -388,20 +397,30 @@
 (CondSelect <t> x y (SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) cond)) && is16BitInt(t)
     => (CMOVW(EQ|NE|LT|GT|LE|GE|HI|CS|CC|LS|EQF|NEF|GTF|GEF) y x cond)
 
-// If the condition does not set the flags, we need to generate a comparison.
-(CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 1
-    => (CondSelect <t> x y (MOVBQZX <typ.UInt64> check))
-(CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 2
-    => (CondSelect <t> x y (MOVWQZX <typ.UInt64> check))
-(CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 4
-    => (CondSelect <t> x y (MOVLQZX <typ.UInt64> check))
-
 (CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 8 && (is64BitInt(t) || isPtr(t))
     => (CMOVQNE y x (CMPQconst [0] check))
 (CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 8 && is32BitInt(t)
     => (CMOVLNE y x (CMPQconst [0] check))
 (CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 8 && is16BitInt(t)
     => (CMOVWNE y x (CMPQconst [0] check))
+(CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 4 && (is64BitInt(t) || isPtr(t))
+    => (CMOVQNE y x (CMPLconst [0] check))
+(CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 4 && is32BitInt(t)
+    => (CMOVLNE y x (CMPLconst [0] check))
+(CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 4 && is16BitInt(t)
+    => (CMOVWNE y x (CMPLconst [0] check))
+(CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 2 && (is64BitInt(t) || isPtr(t))
+    => (CMOVQNE y x (CMPWconst [0] check))
+(CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 2 && is32BitInt(t)
+    => (CMOVLNE y x (CMPWconst [0] check))
+(CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 2 && is16BitInt(t)
+    => (CMOVWNE y x (CMPWconst [0] check))
+(CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 1 && (is64BitInt(t) || isPtr(t))
+    => (CMOVQNE y x (CMPBconst [0] check))
+(CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 1 && is32BitInt(t)
+    => (CMOVLNE y x (CMPBconst [0] check))
+(CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 1 && is16BitInt(t)
+    => (CMOVWNE y x (CMPBconst [0] check))
 
 // Absorb InvertFlags
 (CMOVQ(EQ|NE|LT|GT|LE|GE|HI|CS|CC|LS) x y (InvertFlags cond))

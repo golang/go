@@ -52,7 +52,7 @@ type Once struct {
 func (o *Once) Do(f func()) {
 	// Note: Here is an incorrect implementation of Do:
 	//
-	//	if o.done.CompareAndSwap(0, 1) {
+	//	if o.done.CompareAndSwap(false, true) {
 	//		f()
 	//	}
 	//

@@ -16,10 +16,11 @@ import (
 //
 // DO NOT add new packages here just to make the tests pass.
 var AllowedInternalPackages = map[string]bool{
-	// entropy.Depleted is the external passive entropy source, and sysrand.Read
+	// entropy.Depleted/Seed is the entropy source, and sysrand.Read
 	// is the actual (but uncredited!) random bytes source.
-	"crypto/internal/entropy": true,
-	"crypto/internal/sysrand": true,
+	"crypto/internal/entropy":        true,
+	"crypto/internal/entropy/v1.0.0": true,
+	"crypto/internal/sysrand":        true,
 
 	// impl.Register is how the packages expose their alternative
 	// implementations to tests outside the module.
@@ -27,6 +28,9 @@ var AllowedInternalPackages = map[string]bool{
 
 	// randutil.MaybeReadByte is used in non-FIPS mode by GenerateKey functions.
 	"crypto/internal/randutil": true,
+
+	// constanttime are the constant-time intrinsics.
+	"crypto/internal/constanttime": true,
 }
 
 func TestImports(t *testing.T) {
@@ -88,8 +92,7 @@ func TestImports(t *testing.T) {
 		}
 	}
 
-	// Ensure that all packages except check, check's dependencies, and the
-	// entropy source (which is used only from .../fips140/drbg) import check.
+	// Ensure that all packages except check and check's dependencies import check.
 	for pkg := range allPackages {
 		switch pkg {
 		case "crypto/internal/fips140/check":
@@ -100,7 +103,6 @@ func TestImports(t *testing.T) {
 		case "crypto/internal/fips140/sha3":
 		case "crypto/internal/fips140/sha256":
 		case "crypto/internal/fips140/sha512":
-		case "crypto/internal/fips140/entropy":
 		default:
 			if !importCheck[pkg] {
 				t.Errorf("package %s does not import crypto/internal/fips140/check", pkg)

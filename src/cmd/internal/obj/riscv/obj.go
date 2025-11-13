@@ -70,6 +70,10 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	// form of the instruction.
 	if p.From.Type == obj.TYPE_CONST {
 		switch p.As {
+		case ACSUB:
+			p.As, p.From.Offset = ACADDI, -p.From.Offset
+		case ACSUBW:
+			p.As, p.From.Offset = ACADDIW, -p.From.Offset
 		case ASUB:
 			p.As, p.From.Offset = AADDI, -p.From.Offset
 		case ASUBW:
@@ -381,6 +385,10 @@ func InvertBranch(as obj.As) obj.As {
 		return ABEQ
 	case ABNEZ:
 		return ABEQZ
+	case ACBEQZ:
+		return ACBNEZ
+	case ACBNEZ:
+		return ACBEQZ
 	default:
 		panic("InvertBranch: not a branch")
 	}
@@ -394,7 +402,7 @@ func containsCall(sym *obj.LSym) bool {
 		switch p.As {
 		case obj.ACALL:
 			return true
-		case AJAL, AJALR:
+		case ACJALR, AJAL, AJALR:
 			if p.From.Type == obj.TYPE_REG && p.From.Reg == REG_LR {
 				return true
 			}
@@ -670,7 +678,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 		for p := cursym.Func().Text; p != nil; p = p.Link {
 			switch p.As {
-			case ABEQ, ABEQZ, ABGE, ABGEU, ABGEZ, ABGT, ABGTU, ABGTZ, ABLE, ABLEU, ABLEZ, ABLT, ABLTU, ABLTZ, ABNE, ABNEZ:
+			case ABEQ, ABEQZ, ABGE, ABGEU, ABGEZ, ABGT, ABGTU, ABGTZ, ABLE, ABLEU, ABLEZ, ABLT, ABLTU, ABLTZ, ABNE, ABNEZ, ACBEQZ, ACBNEZ, ACJ:
 				if p.To.Type != obj.TYPE_BRANCH {
 					ctxt.Diag("%v: instruction with branch-like opcode lacks destination", p)
 					break
@@ -752,7 +760,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	// instructions will break everything--don't do it!
 	for p := cursym.Func().Text; p != nil; p = p.Link {
 		switch p.As {
-		case ABEQ, ABEQZ, ABGE, ABGEU, ABGEZ, ABGT, ABGTU, ABGTZ, ABLE, ABLEU, ABLEZ, ABLT, ABLTU, ABLTZ, ABNE, ABNEZ:
+		case ABEQ, ABEQZ, ABGE, ABGEU, ABGEZ, ABGT, ABGTU, ABGTZ, ABLE, ABLEU, ABLEZ, ABLT, ABLTU, ABLTZ, ABNE, ABNEZ, ACBEQZ, ACBNEZ, ACJ:
 			switch p.To.Type {
 			case obj.TYPE_BRANCH:
 				p.To.Type, p.To.Offset = obj.TYPE_CONST, p.To.Target().Pc-p.Pc
@@ -905,7 +913,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
 		to_done = p
 	} else {
 		// large stack: SP-framesize < stackguard-StackSmall
-		offset := int64(framesize) - abi.StackSmall
+		offset := framesize - abi.StackSmall
 		if framesize > abi.StackBig {
 			// Such a large stack we need to protect against underflow.
 			// The runtime guarantees SP > objabi.StackBig, but
@@ -1042,6 +1050,16 @@ func regVal(r, min, max uint32) uint32 {
 	return r - min
 }
 
+// regCI returns an integer register for use in a compressed instruction.
+func regCI(r uint32) uint32 {
+	return regVal(r, REG_X8, REG_X15)
+}
+
+// regCF returns a float register for use in a compressed instruction.
+func regCF(r uint32) uint32 {
+	return regVal(r, REG_F8, REG_F15)
+}
+
 // regI returns an integer register.
 func regI(r uint32) uint32 {
 	return regVal(r, REG_X0, REG_X31)
@@ -1123,6 +1141,24 @@ func wantImmU(ctxt *obj.Link, ins *instruction, imm int64, nbits uint) {
 	}
 }
 
+func wantScaledImm(ctxt *obj.Link, ins *instruction, imm int64, nbits uint, scale int64, signed bool) {
+	if err := immFits(imm, nbits, signed); err != nil {
+		ctxt.Diag("%v: %v", ins, err)
+		return
+	}
+	if imm%scale != 0 {
+		ctxt.Diag("%v: unsigned immediate %d must be a multiple of %d", ins, imm, scale)
+	}
+}
+
+func wantScaledImmI(ctxt *obj.Link, ins *instruction, imm int64, nbits uint, scale int64) {
+	wantScaledImm(ctxt, ins, imm, nbits, scale, true)
+}
+
+func wantScaledImmU(ctxt *obj.Link, ins *instruction, imm int64, nbits uint, scale int64) {
+	wantScaledImm(ctxt, ins, imm, nbits, scale, false)
+}
+
 func wantReg(ctxt *obj.Link, ins *instruction, pos string, descr string, r, min, max uint32) {
 	if r < min || r > max {
 		var suffix string
@@ -1144,9 +1180,21 @@ func wantIntReg(ctxt *obj.Link, ins *instruction, pos string, r uint32) {
 	wantReg(ctxt, ins, pos, "integer", r, REG_X0, REG_X31)
 }
 
+// wantIntPrimeReg checks that r is an integer register that can be used
+// in a prime register field of a compressed instruction.
+func wantIntPrimeReg(ctxt *obj.Link, ins *instruction, pos string, r uint32) {
+	wantReg(ctxt, ins, pos, "integer prime", r, REG_X8, REG_X15)
+}
+
 // wantFloatReg checks that r is a floating-point register.
 func wantFloatReg(ctxt *obj.Link, ins *instruction, pos string, r uint32) {
 	wantReg(ctxt, ins, pos, "float", r, REG_F0, REG_F31)
+}
+
+// wantFloatPrimeReg checks that r is an floating-point register that can
+// be used in a prime register field of a compressed instruction.
+func wantFloatPrimeReg(ctxt *obj.Link, ins *instruction, pos string, r uint32) {
+	wantReg(ctxt, ins, pos, "float prime", r, REG_F8, REG_F15)
 }
 
 // wantVectorReg checks that r is a vector register.
@@ -1158,6 +1206,206 @@ func wantVectorReg(ctxt *obj.Link, ins *instruction, pos string, r uint32) {
 func wantEvenOffset(ctxt *obj.Link, ins *instruction, offset int64) {
 	if err := immEven(offset); err != nil {
 		ctxt.Diag("%v: %v", ins, err)
+	}
+}
+
+func validateCA(ctxt *obj.Link, ins *instruction) {
+	wantIntPrimeReg(ctxt, ins, "rd", ins.rd)
+	if ins.rd != ins.rs1 {
+		ctxt.Diag("%v: rd must be the same as rs1", ins)
+	}
+	wantIntPrimeReg(ctxt, ins, "rs2", ins.rs2)
+}
+
+func validateCB(ctxt *obj.Link, ins *instruction) {
+	if (ins.as == ACSRAI || ins.as == ACSRLI) && ins.imm == 0 {
+		ctxt.Diag("%v: immediate cannot be zero", ins)
+	} else if ins.as == ACSRAI || ins.as == ACSRLI {
+		wantImmU(ctxt, ins, ins.imm, 6)
+	} else if ins.as == ACBEQZ || ins.as == ACBNEZ {
+		wantImmI(ctxt, ins, ins.imm, 9)
+	} else {
+		wantImmI(ctxt, ins, ins.imm, 6)
+	}
+	if ins.as == ACBEQZ || ins.as == ACBNEZ {
+		wantNoneReg(ctxt, ins, "rd", ins.rd)
+		wantIntPrimeReg(ctxt, ins, "rs1", ins.rs1)
+	} else {
+		wantIntPrimeReg(ctxt, ins, "rd", ins.rd)
+		if ins.rd != ins.rs1 {
+			ctxt.Diag("%v: rd must be the same as rs1", ins)
+		}
+	}
+	wantNoneReg(ctxt, ins, "rs2", ins.rs2)
+}
+
+func validateCI(ctxt *obj.Link, ins *instruction) {
+	if ins.as != ACNOP && ins.rd == REG_X0 {
+		ctxt.Diag("%v: cannot use register X0 in rd", ins)
+	}
+	if ins.as == ACLUI && ins.rd == REG_X2 {
+		ctxt.Diag("%v: cannot use register SP/X2 in rd", ins)
+	}
+	if ins.as != ACLI && ins.as != ACLUI && ins.as != ACLWSP && ins.as != ACLDSP && ins.as != ACFLDSP && ins.rd != ins.rs1 {
+		ctxt.Diag("%v: rd must be the same as rs1", ins)
+	}
+	if ins.as == ACADDI16SP && ins.rd != REG_SP {
+		ctxt.Diag("%v: rd must be SP/X2", ins)
+	}
+	if (ins.as == ACLWSP || ins.as == ACLDSP || ins.as == ACFLDSP) && ins.rs2 != REG_SP {
+		ctxt.Diag("%v: rs2 must be SP/X2", ins)
+	}
+	if (ins.as == ACADDI || ins.as == ACADDI16SP || ins.as == ACLUI || ins.as == ACSLLI) && ins.imm == 0 {
+		ctxt.Diag("%v: immediate cannot be zero", ins)
+	} else if ins.as == ACSLLI {
+		wantImmU(ctxt, ins, ins.imm, 6)
+	} else if ins.as == ACLWSP {
+		wantScaledImmU(ctxt, ins, ins.imm, 8, 4)
+	} else if ins.as == ACLDSP || ins.as == ACFLDSP {
+		wantScaledImmU(ctxt, ins, ins.imm, 9, 8)
+	} else if ins.as == ACADDI16SP {
+		wantScaledImmI(ctxt, ins, ins.imm, 10, 16)
+	} else {
+		wantImmI(ctxt, ins, ins.imm, 6)
+	}
+	switch ins.as {
+	case ACNOP, ACADDI, ACADDIW, ACSLLI:
+		wantIntReg(ctxt, ins, "rd", ins.rd)
+		wantIntReg(ctxt, ins, "rs1", ins.rs1)
+		wantNoneReg(ctxt, ins, "rs2", ins.rs2)
+	case ACLWSP, ACLDSP:
+		wantIntReg(ctxt, ins, "rd", ins.rd)
+		wantNoneReg(ctxt, ins, "rs1", ins.rs1)
+		wantIntReg(ctxt, ins, "rs2", ins.rs2)
+	case ACFLDSP:
+		wantFloatReg(ctxt, ins, "rd", ins.rd)
+		wantNoneReg(ctxt, ins, "rs1", ins.rs1)
+		wantIntReg(ctxt, ins, "rs2", ins.rs2)
+	case ACADDI16SP:
+		wantIntReg(ctxt, ins, "rd", ins.rd)
+		wantIntReg(ctxt, ins, "rs1", ins.rs1)
+		wantNoneReg(ctxt, ins, "rs2", ins.rs2)
+	default:
+		wantIntReg(ctxt, ins, "rd", ins.rd)
+		wantNoneReg(ctxt, ins, "rs1", ins.rs1)
+		wantNoneReg(ctxt, ins, "rs2", ins.rs2)
+	}
+}
+
+func validateCIW(ctxt *obj.Link, ins *instruction) {
+	wantScaledImmU(ctxt, ins, ins.imm, 10, 4)
+	wantIntPrimeReg(ctxt, ins, "rd", ins.rd)
+	wantIntReg(ctxt, ins, "rs1", ins.rs1)
+	wantNoneReg(ctxt, ins, "rs2", ins.rs2)
+	if ins.imm == 0 {
+		ctxt.Diag("%v: immediate cannot be zero", ins)
+	}
+	if ins.rs1 != REG_SP {
+		ctxt.Diag("%v: SP/X2 must be in rs1", ins)
+	}
+}
+
+func validateCJ(ctxt *obj.Link, ins *instruction) {
+	wantEvenOffset(ctxt, ins, ins.imm)
+	wantImmI(ctxt, ins, ins.imm, 12)
+	if ins.as != ACJ {
+		wantNoneReg(ctxt, ins, "rd", ins.rd)
+		wantIntReg(ctxt, ins, "rs1", ins.rs1)
+		wantIntReg(ctxt, ins, "rs2", ins.rs2)
+		if ins.rs1 == REG_X0 {
+			ctxt.Diag("%v: cannot use register X0 in rs1", ins)
+		}
+	}
+}
+
+func validateCL(ctxt *obj.Link, ins *instruction) {
+	if ins.as == ACLW {
+		wantScaledImmU(ctxt, ins, ins.imm, 7, 4)
+	} else if ins.as == ACLD || ins.as == ACFLD {
+		wantScaledImmU(ctxt, ins, ins.imm, 8, 8)
+	} else {
+		wantImmI(ctxt, ins, ins.imm, 5)
+	}
+	if ins.as == ACFLD {
+		wantFloatPrimeReg(ctxt, ins, "rd", ins.rd)
+	} else {
+		wantIntPrimeReg(ctxt, ins, "rd", ins.rd)
+	}
+	wantIntPrimeReg(ctxt, ins, "rs1", ins.rs1)
+	wantNoneReg(ctxt, ins, "rs2", ins.rs2)
+}
+
+func validateCR(ctxt *obj.Link, ins *instruction) {
+	switch ins.as {
+	case ACJR, ACJALR:
+		wantNoneReg(ctxt, ins, "rd", ins.rd)
+		wantIntReg(ctxt, ins, "rs1", ins.rs1)
+		wantNoneReg(ctxt, ins, "rs2", ins.rs2)
+		if ins.rs1 == REG_X0 {
+			ctxt.Diag("%v: cannot use register X0 in rs1", ins)
+		}
+	case ACMV:
+		wantIntReg(ctxt, ins, "rd", ins.rd)
+		wantNoneReg(ctxt, ins, "rs1", ins.rs1)
+		wantIntReg(ctxt, ins, "rs2", ins.rs2)
+		if ins.rd == REG_X0 {
+			ctxt.Diag("%v: cannot use register X0 in rd", ins)
+		}
+		if ins.rs2 == REG_X0 {
+			ctxt.Diag("%v: cannot use register X0 in rs2", ins)
+		}
+	case ACEBREAK:
+		wantNoneReg(ctxt, ins, "rd", ins.rd)
+		wantNoneReg(ctxt, ins, "rs1", ins.rs1)
+		wantNoneReg(ctxt, ins, "rs2", ins.rs2)
+	case ACADD:
+		wantIntReg(ctxt, ins, "rd", ins.rd)
+		if ins.rd == REG_X0 {
+			ctxt.Diag("%v: cannot use register X0 in rd", ins)
+		}
+		if ins.rd != ins.rs1 {
+			ctxt.Diag("%v: rd must be the same as rs1", ins)
+		}
+		wantIntReg(ctxt, ins, "rs2", ins.rs2)
+		if ins.rs2 == REG_X0 {
+			ctxt.Diag("%v: cannot use register X0 in rs2", ins)
+		}
+	}
+}
+
+func validateCS(ctxt *obj.Link, ins *instruction) {
+	if ins.as == ACSW {
+		wantScaledImmU(ctxt, ins, ins.imm, 7, 4)
+	} else if ins.as == ACSD || ins.as == ACFSD {
+		wantScaledImmU(ctxt, ins, ins.imm, 8, 8)
+	} else {
+		wantImmI(ctxt, ins, ins.imm, 5)
+	}
+	wantNoneReg(ctxt, ins, "rd", ins.rd)
+	wantIntPrimeReg(ctxt, ins, "rs1", ins.rs1)
+	if ins.as == ACFSD {
+		wantFloatPrimeReg(ctxt, ins, "rs2", ins.rs2)
+	} else {
+		wantIntPrimeReg(ctxt, ins, "rs2", ins.rs2)
+	}
+}
+
+func validateCSS(ctxt *obj.Link, ins *instruction) {
+	if ins.rd != REG_SP {
+		ctxt.Diag("%v: rd must be SP/X2", ins)
+	}
+	if ins.as == ACSWSP {
+		wantScaledImmU(ctxt, ins, ins.imm, 8, 4)
+	} else if ins.as == ACSDSP || ins.as == ACFSDSP {
+		wantScaledImmU(ctxt, ins, ins.imm, 9, 8)
+	} else {
+		wantImmI(ctxt, ins, ins.imm, 6)
+	}
+	wantNoneReg(ctxt, ins, "rs1", ins.rs1)
+	if ins.as == ACFSDSP {
+		wantFloatReg(ctxt, ins, "rs2", ins.rs2)
+	} else {
+		wantIntReg(ctxt, ins, "rs2", ins.rs2)
 	}
 }
 
@@ -1419,15 +1667,247 @@ func validateVsetvl(ctxt *obj.Link, ins *instruction) {
 func validateRaw(ctxt *obj.Link, ins *instruction) {
 	// Treat the raw value specially as a 32-bit unsigned integer.
 	// Nobody wants to enter negative machine code.
-	if ins.imm < 0 || 1<<32 <= ins.imm {
-		ctxt.Diag("%v: immediate %d in raw position cannot be larger than 32 bits", ins.as, ins.imm)
-	}
+	wantImmU(ctxt, ins, ins.imm, 32)
 }
 
-// extractBitAndShift extracts the specified bit from the given immediate,
-// before shifting it to the requested position and returning it.
-func extractBitAndShift(imm uint32, bit, pos int) uint32 {
-	return ((imm >> bit) & 1) << pos
+// compressedEncoding returns the fixed instruction encoding for a compressed
+// instruction.
+func compressedEncoding(as obj.As) uint32 {
+	enc := encode(as)
+	if enc == nil {
+		panic("compressedEncoding: could not encode instruction")
+	}
+
+	// TODO: this can be removed once encode is reworked to return the
+	// necessary bits.
+	op := uint32(0)
+	switch as {
+	case ACSUB:
+		op = 0b100011<<10 | 0b00<<5
+	case ACXOR:
+		op = 0b100011<<10 | 0b01<<5
+	case ACOR:
+		op = 0b100011<<10 | 0b10<<5
+	case ACAND:
+		op = 0b100011<<10 | 0b11<<5
+	case ACSUBW:
+		op = 0b100111<<10 | 0b00<<5
+	case ACADDW:
+		op = 0b100111<<10 | 0b01<<5
+	case ACBEQZ:
+		op = 0b110 << 13
+	case ACBNEZ:
+		op = 0b111 << 13
+	case ACANDI:
+		op = 0b100<<13 | 0b10<<10
+	case ACSRAI:
+		op = 0b100<<13 | 0b01<<10
+	case ACSRLI:
+		op = 0b100<<13 | 0b00<<10
+	case ACLI:
+		op = 0b010 << 13
+	case ACLUI:
+		op = 0b011 << 13
+	case ACLWSP:
+		op = 0b010 << 13
+	case ACLDSP:
+		op = 0b011 << 13
+	case ACFLDSP:
+		op = 0b001 << 13
+	case ACADDIW:
+		op = 0b001 << 13
+	case ACADDI16SP:
+		op = 0b011 << 13
+	case ACADDI4SPN:
+		op = 0b000 << 13
+	case ACJ:
+		op = 0b101 << 13
+	case ACLW:
+		op = 0b010 << 13
+	case ACLD:
+		op = 0b011 << 13
+	case ACFLD:
+		op = 0b001 << 13
+	case ACJR:
+		op = 0b1000 << 12
+	case ACMV:
+		op = 0b1000 << 12
+	case ACEBREAK:
+		op = 0b1001 << 12
+	case ACJALR:
+		op = 0b1001 << 12
+	case ACADD:
+		op = 0b1001 << 12
+	case ACSW:
+		op = 0b110 << 13
+	case ACSD:
+		op = 0b111 << 13
+	case ACFSD:
+		op = 0b101 << 13
+	case ACSWSP:
+		op = 0b110 << 13
+	case ACSDSP:
+		op = 0b111 << 13
+	case ACFSDSP:
+		op = 0b101 << 13
+	}
+
+	return op | enc.opcode
+}
+
+// encodeBitPattern encodes an immediate value by extracting the specified
+// bit pattern from the given immediate. Each value in the pattern specifies
+// the position of the bit to extract from the immediate, which are then
+// encoded in sequence.
+func encodeBitPattern(imm uint32, pattern []int) uint32 {
+	outImm := uint32(0)
+	for _, bit := range pattern {
+		outImm = outImm<<1 | (imm>>bit)&1
+	}
+	return outImm
+}
+
+// encodeCA encodes a compressed arithmetic (CA-type) instruction.
+func encodeCA(ins *instruction) uint32 {
+	return compressedEncoding(ins.as) | regCI(ins.rd)<<7 | regCI(ins.rs2)<<2
+}
+
+// encodeCBImmediate encodes an immediate for a CB-type RISC-V instruction.
+func encodeCBImmediate(imm uint32) uint32 {
+	// Bit order - [8|4:3|7:6|2:1|5]
+	bits := encodeBitPattern(imm, []int{8, 4, 3, 7, 6, 2, 1, 5})
+	return (bits>>5)<<10 | (bits&0x1f)<<2
+}
+
+// encodeCB encodes a compressed branch (CB-type) instruction.
+func encodeCB(ins *instruction) uint32 {
+	imm := uint32(0)
+	if ins.as == ACBEQZ || ins.as == ACBNEZ {
+		imm = immI(ins.as, ins.imm, 9)
+		imm = encodeBitPattern(imm, []int{8, 4, 3, 7, 6, 2, 1, 5})
+	} else if ins.as == ACANDI {
+		imm = immI(ins.as, ins.imm, 6)
+		imm = (imm>>5)<<7 | imm&0x1f
+	} else if ins.as == ACSRAI || ins.as == ACSRLI {
+		imm = immU(ins.as, ins.imm, 6)
+		imm = (imm>>5)<<7 | imm&0x1f
+	}
+	return compressedEncoding(ins.as) | (imm>>5)<<10 | regCI(ins.rs1)<<7 | (imm&0x1f)<<2
+}
+
+// encodeCI encodes a compressed immediate (CI-type) instruction.
+func encodeCI(ins *instruction) uint32 {
+	imm := uint32(ins.imm)
+	if ins.as == ACLWSP {
+		// Bit order [5:2|7:6]
+		imm = encodeBitPattern(imm, []int{5, 4, 3, 2, 7, 6})
+	} else if ins.as == ACLDSP || ins.as == ACFLDSP {
+		// Bit order [5:3|8:6]
+		imm = encodeBitPattern(imm, []int{5, 4, 3, 8, 7, 6})
+	} else if ins.as == ACADDI16SP {
+		// Bit order [9|4|6|8:7|5]
+		imm = encodeBitPattern(imm, []int{9, 4, 6, 8, 7, 5})
+	}
+	rd := uint32(0)
+	if ins.as == ACFLDSP {
+		rd = regF(ins.rd)
+	} else {
+		rd = regI(ins.rd)
+	}
+	return compressedEncoding(ins.as) | ((imm>>5)&0x1)<<12 | rd<<7 | (imm&0x1f)<<2
+}
+
+// encodeCIW encodes a compressed immediate wide (CIW-type) instruction.
+func encodeCIW(ins *instruction) uint32 {
+	imm := uint32(ins.imm)
+	if ins.as == ACADDI4SPN {
+		// Bit order [5:4|9:6|2|3]
+		imm = encodeBitPattern(imm, []int{5, 4, 9, 8, 7, 6, 2, 3})
+	}
+	return compressedEncoding(ins.as) | imm<<5 | regCI(ins.rd)<<2
+}
+
+// encodeCJImmediate encodes an immediate for a CJ-type RISC-V instruction.
+func encodeCJImmediate(imm uint32) uint32 {
+	// Bit order - [11|4|9:8|10|6|7|3:1|5]
+	bits := encodeBitPattern(imm, []int{11, 4, 9, 8, 10, 6, 7, 3, 2, 1, 5})
+	return bits << 2
+}
+
+// encodeCJ encodes a compressed jump (CJ-type) instruction.
+func encodeCJ(ins *instruction) uint32 {
+	return compressedEncoding(ins.as) | encodeCJImmediate(uint32(ins.imm))
+}
+
+// encodeCL encodes a compressed load (CL-type) instruction.
+func encodeCL(ins *instruction) uint32 {
+	imm := uint32(ins.imm)
+	if ins.as == ACLW {
+		// Bit order [5:2|6]
+		imm = encodeBitPattern(imm, []int{5, 4, 3, 2, 6})
+	} else if ins.as == ACLD || ins.as == ACFLD {
+		// Bit order [5:3|7:6]
+		imm = encodeBitPattern(imm, []int{5, 4, 3, 7, 6})
+	}
+	rd := uint32(0)
+	if ins.as == ACFLD {
+		rd = regCF(ins.rd)
+	} else {
+		rd = regCI(ins.rd)
+	}
+	return compressedEncoding(ins.as) | (imm>>2)<<10 | regCI(ins.rs1)<<7 | (imm&0x3)<<5 | rd<<2
+}
+
+// encodeCR encodes a compressed register (CR-type) instruction.
+func encodeCR(ins *instruction) uint32 {
+	rs1, rs2 := uint32(0), uint32(0)
+	switch ins.as {
+	case ACJR, ACJALR:
+		rs1 = regI(ins.rs1)
+	case ACMV:
+		rs1, rs2 = regI(ins.rd), regI(ins.rs2)
+	case ACADD:
+		rs1, rs2 = regI(ins.rs1), regI(ins.rs2)
+	}
+	return compressedEncoding(ins.as) | rs1<<7 | rs2<<2
+}
+
+// encodeCS encodes a compressed store (CS-type) instruction.
+func encodeCS(ins *instruction) uint32 {
+	imm := uint32(ins.imm)
+	if ins.as == ACSW {
+		// Bit order [5:3|2|6]
+		imm = encodeBitPattern(imm, []int{5, 4, 3, 2, 6})
+	} else if ins.as == ACSD || ins.as == ACFSD {
+		// Bit order [5:3|7:6]
+		imm = encodeBitPattern(imm, []int{5, 4, 3, 7, 6})
+	}
+	rs2 := uint32(0)
+	if ins.as == ACFSD {
+		rs2 = regCF(ins.rs2)
+	} else {
+		rs2 = regCI(ins.rs2)
+	}
+	return compressedEncoding(ins.as) | ((imm>>2)&0x7)<<10 | regCI(ins.rs1)<<7 | (imm&3)<<5 | rs2<<2
+}
+
+// encodeCSS encodes a compressed stack-relative store (CSS-type) instruction.
+func encodeCSS(ins *instruction) uint32 {
+	imm := uint32(ins.imm)
+	if ins.as == ACSWSP {
+		// Bit order [5:2|7:6]
+		imm = encodeBitPattern(imm, []int{5, 4, 3, 2, 7, 6})
+	} else if ins.as == ACSDSP || ins.as == ACFSDSP {
+		// Bit order [5:3|8:6]
+		imm = encodeBitPattern(imm, []int{5, 4, 3, 8, 7, 6})
+	}
+	rs2 := uint32(0)
+	if ins.as == ACFSDSP {
+		rs2 = regF(ins.rs2)
+	} else {
+		rs2 = regI(ins.rs2)
+	}
+	return compressedEncoding(ins.as) | imm<<7 | rs2<<2
 }
 
 // encodeR encodes an R-type RISC-V instruction.
@@ -1649,37 +2129,6 @@ func encodeJ(ins *instruction) uint32 {
 	return encodeJImmediate(imm) | rd<<7 | enc.opcode
 }
 
-// encodeCBImmediate encodes an immediate for a CB-type RISC-V instruction.
-func encodeCBImmediate(imm uint32) uint32 {
-	// Bit order - [8|4:3|7:6|2:1|5]
-	bits := extractBitAndShift(imm, 8, 7)
-	bits |= extractBitAndShift(imm, 4, 6)
-	bits |= extractBitAndShift(imm, 3, 5)
-	bits |= extractBitAndShift(imm, 7, 4)
-	bits |= extractBitAndShift(imm, 6, 3)
-	bits |= extractBitAndShift(imm, 2, 2)
-	bits |= extractBitAndShift(imm, 1, 1)
-	bits |= extractBitAndShift(imm, 5, 0)
-	return (bits>>5)<<10 | (bits&0x1f)<<2
-}
-
-// encodeCJImmediate encodes an immediate for a CJ-type RISC-V instruction.
-func encodeCJImmediate(imm uint32) uint32 {
-	// Bit order - [11|4|9:8|10|6|7|3:1|5]
-	bits := extractBitAndShift(imm, 11, 10)
-	bits |= extractBitAndShift(imm, 4, 9)
-	bits |= extractBitAndShift(imm, 9, 8)
-	bits |= extractBitAndShift(imm, 8, 7)
-	bits |= extractBitAndShift(imm, 10, 6)
-	bits |= extractBitAndShift(imm, 6, 5)
-	bits |= extractBitAndShift(imm, 7, 4)
-	bits |= extractBitAndShift(imm, 3, 3)
-	bits |= extractBitAndShift(imm, 2, 2)
-	bits |= extractBitAndShift(imm, 1, 1)
-	bits |= extractBitAndShift(imm, 5, 0)
-	return bits << 2
-}
-
 func encodeVset(as obj.As, rs1, rs2, rd uint32) uint32 {
 	enc := encode(as)
 	if enc == nil {
@@ -1706,10 +2155,7 @@ func encodeVsetvl(ins *instruction) uint32 {
 func encodeRawIns(ins *instruction) uint32 {
 	// Treat the raw value specially as a 32-bit unsigned integer.
 	// Nobody wants to enter negative machine code.
-	if ins.imm < 0 || 1<<32 <= ins.imm {
-		panic(fmt.Sprintf("immediate %d cannot fit in 32 bits", ins.imm))
-	}
-	return uint32(ins.imm)
+	return immU(ins.as, ins.imm, 32)
 }
 
 func EncodeBImmediate(imm int64) (int64, error) {
@@ -1797,7 +2243,7 @@ func EncodeVectorType(vsew, vlmul, vtail, vmask int64) (int64, error) {
 type encoding struct {
 	encode   func(*instruction) uint32     // encode returns the machine code for an instruction
 	validate func(*obj.Link, *instruction) // validate validates an instruction
-	length   int                           // length of encoded instruction; 0 for pseudo-ops, 4 otherwise
+	length   int                           // length of encoded instruction; 0 for pseudo-ops, 2 for compressed instructions, 4 otherwise
 }
 
 var (
@@ -1846,6 +2292,17 @@ var (
 	bEncoding = encoding{encode: encodeB, validate: validateB, length: 4}
 	uEncoding = encoding{encode: encodeU, validate: validateU, length: 4}
 	jEncoding = encoding{encode: encodeJ, validate: validateJ, length: 4}
+
+	// Compressed encodings.
+	caEncoding  = encoding{encode: encodeCA, validate: validateCA, length: 2}
+	cbEncoding  = encoding{encode: encodeCB, validate: validateCB, length: 2}
+	ciEncoding  = encoding{encode: encodeCI, validate: validateCI, length: 2}
+	ciwEncoding = encoding{encode: encodeCIW, validate: validateCIW, length: 2}
+	cjEncoding  = encoding{encode: encodeCJ, validate: validateCJ, length: 2}
+	clEncoding  = encoding{encode: encodeCL, validate: validateCL, length: 2}
+	crEncoding  = encoding{encode: encodeCR, validate: validateCR, length: 2}
+	csEncoding  = encoding{encode: encodeCS, validate: validateCS, length: 2}
+	cssEncoding = encoding{encode: encodeCSS, validate: validateCSS, length: 2}
 
 	// Encodings for vector configuration setting instruction.
 	vsetvliEncoding  = encoding{encode: encodeVsetvli, validate: validateVsetvli, length: 4}
@@ -2074,6 +2531,63 @@ var instructions = [ALAST & obj.AMask]instructionData{
 
 	// 21.7: Double-Precision Floating-Point Classify Instruction
 	AFCLASSD & obj.AMask: {enc: rFIEncoding},
+
+	//
+	// "C" Extension for Compressed Instructions, Version 2.0
+	//
+
+	// 26.3.1: Compressed Stack-Pointer-Based Loads and Stores
+	ACLWSP & obj.AMask:  {enc: ciEncoding},
+	ACLDSP & obj.AMask:  {enc: ciEncoding},
+	ACFLDSP & obj.AMask: {enc: ciEncoding},
+	ACSWSP & obj.AMask:  {enc: cssEncoding},
+	ACSDSP & obj.AMask:  {enc: cssEncoding},
+	ACFSDSP & obj.AMask: {enc: cssEncoding},
+
+	// 26.3.2: Compressed Register-Based Loads and Stores
+	ACLW & obj.AMask:  {enc: clEncoding},
+	ACLD & obj.AMask:  {enc: clEncoding},
+	ACFLD & obj.AMask: {enc: clEncoding},
+	ACSW & obj.AMask:  {enc: csEncoding},
+	ACSD & obj.AMask:  {enc: csEncoding},
+	ACFSD & obj.AMask: {enc: csEncoding},
+
+	// 26.4: Compressed Control Transfer Instructions
+	ACJ & obj.AMask:    {enc: cjEncoding},
+	ACJR & obj.AMask:   {enc: crEncoding},
+	ACJALR & obj.AMask: {enc: crEncoding},
+	ACBEQZ & obj.AMask: {enc: cbEncoding},
+	ACBNEZ & obj.AMask: {enc: cbEncoding},
+
+	// 26.5.1: Compressed Integer Constant-Generation Instructions
+	ACLI & obj.AMask:  {enc: ciEncoding},
+	ACLUI & obj.AMask: {enc: ciEncoding},
+
+	// 26.5.2: Compressed Integer Register-Immediate Operations
+	ACADDI & obj.AMask:     {enc: ciEncoding, ternary: true},
+	ACADDIW & obj.AMask:    {enc: ciEncoding, ternary: true},
+	ACADDI16SP & obj.AMask: {enc: ciEncoding, ternary: true},
+	ACADDI4SPN & obj.AMask: {enc: ciwEncoding, ternary: true},
+	ACSLLI & obj.AMask:     {enc: ciEncoding, ternary: true},
+	ACSRLI & obj.AMask:     {enc: cbEncoding, ternary: true},
+	ACSRAI & obj.AMask:     {enc: cbEncoding, ternary: true},
+	ACANDI & obj.AMask:     {enc: cbEncoding, ternary: true},
+
+	// 26.5.3: Compressed Integer Register-Register Operations
+	ACMV & obj.AMask:   {enc: crEncoding},
+	ACADD & obj.AMask:  {enc: crEncoding, immForm: ACADDI, ternary: true},
+	ACAND & obj.AMask:  {enc: caEncoding, immForm: ACANDI, ternary: true},
+	ACOR & obj.AMask:   {enc: caEncoding, ternary: true},
+	ACXOR & obj.AMask:  {enc: caEncoding, ternary: true},
+	ACSUB & obj.AMask:  {enc: caEncoding, ternary: true},
+	ACADDW & obj.AMask: {enc: caEncoding, immForm: ACADDIW, ternary: true},
+	ACSUBW & obj.AMask: {enc: caEncoding, ternary: true},
+
+	// 26.5.5: Compressed NOP Instruction
+	ACNOP & obj.AMask: {enc: ciEncoding},
+
+	// 26.5.6: Compressed Breakpoint Instruction
+	ACEBREAK & obj.AMask: {enc: crEncoding},
 
 	//
 	// "B" Extension for Bit Manipulation, Version 1.0.0
@@ -2991,7 +3505,7 @@ func (ins *instruction) length() int {
 func (ins *instruction) validate(ctxt *obj.Link) {
 	enc, err := encodingForAs(ins.as)
 	if err != nil {
-		ctxt.Diag(err.Error())
+		ctxt.Diag("%v", err)
 		return
 	}
 	enc.validate(ctxt, ins)
@@ -3026,7 +3540,7 @@ func instructionsForOpImmediate(p *obj.Prog, as obj.As, rs int16) []*instruction
 
 	low, high, err := Split32BitImmediate(ins.imm)
 	if err != nil {
-		p.Ctxt.Diag("%v: constant %d too large", p, ins.imm, err)
+		p.Ctxt.Diag("%v: constant %d too large: %v", p, ins.imm, err)
 		return nil
 	}
 	if high == 0 {
@@ -3558,7 +4072,7 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 	}
 
 	switch ins.as {
-	case AJAL, AJALR:
+	case ACJALR, AJAL, AJALR:
 		ins.rd, ins.rs1, ins.rs2 = uint32(p.From.Reg), uint32(p.To.Reg), obj.REG_NONE
 		ins.imm = p.To.Offset
 
@@ -3769,6 +4283,32 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		ins.as = AFSGNJND
 		ins.rs1 = uint32(p.From.Reg)
 
+	case ACLW, ACLD, ACFLD:
+		ins.rs1, ins.rs2 = ins.rs2, obj.REG_NONE
+
+	case ACSW, ACSD, ACFSD:
+		ins.rs1, ins.rd = ins.rd, obj.REG_NONE
+		ins.imm = p.To.Offset
+
+	case ACSWSP, ACSDSP, ACFSDSP:
+		ins.imm = p.To.Offset
+
+	case ACANDI, ACSRLI, ACSRAI:
+		ins.rs1, ins.rd = ins.rd, ins.rs1
+
+	case ACBEQZ, ACBNEZ:
+		ins.rd, ins.rs1, ins.rs2 = obj.REG_NONE, uint32(p.From.Reg), obj.REG_NONE
+		ins.imm = p.To.Offset
+
+	case ACJR:
+		ins.rd, ins.rs1 = obj.REG_NONE, uint32(p.To.Reg)
+
+	case ACJ:
+		ins.imm = p.To.Offset
+
+	case ACNOP:
+		ins.rd, ins.rs1 = REG_ZERO, REG_ZERO
+
 	case AROL, AROLW, AROR, ARORW:
 		inss = instructionsForRotate(p, ins)
 
@@ -3837,7 +4377,7 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		if err != nil {
 			p.Ctxt.Diag("%v: %v", p, err)
 		}
-		ins.imm = int64(vtype)
+		ins.imm = vtype
 		if ins.as == AVSETIVLI {
 			if p.From.Type != obj.TYPE_CONST {
 				p.Ctxt.Diag("%v: expected immediate value", p)
@@ -4203,7 +4743,8 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					Add:  p.To.Offset,
 				})
 			}
-		case AJALR:
+
+		case ACJALR, AJALR:
 			if p.To.Sym != nil {
 				ctxt.Diag("%v: unexpected AJALR with to symbol", p)
 			}

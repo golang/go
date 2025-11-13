@@ -6,6 +6,7 @@ package load
 
 import (
 	"cmd/go/internal/base"
+	"cmd/go/internal/modload"
 	"cmd/internal/quoted"
 	"fmt"
 	"strings"
@@ -29,7 +30,7 @@ type PerPackageFlag struct {
 
 // A ppfValue is a single <pattern>=<flags> per-package flag value.
 type ppfValue struct {
-	match func(*Package) bool // compiled pattern
+	match func(*modload.State, *Package) bool // compiled pattern
 	flags []string
 }
 
@@ -42,7 +43,7 @@ func (f *PerPackageFlag) Set(v string) error {
 func (f *PerPackageFlag) set(v, cwd string) error {
 	f.raw = v
 	f.present = true
-	match := func(p *Package) bool { return p.Internal.CmdlinePkg || p.Internal.CmdlineFiles } // default predicate with no pattern
+	match := func(_ *modload.State, p *Package) bool { return p.Internal.CmdlinePkg || p.Internal.CmdlineFiles } // default predicate with no pattern
 	// For backwards compatibility with earlier flag splitting, ignore spaces around flags.
 	v = strings.TrimSpace(v)
 	if v == "" {
@@ -85,10 +86,13 @@ func (f *PerPackageFlag) Present() bool {
 }
 
 // For returns the flags to use for the given package.
-func (f *PerPackageFlag) For(p *Package) []string {
+//
+// The module loader state is used by the matcher to know if certain
+// patterns match packages within the state's MainModules.
+func (f *PerPackageFlag) For(s *modload.State, p *Package) []string {
 	flags := []string{}
 	for _, v := range f.values {
-		if v.match(p) {
+		if v.match(s, p) {
 			flags = v.flags
 		}
 	}

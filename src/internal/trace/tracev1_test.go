@@ -21,7 +21,6 @@ func TestTraceV1(t *testing.T) {
 	}
 	var testedUserRegions bool
 	for _, p := range traces {
-		p := p
 		testName, err := filepath.Rel("./internal/tracev1/testdata", p)
 		if err != nil {
 			t.Fatalf("failed to relativize testdata path: %s", err)

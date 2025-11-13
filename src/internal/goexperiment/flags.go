@@ -100,9 +100,6 @@ type Flags struct {
 	// inlining phase within the Go compiler.
 	NewInliner bool
 
-	// Synctest enables the testing/synctest package.
-	Synctest bool
-
 	// Dwarf5 enables DWARF version 5 debug info generation.
 	Dwarf5 bool
 
@@ -115,6 +112,9 @@ type Flags struct {
 	// RandomizedHeapBase enables heap base address randomization on 64-bit
 	// platforms.
 	RandomizedHeapBase64 bool
+
+	// RuntimeFree enables the runtime to free and reuse memory more eagerly in some circumstances with compiler help.
+	RuntimeFree bool
 
 	// SizeSpecializedMalloc enables malloc implementations that are specialized per size class.
 	SizeSpecializedMalloc bool

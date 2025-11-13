@@ -509,118 +509,73 @@ TEXT runtime·arc4random_buf_trampoline(SB),NOSPLIT,$0
 	CALL	libc_arc4random_buf(SB)
 	RET
 
-// syscall_trampoline calls a function in libc on behalf of the syscall package.
-// syscall_trampoline takes a pointer to a struct like:
-// struct {
-//	fn    uintptr
-//	a1    uintptr
-//	a2    uintptr
-//	a3    uintptr
-//	r1    uintptr
-//	r2    uintptr
-// }
-// syscall_trampoline must be called on the g0 stack with the
-// C calling convention (use libcCall).
-TEXT runtime·syscall_trampoline(SB),NOSPLIT,$16
-	MOVQ	(0*8)(DI), CX // fn
-	MOVQ	(2*8)(DI), SI // a2
-	MOVQ	(3*8)(DI), DX // a3
-	MOVQ	DI, (SP)
-	MOVQ	(1*8)(DI), DI // a1
-	XORL	AX, AX	      // vararg: say "no float args"
 
-	CALL	CX
+TEXT runtime·syscallN_trampoline(SB),NOSPLIT,$0
+	// store argument and original SP in a callee-saved register
+	MOVQ	DI, R13
+	MOVQ	SP, R14
 
-	MOVQ	(SP), DI
-	MOVQ	AX, (4*8)(DI) // r1
-	MOVQ	DX, (5*8)(DI) // r2
+	MOVQ	libcCallInfo_fn(R13), R11
+	MOVQ	libcCallInfo_n(R13), CX
+	MOVQ	libcCallInfo_args(R13), R10
 
-	XORL	AX, AX        // no error (it's ignored anyway)
-	RET
+	// Fast version, do not store args on the stack.
+	CMPL	CX, $0; JE _0args
+	CMPL	CX, $1; JE _1args
+	CMPL	CX, $2; JE _2args
+	CMPL	CX, $3; JE _3args
+	CMPL	CX, $4; JE _4args
+	CMPL	CX, $5; JE _5args
+	CMPL	CX, $6; JE _6args
 
-// syscall6_trampoline calls a function in libc on behalf of the syscall package.
-// syscall6_trampoline takes a pointer to a struct like:
-// struct {
-//	fn    uintptr
-//	a1    uintptr
-//	a2    uintptr
-//	a3    uintptr
-//	a4    uintptr
-//	a5    uintptr
-//	a6    uintptr
-//	r1    uintptr
-//	r2    uintptr
-// }
-// syscall6_trampoline must be called on the g0 stack with the
-// C calling convention (use libcCall).
-TEXT runtime·syscall6_trampoline(SB),NOSPLIT,$16
-	MOVQ	(0*8)(DI), R11// fn
-	MOVQ	(2*8)(DI), SI // a2
-	MOVQ	(3*8)(DI), DX // a3
-	MOVQ	(4*8)(DI), CX // a4
-	MOVQ	(5*8)(DI), R8 // a5
-	MOVQ	(6*8)(DI), R9 // a6
-	MOVQ	DI, (SP)
-	MOVQ	(1*8)(DI), DI // a1
-	XORL	AX, AX	      // vararg: say "no float args"
+	// Reserve stack space for remaining args
+	MOVQ	CX, R12
+	SUBQ	$6, R12
+	ADDQ	$1, R12	// make even number of words for stack alignment
+	ANDQ	$~1, R12
+	SHLQ	$3, R12
+	SUBQ	R12, SP
+
+	// Copy args to the stack.
+	// CX: count of stack arguments (n-6)
+	// SI: &args[6]
+	// DI: copy of RSP
+	SUBQ	$6, CX
+	MOVQ	R10, SI
+	ADDQ	$(8*6), SI
+	MOVQ	SP, DI
+	CLD
+	REP; MOVSQ
+
+_6args:
+	MOVQ	(5*8)(R10), R9
+_5args:
+	MOVQ	(4*8)(R10), R8
+_4args:
+	MOVQ	(3*8)(R10), CX
+_3args:
+	MOVQ	(2*8)(R10), DX
+_2args:
+	MOVQ	(1*8)(R10), SI
+_1args:
+	MOVQ	(0*8)(R10), DI
+_0args:
+
+	XORL	AX, AX	// vararg: say "no float args"
 
 	CALL	R11
 
-	MOVQ	(SP), DI
-	MOVQ	AX, (7*8)(DI) // r1
-	MOVQ	DX, (8*8)(DI) // r2
+	MOVQ	R14, SP	// free stack space
 
-	XORL	AX, AX        // no error (it's ignored anyway)
-	RET
-
-// syscall9_trampoline calls a function in libc on behalf of the syscall package.
-// syscall9_trampoline takes a pointer to a struct like:
-// struct {
-//	fn    uintptr
-//	a1    uintptr
-//	a2    uintptr
-//	a3    uintptr
-//	a4    uintptr
-//	a5    uintptr
-//	a6    uintptr
-//	a7    uintptr
-//	a8    uintptr
-//	a9    uintptr
-//	r1    uintptr
-//	r2    uintptr
-//	err   uintptr
-// }
-// syscall9_trampoline must be called on the g0 stack with the
-// C calling convention (use libcCall).
-TEXT runtime·syscall9_trampoline(SB),NOSPLIT,$32
-	MOVQ	(0*8)(DI), R13// fn
-	MOVQ	(2*8)(DI), SI // a2
-	MOVQ	(3*8)(DI), DX // a3
-	MOVQ	(4*8)(DI), CX // a4
-	MOVQ	(5*8)(DI), R8 // a5
-	MOVQ	(6*8)(DI), R9 // a6
-	MOVQ	(7*8)(DI), R10 // a7
-	MOVQ	R10, 0(SP)
-	MOVQ	(8*8)(DI), R11 // a8
-	MOVQ	R11, 8(SP)
-	MOVQ	(9*8)(DI), R12 // a9
-	MOVQ	R12, 16(SP)
-	MOVQ	DI, 24(SP)
-	MOVQ	(1*8)(DI), DI // a1
-	XORL	AX, AX	      // vararg: say "no float args"
-
-	CALL	R13
-
-	MOVQ	24(SP), DI
-	MOVQ	AX, (10*8)(DI) // r1
-	MOVQ	DX, (11*8)(DI) // r2
-
-	XORL	AX, AX        // no error (it's ignored anyway)
+	// Return result.
+	MOVQ	AX, libcCallInfo_r1(R13)
+	MOVQ	DX, libcCallInfo_r2(R13)
 	RET
 
 TEXT runtime·libc_error_trampoline(SB),NOSPLIT,$0
+	MOVQ	0(DI), R14
 	CALL	libc_error(SB)
-	MOVLQSX	(AX), AX
+	MOVQ	AX, (R14)
 	RET
 
 // syscall_x509 is for crypto/x509. It is like syscall6 but does not check for errors,

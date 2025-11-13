@@ -296,9 +296,9 @@ func cleanDecls(m map[string][]token.Position) ([]string, map[string][]token.Pos
 }
 
 var (
-	bSlashSlash = []byte(slashSlash)
-	bStarSlash  = []byte(starSlash)
-	bSlashStar  = []byte(slashStar)
+	bSlashSlash = slashSlash
+	bStarSlash  = starSlash
+	bSlashStar  = slashStar
 	bPlusBuild  = []byte("+build")
 
 	goBuildComment = []byte("//go:build")

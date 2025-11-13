@@ -1506,15 +1506,17 @@ func main() {
 	tg.setenv("PKG_CONFIG_PATH", tg.path("."))
 	tg.run("run", tg.path("foo.go"))
 
-	if runtime.GOOS != "darwin" { // darwin doesn't like these ldflags
-		// test for ldflags
-		tg.tempFile("bar.pc", `
+	libs := `Libs: -Wl,-rpath=/path\ with\ spaces/bin`
+	if runtime.GOOS == "darwin" {
+		libs = "" // darwin linker doesn't have -rpath
+	}
+	// test for ldflags
+	tg.tempFile("bar.pc", `
 Name: bar
 Description: The bar library
 Version: 1.0.0
-Libs: -Wl,-rpath=/path\ with\ spaces/bin
+`+libs+`
 `)
-	}
 
 	tg.tempFile("bar.go", `package main
 /*

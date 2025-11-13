@@ -35,6 +35,7 @@ func init() {
 }
 
 func runInit(ctx context.Context, cmd *base.Command, args []string) {
+	moduleLoaderState := modload.NewState()
 	if len(args) > 1 {
 		base.Fatalf("go: 'go mod init' accepts at most one argument")
 	}
@@ -43,6 +44,6 @@ func runInit(ctx context.Context, cmd *base.Command, args []string) {
 		modPath = args[0]
 	}
 
-	modload.ForceUseModules = true
-	modload.CreateModFile(ctx, modPath) // does all the hard work
+	moduleLoaderState.ForceUseModules = true
+	modload.CreateModFile(moduleLoaderState, ctx, modPath) // does all the hard work
 }

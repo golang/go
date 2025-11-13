@@ -195,10 +195,12 @@ func gcinit() {
 
 	work.startSema = 1
 	work.markDoneSema = 1
+	work.spanSPMCs.list.init(unsafe.Offsetof(spanSPMC{}.allnode))
 	lockInit(&work.sweepWaiters.lock, lockRankSweepWaiters)
 	lockInit(&work.assistQueue.lock, lockRankAssistQueue)
 	lockInit(&work.strongFromWeak.lock, lockRankStrongFromWeakQueue)
 	lockInit(&work.wbufSpans.lock, lockRankWbufSpans)
+	lockInit(&work.spanSPMCs.lock, lockRankSpanSPMCs)
 	lockInit(&gcCleanups.lock, lockRankCleanupQueue)
 }
 
@@ -314,7 +316,7 @@ func pollFractionalWorkerExit() bool {
 		return true
 	}
 	p := getg().m.p.ptr()
-	selfTime := p.gcFractionalMarkTime + (now - p.gcMarkWorkerStartTime)
+	selfTime := p.gcFractionalMarkTime.Load() + (now - p.gcMarkWorkerStartTime)
 	// Add some slack to the utilization goal so that the
 	// fractional worker isn't behind again the instant it exits.
 	return float64(selfTime)/float64(delta) > 1.2*gcController.fractionalUtilizationGoal
@@ -352,8 +354,8 @@ type workType struct {
 	//
 	// Only used if goexperiment.GreenTeaGC.
 	spanSPMCs struct {
-		lock mutex // no lock rank because it's a leaf lock (see mklockrank.go).
-		all  *spanSPMC
+		lock mutex
+		list listHeadManual // *spanSPMC
 	}
 
 	// Restore 64-bit alignment on 32-bit.
@@ -1856,7 +1858,7 @@ func gcBgMarkWorker(ready chan struct{}) {
 			pp.limiterEvent.stop(limiterEventIdleMarkWork, now)
 		}
 		if pp.gcMarkWorkerMode == gcMarkWorkerFractionalMode {
-			atomic.Xaddint64(&pp.gcFractionalMarkTime, duration)
+			pp.gcFractionalMarkTime.Add(duration)
 		}
 
 		// We'll releasem after this point and thus this P may run
@@ -2046,8 +2048,7 @@ func gcSweep(mode gcMode) bool {
 		prepareFreeWorkbufs()
 		for freeSomeWbufs(false) {
 		}
-		for freeSomeSpanSPMCs(false) {
-		}
+		freeDeadSpanSPMCs()
 		// All "free" events for this mark/sweep cycle have
 		// now happened, so we can make this profile cycle
 		// available immediately.

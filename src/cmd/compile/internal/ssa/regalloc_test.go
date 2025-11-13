@@ -265,6 +265,48 @@ func TestClobbersArg1(t *testing.T) {
 	}
 }
 
+func TestNoRematerializeDeadConstant(t *testing.T) {
+	c := testConfigARM64(t)
+	f := c.Fun("b1",
+		Bloc("b1",
+			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+			Valu("addr", OpArg, c.config.Types.Int32.PtrTo(), 0, c.Temp(c.config.Types.Int32.PtrTo())),
+			Valu("const", OpARM64MOVDconst, c.config.Types.Int32, -1, nil), // Original constant
+			Valu("cmp", OpARM64CMPconst, types.TypeFlags, 0, nil, "const"),
+			Goto("b2"),
+		),
+		Bloc("b2",
+			Valu("phi_mem", OpPhi, types.TypeMem, 0, nil, "mem", "callmem"),
+			Eq("cmp", "b6", "b3"),
+		),
+		Bloc("b3",
+			Valu("call", OpARM64CALLstatic, types.TypeMem, 0, AuxCallLSym("_"), "phi_mem"),
+			Valu("callmem", OpSelectN, types.TypeMem, 0, nil, "call"),
+			Eq("cmp", "b5", "b4"),
+		),
+		Bloc("b4", // A block where we don't really need to rematerialize the constant -1
+			Goto("b2"),
+		),
+		Bloc("b5",
+			Valu("user", OpAMD64MOVQstore, types.TypeMem, 0, nil, "addr", "const", "callmem"),
+			Exit("user"),
+		),
+		Bloc("b6",
+			Exit("phi_mem"),
+		),
+	)
+
+	regalloc(f.f)
+	checkFunc(f.f)
+
+	// Check that in block b4, there's no dead rematerialization of the constant -1
+	for _, v := range f.blocks["b4"].Values {
+		if v.Op == OpARM64MOVDconst && v.AuxInt == -1 {
+			t.Errorf("constant -1 rematerialized in loop block b4: %s", v.LongString())
+		}
+	}
+}
+
 func numSpills(b *Block) int {
 	return numOps(b, OpStoreReg)
 }

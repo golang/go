@@ -134,7 +134,7 @@ func suspendG(gp *g) suspendGState {
 			dumpgstatus(gp)
 			throw("invalid g status")
 
-		case _Gdead:
+		case _Gdead, _Gdeadextra:
 			// Nothing to suspend.
 			//
 			// preemptStop may need to be cleared, but
@@ -286,7 +286,7 @@ func resumeG(state suspendGState) {
 //
 //go:nosplit
 func canPreemptM(mp *m) bool {
-	return mp.locks == 0 && mp.mallocing == 0 && mp.preemptoff == "" && mp.p.ptr().status == _Prunning
+	return mp.locks == 0 && mp.mallocing == 0 && mp.preemptoff == "" && mp.p.ptr().status == _Prunning && mp.curg != nil && readgstatus(mp.curg)&^_Gscan != _Gsyscall
 }
 
 //go:generate go run mkpreempt.go

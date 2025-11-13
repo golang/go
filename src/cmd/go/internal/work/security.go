@@ -100,7 +100,6 @@ var validCompilerFlags = []*lazyregexp.Regexp{
 	re(`-m(abi|arch|cpu|fpu|simd|tls-dialect|tune)=([^@\-].*)`),
 	re(`-m(no-)?v?aes`),
 	re(`-marm`),
-	re(`-m(no-)?avx[0-9a-z]*`),
 	re(`-mcmodel=[0-9a-z-]+`),
 	re(`-mfloat-abi=([^@\-].*)`),
 	re(`-m(soft|single|double)-float`),
@@ -375,13 +374,13 @@ Args:
 				}
 
 				if i+1 < len(list) {
-					return fmt.Errorf("invalid flag in %s: %s %s (see https://golang.org/s/invalidflag)", source, arg, list[i+1])
+					return fmt.Errorf("invalid flag in %s: %s %s (see https://go.dev/s/invalidflag)", source, arg, list[i+1])
 				}
-				return fmt.Errorf("invalid flag in %s: %s without argument (see https://golang.org/s/invalidflag)", source, arg)
+				return fmt.Errorf("invalid flag in %s: %s without argument (see https://go.dev/s/invalidflag)", source, arg)
 			}
 		}
 	Bad:
-		return fmt.Errorf("invalid flag in %s: %s", source, arg)
+		return fmt.Errorf("invalid flag in %s: %s (see https://go.dev/s/invalidflag)", source, arg)
 	}
 	return nil
 }

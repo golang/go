@@ -309,6 +309,11 @@ Below is the full list of supported metrics, ordered lexicographically.
 		The number of non-default behaviors executed by the net/http
 		package due to a non-default GODEBUG=http2server=... setting.
 
+	/godebug/non-default-behavior/httpcookiemaxnum:events
+		The number of non-default behaviors executed by the net/http
+		package due to a non-default GODEBUG=httpcookiemaxnum=...
+		setting.
+
 	/godebug/non-default-behavior/httplaxcontentlength:events
 		The number of non-default behaviors executed by the net/http
 		package due to a non-default GODEBUG=httplaxcontentlength=...
@@ -393,6 +398,11 @@ Below is the full list of supported metrics, ordered lexicographically.
 	/godebug/non-default-behavior/updatemaxprocs:events
 		The number of non-default behaviors executed by the runtime
 		package due to a non-default GODEBUG=updatemaxprocs=... setting.
+
+	/godebug/non-default-behavior/urlstrictcolons:events
+		The number of non-default behaviors executed by the net/url
+		package due to a non-default GODEBUG=urlstrictcolons=...
+		setting.
 
 	/godebug/non-default-behavior/winreadlinkvolume:events
 		The number of non-default behaviors executed by the os package

@@ -1,0 +1,3 @@
+[
+  {"algorithm":"SHA2-384","messageLength":[{"increment":7040,"max":8192,"min":1152}],"revision":"1.0"}
+]

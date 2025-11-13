@@ -57,11 +57,15 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter, deadcode deadValu
 	var iters int
 	var states map[string]bool
 	for {
+		if debug > 1 {
+			fmt.Printf("%s: iter %d\n", f.pass.name, iters)
+		}
 		change := false
 		deadChange := false
 		for _, b := range f.Blocks {
 			var b0 *Block
 			if debug > 1 {
+				fmt.Printf("%s: start block\n", f.pass.name)
 				b0 = new(Block)
 				*b0 = *b
 				b0.Succs = append([]Edge{}, b.Succs...) // make a new copy, not aliasing
@@ -79,6 +83,9 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter, deadcode deadValu
 				}
 			}
 			for j, v := range b.Values {
+				if debug > 1 {
+					fmt.Printf("%s: consider %v\n", f.pass.name, v.LongString())
+				}
 				var v0 *Value
 				if debug > 1 {
 					v0 = new(Value)
@@ -456,6 +463,26 @@ func isSameCall(aux Aux, name string) bool {
 	return fn != nil && fn.String() == name
 }
 
+func isMalloc(aux Aux) bool {
+	return isNewObject(aux) || isSpecializedMalloc(aux)
+}
+
+func isNewObject(aux Aux) bool {
+	fn := aux.(*AuxCall).Fn
+	return fn != nil && fn.String() == "runtime.newobject"
+}
+
+func isSpecializedMalloc(aux Aux) bool {
+	fn := aux.(*AuxCall).Fn
+	if fn == nil {
+		return false
+	}
+	name := fn.String()
+	return strings.HasPrefix(name, "runtime.mallocgcSmallNoScanSC") ||
+		strings.HasPrefix(name, "runtime.mallocgcSmallScanNoHeaderSC") ||
+		strings.HasPrefix(name, "runtime.mallocTiny")
+}
+
 // canLoadUnaligned reports if the architecture supports unaligned load operations.
 func canLoadUnaligned(c *Config) bool {
 	return c.ctxt.Arch.Alignment == 1
@@ -706,7 +733,7 @@ func int32ToAuxInt(i int32) int64 {
 	return int64(i)
 }
 func int64ToAuxInt(i int64) int64 {
-	return int64(i)
+	return i
 }
 func uint8ToAuxInt(i uint8) int64 {
 	return int64(int8(i))
@@ -737,6 +764,7 @@ func arm64ConditionalParamsToAuxInt(v arm64ConditionalParams) int64 {
 	i |= int64(v.cond)
 	return i
 }
+
 func flagConstantToAuxInt(x flagConstant) int64 {
 	return int64(x)
 }
@@ -1235,10 +1263,8 @@ func logRule(s string) {
 		}
 		ruleFile = w
 	}
-	_, err := fmt.Fprintln(ruleFile, s)
-	if err != nil {
-		panic(err)
-	}
+	// Ignore errors in case of multiple processes fighting over the file.
+	fmt.Fprintln(ruleFile, s)
 }
 
 var ruleFile io.Writer
@@ -1583,7 +1609,7 @@ func encodePPC64RotateMask(rotate, mask, nbits int64) int64 {
 		mb, me = men, mbn
 	}
 
-	return int64(me) | int64(mb<<8) | int64(rotate<<16) | int64(nbits<<24)
+	return int64(me) | int64(mb<<8) | rotate<<16 | nbits<<24
 }
 
 // Merge (RLDICL [encoded] (SRDconst [s] x)) into (RLDICL [new_encoded] x)
@@ -1692,7 +1718,7 @@ func mergePPC64AndSldi(m, s int64) int64 {
 func mergePPC64ClrlsldiSrw(sld, srw int64) int64 {
 	mask_1 := uint64(0xFFFFFFFF >> uint(srw))
 	// for CLRLSLDI, it's more convenient to think of it as a mask left bits then rotate left.
-	mask_2 := uint64(0xFFFFFFFFFFFFFFFF) >> uint(GetPPC64Shiftmb(int64(sld)))
+	mask_2 := uint64(0xFFFFFFFFFFFFFFFF) >> uint(GetPPC64Shiftmb(sld))
 
 	// Rewrite mask to apply after the final left shift.
 	mask_3 := (mask_1 & mask_2) << uint(GetPPC64Shiftsh(sld))
@@ -1704,7 +1730,7 @@ func mergePPC64ClrlsldiSrw(sld, srw int64) int64 {
 	if uint64(uint32(mask_3)) != mask_3 || mask_3 == 0 {
 		return 0
 	}
-	return encodePPC64RotateMask(int64(r_3), int64(mask_3), 32)
+	return encodePPC64RotateMask(r_3, int64(mask_3), 32)
 }
 
 // Test if a doubleword shift right feeding into a CLRLSLDI can be merged into RLWINM.
@@ -1712,7 +1738,7 @@ func mergePPC64ClrlsldiSrw(sld, srw int64) int64 {
 func mergePPC64ClrlsldiSrd(sld, srd int64) int64 {
 	mask_1 := uint64(0xFFFFFFFFFFFFFFFF) >> uint(srd)
 	// for CLRLSLDI, it's more convenient to think of it as a mask left bits then rotate left.
-	mask_2 := uint64(0xFFFFFFFFFFFFFFFF) >> uint(GetPPC64Shiftmb(int64(sld)))
+	mask_2 := uint64(0xFFFFFFFFFFFFFFFF) >> uint(GetPPC64Shiftmb(sld))
 
 	// Rewrite mask to apply after the final left shift.
 	mask_3 := (mask_1 & mask_2) << uint(GetPPC64Shiftsh(sld))
@@ -1729,7 +1755,7 @@ func mergePPC64ClrlsldiSrd(sld, srd int64) int64 {
 	if v1&mask_3 != 0 {
 		return 0
 	}
-	return encodePPC64RotateMask(int64(r_3&31), int64(mask_3), 32)
+	return encodePPC64RotateMask(r_3&31, int64(mask_3), 32)
 }
 
 // Test if a RLWINM feeding into a CLRLSLDI can be merged into RLWINM.  Return
@@ -2135,11 +2161,11 @@ func rewriteFixedLoad(v *Value, sym Sym, sb *Value, off int64) *Value {
 				switch f.Sym.Name {
 				case "Size_":
 					v.reset(ptrSizedOpConst)
-					v.AuxInt = int64(t.Size())
+					v.AuxInt = t.Size()
 					return v
 				case "PtrBytes":
 					v.reset(ptrSizedOpConst)
-					v.AuxInt = int64(types.PtrDataSize(t))
+					v.AuxInt = types.PtrDataSize(t)
 					return v
 				case "Hash":
 					v.reset(OpConst32)
@@ -2599,55 +2625,57 @@ func rewriteStructStore(v *Value) *Value {
 	return mem
 }
 
-// isDirectType reports whether v represents a type
+// isDirectAndComparableType reports whether v represents a type
 // (a *runtime._type) whose value is stored directly in an
-// interface (i.e., is pointer or pointer-like).
-func isDirectType(v *Value) bool {
-	return isDirectType1(v)
+// interface (i.e., is pointer or pointer-like) and is comparable.
+func isDirectAndComparableType(v *Value) bool {
+	return isDirectAndComparableType1(v)
 }
 
 // v is a type
-func isDirectType1(v *Value) bool {
+func isDirectAndComparableType1(v *Value) bool {
 	switch v.Op {
 	case OpITab:
-		return isDirectType2(v.Args[0])
+		return isDirectAndComparableType2(v.Args[0])
 	case OpAddr:
 		lsym := v.Aux.(*obj.LSym)
 		if ti := lsym.TypeInfo(); ti != nil {
-			return types.IsDirectIface(ti.Type.(*types.Type))
+			t := ti.Type.(*types.Type)
+			return types.IsDirectIface(t) && types.IsComparable(t)
 		}
 	}
 	return false
 }
 
 // v is an empty interface
-func isDirectType2(v *Value) bool {
+func isDirectAndComparableType2(v *Value) bool {
 	switch v.Op {
 	case OpIMake:
-		return isDirectType1(v.Args[0])
+		return isDirectAndComparableType1(v.Args[0])
 	}
 	return false
 }
 
-// isDirectIface reports whether v represents an itab
+// isDirectAndComparableIface reports whether v represents an itab
 // (a *runtime._itab) for a type whose value is stored directly
-// in an interface (i.e., is pointer or pointer-like).
-func isDirectIface(v *Value) bool {
-	return isDirectIface1(v, 9)
+// in an interface (i.e., is pointer or pointer-like) and is comparable.
+func isDirectAndComparableIface(v *Value) bool {
+	return isDirectAndComparableIface1(v, 9)
 }
 
 // v is an itab
-func isDirectIface1(v *Value, depth int) bool {
+func isDirectAndComparableIface1(v *Value, depth int) bool {
 	if depth == 0 {
 		return false
 	}
 	switch v.Op {
 	case OpITab:
-		return isDirectIface2(v.Args[0], depth-1)
+		return isDirectAndComparableIface2(v.Args[0], depth-1)
 	case OpAddr:
 		lsym := v.Aux.(*obj.LSym)
 		if ii := lsym.ItabInfo(); ii != nil {
-			return types.IsDirectIface(ii.Type.(*types.Type))
+			t := ii.Type.(*types.Type)
+			return types.IsDirectIface(t) && types.IsComparable(t)
 		}
 	case OpConstNil:
 		// We can treat this as direct, because if the itab is
@@ -2658,16 +2686,16 @@ func isDirectIface1(v *Value, depth int) bool {
 }
 
 // v is an interface
-func isDirectIface2(v *Value, depth int) bool {
+func isDirectAndComparableIface2(v *Value, depth int) bool {
 	if depth == 0 {
 		return false
 	}
 	switch v.Op {
 	case OpIMake:
-		return isDirectIface1(v.Args[0], depth-1)
+		return isDirectAndComparableIface1(v.Args[0], depth-1)
 	case OpPhi:
 		for _, a := range v.Args {
-			if !isDirectIface2(a, depth-1) {
+			if !isDirectAndComparableIface2(a, depth-1) {
 				return false
 			}
 		}

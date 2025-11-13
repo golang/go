@@ -1,12 +1,12 @@
-env GO111MODULE=off
-
 # Issue 27665. Verify that "go vet" analyzes non-Go files.
 
-[!GOARCH:amd64] skip
+env GO111MODULE=off
+env GOARCH=amd64
+
 ! go vet -asmdecl a
 stderr 'f: invalid MOVW of x'
 
-# -c flag shows context
+# -c=n flag shows n lines of context
 ! go vet -c=2 -asmdecl a
 stderr '...invalid MOVW...'
 stderr '1	.*TEXT'

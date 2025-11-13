@@ -1208,6 +1208,7 @@ var gStatusStrings = [...]string{
 	_Gcopystack: "copystack",
 	_Gleaked:    "leaked",
 	_Gpreempted: "preempted",
+	_Gdeadextra: "waiting for cgo callback",
 }
 
 func goroutineheader(gp *g) {
@@ -1295,7 +1296,16 @@ func tracebacksomeothers(me *g, showf func(*g) bool) {
 	// against concurrent creation of new Gs, but even with allglock we may
 	// miss Gs created after this loop.
 	forEachGRace(func(gp *g) {
-		if gp == me || gp == curgp || readgstatus(gp) == _Gdead || !showf(gp) || (isSystemGoroutine(gp, false) && level < 2) {
+		if gp == me || gp == curgp {
+			return
+		}
+		if status := readgstatus(gp); status == _Gdead || status == _Gdeadextra {
+			return
+		}
+		if !showf(gp) {
+			return
+		}
+		if isSystemGoroutine(gp, false) && level < 2 {
 			return
 		}
 		print("\n")
@@ -1304,7 +1314,16 @@ func tracebacksomeothers(me *g, showf func(*g) bool) {
 		// from a signal handler initiated during a systemstack call.
 		// The original G is still in the running state, and we want to
 		// print its stack.
-		if gp.m != getg().m && readgstatus(gp)&^_Gscan == _Grunning {
+		//
+		// There's a small window of time in exitsyscall where a goroutine could be
+		// in _Grunning as it's exiting a syscall. This could be the case even if the
+		// world is stopped or frozen.
+		//
+		// This is OK because the goroutine will not exit the syscall while the world
+		// is stopped or frozen. This is also why it's safe to check syscallsp here,
+		// and safe to take the goroutine's stack trace. The syscall path mutates
+		// syscallsp only just before exiting the syscall.
+		if gp.m != getg().m && readgstatus(gp)&^_Gscan == _Grunning && gp.syscallsp == 0 {
 			print("\tgoroutine running on other thread; stack unavailable\n")
 			printcreatedby(gp)
 		} else {

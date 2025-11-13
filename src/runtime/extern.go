@@ -171,13 +171,6 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	silently default to 1024. Future versions of Go may remove this limitation
 	and extend profstackdepth to apply to the CPU profiler and execution tracer.
 
-	pagetrace: setting pagetrace=/path/to/file will write out a trace of page events
-	that can be viewed, analyzed, and visualized using the x/debug/cmd/pagetrace tool.
-	Build your program with GOEXPERIMENT=pagetrace to enable this functionality. Do not
-	enable this functionality if your program is a setuid binary as it introduces a security
-	risk in that scenario. Currently not supported on Windows, plan9 or js/wasm. Setting this
-	option for some applications can produce large traces, so use with care.
-
 	panicnil: setting panicnil=1 disables the runtime error when calling panic with nil
 	interface value or an untyped nil.
 
@@ -218,10 +211,11 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	report. This also extends the information returned by runtime.Stack.
 	Setting N to 0 will report no ancestry information.
 
-	tracefpunwindoff: setting tracefpunwindoff=1 forces the execution tracer to
-	use the runtime's default stack unwinder instead of frame pointer unwinding.
-	This increases tracer overhead, but could be helpful as a workaround or for
-	debugging unexpected regressions caused by frame pointer unwinding.
+	tracefpunwindoff: setting tracefpunwindoff=1 forces the execution tracer
+	and block and mutex profilers to use the runtime's default stack
+	unwinder instead of frame pointer unwinding. This increases their
+	overhead, but could be helpful as a workaround or for debugging
+	unexpected regressions caused by frame pointer unwinding.
 
 	traceadvanceperiod: the approximate period in nanoseconds between trace generations. Only
 	applies if a program is built with GOEXPERIMENT=exectracer2. Used primarily for testing

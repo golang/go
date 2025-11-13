@@ -24,18 +24,22 @@ Jingling Xue (jingling@cse.unsw.edu.au):
 
 White paper: https://lujie.ac.cn/files/papers/GoBench.pdf
 
-The examples have been modified in order to run the goroutine leak
-profiler. Buggy snippets are moved from within a unit test to separate
-applications. Each is then independently executed, possibly as multiple
-copies within the same application in order to exercise more interleavings.
-Concurrently, the main program sets up a waiting period (typically 1ms), followed
-by a goroutine leak profile request. Other modifications may involve injecting calls
-to `runtime.Gosched()`, to more reliably exercise buggy interleavings, or reductions
-in waiting periods when calling `time.Sleep`, in order to reduce overall testing time.
+The examples have been modified in order to run the goroutine leak profiler.
+Buggy snippets are moved from within a unit test to separate applications.
+Each is then independently executed, possibly as multiple copies within the
+same application in order to exercise more interleavings. Concurrently, the
+main program sets up a waiting period (typically 1ms), followed by a goroutine
+leak profile request. Other modifications may involve injecting calls to
+`runtime.Gosched()`, to more reliably exercise buggy interleavings, or reductions
+in waiting periods when calling `time.Sleep`, in order to reduce overall testing
+time.
 
-The resulting goroutine leak profile is analyzed to ensure that no unexpected leaks occurred,
-and that the expected leaks did occur. If the leak is flaky, the only purpose of the expected
-leak list is to protect against unexpected leaks.
+The resulting goroutine leak profile is analyzed to ensure that no unexpecte
+leaks occurred, and that the expected leaks did occur. If the leak is flaky, the
+only purpose of the expected leak list is to protect against unexpected leaks.
+
+The examples have also been modified to remove data races, since those create flaky
+test failures, when really all we care about are leaked goroutines.
 
 The entries below document each of the corresponding leaks.
 

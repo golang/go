@@ -63,12 +63,16 @@ func (q *spanQueue) empty() bool {
 	return true
 }
 
-type spanSPMC struct {
-	_ sys.NotInHeap
+func (q *spanQueue) destroy() {
 }
 
-func freeSomeSpanSPMCs(preemptible bool) bool {
-	return false
+type spanSPMC struct {
+	_ sys.NotInHeap
+	allnode listNodeManual
+}
+
+func freeDeadSpanSPMCs() {
+	return
 }
 
 type objptr uintptr

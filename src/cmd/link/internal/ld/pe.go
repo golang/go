@@ -653,7 +653,7 @@ dwarfLoop:
 	for i := 0; i < len(Segdwarf.Sections); i++ {
 		sect := Segdwarf.Sections[i]
 		si := dwarfp[i]
-		if si.secSym() != loader.Sym(sect.Sym) ||
+		if si.secSym() != sect.Sym ||
 			ldr.SymSect(si.secSym()) != sect {
 			panic("inconsistency between dwarfp and Segdwarf")
 		}
@@ -854,7 +854,7 @@ func (f *peFile) writeSymbols(ctxt *Link) {
 			continue
 		}
 		t := ldr.SymType(s)
-		if t >= sym.SELFRXSECT && t < sym.SXREF { // data sections handled in dodata
+		if t >= sym.SELFRXSECT && t < sym.SFirstUnallocated { // data sections handled in dodata
 			if t == sym.STLSBSS {
 				continue
 			}
@@ -1506,7 +1506,7 @@ func (rt *peBaseRelocTable) addentry(ldr *loader.Loader, s loader.Sym, r *loader
 	const pageSize = 0x1000
 	const pageMask = pageSize - 1
 
-	addr := ldr.SymValue(s) + int64(r.Off()) - int64(PEBASE)
+	addr := ldr.SymValue(s) + int64(r.Off()) - PEBASE
 	page := uint32(addr &^ pageMask)
 	off := uint32(addr & pageMask)
 
@@ -1758,7 +1758,9 @@ func peCreateExportFile(ctxt *Link, libName string) (fname string) {
 	fname = filepath.Join(*flagTmpdir, "export_file.def")
 	var buf bytes.Buffer
 
-	fmt.Fprintf(&buf, "LIBRARY %s\n", libName)
+	if ctxt.BuildMode == BuildModeCShared {
+		fmt.Fprintf(&buf, "LIBRARY %s\n", libName)
+	}
 	buf.WriteString("EXPORTS\n")
 
 	ldr := ctxt.loader

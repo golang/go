@@ -216,6 +216,11 @@ const (
 	FILE_OPEN_FOR_FREE_SPACE_QUERY = 0x00800000
 )
 
+// https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-file_disposition_info
+type FILE_DISPOSITION_INFO struct {
+	DeleteFile bool
+}
+
 // https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_file_disposition_information
 type FILE_DISPOSITION_INFORMATION struct {
 	DeleteFile bool

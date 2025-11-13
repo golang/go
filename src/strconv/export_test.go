@@ -5,6 +5,6 @@
 package strconv
 
 var (
-	BitSizeError = bitSizeError
 	BaseError    = baseError
+	BitSizeError = bitSizeError
 )

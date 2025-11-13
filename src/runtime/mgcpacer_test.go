@@ -603,7 +603,6 @@ func TestGcPacer(t *testing.T) {
 		// However, it is still possible to trigger this case if something exceptional
 		// happens between calls to revise; the framework just doesn't support this yet.
 	} {
-		e := e
 		t.Run(e.name, func(t *testing.T) {
 			t.Parallel()
 

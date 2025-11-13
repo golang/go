@@ -13,7 +13,6 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
 	"golang.org/x/tools/internal/analysisinternal"
@@ -31,7 +30,7 @@ func init() {
 
 var Analyzer = &analysis.Analyzer{
 	Name:     "testinggoroutine",
-	Doc:      analysisutil.MustExtractDoc(doc, "testinggoroutine"),
+	Doc:      analysisinternal.MustExtractDoc(doc, "testinggoroutine"),
 	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/testinggoroutine",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
@@ -40,7 +39,7 @@ var Analyzer = &analysis.Analyzer{
 func run(pass *analysis.Pass) (any, error) {
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
-	if !analysisinternal.Imports(pass.Pkg, "testing") {
+	if !typesinternal.Imports(pass.Pkg, "testing") {
 		return nil, nil
 	}
 

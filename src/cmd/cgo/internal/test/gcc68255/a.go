@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Test that it's OK to have C code that does nothing other than
-// initialize a global variable.  This used to fail with gccgo.
+// initialize a global variable. This used to fail with gccgo.
 
 package gcc68255
 

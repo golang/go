@@ -216,7 +216,7 @@ func genInlTreeSym(ctxt *Link, cu *sym.CompilationUnit, fi loader.FuncInfo, arch
 		const size = 16
 		inlTreeSym.SetUint8(arch, int64(i*size+0), uint8(funcID))
 		// Bytes 1-3 are unused.
-		inlTreeSym.SetUint32(arch, int64(i*size+4), uint32(nameOff))
+		inlTreeSym.SetUint32(arch, int64(i*size+4), nameOff)
 		inlTreeSym.SetUint32(arch, int64(i*size+8), uint32(call.ParentPC))
 		inlTreeSym.SetUint32(arch, int64(i*size+12), uint32(startLine))
 	}
@@ -243,7 +243,6 @@ func makeInlSyms(ctxt *Link, funcs []loader.Sym, nameOffsets map[loader.Sym]uint
 // generator to fill in its data later.
 func (state *pclntab) generatePCHeader(ctxt *Link) {
 	ldr := ctxt.loader
-	textStartOff := int64(8 + 2*ctxt.Arch.PtrSize)
 	size := int64(8 + 8*ctxt.Arch.PtrSize)
 	writeHeader := func(ctxt *Link, s loader.Sym) {
 		header := ctxt.loader.MakeSymbolUpdater(s)
@@ -264,10 +263,7 @@ func (state *pclntab) generatePCHeader(ctxt *Link) {
 		header.SetUint8(ctxt.Arch, 7, uint8(ctxt.Arch.PtrSize))
 		off := header.SetUint(ctxt.Arch, 8, uint64(state.nfunc))
 		off = header.SetUint(ctxt.Arch, off, uint64(state.nfiles))
-		if off != textStartOff {
-			panic(fmt.Sprintf("pcHeader textStartOff: %d != %d", off, textStartOff))
-		}
-		off += int64(ctxt.Arch.PtrSize) // skip runtimeText relocation
+		off = header.SetUintptr(ctxt.Arch, off, 0) // unused
 		off = writeSymOffset(off, state.funcnametab)
 		off = writeSymOffset(off, state.cutab)
 		off = writeSymOffset(off, state.filetab)
@@ -279,9 +275,6 @@ func (state *pclntab) generatePCHeader(ctxt *Link) {
 	}
 
 	state.pcheader = state.addGeneratedSym(ctxt, "runtime.pcheader", size, writeHeader)
-	// Create the runtimeText relocation.
-	sb := ldr.MakeSymbolUpdater(state.pcheader)
-	sb.SetAddr(ctxt.Arch, textStartOff, ldr.Lookup("runtime.text", 0))
 }
 
 // walkFuncs iterates over the funcs, calling a function for each unique
@@ -683,14 +676,14 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
 		off := int64(startLocations[i])
 		// entryOff uint32 (offset of func entry PC from textStart)
 		entryOff := textOff(ctxt, s, textStart)
-		off = sb.SetUint32(ctxt.Arch, off, uint32(entryOff))
+		off = sb.SetUint32(ctxt.Arch, off, entryOff)
 
 		// nameOff int32
 		nameOff, ok := nameOffsets[s]
 		if !ok {
 			panic("couldn't find function name offset")
 		}
-		off = sb.SetUint32(ctxt.Arch, off, uint32(nameOff))
+		off = sb.SetUint32(ctxt.Arch, off, nameOff)
 
 		// args int32
 		// TODO: Move into funcinfo.
@@ -712,7 +705,7 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
 		} else {
 			off += 12
 		}
-		off = sb.SetUint32(ctxt.Arch, off, uint32(numPCData(ldr, s, fi)))
+		off = sb.SetUint32(ctxt.Arch, off, numPCData(ldr, s, fi))
 
 		// Store the offset to compilation unit's file table.
 		cuIdx := ^uint32(0)

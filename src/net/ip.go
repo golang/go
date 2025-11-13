@@ -14,7 +14,7 @@ package net
 
 import (
 	"internal/bytealg"
-	"internal/itoa"
+	"internal/strconv"
 	"internal/stringslite"
 	"net/netip"
 )
@@ -515,7 +515,7 @@ func (n *IPNet) String() string {
 	if l == -1 {
 		return nn.String() + "/" + m.String()
 	}
-	return nn.String() + "/" + itoa.Uitoa(uint(l))
+	return nn.String() + "/" + strconv.Itoa(l)
 }
 
 // ParseIP parses s as an IP address, returning the result.

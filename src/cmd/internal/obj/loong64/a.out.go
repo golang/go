@@ -236,7 +236,7 @@ var LOONG64DWARFRegisters = map[int16]int16{}
 func init() {
 	// f assigns dwarfregisters[from:to] = (base):(to-from+base)
 	f := func(from, to, base int16) {
-		for r := int16(from); r <= to; r++ {
+		for r := from; r <= to; r++ {
 			LOONG64DWARFRegisters[r] = (r - from) + base
 		}
 	}
@@ -249,7 +249,13 @@ func init() {
 }
 
 const (
-	BIG = 2046
+	BIG_8  = 128 - 2 // FIXME (not sure if -2 is appropriate)
+	BIG_9  = 256 - 2
+	BIG_10 = 512 - 2
+	BIG_11 = 1024 - 2
+	BIG_12 = 2046
+	BIG_16 = 32768 - 2
+	BIG_32 = 2147483648 - 2
 )
 
 const (
@@ -397,10 +403,16 @@ const (
 	C_BRAN
 	C_SAUTO
 	C_LAUTO
-	C_ZOREG
-	C_SOREG
-	C_LOREG
-	C_ROFF // register offset
+	C_ZOREG    // An $0+reg memory op
+	C_SOREG_8  // An $n+reg memory arg where n is a 8 bit signed offset
+	C_SOREG_9  // An $n+reg memory arg where n is a 9 bit signed offset
+	C_SOREG_10 // An $n+reg memory arg where n is a 10 bit signed offset
+	C_SOREG_11 // An $n+reg memory arg where n is a 11 bit signed offset
+	C_SOREG_12 // An $n+reg memory arg where n is a 12 bit signed offset
+	C_SOREG_16 // An $n+reg memory arg where n is a 16 bit signed offset
+	C_LOREG_32 // An $n+reg memory arg where n is a 32 bit signed offset
+	C_LOREG_64 // An $n+reg memory arg where n is a 64 bit signed offset
+	C_ROFF     // register offset
 	C_ADDR
 	C_TLS_LE
 	C_TLS_IE
@@ -797,6 +809,38 @@ const (
 	AXVSUBHU
 	AXVSUBWU
 	AXVSUBVU
+	AVSADDB
+	AVSADDH
+	AVSADDW
+	AVSADDV
+	AVSSUBB
+	AVSSUBH
+	AVSSUBW
+	AVSSUBV
+	AVSADDBU
+	AVSADDHU
+	AVSADDWU
+	AVSADDVU
+	AVSSUBBU
+	AVSSUBHU
+	AVSSUBWU
+	AVSSUBVU
+	AXVSADDB
+	AXVSADDH
+	AXVSADDW
+	AXVSADDV
+	AXVSSUBB
+	AXVSSUBH
+	AXVSSUBW
+	AXVSSUBV
+	AXVSADDBU
+	AXVSADDHU
+	AXVSADDWU
+	AXVSADDVU
+	AXVSSUBBU
+	AXVSSUBHU
+	AXVSSUBWU
+	AXVSSUBVU
 
 	// LSX and LASX Bit-manipulation Instructions
 	AVANDB
@@ -1102,6 +1146,29 @@ const (
 	AXVSHUF4IH
 	AXVSHUF4IW
 	AXVSHUF4IV
+
+	AVSHUFB
+	AVSHUFH
+	AVSHUFW
+	AVSHUFV
+	AXVSHUFB
+	AXVSHUFH
+	AXVSHUFW
+	AXVSHUFV
+
+	AVPERMIW
+	AXVPERMIW
+	AXVPERMIV
+	AXVPERMIQ
+
+	AVEXTRINSB
+	AVEXTRINSH
+	AVEXTRINSW
+	AVEXTRINSV
+	AXVEXTRINSB
+	AXVEXTRINSH
+	AXVEXTRINSW
+	AXVEXTRINSV
 
 	AVSETEQV
 	AVSETNEV

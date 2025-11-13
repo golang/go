@@ -655,7 +655,7 @@ func writeVarint(buf []byte, n int) int {
 	}
 }
 
-// Name returns the tag string for n, or empty if there is none.
+// Name returns the name of n, or empty if it does not actually have a name.
 func (n Name) Name() string {
 	if n.Bytes == nil {
 		return ""

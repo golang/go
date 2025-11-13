@@ -714,10 +714,14 @@ func walkPrint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
 			}
 		case types.TINT, types.TINT8, types.TINT16, types.TINT32, types.TINT64:
 			on = typecheck.LookupRuntime("printint")
-		case types.TFLOAT32, types.TFLOAT64:
-			on = typecheck.LookupRuntime("printfloat")
-		case types.TCOMPLEX64, types.TCOMPLEX128:
-			on = typecheck.LookupRuntime("printcomplex")
+		case types.TFLOAT32:
+			on = typecheck.LookupRuntime("printfloat32")
+		case types.TFLOAT64:
+			on = typecheck.LookupRuntime("printfloat64")
+		case types.TCOMPLEX64:
+			on = typecheck.LookupRuntime("printcomplex64")
+		case types.TCOMPLEX128:
+			on = typecheck.LookupRuntime("printcomplex128")
 		case types.TBOOL:
 			on = typecheck.LookupRuntime("printbool")
 		case types.TSTRING:

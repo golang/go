@@ -26,6 +26,14 @@ func Equal(x, y ast.Node, identical func(x, y *ast.Ident) bool) bool {
 	return equal(reflect.ValueOf(x), reflect.ValueOf(y), identical)
 }
 
+// EqualSyntax reports whether x and y are equal.
+// Identifiers are considered equal if they are spelled the same.
+// Comments are ignored.
+func EqualSyntax(x, y ast.Expr) bool {
+	sameName := func(x, y *ast.Ident) bool { return x.Name == y.Name }
+	return Equal(x, y, sameName)
+}
+
 func equal(x, y reflect.Value, identical func(x, y *ast.Ident) bool) bool {
 	// Ensure types are the same
 	if x.Type() != y.Type() {

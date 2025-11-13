@@ -204,23 +204,12 @@ func ZeroExpr(t types.Type, qual types.Qualifier) (_ ast.Expr, isValid bool) {
 	}
 }
 
-// IsZeroExpr uses simple syntactic heuristics to report whether expr
-// is a obvious zero value, such as 0, "", nil, or false.
-// It cannot do better without type information.
-func IsZeroExpr(expr ast.Expr) bool {
-	switch e := expr.(type) {
-	case *ast.BasicLit:
-		return e.Value == "0" || e.Value == `""`
-	case *ast.Ident:
-		return e.Name == "nil" || e.Name == "false"
-	default:
-		return false
-	}
-}
-
 // TypeExpr returns syntax for the specified type. References to named types
 // are qualified by an appropriate (optional) qualifier function.
 // It may panic for types such as Tuple or Union.
+//
+// See also https://go.dev/issues/75604, which will provide a robust
+// Type-to-valid-Go-syntax formatter.
 func TypeExpr(t types.Type, qual types.Qualifier) ast.Expr {
 	switch t := t.(type) {
 	case *types.Basic:

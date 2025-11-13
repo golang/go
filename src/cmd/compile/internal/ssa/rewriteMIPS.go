@@ -6562,6 +6562,23 @@ func rewriteValueMIPS_OpSelect0(v *Value) bool {
 		v.AddArg2(x, y)
 		return true
 	}
+	// match: (Select0 (Add32carrywithcarry <t> x y c))
+	// result: (ADD <t.FieldType(0)> c (ADD <t.FieldType(0)> x y))
+	for {
+		if v_0.Op != OpAdd32carrywithcarry {
+			break
+		}
+		t := v_0.Type
+		c := v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		v.reset(OpMIPSADD)
+		v.Type = t.FieldType(0)
+		v0 := b.NewValue0(v.Pos, OpMIPSADD, t.FieldType(0))
+		v0.AddArg2(x, y)
+		v.AddArg2(c, v0)
+		return true
+	}
 	// match: (Select0 (Sub32carry <t> x y))
 	// result: (SUB <t.FieldType(0)> x y)
 	for {
@@ -6757,6 +6774,29 @@ func rewriteValueMIPS_OpSelect1(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpMIPSADD, t.FieldType(0))
 		v0.AddArg2(x, y)
 		v.AddArg2(x, v0)
+		return true
+	}
+	// match: (Select1 (Add32carrywithcarry <t> x y c))
+	// result: (OR <typ.Bool> (SGTU <typ.Bool> x xy:(ADD <t.FieldType(0)> x y)) (SGTU <typ.Bool> xy (ADD <t.FieldType(0)> c xy)))
+	for {
+		if v_0.Op != OpAdd32carrywithcarry {
+			break
+		}
+		t := v_0.Type
+		c := v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		v.reset(OpMIPSOR)
+		v.Type = typ.Bool
+		v0 := b.NewValue0(v.Pos, OpMIPSSGTU, typ.Bool)
+		xy := b.NewValue0(v.Pos, OpMIPSADD, t.FieldType(0))
+		xy.AddArg2(x, y)
+		v0.AddArg2(x, xy)
+		v2 := b.NewValue0(v.Pos, OpMIPSSGTU, typ.Bool)
+		v3 := b.NewValue0(v.Pos, OpMIPSADD, t.FieldType(0))
+		v3.AddArg2(c, xy)
+		v2.AddArg2(xy, v3)
+		v.AddArg2(v0, v2)
 		return true
 	}
 	// match: (Select1 (Sub32carry <t> x y))

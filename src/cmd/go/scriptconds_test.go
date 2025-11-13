@@ -14,10 +14,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"runtime/debug"
 	"sync"
 	"testing"
+
+	"golang.org/x/mod/semver"
 )
 
 func scriptConditions(t *testing.T) map[string]script.Cond {
@@ -41,6 +44,7 @@ func scriptConditions(t *testing.T) map[string]script.Cond {
 	add("case-sensitive", script.OnceCondition("$WORK filesystem is case-sensitive", isCaseSensitive))
 	add("cc", script.PrefixCondition("go env CC = <suffix> (ignoring the go/env file)", ccIs))
 	add("git", lazyBool("the 'git' executable exists and provides the standard CLI", hasWorkingGit))
+	add("git-min-vers", script.PrefixCondition("<suffix> indicates a minimum git version", hasAtLeastGitVersion))
 	add("net", script.PrefixCondition("can connect to external network host <suffix>", hasNet))
 	add("trimpath", script.OnceCondition("test binary was built with -trimpath", isTrimpath))
 
@@ -151,6 +155,28 @@ func hasWorkingGit() bool {
 	}
 	_, err := exec.LookPath("git")
 	return err == nil
+}
+
+var gitVersLineExtract = regexp.MustCompile(`git version\s+([\d.]+)`)
+
+func gitVersion() (string, error) {
+	gitOut, runErr := exec.Command("git", "version").CombinedOutput()
+	if runErr != nil {
+		return "v0", fmt.Errorf("failed to execute git version: %w", runErr)
+	}
+	matches := gitVersLineExtract.FindSubmatch(gitOut)
+	if len(matches) < 2 {
+		return "v0", fmt.Errorf("git version extraction regexp did not match version line: %q", gitOut)
+	}
+	return "v" + string(matches[1]), nil
+}
+
+func hasAtLeastGitVersion(s *script.State, minVers string) (bool, error) {
+	gitVers, gitVersErr := gitVersion()
+	if gitVersErr != nil {
+		return false, gitVersErr
+	}
+	return semver.Compare(minVers, gitVers) <= 0, nil
 }
 
 func hasWorkingBzr() bool {

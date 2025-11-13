@@ -242,7 +242,7 @@ func parseArmAttributes(e binary.ByteOrder, data []byte) (found bool, ehdrFlags 
 // object, and the returned ehdrFlags contains what this Load function computes.
 // TODO: find a better place for this logic.
 func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, pkg string, length int64, pn string, initEhdrFlags uint32) (textp []loader.Sym, ehdrFlags uint32, err error) {
-	errorf := func(str string, args ...interface{}) ([]loader.Sym, uint32, error) {
+	errorf := func(str string, args ...any) ([]loader.Sym, uint32, error) {
 		return nil, 0, fmt.Errorf("loadelf: %s: %v", pn, fmt.Sprintf(str, args...))
 	}
 
@@ -785,12 +785,12 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 				rSym = 0
 			} else {
 				var elfsym ElfSym
-				if err := readelfsym(l, arch, elfobj, int(symIdx), &elfsym, 0, 0); err != nil {
+				if err := readelfsym(l, arch, elfobj, symIdx, &elfsym, 0, 0); err != nil {
 					return errorf("malformed elf file: %v", err)
 				}
 				elfsym.sym = symbols[symIdx]
 				if elfsym.sym == 0 {
-					return errorf("malformed elf file: %s#%d: reloc of invalid sym #%d %s shndx=%d type=%d", l.SymName(sect.sym), j, int(symIdx), elfsym.name, elfsym.shndx, elfsym.type_)
+					return errorf("malformed elf file: %s#%d: reloc of invalid sym #%d %s shndx=%d type=%d", l.SymName(sect.sym), j, symIdx, elfsym.name, elfsym.shndx, elfsym.type_)
 				}
 
 				rSym = elfsym.sym
@@ -854,7 +854,7 @@ func elfmap(elfobj *ElfObj, sect *ElfSect) (err error) {
 	}
 
 	elfobj.f.MustSeek(int64(uint64(elfobj.base)+sect.off), 0)
-	sect.base, sect.readOnlyMem, err = elfobj.f.Slice(uint64(sect.size))
+	sect.base, sect.readOnlyMem, err = elfobj.f.Slice(sect.size)
 	if err != nil {
 		return fmt.Errorf("short read: %v", err)
 	}

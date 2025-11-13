@@ -127,7 +127,6 @@ func asmb(ctxt *ld.Link, ldr *loader.Loader) {
 		ldr.SymSect(ldr.Lookup("runtime.rodata", 0)),
 		ldr.SymSect(ldr.Lookup("runtime.typelink", 0)),
 		ldr.SymSect(ldr.Lookup("runtime.itablink", 0)),
-		ldr.SymSect(ldr.Lookup("runtime.symtab", 0)),
 		ldr.SymSect(ldr.Lookup("runtime.pclntab", 0)),
 		ldr.SymSect(ldr.Lookup("runtime.noptrdata", 0)),
 		ldr.SymSect(ldr.Lookup("runtime.data", 0)),
@@ -302,11 +301,11 @@ func writeTypeSec(ctxt *ld.Link, types []*wasmFuncType) {
 		ctxt.Out.WriteByte(0x60) // functype
 		writeUleb128(ctxt.Out, uint64(len(t.Params)))
 		for _, v := range t.Params {
-			ctxt.Out.WriteByte(byte(v))
+			ctxt.Out.WriteByte(v)
 		}
 		writeUleb128(ctxt.Out, uint64(len(t.Results)))
 		for _, v := range t.Results {
-			ctxt.Out.WriteByte(byte(v))
+			ctxt.Out.WriteByte(v)
 		}
 	}
 

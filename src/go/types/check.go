@@ -161,9 +161,10 @@ type Checker struct {
 	fset *token.FileSet
 	pkg  *Package
 	*Info
-	nextID uint64                 // unique Id for type parameters (first valid Id is 1)
-	objMap map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
-	impMap map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
+	nextID  uint64                 // unique Id for type parameters (first valid Id is 1)
+	objMap  map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
+	objList []Object               // source-ordered keys of objMap
+	impMap  map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
 	// see TODO in validtype.go
 	// valids instanceLookup // valid *Named (incl. instantiated) types per the validType check
 
@@ -517,6 +518,12 @@ func (check *Checker) checkFiles(files []*ast.File) {
 
 	print("== collectObjects ==")
 	check.collectObjects()
+
+	print("== sortObjects ==")
+	check.sortObjects()
+
+	print("== directCycles ==")
+	check.directCycles()
 
 	print("== packageObjects ==")
 	check.packageObjects()

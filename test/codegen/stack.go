@@ -16,13 +16,13 @@ import (
 
 // Check that stack stores are optimized away.
 
-// 386:"TEXT\t.*, [$]0-"
-// amd64:"TEXT\t.*, [$]0-"
-// arm:"TEXT\t.*, [$]-4-"
-// arm64:"TEXT\t.*, [$]0-"
-// mips:"TEXT\t.*, [$]-4-"
-// ppc64x:"TEXT\t.*, [$]0-"
-// s390x:"TEXT\t.*, [$]0-"
+// 386:"TEXT .*, [$]0-"
+// amd64:"TEXT .*, [$]0-"
+// arm:"TEXT .*, [$]-4-"
+// arm64:"TEXT .*, [$]0-"
+// mips:"TEXT .*, [$]-4-"
+// ppc64x:"TEXT .*, [$]0-"
+// s390x:"TEXT .*, [$]0-"
 func StackStore() int {
 	var x int
 	return *(&x)
@@ -35,13 +35,13 @@ type T struct {
 
 // Check that large structs are cleared directly (issue #24416).
 
-// 386:"TEXT\t.*, [$]0-"
-// amd64:"TEXT\t.*, [$]0-"
-// arm:"TEXT\t.*, [$]0-" (spills return address)
-// arm64:"TEXT\t.*, [$]0-"
-// mips:"TEXT\t.*, [$]-4-"
-// ppc64x:"TEXT\t.*, [$]0-"
-// s390x:"TEXT\t.*, [$]0-"
+// 386:"TEXT .*, [$]0-"
+// amd64:"TEXT .*, [$]0-"
+// arm:"TEXT .*, [$]0-" (spills return address)
+// arm64:"TEXT .*, [$]0-"
+// mips:"TEXT .*, [$]-4-"
+// ppc64x:"TEXT .*, [$]0-"
+// s390x:"TEXT .*, [$]0-"
 func ZeroLargeStruct(x *T) {
 	t := T{}
 	*x = t
@@ -51,11 +51,11 @@ func ZeroLargeStruct(x *T) {
 
 // Notes:
 // - 386 fails due to spilling a register
-// amd64:"TEXT\t.*, [$]0-"
-// arm:"TEXT\t.*, [$]0-" (spills return address)
-// arm64:"TEXT\t.*, [$]0-"
-// ppc64x:"TEXT\t.*, [$]0-"
-// s390x:"TEXT\t.*, [$]0-"
+// amd64:"TEXT .*, [$]0-"
+// arm:"TEXT .*, [$]0-" (spills return address)
+// arm64:"TEXT .*, [$]0-"
+// ppc64x:"TEXT .*, [$]0-"
+// s390x:"TEXT .*, [$]0-"
 // Note: that 386 currently has to spill a register.
 func KeepWanted(t *T) {
 	*t = T{A: t.A, B: t.B, C: t.C, D: t.D}
@@ -66,23 +66,23 @@ func KeepWanted(t *T) {
 // Notes:
 // - 386 fails due to spilling a register
 // - arm & mips fail due to softfloat calls
-// amd64:"TEXT\t.*, [$]0-"
-// arm64:"TEXT\t.*, [$]0-"
-// ppc64x:"TEXT\t.*, [$]0-"
-// s390x:"TEXT\t.*, [$]0-"
+// amd64:"TEXT .*, [$]0-"
+// arm64:"TEXT .*, [$]0-"
+// ppc64x:"TEXT .*, [$]0-"
+// s390x:"TEXT .*, [$]0-"
 func ArrayAdd64(a, b [4]float64) [4]float64 {
 	return [4]float64{a[0] + b[0], a[1] + b[1], a[2] + b[2], a[3] + b[3]}
 }
 
 // Check that small array initialization avoids using the stack.
 
-// 386:"TEXT\t.*, [$]0-"
-// amd64:"TEXT\t.*, [$]0-"
-// arm:"TEXT\t.*, [$]0-" (spills return address)
-// arm64:"TEXT\t.*, [$]0-"
-// mips:"TEXT\t.*, [$]-4-"
-// ppc64x:"TEXT\t.*, [$]0-"
-// s390x:"TEXT\t.*, [$]0-"
+// 386:"TEXT .*, [$]0-"
+// amd64:"TEXT .*, [$]0-"
+// arm:"TEXT .*, [$]0-" (spills return address)
+// arm64:"TEXT .*, [$]0-"
+// mips:"TEXT .*, [$]-4-"
+// ppc64x:"TEXT .*, [$]0-"
+// s390x:"TEXT .*, [$]0-"
 func ArrayInit(i, j int) [4]int {
 	return [4]int{i, 0, j, 0}
 }
@@ -99,7 +99,7 @@ func check_asmout(b [2]int) int {
 
 // Check that simple functions get promoted to nosplit, even when
 // they might panic in various ways. See issue 31219.
-// amd64:"TEXT\t.*NOSPLIT.*"
+// amd64:"TEXT .*NOSPLIT.*"
 func MightPanic(a []int, i, j, k, s int) {
 	_ = a[i]     // panicIndex
 	_ = a[i:j]   // panicSlice
@@ -113,7 +113,7 @@ func Defer() {
 	for i := 0; i < 2; i++ {
 		defer func() {}()
 	}
-	// amd64:`CALL\truntime\.deferprocStack`
+	// amd64:`CALL runtime\.deferprocStack`
 	defer func() {}()
 }
 
@@ -138,7 +138,7 @@ type mySlice struct {
 	cap   int
 }
 
-// amd64:"TEXT\t.*, [$]0-"
+// amd64:"TEXT .*, [$]0-"
 func sliceInit(base uintptr) []uintptr {
 	const ptrSize = 8
 	size := uintptr(4096)
@@ -150,7 +150,7 @@ func sliceInit(base uintptr) []uintptr {
 		elements,
 		elements,
 	}
-	// amd64:-"POPQ",-"SP"
+	// amd64:-"POPQ" -"SP"
 	return *(*[]uintptr)(unsafe.Pointer(&sl))
 }
 
@@ -171,6 +171,6 @@ func getp2() *[4]int {
 
 // Store to an argument without read can be removed.
 func storeArg(a [2]int) {
-	// amd64:-`MOVQ\t\$123,.*\.a\+\d+\(SP\)`
+	// amd64:-`MOVQ \$123,.*\.a\+\d+\(SP\)`
 	a[1] = 123
 }

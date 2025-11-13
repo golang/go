@@ -6198,19 +6198,6 @@ func TestChanOfDir(t *testing.T) {
 }
 
 func TestChanOfGC(t *testing.T) {
-	done := make(chan bool, 1)
-	go func() {
-		select {
-		case <-done:
-		case <-time.After(5 * time.Second):
-			panic("deadlock in TestChanOfGC")
-		}
-	}()
-
-	defer func() {
-		done <- true
-	}()
-
 	type T *uintptr
 	tt := TypeOf(T(nil))
 	ct := ChanOf(BothDir, tt)
@@ -7528,7 +7515,6 @@ func TestTypeStrings(t *testing.T) {
 func TestOffsetLock(t *testing.T) {
 	var wg sync.WaitGroup
 	for i := 0; i < 4; i++ {
-		i := i
 		wg.Add(1)
 		go func() {
 			for j := 0; j < 50; j++ {
@@ -8110,11 +8096,11 @@ func TestValue_Len(t *testing.T) {
 func TestValue_Comparable(t *testing.T) {
 	var a int
 	var s []int
-	var i interface{} = a
-	var iNil interface{}
-	var iSlice interface{} = s
-	var iArrayFalse interface{} = [2]interface{}{1, map[int]int{}}
-	var iArrayTrue interface{} = [2]interface{}{1, struct{ I interface{} }{1}}
+	var i any = a
+	var iNil any
+	var iSlice any = s
+	var iArrayFalse any = [2]any{1, map[int]int{}}
+	var iArrayTrue any = [2]any{1, struct{ I any }{1}}
 	var testcases = []struct {
 		value      Value
 		comparable bool
@@ -8251,22 +8237,22 @@ func TestValue_Comparable(t *testing.T) {
 			false,
 		},
 		{
-			ValueOf([2]struct{ I interface{} }{{1}, {1}}),
+			ValueOf([2]struct{ I any }{{1}, {1}}),
 			true,
 			false,
 		},
 		{
-			ValueOf([2]struct{ I interface{} }{{[]int{}}, {1}}),
+			ValueOf([2]struct{ I any }{{[]int{}}, {1}}),
 			false,
 			false,
 		},
 		{
-			ValueOf([2]interface{}{1, struct{ I int }{1}}),
+			ValueOf([2]any{1, struct{ I int }{1}}),
 			true,
 			false,
 		},
 		{
-			ValueOf([2]interface{}{[1]interface{}{map[int]int{}}, struct{ I int }{1}}),
+			ValueOf([2]any{[1]any{map[int]int{}}, struct{ I int }{1}}),
 			false,
 			false,
 		},
@@ -8300,10 +8286,10 @@ type ValueEqualTest struct {
 	vDeref, uDeref bool
 }
 
-var equalI interface{} = 1
-var equalSlice interface{} = []int{1}
-var nilInterface interface{}
-var mapInterface interface{} = map[int]int{}
+var equalI any = 1
+var equalSlice any = []int{1}
+var nilInterface any
+var mapInterface any = map[int]int{}
 
 var valueEqualTests = []ValueEqualTest{
 	{
@@ -8482,8 +8468,8 @@ func TestValue_EqualNonComparable(t *testing.T) {
 		// Value of array is non-comparable because of non-comparable elements.
 		ValueOf([0]map[int]int{}),
 		ValueOf([0]func(){}),
-		ValueOf(([1]struct{ I interface{} }{{[]int{}}})),
-		ValueOf(([1]interface{}{[1]interface{}{map[int]int{}}})),
+		ValueOf(([1]struct{ I any }{{[]int{}}})),
+		ValueOf(([1]any{[1]any{map[int]int{}}})),
 	}
 	for _, value := range values {
 		// Panic when reflect.Value.Equal using two valid non-comparable values.
@@ -8548,7 +8534,6 @@ func TestClear(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			if !tc.testFunc(tc.value) {
@@ -8582,7 +8567,6 @@ func TestValuePointerAndUnsafePointer(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			if got := tc.val.Pointer(); got != uintptr(tc.wantUnsafePointer) {
 				t.Errorf("unexpected uintptr result, got %#x, want %#x", got, uintptr(tc.wantUnsafePointer))

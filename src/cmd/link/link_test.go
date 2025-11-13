@@ -1532,11 +1532,13 @@ func TestFlagS(t *testing.T) {
 		}
 		cmd = testenv.Command(t, testenv.GoToolPath(t), "tool", "nm", exe)
 		out, err = cmd.CombinedOutput()
-		if err != nil && !errors.As(err, new(*exec.ExitError)) {
-			// Error exit is fine as it may have no symbols.
-			// On darwin we need to emit dynamic symbol references so it
-			// actually has some symbols, and nm succeeds.
-			t.Errorf("(mode=%s) go tool nm failed: %v\n%s", mode, err, out)
+		if err != nil {
+			if _, ok := errors.AsType[*exec.ExitError](err); !ok {
+				// Error exit is fine as it may have no symbols.
+				// On darwin we need to emit dynamic symbol references so it
+				// actually has some symbols, and nm succeeds.
+				t.Errorf("(mode=%s) go tool nm failed: %v\n%s", mode, err, out)
+			}
 		}
 		for _, s := range syms {
 			if bytes.Contains(out, []byte(s)) {

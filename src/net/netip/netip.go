@@ -16,7 +16,6 @@ import (
 	"errors"
 	"internal/bytealg"
 	"internal/byteorder"
-	"internal/itoa"
 	"math"
 	"strconv"
 	"unique"
@@ -684,12 +683,12 @@ func (ip Addr) Prefix(b int) (Prefix, error) {
 		return Prefix{}, nil
 	case z4:
 		if b > 32 {
-			return Prefix{}, errors.New("prefix length " + itoa.Itoa(b) + " too large for IPv4")
+			return Prefix{}, errors.New("prefix length " + strconv.Itoa(b) + " too large for IPv4")
 		}
 		effectiveBits += 96
 	default:
 		if b > 128 {
-			return Prefix{}, errors.New("prefix length " + itoa.Itoa(b) + " too large for IPv6")
+			return Prefix{}, errors.New("prefix length " + strconv.Itoa(b) + " too large for IPv6")
 		}
 	}
 	ip.addr = ip.addr.and(mask6(effectiveBits))
@@ -1593,5 +1592,5 @@ func (p Prefix) String() string {
 	if !p.IsValid() {
 		return "invalid Prefix"
 	}
-	return p.ip.String() + "/" + itoa.Itoa(p.Bits())
+	return p.ip.String() + "/" + strconv.Itoa(p.Bits())
 }

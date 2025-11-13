@@ -623,6 +623,169 @@ func TestInf(t *testing.T) {
 	}
 }
 
+//go:noinline
+func isNaNOrGtZero64(x float64) bool {
+	return math.IsNaN(x) || x > 0
+}
+
+//go:noinline
+func isNaNOrGteZero64(x float64) bool {
+	return x >= 0 || math.IsNaN(x)
+}
+
+//go:noinline
+func isNaNOrLtZero64(x float64) bool {
+	return x < 0 || math.IsNaN(x)
+}
+
+//go:noinline
+func isNaNOrLteZero64(x float64) bool {
+	return math.IsNaN(x) || x <= 0
+}
+
+func TestFusedNaNChecks64(t *testing.T) {
+	tests := []struct {
+		value             float64
+		isZero            bool
+		isGreaterThanZero bool
+		isLessThanZero    bool
+		isNaN             bool
+	}{
+		{value: 0.0, isZero: true},
+		{value: math.Copysign(0, -1), isZero: true},
+		{value: 1.0, isGreaterThanZero: true},
+		{value: -1.0, isLessThanZero: true},
+		{value: math.Inf(1), isGreaterThanZero: true},
+		{value: math.Inf(-1), isLessThanZero: true},
+		{value: math.NaN(), isNaN: true},
+	}
+
+	check := func(name string, f func(x float64) bool, value float64, want bool) {
+		got := f(value)
+		if got != want {
+			t.Errorf("%v(%g): want %v, got %v", name, value, want, got)
+		}
+	}
+
+	for _, test := range tests {
+		check("isNaNOrGtZero64", isNaNOrGtZero64, test.value, test.isNaN || test.isGreaterThanZero)
+		check("isNaNOrGteZero64", isNaNOrGteZero64, test.value, test.isNaN || test.isGreaterThanZero || test.isZero)
+		check("isNaNOrLtZero64", isNaNOrLtZero64, test.value, test.isNaN || test.isLessThanZero)
+		check("isNaNOrLteZero64", isNaNOrLteZero64, test.value, test.isNaN || test.isLessThanZero || test.isZero)
+	}
+}
+
+//go:noinline
+func isNaNOrGtZero32(x float32) bool {
+	return x > 0 || x != x
+}
+
+//go:noinline
+func isNaNOrGteZero32(x float32) bool {
+	return x != x || x >= 0
+}
+
+//go:noinline
+func isNaNOrLtZero32(x float32) bool {
+	return x != x || x < 0
+}
+
+//go:noinline
+func isNaNOrLteZero32(x float32) bool {
+	return x <= 0 || x != x
+}
+
+func TestFusedNaNChecks32(t *testing.T) {
+	tests := []struct {
+		value             float32
+		isZero            bool
+		isGreaterThanZero bool
+		isLessThanZero    bool
+		isNaN             bool
+	}{
+		{value: 0.0, isZero: true},
+		{value: float32(math.Copysign(0, -1)), isZero: true},
+		{value: 1.0, isGreaterThanZero: true},
+		{value: -1.0, isLessThanZero: true},
+		{value: float32(math.Inf(1)), isGreaterThanZero: true},
+		{value: float32(math.Inf(-1)), isLessThanZero: true},
+		{value: float32(math.NaN()), isNaN: true},
+	}
+
+	check := func(name string, f func(x float32) bool, value float32, want bool) {
+		got := f(value)
+		if got != want {
+			t.Errorf("%v(%g): want %v, got %v", name, value, want, got)
+		}
+	}
+
+	for _, test := range tests {
+		check("isNaNOrGtZero32", isNaNOrGtZero32, test.value, test.isNaN || test.isGreaterThanZero)
+		check("isNaNOrGteZero32", isNaNOrGteZero32, test.value, test.isNaN || test.isGreaterThanZero || test.isZero)
+		check("isNaNOrLtZero32", isNaNOrLtZero32, test.value, test.isNaN || test.isLessThanZero)
+		check("isNaNOrLteZero32", isNaNOrLteZero32, test.value, test.isNaN || test.isLessThanZero || test.isZero)
+	}
+}
+
+// minNormal64 is the smallest float64 value that is not subnormal.
+const minNormal64 = 2.2250738585072014e-308
+
+//go:noinline
+func isAbsLessThanMinNormal64(x float64) bool {
+	return math.Abs(x) < minNormal64
+}
+
+//go:noinline
+func isLessThanMinNormal64(x float64) bool {
+	return x < minNormal64
+}
+
+//go:noinline
+func isGreaterThanNegMinNormal64(x float64) bool {
+	return x > -minNormal64
+}
+
+//go:noinline
+func isGreaterThanOrEqualToMinNormal64(x float64) bool {
+	return math.Abs(x) >= minNormal64
+}
+
+func TestSubnormalComparisons(t *testing.T) {
+	tests := []struct {
+		value                  float64
+		isAbsLessThanMinNormal bool
+		isPositive             bool
+		isNegative             bool
+		isNaN                  bool
+	}{
+		{value: math.Inf(1), isPositive: true},
+		{value: math.MaxFloat64, isPositive: true},
+		{value: math.Inf(-1), isNegative: true},
+		{value: -math.MaxFloat64, isNegative: true},
+		{value: math.NaN(), isNaN: true},
+		{value: minNormal64, isPositive: true},
+		{value: minNormal64 / 2, isAbsLessThanMinNormal: true, isPositive: true},
+		{value: -minNormal64, isNegative: true},
+		{value: -minNormal64 / 2, isAbsLessThanMinNormal: true, isNegative: true},
+		{value: 0, isAbsLessThanMinNormal: true, isPositive: true},
+		{value: math.Copysign(0, -1), isAbsLessThanMinNormal: true, isNegative: true},
+	}
+
+	check := func(name string, f func(x float64) bool, value float64, want bool) {
+		got := f(value)
+		if got != want {
+			t.Errorf("%v(%g): want %v, got %v", name, value, want, got)
+		}
+	}
+
+	for _, test := range tests {
+		check("isAbsLessThanMinNormal64", isAbsLessThanMinNormal64, test.value, test.isAbsLessThanMinNormal)
+		check("isLessThanMinNormal64", isLessThanMinNormal64, test.value, test.isAbsLessThanMinNormal || test.isNegative)
+		check("isGreaterThanNegMinNormal64", isGreaterThanNegMinNormal64, test.value, test.isAbsLessThanMinNormal || test.isPositive)
+		check("isGreaterThanOrEqualToMinNormal64", isGreaterThanOrEqualToMinNormal64, test.value, !test.isAbsLessThanMinNormal && !test.isNaN)
+	}
+}
+
 var sinkFloat float64
 
 func BenchmarkMul2(b *testing.B) {

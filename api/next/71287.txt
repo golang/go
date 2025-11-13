@@ -1,0 +1,4 @@
+pkg testing, method (*B) ArtifactDir() string #71287
+pkg testing, method (*F) ArtifactDir() string #71287
+pkg testing, method (*T) ArtifactDir() string #71287
+pkg testing, type TB interface, ArtifactDir() string #71287

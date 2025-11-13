@@ -798,7 +798,16 @@ func IsNewObject(v *Value, select1 []*Value) (mem *Value, ok bool) {
 	if call.Op != OpStaticCall {
 		return nil, false
 	}
-	if !isSameCall(call.Aux, "runtime.newobject") {
+	// Check for new object, or for new object calls that have been transformed into size-specialized malloc calls.
+	// Calls that have return type unsafe pointer may have originally been produced by flushPendingHeapAllocations
+	// in the ssa generator, so may have not originally been newObject calls.
+	var numParameters int64
+	switch {
+	case isNewObject(call.Aux):
+		numParameters = 1
+	case isSpecializedMalloc(call.Aux) && !v.Type.IsUnsafePtr():
+		numParameters = 3
+	default:
 		return nil, false
 	}
 	if f.ABIDefault == f.ABI1 && len(c.intParamRegs) >= 1 {
@@ -813,7 +822,7 @@ func IsNewObject(v *Value, select1 []*Value) (mem *Value, ok bool) {
 	if v.Args[0].Args[0].Op != OpSP {
 		return nil, false
 	}
-	if v.Args[0].AuxInt != c.ctxt.Arch.FixedFrameSize+c.RegSize { // offset of return value
+	if v.Args[0].AuxInt != c.ctxt.Arch.FixedFrameSize+numParameters*c.RegSize { // offset of return value
 		return nil, false
 	}
 	return mem, true

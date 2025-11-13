@@ -6,7 +6,13 @@ package astutil
 
 import (
 	"go/ast"
+	"go/printer"
 	"go/token"
+	"strings"
+
+	"golang.org/x/tools/go/ast/edge"
+	"golang.org/x/tools/go/ast/inspector"
+	"golang.org/x/tools/internal/moreiters"
 )
 
 // PreorderStack traverses the tree rooted at root,
@@ -66,4 +72,48 @@ func NodeContains(n ast.Node, pos token.Pos) bool {
 		start, end = n.Pos(), n.End()
 	}
 	return start <= pos && pos <= end
+}
+
+// IsChildOf reports whether cur.ParentEdge is ek.
+//
+// TODO(adonovan): promote to a method of Cursor.
+func IsChildOf(cur inspector.Cursor, ek edge.Kind) bool {
+	got, _ := cur.ParentEdge()
+	return got == ek
+}
+
+// EnclosingFile returns the syntax tree for the file enclosing c.
+//
+// TODO(adonovan): promote this to a method of Cursor.
+func EnclosingFile(c inspector.Cursor) *ast.File {
+	c, _ = moreiters.First(c.Enclosing((*ast.File)(nil)))
+	return c.Node().(*ast.File)
+}
+
+// DocComment returns the doc comment for a node, if any.
+func DocComment(n ast.Node) *ast.CommentGroup {
+	switch n := n.(type) {
+	case *ast.FuncDecl:
+		return n.Doc
+	case *ast.GenDecl:
+		return n.Doc
+	case *ast.ValueSpec:
+		return n.Doc
+	case *ast.TypeSpec:
+		return n.Doc
+	case *ast.File:
+		return n.Doc
+	case *ast.ImportSpec:
+		return n.Doc
+	case *ast.Field:
+		return n.Doc
+	}
+	return nil
+}
+
+// Format returns a string representation of the node n.
+func Format(fset *token.FileSet, n ast.Node) string {
+	var buf strings.Builder
+	printer.Fprint(&buf, fset, n) // ignore errors
+	return buf.String()
 }

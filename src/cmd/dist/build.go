@@ -624,11 +624,6 @@ func mustLinkExternal(goos, goarch string, cgoEnabled bool) bool {
 			// Internally linking cgo is incomplete on some architectures.
 			// https://golang.org/issue/14449
 			return true
-		case "arm64":
-			if goos == "windows" {
-				// windows/arm64 internal linking is not implemented.
-				return true
-			}
 		case "ppc64":
 			// Big Endian PPC64 cgo internal linking is not implemented for aix or linux.
 			if goos == "aix" || goos == "linux" {
@@ -1397,7 +1392,7 @@ var (
 	binExesIncludedInDistpack = []string{"cmd/go", "cmd/gofmt"}
 
 	// Keep in sync with the filter in cmd/distpack/pack.go.
-	toolsIncludedInDistpack = []string{"cmd/asm", "cmd/cgo", "cmd/compile", "cmd/cover", "cmd/link", "cmd/preprofile", "cmd/vet"}
+	toolsIncludedInDistpack = []string{"cmd/asm", "cmd/cgo", "cmd/compile", "cmd/cover", "cmd/fix", "cmd/link", "cmd/preprofile", "cmd/vet"}
 
 	// We could install all tools in "cmd", but is unnecessary because we will
 	// remove them in distpack, so instead install the tools that will actually

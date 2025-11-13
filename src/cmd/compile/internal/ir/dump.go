@@ -21,7 +21,7 @@ import (
 )
 
 // DumpAny is like FDumpAny but prints to stderr.
-func DumpAny(root interface{}, filter string, depth int) {
+func DumpAny(root any, filter string, depth int) {
 	FDumpAny(os.Stderr, root, filter, depth)
 }
 
@@ -42,7 +42,7 @@ func DumpAny(root interface{}, filter string, depth int) {
 // rather than their type; struct fields with zero values or
 // non-matching field names are omitted, and "…" means recursion
 // depth has been reached or struct fields have been omitted.
-func FDumpAny(w io.Writer, root interface{}, filter string, depth int) {
+func FDumpAny(w io.Writer, root any, filter string, depth int) {
 	if root == nil {
 		fmt.Fprintln(w, "nil")
 		return
@@ -110,7 +110,7 @@ func (p *dumper) Write(data []byte) (n int, err error) {
 }
 
 // printf is a convenience wrapper.
-func (p *dumper) printf(format string, args ...interface{}) {
+func (p *dumper) printf(format string, args ...any) {
 	if _, err := fmt.Fprintf(p, format, args...); err != nil {
 		panic(err)
 	}

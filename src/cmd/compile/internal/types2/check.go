@@ -118,7 +118,7 @@ type action struct {
 
 // If debug is set, describef sets a printf-formatted description for action a.
 // Otherwise, it is a no-op.
-func (a *action) describef(pos poser, format string, args ...interface{}) {
+func (a *action) describef(pos poser, format string, args ...any) {
 	if debug {
 		a.desc = &actionDesc{pos, format, args}
 	}
@@ -129,7 +129,7 @@ func (a *action) describef(pos poser, format string, args ...interface{}) {
 type actionDesc struct {
 	pos    poser
 	format string
-	args   []interface{}
+	args   []any
 }
 
 // A Checker maintains the state of the type checker.
@@ -141,9 +141,10 @@ type Checker struct {
 	ctxt *Context // context for de-duplicating instances
 	pkg  *Package
 	*Info
-	nextID uint64                 // unique Id for type parameters (first valid Id is 1)
-	objMap map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
-	impMap map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
+	nextID  uint64                 // unique Id for type parameters (first valid Id is 1)
+	objMap  map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
+	objList []Object               // source-ordered keys of objMap
+	impMap  map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
 	// see TODO in validtype.go
 	// valids  instanceLookup      // valid *Named (incl. instantiated) types per the validType check
 
@@ -492,6 +493,12 @@ func (check *Checker) checkFiles(files []*syntax.File) {
 
 	print("== collectObjects ==")
 	check.collectObjects()
+
+	print("== sortObjects ==")
+	check.sortObjects()
+
+	print("== directCycles ==")
+	check.directCycles()
 
 	print("== packageObjects ==")
 	check.packageObjects()

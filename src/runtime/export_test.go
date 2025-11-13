@@ -1472,8 +1472,6 @@ func Releasem() {
 	releasem(getg().m)
 }
 
-var Timediv = timediv
-
 type PIController struct {
 	piController
 }
@@ -1942,3 +1940,51 @@ var X86HasAVX = &x86HasAVX
 var DebugDecorateMappings = &debug.decoratemappings
 
 func SetVMANameSupported() bool { return setVMANameSupported() }
+
+type ListHead struct {
+	l listHead
+}
+
+func (head *ListHead) Init(off uintptr) {
+	head.l.init(off)
+}
+
+type ListNode struct {
+	l listNode
+}
+
+func (head *ListHead) Push(p unsafe.Pointer) {
+	head.l.push(p)
+}
+
+func (head *ListHead) Pop() unsafe.Pointer {
+	return head.l.pop()
+}
+
+func (head *ListHead) Remove(p unsafe.Pointer) {
+	head.l.remove(p)
+}
+
+type ListHeadManual struct {
+	l listHeadManual
+}
+
+func (head *ListHeadManual) Init(off uintptr) {
+	head.l.init(off)
+}
+
+type ListNodeManual struct {
+	l listNodeManual
+}
+
+func (head *ListHeadManual) Push(p unsafe.Pointer) {
+	head.l.push(p)
+}
+
+func (head *ListHeadManual) Pop() unsafe.Pointer {
+	return head.l.pop()
+}
+
+func (head *ListHeadManual) Remove(p unsafe.Pointer) {
+	head.l.remove(p)
+}

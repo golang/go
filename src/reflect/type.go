@@ -314,7 +314,10 @@ const Ptr = Pointer
 
 // uncommonType is present only for defined types or types with methods
 // (if T is a defined type, the uncommonTypes for T and *T have methods).
-// Using a pointer to this struct reduces the overall size required
+// When present, the uncommonType struct immediately follows the
+// abi.Type struct in memory.
+// The abi.TFlagUncommon indicates the presence of uncommonType.
+// Using an optional struct reduces the overall size required
 // to describe a non-defined type with no methods.
 type uncommonType = abi.UncommonType
 

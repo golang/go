@@ -6,19 +6,8 @@ package types2
 
 import "iter"
 
-// under returns the true expanded underlying type.
-// If it doesn't exist, the result is Typ[Invalid].
-// under must only be called when a type is known
-// to be fully set up.
-func under(t Type) Type {
-	if t := asNamed(t); t != nil {
-		return t.under()
-	}
-	return t.Underlying()
-}
-
 // If typ is a type parameter, underIs returns the result of typ.underIs(f).
-// Otherwise, underIs returns the result of f(under(typ)).
+// Otherwise, underIs returns the result of f(typ.Underlying()).
 func underIs(typ Type, f func(Type) bool) bool {
 	return all(typ, func(_, u Type) bool {
 		return f(u)
@@ -31,7 +20,7 @@ func all(t Type, f func(t, u Type) bool) bool {
 	if p, _ := Unalias(t).(*TypeParam); p != nil {
 		return p.typeset(f)
 	}
-	return f(t, under(t))
+	return f(t, t.Underlying())
 }
 
 // typeset is an iterator over the (type/underlying type) pairs of the

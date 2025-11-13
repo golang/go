@@ -1,0 +1,471 @@
+[short] skip
+[!exec:hg] skip
+
+env GO111MODULE=on
+env GOPROXY=direct
+env GOSUMDB=off
+
+# go mod download with the pseudo-version should invoke hg but not have a TagSum or Ref or RepoSum.
+go mod download -x -json vcs-test.golang.org/hg/hello.hg@v0.0.0-20170922011414-e483a7d9f8c9
+stderr 'hg( .*)* pull'
+cp stdout hellopseudo.json
+! stdout '"(Query|TagPrefix|TagSum|Ref|RepoSum)"'
+stdout '"Version": "v0.0.0-20170922011414-e483a7d9f8c9"'
+stdout '"VCS": "hg"'
+stdout '"URL": ".*/hg/hello"'
+stdout '"Hash": "e483a7d9f8c9b4bc57430bdd8f81f0a65e4011c0"'
+! stdout '"RepoSum"'
+go clean -modcache
+
+# go mod download vcstest/hello should invoke hg, print origin info
+go mod download -x -json vcs-test.golang.org/hg/hello.hg@latest
+stderr 'hg( .*)* pull'
+cp stdout hello.json
+stdout '"Version": "v0.0.0-20170922011414-e483a7d9f8c9"'
+stdout '"VCS": "hg"'
+stdout '"URL": ".*/hg/hello"'
+stdout '"Query": "latest"'
+! stdout '"TagPrefix"'
+! stdout '"TagSum"'
+stdout '"Ref": "tip"'
+stdout '"RepoSum": "r1:blLvkhBriVMV[+]6Il4Ub43wlyWXIe1NpobTelF0peaG0="'
+stdout '"Hash": "e483a7d9f8c9b4bc57430bdd8f81f0a65e4011c0"'
+
+# pseudo-version again should not invoke hg pull (it has the version from the @latest query)
+# but still be careful not to include a TagSum or a Ref, especially not Ref set to HEAD,
+# which is easy to do when reusing the cached version from the @latest query.
+go mod download -x -json vcs-test.golang.org/hg/hello.hg@v0.0.0-20170922011414-e483a7d9f8c9
+! stderr 'hg( .*)* pull'
+cp stdout hellopseudo2.json
+cmpenv hellopseudo.json hellopseudo2.json
+
+# go mod download hg/hello@hash needs to check RepoSum to find pseudoversion base,
+# which does a refreshing hg pull.
+go mod download -x -json vcs-test.golang.org/hg/hello.hg@e483a7d9f8c9
+stderr 'hg( .*)* pull'
+cp stdout hellohash.json
+stdout '"Version": "v0.0.0-20170922011414-e483a7d9f8c9"'
+stdout '"Query": "e483a7d9f8c9"'
+stdout '"VCS": "hg"'
+stdout '"URL": ".*/hg/hello"'
+stdout '"Hash": "e483a7d9f8c9b4bc57430bdd8f81f0a65e4011c0"'
+stdout '"RepoSum": "r1:blLvkhBriVMV[+]6Il4Ub43wlyWXIe1NpobTelF0peaG0="'
+
+# go mod download vcstest/hello/v9 should fail, still print origin info
+# hg uses RepoSum instead of TagSum to describe failure condition.
+! go mod download -x -json vcs-test.golang.org/hg/hello.hg/v9@latest
+cp stdout hellov9.json
+stdout '"Version": "latest"'
+stdout '"Error":.*no matching versions'
+! stdout '"TagPrefix"'
+! stdout '"TagSum"'
+stdout '"RepoSum": "r1:blLvkhBriVMV[+]6Il4Ub43wlyWXIe1NpobTelF0peaG0="'
+stdout '"Hash": "e483a7d9f8c9b4bc57430bdd8f81f0a65e4011c0"'
+
+# go mod download vcstest/hello/sub/v9 should also fail, print origin info
+# hg uses RepoSum instead of TagSum to describe failure condition.
+! go mod download -x -json vcs-test.golang.org/hg/hello.hg/sub/v9@latest
+cp stdout hellosubv9.json
+stdout '"Version": "latest"'
+stdout '"Error":.*no matching versions'
+! stdout '"TagPrefix"'
+stdout '"RepoSum": "r1:blLvkhBriVMV[+]6Il4Ub43wlyWXIe1NpobTelF0peaG0="'
+stdout '"Hash": "e483a7d9f8c9b4bc57430bdd8f81f0a65e4011c0"'
+
+# go mod download vcstest/hello@nonexist should fail, still print origin info
+! go mod download -x -json vcs-test.golang.org/hg/hello.hg@nonexist
+cp stdout hellononexist.json
+stdout '"Version": "nonexist"'
+stdout '"Error":.*unknown revision nonexist'
+stdout '"RepoSum": "r1:blLvkhBriVMV[+]6Il4Ub43wlyWXIe1NpobTelF0peaG0="'
+! stdout '"(TagPrefix|TagSum|Ref|Hash)"'
+
+# go mod download vcstest/hello@1234567890123456789012345678901234567890 should fail, still print origin info
+# (40 hex digits is assumed to be a full hash and is a slightly different code path from @nonexist)
+! go mod download -x -json vcs-test.golang.org/hg/hello.hg@1234567890123456789012345678901234567890
+cp stdout hellononhash.json
+stdout '"Version": "1234567890123456789012345678901234567890"'
+stdout '"Error":.*unknown revision 1234567890123456789012345678901234567890'
+stdout '"RepoSum": "r1:blLvkhBriVMV[+]6Il4Ub43wlyWXIe1NpobTelF0peaG0="'
+! stdout '"(TagPrefix|TagSum|Ref|Hash)"'
+
+# go mod download vcstest/hello@v0.0.0-20220101120101-123456789abc should fail, still print origin info
+# (non-existent pseudoversion)
+! go mod download -x -json vcs-test.golang.org/hg/hello.hg@v0.0.0-20220101120101-123456789abc
+cp stdout hellononpseudo.json
+stdout '"Version": "v0.0.0-20220101120101-123456789abc"'
+stdout '"Error":.*unknown revision 123456789abc'
+stdout '"RepoSum": "r1:blLvkhBriVMV[+]6Il4Ub43wlyWXIe1NpobTelF0peaG0="'
+! stdout '"(TagPrefix|TagSum|Ref|Hash)"'
+
+# go mod download vcstest/tagtests should invoke hg, print origin info
+# Need RepoSum to lock in tagged "latest".
+go mod download -x -json vcs-test.golang.org/hg/tagtests.hg@latest
+stderr 'hg( .*)* pull'
+cp stdout tagtests.json
+stdout '"Version": "v0.2.2"'
+stdout '"Query": "latest"'
+stdout '"VCS": "hg"'
+stdout '"URL": ".*/hg/tagtests"'
+! stdout '"TagPrefix"'
+! stdout '"TagSum"'
+stdout '"RepoSum": "r1:8dnv906Aq1vb9YpNl9pslfva0VfG9enKb6O6NWs0xF0="'
+stdout '"Hash": "1e531550e864b16f25013cfbbf2d8e7cf07a0374"'
+
+# go mod download vcstest/tagtests@v0.2.2 should print origin info, no TagSum or RepoSum needed.
+go mod download -x -json vcs-test.golang.org/hg/tagtests.hg@v0.2.2
+cp stdout tagtestsv022.json
+stdout '"Version": "v0.2.2"'
+! stdout '"Query":'
+stdout '"VCS": "hg"'
+stdout '"URL": ".*/hg/tagtests"'
+! stdout '"TagPrefix"'
+! stdout '"TagSum"'
+! stdout '"RepoSum"'
+stdout '"Ref": "v0.2.2"'
+stdout '"Hash": "1e531550e864b16f25013cfbbf2d8e7cf07a0374"'
+
+# go mod download vcstest/tagtests@default needs a RepoSum again
+go mod download -x -json vcs-test.golang.org/hg/tagtests.hg@default
+cp stdout tagtestsdefault.json
+stdout '"Version": "v0.2.3-0.20190509225625-8d0b18b816df"'
+stdout '"Query": "default"'
+stdout '"VCS": "hg"'
+stdout '"URL": ".*/hg/tagtests"'
+! stdout '"TagPrefix"'
+! stdout '"TagSum"'
+stdout '"RepoSum": "r1:8dnv906Aq1vb9YpNl9pslfva0VfG9enKb6O6NWs0xF0="'
+stdout '"Hash": "8d0b18b816df5e9c564761b405b1d7949c24ee6b"'
+
+# go mod download vcstest/prefixtagtests should invoke hg, print origin info
+go mod download -x -json vcs-test.golang.org/hg/prefixtagtests.hg/sub@latest
+stderr 'hg( .*)* pull'
+cp stdout prefixtagtests.json
+stdout '"Version": "v0.0.10"'
+stdout '"Query": "latest"'
+stdout '"VCS": "hg"'
+stdout '"URL": ".*/hg/prefixtagtests"'
+stdout '"Subdir": "sub"'
+stdout '"Ref": "sub/v0.0.10"'
+! stdout '"TagPrefix"'
+! stdout '"TagSum"'
+stdout '"RepoSum": "r1:YWOcei109p5Kohsr5xnSYlaQXmpT3iWZHZhRbfMoTkc="'
+stdout '"Hash": "1cc0dfcc254cb8901799e7f7ae182c04019b7a88"'
+
+# go mod download of a bunch of these should fail (some are invalid) but write good JSON for later
+! go mod download -json vcs-test.golang.org/hg/hello.hg@latest vcs-test.golang.org/hg/hello.hg/v9@latest vcs-test.golang.org/hg/hello.hg/sub/v9@latest vcs-test.golang.org/hg/tagtests.hg@latest vcs-test.golang.org/hg/tagtests.hg@v0.2.2 vcs-test.golang.org/hg/tagtests.hg@default
+cp stdout all.json
+
+# clean the module cache, make sure that makes go mod download re-run hg pull, clean again
+go clean -modcache
+go mod download -x -json vcs-test.golang.org/hg/hello.hg@latest
+stderr 'hg( .*)* pull'
+go clean -modcache
+
+# reuse go mod download vcstest/hello result
+go clean -modcache
+go mod download -reuse=hello.json -x -json vcs-test.golang.org/hg/hello.hg@latest
+! stderr 'hg( .*)* pull'
+stdout '"Reuse": true'
+stdout '"Version": "v0.0.0-20170922011414-e483a7d9f8c9"'
+stdout '"VCS": "hg"'
+stdout '"URL": ".*/hg/hello"'
+! stdout '"TagPrefix"'
+stdout '"RepoSum": "r1:blLvkhBriVMV[+]6Il4Ub43wlyWXIe1NpobTelF0peaG0="'
+stdout '"Ref": "tip"'
+stdout '"Hash": "e483a7d9f8c9b4bc57430bdd8f81f0a65e4011c0"'
+! stdout '"(Dir|Info|GoMod|Zip)"'
+
+# reuse go mod download vcstest/hello pseudoversion result
+go clean -modcache
+go mod download -reuse=hellopseudo.json -x -json vcs-test.golang.org/hg/hello.hg@v0.0.0-20170922011414-e483a7d9f8c9
+! stderr 'hg( .*)* pull'
+stdout '"Reuse": true'
+stdout '"Version": "v0.0.0-20170922011414-e483a7d9f8c9"'
+stdout '"VCS": "hg"'
+stdout '"URL": ".*/hg/hello"'
+! stdout '"(Query|TagPrefix|TagSum|Ref)"'
+stdout '"Hash": "e483a7d9f8c9b4bc57430bdd8f81f0a65e4011c0"'
+! stdout '"(Dir|Info|GoMod|Zip|RepoSum)"'
+
+# reuse go mod download vcstest/hello@hash
+go clean -modcache
+go mod download -reuse=hellohash.json -x -json vcs-test.golang.org/hg/hello.hg@e483a7d9f8c9
+! stderr 'hg( .*)* pull'
+stdout '"Reuse": true'
+stdout '"Query": "e483a7d9f8c9"'
+stdout '"Version": "v0.0.0-20170922011414-e483a7d9f8c9"'
+stdout '"VCS": "hg"'
+stdout '"URL": ".*/hg/hello"'
+! stdout '"(TagPrefix|Ref)"'
+stdout '"RepoSum": "r1:blLvkhBriVMV[+]6Il4Ub43wlyWXIe1NpobTelF0peaG0="'
+stdout '"Hash": "e483a7d9f8c9b4bc57430bdd8f81f0a65e4011c0"'
+! stdout '"(Dir|Info|GoMod|Zip)"'
+
+# reuse go mod download vcstest/hello/v9 error result
+go clean -modcache
+! go mod download -reuse=hellov9.json -x -json vcs-test.golang.org/hg/hello.hg/v9@latest
+! stderr 'hg( .*)* pull'
+stdout '"Reuse": true'
+stdout '"Error":.*no matching versions'
+! stdout '"TagPrefix"'
+stdout '"RepoSum": "r1:blLvkhBriVMV[+]6Il4Ub43wlyWXIe1NpobTelF0peaG0="'
+stdout '"Hash": "e483a7d9f8c9b4bc57430bdd8f81f0a65e4011c0"'
+! stdout '"(Dir|Info|GoMod|Zip)"'
+
+# reuse go mod download vcstest/hello/sub/v9 error result
+go clean -modcache
+! go mod download -reuse=hellosubv9.json -x -json vcs-test.golang.org/hg/hello.hg/sub/v9@latest
+! stderr 'hg( .*)* pull'
+stdout '"Reuse": true'
+stdout '"Error":.*no matching versions'
+! stdout '"TagPrefix"'
+stdout '"RepoSum": "r1:blLvkhBriVMV[+]6Il4Ub43wlyWXIe1NpobTelF0peaG0="'
+stdout '"Ref": "tip"'
+stdout '"Hash": "e483a7d9f8c9b4bc57430bdd8f81f0a65e4011c0"'
+! stdout '"(Dir|Info|GoMod|Zip)"'
+
+# reuse go mod download vcstest/hello@nonexist
+go clean -modcache
+! go mod download -reuse=hellononexist.json -x -json vcs-test.golang.org/hg/hello.hg@nonexist
+! stderr 'hg( .*)* pull'
+stdout '"Reuse": true'
+stdout '"Version": "nonexist"'
+stdout '"Error":.*unknown revision nonexist'
+stdout '"RepoSum": "r1:blLvkhBriVMV[+]6Il4Ub43wlyWXIe1NpobTelF0peaG0="'
+! stdout '"(TagPrefix|TagSum|Ref|Hash)"'
+! stdout '"(Dir|Info|GoMod|Zip)"'
+
+# reuse go mod download vcstest/hello@1234567890123456789012345678901234567890
+go clean -modcache
+! go mod download -reuse=hellononhash.json -x -json vcs-test.golang.org/hg/hello.hg@1234567890123456789012345678901234567890
+! stderr 'hg( .*)* pull'
+stdout '"Reuse": true'
+stdout '"Version": "1234567890123456789012345678901234567890"'
+stdout '"Error":.*unknown revision 1234567890123456789012345678901234567890'
+stdout '"RepoSum": "r1:blLvkhBriVMV[+]6Il4Ub43wlyWXIe1NpobTelF0peaG0="'
+! stdout '"(TagPrefix|TagSum|Ref|Hash)"'
+! stdout '"(Dir|Info|GoMod|Zip)"'
+
+# reuse go mod download vcstest/hello@v0.0.0-20220101120101-123456789abc
+go clean -modcache
+! go mod download -reuse=hellononpseudo.json -x -json vcs-test.golang.org/hg/hello.hg@v0.0.0-20220101120101-123456789abc
+! stderr 'hg( .*)* pull'
+stdout '"Reuse": true'
+stdout '"Version": "v0.0.0-20220101120101-123456789abc"'
+stdout '"Error":.*unknown revision 123456789abc'
+stdout '"RepoSum": "r1:blLvkhBriVMV[+]6Il4Ub43wlyWXIe1NpobTelF0peaG0="'
+! stdout '"(TagPrefix|TagSum|Ref|Hash)"'
+! stdout '"(Dir|Info|GoMod|Zip)"'
+
+# reuse go mod download vcstest/tagtests result
+go clean -modcache
+go mod download -reuse=tagtests.json -x -json vcs-test.golang.org/hg/tagtests.hg@latest
+! stderr 'hg( .*)* pull'
+stdout '"Reuse": true'
+stdout '"Version": "v0.2.2"'
+stdout '"Query": "latest"'
+stdout '"VCS": "hg"'
+stdout '"URL": ".*/hg/tagtests"'
+! stdout '"TagPrefix"'
+stdout '"RepoSum": "r1:8dnv906Aq1vb9YpNl9pslfva0VfG9enKb6O6NWs0xF0="'
+stdout '"Hash": "1e531550e864b16f25013cfbbf2d8e7cf07a0374"'
+! stdout '"(Dir|Info|GoMod|Zip)"'
+
+# reuse go mod download vcstest/tagtests@v0.2.2 result
+go clean -modcache
+go mod download -reuse=tagtestsv022.json -x -json vcs-test.golang.org/hg/tagtests.hg@v0.2.2
+! stderr 'hg( .*)* pull'
+stdout '"Reuse": true'
+stdout '"Version": "v0.2.2"'
+! stdout '"Query":'
+stdout '"VCS": "hg"'
+stdout '"URL": ".*/hg/tagtests"'
+! stdout '"TagPrefix"'
+! stdout '"TagSum"'
+stdout '"Ref": "v0.2.2"'
+stdout '"Hash": "1e531550e864b16f25013cfbbf2d8e7cf07a0374"'
+! stdout '"(Dir|Info|GoMod|Zip|RepoSum)"'
+
+# reuse go mod download vcstest/tagtests@default result
+go clean -modcache
+go mod download -reuse=tagtestsdefault.json -x -json vcs-test.golang.org/hg/tagtests.hg@default
+! stderr 'hg( .*)* pull'
+stdout '"Reuse": true'
+stdout '"Version": "v0.2.3-0.20190509225625-8d0b18b816df"'
+stdout '"Query": "default"'
+stdout '"VCS": "hg"'
+stdout '"URL": ".*/hg/tagtests"'
+! stdout '"TagPrefix"'
+stdout '"RepoSum": "r1:8dnv906Aq1vb9YpNl9pslfva0VfG9enKb6O6NWs0xF0="'
+stdout '"Ref": "default"'
+stdout '"Hash": "8d0b18b816df5e9c564761b405b1d7949c24ee6b"'
+! stdout '"(Dir|Info|GoMod|Zip)"'
+
+# reuse go mod download vcstest/tagtests@default result again with all.json
+go clean -modcache
+go mod download -reuse=all.json -x -json vcs-test.golang.org/hg/tagtests.hg@default
+! stderr 'hg( .*)* pull'
+stdout '"Reuse": true'
+stdout '"Version": "v0.2.3-0.20190509225625-8d0b18b816df"'
+stdout '"Query": "default"'
+stdout '"VCS": "hg"'
+stdout '"URL": ".*/hg/tagtests"'
+! stdout '"TagPrefix"'
+stdout '"RepoSum": "r1:8dnv906Aq1vb9YpNl9pslfva0VfG9enKb6O6NWs0xF0="'
+stdout '"Ref": "default"'
+stdout '"Hash": "8d0b18b816df5e9c564761b405b1d7949c24ee6b"'
+! stdout '"(Dir|Info|GoMod|Zip)"'
+
+# go mod download vcstest/prefixtagtests result with json
+go clean -modcache
+go mod download -reuse=prefixtagtests.json -x -json vcs-test.golang.org/hg/prefixtagtests.hg/sub@latest
+! stderr 'hg( .*)* pull'
+stdout '"Version": "v0.0.10"'
+stdout '"Query": "latest"'
+stdout '"VCS": "hg"'
+stdout '"URL": ".*/hg/prefixtagtests"'
+stdout '"Subdir": "sub"'
+stdout '"RepoSum": "r1:YWOcei109p5Kohsr5xnSYlaQXmpT3iWZHZhRbfMoTkc="'
+stdout '"Ref": "sub/v0.0.10"'
+stdout '"Hash": "1cc0dfcc254cb8901799e7f7ae182c04019b7a88"'
+! stdout '"(Dir|Info|GoMod|Zip)"'
+
+# reuse the bulk results with all.json
+go clean -modcache
+! go mod download -reuse=all.json -json vcs-test.golang.org/hg/hello.hg@latest vcs-test.golang.org/hg/hello.hg/v9@latest vcs-test.golang.org/hg/hello.hg/sub/v9@latest vcs-test.golang.org/hg/tagtests.hg@latest vcs-test.golang.org/hg/tagtests.hg@v0.2.2 vcs-test.golang.org/hg/tagtests.hg@default
+! stderr 'hg( .*)* pull'
+stdout '"Reuse": true'
+! stdout '"(Dir|Info|GoMod|Zip)"'
+
+# reuse attempt with stale hash should reinvoke hg, not report reuse
+go clean -modcache
+cp tagtestsv022.json tagtestsv022badhash.json
+replace '1e5315' '1e5315XXX' tagtestsv022badhash.json
+go mod download -reuse=tagtestsv022badhash.json -x -json vcs-test.golang.org/hg/tagtests.hg@v0.2.2
+stderr 'hg( .*)* pull'
+! stdout '"Reuse": true'
+stdout '"Version": "v0.2.2"'
+! stdout '"Query"'
+stdout '"VCS": "hg"'
+stdout '"URL": ".*/hg/tagtests"'
+! stdout '"(TagPrefix|TagSum|RepoSum)"'
+stdout '"Ref": "v0.2.2"'
+stdout '"Hash": "1e531550e864b16f25013cfbbf2d8e7cf07a0374"'
+stdout '"Dir"'
+stdout '"Info"'
+stdout '"GoMod"'
+stdout '"Zip"'
+
+# reuse with stale repo URL
+go clean -modcache
+cp tagtestsv022.json tagtestsv022badurl.json
+replace 'hg/tagtests\"' 'hg/tagtestsXXX\"' tagtestsv022badurl.json
+go mod download -reuse=tagtestsv022badurl.json -x -json vcs-test.golang.org/hg/tagtests.hg@v0.2.2
+! stdout '"Reuse": true'
+stdout '"URL": ".*/hg/tagtests"'
+stdout '"Dir"'
+stdout '"Info"'
+stdout '"GoMod"'
+stdout '"Zip"'
+
+# reuse with stale VCS
+go clean -modcache
+cp tagtestsv022.json tagtestsv022badvcs.json
+replace '\"hg\"' '\"hgXXX\"' tagtestsv022badvcs.json
+go mod download -reuse=tagtestsv022badvcs.json -x -json vcs-test.golang.org/hg/tagtests.hg@v0.2.2
+! stdout '"Reuse": true'
+stdout '"URL": ".*/hg/tagtests"'
+! stdout '"RepoSum"'
+
+# reuse with stale Dir
+go clean -modcache
+cp tagtestsv022.json tagtestsv022baddir.json
+replace '\"VCS\":' '\"Subdir\":\"subdir\", \"VCS\":' tagtestsv022baddir.json
+go mod download -reuse=tagtestsv022baddir.json -x -json vcs-test.golang.org/hg/tagtests.hg@v0.2.2
+! stdout '"Reuse": true'
+stdout '"URL": ".*/hg/tagtests"'
+! stdout '"RepoSum"'
+
+# reuse with stale RepoSum
+go clean -modcache
+cp tagtests.json tagtestsbadreposum.json
+replace '8dnv90' '8dnv90XXX' tagtestsbadreposum.json
+go mod download -reuse=tagtestsbadreposum.json -x -json vcs-test.golang.org/hg/tagtests.hg@latest
+! stdout '"Reuse": true'
+stdout '"RepoSum": "r1:8dnv906Aq1vb9YpNl9pslfva0VfG9enKb6O6NWs0xF0="'
+
+# go list on repo with no tags
+go clean -modcache
+go list -x -json -m -retracted -versions vcs-test.golang.org/hg/hello.hg@latest
+stderr 'hg( .*)* pull'
+cp stdout hellolist.json
+! stdout '"Versions"'
+stdout '"Version": "v0.0.0-20170922011414-e483a7d9f8c9"'
+stdout '"VCS": "hg"'
+stdout '"URL": ".*/hg/hello"'
+stdout '"Query": "latest"'
+stdout '"Hash": "e483a7d9f8c9b4bc57430bdd8f81f0a65e4011c0"'
+stdout '"RepoSum": "r1:blLvkhBriVMV[+]6Il4Ub43wlyWXIe1NpobTelF0peaG0="'
+
+# reuse go list on repo with no tags
+go clean -modcache
+go list -x -reuse=hellolist.json -json -m -retracted -versions vcs-test.golang.org/hg/hello.hg@latest
+! stderr 'hg( .*)* pull'
+stdout '"Reuse": true'
+! stdout '"Versions"'
+stdout '"Version": "v0.0.0-20170922011414-e483a7d9f8c9"'
+stdout '"VCS": "hg"'
+stdout '"URL": ".*/hg/hello"'
+stdout '"Query": "latest"'
+stdout '"RepoSum": "r1:blLvkhBriVMV[+]6Il4Ub43wlyWXIe1NpobTelF0peaG0="'
+stdout '"Hash": "e483a7d9f8c9b4bc57430bdd8f81f0a65e4011c0"'
+
+# reuse with stale list
+go clean -modcache
+cp hellolist.json hellolistbad.json
+replace 'blLvkhBri' 'ZZZ' hellolistbad.json
+go clean -modcache
+go list -x -reuse=hellolistbad.json -json -m -retracted -versions vcs-test.golang.org/hg/hello.hg@latest
+stderr 'hg( .*)* pull'
+! stdout '"Reuse": true'
+stdout '"RepoSum": "r1:blLvkhBriVMV[+]6Il4Ub43wlyWXIe1NpobTelF0peaG0="'
+
+# go list on repo with tags
+go clean -modcache
+go list -x -json -m -retracted -versions vcs-test.golang.org/hg/tagtests.hg@latest
+cp stdout taglist.json
+stderr 'hg( .*)* pull'
+stdout '"Versions":'
+stdout '"v0.2.1"'
+stdout '"v0.2.2"'
+stdout '"Version": "v0.2.2"'
+stdout '"VCS": "hg"'
+stdout '"URL": ".*/hg/tagtests"'
+stdout '"Ref": "v0.2.2"'
+stdout '"Hash": "1e531550e864b16f25013cfbbf2d8e7cf07a0374"'
+stdout '"RepoSum": "r1:8dnv906Aq1vb9YpNl9pslfva0VfG9enKb6O6NWs0xF0="'
+
+# reuse go list on repo with tags
+go clean -modcache
+go list -reuse=taglist.json -x -json -m -retracted -versions vcs-test.golang.org/hg/tagtests.hg@latest
+! stderr 'hg( .*)* pull'
+stdout '"Reuse": true'
+stdout '"Versions":'
+stdout '"v0.2.1"'
+stdout '"v0.2.2"'
+stdout '"Version": "v0.2.2"'
+stdout '"VCS": "hg"'
+stdout '"URL": ".*/hg/tagtests"'
+stdout '"Ref": "v0.2.2"'
+stdout '"Hash": "1e531550e864b16f25013cfbbf2d8e7cf07a0374"'
+stdout '"RepoSum": "r1:8dnv906Aq1vb9YpNl9pslfva0VfG9enKb6O6NWs0xF0="'
+
+# reuse with stale list
+go clean -modcache
+cp taglist.json taglistbad.json
+replace '8dnv906' 'ZZZ' taglistbad.json
+go list -reuse=taglistbad.json -x -json -m -retracted -versions vcs-test.golang.org/hg/tagtests.hg@latest
+stderr 'hg( .*)* pull'
+! stdout '"Reuse": true'
+stdout '"RepoSum": "r1:8dnv906Aq1vb9YpNl9pslfva0VfG9enKb6O6NWs0xF0="'

@@ -62,15 +62,14 @@ func (w traceWriter) writeProcStatusForP(pp *p, inSTW bool) traceWriter {
 		}
 	case _Prunning:
 		status = tracev2.ProcRunning
-		// There's a short window wherein the goroutine may have entered _Gsyscall
-		// but it still owns the P (it's not in _Psyscall yet). The goroutine entering
-		// _Gsyscall is the tracer's signal that the P its bound to is also in a syscall,
-		// so we need to emit a status that matches. See #64318.
+		// A P is considered to be in a syscall if its attached G is. Since we fully
+		// own P, then the goroutine isn't going to transition and we can trivially
+		// check if the goroutine is in a syscall. This used to be just a small problematic
+		// window, but this is now the default since _Psyscall no longer exists. See #64318
+		// for the history on why it was needed while _Psyscall still existed.
 		if w.mp.p.ptr() == pp && w.mp.curg != nil && readgstatus(w.mp.curg)&^_Gscan == _Gsyscall {
 			status = tracev2.ProcSyscall
 		}
-	case _Psyscall:
-		status = tracev2.ProcSyscall
 	default:
 		throw("attempt to trace invalid or unsupported P status")
 	}
@@ -134,7 +133,7 @@ func goStatusToTraceGoStatus(status uint32, wr waitReason) tracev2.GoStatus {
 		if status == _Gwaiting && wr.isWaitingForSuspendG() {
 			tgs = tracev2.GoRunning
 		}
-	case _Gdead:
+	case _Gdead, _Gdeadextra:
 		throw("tried to trace dead goroutine")
 	default:
 		throw("tried to trace goroutine with invalid or unsupported status")

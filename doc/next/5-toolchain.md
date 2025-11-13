@@ -4,6 +4,10 @@
 
 ## Linker {#linker}
 
+On 64-bit ARM-based Windows (the `windows/arm64` port), the linker now supports internal
+linking mode of cgo programs, which can be requested with the
+`-ldflags=-linkmode=internal` flag.
+
 ## Bootstrap {#bootstrap}
 
 <!-- go.dev/issue/69315 -->

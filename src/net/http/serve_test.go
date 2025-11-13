@@ -6701,7 +6701,6 @@ func testTimeoutHandlerSuperfluousLogs(t *testing.T, mode testMode) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			exitHandler := make(chan bool, 1)
 			defer close(exitHandler)

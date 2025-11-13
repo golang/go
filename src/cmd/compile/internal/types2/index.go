@@ -35,7 +35,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 		return false
 
 	case value:
-		if sig, _ := under(x.typ).(*Signature); sig != nil && sig.TypeParams().Len() > 0 {
+		if sig, _ := x.typ.Underlying().(*Signature); sig != nil && sig.TypeParams().Len() > 0 {
 			// function instantiation
 			return true
 		}
@@ -50,7 +50,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 	// ordinary index expression
 	valid := false
 	length := int64(-1) // valid if >= 0
-	switch typ := under(x.typ).(type) {
+	switch typ := x.typ.Underlying().(type) {
 	case *Basic:
 		if isString(typ) {
 			valid = true
@@ -73,7 +73,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 		x.typ = typ.elem
 
 	case *Pointer:
-		if typ, _ := under(typ.base).(*Array); typ != nil {
+		if typ, _ := typ.base.Underlying().(*Array); typ != nil {
 			valid = true
 			length = typ.len
 			x.mode = variable
@@ -124,7 +124,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 					mode = value
 				}
 			case *Pointer:
-				if t, _ := under(t.base).(*Array); t != nil {
+				if t, _ := t.base.Underlying().(*Array); t != nil {
 					l = t.len
 					e = t.elem
 				}
@@ -247,7 +247,7 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
 		// but don't go from untyped string to string.
 		cu = Typ[String]
 		if !isTypeParam(x.typ) {
-			cu = under(x.typ) // untyped string remains untyped
+			cu = x.typ.Underlying() // untyped string remains untyped
 		}
 	}
 
@@ -292,7 +292,7 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
 		x.typ = &Slice{elem: u.elem}
 
 	case *Pointer:
-		if u, _ := under(u.base).(*Array); u != nil {
+		if u, _ := u.base.Underlying().(*Array); u != nil {
 			valid = true
 			length = u.len
 			x.typ = &Slice{elem: u.elem}

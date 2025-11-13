@@ -508,6 +508,19 @@ func (check *Checker) collectObjects() {
 	}
 }
 
+// sortObjects sorts package-level objects by source-order for reproducible processing
+func (check *Checker) sortObjects() {
+	check.objList = make([]Object, len(check.objMap))
+	i := 0
+	for obj := range check.objMap {
+		check.objList[i] = obj
+		i++
+	}
+	slices.SortFunc(check.objList, func(a, b Object) int {
+		return cmp.Compare(a.order(), b.order())
+	})
+}
+
 // unpackRecv unpacks a receiver type expression and returns its components: ptr indicates
 // whether rtyp is a pointer receiver, base is the receiver base type expression stripped
 // of its type parameters (if any), and tparams are its type parameter names, if any. The
@@ -626,19 +639,8 @@ func (check *Checker) resolveBaseTypeName(ptr bool, name *syntax.Name) (ptr_ boo
 
 // packageObjects typechecks all package objects, but not function bodies.
 func (check *Checker) packageObjects() {
-	// process package objects in source order for reproducible results
-	objList := make([]Object, len(check.objMap))
-	i := 0
-	for obj := range check.objMap {
-		objList[i] = obj
-		i++
-	}
-	slices.SortFunc(objList, func(a, b Object) int {
-		return cmp.Compare(a.order(), b.order())
-	})
-
 	// add new methods to already type-checked types (from a prior Checker.Files call)
-	for _, obj := range objList {
+	for _, obj := range check.objList {
 		if obj, _ := obj.(*TypeName); obj != nil && obj.typ != nil {
 			check.collectMethods(obj)
 		}
@@ -661,7 +663,7 @@ func (check *Checker) packageObjects() {
 		// its Type is Invalid.
 		//
 		// Investigate and reenable this branch.
-		for _, obj := range objList {
+		for _, obj := range check.objList {
 			check.objDecl(obj, nil)
 		}
 	} else {
@@ -673,7 +675,7 @@ func (check *Checker) packageObjects() {
 		var aliasList []*TypeName
 		var othersList []Object // everything that's not a type
 		// phase 1: non-alias type declarations
-		for _, obj := range objList {
+		for _, obj := range check.objList {
 			if tname, _ := obj.(*TypeName); tname != nil {
 				if check.objMap[tname].tdecl.Alias {
 					aliasList = append(aliasList, tname)

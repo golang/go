@@ -179,7 +179,7 @@ func checkAliasingTwoArgs(t *testing.T, f func(v, x, y *big.Int) *big.Int, v, x,
 }
 
 func TestAliasing(t *testing.T) {
-	for name, f := range map[string]interface{}{
+	for name, f := range map[string]any{
 		"Abs": func(v, x bigInt) bool {
 			return checkAliasingOneArg(t, (*big.Int).Abs, v.Int, x.Int)
 		},

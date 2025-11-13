@@ -148,9 +148,10 @@ func (b *Builder) toolID(name string) string {
 		path := base.Tool(name)
 		desc := "go tool " + name
 
-		// Special case: undocumented -vettool overrides usual vet,
-		// for testing vet or supplying an alternative analysis tool.
-		if name == "vet" && VetTool != "" {
+		// Special case: -{vet,fix}tool overrides usual cmd/{vet,fix}
+		// for testing or supplying an alternative analysis tool.
+		// (We use only "vet" terminology in the action graph.)
+		if name == "vet" {
 			path = VetTool
 			desc = VetTool
 		}

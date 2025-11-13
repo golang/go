@@ -209,6 +209,7 @@ func init() {
 }
 
 func runEdit(ctx context.Context, cmd *base.Command, args []string) {
+	moduleLoaderState := modload.NewState()
 	anyFlags := *editModule != "" ||
 		*editGo != "" ||
 		*editToolchain != "" ||
@@ -232,7 +233,7 @@ func runEdit(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) == 1 {
 		gomod = args[0]
 	} else {
-		gomod = modload.ModFilePath()
+		gomod = moduleLoaderState.ModFilePath()
 	}
 
 	if *editModule != "" {
@@ -583,8 +584,9 @@ func flagDropIgnore(arg string) {
 // fileJSON is the -json output data structure.
 type fileJSON struct {
 	Module    editModuleJSON
-	Go        string `json:",omitempty"`
-	Toolchain string `json:",omitempty"`
+	Go        string      `json:",omitempty"`
+	Toolchain string      `json:",omitempty"`
+	GoDebug   []debugJSON `json:",omitempty"`
 	Require   []requireJSON
 	Exclude   []module.Version
 	Replace   []replaceJSON
@@ -596,6 +598,11 @@ type fileJSON struct {
 type editModuleJSON struct {
 	Path       string
 	Deprecated string `json:",omitempty"`
+}
+
+type debugJSON struct {
+	Key   string
+	Value string
 }
 
 type requireJSON struct {
@@ -655,6 +662,9 @@ func editPrintJSON(modFile *modfile.File) {
 	}
 	for _, i := range modFile.Ignore {
 		f.Ignore = append(f.Ignore, ignoreJSON{i.Path})
+	}
+	for _, d := range modFile.Godebug {
+		f.GoDebug = append(f.GoDebug, debugJSON{d.Key, d.Value})
 	}
 	data, err := json.MarshalIndent(&f, "", "\t")
 	if err != nil {

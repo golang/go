@@ -17,7 +17,7 @@ import (
 	"errors"
 	"internal/bytealg"
 	"internal/godebug"
-	"internal/itoa"
+	"internal/strconv"
 	"internal/stringslite"
 	"io"
 	"os"
@@ -559,7 +559,7 @@ func (o hostLookupOrder) String() string {
 	if s, ok := lookupOrderName[o]; ok {
 		return s
 	}
-	return "hostLookupOrder=" + itoa.Itoa(int(o)) + "??"
+	return "hostLookupOrder=" + strconv.Itoa(int(o)) + "??"
 }
 
 func (r *Resolver) goLookupHostOrder(ctx context.Context, name string, order hostLookupOrder, conf *dnsConfig) (addrs []string, err error) {
@@ -842,8 +842,7 @@ func (r *Resolver) goLookupPTR(ctx context.Context, addr string, order hostLooku
 	}
 	p, server, err := r.lookup(ctx, arpa, dnsmessage.TypePTR, conf)
 	if err != nil {
-		var dnsErr *DNSError
-		if errors.As(err, &dnsErr) && dnsErr.IsNotFound {
+		if dnsErr, ok := errors.AsType[*DNSError](err); ok && dnsErr.IsNotFound {
 			if order == hostLookupDNSFiles {
 				names := lookupStaticAddr(addr)
 				if len(names) > 0 {

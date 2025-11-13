@@ -469,42 +469,42 @@ func initMetrics() {
 			deps: makeStatDepSet(schedStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
-				out.scalar = uint64(in.schedStats.gTotal)
+				out.scalar = in.schedStats.gTotal
 			},
 		},
 		"/sched/goroutines/not-in-go:goroutines": {
 			deps: makeStatDepSet(schedStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
-				out.scalar = uint64(in.schedStats.gNonGo)
+				out.scalar = in.schedStats.gNonGo
 			},
 		},
 		"/sched/goroutines/running:goroutines": {
 			deps: makeStatDepSet(schedStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
-				out.scalar = uint64(in.schedStats.gRunning)
+				out.scalar = in.schedStats.gRunning
 			},
 		},
 		"/sched/goroutines/runnable:goroutines": {
 			deps: makeStatDepSet(schedStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
-				out.scalar = uint64(in.schedStats.gRunnable)
+				out.scalar = in.schedStats.gRunnable
 			},
 		},
 		"/sched/goroutines/waiting:goroutines": {
 			deps: makeStatDepSet(schedStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
-				out.scalar = uint64(in.schedStats.gWaiting)
+				out.scalar = in.schedStats.gWaiting
 			},
 		},
 		"/sched/goroutines-created:goroutines": {
 			deps: makeStatDepSet(schedStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
-				out.scalar = uint64(in.schedStats.gCreated)
+				out.scalar = in.schedStats.gCreated
 			},
 		},
 		"/sched/latencies:seconds": {
@@ -536,7 +536,7 @@ func initMetrics() {
 			deps: makeStatDepSet(schedStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
-				out.scalar = uint64(in.schedStats.threads)
+				out.scalar = in.schedStats.threads
 			},
 		},
 		"/sync/mutex/wait/total:seconds": {
@@ -818,9 +818,12 @@ func (a *schedStatsAggregate) compute() {
 		a.gCreated += p.goroutinesCreated
 		switch p.status {
 		case _Prunning:
-			a.gRunning++
-		case _Psyscall:
-			a.gNonGo++
+			if thread, ok := setBlockOnExitSyscall(p); ok {
+				thread.resume()
+				a.gNonGo++
+			} else {
+				a.gRunning++
+			}
 		case _Pgcstop:
 			// The world is stopping or stopped.
 			// This is fine. The results will be
@@ -847,7 +850,7 @@ func (a *schedStatsAggregate) compute() {
 	// Global run queue.
 	a.gRunnable += uint64(sched.runq.size)
 
-	// Account for Gs that are in _Gsyscall without a P in _Psyscall.
+	// Account for Gs that are in _Gsyscall without a P.
 	nGsyscallNoP := sched.nGsyscallNoP.Load()
 
 	// nGsyscallNoP can go negative during temporary races.

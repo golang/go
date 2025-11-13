@@ -4,7 +4,7 @@
 
 // This file contains rules to decompose builtin compound types
 // (complex,string,slice,interface) into their constituent
-// types.  These rules work together with the decomposeBuiltIn
+// types.  These rules work together with the decomposeBuiltin
 // pass which handles phis of these types.
 
 (Store {t} _ _ mem) && t.Size() == 0 => mem

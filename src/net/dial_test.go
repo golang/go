@@ -232,7 +232,6 @@ func TestDialParallel(t *testing.T) {
 	}
 
 	for i, tt := range testCases {
-		i, tt := i, tt
 		t.Run(fmt.Sprint(i), func(t *testing.T) {
 			dialTCP := func(ctx context.Context, network string, laddr, raddr *TCPAddr) (*TCPConn, error) {
 				n := "tcp6"

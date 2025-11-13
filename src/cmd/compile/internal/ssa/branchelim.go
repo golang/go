@@ -21,10 +21,7 @@ import "cmd/internal/src"
 // rewrite Phis in the postdominator as CondSelects.
 func branchelim(f *Func) {
 	// FIXME: add support for lowering CondSelects on more architectures
-	switch f.Config.arch {
-	case "arm64", "ppc64le", "ppc64", "amd64", "wasm", "loong64":
-		// implemented
-	default:
+	if !f.Config.haveCondSelect {
 		return
 	}
 
@@ -73,7 +70,8 @@ func branchelim(f *Func) {
 }
 
 func canCondSelect(v *Value, arch string, loadAddr *sparseSet) bool {
-	if loadAddr.contains(v.ID) {
+	if loadAddr != nil && // prove calls this on some multiplies and doesn't take care of loadAddrs
+		loadAddr.contains(v.ID) {
 		// The result of the soon-to-be conditional move is used to compute a load address.
 		// We want to avoid generating a conditional move in this case
 		// because the load address would now be data-dependent on the condition.

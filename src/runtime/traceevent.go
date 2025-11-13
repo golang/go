@@ -44,6 +44,13 @@ func (tl traceLocker) eventWriter(goStatus tracev2.GoStatus, procStatus tracev2.
 	if gp := tl.mp.curg; gp != nil && !gp.trace.statusWasTraced(tl.gen) && gp.trace.acquireStatus(tl.gen) {
 		tl.writer().writeGoStatus(gp.goid, int64(tl.mp.procid), goStatus, gp.inMarkAssist, 0 /* no stack */).end()
 	}
+	return tl.rawEventWriter()
+}
+
+// rawEventWriter creates a new traceEventWriter without emitting any status events.
+//
+// It is the caller's responsibility to emit any status events, if necessary.
+func (tl traceLocker) rawEventWriter() traceEventWriter {
 	return traceEventWriter{tl}
 }
 

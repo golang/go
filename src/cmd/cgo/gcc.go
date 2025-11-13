@@ -1056,7 +1056,7 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
 func (p *Package) needsPointerCheck(f *File, t ast.Expr, arg ast.Expr) bool {
 	// An untyped nil does not need a pointer check, and when
 	// _cgoCheckPointer returns the untyped nil the type assertion we
-	// are going to insert will fail.  Easier to just skip nil arguments.
+	// are going to insert will fail. Easier to just skip nil arguments.
 	// TODO: Note that this fails if nil is shadowed.
 	if id, ok := arg.(*ast.Ident); ok && id.Name == "nil" {
 		return false
@@ -1158,7 +1158,7 @@ func (p *Package) hasPointer(f *File, t ast.Expr, top bool) bool {
 // If addPosition is true, add position info to the idents of C names in arg.
 func (p *Package) mangle(f *File, arg *ast.Expr, addPosition bool) (ast.Expr, bool) {
 	needsUnsafe := false
-	f.walk(arg, ctxExpr, func(f *File, arg interface{}, context astContext) {
+	f.walk(arg, ctxExpr, func(f *File, arg any, context astContext) {
 		px, ok := arg.(*ast.Expr)
 		if !ok {
 			return
@@ -2154,7 +2154,7 @@ func (p *Package) gccDebug(stdin []byte, nnames int) (d *dwarf.Data, ints []int6
 		for _, s := range f.Symbols {
 			switch {
 			case isDebugInts(s.Name):
-				if i := int(s.SectionNumber) - 1; 0 <= i && i < len(f.Sections) {
+				if i := s.SectionNumber - 1; 0 <= i && i < len(f.Sections) {
 					sect := f.Sections[i]
 					if s.Value < sect.Size {
 						if sdat, err := sect.Data(); err == nil {
@@ -2167,7 +2167,7 @@ func (p *Package) gccDebug(stdin []byte, nnames int) (d *dwarf.Data, ints []int6
 					}
 				}
 			case isDebugFloats(s.Name):
-				if i := int(s.SectionNumber) - 1; 0 <= i && i < len(f.Sections) {
+				if i := s.SectionNumber - 1; 0 <= i && i < len(f.Sections) {
 					sect := f.Sections[i]
 					if s.Value < sect.Size {
 						if sdat, err := sect.Data(); err == nil {
@@ -2181,7 +2181,7 @@ func (p *Package) gccDebug(stdin []byte, nnames int) (d *dwarf.Data, ints []int6
 				}
 			default:
 				if n := indexOfDebugStr(s.Name); n != -1 {
-					if i := int(s.SectionNumber) - 1; 0 <= i && i < len(f.Sections) {
+					if i := s.SectionNumber - 1; 0 <= i && i < len(f.Sections) {
 						sect := f.Sections[i]
 						if s.Value < sect.Size {
 							if sdat, err := sect.Data(); err == nil {
@@ -2193,7 +2193,7 @@ func (p *Package) gccDebug(stdin []byte, nnames int) (d *dwarf.Data, ints []int6
 					break
 				}
 				if n := indexOfDebugStrlen(s.Name); n != -1 {
-					if i := int(s.SectionNumber) - 1; 0 <= i && i < len(f.Sections) {
+					if i := s.SectionNumber - 1; 0 <= i && i < len(f.Sections) {
 						sect := f.Sections[i]
 						if s.Value < sect.Size {
 							if sdat, err := sect.Data(); err == nil {
@@ -2439,7 +2439,7 @@ func (tr *TypeRepr) Empty() bool {
 // Set modifies the type representation.
 // If fargs are provided, repr is used as a format for fmt.Sprintf.
 // Otherwise, repr is used unprocessed as the type representation.
-func (tr *TypeRepr) Set(repr string, fargs ...interface{}) {
+func (tr *TypeRepr) Set(repr string, fargs ...any) {
 	tr.Repr = repr
 	tr.FormatArgs = fargs
 }
@@ -2713,7 +2713,7 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
 			// so execute the basic things that the struct case would do
 			// other than try to determine a Go representation.
 			tt := *t
-			tt.C = &TypeRepr{"%s %s", []interface{}{dt.Kind, tag}}
+			tt.C = &TypeRepr{"%s %s", []any{dt.Kind, tag}}
 			// We don't know what the representation of this struct is, so don't let
 			// anyone allocate one on the Go side. As a side effect of this annotation,
 			// pointers to this type will not be considered pointers in Go. They won't
@@ -2743,7 +2743,7 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
 			t.Align = align
 			tt := *t
 			if tag != "" {
-				tt.C = &TypeRepr{"struct %s", []interface{}{tag}}
+				tt.C = &TypeRepr{"struct %s", []any{tag}}
 			}
 			tt.Go = g
 			if c.incompleteStructs[tag] {
@@ -3010,7 +3010,7 @@ func (c *typeConv) FuncType(dtype *dwarf.FuncType, pos token.Pos) *FuncType {
 	for i, f := range dtype.ParamType {
 		// gcc's DWARF generator outputs a single DotDotDotType parameter for
 		// function pointers that specify no parameters (e.g. void
-		// (*__cgo_0)()).  Treat this special case as void. This case is
+		// (*__cgo_0)()). Treat this special case as void. This case is
 		// invalid according to ISO C anyway (i.e. void (*__cgo_1)(...) is not
 		// legal).
 		if _, ok := f.(*dwarf.DotDotDotType); ok && i == 0 {
@@ -3081,7 +3081,7 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
 	off := int64(0)
 
 	// Rename struct fields that happen to be named Go keywords into
-	// _{keyword}.  Create a map from C ident -> Go ident. The Go ident will
+	// _{keyword}. Create a map from C ident -> Go ident. The Go ident will
 	// be mangled. Any existing identifier that already has the same name on
 	// the C-side will cause the Go-mangled version to be prefixed with _.
 	// (e.g. in a struct with fields '_type' and 'type', the latter would be
@@ -3309,7 +3309,7 @@ func godefsFields(fld []*ast.Field) {
 // fieldPrefix returns the prefix that should be removed from all the
 // field names when generating the C or Go code. For generated
 // C, we leave the names as is (tv_sec, tv_usec), since that's what
-// people are used to seeing in C.  For generated Go code, such as
+// people are used to seeing in C. For generated Go code, such as
 // package syscall's data structures, we drop a common prefix
 // (so sec, usec, which will get turned into Sec, Usec for exporting).
 func fieldPrefix(fld []*ast.Field) string {
@@ -3456,7 +3456,7 @@ func (c *typeConv) badCFType(dt *dwarf.TypedefType) bool {
 // Tagged pointer support
 // Low-bit set means tagged object, next 3 bits (currently)
 // define the tagged object class, next 4 bits are for type
-// information for the specific tagged object class.  Thus,
+// information for the specific tagged object class. Thus,
 // the low byte is for type info, and the rest of a pointer
 // (32 or 64-bit) is for payload, whatever the tagged class.
 //

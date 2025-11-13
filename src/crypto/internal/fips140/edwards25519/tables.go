@@ -4,9 +4,7 @@
 
 package edwards25519
 
-import (
-	"crypto/internal/fips140/subtle"
-)
+import "crypto/internal/constanttime"
 
 // A dynamic lookup table for variable-base, constant-time scalar muls.
 type projLookupTable struct {
@@ -95,7 +93,7 @@ func (v *projLookupTable) SelectInto(dest *projCached, x int8) {
 	dest.Zero()
 	for j := 1; j <= 8; j++ {
 		// Set dest = j*Q if |x| = j
-		cond := subtle.ConstantTimeByteEq(xabs, uint8(j))
+		cond := constanttime.ByteEq(xabs, uint8(j))
 		dest.Select(&v.points[j-1], dest, cond)
 	}
 	// Now dest = |x|*Q, conditionally negate to get x*Q
@@ -111,7 +109,7 @@ func (v *affineLookupTable) SelectInto(dest *affineCached, x int8) {
 	dest.Zero()
 	for j := 1; j <= 8; j++ {
 		// Set dest = j*Q if |x| = j
-		cond := subtle.ConstantTimeByteEq(xabs, uint8(j))
+		cond := constanttime.ByteEq(xabs, uint8(j))
 		dest.Select(&v.points[j-1], dest, cond)
 	}
 	// Now dest = |x|*Q, conditionally negate to get x*Q

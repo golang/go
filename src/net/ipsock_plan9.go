@@ -7,10 +7,9 @@ package net
 import (
 	"context"
 	"internal/bytealg"
-	"internal/itoa"
+	"internal/strconv"
 	"io/fs"
 	"os"
-	"strconv"
 	"syscall"
 )
 
@@ -338,9 +337,9 @@ func plan9LocalAddr(addr Addr) string {
 		if port == 0 {
 			return ""
 		}
-		return itoa.Itoa(port)
+		return strconv.Itoa(port)
 	}
-	return ip.String() + "!" + itoa.Itoa(port)
+	return ip.String() + "!" + strconv.Itoa(port)
 }
 
 func hangupCtlWrite(ctx context.Context, proto string, ctl *os.File, msg string) error {

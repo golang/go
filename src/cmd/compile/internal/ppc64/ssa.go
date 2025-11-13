@@ -631,7 +631,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}
 		p.Reg = v.Args[0].Reg()
-		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: int64(sh)}
+		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: sh}
 		p.AddRestSourceArgs([]obj.Addr{{Type: obj.TYPE_CONST, Offset: mb}, {Type: obj.TYPE_CONST, Offset: me}})
 		// Auxint holds mask
 

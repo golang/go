@@ -199,8 +199,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	defer func() {
 		if v := recover(); v != nil {
-			debug.PrintStack()
-			s.logger.Fatal(v)
+			if v == http.ErrAbortHandler {
+				panic(v)
+			}
+			s.logger.Fatalf("panic serving %s: %v\n%s", req.URL, v, debug.Stack())
 		}
 	}()
 
@@ -244,9 +246,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	})
 	if err != nil {
 		s.logger.Print(err)
-		if notFound := (ScriptNotFoundError{}); errors.As(err, &notFound) {
+		if _, ok := errors.AsType[ScriptNotFoundError](err); ok {
 			http.NotFound(w, req)
-		} else if notInstalled := (ServerNotInstalledError{}); errors.As(err, &notInstalled) || errors.Is(err, exec.ErrNotFound) {
+		} else if _, ok := errors.AsType[ServerNotInstalledError](err); ok || errors.Is(err, exec.ErrNotFound) {
 			http.Error(w, err.Error(), http.StatusNotImplemented)
 		} else {
 			http.Error(w, err.Error(), http.StatusInternalServerError)

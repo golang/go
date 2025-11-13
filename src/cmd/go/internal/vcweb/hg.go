@@ -25,6 +25,13 @@ type hgHandler struct {
 	once      sync.Once
 	hgPath    string
 	hgPathErr error
+
+	mu     sync.Mutex
+	wg     sync.WaitGroup
+	ctx    context.Context
+	cancel func()
+	cmds   []*exec.Cmd
+	url    map[string]*url.URL
 }
 
 func (h *hgHandler) Available() bool {
@@ -32,6 +39,30 @@ func (h *hgHandler) Available() bool {
 		h.hgPath, h.hgPathErr = exec.LookPath("hg")
 	})
 	return h.hgPathErr == nil
+}
+
+func (h *hgHandler) Close() error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.cancel == nil {
+		return nil
+	}
+
+	h.cancel()
+	for _, cmd := range h.cmds {
+		h.wg.Add(1)
+		go func() {
+			cmd.Wait()
+			h.wg.Done()
+		}()
+	}
+	h.wg.Wait()
+	h.url = nil
+	h.cmds = nil
+	h.ctx = nil
+	h.cancel = nil
+	return nil
 }
 
 func (h *hgHandler) Handler(dir string, env []string, logger *log.Logger) (http.Handler, error) {
@@ -50,10 +81,25 @@ func (h *hgHandler) Handler(dir string, env []string, logger *log.Logger) (http.
 		// if "hg" works at all then "hg serve" works too, and we'll execute that as
 		// a subprocess, using a reverse proxy to forward the request and response.
 
-		ctx, cancel := context.WithCancel(req.Context())
-		defer cancel()
+		h.mu.Lock()
 
-		cmd := exec.CommandContext(ctx, h.hgPath, "serve", "--port", "0", "--address", "localhost", "--accesslog", os.DevNull, "--name", "vcweb", "--print-url")
+		if h.ctx == nil {
+			h.ctx, h.cancel = context.WithCancel(context.Background())
+		}
+
+		// Cache the hg server subprocess globally, because hg is too slow
+		// to start a new one for each request. There are under a dozen different
+		// repos we serve, so leaving a dozen processes around is not a big deal.
+		u := h.url[dir]
+		if u != nil {
+			h.mu.Unlock()
+			logger.Printf("proxying hg request to %s", u)
+			httputil.NewSingleHostReverseProxy(u).ServeHTTP(w, req)
+			return
+		}
+
+		logger.Printf("starting hg serve for %s", dir)
+		cmd := exec.CommandContext(h.ctx, h.hgPath, "serve", "--port", "0", "--address", "localhost", "--accesslog", os.DevNull, "--name", "vcweb", "--print-url")
 		cmd.Dir = dir
 		cmd.Env = append(slices.Clip(env), "PWD="+dir)
 
@@ -74,47 +120,56 @@ func (h *hgHandler) Handler(dir string, env []string, logger *log.Logger) (http.
 
 		stdout, err := cmd.StdoutPipe()
 		if err != nil {
+			h.mu.Unlock()
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		if err := cmd.Start(); err != nil {
+			h.mu.Unlock()
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		var wg sync.WaitGroup
-		defer func() {
-			cancel()
-			err := cmd.Wait()
-			if out := strings.TrimSuffix(stderr.String(), "interrupted!\n"); out != "" {
-				logger.Printf("%v: %v\n%s", cmd, err, out)
-			} else {
-				logger.Printf("%v", cmd)
-			}
-			wg.Wait()
-		}()
 
 		r := bufio.NewReader(stdout)
 		line, err := r.ReadString('\n')
 		if err != nil {
+			h.mu.Unlock()
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		// We have read what should be the server URL. 'hg serve' shouldn't need to
 		// write anything else to stdout, but it's not a big deal if it does anyway.
 		// Keep the stdout pipe open so that 'hg serve' won't get a SIGPIPE, but
 		// actively discard its output so that it won't hang on a blocking write.
-		wg.Add(1)
+		h.wg.Add(1)
 		go func() {
 			io.Copy(io.Discard, r)
-			wg.Done()
+			h.wg.Done()
 		}()
 
-		u, err := url.Parse(strings.TrimSpace(line))
+		// On some systems,
+		// hg serve --address=localhost --print-url prints in-addr.arpa hostnames
+		// even though they cannot be looked up.
+		// Replace them with IP literals.
+		line = strings.ReplaceAll(line, "//1.0.0.127.in-addr.arpa", "//127.0.0.1")
+		line = strings.ReplaceAll(line, "//1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa", "//[::1]")
+
+		u, err = url.Parse(strings.TrimSpace(line))
 		if err != nil {
+			h.mu.Unlock()
 			logger.Printf("%v: %v", cmd, err)
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
 		}
+
+		if h.url == nil {
+			h.url = make(map[string]*url.URL)
+		}
+		h.url[dir] = u
+		h.cmds = append(h.cmds, cmd)
+		h.mu.Unlock()
+
 		logger.Printf("proxying hg request to %s", u)
 		httputil.NewSingleHostReverseProxy(u).ServeHTTP(w, req)
 	})

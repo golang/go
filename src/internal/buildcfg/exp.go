@@ -79,14 +79,15 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 	dwarf5Supported := (goos != "darwin" && goos != "ios" && goos != "aix")
 
 	baseline := goexperiment.Flags{
-		RegabiWrappers:       regabiSupported,
-		RegabiArgs:           regabiSupported,
-		SIMD:                 goarch == "amd64", // TODO remove this (default to false) when dev.simd is merged
-		Dwarf5:               dwarf5Supported,
-		RandomizedHeapBase64: true,
+		RegabiWrappers:        regabiSupported,
+		RegabiArgs:            regabiSupported,
+		SIMD:                  goarch == "amd64", // TODO remove this (default to false) when dev.simd is merged
+		Dwarf5:                dwarf5Supported,
+		RandomizedHeapBase64:  true,
+		RuntimeFree:           true,
+		SizeSpecializedMalloc: true,
+		GreenTeaGC:            true,
 	}
-
-	// Start with the statically enabled set of experiments.
 	flags := &ExperimentFlags{
 		Flags:    baseline,
 		baseline: baseline,

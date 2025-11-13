@@ -253,7 +253,7 @@ func (s *phiState) insertVarPhis(n int, var_ ir.Node, defs []*ssa.Block, typ *ty
 				}
 				// Add a phi to block c for variable n.
 				hasPhi.add(c.ID)
-				v := c.NewValue0I(currentRoot.Pos, ssa.OpPhi, typ, int64(n)) // TODO: line number right?
+				v := c.NewValue0I(s.s.blockStarts[b.ID], ssa.OpPhi, typ, int64(n))
 				// Note: we store the variable number in the phi's AuxInt field. Used temporarily by phi building.
 				if var_.Op() == ir.ONAME {
 					s.s.addNamedValue(var_.(*ir.Name), v)
@@ -396,11 +396,11 @@ type blockHeap struct {
 func (h *blockHeap) Len() int      { return len(h.a) }
 func (h *blockHeap) Swap(i, j int) { a := h.a; a[i], a[j] = a[j], a[i] }
 
-func (h *blockHeap) Push(x interface{}) {
+func (h *blockHeap) Push(x any) {
 	v := x.(*ssa.Block)
 	h.a = append(h.a, v)
 }
-func (h *blockHeap) Pop() interface{} {
+func (h *blockHeap) Pop() any {
 	old := h.a
 	n := len(old)
 	x := old[n-1]
@@ -513,6 +513,7 @@ loop:
 				v.Op = ssa.OpPhi
 				v.AddArgs(args...)
 				v.Aux = nil
+				v.Pos = s.s.blockStarts[b.ID]
 				continue loop
 			}
 			w = a // save witness

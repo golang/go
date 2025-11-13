@@ -9,6 +9,7 @@ package json
 import (
 	"errors"
 	"fmt"
+	"io"
 	"reflect"
 	"sync"
 
@@ -306,6 +307,9 @@ func UnmarshalFromFunc[T any](fn func(*jsontext.Decoder, T) error) *Unmarshalers
 		fnc: func(dec *jsontext.Decoder, va addressableValue, uo *jsonopts.Struct) error {
 			xd := export.Decoder(dec)
 			prevDepth, prevLength := xd.Tokens.DepthLength()
+			if prevDepth == 1 && xd.AtEOF() {
+				return io.EOF // check EOF early to avoid fn reporting an EOF
+			}
 			xd.Flags.Set(jsonflags.WithinArshalCall | 1)
 			v, _ := reflect.TypeAssert[T](va.castTo(t))
 			err := fn(dec, v)

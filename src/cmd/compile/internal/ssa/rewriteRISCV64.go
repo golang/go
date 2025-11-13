@@ -4,6 +4,7 @@ package ssa
 
 import "internal/buildcfg"
 import "math"
+import "math/bits"
 import "cmd/compile/internal/types"
 
 func rewriteValueRISCV64(v *Value) bool {
@@ -137,11 +138,13 @@ func rewriteValueRISCV64(v *Value) bool {
 	case OpConst32:
 		return rewriteValueRISCV64_OpConst32(v)
 	case OpConst32F:
-		return rewriteValueRISCV64_OpConst32F(v)
+		v.Op = OpRISCV64FMOVFconst
+		return true
 	case OpConst64:
 		return rewriteValueRISCV64_OpConst64(v)
 	case OpConst64F:
-		return rewriteValueRISCV64_OpConst64F(v)
+		v.Op = OpRISCV64FMOVDconst
+		return true
 	case OpConst8:
 		return rewriteValueRISCV64_OpConst8(v)
 	case OpConstBool:
@@ -1098,20 +1101,6 @@ func rewriteValueRISCV64_OpConst32(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpConst32F(v *Value) bool {
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (Const32F [val])
-	// result: (FMVSX (MOVDconst [int64(math.Float32bits(val))]))
-	for {
-		val := auxIntToFloat32(v.AuxInt)
-		v.reset(OpRISCV64FMVSX)
-		v0 := b.NewValue0(v.Pos, OpRISCV64MOVDconst, typ.UInt64)
-		v0.AuxInt = int64ToAuxInt(int64(math.Float32bits(val)))
-		v.AddArg(v0)
-		return true
-	}
-}
 func rewriteValueRISCV64_OpConst64(v *Value) bool {
 	// match: (Const64 [val])
 	// result: (MOVDconst [int64(val)])
@@ -1119,20 +1108,6 @@ func rewriteValueRISCV64_OpConst64(v *Value) bool {
 		val := auxIntToInt64(v.AuxInt)
 		v.reset(OpRISCV64MOVDconst)
 		v.AuxInt = int64ToAuxInt(int64(val))
-		return true
-	}
-}
-func rewriteValueRISCV64_OpConst64F(v *Value) bool {
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (Const64F [val])
-	// result: (FMVDX (MOVDconst [int64(math.Float64bits(val))]))
-	for {
-		val := auxIntToFloat64(v.AuxInt)
-		v.reset(OpRISCV64FMVDX)
-		v0 := b.NewValue0(v.Pos, OpRISCV64MOVDconst, typ.UInt64)
-		v0.AuxInt = int64ToAuxInt(int64(math.Float64bits(val)))
-		v.AddArg(v0)
 		return true
 	}
 }
@@ -3608,20 +3583,16 @@ func rewriteValueRISCV64_OpRISCV64FEQD(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
-	// match: (FEQD x (FMVDX (MOVDconst [int64(math.Float64bits(math.Inf(-1)))])))
-	// result: (ANDI [1] (FCLASSD x))
+	// match: (FEQD x (FMOVDconst [math.Inf(-1)]))
+	// result: (ANDI [0b00_0000_0001] (FCLASSD x))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
-			if v_1.Op != OpRISCV64FMVDX {
-				continue
-			}
-			v_1_0 := v_1.Args[0]
-			if v_1_0.Op != OpRISCV64MOVDconst || auxIntToInt64(v_1_0.AuxInt) != int64(math.Float64bits(math.Inf(-1))) {
+			if v_1.Op != OpRISCV64FMOVDconst || auxIntToFloat64(v_1.AuxInt) != math.Inf(-1) {
 				continue
 			}
 			v.reset(OpRISCV64ANDI)
-			v.AuxInt = int64ToAuxInt(1)
+			v.AuxInt = int64ToAuxInt(0b00_0000_0001)
 			v0 := b.NewValue0(v.Pos, OpRISCV64FCLASSD, typ.Int64)
 			v0.AddArg(x)
 			v.AddArg(v0)
@@ -3629,21 +3600,17 @@ func rewriteValueRISCV64_OpRISCV64FEQD(v *Value) bool {
 		}
 		break
 	}
-	// match: (FEQD x (FMVDX (MOVDconst [int64(math.Float64bits(math.Inf(1)))])))
-	// result: (SNEZ (ANDI <typ.Int64> [1<<7] (FCLASSD x)))
+	// match: (FEQD x (FMOVDconst [math.Inf(1)]))
+	// result: (SNEZ (ANDI <typ.Int64> [0b00_1000_0000] (FCLASSD x)))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
-			if v_1.Op != OpRISCV64FMVDX {
-				continue
-			}
-			v_1_0 := v_1.Args[0]
-			if v_1_0.Op != OpRISCV64MOVDconst || auxIntToInt64(v_1_0.AuxInt) != int64(math.Float64bits(math.Inf(1))) {
+			if v_1.Op != OpRISCV64FMOVDconst || auxIntToFloat64(v_1.AuxInt) != math.Inf(1) {
 				continue
 			}
 			v.reset(OpRISCV64SNEZ)
 			v0 := b.NewValue0(v.Pos, OpRISCV64ANDI, typ.Int64)
-			v0.AuxInt = int64ToAuxInt(1 << 7)
+			v0.AuxInt = int64ToAuxInt(0b00_1000_0000)
 			v1 := b.NewValue0(v.Pos, OpRISCV64FCLASSD, typ.Int64)
 			v1.AddArg(x)
 			v0.AddArg(v1)
@@ -3659,40 +3626,64 @@ func rewriteValueRISCV64_OpRISCV64FLED(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
-	// match: (FLED (FMVDX (MOVDconst [int64(math.Float64bits(-math.MaxFloat64))])) x)
-	// result: (SNEZ (ANDI <typ.Int64> [0xff &^ 1] (FCLASSD x)))
+	// match: (FLED (FMOVDconst [-math.MaxFloat64]) x)
+	// result: (SNEZ (ANDI <typ.Int64> [0b00_1111_1110] (FCLASSD x)))
 	for {
-		if v_0.Op != OpRISCV64FMVDX {
-			break
-		}
-		v_0_0 := v_0.Args[0]
-		if v_0_0.Op != OpRISCV64MOVDconst || auxIntToInt64(v_0_0.AuxInt) != int64(math.Float64bits(-math.MaxFloat64)) {
+		if v_0.Op != OpRISCV64FMOVDconst || auxIntToFloat64(v_0.AuxInt) != -math.MaxFloat64 {
 			break
 		}
 		x := v_1
 		v.reset(OpRISCV64SNEZ)
 		v0 := b.NewValue0(v.Pos, OpRISCV64ANDI, typ.Int64)
-		v0.AuxInt = int64ToAuxInt(0xff &^ 1)
+		v0.AuxInt = int64ToAuxInt(0b00_1111_1110)
 		v1 := b.NewValue0(v.Pos, OpRISCV64FCLASSD, typ.Int64)
 		v1.AddArg(x)
 		v0.AddArg(v1)
 		v.AddArg(v0)
 		return true
 	}
-	// match: (FLED x (FMVDX (MOVDconst [int64(math.Float64bits(math.MaxFloat64))])))
-	// result: (SNEZ (ANDI <typ.Int64> [0xff &^ (1<<7)] (FCLASSD x)))
+	// match: (FLED x (FMOVDconst [math.MaxFloat64]))
+	// result: (SNEZ (ANDI <typ.Int64> [0b00_0111_1111] (FCLASSD x)))
 	for {
 		x := v_0
-		if v_1.Op != OpRISCV64FMVDX {
-			break
-		}
-		v_1_0 := v_1.Args[0]
-		if v_1_0.Op != OpRISCV64MOVDconst || auxIntToInt64(v_1_0.AuxInt) != int64(math.Float64bits(math.MaxFloat64)) {
+		if v_1.Op != OpRISCV64FMOVDconst || auxIntToFloat64(v_1.AuxInt) != math.MaxFloat64 {
 			break
 		}
 		v.reset(OpRISCV64SNEZ)
 		v0 := b.NewValue0(v.Pos, OpRISCV64ANDI, typ.Int64)
-		v0.AuxInt = int64ToAuxInt(0xff &^ (1 << 7))
+		v0.AuxInt = int64ToAuxInt(0b00_0111_1111)
+		v1 := b.NewValue0(v.Pos, OpRISCV64FCLASSD, typ.Int64)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (FLED (FMOVDconst [+0x1p-1022]) x)
+	// result: (SNEZ (ANDI <typ.Int64> [0b00_1100_0000] (FCLASSD x)))
+	for {
+		if v_0.Op != OpRISCV64FMOVDconst || auxIntToFloat64(v_0.AuxInt) != +0x1p-1022 {
+			break
+		}
+		x := v_1
+		v.reset(OpRISCV64SNEZ)
+		v0 := b.NewValue0(v.Pos, OpRISCV64ANDI, typ.Int64)
+		v0.AuxInt = int64ToAuxInt(0b00_1100_0000)
+		v1 := b.NewValue0(v.Pos, OpRISCV64FCLASSD, typ.Int64)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (FLED x (FMOVDconst [-0x1p-1022]))
+	// result: (SNEZ (ANDI <typ.Int64> [0b00_0000_0011] (FCLASSD x)))
+	for {
+		x := v_0
+		if v_1.Op != OpRISCV64FMOVDconst || auxIntToFloat64(v_1.AuxInt) != -0x1p-1022 {
+			break
+		}
+		v.reset(OpRISCV64SNEZ)
+		v0 := b.NewValue0(v.Pos, OpRISCV64ANDI, typ.Int64)
+		v0.AuxInt = int64ToAuxInt(0b00_0000_0011)
 		v1 := b.NewValue0(v.Pos, OpRISCV64FCLASSD, typ.Int64)
 		v1.AddArg(x)
 		v0.AddArg(v1)
@@ -3706,38 +3697,62 @@ func rewriteValueRISCV64_OpRISCV64FLTD(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
-	// match: (FLTD x (FMVDX (MOVDconst [int64(math.Float64bits(-math.MaxFloat64))])))
-	// result: (ANDI [1] (FCLASSD x))
+	// match: (FLTD x (FMOVDconst [-math.MaxFloat64]))
+	// result: (ANDI [0b00_0000_0001] (FCLASSD x))
 	for {
 		x := v_0
-		if v_1.Op != OpRISCV64FMVDX {
-			break
-		}
-		v_1_0 := v_1.Args[0]
-		if v_1_0.Op != OpRISCV64MOVDconst || auxIntToInt64(v_1_0.AuxInt) != int64(math.Float64bits(-math.MaxFloat64)) {
+		if v_1.Op != OpRISCV64FMOVDconst || auxIntToFloat64(v_1.AuxInt) != -math.MaxFloat64 {
 			break
 		}
 		v.reset(OpRISCV64ANDI)
-		v.AuxInt = int64ToAuxInt(1)
+		v.AuxInt = int64ToAuxInt(0b00_0000_0001)
 		v0 := b.NewValue0(v.Pos, OpRISCV64FCLASSD, typ.Int64)
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
-	// match: (FLTD (FMVDX (MOVDconst [int64(math.Float64bits(math.MaxFloat64))])) x)
-	// result: (SNEZ (ANDI <typ.Int64> [1<<7] (FCLASSD x)))
+	// match: (FLTD (FMOVDconst [math.MaxFloat64]) x)
+	// result: (SNEZ (ANDI <typ.Int64> [0b00_1000_0000] (FCLASSD x)))
 	for {
-		if v_0.Op != OpRISCV64FMVDX {
-			break
-		}
-		v_0_0 := v_0.Args[0]
-		if v_0_0.Op != OpRISCV64MOVDconst || auxIntToInt64(v_0_0.AuxInt) != int64(math.Float64bits(math.MaxFloat64)) {
+		if v_0.Op != OpRISCV64FMOVDconst || auxIntToFloat64(v_0.AuxInt) != math.MaxFloat64 {
 			break
 		}
 		x := v_1
 		v.reset(OpRISCV64SNEZ)
 		v0 := b.NewValue0(v.Pos, OpRISCV64ANDI, typ.Int64)
-		v0.AuxInt = int64ToAuxInt(1 << 7)
+		v0.AuxInt = int64ToAuxInt(0b00_1000_0000)
+		v1 := b.NewValue0(v.Pos, OpRISCV64FCLASSD, typ.Int64)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (FLTD x (FMOVDconst [+0x1p-1022]))
+	// result: (SNEZ (ANDI <typ.Int64> [0b00_0011_1111] (FCLASSD x)))
+	for {
+		x := v_0
+		if v_1.Op != OpRISCV64FMOVDconst || auxIntToFloat64(v_1.AuxInt) != +0x1p-1022 {
+			break
+		}
+		v.reset(OpRISCV64SNEZ)
+		v0 := b.NewValue0(v.Pos, OpRISCV64ANDI, typ.Int64)
+		v0.AuxInt = int64ToAuxInt(0b00_0011_1111)
+		v1 := b.NewValue0(v.Pos, OpRISCV64FCLASSD, typ.Int64)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (FLTD (FMOVDconst [-0x1p-1022]) x)
+	// result: (SNEZ (ANDI <typ.Int64> [0b00_1111_1100] (FCLASSD x)))
+	for {
+		if v_0.Op != OpRISCV64FMOVDconst || auxIntToFloat64(v_0.AuxInt) != -0x1p-1022 {
+			break
+		}
+		x := v_1
+		v.reset(OpRISCV64SNEZ)
+		v0 := b.NewValue0(v.Pos, OpRISCV64ANDI, typ.Int64)
+		v0.AuxInt = int64ToAuxInt(0b00_1111_1100)
 		v1 := b.NewValue0(v.Pos, OpRISCV64FCLASSD, typ.Int64)
 		v1.AddArg(x)
 		v0.AddArg(v1)
@@ -4175,21 +4190,17 @@ func rewriteValueRISCV64_OpRISCV64FNED(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
-	// match: (FNED x (FMVDX (MOVDconst [int64(math.Float64bits(math.Inf(-1)))])))
-	// result: (SEQZ (ANDI <typ.Int64> [1] (FCLASSD x)))
+	// match: (FNED x (FMOVDconst [math.Inf(-1)]))
+	// result: (SEQZ (ANDI <typ.Int64> [0b00_0000_0001] (FCLASSD x)))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
-			if v_1.Op != OpRISCV64FMVDX {
-				continue
-			}
-			v_1_0 := v_1.Args[0]
-			if v_1_0.Op != OpRISCV64MOVDconst || auxIntToInt64(v_1_0.AuxInt) != int64(math.Float64bits(math.Inf(-1))) {
+			if v_1.Op != OpRISCV64FMOVDconst || auxIntToFloat64(v_1.AuxInt) != math.Inf(-1) {
 				continue
 			}
 			v.reset(OpRISCV64SEQZ)
 			v0 := b.NewValue0(v.Pos, OpRISCV64ANDI, typ.Int64)
-			v0.AuxInt = int64ToAuxInt(1)
+			v0.AuxInt = int64ToAuxInt(0b00_0000_0001)
 			v1 := b.NewValue0(v.Pos, OpRISCV64FCLASSD, typ.Int64)
 			v1.AddArg(x)
 			v0.AddArg(v1)
@@ -4198,21 +4209,17 @@ func rewriteValueRISCV64_OpRISCV64FNED(v *Value) bool {
 		}
 		break
 	}
-	// match: (FNED x (FMVDX (MOVDconst [int64(math.Float64bits(math.Inf(1)))])))
-	// result: (SEQZ (ANDI <typ.Int64> [1<<7] (FCLASSD x)))
+	// match: (FNED x (FMOVDconst [math.Inf(1)]))
+	// result: (SEQZ (ANDI <typ.Int64> [0b00_1000_0000] (FCLASSD x)))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
-			if v_1.Op != OpRISCV64FMVDX {
-				continue
-			}
-			v_1_0 := v_1.Args[0]
-			if v_1_0.Op != OpRISCV64MOVDconst || auxIntToInt64(v_1_0.AuxInt) != int64(math.Float64bits(math.Inf(1))) {
+			if v_1.Op != OpRISCV64FMOVDconst || auxIntToFloat64(v_1.AuxInt) != math.Inf(1) {
 				continue
 			}
 			v.reset(OpRISCV64SEQZ)
 			v0 := b.NewValue0(v.Pos, OpRISCV64ANDI, typ.Int64)
-			v0.AuxInt = int64ToAuxInt(1 << 7)
+			v0.AuxInt = int64ToAuxInt(0b00_1000_0000)
 			v1 := b.NewValue0(v.Pos, OpRISCV64FCLASSD, typ.Int64)
 			v1.AddArg(x)
 			v0.AddArg(v1)
@@ -7114,6 +7121,8 @@ func rewriteValueRISCV64_OpRISCV64RORW(v *Value) bool {
 }
 func rewriteValueRISCV64_OpRISCV64SEQZ(v *Value) bool {
 	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
 	// match: (SEQZ (NEG x))
 	// result: (SEQZ x)
 	for {
@@ -7145,6 +7154,56 @@ func rewriteValueRISCV64_OpRISCV64SEQZ(v *Value) bool {
 		x := v_0.Args[0]
 		v.reset(OpRISCV64SEQZ)
 		v.AddArg(x)
+		return true
+	}
+	// match: (SEQZ (ANDI [c] (FCLASSD (FNEGD x))))
+	// result: (SEQZ (ANDI <typ.Int64> [(c&0b11_0000_0000)|int64(bits.Reverse8(uint8(c))&0b1111_1111)] (FCLASSD x)))
+	for {
+		if v_0.Op != OpRISCV64ANDI {
+			break
+		}
+		c := auxIntToInt64(v_0.AuxInt)
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpRISCV64FCLASSD {
+			break
+		}
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpRISCV64FNEGD {
+			break
+		}
+		x := v_0_0_0.Args[0]
+		v.reset(OpRISCV64SEQZ)
+		v0 := b.NewValue0(v.Pos, OpRISCV64ANDI, typ.Int64)
+		v0.AuxInt = int64ToAuxInt((c & 0b11_0000_0000) | int64(bits.Reverse8(uint8(c))&0b1111_1111))
+		v1 := b.NewValue0(v.Pos, OpRISCV64FCLASSD, typ.Int64)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (SEQZ (ANDI [c] (FCLASSD (FABSD x))))
+	// result: (SEQZ (ANDI <typ.Int64> [(c&0b11_1111_0000)|int64(bits.Reverse8(uint8(c))&0b0000_1111)] (FCLASSD x)))
+	for {
+		if v_0.Op != OpRISCV64ANDI {
+			break
+		}
+		c := auxIntToInt64(v_0.AuxInt)
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpRISCV64FCLASSD {
+			break
+		}
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpRISCV64FABSD {
+			break
+		}
+		x := v_0_0_0.Args[0]
+		v.reset(OpRISCV64SEQZ)
+		v0 := b.NewValue0(v.Pos, OpRISCV64ANDI, typ.Int64)
+		v0.AuxInt = int64ToAuxInt((c & 0b11_1111_0000) | int64(bits.Reverse8(uint8(c))&0b0000_1111))
+		v1 := b.NewValue0(v.Pos, OpRISCV64FCLASSD, typ.Int64)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v.AddArg(v0)
 		return true
 	}
 	return false
@@ -7405,6 +7464,8 @@ func rewriteValueRISCV64_OpRISCV64SLTU(v *Value) bool {
 }
 func rewriteValueRISCV64_OpRISCV64SNEZ(v *Value) bool {
 	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
 	// match: (SNEZ (NEG x))
 	// result: (SNEZ x)
 	for {
@@ -7436,6 +7497,56 @@ func rewriteValueRISCV64_OpRISCV64SNEZ(v *Value) bool {
 		x := v_0.Args[0]
 		v.reset(OpRISCV64SNEZ)
 		v.AddArg(x)
+		return true
+	}
+	// match: (SNEZ (ANDI [c] (FCLASSD (FNEGD x))))
+	// result: (SNEZ (ANDI <typ.Int64> [(c&0b11_0000_0000)|int64(bits.Reverse8(uint8(c))&0b1111_1111)] (FCLASSD x)))
+	for {
+		if v_0.Op != OpRISCV64ANDI {
+			break
+		}
+		c := auxIntToInt64(v_0.AuxInt)
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpRISCV64FCLASSD {
+			break
+		}
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpRISCV64FNEGD {
+			break
+		}
+		x := v_0_0_0.Args[0]
+		v.reset(OpRISCV64SNEZ)
+		v0 := b.NewValue0(v.Pos, OpRISCV64ANDI, typ.Int64)
+		v0.AuxInt = int64ToAuxInt((c & 0b11_0000_0000) | int64(bits.Reverse8(uint8(c))&0b1111_1111))
+		v1 := b.NewValue0(v.Pos, OpRISCV64FCLASSD, typ.Int64)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (SNEZ (ANDI [c] (FCLASSD (FABSD x))))
+	// result: (SNEZ (ANDI <typ.Int64> [(c&0b11_1111_0000)|int64(bits.Reverse8(uint8(c))&0b0000_1111)] (FCLASSD x)))
+	for {
+		if v_0.Op != OpRISCV64ANDI {
+			break
+		}
+		c := auxIntToInt64(v_0.AuxInt)
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpRISCV64FCLASSD {
+			break
+		}
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpRISCV64FABSD {
+			break
+		}
+		x := v_0_0_0.Args[0]
+		v.reset(OpRISCV64SNEZ)
+		v0 := b.NewValue0(v.Pos, OpRISCV64ANDI, typ.Int64)
+		v0.AuxInt = int64ToAuxInt((c & 0b11_1111_0000) | int64(bits.Reverse8(uint8(c))&0b0000_1111))
+		v1 := b.NewValue0(v.Pos, OpRISCV64FCLASSD, typ.Int64)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v.AddArg(v0)
 		return true
 	}
 	return false
@@ -9998,6 +10109,50 @@ func rewriteBlockRISCV64(b *Block) bool {
 			b.resetWithControl2(BlockRISCV64BGEU, y, v0)
 			return true
 		}
+		// match: (BEQZ (ANDI [c] (FCLASSD (FNEGD x))) yes no)
+		// result: (BEQZ (ANDI <typ.Int64> [(c&0b11_0000_0000)|int64(bits.Reverse8(uint8(c))&0b1111_1111)] (FCLASSD x)) yes no)
+		for b.Controls[0].Op == OpRISCV64ANDI {
+			v_0 := b.Controls[0]
+			c := auxIntToInt64(v_0.AuxInt)
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpRISCV64FCLASSD {
+				break
+			}
+			v_0_0_0 := v_0_0.Args[0]
+			if v_0_0_0.Op != OpRISCV64FNEGD {
+				break
+			}
+			x := v_0_0_0.Args[0]
+			v0 := b.NewValue0(v_0.Pos, OpRISCV64ANDI, typ.Int64)
+			v0.AuxInt = int64ToAuxInt((c & 0b11_0000_0000) | int64(bits.Reverse8(uint8(c))&0b1111_1111))
+			v1 := b.NewValue0(v_0.Pos, OpRISCV64FCLASSD, typ.Int64)
+			v1.AddArg(x)
+			v0.AddArg(v1)
+			b.resetWithControl(BlockRISCV64BEQZ, v0)
+			return true
+		}
+		// match: (BEQZ (ANDI [c] (FCLASSD (FABSD x))) yes no)
+		// result: (BEQZ (ANDI <typ.Int64> [(c&0b11_1111_0000)|int64(bits.Reverse8(uint8(c))&0b0000_1111)] (FCLASSD x)) yes no)
+		for b.Controls[0].Op == OpRISCV64ANDI {
+			v_0 := b.Controls[0]
+			c := auxIntToInt64(v_0.AuxInt)
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpRISCV64FCLASSD {
+				break
+			}
+			v_0_0_0 := v_0_0.Args[0]
+			if v_0_0_0.Op != OpRISCV64FABSD {
+				break
+			}
+			x := v_0_0_0.Args[0]
+			v0 := b.NewValue0(v_0.Pos, OpRISCV64ANDI, typ.Int64)
+			v0.AuxInt = int64ToAuxInt((c & 0b11_1111_0000) | int64(bits.Reverse8(uint8(c))&0b0000_1111))
+			v1 := b.NewValue0(v_0.Pos, OpRISCV64FCLASSD, typ.Int64)
+			v1.AddArg(x)
+			v0.AddArg(v1)
+			b.resetWithControl(BlockRISCV64BEQZ, v0)
+			return true
+		}
 	case BlockRISCV64BGE:
 		// match: (BGE (MOVDconst [0]) cond yes no)
 		// result: (BLEZ cond yes no)
@@ -10197,6 +10352,50 @@ func rewriteBlockRISCV64(b *Block) bool {
 			v0 := b.NewValue0(b.Pos, OpRISCV64MOVDconst, typ.UInt64)
 			v0.AuxInt = int64ToAuxInt(x)
 			b.resetWithControl2(BlockRISCV64BLTU, y, v0)
+			return true
+		}
+		// match: (BNEZ (ANDI [c] (FCLASSD (FNEGD x))) yes no)
+		// result: (BNEZ (ANDI <typ.Int64> [(c&0b11_0000_0000)|int64(bits.Reverse8(uint8(c))&0b1111_1111)] (FCLASSD x)) yes no)
+		for b.Controls[0].Op == OpRISCV64ANDI {
+			v_0 := b.Controls[0]
+			c := auxIntToInt64(v_0.AuxInt)
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpRISCV64FCLASSD {
+				break
+			}
+			v_0_0_0 := v_0_0.Args[0]
+			if v_0_0_0.Op != OpRISCV64FNEGD {
+				break
+			}
+			x := v_0_0_0.Args[0]
+			v0 := b.NewValue0(v_0.Pos, OpRISCV64ANDI, typ.Int64)
+			v0.AuxInt = int64ToAuxInt((c & 0b11_0000_0000) | int64(bits.Reverse8(uint8(c))&0b1111_1111))
+			v1 := b.NewValue0(v_0.Pos, OpRISCV64FCLASSD, typ.Int64)
+			v1.AddArg(x)
+			v0.AddArg(v1)
+			b.resetWithControl(BlockRISCV64BNEZ, v0)
+			return true
+		}
+		// match: (BNEZ (ANDI [c] (FCLASSD (FABSD x))) yes no)
+		// result: (BNEZ (ANDI <typ.Int64> [(c&0b11_1111_0000)|int64(bits.Reverse8(uint8(c))&0b0000_1111)] (FCLASSD x)) yes no)
+		for b.Controls[0].Op == OpRISCV64ANDI {
+			v_0 := b.Controls[0]
+			c := auxIntToInt64(v_0.AuxInt)
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpRISCV64FCLASSD {
+				break
+			}
+			v_0_0_0 := v_0_0.Args[0]
+			if v_0_0_0.Op != OpRISCV64FABSD {
+				break
+			}
+			x := v_0_0_0.Args[0]
+			v0 := b.NewValue0(v_0.Pos, OpRISCV64ANDI, typ.Int64)
+			v0.AuxInt = int64ToAuxInt((c & 0b11_1111_0000) | int64(bits.Reverse8(uint8(c))&0b0000_1111))
+			v1 := b.NewValue0(v_0.Pos, OpRISCV64FCLASSD, typ.Int64)
+			v1.AddArg(x)
+			v0.AddArg(v1)
+			b.resetWithControl(BlockRISCV64BNEZ, v0)
 			return true
 		}
 	case BlockIf:

@@ -213,7 +213,7 @@ func findHostBuildID(r io.Reader) (offset int64, size int64, ok bool) {
 		if cmd.Cmd == imacho.LC_UUID {
 			// The UUID is the data in the LC_UUID load command,
 			// skipping over the 8-byte command header.
-			return int64(reader.Offset() + 8), int64(cmd.Len - 8), true
+			return reader.Offset() + 8, int64(cmd.Len - 8), true
 		}
 	}
 	return 0, 0, false

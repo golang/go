@@ -1,0 +1,52 @@
+env date=2019-05-09T18:35:00-04:00
+
+handle hg
+
+hg init
+hg add sub
+hg commit -u rsc -d $date -m 'create module sub'
+
+echo v0.1.0
+cp stdout status
+hg add status
+hg commit -u rsc -d $date -m v0.1.0
+hg tag -u rsc -d $date v0.1.0
+
+echo sub/v0.0.9
+cp stdout status
+hg add status
+hg commit -u rsc -d $date -m sub/v0.0.9
+hg tag -u rsc -d $date sub/v0.0.9
+
+echo sub/v0.0.10
+cp stdout status
+hg commit -u rsc -d $date -m sub/v0.0.10 status
+hg tag -u rsc -d $date sub/v0.0.10
+
+echo v0.2.0
+cp stdout status
+hg commit -u rsc -d $date -m v0.2.0
+hg tag -u rsc -d $date v0.2.0
+
+echo 'after last tag'
+cp stdout status
+hg commit -u rsc -d $date -m 'after last tag'
+
+hg tags
+cmp stdout .hg-tags
+
+hg branches
+cmp stdout .hg-branches
+
+-- .hg-tags --
+tip                                9:840814f739c2
+v0.2.0                             7:84e452ea2b0a
+sub/v0.0.10                        5:1cc0dfcc254c
+sub/v0.0.9                         3:c5f5e3168705
+v0.1.0                             1:d6ba12969a9b
+-- .hg-branches --
+default                        9:840814f739c2
+-- sub/go.mod --
+module vcs-test.golang.org/git/prefixtagtests.git/sub
+-- sub/sub.go --
+package sub

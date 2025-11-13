@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Language version go1.26 (Oct 1, 2025)",
+	"Subtitle": "Language version go1.26 (Nov 12, 2025)",
 	"Path": "/ref/spec"
 }-->
 
@@ -2686,22 +2686,6 @@ of a <a href="#Method_declarations">method declaration</a> associated
 with a generic type.
 </p>
 
-<p>
-Within a type parameter list of a generic type <code>T</code>, a type constraint
-may not (directly, or indirectly through the type parameter list of another
-generic type) refer to <code>T</code>.
-</p>
-
-<pre>
-type T1[P T1[P]] …                    // illegal: T1 refers to itself
-type T2[P interface{ T2[int] }] …     // illegal: T2 refers to itself
-type T3[P interface{ m(T3[int])}] …   // illegal: T3 refers to itself
-type T4[P T5[P]] …                    // illegal: T4 refers to T5 and
-type T5[P T4[P]] …                    //          T5 refers to T4
-
-type T6[P int] struct{ f *T6[P] }     // ok: reference to T6 is not in type parameter list
-</pre>
-
 <h4 id="Type_constraints">Type constraints</h4>
 
 <p>
@@ -3173,7 +3157,7 @@ Element      = Expression | LiteralValue .
 
 <p>
 Unless the LiteralType is a type parameter,
-its <a href="#Underlying_types">underlying type
+its <a href="#Underlying_types">underlying type</a>
 must be a struct, array, slice, or map type
 (the syntax enforces this constraint except when the type is given
 as a TypeName).
@@ -4873,7 +4857,7 @@ For instance, <code>x / y * z</code> is the same as <code>(x / y) * z</code>.
 x &lt;= f()                   // x &lt;= f()
 ^a &gt;&gt; b                    // (^a) >> b
 f() || g()                 // f() || g()
-x == y+1 &amp;&amp; &lt;-chanInt &gt; 0  // (x == (y+1)) && ((<-chanInt) > 0)
+x == y+1 &amp;&amp; &lt;-chanInt &gt; 0  // (x == (y+1)) && ((&lt;-chanInt) > 0)
 </pre>
 
 
@@ -6635,7 +6619,7 @@ iteration's variable at that moment.
 
 <pre>
 var prints []func()
-for i := 0; i < 5; i++ {
+for i := 0; i &lt; 5; i++ {
 	prints = append(prints, func() { println(i) })
 	i++
 }
@@ -6772,7 +6756,7 @@ if the iteration variable is preexisting, the type of the iteration values is th
 variable, which must be of integer type.
 Otherwise, if the iteration variable is declared by the "range" clause or is absent,
 the type of the iteration values is the <a href="#Constants">default type</a> for <code>n</code>.
-If <code>n</code> &lt= 0, the loop does not run any iterations.
+If <code>n</code> &lt;= 0, the loop does not run any iterations.
 </li>
 
 <li>
@@ -7383,8 +7367,8 @@ The values <code>x</code> are passed to a parameter of type <code>...E</code>
 where <code>E</code> is the element type of <code>S</code>
 and the respective <a href="#Passing_arguments_to_..._parameters">parameter
 passing rules</a> apply.
-As a special case, <code>append</code> also accepts a first argument assignable
-to type <code>[]byte</code> with a second argument of string type followed by
+As a special case, <code>append</code> also accepts a slice whose type is assignable to
+type <code>[]byte</code> with a second argument of <code>string</code> type followed by
 <code>...</code>.
 This form appends the bytes of the string.
 </p>
@@ -7799,7 +7783,7 @@ compared lexically byte-wise:
 </p>
 
 <pre>
-min(x, y)    == if x <= y then x else y
+min(x, y)    == if x &lt;= y then x else y
 min(x, y, z) == min(min(x, y), z)
 </pre>
 

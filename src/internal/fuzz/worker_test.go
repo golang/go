@@ -182,7 +182,6 @@ func BenchmarkWorkerMinimize(b *testing.B) {
 	bytes := make([]byte, 1024)
 	ctx := context.Background()
 	for sz := 1; sz <= len(bytes); sz <<= 1 {
-		sz := sz
 		input := []any{bytes[:sz]}
 		encodedVals := marshalCorpusFile(input...)
 		mem = <-ws.memMu

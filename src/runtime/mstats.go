@@ -914,7 +914,7 @@ type cpuStats struct {
 	ScavengeTotalTime  int64
 
 	IdleTime int64 // Time Ps spent in _Pidle.
-	UserTime int64 // Time Ps spent in _Prunning or _Psyscall that's not any of the above.
+	UserTime int64 // Time Ps spent in _Prunning that's not any of the above.
 
 	TotalTime int64 // GOMAXPROCS * (monotonic wall clock time elapsed)
 }
@@ -976,7 +976,7 @@ func (s *cpuStats) accumulate(now int64, gcMarkPhase bool) {
 	// Compute userTime. We compute this indirectly as everything that's not the above.
 	//
 	// Since time spent in _Pgcstop is covered by gcPauseTime, and time spent in _Pidle
-	// is covered by idleTime, what we're left with is time spent in _Prunning and _Psyscall,
+	// is covered by idleTime, what we're left with is time spent in _Prunning,
 	// the latter of which is fine because the P will either go idle or get used for something
 	// else via sysmon. Meanwhile if we subtract GC time from whatever's left, we get non-GC
 	// _Prunning time. Note that this still leaves time spent in sweeping and in the scheduler,

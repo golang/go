@@ -400,6 +400,8 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	MOVD	$0x11110000, R1               // MOVD	$286326784, R1              // 2122a2d2
 	MOVD	$0xaaaa0000aaaa1111, R1       // MOVD	$-6149102338357718767, R1   // 212282d24155b5f24155f5f2
 	MOVD	$0x1111ffff1111aaaa, R1       // MOVD	$1230045644216969898, R1    // a1aa8a922122a2f22122e2f2
+	MOVD	$0xaaaaaaaaaaaaaaab, R1       // MOVD	$-6148914691236517205, R1   // e1f301b2615595f2
+	MOVD	$0x0ff019940ff00ff0, R1       // MOVD	$1148446028692721648, R1    // e19f0cb28132c3f2
 	MOVD	$0, R1                        // e1031faa
 	MOVD	$-1, R1                       // 01008092
 	MOVD	$0x210000, R0                 // MOVD	$2162688, R0                // 2004a0d2
@@ -630,6 +632,8 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	FMOVS	F1, 0x44332211(R2)	// FMOVS	F1, 1144201745(R2)
 	FMOVD	F1, 0x1007000(R2)	// FMOVD	F1, 16805888(R2)
 	FMOVD	F1, 0x44332211(R2)	// FMOVD	F1, 1144201745(R2)
+	FMOVQ	F1, 0x1003000(R2)	// FMOVQ	F1, 16789504(R2)
+	FMOVQ	F1, 0x44332211(R2)	// FMOVQ	F1, 1144201745(R2)
 
 	MOVB	0x1000000(R1), R2	// MOVB		16777216(R1), R2
 	MOVB	0x44332211(R1), R2	// MOVB		1144201745(R1), R2
@@ -643,6 +647,8 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	FMOVS	0x44332211(R1), F2	// FMOVS	1144201745(R1), F2
 	FMOVD	0x1000000(R1), F2	// FMOVD	16777216(R1), F2
 	FMOVD	0x44332211(R1), F2	// FMOVD	1144201745(R1), F2
+	FMOVQ	0x1000000(R1), F2	// FMOVQ	16777216(R1), F2
+	FMOVQ	0x44332211(R1), F2	// FMOVQ	1144201745(R1), F2
 
 // shifted or extended register offset.
 	MOVD	(R2)(R6.SXTW), R4               // 44c866f8
@@ -1893,5 +1899,13 @@ next:
 	BTI	C                                  // 5f2403d5
 	BTI	J                                  // 9f2403d5
 	BTI	JC                                 // df2403d5
+
+// Pointer Authentication Codes (PAC)
+	PACIASP                                    // 3f2303d5
+	AUTIASP                                    // bf2303d5
+	PACIBSP                                    // 7f2303d5
+	AUTIBSP                                    // ff2303d5
+	AUTIA1716                                  // 9f2103d5
+	AUTIB1716                                  // df2103d5
 
 	END

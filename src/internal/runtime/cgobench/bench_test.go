@@ -24,3 +24,17 @@ func BenchmarkCgoCallParallel(b *testing.B) {
 		}
 	})
 }
+
+func BenchmarkCgoCallWithCallback(b *testing.B) {
+	for b.Loop() {
+		cgobench.Callback()
+	}
+}
+
+func BenchmarkCgoCallParallelWithCallback(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			cgobench.Callback()
+		}
+	})
+}

@@ -168,6 +168,7 @@ func TestQuery(t *testing.T) {
 	ctx := context.Background()
 
 	for _, tt := range queryTests {
+		loaderstate := NewState()
 		allow := tt.allow
 		if allow == "" {
 			allow = "*"
@@ -182,7 +183,7 @@ func TestQuery(t *testing.T) {
 		t.Run(strings.ReplaceAll(tt.path, "/", "_")+"/"+tt.query+"/"+tt.current+"/"+allow, func(t *testing.T) {
 			t.Parallel()
 
-			info, err := Query(ctx, tt.path, tt.query, tt.current, allowed)
+			info, err := Query(loaderstate, ctx, tt.path, tt.query, tt.current, allowed)
 			if tt.err != "" {
 				if err == nil {
 					t.Errorf("Query(_, %q, %q, %q, %v) = %v, want error %q", tt.path, tt.query, tt.current, allow, info.Version, tt.err)

@@ -116,6 +116,8 @@ const (
 	CSRRWI
 	CTZ
 	CTZW
+	CZERO_EQZ
+	CZERO_NEZ
 	C_ADD
 	C_ADDI
 	C_ADDI16SP
@@ -369,6 +371,633 @@ const (
 	SUB
 	SUBW
 	SW
+	VAADDU_VV
+	VAADDU_VX
+	VAADD_VV
+	VAADD_VX
+	VADC_VIM
+	VADC_VVM
+	VADC_VXM
+	VADD_VI
+	VADD_VV
+	VADD_VX
+	VAND_VI
+	VAND_VV
+	VAND_VX
+	VASUBU_VV
+	VASUBU_VX
+	VASUB_VV
+	VASUB_VX
+	VCOMPRESS_VM
+	VCPOP_M
+	VDIVU_VV
+	VDIVU_VX
+	VDIV_VV
+	VDIV_VX
+	VFADD_VF
+	VFADD_VV
+	VFCLASS_V
+	VFCVT_F_XU_V
+	VFCVT_F_X_V
+	VFCVT_RTZ_XU_F_V
+	VFCVT_RTZ_X_F_V
+	VFCVT_XU_F_V
+	VFCVT_X_F_V
+	VFDIV_VF
+	VFDIV_VV
+	VFIRST_M
+	VFMACC_VF
+	VFMACC_VV
+	VFMADD_VF
+	VFMADD_VV
+	VFMAX_VF
+	VFMAX_VV
+	VFMERGE_VFM
+	VFMIN_VF
+	VFMIN_VV
+	VFMSAC_VF
+	VFMSAC_VV
+	VFMSUB_VF
+	VFMSUB_VV
+	VFMUL_VF
+	VFMUL_VV
+	VFMV_F_S
+	VFMV_S_F
+	VFMV_V_F
+	VFNCVT_F_F_W
+	VFNCVT_F_XU_W
+	VFNCVT_F_X_W
+	VFNCVT_ROD_F_F_W
+	VFNCVT_RTZ_XU_F_W
+	VFNCVT_RTZ_X_F_W
+	VFNCVT_XU_F_W
+	VFNCVT_X_F_W
+	VFNMACC_VF
+	VFNMACC_VV
+	VFNMADD_VF
+	VFNMADD_VV
+	VFNMSAC_VF
+	VFNMSAC_VV
+	VFNMSUB_VF
+	VFNMSUB_VV
+	VFRDIV_VF
+	VFREC7_V
+	VFREDMAX_VS
+	VFREDMIN_VS
+	VFREDOSUM_VS
+	VFREDUSUM_VS
+	VFRSQRT7_V
+	VFRSUB_VF
+	VFSGNJN_VF
+	VFSGNJN_VV
+	VFSGNJX_VF
+	VFSGNJX_VV
+	VFSGNJ_VF
+	VFSGNJ_VV
+	VFSLIDE1DOWN_VF
+	VFSLIDE1UP_VF
+	VFSQRT_V
+	VFSUB_VF
+	VFSUB_VV
+	VFWADD_VF
+	VFWADD_VV
+	VFWADD_WF
+	VFWADD_WV
+	VFWCVT_F_F_V
+	VFWCVT_F_XU_V
+	VFWCVT_F_X_V
+	VFWCVT_RTZ_XU_F_V
+	VFWCVT_RTZ_X_F_V
+	VFWCVT_XU_F_V
+	VFWCVT_X_F_V
+	VFWMACC_VF
+	VFWMACC_VV
+	VFWMSAC_VF
+	VFWMSAC_VV
+	VFWMUL_VF
+	VFWMUL_VV
+	VFWNMACC_VF
+	VFWNMACC_VV
+	VFWNMSAC_VF
+	VFWNMSAC_VV
+	VFWREDOSUM_VS
+	VFWREDUSUM_VS
+	VFWSUB_VF
+	VFWSUB_VV
+	VFWSUB_WF
+	VFWSUB_WV
+	VID_V
+	VIOTA_M
+	VL1RE16_V
+	VL1RE32_V
+	VL1RE64_V
+	VL1RE8_V
+	VL2RE16_V
+	VL2RE32_V
+	VL2RE64_V
+	VL2RE8_V
+	VL4RE16_V
+	VL4RE32_V
+	VL4RE64_V
+	VL4RE8_V
+	VL8RE16_V
+	VL8RE32_V
+	VL8RE64_V
+	VL8RE8_V
+	VLE16FF_V
+	VLE16_V
+	VLE32FF_V
+	VLE32_V
+	VLE64FF_V
+	VLE64_V
+	VLE8FF_V
+	VLE8_V
+	VLM_V
+	VLOXEI16_V
+	VLOXEI32_V
+	VLOXEI64_V
+	VLOXEI8_V
+	VLOXSEG2EI16_V
+	VLOXSEG2EI32_V
+	VLOXSEG2EI64_V
+	VLOXSEG2EI8_V
+	VLOXSEG3EI16_V
+	VLOXSEG3EI32_V
+	VLOXSEG3EI64_V
+	VLOXSEG3EI8_V
+	VLOXSEG4EI16_V
+	VLOXSEG4EI32_V
+	VLOXSEG4EI64_V
+	VLOXSEG4EI8_V
+	VLOXSEG5EI16_V
+	VLOXSEG5EI32_V
+	VLOXSEG5EI64_V
+	VLOXSEG5EI8_V
+	VLOXSEG6EI16_V
+	VLOXSEG6EI32_V
+	VLOXSEG6EI64_V
+	VLOXSEG6EI8_V
+	VLOXSEG7EI16_V
+	VLOXSEG7EI32_V
+	VLOXSEG7EI64_V
+	VLOXSEG7EI8_V
+	VLOXSEG8EI16_V
+	VLOXSEG8EI32_V
+	VLOXSEG8EI64_V
+	VLOXSEG8EI8_V
+	VLSE16_V
+	VLSE32_V
+	VLSE64_V
+	VLSE8_V
+	VLSEG2E16FF_V
+	VLSEG2E16_V
+	VLSEG2E32FF_V
+	VLSEG2E32_V
+	VLSEG2E64FF_V
+	VLSEG2E64_V
+	VLSEG2E8FF_V
+	VLSEG2E8_V
+	VLSEG3E16FF_V
+	VLSEG3E16_V
+	VLSEG3E32FF_V
+	VLSEG3E32_V
+	VLSEG3E64FF_V
+	VLSEG3E64_V
+	VLSEG3E8FF_V
+	VLSEG3E8_V
+	VLSEG4E16FF_V
+	VLSEG4E16_V
+	VLSEG4E32FF_V
+	VLSEG4E32_V
+	VLSEG4E64FF_V
+	VLSEG4E64_V
+	VLSEG4E8FF_V
+	VLSEG4E8_V
+	VLSEG5E16FF_V
+	VLSEG5E16_V
+	VLSEG5E32FF_V
+	VLSEG5E32_V
+	VLSEG5E64FF_V
+	VLSEG5E64_V
+	VLSEG5E8FF_V
+	VLSEG5E8_V
+	VLSEG6E16FF_V
+	VLSEG6E16_V
+	VLSEG6E32FF_V
+	VLSEG6E32_V
+	VLSEG6E64FF_V
+	VLSEG6E64_V
+	VLSEG6E8FF_V
+	VLSEG6E8_V
+	VLSEG7E16FF_V
+	VLSEG7E16_V
+	VLSEG7E32FF_V
+	VLSEG7E32_V
+	VLSEG7E64FF_V
+	VLSEG7E64_V
+	VLSEG7E8FF_V
+	VLSEG7E8_V
+	VLSEG8E16FF_V
+	VLSEG8E16_V
+	VLSEG8E32FF_V
+	VLSEG8E32_V
+	VLSEG8E64FF_V
+	VLSEG8E64_V
+	VLSEG8E8FF_V
+	VLSEG8E8_V
+	VLSSEG2E16_V
+	VLSSEG2E32_V
+	VLSSEG2E64_V
+	VLSSEG2E8_V
+	VLSSEG3E16_V
+	VLSSEG3E32_V
+	VLSSEG3E64_V
+	VLSSEG3E8_V
+	VLSSEG4E16_V
+	VLSSEG4E32_V
+	VLSSEG4E64_V
+	VLSSEG4E8_V
+	VLSSEG5E16_V
+	VLSSEG5E32_V
+	VLSSEG5E64_V
+	VLSSEG5E8_V
+	VLSSEG6E16_V
+	VLSSEG6E32_V
+	VLSSEG6E64_V
+	VLSSEG6E8_V
+	VLSSEG7E16_V
+	VLSSEG7E32_V
+	VLSSEG7E64_V
+	VLSSEG7E8_V
+	VLSSEG8E16_V
+	VLSSEG8E32_V
+	VLSSEG8E64_V
+	VLSSEG8E8_V
+	VLUXEI16_V
+	VLUXEI32_V
+	VLUXEI64_V
+	VLUXEI8_V
+	VLUXSEG2EI16_V
+	VLUXSEG2EI32_V
+	VLUXSEG2EI64_V
+	VLUXSEG2EI8_V
+	VLUXSEG3EI16_V
+	VLUXSEG3EI32_V
+	VLUXSEG3EI64_V
+	VLUXSEG3EI8_V
+	VLUXSEG4EI16_V
+	VLUXSEG4EI32_V
+	VLUXSEG4EI64_V
+	VLUXSEG4EI8_V
+	VLUXSEG5EI16_V
+	VLUXSEG5EI32_V
+	VLUXSEG5EI64_V
+	VLUXSEG5EI8_V
+	VLUXSEG6EI16_V
+	VLUXSEG6EI32_V
+	VLUXSEG6EI64_V
+	VLUXSEG6EI8_V
+	VLUXSEG7EI16_V
+	VLUXSEG7EI32_V
+	VLUXSEG7EI64_V
+	VLUXSEG7EI8_V
+	VLUXSEG8EI16_V
+	VLUXSEG8EI32_V
+	VLUXSEG8EI64_V
+	VLUXSEG8EI8_V
+	VMACC_VV
+	VMACC_VX
+	VMADC_VI
+	VMADC_VIM
+	VMADC_VV
+	VMADC_VVM
+	VMADC_VX
+	VMADC_VXM
+	VMADD_VV
+	VMADD_VX
+	VMANDN_MM
+	VMAND_MM
+	VMAXU_VV
+	VMAXU_VX
+	VMAX_VV
+	VMAX_VX
+	VMERGE_VIM
+	VMERGE_VVM
+	VMERGE_VXM
+	VMFEQ_VF
+	VMFEQ_VV
+	VMFGE_VF
+	VMFGT_VF
+	VMFLE_VF
+	VMFLE_VV
+	VMFLT_VF
+	VMFLT_VV
+	VMFNE_VF
+	VMFNE_VV
+	VMINU_VV
+	VMINU_VX
+	VMIN_VV
+	VMIN_VX
+	VMNAND_MM
+	VMNOR_MM
+	VMORN_MM
+	VMOR_MM
+	VMSBC_VV
+	VMSBC_VVM
+	VMSBC_VX
+	VMSBC_VXM
+	VMSBF_M
+	VMSEQ_VI
+	VMSEQ_VV
+	VMSEQ_VX
+	VMSGTU_VI
+	VMSGTU_VX
+	VMSGT_VI
+	VMSGT_VX
+	VMSIF_M
+	VMSLEU_VI
+	VMSLEU_VV
+	VMSLEU_VX
+	VMSLE_VI
+	VMSLE_VV
+	VMSLE_VX
+	VMSLTU_VV
+	VMSLTU_VX
+	VMSLT_VV
+	VMSLT_VX
+	VMSNE_VI
+	VMSNE_VV
+	VMSNE_VX
+	VMSOF_M
+	VMULHSU_VV
+	VMULHSU_VX
+	VMULHU_VV
+	VMULHU_VX
+	VMULH_VV
+	VMULH_VX
+	VMUL_VV
+	VMUL_VX
+	VMV1R_V
+	VMV2R_V
+	VMV4R_V
+	VMV8R_V
+	VMV_S_X
+	VMV_V_I
+	VMV_V_V
+	VMV_V_X
+	VMV_X_S
+	VMXNOR_MM
+	VMXOR_MM
+	VNCLIPU_WI
+	VNCLIPU_WV
+	VNCLIPU_WX
+	VNCLIP_WI
+	VNCLIP_WV
+	VNCLIP_WX
+	VNMSAC_VV
+	VNMSAC_VX
+	VNMSUB_VV
+	VNMSUB_VX
+	VNSRA_WI
+	VNSRA_WV
+	VNSRA_WX
+	VNSRL_WI
+	VNSRL_WV
+	VNSRL_WX
+	VOR_VI
+	VOR_VV
+	VOR_VX
+	VREDAND_VS
+	VREDMAXU_VS
+	VREDMAX_VS
+	VREDMINU_VS
+	VREDMIN_VS
+	VREDOR_VS
+	VREDSUM_VS
+	VREDXOR_VS
+	VREMU_VV
+	VREMU_VX
+	VREM_VV
+	VREM_VX
+	VRGATHEREI16_VV
+	VRGATHER_VI
+	VRGATHER_VV
+	VRGATHER_VX
+	VRSUB_VI
+	VRSUB_VX
+	VS1R_V
+	VS2R_V
+	VS4R_V
+	VS8R_V
+	VSADDU_VI
+	VSADDU_VV
+	VSADDU_VX
+	VSADD_VI
+	VSADD_VV
+	VSADD_VX
+	VSBC_VVM
+	VSBC_VXM
+	VSE16_V
+	VSE32_V
+	VSE64_V
+	VSE8_V
+	VSETIVLI
+	VSETVL
+	VSETVLI
+	VSEXT_VF2
+	VSEXT_VF4
+	VSEXT_VF8
+	VSLIDE1DOWN_VX
+	VSLIDE1UP_VX
+	VSLIDEDOWN_VI
+	VSLIDEDOWN_VX
+	VSLIDEUP_VI
+	VSLIDEUP_VX
+	VSLL_VI
+	VSLL_VV
+	VSLL_VX
+	VSMUL_VV
+	VSMUL_VX
+	VSM_V
+	VSOXEI16_V
+	VSOXEI32_V
+	VSOXEI64_V
+	VSOXEI8_V
+	VSOXSEG2EI16_V
+	VSOXSEG2EI32_V
+	VSOXSEG2EI64_V
+	VSOXSEG2EI8_V
+	VSOXSEG3EI16_V
+	VSOXSEG3EI32_V
+	VSOXSEG3EI64_V
+	VSOXSEG3EI8_V
+	VSOXSEG4EI16_V
+	VSOXSEG4EI32_V
+	VSOXSEG4EI64_V
+	VSOXSEG4EI8_V
+	VSOXSEG5EI16_V
+	VSOXSEG5EI32_V
+	VSOXSEG5EI64_V
+	VSOXSEG5EI8_V
+	VSOXSEG6EI16_V
+	VSOXSEG6EI32_V
+	VSOXSEG6EI64_V
+	VSOXSEG6EI8_V
+	VSOXSEG7EI16_V
+	VSOXSEG7EI32_V
+	VSOXSEG7EI64_V
+	VSOXSEG7EI8_V
+	VSOXSEG8EI16_V
+	VSOXSEG8EI32_V
+	VSOXSEG8EI64_V
+	VSOXSEG8EI8_V
+	VSRA_VI
+	VSRA_VV
+	VSRA_VX
+	VSRL_VI
+	VSRL_VV
+	VSRL_VX
+	VSSE16_V
+	VSSE32_V
+	VSSE64_V
+	VSSE8_V
+	VSSEG2E16_V
+	VSSEG2E32_V
+	VSSEG2E64_V
+	VSSEG2E8_V
+	VSSEG3E16_V
+	VSSEG3E32_V
+	VSSEG3E64_V
+	VSSEG3E8_V
+	VSSEG4E16_V
+	VSSEG4E32_V
+	VSSEG4E64_V
+	VSSEG4E8_V
+	VSSEG5E16_V
+	VSSEG5E32_V
+	VSSEG5E64_V
+	VSSEG5E8_V
+	VSSEG6E16_V
+	VSSEG6E32_V
+	VSSEG6E64_V
+	VSSEG6E8_V
+	VSSEG7E16_V
+	VSSEG7E32_V
+	VSSEG7E64_V
+	VSSEG7E8_V
+	VSSEG8E16_V
+	VSSEG8E32_V
+	VSSEG8E64_V
+	VSSEG8E8_V
+	VSSRA_VI
+	VSSRA_VV
+	VSSRA_VX
+	VSSRL_VI
+	VSSRL_VV
+	VSSRL_VX
+	VSSSEG2E16_V
+	VSSSEG2E32_V
+	VSSSEG2E64_V
+	VSSSEG2E8_V
+	VSSSEG3E16_V
+	VSSSEG3E32_V
+	VSSSEG3E64_V
+	VSSSEG3E8_V
+	VSSSEG4E16_V
+	VSSSEG4E32_V
+	VSSSEG4E64_V
+	VSSSEG4E8_V
+	VSSSEG5E16_V
+	VSSSEG5E32_V
+	VSSSEG5E64_V
+	VSSSEG5E8_V
+	VSSSEG6E16_V
+	VSSSEG6E32_V
+	VSSSEG6E64_V
+	VSSSEG6E8_V
+	VSSSEG7E16_V
+	VSSSEG7E32_V
+	VSSSEG7E64_V
+	VSSSEG7E8_V
+	VSSSEG8E16_V
+	VSSSEG8E32_V
+	VSSSEG8E64_V
+	VSSSEG8E8_V
+	VSSUBU_VV
+	VSSUBU_VX
+	VSSUB_VV
+	VSSUB_VX
+	VSUB_VV
+	VSUB_VX
+	VSUXEI16_V
+	VSUXEI32_V
+	VSUXEI64_V
+	VSUXEI8_V
+	VSUXSEG2EI16_V
+	VSUXSEG2EI32_V
+	VSUXSEG2EI64_V
+	VSUXSEG2EI8_V
+	VSUXSEG3EI16_V
+	VSUXSEG3EI32_V
+	VSUXSEG3EI64_V
+	VSUXSEG3EI8_V
+	VSUXSEG4EI16_V
+	VSUXSEG4EI32_V
+	VSUXSEG4EI64_V
+	VSUXSEG4EI8_V
+	VSUXSEG5EI16_V
+	VSUXSEG5EI32_V
+	VSUXSEG5EI64_V
+	VSUXSEG5EI8_V
+	VSUXSEG6EI16_V
+	VSUXSEG6EI32_V
+	VSUXSEG6EI64_V
+	VSUXSEG6EI8_V
+	VSUXSEG7EI16_V
+	VSUXSEG7EI32_V
+	VSUXSEG7EI64_V
+	VSUXSEG7EI8_V
+	VSUXSEG8EI16_V
+	VSUXSEG8EI32_V
+	VSUXSEG8EI64_V
+	VSUXSEG8EI8_V
+	VWADDU_VV
+	VWADDU_VX
+	VWADDU_WV
+	VWADDU_WX
+	VWADD_VV
+	VWADD_VX
+	VWADD_WV
+	VWADD_WX
+	VWMACCSU_VV
+	VWMACCSU_VX
+	VWMACCUS_VX
+	VWMACCU_VV
+	VWMACCU_VX
+	VWMACC_VV
+	VWMACC_VX
+	VWMULSU_VV
+	VWMULSU_VX
+	VWMULU_VV
+	VWMULU_VX
+	VWMUL_VV
+	VWMUL_VX
+	VWREDSUMU_VS
+	VWREDSUM_VS
+	VWSUBU_VV
+	VWSUBU_VX
+	VWSUBU_WV
+	VWSUBU_WX
+	VWSUB_VV
+	VWSUB_VX
+	VWSUB_WV
+	VWSUB_WX
+	VXOR_VI
+	VXOR_VV
+	VXOR_VX
+	VZEXT_VF2
+	VZEXT_VF4
+	VZEXT_VF8
 	XNOR
 	XOR
 	XORI
@@ -376,370 +1005,999 @@ const (
 )
 
 var opstr = [...]string{
-	ADD:            "ADD",
-	ADDI:           "ADDI",
-	ADDIW:          "ADDIW",
-	ADDW:           "ADDW",
-	ADD_UW:         "ADD.UW",
-	AMOADD_D:       "AMOADD.D",
-	AMOADD_D_AQ:    "AMOADD.D.AQ",
-	AMOADD_D_AQRL:  "AMOADD.D.AQRL",
-	AMOADD_D_RL:    "AMOADD.D.RL",
-	AMOADD_W:       "AMOADD.W",
-	AMOADD_W_AQ:    "AMOADD.W.AQ",
-	AMOADD_W_AQRL:  "AMOADD.W.AQRL",
-	AMOADD_W_RL:    "AMOADD.W.RL",
-	AMOAND_D:       "AMOAND.D",
-	AMOAND_D_AQ:    "AMOAND.D.AQ",
-	AMOAND_D_AQRL:  "AMOAND.D.AQRL",
-	AMOAND_D_RL:    "AMOAND.D.RL",
-	AMOAND_W:       "AMOAND.W",
-	AMOAND_W_AQ:    "AMOAND.W.AQ",
-	AMOAND_W_AQRL:  "AMOAND.W.AQRL",
-	AMOAND_W_RL:    "AMOAND.W.RL",
-	AMOMAXU_D:      "AMOMAXU.D",
-	AMOMAXU_D_AQ:   "AMOMAXU.D.AQ",
-	AMOMAXU_D_AQRL: "AMOMAXU.D.AQRL",
-	AMOMAXU_D_RL:   "AMOMAXU.D.RL",
-	AMOMAXU_W:      "AMOMAXU.W",
-	AMOMAXU_W_AQ:   "AMOMAXU.W.AQ",
-	AMOMAXU_W_AQRL: "AMOMAXU.W.AQRL",
-	AMOMAXU_W_RL:   "AMOMAXU.W.RL",
-	AMOMAX_D:       "AMOMAX.D",
-	AMOMAX_D_AQ:    "AMOMAX.D.AQ",
-	AMOMAX_D_AQRL:  "AMOMAX.D.AQRL",
-	AMOMAX_D_RL:    "AMOMAX.D.RL",
-	AMOMAX_W:       "AMOMAX.W",
-	AMOMAX_W_AQ:    "AMOMAX.W.AQ",
-	AMOMAX_W_AQRL:  "AMOMAX.W.AQRL",
-	AMOMAX_W_RL:    "AMOMAX.W.RL",
-	AMOMINU_D:      "AMOMINU.D",
-	AMOMINU_D_AQ:   "AMOMINU.D.AQ",
-	AMOMINU_D_AQRL: "AMOMINU.D.AQRL",
-	AMOMINU_D_RL:   "AMOMINU.D.RL",
-	AMOMINU_W:      "AMOMINU.W",
-	AMOMINU_W_AQ:   "AMOMINU.W.AQ",
-	AMOMINU_W_AQRL: "AMOMINU.W.AQRL",
-	AMOMINU_W_RL:   "AMOMINU.W.RL",
-	AMOMIN_D:       "AMOMIN.D",
-	AMOMIN_D_AQ:    "AMOMIN.D.AQ",
-	AMOMIN_D_AQRL:  "AMOMIN.D.AQRL",
-	AMOMIN_D_RL:    "AMOMIN.D.RL",
-	AMOMIN_W:       "AMOMIN.W",
-	AMOMIN_W_AQ:    "AMOMIN.W.AQ",
-	AMOMIN_W_AQRL:  "AMOMIN.W.AQRL",
-	AMOMIN_W_RL:    "AMOMIN.W.RL",
-	AMOOR_D:        "AMOOR.D",
-	AMOOR_D_AQ:     "AMOOR.D.AQ",
-	AMOOR_D_AQRL:   "AMOOR.D.AQRL",
-	AMOOR_D_RL:     "AMOOR.D.RL",
-	AMOOR_W:        "AMOOR.W",
-	AMOOR_W_AQ:     "AMOOR.W.AQ",
-	AMOOR_W_AQRL:   "AMOOR.W.AQRL",
-	AMOOR_W_RL:     "AMOOR.W.RL",
-	AMOSWAP_D:      "AMOSWAP.D",
-	AMOSWAP_D_AQ:   "AMOSWAP.D.AQ",
-	AMOSWAP_D_AQRL: "AMOSWAP.D.AQRL",
-	AMOSWAP_D_RL:   "AMOSWAP.D.RL",
-	AMOSWAP_W:      "AMOSWAP.W",
-	AMOSWAP_W_AQ:   "AMOSWAP.W.AQ",
-	AMOSWAP_W_AQRL: "AMOSWAP.W.AQRL",
-	AMOSWAP_W_RL:   "AMOSWAP.W.RL",
-	AMOXOR_D:       "AMOXOR.D",
-	AMOXOR_D_AQ:    "AMOXOR.D.AQ",
-	AMOXOR_D_AQRL:  "AMOXOR.D.AQRL",
-	AMOXOR_D_RL:    "AMOXOR.D.RL",
-	AMOXOR_W:       "AMOXOR.W",
-	AMOXOR_W_AQ:    "AMOXOR.W.AQ",
-	AMOXOR_W_AQRL:  "AMOXOR.W.AQRL",
-	AMOXOR_W_RL:    "AMOXOR.W.RL",
-	AND:            "AND",
-	ANDI:           "ANDI",
-	ANDN:           "ANDN",
-	AUIPC:          "AUIPC",
-	BCLR:           "BCLR",
-	BCLRI:          "BCLRI",
-	BEQ:            "BEQ",
-	BEXT:           "BEXT",
-	BEXTI:          "BEXTI",
-	BGE:            "BGE",
-	BGEU:           "BGEU",
-	BINV:           "BINV",
-	BINVI:          "BINVI",
-	BLT:            "BLT",
-	BLTU:           "BLTU",
-	BNE:            "BNE",
-	BSET:           "BSET",
-	BSETI:          "BSETI",
-	CLZ:            "CLZ",
-	CLZW:           "CLZW",
-	CPOP:           "CPOP",
-	CPOPW:          "CPOPW",
-	CSRRC:          "CSRRC",
-	CSRRCI:         "CSRRCI",
-	CSRRS:          "CSRRS",
-	CSRRSI:         "CSRRSI",
-	CSRRW:          "CSRRW",
-	CSRRWI:         "CSRRWI",
-	CTZ:            "CTZ",
-	CTZW:           "CTZW",
-	C_ADD:          "C.ADD",
-	C_ADDI:         "C.ADDI",
-	C_ADDI16SP:     "C.ADDI16SP",
-	C_ADDI4SPN:     "C.ADDI4SPN",
-	C_ADDIW:        "C.ADDIW",
-	C_ADDW:         "C.ADDW",
-	C_AND:          "C.AND",
-	C_ANDI:         "C.ANDI",
-	C_BEQZ:         "C.BEQZ",
-	C_BNEZ:         "C.BNEZ",
-	C_EBREAK:       "C.EBREAK",
-	C_FLD:          "C.FLD",
-	C_FLDSP:        "C.FLDSP",
-	C_FSD:          "C.FSD",
-	C_FSDSP:        "C.FSDSP",
-	C_J:            "C.J",
-	C_JALR:         "C.JALR",
-	C_JR:           "C.JR",
-	C_LD:           "C.LD",
-	C_LDSP:         "C.LDSP",
-	C_LI:           "C.LI",
-	C_LUI:          "C.LUI",
-	C_LW:           "C.LW",
-	C_LWSP:         "C.LWSP",
-	C_MV:           "C.MV",
-	C_NOP:          "C.NOP",
-	C_OR:           "C.OR",
-	C_SD:           "C.SD",
-	C_SDSP:         "C.SDSP",
-	C_SLLI:         "C.SLLI",
-	C_SRAI:         "C.SRAI",
-	C_SRLI:         "C.SRLI",
-	C_SUB:          "C.SUB",
-	C_SUBW:         "C.SUBW",
-	C_SW:           "C.SW",
-	C_SWSP:         "C.SWSP",
-	C_UNIMP:        "C.UNIMP",
-	C_XOR:          "C.XOR",
-	DIV:            "DIV",
-	DIVU:           "DIVU",
-	DIVUW:          "DIVUW",
-	DIVW:           "DIVW",
-	EBREAK:         "EBREAK",
-	ECALL:          "ECALL",
-	FADD_D:         "FADD.D",
-	FADD_H:         "FADD.H",
-	FADD_Q:         "FADD.Q",
-	FADD_S:         "FADD.S",
-	FCLASS_D:       "FCLASS.D",
-	FCLASS_H:       "FCLASS.H",
-	FCLASS_Q:       "FCLASS.Q",
-	FCLASS_S:       "FCLASS.S",
-	FCVT_D_L:       "FCVT.D.L",
-	FCVT_D_LU:      "FCVT.D.LU",
-	FCVT_D_Q:       "FCVT.D.Q",
-	FCVT_D_S:       "FCVT.D.S",
-	FCVT_D_W:       "FCVT.D.W",
-	FCVT_D_WU:      "FCVT.D.WU",
-	FCVT_H_L:       "FCVT.H.L",
-	FCVT_H_LU:      "FCVT.H.LU",
-	FCVT_H_S:       "FCVT.H.S",
-	FCVT_H_W:       "FCVT.H.W",
-	FCVT_H_WU:      "FCVT.H.WU",
-	FCVT_LU_D:      "FCVT.LU.D",
-	FCVT_LU_H:      "FCVT.LU.H",
-	FCVT_LU_Q:      "FCVT.LU.Q",
-	FCVT_LU_S:      "FCVT.LU.S",
-	FCVT_L_D:       "FCVT.L.D",
-	FCVT_L_H:       "FCVT.L.H",
-	FCVT_L_Q:       "FCVT.L.Q",
-	FCVT_L_S:       "FCVT.L.S",
-	FCVT_Q_D:       "FCVT.Q.D",
-	FCVT_Q_L:       "FCVT.Q.L",
-	FCVT_Q_LU:      "FCVT.Q.LU",
-	FCVT_Q_S:       "FCVT.Q.S",
-	FCVT_Q_W:       "FCVT.Q.W",
-	FCVT_Q_WU:      "FCVT.Q.WU",
-	FCVT_S_D:       "FCVT.S.D",
-	FCVT_S_H:       "FCVT.S.H",
-	FCVT_S_L:       "FCVT.S.L",
-	FCVT_S_LU:      "FCVT.S.LU",
-	FCVT_S_Q:       "FCVT.S.Q",
-	FCVT_S_W:       "FCVT.S.W",
-	FCVT_S_WU:      "FCVT.S.WU",
-	FCVT_WU_D:      "FCVT.WU.D",
-	FCVT_WU_H:      "FCVT.WU.H",
-	FCVT_WU_Q:      "FCVT.WU.Q",
-	FCVT_WU_S:      "FCVT.WU.S",
-	FCVT_W_D:       "FCVT.W.D",
-	FCVT_W_H:       "FCVT.W.H",
-	FCVT_W_Q:       "FCVT.W.Q",
-	FCVT_W_S:       "FCVT.W.S",
-	FDIV_D:         "FDIV.D",
-	FDIV_H:         "FDIV.H",
-	FDIV_Q:         "FDIV.Q",
-	FDIV_S:         "FDIV.S",
-	FENCE:          "FENCE",
-	FENCE_I:        "FENCE.I",
-	FEQ_D:          "FEQ.D",
-	FEQ_H:          "FEQ.H",
-	FEQ_Q:          "FEQ.Q",
-	FEQ_S:          "FEQ.S",
-	FLD:            "FLD",
-	FLE_D:          "FLE.D",
-	FLE_H:          "FLE.H",
-	FLE_Q:          "FLE.Q",
-	FLE_S:          "FLE.S",
-	FLH:            "FLH",
-	FLQ:            "FLQ",
-	FLT_D:          "FLT.D",
-	FLT_H:          "FLT.H",
-	FLT_Q:          "FLT.Q",
-	FLT_S:          "FLT.S",
-	FLW:            "FLW",
-	FMADD_D:        "FMADD.D",
-	FMADD_H:        "FMADD.H",
-	FMADD_Q:        "FMADD.Q",
-	FMADD_S:        "FMADD.S",
-	FMAX_D:         "FMAX.D",
-	FMAX_H:         "FMAX.H",
-	FMAX_Q:         "FMAX.Q",
-	FMAX_S:         "FMAX.S",
-	FMIN_D:         "FMIN.D",
-	FMIN_H:         "FMIN.H",
-	FMIN_Q:         "FMIN.Q",
-	FMIN_S:         "FMIN.S",
-	FMSUB_D:        "FMSUB.D",
-	FMSUB_H:        "FMSUB.H",
-	FMSUB_Q:        "FMSUB.Q",
-	FMSUB_S:        "FMSUB.S",
-	FMUL_D:         "FMUL.D",
-	FMUL_H:         "FMUL.H",
-	FMUL_Q:         "FMUL.Q",
-	FMUL_S:         "FMUL.S",
-	FMV_D_X:        "FMV.D.X",
-	FMV_H_X:        "FMV.H.X",
-	FMV_W_X:        "FMV.W.X",
-	FMV_X_D:        "FMV.X.D",
-	FMV_X_H:        "FMV.X.H",
-	FMV_X_W:        "FMV.X.W",
-	FNMADD_D:       "FNMADD.D",
-	FNMADD_H:       "FNMADD.H",
-	FNMADD_Q:       "FNMADD.Q",
-	FNMADD_S:       "FNMADD.S",
-	FNMSUB_D:       "FNMSUB.D",
-	FNMSUB_H:       "FNMSUB.H",
-	FNMSUB_Q:       "FNMSUB.Q",
-	FNMSUB_S:       "FNMSUB.S",
-	FSD:            "FSD",
-	FSGNJN_D:       "FSGNJN.D",
-	FSGNJN_H:       "FSGNJN.H",
-	FSGNJN_Q:       "FSGNJN.Q",
-	FSGNJN_S:       "FSGNJN.S",
-	FSGNJX_D:       "FSGNJX.D",
-	FSGNJX_H:       "FSGNJX.H",
-	FSGNJX_Q:       "FSGNJX.Q",
-	FSGNJX_S:       "FSGNJX.S",
-	FSGNJ_D:        "FSGNJ.D",
-	FSGNJ_H:        "FSGNJ.H",
-	FSGNJ_Q:        "FSGNJ.Q",
-	FSGNJ_S:        "FSGNJ.S",
-	FSH:            "FSH",
-	FSQ:            "FSQ",
-	FSQRT_D:        "FSQRT.D",
-	FSQRT_H:        "FSQRT.H",
-	FSQRT_Q:        "FSQRT.Q",
-	FSQRT_S:        "FSQRT.S",
-	FSUB_D:         "FSUB.D",
-	FSUB_H:         "FSUB.H",
-	FSUB_Q:         "FSUB.Q",
-	FSUB_S:         "FSUB.S",
-	FSW:            "FSW",
-	JAL:            "JAL",
-	JALR:           "JALR",
-	LB:             "LB",
-	LBU:            "LBU",
-	LD:             "LD",
-	LH:             "LH",
-	LHU:            "LHU",
-	LR_D:           "LR.D",
-	LR_D_AQ:        "LR.D.AQ",
-	LR_D_AQRL:      "LR.D.AQRL",
-	LR_D_RL:        "LR.D.RL",
-	LR_W:           "LR.W",
-	LR_W_AQ:        "LR.W.AQ",
-	LR_W_AQRL:      "LR.W.AQRL",
-	LR_W_RL:        "LR.W.RL",
-	LUI:            "LUI",
-	LW:             "LW",
-	LWU:            "LWU",
-	MAX:            "MAX",
-	MAXU:           "MAXU",
-	MIN:            "MIN",
-	MINU:           "MINU",
-	MUL:            "MUL",
-	MULH:           "MULH",
-	MULHSU:         "MULHSU",
-	MULHU:          "MULHU",
-	MULW:           "MULW",
-	OR:             "OR",
-	ORC_B:          "ORC.B",
-	ORI:            "ORI",
-	ORN:            "ORN",
-	REM:            "REM",
-	REMU:           "REMU",
-	REMUW:          "REMUW",
-	REMW:           "REMW",
-	REV8:           "REV8",
-	ROL:            "ROL",
-	ROLW:           "ROLW",
-	ROR:            "ROR",
-	RORI:           "RORI",
-	RORIW:          "RORIW",
-	RORW:           "RORW",
-	SB:             "SB",
-	SC_D:           "SC.D",
-	SC_D_AQ:        "SC.D.AQ",
-	SC_D_AQRL:      "SC.D.AQRL",
-	SC_D_RL:        "SC.D.RL",
-	SC_W:           "SC.W",
-	SC_W_AQ:        "SC.W.AQ",
-	SC_W_AQRL:      "SC.W.AQRL",
-	SC_W_RL:        "SC.W.RL",
-	SD:             "SD",
-	SEXT_B:         "SEXT.B",
-	SEXT_H:         "SEXT.H",
-	SH:             "SH",
-	SH1ADD:         "SH1ADD",
-	SH1ADD_UW:      "SH1ADD.UW",
-	SH2ADD:         "SH2ADD",
-	SH2ADD_UW:      "SH2ADD.UW",
-	SH3ADD:         "SH3ADD",
-	SH3ADD_UW:      "SH3ADD.UW",
-	SLL:            "SLL",
-	SLLI:           "SLLI",
-	SLLIW:          "SLLIW",
-	SLLI_UW:        "SLLI.UW",
-	SLLW:           "SLLW",
-	SLT:            "SLT",
-	SLTI:           "SLTI",
-	SLTIU:          "SLTIU",
-	SLTU:           "SLTU",
-	SRA:            "SRA",
-	SRAI:           "SRAI",
-	SRAIW:          "SRAIW",
-	SRAW:           "SRAW",
-	SRL:            "SRL",
-	SRLI:           "SRLI",
-	SRLIW:          "SRLIW",
-	SRLW:           "SRLW",
-	SUB:            "SUB",
-	SUBW:           "SUBW",
-	SW:             "SW",
-	XNOR:           "XNOR",
-	XOR:            "XOR",
-	XORI:           "XORI",
-	ZEXT_H:         "ZEXT.H",
+	ADD:               "ADD",
+	ADDI:              "ADDI",
+	ADDIW:             "ADDIW",
+	ADDW:              "ADDW",
+	ADD_UW:            "ADD.UW",
+	AMOADD_D:          "AMOADD.D",
+	AMOADD_D_AQ:       "AMOADD.D.AQ",
+	AMOADD_D_AQRL:     "AMOADD.D.AQRL",
+	AMOADD_D_RL:       "AMOADD.D.RL",
+	AMOADD_W:          "AMOADD.W",
+	AMOADD_W_AQ:       "AMOADD.W.AQ",
+	AMOADD_W_AQRL:     "AMOADD.W.AQRL",
+	AMOADD_W_RL:       "AMOADD.W.RL",
+	AMOAND_D:          "AMOAND.D",
+	AMOAND_D_AQ:       "AMOAND.D.AQ",
+	AMOAND_D_AQRL:     "AMOAND.D.AQRL",
+	AMOAND_D_RL:       "AMOAND.D.RL",
+	AMOAND_W:          "AMOAND.W",
+	AMOAND_W_AQ:       "AMOAND.W.AQ",
+	AMOAND_W_AQRL:     "AMOAND.W.AQRL",
+	AMOAND_W_RL:       "AMOAND.W.RL",
+	AMOMAXU_D:         "AMOMAXU.D",
+	AMOMAXU_D_AQ:      "AMOMAXU.D.AQ",
+	AMOMAXU_D_AQRL:    "AMOMAXU.D.AQRL",
+	AMOMAXU_D_RL:      "AMOMAXU.D.RL",
+	AMOMAXU_W:         "AMOMAXU.W",
+	AMOMAXU_W_AQ:      "AMOMAXU.W.AQ",
+	AMOMAXU_W_AQRL:    "AMOMAXU.W.AQRL",
+	AMOMAXU_W_RL:      "AMOMAXU.W.RL",
+	AMOMAX_D:          "AMOMAX.D",
+	AMOMAX_D_AQ:       "AMOMAX.D.AQ",
+	AMOMAX_D_AQRL:     "AMOMAX.D.AQRL",
+	AMOMAX_D_RL:       "AMOMAX.D.RL",
+	AMOMAX_W:          "AMOMAX.W",
+	AMOMAX_W_AQ:       "AMOMAX.W.AQ",
+	AMOMAX_W_AQRL:     "AMOMAX.W.AQRL",
+	AMOMAX_W_RL:       "AMOMAX.W.RL",
+	AMOMINU_D:         "AMOMINU.D",
+	AMOMINU_D_AQ:      "AMOMINU.D.AQ",
+	AMOMINU_D_AQRL:    "AMOMINU.D.AQRL",
+	AMOMINU_D_RL:      "AMOMINU.D.RL",
+	AMOMINU_W:         "AMOMINU.W",
+	AMOMINU_W_AQ:      "AMOMINU.W.AQ",
+	AMOMINU_W_AQRL:    "AMOMINU.W.AQRL",
+	AMOMINU_W_RL:      "AMOMINU.W.RL",
+	AMOMIN_D:          "AMOMIN.D",
+	AMOMIN_D_AQ:       "AMOMIN.D.AQ",
+	AMOMIN_D_AQRL:     "AMOMIN.D.AQRL",
+	AMOMIN_D_RL:       "AMOMIN.D.RL",
+	AMOMIN_W:          "AMOMIN.W",
+	AMOMIN_W_AQ:       "AMOMIN.W.AQ",
+	AMOMIN_W_AQRL:     "AMOMIN.W.AQRL",
+	AMOMIN_W_RL:       "AMOMIN.W.RL",
+	AMOOR_D:           "AMOOR.D",
+	AMOOR_D_AQ:        "AMOOR.D.AQ",
+	AMOOR_D_AQRL:      "AMOOR.D.AQRL",
+	AMOOR_D_RL:        "AMOOR.D.RL",
+	AMOOR_W:           "AMOOR.W",
+	AMOOR_W_AQ:        "AMOOR.W.AQ",
+	AMOOR_W_AQRL:      "AMOOR.W.AQRL",
+	AMOOR_W_RL:        "AMOOR.W.RL",
+	AMOSWAP_D:         "AMOSWAP.D",
+	AMOSWAP_D_AQ:      "AMOSWAP.D.AQ",
+	AMOSWAP_D_AQRL:    "AMOSWAP.D.AQRL",
+	AMOSWAP_D_RL:      "AMOSWAP.D.RL",
+	AMOSWAP_W:         "AMOSWAP.W",
+	AMOSWAP_W_AQ:      "AMOSWAP.W.AQ",
+	AMOSWAP_W_AQRL:    "AMOSWAP.W.AQRL",
+	AMOSWAP_W_RL:      "AMOSWAP.W.RL",
+	AMOXOR_D:          "AMOXOR.D",
+	AMOXOR_D_AQ:       "AMOXOR.D.AQ",
+	AMOXOR_D_AQRL:     "AMOXOR.D.AQRL",
+	AMOXOR_D_RL:       "AMOXOR.D.RL",
+	AMOXOR_W:          "AMOXOR.W",
+	AMOXOR_W_AQ:       "AMOXOR.W.AQ",
+	AMOXOR_W_AQRL:     "AMOXOR.W.AQRL",
+	AMOXOR_W_RL:       "AMOXOR.W.RL",
+	AND:               "AND",
+	ANDI:              "ANDI",
+	ANDN:              "ANDN",
+	AUIPC:             "AUIPC",
+	BCLR:              "BCLR",
+	BCLRI:             "BCLRI",
+	BEQ:               "BEQ",
+	BEXT:              "BEXT",
+	BEXTI:             "BEXTI",
+	BGE:               "BGE",
+	BGEU:              "BGEU",
+	BINV:              "BINV",
+	BINVI:             "BINVI",
+	BLT:               "BLT",
+	BLTU:              "BLTU",
+	BNE:               "BNE",
+	BSET:              "BSET",
+	BSETI:             "BSETI",
+	CLZ:               "CLZ",
+	CLZW:              "CLZW",
+	CPOP:              "CPOP",
+	CPOPW:             "CPOPW",
+	CSRRC:             "CSRRC",
+	CSRRCI:            "CSRRCI",
+	CSRRS:             "CSRRS",
+	CSRRSI:            "CSRRSI",
+	CSRRW:             "CSRRW",
+	CSRRWI:            "CSRRWI",
+	CTZ:               "CTZ",
+	CTZW:              "CTZW",
+	CZERO_EQZ:         "CZERO.EQZ",
+	CZERO_NEZ:         "CZERO.NEZ",
+	C_ADD:             "C.ADD",
+	C_ADDI:            "C.ADDI",
+	C_ADDI16SP:        "C.ADDI16SP",
+	C_ADDI4SPN:        "C.ADDI4SPN",
+	C_ADDIW:           "C.ADDIW",
+	C_ADDW:            "C.ADDW",
+	C_AND:             "C.AND",
+	C_ANDI:            "C.ANDI",
+	C_BEQZ:            "C.BEQZ",
+	C_BNEZ:            "C.BNEZ",
+	C_EBREAK:          "C.EBREAK",
+	C_FLD:             "C.FLD",
+	C_FLDSP:           "C.FLDSP",
+	C_FSD:             "C.FSD",
+	C_FSDSP:           "C.FSDSP",
+	C_J:               "C.J",
+	C_JALR:            "C.JALR",
+	C_JR:              "C.JR",
+	C_LD:              "C.LD",
+	C_LDSP:            "C.LDSP",
+	C_LI:              "C.LI",
+	C_LUI:             "C.LUI",
+	C_LW:              "C.LW",
+	C_LWSP:            "C.LWSP",
+	C_MV:              "C.MV",
+	C_NOP:             "C.NOP",
+	C_OR:              "C.OR",
+	C_SD:              "C.SD",
+	C_SDSP:            "C.SDSP",
+	C_SLLI:            "C.SLLI",
+	C_SRAI:            "C.SRAI",
+	C_SRLI:            "C.SRLI",
+	C_SUB:             "C.SUB",
+	C_SUBW:            "C.SUBW",
+	C_SW:              "C.SW",
+	C_SWSP:            "C.SWSP",
+	C_UNIMP:           "C.UNIMP",
+	C_XOR:             "C.XOR",
+	DIV:               "DIV",
+	DIVU:              "DIVU",
+	DIVUW:             "DIVUW",
+	DIVW:              "DIVW",
+	EBREAK:            "EBREAK",
+	ECALL:             "ECALL",
+	FADD_D:            "FADD.D",
+	FADD_H:            "FADD.H",
+	FADD_Q:            "FADD.Q",
+	FADD_S:            "FADD.S",
+	FCLASS_D:          "FCLASS.D",
+	FCLASS_H:          "FCLASS.H",
+	FCLASS_Q:          "FCLASS.Q",
+	FCLASS_S:          "FCLASS.S",
+	FCVT_D_L:          "FCVT.D.L",
+	FCVT_D_LU:         "FCVT.D.LU",
+	FCVT_D_Q:          "FCVT.D.Q",
+	FCVT_D_S:          "FCVT.D.S",
+	FCVT_D_W:          "FCVT.D.W",
+	FCVT_D_WU:         "FCVT.D.WU",
+	FCVT_H_L:          "FCVT.H.L",
+	FCVT_H_LU:         "FCVT.H.LU",
+	FCVT_H_S:          "FCVT.H.S",
+	FCVT_H_W:          "FCVT.H.W",
+	FCVT_H_WU:         "FCVT.H.WU",
+	FCVT_LU_D:         "FCVT.LU.D",
+	FCVT_LU_H:         "FCVT.LU.H",
+	FCVT_LU_Q:         "FCVT.LU.Q",
+	FCVT_LU_S:         "FCVT.LU.S",
+	FCVT_L_D:          "FCVT.L.D",
+	FCVT_L_H:          "FCVT.L.H",
+	FCVT_L_Q:          "FCVT.L.Q",
+	FCVT_L_S:          "FCVT.L.S",
+	FCVT_Q_D:          "FCVT.Q.D",
+	FCVT_Q_L:          "FCVT.Q.L",
+	FCVT_Q_LU:         "FCVT.Q.LU",
+	FCVT_Q_S:          "FCVT.Q.S",
+	FCVT_Q_W:          "FCVT.Q.W",
+	FCVT_Q_WU:         "FCVT.Q.WU",
+	FCVT_S_D:          "FCVT.S.D",
+	FCVT_S_H:          "FCVT.S.H",
+	FCVT_S_L:          "FCVT.S.L",
+	FCVT_S_LU:         "FCVT.S.LU",
+	FCVT_S_Q:          "FCVT.S.Q",
+	FCVT_S_W:          "FCVT.S.W",
+	FCVT_S_WU:         "FCVT.S.WU",
+	FCVT_WU_D:         "FCVT.WU.D",
+	FCVT_WU_H:         "FCVT.WU.H",
+	FCVT_WU_Q:         "FCVT.WU.Q",
+	FCVT_WU_S:         "FCVT.WU.S",
+	FCVT_W_D:          "FCVT.W.D",
+	FCVT_W_H:          "FCVT.W.H",
+	FCVT_W_Q:          "FCVT.W.Q",
+	FCVT_W_S:          "FCVT.W.S",
+	FDIV_D:            "FDIV.D",
+	FDIV_H:            "FDIV.H",
+	FDIV_Q:            "FDIV.Q",
+	FDIV_S:            "FDIV.S",
+	FENCE:             "FENCE",
+	FENCE_I:           "FENCE.I",
+	FEQ_D:             "FEQ.D",
+	FEQ_H:             "FEQ.H",
+	FEQ_Q:             "FEQ.Q",
+	FEQ_S:             "FEQ.S",
+	FLD:               "FLD",
+	FLE_D:             "FLE.D",
+	FLE_H:             "FLE.H",
+	FLE_Q:             "FLE.Q",
+	FLE_S:             "FLE.S",
+	FLH:               "FLH",
+	FLQ:               "FLQ",
+	FLT_D:             "FLT.D",
+	FLT_H:             "FLT.H",
+	FLT_Q:             "FLT.Q",
+	FLT_S:             "FLT.S",
+	FLW:               "FLW",
+	FMADD_D:           "FMADD.D",
+	FMADD_H:           "FMADD.H",
+	FMADD_Q:           "FMADD.Q",
+	FMADD_S:           "FMADD.S",
+	FMAX_D:            "FMAX.D",
+	FMAX_H:            "FMAX.H",
+	FMAX_Q:            "FMAX.Q",
+	FMAX_S:            "FMAX.S",
+	FMIN_D:            "FMIN.D",
+	FMIN_H:            "FMIN.H",
+	FMIN_Q:            "FMIN.Q",
+	FMIN_S:            "FMIN.S",
+	FMSUB_D:           "FMSUB.D",
+	FMSUB_H:           "FMSUB.H",
+	FMSUB_Q:           "FMSUB.Q",
+	FMSUB_S:           "FMSUB.S",
+	FMUL_D:            "FMUL.D",
+	FMUL_H:            "FMUL.H",
+	FMUL_Q:            "FMUL.Q",
+	FMUL_S:            "FMUL.S",
+	FMV_D_X:           "FMV.D.X",
+	FMV_H_X:           "FMV.H.X",
+	FMV_W_X:           "FMV.W.X",
+	FMV_X_D:           "FMV.X.D",
+	FMV_X_H:           "FMV.X.H",
+	FMV_X_W:           "FMV.X.W",
+	FNMADD_D:          "FNMADD.D",
+	FNMADD_H:          "FNMADD.H",
+	FNMADD_Q:          "FNMADD.Q",
+	FNMADD_S:          "FNMADD.S",
+	FNMSUB_D:          "FNMSUB.D",
+	FNMSUB_H:          "FNMSUB.H",
+	FNMSUB_Q:          "FNMSUB.Q",
+	FNMSUB_S:          "FNMSUB.S",
+	FSD:               "FSD",
+	FSGNJN_D:          "FSGNJN.D",
+	FSGNJN_H:          "FSGNJN.H",
+	FSGNJN_Q:          "FSGNJN.Q",
+	FSGNJN_S:          "FSGNJN.S",
+	FSGNJX_D:          "FSGNJX.D",
+	FSGNJX_H:          "FSGNJX.H",
+	FSGNJX_Q:          "FSGNJX.Q",
+	FSGNJX_S:          "FSGNJX.S",
+	FSGNJ_D:           "FSGNJ.D",
+	FSGNJ_H:           "FSGNJ.H",
+	FSGNJ_Q:           "FSGNJ.Q",
+	FSGNJ_S:           "FSGNJ.S",
+	FSH:               "FSH",
+	FSQ:               "FSQ",
+	FSQRT_D:           "FSQRT.D",
+	FSQRT_H:           "FSQRT.H",
+	FSQRT_Q:           "FSQRT.Q",
+	FSQRT_S:           "FSQRT.S",
+	FSUB_D:            "FSUB.D",
+	FSUB_H:            "FSUB.H",
+	FSUB_Q:            "FSUB.Q",
+	FSUB_S:            "FSUB.S",
+	FSW:               "FSW",
+	JAL:               "JAL",
+	JALR:              "JALR",
+	LB:                "LB",
+	LBU:               "LBU",
+	LD:                "LD",
+	LH:                "LH",
+	LHU:               "LHU",
+	LR_D:              "LR.D",
+	LR_D_AQ:           "LR.D.AQ",
+	LR_D_AQRL:         "LR.D.AQRL",
+	LR_D_RL:           "LR.D.RL",
+	LR_W:              "LR.W",
+	LR_W_AQ:           "LR.W.AQ",
+	LR_W_AQRL:         "LR.W.AQRL",
+	LR_W_RL:           "LR.W.RL",
+	LUI:               "LUI",
+	LW:                "LW",
+	LWU:               "LWU",
+	MAX:               "MAX",
+	MAXU:              "MAXU",
+	MIN:               "MIN",
+	MINU:              "MINU",
+	MUL:               "MUL",
+	MULH:              "MULH",
+	MULHSU:            "MULHSU",
+	MULHU:             "MULHU",
+	MULW:              "MULW",
+	OR:                "OR",
+	ORC_B:             "ORC.B",
+	ORI:               "ORI",
+	ORN:               "ORN",
+	REM:               "REM",
+	REMU:              "REMU",
+	REMUW:             "REMUW",
+	REMW:              "REMW",
+	REV8:              "REV8",
+	ROL:               "ROL",
+	ROLW:              "ROLW",
+	ROR:               "ROR",
+	RORI:              "RORI",
+	RORIW:             "RORIW",
+	RORW:              "RORW",
+	SB:                "SB",
+	SC_D:              "SC.D",
+	SC_D_AQ:           "SC.D.AQ",
+	SC_D_AQRL:         "SC.D.AQRL",
+	SC_D_RL:           "SC.D.RL",
+	SC_W:              "SC.W",
+	SC_W_AQ:           "SC.W.AQ",
+	SC_W_AQRL:         "SC.W.AQRL",
+	SC_W_RL:           "SC.W.RL",
+	SD:                "SD",
+	SEXT_B:            "SEXT.B",
+	SEXT_H:            "SEXT.H",
+	SH:                "SH",
+	SH1ADD:            "SH1ADD",
+	SH1ADD_UW:         "SH1ADD.UW",
+	SH2ADD:            "SH2ADD",
+	SH2ADD_UW:         "SH2ADD.UW",
+	SH3ADD:            "SH3ADD",
+	SH3ADD_UW:         "SH3ADD.UW",
+	SLL:               "SLL",
+	SLLI:              "SLLI",
+	SLLIW:             "SLLIW",
+	SLLI_UW:           "SLLI.UW",
+	SLLW:              "SLLW",
+	SLT:               "SLT",
+	SLTI:              "SLTI",
+	SLTIU:             "SLTIU",
+	SLTU:              "SLTU",
+	SRA:               "SRA",
+	SRAI:              "SRAI",
+	SRAIW:             "SRAIW",
+	SRAW:              "SRAW",
+	SRL:               "SRL",
+	SRLI:              "SRLI",
+	SRLIW:             "SRLIW",
+	SRLW:              "SRLW",
+	SUB:               "SUB",
+	SUBW:              "SUBW",
+	SW:                "SW",
+	VAADDU_VV:         "VAADDU.VV",
+	VAADDU_VX:         "VAADDU.VX",
+	VAADD_VV:          "VAADD.VV",
+	VAADD_VX:          "VAADD.VX",
+	VADC_VIM:          "VADC.VIM",
+	VADC_VVM:          "VADC.VVM",
+	VADC_VXM:          "VADC.VXM",
+	VADD_VI:           "VADD.VI",
+	VADD_VV:           "VADD.VV",
+	VADD_VX:           "VADD.VX",
+	VAND_VI:           "VAND.VI",
+	VAND_VV:           "VAND.VV",
+	VAND_VX:           "VAND.VX",
+	VASUBU_VV:         "VASUBU.VV",
+	VASUBU_VX:         "VASUBU.VX",
+	VASUB_VV:          "VASUB.VV",
+	VASUB_VX:          "VASUB.VX",
+	VCOMPRESS_VM:      "VCOMPRESS.VM",
+	VCPOP_M:           "VCPOP.M",
+	VDIVU_VV:          "VDIVU.VV",
+	VDIVU_VX:          "VDIVU.VX",
+	VDIV_VV:           "VDIV.VV",
+	VDIV_VX:           "VDIV.VX",
+	VFADD_VF:          "VFADD.VF",
+	VFADD_VV:          "VFADD.VV",
+	VFCLASS_V:         "VFCLASS.V",
+	VFCVT_F_XU_V:      "VFCVT.F.XU.V",
+	VFCVT_F_X_V:       "VFCVT.F.X.V",
+	VFCVT_RTZ_XU_F_V:  "VFCVT.RTZ.XU.F.V",
+	VFCVT_RTZ_X_F_V:   "VFCVT.RTZ.X.F.V",
+	VFCVT_XU_F_V:      "VFCVT.XU.F.V",
+	VFCVT_X_F_V:       "VFCVT.X.F.V",
+	VFDIV_VF:          "VFDIV.VF",
+	VFDIV_VV:          "VFDIV.VV",
+	VFIRST_M:          "VFIRST.M",
+	VFMACC_VF:         "VFMACC.VF",
+	VFMACC_VV:         "VFMACC.VV",
+	VFMADD_VF:         "VFMADD.VF",
+	VFMADD_VV:         "VFMADD.VV",
+	VFMAX_VF:          "VFMAX.VF",
+	VFMAX_VV:          "VFMAX.VV",
+	VFMERGE_VFM:       "VFMERGE.VFM",
+	VFMIN_VF:          "VFMIN.VF",
+	VFMIN_VV:          "VFMIN.VV",
+	VFMSAC_VF:         "VFMSAC.VF",
+	VFMSAC_VV:         "VFMSAC.VV",
+	VFMSUB_VF:         "VFMSUB.VF",
+	VFMSUB_VV:         "VFMSUB.VV",
+	VFMUL_VF:          "VFMUL.VF",
+	VFMUL_VV:          "VFMUL.VV",
+	VFMV_F_S:          "VFMV.F.S",
+	VFMV_S_F:          "VFMV.S.F",
+	VFMV_V_F:          "VFMV.V.F",
+	VFNCVT_F_F_W:      "VFNCVT.F.F.W",
+	VFNCVT_F_XU_W:     "VFNCVT.F.XU.W",
+	VFNCVT_F_X_W:      "VFNCVT.F.X.W",
+	VFNCVT_ROD_F_F_W:  "VFNCVT.ROD.F.F.W",
+	VFNCVT_RTZ_XU_F_W: "VFNCVT.RTZ.XU.F.W",
+	VFNCVT_RTZ_X_F_W:  "VFNCVT.RTZ.X.F.W",
+	VFNCVT_XU_F_W:     "VFNCVT.XU.F.W",
+	VFNCVT_X_F_W:      "VFNCVT.X.F.W",
+	VFNMACC_VF:        "VFNMACC.VF",
+	VFNMACC_VV:        "VFNMACC.VV",
+	VFNMADD_VF:        "VFNMADD.VF",
+	VFNMADD_VV:        "VFNMADD.VV",
+	VFNMSAC_VF:        "VFNMSAC.VF",
+	VFNMSAC_VV:        "VFNMSAC.VV",
+	VFNMSUB_VF:        "VFNMSUB.VF",
+	VFNMSUB_VV:        "VFNMSUB.VV",
+	VFRDIV_VF:         "VFRDIV.VF",
+	VFREC7_V:          "VFREC7.V",
+	VFREDMAX_VS:       "VFREDMAX.VS",
+	VFREDMIN_VS:       "VFREDMIN.VS",
+	VFREDOSUM_VS:      "VFREDOSUM.VS",
+	VFREDUSUM_VS:      "VFREDUSUM.VS",
+	VFRSQRT7_V:        "VFRSQRT7.V",
+	VFRSUB_VF:         "VFRSUB.VF",
+	VFSGNJN_VF:        "VFSGNJN.VF",
+	VFSGNJN_VV:        "VFSGNJN.VV",
+	VFSGNJX_VF:        "VFSGNJX.VF",
+	VFSGNJX_VV:        "VFSGNJX.VV",
+	VFSGNJ_VF:         "VFSGNJ.VF",
+	VFSGNJ_VV:         "VFSGNJ.VV",
+	VFSLIDE1DOWN_VF:   "VFSLIDE1DOWN.VF",
+	VFSLIDE1UP_VF:     "VFSLIDE1UP.VF",
+	VFSQRT_V:          "VFSQRT.V",
+	VFSUB_VF:          "VFSUB.VF",
+	VFSUB_VV:          "VFSUB.VV",
+	VFWADD_VF:         "VFWADD.VF",
+	VFWADD_VV:         "VFWADD.VV",
+	VFWADD_WF:         "VFWADD.WF",
+	VFWADD_WV:         "VFWADD.WV",
+	VFWCVT_F_F_V:      "VFWCVT.F.F.V",
+	VFWCVT_F_XU_V:     "VFWCVT.F.XU.V",
+	VFWCVT_F_X_V:      "VFWCVT.F.X.V",
+	VFWCVT_RTZ_XU_F_V: "VFWCVT.RTZ.XU.F.V",
+	VFWCVT_RTZ_X_F_V:  "VFWCVT.RTZ.X.F.V",
+	VFWCVT_XU_F_V:     "VFWCVT.XU.F.V",
+	VFWCVT_X_F_V:      "VFWCVT.X.F.V",
+	VFWMACC_VF:        "VFWMACC.VF",
+	VFWMACC_VV:        "VFWMACC.VV",
+	VFWMSAC_VF:        "VFWMSAC.VF",
+	VFWMSAC_VV:        "VFWMSAC.VV",
+	VFWMUL_VF:         "VFWMUL.VF",
+	VFWMUL_VV:         "VFWMUL.VV",
+	VFWNMACC_VF:       "VFWNMACC.VF",
+	VFWNMACC_VV:       "VFWNMACC.VV",
+	VFWNMSAC_VF:       "VFWNMSAC.VF",
+	VFWNMSAC_VV:       "VFWNMSAC.VV",
+	VFWREDOSUM_VS:     "VFWREDOSUM.VS",
+	VFWREDUSUM_VS:     "VFWREDUSUM.VS",
+	VFWSUB_VF:         "VFWSUB.VF",
+	VFWSUB_VV:         "VFWSUB.VV",
+	VFWSUB_WF:         "VFWSUB.WF",
+	VFWSUB_WV:         "VFWSUB.WV",
+	VID_V:             "VID.V",
+	VIOTA_M:           "VIOTA.M",
+	VL1RE16_V:         "VL1RE16.V",
+	VL1RE32_V:         "VL1RE32.V",
+	VL1RE64_V:         "VL1RE64.V",
+	VL1RE8_V:          "VL1RE8.V",
+	VL2RE16_V:         "VL2RE16.V",
+	VL2RE32_V:         "VL2RE32.V",
+	VL2RE64_V:         "VL2RE64.V",
+	VL2RE8_V:          "VL2RE8.V",
+	VL4RE16_V:         "VL4RE16.V",
+	VL4RE32_V:         "VL4RE32.V",
+	VL4RE64_V:         "VL4RE64.V",
+	VL4RE8_V:          "VL4RE8.V",
+	VL8RE16_V:         "VL8RE16.V",
+	VL8RE32_V:         "VL8RE32.V",
+	VL8RE64_V:         "VL8RE64.V",
+	VL8RE8_V:          "VL8RE8.V",
+	VLE16FF_V:         "VLE16FF.V",
+	VLE16_V:           "VLE16.V",
+	VLE32FF_V:         "VLE32FF.V",
+	VLE32_V:           "VLE32.V",
+	VLE64FF_V:         "VLE64FF.V",
+	VLE64_V:           "VLE64.V",
+	VLE8FF_V:          "VLE8FF.V",
+	VLE8_V:            "VLE8.V",
+	VLM_V:             "VLM.V",
+	VLOXEI16_V:        "VLOXEI16.V",
+	VLOXEI32_V:        "VLOXEI32.V",
+	VLOXEI64_V:        "VLOXEI64.V",
+	VLOXEI8_V:         "VLOXEI8.V",
+	VLOXSEG2EI16_V:    "VLOXSEG2EI16.V",
+	VLOXSEG2EI32_V:    "VLOXSEG2EI32.V",
+	VLOXSEG2EI64_V:    "VLOXSEG2EI64.V",
+	VLOXSEG2EI8_V:     "VLOXSEG2EI8.V",
+	VLOXSEG3EI16_V:    "VLOXSEG3EI16.V",
+	VLOXSEG3EI32_V:    "VLOXSEG3EI32.V",
+	VLOXSEG3EI64_V:    "VLOXSEG3EI64.V",
+	VLOXSEG3EI8_V:     "VLOXSEG3EI8.V",
+	VLOXSEG4EI16_V:    "VLOXSEG4EI16.V",
+	VLOXSEG4EI32_V:    "VLOXSEG4EI32.V",
+	VLOXSEG4EI64_V:    "VLOXSEG4EI64.V",
+	VLOXSEG4EI8_V:     "VLOXSEG4EI8.V",
+	VLOXSEG5EI16_V:    "VLOXSEG5EI16.V",
+	VLOXSEG5EI32_V:    "VLOXSEG5EI32.V",
+	VLOXSEG5EI64_V:    "VLOXSEG5EI64.V",
+	VLOXSEG5EI8_V:     "VLOXSEG5EI8.V",
+	VLOXSEG6EI16_V:    "VLOXSEG6EI16.V",
+	VLOXSEG6EI32_V:    "VLOXSEG6EI32.V",
+	VLOXSEG6EI64_V:    "VLOXSEG6EI64.V",
+	VLOXSEG6EI8_V:     "VLOXSEG6EI8.V",
+	VLOXSEG7EI16_V:    "VLOXSEG7EI16.V",
+	VLOXSEG7EI32_V:    "VLOXSEG7EI32.V",
+	VLOXSEG7EI64_V:    "VLOXSEG7EI64.V",
+	VLOXSEG7EI8_V:     "VLOXSEG7EI8.V",
+	VLOXSEG8EI16_V:    "VLOXSEG8EI16.V",
+	VLOXSEG8EI32_V:    "VLOXSEG8EI32.V",
+	VLOXSEG8EI64_V:    "VLOXSEG8EI64.V",
+	VLOXSEG8EI8_V:     "VLOXSEG8EI8.V",
+	VLSE16_V:          "VLSE16.V",
+	VLSE32_V:          "VLSE32.V",
+	VLSE64_V:          "VLSE64.V",
+	VLSE8_V:           "VLSE8.V",
+	VLSEG2E16FF_V:     "VLSEG2E16FF.V",
+	VLSEG2E16_V:       "VLSEG2E16.V",
+	VLSEG2E32FF_V:     "VLSEG2E32FF.V",
+	VLSEG2E32_V:       "VLSEG2E32.V",
+	VLSEG2E64FF_V:     "VLSEG2E64FF.V",
+	VLSEG2E64_V:       "VLSEG2E64.V",
+	VLSEG2E8FF_V:      "VLSEG2E8FF.V",
+	VLSEG2E8_V:        "VLSEG2E8.V",
+	VLSEG3E16FF_V:     "VLSEG3E16FF.V",
+	VLSEG3E16_V:       "VLSEG3E16.V",
+	VLSEG3E32FF_V:     "VLSEG3E32FF.V",
+	VLSEG3E32_V:       "VLSEG3E32.V",
+	VLSEG3E64FF_V:     "VLSEG3E64FF.V",
+	VLSEG3E64_V:       "VLSEG3E64.V",
+	VLSEG3E8FF_V:      "VLSEG3E8FF.V",
+	VLSEG3E8_V:        "VLSEG3E8.V",
+	VLSEG4E16FF_V:     "VLSEG4E16FF.V",
+	VLSEG4E16_V:       "VLSEG4E16.V",
+	VLSEG4E32FF_V:     "VLSEG4E32FF.V",
+	VLSEG4E32_V:       "VLSEG4E32.V",
+	VLSEG4E64FF_V:     "VLSEG4E64FF.V",
+	VLSEG4E64_V:       "VLSEG4E64.V",
+	VLSEG4E8FF_V:      "VLSEG4E8FF.V",
+	VLSEG4E8_V:        "VLSEG4E8.V",
+	VLSEG5E16FF_V:     "VLSEG5E16FF.V",
+	VLSEG5E16_V:       "VLSEG5E16.V",
+	VLSEG5E32FF_V:     "VLSEG5E32FF.V",
+	VLSEG5E32_V:       "VLSEG5E32.V",
+	VLSEG5E64FF_V:     "VLSEG5E64FF.V",
+	VLSEG5E64_V:       "VLSEG5E64.V",
+	VLSEG5E8FF_V:      "VLSEG5E8FF.V",
+	VLSEG5E8_V:        "VLSEG5E8.V",
+	VLSEG6E16FF_V:     "VLSEG6E16FF.V",
+	VLSEG6E16_V:       "VLSEG6E16.V",
+	VLSEG6E32FF_V:     "VLSEG6E32FF.V",
+	VLSEG6E32_V:       "VLSEG6E32.V",
+	VLSEG6E64FF_V:     "VLSEG6E64FF.V",
+	VLSEG6E64_V:       "VLSEG6E64.V",
+	VLSEG6E8FF_V:      "VLSEG6E8FF.V",
+	VLSEG6E8_V:        "VLSEG6E8.V",
+	VLSEG7E16FF_V:     "VLSEG7E16FF.V",
+	VLSEG7E16_V:       "VLSEG7E16.V",
+	VLSEG7E32FF_V:     "VLSEG7E32FF.V",
+	VLSEG7E32_V:       "VLSEG7E32.V",
+	VLSEG7E64FF_V:     "VLSEG7E64FF.V",
+	VLSEG7E64_V:       "VLSEG7E64.V",
+	VLSEG7E8FF_V:      "VLSEG7E8FF.V",
+	VLSEG7E8_V:        "VLSEG7E8.V",
+	VLSEG8E16FF_V:     "VLSEG8E16FF.V",
+	VLSEG8E16_V:       "VLSEG8E16.V",
+	VLSEG8E32FF_V:     "VLSEG8E32FF.V",
+	VLSEG8E32_V:       "VLSEG8E32.V",
+	VLSEG8E64FF_V:     "VLSEG8E64FF.V",
+	VLSEG8E64_V:       "VLSEG8E64.V",
+	VLSEG8E8FF_V:      "VLSEG8E8FF.V",
+	VLSEG8E8_V:        "VLSEG8E8.V",
+	VLSSEG2E16_V:      "VLSSEG2E16.V",
+	VLSSEG2E32_V:      "VLSSEG2E32.V",
+	VLSSEG2E64_V:      "VLSSEG2E64.V",
+	VLSSEG2E8_V:       "VLSSEG2E8.V",
+	VLSSEG3E16_V:      "VLSSEG3E16.V",
+	VLSSEG3E32_V:      "VLSSEG3E32.V",
+	VLSSEG3E64_V:      "VLSSEG3E64.V",
+	VLSSEG3E8_V:       "VLSSEG3E8.V",
+	VLSSEG4E16_V:      "VLSSEG4E16.V",
+	VLSSEG4E32_V:      "VLSSEG4E32.V",
+	VLSSEG4E64_V:      "VLSSEG4E64.V",
+	VLSSEG4E8_V:       "VLSSEG4E8.V",
+	VLSSEG5E16_V:      "VLSSEG5E16.V",
+	VLSSEG5E32_V:      "VLSSEG5E32.V",
+	VLSSEG5E64_V:      "VLSSEG5E64.V",
+	VLSSEG5E8_V:       "VLSSEG5E8.V",
+	VLSSEG6E16_V:      "VLSSEG6E16.V",
+	VLSSEG6E32_V:      "VLSSEG6E32.V",
+	VLSSEG6E64_V:      "VLSSEG6E64.V",
+	VLSSEG6E8_V:       "VLSSEG6E8.V",
+	VLSSEG7E16_V:      "VLSSEG7E16.V",
+	VLSSEG7E32_V:      "VLSSEG7E32.V",
+	VLSSEG7E64_V:      "VLSSEG7E64.V",
+	VLSSEG7E8_V:       "VLSSEG7E8.V",
+	VLSSEG8E16_V:      "VLSSEG8E16.V",
+	VLSSEG8E32_V:      "VLSSEG8E32.V",
+	VLSSEG8E64_V:      "VLSSEG8E64.V",
+	VLSSEG8E8_V:       "VLSSEG8E8.V",
+	VLUXEI16_V:        "VLUXEI16.V",
+	VLUXEI32_V:        "VLUXEI32.V",
+	VLUXEI64_V:        "VLUXEI64.V",
+	VLUXEI8_V:         "VLUXEI8.V",
+	VLUXSEG2EI16_V:    "VLUXSEG2EI16.V",
+	VLUXSEG2EI32_V:    "VLUXSEG2EI32.V",
+	VLUXSEG2EI64_V:    "VLUXSEG2EI64.V",
+	VLUXSEG2EI8_V:     "VLUXSEG2EI8.V",
+	VLUXSEG3EI16_V:    "VLUXSEG3EI16.V",
+	VLUXSEG3EI32_V:    "VLUXSEG3EI32.V",
+	VLUXSEG3EI64_V:    "VLUXSEG3EI64.V",
+	VLUXSEG3EI8_V:     "VLUXSEG3EI8.V",
+	VLUXSEG4EI16_V:    "VLUXSEG4EI16.V",
+	VLUXSEG4EI32_V:    "VLUXSEG4EI32.V",
+	VLUXSEG4EI64_V:    "VLUXSEG4EI64.V",
+	VLUXSEG4EI8_V:     "VLUXSEG4EI8.V",
+	VLUXSEG5EI16_V:    "VLUXSEG5EI16.V",
+	VLUXSEG5EI32_V:    "VLUXSEG5EI32.V",
+	VLUXSEG5EI64_V:    "VLUXSEG5EI64.V",
+	VLUXSEG5EI8_V:     "VLUXSEG5EI8.V",
+	VLUXSEG6EI16_V:    "VLUXSEG6EI16.V",
+	VLUXSEG6EI32_V:    "VLUXSEG6EI32.V",
+	VLUXSEG6EI64_V:    "VLUXSEG6EI64.V",
+	VLUXSEG6EI8_V:     "VLUXSEG6EI8.V",
+	VLUXSEG7EI16_V:    "VLUXSEG7EI16.V",
+	VLUXSEG7EI32_V:    "VLUXSEG7EI32.V",
+	VLUXSEG7EI64_V:    "VLUXSEG7EI64.V",
+	VLUXSEG7EI8_V:     "VLUXSEG7EI8.V",
+	VLUXSEG8EI16_V:    "VLUXSEG8EI16.V",
+	VLUXSEG8EI32_V:    "VLUXSEG8EI32.V",
+	VLUXSEG8EI64_V:    "VLUXSEG8EI64.V",
+	VLUXSEG8EI8_V:     "VLUXSEG8EI8.V",
+	VMACC_VV:          "VMACC.VV",
+	VMACC_VX:          "VMACC.VX",
+	VMADC_VI:          "VMADC.VI",
+	VMADC_VIM:         "VMADC.VIM",
+	VMADC_VV:          "VMADC.VV",
+	VMADC_VVM:         "VMADC.VVM",
+	VMADC_VX:          "VMADC.VX",
+	VMADC_VXM:         "VMADC.VXM",
+	VMADD_VV:          "VMADD.VV",
+	VMADD_VX:          "VMADD.VX",
+	VMANDN_MM:         "VMANDN.MM",
+	VMAND_MM:          "VMAND.MM",
+	VMAXU_VV:          "VMAXU.VV",
+	VMAXU_VX:          "VMAXU.VX",
+	VMAX_VV:           "VMAX.VV",
+	VMAX_VX:           "VMAX.VX",
+	VMERGE_VIM:        "VMERGE.VIM",
+	VMERGE_VVM:        "VMERGE.VVM",
+	VMERGE_VXM:        "VMERGE.VXM",
+	VMFEQ_VF:          "VMFEQ.VF",
+	VMFEQ_VV:          "VMFEQ.VV",
+	VMFGE_VF:          "VMFGE.VF",
+	VMFGT_VF:          "VMFGT.VF",
+	VMFLE_VF:          "VMFLE.VF",
+	VMFLE_VV:          "VMFLE.VV",
+	VMFLT_VF:          "VMFLT.VF",
+	VMFLT_VV:          "VMFLT.VV",
+	VMFNE_VF:          "VMFNE.VF",
+	VMFNE_VV:          "VMFNE.VV",
+	VMINU_VV:          "VMINU.VV",
+	VMINU_VX:          "VMINU.VX",
+	VMIN_VV:           "VMIN.VV",
+	VMIN_VX:           "VMIN.VX",
+	VMNAND_MM:         "VMNAND.MM",
+	VMNOR_MM:          "VMNOR.MM",
+	VMORN_MM:          "VMORN.MM",
+	VMOR_MM:           "VMOR.MM",
+	VMSBC_VV:          "VMSBC.VV",
+	VMSBC_VVM:         "VMSBC.VVM",
+	VMSBC_VX:          "VMSBC.VX",
+	VMSBC_VXM:         "VMSBC.VXM",
+	VMSBF_M:           "VMSBF.M",
+	VMSEQ_VI:          "VMSEQ.VI",
+	VMSEQ_VV:          "VMSEQ.VV",
+	VMSEQ_VX:          "VMSEQ.VX",
+	VMSGTU_VI:         "VMSGTU.VI",
+	VMSGTU_VX:         "VMSGTU.VX",
+	VMSGT_VI:          "VMSGT.VI",
+	VMSGT_VX:          "VMSGT.VX",
+	VMSIF_M:           "VMSIF.M",
+	VMSLEU_VI:         "VMSLEU.VI",
+	VMSLEU_VV:         "VMSLEU.VV",
+	VMSLEU_VX:         "VMSLEU.VX",
+	VMSLE_VI:          "VMSLE.VI",
+	VMSLE_VV:          "VMSLE.VV",
+	VMSLE_VX:          "VMSLE.VX",
+	VMSLTU_VV:         "VMSLTU.VV",
+	VMSLTU_VX:         "VMSLTU.VX",
+	VMSLT_VV:          "VMSLT.VV",
+	VMSLT_VX:          "VMSLT.VX",
+	VMSNE_VI:          "VMSNE.VI",
+	VMSNE_VV:          "VMSNE.VV",
+	VMSNE_VX:          "VMSNE.VX",
+	VMSOF_M:           "VMSOF.M",
+	VMULHSU_VV:        "VMULHSU.VV",
+	VMULHSU_VX:        "VMULHSU.VX",
+	VMULHU_VV:         "VMULHU.VV",
+	VMULHU_VX:         "VMULHU.VX",
+	VMULH_VV:          "VMULH.VV",
+	VMULH_VX:          "VMULH.VX",
+	VMUL_VV:           "VMUL.VV",
+	VMUL_VX:           "VMUL.VX",
+	VMV1R_V:           "VMV1R.V",
+	VMV2R_V:           "VMV2R.V",
+	VMV4R_V:           "VMV4R.V",
+	VMV8R_V:           "VMV8R.V",
+	VMV_S_X:           "VMV.S.X",
+	VMV_V_I:           "VMV.V.I",
+	VMV_V_V:           "VMV.V.V",
+	VMV_V_X:           "VMV.V.X",
+	VMV_X_S:           "VMV.X.S",
+	VMXNOR_MM:         "VMXNOR.MM",
+	VMXOR_MM:          "VMXOR.MM",
+	VNCLIPU_WI:        "VNCLIPU.WI",
+	VNCLIPU_WV:        "VNCLIPU.WV",
+	VNCLIPU_WX:        "VNCLIPU.WX",
+	VNCLIP_WI:         "VNCLIP.WI",
+	VNCLIP_WV:         "VNCLIP.WV",
+	VNCLIP_WX:         "VNCLIP.WX",
+	VNMSAC_VV:         "VNMSAC.VV",
+	VNMSAC_VX:         "VNMSAC.VX",
+	VNMSUB_VV:         "VNMSUB.VV",
+	VNMSUB_VX:         "VNMSUB.VX",
+	VNSRA_WI:          "VNSRA.WI",
+	VNSRA_WV:          "VNSRA.WV",
+	VNSRA_WX:          "VNSRA.WX",
+	VNSRL_WI:          "VNSRL.WI",
+	VNSRL_WV:          "VNSRL.WV",
+	VNSRL_WX:          "VNSRL.WX",
+	VOR_VI:            "VOR.VI",
+	VOR_VV:            "VOR.VV",
+	VOR_VX:            "VOR.VX",
+	VREDAND_VS:        "VREDAND.VS",
+	VREDMAXU_VS:       "VREDMAXU.VS",
+	VREDMAX_VS:        "VREDMAX.VS",
+	VREDMINU_VS:       "VREDMINU.VS",
+	VREDMIN_VS:        "VREDMIN.VS",
+	VREDOR_VS:         "VREDOR.VS",
+	VREDSUM_VS:        "VREDSUM.VS",
+	VREDXOR_VS:        "VREDXOR.VS",
+	VREMU_VV:          "VREMU.VV",
+	VREMU_VX:          "VREMU.VX",
+	VREM_VV:           "VREM.VV",
+	VREM_VX:           "VREM.VX",
+	VRGATHEREI16_VV:   "VRGATHEREI16.VV",
+	VRGATHER_VI:       "VRGATHER.VI",
+	VRGATHER_VV:       "VRGATHER.VV",
+	VRGATHER_VX:       "VRGATHER.VX",
+	VRSUB_VI:          "VRSUB.VI",
+	VRSUB_VX:          "VRSUB.VX",
+	VS1R_V:            "VS1R.V",
+	VS2R_V:            "VS2R.V",
+	VS4R_V:            "VS4R.V",
+	VS8R_V:            "VS8R.V",
+	VSADDU_VI:         "VSADDU.VI",
+	VSADDU_VV:         "VSADDU.VV",
+	VSADDU_VX:         "VSADDU.VX",
+	VSADD_VI:          "VSADD.VI",
+	VSADD_VV:          "VSADD.VV",
+	VSADD_VX:          "VSADD.VX",
+	VSBC_VVM:          "VSBC.VVM",
+	VSBC_VXM:          "VSBC.VXM",
+	VSE16_V:           "VSE16.V",
+	VSE32_V:           "VSE32.V",
+	VSE64_V:           "VSE64.V",
+	VSE8_V:            "VSE8.V",
+	VSETIVLI:          "VSETIVLI",
+	VSETVL:            "VSETVL",
+	VSETVLI:           "VSETVLI",
+	VSEXT_VF2:         "VSEXT.VF2",
+	VSEXT_VF4:         "VSEXT.VF4",
+	VSEXT_VF8:         "VSEXT.VF8",
+	VSLIDE1DOWN_VX:    "VSLIDE1DOWN.VX",
+	VSLIDE1UP_VX:      "VSLIDE1UP.VX",
+	VSLIDEDOWN_VI:     "VSLIDEDOWN.VI",
+	VSLIDEDOWN_VX:     "VSLIDEDOWN.VX",
+	VSLIDEUP_VI:       "VSLIDEUP.VI",
+	VSLIDEUP_VX:       "VSLIDEUP.VX",
+	VSLL_VI:           "VSLL.VI",
+	VSLL_VV:           "VSLL.VV",
+	VSLL_VX:           "VSLL.VX",
+	VSMUL_VV:          "VSMUL.VV",
+	VSMUL_VX:          "VSMUL.VX",
+	VSM_V:             "VSM.V",
+	VSOXEI16_V:        "VSOXEI16.V",
+	VSOXEI32_V:        "VSOXEI32.V",
+	VSOXEI64_V:        "VSOXEI64.V",
+	VSOXEI8_V:         "VSOXEI8.V",
+	VSOXSEG2EI16_V:    "VSOXSEG2EI16.V",
+	VSOXSEG2EI32_V:    "VSOXSEG2EI32.V",
+	VSOXSEG2EI64_V:    "VSOXSEG2EI64.V",
+	VSOXSEG2EI8_V:     "VSOXSEG2EI8.V",
+	VSOXSEG3EI16_V:    "VSOXSEG3EI16.V",
+	VSOXSEG3EI32_V:    "VSOXSEG3EI32.V",
+	VSOXSEG3EI64_V:    "VSOXSEG3EI64.V",
+	VSOXSEG3EI8_V:     "VSOXSEG3EI8.V",
+	VSOXSEG4EI16_V:    "VSOXSEG4EI16.V",
+	VSOXSEG4EI32_V:    "VSOXSEG4EI32.V",
+	VSOXSEG4EI64_V:    "VSOXSEG4EI64.V",
+	VSOXSEG4EI8_V:     "VSOXSEG4EI8.V",
+	VSOXSEG5EI16_V:    "VSOXSEG5EI16.V",
+	VSOXSEG5EI32_V:    "VSOXSEG5EI32.V",
+	VSOXSEG5EI64_V:    "VSOXSEG5EI64.V",
+	VSOXSEG5EI8_V:     "VSOXSEG5EI8.V",
+	VSOXSEG6EI16_V:    "VSOXSEG6EI16.V",
+	VSOXSEG6EI32_V:    "VSOXSEG6EI32.V",
+	VSOXSEG6EI64_V:    "VSOXSEG6EI64.V",
+	VSOXSEG6EI8_V:     "VSOXSEG6EI8.V",
+	VSOXSEG7EI16_V:    "VSOXSEG7EI16.V",
+	VSOXSEG7EI32_V:    "VSOXSEG7EI32.V",
+	VSOXSEG7EI64_V:    "VSOXSEG7EI64.V",
+	VSOXSEG7EI8_V:     "VSOXSEG7EI8.V",
+	VSOXSEG8EI16_V:    "VSOXSEG8EI16.V",
+	VSOXSEG8EI32_V:    "VSOXSEG8EI32.V",
+	VSOXSEG8EI64_V:    "VSOXSEG8EI64.V",
+	VSOXSEG8EI8_V:     "VSOXSEG8EI8.V",
+	VSRA_VI:           "VSRA.VI",
+	VSRA_VV:           "VSRA.VV",
+	VSRA_VX:           "VSRA.VX",
+	VSRL_VI:           "VSRL.VI",
+	VSRL_VV:           "VSRL.VV",
+	VSRL_VX:           "VSRL.VX",
+	VSSE16_V:          "VSSE16.V",
+	VSSE32_V:          "VSSE32.V",
+	VSSE64_V:          "VSSE64.V",
+	VSSE8_V:           "VSSE8.V",
+	VSSEG2E16_V:       "VSSEG2E16.V",
+	VSSEG2E32_V:       "VSSEG2E32.V",
+	VSSEG2E64_V:       "VSSEG2E64.V",
+	VSSEG2E8_V:        "VSSEG2E8.V",
+	VSSEG3E16_V:       "VSSEG3E16.V",
+	VSSEG3E32_V:       "VSSEG3E32.V",
+	VSSEG3E64_V:       "VSSEG3E64.V",
+	VSSEG3E8_V:        "VSSEG3E8.V",
+	VSSEG4E16_V:       "VSSEG4E16.V",
+	VSSEG4E32_V:       "VSSEG4E32.V",
+	VSSEG4E64_V:       "VSSEG4E64.V",
+	VSSEG4E8_V:        "VSSEG4E8.V",
+	VSSEG5E16_V:       "VSSEG5E16.V",
+	VSSEG5E32_V:       "VSSEG5E32.V",
+	VSSEG5E64_V:       "VSSEG5E64.V",
+	VSSEG5E8_V:        "VSSEG5E8.V",
+	VSSEG6E16_V:       "VSSEG6E16.V",
+	VSSEG6E32_V:       "VSSEG6E32.V",
+	VSSEG6E64_V:       "VSSEG6E64.V",
+	VSSEG6E8_V:        "VSSEG6E8.V",
+	VSSEG7E16_V:       "VSSEG7E16.V",
+	VSSEG7E32_V:       "VSSEG7E32.V",
+	VSSEG7E64_V:       "VSSEG7E64.V",
+	VSSEG7E8_V:        "VSSEG7E8.V",
+	VSSEG8E16_V:       "VSSEG8E16.V",
+	VSSEG8E32_V:       "VSSEG8E32.V",
+	VSSEG8E64_V:       "VSSEG8E64.V",
+	VSSEG8E8_V:        "VSSEG8E8.V",
+	VSSRA_VI:          "VSSRA.VI",
+	VSSRA_VV:          "VSSRA.VV",
+	VSSRA_VX:          "VSSRA.VX",
+	VSSRL_VI:          "VSSRL.VI",
+	VSSRL_VV:          "VSSRL.VV",
+	VSSRL_VX:          "VSSRL.VX",
+	VSSSEG2E16_V:      "VSSSEG2E16.V",
+	VSSSEG2E32_V:      "VSSSEG2E32.V",
+	VSSSEG2E64_V:      "VSSSEG2E64.V",
+	VSSSEG2E8_V:       "VSSSEG2E8.V",
+	VSSSEG3E16_V:      "VSSSEG3E16.V",
+	VSSSEG3E32_V:      "VSSSEG3E32.V",
+	VSSSEG3E64_V:      "VSSSEG3E64.V",
+	VSSSEG3E8_V:       "VSSSEG3E8.V",
+	VSSSEG4E16_V:      "VSSSEG4E16.V",
+	VSSSEG4E32_V:      "VSSSEG4E32.V",
+	VSSSEG4E64_V:      "VSSSEG4E64.V",
+	VSSSEG4E8_V:       "VSSSEG4E8.V",
+	VSSSEG5E16_V:      "VSSSEG5E16.V",
+	VSSSEG5E32_V:      "VSSSEG5E32.V",
+	VSSSEG5E64_V:      "VSSSEG5E64.V",
+	VSSSEG5E8_V:       "VSSSEG5E8.V",
+	VSSSEG6E16_V:      "VSSSEG6E16.V",
+	VSSSEG6E32_V:      "VSSSEG6E32.V",
+	VSSSEG6E64_V:      "VSSSEG6E64.V",
+	VSSSEG6E8_V:       "VSSSEG6E8.V",
+	VSSSEG7E16_V:      "VSSSEG7E16.V",
+	VSSSEG7E32_V:      "VSSSEG7E32.V",
+	VSSSEG7E64_V:      "VSSSEG7E64.V",
+	VSSSEG7E8_V:       "VSSSEG7E8.V",
+	VSSSEG8E16_V:      "VSSSEG8E16.V",
+	VSSSEG8E32_V:      "VSSSEG8E32.V",
+	VSSSEG8E64_V:      "VSSSEG8E64.V",
+	VSSSEG8E8_V:       "VSSSEG8E8.V",
+	VSSUBU_VV:         "VSSUBU.VV",
+	VSSUBU_VX:         "VSSUBU.VX",
+	VSSUB_VV:          "VSSUB.VV",
+	VSSUB_VX:          "VSSUB.VX",
+	VSUB_VV:           "VSUB.VV",
+	VSUB_VX:           "VSUB.VX",
+	VSUXEI16_V:        "VSUXEI16.V",
+	VSUXEI32_V:        "VSUXEI32.V",
+	VSUXEI64_V:        "VSUXEI64.V",
+	VSUXEI8_V:         "VSUXEI8.V",
+	VSUXSEG2EI16_V:    "VSUXSEG2EI16.V",
+	VSUXSEG2EI32_V:    "VSUXSEG2EI32.V",
+	VSUXSEG2EI64_V:    "VSUXSEG2EI64.V",
+	VSUXSEG2EI8_V:     "VSUXSEG2EI8.V",
+	VSUXSEG3EI16_V:    "VSUXSEG3EI16.V",
+	VSUXSEG3EI32_V:    "VSUXSEG3EI32.V",
+	VSUXSEG3EI64_V:    "VSUXSEG3EI64.V",
+	VSUXSEG3EI8_V:     "VSUXSEG3EI8.V",
+	VSUXSEG4EI16_V:    "VSUXSEG4EI16.V",
+	VSUXSEG4EI32_V:    "VSUXSEG4EI32.V",
+	VSUXSEG4EI64_V:    "VSUXSEG4EI64.V",
+	VSUXSEG4EI8_V:     "VSUXSEG4EI8.V",
+	VSUXSEG5EI16_V:    "VSUXSEG5EI16.V",
+	VSUXSEG5EI32_V:    "VSUXSEG5EI32.V",
+	VSUXSEG5EI64_V:    "VSUXSEG5EI64.V",
+	VSUXSEG5EI8_V:     "VSUXSEG5EI8.V",
+	VSUXSEG6EI16_V:    "VSUXSEG6EI16.V",
+	VSUXSEG6EI32_V:    "VSUXSEG6EI32.V",
+	VSUXSEG6EI64_V:    "VSUXSEG6EI64.V",
+	VSUXSEG6EI8_V:     "VSUXSEG6EI8.V",
+	VSUXSEG7EI16_V:    "VSUXSEG7EI16.V",
+	VSUXSEG7EI32_V:    "VSUXSEG7EI32.V",
+	VSUXSEG7EI64_V:    "VSUXSEG7EI64.V",
+	VSUXSEG7EI8_V:     "VSUXSEG7EI8.V",
+	VSUXSEG8EI16_V:    "VSUXSEG8EI16.V",
+	VSUXSEG8EI32_V:    "VSUXSEG8EI32.V",
+	VSUXSEG8EI64_V:    "VSUXSEG8EI64.V",
+	VSUXSEG8EI8_V:     "VSUXSEG8EI8.V",
+	VWADDU_VV:         "VWADDU.VV",
+	VWADDU_VX:         "VWADDU.VX",
+	VWADDU_WV:         "VWADDU.WV",
+	VWADDU_WX:         "VWADDU.WX",
+	VWADD_VV:          "VWADD.VV",
+	VWADD_VX:          "VWADD.VX",
+	VWADD_WV:          "VWADD.WV",
+	VWADD_WX:          "VWADD.WX",
+	VWMACCSU_VV:       "VWMACCSU.VV",
+	VWMACCSU_VX:       "VWMACCSU.VX",
+	VWMACCUS_VX:       "VWMACCUS.VX",
+	VWMACCU_VV:        "VWMACCU.VV",
+	VWMACCU_VX:        "VWMACCU.VX",
+	VWMACC_VV:         "VWMACC.VV",
+	VWMACC_VX:         "VWMACC.VX",
+	VWMULSU_VV:        "VWMULSU.VV",
+	VWMULSU_VX:        "VWMULSU.VX",
+	VWMULU_VV:         "VWMULU.VV",
+	VWMULU_VX:         "VWMULU.VX",
+	VWMUL_VV:          "VWMUL.VV",
+	VWMUL_VX:          "VWMUL.VX",
+	VWREDSUMU_VS:      "VWREDSUMU.VS",
+	VWREDSUM_VS:       "VWREDSUM.VS",
+	VWSUBU_VV:         "VWSUBU.VV",
+	VWSUBU_VX:         "VWSUBU.VX",
+	VWSUBU_WV:         "VWSUBU.WV",
+	VWSUBU_WX:         "VWSUBU.WX",
+	VWSUB_VV:          "VWSUB.VV",
+	VWSUB_VX:          "VWSUB.VX",
+	VWSUB_WV:          "VWSUB.WV",
+	VWSUB_WX:          "VWSUB.WX",
+	VXOR_VI:           "VXOR.VI",
+	VXOR_VV:           "VXOR.VV",
+	VXOR_VX:           "VXOR.VX",
+	VZEXT_VF2:         "VZEXT.VF2",
+	VZEXT_VF4:         "VZEXT.VF4",
+	VZEXT_VF8:         "VZEXT.VF8",
+	XNOR:              "XNOR",
+	XOR:               "XOR",
+	XORI:              "XORI",
+	ZEXT_H:            "ZEXT.H",
 }
 
 var instFormats = [...]instFormat{
@@ -753,150 +2011,150 @@ var instFormats = [...]instFormat{
 	{mask: 0xfe00707f, value: 0x0000003b, op: ADDW, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
 	// ADD.UW rd, rs1, rs2
 	{mask: 0xfe00707f, value: 0x0800003b, op: ADD_UW, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
-	// AMOADD.D rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x0000302f, op: AMOADD_D, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOADD.D.AQ rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x0400302f, op: AMOADD_D_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOADD.D.AQRL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x0600302f, op: AMOADD_D_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOADD.D.RL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x0200302f, op: AMOADD_D_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOADD.W rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x0000202f, op: AMOADD_W, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOADD.W.AQ rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x0400202f, op: AMOADD_W_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOADD.W.AQRL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x0600202f, op: AMOADD_W_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOADD.W.RL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x0200202f, op: AMOADD_W_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOAND.D rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x6000302f, op: AMOAND_D, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOAND.D.AQ rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x6400302f, op: AMOAND_D_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOAND.D.AQRL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x6600302f, op: AMOAND_D_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOAND.D.RL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x6200302f, op: AMOAND_D_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOAND.W rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x6000202f, op: AMOAND_W, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOAND.W.AQ rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x6400202f, op: AMOAND_W_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOAND.W.AQRL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x6600202f, op: AMOAND_W_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOAND.W.RL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x6200202f, op: AMOAND_W_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOMAXU.D rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0xe000302f, op: AMOMAXU_D, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOMAXU.D.AQ rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0xe400302f, op: AMOMAXU_D_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOMAXU.D.AQRL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0xe600302f, op: AMOMAXU_D_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOMAXU.D.RL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0xe200302f, op: AMOMAXU_D_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOMAXU.W rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0xe000202f, op: AMOMAXU_W, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOMAXU.W.AQ rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0xe400202f, op: AMOMAXU_W_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOMAXU.W.AQRL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0xe600202f, op: AMOMAXU_W_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOMAXU.W.RL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0xe200202f, op: AMOMAXU_W_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOMAX.D rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0xa000302f, op: AMOMAX_D, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOMAX.D.AQ rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0xa400302f, op: AMOMAX_D_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOMAX.D.AQRL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0xa600302f, op: AMOMAX_D_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOMAX.D.RL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0xa200302f, op: AMOMAX_D_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOMAX.W rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0xa000202f, op: AMOMAX_W, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOMAX.W.AQ rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0xa400202f, op: AMOMAX_W_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOMAX.W.AQRL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0xa600202f, op: AMOMAX_W_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOMAX.W.RL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0xa200202f, op: AMOMAX_W_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOMINU.D rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0xc000302f, op: AMOMINU_D, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOMINU.D.AQ rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0xc400302f, op: AMOMINU_D_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOMINU.D.AQRL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0xc600302f, op: AMOMINU_D_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOMINU.D.RL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0xc200302f, op: AMOMINU_D_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOMINU.W rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0xc000202f, op: AMOMINU_W, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOMINU.W.AQ rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0xc400202f, op: AMOMINU_W_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOMINU.W.AQRL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0xc600202f, op: AMOMINU_W_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOMINU.W.RL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0xc200202f, op: AMOMINU_W_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOMIN.D rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x8000302f, op: AMOMIN_D, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOMIN.D.AQ rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x8400302f, op: AMOMIN_D_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOMIN.D.AQRL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x8600302f, op: AMOMIN_D_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOMIN.D.RL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x8200302f, op: AMOMIN_D_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOMIN.W rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x8000202f, op: AMOMIN_W, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOMIN.W.AQ rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x8400202f, op: AMOMIN_W_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOMIN.W.AQRL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x8600202f, op: AMOMIN_W_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOMIN.W.RL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x8200202f, op: AMOMIN_W_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOOR.D rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x4000302f, op: AMOOR_D, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOOR.D.AQ rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x4400302f, op: AMOOR_D_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOOR.D.AQRL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x4600302f, op: AMOOR_D_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOOR.D.RL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x4200302f, op: AMOOR_D_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOOR.W rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x4000202f, op: AMOOR_W, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOOR.W.AQ rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x4400202f, op: AMOOR_W_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOOR.W.AQRL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x4600202f, op: AMOOR_W_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOOR.W.RL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x4200202f, op: AMOOR_W_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOSWAP.D rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x0800302f, op: AMOSWAP_D, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOSWAP.D.AQ rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x0c00302f, op: AMOSWAP_D_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOSWAP.D.AQRL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x0e00302f, op: AMOSWAP_D_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOSWAP.D.RL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x0a00302f, op: AMOSWAP_D_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOSWAP.W rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x0800202f, op: AMOSWAP_W, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOSWAP.W.AQ rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x0c00202f, op: AMOSWAP_W_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOSWAP.W.AQRL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x0e00202f, op: AMOSWAP_W_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOSWAP.W.RL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x0a00202f, op: AMOSWAP_W_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOXOR.D rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x2000302f, op: AMOXOR_D, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOXOR.D.AQ rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x2400302f, op: AMOXOR_D_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOXOR.D.AQRL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x2600302f, op: AMOXOR_D_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOXOR.D.RL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x2200302f, op: AMOXOR_D_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOXOR.W rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x2000202f, op: AMOXOR_W, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOXOR.W.AQ rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x2400202f, op: AMOXOR_W_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOXOR.W.AQRL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x2600202f, op: AMOXOR_W_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// AMOXOR.W.RL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x2200202f, op: AMOXOR_W_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
+	// AMOADD.D rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x0000302f, op: AMOADD_D, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOADD.D.AQ rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x0400302f, op: AMOADD_D_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOADD.D.AQRL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x0600302f, op: AMOADD_D_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOADD.D.RL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x0200302f, op: AMOADD_D_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOADD.W rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x0000202f, op: AMOADD_W, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOADD.W.AQ rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x0400202f, op: AMOADD_W_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOADD.W.AQRL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x0600202f, op: AMOADD_W_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOADD.W.RL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x0200202f, op: AMOADD_W_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOAND.D rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x6000302f, op: AMOAND_D, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOAND.D.AQ rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x6400302f, op: AMOAND_D_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOAND.D.AQRL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x6600302f, op: AMOAND_D_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOAND.D.RL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x6200302f, op: AMOAND_D_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOAND.W rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x6000202f, op: AMOAND_W, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOAND.W.AQ rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x6400202f, op: AMOAND_W_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOAND.W.AQRL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x6600202f, op: AMOAND_W_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOAND.W.RL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x6200202f, op: AMOAND_W_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOMAXU.D rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0xe000302f, op: AMOMAXU_D, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOMAXU.D.AQ rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0xe400302f, op: AMOMAXU_D_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOMAXU.D.AQRL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0xe600302f, op: AMOMAXU_D_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOMAXU.D.RL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0xe200302f, op: AMOMAXU_D_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOMAXU.W rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0xe000202f, op: AMOMAXU_W, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOMAXU.W.AQ rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0xe400202f, op: AMOMAXU_W_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOMAXU.W.AQRL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0xe600202f, op: AMOMAXU_W_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOMAXU.W.RL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0xe200202f, op: AMOMAXU_W_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOMAX.D rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0xa000302f, op: AMOMAX_D, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOMAX.D.AQ rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0xa400302f, op: AMOMAX_D_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOMAX.D.AQRL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0xa600302f, op: AMOMAX_D_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOMAX.D.RL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0xa200302f, op: AMOMAX_D_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOMAX.W rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0xa000202f, op: AMOMAX_W, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOMAX.W.AQ rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0xa400202f, op: AMOMAX_W_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOMAX.W.AQRL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0xa600202f, op: AMOMAX_W_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOMAX.W.RL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0xa200202f, op: AMOMAX_W_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOMINU.D rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0xc000302f, op: AMOMINU_D, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOMINU.D.AQ rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0xc400302f, op: AMOMINU_D_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOMINU.D.AQRL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0xc600302f, op: AMOMINU_D_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOMINU.D.RL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0xc200302f, op: AMOMINU_D_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOMINU.W rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0xc000202f, op: AMOMINU_W, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOMINU.W.AQ rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0xc400202f, op: AMOMINU_W_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOMINU.W.AQRL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0xc600202f, op: AMOMINU_W_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOMINU.W.RL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0xc200202f, op: AMOMINU_W_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOMIN.D rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x8000302f, op: AMOMIN_D, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOMIN.D.AQ rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x8400302f, op: AMOMIN_D_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOMIN.D.AQRL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x8600302f, op: AMOMIN_D_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOMIN.D.RL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x8200302f, op: AMOMIN_D_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOMIN.W rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x8000202f, op: AMOMIN_W, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOMIN.W.AQ rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x8400202f, op: AMOMIN_W_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOMIN.W.AQRL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x8600202f, op: AMOMIN_W_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOMIN.W.RL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x8200202f, op: AMOMIN_W_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOOR.D rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x4000302f, op: AMOOR_D, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOOR.D.AQ rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x4400302f, op: AMOOR_D_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOOR.D.AQRL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x4600302f, op: AMOOR_D_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOOR.D.RL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x4200302f, op: AMOOR_D_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOOR.W rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x4000202f, op: AMOOR_W, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOOR.W.AQ rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x4400202f, op: AMOOR_W_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOOR.W.AQRL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x4600202f, op: AMOOR_W_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOOR.W.RL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x4200202f, op: AMOOR_W_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOSWAP.D rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x0800302f, op: AMOSWAP_D, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOSWAP.D.AQ rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x0c00302f, op: AMOSWAP_D_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOSWAP.D.AQRL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x0e00302f, op: AMOSWAP_D_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOSWAP.D.RL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x0a00302f, op: AMOSWAP_D_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOSWAP.W rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x0800202f, op: AMOSWAP_W, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOSWAP.W.AQ rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x0c00202f, op: AMOSWAP_W_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOSWAP.W.AQRL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x0e00202f, op: AMOSWAP_W_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOSWAP.W.RL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x0a00202f, op: AMOSWAP_W_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOXOR.D rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x2000302f, op: AMOXOR_D, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOXOR.D.AQ rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x2400302f, op: AMOXOR_D_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOXOR.D.AQRL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x2600302f, op: AMOXOR_D_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOXOR.D.RL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x2200302f, op: AMOXOR_D_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOXOR.W rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x2000202f, op: AMOXOR_W, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOXOR.W.AQ rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x2400202f, op: AMOXOR_W_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOXOR.W.AQRL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x2600202f, op: AMOXOR_W_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOXOR.W.RL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x2200202f, op: AMOXOR_W_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
 	// AND rd, rs1, rs2
 	{mask: 0xfe00707f, value: 0x00007033, op: AND, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
 	// ANDI rd, rs1, imm12
@@ -957,6 +2215,10 @@ var instFormats = [...]instFormat{
 	{mask: 0xfff0707f, value: 0x60101013, op: CTZ, args: argTypeList{arg_rd, arg_rs1}},
 	// CTZW rd, rs1
 	{mask: 0xfff0707f, value: 0x6010101b, op: CTZW, args: argTypeList{arg_rd, arg_rs1}},
+	// CZERO.EQZ rd, rs1, rs2
+	{mask: 0xfe00707f, value: 0x0e005033, op: CZERO_EQZ, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
+	// CZERO.NEZ rd, rs1, rs2
+	{mask: 0xfe00707f, value: 0x0e007033, op: CZERO_NEZ, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
 	// C.ADD rd_rs1_n0, c_rs2_n0
 	{mask: 0x0000f003, value: 0x00009002, op: C_ADD, args: argTypeList{arg_rd_rs1_n0, arg_c_rs2_n0}},
 	// C.ADDI rd_rs1_n0, c_nzimm6
@@ -1315,22 +2577,22 @@ var instFormats = [...]instFormat{
 	{mask: 0x0000707f, value: 0x00001003, op: LH, args: argTypeList{arg_rd, arg_rs1_mem}},
 	// LHU rd, rs1_mem
 	{mask: 0x0000707f, value: 0x00005003, op: LHU, args: argTypeList{arg_rd, arg_rs1_mem}},
-	// LR.D rd, rs1_amo
-	{mask: 0xfff0707f, value: 0x1000302f, op: LR_D, args: argTypeList{arg_rd, arg_rs1_amo}},
-	// LR.D.AQ rd, rs1_amo
-	{mask: 0xfff0707f, value: 0x1400302f, op: LR_D_AQ, args: argTypeList{arg_rd, arg_rs1_amo}},
-	// LR.D.AQRL rd, rs1_amo
-	{mask: 0xfff0707f, value: 0x1600302f, op: LR_D_AQRL, args: argTypeList{arg_rd, arg_rs1_amo}},
-	// LR.D.RL rd, rs1_amo
-	{mask: 0xfff0707f, value: 0x1200302f, op: LR_D_RL, args: argTypeList{arg_rd, arg_rs1_amo}},
-	// LR.W rd, rs1_amo
-	{mask: 0xfff0707f, value: 0x1000202f, op: LR_W, args: argTypeList{arg_rd, arg_rs1_amo}},
-	// LR.W.AQ rd, rs1_amo
-	{mask: 0xfff0707f, value: 0x1400202f, op: LR_W_AQ, args: argTypeList{arg_rd, arg_rs1_amo}},
-	// LR.W.AQRL rd, rs1_amo
-	{mask: 0xfff0707f, value: 0x1600202f, op: LR_W_AQRL, args: argTypeList{arg_rd, arg_rs1_amo}},
-	// LR.W.RL rd, rs1_amo
-	{mask: 0xfff0707f, value: 0x1200202f, op: LR_W_RL, args: argTypeList{arg_rd, arg_rs1_amo}},
+	// LR.D rd, rs1_ptr
+	{mask: 0xfff0707f, value: 0x1000302f, op: LR_D, args: argTypeList{arg_rd, arg_rs1_ptr}},
+	// LR.D.AQ rd, rs1_ptr
+	{mask: 0xfff0707f, value: 0x1400302f, op: LR_D_AQ, args: argTypeList{arg_rd, arg_rs1_ptr}},
+	// LR.D.AQRL rd, rs1_ptr
+	{mask: 0xfff0707f, value: 0x1600302f, op: LR_D_AQRL, args: argTypeList{arg_rd, arg_rs1_ptr}},
+	// LR.D.RL rd, rs1_ptr
+	{mask: 0xfff0707f, value: 0x1200302f, op: LR_D_RL, args: argTypeList{arg_rd, arg_rs1_ptr}},
+	// LR.W rd, rs1_ptr
+	{mask: 0xfff0707f, value: 0x1000202f, op: LR_W, args: argTypeList{arg_rd, arg_rs1_ptr}},
+	// LR.W.AQ rd, rs1_ptr
+	{mask: 0xfff0707f, value: 0x1400202f, op: LR_W_AQ, args: argTypeList{arg_rd, arg_rs1_ptr}},
+	// LR.W.AQRL rd, rs1_ptr
+	{mask: 0xfff0707f, value: 0x1600202f, op: LR_W_AQRL, args: argTypeList{arg_rd, arg_rs1_ptr}},
+	// LR.W.RL rd, rs1_ptr
+	{mask: 0xfff0707f, value: 0x1200202f, op: LR_W_RL, args: argTypeList{arg_rd, arg_rs1_ptr}},
 	// LUI rd, imm20
 	{mask: 0x0000007f, value: 0x00000037, op: LUI, args: argTypeList{arg_rd, arg_imm20}},
 	// LW rd, rs1_mem
@@ -1387,22 +2649,22 @@ var instFormats = [...]instFormat{
 	{mask: 0xfe00707f, value: 0x6000503b, op: RORW, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
 	// SB rs2, rs1_store
 	{mask: 0x0000707f, value: 0x00000023, op: SB, args: argTypeList{arg_rs2, arg_rs1_store}},
-	// SC.D rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x1800302f, op: SC_D, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// SC.D.AQ rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x1c00302f, op: SC_D_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// SC.D.AQRL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x1e00302f, op: SC_D_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// SC.D.RL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x1a00302f, op: SC_D_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// SC.W rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x1800202f, op: SC_W, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// SC.W.AQ rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x1c00202f, op: SC_W_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// SC.W.AQRL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x1e00202f, op: SC_W_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
-	// SC.W.RL rd, rs2, rs1_amo
-	{mask: 0xfe00707f, value: 0x1a00202f, op: SC_W_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
+	// SC.D rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x1800302f, op: SC_D, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// SC.D.AQ rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x1c00302f, op: SC_D_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// SC.D.AQRL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x1e00302f, op: SC_D_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// SC.D.RL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x1a00302f, op: SC_D_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// SC.W rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x1800202f, op: SC_W, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// SC.W.AQ rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x1c00202f, op: SC_W_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// SC.W.AQRL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x1e00202f, op: SC_W_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// SC.W.RL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x1a00202f, op: SC_W_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
 	// SD rs2, rs1_store
 	{mask: 0x0000707f, value: 0x00003023, op: SD, args: argTypeList{arg_rs2, arg_rs1_store}},
 	// SEXT.B rd, rs1
@@ -1463,6 +2725,1260 @@ var instFormats = [...]instFormat{
 	{mask: 0xfe00707f, value: 0x4000003b, op: SUBW, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
 	// SW rs2, rs1_store
 	{mask: 0x0000707f, value: 0x00002023, op: SW, args: argTypeList{arg_rs2, arg_rs1_store}},
+	// VAADDU.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x20002057, op: VAADDU_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VAADDU.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x20006057, op: VAADDU_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VAADD.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x24002057, op: VAADD_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VAADD.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x24006057, op: VAADD_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VADC.VIM vs2, simm5, vd
+	{mask: 0xfe00707f, value: 0x40003057, op: VADC_VIM, args: argTypeList{arg_vs2, arg_simm5, arg_vd}},
+	// VADC.VVM vs2, vs1, vd
+	{mask: 0xfe00707f, value: 0x40000057, op: VADC_VVM, args: argTypeList{arg_vs2, arg_vs1, arg_vd}},
+	// VADC.VXM vs2, rs1, vd
+	{mask: 0xfe00707f, value: 0x40004057, op: VADC_VXM, args: argTypeList{arg_vs2, arg_rs1, arg_vd}},
+	// VADD.VI vm, vs2, simm5, vd
+	{mask: 0xfc00707f, value: 0x00003057, op: VADD_VI, args: argTypeList{arg_vm, arg_vs2, arg_simm5, arg_vd}},
+	// VADD.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x00000057, op: VADD_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VADD.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x00004057, op: VADD_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VAND.VI vm, vs2, simm5, vd
+	{mask: 0xfc00707f, value: 0x24003057, op: VAND_VI, args: argTypeList{arg_vm, arg_vs2, arg_simm5, arg_vd}},
+	// VAND.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x24000057, op: VAND_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VAND.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x24004057, op: VAND_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VASUBU.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x28002057, op: VASUBU_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VASUBU.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x28006057, op: VASUBU_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VASUB.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x2c002057, op: VASUB_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VASUB.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x2c006057, op: VASUB_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VCOMPRESS.VM vs2, vs1, vd
+	{mask: 0xfe00707f, value: 0x5e002057, op: VCOMPRESS_VM, args: argTypeList{arg_vs2, arg_vs1, arg_vd}},
+	// VCPOP.M vm, vs2, rd
+	{mask: 0xfc0ff07f, value: 0x40082057, op: VCPOP_M, args: argTypeList{arg_vm, arg_vs2, arg_rd}},
+	// VDIVU.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x80002057, op: VDIVU_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VDIVU.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x80006057, op: VDIVU_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VDIV.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x84002057, op: VDIV_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VDIV.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x84006057, op: VDIV_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VFADD.VF vm, vs2, fs1, vd
+	{mask: 0xfc00707f, value: 0x00005057, op: VFADD_VF, args: argTypeList{arg_vm, arg_vs2, arg_fs1, arg_vd}},
+	// VFADD.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x00001057, op: VFADD_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VFCLASS.V vm, vs2, vd
+	{mask: 0xfc0ff07f, value: 0x4c081057, op: VFCLASS_V, args: argTypeList{arg_vm, arg_vs2, arg_vd}},
+	// VFCVT.F.XU.V vm, vs2, vd
+	{mask: 0xfc0ff07f, value: 0x48011057, op: VFCVT_F_XU_V, args: argTypeList{arg_vm, arg_vs2, arg_vd}},
+	// VFCVT.F.X.V vm, vs2, vd
+	{mask: 0xfc0ff07f, value: 0x48019057, op: VFCVT_F_X_V, args: argTypeList{arg_vm, arg_vs2, arg_vd}},
+	// VFCVT.RTZ.XU.F.V vm, vs2, vd
+	{mask: 0xfc0ff07f, value: 0x48031057, op: VFCVT_RTZ_XU_F_V, args: argTypeList{arg_vm, arg_vs2, arg_vd}},
+	// VFCVT.RTZ.X.F.V vm, vs2, vd
+	{mask: 0xfc0ff07f, value: 0x48039057, op: VFCVT_RTZ_X_F_V, args: argTypeList{arg_vm, arg_vs2, arg_vd}},
+	// VFCVT.XU.F.V vm, vs2, vd
+	{mask: 0xfc0ff07f, value: 0x48001057, op: VFCVT_XU_F_V, args: argTypeList{arg_vm, arg_vs2, arg_vd}},
+	// VFCVT.X.F.V vm, vs2, vd
+	{mask: 0xfc0ff07f, value: 0x48009057, op: VFCVT_X_F_V, args: argTypeList{arg_vm, arg_vs2, arg_vd}},
+	// VFDIV.VF vm, vs2, fs1, vd
+	{mask: 0xfc00707f, value: 0x80005057, op: VFDIV_VF, args: argTypeList{arg_vm, arg_vs2, arg_fs1, arg_vd}},
+	// VFDIV.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x80001057, op: VFDIV_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VFIRST.M vm, vs2, rd
+	{mask: 0xfc0ff07f, value: 0x4008a057, op: VFIRST_M, args: argTypeList{arg_vm, arg_vs2, arg_rd}},
+	// VFMACC.VF vm, vs2, fs1, vd
+	{mask: 0xfc00707f, value: 0xb0005057, op: VFMACC_VF, args: argTypeList{arg_vm, arg_vs2, arg_fs1, arg_vd}},
+	// VFMACC.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xb0001057, op: VFMACC_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VFMADD.VF vm, vs2, fs1, vd
+	{mask: 0xfc00707f, value: 0xa0005057, op: VFMADD_VF, args: argTypeList{arg_vm, arg_vs2, arg_fs1, arg_vd}},
+	// VFMADD.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xa0001057, op: VFMADD_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VFMAX.VF vm, vs2, fs1, vd
+	{mask: 0xfc00707f, value: 0x18005057, op: VFMAX_VF, args: argTypeList{arg_vm, arg_vs2, arg_fs1, arg_vd}},
+	// VFMAX.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x18001057, op: VFMAX_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VFMERGE.VFM vs2, fs1, vd
+	{mask: 0xfe00707f, value: 0x5c005057, op: VFMERGE_VFM, args: argTypeList{arg_vs2, arg_fs1, arg_vd}},
+	// VFMIN.VF vm, vs2, fs1, vd
+	{mask: 0xfc00707f, value: 0x10005057, op: VFMIN_VF, args: argTypeList{arg_vm, arg_vs2, arg_fs1, arg_vd}},
+	// VFMIN.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x10001057, op: VFMIN_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VFMSAC.VF vm, vs2, fs1, vd
+	{mask: 0xfc00707f, value: 0xb8005057, op: VFMSAC_VF, args: argTypeList{arg_vm, arg_vs2, arg_fs1, arg_vd}},
+	// VFMSAC.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xb8001057, op: VFMSAC_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VFMSUB.VF vm, vs2, fs1, vd
+	{mask: 0xfc00707f, value: 0xa8005057, op: VFMSUB_VF, args: argTypeList{arg_vm, arg_vs2, arg_fs1, arg_vd}},
+	// VFMSUB.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xa8001057, op: VFMSUB_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VFMUL.VF vm, vs2, fs1, vd
+	{mask: 0xfc00707f, value: 0x90005057, op: VFMUL_VF, args: argTypeList{arg_vm, arg_vs2, arg_fs1, arg_vd}},
+	// VFMUL.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x90001057, op: VFMUL_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VFMV.F.S vs2, fd
+	{mask: 0xfe0ff07f, value: 0x42001057, op: VFMV_F_S, args: argTypeList{arg_vs2, arg_fd}},
+	// VFMV.S.F fs1, vd
+	{mask: 0xfff0707f, value: 0x42005057, op: VFMV_S_F, args: argTypeList{arg_fs1, arg_vd}},
+	// VFMV.V.F fs1, vd
+	{mask: 0xfff0707f, value: 0x5e005057, op: VFMV_V_F, args: argTypeList{arg_fs1, arg_vd}},
+	// VFNCVT.F.F.W vm, vs2, vd
+	{mask: 0xfc0ff07f, value: 0x480a1057, op: VFNCVT_F_F_W, args: argTypeList{arg_vm, arg_vs2, arg_vd}},
+	// VFNCVT.F.XU.W vm, vs2, vd
+	{mask: 0xfc0ff07f, value: 0x48091057, op: VFNCVT_F_XU_W, args: argTypeList{arg_vm, arg_vs2, arg_vd}},
+	// VFNCVT.F.X.W vm, vs2, vd
+	{mask: 0xfc0ff07f, value: 0x48099057, op: VFNCVT_F_X_W, args: argTypeList{arg_vm, arg_vs2, arg_vd}},
+	// VFNCVT.ROD.F.F.W vm, vs2, vd
+	{mask: 0xfc0ff07f, value: 0x480a9057, op: VFNCVT_ROD_F_F_W, args: argTypeList{arg_vm, arg_vs2, arg_vd}},
+	// VFNCVT.RTZ.XU.F.W vm, vs2, vd
+	{mask: 0xfc0ff07f, value: 0x480b1057, op: VFNCVT_RTZ_XU_F_W, args: argTypeList{arg_vm, arg_vs2, arg_vd}},
+	// VFNCVT.RTZ.X.F.W vm, vs2, vd
+	{mask: 0xfc0ff07f, value: 0x480b9057, op: VFNCVT_RTZ_X_F_W, args: argTypeList{arg_vm, arg_vs2, arg_vd}},
+	// VFNCVT.XU.F.W vm, vs2, vd
+	{mask: 0xfc0ff07f, value: 0x48081057, op: VFNCVT_XU_F_W, args: argTypeList{arg_vm, arg_vs2, arg_vd}},
+	// VFNCVT.X.F.W vm, vs2, vd
+	{mask: 0xfc0ff07f, value: 0x48089057, op: VFNCVT_X_F_W, args: argTypeList{arg_vm, arg_vs2, arg_vd}},
+	// VFNMACC.VF vm, vs2, fs1, vd
+	{mask: 0xfc00707f, value: 0xb4005057, op: VFNMACC_VF, args: argTypeList{arg_vm, arg_vs2, arg_fs1, arg_vd}},
+	// VFNMACC.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xb4001057, op: VFNMACC_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VFNMADD.VF vm, vs2, fs1, vd
+	{mask: 0xfc00707f, value: 0xa4005057, op: VFNMADD_VF, args: argTypeList{arg_vm, arg_vs2, arg_fs1, arg_vd}},
+	// VFNMADD.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xa4001057, op: VFNMADD_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VFNMSAC.VF vm, vs2, fs1, vd
+	{mask: 0xfc00707f, value: 0xbc005057, op: VFNMSAC_VF, args: argTypeList{arg_vm, arg_vs2, arg_fs1, arg_vd}},
+	// VFNMSAC.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xbc001057, op: VFNMSAC_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VFNMSUB.VF vm, vs2, fs1, vd
+	{mask: 0xfc00707f, value: 0xac005057, op: VFNMSUB_VF, args: argTypeList{arg_vm, arg_vs2, arg_fs1, arg_vd}},
+	// VFNMSUB.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xac001057, op: VFNMSUB_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VFRDIV.VF vm, vs2, fs1, vd
+	{mask: 0xfc00707f, value: 0x84005057, op: VFRDIV_VF, args: argTypeList{arg_vm, arg_vs2, arg_fs1, arg_vd}},
+	// VFREC7.V vm, vs2, vd
+	{mask: 0xfc0ff07f, value: 0x4c029057, op: VFREC7_V, args: argTypeList{arg_vm, arg_vs2, arg_vd}},
+	// VFREDMAX.VS vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x1c001057, op: VFREDMAX_VS, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VFREDMIN.VS vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x14001057, op: VFREDMIN_VS, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VFREDOSUM.VS vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x0c001057, op: VFREDOSUM_VS, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VFREDUSUM.VS vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x04001057, op: VFREDUSUM_VS, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VFRSQRT7.V vm, vs2, vd
+	{mask: 0xfc0ff07f, value: 0x4c021057, op: VFRSQRT7_V, args: argTypeList{arg_vm, arg_vs2, arg_vd}},
+	// VFRSUB.VF vm, vs2, fs1, vd
+	{mask: 0xfc00707f, value: 0x9c005057, op: VFRSUB_VF, args: argTypeList{arg_vm, arg_vs2, arg_fs1, arg_vd}},
+	// VFSGNJN.VF vm, vs2, fs1, vd
+	{mask: 0xfc00707f, value: 0x24005057, op: VFSGNJN_VF, args: argTypeList{arg_vm, arg_vs2, arg_fs1, arg_vd}},
+	// VFSGNJN.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x24001057, op: VFSGNJN_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VFSGNJX.VF vm, vs2, fs1, vd
+	{mask: 0xfc00707f, value: 0x28005057, op: VFSGNJX_VF, args: argTypeList{arg_vm, arg_vs2, arg_fs1, arg_vd}},
+	// VFSGNJX.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x28001057, op: VFSGNJX_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VFSGNJ.VF vm, vs2, fs1, vd
+	{mask: 0xfc00707f, value: 0x20005057, op: VFSGNJ_VF, args: argTypeList{arg_vm, arg_vs2, arg_fs1, arg_vd}},
+	// VFSGNJ.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x20001057, op: VFSGNJ_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VFSLIDE1DOWN.VF vm, vs2, fs1, vd
+	{mask: 0xfc00707f, value: 0x3c005057, op: VFSLIDE1DOWN_VF, args: argTypeList{arg_vm, arg_vs2, arg_fs1, arg_vd}},
+	// VFSLIDE1UP.VF vm, vs2, fs1, vd
+	{mask: 0xfc00707f, value: 0x38005057, op: VFSLIDE1UP_VF, args: argTypeList{arg_vm, arg_vs2, arg_fs1, arg_vd}},
+	// VFSQRT.V vm, vs2, vd
+	{mask: 0xfc0ff07f, value: 0x4c001057, op: VFSQRT_V, args: argTypeList{arg_vm, arg_vs2, arg_vd}},
+	// VFSUB.VF vm, vs2, fs1, vd
+	{mask: 0xfc00707f, value: 0x08005057, op: VFSUB_VF, args: argTypeList{arg_vm, arg_vs2, arg_fs1, arg_vd}},
+	// VFSUB.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x08001057, op: VFSUB_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VFWADD.VF vm, vs2, fs1, vd
+	{mask: 0xfc00707f, value: 0xc0005057, op: VFWADD_VF, args: argTypeList{arg_vm, arg_vs2, arg_fs1, arg_vd}},
+	// VFWADD.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xc0001057, op: VFWADD_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VFWADD.WF vm, vs2, fs1, vd
+	{mask: 0xfc00707f, value: 0xd0005057, op: VFWADD_WF, args: argTypeList{arg_vm, arg_vs2, arg_fs1, arg_vd}},
+	// VFWADD.WV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xd0001057, op: VFWADD_WV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VFWCVT.F.F.V vm, vs2, vd
+	{mask: 0xfc0ff07f, value: 0x48061057, op: VFWCVT_F_F_V, args: argTypeList{arg_vm, arg_vs2, arg_vd}},
+	// VFWCVT.F.XU.V vm, vs2, vd
+	{mask: 0xfc0ff07f, value: 0x48051057, op: VFWCVT_F_XU_V, args: argTypeList{arg_vm, arg_vs2, arg_vd}},
+	// VFWCVT.F.X.V vm, vs2, vd
+	{mask: 0xfc0ff07f, value: 0x48059057, op: VFWCVT_F_X_V, args: argTypeList{arg_vm, arg_vs2, arg_vd}},
+	// VFWCVT.RTZ.XU.F.V vm, vs2, vd
+	{mask: 0xfc0ff07f, value: 0x48071057, op: VFWCVT_RTZ_XU_F_V, args: argTypeList{arg_vm, arg_vs2, arg_vd}},
+	// VFWCVT.RTZ.X.F.V vm, vs2, vd
+	{mask: 0xfc0ff07f, value: 0x48079057, op: VFWCVT_RTZ_X_F_V, args: argTypeList{arg_vm, arg_vs2, arg_vd}},
+	// VFWCVT.XU.F.V vm, vs2, vd
+	{mask: 0xfc0ff07f, value: 0x48041057, op: VFWCVT_XU_F_V, args: argTypeList{arg_vm, arg_vs2, arg_vd}},
+	// VFWCVT.X.F.V vm, vs2, vd
+	{mask: 0xfc0ff07f, value: 0x48049057, op: VFWCVT_X_F_V, args: argTypeList{arg_vm, arg_vs2, arg_vd}},
+	// VFWMACC.VF vm, vs2, fs1, vd
+	{mask: 0xfc00707f, value: 0xf0005057, op: VFWMACC_VF, args: argTypeList{arg_vm, arg_vs2, arg_fs1, arg_vd}},
+	// VFWMACC.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xf0001057, op: VFWMACC_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VFWMSAC.VF vm, vs2, fs1, vd
+	{mask: 0xfc00707f, value: 0xf8005057, op: VFWMSAC_VF, args: argTypeList{arg_vm, arg_vs2, arg_fs1, arg_vd}},
+	// VFWMSAC.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xf8001057, op: VFWMSAC_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VFWMUL.VF vm, vs2, fs1, vd
+	{mask: 0xfc00707f, value: 0xe0005057, op: VFWMUL_VF, args: argTypeList{arg_vm, arg_vs2, arg_fs1, arg_vd}},
+	// VFWMUL.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xe0001057, op: VFWMUL_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VFWNMACC.VF vm, vs2, fs1, vd
+	{mask: 0xfc00707f, value: 0xf4005057, op: VFWNMACC_VF, args: argTypeList{arg_vm, arg_vs2, arg_fs1, arg_vd}},
+	// VFWNMACC.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xf4001057, op: VFWNMACC_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VFWNMSAC.VF vm, vs2, fs1, vd
+	{mask: 0xfc00707f, value: 0xfc005057, op: VFWNMSAC_VF, args: argTypeList{arg_vm, arg_vs2, arg_fs1, arg_vd}},
+	// VFWNMSAC.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xfc001057, op: VFWNMSAC_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VFWREDOSUM.VS vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xcc001057, op: VFWREDOSUM_VS, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VFWREDUSUM.VS vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xc4001057, op: VFWREDUSUM_VS, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VFWSUB.VF vm, vs2, fs1, vd
+	{mask: 0xfc00707f, value: 0xc8005057, op: VFWSUB_VF, args: argTypeList{arg_vm, arg_vs2, arg_fs1, arg_vd}},
+	// VFWSUB.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xc8001057, op: VFWSUB_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VFWSUB.WF vm, vs2, fs1, vd
+	{mask: 0xfc00707f, value: 0xd8005057, op: VFWSUB_WF, args: argTypeList{arg_vm, arg_vs2, arg_fs1, arg_vd}},
+	// VFWSUB.WV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xd8001057, op: VFWSUB_WV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VID.V vm, vd
+	{mask: 0xfdfff07f, value: 0x5008a057, op: VID_V, args: argTypeList{arg_vm, arg_vd}},
+	// VIOTA.M vm, vs2, vd
+	{mask: 0xfc0ff07f, value: 0x50082057, op: VIOTA_M, args: argTypeList{arg_vm, arg_vs2, arg_vd}},
+	// VL1RE16.V rs1_ptr, vd
+	{mask: 0xfff0707f, value: 0x02805007, op: VL1RE16_V, args: argTypeList{arg_rs1_ptr, arg_vd}},
+	// VL1RE32.V rs1_ptr, vd
+	{mask: 0xfff0707f, value: 0x02806007, op: VL1RE32_V, args: argTypeList{arg_rs1_ptr, arg_vd}},
+	// VL1RE64.V rs1_ptr, vd
+	{mask: 0xfff0707f, value: 0x02807007, op: VL1RE64_V, args: argTypeList{arg_rs1_ptr, arg_vd}},
+	// VL1RE8.V rs1_ptr, vd
+	{mask: 0xfff0707f, value: 0x02800007, op: VL1RE8_V, args: argTypeList{arg_rs1_ptr, arg_vd}},
+	// VL2RE16.V rs1_ptr, vd
+	{mask: 0xfff0707f, value: 0x22805007, op: VL2RE16_V, args: argTypeList{arg_rs1_ptr, arg_vd}},
+	// VL2RE32.V rs1_ptr, vd
+	{mask: 0xfff0707f, value: 0x22806007, op: VL2RE32_V, args: argTypeList{arg_rs1_ptr, arg_vd}},
+	// VL2RE64.V rs1_ptr, vd
+	{mask: 0xfff0707f, value: 0x22807007, op: VL2RE64_V, args: argTypeList{arg_rs1_ptr, arg_vd}},
+	// VL2RE8.V rs1_ptr, vd
+	{mask: 0xfff0707f, value: 0x22800007, op: VL2RE8_V, args: argTypeList{arg_rs1_ptr, arg_vd}},
+	// VL4RE16.V rs1_ptr, vd
+	{mask: 0xfff0707f, value: 0x62805007, op: VL4RE16_V, args: argTypeList{arg_rs1_ptr, arg_vd}},
+	// VL4RE32.V rs1_ptr, vd
+	{mask: 0xfff0707f, value: 0x62806007, op: VL4RE32_V, args: argTypeList{arg_rs1_ptr, arg_vd}},
+	// VL4RE64.V rs1_ptr, vd
+	{mask: 0xfff0707f, value: 0x62807007, op: VL4RE64_V, args: argTypeList{arg_rs1_ptr, arg_vd}},
+	// VL4RE8.V rs1_ptr, vd
+	{mask: 0xfff0707f, value: 0x62800007, op: VL4RE8_V, args: argTypeList{arg_rs1_ptr, arg_vd}},
+	// VL8RE16.V rs1_ptr, vd
+	{mask: 0xfff0707f, value: 0xe2805007, op: VL8RE16_V, args: argTypeList{arg_rs1_ptr, arg_vd}},
+	// VL8RE32.V rs1_ptr, vd
+	{mask: 0xfff0707f, value: 0xe2806007, op: VL8RE32_V, args: argTypeList{arg_rs1_ptr, arg_vd}},
+	// VL8RE64.V rs1_ptr, vd
+	{mask: 0xfff0707f, value: 0xe2807007, op: VL8RE64_V, args: argTypeList{arg_rs1_ptr, arg_vd}},
+	// VL8RE8.V rs1_ptr, vd
+	{mask: 0xfff0707f, value: 0xe2800007, op: VL8RE8_V, args: argTypeList{arg_rs1_ptr, arg_vd}},
+	// VLE16FF.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x01005007, op: VLE16FF_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLE16.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x00005007, op: VLE16_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLE32FF.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x01006007, op: VLE32FF_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLE32.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x00006007, op: VLE32_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLE64FF.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x01007007, op: VLE64FF_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLE64.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x00007007, op: VLE64_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLE8FF.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x01000007, op: VLE8FF_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLE8.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x00000007, op: VLE8_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLM.V rs1_ptr, vd
+	{mask: 0xfff0707f, value: 0x02b00007, op: VLM_V, args: argTypeList{arg_rs1_ptr, arg_vd}},
+	// VLOXEI16.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x0c005007, op: VLOXEI16_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLOXEI32.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x0c006007, op: VLOXEI32_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLOXEI64.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x0c007007, op: VLOXEI64_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLOXEI8.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x0c000007, op: VLOXEI8_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLOXSEG2EI16.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x2c005007, op: VLOXSEG2EI16_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLOXSEG2EI32.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x2c006007, op: VLOXSEG2EI32_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLOXSEG2EI64.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x2c007007, op: VLOXSEG2EI64_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLOXSEG2EI8.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x2c000007, op: VLOXSEG2EI8_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLOXSEG3EI16.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x4c005007, op: VLOXSEG3EI16_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLOXSEG3EI32.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x4c006007, op: VLOXSEG3EI32_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLOXSEG3EI64.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x4c007007, op: VLOXSEG3EI64_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLOXSEG3EI8.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x4c000007, op: VLOXSEG3EI8_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLOXSEG4EI16.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x6c005007, op: VLOXSEG4EI16_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLOXSEG4EI32.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x6c006007, op: VLOXSEG4EI32_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLOXSEG4EI64.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x6c007007, op: VLOXSEG4EI64_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLOXSEG4EI8.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x6c000007, op: VLOXSEG4EI8_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLOXSEG5EI16.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x8c005007, op: VLOXSEG5EI16_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLOXSEG5EI32.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x8c006007, op: VLOXSEG5EI32_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLOXSEG5EI64.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x8c007007, op: VLOXSEG5EI64_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLOXSEG5EI8.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x8c000007, op: VLOXSEG5EI8_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLOXSEG6EI16.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0xac005007, op: VLOXSEG6EI16_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLOXSEG6EI32.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0xac006007, op: VLOXSEG6EI32_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLOXSEG6EI64.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0xac007007, op: VLOXSEG6EI64_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLOXSEG6EI8.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0xac000007, op: VLOXSEG6EI8_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLOXSEG7EI16.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0xcc005007, op: VLOXSEG7EI16_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLOXSEG7EI32.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0xcc006007, op: VLOXSEG7EI32_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLOXSEG7EI64.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0xcc007007, op: VLOXSEG7EI64_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLOXSEG7EI8.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0xcc000007, op: VLOXSEG7EI8_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLOXSEG8EI16.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0xec005007, op: VLOXSEG8EI16_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLOXSEG8EI32.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0xec006007, op: VLOXSEG8EI32_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLOXSEG8EI64.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0xec007007, op: VLOXSEG8EI64_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLOXSEG8EI8.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0xec000007, op: VLOXSEG8EI8_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLSE16.V vm, rs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x08005007, op: VLSE16_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vd}},
+	// VLSE32.V vm, rs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x08006007, op: VLSE32_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vd}},
+	// VLSE64.V vm, rs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x08007007, op: VLSE64_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vd}},
+	// VLSE8.V vm, rs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x08000007, op: VLSE8_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vd}},
+	// VLSEG2E16FF.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x21005007, op: VLSEG2E16FF_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG2E16.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x20005007, op: VLSEG2E16_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG2E32FF.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x21006007, op: VLSEG2E32FF_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG2E32.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x20006007, op: VLSEG2E32_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG2E64FF.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x21007007, op: VLSEG2E64FF_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG2E64.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x20007007, op: VLSEG2E64_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG2E8FF.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x21000007, op: VLSEG2E8FF_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG2E8.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x20000007, op: VLSEG2E8_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG3E16FF.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x41005007, op: VLSEG3E16FF_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG3E16.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x40005007, op: VLSEG3E16_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG3E32FF.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x41006007, op: VLSEG3E32FF_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG3E32.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x40006007, op: VLSEG3E32_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG3E64FF.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x41007007, op: VLSEG3E64FF_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG3E64.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x40007007, op: VLSEG3E64_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG3E8FF.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x41000007, op: VLSEG3E8FF_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG3E8.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x40000007, op: VLSEG3E8_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG4E16FF.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x61005007, op: VLSEG4E16FF_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG4E16.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x60005007, op: VLSEG4E16_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG4E32FF.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x61006007, op: VLSEG4E32FF_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG4E32.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x60006007, op: VLSEG4E32_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG4E64FF.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x61007007, op: VLSEG4E64FF_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG4E64.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x60007007, op: VLSEG4E64_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG4E8FF.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x61000007, op: VLSEG4E8FF_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG4E8.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x60000007, op: VLSEG4E8_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG5E16FF.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x81005007, op: VLSEG5E16FF_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG5E16.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x80005007, op: VLSEG5E16_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG5E32FF.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x81006007, op: VLSEG5E32FF_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG5E32.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x80006007, op: VLSEG5E32_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG5E64FF.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x81007007, op: VLSEG5E64FF_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG5E64.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x80007007, op: VLSEG5E64_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG5E8FF.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x81000007, op: VLSEG5E8FF_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG5E8.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0x80000007, op: VLSEG5E8_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG6E16FF.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0xa1005007, op: VLSEG6E16FF_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG6E16.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0xa0005007, op: VLSEG6E16_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG6E32FF.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0xa1006007, op: VLSEG6E32FF_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG6E32.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0xa0006007, op: VLSEG6E32_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG6E64FF.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0xa1007007, op: VLSEG6E64FF_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG6E64.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0xa0007007, op: VLSEG6E64_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG6E8FF.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0xa1000007, op: VLSEG6E8FF_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG6E8.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0xa0000007, op: VLSEG6E8_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG7E16FF.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0xc1005007, op: VLSEG7E16FF_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG7E16.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0xc0005007, op: VLSEG7E16_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG7E32FF.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0xc1006007, op: VLSEG7E32FF_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG7E32.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0xc0006007, op: VLSEG7E32_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG7E64FF.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0xc1007007, op: VLSEG7E64FF_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG7E64.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0xc0007007, op: VLSEG7E64_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG7E8FF.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0xc1000007, op: VLSEG7E8FF_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG7E8.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0xc0000007, op: VLSEG7E8_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG8E16FF.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0xe1005007, op: VLSEG8E16FF_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG8E16.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0xe0005007, op: VLSEG8E16_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG8E32FF.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0xe1006007, op: VLSEG8E32FF_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG8E32.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0xe0006007, op: VLSEG8E32_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG8E64FF.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0xe1007007, op: VLSEG8E64FF_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG8E64.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0xe0007007, op: VLSEG8E64_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG8E8FF.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0xe1000007, op: VLSEG8E8FF_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSEG8E8.V vm, rs1_ptr, vd
+	{mask: 0xfdf0707f, value: 0xe0000007, op: VLSEG8E8_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vd}},
+	// VLSSEG2E16.V vm, rs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x28005007, op: VLSSEG2E16_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vd}},
+	// VLSSEG2E32.V vm, rs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x28006007, op: VLSSEG2E32_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vd}},
+	// VLSSEG2E64.V vm, rs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x28007007, op: VLSSEG2E64_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vd}},
+	// VLSSEG2E8.V vm, rs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x28000007, op: VLSSEG2E8_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vd}},
+	// VLSSEG3E16.V vm, rs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x48005007, op: VLSSEG3E16_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vd}},
+	// VLSSEG3E32.V vm, rs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x48006007, op: VLSSEG3E32_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vd}},
+	// VLSSEG3E64.V vm, rs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x48007007, op: VLSSEG3E64_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vd}},
+	// VLSSEG3E8.V vm, rs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x48000007, op: VLSSEG3E8_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vd}},
+	// VLSSEG4E16.V vm, rs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x68005007, op: VLSSEG4E16_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vd}},
+	// VLSSEG4E32.V vm, rs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x68006007, op: VLSSEG4E32_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vd}},
+	// VLSSEG4E64.V vm, rs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x68007007, op: VLSSEG4E64_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vd}},
+	// VLSSEG4E8.V vm, rs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x68000007, op: VLSSEG4E8_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vd}},
+	// VLSSEG5E16.V vm, rs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x88005007, op: VLSSEG5E16_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vd}},
+	// VLSSEG5E32.V vm, rs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x88006007, op: VLSSEG5E32_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vd}},
+	// VLSSEG5E64.V vm, rs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x88007007, op: VLSSEG5E64_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vd}},
+	// VLSSEG5E8.V vm, rs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x88000007, op: VLSSEG5E8_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vd}},
+	// VLSSEG6E16.V vm, rs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0xa8005007, op: VLSSEG6E16_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vd}},
+	// VLSSEG6E32.V vm, rs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0xa8006007, op: VLSSEG6E32_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vd}},
+	// VLSSEG6E64.V vm, rs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0xa8007007, op: VLSSEG6E64_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vd}},
+	// VLSSEG6E8.V vm, rs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0xa8000007, op: VLSSEG6E8_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vd}},
+	// VLSSEG7E16.V vm, rs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0xc8005007, op: VLSSEG7E16_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vd}},
+	// VLSSEG7E32.V vm, rs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0xc8006007, op: VLSSEG7E32_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vd}},
+	// VLSSEG7E64.V vm, rs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0xc8007007, op: VLSSEG7E64_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vd}},
+	// VLSSEG7E8.V vm, rs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0xc8000007, op: VLSSEG7E8_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vd}},
+	// VLSSEG8E16.V vm, rs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0xe8005007, op: VLSSEG8E16_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vd}},
+	// VLSSEG8E32.V vm, rs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0xe8006007, op: VLSSEG8E32_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vd}},
+	// VLSSEG8E64.V vm, rs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0xe8007007, op: VLSSEG8E64_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vd}},
+	// VLSSEG8E8.V vm, rs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0xe8000007, op: VLSSEG8E8_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vd}},
+	// VLUXEI16.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x04005007, op: VLUXEI16_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLUXEI32.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x04006007, op: VLUXEI32_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLUXEI64.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x04007007, op: VLUXEI64_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLUXEI8.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x04000007, op: VLUXEI8_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLUXSEG2EI16.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x24005007, op: VLUXSEG2EI16_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLUXSEG2EI32.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x24006007, op: VLUXSEG2EI32_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLUXSEG2EI64.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x24007007, op: VLUXSEG2EI64_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLUXSEG2EI8.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x24000007, op: VLUXSEG2EI8_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLUXSEG3EI16.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x44005007, op: VLUXSEG3EI16_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLUXSEG3EI32.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x44006007, op: VLUXSEG3EI32_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLUXSEG3EI64.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x44007007, op: VLUXSEG3EI64_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLUXSEG3EI8.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x44000007, op: VLUXSEG3EI8_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLUXSEG4EI16.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x64005007, op: VLUXSEG4EI16_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLUXSEG4EI32.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x64006007, op: VLUXSEG4EI32_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLUXSEG4EI64.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x64007007, op: VLUXSEG4EI64_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLUXSEG4EI8.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x64000007, op: VLUXSEG4EI8_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLUXSEG5EI16.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x84005007, op: VLUXSEG5EI16_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLUXSEG5EI32.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x84006007, op: VLUXSEG5EI32_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLUXSEG5EI64.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x84007007, op: VLUXSEG5EI64_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLUXSEG5EI8.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0x84000007, op: VLUXSEG5EI8_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLUXSEG6EI16.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0xa4005007, op: VLUXSEG6EI16_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLUXSEG6EI32.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0xa4006007, op: VLUXSEG6EI32_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLUXSEG6EI64.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0xa4007007, op: VLUXSEG6EI64_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLUXSEG6EI8.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0xa4000007, op: VLUXSEG6EI8_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLUXSEG7EI16.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0xc4005007, op: VLUXSEG7EI16_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLUXSEG7EI32.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0xc4006007, op: VLUXSEG7EI32_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLUXSEG7EI64.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0xc4007007, op: VLUXSEG7EI64_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLUXSEG7EI8.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0xc4000007, op: VLUXSEG7EI8_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLUXSEG8EI16.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0xe4005007, op: VLUXSEG8EI16_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLUXSEG8EI32.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0xe4006007, op: VLUXSEG8EI32_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLUXSEG8EI64.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0xe4007007, op: VLUXSEG8EI64_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VLUXSEG8EI8.V vm, vs2, rs1_ptr, vd
+	{mask: 0xfc00707f, value: 0xe4000007, op: VLUXSEG8EI8_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vd}},
+	// VMACC.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xb4002057, op: VMACC_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VMACC.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0xb4006057, op: VMACC_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VMADC.VI vs2, simm5, vd
+	{mask: 0xfe00707f, value: 0x46003057, op: VMADC_VI, args: argTypeList{arg_vs2, arg_simm5, arg_vd}},
+	// VMADC.VIM vs2, simm5, vd
+	{mask: 0xfe00707f, value: 0x44003057, op: VMADC_VIM, args: argTypeList{arg_vs2, arg_simm5, arg_vd}},
+	// VMADC.VV vs2, vs1, vd
+	{mask: 0xfe00707f, value: 0x46000057, op: VMADC_VV, args: argTypeList{arg_vs2, arg_vs1, arg_vd}},
+	// VMADC.VVM vs2, vs1, vd
+	{mask: 0xfe00707f, value: 0x44000057, op: VMADC_VVM, args: argTypeList{arg_vs2, arg_vs1, arg_vd}},
+	// VMADC.VX vs2, rs1, vd
+	{mask: 0xfe00707f, value: 0x46004057, op: VMADC_VX, args: argTypeList{arg_vs2, arg_rs1, arg_vd}},
+	// VMADC.VXM vs2, rs1, vd
+	{mask: 0xfe00707f, value: 0x44004057, op: VMADC_VXM, args: argTypeList{arg_vs2, arg_rs1, arg_vd}},
+	// VMADD.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xa4002057, op: VMADD_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VMADD.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0xa4006057, op: VMADD_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VMANDN.MM vs2, vs1, vd
+	{mask: 0xfe00707f, value: 0x62002057, op: VMANDN_MM, args: argTypeList{arg_vs2, arg_vs1, arg_vd}},
+	// VMAND.MM vs2, vs1, vd
+	{mask: 0xfe00707f, value: 0x66002057, op: VMAND_MM, args: argTypeList{arg_vs2, arg_vs1, arg_vd}},
+	// VMAXU.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x18000057, op: VMAXU_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VMAXU.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x18004057, op: VMAXU_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VMAX.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x1c000057, op: VMAX_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VMAX.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x1c004057, op: VMAX_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VMERGE.VIM vs2, simm5, vd
+	{mask: 0xfe00707f, value: 0x5c003057, op: VMERGE_VIM, args: argTypeList{arg_vs2, arg_simm5, arg_vd}},
+	// VMERGE.VVM vs2, vs1, vd
+	{mask: 0xfe00707f, value: 0x5c000057, op: VMERGE_VVM, args: argTypeList{arg_vs2, arg_vs1, arg_vd}},
+	// VMERGE.VXM vs2, rs1, vd
+	{mask: 0xfe00707f, value: 0x5c004057, op: VMERGE_VXM, args: argTypeList{arg_vs2, arg_rs1, arg_vd}},
+	// VMFEQ.VF vm, vs2, fs1, vd
+	{mask: 0xfc00707f, value: 0x60005057, op: VMFEQ_VF, args: argTypeList{arg_vm, arg_vs2, arg_fs1, arg_vd}},
+	// VMFEQ.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x60001057, op: VMFEQ_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VMFGE.VF vm, vs2, fs1, vd
+	{mask: 0xfc00707f, value: 0x7c005057, op: VMFGE_VF, args: argTypeList{arg_vm, arg_vs2, arg_fs1, arg_vd}},
+	// VMFGT.VF vm, vs2, fs1, vd
+	{mask: 0xfc00707f, value: 0x74005057, op: VMFGT_VF, args: argTypeList{arg_vm, arg_vs2, arg_fs1, arg_vd}},
+	// VMFLE.VF vm, vs2, fs1, vd
+	{mask: 0xfc00707f, value: 0x64005057, op: VMFLE_VF, args: argTypeList{arg_vm, arg_vs2, arg_fs1, arg_vd}},
+	// VMFLE.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x64001057, op: VMFLE_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VMFLT.VF vm, vs2, fs1, vd
+	{mask: 0xfc00707f, value: 0x6c005057, op: VMFLT_VF, args: argTypeList{arg_vm, arg_vs2, arg_fs1, arg_vd}},
+	// VMFLT.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x6c001057, op: VMFLT_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VMFNE.VF vm, vs2, fs1, vd
+	{mask: 0xfc00707f, value: 0x70005057, op: VMFNE_VF, args: argTypeList{arg_vm, arg_vs2, arg_fs1, arg_vd}},
+	// VMFNE.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x70001057, op: VMFNE_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VMINU.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x10000057, op: VMINU_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VMINU.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x10004057, op: VMINU_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VMIN.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x14000057, op: VMIN_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VMIN.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x14004057, op: VMIN_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VMNAND.MM vs2, vs1, vd
+	{mask: 0xfe00707f, value: 0x76002057, op: VMNAND_MM, args: argTypeList{arg_vs2, arg_vs1, arg_vd}},
+	// VMNOR.MM vs2, vs1, vd
+	{mask: 0xfe00707f, value: 0x7a002057, op: VMNOR_MM, args: argTypeList{arg_vs2, arg_vs1, arg_vd}},
+	// VMORN.MM vs2, vs1, vd
+	{mask: 0xfe00707f, value: 0x72002057, op: VMORN_MM, args: argTypeList{arg_vs2, arg_vs1, arg_vd}},
+	// VMOR.MM vs2, vs1, vd
+	{mask: 0xfe00707f, value: 0x6a002057, op: VMOR_MM, args: argTypeList{arg_vs2, arg_vs1, arg_vd}},
+	// VMSBC.VV vs2, vs1, vd
+	{mask: 0xfe00707f, value: 0x4e000057, op: VMSBC_VV, args: argTypeList{arg_vs2, arg_vs1, arg_vd}},
+	// VMSBC.VVM vs2, vs1, vd
+	{mask: 0xfe00707f, value: 0x4c000057, op: VMSBC_VVM, args: argTypeList{arg_vs2, arg_vs1, arg_vd}},
+	// VMSBC.VX vs2, rs1, vd
+	{mask: 0xfe00707f, value: 0x4e004057, op: VMSBC_VX, args: argTypeList{arg_vs2, arg_rs1, arg_vd}},
+	// VMSBC.VXM vs2, rs1, vd
+	{mask: 0xfe00707f, value: 0x4c004057, op: VMSBC_VXM, args: argTypeList{arg_vs2, arg_rs1, arg_vd}},
+	// VMSBF.M vm, vs2, vd
+	{mask: 0xfc0ff07f, value: 0x5000a057, op: VMSBF_M, args: argTypeList{arg_vm, arg_vs2, arg_vd}},
+	// VMSEQ.VI vm, vs2, simm5, vd
+	{mask: 0xfc00707f, value: 0x60003057, op: VMSEQ_VI, args: argTypeList{arg_vm, arg_vs2, arg_simm5, arg_vd}},
+	// VMSEQ.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x60000057, op: VMSEQ_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VMSEQ.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x60004057, op: VMSEQ_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VMSGTU.VI vm, vs2, simm5, vd
+	{mask: 0xfc00707f, value: 0x78003057, op: VMSGTU_VI, args: argTypeList{arg_vm, arg_vs2, arg_simm5, arg_vd}},
+	// VMSGTU.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x78004057, op: VMSGTU_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VMSGT.VI vm, vs2, simm5, vd
+	{mask: 0xfc00707f, value: 0x7c003057, op: VMSGT_VI, args: argTypeList{arg_vm, arg_vs2, arg_simm5, arg_vd}},
+	// VMSGT.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x7c004057, op: VMSGT_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VMSIF.M vm, vs2, vd
+	{mask: 0xfc0ff07f, value: 0x5001a057, op: VMSIF_M, args: argTypeList{arg_vm, arg_vs2, arg_vd}},
+	// VMSLEU.VI vm, vs2, simm5, vd
+	{mask: 0xfc00707f, value: 0x70003057, op: VMSLEU_VI, args: argTypeList{arg_vm, arg_vs2, arg_simm5, arg_vd}},
+	// VMSLEU.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x70000057, op: VMSLEU_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VMSLEU.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x70004057, op: VMSLEU_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VMSLE.VI vm, vs2, simm5, vd
+	{mask: 0xfc00707f, value: 0x74003057, op: VMSLE_VI, args: argTypeList{arg_vm, arg_vs2, arg_simm5, arg_vd}},
+	// VMSLE.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x74000057, op: VMSLE_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VMSLE.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x74004057, op: VMSLE_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VMSLTU.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x68000057, op: VMSLTU_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VMSLTU.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x68004057, op: VMSLTU_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VMSLT.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x6c000057, op: VMSLT_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VMSLT.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x6c004057, op: VMSLT_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VMSNE.VI vm, vs2, simm5, vd
+	{mask: 0xfc00707f, value: 0x64003057, op: VMSNE_VI, args: argTypeList{arg_vm, arg_vs2, arg_simm5, arg_vd}},
+	// VMSNE.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x64000057, op: VMSNE_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VMSNE.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x64004057, op: VMSNE_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VMSOF.M vm, vs2, vd
+	{mask: 0xfc0ff07f, value: 0x50012057, op: VMSOF_M, args: argTypeList{arg_vm, arg_vs2, arg_vd}},
+	// VMULHSU.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x98002057, op: VMULHSU_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VMULHSU.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x98006057, op: VMULHSU_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VMULHU.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x90002057, op: VMULHU_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VMULHU.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x90006057, op: VMULHU_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VMULH.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x9c002057, op: VMULH_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VMULH.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x9c006057, op: VMULH_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VMUL.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x94002057, op: VMUL_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VMUL.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x94006057, op: VMUL_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VMV1R.V vs2, vd
+	{mask: 0xfe0ff07f, value: 0x9e003057, op: VMV1R_V, args: argTypeList{arg_vs2, arg_vd}},
+	// VMV2R.V vs2, vd
+	{mask: 0xfe0ff07f, value: 0x9e00b057, op: VMV2R_V, args: argTypeList{arg_vs2, arg_vd}},
+	// VMV4R.V vs2, vd
+	{mask: 0xfe0ff07f, value: 0x9e01b057, op: VMV4R_V, args: argTypeList{arg_vs2, arg_vd}},
+	// VMV8R.V vs2, vd
+	{mask: 0xfe0ff07f, value: 0x9e03b057, op: VMV8R_V, args: argTypeList{arg_vs2, arg_vd}},
+	// VMV.S.X rs1, vd
+	{mask: 0xfff0707f, value: 0x42006057, op: VMV_S_X, args: argTypeList{arg_rs1, arg_vd}},
+	// VMV.V.I simm5, vd
+	{mask: 0xfff0707f, value: 0x5e003057, op: VMV_V_I, args: argTypeList{arg_simm5, arg_vd}},
+	// VMV.V.V vs1, vd
+	{mask: 0xfff0707f, value: 0x5e000057, op: VMV_V_V, args: argTypeList{arg_vs1, arg_vd}},
+	// VMV.V.X rs1, vd
+	{mask: 0xfff0707f, value: 0x5e004057, op: VMV_V_X, args: argTypeList{arg_rs1, arg_vd}},
+	// VMV.X.S vs2, rd
+	{mask: 0xfe0ff07f, value: 0x42002057, op: VMV_X_S, args: argTypeList{arg_vs2, arg_rd}},
+	// VMXNOR.MM vs2, vs1, vd
+	{mask: 0xfe00707f, value: 0x7e002057, op: VMXNOR_MM, args: argTypeList{arg_vs2, arg_vs1, arg_vd}},
+	// VMXOR.MM vs2, vs1, vd
+	{mask: 0xfe00707f, value: 0x6e002057, op: VMXOR_MM, args: argTypeList{arg_vs2, arg_vs1, arg_vd}},
+	// VNCLIPU.WI vm, vs2, zimm5, vd
+	{mask: 0xfc00707f, value: 0xb8003057, op: VNCLIPU_WI, args: argTypeList{arg_vm, arg_vs2, arg_zimm5, arg_vd}},
+	// VNCLIPU.WV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xb8000057, op: VNCLIPU_WV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VNCLIPU.WX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0xb8004057, op: VNCLIPU_WX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VNCLIP.WI vm, vs2, zimm5, vd
+	{mask: 0xfc00707f, value: 0xbc003057, op: VNCLIP_WI, args: argTypeList{arg_vm, arg_vs2, arg_zimm5, arg_vd}},
+	// VNCLIP.WV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xbc000057, op: VNCLIP_WV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VNCLIP.WX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0xbc004057, op: VNCLIP_WX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VNMSAC.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xbc002057, op: VNMSAC_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VNMSAC.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0xbc006057, op: VNMSAC_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VNMSUB.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xac002057, op: VNMSUB_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VNMSUB.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0xac006057, op: VNMSUB_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VNSRA.WI vm, vs2, zimm5, vd
+	{mask: 0xfc00707f, value: 0xb4003057, op: VNSRA_WI, args: argTypeList{arg_vm, arg_vs2, arg_zimm5, arg_vd}},
+	// VNSRA.WV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xb4000057, op: VNSRA_WV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VNSRA.WX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0xb4004057, op: VNSRA_WX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VNSRL.WI vm, vs2, zimm5, vd
+	{mask: 0xfc00707f, value: 0xb0003057, op: VNSRL_WI, args: argTypeList{arg_vm, arg_vs2, arg_zimm5, arg_vd}},
+	// VNSRL.WV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xb0000057, op: VNSRL_WV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VNSRL.WX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0xb0004057, op: VNSRL_WX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VOR.VI vm, vs2, simm5, vd
+	{mask: 0xfc00707f, value: 0x28003057, op: VOR_VI, args: argTypeList{arg_vm, arg_vs2, arg_simm5, arg_vd}},
+	// VOR.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x28000057, op: VOR_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VOR.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x28004057, op: VOR_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VREDAND.VS vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x04002057, op: VREDAND_VS, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VREDMAXU.VS vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x18002057, op: VREDMAXU_VS, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VREDMAX.VS vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x1c002057, op: VREDMAX_VS, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VREDMINU.VS vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x10002057, op: VREDMINU_VS, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VREDMIN.VS vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x14002057, op: VREDMIN_VS, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VREDOR.VS vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x08002057, op: VREDOR_VS, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VREDSUM.VS vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x00002057, op: VREDSUM_VS, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VREDXOR.VS vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x0c002057, op: VREDXOR_VS, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VREMU.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x88002057, op: VREMU_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VREMU.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x88006057, op: VREMU_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VREM.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x8c002057, op: VREM_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VREM.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x8c006057, op: VREM_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VRGATHEREI16.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x38000057, op: VRGATHEREI16_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VRGATHER.VI vm, vs2, zimm5, vd
+	{mask: 0xfc00707f, value: 0x30003057, op: VRGATHER_VI, args: argTypeList{arg_vm, arg_vs2, arg_zimm5, arg_vd}},
+	// VRGATHER.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x30000057, op: VRGATHER_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VRGATHER.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x30004057, op: VRGATHER_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VRSUB.VI vm, vs2, simm5, vd
+	{mask: 0xfc00707f, value: 0x0c003057, op: VRSUB_VI, args: argTypeList{arg_vm, arg_vs2, arg_simm5, arg_vd}},
+	// VRSUB.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x0c004057, op: VRSUB_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VS1R.V rs1_ptr, vs3
+	{mask: 0xfff0707f, value: 0x02800027, op: VS1R_V, args: argTypeList{arg_rs1_ptr, arg_vs3}},
+	// VS2R.V rs1_ptr, vs3
+	{mask: 0xfff0707f, value: 0x22800027, op: VS2R_V, args: argTypeList{arg_rs1_ptr, arg_vs3}},
+	// VS4R.V rs1_ptr, vs3
+	{mask: 0xfff0707f, value: 0x62800027, op: VS4R_V, args: argTypeList{arg_rs1_ptr, arg_vs3}},
+	// VS8R.V rs1_ptr, vs3
+	{mask: 0xfff0707f, value: 0xe2800027, op: VS8R_V, args: argTypeList{arg_rs1_ptr, arg_vs3}},
+	// VSADDU.VI vm, vs2, simm5, vd
+	{mask: 0xfc00707f, value: 0x80003057, op: VSADDU_VI, args: argTypeList{arg_vm, arg_vs2, arg_simm5, arg_vd}},
+	// VSADDU.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x80000057, op: VSADDU_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VSADDU.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x80004057, op: VSADDU_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VSADD.VI vm, vs2, simm5, vd
+	{mask: 0xfc00707f, value: 0x84003057, op: VSADD_VI, args: argTypeList{arg_vm, arg_vs2, arg_simm5, arg_vd}},
+	// VSADD.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x84000057, op: VSADD_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VSADD.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x84004057, op: VSADD_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VSBC.VVM vs2, vs1, vd
+	{mask: 0xfe00707f, value: 0x48000057, op: VSBC_VVM, args: argTypeList{arg_vs2, arg_vs1, arg_vd}},
+	// VSBC.VXM vs2, rs1, vd
+	{mask: 0xfe00707f, value: 0x48004057, op: VSBC_VXM, args: argTypeList{arg_vs2, arg_rs1, arg_vd}},
+	// VSE16.V vm, rs1_ptr, vs3
+	{mask: 0xfdf0707f, value: 0x00005027, op: VSE16_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vs3}},
+	// VSE32.V vm, rs1_ptr, vs3
+	{mask: 0xfdf0707f, value: 0x00006027, op: VSE32_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vs3}},
+	// VSE64.V vm, rs1_ptr, vs3
+	{mask: 0xfdf0707f, value: 0x00007027, op: VSE64_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vs3}},
+	// VSE8.V vm, rs1_ptr, vs3
+	{mask: 0xfdf0707f, value: 0x00000027, op: VSE8_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vs3}},
+	// VSETIVLI vtype_zimm10, zimm, rd
+	{mask: 0xc000707f, value: 0xc0007057, op: VSETIVLI, args: argTypeList{arg_vtype_zimm10, arg_zimm, arg_rd}},
+	// VSETVL rs2, rs1, rd
+	{mask: 0xfe00707f, value: 0x80007057, op: VSETVL, args: argTypeList{arg_rs2, arg_rs1, arg_rd}},
+	// VSETVLI vtype_zimm11, rs1, rd
+	{mask: 0x8000707f, value: 0x00007057, op: VSETVLI, args: argTypeList{arg_vtype_zimm11, arg_rs1, arg_rd}},
+	// VSEXT.VF2 vm, vs2, vd
+	{mask: 0xfc0ff07f, value: 0x4803a057, op: VSEXT_VF2, args: argTypeList{arg_vm, arg_vs2, arg_vd}},
+	// VSEXT.VF4 vm, vs2, vd
+	{mask: 0xfc0ff07f, value: 0x4802a057, op: VSEXT_VF4, args: argTypeList{arg_vm, arg_vs2, arg_vd}},
+	// VSEXT.VF8 vm, vs2, vd
+	{mask: 0xfc0ff07f, value: 0x4801a057, op: VSEXT_VF8, args: argTypeList{arg_vm, arg_vs2, arg_vd}},
+	// VSLIDE1DOWN.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x3c006057, op: VSLIDE1DOWN_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VSLIDE1UP.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x38006057, op: VSLIDE1UP_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VSLIDEDOWN.VI vm, vs2, zimm5, vd
+	{mask: 0xfc00707f, value: 0x3c003057, op: VSLIDEDOWN_VI, args: argTypeList{arg_vm, arg_vs2, arg_zimm5, arg_vd}},
+	// VSLIDEDOWN.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x3c004057, op: VSLIDEDOWN_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VSLIDEUP.VI vm, vs2, zimm5, vd
+	{mask: 0xfc00707f, value: 0x38003057, op: VSLIDEUP_VI, args: argTypeList{arg_vm, arg_vs2, arg_zimm5, arg_vd}},
+	// VSLIDEUP.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x38004057, op: VSLIDEUP_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VSLL.VI vm, vs2, zimm5, vd
+	{mask: 0xfc00707f, value: 0x94003057, op: VSLL_VI, args: argTypeList{arg_vm, arg_vs2, arg_zimm5, arg_vd}},
+	// VSLL.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x94000057, op: VSLL_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VSLL.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x94004057, op: VSLL_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VSMUL.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x9c000057, op: VSMUL_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VSMUL.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x9c004057, op: VSMUL_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VSM.V rs1_ptr, vs3
+	{mask: 0xfff0707f, value: 0x02b00027, op: VSM_V, args: argTypeList{arg_rs1_ptr, arg_vs3}},
+	// VSOXEI16.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x0c005027, op: VSOXEI16_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSOXEI32.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x0c006027, op: VSOXEI32_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSOXEI64.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x0c007027, op: VSOXEI64_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSOXEI8.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x0c000027, op: VSOXEI8_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSOXSEG2EI16.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x2c005027, op: VSOXSEG2EI16_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSOXSEG2EI32.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x2c006027, op: VSOXSEG2EI32_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSOXSEG2EI64.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x2c007027, op: VSOXSEG2EI64_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSOXSEG2EI8.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x2c000027, op: VSOXSEG2EI8_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSOXSEG3EI16.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x4c005027, op: VSOXSEG3EI16_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSOXSEG3EI32.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x4c006027, op: VSOXSEG3EI32_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSOXSEG3EI64.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x4c007027, op: VSOXSEG3EI64_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSOXSEG3EI8.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x4c000027, op: VSOXSEG3EI8_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSOXSEG4EI16.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x6c005027, op: VSOXSEG4EI16_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSOXSEG4EI32.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x6c006027, op: VSOXSEG4EI32_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSOXSEG4EI64.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x6c007027, op: VSOXSEG4EI64_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSOXSEG4EI8.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x6c000027, op: VSOXSEG4EI8_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSOXSEG5EI16.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x8c005027, op: VSOXSEG5EI16_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSOXSEG5EI32.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x8c006027, op: VSOXSEG5EI32_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSOXSEG5EI64.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x8c007027, op: VSOXSEG5EI64_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSOXSEG5EI8.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x8c000027, op: VSOXSEG5EI8_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSOXSEG6EI16.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0xac005027, op: VSOXSEG6EI16_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSOXSEG6EI32.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0xac006027, op: VSOXSEG6EI32_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSOXSEG6EI64.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0xac007027, op: VSOXSEG6EI64_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSOXSEG6EI8.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0xac000027, op: VSOXSEG6EI8_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSOXSEG7EI16.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0xcc005027, op: VSOXSEG7EI16_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSOXSEG7EI32.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0xcc006027, op: VSOXSEG7EI32_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSOXSEG7EI64.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0xcc007027, op: VSOXSEG7EI64_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSOXSEG7EI8.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0xcc000027, op: VSOXSEG7EI8_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSOXSEG8EI16.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0xec005027, op: VSOXSEG8EI16_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSOXSEG8EI32.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0xec006027, op: VSOXSEG8EI32_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSOXSEG8EI64.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0xec007027, op: VSOXSEG8EI64_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSOXSEG8EI8.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0xec000027, op: VSOXSEG8EI8_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSRA.VI vm, vs2, zimm5, vd
+	{mask: 0xfc00707f, value: 0xa4003057, op: VSRA_VI, args: argTypeList{arg_vm, arg_vs2, arg_zimm5, arg_vd}},
+	// VSRA.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xa4000057, op: VSRA_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VSRA.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0xa4004057, op: VSRA_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VSRL.VI vm, vs2, zimm5, vd
+	{mask: 0xfc00707f, value: 0xa0003057, op: VSRL_VI, args: argTypeList{arg_vm, arg_vs2, arg_zimm5, arg_vd}},
+	// VSRL.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xa0000057, op: VSRL_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VSRL.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0xa0004057, op: VSRL_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VSSE16.V vm, rs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x08005027, op: VSSE16_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vs3}},
+	// VSSE32.V vm, rs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x08006027, op: VSSE32_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vs3}},
+	// VSSE64.V vm, rs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x08007027, op: VSSE64_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vs3}},
+	// VSSE8.V vm, rs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x08000027, op: VSSE8_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vs3}},
+	// VSSEG2E16.V vm, rs1_ptr, vs3
+	{mask: 0xfdf0707f, value: 0x20005027, op: VSSEG2E16_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vs3}},
+	// VSSEG2E32.V vm, rs1_ptr, vs3
+	{mask: 0xfdf0707f, value: 0x20006027, op: VSSEG2E32_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vs3}},
+	// VSSEG2E64.V vm, rs1_ptr, vs3
+	{mask: 0xfdf0707f, value: 0x20007027, op: VSSEG2E64_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vs3}},
+	// VSSEG2E8.V vm, rs1_ptr, vs3
+	{mask: 0xfdf0707f, value: 0x20000027, op: VSSEG2E8_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vs3}},
+	// VSSEG3E16.V vm, rs1_ptr, vs3
+	{mask: 0xfdf0707f, value: 0x40005027, op: VSSEG3E16_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vs3}},
+	// VSSEG3E32.V vm, rs1_ptr, vs3
+	{mask: 0xfdf0707f, value: 0x40006027, op: VSSEG3E32_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vs3}},
+	// VSSEG3E64.V vm, rs1_ptr, vs3
+	{mask: 0xfdf0707f, value: 0x40007027, op: VSSEG3E64_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vs3}},
+	// VSSEG3E8.V vm, rs1_ptr, vs3
+	{mask: 0xfdf0707f, value: 0x40000027, op: VSSEG3E8_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vs3}},
+	// VSSEG4E16.V vm, rs1_ptr, vs3
+	{mask: 0xfdf0707f, value: 0x60005027, op: VSSEG4E16_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vs3}},
+	// VSSEG4E32.V vm, rs1_ptr, vs3
+	{mask: 0xfdf0707f, value: 0x60006027, op: VSSEG4E32_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vs3}},
+	// VSSEG4E64.V vm, rs1_ptr, vs3
+	{mask: 0xfdf0707f, value: 0x60007027, op: VSSEG4E64_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vs3}},
+	// VSSEG4E8.V vm, rs1_ptr, vs3
+	{mask: 0xfdf0707f, value: 0x60000027, op: VSSEG4E8_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vs3}},
+	// VSSEG5E16.V vm, rs1_ptr, vs3
+	{mask: 0xfdf0707f, value: 0x80005027, op: VSSEG5E16_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vs3}},
+	// VSSEG5E32.V vm, rs1_ptr, vs3
+	{mask: 0xfdf0707f, value: 0x80006027, op: VSSEG5E32_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vs3}},
+	// VSSEG5E64.V vm, rs1_ptr, vs3
+	{mask: 0xfdf0707f, value: 0x80007027, op: VSSEG5E64_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vs3}},
+	// VSSEG5E8.V vm, rs1_ptr, vs3
+	{mask: 0xfdf0707f, value: 0x80000027, op: VSSEG5E8_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vs3}},
+	// VSSEG6E16.V vm, rs1_ptr, vs3
+	{mask: 0xfdf0707f, value: 0xa0005027, op: VSSEG6E16_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vs3}},
+	// VSSEG6E32.V vm, rs1_ptr, vs3
+	{mask: 0xfdf0707f, value: 0xa0006027, op: VSSEG6E32_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vs3}},
+	// VSSEG6E64.V vm, rs1_ptr, vs3
+	{mask: 0xfdf0707f, value: 0xa0007027, op: VSSEG6E64_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vs3}},
+	// VSSEG6E8.V vm, rs1_ptr, vs3
+	{mask: 0xfdf0707f, value: 0xa0000027, op: VSSEG6E8_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vs3}},
+	// VSSEG7E16.V vm, rs1_ptr, vs3
+	{mask: 0xfdf0707f, value: 0xc0005027, op: VSSEG7E16_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vs3}},
+	// VSSEG7E32.V vm, rs1_ptr, vs3
+	{mask: 0xfdf0707f, value: 0xc0006027, op: VSSEG7E32_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vs3}},
+	// VSSEG7E64.V vm, rs1_ptr, vs3
+	{mask: 0xfdf0707f, value: 0xc0007027, op: VSSEG7E64_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vs3}},
+	// VSSEG7E8.V vm, rs1_ptr, vs3
+	{mask: 0xfdf0707f, value: 0xc0000027, op: VSSEG7E8_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vs3}},
+	// VSSEG8E16.V vm, rs1_ptr, vs3
+	{mask: 0xfdf0707f, value: 0xe0005027, op: VSSEG8E16_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vs3}},
+	// VSSEG8E32.V vm, rs1_ptr, vs3
+	{mask: 0xfdf0707f, value: 0xe0006027, op: VSSEG8E32_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vs3}},
+	// VSSEG8E64.V vm, rs1_ptr, vs3
+	{mask: 0xfdf0707f, value: 0xe0007027, op: VSSEG8E64_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vs3}},
+	// VSSEG8E8.V vm, rs1_ptr, vs3
+	{mask: 0xfdf0707f, value: 0xe0000027, op: VSSEG8E8_V, args: argTypeList{arg_vm, arg_rs1_ptr, arg_vs3}},
+	// VSSRA.VI vm, vs2, zimm5, vd
+	{mask: 0xfc00707f, value: 0xac003057, op: VSSRA_VI, args: argTypeList{arg_vm, arg_vs2, arg_zimm5, arg_vd}},
+	// VSSRA.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xac000057, op: VSSRA_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VSSRA.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0xac004057, op: VSSRA_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VSSRL.VI vm, vs2, zimm5, vd
+	{mask: 0xfc00707f, value: 0xa8003057, op: VSSRL_VI, args: argTypeList{arg_vm, arg_vs2, arg_zimm5, arg_vd}},
+	// VSSRL.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xa8000057, op: VSSRL_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VSSRL.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0xa8004057, op: VSSRL_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VSSSEG2E16.V vm, rs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x28005027, op: VSSSEG2E16_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vs3}},
+	// VSSSEG2E32.V vm, rs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x28006027, op: VSSSEG2E32_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vs3}},
+	// VSSSEG2E64.V vm, rs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x28007027, op: VSSSEG2E64_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vs3}},
+	// VSSSEG2E8.V vm, rs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x28000027, op: VSSSEG2E8_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vs3}},
+	// VSSSEG3E16.V vm, rs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x48005027, op: VSSSEG3E16_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vs3}},
+	// VSSSEG3E32.V vm, rs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x48006027, op: VSSSEG3E32_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vs3}},
+	// VSSSEG3E64.V vm, rs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x48007027, op: VSSSEG3E64_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vs3}},
+	// VSSSEG3E8.V vm, rs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x48000027, op: VSSSEG3E8_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vs3}},
+	// VSSSEG4E16.V vm, rs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x68005027, op: VSSSEG4E16_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vs3}},
+	// VSSSEG4E32.V vm, rs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x68006027, op: VSSSEG4E32_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vs3}},
+	// VSSSEG4E64.V vm, rs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x68007027, op: VSSSEG4E64_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vs3}},
+	// VSSSEG4E8.V vm, rs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x68000027, op: VSSSEG4E8_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vs3}},
+	// VSSSEG5E16.V vm, rs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x88005027, op: VSSSEG5E16_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vs3}},
+	// VSSSEG5E32.V vm, rs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x88006027, op: VSSSEG5E32_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vs3}},
+	// VSSSEG5E64.V vm, rs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x88007027, op: VSSSEG5E64_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vs3}},
+	// VSSSEG5E8.V vm, rs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x88000027, op: VSSSEG5E8_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vs3}},
+	// VSSSEG6E16.V vm, rs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0xa8005027, op: VSSSEG6E16_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vs3}},
+	// VSSSEG6E32.V vm, rs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0xa8006027, op: VSSSEG6E32_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vs3}},
+	// VSSSEG6E64.V vm, rs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0xa8007027, op: VSSSEG6E64_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vs3}},
+	// VSSSEG6E8.V vm, rs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0xa8000027, op: VSSSEG6E8_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vs3}},
+	// VSSSEG7E16.V vm, rs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0xc8005027, op: VSSSEG7E16_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vs3}},
+	// VSSSEG7E32.V vm, rs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0xc8006027, op: VSSSEG7E32_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vs3}},
+	// VSSSEG7E64.V vm, rs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0xc8007027, op: VSSSEG7E64_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vs3}},
+	// VSSSEG7E8.V vm, rs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0xc8000027, op: VSSSEG7E8_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vs3}},
+	// VSSSEG8E16.V vm, rs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0xe8005027, op: VSSSEG8E16_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vs3}},
+	// VSSSEG8E32.V vm, rs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0xe8006027, op: VSSSEG8E32_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vs3}},
+	// VSSSEG8E64.V vm, rs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0xe8007027, op: VSSSEG8E64_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vs3}},
+	// VSSSEG8E8.V vm, rs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0xe8000027, op: VSSSEG8E8_V, args: argTypeList{arg_vm, arg_rs2, arg_rs1_ptr, arg_vs3}},
+	// VSSUBU.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x88000057, op: VSSUBU_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VSSUBU.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x88004057, op: VSSUBU_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VSSUB.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x8c000057, op: VSSUB_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VSSUB.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x8c004057, op: VSSUB_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VSUB.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x08000057, op: VSUB_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VSUB.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x08004057, op: VSUB_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VSUXEI16.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x04005027, op: VSUXEI16_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSUXEI32.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x04006027, op: VSUXEI32_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSUXEI64.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x04007027, op: VSUXEI64_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSUXEI8.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x04000027, op: VSUXEI8_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSUXSEG2EI16.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x24005027, op: VSUXSEG2EI16_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSUXSEG2EI32.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x24006027, op: VSUXSEG2EI32_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSUXSEG2EI64.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x24007027, op: VSUXSEG2EI64_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSUXSEG2EI8.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x24000027, op: VSUXSEG2EI8_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSUXSEG3EI16.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x44005027, op: VSUXSEG3EI16_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSUXSEG3EI32.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x44006027, op: VSUXSEG3EI32_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSUXSEG3EI64.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x44007027, op: VSUXSEG3EI64_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSUXSEG3EI8.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x44000027, op: VSUXSEG3EI8_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSUXSEG4EI16.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x64005027, op: VSUXSEG4EI16_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSUXSEG4EI32.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x64006027, op: VSUXSEG4EI32_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSUXSEG4EI64.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x64007027, op: VSUXSEG4EI64_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSUXSEG4EI8.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x64000027, op: VSUXSEG4EI8_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSUXSEG5EI16.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x84005027, op: VSUXSEG5EI16_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSUXSEG5EI32.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x84006027, op: VSUXSEG5EI32_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSUXSEG5EI64.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x84007027, op: VSUXSEG5EI64_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSUXSEG5EI8.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0x84000027, op: VSUXSEG5EI8_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSUXSEG6EI16.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0xa4005027, op: VSUXSEG6EI16_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSUXSEG6EI32.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0xa4006027, op: VSUXSEG6EI32_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSUXSEG6EI64.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0xa4007027, op: VSUXSEG6EI64_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSUXSEG6EI8.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0xa4000027, op: VSUXSEG6EI8_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSUXSEG7EI16.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0xc4005027, op: VSUXSEG7EI16_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSUXSEG7EI32.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0xc4006027, op: VSUXSEG7EI32_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSUXSEG7EI64.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0xc4007027, op: VSUXSEG7EI64_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSUXSEG7EI8.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0xc4000027, op: VSUXSEG7EI8_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSUXSEG8EI16.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0xe4005027, op: VSUXSEG8EI16_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSUXSEG8EI32.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0xe4006027, op: VSUXSEG8EI32_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSUXSEG8EI64.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0xe4007027, op: VSUXSEG8EI64_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VSUXSEG8EI8.V vm, vs2, rs1_ptr, vs3
+	{mask: 0xfc00707f, value: 0xe4000027, op: VSUXSEG8EI8_V, args: argTypeList{arg_vm, arg_vs2, arg_rs1_ptr, arg_vs3}},
+	// VWADDU.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xc0002057, op: VWADDU_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VWADDU.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0xc0006057, op: VWADDU_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VWADDU.WV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xd0002057, op: VWADDU_WV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VWADDU.WX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0xd0006057, op: VWADDU_WX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VWADD.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xc4002057, op: VWADD_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VWADD.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0xc4006057, op: VWADD_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VWADD.WV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xd4002057, op: VWADD_WV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VWADD.WX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0xd4006057, op: VWADD_WX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VWMACCSU.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xfc002057, op: VWMACCSU_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VWMACCSU.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0xfc006057, op: VWMACCSU_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VWMACCUS.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0xf8006057, op: VWMACCUS_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VWMACCU.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xf0002057, op: VWMACCU_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VWMACCU.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0xf0006057, op: VWMACCU_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VWMACC.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xf4002057, op: VWMACC_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VWMACC.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0xf4006057, op: VWMACC_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VWMULSU.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xe8002057, op: VWMULSU_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VWMULSU.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0xe8006057, op: VWMULSU_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VWMULU.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xe0002057, op: VWMULU_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VWMULU.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0xe0006057, op: VWMULU_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VWMUL.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xec002057, op: VWMUL_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VWMUL.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0xec006057, op: VWMUL_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VWREDSUMU.VS vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xc0000057, op: VWREDSUMU_VS, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VWREDSUM.VS vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xc4000057, op: VWREDSUM_VS, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VWSUBU.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xc8002057, op: VWSUBU_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VWSUBU.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0xc8006057, op: VWSUBU_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VWSUBU.WV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xd8002057, op: VWSUBU_WV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VWSUBU.WX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0xd8006057, op: VWSUBU_WX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VWSUB.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xcc002057, op: VWSUB_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VWSUB.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0xcc006057, op: VWSUB_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VWSUB.WV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0xdc002057, op: VWSUB_WV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VWSUB.WX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0xdc006057, op: VWSUB_WX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VXOR.VI vm, vs2, simm5, vd
+	{mask: 0xfc00707f, value: 0x2c003057, op: VXOR_VI, args: argTypeList{arg_vm, arg_vs2, arg_simm5, arg_vd}},
+	// VXOR.VV vm, vs2, vs1, vd
+	{mask: 0xfc00707f, value: 0x2c000057, op: VXOR_VV, args: argTypeList{arg_vm, arg_vs2, arg_vs1, arg_vd}},
+	// VXOR.VX vm, vs2, rs1, vd
+	{mask: 0xfc00707f, value: 0x2c004057, op: VXOR_VX, args: argTypeList{arg_vm, arg_vs2, arg_rs1, arg_vd}},
+	// VZEXT.VF2 vm, vs2, vd
+	{mask: 0xfc0ff07f, value: 0x48032057, op: VZEXT_VF2, args: argTypeList{arg_vm, arg_vs2, arg_vd}},
+	// VZEXT.VF4 vm, vs2, vd
+	{mask: 0xfc0ff07f, value: 0x48022057, op: VZEXT_VF4, args: argTypeList{arg_vm, arg_vs2, arg_vd}},
+	// VZEXT.VF8 vm, vs2, vd
+	{mask: 0xfc0ff07f, value: 0x48012057, op: VZEXT_VF8, args: argTypeList{arg_vm, arg_vs2, arg_vd}},
 	// XNOR rd, rs1, rs2
 	{mask: 0xfe00707f, value: 0x40004033, op: XNOR, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
 	// XOR rd, rs1, rs2

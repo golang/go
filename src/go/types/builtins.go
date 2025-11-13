@@ -94,6 +94,17 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// to type []byte with a second argument of string type followed by ... .
 		// This form appends the bytes of the string."
 
+		// In either case, the first argument must be a slice; in particular it
+		// cannot be the predeclared nil value. Note that nil is not excluded by
+		// the assignability requirement alone for the special case (go.dev/issue/76220).
+		// spec: "If S is a type parameter, all types in its type set
+		// must have the same underlying slice type []E."
+		E, err := sliceElem(x)
+		if err != nil {
+			check.errorf(x, InvalidAppend, "invalid append: %s", err.format(check))
+			return
+		}
+
 		// Handle append(bytes, y...) special case, where
 		// the type set of y is {string} or {string, []byte}.
 		var sig *Signature
@@ -122,13 +133,6 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 		// general case
 		if sig == nil {
-			// spec: "If S is a type parameter, all types in its type set
-			// must have the same underlying slice type []E."
-			E, err := sliceElem(x)
-			if err != nil {
-				check.errorf(x, InvalidAppend, "invalid append: %s", err.format(check))
-				return
-			}
 			// check arguments by creating custom signature
 			sig = makeSig(x.typ, x.typ, NewSlice(E)) // []E required for variadic signature
 			sig.variadic = true
@@ -147,7 +151,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// len(x)
 		mode := invalid
 		var val constant.Value
-		switch t := arrayPtrDeref(under(x.typ)).(type) {
+		switch t := arrayPtrDeref(x.typ.Underlying()).(type) {
 		case *Basic:
 			if isString(t) && id == _Len {
 				if x.mode == constant_ {
@@ -206,7 +210,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 		if mode == invalid {
 			// avoid error if underlying type is invalid
-			if isValid(under(x.typ)) {
+			if isValid(x.typ.Underlying()) {
 				code := InvalidCap
 				if id == _Len {
 					code = InvalidLen
@@ -325,7 +329,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// (applyTypeFunc never calls f with a type parameter)
 		f := func(typ Type) Type {
 			assert(!isTypeParam(typ))
-			if t, _ := under(typ).(*Basic); t != nil {
+			if t, _ := typ.Underlying().(*Basic); t != nil {
 				switch t.kind {
 				case Float32:
 					return Typ[Complex64]
@@ -475,7 +479,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// (applyTypeFunc never calls f with a type parameter)
 		f := func(typ Type) Type {
 			assert(!isTypeParam(typ))
-			if t, _ := under(typ).(*Basic); t != nil {
+			if t, _ := typ.Underlying().(*Basic); t != nil {
 				switch t.kind {
 				case Complex64:
 					return Typ[Float32]
@@ -642,31 +646,31 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// new(T) or new(expr)
 		// (no argument evaluated yet)
 		arg := argList[0]
-		check.exprOrType(x, arg, true)
-		var T Type
+		check.exprOrType(x, arg, false)
+		check.exclude(x, 1<<novalue|1<<builtin)
 		switch x.mode {
-		case builtin:
-			check.errorf(x, UncalledBuiltin, "%s must be called", x)
-			x.mode = invalid
+		case invalid:
+			return
 		case typexpr:
 			// new(T)
-			T = x.typ
-			if !isValid(T) {
-				return
-			}
+			check.validVarType(arg, x.typ)
 		default:
 			// new(expr)
-			check.verifyVersionf(call.Fun, go1_26, "new(expr)")
-			T = Default(x.typ)
-			if T != x.typ {
-				// untyped constant: check for overflow.
-				check.assignment(x, T, "argument to new")
+			if isUntyped(x.typ) {
+				// check for overflow and untyped nil
+				check.assignment(x, nil, "argument to new")
+				if x.mode == invalid {
+					return
+				}
+				assert(isTyped(x.typ))
 			}
-			check.validVarType(arg, T)
+			// report version error only if there are no other errors
+			check.verifyVersionf(call.Fun, go1_26, "new(%s)", arg)
 		}
 
+		T := x.typ
 		x.mode = value
-		x.typ = &Pointer{base: T}
+		x.typ = NewPointer(T)
 		if check.recordTypes() {
 			check.recordBuiltinType(call.Fun, makeSig(x.typ, T))
 		}
@@ -1023,7 +1027,7 @@ func hasVarSize(t Type, seen map[*Named]bool) (varSized bool) {
 		}()
 	}
 
-	switch u := under(t).(type) {
+	switch u := t.Underlying().(type) {
 	case *Array:
 		return hasVarSize(u.elem, seen)
 	case *Struct:
@@ -1115,7 +1119,7 @@ func makeSig(res Type, args ...Type) *Signature {
 // otherwise it returns typ.
 func arrayPtrDeref(typ Type) Type {
 	if p, ok := Unalias(typ).(*Pointer); ok {
-		if a, _ := under(p.base).(*Array); a != nil {
+		if a, _ := p.base.Underlying().(*Array); a != nil {
 			return a
 		}
 	}

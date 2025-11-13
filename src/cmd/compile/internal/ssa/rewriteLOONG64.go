@@ -2368,6 +2368,7 @@ func rewriteValueLOONG64_OpLOONG64MOVBUload(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
+	typ := &b.Func.Config.Types
 	// match: (MOVBUload [off] {sym} ptr (MOVBstore [off] {sym} ptr x _))
 	// result: (MOVBUreg x)
 	for {
@@ -2445,6 +2446,29 @@ func rewriteValueLOONG64_OpLOONG64MOVBUload(v *Value) bool {
 		}
 		v.reset(OpLOONG64MOVBUloadidx)
 		v.AddArg3(ptr, idx, mem)
+		return true
+	}
+	// match: (MOVBUload [off] {sym} (ADDshiftLLV [shift] ptr idx) mem)
+	// cond: off == 0 && sym == nil
+	// result: (MOVBUloadidx ptr (SLLVconst <typ.Int64> [shift] idx) mem)
+	for {
+		off := auxIntToInt32(v.AuxInt)
+		sym := auxToSym(v.Aux)
+		if v_0.Op != OpLOONG64ADDshiftLLV {
+			break
+		}
+		shift := auxIntToInt64(v_0.AuxInt)
+		idx := v_0.Args[1]
+		ptr := v_0.Args[0]
+		mem := v_1
+		if !(off == 0 && sym == nil) {
+			break
+		}
+		v.reset(OpLOONG64MOVBUloadidx)
+		v0 := b.NewValue0(v.Pos, OpLOONG64SLLVconst, typ.Int64)
+		v0.AuxInt = int64ToAuxInt(shift)
+		v0.AddArg(idx)
+		v.AddArg3(ptr, v0, mem)
 		return true
 	}
 	// match: (MOVBUload [off] {sym} (SB) _)
@@ -2675,6 +2699,7 @@ func rewriteValueLOONG64_OpLOONG64MOVBload(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
+	typ := &b.Func.Config.Types
 	// match: (MOVBload [off] {sym} ptr (MOVBstore [off] {sym} ptr x _))
 	// result: (MOVBreg x)
 	for {
@@ -2752,6 +2777,29 @@ func rewriteValueLOONG64_OpLOONG64MOVBload(v *Value) bool {
 		}
 		v.reset(OpLOONG64MOVBloadidx)
 		v.AddArg3(ptr, idx, mem)
+		return true
+	}
+	// match: (MOVBload [off] {sym} (ADDshiftLLV [shift] ptr idx) mem)
+	// cond: off == 0 && sym == nil
+	// result: (MOVBloadidx ptr (SLLVconst <typ.Int64> [shift] idx) mem)
+	for {
+		off := auxIntToInt32(v.AuxInt)
+		sym := auxToSym(v.Aux)
+		if v_0.Op != OpLOONG64ADDshiftLLV {
+			break
+		}
+		shift := auxIntToInt64(v_0.AuxInt)
+		idx := v_0.Args[1]
+		ptr := v_0.Args[0]
+		mem := v_1
+		if !(off == 0 && sym == nil) {
+			break
+		}
+		v.reset(OpLOONG64MOVBloadidx)
+		v0 := b.NewValue0(v.Pos, OpLOONG64SLLVconst, typ.Int64)
+		v0.AuxInt = int64ToAuxInt(shift)
+		v0.AddArg(idx)
+		v.AddArg3(ptr, v0, mem)
 		return true
 	}
 	// match: (MOVBload [off] {sym} (SB) _)
@@ -2880,6 +2928,7 @@ func rewriteValueLOONG64_OpLOONG64MOVBstore(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
+	typ := &b.Func.Config.Types
 	// match: (MOVBstore [off1] {sym} (ADDVconst [off2] ptr) val mem)
 	// cond: is32Bit(int64(off1)+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_dynlink)
 	// result: (MOVBstore [off1+int32(off2)] {sym} ptr val mem)
@@ -3047,6 +3096,30 @@ func rewriteValueLOONG64_OpLOONG64MOVBstore(v *Value) bool {
 		v.AddArg4(ptr, idx, val, mem)
 		return true
 	}
+	// match: (MOVBstore [off] {sym} (ADDshiftLLV [shift] ptr idx) val mem)
+	// cond: off == 0 && sym == nil
+	// result: (MOVBstoreidx ptr (SLLVconst <typ.Int64> [shift] idx) val mem)
+	for {
+		off := auxIntToInt32(v.AuxInt)
+		sym := auxToSym(v.Aux)
+		if v_0.Op != OpLOONG64ADDshiftLLV {
+			break
+		}
+		shift := auxIntToInt64(v_0.AuxInt)
+		idx := v_0.Args[1]
+		ptr := v_0.Args[0]
+		val := v_1
+		mem := v_2
+		if !(off == 0 && sym == nil) {
+			break
+		}
+		v.reset(OpLOONG64MOVBstoreidx)
+		v0 := b.NewValue0(v.Pos, OpLOONG64SLLVconst, typ.Int64)
+		v0.AuxInt = int64ToAuxInt(shift)
+		v0.AddArg(idx)
+		v.AddArg4(ptr, v0, val, mem)
+		return true
+	}
 	return false
 }
 func rewriteValueLOONG64_OpLOONG64MOVBstoreidx(v *Value) bool {
@@ -3099,6 +3172,7 @@ func rewriteValueLOONG64_OpLOONG64MOVDload(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
+	typ := &b.Func.Config.Types
 	// match: (MOVDload [off] {sym} ptr (MOVVstore [off] {sym} ptr val _))
 	// result: (MOVVgpfp val)
 	for {
@@ -3178,6 +3252,29 @@ func rewriteValueLOONG64_OpLOONG64MOVDload(v *Value) bool {
 		v.AddArg3(ptr, idx, mem)
 		return true
 	}
+	// match: (MOVDload [off] {sym} (ADDshiftLLV [shift] ptr idx) mem)
+	// cond: off == 0 && sym == nil
+	// result: (MOVDloadidx ptr (SLLVconst <typ.Int64> [shift] idx) mem)
+	for {
+		off := auxIntToInt32(v.AuxInt)
+		sym := auxToSym(v.Aux)
+		if v_0.Op != OpLOONG64ADDshiftLLV {
+			break
+		}
+		shift := auxIntToInt64(v_0.AuxInt)
+		idx := v_0.Args[1]
+		ptr := v_0.Args[0]
+		mem := v_1
+		if !(off == 0 && sym == nil) {
+			break
+		}
+		v.reset(OpLOONG64MOVDloadidx)
+		v0 := b.NewValue0(v.Pos, OpLOONG64SLLVconst, typ.Int64)
+		v0.AuxInt = int64ToAuxInt(shift)
+		v0.AddArg(idx)
+		v.AddArg3(ptr, v0, mem)
+		return true
+	}
 	return false
 }
 func rewriteValueLOONG64_OpLOONG64MOVDloadidx(v *Value) bool {
@@ -3228,6 +3325,7 @@ func rewriteValueLOONG64_OpLOONG64MOVDstore(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
+	typ := &b.Func.Config.Types
 	// match: (MOVDstore [off] {sym} ptr (MOVVgpfp val) mem)
 	// result: (MOVVstore [off] {sym} ptr val mem)
 	for {
@@ -3310,6 +3408,30 @@ func rewriteValueLOONG64_OpLOONG64MOVDstore(v *Value) bool {
 		v.AddArg4(ptr, idx, val, mem)
 		return true
 	}
+	// match: (MOVDstore [off] {sym} (ADDshiftLLV [shift] ptr idx) val mem)
+	// cond: off == 0 && sym == nil
+	// result: (MOVDstoreidx ptr (SLLVconst <typ.Int64> [shift] idx) val mem)
+	for {
+		off := auxIntToInt32(v.AuxInt)
+		sym := auxToSym(v.Aux)
+		if v_0.Op != OpLOONG64ADDshiftLLV {
+			break
+		}
+		shift := auxIntToInt64(v_0.AuxInt)
+		idx := v_0.Args[1]
+		ptr := v_0.Args[0]
+		val := v_1
+		mem := v_2
+		if !(off == 0 && sym == nil) {
+			break
+		}
+		v.reset(OpLOONG64MOVDstoreidx)
+		v0 := b.NewValue0(v.Pos, OpLOONG64SLLVconst, typ.Int64)
+		v0.AuxInt = int64ToAuxInt(shift)
+		v0.AddArg(idx)
+		v.AddArg4(ptr, v0, val, mem)
+		return true
+	}
 	return false
 }
 func rewriteValueLOONG64_OpLOONG64MOVDstoreidx(v *Value) bool {
@@ -3362,6 +3484,7 @@ func rewriteValueLOONG64_OpLOONG64MOVFload(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
+	typ := &b.Func.Config.Types
 	// match: (MOVFload [off] {sym} ptr (MOVWstore [off] {sym} ptr val _))
 	// result: (MOVWgpfp val)
 	for {
@@ -3441,6 +3564,29 @@ func rewriteValueLOONG64_OpLOONG64MOVFload(v *Value) bool {
 		v.AddArg3(ptr, idx, mem)
 		return true
 	}
+	// match: (MOVFload [off] {sym} (ADDshiftLLV [shift] ptr idx) mem)
+	// cond: off == 0 && sym == nil
+	// result: (MOVFloadidx ptr (SLLVconst <typ.Int64> [shift] idx) mem)
+	for {
+		off := auxIntToInt32(v.AuxInt)
+		sym := auxToSym(v.Aux)
+		if v_0.Op != OpLOONG64ADDshiftLLV {
+			break
+		}
+		shift := auxIntToInt64(v_0.AuxInt)
+		idx := v_0.Args[1]
+		ptr := v_0.Args[0]
+		mem := v_1
+		if !(off == 0 && sym == nil) {
+			break
+		}
+		v.reset(OpLOONG64MOVFloadidx)
+		v0 := b.NewValue0(v.Pos, OpLOONG64SLLVconst, typ.Int64)
+		v0.AuxInt = int64ToAuxInt(shift)
+		v0.AddArg(idx)
+		v.AddArg3(ptr, v0, mem)
+		return true
+	}
 	return false
 }
 func rewriteValueLOONG64_OpLOONG64MOVFloadidx(v *Value) bool {
@@ -3491,6 +3637,7 @@ func rewriteValueLOONG64_OpLOONG64MOVFstore(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
+	typ := &b.Func.Config.Types
 	// match: (MOVFstore [off] {sym} ptr (MOVWgpfp val) mem)
 	// result: (MOVWstore [off] {sym} ptr val mem)
 	for {
@@ -3573,6 +3720,30 @@ func rewriteValueLOONG64_OpLOONG64MOVFstore(v *Value) bool {
 		v.AddArg4(ptr, idx, val, mem)
 		return true
 	}
+	// match: (MOVFstore [off] {sym} (ADDshiftLLV [shift] ptr idx) val mem)
+	// cond: off == 0 && sym == nil
+	// result: (MOVFstoreidx ptr (SLLVconst <typ.Int64> [shift] idx) val mem)
+	for {
+		off := auxIntToInt32(v.AuxInt)
+		sym := auxToSym(v.Aux)
+		if v_0.Op != OpLOONG64ADDshiftLLV {
+			break
+		}
+		shift := auxIntToInt64(v_0.AuxInt)
+		idx := v_0.Args[1]
+		ptr := v_0.Args[0]
+		val := v_1
+		mem := v_2
+		if !(off == 0 && sym == nil) {
+			break
+		}
+		v.reset(OpLOONG64MOVFstoreidx)
+		v0 := b.NewValue0(v.Pos, OpLOONG64SLLVconst, typ.Int64)
+		v0.AuxInt = int64ToAuxInt(shift)
+		v0.AddArg(idx)
+		v.AddArg4(ptr, v0, val, mem)
+		return true
+	}
 	return false
 }
 func rewriteValueLOONG64_OpLOONG64MOVFstoreidx(v *Value) bool {
@@ -3625,6 +3796,7 @@ func rewriteValueLOONG64_OpLOONG64MOVHUload(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
+	typ := &b.Func.Config.Types
 	// match: (MOVHUload [off] {sym} ptr (MOVHstore [off] {sym} ptr x _))
 	// result: (MOVHUreg x)
 	for {
@@ -3702,6 +3874,29 @@ func rewriteValueLOONG64_OpLOONG64MOVHUload(v *Value) bool {
 		}
 		v.reset(OpLOONG64MOVHUloadidx)
 		v.AddArg3(ptr, idx, mem)
+		return true
+	}
+	// match: (MOVHUload [off] {sym} (ADDshiftLLV [shift] ptr idx) mem)
+	// cond: off == 0 && sym == nil
+	// result: (MOVHUloadidx ptr (SLLVconst <typ.Int64> [shift] idx) mem)
+	for {
+		off := auxIntToInt32(v.AuxInt)
+		sym := auxToSym(v.Aux)
+		if v_0.Op != OpLOONG64ADDshiftLLV {
+			break
+		}
+		shift := auxIntToInt64(v_0.AuxInt)
+		idx := v_0.Args[1]
+		ptr := v_0.Args[0]
+		mem := v_1
+		if !(off == 0 && sym == nil) {
+			break
+		}
+		v.reset(OpLOONG64MOVHUloadidx)
+		v0 := b.NewValue0(v.Pos, OpLOONG64SLLVconst, typ.Int64)
+		v0.AuxInt = int64ToAuxInt(shift)
+		v0.AddArg(idx)
+		v.AddArg3(ptr, v0, mem)
 		return true
 	}
 	// match: (MOVHUload [off] {sym} (SB) _)
@@ -3894,6 +4089,7 @@ func rewriteValueLOONG64_OpLOONG64MOVHload(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
+	typ := &b.Func.Config.Types
 	// match: (MOVHload [off] {sym} ptr (MOVHstore [off] {sym} ptr x _))
 	// result: (MOVHreg x)
 	for {
@@ -3971,6 +4167,29 @@ func rewriteValueLOONG64_OpLOONG64MOVHload(v *Value) bool {
 		}
 		v.reset(OpLOONG64MOVHloadidx)
 		v.AddArg3(ptr, idx, mem)
+		return true
+	}
+	// match: (MOVHload [off] {sym} (ADDshiftLLV [shift] ptr idx) mem)
+	// cond: off == 0 && sym == nil
+	// result: (MOVHloadidx ptr (SLLVconst <typ.Int64> [shift] idx) mem)
+	for {
+		off := auxIntToInt32(v.AuxInt)
+		sym := auxToSym(v.Aux)
+		if v_0.Op != OpLOONG64ADDshiftLLV {
+			break
+		}
+		shift := auxIntToInt64(v_0.AuxInt)
+		idx := v_0.Args[1]
+		ptr := v_0.Args[0]
+		mem := v_1
+		if !(off == 0 && sym == nil) {
+			break
+		}
+		v.reset(OpLOONG64MOVHloadidx)
+		v0 := b.NewValue0(v.Pos, OpLOONG64SLLVconst, typ.Int64)
+		v0.AuxInt = int64ToAuxInt(shift)
+		v0.AddArg(idx)
+		v.AddArg3(ptr, v0, mem)
 		return true
 	}
 	// match: (MOVHload [off] {sym} (SB) _)
@@ -4165,6 +4384,7 @@ func rewriteValueLOONG64_OpLOONG64MOVHstore(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
+	typ := &b.Func.Config.Types
 	// match: (MOVHstore [off1] {sym} (ADDVconst [off2] ptr) val mem)
 	// cond: is32Bit(int64(off1)+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_dynlink)
 	// result: (MOVHstore [off1+int32(off2)] {sym} ptr val mem)
@@ -4298,6 +4518,30 @@ func rewriteValueLOONG64_OpLOONG64MOVHstore(v *Value) bool {
 		v.AddArg4(ptr, idx, val, mem)
 		return true
 	}
+	// match: (MOVHstore [off] {sym} (ADDshiftLLV [shift] ptr idx) val mem)
+	// cond: off == 0 && sym == nil
+	// result: (MOVHstoreidx ptr (SLLVconst <typ.Int64> [shift] idx) val mem)
+	for {
+		off := auxIntToInt32(v.AuxInt)
+		sym := auxToSym(v.Aux)
+		if v_0.Op != OpLOONG64ADDshiftLLV {
+			break
+		}
+		shift := auxIntToInt64(v_0.AuxInt)
+		idx := v_0.Args[1]
+		ptr := v_0.Args[0]
+		val := v_1
+		mem := v_2
+		if !(off == 0 && sym == nil) {
+			break
+		}
+		v.reset(OpLOONG64MOVHstoreidx)
+		v0 := b.NewValue0(v.Pos, OpLOONG64SLLVconst, typ.Int64)
+		v0.AuxInt = int64ToAuxInt(shift)
+		v0.AddArg(idx)
+		v.AddArg4(ptr, v0, val, mem)
+		return true
+	}
 	return false
 }
 func rewriteValueLOONG64_OpLOONG64MOVHstoreidx(v *Value) bool {
@@ -4350,6 +4594,7 @@ func rewriteValueLOONG64_OpLOONG64MOVVload(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
+	typ := &b.Func.Config.Types
 	// match: (MOVVload [off] {sym} ptr (MOVDstore [off] {sym} ptr val _))
 	// result: (MOVVfpgp val)
 	for {
@@ -4444,6 +4689,29 @@ func rewriteValueLOONG64_OpLOONG64MOVVload(v *Value) bool {
 		}
 		v.reset(OpLOONG64MOVVloadidx)
 		v.AddArg3(ptr, idx, mem)
+		return true
+	}
+	// match: (MOVVload [off] {sym} (ADDshiftLLV [shift] ptr idx) mem)
+	// cond: off == 0 && sym == nil
+	// result: (MOVVloadidx ptr (SLLVconst <typ.Int64> [shift] idx) mem)
+	for {
+		off := auxIntToInt32(v.AuxInt)
+		sym := auxToSym(v.Aux)
+		if v_0.Op != OpLOONG64ADDshiftLLV {
+			break
+		}
+		shift := auxIntToInt64(v_0.AuxInt)
+		idx := v_0.Args[1]
+		ptr := v_0.Args[0]
+		mem := v_1
+		if !(off == 0 && sym == nil) {
+			break
+		}
+		v.reset(OpLOONG64MOVVloadidx)
+		v0 := b.NewValue0(v.Pos, OpLOONG64SLLVconst, typ.Int64)
+		v0.AuxInt = int64ToAuxInt(shift)
+		v0.AddArg(idx)
+		v.AddArg3(ptr, v0, mem)
 		return true
 	}
 	// match: (MOVVload [off] {sym} (SB) _)
@@ -4551,6 +4819,7 @@ func rewriteValueLOONG64_OpLOONG64MOVVstore(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
+	typ := &b.Func.Config.Types
 	// match: (MOVVstore [off] {sym} ptr (MOVVfpgp val) mem)
 	// result: (MOVDstore [off] {sym} ptr val mem)
 	for {
@@ -4631,6 +4900,30 @@ func rewriteValueLOONG64_OpLOONG64MOVVstore(v *Value) bool {
 		}
 		v.reset(OpLOONG64MOVVstoreidx)
 		v.AddArg4(ptr, idx, val, mem)
+		return true
+	}
+	// match: (MOVVstore [off] {sym} (ADDshiftLLV [shift] ptr idx) val mem)
+	// cond: off == 0 && sym == nil
+	// result: (MOVVstoreidx ptr (SLLVconst <typ.Int64> [shift] idx) val mem)
+	for {
+		off := auxIntToInt32(v.AuxInt)
+		sym := auxToSym(v.Aux)
+		if v_0.Op != OpLOONG64ADDshiftLLV {
+			break
+		}
+		shift := auxIntToInt64(v_0.AuxInt)
+		idx := v_0.Args[1]
+		ptr := v_0.Args[0]
+		val := v_1
+		mem := v_2
+		if !(off == 0 && sym == nil) {
+			break
+		}
+		v.reset(OpLOONG64MOVVstoreidx)
+		v0 := b.NewValue0(v.Pos, OpLOONG64SLLVconst, typ.Int64)
+		v0.AuxInt = int64ToAuxInt(shift)
+		v0.AddArg(idx)
+		v.AddArg4(ptr, v0, val, mem)
 		return true
 	}
 	return false
@@ -4782,6 +5075,29 @@ func rewriteValueLOONG64_OpLOONG64MOVWUload(v *Value) bool {
 		}
 		v.reset(OpLOONG64MOVWUloadidx)
 		v.AddArg3(ptr, idx, mem)
+		return true
+	}
+	// match: (MOVWUload [off] {sym} (ADDshiftLLV [shift] ptr idx) mem)
+	// cond: off == 0 && sym == nil
+	// result: (MOVWUloadidx ptr (SLLVconst <typ.Int64> [shift] idx) mem)
+	for {
+		off := auxIntToInt32(v.AuxInt)
+		sym := auxToSym(v.Aux)
+		if v_0.Op != OpLOONG64ADDshiftLLV {
+			break
+		}
+		shift := auxIntToInt64(v_0.AuxInt)
+		idx := v_0.Args[1]
+		ptr := v_0.Args[0]
+		mem := v_1
+		if !(off == 0 && sym == nil) {
+			break
+		}
+		v.reset(OpLOONG64MOVWUloadidx)
+		v0 := b.NewValue0(v.Pos, OpLOONG64SLLVconst, typ.Int64)
+		v0.AuxInt = int64ToAuxInt(shift)
+		v0.AddArg(idx)
+		v.AddArg3(ptr, v0, mem)
 		return true
 	}
 	// match: (MOVWUload [off] {sym} (SB) _)
@@ -5007,6 +5323,7 @@ func rewriteValueLOONG64_OpLOONG64MOVWload(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
+	typ := &b.Func.Config.Types
 	// match: (MOVWload [off] {sym} ptr (MOVWstore [off] {sym} ptr x _))
 	// result: (MOVWreg x)
 	for {
@@ -5084,6 +5401,29 @@ func rewriteValueLOONG64_OpLOONG64MOVWload(v *Value) bool {
 		}
 		v.reset(OpLOONG64MOVWloadidx)
 		v.AddArg3(ptr, idx, mem)
+		return true
+	}
+	// match: (MOVWload [off] {sym} (ADDshiftLLV [shift] ptr idx) mem)
+	// cond: off == 0 && sym == nil
+	// result: (MOVWloadidx ptr (SLLVconst <typ.Int64> [shift] idx) mem)
+	for {
+		off := auxIntToInt32(v.AuxInt)
+		sym := auxToSym(v.Aux)
+		if v_0.Op != OpLOONG64ADDshiftLLV {
+			break
+		}
+		shift := auxIntToInt64(v_0.AuxInt)
+		idx := v_0.Args[1]
+		ptr := v_0.Args[0]
+		mem := v_1
+		if !(off == 0 && sym == nil) {
+			break
+		}
+		v.reset(OpLOONG64MOVWloadidx)
+		v0 := b.NewValue0(v.Pos, OpLOONG64SLLVconst, typ.Int64)
+		v0.AuxInt = int64ToAuxInt(shift)
+		v0.AddArg(idx)
+		v.AddArg3(ptr, v0, mem)
 		return true
 	}
 	// match: (MOVWload [off] {sym} (SB) _)
@@ -5333,6 +5673,7 @@ func rewriteValueLOONG64_OpLOONG64MOVWstore(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
+	typ := &b.Func.Config.Types
 	// match: (MOVWstore [off] {sym} ptr (MOVWfpgp val) mem)
 	// result: (MOVFstore [off] {sym} ptr val mem)
 	for {
@@ -5447,6 +5788,30 @@ func rewriteValueLOONG64_OpLOONG64MOVWstore(v *Value) bool {
 		}
 		v.reset(OpLOONG64MOVWstoreidx)
 		v.AddArg4(ptr, idx, val, mem)
+		return true
+	}
+	// match: (MOVWstore [off] {sym} (ADDshiftLLV [shift] ptr idx) val mem)
+	// cond: off == 0 && sym == nil
+	// result: (MOVWstoreidx ptr (SLLVconst <typ.Int64> [shift] idx) val mem)
+	for {
+		off := auxIntToInt32(v.AuxInt)
+		sym := auxToSym(v.Aux)
+		if v_0.Op != OpLOONG64ADDshiftLLV {
+			break
+		}
+		shift := auxIntToInt64(v_0.AuxInt)
+		idx := v_0.Args[1]
+		ptr := v_0.Args[0]
+		val := v_1
+		mem := v_2
+		if !(off == 0 && sym == nil) {
+			break
+		}
+		v.reset(OpLOONG64MOVWstoreidx)
+		v0 := b.NewValue0(v.Pos, OpLOONG64SLLVconst, typ.Int64)
+		v0.AuxInt = int64ToAuxInt(shift)
+		v0.AddArg(idx)
+		v.AddArg4(ptr, v0, val, mem)
 		return true
 	}
 	return false

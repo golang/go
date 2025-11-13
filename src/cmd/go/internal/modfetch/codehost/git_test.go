@@ -16,14 +16,18 @@ import (
 	"io/fs"
 	"log"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"golang.org/x/mod/semver"
 )
 
 func TestMain(m *testing.M) {
@@ -192,8 +196,28 @@ func testRepo(ctx context.Context, t *testing.T, remote string) (Repo, error) {
 	return NewRepo(ctx, vcsName, remote, false)
 }
 
+var gitVersLineExtract = regexp.MustCompile(`git version\s+([\d.]+)`)
+
+func gitVersion(t testing.TB) string {
+	gitOut, runErr := exec.Command("git", "version").CombinedOutput()
+	if runErr != nil {
+		t.Logf("failed to execute git version: %s", runErr)
+		return "v0"
+	}
+	matches := gitVersLineExtract.FindSubmatch(gitOut)
+	if len(matches) < 2 {
+		t.Logf("git version extraction regexp did not match version line: %q", gitOut)
+		return "v0"
+	}
+	return "v" + string(matches[1])
+}
+
+const minGitSHA256Vers = "v2.29"
+
 func TestTags(t *testing.T) {
 	t.Parallel()
+
+	gitVers := gitVersion(t)
 
 	type tagsTest struct {
 		repo   string
@@ -204,6 +228,9 @@ func TestTags(t *testing.T) {
 	runTest := func(tt tagsTest) func(*testing.T) {
 		return func(t *testing.T) {
 			t.Parallel()
+			if tt.repo == gitsha256repo && semver.Compare(gitVers, minGitSHA256Vers) < 0 {
+				t.Skipf("git version is too old (%+v); skipping git sha256 test", gitVers)
+			}
 			ctx := testContext(t)
 
 			r, err := testRepo(ctx, t, tt.repo)
@@ -288,6 +315,8 @@ func TestTags(t *testing.T) {
 func TestLatest(t *testing.T) {
 	t.Parallel()
 
+	gitVers := gitVersion(t)
+
 	type latestTest struct {
 		repo string
 		info *RevInfo
@@ -296,6 +325,10 @@ func TestLatest(t *testing.T) {
 		return func(t *testing.T) {
 			t.Parallel()
 			ctx := testContext(t)
+
+			if tt.repo == gitsha256repo && semver.Compare(gitVers, minGitSHA256Vers) < 0 {
+				t.Skipf("git version is too old (%+v); skipping git sha256 test", gitVers)
+			}
 
 			r, err := testRepo(ctx, t, tt.repo)
 			if err != nil {
@@ -350,12 +383,13 @@ func TestLatest(t *testing.T) {
 				Origin: &Origin{
 					VCS:  "hg",
 					URL:  hgrepo1,
-					Hash: "18518c07eb8ed5c80221e997e518cccaa8c0c287",
+					Ref:  "tip",
+					Hash: "745aacc8b24decc44ac2b13870f5472b479f4d72",
 				},
-				Name:    "18518c07eb8ed5c80221e997e518cccaa8c0c287",
-				Short:   "18518c07eb8e",
-				Version: "18518c07eb8ed5c80221e997e518cccaa8c0c287",
-				Time:    time.Date(2018, 6, 27, 16, 16, 30, 0, time.UTC),
+				Name:    "745aacc8b24decc44ac2b13870f5472b479f4d72",
+				Short:   "745aacc8b24d",
+				Version: "745aacc8b24decc44ac2b13870f5472b479f4d72",
+				Time:    time.Date(2018, 6, 27, 16, 16, 10, 0, time.UTC),
 			},
 		},
 	} {
@@ -375,6 +409,8 @@ func TestLatest(t *testing.T) {
 func TestReadFile(t *testing.T) {
 	t.Parallel()
 
+	gitVers := gitVersion(t)
+
 	type readFileTest struct {
 		repo string
 		rev  string
@@ -386,6 +422,10 @@ func TestReadFile(t *testing.T) {
 		return func(t *testing.T) {
 			t.Parallel()
 			ctx := testContext(t)
+
+			if tt.repo == gitsha256repo && semver.Compare(gitVers, minGitSHA256Vers) < 0 {
+				t.Skipf("git version is too old (%+v); skipping git sha256 test", gitVers)
+			}
 
 			r, err := testRepo(ctx, t, tt.repo)
 			if err != nil {
@@ -468,6 +508,8 @@ type zipFile struct {
 func TestReadZip(t *testing.T) {
 	t.Parallel()
 
+	gitVers := gitVersion(t)
+
 	type readZipTest struct {
 		repo   string
 		rev    string
@@ -479,6 +521,10 @@ func TestReadZip(t *testing.T) {
 		return func(t *testing.T) {
 			t.Parallel()
 			ctx := testContext(t)
+
+			if tt.repo == gitsha256repo && semver.Compare(gitVers, minGitSHA256Vers) < 0 {
+				t.Skipf("git version is too old (%+v); skipping git sha256 test", gitVers)
+			}
 
 			r, err := testRepo(ctx, t, tt.repo)
 			if err != nil {
@@ -630,7 +676,6 @@ func TestReadZip(t *testing.T) {
 			subdir: "",
 			files: map[string]uint64{
 				"prefix/.hg_archival.txt":    ^uint64(0),
-				"prefix/.hgtags":             405,
 				"prefix/v3/sub/dir/file.txt": 16,
 				"prefix/README":              0,
 			},
@@ -743,15 +788,17 @@ func TestReadZip(t *testing.T) {
 }
 
 var hgmap = map[string]string{
-	"HEAD": "41964ddce1180313bdc01d0a39a2813344d6261d", // not tip due to bad hgrepo1 conversion
-	"9d02800338b8a55be062c838d1f02e0c5780b9eb": "8f49ee7a6ddcdec6f0112d9dca48d4a2e4c3c09e",
-	"76a00fb249b7f93091bc2c89a789dab1fc1bc26f": "88fde824ec8b41a76baa16b7e84212cee9f3edd0",
-	"ede458df7cd0fdca520df19a33158086a8a68e81": "41964ddce1180313bdc01d0a39a2813344d6261d",
-	"97f6aa59c81c623494825b43d39e445566e429a4": "c0cbbfb24c7c3c50c35c7b88e7db777da4ff625d",
+	"HEAD": "c0186fb00e50985709b12266419f50bf11860166",
+	"9d02800338b8a55be062c838d1f02e0c5780b9eb": "b1ed98abc2683d326f89b924875bf14bd584898e", // v2.0.2, v2
+	"76a00fb249b7f93091bc2c89a789dab1fc1bc26f": "a546811101e11d6aff2ac72072d2d439b3a88f33", // v2.3, v2.0.1
+	"ede458df7cd0fdca520df19a33158086a8a68e81": "c0186fb00e50985709b12266419f50bf11860166", // v1.2.3, v1.2.4-annotated
+	"97f6aa59c81c623494825b43d39e445566e429a4": "c1638e3673b121d9c83e92166fce2a25dcadd6cb", // foo.txt commit on v2.3.4 branch
 }
 
 func TestStat(t *testing.T) {
 	t.Parallel()
+
+	gitVers := gitVersion(t)
 
 	type statTest struct {
 		repo string
@@ -763,6 +810,10 @@ func TestStat(t *testing.T) {
 		return func(t *testing.T) {
 			t.Parallel()
 			ctx := testContext(t)
+
+			if tt.repo == gitsha256repo && semver.Compare(gitVers, minGitSHA256Vers) < 0 {
+				t.Skipf("git version is too old (%+v); skipping git sha256 test", gitVers)
+			}
 
 			r, err := testRepo(ctx, t, tt.repo)
 			if err != nil {

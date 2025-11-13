@@ -497,7 +497,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		}
 		immMask := int64(riscv.JTypeImmMask)
 
-		val = (val &^ immMask) | int64(imm)
+		val = (val &^ immMask) | imm
 
 		return val, 0, true
 
@@ -719,7 +719,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 			if r.Add() != 0 {
 				name = fmt.Sprintf("%s%+x-tramp%d", oName, r.Add(), i)
 			}
-			tramp = ldr.LookupOrCreateSym(name, int(ldr.SymVersion(rs)))
+			tramp = ldr.LookupOrCreateSym(name, ldr.SymVersion(rs))
 			ldr.SetAttrReachable(tramp, true)
 			if ldr.SymType(tramp) == sym.SDYNIMPORT {
 				// Do not reuse trampoline defined in other module.
@@ -744,7 +744,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 		if ldr.SymType(tramp) == 0 {
 			trampb := ldr.MakeSymbolUpdater(tramp)
 			ctxt.AddTramp(trampb, ldr.SymType(s))
-			genCallTramp(ctxt.Arch, ctxt.LinkMode, ldr, trampb, rs, int64(r.Add()))
+			genCallTramp(ctxt.Arch, ctxt.LinkMode, ldr, trampb, rs, r.Add())
 		}
 		sb := ldr.MakeSymbolUpdater(s)
 		if ldr.SymValue(rs) == 0 {

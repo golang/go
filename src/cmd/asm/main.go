@@ -58,7 +58,7 @@ func main() {
 		// nothing
 	case "index":
 		// known to compiler; ignore here so people can use
-		// the same list with -gcflags=-spectre=LIST and -asmflags=-spectrre=LIST
+		// the same list with -gcflags=-spectre=LIST and -asmflags=-spectre=LIST
 	case "all", "ret":
 		ctxt.Retpoline = true
 	}
@@ -93,7 +93,7 @@ func main() {
 	for _, f := range flag.Args() {
 		lexer := lex.NewLexer(f)
 		parser := asm.NewParser(ctxt, architecture, lexer)
-		ctxt.DiagFunc = func(format string, args ...interface{}) {
+		ctxt.DiagFunc = func(format string, args ...any) {
 			diag = true
 			log.Printf(format, args...)
 		}

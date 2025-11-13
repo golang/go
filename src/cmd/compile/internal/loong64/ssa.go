@@ -692,7 +692,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			//   vs
 			//     16 instructions in the straightline code
 			//   Might as well use straightline code.
-			v.Fatalf("ZeroLoop size too small %d", n)
+			v.Fatalf("MoveLoop size too small %d", n)
 		}
 
 		// Put iteration count in a register.
@@ -1175,8 +1175,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
 		p.AddRestSourceArgs([]obj.Addr{
-			{Type: obj.TYPE_CONST, Offset: int64((v.AuxInt >> 5) & 0x1fffffffff)},
-			{Type: obj.TYPE_CONST, Offset: int64((v.AuxInt >> 0) & 0x1f)},
+			{Type: obj.TYPE_CONST, Offset: (v.AuxInt >> 5) & 0x1fffffffff},
+			{Type: obj.TYPE_CONST, Offset: (v.AuxInt >> 0) & 0x1f},
 		})
 
 	case ssa.OpLOONG64ADDshiftLLV:

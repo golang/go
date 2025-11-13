@@ -99,28 +99,28 @@ func BenchmarkDivconstU64(b *testing.B) {
 		x := uint64(123456789123456789)
 		for i := 0; i < b.N; i++ {
 			x += x << 4
-			u64res = uint64(x) / 3
+			u64res = x / 3
 		}
 	})
 	b.Run("5", func(b *testing.B) {
 		x := uint64(123456789123456789)
 		for i := 0; i < b.N; i++ {
 			x += x << 4
-			u64res = uint64(x) / 5
+			u64res = x / 5
 		}
 	})
 	b.Run("37", func(b *testing.B) {
 		x := uint64(123456789123456789)
 		for i := 0; i < b.N; i++ {
 			x += x << 4
-			u64res = uint64(x) / 37
+			u64res = x / 37
 		}
 	})
 	b.Run("1234567", func(b *testing.B) {
 		x := uint64(123456789123456789)
 		for i := 0; i < b.N; i++ {
 			x += x << 4
-			u64res = uint64(x) / 1234567
+			u64res = x / 1234567
 		}
 	})
 }
