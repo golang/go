@@ -318,13 +318,25 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 			case 128, 256:
 				// VPBLENDVB cases.
 				noMaskName := machineOpName(NoMask, gOp)
-				maskedMergeOpts[noMaskName] = fmt.Sprintf("(VPBLENDVB%d dst (%s %s) mask) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (%sMerging dst %s (VPMOVVec%dx%dToM <types.TypeMask> mask))\n",
+				ruleExisting, ok := maskedMergeOpts[noMaskName]
+				rule := fmt.Sprintf("(VPBLENDVB%d dst (%s %s) mask) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (%sMerging dst %s (VPMOVVec%dx%dToM <types.TypeMask> mask))\n",
 					*maskElem.Bits, noMaskName, data.Args, data.Asm, data.Args, *maskElem.ElemBits, *maskElem.Lanes)
+				if ok && ruleExisting != rule {
+					panic("multiple masked merge rules for one op")
+				} else {
+					maskedMergeOpts[noMaskName] = rule
+				}
 			case 512:
 				// VPBLENDM[BWDQ] cases.
 				noMaskName := machineOpName(NoMask, gOp)
-				maskedMergeOpts[noMaskName] = fmt.Sprintf("(VPBLENDM%sMasked%d dst (%s %s) mask) => (%sMerging dst %s mask)\n",
+				ruleExisting, ok := maskedMergeOpts[noMaskName]
+				rule := fmt.Sprintf("(VPBLENDM%sMasked%d dst (%s %s) mask) => (%sMerging dst %s mask)\n",
 					s2n[*maskElem.ElemBits], *maskElem.Bits, noMaskName, data.Args, data.Asm, data.Args)
+				if ok && ruleExisting != rule {
+					panic("multiple masked merge rules for one op")
+				} else {
+					maskedMergeOpts[noMaskName] = rule
+				}
 			}
 		}
 
@@ -362,10 +374,15 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 		}
 	}
 
+	maskedMergeOptsRules := []string{}
 	for asm, rule := range maskedMergeOpts {
 		if !asmCheck[asm] {
 			continue
 		}
+		maskedMergeOptsRules = append(maskedMergeOptsRules, rule)
+	}
+	slices.Sort(maskedMergeOptsRules)
+	for _, rule := range maskedMergeOptsRules {
 		buffer.WriteString(rule)
 	}
 
