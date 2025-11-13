@@ -7362,22 +7362,6 @@ func rewriteValueRISCV64_OpRISCV64SLTI(v *Value) bool {
 		v.AuxInt = int64ToAuxInt(1)
 		return true
 	}
-	// match: (SLTI [x] (ORI [y] _))
-	// cond: y >= 0 && int64(y) >= int64(x)
-	// result: (MOVDconst [0])
-	for {
-		x := auxIntToInt64(v.AuxInt)
-		if v_0.Op != OpRISCV64ORI {
-			break
-		}
-		y := auxIntToInt64(v_0.AuxInt)
-		if !(y >= 0 && int64(y) >= int64(x)) {
-			break
-		}
-		v.reset(OpRISCV64MOVDconst)
-		v.AuxInt = int64ToAuxInt(0)
-		return true
-	}
 	return false
 }
 func rewriteValueRISCV64_OpRISCV64SLTIU(v *Value) bool {

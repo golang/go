@@ -792,7 +792,6 @@
 // SLTI/SLTIU with known outcomes.
 (SLTI  [x] (ANDI [y] _)) && y >= 0 && int64(y) < int64(x) => (MOVDconst [1])
 (SLTIU [x] (ANDI [y] _)) && y >= 0 && uint64(y) < uint64(x) => (MOVDconst [1])
-(SLTI  [x] (ORI  [y] _)) && y >= 0 && int64(y) >= int64(x) => (MOVDconst [0])
 (SLTIU [x] (ORI  [y] _)) && y >= 0 && uint64(y) >= uint64(x) => (MOVDconst [0])
 
 // SLT/SLTU with known outcomes.
