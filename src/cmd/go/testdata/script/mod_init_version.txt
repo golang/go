@@ -1,0 +1,47 @@
+env TESTGO_VERSION=go1.28-devel
+go mod init example.com
+cmp go.mod go.mod.want-1.26.0
+rm go.mod
+env TESTGO_VERSION=go1.26.0
+go mod init example.com
+cmp go.mod go.mod.want-1.25.0
+rm go.mod
+env TESTGO_VERSION=go1.22.2
+go mod init example.com
+cmp go.mod go.mod.want-1.21.0
+rm go.mod
+env TESTGO_VERSION=go1.25.0-xyzzy
+go mod init example.com
+cmp go.mod go.mod.want-1.24.0
+rm go.mod
+env TESTGO_VERSION=go1.23rc3
+go mod init example.com
+cmp go.mod go.mod.want-1.21.0
+rm go.mod
+env TESTGO_VERSION=go1.18beta2
+go mod init example.com
+cmp go.mod go.mod.want-1.16.0
+-- go.mod.want-1.26.0 --
+module example.com
+
+go 1.26.0
+-- go.mod.want-1.25.0 --
+module example.com
+
+go 1.25.0
+-- go.mod.want-1.24.0 --
+module example.com
+
+go 1.24.0
+-- go.mod.want-1.22.0 --
+module example.com
+
+go 1.22.0
+-- go.mod.want-1.21.0 --
+module example.com
+
+go 1.21.0
+-- go.mod.want-1.16.0 --
+module example.com
+
+go 1.16.0

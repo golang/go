@@ -29,6 +29,7 @@ import (
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/search"
+	igover "internal/gover"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
@@ -826,7 +827,7 @@ func WriteWorkFile(path string, wf *modfile.WorkFile) error {
 	wf.Cleanup()
 	out := modfile.Format(wf.Syntax)
 
-	return os.WriteFile(path, out, 0666)
+	return os.WriteFile(path, out, 0o666)
 }
 
 // UpdateWorkGoVersion updates the go line in wf to be at least goVers,
@@ -1200,7 +1201,7 @@ func CreateModFile(loaderstate *State, ctx context.Context, modPath string) {
 	modFile := new(modfile.File)
 	modFile.AddModuleStmt(modPath)
 	loaderstate.MainModules = makeMainModules(loaderstate, []module.Version{modFile.Module.Mod}, []string{modRoot}, []*modfile.File{modFile}, []*modFileIndex{nil}, nil)
-	addGoStmt(modFile, modFile.Module.Mod, gover.Local()) // Add the go directive before converted module requirements.
+	addGoStmt(modFile, modFile.Module.Mod, DefaultModInitGoVersion()) // Add the go directive before converted module requirements.
 
 	rs := requirementsFromModFiles(loaderstate, ctx, nil, []*modfile.File{modFile}, nil)
 	rs, err := updateRoots(loaderstate, ctx, rs.direct, rs, nil, nil, false)
@@ -1811,9 +1812,7 @@ Run 'go help mod init' for more information.
 	return "", fmt.Errorf(msg, dir, reason)
 }
 
-var (
-	importCommentRE = lazyregexp.New(`(?m)^package[ \t]+[^ \t\r\n/]+[ \t]+//[ \t]+import[ \t]+(\"[^"]+\")[ \t]*\r?\n`)
-)
+var importCommentRE = lazyregexp.New(`(?m)^package[ \t]+[^ \t\r\n/]+[ \t]+//[ \t]+import[ \t]+(\"[^"]+\")[ \t]*\r?\n`)
 
 func findImportComment(file string) string {
 	data, err := os.ReadFile(file)
@@ -2251,4 +2250,30 @@ func CheckGodebug(verb, k, v string) error {
 		}
 	}
 	return fmt.Errorf("unknown %s %q", verb, k)
+}
+
+// DefaultModInitGoVersion returns the appropriate go version to include in a
+// newly initialized module or work file.
+//
+// If the current toolchain version is a stable version of Go 1.N.M, default to
+// go 1.(N-1).0
+//
+// If the current toolchain version is a pre-release version of Go 1.N (Release
+// Candidate M) or a development version of Go 1.N, default to go 1.(N-2).0
+func DefaultModInitGoVersion() string {
+	v := gover.Local()
+	if isPrereleaseOrDevelVersion(v) {
+		v = gover.Prev(gover.Prev(v))
+	} else {
+		v = gover.Prev(v)
+	}
+	if strings.Count(v, ".") < 2 {
+		v += ".0"
+	}
+	return v
+}
+
+func isPrereleaseOrDevelVersion(s string) bool {
+	v := igover.Parse(s)
+	return v.Kind != "" || v.Patch == ""
 }
