@@ -1569,6 +1569,9 @@ func containsCountsLabels(prof *profile.Profile, countLabels map[int64]map[strin
 	return true
 }
 
+// Inlining disabled to make identification simpler.
+//
+//go:noinline
 func goroutineLeakExample() {
 	<-make(chan struct{})
 	panic("unreachable")
@@ -1595,12 +1598,12 @@ func TestGoroutineLeakProfileConcurrency(t *testing.T) {
 
 	checkFrame := func(i int, j int, locations []*profile.Location, expectedFunctionName string) {
 		if len(locations) <= i {
-			t.Errorf("leaked goroutine stack locations out of range at %d of %d", i+1, len(locations))
+			t.Errorf("leaked goroutine stack locations: out of range index %d, length %d", i, len(locations))
 			return
 		}
 		location := locations[i]
 		if len(location.Line) <= j {
-			t.Errorf("leaked goroutine stack location lines out of range at %d of %d", j+1, len(location.Line))
+			t.Errorf("leaked goroutine stack location lines: out of range index %d, length %d", j, len(location.Line))
 			return
 		}
 		if location.Line[j].Function.Name != expectedFunctionName {
@@ -1650,26 +1653,7 @@ func TestGoroutineLeakProfileConcurrency(t *testing.T) {
 				t.Errorf("expected %d leaked goroutines with specific stack configurations, but found %d", leakCount, pc)
 				return
 			}
-			switch len(locations) {
-			case 4:
-				// We expect a receive operation. This is the typical stack.
-				checkFrame(0, 0, locations, "runtime.gopark")
-				checkFrame(1, 0, locations, "runtime.chanrecv")
-				checkFrame(2, 0, locations, "runtime.chanrecv1")
-				switch len(locations[3].Line) {
-				case 2:
-					// Running `go func() { goroutineLeakExample() }()` will produce a stack with 2 lines.
-					// The anonymous function will have the call to goroutineLeakExample inlined.
-					checkFrame(3, 1, locations, "runtime/pprof.TestGoroutineLeakProfileConcurrency.func5")
-					fallthrough
-				case 1:
-					// Running `go goroutineLeakExample()` will produce a stack with 1 line.
-					checkFrame(3, 0, locations, "runtime/pprof.goroutineLeakExample")
-				default:
-					t.Errorf("leaked goroutine stack location expected 1 or 2 lines in the 4th location but found %d", len(locations[3].Line))
-					return
-				}
-			default:
+			if len(locations) < 4 || len(locations) > 5 {
 				message := fmt.Sprintf("leaked goroutine stack expected 4 or 5 locations but found %d", len(locations))
 				for _, location := range locations {
 					for _, line := range location.Line {
@@ -1677,6 +1661,15 @@ func TestGoroutineLeakProfileConcurrency(t *testing.T) {
 					}
 				}
 				t.Errorf("%s", message)
+				return
+			}
+			// We expect a receive operation. This is the typical stack.
+			checkFrame(0, 0, locations, "runtime.gopark")
+			checkFrame(1, 0, locations, "runtime.chanrecv")
+			checkFrame(2, 0, locations, "runtime.chanrecv1")
+			checkFrame(3, 0, locations, "runtime/pprof.goroutineLeakExample")
+			if len(locations) == 5 {
+				checkFrame(4, 0, locations, "runtime/pprof.TestGoroutineLeakProfileConcurrency.func5")
 			}
 		}
 	}
