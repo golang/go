@@ -716,6 +716,9 @@ type m struct {
 	// Up to 10 locks held by this m, maintained by the lock ranking code.
 	locksHeldLen int
 	locksHeld    [10]heldLockInfo
+
+	// self points this M until mexit clears it to return nil.
+	self mWeakPointer
 }
 
 const mRedZoneSize = (16 << 3) * asanenabledBit // redZoneSize(2048)
@@ -730,6 +733,37 @@ type mPadded struct {
 	_ [(1 - goarch.IsWasm) * (2048 - mallocHeaderSize - mRedZoneSize - unsafe.Sizeof(m{}))]byte
 }
 
+// mWeakPointer is a "weak" pointer to an M. A weak pointer for each M is
+// available as m.self. Users may copy mWeakPointer arbitrarily, and get will
+// return the M if it is still live, or nil after mexit.
+//
+// The zero value is treated as a nil pointer.
+//
+// Note that get may race with M exit. A successful get will keep the m object
+// alive, but the M itself may be exited and thus not actually usable.
+type mWeakPointer struct {
+	m *atomic.Pointer[m]
+}
+
+func newMWeakPointer(mp *m) mWeakPointer {
+	w := mWeakPointer{m: new(atomic.Pointer[m])}
+	w.m.Store(mp)
+	return w
+}
+
+func (w mWeakPointer) get() *m {
+	if w.m == nil {
+		return nil
+	}
+	return w.m.Load()
+}
+
+// clear sets the weak pointer to nil. It cannot be used on zero value
+// mWeakPointers.
+func (w mWeakPointer) clear() {
+	w.m.Store(nil)
+}
+
 type p struct {
 	id          int32
 	status      uint32 // one of pidle/prunning/...
@@ -741,6 +775,17 @@ type p struct {
 	mcache      *mcache
 	pcache      pageCache
 	raceprocctx uintptr
+
+	// oldm is the previous m this p ran on.
+	//
+	// We are not assosciated with this m, so we have no control over its
+	// lifecycle. This value is an m.self object which points to the m
+	// until the m exits.
+	//
+	// Note that this m may be idle, running, or exiting. It should only be
+	// used with mgetSpecific, which will take ownership of the m only if
+	// it is idle.
+	oldm mWeakPointer
 
 	deferpool    []*_defer // pool of available defer structs (see panic.go)
 	deferpoolbuf [32]*_defer
@@ -794,7 +839,7 @@ type p struct {
 
 	// Per-P GC state
 	gcAssistTime         int64 // Nanoseconds in assistAlloc
-	gcFractionalMarkTime int64 // Nanoseconds in fractional mark worker (atomic)
+	gcFractionalMarkTime atomic.Int64 // Nanoseconds in fractional mark worker
 
 	// limiterEvent tracks events for the GC CPU limiter.
 	limiterEvent limiterEvent

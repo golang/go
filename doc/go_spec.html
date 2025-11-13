@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Language version go1.26 (Nov 9, 2025)",
+	"Subtitle": "Language version go1.26 (Nov 12, 2025)",
 	"Path": "/ref/spec"
 }-->
 
@@ -2685,22 +2685,6 @@ Type parameters may also be declared by the receiver specification
 of a <a href="#Method_declarations">method declaration</a> associated
 with a generic type.
 </p>
-
-<p>
-Within a type parameter list of a generic type <code>T</code>, a type constraint
-may not (directly, or indirectly through the type parameter list of another
-generic type) refer to <code>T</code>.
-</p>
-
-<pre>
-type T1[P T1[P]] …                    // illegal: T1 refers to itself
-type T2[P interface{ T2[int] }] …     // illegal: T2 refers to itself
-type T3[P interface{ m(T3[int])}] …   // illegal: T3 refers to itself
-type T4[P T5[P]] …                    // illegal: T4 refers to T5 and
-type T5[P T4[P]] …                    //          T5 refers to T4
-
-type T6[P int] struct{ f *T6[P] }     // ok: reference to T6 is not in type parameter list
-</pre>
 
 <h4 id="Type_constraints">Type constraints</h4>
 

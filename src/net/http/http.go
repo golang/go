@@ -119,10 +119,6 @@ func removeEmptyPort(host string) string {
 	return host
 }
 
-func isNotToken(r rune) bool {
-	return !httpguts.IsTokenRune(r)
-}
-
 // isToken reports whether v is a valid token (https://www.rfc-editor.org/rfc/rfc2616#section-2.2).
 func isToken(v string) bool {
 	// For historical reasons, this function is called ValidHeaderFieldName (see issue #67031).

@@ -834,6 +834,18 @@
 (FEQD x (FMOVDconst [math.Inf(1)])) => (SNEZ (ANDI <typ.Int64> [0b00_1000_0000] (FCLASSD x)))
 (FNED x (FMOVDconst [math.Inf(1)])) => (SEQZ (ANDI <typ.Int64> [0b00_1000_0000] (FCLASSD x)))
 
+// Test for subnormal numbers using 64 bit classify instruction.
+(FLTD x (FMOVDconst [+0x1p-1022])) => (SNEZ (ANDI <typ.Int64> [0b00_0011_1111] (FCLASSD x)))
+(FLED (FMOVDconst [+0x1p-1022]) x) => (SNEZ (ANDI <typ.Int64> [0b00_1100_0000] (FCLASSD x)))
+(FLED x (FMOVDconst [-0x1p-1022])) => (SNEZ (ANDI <typ.Int64> [0b00_0000_0011] (FCLASSD x)))
+(FLTD (FMOVDconst [-0x1p-1022]) x) => (SNEZ (ANDI <typ.Int64> [0b00_1111_1100] (FCLASSD x)))
+
+// Absorb unary sign bit operations into 64 bit classify instruction.
+(S(EQ|NE)Z (ANDI [c] (FCLASSD (FNEGD x)))) => (S(EQ|NE)Z (ANDI <typ.Int64> [(c&0b11_0000_0000)|int64(bits.Reverse8(uint8(c))&0b1111_1111)] (FCLASSD x)))
+(S(EQ|NE)Z (ANDI [c] (FCLASSD (FABSD x)))) => (S(EQ|NE)Z (ANDI <typ.Int64> [(c&0b11_1111_0000)|int64(bits.Reverse8(uint8(c))&0b0000_1111)] (FCLASSD x)))
+(B(EQ|NE)Z (ANDI [c] (FCLASSD (FNEGD x))) yes no) => (B(EQ|NE)Z (ANDI <typ.Int64> [(c&0b11_0000_0000)|int64(bits.Reverse8(uint8(c))&0b1111_1111)] (FCLASSD x)) yes no)
+(B(EQ|NE)Z (ANDI [c] (FCLASSD (FABSD x))) yes no) => (B(EQ|NE)Z (ANDI <typ.Int64> [(c&0b11_1111_0000)|int64(bits.Reverse8(uint8(c))&0b0000_1111)] (FCLASSD x)) yes no)
+
 //
 // Optimisations for rva22u64 and above.
 //

@@ -497,6 +497,9 @@ func (check *Checker) checkFiles(files []*syntax.File) {
 	print("== sortObjects ==")
 	check.sortObjects()
 
+	print("== directCycles ==")
+	check.directCycles()
+
 	print("== packageObjects ==")
 	check.packageObjects()
 

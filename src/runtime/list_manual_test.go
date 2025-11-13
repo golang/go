@@ -21,10 +21,19 @@ type listedValManual struct {
 	bNode runtime.ListNodeManual
 }
 
+// ListHeadManual is intended to be used with objects where the lifetime of the
+// object is managed explicitly, so it is OK to store as uintptr.
+//
+// This means that our test values must outlive the test, and must not live on
+// the stack (which may move).
+var allListedValManual []*listedValManual
+
 func newListedValManual(v int) *listedValManual {
-	return &listedValManual{
+	lv := &listedValManual{
 		val: v,
 	}
+	allListedValManual = append(allListedValManual, lv)
+	return lv
 }
 
 func TestListManualPush(t *testing.T) {
@@ -239,13 +248,13 @@ func TestListNIHPush(t *testing.T) {
 	headA := newListHeadNIH()
 	headA.Init(unsafe.Offsetof(listedValNIH{}.aNode))
 
-	one := newListedVal(1)
+	one := newListedValNIH(1)
 	headA.Push(unsafe.Pointer(one))
 
-	two := newListedVal(2)
+	two := newListedValNIH(2)
 	headA.Push(unsafe.Pointer(two))
 
-	three := newListedVal(3)
+	three := newListedValNIH(3)
 	headA.Push(unsafe.Pointer(three))
 
 	p := headA.Pop()
@@ -296,13 +305,13 @@ func TestListNIHRemoveHead(t *testing.T) {
 	headA := newListHeadNIH()
 	headA.Init(unsafe.Offsetof(listedValNIH{}.aNode))
 
-	one := newListedVal(1)
+	one := newListedValNIH(1)
 	headA.Push(unsafe.Pointer(one))
 
-	two := newListedVal(2)
+	two := newListedValNIH(2)
 	headA.Push(unsafe.Pointer(two))
 
-	three := newListedVal(3)
+	three := newListedValNIH(3)
 	headA.Push(unsafe.Pointer(three))
 
 	headA.Remove(unsafe.Pointer(three))
@@ -326,13 +335,13 @@ func TestListNIHRemoveMiddle(t *testing.T) {
 	headA := newListHeadNIH()
 	headA.Init(unsafe.Offsetof(listedValNIH{}.aNode))
 
-	one := newListedVal(1)
+	one := newListedValNIH(1)
 	headA.Push(unsafe.Pointer(one))
 
-	two := newListedVal(2)
+	two := newListedValNIH(2)
 	headA.Push(unsafe.Pointer(two))
 
-	three := newListedVal(3)
+	three := newListedValNIH(3)
 	headA.Push(unsafe.Pointer(three))
 
 	headA.Remove(unsafe.Pointer(two))
@@ -356,13 +365,13 @@ func TestListNIHRemoveTail(t *testing.T) {
 	headA := newListHeadNIH()
 	headA.Init(unsafe.Offsetof(listedValNIH{}.aNode))
 
-	one := newListedVal(1)
+	one := newListedValNIH(1)
 	headA.Push(unsafe.Pointer(one))
 
-	two := newListedVal(2)
+	two := newListedValNIH(2)
 	headA.Push(unsafe.Pointer(two))
 
-	three := newListedVal(3)
+	three := newListedValNIH(3)
 	headA.Push(unsafe.Pointer(three))
 
 	headA.Remove(unsafe.Pointer(one))
@@ -386,13 +395,13 @@ func TestListNIHRemoveAll(t *testing.T) {
 	headA := newListHeadNIH()
 	headA.Init(unsafe.Offsetof(listedValNIH{}.aNode))
 
-	one := newListedVal(1)
+	one := newListedValNIH(1)
 	headA.Push(unsafe.Pointer(one))
 
-	two := newListedVal(2)
+	two := newListedValNIH(2)
 	headA.Push(unsafe.Pointer(two))
 
-	three := newListedVal(3)
+	three := newListedValNIH(3)
 	headA.Push(unsafe.Pointer(three))
 
 	headA.Remove(unsafe.Pointer(one))

@@ -6,6 +6,8 @@
 
 package codegen
 
+import "math"
+
 // This file contains codegen tests related to arithmetic
 // simplifications and optimizations on float types.
 // For codegen tests on integer types, see arithmetic.go.
@@ -276,4 +278,38 @@ func Float64ConstantStore(p *float64) {
 	// amd64: "MOVQ [$]4617801906721357038"
 	// riscv64: "MOVD [$]f64.4015ba5e353f7cee"
 	*p = 5.432
+}
+
+// ------------------------ //
+//  Subnormal tests         //
+// ------------------------ //
+
+func isSubnormal(x float64) bool {
+	// riscv64:"FCLASSD" -"FABSD"
+	return math.Abs(x) < 2.2250738585072014e-308
+}
+
+func isNormal(x float64) bool {
+	// riscv64:"FCLASSD" -"FABSD"
+	return math.Abs(x) >= 0x1p-1022
+}
+
+func isPosSubnormal(x float64) bool {
+	// riscv64:"FCLASSD"
+	return x > 0 && x < 2.2250738585072014e-308
+}
+
+func isNegSubnormal(x float64) bool {
+	// riscv64:"FCLASSD"
+	return x < 0 && x > -0x1p-1022
+}
+
+func isPosNormal(x float64) bool {
+	// riscv64:"FCLASSD"
+	return x >= 2.2250738585072014e-308
+}
+
+func isNegNormal(x float64) bool {
+	// riscv64:"FCLASSD"
+	return x <= -2.2250738585072014e-308
 }

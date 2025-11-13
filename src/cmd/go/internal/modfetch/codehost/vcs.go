@@ -624,15 +624,20 @@ func (r *vcsRepo) ReadZip(ctx context.Context, rev, subdir string, maxSize int64
 		return nil, vcsErrorf("vcs %s: ReadZip: %w", r.cmd.vcs, errors.ErrUnsupported)
 	}
 
+	if rev == "latest" {
+		rev = r.cmd.latest
+	}
+	_, err = r.Stat(ctx, rev) // download rev into local repo
+	if err != nil {
+		return nil, err
+	}
+
 	unlock, err := r.mu.Lock()
 	if err != nil {
 		return nil, err
 	}
 	defer unlock()
 
-	if rev == "latest" {
-		rev = r.cmd.latest
-	}
 	f, err := os.CreateTemp("", "go-readzip-*.zip")
 	if err != nil {
 		return nil, err

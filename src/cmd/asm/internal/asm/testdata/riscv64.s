@@ -372,6 +372,76 @@ start:
 	// 21.7: Double-Precision Floating-Point Classify Instruction
 	FCLASSD	F0, X5					// d31200e2
 
+	//
+	// "C" Extension for Compressed Instructions, Version 2.0
+	//
+
+	// 26.3.1: Compressed Stack-Pointer-Based Loads and Stores
+	CLWSP	20(SP), X10				// 5245
+	CLDSP	24(SP), X10				// 6265
+	CFLDSP	32(SP), F10				// 0235
+	CSWSP	X10, 20(SP)				// 2aca
+	CSDSP	X10, 24(SP)				// 2aec
+	CFSDSP	F10, 32(SP)				// 2ab0
+
+	// 26.3.2: Compressed Register-Based Loads and Stores
+	CLW	20(X10), X11				// 4c49
+	CLD	24(X10), X11				// 0c6d
+	CFLD	32(X10), F11				// 0c31
+	CSW	X11, 20(X10)				// 4cc9
+	CSD	X11, 24(X10)				// 0ced
+	CFSD	F11, 32(X10)				// 0cb1
+
+	// 26.4: Compressed Control Transfer Instructions
+	CJ	1(PC)					// 09a0
+	CJR	X5					// 8282
+	CJALR	X5					// 8292
+	CBEQZ	X10, 1(PC)				// 09c1
+	CBNEZ	X10, 1(PC)				// 09e1
+
+	// 26.5.1: Compressed Integer Constant-Generation Instructions
+	CLI	$-32, X5				// 8152
+	CLI	$31, X5					// fd42
+	CLUI	$-32, X5				// 8172
+	CLUI	$31, X5					// fd62
+
+	// 26.5.2: Compressed Integer Register-Immediate Operations
+	CADD	$-32, X5				// 8112
+	CADD	$31, X5					// fd02
+	CADDI	$-32, X5				// 8112
+	CADDI	$31, X5					// fd02
+	CADDW	$-32, X5				// 8132
+	CADDW	$31, X5					// fd22
+	CADDIW	$-32, X5				// 8132
+	CADDIW	$31, X5					// fd22
+	CADDI16SP $-512, SP				// 0171
+	CADDI16SP $496, SP				// 7d61
+	CADDI4SPN $4, SP, X10				// 4800
+	CADDI4SPN $1020, SP, X10			// e81f
+	CSLLI	$63, X5					// fe12
+	CSRLI	$63, X10				// 7d91
+	CSRAI	$63, X10				// 7d95
+	CAND	$-32, X10				// 0199
+	CAND	$31, X10				// 7d89
+	CANDI	$-32, X10				// 0199
+	CANDI	$31, X10				// 7d89
+
+	// 26.5.3: Compressed Integer Register-Register Operations
+	CMV	X6, X5					// 9a82
+	CADD	X9, X8					// 2694
+	CAND	X9, X8					// 658c
+	COR	X9, X8					// 458c
+	CXOR	X9, X8					// 258c
+	CSUB	X9, X8					// 058c
+	CADDW	X9, X8					// 259c
+	CSUBW	X9, X8					// 059c
+
+	// 26.5.5: Compressed NOP Instruction
+	CNOP						// 0100
+
+	// 26.5.6: Compressed Breakpoint Instruction
+	CEBREAK						// 0290
+
 	// 28.4.1: Address Generation Instructions (Zba)
 	ADDUW		X10, X11, X12			// 3b86a508
 	ADDUW		X10, X11			// bb85a508

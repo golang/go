@@ -57,8 +57,11 @@ func RequestFromMap(params map[string]string) (*http.Request, error) {
 
 	r.Proto = params["SERVER_PROTOCOL"]
 	var ok bool
-	r.ProtoMajor, r.ProtoMinor, ok = http.ParseHTTPVersion(r.Proto)
-	if !ok {
+	if r.Proto == "INCLUDED" {
+		// SSI (Server Side Include) use case
+		// CGI Specification RFC 3875 - section 4.1.16
+		r.ProtoMajor, r.ProtoMinor = 1, 0
+	} else if r.ProtoMajor, r.ProtoMinor, ok = http.ParseHTTPVersion(r.Proto); !ok {
 		return nil, errors.New("cgi: invalid SERVER_PROTOCOL version")
 	}
 

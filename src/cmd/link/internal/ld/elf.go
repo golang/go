@@ -101,10 +101,6 @@ var elfstrdat, elfshstrdat []byte
 // On FreeBSD, cannot be larger than a page.
 const ELFRESERVE = 4096
 
-const (
-	NSECT = 400
-)
-
 var (
 	Nelfsym = 1
 
@@ -114,8 +110,8 @@ var (
 	elfRelType string
 
 	ehdr ElfEhdr
-	phdr [NSECT]*ElfPhdr
-	shdr [NSECT]*ElfShdr
+	phdr = make([]*ElfPhdr, 0, 8)
+	shdr = make([]*ElfShdr, 0, 64)
 
 	interp string
 )
@@ -334,12 +330,8 @@ func elfwritephdrs(out *OutBuf) uint32 {
 
 func newElfPhdr() *ElfPhdr {
 	e := new(ElfPhdr)
-	if ehdr.Phnum >= NSECT {
-		Errorf("too many phdrs")
-	} else {
-		phdr[ehdr.Phnum] = e
-		ehdr.Phnum++
-	}
+	phdr = append(phdr, e)
+	ehdr.Phnum++
 	if elf64 {
 		ehdr.Shoff += ELF64PHDRSIZE
 	} else {
@@ -352,13 +344,8 @@ func newElfShdr(name int64) *ElfShdr {
 	e := new(ElfShdr)
 	e.Name = uint32(name)
 	e.shnum = elf.SectionIndex(ehdr.Shnum)
-	if ehdr.Shnum >= NSECT {
-		Errorf("too many shdrs")
-	} else {
-		shdr[ehdr.Shnum] = e
-		ehdr.Shnum++
-	}
-
+	shdr = append(shdr, e)
+	ehdr.Shnum++
 	return e
 }
 

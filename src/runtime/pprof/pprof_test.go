@@ -774,7 +774,11 @@ func TestMorestack(t *testing.T) {
 		for {
 			go func() {
 				growstack1()
-				c <- true
+				// NOTE(vsaioc): This goroutine may leak without this select.
+				select {
+				case c <- true:
+				case <-time.After(duration):
+				}
 			}()
 			select {
 			case <-t:
@@ -1563,6 +1567,203 @@ func containsCountsLabels(prof *profile.Profile, countLabels map[int64]map[strin
 		}
 	}
 	return true
+}
+
+// Inlining disabled to make identification simpler.
+//
+//go:noinline
+func goroutineLeakExample() {
+	<-make(chan struct{})
+	panic("unreachable")
+}
+
+func TestGoroutineLeakProfileConcurrency(t *testing.T) {
+	const leakCount = 3
+
+	testenv.MustHaveParallelism(t)
+	regexLeakCount := regexp.MustCompile("goroutineleak profile: total ")
+	whiteSpace := regexp.MustCompile("\\s+")
+
+	// Regular goroutine profile. Used to check that there is no interference between
+	// the two profile types.
+	goroutineProf := Lookup("goroutine")
+	goroutineLeakProf := goroutineLeakProfile
+
+	// Check that a profile with debug information contains
+	includesLeak := func(t *testing.T, name, s string) {
+		if !strings.Contains(s, "runtime/pprof.goroutineLeakExample") {
+			t.Errorf("%s profile does not contain expected leaked goroutine (runtime/pprof.goroutineLeakExample): %s", name, s)
+		}
+	}
+
+	checkFrame := func(i int, j int, locations []*profile.Location, expectedFunctionName string) {
+		if len(locations) <= i {
+			t.Errorf("leaked goroutine stack locations: out of range index %d, length %d", i, len(locations))
+			return
+		}
+		location := locations[i]
+		if len(location.Line) <= j {
+			t.Errorf("leaked goroutine stack location lines: out of range index %d, length %d", j, len(location.Line))
+			return
+		}
+		if location.Line[j].Function.Name != expectedFunctionName {
+			t.Errorf("leaked goroutine stack expected %s as the location[%d].Line[%d] but found %s (%s:%d)", expectedFunctionName, i, j, location.Line[j].Function.Name, location.Line[j].Function.Filename, location.Line[j].Line)
+		}
+	}
+
+	// We use this helper to count the total number of leaked goroutines in the profile.
+	//
+	// NOTE(vsaioc): This value should match for the number of leaks produced in this test,
+	// but other tests could also leak goroutines, in which case we would have a mismatch
+	// when bulk-running tests.
+	//
+	// The two mismatching outcomes are therefore:
+	//	- More leaks than expected, which is a correctness issue with other tests.
+	//		In this case, this test effectively checks other tests wrt
+	//		goroutine leaks during bulk executions (e.g., running all.bash).
+	//
+	//	- Fewer leaks than expected; this is an unfortunate symptom of scheduling
+	//		non-determinism, which may occur once in a blue moon. We make
+	//		a best-effort attempt to allow the expected leaks to occur, by yielding
+	//		the main thread, but it is never a guarantee.
+	countLeaks := func(t *testing.T, number int, s string) {
+		// Strip the profile header
+		parts := regexLeakCount.Split(s, -1)
+		if len(parts) < 2 {
+			t.Fatalf("goroutineleak profile does not contain 'goroutineleak profile: total ': %s\nparts: %v", s, parts)
+			return
+		}
+
+		parts = whiteSpace.Split(parts[1], -1)
+
+		count, err := strconv.ParseInt(parts[0], 10, 64)
+		if err != nil {
+			t.Fatalf("goroutineleak profile count is not a number: %s\nerror: %v", s, err)
+		}
+
+		// Check that the total number of leaked goroutines is exactly the expected number.
+		if count != int64(number) {
+			t.Errorf("goroutineleak profile does not contain exactly %d leaked goroutines: %d", number, count)
+		}
+	}
+
+	checkLeakStack := func(t *testing.T) func(pc uintptr, locations []*profile.Location, _ map[string][]string) {
+		return func(pc uintptr, locations []*profile.Location, _ map[string][]string) {
+			if pc != leakCount {
+				t.Errorf("expected %d leaked goroutines with specific stack configurations, but found %d", leakCount, pc)
+				return
+			}
+			if len(locations) < 4 || len(locations) > 5 {
+				message := fmt.Sprintf("leaked goroutine stack expected 4 or 5 locations but found %d", len(locations))
+				for _, location := range locations {
+					for _, line := range location.Line {
+						message += fmt.Sprintf("\n%s:%d", line.Function.Name, line.Line)
+					}
+				}
+				t.Errorf("%s", message)
+				return
+			}
+			// We expect a receive operation. This is the typical stack.
+			checkFrame(0, 0, locations, "runtime.gopark")
+			checkFrame(1, 0, locations, "runtime.chanrecv")
+			checkFrame(2, 0, locations, "runtime.chanrecv1")
+			checkFrame(3, 0, locations, "runtime/pprof.goroutineLeakExample")
+			if len(locations) == 5 {
+				checkFrame(4, 0, locations, "runtime/pprof.TestGoroutineLeakProfileConcurrency.func5")
+			}
+		}
+	}
+	// Leak some goroutines that will feature in the goroutine leak profile
+	for i := 0; i < leakCount; i++ {
+		go goroutineLeakExample()
+		go func() {
+			// Leak another goroutine that will feature a slightly different stack.
+			// This includes the frame runtime/pprof.TestGoroutineLeakProfileConcurrency.func1.
+			goroutineLeakExample()
+			panic("unreachable")
+		}()
+		// Yield several times to allow the goroutines to leak.
+		runtime.Gosched()
+		runtime.Gosched()
+	}
+
+	// Give all goroutines a chance to leak.
+	time.Sleep(time.Second)
+
+	t.Run("profile contains leak", func(t *testing.T) {
+		var w strings.Builder
+		goroutineLeakProf.WriteTo(&w, 0)
+		parseProfile(t, []byte(w.String()), checkLeakStack(t))
+	})
+
+	t.Run("leak persists between sequential profiling runs", func(t *testing.T) {
+		for i := 0; i < 2; i++ {
+			var w strings.Builder
+			goroutineLeakProf.WriteTo(&w, 0)
+			parseProfile(t, []byte(w.String()), checkLeakStack(t))
+		}
+	})
+
+	// Concurrent calls to the goroutine leak profiler should not trigger data races
+	// or corruption.
+	t.Run("overlapping profile requests", func(t *testing.T) {
+		ctx := context.Background()
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		defer cancel()
+
+		var wg sync.WaitGroup
+		for i := 0; i < 2; i++ {
+			wg.Add(1)
+			Do(ctx, Labels("i", fmt.Sprint(i)), func(context.Context) {
+				go func() {
+					defer wg.Done()
+					for ctx.Err() == nil {
+						var w strings.Builder
+						goroutineLeakProf.WriteTo(&w, 1)
+						countLeaks(t, 2*leakCount, w.String())
+						includesLeak(t, "goroutineleak", w.String())
+					}
+				}()
+			})
+		}
+		wg.Wait()
+	})
+
+	// Concurrent calls to the goroutine leak profiler should not trigger data races
+	// or corruption, or interfere with regular goroutine profiles.
+	t.Run("overlapping goroutine and goroutine leak profile requests", func(t *testing.T) {
+		ctx := context.Background()
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		defer cancel()
+
+		var wg sync.WaitGroup
+		for i := 0; i < 2; i++ {
+			wg.Add(2)
+			Do(ctx, Labels("i", fmt.Sprint(i)), func(context.Context) {
+				go func() {
+					defer wg.Done()
+					for ctx.Err() == nil {
+						var w strings.Builder
+						goroutineLeakProf.WriteTo(&w, 1)
+						countLeaks(t, 2*leakCount, w.String())
+						includesLeak(t, "goroutineleak", w.String())
+					}
+				}()
+				go func() {
+					defer wg.Done()
+					for ctx.Err() == nil {
+						var w strings.Builder
+						goroutineProf.WriteTo(&w, 1)
+						// The regular goroutine profile should see the leaked
+						// goroutines. We simply check that the goroutine leak
+						// profile does not corrupt the goroutine profile state.
+						includesLeak(t, "goroutine", w.String())
+					}
+				}()
+			})
+		}
+		wg.Wait()
+	})
 }
 
 func TestGoroutineProfileConcurrency(t *testing.T) {

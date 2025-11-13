@@ -522,6 +522,9 @@ func (check *Checker) checkFiles(files []*ast.File) {
 	print("== sortObjects ==")
 	check.sortObjects()
 
+	print("== directCycles ==")
+	check.directCycles()
+
 	print("== packageObjects ==")
 	check.packageObjects()
 

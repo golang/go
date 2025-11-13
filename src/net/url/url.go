@@ -18,6 +18,7 @@ package url
 import (
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"net/netip"
 	"path"
 	"slices"
@@ -25,6 +26,8 @@ import (
 	"strings"
 	_ "unsafe" // for linkname
 )
+
+var urlstrictcolons = godebug.New("urlstrictcolons")
 
 // Error reports an error and the operation and URL that caused it.
 type Error struct {
@@ -599,7 +602,11 @@ func parseHost(host string) (string, error) {
 			return "", errors.New("invalid IP-literal")
 		}
 		return "[" + unescapedHostname + "]" + unescapedColonPort, nil
-	} else if i := strings.LastIndex(host, ":"); i != -1 {
+	} else if i := strings.Index(host, ":"); i != -1 {
+		if j := strings.LastIndex(host, ":"); urlstrictcolons.Value() == "0" && j != i {
+			urlstrictcolons.IncNonDefault()
+			i = j
+		}
 		colonPort := host[i:]
 		if !validOptionalPort(colonPort) {
 			return "", fmt.Errorf("invalid port %q after host", colonPort)
