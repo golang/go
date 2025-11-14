@@ -620,7 +620,18 @@ func (u *unwinder) cgoCallers(pcBuf []uintptr) int {
 func tracebackPCs(u *unwinder, skip int, pcBuf []uintptr) int {
 	var cgoBuf [32]uintptr
 	n := 0
+	// maxTotalFrames limits the total number of frames we'll walk through,
+	// including wrapper frames. This prevents excessive CPU time when
+	// unwinding stacks with very deep context chains (issue #75583).
+	// The limit of 1024 is high enough for normal stacks while preventing
+	// multi-second delays from walking millions of wrapper frames.
+	const maxTotalFrames = 1024
+	totalFrames := 0
 	for ; n < len(pcBuf) && u.valid(); u.next() {
+		totalFrames++
+		if totalFrames >= maxTotalFrames {
+			break
+		}
 		f := u.frame.fn
 		cgoN := u.cgoCallers(cgoBuf[:])
 
