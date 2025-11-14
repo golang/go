@@ -14,7 +14,6 @@ import (
 	"os"
 	"path"
 	"slices"
-	"sort"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -1365,7 +1364,7 @@ func TestWriterAddFS(t *testing.T) {
 	for name := range fsys {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	entriesLeft := len(fsys)
 	for _, name := range names {
