@@ -809,17 +809,17 @@ func fixTrailer(header Header, chunked bool) (Header, error) {
 // Close ensures that the body has been fully read
 // and then reads the trailer if necessary.
 type body struct {
-	src          io.Reader
-	hdr          any           // non-nil (Response or Request) value means read trailer
-	r            *bufio.Reader // underlying wire-format reader for the trailer
-	closing      bool          // is the connection to be closed after reading body?
-	doEarlyClose bool          // whether Close should stop early
+	src     io.Reader
+	hdr     any           // non-nil (Response or Request) value means read trailer
+	r       *bufio.Reader // underlying wire-format reader for the trailer
+	closing bool          // is the connection to be closed after reading body?
 
-	mu         sync.Mutex // guards following, and calls to Read and Close
-	sawEOF     bool
-	closed     bool
-	earlyClose bool   // Close called and we didn't read to the end of src
-	onHitEOF   func() // if non-nil, func to call when EOF is Read
+	mu                sync.Mutex // guards following, and calls to Read and Close
+	sawEOF            bool
+	closed            bool
+	incompleteDiscard bool   // if true, we failed to discard the body content completely
+	inRequestHandler  bool   // used so Close() calls from within request handlers do not discard body
+	onHitEOF          func() // if non-nil, func to call when EOF is Read
 }
 
 // ErrBodyReadAfterClose is returned when reading a [Request] or [Response]
@@ -968,51 +968,69 @@ func (b *body) unreadDataSizeLocked() int64 {
 	return -1
 }
 
+// shouldDiscardBodyLocked determines whether a body needs to discard its
+// content or not.
+// b.mu must be held.
+func (b *body) shouldDiscardBodyLocked() bool {
+	// Already saw EOF. No point in discarding the body.
+	if b.sawEOF {
+		return false
+	}
+	// No trailer and closing the connection next. No point in discarding the
+	// body since it will not be reusable.
+	if b.hdr == nil && b.closing {
+		return false
+	}
+	return true
+}
+
+// tryDiscardBody attempts to discard the body content. If the body cannot be
+// discarded completely, b.incompleteDiscard will be set to true.
+func (b *body) tryDiscardBody() {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if !b.shouldDiscardBodyLocked() {
+		return
+	}
+	// Read up to maxPostHandlerReadBytes bytes of the body, looking for EOF
+	// (and trailers), so we can re-use this connection.
+	if lr, ok := b.src.(*io.LimitedReader); ok && lr.N > maxPostHandlerReadBytes {
+		// There was a declared Content-Length, and we have more bytes
+		// remaining than our maxPostHandlerReadBytes tolerance. So, give up.
+		b.incompleteDiscard = true
+		return
+	}
+	// Consume the body, which will also lead to us reading the trailer headers
+	// after the body, if present.
+	n, err := io.CopyN(io.Discard, bodyLocked{b}, maxPostHandlerReadBytes)
+	if err == io.EOF {
+		err = nil
+	}
+	if n == maxPostHandlerReadBytes || err != nil {
+		b.incompleteDiscard = true
+	}
+}
+
 func (b *body) Close() error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.closed {
 		return nil
 	}
-	var err error
-	switch {
-	case b.sawEOF:
-		// Already saw EOF, so no need going to look for it.
-	case b.hdr == nil && b.closing:
-		// no trailer and closing the connection next.
-		// no point in reading to EOF.
-	case b.doEarlyClose:
-		// Read up to maxPostHandlerReadBytes bytes of the body, looking
-		// for EOF (and trailers), so we can re-use this connection.
-		if lr, ok := b.src.(*io.LimitedReader); ok && lr.N > maxPostHandlerReadBytes {
-			// There was a declared Content-Length, and we have more bytes remaining
-			// than our maxPostHandlerReadBytes tolerance. So, give up.
-			b.earlyClose = true
-		} else {
-			var n int64
-			// Consume the body, or, which will also lead to us reading
-			// the trailer headers after the body, if present.
-			n, err = io.CopyN(io.Discard, bodyLocked{b}, maxPostHandlerReadBytes)
-			if err == io.EOF {
-				err = nil
-			}
-			if n == maxPostHandlerReadBytes {
-				b.earlyClose = true
-			}
-		}
-	default:
-		// Fully consume the body, which will also lead to us reading
-		// the trailer headers after the body, if present.
-		_, err = io.Copy(io.Discard, bodyLocked{b})
-	}
 	b.closed = true
+	if !b.shouldDiscardBodyLocked() || b.inRequestHandler {
+		return nil
+	}
+	// Fully consume the body, which will also lead to us reading
+	// the trailer headers after the body, if present.
+	_, err := io.Copy(io.Discard, bodyLocked{b})
 	return err
 }
 
-func (b *body) didEarlyClose() bool {
+func (b *body) didIncompleteDiscard() bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	return b.earlyClose
+	return b.incompleteDiscard
 }
 
 // bodyRemains reports whether future Read calls might
@@ -1036,9 +1054,6 @@ type bodyLocked struct {
 }
 
 func (bl bodyLocked) Read(p []byte) (n int, err error) {
-	if bl.b.closed {
-		return 0, ErrBodyReadAfterClose
-	}
 	return bl.b.readLocked(p)
 }
 
