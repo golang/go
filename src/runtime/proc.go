@@ -7507,23 +7507,36 @@ func runqgrab(pp *p, batch *[256]guintptr, batchHead uint32, stealRunNextG bool)
 				// Try to steal from pp.runnext.
 				if next := pp.runnext; next != 0 {
 					if pp.status == _Prunning {
-						// Sleep to ensure that pp isn't about to run the g
-						// we are about to steal.
-						// The important use case here is when the g running
-						// on pp ready()s another g and then almost
-						// immediately blocks. Instead of stealing runnext
-						// in this window, back off to give pp a chance to
-						// schedule runnext. This will avoid thrashing gs
-						// between different Ps.
-						// A sync chan send/recv takes ~50ns as of time of
-						// writing, so 3us gives ~50x overshoot.
-						if !osHasLowResTimer {
-							usleep(3)
-						} else {
-							// On some platforms system timer granularity is
-							// 1-15ms, which is way too much for this
-							// optimization. So just yield.
-							osyield()
+						if mp := pp.m.ptr(); mp != nil {
+							if gp := mp.curg; gp == nil || readgstatus(gp)&^_Gscan != _Gsyscall {
+								// Sleep to ensure that pp isn't about to run the g
+								// we are about to steal.
+								// The important use case here is when the g running
+								// on pp ready()s another g and then almost
+								// immediately blocks. Instead of stealing runnext
+								// in this window, back off to give pp a chance to
+								// schedule runnext. This will avoid thrashing gs
+								// between different Ps.
+								// A sync chan send/recv takes ~50ns as of time of
+								// writing, so 3us gives ~50x overshoot.
+								// If curg is nil, we assume that the P is likely
+								// to be in the scheduler. If curg isn't nil and isn't
+								// in a syscall, then it's either running, waiting, or
+								// runnable. In this case we want to sleep because the
+								// P might either call into the scheduler soon (running),
+								// or already is (since we found a waiting or runnable
+								// goroutine hanging off of a running P, suggesting it
+								// either recently transitioned out of running, or will
+								// transition to running shortly).
+								if !osHasLowResTimer {
+									usleep(3)
+								} else {
+									// On some platforms system timer granularity is
+									// 1-15ms, which is way too much for this
+									// optimization. So just yield.
+									osyield()
+								}
+							}
 						}
 					}
 					if !pp.runnext.cas(next, 0) {
