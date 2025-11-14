@@ -75,7 +75,7 @@ func PrintfTests() {
 	fmt.Printf("%b %b %b %b", 3e9, x, fslice, c)
 	fmt.Printf("%o %o", 3, i)
 	fmt.Printf("%p", p)
-	fmt.Printf("%q %q %q %q", 3, i, 'x', r)
+	fmt.Printf("%q %q %q", rune(3), 'x', r)
 	fmt.Printf("%s %s %s", "hi", s, []byte{65})
 	fmt.Printf("%t %t", true, b)
 	fmt.Printf("%T %T", 3, i)
