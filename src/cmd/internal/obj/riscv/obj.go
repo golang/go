@@ -2621,7 +2621,7 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	AXNOR & obj.AMask:  {enc: rIIIEncoding, ternary: true},
 	AZEXTH & obj.AMask: {enc: rIIEncoding},
 
-	// 28.4.3: Bitwise Rotation (Zbb)
+	// 28.4.2: Bitwise Rotation (Zbb)
 	AROL & obj.AMask:   {enc: rIIIEncoding, ternary: true},
 	AROLW & obj.AMask:  {enc: rIIIEncoding, ternary: true},
 	AROR & obj.AMask:   {enc: rIIIEncoding, immForm: ARORI, ternary: true},
@@ -2630,6 +2630,11 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	ARORW & obj.AMask:  {enc: rIIIEncoding, immForm: ARORIW, ternary: true},
 	AORCB & obj.AMask:  {enc: rIIEncoding},
 	AREV8 & obj.AMask:  {enc: rIIEncoding},
+
+	// 28.4.3: Carry-less Multiplication (Zbc)
+	ACLMUL & obj.AMask:  {enc: rIIIEncoding, ternary: true},
+	ACLMULH & obj.AMask: {enc: rIIIEncoding, ternary: true},
+	ACLMULR & obj.AMask: {enc: rIIIEncoding, ternary: true},
 
 	// 28.4.4: Single-bit Instructions (Zbs)
 	ABCLR & obj.AMask:  {enc: rIIIEncoding, immForm: ABCLRI, ternary: true},
