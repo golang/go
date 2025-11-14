@@ -1,0 +1,1 @@
+pkg crypto/tls, type ConnectionState struct, LocalCertificate *Certificate #24673
