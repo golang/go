@@ -679,12 +679,12 @@ func natcmp(x, y []uint) (r int) {
 }
 
 func suffix(s, suffix string) bool {
-	// todo, we're still not able to drop the bound check here in the general case
-	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
+	// Note: issue 76304
+	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix // ERROR "Proved IsSliceInBounds"
 }
 
 func constsuffix(s string) bool {
-	return suffix(s, "abc") // ERROR "Proved IsSliceInBounds$"
+	return suffix(s, "abc") // ERROR "Proved IsSliceInBounds$" "Proved slicemask not needed$" "Proved Eq64$"
 }
 
 func atexit(foobar []func()) {
@@ -2636,6 +2636,18 @@ func unsignedRightShiftBounds(v uint, s int) {
 	if 20 <= v && v <= 100 && 1 <= s && s <= 3 {
 		x := v>>s // ERROR "Proved"
 		proveu(x) // ERROR "Proved sm,SM=2,50 "
+	}
+}
+
+func subLengths1(b []byte, i int) {
+	if i >= 0 && i <= len(b) {
+		_ = b[len(b)-i:] // ERROR "Proved IsSliceInBounds"
+	}
+}
+
+func subLengths2(b []byte, i int) {
+	if i >= 0 && i <= len(b) {
+		_ = b[:len(b)-i] // ERROR "Proved IsSliceInBounds"
 	}
 }
 

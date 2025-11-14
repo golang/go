@@ -1945,6 +1945,7 @@ func (ft *factsTable) flowLimit(v *Value) {
 		ft.newLimit(v, a.sub(b, uint(v.Type.Size())*8))
 		ft.detectMod(v)
 		ft.detectSliceLenRelation(v)
+		ft.detectSubRelations(v)
 	case OpNeg64, OpNeg32, OpNeg16, OpNeg8:
 		a := ft.limits[v.Args[0].ID]
 		bitsize := uint(v.Type.Size()) * 8
@@ -2088,6 +2089,48 @@ func (ft *factsTable) detectSliceLenRelation(v *Value) {
 			continue
 		}
 		ft.signedMin(v, K)
+	}
+}
+
+// v must be Sub{64,32,16,8}.
+func (ft *factsTable) detectSubRelations(v *Value) {
+	// v = x-y
+	x := v.Args[0]
+	y := v.Args[1]
+	if x == y {
+		ft.signedMinMax(v, 0, 0)
+		return
+	}
+	xLim := ft.limits[x.ID]
+	yLim := ft.limits[y.ID]
+
+	// Check if we might wrap around. If so, give up.
+	width := uint(v.Type.Size()) * 8
+	if _, ok := safeSub(xLim.min, yLim.max, width); !ok {
+		return // x-y might underflow
+	}
+	if _, ok := safeSub(xLim.max, yLim.min, width); !ok {
+		return // x-y might overflow
+	}
+
+	// Subtracting a positive number only makes
+	// things smaller.
+	if yLim.min >= 0 {
+		ft.update(v.Block, v, x, signed, lt|eq)
+		// TODO: is this worth it?
+		//if yLim.min > 0 {
+		//	ft.update(v.Block, v, x, signed, lt)
+		//}
+	}
+
+	// Subtracting a number from a bigger one
+	// can't go below 0.
+	if ft.orderS.OrderedOrEqual(y, x) {
+		ft.setNonNegative(v)
+		// TODO: is this worth it?
+		//if ft.orderS.Ordered(y, x) {
+		//	ft.signedMin(v, 1)
+		//}
 	}
 }
 
