@@ -18,4 +18,5 @@
 #define hasZbs
 #define hasZfa
 #define hasZicond
+#define hasZihintpause
 #endif
