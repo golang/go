@@ -44,7 +44,7 @@ func scriptConditions(t *testing.T) map[string]script.Cond {
 	add("case-sensitive", script.OnceCondition("$WORK filesystem is case-sensitive", isCaseSensitive))
 	add("cc", script.PrefixCondition("go env CC = <suffix> (ignoring the go/env file)", ccIs))
 	add("git", lazyBool("the 'git' executable exists and provides the standard CLI", hasWorkingGit))
-	add("git-min-vers", script.PrefixCondition("<suffix> indicates a minimum git version", hasAtLeastGitVersion))
+	add("git-sha256", script.OnceCondition("the local 'git' version is recent enough to support sha256 object/commit hashes", gitSupportsSHA256))
 	add("net", script.PrefixCondition("can connect to external network host <suffix>", hasNet))
 	add("trimpath", script.OnceCondition("test binary was built with -trimpath", isTrimpath))
 
@@ -171,12 +171,16 @@ func gitVersion() (string, error) {
 	return "v" + string(matches[1]), nil
 }
 
-func hasAtLeastGitVersion(s *script.State, minVers string) (bool, error) {
+func hasAtLeastGitVersion(minVers string) (bool, error) {
 	gitVers, gitVersErr := gitVersion()
 	if gitVersErr != nil {
 		return false, gitVersErr
 	}
 	return semver.Compare(minVers, gitVers) <= 0, nil
+}
+
+func gitSupportsSHA256() (bool, error) {
+	return hasAtLeastGitVersion("v2.29")
 }
 
 func hasWorkingBzr() bool {
