@@ -1,6 +1,6 @@
 [short] skip
 [!git] skip
-[!git-min-vers:v2.29] skip
+[!git-sha256] skip
 
 # This is a git sha256-mode copy of mod_download_git_bareRepository
 
