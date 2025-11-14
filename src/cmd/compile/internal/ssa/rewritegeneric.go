@@ -16786,6 +16786,45 @@ func rewriteValuegeneric_OpMul16(v *Value) bool {
 		}
 		break
 	}
+	// match: (Mul16 (Const16 <t> [c]) (Neg16 x))
+	// result: (Mul16 x (Const16 <t> [-c]))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpConst16 {
+				continue
+			}
+			t := v_0.Type
+			c := auxIntToInt16(v_0.AuxInt)
+			if v_1.Op != OpNeg16 {
+				continue
+			}
+			x := v_1.Args[0]
+			v.reset(OpMul16)
+			v0 := b.NewValue0(v.Pos, OpConst16, t)
+			v0.AuxInt = int16ToAuxInt(-c)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
+	// match: (Mul16 (Neg16 x) (Neg16 y))
+	// result: (Mul16 x y)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpNeg16 {
+				continue
+			}
+			x := v_0.Args[0]
+			if v_1.Op != OpNeg16 {
+				continue
+			}
+			y := v_1.Args[0]
+			v.reset(OpMul16)
+			v.AddArg2(x, y)
+			return true
+		}
+		break
+	}
 	// match: (Mul16 (Const16 <t> [c]) (Add16 <t> (Const16 <t> [d]) x))
 	// cond: !isPowerOfTwo(c)
 	// result: (Add16 (Const16 <t> [c*d]) (Mul16 <t> (Const16 <t> [c]) x))
@@ -16993,6 +17032,45 @@ func rewriteValuegeneric_OpMul32(v *Value) bool {
 			x := v_1
 			v.reset(OpNeg32)
 			v.AddArg(x)
+			return true
+		}
+		break
+	}
+	// match: (Mul32 (Const32 <t> [c]) (Neg32 x))
+	// result: (Mul32 x (Const32 <t> [-c]))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpConst32 {
+				continue
+			}
+			t := v_0.Type
+			c := auxIntToInt32(v_0.AuxInt)
+			if v_1.Op != OpNeg32 {
+				continue
+			}
+			x := v_1.Args[0]
+			v.reset(OpMul32)
+			v0 := b.NewValue0(v.Pos, OpConst32, t)
+			v0.AuxInt = int32ToAuxInt(-c)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
+	// match: (Mul32 (Neg32 x) (Neg32 y))
+	// result: (Mul32 x y)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpNeg32 {
+				continue
+			}
+			x := v_0.Args[0]
+			if v_1.Op != OpNeg32 {
+				continue
+			}
+			y := v_1.Args[0]
+			v.reset(OpMul32)
+			v.AddArg2(x, y)
 			return true
 		}
 		break
@@ -17369,6 +17447,45 @@ func rewriteValuegeneric_OpMul64(v *Value) bool {
 		}
 		break
 	}
+	// match: (Mul64 (Const64 <t> [c]) (Neg64 x))
+	// result: (Mul64 x (Const64 <t> [-c]))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpConst64 {
+				continue
+			}
+			t := v_0.Type
+			c := auxIntToInt64(v_0.AuxInt)
+			if v_1.Op != OpNeg64 {
+				continue
+			}
+			x := v_1.Args[0]
+			v.reset(OpMul64)
+			v0 := b.NewValue0(v.Pos, OpConst64, t)
+			v0.AuxInt = int64ToAuxInt(-c)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
+	// match: (Mul64 (Neg64 x) (Neg64 y))
+	// result: (Mul64 x y)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpNeg64 {
+				continue
+			}
+			x := v_0.Args[0]
+			if v_1.Op != OpNeg64 {
+				continue
+			}
+			y := v_1.Args[0]
+			v.reset(OpMul64)
+			v.AddArg2(x, y)
+			return true
+		}
+		break
+	}
 	// match: (Mul64 (Const64 <t> [c]) (Add64 <t> (Const64 <t> [d]) x))
 	// cond: !isPowerOfTwo(c)
 	// result: (Add64 (Const64 <t> [c*d]) (Mul64 <t> (Const64 <t> [c]) x))
@@ -17737,6 +17854,45 @@ func rewriteValuegeneric_OpMul8(v *Value) bool {
 			x := v_1
 			v.reset(OpNeg8)
 			v.AddArg(x)
+			return true
+		}
+		break
+	}
+	// match: (Mul8 (Const8 <t> [c]) (Neg8 x))
+	// result: (Mul8 x (Const8 <t> [-c]))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpConst8 {
+				continue
+			}
+			t := v_0.Type
+			c := auxIntToInt8(v_0.AuxInt)
+			if v_1.Op != OpNeg8 {
+				continue
+			}
+			x := v_1.Args[0]
+			v.reset(OpMul8)
+			v0 := b.NewValue0(v.Pos, OpConst8, t)
+			v0.AuxInt = int8ToAuxInt(-c)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
+	// match: (Mul8 (Neg8 x) (Neg8 y))
+	// result: (Mul8 x y)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpNeg8 {
+				continue
+			}
+			x := v_0.Args[0]
+			if v_1.Op != OpNeg8 {
+				continue
+			}
+			y := v_1.Args[0]
+			v.reset(OpMul8)
+			v.AddArg2(x, y)
 			return true
 		}
 		break

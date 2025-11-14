@@ -743,9 +743,6 @@
 
 (MULV  x (MOVVconst [c])) && canMulStrengthReduce(config, c) => {mulStrengthReduce(v, x, c)}
 
-(MULV (NEGV x) (MOVVconst [c])) => (MULV x (MOVVconst [-c]))
-(MULV (NEGV x) (NEGV y)) => (MULV x y)
-
 (ADDV x0 x1:(SLLVconst [c] y)) && x1.Uses == 1 && c > 0 && c <= 4 => (ADDshiftLLV x0 y [c])
 
 // fold constant in ADDshift op
