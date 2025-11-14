@@ -409,6 +409,12 @@ const (
 	ACSRRSI
 	ACSRRCI
 
+	// 9: Zihintntl Extension
+	ANTLP1
+	ANTLPALL
+	ANTLS1
+	ANTLALL
+
 	// 12.3: Integer Conditional Operations (Zicond)
 	ACZEROEQZ
 	ACZERONEZ
