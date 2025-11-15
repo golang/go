@@ -2704,7 +2704,7 @@ func (mux *ServeMux) findHandler(r *Request) (h Handler, patStr string, _ *patte
 		// but the path canonicalization does not.
 		_, _, u := mux.matchOrRedirect(host, r.Method, path, r.URL)
 		if u != nil {
-			return RedirectHandler(u.String(), StatusMovedPermanently), u.Path, nil, nil
+			return RedirectHandler(u.String(), StatusTemporaryRedirect), u.Path, nil, nil
 		}
 		// Redo the match, this time with r.Host instead of r.URL.Host.
 		// Pass a nil URL to skip the trailing-slash redirect logic.
@@ -2720,7 +2720,7 @@ func (mux *ServeMux) findHandler(r *Request) (h Handler, patStr string, _ *patte
 		var u *url.URL
 		n, matches, u = mux.matchOrRedirect(host, r.Method, path, r.URL)
 		if u != nil {
-			return RedirectHandler(u.String(), StatusMovedPermanently), n.pattern.String(), nil, nil
+			return RedirectHandler(u.String(), StatusTemporaryRedirect), n.pattern.String(), nil, nil
 		}
 		if path != escapedPath {
 			// Redirect to cleaned path.
@@ -2729,7 +2729,7 @@ func (mux *ServeMux) findHandler(r *Request) (h Handler, patStr string, _ *patte
 				patStr = n.pattern.String()
 			}
 			u := &url.URL{Path: path, RawQuery: r.URL.RawQuery}
-			return RedirectHandler(u.String(), StatusMovedPermanently), patStr, nil, nil
+			return RedirectHandler(u.String(), StatusTemporaryRedirect), patStr, nil, nil
 		}
 	}
 	if n == nil {

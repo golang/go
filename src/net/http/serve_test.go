@@ -288,7 +288,7 @@ func testHostHandlers(t *testing.T, mode testMode) {
 			if s != vt.expected {
 				t.Errorf("Get(%q) = %q, want %q", vt.url, s, vt.expected)
 			}
-		case StatusMovedPermanently:
+		case StatusTemporaryRedirect:
 			s := r.Header.Get("Location")
 			if s != vt.expected {
 				t.Errorf("Get(%q) = %q, want %q", vt.url, s, vt.expected)
@@ -340,7 +340,7 @@ var serveMuxTests = []struct {
 	pattern string
 }{
 	{"GET", "google.com", "/", 404, ""},
-	{"GET", "google.com", "/dir", 301, "/dir/"},
+	{"GET", "google.com", "/dir", 307, "/dir/"},
 	{"GET", "google.com", "/dir/", 200, "/dir/"},
 	{"GET", "google.com", "/dir/file", 200, "/dir/"},
 	{"GET", "google.com", "/search", 201, "/search"},
@@ -354,14 +354,14 @@ var serveMuxTests = []struct {
 	{"GET", "images.google.com", "/search", 201, "/search"},
 	{"GET", "images.google.com", "/search/", 404, ""},
 	{"GET", "images.google.com", "/search/foo", 404, ""},
-	{"GET", "google.com", "/../search", 301, "/search"},
-	{"GET", "google.com", "/dir/..", 301, ""},
-	{"GET", "google.com", "/dir/..", 301, ""},
-	{"GET", "google.com", "/dir/./file", 301, "/dir/"},
+	{"GET", "google.com", "/../search", 307, "/search"},
+	{"GET", "google.com", "/dir/..", 307, ""},
+	{"GET", "google.com", "/dir/..", 307, ""},
+	{"GET", "google.com", "/dir/./file", 307, "/dir/"},
 
 	// The /foo -> /foo/ redirect applies to CONNECT requests
 	// but the path canonicalization does not.
-	{"CONNECT", "google.com", "/dir", 301, "/dir/"},
+	{"CONNECT", "google.com", "/dir", 307, "/dir/"},
 	{"CONNECT", "google.com", "/../search", 404, ""},
 	{"CONNECT", "google.com", "/dir/..", 200, "/dir/"},
 	{"CONNECT", "google.com", "/dir/..", 200, "/dir/"},
@@ -454,7 +454,7 @@ func TestServeMuxHandlerRedirects(t *testing.T) {
 			h, _ := mux.Handler(r)
 			rr := httptest.NewRecorder()
 			h.ServeHTTP(rr, r)
-			if rr.Code != 301 {
+			if rr.Code != 307 {
 				if rr.Code != tt.code {
 					t.Errorf("%s %s %s = %d, want %d", tt.method, tt.host, tt.url, rr.Code, tt.code)
 				}
@@ -470,6 +470,37 @@ func TestServeMuxHandlerRedirects(t *testing.T) {
 		if tries < 0 {
 			t.Errorf("%s %s %s, too many redirects", tt.method, tt.host, tt.url)
 		}
+	}
+}
+
+func TestServeMuxHandlerRedirectPost(t *testing.T) {
+	setParallel(t)
+	mux := NewServeMux()
+	mux.HandleFunc("POST /test/", func(w ResponseWriter, r *Request) {
+		w.WriteHeader(200)
+	})
+
+	var code, retries int
+	startURL := "http://example.com/test"
+	reqURL := startURL
+	for retries = 0; retries <= 1; retries++ {
+		r := httptest.NewRequest("POST", reqURL, strings.NewReader("hello world"))
+		h, _ := mux.Handler(r)
+		rr := httptest.NewRecorder()
+		h.ServeHTTP(rr, r)
+		code = rr.Code
+		switch rr.Code {
+		case 307:
+			reqURL = rr.Result().Header.Get("Location")
+			continue
+		case 200:
+			// ok
+		default:
+			t.Errorf("unhandled response code: %v", rr.Code)
+		}
+	}
+	if code != 200 {
+		t.Errorf("POST %s = %d after %d retries, want = 200", startURL, code, retries)
 	}
 }
 
@@ -492,8 +523,8 @@ func TestMuxRedirectLeadingSlashes(t *testing.T) {
 			return
 		}
 
-		if code, expected := resp.Code, StatusMovedPermanently; code != expected {
-			t.Errorf("Expected response code of StatusMovedPermanently; got %d", code)
+		if code, expected := resp.Code, StatusTemporaryRedirect; code != expected {
+			t.Errorf("Expected response code of StatusPermanentRedirect; got %d", code)
 			return
 		}
 	}
@@ -579,18 +610,18 @@ func TestServeWithSlashRedirectForHostPatterns(t *testing.T) {
 		want   string
 	}{
 		{"GET", "http://example.com/", 404, "", ""},
-		{"GET", "http://example.com/pkg/foo", 301, "/pkg/foo/", ""},
+		{"GET", "http://example.com/pkg/foo", 307, "/pkg/foo/", ""},
 		{"GET", "http://example.com/pkg/bar", 200, "", "example.com/pkg/bar"},
 		{"GET", "http://example.com/pkg/bar/", 200, "", "example.com/pkg/bar/"},
-		{"GET", "http://example.com/pkg/baz", 301, "/pkg/baz/", ""},
-		{"GET", "http://example.com:3000/pkg/foo", 301, "/pkg/foo/", ""},
+		{"GET", "http://example.com/pkg/baz", 307, "/pkg/baz/", ""},
+		{"GET", "http://example.com:3000/pkg/foo", 307, "/pkg/foo/", ""},
 		{"CONNECT", "http://example.com/", 404, "", ""},
 		{"CONNECT", "http://example.com:3000/", 404, "", ""},
 		{"CONNECT", "http://example.com:9000/", 200, "", "example.com:9000/"},
-		{"CONNECT", "http://example.com/pkg/foo", 301, "/pkg/foo/", ""},
+		{"CONNECT", "http://example.com/pkg/foo", 307, "/pkg/foo/", ""},
 		{"CONNECT", "http://example.com:3000/pkg/foo", 404, "", ""},
-		{"CONNECT", "http://example.com:3000/pkg/baz", 301, "/pkg/baz/", ""},
-		{"CONNECT", "http://example.com:3000/pkg/connect", 301, "/pkg/connect/", ""},
+		{"CONNECT", "http://example.com:3000/pkg/baz", 307, "/pkg/baz/", ""},
+		{"CONNECT", "http://example.com:3000/pkg/connect", 307, "/pkg/connect/", ""},
 	}
 
 	for i, tt := range tests {
@@ -6940,7 +6971,7 @@ func TestMuxRedirectRelative(t *testing.T) {
 	if got, want := resp.Header().Get("Location"), "/"; got != want {
 		t.Errorf("Location header expected %q; got %q", want, got)
 	}
-	if got, want := resp.Code, StatusMovedPermanently; got != want {
+	if got, want := resp.Code, StatusTemporaryRedirect; got != want {
 		t.Errorf("Expected response code %d; got %d", want, got)
 	}
 }
