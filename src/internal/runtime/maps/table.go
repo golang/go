@@ -596,7 +596,7 @@ func (t *table) tombstones() uint16 {
 	return (t.capacity*maxAvgGroupLoad)/abi.MapGroupSlots - t.used - t.growthLeft
 }
 
-// Clear deletes all entries from the map resulting in an empty map.
+// Clear deletes all entries from the table resulting in an empty table.
 func (t *table) Clear(typ *abi.MapType) {
 	mgl := t.maxGrowthLeft()
 	if t.used == 0 && t.growthLeft == mgl { // no current entries and no tombstones
