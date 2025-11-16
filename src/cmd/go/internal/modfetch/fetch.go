@@ -503,14 +503,14 @@ func (s *State) AddWorkspaceGoSumFile(file string) {
 // Reset resets globals in the modfetch package, so previous loads don't affect
 // contents of go.sum files.
 func Reset() {
-	SetState(State{})
+	SetState(NewState())
 }
 
 // SetState sets the global state of the modfetch package to the newState, and returns the previous
 // global state. newState should have been returned by SetState, or be an empty State.
 // There should be no concurrent calls to any of the exported functions of this package with
 // a call to SetState because it will modify the global state in a non-thread-safe way.
-func SetState(newState State) (oldState State) {
+func SetState(newState *State) (oldState *State) {
 	if newState.lookupCache == nil {
 		newState.lookupCache = new(par.Cache[lookupCacheKey, Repo])
 	}
@@ -521,7 +521,7 @@ func SetState(newState State) (oldState State) {
 	goSum.mu.Lock()
 	defer goSum.mu.Unlock()
 
-	oldState = State{
+	oldState = &State{
 		goSumFile:           ModuleFetchState.goSumFile,
 		workspaceGoSumFiles: ModuleFetchState.workspaceGoSumFiles,
 		lookupCache:         ModuleFetchState.lookupCache,
