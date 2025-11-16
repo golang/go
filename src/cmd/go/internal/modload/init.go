@@ -929,9 +929,9 @@ func loadModFile(loaderstate *State, ctx context.Context, opts *PackageOpts) (*R
 		}
 		for _, modRoot := range loaderstate.modRoots {
 			sumFile := strings.TrimSuffix(modFilePath(modRoot), ".mod") + ".sum"
-			modfetch.ModuleFetchState.WorkspaceGoSumFiles = append(modfetch.ModuleFetchState.WorkspaceGoSumFiles, sumFile)
+			modfetch.ModuleFetchState.AddWorkspaceGoSumFile(sumFile)
 		}
-		modfetch.ModuleFetchState.GoSumFile = loaderstate.workFilePath + ".sum"
+		modfetch.ModuleFetchState.SetGoSumFile(loaderstate.workFilePath + ".sum")
 	} else if len(loaderstate.modRoots) == 0 {
 		// We're in module mode, but not inside a module.
 		//
@@ -951,7 +951,7 @@ func loadModFile(loaderstate *State, ctx context.Context, opts *PackageOpts) (*R
 		//
 		// See golang.org/issue/32027.
 	} else {
-		modfetch.ModuleFetchState.GoSumFile = strings.TrimSuffix(modFilePath(loaderstate.modRoots[0]), ".mod") + ".sum"
+		modfetch.ModuleFetchState.SetGoSumFile(strings.TrimSuffix(modFilePath(loaderstate.modRoots[0]), ".mod") + ".sum")
 	}
 	if len(loaderstate.modRoots) == 0 {
 		// TODO(#49228): Instead of creating a fake module with an empty modroot,
