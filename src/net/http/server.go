@@ -2408,7 +2408,7 @@ func Redirect(w ResponseWriter, r *Request, url string, code int) {
 		// but doing it ourselves is more reliable.
 		// See RFC 7231, section 7.1.2
 		if u.Scheme == "" && u.Host == "" {
-			oldpath := r.URL.Path
+			oldpath := r.URL.EscapedPath()
 			if oldpath == "" { // should not happen, but avoid a crash if it does
 				oldpath = "/"
 			}

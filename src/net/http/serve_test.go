@@ -2881,6 +2881,19 @@ func TestRedirectBadPath(t *testing.T) {
 	}
 }
 
+func TestRedirectEscapedPath(t *testing.T) {
+	baseURL, redirectURL := "http://example.com/foo%2Fbar/", "qux%2Fbaz"
+	req := httptest.NewRequest("GET", baseURL, NoBody)
+
+	rr := httptest.NewRecorder()
+	Redirect(rr, req, redirectURL, StatusMovedPermanently)
+
+	wantURL := "/foo%2Fbar/qux%2Fbaz"
+	if got := rr.Result().Header.Get("Location"); got != wantURL {
+		t.Errorf("Redirect(%s, %s) = %s, want = %s", baseURL, redirectURL, got, wantURL)
+	}
+}
+
 // Test different URL formats and schemes
 func TestRedirect(t *testing.T) {
 	req, _ := NewRequest("GET", "http://example.com/qux/", nil)
