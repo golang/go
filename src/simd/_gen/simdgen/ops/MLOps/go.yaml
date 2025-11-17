@@ -33,9 +33,9 @@
 #     const: 127
 #   out:
 #   - *dpb_src
-- go: AddDotProductQuadruple
+- go: DotProductQuadruple
   asm: "VPDPBUSD"
-  operandOrder: "31" # switch operand 3 and 1
+  operandOrder: "31Zero3" # switch operand 3 and 1, and make 3 always 0
   in:
   - &qdpa_acc
     go: $t_acc
@@ -51,9 +51,9 @@
     overwriteElementBits: 8
   out:
   - *qdpa_acc
-- go: AddDotProductQuadrupleSaturated
+- go: DotProductQuadrupleSaturated
   asm: "VPDPBUSDS"
-  operandOrder: "31" # switch operand 3 and 1
+  operandOrder: "31Zero3" # switch operand 3 and 1, and make 3 always 0
   in:
   - *qdpa_acc
   - *qdpa_src1

@@ -42,7 +42,7 @@ func simdIntrinsics(addF func(pkg, fn string, b intrinsicBuilder, archFamilies .
 {{end}}
 {{define "op3_231Type1"}}	addF(simdPackage, "{{(index .In 1).Go}}.{{.Go}}", opLen3_231(ssa.Op{{.GenericName}}, {{.SSAType}}), sys.AMD64)
 {{end}}
-{{define "op3_31"}}	addF(simdPackage, "{{(index .In 2).Go}}.{{.Go}}", opLen3_31(ssa.Op{{.GenericName}}, {{.SSAType}}), sys.AMD64)
+{{define "op3_31Zero3"}}	addF(simdPackage, "{{(index .In 2).Go}}.{{.Go}}", opLen3_31Zero3(ssa.Op{{.GenericName}}, {{.SSAType}}), sys.AMD64)
 {{end}}
 {{define "op4"}}	addF(simdPackage, "{{(index .In 0).Go}}.{{.Go}}", opLen4(ssa.Op{{.GenericName}}, {{.SSAType}}), sys.AMD64)
 {{end}}

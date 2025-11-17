@@ -346,40 +346,6 @@ func (x Uint64x4) Add(y Uint64x4) Uint64x4
 // Asm: VPADDQ, CPU Feature: AVX512
 func (x Uint64x8) Add(y Uint64x8) Uint64x8
 
-/* AddDotProductQuadruple */
-
-// AddDotProductQuadruple performs dot products on groups of 4 elements of x and y and then adds z.
-//
-// Asm: VPDPBUSD, CPU Feature: AVXVNNI
-func (x Int8x16) AddDotProductQuadruple(y Uint8x16, z Int32x4) Int32x4
-
-// AddDotProductQuadruple performs dot products on groups of 4 elements of x and y and then adds z.
-//
-// Asm: VPDPBUSD, CPU Feature: AVXVNNI
-func (x Int8x32) AddDotProductQuadruple(y Uint8x32, z Int32x8) Int32x8
-
-// AddDotProductQuadruple performs dot products on groups of 4 elements of x and y and then adds z.
-//
-// Asm: VPDPBUSD, CPU Feature: AVX512VNNI
-func (x Int8x64) AddDotProductQuadruple(y Uint8x64, z Int32x16) Int32x16
-
-/* AddDotProductQuadrupleSaturated */
-
-// AddDotProductQuadrupleSaturated multiplies performs dot products on groups of 4 elements of x and y and then adds z.
-//
-// Asm: VPDPBUSDS, CPU Feature: AVXVNNI
-func (x Int8x16) AddDotProductQuadrupleSaturated(y Uint8x16, z Int32x4) Int32x4
-
-// AddDotProductQuadrupleSaturated multiplies performs dot products on groups of 4 elements of x and y and then adds z.
-//
-// Asm: VPDPBUSDS, CPU Feature: AVXVNNI
-func (x Int8x32) AddDotProductQuadrupleSaturated(y Uint8x32, z Int32x8) Int32x8
-
-// AddDotProductQuadrupleSaturated multiplies performs dot products on groups of 4 elements of x and y and then adds z.
-//
-// Asm: VPDPBUSDS, CPU Feature: AVX512VNNI
-func (x Int8x64) AddDotProductQuadrupleSaturated(y Uint8x64, z Int32x16) Int32x16
-
 /* AddPairs */
 
 // AddPairs horizontally adds adjacent pairs of elements.
@@ -2227,6 +2193,46 @@ func (x Uint8x32) DotProductPairsSaturated(y Int8x32) Int16x16
 //
 // Asm: VPMADDUBSW, CPU Feature: AVX512
 func (x Uint8x64) DotProductPairsSaturated(y Int8x64) Int16x32
+
+/* DotProductQuadruple */
+
+// DotProductQuadruple performs dot products on groups of 4 elements of x and y.
+// DotProductQuadruple(x, y).Add(z) will be optimized to the full form of the underlying instruction.
+//
+// Asm: VPDPBUSD, CPU Feature: AVXVNNI
+func (x Int8x16) DotProductQuadruple(y Uint8x16) Int32x4
+
+// DotProductQuadruple performs dot products on groups of 4 elements of x and y.
+// DotProductQuadruple(x, y).Add(z) will be optimized to the full form of the underlying instruction.
+//
+// Asm: VPDPBUSD, CPU Feature: AVXVNNI
+func (x Int8x32) DotProductQuadruple(y Uint8x32) Int32x8
+
+// DotProductQuadruple performs dot products on groups of 4 elements of x and y.
+// DotProductQuadruple(x, y).Add(z) will be optimized to the full form of the underlying instruction.
+//
+// Asm: VPDPBUSD, CPU Feature: AVX512VNNI
+func (x Int8x64) DotProductQuadruple(y Uint8x64) Int32x16
+
+/* DotProductQuadrupleSaturated */
+
+// DotProductQuadrupleSaturated multiplies performs dot products on groups of 4 elements of x and y.
+// DotProductQuadrupleSaturated(x, y).Add(z) will be optimized to the full form of the underlying instruction.
+//
+// Asm: VPDPBUSDS, CPU Feature: AVXVNNI
+func (x Int8x16) DotProductQuadrupleSaturated(y Uint8x16) Int32x4
+
+// DotProductQuadrupleSaturated multiplies performs dot products on groups of 4 elements of x and y.
+// DotProductQuadrupleSaturated(x, y).Add(z) will be optimized to the full form of the underlying instruction.
+//
+// Asm: VPDPBUSDS, CPU Feature: AVXVNNI
+func (x Int8x32) DotProductQuadrupleSaturated(y Uint8x32) Int32x8
+
+// DotProductQuadrupleSaturated multiplies performs dot products on groups of 4 elements of x and y.
+// DotProductQuadrupleSaturated(x, y).Add(z) will be optimized to the full form of the underlying instruction.
+//
+// Asm: VPDPBUSDS, CPU Feature: AVX512VNNI
+func (x Int8x64) DotProductQuadrupleSaturated(y Uint8x64) Int32x16
 
 /* Equal */
 

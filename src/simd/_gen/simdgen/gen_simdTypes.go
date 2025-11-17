@@ -257,11 +257,11 @@ func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op0NameAndType "y"}}) {{.GoType}}
 func ({{.Op0NameAndType "x"}}) {{.Go}}({{.Op1NameAndType "y"}}, {{.Op2NameAndType "z"}}) {{.GoType}}
 {{end}}
 
-{{define "op3_31"}}
+{{define "op3_31Zero3"}}
 {{if .Documentation}}{{.Documentation}}
 //{{end}}
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
-func ({{.Op2NameAndType "x"}}) {{.Go}}({{.Op1NameAndType "y"}}, {{.Op0NameAndType "z"}}) {{.GoType}}
+func ({{.Op2NameAndType "x"}}) {{.Go}}({{.Op1NameAndType "y"}}) {{.GoType}}
 {{end}}
 
 {{define "op3_21"}}

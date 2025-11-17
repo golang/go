@@ -15,14 +15,16 @@
 #   commutative: true
 # #   documentation: !string |-
 #     // NAME multiplies all elements and broadcasts the sum.
-- go: AddDotProductQuadruple
+- go: DotProductQuadruple
   commutative: false
   documentation: !string |-
-    // NAME performs dot products on groups of 4 elements of x and y and then adds z.
-- go: AddDotProductQuadrupleSaturated
+    // NAME performs dot products on groups of 4 elements of x and y.
+    // NAME(x, y).Add(z) will be optimized to the full form of the underlying instruction.
+- go: DotProductQuadrupleSaturated
   commutative: false
   documentation: !string |-
-    // NAME multiplies performs dot products on groups of 4 elements of x and y and then adds z.
+    // NAME multiplies performs dot products on groups of 4 elements of x and y.
+    // NAME(x, y).Add(z) will be optimized to the full form of the underlying instruction.
 - go: AddDotProductPairs
   commutative: false
   noTypes: "true"

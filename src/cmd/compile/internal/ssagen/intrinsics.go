@@ -1869,9 +1869,19 @@ func opLen3(op ssa.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssa
 	}
 }
 
-func opLen3_31(op ssa.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+var ssaVecBySize = map[int64]*types.Type{
+	16: types.TypeVec128,
+	32: types.TypeVec256,
+	64: types.TypeVec512,
+}
+
+func opLen3_31Zero3(op ssa.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-		return s.newValue3(op, t, args[2], args[1], args[0])
+		if t, ok := ssaVecBySize[args[1].Type.Size()]; !ok {
+			panic("unknown simd vector size")
+		} else {
+			return s.newValue3(op, t, s.newValue0(ssa.OpZeroSIMD, t), args[1], args[0])
+		}
 	}
 }
 

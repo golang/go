@@ -5977,12 +5977,6 @@ const (
 	OpAbsInt64x2
 	OpAbsInt64x4
 	OpAbsInt64x8
-	OpAddDotProductQuadrupleInt32x4
-	OpAddDotProductQuadrupleInt32x8
-	OpAddDotProductQuadrupleInt32x16
-	OpAddDotProductQuadrupleSaturatedInt32x4
-	OpAddDotProductQuadrupleSaturatedInt32x8
-	OpAddDotProductQuadrupleSaturatedInt32x16
 	OpAddFloat32x4
 	OpAddFloat32x8
 	OpAddFloat32x16
@@ -6299,6 +6293,12 @@ const (
 	OpDotProductPairsSaturatedUint8x16
 	OpDotProductPairsSaturatedUint8x32
 	OpDotProductPairsSaturatedUint8x64
+	OpDotProductQuadrupleInt32x4
+	OpDotProductQuadrupleInt32x8
+	OpDotProductQuadrupleInt32x16
+	OpDotProductQuadrupleSaturatedInt32x4
+	OpDotProductQuadrupleSaturatedInt32x8
+	OpDotProductQuadrupleSaturatedInt32x16
 	OpEqualFloat32x4
 	OpEqualFloat32x8
 	OpEqualFloat32x16
@@ -85912,36 +85912,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "AddDotProductQuadrupleInt32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "AddDotProductQuadrupleInt32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "AddDotProductQuadrupleInt32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "AddDotProductQuadrupleSaturatedInt32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "AddDotProductQuadrupleSaturatedInt32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "AddDotProductQuadrupleSaturatedInt32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
 		name:        "AddFloat32x4",
 		argLen:      2,
 		commutative: true,
@@ -87591,6 +87561,36 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "DotProductPairsSaturatedUint8x64",
 		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "DotProductQuadrupleInt32x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "DotProductQuadrupleInt32x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "DotProductQuadrupleInt32x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "DotProductQuadrupleSaturatedInt32x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "DotProductQuadrupleSaturatedInt32x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "DotProductQuadrupleSaturatedInt32x16",
+		argLen:  3,
 		generic: true,
 	},
 	{
