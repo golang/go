@@ -854,15 +854,6 @@ func bufioWriterPool(size int) *sync.Pool {
 	return nil
 }
 
-// newBufioReader should be an internal detail,
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
-//   - github.com/gobwas/ws
-//
-// Do not remove or change the type signature.
-// See go.dev/issue/67401.
-//
-//go:linkname newBufioReader
 func newBufioReader(r io.Reader) *bufio.Reader {
 	if v := bufioReaderPool.Get(); v != nil {
 		br := v.(*bufio.Reader)
@@ -874,29 +865,11 @@ func newBufioReader(r io.Reader) *bufio.Reader {
 	return bufio.NewReader(r)
 }
 
-// putBufioReader should be an internal detail,
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
-//   - github.com/gobwas/ws
-//
-// Do not remove or change the type signature.
-// See go.dev/issue/67401.
-//
-//go:linkname putBufioReader
 func putBufioReader(br *bufio.Reader) {
 	br.Reset(nil)
 	bufioReaderPool.Put(br)
 }
 
-// newBufioWriterSize should be an internal detail,
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
-//   - github.com/gobwas/ws
-//
-// Do not remove or change the type signature.
-// See go.dev/issue/67401.
-//
-//go:linkname newBufioWriterSize
 func newBufioWriterSize(w io.Writer, size int) *bufio.Writer {
 	pool := bufioWriterPool(size)
 	if pool != nil {
@@ -909,15 +882,6 @@ func newBufioWriterSize(w io.Writer, size int) *bufio.Writer {
 	return bufio.NewWriterSize(w, size)
 }
 
-// putBufioWriter should be an internal detail,
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
-//   - github.com/gobwas/ws
-//
-// Do not remove or change the type signature.
-// See go.dev/issue/67401.
-//
-//go:linkname putBufioWriter
 func putBufioWriter(bw *bufio.Writer) {
 	bw.Reset(nil)
 	if pool := bufioWriterPool(bw.Available()); pool != nil {
