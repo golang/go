@@ -1727,7 +1727,13 @@ func gcBgMarkWorker(ready chan struct{}) {
 	// the stack (see gopark). Prevent deadlock from recursively
 	// starting GC by disabling preemption.
 	gp.m.preemptoff = "GC worker init"
-	node := &new(gcBgMarkWorkerNodePadded).gcBgMarkWorkerNode // TODO: technically not allowed in the heap. See comment in tagptr.go.
+	// TODO: This is technically not allowed in the heap. See comment in tagptr.go.
+	//
+	// It is kept alive simply by virtue of being used in the infinite loop
+	// below. gcBgMarkWorkerPool keeps pointers to nodes that are not
+	// GC-visible, so this must be kept alive indefinitely (even if
+	// GOMAXPROCS decreases).
+	node := &new(gcBgMarkWorkerNodePadded).gcBgMarkWorkerNode
 	gp.m.preemptoff = ""
 
 	node.gp.set(gp)
