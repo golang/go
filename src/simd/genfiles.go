@@ -912,6 +912,7 @@ type SIMDLogicalOP uint8
 const (
 	// boolean simd operations, for reducing expression to VPTERNLOG* instructions
 	// sloInterior is set for non-root nodes in logical-op expression trees.
+	// the operations are even-numbered.
 	sloInterior SIMDLogicalOP = 1
 	sloNone SIMDLogicalOP = 2 * iota
 	sloAnd
