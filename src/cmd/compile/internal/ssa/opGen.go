@@ -26107,6 +26107,7 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
 			},
+			clobbers:     2305843009213693952, // F31
 			clobbersArg0: true,
 		},
 	},

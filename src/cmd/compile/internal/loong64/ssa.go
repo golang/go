@@ -575,6 +575,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	case ssa.OpLOONG64LoweredZeroLoop:
 		ptrReg := v.Args[0].Reg()
 		countReg := v.RegTmp()
+		flagReg := int16(loong64.REGTMP)
 		var off int64
 		n := v.AuxInt
 		loopSize := int64(64)
@@ -587,58 +588,119 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			//   vs
 			//     16 instuctions in the straightline code
 			//   Might as well use straightline code.
-			v.Fatalf("ZeroLoop size tool small %d", n)
+			v.Fatalf("ZeroLoop size too small %d", n)
 		}
 
-		// Put iteration count in a register.
-		//   MOVV     $n/loopSize, countReg
-		p := s.Prog(loong64.AMOVV)
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = n / loopSize
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = countReg
-		cntInit := p
+		//    MOVV    $n/loopSize, countReg
+		//    MOVBU   ir.Syms.Loong64HasLSX, flagReg
+		//    BNE     flagReg, lsxInit
+		// genericInit:
+		//    for off = 0; off < loopSize; off += 8 {
+		//            zero8(s, ptrReg, off)
+		//    }
+		//    ADDV    $loopSize, ptrReg
+		//    SUBV    $1, countReg
+		//    BNE     countReg, genericInit
+		//    JMP     tail
+		// lsxInit:
+		//    VXORV   V31, V31, V31, v31 = 0
+		//    for off = 0; off < loopSize; off += 16 {
+		//            zero16(s, V31, ptrReg, off)
+		//    }
+		//    ADDV    $loopSize, ptrReg
+		//    SUBV    $1, countReg
+		//    BNE     countReg, lsxInit
+		// tail:
+		//    n %= loopSize
+		//    for off = 0; n >= 8; off += 8, n -= 8 {
+		//            zero8(s, ptrReg, off)
+		//    }
+		//
+		//    if n != 0 {
+		//           zero8(s, ptrReg, off+n-8)
+		//    }
 
-		// Zero loopSize bytes starting at ptrReg.
-		for range loopSize / 8 {
-			// MOVV     ZR, off(ptrReg)
+		p1 := s.Prog(loong64.AMOVV)
+		p1.From.Type = obj.TYPE_CONST
+		p1.From.Offset = n / loopSize
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = countReg
+
+		p2 := s.Prog(loong64.AMOVBU)
+		p2.From.Type = obj.TYPE_MEM
+		p2.From.Name = obj.NAME_EXTERN
+		p2.From.Sym = ir.Syms.Loong64HasLSX
+		p2.To.Type = obj.TYPE_REG
+		p2.To.Reg = flagReg
+
+		p3 := s.Prog(loong64.ABNE)
+		p3.From.Type = obj.TYPE_REG
+		p3.From.Reg = flagReg
+		p3.To.Type = obj.TYPE_BRANCH
+
+		for off = 0; off < loopSize; off += 8 {
 			zero8(s, ptrReg, off)
-			off += 8
 		}
 
-		// Increment ptrReg by loopSize.
-		//   ADDV     $loopSize, ptrReg
-		p = s.Prog(loong64.AADDV)
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = loopSize
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = ptrReg
+		p4 := s.Prog(loong64.AADDV)
+		p4.From.Type = obj.TYPE_CONST
+		p4.From.Offset = loopSize
+		p4.To.Type = obj.TYPE_REG
+		p4.To.Reg = ptrReg
 
-		// Decrement loop count.
-		//   SUBV     $1, countReg
-		p = s.Prog(loong64.ASUBV)
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = 1
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = countReg
+		p5 := s.Prog(loong64.ASUBV)
+		p5.From.Type = obj.TYPE_CONST
+		p5.From.Offset = 1
+		p5.To.Type = obj.TYPE_REG
+		p5.To.Reg = countReg
 
-		// Jump to loop header if we're not done yet.
-		//   BNE     countReg, loop header
-		p = s.Prog(loong64.ABNE)
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = countReg
-		p.To.Type = obj.TYPE_BRANCH
-		p.To.SetTarget(cntInit.Link)
+		p6 := s.Prog(loong64.ABNE)
+		p6.From.Type = obj.TYPE_REG
+		p6.From.Reg = countReg
+		p6.To.Type = obj.TYPE_BRANCH
+		p6.To.SetTarget(p3.Link)
+
+		p7 := s.Prog(obj.AJMP)
+		p7.To.Type = obj.TYPE_BRANCH
+
+		p8 := s.Prog(loong64.AVXORV)
+		p8.From.Type = obj.TYPE_REG
+		p8.From.Reg = loong64.REG_V31
+		p8.To.Type = obj.TYPE_REG
+		p8.To.Reg = loong64.REG_V31
+		p3.To.SetTarget(p8)
+
+		for off = 0; off < loopSize; off += 16 {
+			zero16(s, loong64.REG_V31, ptrReg, off)
+		}
+
+		p9 := s.Prog(loong64.AADDV)
+		p9.From.Type = obj.TYPE_CONST
+		p9.From.Offset = loopSize
+		p9.To.Type = obj.TYPE_REG
+		p9.To.Reg = ptrReg
+
+		p10 := s.Prog(loong64.ASUBV)
+		p10.From.Type = obj.TYPE_CONST
+		p10.From.Offset = 1
+		p10.To.Type = obj.TYPE_REG
+		p10.To.Reg = countReg
+
+		p11 := s.Prog(loong64.ABNE)
+		p11.From.Type = obj.TYPE_REG
+		p11.From.Reg = countReg
+		p11.To.Type = obj.TYPE_BRANCH
+		p11.To.SetTarget(p8.Link)
+
+		p12 := s.Prog(obj.ANOP)
+		p7.To.SetTarget(p12)
 
 		// Multiples of the loop size are now done.
 		n %= loopSize
-
-		off = 0
 		// Write any fractional portion.
-		for n >= 8 {
-			// MOVV     ZR, off(ptrReg)
+		for off = 0; n >= 8; off += 8 {
+			// MOVV   ZR, off(ptrReg)
 			zero8(s, ptrReg, off)
-			off += 8
 			n -= 8
 		}
 
@@ -1333,11 +1395,22 @@ func move8(s *ssagen.State, src, dst, tmp int16, off int64) {
 
 // zero8 zeroes 8 bytes at reg+off.
 func zero8(s *ssagen.State, reg int16, off int64) {
-	// MOVV     ZR, off(reg)
+	// MOVV   ZR, off(reg)
 	p := s.Prog(loong64.AMOVV)
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = loong64.REGZERO
 	p.To.Type = obj.TYPE_MEM
 	p.To.Reg = reg
+	p.To.Offset = off
+}
+
+// zero16 zeroes 16 bytes at reg+off.
+func zero16(s *ssagen.State, regZero, regBase int16, off int64) {
+	// VMOVQ   regZero, off(regBase)
+	p := s.Prog(loong64.AVMOVQ)
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = regZero
+	p.To.Type = obj.TYPE_MEM
+	p.To.Reg = regBase
 	p.To.Offset = off
 }
