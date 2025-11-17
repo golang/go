@@ -83,6 +83,17 @@ in: !repeat
   - {class: vreg, go: Int64x4,    base: "int",   elemBits: 128, bits: 256, lanes: 4}
   - {class: vreg, go: Uint64x4,   base: "uint",  elemBits: 128, bits: 256, lanes: 4}
 
+# Special shapes just to make VAES(ENC|DEC)(LAST)?512 work.
+# The elemBits field of these shapes are wrong, it would be overwritten by overwriteElemBits.
+  - {class: vreg, go: Int8x32,    base: "int",   elemBits: 128, bits: 512, lanes: 32}
+  - {class: vreg, go: Uint8x32,   base: "uint",  elemBits: 128, bits: 512, lanes: 32}
+  - {class: vreg, go: Int16x16,   base: "int",   elemBits: 128, bits: 512, lanes: 16}
+  - {class: vreg, go: Uint16x16,  base: "uint",  elemBits: 128, bits: 512, lanes: 16}
+  - {class: vreg, go: Int32x8,    base: "int",   elemBits: 128, bits: 512, lanes: 8}
+  - {class: vreg, go: Uint32x8,   base: "uint",  elemBits: 128, bits: 512, lanes: 8}
+  - {class: vreg, go: Int64x4,    base: "int",   elemBits: 128, bits: 512, lanes: 4}
+  - {class: vreg, go: Uint64x4,   base: "uint",  elemBits: 128, bits: 512, lanes: 4}
+
   - {class: immediate, go: Immediate} # TODO: we only support imms that are not used as value -- usually as instruction semantic predicate like VPCMP as of now.
 inVariant: !repeat
 - *types

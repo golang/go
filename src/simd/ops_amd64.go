@@ -22,23 +22,39 @@ func (x Uint8x16) AESDecryptLastRound(y Uint32x4) Uint8x16
 // Asm: VAESDECLAST, CPU Feature: AVX512VAES
 func (x Uint8x32) AESDecryptLastRound(y Uint32x8) Uint8x32
 
-/* AESDecryptRound */
+// AESDecryptLastRound performs a series of operations in AES cipher algorithm defined in FIPS 197.
+// x is the state array, starting from low index to high are s00, s10, s20, s30, s01, ..., s33.
+// y is the chunk of dw array in use.
+// result = AddRoundKey(InvShiftRows(InvSubBytes(x)), y)
+//
+// Asm: VAESDECLAST, CPU Feature: AVX512VAES
+func (x Uint8x64) AESDecryptLastRound(y Uint32x16) Uint8x64
 
-// AESDecryptRound performs a series of operations in AES cipher algorithm defined in FIPS 197.
+/* AESDecryptOneRound */
+
+// AESDecryptOneRound performs a series of operations in AES cipher algorithm defined in FIPS 197.
 // x is the state array, starting from low index to high are s00, s10, s20, s30, s01, ..., s33.
 // y is the chunk of dw array in use.
 // result = AddRoundKey(InvMixColumns(InvShiftRows(InvSubBytes(x))), y)
 //
 // Asm: VAESDEC, CPU Feature: AVX, AES
-func (x Uint8x16) AESDecryptRound(y Uint32x4) Uint8x16
+func (x Uint8x16) AESDecryptOneRound(y Uint32x4) Uint8x16
 
-// AESDecryptRound performs a series of operations in AES cipher algorithm defined in FIPS 197.
+// AESDecryptOneRound performs a series of operations in AES cipher algorithm defined in FIPS 197.
 // x is the state array, starting from low index to high are s00, s10, s20, s30, s01, ..., s33.
 // y is the chunk of dw array in use.
 // result = AddRoundKey(InvMixColumns(InvShiftRows(InvSubBytes(x))), y)
 //
 // Asm: VAESDEC, CPU Feature: AVX512VAES
-func (x Uint8x32) AESDecryptRound(y Uint32x8) Uint8x32
+func (x Uint8x32) AESDecryptOneRound(y Uint32x8) Uint8x32
+
+// AESDecryptOneRound performs a series of operations in AES cipher algorithm defined in FIPS 197.
+// x is the state array, starting from low index to high are s00, s10, s20, s30, s01, ..., s33.
+// y is the chunk of dw array in use.
+// result = AddRoundKey(InvMixColumns(InvShiftRows(InvSubBytes(x))), y)
+//
+// Asm: VAESDEC, CPU Feature: AVX512VAES
+func (x Uint8x64) AESDecryptOneRound(y Uint32x16) Uint8x64
 
 /* AESEncryptLastRound */
 
@@ -58,23 +74,39 @@ func (x Uint8x16) AESEncryptLastRound(y Uint32x4) Uint8x16
 // Asm: VAESENCLAST, CPU Feature: AVX512VAES
 func (x Uint8x32) AESEncryptLastRound(y Uint32x8) Uint8x32
 
-/* AESEncryptRound */
+// AESEncryptLastRound performs a series of operations in AES cipher algorithm defined in FIPS 197.
+// x is the state array, starting from low index to high are s00, s10, s20, s30, s01, ..., s33.
+// y is the chunk of w array in use.
+// result = AddRoundKey((ShiftRows(SubBytes(x))), y)
+//
+// Asm: VAESENCLAST, CPU Feature: AVX512VAES
+func (x Uint8x64) AESEncryptLastRound(y Uint32x16) Uint8x64
 
-// AESEncryptRound performs a series of operations in AES cipher algorithm defined in FIPS 197.
+/* AESEncryptOneRound */
+
+// AESEncryptOneRound performs a series of operations in AES cipher algorithm defined in FIPS 197.
 // x is the state array, starting from low index to high are s00, s10, s20, s30, s01, ..., s33.
 // y is the chunk of w array in use.
 // result = AddRoundKey(MixColumns(ShiftRows(SubBytes(x))), y)
 //
 // Asm: VAESENC, CPU Feature: AVX, AES
-func (x Uint8x16) AESEncryptRound(y Uint32x4) Uint8x16
+func (x Uint8x16) AESEncryptOneRound(y Uint32x4) Uint8x16
 
-// AESEncryptRound performs a series of operations in AES cipher algorithm defined in FIPS 197.
+// AESEncryptOneRound performs a series of operations in AES cipher algorithm defined in FIPS 197.
 // x is the state array, starting from low index to high are s00, s10, s20, s30, s01, ..., s33.
 // y is the chunk of w array in use.
 // result = AddRoundKey(MixColumns(ShiftRows(SubBytes(x))), y)
 //
 // Asm: VAESENC, CPU Feature: AVX512VAES
-func (x Uint8x32) AESEncryptRound(y Uint32x8) Uint8x32
+func (x Uint8x32) AESEncryptOneRound(y Uint32x8) Uint8x32
+
+// AESEncryptOneRound performs a series of operations in AES cipher algorithm defined in FIPS 197.
+// x is the state array, starting from low index to high are s00, s10, s20, s30, s01, ..., s33.
+// y is the chunk of w array in use.
+// result = AddRoundKey(MixColumns(ShiftRows(SubBytes(x))), y)
+//
+// Asm: VAESENC, CPU Feature: AVX512VAES
+func (x Uint8x64) AESEncryptOneRound(y Uint32x16) Uint8x64
 
 /* AESInvMixColumns */
 

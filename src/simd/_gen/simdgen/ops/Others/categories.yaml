@@ -3,7 +3,7 @@
   commutative: false
   documentation: !string |-
     // NAME counts the leading zeros of each element in x.
-- go: AESEncryptRound
+- go: AESEncryptOneRound
   commutative: false
   documentation: !string |-
     // NAME performs a series of operations in AES cipher algorithm defined in FIPS 197.
@@ -27,7 +27,7 @@
     // result[1] = SubWord(x[1])
     // result[2] = XOR(SubWord(RotWord(x[2])), r)
     // result[3] = SubWord(x[3])
-- go: AESDecryptRound
+- go: AESDecryptOneRound
   commutative: false
   documentation: !string |-
     // NAME performs a series of operations in AES cipher algorithm defined in FIPS 197.

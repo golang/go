@@ -16,11 +16,17 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpAESDecryptLastRoundUint8x32:
 		v.Op = OpAMD64VAESDECLAST256
 		return true
-	case OpAESDecryptRoundUint8x16:
+	case OpAESDecryptLastRoundUint8x64:
+		v.Op = OpAMD64VAESDECLAST512
+		return true
+	case OpAESDecryptOneRoundUint8x16:
 		v.Op = OpAMD64VAESDEC128
 		return true
-	case OpAESDecryptRoundUint8x32:
+	case OpAESDecryptOneRoundUint8x32:
 		v.Op = OpAMD64VAESDEC256
+		return true
+	case OpAESDecryptOneRoundUint8x64:
+		v.Op = OpAMD64VAESDEC512
 		return true
 	case OpAESEncryptLastRoundUint8x16:
 		v.Op = OpAMD64VAESENCLAST128
@@ -28,11 +34,17 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpAESEncryptLastRoundUint8x32:
 		v.Op = OpAMD64VAESENCLAST256
 		return true
-	case OpAESEncryptRoundUint8x16:
+	case OpAESEncryptLastRoundUint8x64:
+		v.Op = OpAMD64VAESENCLAST512
+		return true
+	case OpAESEncryptOneRoundUint8x16:
 		v.Op = OpAMD64VAESENC128
 		return true
-	case OpAESEncryptRoundUint8x32:
+	case OpAESEncryptOneRoundUint8x32:
 		v.Op = OpAMD64VAESENC256
+		return true
+	case OpAESEncryptOneRoundUint8x64:
+		v.Op = OpAMD64VAESENC512
 		return true
 	case OpAESInvMixColumnsUint32x4:
 		v.Op = OpAMD64VAESIMC128

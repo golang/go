@@ -6,7 +6,7 @@
     go: $t
   out:
   - *any
-- go: AESEncryptRound
+- go: AESEncryptOneRound
   asm: VAESENC
   in:
   - &uint8s
@@ -33,7 +33,7 @@
     name: rconVal
   out:
   - *uint32s
-- go: AESDecryptRound
+- go: AESDecryptOneRound
   asm: VAESDEC
   in:
   - *uint8s

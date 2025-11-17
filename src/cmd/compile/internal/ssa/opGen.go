@@ -1269,12 +1269,16 @@ const (
 	OpAMD64VADDSUBPS256
 	OpAMD64VAESDEC128
 	OpAMD64VAESDEC256
+	OpAMD64VAESDEC512
 	OpAMD64VAESDECLAST128
 	OpAMD64VAESDECLAST256
+	OpAMD64VAESDECLAST512
 	OpAMD64VAESENC128
 	OpAMD64VAESENC256
+	OpAMD64VAESENC512
 	OpAMD64VAESENCLAST128
 	OpAMD64VAESENCLAST256
+	OpAMD64VAESENCLAST512
 	OpAMD64VAESIMC128
 	OpAMD64VBROADCASTSD256
 	OpAMD64VBROADCASTSD512
@@ -5950,12 +5954,16 @@ const (
 	OpIsZeroVec
 	OpAESDecryptLastRoundUint8x16
 	OpAESDecryptLastRoundUint8x32
-	OpAESDecryptRoundUint8x16
-	OpAESDecryptRoundUint8x32
+	OpAESDecryptLastRoundUint8x64
+	OpAESDecryptOneRoundUint8x16
+	OpAESDecryptOneRoundUint8x32
+	OpAESDecryptOneRoundUint8x64
 	OpAESEncryptLastRoundUint8x16
 	OpAESEncryptLastRoundUint8x32
-	OpAESEncryptRoundUint8x16
-	OpAESEncryptRoundUint8x32
+	OpAESEncryptLastRoundUint8x64
+	OpAESEncryptOneRoundUint8x16
+	OpAESEncryptOneRoundUint8x32
+	OpAESEncryptOneRoundUint8x64
 	OpAESInvMixColumnsUint32x4
 	OpAbsInt8x16
 	OpAbsInt8x32
@@ -20874,6 +20882,20 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VAESDEC512",
+		argLen: 2,
+		asm:    x86.AVAESDEC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
 		name:   "VAESDECLAST128",
 		argLen: 2,
 		asm:    x86.AVAESDECLAST,
@@ -20889,6 +20911,20 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:   "VAESDECLAST256",
+		argLen: 2,
+		asm:    x86.AVAESDECLAST,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VAESDECLAST512",
 		argLen: 2,
 		asm:    x86.AVAESDECLAST,
 		reg: regInfo{
@@ -20930,6 +20966,20 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VAESENC512",
+		argLen: 2,
+		asm:    x86.AVAESENC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
 		name:   "VAESENCLAST128",
 		argLen: 2,
 		asm:    x86.AVAESENCLAST,
@@ -20945,6 +20995,20 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:   "VAESENCLAST256",
+		argLen: 2,
+		asm:    x86.AVAESENCLAST,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VAESENCLAST512",
 		argLen: 2,
 		asm:    x86.AVAESENCLAST,
 		reg: regInfo{
@@ -85740,12 +85804,22 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "AESDecryptRoundUint8x16",
+		name:    "AESDecryptLastRoundUint8x64",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "AESDecryptRoundUint8x32",
+		name:    "AESDecryptOneRoundUint8x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "AESDecryptOneRoundUint8x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "AESDecryptOneRoundUint8x64",
 		argLen:  2,
 		generic: true,
 	},
@@ -85760,12 +85834,22 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "AESEncryptRoundUint8x16",
+		name:    "AESEncryptLastRoundUint8x64",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "AESEncryptRoundUint8x32",
+		name:    "AESEncryptOneRoundUint8x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "AESEncryptOneRoundUint8x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "AESEncryptOneRoundUint8x64",
 		argLen:  2,
 		generic: true,
 	},
