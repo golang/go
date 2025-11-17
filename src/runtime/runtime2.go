@@ -1425,9 +1425,9 @@ var (
 	// must be set. An idle P (passed to pidleput) cannot add new timers while
 	// idle, so if it has no timers at that time, its mask may be cleared.
 	//
-	// Thus, we get the following effects on timer-stealing in findrunnable:
+	// Thus, we get the following effects on timer-stealing in findRunnable:
 	//
-	//   - Idle Ps with no timers when they go idle are never checked in findrunnable
+	//   - Idle Ps with no timers when they go idle are never checked in findRunnable
 	//     (for work- or timer-stealing; this is the ideal case).
 	//   - Running Ps must always be checked.
 	//   - Idle Ps whose timers are stolen must continue to be checked until they run

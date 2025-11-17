@@ -3119,7 +3119,7 @@ func startm(pp *p, spinning, lockheld bool) {
 //go:nowritebarrierrec
 func handoffp(pp *p) {
 	// handoffp must start an M in any situation where
-	// findrunnable would return a G to run on pp.
+	// findRunnable would return a G to run on pp.
 
 	// if it has local work, start it straight away
 	if !runqempty(pp) || !sched.runq.empty() {
@@ -3362,7 +3362,7 @@ func findRunnable() (gp *g, inheritTime, tryWakeP bool) {
 	mp := getg().m
 
 	// The conditions here and in handoffp must agree: if
-	// findrunnable would return a G to run, handoffp must start
+	// findRunnable would return a G to run, handoffp must start
 	// an M.
 
 top:
@@ -3586,7 +3586,7 @@ top:
 		goto top
 	}
 	if releasep() != pp {
-		throw("findrunnable: wrong p")
+		throw("findRunnable: wrong p")
 	}
 	now = pidleput(pp, now)
 	unlock(&sched.lock)
@@ -3631,7 +3631,7 @@ top:
 	if mp.spinning {
 		mp.spinning = false
 		if sched.nmspinning.Add(-1) < 0 {
-			throw("findrunnable: negative nmspinning")
+			throw("findRunnable: negative nmspinning")
 		}
 
 		// Note the for correctness, only the last M transitioning from
@@ -3704,10 +3704,10 @@ top:
 	if netpollinited() && (netpollAnyWaiters() || pollUntil != 0) && sched.lastpoll.Swap(0) != 0 {
 		sched.pollUntil.Store(pollUntil)
 		if mp.p != 0 {
-			throw("findrunnable: netpoll with p")
+			throw("findRunnable: netpoll with p")
 		}
 		if mp.spinning {
-			throw("findrunnable: netpoll with spinning")
+			throw("findRunnable: netpoll with spinning")
 		}
 		delay := int64(-1)
 		if pollUntil != 0 {
@@ -3973,7 +3973,7 @@ func checkIdleGCNoP() (*p, *g) {
 // timers and the network poller if there isn't one already.
 func wakeNetPoller(when int64) {
 	if sched.lastpoll.Load() == 0 {
-		// In findrunnable we ensure that when polling the pollUntil
+		// In findRunnable we ensure that when polling the pollUntil
 		// field is either zero or the time to which the current
 		// poll is expected to run. This can have a spurious wakeup
 		// but should never miss a wakeup.
@@ -3998,7 +3998,7 @@ func resetspinning() {
 	gp.m.spinning = false
 	nmspinning := sched.nmspinning.Add(-1)
 	if nmspinning < 0 {
-		throw("findrunnable: negative nmspinning")
+		throw("findRunnable: negative nmspinning")
 	}
 	// M wakeup policy is deliberately somewhat conservative, so check if we
 	// need to wakeup another P here. See "Worker thread parking/unparking"
@@ -7269,7 +7269,7 @@ func pidlegetSpinning(now int64) (*p, int64) {
 
 	pp, now := pidleget(now)
 	if pp == nil {
-		// See "Delicate dance" comment in findrunnable. We found work
+		// See "Delicate dance" comment in findRunnable. We found work
 		// that we cannot take, we must synchronize with non-spinning
 		// Ms that may be preparing to drop their P.
 		sched.needspinning.Store(1)
