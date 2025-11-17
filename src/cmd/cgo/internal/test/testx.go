@@ -595,3 +595,21 @@ func test49633(t *testing.T) {
 		t.Errorf("msg = %q, want 'hello'", v.msg)
 	}
 }
+
+//export exportAny76340Param
+func exportAny76340Param(obj any) C.int {
+	if obj == nil {
+		return 0
+	}
+
+	return 1
+}
+
+//export exportAny76340Return
+func exportAny76340Return(val C.int) any {
+	if val == 0 {
+		return nil
+	}
+
+	return int(val)
+}
