@@ -870,9 +870,12 @@ func (c *gcControllerState) findRunnableGCWorker(pp *p, now int64) (*g, int64) {
 		gcCPULimiter.update(now)
 	}
 
-	ok, now := c.assignWaitingGCWorker(pp, now)
-	if !ok {
-		return nil, now
+	// If a worker wasn't already assigned by procresize, assign one now.
+	if pp.nextGCMarkWorker == nil {
+		ok, now := c.assignWaitingGCWorker(pp, now)
+		if !ok {
+			return nil, now
+		}
 	}
 
 	node := pp.nextGCMarkWorker
