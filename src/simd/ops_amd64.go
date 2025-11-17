@@ -5685,41 +5685,38 @@ func (x Float64x4) RoundToEvenScaledResidue(prec uint8) Float64x4
 // Asm: VREDUCEPD, CPU Feature: AVX512
 func (x Float64x8) RoundToEvenScaledResidue(prec uint8) Float64x8
 
-/* SHA1Msg1 */
+/* SHA1FourRounds */
 
-// SHA1Msg1 does the XORing of 1 in SHA1 algorithm defined in FIPS 180-4.
+// SHA1FourRounds performs 4 rounds of B loop in SHA1 algorithm defined in FIPS 180-4.
+// x contains the state variables a, b, c and d from upper to lower order.
+// y contains the W array elements (with the state variable e added to the upper element) from upper to lower order.
+// result = the state variables a', b', c', d' updated after 4 rounds.
+// constant = 0 for the first 20 rounds of the loop, 1 for the next 20 rounds of the loop..., 3 for the last 20 rounds of the loop.
+//
+// constant results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: SHA1RNDS4, CPU Feature: SHA
+func (x Uint32x4) SHA1FourRounds(constant uint8, y Uint32x4) Uint32x4
+
+/* SHA1Message1 */
+
+// SHA1Message1 does the XORing of 1 in SHA1 algorithm defined in FIPS 180-4.
 // x = {W3, W2, W1, W0}
 // y = {0, 0, W5, W4}
 // result = {W3^W5, W2^W4, W1^W3, W0^W2}.
 //
 // Asm: SHA1MSG1, CPU Feature: SHA
-func (x Int32x4) SHA1Msg1(y Int32x4) Int32x4
+func (x Uint32x4) SHA1Message1(y Uint32x4) Uint32x4
 
-// SHA1Msg1 does the XORing of 1 in SHA1 algorithm defined in FIPS 180-4.
-// x = {W3, W2, W1, W0}
-// y = {0, 0, W5, W4}
-// result = {W3^W5, W2^W4, W1^W3, W0^W2}.
-//
-// Asm: SHA1MSG1, CPU Feature: SHA
-func (x Uint32x4) SHA1Msg1(y Uint32x4) Uint32x4
+/* SHA1Message2 */
 
-/* SHA1Msg2 */
-
-// SHA1Msg2 does the calculation of 3 and 4 in SHA1 algorithm defined in FIPS 180-4.
+// SHA1Message2 does the calculation of 3 and 4 in SHA1 algorithm defined in FIPS 180-4.
 // x = result of 2.
 // y = {W15, W14, W13}
 // result = {W19, W18, W17, W16}
 //
 // Asm: SHA1MSG2, CPU Feature: SHA
-func (x Int32x4) SHA1Msg2(y Int32x4) Int32x4
-
-// SHA1Msg2 does the calculation of 3 and 4 in SHA1 algorithm defined in FIPS 180-4.
-// x = result of 2.
-// y = {W15, W14, W13}
-// result = {W19, W18, W17, W16}
-//
-// Asm: SHA1MSG2, CPU Feature: SHA
-func (x Uint32x4) SHA1Msg2(y Uint32x4) Uint32x4
+func (x Uint32x4) SHA1Message2(y Uint32x4) Uint32x4
 
 /* SHA1NextE */
 
@@ -5733,83 +5730,31 @@ func (x Uint32x4) SHA1Msg2(y Uint32x4) Uint32x4
 // computation of the value of e'.)
 //
 // Asm: SHA1NEXTE, CPU Feature: SHA
-func (x Int32x4) SHA1NextE(y Int32x4) Int32x4
-
-// SHA1NextE calculates the state variable e' updated after 4 rounds in SHA1 algorithm defined in FIPS 180-4.
-// x contains the state variable a (before the 4 rounds), placed in the upper element.
-// y is the elements of W array for next 4 rounds from upper to lower order.
-// result = the elements of the W array for the next 4 rounds, with the updated state variable e' added to the upper element,
-// from upper to lower order.
-// For the last round of the loop, you can specify zero for y to obtain the e' value itself, or better off specifying H4:0:0:0
-// for y to get e' added to H4. (Note that the value of e' is computed only from x, and values of y don't affect the
-// computation of the value of e'.)
-//
-// Asm: SHA1NEXTE, CPU Feature: SHA
 func (x Uint32x4) SHA1NextE(y Uint32x4) Uint32x4
 
-/* SHA1Round4 */
+/* SHA256Message1 */
 
-// SHA1Round4 performs 4 rounds of B loop in SHA1 algorithm defined in FIPS 180-4.
-// x contains the state variables a, b, c and d from upper to lower order.
-// y contains the W array elements (with the state variable e added to the upper element) from upper to lower order.
-// result = the state variables a', b', c', d' updated after 4 rounds.
-// constant = 0 for the first 20 rounds of the loop, 1 for the next 20 rounds of the loop..., 3 for the last 20 rounds of the loop.
-//
-// constant results in better performance when it's a constant, a non-constant value will be translated into a jump table.
-//
-// Asm: SHA1RNDS4, CPU Feature: SHA
-func (x Int32x4) SHA1Round4(constant uint8, y Int32x4) Int32x4
-
-// SHA1Round4 performs 4 rounds of B loop in SHA1 algorithm defined in FIPS 180-4.
-// x contains the state variables a, b, c and d from upper to lower order.
-// y contains the W array elements (with the state variable e added to the upper element) from upper to lower order.
-// result = the state variables a', b', c', d' updated after 4 rounds.
-// constant = 0 for the first 20 rounds of the loop, 1 for the next 20 rounds of the loop..., 3 for the last 20 rounds of the loop.
-//
-// constant results in better performance when it's a constant, a non-constant value will be translated into a jump table.
-//
-// Asm: SHA1RNDS4, CPU Feature: SHA
-func (x Uint32x4) SHA1Round4(constant uint8, y Uint32x4) Uint32x4
-
-/* SHA256Msg1 */
-
-// SHA256Msg1 does the sigma and addtion of 1 in SHA1 algorithm defined in FIPS 180-4.
+// SHA256Message1 does the sigma and addtion of 1 in SHA1 algorithm defined in FIPS 180-4.
 // x = {W0, W1, W2, W3}
 // y = {W4, 0, 0, 0}
 // result = {W0+σ(W1), W1+σ(W2), W2+σ(W3), W3+σ(W4)}
 //
 // Asm: SHA256MSG1, CPU Feature: SHA
-func (x Int32x4) SHA256Msg1(y Int32x4) Int32x4
+func (x Uint32x4) SHA256Message1(y Uint32x4) Uint32x4
 
-// SHA256Msg1 does the sigma and addtion of 1 in SHA1 algorithm defined in FIPS 180-4.
-// x = {W0, W1, W2, W3}
-// y = {W4, 0, 0, 0}
-// result = {W0+σ(W1), W1+σ(W2), W2+σ(W3), W3+σ(W4)}
-//
-// Asm: SHA256MSG1, CPU Feature: SHA
-func (x Uint32x4) SHA256Msg1(y Uint32x4) Uint32x4
+/* SHA256Message2 */
 
-/* SHA256Msg2 */
-
-// SHA256Msg2 does the sigma and addition of 3 in SHA1 algorithm defined in FIPS 180-4.
+// SHA256Message2 does the sigma and addition of 3 in SHA1 algorithm defined in FIPS 180-4.
 // x = result of 2
 // y = {0, 0, W14, W15}
 // result = {W16, W17, W18, W19}
 //
 // Asm: SHA256MSG1, CPU Feature: SHA
-func (x Int32x4) SHA256Msg2(y Int32x4) Int32x4
+func (x Uint32x4) SHA256Message2(y Uint32x4) Uint32x4
 
-// SHA256Msg2 does the sigma and addition of 3 in SHA1 algorithm defined in FIPS 180-4.
-// x = result of 2
-// y = {0, 0, W14, W15}
-// result = {W16, W17, W18, W19}
-//
-// Asm: SHA256MSG1, CPU Feature: SHA
-func (x Uint32x4) SHA256Msg2(y Uint32x4) Uint32x4
+/* SHA256TwoRounds */
 
-/* SHA256Rounds2 */
-
-// SHA256Rounds2 does 2 rounds of B loop to calculate updated state variables in SHA1 algorithm defined in FIPS 180-4.
+// SHA256TwoRounds does 2 rounds of B loop to calculate updated state variables in SHA1 algorithm defined in FIPS 180-4.
 // x = {h, g, d, c}
 // y = {f, e, b, a}
 // z = {W0+K0, W1+K1}
@@ -5820,20 +5765,7 @@ func (x Uint32x4) SHA256Msg2(y Uint32x4) Uint32x4
 // y (the state variables a, b, e, f before the 2 rounds).
 //
 // Asm: SHA256RNDS2, CPU Feature: SHA
-func (x Int32x4) SHA256Rounds2(y Int32x4, z Int32x4) Int32x4
-
-// SHA256Rounds2 does 2 rounds of B loop to calculate updated state variables in SHA1 algorithm defined in FIPS 180-4.
-// x = {h, g, d, c}
-// y = {f, e, b, a}
-// z = {W0+K0, W1+K1}
-// result = {f', e', b', a'}
-// The K array is a 64-DWORD constant array defined in page 11 of FIPS 180-4. Each element of the K array is to be added to
-// the corresponding element of the W array to make the input data z.
-// The updated state variables c', d', g', h' are not returned by this instruction, because they are equal to the input data
-// y (the state variables a, b, e, f before the 2 rounds).
-//
-// Asm: SHA256RNDS2, CPU Feature: SHA
-func (x Uint32x4) SHA256Rounds2(y Uint32x4, z Uint32x4) Uint32x4
+func (x Uint32x4) SHA256TwoRounds(y Uint32x4, z Uint32x4) Uint32x4
 
 /* Scale */
 

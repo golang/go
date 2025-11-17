@@ -5024,46 +5024,25 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpRsh8x64(v)
 	case OpRsh8x8:
 		return rewriteValueAMD64_OpRsh8x8(v)
-	case OpSHA1Msg1Int32x4:
+	case OpSHA1FourRoundsUint32x4:
+		v.Op = OpAMD64SHA1RNDS4128
+		return true
+	case OpSHA1Message1Uint32x4:
 		v.Op = OpAMD64SHA1MSG1128
 		return true
-	case OpSHA1Msg1Uint32x4:
-		v.Op = OpAMD64SHA1MSG1128
-		return true
-	case OpSHA1Msg2Int32x4:
+	case OpSHA1Message2Uint32x4:
 		v.Op = OpAMD64SHA1MSG2128
-		return true
-	case OpSHA1Msg2Uint32x4:
-		v.Op = OpAMD64SHA1MSG2128
-		return true
-	case OpSHA1NextEInt32x4:
-		v.Op = OpAMD64SHA1NEXTE128
 		return true
 	case OpSHA1NextEUint32x4:
 		v.Op = OpAMD64SHA1NEXTE128
 		return true
-	case OpSHA1Round4Int32x4:
-		v.Op = OpAMD64SHA1RNDS4128
-		return true
-	case OpSHA1Round4Uint32x4:
-		v.Op = OpAMD64SHA1RNDS4128
-		return true
-	case OpSHA256Msg1Int32x4:
+	case OpSHA256Message1Uint32x4:
 		v.Op = OpAMD64SHA256MSG1128
 		return true
-	case OpSHA256Msg1Uint32x4:
+	case OpSHA256Message2Uint32x4:
 		v.Op = OpAMD64SHA256MSG1128
 		return true
-	case OpSHA256Msg2Int32x4:
-		v.Op = OpAMD64SHA256MSG1128
-		return true
-	case OpSHA256Msg2Uint32x4:
-		v.Op = OpAMD64SHA256MSG1128
-		return true
-	case OpSHA256Rounds2Int32x4:
-		v.Op = OpAMD64SHA256RNDS2128
-		return true
-	case OpSHA256Rounds2Uint32x4:
+	case OpSHA256TwoRoundsUint32x4:
 		v.Op = OpAMD64SHA256RNDS2128
 		return true
 	case OpScaleFloat32x16:

@@ -53,44 +53,46 @@
   - *uint32s
   out:
   - *uint32s
-- go: SHA1Round4
+- go: SHA1FourRounds
   asm: SHA1RNDS4
   operandOrder: "SHA1RNDS4"
-  in: &2any1imm
-  - *any
-  - *any
+  in: &2uint1imm
+  - &uint
+    go: $t
+    base: uint
+  - *uint
   - class: immediate
     immOffset: 0
-  out: &1any
-  - *any
+  out: &1uint
+  - *uint
 - go: SHA1NextE
   asm: SHA1NEXTE
-  in: &2any
-  - *any
-  - *any
-  out: *1any
-- go: SHA1Msg1
+  in: &2uint
+  - *uint
+  - *uint
+  out: *1uint
+- go: SHA1Message1
   asm: SHA1MSG1
-  in: *2any
-  out: *1any
-- go: SHA1Msg2
+  in: *2uint
+  out: *1uint
+- go: SHA1Message2
   asm: SHA1MSG2
-  in: *2any
-  out: *1any
-- go: SHA256Rounds2
+  in: *2uint
+  out: *1uint
+- go: SHA256TwoRounds
   asm: SHA256RNDS2
   in:
-  - base: $t
-  - base: $t
-  - base: $t
+  - base: uint
+  - base: uint
+  - base: uint
     overwriteElementBits: 32
   out:
-  - base: $t
-- go: SHA256Msg1
+  - base: uint
+- go: SHA256Message1
   asm: SHA256MSG1
-  in: *2any
-  out: *1any
-- go: SHA256Msg2
+  in: *2uint
+  out: *1uint
+- go: SHA256Message2
   asm: SHA256MSG1
-  in: *2any
-  out: *1any
+  in: *2uint
+  out: *1uint

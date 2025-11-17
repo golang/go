@@ -6796,18 +6796,12 @@ const (
 	OpRoundToEvenFloat32x8
 	OpRoundToEvenFloat64x2
 	OpRoundToEvenFloat64x4
-	OpSHA1Msg1Int32x4
-	OpSHA1Msg1Uint32x4
-	OpSHA1Msg2Int32x4
-	OpSHA1Msg2Uint32x4
-	OpSHA1NextEInt32x4
+	OpSHA1Message1Uint32x4
+	OpSHA1Message2Uint32x4
 	OpSHA1NextEUint32x4
-	OpSHA256Msg1Int32x4
-	OpSHA256Msg1Uint32x4
-	OpSHA256Msg2Int32x4
-	OpSHA256Msg2Uint32x4
-	OpSHA256Rounds2Int32x4
-	OpSHA256Rounds2Uint32x4
+	OpSHA256Message1Uint32x4
+	OpSHA256Message2Uint32x4
+	OpSHA256TwoRoundsUint32x4
 	OpScaleFloat32x4
 	OpScaleFloat32x8
 	OpScaleFloat32x16
@@ -7163,8 +7157,7 @@ const (
 	OpRoundToEvenScaledResidueFloat64x2
 	OpRoundToEvenScaledResidueFloat64x4
 	OpRoundToEvenScaledResidueFloat64x8
-	OpSHA1Round4Int32x4
-	OpSHA1Round4Uint32x4
+	OpSHA1FourRoundsUint32x4
 	OpSelect128FromPairFloat32x8
 	OpSelect128FromPairFloat64x4
 	OpSelect128FromPairInt32x8
@@ -90254,27 +90247,12 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "SHA1Msg1Int32x4",
+		name:    "SHA1Message1Uint32x4",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "SHA1Msg1Uint32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SHA1Msg2Int32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SHA1Msg2Uint32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SHA1NextEInt32x4",
+		name:    "SHA1Message2Uint32x4",
 		argLen:  2,
 		generic: true,
 	},
@@ -90284,32 +90262,17 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "SHA256Msg1Int32x4",
+		name:    "SHA256Message1Uint32x4",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "SHA256Msg1Uint32x4",
+		name:    "SHA256Message2Uint32x4",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "SHA256Msg2Int32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SHA256Msg2Uint32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SHA256Rounds2Int32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SHA256Rounds2Uint32x4",
+		name:    "SHA256TwoRoundsUint32x4",
 		argLen:  3,
 		generic: true,
 	},
@@ -92215,13 +92178,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "SHA1Round4Int32x4",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SHA1Round4Uint32x4",
+		name:    "SHA1FourRoundsUint32x4",
 		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
