@@ -80,7 +80,8 @@ func TestSectionsWithSameName(t *testing.T) {
 	dir := t.TempDir()
 
 	gopath := filepath.Join(dir, "GOPATH")
-	env := append(os.Environ(), "GOPATH="+gopath)
+	gopathEnv := "GOPATH=" + gopath
+	env := append(os.Environ(), gopathEnv)
 
 	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module elf_test\n"), 0666); err != nil {
 		t.Fatal(err)
@@ -91,7 +92,6 @@ func TestSectionsWithSameName(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	goTool := testenv.GoToolPath(t)
 	cc, cflags := getCCAndCCFLAGS(t, env)
 
 	asmObj := filepath.Join(dir, "x.o")
@@ -119,10 +119,10 @@ func TestSectionsWithSameName(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cmd := testenv.Command(t, goTool, "build")
+	cmd := goCmd(t, "build")
 	cmd.Dir = dir
-	cmd.Env = env
-	t.Logf("%s build", goTool)
+	cmd.Env = append(cmd.Env, gopathEnv)
+	t.Logf("%s build", testenv.GoToolPath(t))
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("%s", out)
 		t.Fatal(err)
@@ -150,13 +150,13 @@ func TestMinusRSymsWithSameName(t *testing.T) {
 	dir := t.TempDir()
 
 	gopath := filepath.Join(dir, "GOPATH")
-	env := append(os.Environ(), "GOPATH="+gopath)
+	gopathEnv := "GOPATH=" + gopath
+	env := append(os.Environ(), gopathEnv)
 
 	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module elf_test\n"), 0666); err != nil {
 		t.Fatal(err)
 	}
 
-	goTool := testenv.GoToolPath(t)
 	cc, cflags := getCCAndCCFLAGS(t, env)
 
 	objs := []string{}
@@ -198,10 +198,10 @@ func TestMinusRSymsWithSameName(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Logf("%s build", goTool)
-	cmd := testenv.Command(t, goTool, "build")
+	t.Logf("%s build", testenv.GoToolPath(t))
+	cmd := goCmd(t, "build")
 	cmd.Dir = dir
-	cmd.Env = env
+	cmd.Env = append(cmd.Env, gopathEnv)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("%s", out)
 		t.Fatal(err)
@@ -243,7 +243,7 @@ func TestGNUBuildID(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			exe := filepath.Join(tmpdir, test.name)
-			cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-buildid="+gobuildid+" "+test.ldflags, "-o", exe, goFile)
+			cmd := goCmd(t, "build", "-ldflags=-buildid="+gobuildid+" "+test.ldflags, "-o", exe, goFile)
 			if out, err := cmd.CombinedOutput(); err != nil {
 				t.Fatalf("%v: %v:\n%s", cmd.Args, err, out)
 			}
@@ -277,11 +277,9 @@ func TestMergeNoteSections(t *testing.T) {
 		t.Fatal(err)
 	}
 	outFile := filepath.Join(t.TempDir(), "notes.exe")
-	goTool := testenv.GoToolPath(t)
 	// sha1sum of "gopher"
 	id := "0xf4e8cd51ce8bae2996dc3b74639cdeaa1f7fee5f"
-	cmd := testenv.Command(t, goTool, "build", "-o", outFile, "-ldflags",
-		"-B "+id, goFile)
+	cmd := goCmd(t, "build", "-o", outFile, "-ldflags", "-B "+id, goFile)
 	cmd.Dir = t.TempDir()
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("%s", out)
@@ -383,7 +381,7 @@ func TestPIESize(t *testing.T) {
 			binpie += linkmode
 
 			build := func(bin, mode string) error {
-				cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", bin, "-buildmode="+mode, "-ldflags=-linkmode="+linkmode)
+				cmd := goCmd(t, "build", "-o", bin, "-buildmode="+mode, "-ldflags=-linkmode="+linkmode)
 				cmd.Args = append(cmd.Args, "pie.go")
 				cmd.Dir = dir
 				t.Logf("%v", cmd.Args)
@@ -532,8 +530,7 @@ func TestIssue51939(t *testing.T) {
 		t.Fatal(err)
 	}
 	outFile := filepath.Join(td, "issue51939.exe")
-	goTool := testenv.GoToolPath(t)
-	cmd := testenv.Command(t, goTool, "build", "-o", outFile, goFile)
+	cmd := goCmd(t, "build", "-o", outFile, goFile)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("%s", out)
 		t.Fatal(err)
@@ -565,7 +562,7 @@ func TestFlagR(t *testing.T) {
 	}
 	exe := filepath.Join(tmpdir, "x.exe")
 
-	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-R=0x100000", "-o", exe, src)
+	cmd := goCmd(t, "build", "-ldflags=-R=0x100000", "-o", exe, src)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("build failed: %v, output:\n%s", err, out)
 	}
@@ -610,7 +607,7 @@ func testFlagD(t *testing.T, dataAddr string, roundQuantum string, expectedAddr 
 		ldflags += " -R=" + roundQuantum
 	}
 
-	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags="+ldflags, "-o", exe, src)
+	cmd := goCmd(t, "build", "-ldflags="+ldflags, "-o", exe, src)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("build failed: %v, output:\n%s", err, out)
 	}
@@ -669,7 +666,7 @@ func testFlagDError(t *testing.T, dataAddr string, roundQuantum string, expected
 		ldflags += " -R=" + roundQuantum
 	}
 
-	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags="+ldflags, "-o", exe, src)
+	cmd := goCmd(t, "build", "-ldflags="+ldflags, "-o", exe, src)
 	out, err := cmd.CombinedOutput()
 	if err == nil {
 		t.Fatalf("expected build to fail with unaligned data address, but it succeeded")
@@ -696,9 +693,7 @@ func TestELFHeadersSorted(t *testing.T) {
 	}
 
 	exe := filepath.Join(tmpdir, "x.exe")
-	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-toolexec", os.Args[0], "-ldflags=-linkmode=internal", "-o", exe, src)
-	cmd = testenv.CleanCmdEnv(cmd)
-	cmd.Env = append(cmd.Env, "LINK_TEST_TOOLEXEC=1")
+	cmd := goCmd(t, "build", "-ldflags=-linkmode=internal", "-o", exe, src)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("build failed: %v, output:\n%s", err, out)
 	}

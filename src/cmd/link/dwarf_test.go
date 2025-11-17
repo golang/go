@@ -21,56 +21,6 @@ import (
 	"testing"
 )
 
-// TestMain allows this test binary to run as a -toolexec wrapper for
-// the 'go' command. If LINK_TEST_TOOLEXEC is set, TestMain runs the
-// binary as if it were cmd/link, and otherwise runs the requested
-// tool as a subprocess.
-//
-// This allows the test to verify the behavior of the current contents of the
-// cmd/link package even if the installed cmd/link binary is stale.
-func TestMain(m *testing.M) {
-	// Are we running as a toolexec wrapper? If so then run either
-	// the correct tool or this executable itself (for the linker).
-	// Running as toolexec wrapper.
-	if os.Getenv("LINK_TEST_TOOLEXEC") != "" {
-		if strings.TrimSuffix(filepath.Base(os.Args[1]), ".exe") == "link" {
-			// Running as a -toolexec linker, and the tool is cmd/link.
-			// Substitute this test binary for the linker.
-			os.Args = os.Args[1:]
-			main()
-			os.Exit(0)
-		}
-		// Running some other tool.
-		cmd := exec.Command(os.Args[1], os.Args[2:]...)
-		cmd.Stdin = os.Stdin
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
-			os.Exit(1)
-		}
-		os.Exit(0)
-	}
-
-	// Are we being asked to run as the linker (without toolexec)?
-	// If so then kick off main.
-	if os.Getenv("LINK_TEST_EXEC_LINKER") != "" {
-		main()
-		os.Exit(0)
-	}
-
-	if testExe, err := os.Executable(); err == nil {
-		// on wasm, some phones, we expect an error from os.Executable()
-		testLinker = testExe
-	}
-
-	// Not running as a -toolexec wrapper or as a linker executable.
-	// Just run the tests.
-	os.Exit(m.Run())
-}
-
-// Path of the test executable being run.
-var testLinker string
-
 func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) {
 	testenv.MustHaveCGO(t)
 	testenv.MustHaveGoBuild(t)
@@ -106,14 +56,13 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 
 			exe := filepath.Join(tmpDir, prog+".exe")
 			dir := "../../runtime/testdata/" + prog
-			cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-toolexec", os.Args[0], "-o", exe)
+			cmd := goCmd(t, "build", "-o", exe)
 			if buildmode != "" {
 				cmd.Args = append(cmd.Args, "-buildmode", buildmode)
 			}
 			cmd.Args = append(cmd.Args, dir)
-			cmd.Env = append(os.Environ(), env...)
+			cmd.Env = append(cmd.Env, env...)
 			cmd.Env = append(cmd.Env, "CGO_CFLAGS=") // ensure CGO_CFLAGS does not contain any flags. Issue #35459
-			cmd.Env = append(cmd.Env, "LINK_TEST_TOOLEXEC=1")
 			out, err := cmd.CombinedOutput()
 			if err != nil {
 				t.Fatalf("go build -o %v %v: %v\n%s", exe, dir, err, out)
@@ -282,9 +231,8 @@ func TestDWARFLocationList(t *testing.T) {
 	exe := filepath.Join(tmpDir, "issue65405.exe")
 	dir := "./testdata/dwarf/issue65405"
 
-	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-toolexec", os.Args[0], "-gcflags=all=-N -l", "-o", exe, dir)
-	cmd.Env = append(os.Environ(), "CGO_CFLAGS=")
-	cmd.Env = append(cmd.Env, "LINK_TEST_TOOLEXEC=1")
+	cmd := goCmd(t, "build", "-gcflags=all=-N -l", "-o", exe, dir)
+	cmd.Env = append(cmd.Env, "CGO_CFLAGS=")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("go build -o %v %v: %v\n%s", exe, dir, err, out)
@@ -402,7 +350,7 @@ func TestFlagW(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			ldflags := "-ldflags=" + test.flag
 			exe := filepath.Join(t.TempDir(), "a.exe")
-			cmd := testenv.Command(t, testenv.GoToolPath(t), "build", ldflags, "-o", exe, src)
+			cmd := goCmd(t, "build", ldflags, "-o", exe, src)
 			out, err := cmd.CombinedOutput()
 			if err != nil {
 				t.Fatalf("build failed: %v\n%s", err, out)
