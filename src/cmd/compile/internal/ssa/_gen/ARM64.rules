@@ -1814,3 +1814,7 @@
 
 (Select0 (Mul64uover x y)) => (MUL x y)
 (Select1 (Mul64uover x y)) => (NotEqual (CMPconst (UMULH <typ.UInt64> x y) [0]))
+
+// 32 mul 32 -> 64
+(MUL r:(MOVWUreg x) s:(MOVWUreg y)) && r.Uses == 1 && s.Uses == 1 => (UMULL x y)
+(MUL r:(MOVWreg  x) s:(MOVWreg  y)) && r.Uses == 1 && s.Uses == 1 =>  (MULL x y)

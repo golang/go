@@ -333,6 +333,15 @@ func Fold2NegMul(a, b int) int {
 	return -a * -b
 }
 
+func Mul32(a, b int32) int64 {
+	// arm64:"SMULL" -"MOVW"
+	return int64(a) * int64(b)
+}
+func Mul32U(a, b uint32) uint64 {
+	// arm64:"UMULL" -"MOVWU"
+	return uint64(a) * uint64(b)
+}
+
 // -------------- //
 //    Division    //
 // -------------- //
