@@ -205,7 +205,7 @@ func Lookup(ctx context.Context, proxy, path string) Repo {
 		defer logCall("Lookup(%q, %q)", proxy, path)()
 	}
 
-	return ModuleFetchState.lookupCache.Do(lookupCacheKey{proxy, path}, func() Repo {
+	return Fetcher_.lookupCache.Do(lookupCacheKey{proxy, path}, func() Repo {
 		return newCachingRepo(ctx, path, func(ctx context.Context) (Repo, error) {
 			r, err := lookup(ctx, proxy, path)
 			if err == nil && traceRepo {

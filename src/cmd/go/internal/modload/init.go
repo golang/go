@@ -398,7 +398,7 @@ func (s *State) setState(new *State) (old *State) {
 		MainModules:     s.MainModules,
 		requirements:    s.requirements,
 		workFilePath:    s.workFilePath,
-		modfetchState:   s.modfetchState,
+		fetcher:         s.fetcher,
 	}
 	s.initialized = new.initialized
 	s.ForceUseModules = new.ForceUseModules
@@ -411,8 +411,8 @@ func (s *State) setState(new *State) (old *State) {
 	// The modfetch package's global state is used to compute
 	// the go.sum file, so save and restore it along with the
 	// modload state.
-	s.modfetchState = new.modfetchState
-	old.modfetchState = modfetch.SetState(s.modfetchState) // TODO(jitsu): remove after completing global state elimination
+	s.fetcher = new.fetcher
+	old.fetcher = modfetch.SetState(s.fetcher) // TODO(jitsu): remove after completing global state elimination
 
 	return old
 }
@@ -451,13 +451,13 @@ type State struct {
 
 	// Set to the path to the go.work file, or "" if workspace mode is
 	// disabled
-	workFilePath  string
-	modfetchState *modfetch.State
+	workFilePath string
+	fetcher      *modfetch.Fetcher
 }
 
 func NewState() *State {
 	s := new(State)
-	s.modfetchState = modfetch.NewState()
+	s.fetcher = modfetch.NewFetcher()
 	return s
 }
 
@@ -937,9 +937,9 @@ func loadModFile(loaderstate *State, ctx context.Context, opts *PackageOpts) (*R
 		}
 		for _, modRoot := range loaderstate.modRoots {
 			sumFile := strings.TrimSuffix(modFilePath(modRoot), ".mod") + ".sum"
-			modfetch.ModuleFetchState.AddWorkspaceGoSumFile(sumFile)
+			modfetch.Fetcher_.AddWorkspaceGoSumFile(sumFile)
 		}
-		modfetch.ModuleFetchState.SetGoSumFile(loaderstate.workFilePath + ".sum")
+		modfetch.Fetcher_.SetGoSumFile(loaderstate.workFilePath + ".sum")
 	} else if len(loaderstate.modRoots) == 0 {
 		// We're in module mode, but not inside a module.
 		//
@@ -959,7 +959,7 @@ func loadModFile(loaderstate *State, ctx context.Context, opts *PackageOpts) (*R
 		//
 		// See golang.org/issue/32027.
 	} else {
-		modfetch.ModuleFetchState.SetGoSumFile(strings.TrimSuffix(modFilePath(loaderstate.modRoots[0]), ".mod") + ".sum")
+		modfetch.Fetcher_.SetGoSumFile(strings.TrimSuffix(modFilePath(loaderstate.modRoots[0]), ".mod") + ".sum")
 	}
 	if len(loaderstate.modRoots) == 0 {
 		// TODO(#49228): Instead of creating a fake module with an empty modroot,
