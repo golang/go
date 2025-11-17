@@ -38,6 +38,7 @@ type DebugFlags struct {
 	GCAdjust              int    `help:"log adjustments to GOGC" concurrent:"ok"`
 	GCCheck               int    `help:"check heap/gc use by compiler" concurrent:"ok"`
 	GCProg                int    `help:"print dump of GC programs"`
+	GCStart               int    `help:"specify \"starting\" compiler's heap size in MiB" concurrent:"ok"`
 	Gossahash             string `help:"hash value for use in debugging the compiler"`
 	InlFuncsWithClosures  int    `help:"allow functions with closures to be inlined" concurrent:"ok"`
 	InlStaticInit         int    `help:"allow static initialization of inlined calls" concurrent:"ok"`
