@@ -163,7 +163,20 @@ func TestPermute(t *testing.T) {
 	}
 }
 
-func TestPermute2(t *testing.T) {
+func TestPermuteOrZero(t *testing.T) {
+	x := []uint8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+	indices := []int8{7, 6, 5, 4, 3, 2, 1, 0, -1, 8, -1, 9, -1, 10, -1, 11}
+	want := []uint8{8, 7, 6, 5, 4, 3, 2, 1, 0, 9, 0, 10, 0, 11, 0, 12}
+	got := make([]uint8, len(x))
+	simd.LoadUint8x16Slice(x).PermuteOrZero(simd.LoadInt8x16Slice(indices)).StoreSlice(got)
+	for i := range 8 {
+		if want[i] != got[i] {
+			t.Errorf("want and got differ at index %d, want=%d, got=%d", i, want[i], got[i])
+		}
+	}
+}
+
+func TestConcatPermute(t *testing.T) {
 	if !simd.X86.AVX512() {
 		t.Skip("Test requires X86.AVX512, not available on this hardware")
 		return
@@ -173,7 +186,7 @@ func TestPermute2(t *testing.T) {
 	indices := []uint64{7 + 8, 6, 5 + 8, 4, 3 + 8, 2, 1 + 8, 0}
 	want := []int64{-8, 7, -6, 5, -4, 3, -2, 1}
 	got := make([]int64, 8)
-	simd.LoadInt64x8Slice(x).Permute2(simd.LoadInt64x8Slice(y), simd.LoadUint64x8Slice(indices)).StoreSlice(got)
+	simd.LoadInt64x8Slice(x).ConcatPermute(simd.LoadInt64x8Slice(y), simd.LoadUint64x8Slice(indices)).StoreSlice(got)
 	for i := range 8 {
 		if want[i] != got[i] {
 			t.Errorf("want and got differ at index %d, want=%d, got=%d", i, want[i], got[i])
@@ -1158,6 +1171,78 @@ func TestDotProductQuadruple(t *testing.T) {
 		}
 		if res2[i] != wanted2[i] {
 			t.Errorf("got %d wanted %d", res2[i], wanted2[i])
+		}
+	}
+}
+
+func TestPermuteScalars(t *testing.T) {
+	x := []int32{11, 12, 13, 14}
+	want := []int32{12, 13, 14, 11}
+	got := make([]int32, 4)
+	simd.LoadInt32x4Slice(x).PermuteScalars(1, 2, 3, 0).StoreSlice(got)
+	for i := range 4 {
+		if want[i] != got[i] {
+			t.Errorf("want and got differ at index %d, want=%d, got=%d", i, want[i], got[i])
+		}
+	}
+}
+
+func TestPermuteScalarsGrouped(t *testing.T) {
+	x := []int32{11, 12, 13, 14, 21, 22, 23, 24}
+	want := []int32{12, 13, 14, 11, 22, 23, 24, 21}
+	got := make([]int32, 8)
+	simd.LoadInt32x8Slice(x).PermuteScalarsGrouped(1, 2, 3, 0).StoreSlice(got)
+	for i := range 8 {
+		if want[i] != got[i] {
+			t.Errorf("want and got differ at index %d, want=%d, got=%d", i, want[i], got[i])
+		}
+	}
+}
+
+func TestPermuteScalarsHi(t *testing.T) {
+	x := []int16{-1, -2, -3, -4, 11, 12, 13, 14}
+	want := []int16{-1, -2, -3, -4, 12, 13, 14, 11}
+	got := make([]int16, len(x))
+	simd.LoadInt16x8Slice(x).PermuteScalarsHi(1, 2, 3, 0).StoreSlice(got)
+	for i := range got {
+		if want[i] != got[i] {
+			t.Errorf("want and got differ at index %d, want=%d, got=%d", i, want[i], got[i])
+		}
+	}
+}
+
+func TestPermuteScalarsLo(t *testing.T) {
+	x := []int16{11, 12, 13, 14, 4, 5, 6, 7}
+	want := []int16{12, 13, 14, 11, 4, 5, 6, 7}
+	got := make([]int16, len(x))
+	simd.LoadInt16x8Slice(x).PermuteScalarsLo(1, 2, 3, 0).StoreSlice(got)
+	for i := range got {
+		if want[i] != got[i] {
+			t.Errorf("want and got differ at index %d, want=%d, got=%d", i, want[i], got[i])
+		}
+	}
+}
+
+func TestPermuteScalarsHiGrouped(t *testing.T) {
+	x := []int16{-1, -2, -3, -4, 11, 12, 13, 14, -11, -12, -13, -14, 111, 112, 113, 114}
+	want := []int16{-1, -2, -3, -4, 12, 13, 14, 11, -11, -12, -13, -14, 112, 113, 114, 111}
+	got := make([]int16, len(x))
+	simd.LoadInt16x16Slice(x).PermuteScalarsHiGrouped(1, 2, 3, 0).StoreSlice(got)
+	for i := range got {
+		if want[i] != got[i] {
+			t.Errorf("want and got differ at index %d, want=%d, got=%d", i, want[i], got[i])
+		}
+	}
+}
+
+func TestPermuteScalarsLoGrouped(t *testing.T) {
+	x := []int16{11, 12, 13, 14, 4, 5, 6, 7, 111, 112, 113, 114, 14, 15, 16, 17}
+	want := []int16{12, 13, 14, 11, 4, 5, 6, 7, 112, 113, 114, 111, 14, 15, 16, 17}
+	got := make([]int16, len(x))
+	simd.LoadInt16x16Slice(x).PermuteScalarsLoGrouped(1, 2, 3, 0).StoreSlice(got)
+	for i := range got {
+		if want[i] != got[i] {
+			t.Errorf("want and got differ at index %d, want=%d, got=%d", i, want[i], got[i])
 		}
 	}
 }

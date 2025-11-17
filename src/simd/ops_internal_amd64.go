@@ -338,6 +338,220 @@ func (x Uint64x4) concatSelectedConstantGrouped(hilos uint8, y Uint64x4) Uint64x
 // Asm: VSHUFPD, CPU Feature: AVX512
 func (x Uint64x8) concatSelectedConstantGrouped(hilos uint8, y Uint64x8) Uint64x8
 
+/* permuteScalars */
+
+// permuteScalars performs a permutation of vector x using constant indices:
+// result = {x[indices[0:2]], x[indices[2:4]], x[indices[4:6]], x[indices[6:8]]}
+// Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFD, CPU Feature: AVX
+func (x Int32x4) permuteScalars(indices uint8) Int32x4
+
+// permuteScalars performs a permutation of vector x using constant indices:
+// result = {x[indices[0:2]], x[indices[2:4]], x[indices[4:6]], x[indices[6:8]]}
+// Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFD, CPU Feature: AVX
+func (x Uint32x4) permuteScalars(indices uint8) Uint32x4
+
+/* permuteScalarsGrouped */
+
+// permuteScalarsGrouped performs a grouped permutation of vector x using constant indices:
+// result = {x_group0[indices[0:2]], x_group0[indices[2:4]], x_group0[indices[4:6]], x_group0[indices[6:8]], x_group1[indices[0:2]], ...}
+// Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
+// Each group is of size 128-bit.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFD, CPU Feature: AVX2
+func (x Int32x8) permuteScalarsGrouped(indices uint8) Int32x8
+
+// permuteScalarsGrouped performs a grouped permutation of vector x using constant indices:
+// result = {x_group0[indices[0:2]], x_group0[indices[2:4]], x_group0[indices[4:6]], x_group0[indices[6:8]], x_group1[indices[0:2]], ...}
+// Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
+// Each group is of size 128-bit.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFD, CPU Feature: AVX512
+func (x Int32x16) permuteScalarsGrouped(indices uint8) Int32x16
+
+// permuteScalarsGrouped performs a grouped permutation of vector x using constant indices:
+// result = {x_group0[indices[0:2]], x_group0[indices[2:4]], x_group0[indices[4:6]], x_group0[indices[6:8]], x_group1[indices[0:2]], ...}
+// Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
+// Each group is of size 128-bit.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFD, CPU Feature: AVX2
+func (x Uint32x8) permuteScalarsGrouped(indices uint8) Uint32x8
+
+// permuteScalarsGrouped performs a grouped permutation of vector x using constant indices:
+// result = {x_group0[indices[0:2]], x_group0[indices[2:4]], x_group0[indices[4:6]], x_group0[indices[6:8]], x_group1[indices[0:2]], ...}
+// Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
+// Each group is of size 128-bit.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFD, CPU Feature: AVX512
+func (x Uint32x16) permuteScalarsGrouped(indices uint8) Uint32x16
+
+/* permuteScalarsHi */
+
+// permuteScalarsHi performs a permutation of vector x using constant indices:
+// result = {x[0], x[1], x[2], x[3], x[indices[0:2]+4], x[indices[2:4]+4], x[indices[4:6]+4], x[indices[6:8]+4]}
+// Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFHW, CPU Feature: AVX512
+func (x Int16x8) permuteScalarsHi(indices uint8) Int16x8
+
+// permuteScalarsHi performs a permutation of vector x using constant indices:
+// result = {x[0], x[1], x[2], x[3], x[indices[0:2]+4], x[indices[2:4]+4], x[indices[4:6]+4], x[indices[6:8]+4]}
+// Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFHW, CPU Feature: AVX512
+func (x Uint16x8) permuteScalarsHi(indices uint8) Uint16x8
+
+/* permuteScalarsHiGrouped */
+
+// permuteScalarsHiGrouped performs a grouped permutation of vector x using constant indices:
+// result =
+//
+//	{x_group0[0], x_group0[1], x_group0[2], x_group0[3], x_group0[indices[0:2]+4], x_group0[indices[2:4]+4], x_group0[indices[4:6]+4], x_group0[indices[6:8]+4],
+//	 x_group1[0], x_group1[1], x_group1[2], x_group1[3], x_group1[indices[0:2]+4], ...}
+//
+// Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
+// Each group is of size 128-bit.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFHW, CPU Feature: AVX2
+func (x Int16x16) permuteScalarsHiGrouped(indices uint8) Int16x16
+
+// permuteScalarsHiGrouped performs a grouped permutation of vector x using constant indices:
+// result =
+//
+//	{x_group0[0], x_group0[1], x_group0[2], x_group0[3], x_group0[indices[0:2]+4], x_group0[indices[2:4]+4], x_group0[indices[4:6]+4], x_group0[indices[6:8]+4],
+//	 x_group1[0], x_group1[1], x_group1[2], x_group1[3], x_group1[indices[0:2]+4], ...}
+//
+// Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
+// Each group is of size 128-bit.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFHW, CPU Feature: AVX512
+func (x Int16x32) permuteScalarsHiGrouped(indices uint8) Int16x32
+
+// permuteScalarsHiGrouped performs a grouped permutation of vector x using constant indices:
+// result =
+//
+//	{x_group0[0], x_group0[1], x_group0[2], x_group0[3], x_group0[indices[0:2]+4], x_group0[indices[2:4]+4], x_group0[indices[4:6]+4], x_group0[indices[6:8]+4],
+//	 x_group1[0], x_group1[1], x_group1[2], x_group1[3], x_group1[indices[0:2]+4], ...}
+//
+// Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
+// Each group is of size 128-bit.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFHW, CPU Feature: AVX2
+func (x Uint16x16) permuteScalarsHiGrouped(indices uint8) Uint16x16
+
+// permuteScalarsHiGrouped performs a grouped permutation of vector x using constant indices:
+// result =
+//
+//	{x_group0[0], x_group0[1], x_group0[2], x_group0[3], x_group0[indices[0:2]+4], x_group0[indices[2:4]+4], x_group0[indices[4:6]+4], x_group0[indices[6:8]+4],
+//	 x_group1[0], x_group1[1], x_group1[2], x_group1[3], x_group1[indices[0:2]+4], ...}
+//
+// Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
+// Each group is of size 128-bit.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFHW, CPU Feature: AVX512
+func (x Uint16x32) permuteScalarsHiGrouped(indices uint8) Uint16x32
+
+/* permuteScalarsLo */
+
+// permuteScalarsLo performs a permutation of vector x using constant indices:
+// result = {x[indices[0:2]], x[indices[2:4]], x[indices[4:6]], x[indices[6:8]], x[4], x[5], x[6], x[7]}
+// Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFLW, CPU Feature: AVX512
+func (x Int16x8) permuteScalarsLo(indices uint8) Int16x8
+
+// permuteScalarsLo performs a permutation of vector x using constant indices:
+// result = {x[indices[0:2]], x[indices[2:4]], x[indices[4:6]], x[indices[6:8]], x[4], x[5], x[6], x[7]}
+// Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFLW, CPU Feature: AVX512
+func (x Uint16x8) permuteScalarsLo(indices uint8) Uint16x8
+
+/* permuteScalarsLoGrouped */
+
+// permuteScalarsLoGrouped performs a grouped permutation of vector x using constant indices:
+//
+//	result = {x_group0[indices[0:2]], x_group0[indices[2:4]], x_group0[indices[4:6]], x_group0[indices[6:8]], x[4], x[5], x[6], x[7],
+//	 x_group1[indices[0:2]], ...}
+//
+// Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
+// Each group is of size 128-bit.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFLW, CPU Feature: AVX2
+func (x Int16x16) permuteScalarsLoGrouped(indices uint8) Int16x16
+
+// permuteScalarsLoGrouped performs a grouped permutation of vector x using constant indices:
+//
+//	result = {x_group0[indices[0:2]], x_group0[indices[2:4]], x_group0[indices[4:6]], x_group0[indices[6:8]], x[4], x[5], x[6], x[7],
+//	 x_group1[indices[0:2]], ...}
+//
+// Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
+// Each group is of size 128-bit.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFLW, CPU Feature: AVX512
+func (x Int16x32) permuteScalarsLoGrouped(indices uint8) Int16x32
+
+// permuteScalarsLoGrouped performs a grouped permutation of vector x using constant indices:
+//
+//	result = {x_group0[indices[0:2]], x_group0[indices[2:4]], x_group0[indices[4:6]], x_group0[indices[6:8]], x[4], x[5], x[6], x[7],
+//	 x_group1[indices[0:2]], ...}
+//
+// Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
+// Each group is of size 128-bit.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFLW, CPU Feature: AVX2
+func (x Uint16x16) permuteScalarsLoGrouped(indices uint8) Uint16x16
+
+// permuteScalarsLoGrouped performs a grouped permutation of vector x using constant indices:
+//
+//	result = {x_group0[indices[0:2]], x_group0[indices[2:4]], x_group0[indices[4:6]], x_group0[indices[6:8]], x[4], x[5], x[6], x[7],
+//	 x_group1[indices[0:2]], ...}
+//
+// Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
+// Each group is of size 128-bit.
+//
+// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPSHUFLW, CPU Feature: AVX512
+func (x Uint16x32) permuteScalarsLoGrouped(indices uint8) Uint16x32
+
 /* tern */
 
 // tern performs a logical operation on three vectors based on the 8-bit truth table.

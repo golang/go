@@ -27,18 +27,22 @@
   constImm: 1
   documentation: !string |-
     // NAME returns the upper half of x.
+- go: PermuteOrZero
+  commutative: false
+  documentation: !string |-
+    // NAME performs a full permutation of vector x using indices:
+    // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 - go: Permute
   commutative: false
   documentation: !string |-
     // NAME performs a full permutation of vector x using indices:
     // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-    // Only the needed bits to represent x's index are used in indices' elements.
-- go: Permute2 # Permute2 is only available on or after AVX512
+- go: ConcatPermute # ConcatPermute is only available on or after AVX512
   commutative: false
   documentation: !string |-
     // NAME performs a full permutation of vector x, y using indices:
     // result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-    // where xy is x appending y.
+    // where xy is the concatenation of x (lower half) and y (upper half).
     // Only the needed bits to represent xy's index are used in indices' elements.
 - go: Compress
   commutative: false
@@ -74,31 +78,35 @@
   documentation: !string |-
     // NAME copies element zero of its (128-bit) input to all elements of
     // the 512-bit output vector.
+- go: PermuteOrZeroGrouped
+  commutative: false
+  documentation: !string |- # Detailed documentation will rely on the specific ops.
+    // NAME performs a grouped permutation of vector x using indices:
 - go: PermuteGrouped
   commutative: false
   documentation: !string |- # Detailed documentation will rely on the specific ops.
     // NAME performs a grouped permutation of vector x using indices:
-- go: PermuteConstant
+- go: permuteScalars
   commutative: false
   documentation: !string |- # Detailed documentation will rely on the specific ops.
     // NAME performs a permutation of vector x using constant indices:
-- go: PermuteConstantGrouped
+- go: permuteScalarsGrouped
   commutative: false
   documentation: !string |- # Detailed documentation will rely on the specific ops.
     // NAME performs a grouped permutation of vector x using constant indices:
-- go: PermuteConstantLo
+- go: permuteScalarsLo
   commutative: false
   documentation: !string |- # Detailed documentation will rely on the specific ops.
     // NAME performs a permutation of vector x using constant indices:
-- go: PermuteConstantLoGrouped
+- go: permuteScalarsLoGrouped
   commutative: false
   documentation: !string |- # Detailed documentation will rely on the specific ops.
     // NAME performs a grouped permutation of vector x using constant indices:
-- go: PermuteConstantHi
+- go: permuteScalarsHi
   commutative: false
   documentation: !string |- # Detailed documentation will rely on the specific ops.
     // NAME performs a permutation of vector x using constant indices:
-- go: PermuteConstantHiGrouped
+- go: permuteScalarsHiGrouped
   commutative: false
   documentation: !string |- # Detailed documentation will rely on the specific ops.
     // NAME performs a grouped permutation of vector x using constant indices:
@@ -218,8 +226,10 @@
 - go: Select128FromPair
   commutative: false
   documentation: !string |-
-    // NAME selects the low and high 128-bit halves from the 128-bit halves
-    // of its two 256-bit inputs, numbering those halves 0, 1, 2, 3.
+    // NAME treats the 256-bit vectors x and y as a single vector of four
+    // 128-bit elements, and returns a 256-bit result formed by 
+    // concatenating the two elements specified by lo and hi.
+    // For example, {4,5}.NAME(3,0,{6,7}) returns {7,4}.
 
 - go: ConcatShiftBytesRight
   commutative: false

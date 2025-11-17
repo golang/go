@@ -1272,6 +1272,248 @@ func (x Uint64x4) Compress(mask Mask64x4) Uint64x4
 // Asm: VPCOMPRESSQ, CPU Feature: AVX512
 func (x Uint64x8) Compress(mask Mask64x8) Uint64x8
 
+/* ConcatPermute */
+
+// ConcatPermute performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is the concatenation of x (lower half) and y (upper half).
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2B, CPU Feature: AVX512VBMI
+func (x Int8x16) ConcatPermute(y Int8x16, indices Uint8x16) Int8x16
+
+// ConcatPermute performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is the concatenation of x (lower half) and y (upper half).
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2B, CPU Feature: AVX512VBMI
+func (x Uint8x16) ConcatPermute(y Uint8x16, indices Uint8x16) Uint8x16
+
+// ConcatPermute performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is the concatenation of x (lower half) and y (upper half).
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2B, CPU Feature: AVX512VBMI
+func (x Int8x32) ConcatPermute(y Int8x32, indices Uint8x32) Int8x32
+
+// ConcatPermute performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is the concatenation of x (lower half) and y (upper half).
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2B, CPU Feature: AVX512VBMI
+func (x Uint8x32) ConcatPermute(y Uint8x32, indices Uint8x32) Uint8x32
+
+// ConcatPermute performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is the concatenation of x (lower half) and y (upper half).
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2B, CPU Feature: AVX512VBMI
+func (x Int8x64) ConcatPermute(y Int8x64, indices Uint8x64) Int8x64
+
+// ConcatPermute performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is the concatenation of x (lower half) and y (upper half).
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2B, CPU Feature: AVX512VBMI
+func (x Uint8x64) ConcatPermute(y Uint8x64, indices Uint8x64) Uint8x64
+
+// ConcatPermute performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is the concatenation of x (lower half) and y (upper half).
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2W, CPU Feature: AVX512
+func (x Int16x8) ConcatPermute(y Int16x8, indices Uint16x8) Int16x8
+
+// ConcatPermute performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is the concatenation of x (lower half) and y (upper half).
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2W, CPU Feature: AVX512
+func (x Uint16x8) ConcatPermute(y Uint16x8, indices Uint16x8) Uint16x8
+
+// ConcatPermute performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is the concatenation of x (lower half) and y (upper half).
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2W, CPU Feature: AVX512
+func (x Int16x16) ConcatPermute(y Int16x16, indices Uint16x16) Int16x16
+
+// ConcatPermute performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is the concatenation of x (lower half) and y (upper half).
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2W, CPU Feature: AVX512
+func (x Uint16x16) ConcatPermute(y Uint16x16, indices Uint16x16) Uint16x16
+
+// ConcatPermute performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is the concatenation of x (lower half) and y (upper half).
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2W, CPU Feature: AVX512
+func (x Int16x32) ConcatPermute(y Int16x32, indices Uint16x32) Int16x32
+
+// ConcatPermute performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is the concatenation of x (lower half) and y (upper half).
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2W, CPU Feature: AVX512
+func (x Uint16x32) ConcatPermute(y Uint16x32, indices Uint16x32) Uint16x32
+
+// ConcatPermute performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is the concatenation of x (lower half) and y (upper half).
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2PS, CPU Feature: AVX512
+func (x Float32x4) ConcatPermute(y Float32x4, indices Uint32x4) Float32x4
+
+// ConcatPermute performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is the concatenation of x (lower half) and y (upper half).
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2D, CPU Feature: AVX512
+func (x Int32x4) ConcatPermute(y Int32x4, indices Uint32x4) Int32x4
+
+// ConcatPermute performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is the concatenation of x (lower half) and y (upper half).
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2D, CPU Feature: AVX512
+func (x Uint32x4) ConcatPermute(y Uint32x4, indices Uint32x4) Uint32x4
+
+// ConcatPermute performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is the concatenation of x (lower half) and y (upper half).
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2PS, CPU Feature: AVX512
+func (x Float32x8) ConcatPermute(y Float32x8, indices Uint32x8) Float32x8
+
+// ConcatPermute performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is the concatenation of x (lower half) and y (upper half).
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2D, CPU Feature: AVX512
+func (x Int32x8) ConcatPermute(y Int32x8, indices Uint32x8) Int32x8
+
+// ConcatPermute performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is the concatenation of x (lower half) and y (upper half).
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2D, CPU Feature: AVX512
+func (x Uint32x8) ConcatPermute(y Uint32x8, indices Uint32x8) Uint32x8
+
+// ConcatPermute performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is the concatenation of x (lower half) and y (upper half).
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2PS, CPU Feature: AVX512
+func (x Float32x16) ConcatPermute(y Float32x16, indices Uint32x16) Float32x16
+
+// ConcatPermute performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is the concatenation of x (lower half) and y (upper half).
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2D, CPU Feature: AVX512
+func (x Int32x16) ConcatPermute(y Int32x16, indices Uint32x16) Int32x16
+
+// ConcatPermute performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is the concatenation of x (lower half) and y (upper half).
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2D, CPU Feature: AVX512
+func (x Uint32x16) ConcatPermute(y Uint32x16, indices Uint32x16) Uint32x16
+
+// ConcatPermute performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is the concatenation of x (lower half) and y (upper half).
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2PD, CPU Feature: AVX512
+func (x Float64x2) ConcatPermute(y Float64x2, indices Uint64x2) Float64x2
+
+// ConcatPermute performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is the concatenation of x (lower half) and y (upper half).
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2Q, CPU Feature: AVX512
+func (x Int64x2) ConcatPermute(y Int64x2, indices Uint64x2) Int64x2
+
+// ConcatPermute performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is the concatenation of x (lower half) and y (upper half).
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2Q, CPU Feature: AVX512
+func (x Uint64x2) ConcatPermute(y Uint64x2, indices Uint64x2) Uint64x2
+
+// ConcatPermute performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is the concatenation of x (lower half) and y (upper half).
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2PD, CPU Feature: AVX512
+func (x Float64x4) ConcatPermute(y Float64x4, indices Uint64x4) Float64x4
+
+// ConcatPermute performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is the concatenation of x (lower half) and y (upper half).
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2Q, CPU Feature: AVX512
+func (x Int64x4) ConcatPermute(y Int64x4, indices Uint64x4) Int64x4
+
+// ConcatPermute performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is the concatenation of x (lower half) and y (upper half).
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2Q, CPU Feature: AVX512
+func (x Uint64x4) ConcatPermute(y Uint64x4, indices Uint64x4) Uint64x4
+
+// ConcatPermute performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is the concatenation of x (lower half) and y (upper half).
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2PD, CPU Feature: AVX512
+func (x Float64x8) ConcatPermute(y Float64x8, indices Uint64x8) Float64x8
+
+// ConcatPermute performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is the concatenation of x (lower half) and y (upper half).
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2Q, CPU Feature: AVX512
+func (x Int64x8) ConcatPermute(y Int64x8, indices Uint64x8) Int64x8
+
+// ConcatPermute performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is the concatenation of x (lower half) and y (upper half).
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2Q, CPU Feature: AVX512
+func (x Uint64x8) ConcatPermute(y Uint64x8, indices Uint64x8) Uint64x8
+
 /* ConcatShiftBytesRight */
 
 // ConcatShiftBytesRight concatenates x and y and shift it right by constant bytes.
@@ -4551,675 +4793,227 @@ func (x Uint64x8) Or(y Uint64x8) Uint64x8
 
 // Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// Only the needed bits to represent x's index are used in indices' elements.
-// However when the top bit is set, the low bits will be disregard and the respective element in the result vector will be zeroed.
+// The low 4 bits (values 0-15) of each element of indices is used
 //
-// Asm: VPSHUFB, CPU Feature: AVX
-func (x Int8x16) Permute(indices Int8x16) Int8x16
+// Asm: VPERMB, CPU Feature: AVX512VBMI
+func (x Int8x16) Permute(indices Uint8x16) Int8x16
 
 // Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// Only the needed bits to represent x's index are used in indices' elements.
-// However when the top bit is set, the low bits will be disregard and the respective element in the result vector will be zeroed.
+// The low 4 bits (values 0-15) of each element of indices is used
 //
-// Asm: VPSHUFB, CPU Feature: AVX
+// Asm: VPERMB, CPU Feature: AVX512VBMI
 func (x Uint8x16) Permute(indices Uint8x16) Uint8x16
 
 // Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// Only the needed bits to represent x's index are used in indices' elements.
+// The low 5 bits (values 0-31) of each element of indices is used
 //
 // Asm: VPERMB, CPU Feature: AVX512VBMI
 func (x Int8x32) Permute(indices Uint8x32) Int8x32
 
 // Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// Only the needed bits to represent x's index are used in indices' elements.
+// The low 5 bits (values 0-31) of each element of indices is used
 //
 // Asm: VPERMB, CPU Feature: AVX512VBMI
 func (x Uint8x32) Permute(indices Uint8x32) Uint8x32
 
 // Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// Only the needed bits to represent x's index are used in indices' elements.
+// The low 6 bits (values 0-63) of each element of indices is used
 //
 // Asm: VPERMB, CPU Feature: AVX512VBMI
 func (x Int8x64) Permute(indices Uint8x64) Int8x64
 
 // Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// Only the needed bits to represent x's index are used in indices' elements.
+// The low 6 bits (values 0-63) of each element of indices is used
 //
 // Asm: VPERMB, CPU Feature: AVX512VBMI
 func (x Uint8x64) Permute(indices Uint8x64) Uint8x64
 
 // Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// Only the needed bits to represent x's index are used in indices' elements.
+// The low 3 bits (values 0-7) of each element of indices is used
 //
 // Asm: VPERMW, CPU Feature: AVX512
 func (x Int16x8) Permute(indices Uint16x8) Int16x8
 
 // Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// Only the needed bits to represent x's index are used in indices' elements.
+// The low 3 bits (values 0-7) of each element of indices is used
 //
 // Asm: VPERMW, CPU Feature: AVX512
 func (x Uint16x8) Permute(indices Uint16x8) Uint16x8
 
 // Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// Only the needed bits to represent x's index are used in indices' elements.
+// The low 4 bits (values 0-15) of each element of indices is used
 //
 // Asm: VPERMW, CPU Feature: AVX512
 func (x Int16x16) Permute(indices Uint16x16) Int16x16
 
 // Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// Only the needed bits to represent x's index are used in indices' elements.
+// The low 4 bits (values 0-15) of each element of indices is used
 //
 // Asm: VPERMW, CPU Feature: AVX512
 func (x Uint16x16) Permute(indices Uint16x16) Uint16x16
 
 // Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// Only the needed bits to represent x's index are used in indices' elements.
+// The low 5 bits (values 0-31) of each element of indices is used
 //
 // Asm: VPERMW, CPU Feature: AVX512
 func (x Int16x32) Permute(indices Uint16x32) Int16x32
 
 // Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// Only the needed bits to represent x's index are used in indices' elements.
+// The low 5 bits (values 0-31) of each element of indices is used
 //
 // Asm: VPERMW, CPU Feature: AVX512
 func (x Uint16x32) Permute(indices Uint16x32) Uint16x32
 
 // Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// Only the needed bits to represent x's index are used in indices' elements.
+// The low 3 bits (values 0-7) of each element of indices is used
 //
 // Asm: VPERMPS, CPU Feature: AVX2
 func (x Float32x8) Permute(indices Uint32x8) Float32x8
 
 // Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// Only the needed bits to represent x's index are used in indices' elements.
+// The low 3 bits (values 0-7) of each element of indices is used
 //
 // Asm: VPERMD, CPU Feature: AVX2
 func (x Int32x8) Permute(indices Uint32x8) Int32x8
 
 // Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// Only the needed bits to represent x's index are used in indices' elements.
+// The low 3 bits (values 0-7) of each element of indices is used
 //
 // Asm: VPERMD, CPU Feature: AVX2
 func (x Uint32x8) Permute(indices Uint32x8) Uint32x8
 
 // Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// Only the needed bits to represent x's index are used in indices' elements.
+// The low 4 bits (values 0-15) of each element of indices is used
 //
 // Asm: VPERMPS, CPU Feature: AVX512
 func (x Float32x16) Permute(indices Uint32x16) Float32x16
 
 // Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// Only the needed bits to represent x's index are used in indices' elements.
+// The low 4 bits (values 0-15) of each element of indices is used
 //
 // Asm: VPERMD, CPU Feature: AVX512
 func (x Int32x16) Permute(indices Uint32x16) Int32x16
 
 // Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// Only the needed bits to represent x's index are used in indices' elements.
+// The low 4 bits (values 0-15) of each element of indices is used
 //
 // Asm: VPERMD, CPU Feature: AVX512
 func (x Uint32x16) Permute(indices Uint32x16) Uint32x16
 
 // Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// Only the needed bits to represent x's index are used in indices' elements.
+// The low 2 bits (values 0-3) of each element of indices is used
 //
 // Asm: VPERMPD, CPU Feature: AVX512
 func (x Float64x4) Permute(indices Uint64x4) Float64x4
 
 // Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// Only the needed bits to represent x's index are used in indices' elements.
+// The low 2 bits (values 0-3) of each element of indices is used
 //
 // Asm: VPERMQ, CPU Feature: AVX512
 func (x Int64x4) Permute(indices Uint64x4) Int64x4
 
 // Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// Only the needed bits to represent x's index are used in indices' elements.
+// The low 2 bits (values 0-3) of each element of indices is used
 //
 // Asm: VPERMQ, CPU Feature: AVX512
 func (x Uint64x4) Permute(indices Uint64x4) Uint64x4
 
 // Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// Only the needed bits to represent x's index are used in indices' elements.
+// The low 3 bits (values 0-7) of each element of indices is used
 //
 // Asm: VPERMPD, CPU Feature: AVX512
 func (x Float64x8) Permute(indices Uint64x8) Float64x8
 
 // Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// Only the needed bits to represent x's index are used in indices' elements.
+// The low 3 bits (values 0-7) of each element of indices is used
 //
 // Asm: VPERMQ, CPU Feature: AVX512
 func (x Int64x8) Permute(indices Uint64x8) Int64x8
 
 // Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// Only the needed bits to represent x's index are used in indices' elements.
+// The low 3 bits (values 0-7) of each element of indices is used
 //
 // Asm: VPERMQ, CPU Feature: AVX512
 func (x Uint64x8) Permute(indices Uint64x8) Uint64x8
 
-/* Permute2 */
+/* PermuteOrZero */
 
-// Permute2 performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-// where xy is x appending y.
-// Only the needed bits to represent xy's index are used in indices' elements.
+// PermuteOrZero performs a full permutation of vector x using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// The lower four bits of each byte-sized index in indices select an element from x,
+// unless the index's sign bit is set in which case zero is used instead.
 //
-// Asm: VPERMI2B, CPU Feature: AVX512VBMI
-func (x Int8x16) Permute2(y Int8x16, indices Uint8x16) Int8x16
+// Asm: VPSHUFB, CPU Feature: AVX
+func (x Int8x16) PermuteOrZero(indices Int8x16) Int8x16
 
-// Permute2 performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-// where xy is x appending y.
-// Only the needed bits to represent xy's index are used in indices' elements.
+// PermuteOrZero performs a full permutation of vector x using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// The lower four bits of each byte-sized index in indices select an element from x,
+// unless the index's sign bit is set in which case zero is used instead.
 //
-// Asm: VPERMI2B, CPU Feature: AVX512VBMI
-func (x Uint8x16) Permute2(y Uint8x16, indices Uint8x16) Uint8x16
+// Asm: VPSHUFB, CPU Feature: AVX
+func (x Uint8x16) PermuteOrZero(indices Int8x16) Uint8x16
 
-// Permute2 performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-// where xy is x appending y.
-// Only the needed bits to represent xy's index are used in indices' elements.
-//
-// Asm: VPERMI2B, CPU Feature: AVX512VBMI
-func (x Int8x32) Permute2(y Int8x32, indices Uint8x32) Int8x32
+/* PermuteOrZeroGrouped */
 
-// Permute2 performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-// where xy is x appending y.
-// Only the needed bits to represent xy's index are used in indices' elements.
-//
-// Asm: VPERMI2B, CPU Feature: AVX512VBMI
-func (x Uint8x32) Permute2(y Uint8x32, indices Uint8x32) Uint8x32
-
-// Permute2 performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-// where xy is x appending y.
-// Only the needed bits to represent xy's index are used in indices' elements.
-//
-// Asm: VPERMI2B, CPU Feature: AVX512VBMI
-func (x Int8x64) Permute2(y Int8x64, indices Uint8x64) Int8x64
-
-// Permute2 performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-// where xy is x appending y.
-// Only the needed bits to represent xy's index are used in indices' elements.
-//
-// Asm: VPERMI2B, CPU Feature: AVX512VBMI
-func (x Uint8x64) Permute2(y Uint8x64, indices Uint8x64) Uint8x64
-
-// Permute2 performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-// where xy is x appending y.
-// Only the needed bits to represent xy's index are used in indices' elements.
-//
-// Asm: VPERMI2W, CPU Feature: AVX512
-func (x Int16x8) Permute2(y Int16x8, indices Uint16x8) Int16x8
-
-// Permute2 performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-// where xy is x appending y.
-// Only the needed bits to represent xy's index are used in indices' elements.
-//
-// Asm: VPERMI2W, CPU Feature: AVX512
-func (x Uint16x8) Permute2(y Uint16x8, indices Uint16x8) Uint16x8
-
-// Permute2 performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-// where xy is x appending y.
-// Only the needed bits to represent xy's index are used in indices' elements.
-//
-// Asm: VPERMI2W, CPU Feature: AVX512
-func (x Int16x16) Permute2(y Int16x16, indices Uint16x16) Int16x16
-
-// Permute2 performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-// where xy is x appending y.
-// Only the needed bits to represent xy's index are used in indices' elements.
-//
-// Asm: VPERMI2W, CPU Feature: AVX512
-func (x Uint16x16) Permute2(y Uint16x16, indices Uint16x16) Uint16x16
-
-// Permute2 performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-// where xy is x appending y.
-// Only the needed bits to represent xy's index are used in indices' elements.
-//
-// Asm: VPERMI2W, CPU Feature: AVX512
-func (x Int16x32) Permute2(y Int16x32, indices Uint16x32) Int16x32
-
-// Permute2 performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-// where xy is x appending y.
-// Only the needed bits to represent xy's index are used in indices' elements.
-//
-// Asm: VPERMI2W, CPU Feature: AVX512
-func (x Uint16x32) Permute2(y Uint16x32, indices Uint16x32) Uint16x32
-
-// Permute2 performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-// where xy is x appending y.
-// Only the needed bits to represent xy's index are used in indices' elements.
-//
-// Asm: VPERMI2PS, CPU Feature: AVX512
-func (x Float32x4) Permute2(y Float32x4, indices Uint32x4) Float32x4
-
-// Permute2 performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-// where xy is x appending y.
-// Only the needed bits to represent xy's index are used in indices' elements.
-//
-// Asm: VPERMI2D, CPU Feature: AVX512
-func (x Int32x4) Permute2(y Int32x4, indices Uint32x4) Int32x4
-
-// Permute2 performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-// where xy is x appending y.
-// Only the needed bits to represent xy's index are used in indices' elements.
-//
-// Asm: VPERMI2D, CPU Feature: AVX512
-func (x Uint32x4) Permute2(y Uint32x4, indices Uint32x4) Uint32x4
-
-// Permute2 performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-// where xy is x appending y.
-// Only the needed bits to represent xy's index are used in indices' elements.
-//
-// Asm: VPERMI2PS, CPU Feature: AVX512
-func (x Float32x8) Permute2(y Float32x8, indices Uint32x8) Float32x8
-
-// Permute2 performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-// where xy is x appending y.
-// Only the needed bits to represent xy's index are used in indices' elements.
-//
-// Asm: VPERMI2D, CPU Feature: AVX512
-func (x Int32x8) Permute2(y Int32x8, indices Uint32x8) Int32x8
-
-// Permute2 performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-// where xy is x appending y.
-// Only the needed bits to represent xy's index are used in indices' elements.
-//
-// Asm: VPERMI2D, CPU Feature: AVX512
-func (x Uint32x8) Permute2(y Uint32x8, indices Uint32x8) Uint32x8
-
-// Permute2 performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-// where xy is x appending y.
-// Only the needed bits to represent xy's index are used in indices' elements.
-//
-// Asm: VPERMI2PS, CPU Feature: AVX512
-func (x Float32x16) Permute2(y Float32x16, indices Uint32x16) Float32x16
-
-// Permute2 performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-// where xy is x appending y.
-// Only the needed bits to represent xy's index are used in indices' elements.
-//
-// Asm: VPERMI2D, CPU Feature: AVX512
-func (x Int32x16) Permute2(y Int32x16, indices Uint32x16) Int32x16
-
-// Permute2 performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-// where xy is x appending y.
-// Only the needed bits to represent xy's index are used in indices' elements.
-//
-// Asm: VPERMI2D, CPU Feature: AVX512
-func (x Uint32x16) Permute2(y Uint32x16, indices Uint32x16) Uint32x16
-
-// Permute2 performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-// where xy is x appending y.
-// Only the needed bits to represent xy's index are used in indices' elements.
-//
-// Asm: VPERMI2PD, CPU Feature: AVX512
-func (x Float64x2) Permute2(y Float64x2, indices Uint64x2) Float64x2
-
-// Permute2 performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-// where xy is x appending y.
-// Only the needed bits to represent xy's index are used in indices' elements.
-//
-// Asm: VPERMI2Q, CPU Feature: AVX512
-func (x Int64x2) Permute2(y Int64x2, indices Uint64x2) Int64x2
-
-// Permute2 performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-// where xy is x appending y.
-// Only the needed bits to represent xy's index are used in indices' elements.
-//
-// Asm: VPERMI2Q, CPU Feature: AVX512
-func (x Uint64x2) Permute2(y Uint64x2, indices Uint64x2) Uint64x2
-
-// Permute2 performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-// where xy is x appending y.
-// Only the needed bits to represent xy's index are used in indices' elements.
-//
-// Asm: VPERMI2PD, CPU Feature: AVX512
-func (x Float64x4) Permute2(y Float64x4, indices Uint64x4) Float64x4
-
-// Permute2 performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-// where xy is x appending y.
-// Only the needed bits to represent xy's index are used in indices' elements.
-//
-// Asm: VPERMI2Q, CPU Feature: AVX512
-func (x Int64x4) Permute2(y Int64x4, indices Uint64x4) Int64x4
-
-// Permute2 performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-// where xy is x appending y.
-// Only the needed bits to represent xy's index are used in indices' elements.
-//
-// Asm: VPERMI2Q, CPU Feature: AVX512
-func (x Uint64x4) Permute2(y Uint64x4, indices Uint64x4) Uint64x4
-
-// Permute2 performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-// where xy is x appending y.
-// Only the needed bits to represent xy's index are used in indices' elements.
-//
-// Asm: VPERMI2PD, CPU Feature: AVX512
-func (x Float64x8) Permute2(y Float64x8, indices Uint64x8) Float64x8
-
-// Permute2 performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-// where xy is x appending y.
-// Only the needed bits to represent xy's index are used in indices' elements.
-//
-// Asm: VPERMI2Q, CPU Feature: AVX512
-func (x Int64x8) Permute2(y Int64x8, indices Uint64x8) Int64x8
-
-// Permute2 performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-// where xy is x appending y.
-// Only the needed bits to represent xy's index are used in indices' elements.
-//
-// Asm: VPERMI2Q, CPU Feature: AVX512
-func (x Uint64x8) Permute2(y Uint64x8, indices Uint64x8) Uint64x8
-
-/* PermuteConstant */
-
-// PermuteConstant performs a permutation of vector x using constant indices:
-// result := {x[indices[0:2]], x[indices[2:4]], x[indices[4:6]], x[indices[6:8]]}
-// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
-//
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
-//
-// Asm: VPSHUFD, CPU Feature: AVX
-func (x Int32x4) PermuteConstant(indices uint8) Int32x4
-
-// PermuteConstant performs a permutation of vector x using constant indices:
-// result := {x[indices[0:2]], x[indices[2:4]], x[indices[4:6]], x[indices[6:8]]}
-// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
-//
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
-//
-// Asm: VPSHUFD, CPU Feature: AVX
-func (x Uint32x4) PermuteConstant(indices uint8) Uint32x4
-
-/* PermuteConstantGrouped */
-
-// PermuteConstantGrouped performs a grouped permutation of vector x using constant indices:
-// result := {x_group0[indices[0:2]], x_group0[indices[2:4]], x_group0[indices[4:6]], x_group0[indices[6:8]], x_group1[indices[0:2]], ...}
-// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
-// Each group is of size 128-bit.
-//
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
-//
-// Asm: VPSHUFD, CPU Feature: AVX2
-func (x Int32x8) PermuteConstantGrouped(indices uint8) Int32x8
-
-// PermuteConstantGrouped performs a grouped permutation of vector x using constant indices:
-// result := {x_group0[indices[0:2]], x_group0[indices[2:4]], x_group0[indices[4:6]], x_group0[indices[6:8]], x_group1[indices[0:2]], ...}
-// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
-// Each group is of size 128-bit.
-//
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
-//
-// Asm: VPSHUFD, CPU Feature: AVX512
-func (x Int32x16) PermuteConstantGrouped(indices uint8) Int32x16
-
-// PermuteConstantGrouped performs a grouped permutation of vector x using constant indices:
-// result := {x_group0[indices[0:2]], x_group0[indices[2:4]], x_group0[indices[4:6]], x_group0[indices[6:8]], x_group1[indices[0:2]], ...}
-// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
-// Each group is of size 128-bit.
-//
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
-//
-// Asm: VPSHUFD, CPU Feature: AVX2
-func (x Uint32x8) PermuteConstantGrouped(indices uint8) Uint32x8
-
-// PermuteConstantGrouped performs a grouped permutation of vector x using constant indices:
-// result := {x_group0[indices[0:2]], x_group0[indices[2:4]], x_group0[indices[4:6]], x_group0[indices[6:8]], x_group1[indices[0:2]], ...}
-// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
-// Each group is of size 128-bit.
-//
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
-//
-// Asm: VPSHUFD, CPU Feature: AVX512
-func (x Uint32x16) PermuteConstantGrouped(indices uint8) Uint32x16
-
-/* PermuteConstantHi */
-
-// PermuteConstantHi performs a permutation of vector x using constant indices:
-// result := {x[indices[0:2]+4], x[indices[2:4]+4], x[indices[4:6]+4], x[indices[6:8]+4]}
-// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
-//
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
-//
-// Asm: VPSHUFHW, CPU Feature: AVX512
-func (x Int16x8) PermuteConstantHi(indices uint8) Int16x8
-
-// PermuteConstantHi performs a permutation of vector x using constant indices:
-// result := {x[indices[0:2]+4], x[indices[2:4]+4], x[indices[4:6]+4], x[indices[6:8]+4]}
-// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
-//
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
-//
-// Asm: VPSHUFHW, CPU Feature: AVX
-func (x Int32x4) PermuteConstantHi(indices uint8) Int32x4
-
-// PermuteConstantHi performs a permutation of vector x using constant indices:
-// result := {x[indices[0:2]+4], x[indices[2:4]+4], x[indices[4:6]+4], x[indices[6:8]+4]}
-// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
-//
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
-//
-// Asm: VPSHUFHW, CPU Feature: AVX512
-func (x Uint16x8) PermuteConstantHi(indices uint8) Uint16x8
-
-// PermuteConstantHi performs a permutation of vector x using constant indices:
-// result := {x[indices[0:2]+4], x[indices[2:4]+4], x[indices[4:6]+4], x[indices[6:8]+4]}
-// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
-//
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
-//
-// Asm: VPSHUFHW, CPU Feature: AVX
-func (x Uint32x4) PermuteConstantHi(indices uint8) Uint32x4
-
-/* PermuteConstantHiGrouped */
-
-// PermuteConstantHiGrouped performs a grouped permutation of vector x using constant indices:
-// result := {x_group0[indices[0:2]+4], x_group0[indices[2:4]+4], x_group0[indices[4:6]+4], x_group0[indices[6:8]+4], x_group1[indices[0:2]+4], ...}
-// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
-// Each group is of size 128-bit.
-//
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
-//
-// Asm: VPSHUFHW, CPU Feature: AVX2
-func (x Int16x16) PermuteConstantHiGrouped(indices uint8) Int16x16
-
-// PermuteConstantHiGrouped performs a grouped permutation of vector x using constant indices:
-// result := {x_group0[indices[0:2]+4], x_group0[indices[2:4]+4], x_group0[indices[4:6]+4], x_group0[indices[6:8]+4], x_group1[indices[0:2]+4], ...}
-// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
-// Each group is of size 128-bit.
-//
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
-//
-// Asm: VPSHUFHW, CPU Feature: AVX512
-func (x Int16x32) PermuteConstantHiGrouped(indices uint8) Int16x32
-
-// PermuteConstantHiGrouped performs a grouped permutation of vector x using constant indices:
-// result := {x_group0[indices[0:2]+4], x_group0[indices[2:4]+4], x_group0[indices[4:6]+4], x_group0[indices[6:8]+4], x_group1[indices[0:2]+4], ...}
-// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
-// Each group is of size 128-bit.
-//
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
-//
-// Asm: VPSHUFHW, CPU Feature: AVX2
-func (x Uint16x16) PermuteConstantHiGrouped(indices uint8) Uint16x16
-
-// PermuteConstantHiGrouped performs a grouped permutation of vector x using constant indices:
-// result := {x_group0[indices[0:2]+4], x_group0[indices[2:4]+4], x_group0[indices[4:6]+4], x_group0[indices[6:8]+4], x_group1[indices[0:2]+4], ...}
-// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
-// Each group is of size 128-bit.
-//
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
-//
-// Asm: VPSHUFHW, CPU Feature: AVX512
-func (x Uint16x32) PermuteConstantHiGrouped(indices uint8) Uint16x32
-
-/* PermuteConstantLo */
-
-// PermuteConstantLo performs a permutation of vector x using constant indices:
-// result := {x[indices[0:2]], x[indices[2:4]], x[indices[4:6]], x[indices[6:8]]}
-// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
-//
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
-//
-// Asm: VPSHUFHW, CPU Feature: AVX512
-func (x Int16x8) PermuteConstantLo(indices uint8) Int16x8
-
-// PermuteConstantLo performs a permutation of vector x using constant indices:
-// result := {x[indices[0:2]], x[indices[2:4]], x[indices[4:6]], x[indices[6:8]]}
-// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
-//
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
-//
-// Asm: VPSHUFHW, CPU Feature: AVX
-func (x Int32x4) PermuteConstantLo(indices uint8) Int32x4
-
-// PermuteConstantLo performs a permutation of vector x using constant indices:
-// result := {x[indices[0:2]], x[indices[2:4]], x[indices[4:6]], x[indices[6:8]]}
-// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
-//
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
-//
-// Asm: VPSHUFHW, CPU Feature: AVX512
-func (x Uint16x8) PermuteConstantLo(indices uint8) Uint16x8
-
-// PermuteConstantLo performs a permutation of vector x using constant indices:
-// result := {x[indices[0:2]], x[indices[2:4]], x[indices[4:6]], x[indices[6:8]]}
-// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
-//
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
-//
-// Asm: VPSHUFHW, CPU Feature: AVX
-func (x Uint32x4) PermuteConstantLo(indices uint8) Uint32x4
-
-/* PermuteConstantLoGrouped */
-
-// PermuteConstantLoGrouped performs a grouped permutation of vector x using constant indices:
-// result := {x_group0[indices[0:2]], x_group0[indices[2:4]], x_group0[indices[4:6]], x_group0[indices[6:8]], x_group1[indices[0:2]], ...}
-// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
-// Each group is of size 128-bit.
-//
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
-//
-// Asm: VPSHUFHW, CPU Feature: AVX2
-func (x Int16x16) PermuteConstantLoGrouped(indices uint8) Int16x16
-
-// PermuteConstantLoGrouped performs a grouped permutation of vector x using constant indices:
-// result := {x_group0[indices[0:2]], x_group0[indices[2:4]], x_group0[indices[4:6]], x_group0[indices[6:8]], x_group1[indices[0:2]], ...}
-// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
-// Each group is of size 128-bit.
-//
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
-//
-// Asm: VPSHUFHW, CPU Feature: AVX512
-func (x Int16x32) PermuteConstantLoGrouped(indices uint8) Int16x32
-
-// PermuteConstantLoGrouped performs a grouped permutation of vector x using constant indices:
-// result := {x_group0[indices[0:2]], x_group0[indices[2:4]], x_group0[indices[4:6]], x_group0[indices[6:8]], x_group1[indices[0:2]], ...}
-// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
-// Each group is of size 128-bit.
-//
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
-//
-// Asm: VPSHUFHW, CPU Feature: AVX2
-func (x Uint16x16) PermuteConstantLoGrouped(indices uint8) Uint16x16
-
-// PermuteConstantLoGrouped performs a grouped permutation of vector x using constant indices:
-// result := {x_group0[indices[0:2]], x_group0[indices[2:4]], x_group0[indices[4:6]], x_group0[indices[6:8]], x_group1[indices[0:2]], ...}
-// Here indices are word-size unsigned index value packed together, e.g. indices[0:2] is the first index.
-// Each group is of size 128-bit.
-//
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
-//
-// Asm: VPSHUFHW, CPU Feature: AVX512
-func (x Uint16x32) PermuteConstantLoGrouped(indices uint8) Uint16x32
-
-/* PermuteGrouped */
-
-// PermuteGrouped performs a grouped permutation of vector x using indices:
-// result := {x_group0[indices[0]], x_group0[indices[1]], ..., x_group1[indices[16]], x_group1[indices[17]], ...}
-// Only the needed bits to represent the index of a group of x are used in indices' elements.
-// However when the top bit is set, the low bits will be disregard and the respective element in the result vector will be zeroed.
+// PermuteOrZeroGrouped performs a grouped permutation of vector x using indices:
+// result = {x_group0[indices[0]], x_group0[indices[1]], ..., x_group1[indices[16]], x_group1[indices[17]], ...}
+// The lower four bits of each byte-sized index in indices select an element from its corresponding group in x,
+// unless the index's sign bit is set in which case zero is used instead.
 // Each group is of size 128-bit.
 //
 // Asm: VPSHUFB, CPU Feature: AVX2
-func (x Int8x32) PermuteGrouped(indices Int8x32) Int8x32
+func (x Int8x32) PermuteOrZeroGrouped(indices Int8x32) Int8x32
 
-// PermuteGrouped performs a grouped permutation of vector x using indices:
-// result := {x_group0[indices[0]], x_group0[indices[1]], ..., x_group1[indices[16]], x_group1[indices[17]], ...}
-// Only the needed bits to represent the index of a group of x are used in indices' elements.
-// However when the top bit is set, the low bits will be disregard and the respective element in the result vector will be zeroed.
+// PermuteOrZeroGrouped performs a grouped permutation of vector x using indices:
+// result = {x_group0[indices[0]], x_group0[indices[1]], ..., x_group1[indices[16]], x_group1[indices[17]], ...}
+// The lower four bits of each byte-sized index in indices select an element from its corresponding group in x,
+// unless the index's sign bit is set in which case zero is used instead.
 // Each group is of size 128-bit.
 //
 // Asm: VPSHUFB, CPU Feature: AVX512
-func (x Int8x64) PermuteGrouped(indices Int8x64) Int8x64
+func (x Int8x64) PermuteOrZeroGrouped(indices Int8x64) Int8x64
 
-// PermuteGrouped performs a grouped permutation of vector x using indices:
-// result := {x_group0[indices[0]], x_group0[indices[1]], ..., x_group1[indices[16]], x_group1[indices[17]], ...}
-// Only the needed bits to represent the index of a group of x are used in indices' elements.
-// However when the top bit is set, the low bits will be disregard and the respective element in the result vector will be zeroed.
+// PermuteOrZeroGrouped performs a grouped permutation of vector x using indices:
+// result = {x_group0[indices[0]], x_group0[indices[1]], ..., x_group1[indices[16]], x_group1[indices[17]], ...}
+// The lower four bits of each byte-sized index in indices select an element from its corresponding group in x,
+// unless the index's sign bit is set in which case zero is used instead.
 // Each group is of size 128-bit.
 //
 // Asm: VPSHUFB, CPU Feature: AVX2
-func (x Uint8x32) PermuteGrouped(indices Uint8x32) Uint8x32
+func (x Uint8x32) PermuteOrZeroGrouped(indices Int8x32) Uint8x32
 
-// PermuteGrouped performs a grouped permutation of vector x using indices:
-// result := {x_group0[indices[0]], x_group0[indices[1]], ..., x_group1[indices[16]], x_group1[indices[17]], ...}
-// Only the needed bits to represent the index of a group of x are used in indices' elements.
-// However when the top bit is set, the low bits will be disregard and the respective element in the result vector will be zeroed.
+// PermuteOrZeroGrouped performs a grouped permutation of vector x using indices:
+// result = {x_group0[indices[0]], x_group0[indices[1]], ..., x_group1[indices[16]], x_group1[indices[17]], ...}
+// The lower four bits of each byte-sized index in indices select an element from its corresponding group in x,
+// unless the index's sign bit is set in which case zero is used instead.
 // Each group is of size 128-bit.
 //
 // Asm: VPSHUFB, CPU Feature: AVX512
-func (x Uint8x64) PermuteGrouped(indices Uint8x64) Uint8x64
+func (x Uint8x64) PermuteOrZeroGrouped(indices Int8x64) Uint8x64
 
 /* Reciprocal */
 
@@ -5807,8 +5601,10 @@ func (x Float64x8) Scale(y Float64x8) Float64x8
 
 /* Select128FromPair */
 
-// Select128FromPair selects the low and high 128-bit halves from the 128-bit halves
-// of its two 256-bit inputs, numbering those halves 0, 1, 2, 3.
+// Select128FromPair treats the 256-bit vectors x and y as a single vector of four
+// 128-bit elements, and returns a 256-bit result formed by
+// concatenating the two elements specified by lo and hi.
+// For example, {4,5}.Select128FromPair(3,0,{6,7}) returns {7,4}.
 //
 // lo, hi result in better performance when they are constants, non-constant values will be translated into a jump table.
 // lo, hi should be between 0 and 3, inclusive; other values will result in a runtime panic.
@@ -5816,8 +5612,10 @@ func (x Float64x8) Scale(y Float64x8) Float64x8
 // Asm: VPERM2F128, CPU Feature: AVX
 func (x Float32x8) Select128FromPair(lo, hi uint8, y Float32x8) Float32x8
 
-// Select128FromPair selects the low and high 128-bit halves from the 128-bit halves
-// of its two 256-bit inputs, numbering those halves 0, 1, 2, 3.
+// Select128FromPair treats the 256-bit vectors x and y as a single vector of four
+// 128-bit elements, and returns a 256-bit result formed by
+// concatenating the two elements specified by lo and hi.
+// For example, {4,5}.Select128FromPair(3,0,{6,7}) returns {7,4}.
 //
 // lo, hi result in better performance when they are constants, non-constant values will be translated into a jump table.
 // lo, hi should be between 0 and 3, inclusive; other values will result in a runtime panic.
@@ -5825,8 +5623,10 @@ func (x Float32x8) Select128FromPair(lo, hi uint8, y Float32x8) Float32x8
 // Asm: VPERM2F128, CPU Feature: AVX
 func (x Float64x4) Select128FromPair(lo, hi uint8, y Float64x4) Float64x4
 
-// Select128FromPair selects the low and high 128-bit halves from the 128-bit halves
-// of its two 256-bit inputs, numbering those halves 0, 1, 2, 3.
+// Select128FromPair treats the 256-bit vectors x and y as a single vector of four
+// 128-bit elements, and returns a 256-bit result formed by
+// concatenating the two elements specified by lo and hi.
+// For example, {4,5}.Select128FromPair(3,0,{6,7}) returns {7,4}.
 //
 // lo, hi result in better performance when they are constants, non-constant values will be translated into a jump table.
 // lo, hi should be between 0 and 3, inclusive; other values will result in a runtime panic.
@@ -5834,8 +5634,10 @@ func (x Float64x4) Select128FromPair(lo, hi uint8, y Float64x4) Float64x4
 // Asm: VPERM2I128, CPU Feature: AVX2
 func (x Int32x8) Select128FromPair(lo, hi uint8, y Int32x8) Int32x8
 
-// Select128FromPair selects the low and high 128-bit halves from the 128-bit halves
-// of its two 256-bit inputs, numbering those halves 0, 1, 2, 3.
+// Select128FromPair treats the 256-bit vectors x and y as a single vector of four
+// 128-bit elements, and returns a 256-bit result formed by
+// concatenating the two elements specified by lo and hi.
+// For example, {4,5}.Select128FromPair(3,0,{6,7}) returns {7,4}.
 //
 // lo, hi result in better performance when they are constants, non-constant values will be translated into a jump table.
 // lo, hi should be between 0 and 3, inclusive; other values will result in a runtime panic.
@@ -5843,8 +5645,10 @@ func (x Int32x8) Select128FromPair(lo, hi uint8, y Int32x8) Int32x8
 // Asm: VPERM2I128, CPU Feature: AVX2
 func (x Int64x4) Select128FromPair(lo, hi uint8, y Int64x4) Int64x4
 
-// Select128FromPair selects the low and high 128-bit halves from the 128-bit halves
-// of its two 256-bit inputs, numbering those halves 0, 1, 2, 3.
+// Select128FromPair treats the 256-bit vectors x and y as a single vector of four
+// 128-bit elements, and returns a 256-bit result formed by
+// concatenating the two elements specified by lo and hi.
+// For example, {4,5}.Select128FromPair(3,0,{6,7}) returns {7,4}.
 //
 // lo, hi result in better performance when they are constants, non-constant values will be translated into a jump table.
 // lo, hi should be between 0 and 3, inclusive; other values will result in a runtime panic.
@@ -5852,8 +5656,10 @@ func (x Int64x4) Select128FromPair(lo, hi uint8, y Int64x4) Int64x4
 // Asm: VPERM2I128, CPU Feature: AVX2
 func (x Uint32x8) Select128FromPair(lo, hi uint8, y Uint32x8) Uint32x8
 
-// Select128FromPair selects the low and high 128-bit halves from the 128-bit halves
-// of its two 256-bit inputs, numbering those halves 0, 1, 2, 3.
+// Select128FromPair treats the 256-bit vectors x and y as a single vector of four
+// 128-bit elements, and returns a 256-bit result formed by
+// concatenating the two elements specified by lo and hi.
+// For example, {4,5}.Select128FromPair(3,0,{6,7}) returns {7,4}.
 //
 // lo, hi result in better performance when they are constants, non-constant values will be translated into a jump table.
 // lo, hi should be between 0 and 3, inclusive; other values will result in a runtime panic.

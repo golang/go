@@ -73,6 +73,29 @@ type rawOperation struct {
 	NoGenericOps *string
 	// If non-nil, this string will be attached to the machine ssa op name.  E.g. "const"
 	SSAVariant *string
+	// If true, do not emit method declarations, generic ops, or intrinsics for masked variants
+	// DO emit the architecture-specific opcodes and optimizations.
+	HideMaskMethods *bool
+}
+
+func (o *Operation) IsMasked() bool {
+	if len(o.InVariant) == 0 {
+		return false
+	}
+	if len(o.InVariant) == 1 && o.InVariant[0].Class == "mask" {
+		return true
+	}
+	panic(fmt.Errorf("unknown inVariant"))
+}
+
+func (o *Operation) SkipMaskedMethod() bool {
+	if o.HideMaskMethods == nil {
+		return false
+	}
+	if *o.HideMaskMethods && o.IsMasked() {
+		return true
+	}
+	return false
 }
 
 func (o *Operation) DecodeUnified(v *unify.Value) error {
@@ -80,14 +103,7 @@ func (o *Operation) DecodeUnified(v *unify.Value) error {
 		return err
 	}
 
-	isMasked := false
-	if len(o.InVariant) == 0 {
-		// No variant
-	} else if len(o.InVariant) == 1 && o.InVariant[0].Class == "mask" {
-		isMasked = true
-	} else {
-		return fmt.Errorf("unknown inVariant")
-	}
+	isMasked := o.IsMasked()
 
 	// Compute full Go method name.
 	o.Go = o.rawOperation.Go
@@ -104,6 +120,7 @@ func (o *Operation) DecodeUnified(v *unify.Value) error {
 	o.Documentation = regexp.MustCompile(`\bNAME\b`).ReplaceAllString(o.Documentation, o.Go)
 	if isMasked {
 		o.Documentation += "\n//\n// This operation is applied selectively under a write mask."
+		// Suppress generic op and method declaration for exported methods, if a mask is present.
 		if unicode.IsUpper([]rune(o.Go)[0]) {
 			trueVal := "true"
 			o.NoGenericOps = &trueVal

@@ -107,6 +107,9 @@ func writeSIMDIntrinsics(ops []Operation, typeMap simdTypeMap) *bytes.Buffer {
 		if op.NoTypes != nil && *op.NoTypes == "true" {
 			continue
 		}
+		if op.SkipMaskedMethod() {
+			continue
+		}
 		if s, op, err := classifyOp(op); err == nil {
 			if err := t.ExecuteTemplate(buffer, s, op); err != nil {
 				panic(fmt.Errorf("failed to execute template %s for op %s: %w", s, op.Go, err))

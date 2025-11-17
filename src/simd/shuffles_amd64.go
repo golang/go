@@ -989,3 +989,280 @@ func (x Int64x8) SelectFromPairGrouped(a, b uint8, y Int64x8) Int64x8 {
 	}
 	panic("missing case, switch should be exhaustive")
 }
+
+/* PermuteScalars */
+
+// PermuteScalars performs a permutation of vector x's elements using the supplied indices:
+//
+//	result = {x[a], x[b], x[c], x[d]}
+//
+// Parameters a,b,c,d should have values between 0 and 3.
+// If a through d are constants, then an instruction will be inlined, otherwise
+// a jump table may be generated.
+//
+// Asm: VPSHUFD, CPU Feature: AVX
+func (x Int32x4) PermuteScalars(a, b, c, d uint8) Int32x4 {
+	return x.permuteScalars(a&3 | (b&3)<<2 | (c&3)<<4 | d<<6)
+}
+
+// PermuteScalars performs a permutation of vector x's elements using the supplied indices:
+//
+//	result = {x[a], x[b], x[c], x[d]}
+//
+// Parameters a,b,c,d should have values between 0 and 3.
+// If a through d are constants, then an instruction will be inlined, otherwise
+// a jump table may be generated.
+//
+// Asm: VPSHUFD, CPU Feature: AVX
+func (x Uint32x4) PermuteScalars(a, b, c, d uint8) Uint32x4 {
+	return x.permuteScalars(a&3 | (b&3)<<2 | (c&3)<<4 | d<<6)
+}
+
+/* PermuteScalarsGrouped */
+
+// PermuteScalarsGrouped performs a grouped permutation of vector x using the supplied indices:
+//
+//	result = {x[a], x[b], x[c], x[d], x[a+4], x[b+4], x[c+4], x[d+4]}
+//
+// Parameters a,b,c,d should have values between 0 and 3.
+// If a through d are constants, then an instruction will be inlined, otherwise
+// a jump table may be generated.
+//
+// Asm: VPSHUFD, CPU Feature: AVX2
+func (x Int32x8) PermuteScalarsGrouped(a, b, c, d uint8) Int32x8 {
+	return x.permuteScalarsGrouped(a&3 | (b&3)<<2 | (c&3)<<4 | d<<6)
+}
+
+// PermuteScalarsGrouped performs a grouped permutation of vector x using the supplied indices:
+//
+//	 result =
+//		 {  x[a], x[b], x[c], x[d],         x[a+4], x[b+4], x[c+4], x[d+4],
+//			x[a+8], x[b+8], x[c+8], x[d+8], x[a+12], x[b+12], x[c+12], x[d+12]}
+//
+// Parameters a,b,c,d should have values between 0 and 3.
+// If a through d are constants, then an instruction will be inlined, otherwise
+// a jump table may be generated.
+//
+// Asm: VPSHUFD, CPU Feature: AVX512
+func (x Int32x16) PermuteScalarsGrouped(a, b, c, d uint8) Int32x16 {
+	return x.permuteScalarsGrouped(a&3 | (b&3)<<2 | (c&3)<<4 | d<<6)
+}
+
+// PermuteScalarsGrouped performs a grouped permutation of vector x using the supplied indices:
+//
+//	result = {x[a], x[b], x[c], x[d], x[a+4], x[b+4], x[c+4], x[d+4]}
+//
+// Parameters a,b,c,d should have values between 0 and 3.
+// If a through d are constants, then an instruction will be inlined, otherwise
+// a jump table is generated.
+//
+// Asm: VPSHUFD, CPU Feature: AVX2
+func (x Uint32x8) PermuteScalarsGrouped(a, b, c, d uint8) Uint32x8 {
+	return x.permuteScalarsGrouped(a&3 | (b&3)<<2 | (c&3)<<4 | d<<6)
+}
+
+// PermuteScalarsGrouped performs a grouped permutation of vector x using the supplied indices:
+//
+//	 result =
+//		 {  x[a], x[b], x[c], x[d],         x[a+4], x[b+4], x[c+4], x[d+4],
+//			x[a+8], x[b+8], x[c+8], x[d+8], x[a+12], x[b+12], x[c+12], x[d+12]}
+//
+// Parameters a,b,c,d should have values between 0 and 3.
+// If a through d are constants, then an instruction will be inlined, otherwise
+// a jump table is generated.
+//
+// Asm: VPSHUFD, CPU Feature: AVX512
+func (x Uint32x16) PermuteScalarsGrouped(a, b, c, d uint8) Uint32x16 {
+	return x.permuteScalarsGrouped(a&3 | (b&3)<<2 | (c&3)<<4 | d<<6)
+}
+
+/* PermuteScalarsHi */
+
+// PermuteScalarsHi performs a permutation of vector x using the supplied indices:
+//
+// result = {x[0], x[1], x[2], x[3], x[a+4], x[b+4], x[c+4], x[d+4]}
+//
+// Parameters a,b,c,d should have values between 0 and 3.
+// If a through d are constants, then an instruction will be inlined, otherwise
+// a jump table is generated.
+//
+// Asm: VPSHUFHW, CPU Feature: AVX512
+func (x Int16x8) PermuteScalarsHi(a, b, c, d uint8) Int16x8 {
+	return x.permuteScalarsHi(a&3 | (b&3)<<2 | (c&3)<<4 | d<<6)
+}
+
+// PermuteScalarsHi performs a permutation of vector x using the supplied indices:
+//
+// result = {x[0], x[1], x[2], x[3], x[a+4], x[b+4], x[c+4], x[d+4]}
+//
+// Parameters a,b,c,d should have values between 0 and 3.
+// If a through d are constants, then an instruction will be inlined, otherwise
+// a jump table is generated.
+//
+// Asm: VPSHUFHW, CPU Feature: AVX512
+func (x Uint16x8) PermuteScalarsHi(a, b, c, d uint8) Uint16x8 {
+	return x.permuteScalarsHi(a&3 | (b&3)<<2 | (c&3)<<4 | d<<6)
+}
+
+/* PermuteScalarsHiGrouped */
+
+// PermuteScalarsHiGrouped performs a grouped permutation of vector x using the supplied indices:
+//
+//	 result =
+//		  {x[0], x[1], x[2], x[3],   x[a+4], x[b+4], x[c+4], x[d+4],
+//			x[8], x[9], x[10], x[11], x[a+12], x[b+12], x[c+12], x[d+12]}
+//
+// Parameters a,b,c,d should have values between 0 and 3.
+// If a through d are constants, then an instruction will be inlined, otherwise
+// a jump table is generated.
+//
+// Asm: VPSHUFHW, CPU Feature: AVX2
+func (x Int16x16) PermuteScalarsHiGrouped(a, b, c, d uint8) Int16x16 {
+	return x.permuteScalarsHiGrouped(a&3 | (b&3)<<2 | (c&3)<<4 | d<<6)
+}
+
+// PermuteScalarsHiGrouped performs a grouped permutation of vector x using the supplied indices:
+//
+//	 result =
+//		  {x[0], x[1], x[2], x[3],     x[a+4], x[b+4], x[c+4], x[d+4],
+//			x[8], x[9], x[10], x[11],   x[a+12], x[b+12], x[c+12], x[d+12],
+//			x[16], x[17], x[18], x[19], x[a+20], x[b+20], x[c+20], x[d+20],
+//			x[24], x[25], x[26], x[27], x[a+28], x[b+28], x[c+28], x[d+28]}
+//
+// Parameters a,b,c,d should have values between 0 and 3.
+// If a through d are constants, then an instruction will be inlined, otherwise
+// a jump table is generated.
+//
+// Asm: VPSHUFHW, CPU Feature: AVX512
+func (x Int16x32) PermuteScalarsHiGrouped(a, b, c, d uint8) Int16x32 {
+	return x.permuteScalarsHiGrouped(a&3 | (b&3)<<2 | (c&3)<<4 | d<<6)
+}
+
+// PermuteScalarsHiGrouped performs a grouped permutation of vector x using the supplied indices:
+//
+//	 result =
+//	  {x[0], x[1], x[2], x[3],   x[a+4], x[b+4], x[c+4], x[d+4],
+//		x[8], x[9], x[10], x[11], x[a+12], x[b+12], x[c+12], x[d+12]}
+//
+// Each group is of size 128-bit.
+//
+// Parameters a,b,c,d should have values between 0 and 3.
+// If a through d are constants, then an instruction will be inlined, otherwise
+// a jump table is generated.
+//
+// Asm: VPSHUFHW, CPU Feature: AVX2
+func (x Uint16x16) PermuteScalarsHiGrouped(a, b, c, d uint8) Uint16x16 {
+	return x.permuteScalarsHiGrouped(a&3 | (b&3)<<2 | (c&3)<<4 | d<<6)
+}
+
+// PermuteScalarsHiGrouped performs a grouped permutation of vector x using the supplied indices:
+//
+//	 result =
+//		 {  x[0], x[1], x[2], x[3],     x[a+4], x[b+4], x[c+4], x[d+4],
+//			x[8], x[9], x[10], x[11],   x[a+12], x[b+12], x[c+12], x[d+12],
+//			x[16], x[17], x[18], x[19], x[a+20], x[b+20], x[c+20], x[d+20],
+//			x[24], x[25], x[26], x[27], x[a+28], x[b+28], x[c+28], x[d+28]}
+//
+// Parameters a,b,c,d should have values between 0 and 3.
+// If a through d are constants, then an instruction will be inlined, otherwise
+// a jump table is generated.
+//
+// Asm: VPSHUFHW, CPU Feature: AVX512
+func (x Uint16x32) PermuteScalarsHiGrouped(a, b, c, d uint8) Uint16x32 {
+	return x.permuteScalarsHiGrouped(a&3 | (b&3)<<2 | (c&3)<<4 | d<<6)
+}
+
+/* PermuteScalarsLo */
+
+// PermuteScalarsLo performs a permutation of vector x using the supplied indices:
+//
+//	result = {x[a], x[b], x[c], x[d], x[4], x[5], x[6], x[7]}
+//
+// Parameters a,b,c,d should have values between 0 and 3.
+// If a through d are constants, then an instruction will be inlined, otherwise
+// a jump table is generated.
+//
+// Asm: VPSHUFLW, CPU Feature: AVX512
+func (x Int16x8) PermuteScalarsLo(a, b, c, d uint8) Int16x8 {
+	return x.permuteScalarsLo(a&3 | (b&3)<<2 | (c&3)<<4 | d<<6)
+}
+
+// PermuteScalarsLo performs a permutation of vector x using the supplied indices:
+//
+//	result = {x[a], x[b], x[c], x[d], x[4], x[5], x[6], x[7]}
+//
+// Parameters a,b,c,d should have values between 0 and 3.
+// If a through d are constants, then an instruction will be inlined, otherwise
+// a jump table is generated.
+//
+// Asm: VPSHUFLW, CPU Feature: AVX512
+func (x Uint16x8) PermuteScalarsLo(a, b, c, d uint8) Uint16x8 {
+	return x.permuteScalarsLo(a&3 | (b&3)<<2 | (c&3)<<4 | d<<6)
+}
+
+/* PermuteScalarsLoGrouped */
+
+// PermuteScalarsLoGrouped performs a grouped permutation of vector x using the supplied indices:
+//
+//	 result =
+//	 {x[a], x[b], x[c], x[d],         x[4], x[5], x[6], x[7],
+//		 x[a+8], x[b+8], x[c+8], x[d+8], x[12], x[13], x[14], x[15]}
+//
+// Parameters a,b,c,d should have values between 0 and 3.
+// If a through d are constants, then an instruction will be inlined, otherwise
+// a jump table is generated.
+//
+// Asm: VPSHUFLW, CPU Feature: AVX2
+func (x Int16x16) PermuteScalarsLoGrouped(a, b, c, d uint8) Int16x16 {
+	return x.permuteScalarsLoGrouped(a&3 | (b&3)<<2 | (c&3)<<4 | d<<6)
+}
+
+// PermuteScalarsLoGrouped performs a grouped permutation of vector x using the supplied indices:
+//
+//	 result =
+//	 {x[a], x[b], x[c], x[d],    x[4], x[5], x[6], x[7],
+//		x[a+8], x[b+8], x[c+8], x[d+8],     x[12], x[13], x[14], x[15],
+//		x[a+16], x[b+16], x[c+16], x[d+16], x[20], x[21], x[22], x[23],
+//		x[a+24], x[b+24], x[c+24], x[d+24], x[28], x[29], x[30], x[31]}
+//
+// Parameters a,b,c,d should have values between 0 and 3.
+// If a through d are constants, then an instruction will be inlined, otherwise
+// a jump table is generated.
+//
+// Asm: VPSHUFLW, CPU Feature: AVX512
+func (x Int16x32) PermuteScalarsLoGrouped(a, b, c, d uint8) Int16x32 {
+	return x.permuteScalarsLoGrouped(a&3 | (b&3)<<2 | (c&3)<<4 | d<<6)
+}
+
+// PermuteScalarsLoGrouped performs a grouped permutation of vector x using the supplied indices:
+//
+//	 result = {x[a], x[b], x[c], x[d],         x[4], x[5], x[6], x[7],
+//		x[a+8], x[b+8], x[c+8], x[d+8], x[12], x[13], x[14], x[15]}
+//
+// Parameters a,b,c,d should have values between 0 and 3.
+// If a through d are constants, then an instruction will be inlined, otherwise
+// a jump table is generated.
+//
+// Asm: VPSHUFLW, CPU Feature: AVX2
+func (x Uint16x16) PermuteScalarsLoGrouped(a, b, c, d uint8) Uint16x16 {
+	return x.permuteScalarsLoGrouped(a&3 | (b&3)<<2 | (c&3)<<4 | d<<6)
+}
+
+// PermuteScalarsLoGrouped performs a grouped permutation of vector x using the supplied indices:
+//
+//	 result =
+//	 {x[a], x[b], x[c], x[d],    x[4], x[5], x[6], x[7],
+//		x[a+8], x[b+8], x[c+8], x[d+8],     x[12], x[13], x[14], x[15],
+//		x[a+16], x[b+16], x[c+16], x[d+16], x[20], x[21], x[22], x[23],
+//		x[a+24], x[b+24], x[c+24], x[d+24], x[28], x[29], x[30], x[31]}
+//
+// Each group is of size 128-bit.
+//
+// Parameters a,b,c,d should have values between 0 and 3.
+// If a through d are constants, then an instruction will be inlined, otherwise
+// a jump table is generated.
+//
+// Asm: VPSHUFLW, CPU Feature: AVX512
+func (x Uint16x32) PermuteScalarsLoGrouped(a, b, c, d uint8) Uint16x32 {
+	return x.permuteScalarsLoGrouped(a&3 | (b&3)<<2 | (c&3)<<4 | d<<6)
+}

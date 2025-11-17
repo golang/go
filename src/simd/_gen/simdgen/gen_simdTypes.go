@@ -604,6 +604,9 @@ func writeSIMDStubs(ops []Operation, typeMap simdTypeMap) (f, fI *bytes.Buffer) 
 		if op.NoTypes != nil && *op.NoTypes == "true" {
 			continue
 		}
+		if op.SkipMaskedMethod() {
+			continue
+		}
 		idxVecAsScalar, err := checkVecAsScalar(op)
 		if err != nil {
 			panic(err)

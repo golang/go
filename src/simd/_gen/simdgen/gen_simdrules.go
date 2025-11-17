@@ -345,7 +345,8 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 			data.ArgsOut = "..."
 		}
 		data.tplName = tplName
-		if opr.NoGenericOps != nil && *opr.NoGenericOps == "true" {
+		if opr.NoGenericOps != nil && *opr.NoGenericOps == "true" ||
+			opr.SkipMaskedMethod() {
 			optData = append(optData, data)
 			continue
 		}
