@@ -991,14 +991,14 @@ func divShiftClean64(n int64) int64 {
 	if n < 0 {
 		return n
 	}
-	return n / int64(16)  // ERROR "Proved Div64 is unsigned$"
+	return n / int64(16) // ERROR "Proved Div64 is unsigned$"
 }
 
 func divShiftClean32(n int32) int32 {
 	if n < 0 {
 		return n
 	}
-	return n / int32(16)  // ERROR "Proved Div32 is unsigned$"
+	return n / int32(16) // ERROR "Proved Div32 is unsigned$"
 }
 
 // Bounds check elimination
@@ -1079,8 +1079,8 @@ func modu2(x, y uint) int {
 
 func issue57077(s []int) (left, right []int) {
 	middle := len(s) / 2 // ERROR "Proved Div64 is unsigned$"
-	left = s[:middle]  // ERROR "Proved IsSliceInBounds$"
-	right = s[middle:] // ERROR "Proved IsSliceInBounds$"
+	left = s[:middle]    // ERROR "Proved IsSliceInBounds$"
+	right = s[middle:]   // ERROR "Proved IsSliceInBounds$"
 	return
 }
 
@@ -2496,7 +2496,6 @@ func div3pos(x []int) int {
 	return len(x) / 3 // ERROR "Proved Div64 is unsigned"
 }
 
-
 var len200 [200]int
 
 func modbound1(u uint64) int {
@@ -2544,9 +2543,9 @@ func rangebound2(x []int) int {
 func swapbound(v []int) {
 	for i := 0; i < len(v)/2; i++ { // ERROR "Proved Div64 is unsigned|Induction variable"
 		v[i], // ERROR "Proved IsInBounds"
-		v[len(v)-1-i] = // ERROR "Proved IsInBounds"
-		v[len(v)-1-i],
-		v[i] // ERROR "Proved IsInBounds"
+			v[len(v)-1-i] = // ERROR "Proved IsInBounds"
+			v[len(v)-1-i],
+			v[i] // ERROR "Proved IsInBounds"
 	}
 }
 
@@ -2569,73 +2568,73 @@ func rightShiftBounds(v, s int) {
 	// We care about the bounds for x printed on the prove(x) lines.
 
 	if -8 <= v && v <= -2 && 1 <= s && s <= 3 {
-		x := v>>s // ERROR "Proved"
-		prove(x) // ERROR "Proved sm,SM=-4,-1 "
+		x := v >> s // ERROR "Proved"
+		prove(x)    // ERROR "Proved sm,SM=-4,-1 "
 	}
 	if -80 <= v && v <= -20 && 1 <= s && s <= 3 {
-		x := v>>s // ERROR "Proved"
-		prove(x) // ERROR "Proved sm,SM=-40,-3 "
+		x := v >> s // ERROR "Proved"
+		prove(x)    // ERROR "Proved sm,SM=-40,-3 "
 	}
 	if -8 <= v && v <= 10 && 1 <= s && s <= 3 {
-		x := v>>s // ERROR "Proved"
-		prove(x) // ERROR "Proved sm,SM=-4,5 "
+		x := v >> s // ERROR "Proved"
+		prove(x)    // ERROR "Proved sm,SM=-4,5 "
 	}
 	if 2 <= v && v <= 10 && 1 <= s && s <= 3 {
-		x := v>>s // ERROR "Proved"
-		prove(x) // ERROR "Proved sm,SM=0,5 "
+		x := v >> s // ERROR "Proved"
+		prove(x)    // ERROR "Proved sm,SM=0,5 "
 	}
 
 	if -8 <= v && v <= -2 && 0 <= s && s <= 3 {
-		x := v>>s // ERROR "Proved"
-		prove(x) // ERROR "Proved sm,SM=-8,-1 "
+		x := v >> s // ERROR "Proved"
+		prove(x)    // ERROR "Proved sm,SM=-8,-1 "
 	}
 	if -80 <= v && v <= -20 && 0 <= s && s <= 3 {
-		x := v>>s // ERROR "Proved"
-		prove(x) // ERROR "Proved sm,SM=-80,-3 "
+		x := v >> s // ERROR "Proved"
+		prove(x)    // ERROR "Proved sm,SM=-80,-3 "
 	}
 	if -8 <= v && v <= 10 && 0 <= s && s <= 3 {
-		x := v>>s // ERROR "Proved"
-		prove(x) // ERROR "Proved sm,SM=-8,10 "
+		x := v >> s // ERROR "Proved"
+		prove(x)    // ERROR "Proved sm,SM=-8,10 "
 	}
 	if 2 <= v && v <= 10 && 0 <= s && s <= 3 {
-		x := v>>s // ERROR "Proved"
-		prove(x) // ERROR "Proved sm,SM=0,10 "
+		x := v >> s // ERROR "Proved"
+		prove(x)    // ERROR "Proved sm,SM=0,10 "
 	}
 
 	if -8 <= v && v <= -2 && -1 <= s && s <= 3 {
-		x := v>>s // ERROR "Proved"
-		prove(x) // ERROR "Proved sm,SM=-8,-1 "
+		x := v >> s // ERROR "Proved"
+		prove(x)    // ERROR "Proved sm,SM=-8,-1 "
 	}
 	if -80 <= v && v <= -20 && -1 <= s && s <= 3 {
-		x := v>>s // ERROR "Proved"
-		prove(x) // ERROR "Proved sm,SM=-80,-3 "
+		x := v >> s // ERROR "Proved"
+		prove(x)    // ERROR "Proved sm,SM=-80,-3 "
 	}
 	if -8 <= v && v <= 10 && -1 <= s && s <= 3 {
-		x := v>>s // ERROR "Proved"
-		prove(x) // ERROR "Proved sm,SM=-8,10 "
+		x := v >> s // ERROR "Proved"
+		prove(x)    // ERROR "Proved sm,SM=-8,10 "
 	}
 	if 2 <= v && v <= 10 && -1 <= s && s <= 3 {
-		x := v>>s // ERROR "Proved"
-		prove(x) // ERROR "Proved sm,SM=0,10 "
+		x := v >> s // ERROR "Proved"
+		prove(x)    // ERROR "Proved sm,SM=0,10 "
 	}
 }
 
 func unsignedRightShiftBounds(v uint, s int) {
 	if 2 <= v && v <= 10 && -1 <= s && s <= 3 {
-		x := v>>s // ERROR "Proved"
-		proveu(x) // ERROR "Proved sm,SM=0,10 "
+		x := v >> s // ERROR "Proved"
+		proveu(x)   // ERROR "Proved sm,SM=0,10 "
 	}
 	if 2 <= v && v <= 10 && 0 <= s && s <= 3 {
-		x := v>>s // ERROR "Proved"
-		proveu(x) // ERROR "Proved sm,SM=0,10 "
+		x := v >> s // ERROR "Proved"
+		proveu(x)   // ERROR "Proved sm,SM=0,10 "
 	}
 	if 2 <= v && v <= 10 && 1 <= s && s <= 3 {
-		x := v>>s // ERROR "Proved"
-		proveu(x) // ERROR "Proved sm,SM=0,5 "
+		x := v >> s // ERROR "Proved"
+		proveu(x)   // ERROR "Proved sm,SM=0,5 "
 	}
 	if 20 <= v && v <= 100 && 1 <= s && s <= 3 {
-		x := v>>s // ERROR "Proved"
-		proveu(x) // ERROR "Proved sm,SM=2,50 "
+		x := v >> s // ERROR "Proved"
+		proveu(x)   // ERROR "Proved sm,SM=2,50 "
 	}
 }
 
