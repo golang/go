@@ -1503,6 +1503,8 @@ func buildop(ctxt *obj.Link) {
 			opset(AREMU, r0)
 			opset(ADIV, r0)
 			opset(ADIVU, r0)
+			opset(AMULWVW, r0)
+			opset(AMULWVWU, r0)
 
 		case AMULV:
 			opset(AMULVU, r0)
@@ -3230,6 +3232,10 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return 0x3c << 15 // mulh.d
 	case AMULHVU:
 		return 0x3d << 15 // mulhu.d
+	case AMULWVW:
+		return 0x3e << 15 // mulw.d.w
+	case AMULWVWU:
+		return 0x3f << 15 // mulw.d.wu
 	case ADIV:
 		return 0x40 << 15 // div.w
 	case ADIVU:

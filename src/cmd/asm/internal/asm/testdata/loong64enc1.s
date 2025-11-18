@@ -212,6 +212,12 @@ lable2:
 	SRLV	$32, R4, R5 		// 85804500
 	SRLV	$32, R4			// 84804500
 
+	// MULW.D.W[U] instructions
+	MULWVW	R4, R5			// a5101f00
+	MULWVW	R4, R5, R6		// a6101f00
+	MULWVWU	R4, R5			// a5901f00
+	MULWVWU	R4, R5, R6		// a6901f00
+
 	MASKEQZ	R4, R5, R6		// a6101300
 	MASKNEZ	R4, R5, R6		// a6901300
 
