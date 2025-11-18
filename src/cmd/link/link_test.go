@@ -7,10 +7,14 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"debug/elf"
 	"debug/macho"
+	"debug/pe"
 	"errors"
+	"internal/abi"
 	"internal/platform"
 	"internal/testenv"
+	"internal/xcoff"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,6 +23,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"unsafe"
 
 	imacho "cmd/internal/macho"
 	"cmd/internal/objfile"
@@ -1771,5 +1776,337 @@ func TestLinknameBSS(t *testing.T) {
 	out, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Errorf("executable failed to run: %v\n%s", err, out)
+	}
+}
+
+// setValueFromBytes copies from a []byte to a variable.
+// This is used to get correctly aligned values in TestFuncdataPlacement.
+func setValueFromBytes[T any](p *T, s []byte) {
+	copy(unsafe.Slice((*byte)(unsafe.Pointer(p)), unsafe.Sizeof(*p)), s)
+}
+
+// Test that all funcdata values are stored in the .gopclntab section.
+// This is pretty ugly as there is no API for accessing this data.
+// This test will have to be updated when the data formats change.
+func TestFuncdataPlacement(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	t.Parallel()
+
+	tmpdir := t.TempDir()
+	src := filepath.Join(tmpdir, "x.go")
+	if err := os.WriteFile(src, []byte(trivialSrc), 0o444); err != nil {
+		t.Fatal(err)
+	}
+
+	exe := filepath.Join(tmpdir, "x.exe")
+	cmd := goCmd(t, "build", "-o", exe, src)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("build failed; %v, output:\n%s", err, out)
+	}
+
+	// We want to find the funcdata in the executable.
+	// We look at the section table to find the .gopclntab section,
+	// which starts with the pcHeader.
+	// That will give us the table of functions,
+	// which we can use to find the funcdata.
+
+	ef, _ := elf.Open(exe)
+	mf, _ := macho.Open(exe)
+	pf, _ := pe.Open(exe)
+	xf, _ := xcoff.Open(exe)
+	// TODO: plan9
+	if ef == nil && mf == nil && pf == nil && xf == nil {
+		t.Skip("unrecognized executable file format")
+	}
+
+	const moddataSymName = "runtime.firstmoduledata"
+	const gofuncSymName = "go:func.*"
+	var (
+		pclntab      []byte
+		pclntabAddr  uint64
+		pclntabEnd   uint64
+		moddataAddr  uint64
+		moddataBytes []byte
+		gofuncAddr   uint64
+		imageBase    uint64
+	)
+	switch {
+	case ef != nil:
+		defer ef.Close()
+
+		syms, err := ef.Symbols()
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, sym := range syms {
+			switch sym.Name {
+			case moddataSymName:
+				moddataAddr = sym.Value
+			case gofuncSymName:
+				gofuncAddr = sym.Value
+			}
+		}
+
+		for _, sec := range ef.Sections {
+			if sec.Name == ".gopclntab" {
+				data, err := sec.Data()
+				if err != nil {
+					t.Fatal(err)
+				}
+				pclntab = data
+				pclntabAddr = sec.Addr
+				pclntabEnd = sec.Addr + sec.Size
+			}
+			if sec.Flags&elf.SHF_ALLOC != 0 && moddataAddr >= sec.Addr && moddataAddr < sec.Addr+sec.Size {
+				data, err := sec.Data()
+				if err != nil {
+					t.Fatal(err)
+				}
+				moddataBytes = data[moddataAddr-sec.Addr:]
+			}
+		}
+
+	case mf != nil:
+		defer mf.Close()
+
+		for _, sym := range mf.Symtab.Syms {
+			switch sym.Name {
+			case moddataSymName:
+				moddataAddr = sym.Value
+			case gofuncSymName:
+				gofuncAddr = sym.Value
+			}
+		}
+
+		for _, sec := range mf.Sections {
+			if sec.Name == "__gopclntab" {
+				data, err := sec.Data()
+				if err != nil {
+					t.Fatal(err)
+				}
+				pclntab = data
+				pclntabAddr = sec.Addr
+				pclntabEnd = sec.Addr + sec.Size
+			}
+			if moddataAddr >= sec.Addr && moddataAddr < sec.Addr+sec.Size {
+				data, err := sec.Data()
+				if err != nil {
+					t.Fatal(err)
+				}
+				moddataBytes = data[moddataAddr-sec.Addr:]
+			}
+		}
+
+	case pf != nil:
+		defer pf.Close()
+
+		switch ohdr := pf.OptionalHeader.(type) {
+		case *pe.OptionalHeader32:
+			imageBase = uint64(ohdr.ImageBase)
+		case *pe.OptionalHeader64:
+			imageBase = ohdr.ImageBase
+		}
+
+		var moddataSym, gofuncSym, pclntabSym, epclntabSym *pe.Symbol
+		for _, sym := range pf.Symbols {
+			switch sym.Name {
+			case moddataSymName:
+				moddataSym = sym
+			case gofuncSymName:
+				gofuncSym = sym
+			case "runtime.pclntab":
+				pclntabSym = sym
+			case "runtime.epclntab":
+				epclntabSym = sym
+			}
+		}
+
+		if moddataSym == nil {
+			t.Fatalf("could not find symbol %s", moddataSymName)
+		}
+		if gofuncSym == nil {
+			t.Fatalf("could not find symbol %s", gofuncSymName)
+		}
+		if pclntabSym == nil {
+			t.Fatal("could not find symbol runtime.pclntab")
+		}
+		if epclntabSym == nil {
+			t.Fatal("could not find symbol runtime.epclntab")
+		}
+
+		sec := pf.Sections[moddataSym.SectionNumber-1]
+		data, err := sec.Data()
+		if err != nil {
+			t.Fatal(err)
+		}
+		moddataBytes = data[moddataSym.Value:]
+		moddataAddr = uint64(sec.VirtualAddress + moddataSym.Value)
+
+		sec = pf.Sections[gofuncSym.SectionNumber-1]
+		gofuncAddr = uint64(sec.VirtualAddress + gofuncSym.Value)
+
+		if pclntabSym.SectionNumber != epclntabSym.SectionNumber {
+			t.Fatalf("runtime.pclntab section %d != runtime.epclntab section %d", pclntabSym.SectionNumber, epclntabSym.SectionNumber)
+		}
+		sec = pf.Sections[pclntabSym.SectionNumber-1]
+		data, err = sec.Data()
+		if err != nil {
+			t.Fatal(err)
+		}
+		pclntab = data[pclntabSym.Value:epclntabSym.Value]
+		pclntabAddr = uint64(sec.VirtualAddress + pclntabSym.Value)
+		pclntabEnd = uint64(sec.VirtualAddress + epclntabSym.Value)
+
+	case xf != nil:
+		defer xf.Close()
+
+		for _, sym := range xf.Symbols {
+			switch sym.Name {
+			case moddataSymName:
+				moddataAddr = sym.Value
+			case gofuncSymName:
+				gofuncAddr = sym.Value
+			}
+		}
+
+		for _, sec := range xf.Sections {
+			if sec.Name == ".go.pclntab" {
+				data, err := sec.Data()
+				if err != nil {
+					t.Fatal(err)
+				}
+				pclntab = data
+				pclntabAddr = sec.VirtualAddress
+				pclntabEnd = sec.VirtualAddress + sec.Size
+			}
+			if moddataAddr >= sec.VirtualAddress && moddataAddr < sec.VirtualAddress+sec.Size {
+				data, err := sec.Data()
+				if err != nil {
+					t.Fatal(err)
+				}
+				moddataBytes = data[moddataAddr-sec.VirtualAddress:]
+			}
+		}
+
+	default:
+		panic("can't happen")
+	}
+
+	if len(pclntab) == 0 {
+		t.Fatal("could not find pclntab section")
+	}
+	if moddataAddr == 0 {
+		t.Fatalf("could not find %s symbol", moddataSymName)
+	}
+	if gofuncAddr == 0 {
+		t.Fatalf("could not find %s symbol", gofuncSymName)
+	}
+	if gofuncAddr < pclntabAddr || gofuncAddr >= pclntabEnd {
+		t.Fatalf("%s out of range: value %#x not between %#x and %#x", gofuncSymName, gofuncAddr, pclntabAddr, pclntabEnd)
+	}
+	if len(moddataBytes) == 0 {
+		t.Fatal("could not find module data")
+	}
+
+	// What a slice looks like in the object file.
+	type moddataSlice struct {
+		addr uintptr
+		len  int
+		cap  int
+	}
+
+	// This needs to match the struct defined in runtime/symtab.go,
+	// and written out by (*Link).symtab.
+	// This is not the complete moddata struct, only what we need here.
+	type moddataType struct {
+		pcHeader     uintptr
+		funcnametab  moddataSlice
+		cutab        moddataSlice
+		filetab      moddataSlice
+		pctab        moddataSlice
+		pclntable    moddataSlice
+		ftab         moddataSlice
+		findfunctab  uintptr
+		minpc, maxpc uintptr
+
+		text, etext           uintptr
+		noptrdata, enoptrdata uintptr
+		data, edata           uintptr
+		bss, ebss             uintptr
+		noptrbss, enoptrbss   uintptr
+		covctrs, ecovctrs     uintptr
+		end, gcdata, gcbss    uintptr
+		types, etypes         uintptr
+		rodata                uintptr
+		gofunc                uintptr
+	}
+
+	// The executable is on the same system as we are running,
+	// so the sizes and alignments should match.
+	// But moddataBytes itself may not be aligned as needed.
+	// Copy to a variable to ensure alignment.
+	var moddata moddataType
+	setValueFromBytes(&moddata, moddataBytes)
+
+	ftabAddr := uint64(moddata.ftab.addr) - imageBase
+	if ftabAddr < pclntabAddr || ftabAddr >= pclntabEnd {
+		t.Fatalf("ftab address %#x not between %#x and %#x", ftabAddr, pclntabAddr, pclntabEnd)
+	}
+
+	// From runtime/symtab.go and the linker function writePCToFunc.
+	type functab struct {
+		entryoff uint32
+		funcoff  uint32
+	}
+	// The ftab slice in moddata has one extra entry used to record
+	// the final PC.
+	ftabLen := moddata.ftab.len - 1
+	ftab := make([]functab, ftabLen)
+	copy(ftab, unsafe.Slice((*functab)(unsafe.Pointer(&pclntab[ftabAddr-pclntabAddr])), ftabLen))
+
+	ftabBase := uint64(moddata.pclntable.addr) - imageBase
+
+	// From runtime/runtime2.go _func and the linker function writeFuncs.
+	type funcEntry struct {
+		entryOff uint32
+		nameOff  int32
+
+		args        int32
+		deferreturn uint32
+
+		pcsp      uint32
+		pcfile    uint32
+		pcln      uint32
+		npcdata   uint32
+		cuOffset  uint32
+		startLine int32
+		funcID    abi.FuncID
+		flag      abi.FuncFlag
+		_         [1]byte
+		nfuncdata uint8
+	}
+
+	for i, ftabEntry := range ftab {
+		funcAddr := ftabBase + uint64(ftabEntry.funcoff)
+		if funcAddr < pclntabAddr || funcAddr >= pclntabEnd {
+			t.Errorf("ftab entry %d address %#x not between %#x and %#x", i, funcAddr, pclntabAddr, pclntabEnd)
+			continue
+		}
+
+		var fe funcEntry
+		setValueFromBytes(&fe, pclntab[funcAddr-pclntabAddr:])
+
+		funcdataVals := funcAddr + uint64(unsafe.Sizeof(fe)) + uint64(fe.npcdata*4)
+		for j := range fe.nfuncdata {
+			var funcdataVal uint32
+			setValueFromBytes(&funcdataVal, pclntab[funcdataVals+uint64(j)*4-pclntabAddr:])
+			if funcdataVal == ^uint32(0) {
+				continue
+			}
+			funcdataAddr := gofuncAddr + uint64(funcdataVal)
+			if funcdataAddr < pclntabAddr || funcdataAddr >= pclntabEnd {
+				t.Errorf("ftab entry %d funcdata %d address %#x not between %#x and %#x", i, j, funcdataAddr, pclntabAddr, pclntabEnd)
+			}
+		}
 	}
 }
