@@ -1428,6 +1428,7 @@ func buildop(ctxt *obj.Link) {
 			opset(AFTINTRNEVD, r0)
 
 		case AADD:
+			opset(AADDW, r0)
 			opset(ASGT, r0)
 			opset(ASGTU, r0)
 			opset(AADDU, r0)
@@ -1512,18 +1513,24 @@ func buildop(ctxt *obj.Link) {
 			opset(ABSTRINSV, r0)
 
 		case ASUB:
+			opset(ASUBW, r0)
 			opset(ASUBU, r0)
 			opset(ANOR, r0)
 			opset(ASUBV, r0)
 			opset(ASUBVU, r0)
 			opset(AMUL, r0)
+			opset(AMULW, r0)
 			opset(AMULU, r0)
 			opset(AMULH, r0)
 			opset(AMULHU, r0)
 			opset(AREM, r0)
+			opset(AREMW, r0)
 			opset(AREMU, r0)
+			opset(AREMWU, r0)
 			opset(ADIV, r0)
+			opset(ADIVW, r0)
 			opset(ADIVU, r0)
+			opset(ADIVWU, r0)
 			opset(AMULV, r0)
 			opset(AMULVU, r0)
 			opset(AMULHV, r0)
@@ -3244,7 +3251,7 @@ func (c *ctxt0) oprrrr(a obj.As) uint32 {
 
 func (c *ctxt0) oprrr(a obj.As) uint32 {
 	switch a {
-	case AADD:
+	case AADD, AADDW:
 		return 0x20 << 15
 	case AADDU:
 		return 0x20 << 15
@@ -3266,7 +3273,7 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return 0x2c << 15 // orn
 	case AANDN:
 		return 0x2d << 15 // andn
-	case ASUB:
+	case ASUB, ASUBW:
 		return 0x22 << 15
 	case ASUBU, ANEGW:
 		return 0x22 << 15
@@ -3297,7 +3304,7 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 	case ASUBVU, ANEGV:
 		return 0x23 << 15
 
-	case AMUL:
+	case AMUL, AMULW:
 		return 0x38 << 15 // mul.w
 	case AMULU:
 		return 0x38 << 15 // mul.w
@@ -3317,17 +3324,17 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return 0x3e << 15 // mulw.d.w
 	case AMULWVWU:
 		return 0x3f << 15 // mulw.d.wu
-	case ADIV:
+	case ADIV, ADIVW:
 		return 0x40 << 15 // div.w
-	case ADIVU:
+	case ADIVU, ADIVWU:
 		return 0x42 << 15 // div.wu
 	case ADIVV:
 		return 0x44 << 15 // div.d
 	case ADIVVU:
 		return 0x46 << 15 // div.du
-	case AREM:
+	case AREM, AREMW:
 		return 0x41 << 15 // mod.w
-	case AREMU:
+	case AREMU, AREMWU:
 		return 0x43 << 15 // mod.wu
 	case AREMV:
 		return 0x45 << 15 // mod.d
@@ -4485,7 +4492,7 @@ func (c *ctxt0) opir(a obj.As) uint32 {
 
 func (c *ctxt0) opirr(a obj.As) uint32 {
 	switch a {
-	case AADD, AADDU:
+	case AADD, AADDW, AADDU:
 		return 0x00a << 22
 	case ASGT:
 		return 0x008 << 22

@@ -468,6 +468,7 @@ const (
 	ADIVF
 	ADIVU
 	ADIVW
+	ADIVWU
 
 	ALL
 	ALLV
@@ -508,7 +509,9 @@ const (
 	ANOR
 	AOR
 	AREM
+	AREMW
 	AREMU
+	AREMWU
 
 	ARFE
 

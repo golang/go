@@ -33,13 +33,17 @@ lable2:
 	MOVV	R4, R5			// 85001500
 	MOVBU	R4, R5			// 85fc4303
 	SUB	R4, R5, R6		// a6101100
+	SUBW	R4, R5, R6		// a6101100
 	SUBV	R4, R5, R6		// a6901100
 	ADD	R4, R5, R6		// a6101000
+	ADDW	R4, R5, R6		// a6101000
 	ADDV	R4, R5, R6		// a6901000
 	AND	R4, R5, R6		// a6901400
 	SUB	R4, R5			// a5101100
+	SUBW	R4, R5			// a5101100
 	SUBV	R4, R5			// a5901100
 	ADD	R4, R5			// a5101000
+	ADDW	R4, R5			// a5101000
 	ADDV	R4, R5			// a5901000
 	AND	R4, R5			// a5901400
 	NEGW	R4, R5			// 05101100
@@ -115,6 +119,8 @@ lable2:
 	MOVV	$1, R4			// 04048003
 	ADD	$-1, R4, R5		// 85fcbf02
 	ADD	$-1, R4			// 84fcbf02
+	ADDW	$-1, R4, R5		// 85fcbf02
+	ADDW	$-1, R4			// 84fcbf02
 	ADDV	$-1, R4, R5		// 85fcff02
 	ADDV	$-1, R4			// 84fcff02
 	AND	$1, R4, R5		// 85044003
@@ -165,6 +171,8 @@ lable2:
 	// mul
 	MUL	R4, R5	  		// a5101c00
 	MUL	R4, R5, R6	  	// a6101c00
+	MULW	R4, R5	  		// a5101c00
+	MULW	R4, R5, R6	  	// a6101c00
 	MULV	R4, R5	   		// a5901d00
 	MULV	R4, R5, R6	   	// a6901d00
 	MULVU	R4, R5			// a5901d00
@@ -199,12 +207,20 @@ lable2:
 	MULHU	R4, R5, R6		// a6101d00
 	REM	R4, R5	  		// a5902000
 	REM	R4, R5, R6	  	// a6902000
+	REMW	R4, R5	  		// a5902000
+	REMW	R4, R5, R6	  	// a6902000
 	REMU	R4, R5	   		// a5902100
 	REMU	R4, R5, R6	   	// a6902100
+	REMWU	R4, R5	   		// a5902100
+	REMWU	R4, R5, R6	   	// a6902100
 	DIV	R4, R5	  		// a5102000
 	DIV	R4, R5, R6	  	// a6102000
+	DIVW	R4, R5	  		// a5102000
+	DIVW	R4, R5, R6	  	// a6102000
 	DIVU	R4, R5	   		// a5102100
 	DIVU	R4, R5, R6	   	// a6102100
+	DIVWU	R4, R5	   		// a5102100
+	DIVWU	R4, R5, R6	   	// a6102100
 	SRLV	R4, R5 			// a5101900
 	SRLV	R4, R5, R6 		// a6101900
 	SRLV	$4, R4, R5		// 85104500
