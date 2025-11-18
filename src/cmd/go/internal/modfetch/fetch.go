@@ -73,12 +73,12 @@ func Download(ctx context.Context, mod module.Version) (dir string, err error) {
 // Unzip is like Download but is given the explicit zip file to use,
 // rather than downloading it. This is used for the GOFIPS140 zip files,
 // which ship in the Go distribution itself.
-func Unzip(ctx context.Context, mod module.Version, zipfile string) (dir string, err error) {
+func (f *Fetcher) Unzip(ctx context.Context, mod module.Version, zipfile string) (dir string, err error) {
 	if err := checkCacheDir(ctx); err != nil {
 		base.Fatal(err)
 	}
 
-	return Fetcher_.downloadCache.Do(mod, func() (string, error) {
+	return f.downloadCache.Do(mod, func() (string, error) {
 		ctx, span := trace.StartSpan(ctx, "modfetch.Unzip "+mod.String())
 		defer span.Done()
 
@@ -171,10 +171,10 @@ func unzip(ctx context.Context, mod module.Version, zipfile string) (dir string,
 	// Go 1.14.2 and higher respect .partial files. Older versions may use
 	// partially extracted directories. 'go mod verify' can detect this,
 	// and 'go clean -modcache' can fix it.
-	if err := os.MkdirAll(parentDir, 0777); err != nil {
+	if err := os.MkdirAll(parentDir, 0o777); err != nil {
 		return "", err
 	}
-	if err := os.WriteFile(partialPath, nil, 0666); err != nil {
+	if err := os.WriteFile(partialPath, nil, 0o666); err != nil {
 		return "", err
 	}
 	if err := modzip.Unzip(dir, mod, zipfile); err != nil {
@@ -264,7 +264,7 @@ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err e
 	}
 
 	// Create parent directories.
-	if err := os.MkdirAll(filepath.Dir(zipfile), 0777); err != nil {
+	if err := os.MkdirAll(filepath.Dir(zipfile), 0o777); err != nil {
 		return err
 	}
 
@@ -289,7 +289,7 @@ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err e
 	// contents of the file (by hashing it) before we commit it. Because the file
 	// is zip-compressed, we need an actual file — or at least an io.ReaderAt — to
 	// validate it: we can't just tee the stream as we write it.
-	f, err := tempFile(ctx, filepath.Dir(zipfile), filepath.Base(zipfile), 0666)
+	f, err := tempFile(ctx, filepath.Dir(zipfile), filepath.Base(zipfile), 0o666)
 	if err != nil {
 		return err
 	}
@@ -404,7 +404,7 @@ func makeDirsReadOnly(dir string) {
 	filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err == nil && d.IsDir() {
 			info, err := d.Info()
-			if err == nil && info.Mode()&0222 != 0 {
+			if err == nil && info.Mode()&0o222 != 0 {
 				dirs = append(dirs, pathMode{path, info.Mode()})
 			}
 		}
@@ -413,7 +413,7 @@ func makeDirsReadOnly(dir string) {
 
 	// Run over list backward to chmod children before parents.
 	for i := len(dirs) - 1; i >= 0; i-- {
-		os.Chmod(dirs[i].path, dirs[i].mode&^0222)
+		os.Chmod(dirs[i].path, dirs[i].mode&^0o222)
 	}
 }
 
@@ -426,7 +426,7 @@ func RemoveAll(dir string) error {
 			return nil // ignore errors walking in file system
 		}
 		if info.IsDir() {
-			os.Chmod(path, 0777)
+			os.Chmod(path, 0o777)
 		}
 		return nil
 	})
@@ -970,7 +970,6 @@ Outer:
 		tidyGoSum := tidyGoSum(data, keep)
 		return tidyGoSum, nil
 	})
-
 	if err != nil {
 		return fmt.Errorf("updating go.sum: %w", err)
 	}
