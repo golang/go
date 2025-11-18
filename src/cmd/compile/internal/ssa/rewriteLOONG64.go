@@ -5866,6 +5866,54 @@ func rewriteValueLOONG64_OpLOONG64MULV(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
+	// match: (MULV r:(MOVWUreg x) s:(MOVWUreg y))
+	// cond: r.Uses == 1 && s.Uses == 1
+	// result: (MULWVWU x y)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			r := v_0
+			if r.Op != OpLOONG64MOVWUreg {
+				continue
+			}
+			x := r.Args[0]
+			s := v_1
+			if s.Op != OpLOONG64MOVWUreg {
+				continue
+			}
+			y := s.Args[0]
+			if !(r.Uses == 1 && s.Uses == 1) {
+				continue
+			}
+			v.reset(OpLOONG64MULWVWU)
+			v.AddArg2(x, y)
+			return true
+		}
+		break
+	}
+	// match: (MULV r:(MOVWreg x) s:(MOVWreg y))
+	// cond: r.Uses == 1 && s.Uses == 1
+	// result: (MULWVW x y)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			r := v_0
+			if r.Op != OpLOONG64MOVWreg {
+				continue
+			}
+			x := r.Args[0]
+			s := v_1
+			if s.Op != OpLOONG64MOVWreg {
+				continue
+			}
+			y := s.Args[0]
+			if !(r.Uses == 1 && s.Uses == 1) {
+				continue
+			}
+			v.reset(OpLOONG64MULWVW)
+			v.AddArg2(x, y)
+			return true
+		}
+		break
+	}
 	// match: (MULV _ (MOVVconst [0]))
 	// result: (MOVVconst [0])
 	for {
