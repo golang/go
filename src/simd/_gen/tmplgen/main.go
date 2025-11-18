@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build ignore
-
 package main
 
 // this generates type-instantiated boilerplate code for
@@ -814,15 +812,16 @@ func (x {{.VType}}) String() string {
 }
 `)
 
-const TD = "internal/simd_test/"
-const SSA = "../cmd/compile/internal/ssa/"
+const SIMD = "../../"
+const TD = "../../internal/simd_test/"
+const SSA = "../../../cmd/compile/internal/ssa/"
 
 func main() {
-	sl := flag.String("sl", "slice_gen_amd64.go", "file name for slice operations")
-	cm := flag.String("cm", "compare_gen_amd64.go", "file name for comparison operations")
-	mm := flag.String("mm", "maskmerge_gen_amd64.go", "file name for mask/merge operations")
-	op := flag.String("op", "other_gen_amd64.go", "file name for other operations")
-	ush := flag.String("ush", "unsafe_helpers.go", "file name for unsafe helpers")
+	sl := flag.String("sl", SIMD+"slice_gen_amd64.go", "file name for slice operations")
+	cm := flag.String("cm", SIMD+"compare_gen_amd64.go", "file name for comparison operations")
+	mm := flag.String("mm", SIMD+"maskmerge_gen_amd64.go", "file name for mask/merge operations")
+	op := flag.String("op", SIMD+"other_gen_amd64.go", "file name for other operations")
+	ush := flag.String("ush", SIMD+"unsafe_helpers.go", "file name for unsafe helpers")
 	bh := flag.String("bh", TD+"binary_helpers_test.go", "file name for binary test helpers")
 	uh := flag.String("uh", TD+"unary_helpers_test.go", "file name for unary test helpers")
 	th := flag.String("th", TD+"ternary_helpers_test.go", "file name for ternary test helpers")
