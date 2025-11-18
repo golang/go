@@ -2114,3 +2114,100 @@ func TestFuncdataPlacement(t *testing.T) {
 		t.Errorf("findfunctab address %#x not between %#x and %#x", moddata.findfunctab, pclntabAddr, pclntabEnd)
 	}
 }
+
+// Test that moduledata winds up in its own .go.module section.
+func TestModuledataPlacement(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	t.Parallel()
+
+	tmpdir := t.TempDir()
+	src := filepath.Join(tmpdir, "x.go")
+	if err := os.WriteFile(src, []byte(trivialSrc), 0o444); err != nil {
+		t.Fatal(err)
+	}
+
+	exe := filepath.Join(tmpdir, "x.exe")
+	cmd := goCmd(t, "build", "-o", exe, src)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("build failed; %v, output:\n%s", err, out)
+	}
+
+	ef, _ := elf.Open(exe)
+	mf, _ := macho.Open(exe)
+	pf, _ := pe.Open(exe)
+	xf, _ := xcoff.Open(exe)
+	// TODO: plan9
+	if ef == nil && mf == nil && pf == nil && xf == nil {
+		t.Skip("unrecognized executable file format")
+	}
+
+	const moddataSymName = "runtime.firstmoduledata"
+	switch {
+	case ef != nil:
+		defer ef.Close()
+
+		syms, err := ef.Symbols()
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, sym := range syms {
+			if sym.Name == moddataSymName {
+				sec := ef.Sections[sym.Section]
+				if sec.Name != ".go.module" {
+					t.Errorf("moduledata in section %s, not .go.module", sec.Name)
+				}
+				if sym.Value != sec.Addr {
+					t.Errorf("moduledata address %#x != section start address %#x", sym.Value, sec.Addr)
+				}
+				break
+			}
+		}
+
+	case mf != nil:
+		defer mf.Close()
+
+		for _, sym := range mf.Symtab.Syms {
+			if sym.Name == moddataSymName {
+				if sym.Sect == 0 {
+					t.Error("moduledata not in a section")
+				} else {
+					sec := mf.Sections[sym.Sect-1]
+					if sec.Name != "__go_module" {
+						t.Errorf("moduledata in section %s, not __go.module", sec.Name)
+					}
+					if sym.Value != sec.Addr {
+						t.Errorf("moduledata address %#x != section start address %#x", sym.Value, sec.Addr)
+					}
+				}
+				break
+			}
+		}
+
+	case pf != nil:
+		defer pf.Close()
+
+		// On Windows all the Go specific sections seem to
+		// get stuffed into a few Windows sections,
+		// so there is nothing to test here.
+
+	case xf != nil:
+		defer xf.Close()
+
+		for _, sym := range xf.Symbols {
+			if sym.Name == moddataSymName {
+				if sym.SectionNumber == 0 {
+					t.Errorf("moduledata not in a section")
+				} else {
+					sec := xf.Sections[sym.SectionNumber-1]
+					if sec.Name != ".go.module" {
+						t.Errorf("moduledata in section %s, not .go.module", sec.Name)
+					}
+					if sym.Value != sec.VirtualAddress {
+						t.Errorf("moduledata address %#x != section start address %#x", sym.Value, sec.VirtualAddress)
+					}
+				}
+				break
+			}
+		}
+	}
+}
