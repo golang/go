@@ -375,6 +375,13 @@ var optab = []Optab{
 	{AFCMPS, C_FREG, C_FREG, C_NONE, C_NONE, C_NONE, 56, 4, 0, 0, 0},
 	{AFCMPS, C_FCON, C_FREG, C_NONE, C_NONE, C_NONE, 56, 4, 0, 0, 0},
 	{AVADDP, C_ARNG, C_ARNG, C_NONE, C_ARNG, C_NONE, 72, 4, 0, 0, 0},
+	{AVCMEQ, C_ARNG, C_ARNG, C_NONE, C_ARNG, C_NONE, 72, 4, 0, 0, 0},
+	{AVCMEQ, C_ZCON, C_ARNG, C_NONE, C_ARNG, C_NONE, 109, 4, 0, 0, 0},
+	{AVCMLE, C_ZCON, C_ARNG, C_NONE, C_ARNG, C_NONE, 109, 4, 0, 0, 0},
+	{AVFCMEQ, C_ARNG, C_ARNG, C_NONE, C_ARNG, C_NONE, 72, 4, 0, 0, 0},
+	{AVFCMEQ, C_FCON, C_ARNG, C_NONE, C_ARNG, C_NONE, 109, 4, 0, 0, 0},
+	{AVFCMLE, C_FCON, C_ARNG, C_NONE, C_ARNG, C_NONE, 109, 4, 0, 0, 0},
+
 	{AVADD, C_ARNG, C_ARNG, C_NONE, C_ARNG, C_NONE, 72, 4, 0, 0, 0},
 	{AVADD, C_VREG, C_VREG, C_NONE, C_VREG, C_NONE, 89, 4, 0, 0, 0},
 	{AVADD, C_VREG, C_NONE, C_NONE, C_VREG, C_NONE, 89, 4, 0, 0, 0},
@@ -3204,17 +3211,32 @@ func buildop(ctxt *obj.Link) {
 
 		case AVADDP:
 			oprangeset(AVAND, t)
-			oprangeset(AVCMEQ, t)
 			oprangeset(AVORR, t)
 			oprangeset(AVEOR, t)
 			oprangeset(AVBSL, t)
 			oprangeset(AVBIT, t)
 			oprangeset(AVCMTST, t)
+			oprangeset(AVCMHI, t)
+			oprangeset(AVCMHS, t)
 			oprangeset(AVUMAX, t)
 			oprangeset(AVUMIN, t)
 			oprangeset(AVUZP1, t)
 			oprangeset(AVUZP2, t)
 			oprangeset(AVBIF, t)
+
+		case AVCMEQ:
+			oprangeset(AVCMGE, t)
+			oprangeset(AVCMGT, t)
+
+		case AVCMLE:
+			oprangeset(AVCMLT, t)
+
+		case AVFCMEQ:
+			oprangeset(AVFCMGE, t)
+			oprangeset(AVFCMGT, t)
+
+		case AVFCMLE:
+			oprangeset(AVFCMLT, t)
 
 		case AVADD:
 			oprangeset(AVSUB, t)
@@ -4753,7 +4775,7 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 			if af != ARNG_16B && af != ARNG_8B {
 				c.ctxt.Diag("invalid arrangement: %v", p)
 			}
-		case AVFMLA, AVFMLS:
+		case AVFMLA, AVFMLS, AVFCMEQ, AVFCMGE, AVFCMGT:
 			if af != ARNG_2D && af != ARNG_2S && af != ARNG_4S {
 				c.ctxt.Diag("invalid arrangement: %v", p)
 			}
@@ -4769,7 +4791,7 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 			size = 1
 		case AVORR, AVBIT, AVBIF:
 			size = 2
-		case AVFMLA, AVFMLS:
+		case AVFMLA, AVFMLS, AVFCMEQ, AVFCMGE, AVFCMGT:
 			if af == ARNG_2D {
 				size = 1
 			} else {
@@ -5851,6 +5873,66 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 			c.ctxt.Diag("illegal argument: %v\n", p)
 			break
 		}
+
+	case 109: /* [cm|fcm][eq|ge|gt|le|lt] $0, Vn.<T>, Vd.<T> */
+		// Encoding is same as case 83 (this is a separate case because $0 occupies p.From)
+		if !(p.From.Type == obj.TYPE_CONST && p.From.Offset == 0) &&
+			!(p.From.Type == obj.TYPE_FCONST && p.From.Val.(float64) == 0.0) {
+			c.ctxt.Diag("expected a constant zero immediate operand: %v\n", p)
+		}
+		an := int((p.Reg >> 5) & 15)
+		ad := int((p.To.Reg >> 5) & 15)
+		if an != ad {
+			c.ctxt.Diag("operand mismatch: %v", p)
+			break
+		}
+		var Q, size uint32
+		if p.From.Type == obj.TYPE_FCONST {
+			switch an {
+			case ARNG_2D:
+				Q = 1
+				size = 1
+			case ARNG_2S:
+				Q = 0
+				size = 0
+			case ARNG_4S:
+				Q = 1
+				size = 0
+			default:
+				c.ctxt.Diag("invalid arrangement: %v", p)
+			}
+		} else {
+			switch an {
+			case ARNG_16B:
+				Q = 1
+				size = 0
+			case ARNG_2D:
+				Q = 1
+				size = 3
+			case ARNG_2S:
+				Q = 0
+				size = 2
+			case ARNG_4H:
+				Q = 0
+				size = 1
+			case ARNG_4S:
+				Q = 1
+				size = 2
+			case ARNG_8B:
+				Q = 0
+				size = 0
+			case ARNG_8H:
+				Q = 1
+				size = 1
+			default:
+				c.ctxt.Diag("invalid arrangement: %v", p)
+			}
+		}
+		o1 = c.opirr(p, p.As)
+		rd := uint32(p.To.Reg & 31)
+		rn := uint32(p.Reg & 31)
+		o1 |= Q<<30 | size<<22 | (rn << 5) | (rd)
+
 	case 127:
 		// Generic SVE instruction encoding
 		matched := false
@@ -6468,6 +6550,27 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As, rd, rn, rm int16) uint32 {
 	case AVCMEQ:
 		op = ASIMDSAME(1, 0, 0x11)
 
+	case AVCMGE:
+		op = ASIMDSAME(0, 0, 0x07)
+
+	case AVCMGT:
+		op = ASIMDSAME(0, 0, 0x06)
+
+	case AVCMHI:
+		op = ASIMDSAME(1, 0, 0x06)
+
+	case AVCMHS:
+		op = ASIMDSAME(1, 0, 0x07)
+
+	case AVFCMEQ:
+		op = ASIMDSAME(0, 0, 0x1C)
+
+	case AVFCMGE:
+		op = ASIMDSAME(1, 0, 0x1C)
+
+	case AVFCMGT:
+		op = ASIMDSAME(1, 2, 0x1C)
+
 	case AVCNT:
 		op = ASIMDMISC(0, 0, 0x05)
 
@@ -6755,6 +6858,36 @@ func (c *ctxt7) opirr(p *obj.Prog, a obj.As) uint32 {
 
 	case AHINT:
 		return SYSHINT(0)
+
+	case AVCMEQ:
+		return ASIMDMISC(0, 0, 0x09)
+
+	case AVCMGE:
+		return ASIMDMISC(1, 0, 0x08)
+
+	case AVCMGT:
+		return ASIMDMISC(0, 0, 0x08)
+
+	case AVCMLE:
+		return ASIMDMISC(1, 0, 0x09)
+
+	case AVCMLT:
+		return ASIMDMISC(0, 0, 0x0A)
+
+	case AVFCMEQ:
+		return ASIMDMISC(0, 2, 0x0D)
+
+	case AVFCMGE:
+		return ASIMDMISC(1, 2, 0x0C)
+
+	case AVFCMGT:
+		return ASIMDMISC(0, 2, 0x0C)
+
+	case AVFCMLE:
+		return ASIMDMISC(1, 2, 0x0D)
+
+	case AVFCMLT:
+		return ASIMDMISC(0, 2, 0x0E)
 
 	case AVEXT:
 		return 0x2E<<24 | 0<<23 | 0<<21 | 0<<15

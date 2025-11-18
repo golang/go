@@ -110,6 +110,23 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VADDP	V1.D2, V2.D2, V3.D2             // 43bce14e
 	VAND	V21.B8, V12.B8, V3.B8           // 831d350e
 	VCMEQ	V1.H4, V2.H4, V3.H4             // 438c612e
+	VCMEQ   $0, V2.H4, V3.H4                // 4398600e
+	VCMGE   V1.H4, V2.H4, V3.H4             // 433c610e
+	VCMGE   $0, V2.H4, V3.H4                // 4388602e
+	VCMGT   V1.H4, V2.H4, V3.H4             // 4334610e
+	VCMGT   $0, V2.H4, V3.H4                // 4388600e
+	VCMHI   V1.H4, V2.H4, V3.H4             // 4334612e
+	VCMHS   V1.H4, V2.H4, V3.H4             // 433c612e
+	VCMLE   $0, V2.H4, V3.H4                // 4398602e
+	VCMLT   $0, V2.H4, V3.H4                // 43a8600e
+	VFCMEQ  V1.S4, V2.S4, V3.S4             // 43e4214e
+	VFCMEQ  $(0.0), V2.S4, V3.S4            // 43d8a04e
+	VFCMGE  V1.S4, V2.S4, V3.S4             // 43e4216e
+	VFCMGE  $(0.0), V2.S4, V3.S4            // 43c8a06e
+	VFCMGT  V1.S4, V2.S4, V3.S4             // 43e4a16e
+	VFCMGT  $(0.0), V2.S4, V3.S4            // 43c8a04e
+	VFCMLE  $(0.0), V2.S4, V3.S4            // 43d8a06e
+	VFCMLT  $(0.0), V2.S4, V3.S4            // 43e8a04e
 	VORR	V5.B16, V4.B16, V3.B16          // 831ca54e
 	VADD	V16.S4, V5.S4, V9.S4            // a984b04e
 	VEOR	V0.B16, V1.B16, V0.B16          // 201c206e
