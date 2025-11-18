@@ -253,9 +253,10 @@ func f9(a, b bool) int {
 
 func f10(a string) int {
 	n := len(a)
+	b := a[:n>>1] // ERROR "Proved IsSliceInBounds$"
 	// We optimize comparisons with small constant strings (see cmd/compile/internal/gc/walk.go),
 	// so this string literal must be long.
-	if a[:n>>1] == "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" {
+	if b == "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" {
 		return 0
 	}
 	return 1
@@ -1081,6 +1082,13 @@ func issue57077(s []int) (left, right []int) {
 	middle := len(s) / 2 // ERROR "Proved Div64 is unsigned$"
 	left = s[:middle]    // ERROR "Proved IsSliceInBounds$"
 	right = s[middle:]   // ERROR "Proved IsSliceInBounds$"
+	return
+}
+
+func issue76332(s []int) (left, right []int) {
+	middle := len(s) >> 1
+	left = s[:middle]     // ERROR "Proved IsSliceInBounds$"
+	right = s[middle:]    // ERROR "Proved IsSliceInBounds$"
 	return
 }
 
