@@ -65,26 +65,19 @@ var optab = []Optab{
 	{AMOVWU, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 12, 4, 0, 0},
 
 	{ASUB, C_REG, C_REG, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
-	{ASUBV, C_REG, C_REG, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
 	{AADD, C_REG, C_REG, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
 	{AADDV, C_REG, C_REG, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
 	{AAND, C_REG, C_REG, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
 	{ASUB, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
-	{ASUBV, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
 	{AADD, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
 	{AADDV, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
 	{AAND, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
 	{ANEGW, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
-	{ANEGV, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
 	{AMASKEQZ, C_REG, C_REG, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
 	{ASLL, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
 	{ASLL, C_REG, C_REG, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
 	{ASLLV, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
 	{ASLLV, C_REG, C_REG, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
-	{AMUL, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
-	{AMUL, C_REG, C_REG, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
-	{AMULV, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
-	{AMULV, C_REG, C_REG, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
 	{AADDF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 2, 4, 0, 0},
 	{AADDF, C_FREG, C_FREG, C_NONE, C_FREG, C_NONE, 2, 4, 0, 0},
 	{ACMPEQF, C_FREG, C_FREG, C_NONE, C_FCCREG, C_NONE, 2, 4, 0, 0},
@@ -1503,26 +1496,6 @@ func buildop(ctxt *obj.Link) {
 			opset(ALL, r0)
 			opset(ALLV, r0)
 
-		case AMUL:
-			opset(AMULU, r0)
-			opset(AMULH, r0)
-			opset(AMULHU, r0)
-			opset(AREM, r0)
-			opset(AREMU, r0)
-			opset(ADIV, r0)
-			opset(ADIVU, r0)
-			opset(AMULWVW, r0)
-			opset(AMULWVWU, r0)
-
-		case AMULV:
-			opset(AMULVU, r0)
-			opset(AMULHV, r0)
-			opset(AMULHVU, r0)
-			opset(AREMV, r0)
-			opset(AREMVU, r0)
-			opset(ADIVV, r0)
-			opset(ADIVVU, r0)
-
 		case ASLL:
 			opset(ASRL, r0)
 			opset(ASRA, r0)
@@ -1541,9 +1514,26 @@ func buildop(ctxt *obj.Link) {
 		case ASUB:
 			opset(ASUBU, r0)
 			opset(ANOR, r0)
-
-		case ASUBV:
+			opset(ASUBV, r0)
 			opset(ASUBVU, r0)
+			opset(AMUL, r0)
+			opset(AMULU, r0)
+			opset(AMULH, r0)
+			opset(AMULHU, r0)
+			opset(AREM, r0)
+			opset(AREMU, r0)
+			opset(ADIV, r0)
+			opset(ADIVU, r0)
+			opset(AMULV, r0)
+			opset(AMULVU, r0)
+			opset(AMULHV, r0)
+			opset(AMULHVU, r0)
+			opset(AREMV, r0)
+			opset(AREMVU, r0)
+			opset(ADIVV, r0)
+			opset(ADIVVU, r0)
+			opset(AMULWVW, r0)
+			opset(AMULWVWU, r0)
 
 		case ASYSCALL:
 			opset(ADBAR, r0)
@@ -1563,6 +1553,9 @@ func buildop(ctxt *obj.Link) {
 			opset(AALSLW, r0)
 			opset(AALSLWU, r0)
 
+		case ANEGW:
+			opset(ANEGV, r0)
+
 		case AMOVW,
 			AMOVD,
 			AMOVF,
@@ -1575,8 +1568,6 @@ func buildop(ctxt *obj.Link) {
 			AXVMOVQ,
 			AVSHUFB,
 			AXVSHUFB,
-			ANEGW,
-			ANEGV,
 			AWORD,
 			APRELD,
 			APRELDX,
