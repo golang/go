@@ -18069,6 +18069,51 @@ func rewriteValuegeneric_OpNeg16(v *Value) bool {
 		v.AuxInt = int16ToAuxInt(-c)
 		return true
 	}
+	// match: (Neg16 (Mul16 x (Const16 <t> [c])))
+	// result: (Mul16 x (Const16 <t> [-c]))
+	for {
+		if v_0.Op != OpMul16 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			if v_0_1.Op != OpConst16 {
+				continue
+			}
+			t := v_0_1.Type
+			c := auxIntToInt16(v_0_1.AuxInt)
+			v.reset(OpMul16)
+			v0 := b.NewValue0(v.Pos, OpConst16, t)
+			v0.AuxInt = int16ToAuxInt(-c)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
+	// match: (Neg16 (Mul16 x (Neg16 y)))
+	// result: (Mul16 x y)
+	for {
+		if v_0.Op != OpMul16 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			if v_0_1.Op != OpNeg16 {
+				continue
+			}
+			y := v_0_1.Args[0]
+			v.reset(OpMul16)
+			v.AddArg2(x, y)
+			return true
+		}
+		break
+	}
 	// match: (Neg16 (Sub16 x y))
 	// result: (Sub16 y x)
 	for {
@@ -18120,6 +18165,51 @@ func rewriteValuegeneric_OpNeg32(v *Value) bool {
 		v.reset(OpConst32)
 		v.AuxInt = int32ToAuxInt(-c)
 		return true
+	}
+	// match: (Neg32 (Mul32 x (Const32 <t> [c])))
+	// result: (Mul32 x (Const32 <t> [-c]))
+	for {
+		if v_0.Op != OpMul32 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			if v_0_1.Op != OpConst32 {
+				continue
+			}
+			t := v_0_1.Type
+			c := auxIntToInt32(v_0_1.AuxInt)
+			v.reset(OpMul32)
+			v0 := b.NewValue0(v.Pos, OpConst32, t)
+			v0.AuxInt = int32ToAuxInt(-c)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
+	// match: (Neg32 (Mul32 x (Neg32 y)))
+	// result: (Mul32 x y)
+	for {
+		if v_0.Op != OpMul32 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			if v_0_1.Op != OpNeg32 {
+				continue
+			}
+			y := v_0_1.Args[0]
+			v.reset(OpMul32)
+			v.AddArg2(x, y)
+			return true
+		}
+		break
 	}
 	// match: (Neg32 (Sub32 x y))
 	// result: (Sub32 y x)
@@ -18192,6 +18282,51 @@ func rewriteValuegeneric_OpNeg64(v *Value) bool {
 		v.AuxInt = int64ToAuxInt(-c)
 		return true
 	}
+	// match: (Neg64 (Mul64 x (Const64 <t> [c])))
+	// result: (Mul64 x (Const64 <t> [-c]))
+	for {
+		if v_0.Op != OpMul64 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			if v_0_1.Op != OpConst64 {
+				continue
+			}
+			t := v_0_1.Type
+			c := auxIntToInt64(v_0_1.AuxInt)
+			v.reset(OpMul64)
+			v0 := b.NewValue0(v.Pos, OpConst64, t)
+			v0.AuxInt = int64ToAuxInt(-c)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
+	// match: (Neg64 (Mul64 x (Neg64 y)))
+	// result: (Mul64 x y)
+	for {
+		if v_0.Op != OpMul64 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			if v_0_1.Op != OpNeg64 {
+				continue
+			}
+			y := v_0_1.Args[0]
+			v.reset(OpMul64)
+			v.AddArg2(x, y)
+			return true
+		}
+		break
+	}
 	// match: (Neg64 (Sub64 x y))
 	// result: (Sub64 y x)
 	for {
@@ -18262,6 +18397,51 @@ func rewriteValuegeneric_OpNeg8(v *Value) bool {
 		v.reset(OpConst8)
 		v.AuxInt = int8ToAuxInt(-c)
 		return true
+	}
+	// match: (Neg8 (Mul8 x (Const8 <t> [c])))
+	// result: (Mul8 x (Const8 <t> [-c]))
+	for {
+		if v_0.Op != OpMul8 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			if v_0_1.Op != OpConst8 {
+				continue
+			}
+			t := v_0_1.Type
+			c := auxIntToInt8(v_0_1.AuxInt)
+			v.reset(OpMul8)
+			v0 := b.NewValue0(v.Pos, OpConst8, t)
+			v0.AuxInt = int8ToAuxInt(-c)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
+	// match: (Neg8 (Mul8 x (Neg8 y)))
+	// result: (Mul8 x y)
+	for {
+		if v_0.Op != OpMul8 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			if v_0_1.Op != OpNeg8 {
+				continue
+			}
+			y := v_0_1.Args[0]
+			v.reset(OpMul8)
+			v.AddArg2(x, y)
+			return true
+		}
+		break
 	}
 	// match: (Neg8 (Sub8 x y))
 	// result: (Sub8 y x)
