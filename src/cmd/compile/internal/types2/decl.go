@@ -497,9 +497,14 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *TypeN
 
 			rhs = check.declaredType(tdecl.Type, obj)
 			assert(rhs != nil)
-
 			alias.fromRHS = rhs
-			unalias(alias) // populate alias.actual
+
+			// spec: In an alias declaration the given type cannot be a type parameter declared in the same declaration."
+			// (see also go.dev/issue/75884, go.dev/issue/#75885)
+			if tpar, ok := rhs.(*TypeParam); ok && alias.tparams != nil && slices.Index(alias.tparams.list(), tpar) >= 0 {
+				check.error(tdecl.Type, MisplacedTypeParam, "cannot use type parameter declared in alias declaration as RHS")
+				alias.fromRHS = Typ[Invalid]
+			}
 		} else {
 			if !versionErr && tparam0 != nil {
 				check.error(tdecl, UnsupportedFeature, "generic type alias requires GODEBUG=gotypesalias=1 or unset")

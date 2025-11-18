@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Language version go1.26 (Nov 12, 2025)",
+	"Subtitle": "Language version go1.26 (Nov 18, 2025)",
 	"Path": "/ref/spec"
 }-->
 
@@ -2487,11 +2487,15 @@ type set[P comparable] = map[P]bool
 </pre>
 
 <p>
-In an alias declaration the given type cannot be a type parameter.
+In an alias declaration the given type cannot be a type parameter declared in the same declaration.
 </p>
 
 <pre>
-type A[P any] = P    // illegal: P is a type parameter
+type A[P any] = P   // illegal: P is a type parameter declared in the declaration of A
+
+func f[P any]() {
+	type A = P  // ok: T is a type parameter declared by the enclosing function
+}
 </pre>
 
 <h4 id="Type_definitions">Type definitions</h4>
@@ -2601,8 +2605,8 @@ In a type definition the given type cannot be a type parameter.
 <pre>
 type T[P any] P    // illegal: P is a type parameter
 
-func f[T any]() {
-	type L T   // illegal: T is a type parameter declared by the enclosing function
+func f[P any]() {
+	type L P   // illegal: P is a type parameter declared by the enclosing function
 }
 </pre>
 
