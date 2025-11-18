@@ -3030,16 +3030,14 @@ func (ft *factsTable) topoSortValuesInBlock(b *Block) {
 	want := f.NumValues()
 
 	scores := ft.reusedTopoSortScoresTable
-	if len(scores) < want {
-		if want <= cap(scores) {
-			scores = scores[:want]
-		} else {
-			if cap(scores) > 0 {
-				f.Cache.freeUintSlice(scores)
-			}
-			scores = f.Cache.allocUintSlice(want)
-			ft.reusedTopoSortScoresTable = scores
+	if want <= cap(scores) {
+		scores = scores[:want]
+	} else {
+		if cap(scores) > 0 {
+			f.Cache.freeUintSlice(scores)
 		}
+		scores = f.Cache.allocUintSlice(want)
+		ft.reusedTopoSortScoresTable = scores
 	}
 
 	for _, v := range b.Values {
