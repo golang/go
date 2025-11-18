@@ -27,6 +27,7 @@
   out: *1fp
 
 - go: "RoundToEven|Ceil|Floor|Trunc"
+  regexpTag: "fp"
   asm: "VROUNDP[SD]"
   in:
   - *fp
@@ -35,6 +36,7 @@
   out: *1fp
 
 - go: "(RoundToEven|Ceil|Floor|Trunc)Scaled"
+  regexpTag: "fp"
   asm: "VRNDSCALEP[SD]"
   in:
   - *fp
@@ -44,6 +46,7 @@
     name: prec
   out: *1fp
 - go: "(RoundToEven|Ceil|Floor|Trunc)ScaledResidue"
+  regexpTag: "fp"
   asm: "VREDUCEP[SD]"
   in:
   - *fp

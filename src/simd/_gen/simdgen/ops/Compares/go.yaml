@@ -57,6 +57,7 @@
 # MASKED signed comparisons for X/Y registers
 # unmasked would clash with emulations on AVX2
 - go: (Equal|Greater|Less|LessEqual|GreaterEqual|NotEqual)
+  regexpTag: "compares"
   asm: "VPCMP[BWDQ]"
   in:
   - &int
@@ -74,6 +75,7 @@
 # MASKED unsigned comparisons for X/Y registers
 # unmasked would clash with emulations on AVX2
 - go: (Equal|Greater|Less|LessEqual|GreaterEqual|NotEqual)
+  regexpTag: "compares"
   asm: "VPCMPU[BWDQ]"
   in:
   - &uint
@@ -90,6 +92,7 @@
 
 # masked/unmasked signed comparisons for Z registers
 - go: (Equal|Greater|Less|LessEqual|GreaterEqual|NotEqual)
+  regexpTag: "compares"
   asm: "VPCMP[BWDQ]"
   in:
   - &int
@@ -104,6 +107,7 @@
 
 # masked/unmasked unsigned comparisons for Z registers
 - go: (Equal|Greater|Less|LessEqual|GreaterEqual|NotEqual)
+  regexpTag: "compares"
   asm: "VPCMPU[BWDQ]"
   in:
   - &uint
@@ -118,6 +122,7 @@
 
 # Floats
 - go: Equal|Greater|Less|LessEqual|GreaterEqual|NotEqual|IsNan
+  regexpTag: "compares"
   asm: "VCMPP[SD]"
   in:
   - &float
@@ -131,6 +136,7 @@
     overwriteBase: int
     overwriteClass: mask
 - go: (Equal|Greater|Less|LessEqual|GreaterEqual|NotEqual|IsNan)
+  regexpTag: "compares"
   asm: "VCMPP[SD]"
   in:
   - *float

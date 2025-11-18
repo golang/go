@@ -1544,252 +1544,6 @@ func (x Uint8x32) ConcatShiftBytesRightGrouped(constant uint8, y Uint8x32) Uint8
 // Asm: VPALIGNR, CPU Feature: AVX512
 func (x Uint8x64) ConcatShiftBytesRightGrouped(constant uint8, y Uint8x64) Uint8x64
 
-/* ConvertToInt8 */
-
-// ConvertToInt8 converts element values to int8.
-// Conversion is done with truncation on the vector elements.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVWB, CPU Feature: AVX512
-func (x Int16x8) ConvertToInt8() Int8x16
-
-// ConvertToInt8 converts element values to int8.
-// Conversion is done with truncation on the vector elements.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVWB, CPU Feature: AVX512
-func (x Int16x16) ConvertToInt8() Int8x16
-
-// ConvertToInt8 converts element values to int8.
-// Conversion is done with truncation on the vector elements.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVWB, CPU Feature: AVX512
-func (x Int16x32) ConvertToInt8() Int8x32
-
-// ConvertToInt8 converts element values to int8.
-// Conversion is done with truncation on the vector elements.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVDB, CPU Feature: AVX512
-func (x Int32x4) ConvertToInt8() Int8x16
-
-// ConvertToInt8 converts element values to int8.
-// Conversion is done with truncation on the vector elements.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVDB, CPU Feature: AVX512
-func (x Int32x8) ConvertToInt8() Int8x16
-
-// ConvertToInt8 converts element values to int8.
-// Conversion is done with truncation on the vector elements.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVDB, CPU Feature: AVX512
-func (x Int32x16) ConvertToInt8() Int8x16
-
-// ConvertToInt8 converts element values to int8.
-// Conversion is done with truncation on the vector elements.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVQB, CPU Feature: AVX512
-func (x Int64x2) ConvertToInt8() Int8x16
-
-// ConvertToInt8 converts element values to int8.
-// Conversion is done with truncation on the vector elements.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVQB, CPU Feature: AVX512
-func (x Int64x4) ConvertToInt8() Int8x16
-
-// ConvertToInt8 converts element values to int8.
-// Conversion is done with truncation on the vector elements.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVQB, CPU Feature: AVX512
-func (x Int64x8) ConvertToInt8() Int8x16
-
-/* ConvertToInt8Saturated */
-
-// ConvertToInt8Saturated converts element values to int8 with saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVSWB, CPU Feature: AVX512
-func (x Int16x8) ConvertToInt8Saturated() Int8x16
-
-// ConvertToInt8Saturated converts element values to int8 with saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVSWB, CPU Feature: AVX512
-func (x Int16x16) ConvertToInt8Saturated() Int8x16
-
-// ConvertToInt8Saturated converts element values to int8 with saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVSWB, CPU Feature: AVX512
-func (x Int16x32) ConvertToInt8Saturated() Int8x32
-
-// ConvertToInt8Saturated converts element values to int8 with saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVSDB, CPU Feature: AVX512
-func (x Int32x4) ConvertToInt8Saturated() Int8x16
-
-// ConvertToInt8Saturated converts element values to int8 with saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVSDB, CPU Feature: AVX512
-func (x Int32x8) ConvertToInt8Saturated() Int8x16
-
-// ConvertToInt8Saturated converts element values to int8 with saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVSDB, CPU Feature: AVX512
-func (x Int32x16) ConvertToInt8Saturated() Int8x16
-
-// ConvertToInt8Saturated converts element values to int8 with saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVSQB, CPU Feature: AVX512
-func (x Int64x2) ConvertToInt8Saturated() Int8x16
-
-// ConvertToInt8Saturated converts element values to int8 with saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVSQB, CPU Feature: AVX512
-func (x Int64x4) ConvertToInt8Saturated() Int8x16
-
-// ConvertToInt8Saturated converts element values to int8 with saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVSQB, CPU Feature: AVX512
-func (x Int64x8) ConvertToInt8Saturated() Int8x16
-
-/* ConvertToInt16 */
-
-// ConvertToInt16 converts element values to int16.
-//
-// Asm: VPMOVSXBW, CPU Feature: AVX2
-func (x Int8x16) ConvertToInt16() Int16x16
-
-// ConvertToInt16 converts element values to int16.
-//
-// Asm: VPMOVSXBW, CPU Feature: AVX512
-func (x Int8x32) ConvertToInt16() Int16x32
-
-// ConvertToInt16 converts element values to int16.
-// Conversion is done with truncation on the vector elements.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVDW, CPU Feature: AVX512
-func (x Int32x4) ConvertToInt16() Int16x8
-
-// ConvertToInt16 converts element values to int16.
-// Conversion is done with truncation on the vector elements.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVDW, CPU Feature: AVX512
-func (x Int32x8) ConvertToInt16() Int16x8
-
-// ConvertToInt16 converts element values to int16.
-// Conversion is done with truncation on the vector elements.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVDW, CPU Feature: AVX512
-func (x Int32x16) ConvertToInt16() Int16x16
-
-// ConvertToInt16 converts element values to int16.
-// Conversion is done with truncation on the vector elements.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVQW, CPU Feature: AVX512
-func (x Int64x2) ConvertToInt16() Int16x8
-
-// ConvertToInt16 converts element values to int16.
-// Conversion is done with truncation on the vector elements.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVQW, CPU Feature: AVX512
-func (x Int64x4) ConvertToInt16() Int16x8
-
-// ConvertToInt16 converts element values to int16.
-// Conversion is done with truncation on the vector elements.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVQW, CPU Feature: AVX512
-func (x Int64x8) ConvertToInt16() Int16x8
-
-/* ConvertToInt16Saturated */
-
-// ConvertToInt16Saturated converts element values to int16 with saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVSDW, CPU Feature: AVX512
-func (x Int32x4) ConvertToInt16Saturated() Int16x8
-
-// ConvertToInt16Saturated converts element values to int16 with saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVSDW, CPU Feature: AVX512
-func (x Int32x8) ConvertToInt16Saturated() Int16x8
-
-// ConvertToInt16Saturated converts element values to int16 with saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVSDW, CPU Feature: AVX512
-func (x Int32x16) ConvertToInt16Saturated() Int16x16
-
-// ConvertToInt16Saturated converts element values to int16 with saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVSQW, CPU Feature: AVX512
-func (x Int64x2) ConvertToInt16Saturated() Int16x8
-
-// ConvertToInt16Saturated converts element values to int16 with saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVSQW, CPU Feature: AVX512
-func (x Int64x4) ConvertToInt16Saturated() Int16x8
-
-// ConvertToInt16Saturated converts element values to int16 with saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVSQW, CPU Feature: AVX512
-func (x Int64x8) ConvertToInt16Saturated() Int16x8
-
-/* ConvertToInt16SaturatedPacked */
-
-// ConvertToInt16SaturatedPacked converts element values to int16 with saturation.
-// With each 128-bit as a group:
-// The converted group from the first input vector will be packed to the lower part of the result vector,
-// the converted group from the second second input vector will be packed to the upper part of the result vector.
-//
-// Asm: VPACKSSDW, CPU Feature: AVX
-func (x Int32x4) ConvertToInt16SaturatedPacked(y Int32x4) Int16x8
-
-// ConvertToInt16SaturatedPacked converts element values to int16 with saturation.
-// With each 128-bit as a group:
-// The converted group from the first input vector will be packed to the lower part of the result vector,
-// the converted group from the second second input vector will be packed to the upper part of the result vector.
-//
-// Asm: VPACKSSDW, CPU Feature: AVX2
-func (x Int32x8) ConvertToInt16SaturatedPacked(y Int32x8) Int16x16
-
-// ConvertToInt16SaturatedPacked converts element values to int16 with saturation.
-// With each 128-bit as a group:
-// The converted group from the first input vector will be packed to the lower part of the result vector,
-// the converted group from the second second input vector will be packed to the upper part of the result vector.
-//
-// Asm: VPACKSSDW, CPU Feature: AVX512
-func (x Int32x16) ConvertToInt16SaturatedPacked(y Int32x16) Int16x32
-
-/* ConvertToInt16x8 */
-
-// ConvertToInt16x8 converts 8 lowest vector element values to int16.
-//
-// Asm: VPMOVSXBW, CPU Feature: AVX
-func (x Int8x16) ConvertToInt16x8() Int16x8
-
 /* ConvertToInt32 */
 
 // ConvertToInt32 converts element values to int32.
@@ -1807,375 +1561,6 @@ func (x Float32x8) ConvertToInt32() Int32x8
 // Asm: VCVTTPS2DQ, CPU Feature: AVX512
 func (x Float32x16) ConvertToInt32() Int32x16
 
-// ConvertToInt32 converts element values to int32.
-//
-// Asm: VPMOVSXBD, CPU Feature: AVX512
-func (x Int8x16) ConvertToInt32() Int32x16
-
-// ConvertToInt32 converts element values to int32.
-//
-// Asm: VPMOVSXWD, CPU Feature: AVX2
-func (x Int16x8) ConvertToInt32() Int32x8
-
-// ConvertToInt32 converts element values to int32.
-//
-// Asm: VPMOVSXWD, CPU Feature: AVX512
-func (x Int16x16) ConvertToInt32() Int32x16
-
-// ConvertToInt32 converts element values to int32.
-// Conversion is done with truncation on the vector elements.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVQD, CPU Feature: AVX512
-func (x Int64x2) ConvertToInt32() Int32x4
-
-// ConvertToInt32 converts element values to int32.
-// Conversion is done with truncation on the vector elements.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVQD, CPU Feature: AVX512
-func (x Int64x4) ConvertToInt32() Int32x4
-
-// ConvertToInt32 converts element values to int32.
-// Conversion is done with truncation on the vector elements.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVQD, CPU Feature: AVX512
-func (x Int64x8) ConvertToInt32() Int32x8
-
-/* ConvertToInt32Saturated */
-
-// ConvertToInt32Saturated converts element values to int32 with saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVSQD, CPU Feature: AVX512
-func (x Int64x2) ConvertToInt32Saturated() Int32x4
-
-// ConvertToInt32Saturated converts element values to int32 with saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVSQD, CPU Feature: AVX512
-func (x Int64x4) ConvertToInt32Saturated() Int32x4
-
-// ConvertToInt32Saturated converts element values to int32 with saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVSQD, CPU Feature: AVX512
-func (x Int64x8) ConvertToInt32Saturated() Int32x8
-
-/* ConvertToInt32x4 */
-
-// ConvertToInt32x4 converts 4 lowest vector element values to int32.
-//
-// Asm: VPMOVSXBD, CPU Feature: AVX
-func (x Int8x16) ConvertToInt32x4() Int32x4
-
-// ConvertToInt32x4 converts 4 lowest vector element values to int32.
-//
-// Asm: VPMOVSXWD, CPU Feature: AVX
-func (x Int16x8) ConvertToInt32x4() Int32x4
-
-/* ConvertToInt32x8 */
-
-// ConvertToInt32x8 converts 8 lowest vector element values to int32.
-//
-// Asm: VPMOVSXBD, CPU Feature: AVX2
-func (x Int8x16) ConvertToInt32x8() Int32x8
-
-/* ConvertToInt64 */
-
-// ConvertToInt64 converts element values to int64.
-//
-// Asm: VPMOVSXWQ, CPU Feature: AVX512
-func (x Int16x8) ConvertToInt64() Int64x8
-
-// ConvertToInt64 converts element values to int64.
-//
-// Asm: VPMOVSXDQ, CPU Feature: AVX2
-func (x Int32x4) ConvertToInt64() Int64x4
-
-// ConvertToInt64 converts element values to int64.
-//
-// Asm: VPMOVSXDQ, CPU Feature: AVX512
-func (x Int32x8) ConvertToInt64() Int64x8
-
-/* ConvertToInt64x2 */
-
-// ConvertToInt64x2 converts 2 lowest vector element values to int64.
-//
-// Asm: VPMOVSXBQ, CPU Feature: AVX
-func (x Int8x16) ConvertToInt64x2() Int64x2
-
-// ConvertToInt64x2 converts 2 lowest vector element values to int64.
-//
-// Asm: VPMOVSXWQ, CPU Feature: AVX
-func (x Int16x8) ConvertToInt64x2() Int64x2
-
-// ConvertToInt64x2 converts 2 lowest vector element values to int64.
-//
-// Asm: VPMOVSXDQ, CPU Feature: AVX
-func (x Int32x4) ConvertToInt64x2() Int64x2
-
-/* ConvertToInt64x4 */
-
-// ConvertToInt64x4 converts 4 lowest vector element values to int64.
-//
-// Asm: VPMOVSXBQ, CPU Feature: AVX2
-func (x Int8x16) ConvertToInt64x4() Int64x4
-
-/* ConvertToInt64x8 */
-
-// ConvertToInt64x8 converts 8 lowest vector element values to int64.
-//
-// Asm: VPMOVSXBQ, CPU Feature: AVX512
-func (x Int8x16) ConvertToInt64x8() Int64x8
-
-/* ConvertToUint8 */
-
-// ConvertToUint8 converts element values to uint8.
-// Conversion is done with truncation on the vector elements.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVWB, CPU Feature: AVX512
-func (x Uint16x8) ConvertToUint8() Uint8x16
-
-// ConvertToUint8 converts element values to uint8.
-// Conversion is done with truncation on the vector elements.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVWB, CPU Feature: AVX512
-func (x Uint16x16) ConvertToUint8() Uint8x16
-
-// ConvertToUint8 converts element values to uint8.
-// Conversion is done with truncation on the vector elements.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVWB, CPU Feature: AVX512
-func (x Uint16x32) ConvertToUint8() Uint8x32
-
-// ConvertToUint8 converts element values to uint8.
-// Conversion is done with truncation on the vector elements.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVDB, CPU Feature: AVX512
-func (x Uint32x4) ConvertToUint8() Uint8x16
-
-// ConvertToUint8 converts element values to uint8.
-// Conversion is done with truncation on the vector elements.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVDB, CPU Feature: AVX512
-func (x Uint32x8) ConvertToUint8() Uint8x16
-
-// ConvertToUint8 converts element values to uint8.
-// Conversion is done with truncation on the vector elements.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVDB, CPU Feature: AVX512
-func (x Uint32x16) ConvertToUint8() Uint8x16
-
-// ConvertToUint8 converts element values to uint8.
-// Conversion is done with truncation on the vector elements.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVQB, CPU Feature: AVX512
-func (x Uint64x2) ConvertToUint8() Uint8x16
-
-// ConvertToUint8 converts element values to uint8.
-// Conversion is done with truncation on the vector elements.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVQB, CPU Feature: AVX512
-func (x Uint64x4) ConvertToUint8() Uint8x16
-
-// ConvertToUint8 converts element values to uint8.
-// Conversion is done with truncation on the vector elements.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVQB, CPU Feature: AVX512
-func (x Uint64x8) ConvertToUint8() Uint8x16
-
-/* ConvertToUint8Saturated */
-
-// ConvertToUint8Saturated converts element values to uint8 with saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVUSWB, CPU Feature: AVX512
-func (x Uint16x8) ConvertToUint8Saturated() Uint8x16
-
-// ConvertToUint8Saturated converts element values to uint8 with saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVUSWB, CPU Feature: AVX512
-func (x Uint16x16) ConvertToUint8Saturated() Uint8x16
-
-// ConvertToUint8Saturated converts element values to uint8 with saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVUSWB, CPU Feature: AVX512
-func (x Uint16x32) ConvertToUint8Saturated() Uint8x32
-
-// ConvertToUint8Saturated converts element values to uint8 with saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVUSDB, CPU Feature: AVX512
-func (x Uint32x4) ConvertToUint8Saturated() Uint8x16
-
-// ConvertToUint8Saturated converts element values to uint8 with saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVUSDB, CPU Feature: AVX512
-func (x Uint32x8) ConvertToUint8Saturated() Uint8x16
-
-// ConvertToUint8Saturated converts element values to uint8 with saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVUSDB, CPU Feature: AVX512
-func (x Uint32x16) ConvertToUint8Saturated() Uint8x16
-
-// ConvertToUint8Saturated converts element values to uint8 with saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVUSQB, CPU Feature: AVX512
-func (x Uint64x2) ConvertToUint8Saturated() Uint8x16
-
-// ConvertToUint8Saturated converts element values to uint8 with saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVUSQB, CPU Feature: AVX512
-func (x Uint64x4) ConvertToUint8Saturated() Uint8x16
-
-// ConvertToUint8Saturated converts element values to uint8 with saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVUSQB, CPU Feature: AVX512
-func (x Uint64x8) ConvertToUint8Saturated() Uint8x16
-
-/* ConvertToUint16 */
-
-// ConvertToUint16 converts element values to uint16.
-//
-// Asm: VPMOVZXBW, CPU Feature: AVX2
-func (x Uint8x16) ConvertToUint16() Uint16x16
-
-// ConvertToUint16 converts element values to uint16.
-//
-// Asm: VPMOVZXBW, CPU Feature: AVX512
-func (x Uint8x32) ConvertToUint16() Uint16x32
-
-// ConvertToUint16 converts element values to uint16.
-// Conversion is done with truncation on the vector elements.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVDW, CPU Feature: AVX512
-func (x Uint32x4) ConvertToUint16() Uint16x8
-
-// ConvertToUint16 converts element values to uint16.
-// Conversion is done with truncation on the vector elements.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVDW, CPU Feature: AVX512
-func (x Uint32x8) ConvertToUint16() Uint16x8
-
-// ConvertToUint16 converts element values to uint16.
-// Conversion is done with truncation on the vector elements.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVDW, CPU Feature: AVX512
-func (x Uint32x16) ConvertToUint16() Uint16x16
-
-// ConvertToUint16 converts element values to uint16.
-// Conversion is done with truncation on the vector elements.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVQW, CPU Feature: AVX512
-func (x Uint64x2) ConvertToUint16() Uint16x8
-
-// ConvertToUint16 converts element values to uint16.
-// Conversion is done with truncation on the vector elements.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVQW, CPU Feature: AVX512
-func (x Uint64x4) ConvertToUint16() Uint16x8
-
-// ConvertToUint16 converts element values to uint16.
-// Conversion is done with truncation on the vector elements.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVQW, CPU Feature: AVX512
-func (x Uint64x8) ConvertToUint16() Uint16x8
-
-/* ConvertToUint16Saturated */
-
-// ConvertToUint16Saturated converts element values to uint16 with saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVUSDW, CPU Feature: AVX512
-func (x Uint32x4) ConvertToUint16Saturated() Uint16x8
-
-// ConvertToUint16Saturated converts element values to uint16 with saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVUSDW, CPU Feature: AVX512
-func (x Uint32x8) ConvertToUint16Saturated() Uint16x8
-
-// ConvertToUint16Saturated converts element values to uint16 with saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVUSDW, CPU Feature: AVX512
-func (x Uint32x16) ConvertToUint16Saturated() Uint16x16
-
-// ConvertToUint16Saturated converts element values to uint16 with saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVUSQW, CPU Feature: AVX512
-func (x Uint64x2) ConvertToUint16Saturated() Uint16x8
-
-// ConvertToUint16Saturated converts element values to uint16 with saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVUSQW, CPU Feature: AVX512
-func (x Uint64x4) ConvertToUint16Saturated() Uint16x8
-
-// ConvertToUint16Saturated converts element values to uint16 with saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVUSQW, CPU Feature: AVX512
-func (x Uint64x8) ConvertToUint16Saturated() Uint16x8
-
-/* ConvertToUint16SaturatedPacked */
-
-// ConvertToUint16SaturatedPacked converts element values to uint16 with saturation.
-// With each 128-bit as a group:
-// The converted group from the first input vector will be packed to the lower part of the result vector,
-// the converted group from the second second input vector will be packed to the upper part of the result vector.
-//
-// Asm: VPACKUSDW, CPU Feature: AVX
-func (x Uint32x4) ConvertToUint16SaturatedPacked(y Uint32x4) Uint16x8
-
-// ConvertToUint16SaturatedPacked converts element values to uint16 with saturation.
-// With each 128-bit as a group:
-// The converted group from the first input vector will be packed to the lower part of the result vector,
-// the converted group from the second second input vector will be packed to the upper part of the result vector.
-//
-// Asm: VPACKUSDW, CPU Feature: AVX2
-func (x Uint32x8) ConvertToUint16SaturatedPacked(y Uint32x8) Uint16x16
-
-// ConvertToUint16SaturatedPacked converts element values to uint16 with saturation.
-// With each 128-bit as a group:
-// The converted group from the first input vector will be packed to the lower part of the result vector,
-// the converted group from the second second input vector will be packed to the upper part of the result vector.
-//
-// Asm: VPACKUSDW, CPU Feature: AVX512
-func (x Uint32x16) ConvertToUint16SaturatedPacked(y Uint32x16) Uint16x32
-
-/* ConvertToUint16x8 */
-
-// ConvertToUint16x8 converts 8 lowest vector element values to uint16.
-//
-// Asm: VPMOVZXBW, CPU Feature: AVX
-func (x Uint8x16) ConvertToUint16x8() Uint16x8
-
 /* ConvertToUint32 */
 
 // ConvertToUint32 converts element values to uint32.
@@ -2192,139 +1577,6 @@ func (x Float32x8) ConvertToUint32() Uint32x8
 //
 // Asm: VCVTPS2UDQ, CPU Feature: AVX512
 func (x Float32x16) ConvertToUint32() Uint32x16
-
-// ConvertToUint32 converts element values to uint32.
-//
-// Asm: VPMOVZXBD, CPU Feature: AVX512
-func (x Uint8x16) ConvertToUint32() Uint32x16
-
-// ConvertToUint32 converts element values to uint32.
-//
-// Asm: VPMOVZXWD, CPU Feature: AVX2
-func (x Uint16x8) ConvertToUint32() Uint32x8
-
-// ConvertToUint32 converts element values to uint32.
-//
-// Asm: VPMOVZXWD, CPU Feature: AVX512
-func (x Uint16x16) ConvertToUint32() Uint32x16
-
-// ConvertToUint32 converts element values to uint32.
-// Conversion is done with truncation on the vector elements.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVQD, CPU Feature: AVX512
-func (x Uint64x2) ConvertToUint32() Uint32x4
-
-// ConvertToUint32 converts element values to uint32.
-// Conversion is done with truncation on the vector elements.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVQD, CPU Feature: AVX512
-func (x Uint64x4) ConvertToUint32() Uint32x4
-
-// ConvertToUint32 converts element values to uint32.
-// Conversion is done with truncation on the vector elements.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVQD, CPU Feature: AVX512
-func (x Uint64x8) ConvertToUint32() Uint32x8
-
-/* ConvertToUint32Saturated */
-
-// ConvertToUint32Saturated converts element values to uint32 with saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVUSQD, CPU Feature: AVX512
-func (x Uint64x2) ConvertToUint32Saturated() Uint32x4
-
-// ConvertToUint32Saturated converts element values to uint32 with saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVUSQD, CPU Feature: AVX512
-func (x Uint64x4) ConvertToUint32Saturated() Uint32x4
-
-// ConvertToUint32Saturated converts element values to uint32 with saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
-//
-// Asm: VPMOVUSQD, CPU Feature: AVX512
-func (x Uint64x8) ConvertToUint32Saturated() Uint32x8
-
-/* ConvertToUint32x4 */
-
-// ConvertToUint32x4 converts 4 lowest vector element values to uint32.
-//
-// Asm: VPMOVZXBD, CPU Feature: AVX
-func (x Uint8x16) ConvertToUint32x4() Uint32x4
-
-// ConvertToUint32x4 converts 4 lowest vector element values to uint32.
-//
-// Asm: VPMOVZXWD, CPU Feature: AVX
-func (x Uint16x8) ConvertToUint32x4() Uint32x4
-
-/* ConvertToUint32x8 */
-
-// ConvertToUint32x8 converts 8 lowest vector element values to uint32.
-//
-// Asm: VPMOVZXBD, CPU Feature: AVX2
-func (x Uint8x16) ConvertToUint32x8() Uint32x8
-
-/* ConvertToUint64 */
-
-// ConvertToUint64 converts element values to uint64.
-//
-// Asm: VPMOVZXWQ, CPU Feature: AVX512
-func (x Uint16x8) ConvertToUint64() Uint64x8
-
-// ConvertToUint64 converts element values to uint64.
-//
-// Asm: VPMOVZXDQ, CPU Feature: AVX2
-func (x Uint32x4) ConvertToUint64() Uint64x4
-
-// ConvertToUint64 converts element values to uint64.
-//
-// Asm: VPMOVZXDQ, CPU Feature: AVX512
-func (x Uint32x8) ConvertToUint64() Uint64x8
-
-/* ConvertToUint64x2 */
-
-// ConvertToUint64x2 converts 2 lowest vector element values to uint64.
-//
-// Asm: VPMOVZXBQ, CPU Feature: AVX
-func (x Uint8x16) ConvertToUint64x2() Uint64x2
-
-// ConvertToUint64x2 converts 2 lowest vector element values to uint64.
-//
-// Asm: VPMOVZXWQ, CPU Feature: AVX
-func (x Uint16x8) ConvertToUint64x2() Uint64x2
-
-// ConvertToUint64x2 converts 2 lowest vector element values to uint64.
-//
-// Asm: VPMOVZXDQ, CPU Feature: AVX
-func (x Uint32x4) ConvertToUint64x2() Uint64x2
-
-/* ConvertToUint64x4 */
-
-// ConvertToUint64x4 converts 4 lowest vector element values to uint64.
-//
-// Asm: VPMOVSXWQ, CPU Feature: AVX2
-func (x Int16x8) ConvertToUint64x4() Int64x4
-
-// ConvertToUint64x4 converts 4 lowest vector element values to uint64.
-//
-// Asm: VPMOVZXBQ, CPU Feature: AVX2
-func (x Uint8x16) ConvertToUint64x4() Uint64x4
-
-// ConvertToUint64x4 converts 4 lowest vector element values to uint64.
-//
-// Asm: VPMOVZXWQ, CPU Feature: AVX2
-func (x Uint16x8) ConvertToUint64x4() Uint64x4
-
-/* ConvertToUint64x8 */
-
-// ConvertToUint64x8 converts 8 lowest vector element values to uint64.
-//
-// Asm: VPMOVZXBQ, CPU Feature: AVX512
-func (x Uint8x16) ConvertToUint64x8() Uint64x8
 
 /* CopySign */
 
@@ -2809,6 +2061,258 @@ func (x Uint64x4) Expand(mask Mask64x4) Uint64x4
 //
 // Asm: VPEXPANDQ, CPU Feature: AVX512
 func (x Uint64x8) Expand(mask Mask64x8) Uint64x8
+
+/* ExtendLo2ToInt64x2 */
+
+// ExtendLo2ToInt64x2 converts 2 lowest vector element values to int64.
+// The result vector's elements are sign-extended.
+//
+// Asm: VPMOVSXBQ, CPU Feature: AVX
+func (x Int8x16) ExtendLo2ToInt64x2() Int64x2
+
+// ExtendLo2ToInt64x2 converts 2 lowest vector element values to int64.
+// The result vector's elements are sign-extended.
+//
+// Asm: VPMOVSXWQ, CPU Feature: AVX
+func (x Int16x8) ExtendLo2ToInt64x2() Int64x2
+
+// ExtendLo2ToInt64x2 converts 2 lowest vector element values to int64.
+// The result vector's elements are sign-extended.
+//
+// Asm: VPMOVSXDQ, CPU Feature: AVX
+func (x Int32x4) ExtendLo2ToInt64x2() Int64x2
+
+/* ExtendLo2ToUint64x2 */
+
+// ExtendLo2ToUint64x2 converts 2 lowest vector element values to uint64.
+// The result vector's elements are zero-extended.
+//
+// Asm: VPMOVZXBQ, CPU Feature: AVX
+func (x Uint8x16) ExtendLo2ToUint64x2() Uint64x2
+
+// ExtendLo2ToUint64x2 converts 2 lowest vector element values to uint64.
+// The result vector's elements are zero-extended.
+//
+// Asm: VPMOVZXWQ, CPU Feature: AVX
+func (x Uint16x8) ExtendLo2ToUint64x2() Uint64x2
+
+// ExtendLo2ToUint64x2 converts 2 lowest vector element values to uint64.
+// The result vector's elements are zero-extended.
+//
+// Asm: VPMOVZXDQ, CPU Feature: AVX
+func (x Uint32x4) ExtendLo2ToUint64x2() Uint64x2
+
+/* ExtendLo4ToInt32x4 */
+
+// ExtendLo4ToInt32x4 converts 4 lowest vector element values to int32.
+// The result vector's elements are sign-extended.
+//
+// Asm: VPMOVSXBD, CPU Feature: AVX
+func (x Int8x16) ExtendLo4ToInt32x4() Int32x4
+
+// ExtendLo4ToInt32x4 converts 4 lowest vector element values to int32.
+// The result vector's elements are sign-extended.
+//
+// Asm: VPMOVSXWD, CPU Feature: AVX
+func (x Int16x8) ExtendLo4ToInt32x4() Int32x4
+
+/* ExtendLo4ToInt64x4 */
+
+// ExtendLo4ToInt64x4 converts 4 lowest vector element values to int64.
+// The result vector's elements are sign-extended.
+//
+// Asm: VPMOVSXBQ, CPU Feature: AVX2
+func (x Int8x16) ExtendLo4ToInt64x4() Int64x4
+
+// ExtendLo4ToInt64x4 converts 4 lowest vector element values to int64.
+// The result vector's elements are sign-extended.
+//
+// Asm: VPMOVSXWQ, CPU Feature: AVX2
+func (x Int16x8) ExtendLo4ToInt64x4() Int64x4
+
+/* ExtendLo4ToUint32x4 */
+
+// ExtendLo4ToUint32x4 converts 4 lowest vector element values to uint32.
+// The result vector's elements are zero-extended.
+//
+// Asm: VPMOVZXBD, CPU Feature: AVX
+func (x Uint8x16) ExtendLo4ToUint32x4() Uint32x4
+
+// ExtendLo4ToUint32x4 converts 4 lowest vector element values to uint32.
+// The result vector's elements are zero-extended.
+//
+// Asm: VPMOVZXWD, CPU Feature: AVX
+func (x Uint16x8) ExtendLo4ToUint32x4() Uint32x4
+
+/* ExtendLo4ToUint64x4 */
+
+// ExtendLo4ToUint64x4 converts 4 lowest vector element values to uint64.
+// The result vector's elements are zero-extended.
+//
+// Asm: VPMOVZXBQ, CPU Feature: AVX2
+func (x Uint8x16) ExtendLo4ToUint64x4() Uint64x4
+
+// ExtendLo4ToUint64x4 converts 4 lowest vector element values to uint64.
+// The result vector's elements are zero-extended.
+//
+// Asm: VPMOVZXWQ, CPU Feature: AVX2
+func (x Uint16x8) ExtendLo4ToUint64x4() Uint64x4
+
+/* ExtendLo8ToInt16x8 */
+
+// ExtendLo8ToInt16x8 converts 8 lowest vector element values to int16.
+// The result vector's elements are sign-extended.
+//
+// Asm: VPMOVSXBW, CPU Feature: AVX
+func (x Int8x16) ExtendLo8ToInt16x8() Int16x8
+
+/* ExtendLo8ToInt32x8 */
+
+// ExtendLo8ToInt32x8 converts 8 lowest vector element values to int32.
+// The result vector's elements are sign-extended.
+//
+// Asm: VPMOVSXBD, CPU Feature: AVX2
+func (x Int8x16) ExtendLo8ToInt32x8() Int32x8
+
+/* ExtendLo8ToInt64x8 */
+
+// ExtendLo8ToInt64x8 converts 8 lowest vector element values to int64.
+// The result vector's elements are sign-extended.
+//
+// Asm: VPMOVSXBQ, CPU Feature: AVX512
+func (x Int8x16) ExtendLo8ToInt64x8() Int64x8
+
+/* ExtendLo8ToUint16x8 */
+
+// ExtendLo8ToUint16x8 converts 8 lowest vector element values to uint16.
+// The result vector's elements are zero-extended.
+//
+// Asm: VPMOVZXBW, CPU Feature: AVX
+func (x Uint8x16) ExtendLo8ToUint16x8() Uint16x8
+
+/* ExtendLo8ToUint32x8 */
+
+// ExtendLo8ToUint32x8 converts 8 lowest vector element values to uint32.
+// The result vector's elements are zero-extended.
+//
+// Asm: VPMOVZXBD, CPU Feature: AVX2
+func (x Uint8x16) ExtendLo8ToUint32x8() Uint32x8
+
+/* ExtendLo8ToUint64x8 */
+
+// ExtendLo8ToUint64x8 converts 8 lowest vector element values to uint64.
+// The result vector's elements are zero-extended.
+//
+// Asm: VPMOVZXBQ, CPU Feature: AVX512
+func (x Uint8x16) ExtendLo8ToUint64x8() Uint64x8
+
+/* ExtendToInt16 */
+
+// ExtendToInt16 converts element values to int16.
+// The result vector's elements are sign-extended.
+//
+// Asm: VPMOVSXBW, CPU Feature: AVX2
+func (x Int8x16) ExtendToInt16() Int16x16
+
+// ExtendToInt16 converts element values to int16.
+// The result vector's elements are sign-extended.
+//
+// Asm: VPMOVSXBW, CPU Feature: AVX512
+func (x Int8x32) ExtendToInt16() Int16x32
+
+/* ExtendToInt32 */
+
+// ExtendToInt32 converts element values to int32.
+// The result vector's elements are sign-extended.
+//
+// Asm: VPMOVSXBD, CPU Feature: AVX512
+func (x Int8x16) ExtendToInt32() Int32x16
+
+// ExtendToInt32 converts element values to int32.
+// The result vector's elements are sign-extended.
+//
+// Asm: VPMOVSXWD, CPU Feature: AVX2
+func (x Int16x8) ExtendToInt32() Int32x8
+
+// ExtendToInt32 converts element values to int32.
+// The result vector's elements are sign-extended.
+//
+// Asm: VPMOVSXWD, CPU Feature: AVX512
+func (x Int16x16) ExtendToInt32() Int32x16
+
+/* ExtendToInt64 */
+
+// ExtendToInt64 converts element values to int64.
+// The result vector's elements are sign-extended.
+//
+// Asm: VPMOVSXWQ, CPU Feature: AVX512
+func (x Int16x8) ExtendToInt64() Int64x8
+
+// ExtendToInt64 converts element values to int64.
+// The result vector's elements are sign-extended.
+//
+// Asm: VPMOVSXDQ, CPU Feature: AVX2
+func (x Int32x4) ExtendToInt64() Int64x4
+
+// ExtendToInt64 converts element values to int64.
+// The result vector's elements are sign-extended.
+//
+// Asm: VPMOVSXDQ, CPU Feature: AVX512
+func (x Int32x8) ExtendToInt64() Int64x8
+
+/* ExtendToUint16 */
+
+// ExtendToUint16 converts element values to uint16.
+// The result vector's elements are zero-extended.
+//
+// Asm: VPMOVZXBW, CPU Feature: AVX2
+func (x Uint8x16) ExtendToUint16() Uint16x16
+
+// ExtendToUint16 converts element values to uint16.
+// The result vector's elements are zero-extended.
+//
+// Asm: VPMOVZXBW, CPU Feature: AVX512
+func (x Uint8x32) ExtendToUint16() Uint16x32
+
+/* ExtendToUint32 */
+
+// ExtendToUint32 converts element values to uint32.
+// The result vector's elements are zero-extended.
+//
+// Asm: VPMOVZXBD, CPU Feature: AVX512
+func (x Uint8x16) ExtendToUint32() Uint32x16
+
+// ExtendToUint32 converts element values to uint32.
+// The result vector's elements are zero-extended.
+//
+// Asm: VPMOVZXWD, CPU Feature: AVX2
+func (x Uint16x8) ExtendToUint32() Uint32x8
+
+// ExtendToUint32 converts element values to uint32.
+// The result vector's elements are zero-extended.
+//
+// Asm: VPMOVZXWD, CPU Feature: AVX512
+func (x Uint16x16) ExtendToUint32() Uint32x16
+
+/* ExtendToUint64 */
+
+// ExtendToUint64 converts element values to uint64.
+// The result vector's elements are zero-extended.
+//
+// Asm: VPMOVZXWQ, CPU Feature: AVX512
+func (x Uint16x8) ExtendToUint64() Uint64x8
+
+// ExtendToUint64 converts element values to uint64.
+// The result vector's elements are zero-extended.
+//
+// Asm: VPMOVZXDQ, CPU Feature: AVX2
+func (x Uint32x4) ExtendToUint64() Uint64x4
+
+// ExtendToUint64 converts element values to uint64.
+// The result vector's elements are zero-extended.
+//
+// Asm: VPMOVZXDQ, CPU Feature: AVX512
+func (x Uint32x8) ExtendToUint64() Uint64x8
 
 /* Floor */
 
@@ -5567,6 +5071,308 @@ func (x Uint32x4) SHA256Message2(y Uint32x4) Uint32x4
 // Asm: SHA256RNDS2, CPU Feature: SHA
 func (x Uint32x4) SHA256TwoRounds(y Uint32x4, z Uint32x4) Uint32x4
 
+/* SaturateToInt8 */
+
+// SaturateToInt8 converts element values to int8.
+// Conversion is done with saturation on the vector elements.
+// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
+//
+// Asm: VPMOVSWB, CPU Feature: AVX512
+func (x Int16x8) SaturateToInt8() Int8x16
+
+// SaturateToInt8 converts element values to int8.
+// Conversion is done with saturation on the vector elements.
+// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
+//
+// Asm: VPMOVSWB, CPU Feature: AVX512
+func (x Int16x16) SaturateToInt8() Int8x16
+
+// SaturateToInt8 converts element values to int8.
+// Conversion is done with saturation on the vector elements.
+//
+// Asm: VPMOVSWB, CPU Feature: AVX512
+func (x Int16x32) SaturateToInt8() Int8x32
+
+// SaturateToInt8 converts element values to int8.
+// Conversion is done with saturation on the vector elements.
+// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
+//
+// Asm: VPMOVSDB, CPU Feature: AVX512
+func (x Int32x4) SaturateToInt8() Int8x16
+
+// SaturateToInt8 converts element values to int8.
+// Conversion is done with saturation on the vector elements.
+// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
+//
+// Asm: VPMOVSDB, CPU Feature: AVX512
+func (x Int32x8) SaturateToInt8() Int8x16
+
+// SaturateToInt8 converts element values to int8.
+// Conversion is done with saturation on the vector elements.
+// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
+//
+// Asm: VPMOVSDB, CPU Feature: AVX512
+func (x Int32x16) SaturateToInt8() Int8x16
+
+// SaturateToInt8 converts element values to int8.
+// Conversion is done with saturation on the vector elements.
+// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
+//
+// Asm: VPMOVSQB, CPU Feature: AVX512
+func (x Int64x2) SaturateToInt8() Int8x16
+
+// SaturateToInt8 converts element values to int8.
+// Conversion is done with saturation on the vector elements.
+// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
+//
+// Asm: VPMOVSQB, CPU Feature: AVX512
+func (x Int64x4) SaturateToInt8() Int8x16
+
+// SaturateToInt8 converts element values to int8.
+// Conversion is done with saturation on the vector elements.
+// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
+//
+// Asm: VPMOVSQB, CPU Feature: AVX512
+func (x Int64x8) SaturateToInt8() Int8x16
+
+/* SaturateToInt16 */
+
+// SaturateToInt16 converts element values to int16.
+// Conversion is done with saturation on the vector elements.
+//
+// Asm: VPMOVSDW, CPU Feature: AVX512
+func (x Int32x4) SaturateToInt16() Int16x8
+
+// SaturateToInt16 converts element values to int16.
+// Conversion is done with saturation on the vector elements.
+//
+// Asm: VPMOVSDW, CPU Feature: AVX512
+func (x Int32x8) SaturateToInt16() Int16x8
+
+// SaturateToInt16 converts element values to int16.
+// Conversion is done with saturation on the vector elements.
+//
+// Asm: VPMOVSDW, CPU Feature: AVX512
+func (x Int32x16) SaturateToInt16() Int16x16
+
+// SaturateToInt16 converts element values to int16.
+// Conversion is done with saturation on the vector elements.
+//
+// Asm: VPMOVSQW, CPU Feature: AVX512
+func (x Int64x2) SaturateToInt16() Int16x8
+
+// SaturateToInt16 converts element values to int16.
+// Conversion is done with saturation on the vector elements.
+//
+// Asm: VPMOVSQW, CPU Feature: AVX512
+func (x Int64x4) SaturateToInt16() Int16x8
+
+// SaturateToInt16 converts element values to int16.
+// Conversion is done with saturation on the vector elements.
+//
+// Asm: VPMOVSQW, CPU Feature: AVX512
+func (x Int64x8) SaturateToInt16() Int16x8
+
+/* SaturateToInt16Concat */
+
+// SaturateToInt16Concat converts element values to int16.
+// With each 128-bit as a group:
+// The converted group from the first input vector will be packed to the lower part of the result vector,
+// the converted group from the second input vector will be packed to the upper part of the result vector.
+// Conversion is done with saturation on the vector elements.
+//
+// Asm: VPACKSSDW, CPU Feature: AVX
+func (x Int32x4) SaturateToInt16Concat(y Int32x4) Int16x8
+
+// SaturateToInt16Concat converts element values to int16.
+// With each 128-bit as a group:
+// The converted group from the first input vector will be packed to the lower part of the result vector,
+// the converted group from the second input vector will be packed to the upper part of the result vector.
+// Conversion is done with saturation on the vector elements.
+//
+// Asm: VPACKSSDW, CPU Feature: AVX2
+func (x Int32x8) SaturateToInt16Concat(y Int32x8) Int16x16
+
+// SaturateToInt16Concat converts element values to int16.
+// With each 128-bit as a group:
+// The converted group from the first input vector will be packed to the lower part of the result vector,
+// the converted group from the second input vector will be packed to the upper part of the result vector.
+// Conversion is done with saturation on the vector elements.
+//
+// Asm: VPACKSSDW, CPU Feature: AVX512
+func (x Int32x16) SaturateToInt16Concat(y Int32x16) Int16x32
+
+/* SaturateToInt32 */
+
+// SaturateToInt32 converts element values to int32.
+// Conversion is done with saturation on the vector elements.
+//
+// Asm: VPMOVSQD, CPU Feature: AVX512
+func (x Int64x2) SaturateToInt32() Int32x4
+
+// SaturateToInt32 converts element values to int32.
+// Conversion is done with saturation on the vector elements.
+//
+// Asm: VPMOVSQD, CPU Feature: AVX512
+func (x Int64x4) SaturateToInt32() Int32x4
+
+// SaturateToInt32 converts element values to int32.
+// Conversion is done with saturation on the vector elements.
+//
+// Asm: VPMOVSQD, CPU Feature: AVX512
+func (x Int64x8) SaturateToInt32() Int32x8
+
+/* SaturateToUint8 */
+
+// SaturateToUint8 converts element values to uint8.
+// Conversion is done with saturation on the vector elements.
+// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
+//
+// Asm: VPMOVSWB, CPU Feature: AVX512
+func (x Int16x8) SaturateToUint8() Int8x16
+
+// SaturateToUint8 converts element values to uint8.
+// Conversion is done with saturation on the vector elements.
+// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
+//
+// Asm: VPMOVSWB, CPU Feature: AVX512
+func (x Int16x16) SaturateToUint8() Int8x16
+
+// SaturateToUint8 converts element values to uint8.
+// Conversion is done with saturation on the vector elements.
+// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
+//
+// Asm: VPMOVSDB, CPU Feature: AVX512
+func (x Int32x4) SaturateToUint8() Int8x16
+
+// SaturateToUint8 converts element values to uint8.
+// Conversion is done with saturation on the vector elements.
+// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
+//
+// Asm: VPMOVSDB, CPU Feature: AVX512
+func (x Int32x8) SaturateToUint8() Int8x16
+
+// SaturateToUint8 converts element values to uint8.
+// Conversion is done with saturation on the vector elements.
+// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
+//
+// Asm: VPMOVSDB, CPU Feature: AVX512
+func (x Int32x16) SaturateToUint8() Int8x16
+
+// SaturateToUint8 converts element values to uint8.
+// Conversion is done with saturation on the vector elements.
+// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
+//
+// Asm: VPMOVSQB, CPU Feature: AVX512
+func (x Int64x2) SaturateToUint8() Int8x16
+
+// SaturateToUint8 converts element values to uint8.
+// Conversion is done with saturation on the vector elements.
+// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
+//
+// Asm: VPMOVSQB, CPU Feature: AVX512
+func (x Int64x4) SaturateToUint8() Int8x16
+
+// SaturateToUint8 converts element values to uint8.
+// Conversion is done with saturation on the vector elements.
+// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
+//
+// Asm: VPMOVSQB, CPU Feature: AVX512
+func (x Int64x8) SaturateToUint8() Int8x16
+
+// SaturateToUint8 converts element values to uint8.
+// Conversion is done with saturation on the vector elements.
+//
+// Asm: VPMOVUSWB, CPU Feature: AVX512
+func (x Uint16x32) SaturateToUint8() Uint8x32
+
+/* SaturateToUint16 */
+
+// SaturateToUint16 converts element values to uint16.
+// Conversion is done with saturation on the vector elements.
+//
+// Asm: VPMOVUSDW, CPU Feature: AVX512
+func (x Uint32x4) SaturateToUint16() Uint16x8
+
+// SaturateToUint16 converts element values to uint16.
+// Conversion is done with saturation on the vector elements.
+//
+// Asm: VPMOVUSDW, CPU Feature: AVX512
+func (x Uint32x8) SaturateToUint16() Uint16x8
+
+// SaturateToUint16 converts element values to uint16.
+// Conversion is done with saturation on the vector elements.
+//
+// Asm: VPMOVUSDW, CPU Feature: AVX512
+func (x Uint32x16) SaturateToUint16() Uint16x16
+
+// SaturateToUint16 converts element values to uint16.
+// Conversion is done with saturation on the vector elements.
+//
+// Asm: VPMOVUSQW, CPU Feature: AVX512
+func (x Uint64x2) SaturateToUint16() Uint16x8
+
+// SaturateToUint16 converts element values to uint16.
+// Conversion is done with saturation on the vector elements.
+//
+// Asm: VPMOVUSQW, CPU Feature: AVX512
+func (x Uint64x4) SaturateToUint16() Uint16x8
+
+// SaturateToUint16 converts element values to uint16.
+// Conversion is done with saturation on the vector elements.
+//
+// Asm: VPMOVUSQW, CPU Feature: AVX512
+func (x Uint64x8) SaturateToUint16() Uint16x8
+
+/* SaturateToUint16Concat */
+
+// SaturateToUint16Concat converts element values to uint16.
+// With each 128-bit as a group:
+// The converted group from the first input vector will be packed to the lower part of the result vector,
+// the converted group from the second input vector will be packed to the upper part of the result vector.
+// Conversion is done with saturation on the vector elements.
+//
+// Asm: VPACKUSDW, CPU Feature: AVX
+func (x Uint32x4) SaturateToUint16Concat(y Uint32x4) Uint16x8
+
+// SaturateToUint16Concat converts element values to uint16.
+// With each 128-bit as a group:
+// The converted group from the first input vector will be packed to the lower part of the result vector,
+// the converted group from the second input vector will be packed to the upper part of the result vector.
+// Conversion is done with saturation on the vector elements.
+//
+// Asm: VPACKUSDW, CPU Feature: AVX2
+func (x Uint32x8) SaturateToUint16Concat(y Uint32x8) Uint16x16
+
+// SaturateToUint16Concat converts element values to uint16.
+// With each 128-bit as a group:
+// The converted group from the first input vector will be packed to the lower part of the result vector,
+// the converted group from the second input vector will be packed to the upper part of the result vector.
+// Conversion is done with saturation on the vector elements.
+//
+// Asm: VPACKUSDW, CPU Feature: AVX512
+func (x Uint32x16) SaturateToUint16Concat(y Uint32x16) Uint16x32
+
+/* SaturateToUint32 */
+
+// SaturateToUint32 converts element values to uint32.
+// Conversion is done with saturation on the vector elements.
+//
+// Asm: VPMOVUSQD, CPU Feature: AVX512
+func (x Uint64x2) SaturateToUint32() Uint32x4
+
+// SaturateToUint32 converts element values to uint32.
+// Conversion is done with saturation on the vector elements.
+//
+// Asm: VPMOVUSQD, CPU Feature: AVX512
+func (x Uint64x4) SaturateToUint32() Uint32x4
+
+// SaturateToUint32 converts element values to uint32.
+// Conversion is done with saturation on the vector elements.
+//
+// Asm: VPMOVUSQD, CPU Feature: AVX512
+func (x Uint64x8) SaturateToUint32() Uint32x8
+
 /* Scale */
 
 // Scale multiplies elements by a power of 2.
@@ -7377,6 +7183,250 @@ func (x Float64x4) TruncScaledResidue(prec uint8) Float64x4
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512
 func (x Float64x8) TruncScaledResidue(prec uint8) Float64x8
+
+/* TruncateToInt8 */
+
+// TruncateToInt8 converts element values to int8.
+// Conversion is done with truncation on the vector elements.
+// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
+//
+// Asm: VPMOVWB, CPU Feature: AVX512
+func (x Int16x8) TruncateToInt8() Int8x16
+
+// TruncateToInt8 converts element values to int8.
+// Conversion is done with truncation on the vector elements.
+// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
+//
+// Asm: VPMOVWB, CPU Feature: AVX512
+func (x Int16x16) TruncateToInt8() Int8x16
+
+// TruncateToInt8 converts element values to int8.
+// Conversion is done with truncation on the vector elements.
+//
+// Asm: VPMOVWB, CPU Feature: AVX512
+func (x Int16x32) TruncateToInt8() Int8x32
+
+// TruncateToInt8 converts element values to int8.
+// Conversion is done with truncation on the vector elements.
+// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
+//
+// Asm: VPMOVDB, CPU Feature: AVX512
+func (x Int32x4) TruncateToInt8() Int8x16
+
+// TruncateToInt8 converts element values to int8.
+// Conversion is done with truncation on the vector elements.
+// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
+//
+// Asm: VPMOVDB, CPU Feature: AVX512
+func (x Int32x8) TruncateToInt8() Int8x16
+
+// TruncateToInt8 converts element values to int8.
+// Conversion is done with truncation on the vector elements.
+// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
+//
+// Asm: VPMOVDB, CPU Feature: AVX512
+func (x Int32x16) TruncateToInt8() Int8x16
+
+// TruncateToInt8 converts element values to int8.
+// Conversion is done with truncation on the vector elements.
+// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
+//
+// Asm: VPMOVQB, CPU Feature: AVX512
+func (x Int64x2) TruncateToInt8() Int8x16
+
+// TruncateToInt8 converts element values to int8.
+// Conversion is done with truncation on the vector elements.
+// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
+//
+// Asm: VPMOVQB, CPU Feature: AVX512
+func (x Int64x4) TruncateToInt8() Int8x16
+
+// TruncateToInt8 converts element values to int8.
+// Conversion is done with truncation on the vector elements.
+// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
+//
+// Asm: VPMOVQB, CPU Feature: AVX512
+func (x Int64x8) TruncateToInt8() Int8x16
+
+/* TruncateToInt16 */
+
+// TruncateToInt16 converts element values to int16.
+// Conversion is done with truncation on the vector elements.
+//
+// Asm: VPMOVDW, CPU Feature: AVX512
+func (x Int32x4) TruncateToInt16() Int16x8
+
+// TruncateToInt16 converts element values to int16.
+// Conversion is done with truncation on the vector elements.
+//
+// Asm: VPMOVDW, CPU Feature: AVX512
+func (x Int32x8) TruncateToInt16() Int16x8
+
+// TruncateToInt16 converts element values to int16.
+// Conversion is done with truncation on the vector elements.
+//
+// Asm: VPMOVDW, CPU Feature: AVX512
+func (x Int32x16) TruncateToInt16() Int16x16
+
+// TruncateToInt16 converts element values to int16.
+// Conversion is done with truncation on the vector elements.
+//
+// Asm: VPMOVQW, CPU Feature: AVX512
+func (x Int64x2) TruncateToInt16() Int16x8
+
+// TruncateToInt16 converts element values to int16.
+// Conversion is done with truncation on the vector elements.
+//
+// Asm: VPMOVQW, CPU Feature: AVX512
+func (x Int64x4) TruncateToInt16() Int16x8
+
+// TruncateToInt16 converts element values to int16.
+// Conversion is done with truncation on the vector elements.
+//
+// Asm: VPMOVQW, CPU Feature: AVX512
+func (x Int64x8) TruncateToInt16() Int16x8
+
+/* TruncateToInt32 */
+
+// TruncateToInt32 converts element values to int32.
+// Conversion is done with truncation on the vector elements.
+//
+// Asm: VPMOVQD, CPU Feature: AVX512
+func (x Int64x2) TruncateToInt32() Int32x4
+
+// TruncateToInt32 converts element values to int32.
+// Conversion is done with truncation on the vector elements.
+//
+// Asm: VPMOVQD, CPU Feature: AVX512
+func (x Int64x4) TruncateToInt32() Int32x4
+
+// TruncateToInt32 converts element values to int32.
+// Conversion is done with truncation on the vector elements.
+//
+// Asm: VPMOVQD, CPU Feature: AVX512
+func (x Int64x8) TruncateToInt32() Int32x8
+
+/* TruncateToUint8 */
+
+// TruncateToUint8 converts element values to uint8.
+// Conversion is done with truncation on the vector elements.
+// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
+//
+// Asm: VPMOVWB, CPU Feature: AVX512
+func (x Uint16x8) TruncateToUint8() Uint8x16
+
+// TruncateToUint8 converts element values to uint8.
+// Conversion is done with truncation on the vector elements.
+// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
+//
+// Asm: VPMOVWB, CPU Feature: AVX512
+func (x Uint16x16) TruncateToUint8() Uint8x16
+
+// TruncateToUint8 converts element values to uint8.
+// Conversion is done with truncation on the vector elements.
+//
+// Asm: VPMOVWB, CPU Feature: AVX512
+func (x Uint16x32) TruncateToUint8() Uint8x32
+
+// TruncateToUint8 converts element values to uint8.
+// Conversion is done with truncation on the vector elements.
+// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
+//
+// Asm: VPMOVDB, CPU Feature: AVX512
+func (x Uint32x4) TruncateToUint8() Uint8x16
+
+// TruncateToUint8 converts element values to uint8.
+// Conversion is done with truncation on the vector elements.
+// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
+//
+// Asm: VPMOVDB, CPU Feature: AVX512
+func (x Uint32x8) TruncateToUint8() Uint8x16
+
+// TruncateToUint8 converts element values to uint8.
+// Conversion is done with truncation on the vector elements.
+// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
+//
+// Asm: VPMOVDB, CPU Feature: AVX512
+func (x Uint32x16) TruncateToUint8() Uint8x16
+
+// TruncateToUint8 converts element values to uint8.
+// Conversion is done with truncation on the vector elements.
+// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
+//
+// Asm: VPMOVQB, CPU Feature: AVX512
+func (x Uint64x2) TruncateToUint8() Uint8x16
+
+// TruncateToUint8 converts element values to uint8.
+// Conversion is done with truncation on the vector elements.
+// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
+//
+// Asm: VPMOVQB, CPU Feature: AVX512
+func (x Uint64x4) TruncateToUint8() Uint8x16
+
+// TruncateToUint8 converts element values to uint8.
+// Conversion is done with truncation on the vector elements.
+// Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
+//
+// Asm: VPMOVQB, CPU Feature: AVX512
+func (x Uint64x8) TruncateToUint8() Uint8x16
+
+/* TruncateToUint16 */
+
+// TruncateToUint16 converts element values to uint16.
+// Conversion is done with truncation on the vector elements.
+//
+// Asm: VPMOVDW, CPU Feature: AVX512
+func (x Uint32x4) TruncateToUint16() Uint16x8
+
+// TruncateToUint16 converts element values to uint16.
+// Conversion is done with truncation on the vector elements.
+//
+// Asm: VPMOVDW, CPU Feature: AVX512
+func (x Uint32x8) TruncateToUint16() Uint16x8
+
+// TruncateToUint16 converts element values to uint16.
+// Conversion is done with truncation on the vector elements.
+//
+// Asm: VPMOVDW, CPU Feature: AVX512
+func (x Uint32x16) TruncateToUint16() Uint16x16
+
+// TruncateToUint16 converts element values to uint16.
+// Conversion is done with truncation on the vector elements.
+//
+// Asm: VPMOVQW, CPU Feature: AVX512
+func (x Uint64x2) TruncateToUint16() Uint16x8
+
+// TruncateToUint16 converts element values to uint16.
+// Conversion is done with truncation on the vector elements.
+//
+// Asm: VPMOVQW, CPU Feature: AVX512
+func (x Uint64x4) TruncateToUint16() Uint16x8
+
+// TruncateToUint16 converts element values to uint16.
+// Conversion is done with truncation on the vector elements.
+//
+// Asm: VPMOVQW, CPU Feature: AVX512
+func (x Uint64x8) TruncateToUint16() Uint16x8
+
+/* TruncateToUint32 */
+
+// TruncateToUint32 converts element values to uint32.
+// Conversion is done with truncation on the vector elements.
+//
+// Asm: VPMOVQD, CPU Feature: AVX512
+func (x Uint64x2) TruncateToUint32() Uint32x4
+
+// TruncateToUint32 converts element values to uint32.
+// Conversion is done with truncation on the vector elements.
+//
+// Asm: VPMOVQD, CPU Feature: AVX512
+func (x Uint64x4) TruncateToUint32() Uint32x4
+
+// TruncateToUint32 converts element values to uint32.
+// Conversion is done with truncation on the vector elements.
+//
+// Asm: VPMOVQD, CPU Feature: AVX512
+func (x Uint64x8) TruncateToUint32() Uint32x8
 
 /* Xor */
 

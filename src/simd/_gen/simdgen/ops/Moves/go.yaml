@@ -60,6 +60,7 @@
     OverwriteBase: float
 
 - go: "SetHi|SetLo"
+  regexpTag: "move"
   asm: "VINSERTI128|VINSERTI64X4"
   inVariant: []
   in:
@@ -80,6 +81,7 @@
 
 - go: "GetHi|GetLo"
   asm: "VEXTRACTI128|VEXTRACTI64X4"
+  regexpTag: "move"
   inVariant: []
   in:
   - *i8x2N
@@ -89,6 +91,7 @@
 
 - go: "SetHi|SetLo"
   asm: "VINSERTI128|VINSERTI64X4"
+  regexpTag: "move"
   inVariant: []
   in:
   - &i16x2N
@@ -104,6 +107,7 @@
   - *i16x2N
 
 - go: "GetHi|GetLo"
+  regexpTag: "move"
   asm: "VEXTRACTI128|VEXTRACTI64X4"
   inVariant: []
   in:
@@ -113,6 +117,7 @@
   - *i16xN
 
 - go: "SetHi|SetLo"
+  regexpTag: "move"
   asm: "VINSERTI128|VINSERTI64X4"
   inVariant: []
   in:
@@ -129,6 +134,7 @@
   - *i32x2N
 
 - go: "GetHi|GetLo"
+  regexpTag: "move"
   asm: "VEXTRACTI128|VEXTRACTI64X4"
   inVariant: []
   in:
@@ -138,6 +144,7 @@
   - *i32xN
 
 - go: "SetHi|SetLo"
+  regexpTag: "move"
   asm: "VINSERTI128|VINSERTI64X4"
   inVariant: []
   in:
@@ -154,6 +161,7 @@
   - *i64x2N
 
 - go: "GetHi|GetLo"
+  regexpTag: "move"
   asm: "VEXTRACTI128|VEXTRACTI64X4"
   inVariant: []
   in:
@@ -163,6 +171,7 @@
   - *i64xN
 
 - go: "SetHi|SetLo"
+  regexpTag: "move"
   asm: "VINSERTF128|VINSERTF64X4"
   inVariant: []
   in:
@@ -179,6 +188,7 @@
   - *f32x2N
 
 - go: "GetHi|GetLo"
+  regexpTag: "move"
   asm: "VEXTRACTF128|VEXTRACTF64X4"
   inVariant: []
   in:
@@ -188,6 +198,7 @@
   - *f32xN
 
 - go: "SetHi|SetLo"
+  regexpTag: "move"
   asm: "VINSERTF128|VINSERTF64X4"
   inVariant: []
   in:
@@ -204,6 +215,7 @@
   - *f64x2N
 
 - go: "GetHi|GetLo"
+  regexpTag: "move"
   asm: "VEXTRACTF128|VEXTRACTF64X4"
   inVariant: []
   in:

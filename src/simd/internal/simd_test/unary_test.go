@@ -125,13 +125,13 @@ func TestToInt32(t *testing.T) {
 }
 
 func TestConverts(t *testing.T) {
-	testUint8x16ConvertToUint16(t, simd.Uint8x16.ConvertToUint16, map1[uint8](toUint16))
-	testUint16x8ConvertToUint32(t, simd.Uint16x8.ConvertToUint32, map1[uint16](toUint32))
+	testUint8x16ConvertToUint16(t, simd.Uint8x16.ExtendToUint16, map1[uint8](toUint16))
+	testUint16x8ConvertToUint32(t, simd.Uint16x8.ExtendToUint32, map1[uint16](toUint32))
 }
 
 func TestConvertsAVX512(t *testing.T) {
 	if !simd.X86.AVX512() {
 		t.Skip("Needs AVX512")
 	}
-	testUint8x32ConvertToUint16(t, simd.Uint8x32.ConvertToUint16, map1[uint8](toUint16))
+	testUint8x32ConvertToUint16(t, simd.Uint8x32.ExtendToUint16, map1[uint8](toUint16))
 }
