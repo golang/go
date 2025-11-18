@@ -2503,15 +2503,13 @@ func addLocalFacts(ft *factsTable, b *Block) {
 				xl := ft.limits[x.ID]
 				y := add.Args[1]
 				yl := ft.limits[y.ID]
-				if unsignedAddOverflows(xl.umax, yl.umax, add.Type) {
-					continue
-				}
-
-				if xl.umax < uminDivisor {
-					ft.update(b, v, y, unsigned, lt|eq)
-				}
-				if yl.umax < uminDivisor {
-					ft.update(b, v, x, unsigned, lt|eq)
+				if !unsignedAddOverflows(xl.umax, yl.umax, add.Type) {
+					if xl.umax < uminDivisor {
+						ft.update(b, v, y, unsigned, lt|eq)
+					}
+					if yl.umax < uminDivisor {
+						ft.update(b, v, x, unsigned, lt|eq)
+					}
 				}
 			}
 			ft.update(b, v, v.Args[0], unsigned, lt|eq)
