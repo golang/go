@@ -2109,4 +2109,8 @@ func TestFuncdataPlacement(t *testing.T) {
 			}
 		}
 	}
+
+	if uint64(moddata.findfunctab)-imageBase < pclntabAddr || uint64(moddata.findfunctab)-imageBase >= pclntabEnd {
+		t.Errorf("findfunctab address %#x not between %#x and %#x", moddata.findfunctab, pclntabAddr, pclntabEnd)
+	}
 }
