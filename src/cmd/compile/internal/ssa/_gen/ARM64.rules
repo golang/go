@@ -573,6 +573,8 @@
 (TBNZ [0] (GreaterThanF  cc) yes no) => (FGT cc yes no)
 (TBNZ [0] (GreaterEqualF cc) yes no) => (FGE cc yes no)
 
+(TB(Z|NZ) [0] (XORconst [1] x) yes no) => (TB(NZ|Z) [0] x yes no)
+
 ((EQ|NE|LT|LE|GT|GE) (CMPconst  [0] z:(AND        x y)) yes no) && z.Uses == 1 => ((EQ|NE|LT|LE|GT|GE) (TST                x y) yes no)
 ((EQ|NE|LT|LE|GT|GE) (CMPconst  [0] x:(ANDconst [c] y)) yes no) && x.Uses == 1 => ((EQ|NE|LT|LE|GT|GE) (TSTconst         [c] y) yes no)
 ((EQ|NE|LT|LE|GT|GE) (CMPWconst [0] z:(AND        x y)) yes no) && z.Uses == 1 => ((EQ|NE|LT|LE|GT|GE) (TSTW               x y) yes no)

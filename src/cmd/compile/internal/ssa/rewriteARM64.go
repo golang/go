@@ -25321,6 +25321,37 @@ func rewriteBlockARM64(b *Block) bool {
 			b.resetWithControl(BlockARM64FGE, cc)
 			return true
 		}
+		// match: (TBNZ [0] (XORconst [1] x) yes no)
+		// result: (TBZ [0] x yes no)
+		for b.Controls[0].Op == OpARM64XORconst {
+			v_0 := b.Controls[0]
+			if auxIntToInt64(v_0.AuxInt) != 1 {
+				break
+			}
+			x := v_0.Args[0]
+			if auxIntToInt64(b.AuxInt) != 0 {
+				break
+			}
+			b.resetWithControl(BlockARM64TBZ, x)
+			b.AuxInt = int64ToAuxInt(0)
+			return true
+		}
+	case BlockARM64TBZ:
+		// match: (TBZ [0] (XORconst [1] x) yes no)
+		// result: (TBNZ [0] x yes no)
+		for b.Controls[0].Op == OpARM64XORconst {
+			v_0 := b.Controls[0]
+			if auxIntToInt64(v_0.AuxInt) != 1 {
+				break
+			}
+			x := v_0.Args[0]
+			if auxIntToInt64(b.AuxInt) != 0 {
+				break
+			}
+			b.resetWithControl(BlockARM64TBNZ, x)
+			b.AuxInt = int64ToAuxInt(0)
+			return true
+		}
 	case BlockARM64UGE:
 		// match: (UGE (FlagConstant [fc]) yes no)
 		// cond: fc.uge()
