@@ -1077,6 +1077,9 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
 	req.ctx = ctx
 	req.RemoteAddr = c.remoteAddr
 	req.TLS = c.tlsState
+	if body, ok := req.Body.(*body); ok {
+		body.doEarlyClose = true
+	}
 
 	// Adjust the read deadline if necessary.
 	if !hdrDeadline.Equal(wholeReqDeadline) {
@@ -1708,11 +1711,9 @@ func (w *response) finishRequest() {
 
 	w.conn.r.abortPendingRead()
 
-	// Try to discard the body (regardless of w.closeAfterReply), so we can
-	// potentially reuse it in the same connection.
-	if b, ok := w.reqBody.(*body); ok {
-		b.tryDiscardBody()
-	}
+	// Close the body (regardless of w.closeAfterReply) so we can
+	// re-use its bufio.Reader later safely.
+	w.reqBody.Close()
 
 	if w.req.MultipartForm != nil {
 		w.req.MultipartForm.RemoveAll()
@@ -1740,16 +1741,16 @@ func (w *response) shouldReuseConnection() bool {
 		return false
 	}
 
-	if w.didIncompleteDiscard() {
+	if w.closedRequestBodyEarly() {
 		return false
 	}
 
 	return true
 }
 
-func (w *response) didIncompleteDiscard() bool {
+func (w *response) closedRequestBodyEarly() bool {
 	body, ok := w.req.Body.(*body)
-	return ok && body.didIncompleteDiscard()
+	return ok && body.didEarlyClose()
 }
 
 func (w *response) Flush() {
@@ -2105,18 +2106,6 @@ func (c *conn) serve(ctx context.Context) {
 		// But we're not going to implement HTTP pipelining because it
 		// was never deployed in the wild and the answer is HTTP/2.
 		inFlightResponse = w
-		// Ensure that Close() invocations within request handlers do not
-		// discard the body.
-		if b, ok := w.reqBody.(*body); ok {
-			b.mu.Lock()
-			b.inRequestHandler = true
-			b.mu.Unlock()
-			defer func() {
-				b.mu.Lock()
-				b.inRequestHandler = false
-				b.mu.Unlock()
-			}()
-		}
 		serverHandler{c.server}.ServeHTTP(w, w.req)
 		inFlightResponse = nil
 		w.cancelCtx()
@@ -2127,7 +2116,7 @@ func (c *conn) serve(ctx context.Context) {
 		w.finishRequest()
 		c.rwc.SetWriteDeadline(time.Time{})
 		if !w.shouldReuseConnection() {
-			if w.requestBodyLimitHit || w.didIncompleteDiscard() {
+			if w.requestBodyLimitHit || w.closedRequestBodyEarly() {
 				c.closeWriteAndWait()
 			}
 			return

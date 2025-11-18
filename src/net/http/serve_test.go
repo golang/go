@@ -2150,137 +2150,118 @@ func TestServerUnreadRequestBodyLarge(t *testing.T) {
 	}
 }
 
-type bodyDiscardTest struct {
+type handlerBodyCloseTest struct {
 	bodySize     int
 	bodyChunked  bool
 	reqConnClose bool
 
-	shouldDiscardBody bool // should the handler discard body after it exits?
+	wantEOFSearch bool // should Handler's Body.Close do Reads, looking for EOF?
+	wantNextReq   bool // should it find the next request on the same conn?
 }
 
-func (t bodyDiscardTest) connectionHeader() string {
+func (t handlerBodyCloseTest) connectionHeader() string {
 	if t.reqConnClose {
 		return "Connection: close\r\n"
 	}
 	return ""
 }
 
-var bodyDiscardTests = [...]bodyDiscardTest{
-	// Have:
-	// - Small body.
-	// - Content-Length defined.
-	// Should:
-	// - Discard remaining body.
+var handlerBodyCloseTests = [...]handlerBodyCloseTest{
+	// Small enough to slurp past to the next request +
+	// has Content-Length.
 	0: {
-		bodySize:          20 << 10,
-		bodyChunked:       false,
-		reqConnClose:      false,
-		shouldDiscardBody: true,
+		bodySize:      20 << 10,
+		bodyChunked:   false,
+		reqConnClose:  false,
+		wantEOFSearch: true,
+		wantNextReq:   true,
 	},
 
-	// Have:
-	// - Small body.
-	// - Chunked (no Content-Length defined).
-	// Should:
-	// - Discard remaining body.
+	// Small enough to slurp past to the next request +
+	// is chunked.
 	1: {
-		bodySize:          20 << 10,
-		bodyChunked:       true,
-		reqConnClose:      false,
-		shouldDiscardBody: true,
+		bodySize:      20 << 10,
+		bodyChunked:   true,
+		reqConnClose:  false,
+		wantEOFSearch: true,
+		wantNextReq:   true,
 	},
 
-	// Have:
-	// - Small body.
-	// - Content-Length defined.
-	// - Connection: close.
-	// Should:
-	// - Not discard remaining body (no point as Connection: close).
+	// Small enough to slurp past to the next request +
+	// has Content-Length +
+	// declares Connection: close (so pointless to read more).
 	2: {
-		bodySize:          20 << 10,
-		bodyChunked:       false,
-		reqConnClose:      true,
-		shouldDiscardBody: false,
+		bodySize:      20 << 10,
+		bodyChunked:   false,
+		reqConnClose:  true,
+		wantEOFSearch: false,
+		wantNextReq:   false,
 	},
 
-	// Have:
-	// - Small body.
-	// - Chunked (no Content-Length defined).
-	// - Connection: close.
-	// Should:
-	// - Discard remaining body (chunked, so it might have trailers).
-	//
-	// TODO: maybe skip this if no trailers were declared in the headers.
+	// Small enough to slurp past to the next request +
+	// declares Connection: close,
+	// but chunked, so it might have trailers.
+	// TODO: maybe skip this search if no trailers were declared
+	// in the headers.
 	3: {
-		bodySize:          20 << 10,
-		bodyChunked:       true,
-		reqConnClose:      true,
-		shouldDiscardBody: true,
+		bodySize:      20 << 10,
+		bodyChunked:   true,
+		reqConnClose:  true,
+		wantEOFSearch: true,
+		wantNextReq:   false,
 	},
 
-	// Have:
-	// - Large body.
-	// - Content-Length defined.
-	// Should:
-	// - Not discard remaining body (we know it is too large from Content-Length).
+	// Big with Content-Length, so give up immediately if we know it's too big.
 	4: {
-		bodySize:          1 << 20,
-		bodyChunked:       false,
-		reqConnClose:      false,
-		shouldDiscardBody: false,
+		bodySize:      1 << 20,
+		bodyChunked:   false, // has a Content-Length
+		reqConnClose:  false,
+		wantEOFSearch: false,
+		wantNextReq:   false,
 	},
 
-	// Have:
-	// - Large body.
-	// - Chunked (no Content-Length defined).
-	// Should:
-	// - Discard remaining body (chunked, so we try up to a limit before giving up).
+	// Big chunked, so read a bit before giving up.
 	5: {
-		bodySize:          1 << 20,
-		bodyChunked:       true,
-		reqConnClose:      false,
-		shouldDiscardBody: true,
+		bodySize:      1 << 20,
+		bodyChunked:   true,
+		reqConnClose:  false,
+		wantEOFSearch: true,
+		wantNextReq:   false,
 	},
 
-	// Have:
-	// - Large body.
-	// - Content-Length defined.
-	// - Connection: close.
-	// Should:
-	// - Not discard remaining body (Connection: Close, and Content-Length is too large).
+	// Big with Connection: close, but chunked, so search for trailers.
+	// TODO: maybe skip this search if no trailers were declared
+	// in the headers.
 	6: {
-		bodySize:          1 << 20,
-		bodyChunked:       false,
-		reqConnClose:      true,
-		shouldDiscardBody: false,
+		bodySize:      1 << 20,
+		bodyChunked:   true,
+		reqConnClose:  true,
+		wantEOFSearch: true,
+		wantNextReq:   false,
 	},
-	// Have:
-	// - Large body.
-	// - Chunked (no Content-Length defined).
-	// - Connection: close.
-	// Should:
-	// - Discard remaining body (chunked, so it might have trailers).
-	//
-	// TODO: maybe skip this if no trailers were declared in the headers.
+
+	// Big with Connection: close, so don't do any reads on Close.
+	// With Content-Length.
 	7: {
-		bodySize:          1 << 20,
-		bodyChunked:       true,
-		reqConnClose:      true,
-		shouldDiscardBody: true,
+		bodySize:      1 << 20,
+		bodyChunked:   false,
+		reqConnClose:  true,
+		wantEOFSearch: false,
+		wantNextReq:   false,
 	},
 }
 
-func TestBodyDiscard(t *testing.T) {
+func TestHandlerBodyClose(t *testing.T) {
 	setParallel(t)
 	if testing.Short() && testenv.Builder() == "" {
 		t.Skip("skipping in -short mode")
 	}
-	for i, tt := range bodyDiscardTests {
-		testBodyDiscard(t, i, tt)
+	for i, tt := range handlerBodyCloseTests {
+		testHandlerBodyClose(t, i, tt)
 	}
 }
 
-func testBodyDiscard(t *testing.T, i int, tt bodyDiscardTest) {
+func testHandlerBodyClose(t *testing.T, i int, tt handlerBodyCloseTest) {
 	conn := new(testConn)
 	body := strings.Repeat("x", tt.bodySize)
 	if tt.bodyChunked {
@@ -2294,12 +2275,12 @@ func testBodyDiscard(t *testing.T, i int, tt bodyDiscardTest) {
 		cw.Close()
 		conn.readBuf.WriteString("\r\n")
 	} else {
-		conn.readBuf.Write(fmt.Appendf(nil,
+		conn.readBuf.Write([]byte(fmt.Sprintf(
 			"POST / HTTP/1.1\r\n"+
 				"Host: test\r\n"+
 				tt.connectionHeader()+
 				"Content-Length: %d\r\n"+
-				"\r\n", len(body)))
+				"\r\n", len(body))))
 		conn.readBuf.Write([]byte(body))
 	}
 	if !tt.reqConnClose {
@@ -2314,23 +2295,26 @@ func testBodyDiscard(t *testing.T, i int, tt bodyDiscardTest) {
 	}
 
 	ls := &oneConnListener{conn}
-	var initialSize, closedSize, exitSize int
+	var numReqs int
+	var size0, size1 int
 	go Serve(ls, HandlerFunc(func(rw ResponseWriter, req *Request) {
-		initialSize = readBufLen()
-		req.Body.Close()
-		closedSize = readBufLen()
+		numReqs++
+		if numReqs == 1 {
+			size0 = readBufLen()
+			req.Body.Close()
+			size1 = readBufLen()
+		}
 	}))
 	<-conn.closec
-	exitSize = readBufLen()
-
-	if initialSize != closedSize {
-		t.Errorf("%d. Close() within request handler should be a no-op, but body size went from %d to %d", i, initialSize, closedSize)
+	if numReqs < 1 || numReqs > 2 {
+		t.Fatalf("%d. bug in test. unexpected number of requests = %d", i, numReqs)
 	}
-	if tt.shouldDiscardBody && closedSize <= exitSize {
-		t.Errorf("%d. want body content to be discarded upon request handler exit, but size went from %d to %d", i, closedSize, exitSize)
+	didSearch := size0 != size1
+	if didSearch != tt.wantEOFSearch {
+		t.Errorf("%d. did EOF search = %v; want %v (size went from %d to %d)", i, didSearch, !didSearch, size0, size1)
 	}
-	if !tt.shouldDiscardBody && closedSize != exitSize {
-		t.Errorf("%d. want body content to not be discarded upon request handler exit, but size went from %d to %d", i, closedSize, exitSize)
+	if tt.wantNextReq && numReqs != 2 {
+		t.Errorf("%d. numReq = %d; want 2", i, numReqs)
 	}
 }
 
