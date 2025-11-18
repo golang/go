@@ -253,7 +253,7 @@ func f9(a, b bool) int {
 
 func f10(a string) int {
 	n := len(a)
-	b := a[:n>>1] // ERROR "Proved IsSliceInBounds$"
+	b := a[:n>>1] // ERROR "(Proved IsSliceInBounds|Proved Rsh64x64 is unsigned)$"
 	// We optimize comparisons with small constant strings (see cmd/compile/internal/gc/walk.go),
 	// so this string literal must be long.
 	if b == "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" {
@@ -1086,7 +1086,7 @@ func issue57077(s []int) (left, right []int) {
 }
 
 func issue76332(s []int) (left, right []int) {
-	middle := len(s) >> 1
+	middle := len(s) >> 1 // ERROR "Proved Rsh64x64 is unsigned$"
 	left = s[:middle]     // ERROR "Proved IsSliceInBounds$"
 	right = s[middle:]    // ERROR "Proved IsSliceInBounds$"
 	return
@@ -2564,7 +2564,7 @@ func rightshift(v *[256]int) int {
 		}
 	}
 	for i := range 1024 { // ERROR "Induction"
-		if v[i>>2] == 0 { // ERROR "Proved IsInBounds"
+		if v[i>>2] == 0 { // ERROR "(Proved IsInBounds|Proved Rsh64x64 is unsigned)"
 			return i
 		}
 	}
