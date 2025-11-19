@@ -7151,8 +7151,12 @@ const (
 	OpSHA1FourRoundsUint32x4
 	OpSelect128FromPairFloat32x8
 	OpSelect128FromPairFloat64x4
+	OpSelect128FromPairInt8x32
+	OpSelect128FromPairInt16x16
 	OpSelect128FromPairInt32x8
 	OpSelect128FromPairInt64x4
+	OpSelect128FromPairUint8x32
+	OpSelect128FromPairUint16x16
 	OpSelect128FromPairUint32x8
 	OpSelect128FromPairUint64x4
 	OpSetElemFloat32x4
@@ -92251,6 +92255,18 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "Select128FromPairInt8x32",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Select128FromPairInt16x16",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
 		name:    "Select128FromPairInt32x8",
 		auxType: auxUInt8,
 		argLen:  2,
@@ -92258,6 +92274,18 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "Select128FromPairInt64x4",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Select128FromPairUint8x32",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Select128FromPairUint16x16",
 		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,

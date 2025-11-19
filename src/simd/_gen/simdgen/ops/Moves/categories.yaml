@@ -135,7 +135,7 @@
     // NAME concatenates selected elements from x and y into the lower and upper
     // halves of the output.  The selection is chosen by the constant parameter h1h0l1l0
     // where each {h,l}{1,0} is two bits specify which element from y or x to select.
-    // For example, {0,1,2,3}.concatSelectedConstant(0b_11_01_00_10, {4,5,6,7}) returns
+    // For example, {0,1,2,3}.NAME(0b_11_01_00_10, {4,5,6,7}) returns
     // {2, 0, 5, 7} (don't forget that the binary constant is written big-endian).
 
 - go: concatSelectedConstant
@@ -196,9 +196,12 @@
     // The selection is chosen by the constant parameter h1h0l1l0
     // where each {h,l}{1,0} is two bits specifying which element from y or x to select.
     // For example,
-    // {0,1,2,3,8,9,10,11, 20,21,22,23,28,29,210,211}.NAME(
-    //             0b_11_01_00_10, {4,5,6,7,12,13,14,15, 24,25,26,27,212,213,214,215})
+    //
+    //   {0,1,2,3,8,9,10,11, 20,21,22,23,28,29,210,211}.NAME(
+    //    0b_11_01_00_10, {4,5,6,7,12,13,14,15, 24,25,26,27,212,213,214,215})
+    //
     // returns {2,0,5,7,10,8,13,15, 22,20,25,27,210,28,213,215}
+    //
     // (don't forget that the binary constant is written big-endian).
 
 - go: concatSelectedConstantGrouped
@@ -214,7 +217,7 @@
     // subvectors of x and y.
     //
     // For example {4,5,8,9,12,13,16,17}.NAME(0b11_00_11_10, {6,7,10,11,14,15,18,19})
-    // returns {4,7,9,11,12,14,17,19}; bit 0 is zero, selecting element 0 from x's 
+    // returns {4,7,9,11,12,14,17,19}; bit 0 is zero, selecting element 0 from x's
     // least 128-bits (4), then 1, selects the element 1 from y's least 128-bits (7),
     // then 1, selecting element 1 from x's next 128 bits (9), then 1,
     // selecting element 1 from y's upper 128 bits (11).  The next two 0 bits select
@@ -227,9 +230,8 @@
   commutative: false
   documentation: !string |-
     // NAME treats the 256-bit vectors x and y as a single vector of four
-    // 128-bit elements, and returns a 256-bit result formed by 
+    // 128-bit elements, and returns a 256-bit result formed by
     // concatenating the two elements specified by lo and hi.
-    // For example, {4,5}.NAME(3,0,{6,7}) returns {7,4}.
 
 - go: ConcatShiftBytesRight
   commutative: false

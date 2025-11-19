@@ -5604,10 +5604,14 @@ func (x Float64x8) Scale(y Float64x8) Float64x8
 // Select128FromPair treats the 256-bit vectors x and y as a single vector of four
 // 128-bit elements, and returns a 256-bit result formed by
 // concatenating the two elements specified by lo and hi.
-// For example, {4,5}.Select128FromPair(3,0,{6,7}) returns {7,4}.
+// For example,
+//
+//	{40, 41, 42, 43, 50, 51, 52, 53}.Select128FromPair(3, 0, {60, 61, 62, 63, 70, 71, 72, 73})
+//
+// returns {70, 71, 72, 73, 40, 41, 42, 43}.
 //
 // lo, hi result in better performance when they are constants, non-constant values will be translated into a jump table.
-// lo, hi should be between 0 and 3, inclusive; other values will result in a runtime panic.
+// lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
 //
 // Asm: VPERM2F128, CPU Feature: AVX
 func (x Float32x8) Select128FromPair(lo, hi uint8, y Float32x8) Float32x8
@@ -5615,10 +5619,14 @@ func (x Float32x8) Select128FromPair(lo, hi uint8, y Float32x8) Float32x8
 // Select128FromPair treats the 256-bit vectors x and y as a single vector of four
 // 128-bit elements, and returns a 256-bit result formed by
 // concatenating the two elements specified by lo and hi.
-// For example, {4,5}.Select128FromPair(3,0,{6,7}) returns {7,4}.
+// For example,
+//
+//	{40, 41, 50, 51}.Select128FromPair(3, 0, {60, 61, 70, 71})
+//
+// returns {70, 71, 40, 41}.
 //
 // lo, hi result in better performance when they are constants, non-constant values will be translated into a jump table.
-// lo, hi should be between 0 and 3, inclusive; other values will result in a runtime panic.
+// lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
 //
 // Asm: VPERM2F128, CPU Feature: AVX
 func (x Float64x4) Select128FromPair(lo, hi uint8, y Float64x4) Float64x4
@@ -5626,10 +5634,46 @@ func (x Float64x4) Select128FromPair(lo, hi uint8, y Float64x4) Float64x4
 // Select128FromPair treats the 256-bit vectors x and y as a single vector of four
 // 128-bit elements, and returns a 256-bit result formed by
 // concatenating the two elements specified by lo and hi.
-// For example, {4,5}.Select128FromPair(3,0,{6,7}) returns {7,4}.
+// For example,
+//
+//	{0x40, 0x41, ..., 0x4f, 0x50, 0x51, ..., 0x5f}.Select128FromPair(3, 0,
+//	     {0x60, 0x61, ..., 0x6f, 0x70, 0x71, ..., 0x7f})
+//
+// returns {0x70, 0x71, ..., 0x7f, 0x40, 0x41, ..., 0x4f}.
 //
 // lo, hi result in better performance when they are constants, non-constant values will be translated into a jump table.
-// lo, hi should be between 0 and 3, inclusive; other values will result in a runtime panic.
+// lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
+//
+// Asm: VPERM2I128, CPU Feature: AVX2
+func (x Int8x32) Select128FromPair(lo, hi uint8, y Int8x32) Int8x32
+
+// Select128FromPair treats the 256-bit vectors x and y as a single vector of four
+// 128-bit elements, and returns a 256-bit result formed by
+// concatenating the two elements specified by lo and hi.
+// For example,
+//
+//	{40, 41, 42, 43, 44, 45, 46, 47, 50, 51, 52, 53, 54, 55, 56, 57}.Select128FromPair(3, 0,
+//	 {60, 61, 62, 63, 64, 65, 66, 67, 70, 71, 72, 73, 74, 75, 76, 77})
+//
+// returns {70, 71, 72, 73, 74, 75, 76, 77, 40, 41, 42, 43, 44, 45, 46, 47}.
+//
+// lo, hi result in better performance when they are constants, non-constant values will be translated into a jump table.
+// lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
+//
+// Asm: VPERM2I128, CPU Feature: AVX2
+func (x Int16x16) Select128FromPair(lo, hi uint8, y Int16x16) Int16x16
+
+// Select128FromPair treats the 256-bit vectors x and y as a single vector of four
+// 128-bit elements, and returns a 256-bit result formed by
+// concatenating the two elements specified by lo and hi.
+// For example,
+//
+//	{40, 41, 42, 43, 50, 51, 52, 53}.Select128FromPair(3, 0, {60, 61, 62, 63, 70, 71, 72, 73})
+//
+// returns {70, 71, 72, 73, 40, 41, 42, 43}.
+//
+// lo, hi result in better performance when they are constants, non-constant values will be translated into a jump table.
+// lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
 //
 // Asm: VPERM2I128, CPU Feature: AVX2
 func (x Int32x8) Select128FromPair(lo, hi uint8, y Int32x8) Int32x8
@@ -5637,10 +5681,14 @@ func (x Int32x8) Select128FromPair(lo, hi uint8, y Int32x8) Int32x8
 // Select128FromPair treats the 256-bit vectors x and y as a single vector of four
 // 128-bit elements, and returns a 256-bit result formed by
 // concatenating the two elements specified by lo and hi.
-// For example, {4,5}.Select128FromPair(3,0,{6,7}) returns {7,4}.
+// For example,
+//
+//	{40, 41, 50, 51}.Select128FromPair(3, 0, {60, 61, 70, 71})
+//
+// returns {70, 71, 40, 41}.
 //
 // lo, hi result in better performance when they are constants, non-constant values will be translated into a jump table.
-// lo, hi should be between 0 and 3, inclusive; other values will result in a runtime panic.
+// lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
 //
 // Asm: VPERM2I128, CPU Feature: AVX2
 func (x Int64x4) Select128FromPair(lo, hi uint8, y Int64x4) Int64x4
@@ -5648,10 +5696,46 @@ func (x Int64x4) Select128FromPair(lo, hi uint8, y Int64x4) Int64x4
 // Select128FromPair treats the 256-bit vectors x and y as a single vector of four
 // 128-bit elements, and returns a 256-bit result formed by
 // concatenating the two elements specified by lo and hi.
-// For example, {4,5}.Select128FromPair(3,0,{6,7}) returns {7,4}.
+// For example,
+//
+//	{0x40, 0x41, ..., 0x4f, 0x50, 0x51, ..., 0x5f}.Select128FromPair(3, 0,
+//	     {0x60, 0x61, ..., 0x6f, 0x70, 0x71, ..., 0x7f})
+//
+// returns {0x70, 0x71, ..., 0x7f, 0x40, 0x41, ..., 0x4f}.
 //
 // lo, hi result in better performance when they are constants, non-constant values will be translated into a jump table.
-// lo, hi should be between 0 and 3, inclusive; other values will result in a runtime panic.
+// lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
+//
+// Asm: VPERM2I128, CPU Feature: AVX2
+func (x Uint8x32) Select128FromPair(lo, hi uint8, y Uint8x32) Uint8x32
+
+// Select128FromPair treats the 256-bit vectors x and y as a single vector of four
+// 128-bit elements, and returns a 256-bit result formed by
+// concatenating the two elements specified by lo and hi.
+// For example,
+//
+//	{40, 41, 42, 43, 44, 45, 46, 47, 50, 51, 52, 53, 54, 55, 56, 57}.Select128FromPair(3, 0,
+//	 {60, 61, 62, 63, 64, 65, 66, 67, 70, 71, 72, 73, 74, 75, 76, 77})
+//
+// returns {70, 71, 72, 73, 74, 75, 76, 77, 40, 41, 42, 43, 44, 45, 46, 47}.
+//
+// lo, hi result in better performance when they are constants, non-constant values will be translated into a jump table.
+// lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
+//
+// Asm: VPERM2I128, CPU Feature: AVX2
+func (x Uint16x16) Select128FromPair(lo, hi uint8, y Uint16x16) Uint16x16
+
+// Select128FromPair treats the 256-bit vectors x and y as a single vector of four
+// 128-bit elements, and returns a 256-bit result formed by
+// concatenating the two elements specified by lo and hi.
+// For example,
+//
+//	{40, 41, 42, 43, 50, 51, 52, 53}.Select128FromPair(3, 0, {60, 61, 62, 63, 70, 71, 72, 73})
+//
+// returns {70, 71, 72, 73, 40, 41, 42, 43}.
+//
+// lo, hi result in better performance when they are constants, non-constant values will be translated into a jump table.
+// lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
 //
 // Asm: VPERM2I128, CPU Feature: AVX2
 func (x Uint32x8) Select128FromPair(lo, hi uint8, y Uint32x8) Uint32x8
@@ -5659,10 +5743,14 @@ func (x Uint32x8) Select128FromPair(lo, hi uint8, y Uint32x8) Uint32x8
 // Select128FromPair treats the 256-bit vectors x and y as a single vector of four
 // 128-bit elements, and returns a 256-bit result formed by
 // concatenating the two elements specified by lo and hi.
-// For example, {4,5}.Select128FromPair(3,0,{6,7}) returns {7,4}.
+// For example,
+//
+//	{40, 41, 50, 51}.Select128FromPair(3, 0, {60, 61, 70, 71})
+//
+// returns {70, 71, 40, 41}.
 //
 // lo, hi result in better performance when they are constants, non-constant values will be translated into a jump table.
-// lo, hi should be between 0 and 3, inclusive; other values will result in a runtime panic.
+// lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
 //
 // Asm: VPERM2I128, CPU Feature: AVX2
 func (x Uint64x4) Select128FromPair(lo, hi uint8, y Uint64x4) Uint64x4

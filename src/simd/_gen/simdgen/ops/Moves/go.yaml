@@ -837,6 +837,12 @@
 - go: Select128FromPair
   asm: VPERM2F128
   operandOrder: II
+  addDoc: !string |-
+    // For example,
+    //
+    //   {40, 41, 50, 51}.NAME(3, 0, {60, 61, 70, 71})
+    //
+    // returns {70, 71, 40, 41}.
   in:
   - &v
     go: $t
@@ -854,6 +860,12 @@
 - go: Select128FromPair
   asm: VPERM2F128
   operandOrder: II
+  addDoc: !string |-
+    // For example,
+    //
+    //   {40, 41, 42, 43, 50, 51, 52, 53}.NAME(3, 0, {60, 61, 62, 63, 70, 71, 72, 73})
+    //
+    // returns {70, 71, 72, 73, 40, 41, 42, 43}.
   in:
   - &v
     go: $t
@@ -872,6 +884,12 @@
 - go: Select128FromPair
   asm: VPERM2I128
   operandOrder: II
+  addDoc: !string |-
+    // For example,
+    //
+    //   {40, 41, 50, 51}.NAME(3, 0, {60, 61, 70, 71})
+    //
+    // returns {70, 71, 40, 41}.
   in:
   - &v
     go: $t
@@ -890,6 +908,12 @@
 - go: Select128FromPair
   asm: VPERM2I128
   operandOrder: II
+  addDoc: !string |-
+    // For example,
+    //
+    //   {40, 41, 42, 43, 50, 51, 52, 53}.NAME(3, 0, {60, 61, 62, 63, 70, 71, 72, 73})
+    //
+    // returns {70, 71, 72, 73, 40, 41, 42, 43}.
   in:
   - &v
     go: $t
@@ -897,6 +921,56 @@
     base: int|uint
     bits: 256
     OverwriteElementBits: 32
+  - *v
+  - class: immediate
+    immOffset: 0
+    name: "lo, hi"
+  inVariant: []
+  out:
+  - *v
+
+- go: Select128FromPair
+  asm: VPERM2I128
+  operandOrder: II
+  addDoc: !string |-
+    // For example,
+    //
+    //   {40, 41, 42, 43, 44, 45, 46, 47, 50, 51, 52, 53, 54, 55, 56, 57}.NAME(3, 0,
+    //    {60, 61, 62, 63, 64, 65, 66, 67, 70, 71, 72, 73, 74, 75, 76, 77})
+    //
+    // returns {70, 71, 72, 73, 74, 75, 76, 77, 40, 41, 42, 43, 44, 45, 46, 47}.
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: int|uint
+    bits: 256
+    OverwriteElementBits: 16
+  - *v
+  - class: immediate
+    immOffset: 0
+    name: "lo, hi"
+  inVariant: []
+  out:
+  - *v
+
+- go: Select128FromPair
+  asm: VPERM2I128
+  operandOrder: II
+  addDoc: !string |-
+    // For example,
+    //
+    //   {0x40, 0x41, ..., 0x4f, 0x50, 0x51, ..., 0x5f}.NAME(3, 0,
+    //        {0x60, 0x61, ..., 0x6f, 0x70, 0x71, ..., 0x7f})
+    //
+    // returns {0x70, 0x71, ..., 0x7f, 0x40, 0x41, ..., 0x4f}.
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: int|uint
+    bits: 256
+    OverwriteElementBits: 8
   - *v
   - class: immediate
     immOffset: 0
@@ -930,4 +1004,3 @@
     immOffset: 0
   out:
   - *uint256512
- 

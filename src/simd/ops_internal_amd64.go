@@ -144,11 +144,12 @@ func (x Float32x8) concatSelectedConstantGrouped(h1h0l1l0 uint8, y Float32x8) Fl
 // The selection is chosen by the constant parameter h1h0l1l0
 // where each {h,l}{1,0} is two bits specifying which element from y or x to select.
 // For example,
-// {0,1,2,3,8,9,10,11, 20,21,22,23,28,29,210,211}.concatSelectedConstantGrouped(
 //
-//	0b_11_01_00_10, {4,5,6,7,12,13,14,15, 24,25,26,27,212,213,214,215})
+//	{0,1,2,3,8,9,10,11, 20,21,22,23,28,29,210,211}.concatSelectedConstantGrouped(
+//	 0b_11_01_00_10, {4,5,6,7,12,13,14,15, 24,25,26,27,212,213,214,215})
 //
 // returns {2,0,5,7,10,8,13,15, 22,20,25,27,210,28,213,215}
+//
 // (don't forget that the binary constant is written big-endian).
 //
 // h1h0l1l0 results in better performance when it's a constant, a non-constant value will be translated into a jump table.
@@ -215,11 +216,12 @@ func (x Int32x8) concatSelectedConstantGrouped(h1h0l1l0 uint8, y Int32x8) Int32x
 // The selection is chosen by the constant parameter h1h0l1l0
 // where each {h,l}{1,0} is two bits specifying which element from y or x to select.
 // For example,
-// {0,1,2,3,8,9,10,11, 20,21,22,23,28,29,210,211}.concatSelectedConstantGrouped(
 //
-//	0b_11_01_00_10, {4,5,6,7,12,13,14,15, 24,25,26,27,212,213,214,215})
+//	{0,1,2,3,8,9,10,11, 20,21,22,23,28,29,210,211}.concatSelectedConstantGrouped(
+//	 0b_11_01_00_10, {4,5,6,7,12,13,14,15, 24,25,26,27,212,213,214,215})
 //
 // returns {2,0,5,7,10,8,13,15, 22,20,25,27,210,28,213,215}
+//
 // (don't forget that the binary constant is written big-endian).
 //
 // h1h0l1l0 results in better performance when it's a constant, a non-constant value will be translated into a jump table.
@@ -286,11 +288,12 @@ func (x Uint32x8) concatSelectedConstantGrouped(h1h0l1l0 uint8, y Uint32x8) Uint
 // The selection is chosen by the constant parameter h1h0l1l0
 // where each {h,l}{1,0} is two bits specifying which element from y or x to select.
 // For example,
-// {0,1,2,3,8,9,10,11, 20,21,22,23,28,29,210,211}.concatSelectedConstantGrouped(
 //
-//	0b_11_01_00_10, {4,5,6,7,12,13,14,15, 24,25,26,27,212,213,214,215})
+//	{0,1,2,3,8,9,10,11, 20,21,22,23,28,29,210,211}.concatSelectedConstantGrouped(
+//	 0b_11_01_00_10, {4,5,6,7,12,13,14,15, 24,25,26,27,212,213,214,215})
 //
 // returns {2,0,5,7,10,8,13,15, 22,20,25,27,210,28,213,215}
+//
 // (don't forget that the binary constant is written big-endian).
 //
 // h1h0l1l0 results in better performance when it's a constant, a non-constant value will be translated into a jump table.

@@ -98,6 +98,8 @@ func (o *Operation) SkipMaskedMethod() bool {
 	return false
 }
 
+var reForName = regexp.MustCompile(`\bNAME\b`)
+
 func (o *Operation) DecodeUnified(v *unify.Value) error {
 	if err := v.Decode(&o.rawOperation); err != nil {
 		return err
@@ -117,7 +119,7 @@ func (o *Operation) DecodeUnified(v *unify.Value) error {
 	} else {
 		o.Documentation = "// UNDOCUMENTED"
 	}
-	o.Documentation = regexp.MustCompile(`\bNAME\b`).ReplaceAllString(o.Documentation, o.Go)
+	o.Documentation = reForName.ReplaceAllString(o.Documentation, o.Go)
 	if isMasked {
 		o.Documentation += "\n//\n// This operation is applied selectively under a write mask."
 		// Suppress generic op and method declaration for exported methods, if a mask is present.
@@ -128,7 +130,7 @@ func (o *Operation) DecodeUnified(v *unify.Value) error {
 		}
 	}
 	if o.rawOperation.AddDoc != nil {
-		o.Documentation += "\n" + *o.rawOperation.AddDoc
+		o.Documentation += "\n" + reForName.ReplaceAllString(*o.rawOperation.AddDoc, o.Go)
 	}
 
 	o.In = append(o.rawOperation.In, o.rawOperation.InVariant...)

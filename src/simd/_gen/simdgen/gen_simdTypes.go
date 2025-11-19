@@ -351,7 +351,7 @@ func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op2NameAndType "y"}}, {{.ImmName}} uin
 {{if .Documentation}}{{.Documentation}}
 //{{end}}
 // {{.ImmName}} result in better performance when they are constants, non-constant values will be translated into a jump table.
-// {{.ImmName}} should be between 0 and 3, inclusive; other values will result in a runtime panic.
+// {{.ImmName}} should be between 0 and 3, inclusive; other values may result in a runtime panic.
 //
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
 func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} uint8, {{.Op2NameAndType "y"}}) {{.GoType}}
