@@ -2791,6 +2791,11 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	AORCB & obj.AMask:  {enc: rIIEncoding},
 	AREV8 & obj.AMask:  {enc: rIIEncoding},
 
+	// 28.4.3: Carry-less Multiplication (Zbc)
+	ACLMUL & obj.AMask:  {enc: rIIIEncoding, ternary: true},
+	ACLMULH & obj.AMask: {enc: rIIIEncoding, ternary: true},
+	ACLMULR & obj.AMask: {enc: rIIIEncoding, ternary: true},
+
 	// 28.4.4: Single-bit Instructions (Zbs)
 	ABCLR & obj.AMask:  {enc: rIIIEncoding, immForm: ABCLRI, ternary: true},
 	ABCLRI & obj.AMask: {enc: iIIEncoding, ternary: true},

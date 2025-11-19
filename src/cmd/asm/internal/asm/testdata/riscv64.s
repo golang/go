@@ -663,6 +663,12 @@ start:
 	ORCB	X5, X6					// 13d37228
 	REV8	X7, X8					// 13d4836b
 
+
+	// Zbc extension
+	CLMUL	X5, X6, X7 				// b313530a
+	CLMULH	X5, X6, X7 				// b333530a
+	CLMULR	X5, X6, X7 				// b323530a
+
 	// 28.4.4: Single-bit Instructions (Zbs)
 	BCLR	X23, X24, X25				// b31c7c49
 	BCLR	$63, X24				// 131cfc4b
