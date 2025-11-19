@@ -479,20 +479,6 @@ func intFromReg(r *abi.RegArgs, reg int, argSize uintptr, to unsafe.Pointer) {
 // argSize must be non-zero, fit in a register, and a power-of-two.
 func intToReg(r *abi.RegArgs, reg int, argSize uintptr, from unsafe.Pointer) {
 	memmove(r.IntRegArgAddr(reg, argSize), from, argSize)
-
-	if argSize < goarch.PtrSize {
-		regBytes := unsafe.Slice((*byte)(unsafe.Pointer(&r.Ints[reg])), goarch.PtrSize)
-		if goarch.BigEndian {
-			offset := goarch.PtrSize - argSize
-			for i := uintptr(0); i < offset; i++ {
-				regBytes[i] = 0
-			}
-		} else {
-			for i := argSize; i < goarch.PtrSize; i++ {
-				regBytes[i] = 0
-			}
-		}
-	}
 }
 
 // floatFromReg loads a float value from its register representation in r.
