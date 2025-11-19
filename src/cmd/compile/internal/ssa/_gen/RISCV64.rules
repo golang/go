@@ -861,7 +861,8 @@
 (Max64u x y) && buildcfg.GORISCV64 >= 22 => (MAXU x y)
 
 // Zicond Extension for Integer Conditional Operations
-(CondSelect <t> x y cond) && buildcfg.GORISCV64 >= 23 => (OR (CZEROEQZ <t> x cond) (CZERONEZ <t> y cond))
+(CondSelect <t> x y cond) => 
+	(OR (CZEROEQZ <t> x (MOVBUreg <typ.UInt64> cond)) (CZERONEZ <t> y (MOVBUreg <typ.UInt64> cond)))
 (CZERO(EQ|NE)Z x (SNEZ y)) => (CZERO(EQ|NE)Z x y)
 (CZERO(EQ|NE)Z x (SEQZ y)) => (CZERO(NE|EQ)Z x y)
 (CZEROEQZ x x) => x
