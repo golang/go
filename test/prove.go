@@ -2650,6 +2650,17 @@ func subLengths2(b []byte, i int) {
 	}
 }
 
+func issue76355(s []int, i int) int {
+    var a [10]int
+    if i <= len(s)-1 {
+        v := len(s) - i
+        if v < 10 {
+            return a[v]
+        }
+    }
+    return 0
+}
+
 //go:noinline
 func prove(x int) {
 }

@@ -2051,8 +2051,11 @@ func (ft *factsTable) detectSliceLenRelation(v *Value) {
 		return
 	}
 
-	slice := v.Args[0].Args[0]
 	index := v.Args[1]
+	if !ft.isNonNegative(index) {
+		return
+	}
+	slice := v.Args[0].Args[0]
 
 	for o := ft.orderings[index.ID]; o != nil; o = o.next {
 		if o.d != signed {
