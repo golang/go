@@ -1094,12 +1094,16 @@ func rewriteValueRISCV64_OpCondSelect(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (CondSelect <t> x y cond)
+	// cond: buildcfg.GORISCV64 >= 23
 	// result: (OR (CZEROEQZ <t> x (MOVBUreg <typ.UInt64> cond)) (CZERONEZ <t> y (MOVBUreg <typ.UInt64> cond)))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
 		cond := v_2
+		if !(buildcfg.GORISCV64 >= 23) {
+			break
+		}
 		v.reset(OpRISCV64OR)
 		v0 := b.NewValue0(v.Pos, OpRISCV64CZEROEQZ, t)
 		v1 := b.NewValue0(v.Pos, OpRISCV64MOVBUreg, typ.UInt64)
@@ -1110,6 +1114,7 @@ func rewriteValueRISCV64_OpCondSelect(v *Value) bool {
 		v.AddArg2(v0, v2)
 		return true
 	}
+	return false
 }
 func rewriteValueRISCV64_OpConst16(v *Value) bool {
 	// match: (Const16 [val])
