@@ -13,17 +13,17 @@
 // ## Design
 //
 // The basic idea behind the the execution tracer is to have per-M buffers that
-// trace data may be written into. Each M maintains a seqlock indicating whether
+// trace data may be written into. Each M maintains a write flag indicating whether
 // its trace buffer is currently in use.
 //
 // Tracing is initiated by StartTrace, and proceeds in "generations," with each
 // generation being marked by a call to traceAdvance, to advance to the next
 // generation. Generations are a global synchronization point for trace data,
 // and we proceed to a new generation by moving forward trace.gen. Each M reads
-// trace.gen under its own seqlock to determine which generation it is writing
+// trace.gen under its own write flag to determine which generation it is writing
 // trace data for. To this end, each M has 2 slots for buffers: one slot for the
 // previous generation, one slot for the current one. It uses tl.gen to select
-// which buffer slot to write to. Simultaneously, traceAdvance uses the seqlock
+// which buffer slot to write to. Simultaneously, traceAdvance uses the write flag
 // to determine whether every thread is guaranteed to observe an updated
 // trace.gen. Once it is sure, it may then flush any buffers that are left over
 // from the previous generation safely, since it knows the Ms will not mutate
@@ -43,7 +43,7 @@
 // appear in pairs: one for the previous generation, and one for the current one.
 // Like the per-M buffers, which of the two is written to is selected using trace.gen,
 // and anything managed this way must similarly be mutated only in traceAdvance or
-// under the M's seqlock.
+// under the M's write flag.
 //
 // Trace events themselves are simple. They consist of a single byte for the event type,
 // followed by zero or more LEB128-encoded unsigned varints. They are decoded using
@@ -629,7 +629,7 @@ func traceAdvance(stopTrace bool) {
 	// while they're still on that list. Removal from sched.freem is serialized with
 	// this snapshot, so either we'll capture an m on sched.freem and race with
 	// the removal to flush its buffers (resolved by traceThreadDestroy acquiring
-	// the thread's seqlock, which one of us must win, so at least its old gen buffer
+	// the thread's write flag, which one of us must win, so at least its old gen buffer
 	// will be flushed in time for the new generation) or it will have flushed its
 	// buffers before we snapshotted it to begin with.
 	lock(&sched.lock)
@@ -645,7 +645,7 @@ func traceAdvance(stopTrace bool) {
 
 	// Iterate over our snapshot, flushing every buffer until we're done.
 	//
-	// Because trace writers read the generation while the seqlock is
+	// Because trace writers read the generation while the write flag is
 	// held, we can be certain that when there are no writers there are
 	// also no stale generation values left. Therefore, it's safe to flush
 	// any buffers that remain in that generation's slot.
@@ -658,7 +658,7 @@ func traceAdvance(stopTrace bool) {
 		for mToFlush != nil {
 			prev := &mToFlush
 			for mp := *prev; mp != nil; {
-				if mp.trace.seqlock.Load()%2 != 0 {
+				if mp.trace.writing.Load() {
 					// The M is writing. Come back to it later.
 					prev = &mp.trace.link
 					mp = mp.trace.link
