@@ -11,6 +11,7 @@ import (
 	"crypto/ecdh"
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"crypto/internal/boring"
 	"crypto/rand"
 	"crypto/tls/internal/fips140tls"
 	"crypto/x509"
@@ -1964,84 +1965,134 @@ func testVerifyCertificates(t *testing.T, version uint16) {
 }
 
 func TestHandshakeMLKEM(t *testing.T) {
-	skipFIPS(t) // No X25519MLKEM768 in FIPS
+	if boring.Enabled && fips140tls.Required() {
+		t.Skip("ML-KEM not supported in BoringCrypto FIPS mode")
+	}
+	defaultWithPQ := []CurveID{X25519MLKEM768, SecP256r1MLKEM768, SecP384r1MLKEM1024,
+		X25519, CurveP256, CurveP384, CurveP521}
+	defaultWithoutPQ := []CurveID{X25519, CurveP256, CurveP384, CurveP521}
 	var tests = []struct {
-		name                string
-		clientConfig        func(*Config)
-		serverConfig        func(*Config)
-		preparation         func(*testing.T)
-		expectClientSupport bool
-		expectMLKEM         bool
-		expectHRR           bool
+		name           string
+		clientConfig   func(*Config)
+		serverConfig   func(*Config)
+		preparation    func(*testing.T)
+		expectClient   []CurveID
+		expectSelected CurveID
+		expectHRR      bool
 	}{
 		{
-			name:                "Default",
-			expectClientSupport: true,
-			expectMLKEM:         true,
-			expectHRR:           false,
+			name:           "Default",
+			expectClient:   defaultWithPQ,
+			expectSelected: X25519MLKEM768,
 		},
 		{
 			name: "ClientCurvePreferences",
 			clientConfig: func(config *Config) {
 				config.CurvePreferences = []CurveID{X25519}
 			},
-			expectClientSupport: false,
+			expectClient:   []CurveID{X25519},
+			expectSelected: X25519,
 		},
 		{
 			name: "ServerCurvePreferencesX25519",
 			serverConfig: func(config *Config) {
 				config.CurvePreferences = []CurveID{X25519}
 			},
-			expectClientSupport: true,
-			expectMLKEM:         false,
-			expectHRR:           false,
+			expectClient:   defaultWithPQ,
+			expectSelected: X25519,
 		},
 		{
 			name: "ServerCurvePreferencesHRR",
 			serverConfig: func(config *Config) {
 				config.CurvePreferences = []CurveID{CurveP256}
 			},
-			expectClientSupport: true,
-			expectMLKEM:         false,
-			expectHRR:           true,
+			expectClient:   defaultWithPQ,
+			expectSelected: CurveP256,
+			expectHRR:      true,
+		},
+		{
+			name: "SecP256r1MLKEM768-Only",
+			clientConfig: func(config *Config) {
+				config.CurvePreferences = []CurveID{SecP256r1MLKEM768}
+			},
+			expectClient:   []CurveID{SecP256r1MLKEM768},
+			expectSelected: SecP256r1MLKEM768,
+		},
+		{
+			name: "SecP256r1MLKEM768-HRR",
+			serverConfig: func(config *Config) {
+				config.CurvePreferences = []CurveID{SecP256r1MLKEM768, CurveP256}
+			},
+			expectClient:   defaultWithPQ,
+			expectSelected: SecP256r1MLKEM768,
+			expectHRR:      true,
+		},
+		{
+			name: "SecP384r1MLKEM1024",
+			clientConfig: func(config *Config) {
+				config.CurvePreferences = []CurveID{SecP384r1MLKEM1024, CurveP384}
+			},
+			expectClient:   []CurveID{SecP384r1MLKEM1024, CurveP384},
+			expectSelected: SecP384r1MLKEM1024,
+		},
+		{
+			name: "CurveP256NoHRR",
+			clientConfig: func(config *Config) {
+				config.CurvePreferences = []CurveID{SecP256r1MLKEM768, CurveP256}
+			},
+			serverConfig: func(config *Config) {
+				config.CurvePreferences = []CurveID{CurveP256}
+			},
+			expectClient:   []CurveID{SecP256r1MLKEM768, CurveP256},
+			expectSelected: CurveP256,
 		},
 		{
 			name: "ClientMLKEMOnly",
 			clientConfig: func(config *Config) {
 				config.CurvePreferences = []CurveID{X25519MLKEM768}
 			},
-			expectClientSupport: true,
-			expectMLKEM:         true,
+			expectClient:   []CurveID{X25519MLKEM768},
+			expectSelected: X25519MLKEM768,
 		},
 		{
 			name: "ClientSortedCurvePreferences",
 			clientConfig: func(config *Config) {
 				config.CurvePreferences = []CurveID{CurveP256, X25519MLKEM768}
 			},
-			expectClientSupport: true,
-			expectMLKEM:         true,
+			expectClient:   []CurveID{X25519MLKEM768, CurveP256},
+			expectSelected: X25519MLKEM768,
 		},
 		{
 			name: "ClientTLSv12",
 			clientConfig: func(config *Config) {
 				config.MaxVersion = VersionTLS12
 			},
-			expectClientSupport: false,
+			expectClient:   defaultWithoutPQ,
+			expectSelected: X25519,
 		},
 		{
 			name: "ServerTLSv12",
 			serverConfig: func(config *Config) {
 				config.MaxVersion = VersionTLS12
 			},
-			expectClientSupport: true,
-			expectMLKEM:         false,
+			expectClient:   defaultWithPQ,
+			expectSelected: X25519,
 		},
 		{
-			name: "GODEBUG",
+			name: "GODEBUG tlsmlkem=0",
 			preparation: func(t *testing.T) {
 				t.Setenv("GODEBUG", "tlsmlkem=0")
 			},
-			expectClientSupport: false,
+			expectClient:   defaultWithoutPQ,
+			expectSelected: X25519,
+		},
+		{
+			name: "GODEBUG tlssecpmlkem=0",
+			preparation: func(t *testing.T) {
+				t.Setenv("GODEBUG", "tlssecpmlkem=0")
+			},
+			expectClient:   []CurveID{X25519MLKEM768, X25519, CurveP256, CurveP384, CurveP521},
+			expectSelected: X25519MLKEM768,
 		},
 	}
 
@@ -2049,6 +2100,9 @@ func TestHandshakeMLKEM(t *testing.T) {
 	baseConfig.CurvePreferences = nil
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			if fips140tls.Required() && test.expectSelected == X25519 {
+				t.Skip("X25519 not supported in FIPS mode")
+			}
 			if test.preparation != nil {
 				test.preparation(t)
 			} else {
@@ -2059,10 +2113,12 @@ func TestHandshakeMLKEM(t *testing.T) {
 				test.serverConfig(serverConfig)
 			}
 			serverConfig.GetConfigForClient = func(hello *ClientHelloInfo) (*Config, error) {
-				if !test.expectClientSupport && slices.Contains(hello.SupportedCurves, X25519MLKEM768) {
-					return nil, errors.New("client supports X25519MLKEM768")
-				} else if test.expectClientSupport && !slices.Contains(hello.SupportedCurves, X25519MLKEM768) {
-					return nil, errors.New("client does not support X25519MLKEM768")
+				expectClient := slices.Clone(test.expectClient)
+				expectClient = slices.DeleteFunc(expectClient, func(c CurveID) bool {
+					return fips140tls.Required() && c == X25519
+				})
+				if !slices.Equal(hello.SupportedCurves, expectClient) {
+					t.Errorf("got client curves %v, expected %v", hello.SupportedCurves, expectClient)
 				}
 				return nil, nil
 			}
@@ -2074,20 +2130,11 @@ func TestHandshakeMLKEM(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if test.expectMLKEM {
-				if ss.CurveID != X25519MLKEM768 {
-					t.Errorf("got CurveID %v (server), expected %v", ss.CurveID, X25519MLKEM768)
-				}
-				if cs.CurveID != X25519MLKEM768 {
-					t.Errorf("got CurveID %v (client), expected %v", cs.CurveID, X25519MLKEM768)
-				}
-			} else {
-				if ss.CurveID == X25519MLKEM768 {
-					t.Errorf("got CurveID %v (server), expected not X25519MLKEM768", ss.CurveID)
-				}
-				if cs.CurveID == X25519MLKEM768 {
-					t.Errorf("got CurveID %v (client), expected not X25519MLKEM768", cs.CurveID)
-				}
+			if ss.CurveID != test.expectSelected {
+				t.Errorf("server selected curve %v, expected %v", ss.CurveID, test.expectSelected)
+			}
+			if cs.CurveID != test.expectSelected {
+				t.Errorf("client selected curve %v, expected %v", cs.CurveID, test.expectSelected)
 			}
 			if test.expectHRR {
 				if !ss.HelloRetryRequest {

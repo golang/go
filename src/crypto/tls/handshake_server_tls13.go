@@ -11,7 +11,6 @@ import (
 	"crypto/hkdf"
 	"crypto/hmac"
 	"crypto/hpke"
-	"crypto/internal/fips140/mlkem"
 	"crypto/internal/fips140/tls13"
 	"crypto/rsa"
 	"crypto/tls/internal/fips140tls"
@@ -246,54 +245,15 @@ func (hs *serverHandshakeStateTLS13) processClientHello() error {
 	}
 	c.curveID = selectedGroup
 
-	ecdhGroup := selectedGroup
-	ecdhData := clientKeyShare.data
-	if selectedGroup == X25519MLKEM768 {
-		ecdhGroup = X25519
-		if len(ecdhData) != mlkem.EncapsulationKeySize768+x25519PublicKeySize {
-			c.sendAlert(alertIllegalParameter)
-			return errors.New("tls: invalid X25519MLKEM768 client key share")
-		}
-		ecdhData = ecdhData[mlkem.EncapsulationKeySize768:]
-	}
-	if _, ok := curveForCurveID(ecdhGroup); !ok {
+	ke, err := keyExchangeForCurveID(selectedGroup)
+	if err != nil {
 		c.sendAlert(alertInternalError)
 		return errors.New("tls: CurvePreferences includes unsupported curve")
 	}
-	key, err := generateECDHEKey(c.config.rand(), ecdhGroup)
-	if err != nil {
-		c.sendAlert(alertInternalError)
-		return err
-	}
-	hs.hello.serverShare = keyShare{group: selectedGroup, data: key.PublicKey().Bytes()}
-	peerKey, err := key.Curve().NewPublicKey(ecdhData)
+	hs.sharedKey, hs.hello.serverShare, err = ke.serverSharedSecret(c.config.rand(), clientKeyShare.data)
 	if err != nil {
 		c.sendAlert(alertIllegalParameter)
 		return errors.New("tls: invalid client key share")
-	}
-	hs.sharedKey, err = key.ECDH(peerKey)
-	if err != nil {
-		c.sendAlert(alertIllegalParameter)
-		return errors.New("tls: invalid client key share")
-	}
-	if selectedGroup == X25519MLKEM768 {
-		k, err := mlkem.NewEncapsulationKey768(clientKeyShare.data[:mlkem.EncapsulationKeySize768])
-		if err != nil {
-			c.sendAlert(alertIllegalParameter)
-			return errors.New("tls: invalid X25519MLKEM768 client key share")
-		}
-		mlkemSharedSecret, ciphertext := k.Encapsulate()
-		// draft-kwiatkowski-tls-ecdhe-mlkem-02, Section 3.1.3: "For
-		// X25519MLKEM768, the shared secret is the concatenation of the ML-KEM
-		// shared secret and the X25519 shared secret. The shared secret is 64
-		// bytes (32 bytes for each part)."
-		hs.sharedKey = append(mlkemSharedSecret, hs.sharedKey...)
-		// draft-kwiatkowski-tls-ecdhe-mlkem-02, Section 3.1.2: "When the
-		// X25519MLKEM768 group is negotiated, the server's key exchange value
-		// is the concatenation of an ML-KEM ciphertext returned from
-		// encapsulation to the client's encapsulation key, and the server's
-		// ephemeral X25519 share."
-		hs.hello.serverShare.data = append(ciphertext, hs.hello.serverShare.data...)
 	}
 
 	selectedProto, err := negotiateALPN(c.config.NextProtos, hs.clientHello.alpnProtocols, c.quic != nil)

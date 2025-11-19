@@ -145,19 +145,31 @@ const (
 type CurveID uint16
 
 const (
-	CurveP256      CurveID = 23
-	CurveP384      CurveID = 24
-	CurveP521      CurveID = 25
-	X25519         CurveID = 29
-	X25519MLKEM768 CurveID = 4588
+	CurveP256          CurveID = 23
+	CurveP384          CurveID = 24
+	CurveP521          CurveID = 25
+	X25519             CurveID = 29
+	X25519MLKEM768     CurveID = 4588
+	SecP256r1MLKEM768  CurveID = 4587
+	SecP384r1MLKEM1024 CurveID = 4589
 )
 
 func isTLS13OnlyKeyExchange(curve CurveID) bool {
-	return curve == X25519MLKEM768
+	switch curve {
+	case X25519MLKEM768, SecP256r1MLKEM768, SecP384r1MLKEM1024:
+		return true
+	default:
+		return false
+	}
 }
 
 func isPQKeyExchange(curve CurveID) bool {
-	return curve == X25519MLKEM768
+	switch curve {
+	case X25519MLKEM768, SecP256r1MLKEM768, SecP384r1MLKEM1024:
+		return true
+	default:
+		return false
+	}
 }
 
 // TLS 1.3 Key Share. See RFC 8446, Section 4.2.8.
@@ -787,6 +799,11 @@ type Config struct {
 	// From Go 1.24, the default includes the [X25519MLKEM768] hybrid
 	// post-quantum key exchange. To disable it, set CurvePreferences explicitly
 	// or use the GODEBUG=tlsmlkem=0 environment variable.
+	//
+	// From Go 1.26, the default includes the [SecP256r1MLKEM768] and
+	// [SecP256r1MLKEM768] hybrid post-quantum key exchanges, too. To disable
+	// them, set CurvePreferences explicitly or use either the
+	// GODEBUG=tlsmlkem=0 or the GODEBUG=tlssecpmlkem=0 environment variable.
 	CurvePreferences []CurveID
 
 	// DynamicRecordSizingDisabled disables adaptive sizing of TLS records.

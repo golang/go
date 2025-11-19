@@ -1,0 +1,4 @@
+pkg crypto/tls, const SecP256r1MLKEM768 = 4587 #71206
+pkg crypto/tls, const SecP256r1MLKEM768 CurveID #71206
+pkg crypto/tls, const SecP384r1MLKEM1024 = 4589 #71206
+pkg crypto/tls, const SecP384r1MLKEM1024 CurveID #71206

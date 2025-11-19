@@ -168,6 +168,10 @@ allows malformed hostnames containing colons outside of a bracketed IPv6 address
 The default `urlstrictcolons=1` rejects URLs such as `http://localhost:1:2` or `http://::1/`.
 Colons are permitted as part of a bracketed IPv6 address, such as `http://[::1]/`.
 
+Go 1.26 enabled two additional post-quantum key exchange mechanisms:
+SecP256r1MLKEM768 and SecP384r1MLKEM1024. The default can be reverted using the
+[`tlssecpmlkem` setting](/pkg/crypto/tls/#Config.CurvePreferences).
+
 Go 1.26 added a new `tracebacklabels` setting that controls the inclusion of
 goroutine labels set through the the `runtime/pprof` package. Setting `tracebacklabels=1`
 includes these key/value pairs in the goroutine status header of runtime

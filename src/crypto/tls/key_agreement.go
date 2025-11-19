@@ -159,17 +159,17 @@ func hashForServerKeyExchange(sigType uint8, hashFunc crypto.Hash, version uint1
 type ecdheKeyAgreement struct {
 	version uint16
 	isRSA   bool
-	key     *ecdh.PrivateKey
 
 	// ckx and preMasterSecret are generated in processServerKeyExchange
 	// and returned in generateClientKeyExchange.
 	ckx             *clientKeyExchangeMsg
 	preMasterSecret []byte
 
-	// curveID and signatureAlgorithm are set by processServerKeyExchange and
-	// generateServerKeyExchange.
+	// curveID, signatureAlgorithm, and key are set by processServerKeyExchange
+	// and generateServerKeyExchange.
 	curveID            CurveID
 	signatureAlgorithm SignatureScheme
+	key                *ecdh.PrivateKey
 }
 
 func (ka *ecdheKeyAgreement) generateServerKeyExchange(config *Config, cert *Certificate, clientHello *clientHelloMsg, hello *serverHelloMsg) (*serverKeyExchangeMsg, error) {
@@ -379,4 +379,30 @@ func (ka *ecdheKeyAgreement) generateClientKeyExchange(config *Config, clientHel
 	}
 
 	return ka.preMasterSecret, ka.ckx, nil
+}
+
+// generateECDHEKey returns a PrivateKey that implements Diffie-Hellman
+// according to RFC 8446, Section 4.2.8.2.
+func generateECDHEKey(rand io.Reader, curveID CurveID) (*ecdh.PrivateKey, error) {
+	curve, ok := curveForCurveID(curveID)
+	if !ok {
+		return nil, errors.New("tls: internal error: unsupported curve")
+	}
+
+	return curve.GenerateKey(rand)
+}
+
+func curveForCurveID(id CurveID) (ecdh.Curve, bool) {
+	switch id {
+	case X25519:
+		return ecdh.X25519(), true
+	case CurveP256:
+		return ecdh.P256(), true
+	case CurveP384:
+		return ecdh.P384(), true
+	case CurveP521:
+		return ecdh.P521(), true
+	default:
+		return nil, false
+	}
 }
