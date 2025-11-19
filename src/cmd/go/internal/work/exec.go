@@ -928,6 +928,12 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 	// Compile Go.
 	objpkg := objdir + "_pkg_.a"
 	ofile, out, err := BuildToolchain.gc(b, a, objpkg, icfg.Bytes(), embedcfg, symabis, len(sfiles) > 0, pgoProfile, gofiles)
+	if len(out) > 0 && (p.UsesCgo() || p.UsesSwig()) && !cfg.BuildX {
+		// Fix up output referring to cgo-generated code to be more readable.
+		// Replace *[100]_Ctype_foo with *[100]C.foo.
+		// If we're using -x, assume we're debugging and want the full dump, so disable the rewrite.
+		out = cgoTypeSigRe.ReplaceAll(out, []byte("C."))
+	}
 	if err := sh.reportCmd("", "", out, err); err != nil {
 		return err
 	}
@@ -1032,6 +1038,8 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 	a.built = objpkg
 	return nil
 }
+
+var cgoTypeSigRe = lazyregexp.New(`\b_C2?(type|func|var|macro)_\B`)
 
 func (b *Builder) checkDirectives(a *Action) error {
 	var msg []byte
