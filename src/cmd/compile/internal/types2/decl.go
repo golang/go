@@ -876,8 +876,8 @@ func (check *Checker) declStmt(list []syntax.Decl) {
 			scopePos := s.Name.Pos()
 			check.declare(check.scope, s.Name, obj, scopePos)
 			check.push(obj) // mark as grey
-			defer check.pop()
 			check.typeDecl(obj, s, nil)
+			check.pop()
 
 		default:
 			check.errorf(s, InvalidSyntaxTree, "unknown syntax.Decl node %T", s)

@@ -935,8 +935,8 @@ func (check *Checker) declStmt(d ast.Decl) {
 			scopePos := d.spec.Name.Pos()
 			check.declare(check.scope, d.spec.Name, obj, scopePos)
 			check.push(obj) // mark as grey
-			defer check.pop()
 			check.typeDecl(obj, d.spec, nil)
+			check.pop()
 		default:
 			check.errorf(d.node(), InvalidSyntaxTree, "unknown ast.Decl node %T", d.node())
 		}
