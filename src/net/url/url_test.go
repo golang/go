@@ -606,6 +606,26 @@ var urltests = []URLTest{
 		},
 		"mailto:?subject=hi",
 	},
+	// PostgreSQL URLs can include a comma-separated list of host:post hosts.
+	// https://go.dev/issue/75859
+	{
+		"postgres://host1:1,host2:2,host3:3",
+		&URL{
+			Scheme: "postgres",
+			Host:   "host1:1,host2:2,host3:3",
+			Path:   "",
+		},
+		"postgres://host1:1,host2:2,host3:3",
+	},
+	{
+		"postgresql://host1:1,host2:2,host3:3",
+		&URL{
+			Scheme: "postgresql",
+			Host:   "host1:1,host2:2,host3:3",
+			Path:   "",
+		},
+		"postgresql://host1:1,host2:2,host3:3",
+	},
 }
 
 // more useful string for debugging than fmt's struct printer
