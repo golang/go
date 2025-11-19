@@ -30,7 +30,7 @@ const (
 //
 // Avoid calling this function directly. Prefer traceEventWriter.stack.
 func traceStack(skip int, gp *g, tab *traceStackTable) uint64 {
-	var pcBuf [tracev2.MaxFramesPerStack]uintptr
+	pcBuf := getg().m.profStack
 
 	// Figure out gp and mp for the backtrace.
 	var mp *m
