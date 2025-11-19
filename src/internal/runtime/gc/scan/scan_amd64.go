@@ -28,7 +28,7 @@ func CanAVX512() bool {
 }
 
 func ScanSpanPackedAVX512(mem unsafe.Pointer, bufp *uintptr, objMarks *gc.ObjMask, sizeClass uintptr, ptrMask *gc.PtrMask) (count int32) {
-	return FilterNil(bufp, scanSpanPackedAVX512(mem, bufp, objMarks, sizeClass, ptrMask))
+	return FilterNilAVX512(bufp, scanSpanPackedAVX512(mem, bufp, objMarks, sizeClass, ptrMask))
 }
 
 //go:noescape
