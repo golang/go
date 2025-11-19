@@ -12,6 +12,7 @@ import (
 	"internal/runtime/atomic"
 	"internal/runtime/gc"
 	"internal/runtime/sys"
+	"math/bits"
 	"unsafe"
 )
 
@@ -181,12 +182,10 @@ func stackinit() {
 
 // stacklog2 returns ⌊log_2(n)⌋.
 func stacklog2(n uintptr) int {
-	log2 := 0
-	for n > 1 {
-		n >>= 1
-		log2++
+	if n == 0 {
+		return 0
 	}
-	return log2
+	return bits.Len64(uint64(n))
 }
 
 // Allocates a stack from the free pool. Must be called with

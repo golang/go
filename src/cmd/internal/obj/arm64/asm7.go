@@ -1674,32 +1674,7 @@ func log2(x uint64) uint32 {
 	if x == 0 {
 		panic("log2 of 0")
 	}
-	n := uint32(0)
-	if x >= 1<<32 {
-		x >>= 32
-		n += 32
-	}
-	if x >= 1<<16 {
-		x >>= 16
-		n += 16
-	}
-	if x >= 1<<8 {
-		x >>= 8
-		n += 8
-	}
-	if x >= 1<<4 {
-		x >>= 4
-		n += 4
-	}
-	if x >= 1<<2 {
-		x >>= 2
-		n += 2
-	}
-	if x >= 1<<1 {
-		x >>= 1
-		n += 1
-	}
-	return n
+	return uint32(bits.Len64(x) - 1)
 }
 
 func autoclass(l int64) int {
