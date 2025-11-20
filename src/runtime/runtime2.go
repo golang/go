@@ -838,7 +838,7 @@ type p struct {
 	palloc persistentAlloc // per-P to avoid mutex
 
 	// Per-P GC state
-	gcAssistTime         int64 // Nanoseconds in assistAlloc
+	gcAssistTime         int64        // Nanoseconds in assistAlloc
 	gcFractionalMarkTime atomic.Int64 // Nanoseconds in fractional mark worker
 
 	// limiterEvent tracks events for the GC CPU limiter.
@@ -934,12 +934,12 @@ type schedt struct {
 	// sure to call checkdead().
 
 	midle        listHeadManual // idle m's waiting for work
-	nmidle       int32    // number of idle m's waiting for work
-	nmidlelocked int32    // number of locked m's waiting for work
-	mnext        int64    // number of m's that have been created and next M ID
-	maxmcount    int32    // maximum number of m's allowed (or die)
-	nmsys        int32    // number of system m's not counted for deadlock
-	nmfreed      int64    // cumulative number of freed m's
+	nmidle       int32          // number of idle m's waiting for work
+	nmidlelocked int32          // number of locked m's waiting for work
+	mnext        int64          // number of m's that have been created and next M ID
+	maxmcount    int32          // maximum number of m's allowed (or die)
+	nmsys        int32          // number of system m's not counted for deadlock
+	nmfreed      int64          // cumulative number of freed m's
 
 	ngsys        atomic.Int32 // number of system goroutines
 	nGsyscallNoP atomic.Int32 // number of goroutines in syscalls without a P

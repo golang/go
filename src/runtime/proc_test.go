@@ -1175,9 +1175,9 @@ func TestBigGOMAXPROCS(t *testing.T) {
 }
 
 type goroutineState struct {
-	G trace.GoID      // This goroutine.
-	P trace.ProcID    // Most recent P this goroutine ran on.
-	M trace.ThreadID  // Most recent M this goroutine ran on.
+	G trace.GoID     // This goroutine.
+	P trace.ProcID   // Most recent P this goroutine ran on.
+	M trace.ThreadID // Most recent M this goroutine ran on.
 }
 
 func newGoroutineState(g trace.GoID) *goroutineState {
@@ -1228,7 +1228,7 @@ func TestTraceSTW(t *testing.T) {
 		}
 	}
 
-	pct := float64(errors)/float64(runs)
+	pct := float64(errors) / float64(runs)
 	t.Logf("Errors: %d/%d = %f%%", errors, runs, 100*pct)
 	if pct > 0.25 {
 		t.Errorf("Error rate too high")
@@ -1264,7 +1264,7 @@ func TestTraceGCSTW(t *testing.T) {
 		}
 	}
 
-	pct := float64(errors)/float64(runs)
+	pct := float64(errors) / float64(runs)
 	t.Logf("Errors: %d/%d = %f%%", errors, runs, 100*pct)
 	if pct > 0.25 {
 		t.Errorf("Error rate too high")
