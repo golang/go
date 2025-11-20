@@ -9,6 +9,7 @@ func simdAMD64Ops(v11, v21, v2k, vkv, v2kv, v2kk, v31, v3kv, vgpv, vgp, vfpv, vf
 		{name: "SHA1MSG2128", argLength: 2, reg: v21, asm: "SHA1MSG2", commutative: false, typ: "Vec128", resultInArg0: true},
 		{name: "SHA1NEXTE128", argLength: 2, reg: v21, asm: "SHA1NEXTE", commutative: false, typ: "Vec128", resultInArg0: true},
 		{name: "SHA256MSG1128", argLength: 2, reg: v21, asm: "SHA256MSG1", commutative: false, typ: "Vec128", resultInArg0: true},
+		{name: "SHA256MSG2128", argLength: 2, reg: v21, asm: "SHA256MSG2", commutative: false, typ: "Vec128", resultInArg0: true},
 		{name: "SHA256RNDS2128", argLength: 3, reg: v31x0AtIn2, asm: "SHA256RNDS2", commutative: false, typ: "Vec128", resultInArg0: true},
 		{name: "VADDPD128", argLength: 2, reg: v21, asm: "VADDPD", commutative: true, typ: "Vec128", resultInArg0: false},
 		{name: "VADDPD256", argLength: 2, reg: v21, asm: "VADDPD", commutative: true, typ: "Vec256", resultInArg0: false},

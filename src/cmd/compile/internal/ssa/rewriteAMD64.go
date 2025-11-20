@@ -4984,7 +4984,7 @@ func rewriteValueAMD64(v *Value) bool {
 		v.Op = OpAMD64SHA256MSG1128
 		return true
 	case OpSHA256Message2Uint32x4:
-		v.Op = OpAMD64SHA256MSG1128
+		v.Op = OpAMD64SHA256MSG2128
 		return true
 	case OpSHA256TwoRoundsUint32x4:
 		v.Op = OpAMD64SHA256RNDS2128

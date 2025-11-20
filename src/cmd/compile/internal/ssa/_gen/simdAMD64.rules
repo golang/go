@@ -931,7 +931,7 @@
 (SHA1Message2Uint32x4 ...) => (SHA1MSG2128 ...)
 (SHA1NextEUint32x4 ...) => (SHA1NEXTE128 ...)
 (SHA256Message1Uint32x4 ...) => (SHA256MSG1128 ...)
-(SHA256Message2Uint32x4 ...) => (SHA256MSG1128 ...)
+(SHA256Message2Uint32x4 ...) => (SHA256MSG2128 ...)
 (SHA256TwoRoundsUint32x4 ...) => (SHA256RNDS2128 ...)
 (ScaleFloat32x4 ...) => (VSCALEFPS128 ...)
 (ScaleFloat32x8 ...) => (VSCALEFPS256 ...)

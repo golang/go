@@ -93,6 +93,6 @@
   in: *2uint
   out: *1uint
 - go: SHA256Message2
-  asm: SHA256MSG1
+  asm: SHA256MSG2
   in: *2uint
   out: *1uint

@@ -5549,7 +5549,7 @@ func (x Uint32x4) SHA256Message1(y Uint32x4) Uint32x4
 // y = {0, 0, W14, W15}
 // result = {W16, W17, W18, W19}
 //
-// Asm: SHA256MSG1, CPU Feature: SHA
+// Asm: SHA256MSG2, CPU Feature: SHA
 func (x Uint32x4) SHA256Message2(y Uint32x4) Uint32x4
 
 /* SHA256TwoRounds */

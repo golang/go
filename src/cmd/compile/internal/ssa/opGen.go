@@ -1250,6 +1250,7 @@ const (
 	OpAMD64SHA1MSG2128
 	OpAMD64SHA1NEXTE128
 	OpAMD64SHA256MSG1128
+	OpAMD64SHA256MSG2128
 	OpAMD64SHA256RNDS2128
 	OpAMD64VADDPD128
 	OpAMD64VADDPD256
@@ -20591,6 +20592,21 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		resultInArg0: true,
 		asm:          x86.ASHA256MSG1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "SHA256MSG2128",
+		argLen:       2,
+		resultInArg0: true,
+		asm:          x86.ASHA256MSG2,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14

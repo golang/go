@@ -2291,7 +2291,8 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 	case ssa.OpAMD64SHA1MSG1128,
 		ssa.OpAMD64SHA1MSG2128,
 		ssa.OpAMD64SHA1NEXTE128,
-		ssa.OpAMD64SHA256MSG1128:
+		ssa.OpAMD64SHA256MSG1128,
+		ssa.OpAMD64SHA256MSG2128:
 		p = simdV21ResultInArg0(s, v)
 
 	case ssa.OpAMD64SHA1RNDS4128:
