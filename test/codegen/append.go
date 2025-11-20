@@ -185,6 +185,38 @@ func Append17(n int) []int {
 	return r
 }
 
+func Append18(n int, p *[]int) {
+	var r []int
+	for i := range n {
+		// amd64:-`.*moveSliceNoCapNoScan`
+		*p = r
+		// amd64:`.*growslice`
+		r = append(r, i)
+	}
+}
+
+func Append19(n int, p [][]int) {
+	for j := range p {
+		var r []int
+		for i := range n {
+			// amd64:`.*growslice`
+			r = append(r, i)
+		}
+		// amd64:`.*moveSliceNoCapNoScan`
+		p[j] = r
+	}
+}
+
+func Append20(n int, p [][]int) {
+	for j := range p {
+		var r []int
+		// amd64:`.*growslice`
+		r = append(r, 0)
+		// amd64:-`.*moveSliceNoCapNoScan`
+		p[j] = r
+	}
+}
+
 //go:noinline
 func useSlice(s []int) {
 }
