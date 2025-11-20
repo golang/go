@@ -1221,7 +1221,7 @@ func TestTraceSTW(t *testing.T) {
 
 	var errors int
 	for i := range runs {
-		err := runTestTracesSTW(t, i)
+		err := runTestTracesSTW(t, i, "TraceSTW", "stop-the-world (read mem stats)")
 		if err != nil {
 			t.Logf("Run %d failed: %v", i, err)
 			errors++
@@ -1235,7 +1235,43 @@ func TestTraceSTW(t *testing.T) {
 	}
 }
 
-func runTestTracesSTW(t *testing.T, run int) (err error) {
+// TestTraceGCSTW verifies that goroutines continue running on the same M and P
+// after a GC STW.
+func TestTraceGCSTW(t *testing.T) {
+	// Very similar to TestTraceSTW, but using a STW that starts the GC.
+	// When the GC starts, the background GC mark workers start running,
+	// which provide an additional source of disturbance to the scheduler.
+	//
+	// procresize assigns GC workers to previously-idle Ps to avoid
+	// changing what the previously-running Ps are doing.
+
+	if testing.Short() {
+		t.Skip("skipping in -short mode")
+	}
+
+	if runtime.NumCPU() < 8 {
+		t.Skip("This test sets GOMAXPROCS=8 and wants to avoid thread descheduling as much as possible. Skip on machines with less than 8 CPUs")
+	}
+
+	const runs = 50
+
+	var errors int
+	for i := range runs {
+		err := runTestTracesSTW(t, i, "TraceGCSTW", "stop-the-world (GC sweep termination)")
+		if err != nil {
+			t.Logf("Run %d failed: %v", i, err)
+			errors++
+		}
+	}
+
+	pct := float64(errors)/float64(runs)
+	t.Logf("Errors: %d/%d = %f%%", errors, runs, 100*pct)
+	if pct > 0.25 {
+		t.Errorf("Error rate too high")
+	}
+}
+
+func runTestTracesSTW(t *testing.T, run int, name, stwType string) (err error) {
 	t.Logf("Run %d", run)
 
 	// By default, TSAN sleeps for 1s at exit to allow background
@@ -1243,7 +1279,7 @@ func runTestTracesSTW(t *testing.T, run int) (err error) {
 	// much, since we are running 50 iterations, so disable the sleep.
 	//
 	// Outside of race mode, GORACE does nothing.
-	buf := []byte(runTestProg(t, "testprog", "TraceSTW", "GORACE=atexit_sleep_ms=0"))
+	buf := []byte(runTestProg(t, "testprog", name, "GORACE=atexit_sleep_ms=0"))
 
 	// We locally "fail" the run (return an error) if the trace exhibits
 	// unwanted scheduling. i.e., the target goroutines did not remain on
@@ -1253,7 +1289,7 @@ func runTestTracesSTW(t *testing.T, run int) (err error) {
 	// occur, such as a trace parse error.
 	defer func() {
 		if err != nil || t.Failed() {
-			testtrace.Dump(t, fmt.Sprintf("TestTraceSTW-run%d", run), []byte(buf), false)
+			testtrace.Dump(t, fmt.Sprintf("Test%s-run%d", name, run), []byte(buf), false)
 		}
 	}()
 
@@ -1509,12 +1545,10 @@ findEnd:
 			break findEnd
 		case trace.EventRangeBegin:
 			r := ev.Range()
-			if r.Name == "stop-the-world (read mem stats)" {
+			if r.Name == stwType {
 				// Note when we see the STW begin. This is not
 				// load bearing; it's purpose is simply to fail
-				// the test if we manage to remove the STW from
-				// ReadMemStat, so we remember to change this
-				// test to add some new source of STW.
+				// the test if we accidentally remove the STW.
 				stwSeen = true
 			}
 		}

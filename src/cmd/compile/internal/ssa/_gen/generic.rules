@@ -195,6 +195,11 @@
 // Convert x * -1 to -x.
 (Mul(8|16|32|64)  (Const(8|16|32|64)  [-1]) x) => (Neg(8|16|32|64)  x)
 
+// Convert -x * c to x * -c
+(Mul(8|16|32|64) (Const(8|16|32|64) <t> [c]) (Neg(8|16|32|64) x)) => (Mul(8|16|32|64) x (Const(8|16|32|64) <t> [-c]))
+
+(Mul(8|16|32|64) (Neg(8|16|32|64) x) (Neg(8|16|32|64) y)) => (Mul(8|16|32|64) x y)
+
 // DeMorgan's Laws
 (And(8|16|32|64) <t> (Com(8|16|32|64) x) (Com(8|16|32|64) y)) => (Com(8|16|32|64) (Or(8|16|32|64) <t> x y))
 (Or(8|16|32|64) <t> (Com(8|16|32|64) x) (Com(8|16|32|64) y)) => (Com(8|16|32|64) (And(8|16|32|64) <t> x y))
@@ -336,6 +341,12 @@
 (OrB ((Less|Leq)32U (Const32 [c]) x) (Leq32U x (Const32 [d]))) && uint32(c) >= uint32(d+1) && uint32(d+1) > uint32(d) => ((Less|Leq)32U (Const32 <x.Type> [c-d-1]) (Sub32 <x.Type> x (Const32 <x.Type> [d+1])))
 (OrB ((Less|Leq)16U (Const16 [c]) x) (Leq16U x (Const16 [d]))) && uint16(c) >= uint16(d+1) && uint16(d+1) > uint16(d) => ((Less|Leq)16U (Const16 <x.Type> [c-d-1]) (Sub16 <x.Type> x (Const16 <x.Type> [d+1])))
 (OrB ((Less|Leq)8U  (Const8  [c]) x) (Leq8U  x (Const8  [d]))) && uint8(c)  >= uint8(d+1)  && uint8(d+1)  > uint8(d)  => ((Less|Leq)8U  (Const8  <x.Type> [c-d-1]) (Sub8  <x.Type> x (Const8  <x.Type> [d+1])))
+
+// single bit difference: ( x != c && x != d ) -> ( x|(c^d) != c )
+(AndB (Neq(64|32|16|8) x cv:(Const(64|32|16|8) [c])) (Neq(64|32|16|8) x (Const(64|32|16|8) [d]))) && c|d == c && oneBit(c^d) => (Neq(64|32|16|8) (Or(64|32|16|8) <x.Type> x (Const(64|32|16|8) <x.Type> [c^d])) cv)
+
+// single bit difference: ( x == c || x == d ) -> ( x|(c^d) == c )
+(OrB (Eq(64|32|16|8) x cv:(Const(64|32|16|8) [c])) (Eq(64|32|16|8) x (Const(64|32|16|8) [d]))) && c|d == c && oneBit(c^d) => (Eq(64|32|16|8) (Or(64|32|16|8) <x.Type> x (Const(64|32|16|8) <x.Type> [c^d])) cv)
 
 // NaN check: ( x != x || x (>|>=|<|<=) c ) -> ( !(c (>=|>|<=|<) x) )
 (OrB (Neq64F x x) ((Less|Leq)64F x y:(Const64F [c]))) => (Not ((Leq|Less)64F y x))
@@ -933,8 +944,10 @@
   @x.Block (Load <v.Type> (OffPtr <v.Type.PtrTo()> [t.FieldOff(int(i))] ptr) mem)
 
 // Putting struct{*byte} and similar into direct interfaces.
-(IMake _typ (StructMake val)) => (IMake _typ val)
-(StructSelect [0] (IData x)) => (IData x)
+(IMake _typ (StructMake ___)) => imakeOfStructMake(v)
+(StructSelect (IData x)) && v.Type.Size() > 0 => (IData x)
+(StructSelect (IData x)) && v.Type.Size() == 0 && v.Type.IsStruct() => (StructMake)
+(StructSelect (IData x)) && v.Type.Size() == 0 && v.Type.IsArray() => (ArrayMake0)
 
 // un-SSAable values use mem->mem copies
 (Store {t} dst (Load src mem) mem) && !CanSSA(t) =>

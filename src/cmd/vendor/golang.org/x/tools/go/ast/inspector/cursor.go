@@ -467,7 +467,9 @@ func (c Cursor) FindByPos(start, end token.Pos) (Cursor, bool) {
 	// This algorithm could be implemented using c.Inspect,
 	// but it is about 2.5x slower.
 
-	best := int32(-1) // push index of latest (=innermost) node containing range
+	// best is the push-index of the latest (=innermost) node containing range.
+	// (Beware: latest is not always innermost because FuncDecl.{Name,Type} overlap.)
+	best := int32(-1)
 	for i, limit := c.indices(); i < limit; i++ {
 		ev := events[i]
 		if ev.index > i { // push?
@@ -481,6 +483,19 @@ func (c Cursor) FindByPos(start, end token.Pos) (Cursor, bool) {
 					continue
 				}
 			} else {
+				// Edge case: FuncDecl.Name and .Type overlap:
+				// Don't update best from Name to FuncDecl.Type.
+				//
+				// The condition can be read as:
+				// - n is FuncType
+				// - n.parent is FuncDecl
+				// - best is strictly beneath the FuncDecl
+				if ev.typ == 1<<nFuncType &&
+					events[ev.parent].typ == 1<<nFuncDecl &&
+					best > ev.parent {
+					continue
+				}
+
 				nodeEnd = n.End()
 				if n.Pos() > start {
 					break // disjoint, after; stop

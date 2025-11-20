@@ -14,20 +14,19 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
-	"golang.org/x/tools/internal/analysisinternal"
-	"golang.org/x/tools/internal/analysisinternal/generated"
-	typeindexanalyzer "golang.org/x/tools/internal/analysisinternal/typeindex"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
+	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
 	"golang.org/x/tools/internal/astutil"
 	"golang.org/x/tools/internal/refactor"
 	"golang.org/x/tools/internal/typeparams"
 	"golang.org/x/tools/internal/typesinternal/typeindex"
+	"golang.org/x/tools/internal/versions"
 )
 
 var SlicesContainsAnalyzer = &analysis.Analyzer{
 	Name: "slicescontains",
-	Doc:  analysisinternal.MustExtractDoc(doc, "slicescontains"),
+	Doc:  analyzerutil.MustExtractDoc(doc, "slicescontains"),
 	Requires: []*analysis.Analyzer{
-		generated.Analyzer,
 		inspect.Analyzer,
 		typeindexanalyzer.Analyzer,
 	},
@@ -66,8 +65,6 @@ var SlicesContainsAnalyzer = &analysis.Analyzer{
 // TODO(adonovan): Add a check that needle/predicate expression from
 // if-statement has no effects. Now the program behavior may change.
 func slicescontains(pass *analysis.Pass) (any, error) {
-	skipGenerated(pass)
-
 	// Skip the analyzer in packages where its
 	// fixes would create an import cycle.
 	if within(pass, "slices", "runtime") {
@@ -75,9 +72,8 @@ func slicescontains(pass *analysis.Pass) (any, error) {
 	}
 
 	var (
-		inspect = pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
-		index   = pass.ResultOf[typeindexanalyzer.Analyzer].(*typeindex.Index)
-		info    = pass.TypesInfo
+		index = pass.ResultOf[typeindexanalyzer.Analyzer].(*typeindex.Index)
+		info  = pass.TypesInfo
 	)
 
 	// check is called for each RangeStmt of this form:
@@ -312,7 +308,7 @@ func slicescontains(pass *analysis.Pass) (any, error) {
 
 				// Special case:
 				// prev="lhs = false" body={ lhs = true; break }
-				// => lhs = slices.Contains(...) (or negation)
+				// => lhs = slices.Contains(...) (or its negation)
 				if assign, ok := body.List[0].(*ast.AssignStmt); ok &&
 					len(body.List) == 2 &&
 					assign.Tok == token.ASSIGN &&
@@ -320,13 +316,12 @@ func slicescontains(pass *analysis.Pass) (any, error) {
 					len(assign.Rhs) == 1 {
 
 					// Have: body={ lhs = rhs; break }
-
 					if prevAssign, ok := prevStmt.(*ast.AssignStmt); ok &&
 						len(prevAssign.Lhs) == 1 &&
 						len(prevAssign.Rhs) == 1 &&
 						astutil.EqualSyntax(prevAssign.Lhs[0], assign.Lhs[0]) &&
-						is[*ast.Ident](assign.Rhs[0]) &&
-						info.Uses[assign.Rhs[0].(*ast.Ident)] == builtinTrue {
+						isTrueOrFalse(info, assign.Rhs[0]) ==
+							-isTrueOrFalse(info, prevAssign.Rhs[0]) {
 
 						// Have:
 						//    lhs = false
@@ -336,15 +331,14 @@ func slicescontains(pass *analysis.Pass) (any, error) {
 						//
 						// TODO(adonovan):
 						// - support "var lhs bool = false" and variants.
-						// - support negation.
-						// Both these variants seem quite significant.
 						// - allow the break to be omitted.
+						neg := cond(isTrueOrFalse(info, assign.Rhs[0]) < 0, "!", "")
 						report([]analysis.TextEdit{
-							// Replace "rhs" of previous assignment by slices.Contains(...)
+							// Replace "rhs" of previous assignment by [!]slices.Contains(...)
 							{
 								Pos:     prevAssign.Rhs[0].Pos(),
 								End:     prevAssign.Rhs[0].End(),
-								NewText: []byte(contains),
+								NewText: []byte(neg + contains),
 							},
 							// Delete the loop and preceding space.
 							{
@@ -388,7 +382,7 @@ func slicescontains(pass *analysis.Pass) (any, error) {
 		}
 	}
 
-	for curFile := range filesUsing(inspect, info, "go1.21") {
+	for curFile := range filesUsingGoVersion(pass, versions.Go1_21) {
 		file := curFile.Node().(*ast.File)
 
 		for curRange := range curFile.Preorder((*ast.RangeStmt)(nil)) {
@@ -420,13 +414,19 @@ func slicescontains(pass *analysis.Pass) (any, error) {
 // isReturnTrueOrFalse returns nonzero if stmt returns true (+1) or false (-1).
 func isReturnTrueOrFalse(info *types.Info, stmt ast.Stmt) int {
 	if ret, ok := stmt.(*ast.ReturnStmt); ok && len(ret.Results) == 1 {
-		if id, ok := ret.Results[0].(*ast.Ident); ok {
-			switch info.Uses[id] {
-			case builtinTrue:
-				return +1
-			case builtinFalse:
-				return -1
-			}
+		return isTrueOrFalse(info, ret.Results[0])
+	}
+	return 0
+}
+
+// isTrueOrFalse returns nonzero if expr is literally true (+1) or false (-1).
+func isTrueOrFalse(info *types.Info, expr ast.Expr) int {
+	if id, ok := expr.(*ast.Ident); ok {
+		switch info.Uses[id] {
+		case builtinTrue:
+			return +1
+		case builtinFalse:
+			return -1
 		}
 	}
 	return 0

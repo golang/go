@@ -194,7 +194,7 @@ func StoredHashesForRecordHash(n int64, h Hash, r HashReader) ([]Hash, error) {
 	// and consumes a hash from an adjacent subtree.
 	m := int(bits.TrailingZeros64(uint64(n + 1)))
 	indexes := make([]int64, m)
-	for i := 0; i < m; i++ {
+	for i := range m {
 		// We arrange indexes in sorted order.
 		// Note that n>>i is always odd.
 		indexes[m-1-i] = StoredHashIndex(i, n>>uint(i)-1)
@@ -210,7 +210,7 @@ func StoredHashesForRecordHash(n int64, h Hash, r HashReader) ([]Hash, error) {
 	}
 
 	// Build new hashes.
-	for i := 0; i < m; i++ {
+	for i := range m {
 		h = NodeHash(old[m-1-i], h)
 		hashes = append(hashes, h)
 	}

@@ -247,7 +247,7 @@ func (check *Checker) collectObjects() {
 		// Be conservative and use the *ast.File extent if we don't have a *token.File.
 		pos, end := file.Pos(), file.End()
 		if f := check.fset.File(file.Pos()); f != nil {
-			pos, end = token.Pos(f.Base()), token.Pos(f.Base()+f.Size())
+			pos, end = token.Pos(f.Base()), f.End()
 		}
 		fileScope := NewScope(pkg.scope, pos, end, check.filename(fileNo))
 		fileScopes[fileNo] = fileScope

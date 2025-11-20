@@ -399,8 +399,8 @@ The available conditions are:
 	GOOS/GOARCH supports -fuzz with instrumentation
 [git]
 	the 'git' executable exists and provides the standard CLI
-[git-min-vers:*]
-	<suffix> indicates a minimum git version
+[git-sha256]
+	the local 'git' version is recent enough to support sha256 object/commit hashes
 [go-builder]
 	GO_BUILDER_NAME is non-empty
 [link]

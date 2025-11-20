@@ -11,13 +11,13 @@ import (
 	"testing"
 )
 
-func BenchmarkCgoCall(b *testing.B) {
+func BenchmarkCall(b *testing.B) {
 	for b.Loop() {
 		cgobench.Empty()
 	}
 }
 
-func BenchmarkCgoCallParallel(b *testing.B) {
+func BenchmarkCallParallel(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			cgobench.Empty()
@@ -25,16 +25,30 @@ func BenchmarkCgoCallParallel(b *testing.B) {
 	})
 }
 
+func BenchmarkCgoCall(b *testing.B) {
+	for b.Loop() {
+		cgobench.EmptyC()
+	}
+}
+
+func BenchmarkCgoCallParallel(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			cgobench.EmptyC()
+		}
+	})
+}
+
 func BenchmarkCgoCallWithCallback(b *testing.B) {
 	for b.Loop() {
-		cgobench.Callback()
+		cgobench.CallbackC()
 	}
 }
 
 func BenchmarkCgoCallParallelWithCallback(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			cgobench.Callback()
+			cgobench.CallbackC()
 		}
 	})
 }

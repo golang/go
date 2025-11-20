@@ -13,7 +13,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
-	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
 	"golang.org/x/tools/internal/typesinternal"
 )
 
@@ -22,7 +22,7 @@ var doc string
 
 var Analyzer = &analysis.Analyzer{
 	Name:     "unmarshal",
-	Doc:      analysisinternal.MustExtractDoc(doc, "unmarshal"),
+	Doc:      analyzerutil.MustExtractDoc(doc, "unmarshal"),
 	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/unmarshal",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
@@ -39,7 +39,7 @@ func run(pass *analysis.Pass) (any, error) {
 	// Note: (*"encoding/json".Decoder).Decode, (* "encoding/gob".Decoder).Decode
 	// and (* "encoding/xml".Decoder).Decode are methods and can be a typeutil.Callee
 	// without directly importing their packages. So we cannot just skip this package
-	// when !analysisinternal.Imports(pass.Pkg, "encoding/...").
+	// when !analysis.Imports(pass.Pkg, "encoding/...").
 	// TODO(taking): Consider using a prepass to collect typeutil.Callees.
 
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
@@ -57,7 +57,7 @@ func run(pass *analysis.Pass) (any, error) {
 		// Classify the callee (without allocating memory).
 		argidx := -1
 
-		recv := fn.Type().(*types.Signature).Recv()
+		recv := fn.Signature().Recv()
 		if fn.Name() == "Unmarshal" && recv == nil {
 			// "encoding/json".Unmarshal
 			// "encoding/xml".Unmarshal

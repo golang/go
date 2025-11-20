@@ -167,7 +167,7 @@ func doinit() {
 		setMinimalFeatures()
 		return
 	}
-	parseARM64SystemRegisters(cpuid.aa64isar0, cpuid.aa64isar1, cpuid.aa64pfr0)
+	parseARM64SystemRegisters(cpuid.aa64isar0, cpuid.aa64isar1, cpuid.aa64mmfr1, cpuid.aa64pfr0)
 
 	Initialized = true
 }

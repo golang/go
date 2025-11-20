@@ -18,7 +18,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
-	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
 	"golang.org/x/tools/internal/typesinternal"
 )
 
@@ -30,7 +30,7 @@ var doc string
 
 var Analyzer = &analysis.Analyzer{
 	Name:     "timeformat",
-	Doc:      analysisinternal.MustExtractDoc(doc, "timeformat"),
+	Doc:      analyzerutil.MustExtractDoc(doc, "timeformat"),
 	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/timeformat",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
@@ -39,7 +39,7 @@ var Analyzer = &analysis.Analyzer{
 func run(pass *analysis.Pass) (any, error) {
 	// Note: (time.Time).Format is a method and can be a typeutil.Callee
 	// without directly importing "time". So we cannot just skip this package
-	// when !analysisinternal.Imports(pass.Pkg, "time").
+	// when !analysis.Imports(pass.Pkg, "time").
 	// TODO(taking): Consider using a prepass to collect typeutil.Callees.
 
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)

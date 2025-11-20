@@ -42,17 +42,11 @@ type Object interface {
 	// 0 for all other objects (including objects in file scopes).
 	order() uint32
 
-	// color returns the object's color.
-	color() color
-
 	// setType sets the type of the object.
 	setType(Type)
 
 	// setOrder sets the order number of the object. It must be > 0.
 	setOrder(uint32)
-
-	// setColor sets the object's color. It must not be white.
-	setColor(color color)
 
 	// setParent sets the parent scope of the object.
 	setParent(*Scope)
@@ -102,39 +96,7 @@ type object struct {
 	name      string
 	typ       Type
 	order_    uint32
-	color_    color
 	scopePos_ syntax.Pos
-}
-
-// color encodes the color of an object (see Checker.objDecl for details).
-type color uint32
-
-// An object may be painted in one of three colors.
-// Color values other than white or black are considered grey.
-const (
-	white color = iota
-	black
-	grey // must be > white and black
-)
-
-func (c color) String() string {
-	switch c {
-	case white:
-		return "white"
-	case black:
-		return "black"
-	default:
-		return "grey"
-	}
-}
-
-// colorFor returns the (initial) color for an object depending on
-// whether its type t is known or not.
-func colorFor(t Type) color {
-	if t != nil {
-		return black
-	}
-	return white
 }
 
 // Parent returns the scope in which the object is declared.
@@ -164,13 +126,11 @@ func (obj *object) Id() string { return Id(obj.pkg, obj.name) }
 
 func (obj *object) String() string       { panic("abstract") }
 func (obj *object) order() uint32        { return obj.order_ }
-func (obj *object) color() color         { return obj.color_ }
 func (obj *object) scopePos() syntax.Pos { return obj.scopePos_ }
 
 func (obj *object) setParent(parent *Scope)    { obj.parent = parent }
 func (obj *object) setType(typ Type)           { obj.typ = typ }
 func (obj *object) setOrder(order uint32)      { assert(order > 0); obj.order_ = order }
-func (obj *object) setColor(color color)       { assert(color != white); obj.color_ = color }
 func (obj *object) setScopePos(pos syntax.Pos) { obj.scopePos_ = pos }
 
 func (obj *object) sameId(pkg *Package, name string, foldCase bool) bool {
@@ -247,7 +207,7 @@ type PkgName struct {
 // NewPkgName returns a new PkgName object representing an imported package.
 // The remaining arguments set the attributes found with all Objects.
 func NewPkgName(pos syntax.Pos, pkg *Package, name string, imported *Package) *PkgName {
-	return &PkgName{object{nil, pos, pkg, name, Typ[Invalid], 0, black, nopos}, imported}
+	return &PkgName{object{nil, pos, pkg, name, Typ[Invalid], 0, nopos}, imported}
 }
 
 // Imported returns the package that was imported.
@@ -263,7 +223,7 @@ type Const struct {
 // NewConst returns a new constant with value val.
 // The remaining arguments set the attributes found with all Objects.
 func NewConst(pos syntax.Pos, pkg *Package, name string, typ Type, val constant.Value) *Const {
-	return &Const{object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, val}
+	return &Const{object{nil, pos, pkg, name, typ, 0, nopos}, val}
 }
 
 // Val returns the constant's value.
@@ -288,7 +248,7 @@ type TypeName struct {
 // argument for NewNamed, which will set the TypeName's type as a side-
 // effect.
 func NewTypeName(pos syntax.Pos, pkg *Package, name string, typ Type) *TypeName {
-	return &TypeName{object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}}
+	return &TypeName{object{nil, pos, pkg, name, typ, 0, nopos}}
 }
 
 // NewTypeNameLazy returns a new defined type like NewTypeName, but it
@@ -402,7 +362,7 @@ func NewField(pos syntax.Pos, pkg *Package, name string, typ Type, embedded bool
 // newVar returns a new variable.
 // The arguments set the attributes found with all Objects.
 func newVar(kind VarKind, pos syntax.Pos, pkg *Package, name string, typ Type) *Var {
-	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, kind: kind}
+	return &Var{object: object{nil, pos, pkg, name, typ, 0, nopos}, kind: kind}
 }
 
 // Anonymous reports whether the variable is an embedded field.
@@ -452,7 +412,7 @@ func NewFunc(pos syntax.Pos, pkg *Package, name string, sig *Signature) *Func {
 		// as this would violate object.{Type,color} invariants.
 		// TODO(adonovan): propose to disallow NewFunc with nil *Signature.
 	}
-	return &Func{object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, false, nil}
+	return &Func{object{nil, pos, pkg, name, typ, 0, nopos}, false, nil}
 }
 
 // Signature returns the signature (type) of the function or method.
@@ -534,7 +494,7 @@ type Label struct {
 
 // NewLabel returns a new label.
 func NewLabel(pos syntax.Pos, pkg *Package, name string) *Label {
-	return &Label{object{pos: pos, pkg: pkg, name: name, typ: Typ[Invalid], color_: black}, false}
+	return &Label{object{pos: pos, pkg: pkg, name: name, typ: Typ[Invalid]}, false}
 }
 
 // A Builtin represents a built-in function.
@@ -545,7 +505,7 @@ type Builtin struct {
 }
 
 func newBuiltin(id builtinId) *Builtin {
-	return &Builtin{object{name: predeclaredFuncs[id].name, typ: Typ[Invalid], color_: black}, id}
+	return &Builtin{object{name: predeclaredFuncs[id].name, typ: Typ[Invalid]}, id}
 }
 
 // Nil represents the predeclared value nil.

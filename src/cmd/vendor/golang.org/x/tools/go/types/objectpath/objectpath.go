@@ -249,7 +249,7 @@ func (enc *Encoder) For(obj types.Object) (Path, error) {
 
 	case *types.Func:
 		// A func, if not package-level, must be a method.
-		if recv := obj.Type().(*types.Signature).Recv(); recv == nil {
+		if recv := obj.Signature().Recv(); recv == nil {
 			return "", fmt.Errorf("func is not a method: %v", obj)
 		}
 
@@ -405,7 +405,7 @@ func (enc *Encoder) concreteMethod(meth *types.Func) (Path, bool) {
 		return "", false
 	}
 
-	_, named := typesinternal.ReceiverNamed(meth.Type().(*types.Signature).Recv())
+	_, named := typesinternal.ReceiverNamed(meth.Signature().Recv())
 	if named == nil {
 		return "", false
 	}

@@ -84,7 +84,6 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 		SIMD:                  goarch == "amd64", // TODO remove this (default to false) when dev.simd is merged
 		Dwarf5:                dwarf5Supported,
 		RandomizedHeapBase64:  true,
-		RuntimeFree:           true,
 		SizeSpecializedMalloc: true,
 		GreenTeaGC:            true,
 	}

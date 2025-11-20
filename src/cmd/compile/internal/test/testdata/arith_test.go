@@ -445,6 +445,19 @@ func testBitwiseRshU_ssa(a uint32, b, c uint32) uint32 {
 }
 
 //go:noinline
+func orLt_ssa(x int) bool {
+	y := x - x
+	return (x | 2) < y
+}
+
+// test riscv64 SLTI rules
+func testSetIfLessThan(t *testing.T) {
+	if want, got := true, orLt_ssa(-7); got != want {
+		t.Errorf("orLt_ssa(-7) = %t want %t", got, want)
+	}
+}
+
+//go:noinline
 func testShiftCX_ssa() int {
 	v1 := uint8(3)
 	v4 := (v1 * v1) ^ v1 | v1 - v1 - v1&v1 ^ uint8(3+2) + v1*1>>0 - v1 | 1 | v1<<(2*3|0-0*0^1)
@@ -977,6 +990,7 @@ func TestArithmetic(t *testing.T) {
 	testRegallocCVSpill(t)
 	testSubqToNegq(t)
 	testBitwiseLogic(t)
+	testSetIfLessThan(t)
 	testOcom(t)
 	testLrot(t)
 	testShiftCX(t)

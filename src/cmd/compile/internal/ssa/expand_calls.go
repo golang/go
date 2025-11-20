@@ -426,7 +426,14 @@ func (x *expandState) decomposeAsNecessary(pos src.XPos, b *Block, a, m0 *Value,
 		if a.Op == OpIMake {
 			data := a.Args[1]
 			for data.Op == OpStructMake || data.Op == OpArrayMake1 {
-				data = data.Args[0]
+				// A struct make might have a few zero-sized fields.
+				// Use the pointer-y one we know is there.
+				for _, a := range data.Args {
+					if a.Type.Size() > 0 {
+						data = a
+						break
+					}
+				}
 			}
 			return x.decomposeAsNecessary(pos, b, data, mem, rc.next(data.Type))
 		}

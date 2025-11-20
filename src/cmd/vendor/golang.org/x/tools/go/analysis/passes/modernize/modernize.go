@@ -16,15 +16,15 @@ import (
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/edge"
 	"golang.org/x/tools/go/ast/inspector"
-	"golang.org/x/tools/internal/analysisinternal/generated"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
 	"golang.org/x/tools/internal/astutil"
 	"golang.org/x/tools/internal/moreiters"
 	"golang.org/x/tools/internal/packagepath"
 	"golang.org/x/tools/internal/stdlib"
 	"golang.org/x/tools/internal/typesinternal"
-	"golang.org/x/tools/internal/versions"
 )
 
 //go:embed doc.go
@@ -48,6 +48,7 @@ var Suite = []*analysis.Analyzer{
 	// SlicesDeleteAnalyzer, // not nil-preserving!
 	SlicesSortAnalyzer,
 	stditeratorsAnalyzer,
+	stringscutAnalyzer,
 	StringsCutPrefixAnalyzer,
 	StringsSeqAnalyzer,
 	StringsBuilderAnalyzer,
@@ -56,18 +57,6 @@ var Suite = []*analysis.Analyzer{
 }
 
 // -- helpers --
-
-// skipGenerated decorates pass.Report to suppress diagnostics in generated files.
-func skipGenerated(pass *analysis.Pass) {
-	report := pass.Report
-	pass.Report = func(diag analysis.Diagnostic) {
-		generated := pass.ResultOf[generated.Analyzer].(*generated.Result)
-		if generated.IsGenerated(diag.Pos) {
-			return // skip
-		}
-		report(diag)
-	}
-}
 
 // formatExprs formats a comma-separated list of expressions.
 func formatExprs(fset *token.FileSet, exprs []ast.Expr) string {
@@ -81,8 +70,8 @@ func formatExprs(fset *token.FileSet, exprs []ast.Expr) string {
 	return buf.String()
 }
 
-// isZeroIntLiteral reports whether e is an integer whose value is 0.
-func isZeroIntLiteral(info *types.Info, e ast.Expr) bool {
+// isZeroIntConst reports whether e is an integer whose value is 0.
+func isZeroIntConst(info *types.Info, e ast.Expr) bool {
 	return isIntLiteral(info, e, 0)
 }
 
@@ -91,34 +80,26 @@ func isIntLiteral(info *types.Info, e ast.Expr, n int64) bool {
 	return info.Types[e].Value == constant.MakeInt64(n)
 }
 
-// filesUsing returns a cursor for each *ast.File in the inspector
+// filesUsingGoVersion returns a cursor for each *ast.File in the inspector
 // that uses at least the specified version of Go (e.g. "go1.24").
 //
+// The pass's analyzer must require [inspect.Analyzer].
+//
 // TODO(adonovan): opt: eliminate this function, instead following the
-// approach of [fmtappendf], which uses typeindex and [fileUses].
-// See "Tip" at [fileUses] for motivation.
-func filesUsing(inspect *inspector.Inspector, info *types.Info, version string) iter.Seq[inspector.Cursor] {
+// approach of [fmtappendf], which uses typeindex and
+// [analyzerutil.FileUsesGoVersion]; see "Tip" documented at the
+// latter function for motivation.
+func filesUsingGoVersion(pass *analysis.Pass, version string) iter.Seq[inspector.Cursor] {
+	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+
 	return func(yield func(inspector.Cursor) bool) {
 		for curFile := range inspect.Root().Children() {
 			file := curFile.Node().(*ast.File)
-			if !versions.Before(info.FileVersions[file], version) && !yield(curFile) {
+			if analyzerutil.FileUsesGoVersion(pass, file, version) && !yield(curFile) {
 				break
 			}
 		}
 	}
-}
-
-// fileUses reports whether the specified file uses at least the
-// specified version of Go (e.g. "go1.24").
-//
-// Tip: we recommend using this check "late", just before calling
-// pass.Report, rather than "early" (when entering each ast.File, or
-// each candidate node of interest, during the traversal), because the
-// operation is not free, yet is not a highly selective filter: the
-// fraction of files that pass most version checks is high and
-// increases over time.
-func fileUses(info *types.Info, file *ast.File, version string) bool {
-	return !versions.Before(info.FileVersions[file], version)
 }
 
 // within reports whether the current pass is analyzing one of the

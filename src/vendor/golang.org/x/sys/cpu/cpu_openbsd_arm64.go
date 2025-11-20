@@ -59,7 +59,7 @@ func doinit() {
 	if !ok {
 		return
 	}
-	parseARM64SystemRegisters(isar0, isar1, 0)
+	parseARM64SystemRegisters(isar0, isar1, 0, 0)
 
 	Initialized = true
 }

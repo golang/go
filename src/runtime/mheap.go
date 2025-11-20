@@ -435,7 +435,7 @@ type mspan struct {
 	// indicating a free object. freeindex is then adjusted so that subsequent scans begin
 	// just past the newly discovered free object.
 	//
-	// If freeindex == nelems, this span has no free objects.
+	// If freeindex == nelems, this span has no free objects, though might have reusable objects.
 	//
 	// allocBits is a bitmap of objects in this span.
 	// If n >= freeindex and allocBits[n/8] & (1<<(n%8)) is 0
@@ -2161,7 +2161,7 @@ func removefinalizer(p unsafe.Pointer) {
 type specialCleanup struct {
 	_       sys.NotInHeap
 	special special
-	fn      *funcval
+	cleanup cleanupFn
 	// Globally unique ID for the cleanup, obtained from mheap_.cleanupID.
 	id uint64
 }
@@ -2170,14 +2170,18 @@ type specialCleanup struct {
 // cleanups are allowed on an object, and even the same pointer.
 // A cleanup id is returned which can be used to uniquely identify
 // the cleanup.
-func addCleanup(p unsafe.Pointer, f *funcval) uint64 {
+func addCleanup(p unsafe.Pointer, c cleanupFn) uint64 {
+	// TODO(mknyszek): Consider pooling specialCleanups on the P
+	// so we don't have to take the lock every time. Just locking
+	// is a considerable part of the cost of AddCleanup. This
+	// would also require reserving some cleanup IDs on the P.
 	lock(&mheap_.speciallock)
 	s := (*specialCleanup)(mheap_.specialCleanupAlloc.alloc())
 	mheap_.cleanupID++ // Increment first. ID 0 is reserved.
 	id := mheap_.cleanupID
 	unlock(&mheap_.speciallock)
 	s.special.kind = _KindSpecialCleanup
-	s.fn = f
+	s.cleanup = c
 	s.id = id
 
 	mp := acquirem()
@@ -2187,17 +2191,16 @@ func addCleanup(p unsafe.Pointer, f *funcval) uint64 {
 	// situation where it's possible that markrootSpans
 	// has already run but mark termination hasn't yet.
 	if gcphase != _GCoff {
-		gcw := &mp.p.ptr().gcw
 		// Mark the cleanup itself, since the
 		// special isn't part of the GC'd heap.
-		scanblock(uintptr(unsafe.Pointer(&s.fn)), goarch.PtrSize, &oneptrmask[0], gcw, nil)
+		gcScanCleanup(s, &mp.p.ptr().gcw)
 	}
 	releasem(mp)
-	// Keep f alive. There's a window in this function where it's
-	// only reachable via the special while the special hasn't been
-	// added to the specials list yet. This is similar to a bug
+	// Keep c and its referents alive. There's a window in this function
+	// where it's only reachable via the special while the special hasn't
+	// been added to the specials list yet. This is similar to a bug
 	// discovered for weak handles, see #70455.
-	KeepAlive(f)
+	KeepAlive(c)
 	return id
 }
 
@@ -2534,7 +2537,15 @@ func getOrAddWeakHandle(p unsafe.Pointer) *atomic.Uintptr {
 	s := (*specialWeakHandle)(mheap_.specialWeakHandleAlloc.alloc())
 	unlock(&mheap_.speciallock)
 
-	handle := new(atomic.Uintptr)
+	// N.B. Pad the weak handle to ensure it doesn't share a tiny
+	// block with any other allocations. This can lead to leaks, such
+	// as in go.dev/issue/76007. As an alternative, we could consider
+	// using the currently-unused 8-byte noscan size class.
+	type weakHandleBox struct {
+		h atomic.Uintptr
+		_ [maxTinySize - unsafe.Sizeof(atomic.Uintptr{})]byte
+	}
+	handle := &(new(weakHandleBox).h)
 	s.special.kind = _KindSpecialWeakHandle
 	s.handle = handle
 	handle.Store(uintptr(p))
@@ -2792,7 +2803,7 @@ func freeSpecial(s *special, p unsafe.Pointer, size uintptr) {
 		// Cleanups, unlike finalizers, do not resurrect the objects
 		// they're attached to, so we only need to pass the cleanup
 		// function, not the object.
-		gcCleanups.enqueue(sc.fn)
+		gcCleanups.enqueue(sc.cleanup)
 		lock(&mheap_.speciallock)
 		mheap_.specialCleanupAlloc.free(unsafe.Pointer(sc))
 		unlock(&mheap_.speciallock)

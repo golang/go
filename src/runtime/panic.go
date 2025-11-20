@@ -746,7 +746,7 @@ func printpanics(p *_panic) {
 	}
 	print("panic: ")
 	printpanicval(p.arg)
-	if p.repanicked {
+	if p.recovered && p.repanicked {
 		print(" [recovered, repanicked]")
 	} else if p.recovered {
 		print(" [recovered]")

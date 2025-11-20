@@ -86,7 +86,7 @@ func (b *Buffer) Peek(n int) ([]byte, error) {
 	if b.Len() < n {
 		return b.buf[b.off:], io.EOF
 	}
-	return b.buf[b.off:n], nil
+	return b.buf[b.off : b.off+n], nil
 }
 
 // empty reports whether the unread portion of the buffer is empty.

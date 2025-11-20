@@ -574,7 +574,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		// Special case for rune constants.
 		if typ == types.RuneType || typ == types.UntypedRune {
 			if x, ok := constant.Uint64Val(val); ok && x <= utf8.MaxRune {
-				fmt.Fprintf(s, "%q", x)
+				fmt.Fprintf(s, "%q", rune(x))
 				return
 			}
 		}

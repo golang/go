@@ -2507,19 +2507,19 @@ func dwarfcompress(ctxt *Link) {
 	var prevSect *sym.Section
 	for _, si := range dwarfp {
 		for _, s := range si.syms {
-			ldr.SetSymValue(s, int64(pos))
 			sect := ldr.SymSect(s)
 			if sect != prevSect {
+				if ctxt.IsWindows() {
+					pos = uint64(Rnd(int64(pos), PEFILEALIGN))
+				}
 				sect.Vaddr = pos
 				prevSect = sect
 			}
+			ldr.SetSymValue(s, int64(pos))
 			if ldr.SubSym(s) != 0 {
 				log.Fatalf("%s: unexpected sub-symbols", ldr.SymName(s))
 			}
 			pos += uint64(ldr.SymSize(s))
-			if ctxt.IsWindows() {
-				pos = uint64(Rnd(int64(pos), PEFILEALIGN))
-			}
 		}
 	}
 	Segdwarf.Length = pos - Segdwarf.Vaddr

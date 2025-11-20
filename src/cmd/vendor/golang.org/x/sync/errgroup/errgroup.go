@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package errgroup provides synchronization, error propagation, and Context
-// cancelation for groups of goroutines working on subtasks of a common task.
+// cancellation for groups of goroutines working on subtasks of a common task.
 //
 // [errgroup.Group] is related to [sync.WaitGroup] but adds handling of tasks
 // returning errors.

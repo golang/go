@@ -461,7 +461,7 @@ func bogoShim() {
 			}
 
 			if *expectVersion != 0 && cs.Version != uint16(*expectVersion) {
-				log.Fatalf("expected ssl version %q, got %q", uint16(*expectVersion), cs.Version)
+				log.Fatalf("expected ssl version %d, got %d", *expectVersion, cs.Version)
 			}
 			if *declineALPN && cs.NegotiatedProtocol != "" {
 				log.Fatal("unexpected ALPN protocol")

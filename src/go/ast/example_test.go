@@ -113,31 +113,32 @@ func main() {
 	//     34  .  .  .  .  .  .  .  Args: []ast.Expr (len = 1) {
 	//     35  .  .  .  .  .  .  .  .  0: *ast.BasicLit {
 	//     36  .  .  .  .  .  .  .  .  .  ValuePos: 4:10
-	//     37  .  .  .  .  .  .  .  .  .  Kind: STRING
-	//     38  .  .  .  .  .  .  .  .  .  Value: "\"Hello, World!\""
-	//     39  .  .  .  .  .  .  .  .  }
-	//     40  .  .  .  .  .  .  .  }
-	//     41  .  .  .  .  .  .  .  Ellipsis: -
-	//     42  .  .  .  .  .  .  .  Rparen: 4:25
-	//     43  .  .  .  .  .  .  }
-	//     44  .  .  .  .  .  }
-	//     45  .  .  .  .  }
-	//     46  .  .  .  .  Rbrace: 5:1
-	//     47  .  .  .  }
-	//     48  .  .  }
-	//     49  .  }
-	//     50  .  FileStart: 1:1
-	//     51  .  FileEnd: 5:3
-	//     52  .  Scope: *ast.Scope {
-	//     53  .  .  Objects: map[string]*ast.Object (len = 1) {
-	//     54  .  .  .  "main": *(obj @ 11)
-	//     55  .  .  }
-	//     56  .  }
-	//     57  .  Unresolved: []*ast.Ident (len = 1) {
-	//     58  .  .  0: *(obj @ 29)
-	//     59  .  }
-	//     60  .  GoVersion: ""
-	//     61  }
+	//     37  .  .  .  .  .  .  .  .  .  ValueEnd: 4:25
+	//     38  .  .  .  .  .  .  .  .  .  Kind: STRING
+	//     39  .  .  .  .  .  .  .  .  .  Value: "\"Hello, World!\""
+	//     40  .  .  .  .  .  .  .  .  }
+	//     41  .  .  .  .  .  .  .  }
+	//     42  .  .  .  .  .  .  .  Ellipsis: -
+	//     43  .  .  .  .  .  .  .  Rparen: 4:25
+	//     44  .  .  .  .  .  .  }
+	//     45  .  .  .  .  .  }
+	//     46  .  .  .  .  }
+	//     47  .  .  .  .  Rbrace: 5:1
+	//     48  .  .  .  }
+	//     49  .  .  }
+	//     50  .  }
+	//     51  .  FileStart: 1:1
+	//     52  .  FileEnd: 5:3
+	//     53  .  Scope: *ast.Scope {
+	//     54  .  .  Objects: map[string]*ast.Object (len = 1) {
+	//     55  .  .  .  "main": *(obj @ 11)
+	//     56  .  .  }
+	//     57  .  }
+	//     58  .  Unresolved: []*ast.Ident (len = 1) {
+	//     59  .  .  0: *(obj @ 29)
+	//     60  .  }
+	//     61  .  GoVersion: ""
+	//     62  }
 }
 
 func ExamplePreorder() {

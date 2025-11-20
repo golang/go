@@ -180,9 +180,10 @@ func (c *fakeNetConn) Close() error {
 	c.loc.unlock()
 	// Remote half of the connection reads EOF after reading any remaining data.
 	c.rem.lock()
-	if c.rem.readErr != nil {
+	if c.rem.readErr == nil {
 		c.rem.readErr = io.EOF
 	}
+	c.rem.writeErr = net.ErrClosed
 	c.rem.unlock()
 	if c.autoWait {
 		synctest.Wait()

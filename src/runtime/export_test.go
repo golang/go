@@ -238,6 +238,12 @@ func SetEnvs(e []string) { envs = e }
 
 const PtrSize = goarch.PtrSize
 
+const ClobberdeadPtr = clobberdeadPtr
+
+func Clobberfree() bool {
+	return debug.clobberfree != 0
+}
+
 var ForceGCPeriod = &forcegcperiod
 
 // SetTracebackEnv is like runtime/debug.SetTraceback, but it raises
@@ -632,6 +638,34 @@ func RunGetgThreadSwitchTest() {
 		panic("g1 != g3")
 	}
 }
+
+// Expose freegc for testing.
+func Freegc(p unsafe.Pointer, size uintptr, noscan bool) {
+	freegc(p, size, noscan)
+}
+
+// Expose gcAssistBytes for the current g for testing.
+func AssistCredit() int64 {
+	assistG := getg()
+	if assistG.m.curg != nil {
+		assistG = assistG.m.curg
+	}
+	return assistG.gcAssistBytes
+}
+
+// Expose gcBlackenEnabled for testing.
+func GcBlackenEnable() bool {
+	// Note we do a non-atomic load here.
+	// Some checks against gcBlackenEnabled (e.g., in mallocgc)
+	// are currently done via non-atomic load for performance reasons,
+	// but other checks are done via atomic load (e.g., in mgcmark.go),
+	// so interpreting this value in a test may be subtle.
+	return gcBlackenEnabled != 0
+}
+
+const SizeSpecializedMallocEnabled = sizeSpecializedMallocEnabled
+
+const RuntimeFreegcEnabled = runtimeFreegcEnabled
 
 const (
 	PageSize         = pageSize
@@ -1472,6 +1506,15 @@ func Releasem() {
 	releasem(getg().m)
 }
 
+// GoschedIfBusy is an explicit preemption check to call back
+// into the scheduler. This is useful for tests that run code
+// which spend most of their time as non-preemptible, as it
+// can be placed right after becoming preemptible again to ensure
+// that the scheduler gets a chance to preempt the goroutine.
+func GoschedIfBusy() {
+	goschedIfBusy()
+}
+
 type PIController struct {
 	piController
 }
@@ -1987,4 +2030,37 @@ func (head *ListHeadManual) Pop() unsafe.Pointer {
 
 func (head *ListHeadManual) Remove(p unsafe.Pointer) {
 	head.l.remove(p)
+}
+
+func Hexdumper(base uintptr, wordBytes int, mark func(addr uintptr, start func()), data ...[]byte) string {
+	buf := make([]byte, 0, 2048)
+	getg().writebuf = buf
+	h := hexdumper{addr: base, addrBytes: 4, wordBytes: uint8(wordBytes)}
+	if mark != nil {
+		h.mark = func(addr uintptr, m hexdumpMarker) {
+			mark(addr, m.start)
+		}
+	}
+	for _, d := range data {
+		h.write(d)
+	}
+	h.close()
+	n := len(getg().writebuf)
+	getg().writebuf = nil
+	if n == cap(buf) {
+		panic("Hexdumper buf too small")
+	}
+	return string(buf[:n])
+}
+
+func HexdumpWords(p, bytes uintptr) string {
+	buf := make([]byte, 0, 2048)
+	getg().writebuf = buf
+	hexdumpWords(p, bytes, nil)
+	n := len(getg().writebuf)
+	getg().writebuf = nil
+	if n == cap(buf) {
+		panic("HexdumpWords buf too small")
+	}
+	return string(buf[:n])
 }

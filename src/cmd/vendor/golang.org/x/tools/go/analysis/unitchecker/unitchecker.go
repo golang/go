@@ -49,7 +49,7 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/internal/analysisflags"
-	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/internal/analysis/driverutil"
 	"golang.org/x/tools/internal/facts"
 )
 
@@ -183,16 +183,18 @@ func processResults(fset *token.FileSet, id string, results []result) (exit int)
 		// but apply all fixes from the root actions.
 
 		// Convert results to form needed by ApplyFixes.
-		fixActions := make([]analysisflags.FixAction, len(results))
+		fixActions := make([]driverutil.FixAction, len(results))
 		for i, res := range results {
-			fixActions[i] = analysisflags.FixAction{
+			fixActions[i] = driverutil.FixAction{
 				Name:         res.a.Name,
+				Pkg:          res.pkg,
+				Files:        res.files,
 				FileSet:      fset,
-				ReadFileFunc: os.ReadFile,
+				ReadFileFunc: os.ReadFile, // TODO(adonovan): respect overlays
 				Diagnostics:  res.diagnostics,
 			}
 		}
-		if err := analysisflags.ApplyFixes(fixActions, false); err != nil {
+		if err := driverutil.ApplyFixes(fixActions, analysisflags.Diff, false); err != nil {
 			// Fail when applying fixes failed.
 			log.Print(err)
 			exit = 1
@@ -209,7 +211,7 @@ func processResults(fset *token.FileSet, id string, results []result) (exit int)
 
 	if analysisflags.JSON {
 		// JSON output
-		tree := make(analysisflags.JSONTree)
+		tree := make(driverutil.JSONTree)
 		for _, res := range results {
 			tree.Add(fset, id, res.a.Name, res.diagnostics, res.err)
 		}
@@ -225,7 +227,7 @@ func processResults(fset *token.FileSet, id string, results []result) (exit int)
 		}
 		for _, res := range results {
 			for _, diag := range res.diagnostics {
-				analysisflags.PrintPlain(os.Stderr, fset, analysisflags.Context, diag)
+				driverutil.PrintPlain(os.Stderr, fset, analysisflags.Context, diag)
 				exit = 1
 			}
 		}
@@ -428,7 +430,7 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 				ResultOf:     inputs,
 				Report: func(d analysis.Diagnostic) {
 					// Unitchecker doesn't apply fixes, but it does report them in the JSON output.
-					if err := analysisinternal.ValidateFixes(fset, a, d.SuggestedFixes); err != nil {
+					if err := driverutil.ValidateFixes(fset, a, d.SuggestedFixes); err != nil {
 						// Since we have diagnostics, the exit code will be nonzero,
 						// so logging these errors is sufficient.
 						log.Println(err)
@@ -444,14 +446,14 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 				AllPackageFacts:   func() []analysis.PackageFact { return facts.AllPackageFacts(factFilter) },
 				Module:            module,
 			}
-			pass.ReadFile = analysisinternal.CheckedReadFile(pass, os.ReadFile)
+			pass.ReadFile = driverutil.CheckedReadFile(pass, os.ReadFile)
 
 			t0 := time.Now()
 			act.result, act.err = a.Run(pass)
 
 			if act.err == nil { // resolve URLs on diagnostics.
 				for i := range act.diagnostics {
-					if url, uerr := analysisflags.ResolveURL(a, act.diagnostics[i]); uerr == nil {
+					if url, uerr := driverutil.ResolveURL(a, act.diagnostics[i]); uerr == nil {
 						act.diagnostics[i].URL = url
 					} else {
 						act.err = uerr // keep the last error
@@ -482,9 +484,7 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 	results := make([]result, len(analyzers))
 	for i, a := range analyzers {
 		act := actions[a]
-		results[i].a = a
-		results[i].err = act.err
-		results[i].diagnostics = act.diagnostics
+		results[i] = result{pkg, files, a, act.diagnostics, act.err}
 	}
 
 	data := facts.Encode()
@@ -499,6 +499,8 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 }
 
 type result struct {
+	pkg         *types.Package
+	files       []*ast.File
 	a           *analysis.Analyzer
 	diagnostics []analysis.Diagnostic
 	err         error

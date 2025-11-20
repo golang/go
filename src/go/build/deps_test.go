@@ -339,6 +339,7 @@ var depsRules = `
 	< internal/gover
 	< go/version
 	< go/token
+	< go/internal/scannerhooks
 	< go/scanner
 	< go/ast
 	< go/internal/typeparams;
@@ -736,6 +737,9 @@ var depsRules = `
 
 	testing
 	< internal/testhash;
+
+	CRYPTO-MATH
+	< crypto/mlkem/mlkemtest;
 
 	CRYPTO-MATH, testing, internal/testenv, internal/testhash, encoding/json
 	< crypto/internal/cryptotest;

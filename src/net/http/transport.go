@@ -2110,7 +2110,6 @@ type persistConn struct {
 	numExpectedResponses int
 	closed               error // set non-nil when conn is closed, before closech is closed
 	canceledErr          error // set non-nil if conn is canceled
-	broken               bool  // an error has happened on this connection; marked broken so it's not reused.
 	reused               bool  // whether conn has had successful request/response and is being reused.
 	// mutateHeaderFunc is an optional func to modify extra
 	// headers on each outbound request before it's written. (the
@@ -2925,7 +2924,6 @@ func (pc *persistConn) closeLocked(err error) {
 	if err == nil {
 		panic("nil error")
 	}
-	pc.broken = true
 	if pc.closed == nil {
 		pc.closed = err
 		pc.t.decConnsPerHost(pc.cacheKey)

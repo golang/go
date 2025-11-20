@@ -29,6 +29,11 @@ type symsStruct struct {
 	GCWriteBarrier            [8]*obj.LSym
 	Goschedguarded            *obj.LSym
 	Growslice                 *obj.LSym
+	GrowsliceBuf              *obj.LSym
+	MoveSlice                 *obj.LSym
+	MoveSliceNoScan           *obj.LSym
+	MoveSliceNoCap            *obj.LSym
+	MoveSliceNoCapNoScan      *obj.LSym
 	InterfaceSwitch           *obj.LSym
 	MallocGC                  *obj.LSym
 	MallocGCSmallNoScan       [27]*obj.LSym

@@ -47,13 +47,16 @@ import (
 	"go/ast"
 	"go/format"
 	"go/token"
+
+	"golang.org/x/tools/internal/cfginternal"
 )
 
 // A CFG represents the control-flow graph of a single function.
 //
 // The entry point is Blocks[0]; there may be multiple return blocks.
 type CFG struct {
-	Blocks []*Block // block[0] is entry; order otherwise undefined
+	Blocks   []*Block // block[0] is entry; order otherwise undefined
+	noreturn bool     // function body lacks a reachable return statement
 }
 
 // A Block represents a basic block: a list of statements and
@@ -67,12 +70,13 @@ type CFG struct {
 // an [ast.Expr], Succs[0] is the successor if the condition is true, and
 // Succs[1] is the successor if the condition is false.
 type Block struct {
-	Nodes []ast.Node // statements, expressions, and ValueSpecs
-	Succs []*Block   // successor nodes in the graph
-	Index int32      // index within CFG.Blocks
-	Live  bool       // block is reachable from entry
-	Kind  BlockKind  // block kind
-	Stmt  ast.Stmt   // statement that gave rise to this block (see BlockKind for details)
+	Nodes   []ast.Node // statements, expressions, and ValueSpecs
+	Succs   []*Block   // successor nodes in the graph
+	Index   int32      // index within CFG.Blocks
+	Live    bool       // block is reachable from entry
+	returns bool       // block contains return or defer (which may recover and return)
+	Kind    BlockKind  // block kind
+	Stmt    ast.Stmt   // statement that gave rise to this block (see BlockKind for details)
 
 	succs2 [2]*Block // underlying array for Succs
 }
@@ -141,14 +145,14 @@ func (kind BlockKind) String() string {
 func New(body *ast.BlockStmt, mayReturn func(*ast.CallExpr) bool) *CFG {
 	b := builder{
 		mayReturn: mayReturn,
-		cfg:       new(CFG),
 	}
 	b.current = b.newBlock(KindBody, body)
 	b.stmt(body)
 
-	// Compute liveness (reachability from entry point), breadth-first.
-	q := make([]*Block, 0, len(b.cfg.Blocks))
-	q = append(q, b.cfg.Blocks[0]) // entry point
+	// Compute liveness (reachability from entry point),
+	// breadth-first, marking Block.Live flags.
+	q := make([]*Block, 0, len(b.blocks))
+	q = append(q, b.blocks[0]) // entry point
 	for len(q) > 0 {
 		b := q[len(q)-1]
 		q = q[:len(q)-1]
@@ -162,12 +166,30 @@ func New(body *ast.BlockStmt, mayReturn func(*ast.CallExpr) bool) *CFG {
 	// Does control fall off the end of the function's body?
 	// Make implicit return explicit.
 	if b.current != nil && b.current.Live {
+		b.current.returns = true
 		b.add(&ast.ReturnStmt{
 			Return: body.End() - 1,
 		})
 	}
 
-	return b.cfg
+	// Is any return (or defer+recover) block reachable?
+	noreturn := true
+	for _, bl := range b.blocks {
+		if bl.Live && bl.returns {
+			noreturn = false
+			break
+		}
+	}
+
+	return &CFG{Blocks: b.blocks, noreturn: noreturn}
+}
+
+// isNoReturn reports whether the function has no reachable return.
+// TODO(adonovan): add (*CFG).NoReturn to public API.
+func isNoReturn(_cfg any) bool { return _cfg.(*CFG).noreturn }
+
+func init() {
+	cfginternal.IsNoReturn = isNoReturn // expose to ctrlflow analyzer
 }
 
 func (b *Block) String() string {
@@ -187,6 +209,14 @@ func (b *Block) comment(fset *token.FileSet) string {
 //
 // When control falls off the end of the function, the ReturnStmt is synthetic
 // and its [ast.Node.End] position may be beyond the end of the file.
+//
+// A function that contains no return statement (explicit or implied)
+// may yet return normally, and may even return a nonzero value. For example:
+//
+//	func() (res any) {
+//		defer func() { res = recover() }()
+//		panic(123)
+//	}
 func (b *Block) Return() (ret *ast.ReturnStmt) {
 	if len(b.Nodes) > 0 {
 		ret, _ = b.Nodes[len(b.Nodes)-1].(*ast.ReturnStmt)
