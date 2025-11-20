@@ -5,9 +5,9 @@
 package strconv_test
 
 import (
+	. "internal/strconv"
 	"math"
 	"math/cmplx"
-	. "internal/strconv"
 	"testing"
 )
 
@@ -194,7 +194,7 @@ func TestParseComplex(t *testing.T) {
 		if complex128(complex64(test.out)) == test.out {
 			c, e := ParseComplex(test.in, 64)
 			c64 := complex64(c)
-			if !sameComplex(complex128(c64) , test.out) || e != test.err {
+			if !sameComplex(complex128(c64), test.out) || e != test.err {
 				t.Errorf("ParseComplex(%s, 64) = %v, %v, want %v, %v", test.in, c, e, test.out, test.err)
 			}
 		}
