@@ -6,6 +6,8 @@ package runtime_test
 
 import (
 	"fmt"
+	"internal/asan"
+	"internal/msan"
 	"internal/race"
 	"internal/testenv"
 	"runtime"
@@ -516,6 +518,9 @@ func TestAppendByteInLoop(t *testing.T) {
 	if race.Enabled {
 		t.Skip("skipping in -race mode")
 	}
+	if asan.Enabled || msan.Enabled {
+		t.Skip("skipping in sanitizer mode")
+	}
 	for _, test := range [][3]int{
 		{0, 0, 0},
 		{1, 1, 8},
@@ -561,6 +566,9 @@ func TestAppendPtrInLoop(t *testing.T) {
 	testenv.SkipIfOptimizationOff(t)
 	if race.Enabled {
 		t.Skip("skipping in -race mode")
+	}
+	if asan.Enabled || msan.Enabled {
+		t.Skip("skipping in sanitizer mode")
 	}
 	var tests [][3]int
 	if runtime.PtrSize == 8 {
@@ -627,6 +635,9 @@ func TestAppendByteCapInLoop(t *testing.T) {
 	testenv.SkipIfOptimizationOff(t)
 	if race.Enabled {
 		t.Skip("skipping in -race mode")
+	}
+	if asan.Enabled || msan.Enabled {
+		t.Skip("skipping in sanitizer mode")
 	}
 	for _, test := range [][3]int{
 		{0, 0, 0},
