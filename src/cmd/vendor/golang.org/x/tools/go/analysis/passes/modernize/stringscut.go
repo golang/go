@@ -489,7 +489,7 @@ func isNegativeConst(info *types.Info, expr ast.Expr) bool {
 	return false
 }
 
-// isNoneNegativeConst returns true if the expr is a const int with value >= zero.
+// isNonNegativeConst returns true if the expr is a const int with value >= zero.
 func isNonNegativeConst(info *types.Info, expr ast.Expr) bool {
 	if tv, ok := info.Types[expr]; ok && tv.Value != nil && tv.Value.Kind() == constant.Int {
 		if v, ok := constant.Int64Val(tv.Value); ok {

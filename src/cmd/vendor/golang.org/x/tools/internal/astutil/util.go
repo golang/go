@@ -64,7 +64,7 @@ func NodeContains(n ast.Node, rng Range) bool {
 	return NodeRange(n).Contains(rng)
 }
 
-// NodeContainPos reports whether the Pos/End range of node n encloses
+// NodeContainsPos reports whether the Pos/End range of node n encloses
 // the given pos.
 //
 // Like [NodeRange], it treats the range of an [ast.File] as the

@@ -233,13 +233,16 @@ func mapsloop(pass *analysis.Pass) (any, error) {
 				assign := rng.Body.List[0].(*ast.AssignStmt)
 				if index, ok := assign.Lhs[0].(*ast.IndexExpr); ok &&
 					astutil.EqualSyntax(rng.Key, index.Index) &&
-					astutil.EqualSyntax(rng.Value, assign.Rhs[0]) &&
-					is[*types.Map](typeparams.CoreType(info.TypeOf(index.X))) &&
-					types.Identical(info.TypeOf(index), info.TypeOf(rng.Value)) { // m[k], v
+					astutil.EqualSyntax(rng.Value, assign.Rhs[0]) {
+					if tmap, ok := typeparams.CoreType(info.TypeOf(index.X)).(*types.Map); ok &&
+						types.Identical(info.TypeOf(index), info.TypeOf(rng.Value)) && // m[k], v
+						types.Identical(tmap.Key(), info.TypeOf(rng.Key)) {
 
-					// Have: for k, v := range x { m[k] = v }
-					// where there is no implicit conversion.
-					check(file, curRange, assign, index.X, rng.X)
+						// Have: for k, v := range x { m[k] = v }
+						// where there is no implicit conversion
+						// of either key or value.
+						check(file, curRange, assign, index.X, rng.X)
+					}
 				}
 			}
 		}
