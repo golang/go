@@ -442,11 +442,6 @@ type modSum struct {
 	sum string
 }
 
-var goSum struct {
-	mu sync.Mutex
-	sumState
-}
-
 type sumState struct {
 	m         map[module.Version][]string            // content of go.sum file
 	w         map[string]map[module.Version][]string // sum file in workspace -> content of that sum file
@@ -476,6 +471,7 @@ type Fetcher struct {
 	// non-thread-safe SetState function.
 	downloadCache *par.ErrCache[module.Version, string] // version → directory;
 
+	mu       sync.Mutex
 	sumState sumState
 }
 
@@ -518,15 +514,15 @@ func SetState(newState *Fetcher) (oldState *Fetcher) {
 		newState.downloadCache = new(par.ErrCache[module.Version, string])
 	}
 
-	goSum.mu.Lock()
-	defer goSum.mu.Unlock()
+	Fetcher_.mu.Lock()
+	defer Fetcher_.mu.Unlock()
 
 	oldState = &Fetcher{
 		goSumFile:           Fetcher_.goSumFile,
 		workspaceGoSumFiles: Fetcher_.workspaceGoSumFiles,
 		lookupCache:         Fetcher_.lookupCache,
 		downloadCache:       Fetcher_.downloadCache,
-		sumState:            goSum.sumState,
+		sumState:            Fetcher_.sumState,
 	}
 
 	Fetcher_.SetGoSumFile(newState.goSumFile)
@@ -537,7 +533,7 @@ func SetState(newState *Fetcher) (oldState *Fetcher) {
 	Fetcher_.lookupCache = newState.lookupCache
 	Fetcher_.downloadCache = newState.downloadCache
 	// Set, or reset all fields on goSum. If being reset to empty, it will be initialized later.
-	goSum.sumState = newState.sumState
+	Fetcher_.sumState = newState.sumState
 
 	return oldState
 }
@@ -550,24 +546,24 @@ func initGoSum() (bool, error) {
 	if Fetcher_.goSumFile == "" {
 		return false, nil
 	}
-	if goSum.m != nil {
+	if Fetcher_.sumState.m != nil {
 		return true, nil
 	}
 
-	goSum.m = make(map[module.Version][]string)
-	goSum.status = make(map[modSum]modSumStatus)
-	goSum.w = make(map[string]map[module.Version][]string)
+	Fetcher_.sumState.m = make(map[module.Version][]string)
+	Fetcher_.sumState.status = make(map[modSum]modSumStatus)
+	Fetcher_.sumState.w = make(map[string]map[module.Version][]string)
 
 	for _, f := range Fetcher_.workspaceGoSumFiles {
-		goSum.w[f] = make(map[module.Version][]string)
-		_, err := readGoSumFile(goSum.w[f], f)
+		Fetcher_.sumState.w[f] = make(map[module.Version][]string)
+		_, err := readGoSumFile(Fetcher_.sumState.w[f], f)
 		if err != nil {
 			return false, err
 		}
 	}
 
-	enabled, err := readGoSumFile(goSum.m, Fetcher_.goSumFile)
-	goSum.enabled = enabled
+	enabled, err := readGoSumFile(Fetcher_.sumState.m, Fetcher_.goSumFile)
+	Fetcher_.sumState.enabled = enabled
 	return enabled, err
 }
 
@@ -637,27 +633,27 @@ func readGoSum(dst map[module.Version][]string, file string, data []byte) {
 // mod.Version may have a "/go.mod" suffix to distinguish sums for
 // .mod and .zip files.
 func HaveSum(mod module.Version) bool {
-	goSum.mu.Lock()
-	defer goSum.mu.Unlock()
+	Fetcher_.mu.Lock()
+	defer Fetcher_.mu.Unlock()
 	inited, err := initGoSum()
 	if err != nil || !inited {
 		return false
 	}
-	for _, goSums := range goSum.w {
+	for _, goSums := range Fetcher_.sumState.w {
 		for _, h := range goSums[mod] {
 			if !strings.HasPrefix(h, "h1:") {
 				continue
 			}
-			if !goSum.status[modSum{mod, h}].dirty {
+			if !Fetcher_.sumState.status[modSum{mod, h}].dirty {
 				return true
 			}
 		}
 	}
-	for _, h := range goSum.m[mod] {
+	for _, h := range Fetcher_.sumState.m[mod] {
 		if !strings.HasPrefix(h, "h1:") {
 			continue
 		}
-		if !goSum.status[modSum{mod, h}].dirty {
+		if !Fetcher_.sumState.status[modSum{mod, h}].dirty {
 			return true
 		}
 	}
@@ -671,19 +667,19 @@ func HaveSum(mod module.Version) bool {
 // mod.Version may have a "/go.mod" suffix to distinguish sums for
 // .mod and .zip files.
 func RecordedSum(mod module.Version) (sum string, ok bool) {
-	goSum.mu.Lock()
-	defer goSum.mu.Unlock()
+	Fetcher_.mu.Lock()
+	defer Fetcher_.mu.Unlock()
 	inited, err := initGoSum()
 	foundSum := ""
 	if err != nil || !inited {
 		return "", false
 	}
-	for _, goSums := range goSum.w {
+	for _, goSums := range Fetcher_.sumState.w {
 		for _, h := range goSums[mod] {
 			if !strings.HasPrefix(h, "h1:") {
 				continue
 			}
-			if !goSum.status[modSum{mod, h}].dirty {
+			if !Fetcher_.sumState.status[modSum{mod, h}].dirty {
 				if foundSum != "" && foundSum != h { // conflicting sums exist
 					return "", false
 				}
@@ -691,11 +687,11 @@ func RecordedSum(mod module.Version) (sum string, ok bool) {
 			}
 		}
 	}
-	for _, h := range goSum.m[mod] {
+	for _, h := range Fetcher_.sumState.m[mod] {
 		if !strings.HasPrefix(h, "h1:") {
 			continue
 		}
-		if !goSum.status[modSum{mod, h}].dirty {
+		if !Fetcher_.sumState.status[modSum{mod, h}].dirty {
 			if foundSum != "" && foundSum != h { // conflicting sums exist
 				return "", false
 			}
@@ -768,19 +764,19 @@ func checkModSum(mod module.Version, h string) error {
 	// to checkSumDB.
 
 	// Check whether mod+h is listed in go.sum already. If so, we're done.
-	goSum.mu.Lock()
+	Fetcher_.mu.Lock()
 	inited, err := initGoSum()
 	if err != nil {
-		goSum.mu.Unlock()
+		Fetcher_.mu.Unlock()
 		return err
 	}
 	done := inited && haveModSumLocked(mod, h)
 	if inited {
-		st := goSum.status[modSum{mod, h}]
+		st := Fetcher_.sumState.status[modSum{mod, h}]
 		st.used = true
-		goSum.status[modSum{mod, h}] = st
+		Fetcher_.sumState.status[modSum{mod, h}] = st
 	}
-	goSum.mu.Unlock()
+	Fetcher_.mu.Unlock()
 
 	if done {
 		return nil
@@ -797,12 +793,12 @@ func checkModSum(mod module.Version, h string) error {
 
 	// Add mod+h to go.sum, if it hasn't appeared already.
 	if inited {
-		goSum.mu.Lock()
+		Fetcher_.mu.Lock()
 		addModSumLocked(mod, h)
-		st := goSum.status[modSum{mod, h}]
+		st := Fetcher_.sumState.status[modSum{mod, h}]
 		st.dirty = true
-		goSum.status[modSum{mod, h}] = st
-		goSum.mu.Unlock()
+		Fetcher_.sumState.status[modSum{mod, h}] = st
+		Fetcher_.mu.Unlock()
 	}
 	return nil
 }
@@ -815,7 +811,7 @@ func haveModSumLocked(mod module.Version, h string) bool {
 	if strings.HasSuffix(Fetcher_.goSumFile, "go.work.sum") {
 		sumFileName = "go.work.sum"
 	}
-	for _, vh := range goSum.m[mod] {
+	for _, vh := range Fetcher_.sumState.m[mod] {
 		if h == vh {
 			return true
 		}
@@ -827,7 +823,7 @@ func haveModSumLocked(mod module.Version, h string) bool {
 	foundMatch := false
 	// Check sums from all files in case there are conflicts between
 	// the files.
-	for goSumFile, goSums := range goSum.w {
+	for goSumFile, goSums := range Fetcher_.sumState.w {
 		for _, vh := range goSums[mod] {
 			if h == vh {
 				foundMatch = true
@@ -845,10 +841,10 @@ func addModSumLocked(mod module.Version, h string) {
 	if haveModSumLocked(mod, h) {
 		return
 	}
-	if len(goSum.m[mod]) > 0 {
-		fmt.Fprintf(os.Stderr, "warning: verifying %s@%s: unknown hashes in go.sum: %v; adding %v"+hashVersionMismatch, mod.Path, mod.Version, strings.Join(goSum.m[mod], ", "), h)
+	if len(Fetcher_.sumState.m[mod]) > 0 {
+		fmt.Fprintf(os.Stderr, "warning: verifying %s@%s: unknown hashes in go.sum: %v; adding %v"+hashVersionMismatch, mod.Path, mod.Version, strings.Join(Fetcher_.sumState.m[mod], ", "), h)
 	}
-	goSum.m[mod] = append(goSum.m[mod], h)
+	Fetcher_.sumState.m[mod] = append(Fetcher_.sumState.m[mod], h)
 }
 
 // checkSumDB checks the mod, h pair against the Go checksum database.
@@ -928,11 +924,11 @@ var ErrGoSumDirty = errors.New("updates to go.sum needed, disabled by -mod=reado
 // (version ends with "/go.mod"). Existing sums will be preserved unless they
 // have been marked for deletion with TrimGoSum.
 func WriteGoSum(ctx context.Context, keep map[module.Version]bool, readonly bool) error {
-	goSum.mu.Lock()
-	defer goSum.mu.Unlock()
+	Fetcher_.mu.Lock()
+	defer Fetcher_.mu.Unlock()
 
 	// If we haven't read the go.sum file yet, don't bother writing it.
-	if !goSum.enabled {
+	if !Fetcher_.sumState.enabled {
 		return nil
 	}
 
@@ -941,9 +937,9 @@ func WriteGoSum(ctx context.Context, keep map[module.Version]bool, readonly bool
 	// just return without opening go.sum.
 	dirty := false
 Outer:
-	for m, hs := range goSum.m {
+	for m, hs := range Fetcher_.sumState.m {
 		for _, h := range hs {
-			st := goSum.status[modSum{m, h}]
+			st := Fetcher_.sumState.status[modSum{m, h}]
 			if st.dirty && (!st.used || keep[m]) {
 				dirty = true
 				break Outer
@@ -974,16 +970,16 @@ Outer:
 		return fmt.Errorf("updating go.sum: %w", err)
 	}
 
-	goSum.status = make(map[modSum]modSumStatus)
-	goSum.overwrite = false
+	Fetcher_.sumState.status = make(map[modSum]modSumStatus)
+	Fetcher_.sumState.overwrite = false
 	return nil
 }
 
 // TidyGoSum returns a tidy version of the go.sum file.
 // A missing go.sum file is treated as if empty.
 func TidyGoSum(keep map[module.Version]bool) (before, after []byte) {
-	goSum.mu.Lock()
-	defer goSum.mu.Unlock()
+	Fetcher_.mu.Lock()
+	defer Fetcher_.mu.Unlock()
 	before, err := lockedfile.Read(Fetcher_.goSumFile)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		base.Fatalf("reading go.sum: %v", err)
@@ -995,33 +991,33 @@ func TidyGoSum(keep map[module.Version]bool) (before, after []byte) {
 // tidyGoSum returns a tidy version of the go.sum file.
 // The goSum lock must be held.
 func tidyGoSum(data []byte, keep map[module.Version]bool) []byte {
-	if !goSum.overwrite {
+	if !Fetcher_.sumState.overwrite {
 		// Incorporate any sums added by other processes in the meantime.
 		// Add only the sums that we actually checked: the user may have edited or
 		// truncated the file to remove erroneous hashes, and we shouldn't restore
 		// them without good reason.
-		goSum.m = make(map[module.Version][]string, len(goSum.m))
-		readGoSum(goSum.m, Fetcher_.goSumFile, data)
-		for ms, st := range goSum.status {
+		Fetcher_.sumState.m = make(map[module.Version][]string, len(Fetcher_.sumState.m))
+		readGoSum(Fetcher_.sumState.m, Fetcher_.goSumFile, data)
+		for ms, st := range Fetcher_.sumState.status {
 			if st.used && !sumInWorkspaceModulesLocked(ms.mod) {
 				addModSumLocked(ms.mod, ms.sum)
 			}
 		}
 	}
 
-	mods := make([]module.Version, 0, len(goSum.m))
-	for m := range goSum.m {
+	mods := make([]module.Version, 0, len(Fetcher_.sumState.m))
+	for m := range Fetcher_.sumState.m {
 		mods = append(mods, m)
 	}
 	module.Sort(mods)
 
 	var buf bytes.Buffer
 	for _, m := range mods {
-		list := goSum.m[m]
+		list := Fetcher_.sumState.m[m]
 		sort.Strings(list)
 		str.Uniq(&list)
 		for _, h := range list {
-			st := goSum.status[modSum{m, h}]
+			st := Fetcher_.sumState.status[modSum{m, h}]
 			if (!st.dirty || (st.used && keep[m])) && !sumInWorkspaceModulesLocked(m) {
 				fmt.Fprintf(&buf, "%s %s %s\n", m.Path, m.Version, h)
 			}
@@ -1031,7 +1027,7 @@ func tidyGoSum(data []byte, keep map[module.Version]bool) []byte {
 }
 
 func sumInWorkspaceModulesLocked(m module.Version) bool {
-	for _, goSums := range goSum.w {
+	for _, goSums := range Fetcher_.sumState.w {
 		if _, ok := goSums[m]; ok {
 			return true
 		}
@@ -1046,8 +1042,8 @@ func sumInWorkspaceModulesLocked(m module.Version) bool {
 // have entries for both module content sums and go.mod sums (version ends
 // with "/go.mod").
 func TrimGoSum(keep map[module.Version]bool) {
-	goSum.mu.Lock()
-	defer goSum.mu.Unlock()
+	Fetcher_.mu.Lock()
+	defer Fetcher_.mu.Unlock()
 	inited, err := initGoSum()
 	if err != nil {
 		base.Fatalf("%s", err)
@@ -1056,12 +1052,12 @@ func TrimGoSum(keep map[module.Version]bool) {
 		return
 	}
 
-	for m, hs := range goSum.m {
+	for m, hs := range Fetcher_.sumState.m {
 		if !keep[m] {
 			for _, h := range hs {
-				goSum.status[modSum{m, h}] = modSumStatus{used: false, dirty: true}
+				Fetcher_.sumState.status[modSum{m, h}] = modSumStatus{used: false, dirty: true}
 			}
-			goSum.overwrite = true
+			Fetcher_.sumState.overwrite = true
 		}
 	}
 }
