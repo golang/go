@@ -245,6 +245,9 @@ func (e *FormatError) Error() string {
 	return msg
 }
 
+// A [*FormatError] is a target error if the base message matches the target.Error string
+func (e *FormatError) Is(target error) bool { return e.msg == target.Error() }
+
 // Open opens the named file using [os.Open] and prepares it for use as an ELF binary.
 func Open(name string) (*File, error) {
 	f, err := os.Open(name)
