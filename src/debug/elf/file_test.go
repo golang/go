@@ -1585,6 +1585,21 @@ func TestIssue59208(t *testing.T) {
 	}
 }
 
+// Issue #76338
+func TestUnexpectedEOF(t *testing.T) {
+	const testdata = "testdata/empty"
+	wantedVal := io.ErrUnexpectedEOF
+	var wantedType *FormatError
+
+	_, err := Open(testdata)
+	if !errors.As(err, &wantedType) {
+		t.Errorf("did not receive a FormatError, instead: %#v", err)
+	}
+	if !errors.Is(err, wantedVal) {
+		t.Errorf("did not get an io.ErrUnexpectedEOF, instead: %#v", err)
+	}
+}
+
 func BenchmarkSymbols64(b *testing.B) {
 	const testdata = "testdata/gcc-amd64-linux-exec"
 	f, err := Open(testdata)
