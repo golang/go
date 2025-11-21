@@ -222,7 +222,7 @@ func sortSpecs(fset *token.FileSet, f *File, d *GenDecl, specs []Spec) []Spec {
 		if s.Name != nil {
 			s.Name.NamePos = pos[i].Start
 		}
-		s.Path.ValuePos = pos[i].Start
+		updateBasicLitPos(s.Path, pos[i].Start)
 		s.EndPos = pos[i].End
 		for _, g := range importComments[s] {
 			for _, c := range g.cg.List {
@@ -244,4 +244,15 @@ func sortSpecs(fset *token.FileSet, f *File, d *GenDecl, specs []Spec) []Spec {
 	})
 
 	return specs
+}
+
+// updateBasicLitPos updates lit.Pos,
+// ensuring that lit.End is displaced by the same amount.
+// (See https://go.dev/issue/76395.)
+func updateBasicLitPos(lit *BasicLit, pos token.Pos) {
+	len := lit.End() - lit.Pos()
+	lit.ValuePos = pos
+	if lit.ValueEnd.IsValid() {
+		lit.ValueEnd = pos + len
+	}
 }

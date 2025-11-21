@@ -238,7 +238,7 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
 			spec := *s
 			path := *s.Path
 			spec.Path = &path
-			spec.Path.ValuePos = groupStart(&spec)
+			updateBasicLitPos(spec.Path, groupStart(&spec))
 			namedImports = append(namedImports, &spec)
 			delete(unresolved, n)
 		}
@@ -719,4 +719,15 @@ func splitExampleName(s string, i int) (prefix, suffix string, ok bool) {
 func isExampleSuffix(s string) bool {
 	r, size := utf8.DecodeRuneInString(s)
 	return size > 0 && unicode.IsLower(r)
+}
+
+// updateBasicLitPos updates lit.Pos,
+// ensuring that lit.End is displaced by the same amount.
+// (See https://go.dev/issue/76395.)
+func updateBasicLitPos(lit *ast.BasicLit, pos token.Pos) {
+	len := lit.End() - lit.Pos()
+	lit.ValuePos = pos
+	if lit.ValueEnd.IsValid() {
+		lit.ValueEnd = pos + len
+	}
 }
