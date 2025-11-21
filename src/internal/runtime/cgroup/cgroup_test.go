@@ -12,8 +12,6 @@ import (
 	"testing"
 )
 
-const _PATH_MAX = 4096
-
 func TestParseV1Number(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -156,7 +154,22 @@ func TestParseV2Limit(t *testing.T) {
 	}
 }
 
-func TestParseCPURelativePath(t *testing.T) {
+func readString(contents string) func(fd int, b []byte) (int, uintptr) {
+	r := strings.NewReader(contents)
+	return func(fd int, b []byte) (int, uintptr) {
+		n, err := r.Read(b)
+		if err != nil && err != io.EOF {
+			const dummyErrno = 42
+			return n, dummyErrno
+		}
+		return n, 0
+	}
+}
+
+func TestParseCPUCgroup(t *testing.T) {
+	veryLongPathName := strings.Repeat("a", cgroup.PathSize+10)
+	evenLongerPathName := strings.Repeat("a", cgroup.ParseSize+10)
+
 	tests := []struct {
 		name     string
 		contents string
@@ -167,6 +180,16 @@ func TestParseCPURelativePath(t *testing.T) {
 		{
 			name:     "empty",
 			contents: "",
+			wantErr:  true,
+		},
+		{
+			name:     "too-long",
+			contents: "0::/" + veryLongPathName + "\n",
+			wantErr:  true,
+		},
+		{
+			name:     "too-long-line",
+			contents: "0::/" + evenLongerPathName + "\n",
 			wantErr:  true,
 		},
 		{
@@ -196,19 +219,9 @@ func TestParseCPURelativePath(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			r := strings.NewReader(tc.contents)
-			read := func(fd int, b []byte) (int, uintptr) {
-				n, err := r.Read(b)
-				if err != nil && err != io.EOF {
-					const dummyErrno = 42
-					return n, dummyErrno
-				}
-				return n, 0
-			}
-
 			var got [cgroup.PathSize]byte
 			var scratch [cgroup.ParseSize]byte
-			n, gotVer, err := cgroup.ParseCPURelativePath(0, read, got[:], scratch[:])
+			n, gotVer, err := cgroup.ParseCPUCgroup(0, readString(tc.contents), got[:], scratch[:])
 			if (err != nil) != tc.wantErr {
 				t.Fatalf("parseCPURelativePath got err %v want %v", err, tc.wantErr)
 			}
@@ -219,6 +232,25 @@ func TestParseCPURelativePath(t *testing.T) {
 
 			if string(got[:n]) != tc.want {
 				t.Errorf("parseCPURelativePath got %q want %q", string(got[:n]), tc.want)
+			}
+		})
+	}
+}
+
+func TestParseCPUCgroupMalformed(t *testing.T) {
+	for _, contents := range []string{
+		"\n",
+		"0\n",
+		"0:\n",
+		"0::\n",
+		"0::a\n",
+	} {
+		t.Run("", func(t *testing.T) {
+			var got [cgroup.PathSize]byte
+			var scratch [cgroup.ParseSize]byte
+			n, v, err := cgroup.ParseCPUCgroup(0, readString(contents), got[:], scratch[:])
+			if err != cgroup.ErrMalformedFile {
+				t.Errorf("ParseCPUCgroup got %q (v%d), %v, want ErrMalformedFile", string(got[:n]), v, err)
 			}
 		})
 	}
@@ -279,15 +311,41 @@ func TestParseCPUMount(t *testing.T) {
 		overlayLongLowerDir += fmt.Sprintf(":%s%d", lowerPath, i)
 	}
 
+	var longPath [4090]byte
+	for i := range longPath {
+		longPath[i] = byte(i)
+	}
+	escapedLongPath := escapePath(string(longPath[:]))
+	if len(escapedLongPath) <= cgroup.PathSize {
+		// ensure we actually support over PathSize long escaped path
+		t.Fatalf("escapedLongPath is too short to test")
+	}
+
 	tests := []struct {
 		name     string
 		contents string
+		cgroup   string
+		version  cgroup.Version
 		want     string
 		wantErr  bool
 	}{
 		{
 			name:     "empty",
 			contents: "",
+			wantErr:  true,
+		},
+		{
+			name:     "invalid-root",
+			contents: "56 22 0:40 /\\1 /sys/fs/cgroup/cpu rw - cgroup cgroup rw,cpu,cpuacct\n",
+			cgroup:   "/",
+			version:  cgroup.V1,
+			wantErr:  true,
+		},
+		{
+			name:     "invalid-mount",
+			contents: "56 22 0:40 / /sys/fs/cgroup/\\1 rw - cgroup cgroup rw,cpu,cpuacct\n",
+			cgroup:   "/",
+			version:  cgroup.V1,
 			wantErr:  true,
 		},
 		{
@@ -301,7 +359,9 @@ func TestParseCPUMount(t *testing.T) {
 58 22 0:42 / /sys/fs/cgroup/net rw - cgroup cgroup rw,net
 59 22 0:43 / /sys/fs/cgroup/cpuset rw - cgroup cgroup rw,cpuset
 `,
-			want: "/sys/fs/cgroup/cpu",
+			cgroup:  "/",
+			version: cgroup.V1,
+			want:    "/sys/fs/cgroup/cpu",
 		},
 		{
 			name: "v2",
@@ -310,7 +370,9 @@ func TestParseCPUMount(t *testing.T) {
 21 22 0:20 / /sys rw,nosuid,nodev,noexec - sysfs sysfs rw
 25 21 0:22 / /sys/fs/cgroup rw,nosuid,nodev,noexec - cgroup2 cgroup2 rw
 `,
-			want: "/sys/fs/cgroup",
+			cgroup:  "/",
+			version: cgroup.V2,
+			want:    "/sys/fs/cgroup",
 		},
 		{
 			name: "mixed",
@@ -324,7 +386,25 @@ func TestParseCPUMount(t *testing.T) {
 58 22 0:42 / /sys/fs/cgroup/net rw - cgroup cgroup rw,net
 59 22 0:43 / /sys/fs/cgroup/cpuset rw - cgroup cgroup rw,cpuset
 `,
-			want: "/sys/fs/cgroup/cpu",
+			cgroup:  "/",
+			version: cgroup.V1,
+			want:    "/sys/fs/cgroup/cpu",
+		},
+		{
+			name: "mixed-choose-v2",
+			contents: `22 1 8:1 / / rw,relatime - ext4 /dev/root rw
+20 22 0:19 / /proc rw,nosuid,nodev,noexec - proc proc rw
+21 22 0:20 / /sys rw,nosuid,nodev,noexec - sysfs sysfs rw
+25 21 0:22 / /sys/fs/cgroup rw,nosuid,nodev,noexec - cgroup2 cgroup2 rw
+49 22 0:37 / /sys/fs/cgroup/memory rw - cgroup cgroup rw,memory
+54 22 0:38 / /sys/fs/cgroup/io rw - cgroup cgroup rw,io
+56 22 0:40 / /sys/fs/cgroup/cpu rw - cgroup cgroup rw,cpu,cpuacct
+58 22 0:42 / /sys/fs/cgroup/net rw - cgroup cgroup rw,net
+59 22 0:43 / /sys/fs/cgroup/cpuset rw - cgroup cgroup rw,cpuset
+`,
+			cgroup:  "/",
+			version: cgroup.V2,
+			want:    "/sys/fs/cgroup",
 		},
 		{
 			name: "v2-escaped",
@@ -333,7 +413,9 @@ func TestParseCPUMount(t *testing.T) {
 21 22 0:20 / /sys rw,nosuid,nodev,noexec - sysfs sysfs rw
 25 21 0:22 / /sys/fs/cgroup/tab\011tab rw,nosuid,nodev,noexec - cgroup2 cgroup2 rw
 `,
-			want: `/sys/fs/cgroup/tab	tab`,
+			cgroup:  "/",
+			version: cgroup.V2,
+			want:    `/sys/fs/cgroup/tab	tab`,
 		},
 		{
 			// Overly long line on a different mount doesn't matter.
@@ -344,31 +426,156 @@ func TestParseCPUMount(t *testing.T) {
 262 31 0:72 / /tmp/overlay2/0143e063b02f4801de9c847ad1c5ddc21fd2ead00653064d0c72ea967b248870/merged rw,relatime shared:729 - overlay overlay rw,lowerdir=` + overlayLongLowerDir + `,upperdir=/tmp/diff,workdir=/tmp/work
 25 21 0:22 / /sys/fs/cgroup rw,nosuid,nodev,noexec - cgroup2 cgroup2 rw
 `,
-			want: "/sys/fs/cgroup",
+			cgroup:  "/",
+			version: cgroup.V2,
+			want:    "/sys/fs/cgroup",
+		},
+		{
+			name: "long-escaped-path",
+			contents: `22 1 8:1 / / rw,relatime - ext4 /dev/root rw
+20 22 0:19 / /proc rw,nosuid,nodev,noexec - proc proc rw
+21 22 0:20 / /sys rw,nosuid,nodev,noexec - sysfs sysfs rw
+25 21 0:22 / /sys/` + escapedLongPath + ` rw,nosuid,nodev,noexec - cgroup2 cgroup2 rw
+`,
+			cgroup:  "/",
+			version: cgroup.V2,
+			want:    "/sys/" + string(longPath[:]),
+		},
+		{
+			name: "too-long-escaped-path",
+			contents: `22 1 8:1 / / rw,relatime - ext4 /dev/root rw
+20 22 0:19 / /proc rw,nosuid,nodev,noexec - proc proc rw
+21 22 0:20 / /sys rw,nosuid,nodev,noexec - sysfs sysfs rw
+25 21 0:22 / /sys/` + escapedLongPath + ` rw,nosuid,nodev,noexec - cgroup2 cgroup2 rw
+`,
+			cgroup:  "/container", // compared to above, this makes the path too long
+			version: cgroup.V2,
+			wantErr: true,
+		},
+		{
+			name: "non-root_mount",
+			contents: `22 1 8:1 / / rw,relatime - ext4 /dev/root rw
+20 22 0:19 / /proc rw,nosuid,nodev,noexec - proc proc rw
+21 22 0:20 / /sys rw,nosuid,nodev,noexec - sysfs sysfs rw
+25 21 0:22 /sand /unrelated/cgroup1 rw,nosuid,nodev,noexec - cgroup2 cgroup2 rw
+25 21 0:22 /stone /unrelated/cgroup2 rw,nosuid,nodev,noexec - cgroup2 cgroup2 rw
+25 21 0:22 /sandbox/container/group /sys/fs/cgroup/mygroup rw,nosuid,nodev,noexec - cgroup2 cgroup2 rw
+25 21 0:22 /sandbox /sys/fs/cgroup rw,nosuid,nodev,noexec - cgroup2 cgroup2 rw
+25 21 0:22 / /ignored/second/match rw,nosuid,nodev,noexec - cgroup2 cgroup2 rw
+`,
+			cgroup:  "/sandbox/container",
+			version: cgroup.V2,
+			want:    "/sys/fs/cgroup/container",
+		},
+		{
+			name: "v2-escaped-root",
+			contents: `22 1 8:1 / / rw,relatime - ext4 /dev/root rw
+20 22 0:19 / /proc rw,nosuid,nodev,noexec - proc proc rw
+21 22 0:20 / /sys rw,nosuid,nodev,noexec - sysfs sysfs rw
+25 21 0:22 /tab\011tab /sys/fs/cgroup rw,nosuid,nodev,noexec - cgroup2 cgroup2 rw
+`,
+			cgroup:  "/tab	tab/container",
+			version: cgroup.V2,
+			want:    `/sys/fs/cgroup/container`,
+		},
+		{
+			name: "non-root_cgroup",
+			contents: `22 1 8:1 / / rw,relatime - ext4 /dev/root rw
+20 22 0:19 / /proc rw,nosuid,nodev,noexec - proc proc rw
+21 22 0:20 / /sys rw,nosuid,nodev,noexec - sysfs sysfs rw
+25 21 0:22 / /sys/fs/cgroup rw,nosuid,nodev,noexec - cgroup2 cgroup2 rw
+`,
+			cgroup:  "/sandbox/container",
+			version: cgroup.V2,
+			want:    "/sys/fs/cgroup/sandbox/container",
+		},
+		{
+			name: "mixed_non-root",
+			contents: `22 1 8:1 / / rw,relatime - ext4 /dev/root rw
+20 22 0:19 / /proc rw,nosuid,nodev,noexec - proc proc rw
+21 22 0:20 / /sys rw,nosuid,nodev,noexec - sysfs sysfs rw
+25 21 0:22 /sandbox /sys/fs/cgroup rw,nosuid,nodev,noexec - cgroup2 cgroup2 rw
+49 22 0:37 /sandbox /sys/fs/cgroup/memory rw - cgroup cgroup rw,memory
+54 22 0:38 /sandbox /sys/fs/cgroup/io rw - cgroup cgroup rw,io
+56 22 0:40 /sand /unrelated/cgroup1 rw - cgroup cgroup rw,cpu,cpuacct
+56 22 0:40 /stone /unrelated/cgroup2 rw - cgroup cgroup rw,cpu,cpuacct
+56 22 0:40 /sandbox /sys/fs/cgroup/cpu rw - cgroup cgroup rw,cpu,cpuacct
+56 22 0:40 /sandbox/container/group /sys/fs/cgroup/cpu/mygroup rw - cgroup cgroup rw,cpu,cpuacct
+56 22 0:40 / /ignored/second/match rw - cgroup cgroup rw,cpu,cpuacct
+58 22 0:42 /sandbox /sys/fs/cgroup/net rw - cgroup cgroup rw,net
+59 22 0:43 /sandbox /sys/fs/cgroup/cpuset rw - cgroup cgroup rw,cpuset
+`,
+			cgroup:  "/sandbox/container",
+			version: cgroup.V1,
+			want:    "/sys/fs/cgroup/cpu/container",
+		},
+		{
+			// to see an example of this, for a PID in a cgroup namespace, run:
+			// nsenter -t <PID> -C -- cat /proc/self/cgroup
+			// nsenter -t <PID> -C -- grep cgroup /proc/self/mountinfo
+			// /mnt can be generated with `mount --bind /sys/fs/cgroup/kubepods.slice /mnt`,
+			// assuming PID is in cgroup /kubepods.slice
+			name: "out_of_namespace",
+			contents: `22 1 8:1 / / rw,relatime - ext4 /dev/root rw
+20 22 0:19 / /proc rw,nosuid,nodev,noexec - proc proc rw
+21 22 0:20 / /sys rw,nosuid,nodev,noexec - sysfs sysfs rw
+1243 61 0:26 /../../.. /mnt rw,nosuid,nodev,noexec,relatime shared:4 - cgroup2 cgroup2 rw
+29 22 0:26 /../../../.. /sys/fs/cgroup rw,nosuid,nodev,noexec,relatime shared:4 - cgroup2 cgroup2 rw`,
+			cgroup:  "/../../../../init.scope",
+			version: cgroup.V2,
+			want:    "/sys/fs/cgroup/init.scope",
+		},
+		{
+			name: "out_of_namespace-root", // the process is directly in the root cgroup
+			contents: `22 1 8:1 / / rw,relatime - ext4 /dev/root rw
+20 22 0:19 / /proc rw,nosuid,nodev,noexec - proc proc rw
+21 22 0:20 / /sys rw,nosuid,nodev,noexec - sysfs sysfs rw
+1243 61 0:26 /../../.. /mnt rw,nosuid,nodev,noexec,relatime shared:4 - cgroup2 cgroup2 rw
+29 22 0:26 /../../../.. /sys/fs/cgroup rw,nosuid,nodev,noexec,relatime shared:4 - cgroup2 cgroup2 rw`,
+			cgroup:  "/../../../..",
+			version: cgroup.V2,
+			want:    "/sys/fs/cgroup",
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			r := strings.NewReader(tc.contents)
-			read := func(fd int, b []byte) (int, uintptr) {
-				n, err := r.Read(b)
-				if err != nil && err != io.EOF {
-					const dummyErrno = 42
-					return n, dummyErrno
-				}
-				return n, 0
-			}
-
 			var got [cgroup.PathSize]byte
 			var scratch [cgroup.ParseSize]byte
-			n, err := cgroup.ParseCPUMount(0, read, got[:], scratch[:])
+			n := copy(got[:], tc.cgroup)
+			n, err := cgroup.ParseCPUMount(0, readString(tc.contents), got[:],
+				got[:n], tc.version, scratch[:])
 			if (err != nil) != tc.wantErr {
 				t.Fatalf("parseCPUMount got err %v want %v", err, tc.wantErr)
 			}
 
 			if string(got[:n]) != tc.want {
 				t.Errorf("parseCPUMount got %q want %q", string(got[:n]), tc.want)
+			}
+		})
+	}
+}
+
+func TestParseCPUMountMalformed(t *testing.T) {
+	for _, contents := range []string{
+		"\n",
+		"22\n",
+		"22 1 8:1\n",
+		"22 1 8:1 /\n",
+		"22 1 8:1 / /cgroup\n",
+		"22 1 8:1 / /cgroup rw\n",
+		"22 1 8:1 / /cgroup rw -\n",
+		"22 1 8:1 / /cgroup rw - \n",
+		"22 1 8:1 / /cgroup rw - cgroup\n",
+		"22 1 8:1 / /cgroup rw - cgroup cgroup\n",
+		"22 1 8:1 a /cgroup rw - cgroup cgroup cpu\n",
+	} {
+		t.Run("", func(t *testing.T) {
+			var got [cgroup.PathSize]byte
+			var scratch [cgroup.ParseSize]byte
+			n, err := cgroup.ParseCPUMount(0, readString(contents), got[:], []byte("/"), cgroup.V1, scratch[:])
+			if err != cgroup.ErrMalformedFile {
+				t.Errorf("parseCPUMount got %q, %v, want ErrMalformedFile", string(got[:n]), err)
 			}
 		})
 	}
@@ -453,9 +660,7 @@ b/c`,
 
 	t.Run("unescapePath", func(t *testing.T) {
 		for _, tc := range tests {
-			t.Run(tc.name, func(t *testing.T) {
-				in := []byte(tc.escaped)
-				out := make([]byte, len(in))
+			runTest := func(in, out []byte) {
 				n, err := cgroup.UnescapePath(out, in)
 				if err != nil {
 					t.Errorf("unescapePath got err %v want nil", err)
@@ -464,6 +669,15 @@ b/c`,
 				if got != tc.unescaped {
 					t.Errorf("unescapePath got %q want %q", got, tc.escaped)
 				}
+			}
+			t.Run(tc.name, func(t *testing.T) {
+				in := []byte(tc.escaped)
+				out := make([]byte, len(in))
+				runTest(in, out)
+			})
+			t.Run("inplace/"+tc.name, func(t *testing.T) {
+				in := []byte(tc.escaped)
+				runTest(in, in)
 			})
 		}
 	})

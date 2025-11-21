@@ -211,44 +211,26 @@ func FindCPU(out []byte, scratch []byte) (int, Version, error) {
 	checkBufferSize(scratch, ParseSize)
 
 	// The cgroup path is <cgroup mount point> + <relative path>.
-	//
-	// This is racy if our cgroup is changed while this runs. For example,
-	// initially there is only a cgroup v2 mount and we are not in a
-	// cgroup. After, there a cgroup v1 mount with a CPU controller and we
-	// are placed in a cgroup in this hierarchy. In that case, findCPUMount
-	// could pick the v2 mount, and findCPURelativePath could find the v2
-	// relative path.
-	//
-	// In this case we'll later fail to read the cgroup files and fall back
-	// to assuming no cgroup.
+	// relative path is the cgroup relative to the mount root.
 
-	n, err := FindCPUMountPoint(out, scratch)
+	n, version, err := FindCPUCgroup(out, scratch)
 	if err != nil {
 		return 0, 0, err
 	}
 
-	// The relative path always starts with /, so we can directly append it
-	// to the mount point.
-	n2, version, err := FindCPURelativePath(out[n:], scratch)
-	if err != nil {
-		return 0, 0, err
-	}
-	n += n2
-
-	return n, version, nil
+	n, err = FindCPUMountPoint(out, out[:n], version, scratch)
+	return n, version, err
 }
 
-// FindCPURelativePath finds the path to the CPU cgroup that this process is a member of
-// relative to the root of the cgroup mount and places it in out. scratch is a
-// scratch buffer for internal use.
+// FindCPUCgroup finds the path to the CPU cgroup that this process is a member of
+// and places it in out. scratch is a scratch buffer for internal use.
 //
-// out must have length PathSize minus the size of the cgroup mount root (if
-// known). scratch must have length ParseSize.
+// out must have length PathSize. scratch must have length ParseSize.
 //
 // Returns the number of bytes written to out and the cgroup version (1 or 2).
 //
 // Returns ErrNoCgroup if the process is not in a CPU cgroup.
-func FindCPURelativePath(out []byte, scratch []byte) (int, Version, error) {
+func FindCPUCgroup(out []byte, scratch []byte) (int, Version, error) {
 	path := []byte("/proc/self/cgroup\x00")
 	fd, errno := linux.Open(&path[0], linux.O_RDONLY|linux.O_CLOEXEC, 0)
 	if errno == linux.ENOENT {
@@ -259,7 +241,7 @@ func FindCPURelativePath(out []byte, scratch []byte) (int, Version, error) {
 
 	// The relative path always starts with /, so we can directly append it
 	// to the mount point.
-	n, version, err := parseCPURelativePath(fd, linux.Read, out[:], scratch)
+	n, version, err := parseCPUCgroup(fd, linux.Read, out[:], scratch)
 	if err != nil {
 		linux.Close(fd)
 		return 0, 0, err
@@ -269,15 +251,17 @@ func FindCPURelativePath(out []byte, scratch []byte) (int, Version, error) {
 	return n, version, nil
 }
 
-// FindCPUMountPoint finds the root of the CPU cgroup mount places it in out.
+// FindCPUMountPoint finds the mount point containing the specified cgroup and
+// version with cpu controller, and compose the full path to the cgroup in out.
 // scratch is a scratch buffer for internal use.
 //
-// out must have length PathSize. scratch must have length ParseSize.
+// out must have length PathSize, may overlap with cgroup.
+// scratch must have length ParseSize.
 //
 // Returns the number of bytes written to out.
 //
-// Returns ErrNoCgroup if the process is not in a CPU cgroup.
-func FindCPUMountPoint(out []byte, scratch []byte) (int, error) {
+// Returns ErrNoCgroup if no matching mount point is found.
+func FindCPUMountPoint(out, cgroup []byte, version Version, scratch []byte) (int, error) {
 	checkBufferSize(out, PathSize)
 	checkBufferSize(scratch, ParseSize)
 
@@ -289,7 +273,7 @@ func FindCPUMountPoint(out []byte, scratch []byte) (int, error) {
 		return 0, errSyscallFailed
 	}
 
-	n, err := parseCPUMount(fd, linux.Read, out, scratch)
+	n, err := parseCPUMount(fd, linux.Read, out, cgroup, version, scratch)
 	if err != nil {
 		linux.Close(fd)
 		return 0, err

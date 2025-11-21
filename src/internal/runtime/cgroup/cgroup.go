@@ -102,21 +102,23 @@ func parseV2Limit(buf []byte) (float64, bool, error) {
 	return float64(quota) / float64(period), true, nil
 }
 
-// Finds the path of the current process's CPU cgroup relative to the cgroup
-// mount and writes it to out.
+// Finds the path of the current process's CPU cgroup and writes it to out.
 //
+// fd is a file descriptor for /proc/self/cgroup.
 // Returns the number of bytes written and the cgroup version (1 or 2).
-func parseCPURelativePath(fd int, read func(fd int, b []byte) (int, uintptr), out []byte, scratch []byte) (int, Version, error) {
+func parseCPUCgroup(fd int, read func(fd int, b []byte) (int, uintptr), out []byte, scratch []byte) (int, Version, error) {
 	// The format of each line is
 	//
 	//   hierarchy-ID:controller-list:cgroup-path
 	//
 	// controller-list is comma-separated.
-	// See man 5 cgroup for more details.
 	//
 	// cgroup v2 has hierarchy-ID 0. If a v1 hierarchy contains "cpu", that
 	// is the CPU controller. Otherwise the v2 hierarchy (if any) is the
-	// CPU controller.
+	// CPU controller. It is not possible to mount the same controller
+	// simultaneously under both the v1 and the v2 hierarchies.
+	//
+	// See man 7 cgroups for more details.
 	//
 	// hierarchy-ID and controller-list have relatively small maximum
 	// sizes, and the path can be up to _PATH_MAX, so we need a bit more
@@ -149,7 +151,7 @@ func parseCPURelativePath(fd int, read func(fd int, b []byte) (int, uintptr), ou
 		//   hierarchy-ID:controller-list:cgroup-path
 		//
 		// controller-list is comma-separated.
-		// See man 5 cgroup for more details.
+		// See man 7 cgroups for more details.
 		i := bytealg.IndexByte(line, ':')
 		if i < 0 {
 			return 0, 0, errMalformedFile
@@ -167,6 +169,15 @@ func parseCPURelativePath(fd int, read func(fd int, b []byte) (int, uintptr), ou
 		line = line[i+1:]
 
 		path := line
+		if len(path) == 0 || path[0] != '/' {
+			// We rely on this when composing the full path.
+			return 0, 0, errMalformedFile
+		}
+		if len(path) > len(out) {
+			// Should not be possible. If we really get a very long cgroup path,
+			// read /proc/self/cgroup will fail with ENAMETOOLONG.
+			return 0, 0, errPathTooLong
+		}
 
 		if string(hierarchy) == "0" {
 			// v2 hierarchy.
@@ -214,9 +225,11 @@ func containsCPU(b []byte) bool {
 	return false
 }
 
-// Returns the mount point for the cpu cgroup controller (v1 or v2) from
-// /proc/self/mountinfo.
-func parseCPUMount(fd int, read func(fd int, b []byte) (int, uintptr), out []byte, scratch []byte) (int, error) {
+// Returns the path to the specified cgroup and version with cpu controller
+//
+// fd is a file descriptor for /proc/self/mountinfo.
+// Returns the number of bytes written.
+func parseCPUMount(fd int, read func(fd int, b []byte) (int, uintptr), out, cgroup []byte, version Version, scratch []byte) (int, error) {
 	// The format of each line is:
 	//
 	// 36 35 98:0 /mnt1 /mnt2 rw,noatime master:1 - ext3 /dev/root rw,errors=continue
@@ -240,8 +253,13 @@ func parseCPUMount(fd int, read func(fd int, b []byte) (int, uintptr), out []byt
 	// carriage return. Those are escaped. See Linux show_mountinfo ->
 	// show_path. We must unescape before returning.
 	//
-	// We return the mount point (5) if the filesystem type (9) is cgroup2,
-	// or cgroup with "cpu" in the super options (11).
+	// A mount point matches if the filesystem type (9) is cgroup2,
+	// or cgroup with "cpu" in the super options (11),
+	// and the cgroup is in the root (4). If there are multiple matches,
+	// the first one is selected.
+	//
+	// We return full cgroup path, which is the mount point (5) +
+	// cgroup parameter without the root (4) prefix.
 	//
 	// (4), (5), and (10) are up to _PATH_MAX. The remaining fields have a
 	// small fixed maximum size, so 4*_PATH_MAX is plenty of scratch space.
@@ -250,11 +268,7 @@ func parseCPUMount(fd int, read func(fd int, b []byte) (int, uintptr), out []byt
 
 	l := newLineReader(fd, scratch, read)
 
-	// Bytes written to out.
-	n := 0
-
 	for {
-		//incomplete := false
 		err := l.next()
 		if err == errIncompleteLine {
 			// An incomplete line is fine as long as it doesn't
@@ -271,8 +285,8 @@ func parseCPUMount(fd int, read func(fd int, b []byte) (int, uintptr), out []byt
 
 		line := l.line()
 
-		// Skip first four fields.
-		for range 4 {
+		// Skip first three fields.
+		for range 3 {
 			i := bytealg.IndexByte(line, ' ')
 			if i < 0 {
 				return 0, errMalformedFile
@@ -280,8 +294,20 @@ func parseCPUMount(fd int, read func(fd int, b []byte) (int, uintptr), out []byt
 			line = line[i+1:]
 		}
 
-		// (5) mount point:  mount point relative to the process's root
+		// (4) root:  root of the mount within the filesystem
 		i := bytealg.IndexByte(line, ' ')
+		if i < 0 {
+			return 0, errMalformedFile
+		}
+		root := line[:i]
+		if len(root) == 0 || root[0] != '/' {
+			// We rely on this in hasPathPrefix.
+			return 0, errMalformedFile
+		}
+		line = line[i+1:]
+
+		// (5) mount point:  mount point relative to the process's root
+		i = bytealg.IndexByte(line, ' ')
 		if i < 0 {
 			return 0, errMalformedFile
 		}
@@ -313,53 +339,103 @@ func parseCPUMount(fd int, read func(fd int, b []byte) (int, uintptr), out []byt
 		ftype := line[:i]
 		line = line[i+1:]
 
-		if string(ftype) != "cgroup" && string(ftype) != "cgroup2" {
-			continue
-		}
-
-		// As in findCPUPath, cgroup v1 with a CPU controller takes
-		// precendence over cgroup v2.
-		if string(ftype) == "cgroup2" {
-			// v2 hierarchy.
-			n, err = unescapePath(out, mnt)
-			if err != nil {
-				// Don't keep searching on error. The kernel
-				// should never produce broken escaping.
-				return n, err
+		switch version {
+		case V1:
+			if string(ftype) != "cgroup" {
+				continue
 			}
-			// Keep searching, we might find a v1 hierarchy with a
-			// CPU controller, which takes precedence.
+			// (10) mount source:  filesystem specific information or "none"
+			i = bytealg.IndexByte(line, ' ')
+			if i < 0 {
+				return 0, errMalformedFile
+			}
+			// Don't care about mount source.
+			line = line[i+1:]
+
+			// (11) super options:  per super block options
+			if !containsCPU(line) {
+				continue
+			}
+		case V2:
+			if string(ftype) != "cgroup2" {
+				continue
+			}
+		default:
+			throw("impossible cgroup version")
+			panic("unreachable")
+		}
+
+		// Check cgroup is in the root.
+		// If the cgroup is /sandbox/container, the matching mount point root could be
+		// /sandbox/container, /sandbox, or /
+		rootLen, err := unescapePath(root, root)
+		if err != nil {
+			return 0, err
+		}
+		root = root[:rootLen]
+		if !hasPathPrefix(cgroup, root) {
+			continue // not matched, this is not the mount point we're looking for
+		}
+
+		// Cutoff the root from cgroup, ensure rel starts with '/' or is empty.
+		rel := cgroup[rootLen:]
+		if rootLen == 1 && len(cgroup) > 1 {
+			// root is "/", but cgroup is not. Keep full cgroup path.
+			rel = cgroup
+		}
+		if hasPathPrefix(rel, []byte("/..")) {
+			// the cgroup is out of current cgroup namespace, and this mount point
+			// cannot reach that cgroup.
+			//
+			// e.g. If the process is in cgroup /init, but in a cgroup namespace
+			// rooted at /sandbox/container, /proc/self/cgroup will show /../../init.
+			// we can reach it if the mount point root is
+			// /../.. or /../../init, but not if it is /.. or /
+			// While mount point with root /../../.. should able to reach the cgroup,
+			// we don't know the path to the cgroup within that mount point.
 			continue
 		}
 
-		// (10) mount source:  filesystem specific information or "none"
-		i = bytealg.IndexByte(line, ' ')
-		if i < 0 {
-			return 0, errMalformedFile
+		// All conditions met, compose the full path.
+		// Copy rel to the correct place first, it may overlap with out.
+		n := unescapedLen(mnt)
+		if n+len(rel) > len(out) {
+			return 0, errPathTooLong
 		}
-		// Don't care about mount source.
-		line = line[i+1:]
-
-		// (11) super options:  per super block options
-		superOpt := line
-
-		// v1 hierarchy
-		if containsCPU(superOpt) {
-			// Found a v1 CPU controller. This must be the
-			// only one, so we're done.
-			return unescapePath(out, mnt)
+		copy(out[n:], rel)
+		n2, err := unescapePath(out[:n], mnt)
+		if err != nil {
+			return 0, err
 		}
+		if n2 != n {
+			throw("wrong unescaped len")
+		}
+		return n + len(rel), nil
 	}
 
-	if n == 0 {
-		// Found nothing.
-		return 0, ErrNoCgroup
-	}
-
-	return n, nil
+	// Found nothing.
+	return 0, ErrNoCgroup
 }
 
-var errInvalidEscape error = stringError("invalid path escape sequence")
+func hasPathPrefix(p, prefix []byte) bool {
+	i := len(prefix)
+	if i == 1 {
+		return true // root contains everything
+	}
+	if len(p) < i || !bytealg.Equal(prefix, p[:i]) {
+		return false
+	}
+	return len(p) == i || p[i] == '/' // must match at path boundary
+}
+
+var (
+	errInvalidEscape error = stringError("invalid path escape sequence")
+	errPathTooLong   error = stringError("path too long")
+)
+
+func unescapedLen(in []byte) int {
+	return len(in) - bytealg.Count(in, byte('\\'))*3
+}
 
 // unescapePath copies in to out, unescaping escape sequences generated by
 // Linux's show_path.
@@ -367,20 +443,21 @@ var errInvalidEscape error = stringError("invalid path escape sequence")
 // That is, '\', ' ', '\t', and '\n' are converted to octal escape sequences,
 // like '\040' for space.
 //
-// out must be at least as large as in.
+// Caller must ensure that out at least has unescapedLen(in) bytes.
+// in and out may alias; in-place unescaping is supported.
 //
 // Returns the number of bytes written to out.
 //
 // Also see escapePath in cgroup_linux_test.go.
 func unescapePath(out []byte, in []byte) (int, error) {
-	// Not strictly necessary, but simplifies the implementation and will
-	// always hold in users.
-	if len(out) < len(in) {
-		throw("output too small")
-	}
-
 	var outi, ini int
 	for ini < len(in) {
+		if outi >= len(out) {
+			// given that caller already ensured out is long enough, this
+			// is only possible if there are malformed escape sequences
+			// we have not parsed yet.
+			return outi, errInvalidEscape
+		}
 		c := in[ini]
 		if c != '\\' {
 			out[outi] = c
