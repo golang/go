@@ -174,3 +174,19 @@ func TestProfBuf(t *testing.T) {
 		}
 	})
 }
+
+func TestProfBufDoubleWakeup(t *testing.T) {
+	b := NewProfBuf(2, 16, 2)
+	go func() {
+		for range 1000 {
+			b.Write(nil, 1, []uint64{5, 6}, []uintptr{7, 8})
+		}
+		b.Close()
+	}()
+	for {
+		_, _, eof := b.Read(ProfBufBlocking)
+		if eof {
+			return
+		}
+	}
+}

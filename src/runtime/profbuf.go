@@ -406,6 +406,11 @@ func (b *profBuf) wakeupExtra() {
 	for {
 		old := b.w.load()
 		new := old | profWriteExtra
+		// Clear profReaderSleeping. We're going to wake up the reader
+		// if it was sleeping and we don't want double wakeups in case
+		// we, for example, attempt to write into a full buffer multiple
+		// times before the reader wakes up.
+		new &^= profReaderSleeping
 		if !b.w.cas(old, new) {
 			continue
 		}
