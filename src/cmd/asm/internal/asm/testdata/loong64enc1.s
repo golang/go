@@ -199,8 +199,6 @@ lable2:
 	MOVHU	R4, 1(R5)		// a4044029
 	MOVHU	y+8(FP), R4		// 6440402a
 	MOVHU	1(R5), R4		// a404402a
-	MULU	R4, R5	   		// a5101c00
-	MULU	R4, R5, R6		// a6101c00
 	MULH	R4, R5	   		// a5901c00
 	MULH	R4, R5, R6	   	// a6901c00
 	MULHU	R4, R5			// a5101d00

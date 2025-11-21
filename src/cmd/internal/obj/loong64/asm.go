@@ -1431,7 +1431,6 @@ func buildop(ctxt *obj.Link) {
 			opset(AADDW, r0)
 			opset(ASGT, r0)
 			opset(ASGTU, r0)
-			opset(AADDU, r0)
 
 		case AADDV:
 			opset(AADDVU, r0)
@@ -1514,13 +1513,11 @@ func buildop(ctxt *obj.Link) {
 
 		case ASUB:
 			opset(ASUBW, r0)
-			opset(ASUBU, r0)
 			opset(ANOR, r0)
 			opset(ASUBV, r0)
 			opset(ASUBVU, r0)
 			opset(AMUL, r0)
 			opset(AMULW, r0)
-			opset(AMULU, r0)
 			opset(AMULH, r0)
 			opset(AMULHU, r0)
 			opset(AREM, r0)
@@ -2296,8 +2293,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	o5 := uint32(0)
 	o6 := uint32(0)
 
-	add := AADDU
-	add = AADDVU
+	add := AADDVU
 
 	switch o.type_ {
 	default:
@@ -2428,7 +2424,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		v := c.regoff(&p.From)
 		a := AOR
 		if v < 0 {
-			a = AADDU
+			a = AADD
 		}
 		o1 = OP_12IRR(c.opirr(a), uint32(v), uint32(0), uint32(REGTMP))
 		r := int(p.Reg)
@@ -2687,7 +2683,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 	case 34: // mov $con,fr
 		v := c.regoff(&p.From)
-		a := AADDU
+		a := AADD
 		if v > 0 {
 			a = AOR
 		}
@@ -3317,8 +3313,6 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 	switch a {
 	case AADD, AADDW:
 		return 0x20 << 15
-	case AADDU:
-		return 0x20 << 15
 	case ASGT:
 		return 0x24 << 15 // SLT
 	case ASGTU:
@@ -3337,9 +3331,7 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return 0x2c << 15 // orn
 	case AANDN:
 		return 0x2d << 15 // andn
-	case ASUB, ASUBW:
-		return 0x22 << 15
-	case ASUBU, ANEGW:
+	case ASUB, ASUBW, ANEGW:
 		return 0x22 << 15
 	case ANOR:
 		return 0x28 << 15
@@ -3369,8 +3361,6 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return 0x23 << 15
 
 	case AMUL, AMULW:
-		return 0x38 << 15 // mul.w
-	case AMULU:
 		return 0x38 << 15 // mul.w
 	case AMULH:
 		return 0x39 << 15 // mulh.w
@@ -4684,7 +4674,7 @@ func (c *ctxt0) opir(a obj.As) uint32 {
 
 func (c *ctxt0) opirr(a obj.As) uint32 {
 	switch a {
-	case AADD, AADDW, AADDU:
+	case AADD, AADDW:
 		return 0x00a << 22
 	case ASGT:
 		return 0x008 << 22
