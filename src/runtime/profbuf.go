@@ -38,6 +38,10 @@ import (
 // be returned by read. By definition, r ≤ rNext ≤ w (before wraparound),
 // and rNext is only used by the reader, so it can be accessed without atomics.
 //
+// If the reader is blocked waiting for more data, the writer will wake it up if
+// either the buffer is more than half full, or when the writer sets the eof
+// marker or writes overflow entries (described below.)
+//
 // If the writer gets ahead of the reader, so that the buffer fills,
 // future writes are discarded and replaced in the output stream by an
 // overflow entry, which has size 2+hdrsize+1, time set to the time of
@@ -378,11 +382,28 @@ func (b *profBuf) write(tagPtr *unsafe.Pointer, now int64, hdr []uint64, stk []u
 		// Racing with reader setting flag bits in b.w, to avoid lost wakeups.
 		old := b.w.load()
 		new := old.addCountsAndClearFlags(skip+2+len(stk)+int(b.hdrsize), 1)
+		// We re-load b.r here to reduce the likelihood of early wakeups
+		// if the reader already consumed some data between the last
+		// time we read b.r and now. This isn't strictly necessary.
+		unread := countSub(new.dataCount(), b.r.load().dataCount())
+		if unread < 0 {
+			// The new count overflowed and wrapped around.
+			unread += len(b.data)
+		}
+		wakeupThreshold := len(b.data) / 2
+		if unread < wakeupThreshold {
+			// Carry over the sleeping flag since we're not planning
+			// to wake the reader yet
+			new |= old & profReaderSleeping
+		}
 		if !b.w.cas(old, new) {
 			continue
 		}
-		// If there was a reader, wake it up.
-		if old&profReaderSleeping != 0 {
+		// If we've hit our high watermark for data in the buffer,
+		// and there is a reader, wake it up.
+		if unread >= wakeupThreshold && old&profReaderSleeping != 0 {
+			// NB: if we reach this point, then the sleeping bit is
+			// cleared in the new b.w value
 			notewakeup(&b.wait)
 		}
 		break
