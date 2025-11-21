@@ -106,6 +106,7 @@ func TestSetEnv(t *testing.T)                { testSetEnv(t) }
 func TestThreadLock(t *testing.T)            { testThreadLockFunc(t) }
 func TestUnsignedInt(t *testing.T)           { testUnsignedInt(t) }
 func TestZeroArgCallback(t *testing.T)       { testZeroArgCallback(t) }
+func Test76340(t *testing.T)                 { test76340(t) }
 
 func BenchmarkCgoCall(b *testing.B)      { benchCgoCall(b) }
 func BenchmarkGoString(b *testing.B)     { benchGoString(b) }
