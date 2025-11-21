@@ -22,3 +22,13 @@ var (
 	ErrEOF            = errEOF
 	ErrIncompleteLine = errIncompleteLine
 )
+
+var ContainsCPU = containsCPU
+
+var ParseV1Number = parseV1Number
+var ParseV2Limit = parseV2Limit
+
+var ParseCPURelativePath = parseCPURelativePath
+var ParseCPUMount = parseCPUMount
+
+var UnescapePath = unescapePath
