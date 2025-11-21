@@ -85,6 +85,9 @@ if the work module's `go.mod` or the workspace's `go.work`
 says `go` `1.20`, then the program defaults to `panicnil=1`,
 matching Go 1.20 instead of Go 1.21.
 
+As an exception, GODEBUGs introduced for security releases
+will have the new behavior apply to all versions.
+
 Because this method of setting GODEBUG defaults was introduced only in Go 1.21,
 programs listing versions of Go earlier than Go 1.20 are configured to match Go 1.20,
 not the older version.
