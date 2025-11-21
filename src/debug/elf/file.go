@@ -230,6 +230,7 @@ type Symbol struct {
  * ELF reader
  */
 
+// FormatError is returned if the data does not have the correct format for an ELF.
 type FormatError struct {
 	off int64
 	msg string
