@@ -43,7 +43,7 @@ type Name struct {
 	Func      *Func // TODO(austin): nil for I.M
 	Offset_   int64
 	val       constant.Value
-	Opt       any      // for use by escape analysis
+	Opt       any      // for use by escape or slice analysis
 	Embed     *[]Embed // list of embedded files, for ONAME var
 
 	// For a local variable (not param) or extern, the initializing assignment (OAS or OAS2).

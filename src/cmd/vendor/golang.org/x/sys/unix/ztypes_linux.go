@@ -3590,12 +3590,16 @@ type Nhmsg struct {
 	Flags    uint32
 }
 
+const SizeofNhmsg = 0x8
+
 type NexthopGrp struct {
 	Id     uint32
 	Weight uint8
 	High   uint8
 	Resvd2 uint16
 }
+
+const SizeofNexthopGrp = 0x8
 
 const (
 	NHA_UNSPEC     = 0x0
@@ -6332,3 +6336,30 @@ type SockDiagReq struct {
 }
 
 const RTM_NEWNVLAN = 0x70
+
+const (
+	MPOL_BIND                = 0x2
+	MPOL_DEFAULT             = 0x0
+	MPOL_F_ADDR              = 0x2
+	MPOL_F_MEMS_ALLOWED      = 0x4
+	MPOL_F_MOF               = 0x8
+	MPOL_F_MORON             = 0x10
+	MPOL_F_NODE              = 0x1
+	MPOL_F_NUMA_BALANCING    = 0x2000
+	MPOL_F_RELATIVE_NODES    = 0x4000
+	MPOL_F_SHARED            = 0x1
+	MPOL_F_STATIC_NODES      = 0x8000
+	MPOL_INTERLEAVE          = 0x3
+	MPOL_LOCAL               = 0x4
+	MPOL_MAX                 = 0x7
+	MPOL_MF_INTERNAL         = 0x10
+	MPOL_MF_LAZY             = 0x8
+	MPOL_MF_MOVE_ALL         = 0x4
+	MPOL_MF_MOVE             = 0x2
+	MPOL_MF_STRICT           = 0x1
+	MPOL_MF_VALID            = 0x7
+	MPOL_MODE_FLAGS          = 0xe000
+	MPOL_PREFERRED           = 0x1
+	MPOL_PREFERRED_MANY      = 0x5
+	MPOL_WEIGHTED_INTERLEAVE = 0x6
+)

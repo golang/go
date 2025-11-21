@@ -28,6 +28,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/build/constraint"
+	"go/internal/scannerhooks"
 	"go/scanner"
 	"go/token"
 	"strings"
@@ -52,9 +53,10 @@ type parser struct {
 	goVersion   string            // minimum Go version found in //go:build comment
 
 	// Next token
-	pos token.Pos   // token position
-	tok token.Token // one token look-ahead
-	lit string      // token literal
+	pos       token.Pos   // token position
+	tok       token.Token // one token look-ahead
+	lit       string      // token literal
+	stringEnd token.Pos   // position immediately after token; STRING only
 
 	// Error recovery
 	// (used to limit the number of calls to parser.advance
@@ -163,6 +165,10 @@ func (p *parser) next0() {
 				continue
 			}
 		} else {
+			if p.tok == token.STRING {
+				p.stringEnd = scannerhooks.StringEnd(&p.scanner)
+			}
+
 			// Found a non-comment; top of file is over.
 			p.top = false
 		}
@@ -720,7 +726,7 @@ func (p *parser) parseFieldDecl() *ast.Field {
 
 	var tag *ast.BasicLit
 	if p.tok == token.STRING {
-		tag = &ast.BasicLit{ValuePos: p.pos, Kind: p.tok, Value: p.lit}
+		tag = &ast.BasicLit{ValuePos: p.pos, ValueEnd: p.stringEnd, Kind: p.tok, Value: p.lit}
 		p.next()
 	}
 
@@ -1474,7 +1480,11 @@ func (p *parser) parseOperand() ast.Expr {
 		return x
 
 	case token.INT, token.FLOAT, token.IMAG, token.CHAR, token.STRING:
-		x := &ast.BasicLit{ValuePos: p.pos, Kind: p.tok, Value: p.lit}
+		end := p.pos + token.Pos(len(p.lit))
+		if p.tok == token.STRING {
+			end = p.stringEnd
+		}
+		x := &ast.BasicLit{ValuePos: p.pos, ValueEnd: end, Kind: p.tok, Value: p.lit}
 		p.next()
 		return x
 
@@ -2511,9 +2521,11 @@ func (p *parser) parseImportSpec(doc *ast.CommentGroup, _ token.Token, _ int) as
 	}
 
 	pos := p.pos
+	end := p.pos
 	var path string
 	if p.tok == token.STRING {
 		path = p.lit
+		end = p.stringEnd
 		p.next()
 	} else if p.tok.IsLiteral() {
 		p.error(pos, "import path must be a string")
@@ -2528,7 +2540,7 @@ func (p *parser) parseImportSpec(doc *ast.CommentGroup, _ token.Token, _ int) as
 	spec := &ast.ImportSpec{
 		Doc:     doc,
 		Name:    ident,
-		Path:    &ast.BasicLit{ValuePos: pos, Kind: token.STRING, Value: path},
+		Path:    &ast.BasicLit{ValuePos: pos, ValueEnd: end, Kind: token.STRING, Value: path},
 		Comment: comment,
 	}
 	p.imports = append(p.imports, spec)

@@ -7,6 +7,8 @@
 // to produce a full mallocgc function that's specialized for a span class
 // or specific size in the case of the tiny allocator.
 //
+// To generate the specialized mallocgc functions, do 'go run .' inside runtime/_mkmalloc.
+//
 // To assemble a mallocgc function, the mallocStub function is cloned, and the call to
 // inlinedMalloc is replaced with the inlined body of smallScanNoHeaderStub,
 // smallNoScanStub or tinyStub, depending on the parameters being specialized.
@@ -71,7 +73,8 @@ func mallocStub(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		}
 	}
 
-	// Assist the GC if needed.
+	// Assist the GC if needed. (On the reuse path, we currently compensate for this;
+	// changes here might require changes there.)
 	if gcBlackenEnabled != 0 {
 		deductAssistCredit(size)
 	}
@@ -242,6 +245,23 @@ func smallNoScanStub(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, u
 	c := getMCache(mp)
 	const spc = spanClass(sizeclass<<1) | spanClass(noscanint_)
 	span := c.alloc[spc]
+
+	// First, check for a reusable object.
+	if runtimeFreegcEnabled && c.hasReusableNoscan(spc) {
+		// We have a reusable object, use it.
+		v := mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
+		mp.mallocing = 0
+		releasem(mp)
+
+		// TODO(thepudds): note that the generated return path is essentially duplicated
+		// by the generator. For example, see the two postMallocgcDebug calls and
+		// related duplicated code on the return path currently in the generated
+		// mallocgcSmallNoScanSC2 function. One set of those correspond to this
+		// return here. We might be able to de-duplicate the generated return path
+		// by updating the generator, perhaps by jumping to a shared return or similar.
+		return v, elemsize
+	}
+
 	v := nextFreeFastStub(span)
 	if v == 0 {
 		v, span, checkGCTrigger = c.nextFree(spc)

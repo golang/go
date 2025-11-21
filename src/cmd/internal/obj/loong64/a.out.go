@@ -589,6 +589,10 @@ const (
 	AORN
 	AANDN
 
+	// 2.2.1.12
+	AMULWVW
+	AMULWVWU
+
 	// 2.2.7. Atomic Memory Access Instructions
 	AAMSWAPB
 	AAMSWAPH
@@ -907,6 +911,23 @@ const (
 	AXVSEQW
 	AVSEQV
 	AXVSEQV
+
+	AVSLTB
+	AVSLTH
+	AVSLTW
+	AVSLTV
+	AVSLTBU
+	AVSLTHU
+	AVSLTWU
+	AVSLTVU
+	AXVSLTB
+	AXVSLTH
+	AXVSLTW
+	AXVSLTV
+	AXVSLTBU
+	AXVSLTHU
+	AXVSLTWU
+	AXVSLTVU
 
 	// LSX and LASX integer div and mod instructions
 	AVDIVB

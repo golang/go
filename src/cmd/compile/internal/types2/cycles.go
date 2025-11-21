@@ -54,7 +54,6 @@ func (check *Checker) directCycle(tname *TypeName, pathIdx map[*TypeName]int) {
 			// tname is marked grey - we have a cycle on the path beginning at start.
 			// Mark tname as invalid.
 			tname.setType(Typ[Invalid])
-			tname.setColor(black)
 
 			// collect type names on cycle
 			var cycle []Object

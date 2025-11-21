@@ -109,6 +109,14 @@ TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	MOVW	R0, 8(RSP) // argc
 	MOVD	R1, 16(RSP) // argv
 
+	// This is typically the entry point for Go programs.
+	// Call stack unwinding must not proceed past this frame.
+	// Set the frame pointer register to 0 so that frame pointer-based unwinders
+	// (which don't use debug info for performance reasons)
+	// won't attempt to unwind past this function.
+	// See go.dev/issue/63630
+	MOVD	$0, R29
+
 #ifdef TLS_darwin
 	// Initialize TLS.
 	MOVD	ZR, g // clear g, make sure it's not junk.
@@ -248,6 +256,13 @@ TEXT runtime·asminit(SB),NOSPLIT|NOFRAME,$0-0
 	RET
 
 TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME,$0
+	// This is the root frame of new Go-created OS threads.
+	// Call stack unwinding must not proceed past this frame.
+	// Set the frame pointer register to 0 so that frame pointer-based unwinders
+	// (which don't use debug info for performance reasons)
+	// won't attempt to unwind past this function.
+	// See go.dev/issue/63630
+	MOVD	$0, R29
 	BL	runtime·mstart0(SB)
 	RET // not reached
 

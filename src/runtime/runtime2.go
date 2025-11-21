@@ -854,6 +854,18 @@ type p struct {
 	// mark worker started.
 	gcMarkWorkerStartTime int64
 
+	// nextGCMarkWorker is the next mark worker to run. This may be set
+	// during start-the-world to assign a worker to this P. The P runs this
+	// worker on the next call to gcController.findRunnableGCWorker. If the
+	// P runs something else or stops, it must release this worker via
+	// gcController.releaseNextGCMarkWorker.
+	//
+	// See comment in gcBgMarkWorker about the lifetime of
+	// gcBgMarkWorkerNode.
+	//
+	// Only accessed by this P or during STW.
+	nextGCMarkWorker *gcBgMarkWorkerNode
+
 	// gcw is this P's GC work buffer cache. The work buffer is
 	// filled by write barriers, drained by mutator assists, and
 	// disposed on certain GC state transitions.
@@ -1425,9 +1437,9 @@ var (
 	// must be set. An idle P (passed to pidleput) cannot add new timers while
 	// idle, so if it has no timers at that time, its mask may be cleared.
 	//
-	// Thus, we get the following effects on timer-stealing in findrunnable:
+	// Thus, we get the following effects on timer-stealing in findRunnable:
 	//
-	//   - Idle Ps with no timers when they go idle are never checked in findrunnable
+	//   - Idle Ps with no timers when they go idle are never checked in findRunnable
 	//     (for work- or timer-stealing; this is the ideal case).
 	//   - Running Ps must always be checked.
 	//   - Idle Ps whose timers are stolen must continue to be checked until they run

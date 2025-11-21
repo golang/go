@@ -14,9 +14,8 @@ import (
 	"golang.org/x/tools/go/ast/edge"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
-	"golang.org/x/tools/internal/analysisinternal"
-	"golang.org/x/tools/internal/analysisinternal/generated"
-	typeindexanalyzer "golang.org/x/tools/internal/analysisinternal/typeindex"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
+	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
 	"golang.org/x/tools/internal/astutil"
 	"golang.org/x/tools/internal/goplsexport"
 	"golang.org/x/tools/internal/refactor"
@@ -26,9 +25,8 @@ import (
 
 var stditeratorsAnalyzer = &analysis.Analyzer{
 	Name: "stditerators",
-	Doc:  analysisinternal.MustExtractDoc(doc, "stditerators"),
+	Doc:  analyzerutil.MustExtractDoc(doc, "stditerators"),
 	Requires: []*analysis.Analyzer{
-		generated.Analyzer,
 		typeindexanalyzer.Analyzer,
 	},
 	Run: stditerators,
@@ -89,8 +87,6 @@ var stditeratorsTable = [...]struct {
 // iterator for that reason? We don't want to go fix to
 // undo optimizations. Do we need a suppression mechanism?
 func stditerators(pass *analysis.Pass) (any, error) {
-	skipGenerated(pass)
-
 	var (
 		index = pass.ResultOf[typeindexanalyzer.Analyzer].(*typeindex.Index)
 		info  = pass.TypesInfo
@@ -116,6 +112,10 @@ func stditerators(pass *analysis.Pass) (any, error) {
 		//
 		//     for ... { e := x.At(i); use(e) }
 		//
+		// or
+		//
+		//     for ... { if e := x.At(i); cond { use(e) } }
+		//
 		// then chooseName prefers the name e and additionally
 		// returns the var's symbol. We'll transform this to:
 		//
@@ -124,10 +124,11 @@ func stditerators(pass *analysis.Pass) (any, error) {
 		// which leaves a redundant assignment that a
 		// subsequent 'forvar' pass will eliminate.
 		chooseName := func(curBody inspector.Cursor, x ast.Expr, i *types.Var) (string, *types.Var) {
-			// Is body { elem := x.At(i); ... } ?
-			body := curBody.Node().(*ast.BlockStmt)
-			if len(body.List) > 0 {
-				if assign, ok := body.List[0].(*ast.AssignStmt); ok &&
+
+			// isVarAssign reports whether stmt has the form v := x.At(i)
+			// and returns the variable if so.
+			isVarAssign := func(stmt ast.Stmt) *types.Var {
+				if assign, ok := stmt.(*ast.AssignStmt); ok &&
 					assign.Tok == token.DEFINE &&
 					len(assign.Lhs) == 1 &&
 					len(assign.Rhs) == 1 &&
@@ -138,15 +139,47 @@ func stditerators(pass *analysis.Pass) (any, error) {
 						astutil.EqualSyntax(ast.Unparen(call.Fun).(*ast.SelectorExpr).X, x) &&
 						is[*ast.Ident](call.Args[0]) &&
 						info.Uses[call.Args[0].(*ast.Ident)] == i {
-						// Have: { elem := x.At(i); ... }
+						// Have: elem := x.At(i)
 						id := assign.Lhs[0].(*ast.Ident)
-						return id.Name, info.Defs[id].(*types.Var)
+						return info.Defs[id].(*types.Var)
+					}
+				}
+				return nil
+			}
+
+			body := curBody.Node().(*ast.BlockStmt)
+			if len(body.List) > 0 {
+				// Is body { elem := x.At(i); ... } ?
+				if v := isVarAssign(body.List[0]); v != nil {
+					return v.Name(), v
+				}
+
+				// Or { if elem := x.At(i); cond { ... } } ?
+				if ifstmt, ok := body.List[0].(*ast.IfStmt); ok && ifstmt.Init != nil {
+					if v := isVarAssign(ifstmt.Init); v != nil {
+						return v.Name(), v
 					}
 				}
 			}
 
 			loop := curBody.Parent().Node()
-			return refactor.FreshName(info.Scopes[loop], loop.Pos(), row.elemname), nil
+
+			// Choose a fresh name only if
+			// (a) the preferred name is already declared here, and
+			// (b) there are references to it from the loop body.
+			// TODO(adonovan): this pattern also appears in errorsastype,
+			// and is wanted elsewhere; factor.
+			name := row.elemname
+			if v := lookup(info, curBody, name); v != nil {
+				// is it free in body?
+				for curUse := range index.Uses(v) {
+					if curBody.Contains(curUse) {
+						name = refactor.FreshName(info.Scopes[loop], loop.Pos(), name)
+						break
+					}
+				}
+			}
+			return name, nil
 		}
 
 		// Process each call of x.Len().
@@ -191,7 +224,7 @@ func stditerators(pass *analysis.Pass) (any, error) {
 					}
 					// Have: for i := 0; i < x.Len(); i++ { ... }.
 					//       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-					rng = analysisinternal.Range(loop.For, loop.Post.End())
+					rng = astutil.RangeOf(loop.For, loop.Post.End())
 					indexVar = v
 					curBody = curFor.ChildAt(edge.ForStmt_Body, -1)
 					elem, elemVar = chooseName(curBody, lenSel.X, indexVar)
@@ -234,7 +267,7 @@ func stditerators(pass *analysis.Pass) (any, error) {
 					// Have: for i := range x.Len() { ... }
 					//                ~~~~~~~~~~~~~
 
-					rng = analysisinternal.Range(loop.Range, loop.X.End())
+					rng = astutil.RangeOf(loop.Range, loop.X.End())
 					indexVar = info.Defs[id].(*types.Var)
 					curBody = curRange.ChildAt(edge.RangeStmt_Body, -1)
 					elem, elemVar = chooseName(curBody, lenSel.X, indexVar)
@@ -313,7 +346,7 @@ func stditerators(pass *analysis.Pass) (any, error) {
 			// may be somewhat expensive.)
 			if v, ok := methodGoVersion(row.pkgpath, row.typename, row.itermethod); !ok {
 				panic("no version found")
-			} else if file := astutil.EnclosingFile(curLenCall); !fileUses(info, file, v.String()) {
+			} else if !analyzerutil.FileUsesGoVersion(pass, astutil.EnclosingFile(curLenCall), v.String()) {
 				continue nextCall
 			}
 

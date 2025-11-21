@@ -6,6 +6,11 @@ package runtime_test
 
 import (
 	"fmt"
+	"internal/asan"
+	"internal/msan"
+	"internal/race"
+	"internal/testenv"
+	"runtime"
 	"testing"
 )
 
@@ -499,3 +504,328 @@ func BenchmarkAppendInPlace(b *testing.B) {
 
 	})
 }
+
+//go:noinline
+func byteSlice(n int) []byte {
+	var r []byte
+	for i := range n {
+		r = append(r, byte(i))
+	}
+	return r
+}
+func TestAppendByteInLoop(t *testing.T) {
+	testenv.SkipIfOptimizationOff(t)
+	if race.Enabled {
+		t.Skip("skipping in -race mode")
+	}
+	if asan.Enabled || msan.Enabled {
+		t.Skip("skipping in sanitizer mode")
+	}
+	for _, test := range [][3]int{
+		{0, 0, 0},
+		{1, 1, 8},
+		{2, 1, 8},
+		{8, 1, 8},
+		{9, 1, 16},
+		{16, 1, 16},
+		{17, 1, 24},
+		{24, 1, 24},
+		{25, 1, 32},
+		{32, 1, 32},
+		{33, 1, 64}, // If we up the stack buffer size from 32->64, this line and the next would become 48.
+		{48, 1, 64},
+		{49, 1, 64},
+		{64, 1, 64},
+		{65, 2, 128},
+	} {
+		n := test[0]
+		want := test[1]
+		wantCap := test[2]
+		var r []byte
+		got := testing.AllocsPerRun(10, func() {
+			r = byteSlice(n)
+		})
+		if got != float64(want) {
+			t.Errorf("for size %d, got %f allocs want %d", n, got, want)
+		}
+		if cap(r) != wantCap {
+			t.Errorf("for size %d, got capacity %d want %d", n, cap(r), wantCap)
+		}
+	}
+}
+
+//go:noinline
+func ptrSlice(n int, p *[]*byte) {
+	var r []*byte
+	for range n {
+		r = append(r, nil)
+	}
+	*p = r
+}
+func TestAppendPtrInLoop(t *testing.T) {
+	testenv.SkipIfOptimizationOff(t)
+	if race.Enabled {
+		t.Skip("skipping in -race mode")
+	}
+	if asan.Enabled || msan.Enabled {
+		t.Skip("skipping in sanitizer mode")
+	}
+	var tests [][3]int
+	if runtime.PtrSize == 8 {
+		tests = [][3]int{
+			{0, 0, 0},
+			{1, 1, 1},
+			{2, 1, 2},
+			{3, 1, 3}, // This is the interesting case, allocates 24 bytes when before it was 32.
+			{4, 1, 4},
+			{5, 1, 8},
+			{6, 1, 8},
+			{7, 1, 8},
+			{8, 1, 8},
+			{9, 2, 16},
+		}
+	} else {
+		tests = [][3]int{
+			{0, 0, 0},
+			{1, 1, 2},
+			{2, 1, 2},
+			{3, 1, 4},
+			{4, 1, 4},
+			{5, 1, 6}, // These two are also 24 bytes instead of 32.
+			{6, 1, 6}, //
+			{7, 1, 8},
+			{8, 1, 8},
+			{9, 1, 16},
+			{10, 1, 16},
+			{11, 1, 16},
+			{12, 1, 16},
+			{13, 1, 16},
+			{14, 1, 16},
+			{15, 1, 16},
+			{16, 1, 16},
+			{17, 2, 32},
+		}
+	}
+	for _, test := range tests {
+		n := test[0]
+		want := test[1]
+		wantCap := test[2]
+		var r []*byte
+		got := testing.AllocsPerRun(10, func() {
+			ptrSlice(n, &r)
+		})
+		if got != float64(want) {
+			t.Errorf("for size %d, got %f allocs want %d", n, got, want)
+		}
+		if cap(r) != wantCap {
+			t.Errorf("for size %d, got capacity %d want %d", n, cap(r), wantCap)
+		}
+	}
+}
+
+//go:noinline
+func byteCapSlice(n int) ([]byte, int) {
+	var r []byte
+	for i := range n {
+		r = append(r, byte(i))
+	}
+	return r, cap(r)
+}
+func TestAppendByteCapInLoop(t *testing.T) {
+	testenv.SkipIfOptimizationOff(t)
+	if race.Enabled {
+		t.Skip("skipping in -race mode")
+	}
+	if asan.Enabled || msan.Enabled {
+		t.Skip("skipping in sanitizer mode")
+	}
+	for _, test := range [][3]int{
+		{0, 0, 0},
+		{1, 1, 8},
+		{2, 1, 8},
+		{8, 1, 8},
+		{9, 1, 16},
+		{16, 1, 16},
+		{17, 1, 24},
+		{24, 1, 24},
+		{25, 1, 32},
+		{32, 1, 32},
+		{33, 1, 64},
+		{48, 1, 64},
+		{49, 1, 64},
+		{64, 1, 64},
+		{65, 2, 128},
+	} {
+		n := test[0]
+		want := test[1]
+		wantCap := test[2]
+		var r []byte
+		got := testing.AllocsPerRun(10, func() {
+			r, _ = byteCapSlice(n)
+		})
+		if got != float64(want) {
+			t.Errorf("for size %d, got %f allocs want %d", n, got, want)
+		}
+		if cap(r) != wantCap {
+			t.Errorf("for size %d, got capacity %d want %d", n, cap(r), wantCap)
+		}
+	}
+}
+
+func TestAppendGeneric(t *testing.T) {
+	type I *int
+	r := testAppendGeneric[I](100)
+	if len(r) != 100 {
+		t.Errorf("bad length")
+	}
+}
+
+//go:noinline
+func testAppendGeneric[E any](n int) []E {
+	var r []E
+	var z E
+	for range n {
+		r = append(r, z)
+	}
+	return r
+}
+
+func appendSomeBytes(r []byte, s []byte) []byte {
+	for _, b := range s {
+		r = append(r, b)
+	}
+	return r
+}
+
+func TestAppendOfArg(t *testing.T) {
+	r := make([]byte, 24)
+	for i := 0; i < 24; i++ {
+		r[i] = byte(i)
+	}
+	appendSomeBytes(r, []byte{25, 26, 27})
+	// Do the same thing, trying to overwrite any
+	// stack-allocated buffers used above.
+	s := make([]byte, 24)
+	for i := 0; i < 24; i++ {
+		s[i] = 99
+	}
+	appendSomeBytes(s, []byte{99, 99, 99})
+	// Check that we still have the right data.
+	for i, b := range r {
+		if b != byte(i) {
+			t.Errorf("r[%d]=%d, want %d", i, b, byte(i))
+		}
+	}
+
+}
+
+func BenchmarkAppendInLoop(b *testing.B) {
+	for _, size := range []int{0, 1, 8, 16, 32, 64, 128} {
+		b.Run(fmt.Sprintf("%d", size),
+			func(b *testing.B) {
+				b.ReportAllocs()
+				for b.Loop() {
+					byteSlice(size)
+				}
+			})
+	}
+}
+
+func TestMoveToHeapEarly(t *testing.T) {
+	// Just checking that this compiles.
+	var x []int
+	y := x // causes a move2heap in the entry block
+	for range 5 {
+		x = append(x, 5)
+	}
+	_ = y
+}
+
+func TestMoveToHeapCap(t *testing.T) {
+	var c int
+	r := func() []byte {
+		var s []byte
+		for i := range 10 {
+			s = append(s, byte(i))
+		}
+		c = cap(s)
+		return s
+	}()
+	if c != cap(r) {
+		t.Errorf("got cap=%d, want %d", c, cap(r))
+	}
+	sinkSlice = r
+}
+
+//go:noinline
+func runit(f func()) {
+	f()
+}
+
+func TestMoveToHeapClosure1(t *testing.T) {
+	var c int
+	r := func() []byte {
+		var s []byte
+		for i := range 10 {
+			s = append(s, byte(i))
+		}
+		runit(func() {
+			c = cap(s)
+		})
+		return s
+	}()
+	if c != cap(r) {
+		t.Errorf("got cap=%d, want %d", c, cap(r))
+	}
+	sinkSlice = r
+}
+func TestMoveToHeapClosure2(t *testing.T) {
+	var c int
+	r := func() []byte {
+		var s []byte
+		for i := range 10 {
+			s = append(s, byte(i))
+		}
+		c = func() int {
+			return cap(s)
+		}()
+		return s
+	}()
+	if c != cap(r) {
+		t.Errorf("got cap=%d, want %d", c, cap(r))
+	}
+	sinkSlice = r
+}
+
+//go:noinline
+func buildClosure(t *testing.T) ([]byte, func()) {
+	var s []byte
+	for i := range 20 {
+		s = append(s, byte(i))
+	}
+	c := func() {
+		for i, b := range s {
+			if b != byte(i) {
+				t.Errorf("s[%d]=%d, want %d", i, b, i)
+			}
+		}
+	}
+	return s, c
+}
+
+func TestMoveToHeapClosure3(t *testing.T) {
+	_, f := buildClosure(t)
+	overwriteStack(0)
+	f()
+}
+
+//go:noinline
+func overwriteStack(n int) uint64 {
+	var x [100]uint64
+	for i := range x {
+		x[i] = 0xabcdabcdabcdabcd
+	}
+	return x[n]
+}
+
+var sinkSlice []byte

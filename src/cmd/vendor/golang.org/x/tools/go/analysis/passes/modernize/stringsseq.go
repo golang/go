@@ -13,19 +13,17 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/edge"
-	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
-	"golang.org/x/tools/internal/analysisinternal"
-	"golang.org/x/tools/internal/analysisinternal/generated"
-	typeindexanalyzer "golang.org/x/tools/internal/analysisinternal/typeindex"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
+	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
 	"golang.org/x/tools/internal/typesinternal/typeindex"
+	"golang.org/x/tools/internal/versions"
 )
 
 var StringsSeqAnalyzer = &analysis.Analyzer{
 	Name: "stringsseq",
-	Doc:  analysisinternal.MustExtractDoc(doc, "stringsseq"),
+	Doc:  analyzerutil.MustExtractDoc(doc, "stringsseq"),
 	Requires: []*analysis.Analyzer{
-		generated.Analyzer,
 		inspect.Analyzer,
 		typeindexanalyzer.Analyzer,
 	},
@@ -48,12 +46,9 @@ var StringsSeqAnalyzer = &analysis.Analyzer{
 // - bytes.SplitSeq
 // - bytes.FieldsSeq
 func stringsseq(pass *analysis.Pass) (any, error) {
-	skipGenerated(pass)
-
 	var (
-		inspect = pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
-		index   = pass.ResultOf[typeindexanalyzer.Analyzer].(*typeindex.Index)
-		info    = pass.TypesInfo
+		index = pass.ResultOf[typeindexanalyzer.Analyzer].(*typeindex.Index)
+		info  = pass.TypesInfo
 
 		stringsSplit  = index.Object("strings", "Split")
 		stringsFields = index.Object("strings", "Fields")
@@ -64,7 +59,7 @@ func stringsseq(pass *analysis.Pass) (any, error) {
 		return nil, nil
 	}
 
-	for curFile := range filesUsing(inspect, info, "go1.24") {
+	for curFile := range filesUsingGoVersion(pass, versions.Go1_24) {
 		for curRange := range curFile.Preorder((*ast.RangeStmt)(nil)) {
 			rng := curRange.Node().(*ast.RangeStmt)
 

@@ -40,6 +40,7 @@ func main() {
 		log.Fatalf("unrecognized architecture %s", GOARCH)
 	}
 	ctxt := obj.Linknew(architecture.LinkArch)
+	ctxt.CompressInstructions = flags.DebugFlags.CompressInstructions != 0
 	ctxt.Debugasm = flags.PrintOut
 	ctxt.Debugvlog = flags.DebugV
 	ctxt.Flag_dynlink = *flags.Dynlink

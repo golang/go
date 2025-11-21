@@ -20,13 +20,16 @@ import (
 	"golang.org/x/tools/go/ast/edge"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
-	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
+	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
 	"golang.org/x/tools/internal/astutil"
 	"golang.org/x/tools/internal/diff"
+	"golang.org/x/tools/internal/moreiters"
 	"golang.org/x/tools/internal/packagepath"
 	"golang.org/x/tools/internal/refactor"
 	"golang.org/x/tools/internal/refactor/inline"
 	"golang.org/x/tools/internal/typesinternal"
+	"golang.org/x/tools/internal/typesinternal/typeindex"
 )
 
 //go:embed doc.go
@@ -34,7 +37,7 @@ var doc string
 
 var Analyzer = &analysis.Analyzer{
 	Name: "inline",
-	Doc:  analysisinternal.MustExtractDoc(doc, "inline"),
+	Doc:  analyzerutil.MustExtractDoc(doc, "inline"),
 	URL:  "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/inline",
 	Run:  run,
 	FactTypes: []analysis.Fact{
@@ -42,20 +45,29 @@ var Analyzer = &analysis.Analyzer{
 		(*goFixInlineConstFact)(nil),
 		(*goFixInlineAliasFact)(nil),
 	},
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Requires: []*analysis.Analyzer{
+		inspect.Analyzer,
+		typeindexanalyzer.Analyzer,
+	},
 }
 
-var allowBindingDecl bool
+var (
+	allowBindingDecl bool
+	lazyEdits        bool
+)
 
 func init() {
 	Analyzer.Flags.BoolVar(&allowBindingDecl, "allow_binding_decl", false,
 		"permit inlinings that require a 'var params = args' declaration")
+	Analyzer.Flags.BoolVar(&lazyEdits, "lazy_edits", false,
+		"compute edits lazily (only meaningful to gopls driver)")
 }
 
 // analyzer holds the state for this analysis.
 type analyzer struct {
-	pass *analysis.Pass
-	root inspector.Cursor
+	pass  *analysis.Pass
+	root  inspector.Cursor
+	index *typeindex.Index
 	// memoization of repeated calls for same file.
 	fileContent map[string][]byte
 	// memoization of fact imports (nil => no fact)
@@ -68,6 +80,7 @@ func run(pass *analysis.Pass) (any, error) {
 	a := &analyzer{
 		pass:             pass,
 		root:             pass.ResultOf[inspect.Analyzer].(*inspector.Inspector).Root(),
+		index:            pass.ResultOf[typeindexanalyzer.Analyzer].(*typeindex.Index),
 		fileContent:      make(map[string][]byte),
 		inlinableFuncs:   make(map[*types.Func]*inline.Callee),
 		inlinableConsts:  make(map[*types.Const]*goFixInlineConstFact),
@@ -132,8 +145,6 @@ func (a *analyzer) HandleConst(nameIdent, rhsIdent *ast.Ident) {
 
 // inline inlines each static call to an inlinable function
 // and each reference to an inlinable constant or type alias.
-//
-// TODO(adonovan):  handle multiple diffs that each add the same import.
 func (a *analyzer) inline() {
 	for cur := range a.root.Preorder((*ast.CallExpr)(nil), (*ast.Ident)(nil)) {
 		switch n := cur.Node().(type) {
@@ -167,66 +178,133 @@ func (a *analyzer) inlineCall(call *ast.CallExpr, cur inspector.Cursor) {
 			return // nope
 		}
 
-		// Inline the call.
-		content, err := a.readFile(call)
-		if err != nil {
-			a.pass.Reportf(call.Lparen, "invalid inlining candidate: cannot read source file: %v", err)
-			return
-		}
-		curFile := astutil.EnclosingFile(cur)
-		caller := &inline.Caller{
-			Fset:    a.pass.Fset,
-			Types:   a.pass.Pkg,
-			Info:    a.pass.TypesInfo,
-			File:    curFile,
-			Call:    call,
-			Content: content,
-		}
-		res, err := inline.Inline(caller, callee, &inline.Options{Logf: discard})
-		if err != nil {
-			a.pass.Reportf(call.Lparen, "%v", err)
-			return
+		if a.withinTestOf(cur, fn) {
+			return // don't inline a function from within its own test
 		}
 
-		if res.Literalized {
-			// Users are not fond of inlinings that literalize
-			// f(x) to func() { ... }(), so avoid them.
-			//
-			// (Unfortunately the inliner is very timid,
-			// and often literalizes when it cannot prove that
-			// reducing the call is safe; the user of this tool
-			// has no indication of what the problem is.)
-			return
-		}
-		if res.BindingDecl && !allowBindingDecl {
-			// When applying fix en masse, users are similarly
-			// unenthusiastic about inlinings that cannot
-			// entirely eliminate the parameters and
-			// insert a 'var params = args' declaration.
-			// The flag allows them to decline such fixes.
-			return
-		}
-		got := res.Content
+		// Compute the edits.
+		//
+		// Ordinarily the analyzer reports a fix containing
+		// edits. However, the algorithm is somewhat expensive
+		// (unnecessarily so: see go.dev/issue/75773) so
+		// to reduce costs in gopls, we omit the edits,
+		// meaning that gopls must compute them on demand
+		// (based on the Diagnostic.Category) when they are
+		// requested via a code action.
+		//
+		// This does mean that the following categories of
+		// caller-dependent obstacles to inlining will be
+		// reported when the gopls user requests the fix,
+		// rather than by quietly suppressing the diagnostic:
+		// - shadowing problems
+		// - callee imports inaccessible "internal" packages
+		// - callee refers to nonexported symbols
+		// - callee uses too-new Go features
+		// - inlining call from a cgo file
+		var edits []analysis.TextEdit
+		if !lazyEdits {
+			// Inline the call.
+			content, err := a.readFile(call)
+			if err != nil {
+				a.pass.Reportf(call.Lparen, "invalid inlining candidate: cannot read source file: %v", err)
+				return
+			}
+			curFile := astutil.EnclosingFile(cur)
+			caller := &inline.Caller{
+				Fset:    a.pass.Fset,
+				Types:   a.pass.Pkg,
+				Info:    a.pass.TypesInfo,
+				File:    curFile,
+				Call:    call,
+				Content: content,
+				CountUses: func(pkgname *types.PkgName) int {
+					return moreiters.Len(a.index.Uses(pkgname))
+				},
+			}
+			res, err := inline.Inline(caller, callee, &inline.Options{Logf: discard})
+			if err != nil {
+				a.pass.Reportf(call.Lparen, "%v", err)
+				return
+			}
 
-		// Suggest the "fix".
-		var textEdits []analysis.TextEdit
-		for _, edit := range diff.Bytes(content, got) {
-			textEdits = append(textEdits, analysis.TextEdit{
-				Pos:     curFile.FileStart + token.Pos(edit.Start),
-				End:     curFile.FileStart + token.Pos(edit.End),
-				NewText: []byte(edit.New),
-			})
+			if res.Literalized {
+				// Users are not fond of inlinings that literalize
+				// f(x) to func() { ... }(), so avoid them.
+				//
+				// (Unfortunately the inliner is very timid,
+				// and often literalizes when it cannot prove that
+				// reducing the call is safe; the user of this tool
+				// has no indication of what the problem is.)
+				return
+			}
+			if res.BindingDecl && !allowBindingDecl {
+				// When applying fix en masse, users are similarly
+				// unenthusiastic about inlinings that cannot
+				// entirely eliminate the parameters and
+				// insert a 'var params = args' declaration.
+				// The flag allows them to decline such fixes.
+				return
+			}
+			got := res.Content
+
+			for _, edit := range diff.Bytes(content, got) {
+				edits = append(edits, analysis.TextEdit{
+					Pos:     curFile.FileStart + token.Pos(edit.Start),
+					End:     curFile.FileStart + token.Pos(edit.End),
+					NewText: []byte(edit.New),
+				})
+			}
 		}
+
 		a.pass.Report(analysis.Diagnostic{
-			Pos:     call.Pos(),
-			End:     call.End(),
-			Message: fmt.Sprintf("Call of %v should be inlined", callee),
+			Pos:      call.Pos(),
+			End:      call.End(),
+			Message:  fmt.Sprintf("Call of %v should be inlined", callee),
+			Category: "inline_call", // keep consistent with gopls/internal/golang.fixInlineCall
 			SuggestedFixes: []analysis.SuggestedFix{{
 				Message:   fmt.Sprintf("Inline call of %v", callee),
-				TextEdits: textEdits,
+				TextEdits: edits, // within gopls, this is nil => compute fix's edits lazily
 			}},
 		})
 	}
+}
+
+// withinTestOf reports whether cur is within a dedicated test
+// function for the inlinable target function.
+// A call within its dedicated test should not be inlined.
+func (a *analyzer) withinTestOf(cur inspector.Cursor, target *types.Func) bool {
+	curFuncDecl, ok := moreiters.First(cur.Enclosing((*ast.FuncDecl)(nil)))
+	if !ok {
+		return false // not in a function
+	}
+	funcDecl := curFuncDecl.Node().(*ast.FuncDecl)
+	if funcDecl.Recv != nil {
+		return false // not a test func
+	}
+	if strings.TrimSuffix(a.pass.Pkg.Path(), "_test") != target.Pkg().Path() {
+		return false // different package
+	}
+	if !strings.HasSuffix(a.pass.Fset.File(funcDecl.Pos()).Name(), "_test.go") {
+		return false // not a test file
+	}
+
+	// Computed expected SYMBOL portion of "TestSYMBOL_comment"
+	// for the target symbol.
+	symbol := target.Name()
+	if recv := target.Signature().Recv(); recv != nil {
+		_, named := typesinternal.ReceiverNamed(recv)
+		symbol = named.Obj().Name() + "_" + symbol
+	}
+
+	// TODO(adonovan): use a proper Test function parser.
+	fname := funcDecl.Name.Name
+	for _, pre := range []string{"Test", "Example", "Bench"} {
+		if fname == pre+symbol || strings.HasPrefix(fname, pre+symbol+"_") {
+			return true
+		}
+	}
+
+	return false
 }
 
 // If tn is the TypeName of an inlinable alias, suggest inlining its use at cur.
@@ -375,8 +453,8 @@ func typenames(t types.Type) []*types.TypeName {
 			visit(t.Key())
 			visit(t.Elem())
 		case *types.Struct:
-			for i := range t.NumFields() {
-				visit(t.Field(i).Type())
+			for field := range t.Fields() {
+				visit(field.Type())
 			}
 		case *types.Signature:
 			// Ignore the receiver: although it may be present, it has no meaning
@@ -389,11 +467,11 @@ func typenames(t types.Type) []*types.TypeName {
 			visit(t.Params())
 			visit(t.Results())
 		case *types.Interface:
-			for i := range t.NumEmbeddeds() {
-				visit(t.EmbeddedType(i))
+			for etyp := range t.EmbeddedTypes() {
+				visit(etyp)
 			}
-			for i := range t.NumExplicitMethods() {
-				visit(t.ExplicitMethod(i).Type())
+			for method := range t.ExplicitMethods() {
+				visit(method.Type())
 			}
 		case *types.Tuple:
 			for v := range t.Variables() {

@@ -9,29 +9,21 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/go/ast/inspector"
-	"golang.org/x/tools/internal/analysisinternal"
-	"golang.org/x/tools/internal/analysisinternal/generated"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
+	"golang.org/x/tools/internal/versions"
 )
 
 var AnyAnalyzer = &analysis.Analyzer{
-	Name: "any",
-	Doc:  analysisinternal.MustExtractDoc(doc, "any"),
-	Requires: []*analysis.Analyzer{
-		generated.Analyzer,
-		inspect.Analyzer,
-	},
-	Run: runAny,
-	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#any",
+	Name:     "any",
+	Doc:      analyzerutil.MustExtractDoc(doc, "any"),
+	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Run:      runAny,
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#any",
 }
 
 // The any pass replaces interface{} with go1.18's 'any'.
 func runAny(pass *analysis.Pass) (any, error) {
-	skipGenerated(pass)
-
-	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
-
-	for curFile := range filesUsing(inspect, pass.TypesInfo, "go1.18") {
+	for curFile := range filesUsingGoVersion(pass, versions.Go1_18) {
 		for curIface := range curFile.Preorder((*ast.InterfaceType)(nil)) {
 			iface := curIface.Node().(*ast.InterfaceType)
 

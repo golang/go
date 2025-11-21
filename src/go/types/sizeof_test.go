@@ -35,14 +35,14 @@ func TestSizeof(t *testing.T) {
 		{term{}, 12, 24},
 
 		// Objects
-		{PkgName{}, 44, 80},
-		{Const{}, 48, 88},
-		{TypeName{}, 40, 72},
-		{Var{}, 48, 88},
-		{Func{}, 48, 88},
-		{Label{}, 44, 80},
-		{Builtin{}, 44, 80},
-		{Nil{}, 40, 72},
+		{PkgName{}, 40, 80},
+		{Const{}, 44, 88},
+		{TypeName{}, 36, 72},
+		{Var{}, 44, 88},
+		{Func{}, 44, 88},
+		{Label{}, 40, 80},
+		{Builtin{}, 40, 80},
+		{Nil{}, 36, 72},
 
 		// Misc
 		{Scope{}, 44, 88},

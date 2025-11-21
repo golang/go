@@ -14,19 +14,18 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/types/typeutil"
-	"golang.org/x/tools/internal/analysisinternal"
-	"golang.org/x/tools/internal/analysisinternal/generated"
-	typeindexanalyzer "golang.org/x/tools/internal/analysisinternal/typeindex"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
+	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
 	"golang.org/x/tools/internal/astutil"
 	"golang.org/x/tools/internal/refactor"
 	"golang.org/x/tools/internal/typesinternal/typeindex"
+	"golang.org/x/tools/internal/versions"
 )
 
 var WaitGroupAnalyzer = &analysis.Analyzer{
 	Name: "waitgroup",
-	Doc:  analysisinternal.MustExtractDoc(doc, "waitgroup"),
+	Doc:  analyzerutil.MustExtractDoc(doc, "waitgroup"),
 	Requires: []*analysis.Analyzer{
-		generated.Analyzer,
 		inspect.Analyzer,
 		typeindexanalyzer.Analyzer,
 	},
@@ -61,8 +60,6 @@ var WaitGroupAnalyzer = &analysis.Analyzer{
 // other effects, or blocked, or if WaitGroup.Go propagated panics
 // from child to parent goroutine, the argument would be different.)
 func waitgroup(pass *analysis.Pass) (any, error) {
-	skipGenerated(pass)
-
 	var (
 		index             = pass.ResultOf[typeindexanalyzer.Analyzer].(*typeindex.Index)
 		info              = pass.TypesInfo
@@ -128,7 +125,7 @@ func waitgroup(pass *analysis.Pass) (any, error) {
 		}
 
 		file := astutil.EnclosingFile(curAddCall)
-		if !fileUses(info, file, "go1.25") {
+		if !analyzerutil.FileUsesGoVersion(pass, file, versions.Go1_25) {
 			continue
 		}
 		tokFile := pass.Fset.File(file.Pos())

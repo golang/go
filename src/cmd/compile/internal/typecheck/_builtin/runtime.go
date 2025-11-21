@@ -195,12 +195,18 @@ func makeslice(typ *byte, len int, cap int) unsafe.Pointer
 func makeslice64(typ *byte, len int64, cap int64) unsafe.Pointer
 func makeslicecopy(typ *byte, tolen int, fromlen int, from unsafe.Pointer) unsafe.Pointer
 func growslice(oldPtr *any, newLen, oldCap, num int, et *byte) (ary []any)
+func growsliceBuf(oldPtr *any, newLen, oldCap, num int, et *byte, buf *any, bufLen int) (ary []any)
 func unsafeslicecheckptr(typ *byte, ptr unsafe.Pointer, len int64)
 func panicunsafeslicelen()
 func panicunsafeslicenilptr()
 func unsafestringcheckptr(ptr unsafe.Pointer, len int64)
 func panicunsafestringlen()
 func panicunsafestringnilptr()
+
+func moveSlice(typ *byte, old *byte, len, cap int) (*byte, int, int)
+func moveSliceNoScan(elemSize uintptr, old *byte, len, cap int) (*byte, int, int)
+func moveSliceNoCap(typ *byte, old *byte, len int) (*byte, int, int)
+func moveSliceNoCapNoScan(elemSize uintptr, old *byte, len int) (*byte, int, int)
 
 func memmove(to *any, frm *any, length uintptr)
 func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)

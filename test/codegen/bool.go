@@ -313,3 +313,18 @@ func constantWrite(b bool, p *bool) {
 		*p = b
 	}
 }
+
+func boolCompare1(p, q *bool) int {
+	// arm64:-"EOR [$]1"
+	if *p == *q {
+		return 5
+	}
+	return 7
+}
+func boolCompare2(p, q *bool) int {
+	// arm64:-"EOR [$]1"
+	if *p != *q {
+		return 5
+	}
+	return 7
+}

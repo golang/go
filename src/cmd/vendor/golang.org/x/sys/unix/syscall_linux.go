@@ -2643,3 +2643,9 @@ func SchedGetAttr(pid int, flags uint) (*SchedAttr, error) {
 
 //sys	Cachestat(fd uint, crange *CachestatRange, cstat *Cachestat_t, flags uint) (err error)
 //sys	Mseal(b []byte, flags uint) (err error)
+
+//sys	setMemPolicy(mode int, mask *CPUSet, size int) (err error) = SYS_SET_MEMPOLICY
+
+func SetMemPolicy(mode int, mask *CPUSet) error {
+	return setMemPolicy(mode, mask, _CPU_SETSIZE)
+}

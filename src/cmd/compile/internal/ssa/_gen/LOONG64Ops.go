@@ -388,6 +388,7 @@ func init() {
 			argLength: 2,
 			reg: regInfo{
 				inputs:       []regMask{gp},
+				clobbers:     buildReg("F31"),
 				clobbersArg0: true,
 			},
 			faultOnNilArg0: true,

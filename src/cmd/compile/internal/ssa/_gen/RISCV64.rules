@@ -689,36 +689,36 @@
 (MOVDnop (MOVDconst [c])) => (MOVDconst [c])
 
 // Avoid unnecessary zero and sign extension when right shifting.
-(SRAI <t> [x] (MOVWreg  y)) && x >= 0 && x <= 31 => (SRAIW <t> [int64(x)] y)
-(SRLI <t> [x] (MOVWUreg y)) && x >= 0 && x <= 31 => (SRLIW <t> [int64(x)] y)
+(SRAI [x] (MOVWreg  y)) && x >= 0 && x <= 31 => (SRAIW [x] y)
+(SRLI [x] (MOVWUreg y)) && x >= 0 && x <= 31 => (SRLIW [x] y)
 
 // Replace right shifts that exceed size of signed type.
 (SRAI <t> [x] (MOVBreg y)) && x >=  8 => (SRAI  [63] (SLLI <t> [56] y))
 (SRAI <t> [x] (MOVHreg y)) && x >= 16 => (SRAI  [63] (SLLI <t> [48] y))
-(SRAI <t> [x] (MOVWreg y)) && x >= 32 => (SRAIW [31] y)
+(SRAI     [x] (MOVWreg y)) && x >= 32 => (SRAIW [31] y)
 
 // Eliminate right shifts that exceed size of unsigned type.
-(SRLI <t> [x] (MOVBUreg y)) && x >=  8 => (MOVDconst <t> [0])
-(SRLI <t> [x] (MOVHUreg y)) && x >= 16 => (MOVDconst <t> [0])
-(SRLI <t> [x] (MOVWUreg y)) && x >= 32 => (MOVDconst <t> [0])
+(SRLI [x] (MOVBUreg y)) && x >=  8 => (MOVDconst [0])
+(SRLI [x] (MOVHUreg y)) && x >= 16 => (MOVDconst [0])
+(SRLI [x] (MOVWUreg y)) && x >= 32 => (MOVDconst [0])
 
 // Fold constant into immediate instructions where possible.
 (ADD (MOVDconst <t> [val]) x) && is32Bit(val) && !t.IsPtr() => (ADDI [val] x)
 (AND (MOVDconst [val]) x) && is32Bit(val) => (ANDI [val] x)
 (OR  (MOVDconst [val]) x) && is32Bit(val) => (ORI  [val] x)
 (XOR (MOVDconst [val]) x) && is32Bit(val) => (XORI [val] x)
-(ROL  x (MOVDconst [val])) => (RORI  [int64(int8(-val)&63)] x)
-(ROLW x (MOVDconst [val])) => (RORIW [int64(int8(-val)&31)] x)
-(ROR  x (MOVDconst [val])) => (RORI  [int64(val&63)] x)
-(RORW x (MOVDconst [val])) => (RORIW [int64(val&31)] x)
-(SLL  x (MOVDconst [val])) => (SLLI [int64(val&63)] x)
-(SRL  x (MOVDconst [val])) => (SRLI [int64(val&63)] x)
-(SLLW x (MOVDconst [val])) => (SLLIW [int64(val&31)] x)
-(SRLW x (MOVDconst [val])) => (SRLIW [int64(val&31)] x)
-(SRA  x (MOVDconst [val])) => (SRAI [int64(val&63)] x)
-(SRAW x (MOVDconst [val])) => (SRAIW [int64(val&31)] x)
-(SLT  x (MOVDconst [val])) && val >= -2048 && val <= 2047 => (SLTI  [val] x)
-(SLTU x (MOVDconst [val])) && val >= -2048 && val <= 2047 => (SLTIU [val] x)
+(ROL  x (MOVDconst [val])) => (RORI  [-val&63] x)
+(ROLW x (MOVDconst [val])) => (RORIW [-val&31] x)
+(ROR  x (MOVDconst [val])) => (RORI  [val&63] x)
+(RORW x (MOVDconst [val])) => (RORIW [val&31] x)
+(SLL  x (MOVDconst [val])) => (SLLI  [val&63] x)
+(SLLW x (MOVDconst [val])) => (SLLIW [val&31] x)
+(SRL  x (MOVDconst [val])) => (SRLI  [val&63] x)
+(SRLW x (MOVDconst [val])) => (SRLIW [val&31] x)
+(SRA  x (MOVDconst [val])) => (SRAI  [val&63] x)
+(SRAW x (MOVDconst [val])) => (SRAIW [val&31] x)
+(SLT  x (MOVDconst [val])) && is12Bit(val) => (SLTI  [val] x)
+(SLTU x (MOVDconst [val])) && is12Bit(val) => (SLTIU [val] x)
 
 // Replace negated left rotation with right rotation.
 (ROL  x (NEG y)) => (ROR  x y)
@@ -782,7 +782,7 @@
 (SRAI [x] (MOVDconst [y])) => (MOVDconst [int64(y) >> uint32(x)])
 
 // Combine doubling via addition with shift.
-(SLLI <t> [c] (ADD x x)) && c < t.Size() * 8 - 1 => (SLLI <t> [c+1] x)
+(SLLI <t> [c] (ADD x x)) && c < t.Size() * 8 - 1 => (SLLI [c+1] x)
 (SLLI <t> [c] (ADD x x)) && c >= t.Size() * 8 - 1 => (MOVDconst [0])
 
 // SLTI/SLTIU with constants.
@@ -792,7 +792,6 @@
 // SLTI/SLTIU with known outcomes.
 (SLTI  [x] (ANDI [y] _)) && y >= 0 && int64(y) < int64(x) => (MOVDconst [1])
 (SLTIU [x] (ANDI [y] _)) && y >= 0 && uint64(y) < uint64(x) => (MOVDconst [1])
-(SLTI  [x] (ORI  [y] _)) && y >= 0 && int64(y) >= int64(x) => (MOVDconst [0])
 (SLTIU [x] (ORI  [y] _)) && y >= 0 && uint64(y) >= uint64(x) => (MOVDconst [0])
 
 // SLT/SLTU with known outcomes.

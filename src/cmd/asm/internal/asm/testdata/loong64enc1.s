@@ -212,6 +212,12 @@ lable2:
 	SRLV	$32, R4, R5 		// 85804500
 	SRLV	$32, R4			// 84804500
 
+	// MULW.D.W[U] instructions
+	MULWVW	R4, R5			// a5101f00
+	MULWVW	R4, R5, R6		// a6101f00
+	MULWVWU	R4, R5			// a5901f00
+	MULWVWU	R4, R5, R6		// a6901f00
+
 	MASKEQZ	R4, R5, R6		// a6101300
 	MASKNEZ	R4, R5, R6		// a6901300
 
@@ -590,6 +596,42 @@ lable2:
 	XVSEQW		$12, X2, X4     // 44308176
 	XVSEQV		$15, X2, X4     // 44bc8176
 	XVSEQV		$-15, X2, X4    // 44c48176
+
+	// VSLTB{B,H,W,V}, XVSLTB{B,H,W,V} instruction
+	VSLTB		V1, V2, V3      // 43040670
+	VSLTH		V1, V2, V3      // 43840670
+	VSLTW		V1, V2, V3      // 43040770
+	VSLTV		V1, V2, V3      // 43840770
+	XVSLTB		X1, X2, X3      // 43040674
+	XVSLTH		X1, X2, X3      // 43840674
+	XVSLTW		X1, X2, X3      // 43040774
+	XVSLTV		X1, X2, X3      // 43840774
+	VSLTB		$1, V2, V3      // 43048672
+	VSLTH		$16, V2, V3     // 43c08672
+	VSLTW		$-16, V2, V3    // 43408772
+	VSLTV		$-15, V2, V3    // 43c48772
+	XVSLTB		$1, X2, X3      // 43048676
+	XVSLTH		$16, X2, X3     // 43c08676
+	XVSLTW		$-16, X2, X3    // 43408776
+	XVSLTV		$-16, X2, X3    // 43c08776
+
+	// VSLTB{B,H,W,V}U, XVSLTB{B,H,W,V}U instruction
+	VSLTBU		V1, V2, V3      // 43040870
+	VSLTHU		V1, V2, V3      // 43840870
+	VSLTWU		V1, V2, V3      // 43040970
+	VSLTVU		V1, V2, V3      // 43840970
+	XVSLTBU		X1, X2, X3      // 43040874
+	XVSLTHU		X1, X2, X3      // 43840874
+	XVSLTWU		X1, X2, X3      // 43040974
+	XVSLTVU		X1, X2, X3      // 43840974
+	VSLTBU		$0, V2, V3      // 43008872
+	VSLTHU		$31, V2, V3     // 43fc8872
+	VSLTWU		$16, V2, V3     // 43408972
+	VSLTVU		$1, V2, V3      // 43848972
+	XVSLTBU		$0, X2, X3      // 43008876
+	XVSLTHU		$31, X2, X3     // 43fc8876
+	XVSLTWU		$8, X2, X3      // 43208976
+	XVSLTVU		$0, X2, X3      // 43808976
 
 	// VPCNT{B,H,W,V}, XVPCNT{B,H,W,V} instruction
 	VPCNTB		V1, V2          // 22209c72

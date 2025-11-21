@@ -92,6 +92,9 @@ var ARM64 struct {
 	HasSHA2     bool // SHA2 hardware implementation
 	HasCRC32    bool // CRC32 hardware implementation
 	HasATOMICS  bool // Atomic memory operation instruction set
+	HasHPDS     bool // Hierarchical permission disables in translations tables
+	HasLOR      bool // Limited ordering regions
+	HasPAN      bool // Privileged access never
 	HasFPHP     bool // Half precision floating-point instruction set
 	HasASIMDHP  bool // Advanced SIMD half precision instruction set
 	HasCPUID    bool // CPUID identification scheme registers

@@ -125,6 +125,11 @@ func InitConfig() {
 	ir.Syms.GCWriteBarrier[7] = typecheck.LookupRuntimeFunc("gcWriteBarrier8")
 	ir.Syms.Goschedguarded = typecheck.LookupRuntimeFunc("goschedguarded")
 	ir.Syms.Growslice = typecheck.LookupRuntimeFunc("growslice")
+	ir.Syms.GrowsliceBuf = typecheck.LookupRuntimeFunc("growsliceBuf")
+	ir.Syms.MoveSlice = typecheck.LookupRuntimeFunc("moveSlice")
+	ir.Syms.MoveSliceNoScan = typecheck.LookupRuntimeFunc("moveSliceNoScan")
+	ir.Syms.MoveSliceNoCap = typecheck.LookupRuntimeFunc("moveSliceNoCap")
+	ir.Syms.MoveSliceNoCapNoScan = typecheck.LookupRuntimeFunc("moveSliceNoCapNoScan")
 	ir.Syms.InterfaceSwitch = typecheck.LookupRuntimeFunc("interfaceSwitch")
 	for i := 1; i < len(ir.Syms.MallocGCSmallNoScan); i++ {
 		ir.Syms.MallocGCSmallNoScan[i] = typecheck.LookupRuntimeFunc(fmt.Sprintf("mallocgcSmallNoScanSC%d", i))
@@ -1095,6 +1100,23 @@ type state struct {
 
 	// Block starting position, indexed by block id.
 	blockStarts []src.XPos
+
+	// Information for stack allocation. Indexed by the first argument
+	// to an append call. Normally a slice-typed variable, but not always.
+	backingStores map[ir.Node]*backingStoreInfo
+}
+
+type backingStoreInfo struct {
+	// Size of backing store array (in elements)
+	K int64
+	// Stack-allocated backing store variable.
+	store *ir.Name
+	// Dynamic boolean variable marking the fact that we used this backing store.
+	used *ir.Name
+	// Have we used this variable statically yet? This is just a hint
+	// to avoid checking the dynamic variable if the answer is obvious.
+	// (usedStatic == true implies used == true)
+	usedStatic bool
 }
 
 type funcLine struct {
@@ -3691,6 +3713,9 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 	case ir.OAPPEND:
 		return s.append(n.(*ir.CallExpr), false)
 
+	case ir.OMOVE2HEAP:
+		return s.move2heap(n.(*ir.MoveToHeapExpr))
+
 	case ir.OMIN, ir.OMAX:
 		return s.minMax(n.(*ir.CallExpr))
 
@@ -3750,6 +3775,68 @@ func (s *state) resultAddrOfCall(c *ssa.Value, which int64, t *types.Type) *ssa.
 	rval := s.newValue1I(ssa.OpSelectN, t, which, c)
 	s.vars[memVar] = s.newValue3Apos(ssa.OpStore, types.TypeMem, t, addr, rval, s.mem(), false)
 	return addr
+}
+
+// Get backing store information for an append call.
+func (s *state) getBackingStoreInfoForAppend(n *ir.CallExpr) *backingStoreInfo {
+	if n.Esc() != ir.EscNone {
+		return nil
+	}
+	return s.getBackingStoreInfo(n.Args[0])
+}
+func (s *state) getBackingStoreInfo(n ir.Node) *backingStoreInfo {
+	t := n.Type()
+	et := t.Elem()
+	maxStackSize := int64(base.Debug.VariableMakeThreshold)
+	if et.Size() == 0 || et.Size() > maxStackSize {
+		return nil
+	}
+	if base.Flag.N != 0 {
+		return nil
+	}
+	if !base.VariableMakeHash.MatchPos(n.Pos(), nil) {
+		return nil
+	}
+	i := s.backingStores[n]
+	if i != nil {
+		return i
+	}
+
+	// Build type of backing store.
+	K := maxStackSize / et.Size() // rounds down
+	KT := types.NewArray(et, K)
+	KT.SetNoalg(true)
+	types.CalcArraySize(KT)
+	// Align more than naturally for the type KT. See issue 73199.
+	align := types.NewArray(types.Types[types.TUINTPTR], 0)
+	types.CalcArraySize(align)
+	storeTyp := types.NewStruct([]*types.Field{
+		{Sym: types.BlankSym, Type: align},
+		{Sym: types.BlankSym, Type: KT},
+	})
+	storeTyp.SetNoalg(true)
+	types.CalcStructSize(storeTyp)
+
+	// Make backing store variable.
+	backingStore := typecheck.TempAt(n.Pos(), s.curfn, storeTyp)
+	backingStore.SetAddrtaken(true)
+
+	// Make "used" boolean.
+	used := typecheck.TempAt(n.Pos(), s.curfn, types.Types[types.TBOOL])
+	if s.curBlock == s.f.Entry {
+		s.vars[used] = s.constBool(false)
+	} else {
+		// initialize this variable at end of entry block
+		s.defvars[s.f.Entry.ID][used] = s.constBool(false)
+	}
+
+	// Initialize an info structure.
+	if s.backingStores == nil {
+		s.backingStores = map[ir.Node]*backingStoreInfo{}
+	}
+	i = &backingStoreInfo{K: K, store: backingStore, used: used, usedStatic: false}
+	s.backingStores[n] = i
+	return i
 }
 
 // append converts an OAPPEND node to SSA.
@@ -3842,9 +3929,29 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 	// A stack-allocated backing store could be used at every
 	// append that qualifies, but we limit it in some cases to
 	// avoid wasted code and stack space.
-	// TODO: handle ... append case.
-	maxStackSize := int64(base.Debug.VariableMakeThreshold)
-	if !inplace && n.Esc() == ir.EscNone && et.Size() > 0 && et.Size() <= maxStackSize && base.Flag.N == 0 && base.VariableMakeHash.MatchPos(n.Pos(), nil) && !s.appendTargets[sn] {
+	//
+	// Note that we have two different strategies.
+	// 1. The standard strategy is just to allocate the full
+	//    backing store at the first append.
+	// 2. An alternate strategy is used when
+	//        a. The backing store eventually escapes via move2heap
+	//    and b. The capacity is used somehow
+	//    In this case, we don't want to just allocate
+	//    the full buffer at the first append, because when
+	//    we move2heap the buffer to the heap when it escapes,
+	//    we might end up wasting memory because we can't
+	//    change the capacity.
+	//    So in this case we use growsliceBuf to reuse the buffer
+	//    and walk one step up the size class ladder each time.
+	//
+	// TODO: handle ... append case? Currently we handle only
+	// a fixed number of appended elements.
+	var info *backingStoreInfo
+	if !inplace {
+		info = s.getBackingStoreInfoForAppend(n)
+	}
+
+	if !inplace && info != nil && !n.UseBuf && !info.usedStatic {
 		// if l <= K {
 		//   if !used {
 		//     if oldLen == 0 {
@@ -3868,43 +3975,19 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 		// It is ok to do it more often, but it is probably helpful only for
 		// the first instance. TODO: this could use more tuning. Using ir.Node
 		// as the key works for *ir.Name instances but probably nothing else.
-		if s.appendTargets == nil {
-			s.appendTargets = map[ir.Node]bool{}
-		}
-		s.appendTargets[sn] = true
-
-		K := maxStackSize / et.Size() // rounds down
-		KT := types.NewArray(et, K)
-		KT.SetNoalg(true)
-		types.CalcArraySize(KT)
-		// Align more than naturally for the type KT. See issue 73199.
-		align := types.NewArray(types.Types[types.TUINTPTR], 0)
-		types.CalcArraySize(align)
-		storeTyp := types.NewStruct([]*types.Field{
-			{Sym: types.BlankSym, Type: align},
-			{Sym: types.BlankSym, Type: KT},
-		})
-		storeTyp.SetNoalg(true)
-		types.CalcStructSize(storeTyp)
+		info.usedStatic = true
+		// TODO: unset usedStatic somehow?
 
 		usedTestBlock := s.f.NewBlock(ssa.BlockPlain)
 		oldLenTestBlock := s.f.NewBlock(ssa.BlockPlain)
 		bodyBlock := s.f.NewBlock(ssa.BlockPlain)
 		growSlice := s.f.NewBlock(ssa.BlockPlain)
-
-		// Make "used" boolean.
-		tBool := types.Types[types.TBOOL]
-		used := typecheck.TempAt(n.Pos(), s.curfn, tBool)
-		s.defvars[s.f.Entry.ID][used] = s.constBool(false) // initialize this variable at fn entry
-
-		// Make backing store variable.
 		tInt := types.Types[types.TINT]
-		backingStore := typecheck.TempAt(n.Pos(), s.curfn, storeTyp)
-		backingStore.SetAddrtaken(true)
+		tBool := types.Types[types.TBOOL]
 
 		// if l <= K
 		s.startBlock(grow)
-		kTest := s.newValue2(s.ssaOp(ir.OLE, tInt), tBool, l, s.constInt(tInt, K))
+		kTest := s.newValue2(s.ssaOp(ir.OLE, tInt), tBool, l, s.constInt(tInt, info.K))
 		b := s.endBlock()
 		b.Kind = ssa.BlockIf
 		b.SetControl(kTest)
@@ -3914,7 +3997,7 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 
 		// if !used
 		s.startBlock(usedTestBlock)
-		usedTest := s.newValue1(ssa.OpNot, tBool, s.expr(used))
+		usedTest := s.newValue1(ssa.OpNot, tBool, s.expr(info.used))
 		b = s.endBlock()
 		b.Kind = ssa.BlockIf
 		b.SetControl(usedTest)
@@ -3935,18 +4018,18 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 		// var store struct { _ [0]uintptr; arr [K]T }
 		s.startBlock(bodyBlock)
 		if et.HasPointers() {
-			s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, backingStore, s.mem())
+			s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, info.store, s.mem())
 		}
-		addr := s.addr(backingStore)
-		s.zero(storeTyp, addr)
+		addr := s.addr(info.store)
+		s.zero(info.store.Type(), addr)
 
 		// s = store.arr[:l:K]
 		s.vars[ptrVar] = addr
 		s.vars[lenVar] = l // nargs would also be ok because of the oldLen==0 test.
-		s.vars[capVar] = s.constInt(tInt, K)
+		s.vars[capVar] = s.constInt(tInt, info.K)
 
 		// used = true
-		s.assign(used, s.constBool(true), false, 0)
+		s.assign(info.used, s.constBool(true), false, 0)
 		b = s.endBlock()
 		b.AddEdgeTo(assign)
 
@@ -3957,7 +4040,25 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 	// Call growslice
 	s.startBlock(grow)
 	taddr := s.expr(n.Fun)
-	r := s.rtcall(ir.Syms.Growslice, true, []*types.Type{n.Type()}, p, l, c, nargs, taddr)
+	var r []*ssa.Value
+	if info != nil && n.UseBuf {
+		// Use stack-allocated buffer as backing store, if we can.
+		if et.HasPointers() && !info.usedStatic {
+			// Initialize in the function header. Not the best place,
+			// but it makes sure we don't scan this area before it is
+			// initialized.
+			mem := s.defvars[s.f.Entry.ID][memVar]
+			mem = s.f.Entry.NewValue1A(n.Pos(), ssa.OpVarDef, types.TypeMem, info.store, mem)
+			addr := s.f.Entry.NewValue2A(n.Pos(), ssa.OpLocalAddr, types.NewPtr(info.store.Type()), info.store, s.sp, mem)
+			mem = s.f.Entry.NewValue2I(n.Pos(), ssa.OpZero, types.TypeMem, info.store.Type().Size(), addr, mem)
+			mem.Aux = info.store.Type()
+			s.defvars[s.f.Entry.ID][memVar] = mem
+			info.usedStatic = true
+		}
+		r = s.rtcall(ir.Syms.GrowsliceBuf, true, []*types.Type{n.Type()}, p, l, c, nargs, taddr, s.addr(info.store), s.constInt(types.Types[types.TINT], info.K))
+	} else {
+		r = s.rtcall(ir.Syms.Growslice, true, []*types.Type{n.Type()}, p, l, c, nargs, taddr)
+	}
 
 	// Decompose output slice
 	p = s.newValue1(ssa.OpSlicePtr, pt, r[0])
@@ -4042,6 +4143,95 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 		return nil
 	}
 	return s.newValue3(ssa.OpSliceMake, n.Type(), p, l, c)
+}
+
+func (s *state) move2heap(n *ir.MoveToHeapExpr) *ssa.Value {
+	// s := n.Slice
+	// if s.ptr points to current stack frame {
+	//     s2 := make([]T, s.len, s.cap)
+	//     copy(s2[:cap], s[:cap])
+	//     s = s2
+	// }
+	// return s
+
+	slice := s.expr(n.Slice)
+	et := slice.Type.Elem()
+	pt := types.NewPtr(et)
+
+	info := s.getBackingStoreInfo(n)
+	if info == nil {
+		// Backing store will never be stack allocated, so
+		// move2heap is a no-op.
+		return slice
+	}
+
+	// Decomposse input slice.
+	p := s.newValue1(ssa.OpSlicePtr, pt, slice)
+	l := s.newValue1(ssa.OpSliceLen, types.Types[types.TINT], slice)
+	c := s.newValue1(ssa.OpSliceCap, types.Types[types.TINT], slice)
+
+	moveBlock := s.f.NewBlock(ssa.BlockPlain)
+	mergeBlock := s.f.NewBlock(ssa.BlockPlain)
+
+	s.vars[ptrVar] = p
+	s.vars[lenVar] = l
+	s.vars[capVar] = c
+
+	// Decide if we need to move the slice backing store.
+	// It needs to be moved if it is currently on the stack.
+	sub := ssa.OpSub64
+	less := ssa.OpLess64U
+	if s.config.PtrSize == 4 {
+		sub = ssa.OpSub32
+		less = ssa.OpLess32U
+	}
+	callerSP := s.newValue1(ssa.OpGetCallerSP, types.Types[types.TUINTPTR], s.mem())
+	frameSize := s.newValue2(sub, types.Types[types.TUINTPTR], callerSP, s.sp)
+	pInt := s.newValue2(ssa.OpConvert, types.Types[types.TUINTPTR], p, s.mem())
+	off := s.newValue2(sub, types.Types[types.TUINTPTR], pInt, s.sp)
+	cond := s.newValue2(less, types.Types[types.TBOOL], off, frameSize)
+
+	b := s.endBlock()
+	b.Kind = ssa.BlockIf
+	b.Likely = ssa.BranchUnlikely // fast path is to not have to call into runtime
+	b.SetControl(cond)
+	b.AddEdgeTo(moveBlock)
+	b.AddEdgeTo(mergeBlock)
+
+	// Move the slice to heap
+	s.startBlock(moveBlock)
+	var newSlice *ssa.Value
+	if et.HasPointers() {
+		typ := s.expr(n.RType)
+		if n.PreserveCapacity {
+			newSlice = s.rtcall(ir.Syms.MoveSlice, true, []*types.Type{slice.Type}, typ, p, l, c)[0]
+		} else {
+			newSlice = s.rtcall(ir.Syms.MoveSliceNoCap, true, []*types.Type{slice.Type}, typ, p, l)[0]
+		}
+	} else {
+		elemSize := s.constInt(types.Types[types.TUINTPTR], et.Size())
+		if n.PreserveCapacity {
+			newSlice = s.rtcall(ir.Syms.MoveSliceNoScan, true, []*types.Type{slice.Type}, elemSize, p, l, c)[0]
+		} else {
+			newSlice = s.rtcall(ir.Syms.MoveSliceNoCapNoScan, true, []*types.Type{slice.Type}, elemSize, p, l)[0]
+		}
+	}
+	// Decompose output slice
+	s.vars[ptrVar] = s.newValue1(ssa.OpSlicePtr, pt, newSlice)
+	s.vars[lenVar] = s.newValue1(ssa.OpSliceLen, types.Types[types.TINT], newSlice)
+	s.vars[capVar] = s.newValue1(ssa.OpSliceCap, types.Types[types.TINT], newSlice)
+	b = s.endBlock()
+	b.AddEdgeTo(mergeBlock)
+
+	// Merge fast path (no moving) and slow path (moved)
+	s.startBlock(mergeBlock)
+	p = s.variable(ptrVar, pt)                      // generates phi for ptr
+	l = s.variable(lenVar, types.Types[types.TINT]) // generates phi for len
+	c = s.variable(capVar, types.Types[types.TINT]) // generates phi for cap
+	delete(s.vars, ptrVar)
+	delete(s.vars, lenVar)
+	delete(s.vars, capVar)
+	return s.newValue3(ssa.OpSliceMake, slice.Type, p, l, c)
 }
 
 // minMax converts an OMIN/OMAX builtin call into SSA.

@@ -318,13 +318,28 @@ func MergeMuls5(a, n int) int {
 // Multiplications folded negation
 
 func FoldNegMul(a int) int {
-	// loong64:"SUBVU" "ALSLV [$]2" "ALSLV [$]1"
-	return (-a) * 11
+	// amd64:"IMUL3Q [$]-11" -"NEGQ"
+	// arm64:"MOVD [$]-11" "MUL" -"NEG"
+	// loong64:"ALSLV [$]2" "SUBVU" "ALSLV [$]4"
+	// riscv64:"MOV [$]-11" "MUL" -"NEG"
+	return -a * 11
 }
 
 func Fold2NegMul(a, b int) int {
+	// amd64:"IMULQ" -"NEGQ"
+	// arm64:"MUL" -"NEG"
 	// loong64:"MULV" -"SUBVU R[0-9], R0,"
-	return (-a) * (-b)
+	// riscv64:"MUL" -"NEG"
+	return -a * -b
+}
+
+func Mul32(a, b int32) int64 {
+	// arm64:"SMULL" -"MOVW"
+	return int64(a) * int64(b)
+}
+func Mul32U(a, b uint32) uint64 {
+	// arm64:"UMULL" -"MOVWU"
+	return uint64(a) * uint64(b)
 }
 
 // -------------- //

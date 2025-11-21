@@ -253,3 +253,21 @@ func SignMessage(signer Signer, rand io.Reader, msg []byte, opts SignerOpts) (si
 	}
 	return signer.Sign(rand, msg, opts)
 }
+
+// Decapsulator is an interface for an opaque private KEM key that can be used for
+// decapsulation operations. For example, an ML-KEM key kept in a hardware module.
+//
+// It is implemented, for example, by [crypto/mlkem.DecapsulationKey768].
+type Decapsulator interface {
+	Encapsulator() Encapsulator
+	Decapsulate(ciphertext []byte) (sharedKey []byte, err error)
+}
+
+// Encapsulator is an interface for a public KEM key that can be used for
+// encapsulation operations.
+//
+// It is implemented, for example, by [crypto/mlkem.EncapsulationKey768].
+type Encapsulator interface {
+	Bytes() []byte
+	Encapsulate() (sharedKey, ciphertext []byte)
+}

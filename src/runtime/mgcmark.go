@@ -204,7 +204,7 @@ func gcMarkRootCheck() {
 	})
 }
 
-// ptrmask for an allocation containing a single pointer.
+// oneptrmask for an allocation containing a single pointer.
 var oneptrmask = [...]uint8{1}
 
 // markroot scans the i'th root.
@@ -251,7 +251,7 @@ func markroot(gcw *gcWork, i uint32, flushBgCredit bool) int64 {
 			// N.B. This only needs to synchronize with cleanup execution, which only resets these blocks.
 			// All cleanup queueing happens during sweep.
 			n := uintptr(atomic.Load(&cb.n))
-			scanblock(uintptr(unsafe.Pointer(&cb.cleanups[0])), n*goarch.PtrSize, &cleanupBlockPtrMask[0], gcw, nil)
+			scanblock(uintptr(unsafe.Pointer(&cb.cleanups[0])), n*unsafe.Sizeof(cleanupFn{}), &cleanupBlockPtrMask[0], gcw, nil)
 		}
 
 	case work.baseSpans <= i && i < work.baseStacks:
@@ -489,7 +489,7 @@ func gcScanFinalizer(spf *specialfinalizer, s *mspan, gcw *gcWork) {
 // gcScanCleanup scans the relevant parts of a cleanup special as a root.
 func gcScanCleanup(spc *specialCleanup, gcw *gcWork) {
 	// The special itself is a root.
-	scanblock(uintptr(unsafe.Pointer(&spc.fn)), goarch.PtrSize, &oneptrmask[0], gcw, nil)
+	scanblock(uintptr(unsafe.Pointer(&spc.cleanup)), unsafe.Sizeof(cleanupFn{}), &cleanupFnPtrMask[0], gcw, nil)
 }
 
 // gcAssistAlloc performs GC work to make gp's assist debt positive.
@@ -1524,29 +1524,32 @@ func scanConservative(b, n uintptr, ptrmask *uint8, gcw *gcWork, state *stackSca
 	if debugScanConservative {
 		printlock()
 		print("conservatively scanning [", hex(b), ",", hex(b+n), ")\n")
-		hexdumpWords(b, b+n, func(p uintptr) byte {
+		hexdumpWords(b, n, func(p uintptr, m hexdumpMarker) {
 			if ptrmask != nil {
 				word := (p - b) / goarch.PtrSize
 				bits := *addb(ptrmask, word/8)
 				if (bits>>(word%8))&1 == 0 {
-					return '$'
+					return
 				}
 			}
 
 			val := *(*uintptr)(unsafe.Pointer(p))
 			if state != nil && state.stack.lo <= val && val < state.stack.hi {
-				return '@'
+				m.start()
+				println("ptr to stack")
+				return
 			}
 
 			span := spanOfHeap(val)
 			if span == nil {
-				return ' '
+				return
 			}
 			idx := span.objIndex(val)
 			if span.isFreeOrNewlyAllocated(idx) {
-				return ' '
+				return
 			}
-			return '*'
+			m.start()
+			println("ptr to heap")
 		})
 		printunlock()
 	}

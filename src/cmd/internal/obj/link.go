@@ -1153,36 +1153,37 @@ type Func interface {
 // Link holds the context for writing object code from a compiler
 // to be linker input or for reading that input into the linker.
 type Link struct {
-	Headtype           objabi.HeadType
-	Arch               *LinkArch
-	Debugasm           int
-	Debugvlog          bool
-	Debugpcln          string
-	Flag_shared        bool
-	Flag_dynlink       bool
-	Flag_linkshared    bool
-	Flag_optimize      bool
-	Flag_locationlists bool
-	Flag_noRefName     bool   // do not include referenced symbol names in object file
-	Retpoline          bool   // emit use of retpoline stubs for indirect jmp/call
-	Flag_maymorestack  string // If not "", call this function before stack checks
-	Bso                *bufio.Writer
-	Pathname           string
-	Pkgpath            string           // the current package's import path
-	hashmu             sync.Mutex       // protects hash, funchash
-	hash               map[string]*LSym // name -> sym mapping
-	funchash           map[string]*LSym // name -> sym mapping for ABIInternal syms
-	statichash         map[string]*LSym // name -> sym mapping for static syms
-	PosTable           src.PosTable
-	InlTree            InlTree // global inlining tree used by gc/inl.go
-	DwFixups           *DwarfFixupTable
-	DwTextCount        int
-	Imports            []goobj.ImportedPkg
-	DiagFunc           func(string, ...any)
-	DiagFlush          func()
-	DebugInfo          func(ctxt *Link, fn *LSym, info *LSym, curfn Func) ([]dwarf.Scope, dwarf.InlCalls)
-	GenAbstractFunc    func(fn *LSym)
-	Errors             int
+	Headtype             objabi.HeadType
+	Arch                 *LinkArch
+	CompressInstructions bool // use compressed instructions where possible (if supported by architecture)
+	Debugasm             int
+	Debugvlog            bool
+	Debugpcln            string
+	Flag_shared          bool
+	Flag_dynlink         bool
+	Flag_linkshared      bool
+	Flag_optimize        bool
+	Flag_locationlists   bool
+	Flag_noRefName       bool   // do not include referenced symbol names in object file
+	Retpoline            bool   // emit use of retpoline stubs for indirect jmp/call
+	Flag_maymorestack    string // If not "", call this function before stack checks
+	Bso                  *bufio.Writer
+	Pathname             string
+	Pkgpath              string           // the current package's import path
+	hashmu               sync.Mutex       // protects hash, funchash
+	hash                 map[string]*LSym // name -> sym mapping
+	funchash             map[string]*LSym // name -> sym mapping for ABIInternal syms
+	statichash           map[string]*LSym // name -> sym mapping for static syms
+	PosTable             src.PosTable
+	InlTree              InlTree // global inlining tree used by gc/inl.go
+	DwFixups             *DwarfFixupTable
+	DwTextCount          int
+	Imports              []goobj.ImportedPkg
+	DiagFunc             func(string, ...any)
+	DiagFlush            func()
+	DebugInfo            func(ctxt *Link, fn *LSym, info *LSym, curfn Func) ([]dwarf.Scope, dwarf.InlCalls)
+	GenAbstractFunc      func(fn *LSym)
+	Errors               int
 
 	InParallel    bool // parallel backend phase in effect
 	UseBASEntries bool // use Base Address Selection Entries in location lists and PC ranges

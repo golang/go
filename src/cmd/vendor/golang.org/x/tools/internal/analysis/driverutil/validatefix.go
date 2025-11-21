@@ -1,70 +1,19 @@
-// Copyright 2020 The Go Authors. All rights reserved.
+// Copyright 2025 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package analysisinternal provides helper functions for use in both
-// the analysis drivers in go/analysis and gopls, and in various
-// analyzers.
-//
-// TODO(adonovan): this is not ideal as it may lead to unnecessary
-// dependencies between drivers and analyzers. Split into analyzerlib
-// and driverlib?
-package analysisinternal
+package driverutil
+
+// This file defines the validation of SuggestedFixes.
 
 import (
 	"cmp"
 	"fmt"
 	"go/token"
-	"os"
 	"slices"
 
 	"golang.org/x/tools/go/analysis"
 )
-
-// ReadFile reads a file and adds it to the FileSet in pass
-// so that we can report errors against it using lineStart.
-func ReadFile(pass *analysis.Pass, filename string) ([]byte, *token.File, error) {
-	readFile := pass.ReadFile
-	if readFile == nil {
-		readFile = os.ReadFile
-	}
-	content, err := readFile(filename)
-	if err != nil {
-		return nil, nil, err
-	}
-	tf := pass.Fset.AddFile(filename, -1, len(content))
-	tf.SetLinesForContent(content)
-	return content, tf, nil
-}
-
-// A ReadFileFunc is a function that returns the
-// contents of a file, such as [os.ReadFile].
-type ReadFileFunc = func(filename string) ([]byte, error)
-
-// CheckedReadFile returns a wrapper around a Pass.ReadFile
-// function that performs the appropriate checks.
-func CheckedReadFile(pass *analysis.Pass, readFile ReadFileFunc) ReadFileFunc {
-	return func(filename string) ([]byte, error) {
-		if err := CheckReadable(pass, filename); err != nil {
-			return nil, err
-		}
-		return readFile(filename)
-	}
-}
-
-// CheckReadable enforces the access policy defined by the ReadFile field of [analysis.Pass].
-func CheckReadable(pass *analysis.Pass, filename string) error {
-	if slices.Contains(pass.OtherFiles, filename) ||
-		slices.Contains(pass.IgnoredFiles, filename) {
-		return nil
-	}
-	for _, f := range pass.Files {
-		if pass.Fset.File(f.FileStart).Name() == filename {
-			return nil
-		}
-	}
-	return fmt.Errorf("Pass.ReadFile: %s is not among OtherFiles, IgnoredFiles, or names of Files", filename)
-}
 
 // ValidateFixes validates the set of fixes for a single diagnostic.
 // Any error indicates a bug in the originating analyzer.
@@ -167,14 +116,3 @@ func validateFix(fset *token.FileSet, fix *analysis.SuggestedFix) error {
 
 	return nil
 }
-
-// Range returns an [analysis.Range] for the specified start and end positions.
-func Range(pos, end token.Pos) analysis.Range {
-	return tokenRange{pos, end}
-}
-
-// tokenRange is an implementation of the [analysis.Range] interface.
-type tokenRange struct{ StartPos, EndPos token.Pos }
-
-func (r tokenRange) Pos() token.Pos { return r.StartPos }
-func (r tokenRange) End() token.Pos { return r.EndPos }

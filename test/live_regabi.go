@@ -465,9 +465,9 @@ func f27defer(b bool) {
 func f27go(b bool) {
 	x := 0
 	if b {
-		go call27(func() { x++ }) // ERROR "live at call to mallocgcSmallScanNoHeaderSC[0-9]+: &x$" "live at call to mallocgcSmallScanNoHeaderSC[0-9]+: &x .autotmp_[0-9]+$" "live at call to newproc: &x$" // allocate two closures, the func literal, and the wrapper for go
+		go call27(func() { x++ }) // ERROR "live at call to (newobject|mallocgcSmallScanNoHeaderSC[0-9]+): &x$" "live at call to (newobject|mallocgcSmallScanNoHeaderSC[0-9]+): &x .autotmp_[0-9]+$" "live at call to newproc: &x$" // allocate two closures, the func literal, and the wrapper for go
 	}
-	go call27(func() { x++ }) // ERROR "live at call to mallocgcSmallScanNoHeaderSC[0-9]+: &x$" "live at call to mallocgcSmallScanNoHeaderSC[0-9]+: .autotmp_[0-9]+$" // allocate two closures, the func literal, and the wrapper for go
+	go call27(func() { x++ }) // ERROR "live at call to (newobject|mallocgcSmallScanNoHeaderSC[0-9]+): &x$" "live at call to (newobject|mallocgcSmallScanNoHeaderSC[0-9]+): .autotmp_[0-9]+$" // allocate two closures, the func literal, and the wrapper for go
 	printnl()
 }
 
@@ -536,7 +536,7 @@ func f31(b1, b2, b3 bool) {
 		g31(g18()) // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
 	}
 	if b2 {
-		h31(g18()) // ERROR "live at call to convT: .autotmp_[0-9]+$" "live at call to mallocgcSmallScanNoHeaderSC[0-9]+: .autotmp_[0-9]+$"
+		h31(g18()) // ERROR "live at call to convT: .autotmp_[0-9]+$" "live at call to (newobject|mallocgcSmallScanNoHeaderSC[0-9]+): .autotmp_[0-9]+$"
 	}
 	if b3 {
 		panic(g18())
@@ -663,14 +663,14 @@ func f39a() (x []int) {
 
 func f39b() (x [10]*int) {
 	x = [10]*int{}
-	x[0] = new(int) // ERROR "live at call to mallocTiny[48]: x$"
+	x[0] = new(int) // ERROR "live at call to (newobject|mallocTiny[48]): x$"
 	printnl()       // ERROR "live at call to printnl: x$"
 	return x
 }
 
 func f39c() (x [10]*int) {
 	x = [10]*int{}
-	x[0] = new(int) // ERROR "live at call to mallocTiny[48]: x$"
+	x[0] = new(int) // ERROR "live at call to (newobject|mallocTiny[48]): x$"
 	printnl()       // ERROR "live at call to printnl: x$"
 	return
 }

@@ -192,6 +192,7 @@ type CallExpr struct {
 	IsDDD     bool
 	GoDefer   bool // whether this call is part of a go or defer statement
 	NoInline  bool // whether this call must not be inlined
+	UseBuf    bool // use stack buffer for backing store (OAPPEND only)
 }
 
 func NewCallExpr(pos src.XPos, op Op, fun Node, args []Node) *CallExpr {
@@ -1268,4 +1269,29 @@ func MethodExprFunc(n Node) *types.Field {
 	}
 	base.Fatalf("unexpected node: %v (%v)", n, n.Op())
 	panic("unreachable")
+}
+
+// A MoveToHeapExpr takes a slice as input and moves it to the
+// heap (by copying the backing store if it is not already
+// on the heap).
+type MoveToHeapExpr struct {
+	miniExpr
+	Slice Node
+	// An expression that evaluates to a *runtime._type
+	// that represents the slice element type.
+	RType Node
+	// If PreserveCapacity is true, the capacity of
+	// the resulting slice, and all of the elements in
+	// [len:cap], must be preserved.
+	// If PreserveCapacity is false, the resulting
+	// slice may have any capacity >= len, with any
+	// elements in the resulting [len:cap] range zeroed.
+	PreserveCapacity bool
+}
+
+func NewMoveToHeapExpr(pos src.XPos, slice Node) *MoveToHeapExpr {
+	n := &MoveToHeapExpr{Slice: slice}
+	n.pos = pos
+	n.op = OMOVE2HEAP
+	return n
 }

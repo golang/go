@@ -978,7 +978,9 @@ func spanSetScans(spanBase uintptr, nelems uint16, imb *spanInlineMarkBits, toSc
 }
 
 func scanObjectSmall(spanBase, b, objSize uintptr, gcw *gcWork) {
-	ptrBits := heapBitsSmallForAddrInline(spanBase, b, objSize)
+	hbitsBase, _ := spanHeapBitsRange(spanBase, gc.PageSize, objSize)
+	hbits := (*byte)(unsafe.Pointer(hbitsBase))
+	ptrBits := extractHeapBitsSmall(hbits, spanBase, b, objSize)
 	gcw.heapScanWork += int64(sys.Len64(uint64(ptrBits)) * goarch.PtrSize)
 	nptrs := 0
 	n := sys.OnesCount64(uint64(ptrBits))
@@ -1017,12 +1019,14 @@ func scanObjectsSmall(base, objSize uintptr, elems uint16, gcw *gcWork, scans *g
 			break
 		}
 		n := sys.OnesCount64(uint64(bits))
+		hbitsBase, _ := spanHeapBitsRange(base, gc.PageSize, objSize)
+		hbits := (*byte)(unsafe.Pointer(hbitsBase))
 		for range n {
 			j := sys.TrailingZeros64(uint64(bits))
 			bits &^= 1 << j
 
 			b := base + uintptr(i*(goarch.PtrSize*8)+j)*objSize
-			ptrBits := heapBitsSmallForAddrInline(base, b, objSize)
+			ptrBits := extractHeapBitsSmall(hbits, base, b, objSize)
 			gcw.heapScanWork += int64(sys.Len64(uint64(ptrBits)) * goarch.PtrSize)
 
 			n := sys.OnesCount64(uint64(ptrBits))
@@ -1056,10 +1060,7 @@ func scanObjectsSmall(base, objSize uintptr, elems uint16, gcw *gcWork, scans *g
 	}
 }
 
-func heapBitsSmallForAddrInline(spanBase, addr, elemsize uintptr) uintptr {
-	hbitsBase, _ := spanHeapBitsRange(spanBase, gc.PageSize, elemsize)
-	hbits := (*byte)(unsafe.Pointer(hbitsBase))
-
+func extractHeapBitsSmall(hbits *byte, spanBase, addr, elemsize uintptr) uintptr {
 	// These objects are always small enough that their bitmaps
 	// fit in a single word, so just load the word or two we need.
 	//

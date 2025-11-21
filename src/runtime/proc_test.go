@@ -1221,7 +1221,7 @@ func TestTraceSTW(t *testing.T) {
 
 	var errors int
 	for i := range runs {
-		err := runTestTracesSTW(t, i)
+		err := runTestTracesSTW(t, i, "TraceSTW", "stop-the-world (read mem stats)")
 		if err != nil {
 			t.Logf("Run %d failed: %v", i, err)
 			errors++
@@ -1235,7 +1235,43 @@ func TestTraceSTW(t *testing.T) {
 	}
 }
 
-func runTestTracesSTW(t *testing.T, run int) (err error) {
+// TestTraceGCSTW verifies that goroutines continue running on the same M and P
+// after a GC STW.
+func TestTraceGCSTW(t *testing.T) {
+	// Very similar to TestTraceSTW, but using a STW that starts the GC.
+	// When the GC starts, the background GC mark workers start running,
+	// which provide an additional source of disturbance to the scheduler.
+	//
+	// procresize assigns GC workers to previously-idle Ps to avoid
+	// changing what the previously-running Ps are doing.
+
+	if testing.Short() {
+		t.Skip("skipping in -short mode")
+	}
+
+	if runtime.NumCPU() < 8 {
+		t.Skip("This test sets GOMAXPROCS=8 and wants to avoid thread descheduling as much as possible. Skip on machines with less than 8 CPUs")
+	}
+
+	const runs = 50
+
+	var errors int
+	for i := range runs {
+		err := runTestTracesSTW(t, i, "TraceGCSTW", "stop-the-world (GC sweep termination)")
+		if err != nil {
+			t.Logf("Run %d failed: %v", i, err)
+			errors++
+		}
+	}
+
+	pct := float64(errors)/float64(runs)
+	t.Logf("Errors: %d/%d = %f%%", errors, runs, 100*pct)
+	if pct > 0.25 {
+		t.Errorf("Error rate too high")
+	}
+}
+
+func runTestTracesSTW(t *testing.T, run int, name, stwType string) (err error) {
 	t.Logf("Run %d", run)
 
 	// By default, TSAN sleeps for 1s at exit to allow background
@@ -1243,7 +1279,7 @@ func runTestTracesSTW(t *testing.T, run int) (err error) {
 	// much, since we are running 50 iterations, so disable the sleep.
 	//
 	// Outside of race mode, GORACE does nothing.
-	buf := []byte(runTestProg(t, "testprog", "TraceSTW", "GORACE=atexit_sleep_ms=0"))
+	buf := []byte(runTestProg(t, "testprog", name, "GORACE=atexit_sleep_ms=0"))
 
 	// We locally "fail" the run (return an error) if the trace exhibits
 	// unwanted scheduling. i.e., the target goroutines did not remain on
@@ -1253,7 +1289,7 @@ func runTestTracesSTW(t *testing.T, run int) (err error) {
 	// occur, such as a trace parse error.
 	defer func() {
 		if err != nil || t.Failed() {
-			testtrace.Dump(t, fmt.Sprintf("TestTraceSTW-run%d", run), []byte(buf), false)
+			testtrace.Dump(t, fmt.Sprintf("Test%s-run%d", name, run), []byte(buf), false)
 		}
 	}()
 
@@ -1285,11 +1321,13 @@ func runTestTracesSTW(t *testing.T, run int) (err error) {
 	//
 	// 2. Once found, track which M and P the target goroutines run on until...
 	//
-	// 3. Look for the "TraceSTW" "start" log message, where we commit the
-	// target goroutines' "before" M and P.
+	// 3. Look for the first STW after the "TraceSTW" "start" log message,
+	// where we commit the target goroutines' "before" M and P.
 	//
 	// N.B. We must do (1) and (2) together because the first target
 	// goroutine may start running before the second is created.
+	var startLogSeen bool
+	var stwSeen bool
 findStart:
 	for {
 		ev, err := br.ReadEvent()
@@ -1348,8 +1386,24 @@ findStart:
 
 			// Found start point, move on to next stage.
 			t.Logf("Found start message")
-			break findStart
+			startLogSeen = true
+		case trace.EventRangeBegin:
+			if !startLogSeen {
+				// Ignore spurious STW before we expect.
+				continue
+			}
+
+			r := ev.Range()
+			if r.Name == stwType {
+				t.Logf("Found STW")
+				stwSeen = true
+				break findStart
+			}
 		}
+	}
+
+	if !stwSeen {
+		t.Fatal("Can't find STW in the test trace")
 	}
 
 	t.Log("Target goroutines:")
@@ -1404,7 +1458,6 @@ findStart:
 	// [1] This is slightly fragile because there is a small window between
 	// the "start" log and actual STW during which the target goroutines
 	// could legitimately migrate.
-	var stwSeen bool
 	var pRunning []trace.ProcID
 	var gRunning []trace.GoID
 findEnd:
@@ -1507,21 +1560,7 @@ findEnd:
 			// Found end point.
 			t.Logf("Found end message")
 			break findEnd
-		case trace.EventRangeBegin:
-			r := ev.Range()
-			if r.Name == "stop-the-world (read mem stats)" {
-				// Note when we see the STW begin. This is not
-				// load bearing; it's purpose is simply to fail
-				// the test if we manage to remove the STW from
-				// ReadMemStat, so we remember to change this
-				// test to add some new source of STW.
-				stwSeen = true
-			}
 		}
-	}
-
-	if !stwSeen {
-		t.Fatal("No STW in the test trace")
 	}
 
 	return nil

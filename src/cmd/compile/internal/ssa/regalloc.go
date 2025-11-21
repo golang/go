@@ -596,17 +596,18 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos 
 	var c *Value
 	if vi.regs != 0 {
 		// Copy from a register that v is already in.
-		r2 := pickReg(vi.regs)
 		var current *Value
-		if !s.allocatable.contains(r2) {
-			current = v // v is in a fixed register
+		if vi.regs&^s.allocatable != 0 {
+			// v is in a fixed register, prefer that
+			current = v
 		} else {
+			r2 := pickReg(vi.regs)
 			if s.regs[r2].v != v {
 				panic("bad register state")
 			}
 			current = s.regs[r2].c
+			s.usedSinceBlockStart |= regMask(1) << r2
 		}
-		s.usedSinceBlockStart |= regMask(1) << r2
 		c = s.curBlock.NewValue1(pos, OpCopy, v.Type, current)
 	} else if v.rematerializeable() {
 		// Rematerialize instead of loading from the spill location.

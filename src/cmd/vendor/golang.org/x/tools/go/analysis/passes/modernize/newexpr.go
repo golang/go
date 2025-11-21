@@ -17,13 +17,14 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
-	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
 	"golang.org/x/tools/internal/astutil"
+	"golang.org/x/tools/internal/versions"
 )
 
 var NewExprAnalyzer = &analysis.Analyzer{
 	Name:      "newexpr",
-	Doc:       analysisinternal.MustExtractDoc(doc, "newexpr"),
+	Doc:       analyzerutil.MustExtractDoc(doc, "newexpr"),
 	URL:       "https://pkg.go.dev/golang.org/x/tools/gopls/internal/analysis/modernize#newexpr",
 	Requires:  []*analysis.Analyzer{inspect.Analyzer},
 	Run:       run,
@@ -60,7 +61,7 @@ func run(pass *analysis.Pass) (any, error) {
 
 								// Check file version.
 								file := astutil.EnclosingFile(curFuncDecl)
-								if !fileUses(info, file, "go1.26") {
+								if !analyzerutil.FileUsesGoVersion(pass, file, versions.Go1_26) {
 									continue // new(expr) not available in this file
 								}
 
@@ -87,25 +88,18 @@ func run(pass *analysis.Pass) (any, error) {
 									}
 								}
 
-								// Disabled until we resolve https://go.dev/issue/75726
-								// (Go version skew between caller and callee in inliner.)
-								// TODO(adonovan): fix and reenable.
+								// Add a //go:fix inline annotation, if not already present.
 								//
-								// Also, restore these lines to our section of doc.go:
-								// 	//go:fix inline
-								//	...
-								// 	(The directive comment causes the inline analyzer to suggest
-								// 	that calls to such functions are inlined.)
-								if false {
-									// Add a //go:fix inline annotation, if not already present.
-									// TODO(adonovan): use ast.ParseDirective when go1.26 is assured.
-									if !strings.Contains(decl.Doc.Text(), "go:fix inline") {
-										edits = append(edits, analysis.TextEdit{
-											Pos:     decl.Pos(),
-											End:     decl.Pos(),
-											NewText: []byte("//go:fix inline\n"),
-										})
-									}
+								// The inliner will not inline a newer callee body into an
+								// older Go file; see https://go.dev/issue/75726.
+								//
+								// TODO(adonovan): use ast.ParseDirective when go1.26 is assured.
+								if !strings.Contains(decl.Doc.Text(), "go:fix inline") {
+									edits = append(edits, analysis.TextEdit{
+										Pos:     decl.Pos(),
+										End:     decl.Pos(),
+										NewText: []byte("//go:fix inline\n"),
+									})
 								}
 
 								if len(edits) > 0 {
@@ -140,7 +134,7 @@ func run(pass *analysis.Pass) (any, error) {
 
 			// Check file version.
 			file := astutil.EnclosingFile(curCall)
-			if !fileUses(info, file, "go1.26") {
+			if !analyzerutil.FileUsesGoVersion(pass, file, versions.Go1_26) {
 				continue // new(expr) not available in this file
 			}
 

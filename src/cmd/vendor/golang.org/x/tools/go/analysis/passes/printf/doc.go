@@ -92,6 +92,36 @@
 //	}
 //	logf("%s", 123) // logf format %s has arg 123 of wrong type int
 //
+// Interface methods may also be analyzed as printf wrappers, if
+// within the interface's package there is an assignment from a
+// implementation type whose corresponding method is a printf wrapper.
+//
+// For example, the var declaration below causes a *myLoggerImpl value
+// to be assigned to a Logger variable:
+//
+//	type Logger interface {
+//		Logf(format string, args ...any)
+//	}
+//
+//	type myLoggerImpl struct{ ... }
+//
+//	var _ Logger = (*myLoggerImpl)(nil)
+//
+//	func  (*myLoggerImpl) Logf(format string, args ...any) {
+//		println(fmt.Sprintf(format, args...))
+//	}
+//
+// Since myLoggerImpl's Logf method is a printf wrapper, this
+// establishes that Logger.Logf is a printf wrapper too, causing
+// dynamic calls through the interface to be checked:
+//
+//	func f(log Logger) {
+//		log.Logf("%s", 123) // Logger.Logf format %s has arg 123 of wrong type int
+//	}
+//
+// This feature applies only to interface methods declared in files
+// using at least Go 1.26.
+//
 // # Specifying printf wrappers by flag
 //
 // The -funcs flag specifies a comma-separated list of names of

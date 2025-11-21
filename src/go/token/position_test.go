@@ -572,7 +572,7 @@ func fsetString(fset *FileSet) string {
 	buf.WriteRune('{')
 	sep := ""
 	fset.Iterate(func(f *File) bool {
-		fmt.Fprintf(&buf, "%s%s:%d-%d", sep, f.Name(), f.Base(), f.Base()+f.Size())
+		fmt.Fprintf(&buf, "%s%s:%d-%d", sep, f.Name(), f.Base(), f.End())
 		sep = " "
 		return true
 	})
@@ -641,5 +641,13 @@ func TestRemovedFileFileReturnsNil(t *testing.T) {
 		if got := fset.File(Pos(f.Base()) + 10); got != nil {
 			t.Fatalf("file was not removed correctly; got file with base: %v", got.Base())
 		}
+	}
+}
+
+func TestFile_End(t *testing.T) {
+	f := NewFileSet().AddFile("a.go", 100, 42)
+	got := fmt.Sprintf("%d, %d", f.Base(), f.End())
+	if want := "100, 142"; got != want {
+		t.Errorf("Base, End = %s, want %s", got, want)
 	}
 }

@@ -129,7 +129,7 @@ func archExpm1(x float64) float64
 func expm1TrampolineSetup(x float64) float64
 func expm1Asm(x float64) float64
 
-const haveArchPow = true
+const haveArchPow = false
 
 func archPow(x, y float64) float64
 func powTrampolineSetup(x, y float64) float64

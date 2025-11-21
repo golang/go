@@ -93,6 +93,14 @@ var optab = []Optab{
 	{AXVSEQB, C_XREG, C_XREG, C_NONE, C_XREG, C_NONE, 2, 4, 0, 0},
 	{AVSEQB, C_S5CON, C_VREG, C_NONE, C_VREG, C_NONE, 22, 4, 0, 0},
 	{AXVSEQB, C_S5CON, C_XREG, C_NONE, C_XREG, C_NONE, 22, 4, 0, 0},
+
+	{AVSLTB, C_VREG, C_VREG, C_NONE, C_VREG, C_NONE, 2, 4, 0, 0},
+	{AXVSLTB, C_XREG, C_XREG, C_NONE, C_XREG, C_NONE, 2, 4, 0, 0},
+	{AVSLTB, C_S5CON, C_VREG, C_NONE, C_VREG, C_NONE, 22, 4, 0, 0},
+	{AXVSLTB, C_S5CON, C_XREG, C_NONE, C_XREG, C_NONE, 22, 4, 0, 0},
+	{AVSLTB, C_U5CON, C_VREG, C_NONE, C_VREG, C_NONE, 31, 4, 0, 0},
+	{AXVSLTB, C_U5CON, C_XREG, C_NONE, C_XREG, C_NONE, 31, 4, 0, 0},
+
 	{AVANDV, C_VREG, C_VREG, C_NONE, C_VREG, C_NONE, 2, 4, 0, 0},
 	{AVANDV, C_VREG, C_NONE, C_NONE, C_VREG, C_NONE, 2, 4, 0, 0},
 	{AXVANDV, C_XREG, C_XREG, C_NONE, C_XREG, C_NONE, 2, 4, 0, 0},
@@ -1503,6 +1511,8 @@ func buildop(ctxt *obj.Link) {
 			opset(AREMU, r0)
 			opset(ADIV, r0)
 			opset(ADIVU, r0)
+			opset(AMULWVW, r0)
+			opset(AMULWVWU, r0)
 
 		case AMULV:
 			opset(AMULVU, r0)
@@ -1781,6 +1791,24 @@ func buildop(ctxt *obj.Link) {
 			opset(AXVSHUFH, r0)
 			opset(AXVSHUFW, r0)
 			opset(AXVSHUFV, r0)
+
+		case AVSLTB:
+			opset(AVSLTH, r0)
+			opset(AVSLTW, r0)
+			opset(AVSLTV, r0)
+			opset(AVSLTBU, r0)
+			opset(AVSLTHU, r0)
+			opset(AVSLTWU, r0)
+			opset(AVSLTVU, r0)
+
+		case AXVSLTB:
+			opset(AXVSLTH, r0)
+			opset(AXVSLTW, r0)
+			opset(AXVSLTV, r0)
+			opset(AXVSLTBU, r0)
+			opset(AXVSLTHU, r0)
+			opset(AXVSLTWU, r0)
+			opset(AXVSLTVU, r0)
 
 		case AVANDB:
 			opset(AVORB, r0)
@@ -3230,6 +3258,10 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return 0x3c << 15 // mulh.d
 	case AMULHVU:
 		return 0x3d << 15 // mulhu.d
+	case AMULWVW:
+		return 0x3e << 15 // mulw.d.w
+	case AMULWVWU:
+		return 0x3f << 15 // mulw.d.wu
 	case ADIV:
 		return 0x40 << 15 // div.w
 	case ADIVU:
@@ -3373,6 +3405,38 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return 0x0e003 << 15 // vseq.d
 	case AXVSEQV:
 		return 0x0e803 << 15 // xvseq.d
+	case AVSLTB:
+		return 0x0E00C << 15 // vslt.b
+	case AVSLTH:
+		return 0x0E00D << 15 // vslt.h
+	case AVSLTW:
+		return 0x0E00E << 15 // vslt.w
+	case AVSLTV:
+		return 0x0E00F << 15 // vslt.d
+	case AVSLTBU:
+		return 0x0E010 << 15 // vslt.bu
+	case AVSLTHU:
+		return 0x0E011 << 15 // vslt.hu
+	case AVSLTWU:
+		return 0x0E012 << 15 // vslt.wu
+	case AVSLTVU:
+		return 0x0E013 << 15 // vslt.du
+	case AXVSLTB:
+		return 0x0E80C << 15 // xvslt.b
+	case AXVSLTH:
+		return 0x0E80D << 15 // xvslt.h
+	case AXVSLTW:
+		return 0x0E80E << 15 // xvslt.w
+	case AXVSLTV:
+		return 0x0E80F << 15 // xvslt.d
+	case AXVSLTBU:
+		return 0x0E810 << 15 // xvslt.bu
+	case AXVSLTHU:
+		return 0x0E811 << 15 // xvslt.hu
+	case AXVSLTWU:
+		return 0x0E812 << 15 // xvslt.wu
+	case AXVSLTVU:
+		return 0x0E813 << 15 // xvslt.du
 	case AVANDV:
 		return 0x0E24C << 15 // vand.v
 	case AVORV:
@@ -4393,6 +4457,38 @@ func (c *ctxt0) opirr(a obj.As) uint32 {
 		return 0x0ED02 << 15 // xvseqi.w
 	case AXVSEQV:
 		return 0x0ED03 << 15 // xvseqi.d
+	case AVSLTB:
+		return 0x0E50C << 15 // vslti.b
+	case AVSLTH:
+		return 0x0E50D << 15 // vslti.h
+	case AVSLTW:
+		return 0x0E50E << 15 // vslti.w
+	case AVSLTV:
+		return 0x0E50F << 15 // vslti.d
+	case AVSLTBU:
+		return 0x0E510 << 15 // vslti.bu
+	case AVSLTHU:
+		return 0x0E511 << 15 // vslti.hu
+	case AVSLTWU:
+		return 0x0E512 << 15 // vslti.wu
+	case AVSLTVU:
+		return 0x0E513 << 15 // vslti.du
+	case AXVSLTB:
+		return 0x0ED0C << 15 // xvslti.b
+	case AXVSLTH:
+		return 0x0ED0D << 15 // xvslti.h
+	case AXVSLTW:
+		return 0x0ED0E << 15 // xvslti.w
+	case AXVSLTV:
+		return 0x0ED0F << 15 // xvslti.d
+	case AXVSLTBU:
+		return 0x0ED10 << 15 // xvslti.bu
+	case AXVSLTHU:
+		return 0x0ED11 << 15 // xvslti.hu
+	case AXVSLTWU:
+		return 0x0ED12 << 15 // xvslti.wu
+	case AXVSLTVU:
+		return 0x0ED13 << 15 // xvslti.du
 	case AVROTRB:
 		return 0x1ca8<<18 | 0x1<<13 // vrotri.b
 	case AVROTRH:

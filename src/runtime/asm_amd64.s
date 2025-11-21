@@ -181,6 +181,14 @@ TEXT runtime·rt0_go(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
 	MOVQ	AX, 24(SP)
 	MOVQ	BX, 32(SP)
 
+	// This is typically the entry point for Go programs.
+	// Call stack unwinding must not proceed past this frame.
+	// Set the frame pointer register to 0 so that frame pointer-based unwinders
+	// (which don't use debug info for performance reasons)
+	// won't attempt to unwind past this function.
+	// See go.dev/issue/63630
+	MOVQ	$0, BP
+
 	// create istack out of the given (operating system) stack.
 	// _cgo_init may update stackguard.
 	MOVQ	$runtime·g0(SB), DI
@@ -408,6 +416,13 @@ TEXT runtime·asminit(SB),NOSPLIT,$0-0
 	RET
 
 TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME|NOFRAME,$0
+	// This is the root frame of new Go-created OS threads.
+	// Call stack unwinding must not proceed past this frame.
+	// Set the frame pointer register to 0 so that frame pointer-based unwinders
+	// (which don't use debug info for performance reasons)
+	// won't attempt to unwind past this function.
+	// See go.dev/issue/63630
+	MOVD	$0, BP
 	CALL	runtime·mstart0(SB)
 	RET // not reached
 
