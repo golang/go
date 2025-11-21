@@ -342,7 +342,11 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	case ELFCLASS32:
 		var hdr Header32
 		data := make([]byte, unsafe.Sizeof(hdr))
-		if _, err := sr.ReadAt(data, 0); err != nil {
+		n, err := sr.ReadAt(data, 0)
+		if err != nil {
+			if err == io.EOF && n < int(unsafe.Sizeof(hdr)) {
+				err = &FormatError{int64(n), io.ErrUnexpectedEOF.Error(), data}
+			}
 			return nil, err
 		}
 		f.Type = Type(bo.Uint16(data[unsafe.Offsetof(hdr.Type):]))
@@ -361,7 +365,11 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	case ELFCLASS64:
 		var hdr Header64
 		data := make([]byte, unsafe.Sizeof(hdr))
-		if _, err := sr.ReadAt(data, 0); err != nil {
+		n, err := sr.ReadAt(data, 0)
+		if err != nil {
+			if err == io.EOF && n < int(unsafe.Sizeof(hdr)) {
+				err = &FormatError{int64(n), io.ErrUnexpectedEOF.Error(), data}
+			}
 			return nil, err
 		}
 		f.Type = Type(bo.Uint16(data[unsafe.Offsetof(hdr.Type):]))
@@ -411,6 +419,9 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	f.Progs = make([]*Prog, phnum)
 	phdata, err := saferio.ReadDataAt(sr, uint64(phnum)*uint64(phentsize), phoff)
 	if err != nil {
+		if err == io.EOF {
+			err = &FormatError{phoff + int64(len(phdata)), io.ErrUnexpectedEOF.Error(), phdata}
+		}
 		return nil, err
 	}
 	for i := 0; i < phnum; i++ {
@@ -464,6 +475,9 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		case ELFCLASS32:
 			sh := new(Section32)
 			if err := binary.Read(sr, bo, sh); err != nil {
+				if err == io.EOF || err == io.ErrUnexpectedEOF {
+					err = &FormatError{shoff, io.ErrUnexpectedEOF.Error(), nil}
+				}
 				return nil, err
 			}
 			shnum = int(sh.Size)
@@ -472,6 +486,9 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		case ELFCLASS64:
 			sh := new(Section64)
 			if err := binary.Read(sr, bo, sh); err != nil {
+				if err == io.EOF || err == io.ErrUnexpectedEOF {
+					err = &FormatError{shoff, io.ErrUnexpectedEOF.Error(), nil}
+				}
 				return nil, err
 			}
 			shnum = int(sh.Size)
@@ -515,6 +532,9 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	names := make([]uint32, 0, c)
 	shdata, err := saferio.ReadDataAt(sr, uint64(shnum)*uint64(shentsize), shoff)
 	if err != nil {
+		if err == io.EOF {
+			err = &FormatError{shoff + int64(len(shdata)), io.ErrUnexpectedEOF.Error(), shdata}
+		}
 		return nil, err
 	}
 	for i := 0; i < shnum; i++ {
@@ -567,7 +587,11 @@ func NewFile(r io.ReaderAt) (*File, error) {
 			case ELFCLASS32:
 				var ch Chdr32
 				chdata := make([]byte, unsafe.Sizeof(ch))
-				if _, err := s.sr.ReadAt(chdata, 0); err != nil {
+				n, err := s.sr.ReadAt(chdata, 0)
+				if err != nil {
+					if err == io.EOF && n < int(unsafe.Sizeof(ch)) {
+						err = &FormatError{int64(n), io.ErrUnexpectedEOF.Error(), chdata}
+					}
 					return nil, err
 				}
 				s.compressionType = CompressionType(bo.Uint32(chdata[unsafe.Offsetof(ch.Type):]))
@@ -577,7 +601,11 @@ func NewFile(r io.ReaderAt) (*File, error) {
 			case ELFCLASS64:
 				var ch Chdr64
 				chdata := make([]byte, unsafe.Sizeof(ch))
-				if _, err := s.sr.ReadAt(chdata, 0); err != nil {
+				n, err := s.sr.ReadAt(chdata, 0)
+				if err != nil {
+					if err == io.EOF && n < int(unsafe.Sizeof(ch)) {
+						err = &FormatError{int64(n), io.ErrUnexpectedEOF.Error(), chdata}
+					}
 					return nil, err
 				}
 				s.compressionType = CompressionType(bo.Uint32(chdata[unsafe.Offsetof(ch.Type):]))
@@ -606,6 +634,9 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	}
 	shstrtab, err := shstr.Data()
 	if err != nil {
+		if err == io.EOF {
+			err = &FormatError{shoff + int64(shstrndx*shentsize) + int64(len(shstrtab)), io.ErrUnexpectedEOF.Error(), shstrtab}
+		}
 		return nil, err
 	}
 	for i, s := range f.Sections {
