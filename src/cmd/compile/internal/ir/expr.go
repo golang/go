@@ -681,7 +681,7 @@ type TypeAssertExpr struct {
 
 	// When set to true, if this assert would panic, then use a nil pointer panic
 	// instead of an interface conversion panic.
-	// It must not be set for type asserts using the commaok form.
+	// It must not be set for type assertions using the commaok form.
 	UseNilPanic bool
 }
 
