@@ -195,11 +195,11 @@ start:
 	RDTIME		X5				// f32210c0
 	RDINSTRET	X5				// f32220c0
 
-	// 12.3: Integer Conditional Operations (Zicond)
-	CZEROEQZ	X5, X6, X7			// b353530e
-	CZEROEQZ	X5, X7				// b3d3530e
-	CZERONEZ	X5, X6, X7			// b373530e
-	CZERONEZ	X5, X7				// b3f3530e
+	// 9: Zihintntl Extension
+	NTLP1					// 33002000
+	NTLPALL					// 33003000
+	NTLS1					// 33004000
+	NTLALL					// 33005000
 
 	// 13.1: Multiplication Operations
 	MUL	X5, X6, X7				// b3035302
