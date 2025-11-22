@@ -230,6 +230,7 @@ type Symbol struct {
  * ELF reader
  */
 
+// FormatError is returned if the data does not have the correct format for an ELF.
 type FormatError struct {
 	off int64
 	msg string
@@ -246,6 +247,9 @@ func (e *FormatError) Error() string {
 }
 
 // Open opens the named file using [os.Open] and prepares it for use as an ELF binary.
+//
+// Will return [*FormatError] if the file does not have the correct format for an ELF or
+// [*os.PathError] if an error is encountered opening or reading the file.
 func Open(name string) (*File, error) {
 	f, err := os.Open(name)
 	if err != nil {
