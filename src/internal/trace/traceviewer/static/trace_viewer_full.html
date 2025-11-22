@@ -6683,7 +6683,7 @@ function define(className,opt_parentConstructor,opt_tagNS){if(typeof className==
 className=className.toLowerCase();if(opt_parentConstructor&&!opt_parentConstructor.tagName){throw new Error('opt_parentConstructor was not '+'created by tr.ui.b.define');}
 let tagName=className;let tagNS=undefined;if(opt_parentConstructor){if(opt_tagNS){throw new Error('Must not specify tagNS if parentConstructor is given');}
 let parent=opt_parentConstructor;while(parent&&parent.tagName){tagName=parent.tagName;tagNS=parent.tagNS;parent=parent.parentConstructor;}}else{tagNS=opt_tagNS;}
-function f(){if(opt_parentConstructor&&f.prototype.__proto__!==opt_parentConstructor.prototype){throw new Error(className+' prototye\'s __proto__ field is messed up. '+'It MUST be the prototype of '+opt_parentConstructor.tagName);}
+function f(){if(opt_parentConstructor&&f.prototype.__proto__!==opt_parentConstructor.prototype){throw new Error(className+' prototype\'s __proto__ field is messed up. '+'It MUST be the prototype of '+opt_parentConstructor.tagName);}
 let el;if(tagNS===undefined){el=tr.doc.createElement(tagName);}else{el=tr.doc.createElementNS(tagNS,tagName);}
 f.decorate.call(this,el,arguments);return el;}
 f.decorate=function(el){el.__proto__=f.prototype;el.decorate.apply(el,arguments[1]);el.constructor=f;};f.className=className;f.tagName=tagName;f.tagNS=tagNS;f.parentConstructor=(opt_parentConstructor?opt_parentConstructor:undefined);f.toString=function(){if(!f.parentConstructor){return f.tagName;}
