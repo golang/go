@@ -6,12 +6,12 @@
 #include "textflag.h"
 
 // Test-only.
-TEXT ·ExpandAVX512Asm(SB), NOSPLIT, $0-24
+TEXT ·ExpandAVX512(SB), NOSPLIT, $0-24
 	MOVQ sizeClass+0(FP), CX
 	MOVQ packed+8(FP), AX
 
 	// Call the expander for this size class
-	LEAQ ·gcExpandersAVX512Asm(SB), BX
+	LEAQ ·gcExpandersAVX512(SB), BX
 	CALL (BX)(CX*8)
 
 	MOVQ unpacked+16(FP), DI // Expanded output bitmap pointer
@@ -20,11 +20,11 @@ TEXT ·ExpandAVX512Asm(SB), NOSPLIT, $0-24
 	VZEROUPPER
 	RET
 
-TEXT ·scanSpanPackedAVX512Asm(SB), NOSPLIT, $256-44
+TEXT ·scanSpanPackedAVX512(SB), NOSPLIT, $256-44
 	// Z1+Z2 = Expand the grey object mask into a grey word mask
 	MOVQ objMarks+16(FP), AX
 	MOVQ sizeClass+24(FP), CX
-	LEAQ ·gcExpandersAVX512Asm(SB), BX
+	LEAQ ·gcExpandersAVX512(SB), BX
 	CALL (BX)(CX*8)
 
 	// Z3+Z4 = Load the pointer mask

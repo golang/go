@@ -11,9 +11,9 @@ import (
 	"testing"
 )
 
-func TestExpandAVX512Asm(t *testing.T) {
+func TestExpandAVX512(t *testing.T) {
 	if !scan.CanAVX512() {
 		t.Skip("no AVX512")
 	}
-	testExpand(t, scan.ExpandAVX512Asm)
+	testExpand(t, scan.ExpandAVX512)
 }

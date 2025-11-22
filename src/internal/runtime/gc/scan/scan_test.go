@@ -204,13 +204,6 @@ func benchmarkScanSpanPacked(b *testing.B, nPages int, sizeClass int) {
 						scan.ScanSpanPacked(unsafe.Pointer(&mem[gc.PageWords*page]), &buf[0], &objMarks, uintptr(sizeClass), &ptrs[page])
 					}
 				})
-				b.Run("impl=PlatformAsm", func(b *testing.B) {
-					b.SetBytes(avgBytes)
-					for i := range b.N {
-						page := pageOrder[i%len(pageOrder)]
-						scan.ScanSpanPackedAsm(unsafe.Pointer(&mem[gc.PageWords*page]), &buf[0], &objMarks, uintptr(sizeClass), &ptrs[page])
-					}
-				})
 			}
 		})
 	}
