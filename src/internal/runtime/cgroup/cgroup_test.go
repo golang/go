@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"internal/runtime/cgroup"
 	"io"
-	"strconv"
 	"strings"
 	"testing"
 )
@@ -380,21 +379,11 @@ func TestParseCPUMount(t *testing.T) {
 // That is, '\', ' ', '\t', and '\n' are converted to octal escape sequences,
 // like '\040' for space.
 func escapePath(s string) string {
-	out := make([]rune, 0, len(s))
-	for _, c := range s {
+	out := make([]byte, 0, len(s))
+	for _, c := range []byte(s) {
 		switch c {
 		case '\\', ' ', '\t', '\n':
-			out = append(out, '\\')
-			cs := strconv.FormatInt(int64(c), 8)
-			if len(cs) <= 2 {
-				out = append(out, '0')
-			}
-			if len(cs) <= 1 {
-				out = append(out, '0')
-			}
-			for _, csc := range cs {
-				out = append(out, csc)
-			}
+			out = fmt.Appendf(out, "\\%03o", c)
 		default:
 			out = append(out, c)
 		}
@@ -443,6 +432,11 @@ b/c`,
 			name:      "ending",
 			unescaped: `/a/\`,
 			escaped:   `/a/\134`,
+		},
+		{
+			name:      "non-utf8",
+			unescaped: "/a/b\xff\x20/c",
+			escaped:   "/a/b\xff\\040/c",
 		},
 	}
 
