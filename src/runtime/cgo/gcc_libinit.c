@@ -41,6 +41,26 @@ static void (*cgo_context_function)(struct cgoContextArg*);
 // The symbolizer function, used when symbolizing C frames.
 static void (*cgo_symbolizer_function)(struct cgoSymbolizerArg*);
 
+// Detect if using glibc in order to make c-shared and c-archive builds work with dynamic linkers which
+// do not pass argc / argv to the library init functions such as musl and uClibc.
+int
+x_cgo_sys_lib_args_valid()
+{
+	// The ELF gABI doesn't require an argc / argv to be passed to the functions
+	// in the DT_INIT_ARRAY. However, glibc always does.
+	// See http://www.sco.com/developers/gabi/latest/ch5.dynamic.html#init_fini
+	// Ignore uClibc masquerading as glibc.
+#if __linux__
+#if defined(__GLIBC__) && !defined(__UCLIBC__)
+	return 1;
+#else
+	return 0;
+#endif
+#else
+	return 1;
+#endif
+}
+
 void
 x_cgo_sys_thread_create(void* (*func)(void*), void* arg) {
 	pthread_attr_t attr;
