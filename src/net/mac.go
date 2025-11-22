@@ -36,8 +36,9 @@ func (a HardwareAddr) String() string {
 //	0000.5e00.5301
 //	0200.5e10.0000.0001
 //	0000.0000.fe80.0000.0000.0000.0200.5e10.0000.0001
+//	00005e005301
 func ParseMAC(s string) (hw HardwareAddr, err error) {
-	if len(s) < 14 {
+	if len(s) < 12 {
 		goto error
 	}
 
@@ -75,6 +76,14 @@ func ParseMAC(s string) (hw HardwareAddr, err error) {
 				goto error
 			}
 			x += 5
+		}
+	} else if len(s)%2 == 0 {
+		hw = make(HardwareAddr, len(s)/2)
+		for i := range hw {
+			var ok bool
+			if hw[i], ok = xtoi2(s[i*2:i*2+2], 0); !ok {
+				goto error
+			}
 		}
 	} else {
 		goto error
