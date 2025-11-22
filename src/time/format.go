@@ -470,6 +470,7 @@ const tensDigit = "00000000001111111111222222222233333333334444444444" +
 	"55555555556666666666777777777788888888889999999999"
 
 // appendIntWidth2 special scenario for appendInt, with parameter width=2
+// Only applicable to integers with absolute value less than 100
 func appendIntWidth2(b []byte, x int) []byte {
 	if x < 0 {
 		b = append(b, '-')
@@ -488,7 +489,7 @@ func appendIntWidth4(b []byte, x int) []byte {
 		x = -x
 	}
 	if x >= 1e4 {
-		x %= 1e4
+		return appendInt(b, x, 4)
 	}
 	return append(b, tensDigit[x/1e2], unitsDigit[x/1e2], tensDigit[x%1e2], unitsDigit[x%1e2])
 }
