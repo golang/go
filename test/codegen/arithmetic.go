@@ -220,6 +220,12 @@ func NegToInt32(a int) int {
 	return r
 }
 
+func AddWithLeastSignificantWord(a uint64, b int64) uint64 {
+	// riscv64/rva20u64:"MOVWU" "ADD"
+	// riscv64/rva22u64,riscv64/rva23u64:"ADDUW"
+	return a + uint64(uint32(b))
+}
+
 // -------------------- //
 //    Multiplication    //
 // -------------------- //
