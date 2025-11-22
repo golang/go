@@ -582,16 +582,18 @@ func oidFromECDHCurve(curve ecdh.Curve) (asn1.ObjectIdentifier, bool) {
 // a bitmap of the KeyUsage* constants.
 type KeyUsage int
 
+//go:generate stringer -linecomment -type=KeyUsage,ExtKeyUsage -output=x509_string.go
+
 const (
-	KeyUsageDigitalSignature KeyUsage = 1 << iota
-	KeyUsageContentCommitment
-	KeyUsageKeyEncipherment
-	KeyUsageDataEncipherment
-	KeyUsageKeyAgreement
-	KeyUsageCertSign
-	KeyUsageCRLSign
-	KeyUsageEncipherOnly
-	KeyUsageDecipherOnly
+	KeyUsageDigitalSignature  KeyUsage = 1 << iota // digitalSignature
+	KeyUsageContentCommitment                      // contentCommitment
+	KeyUsageKeyEncipherment                        // keyEncipherment
+	KeyUsageDataEncipherment                       // dataEncipherment
+	KeyUsageKeyAgreement                           // keyAgreement
+	KeyUsageCertSign                               // keyCertSign
+	KeyUsageCRLSign                                // cRLSign
+	KeyUsageEncipherOnly                           // encipherOnly
+	KeyUsageDecipherOnly                           // decipherOnly
 )
 
 // RFC 5280, 4.2.1.12  Extended Key Usage
@@ -606,6 +608,8 @@ const (
 //	id-kp-emailProtection        OBJECT IDENTIFIER ::= { id-kp 4 }
 //	id-kp-timeStamping           OBJECT IDENTIFIER ::= { id-kp 8 }
 //	id-kp-OCSPSigning            OBJECT IDENTIFIER ::= { id-kp 9 }
+//
+// https://www.iana.org/assignments/smi-numbers/smi-numbers.xhtml#smi-numbers-1.3.6.1.5.5.7.3
 var (
 	oidExtKeyUsageAny                            = asn1.ObjectIdentifier{2, 5, 29, 37, 0}
 	oidExtKeyUsageServerAuth                     = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 3, 1}
@@ -628,20 +632,20 @@ var (
 type ExtKeyUsage int
 
 const (
-	ExtKeyUsageAny ExtKeyUsage = iota
-	ExtKeyUsageServerAuth
-	ExtKeyUsageClientAuth
-	ExtKeyUsageCodeSigning
-	ExtKeyUsageEmailProtection
-	ExtKeyUsageIPSECEndSystem
-	ExtKeyUsageIPSECTunnel
-	ExtKeyUsageIPSECUser
-	ExtKeyUsageTimeStamping
-	ExtKeyUsageOCSPSigning
-	ExtKeyUsageMicrosoftServerGatedCrypto
-	ExtKeyUsageNetscapeServerGatedCrypto
-	ExtKeyUsageMicrosoftCommercialCodeSigning
-	ExtKeyUsageMicrosoftKernelCodeSigning
+	ExtKeyUsageAny                            ExtKeyUsage = iota // anyExtendedKeyUsage
+	ExtKeyUsageServerAuth                                        // serverAuth
+	ExtKeyUsageClientAuth                                        // clientAuth
+	ExtKeyUsageCodeSigning                                       // codeSigning
+	ExtKeyUsageEmailProtection                                   // emailProtection
+	ExtKeyUsageIPSECEndSystem                                    // ipsecEndSystem
+	ExtKeyUsageIPSECTunnel                                       // ipsecTunnel
+	ExtKeyUsageIPSECUser                                         // ipsecUser
+	ExtKeyUsageTimeStamping                                      // timeStamping
+	ExtKeyUsageOCSPSigning                                       // OCSPSigning
+	ExtKeyUsageMicrosoftServerGatedCrypto                        // msSGC
+	ExtKeyUsageNetscapeServerGatedCrypto                         // nsSGC
+	ExtKeyUsageMicrosoftCommercialCodeSigning                    // msCodeCom
+	ExtKeyUsageMicrosoftKernelCodeSigning                        // msKernelCode
 )
 
 // extKeyUsageOIDs contains the mapping between an ExtKeyUsage and its OID.
