@@ -10,8 +10,8 @@ package hpke
 
 import (
 	"crypto/cipher"
-	"encoding/binary"
 	"errors"
+	"internal/byteorder"
 )
 
 type context struct {
@@ -45,14 +45,14 @@ func newContext(sharedSecret []byte, kemID uint16, kdf KDF, aead AEAD, info []by
 
 	if kdf.oneStage() {
 		secrets := make([]byte, 0, 2+2+len(sharedSecret))
-		secrets = binary.BigEndian.AppendUint16(secrets, 0) // empty psk
-		secrets = binary.BigEndian.AppendUint16(secrets, uint16(len(sharedSecret)))
+		secrets = byteorder.BEAppendUint16(secrets, 0) // empty psk
+		secrets = byteorder.BEAppendUint16(secrets, uint16(len(sharedSecret)))
 		secrets = append(secrets, sharedSecret...)
 
 		ksContext := make([]byte, 0, 1+2+2+len(info))
-		ksContext = append(ksContext, 0)                        // mode 0
-		ksContext = binary.BigEndian.AppendUint16(ksContext, 0) // empty psk_id
-		ksContext = binary.BigEndian.AppendUint16(ksContext, uint16(len(info)))
+		ksContext = append(ksContext, 0)                   // mode 0
+		ksContext = byteorder.BEAppendUint16(ksContext, 0) // empty psk_id
+		ksContext = byteorder.BEAppendUint16(ksContext, uint16(len(info)))
 		ksContext = append(ksContext, info...)
 
 		secret, err := kdf.labeledDerive(sid, secrets, "secret", ksContext,
@@ -245,7 +245,7 @@ func (r *Recipient) Export(exporterContext string, length int) ([]byte, error) {
 
 func (ctx *context) nextNonce() []byte {
 	nonce := make([]byte, ctx.aead.NonceSize())
-	binary.BigEndian.PutUint64(nonce[len(nonce)-8:], ctx.seqNum)
+	byteorder.BEPutUint64(nonce[len(nonce)-8:], ctx.seqNum)
 	for i := range ctx.baseNonce {
 		nonce[i] ^= ctx.baseNonce[i]
 	}
@@ -255,8 +255,8 @@ func (ctx *context) nextNonce() []byte {
 func suiteID(kemID, kdfID, aeadID uint16) []byte {
 	suiteID := make([]byte, 0, 4+2+2+2)
 	suiteID = append(suiteID, []byte("HPKE")...)
-	suiteID = binary.BigEndian.AppendUint16(suiteID, kemID)
-	suiteID = binary.BigEndian.AppendUint16(suiteID, kdfID)
-	suiteID = binary.BigEndian.AppendUint16(suiteID, aeadID)
+	suiteID = byteorder.BEAppendUint16(suiteID, kemID)
+	suiteID = byteorder.BEAppendUint16(suiteID, kdfID)
+	suiteID = byteorder.BEAppendUint16(suiteID, aeadID)
 	return suiteID
 }

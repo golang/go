@@ -11,8 +11,8 @@ import (
 	"crypto/mlkem"
 	"crypto/rand"
 	"crypto/sha3"
-	"encoding/binary"
 	"errors"
+	"internal/byteorder"
 )
 
 var mlkem768X25519 = &hybridKEM{
@@ -299,7 +299,7 @@ func newHybridPrivateKey(pq crypto.Decapsulator, t ecdh.KeyExchanger, seed []byt
 }
 
 func (kem *hybridKEM) DeriveKeyPair(ikm []byte) (PrivateKey, error) {
-	suiteID := binary.BigEndian.AppendUint16([]byte("KEM"), kem.id)
+	suiteID := byteorder.BEAppendUint16([]byte("KEM"), kem.id)
 	dk, err := SHAKE256().labeledDerive(suiteID, ikm, "DeriveKeyPair", nil, 32)
 	if err != nil {
 		return nil, err
@@ -496,7 +496,7 @@ func (kem *mlkemKEM) NewPrivateKey(priv []byte) (PrivateKey, error) {
 }
 
 func (kem *mlkemKEM) DeriveKeyPair(ikm []byte) (PrivateKey, error) {
-	suiteID := binary.BigEndian.AppendUint16([]byte("KEM"), kem.id)
+	suiteID := byteorder.BEAppendUint16([]byte("KEM"), kem.id)
 	dk, err := SHAKE256().labeledDerive(suiteID, ikm, "DeriveKeyPair", nil, 64)
 	if err != nil {
 		return nil, err

@@ -7,8 +7,8 @@ package hpke
 import (
 	"crypto/ecdh"
 	"crypto/rand"
-	"encoding/binary"
 	"errors"
+	"internal/byteorder"
 )
 
 // A KEM is a Key Encapsulation Mechanism, one of the three components of an
@@ -114,7 +114,7 @@ type dhKEM struct {
 }
 
 func (kem *dhKEM) extractAndExpand(dhKey, kemContext []byte) ([]byte, error) {
-	suiteID := binary.BigEndian.AppendUint16([]byte("KEM"), kem.id)
+	suiteID := byteorder.BEAppendUint16([]byte("KEM"), kem.id)
 	eaePRK, err := kem.kdf.labeledExtract(suiteID, nil, "eae_prk", dhKey)
 	if err != nil {
 		return nil, err
@@ -302,7 +302,7 @@ func (kem *dhKEM) NewPrivateKey(ikm []byte) (PrivateKey, error) {
 
 func (kem *dhKEM) DeriveKeyPair(ikm []byte) (PrivateKey, error) {
 	// DeriveKeyPair from RFC 9180 Section 7.1.3.
-	suiteID := binary.BigEndian.AppendUint16([]byte("KEM"), kem.id)
+	suiteID := byteorder.BEAppendUint16([]byte("KEM"), kem.id)
 	prk, err := kem.kdf.labeledExtract(suiteID, nil, "dkp_prk", ikm)
 	if err != nil {
 		return nil, err

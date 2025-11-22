@@ -9,10 +9,10 @@ import (
 	"crypto/sha256"
 	"crypto/sha3"
 	"crypto/sha512"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"hash"
+	"internal/byteorder"
 )
 
 // The KDF is one of the three components of an HPKE ciphersuite, implementing
@@ -93,7 +93,7 @@ func (kdf *hkdfKDF) labeledExtract(suiteID []byte, salt []byte, label string, in
 
 func (kdf *hkdfKDF) labeledExpand(suiteID []byte, randomKey []byte, label string, info []byte, length uint16) ([]byte, error) {
 	labeledInfo := make([]byte, 0, 2+7+len(suiteID)+len(label)+len(info))
-	labeledInfo = binary.BigEndian.AppendUint16(labeledInfo, length)
+	labeledInfo = byteorder.BEAppendUint16(labeledInfo, length)
 	labeledInfo = append(labeledInfo, []byte("HPKE-v1")...)
 	labeledInfo = append(labeledInfo, suiteID...)
 	labeledInfo = append(labeledInfo, label...)

@@ -604,9 +604,11 @@ var depsRules = `
 	< golang.org/x/crypto/internal/poly1305
 	< golang.org/x/crypto/chacha20poly1305;
 
-	CRYPTO-MATH, NET, container/list, encoding/hex, encoding/pem,
+	CRYPTO-MATH, golang.org/x/crypto/chacha20poly1305
+	< crypto/hpke;
+
+	CRYPTO-MATH, NET, container/list, encoding/hex, encoding/pem, crypto/hpke,
 	golang.org/x/crypto/chacha20poly1305, crypto/tls/internal/fips140tls
-	< crypto/internal/hpke
 	< crypto/x509/internal/macos
 	< crypto/x509/pkix
 	< crypto/x509
