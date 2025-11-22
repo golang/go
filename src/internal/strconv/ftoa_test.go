@@ -351,6 +351,10 @@ var ftoaBenches = []struct {
 	// 622666234635.321497e-320 ~= 622666234635.3215e-320
 	// making it hard to find the 3rd digit
 	{"SlowpathDenormal64", 622666234635.3213e-320, 'e', -1, 64},
+
+	// Trigger the shorter interval case (3.90625e-3 = 1/256).
+	{"ShorterIntervalCase32", 3.90625e-3, 'e', -1, 32},
+	{"ShorterIntervalCase64", 3.90625e-3, 'e', -1, 64},
 }
 
 func BenchmarkFormatFloat(b *testing.B) {
