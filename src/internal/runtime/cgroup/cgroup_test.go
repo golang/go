@@ -682,3 +682,23 @@ b/c`,
 		}
 	})
 }
+
+func TestUnescapeInvalidPath(t *testing.T) {
+	for _, in := range []string{
+		`/a/b\c`,
+		`/a/b\01`,
+		`/a/b\018`,
+		`/a/b\01c`,
+		`/a/b\777`,
+		`01234567890123456789`,                 // too long
+		`\001\002\003\004\005\006\007\010\011`, // too long
+	} {
+		out := make([]byte, 8)
+		t.Run(in, func(t *testing.T) {
+			_, err := cgroup.UnescapePath(out, []byte(in))
+			if err == nil {
+				t.Errorf("unescapePath got nil err, want non-nil")
+			}
+		})
+	}
+}

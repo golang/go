@@ -474,18 +474,21 @@ func unescapePath(out []byte, in []byte) (int, error) {
 			return outi, errInvalidEscape
 		}
 
-		var outc byte
+		var outc int
 		for i := range 3 {
 			c := in[ini+1+i]
-			if c < '0' || c > '9' {
+			if c < '0' || c > '7' {
 				return outi, errInvalidEscape
 			}
 
 			outc *= 8
-			outc += c - '0'
+			outc += int(c - '0')
 		}
 
-		out[outi] = outc
+		if outc > 0xFF {
+			return outi, errInvalidEscape
+		}
+		out[outi] = byte(outc)
 		outi++
 
 		ini += 4
