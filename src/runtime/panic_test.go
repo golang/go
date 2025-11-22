@@ -39,7 +39,6 @@ func TestPanicWithDirectlyPrintableCustomTypes(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t := t
 		t.Run(tt.name, func(t *testing.T) {
 			output := runTestProg(t, "testprog", tt.name)
 			if !strings.HasPrefix(output, tt.wantPanicPrefix) {

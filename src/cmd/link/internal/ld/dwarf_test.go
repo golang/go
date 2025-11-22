@@ -408,7 +408,6 @@ func main() {}
 		},
 	}
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -473,7 +472,6 @@ func main() {
 		},
 	}
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -555,7 +553,6 @@ func main() {
 		},
 	}
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -1980,7 +1977,6 @@ func TestZeroSizedVariable(t *testing.T) {
 	// See go.dev/issues/54615.
 
 	for _, opt := range []string{NoOpt, DefaultOpt} {
-		opt := opt
 		t.Run(opt, func(t *testing.T) {
 			_, ex := gobuildAndExamine(t, zeroSizedVarProg, opt)
 

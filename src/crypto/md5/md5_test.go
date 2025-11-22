@@ -287,7 +287,6 @@ var sum = make([]byte, bench.Size())
 
 func benchmarkSize(b *testing.B, size int, unaligned bool) {
 	b.SetBytes(int64(size))
-	buf := buf
 	if unaligned {
 		if uintptr(unsafe.Pointer(&buf[0]))&(unsafe.Alignof(uint32(0))-1) == 0 {
 			buf = buf[1:]
