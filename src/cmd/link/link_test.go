@@ -2221,3 +2221,229 @@ func TestModuledataPlacement(t *testing.T) {
 		// so there is nothing to test here.
 	}
 }
+
+const typeSrc = `
+package main
+
+import (
+	"fmt"
+	"unsafe"
+)
+
+type MyInt int
+
+var vals = []any{
+	0,
+	0.1,
+	"",
+	MyInt(0),
+	struct{ f int }{0},
+	func() {},
+}
+
+var global int
+
+func main() {
+	fmt.Printf("global %#x\n", &global)
+	for _, v := range vals {
+		// Unsafe assumption: the first word of a value
+		// of type any is the type descriptor.
+		td := *(*uintptr)(unsafe.Pointer(&v))
+		fmt.Printf("%#x\n", td)
+	}
+}
+`
+
+// Test that type data is stored in the types section.
+func TestTypePlacement(t *testing.T) {
+	testenv.MustHaveGoRun(t)
+	t.Parallel()
+
+	tmpdir := t.TempDir()
+	src := filepath.Join(tmpdir, "x.go")
+	if err := os.WriteFile(src, []byte(typeSrc), 0o444); err != nil {
+		t.Fatal(err)
+	}
+
+	exe := filepath.Join(tmpdir, "x.exe")
+	cmd := goCmd(t, "build", "-o", exe, src)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("build failed; %v, output:\n%s", err, out)
+	}
+
+	cmd = testenv.Command(t, exe)
+	var stdout, stderr strings.Builder
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("running test program failed: %v, stdout:\n%s\nstderr:\n%s", err, &stdout, &stderr)
+	}
+	stderrString := stderr.String()
+	if stderrString != "" {
+		t.Fatalf("running test program printed to stderr:\n%s", stderrString)
+	}
+
+	t.Logf("\n%s", &stdout)
+
+	var globalExeAddr uint64
+	var addrs []uint64
+	globalNext := false
+	for s := range strings.FieldsSeq(stdout.String()) {
+		if globalNext {
+			v, err := strconv.ParseUint(s, 0, 64)
+			if err != nil {
+				t.Errorf("failed to parse test program output %s: %v", s, err)
+			}
+			globalExeAddr = v
+			globalNext = false
+		} else if s == "global" {
+			globalNext = true
+		} else {
+			addr, err := strconv.ParseUint(s, 0, 64)
+			if err != nil {
+				t.Errorf("failed to parse test program output %q: %v", s, err)
+			}
+			addrs = append(addrs, addr)
+		}
+	}
+
+	ef, _ := elf.Open(exe)
+	mf, _ := macho.Open(exe)
+	pf, _ := pe.Open(exe)
+	xf, _ := xcoff.Open(exe)
+	// TODO: plan9
+	if ef == nil && mf == nil && pf == nil && xf == nil {
+		t.Skip("unrecognized executable file format")
+	}
+
+	const globalName = "main.global"
+	var typeStart, typeEnd uint64
+	var globalObjAddr uint64
+	switch {
+	case ef != nil:
+		defer ef.Close()
+
+		for _, sec := range ef.Sections {
+			if sec.Name == ".go.type" {
+				typeStart = sec.Addr
+				typeEnd = sec.Addr + sec.Size
+				break
+			}
+		}
+
+		syms, err := ef.Symbols()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if typeStart == 0 && typeEnd == 0 {
+			// We can fail to find the section for PIE.
+			// Fall back to symbols.
+			for _, sym := range syms {
+				switch sym.Name {
+				case "runtime.types":
+					typeStart = sym.Value
+				case "runtime.etypes":
+					typeEnd = sym.Value
+				}
+			}
+		}
+
+		for _, sym := range syms {
+			if sym.Name == globalName {
+				globalObjAddr = sym.Value
+				break
+			}
+		}
+
+	case mf != nil:
+		defer mf.Close()
+
+		for _, sec := range mf.Sections {
+			if sec.Name == "__go_type" {
+				typeStart = sec.Addr
+				typeEnd = sec.Addr + sec.Size
+				break
+			}
+		}
+
+		for _, sym := range mf.Symtab.Syms {
+			if sym.Name == globalName {
+				globalObjAddr = sym.Value
+				break
+			}
+		}
+
+	case pf != nil:
+		defer pf.Close()
+
+		var imageBase uint64
+		switch ohdr := pf.OptionalHeader.(type) {
+		case *pe.OptionalHeader32:
+			imageBase = uint64(ohdr.ImageBase)
+		case *pe.OptionalHeader64:
+			imageBase = ohdr.ImageBase
+		}
+
+		var typeSym, eTypeSym *pe.Symbol
+		for _, sym := range pf.Symbols {
+			switch sym.Name {
+			case "runtime.types":
+				typeSym = sym
+			case "runtime.etypes":
+				eTypeSym = sym
+			case globalName:
+				globalSec := pf.Sections[sym.SectionNumber-1]
+				globalObjAddr = imageBase + uint64(globalSec.VirtualAddress+sym.Value)
+			}
+		}
+
+		if typeSym == nil {
+			t.Fatal("could not find symbol runtime.types")
+		}
+		if eTypeSym == nil {
+			t.Fatal("could not find symbol runtime.etypes")
+		}
+		if typeSym.SectionNumber != eTypeSym.SectionNumber {
+			t.Fatalf("runtime.types section %d != runtime.etypes section %d", typeSym.SectionNumber, eTypeSym.SectionNumber)
+		}
+
+		sec := pf.Sections[typeSym.SectionNumber-1]
+
+		typeStart = imageBase + uint64(sec.VirtualAddress+typeSym.Value)
+		typeEnd = imageBase + uint64(sec.VirtualAddress+eTypeSym.Value)
+
+	case xf != nil:
+		defer xf.Close()
+
+		for _, sec := range xf.Sections {
+			if sec.Name == ".go.type" {
+				typeStart = sec.VirtualAddress
+				typeEnd = sec.VirtualAddress + sec.Size
+				break
+			}
+		}
+
+		for _, sym := range xf.Symbols {
+			if sym.Name == globalName {
+				globalObjAddr = sym.Value
+				break
+			}
+		}
+	}
+
+	if typeStart == 0 || typeEnd == 0 {
+		t.Fatalf("failed to find type descriptor addresses; found %#x to %#x", typeStart, typeEnd)
+	}
+	t.Logf("type start: %#x type end: %#x", typeStart, typeEnd)
+
+	offset := globalExeAddr - globalObjAddr
+	t.Logf("execution offset: %#x", offset)
+
+	for _, addr := range addrs {
+		addr -= offset
+		if addr < typeStart || addr >= typeEnd {
+			t.Errorf("type descriptor address %#x out of range: not between %#x and %#x", addr, typeStart, typeEnd)
+		}
+	}
+}

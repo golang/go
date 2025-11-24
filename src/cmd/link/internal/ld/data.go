@@ -1536,7 +1536,7 @@ func fixZeroSizedSymbols(ctxt *Link) {
 	ldr.SetAttrSpecial(types.Sym(), false)
 
 	etypes := ldr.CreateSymForUpdate("runtime.etypes", 0)
-	etypes.SetType(sym.SFUNCTAB)
+	etypes.SetType(sym.STYPE)
 	ldr.SetAttrSpecial(etypes.Sym(), false)
 
 	if ctxt.HeadType == objabi.Haix {
@@ -1558,67 +1558,40 @@ func (state *dodataState) makeRelroForSharedLib(target *Link) {
 
 	// "read only" data with relocations needs to go in its own section
 	// when building a shared library. We do this by boosting objects of
-	// type SXXX with relocations to type SXXXRELRO.
+	// type SRODATA with relocations to type SRODATARELRO.
 	ldr := target.loader
-	for _, symnro := range sym.ReadOnly {
-		symnrelro := sym.RelROMap[symnro]
-
-		ro := []loader.Sym{}
-		relro := state.data[symnrelro]
-
-		for _, s := range state.data[symnro] {
-			relocs := ldr.Relocs(s)
-			isRelro := relocs.Count() > 0
-			switch state.symType(s) {
-			case sym.STYPE, sym.STYPERELRO, sym.SGOFUNCRELRO:
-				// Symbols are not sorted yet, so it is possible
-				// that an Outer symbol has been changed to a
-				// relro Type before it reaches here.
-				isRelro = true
-			case sym.SFUNCTAB:
-				if ldr.SymName(s) == "runtime.etypes" {
-					// runtime.etypes must be at the end of
-					// the relro data.
-					isRelro = true
-				}
-			case sym.SGOFUNC, sym.SPCLNTAB:
-				// The only SGOFUNC symbols that contain relocations are .stkobj,
-				// and their relocations are of type objabi.R_ADDROFF,
-				// which always get resolved during linking.
-				isRelro = false
-			}
-			if isRelro {
-				if symnrelro == sym.Sxxx {
-					state.ctxt.Errorf(s, "cannot contain relocations (type %v)", symnro)
-				}
-				state.setSymType(s, symnrelro)
-				if outer := ldr.OuterSym(s); outer != 0 {
-					state.setSymType(outer, symnrelro)
-				}
-				relro = append(relro, s)
-			} else {
-				ro = append(ro, s)
-			}
-		}
-
-		// Check that we haven't made two symbols with the same .Outer into
-		// different types (because references two symbols with non-nil Outer
-		// become references to the outer symbol + offset it's vital that the
-		// symbol and the outer end up in the same section).
-		for _, s := range relro {
+	ro := []loader.Sym{}
+	relro := state.data[sym.SRODATARELRO]
+	for _, s := range state.data[sym.SRODATA] {
+		relocs := ldr.Relocs(s)
+		if relocs.Count() == 0 {
+			ro = append(ro, s)
+		} else {
+			state.setSymType(s, sym.SRODATARELRO)
 			if outer := ldr.OuterSym(s); outer != 0 {
-				st := state.symType(s)
-				ost := state.symType(outer)
-				if st != ost {
-					state.ctxt.Errorf(s, "inconsistent types for symbol and its Outer %s (%v != %v)",
-						ldr.SymName(outer), st, ost)
-				}
+				state.setSymType(outer, sym.SRODATARELRO)
+			}
+			relro = append(relro, s)
+		}
+	}
+
+	// Check that we haven't made two symbols with the same .Outer into
+	// different types (because references two symbols with non-nil Outer
+	// become references to the outer symbol + offset it's vital that the
+	// symbol and the outer end up in the same section).
+	for _, s := range relro {
+		if outer := ldr.OuterSym(s); outer != 0 {
+			st := state.symType(s)
+			ost := state.symType(outer)
+			if st != ost {
+				state.ctxt.Errorf(s, "inconsistent types for symbol and its Outer %s (%v != %v)",
+					ldr.SymName(outer), st, ost)
 			}
 		}
-
-		state.data[symnro] = ro
-		state.data[symnrelro] = relro
 	}
+
+	state.data[sym.SRODATA] = ro
+	state.data[sym.SRODATARELRO] = relro
 }
 
 // dodataState holds bits of state information needed by dodata() and the
@@ -2119,10 +2092,6 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	sect = state.allocateNamedDataSection(segro, ".rodata", sym.ReadOnly, 04)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.rodata", 0), sect)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.erodata", 0), sect)
-	if !ctxt.UseRelro() {
-		ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.types", 0), sect)
-		ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.etypes", 0), sect)
-	}
 	for _, symn := range sym.ReadOnly {
 		symnStartValue := state.datsize
 		if len(state.data[symn]) != 0 {
@@ -2155,107 +2124,8 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 		xcoffUpdateOuterSize(ctxt, int64(sect.Length), sym.SPCLNTAB)
 	}
 
-	/* read-only ELF, Mach-O sections */
-	state.allocateSingleSymSections(segro, sym.SELFROSECT, sym.SRODATA, 04)
-
-	// There is some data that are conceptually read-only but are written to by
-	// relocations. On GNU systems, we can arrange for the dynamic linker to
-	// mprotect sections after relocations are applied by giving them write
-	// permissions in the object file and calling them ".data.rel.ro.FOO". We
-	// divide the .rodata section between actual .rodata and .data.rel.ro.rodata,
-	// but for the other sections that this applies to, we just write a read-only
-	// .FOO section or a read-write .data.rel.ro.FOO section depending on the
-	// situation.
-	// TODO(mwhudson): It would make sense to do this more widely, but it makes
-	// the system linker segfault on darwin.
-	const relroPerm = 06
-	const fallbackPerm = 04
-	relroSecPerm := fallbackPerm
-	genrelrosecname := func(suffix string) string {
-		if suffix == "" {
-			return ".rodata"
-		}
-		return suffix
-	}
-	seg := segro
-
-	if ctxt.UseRelro() {
-		segrelro := &Segrelrodata
-		if ctxt.LinkMode == LinkExternal && !ctxt.IsAIX() && !ctxt.IsDarwin() {
-			// Using a separate segment with an external
-			// linker results in some programs moving
-			// their data sections unexpectedly, which
-			// corrupts the moduledata. So we use the
-			// rodata segment and let the external linker
-			// sort out a rel.ro segment.
-			segrelro = segro
-		} else {
-			// Reset datsize for new segment.
-			state.datsize = 0
-		}
-
-		if !ctxt.IsDarwin() { // We don't need the special names on darwin.
-			genrelrosecname = func(suffix string) string {
-				return ".data.rel.ro" + suffix
-			}
-		}
-
-		relroReadOnly := []sym.SymKind{}
-		for _, symnro := range sym.ReadOnly {
-			symn := sym.RelROMap[symnro]
-			relroReadOnly = append(relroReadOnly, symn)
-		}
-		seg = segrelro
-		relroSecPerm = relroPerm
-
-		/* data only written by relocations */
-		sect = state.allocateNamedDataSection(segrelro, genrelrosecname(""), relroReadOnly, relroSecPerm)
-
-		ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.types", 0), sect)
-		ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.etypes", 0), sect)
-
-		for i, symnro := range sym.ReadOnly {
-			if i == 0 && symnro == sym.STYPE && ctxt.HeadType != objabi.Haix {
-				// Skip forward so that no type
-				// reference uses a zero offset.
-				// This is unlikely but possible in small
-				// programs with no other read-only data.
-				state.datsize++
-			}
-
-			symn := sym.RelROMap[symnro]
-			if symn == sym.Sxxx {
-				continue
-			}
-			symnStartValue := state.datsize
-			if len(state.data[symn]) != 0 {
-				symnStartValue = aligndatsize(state, symnStartValue, state.data[symn][0])
-			}
-
-			for _, s := range state.data[symn] {
-				outer := ldr.OuterSym(s)
-				if s != 0 && ldr.SymSect(outer) != nil && ldr.SymSect(outer) != sect {
-					ctxt.Errorf(s, "s.Outer (%s) in different section from s, %s != %s", ldr.SymName(outer), ldr.SymSect(outer).Name, sect.Name)
-				}
-			}
-			state.assignToSection(sect, symn, sym.SRODATA)
-			setCarrierSize(symn, state.datsize-symnStartValue)
-			if ctxt.HeadType == objabi.Haix {
-				// Read-only symbols might be wrapped inside their outer
-				// symbol.
-				// XCOFF symbol table needs to know the size of
-				// these outer symbols.
-				xcoffUpdateOuterSize(ctxt, state.datsize-symnStartValue, symn)
-			}
-		}
-		sect.Length = uint64(state.datsize) - sect.Vaddr
-
-		state.allocateSingleSymSections(segrelro, sym.SELFRELROSECT, sym.SRODATA, relroSecPerm)
-		state.allocateSingleSymSections(segrelro, sym.SMACHORELROSECT, sym.SRODATA, relroSecPerm)
-	}
-
 	/* typelink */
-	sect = state.allocateNamedDataSection(seg, genrelrosecname(".typelink"), []sym.SymKind{sym.STYPELINK}, relroSecPerm)
+	sect = state.allocateNamedDataSection(segro, ".typelink", []sym.SymKind{sym.STYPELINK}, 04)
 
 	typelink := ldr.CreateSymForUpdate("runtime.typelink", 0)
 	ldr.SetSymSect(typelink.Sym(), sect)
@@ -2264,8 +2134,105 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	state.checkdatsize(sym.STYPELINK)
 	sect.Length = uint64(state.datsize) - sect.Vaddr
 
+	/* read-only ELF, Mach-O sections */
+	state.allocateSingleSymSections(segro, sym.SELFROSECT, sym.SRODATA, 04)
+
+	// Read-only data that may require dynamic relocations at run time.
+	//
+	// On GNU systems, we can arrange for the dynamic linker to
+	// mprotect sections after relocations are applied by giving them write
+	// permissions in the object file and calling them ".data.rel.ro.FOO".
+
+	relroPerm := 04
+	genrelrosecname := func(suffix string) string {
+		if suffix == "" {
+			return ".rodata"
+		}
+		return suffix
+	}
+	segRelro := segro
+
+	if ctxt.UseRelro() {
+		if ctxt.LinkMode == LinkExternal && !ctxt.IsAIX() && !ctxt.IsDarwin() {
+			// Using a separate segment with an external
+			// linker results in some programs moving
+			// their data sections unexpectedly, which
+			// corrupts the moduledata. So we use the
+			// rodata segment and let the external linker
+			// sort out a rel.ro segment.
+		} else {
+			segRelro = &Segrelrodata
+			// Reset datsize for new segment.
+			state.datsize = 0
+		}
+
+		relroPerm = 06
+
+		if !ctxt.IsDarwin() { // We don't need the special names on darwin.
+			genrelrosecname = func(suffix string) string {
+				return ".data.rel.ro" + suffix
+			}
+		}
+	}
+
+	// checkOuter is a sanity check that for all the symbols of some kind,
+	// which are in a given section, any carrier symbol is also in
+	// that section.
+	checkOuter := func(sect *sym.Section, symn sym.SymKind) {
+		for _, s := range state.data[symn] {
+			outer := ldr.OuterSym(s)
+			if s != 0 && ldr.SymSect(outer) != nil && ldr.SymSect(outer) != sect {
+				ctxt.Errorf(s, "s.Outer (%s) in different section from s, %s != %s", ldr.SymName(outer), ldr.SymSect(outer).Name, sect.Name)
+			}
+		}
+	}
+
+	// createRelroSect will create a section that wil be a relro
+	// section if this link is using relro.
+	createRelroSect := func(name string, symn sym.SymKind) *sym.Section {
+		sect := state.allocateNamedDataSection(segRelro, genrelrosecname(name), []sym.SymKind{symn}, relroPerm)
+
+		if symn == sym.STYPE && ctxt.HeadType != objabi.Haix {
+			// Skip forward so that no type
+			// reference uses a zero offset.
+			// This is unlikely but possible in small
+			// programs with no other read-only data.
+			state.datsize++
+		}
+
+		// Align to first symbol.
+		symnStartValue := state.datsize
+		if len(state.data[symn]) > 0 {
+			symnStartValue = aligndatsize(state, state.datsize, state.data[symn][0])
+		}
+
+		checkOuter(sect, symn)
+		state.assignToSection(sect, symn, sym.SRODATA)
+		setCarrierSize(symn, state.datsize-symnStartValue)
+		if ctxt.HeadType == objabi.Haix {
+			// XCOFF symbol table needs to know the size
+			// of outer symbols.
+			xcoffUpdateOuterSize(ctxt, state.datsize-symnStartValue, symn)
+		}
+		sect.Length = uint64(state.datsize) - sect.Vaddr
+		return sect
+	}
+
+	if len(state.data[sym.SRODATARELRO]) > 0 {
+		createRelroSect("", sym.SRODATARELRO)
+	}
+
+	sect = createRelroSect(".go.type", sym.STYPE)
+	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.types", 0), sect)
+	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.etypes", 0), sect)
+
+	sect = createRelroSect(".go.func", sym.SGOFUNC)
+
+	state.allocateSingleSymSections(segRelro, sym.SELFRELROSECT, sym.SRODATA, relroPerm)
+	state.allocateSingleSymSections(segRelro, sym.SMACHORELROSECT, sym.SRODATA, relroPerm)
+
 	/* itablink */
-	sect = state.allocateNamedDataSection(seg, genrelrosecname(".itablink"), []sym.SymKind{sym.SITABLINK}, relroSecPerm)
+	sect = state.allocateNamedDataSection(segRelro, genrelrosecname(".itablink"), []sym.SymKind{sym.SITABLINK}, relroPerm)
 
 	itablink := ldr.CreateSymForUpdate("runtime.itablink", 0)
 	ldr.SetSymSect(itablink.Sym(), sect)
