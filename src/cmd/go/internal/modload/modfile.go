@@ -214,7 +214,7 @@ func (s *State) CheckRetractions(ctx context.Context, m module.Version) (err err
 	if err != nil {
 		return err
 	}
-	summary, err := rawGoModSummary(s, rm)
+	summary, err := rawGoModSummary(modfetch.Fetcher_, s, rm)
 	if err != nil && !errors.Is(err, gover.ErrTooNew) {
 		return err
 	}
@@ -322,7 +322,7 @@ func CheckDeprecation(loaderstate *State, ctx context.Context, m module.Version)
 	if err != nil {
 		return "", err
 	}
-	summary, err := rawGoModSummary(loaderstate, latest)
+	summary, err := rawGoModSummary(modfetch.Fetcher_, loaderstate, latest)
 	if err != nil && !errors.Is(err, gover.ErrTooNew) {
 		return "", err
 	}
@@ -573,12 +573,12 @@ type retraction struct {
 // module versions.
 //
 // The caller must not modify the returned summary.
-func goModSummary(loaderstate *State, m module.Version) (*modFileSummary, error) {
+func goModSummary(fetcher_ *modfetch.Fetcher, loaderstate *State, m module.Version) (*modFileSummary, error) {
 	if m.Version == "" && !loaderstate.inWorkspaceMode() && loaderstate.MainModules.Contains(m.Path) {
 		panic("internal error: goModSummary called on a main module")
 	}
 	if gover.IsToolchain(m.Path) {
-		return rawGoModSummary(loaderstate, m)
+		return rawGoModSummary(fetcher_, loaderstate, m)
 	}
 
 	if cfg.BuildMod == "vendor" {
@@ -604,12 +604,12 @@ func goModSummary(loaderstate *State, m module.Version) (*modFileSummary, error)
 	actual := resolveReplacement(loaderstate, m)
 	if mustHaveSums(loaderstate) && actual.Version != "" {
 		key := module.Version{Path: actual.Path, Version: actual.Version + "/go.mod"}
-		if !modfetch.HaveSum(key) {
+		if !modfetch.HaveSum(fetcher_, key) {
 			suggestion := fmt.Sprintf(" for go.mod file; to add it:\n\tgo mod download %s", m.Path)
 			return nil, module.VersionError(actual, &sumMissingError{suggestion: suggestion})
 		}
 	}
-	summary, err := rawGoModSummary(loaderstate, actual)
+	summary, err := rawGoModSummary(fetcher_, loaderstate, actual)
 	if err != nil {
 		return nil, err
 	}
@@ -676,7 +676,7 @@ func goModSummary(loaderstate *State, m module.Version) (*modFileSummary, error)
 // rawGoModSummary cannot be used on the main module outside of workspace mode.
 // The modFileSummary can still be used for retractions and deprecations
 // even if a TooNewError is returned.
-func rawGoModSummary(loaderstate *State, m module.Version) (*modFileSummary, error) {
+func rawGoModSummary(fetcher_ *modfetch.Fetcher, loaderstate *State, m module.Version) (*modFileSummary, error) {
 	if gover.IsToolchain(m.Path) {
 		if m.Path == "go" && gover.Compare(m.Version, gover.GoStrictVersion) >= 0 {
 			// Declare that go 1.21.3 requires toolchain 1.21.3,
@@ -709,7 +709,7 @@ func rawGoModSummary(loaderstate *State, m module.Version) (*modFileSummary, err
 		}
 	}
 	return rawGoModSummaryCache.Do(m, func() (*modFileSummary, error) {
-		name, data, err := rawGoModData(loaderstate, m)
+		name, data, err := rawGoModData(fetcher_, loaderstate, m)
 		if err != nil {
 			return nil, err
 		}
@@ -781,7 +781,7 @@ var rawGoModSummaryCache par.ErrCache[module.Version, *modFileSummary]
 //
 // Unlike rawGoModSummary, rawGoModData does not cache its results in memory.
 // Use rawGoModSummary instead unless you specifically need these bytes.
-func rawGoModData(loaderstate *State, m module.Version) (name string, data []byte, err error) {
+func rawGoModData(fetcher_ *modfetch.Fetcher, loaderstate *State, m module.Version) (name string, data []byte, err error) {
 	if m.Version == "" {
 		dir := m.Path
 		if !filepath.IsAbs(dir) {
@@ -810,7 +810,7 @@ func rawGoModData(loaderstate *State, m module.Version) (name string, data []byt
 			base.Fatalf("go: internal error: %s@%s: unexpected invalid semantic version", m.Path, m.Version)
 		}
 		name = "go.mod"
-		data, err = modfetch.GoMod(context.TODO(), m.Path, m.Version)
+		data, err = fetcher_.GoMod(context.TODO(), m.Path, m.Version)
 	}
 	return name, data, err
 }

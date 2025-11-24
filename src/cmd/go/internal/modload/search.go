@@ -21,6 +21,7 @@ import (
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/gover"
 	"cmd/go/internal/imports"
+	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modindex"
 	"cmd/go/internal/search"
 	"cmd/go/internal/str"
@@ -348,7 +349,7 @@ func parseIgnorePatterns(loaderstate *State, ctx context.Context, treeCanMatch f
 			if err != nil {
 				continue
 			}
-			summary, err := goModSummary(loaderstate, mod)
+			summary, err := goModSummary(modfetch.Fetcher_, loaderstate, mod)
 			if err != nil {
 				continue
 			}

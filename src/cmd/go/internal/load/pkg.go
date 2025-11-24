@@ -3416,7 +3416,7 @@ func PackagesAndErrorsOutsideModule(loaderstate *modload.State, ctx context.Cont
 	if deprecation != "" {
 		fmt.Fprintf(os.Stderr, "go: module %s is deprecated: %s\n", rootMod.Path, modload.ShortMessage(deprecation, ""))
 	}
-	data, err := modfetch.GoMod(ctx, rootMod.Path, rootMod.Version)
+	data, err := modfetch.Fetcher_.GoMod(ctx, rootMod.Path, rootMod.Version)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", args[0], err)
 	}

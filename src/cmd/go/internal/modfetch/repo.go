@@ -200,14 +200,14 @@ type lookupCacheKey struct {
 //
 // A successful return does not guarantee that the module
 // has any defined versions.
-func Lookup(ctx context.Context, proxy, path string) Repo {
+func (f *Fetcher) Lookup(ctx context.Context, proxy, path string) Repo {
 	if traceRepo {
 		defer logCall("Lookup(%q, %q)", proxy, path)()
 	}
 
-	return Fetcher_.lookupCache.Do(lookupCacheKey{proxy, path}, func() Repo {
+	return f.lookupCache.Do(lookupCacheKey{proxy, path}, func() Repo {
 		return newCachingRepo(ctx, path, func(ctx context.Context) (Repo, error) {
-			r, err := lookup(ctx, proxy, path)
+			r, err := lookup(f, ctx, proxy, path)
 			if err == nil && traceRepo {
 				r = newLoggingRepo(r)
 			}
@@ -248,14 +248,14 @@ func LookupLocal(ctx context.Context, codeRoot string, path string, dir string) 
 }
 
 // lookup returns the module with the given module path.
-func lookup(ctx context.Context, proxy, path string) (r Repo, err error) {
+func lookup(fetcher_ *Fetcher, ctx context.Context, proxy, path string) (r Repo, err error) {
 	if cfg.BuildMod == "vendor" {
 		return nil, errLookupDisabled
 	}
 
 	switch path {
 	case "go", "toolchain":
-		return &toolchainRepo{path, Lookup(ctx, proxy, "golang.org/toolchain")}, nil
+		return &toolchainRepo{path, fetcher_.Lookup(ctx, proxy, "golang.org/toolchain")}, nil
 	}
 
 	if module.MatchPrefixPatterns(cfg.GONOPROXY, path) {

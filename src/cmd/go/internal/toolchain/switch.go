@@ -146,7 +146,7 @@ func NewerToolchain(ctx context.Context, version string) (string, error) {
 func autoToolchains(ctx context.Context) ([]string, error) {
 	var versions *modfetch.Versions
 	err := modfetch.TryProxies(func(proxy string) error {
-		v, err := modfetch.Lookup(ctx, proxy, "go").Versions(ctx, "")
+		v, err := modfetch.Fetcher_.Lookup(ctx, proxy, "go").Versions(ctx, "")
 		if err != nil {
 			return err
 		}

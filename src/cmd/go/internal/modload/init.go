@@ -1965,7 +1965,7 @@ func commitRequirements(loaderstate *State, ctx context.Context, opts WriteOpts)
 	if loaderstate.inWorkspaceMode() {
 		// go.mod files aren't updated in workspace mode, but we still want to
 		// update the go.work.sum file.
-		return modfetch.WriteGoSum(ctx, keepSums(loaderstate, ctx, loaded, loaderstate.requirements, addBuildListZipSums), mustHaveCompleteRequirements(loaderstate))
+		return modfetch.Fetcher_.WriteGoSum(ctx, keepSums(modfetch.Fetcher_, loaderstate, ctx, loaded, loaderstate.requirements, addBuildListZipSums), mustHaveCompleteRequirements(loaderstate))
 	}
 	_, updatedGoMod, modFile, err := UpdateGoModFromReqs(loaderstate, ctx, opts)
 	if err != nil {
@@ -1989,7 +1989,7 @@ func commitRequirements(loaderstate *State, ctx context.Context, opts WriteOpts)
 		// Don't write go.mod, but write go.sum in case we added or trimmed sums.
 		// 'go mod init' shouldn't write go.sum, since it will be incomplete.
 		if cfg.CmdName != "mod init" {
-			if err := modfetch.WriteGoSum(ctx, keepSums(loaderstate, ctx, loaded, loaderstate.requirements, addBuildListZipSums), mustHaveCompleteRequirements(loaderstate)); err != nil {
+			if err := modfetch.Fetcher_.WriteGoSum(ctx, keepSums(modfetch.Fetcher_, loaderstate, ctx, loaded, loaderstate.requirements, addBuildListZipSums), mustHaveCompleteRequirements(loaderstate)); err != nil {
 				return err
 			}
 		}
@@ -2012,7 +2012,7 @@ func commitRequirements(loaderstate *State, ctx context.Context, opts WriteOpts)
 		// 'go mod init' shouldn't write go.sum, since it will be incomplete.
 		if cfg.CmdName != "mod init" {
 			if err == nil {
-				err = modfetch.WriteGoSum(ctx, keepSums(loaderstate, ctx, loaded, loaderstate.requirements, addBuildListZipSums), mustHaveCompleteRequirements(loaderstate))
+				err = modfetch.Fetcher_.WriteGoSum(ctx, keepSums(modfetch.Fetcher_, loaderstate, ctx, loaded, loaderstate.requirements, addBuildListZipSums), mustHaveCompleteRequirements(loaderstate))
 			}
 		}
 	}()
@@ -2055,7 +2055,7 @@ func commitRequirements(loaderstate *State, ctx context.Context, opts WriteOpts)
 // including any go.mod files needed to reconstruct the MVS result
 // or identify go versions,
 // in addition to the checksums for every module in keepMods.
-func keepSums(loaderstate *State, ctx context.Context, ld *loader, rs *Requirements, which whichSums) map[module.Version]bool {
+func keepSums(fetcher_ *modfetch.Fetcher, loaderstate *State, ctx context.Context, ld *loader, rs *Requirements, which whichSums) map[module.Version]bool {
 	// Every module in the full module graph contributes its requirements,
 	// so in order to ensure that the build list itself is reproducible,
 	// we need sums for every go.mod in the graph (regardless of whether
@@ -2113,7 +2113,7 @@ func keepSums(loaderstate *State, ctx context.Context, ld *loader, rs *Requireme
 				}
 			}
 
-			mg, _ := rs.Graph(loaderstate, ctx)
+			mg, _ := rs.Graph(fetcher_, loaderstate, ctx)
 			for prefix := pkg.path; prefix != "."; prefix = path.Dir(prefix) {
 				if v := mg.Selected(prefix); v != "none" {
 					m := module.Version{Path: prefix, Version: v}
@@ -2136,7 +2136,7 @@ func keepSums(loaderstate *State, ctx context.Context, ld *loader, rs *Requireme
 			}
 		}
 	} else {
-		mg, _ := rs.Graph(loaderstate, ctx)
+		mg, _ := rs.Graph(fetcher_, loaderstate, ctx)
 		mg.WalkBreadthFirst(func(m module.Version) {
 			if _, ok := mg.RequiredBy(m); ok {
 				// The requirements from m's go.mod file are present in the module graph,

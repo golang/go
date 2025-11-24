@@ -1099,7 +1099,7 @@ func (e *PackageNotInModuleError) ImportPath() string {
 // we don't need to verify it in go.sum. This makes 'go list -m -u' faster
 // and simpler.
 func versionHasGoMod(loaderstate *State, _ context.Context, m module.Version) (bool, error) {
-	_, data, err := rawGoModData(loaderstate, m)
+	_, data, err := rawGoModData(modfetch.Fetcher_, loaderstate, m)
 	if err != nil {
 		return false, err
 	}
@@ -1124,7 +1124,7 @@ func lookupRepo(loaderstate *State, ctx context.Context, proxy, path string) (re
 		err = module.CheckPath(path)
 	}
 	if err == nil {
-		repo = modfetch.Lookup(ctx, proxy, path)
+		repo = modfetch.Fetcher_.Lookup(ctx, proxy, path)
 	} else {
 		repo = emptyRepo{path: path, err: err}
 	}

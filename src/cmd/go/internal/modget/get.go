@@ -1788,7 +1788,7 @@ func (r *resolver) checkPackageProblems(loaderstate *modload.State, ctx context.
 		if oldRepl := modload.Replacement(loaderstate, old); oldRepl.Path != "" {
 			oldActual = oldRepl
 		}
-		if mActual == oldActual || mActual.Version == "" || !modfetch.HaveSum(oldActual) {
+		if mActual == oldActual || mActual.Version == "" || !modfetch.HaveSum(modfetch.Fetcher_, oldActual) {
 			continue
 		}
 		r.work.Add(func() {
