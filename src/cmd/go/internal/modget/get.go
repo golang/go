@@ -1792,7 +1792,7 @@ func (r *resolver) checkPackageProblems(loaderstate *modload.State, ctx context.
 			continue
 		}
 		r.work.Add(func() {
-			if _, err := modfetch.DownloadZip(ctx, mActual); err != nil {
+			if _, err := modfetch.Fetcher_.DownloadZip(ctx, mActual); err != nil {
 				verb := "upgraded"
 				if gover.ModCompare(m.Path, m.Version, old.Version) < 0 {
 					verb = "downgraded"

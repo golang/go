@@ -360,7 +360,7 @@ func Exec(s *modload.State, gotoolchain string) {
 		Path:    gotoolchainModule,
 		Version: gotoolchainVersion + "-" + gotoolchain + "." + runtime.GOOS + "-" + runtime.GOARCH,
 	}
-	dir, err := modfetch.Download(context.Background(), m)
+	dir, err := modfetch.Fetcher_.Download(context.Background(), m)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			toolVers := gover.FromToolchain(gotoolchain)

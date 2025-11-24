@@ -119,7 +119,7 @@ func TestZipSums(t *testing.T) {
 			t.Parallel()
 			ctx := context.Background()
 
-			zipPath, err := modfetch.DownloadZip(ctx, test.m)
+			zipPath, err := modfetch.Fetcher_.DownloadZip(ctx, test.m)
 			if err != nil {
 				if *updateTestData {
 					t.Logf("%s: could not download module: %s (will remove from testdata)", test.m, err)

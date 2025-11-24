@@ -341,7 +341,7 @@ func (r *cachingRepo) Zip(ctx context.Context, dst io.Writer, version string) er
 
 // InfoFile is like Lookup(ctx, path).Stat(version) but also returns the name of the file
 // containing the cached information.
-func InfoFile(ctx context.Context, path, version string) (*RevInfo, string, error) {
+func (f *Fetcher) InfoFile(ctx context.Context, path, version string) (*RevInfo, string, error) {
 	if !gover.ModIsValid(path, version) {
 		return nil, "", fmt.Errorf("invalid version %q", version)
 	}
@@ -353,7 +353,7 @@ func InfoFile(ctx context.Context, path, version string) (*RevInfo, string, erro
 	var info *RevInfo
 	var err2info map[error]*RevInfo
 	err := TryProxies(func(proxy string) error {
-		i, err := Fetcher_.Lookup(ctx, proxy, path).Stat(ctx, version)
+		i, err := f.Lookup(ctx, proxy, path).Stat(ctx, version)
 		if err == nil {
 			info = i
 		} else {
@@ -416,11 +416,11 @@ func (f *Fetcher) GoMod(ctx context.Context, path, rev string) ([]byte, error) {
 
 // GoModFile is like GoMod but returns the name of the file containing
 // the cached information.
-func GoModFile(ctx context.Context, path, version string) (string, error) {
+func (f *Fetcher) GoModFile(ctx context.Context, path, version string) (string, error) {
 	if !gover.ModIsValid(path, version) {
 		return "", fmt.Errorf("invalid version %q", version)
 	}
-	if _, err := Fetcher_.GoMod(ctx, path, version); err != nil {
+	if _, err := f.GoMod(ctx, path, version); err != nil {
 		return "", err
 	}
 	// GoMod should have populated the disk cache for us.
@@ -433,11 +433,11 @@ func GoModFile(ctx context.Context, path, version string) (string, error) {
 
 // GoModSum returns the go.sum entry for the module version's go.mod file.
 // (That is, it returns the entry listed in go.sum as "path version/go.mod".)
-func GoModSum(ctx context.Context, path, version string) (string, error) {
+func (f *Fetcher) GoModSum(ctx context.Context, path, version string) (string, error) {
 	if !gover.ModIsValid(path, version) {
 		return "", fmt.Errorf("invalid version %q", version)
 	}
-	data, err := Fetcher_.GoMod(ctx, path, version)
+	data, err := f.GoMod(ctx, path, version)
 	if err != nil {
 		return "", err
 	}

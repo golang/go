@@ -40,7 +40,7 @@ var ErrToolchain = errors.New("internal error: invalid operation on toolchain mo
 // Download downloads the specific module version to the
 // local download cache and returns the name of the directory
 // corresponding to the root of the module's file tree.
-func Download(ctx context.Context, mod module.Version) (dir string, err error) {
+func (f *Fetcher) Download(ctx context.Context, mod module.Version) (dir string, err error) {
 	if gover.IsToolchain(mod.Path) {
 		return "", ErrToolchain
 	}
@@ -49,12 +49,12 @@ func Download(ctx context.Context, mod module.Version) (dir string, err error) {
 	}
 
 	// The par.Cache here avoids duplicate work.
-	return Fetcher_.downloadCache.Do(mod, func() (string, error) {
-		dir, err := download(ctx, mod)
+	return f.downloadCache.Do(mod, func() (string, error) {
+		dir, err := f.download(ctx, mod)
 		if err != nil {
 			return "", err
 		}
-		checkMod(ctx, mod)
+		f.checkMod(ctx, mod)
 
 		// If go.mod exists (not an old legacy module), check version is not too new.
 		if data, err := os.ReadFile(filepath.Join(dir, "go.mod")); err == nil {
@@ -94,7 +94,7 @@ func (f *Fetcher) Unzip(ctx context.Context, mod module.Version, zipfile string)
 	})
 }
 
-func download(ctx context.Context, mod module.Version) (dir string, err error) {
+func (f *Fetcher) download(ctx context.Context, mod module.Version) (dir string, err error) {
 	ctx, span := trace.StartSpan(ctx, "modfetch.download "+mod.String())
 	defer span.Done()
 
@@ -109,7 +109,7 @@ func download(ctx context.Context, mod module.Version) (dir string, err error) {
 	// To avoid cluttering the cache with extraneous files,
 	// DownloadZip uses the same lockfile as Download.
 	// Invoke DownloadZip before locking the file.
-	zipfile, err := DownloadZip(ctx, mod)
+	zipfile, err := f.DownloadZip(ctx, mod)
 	if err != nil {
 		return "", err
 	}
@@ -198,7 +198,7 @@ var downloadZipCache par.ErrCache[module.Version, string]
 
 // DownloadZip downloads the specific module version to the
 // local zip cache and returns the name of the zip file.
-func DownloadZip(ctx context.Context, mod module.Version) (zipfile string, err error) {
+func (f *Fetcher) DownloadZip(ctx context.Context, mod module.Version) (zipfile string, err error) {
 	// The par.Cache here avoids duplicate work.
 	return downloadZipCache.Do(mod, func() (string, error) {
 		zipfile, err := CachePath(ctx, mod, "zip")
@@ -210,8 +210,8 @@ func DownloadZip(ctx context.Context, mod module.Version) (zipfile string, err e
 		// Return early if the zip and ziphash files exist.
 		if _, err := os.Stat(zipfile); err == nil {
 			if _, err := os.Stat(ziphashfile); err == nil {
-				if !HaveSum(Fetcher_, mod) {
-					checkMod(ctx, mod)
+				if !HaveSum(f, mod) {
+					f.checkMod(ctx, mod)
 				}
 				return zipfile, nil
 			}
@@ -238,14 +238,14 @@ func DownloadZip(ctx context.Context, mod module.Version) (zipfile string, err e
 		}
 		defer unlock()
 
-		if err := downloadZip(ctx, mod, zipfile); err != nil {
+		if err := f.downloadZip(ctx, mod, zipfile); err != nil {
 			return "", err
 		}
 		return zipfile, nil
 	})
 }
 
-func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err error) {
+func (f *Fetcher) downloadZip(ctx context.Context, mod module.Version, zipfile string) (err error) {
 	ctx, span := trace.StartSpan(ctx, "modfetch.downloadZip "+zipfile)
 	defer span.Done()
 
@@ -281,7 +281,7 @@ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err e
 	// If the zip file exists, the ziphash file must have been deleted
 	// or lost after a file system crash. Re-hash the zip without downloading.
 	if zipExists {
-		return hashZip(mod, zipfile, ziphashfile)
+		return hashZip(f, mod, zipfile, ziphashfile)
 	}
 
 	// From here to the os.Rename call below is functionally almost equivalent to
@@ -289,14 +289,14 @@ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err e
 	// contents of the file (by hashing it) before we commit it. Because the file
 	// is zip-compressed, we need an actual file — or at least an io.ReaderAt — to
 	// validate it: we can't just tee the stream as we write it.
-	f, err := tempFile(ctx, filepath.Dir(zipfile), filepath.Base(zipfile), 0o666)
+	file, err := tempFile(ctx, filepath.Dir(zipfile), filepath.Base(zipfile), 0o666)
 	if err != nil {
 		return err
 	}
 	defer func() {
 		if err != nil {
-			f.Close()
-			os.Remove(f.Name())
+			file.Close()
+			os.Remove(file.Name())
 		}
 	}()
 
@@ -305,18 +305,18 @@ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err e
 		if unrecoverableErr != nil {
 			return unrecoverableErr
 		}
-		repo := Fetcher_.Lookup(ctx, proxy, mod.Path)
-		err := repo.Zip(ctx, f, mod.Version)
+		repo := f.Lookup(ctx, proxy, mod.Path)
+		err := repo.Zip(ctx, file, mod.Version)
 		if err != nil {
 			// Zip may have partially written to f before failing.
 			// (Perhaps the server crashed while sending the file?)
 			// Since we allow fallback on error in some cases, we need to fix up the
 			// file to be empty again for the next attempt.
-			if _, err := f.Seek(0, io.SeekStart); err != nil {
+			if _, err := file.Seek(0, io.SeekStart); err != nil {
 				unrecoverableErr = err
 				return err
 			}
-			if err := f.Truncate(0); err != nil {
+			if err := file.Truncate(0); err != nil {
 				unrecoverableErr = err
 				return err
 			}
@@ -330,30 +330,30 @@ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err e
 	// Double-check that the paths within the zip file are well-formed.
 	//
 	// TODO(bcmills): There is a similar check within the Unzip function. Can we eliminate one?
-	fi, err := f.Stat()
+	fi, err := file.Stat()
 	if err != nil {
 		return err
 	}
-	z, err := zip.NewReader(f, fi.Size())
+	z, err := zip.NewReader(file, fi.Size())
 	if err != nil {
 		return err
 	}
 	prefix := mod.Path + "@" + mod.Version + "/"
-	for _, f := range z.File {
-		if !strings.HasPrefix(f.Name, prefix) {
-			return fmt.Errorf("zip for %s has unexpected file %s", prefix[:len(prefix)-1], f.Name)
+	for _, zf := range z.File {
+		if !strings.HasPrefix(zf.Name, prefix) {
+			return fmt.Errorf("zip for %s has unexpected file %s", prefix[:len(prefix)-1], zf.Name)
 		}
 	}
 
-	if err := f.Close(); err != nil {
+	if err := file.Close(); err != nil {
 		return err
 	}
 
 	// Hash the zip file and check the sum before renaming to the final location.
-	if err := hashZip(mod, f.Name(), ziphashfile); err != nil {
+	if err := hashZip(f, mod, file.Name(), ziphashfile); err != nil {
 		return err
 	}
-	if err := os.Rename(f.Name(), zipfile); err != nil {
+	if err := os.Rename(file.Name(), zipfile); err != nil {
 		return err
 	}
 
@@ -367,12 +367,12 @@ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err e
 //
 // If the hash does not match go.sum (or the sumdb if enabled), hashZip returns
 // an error and does not write ziphashfile.
-func hashZip(mod module.Version, zipfile, ziphashfile string) (err error) {
+func hashZip(f *Fetcher, mod module.Version, zipfile, ziphashfile string) (err error) {
 	hash, err := dirhash.HashZip(zipfile, dirhash.DefaultHash)
 	if err != nil {
 		return err
 	}
-	if err := checkModSum(Fetcher_, mod, hash); err != nil {
+	if err := checkModSum(f, mod, hash); err != nil {
 		return err
 	}
 	hf, err := lockedfile.Create(ziphashfile)
@@ -702,7 +702,7 @@ func RecordedSum(mod module.Version) (sum string, ok bool) {
 }
 
 // checkMod checks the given module's checksum and Go version.
-func checkMod(ctx context.Context, mod module.Version) {
+func (f *Fetcher) checkMod(ctx context.Context, mod module.Version) {
 	// Do the file I/O before acquiring the go.sum lock.
 	ziphash, err := CachePath(ctx, mod, "ziphash")
 	if err != nil {
@@ -719,7 +719,7 @@ func checkMod(ctx context.Context, mod module.Version) {
 		if err != nil {
 			base.Fatalf("verifying %v", module.VersionError(mod, err))
 		}
-		err = hashZip(mod, zip, ziphash)
+		err = hashZip(f, mod, zip, ziphash)
 		if err != nil {
 			base.Fatalf("verifying %v", module.VersionError(mod, err))
 		}
@@ -730,7 +730,7 @@ func checkMod(ctx context.Context, mod module.Version) {
 		base.Fatalf("verifying %v", module.VersionError(mod, fmt.Errorf("unexpected ziphash: %q", h)))
 	}
 
-	if err := checkModSum(Fetcher_, mod, h); err != nil {
+	if err := checkModSum(f, mod, h); err != nil {
 		base.Fatalf("%s", err)
 	}
 }

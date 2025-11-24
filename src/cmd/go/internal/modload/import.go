@@ -821,7 +821,7 @@ func fetch(loaderstate *State, ctx context.Context, mod module.Version) (dir str
 		return "", false, module.VersionError(mod, &sumMissingError{})
 	}
 
-	dir, err = modfetch.Download(ctx, mod)
+	dir, err = modfetch.Fetcher_.Download(ctx, mod)
 	return dir, false, err
 }
 
