@@ -1176,26 +1176,8 @@ func CreateModFile(loaderstate *State, ctx context.Context, modPath string) {
 		if err != nil {
 			base.Fatal(err)
 		}
-	} else if err := module.CheckImportPath(modPath); err != nil {
-		if pathErr, ok := err.(*module.InvalidPathError); ok {
-			pathErr.Kind = "module"
-			// Same as build.IsLocalPath()
-			if pathErr.Path == "." || pathErr.Path == ".." ||
-				strings.HasPrefix(pathErr.Path, "./") || strings.HasPrefix(pathErr.Path, "../") {
-				pathErr.Err = errors.New("is a local import path")
-			}
-		}
-		base.Fatal(err)
-	} else if err := CheckReservedModulePath(modPath); err != nil {
-		base.Fatalf(`go: invalid module path %q: `, modPath)
-	} else if _, _, ok := module.SplitPathVersion(modPath); !ok {
-		if strings.HasPrefix(modPath, "gopkg.in/") {
-			invalidMajorVersionMsg := fmt.Errorf("module paths beginning with gopkg.in/ must always have a major version suffix in the form of .vN:\n\tgo mod init %s", suggestGopkgIn(modPath))
-			base.Fatalf(`go: invalid module path "%v": %v`, modPath, invalidMajorVersionMsg)
-		}
-		invalidMajorVersionMsg := fmt.Errorf("major version suffixes must be in the form of /vN and are only allowed for v2 or later:\n\tgo mod init %s", suggestModulePath(modPath))
-		base.Fatalf(`go: invalid module path "%v": %v`, modPath, invalidMajorVersionMsg)
 	}
+	checkModulePath(modPath)
 
 	fmt.Fprintf(os.Stderr, "go: creating new go.mod: module %s\n", modPath)
 	modFile := new(modfile.File)
@@ -1234,6 +1216,31 @@ func CreateModFile(loaderstate *State, ctx context.Context, modPath string) {
 	}
 	if !empty {
 		fmt.Fprintf(os.Stderr, "go: to add module requirements and sums:\n\tgo mod tidy\n")
+	}
+}
+
+func checkModulePath(modPath string) {
+	if err := module.CheckImportPath(modPath); err != nil {
+		if pathErr, ok := err.(*module.InvalidPathError); ok {
+			pathErr.Kind = "module"
+			// Same as build.IsLocalPath()
+			if pathErr.Path == "." || pathErr.Path == ".." ||
+				strings.HasPrefix(pathErr.Path, "./") || strings.HasPrefix(pathErr.Path, "../") {
+				pathErr.Err = errors.New("is a local import path")
+			}
+		}
+		base.Fatal(err)
+	}
+	if err := CheckReservedModulePath(modPath); err != nil {
+		base.Fatalf(`go: invalid module path %q: `, modPath)
+	}
+	if _, _, ok := module.SplitPathVersion(modPath); !ok {
+		if strings.HasPrefix(modPath, "gopkg.in/") {
+			invalidMajorVersionMsg := fmt.Errorf("module paths beginning with gopkg.in/ must always have a major version suffix in the form of .vN:\n\tgo mod init %s", suggestGopkgIn(modPath))
+			base.Fatalf(`go: invalid module path "%v": %v`, modPath, invalidMajorVersionMsg)
+		}
+		invalidMajorVersionMsg := fmt.Errorf("major version suffixes must be in the form of /vN and are only allowed for v2 or later:\n\tgo mod init %s", suggestModulePath(modPath))
+		base.Fatalf(`go: invalid module path "%v": %v`, modPath, invalidMajorVersionMsg)
 	}
 }
 
