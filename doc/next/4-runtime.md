@@ -85,6 +85,6 @@ Special thanks to Vlad Saioc at Uber for contributing this work.
 The underlying theory is presented in detail by Saioc et al. in [this publication](https://dl.acm.org/doi/pdf/10.1145/3676641.3715990).
 
 <!-- More details about the implementation are presented in the [design document](https://github.com/golang/proposal/blob/master/design/74609-goroutine-leak-detection-gc.md). -->
-We encourage users to try out the new feature with examples derived from known patterns in [the Go playground](https://go.dev/play/p/aZc-HJiSH-R?v=gotip),
+We encourage users to try out the new feature with examples derived from known patterns in [the Go playground](https://go.dev/play/p/3C71z4Dpav-?v=gotip),
 as well as experiment with different environments (tests, CI, production).
 We welcome feedback on the [proposal issue](https://github.com/golang/go/issues/74609).
