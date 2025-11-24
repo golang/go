@@ -12416,11 +12416,11 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t> _ _)
-	// cond: t.IsStruct() && CanSSA(t)
+	// cond: t.IsStruct() && CanSSA(t) && !t.IsSIMD()
 	// result: rewriteStructLoad(v)
 	for {
 		t := v.Type
-		if !(t.IsStruct() && CanSSA(t)) {
+		if !(t.IsStruct() && CanSSA(t) && !t.IsSIMD()) {
 			break
 		}
 		v.copyOf(rewriteStructLoad(v))

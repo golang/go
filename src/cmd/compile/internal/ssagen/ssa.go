@@ -156,6 +156,7 @@ func InitConfig() {
 	ir.Syms.Panicnildottype = typecheck.LookupRuntimeFunc("panicnildottype")
 	ir.Syms.Panicoverflow = typecheck.LookupRuntimeFunc("panicoverflow")
 	ir.Syms.Panicshift = typecheck.LookupRuntimeFunc("panicshift")
+	ir.Syms.PanicSimdImm = typecheck.LookupRuntimeFunc("panicSimdImm")
 	ir.Syms.Racefuncenter = typecheck.LookupRuntimeFunc("racefuncenter")
 	ir.Syms.Racefuncexit = typecheck.LookupRuntimeFunc("racefuncexit")
 	ir.Syms.Raceread = typecheck.LookupRuntimeFunc("raceread")
@@ -165,9 +166,10 @@ func InitConfig() {
 	ir.Syms.TypeAssert = typecheck.LookupRuntimeFunc("typeAssert")
 	ir.Syms.WBZero = typecheck.LookupRuntimeFunc("wbZero")
 	ir.Syms.WBMove = typecheck.LookupRuntimeFunc("wbMove")
+	ir.Syms.X86HasAVX = typecheck.LookupRuntimeVar("x86HasAVX")               // bool
+	ir.Syms.X86HasFMA = typecheck.LookupRuntimeVar("x86HasFMA")               // bool
 	ir.Syms.X86HasPOPCNT = typecheck.LookupRuntimeVar("x86HasPOPCNT")         // bool
 	ir.Syms.X86HasSSE41 = typecheck.LookupRuntimeVar("x86HasSSE41")           // bool
-	ir.Syms.X86HasFMA = typecheck.LookupRuntimeVar("x86HasFMA")               // bool
 	ir.Syms.ARMHasVFPv4 = typecheck.LookupRuntimeVar("armHasVFPv4")           // bool
 	ir.Syms.ARM64HasATOMICS = typecheck.LookupRuntimeVar("arm64HasATOMICS")   // bool
 	ir.Syms.Loong64HasLAMCAS = typecheck.LookupRuntimeVar("loong64HasLAMCAS") // bool
@@ -600,6 +602,9 @@ func buildssa(fn *ir.Func, worker int, isPgoHot bool) *ssa.Func {
 	// TODO figure out exactly what's unused, don't spill it. Make liveness fine-grained, also.
 	for _, p := range params.InParams() {
 		typs, offs := p.RegisterTypesAndOffsets()
+		if len(offs) < len(typs) {
+			s.Fatalf("len(offs)=%d < len(typs)=%d, params=\n%s", len(offs), len(typs), params)
+		}
 		for i, t := range typs {
 			o := offs[i]                // offset within parameter
 			fo := p.FrameOffset(params) // offset of parameter in frame
@@ -1333,6 +1338,11 @@ func (s *state) newValue4(op ssa.Op, t *types.Type, arg0, arg1, arg2, arg3 *ssa.
 	return s.curBlock.NewValue4(s.peekPos(), op, t, arg0, arg1, arg2, arg3)
 }
 
+// newValue4A adds a new value with four arguments and an aux value to the current block.
+func (s *state) newValue4A(op ssa.Op, t *types.Type, aux ssa.Aux, arg0, arg1, arg2, arg3 *ssa.Value) *ssa.Value {
+	return s.curBlock.NewValue4A(s.peekPos(), op, t, aux, arg0, arg1, arg2, arg3)
+}
+
 // newValue4I adds a new value with four arguments and an auxint value to the current block.
 func (s *state) newValue4I(op ssa.Op, t *types.Type, aux int64, arg0, arg1, arg2, arg3 *ssa.Value) *ssa.Value {
 	return s.curBlock.NewValue4I(s.peekPos(), op, t, aux, arg0, arg1, arg2, arg3)
@@ -1462,7 +1472,7 @@ func (s *state) instrument(t *types.Type, addr *ssa.Value, kind instrumentKind) 
 // If it is instrumenting for MSAN or ASAN and t is a struct type, it instruments
 // operation for each field, instead of for the whole struct.
 func (s *state) instrumentFields(t *types.Type, addr *ssa.Value, kind instrumentKind) {
-	if !(base.Flag.MSan || base.Flag.ASan) || !t.IsStruct() {
+	if !(base.Flag.MSan || base.Flag.ASan) || !isStructNotSIMD(t) {
 		s.instrument(t, addr, kind)
 		return
 	}
@@ -4585,7 +4595,7 @@ func (s *state) zeroVal(t *types.Type) *ssa.Value {
 		return s.constInterface(t)
 	case t.IsSlice():
 		return s.constSlice(t)
-	case t.IsStruct():
+	case isStructNotSIMD(t):
 		n := t.NumFields()
 		v := s.entryNewValue0(ssa.OpStructMake, t)
 		for i := 0; i < n; i++ {
@@ -4599,6 +4609,8 @@ func (s *state) zeroVal(t *types.Type) *ssa.Value {
 		case 1:
 			return s.entryNewValue1(ssa.OpArrayMake1, t, s.zeroVal(t.Elem()))
 		}
+	case t.IsSIMD():
+		return s.newValue0(ssa.OpZeroSIMD, t)
 	}
 	s.Fatalf("zero for type %v not implemented", t)
 	return nil
@@ -5578,7 +5590,7 @@ func (s *state) storeType(t *types.Type, left, right *ssa.Value, skip skipMask, 
 // do *left = right for all scalar (non-pointer) parts of t.
 func (s *state) storeTypeScalars(t *types.Type, left, right *ssa.Value, skip skipMask) {
 	switch {
-	case t.IsBoolean() || t.IsInteger() || t.IsFloat() || t.IsComplex():
+	case t.IsBoolean() || t.IsInteger() || t.IsFloat() || t.IsComplex() || t.IsSIMD():
 		s.store(t, left, right)
 	case t.IsPtrShaped():
 		if t.IsPtr() && t.Elem().NotInHeap() {
@@ -5607,7 +5619,7 @@ func (s *state) storeTypeScalars(t *types.Type, left, right *ssa.Value, skip ski
 		// itab field doesn't need a write barrier (even though it is a pointer).
 		itab := s.newValue1(ssa.OpITab, s.f.Config.Types.BytePtr, right)
 		s.store(types.Types[types.TUINTPTR], left, itab)
-	case t.IsStruct():
+	case isStructNotSIMD(t):
 		n := t.NumFields()
 		for i := 0; i < n; i++ {
 			ft := t.FieldType(i)
@@ -5644,7 +5656,7 @@ func (s *state) storeTypePtrs(t *types.Type, left, right *ssa.Value) {
 		idata := s.newValue1(ssa.OpIData, s.f.Config.Types.BytePtr, right)
 		idataAddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.BytePtrPtr, s.config.PtrSize, left)
 		s.store(s.f.Config.Types.BytePtr, idataAddr, idata)
-	case t.IsStruct():
+	case isStructNotSIMD(t):
 		n := t.NumFields()
 		for i := 0; i < n; i++ {
 			ft := t.FieldType(i)
@@ -6757,7 +6769,7 @@ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
 	uintptrTyp := types.Types[types.TUINTPTR]
 
 	isAggregate := func(t *types.Type) bool {
-		return t.IsStruct() || t.IsArray() || t.IsComplex() || t.IsInterface() || t.IsString() || t.IsSlice()
+		return isStructNotSIMD(t) || t.IsArray() || t.IsComplex() || t.IsInterface() || t.IsString() || t.IsSlice()
 	}
 
 	wOff := 0
@@ -6817,7 +6829,7 @@ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
 				}
 				baseOffset += t.Elem().Size()
 			}
-		case t.IsStruct():
+		case isStructNotSIMD(t):
 			if t.NumFields() == 0 {
 				n++ // {} counts as a component
 				break
@@ -7837,7 +7849,7 @@ func (s *State) UseArgs(n int64) {
 // fieldIdx finds the index of the field referred to by the ODOT node n.
 func fieldIdx(n *ir.SelectorExpr) int {
 	t := n.X.Type()
-	if !t.IsStruct() {
+	if !isStructNotSIMD(t) {
 		panic("ODOT's LHS is not a struct")
 	}
 
@@ -8043,6 +8055,10 @@ func SpillSlotAddr(spill ssa.Spill, baseReg int16, extraOffset int64) obj.Addr {
 		Reg:    baseReg,
 		Offset: spill.Offset + extraOffset,
 	}
+}
+
+func isStructNotSIMD(t *types.Type) bool {
+	return t.IsStruct() && !t.IsSIMD()
 }
 
 var BoundsCheckFunc [ssa.BoundsKindCount]*obj.LSym

@@ -1,0 +1,126 @@
+!sum
+# Non-truncating conversions
+# int<->int or uint<->uint widening, float<->int|uint conversions or trucating conversions.
+- go: "(Extend|Saturate|Truncate)?ToInt8"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME converts element values to int8.
+- go: "(Extend|Saturate|Truncate)?ToInt16(Concat)?"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME converts element values to int16.
+- go: "(Extend|Saturate|Truncate)?(Convert)?ToInt32"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME converts element values to int32.
+- go: "(Extend|Saturate|Truncate)?ToInt64"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME converts element values to int64.
+- go: "(Extend|Saturate|Truncate)?ToUint8"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME converts element values to uint8.
+- go: "(Extend|Saturate|Truncate)?ToUint16(Concat)?"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME converts element values to uint16.
+- go: "(Extend|Saturate|Truncate)?(Convert)?ToUint32"
+  regexpTag: "convert"
+  commutative: false
+  documentation: !string |-
+    // NAME converts element values to uint32.
+- go: "(Extend|Saturate|Truncate)?ToUint64"
+  regexpTag: "convert"
+  commutative: false
+  documentation: !string |-
+    // NAME converts element values to uint64.
+
+# low-part only conversions
+# int<->int or uint<->uint widening conversions.
+- go: ExtendLo8ToUint16x8
+  commutative: false
+  documentation: !string |-
+    // NAME converts 8 lowest vector element values to uint16.
+- go: ExtendLo8ToInt16x8
+  commutative: false
+  documentation: !string |-
+    // NAME converts 8 lowest vector element values to int16.
+- go: ExtendLo4ToUint32x4
+  commutative: false
+  documentation: !string |-
+    // NAME converts 4 lowest vector element values to uint32.
+- go: ExtendLo4ToInt32x4
+  commutative: false
+  documentation: !string |-
+    // NAME converts 4 lowest vector element values to int32.
+- go: ExtendLo2ToUint64x2
+  commutative: false
+  documentation: !string |-
+    // NAME converts 2 lowest vector element values to uint64.
+- go: ExtendLo2ToInt64x2
+  commutative: false
+  documentation: !string |-
+    // NAME converts 2 lowest vector element values to int64.
+- go: ExtendLo2ToUint64x2
+  commutative: false
+  documentation: !string |-
+    // NAME converts 2 lowest vector element values to uint64.
+- go: ExtendLo4ToUint64x4
+  commutative: false
+  documentation: !string |-
+    // NAME converts 4 lowest vector element values to uint64.
+- go: ExtendLo2ToInt64x2
+  commutative: false
+  documentation: !string |-
+    // NAME converts 2 lowest vector element values to int64.
+- go: ExtendLo4ToInt64x4
+  commutative: false
+  documentation: !string |-
+    // NAME converts 4 lowest vector element values to int64.
+- go: ExtendLo4ToUint32x4
+  commutative: false
+  documentation: !string |-
+    // NAME converts 4 lowest vector element values to uint32.
+- go: ExtendLo8ToUint32x8
+  commutative: false
+  documentation: !string |-
+    // NAME converts 8 lowest vector element values to uint32.
+- go: ExtendLo4ToInt32x4
+  commutative: false
+  documentation: !string |-
+    // NAME converts 4 lowest vector element values to int32.
+- go: ExtendLo8ToInt32x8
+  commutative: false
+  documentation: !string |-
+    // NAME converts 8 lowest vector element values to int32.
+- go: ExtendLo2ToUint64x2
+  commutative: false
+  documentation: !string |-
+    // NAME converts 2 lowest vector element values to uint64.
+- go: ExtendLo4ToUint64x4
+  commutative: false
+  documentation: !string |-
+    // NAME converts 4 lowest vector element values to uint64.
+- go: ExtendLo8ToUint64x8
+  commutative: false
+  documentation: !string |-
+    // NAME converts 8 lowest vector element values to uint64.
+- go: ExtendLo2ToInt64x2
+  commutative: false
+  documentation: !string |-
+    // NAME converts 2 lowest vector element values to int64.
+- go: ExtendLo4ToInt64x4
+  commutative: false
+  documentation: !string |-
+    // NAME converts 4 lowest vector element values to int64.
+- go: ExtendLo8ToInt64x8
+  commutative: false
+  documentation: !string |-
+    // NAME converts 8 lowest vector element values to int64.

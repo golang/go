@@ -941,7 +941,7 @@
 
 // struct operations
 (StructSelect [i] x:(StructMake ___)) => x.Args[i]
-(Load <t> _ _) && t.IsStruct() && CanSSA(t) => rewriteStructLoad(v)
+(Load <t> _ _) && t.IsStruct() && CanSSA(t) && !t.IsSIMD() => rewriteStructLoad(v)
 (Store _ (StructMake ___) _) => rewriteStructStore(v)
 
 (StructSelect [i] x:(Load <t> ptr mem)) && !CanSSA(t) =>

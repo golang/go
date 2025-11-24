@@ -19,6 +19,22 @@ type xRegs struct {
 	Z13 [64]byte
 	Z14 [64]byte
 	Z15 [64]byte
+	Z16 [64]byte
+	Z17 [64]byte
+	Z18 [64]byte
+	Z19 [64]byte
+	Z20 [64]byte
+	Z21 [64]byte
+	Z22 [64]byte
+	Z23 [64]byte
+	Z24 [64]byte
+	Z25 [64]byte
+	Z26 [64]byte
+	Z27 [64]byte
+	Z28 [64]byte
+	Z29 [64]byte
+	Z30 [64]byte
+	Z31 [64]byte
 	K0  uint64
 	K1  uint64
 	K2  uint64

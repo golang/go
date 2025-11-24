@@ -763,9 +763,10 @@ func cpuinit(env string) {
 	// to guard execution of instructions that can not be assumed to be always supported.
 	switch GOARCH {
 	case "386", "amd64":
+		x86HasAVX = cpu.X86.HasAVX
+		x86HasFMA = cpu.X86.HasFMA
 		x86HasPOPCNT = cpu.X86.HasPOPCNT
 		x86HasSSE41 = cpu.X86.HasSSE41
-		x86HasFMA = cpu.X86.HasFMA
 
 	case "arm":
 		armHasVFPv4 = cpu.ARM.HasVFPv4

@@ -1,0 +1,1018 @@
+!sum
+- go: SetElem
+  asm: "VPINSR[BWDQ]"
+  in:
+  - &t
+    class: vreg
+    base: $b
+  - class: greg
+    base: $b
+    lanes: 1 # Scalar, darn it!
+  - &imm
+    class: immediate
+    immOffset: 0
+    name: index
+  out:
+  - *t
+
+- go: SetElem
+  asm: "VPINSR[DQ]"
+  in:
+  - &t
+    class: vreg
+    base: int
+    OverwriteBase: float
+  - class: greg
+    base: int
+    OverwriteBase: float
+    lanes: 1 # Scalar, darn it!
+  - &imm
+    class: immediate
+    immOffset: 0
+    name: index
+  out:
+  - *t
+
+- go: GetElem
+  asm: "VPEXTR[BWDQ]"
+  in:
+  - class: vreg
+    base: $b
+    elemBits: $e
+  - *imm
+  out:
+  - class: greg
+    base: $b
+    bits: $e
+
+- go: GetElem
+  asm: "VPEXTR[DQ]"
+  in:
+  - class: vreg
+    base: int
+    elemBits: $e
+    OverwriteBase: float
+  - *imm
+  out:
+  - class: greg
+    base: int
+    bits: $e
+    OverwriteBase: float
+
+- go: "SetHi|SetLo"
+  regexpTag: "move"
+  asm: "VINSERTI128|VINSERTI64X4"
+  inVariant: []
+  in:
+  - &i8x2N
+    class: vreg
+    base: $t
+    OverwriteElementBits: 8
+  - &i8xN
+    class: vreg
+    base: $t
+    OverwriteElementBits: 8
+  - &imm01 # This immediate should be only 0 or 1
+    class: immediate
+    const: 0 # place holder
+    name: index
+  out:
+  - *i8x2N
+
+- go: "GetHi|GetLo"
+  asm: "VEXTRACTI128|VEXTRACTI64X4"
+  regexpTag: "move"
+  inVariant: []
+  in:
+  - *i8x2N
+  - *imm01
+  out:
+  - *i8xN
+
+- go: "SetHi|SetLo"
+  asm: "VINSERTI128|VINSERTI64X4"
+  regexpTag: "move"
+  inVariant: []
+  in:
+  - &i16x2N
+    class: vreg
+    base: $t
+    OverwriteElementBits: 16
+  - &i16xN
+    class: vreg
+    base: $t
+    OverwriteElementBits: 16
+  - *imm01
+  out:
+  - *i16x2N
+
+- go: "GetHi|GetLo"
+  regexpTag: "move"
+  asm: "VEXTRACTI128|VEXTRACTI64X4"
+  inVariant: []
+  in:
+  - *i16x2N
+  - *imm01
+  out:
+  - *i16xN
+
+- go: "SetHi|SetLo"
+  regexpTag: "move"
+  asm: "VINSERTI128|VINSERTI64X4"
+  inVariant: []
+  in:
+  - &i32x2N
+    class: vreg
+    base: $t
+    OverwriteElementBits: 32
+  - &i32xN
+    class: vreg
+    base: $t
+    OverwriteElementBits: 32
+  - *imm01
+  out:
+  - *i32x2N
+
+- go: "GetHi|GetLo"
+  regexpTag: "move"
+  asm: "VEXTRACTI128|VEXTRACTI64X4"
+  inVariant: []
+  in:
+  - *i32x2N
+  - *imm01
+  out:
+  - *i32xN
+
+- go: "SetHi|SetLo"
+  regexpTag: "move"
+  asm: "VINSERTI128|VINSERTI64X4"
+  inVariant: []
+  in:
+  - &i64x2N
+    class: vreg
+    base: $t
+    OverwriteElementBits: 64
+  - &i64xN
+    class: vreg
+    base: $t
+    OverwriteElementBits: 64
+  - *imm01
+  out:
+  - *i64x2N
+
+- go: "GetHi|GetLo"
+  regexpTag: "move"
+  asm: "VEXTRACTI128|VEXTRACTI64X4"
+  inVariant: []
+  in:
+  - *i64x2N
+  - *imm01
+  out:
+  - *i64xN
+
+- go: "SetHi|SetLo"
+  regexpTag: "move"
+  asm: "VINSERTF128|VINSERTF64X4"
+  inVariant: []
+  in:
+  - &f32x2N
+    class: vreg
+    base: $t
+    OverwriteElementBits: 32
+  - &f32xN
+    class: vreg
+    base: $t
+    OverwriteElementBits: 32
+  - *imm01
+  out:
+  - *f32x2N
+
+- go: "GetHi|GetLo"
+  regexpTag: "move"
+  asm: "VEXTRACTF128|VEXTRACTF64X4"
+  inVariant: []
+  in:
+  - *f32x2N
+  - *imm01
+  out:
+  - *f32xN
+
+- go: "SetHi|SetLo"
+  regexpTag: "move"
+  asm: "VINSERTF128|VINSERTF64X4"
+  inVariant: []
+  in:
+  - &f64x2N
+    class: vreg
+    base: $t
+    OverwriteElementBits: 64
+  - &f64xN
+    class: vreg
+    base: $t
+    OverwriteElementBits: 64
+  - *imm01
+  out:
+  - *f64x2N
+
+- go: "GetHi|GetLo"
+  regexpTag: "move"
+  asm: "VEXTRACTF128|VEXTRACTF64X4"
+  inVariant: []
+  in:
+  - *f64x2N
+  - *imm01
+  out:
+  - *f64xN
+
+- go: Permute
+  asm: "VPERMQ|VPERMPD"
+  addDoc: !string |-
+    // The low 2 bits (values 0-3) of each element of indices is used
+  operandOrder: "21Type1"
+  in:
+  - &anyindices
+    go: $t
+    name: indices
+    overwriteBase: uint
+  - &any4
+    go: $t
+    lanes: 4
+  out:
+  - &any
+    go: $t
+
+- go: Permute
+  asm: "VPERM[WDQ]|VPERMP[SD]"
+  addDoc: !string |-
+    // The low 3 bits (values 0-7) of each element of indices is used
+  operandOrder: "21Type1"
+  in:
+  - *anyindices
+  - &any8
+    go: $t
+    lanes: 8
+  out:
+  - *any
+
+- go: Permute
+  asm: "VPERM[BWD]|VPERMPS"
+  addDoc: !string |-
+    // The low 4 bits (values 0-15) of each element of indices is used
+  operandOrder: "21Type1"
+  in:
+  - *anyindices
+  - &any16
+    go: $t
+    lanes: 16
+  out:
+  - *any
+
+- go: Permute
+  asm: "VPERM[BW]"
+  addDoc: !string |-
+    // The low 5 bits (values 0-31) of each element of indices is used
+  operandOrder: "21Type1"
+  in:
+  - *anyindices
+  - &any32
+    go: $t
+    lanes: 32
+  out:
+  - *any
+
+- go: Permute
+  asm: "VPERMB"
+  addDoc: !string |-
+    // The low 6 bits (values 0-63) of each element of indices is used
+  operandOrder: "21Type1"
+  in:
+  - *anyindices
+  - &any64
+    go: $t
+    lanes: 64
+  out:
+  - *any
+
+- go: ConcatPermute
+  asm: "VPERMI2[BWDQ]|VPERMI2P[SD]"
+  # Because we are overwriting the receiver's type, we
+  # have to move the receiver to be a parameter so that
+  # we can have no duplication.
+  operandOrder: "231Type1"
+  in:
+  - *anyindices # result in arg 0
+  - *any
+  - *any
+  out:
+  - *any
+
+- go: Compress
+  asm: "VPCOMPRESS[BWDQ]|VCOMPRESSP[SD]"
+  in:
+    # The mask in Compress is a control mask rather than a write mask, so it's not optional.
+  - class: mask
+  - *any
+  out:
+  - *any
+
+# For now a non-public method because
+# (1) [OverwriteClass] must be set together with [OverwriteBase]
+# (2) "simdgen does not support [OverwriteClass] in inputs".
+# That means the signature is wrong.
+- go: blend
+  asm: VPBLENDVB
+  zeroing: false
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: int
+  - *v
+  -
+    class: vreg
+    base: int
+    name: mask
+  out:
+  - *v
+
+# For AVX512
+- go: blend
+  asm: VPBLENDM[BWDQ]
+  zeroing: false
+  in:
+  - &v
+    go: $t
+    bits: 512
+    class: vreg
+    base: int
+  - *v
+  inVariant:
+  -
+    class: mask
+  out:
+  - *v
+
+  # For AVX512
+- go: move
+  asm: VMOVDQU(8|16|32|64)
+  zeroing: true
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: int|uint
+  inVariant:
+  -
+    class: mask
+  out:
+  - *v
+
+- go: Expand
+  asm: "VPEXPAND[BWDQ]|VEXPANDP[SD]"
+  in:
+    # The mask in Expand is a control mask rather than a write mask, so it's not optional.
+  - class: mask
+  - *any
+  out:
+  - *any
+
+- go: Broadcast128
+  asm: VPBROADCAST[BWDQ]
+  in:
+  - class: vreg
+    bits: 128
+    elemBits: $e
+    base: $b
+  out:
+  - class: vreg
+    bits: 128
+    elemBits: $e
+    base: $b
+
+# weirdly, this one case on AVX2 is memory-operand-only
+- go: Broadcast128
+  asm: VPBROADCASTQ
+  in:
+  - class: vreg
+    bits: 128
+    elemBits: 64
+    base: int
+    OverwriteBase: float
+  out:
+  - class: vreg
+    bits: 128
+    elemBits: 64
+    base: int
+    OverwriteBase: float
+
+- go: Broadcast256
+  asm: VPBROADCAST[BWDQ]
+  in:
+  - class: vreg
+    bits: 128
+    elemBits: $e
+    base: $b
+  out:
+  - class: vreg
+    bits: 256
+    elemBits: $e
+    base: $b
+
+- go: Broadcast512
+  asm: VPBROADCAST[BWDQ]
+  in:
+  - class: vreg
+    bits: 128
+    elemBits: $e
+    base: $b
+  out:
+  - class: vreg
+    bits: 512
+    elemBits: $e
+    base: $b
+
+- go: Broadcast128
+  asm: VBROADCASTS[SD]
+  in:
+  - class: vreg
+    bits: 128
+    elemBits: $e
+    base: $b
+  out:
+  - class: vreg
+    bits: 128
+    elemBits: $e
+    base: $b
+
+- go: Broadcast256
+  asm: VBROADCASTS[SD]
+  in:
+  - class: vreg
+    bits: 128
+    elemBits: $e
+    base: $b
+  out:
+  - class: vreg
+    bits: 256
+    elemBits: $e
+    base: $b
+
+- go: Broadcast512
+  asm: VBROADCASTS[SD]
+  in:
+  - class: vreg
+    bits: 128
+    elemBits: $e
+    base: $b
+  out:
+  - class: vreg
+    bits: 512
+    elemBits: $e
+    base: $b
+
+# VPSHUFB for 128-bit byte shuffles will be picked with higher priority than VPERMB, given its lower CPU feature requirement. (It's AVX)
+- go: PermuteOrZero
+  asm: VPSHUFB
+  addDoc: !string |-
+    // The lower four bits of each byte-sized index in indices select an element from x,
+    // unless the index's sign bit is set in which case zero is used instead.
+  in:
+  - &128any
+    bits: 128
+    go: $t
+  - bits: 128
+    name: indices
+    base: int # always signed
+  out:
+  - *128any
+
+- go: PermuteOrZeroGrouped
+  asm: VPSHUFB
+  addDoc: !string |-
+    // result = {x_group0[indices[0]], x_group0[indices[1]], ..., x_group1[indices[16]], x_group1[indices[17]], ...}
+    // The lower four bits of each byte-sized index in indices select an element from its corresponding group in x,
+    // unless the index's sign bit is set in which case zero is used instead.
+    // Each group is of size 128-bit.
+  in:
+  - &256Or512any
+    bits: "256|512"
+    go: $t
+  - bits: "256|512"
+    base: int
+    name: indices
+  out:
+  - *256Or512any
+
+- go: permuteScalars
+  asm: VPSHUFD
+  addDoc: !string |-
+    // result = {x[indices[0:2]], x[indices[2:4]], x[indices[4:6]], x[indices[6:8]]}
+    // Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
+  in:
+  - *128any
+  - class: immediate
+    immOffset: 0
+    name: indices
+  hideMaskMethods: true
+  out:
+  - *128any
+
+- go: permuteScalarsGrouped
+  asm: VPSHUFD
+  addDoc: !string |-
+    // result = {x_group0[indices[0:2]], x_group0[indices[2:4]], x_group0[indices[4:6]], x_group0[indices[6:8]], x_group1[indices[0:2]], ...}
+    // Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
+    // Each group is of size 128-bit.
+  in:
+  - *256Or512any
+  - class: immediate
+    immOffset: 0
+    name: indices
+  hideMaskMethods: true
+  out:
+  - *256Or512any
+
+- go: permuteScalarsLo
+  asm: VPSHUFLW
+  addDoc: !string |-
+    // result = {x[indices[0:2]], x[indices[2:4]], x[indices[4:6]], x[indices[6:8]], x[4], x[5], x[6], x[7]}
+    // Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
+  in:
+    - &128lanes8
+      bits: 128
+      go: $t
+      elemBits: 16
+    - class: immediate
+      immOffset: 0
+      name: indices
+  hideMaskMethods: true
+  out:
+    - *128lanes8
+
+- go: permuteScalarsLoGrouped
+  asm: VPSHUFLW
+  addDoc: !string |-
+    //
+    //   result = {x_group0[indices[0:2]], x_group0[indices[2:4]], x_group0[indices[4:6]], x_group0[indices[6:8]], x[4], x[5], x[6], x[7],
+    //    x_group1[indices[0:2]], ...}
+    //
+    // Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
+    // Each group is of size 128-bit.
+  in:
+  - &256Or512lanes8
+    bits: "256|512"
+    go: $t
+    elemBits: 16
+  - class: immediate
+    immOffset: 0
+    name: indices
+  hideMaskMethods: true
+  out:
+  - *256Or512lanes8
+
+- go: permuteScalarsHi
+  asm: VPSHUFHW
+  addDoc: !string |-
+    // result = {x[0], x[1], x[2], x[3], x[indices[0:2]+4], x[indices[2:4]+4], x[indices[4:6]+4], x[indices[6:8]+4]}
+    // Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
+  in:
+  - *128lanes8
+  - class: immediate
+    immOffset: 0
+    name: indices
+  hideMaskMethods: true
+  out:
+  - *128lanes8
+
+- go: permuteScalarsHiGrouped
+  asm: VPSHUFHW
+  addDoc: !string |-
+    // result =
+    //
+    //   {x_group0[0], x_group0[1], x_group0[2], x_group0[3], x_group0[indices[0:2]+4], x_group0[indices[2:4]+4], x_group0[indices[4:6]+4], x_group0[indices[6:8]+4],
+    //    x_group1[0], x_group1[1], x_group1[2], x_group1[3], x_group1[indices[0:2]+4], ...}
+    //
+    // Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
+    // Each group is of size 128-bit.
+  in:
+  - *256Or512lanes8
+  - class: immediate
+    immOffset: 0
+    name: indices
+  hideMaskMethods: true
+  out:
+  - *256Or512lanes8
+
+- go: InterleaveHi
+  asm: VPUNPCKH(QDQ|DQ|WD|WB)
+  in:
+  - *128any
+  - *128any
+  inVariant: []
+  out:
+  - *128any
+
+- go: InterleaveLo
+  asm: VPUNPCKL(QDQ|DQ|WD|WB)
+  in:
+  - *128any
+  - *128any
+  inVariant: []
+  out:
+  - *128any
+
+- go: InterleaveHiGrouped
+  asm: VPUNPCKH(QDQ|DQ|WD|WB)
+  in:
+  - *256Or512any
+  - *256Or512any
+  inVariant: []
+  out:
+  - *256Or512any
+
+- go: InterleaveLoGrouped
+  asm: VPUNPCKL(QDQ|DQ|WD|WB)
+  in:
+  - *256Or512any
+  - *256Or512any
+  inVariant: []
+  out:
+  - *256Or512any
+
+# These are all described separately to carry the name of the constant parameter
+
+- go: concatSelectedConstant
+  asm: VSHUFPS
+  width: 32
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: float
+    bits: 128
+  - *v
+  - class: immediate
+    immOffset: 0
+    name: h1h0l1l0
+  inVariant: []
+  out:
+  - *v
+
+- go: concatSelectedConstant
+  asm: VSHUFPS
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: float
+    bits: 128
+    OverwriteBase: int
+  - *v
+  - class: immediate
+    immOffset: 0
+    name: h1h0l1l0
+  inVariant: []
+  out:
+  - *v
+
+- go: concatSelectedConstant
+  asm: VSHUFPS
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: float
+    bits: 128
+    OverwriteBase: uint
+  - *v
+  - class: immediate
+    immOffset: 0
+    name: h1h0l1l0
+  inVariant: []
+  out:
+  - *v
+
+
+- go: concatSelectedConstantGrouped
+  asm: VSHUFPS
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: float
+    bits: "256|512"
+  - *v
+  - class: immediate
+    immOffset: 0
+    name: h1h0l1l0
+  inVariant: []
+  out:
+  - *v
+
+- go: concatSelectedConstantGrouped
+  asm: VSHUFPS
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: float
+    bits: "256|512"
+    OverwriteBase: int
+  - *v
+  - class: immediate
+    immOffset: 0
+    name: h1h0l1l0
+  inVariant: []
+  out:
+  - *v
+
+- go: concatSelectedConstantGrouped
+  asm: VSHUFPS
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: float
+    bits: "256|512"
+    OverwriteBase: uint
+  - *v
+  - class: immediate
+    immOffset: 0
+    name: h1h0l1l0
+  inVariant: []
+  out:
+  - *v
+
+
+  # 64 bit versions
+
+- go: concatSelectedConstant
+  asm: VSHUFPD
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: float
+    bits: 128
+  - *v
+  - class: immediate
+    immOffset: 0
+    name: hilo
+  inVariant: []
+  out:
+  - *v
+
+- go: concatSelectedConstant
+  asm: VSHUFPD
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: float
+    bits: 128
+    OverwriteBase: int
+  - *v
+  - class: immediate
+    immOffset: 0
+    name: hilo
+  inVariant: []
+  out:
+  - *v
+
+- go: concatSelectedConstant
+  asm: VSHUFPD
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: float
+    bits: 128
+    OverwriteBase: uint
+  - *v
+  - class: immediate
+    immOffset: 0
+    name: hilo
+  inVariant: []
+  out:
+  - *v
+
+- go: concatSelectedConstantGrouped
+  asm: VSHUFPD
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: float
+    bits: "256|512"
+  - *v
+  - class: immediate
+    immOffset: 0
+    name: hilos
+  inVariant: []
+  out:
+  - *v
+
+- go: concatSelectedConstantGrouped
+  asm: VSHUFPD
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: float
+    bits: "256|512"
+    OverwriteBase: int
+  - *v
+  - class: immediate
+    immOffset: 0
+    name: hilos
+  inVariant: []
+  out:
+  - *v
+
+- go: concatSelectedConstantGrouped
+  asm: VSHUFPD
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: float
+    bits: "256|512"
+    OverwriteBase: uint
+  - *v
+  - class: immediate
+    immOffset: 0
+    name: hilos
+  inVariant: []
+  out:
+  - *v
+
+- go: Select128FromPair
+  asm: VPERM2F128
+  operandOrder: II
+  addDoc: !string |-
+    // For example,
+    //
+    //   {40, 41, 50, 51}.NAME(3, 0, {60, 61, 70, 71})
+    //
+    // returns {70, 71, 40, 41}.
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: float
+    bits: 256
+  - *v
+  - class: immediate
+    immOffset: 0
+    name: "lo, hi"
+  inVariant: []
+  out:
+  - *v
+
+- go: Select128FromPair
+  asm: VPERM2F128
+  operandOrder: II
+  addDoc: !string |-
+    // For example,
+    //
+    //   {40, 41, 42, 43, 50, 51, 52, 53}.NAME(3, 0, {60, 61, 62, 63, 70, 71, 72, 73})
+    //
+    // returns {70, 71, 72, 73, 40, 41, 42, 43}.
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: float
+    bits: 256
+    OverwriteElementBits: 32
+  - *v
+  - class: immediate
+    immOffset: 0
+    name: "lo, hi"
+  inVariant: []
+  out:
+  - *v
+
+- go: Select128FromPair
+  asm: VPERM2I128
+  operandOrder: II
+  addDoc: !string |-
+    // For example,
+    //
+    //   {40, 41, 50, 51}.NAME(3, 0, {60, 61, 70, 71})
+    //
+    // returns {70, 71, 40, 41}.
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: int|uint
+    bits: 256
+    OverwriteElementBits: 64
+  - *v
+  - class: immediate
+    immOffset: 0
+    name: "lo, hi"
+  inVariant: []
+  out:
+  - *v
+
+- go: Select128FromPair
+  asm: VPERM2I128
+  operandOrder: II
+  addDoc: !string |-
+    // For example,
+    //
+    //   {40, 41, 42, 43, 50, 51, 52, 53}.NAME(3, 0, {60, 61, 62, 63, 70, 71, 72, 73})
+    //
+    // returns {70, 71, 72, 73, 40, 41, 42, 43}.
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: int|uint
+    bits: 256
+    OverwriteElementBits: 32
+  - *v
+  - class: immediate
+    immOffset: 0
+    name: "lo, hi"
+  inVariant: []
+  out:
+  - *v
+
+- go: Select128FromPair
+  asm: VPERM2I128
+  operandOrder: II
+  addDoc: !string |-
+    // For example,
+    //
+    //   {40, 41, 42, 43, 44, 45, 46, 47, 50, 51, 52, 53, 54, 55, 56, 57}.NAME(3, 0,
+    //    {60, 61, 62, 63, 64, 65, 66, 67, 70, 71, 72, 73, 74, 75, 76, 77})
+    //
+    // returns {70, 71, 72, 73, 74, 75, 76, 77, 40, 41, 42, 43, 44, 45, 46, 47}.
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: int|uint
+    bits: 256
+    OverwriteElementBits: 16
+  - *v
+  - class: immediate
+    immOffset: 0
+    name: "lo, hi"
+  inVariant: []
+  out:
+  - *v
+
+- go: Select128FromPair
+  asm: VPERM2I128
+  operandOrder: II
+  addDoc: !string |-
+    // For example,
+    //
+    //   {0x40, 0x41, ..., 0x4f, 0x50, 0x51, ..., 0x5f}.NAME(3, 0,
+    //        {0x60, 0x61, ..., 0x6f, 0x70, 0x71, ..., 0x7f})
+    //
+    // returns {0x70, 0x71, ..., 0x7f, 0x40, 0x41, ..., 0x4f}.
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: int|uint
+    bits: 256
+    OverwriteElementBits: 8
+  - *v
+  - class: immediate
+    immOffset: 0
+    name: "lo, hi"
+  inVariant: []
+  out:
+  - *v
+
+- go: ConcatShiftBytesRight
+  asm: VPALIGNR
+  in:
+  - &uint128
+    go: $t
+    base: uint
+    bits: 128
+  - *uint128
+  - class: immediate
+    immOffset: 0
+  out:
+  - *uint128
+
+- go: ConcatShiftBytesRightGrouped
+  asm: VPALIGNR
+  in:
+  - &uint256512
+    go: $t
+    base: uint
+    bits: 256|512
+  - *uint256512
+  - class: immediate
+    immOffset: 0
+  out:
+  - *uint256512

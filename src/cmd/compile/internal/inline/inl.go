@@ -179,6 +179,25 @@ func CanInlineFuncs(funcs []*ir.Func, profile *pgoir.Profile) {
 	})
 }
 
+func simdCreditMultiplier(fn *ir.Func) int32 {
+	for _, field := range fn.Type().RecvParamsResults() {
+		if field.Type.IsSIMD() {
+			return 3
+		}
+	}
+	// Sometimes code uses closures, that do not take simd
+	// parameters, to perform repetitive SIMD operations.
+	// fn.  These really need to be inlined, or the anticipated
+	// awesome SIMD performance will be missed.
+	for _, v := range fn.ClosureVars {
+		if v.Type().IsSIMD() {
+			return 11 // 11 ought to be enough.
+		}
+	}
+
+	return 1
+}
+
 // inlineBudget determines the max budget for function 'fn' prior to
 // analyzing the hairiness of the body of 'fn'. We pass in the pgo
 // profile if available (which can change the budget), also a
@@ -186,9 +205,14 @@ func CanInlineFuncs(funcs []*ir.Func, profile *pgoir.Profile) {
 // possibility that a call to the function might have its score
 // adjusted downwards. If 'verbose' is set, then print a remark where
 // we boost the budget due to PGO.
+// Note that inlineCostOk has the final say on whether an inline will
+// happen; changes here merely make inlines possible.
 func inlineBudget(fn *ir.Func, profile *pgoir.Profile, relaxed bool, verbose bool) int32 {
 	// Update the budget for profile-guided inlining.
 	budget := int32(inlineMaxBudget)
+
+	budget *= simdCreditMultiplier(fn)
+
 	if IsPgoHotFunc(fn, profile) {
 		budget = inlineHotMaxBudget
 		if verbose {
@@ -202,6 +226,7 @@ func inlineBudget(fn *ir.Func, profile *pgoir.Profile, relaxed bool, verbose boo
 		// be very liberal here, if the closure is only called once, the budget is large
 		budget = max(budget, inlineClosureCalledOnceCost)
 	}
+
 	return budget
 }
 
@@ -263,6 +288,7 @@ func CanInline(fn *ir.Func, profile *pgoir.Profile) {
 
 	visitor := hairyVisitor{
 		curFunc:       fn,
+		debug:         isDebugFn(fn),
 		isBigFunc:     IsBigFunc(fn),
 		budget:        budget,
 		maxBudget:     budget,
@@ -407,6 +433,7 @@ type hairyVisitor struct {
 	// This is needed to access the current caller in the doNode function.
 	curFunc       *ir.Func
 	isBigFunc     bool
+	debug         bool
 	budget        int32
 	maxBudget     int32
 	reason        string
@@ -414,6 +441,16 @@ type hairyVisitor struct {
 	usedLocals    ir.NameSet
 	do            func(ir.Node) bool
 	profile       *pgoir.Profile
+}
+
+func isDebugFn(fn *ir.Func) bool {
+	// if n := fn.Nname; n != nil {
+	// 	if n.Sym().Name == "Int32x8.Transpose8" && n.Sym().Pkg.Path == "simd" {
+	// 		fmt.Printf("isDebugFn '%s' DOT '%s'\n", n.Sym().Pkg.Path, n.Sym().Name)
+	// 		return true
+	// 	}
+	// }
+	return false
 }
 
 func (v *hairyVisitor) tooHairy(fn *ir.Func) bool {
@@ -433,6 +470,9 @@ func (v *hairyVisitor) tooHairy(fn *ir.Func) bool {
 func (v *hairyVisitor) doNode(n ir.Node) bool {
 	if n == nil {
 		return false
+	}
+	if v.debug {
+		fmt.Printf("%v: doNode %v budget is %d\n", ir.Line(n), n.Op(), v.budget)
 	}
 opSwitch:
 	switch n.Op() {
@@ -551,12 +591,19 @@ opSwitch:
 		}
 
 		if cheap {
+			if v.debug {
+				if ir.IsIntrinsicCall(n) {
+					fmt.Printf("%v: cheap call is also intrinsic, %v\n", ir.Line(n), n)
+				}
+			}
 			break // treat like any other node, that is, cost of 1
 		}
 
 		if ir.IsIntrinsicCall(n) {
-			// Treat like any other node.
-			break
+			if v.debug {
+				fmt.Printf("%v: intrinsic call, %v\n", ir.Line(n), n)
+			}
+			break // Treat like any other node.
 		}
 
 		if callee := inlCallee(v.curFunc, n.Fun, v.profile, false); callee != nil && typecheck.HaveInlineBody(callee) {
@@ -583,6 +630,10 @@ opSwitch:
 			}
 		}
 
+		if v.debug {
+			fmt.Printf("%v: costly OCALLFUNC %v\n", ir.Line(n), n)
+		}
+
 		// Call cost for non-leaf inlining.
 		v.budget -= extraCost
 
@@ -592,6 +643,9 @@ opSwitch:
 	// Things that are too hairy, irrespective of the budget
 	case ir.OCALL, ir.OCALLINTER:
 		// Call cost for non-leaf inlining.
+		if v.debug {
+			fmt.Printf("%v: costly OCALL %v\n", ir.Line(n), n)
+		}
 		v.budget -= v.extraCallCost
 
 	case ir.OPANIC:
@@ -754,7 +808,7 @@ opSwitch:
 	v.budget--
 
 	// When debugging, don't stop early, to get full cost of inlining this function
-	if v.budget < 0 && base.Flag.LowerM < 2 && !logopt.Enabled() {
+	if v.budget < 0 && base.Flag.LowerM < 2 && !logopt.Enabled() && !v.debug {
 		v.reason = "too expensive"
 		return true
 	}
@@ -914,12 +968,16 @@ func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller, closureCal
 		maxCost = inlineBigFunctionMaxCost
 	}
 
+	simdMaxCost := simdCreditMultiplier(callee) * maxCost
+
 	if callee.ClosureParent != nil {
 		maxCost *= 2           // favor inlining closures
 		if closureCalledOnce { // really favor inlining the one call to this closure
 			maxCost = max(maxCost, inlineClosureCalledOnceCost)
 		}
 	}
+
+	maxCost = max(maxCost, simdMaxCost)
 
 	metric := callee.Inl.Cost
 	if inlheur.Enabled() {

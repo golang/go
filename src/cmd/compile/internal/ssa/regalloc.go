@@ -931,6 +931,14 @@ func (s *regAllocState) compatRegs(t *types.Type) regMask {
 	if t.IsTuple() || t.IsFlags() {
 		return 0
 	}
+	if t.IsSIMD() {
+		if t.Size() > 8 {
+			return s.f.Config.fpRegMask & s.allocatable
+		} else {
+			// K mask
+			return s.f.Config.gpRegMask & s.allocatable
+		}
+	}
 	if t.IsFloat() || t == types.TypeInt128 {
 		if t.Kind() == types.TFLOAT32 && s.f.Config.fp32RegMask != 0 {
 			m = s.f.Config.fp32RegMask
@@ -1439,6 +1447,13 @@ func (s *regAllocState) regalloc(f *Func) {
 					s.sb = v.ID
 				case OpARM64ZERO, OpLOONG64ZERO, OpMIPS64ZERO:
 					s.assignReg(s.ZeroIntReg, v, v)
+				case OpAMD64Zero128, OpAMD64Zero256, OpAMD64Zero512:
+					regspec := s.regspec(v)
+					m := regspec.outputs[0].regs
+					if countRegs(m) != 1 {
+						f.Fatalf("bad fixed-register op %s", v)
+					}
+					s.assignReg(pickReg(m), v, v)
 				default:
 					f.Fatalf("unknown fixed-register op %s", v)
 				}

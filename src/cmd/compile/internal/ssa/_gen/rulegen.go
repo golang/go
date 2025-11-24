@@ -94,8 +94,11 @@ func genSplitLoadRules(arch arch) { genRulesSuffix(arch, "splitload") }
 func genLateLowerRules(arch arch) { genRulesSuffix(arch, "latelower") }
 
 func genRulesSuffix(arch arch, suff string) {
+	var readers []NamedReader
 	// Open input file.
-	text, err := os.Open(arch.name + suff + ".rules")
+	var text io.Reader
+	name := arch.name + suff + ".rules"
+	text, err := os.Open(name)
 	if err != nil {
 		if suff == "" {
 			// All architectures must have a plain rules file.
@@ -104,18 +107,28 @@ func genRulesSuffix(arch arch, suff string) {
 		// Some architectures have bonus rules files that others don't share. That's fine.
 		return
 	}
+	readers = append(readers, NamedReader{name, text})
+
+	// Check for file of SIMD rules to add
+	if suff == "" {
+		simdname := "simd" + arch.name + ".rules"
+		simdtext, err := os.Open(simdname)
+		if err == nil {
+			readers = append(readers, NamedReader{simdname, simdtext})
+		}
+	}
 
 	// oprules contains a list of rules for each block and opcode
 	blockrules := map[string][]Rule{}
 	oprules := map[string][]Rule{}
 
 	// read rule file
-	scanner := bufio.NewScanner(text)
+	scanner := MultiScannerFromReaders(readers)
 	rule := ""
 	var lineno int
 	var ruleLineno int // line number of "=>"
 	for scanner.Scan() {
-		lineno++
+		lineno = scanner.Line()
 		line := scanner.Text()
 		if i := strings.Index(line, "//"); i >= 0 {
 			// Remove comments. Note that this isn't string safe, so
@@ -142,7 +155,7 @@ func genRulesSuffix(arch arch, suff string) {
 			break // continuing the line can't help, and it will only make errors worse
 		}
 
-		loc := fmt.Sprintf("%s%s.rules:%d", arch.name, suff, ruleLineno)
+		loc := fmt.Sprintf("%s:%d", scanner.Name(), ruleLineno)
 		for _, rule2 := range expandOr(rule) {
 			r := Rule{Rule: rule2, Loc: loc}
 			if rawop := strings.Split(rule2, " ")[0][1:]; isBlock(rawop, arch) {
@@ -162,7 +175,7 @@ func genRulesSuffix(arch arch, suff string) {
 		log.Fatalf("scanner failed: %v\n", err)
 	}
 	if balance(rule) != 0 {
-		log.Fatalf("%s.rules:%d: unbalanced rule: %v\n", arch.name, lineno, rule)
+		log.Fatalf("%s:%d: unbalanced rule: %v\n", scanner.Name(), lineno, rule)
 	}
 
 	// Order all the ops.
@@ -862,7 +875,7 @@ func declReserved(name, value string) *Declare {
 	if !reservedNames[name] {
 		panic(fmt.Sprintf("declReserved call does not use a reserved name: %q", name))
 	}
-	return &Declare{name, exprf(value)}
+	return &Declare{name, exprf("%s", value)}
 }
 
 // breakf constructs a simple "if cond { break }" statement, using exprf for its
@@ -889,7 +902,7 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
 			if vname == "" {
 				vname = fmt.Sprintf("v_%v", i)
 			}
-			rr.add(declf(rr.Loc, vname, cname))
+			rr.add(declf(rr.Loc, vname, "%s", cname))
 			p, op := genMatch0(rr, arch, expr, vname, nil, false) // TODO: pass non-nil cnt?
 			if op != "" {
 				check := fmt.Sprintf("%s.Op == %s", cname, op)
@@ -904,7 +917,7 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
 			}
 			pos[i] = p
 		} else {
-			rr.add(declf(rr.Loc, arg, cname))
+			rr.add(declf(rr.Loc, arg, "%s", cname))
 			pos[i] = arg + ".Pos"
 		}
 	}

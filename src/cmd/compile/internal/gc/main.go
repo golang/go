@@ -188,9 +188,9 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 
 	ir.EscFmt = escape.Fmt
 	ir.IsIntrinsicCall = ssagen.IsIntrinsicCall
+	ir.IsIntrinsicSym = ssagen.IsIntrinsicSym
 	inline.SSADumpInline = ssagen.DumpInline
 	ssagen.InitEnv()
-	ssagen.InitTables()
 
 	types.PtrSize = ssagen.Arch.LinkArch.PtrSize
 	types.RegSize = ssagen.Arch.LinkArch.RegSize
@@ -203,6 +203,11 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	typecheck.InitUniverse()
 	typecheck.InitRuntime()
 	rttype.Init()
+
+	// Some intrinsics (notably, the simd intrinsics) mention
+	// types "eagerly", thus ssagen must be initialized AFTER
+	// the type system is ready.
+	ssagen.InitTables()
 
 	// Parse and typecheck input.
 	noder.LoadPackage(flag.Args())
@@ -309,7 +314,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 		}
 
 		if nextFunc < len(typecheck.Target.Funcs) {
-			enqueueFunc(typecheck.Target.Funcs[nextFunc])
+			enqueueFunc(typecheck.Target.Funcs[nextFunc], symABIs)
 			nextFunc++
 			continue
 		}

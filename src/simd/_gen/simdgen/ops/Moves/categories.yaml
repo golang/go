@@ -1,0 +1,247 @@
+!sum
+- go: SetElem
+  commutative: false
+  documentation: !string |-
+    // NAME sets a single constant-indexed element's value.
+- go: GetElem
+  commutative: false
+  documentation: !string |-
+    // NAME retrieves a single constant-indexed element's value.
+- go: SetLo
+  commutative: false
+  constImm: 0
+  documentation: !string |-
+    // NAME returns x with its lower half set to y.
+- go: GetLo
+  commutative: false
+  constImm: 0
+  documentation: !string |-
+    // NAME returns the lower half of x.
+- go: SetHi
+  commutative: false
+  constImm: 1
+  documentation: !string |-
+    // NAME returns x with its upper half set to y.
+- go: GetHi
+  commutative: false
+  constImm: 1
+  documentation: !string |-
+    // NAME returns the upper half of x.
+- go: PermuteOrZero
+  commutative: false
+  documentation: !string |-
+    // NAME performs a full permutation of vector x using indices:
+    // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+- go: Permute
+  commutative: false
+  documentation: !string |-
+    // NAME performs a full permutation of vector x using indices:
+    // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+- go: ConcatPermute # ConcatPermute is only available on or after AVX512
+  commutative: false
+  documentation: !string |-
+    // NAME performs a full permutation of vector x, y using indices:
+    // result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+    // where xy is the concatenation of x (lower half) and y (upper half).
+    // Only the needed bits to represent xy's index are used in indices' elements.
+- go: Compress
+  commutative: false
+  documentation: !string |-
+    // NAME performs a compression on vector x using mask by
+    // selecting elements as indicated by mask, and pack them to lower indexed elements.
+- go: blend
+  commutative: false
+  documentation: !string |-
+    // NAME blends two vectors based on mask values, choosing either
+    // the first or the second based on whether the third is false or true
+- go: move
+  commutative: false
+  noTypes: "true"
+  noGenericOps: "true"
+- go: Expand
+  commutative: false
+  documentation: !string |-
+    // NAME performs an expansion on a vector x whose elements are packed to lower parts.
+    // The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+- go: Broadcast128
+  commutative: false
+  documentation: !string |-
+    // NAME copies element zero of its (128-bit) input to all elements of
+    // the 128-bit output vector.
+- go: Broadcast256
+  commutative: false
+  documentation: !string |-
+    // NAME copies element zero of its (128-bit) input to all elements of
+    // the 256-bit output vector.
+- go: Broadcast512
+  commutative: false
+  documentation: !string |-
+    // NAME copies element zero of its (128-bit) input to all elements of
+    // the 512-bit output vector.
+- go: PermuteOrZeroGrouped
+  commutative: false
+  documentation: !string |- # Detailed documentation will rely on the specific ops.
+    // NAME performs a grouped permutation of vector x using indices:
+- go: PermuteGrouped
+  commutative: false
+  documentation: !string |- # Detailed documentation will rely on the specific ops.
+    // NAME performs a grouped permutation of vector x using indices:
+- go: permuteScalars
+  commutative: false
+  documentation: !string |- # Detailed documentation will rely on the specific ops.
+    // NAME performs a permutation of vector x using constant indices:
+- go: permuteScalarsGrouped
+  commutative: false
+  documentation: !string |- # Detailed documentation will rely on the specific ops.
+    // NAME performs a grouped permutation of vector x using constant indices:
+- go: permuteScalarsLo
+  commutative: false
+  documentation: !string |- # Detailed documentation will rely on the specific ops.
+    // NAME performs a permutation of vector x using constant indices:
+- go: permuteScalarsLoGrouped
+  commutative: false
+  documentation: !string |- # Detailed documentation will rely on the specific ops.
+    // NAME performs a grouped permutation of vector x using constant indices:
+- go: permuteScalarsHi
+  commutative: false
+  documentation: !string |- # Detailed documentation will rely on the specific ops.
+    // NAME performs a permutation of vector x using constant indices:
+- go: permuteScalarsHiGrouped
+  commutative: false
+  documentation: !string |- # Detailed documentation will rely on the specific ops.
+    // NAME performs a grouped permutation of vector x using constant indices:
+- go: InterleaveHi
+  commutative: false
+  documentation: !string |-
+    // NAME interleaves the elements of the high halves of x and y.
+- go: InterleaveLo
+  commutative: false
+  documentation: !string |-
+    // NAME interleaves the elements of the low halves of x and y.
+- go: InterleaveHiGrouped
+  commutative: false
+  documentation: !string |-
+    // NAME interleaves the elements of the high half of each 128-bit subvector of x and y.
+- go: InterleaveLoGrouped
+  commutative: false
+  documentation: !string |-
+    // NAME interleaves the elements of the low half of each 128-bit subvector of x and y.
+
+- go: concatSelectedConstant
+  commutative: false
+  out:
+    - elemBits: 32
+  documentation: !string |-
+    // NAME concatenates selected elements from x and y into the lower and upper
+    // halves of the output.  The selection is chosen by the constant parameter h1h0l1l0
+    // where each {h,l}{1,0} is two bits specify which element from y or x to select.
+    // For example, {0,1,2,3}.NAME(0b_11_01_00_10, {4,5,6,7}) returns
+    // {2, 0, 5, 7} (don't forget that the binary constant is written big-endian).
+
+- go: concatSelectedConstant
+  commutative: false
+  out:
+    - elemBits: 64
+  documentation: !string |-
+    // NAME concatenates selected elements from x and y into the lower and upper
+    // halves of the output.  The selection is chosen by the constant parameter hilo
+    // where hi and lo are each one bit specifying which 64-bit element to select
+    // from y and x.  For example {4,5}.NAME(0b10, {6,7})
+    // returns {4,7}; bit 0, selecting from x, is zero, and selects 4, and bit 1,
+    // selecting from y, is 1, and selects 7.
+
+- go: concatSelectedConstantGrouped
+  commutative: false
+  out:
+    - elemBits: 32
+      bits: 256
+  documentation: !string |-
+    // NAME concatenates selected elements from 128-bit subvectors of x and y
+    // into the lower and upper halves of corresponding subvectors of the output.
+    // The selection is chosen by the constant parameter h1h0l1l0
+    // where each {h,l}{1,0} is two bits specifying which element from y or x to select.
+    // For example,
+    // {0,1,2,3,8,9,10,11}.NAME(0b_11_01_00_10, {4,5,6,7,12,13,14,15})
+    // returns {2,0,5,7,10,8,13,15}
+    // (don't forget that the binary constant is written big-endian).
+
+- go: concatSelectedConstantGrouped
+  commutative: false
+  out:
+    - elemBits: 64
+      bits: 256
+  documentation: !string |-
+    // NAME concatenates selected elements from 128-bit subvectors of x and y
+    // into the lower and upper halves of corresponding subvectors of the output.
+    // The selections are specified by the constant parameter hilos where each
+    // hi and lo pair select 64-bit elements from the corresponding 128-bit
+    // subvectors of x and y.
+    //
+    // For example {4,5,8,9}.NAME(0b_11_10, {6,7,10,11})
+    // returns {4,7,9,11}; bit 0 is zero, selecting element 0 from x's least
+    // 128-bits (4), then 1, selects the element 1 from y's least 128-bits (7),
+    // then 1, selecting element 1 from x's upper 128 bits (9), then 1,
+    // selecting element 1 from y's upper 128 bits (11).
+    // This differs from the same method applied to a 32x8 vector, where
+    // the 8-bit constant performs the same selection on both subvectors.
+
+- go: concatSelectedConstantGrouped
+  commutative: false
+  out:
+    - elemBits: 32
+      bits: 512
+  documentation: !string |-
+    // NAME concatenates selected elements from 128-bit subvectors of x and y
+    // into the lower and upper halves of corresponding subvectors of the output.
+    // The selection is chosen by the constant parameter h1h0l1l0
+    // where each {h,l}{1,0} is two bits specifying which element from y or x to select.
+    // For example,
+    //
+    //   {0,1,2,3,8,9,10,11, 20,21,22,23,28,29,210,211}.NAME(
+    //    0b_11_01_00_10, {4,5,6,7,12,13,14,15, 24,25,26,27,212,213,214,215})
+    //
+    // returns {2,0,5,7,10,8,13,15, 22,20,25,27,210,28,213,215}
+    //
+    // (don't forget that the binary constant is written big-endian).
+
+- go: concatSelectedConstantGrouped
+  commutative: false
+  out:
+    - elemBits: 64
+      bits: 512
+  documentation: !string |-
+    // NAME concatenates selected elements from 128-bit subvectors of x and y
+    // into the lower and upper halves of corresponding subvectors of the output.
+    // The selections are specified by the constant parameter hilos where each
+    // hi and lo pair select 64-bit elements from the corresponding 128-bit
+    // subvectors of x and y.
+    //
+    // For example {4,5,8,9,12,13,16,17}.NAME(0b11_00_11_10, {6,7,10,11,14,15,18,19})
+    // returns {4,7,9,11,12,14,17,19}; bit 0 is zero, selecting element 0 from x's
+    // least 128-bits (4), then 1, selects the element 1 from y's least 128-bits (7),
+    // then 1, selecting element 1 from x's next 128 bits (9), then 1,
+    // selecting element 1 from y's upper 128 bits (11).  The next two 0 bits select
+    // the lower elements from x and y's 3rd 128 bit groups (12, 14), the last two
+    // 1 bits select the upper elements from x and y's last 128 bits (17, 19).
+    // This differs from the same method applied to a 32x8 or 32x16 vector, where
+    // the 8-bit constant performs the same selection on all the subvectors.
+
+- go: Select128FromPair
+  commutative: false
+  documentation: !string |-
+    // NAME treats the 256-bit vectors x and y as a single vector of four
+    // 128-bit elements, and returns a 256-bit result formed by
+    // concatenating the two elements specified by lo and hi.
+
+- go: ConcatShiftBytesRight
+  commutative: false
+  documentation: !string |-
+    // NAME concatenates x and y and shift it right by constant bytes.
+    // The result vector will be the lower half of the concatenated vector.
+
+- go: ConcatShiftBytesRightGrouped
+  commutative: false
+  documentation: !string |-
+    // NAME concatenates x and y and shift it right by constant bytes.
+    // The result vector will be the lower half of the concatenated vector.
+    // This operation is performed grouped by each 16 byte.

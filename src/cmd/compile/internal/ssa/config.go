@@ -88,6 +88,10 @@ type Types struct {
 	Float32Ptr *types.Type
 	Float64Ptr *types.Type
 	BytePtrPtr *types.Type
+	Vec128     *types.Type
+	Vec256     *types.Type
+	Vec512     *types.Type
+	Mask       *types.Type
 }
 
 // NewTypes creates and populates a Types.
@@ -122,6 +126,10 @@ func (t *Types) SetTypPtrs() {
 	t.Float32Ptr = types.NewPtr(types.Types[types.TFLOAT32])
 	t.Float64Ptr = types.NewPtr(types.Types[types.TFLOAT64])
 	t.BytePtrPtr = types.NewPtr(types.NewPtr(types.Types[types.TUINT8]))
+	t.Vec128 = types.TypeVec128
+	t.Vec256 = types.TypeVec256
+	t.Vec512 = types.TypeVec512
+	t.Mask = types.TypeMask
 }
 
 type Logger interface {

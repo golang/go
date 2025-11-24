@@ -341,6 +341,13 @@ func panicmemAddr(addr uintptr) {
 	panic(errorAddressString{msg: "invalid memory address or nil pointer dereference", addr: addr})
 }
 
+var simdImmError = error(errorString("out-of-range immediate for simd intrinsic"))
+
+func panicSimdImm() {
+	panicCheck2("simd immediate error")
+	panic(simdImmError)
+}
+
 // Create a new deferred function fn, which has no arguments and results.
 // The compiler turns a defer statement into a call to this.
 func deferproc(fn func()) {

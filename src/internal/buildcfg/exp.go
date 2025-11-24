@@ -88,8 +88,6 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 		SizeSpecializedMalloc: true,
 		GreenTeaGC:            true,
 	}
-
-	// Start with the statically enabled set of experiments.
 	flags := &ExperimentFlags{
 		Flags:    baseline,
 		baseline: baseline,

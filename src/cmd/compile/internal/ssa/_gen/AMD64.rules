@@ -1657,3 +1657,171 @@
 
 // If we don't use the flags any more, just use the standard op.
 (Select0 a:(ADD(Q|L)constflags [c] x)) && a.Uses == 1 => (ADD(Q|L)const [c] x)
+
+// SIMD lowering rules
+
+// Mask conversions
+// integers to masks
+(Cvt16toMask8x16 <t> x) => (VPMOVMToVec8x16 <types.TypeVec128> (KMOVWk <t> x))
+(Cvt32toMask8x32 <t> x) => (VPMOVMToVec8x32 <types.TypeVec256> (KMOVDk <t> x))
+(Cvt64toMask8x64 <t> x) => (VPMOVMToVec8x64 <types.TypeVec512> (KMOVQk <t> x))
+
+(Cvt8toMask16x8 <t> x) => (VPMOVMToVec16x8 <types.TypeVec128> (KMOVBk <t> x))
+(Cvt16toMask16x16 <t> x) => (VPMOVMToVec16x16 <types.TypeVec256> (KMOVWk <t> x))
+(Cvt32toMask16x32 <t> x) => (VPMOVMToVec16x32 <types.TypeVec512> (KMOVDk <t> x))
+
+(Cvt8toMask32x4 <t> x) => (VPMOVMToVec32x4 <types.TypeVec128> (KMOVBk <t> x))
+(Cvt8toMask32x8 <t> x) => (VPMOVMToVec32x8 <types.TypeVec256> (KMOVBk <t> x))
+(Cvt16toMask32x16 <t> x) => (VPMOVMToVec32x16 <types.TypeVec512> (KMOVWk <t> x))
+
+(Cvt8toMask64x2 <t> x) => (VPMOVMToVec64x2 <types.TypeVec128> (KMOVBk <t> x))
+(Cvt8toMask64x4 <t> x) => (VPMOVMToVec64x4 <types.TypeVec256> (KMOVBk <t> x))
+(Cvt8toMask64x8 <t> x) => (VPMOVMToVec64x8 <types.TypeVec512> (KMOVBk <t> x))
+
+// masks to integers
+(CvtMask8x16to16 <t> x) => (KMOVWi <t> (VPMOVVec8x16ToM <types.TypeMask> x))
+(CvtMask8x32to32 <t> x) => (KMOVDi <t> (VPMOVVec8x32ToM <types.TypeMask> x))
+(CvtMask8x64to64 <t> x) => (KMOVQi <t> (VPMOVVec8x64ToM <types.TypeMask> x))
+
+(CvtMask16x8to8 <t> x) => (KMOVBi <t> (VPMOVVec16x8ToM <types.TypeMask> x))
+(CvtMask16x16to16 <t> x) => (KMOVWi <t> (VPMOVVec16x16ToM <types.TypeMask> x))
+(CvtMask16x32to32 <t> x) => (KMOVDi <t> (VPMOVVec16x32ToM <types.TypeMask> x))
+
+(CvtMask32x4to8 <t> x) => (KMOVBi <t> (VPMOVVec32x4ToM <types.TypeMask> x))
+(CvtMask32x8to8 <t> x) => (KMOVBi <t> (VPMOVVec32x8ToM <types.TypeMask> x))
+(CvtMask32x16to16 <t> x) => (KMOVWi <t> (VPMOVVec32x16ToM <types.TypeMask> x))
+
+(CvtMask64x2to8 <t> x) => (KMOVBi <t> (VPMOVVec64x2ToM <types.TypeMask> x))
+(CvtMask64x4to8 <t> x) => (KMOVBi <t> (VPMOVVec64x4ToM <types.TypeMask> x))
+(CvtMask64x8to8 <t> x) => (KMOVBi <t> (VPMOVVec64x8ToM <types.TypeMask> x))
+
+// optimizations
+(MOVBstore [off] {sym} ptr (KMOVBi mask) mem) => (KMOVBstore [off] {sym} ptr mask mem)
+(MOVWstore [off] {sym} ptr (KMOVWi mask) mem) => (KMOVWstore [off] {sym} ptr mask mem)
+(MOVLstore [off] {sym} ptr (KMOVDi mask) mem) => (KMOVDstore [off] {sym} ptr mask mem)
+(MOVQstore [off] {sym} ptr (KMOVQi mask) mem) => (KMOVQstore [off] {sym} ptr mask mem)
+
+(KMOVBk l:(MOVBload [off] {sym} ptr mem)) && canMergeLoad(v, l) && clobber(l) => (KMOVBload [off] {sym} ptr mem)
+(KMOVWk l:(MOVWload [off] {sym} ptr mem)) && canMergeLoad(v, l) && clobber(l) => (KMOVWload [off] {sym} ptr mem)
+(KMOVDk l:(MOVLload [off] {sym} ptr mem)) && canMergeLoad(v, l) && clobber(l) => (KMOVDload [off] {sym} ptr mem)
+(KMOVQk l:(MOVQload [off] {sym} ptr mem)) && canMergeLoad(v, l) && clobber(l) => (KMOVQload [off] {sym} ptr mem)
+
+// SIMD vector loads and stores
+(Load <t> ptr mem) && t.Size() == 16 => (VMOVDQUload128 ptr mem)
+(Store {t} ptr val mem) && t.Size() == 16 => (VMOVDQUstore128 ptr val mem)
+
+(Load <t> ptr mem) && t.Size() == 32 => (VMOVDQUload256 ptr mem)
+(Store {t} ptr val mem) && t.Size() == 32 => (VMOVDQUstore256 ptr val mem)
+
+(Load <t> ptr mem) && t.Size() == 64 => (VMOVDQUload512 ptr mem)
+(Store {t} ptr val mem) && t.Size() == 64 => (VMOVDQUstore512 ptr val mem)
+
+// SIMD vector integer-vector-masked loads and stores.
+(LoadMasked32 <t> ptr mask mem) && t.Size() == 16 => (VPMASK32load128 ptr mask mem)
+(LoadMasked32 <t> ptr mask mem) && t.Size() == 32 => (VPMASK32load256 ptr mask mem)
+(LoadMasked64 <t> ptr mask mem) && t.Size() == 16 => (VPMASK64load128 ptr mask mem)
+(LoadMasked64 <t> ptr mask mem) && t.Size() == 32 => (VPMASK64load256 ptr mask mem)
+
+(StoreMasked32 {t} ptr mask val mem) && t.Size() == 16 => (VPMASK32store128 ptr mask val mem)
+(StoreMasked32 {t} ptr mask val mem) && t.Size() == 32 => (VPMASK32store256 ptr mask val mem)
+(StoreMasked64 {t} ptr mask val mem) && t.Size() == 16 => (VPMASK64store128 ptr mask val mem)
+(StoreMasked64 {t} ptr mask val mem) && t.Size() == 32 => (VPMASK64store256 ptr mask val mem)
+
+// Misc
+(IsZeroVec x) => (SETEQ (VPTEST x x))
+
+// SIMD vector K-masked loads and stores
+
+(LoadMasked64 <t> ptr mask mem) && t.Size() == 64 => (VPMASK64load512 ptr (VPMOVVec64x8ToM  <types.TypeMask> mask) mem)
+(LoadMasked32 <t> ptr mask mem) && t.Size() == 64 => (VPMASK32load512 ptr (VPMOVVec32x16ToM <types.TypeMask> mask) mem)
+(LoadMasked16 <t> ptr mask mem) && t.Size() == 64 => (VPMASK16load512 ptr (VPMOVVec16x32ToM <types.TypeMask> mask) mem)
+(LoadMasked8  <t> ptr mask mem) && t.Size() == 64 => (VPMASK8load512  ptr (VPMOVVec8x64ToM  <types.TypeMask> mask) mem)
+
+(StoreMasked64 {t} ptr mask val mem) && t.Size() == 64 => (VPMASK64store512 ptr (VPMOVVec64x8ToM  <types.TypeMask> mask) val mem)
+(StoreMasked32 {t} ptr mask val mem) && t.Size() == 64 => (VPMASK32store512 ptr (VPMOVVec32x16ToM <types.TypeMask> mask) val mem)
+(StoreMasked16 {t} ptr mask val mem) && t.Size() == 64 => (VPMASK16store512 ptr (VPMOVVec16x32ToM <types.TypeMask> mask) val mem)
+(StoreMasked8  {t} ptr mask val mem) && t.Size() == 64 => (VPMASK8store512  ptr (VPMOVVec8x64ToM  <types.TypeMask> mask) val mem)
+
+(ZeroSIMD <t>) && t.Size() == 16 => (Zero128 <t>)
+(ZeroSIMD <t>) && t.Size() == 32 => (Zero256 <t>)
+(ZeroSIMD <t>) && t.Size() == 64 => (Zero512 <t>)
+
+(VPMOVVec8x16ToM (VPMOVMToVec8x16 x)) => x
+(VPMOVVec8x32ToM (VPMOVMToVec8x32 x)) => x
+(VPMOVVec8x64ToM (VPMOVMToVec8x64 x)) => x
+
+(VPMOVVec16x8ToM (VPMOVMToVec16x8 x)) => x
+(VPMOVVec16x16ToM (VPMOVMToVec16x16 x)) => x
+(VPMOVVec16x32ToM (VPMOVMToVec16x32 x)) => x
+
+(VPMOVVec32x4ToM (VPMOVMToVec32x4 x)) => x
+(VPMOVVec32x8ToM (VPMOVMToVec32x8 x)) => x
+(VPMOVVec32x16ToM (VPMOVMToVec32x16 x)) => x
+
+(VPMOVVec64x2ToM (VPMOVMToVec64x2 x)) => x
+(VPMOVVec64x4ToM (VPMOVMToVec64x4 x)) => x
+(VPMOVVec64x8ToM (VPMOVMToVec64x8 x)) => x
+
+(VPANDQ512 x (VPMOVMToVec64x8 k)) => (VMOVDQU64Masked512 x k)
+(VPANDQ512 x (VPMOVMToVec32x16 k)) => (VMOVDQU32Masked512 x k)
+(VPANDQ512 x (VPMOVMToVec16x32 k)) => (VMOVDQU16Masked512 x k)
+(VPANDQ512 x (VPMOVMToVec8x64 k)) => (VMOVDQU8Masked512 x k)
+(VPANDD512 x (VPMOVMToVec64x8 k)) => (VMOVDQU64Masked512 x k)
+(VPANDD512 x (VPMOVMToVec32x16 k)) => (VMOVDQU32Masked512 x k)
+(VPANDD512 x (VPMOVMToVec16x32 k)) => (VMOVDQU16Masked512 x k)
+(VPANDD512 x (VPMOVMToVec8x64 k)) => (VMOVDQU8Masked512 x k)
+
+(VPAND128 x (VPMOVMToVec8x16 k)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VMOVDQU8Masked128 x k)
+(VPAND128 x (VPMOVMToVec16x8 k)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VMOVDQU16Masked128 x k)
+(VPAND128 x (VPMOVMToVec32x4 k)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VMOVDQU32Masked128 x k)
+(VPAND128 x (VPMOVMToVec64x2 k)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VMOVDQU64Masked128 x k)
+
+(VPAND256 x (VPMOVMToVec8x32 k)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VMOVDQU8Masked256 x k)
+(VPAND256 x (VPMOVMToVec16x16 k)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VMOVDQU16Masked256 x k)
+(VPAND256 x (VPMOVMToVec32x8 k)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VMOVDQU32Masked256 x k)
+(VPAND256 x (VPMOVMToVec64x4 k)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VMOVDQU64Masked256 x k)
+
+// Insert to zero of 32/64 bit floats and ints to a zero is just MOVS[SD]
+(VPINSRQ128 [0] (Zero128 <t>) y) && y.Type.IsFloat() => (VMOVSDf2v <types.TypeVec128> y)
+(VPINSRD128 [0] (Zero128 <t>) y) && y.Type.IsFloat() => (VMOVSSf2v <types.TypeVec128> y)
+(VPINSRQ128 [0] (Zero128 <t>) y) && !y.Type.IsFloat() => (VMOVQ <types.TypeVec128> y)
+(VPINSRD128 [0] (Zero128 <t>) y) && !y.Type.IsFloat() => (VMOVD <types.TypeVec128> y)
+
+// These rewrites can skip zero-extending the 8/16-bit inputs because they are
+// only used as the input to a broadcast; the potentially "bad" bits are ignored
+(VPBROADCASTB(128|256|512) x:(VPINSRB128 [0] (Zero128    <t>) y)) && x.Uses == 1 =>
+	(VPBROADCASTB(128|256|512) (VMOVQ <types.TypeVec128> y))
+(VPBROADCASTW(128|256|512) x:(VPINSRW128 [0] (Zero128    <t>) y)) && x.Uses == 1 =>
+	(VPBROADCASTW(128|256|512)   (VMOVQ <types.TypeVec128> y))
+
+(VMOVQ x:(MOVQload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (VMOVQload <v.Type> [off] {sym} ptr mem)
+(VMOVD x:(MOVLload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (VMOVDload <v.Type> [off] {sym} ptr mem)
+
+(VMOVSDf2v x:(MOVSDload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (VMOVSDload <v.Type> [off] {sym} ptr mem)
+(VMOVSSf2v x:(MOVSSload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (VMOVSSload <v.Type> [off] {sym} ptr mem)
+
+(VMOVSDf2v x:(MOVSDconst [c] )) => (VMOVSDconst [c] )
+(VMOVSSf2v x:(MOVSSconst [c] )) => (VMOVSSconst [c] )
+
+(VMOVDQUload(128|256|512) [off1] {sym} x:(ADDQconst [off2] ptr) mem) && is32Bit(int64(off1)+int64(off2)) => (VMOVDQUload(128|256|512) [off1+off2] {sym} ptr mem)
+(VMOVDQUstore(128|256|512) [off1] {sym} x:(ADDQconst [off2] ptr) val mem) && is32Bit(int64(off1)+int64(off2)) => (VMOVDQUstore(128|256|512) [off1+off2] {sym} ptr val mem)
+(VMOVDQUload(128|256|512) [off1] {sym1} x:(LEAQ [off2] {sym2} base) mem) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) => (VMOVDQUload(128|256|512) [off1+off2] {mergeSym(sym1, sym2)} base mem)
+(VMOVDQUstore(128|256|512) [off1] {sym1} x:(LEAQ [off2] {sym2} base) val mem) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) => (VMOVDQUstore(128|256|512) [off1+off2] {mergeSym(sym1, sym2)} base val mem)
+
+// 2-op VPTEST optimizations
+(SETEQ (VPTEST x:(VPAND(128|256) j k) y)) && x == y && x.Uses == 2 => (SETEQ (VPTEST j k))
+(SETEQ (VPTEST x:(VPAND(D|Q)512 j k) y)) && x == y && x.Uses == 2 => (SETEQ (VPTEST j k))
+(SETEQ (VPTEST x:(VPANDN(128|256) j k) y)) && x == y && x.Uses == 2 => (SETB (VPTEST k j)) // AndNot has swapped its operand order
+(SETEQ (VPTEST x:(VPANDN(D|Q)512 j k) y)) && x == y && x.Uses == 2 => (SETB (VPTEST k j)) // AndNot has swapped its operand order
+(EQ (VPTEST x:(VPAND(128|256) j k) y) yes no) && x == y && x.Uses == 2 => (EQ (VPTEST j k) yes no)
+(EQ (VPTEST x:(VPAND(D|Q)512 j k) y) yes no) && x == y && x.Uses == 2 => (EQ (VPTEST j k) yes no)
+(EQ (VPTEST x:(VPANDN(128|256) j k) y) yes no) && x == y && x.Uses == 2 => (ULT (VPTEST k j) yes no) // AndNot has swapped its operand order
+(EQ (VPTEST x:(VPANDN(D|Q)512 j k) y) yes no) && x == y && x.Uses == 2 => (ULT (VPTEST k j) yes no) // AndNot has swapped its operand order
+
+// DotProductQuadruple optimizations
+(VPADDD128 (VPDPBUSD128 (Zero128 <t>) x y) z) => (VPDPBUSD128 <t> z x y)
+(VPADDD256 (VPDPBUSD256 (Zero256 <t>) x y) z) => (VPDPBUSD256 <t> z x y)
+(VPADDD512 (VPDPBUSD512 (Zero512 <t>) x y) z) => (VPDPBUSD512 <t> z x y)
+(VPADDD128 (VPDPBUSDS128 (Zero128 <t>) x y) z) => (VPDPBUSDS128 <t> z x y)
+(VPADDD256 (VPDPBUSDS256 (Zero256 <t>) x y) z) => (VPDPBUSDS256 <t> z x y)
+(VPADDD512 (VPDPBUSDS512 (Zero512 <t>) x y) z) => (VPDPBUSDS512 <t> z x y)

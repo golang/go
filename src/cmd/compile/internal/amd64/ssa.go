@@ -18,6 +18,7 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/obj/x86"
 	"internal/abi"
+	"internal/buildcfg"
 )
 
 // ssaMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
@@ -43,11 +44,23 @@ func ssaMarkMoves(s *ssagen.State, b *ssa.Block) {
 	}
 }
 
-// loadByType returns the load instruction of the given type.
-func loadByType(t *types.Type) obj.As {
-	// Avoid partial register write
-	if !t.IsFloat() {
-		switch t.Size() {
+func isFPReg(r int16) bool {
+	return x86.REG_X0 <= r && r <= x86.REG_Z31
+}
+
+func isKReg(r int16) bool {
+	return x86.REG_K0 <= r && r <= x86.REG_K7
+}
+
+func isLowFPReg(r int16) bool {
+	return x86.REG_X0 <= r && r <= x86.REG_X15
+}
+
+// loadByRegWidth returns the load instruction of the given register of a given width.
+func loadByRegWidth(r int16, width int64) obj.As {
+	// Avoid partial register write for GPR
+	if !isFPReg(r) && !isKReg(r) {
+		switch width {
 		case 1:
 			return x86.AMOVBLZX
 		case 2:
@@ -55,61 +68,95 @@ func loadByType(t *types.Type) obj.As {
 		}
 	}
 	// Otherwise, there's no difference between load and store opcodes.
-	return storeByType(t)
+	return storeByRegWidth(r, width)
 }
 
-// storeByType returns the store instruction of the given type.
-func storeByType(t *types.Type) obj.As {
-	width := t.Size()
-	if t.IsFloat() {
+// storeByRegWidth returns the store instruction of the given register of a given width.
+// It's also used for loading const to a reg.
+func storeByRegWidth(r int16, width int64) obj.As {
+	if isFPReg(r) {
 		switch width {
 		case 4:
 			return x86.AMOVSS
 		case 8:
 			return x86.AMOVSD
-		}
-	} else {
-		switch width {
-		case 1:
-			return x86.AMOVB
-		case 2:
-			return x86.AMOVW
-		case 4:
-			return x86.AMOVL
-		case 8:
-			return x86.AMOVQ
 		case 16:
-			return x86.AMOVUPS
+			// int128s are in SSE registers
+			if isLowFPReg(r) {
+				return x86.AMOVUPS
+			} else {
+				return x86.AVMOVDQU
+			}
+		case 32:
+			return x86.AVMOVDQU
+		case 64:
+			return x86.AVMOVDQU64
 		}
 	}
-	panic(fmt.Sprintf("bad store type %v", t))
+	if isKReg(r) {
+		return x86.AKMOVQ
+	}
+	// gp
+	switch width {
+	case 1:
+		return x86.AMOVB
+	case 2:
+		return x86.AMOVW
+	case 4:
+		return x86.AMOVL
+	case 8:
+		return x86.AMOVQ
+	}
+	panic(fmt.Sprintf("bad store reg=%v, width=%d", r, width))
 }
 
-// moveByType returns the reg->reg move instruction of the given type.
-func moveByType(t *types.Type) obj.As {
-	if t.IsFloat() {
+// moveByRegsWidth returns the reg->reg move instruction of the given dest/src registers of a given width.
+func moveByRegsWidth(dest, src int16, width int64) obj.As {
+	// fp -> fp
+	if isFPReg(dest) && isFPReg(src) {
 		// Moving the whole sse2 register is faster
 		// than moving just the correct low portion of it.
 		// There is no xmm->xmm move with 1 byte opcode,
 		// so use movups, which has 2 byte opcode.
-		return x86.AMOVUPS
-	} else {
-		switch t.Size() {
-		case 1:
-			// Avoids partial register write
-			return x86.AMOVL
-		case 2:
-			return x86.AMOVL
-		case 4:
-			return x86.AMOVL
-		case 8:
-			return x86.AMOVQ
-		case 16:
-			return x86.AMOVUPS // int128s are in SSE registers
-		default:
-			panic(fmt.Sprintf("bad int register width %d:%v", t.Size(), t))
+		if isLowFPReg(dest) && isLowFPReg(src) && width <= 16 {
+			return x86.AMOVUPS
 		}
+		if width <= 32 {
+			return x86.AVMOVDQU
+		}
+		return x86.AVMOVDQU64
 	}
+	// k -> gp, gp -> k, k -> k
+	if isKReg(dest) || isKReg(src) {
+		if isFPReg(dest) || isFPReg(src) {
+			panic(fmt.Sprintf("bad move, src=%v, dest=%v, width=%d", src, dest, width))
+		}
+		return x86.AKMOVQ
+	}
+	// gp -> fp, fp -> gp, gp -> gp
+	switch width {
+	case 1:
+		// Avoids partial register write
+		return x86.AMOVL
+	case 2:
+		return x86.AMOVL
+	case 4:
+		return x86.AMOVL
+	case 8:
+		return x86.AMOVQ
+	case 16:
+		if isLowFPReg(dest) && isLowFPReg(src) {
+			// int128s are in SSE registers
+			return x86.AMOVUPS
+		} else {
+			return x86.AVMOVDQU
+		}
+	case 32:
+		return x86.AVMOVDQU
+	case 64:
+		return x86.AVMOVDQU64
+	}
+	panic(fmt.Sprintf("bad move, src=%v, dest=%v, width=%d", src, dest, width))
 }
 
 // opregreg emits instructions for
@@ -605,7 +652,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// But this requires a way for regalloc to know that SRC might be
 		// clobbered by this instruction.
 		t := v.RegTmp()
-		opregreg(s, moveByType(v.Type), t, v.Args[1].Reg())
+		opregreg(s, moveByRegsWidth(t, v.Args[1].Reg(), v.Type.Size()), t, v.Args[1].Reg())
 
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
@@ -777,9 +824,14 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = x
+
 	case ssa.OpAMD64MOVSSconst, ssa.OpAMD64MOVSDconst:
 		x := v.Reg()
-		p := s.Prog(v.Op.Asm())
+		if !isFPReg(x) && v.AuxInt == 0 && v.Aux == nil {
+			opregreg(s, x86.AXORL, x, x)
+			break
+		}
+		p := s.Prog(storeByRegWidth(x, v.Type.Size()))
 		p.From.Type = obj.TYPE_FCONST
 		p.From.Val = math.Float64frombits(uint64(v.AuxInt))
 		p.To.Type = obj.TYPE_REG
@@ -1176,27 +1228,39 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		}
 		x := v.Args[0].Reg()
 		y := v.Reg()
+		if v.Type.IsSIMD() {
+			x = simdOrMaskReg(v.Args[0])
+			y = simdOrMaskReg(v)
+		}
 		if x != y {
-			opregreg(s, moveByType(v.Type), y, x)
+			opregreg(s, moveByRegsWidth(y, x, v.Type.Size()), y, x)
 		}
 	case ssa.OpLoadReg:
 		if v.Type.IsFlags() {
 			v.Fatalf("load flags not implemented: %v", v.LongString())
 			return
 		}
-		p := s.Prog(loadByType(v.Type))
+		r := v.Reg()
+		p := s.Prog(loadByRegWidth(r, v.Type.Size()))
 		ssagen.AddrAuto(&p.From, v.Args[0])
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = v.Reg()
+		if v.Type.IsSIMD() {
+			r = simdOrMaskReg(v)
+		}
+		p.To.Reg = r
 
 	case ssa.OpStoreReg:
 		if v.Type.IsFlags() {
 			v.Fatalf("store flags not implemented: %v", v.LongString())
 			return
 		}
-		p := s.Prog(storeByType(v.Type))
+		r := v.Args[0].Reg()
+		if v.Type.IsSIMD() {
+			r = simdOrMaskReg(v.Args[0])
+		}
+		p := s.Prog(storeByRegWidth(r, v.Type.Size()))
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = v.Args[0].Reg()
+		p.From.Reg = r
 		ssagen.AddrAuto(&p.To, v)
 	case ssa.OpAMD64LoweredHasCPUFeature:
 		p := s.Prog(x86.AMOVBLZX)
@@ -1210,8 +1274,14 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		for _, ap := range v.Block.Func.RegArgs {
 			// Pass the spill/unspill information along to the assembler, offset by size of return PC pushed on stack.
 			addr := ssagen.SpillSlotAddr(ap, x86.REG_SP, v.Block.Func.Config.PtrSize)
+			reg := ap.Reg
+			t := ap.Type
+			sz := t.Size()
+			if t.IsSIMD() {
+				reg = simdRegBySize(reg, sz)
+			}
 			s.FuncInfo().AddSpill(
-				obj.RegSpill{Reg: ap.Reg, Addr: addr, Unspill: loadByType(ap.Type), Spill: storeByType(ap.Type)})
+				obj.RegSpill{Reg: reg, Addr: addr, Unspill: loadByRegWidth(reg, sz), Spill: storeByRegWidth(reg, sz)})
 		}
 		v.Block.Func.RegArgs = nil
 		ssagen.CheckArgReg(v)
@@ -1227,7 +1297,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	case ssa.OpAMD64CALLstatic, ssa.OpAMD64CALLtail:
 		if s.ABI == obj.ABI0 && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABIInternal {
 			// zeroing X15 when entering ABIInternal from ABI0
-			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+			zeroX15(s)
 			// set G register from TLS
 			getgFromTLS(s, x86.REG_R14)
 		}
@@ -1238,7 +1308,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		s.Call(v)
 		if s.ABI == obj.ABIInternal && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABI0 {
 			// zeroing X15 when entering ABIInternal from ABI0
-			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+			zeroX15(s)
 			// set G register from TLS
 			getgFromTLS(s, x86.REG_R14)
 		}
@@ -1643,9 +1713,682 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Offset = int64(x)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
+
+	// SIMD ops
+	case ssa.OpAMD64VZEROUPPER, ssa.OpAMD64VZEROALL:
+		s.Prog(v.Op.Asm())
+
+	case ssa.OpAMD64Zero128, ssa.OpAMD64Zero256, ssa.OpAMD64Zero512: // no code emitted
+
+	case ssa.OpAMD64VMOVSSf2v, ssa.OpAMD64VMOVSDf2v:
+		// These are for initializing the least 32/64 bits of a SIMD register from a "float".
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[0].Reg()
+		p.AddRestSourceReg(x86.REG_X15)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = simdReg(v)
+
+	case ssa.OpAMD64VMOVQload, ssa.OpAMD64VMOVDload,
+		ssa.OpAMD64VMOVSSload, ssa.OpAMD64VMOVSDload:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = v.Args[0].Reg()
+		ssagen.AddAux(&p.From, v)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = simdReg(v)
+
+	case ssa.OpAMD64VMOVSSconst, ssa.OpAMD64VMOVSDconst:
+		// for loading constants directly into SIMD registers
+		x := simdReg(v)
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_FCONST
+		p.From.Val = math.Float64frombits(uint64(v.AuxInt))
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = x
+
+	case ssa.OpAMD64VMOVD, ssa.OpAMD64VMOVQ:
+		// These are for initializing the least 32/64 bits of a SIMD register from an "int".
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[0].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = simdReg(v)
+
+	case ssa.OpAMD64VMOVDQUload128, ssa.OpAMD64VMOVDQUload256, ssa.OpAMD64VMOVDQUload512,
+		ssa.OpAMD64KMOVBload, ssa.OpAMD64KMOVWload, ssa.OpAMD64KMOVDload, ssa.OpAMD64KMOVQload:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = v.Args[0].Reg()
+		ssagen.AddAux(&p.From, v)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = simdOrMaskReg(v)
+	case ssa.OpAMD64VMOVDQUstore128, ssa.OpAMD64VMOVDQUstore256, ssa.OpAMD64VMOVDQUstore512,
+		ssa.OpAMD64KMOVBstore, ssa.OpAMD64KMOVWstore, ssa.OpAMD64KMOVDstore, ssa.OpAMD64KMOVQstore:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = simdOrMaskReg(v.Args[1])
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = v.Args[0].Reg()
+		ssagen.AddAux(&p.To, v)
+
+	case ssa.OpAMD64VPMASK32load128, ssa.OpAMD64VPMASK64load128, ssa.OpAMD64VPMASK32load256, ssa.OpAMD64VPMASK64load256:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = v.Args[0].Reg()
+		ssagen.AddAux(&p.From, v)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = simdReg(v)
+		p.AddRestSourceReg(simdReg(v.Args[1])) // masking simd reg
+
+	case ssa.OpAMD64VPMASK32store128, ssa.OpAMD64VPMASK64store128, ssa.OpAMD64VPMASK32store256, ssa.OpAMD64VPMASK64store256:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = simdReg(v.Args[2])
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = v.Args[0].Reg()
+		ssagen.AddAux(&p.To, v)
+		p.AddRestSourceReg(simdReg(v.Args[1])) // masking simd reg
+
+	case ssa.OpAMD64VPMASK64load512, ssa.OpAMD64VPMASK32load512, ssa.OpAMD64VPMASK16load512, ssa.OpAMD64VPMASK8load512:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = v.Args[0].Reg()
+		ssagen.AddAux(&p.From, v)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = simdReg(v)
+		p.AddRestSourceReg(v.Args[1].Reg()) // simd mask reg
+		x86.ParseSuffix(p, "Z")             // must be zero if not in mask
+
+	case ssa.OpAMD64VPMASK64store512, ssa.OpAMD64VPMASK32store512, ssa.OpAMD64VPMASK16store512, ssa.OpAMD64VPMASK8store512:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = simdReg(v.Args[2])
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = v.Args[0].Reg()
+		ssagen.AddAux(&p.To, v)
+		p.AddRestSourceReg(v.Args[1].Reg()) // simd mask reg
+
+	case ssa.OpAMD64VPMOVMToVec8x16,
+		ssa.OpAMD64VPMOVMToVec8x32,
+		ssa.OpAMD64VPMOVMToVec8x64,
+		ssa.OpAMD64VPMOVMToVec16x8,
+		ssa.OpAMD64VPMOVMToVec16x16,
+		ssa.OpAMD64VPMOVMToVec16x32,
+		ssa.OpAMD64VPMOVMToVec32x4,
+		ssa.OpAMD64VPMOVMToVec32x8,
+		ssa.OpAMD64VPMOVMToVec32x16,
+		ssa.OpAMD64VPMOVMToVec64x2,
+		ssa.OpAMD64VPMOVMToVec64x4,
+		ssa.OpAMD64VPMOVMToVec64x8:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[0].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = simdReg(v)
+
+	case ssa.OpAMD64VPMOVVec8x16ToM,
+		ssa.OpAMD64VPMOVVec8x32ToM,
+		ssa.OpAMD64VPMOVVec8x64ToM,
+		ssa.OpAMD64VPMOVVec16x8ToM,
+		ssa.OpAMD64VPMOVVec16x16ToM,
+		ssa.OpAMD64VPMOVVec16x32ToM,
+		ssa.OpAMD64VPMOVVec32x4ToM,
+		ssa.OpAMD64VPMOVVec32x8ToM,
+		ssa.OpAMD64VPMOVVec32x16ToM,
+		ssa.OpAMD64VPMOVVec64x2ToM,
+		ssa.OpAMD64VPMOVVec64x4ToM,
+		ssa.OpAMD64VPMOVVec64x8ToM:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = simdReg(v.Args[0])
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+
+	case ssa.OpAMD64KMOVQk, ssa.OpAMD64KMOVDk, ssa.OpAMD64KMOVWk, ssa.OpAMD64KMOVBk,
+		ssa.OpAMD64KMOVQi, ssa.OpAMD64KMOVDi, ssa.OpAMD64KMOVWi, ssa.OpAMD64KMOVBi:
+		// See also ssa.OpAMD64KMOVQload
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[0].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+	case ssa.OpAMD64VPTEST:
+		// Some instructions setting flags put their second operand into the destination reg.
+		// See also CMP[BWDQ].
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = simdReg(v.Args[0])
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = simdReg(v.Args[1])
+
 	default:
-		v.Fatalf("genValue not implemented: %s", v.LongString())
+		if !ssaGenSIMDValue(s, v) {
+			v.Fatalf("genValue not implemented: %s", v.LongString())
+		}
 	}
+}
+
+// zeroX15 zeroes the X15 register.
+func zeroX15(s *ssagen.State) {
+	vxorps := func(s *ssagen.State) {
+		p := s.Prog(x86.AVXORPS)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = x86.REG_X15
+		p.AddRestSourceReg(x86.REG_X15)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = x86.REG_X15
+	}
+	if buildcfg.GOAMD64 >= 3 {
+		vxorps(s)
+		return
+	}
+	// AVX may not be available, check before zeroing the high bits.
+	p := s.Prog(x86.ACMPB)
+	p.From.Type = obj.TYPE_MEM
+	p.From.Name = obj.NAME_EXTERN
+	p.From.Sym = ir.Syms.X86HasAVX
+	p.To.Type = obj.TYPE_CONST
+	p.To.Offset = 1
+	jmp := s.Prog(x86.AJNE)
+	jmp.To.Type = obj.TYPE_BRANCH
+	vxorps(s)
+	sse := opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+	jmp.To.SetTarget(sse)
+}
+
+// Example instruction: VRSQRTPS X1, X1
+func simdV11(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = simdReg(v.Args[0])
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: VPSUBD X1, X2, X3
+func simdV21(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	// Vector registers operands follows a right-to-left order.
+	// e.g. VPSUBD X1, X2, X3 means X3 = X2 - X1.
+	p.From.Reg = simdReg(v.Args[1])
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// This function is to accustomize the shifts.
+// The 2nd arg is an XMM, and this function merely checks that.
+// Example instruction: VPSLLQ Z1, X1, Z2
+func simdVfpv(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	// Vector registers operands follows a right-to-left order.
+	// e.g. VPSUBD X1, X2, X3 means X3 = X2 - X1.
+	p.From.Reg = v.Args[1].Reg()
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: VPCMPEQW Z26, Z30, K4
+func simdV2k(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = simdReg(v.Args[1])
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = maskReg(v)
+	return p
+}
+
+// Example instruction: VPMINUQ X21, X3, K3, X31
+func simdV2kv(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = simdReg(v.Args[1])
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	// These "simd*" series of functions assumes:
+	// Any "K" register that serves as the write-mask
+	// or "predicate" for "predicated AVX512 instructions"
+	// sits right at the end of the operand list.
+	// TODO: verify this assumption.
+	p.AddRestSourceReg(maskReg(v.Args[2]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: VPABSB X1, X2, K3 (masking merging)
+func simdV2kvResultInArg0(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = simdReg(v.Args[1])
+	// These "simd*" series of functions assumes:
+	// Any "K" register that serves as the write-mask
+	// or "predicate" for "predicated AVX512 instructions"
+	// sits right at the end of the operand list.
+	// TODO: verify this assumption.
+	p.AddRestSourceReg(maskReg(v.Args[2]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// This function is to accustomize the shifts.
+// The 2nd arg is an XMM, and this function merely checks that.
+// Example instruction: VPSLLQ Z1, X1, K1, Z2
+func simdVfpkv(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = v.Args[1].Reg()
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.AddRestSourceReg(maskReg(v.Args[2]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: VPCMPEQW Z26, Z30, K1, K4
+func simdV2kk(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = simdReg(v.Args[1])
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.AddRestSourceReg(maskReg(v.Args[2]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = maskReg(v)
+	return p
+}
+
+// Example instruction: VPOPCNTB X14, K4, X16
+func simdVkv(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = simdReg(v.Args[0])
+	p.AddRestSourceReg(maskReg(v.Args[1]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: VROUNDPD $7, X2, X2
+func simdV11Imm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Offset = int64(v.AuxUInt8())
+	p.From.Type = obj.TYPE_CONST
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: VREDUCEPD $126, X1, K3, X31
+func simdVkvImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Offset = int64(v.AuxUInt8())
+	p.From.Type = obj.TYPE_CONST
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.AddRestSourceReg(maskReg(v.Args[1]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: VCMPPS $7, X2, X9, X2
+func simdV21Imm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Offset = int64(v.AuxUInt8())
+	p.From.Type = obj.TYPE_CONST
+	p.AddRestSourceReg(simdReg(v.Args[1]))
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: VPINSRB $3, DX, X0, X0
+func simdVgpvImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Offset = int64(v.AuxUInt8())
+	p.From.Type = obj.TYPE_CONST
+	p.AddRestSourceReg(v.Args[1].Reg())
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: VPCMPD $1, Z1, Z2, K1
+func simdV2kImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Offset = int64(v.AuxUInt8())
+	p.From.Type = obj.TYPE_CONST
+	p.AddRestSourceReg(simdReg(v.Args[1]))
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = maskReg(v)
+	return p
+}
+
+// Example instruction: VPCMPD $1, Z1, Z2, K2, K1
+func simdV2kkImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Offset = int64(v.AuxUInt8())
+	p.From.Type = obj.TYPE_CONST
+	p.AddRestSourceReg(simdReg(v.Args[1]))
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.AddRestSourceReg(maskReg(v.Args[2]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = maskReg(v)
+	return p
+}
+
+func simdV2kvImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Offset = int64(v.AuxUInt8())
+	p.From.Type = obj.TYPE_CONST
+	p.AddRestSourceReg(simdReg(v.Args[1]))
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.AddRestSourceReg(maskReg(v.Args[2]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: VFMADD213PD Z2, Z1, Z0
+func simdV31ResultInArg0(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = simdReg(v.Args[2])
+	p.AddRestSourceReg(simdReg(v.Args[1]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+func simdV31ResultInArg0Imm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Offset = int64(v.AuxUInt8())
+	p.From.Type = obj.TYPE_CONST
+
+	p.AddRestSourceReg(simdReg(v.Args[2]))
+	p.AddRestSourceReg(simdReg(v.Args[1]))
+	// p.AddRestSourceReg(x86.REG_K0)
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// v31loadResultInArg0Imm8
+// Example instruction:
+// for (VPTERNLOGD128load {sym} [makeValAndOff(int32(int8(c)),off)]  x y ptr mem)
+func simdV31loadResultInArg0Imm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	sc := v.AuxValAndOff()
+	p := s.Prog(v.Op.Asm())
+
+	p.From.Type = obj.TYPE_CONST
+	p.From.Offset = sc.Val64()
+
+	m := obj.Addr{Type: obj.TYPE_MEM, Reg: v.Args[2].Reg()}
+	ssagen.AddAux2(&m, v, sc.Off64())
+	p.AddRestSource(m)
+
+	p.AddRestSourceReg(simdReg(v.Args[1]))
+	return p
+}
+
+// Example instruction: VFMADD213PD Z2, Z1, K1, Z0
+func simdV3kvResultInArg0(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = simdReg(v.Args[2])
+	p.AddRestSourceReg(simdReg(v.Args[1]))
+	p.AddRestSourceReg(maskReg(v.Args[3]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+func simdVgpImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Offset = int64(v.AuxUInt8())
+	p.From.Type = obj.TYPE_CONST
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = v.Reg()
+	return p
+}
+
+// Currently unused
+func simdV31(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = simdReg(v.Args[2])
+	p.AddRestSourceReg(simdReg(v.Args[1]))
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Currently unused
+func simdV3kv(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = simdReg(v.Args[2])
+	p.AddRestSourceReg(simdReg(v.Args[1]))
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.AddRestSourceReg(maskReg(v.Args[3]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: VRCP14PS (DI), K6, X22
+func simdVkvload(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_MEM
+	p.From.Reg = v.Args[0].Reg()
+	ssagen.AddAux(&p.From, v)
+	p.AddRestSourceReg(maskReg(v.Args[1]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: VPSLLVD (DX), X7, X18
+func simdV21load(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_MEM
+	p.From.Reg = v.Args[1].Reg()
+	ssagen.AddAux(&p.From, v)
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: VPDPWSSD (SI), X24, X18
+func simdV31loadResultInArg0(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_MEM
+	p.From.Reg = v.Args[2].Reg()
+	ssagen.AddAux(&p.From, v)
+	p.AddRestSourceReg(simdReg(v.Args[1]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: VPDPWSSD (SI), X24, K1, X18
+func simdV3kvloadResultInArg0(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_MEM
+	p.From.Reg = v.Args[2].Reg()
+	ssagen.AddAux(&p.From, v)
+	p.AddRestSourceReg(simdReg(v.Args[1]))
+	p.AddRestSourceReg(maskReg(v.Args[3]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: VPSLLVD (SI), X1, K1, X2
+func simdV2kvload(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_MEM
+	p.From.Reg = v.Args[1].Reg()
+	ssagen.AddAux(&p.From, v)
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.AddRestSourceReg(maskReg(v.Args[2]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: VPCMPEQD (SI), X1, K1
+func simdV2kload(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_MEM
+	p.From.Reg = v.Args[1].Reg()
+	ssagen.AddAux(&p.From, v)
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = maskReg(v)
+	return p
+}
+
+// Example instruction: VCVTTPS2DQ (BX), X2
+func simdV11load(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_MEM
+	p.From.Reg = v.Args[0].Reg()
+	ssagen.AddAux(&p.From, v)
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: VPSHUFD $7, (BX), X11
+func simdV11loadImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	sc := v.AuxValAndOff()
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_CONST
+	p.From.Offset = sc.Val64()
+	m := obj.Addr{Type: obj.TYPE_MEM, Reg: v.Args[0].Reg()}
+	ssagen.AddAux2(&m, v, sc.Off64())
+	p.AddRestSource(m)
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: VPRORD $81, -15(R14), K7, Y1
+func simdVkvloadImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	sc := v.AuxValAndOff()
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_CONST
+	p.From.Offset = sc.Val64()
+	m := obj.Addr{Type: obj.TYPE_MEM, Reg: v.Args[0].Reg()}
+	ssagen.AddAux2(&m, v, sc.Off64())
+	p.AddRestSource(m)
+	p.AddRestSourceReg(maskReg(v.Args[1]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: VPSHLDD $82, 7(SI), Y21, Y3
+func simdV21loadImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	sc := v.AuxValAndOff()
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_CONST
+	p.From.Offset = sc.Val64()
+	m := obj.Addr{Type: obj.TYPE_MEM, Reg: v.Args[1].Reg()}
+	ssagen.AddAux2(&m, v, sc.Off64())
+	p.AddRestSource(m)
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: VCMPPS $81, -7(DI), Y16, K3
+func simdV2kloadImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	sc := v.AuxValAndOff()
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_CONST
+	p.From.Offset = sc.Val64()
+	m := obj.Addr{Type: obj.TYPE_MEM, Reg: v.Args[1].Reg()}
+	ssagen.AddAux2(&m, v, sc.Off64())
+	p.AddRestSource(m)
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = maskReg(v)
+	return p
+}
+
+// Example instruction: VCMPPS $81, -7(DI), Y16, K1, K3
+func simdV2kkloadImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	sc := v.AuxValAndOff()
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_CONST
+	p.From.Offset = sc.Val64()
+	m := obj.Addr{Type: obj.TYPE_MEM, Reg: v.Args[1].Reg()}
+	ssagen.AddAux2(&m, v, sc.Off64())
+	p.AddRestSource(m)
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.AddRestSourceReg(maskReg(v.Args[2]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = maskReg(v)
+	return p
+}
+
+// Example instruction: VGF2P8AFFINEINVQB $64, -17(BP), X31, K3, X26
+func simdV2kvloadImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	sc := v.AuxValAndOff()
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_CONST
+	p.From.Offset = sc.Val64()
+	m := obj.Addr{Type: obj.TYPE_MEM, Reg: v.Args[1].Reg()}
+	ssagen.AddAux2(&m, v, sc.Off64())
+	p.AddRestSource(m)
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.AddRestSourceReg(maskReg(v.Args[2]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: SHA1NEXTE X2, X2
+func simdV21ResultInArg0(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = simdReg(v.Args[1])
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: SHA1RNDS4 $1, X2, X2
+func simdV21ResultInArg0Imm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Offset = int64(v.AuxUInt8())
+	p.From.Type = obj.TYPE_CONST
+	p.AddRestSourceReg(simdReg(v.Args[1]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: SHA256RNDS2 X0, X11, X2
+func simdV31x0AtIn2ResultInArg0(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	return simdV31ResultInArg0(s, v)
 }
 
 var blockJump = [...]struct {
@@ -1732,7 +2475,7 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 }
 
 func loadRegResult(s *ssagen.State, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
-	p := s.Prog(loadByType(t))
+	p := s.Prog(loadByRegWidth(reg, t.Size()))
 	p.From.Type = obj.TYPE_MEM
 	p.From.Name = obj.NAME_AUTO
 	p.From.Sym = n.Linksym()
@@ -1743,7 +2486,7 @@ func loadRegResult(s *ssagen.State, f *ssa.Func, t *types.Type, reg int16, n *ir
 }
 
 func spillArgReg(pp *objw.Progs, p *obj.Prog, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
-	p = pp.Append(p, storeByType(t), obj.TYPE_REG, reg, 0, obj.TYPE_MEM, 0, n.FrameOffset()+off)
+	p = pp.Append(p, storeByRegWidth(reg, t.Size()), obj.TYPE_REG, reg, 0, obj.TYPE_MEM, 0, n.FrameOffset()+off)
 	p.To.Name = obj.NAME_PARAM
 	p.To.Sym = n.Linksym()
 	p.Pos = p.Pos.WithNotStmt()
@@ -1777,4 +2520,59 @@ func move16(s *ssagen.State, src, dst, tmp int16, off int64) {
 	p.To.Type = obj.TYPE_MEM
 	p.To.Reg = dst
 	p.To.Offset = off
+}
+
+// XXX maybe make this part of v.Reg?
+// On the other hand, it is architecture-specific.
+func simdReg(v *ssa.Value) int16 {
+	t := v.Type
+	if !t.IsSIMD() {
+		base.Fatalf("simdReg: not a simd type; v=%s, b=b%d, f=%s", v.LongString(), v.Block.ID, v.Block.Func.Name)
+	}
+	return simdRegBySize(v.Reg(), t.Size())
+}
+
+func simdRegBySize(reg int16, size int64) int16 {
+	switch size {
+	case 16:
+		return reg
+	case 32:
+		return reg + (x86.REG_Y0 - x86.REG_X0)
+	case 64:
+		return reg + (x86.REG_Z0 - x86.REG_X0)
+	}
+	panic("simdRegBySize: bad size")
+}
+
+// XXX k mask
+func maskReg(v *ssa.Value) int16 {
+	t := v.Type
+	if !t.IsSIMD() {
+		base.Fatalf("maskReg: not a simd type; v=%s, b=b%d, f=%s", v.LongString(), v.Block.ID, v.Block.Func.Name)
+	}
+	switch t.Size() {
+	case 8:
+		return v.Reg()
+	}
+	panic("unreachable")
+}
+
+// XXX k mask + vec
+func simdOrMaskReg(v *ssa.Value) int16 {
+	t := v.Type
+	if t.Size() <= 8 {
+		return maskReg(v)
+	}
+	return simdReg(v)
+}
+
+// XXX this is used for shift operations only.
+// regalloc will issue OpCopy with incorrect type, but the assigned
+// register should be correct, and this function is merely checking
+// the sanity of this part.
+func simdCheckRegOnly(v *ssa.Value, regStart, regEnd int16) int16 {
+	if v.Reg() > regEnd || v.Reg() < regStart {
+		panic("simdCheckRegOnly: not the desired register")
+	}
+	return v.Reg()
 }

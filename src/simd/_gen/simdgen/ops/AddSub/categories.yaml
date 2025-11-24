@@ -1,0 +1,37 @@
+!sum
+- go: Add
+  commutative: true
+  documentation: !string |-
+    // NAME adds corresponding elements of two vectors.
+- go: AddSaturated
+  commutative: true
+  documentation: !string |-
+    // NAME adds corresponding elements of two vectors with saturation.
+- go: Sub
+  commutative: false
+  documentation: !string |-
+    // NAME subtracts corresponding elements of two vectors.
+- go: SubSaturated
+  commutative: false
+  documentation: !string |-
+    // NAME subtracts corresponding elements of two vectors with saturation.
+- go: AddPairs
+  commutative: false
+  documentation: !string |-
+    // NAME horizontally adds adjacent pairs of elements.
+    // For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
+- go: SubPairs
+  commutative: false
+  documentation: !string |-
+    // NAME horizontally subtracts adjacent pairs of elements.
+    // For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
+- go: AddPairsSaturated
+  commutative: false
+  documentation: !string |-
+    // NAME horizontally adds adjacent pairs of elements with saturation.
+    // For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
+- go: SubPairsSaturated
+  commutative: false
+  documentation: !string |-
+    // NAME horizontally subtracts adjacent pairs of elements with saturation.
+    // For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].

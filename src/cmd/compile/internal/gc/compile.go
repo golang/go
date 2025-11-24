@@ -29,7 +29,7 @@ var (
 	compilequeue []*ir.Func // functions waiting to be compiled
 )
 
-func enqueueFunc(fn *ir.Func) {
+func enqueueFunc(fn *ir.Func, symABIs *ssagen.SymABIs) {
 	if ir.CurFunc != nil {
 		base.FatalfAt(fn.Pos(), "enqueueFunc %v inside %v", fn, ir.CurFunc)
 	}
@@ -49,22 +49,30 @@ func enqueueFunc(fn *ir.Func) {
 	}
 
 	if len(fn.Body) == 0 {
-		// Initialize ABI wrappers if necessary.
-		ir.InitLSym(fn, false)
-		types.CalcSize(fn.Type())
-		a := ssagen.AbiForBodylessFuncStackMap(fn)
-		abiInfo := a.ABIAnalyzeFuncType(fn.Type()) // abiInfo has spill/home locations for wrapper
-		if fn.ABI == obj.ABI0 {
-			// The current args_stackmap generation assumes the function
-			// is ABI0, and only ABI0 assembly function can have a FUNCDATA
-			// reference to args_stackmap (see cmd/internal/obj/plist.go:Flushplist).
-			// So avoid introducing an args_stackmap if the func is not ABI0.
-			liveness.WriteFuncMap(fn, abiInfo)
+		if ir.IsIntrinsicSym(fn.Sym()) && fn.Sym().Linkname == "" && !symABIs.HasDef(fn.Sym()) {
+			// Generate the function body for a bodyless intrinsic, in case it
+			// is used in a non-call context (e.g. as a function pointer).
+			// We skip functions defined in assembly, or has a linkname (which
+			// could be defined in another package).
+			ssagen.GenIntrinsicBody(fn)
+		} else {
+			// Initialize ABI wrappers if necessary.
+			ir.InitLSym(fn, false)
+			types.CalcSize(fn.Type())
+			a := ssagen.AbiForBodylessFuncStackMap(fn)
+			abiInfo := a.ABIAnalyzeFuncType(fn.Type()) // abiInfo has spill/home locations for wrapper
+			if fn.ABI == obj.ABI0 {
+				// The current args_stackmap generation assumes the function
+				// is ABI0, and only ABI0 assembly function can have a FUNCDATA
+				// reference to args_stackmap (see cmd/internal/obj/plist.go:Flushplist).
+				// So avoid introducing an args_stackmap if the func is not ABI0.
+				liveness.WriteFuncMap(fn, abiInfo)
 
-			x := ssagen.EmitArgInfo(fn, abiInfo)
-			objw.Global(x, int32(len(x.P)), obj.RODATA|obj.LOCAL)
+				x := ssagen.EmitArgInfo(fn, abiInfo)
+				objw.Global(x, int32(len(x.P)), obj.RODATA|obj.LOCAL)
+			}
+			return
 		}
-		return
 	}
 
 	errorsBefore := base.Errors()
