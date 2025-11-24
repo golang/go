@@ -1830,6 +1830,38 @@ func buildop(ctxt *obj.Link) {
 			opset(AVSUBWODWHU, r0)
 			opset(AVSUBWODVWU, r0)
 			opset(AVSUBWODQVU, r0)
+			opset(AVMADDB, r0)
+			opset(AVMADDH, r0)
+			opset(AVMADDW, r0)
+			opset(AVMADDV, r0)
+			opset(AVMSUBB, r0)
+			opset(AVMSUBH, r0)
+			opset(AVMSUBW, r0)
+			opset(AVMSUBV, r0)
+			opset(AVMADDWEVHB, r0)
+			opset(AVMADDWEVWH, r0)
+			opset(AVMADDWEVVW, r0)
+			opset(AVMADDWEVQV, r0)
+			opset(AVMADDWODHB, r0)
+			opset(AVMADDWODWH, r0)
+			opset(AVMADDWODVW, r0)
+			opset(AVMADDWODQV, r0)
+			opset(AVMADDWEVHBU, r0)
+			opset(AVMADDWEVWHU, r0)
+			opset(AVMADDWEVVWU, r0)
+			opset(AVMADDWEVQVU, r0)
+			opset(AVMADDWODHBU, r0)
+			opset(AVMADDWODWHU, r0)
+			opset(AVMADDWODVWU, r0)
+			opset(AVMADDWODQVU, r0)
+			opset(AVMADDWEVHBUB, r0)
+			opset(AVMADDWEVWHUH, r0)
+			opset(AVMADDWEVVWUW, r0)
+			opset(AVMADDWEVQVUV, r0)
+			opset(AVMADDWODHBUB, r0)
+			opset(AVMADDWODWHUH, r0)
+			opset(AVMADDWODVWUW, r0)
+			opset(AVMADDWODQVUV, r0)
 
 		case AXVSLTB:
 			opset(AXVSLTH, r0)
@@ -1871,6 +1903,38 @@ func buildop(ctxt *obj.Link) {
 			opset(AXVSUBWODWHU, r0)
 			opset(AXVSUBWODVWU, r0)
 			opset(AXVSUBWODQVU, r0)
+			opset(AXVMADDB, r0)
+			opset(AXVMADDH, r0)
+			opset(AXVMADDW, r0)
+			opset(AXVMADDV, r0)
+			opset(AXVMSUBB, r0)
+			opset(AXVMSUBH, r0)
+			opset(AXVMSUBW, r0)
+			opset(AXVMSUBV, r0)
+			opset(AXVMADDWEVHB, r0)
+			opset(AXVMADDWEVWH, r0)
+			opset(AXVMADDWEVVW, r0)
+			opset(AXVMADDWEVQV, r0)
+			opset(AXVMADDWODHB, r0)
+			opset(AXVMADDWODWH, r0)
+			opset(AXVMADDWODVW, r0)
+			opset(AXVMADDWODQV, r0)
+			opset(AXVMADDWEVHBU, r0)
+			opset(AXVMADDWEVWHU, r0)
+			opset(AXVMADDWEVVWU, r0)
+			opset(AXVMADDWEVQVU, r0)
+			opset(AXVMADDWODHBU, r0)
+			opset(AXVMADDWODWHU, r0)
+			opset(AXVMADDWODVWU, r0)
+			opset(AXVMADDWODQVU, r0)
+			opset(AXVMADDWEVHBUB, r0)
+			opset(AXVMADDWEVWHUH, r0)
+			opset(AXVMADDWEVVWUW, r0)
+			opset(AXVMADDWEVQVUV, r0)
+			opset(AXVMADDWODHBUB, r0)
+			opset(AXVMADDWODWHUH, r0)
+			opset(AXVMADDWODVWUW, r0)
+			opset(AXVMADDWODQVUV, r0)
 
 		case AVANDB:
 			opset(AVORB, r0)
@@ -3811,6 +3875,134 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return 0x0E86A << 15 // xvsubwod.d.wu
 	case AXVSUBWODQVU:
 		return 0x0E86B << 15 // xvsubwod.q.du
+	case AVMADDB:
+		return 0x0E150 << 15 // vmadd.b
+	case AVMADDH:
+		return 0x0E151 << 15 // vmadd.h
+	case AVMADDW:
+		return 0x0E152 << 15 // vmadd.w
+	case AVMADDV:
+		return 0x0E153 << 15 // vmadd.d
+	case AVMSUBB:
+		return 0x0E154 << 15 // vmsub.b
+	case AVMSUBH:
+		return 0x0E155 << 15 // vmsub.h
+	case AVMSUBW:
+		return 0x0E156 << 15 // vmsub.w
+	case AVMSUBV:
+		return 0x0E157 << 15 // vmsub.d
+	case AXVMADDB:
+		return 0x0E950 << 15 // xvmadd.b
+	case AXVMADDH:
+		return 0x0E951 << 15 // xvmadd.h
+	case AXVMADDW:
+		return 0x0E952 << 15 // xvmadd.w
+	case AXVMADDV:
+		return 0x0E953 << 15 // xvmadd.d
+	case AXVMSUBB:
+		return 0x0E954 << 15 // xvmsub.b
+	case AXVMSUBH:
+		return 0x0E955 << 15 // xvmsub.h
+	case AXVMSUBW:
+		return 0x0E956 << 15 // xvmsub.w
+	case AXVMSUBV:
+		return 0x0E957 << 15 // xvmsub.d
+	case AVMADDWEVHB:
+		return 0x0E158 << 15 // vmaddwev.h.b
+	case AVMADDWEVWH:
+		return 0x0E159 << 15 // vmaddwev.w.h
+	case AVMADDWEVVW:
+		return 0x0E15A << 15 // vmaddwev.d.w
+	case AVMADDWEVQV:
+		return 0x0E15B << 15 // vmaddwev.q.d
+	case AVMADDWODHB:
+		return 0x0E15C << 15 // vmaddwov.h.b
+	case AVMADDWODWH:
+		return 0x0E15D << 15 // vmaddwod.w.h
+	case AVMADDWODVW:
+		return 0x0E15E << 15 // vmaddwod.d.w
+	case AVMADDWODQV:
+		return 0x0E15F << 15 // vmaddwod.q.d
+	case AVMADDWEVHBU:
+		return 0x0E168 << 15 // vmaddwev.h.bu
+	case AVMADDWEVWHU:
+		return 0x0E169 << 15 // vmaddwev.w.hu
+	case AVMADDWEVVWU:
+		return 0x0E16A << 15 // vmaddwev.d.wu
+	case AVMADDWEVQVU:
+		return 0x0E16B << 15 // vmaddwev.q.du
+	case AVMADDWODHBU:
+		return 0x0E16C << 15 // vmaddwov.h.bu
+	case AVMADDWODWHU:
+		return 0x0E16D << 15 // vmaddwod.w.hu
+	case AVMADDWODVWU:
+		return 0x0E16E << 15 // vmaddwod.d.wu
+	case AVMADDWODQVU:
+		return 0x0E16F << 15 // vmaddwod.q.du
+	case AVMADDWEVHBUB:
+		return 0x0E178 << 15 // vmaddwev.h.bu.b
+	case AVMADDWEVWHUH:
+		return 0x0E179 << 15 // vmaddwev.w.hu.h
+	case AVMADDWEVVWUW:
+		return 0x0E17A << 15 // vmaddwev.d.wu.w
+	case AVMADDWEVQVUV:
+		return 0x0E17B << 15 // vmaddwev.q.du.d
+	case AVMADDWODHBUB:
+		return 0x0E17C << 15 // vmaddwov.h.bu.b
+	case AVMADDWODWHUH:
+		return 0x0E17D << 15 // vmaddwod.w.hu.h
+	case AVMADDWODVWUW:
+		return 0x0E17E << 15 // vmaddwod.d.wu.w
+	case AVMADDWODQVUV:
+		return 0x0E17F << 15 // vmaddwod.q.du.d
+	case AXVMADDWEVHB:
+		return 0x0E958 << 15 // xvmaddwev.h.b
+	case AXVMADDWEVWH:
+		return 0x0E959 << 15 // xvmaddwev.w.h
+	case AXVMADDWEVVW:
+		return 0x0E95A << 15 // xvmaddwev.d.w
+	case AXVMADDWEVQV:
+		return 0x0E95B << 15 // xvmaddwev.q.d
+	case AXVMADDWODHB:
+		return 0x0E95C << 15 // xvmaddwov.h.b
+	case AXVMADDWODWH:
+		return 0x0E95D << 15 // xvmaddwod.w.h
+	case AXVMADDWODVW:
+		return 0x0E95E << 15 // xvmaddwod.d.w
+	case AXVMADDWODQV:
+		return 0x0E95F << 15 // xvmaddwod.q.d
+	case AXVMADDWEVHBU:
+		return 0x0E968 << 15 // xvmaddwev.h.bu
+	case AXVMADDWEVWHU:
+		return 0x0E969 << 15 // xvmaddwev.w.hu
+	case AXVMADDWEVVWU:
+		return 0x0E96A << 15 // xvmaddwev.d.wu
+	case AXVMADDWEVQVU:
+		return 0x0E96B << 15 // xvmaddwev.q.du
+	case AXVMADDWODHBU:
+		return 0x0E96C << 15 // xvmaddwov.h.bu
+	case AXVMADDWODWHU:
+		return 0x0E96D << 15 // xvmaddwod.w.hu
+	case AXVMADDWODVWU:
+		return 0x0E96E << 15 // xvmaddwod.d.wu
+	case AXVMADDWODQVU:
+		return 0x0E96F << 15 // xvmaddwod.q.du
+	case AXVMADDWEVHBUB:
+		return 0x0E978 << 15 // xvmaddwev.h.bu.b
+	case AXVMADDWEVWHUH:
+		return 0x0E979 << 15 // xvmaddwev.w.hu.h
+	case AXVMADDWEVVWUW:
+		return 0x0E97A << 15 // xvmaddwev.d.wu.w
+	case AXVMADDWEVQVUV:
+		return 0x0E97B << 15 // xvmaddwev.q.du.d
+	case AXVMADDWODHBUB:
+		return 0x0E97C << 15 // xvmaddwov.h.bu.b
+	case AXVMADDWODWHUH:
+		return 0x0E97D << 15 // xvmaddwod.w.hu.h
+	case AXVMADDWODVWUW:
+		return 0x0E97E << 15 // xvmaddwod.d.wu.w
+	case AXVMADDWODQVUV:
+		return 0x0E97F << 15 // xvmaddwod.q.du.d
 	case AVSLLB:
 		return 0xe1d0 << 15 // vsll.b
 	case AVSLLH:
