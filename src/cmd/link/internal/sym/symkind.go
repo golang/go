@@ -61,7 +61,6 @@ const (
 	SRODATAFIPS      // FIPS read-only data.
 	SRODATAFIPSEND   // End of FIPS read-only data.
 	SRODATAEND       // End of read-only data.
-	SFUNCTAB         // Appears to be unused, except for runtime.etypes.
 	SPCLNTAB         // Pclntab data.
 	STYPELINK        // Type links.
 	SELFROSECT       // ELF read-only data: relocs, dynamic linking info.
@@ -188,7 +187,6 @@ var ReadOnly = []SymKind{
 	SRODATAFIPS,
 	SRODATAFIPSEND,
 	SRODATAEND,
-	SFUNCTAB,
 }
 
 // IsText returns true if t is a text type.
