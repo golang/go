@@ -1558,6 +1558,9 @@ func (p *Package) doCgoType(e ast.Expr, m map[ast.Expr]bool) *Type {
 		if t.Name == "error" {
 			return &Type{Size: 2 * p.PtrSize, Align: p.PtrSize, C: c("GoInterface")}
 		}
+		if t.Name == "any" {
+			return &Type{Size: 2 * p.PtrSize, Align: p.PtrSize, C: c("GoInterface")}
+		}
 		if r, ok := goTypes[t.Name]; ok {
 			return goTypesFixup(r)
 		}

@@ -25,10 +25,14 @@
 
 // func runtime·raceread(addr uintptr)
 // Called from instrumented code.
-TEXT	runtime·raceread(SB), NOSPLIT, $0-8
+TEXT	runtime·raceread<ABIInternal>(SB), NOSPLIT, $0-8
 	// void __tsan_read(ThreadState *thr, void *addr, void *pc);
 	MOVD	$__tsan_read(SB), R1
+#ifndef GOEXPERIMENT_regabiargs
 	MOVD	addr+0(FP), R3
+#else
+	MOVD	R2, R3
+#endif
 	MOVD	R14, R4
 	JMP	racecalladdr<>(SB)
 
@@ -46,10 +50,14 @@ TEXT	runtime·racereadpc(SB), NOSPLIT, $0-24
 
 // func runtime·racewrite(addr uintptr)
 // Called from instrumented code.
-TEXT	runtime·racewrite(SB), NOSPLIT, $0-8
+TEXT	runtime·racewrite<ABIInternal>(SB), NOSPLIT, $0-8
 	// void __tsan_write(ThreadState *thr, void *addr, void *pc);
 	MOVD	$__tsan_write(SB), R1
+#ifndef GOEXPERIMENT_regabiargs
 	MOVD	addr+0(FP), R3
+#else
+	MOVD	R2, R3
+#endif
 	MOVD	R14, R4
 	JMP	racecalladdr<>(SB)
 
@@ -67,10 +75,15 @@ TEXT	runtime·racewritepc(SB), NOSPLIT, $0-24
 
 // func runtime·racereadrange(addr, size uintptr)
 // Called from instrumented code.
-TEXT	runtime·racereadrange(SB), NOSPLIT, $0-16
+TEXT	runtime·racereadrange<ABIInternal>(SB), NOSPLIT, $0-16
 	// void __tsan_read_range(ThreadState *thr, void *addr, uintptr size, void *pc);
 	MOVD	$__tsan_read_range(SB), R1
+#ifndef GOEXPERIMENT_regabiargs
 	LMG	addr+0(FP), R3, R4
+#else
+	MOVD	R3, R4
+	MOVD	R2, R3
+#endif
 	MOVD	R14, R5
 	JMP	racecalladdr<>(SB)
 
@@ -91,10 +104,15 @@ TEXT	runtime·racereadrangepc1(SB), NOSPLIT, $0-24
 
 // func runtime·racewriterange(addr, size uintptr)
 // Called from instrumented code.
-TEXT	runtime·racewriterange(SB), NOSPLIT, $0-16
+TEXT	runtime·racewriterange<ABIInternal>(SB), NOSPLIT, $0-16
 	// void __tsan_write_range(ThreadState *thr, void *addr, uintptr size, void *pc);
 	MOVD	$__tsan_write_range(SB), R1
+#ifndef GOEXPERIMENT_regabiargs
 	LMG	addr+0(FP), R3, R4
+#else
+	MOVD	R3, R4
+	MOVD	R2, R3
+#endif
 	MOVD	R14, R5
 	JMP	racecalladdr<>(SB)
 

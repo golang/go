@@ -833,6 +833,51 @@ The riscv64 has Zicsr extension for control and status register (CSR) and
 treated as scratch register.
 All bits in CSR are system flags and are not modified by Go.
 
+### s390x architecture
+
+The s390x architecture uses R2 – R9 for integer arguments and integer results.
+
+It uses F0 – F15 for floating-point arguments and results.
+
+Special-purpose registers used within Go generated code and Go assembly code
+are as follows:
+
+| Register | Call meaning | Return meaning | Body meaning |
+| --- | --- | --- | --- |
+| R0 | Zero value | Same | Same |
+| R1 | Scratch | Scratch | Scratch |
+| R10, R11 | used by the assembler | Same | Same |
+| R12 | Closure context pointer | Same | Same |
+| R13 | Current goroutine | Same | Same |
+| R14 | Link register | Link register | Scratch |
+| R15 | Stack pointer | Same | Same |
+
+*Rationale*: These register meanings are compatible with Go’s stack-based
+calling convention.
+
+#### Stack layout
+
+The stack pointer, R15, grows down and is aligned to 8 bytes.
+
+A function's stack frame, after the frame is created, is laid out as
+follows:
+
+    +------------------------------+
+    | ... locals ...               |
+    | ... outgoing arguments ...   |
+    | return PC                    | ← R15 points to
+    +------------------------------+ ↓ lower addresses
+
+This stack layout is used by both register-based (ABIInternal) and
+stack-based (ABI0) calling conventions.
+
+The "return PC" is loaded to the link register R14, as part of the
+s390x `BL` operation.
+
+#### Flags
+The s390x architecture maintains a single condition code (CC) field in the Program Status Word (PSW).
+Go-generated code sets and tests this condition code to control conditional branches.
+
 ## Future directions
 
 ### Spill path improvements
