@@ -1121,6 +1121,9 @@ func (p *Package) hasPointer(f *File, t ast.Expr, top bool) bool {
 		if t.Name == "error" {
 			return true
 		}
+		if t.Name == "any" {
+			return true
+		}
 		if goTypes[t.Name] != nil {
 			return false
 		}

@@ -796,6 +796,9 @@ func cgoCheckResult(val any) {
 
 	ep := efaceOf(&val)
 	t := ep._type
+	if t == nil {
+		return
+	}
 	cgoCheckArg(t, ep.data, !t.IsDirectIface(), false, cgoResultFail)
 }
 
