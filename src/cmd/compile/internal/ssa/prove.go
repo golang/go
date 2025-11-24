@@ -2040,14 +2040,14 @@ func (ft *factsTable) flowLimit(v *Value) {
 //
 // slicecap - index >= slicelen - index >= K
 //
-// Note that "index" is not useed for indexing in this pattern, but
+// Note that "index" is not used for indexing in this pattern, but
 // in the motivating example (chunked slice iteration) it is.
 func (ft *factsTable) detectSliceLenRelation(v *Value) {
 	if v.Op != OpSub64 {
 		return
 	}
 
-	if !(v.Args[0].Op == OpSliceLen || v.Args[0].Op == OpSliceCap) {
+	if !(v.Args[0].Op == OpSliceLen || v.Args[0].Op == OpStringLen || v.Args[0].Op == OpSliceCap) {
 		return
 	}
 
@@ -2070,9 +2070,9 @@ func (ft *factsTable) detectSliceLenRelation(v *Value) {
 			continue
 		}
 		var lenOffset *Value
-		if bound := ow.Args[0]; bound.Op == OpSliceLen && bound.Args[0] == slice {
+		if bound := ow.Args[0]; (bound.Op == OpSliceLen || bound.Op == OpStringLen) && bound.Args[0] == slice {
 			lenOffset = ow.Args[1]
-		} else if bound := ow.Args[1]; bound.Op == OpSliceLen && bound.Args[0] == slice {
+		} else if bound := ow.Args[1]; (bound.Op == OpSliceLen || bound.Op == OpStringLen) && bound.Args[0] == slice {
 			lenOffset = ow.Args[0]
 		}
 		if lenOffset == nil || lenOffset.Op != OpConst64 {
@@ -2332,7 +2332,7 @@ func unsignedSubUnderflows(a, b uint64) bool {
 // iteration where the index is not directly compared to the length.
 // if isReslice, then delta can be equal to K.
 func checkForChunkedIndexBounds(ft *factsTable, b *Block, index, bound *Value, isReslice bool) bool {
-	if bound.Op != OpSliceLen && bound.Op != OpSliceCap {
+	if bound.Op != OpSliceLen && bound.Op != OpStringLen && bound.Op != OpSliceCap {
 		return false
 	}
 
@@ -2367,9 +2367,9 @@ func checkForChunkedIndexBounds(ft *factsTable, b *Block, index, bound *Value, i
 		}
 		if ow := o.w; ow.Op == OpAdd64 {
 			var lenOffset *Value
-			if bound := ow.Args[0]; bound.Op == OpSliceLen && bound.Args[0] == slice {
+			if bound := ow.Args[0]; (bound.Op == OpSliceLen || bound.Op == OpStringLen) && bound.Args[0] == slice {
 				lenOffset = ow.Args[1]
-			} else if bound := ow.Args[1]; bound.Op == OpSliceLen && bound.Args[0] == slice {
+			} else if bound := ow.Args[1]; (bound.Op == OpSliceLen || bound.Op == OpStringLen) && bound.Args[0] == slice {
 				lenOffset = ow.Args[0]
 			}
 			if lenOffset == nil || lenOffset.Op != OpConst64 {
