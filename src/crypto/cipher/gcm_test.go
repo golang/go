@@ -761,19 +761,13 @@ func TestGCMExtraMethods(t *testing.T) {
 	})
 }
 
-func TestFIPSServiceIndicator(t *testing.T) {
-	newGCM := func() cipher.AEAD {
-		key := make([]byte, 16)
-		block, _ := fipsaes.New(key)
-		aead, _ := gcm.NewGCMWithCounterNonce(block)
-		return aead
-	}
+func TestGCMNonces(t *testing.T) {
 	tryNonce := func(aead cipher.AEAD, nonce []byte) bool {
 		fips140.ResetServiceIndicator()
 		aead.Seal(nil, nonce, []byte("x"), nil)
 		return fips140.ServiceIndicator()
 	}
-	expectTrue := func(t *testing.T, aead cipher.AEAD, nonce []byte) {
+	expectOK := func(t *testing.T, aead cipher.AEAD, nonce []byte) {
 		t.Helper()
 		if !tryNonce(aead, nonce) {
 			t.Errorf("expected service indicator true for %x", nonce)
@@ -790,108 +784,106 @@ func TestFIPSServiceIndicator(t *testing.T) {
 		tryNonce(aead, nonce)
 	}
 
-	g := newGCM()
-	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
-	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1})
-	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100})
-	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0})
-	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0})
-	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0})
-	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0})
-	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0})
-	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0})
-	expectTrue(t, g, []byte{0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0})
-	// Changed name.
-	expectPanic(t, g, []byte{0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0})
+	t.Run("NewGCMWithCounterNonce", func(t *testing.T) {
+		newGCM := func() cipher.AEAD {
+			key := make([]byte, 16)
+			block, _ := fipsaes.New(key)
+			aead, _ := gcm.NewGCMWithCounterNonce(block)
+			return aead
+		}
 
-	g = newGCM()
-	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1})
-	// Went down.
-	expectPanic(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
+		g := newGCM()
+		expectOK(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
+		expectOK(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1})
+		expectOK(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100})
+		expectOK(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0})
+		expectOK(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0})
+		expectOK(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0})
+		expectOK(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0})
+		expectOK(t, g, []byte{0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0})
+		expectOK(t, g, []byte{0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0})
+		expectOK(t, g, []byte{0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0})
+		// Changed name.
+		expectPanic(t, g, []byte{0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0})
 
-	g = newGCM()
-	expectTrue(t, g, []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12})
-	expectTrue(t, g, []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13})
-	// Did not increment.
-	expectPanic(t, g, []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13})
+		g = newGCM()
+		expectOK(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1})
+		// Went down.
+		expectPanic(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
 
-	g = newGCM()
-	expectTrue(t, g, []byte{1, 2, 3, 4, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00})
-	expectTrue(t, g, []byte{1, 2, 3, 4, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff})
-	// Wrap is ok as long as we don't run out of values.
-	expectTrue(t, g, []byte{1, 2, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0})
-	expectTrue(t, g, []byte{1, 2, 3, 4, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe, 0xfe})
-	// Run out of counters.
-	expectPanic(t, g, []byte{1, 2, 3, 4, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe, 0xff})
+		g = newGCM()
+		expectOK(t, g, []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12})
+		expectOK(t, g, []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13})
+		// Did not increment.
+		expectPanic(t, g, []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13})
 
-	g = newGCM()
-	expectTrue(t, g, []byte{1, 2, 3, 4, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff})
-	// Wrap with overflow.
-	expectPanic(t, g, []byte{1, 2, 3, 5, 0, 0, 0, 0, 0, 0, 0, 0})
-}
+		g = newGCM()
+		expectOK(t, g, []byte{1, 2, 3, 4, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00})
+		expectOK(t, g, []byte{1, 2, 3, 4, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff})
+		// Wrap is ok as long as we don't run out of values.
+		expectOK(t, g, []byte{1, 2, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0})
+		expectOK(t, g, []byte{1, 2, 3, 4, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe, 0xfe})
+		// Run out of counters.
+		expectPanic(t, g, []byte{1, 2, 3, 4, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe, 0xff})
 
-func TestGCMForSSH(t *testing.T) {
-	// incIV from x/crypto/ssh/cipher.go.
-	incIV := func(iv []byte) {
-		for i := 4 + 7; i >= 4; i-- {
-			iv[i]++
-			if iv[i] != 0 {
-				break
+		g = newGCM()
+		expectOK(t, g, []byte{1, 2, 3, 4, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff})
+		// Wrap with overflow.
+		expectPanic(t, g, []byte{1, 2, 3, 5, 0, 0, 0, 0, 0, 0, 0, 0})
+	})
+
+	t.Run("NewGCMForSSH", func(t *testing.T) {
+		newGCM := func() cipher.AEAD {
+			key := make([]byte, 16)
+			block, _ := fipsaes.New(key)
+			aead, _ := gcm.NewGCMForSSH(block)
+			return aead
+		}
+		// incIV from x/crypto/ssh/cipher.go.
+		incIV := func(iv []byte) {
+			for i := 4 + 7; i >= 4; i-- {
+				iv[i]++
+				if iv[i] != 0 {
+					break
+				}
 			}
 		}
-	}
 
-	expectOK := func(aead cipher.AEAD, iv []byte) {
-		aead.Seal(nil, iv, []byte("hello, world"), nil)
-	}
+		aead := newGCM()
+		iv := decodeHex(t, "11223344"+"0000000000000000")
+		expectOK(t, aead, iv)
+		incIV(iv)
+		expectOK(t, aead, iv)
+		iv = decodeHex(t, "11223344"+"fffffffffffffffe")
+		expectOK(t, aead, iv)
+		incIV(iv)
+		expectPanic(t, aead, iv)
 
-	expectPanic := func(aead cipher.AEAD, iv []byte) {
-		defer func() {
-			if recover() == nil {
-				t.Errorf("expected panic")
-			}
-		}()
-		aead.Seal(nil, iv, []byte("hello, world"), nil)
-	}
+		// Wrapping is ok as long as we don't run out of values.
+		aead = newGCM()
+		iv = decodeHex(t, "11223344"+"fffffffffffffffe")
+		expectOK(t, aead, iv)
+		incIV(iv)
+		expectOK(t, aead, iv)
+		incIV(iv)
+		expectOK(t, aead, iv)
+		incIV(iv)
+		expectOK(t, aead, iv)
 
-	key := make([]byte, 16)
-	block, _ := fipsaes.New(key)
-	aead, err := gcm.NewGCMForSSH(block)
-	if err != nil {
-		t.Fatal(err)
-	}
-	iv := decodeHex(t, "11223344"+"0000000000000000")
-	expectOK(aead, iv)
-	incIV(iv)
-	expectOK(aead, iv)
-	iv = decodeHex(t, "11223344"+"fffffffffffffffe")
-	expectOK(aead, iv)
-	incIV(iv)
-	expectPanic(aead, iv)
-
-	aead, _ = gcm.NewGCMForSSH(block)
-	iv = decodeHex(t, "11223344"+"fffffffffffffffe")
-	expectOK(aead, iv)
-	incIV(iv)
-	expectOK(aead, iv)
-	incIV(iv)
-	expectOK(aead, iv)
-	incIV(iv)
-	expectOK(aead, iv)
-
-	aead, _ = gcm.NewGCMForSSH(block)
-	iv = decodeHex(t, "11223344"+"aaaaaaaaaaaaaaaa")
-	expectOK(aead, iv)
-	iv = decodeHex(t, "11223344"+"ffffffffffffffff")
-	expectOK(aead, iv)
-	incIV(iv)
-	expectOK(aead, iv)
-	iv = decodeHex(t, "11223344"+"aaaaaaaaaaaaaaa8")
-	expectOK(aead, iv)
-	incIV(iv)
-	expectPanic(aead, iv)
-	iv = decodeHex(t, "11223344"+"bbbbbbbbbbbbbbbb")
-	expectPanic(aead, iv)
+		aead = newGCM()
+		iv = decodeHex(t, "11223344"+"aaaaaaaaaaaaaaaa")
+		expectOK(t, aead, iv)
+		iv = decodeHex(t, "11223344"+"ffffffffffffffff")
+		expectOK(t, aead, iv)
+		incIV(iv)
+		expectOK(t, aead, iv)
+		iv = decodeHex(t, "11223344"+"aaaaaaaaaaaaaaa8")
+		expectOK(t, aead, iv)
+		incIV(iv)
+		expectPanic(t, aead, iv)
+		iv = decodeHex(t, "11223344"+"bbbbbbbbbbbbbbbb")
+		expectPanic(t, aead, iv)
+	})
 }
 
 func decodeHex(t *testing.T, s string) []byte {
