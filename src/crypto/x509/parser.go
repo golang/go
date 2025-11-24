@@ -10,7 +10,6 @@ import (
 	"crypto/ecdh"
 	"crypto/ecdsa"
 	"crypto/ed25519"
-	"crypto/elliptic"
 	"crypto/rsa"
 	"crypto/x509/pkix"
 	"encoding/asn1"
@@ -250,7 +249,7 @@ func parseExtension(der cryptobyte.String) (pkix.Extension, error) {
 func parsePublicKey(keyData *publicKeyInfo) (any, error) {
 	oid := keyData.Algorithm.Algorithm
 	params := keyData.Algorithm.Parameters
-	der := cryptobyte.String(keyData.PublicKey.RightAlign())
+	data := keyData.PublicKey.RightAlign()
 	switch {
 	case oid.Equal(oidPublicKeyRSA):
 		// RSA public keys must have a NULL in the parameters.
@@ -259,6 +258,7 @@ func parsePublicKey(keyData *publicKeyInfo) (any, error) {
 			return nil, errors.New("x509: RSA key missing NULL parameters")
 		}
 
+		der := cryptobyte.String(data)
 		p := &pkcs1PublicKey{N: new(big.Int)}
 		if !der.ReadASN1(&der, cryptobyte_asn1.SEQUENCE) {
 			return nil, errors.New("x509: invalid RSA public key")
@@ -292,34 +292,26 @@ func parsePublicKey(keyData *publicKeyInfo) (any, error) {
 		if namedCurve == nil {
 			return nil, errors.New("x509: unsupported elliptic curve")
 		}
-		x, y := elliptic.Unmarshal(namedCurve, der)
-		if x == nil {
-			return nil, errors.New("x509: failed to unmarshal elliptic curve point")
-		}
-		pub := &ecdsa.PublicKey{
-			Curve: namedCurve,
-			X:     x,
-			Y:     y,
-		}
-		return pub, nil
+		return ecdsa.ParseUncompressedPublicKey(namedCurve, data)
 	case oid.Equal(oidPublicKeyEd25519):
 		// RFC 8410, Section 3
 		// > For all of the OIDs, the parameters MUST be absent.
 		if len(params.FullBytes) != 0 {
 			return nil, errors.New("x509: Ed25519 key encoded with illegal parameters")
 		}
-		if len(der) != ed25519.PublicKeySize {
+		if len(data) != ed25519.PublicKeySize {
 			return nil, errors.New("x509: wrong Ed25519 public key size")
 		}
-		return ed25519.PublicKey(der), nil
+		return ed25519.PublicKey(data), nil
 	case oid.Equal(oidPublicKeyX25519):
 		// RFC 8410, Section 3
 		// > For all of the OIDs, the parameters MUST be absent.
 		if len(params.FullBytes) != 0 {
 			return nil, errors.New("x509: X25519 key encoded with illegal parameters")
 		}
-		return ecdh.X25519().NewPublicKey(der)
+		return ecdh.X25519().NewPublicKey(data)
 	case oid.Equal(oidPublicKeyDSA):
+		der := cryptobyte.String(data)
 		y := new(big.Int)
 		if !der.ReadASN1Integer(y) {
 			return nil, errors.New("x509: invalid DSA public key")

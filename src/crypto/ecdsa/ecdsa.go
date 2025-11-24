@@ -60,15 +60,16 @@ type PublicKey struct {
 // ECDH returns k as a [ecdh.PublicKey]. It returns an error if the key is
 // invalid according to the definition of [ecdh.Curve.NewPublicKey], or if the
 // Curve is not supported by crypto/ecdh.
-func (k *PublicKey) ECDH() (*ecdh.PublicKey, error) {
-	c := curveToECDH(k.Curve)
+func (pub *PublicKey) ECDH() (*ecdh.PublicKey, error) {
+	c := curveToECDH(pub.Curve)
 	if c == nil {
 		return nil, errors.New("ecdsa: unsupported curve by crypto/ecdh")
 	}
-	if !k.Curve.IsOnCurve(k.X, k.Y) {
-		return nil, errors.New("ecdsa: invalid public key")
+	k, err := pub.Bytes()
+	if err != nil {
+		return nil, err
 	}
-	return c.NewPublicKey(elliptic.Marshal(k.Curve, k.X, k.Y))
+	return c.NewPublicKey(k)
 }
 
 // Equal reports whether pub and x have the same value.
@@ -181,16 +182,16 @@ type PrivateKey struct {
 // ECDH returns k as a [ecdh.PrivateKey]. It returns an error if the key is
 // invalid according to the definition of [ecdh.Curve.NewPrivateKey], or if the
 // Curve is not supported by [crypto/ecdh].
-func (k *PrivateKey) ECDH() (*ecdh.PrivateKey, error) {
-	c := curveToECDH(k.Curve)
+func (priv *PrivateKey) ECDH() (*ecdh.PrivateKey, error) {
+	c := curveToECDH(priv.Curve)
 	if c == nil {
 		return nil, errors.New("ecdsa: unsupported curve by crypto/ecdh")
 	}
-	size := (k.Curve.Params().N.BitLen() + 7) / 8
-	if k.D.BitLen() > size*8 {
-		return nil, errors.New("ecdsa: invalid private key")
+	k, err := priv.Bytes()
+	if err != nil {
+		return nil, err
 	}
-	return c.NewPrivateKey(k.D.FillBytes(make([]byte, size)))
+	return c.NewPrivateKey(k)
 }
 
 func curveToECDH(c elliptic.Curve) ecdh.Curve {
@@ -366,10 +367,6 @@ func generateFIPS[P ecdsa.Point[P]](curve elliptic.Curve, c *ecdsa.Curve[P], ran
 	}
 	return privateKeyFromFIPS(curve, privateKey)
 }
-
-// errNoAsm is returned by signAsm and verifyAsm when the assembly
-// implementation is not available.
-var errNoAsm = errors.New("no assembly implementation available")
 
 // SignASN1 signs a hash (which should be the result of hashing a larger message)
 // using the private key, priv. If the hash is longer than the bit-length of the
@@ -576,25 +573,28 @@ func privateKeyToFIPS[P ecdsa.Point[P]](c *ecdsa.Curve[P], priv *PrivateKey) (*e
 	if err != nil {
 		return nil, err
 	}
+
+	// Reject values that would not get correctly encoded.
+	if priv.D.BitLen() > priv.Curve.Params().N.BitLen() {
+		return nil, errors.New("ecdsa: private key scalar too large")
+	}
+	if priv.D.Sign() <= 0 {
+		return nil, errors.New("ecdsa: private key scalar is zero or negative")
+	}
+
+	size := (priv.Curve.Params().N.BitLen() + 7) / 8
+	const maxScalarSize = 66 // enough for a P-521 private key
+	if size > maxScalarSize {
+		return nil, errors.New("ecdsa: internal error: curve size too large")
+	}
+	D := priv.D.FillBytes(make([]byte, size, maxScalarSize))
+
 	return privateKeyCache.Get(priv, func() (*ecdsa.PrivateKey, error) {
-		return ecdsa.NewPrivateKey(c, priv.D.Bytes(), Q)
+		return ecdsa.NewPrivateKey(c, D, Q)
 	}, func(k *ecdsa.PrivateKey) bool {
 		return subtle.ConstantTimeCompare(k.PublicKey().Bytes(), Q) == 1 &&
-			leftPadBytesEqual(k.Bytes(), priv.D.Bytes())
+			subtle.ConstantTimeCompare(k.Bytes(), D) == 1
 	})
-}
-
-func leftPadBytesEqual(a, b []byte) bool {
-	if len(a) < len(b) {
-		a, b = b, a
-	}
-	if len(a) > len(b) {
-		x := make([]byte, 0, 66 /* enough for a P-521 private key */)
-		x = append(x, make([]byte, len(a)-len(b))...)
-		x = append(x, b...)
-		b = x
-	}
-	return subtle.ConstantTimeCompare(a, b) == 1
 }
 
 // pointFromAffine is used to convert the PublicKey to a nistec SetBytes input.
@@ -607,7 +607,7 @@ func pointFromAffine(curve elliptic.Curve, x, y *big.Int) ([]byte, error) {
 	if x.BitLen() > bitSize || y.BitLen() > bitSize {
 		return nil, errors.New("overflowing coordinate")
 	}
-	// Encode the coordinates and let SetBytes reject invalid points.
+	// Encode the coordinates and let [ecdsa.NewPublicKey] reject invalid points.
 	byteLen := (bitSize + 7) / 8
 	buf := make([]byte, 1+2*byteLen)
 	buf[0] = 4 // uncompressed point
