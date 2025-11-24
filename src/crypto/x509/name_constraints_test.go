@@ -1624,6 +1624,40 @@ var nameConstraintsTests = []nameConstraintsTest{
 		},
 		expectedError: "URI with IP",
 	},
+	// #87: subdomain excluded constraints preclude wildcard names
+	{
+		roots: []constraintsSpec{
+			{
+				bad: []string{"dns:foo.example.com"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			{
+				{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"dns:*.example.com"},
+		},
+		expectedError: "\"*.example.com\" is excluded by constraint \"foo.example.com\"",
+	},
+	// #88: wildcard names are not matched by subdomain permitted constraints
+	{
+		roots: []constraintsSpec{
+			{
+				ok: []string{"dns:foo.example.com"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			{
+				{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"dns:*.example.com"},
+		},
+		expectedError: "\"*.example.com\" is not permitted",
+	},
 }
 
 func makeConstraintsCACert(constraints constraintsSpec, name string, key *ecdsa.PrivateKey, parent *Certificate, parentKey *ecdsa.PrivateKey) (*Certificate, error) {
