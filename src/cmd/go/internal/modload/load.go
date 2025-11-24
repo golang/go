@@ -311,7 +311,7 @@ func LoadPackages(loaderstate *State, ctx context.Context, opts PackageOpts, pat
 
 			case strings.Contains(m.Pattern(), "..."):
 				m.Errs = m.Errs[:0]
-				mg, err := rs.Graph(modfetch.Fetcher_, loaderstate, ctx)
+				mg, err := rs.Graph(loaderstate, ctx)
 				if err != nil {
 					// The module graph is (or may be) incomplete — perhaps we failed to
 					// load the requirements of some module. This is an error in matching
@@ -404,7 +404,7 @@ func LoadPackages(loaderstate *State, ctx context.Context, opts PackageOpts, pat
 
 	if opts.Tidy {
 		if cfg.BuildV {
-			mg, _ := ld.requirements.Graph(modfetch.Fetcher_, loaderstate, ctx)
+			mg, _ := ld.requirements.Graph(loaderstate, ctx)
 			for _, m := range initialRS.rootModules {
 				var unused bool
 				if ld.requirements.pruning == unpruned {
@@ -425,7 +425,7 @@ func LoadPackages(loaderstate *State, ctx context.Context, opts PackageOpts, pat
 			}
 		}
 
-		keep := keepSums(modfetch.Fetcher_, loaderstate, ctx, ld, ld.requirements, loadedZipSumsOnly)
+		keep := keepSums(loaderstate, ctx, ld, ld.requirements, loadedZipSumsOnly)
 		compatVersion := ld.TidyCompatibleVersion
 		goVersion := ld.requirements.GoVersion(loaderstate)
 		if compatVersion == "" {
@@ -447,7 +447,7 @@ func LoadPackages(loaderstate *State, ctx context.Context, opts PackageOpts, pat
 			compatRS := newRequirements(loaderstate, compatPruning, ld.requirements.rootModules, ld.requirements.direct)
 			ld.checkTidyCompatibility(loaderstate, ctx, compatRS, compatVersion)
 
-			for m := range keepSums(modfetch.Fetcher_, loaderstate, ctx, ld, compatRS, loadedZipSumsOnly) {
+			for m := range keepSums(loaderstate, ctx, ld, compatRS, loadedZipSumsOnly) {
 				keep[m] = true
 			}
 		}
@@ -466,7 +466,7 @@ func LoadPackages(loaderstate *State, ctx context.Context, opts PackageOpts, pat
 			// Dropping compatibility for 1.16 may result in a strictly smaller go.sum.
 			// Update the keep map with only the loaded.requirements.
 			if gover.Compare(compatVersion, "1.16") > 0 {
-				keep = keepSums(modfetch.Fetcher_, loaderstate, ctx, loaded, loaderstate.requirements, addBuildListZipSums)
+				keep = keepSums(loaderstate, ctx, loaded, loaderstate.requirements, addBuildListZipSums)
 			}
 			currentGoSum, tidyGoSum := modfetch.TidyGoSum(keep)
 			goSumDiff := diff.Diff("current/go.sum", currentGoSum, "tidy/go.sum", tidyGoSum)
@@ -490,7 +490,7 @@ func LoadPackages(loaderstate *State, ctx context.Context, opts PackageOpts, pat
 			// loaded.requirements, but here we may have also loaded (and want to
 			// preserve checksums for) additional entities from compatRS, which are
 			// only needed for compatibility with ld.TidyCompatibleVersion.
-			if err := modfetch.Fetcher_.WriteGoSum(ctx, keep, mustHaveCompleteRequirements(loaderstate)); err != nil {
+			if err := loaderstate.Fetcher().WriteGoSum(ctx, keep, mustHaveCompleteRequirements(loaderstate)); err != nil {
 				base.Fatal(err)
 			}
 		}
@@ -747,7 +747,7 @@ func pathInModuleCache(loaderstate *State, ctx context.Context, dir string, rs *
 	// versions of root modules may differ from what we already checked above.
 	// Re-check those paths too.
 
-	mg, _ := rs.Graph(modfetch.Fetcher_, loaderstate, ctx)
+	mg, _ := rs.Graph(loaderstate, ctx)
 	var importPath string
 	for _, m := range mg.BuildList() {
 		var found bool
@@ -1253,7 +1253,7 @@ func loadFromRoots(loaderstate *State, ctx context.Context, params loaderParams)
 				// pruning and semantics all along, but there may have been — and may
 				// still be — requirements on higher versions in the graph.
 				tidy := overrideRoots(loaderstate, ctx, rs, []module.Version{{Path: "go", Version: ld.TidyGoVersion}})
-				mg, err := tidy.Graph(modfetch.Fetcher_, loaderstate, ctx)
+				mg, err := tidy.Graph(loaderstate, ctx)
 				if err != nil {
 					ld.error(err)
 				}
@@ -1412,7 +1412,7 @@ func (ld *loader) updateRequirements(loaderstate *State, ctx context.Context) (c
 					// of the vendor directory anyway.
 					continue
 				}
-				if mg, err := rs.Graph(modfetch.Fetcher_, loaderstate, ctx); err != nil {
+				if mg, err := rs.Graph(loaderstate, ctx); err != nil {
 					return false, err
 				} else if _, ok := mg.RequiredBy(dep.mod); !ok {
 					// dep.mod is not an explicit dependency, but needs to be.
@@ -1515,7 +1515,7 @@ func (ld *loader) updateRequirements(loaderstate *State, ctx context.Context) (c
 		// The roots of the module graph have changed in some way (not just the
 		// "direct" markings). Check whether the changes affected any of the loaded
 		// packages.
-		mg, err := rs.Graph(modfetch.Fetcher_, loaderstate, ctx)
+		mg, err := rs.Graph(loaderstate, ctx)
 		if err != nil {
 			return false, err
 		}
@@ -1841,7 +1841,7 @@ func (ld *loader) load(loaderstate *State, ctx context.Context, pkg *loadPkg) {
 	var mg *ModuleGraph
 	if ld.requirements.pruning == unpruned {
 		var err error
-		mg, err = ld.requirements.Graph(modfetch.Fetcher_, loaderstate, ctx)
+		mg, err = ld.requirements.Graph(loaderstate, ctx)
 		if err != nil {
 			// We already checked the error from Graph in loadFromRoots and/or
 			// updateRequirements, so we ignored the error on purpose and we should
@@ -2095,7 +2095,7 @@ func (ld *loader) checkTidyCompatibility(loaderstate *State, ctx context.Context
 		fmt.Fprintf(os.Stderr, "For information about 'go mod tidy' compatibility, see:\n\thttps://go.dev/ref/mod#graph-pruning\n")
 	}
 
-	mg, err := rs.Graph(modfetch.Fetcher_, loaderstate, ctx)
+	mg, err := rs.Graph(loaderstate, ctx)
 	if err != nil {
 		ld.error(fmt.Errorf("error loading go %s module graph: %w", compatVersion, err))
 		ld.switchIfErrors(ctx)

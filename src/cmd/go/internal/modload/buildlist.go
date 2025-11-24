@@ -20,7 +20,6 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/gover"
-	"cmd/go/internal/modfetch"
 	"cmd/go/internal/mvs"
 	"cmd/internal/par"
 
@@ -270,9 +269,9 @@ func (rs *Requirements) hasRedundantRoot(loaderstate *State) bool {
 //
 // If the requirements of any relevant module fail to load, Graph also
 // returns a non-nil error of type *mvs.BuildListError.
-func (rs *Requirements) Graph(fetcher_ *modfetch.Fetcher, loaderstate *State, ctx context.Context) (*ModuleGraph, error) {
+func (rs *Requirements) Graph(loaderstate *State, ctx context.Context) (*ModuleGraph, error) {
 	rs.graphOnce.Do(func() {
-		mg, mgErr := readModGraph(fetcher_, loaderstate, ctx, rs.pruning, rs.rootModules, nil)
+		mg, mgErr := readModGraph(loaderstate, ctx, rs.pruning, rs.rootModules, nil)
 		rs.graph.Store(&cachedGraph{mg, mgErr})
 	})
 	cached := rs.graph.Load()
@@ -308,7 +307,7 @@ var readModGraphDebugOnce sync.Once
 //
 // Unlike LoadModGraph, readModGraph does not attempt to diagnose or update
 // inconsistent roots.
-func readModGraph(f *modfetch.Fetcher, loaderstate *State, ctx context.Context, pruning modPruning, roots []module.Version, unprune map[module.Version]bool) (*ModuleGraph, error) {
+func readModGraph(loaderstate *State, ctx context.Context, pruning modPruning, roots []module.Version, unprune map[module.Version]bool) (*ModuleGraph, error) {
 	mustHaveGoRoot(roots)
 	if pruning == pruned {
 		// Enable diagnostics for lazy module loading
@@ -368,7 +367,7 @@ func readModGraph(f *modfetch.Fetcher, loaderstate *State, ctx context.Context, 
 	// m's go.mod file indicates that it supports graph pruning.
 	loadOne := func(m module.Version) (*modFileSummary, error) {
 		return mg.loadCache.Do(m, func() (*modFileSummary, error) {
-			summary, err := goModSummary(f, loaderstate, m)
+			summary, err := goModSummary(loaderstate, m)
 
 			mu.Lock()
 			if err == nil {
@@ -573,7 +572,7 @@ func LoadModGraph(loaderstate *State, ctx context.Context, goVersion string) (*M
 			rs = newRequirements(loaderstate, unpruned, rs.rootModules, rs.direct)
 		}
 
-		return rs.Graph(modfetch.Fetcher_, loaderstate, ctx)
+		return rs.Graph(loaderstate, ctx)
 	}
 
 	rs, mg, err := expandGraph(loaderstate, ctx, rs)
@@ -596,7 +595,7 @@ func LoadModGraph(loaderstate *State, ctx context.Context, goVersion string) (*M
 // expandGraph returns non-nil requirements and a non-nil graph regardless of
 // errors. On error, the roots might not be updated to be consistent.
 func expandGraph(loaderstate *State, ctx context.Context, rs *Requirements) (*Requirements, *ModuleGraph, error) {
-	mg, mgErr := rs.Graph(modfetch.Fetcher_, loaderstate, ctx)
+	mg, mgErr := rs.Graph(loaderstate, ctx)
 	if mgErr != nil {
 		// Without the graph, we can't update the roots: we don't know which
 		// versions of transitive dependencies would be selected.
@@ -618,7 +617,7 @@ func expandGraph(loaderstate *State, ctx context.Context, rs *Requirements) (*Re
 			return rs, mg, rsErr
 		}
 		rs = newRS
-		mg, mgErr = rs.Graph(modfetch.Fetcher_, loaderstate, ctx)
+		mg, mgErr = rs.Graph(loaderstate, ctx)
 	}
 
 	return rs, mg, mgErr
@@ -860,7 +859,7 @@ func tidyPrunedRoots(loaderstate *State, ctx context.Context, mainModule module.
 
 	for len(queue) > 0 {
 		roots = tidy.rootModules
-		mg, err := tidy.Graph(modfetch.Fetcher_, loaderstate, ctx)
+		mg, err := tidy.Graph(loaderstate, ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -898,7 +897,7 @@ func tidyPrunedRoots(loaderstate *State, ctx context.Context, mainModule module.
 	}
 
 	roots = tidy.rootModules
-	_, err := tidy.Graph(modfetch.Fetcher_, loaderstate, ctx)
+	_, err := tidy.Graph(loaderstate, ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -940,7 +939,7 @@ func tidyPrunedRoots(loaderstate *State, ctx context.Context, mainModule module.
 		if len(roots) > len(tidy.rootModules) {
 			module.Sort(roots)
 			tidy = newRequirements(loaderstate, pruned, roots, tidy.direct)
-			_, err = tidy.Graph(modfetch.Fetcher_, loaderstate, ctx)
+			_, err = tidy.Graph(loaderstate, ctx)
 			if err != nil {
 				return nil, err
 			}
@@ -1122,7 +1121,7 @@ func updatePrunedRoots(loaderstate *State, ctx context.Context, direct map[strin
 
 			rs = newRequirements(loaderstate, pruned, roots, direct)
 			var err error
-			mg, err = rs.Graph(modfetch.Fetcher_, loaderstate, ctx)
+			mg, err = rs.Graph(loaderstate, ctx)
 			if err != nil {
 				return rs, err
 			}
@@ -1136,7 +1135,7 @@ func updatePrunedRoots(loaderstate *State, ctx context.Context, direct map[strin
 				// We've already loaded the full module graph, which includes the
 				// requirements of all of the root modules — even the transitive
 				// requirements, if they are unpruned!
-				mg, _ = rs.Graph(modfetch.Fetcher_, loaderstate, ctx)
+				mg, _ = rs.Graph(loaderstate, ctx)
 			} else if cfg.BuildMod == "vendor" {
 				// We can't spot-check the requirements of other modules because we
 				// don't in general have their go.mod files available in the vendor
@@ -1149,7 +1148,7 @@ func updatePrunedRoots(loaderstate *State, ctx context.Context, direct map[strin
 				// inconsistent in some way; we need to load the full module graph
 				// so that we can fix the roots properly.
 				var err error
-				mg, err = rs.Graph(modfetch.Fetcher_, loaderstate, ctx)
+				mg, err = rs.Graph(loaderstate, ctx)
 				if err != nil {
 					return rs, err
 				}
@@ -1236,7 +1235,7 @@ func spotCheckRoots(loaderstate *State, ctx context.Context, rs *Requirements, m
 				return
 			}
 
-			summary, err := goModSummary(modfetch.Fetcher_, loaderstate, m)
+			summary, err := goModSummary(loaderstate, m)
 			if err != nil {
 				cancel()
 				return
@@ -1369,7 +1368,7 @@ func tidyUnprunedRoots(loaderstate *State, ctx context.Context, mainModule modul
 //  4. Every version in add is selected at its given version unless upgraded by
 //     (the dependencies of) an existing root or another module in add.
 func updateUnprunedRoots(loaderstate *State, ctx context.Context, direct map[string]bool, rs *Requirements, add []module.Version) (*Requirements, error) {
-	mg, err := rs.Graph(modfetch.Fetcher_, loaderstate, ctx)
+	mg, err := rs.Graph(loaderstate, ctx)
 	if err != nil {
 		// We can't ignore errors in the module graph even if the user passed the -e
 		// flag to try to push past them. If we can't load the complete module
@@ -1488,7 +1487,7 @@ func convertPruning(loaderstate *State, ctx context.Context, rs *Requirements, p
 	// root set! “Include the transitive dependencies of every module in the build
 	// list” is exactly what happens in a pruned module if we promote every module
 	// in the build list to a root.
-	mg, err := rs.Graph(modfetch.Fetcher_, loaderstate, ctx)
+	mg, err := rs.Graph(loaderstate, ctx)
 	if err != nil {
 		return rs, err
 	}

@@ -5,17 +5,17 @@
 package modload
 
 import (
-	"cmd/go/internal/cfg"
-	"cmd/go/internal/gover"
-	"cmd/go/internal/modfetch"
-	"cmd/go/internal/mvs"
-	"cmd/internal/par"
 	"context"
 	"errors"
 	"fmt"
 	"maps"
 	"os"
 	"slices"
+
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/gover"
+	"cmd/go/internal/mvs"
+	"cmd/internal/par"
 
 	"golang.org/x/mod/module"
 )
@@ -101,7 +101,7 @@ func editRequirements(loaderstate *State, ctx context.Context, rs *Requirements,
 		// dependencies, so we need to treat everything in the build list as
 		// potentially relevant — that is, as what would be a “root” in a module
 		// with graph pruning enabled.
-		mg, err := rs.Graph(modfetch.Fetcher_, loaderstate, ctx)
+		mg, err := rs.Graph(loaderstate, ctx)
 		if err != nil {
 			// If we couldn't load the graph, we don't know what its requirements were
 			// to begin with, so we can't edit those requirements in a coherent way.
@@ -392,7 +392,7 @@ func editRequirements(loaderstate *State, ctx context.Context, rs *Requirements,
 			// the edit. We want to make sure we consider keeping it as-is,
 			// even if it wouldn't normally be included. (For example, it might
 			// be a pseudo-version or pre-release.)
-			origMG, _ := orig.Graph(modfetch.Fetcher_, loaderstate, ctx)
+			origMG, _ := orig.Graph(loaderstate, ctx)
 			origV := origMG.Selected(m.Path)
 
 			if conflict.Err != nil && origV == m.Version {
@@ -610,7 +610,7 @@ func editRequirements(loaderstate *State, ctx context.Context, rs *Requirements,
 // some root to that version.
 func extendGraph(loaderstate *State, ctx context.Context, rootPruning modPruning, roots []module.Version, selectedRoot map[string]string) (mg *ModuleGraph, upgradedRoot map[module.Version]bool, err error) {
 	for {
-		mg, err = readModGraph(modfetch.Fetcher_, loaderstate, ctx, rootPruning, roots, upgradedRoot)
+		mg, err = readModGraph(loaderstate, ctx, rootPruning, roots, upgradedRoot)
 		// We keep on going even if err is non-nil until we reach a steady state.
 		// (Note that readModGraph returns a non-nil *ModuleGraph even in case of
 		// errors.) The caller may be able to fix the errors by adjusting versions,

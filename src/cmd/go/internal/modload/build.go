@@ -103,7 +103,7 @@ func ModuleInfo(loaderstate *State, ctx context.Context, path string) *modinfo.M
 		v, ok = rs.rootSelected(loaderstate, path)
 	}
 	if !ok {
-		mg, err := rs.Graph(modfetch.Fetcher_, loaderstate, ctx)
+		mg, err := rs.Graph(loaderstate, ctx)
 		if err != nil {
 			base.Fatal(err)
 		}
@@ -329,7 +329,7 @@ func moduleInfo(loaderstate *State, ctx context.Context, rs *Requirements, m mod
 
 		checksumOk := func(suffix string) bool {
 			return rs == nil || m.Version == "" || !mustHaveSums(loaderstate) ||
-				modfetch.HaveSum(modfetch.Fetcher_, module.Version{Path: m.Path, Version: m.Version + suffix})
+				modfetch.HaveSum(loaderstate.Fetcher(), module.Version{Path: m.Path, Version: m.Version + suffix})
 		}
 
 		mod := module.Version{Path: m.Path, Version: m.Version}
@@ -355,7 +355,7 @@ func moduleInfo(loaderstate *State, ctx context.Context, rs *Requirements, m mod
 		if m.GoVersion == "" && checksumOk("/go.mod") {
 			// Load the go.mod file to determine the Go version, since it hasn't
 			// already been populated from rawGoVersion.
-			if summary, err := rawGoModSummary(modfetch.Fetcher_, loaderstate, mod); err == nil && summary.goVersion != "" {
+			if summary, err := rawGoModSummary(loaderstate, mod); err == nil && summary.goVersion != "" {
 				m.GoVersion = summary.goVersion
 			}
 		}

@@ -481,7 +481,7 @@ func importFromModules(loaderstate *State, ctx context.Context, path string, rs 
 			// of a package in "all", we didn't necessarily load that file
 			// when we read the module graph, so do it now to be sure.
 			if !skipModFile && cfg.BuildMod != "vendor" && mods[0].Path != "" && !loaderstate.MainModules.Contains(mods[0].Path) {
-				if _, err := goModSummary(modfetch.Fetcher_, loaderstate, mods[0]); err != nil {
+				if _, err := goModSummary(loaderstate, mods[0]); err != nil {
 					return module.Version{}, "", "", nil, err
 				}
 			}
@@ -506,7 +506,7 @@ func importFromModules(loaderstate *State, ctx context.Context, path string, rs 
 
 		// So far we've checked the root dependencies.
 		// Load the full module graph and try again.
-		mg, err = rs.Graph(modfetch.Fetcher_, loaderstate, ctx)
+		mg, err = rs.Graph(loaderstate, ctx)
 		if err != nil {
 			// We might be missing one or more transitive (implicit) dependencies from
 			// the module graph, so we can't return an ImportMissingError here — one
@@ -543,7 +543,7 @@ func queryImport(loaderstate *State, ctx context.Context, path string, rs *Requi
 					mv = module.ZeroPseudoVersion("v0")
 				}
 			}
-			mg, err := rs.Graph(modfetch.Fetcher_, loaderstate, ctx)
+			mg, err := rs.Graph(loaderstate, ctx)
 			if err != nil {
 				return module.Version{}, err
 			}
@@ -637,7 +637,7 @@ func queryImport(loaderstate *State, ctx context.Context, path string, rs *Requi
 	// and return m, dir, ImportMissingError.
 	fmt.Fprintf(os.Stderr, "go: finding module for package %s\n", path)
 
-	mg, err := rs.Graph(modfetch.Fetcher_, loaderstate, ctx)
+	mg, err := rs.Graph(loaderstate, ctx)
 	if err != nil {
 		return module.Version{}, err
 	}
@@ -817,11 +817,11 @@ func fetch(loaderstate *State, ctx context.Context, mod module.Version) (dir str
 		mod = r
 	}
 
-	if mustHaveSums(loaderstate) && !modfetch.HaveSum(modfetch.Fetcher_, mod) {
+	if mustHaveSums(loaderstate) && !modfetch.HaveSum(loaderstate.Fetcher(), mod) {
 		return "", false, module.VersionError(mod, &sumMissingError{})
 	}
 
-	dir, err = modfetch.Fetcher_.Download(ctx, mod)
+	dir, err = loaderstate.Fetcher().Download(ctx, mod)
 	return dir, false, err
 }
 

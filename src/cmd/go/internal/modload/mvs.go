@@ -54,7 +54,7 @@ func (r *mvsReqs) Required(mod module.Version) ([]module.Version, error) {
 		return nil, nil
 	}
 
-	summary, err := goModSummary(modfetch.Fetcher_, r.loaderstate, mod)
+	summary, err := goModSummary(r.loaderstate, mod)
 	if err != nil {
 		return nil, err
 	}
