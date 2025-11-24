@@ -1056,7 +1056,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type)
 		goto Error // error was reported before
 
 	case *ast.Ident:
-		check.ident(x, e, nil, false)
+		check.ident(x, e, false)
 
 	case *ast.Ellipsis:
 		// ellipses are handled explicitly where they are valid
@@ -1088,7 +1088,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type)
 		return kind
 
 	case *ast.SelectorExpr:
-		check.selector(x, e, nil, false)
+		check.selector(x, e, false)
 
 	case *ast.IndexExpr, *ast.IndexListExpr:
 		ix := unpackIndexedExpr(e)

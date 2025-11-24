@@ -1067,7 +1067,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 		goto Error // error was reported before
 
 	case *syntax.Name:
-		check.ident(x, e, nil, false)
+		check.ident(x, e, false)
 
 	case *syntax.DotsType:
 		// dots are handled explicitly where they are valid
@@ -1102,7 +1102,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 		return kind
 
 	case *syntax.SelectorExpr:
-		check.selector(x, e, nil, false)
+		check.selector(x, e, false)
 
 	case *syntax.IndexExpr:
 		if check.indexExpr(x, e) {

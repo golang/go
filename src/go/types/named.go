@@ -459,7 +459,7 @@ func (t *Named) expandMethod(i int) *Func {
 	check := t.check
 	// Ensure that the original method is type-checked.
 	if check != nil {
-		check.objDecl(origm, nil)
+		check.objDecl(origm)
 	}
 
 	origSig := origm.typ.(*Signature)
