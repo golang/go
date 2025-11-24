@@ -2437,6 +2437,9 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		v := int32(0)
 		if p.To.Target() != nil {
 			v = int32(p.To.Target().Pc-p.Pc) >> 2
+			if v < -1<<25 || v >= 1<<25 {
+				c.ctxt.Diag("branch too far \n%v", p)
+			}
 		}
 		o1 = OP_B_BL(c.opirr(p.As), uint32(v))
 		if p.To.Sym != nil {

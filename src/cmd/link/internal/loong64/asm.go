@@ -643,11 +643,14 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 	relocs := ldr.Relocs(s)
 	r := relocs.At(ri)
 	switch r.Type() {
-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_LARCH_B26):
-		// Nothing to do.
-		// The plt symbol has not been added. If we add tramp
-		// here, plt will not work.
-	case objabi.R_CALLLOONG64:
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_LARCH_B26), objabi.R_CALLLOONG64:
+		if ldr.SymType(rs) == sym.SDYNIMPORT {
+			// Nothing to do.
+			// The plt symbol has not been added. If we add tramp
+			// here, plt will not work.
+			return
+		}
+
 		var t int64
 		// ldr.SymValue(rs) == 0 indicates a cross-package jump to a function that is not yet
 		// laid out. Conservatively use a trampoline. This should be rare, as we lay out packages
