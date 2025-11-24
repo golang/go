@@ -4481,6 +4481,7 @@ func gdestroy(gp *g) {
 	gp.labels = nil
 	gp.timer = nil
 	gp.bubble = nil
+	gp.fipsOnlyBypass = false
 
 	if gcBlackenEnabled != 0 && gp.gcAssistBytes > 0 {
 		// Flush assist credit to the global pool. This gives
@@ -5324,6 +5325,9 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr, parked bool, waitreaso
 		trace.GoCreate(newg, newg.startpc, parked)
 		traceRelease(trace)
 	}
+
+	// fips140 bubble
+	newg.fipsOnlyBypass = callergp.fipsOnlyBypass
 
 	// Set up race context.
 	if raceenabled {

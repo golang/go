@@ -44,7 +44,7 @@ func (c *nistCurve) GenerateKey(rand io.Reader) (*PrivateKey, error) {
 		return k, nil
 	}
 
-	if fips140only.Enabled && !fips140only.ApprovedRandomReader(rand) {
+	if fips140only.Enforced() && !fips140only.ApprovedRandomReader(rand) {
 		return nil, errors.New("crypto/ecdh: only crypto/rand.Reader is allowed in FIPS 140-only mode")
 	}
 

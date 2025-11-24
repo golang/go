@@ -1,0 +1,2 @@
+pkg crypto/fips140, func Enforced() bool #74630
+pkg crypto/fips140, func WithoutEnforcement(func()) #74630

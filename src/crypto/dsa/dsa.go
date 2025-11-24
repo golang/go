@@ -64,7 +64,7 @@ const numMRTests = 64
 // GenerateParameters puts a random, valid set of DSA parameters into params.
 // This function can take many seconds, even on fast machines.
 func GenerateParameters(params *Parameters, rand io.Reader, sizes ParameterSizes) error {
-	if fips140only.Enabled {
+	if fips140only.Enforced() {
 		return errors.New("crypto/dsa: use of DSA is not allowed in FIPS 140-only mode")
 	}
 
@@ -162,7 +162,7 @@ GeneratePrimes:
 // GenerateKey generates a public&private key pair. The Parameters of the
 // [PrivateKey] must already be valid (see [GenerateParameters]).
 func GenerateKey(priv *PrivateKey, rand io.Reader) error {
-	if fips140only.Enabled {
+	if fips140only.Enforced() {
 		return errors.New("crypto/dsa: use of DSA is not allowed in FIPS 140-only mode")
 	}
 
@@ -212,7 +212,7 @@ func fermatInverse(k, P *big.Int) *big.Int {
 // Be aware that calling Sign with an attacker-controlled [PrivateKey] may
 // require an arbitrary amount of CPU.
 func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err error) {
-	if fips140only.Enabled {
+	if fips140only.Enforced() {
 		return nil, nil, errors.New("crypto/dsa: use of DSA is not allowed in FIPS 140-only mode")
 	}
 
@@ -284,7 +284,7 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
 // to the byte-length of the subgroup. This function does not perform that
 // truncation itself.
 func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
-	if fips140only.Enabled {
+	if fips140only.Enforced() {
 		panic("crypto/dsa: use of DSA is not allowed in FIPS 140-only mode")
 	}
 

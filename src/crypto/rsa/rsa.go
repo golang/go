@@ -350,13 +350,13 @@ func GenerateKey(random io.Reader, bits int) (*PrivateKey, error) {
 		return key, nil
 	}
 
-	if fips140only.Enabled && bits < 2048 {
+	if fips140only.Enforced() && bits < 2048 {
 		return nil, errors.New("crypto/rsa: use of keys smaller than 2048 bits is not allowed in FIPS 140-only mode")
 	}
-	if fips140only.Enabled && bits%2 == 1 {
+	if fips140only.Enforced() && bits%2 == 1 {
 		return nil, errors.New("crypto/rsa: use of keys with odd size is not allowed in FIPS 140-only mode")
 	}
-	if fips140only.Enabled && !fips140only.ApprovedRandomReader(random) {
+	if fips140only.Enforced() && !fips140only.ApprovedRandomReader(random) {
 		return nil, errors.New("crypto/rsa: only crypto/rand.Reader is allowed in FIPS 140-only mode")
 	}
 
@@ -424,7 +424,7 @@ func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey
 	if nprimes == 2 {
 		return GenerateKey(random, bits)
 	}
-	if fips140only.Enabled {
+	if fips140only.Enforced() {
 		return nil, errors.New("crypto/rsa: multi-prime RSA is not allowed in FIPS 140-only mode")
 	}
 

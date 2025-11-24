@@ -537,7 +537,7 @@ var depsRules = `
 	< crypto/internal/fips140/edwards25519
 	< crypto/internal/fips140/ed25519
 	< crypto/internal/fips140/rsa
-	< FIPS < crypto/fips140;
+	< crypto/fips140 < FIPS;
 
 	crypto !< FIPS;
 

@@ -49,7 +49,7 @@ type PKCS1v15DecryptOptions struct {
 //
 // [draft-irtf-cfrg-rsa-guidance-05]: https://www.ietf.org/archive/id/draft-irtf-cfrg-rsa-guidance-05.html#name-rationale
 func EncryptPKCS1v15(random io.Reader, pub *PublicKey, msg []byte) ([]byte, error) {
-	if fips140only.Enabled {
+	if fips140only.Enforced() {
 		return nil, errors.New("crypto/rsa: use of PKCS#1 v1.5 encryption is not allowed in FIPS 140-only mode")
 	}
 
@@ -212,7 +212,7 @@ func DecryptPKCS1v15SessionKey(random io.Reader, priv *PrivateKey, ciphertext []
 // access patterns. If the plaintext was valid then index contains the index of
 // the original message in em, to allow constant time padding removal.
 func decryptPKCS1v15(priv *PrivateKey, ciphertext []byte) (valid int, em []byte, index int, err error) {
-	if fips140only.Enabled {
+	if fips140only.Enforced() {
 		return 0, nil, 0, errors.New("crypto/rsa: use of PKCS#1 v1.5 encryption is not allowed in FIPS 140-only mode")
 	}
 
