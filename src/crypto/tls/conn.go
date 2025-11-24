@@ -226,6 +226,9 @@ func (hc *halfConn) changeCipherSpec() error {
 	return nil
 }
 
+// setTrafficSecret sets the traffic secret for the given encryption level. setTrafficSecret
+// should not be called directly, but rather through the Conn setWriteTrafficSecret and
+// setReadTrafficSecret wrapper methods.
 func (hc *halfConn) setTrafficSecret(suite *cipherSuiteTLS13, level QUICEncryptionLevel, secret []byte) {
 	hc.trafficSecret = secret
 	hc.level = level
@@ -1343,9 +1346,6 @@ func (c *Conn) handleKeyUpdate(keyUpdate *keyUpdateMsg) error {
 		return c.in.setErrorLocked(c.sendAlert(alertInternalError))
 	}
 
-	newSecret := cipherSuite.nextTrafficSecret(c.in.trafficSecret)
-	c.in.setTrafficSecret(cipherSuite, QUICEncryptionLevelInitial, newSecret)
-
 	if keyUpdate.updateRequested {
 		c.out.Lock()
 		defer c.out.Unlock()
@@ -1363,7 +1363,12 @@ func (c *Conn) handleKeyUpdate(keyUpdate *keyUpdateMsg) error {
 		}
 
 		newSecret := cipherSuite.nextTrafficSecret(c.out.trafficSecret)
-		c.out.setTrafficSecret(cipherSuite, QUICEncryptionLevelInitial, newSecret)
+		c.setWriteTrafficSecret(cipherSuite, QUICEncryptionLevelInitial, newSecret)
+	}
+
+	newSecret := cipherSuite.nextTrafficSecret(c.in.trafficSecret)
+	if err := c.setReadTrafficSecret(cipherSuite, QUICEncryptionLevelInitial, newSecret); err != nil {
+		return err
 	}
 
 	return nil
@@ -1594,7 +1599,9 @@ func (c *Conn) handshakeContext(ctx context.Context) (ret error) {
 			// Provide the 1-RTT read secret now that the handshake is complete.
 			// The QUIC layer MUST NOT decrypt 1-RTT packets prior to completing
 			// the handshake (RFC 9001, Section 5.7).
-			c.quicSetReadSecret(QUICEncryptionLevelApplication, c.cipherSuite, c.in.trafficSecret)
+			if err := c.quicSetReadSecret(QUICEncryptionLevelApplication, c.cipherSuite, c.in.trafficSecret); err != nil {
+				return err
+			}
 		} else {
 			var a alert
 			c.out.Lock()
@@ -1689,4 +1696,26 @@ func (c *Conn) VerifyHostname(host string) error {
 		return errors.New("tls: handshake did not verify certificate chain")
 	}
 	return c.peerCertificates[0].VerifyHostname(host)
+}
+
+// setReadTrafficSecret sets the read traffic secret for the given encryption level. If
+// being called at the same time as setWriteTrafficSecret, the caller must ensure the call
+// to setWriteTrafficSecret happens first so any alerts are sent at the write level.
+func (c *Conn) setReadTrafficSecret(suite *cipherSuiteTLS13, level QUICEncryptionLevel, secret []byte) error {
+	// Ensure that there are no buffered handshake messages before changing the
+	// read keys, since that can cause messages to be parsed that were encrypted
+	// using old keys which are no longer appropriate.
+	if c.hand.Len() != 0 {
+		c.sendAlert(alertUnexpectedMessage)
+		return errors.New("tls: handshake buffer not empty before setting read traffic secret")
+	}
+	c.in.setTrafficSecret(suite, level, secret)
+	return nil
+}
+
+// setWriteTrafficSecret sets the write traffic secret for the given encryption level. If
+// being called at the same time as setReadTrafficSecret, the caller must ensure the call
+// to setWriteTrafficSecret happens first so any alerts are sent at the write level.
+func (c *Conn) setWriteTrafficSecret(suite *cipherSuiteTLS13, level QUICEncryptionLevel, secret []byte) {
+	c.out.setTrafficSecret(suite, level, secret)
 }
