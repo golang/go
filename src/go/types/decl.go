@@ -134,11 +134,8 @@ func (check *Checker) objDecl(obj Object, def *TypeName) {
 	check.push(obj) // mark as grey
 	defer check.pop()
 
-	d := check.objMap[obj]
-	if d == nil {
-		check.dump("%v: %s should have been declared", obj.Pos(), obj)
-		panic("unreachable")
-	}
+	d, ok := check.objMap[obj]
+	assert(ok)
 
 	// save/restore current environment and set up object environment
 	defer func(env environment) {
