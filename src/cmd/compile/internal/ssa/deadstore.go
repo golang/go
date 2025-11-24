@@ -10,6 +10,10 @@ import (
 	"cmd/internal/obj"
 )
 
+// maxShadowRanges bounds the number of disjoint byte intervals
+// we track per pointer to avoid quadratic behaviour.
+const maxShadowRanges = 64
+
 // dse does dead-store elimination on the Function.
 // Dead stores are those which are unconditionally followed by
 // another store to the same location, with no intervening load.
@@ -24,6 +28,10 @@ func dse(f *Func) {
 	defer f.retSparseMap(shadowed)
 	// localAddrs maps from a local variable (the Aux field of a LocalAddr value) to an instance of a LocalAddr value for that variable in the current block.
 	localAddrs := map[any]*Value{}
+
+	// shadowedRanges stores the actual range data. The 'shadowed' sparseMap stores a 1-based index into this slice.
+	var shadowedRanges []*shadowRanges
+
 	for _, b := range f.Blocks {
 		// Find all the stores in this block. Categorize their uses:
 		//  loadUse contains stores which are used by a subsequent load.
@@ -89,10 +97,11 @@ func dse(f *Func) {
 		// Walk backwards looking for dead stores. Keep track of shadowed addresses.
 		// A "shadowed address" is a pointer, offset, and size describing a memory region that
 		// is known to be written. We keep track of shadowed addresses in the shadowed map,
-		// mapping the ID of the address to a shadowRange where future writes will happen.
+		// mapping the ID of the address to a shadowRanges where future writes will happen.
 		// Since we're walking backwards, writes to a shadowed region are useless,
 		// as they will be immediately overwritten.
 		shadowed.clear()
+		shadowedRanges = shadowedRanges[:0]
 		v := last
 
 	walkloop:
@@ -100,6 +109,7 @@ func dse(f *Func) {
 			// Someone might be reading this memory state.
 			// Clear all shadowed addresses.
 			shadowed.clear()
+			shadowedRanges = shadowedRanges[:0]
 		}
 		if v.Op == OpStore || v.Op == OpZero {
 			ptr := v.Args[0]
@@ -119,9 +129,14 @@ func dse(f *Func) {
 					ptr = la
 				}
 			}
-			srNum, _ := shadowed.get(ptr.ID)
-			sr := shadowRange(srNum)
-			if sr.contains(off, off+sz) {
+			var si *shadowRanges
+			idx, ok := shadowed.get(ptr.ID)
+			if ok {
+				// The sparseMap stores a 1-based index, so we subtract 1.
+				si = shadowedRanges[idx-1]
+			}
+
+			if si != nil && si.contains(off, off+sz) {
 				// Modify the store/zero into a copy of the memory state,
 				// effectively eliding the store operation.
 				if v.Op == OpStore {
@@ -136,7 +151,13 @@ func dse(f *Func) {
 				v.Op = OpCopy
 			} else {
 				// Extend shadowed region.
-				shadowed.set(ptr.ID, int32(sr.merge(off, off+sz)))
+				if si == nil {
+					si = &shadowRanges{}
+					shadowedRanges = append(shadowedRanges, si)
+					// Store a 1-based index in the sparseMap.
+					shadowed.set(ptr.ID, int32(len(shadowedRanges)))
+				}
+				si.add(off, off+sz)
 			}
 		}
 		// walk to previous store
@@ -156,46 +177,51 @@ func dse(f *Func) {
 	}
 }
 
-// A shadowRange encodes a set of byte offsets [lo():hi()] from
-// a given pointer that will be written to later in the block.
-// A zero shadowRange encodes an empty shadowed range.
-type shadowRange int32
-
-func (sr shadowRange) lo() int64 {
-	return int64(sr & 0xffff)
+// shadowRange represents a single byte range [lo,hi] that will be written.
+type shadowRange struct {
+	lo, hi uint16
 }
 
-func (sr shadowRange) hi() int64 {
-	return int64((sr >> 16) & 0xffff)
+// shadowRanges stores an unordered collection of disjoint byte ranges.
+type shadowRanges struct {
+	ranges []shadowRange
 }
 
 // contains reports whether [lo:hi] is completely within sr.
-func (sr shadowRange) contains(lo, hi int64) bool {
-	return lo >= sr.lo() && hi <= sr.hi()
+func (sr *shadowRanges) contains(lo, hi int64) bool {
+	for _, r := range sr.ranges {
+		if lo >= int64(r.lo) && hi <= int64(r.hi) {
+			return true
+		}
+	}
+	return false
 }
 
-// merge returns the union of sr and [lo:hi].
-// merge is allowed to return something smaller than the union.
-func (sr shadowRange) merge(lo, hi int64) shadowRange {
-	if lo < 0 || hi > 0xffff {
-		// Ignore offsets that are too large or small.
-		return sr
+func (sr *shadowRanges) add(lo, hi int64) {
+	// Ignore the store if:
+	// - the range doesn't fit in 16 bits, or
+	// - we already track maxShadowRanges intervals.
+	// The cap prevents a theoretical O(n^2) blow-up.
+	if lo < 0 || hi > 0xffff || len(sr.ranges) >= maxShadowRanges {
+		return
 	}
-	if sr.lo() == sr.hi() {
-		// Old range is empty - use new one.
-		return shadowRange(lo + hi<<16)
-	}
-	if hi < sr.lo() || lo > sr.hi() {
-		// The two regions don't overlap or abut, so we would
-		// have to keep track of multiple disjoint ranges.
-		// Because we can only keep one, keep the larger one.
-		if sr.hi()-sr.lo() >= hi-lo {
-			return sr
+	nlo := lo
+	nhi := hi
+	out := sr.ranges[:0]
+
+	for _, r := range sr.ranges {
+		if nhi < int64(r.lo) || nlo > int64(r.hi) {
+			out = append(out, r)
+			continue
 		}
-		return shadowRange(lo + hi<<16)
+		if int64(r.lo) < nlo {
+			nlo = int64(r.lo)
+		}
+		if int64(r.hi) > nhi {
+			nhi = int64(r.hi)
+		}
 	}
-	// Regions overlap or abut - compute the union.
-	return shadowRange(min(lo, sr.lo()) + max(hi, sr.hi())<<16)
+	sr.ranges = append(out, shadowRange{uint16(nlo), uint16(nhi)})
 }
 
 // elimDeadAutosGeneric deletes autos that are never accessed. To achieve this

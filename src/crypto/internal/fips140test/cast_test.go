@@ -6,6 +6,7 @@ package fipstest
 
 import (
 	"crypto"
+	"crypto/internal/fips140"
 	"crypto/rand"
 	"fmt"
 	"internal/testenv"
@@ -48,6 +49,8 @@ var allCASTs = []string{
 	"HKDF-SHA2-256",
 	"HMAC-SHA2-256",
 	"KAS-ECC-SSC P-256",
+	"ML-DSA sign and verify PCT",
+	"ML-DSA-44",
 	"ML-KEM PCT", // -768
 	"ML-KEM PCT", // -1024
 	"ML-KEM-768",
@@ -59,6 +62,14 @@ var allCASTs = []string{
 	"TLSv1.2-SHA2-256",
 	"TLSv1.3-SHA2-256",
 	"cSHAKE128",
+}
+
+func init() {
+	if fips140.Version() == "v1.0.0" {
+		allCASTs = slices.DeleteFunc(allCASTs, func(s string) bool {
+			return strings.HasPrefix(s, "ML-DSA")
+		})
+	}
 }
 
 func TestAllCASTs(t *testing.T) {
@@ -104,6 +115,7 @@ func TestAllCASTs(t *testing.T) {
 
 // TestConditionals causes the conditional CASTs and PCTs to be invoked.
 func TestConditionals(t *testing.T) {
+	fips140v2Conditionals()
 	// ML-KEM PCT
 	kMLKEM, err := mlkem.GenerateKey768()
 	if err != nil {

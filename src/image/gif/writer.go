@@ -15,6 +15,7 @@ import (
 	"image/draw"
 	"internal/byteorder"
 	"io"
+	"math/bits"
 )
 
 // Graphic control extension fields.
@@ -23,15 +24,11 @@ const (
 	gcBlockSize = 0x04
 )
 
-var log2Lookup = [8]int{2, 4, 8, 16, 32, 64, 128, 256}
-
 func log2(x int) int {
-	for i, v := range log2Lookup {
-		if x <= v {
-			return i
-		}
+	if x < 2 {
+		return 0
 	}
-	return -1
+	return bits.Len(uint(x-1)) - 1
 }
 
 // writer is a buffered writer.
@@ -192,7 +189,7 @@ func (e *encoder) writeHeader() {
 }
 
 func encodeColorTable(dst []byte, p color.Palette, size int) (int, error) {
-	if uint(size) >= uint(len(log2Lookup)) {
+	if uint(size) >= 8 {
 		return 0, errors.New("gif: cannot encode color table with more than 256 entries")
 	}
 	for i, c := range p {
@@ -212,7 +209,7 @@ func encodeColorTable(dst []byte, p color.Palette, size int) (int, error) {
 		dst[3*i+1] = g
 		dst[3*i+2] = b
 	}
-	n := log2Lookup[size]
+	n := 1 << (size + 1)
 	if n > len(p) {
 		// Pad with black.
 		clear(dst[3*len(p) : 3*n])

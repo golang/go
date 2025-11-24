@@ -22,10 +22,11 @@ const testString = "brekeccakkeccak koax koax"
 // with output-length equal to the KAT length for SHA-3, Keccak
 // and SHAKE instances.
 var testDigests = map[string]func() *SHA3{
-	"SHA3-224": New224,
-	"SHA3-256": New256,
-	"SHA3-384": New384,
-	"SHA3-512": New512,
+	"SHA3-224":  New224,
+	"SHA3-256":  New256,
+	"SHA3-384":  New384,
+	"SHA3-512":  New512,
+	"SHA3-Zero": func() *SHA3 { return &SHA3{} },
 }
 
 // testShakes contains functions that return *sha3.SHAKE instances for
@@ -36,10 +37,11 @@ var testShakes = map[string]struct {
 	defCustomStr string
 }{
 	// NewCSHAKE without customization produces same result as SHAKE
-	"SHAKE128":  {NewCSHAKE128, "", ""},
-	"SHAKE256":  {NewCSHAKE256, "", ""},
-	"cSHAKE128": {NewCSHAKE128, "CSHAKE128", "CustomString"},
-	"cSHAKE256": {NewCSHAKE256, "CSHAKE256", "CustomString"},
+	"SHAKE128":   {NewCSHAKE128, "", ""},
+	"SHAKE256":   {NewCSHAKE256, "", ""},
+	"cSHAKE128":  {NewCSHAKE128, "CSHAKE128", "CustomString"},
+	"cSHAKE256":  {NewCSHAKE256, "CSHAKE256", "CustomString"},
+	"SHAKE-Zero": {func(N []byte, S []byte) *SHAKE { return &SHAKE{} }, "", ""},
 }
 
 func TestSHA3Hash(t *testing.T) {

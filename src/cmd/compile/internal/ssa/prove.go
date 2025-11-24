@@ -2051,8 +2051,11 @@ func (ft *factsTable) detectSliceLenRelation(v *Value) {
 		return
 	}
 
-	slice := v.Args[0].Args[0]
 	index := v.Args[1]
+	if !ft.isNonNegative(index) {
+		return
+	}
+	slice := v.Args[0].Args[0]
 
 	for o := ft.orderings[index.ID]; o != nil; o = o.next {
 		if o.d != signed {
@@ -2471,9 +2474,18 @@ func addLocalFacts(ft *factsTable, b *Block) {
 			//ft.update(b, v, v.Args[0], unsigned, gt|eq)
 			//ft.update(b, v, v.Args[1], unsigned, gt|eq)
 		case OpDiv64, OpDiv32, OpDiv16, OpDiv8:
-			if ft.isNonNegative(v.Args[0]) && ft.isNonNegative(v.Args[1]) {
-				ft.update(b, v, v.Args[0], unsigned, lt|eq)
+			if !ft.isNonNegative(v.Args[1]) {
+				break
 			}
+			fallthrough
+		case OpRsh8x64, OpRsh8x32, OpRsh8x16, OpRsh8x8,
+			OpRsh16x64, OpRsh16x32, OpRsh16x16, OpRsh16x8,
+			OpRsh32x64, OpRsh32x32, OpRsh32x16, OpRsh32x8,
+			OpRsh64x64, OpRsh64x32, OpRsh64x16, OpRsh64x8:
+			if !ft.isNonNegative(v.Args[0]) {
+				break
+			}
+			fallthrough
 		case OpDiv64u, OpDiv32u, OpDiv16u, OpDiv8u,
 			OpRsh8Ux64, OpRsh8Ux32, OpRsh8Ux16, OpRsh8Ux8,
 			OpRsh16Ux64, OpRsh16Ux32, OpRsh16Ux16, OpRsh16Ux8,
@@ -2488,12 +2500,17 @@ func addLocalFacts(ft *factsTable, b *Block) {
 				zl := ft.limits[z.ID]
 				var uminDivisor uint64
 				switch v.Op {
-				case OpDiv64u, OpDiv32u, OpDiv16u, OpDiv8u:
+				case OpDiv64u, OpDiv32u, OpDiv16u, OpDiv8u,
+					OpDiv64, OpDiv32, OpDiv16, OpDiv8:
 					uminDivisor = zl.umin
 				case OpRsh8Ux64, OpRsh8Ux32, OpRsh8Ux16, OpRsh8Ux8,
 					OpRsh16Ux64, OpRsh16Ux32, OpRsh16Ux16, OpRsh16Ux8,
 					OpRsh32Ux64, OpRsh32Ux32, OpRsh32Ux16, OpRsh32Ux8,
-					OpRsh64Ux64, OpRsh64Ux32, OpRsh64Ux16, OpRsh64Ux8:
+					OpRsh64Ux64, OpRsh64Ux32, OpRsh64Ux16, OpRsh64Ux8,
+					OpRsh8x64, OpRsh8x32, OpRsh8x16, OpRsh8x8,
+					OpRsh16x64, OpRsh16x32, OpRsh16x16, OpRsh16x8,
+					OpRsh32x64, OpRsh32x32, OpRsh32x16, OpRsh32x8,
+					OpRsh64x64, OpRsh64x32, OpRsh64x16, OpRsh64x8:
 					uminDivisor = 1 << zl.umin
 				default:
 					panic("unreachable")
@@ -2647,14 +2664,30 @@ var mostNegativeDividend = map[Op]int64{
 	OpMod64: -1 << 63,
 }
 var unsignedOp = map[Op]Op{
-	OpDiv8:  OpDiv8u,
-	OpDiv16: OpDiv16u,
-	OpDiv32: OpDiv32u,
-	OpDiv64: OpDiv64u,
-	OpMod8:  OpMod8u,
-	OpMod16: OpMod16u,
-	OpMod32: OpMod32u,
-	OpMod64: OpMod64u,
+	OpDiv8:     OpDiv8u,
+	OpDiv16:    OpDiv16u,
+	OpDiv32:    OpDiv32u,
+	OpDiv64:    OpDiv64u,
+	OpMod8:     OpMod8u,
+	OpMod16:    OpMod16u,
+	OpMod32:    OpMod32u,
+	OpMod64:    OpMod64u,
+	OpRsh8x8:   OpRsh8Ux8,
+	OpRsh8x16:  OpRsh8Ux16,
+	OpRsh8x32:  OpRsh8Ux32,
+	OpRsh8x64:  OpRsh8Ux64,
+	OpRsh16x8:  OpRsh16Ux8,
+	OpRsh16x16: OpRsh16Ux16,
+	OpRsh16x32: OpRsh16Ux32,
+	OpRsh16x64: OpRsh16Ux64,
+	OpRsh32x8:  OpRsh32Ux8,
+	OpRsh32x16: OpRsh32Ux16,
+	OpRsh32x32: OpRsh32Ux32,
+	OpRsh32x64: OpRsh32Ux64,
+	OpRsh64x8:  OpRsh64Ux8,
+	OpRsh64x16: OpRsh64Ux16,
+	OpRsh64x32: OpRsh64Ux32,
+	OpRsh64x64: OpRsh64Ux64,
 }
 
 var bytesizeToConst = [...]Op{
@@ -2741,8 +2774,15 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 		case OpRsh8x8, OpRsh8x16, OpRsh8x32, OpRsh8x64,
 			OpRsh16x8, OpRsh16x16, OpRsh16x32, OpRsh16x64,
 			OpRsh32x8, OpRsh32x16, OpRsh32x32, OpRsh32x64,
-			OpRsh64x8, OpRsh64x16, OpRsh64x32, OpRsh64x64,
-			OpLsh8x8, OpLsh8x16, OpLsh8x32, OpLsh8x64,
+			OpRsh64x8, OpRsh64x16, OpRsh64x32, OpRsh64x64:
+			if ft.isNonNegative(v.Args[0]) {
+				if b.Func.pass.debug > 0 {
+					b.Func.Warnl(v.Pos, "Proved %v is unsigned", v.Op)
+				}
+				v.Op = unsignedOp[v.Op]
+			}
+			fallthrough
+		case OpLsh8x8, OpLsh8x16, OpLsh8x32, OpLsh8x64,
 			OpLsh16x8, OpLsh16x16, OpLsh16x32, OpLsh16x64,
 			OpLsh32x8, OpLsh32x16, OpLsh32x32, OpLsh32x64,
 			OpLsh64x8, OpLsh64x16, OpLsh64x32, OpLsh64x64,

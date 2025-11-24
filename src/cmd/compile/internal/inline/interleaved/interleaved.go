@@ -254,28 +254,6 @@ func (s *inlClosureState) mark(n ir.Node) ir.Node {
 		return n // already visited n.X before wrapping
 	}
 
-	if isTestingBLoop(n) {
-		// No inlining nor devirtualization performed on b.Loop body
-		if base.Flag.LowerM > 0 {
-			fmt.Printf("%v: skip inlining within testing.B.loop for %v\n", ir.Line(n), n)
-		}
-		// We still want to explore inlining opportunities in other parts of ForStmt.
-		nFor, _ := n.(*ir.ForStmt)
-		nForInit := nFor.Init()
-		for i, x := range nForInit {
-			if x != nil {
-				nForInit[i] = s.mark(x)
-			}
-		}
-		if nFor.Cond != nil {
-			nFor.Cond = s.mark(nFor.Cond)
-		}
-		if nFor.Post != nil {
-			nFor.Post = s.mark(nFor.Post)
-		}
-		return n
-	}
-
 	if p != nil {
 		n = p.X // in this case p was copied in from a (marked) inlined function, this is a new unvisited node.
 	}
@@ -368,32 +346,6 @@ func match(n ir.Node) bool {
 		return true
 	case *ir.TailCallStmt:
 		n.Call.NoInline = true // can't inline yet
-	}
-	return false
-}
-
-// isTestingBLoop returns true if it matches the node as a
-// testing.(*B).Loop. See issue #61515.
-func isTestingBLoop(t ir.Node) bool {
-	if t.Op() != ir.OFOR {
-		return false
-	}
-	nFor, ok := t.(*ir.ForStmt)
-	if !ok || nFor.Cond == nil || nFor.Cond.Op() != ir.OCALLFUNC {
-		return false
-	}
-	n, ok := nFor.Cond.(*ir.CallExpr)
-	if !ok || n.Fun == nil || n.Fun.Op() != ir.OMETHEXPR {
-		return false
-	}
-	name := ir.MethodExprName(n.Fun)
-	if name == nil {
-		return false
-	}
-	if fSym := name.Sym(); fSym != nil && name.Class == ir.PFUNC && fSym.Pkg != nil &&
-		fSym.Name == "(*B).Loop" && fSym.Pkg.Path == "testing" {
-		// Attempting to match a function call to testing.(*B).Loop
-		return true
 	}
 	return false
 }

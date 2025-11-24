@@ -592,6 +592,7 @@ func cgoCheckPointer(ptr any, arg any) {
 }
 
 type cgoErrorMsg int
+
 const (
 	cgoCheckPointerFail cgoErrorMsg = iota
 	cgoResultFail

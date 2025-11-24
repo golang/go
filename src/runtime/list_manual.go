@@ -41,11 +41,11 @@ func (head *listHeadManual) init(off uintptr) {
 //
 // For example:
 //
-// type foo struct {
-// 	val int
+//	type foo struct {
+//		val int
 //
-// 	node listNodeManual
-// }
+//		node listNodeManual
+//	}
 //
 // var fooHead listHeadManual
 // fooHead.init(unsafe.Offsetof(foo{}.node))

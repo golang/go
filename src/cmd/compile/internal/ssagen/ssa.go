@@ -6172,8 +6172,8 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
 			base.Fatalf("unexpected *ir.TypeAssertExpr with UseNilPanic == true && commaok == true")
 		}
 		if n.Type().IsInterface() {
-			// Currently we do not expect the compiler to emit type asserts with UseNilPanic, that assert to an interface type.
-			// If needed, this can be relaxed in the future, but for now we can assert that.
+			// Currently we do not expect the compiler to emit type assertions with UseNilPanic, that asserts to an interface type.
+			// If needed, this can be relaxed in the future, but for now we can't assert that.
 			base.Fatalf("unexpected *ir.TypeAssertExpr with UseNilPanic == true && Type().IsInterface() == true")
 		}
 		typs := s.f.Config.Types

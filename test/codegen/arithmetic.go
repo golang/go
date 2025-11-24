@@ -335,11 +335,28 @@ func Fold2NegMul(a, b int) int {
 
 func Mul32(a, b int32) int64 {
 	// arm64:"SMULL" -"MOVW"
+	// loong64:"MULWVW" -"MOVW"
 	return int64(a) * int64(b)
 }
+
 func Mul32U(a, b uint32) uint64 {
 	// arm64:"UMULL" -"MOVWU"
+	// loong64:"MULWVWU" -"MOVWU"
 	return uint64(a) * uint64(b)
+}
+
+func SimplifyNegMulConst(a int) int {
+	// amd64:-"NEGQ"
+	// arm64:"MOVD [$]11" "MUL" -"NEG"
+	// riscv64:"MOV [$]11" "MUL" -"NEG"
+	return -(a * -11)
+}
+
+func SimplifyNegMul(a, b int) int {
+	// amd64:-"NEGQ"
+	// arm64:"MUL" -"NEG"
+	// riscv64:"MUL" -"NEG"
+	return -(-a * b)
 }
 
 // -------------- //

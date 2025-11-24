@@ -5,10 +5,10 @@
 package strconv_test
 
 import (
+	. "internal/strconv"
 	"math"
 	"math/rand"
 	"reflect"
-	. "internal/strconv"
 	"strings"
 	"sync"
 	"testing"

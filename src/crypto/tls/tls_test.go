@@ -11,7 +11,6 @@ import (
 	"crypto/ecdh"
 	"crypto/ecdsa"
 	"crypto/elliptic"
-	"crypto/internal/hpke"
 	"crypto/rand"
 	"crypto/tls/internal/fips140tls"
 	"crypto/x509"
@@ -2249,15 +2248,13 @@ func TestECH(t *testing.T) {
 		builder.AddUint16(extensionEncryptedClientHello)
 		builder.AddUint16LengthPrefixed(func(builder *cryptobyte.Builder) {
 			builder.AddUint8(id)
-			builder.AddUint16(hpke.DHKEM_X25519_HKDF_SHA256) // The only DHKEM we support
+			builder.AddUint16(0x0020 /* DHKEM(X25519, HKDF-SHA256) */)
 			builder.AddUint16LengthPrefixed(func(builder *cryptobyte.Builder) {
 				builder.AddBytes(pubKey)
 			})
 			builder.AddUint16LengthPrefixed(func(builder *cryptobyte.Builder) {
-				for _, aeadID := range sortedSupportedAEADs {
-					builder.AddUint16(hpke.KDF_HKDF_SHA256) // The only KDF we support
-					builder.AddUint16(aeadID)
-				}
+				builder.AddUint16(0x0001 /* HKDF-SHA256 */)
+				builder.AddUint16(0x0001 /* AES-128-GCM */)
 			})
 			builder.AddUint8(maxNameLen)
 			builder.AddUint8LengthPrefixed(func(builder *cryptobyte.Builder) {

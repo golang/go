@@ -457,6 +457,36 @@ func checkImportSymName(s string) {
 // Also assumes that gc convention is to word-align the
 // input and output parameters.
 func (p *Package) structType(n *Name) (string, int64) {
+	// It's possible for us to see a type with a top-level const here,
+	// which will give us an unusable struct type. See #75751.
+	// The top-level const will always appear as a final qualifier,
+	// constructed by typeConv.loadType in the dwarf.QualType case.
+	// The top-level const is meaningless here and can simply be removed.
+	stripConst := func(s string) string {
+		i := strings.LastIndex(s, "const")
+		if i == -1 {
+			return s
+		}
+
+		// A top-level const can only be followed by other qualifiers.
+		if r, ok := strings.CutSuffix(s, "const"); ok {
+			return strings.TrimSpace(r)
+		}
+
+		var nonConst []string
+		for _, f := range strings.Fields(s[i:]) {
+			switch f {
+			case "const":
+			case "restrict", "volatile":
+				nonConst = append(nonConst, f)
+			default:
+				return s
+			}
+		}
+
+		return strings.TrimSpace(s[:i]) + " " + strings.Join(nonConst, " ")
+	}
+
 	var buf strings.Builder
 	fmt.Fprint(&buf, "struct {\n")
 	off := int64(0)
@@ -468,7 +498,7 @@ func (p *Package) structType(n *Name) (string, int64) {
 		}
 		c := t.Typedef
 		if c == "" {
-			c = t.C.String()
+			c = stripConst(t.C.String())
 		}
 		fmt.Fprintf(&buf, "\t\t%s p%d;\n", c, i)
 		off += t.Size
@@ -484,7 +514,7 @@ func (p *Package) structType(n *Name) (string, int64) {
 			fmt.Fprintf(&buf, "\t\tchar __pad%d[%d];\n", off, pad)
 			off += pad
 		}
-		fmt.Fprintf(&buf, "\t\t%s r;\n", t.C)
+		fmt.Fprintf(&buf, "\t\t%s r;\n", stripConst(t.C.String()))
 		off += t.Size
 	}
 	if off%p.PtrSize != 0 {

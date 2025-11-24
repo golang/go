@@ -17,6 +17,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"slices"
 	"sort"
@@ -91,9 +92,21 @@ func newGitRepo(ctx context.Context, remote string, local bool) (Repo, error) {
 				break
 			}
 		}
+		gitSupportsSHA256, gitVersErr := gitSupportsSHA256()
+		if gitVersErr != nil {
+			return nil, fmt.Errorf("unable to resolve git version: %w", gitVersErr)
+		}
 		objFormatFlag := []string{}
+		// If git is sufficiently recent to support sha256,
+		// always initialize with an explicit object-format.
 		if repoSha256Hash {
+			// We always set --object-format=sha256 if the repo
+			// we're cloning uses sha256 hashes because if the git
+			// version is too old, it'll fail either way, so we
+			// might as well give it one last chance.
 			objFormatFlag = []string{"--object-format=sha256"}
+		} else if gitSupportsSHA256 {
+			objFormatFlag = []string{"--object-format=sha1"}
 		}
 		if _, err := Run(ctx, r.dir, "git", "init", "--bare", objFormatFlag); err != nil {
 			os.RemoveAll(r.dir)
@@ -389,7 +402,7 @@ func (r *gitRepo) Latest(ctx context.Context) (*RevInfo, error) {
 
 func (r *gitRepo) checkConfigSHA256(ctx context.Context) bool {
 	if hashType, sha256CfgErr := r.runGit(ctx, "git", "config", "extensions.objectformat"); sha256CfgErr == nil {
-		return "sha256" == strings.TrimSpace(string(hashType))
+		return strings.TrimSpace(string(hashType)) == "sha256"
 	}
 	return false
 }
@@ -971,4 +984,37 @@ func (r *gitRepo) runGit(ctx context.Context, cmdline ...any) ([]byte, error) {
 		args.env = []string{"GIT_DIR=" + r.dir}
 	}
 	return RunWithArgs(ctx, args)
+}
+
+// Capture the major, minor and (optionally) patch version, but ignore anything later
+var gitVersLineExtract = regexp.MustCompile(`git version\s+(\d+\.\d+(?:\.\d+)?)`)
+
+func gitVersion() (string, error) {
+	gitOut, runErr := exec.Command("git", "version").CombinedOutput()
+	if runErr != nil {
+		return "v0", fmt.Errorf("failed to execute git version: %w", runErr)
+	}
+	return extractGitVersion(gitOut)
+}
+
+func extractGitVersion(gitOut []byte) (string, error) {
+	matches := gitVersLineExtract.FindSubmatch(gitOut)
+	if len(matches) < 2 {
+		return "v0", fmt.Errorf("git version extraction regexp did not match version line: %q", gitOut)
+	}
+	return "v" + string(matches[1]), nil
+}
+
+func hasAtLeastGitVersion(minVers string) (bool, error) {
+	gitVers, gitVersErr := gitVersion()
+	if gitVersErr != nil {
+		return false, gitVersErr
+	}
+	return semver.Compare(minVers, gitVers) <= 0, nil
+}
+
+const minGitSHA256Vers = "v2.29"
+
+func gitSupportsSHA256() (bool, error) {
+	return hasAtLeastGitVersion(minGitSHA256Vers)
 }

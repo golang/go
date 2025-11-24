@@ -16,11 +16,9 @@ import (
 	"io/fs"
 	"log"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"reflect"
-	"regexp"
 	"runtime"
 	"strings"
 	"sync"
@@ -196,42 +194,56 @@ func testRepo(ctx context.Context, t *testing.T, remote string) (Repo, error) {
 	return NewRepo(ctx, vcsName, remote, false)
 }
 
-var gitVersLineExtract = regexp.MustCompile(`git version\s+([\d.]+)`)
-
-func gitVersion(t testing.TB) string {
-	gitOut, runErr := exec.Command("git", "version").CombinedOutput()
-	if runErr != nil {
-		t.Logf("failed to execute git version: %s", runErr)
-		return "v0"
+func TestExtractGitVersion(t *testing.T) {
+	t.Parallel()
+	for _, tbl := range []struct {
+		in, exp string
+	}{
+		{in: "git version 2.52.0.rc2", exp: "v2.52.0"},
+		{in: "git version 2.52.0.38.g5e6e4854e0", exp: "v2.52.0"},
+		{in: "git version 2.51.2", exp: "v2.51.2"},
+		{in: "git version 1.5.0.5.GIT", exp: "v1.5.0"},
+		{in: "git version 1.5.1-rc3.GIT", exp: "v1.5.1"},
+		{in: "git version 1.5.2.GIT", exp: "v1.5.2"},
+		{in: "git version 2.43.0.rc2.23.gc3cc3e1da7", exp: "v2.43.0"},
+	} {
+		t.Run(tbl.exp, func(t *testing.T) {
+			out, extrErr := extractGitVersion([]byte(tbl.in))
+			if extrErr != nil {
+				t.Errorf("failed to extract git version from %q: %s", tbl.in, extrErr)
+			}
+			if out != tbl.exp {
+				t.Errorf("unexpected git version extractGitVersion(%q) = %q; want %q", tbl.in, out, tbl.exp)
+			}
+		})
 	}
-	matches := gitVersLineExtract.FindSubmatch(gitOut)
-	if len(matches) < 2 {
-		t.Logf("git version extraction regexp did not match version line: %q", gitOut)
-		return "v0"
-	}
-	return "v" + string(matches[1])
 }
 
-const minGitSHA256Vers = "v2.29"
-
 func TestTags(t *testing.T) {
-	t.Parallel()
 
-	gitVers := gitVersion(t)
+	gitVers, gitVersErr := gitVersion()
+	if gitVersErr != nil {
+		t.Logf("git version check failed: %s", gitVersErr)
+	}
 
 	type tagsTest struct {
 		repo   string
 		prefix string
 		tags   []Tag
+		// Override the git default hash for a few cases to make sure
+		// we handle all 3 reasonable states.
+		defGitHash string
 	}
 
 	runTest := func(tt tagsTest) func(*testing.T) {
 		return func(t *testing.T) {
-			t.Parallel()
 			if tt.repo == gitsha256repo && semver.Compare(gitVers, minGitSHA256Vers) < 0 {
 				t.Skipf("git version is too old (%+v); skipping git sha256 test", gitVers)
 			}
 			ctx := testContext(t)
+			if tt.defGitHash != "" {
+				t.Setenv("GIT_DEFAULT_HASH", tt.defGitHash)
+			}
 
 			r, err := testRepo(ctx, t, tt.repo)
 			if err != nil {
@@ -248,27 +260,37 @@ func TestTags(t *testing.T) {
 	}
 
 	for _, tt := range []tagsTest{
-		{gitrepo1, "xxx", []Tag{}},
+		{gitrepo1, "xxx", []Tag{}, ""},
+		{gitrepo1, "xxx", []Tag{}, "sha256"},
+		{gitrepo1, "xxx", []Tag{}, "sha1"},
 		{gitrepo1, "", []Tag{
 			{"v1.2.3", "ede458df7cd0fdca520df19a33158086a8a68e81"},
 			{"v1.2.4-annotated", "ede458df7cd0fdca520df19a33158086a8a68e81"},
 			{"v2.0.1", "76a00fb249b7f93091bc2c89a789dab1fc1bc26f"},
 			{"v2.0.2", "9d02800338b8a55be062c838d1f02e0c5780b9eb"},
 			{"v2.3", "76a00fb249b7f93091bc2c89a789dab1fc1bc26f"},
-		}},
+		}, ""},
 		{gitrepo1, "v", []Tag{
 			{"v1.2.3", "ede458df7cd0fdca520df19a33158086a8a68e81"},
 			{"v1.2.4-annotated", "ede458df7cd0fdca520df19a33158086a8a68e81"},
 			{"v2.0.1", "76a00fb249b7f93091bc2c89a789dab1fc1bc26f"},
 			{"v2.0.2", "9d02800338b8a55be062c838d1f02e0c5780b9eb"},
 			{"v2.3", "76a00fb249b7f93091bc2c89a789dab1fc1bc26f"},
-		}},
+		}, ""},
 		{gitrepo1, "v1", []Tag{
 			{"v1.2.3", "ede458df7cd0fdca520df19a33158086a8a68e81"},
 			{"v1.2.4-annotated", "ede458df7cd0fdca520df19a33158086a8a68e81"},
-		}},
-		{gitrepo1, "2", []Tag{}},
-		{gitsha256repo, "xxx", []Tag{}},
+		}, ""},
+		{gitrepo1, "v1", []Tag{
+			{"v1.2.3", "ede458df7cd0fdca520df19a33158086a8a68e81"},
+			{"v1.2.4-annotated", "ede458df7cd0fdca520df19a33158086a8a68e81"},
+		}, "sha256"},
+		{gitrepo1, "v1", []Tag{
+			{"v1.2.3", "ede458df7cd0fdca520df19a33158086a8a68e81"},
+			{"v1.2.4-annotated", "ede458df7cd0fdca520df19a33158086a8a68e81"},
+		}, "sha1"},
+		{gitrepo1, "2", []Tag{}, ""},
+		{gitsha256repo, "xxx", []Tag{}, ""},
 		{gitsha256repo, "", []Tag{
 			{"v1.2.3", "47b8b51b2a2d9d5caa3d460096c4e01f05700ce3a9390deb54400bd508214c5c"},
 			{"v1.2.4-annotated", "47b8b51b2a2d9d5caa3d460096c4e01f05700ce3a9390deb54400bd508214c5c"},
@@ -276,7 +298,7 @@ func TestTags(t *testing.T) {
 			{"v2.0.1", "b7550fd9d2129c724c39ae0536e8b2fae4364d8c82bb8b0880c9b71f67295d09"},
 			{"v2.0.2", "1401e4e1fdb4169b51d44a1ff62af63ccc708bf5c12d15051268b51bbb6cbd82"},
 			{"v2.3", "b7550fd9d2129c724c39ae0536e8b2fae4364d8c82bb8b0880c9b71f67295d09"},
-		}},
+		}, ""},
 		{gitsha256repo, "v", []Tag{
 			{"v1.2.3", "47b8b51b2a2d9d5caa3d460096c4e01f05700ce3a9390deb54400bd508214c5c"},
 			{"v1.2.4-annotated", "47b8b51b2a2d9d5caa3d460096c4e01f05700ce3a9390deb54400bd508214c5c"},
@@ -284,13 +306,23 @@ func TestTags(t *testing.T) {
 			{"v2.0.1", "b7550fd9d2129c724c39ae0536e8b2fae4364d8c82bb8b0880c9b71f67295d09"},
 			{"v2.0.2", "1401e4e1fdb4169b51d44a1ff62af63ccc708bf5c12d15051268b51bbb6cbd82"},
 			{"v2.3", "b7550fd9d2129c724c39ae0536e8b2fae4364d8c82bb8b0880c9b71f67295d09"},
-		}},
+		}, ""},
 		{gitsha256repo, "v1", []Tag{
 			{"v1.2.3", "47b8b51b2a2d9d5caa3d460096c4e01f05700ce3a9390deb54400bd508214c5c"},
 			{"v1.2.4-annotated", "47b8b51b2a2d9d5caa3d460096c4e01f05700ce3a9390deb54400bd508214c5c"},
 			{"v1.3.0", "a9157cad2aa6dc2f78aa31fced5887f04e758afa8703f04d0178702ebf04ee17"},
-		}},
-		{gitsha256repo, "2", []Tag{}},
+		}, ""},
+		{gitsha256repo, "v1", []Tag{
+			{"v1.2.3", "47b8b51b2a2d9d5caa3d460096c4e01f05700ce3a9390deb54400bd508214c5c"},
+			{"v1.2.4-annotated", "47b8b51b2a2d9d5caa3d460096c4e01f05700ce3a9390deb54400bd508214c5c"},
+			{"v1.3.0", "a9157cad2aa6dc2f78aa31fced5887f04e758afa8703f04d0178702ebf04ee17"},
+		}, "sha1"},
+		{gitsha256repo, "v1", []Tag{
+			{"v1.2.3", "47b8b51b2a2d9d5caa3d460096c4e01f05700ce3a9390deb54400bd508214c5c"},
+			{"v1.2.4-annotated", "47b8b51b2a2d9d5caa3d460096c4e01f05700ce3a9390deb54400bd508214c5c"},
+			{"v1.3.0", "a9157cad2aa6dc2f78aa31fced5887f04e758afa8703f04d0178702ebf04ee17"},
+		}, "sha256"},
+		{gitsha256repo, "2", []Tag{}, ""},
 	} {
 		t.Run(path.Base(tt.repo)+"/"+tt.prefix, runTest(tt))
 		if tt.repo == gitrepo1 {
@@ -315,7 +347,10 @@ func TestTags(t *testing.T) {
 func TestLatest(t *testing.T) {
 	t.Parallel()
 
-	gitVers := gitVersion(t)
+	gitVers, gitVersErr := gitVersion()
+	if gitVersErr != nil {
+		t.Logf("git version check failed: %s", gitVersErr)
+	}
 
 	type latestTest struct {
 		repo string
@@ -409,7 +444,10 @@ func TestLatest(t *testing.T) {
 func TestReadFile(t *testing.T) {
 	t.Parallel()
 
-	gitVers := gitVersion(t)
+	gitVers, gitVersErr := gitVersion()
+	if gitVersErr != nil {
+		t.Logf("git version check failed: %s", gitVersErr)
+	}
 
 	type readFileTest struct {
 		repo string
@@ -508,7 +546,10 @@ type zipFile struct {
 func TestReadZip(t *testing.T) {
 	t.Parallel()
 
-	gitVers := gitVersion(t)
+	gitVers, gitVersErr := gitVersion()
+	if gitVersErr != nil {
+		t.Logf("git version check failed: %s", gitVersErr)
+	}
 
 	type readZipTest struct {
 		repo   string
@@ -798,7 +839,10 @@ var hgmap = map[string]string{
 func TestStat(t *testing.T) {
 	t.Parallel()
 
-	gitVers := gitVersion(t)
+	gitVers, gitVersErr := gitVersion()
+	if gitVersErr != nil {
+		t.Logf("git version check failed: %s", gitVersErr)
+	}
 
 	type statTest struct {
 		repo string

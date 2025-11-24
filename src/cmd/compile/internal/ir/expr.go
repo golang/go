@@ -193,6 +193,9 @@ type CallExpr struct {
 	GoDefer   bool // whether this call is part of a go or defer statement
 	NoInline  bool // whether this call must not be inlined
 	UseBuf    bool // use stack buffer for backing store (OAPPEND only)
+	// whether it's a runtime.KeepAlive call the compiler generates to
+	// keep a variable alive. See #73137.
+	IsCompilerVarLive bool
 }
 
 func NewCallExpr(pos src.XPos, op Op, fun Node, args []Node) *CallExpr {
@@ -681,7 +684,7 @@ type TypeAssertExpr struct {
 
 	// When set to true, if this assert would panic, then use a nil pointer panic
 	// instead of an interface conversion panic.
-	// It must not be set for type asserts using the commaok form.
+	// It must not be set for type assertions using the commaok form.
 	UseNilPanic bool
 }
 

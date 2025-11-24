@@ -145,3 +145,32 @@ func BenchmarkMul2Neg(b *testing.B) {
 		globl = s
 	}
 }
+
+func BenchmarkSimplifyNegMul(b *testing.B) {
+	x := make([]int64, 1024)
+	y := make([]int64, 1024)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		var s int64
+		for i := range x {
+			s = -(-x[i] * y[i])
+		}
+		globl = s
+	}
+}
+
+func BenchmarkSimplifyNegDiv(b *testing.B) {
+	x := make([]int64, 1024)
+	y := make([]int64, 1024)
+	for i := range y {
+		y[i] = 42
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		var s int64
+		for i := range x {
+			s = -(-x[i] / y[i])
+		}
+		globl = s
+	}
+}

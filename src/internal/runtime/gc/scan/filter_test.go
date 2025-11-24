@@ -10,56 +10,60 @@ import (
 )
 
 func TestFilterNil(t *testing.T) {
+	runTestFilterNil(t, scan.FilterNil)
+}
+
+func runTestFilterNil(t *testing.T, filterNil func(*uintptr, int32) int32) {
 	t.Run("empty", func(t *testing.T) {
-		testFilterNil(t, []uintptr{}, []uintptr{})
+		testFilterNil(t, []uintptr{}, []uintptr{}, filterNil)
 	})
 	t.Run("one", func(t *testing.T) {
-		testFilterNil(t, []uintptr{4}, []uintptr{4})
+		testFilterNil(t, []uintptr{4}, []uintptr{4}, filterNil)
 	})
 	t.Run("elimOne", func(t *testing.T) {
-		testFilterNil(t, []uintptr{0}, []uintptr{})
+		testFilterNil(t, []uintptr{0}, []uintptr{}, filterNil)
 	})
 	t.Run("oneElimBegin", func(t *testing.T) {
-		testFilterNil(t, []uintptr{0, 4}, []uintptr{4})
+		testFilterNil(t, []uintptr{0, 4}, []uintptr{4}, filterNil)
 	})
 	t.Run("oneElimEnd", func(t *testing.T) {
-		testFilterNil(t, []uintptr{4, 0}, []uintptr{4})
+		testFilterNil(t, []uintptr{4, 0}, []uintptr{4}, filterNil)
 	})
 	t.Run("oneElimMultiBegin", func(t *testing.T) {
-		testFilterNil(t, []uintptr{0, 0, 0, 4}, []uintptr{4})
+		testFilterNil(t, []uintptr{0, 0, 0, 4}, []uintptr{4}, filterNil)
 	})
 	t.Run("oneElimMultiEnd", func(t *testing.T) {
-		testFilterNil(t, []uintptr{4, 0, 0, 0}, []uintptr{4})
+		testFilterNil(t, []uintptr{4, 0, 0, 0}, []uintptr{4}, filterNil)
 	})
 	t.Run("oneElimMulti", func(t *testing.T) {
-		testFilterNil(t, []uintptr{0, 0, 0, 4, 0}, []uintptr{4})
+		testFilterNil(t, []uintptr{0, 0, 0, 4, 0}, []uintptr{4}, filterNil)
 	})
 	t.Run("two", func(t *testing.T) {
-		testFilterNil(t, []uintptr{5, 12}, []uintptr{5, 12})
+		testFilterNil(t, []uintptr{5, 12}, []uintptr{5, 12}, filterNil)
 	})
 	t.Run("twoElimBegin", func(t *testing.T) {
-		testFilterNil(t, []uintptr{0, 5, 12}, []uintptr{5, 12})
+		testFilterNil(t, []uintptr{0, 5, 12}, []uintptr{5, 12}, filterNil)
 	})
 	t.Run("twoElimMid", func(t *testing.T) {
-		testFilterNil(t, []uintptr{5, 0, 12}, []uintptr{5, 12})
+		testFilterNil(t, []uintptr{5, 0, 12}, []uintptr{5, 12}, filterNil)
 	})
 	t.Run("twoElimEnd", func(t *testing.T) {
-		testFilterNil(t, []uintptr{5, 12, 0}, []uintptr{5, 12})
+		testFilterNil(t, []uintptr{5, 12, 0}, []uintptr{5, 12}, filterNil)
 	})
 	t.Run("twoElimMulti", func(t *testing.T) {
-		testFilterNil(t, []uintptr{0, 5, 0, 12, 0}, []uintptr{5, 12})
+		testFilterNil(t, []uintptr{0, 5, 0, 12, 0}, []uintptr{5, 12}, filterNil)
 	})
 	t.Run("Multi", func(t *testing.T) {
-		testFilterNil(t, []uintptr{1, 5, 5, 0, 0, 0, 12, 0, 121, 5, 0}, []uintptr{1, 5, 5, 12, 121, 5})
+		testFilterNil(t, []uintptr{1, 5, 5, 0, 0, 0, 12, 0, 121, 5, 0}, []uintptr{1, 5, 5, 12, 121, 5}, filterNil)
 	})
 }
 
-func testFilterNil(t *testing.T, buf, want []uintptr) {
+func testFilterNil(t *testing.T, buf, want []uintptr, filterNil func(*uintptr, int32) int32) {
 	var bufp *uintptr
 	if len(buf) != 0 {
 		bufp = &buf[0]
 	}
-	n := scan.FilterNil(bufp, int32(len(buf)))
+	n := filterNil(bufp, int32(len(buf)))
 	if n > int32(len(buf)) {
 		t.Errorf("bogus new length returned: %d > %d", n, len(buf))
 		return

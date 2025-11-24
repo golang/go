@@ -924,7 +924,10 @@ func profileWriter(w io.Writer) {
 	b := newProfileBuilder(w)
 	var err error
 	for {
-		time.Sleep(100 * time.Millisecond)
+		if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+			// see runtime_pprof_readProfile
+			time.Sleep(100 * time.Millisecond)
+		}
 		data, tags, eof := readProfile()
 		if e := b.addCPUData(data, tags); e != nil && err == nil {
 			err = e

@@ -606,6 +606,26 @@ var urltests = []URLTest{
 		},
 		"mailto:?subject=hi",
 	},
+	// PostgreSQL URLs can include a comma-separated list of host:post hosts.
+	// https://go.dev/issue/75859
+	{
+		"postgres://host1:1,host2:2,host3:3",
+		&URL{
+			Scheme: "postgres",
+			Host:   "host1:1,host2:2,host3:3",
+			Path:   "",
+		},
+		"postgres://host1:1,host2:2,host3:3",
+	},
+	{
+		"postgresql://host1:1,host2:2,host3:3",
+		&URL{
+			Scheme: "postgresql",
+			Host:   "host1:1,host2:2,host3:3",
+			Path:   "",
+		},
+		"postgresql://host1:1,host2:2,host3:3",
+	},
 }
 
 // more useful string for debugging than fmt's struct printer
@@ -860,7 +880,6 @@ func TestURLRedacted(t *testing.T) {
 	}
 
 	for _, tt := range cases {
-		t := t
 		t.Run(tt.name, func(t *testing.T) {
 			if g, w := tt.url.Redacted(), tt.want; g != w {
 				t.Fatalf("got: %q\nwant: %q", g, w)
@@ -2142,11 +2161,6 @@ func TestJoinPath(t *testing.T) {
 		},
 		{
 			base: "https://go.googlesource.com",
-			elem: []string{"../go"},
-			out:  "https://go.googlesource.com/go",
-		},
-		{
-			base: "https://go.googlesource.com",
 			elem: []string{"../go", "../../go", "../../../go"},
 			out:  "https://go.googlesource.com/go",
 		},
@@ -2210,6 +2224,10 @@ func TestJoinPath(t *testing.T) {
 			out:  "https://go.googlesource.com/a/b/go",
 		},
 		{
+			base: "https://go.googlesource.com/",
+			elem: []string{"100%"},
+		},
+		{
 			base: "/",
 			elem: nil,
 			out:  "/",
@@ -2250,17 +2268,25 @@ func TestJoinPath(t *testing.T) {
 		if tt.out == "" {
 			wantErr = "non-nil error"
 		}
-		if out, err := JoinPath(tt.base, tt.elem...); out != tt.out || (err == nil) != (tt.out != "") {
+		out, err := JoinPath(tt.base, tt.elem...)
+		if out != tt.out || (err == nil) != (tt.out != "") {
 			t.Errorf("JoinPath(%q, %q) = %q, %v, want %q, %v", tt.base, tt.elem, out, err, tt.out, wantErr)
 		}
-		var out string
+
 		u, err := Parse(tt.base)
-		if err == nil {
-			u = u.JoinPath(tt.elem...)
-			out = u.String()
+		if err != nil {
+			if tt.out != "" {
+				t.Errorf("Parse(%q) = %v", tt.base, err)
+			}
+			continue
 		}
-		if out != tt.out || (err == nil) != (tt.out != "") {
-			t.Errorf("Parse(%q).JoinPath(%q) = %q, %v, want %q, %v", tt.base, tt.elem, out, err, tt.out, wantErr)
+		if tt.out == "" {
+			// URL.JoinPath doesn't return an error, so leave it unchanged
+			tt.out = tt.base
+		}
+		out = u.JoinPath(tt.elem...).String()
+		if out != tt.out {
+			t.Errorf("Parse(%q).JoinPath(%q) = %q, want %q", tt.base, tt.elem, out, tt.out)
 		}
 	}
 }

@@ -1175,9 +1175,9 @@ func TestBigGOMAXPROCS(t *testing.T) {
 }
 
 type goroutineState struct {
-	G trace.GoID      // This goroutine.
-	P trace.ProcID    // Most recent P this goroutine ran on.
-	M trace.ThreadID  // Most recent M this goroutine ran on.
+	G trace.GoID     // This goroutine.
+	P trace.ProcID   // Most recent P this goroutine ran on.
+	M trace.ThreadID // Most recent M this goroutine ran on.
 }
 
 func newGoroutineState(g trace.GoID) *goroutineState {
@@ -1228,7 +1228,7 @@ func TestTraceSTW(t *testing.T) {
 		}
 	}
 
-	pct := float64(errors)/float64(runs)
+	pct := float64(errors) / float64(runs)
 	t.Logf("Errors: %d/%d = %f%%", errors, runs, 100*pct)
 	if pct > 0.25 {
 		t.Errorf("Error rate too high")
@@ -1264,7 +1264,7 @@ func TestTraceGCSTW(t *testing.T) {
 		}
 	}
 
-	pct := float64(errors)/float64(runs)
+	pct := float64(errors) / float64(runs)
 	t.Logf("Errors: %d/%d = %f%%", errors, runs, 100*pct)
 	if pct > 0.25 {
 		t.Errorf("Error rate too high")
@@ -1321,11 +1321,13 @@ func runTestTracesSTW(t *testing.T, run int, name, stwType string) (err error) {
 	//
 	// 2. Once found, track which M and P the target goroutines run on until...
 	//
-	// 3. Look for the "TraceSTW" "start" log message, where we commit the
-	// target goroutines' "before" M and P.
+	// 3. Look for the first STW after the "TraceSTW" "start" log message,
+	// where we commit the target goroutines' "before" M and P.
 	//
 	// N.B. We must do (1) and (2) together because the first target
 	// goroutine may start running before the second is created.
+	var startLogSeen bool
+	var stwSeen bool
 findStart:
 	for {
 		ev, err := br.ReadEvent()
@@ -1384,8 +1386,24 @@ findStart:
 
 			// Found start point, move on to next stage.
 			t.Logf("Found start message")
-			break findStart
+			startLogSeen = true
+		case trace.EventRangeBegin:
+			if !startLogSeen {
+				// Ignore spurious STW before we expect.
+				continue
+			}
+
+			r := ev.Range()
+			if r.Name == stwType {
+				t.Logf("Found STW")
+				stwSeen = true
+				break findStart
+			}
 		}
+	}
+
+	if !stwSeen {
+		t.Fatal("Can't find STW in the test trace")
 	}
 
 	t.Log("Target goroutines:")
@@ -1440,7 +1458,6 @@ findStart:
 	// [1] This is slightly fragile because there is a small window between
 	// the "start" log and actual STW during which the target goroutines
 	// could legitimately migrate.
-	var stwSeen bool
 	var pRunning []trace.ProcID
 	var gRunning []trace.GoID
 findEnd:
@@ -1543,19 +1560,7 @@ findEnd:
 			// Found end point.
 			t.Logf("Found end message")
 			break findEnd
-		case trace.EventRangeBegin:
-			r := ev.Range()
-			if r.Name == stwType {
-				// Note when we see the STW begin. This is not
-				// load bearing; it's purpose is simply to fail
-				// the test if we accidentally remove the STW.
-				stwSeen = true
-			}
 		}
-	}
-
-	if !stwSeen {
-		t.Fatal("No STW in the test trace")
 	}
 
 	return nil
