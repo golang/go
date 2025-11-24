@@ -413,20 +413,8 @@ func (check *Checker) typInternal(e0 ast.Expr, def *TypeName) (T Type) {
 	return typ
 }
 
-func setDefType(def *TypeName, typ Type) {
-	if def != nil {
-		switch t := def.typ.(type) {
-		case *Alias:
-			t.fromRHS = typ
-		case *Basic:
-			assert(t == Typ[Invalid])
-		case *Named:
-			t.fromRHS = typ
-		default:
-			panic(fmt.Sprintf("unexpected type %T", t))
-		}
-	}
-}
+// TODO(markfreeman): Remove this function.
+func setDefType(def *TypeName, typ Type) {}
 
 func (check *Checker) instantiatedType(ix *indexedExpr, def *TypeName) (res Type) {
 	if check.conf._Trace {

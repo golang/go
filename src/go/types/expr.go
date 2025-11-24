@@ -985,6 +985,13 @@ func (check *Checker) rawExpr(T *target, x *operand, e ast.Expr, hint Type, allo
 		check.nonGeneric(T, x)
 	}
 
+	// Here, x is a value, meaning it has a type. If that type is pending, then we have
+	// a cycle. As an example:
+	//
+	//  type T [unsafe.Sizeof(T{})]int
+	//
+	// has a cycle T->T which is deemed valid (by decl.go), but which is in fact invalid.
+	check.pendingType(x)
 	check.record(x)
 
 	return kind
@@ -1016,6 +1023,22 @@ func (check *Checker) nonGeneric(T *target, x *operand) {
 		check.errorf(x.expr, WrongTypeArgCount, "cannot use generic %s %s without instantiation", what, x.expr)
 		x.mode = invalid
 		x.typ = Typ[Invalid]
+	}
+}
+
+// If x has a pending type (i.e. its declaring object is on the object path), pendingType
+// reports an error and invalidates x.mode and x.typ.
+// Otherwise it leaves x alone.
+func (check *Checker) pendingType(x *operand) {
+	if x.mode == invalid || x.mode == novalue {
+		return
+	}
+	if n, ok := Unalias(x.typ).(*Named); ok {
+		if i, ok := check.objPathIdx[n.obj]; ok {
+			check.cycleError(check.objPath, i)
+			x.mode = invalid
+			x.typ = Typ[Invalid]
+		}
 	}
 }
 
