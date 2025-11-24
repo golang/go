@@ -1791,6 +1791,38 @@ func buildop(ctxt *obj.Link) {
 			opset(AVSLTHU, r0)
 			opset(AVSLTWU, r0)
 			opset(AVSLTVU, r0)
+			opset(AVADDWEVHB, r0)
+			opset(AVADDWEVWH, r0)
+			opset(AVADDWEVVW, r0)
+			opset(AVADDWEVQV, r0)
+			opset(AVSUBWEVHB, r0)
+			opset(AVSUBWEVWH, r0)
+			opset(AVSUBWEVVW, r0)
+			opset(AVSUBWEVQV, r0)
+			opset(AVADDWODHB, r0)
+			opset(AVADDWODWH, r0)
+			opset(AVADDWODVW, r0)
+			opset(AVADDWODQV, r0)
+			opset(AVSUBWODHB, r0)
+			opset(AVSUBWODWH, r0)
+			opset(AVSUBWODVW, r0)
+			opset(AVSUBWODQV, r0)
+			opset(AVADDWEVHBU, r0)
+			opset(AVADDWEVWHU, r0)
+			opset(AVADDWEVVWU, r0)
+			opset(AVADDWEVQVU, r0)
+			opset(AVSUBWEVHBU, r0)
+			opset(AVSUBWEVWHU, r0)
+			opset(AVSUBWEVVWU, r0)
+			opset(AVSUBWEVQVU, r0)
+			opset(AVADDWODHBU, r0)
+			opset(AVADDWODWHU, r0)
+			opset(AVADDWODVWU, r0)
+			opset(AVADDWODQVU, r0)
+			opset(AVSUBWODHBU, r0)
+			opset(AVSUBWODWHU, r0)
+			opset(AVSUBWODVWU, r0)
+			opset(AVSUBWODQVU, r0)
 
 		case AXVSLTB:
 			opset(AXVSLTH, r0)
@@ -1800,6 +1832,38 @@ func buildop(ctxt *obj.Link) {
 			opset(AXVSLTHU, r0)
 			opset(AXVSLTWU, r0)
 			opset(AXVSLTVU, r0)
+			opset(AXVADDWEVHB, r0)
+			opset(AXVADDWEVWH, r0)
+			opset(AXVADDWEVVW, r0)
+			opset(AXVADDWEVQV, r0)
+			opset(AXVSUBWEVHB, r0)
+			opset(AXVSUBWEVWH, r0)
+			opset(AXVSUBWEVVW, r0)
+			opset(AXVSUBWEVQV, r0)
+			opset(AXVADDWODHB, r0)
+			opset(AXVADDWODWH, r0)
+			opset(AXVADDWODVW, r0)
+			opset(AXVADDWODQV, r0)
+			opset(AXVSUBWODHB, r0)
+			opset(AXVSUBWODWH, r0)
+			opset(AXVSUBWODVW, r0)
+			opset(AXVSUBWODQV, r0)
+			opset(AXVADDWEVHBU, r0)
+			opset(AXVADDWEVWHU, r0)
+			opset(AXVADDWEVVWU, r0)
+			opset(AXVADDWEVQVU, r0)
+			opset(AXVSUBWEVHBU, r0)
+			opset(AXVSUBWEVWHU, r0)
+			opset(AXVSUBWEVVWU, r0)
+			opset(AXVSUBWEVQVU, r0)
+			opset(AXVADDWODHBU, r0)
+			opset(AXVADDWODWHU, r0)
+			opset(AXVADDWODVWU, r0)
+			opset(AXVADDWODQVU, r0)
+			opset(AXVSUBWODHBU, r0)
+			opset(AXVSUBWODWHU, r0)
+			opset(AXVSUBWODVWU, r0)
+			opset(AXVSUBWODQVU, r0)
 
 		case AVANDB:
 			opset(AVORB, r0)
@@ -3612,6 +3676,134 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return 0xe946 << 15 // xvmulwod.d.wu.w
 	case AXVMULWODQVUV:
 		return 0xe947 << 15 // xvmulwod.q.du.d
+	case AVADDWEVHB:
+		return 0x0E03C << 15 // vaddwev.h.b
+	case AVADDWEVWH:
+		return 0x0E03D << 15 // vaddwev.w.h
+	case AVADDWEVVW:
+		return 0x0E03E << 15 // vaddwev.d.w
+	case AVADDWEVQV:
+		return 0x0E03F << 15 // vaddwev.q.d
+	case AVSUBWEVHB:
+		return 0x0E040 << 15 // vsubwev.h.b
+	case AVSUBWEVWH:
+		return 0x0E041 << 15 // vsubwev.w.h
+	case AVSUBWEVVW:
+		return 0x0E042 << 15 // vsubwev.d.w
+	case AVSUBWEVQV:
+		return 0x0E043 << 15 // vsubwev.q.d
+	case AVADDWODHB:
+		return 0x0E044 << 15 // vaddwod.h.b
+	case AVADDWODWH:
+		return 0x0E045 << 15 // vaddwod.w.h
+	case AVADDWODVW:
+		return 0x0E046 << 15 // vaddwod.d.w
+	case AVADDWODQV:
+		return 0x0E047 << 15 // vaddwod.q.d
+	case AVSUBWODHB:
+		return 0x0E048 << 15 // vsubwod.h.b
+	case AVSUBWODWH:
+		return 0x0E049 << 15 // vsubwod.w.h
+	case AVSUBWODVW:
+		return 0x0E04A << 15 // vsubwod.d.w
+	case AVSUBWODQV:
+		return 0x0E04B << 15 // vsubwod.q.d
+	case AXVADDWEVHB:
+		return 0x0E83C << 15 // xvaddwev.h.b
+	case AXVADDWEVWH:
+		return 0x0E83D << 15 // xvaddwev.w.h
+	case AXVADDWEVVW:
+		return 0x0E83E << 15 // xvaddwev.d.w
+	case AXVADDWEVQV:
+		return 0x0E83F << 15 // xvaddwev.q.d
+	case AXVSUBWEVHB:
+		return 0x0E840 << 15 // xvsubwev.h.b
+	case AXVSUBWEVWH:
+		return 0x0E841 << 15 // xvsubwev.w.h
+	case AXVSUBWEVVW:
+		return 0x0E842 << 15 // xvsubwev.d.w
+	case AXVSUBWEVQV:
+		return 0x0E843 << 15 // xvsubwev.q.d
+	case AXVADDWODHB:
+		return 0x0E844 << 15 // xvaddwod.h.b
+	case AXVADDWODWH:
+		return 0x0E845 << 15 // xvaddwod.w.h
+	case AXVADDWODVW:
+		return 0x0E846 << 15 // xvaddwod.d.w
+	case AXVADDWODQV:
+		return 0x0E847 << 15 // xvaddwod.q.d
+	case AXVSUBWODHB:
+		return 0x0E848 << 15 // xvsubwod.h.b
+	case AXVSUBWODWH:
+		return 0x0E849 << 15 // xvsubwod.w.h
+	case AXVSUBWODVW:
+		return 0x0E84A << 15 // xvsubwod.d.w
+	case AXVSUBWODQV:
+		return 0x0E84B << 15 // xvsubwod.q.d
+	case AVADDWEVHBU:
+		return 0x0E05C << 15 // vaddwev.h.bu
+	case AVADDWEVWHU:
+		return 0x0E05E << 15 // vaddwev.w.hu
+	case AVADDWEVVWU:
+		return 0x0E05E << 15 // vaddwev.d.wu
+	case AVADDWEVQVU:
+		return 0x0E05F << 15 // vaddwev.q.du
+	case AVSUBWEVHBU:
+		return 0x0E060 << 15 // vsubwev.h.bu
+	case AVSUBWEVWHU:
+		return 0x0E061 << 15 // vsubwev.w.hu
+	case AVSUBWEVVWU:
+		return 0x0E062 << 15 // vsubwev.d.wu
+	case AVSUBWEVQVU:
+		return 0x0E063 << 15 // vsubwev.q.du
+	case AVADDWODHBU:
+		return 0x0E064 << 15 // vaddwod.h.bu
+	case AVADDWODWHU:
+		return 0x0E065 << 15 // vaddwod.w.hu
+	case AVADDWODVWU:
+		return 0x0E066 << 15 // vaddwod.d.wu
+	case AVADDWODQVU:
+		return 0x0E067 << 15 // vaddwod.q.du
+	case AVSUBWODHBU:
+		return 0x0E068 << 15 // vsubwod.h.bu
+	case AVSUBWODWHU:
+		return 0x0E069 << 15 // vsubwod.w.hu
+	case AVSUBWODVWU:
+		return 0x0E06A << 15 // vsubwod.d.wu
+	case AVSUBWODQVU:
+		return 0x0E06B << 15 // vsubwod.q.du
+	case AXVADDWEVHBU:
+		return 0x0E85C << 15 // xvaddwev.h.bu
+	case AXVADDWEVWHU:
+		return 0x0E85D << 15 // xvaddwev.w.hu
+	case AXVADDWEVVWU:
+		return 0x0E85E << 15 // xvaddwev.d.wu
+	case AXVADDWEVQVU:
+		return 0x0E85F << 15 // xvaddwev.q.du
+	case AXVSUBWEVHBU:
+		return 0x0E860 << 15 // xvsubwev.h.bu
+	case AXVSUBWEVWHU:
+		return 0x0E861 << 15 // xvsubwev.w.hu
+	case AXVSUBWEVVWU:
+		return 0x0E862 << 15 // xvsubwev.d.wu
+	case AXVSUBWEVQVU:
+		return 0x0E863 << 15 // xvsubwev.q.du
+	case AXVADDWODHBU:
+		return 0x0E864 << 15 // xvaddwod.h.bu
+	case AXVADDWODWHU:
+		return 0x0E865 << 15 // xvaddwod.w.hu
+	case AXVADDWODVWU:
+		return 0x0E866 << 15 // xvaddwod.d.wu
+	case AXVADDWODQVU:
+		return 0x0E867 << 15 // xvaddwod.q.du
+	case AXVSUBWODHBU:
+		return 0x0E868 << 15 // xvsubwod.h.bu
+	case AXVSUBWODWHU:
+		return 0x0E869 << 15 // xvsubwod.w.hu
+	case AXVSUBWODVWU:
+		return 0x0E86A << 15 // xvsubwod.d.wu
+	case AXVSUBWODQVU:
+		return 0x0E86B << 15 // xvsubwod.q.du
 	case AVSLLB:
 		return 0xe1d0 << 15 // vsll.b
 	case AVSLLH:
