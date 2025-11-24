@@ -7,7 +7,6 @@ package load
 
 import (
 	"bytes"
-	"cmd/internal/objabi"
 	"context"
 	"encoding/json"
 	"errors"
@@ -30,6 +29,8 @@ import (
 	"time"
 	"unicode"
 	"unicode/utf8"
+
+	"cmd/internal/objabi"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
@@ -3416,7 +3417,7 @@ func PackagesAndErrorsOutsideModule(loaderstate *modload.State, ctx context.Cont
 	if deprecation != "" {
 		fmt.Fprintf(os.Stderr, "go: module %s is deprecated: %s\n", rootMod.Path, modload.ShortMessage(deprecation, ""))
 	}
-	data, err := modfetch.Fetcher_.GoMod(ctx, rootMod.Path, rootMod.Version)
+	data, err := loaderstate.Fetcher().GoMod(ctx, rootMod.Path, rootMod.Version)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", args[0], err)
 	}
