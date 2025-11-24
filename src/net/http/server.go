@@ -17,7 +17,7 @@ import (
 	"io"
 	"log"
 	"maps"
-	"math/rand"
+	"math/rand/v2"
 	"net"
 	"net/textproto"
 	"net/url"
@@ -3161,7 +3161,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	pollIntervalBase := time.Millisecond
 	nextPollInterval := func() time.Duration {
 		// Add 10% jitter.
-		interval := pollIntervalBase + time.Duration(rand.Intn(int(pollIntervalBase/10)))
+		interval := pollIntervalBase + time.Duration(rand.IntN(int(pollIntervalBase/10)))
 		// Double and clamp for next time.
 		pollIntervalBase *= 2
 		if pollIntervalBase > shutdownPollIntervalMax {
