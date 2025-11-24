@@ -104,7 +104,7 @@ func genRulesSuffix(arch arch, suff string) {
 		// Some architectures have bonus rules files that others don't share. That's fine.
 		return
 	}
-
+	defer text.Close()
 	// oprules contains a list of rules for each block and opcode
 	blockrules := map[string][]Rule{}
 	oprules := map[string][]Rule{}
