@@ -898,7 +898,7 @@ func (c switchProtocolCopier) copyFromBackend(errc chan<- error) {
 		return
 	}
 
-	// backend conn has reached EOF so propogate close write to user conn
+	// backend conn has reached EOF so propagate close write to user conn
 	if wc, ok := c.user.(interface{ CloseWrite() error }); ok {
 		errc <- wc.CloseWrite()
 		return
@@ -913,7 +913,7 @@ func (c switchProtocolCopier) copyToBackend(errc chan<- error) {
 		return
 	}
 
-	// user conn has reached EOF so propogate close write to backend conn
+	// user conn has reached EOF so propagate close write to backend conn
 	if wc, ok := c.backend.(interface{ CloseWrite() error }); ok {
 		errc <- wc.CloseWrite()
 		return

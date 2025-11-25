@@ -1120,7 +1120,7 @@ func expandFile(fname string) string {
 // are emitted to the directory table first, then the file table is
 // emitted after that.
 //
-// Note that there are some differences betwen DWARF versions 4 and 5
+// Note that there are some differences between DWARF versions 4 and 5
 // regarding how files and directories are handled; the chief item is
 // that in version 4 we have an implicit directory index 0 that holds
 // the compilation dir, and an implicit file index 0 that holds the

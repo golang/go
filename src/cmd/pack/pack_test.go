@@ -163,7 +163,7 @@ func TestExtract(t *testing.T) {
 // Test that pack-created archives can be understood by the tools.
 func TestHello(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
-	// N.B. the build below explictly doesn't pass through
+	// N.B. the build below explicitly doesn't pass through
 	// -asan/-msan/-race, so we don't care about those.
 	testenv.MustInternalLink(t, testenv.NoSpecialBuildTypes)
 

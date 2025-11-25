@@ -610,7 +610,7 @@ func parseCPUMount(fd int, read func(fd int, b []byte) (int, uintptr), out []byt
 		}
 
 		// As in findCPUPath, cgroup v1 with a CPU controller takes
-		// precendence over cgroup v2.
+		// precedence over cgroup v2.
 		if string(ftype) == "cgroup2" {
 			// v2 hierarchy.
 			n, err = unescapePath(out, mnt)

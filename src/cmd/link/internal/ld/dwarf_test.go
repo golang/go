@@ -279,7 +279,7 @@ func TestSizes(t *testing.T) {
 
 	// External linking may bring in C symbols with unknown size. Skip.
 	//
-	// N.B. go build below explictly doesn't pass through
+	// N.B. go build below explicitly doesn't pass through
 	// -asan/-msan/-race, so we don't care about those.
 	testenv.MustInternalLink(t, testenv.NoSpecialBuildTypes)
 
@@ -855,7 +855,7 @@ func TestAbstractOriginSanityIssue26237(t *testing.T) {
 
 func TestRuntimeTypeAttrInternal(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
-	// N.B. go build below explictly doesn't pass through
+	// N.B. go build below explicitly doesn't pass through
 	// -asan/-msan/-race, so we don't care about those.
 	testenv.MustInternalLink(t, testenv.NoSpecialBuildTypes)
 
@@ -1489,7 +1489,7 @@ func TestIssue42484(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	// Avoid spurious failures from external linkers.
 	//
-	// N.B. go build below explictly doesn't pass through
+	// N.B. go build below explicitly doesn't pass through
 	// -asan/-msan/-race, so we don't care about those.
 	testenv.MustInternalLink(t, testenv.NoSpecialBuildTypes)
 

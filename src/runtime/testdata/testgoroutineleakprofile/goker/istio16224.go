@@ -33,7 +33,7 @@ func (m *configstoreMonitor_istio16224) Run(stop <-chan struct{}) {
 	for {
 		select {
 		case <-stop:
-			// This bug is not descibed, but is a true positive (in our eyes)
+			// This bug is not described, but is a true positive (in our eyes)
 			// In a real run main exits when the goro is blocked here.
 			if _, ok := <-m.eventCh; ok {
 				close(m.eventCh)
