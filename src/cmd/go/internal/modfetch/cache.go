@@ -156,7 +156,7 @@ func lockVersion(ctx context.Context, mod module.Version) (unlock func(), err er
 	if err != nil {
 		return nil, err
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0777); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o777); err != nil {
 		return nil, err
 	}
 	return lockedfile.MutexAt(path).Lock()
@@ -172,7 +172,7 @@ func SideLock(ctx context.Context) (unlock func(), err error) {
 	}
 
 	path := filepath.Join(cfg.GOMODCACHE, "cache", "lock")
-	if err := os.MkdirAll(filepath.Dir(path), 0777); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o777); err != nil {
 		return nil, fmt.Errorf("failed to create cache directory: %w", err)
 	}
 
@@ -194,12 +194,14 @@ type cachingRepo struct {
 	once     sync.Once
 	initRepo func(context.Context) (Repo, error)
 	r        Repo
+	fetcher  *Fetcher
 }
 
-func newCachingRepo(ctx context.Context, path string, initRepo func(context.Context) (Repo, error)) *cachingRepo {
+func newCachingRepo(ctx context.Context, fetcher *Fetcher, path string, initRepo func(context.Context) (Repo, error)) *cachingRepo {
 	return &cachingRepo{
 		path:     path,
 		initRepo: initRepo,
+		fetcher:  fetcher,
 	}
 }
 
@@ -226,7 +228,6 @@ func (r *cachingRepo) Versions(ctx context.Context, prefix string) (*Versions, e
 	v, err := r.versionsCache.Do(prefix, func() (*Versions, error) {
 		return r.repo(ctx).Versions(ctx, prefix)
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -309,7 +310,7 @@ func (r *cachingRepo) GoMod(ctx context.Context, version string) ([]byte, error)
 		return r.repo(ctx).GoMod(ctx, version)
 	}
 	text, err := r.gomodCache.Do(version, func() ([]byte, error) {
-		file, text, err := Fetcher_.readDiskGoMod(ctx, r.path, version)
+		file, text, err := r.fetcher.readDiskGoMod(ctx, r.path, version)
 		if err == nil {
 			// Note: readDiskGoMod already called checkGoMod.
 			return text, nil
@@ -317,7 +318,7 @@ func (r *cachingRepo) GoMod(ctx context.Context, version string) ([]byte, error)
 
 		text, err = r.repo(ctx).GoMod(ctx, version)
 		if err == nil {
-			if err := checkGoMod(Fetcher_, r.path, version, text); err != nil {
+			if err := checkGoMod(r.fetcher, r.path, version, text); err != nil {
 				return text, err
 			}
 			if err := writeDiskGoMod(ctx, file, text); err != nil {
@@ -653,13 +654,13 @@ func writeDiskCache(ctx context.Context, file string, data []byte) error {
 		return nil
 	}
 	// Make sure directory for file exists.
-	if err := os.MkdirAll(filepath.Dir(file), 0777); err != nil {
+	if err := os.MkdirAll(filepath.Dir(file), 0o777); err != nil {
 		return err
 	}
 
 	// Write the file to a temporary location, and then rename it to its final
 	// path to reduce the likelihood of a corrupt file existing at that final path.
-	f, err := tempFile(ctx, filepath.Dir(file), filepath.Base(file), 0666)
+	f, err := tempFile(ctx, filepath.Dir(file), filepath.Base(file), 0o666)
 	if err != nil {
 		return err
 	}
@@ -812,7 +813,7 @@ func checkCacheDir(ctx context.Context) error {
 				statCacheErr = fmt.Errorf("could not create module cache: %w", err)
 				return
 			}
-			if err := os.MkdirAll(cfg.GOMODCACHE, 0777); err != nil {
+			if err := os.MkdirAll(cfg.GOMODCACHE, 0o777); err != nil {
 				statCacheErr = fmt.Errorf("could not create module cache: %w", err)
 				return
 			}

@@ -60,7 +60,7 @@ func EnterModule(loaderstate *State, ctx context.Context, enterModroot string) {
 	loaderstate.MainModules = nil // reset MainModules
 	loaderstate.requirements = nil
 	loaderstate.workFilePath = "" // Force module mode
-	modfetch.Reset()
+	loaderstate.Fetcher().Reset()
 
 	loaderstate.modRoots = []string{enterModroot}
 	LoadModFile(loaderstate, ctx)
@@ -411,8 +411,7 @@ func (s *State) setState(new *State) (old *State) {
 	// The modfetch package's global state is used to compute
 	// the go.sum file, so save and restore it along with the
 	// modload state.
-	s.fetcher = new.fetcher
-	old.fetcher = modfetch.SetState(s.fetcher) // TODO(jitsu): remove after completing global state elimination
+	old.fetcher = s.fetcher.SetState(new.fetcher)
 
 	return old
 }
@@ -457,7 +456,7 @@ type State struct {
 
 func NewState() *State {
 	s := new(State)
-	s.fetcher = modfetch.Fetcher_
+	s.fetcher = modfetch.NewFetcher()
 	return s
 }
 

@@ -206,7 +206,7 @@ func (f *Fetcher) Lookup(ctx context.Context, proxy, path string) Repo {
 	}
 
 	return f.lookupCache.Do(lookupCacheKey{proxy, path}, func() Repo {
-		return newCachingRepo(ctx, path, func(ctx context.Context) (Repo, error) {
+		return newCachingRepo(ctx, f, path, func(ctx context.Context) (Repo, error) {
 			r, err := lookup(f, ctx, proxy, path)
 			if err == nil && traceRepo {
 				r = newLoggingRepo(r)
@@ -223,13 +223,13 @@ var lookupLocalCache = new(par.Cache[string, Repo]) // path, Repo
 // codeRoot is the module path of the root module in the repository.
 // path is the module path of the module being looked up.
 // dir is the file system path of the repository containing the module.
-func LookupLocal(ctx context.Context, codeRoot string, path string, dir string) Repo {
+func (f *Fetcher) LookupLocal(ctx context.Context, codeRoot string, path string, dir string) Repo {
 	if traceRepo {
 		defer logCall("LookupLocal(%q)", path)()
 	}
 
 	return lookupLocalCache.Do(path, func() Repo {
-		return newCachingRepo(ctx, path, func(ctx context.Context) (Repo, error) {
+		return newCachingRepo(ctx, f, path, func(ctx context.Context) (Repo, error) {
 			repoDir, vcsCmd, err := vcs.FromDir(dir, "")
 			if err != nil {
 				return nil, err

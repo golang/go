@@ -368,7 +368,7 @@ func moduleInfo(loaderstate *State, ctx context.Context, rs *Requirements, m mod
 						m.GoMod = gomod
 					}
 				}
-				if gomodsum, ok := modfetch.RecordedSum(modkey(mod)); ok {
+				if gomodsum, ok := loaderstate.fetcher.RecordedSum(modkey(mod)); ok {
 					m.GoModSum = gomodsum
 				}
 			}
@@ -377,7 +377,7 @@ func moduleInfo(loaderstate *State, ctx context.Context, rs *Requirements, m mod
 				if err == nil {
 					m.Dir = dir
 				}
-				if sum, ok := modfetch.RecordedSum(mod); ok {
+				if sum, ok := loaderstate.fetcher.RecordedSum(mod); ok {
 					m.Sum = sum
 				}
 			}

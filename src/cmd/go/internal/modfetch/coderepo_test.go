@@ -36,7 +36,6 @@ func TestMain(m *testing.M) {
 }
 
 func testMain(m *testing.M) (err error) {
-
 	cfg.GOPROXY = "direct"
 
 	// The sum database is populated using a released version of the go command,
@@ -56,7 +55,7 @@ func testMain(m *testing.M) (err error) {
 	}()
 
 	cfg.GOMODCACHE = filepath.Join(dir, "modcache")
-	if err := os.Mkdir(cfg.GOMODCACHE, 0755); err != nil {
+	if err := os.Mkdir(cfg.GOMODCACHE, 0o755); err != nil {
 		return err
 	}
 
@@ -589,6 +588,7 @@ var codeRepoTests = []codeRepoTest{
 func TestCodeRepo(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 	tmpdir := t.TempDir()
+	fetcher := NewFetcher()
 
 	for _, tt := range codeRepoTests {
 		f := func(tt codeRepoTest) func(t *testing.T) {
@@ -603,7 +603,7 @@ func TestCodeRepo(t *testing.T) {
 				}
 				ctx := context.Background()
 
-				repo := Fetcher_.Lookup(ctx, "direct", tt.path)
+				repo := fetcher.Lookup(ctx, "direct", tt.path)
 
 				if tt.mpath == "" {
 					tt.mpath = tt.path
@@ -817,7 +817,7 @@ var codeRepoVersionsTests = []struct {
 
 func TestCodeRepoVersions(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
-
+	fetcher := NewFetcher()
 	for _, tt := range codeRepoVersionsTests {
 		tt := tt
 		t.Run(strings.ReplaceAll(tt.path, "/", "_"), func(t *testing.T) {
@@ -831,7 +831,7 @@ func TestCodeRepoVersions(t *testing.T) {
 			}
 			ctx := context.Background()
 
-			repo := Fetcher_.Lookup(ctx, "direct", tt.path)
+			repo := fetcher.Lookup(ctx, "direct", tt.path)
 			list, err := repo.Versions(ctx, tt.prefix)
 			if err != nil {
 				t.Fatalf("Versions(%q): %v", tt.prefix, err)
@@ -898,7 +898,7 @@ var latestTests = []struct {
 
 func TestLatest(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
-
+	fetcher := NewFetcher()
 	for _, tt := range latestTests {
 		name := strings.ReplaceAll(tt.path, "/", "_")
 		t.Run(name, func(t *testing.T) {
@@ -909,7 +909,7 @@ func TestLatest(t *testing.T) {
 			}
 			ctx := context.Background()
 
-			repo := Fetcher_.Lookup(ctx, "direct", tt.path)
+			repo := fetcher.Lookup(ctx, "direct", tt.path)
 			info, err := repo.Latest(ctx)
 			if err != nil {
 				if tt.err != "" {

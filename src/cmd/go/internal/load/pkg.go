@@ -2050,7 +2050,7 @@ func (p *Package) load(loaderstate *modload.State, ctx context.Context, opts Pac
 		// Consider starting this as a background goroutine and retrieving the result
 		// asynchronously when we're actually ready to build the package, or when we
 		// actually need to evaluate whether the package's metadata is stale.
-		p.setBuildInfo(ctx, opts.AutoVCS)
+		p.setBuildInfo(ctx, loaderstate.Fetcher(), opts.AutoVCS)
 	}
 
 	// If cgo is not enabled, ignore cgo supporting sources
@@ -2323,7 +2323,7 @@ func appendBuildSetting(info *debug.BuildInfo, key, value string) {
 //
 // Note that the GoVersion field is not set here to avoid encoding it twice.
 // It is stored separately in the binary, mostly for historical reasons.
-func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
+func (p *Package) setBuildInfo(ctx context.Context, f *modfetch.Fetcher, autoVCS bool) {
 	setPkgErrorf := func(format string, args ...any) {
 		if p.Error == nil {
 			p.Error = &PackageError{Err: fmt.Errorf(format, args...)}
@@ -2595,7 +2595,7 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
 		if !ok {
 			goto omitVCS
 		}
-		repo := modfetch.LookupLocal(ctx, codeRoot, p.Module.Path, repoDir)
+		repo := f.LookupLocal(ctx, codeRoot, p.Module.Path, repoDir)
 		revInfo, err := repo.Stat(ctx, st.Revision)
 		if err != nil {
 			goto omitVCS
