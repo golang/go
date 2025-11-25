@@ -30,6 +30,8 @@ type symsStruct struct {
 	Goschedguarded            *obj.LSym
 	Growslice                 *obj.LSym
 	GrowsliceBuf              *obj.LSym
+	GrowsliceBufNoAlias       *obj.LSym
+	GrowsliceNoAlias          *obj.LSym
 	MoveSlice                 *obj.LSym
 	MoveSliceNoScan           *obj.LSym
 	MoveSliceNoCap            *obj.LSym

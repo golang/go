@@ -12,6 +12,7 @@ import (
 	"go/constant"
 	"html"
 	"internal/buildcfg"
+	"internal/goexperiment"
 	"internal/runtime/gc"
 	"os"
 	"path/filepath"
@@ -125,6 +126,8 @@ func InitConfig() {
 	ir.Syms.Goschedguarded = typecheck.LookupRuntimeFunc("goschedguarded")
 	ir.Syms.Growslice = typecheck.LookupRuntimeFunc("growslice")
 	ir.Syms.GrowsliceBuf = typecheck.LookupRuntimeFunc("growsliceBuf")
+	ir.Syms.GrowsliceBufNoAlias = typecheck.LookupRuntimeFunc("growsliceBufNoAlias")
+	ir.Syms.GrowsliceNoAlias = typecheck.LookupRuntimeFunc("growsliceNoAlias")
 	ir.Syms.MoveSlice = typecheck.LookupRuntimeFunc("moveSlice")
 	ir.Syms.MoveSliceNoScan = typecheck.LookupRuntimeFunc("moveSliceNoScan")
 	ir.Syms.MoveSliceNoCap = typecheck.LookupRuntimeFunc("moveSliceNoCap")
@@ -4048,9 +4051,25 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 			s.defvars[s.f.Entry.ID][memVar] = mem
 			info.usedStatic = true
 		}
-		r = s.rtcall(ir.Syms.GrowsliceBuf, true, []*types.Type{n.Type()}, p, l, c, nargs, taddr, s.addr(info.store), s.constInt(types.Types[types.TINT], info.K))
+		fn := ir.Syms.GrowsliceBuf
+		if goexperiment.RuntimeFreegc && n.AppendNoAlias && !et.HasPointers() {
+			// The append is for a non-aliased slice where the runtime knows how to free
+			// the old logically dead backing store after growth.
+			// TODO(thepudds): for now, we only use the NoAlias version for element types
+			// without pointers while waiting on additional runtime support (CL 698515).
+			fn = ir.Syms.GrowsliceBufNoAlias
+		}
+		r = s.rtcall(fn, true, []*types.Type{n.Type()}, p, l, c, nargs, taddr, s.addr(info.store), s.constInt(types.Types[types.TINT], info.K))
 	} else {
-		r = s.rtcall(ir.Syms.Growslice, true, []*types.Type{n.Type()}, p, l, c, nargs, taddr)
+		fn := ir.Syms.Growslice
+		if goexperiment.RuntimeFreegc && n.AppendNoAlias && !et.HasPointers() {
+			// The append is for a non-aliased slice where the runtime knows how to free
+			// the old logically dead backing store after growth.
+			// TODO(thepudds): for now, we only use the NoAlias version for element types
+			// without pointers while waiting on additional runtime support (CL 698515).
+			fn = ir.Syms.GrowsliceNoAlias
+		}
+		r = s.rtcall(fn, true, []*types.Type{n.Type()}, p, l, c, nargs, taddr)
 	}
 
 	// Decompose output slice

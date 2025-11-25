@@ -1,6 +1,6 @@
 // asmcheck
 
-//go:build !goexperiment.runtimefreegc
+//go:build goexperiment.runtimefreegc
 
 // Copyright 2025 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -11,7 +11,7 @@ package codegen
 func Append1(n int) []int {
 	var r []int
 	for i := range n {
-		// amd64:`.*growslice\b`
+		// amd64:`.*growsliceNoAlias\b`
 		r = append(r, i)
 	}
 	// amd64:`.*moveSliceNoCapNoScan\b`
@@ -39,7 +39,7 @@ func Append3(n int) (r []int) {
 func Append4(n int) []int {
 	var r []int
 	for i := range n {
-		// amd64:`.*growsliceBuf\b`
+		// amd64:`.*growsliceBufNoAlias\b`
 		r = append(r, i)
 	}
 	println(cap(r))
@@ -50,7 +50,7 @@ func Append4(n int) []int {
 func Append5(n int) []int {
 	var r []int
 	for i := range n {
-		// amd64:`.*growsliceBuf\b`
+		// amd64:`.*growsliceBufNoAlias\b`
 		r = append(r, i)
 	}
 	useSlice(r)
@@ -62,7 +62,7 @@ func Append5b(n int) []int {
 	var r []int
 	useSlice(r)
 	for i := range n {
-		// amd64:`.*growsliceBuf\b`
+		// amd64:`.*growsliceBuf\b` -`.*growsliceBufNoAlias\b`
 		r = append(r, i)
 	}
 	// amd64:`.*moveSliceNoScan\b`
@@ -72,6 +72,8 @@ func Append5b(n int) []int {
 func Append6(n int) []*int {
 	var r []*int
 	for i := range n {
+		// TODO(thepudds): for now, the compiler only uses the NoAlias version
+		// for element types without pointers.
 		// amd64:`.*growslice\b`
 		r = append(r, new(i))
 	}
@@ -82,6 +84,8 @@ func Append6(n int) []*int {
 func Append7(n int) []*int {
 	var r []*int
 	for i := range n {
+		// TODO(thepudds): for now, the compiler only uses the NoAlias version
+		// for element types without pointers.
 		// amd64:`.*growsliceBuf\b`
 		r = append(r, new(i))
 	}
@@ -93,7 +97,7 @@ func Append7(n int) []*int {
 func Append8(n int, p *[]int) {
 	var r []int
 	for i := range n {
-		// amd64:`.*growslice\b`
+		// amd64:`.*growsliceNoAlias\b`
 		r = append(r, i)
 	}
 	// amd64:`.*moveSliceNoCapNoScan\b`
@@ -105,7 +109,7 @@ func Append8b(n int, p *[]int) {
 	// amd64:`.*moveSliceNoCapNoScan\b`
 	*p = r
 	for i := range n {
-		// amd64:`.*growslice\b`
+		// amd64:`.*growslice\b` -`.*growsliceNoAlias\b`
 		r = append(r, i)
 	}
 }
@@ -113,7 +117,7 @@ func Append8b(n int, p *[]int) {
 func Append9(n int) []int {
 	var r []int
 	for i := range n {
-		// amd64:`.*growslice\b`
+		// amd64:`.*growsliceNoAlias\b`
 		r = append(r, i)
 	}
 	println(len(r))
@@ -124,7 +128,7 @@ func Append9(n int) []int {
 func Append10(n int) []int {
 	var r []int
 	for i := range n {
-		// amd64:`.*growslice\b`
+		// amd64:`.*growsliceNoAlias\b`
 		r = append(r, i)
 	}
 	println(r[3])
@@ -135,7 +139,7 @@ func Append10(n int) []int {
 func Append11(n int) []int {
 	var r []int
 	for i := range n {
-		// amd64:`.*growsliceBuf\b`
+		// amd64:`.*growsliceBufNoAlias\b`
 		r = append(r, i)
 	}
 	r = r[3:5]
@@ -169,7 +173,7 @@ func Append14(n int) []int {
 	var r []int
 	r = []int{3, 4, 5}
 	for i := range n {
-		// amd64:`.*growsliceBuf\b`
+		// amd64:`.*growsliceBufNoAlias\b`
 		r = append(r, i)
 	}
 	// amd64:`.*moveSliceNoScan\b`
@@ -179,7 +183,7 @@ func Append14(n int) []int {
 func Append15(n int) []int {
 	r := []int{3, 4, 5}
 	for i := range n {
-		// amd64:`.*growsliceBuf\b`
+		// amd64:`.*growsliceBufNoAlias\b`
 		r = append(r, i)
 	}
 	// amd64:`.*moveSliceNoScan\b`
@@ -198,7 +202,7 @@ func Append16(r []int, n int) []int {
 func Append17(n int) []int {
 	var r []int
 	for i := range n {
-		// amd64:`.*growslice\b`
+		// amd64:`.*growsliceNoAlias\b`
 		r = append(r, i)
 	}
 	for i, x := range r {
@@ -206,38 +210,6 @@ func Append17(n int) []int {
 	}
 	// amd64:`.*moveSliceNoCapNoScan\b`
 	return r
-}
-
-func Append18(n int, p *[]int) {
-	var r []int
-	for i := range n {
-		// amd64:-`.*moveSliceNoCapNoScan`
-		*p = r
-		// amd64:`.*growslice`
-		r = append(r, i)
-	}
-}
-
-func Append19(n int, p [][]int) {
-	for j := range p {
-		var r []int
-		for i := range n {
-			// amd64:`.*growslice`
-			r = append(r, i)
-		}
-		// amd64:`.*moveSliceNoCapNoScan`
-		p[j] = r
-	}
-}
-
-func Append20(n int, p [][]int) {
-	for j := range p {
-		var r []int
-		// amd64:`.*growslice`
-		r = append(r, 0)
-		// amd64:-`.*moveSliceNoCapNoScan`
-		p[j] = r
-	}
 }
 
 //go:noinline

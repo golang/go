@@ -20,6 +20,13 @@ import (
 // DevirtualizeAndInlinePackage interleaves devirtualization and inlining on
 // all functions within pkg.
 func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgoir.Profile) {
+	if base.Flag.W > 1 {
+		for _, fn := range typecheck.Target.Funcs {
+			s := fmt.Sprintf("\nbefore devirtualize-and-inline %v", fn.Sym())
+			ir.DumpList(s, fn.Body)
+		}
+	}
+
 	if profile != nil && base.Debug.PGODevirtualize > 0 {
 		// TODO(mdempsky): Integrate into DevirtualizeAndInlineFunc below.
 		ir.VisitFuncsBottomUp(typecheck.Target.Funcs, func(list []*ir.Func, recursive bool) {

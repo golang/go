@@ -184,15 +184,16 @@ func (n *BinaryExpr) SetOp(op Op) {
 // A CallExpr is a function call Fun(Args).
 type CallExpr struct {
 	miniExpr
-	Fun       Node
-	Args      Nodes
-	DeferAt   Node
-	RType     Node    `mknode:"-"` // see reflectdata/helpers.go
-	KeepAlive []*Name // vars to be kept alive until call returns
-	IsDDD     bool
-	GoDefer   bool // whether this call is part of a go or defer statement
-	NoInline  bool // whether this call must not be inlined
-	UseBuf    bool // use stack buffer for backing store (OAPPEND only)
+	Fun           Node
+	Args          Nodes
+	DeferAt       Node
+	RType         Node    `mknode:"-"` // see reflectdata/helpers.go
+	KeepAlive     []*Name // vars to be kept alive until call returns
+	IsDDD         bool
+	GoDefer       bool // whether this call is part of a go or defer statement
+	NoInline      bool // whether this call must not be inlined
+	UseBuf        bool // use stack buffer for backing store (OAPPEND only)
+	AppendNoAlias bool // backing store proven to be unaliased (OAPPEND only)
 	// whether it's a runtime.KeepAlive call the compiler generates to
 	// keep a variable alive. See #73137.
 	IsCompilerVarLive bool

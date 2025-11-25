@@ -30157,7 +30157,7 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
 		return true
 	}
 	// match: (SelectN [1] (StaticCall {sym} _ newLen:(Const64) _ _ _ _))
-	// cond: v.Type.IsInteger() && isSameCall(sym, "runtime.growslice")
+	// cond: v.Type.IsInteger() && (isSameCall(sym, "runtime.growslice") || isSameCall(sym, "runtime.growsliceNoAlias"))
 	// result: newLen
 	for {
 		if auxIntToInt64(v.AuxInt) != 1 || v_0.Op != OpStaticCall || len(v_0.Args) != 6 {
@@ -30166,14 +30166,14 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
 		sym := auxToCall(v_0.Aux)
 		_ = v_0.Args[1]
 		newLen := v_0.Args[1]
-		if newLen.Op != OpConst64 || !(v.Type.IsInteger() && isSameCall(sym, "runtime.growslice")) {
+		if newLen.Op != OpConst64 || !(v.Type.IsInteger() && (isSameCall(sym, "runtime.growslice") || isSameCall(sym, "runtime.growsliceNoAlias"))) {
 			break
 		}
 		v.copyOf(newLen)
 		return true
 	}
 	// match: (SelectN [1] (StaticCall {sym} _ newLen:(Const32) _ _ _ _))
-	// cond: v.Type.IsInteger() && isSameCall(sym, "runtime.growslice")
+	// cond: v.Type.IsInteger() && (isSameCall(sym, "runtime.growslice") || isSameCall(sym, "runtime.growsliceNoAlias"))
 	// result: newLen
 	for {
 		if auxIntToInt64(v.AuxInt) != 1 || v_0.Op != OpStaticCall || len(v_0.Args) != 6 {
@@ -30182,7 +30182,7 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
 		sym := auxToCall(v_0.Aux)
 		_ = v_0.Args[1]
 		newLen := v_0.Args[1]
-		if newLen.Op != OpConst32 || !(v.Type.IsInteger() && isSameCall(sym, "runtime.growslice")) {
+		if newLen.Op != OpConst32 || !(v.Type.IsInteger() && (isSameCall(sym, "runtime.growslice") || isSameCall(sym, "runtime.growsliceNoAlias"))) {
 			break
 		}
 		v.copyOf(newLen)
@@ -30594,7 +30594,7 @@ func rewriteValuegeneric_OpSliceLen(v *Value) bool {
 		return true
 	}
 	// match: (SliceLen (SelectN [0] (StaticLECall {sym} _ newLen:(Const64) _ _ _ _)))
-	// cond: isSameCall(sym, "runtime.growslice")
+	// cond: (isSameCall(sym, "runtime.growslice") || isSameCall(sym, "runtime.growsliceNoAlias"))
 	// result: newLen
 	for {
 		if v_0.Op != OpSelectN || auxIntToInt64(v_0.AuxInt) != 0 {
@@ -30607,14 +30607,14 @@ func rewriteValuegeneric_OpSliceLen(v *Value) bool {
 		sym := auxToCall(v_0_0.Aux)
 		_ = v_0_0.Args[1]
 		newLen := v_0_0.Args[1]
-		if newLen.Op != OpConst64 || !(isSameCall(sym, "runtime.growslice")) {
+		if newLen.Op != OpConst64 || !(isSameCall(sym, "runtime.growslice") || isSameCall(sym, "runtime.growsliceNoAlias")) {
 			break
 		}
 		v.copyOf(newLen)
 		return true
 	}
 	// match: (SliceLen (SelectN [0] (StaticLECall {sym} _ newLen:(Const32) _ _ _ _)))
-	// cond: isSameCall(sym, "runtime.growslice")
+	// cond: (isSameCall(sym, "runtime.growslice") || isSameCall(sym, "runtime.growsliceNoAlias"))
 	// result: newLen
 	for {
 		if v_0.Op != OpSelectN || auxIntToInt64(v_0.AuxInt) != 0 {
@@ -30627,7 +30627,7 @@ func rewriteValuegeneric_OpSliceLen(v *Value) bool {
 		sym := auxToCall(v_0_0.Aux)
 		_ = v_0_0.Args[1]
 		newLen := v_0_0.Args[1]
-		if newLen.Op != OpConst32 || !(isSameCall(sym, "runtime.growslice")) {
+		if newLen.Op != OpConst32 || !(isSameCall(sym, "runtime.growslice") || isSameCall(sym, "runtime.growsliceNoAlias")) {
 			break
 		}
 		v.copyOf(newLen)
