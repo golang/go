@@ -1547,6 +1547,24 @@ func (x Uint8x64) ConcatShiftBytesRightGrouped(constant uint8, y Uint8x64) Uint8
 /* ConvertToFloat32 */
 
 // ConvertToFloat32 converts element values to float32.
+// The result vector's elements are rounded to the nearest value.
+//
+// Asm: VCVTPD2PSX, CPU Feature: AVX
+func (x Float64x2) ConvertToFloat32() Float32x4
+
+// ConvertToFloat32 converts element values to float32.
+// The result vector's elements are rounded to the nearest value.
+//
+// Asm: VCVTPD2PSY, CPU Feature: AVX
+func (x Float64x4) ConvertToFloat32() Float32x4
+
+// ConvertToFloat32 converts element values to float32.
+// The result vector's elements are rounded to the nearest value.
+//
+// Asm: VCVTPD2PS, CPU Feature: AVX512
+func (x Float64x8) ConvertToFloat32() Float32x8
+
+// ConvertToFloat32 converts element values to float32.
 //
 // Asm: VCVTDQ2PS, CPU Feature: AVX
 func (x Int32x4) ConvertToFloat32() Float32x4
@@ -1607,6 +1625,16 @@ func (x Uint64x4) ConvertToFloat32() Float32x4
 func (x Uint64x8) ConvertToFloat32() Float32x8
 
 /* ConvertToFloat64 */
+
+// ConvertToFloat64 converts element values to float64.
+//
+// Asm: VCVTPS2PD, CPU Feature: AVX
+func (x Float32x4) ConvertToFloat64() Float64x4
+
+// ConvertToFloat64 converts element values to float64.
+//
+// Asm: VCVTPS2PD, CPU Feature: AVX512
+func (x Float32x8) ConvertToFloat64() Float64x8
 
 // ConvertToFloat64 converts element values to float64.
 //

@@ -112,6 +112,28 @@
   out:
   - base: float
     bits: 256|512
+# float64 -> float32
+- go: ConvertToFloat32
+  regexpTag: "convert"
+  asm: "VCVTPD2PS"
+  addDoc:
+    !string |-
+    // The result vector's elements are rounded to the nearest value.
+  in: &fp64
+  - base: float
+    elemBits: 64
+  out: &fp32
+  - base: float
+    elemBits: 32
+# float32 -> float64
+- go: ConvertToFloat64
+  regexpTag: "convert"
+  asm: "VCVTPS2PD"
+  in: *fp32
+  out:
+  - base: float
+    elemBits: 64
+    bits: 256|512
 
 # Widening integer conversions.
 # uint8 -> uint16

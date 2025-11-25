@@ -32,12 +32,12 @@
     // When a conversion is inexact, a truncated (round toward zero) value is returned.
     // If a converted result cannot be represented in uint64, an implementation-defined
     // architecture-specific value is returned.
-- go: "ConvertToFloat32"
+- go: "ConvertToFloat32" # Also float64 -> float32
   commutative: false
   regexpTag: "convert"
   documentation: !string |-
     // NAME converts element values to float32.
-- go: "ConvertToFloat64"
+- go: "ConvertToFloat64" # Also float32 -> float64
   commutative: false
   regexpTag: "convert"
   documentation: !string |-
