@@ -381,6 +381,7 @@ func writeGoDefs(path string, cl unify.Closure) error {
 		}
 		// TODO: verify that this is safe.
 		op.sortOperand()
+		op.adjustAsm()
 		ops = append(ops, op)
 	}
 	slices.SortFunc(ops, compareOperations)
@@ -395,9 +396,6 @@ func writeGoDefs(path string, cl unify.Closure) error {
 	var err error
 	if err = overwrite(deduped); err != nil {
 		return err
-	}
-	if *Verbose {
-		log.Printf("dedup len: %d\n", len(deduped))
 	}
 	if *Verbose {
 		log.Printf("dedup len: %d\n", len(deduped))

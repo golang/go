@@ -3,7 +3,7 @@
 # float32 -> int32
 - go: ConvertToInt32
   regexpTag: "convert"
-  asm: "VCVTTPS2DQ"
+  asm: "VCVTTP[SD]2DQ"
   in:
   - &fp
     go: $t
@@ -16,7 +16,7 @@
 # float32 -> uint32
 - go: ConvertToUint32
   regexpTag: "convert"
-  asm: "VCVTPS2UDQ"
+  asm: "VCVTTP[SD]2UDQ"
   in:
   - *fp
   out:
@@ -24,6 +24,49 @@
     go: $u
     base: uint
     elemBits: 32
+# float32|float64 -> int64
+- go: ConvertToInt64
+  regexpTag: "convert"
+  asm: "VCVTTPD2QQ"
+  in:
+  - *fp
+  out:
+  - &i64
+    go: $u
+    base: int
+    elemBits: 64
+- go: ConvertToInt64
+  regexpTag: "convert"
+  asm: "VCVTTPS2QQ"
+  in:
+  - *fp
+  out:
+  - go: $u
+    base: int
+    elemBits: 64
+    bits: 256|512
+# float32|float64 -> uint64
+- go: ConvertToUint64
+  regexpTag: "convert"
+  asm: "VCVTTPD2UQQ"
+  in:
+  - *fp
+  out:
+  - &u64
+    go: $u
+    base: uint
+    elemBits: 64
+- go: ConvertToUint64
+  regexpTag: "convert"
+  asm: "VCVTTPS2UQQ"
+  in:
+  - *fp
+  out:
+  - go: $u
+    base: uint
+    elemBits: 64
+    bits: 256|512
+
 # Widening integer conversions.
 # uint8 -> uint16
 - go: ExtendToUint16
