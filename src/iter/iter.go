@@ -233,7 +233,7 @@ type coro struct{}
 //go:linkname newcoro runtime.newcoro
 func newcoro(func(*coro)) *coro
 
-//go:linkname coroswitch runtime.coroswitch
+//go:linknamestd coroswitch runtime.coroswitch
 func coroswitch(*coro)
 
 // Pull converts the “push-style” iterator sequence seq

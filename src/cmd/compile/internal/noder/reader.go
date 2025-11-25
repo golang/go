@@ -1277,6 +1277,7 @@ func (r *reader) linkname(name *ir.Name) {
 		lsym.Set(obj.AttrIndexed, true)
 	} else {
 		linkname := r.String()
+		std := r.Bool()
 		sym := name.Sym()
 		sym.Linkname = linkname
 		if sym.Pkg == types.LocalPkg && linkname != "" {
@@ -1286,7 +1287,11 @@ func (r *reader) linkname(name *ir.Name) {
 			// corresponding packages). So we can tell in which package
 			// the linkname is used (pulled), and the linker can
 			// make a decision for allowing or disallowing it.
-			sym.Linksym().Set(obj.AttrLinkname, true)
+			if std {
+				sym.Linksym().Set(obj.AttrLinknameStd, true)
+			} else {
+				sym.Linksym().Set(obj.AttrLinkname, true)
+			}
 		}
 	}
 }

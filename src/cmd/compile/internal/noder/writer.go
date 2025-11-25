@@ -86,8 +86,11 @@ type pkgWriter struct {
 	typDecls map[*types2.TypeName]typeDeclGen
 
 	// linknames maps package-scope objects to their linker symbol name,
-	// if specified by a //go:linkname directive.
-	linknames map[types2.Object]string
+	// if specified by a //go:linkname or //go:linknamestd directive.
+	linknames map[types2.Object]struct {
+		remote string
+		std    bool
+	}
 
 	// cgoPragmas accumulates any //go:cgo_* pragmas that need to be
 	// passed through to cmd/link.
@@ -114,7 +117,10 @@ func newPkgWriter(m posMap, pkg *types2.Package, info *types2.Info, otherInfo ma
 		funDecls: make(map[*types2.Func]*syntax.FuncDecl),
 		typDecls: make(map[*types2.TypeName]typeDeclGen),
 
-		linknames: make(map[types2.Object]string),
+		linknames: make(map[types2.Object]struct {
+			remote string
+			std    bool
+		}),
 	}
 }
 
@@ -1175,7 +1181,9 @@ func (w *writer) varExt(obj *types2.Var) {
 func (w *writer) linkname(obj types2.Object) {
 	w.Sync(pkgbits.SyncLinkname)
 	w.Int64(-1)
-	w.String(w.p.linknames[obj])
+	info := w.p.linknames[obj]
+	w.String(info.remote)
+	w.Bool(info.std)
 }
 
 func (w *writer) pragmaFlag(p ir.PragmaFlag) {
@@ -2799,26 +2807,33 @@ func (pw *pkgWriter) collectDecls(noders []*noder) {
 		pw.cgoPragmas = append(pw.cgoPragmas, p.pragcgobuf...)
 
 		for _, l := range p.linknames {
+			directive := "go:linkname"
+			if l.std {
+				directive = "go:linknamestd"
+			}
 			if !file.importedUnsafe {
-				pw.errorf(l.pos, "//go:linkname only allowed in Go files that import \"unsafe\"")
+				pw.errorf(l.pos, "//%s only allowed in Go files that import \"unsafe\"", directive)
 				continue
 			}
 			if strings.Contains(l.remote, "[") && strings.Contains(l.remote, "]") {
-				pw.errorf(l.pos, "//go:linkname reference of an instantiation is not allowed")
+				pw.errorf(l.pos, "//%s reference of an instantiation is not allowed", directive)
 				continue
 			}
 
 			switch obj := pw.curpkg.Scope().Lookup(l.local).(type) {
 			case *types2.Func, *types2.Var:
 				if _, ok := pw.linknames[obj]; !ok {
-					pw.linknames[obj] = l.remote
+					pw.linknames[obj] = struct {
+						remote string
+						std    bool
+					}{l.remote, l.std}
 				} else {
-					pw.errorf(l.pos, "duplicate //go:linkname for %s", l.local)
+					pw.errorf(l.pos, "duplicate //%s for %s", directive, l.local)
 				}
 
 			default:
 				if types.AllowsGoVersion(1, 18) {
-					pw.errorf(l.pos, "//go:linkname must refer to declared function or variable")
+					pw.errorf(l.pos, "//%s must refer to declared function or variable", directive)
 				}
 			}
 		}
