@@ -42,40 +42,42 @@ import (
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
-	"fmt"
+	"cmd/internal/src"
 )
 
 // getNameFromNode tries to iteratively peel down the node to
 // get the name.
 func getNameFromNode(n ir.Node) *ir.Name {
-	var ret *ir.Name
-	if n.Op() == ir.ONAME {
-		ret = n.(*ir.Name)
-	} else {
-		// avoid infinite recursion on circular referencing nodes.
-		seen := map[ir.Node]bool{n: true}
-		var findName func(ir.Node) bool
-		findName = func(a ir.Node) bool {
-			if a.Op() == ir.ONAME {
-				ret = a.(*ir.Name)
-				return true
-			}
-			if !seen[a] {
-				seen[a] = true
-				return ir.DoChildren(a, findName)
-			}
-			return false
+	// Tries to iteratively peel down the node to get the names.
+	for n != nil {
+		switch n.Op() {
+		case ir.ONAME:
+			// Found the name, stop the loop.
+			return n.(*ir.Name)
+		case ir.OSLICE, ir.OSLICE3:
+			n = n.(*ir.SliceExpr).X
+		case ir.ODOT:
+			n = n.(*ir.SelectorExpr).X
+		case ir.OCONV, ir.OCONVIFACE, ir.OCONVNOP:
+			n = n.(*ir.ConvExpr).X
+		case ir.OADDR:
+			n = n.(*ir.AddrExpr).X
+		case ir.ODOTPTR:
+			n = n.(*ir.SelectorExpr).X
+		case ir.OINDEX, ir.OINDEXMAP:
+			n = n.(*ir.IndexExpr).X
+		default:
+			n = nil
 		}
-		ir.DoChildren(n, findName)
 	}
-	return ret
+	return nil
 }
 
 // keepAliveAt returns a statement that is either curNode, or a
 // block containing curNode followed by a call to runtime.keepAlive for each
-// ONAME in ns. These calls ensure that names in ns will be live until
+// node in ns. These calls ensure that nodes in ns will be live until
 // after curNode's execution.
-func keepAliveAt(ns []*ir.Name, curNode ir.Node) ir.Node {
+func keepAliveAt(ns []ir.Node, curNode ir.Node) ir.Node {
 	if len(ns) == 0 {
 		return curNode
 	}
@@ -109,12 +111,12 @@ func keepAliveAt(ns []*ir.Name, curNode ir.Node) ir.Node {
 	return ir.NewBlockStmt(pos, calls)
 }
 
-func debugName(name *ir.Name, line string) {
-	if base.Flag.LowerM > 0 {
+func debugName(name *ir.Name, pos src.XPos) {
+	if base.Flag.LowerM > 1 {
 		if name.Linksym() != nil {
-			fmt.Printf("%v: %s will be kept alive\n", line, name.Linksym().Name)
+			base.WarnfAt(pos, "%s will be kept alive", name.Linksym().Name)
 		} else {
-			fmt.Printf("%v: expr will be kept alive\n", line)
+			base.WarnfAt(pos, "expr will be kept alive")
 		}
 	}
 }
@@ -129,29 +131,50 @@ func preserveStmt(curFn *ir.Func, stmt ir.Node) (ret ir.Node) {
 		// Peel down struct and slice indexing to get the names
 		name := getNameFromNode(n.X)
 		if name != nil {
-			debugName(name, ir.Line(stmt))
-			ret = keepAliveAt([]*ir.Name{name}, n)
+			debugName(name, n.Pos())
+			ret = keepAliveAt([]ir.Node{name}, n)
+		} else if deref := n.X.(*ir.StarExpr); deref != nil {
+			ret = keepAliveAt([]ir.Node{deref}, n)
+			if base.Flag.LowerM > 1 {
+				base.WarnfAt(n.Pos(), "dereference will be kept alive")
+			}
+		} else if base.Flag.LowerM > 1 {
+			base.WarnfAt(n.Pos(), "expr is unknown to bloop pass")
 		}
 	case *ir.AssignListStmt:
-		names := []*ir.Name{}
+		ns := []ir.Node{}
 		for _, lhs := range n.Lhs {
 			name := getNameFromNode(lhs)
 			if name != nil {
-				debugName(name, ir.Line(stmt))
-				names = append(names, name)
+				debugName(name, n.Pos())
+				ns = append(ns, name)
+			} else if deref := lhs.(*ir.StarExpr); deref != nil {
+				ns = append(ns, deref)
+				if base.Flag.LowerM > 1 {
+					base.WarnfAt(n.Pos(), "dereference will be kept alive")
+				}
+			} else if base.Flag.LowerM > 1 {
+				base.WarnfAt(n.Pos(), "expr is unknown to bloop pass")
 			}
 		}
-		ret = keepAliveAt(names, n)
+		ret = keepAliveAt(ns, n)
 	case *ir.AssignOpStmt:
 		name := getNameFromNode(n.X)
 		if name != nil {
-			debugName(name, ir.Line(stmt))
-			ret = keepAliveAt([]*ir.Name{name}, n)
+			debugName(name, n.Pos())
+			ret = keepAliveAt([]ir.Node{name}, n)
+		} else if deref := n.X.(*ir.StarExpr); deref != nil {
+			ret = keepAliveAt([]ir.Node{deref}, n)
+			if base.Flag.LowerM > 1 {
+				base.WarnfAt(n.Pos(), "dereference will be kept alive")
+			}
+		} else if base.Flag.LowerM > 1 {
+			base.WarnfAt(n.Pos(), "expr is unknown to bloop pass")
 		}
 	case *ir.CallExpr:
-		names := []*ir.Name{}
 		curNode := stmt
 		if n.Fun != nil && n.Fun.Type() != nil && n.Fun.Type().NumResults() != 0 {
+			ns := []ir.Node{}
 			// This function's results are not assigned, assign them to
 			// auto tmps and then keepAliveAt these autos.
 			// Note: markStmt assumes the context that it's called - this CallExpr is
@@ -161,7 +184,7 @@ func preserveStmt(curFn *ir.Func, stmt ir.Node) (ret ir.Node) {
 			for i, res := range results {
 				tmp := typecheck.TempAt(n.Pos(), curFn, res.Type)
 				lhs[i] = tmp
-				names = append(names, tmp)
+				ns = append(ns, tmp)
 			}
 
 			// Create an assignment statement.
@@ -174,33 +197,35 @@ func preserveStmt(curFn *ir.Func, stmt ir.Node) (ret ir.Node) {
 			if len(results) > 1 {
 				plural = "s"
 			}
-			if base.Flag.LowerM > 0 {
-				fmt.Printf("%v: function result%s will be kept alive\n", ir.Line(stmt), plural)
+			if base.Flag.LowerM > 1 {
+				base.WarnfAt(n.Pos(), "function result%s will be kept alive", plural)
 			}
+			ret = keepAliveAt(ns, curNode)
 		} else {
 			// This function probably doesn't return anything, keep its args alive.
 			argTmps := []ir.Node{}
+			names := []ir.Node{}
 			for i, a := range n.Args {
 				if name := getNameFromNode(a); name != nil {
 					// If they are name, keep them alive directly.
-					debugName(name, ir.Line(stmt))
+					debugName(name, n.Pos())
 					names = append(names, name)
 				} else if a.Op() == ir.OSLICELIT {
 					// variadic args are encoded as slice literal.
 					s := a.(*ir.CompLitExpr)
-					ns := []*ir.Name{}
-					for i, n := range s.List {
-						if name := getNameFromNode(n); name != nil {
-							debugName(name, ir.Line(a))
+					ns := []ir.Node{}
+					for i, elem := range s.List {
+						if name := getNameFromNode(elem); name != nil {
+							debugName(name, n.Pos())
 							ns = append(ns, name)
 						} else {
 							// We need a temporary to save this arg.
-							tmp := typecheck.TempAt(n.Pos(), curFn, n.Type())
-							argTmps = append(argTmps, typecheck.AssignExpr(ir.NewAssignStmt(n.Pos(), tmp, n)))
+							tmp := typecheck.TempAt(elem.Pos(), curFn, elem.Type())
+							argTmps = append(argTmps, typecheck.AssignExpr(ir.NewAssignStmt(elem.Pos(), tmp, elem)))
 							names = append(names, tmp)
 							s.List[i] = tmp
-							if base.Flag.LowerM > 0 {
-								fmt.Printf("%v: function arg will be kept alive\n", ir.Line(n))
+							if base.Flag.LowerM > 1 {
+								base.WarnfAt(n.Pos(), "function arg will be kept alive")
 							}
 						}
 					}
@@ -212,8 +237,8 @@ func preserveStmt(curFn *ir.Func, stmt ir.Node) (ret ir.Node) {
 					argTmps = append(argTmps, typecheck.AssignExpr(ir.NewAssignStmt(n.Pos(), tmp, a)))
 					names = append(names, tmp)
 					n.Args[i] = tmp
-					if base.Flag.LowerM > 0 {
-						fmt.Printf("%v: function arg will be kept alive\n", ir.Line(stmt))
+					if base.Flag.LowerM > 1 {
+						base.WarnfAt(n.Pos(), "function arg will be kept alive")
 					}
 				}
 			}
@@ -221,8 +246,8 @@ func preserveStmt(curFn *ir.Func, stmt ir.Node) (ret ir.Node) {
 				argTmps = append(argTmps, n)
 				curNode = ir.NewBlockStmt(n.Pos(), argTmps)
 			}
+			ret = keepAliveAt(names, curNode)
 		}
-		ret = keepAliveAt(names, curNode)
 	}
 	return
 }
@@ -281,6 +306,8 @@ func (e editor) edit(n ir.Node) ir.Node {
 			preserveStmts(e.curFn, n.List)
 			preserveStmts(e.curFn, n.Body)
 		case *ir.CommClause:
+			preserveStmts(e.curFn, n.Body)
+		case *ir.RangeStmt:
 			preserveStmts(e.curFn, n.Body)
 		}
 	}
