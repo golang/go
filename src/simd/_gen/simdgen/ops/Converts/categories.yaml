@@ -6,28 +6,42 @@
   documentation: !string |-
     // NAME converts element values to int32.
     // When a conversion is inexact, a truncated (round toward zero) value is returned.
-    // If a converted result is larger than the maximum int32, the indefinite value is returned.
+    // If a converted result cannot be represented in int32, an implementation-defined
+    // architecture-specific value is returned.
 - go: "ConvertToUint32"
   commutative: false
   regexpTag: "convert"
   documentation: !string |-
     // NAME converts element values to uint32.
     // When a conversion is inexact, a truncated (round toward zero) value is returned.
-    // If a converted result is larger than the maximum uint32, the maximum uint32 value is returned.
+    // If a converted result cannot be represented in uint32, an implementation-defined
+    // architecture-specific value is returned.
 - go: "ConvertToInt64"
   commutative: false
   regexpTag: "convert"
   documentation: !string |-
     // NAME converts element values to int64.
     // When a conversion is inexact, a truncated (round toward zero) value is returned.
-    // If a converted result is larger than the maximum int64, the indefinite value is returned.
+    // If a converted result cannot be represented in int64, an implementation-defined
+    // architecture-specific value is returned.
 - go: "ConvertToUint64"
   commutative: false
   regexpTag: "convert"
   documentation: !string |-
     // NAME converts element values to uint64.
     // When a conversion is inexact, a truncated (round toward zero) value is returned.
-    // If a converted result is larger than the maximum uint64, the maximum uint64 value is returned.
+    // If a converted result cannot be represented in uint64, an implementation-defined
+    // architecture-specific value is returned.
+- go: "ConvertToFloat32"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME converts element values to float32.
+- go: "ConvertToFloat64"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME converts element values to float64.
 
 # Int <-> Int conversions
 - go: "(Extend|Saturate|Truncate)?ToInt8"

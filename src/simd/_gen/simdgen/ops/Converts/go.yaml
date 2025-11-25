@@ -66,6 +66,52 @@
     base: uint
     elemBits: 64
     bits: 256|512
+# int -> float32
+- go: ConvertToFloat32
+  regexpTag: "convert"
+  asm: "VCVT[DQ]Q2PS"
+  in: &int
+  - go: $i
+    base: int
+  out:
+  - *fp
+# int -> float64
+- go: ConvertToFloat64
+  regexpTag: "convert"
+  asm: "VCVTQQ2PD"
+  in: *int
+  out:
+  - *fp
+- go: ConvertToFloat64
+  regexpTag: "convert"
+  asm: "VCVTDQ2PD"
+  in: *int
+  out:
+  - base: float
+    bits: 256|512
+# uint -> float32
+- go: ConvertToFloat32
+  regexpTag: "convert"
+  asm: "VCVTU[DQ]Q2PS"
+  in: &uint
+  - go: $u
+    base: uint
+  out:
+  - *fp
+# uint -> float64
+- go: ConvertToFloat64
+  regexpTag: "convert"
+  asm: "VCVTUQQ2PD"
+  in: *uint
+  out:
+  - *fp
+- go: ConvertToFloat64
+  regexpTag: "convert"
+  asm: "VCVTUDQ2PD"
+  in: *uint
+  out:
+  - base: float
+    bits: 256|512
 
 # Widening integer conversions.
 # uint8 -> uint16

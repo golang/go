@@ -1544,46 +1544,166 @@ func (x Uint8x32) ConcatShiftBytesRightGrouped(constant uint8, y Uint8x32) Uint8
 // Asm: VPALIGNR, CPU Feature: AVX512
 func (x Uint8x64) ConcatShiftBytesRightGrouped(constant uint8, y Uint8x64) Uint8x64
 
+/* ConvertToFloat32 */
+
+// ConvertToFloat32 converts element values to float32.
+//
+// Asm: VCVTDQ2PS, CPU Feature: AVX
+func (x Int32x4) ConvertToFloat32() Float32x4
+
+// ConvertToFloat32 converts element values to float32.
+//
+// Asm: VCVTDQ2PS, CPU Feature: AVX
+func (x Int32x8) ConvertToFloat32() Float32x8
+
+// ConvertToFloat32 converts element values to float32.
+//
+// Asm: VCVTDQ2PS, CPU Feature: AVX512
+func (x Int32x16) ConvertToFloat32() Float32x16
+
+// ConvertToFloat32 converts element values to float32.
+//
+// Asm: VCVTQQ2PSX, CPU Feature: AVX512
+func (x Int64x2) ConvertToFloat32() Float32x4
+
+// ConvertToFloat32 converts element values to float32.
+//
+// Asm: VCVTQQ2PSY, CPU Feature: AVX512
+func (x Int64x4) ConvertToFloat32() Float32x4
+
+// ConvertToFloat32 converts element values to float32.
+//
+// Asm: VCVTQQ2PS, CPU Feature: AVX512
+func (x Int64x8) ConvertToFloat32() Float32x8
+
+// ConvertToFloat32 converts element values to float32.
+//
+// Asm: VCVTUDQ2PS, CPU Feature: AVX512
+func (x Uint32x4) ConvertToFloat32() Float32x4
+
+// ConvertToFloat32 converts element values to float32.
+//
+// Asm: VCVTUDQ2PS, CPU Feature: AVX512
+func (x Uint32x8) ConvertToFloat32() Float32x8
+
+// ConvertToFloat32 converts element values to float32.
+//
+// Asm: VCVTUDQ2PS, CPU Feature: AVX512
+func (x Uint32x16) ConvertToFloat32() Float32x16
+
+// ConvertToFloat32 converts element values to float32.
+//
+// Asm: VCVTUQQ2PSX, CPU Feature: AVX512
+func (x Uint64x2) ConvertToFloat32() Float32x4
+
+// ConvertToFloat32 converts element values to float32.
+//
+// Asm: VCVTUQQ2PSY, CPU Feature: AVX512
+func (x Uint64x4) ConvertToFloat32() Float32x4
+
+// ConvertToFloat32 converts element values to float32.
+//
+// Asm: VCVTUQQ2PS, CPU Feature: AVX512
+func (x Uint64x8) ConvertToFloat32() Float32x8
+
+/* ConvertToFloat64 */
+
+// ConvertToFloat64 converts element values to float64.
+//
+// Asm: VCVTDQ2PD, CPU Feature: AVX
+func (x Int32x4) ConvertToFloat64() Float64x4
+
+// ConvertToFloat64 converts element values to float64.
+//
+// Asm: VCVTDQ2PD, CPU Feature: AVX512
+func (x Int32x8) ConvertToFloat64() Float64x8
+
+// ConvertToFloat64 converts element values to float64.
+//
+// Asm: VCVTQQ2PD, CPU Feature: AVX512
+func (x Int64x2) ConvertToFloat64() Float64x2
+
+// ConvertToFloat64 converts element values to float64.
+//
+// Asm: VCVTQQ2PD, CPU Feature: AVX512
+func (x Int64x4) ConvertToFloat64() Float64x4
+
+// ConvertToFloat64 converts element values to float64.
+//
+// Asm: VCVTQQ2PD, CPU Feature: AVX512
+func (x Int64x8) ConvertToFloat64() Float64x8
+
+// ConvertToFloat64 converts element values to float64.
+//
+// Asm: VCVTUDQ2PD, CPU Feature: AVX512
+func (x Uint32x4) ConvertToFloat64() Float64x4
+
+// ConvertToFloat64 converts element values to float64.
+//
+// Asm: VCVTUDQ2PD, CPU Feature: AVX512
+func (x Uint32x8) ConvertToFloat64() Float64x8
+
+// ConvertToFloat64 converts element values to float64.
+//
+// Asm: VCVTUQQ2PD, CPU Feature: AVX512
+func (x Uint64x2) ConvertToFloat64() Float64x2
+
+// ConvertToFloat64 converts element values to float64.
+//
+// Asm: VCVTUQQ2PD, CPU Feature: AVX512
+func (x Uint64x4) ConvertToFloat64() Float64x4
+
+// ConvertToFloat64 converts element values to float64.
+//
+// Asm: VCVTUQQ2PD, CPU Feature: AVX512
+func (x Uint64x8) ConvertToFloat64() Float64x8
+
 /* ConvertToInt32 */
 
 // ConvertToInt32 converts element values to int32.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
-// If a converted result is larger than the maximum int32, the indefinite value is returned.
+// If a converted result cannot be represented in int32, an implementation-defined
+// architecture-specific value is returned.
 //
 // Asm: VCVTTPS2DQ, CPU Feature: AVX
 func (x Float32x4) ConvertToInt32() Int32x4
 
 // ConvertToInt32 converts element values to int32.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
-// If a converted result is larger than the maximum int32, the indefinite value is returned.
+// If a converted result cannot be represented in int32, an implementation-defined
+// architecture-specific value is returned.
 //
 // Asm: VCVTTPS2DQ, CPU Feature: AVX
 func (x Float32x8) ConvertToInt32() Int32x8
 
 // ConvertToInt32 converts element values to int32.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
-// If a converted result is larger than the maximum int32, the indefinite value is returned.
+// If a converted result cannot be represented in int32, an implementation-defined
+// architecture-specific value is returned.
 //
 // Asm: VCVTTPS2DQ, CPU Feature: AVX512
 func (x Float32x16) ConvertToInt32() Int32x16
 
 // ConvertToInt32 converts element values to int32.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
-// If a converted result is larger than the maximum int32, the indefinite value is returned.
+// If a converted result cannot be represented in int32, an implementation-defined
+// architecture-specific value is returned.
 //
 // Asm: VCVTTPD2DQX, CPU Feature: AVX
 func (x Float64x2) ConvertToInt32() Int32x4
 
 // ConvertToInt32 converts element values to int32.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
-// If a converted result is larger than the maximum int32, the indefinite value is returned.
+// If a converted result cannot be represented in int32, an implementation-defined
+// architecture-specific value is returned.
 //
 // Asm: VCVTTPD2DQY, CPU Feature: AVX
 func (x Float64x4) ConvertToInt32() Int32x4
 
 // ConvertToInt32 converts element values to int32.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
-// If a converted result is larger than the maximum int32, the indefinite value is returned.
+// If a converted result cannot be represented in int32, an implementation-defined
+// architecture-specific value is returned.
 //
 // Asm: VCVTTPD2DQ, CPU Feature: AVX512
 func (x Float64x8) ConvertToInt32() Int32x8
@@ -1592,35 +1712,40 @@ func (x Float64x8) ConvertToInt32() Int32x8
 
 // ConvertToInt64 converts element values to int64.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
-// If a converted result is larger than the maximum int64, the indefinite value is returned.
+// If a converted result cannot be represented in int64, an implementation-defined
+// architecture-specific value is returned.
 //
 // Asm: VCVTTPS2QQ, CPU Feature: AVX512
 func (x Float32x4) ConvertToInt64() Int64x4
 
 // ConvertToInt64 converts element values to int64.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
-// If a converted result is larger than the maximum int64, the indefinite value is returned.
+// If a converted result cannot be represented in int64, an implementation-defined
+// architecture-specific value is returned.
 //
 // Asm: VCVTTPS2QQ, CPU Feature: AVX512
 func (x Float32x8) ConvertToInt64() Int64x8
 
 // ConvertToInt64 converts element values to int64.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
-// If a converted result is larger than the maximum int64, the indefinite value is returned.
+// If a converted result cannot be represented in int64, an implementation-defined
+// architecture-specific value is returned.
 //
 // Asm: VCVTTPD2QQ, CPU Feature: AVX512
 func (x Float64x2) ConvertToInt64() Int64x2
 
 // ConvertToInt64 converts element values to int64.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
-// If a converted result is larger than the maximum int64, the indefinite value is returned.
+// If a converted result cannot be represented in int64, an implementation-defined
+// architecture-specific value is returned.
 //
 // Asm: VCVTTPD2QQ, CPU Feature: AVX512
 func (x Float64x4) ConvertToInt64() Int64x4
 
 // ConvertToInt64 converts element values to int64.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
-// If a converted result is larger than the maximum int64, the indefinite value is returned.
+// If a converted result cannot be represented in int64, an implementation-defined
+// architecture-specific value is returned.
 //
 // Asm: VCVTTPD2QQ, CPU Feature: AVX512
 func (x Float64x8) ConvertToInt64() Int64x8
@@ -1629,42 +1754,48 @@ func (x Float64x8) ConvertToInt64() Int64x8
 
 // ConvertToUint32 converts element values to uint32.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
-// If a converted result is larger than the maximum uint32, the maximum uint32 value is returned.
+// If a converted result cannot be represented in uint32, an implementation-defined
+// architecture-specific value is returned.
 //
 // Asm: VCVTTPS2UDQ, CPU Feature: AVX512
 func (x Float32x4) ConvertToUint32() Uint32x4
 
 // ConvertToUint32 converts element values to uint32.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
-// If a converted result is larger than the maximum uint32, the maximum uint32 value is returned.
+// If a converted result cannot be represented in uint32, an implementation-defined
+// architecture-specific value is returned.
 //
 // Asm: VCVTTPS2UDQ, CPU Feature: AVX512
 func (x Float32x8) ConvertToUint32() Uint32x8
 
 // ConvertToUint32 converts element values to uint32.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
-// If a converted result is larger than the maximum uint32, the maximum uint32 value is returned.
+// If a converted result cannot be represented in uint32, an implementation-defined
+// architecture-specific value is returned.
 //
 // Asm: VCVTTPS2UDQ, CPU Feature: AVX512
 func (x Float32x16) ConvertToUint32() Uint32x16
 
 // ConvertToUint32 converts element values to uint32.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
-// If a converted result is larger than the maximum uint32, the maximum uint32 value is returned.
+// If a converted result cannot be represented in uint32, an implementation-defined
+// architecture-specific value is returned.
 //
 // Asm: VCVTTPD2UDQX, CPU Feature: AVX512
 func (x Float64x2) ConvertToUint32() Uint32x4
 
 // ConvertToUint32 converts element values to uint32.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
-// If a converted result is larger than the maximum uint32, the maximum uint32 value is returned.
+// If a converted result cannot be represented in uint32, an implementation-defined
+// architecture-specific value is returned.
 //
 // Asm: VCVTTPD2UDQY, CPU Feature: AVX512
 func (x Float64x4) ConvertToUint32() Uint32x4
 
 // ConvertToUint32 converts element values to uint32.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
-// If a converted result is larger than the maximum uint32, the maximum uint32 value is returned.
+// If a converted result cannot be represented in uint32, an implementation-defined
+// architecture-specific value is returned.
 //
 // Asm: VCVTTPD2UDQ, CPU Feature: AVX512
 func (x Float64x8) ConvertToUint32() Uint32x8
@@ -1673,35 +1804,40 @@ func (x Float64x8) ConvertToUint32() Uint32x8
 
 // ConvertToUint64 converts element values to uint64.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
-// If a converted result is larger than the maximum uint64, the maximum uint64 value is returned.
+// If a converted result cannot be represented in uint64, an implementation-defined
+// architecture-specific value is returned.
 //
 // Asm: VCVTTPS2UQQ, CPU Feature: AVX512
 func (x Float32x4) ConvertToUint64() Uint64x4
 
 // ConvertToUint64 converts element values to uint64.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
-// If a converted result is larger than the maximum uint64, the maximum uint64 value is returned.
+// If a converted result cannot be represented in uint64, an implementation-defined
+// architecture-specific value is returned.
 //
 // Asm: VCVTTPS2UQQ, CPU Feature: AVX512
 func (x Float32x8) ConvertToUint64() Uint64x8
 
 // ConvertToUint64 converts element values to uint64.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
-// If a converted result is larger than the maximum uint64, the maximum uint64 value is returned.
+// If a converted result cannot be represented in uint64, an implementation-defined
+// architecture-specific value is returned.
 //
 // Asm: VCVTTPD2UQQ, CPU Feature: AVX512
 func (x Float64x2) ConvertToUint64() Uint64x2
 
 // ConvertToUint64 converts element values to uint64.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
-// If a converted result is larger than the maximum uint64, the maximum uint64 value is returned.
+// If a converted result cannot be represented in uint64, an implementation-defined
+// architecture-specific value is returned.
 //
 // Asm: VCVTTPD2UQQ, CPU Feature: AVX512
 func (x Float64x4) ConvertToUint64() Uint64x4
 
 // ConvertToUint64 converts element values to uint64.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
-// If a converted result is larger than the maximum uint64, the maximum uint64 value is returned.
+// If a converted result cannot be represented in uint64, an implementation-defined
+// architecture-specific value is returned.
 //
 // Asm: VCVTTPD2UQQ, CPU Feature: AVX512
 func (x Float64x8) ConvertToUint64() Uint64x8

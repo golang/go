@@ -337,7 +337,7 @@ func (op *Operation) sortOperand() {
 
 // adjustAsm adjusts the asm to make it align with Go's assembler.
 func (op *Operation) adjustAsm() {
-	if op.Asm == "VCVTTPD2DQ" || op.Asm == "VCVTTPD2UDQ" {
+	if op.Asm == "VCVTTPD2DQ" || op.Asm == "VCVTTPD2UDQ" || op.Asm == "VCVTQQ2PS" || op.Asm == "VCVTUQQ2PS" {
 		switch *op.In[0].Bits {
 		case 128:
 			op.Asm += "X"
