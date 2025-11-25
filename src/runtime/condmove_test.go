@@ -10,7 +10,6 @@ import (
 )
 
 var (
-	// 预生成测试数据，避免在测试中生成
 	testData32      = make([]uint32, 1000)
 	testData16      = make([]uint16, 1000)
 	testDataInt     = make([]int, 1000)
@@ -20,7 +19,6 @@ var (
 )
 
 func init() {
-	// 初始化测试数据，包含各种边界情况
 	for i := range testData32 {
 		if i%4 == 0 {
 			testData32[i] = 0
@@ -38,10 +36,6 @@ func init() {
 		testDataBool[i] = (rand.Intn(2) == 0)
 	}
 }
-
-// ========================================
-// 核心测试场景：可预测分支（应使用传统分支，避免zicond）
-// ========================================
 
 func BenchmarkZicondCmovInt(b *testing.B) {
 	for i := 0; i < b.N; i++ {
@@ -75,11 +69,6 @@ func BenchmarkZicondMinCondSelect32(b *testing.B) {
 	}
 }
 
-// ========================================
-// 核心测试场景：不可预测分支（应使用zicond，避免预测失败惩罚）
-// ========================================
-
-// 代表性不可预测分支测试（保留3个最具代表性的）
 func BenchmarkZicondUnpredictableLSB32(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < len(testData32); j++ {
@@ -104,24 +93,16 @@ func BenchmarkZicondUnpredictablePseudoRandom32(b *testing.B) {
 	}
 }
 
-// ========================================
-// 核心测试场景：条件算术操作（优化为2条指令，应使用zicond）
-// ========================================
-
-// 条件算术操作测试（变量操作数）
-// 模式：if cond == 0 { a += b }  (使用变量 b)
-// 编译器优化规则：RISCV64.rules 873-874
-// 生成指令：ADD x (CZERONEZ <t> y cond)
 var conditionalArithmeticTests = []struct {
 	name string
 	fn   func(cond, a, b int) int
 }{
-	{"AddZero", codegenCmoveAddZero},
-	{"AddNonZero", codegenCmoveAddNonZero},
-	{"SubZero", codegenCmoveSubZero},
-	{"OrZero", codegenCmoveOrZero},
-	{"XorZero", codegenCmoveXorZero},
-	{"AndZero", codegenCmoveAndZero},
+	{"AddZero", cmoveAddZero},
+	{"AddNonZero", cmoveAddNonZero},
+	{"SubZero", cmoveSubZero},
+	{"OrZero", cmoveOrZero},
+	{"XorZero", cmoveXorZero},
+	{"AndZero", cmoveAndZero},
 }
 
 func BenchmarkZicondConditionalArithmetic(b *testing.B) {
@@ -136,17 +117,12 @@ func BenchmarkZicondConditionalArithmetic(b *testing.B) {
 	}
 }
 
-// 条件算术常量操作测试（常量操作数）
-// 模式：if cond == 0 { a += 42 }  (使用常量 42)
-// 编译器优化规则：RISCV64.rules 879-880
-// 生成指令：ADD x (CZERONEZ <t> (MOVDconst [c]) cond)
-// 注意：常量操作数与变量操作数使用不同的优化规则，需要分开测试
 var conditionalArithmeticConstTests = []struct {
 	name string
 	fn   func(cond, a int) int
 }{
-	{"AddConstZero", codegenCmoveAddConstZero},
-	{"AddConstNonZero", codegenCmoveAddConstNonZero},
+	{"AddConstZero", cmoveAddConstZero},
+	{"AddConstNonZero", cmoveAddConstNonZero},
 }
 
 func BenchmarkZicondConditionalArithmeticConst(b *testing.B) {
@@ -161,34 +137,29 @@ func BenchmarkZicondConditionalArithmeticConst(b *testing.B) {
 	}
 }
 
-// ========================================
-// 其他代表性测试场景
-// ========================================
-
-func BenchmarkZicondCodegenCmovUintptr(b *testing.B) {
+func BenchmarkZicondcmovUintptr(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < len(testDataUintptr); j++ {
-			_ = codegenCmovUintptr(testDataUintptr[j], testDataUintptr[(j+1)%len(testDataUintptr)])
+			_ = cmovUintptr(testDataUintptr[j], testDataUintptr[(j+1)%len(testDataUintptr)])
 		}
 	}
 }
 
-func BenchmarkZicondCodegenCmovFloatEq(b *testing.B) {
+func BenchmarkZicondcmovFloatEq(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < len(testDataFloat64); j++ {
-			_ = codegenCmovFloatEq(testDataFloat64[j], testDataFloat64[(j+1)%len(testDataFloat64)])
+			_ = cmovFloatEq(testDataFloat64[j], testDataFloat64[(j+1)%len(testDataFloat64)])
 		}
 	}
 }
 
-// 其他特殊场景（保留代表性的）
 var specialCaseTests = []struct {
 	name string
 	fn   func(bool, int, int) int
 }{
-	{"Inc", codegenCmovInc},
-	{"Inv", codegenCmovInv},
-	{"Neg", codegenCmovNeg},
+	{"Inc", cmovInc},
+	{"Inv", cmovInv},
+	{"Neg", cmovNeg},
 }
 
 func BenchmarkZicondSpecialCases(b *testing.B) {
@@ -206,7 +177,7 @@ func BenchmarkZicondSpecialCases(b *testing.B) {
 func BenchmarkZicondCmovSetm(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < len(testDataBool); j++ {
-			_ = codegenCmovSetm(testDataBool[j])
+			_ = cmovSetm(testDataBool[j])
 		}
 	}
 }
@@ -214,7 +185,7 @@ func BenchmarkZicondCmovSetm(b *testing.B) {
 func BenchmarkZicondCmovZero1(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < len(testDataBool); j++ {
-			_ = codegenCmovZero1(testDataBool[j])
+			_ = cmovZero1(testDataBool[j])
 		}
 	}
 }
@@ -222,14 +193,10 @@ func BenchmarkZicondCmovZero1(b *testing.B) {
 func BenchmarkZicondCmovZeroRegZero(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < len(testDataInt); j++ {
-			_ = codegenCmovZeroRegZero(testDataInt[j], testDataInt[(j+1)%len(testDataInt)])
+			_ = cmovZeroRegZero(testDataInt[j], testDataInt[(j+1)%len(testDataInt)])
 		}
 	}
 }
-
-// ========================================
-// 测试函数实现
-// ========================================
 
 //go:noinline
 func simpleCondSelect32(x, y uint32) uint32 {
@@ -266,8 +233,6 @@ func cmov32bit(x, y uint32) uint32 {
 	return x
 }
 
-// 不可预测分支测试函数（保留代表性的）
-//
 //go:noinline
 func unpredictableLSB32(x, y uint32) uint32 {
 	result := x
@@ -301,10 +266,8 @@ func unpredictablePseudoRandom32(x, y uint32) uint32 {
 	return result
 }
 
-// 条件算术操作函数（保留代表性的）
-//
 //go:noinline
-func codegenCmoveAddZero(cond, a, b int) int {
+func cmoveAddZero(cond, a, b int) int {
 	if cond == 0 {
 		a += b
 	}
@@ -312,7 +275,7 @@ func codegenCmoveAddZero(cond, a, b int) int {
 }
 
 //go:noinline
-func codegenCmoveAddNonZero(cond, a, b int) int {
+func cmoveAddNonZero(cond, a, b int) int {
 	if cond != 0 {
 		a += b
 	}
@@ -320,7 +283,7 @@ func codegenCmoveAddNonZero(cond, a, b int) int {
 }
 
 //go:noinline
-func codegenCmoveSubZero(cond, a, b int) int {
+func cmoveSubZero(cond, a, b int) int {
 	if cond == 0 {
 		a -= b
 	}
@@ -328,7 +291,7 @@ func codegenCmoveSubZero(cond, a, b int) int {
 }
 
 //go:noinline
-func codegenCmoveOrZero(cond, a, b int) int {
+func cmoveOrZero(cond, a, b int) int {
 	if cond == 0 {
 		a |= b
 	}
@@ -336,7 +299,7 @@ func codegenCmoveOrZero(cond, a, b int) int {
 }
 
 //go:noinline
-func codegenCmoveXorZero(cond, a, b int) int {
+func cmoveXorZero(cond, a, b int) int {
 	if cond == 0 {
 		a ^= b
 	}
@@ -344,7 +307,7 @@ func codegenCmoveXorZero(cond, a, b int) int {
 }
 
 //go:noinline
-func codegenCmoveAndZero(cond, a, b int) int {
+func cmoveAndZero(cond, a, b int) int {
 	if cond == 0 {
 		a &= b
 	}
@@ -352,7 +315,7 @@ func codegenCmoveAndZero(cond, a, b int) int {
 }
 
 //go:noinline
-func codegenCmoveAddConstZero(cond, a int) int {
+func cmoveAddConstZero(cond, a int) int {
 	if cond == 0 {
 		a += 42
 	}
@@ -360,17 +323,15 @@ func codegenCmoveAddConstZero(cond, a int) int {
 }
 
 //go:noinline
-func codegenCmoveAddConstNonZero(cond, a int) int {
+func cmoveAddConstNonZero(cond, a int) int {
 	if cond != 0 {
 		a += 42
 	}
 	return a
 }
 
-// 其他函数
-//
 //go:noinline
-func codegenCmovUintptr(x, y uintptr) uintptr {
+func cmovUintptr(x, y uintptr) uintptr {
 	if x < y {
 		x = -y
 	}
@@ -378,7 +339,7 @@ func codegenCmovUintptr(x, y uintptr) uintptr {
 }
 
 //go:noinline
-func codegenCmovFloatEq(x, y float64) int {
+func cmovFloatEq(x, y float64) int {
 	a := 128
 	if x == y {
 		a = 256
@@ -387,7 +348,7 @@ func codegenCmovFloatEq(x, y float64) int {
 }
 
 //go:noinline
-func codegenCmovInc(cond bool, a, b int) int {
+func cmovInc(cond bool, a, b int) int {
 	var x0 int
 	if cond {
 		x0 = a
@@ -398,7 +359,7 @@ func codegenCmovInc(cond bool, a, b int) int {
 }
 
 //go:noinline
-func codegenCmovInv(cond bool, a, b int) int {
+func cmovInv(cond bool, a, b int) int {
 	var x0 int
 	if cond {
 		x0 = a
@@ -409,7 +370,7 @@ func codegenCmovInv(cond bool, a, b int) int {
 }
 
 //go:noinline
-func codegenCmovNeg(cond bool, a, b int) int {
+func cmovNeg(cond bool, a, b int) int {
 	var x0 int
 	if cond {
 		x0 = a
@@ -420,7 +381,7 @@ func codegenCmovNeg(cond bool, a, b int) int {
 }
 
 //go:noinline
-func codegenCmovSetm(cond bool) int {
+func cmovSetm(cond bool) int {
 	var x0 int
 	if cond {
 		x0 = -1
@@ -431,7 +392,7 @@ func codegenCmovSetm(cond bool) int {
 }
 
 //go:noinline
-func codegenCmovZero1(cond bool) int {
+func cmovZero1(cond bool) int {
 	var x int
 	if cond {
 		x = 182
@@ -440,7 +401,7 @@ func codegenCmovZero1(cond bool) int {
 }
 
 //go:noinline
-func codegenCmovZeroRegZero(a, b int) int {
+func cmovZeroRegZero(a, b int) int {
 	x := 0
 	if a == b {
 		x = a

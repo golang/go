@@ -1094,16 +1094,12 @@ func rewriteValueRISCV64_OpCondSelect(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (CondSelect <t> x y cond)
-	// cond: buildcfg.GORISCV64 >= 23
 	// result: (OR (CZEROEQZ <t> x (MOVBUreg <typ.UInt64> cond)) (CZERONEZ <t> y (MOVBUreg <typ.UInt64> cond)))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
 		cond := v_2
-		if !(buildcfg.GORISCV64 >= 23) {
-			break
-		}
 		v.reset(OpRISCV64OR)
 		v0 := b.NewValue0(v.Pos, OpRISCV64CZEROEQZ, t)
 		v1 := b.NewValue0(v.Pos, OpRISCV64MOVBUreg, typ.UInt64)
@@ -1114,7 +1110,6 @@ func rewriteValueRISCV64_OpCondSelect(v *Value) bool {
 		v.AddArg2(v0, v2)
 		return true
 	}
-	return false
 }
 func rewriteValueRISCV64_OpConst16(v *Value) bool {
 	// match: (Const16 [val])
@@ -7091,30 +7086,33 @@ func rewriteValueRISCV64_OpRISCV64OR(v *Value) bool {
 		v.copyOf(x)
 		return true
 	}
-	// match: (OR (CZERONEZ <t> (ADD x y) cond) (CZEROEQZ <t> x cond))
+	// match: (OR (CZEROEQZ <t> x cond) (CZERONEZ <t> (ADD x y) cond))
 	// result: (ADD x (CZERONEZ <t> y cond))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != OpRISCV64CZERONEZ {
+			if v_0.Op != OpRISCV64CZEROEQZ {
 				continue
 			}
 			t := v_0.Type
 			cond := v_0.Args[1]
-			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != OpRISCV64ADD {
+			x := v_0.Args[0]
+			if v_1.Op != OpRISCV64CZERONEZ || v_1.Type != t {
 				continue
 			}
-			_ = v_0_0.Args[1]
-			v_0_0_0 := v_0_0.Args[0]
-			v_0_0_1 := v_0_0.Args[1]
-			for _i1 := 0; _i1 <= 1; _i1, v_0_0_0, v_0_0_1 = _i1+1, v_0_0_1, v_0_0_0 {
-				x := v_0_0_0
-				y := v_0_0_1
-				if v_1.Op != OpRISCV64CZEROEQZ || v_1.Type != t {
+			_ = v_1.Args[1]
+			v_1_0 := v_1.Args[0]
+			if v_1_0.Op != OpRISCV64ADD {
+				continue
+			}
+			_ = v_1_0.Args[1]
+			v_1_0_0 := v_1_0.Args[0]
+			v_1_0_1 := v_1_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_1_0_0, v_1_0_1 = _i1+1, v_1_0_1, v_1_0_0 {
+				if x != v_1_0_0 {
 					continue
 				}
-				_ = v_1.Args[1]
-				if x != v_1.Args[0] || cond != v_1.Args[1] {
+				y := v_1_0_1
+				if cond != v_1.Args[1] {
 					continue
 				}
 				v.reset(OpRISCV64ADD)
@@ -7126,26 +7124,26 @@ func rewriteValueRISCV64_OpRISCV64OR(v *Value) bool {
 		}
 		break
 	}
-	// match: (OR (CZERONEZ <t> (SUB x y) cond) (CZEROEQZ <t> x cond))
+	// match: (OR (CZEROEQZ <t> x cond) (CZERONEZ <t> (SUB x y) cond))
 	// result: (SUB x (CZERONEZ <t> y cond))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != OpRISCV64CZERONEZ {
+			if v_0.Op != OpRISCV64CZEROEQZ {
 				continue
 			}
 			t := v_0.Type
 			cond := v_0.Args[1]
-			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != OpRISCV64SUB {
-				continue
-			}
-			y := v_0_0.Args[1]
-			x := v_0_0.Args[0]
-			if v_1.Op != OpRISCV64CZEROEQZ || v_1.Type != t {
+			x := v_0.Args[0]
+			if v_1.Op != OpRISCV64CZERONEZ || v_1.Type != t {
 				continue
 			}
 			_ = v_1.Args[1]
-			if x != v_1.Args[0] || cond != v_1.Args[1] {
+			v_1_0 := v_1.Args[0]
+			if v_1_0.Op != OpRISCV64SUB {
+				continue
+			}
+			y := v_1_0.Args[1]
+			if x != v_1_0.Args[0] || cond != v_1.Args[1] {
 				continue
 			}
 			v.reset(OpRISCV64SUB)
@@ -7156,30 +7154,33 @@ func rewriteValueRISCV64_OpRISCV64OR(v *Value) bool {
 		}
 		break
 	}
-	// match: (OR (CZERONEZ <t> (OR x y) cond) (CZEROEQZ <t> x cond))
+	// match: (OR (CZEROEQZ <t> x cond) (CZERONEZ <t> (OR x y) cond))
 	// result: (OR x (CZERONEZ <t> y cond))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != OpRISCV64CZERONEZ {
+			if v_0.Op != OpRISCV64CZEROEQZ {
 				continue
 			}
 			t := v_0.Type
 			cond := v_0.Args[1]
-			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != OpRISCV64OR {
+			x := v_0.Args[0]
+			if v_1.Op != OpRISCV64CZERONEZ || v_1.Type != t {
 				continue
 			}
-			_ = v_0_0.Args[1]
-			v_0_0_0 := v_0_0.Args[0]
-			v_0_0_1 := v_0_0.Args[1]
-			for _i1 := 0; _i1 <= 1; _i1, v_0_0_0, v_0_0_1 = _i1+1, v_0_0_1, v_0_0_0 {
-				x := v_0_0_0
-				y := v_0_0_1
-				if v_1.Op != OpRISCV64CZEROEQZ || v_1.Type != t {
+			_ = v_1.Args[1]
+			v_1_0 := v_1.Args[0]
+			if v_1_0.Op != OpRISCV64OR {
+				continue
+			}
+			_ = v_1_0.Args[1]
+			v_1_0_0 := v_1_0.Args[0]
+			v_1_0_1 := v_1_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_1_0_0, v_1_0_1 = _i1+1, v_1_0_1, v_1_0_0 {
+				if x != v_1_0_0 {
 					continue
 				}
-				_ = v_1.Args[1]
-				if x != v_1.Args[0] || cond != v_1.Args[1] {
+				y := v_1_0_1
+				if cond != v_1.Args[1] {
 					continue
 				}
 				v.reset(OpRISCV64OR)
@@ -7191,30 +7192,33 @@ func rewriteValueRISCV64_OpRISCV64OR(v *Value) bool {
 		}
 		break
 	}
-	// match: (OR (CZERONEZ <t> (XOR x y) cond) (CZEROEQZ <t> x cond))
+	// match: (OR (CZEROEQZ <t> x cond) (CZERONEZ <t> (XOR x y) cond))
 	// result: (XOR x (CZERONEZ <t> y cond))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != OpRISCV64CZERONEZ {
+			if v_0.Op != OpRISCV64CZEROEQZ {
 				continue
 			}
 			t := v_0.Type
 			cond := v_0.Args[1]
-			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != OpRISCV64XOR {
+			x := v_0.Args[0]
+			if v_1.Op != OpRISCV64CZERONEZ || v_1.Type != t {
 				continue
 			}
-			_ = v_0_0.Args[1]
-			v_0_0_0 := v_0_0.Args[0]
-			v_0_0_1 := v_0_0.Args[1]
-			for _i1 := 0; _i1 <= 1; _i1, v_0_0_0, v_0_0_1 = _i1+1, v_0_0_1, v_0_0_0 {
-				x := v_0_0_0
-				y := v_0_0_1
-				if v_1.Op != OpRISCV64CZEROEQZ || v_1.Type != t {
+			_ = v_1.Args[1]
+			v_1_0 := v_1.Args[0]
+			if v_1_0.Op != OpRISCV64XOR {
+				continue
+			}
+			_ = v_1_0.Args[1]
+			v_1_0_0 := v_1_0.Args[0]
+			v_1_0_1 := v_1_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_1_0_0, v_1_0_1 = _i1+1, v_1_0_1, v_1_0_0 {
+				if x != v_1_0_0 {
 					continue
 				}
-				_ = v_1.Args[1]
-				if x != v_1.Args[0] || cond != v_1.Args[1] {
+				y := v_1_0_1
+				if cond != v_1.Args[1] {
 					continue
 				}
 				v.reset(OpRISCV64XOR)
@@ -7226,26 +7230,26 @@ func rewriteValueRISCV64_OpRISCV64OR(v *Value) bool {
 		}
 		break
 	}
-	// match: (OR (CZERONEZ <t> (SUBW x y) cond) (CZEROEQZ <t> x cond))
+	// match: (OR (CZEROEQZ <t> x cond) (CZERONEZ <t> (SUBW x y) cond))
 	// result: (SUBW x (CZERONEZ <t> y cond))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != OpRISCV64CZERONEZ {
+			if v_0.Op != OpRISCV64CZEROEQZ {
 				continue
 			}
 			t := v_0.Type
 			cond := v_0.Args[1]
-			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != OpRISCV64SUBW {
-				continue
-			}
-			y := v_0_0.Args[1]
-			x := v_0_0.Args[0]
-			if v_1.Op != OpRISCV64CZEROEQZ || v_1.Type != t {
+			x := v_0.Args[0]
+			if v_1.Op != OpRISCV64CZERONEZ || v_1.Type != t {
 				continue
 			}
 			_ = v_1.Args[1]
-			if x != v_1.Args[0] || cond != v_1.Args[1] {
+			v_1_0 := v_1.Args[0]
+			if v_1_0.Op != OpRISCV64SUBW {
+				continue
+			}
+			y := v_1_0.Args[1]
+			if x != v_1_0.Args[0] || cond != v_1.Args[1] {
 				continue
 			}
 			v.reset(OpRISCV64SUBW)
@@ -7421,32 +7425,32 @@ func rewriteValueRISCV64_OpRISCV64OR(v *Value) bool {
 		}
 		break
 	}
-	// match: (OR (CZERONEZ x:(AND z _) cond) y:(CZEROEQZ z cond))
-	// result: (OR x y)
+	// match: (OR x:(CZEROEQZ z cond) (CZERONEZ y:(AND z _) cond))
+	// result: (OR y x)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != OpRISCV64CZERONEZ {
+			x := v_0
+			if x.Op != OpRISCV64CZEROEQZ {
 				continue
 			}
-			cond := v_0.Args[1]
-			x := v_0.Args[0]
-			if x.Op != OpRISCV64AND {
+			cond := x.Args[1]
+			z := x.Args[0]
+			if v_1.Op != OpRISCV64CZERONEZ {
 				continue
 			}
-			x_0 := x.Args[0]
-			x_1 := x.Args[1]
-			for _i1 := 0; _i1 <= 1; _i1, x_0, x_1 = _i1+1, x_1, x_0 {
-				z := x_0
-				y := v_1
-				if y.Op != OpRISCV64CZEROEQZ {
-					continue
-				}
-				_ = y.Args[1]
-				if z != y.Args[0] || cond != y.Args[1] {
+			_ = v_1.Args[1]
+			y := v_1.Args[0]
+			if y.Op != OpRISCV64AND {
+				continue
+			}
+			y_0 := y.Args[0]
+			y_1 := y.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, y_0, y_1 = _i1+1, y_1, y_0 {
+				if z != y_0 || cond != v_1.Args[1] {
 					continue
 				}
 				v.reset(OpRISCV64OR)
-				v.AddArg2(x, y)
+				v.AddArg2(y, x)
 				return true
 			}
 		}
@@ -7483,29 +7487,29 @@ func rewriteValueRISCV64_OpRISCV64OR(v *Value) bool {
 		}
 		break
 	}
-	// match: (OR (CZERONEZ x:(ANDI <t> [c] z) cond) y:(CZEROEQZ z cond))
-	// result: (OR x y)
+	// match: (OR x:(CZEROEQZ z cond) (CZERONEZ y:(ANDI <t> [c] z) cond))
+	// result: (OR y x)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != OpRISCV64CZERONEZ {
+			x := v_0
+			if x.Op != OpRISCV64CZEROEQZ {
 				continue
 			}
-			cond := v_0.Args[1]
-			x := v_0.Args[0]
-			if x.Op != OpRISCV64ANDI {
-				continue
-			}
+			cond := x.Args[1]
 			z := x.Args[0]
-			y := v_1
-			if y.Op != OpRISCV64CZEROEQZ {
+			if v_1.Op != OpRISCV64CZERONEZ {
 				continue
 			}
-			_ = y.Args[1]
-			if z != y.Args[0] || cond != y.Args[1] {
+			_ = v_1.Args[1]
+			y := v_1.Args[0]
+			if y.Op != OpRISCV64ANDI {
+				continue
+			}
+			if z != y.Args[0] || cond != v_1.Args[1] {
 				continue
 			}
 			v.reset(OpRISCV64OR)
-			v.AddArg2(x, y)
+			v.AddArg2(y, x)
 			return true
 		}
 		break
@@ -7537,26 +7541,26 @@ func rewriteValueRISCV64_OpRISCV64OR(v *Value) bool {
 		}
 		break
 	}
-	// match: (OR (CZERONEZ <t> (ADDI [c] x) cond) (CZEROEQZ <t> x cond))
+	// match: (OR (CZEROEQZ <t> x cond) (CZERONEZ <t> (ADDI [c] x) cond))
 	// result: (ADD x (CZERONEZ <t> (MOVDconst [c]) cond))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != OpRISCV64CZERONEZ {
+			if v_0.Op != OpRISCV64CZEROEQZ {
 				continue
 			}
 			t := v_0.Type
 			cond := v_0.Args[1]
-			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != OpRISCV64ADDI {
-				continue
-			}
-			c := auxIntToInt64(v_0_0.AuxInt)
-			x := v_0_0.Args[0]
-			if v_1.Op != OpRISCV64CZEROEQZ || v_1.Type != t {
+			x := v_0.Args[0]
+			if v_1.Op != OpRISCV64CZERONEZ || v_1.Type != t {
 				continue
 			}
 			_ = v_1.Args[1]
-			if x != v_1.Args[0] || cond != v_1.Args[1] {
+			v_1_0 := v_1.Args[0]
+			if v_1_0.Op != OpRISCV64ADDI {
+				continue
+			}
+			c := auxIntToInt64(v_1_0.AuxInt)
+			if x != v_1_0.Args[0] || cond != v_1.Args[1] {
 				continue
 			}
 			v.reset(OpRISCV64ADD)
@@ -7569,26 +7573,26 @@ func rewriteValueRISCV64_OpRISCV64OR(v *Value) bool {
 		}
 		break
 	}
-	// match: (OR (CZERONEZ <t> (ORI [c] x) cond) (CZEROEQZ <t> x cond))
+	// match: (OR (CZEROEQZ <t> x cond) (CZERONEZ <t> (ORI [c] x) cond))
 	// result: (OR x (CZERONEZ <t> (MOVDconst [c]) cond))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != OpRISCV64CZERONEZ {
+			if v_0.Op != OpRISCV64CZEROEQZ {
 				continue
 			}
 			t := v_0.Type
 			cond := v_0.Args[1]
-			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != OpRISCV64ORI {
-				continue
-			}
-			c := auxIntToInt64(v_0_0.AuxInt)
-			x := v_0_0.Args[0]
-			if v_1.Op != OpRISCV64CZEROEQZ || v_1.Type != t {
+			x := v_0.Args[0]
+			if v_1.Op != OpRISCV64CZERONEZ || v_1.Type != t {
 				continue
 			}
 			_ = v_1.Args[1]
-			if x != v_1.Args[0] || cond != v_1.Args[1] {
+			v_1_0 := v_1.Args[0]
+			if v_1_0.Op != OpRISCV64ORI {
+				continue
+			}
+			c := auxIntToInt64(v_1_0.AuxInt)
+			if x != v_1_0.Args[0] || cond != v_1.Args[1] {
 				continue
 			}
 			v.reset(OpRISCV64OR)
@@ -7601,26 +7605,26 @@ func rewriteValueRISCV64_OpRISCV64OR(v *Value) bool {
 		}
 		break
 	}
-	// match: (OR (CZERONEZ <t> (XORI [c] x) cond) (CZEROEQZ <t> x cond))
+	// match: (OR (CZEROEQZ <t> x cond) (CZERONEZ <t> (XORI [c] x) cond))
 	// result: (XOR x (CZERONEZ <t> (MOVDconst [c]) cond))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != OpRISCV64CZERONEZ {
+			if v_0.Op != OpRISCV64CZEROEQZ {
 				continue
 			}
 			t := v_0.Type
 			cond := v_0.Args[1]
-			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != OpRISCV64XORI {
-				continue
-			}
-			c := auxIntToInt64(v_0_0.AuxInt)
-			x := v_0_0.Args[0]
-			if v_1.Op != OpRISCV64CZEROEQZ || v_1.Type != t {
+			x := v_0.Args[0]
+			if v_1.Op != OpRISCV64CZERONEZ || v_1.Type != t {
 				continue
 			}
 			_ = v_1.Args[1]
-			if x != v_1.Args[0] || cond != v_1.Args[1] {
+			v_1_0 := v_1.Args[0]
+			if v_1_0.Op != OpRISCV64XORI {
+				continue
+			}
+			c := auxIntToInt64(v_1_0.AuxInt)
+			if x != v_1_0.Args[0] || cond != v_1.Args[1] {
 				continue
 			}
 			v.reset(OpRISCV64XOR)

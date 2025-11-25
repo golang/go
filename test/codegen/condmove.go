@@ -680,7 +680,7 @@ func cmoveAndZero(cond, a, b int) int {
 	return a
 }
 
-func CondAndNonZero(cond, a, b int) int {
+func cmoveAndNonZero(cond, a, b int) int {
 	if cond != 0 {
 		a &= b
 	}
@@ -688,7 +688,7 @@ func CondAndNonZero(cond, a, b int) int {
 	return a
 }
 
-func cmoveAddiZero(cond, a int) int {
+func cmoveAddConstZero(cond, a int) int {
 	if cond == 0 {
 		a += 42
 	}
@@ -696,7 +696,7 @@ func cmoveAddiZero(cond, a int) int {
 	return a
 }
 
-func cmoveAddiNonZero(cond, a int) int {
+func cmoveAddConstNonZero(cond, a int) int {
 	if cond != 0 {
 		a += 42
 	}
@@ -704,7 +704,7 @@ func cmoveAddiNonZero(cond, a int) int {
 	return a
 }
 
-func cmoveOriZero(cond, a int) int {
+func cmoveOrConstZero(cond, a int) int {
 	if cond == 0 {
 		a |= 0xFF
 	}
@@ -712,7 +712,7 @@ func cmoveOriZero(cond, a int) int {
 	return a
 }
 
-func cmoveOriNonZero(cond, a int) int {
+func cmoveOrConstNonZero(cond, a int) int {
 	if cond != 0 {
 		a |= 0xFF
 	}
@@ -720,7 +720,7 @@ func cmoveOriNonZero(cond, a int) int {
 	return a
 }
 
-func cmoveXoriZero(cond, a int) int {
+func cmoveXorConstZero(cond, a int) int {
 	if cond == 0 {
 		a ^= 0xFFFF
 	}
@@ -728,7 +728,7 @@ func cmoveXoriZero(cond, a int) int {
 	return a
 }
 
-func cmoveXoriNonZero(cond, a int) int {
+func cmoveXorConstNonZero(cond, a int) int {
 	if cond != 0 {
 		a ^= 0xFFFF
 	}
@@ -736,7 +736,7 @@ func cmoveXoriNonZero(cond, a int) int {
 	return a
 }
 
-func cmoveAndiZero(cond, a int) int {
+func cmoveAndConstZero(cond, a int) int {
 	if cond == 0 {
 		a &= 0xFF
 	}
@@ -744,7 +744,7 @@ func cmoveAndiZero(cond, a int) int {
 	return a
 }
 
-func cmoveAndiNonZero(cond, a int) int {
+func cmoveAndConstNonZero(cond, a int) int {
 	if cond != 0 {
 		a &= 0xFF
 	}
@@ -753,7 +753,7 @@ func cmoveAndiNonZero(cond, a int) int {
 }
 
 // 32-bit immediate variant tests
-func cmoveAddiwZero(cond int32, a int32) int32 {
+func cmoveAddConstInt32Zero(cond int32, a int32) int32 {
 	if cond == 0 {
 		a += 42
 	}
@@ -761,7 +761,7 @@ func cmoveAddiwZero(cond int32, a int32) int32 {
 	return a
 }
 
-func cmoveAddiwNonZero(cond int32, a int32) int32 {
+func cmoveAddConstInt32NonZero(cond int32, a int32) int32 {
 	if cond != 0 {
 		a += 42
 	}
@@ -769,7 +769,7 @@ func cmoveAddiwNonZero(cond int32, a int32) int32 {
 	return a
 }
 
-func cmoveAddwZero(cond int32, a, b int32) int32 {
+func cmoveAddInt32Zero(cond int32, a, b int32) int32 {
 	if cond == 0 {
 		a += b
 	}
@@ -777,7 +777,7 @@ func cmoveAddwZero(cond int32, a, b int32) int32 {
 	return a
 }
 
-func cmoveAddwNonZero(cond int32, a, b int32) int32 {
+func cmoveAddInt32NonZero(cond int32, a, b int32) int32 {
 	if cond != 0 {
 		a += b
 	}
@@ -785,7 +785,7 @@ func cmoveAddwNonZero(cond int32, a, b int32) int32 {
 	return a
 }
 
-func cmoveSubwZero(cond int32, a, b int32) int32 {
+func cmoveSubInt32Zero(cond int32, a, b int32) int32 {
 	if cond == 0 {
 		a -= b
 	}
@@ -793,7 +793,7 @@ func cmoveSubwZero(cond int32, a, b int32) int32 {
 	return a
 }
 
-func cmoveSubwNonZero(cond int32, a, b int32) int32 {
+func cmoveSubInt32NonZero(cond int32, a, b int32) int32 {
 	if cond != 0 {
 		a -= b
 	}
