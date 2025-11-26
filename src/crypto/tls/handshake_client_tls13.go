@@ -664,7 +664,7 @@ func (hs *clientHandshakeStateTLS13) readServerCertificate() error {
 	if sigType == signaturePKCS1v15 || sigHash == crypto.SHA1 {
 		return c.sendAlert(alertInternalError)
 	}
-	signed := signedMessage(sigHash, serverSignatureContext, hs.transcript)
+	signed := signedMessage(serverSignatureContext, hs.transcript)
 	if err := verifyHandshakeSignature(sigType, c.peerCertificates[0].PublicKey,
 		sigHash, signed, certVerify.signature); err != nil {
 		c.sendAlert(alertDecryptError)
@@ -783,12 +783,12 @@ func (hs *clientHandshakeStateTLS13) sendClientCertificate() error {
 		return c.sendAlert(alertInternalError)
 	}
 
-	signed := signedMessage(sigHash, clientSignatureContext, hs.transcript)
+	signed := signedMessage(clientSignatureContext, hs.transcript)
 	signOpts := crypto.SignerOpts(sigHash)
 	if sigType == signatureRSAPSS {
 		signOpts = &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash, Hash: sigHash}
 	}
-	sig, err := cert.PrivateKey.(crypto.Signer).Sign(c.config.rand(), signed, signOpts)
+	sig, err := crypto.SignMessage(cert.PrivateKey.(crypto.Signer), c.config.rand(), signed, signOpts)
 	if err != nil {
 		c.sendAlert(alertInternalError)
 		return errors.New("tls: failed to sign handshake: " + err.Error())

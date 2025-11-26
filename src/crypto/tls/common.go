@@ -1597,9 +1597,14 @@ var writerMutex sync.Mutex
 type Certificate struct {
 	Certificate [][]byte
 	// PrivateKey contains the private key corresponding to the public key in
-	// Leaf. This must implement crypto.Signer with an RSA, ECDSA or Ed25519 PublicKey.
+	// Leaf. This must implement [crypto.Signer] with an RSA, ECDSA or Ed25519
+	// PublicKey.
+	//
 	// For a server up to TLS 1.2, it can also implement crypto.Decrypter with
 	// an RSA PublicKey.
+	//
+	// If it implements [crypto.MessageSigner], SignMessage will be used instead
+	// of Sign for TLS 1.2 and later.
 	PrivateKey crypto.PrivateKey
 	// SupportedSignatureAlgorithms is an optional list restricting what
 	// signature algorithms the PrivateKey can be used for.

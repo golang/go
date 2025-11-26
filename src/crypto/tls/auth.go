@@ -18,9 +18,13 @@ import (
 	"slices"
 )
 
-// verifyHandshakeSignature verifies a signature against pre-hashed
-// (if required) handshake contents.
+// verifyHandshakeSignature verifies a signature against unhashed handshake contents.
 func verifyHandshakeSignature(sigType uint8, pubkey crypto.PublicKey, hashFunc crypto.Hash, signed, sig []byte) error {
+	if hashFunc != directSigning {
+		h := hashFunc.New()
+		h.Write(signed)
+		signed = h.Sum(nil)
+	}
 	switch sigType {
 	case signatureECDSA:
 		pubKey, ok := pubkey.(*ecdsa.PublicKey)
@@ -61,6 +65,32 @@ func verifyHandshakeSignature(sigType uint8, pubkey crypto.PublicKey, hashFunc c
 	return nil
 }
 
+// verifyLegacyHandshakeSignature verifies a TLS 1.0 and 1.1 signature against
+// pre-hashed handshake contents.
+func verifyLegacyHandshakeSignature(sigType uint8, pubkey crypto.PublicKey, hashFunc crypto.Hash, hashed, sig []byte) error {
+	switch sigType {
+	case signatureECDSA:
+		pubKey, ok := pubkey.(*ecdsa.PublicKey)
+		if !ok {
+			return fmt.Errorf("expected an ECDSA public key, got %T", pubkey)
+		}
+		if !ecdsa.VerifyASN1(pubKey, hashed, sig) {
+			return errors.New("ECDSA verification failure")
+		}
+	case signaturePKCS1v15:
+		pubKey, ok := pubkey.(*rsa.PublicKey)
+		if !ok {
+			return fmt.Errorf("expected an RSA public key, got %T", pubkey)
+		}
+		if err := rsa.VerifyPKCS1v15(pubKey, hashFunc, hashed, sig); err != nil {
+			return err
+		}
+	default:
+		return errors.New("internal error: unknown signature type")
+	}
+	return nil
+}
+
 const (
 	serverSignatureContext = "TLS 1.3, server CertificateVerify\x00"
 	clientSignatureContext = "TLS 1.3, client CertificateVerify\x00"
@@ -77,21 +107,15 @@ var signaturePadding = []byte{
 	0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
 }
 
-// signedMessage returns the pre-hashed (if necessary) message to be signed by
-// certificate keys in TLS 1.3. See RFC 8446, Section 4.4.3.
-func signedMessage(sigHash crypto.Hash, context string, transcript hash.Hash) []byte {
-	if sigHash == directSigning {
-		b := &bytes.Buffer{}
-		b.Write(signaturePadding)
-		io.WriteString(b, context)
-		b.Write(transcript.Sum(nil))
-		return b.Bytes()
-	}
-	h := sigHash.New()
-	h.Write(signaturePadding)
-	io.WriteString(h, context)
-	h.Write(transcript.Sum(nil))
-	return h.Sum(nil)
+// signedMessage returns the (unhashed) message to be signed by certificate keys
+// in TLS 1.3. See RFC 8446, Section 4.4.3.
+func signedMessage(context string, transcript hash.Hash) []byte {
+	const maxSize = 64 /* signaturePadding */ + len(serverSignatureContext) + 512/8 /* SHA-512 */
+	b := bytes.NewBuffer(make([]byte, 0, maxSize))
+	b.Write(signaturePadding)
+	io.WriteString(b, context)
+	b.Write(transcript.Sum(nil))
+	return b.Bytes()
 }
 
 // typeAndHashFromSignatureScheme returns the corresponding signature type and

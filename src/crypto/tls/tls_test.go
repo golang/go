@@ -2390,3 +2390,74 @@ func TestECH(t *testing.T) {
 
 	check()
 }
+
+func TestMessageSigner(t *testing.T) {
+	t.Run("TLSv10", func(t *testing.T) { testMessageSigner(t, VersionTLS10) })
+	t.Run("TLSv12", func(t *testing.T) { testMessageSigner(t, VersionTLS12) })
+	t.Run("TLSv13", func(t *testing.T) { testMessageSigner(t, VersionTLS13) })
+}
+
+func testMessageSigner(t *testing.T, version uint16) {
+	clientConfig, serverConfig := testConfig.Clone(), testConfig.Clone()
+	serverConfig.ClientAuth = RequireAnyClientCert
+	clientConfig.MinVersion = version
+	clientConfig.MaxVersion = version
+	serverConfig.MinVersion = version
+	serverConfig.MaxVersion = version
+	clientConfig.Certificates = []Certificate{{
+		Certificate: [][]byte{testRSACertificate},
+		PrivateKey:  messageOnlySigner{testRSAPrivateKey},
+	}}
+	serverConfig.Certificates = []Certificate{{
+		Certificate: [][]byte{testRSACertificate},
+		PrivateKey:  messageOnlySigner{testRSAPrivateKey},
+	}}
+
+	_, _, err := testHandshake(t, clientConfig, serverConfig)
+	if version < VersionTLS12 {
+		if err == nil {
+			t.Fatal("expected failure for TLS 1.0/1.1")
+		}
+	} else {
+		if err != nil {
+			t.Fatalf("unexpected failure: %s", err)
+		}
+	}
+
+	clientConfig.Certificates = []Certificate{{
+		Certificate: [][]byte{testECDSACertificate},
+		PrivateKey:  messageOnlySigner{testECDSAPrivateKey},
+	}}
+	serverConfig.Certificates = []Certificate{{
+		Certificate: [][]byte{testECDSACertificate},
+		PrivateKey:  messageOnlySigner{testECDSAPrivateKey},
+	}}
+
+	_, _, err = testHandshake(t, clientConfig, serverConfig)
+	if version < VersionTLS12 {
+		if err == nil {
+			t.Fatal("expected failure for TLS 1.0/1.1")
+		}
+	} else {
+		if err != nil {
+			t.Fatalf("unexpected failure: %s", err)
+		}
+	}
+}
+
+type messageOnlySigner struct{ crypto.Signer }
+
+func (s messageOnlySigner) Public() crypto.PublicKey {
+	return s.Signer.Public()
+}
+
+func (s messageOnlySigner) Sign(rand io.Reader, msg []byte, opts crypto.SignerOpts) (signature []byte, err error) {
+	return nil, errors.New("messageOnlySigner: Sign called")
+}
+
+func (s messageOnlySigner) SignMessage(rand io.Reader, msg []byte, opts crypto.SignerOpts) (signature []byte, err error) {
+	h := opts.HashFunc().New()
+	h.Write(msg)
+	digest := h.Sum(nil)
+	return s.Signer.Sign(rand, digest, opts)
+}

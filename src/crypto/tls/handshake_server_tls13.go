@@ -845,12 +845,12 @@ func (hs *serverHandshakeStateTLS13) sendServerCertificate() error {
 		return c.sendAlert(alertInternalError)
 	}
 
-	signed := signedMessage(sigHash, serverSignatureContext, hs.transcript)
+	signed := signedMessage(serverSignatureContext, hs.transcript)
 	signOpts := crypto.SignerOpts(sigHash)
 	if sigType == signatureRSAPSS {
 		signOpts = &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash, Hash: sigHash}
 	}
-	sig, err := hs.cert.PrivateKey.(crypto.Signer).Sign(c.config.rand(), signed, signOpts)
+	sig, err := crypto.SignMessage(hs.cert.PrivateKey.(crypto.Signer), c.config.rand(), signed, signOpts)
 	if err != nil {
 		public := hs.cert.PrivateKey.(crypto.Signer).Public()
 		if rsaKey, ok := public.(*rsa.PublicKey); ok && sigType == signatureRSAPSS &&
@@ -1081,7 +1081,7 @@ func (hs *serverHandshakeStateTLS13) readClientCertificate() error {
 		if sigType == signaturePKCS1v15 || sigHash == crypto.SHA1 {
 			return c.sendAlert(alertInternalError)
 		}
-		signed := signedMessage(sigHash, clientSignatureContext, hs.transcript)
+		signed := signedMessage(clientSignatureContext, hs.transcript)
 		if err := verifyHandshakeSignature(sigType, c.peerCertificates[0].PublicKey,
 			sigHash, signed, certVerify.signature); err != nil {
 			c.sendAlert(alertDecryptError)

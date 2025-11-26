@@ -781,15 +781,13 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 			return fmt.Errorf("tls: client certificate private key of type %T does not implement crypto.Signer", chainToSend.PrivateKey)
 		}
 
-		var sigType uint8
-		var sigHash crypto.Hash
 		if c.vers >= VersionTLS12 {
 			signatureAlgorithm, err := selectSignatureScheme(c.vers, chainToSend, certReq.supportedSignatureAlgorithms)
 			if err != nil {
 				c.sendAlert(alertHandshakeFailure)
 				return err
 			}
-			sigType, sigHash, err = typeAndHashFromSignatureScheme(signatureAlgorithm)
+			sigType, sigHash, err := typeAndHashFromSignatureScheme(signatureAlgorithm)
 			if err != nil {
 				return c.sendAlert(alertInternalError)
 			}
@@ -799,23 +797,31 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 				tlssha1.Value() // ensure godebug is initialized
 				tlssha1.IncNonDefault()
 			}
+			if hs.finishedHash.buffer == nil {
+				c.sendAlert(alertInternalError)
+				return errors.New("tls: internal error: did not keep handshake transcript for TLS 1.2")
+			}
+			signOpts := crypto.SignerOpts(sigHash)
+			if sigType == signatureRSAPSS {
+				signOpts = &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash, Hash: sigHash}
+			}
+			certVerify.signature, err = crypto.SignMessage(key, c.config.rand(), hs.finishedHash.buffer, signOpts)
+			if err != nil {
+				c.sendAlert(alertInternalError)
+				return err
+			}
 		} else {
-			sigType, sigHash, err = legacyTypeAndHashFromPublicKey(key.Public())
+			sigType, sigHash, err := legacyTypeAndHashFromPublicKey(key.Public())
 			if err != nil {
 				c.sendAlert(alertIllegalParameter)
 				return err
 			}
-		}
-
-		signed := hs.finishedHash.hashForClientCertificate(sigType, sigHash)
-		signOpts := crypto.SignerOpts(sigHash)
-		if sigType == signatureRSAPSS {
-			signOpts = &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash, Hash: sigHash}
-		}
-		certVerify.signature, err = key.Sign(c.config.rand(), signed, signOpts)
-		if err != nil {
-			c.sendAlert(alertInternalError)
-			return err
+			signed := hs.finishedHash.hashForClientCertificate(sigType)
+			certVerify.signature, err = key.Sign(c.config.rand(), signed, sigHash)
+			if err != nil {
+				c.sendAlert(alertInternalError)
+				return err
+			}
 		}
 
 		if _, err := hs.c.writeHandshakeRecord(certVerify, &hs.finishedHash); err != nil {

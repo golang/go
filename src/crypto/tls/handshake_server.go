@@ -780,19 +780,27 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 				tlssha1.Value() // ensure godebug is initialized
 				tlssha1.IncNonDefault()
 			}
+			if hs.finishedHash.buffer == nil {
+				c.sendAlert(alertInternalError)
+				return errors.New("tls: internal error: did not keep handshake transcript for TLS 1.2")
+			}
+			if err := verifyHandshakeSignature(sigType, pub, sigHash, hs.finishedHash.buffer, certVerify.signature); err != nil {
+				c.sendAlert(alertDecryptError)
+				return errors.New("tls: invalid signature by the client certificate: " + err.Error())
+			}
 		} else {
 			sigType, sigHash, err = legacyTypeAndHashFromPublicKey(pub)
 			if err != nil {
 				c.sendAlert(alertIllegalParameter)
 				return err
 			}
+			signed := hs.finishedHash.hashForClientCertificate(sigType)
+			if err := verifyLegacyHandshakeSignature(sigType, pub, sigHash, signed, certVerify.signature); err != nil {
+				c.sendAlert(alertDecryptError)
+				return errors.New("tls: invalid signature by the client certificate: " + err.Error())
+			}
 		}
 
-		signed := hs.finishedHash.hashForClientCertificate(sigType, sigHash)
-		if err := verifyHandshakeSignature(sigType, pub, sigHash, signed, certVerify.signature); err != nil {
-			c.sendAlert(alertDecryptError)
-			return errors.New("tls: invalid signature by the client certificate: " + err.Error())
-		}
 		c.peerSigAlg = certVerify.signatureAlgorithm
 
 		if err := transcriptMsg(certVerify, &hs.finishedHash); err != nil {
