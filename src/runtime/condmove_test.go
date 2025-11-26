@@ -37,7 +37,7 @@ func init() {
 	}
 }
 
-func BenchmarkZicondCmovInt(b *testing.B) {
+func BenchmarkNoZicondCmovInt(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for x := range 1000 {
 			cmovint(x)
@@ -53,7 +53,7 @@ func BenchmarkZicondCmov32bit(b *testing.B) {
 	}
 }
 
-func BenchmarkZicondSimpleCondSelect32(b *testing.B) {
+func BenchmarkNoZicondSimpleCondSelect32(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < len(testData32); j++ {
 			_ = simpleCondSelect32(testData32[j], testData32[(j+1)%len(testData32)])
@@ -61,7 +61,7 @@ func BenchmarkZicondSimpleCondSelect32(b *testing.B) {
 	}
 }
 
-func BenchmarkZicondMinCondSelect32(b *testing.B) {
+func BenchmarkNoZicondMinCondSelect32(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < len(testData32); j++ {
 			_ = minCondSelect32(testData32[j], testData32[(j+1)%len(testData32)])
@@ -69,7 +69,7 @@ func BenchmarkZicondMinCondSelect32(b *testing.B) {
 	}
 }
 
-func BenchmarkZicondUnpredictableLSB32(b *testing.B) {
+func BenchmarkNoZicondUnpredictableLSB32(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < len(testData32); j++ {
 			_ = unpredictableLSB32(testData32[j], testData32[(j+1)%len(testData32)])
@@ -145,7 +145,7 @@ func BenchmarkZicondcmovUintptr(b *testing.B) {
 	}
 }
 
-func BenchmarkZicondcmovFloatEq(b *testing.B) {
+func BenchmarkNoZicondcmovFloatEq(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < len(testDataFloat64); j++ {
 			_ = cmovFloatEq(testDataFloat64[j], testDataFloat64[(j+1)%len(testDataFloat64)])
@@ -190,7 +190,7 @@ func BenchmarkZicondCmovZero1(b *testing.B) {
 	}
 }
 
-func BenchmarkZicondCmovZeroRegZero(b *testing.B) {
+func BenchmarkNoZicondCmovZeroRegZero(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < len(testDataInt); j++ {
 			_ = cmovZeroRegZero(testDataInt[j], testDataInt[(j+1)%len(testDataInt)])
