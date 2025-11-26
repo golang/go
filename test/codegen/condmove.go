@@ -15,8 +15,6 @@ func cmovint(c int) int {
 	// arm64:"CSEL LT"
 	// ppc64x:"ISEL [$]0"
 	// wasm:"Select"
-	// riscv64/rva20u64,riscv64/rva22u64:-"CZEROEQZ" -"CZERONEZ"
-	// riscv64/rva23u64:"CZEROEQZ" "CZERONEZ" "OR"
 	return x
 }
 
@@ -28,8 +26,6 @@ func cmovchan(x, y chan int) chan int {
 	// arm64:"CSEL NE"
 	// ppc64x:"ISEL [$]2"
 	// wasm:"Select"
-	// riscv64/rva20u64,riscv64/rva22u64:-"CZEROEQZ" -"CZERONEZ"
-	// riscv64/rva23u64:"CZEROEQZ" "CZERONEZ" "OR"
 	return x
 }
 
@@ -41,8 +37,6 @@ func cmovuintptr(x, y uintptr) uintptr {
 	// arm64:"CSNEG LS"
 	// ppc64x:"ISEL [$]1"
 	// wasm:"Select"
-	// riscv64/rva20u64,riscv64/rva22u64:-"CZEROEQZ" -"CZERONEZ"
-	// riscv64/rva23u64:"CZEROEQZ" "CZERONEZ" "OR"
 	return x
 }
 
@@ -54,8 +48,6 @@ func cmov32bit(x, y uint32) uint32 {
 	// arm64:"CSNEG (LS|HS)"
 	// ppc64x:"ISEL [$]1"
 	// wasm:"Select"
-	// riscv64/rva20u64,riscv64/rva22u64:-"CZEROEQZ" -"CZERONEZ"
-	// riscv64/rva23u64:"CZEROEQZ" "CZERONEZ" "OR"
 	return x
 }
 
@@ -67,8 +59,6 @@ func cmov16bit(x, y uint16) uint16 {
 	// arm64:"CSNEG (LS|HS)"
 	// ppc64x:"ISEL [$][01]"
 	// wasm:"Select"
-	// riscv64/rva20u64,riscv64/rva22u64:-"CZEROEQZ" -"CZERONEZ"
-	// riscv64/rva23u64:"CZEROEQZ" "CZERONEZ" "OR"
 	return x
 }
 
@@ -83,8 +73,6 @@ func cmovfloateq(x, y float64) int {
 	// arm64:"CSEL EQ"
 	// ppc64x:"ISEL [$]2"
 	// wasm:"Select"
-	// riscv64/rva20u64,riscv64/rva22u64:-"CZEROEQZ" -"CZERONEZ"
-	// riscv64/rva23u64:"CZEROEQZ" "CZERONEZ" "OR"
 	return a
 }
 
@@ -97,8 +85,6 @@ func cmovfloatne(x, y float64) int {
 	// arm64:"CSEL NE"
 	// ppc64x:"ISEL [$]2"
 	// wasm:"Select"
-	// riscv64/rva20u64,riscv64/rva22u64:-"CZEROEQZ" -"CZERONEZ"
-	// riscv64/rva23u64:"CZEROEQZ" "CZERONEZ" "OR"
 	return a
 }
 
@@ -143,8 +129,6 @@ func cmovloaded(x [4]int, y int) int {
 	// arm64:"CSEL NE"
 	// ppc64x:"ISEL [$]2"
 	// wasm:"Select"
-	// riscv64/rva20u64,riscv64/rva22u64:-"CZEROEQZ" -"CZERONEZ"
-	// riscv64/rva23u64:"CZERONEZ" "OR" -"CZEROEQZ" -"SNEZ"
 	return y
 }
 
@@ -157,8 +141,6 @@ func cmovuintptr2(x, y uintptr) uintptr {
 	// arm64:"CSEL EQ"
 	// ppc64x:"ISEL [$]2"
 	// wasm:"Select"
-	// riscv64/rva20u64,riscv64/rva22u64:-"CZEROEQZ" -"CZERONEZ"
-	// riscv64/rva23u64:"CZERONEZ" "OR" -"CZEROEQZ" -"SEQZ"
 	return a
 }
 
@@ -185,8 +167,6 @@ func cmovinvert1(x, y int64) int64 {
 		y = -y
 	}
 	// amd64:"CMOVQGT"
-	// riscv64/rva20u64,riscv64/rva22u64:-"CZEROEQZ" -"CZERONEZ"
-	// riscv64/rva23u64:"CZEROEQZ" "CZERONEZ" "OR"
 	return y
 }
 func cmovinvert2(x, y int64) int64 {
@@ -220,7 +200,6 @@ func cmovinvert5(x, y uint64) uint64 {
 	}
 	// amd64:"CMOVQCS"
 	// riscv64/rva20u64,riscv64/rva22u64:-"CZEROEQZ" -"CZERONEZ"
-	// riscv64/rva23u64:"CZEROEQZ" "CZERONEZ" "OR"
 	return y
 }
 func cmovinvert6(x, y uint64) uint64 {
@@ -228,8 +207,6 @@ func cmovinvert6(x, y uint64) uint64 {
 		y = -y
 	}
 	// amd64:"CMOVQLS"
-	// riscv64/rva20u64,riscv64/rva22u64:-"CZEROEQZ" -"CZERONEZ"
-	// riscv64/rva23u64:"CZEROEQZ" "CZERONEZ" "OR"
 	return y
 }
 
@@ -516,8 +493,6 @@ func cmovzeroregZero(a, b int) int {
 		x = a
 	}
 	// ppc64x:"ISEL [$]2, R[0-9]+, R0, R[0-9]+"
-	// riscv64/rva20u64,riscv64/rva22u64:-"CZEROEQZ" -"CZERONEZ"
-	// riscv64/rva23u64:"CZERONEZ" -"CZEROEQZ"
 	return x
 }
 
@@ -676,7 +651,6 @@ func cmoveAndZero(cond, a, b int) int {
 	if cond == 0 {
 		a &= b
 	}
-	// riscv64/rva23u64:"CZEROEQZ" "OR" -"SEQZ" -"CZERONEZ"
 	return a
 }
 
@@ -684,7 +658,6 @@ func cmoveAndNonZero(cond, a, b int) int {
 	if cond != 0 {
 		a &= b
 	}
-	// riscv64/rva23u64:"CZERONEZ" "OR" -"SNEZ" -"CZEROEQZ"
 	return a
 }
 
@@ -740,7 +713,6 @@ func cmoveAndConstZero(cond, a int) int {
 	if cond == 0 {
 		a &= 0xFF
 	}
-	// riscv64/rva23u64:"CZEROEQZ" "OR" -"SEQZ" -`CZERONEZ`
 	return a
 }
 
@@ -748,7 +720,6 @@ func cmoveAndConstNonZero(cond, a int) int {
 	if cond != 0 {
 		a &= 0xFF
 	}
-	// riscv64/rva23u64:"CZERONEZ" "OR" -"SNEZ" -"CZEROEQZ"
 	return a
 }
 

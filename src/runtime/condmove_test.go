@@ -37,47 +37,7 @@ func init() {
 	}
 }
 
-func BenchmarkNoZicondCmovInt(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		for x := range 1000 {
-			cmovint(x)
-		}
-	}
-}
-
-func BenchmarkNoZicondCmov32bit(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		for x := range 1000 {
-			cmov32bit(uint32(x), uint32(1000-x))
-		}
-	}
-}
-
-func BenchmarkNoZicondSimpleCondSelect32(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		for j := 0; j < len(testData32); j++ {
-			_ = simpleCondSelect32(testData32[j], testData32[(j+1)%len(testData32)])
-		}
-	}
-}
-
-func BenchmarkNoZicondMinCondSelect32(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		for j := 0; j < len(testData32); j++ {
-			_ = minCondSelect32(testData32[j], testData32[(j+1)%len(testData32)])
-		}
-	}
-}
-
-func BenchmarkNoZicondUnpredictableLSB32(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		for j := 0; j < len(testData32); j++ {
-			_ = unpredictableLSB32(testData32[j], testData32[(j+1)%len(testData32)])
-		}
-	}
-}
-
-func BenchmarkZicondUnpredictableXOR32(b *testing.B) {
+func BenchmarkUnpredictableXOR32(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < len(testData32); j++ {
 			_ = unpredictableXOR32(testData32[j], testData32[(j+1)%len(testData32)])
@@ -85,7 +45,7 @@ func BenchmarkZicondUnpredictableXOR32(b *testing.B) {
 	}
 }
 
-func BenchmarkZicondUnpredictablePseudoRandom32(b *testing.B) {
+func BenchmarkUnpredictablePseudoRandom32(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < len(testData32); j++ {
 			_ = unpredictablePseudoRandom32(testData32[j], testData32[(j+1)%len(testData32)])
@@ -93,7 +53,7 @@ func BenchmarkZicondUnpredictablePseudoRandom32(b *testing.B) {
 	}
 }
 
-var conditionalArithmeticTests = []struct {
+var condArithmeticTests = []struct {
 	name string
 	fn   func(cond, a, b int) int
 }{
@@ -102,11 +62,10 @@ var conditionalArithmeticTests = []struct {
 	{"SubZero", cmoveSubZero},
 	{"OrZero", cmoveOrZero},
 	{"XorZero", cmoveXorZero},
-	// {"AndZero", cmoveAndZero},
 }
 
-func BenchmarkZicondConditionalArithmetic(b *testing.B) {
-	for _, tt := range conditionalArithmeticTests {
+func BenchmarkCondArithmetic(b *testing.B) {
+	for _, tt := range condArithmeticTests {
 		b.Run(tt.name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				for j := 0; j < len(testDataInt); j++ {
@@ -117,7 +76,7 @@ func BenchmarkZicondConditionalArithmetic(b *testing.B) {
 	}
 }
 
-var conditionalArithmeticConstTests = []struct {
+var condArithmeticConstTests = []struct {
 	name string
 	fn   func(cond, a int) int
 }{
@@ -125,8 +84,8 @@ var conditionalArithmeticConstTests = []struct {
 	{"AddConstNonZero", cmoveAddConstNonZero},
 }
 
-func BenchmarkZicondConditionalArithmeticConst(b *testing.B) {
-	for _, tt := range conditionalArithmeticConstTests {
+func BenchmarkCondArithmeticConst(b *testing.B) {
+	for _, tt := range condArithmeticConstTests {
 		b.Run(tt.name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				for j := 0; j < len(testDataInt); j++ {
@@ -134,22 +93,6 @@ func BenchmarkZicondConditionalArithmeticConst(b *testing.B) {
 				}
 			}
 		})
-	}
-}
-
-func BenchmarkNoZicondcmovUintptr(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		for j := 0; j < len(testDataUintptr); j++ {
-			_ = cmovUintptr(testDataUintptr[j], testDataUintptr[(j+1)%len(testDataUintptr)])
-		}
-	}
-}
-
-func BenchmarkNoZicondcmovFloatEq(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		for j := 0; j < len(testDataFloat64); j++ {
-			_ = cmovFloatEq(testDataFloat64[j], testDataFloat64[(j+1)%len(testDataFloat64)])
-		}
 	}
 }
 
@@ -162,7 +105,7 @@ var specialCaseTests = []struct {
 	{"Neg", cmovNeg},
 }
 
-func BenchmarkZicondSpecialCases(b *testing.B) {
+func BenchmarkCmovSpecialCases(b *testing.B) {
 	for _, tt := range specialCaseTests {
 		b.Run(tt.name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
@@ -174,72 +117,12 @@ func BenchmarkZicondSpecialCases(b *testing.B) {
 	}
 }
 
-func BenchmarkZicondCmovSetm(b *testing.B) {
+func BenchmarkCmovSetm(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < len(testDataBool); j++ {
 			_ = cmovSetm(testDataBool[j])
 		}
 	}
-}
-
-func BenchmarkZicondCmovZero1(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		for j := 0; j < len(testDataBool); j++ {
-			_ = cmovZero1(testDataBool[j])
-		}
-	}
-}
-
-func BenchmarkNoZicondCmovZeroRegZero(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		for j := 0; j < len(testDataInt); j++ {
-			_ = cmovZeroRegZero(testDataInt[j], testDataInt[(j+1)%len(testDataInt)])
-		}
-	}
-}
-
-//go:noinline
-func simpleCondSelect32(x, y uint32) uint32 {
-	result := x
-	if x == 0 {
-		result = y
-	}
-	return result
-}
-
-//go:noinline
-func minCondSelect32(x, y uint32) uint32 {
-	result := y
-	if x < y {
-		result = x
-	}
-	return result
-}
-
-//go:noinline
-func cmovint(c int) int {
-	x := c + 4
-	if x < 0 {
-		x = 182
-	}
-	return x
-}
-
-//go:noinline
-func cmov32bit(x, y uint32) uint32 {
-	if x < y {
-		x = -y
-	}
-	return x
-}
-
-//go:noinline
-func unpredictableLSB32(x, y uint32) uint32 {
-	result := x
-	if (x & 1) != (y & 1) {
-		result = y
-	}
-	return result
 }
 
 //go:noinline
@@ -307,14 +190,6 @@ func cmoveXorZero(cond, a, b int) int {
 }
 
 //go:noinline
-func cmoveAndZero(cond, a, b int) int {
-	if cond == 0 {
-		a &= b
-	}
-	return a
-}
-
-//go:noinline
 func cmoveAddConstZero(cond, a int) int {
 	if cond == 0 {
 		a += 42
@@ -326,23 +201,6 @@ func cmoveAddConstZero(cond, a int) int {
 func cmoveAddConstNonZero(cond, a int) int {
 	if cond != 0 {
 		a += 42
-	}
-	return a
-}
-
-//go:noinline
-func cmovUintptr(x, y uintptr) uintptr {
-	if x < y {
-		x = -y
-	}
-	return x
-}
-
-//go:noinline
-func cmovFloatEq(x, y float64) int {
-	a := 128
-	if x == y {
-		a = 256
 	}
 	return a
 }
@@ -396,15 +254,6 @@ func cmovZero1(cond bool) int {
 	var x int
 	if cond {
 		x = 182
-	}
-	return x
-}
-
-//go:noinline
-func cmovZeroRegZero(a, b int) int {
-	x := 0
-	if a == b {
-		x = a
 	}
 	return x
 }
