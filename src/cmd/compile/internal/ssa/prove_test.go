@@ -67,3 +67,10 @@ func TestLimitNegSigned(t *testing.T) {
 func TestLimitNegUnsigned(t *testing.T) {
 	testLimitUnaryOpUnsigned8(t, "neg", limit.neg, func(x uint8) uint8 { return -x })
 }
+
+func TestLimitComSigned(t *testing.T) {
+	testLimitUnaryOpSigned8(t, "com", limit.com, func(x int8) int8 { return ^x })
+}
+func TestLimitComUnsigned(t *testing.T) {
+	testLimitUnaryOpUnsigned8(t, "com", limit.com, func(x uint8) uint8 { return ^x })
+}
