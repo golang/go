@@ -10,7 +10,6 @@ import (
 	"internal/buildcfg"
 	"internal/platform"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -183,29 +182,6 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 // compilerConcurrency returns the compiler concurrency level for a package compilation.
 // The returned function must be called after the compile finishes.
 func compilerConcurrency() (int, func()) {
-	// First, check whether we can use -c at all for this compilation.
-	canDashC := concurrentGCBackendCompilationEnabledByDefault
-
-	switch e := os.Getenv("GO19CONCURRENTCOMPILATION"); e {
-	case "0":
-		canDashC = false
-	case "1":
-		canDashC = true
-	case "":
-		// Not set. Use default.
-	default:
-		log.Fatalf("GO19CONCURRENTCOMPILATION must be 0, 1, or unset, got %q", e)
-	}
-
-	// TODO: Test and delete these conditions.
-	if cfg.ExperimentErr != nil || cfg.Experiment.FieldTrack || cfg.Experiment.PreemptibleLoops {
-		canDashC = false
-	}
-
-	if !canDashC {
-		return 1, func() {}
-	}
-
 	// Decide how many concurrent backend compilations to allow.
 	//
 	// If we allow too many, in theory we might end up with p concurrent processes,
