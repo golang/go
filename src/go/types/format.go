@@ -24,6 +24,17 @@ func sprintf(fset *token.FileSet, qf Qualifier, tpSubscripts bool, format string
 			panic("got operand instead of *operand")
 		case *operand:
 			arg = operandString(a, qf)
+		case []*operand:
+			var buf strings.Builder
+			buf.WriteByte('[')
+			for i, x := range a {
+				if i > 0 {
+					buf.WriteString(", ")
+				}
+				buf.WriteString(operandString(x, qf))
+			}
+			buf.WriteByte(']')
+			arg = buf.String()
 		case token.Pos:
 			if fset != nil {
 				arg = fset.Position(a).String()
