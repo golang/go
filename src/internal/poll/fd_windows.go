@@ -402,6 +402,10 @@ func (fd *FD) Init(net string, pollable bool) error {
 	fd.rop.fd = fd
 	fd.wop.fd = fd
 
+	if !pollable {
+		return nil
+	}
+
 	// It is safe to add overlapped handles that also perform I/O
 	// outside of the runtime poller. The runtime poller will ignore
 	// I/O completion notifications not initiated by us.
