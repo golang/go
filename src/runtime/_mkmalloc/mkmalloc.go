@@ -107,6 +107,7 @@ type replacementKind int
 const (
 	inlineFunc = replacementKind(iota)
 	subBasicLit
+	foldCondition
 )
 
 // op is a single inlining operation for the inliner. Any calls to the function
@@ -171,7 +172,7 @@ func specializedMallocConfig(classes []class, sizeToSizeClass []uint8) generator
 					{subBasicLit, "elemsize_", str(elemsize)},
 					{subBasicLit, "sizeclass_", str(sc)},
 					{subBasicLit, "noscanint_", str(noscan)},
-					{subBasicLit, "isTiny_", str(0)},
+					{foldCondition, "isTiny_", str(false)},
 				},
 			})
 		}
@@ -199,7 +200,7 @@ func specializedMallocConfig(classes []class, sizeToSizeClass []uint8) generator
 					{subBasicLit, "sizeclass_", str(tinySizeClass)},
 					{subBasicLit, "size_", str(s)},
 					{subBasicLit, "noscanint_", str(noscan)},
-					{subBasicLit, "isTiny_", str(1)},
+					{foldCondition, "isTiny_", str(true)},
 				},
 			})
 		}
@@ -217,7 +218,7 @@ func specializedMallocConfig(classes []class, sizeToSizeClass []uint8) generator
 					{subBasicLit, "elemsize_", str(elemsize)},
 					{subBasicLit, "sizeclass_", str(sc)},
 					{subBasicLit, "noscanint_", str(noscan)},
-					{subBasicLit, "isTiny_", str(0)},
+					{foldCondition, "isTiny_", str(false)},
 				},
 			})
 		}
@@ -277,10 +278,17 @@ func inline(config generatorConfig) []byte {
 		// Apply each of the ops given by the specs
 		stamped := ast.Node(containingFuncCopy)
 		for _, repl := range spec.ops {
-			if toDecl, ok := funcDecls[repl.to]; ok {
-				stamped = inlineFunction(stamped, repl.from, toDecl)
-			} else {
+			switch repl.kind {
+			case inlineFunc:
+				if toDecl, ok := funcDecls[repl.to]; ok {
+					stamped = inlineFunction(stamped, repl.from, toDecl)
+				}
+			case subBasicLit:
 				stamped = substituteWithBasicLit(stamped, repl.from, repl.to)
+			case foldCondition:
+				stamped = foldIfCondition(stamped, repl.from, repl.to)
+			default:
+				log.Fatal("unknown op kind %v", repl.kind)
 			}
 		}
 
@@ -306,6 +314,43 @@ func substituteWithBasicLit(node ast.Node, from, to string) ast.Node {
 		if isIdentWithName(cursor.Node(), from) {
 			cursor.Replace(toExpr)
 		}
+		return true
+	}, nil)
+}
+
+// foldIfCondition looks for if statements with a single boolean variable from, or
+// the negation of from and either replaces it with its body or nothing,
+// depending on whether the to value is true or false.
+func foldIfCondition(node ast.Node, from, to string) ast.Node {
+	var isTrue bool
+	switch to {
+	case "true":
+		isTrue = true
+	case "false":
+		isTrue = false
+	default:
+		log.Fatalf("op 'to' expr %q is not true or false", to)
+	}
+	return astutil.Apply(node, func(cursor *astutil.Cursor) bool {
+		var foldIfTrue bool
+		ifexpr, ok := cursor.Node().(*ast.IfStmt)
+		if !ok {
+			return true
+		}
+		if isIdentWithName(ifexpr.Cond, from) {
+			foldIfTrue = true
+		} else if unaryexpr, ok := ifexpr.Cond.(*ast.UnaryExpr); ok && unaryexpr.Op == token.NOT && isIdentWithName(unaryexpr.X, from) {
+			foldIfTrue = false
+		} else {
+			// not an if with from or !from.
+			return true
+		}
+		if foldIfTrue == isTrue {
+			for _, stmt := range ifexpr.Body.List {
+				cursor.InsertBefore(stmt)
+			}
+		}
+		cursor.Delete()
 		return true
 	}, nil)
 }

@@ -37,7 +37,7 @@ const elemsize_ = 8
 const sizeclass_ = 0
 const noscanint_ = 0
 const size_ = 0
-const isTiny_ = 0
+const isTiny_ = false
 
 func malloc0(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	if doubleCheckMalloc {
@@ -58,15 +58,16 @@ func mallocPanic(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 // to steer out of this codepath early if sanitizers are enabled.
 func mallocStub(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 
-	// secret code, need to avoid the tiny allocator since it might keep
-	// co-located values alive longer and prevent timely zero-ing
-	//
-	// Call directly into the NoScan allocator.
-	// See go.dev/issue/76356
-	const isTiny = isTiny_ == 1
-	gp := getg()
-	if goexperiment.RuntimeSecret && isTiny && gp.secret > 0 {
-		return mallocgcSmallNoScanSC2(size, typ, needzero)
+	if isTiny_ {
+		// secret code, need to avoid the tiny allocator since it might keep
+		// co-located values alive longer and prevent timely zero-ing
+		//
+		// Call directly into the NoScan allocator.
+		// See go.dev/issue/76356
+		gp := getg()
+		if goexperiment.RuntimeSecret && gp.secret > 0 {
+			return mallocgcSmallNoScanSC2(size, typ, needzero)
+		}
 	}
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
@@ -95,10 +96,13 @@ func mallocStub(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	// Actually do the allocation.
 	x, elemsize := inlinedMalloc(size, typ, needzero)
 
-	if goexperiment.RuntimeSecret && gp.secret > 0 {
-		// Mark any object allocated while in secret mode as secret.
-		// This ensures we zero it immediately when freeing it.
-		addSecret(x)
+	if !isTiny_ {
+		gp := getg()
+		if goexperiment.RuntimeSecret && gp.secret > 0 {
+			// Mark any object allocated while in secret mode as secret.
+			// This ensures we zero it immediately when freeing it.
+			addSecret(x)
+		}
 	}
 
 	// Notify valgrind, if enabled.
