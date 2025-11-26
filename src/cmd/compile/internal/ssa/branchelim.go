@@ -460,13 +460,23 @@ func shouldElimIf(simple, post, dom *Block, arch string) bool {
 		// However, zicond avoids branch misprediction penalty (17 cycles), which can be
 		// significant even for seemingly predictable branches in tight loops.
 		// For now, we allow zicond for single phi when:
-		// 1. Branch is likely unpredictable (XOR, bit manipulation)
+		// 1. Branch is likely unpredictable (XOR, bit manipulation) - including unpredictable ==/!=
 		// 2. The operation in simple block is simple (arithmetic operations like NEG, NOT, INC)
 		//    These can benefit from zicond even if not strictly "unpredictable"
+		// 3. NOT an inequality operation (<, >, <=, >=) - these use efficient branch instructions
 		if phi == 1 {
-			// Check if the branch condition is likely unpredictable.
+			// First check if the branch condition is likely unpredictable.
+			// This includes unpredictable equality/inequality operations (e.g., (x & 1) != (y & 1))
+			// which should use zicond to avoid misprediction penalty.
 			if isLikelyUnpredictableBranch(dom.Controls[0]) {
 				return true
+			}
+			// For inequality operations (<, >, <=, >=), traditional branches (BGEZ, BLTU, etc.)
+			// are more efficient (2 instructions) than zicond (4 instructions).
+			// Only use zicond for inequalities if they are in optimizable patterns
+			// (which are already handled above).
+			if isInequalityOp(dom.Controls[0]) {
+				return false
 			}
 			// Check if simple block contains simple arithmetic operations that benefit from zicond
 			// even for predictable branches (e.g., NEG, NOT, INC operations)
@@ -567,13 +577,23 @@ func shouldElimIfElse(no, yes, post *Block, cond *Value, arch string) bool {
 		// However, zicond avoids branch misprediction penalty (17 cycles), which can be
 		// significant even for seemingly predictable branches in tight loops.
 		// For now, we allow zicond for single phi when:
-		// 1. Branch is likely unpredictable (XOR, bit manipulation)
+		// 1. Branch is likely unpredictable (XOR, bit manipulation) - including unpredictable ==/!=
 		// 2. The operations in yes/no blocks are simple (arithmetic operations)
 		//    These can benefit from zicond even if not strictly "unpredictable"
+		// 3. NOT an inequality operation (<, >, <=, >=) - these use efficient branch instructions
 		if phi == 1 {
-			// Check if the branch condition is likely unpredictable.
+			// First check if the branch condition is likely unpredictable.
+			// This includes unpredictable equality/inequality operations (e.g., (x & 1) != (y & 1))
+			// which should use zicond to avoid misprediction penalty.
 			if isLikelyUnpredictableBranch(cond) {
 				return true
+			}
+			// For inequality operations (<, >, <=, >=), traditional branches (BGEZ, BLTU, etc.)
+			// are more efficient (2 instructions) than zicond (4 instructions).
+			// Only use zicond for inequalities if they are in optimizable patterns
+			// (which are already handled above).
+			if isInequalityOp(cond) {
+				return false
 			}
 			// Check if yes/no blocks contain simple arithmetic operations that benefit from zicond
 			// even for predictable branches (e.g., NEG, NOT, INC, ADD operations)
@@ -786,6 +806,34 @@ func isZeroOrConstSelectForElimIf(v *Value, simple, post *Block) bool {
 		}
 	}
 
+	return false
+}
+
+// isInequalityOp checks if a branch condition is an inequality comparison operation
+// (less than, greater than, less or equal, greater or equal, but NOT equal/not equal).
+// For RISC-V, inequality operations can be directly used in branch instructions
+// (BGEZ, BLTU, etc.) which require only 2 instructions, while zicond requires 4 instructions.
+// Therefore, we should prefer traditional branches for inequality operations.
+// Note: This function does NOT include equality/inequality operations (==, !=) as they
+// may benefit from zicond when unpredictable.
+func isInequalityOp(cond *Value) bool {
+	if cond == nil {
+		return false
+	}
+	// Check if the condition is an inequality comparison operation (only <, >, <=, >=)
+	switch cond.Op {
+	case OpLess64, OpLess32, OpLess16, OpLess8,
+		OpLess64U, OpLess32U, OpLess16U, OpLess8U,
+		OpLeq64, OpLeq32, OpLeq16, OpLeq8,
+		OpLeq64U, OpLeq32U, OpLeq16U, OpLeq8U:
+		return true
+	}
+	// Also check for RISC-V specific inequality operations that may be generated
+	// from generic comparisons (SLT, SLTU, SLTI, SLTIU)
+	switch cond.Op {
+	case OpRISCV64SLT, OpRISCV64SLTU, OpRISCV64SLTI, OpRISCV64SLTIU:
+		return true
+	}
 	return false
 }
 

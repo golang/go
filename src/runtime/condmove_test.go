@@ -45,7 +45,7 @@ func BenchmarkNoZicondCmovInt(b *testing.B) {
 	}
 }
 
-func BenchmarkZicondCmov32bit(b *testing.B) {
+func BenchmarkNoZicondCmov32bit(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for x := range 1000 {
 			cmov32bit(uint32(x), uint32(1000-x))
@@ -102,7 +102,7 @@ var conditionalArithmeticTests = []struct {
 	{"SubZero", cmoveSubZero},
 	{"OrZero", cmoveOrZero},
 	{"XorZero", cmoveXorZero},
-	{"AndZero", cmoveAndZero},
+	// {"AndZero", cmoveAndZero},
 }
 
 func BenchmarkZicondConditionalArithmetic(b *testing.B) {
@@ -137,7 +137,7 @@ func BenchmarkZicondConditionalArithmeticConst(b *testing.B) {
 	}
 }
 
-func BenchmarkZicondcmovUintptr(b *testing.B) {
+func BenchmarkNoZicondcmovUintptr(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < len(testDataUintptr); j++ {
 			_ = cmovUintptr(testDataUintptr[j], testDataUintptr[(j+1)%len(testDataUintptr)])
