@@ -159,9 +159,6 @@ func elimIf(f *Func, loadAddr *sparseSet, dom *Block) bool {
 		return false
 	}
 
-	// For riscv64, check if eliminating this branch is profitable.
-	// Simple conditional selects (single phi, not conditional arithmetic)
-	// should use traditional branches instead of zicond (4+ instructions).
 	if !shouldElimIf(simple, post, dom, f.Config.arch) {
 		return false
 	}
@@ -403,99 +400,42 @@ func shouldElimIf(simple, post, dom *Block, arch string) bool {
 	default:
 		return true
 	case "riscv64":
-		// For riscv64, zicond has different cost characteristics:
-		// - Simple conditional select: 4 instructions (SLT + CZEROEQZ + CZERONEZ + OR)
-		//   vs 2 instructions (BLT + MOV) for predictable branches
-		// - Conditional arithmetic: 2 instructions (optimized by rules in RISCV64.rules)
-		//   vs 2-3 instructions for branches
-		//
-		// Strategy: Only use zicond when:
-		// 1. Zero/const select patterns (optimized to 1 instruction) - always beneficial
-		// 2. Conditional arithmetic operations (optimized to 2 instructions) - always beneficial
-		// 3. Multiple phis (amortize overhead of 4 instructions)
-		// 4. Unpredictable branches (misprediction penalty > zicond overhead)
+		// Use zicond when: zero/const select (1 inst), conditional arithmetic (2 inst),
+		// multiple phis, or unpredictable branches. Otherwise prefer branches (2 inst vs 4 inst).
 		phi := 0
 		hasConditionalArithmetic := false
 		hasZeroOrConstSelect := false
 
-		// For elimIf, the structure is:
-		// - dom: if block
-		// - simple: if branch block (one arm)
-		// - post: merge block (the other successor of dom, also the fallthrough)
-		// The Phi nodes in post have two args:
-		// - One from simple block (if branch)
-		// - One from dom or the fallthrough path (else branch)
-		// We need to find which arg comes from which path.
-		// Since post is the merge point and simple->post, the fallthrough is the other path.
-		// For Phi nodes, we check if one arg is from simple and the other is the base value.
-
 		for _, v := range post.Values {
 			if v.Op == OpPhi {
 				phi++
-				// Check if this phi can be optimized to a single zicond instruction.
-				// Pattern: if cond { x = value } else { x = 0 } → CZEROEQZ
-				// Pattern: if cond { x = 0 } else { x = value } → CZERONEZ
 				if isZeroOrConstSelectForElimIf(v, simple, post) {
 					hasZeroOrConstSelect = true
 				}
-				// Check if this phi can be optimized by conditional arithmetic rules.
-				// These rules (e.g., cmoveAddZero) reduce zicond to 2 instructions,
-				// making it always beneficial compared to branches.
 				if isConditionalArithmeticCandidateForElimIf(v, simple, post) {
 					hasConditionalArithmetic = true
 				}
 			}
 		}
-		// Zero/const select patterns are always beneficial (1 instruction after optimization)
-		if hasZeroOrConstSelect {
+		if hasZeroOrConstSelect || hasConditionalArithmetic {
 			return true
 		}
-		// Conditional arithmetic operations are always beneficial (2 instructions after optimization)
-		if hasConditionalArithmetic {
-			return true
-		}
-		// For simple conditional select (single phi):
-		// - Traditional branch: 2 instructions (BLT + MOV) with high prediction success
-		// - Zicond: 3-4 instructions (after optimization, can be 3: CZEROEQZ + CZERONEZ + OR)
-		// However, zicond avoids branch misprediction penalty (17 cycles), which can be
-		// significant even for seemingly predictable branches in tight loops.
-		// For now, we allow zicond for single phi when:
-		// 1. Branch is likely unpredictable (XOR, bit manipulation) - including unpredictable ==/!=
-		// 2. The operation in simple block is simple (arithmetic operations like NEG, NOT, INC)
-		//    These can benefit from zicond even if not strictly "unpredictable"
-		// 3. NOT an inequality operation (<, >, <=, >=) - these use efficient branch instructions
 		if phi == 1 {
-			// First check if the branch condition is likely unpredictable.
-			// This includes unpredictable equality/inequality operations (e.g., (x & 1) != (y & 1))
-			// which should use zicond to avoid misprediction penalty.
 			if isLikelyUnpredictableBranch(dom.Controls[0]) {
 				return true
 			}
-			// For inequality operations (<, >, <=, >=), traditional branches (BGEZ, BLTU, etc.)
-			// are more efficient (2 instructions) than zicond (4 instructions).
-			// Only use zicond for inequalities if they are in optimizable patterns
-			// (which are already handled above).
 			if isInequalityOp(dom.Controls[0]) {
 				return false
 			}
-			// Check if simple block contains simple arithmetic operations that benefit from zicond
-			// even for predictable branches (e.g., NEG, NOT, INC operations)
 			if len(simple.Values) == 1 {
 				op := simple.Values[0].Op
-				// Simple arithmetic operations that are cheap to speculatively execute
 				if op == OpNeg64 || op == OpNeg32 || op == OpCom64 || op == OpCom32 ||
 					op == OpAdd64 || op == OpAdd32 || op == OpSub64 || op == OpSub32 {
-					// Allow zicond for these simple operations, as they avoid branch misprediction
-					// and the instruction count difference (3 vs 2) is small
 					return true
 				}
 			}
-			// Conservative: don't use zicond for single simple conditional select
-			// with predictable branches and complex operations
 			return false
 		}
-		// Multiple phis: cost is amortized
-		// Each phi adds 2 extra instructions, but we avoid multiple branches
 		return phi >= 2
 	}
 	// For other architectures, default case handles eliminating branches
@@ -532,76 +472,36 @@ func shouldElimIfElse(no, yes, post *Block, cond *Value, arch string) bool {
 		}
 		return cost < maxcost
 	case "riscv64":
-		// For riscv64, zicond has different cost characteristics:
-		// - Simple conditional select: 4 instructions (SLT + CZEROEQZ + CZERONEZ + OR)
-		//   vs 2 instructions (BLT + MOV) for predictable branches
-		// - Conditional arithmetic: 2 instructions (optimized by rules in RISCV64.rules)
-		//   vs 2-3 instructions for branches
-		//
-		// Strategy: Only use zicond when:
-		// 1. Zero/const select patterns (optimized to 1 instruction) - always beneficial
-		// 2. Conditional arithmetic operations (optimized to 2 instructions) - always beneficial
-		// 3. Multiple phis (amortize overhead of 4 instructions)
-		// 4. Unpredictable branches (misprediction penalty > zicond overhead)
+		// Use zicond when: zero/const select (1 inst), conditional arithmetic (2 inst),
+		// multiple phis, or unpredictable branches. Otherwise prefer branches (2 inst vs 4 inst).
 		phi := 0
 		hasConditionalArithmetic := false
 		hasZeroOrConstSelect := false
 		for _, v := range post.Values {
 			if v.Op == OpPhi {
 				phi++
-				// Check if this phi can be optimized to a single zicond instruction.
-				// Pattern: if cond { x = value } else { x = 0 } → CZEROEQZ
-				// Pattern: if cond { x = 0 } else { x = value } → CZERONEZ
 				if isZeroOrConstSelect(v, no, yes) {
 					hasZeroOrConstSelect = true
 				}
-				// Check if this phi can be optimized by conditional arithmetic rules.
-				// These rules (e.g., cmoveAddZero) reduce zicond to 2 instructions,
-				// making it always beneficial compared to branches.
 				if isConditionalArithmeticCandidate(v, no, yes) {
 					hasConditionalArithmetic = true
 				}
 			}
 		}
-		// Zero/const select patterns are always beneficial (1 instruction after optimization)
-		if hasZeroOrConstSelect {
+		if hasZeroOrConstSelect || hasConditionalArithmetic {
 			return true
 		}
-		// Conditional arithmetic operations are always beneficial (2 instructions after optimization)
-		if hasConditionalArithmetic {
-			return true
-		}
-		// For simple conditional select (single phi):
-		// - Traditional branch: 2 instructions (BLT + MOV) with high prediction success
-		// - Zicond: 3-4 instructions (after optimization, can be 3: CZEROEQZ + CZERONEZ + OR)
-		// However, zicond avoids branch misprediction penalty (17 cycles), which can be
-		// significant even for seemingly predictable branches in tight loops.
-		// For now, we allow zicond for single phi when:
-		// 1. Branch is likely unpredictable (XOR, bit manipulation) - including unpredictable ==/!=
-		// 2. The operations in yes/no blocks are simple (arithmetic operations)
-		//    These can benefit from zicond even if not strictly "unpredictable"
-		// 3. NOT an inequality operation (<, >, <=, >=) - these use efficient branch instructions
 		if phi == 1 {
-			// First check if the branch condition is likely unpredictable.
-			// This includes unpredictable equality/inequality operations (e.g., (x & 1) != (y & 1))
-			// which should use zicond to avoid misprediction penalty.
 			if isLikelyUnpredictableBranch(cond) {
 				return true
 			}
-			// For inequality operations (<, >, <=, >=), traditional branches (BGEZ, BLTU, etc.)
-			// are more efficient (2 instructions) than zicond (4 instructions).
-			// Only use zicond for inequalities if they are in optimizable patterns
-			// (which are already handled above).
 			if isInequalityOp(cond) {
 				return false
 			}
-			// Check if yes/no blocks contain simple arithmetic operations that benefit from zicond
-			// even for predictable branches (e.g., NEG, NOT, INC, ADD operations)
 			hasSimpleOp := false
 			for _, block := range []*Block{yes, no} {
 				if len(block.Values) == 1 {
 					op := block.Values[0].Op
-					// Simple arithmetic operations that are cheap to speculatively execute
 					if op == OpNeg64 || op == OpNeg32 || op == OpCom64 || op == OpCom32 ||
 						op == OpAdd64 || op == OpAdd32 || op == OpSub64 || op == OpSub32 ||
 						op == OpOr64 || op == OpOr32 || op == OpXor64 || op == OpXor32 {
@@ -611,28 +511,16 @@ func shouldElimIfElse(no, yes, post *Block, cond *Value, arch string) bool {
 				}
 			}
 			if hasSimpleOp {
-				// Allow zicond for these simple operations, as they avoid branch misprediction
-				// and the instruction count difference (3 vs 2) is small
 				return true
 			}
-			// Conservative: don't use zicond for single simple conditional select
-			// with predictable branches and complex operations
 			return false
 		}
-		// Multiple phis: cost is amortized across multiple conditional selects.
-		// Each phi adds 2 extra instructions, but we avoid multiple branches
-		// and potential misprediction penalties.
 		return phi >= 2
 	}
 }
 
-// isConditionalArithmeticCandidateForElimIf checks if a phi in elimIf can be optimized
-// by conditional arithmetic rules. Similar to isConditionalArithmeticCandidate but
-// for the elimIf case where one branch is 'simple' and the other is fallthrough.
-//
-// Pattern: if cond { result = base op value } else { result = base }
-// Example: if cond == 0 { a += b } else { a = a }
-// In SSA: result = Phi [base, base op value] or Phi [base op value, base]
+// isConditionalArithmeticCandidateForElimIf checks if a phi in elimIf represents
+// conditional arithmetic (e.g., if cond { a += b } else { a = a }).
 func isConditionalArithmeticCandidateForElimIf(v *Value, simple, post *Block) bool {
 	if len(v.Args) != 2 {
 		return false
@@ -655,14 +543,8 @@ func isConditionalArithmeticCandidateForElimIf(v *Value, simple, post *Block) bo
 	return false
 }
 
-// isConditionalArithmeticCandidate checks if a phi can be optimized
-// by conditional arithmetic rules in RISCV64.rules (e.g., cmoveAddZero).
-// These rules reduce zicond from 4 instructions to 2 instructions,
-// making it always beneficial compared to branches.
-//
-// Pattern: if cond { result = base op value } else { result = base }
-// Example: if cond == 0 { a += b } else { a = a }
-// In SSA: result = Phi [base, base op value] or Phi [base op value, base]
+// isConditionalArithmeticCandidate checks if a phi represents conditional arithmetic
+// (e.g., if cond { a += b } else { a = a }). Optimized to 2 instructions by RISCV64.rules.
 func isConditionalArithmeticCandidate(v *Value, no, yes *Block) bool {
 	if len(v.Args) != 2 {
 		return false
@@ -685,8 +567,7 @@ func isConditionalArithmeticCandidate(v *Value, no, yes *Block) bool {
 	return false
 }
 
-// isArithmeticOp checks if an operation is an arithmetic operation
-// that can be optimized by conditional arithmetic rules.
+// isArithmeticOp checks if an operation can be optimized by conditional arithmetic rules.
 func isArithmeticOp(op Op) bool {
 	switch op {
 	case OpAdd64, OpAdd32, OpAdd16, OpAdd8,
@@ -700,46 +581,24 @@ func isArithmeticOp(op Op) bool {
 	return false
 }
 
-// isZeroOrConstSelect checks if a phi represents a pattern that can be
-// optimized to a single zicond instruction (CZEROEQZ or CZERONEZ).
-//
-// Patterns detected:
-// 1. if cond { x = value } else { x = 0 } → CZEROEQZ value cond
-// 2. if cond { x = 0 } else { x = value } → CZERONEZ value cond
-// 3. if cond { x = value } else { x = const } → can optimize if const is 0
-// 4. if cond { x = const } else { x = value } → can optimize if const is 0
-// 5. if cond { x = -1 } else { x = 0 } → CZEROEQZ -1 cond (special case)
-//
-// These patterns are optimized by RISCV64.rules:
-// - Rule 870: (CZERO(EQ|NE)Z (MOVDconst [0]) _) => (MOVDconst [0])
-// - New rules: OR (CZEROEQZ x cond) (CZERONEZ (MOVDconst [0]) cond) => CZEROEQZ x cond
 func isZeroOrConstSelect(v *Value, no, yes *Block) bool {
 	if len(v.Args) != 2 {
 		return false
 	}
-	// Check if one arg is zero constant and the other is a constant or from no/yes blocks
 	for i, arg := range v.Args {
 		otherArg := v.Args[1-i]
-		// Pattern 1: one arg is zero constant, other arg is non-zero constant or from branch block
 		if arg.isGenericIntConst() && arg.AuxInt == 0 {
-			// The other arg can be:
-			// 1. A non-zero constant (from entry block or elsewhere)
 			if otherArg.isGenericIntConst() && otherArg.AuxInt != 0 {
 				return true
 			}
-			// 2. A value from one of the branch blocks
 			if otherArg.Block == no || otherArg.Block == yes {
 				return true
 			}
 		}
-		// Pattern 2: other arg is zero, this arg is non-zero constant or from branch
 		if otherArg.isGenericIntConst() && otherArg.AuxInt == 0 {
-			// This arg can be:
-			// 1. A non-zero constant (from entry block or elsewhere)
 			if arg.isGenericIntConst() && arg.AuxInt != 0 {
 				return true
 			}
-			// 2. A value from one of the branch blocks
 			if arg.Block == no || arg.Block == yes {
 				return true
 			}
@@ -748,20 +607,10 @@ func isZeroOrConstSelect(v *Value, no, yes *Block) bool {
 	return false
 }
 
-// isZeroOrConstSelectForElimIf checks if a phi in elimIf represents a pattern
-// that can be optimized to a single zicond instruction.
-// Similar to isZeroOrConstSelect but for elimIf structure.
-//
-// For elimIf, the pattern is:
-// - simple block: contains one value (e.g., x = 182)
-// - post block: contains Phi [value_from_simple, value_from_dom/entry]
-// - Phi args correspond to post.Preds order: Args[i] comes from post.Preds[i].Block()
-// We check if one arg is zero constant and the other comes from simple block.
 func isZeroOrConstSelectForElimIf(v *Value, simple, post *Block) bool {
 	if len(v.Args) != 2 || len(post.Preds) != 2 {
 		return false
 	}
-	// Find which pred is simple block
 	var simpleArgIdx int = -1
 	for i, pred := range post.Preds {
 		if pred.Block() == simple {
@@ -772,35 +621,23 @@ func isZeroOrConstSelectForElimIf(v *Value, simple, post *Block) bool {
 	if simpleArgIdx == -1 {
 		return false
 	}
-	// Check if the arg from simple block is a non-zero value (constant or from simple block)
-	// and the other arg is zero constant
 	simpleArg := v.Args[simpleArgIdx]
 	otherArgIdx := 1 - simpleArgIdx
 	otherArg := v.Args[otherArgIdx]
 
-	// Pattern 1: simple arg is non-zero (constant or value from simple block),
-	//            other arg is zero constant
-	// Example: if c { x = 182 } else { x = 0 } → CZEROEQZ
 	if otherArg.isGenericIntConst() && otherArg.AuxInt == 0 {
-		// simpleArg can be a constant (non-zero) or a value from simple block
 		if simpleArg.isGenericIntConst() && simpleArg.AuxInt != 0 {
 			return true
 		}
-		// Or simpleArg is a value defined in simple block
 		if simpleArg.Block == simple {
 			return true
 		}
 	}
 
-	// Pattern 2: simple arg is zero constant, other arg is non-zero
-	// Example: if c { x = 0 } else { x = value } → CZERONEZ
 	if simpleArg.isGenericIntConst() && simpleArg.AuxInt == 0 {
-		// otherArg should be a non-zero constant or value from other path
 		if otherArg.isGenericIntConst() && otherArg.AuxInt != 0 {
 			return true
 		}
-		// Or otherArg is a value from the fallthrough path (not from simple block)
-		// This includes values from dom block or entry block
 		if otherArg.Block != simple {
 			return true
 		}
@@ -809,18 +646,13 @@ func isZeroOrConstSelectForElimIf(v *Value, simple, post *Block) bool {
 	return false
 }
 
-// isInequalityOp checks if a branch condition is an inequality comparison operation
-// (less than, greater than, less or equal, greater or equal, but NOT equal/not equal).
-// For RISC-V, inequality operations can be directly used in branch instructions
-// (BGEZ, BLTU, etc.) which require only 2 instructions, while zicond requires 4 instructions.
-// Therefore, we should prefer traditional branches for inequality operations.
-// Note: This function does NOT include equality/inequality operations (==, !=) as they
-// may benefit from zicond when unpredictable.
+// isInequalityOp checks if a branch condition is an inequality comparison (<, >, <=, >=).
+// Inequalities use efficient branch instructions (2 inst) vs zicond (4 inst).
+// Note: Does not include ==/!= which may benefit from zicond when unpredictable.
 func isInequalityOp(cond *Value) bool {
 	if cond == nil {
 		return false
 	}
-	// Check if the condition is an inequality comparison operation (only <, >, <=, >=)
 	switch cond.Op {
 	case OpLess64, OpLess32, OpLess16, OpLess8,
 		OpLess64U, OpLess32U, OpLess16U, OpLess8U,
@@ -828,8 +660,6 @@ func isInequalityOp(cond *Value) bool {
 		OpLeq64U, OpLeq32U, OpLeq16U, OpLeq8U:
 		return true
 	}
-	// Also check for RISC-V specific inequality operations that may be generated
-	// from generic comparisons (SLT, SLTU, SLTI, SLTIU)
 	switch cond.Op {
 	case OpRISCV64SLT, OpRISCV64SLTU, OpRISCV64SLTI, OpRISCV64SLTIU:
 		return true
@@ -837,45 +667,28 @@ func isInequalityOp(cond *Value) bool {
 	return false
 }
 
-// isLikelyUnpredictableBranch checks if a branch condition is likely to be
-// unpredictable. Unpredictable branches benefit from zicond even for single
-// phi nodes because misprediction penalty (17 cycles) is much higher than
-// zicond overhead (2 extra instructions).
-//
-// Patterns that indicate unpredictable branches:
-// - XOR operations: (x ^ y) & 1, (x ^ y) != 0
-// - Bit manipulation: (x & mask) != (y & mask)
-// - Hash-like computations: complex bit operations
-// - Data-dependent conditions that don't follow simple patterns
+// isLikelyUnpredictableBranch checks if a branch condition is likely unpredictable
+// (XOR, bit manipulation, hash-like). Unpredictable branches benefit from zicond
 func isLikelyUnpredictableBranch(cond *Value) bool {
 	if cond == nil {
 		return false
 	}
 
-	// Helper function to recursively check for unpredictable patterns
 	var checkUnpredictable func(*Value, int) bool
 	checkUnpredictable = func(v *Value, depth int) bool {
 		if v == nil || depth > 5 {
-			// Limit recursion depth to avoid infinite loops
 			return false
 		}
 
 		switch v.Op {
-		// XOR operations are typically unpredictable
 		case OpXor64, OpXor32, OpXor16, OpXor8:
 			return true
 
-		// AND with small mask (especially & 1) combined with comparisons
-		// often indicates bit-level unpredictability
 		case OpAnd64, OpAnd32, OpAnd16, OpAnd8:
-			// Check if one operand is a small constant mask (like 1)
 			for _, arg := range v.Args {
 				if arg.Op == OpConst64 || arg.Op == OpConst32 || arg.Op == OpConst16 || arg.Op == OpConst8 {
 					mask := arg.AuxInt
-					// Small masks (especially 1) often indicate bit-level checks
-					// These are typically unpredictable when combined with XOR or comparisons
 					if mask == 1 || mask == 3 || mask == 7 || mask == 15 {
-						// Check if the other operand involves XOR or is from a data-dependent source
 						for _, otherArg := range v.Args {
 							if otherArg != arg && checkUnpredictable(otherArg, depth+1) {
 								return true
@@ -884,31 +697,24 @@ func isLikelyUnpredictableBranch(cond *Value) bool {
 					}
 				}
 			}
-			// Recursively check arguments
 			for _, arg := range v.Args {
 				if checkUnpredictable(arg, depth+1) {
 					return true
 				}
 			}
 
-		// Comparisons involving XOR or AND results are often unpredictable
 		case OpNeq64, OpNeq32, OpNeq16, OpNeq8,
 			OpEq64, OpEq32, OpEq16, OpEq8:
-			// Check if comparison involves XOR or bit manipulation
 			for _, arg := range v.Args {
 				if checkUnpredictable(arg, depth+1) {
 					return true
 				}
 			}
 
-		// Right shifts (especially >> 1, >> 2) combined with XOR
-		// often indicate hash-like computations
 		case OpRsh64Ux64, OpRsh32Ux64, OpRsh16Ux64, OpRsh8Ux64,
 			OpRsh64Ux32, OpRsh32Ux32, OpRsh16Ux32, OpRsh8Ux32:
-			// If combined with XOR in parent, it's likely unpredictable
 			return depth > 0
 
-		// OR operations with XOR or bit manipulation
 		case OpOr64, OpOr32, OpOr16, OpOr8:
 			for _, arg := range v.Args {
 				if checkUnpredictable(arg, depth+1) {
