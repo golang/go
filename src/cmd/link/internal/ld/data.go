@@ -1535,6 +1535,10 @@ func fixZeroSizedSymbols(ctxt *Link) {
 	types.SetSize(8)
 	ldr.SetAttrSpecial(types.Sym(), false)
 
+	etypedesc := ldr.CreateSymForUpdate("runtime.etypedesc", 0)
+	etypedesc.SetType(sym.STYPE)
+	ldr.SetAttrSpecial(etypedesc.Sym(), false)
+
 	etypes := ldr.CreateSymForUpdate("runtime.etypes", 0)
 	etypes.SetType(sym.STYPE)
 	ldr.SetAttrSpecial(etypes.Sym(), false)
@@ -2124,16 +2128,6 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 		xcoffUpdateOuterSize(ctxt, int64(sect.Length), sym.SPCLNTAB)
 	}
 
-	/* typelink */
-	sect = state.allocateNamedDataSection(segro, ".typelink", []sym.SymKind{sym.STYPELINK}, 04)
-
-	typelink := ldr.CreateSymForUpdate("runtime.typelink", 0)
-	ldr.SetSymSect(typelink.Sym(), sect)
-	typelink.SetType(sym.SRODATA)
-	state.datsize += typelink.Size()
-	state.checkdatsize(sym.STYPELINK)
-	sect.Length = uint64(state.datsize) - sect.Vaddr
-
 	/* read-only ELF, Mach-O sections */
 	state.allocateSingleSymSections(segro, sym.SELFROSECT, sym.SRODATA, 04)
 
@@ -2224,6 +2218,7 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 
 	sect = createRelroSect(".go.type", sym.STYPE)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.types", 0), sect)
+	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.etypedesc", 0), sect)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.etypes", 0), sect)
 
 	sect = createRelroSect(".go.func", sym.SGOFUNC)
@@ -2358,39 +2353,107 @@ func (state *dodataState) dodataSect(ctxt *Link, symn sym.SymKind, syms []loader
 	}
 	zerobase = ldr.Lookup("runtime.zerobase", 0)
 
+	sortHeadTail := func(si, sj loader.Sym) (less bool, matched bool) {
+		switch {
+		case si == head, sj == tail:
+			return true, true
+		case sj == head, si == tail:
+			return false, true
+		}
+		return false, false
+	}
+
+	sortFn := func(i, j int) bool {
+		si, sj := sl[i].sym, sl[j].sym
+		isz, jsz := sl[i].sz, sl[j].sz
+		if ret, matched := sortHeadTail(si, sj); matched {
+			return ret
+		}
+		if sortBySize {
+			switch {
+			// put zerobase right after all the zero-sized symbols,
+			// so zero-sized symbols have the same address as zerobase.
+			case si == zerobase:
+				return jsz != 0 // zerobase < nonzero-sized, zerobase > zero-sized
+			case sj == zerobase:
+				return isz == 0 // 0-sized < zerobase, nonzero-sized > zerobase
+			case isz != jsz:
+				return isz < jsz
+			}
+		} else {
+			iname := sl[i].name
+			jname := sl[j].name
+			if iname != jname {
+				return iname < jname
+			}
+		}
+		return si < sj // break ties by symbol number
+	}
+
 	// Perform the sort.
-	if symn != sym.SPCLNTAB {
+	switch symn {
+	case sym.SPCLNTAB:
+		// PCLNTAB was built internally, and already has the proper order.
+
+	case sym.STYPE:
+		// Sort type descriptors with the typelink flag first,
+		// sorted by type string. The reflect package will use
+		// this to ensure that type descriptor pointers are unique.
+
+		// Compute all the type strings we need once.
+		typelinkStrings := make(map[loader.Sym]string)
+		for _, s := range syms {
+			if ldr.IsTypelink(s) {
+				typelinkStrings[s] = decodetypeStr(ldr, ctxt.Arch, s)
+			}
+		}
+
 		sort.Slice(sl, func(i, j int) bool {
 			si, sj := sl[i].sym, sl[j].sym
-			isz, jsz := sl[i].sz, sl[j].sz
-			switch {
-			case si == head, sj == tail:
+
+			// Sort head and tail regardless of typelink.
+			if ret, matched := sortHeadTail(si, sj); matched {
+				return ret
+			}
+
+			iTypestr, iIsTypelink := typelinkStrings[si]
+			jTypestr, jIsTypelink := typelinkStrings[sj]
+
+			if iIsTypelink {
+				if jIsTypelink {
+					// typelink symbols sort by type string
+					return iTypestr < jTypestr
+				}
+
+				// typelink < non-typelink
 				return true
-			case sj == head, si == tail:
+			} else if jIsTypelink {
+				// non-typelink greater than typelink
 				return false
 			}
-			if sortBySize {
-				switch {
-				// put zerobase right after all the zero-sized symbols,
-				// so zero-sized symbols have the same address as zerobase.
-				case si == zerobase:
-					return jsz != 0 // zerobase < nonzero-sized, zerobase > zero-sized
-				case sj == zerobase:
-					return isz == 0 // 0-sized < zerobase, nonzero-sized > zerobase
-				case isz != jsz:
-					return isz < jsz
-				}
-			} else {
-				iname := sl[i].name
-				jname := sl[j].name
-				if iname != jname {
-					return iname < jname
-				}
-			}
-			return si < sj // break ties by symbol number
+
+			// non-typelink symbols sort by size as usual
+			return sortFn(i, j)
 		})
-	} else {
-		// PCLNTAB was built internally, and already has the proper order.
+
+		// Find the end of the typelink descriptors.
+		// The offset starts at 1 to match the increment in
+		// createRelroSect in allocateDataSections.
+		// TODO: This wastes some space.
+		offset := int64(1)
+		for i := range sl {
+			si := sl[i].sym
+			if _, isTypelink := typelinkStrings[si]; !isTypelink {
+				break
+			}
+			offset = Rnd(offset, int64(symalign(ldr, si)))
+			offset += sl[i].sz
+		}
+
+		ldr.SetSymValue(ldr.LookupOrCreateSym("runtime.etypedesc", 0), offset)
+
+	default:
+		sort.Slice(sl, sortFn)
 	}
 
 	// Set alignment, construct result
@@ -3035,9 +3098,12 @@ func (ctxt *Link) address() []*sym.Segment {
 	ctxt.xdefine("runtime.rodata", sym.SRODATA, int64(rodata.Vaddr))
 	ctxt.xdefine("runtime.erodata", sym.SRODATA, int64(rodata.Vaddr+rodata.Length))
 	ctxt.xdefine("runtime.types", sym.SRODATA, int64(types.Vaddr))
+	// etypedesc was set to the offset from the symbol start in dodataSect.
+	s := ldr.Lookup("runtime.etypedesc", 0)
+	ctxt.xdefine("runtime.etypedesc", sym.SRODATA, int64(types.Vaddr+uint64(ldr.SymValue(s))))
 	ctxt.xdefine("runtime.etypes", sym.SRODATA, int64(types.Vaddr+types.Length))
 
-	s := ldr.Lookup("runtime.gcdata", 0)
+	s = ldr.Lookup("runtime.gcdata", 0)
 	ldr.SetAttrLocal(s, true)
 	ctxt.xdefine("runtime.egcdata", sym.SRODATA, ldr.SymAddr(s)+ldr.SymSize(s))
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.egcdata", 0), ldr.SymSect(s))

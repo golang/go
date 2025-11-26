@@ -756,6 +756,9 @@ func writeType(t *types.Type) *obj.LSym {
 	// | method list, if any            |   dextratype
 	// +--------------------------------+                            - E
 
+	// runtime.moduleTypelinks is aware of this type layout,
+	// and must be changed if the layout change.
+
 	// UncommonType section is included if we have a name or a method.
 	extra := t.Sym() != nil || len(methods(t)) != 0
 

@@ -630,11 +630,21 @@ func releasem(mp *m) {
 //go:linkname reflect_typelinks reflect.typelinks
 func reflect_typelinks() ([]unsafe.Pointer, [][]int32) {
 	modules := activeModules()
+
+	typesToOffsets := func(md *moduledata) []int32 {
+		types := moduleTypelinks(md)
+		ret := make([]int32, 0, len(types))
+		for _, typ := range types {
+			ret = append(ret, int32(uintptr(unsafe.Pointer(typ))-md.types))
+		}
+		return ret
+	}
+
 	sections := []unsafe.Pointer{unsafe.Pointer(modules[0].types)}
-	ret := [][]int32{modules[0].typelinks}
+	ret := [][]int32{typesToOffsets(modules[0])}
 	for _, md := range modules[1:] {
 		sections = append(sections, unsafe.Pointer(md.types))
-		ret = append(ret, md.typelinks)
+		ret = append(ret, typesToOffsets(md))
 	}
 	return sections, ret
 }

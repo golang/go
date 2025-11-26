@@ -352,15 +352,16 @@ func resolveTypeOff(ptrInModule unsafe.Pointer, off typeOff) *_type {
 		}
 		return (*_type)(res)
 	}
-	if t := md.typemap[off]; t != nil {
+	res := md.types + uintptr(off)
+	resType := (*_type)(unsafe.Pointer(res))
+	if t := md.typemap[resType]; t != nil {
 		return t
 	}
-	res := md.types + uintptr(off)
 	if res > md.etypes {
 		println("runtime: typeOff", hex(off), "out of range", hex(md.types), "-", hex(md.etypes))
 		throw("runtime: type offset out of range")
 	}
-	return (*_type)(unsafe.Pointer(res))
+	return resType
 }
 
 func (t rtype) typeOff(off typeOff) *_type {
@@ -435,22 +436,23 @@ func pkgPath(n name) string {
 // typelinksinit scans the types from extra modules and builds the
 // moduledata typemap used to de-duplicate type pointers.
 func typelinksinit() {
+	lockInit(&moduleToTypelinksLock, lockRankTypelinks)
+
 	if firstmoduledata.next == nil {
 		return
 	}
-	typehash := make(map[uint32][]*_type, len(firstmoduledata.typelinks))
 
 	modules := activeModules()
 	prev := modules[0]
+	prevTypelinks := moduleTypelinks(modules[0])
+	typehash := make(map[uint32][]*_type, len(prevTypelinks))
 	for _, md := range modules[1:] {
 		// Collect types from the previous module into typehash.
 	collect:
-		for _, tl := range prev.typelinks {
-			var t *_type
-			if prev.typemap == nil {
-				t = (*_type)(unsafe.Pointer(prev.types + uintptr(tl)))
-			} else {
-				t = prev.typemap[typeOff(tl)]
+		for _, tl := range prevTypelinks {
+			t := tl
+			if prev.typemap != nil {
+				t = prev.typemap[tl]
 			}
 			// Add to typehash if not seen before.
 			tlist := typehash[t.Hash]
@@ -462,28 +464,139 @@ func typelinksinit() {
 			typehash[t.Hash] = append(tlist, t)
 		}
 
+		mdTypelinks := moduleTypelinks(md)
+
 		if md.typemap == nil {
 			// If any of this module's typelinks match a type from a
 			// prior module, prefer that prior type by adding the offset
 			// to this module's typemap.
-			tm := make(map[typeOff]*_type, len(md.typelinks))
+			tm := make(map[*_type]*_type, len(mdTypelinks))
 			pinnedTypemaps = append(pinnedTypemaps, tm)
 			md.typemap = tm
-			for _, tl := range md.typelinks {
-				t := (*_type)(unsafe.Pointer(md.types + uintptr(tl)))
+			for _, t := range mdTypelinks {
+				set := t
 				for _, candidate := range typehash[t.Hash] {
 					seen := map[_typePair]struct{}{}
 					if typesEqual(t, candidate, seen) {
-						t = candidate
+						set = candidate
 						break
 					}
 				}
-				md.typemap[typeOff(tl)] = t
+				md.typemap[t] = set
 			}
 		}
 
 		prev = md
+		prevTypelinks = mdTypelinks
 	}
+}
+
+// moduleToTypelinks maps from moduledata to typelinks.
+// We build this lazily as needed, since most programs do not need it.
+var (
+	moduleToTypelinks     map[*moduledata][]*_type
+	moduleToTypelinksLock mutex
+)
+
+// moduleTypelinks takes a moduledata and returns the type
+// descriptors that the reflect package needs to know about.
+// These are the typelinks. They are the types that the user
+// can construct. This is used to ensure that we use a unique
+// type descriptor for all types. The returned types are sorted
+// by type string; the sorting is done by the linker.
+// This slice is constructed as needed.
+func moduleTypelinks(md *moduledata) []*_type {
+	lock(&moduleToTypelinksLock)
+
+	if typelinks, ok := moduleToTypelinks[md]; ok {
+		unlock(&moduleToTypelinksLock)
+		return typelinks
+	}
+
+	// Allocate a very rough estimate of the number of types.
+	ret := make([]*_type, 0, (md.etypedesc-md.types)/(2*unsafe.Sizeof(_type{})))
+
+	td := md.types
+
+	// We have to increment by 1 to match the increment done in
+	// cmd/link/internal/data.go createRelroSect in allocateDataSections.
+	td++
+
+	for td < md.etypedesc {
+		// TODO: The fact that type descriptors are aligned to
+		// 0x20 does not make sense.
+		td = alignUp(td, 0x20)
+
+		// This code must match the data structures built by
+		// cmd/compile/internal/reflectdata/reflect.go:writeType.
+
+		typ := (*_type)(unsafe.Pointer(td))
+
+		ret = append(ret, typ)
+
+		var typSize, add uintptr
+		switch typ.Kind_ {
+		case abi.Array:
+			typSize = unsafe.Sizeof(abi.ArrayType{})
+		case abi.Chan:
+			typSize = unsafe.Sizeof(abi.ChanType{})
+		case abi.Func:
+			typSize = unsafe.Sizeof(abi.FuncType{})
+			ft := (*abi.FuncType)(unsafe.Pointer(typ))
+			add = uintptr(ft.NumIn()+ft.NumOut()) * goarch.PtrSize
+		case abi.Interface:
+			typSize = unsafe.Sizeof(abi.InterfaceType{})
+			it := (*abi.InterfaceType)(unsafe.Pointer(typ))
+			add = uintptr(len(it.Methods)) * unsafe.Sizeof(abi.Imethod{})
+		case abi.Map:
+			typSize = unsafe.Sizeof(abi.MapType{})
+		case abi.Pointer:
+			typSize = unsafe.Sizeof(abi.PtrType{})
+		case abi.Slice:
+			typSize = unsafe.Sizeof(abi.SliceType{})
+		case abi.Struct:
+			typSize = unsafe.Sizeof(abi.StructType{})
+			st := (*abi.StructType)(unsafe.Pointer(typ))
+			add = uintptr(len(st.Fields)) * unsafe.Sizeof(abi.StructField{})
+
+		case abi.Bool,
+			abi.Int, abi.Int8, abi.Int16, abi.Int32, abi.Int64,
+			abi.Uint, abi.Uint8, abi.Uint16, abi.Uint32, abi.Uint64, abi.Uintptr,
+			abi.Float32, abi.Float64,
+			abi.Complex64, abi.Complex128,
+			abi.String,
+			abi.UnsafePointer:
+
+			typSize = unsafe.Sizeof(_type{})
+
+		default:
+			println("type descriptor at", hex(td), "is kind", typ.Kind_)
+			throw("invalid type descriptor")
+		}
+
+		td += typSize
+
+		mcount := uintptr(0)
+		if typ.TFlag&abi.TFlagUncommon != 0 {
+			ut := (*abi.UncommonType)(unsafe.Pointer(td))
+			mcount = uintptr(ut.Mcount)
+			td += unsafe.Sizeof(abi.UncommonType{})
+		}
+
+		td += add
+
+		if mcount > 0 {
+			td += mcount * unsafe.Sizeof(abi.Method{})
+		}
+	}
+
+	if moduleToTypelinks == nil {
+		moduleToTypelinks = make(map[*moduledata][]*_type)
+	}
+	moduleToTypelinks[md] = ret
+
+	unlock(&moduleToTypelinksLock)
+	return ret
 }
 
 type _typePair struct {

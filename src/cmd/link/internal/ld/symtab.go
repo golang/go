@@ -433,6 +433,7 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 	ctxt.xdefine("runtime.rodata", sym.SRODATA, 0)
 	ctxt.xdefine("runtime.erodata", sym.SRODATAEND, 0)
 	ctxt.xdefine("runtime.types", sym.SRODATA, 0)
+	ctxt.xdefine("runtime.etypedesc", sym.SRODATA, 0)
 	ctxt.xdefine("runtime.etypes", sym.SRODATA, 0)
 	ctxt.xdefine("runtime.noptrdata", sym.SNOPTRDATA, 0)
 	ctxt.xdefine("runtime.enoptrdata", sym.SNOPTRDATAEND, 0)
@@ -618,6 +619,7 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.gcdata", 0))
 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.gcbss", 0))
 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.types", 0))
+	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.etypedesc", 0))
 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.etypes", 0))
 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.rodata", 0))
 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("go:func.*", 0))
@@ -660,11 +662,6 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 
 	// text section information
 	slice(textsectionmapSym, uint64(nsections))
-
-	// The typelinks slice
-	typelinkSym := ldr.Lookup("runtime.typelink", 0)
-	ntypelinks := uint64(ldr.SymSize(typelinkSym)) / 4
-	slice(typelinkSym, ntypelinks)
 
 	// The itablinks slice
 	itablinkSym := ldr.Lookup("runtime.itablink", 0)

@@ -412,20 +412,19 @@ type moduledata struct {
 	findfunctab  uintptr
 	minpc, maxpc uintptr
 
-	text, etext           uintptr
-	noptrdata, enoptrdata uintptr
-	data, edata           uintptr
-	bss, ebss             uintptr
-	noptrbss, enoptrbss   uintptr
-	covctrs, ecovctrs     uintptr
-	end, gcdata, gcbss    uintptr
-	types, etypes         uintptr
-	rodata                uintptr
-	gofunc                uintptr // go.func.*
-	epclntab              uintptr
+	text, etext              uintptr
+	noptrdata, enoptrdata    uintptr
+	data, edata              uintptr
+	bss, ebss                uintptr
+	noptrbss, enoptrbss      uintptr
+	covctrs, ecovctrs        uintptr
+	end, gcdata, gcbss       uintptr
+	types, etypedesc, etypes uintptr
+	rodata                   uintptr
+	gofunc                   uintptr // go.func.*
+	epclntab                 uintptr
 
 	textsectmap []textsect
-	typelinks   []int32 // offsets from types
 	itablinks   []*itab
 
 	ptab []ptabEntry
@@ -445,7 +444,7 @@ type moduledata struct {
 
 	gcdatamask, gcbssmask bitvector
 
-	typemap map[typeOff]*_type // offset to *_rtype in previous module
+	typemap map[*_type]*_type // *_type to use from previous module
 
 	next *moduledata
 }
@@ -468,14 +467,14 @@ type modulehash struct {
 	runtimehash  *string
 }
 
-// pinnedTypemaps are the map[typeOff]*_type from the moduledata objects.
+// pinnedTypemaps are the map[*_type]*_type from the moduledata objects.
 //
 // These typemap objects are allocated at run time on the heap, but the
 // only direct reference to them is in the moduledata, created by the
 // linker and marked SNOPTRDATA so it is ignored by the GC.
 //
 // To make sure the map isn't collected, we keep a second reference here.
-var pinnedTypemaps []map[typeOff]*_type
+var pinnedTypemaps []map[*_type]*_type
 
 // aixStaticDataBase (used only on AIX) holds the unrelocated address
 // of the data section, set by the linker.
