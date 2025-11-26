@@ -493,6 +493,7 @@ func (hs *serverHandshakeStateTLS13) pickCertificate() error {
 		return err
 	}
 	hs.cert = certificate
+	hs.c.localCertificate = hs.cert
 
 	return nil
 }

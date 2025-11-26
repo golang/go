@@ -798,6 +798,7 @@ func (hs *clientHandshakeStateTLS13) sendClientCertificate() error {
 	if _, err := hs.c.writeHandshakeRecord(certVerifyMsg, hs.transcript); err != nil {
 		return err
 	}
+	hs.c.localCertificate = cert
 
 	return nil
 }
