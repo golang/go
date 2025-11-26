@@ -250,9 +250,51 @@ func fitsInBitsU(x uint64, b uint) bool {
 	return x>>b == 0
 }
 
+func noLimitForBitsize(bitsize uint) limit {
+	return limit{min: -(1 << (bitsize - 1)), max: 1<<(bitsize-1) - 1, umin: 0, umax: 1<<bitsize - 1}
+}
+
+func convertIntWithBitsize[Target uint64 | int64, Source uint64 | int64](x Source, bitsize uint) Target {
+	switch bitsize {
+	case 64:
+		return Target(x)
+	case 32:
+		return Target(int32(x))
+	case 16:
+		return Target(int16(x))
+	case 8:
+		return Target(int8(x))
+	default:
+		panic("unreachable")
+	}
+}
+
 // add returns the limit obtained by adding a value with limit l
 // to a value with limit l2. The result must fit in b bits.
 func (l limit) add(l2 limit, b uint) limit {
+	var isLConst, isL2Const bool
+	var lConst, l2Const uint64
+	if l.min == l.max {
+		isLConst = true
+		lConst = convertIntWithBitsize[uint64](l.min, b)
+	} else if l.umin == l.umax {
+		isLConst = true
+		lConst = l.umin
+	}
+	if l2.min == l2.max {
+		isL2Const = true
+		l2Const = convertIntWithBitsize[uint64](l2.min, b)
+	} else if l2.umin == l2.umax {
+		isL2Const = true
+		l2Const = l2.umin
+	}
+	if isLConst && isL2Const {
+		r := lConst + l2Const
+		r &= (uint64(1) << b) - 1
+		int64r := convertIntWithBitsize[int64](r, b)
+		return limit{min: int64r, max: int64r, umin: r, umax: r}
+	}
+
 	r := noLimit
 	min, minOk := safeAdd(l.min, l2.min, b)
 	max, maxOk := safeAdd(l.max, l2.max, b)
@@ -355,6 +397,11 @@ func (l limit) com(b uint) limit {
 	default:
 		panic("unreachable")
 	}
+}
+
+// Similar to add, but computes the negation of the limit for bitsize b.
+func (l limit) neg(b uint) limit {
+	return l.com(b).add(limit{min: 1, max: 1, umin: 1, umax: 1}, b)
 }
 
 var noLimit = limit{math.MinInt64, math.MaxInt64, 0, math.MaxUint64}
@@ -1753,8 +1800,7 @@ func initLimit(v *Value) limit {
 	}
 
 	// Default limits based on type.
-	bitsize := v.Type.Size() * 8
-	lim := limit{min: -(1 << (bitsize - 1)), max: 1<<(bitsize-1) - 1, umin: 0, umax: 1<<bitsize - 1}
+	lim := noLimitForBitsize(uint(v.Type.Size()) * 8)
 
 	// Tighter limits on some opcodes.
 	switch v.Op {
@@ -1949,7 +1995,7 @@ func (ft *factsTable) flowLimit(v *Value) {
 	case OpNeg64, OpNeg32, OpNeg16, OpNeg8:
 		a := ft.limits[v.Args[0].ID]
 		bitsize := uint(v.Type.Size()) * 8
-		ft.newLimit(v, a.com(bitsize).add(limit{min: 1, max: 1, umin: 1, umax: 1}, bitsize))
+		ft.newLimit(v, a.neg(bitsize))
 	case OpMul64, OpMul32, OpMul16, OpMul8:
 		a := ft.limits[v.Args[0].ID]
 		b := ft.limits[v.Args[1].ID]
