@@ -687,6 +687,19 @@ func oidFromExtKeyUsage(eku ExtKeyUsage) (oid asn1.ObjectIdentifier, ok bool) {
 	return
 }
 
+// OID returns the ASN.1 object identifier of the EKU.
+func (eku ExtKeyUsage) OID() OID {
+	asn1OID, ok := oidFromExtKeyUsage(eku)
+	if !ok {
+		panic("x509: internal error: known ExtKeyUsage has no OID")
+	}
+	oid, err := OIDFromASN1OID(asn1OID)
+	if err != nil {
+		panic("x509: internal error: known ExtKeyUsage has invalid OID")
+	}
+	return oid
+}
+
 // A Certificate represents an X.509 certificate.
 type Certificate struct {
 	Raw                     []byte // Complete ASN.1 DER content (certificate, signature algorithm and signature).
