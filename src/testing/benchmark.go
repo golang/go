@@ -483,14 +483,12 @@ func (b *B) loopSlowPath() bool {
 // the timer so cleanup code is not measured.
 //
 // Within the body of a "for b.Loop() { ... }" loop, arguments to and
-// results from function calls and assignment receivers within the loop are kept
+// results from function calls and assigned variables within the loop are kept
 // alive, preventing the compiler from fully optimizing away the loop body.
 // Currently, this is implemented as a compiler transformation that wraps such
-// variables with a runtime.KeepAlive intrinsic call. The compiler can recursively
-// walk the body of for, if statments, the cases of switch, select statments
-// and bracket-braced blocks. This applies only to statements syntactically between
-// the curly braces of the loop, and the loop condition must be written exactly
-// as "b.Loop()".
+// variables with a runtime.KeepAlive intrinsic call. This applies only to
+// statements syntactically between the curly braces of the loop, and the loop
+// condition must be written exactly as "b.Loop()".
 //
 // After Loop returns false, b.N contains the total number of iterations that
 // ran, so the benchmark may use b.N to compute other average metrics.
