@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build goexperiment.runtimesecret
+
 // Note: this assembly file is used for testing only.
 // We need to access registers directly to properly test
 // that secrets are erased and go test doesn't like to conditionally
@@ -208,6 +210,6 @@ noavx512:
 	// registers contain secrets.
 	// It also tests the path from G stack to M stack
 	// to scheduler and back.
-	CALL	·delay(SB)
+	CALL	runtime∕secret·delay(SB)
 
 	RET

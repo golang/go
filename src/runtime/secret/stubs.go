@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build arm64 || amd64
+//go:build goexperiment.runtimesecret && (arm64 || amd64)
 
 // testing stubs, these are implemented in assembly in
 // asm_$GOARCH.s
@@ -30,3 +30,14 @@ func spillRegisters(p unsafe.Pointer) uintptr
 //
 //go:noescape
 func useSecret(secret []byte)
+
+// callback from assembly
+func delay() {
+	sleep(1_000_000)
+}
+
+// linknamed to avoid package importing time
+// for just testing code
+//
+//go:linkname sleep time.Sleep
+func sleep(int64)

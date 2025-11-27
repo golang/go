@@ -18,13 +18,6 @@ import (
 	"weak"
 )
 
-// callback from assembly
-//
-//go:linkname delay main.delay
-func delay() {
-	time.Sleep(1 * time.Millisecond)
-}
-
 // Same secret as in ../../crash_test.go
 var secretStore = [8]byte{
 	0x00,
