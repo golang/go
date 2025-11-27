@@ -37,83 +37,99 @@ func init() {
 	}
 }
 
-func BenchmarkUnpredictableXOR32(b *testing.B) {
+func BenchmarkCmovXOR32(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < len(testData32); j++ {
-			_ = unpredictableXOR32(testData32[j], testData32[(j+1)%len(testData32)])
+			_ = cmovXOR32(testData32[j], testData32[(j+1)%len(testData32)])
 		}
 	}
 }
 
-func BenchmarkUnpredictablePseudoRandom32(b *testing.B) {
+func BenchmarkCmovPseudoRandom32(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < len(testData32); j++ {
-			_ = unpredictablePseudoRandom32(testData32[j], testData32[(j+1)%len(testData32)])
+			_ = cmovPseudoRandom32(testData32[j], testData32[(j+1)%len(testData32)])
 		}
 	}
 }
 
-var condArithmeticTests = []struct {
-	name string
-	fn   func(cond, a, b int) int
-}{
-	{"AddZero", cmoveAddZero},
-	{"AddNonZero", cmoveAddNonZero},
-	{"SubZero", cmoveSubZero},
-	{"OrZero", cmoveOrZero},
-	{"XorZero", cmoveXorZero},
-}
-
-func BenchmarkCondArithmetic(b *testing.B) {
-	for _, tt := range condArithmeticTests {
-		b.Run(tt.name, func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				for j := 0; j < len(testDataInt); j++ {
-					_ = tt.fn(testDataInt[j], testDataInt[(j+1)%len(testDataInt)], testDataInt[(j+2)%len(testDataInt)])
-				}
-			}
-		})
+func BenchmarkCmovAddZero(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < len(testDataInt); j++ {
+			_ = cmoveAddZero(testDataInt[j], testDataInt[(j+1)%len(testDataInt)], testDataInt[(j+2)%len(testDataInt)])
+		}
 	}
 }
 
-var condArithmeticConstTests = []struct {
-	name string
-	fn   func(cond, a int) int
-}{
-	{"AddConstZero", cmoveAddConstZero},
-	{"AddConstNonZero", cmoveAddConstNonZero},
-}
-
-func BenchmarkCondArithmeticConst(b *testing.B) {
-	for _, tt := range condArithmeticConstTests {
-		b.Run(tt.name, func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				for j := 0; j < len(testDataInt); j++ {
-					_ = tt.fn(testDataInt[j], testDataInt[(j+1)%len(testDataInt)])
-				}
-			}
-		})
+func BenchmarkCmovAddNonZero(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < len(testDataInt); j++ {
+			_ = cmoveAddNonZero(testDataInt[j], testDataInt[(j+1)%len(testDataInt)], testDataInt[(j+2)%len(testDataInt)])
+		}
 	}
 }
 
-var specialCaseTests = []struct {
-	name string
-	fn   func(bool, int, int) int
-}{
-	{"Inc", cmovInc},
-	{"Inv", cmovInv},
-	{"Neg", cmovNeg},
+func BenchmarkCmovSubZero(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < len(testDataInt); j++ {
+			_ = cmoveSubZero(testDataInt[j], testDataInt[(j+1)%len(testDataInt)], testDataInt[(j+2)%len(testDataInt)])
+		}
+	}
 }
 
-func BenchmarkCmovSpecialCases(b *testing.B) {
-	for _, tt := range specialCaseTests {
-		b.Run(tt.name, func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				for j := 0; j < len(testDataBool); j++ {
-					_ = tt.fn(testDataBool[j], testDataInt[j], testDataInt[(j+1)%len(testDataInt)])
-				}
-			}
-		})
+func BenchmarkCmovOrZero(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < len(testDataInt); j++ {
+			_ = cmoveOrZero(testDataInt[j], testDataInt[(j+1)%len(testDataInt)], testDataInt[(j+2)%len(testDataInt)])
+		}
+	}
+}
+
+func BenchmarkCmovXorZero(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < len(testDataInt); j++ {
+			_ = cmoveXorZero(testDataInt[j], testDataInt[(j+1)%len(testDataInt)], testDataInt[(j+2)%len(testDataInt)])
+		}
+	}
+}
+
+func BenchmarkCmoveAddConstZero(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < len(testDataInt); j++ {
+			_ = cmoveAddConstZero(testDataInt[j], testDataInt[(j+1)%len(testDataInt)])
+		}
+	}
+}
+
+func BenchmarkCmoveAddConstNonZero(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < len(testDataInt); j++ {
+			_ = cmoveAddConstNonZero(testDataInt[j], testDataInt[(j+1)%len(testDataInt)])
+		}
+	}
+}
+
+func BenchmarkCmovInc(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < len(testDataBool); j++ {
+			_ = cmovInc(testDataBool[j], testDataInt[j], testDataInt[(j+1)%len(testDataInt)])
+		}
+	}
+}
+
+func BenchmarkCmovInv(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < len(testDataBool); j++ {
+			_ = cmovInv(testDataBool[j], testDataInt[j], testDataInt[(j+1)%len(testDataInt)])
+		}
+	}
+}
+
+func BenchmarkCmovNeg(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < len(testDataBool); j++ {
+			_ = cmovNeg(testDataBool[j], testDataInt[j], testDataInt[(j+1)%len(testDataInt)])
+		}
 	}
 }
 
@@ -125,8 +141,16 @@ func BenchmarkCmovSetm(b *testing.B) {
 	}
 }
 
+func BenchmarkCmovZero1(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < len(testDataBool); j++ {
+			_ = cmovZero1(testDataBool[j])
+		}
+	}
+}
+
 //go:noinline
-func unpredictableXOR32(x, y uint32) uint32 {
+func cmovXOR32(x, y uint32) uint32 {
 	result := x
 	if ((x ^ y) & 1) != 0 {
 		result = y
@@ -135,7 +159,7 @@ func unpredictableXOR32(x, y uint32) uint32 {
 }
 
 //go:noinline
-func unpredictablePseudoRandom32(x, y uint32) uint32 {
+func cmovPseudoRandom32(x, y uint32) uint32 {
 	result := x
 	hash := x ^ y
 	hash ^= hash >> 16
