@@ -288,7 +288,7 @@ func inline(config generatorConfig) []byte {
 			case foldCondition:
 				stamped = foldIfCondition(stamped, repl.from, repl.to)
 			default:
-				log.Fatal("unknown op kind %v", repl.kind)
+				log.Fatalf("unknown op kind %v", repl.kind)
 			}
 		}
 
