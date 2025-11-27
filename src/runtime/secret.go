@@ -71,15 +71,6 @@ func addSecret(p unsafe.Pointer, size uintptr) {
 	addspecial(p, &s.special, false)
 }
 
-// send a no-op signal to an M for the purposes of
-// clobbering the signal stack
-//
-// Use sigpreempt. If we don't have a preemption queued, this just
-// turns into a no-op
-func noopSignal(mp *m) {
-	signalM(mp, sigPreempt)
-}
-
 // secret_getStack returns the memory range of the
 // current goroutine's stack.
 // For testing only.
@@ -91,6 +82,33 @@ func noopSignal(mp *m) {
 func secret_getStack() (uintptr, uintptr) {
 	gp := getg()
 	return gp.stack.lo, gp.stack.hi
+}
+
+// erase any secrets that may have been spilled onto the signal stack during
+// signal handling. Must be called on g0 or inside STW to make sure we don't
+// get rescheduled onto a different M.
+//
+//go:nosplit
+func eraseSecretsSignalStk() {
+	mp := getg().m
+	if mp.signalSecret {
+		mp.signalSecret = false
+		// signal handlers get invoked atomically
+		// so it's fine for us to zero out the stack while a signal
+		// might get delivered. Worst case is we are currently running
+		// in secret mode and the signal spills fresh secret info onto
+		// the stack, but since we haven't returned from the secret.Do
+		// yet, we make no guarantees about that information.
+		//
+		// It might be tempting to only erase the part of the signal
+		// stack that has the context, but when running with forwarded
+		// signals, they might pull arbitrary data out of the context and
+		// store it elsewhere on the stack. We can't stop them from storing
+		// the data in arbitrary places, but we can erase the stack where
+		// they are likely to put it in cases of a register spill.
+		size := mp.gsignal.stack.hi - mp.gsignal.stack.lo
+		memclrNoHeapPointers(unsafe.Pointer(mp.gsignal.stack.lo), size)
+	}
 }
 
 // return a slice of all Ms signal stacks

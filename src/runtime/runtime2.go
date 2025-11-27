@@ -620,15 +620,18 @@ type m struct {
 
 	// Fields whose offsets are not known to debuggers.
 
-	procid       uint64            // for debuggers, but offset not hard-coded
-	gsignal      *g                // signal-handling g
-	goSigStack   gsignalStack      // Go-allocated signal handling stack
-	sigmask      sigset            // storage for saved signal mask
-	tls          [tlsSlots]uintptr // thread-local storage (for x86 extern register)
-	mstartfn     func()
-	curg         *g       // current running goroutine
-	caughtsig    guintptr // goroutine running during fatal signal
-	signalSecret uint32   // whether we have secret information in our signal stack
+	procid     uint64            // for debuggers, but offset not hard-coded
+	gsignal    *g                // signal-handling g
+	goSigStack gsignalStack      // Go-allocated signal handling stack
+	sigmask    sigset            // storage for saved signal mask
+	tls        [tlsSlots]uintptr // thread-local storage (for x86 extern register)
+	mstartfn   func()
+	curg       *g       // current running goroutine
+	caughtsig  guintptr // goroutine running during fatal signal
+
+	// Indicates whether we've received a signal while
+	// running in secret mode.
+	signalSecret bool
 
 	// p is the currently attached P for executing Go code, nil if not executing user Go code.
 	//

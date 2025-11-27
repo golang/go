@@ -27,4 +27,4 @@ func addSecret(p unsafe.Pointer, size uintptr) {}
 //go:linkname secret_getStack runtime/secret.getStack
 func secret_getStack() (uintptr, uintptr) { return 0, 0 }
 
-func noopSignal(mp *m) {}
+func eraseSecretsSignalStk() {}

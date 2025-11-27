@@ -1968,6 +1968,11 @@ func mstartm0() {
 //go:nosplit
 func mPark() {
 	gp := getg()
+	// This M might stay parked through an entire GC cycle.
+	// Erase any leftovers on the signal stack.
+	if goexperiment.RuntimeSecret {
+		eraseSecretsSignalStk()
+	}
 	notesleep(&gp.m.park)
 	noteclear(&gp.m.park)
 }
@@ -4634,6 +4639,30 @@ func reentersyscall(pc, sp, bp uintptr) {
 	// Disable preemption because during this function g is in Gsyscall status,
 	// but can have inconsistent g->sched, do not let GC observe it.
 	gp.m.locks++
+
+	// This M may have a signal stack that is dirtied with secret information
+	// (see package "runtime/secret"). Since it's about to go into a syscall for
+	// an arbitrary amount of time and the G that put the secret info there
+	// might have returned from secret.Do, we have to zero it out now, lest we
+	// break the guarantee that secrets are purged by the next GC after a return
+	// to secret.Do.
+	//
+	// It might be tempting to think that we only need to zero out this if we're
+	// not running in secret mode anymore, but that leaves an ABA problem. The G
+	// that put the secrets onto our signal stack may not be the one that is
+	// currently executing.
+	//
+	// Logically, we should erase this when we lose our P, not when we enter the
+	// syscall. This would avoid a zeroing in the case where the call returns
+	// almost immediately. Since we use this path for cgo calls as well, these
+	// fast "syscalls" are quite common. However, since we only erase the signal
+	// stack if we were delivered a signal in secret mode and considering the
+	// cross-thread synchronization cost for the P, it hardly seems worth it.
+	//
+	// TODO(dmo): can we encode the goid into mp.signalSecret and avoid the ABA problem?
+	if goexperiment.RuntimeSecret {
+		eraseSecretsSignalStk()
+	}
 
 	// Entersyscall must not call any function that might split/grow the stack.
 	// (See details in comment above.)
