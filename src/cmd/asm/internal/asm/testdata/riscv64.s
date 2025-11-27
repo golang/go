@@ -511,8 +511,11 @@ start:
 
 	// 28.4.3: Carry-less multiplication (Zbc)
 	CLMUL	X5, X6, X7 				// b313530a
+	CLMUL	X5, X6	 				// 3313530a		
 	CLMULH	X5, X6, X7 				// b333530a
+	CLMULH	X5, X6					// 3333530a
 	CLMULR	X5, X6, X7 				// b323530a
+	CLMULR	X5, X6	 				// 3323530a
 
 	// 28.4.4: Single-bit Instructions (Zbs)
 	BCLR	X23, X24, X25				// b31c7c49
