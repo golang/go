@@ -60,7 +60,7 @@ func countrunes(s string) int {
 func decoderune(s string, k int) (r rune, pos int) {
 	pos = k
 
-	if k >= len(s) {
+	if k < 0 || k >= len(s) {
 		return runeError, k + 1
 	}
 
