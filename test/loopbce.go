@@ -17,8 +17,8 @@ func f0a(a []int) int {
 func f0b(a []int) int {
 	x := 0
 	for i := range a { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
-		b := a[i:] // ERROR "Proved IsSliceInBounds$"
-		x += b[0]
+		b := a[i:] // ERROR "Proved IsSliceInBounds$" "Proved slicemask not needed \(by limit\)$"
+		x += b[0]  // ERROR "Proved IsInBounds$"
 	}
 	return x
 }
@@ -417,7 +417,7 @@ func bce1() {
 
 func nobce2(a string) {
 	for i := int64(0); i < int64(len(a)); i++ { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
-		useString(a[i:]) // ERROR "Proved IsSliceInBounds$"
+		useString(a[i:]) // ERROR "Proved IsSliceInBounds$" "Proved slicemask not needed \(by limit\)$"
 	}
 	for i := int64(0); i < int64(len(a))-31337; i++ { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
 		useString(a[i:]) // ERROR "Proved IsSliceInBounds$" "Proved slicemask not needed"
