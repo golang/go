@@ -348,6 +348,8 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		// } else {
 		// hv2, hv1 = decoderune(ha, hv1)
 		fn := typecheck.LookupRuntime("decoderune")
+		// decoderune expects a uint, but hv1 is an int.
+		// This is safe because hv1 is always >= 0.
 		call := mkcall1(fn, fn.Type().ResultsTuple(), &nif.Else, ha, hv1)
 		a := ir.NewAssignListStmt(base.Pos, ir.OAS2, []ir.Node{hv2, hv1}, []ir.Node{call})
 		nif.Else.Append(a)
