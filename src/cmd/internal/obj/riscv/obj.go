@@ -3461,11 +3461,20 @@ func splitShiftConst(v int64) (imm int64, lsh int, rsh int, ok bool) {
 	// See if we can reconstruct this value from a small negative constant.
 	rsh = bits.LeadingZeros64(uint64(v))
 	ones := bits.OnesCount64((uint64(v) >> lsh) >> 11)
-	c = signExtend(1<<11|((v>>lsh)&0x7ff), 12)
 	if rsh+ones+lsh+11 == 64 {
+		c = signExtend(1<<11|((v>>lsh)&0x7ff), 12)
 		if lsh > 0 || c != -1 {
 			lsh += rsh
 		}
+		return c, lsh, rsh, true
+	}
+
+	// See if we can reconstruct this value from a zero extended signed
+	// 32 bit integer. This will require four instructions on rva20u64
+	// and three instructions on rva22u64 or higher.
+	if int64(uint32(c)) == c {
+		c = int64(int32(c))
+		lsh, rsh = 32, 32-lsh
 		return c, lsh, rsh, true
 	}
 
@@ -3473,7 +3482,7 @@ func splitShiftConst(v int64) (imm int64, lsh int, rsh int, ok bool) {
 }
 
 // isShiftConst indicates whether a constant can be represented as a signed
-// 32 bit integer that is left shifted.
+// 32 bit integer that is left and/or right shifted.
 func isShiftConst(v int64) bool {
 	_, lsh, rsh, ok := splitShiftConst(v)
 	return ok && (lsh > 0 || rsh > 0)
@@ -3908,10 +3917,14 @@ func instructionsForMOVConst(p *obj.Prog) []*instruction {
 	//     SLLI $13, X10
 	//     SRLI $12, X10
 	//
-	var insSLLI, insSRLI *instruction
+	var insSLLI, insSRLI, insMOVWU *instruction
 	if err := immIFits(ins.imm, 32); err != nil {
 		if c, lsh, rsh, ok := splitShiftConst(ins.imm); ok {
 			ins.imm = c
+			if buildcfg.GORISCV64 >= 22 && lsh == 32 && rsh == 32 {
+				insMOVWU = &instruction{as: AADDUW, rd: ins.rd, rs1: ins.rd, rs2: REG_ZERO}
+				lsh, rsh = 0, 0
+			}
 			if lsh > 0 {
 				insSLLI = &instruction{as: ASLLI, rd: ins.rd, rs1: ins.rd, imm: int64(lsh)}
 			}
@@ -3940,6 +3953,9 @@ func instructionsForMOVConst(p *obj.Prog) []*instruction {
 			ins.as, ins.rs1 = AADDIW, ins.rd
 			inss = append(inss, ins)
 		}
+	}
+	if insMOVWU != nil {
+		inss = append(inss, insMOVWU)
 	}
 	if insSLLI != nil {
 		inss = append(inss, insSLLI)
