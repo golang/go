@@ -1300,7 +1300,7 @@ func (f *File) DWARF() (*dwarf.Data, error) {
 		return b, nil
 	}
 
-	// There are many DWARf sections, but these are the ones
+	// There are many DWARF sections, but these are the ones
 	// the debug/dwarf package started with.
 	var dat = map[string][]byte{"abbrev": nil, "info": nil, "str": nil, "line": nil, "ranges": nil}
 	for i, s := range f.Sections {
