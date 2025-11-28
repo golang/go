@@ -38,3 +38,16 @@ func TestMOVK(t *testing.T) {
 		t.Errorf("Got %x want %x\n", x, want)
 	}
 }
+
+func testCombined() (a uint64, b uint64)
+func TestCombined(t *testing.T) {
+	got1, got2 := testCombined()
+	want1 := uint64(0xaaaaaaaaaaaaaaab)
+	want2 := uint64(0x0ff019940ff00ff0)
+	if got1 != want1 {
+		t.Errorf("First result, got %x want %x", got1, want1)
+	}
+	if got2 != want2 {
+		t.Errorf("First result, got %x want %x", got2, want2)
+	}
+}

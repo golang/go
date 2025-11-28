@@ -38,6 +38,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"math/bits"
 	"slices"
 	"strings"
 )
@@ -1673,32 +1674,7 @@ func log2(x uint64) uint32 {
 	if x == 0 {
 		panic("log2 of 0")
 	}
-	n := uint32(0)
-	if x >= 1<<32 {
-		x >>= 32
-		n += 32
-	}
-	if x >= 1<<16 {
-		x >>= 16
-		n += 16
-	}
-	if x >= 1<<8 {
-		x >>= 8
-		n += 8
-	}
-	if x >= 1<<4 {
-		x >>= 4
-		n += 4
-	}
-	if x >= 1<<2 {
-		x >>= 2
-		n += 2
-	}
-	if x >= 1<<1 {
-		x >>= 1
-		n += 1
-	}
-	return n
+	return uint32(bits.Len64(x) - 1)
 }
 
 func autoclass(l int64) int {
@@ -1976,7 +1952,18 @@ func (c *ctxt7) con64class(a *obj.Addr) int {
 		return C_MOVCON
 	} else if zeroCount == 2 || negCount == 2 {
 		return C_MOVCON2
-	} else if zeroCount == 1 || negCount == 1 {
+	}
+	// See omovlconst for description of this loop.
+	for i := 0; i < 4; i++ {
+		mask := uint64(0xffff) << (i * 16)
+		for period := 2; period <= 32; period *= 2 {
+			x := uint64(a.Offset)&^mask | bits.RotateLeft64(uint64(a.Offset), max(period, 16))&mask
+			if isbitcon(x) {
+				return C_MOVCON2
+			}
+		}
+	}
+	if zeroCount == 1 || negCount == 1 {
 		return C_MOVCON3
 	} else {
 		return C_VCON
@@ -7276,6 +7263,8 @@ func (c *ctxt7) opldrr(p *obj.Prog, a obj.As, rt, rn, rm int16, extension bool) 
 		op = OptionS<<10 | 0x3<<21 | 0x17<<27 | 1<<26
 	case AFMOVD:
 		op = OptionS<<10 | 0x3<<21 | 0x1f<<27 | 1<<26
+	case AFMOVQ:
+		op = OptionS<<10 | 0x7<<21 | 0x07<<27 | 1<<26
 	default:
 		c.ctxt.Diag("bad opldrr %v\n%v", a, p)
 		return 0
@@ -7308,6 +7297,8 @@ func (c *ctxt7) opstrr(p *obj.Prog, a obj.As, rt, rn, rm int16, extension bool) 
 		op = OptionS<<10 | 0x1<<21 | 0x17<<27 | 1<<26
 	case AFMOVD:
 		op = OptionS<<10 | 0x1<<21 | 0x1f<<27 | 1<<26
+	case AFMOVQ:
+		op = OptionS<<10 | 0x5<<21 | 0x07<<27 | 1<<26
 	default:
 		c.ctxt.Diag("bad opstrr %v\n%v", a, p)
 		return 0
@@ -7551,6 +7542,31 @@ func (c *ctxt7) omovlconst(as obj.As, p *obj.Prog, a *obj.Addr, rt int, os []uin
 				}
 			}
 			return 2
+		}
+
+		// Look for a two instruction pair, a bit pattern encodeable
+		// as a bitcon immediate plus a fixup MOVK instruction.
+		// Constants like this often occur from strength reduction of divides.
+		for i = 0; i < 4; i++ {
+			mask := uint64(0xffff) << (i * 16)
+			for period := 2; period <= 32; period *= 2 { // TODO: handle period==64 somehow?
+				// Copy in bits from outside of the masked region
+				x := uint64(d)&^mask | bits.RotateLeft64(uint64(d), max(period, 16))&mask
+				if isbitcon(x) {
+					// ORR $c1, ZR, rt
+					os[0] = c.opirr(p, AORR)
+					os[0] |= bitconEncode(x, 64) | uint32(REGZERO&31)<<5 | uint32(rt&31)
+					// MOVK $c2<<(i*16), rt
+					os[1] = c.opirr(p, AMOVK)
+					os[1] |= MOVCONST(d, i, rt)
+					return 2
+				}
+			}
+		}
+		// TODO: other fixups, like ADD or SUB?
+		// TODO: 3-instruction variant, instead of the full MOVD+3*MOVK version below?
+
+		switch {
 
 		case zeroCount == 1:
 			// one MOVZ and two MOVKs

@@ -121,7 +121,7 @@ func init() {
 
 func runClean(ctx context.Context, cmd *base.Command, args []string) {
 	moduleLoaderState := modload.NewState()
-	modload.InitWorkfile(moduleLoaderState)
+	moduleLoaderState.InitWorkfile()
 	if len(args) > 0 {
 		cacheFlag := ""
 		switch {
@@ -143,7 +143,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
 	// either the flags and arguments explicitly imply a package,
 	// or no other target (such as a cache) was requested to be cleaned.
 	cleanPkg := len(args) > 0 || cleanI || cleanR
-	if (!modload.Enabled(moduleLoaderState) || modload.HasModRoot(moduleLoaderState)) &&
+	if (!moduleLoaderState.Enabled() || moduleLoaderState.HasModRoot()) &&
 		!cleanCache && !cleanModcache && !cleanTestcache && !cleanFuzzcache {
 		cleanPkg = true
 	}

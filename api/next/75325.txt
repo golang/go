@@ -1,0 +1,2 @@
+pkg crypto/x509, func OIDFromASN1OID(asn1.ObjectIdentifier) (OID, error) #75325
+pkg crypto/x509, method (ExtKeyUsage) OID() OID #75325

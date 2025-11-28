@@ -2275,3 +2275,55 @@ func TestOpenFileFlagInvalid(t *testing.T) {
 	}
 	f.Close()
 }
+
+func TestOpenFileTruncateNamedPipe(t *testing.T) {
+	t.Parallel()
+	name := pipeName()
+	pipe := newBytePipe(t, name, false)
+	defer pipe.Close()
+
+	f, err := os.OpenFile(name, os.O_TRUNC|os.O_RDWR|os.O_CREATE, 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+}
+
+func TestNewFileStdinBlocked(t *testing.T) {
+	// See https://go.dev/issue/75949.
+	t.Parallel()
+
+	// Use a subprocess to test that os.NewFile on a blocked stdin works.
+	// Can't do it in the same process because os.NewFile would close
+	// stdin for the whole test process once the test ends.
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		// In the child process, just exit.
+		// If we get here, the os package successfully initialized.
+		os.Exit(0)
+	}
+	name := pipeName()
+	stdin := newBytePipe(t, name, false)
+	file := newFileOverlapped(t, name, false)
+
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		// Block stdin on a read.
+		if _, err := stdin.Read(make([]byte, 1)); err != nil {
+			t.Error(err)
+		}
+	})
+
+	time.Sleep(100 * time.Millisecond) // Give time for the read to start.
+	cmd := testenv.CommandContext(t, t.Context(), testenv.Executable(t), fmt.Sprintf("-test.run=^%s$", t.Name()))
+	cmd.Env = cmd.Environ()
+	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=1")
+	cmd.Stdin = stdin
+	if err := cmd.Run(); err != nil {
+		t.Fatal(err)
+	}
+	// Unblock the read to let the goroutine exit.
+	if _, err := file.Write(make([]byte, 1)); err != nil {
+		t.Fatal(err)
+	}
+	wg.Wait() // Don't leave goroutines behind.
+}

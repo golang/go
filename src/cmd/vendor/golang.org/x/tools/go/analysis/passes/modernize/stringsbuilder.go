@@ -15,9 +15,8 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/edge"
 	"golang.org/x/tools/go/ast/inspector"
-	"golang.org/x/tools/internal/analysisinternal"
-	"golang.org/x/tools/internal/analysisinternal/generated"
-	typeindexanalyzer "golang.org/x/tools/internal/analysisinternal/typeindex"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
+	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
 	"golang.org/x/tools/internal/astutil"
 	"golang.org/x/tools/internal/refactor"
 	"golang.org/x/tools/internal/typesinternal"
@@ -26,9 +25,8 @@ import (
 
 var StringsBuilderAnalyzer = &analysis.Analyzer{
 	Name: "stringsbuilder",
-	Doc:  analysisinternal.MustExtractDoc(doc, "stringsbuilder"),
+	Doc:  analyzerutil.MustExtractDoc(doc, "stringsbuilder"),
 	Requires: []*analysis.Analyzer{
-		generated.Analyzer,
 		inspect.Analyzer,
 		typeindexanalyzer.Analyzer,
 	},
@@ -38,8 +36,6 @@ var StringsBuilderAnalyzer = &analysis.Analyzer{
 
 // stringsbuilder replaces string += string in a loop by strings.Builder.
 func stringsbuilder(pass *analysis.Pass) (any, error) {
-	skipGenerated(pass)
-
 	// Skip the analyzer in packages where its
 	// fixes would create an import cycle.
 	if within(pass, "strings", "runtime") {

@@ -1953,7 +1953,7 @@
 //	    Also emits build output in JSON. See 'go help buildjson'.
 //
 //	-o file
-//	    Compile the test binary to the named file.
+//	    Save a copy of the test binary to the named file.
 //	    The test still runs (unless -c or -i is specified).
 //	    If file ends in a slash or names an existing directory,
 //	    the test is written to pkg.test in that directory.
@@ -2189,6 +2189,12 @@
 // Naming a file dns_windows.go will cause it to be included only when
 // building the package for Windows; similarly, math_386.s will be included
 // only when building the package for 32-bit x86.
+//
+// By convention, packages with assembly implementations may provide a go-only
+// version under the "purego" build constraint. This does not limit the use of
+// cgo (use the "cgo" build constraint) or unsafe. For example:
+//
+//	//go:build purego
 //
 // Go versions 1.16 and earlier used a different syntax for build constraints,
 // with a "// +build" prefix. The gofmt command will add an equivalent //go:build

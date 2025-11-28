@@ -336,3 +336,66 @@ func TestCleanupLost(t *testing.T) {
 		t.Errorf("expected %d cleanups to be executed, got %d", got, want)
 	}
 }
+
+func TestCleanupUnreachablePointer(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Error("AddCleanup failed to detect self-pointer")
+		}
+	}()
+
+	type T struct {
+		p *byte // use *byte to avoid tiny allocator
+		f int
+	}
+	v := &T{}
+	runtime.AddCleanup(v, func(*int) {
+		t.Error("cleanup ran unexpectedly")
+	}, &v.f)
+}
+
+func TestCleanupUnreachableClosure(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Error("AddCleanup failed to detect closure pointer")
+		}
+	}()
+
+	type T struct {
+		p *byte // use *byte to avoid tiny allocator
+		f int
+	}
+	v := &T{}
+	runtime.AddCleanup(v, func(int) {
+		t.Log(v.f)
+		t.Error("cleanup ran unexpectedly")
+	}, 0)
+}
+
+// BenchmarkAddCleanupAndStop benchmarks adding and removing a cleanup
+// from the same allocation.
+//
+// At face value, this benchmark is unrealistic, since no program would
+// do this in practice. However, adding cleanups to new allocations in a
+// loop is also unrealistic. It adds additional unused allocations,
+// exercises uncommon performance pitfalls in AddCleanup (traversing the
+// specials list, which should just be its own benchmark), and executing
+// cleanups at a frequency that is unlikely to appear in real programs.
+//
+// This benchmark is still useful however, since we can get a low-noise
+// measurement of the cost of AddCleanup and Stop all in one without the
+// above pitfalls: we can measure the pure overhead. We can then separate
+// out the cost of each in CPU profiles if we so choose (they're not so
+// inexpensive as to make this infeasible).
+func BenchmarkAddCleanupAndStop(b *testing.B) {
+	b.ReportAllocs()
+
+	type T struct {
+		v int
+		p unsafe.Pointer
+	}
+	x := new(T)
+	for b.Loop() {
+		runtime.AddCleanup(x, func(int) {}, 14).Stop()
+	}
+}

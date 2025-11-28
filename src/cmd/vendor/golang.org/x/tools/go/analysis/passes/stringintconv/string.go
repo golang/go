@@ -14,7 +14,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
-	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
 	"golang.org/x/tools/internal/refactor"
 	"golang.org/x/tools/internal/typeparams"
 	"golang.org/x/tools/internal/typesinternal"
@@ -25,7 +25,7 @@ var doc string
 
 var Analyzer = &analysis.Analyzer{
 	Name:     "stringintconv",
-	Doc:      analysisinternal.MustExtractDoc(doc, "stringintconv"),
+	Doc:      analyzerutil.MustExtractDoc(doc, "stringintconv"),
 	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/stringintconv",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,

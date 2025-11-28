@@ -6807,7 +6807,7 @@ func TestMakeFuncStackCopy(t *testing.T) {
 	ValueOf(&concrete).Elem().Set(fn)
 	x := concrete(nil, 7)
 	if x != 9 {
-		t.Errorf("have %#q want 9", x)
+		t.Errorf("have %d want 9", x)
 	}
 }
 
@@ -8096,11 +8096,11 @@ func TestValue_Len(t *testing.T) {
 func TestValue_Comparable(t *testing.T) {
 	var a int
 	var s []int
-	var i interface{} = a
-	var iNil interface{}
-	var iSlice interface{} = s
-	var iArrayFalse interface{} = [2]interface{}{1, map[int]int{}}
-	var iArrayTrue interface{} = [2]interface{}{1, struct{ I interface{} }{1}}
+	var i any = a
+	var iNil any
+	var iSlice any = s
+	var iArrayFalse any = [2]any{1, map[int]int{}}
+	var iArrayTrue any = [2]any{1, struct{ I any }{1}}
 	var testcases = []struct {
 		value      Value
 		comparable bool
@@ -8237,22 +8237,22 @@ func TestValue_Comparable(t *testing.T) {
 			false,
 		},
 		{
-			ValueOf([2]struct{ I interface{} }{{1}, {1}}),
+			ValueOf([2]struct{ I any }{{1}, {1}}),
 			true,
 			false,
 		},
 		{
-			ValueOf([2]struct{ I interface{} }{{[]int{}}, {1}}),
+			ValueOf([2]struct{ I any }{{[]int{}}, {1}}),
 			false,
 			false,
 		},
 		{
-			ValueOf([2]interface{}{1, struct{ I int }{1}}),
+			ValueOf([2]any{1, struct{ I int }{1}}),
 			true,
 			false,
 		},
 		{
-			ValueOf([2]interface{}{[1]interface{}{map[int]int{}}, struct{ I int }{1}}),
+			ValueOf([2]any{[1]any{map[int]int{}}, struct{ I int }{1}}),
 			false,
 			false,
 		},
@@ -8286,10 +8286,10 @@ type ValueEqualTest struct {
 	vDeref, uDeref bool
 }
 
-var equalI interface{} = 1
-var equalSlice interface{} = []int{1}
-var nilInterface interface{}
-var mapInterface interface{} = map[int]int{}
+var equalI any = 1
+var equalSlice any = []int{1}
+var nilInterface any
+var mapInterface any = map[int]int{}
 
 var valueEqualTests = []ValueEqualTest{
 	{
@@ -8468,8 +8468,8 @@ func TestValue_EqualNonComparable(t *testing.T) {
 		// Value of array is non-comparable because of non-comparable elements.
 		ValueOf([0]map[int]int{}),
 		ValueOf([0]func(){}),
-		ValueOf(([1]struct{ I interface{} }{{[]int{}}})),
-		ValueOf(([1]interface{}{[1]interface{}{map[int]int{}}})),
+		ValueOf(([1]struct{ I any }{{[]int{}}})),
+		ValueOf(([1]any{[1]any{map[int]int{}}})),
 	}
 	for _, value := range values {
 		// Panic when reflect.Value.Equal using two valid non-comparable values.
@@ -8491,8 +8491,7 @@ func TestInitFuncTypes(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			ipT := TypeOf(net.IP{})
-			for i := 0; i < ipT.NumMethod(); i++ {
-				_ = ipT.Method(i)
+			for range ipT.Methods() {
 			}
 		}()
 	}

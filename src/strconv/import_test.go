@@ -6,15 +6,7 @@ package strconv_test
 
 import . "strconv"
 
-type uint128 = Uint128
-
 var (
-	baseError        = BaseError
-	bitSizeError     = BitSizeError
-	mulLog10_2       = MulLog10_2
-	mulLog2_10       = MulLog2_10
-	parseFloatPrefix = ParseFloatPrefix
-	pow10            = Pow10
-	umul128          = Umul128
-	umul192          = Umul192
+	baseError    = BaseError
+	bitSizeError = BitSizeError
 )

@@ -117,6 +117,11 @@ const (
 	// The application may modify the [SessionState] before storing it.
 	// This event only occurs on client connections.
 	QUICStoreSession
+
+	// QUICErrorEvent indicates that a fatal error has occurred.
+	// The handshake cannot proceed and the connection must be closed.
+	// QUICEvent.Err is set.
+	QUICErrorEvent
 )
 
 // A QUICEvent is an event occurring on a QUIC connection.
@@ -138,6 +143,10 @@ type QUICEvent struct {
 
 	// Set for QUICResumeSession and QUICStoreSession.
 	SessionState *SessionState
+
+	// Set for QUICErrorEvent.
+	// The error will wrap AlertError.
+	Err error
 }
 
 type quicState struct {
@@ -157,6 +166,7 @@ type quicState struct {
 	cancel   context.CancelFunc
 
 	waitingForDrain bool
+	errorReturned   bool
 
 	// readbuf is shared between HandleData and the handshake goroutine.
 	// HandshakeCryptoData passes ownership to the handshake goroutine by
@@ -228,6 +238,15 @@ func (q *QUICConn) NextEvent() QUICEvent {
 		qs.waitingForDrain = false
 		<-qs.signalc
 		<-qs.blockedc
+	}
+	if err := q.conn.handshakeErr; err != nil {
+		if qs.errorReturned {
+			return QUICEvent{Kind: QUICNoEvent}
+		}
+		qs.errorReturned = true
+		qs.events = nil
+		qs.nextEvent = 0
+		return QUICEvent{Kind: QUICErrorEvent, Err: q.conn.handshakeErr}
 	}
 	if qs.nextEvent >= len(qs.events) {
 		qs.events = qs.events[:0]

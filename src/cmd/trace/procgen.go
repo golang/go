@@ -143,6 +143,13 @@ func (g *procGenerator) ProcTransition(ctx *traceContext, ev *trace.Event) {
 	viewerEv := traceviewer.InstantEvent{
 		Resource: uint64(proc),
 		Stack:    ctx.Stack(viewerFrames(ev.Stack())),
+
+		// Annotate with the thread and proc. The proc is redundant, but this is to
+		// stay consistent with the thread view, where it's useful information.
+		Arg: format.SchedCtxArg{
+			ProcID:   uint64(st.Resource.Proc()),
+			ThreadID: uint64(ev.Thread()),
+		},
 	}
 
 	from, to := st.Proc()
@@ -156,7 +163,6 @@ func (g *procGenerator) ProcTransition(ctx *traceContext, ev *trace.Event) {
 			start = ctx.startTime
 		}
 		viewerEv.Name = "proc start"
-		viewerEv.Arg = format.ThreadIDArg{ThreadID: uint64(ev.Thread())}
 		viewerEv.Ts = ctx.elapsed(start)
 		ctx.IncThreadStateCount(ctx.elapsed(start), traceviewer.ThreadStateRunning, 1)
 	}

@@ -7,7 +7,7 @@
 package os
 
 import (
-	"internal/itoa"
+	"internal/strconv"
 	"internal/syscall/execenv"
 	"runtime"
 	"syscall"
@@ -132,16 +132,16 @@ func (p *ProcessState) String() string {
 	case status.Exited():
 		code := status.ExitStatus()
 		if runtime.GOOS == "windows" && uint(code) >= 1<<16 { // windows uses large hex numbers
-			res = "exit status " + itoa.Uitox(uint(code))
+			res = "exit status 0x" + strconv.FormatUint(uint64(code), 16)
 		} else { // unix systems use small decimal integers
-			res = "exit status " + itoa.Itoa(code) // unix
+			res = "exit status " + strconv.Itoa(code) // unix
 		}
 	case status.Signaled():
 		res = "signal: " + status.Signal().String()
 	case status.Stopped():
 		res = "stop signal: " + status.StopSignal().String()
 		if status.StopSignal() == syscall.SIGTRAP && status.TrapCause() != 0 {
-			res += " (trap " + itoa.Itoa(status.TrapCause()) + ")"
+			res += " (trap " + strconv.Itoa(status.TrapCause()) + ")"
 		}
 	case status.Continued():
 		res = "continued"

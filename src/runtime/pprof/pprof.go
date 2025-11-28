@@ -228,6 +228,31 @@ var mutexProfile = &Profile{
 	write: writeMutex,
 }
 
+// goroutineLeakProfileLock ensures that the goroutine leak profile writer observes the
+// leaked goroutines discovered during the goroutine leak detection GC cycle
+// that was triggered by the profile request.
+// This prevents a race condition between the garbage collector and the profile writer
+// when multiple profile requests are issued concurrently: the status of leaked goroutines
+// is reset to _Gwaiting at the beginning of a leak detection cycle, which may lead the
+// profile writer of another concurrent request to produce an incomplete profile.
+//
+// Example trace:
+//
+//	G1                    | GC                          | G2
+//	----------------------+-----------------------------+---------------------
+//	Request profile       | .                           | .
+//	.                     | .                           | Request profile
+//	.                     | [G1] Resets leaked g status | .
+//	.                     | [G1] Leaks detected         | .
+//	.                     | <New cycle>                 | .
+//	.                     | [G2] Resets leaked g status | .
+//	Write profile         | .                           | .
+//	.                     | [G2] Leaks detected         | .
+//	.                     | .                           | Write profile
+//	----------------------+-----------------------------+---------------------
+//	Incomplete profile    |+++++++++++++++++++++++++++++| Complete profile
+var goroutineLeakProfileLock sync.Mutex
+
 func lockProfiles() {
 	profiles.mu.Lock()
 	if profiles.m == nil {
@@ -522,8 +547,8 @@ func printCountProfile(w io.Writer, debug int, name string, p countProfile) erro
 		var labels func()
 		if p.Label(idx) != nil {
 			labels = func() {
-				for _, lbl := range p.Label(idx).list {
-					b.pbLabel(tagSample_Label, lbl.key, lbl.value, 0)
+				for _, lbl := range p.Label(idx).Set.List {
+					b.pbLabel(tagSample_Label, lbl.Key, lbl.Value, 0)
 				}
 			}
 		}
@@ -763,6 +788,15 @@ func writeGoroutine(w io.Writer, debug int) error {
 // writeGoroutineLeak first invokes a GC cycle that performs goroutine leak detection.
 // It then writes the goroutine profile, filtering for leaked goroutines.
 func writeGoroutineLeak(w io.Writer, debug int) error {
+	// Acquire the goroutine leak detection lock and release
+	// it after the goroutine leak profile is written.
+	//
+	// While the critical section is long, this is needed to prevent
+	// a race condition between the garbage collector and the goroutine
+	// leak profile writer when multiple profile requests are issued concurrently.
+	goroutineLeakProfileLock.Lock()
+	defer goroutineLeakProfileLock.Unlock()
+
 	// Run the GC with leak detection first so that leaked goroutines
 	// may transition to the leaked state.
 	runtime_goroutineLeakGC()
@@ -890,7 +924,10 @@ func profileWriter(w io.Writer) {
 	b := newProfileBuilder(w)
 	var err error
 	for {
-		time.Sleep(100 * time.Millisecond)
+		if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+			// see runtime_pprof_readProfile
+			time.Sleep(100 * time.Millisecond)
+		}
 		data, tags, eof := readProfile()
 		if e := b.addCPUData(data, tags); e != nil && err == nil {
 			err = e

@@ -154,7 +154,7 @@ func checkVendorConsistency(loaderstate *State, indexes []*modFileIndex, modFile
 	}
 
 	pre114 := false
-	if !inWorkspaceMode(loaderstate) { // workspace mode was added after Go 1.14
+	if !loaderstate.inWorkspaceMode() { // workspace mode was added after Go 1.14
 		if len(indexes) != 1 {
 			panic(fmt.Errorf("not in workspace mode but number of indexes is %v, not 1", len(indexes)))
 		}
@@ -252,7 +252,7 @@ func checkVendorConsistency(loaderstate *State, indexes []*modFileIndex, modFile
 			}
 			if !foundRequire {
 				article := ""
-				if inWorkspaceMode(loaderstate) {
+				if loaderstate.inWorkspaceMode() {
 					article = "a "
 				}
 				vendErrorf(mod, "is marked as explicit in vendor/modules.txt, but not explicitly required in %vgo.mod", article)
@@ -264,7 +264,7 @@ func checkVendorConsistency(loaderstate *State, indexes []*modFileIndex, modFile
 	for _, mod := range vendorReplaced {
 		r := Replacement(loaderstate, mod)
 		replacementSource := "go.mod"
-		if inWorkspaceMode(loaderstate) {
+		if loaderstate.inWorkspaceMode() {
 			replacementSource = "the workspace"
 		}
 		if r == (module.Version{}) {
@@ -276,7 +276,7 @@ func checkVendorConsistency(loaderstate *State, indexes []*modFileIndex, modFile
 
 	if vendErrors.Len() > 0 {
 		subcmd := "mod"
-		if inWorkspaceMode(loaderstate) {
+		if loaderstate.inWorkspaceMode() {
 			subcmd = "work"
 		}
 		base.Fatalf("go: inconsistent vendoring in %s:%s\n\n\tTo ignore the vendor directory, use -mod=readonly or -mod=mod.\n\tTo sync the vendor directory, run:\n\t\tgo %s vendor", filepath.Dir(VendorDir(loaderstate)), vendErrors, subcmd)

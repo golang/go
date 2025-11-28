@@ -21,7 +21,7 @@ import (
 //  https://csrc.nist.gov/publications/fips/fips180-4/fips-180-4.pdf
 //
 // Wt = Mt; for 0 <= t <= 15
-// Wt = SIGMA1(Wt-2) + SIGMA0(Wt-15) + Wt-16; for 16 <= t <= 79
+// Wt = SIGMA1(Wt-2) + Wt-7 + SIGMA0(Wt-15) + Wt-16; for 16 <= t <= 79
 //
 // a = H0
 // b = H1
@@ -154,7 +154,7 @@ func main() {
 // Architecture Processors" White-paper
 // https://www.intel.com/content/dam/www/public/us/en/documents/white-papers/fast-sha512-implementations-ia-processors-paper.pdf
 // AVX2 version by Intel, same algorithm in Linux kernel:
-// https://github.com/torvalds/linux/blob/master/arch/x86/crypto/sha512-avx2-asm.S
+// https://github.com/torvalds/linux/blob/master/lib/crypto/x86/sha512-avx2-asm.S
 
 // James Guilford <james.guilford@intel.com>
 // Kirk Yap <kirk.s.yap@intel.com>

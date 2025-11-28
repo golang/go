@@ -29,6 +29,7 @@ var All = []Info{
 	{Name: "allowmultiplevcs", Package: "cmd/go"},
 	{Name: "asynctimerchan", Package: "time", Changed: 23, Old: "1"},
 	{Name: "containermaxprocs", Package: "runtime", Changed: 25, Old: "0"},
+	{Name: "cryptocustomrand", Package: "crypto", Changed: 26, Old: "1"},
 	{Name: "dataindependenttiming", Package: "crypto/subtle", Opaque: true},
 	{Name: "decoratemappings", Package: "runtime", Opaque: true, Changed: 25, Old: "0"},
 	{Name: "embedfollowsymlinks", Package: "cmd/go"},
@@ -64,9 +65,11 @@ var All = []Info{
 	{Name: "tlsmaxrsasize", Package: "crypto/tls"},
 	{Name: "tlsmlkem", Package: "crypto/tls", Changed: 24, Old: "0", Opaque: true},
 	{Name: "tlsrsakex", Package: "crypto/tls", Changed: 22, Old: "1"},
+	{Name: "tlssecpmlkem", Package: "crypto/tls", Changed: 26, Old: "0", Opaque: true},
 	{Name: "tlssha1", Package: "crypto/tls", Changed: 25, Old: "1"},
 	{Name: "tlsunsafeekm", Package: "crypto/tls", Changed: 22, Old: "1"},
 	{Name: "updatemaxprocs", Package: "runtime", Changed: 25, Old: "0"},
+	{Name: "urlstrictcolons", Package: "net/url", Changed: 26, Old: "0"},
 	{Name: "winreadlinkvolume", Package: "os", Changed: 23, Old: "0"},
 	{Name: "winsymlink", Package: "os", Changed: 23, Old: "0"},
 	{Name: "x509keypairleaf", Package: "crypto/tls", Changed: 23, Old: "0"},
@@ -76,6 +79,16 @@ var All = []Info{
 	{Name: "x509usefallbackroots", Package: "crypto/x509"},
 	{Name: "x509usepolicies", Package: "crypto/x509", Changed: 24, Old: "0"},
 	{Name: "zipinsecurepath", Package: "archive/zip"},
+}
+
+type RemovedInfo struct {
+	Name    string // name of the removed GODEBUG setting.
+	Removed int    // minor version of Go, when the removal happened
+}
+
+// Removed contains all GODEBUGs that we have removed.
+var Removed = []RemovedInfo{
+	{Name: "x509sha1", Removed: 24},
 }
 
 // Lookup returns the Info with the given name.

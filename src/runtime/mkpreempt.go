@@ -402,7 +402,7 @@ func genAMD64(g *gen) {
 	// Create layouts for X, Y, and Z registers.
 	const (
 		numXRegs = 16
-		numZRegs = 16 // TODO: If we start using upper registers, change to 32
+		numZRegs = 32
 		numKRegs = 8
 	)
 	lZRegs := layout{sp: xReg} // Non-GP registers

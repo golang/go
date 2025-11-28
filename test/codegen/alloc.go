@@ -10,28 +10,28 @@
 package codegen
 
 func zeroAllocNew1() *struct{} {
-	// 386:-`CALL\truntime\.newobject`, `LEAL\truntime.zerobase`
-	// amd64:-`CALL\truntime\.newobject`, `LEAQ\truntime.zerobase`
-	// arm:-`CALL\truntime\.newobject`, `MOVW\t[$]runtime.zerobase`
-	// arm64:-`CALL\truntime\.newobject`, `MOVD\t[$]runtime.zerobase`
-	// riscv64:-`CALL\truntime\.newobject`, `MOV\t[$]runtime.zerobase`
+	// 386:-`CALL runtime\.newobject`, `LEAL runtime.zerobase`
+	// amd64:-`CALL runtime\.newobject`, `LEAQ runtime.zerobase`
+	// arm:-`CALL runtime\.newobject`, `MOVW [$]runtime.zerobase`
+	// arm64:-`CALL runtime\.newobject`, `MOVD [$]runtime.zerobase`
+	// riscv64:-`CALL runtime\.newobject`, `MOV [$]runtime.zerobase`
 	return new(struct{})
 }
 
 func zeroAllocNew2() *[0]int {
-	// 386:-`CALL\truntime\.newobject`, `LEAL\truntime.zerobase`
-	// amd64:-`CALL\truntime\.newobject`, `LEAQ\truntime.zerobase`
-	// arm:-`CALL\truntime\.newobject`, `MOVW\t[$]runtime.zerobase`
-	// arm64:-`CALL\truntime\.newobject`, `MOVD\t[$]runtime.zerobase`
-	// riscv64:-`CALL\truntime\.newobject`, `MOV\t[$]runtime.zerobase`
+	// 386:-`CALL runtime\.newobject`, `LEAL runtime.zerobase`
+	// amd64:-`CALL runtime\.newobject`, `LEAQ runtime.zerobase`
+	// arm:-`CALL runtime\.newobject`, `MOVW [$]runtime.zerobase`
+	// arm64:-`CALL runtime\.newobject`, `MOVD [$]runtime.zerobase`
+	// riscv64:-`CALL runtime\.newobject`, `MOV [$]runtime.zerobase`
 	return new([0]int)
 }
 
 func zeroAllocSliceLit() []int {
-	// 386:-`CALL\truntime\.newobject`, `LEAL\truntime.zerobase`
-	// amd64:-`CALL\truntime\.newobject`, `LEAQ\truntime.zerobase`
-	// arm:-`CALL\truntime\.newobject`, `MOVW\t[$]runtime.zerobase`
-	// arm64:-`CALL\truntime\.newobject`, `MOVD\t[$]runtime.zerobase`
-	// riscv64:-`CALL\truntime\.newobject`, `MOV\t[$]runtime.zerobase`
+	// 386:-`CALL runtime\.newobject`, `LEAL runtime.zerobase`
+	// amd64:-`CALL runtime\.newobject`, `LEAQ runtime.zerobase`
+	// arm:-`CALL runtime\.newobject`, `MOVW [$]runtime.zerobase`
+	// arm64:-`CALL runtime\.newobject`, `MOVD [$]runtime.zerobase`
+	// riscv64:-`CALL runtime\.newobject`, `MOV [$]runtime.zerobase`
 	return []int{}
 }

@@ -37,14 +37,14 @@ func TestMachoSectionsReadOnly(t *testing.T) {
 			args:             []string{"-ldflags", "-linkmode=internal"},
 			prog:             prog,
 			mustInternalLink: true,
-			wantSecsRO:       []string{"__got", "__rodata", "__itablink", "__typelink", "__gosymtab", "__gopclntab"},
+			wantSecsRO:       []string{"__got", "__rodata", "__itablink", "__typelink"},
 		},
 		{
 			name:        "linkmode-external",
 			args:        []string{"-ldflags", "-linkmode=external"},
 			prog:        prog,
 			mustHaveCGO: true,
-			wantSecsRO:  []string{"__got", "__rodata", "__itablink", "__typelink", "__gopclntab"},
+			wantSecsRO:  []string{"__got", "__rodata", "__itablink", "__typelink"},
 		},
 		{
 			name:             "cgo-linkmode-internal",
@@ -52,14 +52,14 @@ func TestMachoSectionsReadOnly(t *testing.T) {
 			prog:             progC,
 			mustHaveCGO:      true,
 			mustInternalLink: true,
-			wantSecsRO:       []string{"__got", "__rodata", "__itablink", "__typelink", "__gopclntab"},
+			wantSecsRO:       []string{"__got", "__rodata", "__itablink", "__typelink"},
 		},
 		{
 			name:        "cgo-linkmode-external",
 			args:        []string{"-ldflags", "-linkmode=external"},
 			prog:        progC,
 			mustHaveCGO: true,
-			wantSecsRO:  []string{"__got", "__rodata", "__itablink", "__typelink", "__gopclntab"},
+			wantSecsRO:  []string{"__got", "__rodata", "__itablink", "__typelink"},
 		},
 	}
 
@@ -111,7 +111,8 @@ func TestMachoSectionsReadOnly(t *testing.T) {
 
 			for _, wsroname := range test.wantSecsRO {
 				// Now walk the sections. Section should be part of
-				// some segment that is readonly.
+				// some segment that is made readonly after
+				// relocations are appied.
 				var wsro *macho.Section
 				foundRO := false
 				for _, s := range machoFile.Sections {

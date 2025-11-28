@@ -17,6 +17,7 @@ import (
 	"crypto/internal/boring"
 	"crypto/internal/cryptotest"
 	fipsaes "crypto/internal/fips140/aes"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"math/rand"
@@ -115,6 +116,60 @@ func testCTR_AES(t *testing.T) {
 
 func makeTestingCiphers(aesBlock cipher.Block, iv []byte) (genericCtr, multiblockCtr cipher.Stream) {
 	return cipher.NewCTR(wrap(aesBlock), iv), cipher.NewCTR(aesBlock, iv)
+}
+
+// TestCTR_AES_blocks8FastPathMatchesGeneric ensures the overlow aware branch
+// produces identical keystreams to the generic counter walker across
+// representative IVs, including near-overflow cases.
+func TestCTR_AES_blocks8FastPathMatchesGeneric(t *testing.T) {
+	key := make([]byte, aes.BlockSize)
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := block.(*fipsaes.Block); !ok {
+		t.Skip("requires crypto/internal/fips140/aes")
+	}
+
+	keystream := make([]byte, 8*aes.BlockSize)
+
+	testCases := []struct {
+		name string
+		hi   uint64
+		lo   uint64
+	}{
+		{"Zero", 0, 0},
+		{"NearOverflowMinus7", 1, ^uint64(0) - 7},
+		{"NearOverflowMinus6", 2, ^uint64(0) - 6},
+		{"Overflow", 0, ^uint64(0)},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var iv [aes.BlockSize]byte
+			binary.BigEndian.PutUint64(iv[0:8], tc.hi)
+			binary.BigEndian.PutUint64(iv[8:], tc.lo)
+
+			generic, multiblock := makeTestingCiphers(block, iv[:])
+
+			genericOut := make([]byte, len(keystream))
+			multiblockOut := make([]byte, len(keystream))
+
+			generic.XORKeyStream(genericOut, keystream)
+			multiblock.XORKeyStream(multiblockOut, keystream)
+
+			if !bytes.Equal(multiblockOut, genericOut) {
+				t.Fatalf("mismatch for iv %#x:%#x\n"+
+					"asm keystream: %x\n"+
+					"gen keystream: %x\n"+
+					"asm counters: %x\n"+
+					"gen counters: %x",
+					tc.hi, tc.lo, multiblockOut, genericOut,
+					extractCounters(block, multiblockOut),
+					extractCounters(block, genericOut))
+			}
+		})
+	}
 }
 
 func randBytes(t *testing.T, r *rand.Rand, count int) []byte {
@@ -296,4 +351,13 @@ func TestCTR_AES_multiblock_XORKeyStreamAt(t *testing.T) {
 			}
 		})
 	}
+}
+
+func extractCounters(block cipher.Block, keystream []byte) []byte {
+	blockSize := block.BlockSize()
+	res := make([]byte, len(keystream))
+	for i := 0; i < len(keystream); i += blockSize {
+		block.Decrypt(res[i:i+blockSize], keystream[i:i+blockSize])
+	}
+	return res
 }

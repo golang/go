@@ -35,6 +35,10 @@ const (
 )
 
 const (
+	_ERROR_INVALID_PARAMETER Errno = 87
+)
+
+const (
 	// Invented values to support what package os expects.
 	O_RDONLY       = 0x00000
 	O_WRONLY       = 0x00001
@@ -50,7 +54,6 @@ const (
 	o_DIRECTORY    = 0x04000
 	O_CLOEXEC      = 0x80000
 	o_NOFOLLOW_ANY = 0x200000000 // used by internal/syscall/windows
-	o_OPEN_REPARSE = 0x400000000 // used by internal/syscall/windows
 	o_WRITE_ATTRS  = 0x800000000 // used by internal/syscall/windows
 )
 

@@ -384,6 +384,9 @@ func (r *codeRepo) convert(ctx context.Context, info *codehost.RevInfo, statVers
 			} else {
 				origin.TagPrefix = tags.Origin.TagPrefix
 				origin.TagSum = tags.Origin.TagSum
+				if tags.Origin.RepoSum != "" {
+					origin.RepoSum = tags.Origin.RepoSum
+				}
 			}
 		}
 	}()

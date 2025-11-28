@@ -46,7 +46,7 @@ func SliceExtensionConst(s []int) []int {
 	// amd64:-`.*runtime\.memclrNoHeapPointers`
 	// amd64:-`.*runtime\.makeslice`
 	// amd64:-`.*runtime\.panicmakeslicelen`
-	// amd64:"MOVUPS\tX15"
+	// amd64:"MOVUPS X15"
 	// loong64:-`.*runtime\.memclrNoHeapPointers`
 	// ppc64x:-`.*runtime\.memclrNoHeapPointers`
 	// ppc64x:-`.*runtime\.makeslice`
@@ -58,7 +58,7 @@ func SliceExtensionConstInt64(s []int) []int {
 	// amd64:-`.*runtime\.memclrNoHeapPointers`
 	// amd64:-`.*runtime\.makeslice`
 	// amd64:-`.*runtime\.panicmakeslicelen`
-	// amd64:"MOVUPS\tX15"
+	// amd64:"MOVUPS X15"
 	// loong64:-`.*runtime\.memclrNoHeapPointers`
 	// ppc64x:-`.*runtime\.memclrNoHeapPointers`
 	// ppc64x:-`.*runtime\.makeslice`
@@ -70,7 +70,7 @@ func SliceExtensionConstUint64(s []int) []int {
 	// amd64:-`.*runtime\.memclrNoHeapPointers`
 	// amd64:-`.*runtime\.makeslice`
 	// amd64:-`.*runtime\.panicmakeslicelen`
-	// amd64:"MOVUPS\tX15"
+	// amd64:"MOVUPS X15"
 	// loong64:-`.*runtime\.memclrNoHeapPointers`
 	// ppc64x:-`.*runtime\.memclrNoHeapPointers`
 	// ppc64x:-`.*runtime\.makeslice`
@@ -82,7 +82,7 @@ func SliceExtensionConstUint(s []int) []int {
 	// amd64:-`.*runtime\.memclrNoHeapPointers`
 	// amd64:-`.*runtime\.makeslice`
 	// amd64:-`.*runtime\.panicmakeslicelen`
-	// amd64:"MOVUPS\tX15"
+	// amd64:"MOVUPS X15"
 	// loong64:-`.*runtime\.memclrNoHeapPointers`
 	// ppc64x:-`.*runtime\.memclrNoHeapPointers`
 	// ppc64x:-`.*runtime\.makeslice`
@@ -352,12 +352,12 @@ func SliceNilCheck(s []int) {
 // ---------------------- //
 // See issue 21561
 func InitSmallSliceLiteral() []int {
-	// amd64:`MOVQ\t[$]42`
+	// amd64:`MOVQ [$]42`
 	return []int{42}
 }
 
 func InitNotSmallSliceLiteral() []int {
-	// amd64:`LEAQ\t.*stmp_`
+	// amd64:`LEAQ .*stmp_`
 	return []int{
 		42,
 		42,
@@ -413,7 +413,7 @@ func SliceWithConstCompare(a []int, b int) []int {
 }
 
 func SliceWithSubtractBound(a []int, b int) []int {
-	// ppc64x:"SUBC",-"NEG"
+	// ppc64x:"SUBC" -"NEG"
 	return a[(3 - b):]
 }
 
@@ -422,7 +422,7 @@ func SliceWithSubtractBound(a []int, b int) []int {
 // --------------------------------------- //
 
 func SliceAndIndex(a []int, b int) int {
-	// arm64:"AND\tR[0-9]+->63","ADD\tR[0-9]+<<3"
+	// arm64:"AND R[0-9]+->63" "ADD R[0-9]+<<3"
 	return a[b:][b]
 }
 
@@ -445,12 +445,12 @@ func Slice0(p *struct{}, i int) []struct{} {
 // --------------------------------------- //
 
 func SlicePut(a []byte, c uint8) []byte {
-	// arm64:`CBZ\tR1`
+	// arm64:`CBZ R1`
 	a[0] = c
-	// arm64:`CMP\t\$1, R1`
+	// arm64:`CMP \$1, R1`
 	a = a[1:]
 	a[0] = c
-	// arm64:`CMP\t\$2, R1`
+	// arm64:`CMP \$2, R1`
 	a = a[1:]
 	a[0] = c
 	a = a[1:]

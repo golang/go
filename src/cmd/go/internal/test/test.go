@@ -162,7 +162,7 @@ In addition to the build flags, the flags handled by 'go test' itself are:
 	    Also emits build output in JSON. See 'go help buildjson'.
 
 	-o file
-	    Compile the test binary to the named file.
+	    Save a copy of the test binary to the named file.
 	    The test still runs (unless -c or -i is specified).
 	    If file ends in a slash or names an existing directory,
 	    the test is written to pkg.test in that directory.
@@ -684,7 +684,7 @@ var defaultVetFlags = []string{
 func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	moduleLoaderState := modload.NewState()
 	pkgArgs, testArgs = testFlags(args)
-	modload.InitWorkfile(moduleLoaderState) // The test command does custom flag processing; initialize workspaces after that.
+	moduleLoaderState.InitWorkfile() // The test command does custom flag processing; initialize workspaces after that.
 
 	if cfg.DebugTrace != "" {
 		var close func() error
@@ -742,7 +742,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 			if !mainMods.Contains(m.Path) {
 				base.Fatalf("cannot use -fuzz flag on package outside the main module")
 			}
-		} else if pkgs[0].Standard && modload.Enabled(moduleLoaderState) {
+		} else if pkgs[0].Standard && moduleLoaderState.Enabled() {
 			// Because packages in 'std' and 'cmd' are part of the standard library,
 			// they are only treated as part of a module in 'go mod' subcommands and
 			// 'go get'. However, we still don't want to accidentally corrupt their

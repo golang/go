@@ -840,6 +840,9 @@ func rewriteValueARM64(v *Value) bool {
 	case OpMax64F:
 		v.Op = OpARM64FMAXD
 		return true
+	case OpMemEq:
+		v.Op = OpARM64LoweredMemEq
+		return true
 	case OpMin32F:
 		v.Op = OpARM64FMINS
 		return true
@@ -12552,6 +12555,54 @@ func rewriteValueARM64_OpARM64MUL(v *Value) bool {
 			d := auxIntToInt64(v_1.AuxInt)
 			v.reset(OpARM64MOVDconst)
 			v.AuxInt = int64ToAuxInt(c * d)
+			return true
+		}
+		break
+	}
+	// match: (MUL r:(MOVWUreg x) s:(MOVWUreg y))
+	// cond: r.Uses == 1 && s.Uses == 1
+	// result: (UMULL x y)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			r := v_0
+			if r.Op != OpARM64MOVWUreg {
+				continue
+			}
+			x := r.Args[0]
+			s := v_1
+			if s.Op != OpARM64MOVWUreg {
+				continue
+			}
+			y := s.Args[0]
+			if !(r.Uses == 1 && s.Uses == 1) {
+				continue
+			}
+			v.reset(OpARM64UMULL)
+			v.AddArg2(x, y)
+			return true
+		}
+		break
+	}
+	// match: (MUL r:(MOVWreg x) s:(MOVWreg y))
+	// cond: r.Uses == 1 && s.Uses == 1
+	// result: (MULL x y)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			r := v_0
+			if r.Op != OpARM64MOVWreg {
+				continue
+			}
+			x := r.Args[0]
+			s := v_1
+			if s.Op != OpARM64MOVWreg {
+				continue
+			}
+			y := s.Args[0]
+			if !(r.Uses == 1 && s.Uses == 1) {
+				continue
+			}
+			v.reset(OpARM64MULL)
+			v.AddArg2(x, y)
 			return true
 		}
 		break
@@ -25271,6 +25322,37 @@ func rewriteBlockARM64(b *Block) bool {
 				break
 			}
 			b.resetWithControl(BlockARM64FGE, cc)
+			return true
+		}
+		// match: (TBNZ [0] (XORconst [1] x) yes no)
+		// result: (TBZ [0] x yes no)
+		for b.Controls[0].Op == OpARM64XORconst {
+			v_0 := b.Controls[0]
+			if auxIntToInt64(v_0.AuxInt) != 1 {
+				break
+			}
+			x := v_0.Args[0]
+			if auxIntToInt64(b.AuxInt) != 0 {
+				break
+			}
+			b.resetWithControl(BlockARM64TBZ, x)
+			b.AuxInt = int64ToAuxInt(0)
+			return true
+		}
+	case BlockARM64TBZ:
+		// match: (TBZ [0] (XORconst [1] x) yes no)
+		// result: (TBNZ [0] x yes no)
+		for b.Controls[0].Op == OpARM64XORconst {
+			v_0 := b.Controls[0]
+			if auxIntToInt64(v_0.AuxInt) != 1 {
+				break
+			}
+			x := v_0.Args[0]
+			if auxIntToInt64(b.AuxInt) != 0 {
+				break
+			}
+			b.resetWithControl(BlockARM64TBNZ, x)
+			b.AuxInt = int64ToAuxInt(0)
 			return true
 		}
 	case BlockARM64UGE:

@@ -456,7 +456,7 @@ func (t *Named) expandMethod(i int) *Func {
 	check := t.check
 	// Ensure that the original method is type-checked.
 	if check != nil {
-		check.objDecl(origm, nil)
+		check.objDecl(origm)
 	}
 
 	origSig := origm.typ.(*Signature)
@@ -613,13 +613,18 @@ func (t *Named) String() string { return TypeString(t, nil) }
 // type set to T. Aliases are skipped because their underlying type is
 // not memoized.
 //
-// This method also checks for cycles among alias and named types, which will
-// yield no underlying type. If such a cycle is found, the underlying type is
-// set to Typ[Invalid] and a cycle is reported.
+// resolveUnderlying assumes that there are no direct cycles; if there were
+// any, they were broken (by setting the respective types to invalid) during
+// the directCycles check phase.
 func (n *Named) resolveUnderlying() {
 	assert(n.stateHas(unpacked))
 
-	var seen map[*Named]int // allocated lazily
+	var seen map[*Named]bool // for debugging only
+	if debug {
+		seen = make(map[*Named]bool)
+	}
+
+	var path []*Named
 	var u Type
 	for rhs := Type(n); u == nil; {
 		switch t := rhs.(type) {
@@ -630,17 +635,9 @@ func (n *Named) resolveUnderlying() {
 			rhs = unalias(t)
 
 		case *Named:
-			if i, ok := seen[t]; ok {
-				// compute cycle path
-				path := make([]Object, len(seen))
-				for t, j := range seen {
-					path[j] = t.obj
-				}
-				path = path[i:]
-				// only called during type checking, hence n.check != nil
-				n.check.cycleError(path, firstInSrc(path))
-				u = Typ[Invalid]
-				break
+			if debug {
+				assert(!seen[t])
+				seen[t] = true
 			}
 
 			// don't recalculate the underlying
@@ -649,10 +646,10 @@ func (n *Named) resolveUnderlying() {
 				break
 			}
 
-			if seen == nil {
-				seen = make(map[*Named]int)
+			if debug {
+				seen[t] = true
 			}
-			seen[t] = len(seen)
+			path = append(path, t)
 
 			t.unpack()
 			assert(t.rhs() != nil || t.allowNilRHS)
@@ -663,7 +660,7 @@ func (n *Named) resolveUnderlying() {
 		}
 	}
 
-	for t := range seen {
+	for _, t := range path {
 		func() {
 			t.mu.Lock()
 			defer t.mu.Unlock()

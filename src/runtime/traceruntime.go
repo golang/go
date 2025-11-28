@@ -25,7 +25,7 @@ func (s *gTraceState) reset() {
 
 // mTraceState is per-M state for the tracer.
 type mTraceState struct {
-	seqlock       atomic.Uintptr                       // seqlock indicating that this M is writing to a trace buffer.
+	writing       atomic.Bool                          // flag indicating that this M is writing to a trace buffer.
 	buf           [2][tracev2.NumExperiments]*traceBuf // Per-M traceBuf for writing. Indexed by trace.gen%2.
 	link          *m                                   // Snapshot of alllink or freelink.
 	reentered     uint32                               // Whether we've reentered tracing from within tracing.
@@ -211,21 +211,18 @@ func traceAcquireEnabled() traceLocker {
 	// Check if we're already tracing. It's safe to be reentrant in general,
 	// because this function (and the invariants of traceLocker.writer) ensure
 	// that it is.
-	if mp.trace.seqlock.Load()%2 == 1 {
+	if mp.trace.writing.Load() {
 		mp.trace.reentered++
 		return traceLocker{mp, mp.trace.entryGen}
 	}
 
-	// Acquire the trace seqlock. This prevents traceAdvance from moving forward
-	// until all Ms are observed to be outside of their seqlock critical section.
+	// Set the write flag. This prevents traceAdvance from moving forward
+	// until all Ms are observed to be outside of a write critical section.
 	//
-	// Note: The seqlock is mutated here and also in traceCPUSample. If you update
-	// usage of the seqlock here, make sure to also look at what traceCPUSample is
+	// Note: The write flag is mutated here and also in traceCPUSample. If you update
+	// usage of the write flag here, make sure to also look at what traceCPUSample is
 	// doing.
-	seq := mp.trace.seqlock.Add(1)
-	if debugTraceReentrancy && seq%2 != 1 {
-		throw("bad use of trace.seqlock")
-	}
+	mp.trace.writing.Store(true)
 
 	// N.B. This load of gen appears redundant with the one in traceEnabled.
 	// However, it's very important that the gen we use for writing to the trace
@@ -237,7 +234,7 @@ func traceAcquireEnabled() traceLocker {
 	// what we did and bail.
 	gen := trace.gen.Load()
 	if gen == 0 {
-		mp.trace.seqlock.Add(1)
+		mp.trace.writing.Store(false)
 		releasem(mp)
 		return traceLocker{}
 	}
@@ -263,11 +260,7 @@ func traceRelease(tl traceLocker) {
 	if tl.mp.trace.reentered > 0 {
 		tl.mp.trace.reentered--
 	} else {
-		seq := tl.mp.trace.seqlock.Add(1)
-		if debugTraceReentrancy && seq%2 != 0 {
-			print("runtime: seq=", seq, "\n")
-			throw("bad use of trace.seqlock")
-		}
+		tl.mp.trace.writing.Store(false)
 	}
 	releasem(tl.mp)
 }
@@ -534,19 +527,17 @@ func (tl traceLocker) GoSysExit(lostP bool) {
 
 // ProcSteal indicates that our current M stole a P from another M.
 //
-// inSyscall indicates that we're stealing the P from a syscall context.
-//
 // The caller must have ownership of pp.
-func (tl traceLocker) ProcSteal(pp *p, inSyscall bool) {
+func (tl traceLocker) ProcSteal(pp *p) {
 	// Grab the M ID we stole from.
 	mStolenFrom := pp.trace.mSyscallID
 	pp.trace.mSyscallID = -1
 
 	// Emit the status of the P we're stealing. We may be just about to do this when creating the event
-	// writer but it's not guaranteed, even if inSyscall is true. Although it might seem like from a
-	// syscall context we're always stealing a P for ourselves, we may have not wired it up yet (so
+	// writer but it's not guaranteed, even if we're stealing from a syscall. Although it might seem like
+	// from a syscall context we're always stealing a P for ourselves, we may have not wired it up yet (so
 	// it wouldn't be visible to eventWriter) or we may not even intend to wire it up to ourselves
-	// at all (e.g. entersyscall_gcwait).
+	// at all and plan to hand it back to the runtime.
 	if !pp.trace.statusWasTraced(tl.gen) && pp.trace.acquireStatus(tl.gen) {
 		// Careful: don't use the event writer. We never want status or in-progress events
 		// to trigger more in-progress events.
@@ -561,7 +552,7 @@ func (tl traceLocker) ProcSteal(pp *p, inSyscall bool) {
 	// In the latter, we're a goroutine in a syscall.
 	goStatus := tracev2.GoRunning
 	procStatus := tracev2.ProcRunning
-	if inSyscall {
+	if tl.mp.curg != nil && tl.mp.curg.syscallsp != 0 {
 		goStatus = tracev2.GoSyscall
 		procStatus = tracev2.ProcSyscallAbandoned
 	}
@@ -595,19 +586,27 @@ func (tl traceLocker) GoCreateSyscall(gp *g) {
 	// N.B. We should never trace a status for this goroutine (which we're currently running on),
 	// since we want this to appear like goroutine creation.
 	gp.trace.setStatusTraced(tl.gen)
-	tl.eventWriter(tracev2.GoBad, tracev2.ProcBad).event(tracev2.EvGoCreateSyscall, traceArg(gp.goid))
+
+	// We might have a P left over on the thread from the last cgo callback,
+	// but in a syscall context, it is NOT ours. Act as if we do not have a P,
+	// and don't record a status.
+	tl.rawEventWriter().event(tracev2.EvGoCreateSyscall, traceArg(gp.goid))
 }
 
 // GoDestroySyscall indicates that a goroutine has transitioned from GoSyscall to dead.
 //
-// Must not have a P.
-//
 // This occurs when Go code returns back to C. On pthread platforms it occurs only when
 // the C thread is destroyed.
 func (tl traceLocker) GoDestroySyscall() {
-	// N.B. If we trace a status here, we must never have a P, and we must be on a goroutine
-	// that is in the syscall state.
-	tl.eventWriter(tracev2.GoSyscall, tracev2.ProcBad).event(tracev2.EvGoDestroySyscall)
+	// Write the status for the goroutine if necessary.
+	if gp := tl.mp.curg; gp != nil && !gp.trace.statusWasTraced(tl.gen) && gp.trace.acquireStatus(tl.gen) {
+		tl.writer().writeGoStatus(gp.goid, int64(tl.mp.procid), tracev2.GoSyscall, false, 0 /* no stack */).end()
+	}
+
+	// We might have a P left over on the thread from the last cgo callback,
+	// but in a syscall context, it is NOT ours. Act as if we do not have a P,
+	// and don't record a status.
+	tl.rawEventWriter().event(tracev2.EvGoDestroySyscall)
 }
 
 // To access runtime functions from runtime/trace.
@@ -693,10 +692,10 @@ func traceThreadDestroy(mp *m) {
 	// Perform a traceAcquire/traceRelease on behalf of mp to
 	// synchronize with the tracer trying to flush our buffer
 	// as well.
-	seq := mp.trace.seqlock.Add(1)
-	if debugTraceReentrancy && seq%2 != 1 {
-		throw("bad use of trace.seqlock")
+	if debugTraceReentrancy && mp.trace.writing.Load() {
+		throw("bad use of trace.writing")
 	}
+	mp.trace.writing.Store(true)
 	systemstack(func() {
 		lock(&trace.lock)
 		for i := range mp.trace.buf {
@@ -711,9 +710,5 @@ func traceThreadDestroy(mp *m) {
 		}
 		unlock(&trace.lock)
 	})
-	seq1 := mp.trace.seqlock.Add(1)
-	if seq1 != seq+1 {
-		print("runtime: seq1=", seq1, "\n")
-		throw("bad use of trace.seqlock")
-	}
+	mp.trace.writing.Store(false)
 }

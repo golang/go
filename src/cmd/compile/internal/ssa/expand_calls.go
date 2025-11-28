@@ -15,7 +15,7 @@ import (
 
 func postExpandCallsDecompose(f *Func) {
 	decomposeUser(f)    // redo user decompose to cleanup after expand calls
-	decomposeBuiltIn(f) // handles both regular decomposition and cleanup.
+	decomposeBuiltin(f) // handles both regular decomposition and cleanup.
 }
 
 func expandCalls(f *Func) {
@@ -396,6 +396,9 @@ func (x *expandState) decomposeAsNecessary(pos src.XPos, b *Block, a, m0 *Value,
 		return mem
 
 	case types.TSTRUCT:
+		if at.IsSIMD() {
+			break // XXX
+		}
 		for i := 0; i < at.NumFields(); i++ {
 			et := at.Field(i).Type // might need to read offsets from the fields
 			e := b.NewValue1I(pos, OpStructSelect, et, int64(i), a)
@@ -423,7 +426,14 @@ func (x *expandState) decomposeAsNecessary(pos src.XPos, b *Block, a, m0 *Value,
 		if a.Op == OpIMake {
 			data := a.Args[1]
 			for data.Op == OpStructMake || data.Op == OpArrayMake1 {
-				data = data.Args[0]
+				// A struct make might have a few zero-sized fields.
+				// Use the pointer-y one we know is there.
+				for _, a := range data.Args {
+					if a.Type.Size() > 0 {
+						data = a
+						break
+					}
+				}
 			}
 			return x.decomposeAsNecessary(pos, b, data, mem, rc.next(data.Type))
 		}
@@ -544,6 +554,9 @@ func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *Block, container, a, m
 
 	case types.TSTRUCT:
 		// Assume ssagen/ssa.go (in buildssa) spills large aggregates so they won't appear here.
+		if at.IsSIMD() {
+			break // XXX
+		}
 		for i := 0; i < at.NumFields(); i++ {
 			et := at.Field(i).Type
 			e := x.rewriteSelectOrArg(pos, b, container, nil, m0, et, rc.next(et))
@@ -710,6 +723,9 @@ func (x *expandState) rewriteWideSelectToStores(pos src.XPos, b *Block, containe
 
 	case types.TSTRUCT:
 		// Assume ssagen/ssa.go (in buildssa) spills large aggregates so they won't appear here.
+		if at.IsSIMD() {
+			break // XXX
+		}
 		for i := 0; i < at.NumFields(); i++ {
 			et := at.Field(i).Type
 			m0 = x.rewriteWideSelectToStores(pos, b, container, m0, et, rc.next(et))
@@ -951,7 +967,7 @@ func (x *expandState) indent(n int) {
 }
 
 // Printf does an indented fmt.Printf on the format and args.
-func (x *expandState) Printf(format string, a ...interface{}) (n int, err error) {
+func (x *expandState) Printf(format string, a ...any) (n int, err error) {
 	if x.indentLevel > 0 {
 		fmt.Printf("%[1]*s", x.indentLevel, "")
 	}

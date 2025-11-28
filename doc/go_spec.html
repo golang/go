@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Language version go1.26 (Oct 1, 2025)",
+	"Subtitle": "Language version go1.26 (Nov 18, 2025)",
 	"Path": "/ref/spec"
 }-->
 
@@ -2487,11 +2487,15 @@ type set[P comparable] = map[P]bool
 </pre>
 
 <p>
-In an alias declaration the given type cannot be a type parameter.
+In an alias declaration the given type cannot be a type parameter declared in the same declaration.
 </p>
 
 <pre>
-type A[P any] = P    // illegal: P is a type parameter
+type A[P any] = P   // illegal: P is a type parameter declared in the declaration of A
+
+func f[P any]() {
+	type A = P  // ok: T is a type parameter declared by the enclosing function
+}
 </pre>
 
 <h4 id="Type_definitions">Type definitions</h4>
@@ -2601,8 +2605,8 @@ In a type definition the given type cannot be a type parameter.
 <pre>
 type T[P any] P    // illegal: P is a type parameter
 
-func f[T any]() {
-	type L T   // illegal: T is a type parameter declared by the enclosing function
+func f[P any]() {
+	type L P   // illegal: P is a type parameter declared by the enclosing function
 }
 </pre>
 
@@ -2685,22 +2689,6 @@ Type parameters may also be declared by the receiver specification
 of a <a href="#Method_declarations">method declaration</a> associated
 with a generic type.
 </p>
-
-<p>
-Within a type parameter list of a generic type <code>T</code>, a type constraint
-may not (directly, or indirectly through the type parameter list of another
-generic type) refer to <code>T</code>.
-</p>
-
-<pre>
-type T1[P T1[P]] …                    // illegal: T1 refers to itself
-type T2[P interface{ T2[int] }] …     // illegal: T2 refers to itself
-type T3[P interface{ m(T3[int])}] …   // illegal: T3 refers to itself
-type T4[P T5[P]] …                    // illegal: T4 refers to T5 and
-type T5[P T4[P]] …                    //          T5 refers to T4
-
-type T6[P int] struct{ f *T6[P] }     // ok: reference to T6 is not in type parameter list
-</pre>
 
 <h4 id="Type_constraints">Type constraints</h4>
 
@@ -4873,7 +4861,7 @@ For instance, <code>x / y * z</code> is the same as <code>(x / y) * z</code>.
 x &lt;= f()                   // x &lt;= f()
 ^a &gt;&gt; b                    // (^a) >> b
 f() || g()                 // f() || g()
-x == y+1 &amp;&amp; &lt;-chanInt &gt; 0  // (x == (y+1)) && ((&lt;-chanInt) > 0)
+x == y+1 &amp;&amp; &lt;-chanInt &gt; 0  // (x == (y+1)) &amp;&amp; ((&lt;-chanInt) > 0)
 </pre>
 
 
@@ -6883,7 +6871,7 @@ type Tree[K cmp.Ordered, V any] struct {
 }
 
 func (t *Tree[K, V]) walk(yield func(key K, val V) bool) bool {
-	return t == nil || t.left.walk(yield) && yield(t.key, t.value) && t.right.walk(yield)
+	return t == nil || t.left.walk(yield) &amp;&amp; yield(t.key, t.value) &amp;&amp; t.right.walk(yield)
 }
 
 func (t *Tree[K, V]) Walk(yield func(key K, val V) bool) {
@@ -7383,8 +7371,8 @@ The values <code>x</code> are passed to a parameter of type <code>...E</code>
 where <code>E</code> is the element type of <code>S</code>
 and the respective <a href="#Passing_arguments_to_..._parameters">parameter
 passing rules</a> apply.
-As a special case, <code>append</code> also accepts a first argument assignable
-to type <code>[]byte</code> with a second argument of string type followed by
+As a special case, <code>append</code> also accepts a slice whose type is assignable to
+type <code>[]byte</code> with a second argument of <code>string</code> type followed by
 <code>...</code>.
 This form appends the bytes of the string.
 </p>

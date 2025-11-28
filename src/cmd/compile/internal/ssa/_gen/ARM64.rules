@@ -481,6 +481,7 @@
 (GetClosurePtr ...) => (LoweredGetClosurePtr ...)
 (GetCallerSP   ...) => (LoweredGetCallerSP   ...)
 (GetCallerPC   ...) => (LoweredGetCallerPC   ...)
+(MemEq ...) => (LoweredMemEq ...)
 
 // Absorb pseudo-ops into blocks.
 (If (Equal         cc) yes no) => (EQ cc yes no)
@@ -572,6 +573,8 @@
 (TBNZ [0] (LessEqualF    cc) yes no) => (FLE cc yes no)
 (TBNZ [0] (GreaterThanF  cc) yes no) => (FGT cc yes no)
 (TBNZ [0] (GreaterEqualF cc) yes no) => (FGE cc yes no)
+
+(TB(Z|NZ) [0] (XORconst [1] x) yes no) => (TB(NZ|Z) [0] x yes no)
 
 ((EQ|NE|LT|LE|GT|GE) (CMPconst  [0] z:(AND        x y)) yes no) && z.Uses == 1 => ((EQ|NE|LT|LE|GT|GE) (TST                x y) yes no)
 ((EQ|NE|LT|LE|GT|GE) (CMPconst  [0] x:(ANDconst [c] y)) yes no) && x.Uses == 1 => ((EQ|NE|LT|LE|GT|GE) (TSTconst         [c] y) yes no)
@@ -1814,3 +1817,7 @@
 
 (Select0 (Mul64uover x y)) => (MUL x y)
 (Select1 (Mul64uover x y)) => (NotEqual (CMPconst (UMULH <typ.UInt64> x y) [0]))
+
+// 32 mul 32 -> 64
+(MUL r:(MOVWUreg x) s:(MOVWUreg y)) && r.Uses == 1 && s.Uses == 1 => (UMULL x y)
+(MUL r:(MOVWreg  x) s:(MOVWreg  y)) && r.Uses == 1 && s.Uses == 1 =>  (MULL x y)

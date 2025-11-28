@@ -6,7 +6,7 @@ package rand
 
 import (
 	"crypto/internal/fips140only"
-	"crypto/internal/randutil"
+	"crypto/internal/rand"
 	"errors"
 	"io"
 	"math/big"
@@ -14,15 +14,19 @@ import (
 
 // Prime returns a number of the given bit length that is prime with high probability.
 // Prime will return error for any error returned by rand.Read or if bits < 2.
-func Prime(rand io.Reader, bits int) (*big.Int, error) {
-	if fips140only.Enabled {
+//
+// Since Go 1.26, a secure source of random bytes is always used, and the Reader is
+// ignored unless GODEBUG=cryptocustomrand=1 is set. This setting will be removed
+// in a future Go release. Instead, use [testing/cryptotest.SetGlobalRandom].
+func Prime(r io.Reader, bits int) (*big.Int, error) {
+	if fips140only.Enforced() {
 		return nil, errors.New("crypto/rand: use of Prime is not allowed in FIPS 140-only mode")
 	}
 	if bits < 2 {
 		return nil, errors.New("crypto/rand: prime size must be at least 2-bit")
 	}
 
-	randutil.MaybeReadByte(rand)
+	r = rand.CustomReader(r)
 
 	b := uint(bits % 8)
 	if b == 0 {
@@ -33,7 +37,7 @@ func Prime(rand io.Reader, bits int) (*big.Int, error) {
 	p := new(big.Int)
 
 	for {
-		if _, err := io.ReadFull(rand, bytes); err != nil {
+		if _, err := io.ReadFull(r, bytes); err != nil {
 			return nil, err
 		}
 

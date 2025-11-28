@@ -1,0 +1,115 @@
+!sum
+- go: DotProductPairs
+  asm: VPMADDWD
+  in:
+  - &int
+    go: $t
+    base: int
+  - *int
+  out:
+  - &int2 # The elemBits are different
+    go: $t2
+    base: int
+- go: DotProductPairsSaturated
+  asm: VPMADDUBSW
+  in:
+  - &uint
+    go: $t
+    base: uint
+    overwriteElementBits: 8
+  - &int3
+    go: $t3
+    base: int
+    overwriteElementBits: 8
+  out:
+  - *int2
+# - go: DotProductBroadcast
+#   asm: VDPP[SD]
+#   in:
+#   - &dpb_src
+#     go: $t
+#   - *dpb_src
+#   - class: immediate
+#     const: 127
+#   out:
+#   - *dpb_src
+- go: DotProductQuadruple
+  asm: "VPDPBUSD"
+  operandOrder: "31Zero3" # switch operand 3 and 1, and make 3 always 0
+  in:
+  - &qdpa_acc
+    go: $t_acc
+    base: int
+    elemBits: 32
+  - &qdpa_src1
+    go: $t_src1
+    base: uint
+    overwriteElementBits: 8
+  - &qdpa_src2
+    go: $t_src2
+    base: int
+    overwriteElementBits: 8
+  out:
+  - *qdpa_acc
+- go: DotProductQuadrupleSaturated
+  asm: "VPDPBUSDS"
+  operandOrder: "31Zero3" # switch operand 3 and 1, and make 3 always 0
+  in:
+  - *qdpa_acc
+  - *qdpa_src1
+  - *qdpa_src2
+  out:
+  - *qdpa_acc
+- go: AddDotProductPairs
+  asm: "VPDPWSSD"
+  in:
+  - &pdpa_acc
+    go: $t_acc
+    base: int
+    elemBits: 32
+  - &pdpa_src1
+    go: $t_src1
+    base: int
+    overwriteElementBits: 16
+  - &pdpa_src2
+    go: $t_src2
+    base: int
+    overwriteElementBits: 16
+  out:
+  - *pdpa_acc
+- go: MulAdd
+  asm: "VFMADD213PS|VFMADD213PD"
+  in:
+  - &fma_op
+   go: $t
+   base: float
+  - *fma_op
+  - *fma_op
+  out:
+  - *fma_op
+- go: MulAddSub
+  asm: "VFMADDSUB213PS|VFMADDSUB213PD"
+  in:
+  - *fma_op
+  - *fma_op
+  - *fma_op
+  out:
+  - *fma_op
+- go: MulSubAdd
+  asm: "VFMSUBADD213PS|VFMSUBADD213PD"
+  in:
+  - *fma_op
+  - *fma_op
+  - *fma_op
+  out:
+  - *fma_op
+- go: SumAbsDiff
+  asm: "VPSADBW"
+  in:
+  - go: $t
+    base: uint
+  - go: $t
+    base: uint
+  out:
+  - go: $t2
+    base: uint

@@ -993,6 +993,13 @@ func (check *Checker) rawExpr(T *target, x *operand, e syntax.Expr, hint Type, a
 		check.nonGeneric(T, x)
 	}
 
+	// Here, x is a value, meaning it has a type. If that type is pending, then we have
+	// a cycle. As an example:
+	//
+	//  type T [unsafe.Sizeof(T{})]int
+	//
+	// has a cycle T->T which is deemed valid (by decl.go), but which is in fact invalid.
+	check.pendingType(x)
 	check.record(x)
 
 	return kind
@@ -1027,6 +1034,22 @@ func (check *Checker) nonGeneric(T *target, x *operand) {
 	}
 }
 
+// If x has a pending type (i.e. its declaring object is on the object path), pendingType
+// reports an error and invalidates x.mode and x.typ.
+// Otherwise it leaves x alone.
+func (check *Checker) pendingType(x *operand) {
+	if x.mode == invalid || x.mode == novalue {
+		return
+	}
+	if n, ok := Unalias(x.typ).(*Named); ok {
+		if i, ok := check.objPathIdx[n.obj]; ok {
+			check.cycleError(check.objPath, i)
+			x.mode = invalid
+			x.typ = Typ[Invalid]
+		}
+	}
+}
+
 // exprInternal contains the core of type checking of expressions.
 // Must only be called by rawExpr.
 // (See rawExpr for an explanation of the parameters.)
@@ -1044,7 +1067,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 		goto Error // error was reported before
 
 	case *syntax.Name:
-		check.ident(x, e, nil, false)
+		check.ident(x, e, false)
 
 	case *syntax.DotsType:
 		// dots are handled explicitly where they are valid
@@ -1079,7 +1102,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 		return kind
 
 	case *syntax.SelectorExpr:
-		check.selector(x, e, nil, false)
+		check.selector(x, e, false)
 
 	case *syntax.IndexExpr:
 		if check.indexExpr(x, e) {
@@ -1247,7 +1270,7 @@ Error:
 // represented as an integer (such as 1.0) it is returned as an integer value.
 // This ensures that constants of different kind but equal value (such as
 // 1.0 + 0i, 1.0, 1) result in the same value.
-func keyVal(x constant.Value) interface{} {
+func keyVal(x constant.Value) any {
 	switch x.Kind() {
 	case constant.Complex:
 		f := constant.ToFloat(x)

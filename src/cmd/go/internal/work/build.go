@@ -238,8 +238,6 @@ See also: go install, go get, go clean.
 	`,
 }
 
-const concurrentGCBackendCompilationEnabledByDefault = true
-
 func init() {
 	// break init cycle
 	CmdBuild.Run = runBuild
@@ -460,7 +458,7 @@ var pkgsFilter = func(pkgs []*load.Package) []*load.Package { return pkgs }
 
 func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 	moduleLoaderState := modload.NewState()
-	modload.InitWorkfile(moduleLoaderState)
+	moduleLoaderState.InitWorkfile()
 	BuildInit(moduleLoaderState)
 	b := NewBuilder("", moduleLoaderState.VendorDirOrEmpty)
 	defer func() {
@@ -696,10 +694,10 @@ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
-	modload.InitWorkfile(moduleLoaderState)
+	moduleLoaderState.InitWorkfile()
 	BuildInit(moduleLoaderState)
 	pkgs := load.PackagesAndErrors(moduleLoaderState, ctx, load.PackageOpts{AutoVCS: true}, args)
-	if cfg.ModulesEnabled && !modload.HasModRoot(moduleLoaderState) {
+	if cfg.ModulesEnabled && !moduleLoaderState.HasModRoot() {
 		haveErrors := false
 		allMissingErrors := true
 		for _, pkg := range pkgs {
@@ -863,7 +861,7 @@ func InstallPackages(loaderstate *modload.State, ctx context.Context, patterns [
 func installOutsideModule(loaderstate *modload.State, ctx context.Context, args []string) {
 	loaderstate.ForceUseModules = true
 	loaderstate.RootMode = modload.NoRoot
-	modload.AllowMissingModuleImports(loaderstate)
+	loaderstate.AllowMissingModuleImports()
 	modload.Init(loaderstate)
 	BuildInit(loaderstate)
 

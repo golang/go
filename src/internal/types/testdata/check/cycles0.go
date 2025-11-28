@@ -45,7 +45,7 @@ type (
 
 	// pointers
 	P0 *P0
-	PP *struct{ PP.f /* ERROR "PP.f is not a type" */ }
+	PP /* ERROR "invalid recursive type" */ *struct{ PP.f }
 
 	// functions
 	F0 func(F0)
@@ -157,10 +157,10 @@ type (
 // test cases for issue 18643
 // (type cycle detection when non-type expressions are involved)
 type (
-	T14 [len(T14 /* ERROR "invalid recursive type" */ {})]int
-	T15 [][len(T15 /* ERROR "invalid recursive type" */ {})]int
-	T16 map[[len(T16 /* ERROR "invalid recursive type" */ {1:2})]int]int
-	T17 map[int][len(T17 /* ERROR "invalid recursive type" */ {1:2})]int
+	T14 /* ERROR "invalid recursive type" */ [len(T14{})]int
+	T15 /* ERROR "invalid recursive type" */ [][len(T15{})]int
+	T16 /* ERROR "invalid recursive type" */ map[[len(T16{1:2})]int]int
+	T17 /* ERROR "invalid recursive type" */ map[int][len(T17{1:2})]int
 )
 
 // Test case for types depending on function literals (see also #22992).

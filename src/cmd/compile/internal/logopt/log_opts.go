@@ -224,12 +224,12 @@ type Diagnostic struct {
 // A LoggedOpt is what the compiler produces and accumulates,
 // to be converted to JSON for human or IDE consumption.
 type LoggedOpt struct {
-	pos          src.XPos      // Source code position at which the event occurred. If it is inlined, outer and all inlined locations will appear in JSON.
-	lastPos      src.XPos      // Usually the same as pos; current exception is for reporting entire range of transformed loops
-	compilerPass string        // Compiler pass.  For human/adhoc consumption; does not appear in JSON (yet)
-	functionName string        // Function name.  For human/adhoc consumption; does not appear in JSON (yet)
-	what         string        // The (non) optimization; "nilcheck", "boundsCheck", "inline", "noInline"
-	target       []interface{} // Optional target(s) or parameter(s) of "what" -- what was inlined, why it was not, size of copy, etc. 1st is most important/relevant.
+	pos          src.XPos // Source code position at which the event occurred. If it is inlined, outer and all inlined locations will appear in JSON.
+	lastPos      src.XPos // Usually the same as pos; current exception is for reporting entire range of transformed loops
+	compilerPass string   // Compiler pass.  For human/adhoc consumption; does not appear in JSON (yet)
+	functionName string   // Function name.  For human/adhoc consumption; does not appear in JSON (yet)
+	what         string   // The (non) optimization; "nilcheck", "boundsCheck", "inline", "noInline"
+	target       []any    // Optional target(s) or parameter(s) of "what" -- what was inlined, why it was not, size of copy, etc. 1st is most important/relevant.
 }
 
 type logFormat uint8
@@ -325,7 +325,7 @@ var mu = sync.Mutex{} // mu protects loggedOpts.
 // Pos is the source position (including inlining), what is the message, pass is which pass created the message,
 // funcName is the name of the function
 // A typical use for this to accumulate an explanation for a missed optimization, for example, why did something escape?
-func NewLoggedOpt(pos, lastPos src.XPos, what, pass, funcName string, args ...interface{}) *LoggedOpt {
+func NewLoggedOpt(pos, lastPos src.XPos, what, pass, funcName string, args ...any) *LoggedOpt {
 	pass = strings.ReplaceAll(pass, " ", "_")
 	return &LoggedOpt{pos, lastPos, pass, funcName, what, args}
 }
@@ -333,7 +333,7 @@ func NewLoggedOpt(pos, lastPos src.XPos, what, pass, funcName string, args ...in
 // LogOpt logs information about a (usually missed) optimization performed by the compiler.
 // Pos is the source position (including inlining), what is the message, pass is which pass created the message,
 // funcName is the name of the function.
-func LogOpt(pos src.XPos, what, pass, funcName string, args ...interface{}) {
+func LogOpt(pos src.XPos, what, pass, funcName string, args ...any) {
 	if Format == None {
 		return
 	}
@@ -346,7 +346,7 @@ func LogOpt(pos src.XPos, what, pass, funcName string, args ...interface{}) {
 
 // LogOptRange is the same as LogOpt, but includes the ability to express a range of positions,
 // not just a point.
-func LogOptRange(pos, lastPos src.XPos, what, pass, funcName string, args ...interface{}) {
+func LogOptRange(pos, lastPos src.XPos, what, pass, funcName string, args ...any) {
 	if Format == None {
 		return
 	}

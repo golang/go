@@ -113,12 +113,19 @@ type Flags struct {
 	// platforms.
 	RandomizedHeapBase64 bool
 
-	// RuntimeFree enables the runtime to free and reuse memory more eagerly in some circumstances with compiler help.
-	RuntimeFree bool
+	// RuntimeFreegc enables the runtime to free and reuse memory more eagerly in some circumstances with compiler help.
+	RuntimeFreegc bool
 
 	// SizeSpecializedMalloc enables malloc implementations that are specialized per size class.
 	SizeSpecializedMalloc bool
 
 	// GoroutineLeakProfile enables the collection of goroutine leak profiles.
 	GoroutineLeakProfile bool
+
+	// SIMD enables the simd package and the compiler's handling
+	// of SIMD intrinsics.
+	SIMD bool
+
+	// RuntimeSecret enables the runtime/secret package.
+	RuntimeSecret bool
 }

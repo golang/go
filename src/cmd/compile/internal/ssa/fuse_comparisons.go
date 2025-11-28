@@ -19,6 +19,14 @@ func fuseNanCheck(b *Block) bool {
 	return fuseComparisons(b, canOptNanCheck)
 }
 
+// fuseSingleBitDifference replaces the short-circuit operators between equality checks with
+// constants that only differ by a single bit. For example, it would convert
+// `if x == 4 || x == 6 { ... }` into `if (x == 4) | (x == 6) { ... }`. Rewrite rules can
+// then optimize these using a bitwise operation, in this case generating `if x|2 == 6 { ... }`.
+func fuseSingleBitDifference(b *Block) bool {
+	return fuseComparisons(b, canOptSingleBitDifference)
+}
+
 // fuseComparisons looks for control graphs that match this pattern:
 //
 //	p - predecessor
@@ -228,4 +236,41 @@ func canOptNanCheck(x, y *Value, op Op) bool {
 		}
 	}
 	return false
+}
+
+// canOptSingleBitDifference returns true if x op y matches either:
+//
+//	v == c || v == d
+//	v != c && v != d
+//
+// Where c and d are constant values that differ by a single bit.
+func canOptSingleBitDifference(x, y *Value, op Op) bool {
+	if x.Op != y.Op {
+		return false
+	}
+	switch x.Op {
+	case OpEq64, OpEq32, OpEq16, OpEq8:
+		if op != OpOrB {
+			return false
+		}
+	case OpNeq64, OpNeq32, OpNeq16, OpNeq8:
+		if op != OpAndB {
+			return false
+		}
+	default:
+		return false
+	}
+
+	xi := getConstIntArgIndex(x)
+	if xi < 0 {
+		return false
+	}
+	yi := getConstIntArgIndex(y)
+	if yi < 0 {
+		return false
+	}
+	if x.Args[xi^1] != y.Args[yi^1] {
+		return false
+	}
+	return oneBit(x.Args[xi].AuxInt ^ y.Args[yi].AuxInt)
 }

@@ -116,9 +116,12 @@ type Origin struct {
 	Ref string `json:",omitempty"`
 
 	// If RepoSum is non-empty, then the resolution of this module version
-	// failed due to the repo being available but the version not being present.
-	// This depends on the entire state of the repo, which RepoSum summarizes.
-	// For Git, this is a hash of all the refs and their hashes.
+	// depends on the entire state of the repo, which RepoSum summarizes.
+	// For Git, this is a hash of all the refs and their hashes, and the RepoSum
+	// is only needed for module versions that don't exist.
+	// For Mercurial, this is a hash of all the branches and their heads' hashes,
+	// since the set of available tags is dervied from .hgtags files in those branches,
+	// and the RepoSum is used for all module versions, available and not,
 	RepoSum string `json:",omitempty"`
 }
 

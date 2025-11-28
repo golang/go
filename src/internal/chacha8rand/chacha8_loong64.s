@@ -77,14 +77,14 @@ lsx_chacha8:
 	VXORV	V15, V15, V15
 
 	// save seed state for adding back later
-	VORV	V4, V13, V20
-	VORV	V5, V13, V21
-	VORV	V6, V13, V22
-	VORV	V7, V13, V23
-	VORV	V8, V13, V24
-	VORV	V9, V13, V25
-	VORV	V10, V13, V26
-	VORV	V11, V13, V27
+	VMOVQ	V4, V20
+	VMOVQ	V5, V21
+	VMOVQ	V6, V22
+	VMOVQ	V7, V23
+	VMOVQ	V8, V24
+	VMOVQ	V9, V25
+	VMOVQ	V10, V26
+	VMOVQ	V11, V27
 
 	// 4 iterations. Each iteration is 8 quarter-rounds.
 	MOVV	$4, R7

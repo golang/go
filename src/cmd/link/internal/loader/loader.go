@@ -241,6 +241,7 @@ type Loader struct {
 	plt         map[Sym]int32       // stores dynimport for pe objects
 	got         map[Sym]int32       // stores got for pe objects
 	dynid       map[Sym]int32       // stores Dynid for symbol
+	weakBinding map[Sym]bool        // stores whether a symbol has a weak binding
 
 	relocVariant map[relocId]sym.RelocVariant // stores variant relocs
 
@@ -326,6 +327,7 @@ func NewLoader(flags uint32, reporter *ErrorReporter) *Loader {
 		plt:                  make(map[Sym]int32),
 		got:                  make(map[Sym]int32),
 		dynid:                make(map[Sym]int32),
+		weakBinding:          make(map[Sym]bool),
 		attrCgoExportDynamic: make(map[Sym]struct{}),
 		attrCgoExportStatic:  make(map[Sym]struct{}),
 		deferReturnTramp:     make(map[Sym]bool),
@@ -1447,6 +1449,18 @@ func (l *Loader) SetSymExtname(i Sym, value string) {
 	}
 }
 
+func (l *Loader) SymWeakBinding(i Sym) bool {
+	return l.weakBinding[i]
+}
+
+func (l *Loader) SetSymWeakBinding(i Sym, v bool) {
+	// reject bad symbols
+	if i >= Sym(len(l.objSyms)) || i == 0 {
+		panic("bad symbol index in SetSymWeakBinding")
+	}
+	l.weakBinding[i] = v
+}
+
 // SymElfType returns the previously recorded ELF type for a symbol
 // (used only for symbols read from shared libraries by ldshlibsyms).
 // It is not set for symbols defined by the packages being linked or
@@ -2450,10 +2464,11 @@ var blockedLinknames = map[string][]string{
 	// Experimental features
 	"runtime.goroutineLeakGC":    {"runtime/pprof"},
 	"runtime.goroutineleakcount": {"runtime/pprof"},
+	"runtime.freegc":             {}, // disallow all packages
 	// Others
 	"net.newWindowsFile":                   {"net"},              // pushed from os
 	"testing/synctest.testingSynctestTest": {"testing/synctest"}, // pushed from testing
-	"runtime.addmoduledata":                {},                   // disallow all package
+	"runtime.addmoduledata":                {},                   // disallow all packages
 }
 
 // check if a linkname reference to symbol s from pkg is allowed
@@ -2807,7 +2822,7 @@ type ErrorReporter struct {
 //
 // Logging an error means that on exit cmd/link will delete any
 // output file and return a non-zero error code.
-func (reporter *ErrorReporter) Errorf(s Sym, format string, args ...interface{}) {
+func (reporter *ErrorReporter) Errorf(s Sym, format string, args ...any) {
 	if s != 0 && reporter.ldr.SymName(s) != "" {
 		// Note: Replace is needed here because symbol names might have % in them,
 		// due to the use of LinkString for names of instantiating types.
@@ -2826,7 +2841,7 @@ func (l *Loader) GetErrorReporter() *ErrorReporter {
 }
 
 // Errorf method logs an error message. See ErrorReporter.Errorf for details.
-func (l *Loader) Errorf(s Sym, format string, args ...interface{}) {
+func (l *Loader) Errorf(s Sym, format string, args ...any) {
 	l.errorReporter.Errorf(s, format, args...)
 }
 

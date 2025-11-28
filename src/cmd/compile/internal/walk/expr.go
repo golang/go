@@ -351,6 +351,11 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 
 	case ir.OMETHVALUE:
 		return walkMethodValue(n.(*ir.SelectorExpr), init)
+
+	case ir.OMOVE2HEAP:
+		n := n.(*ir.MoveToHeapExpr)
+		n.Slice = walkExpr(n.Slice, init)
+		return n
 	}
 
 	// No return! Each case must return (or panic),
@@ -704,27 +709,21 @@ func walkDivMod(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 	// runtime calls late in SSA processing.
 	if types.RegSize < 8 && (et == types.TINT64 || et == types.TUINT64) {
 		if n.Y.Op() == ir.OLITERAL {
-			// Leave div/mod by constant powers of 2 or small 16-bit constants.
+			// Leave div/mod by non-zero uint64 constants.
 			// The SSA backend will handle those.
+			// (Zero constants should have been rejected already, but we check just in case.)
 			switch et {
 			case types.TINT64:
-				c := ir.Int64Val(n.Y)
-				if c < 0 {
-					c = -c
-				}
-				if c != 0 && c&(c-1) == 0 {
+				if ir.Int64Val(n.Y) != 0 {
 					return n
 				}
 			case types.TUINT64:
-				c := ir.Uint64Val(n.Y)
-				if c < 1<<16 {
-					return n
-				}
-				if c != 0 && c&(c-1) == 0 {
+				if ir.Uint64Val(n.Y) != 0 {
 					return n
 				}
 			}
 		}
+		// Build call to uint64div, uint64mod, int64div, or int64mod.
 		var fn string
 		if et == types.TINT64 {
 			fn = "int64"

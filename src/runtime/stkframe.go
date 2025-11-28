@@ -234,7 +234,7 @@ func (frame *stkframe) getStackMap(debug bool) (locals, args bitvector, objs []s
 	}
 
 	// stack objects.
-	if (GOARCH == "amd64" || GOARCH == "arm64" || GOARCH == "loong64" || GOARCH == "ppc64" || GOARCH == "ppc64le" || GOARCH == "riscv64") &&
+	if (GOARCH == "amd64" || GOARCH == "arm64" || GOARCH == "loong64" || GOARCH == "ppc64" || GOARCH == "ppc64le" || GOARCH == "riscv64" || GOARCH == "s390x") &&
 		unsafe.Sizeof(abi.RegArgs{}) > 0 && isReflect {
 		// For reflect.makeFuncStub and reflect.methodValueCall,
 		// we need to fake the stack object record.

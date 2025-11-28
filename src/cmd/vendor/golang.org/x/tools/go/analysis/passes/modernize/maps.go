@@ -15,23 +15,20 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
-	"golang.org/x/tools/internal/analysisinternal"
-	"golang.org/x/tools/internal/analysisinternal/generated"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
 	"golang.org/x/tools/internal/astutil"
 	"golang.org/x/tools/internal/refactor"
 	"golang.org/x/tools/internal/typeparams"
 	"golang.org/x/tools/internal/typesinternal"
+	"golang.org/x/tools/internal/versions"
 )
 
 var MapsLoopAnalyzer = &analysis.Analyzer{
-	Name: "mapsloop",
-	Doc:  analysisinternal.MustExtractDoc(doc, "mapsloop"),
-	Requires: []*analysis.Analyzer{
-		generated.Analyzer,
-		inspect.Analyzer,
-	},
-	Run: mapsloop,
-	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#mapsloop",
+	Name:     "mapsloop",
+	Doc:      analyzerutil.MustExtractDoc(doc, "mapsloop"),
+	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Run:      mapsloop,
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#mapsloop",
 }
 
 // The mapsloop pass offers to simplify a loop of map insertions:
@@ -55,8 +52,6 @@ var MapsLoopAnalyzer = &analysis.Analyzer{
 //	m = make(M)
 //	m = M{}
 func mapsloop(pass *analysis.Pass) (any, error) {
-	skipGenerated(pass)
-
 	// Skip the analyzer in packages where its
 	// fixes would create an import cycle.
 	if within(pass, "maps", "bytes", "runtime") {
@@ -223,8 +218,7 @@ func mapsloop(pass *analysis.Pass) (any, error) {
 	}
 
 	// Find all range loops around m[k] = v.
-	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
-	for curFile := range filesUsing(inspect, pass.TypesInfo, "go1.23") {
+	for curFile := range filesUsingGoVersion(pass, versions.Go1_23) {
 		file := curFile.Node().(*ast.File)
 
 		for curRange := range curFile.Preorder((*ast.RangeStmt)(nil)) {
@@ -239,13 +233,16 @@ func mapsloop(pass *analysis.Pass) (any, error) {
 				assign := rng.Body.List[0].(*ast.AssignStmt)
 				if index, ok := assign.Lhs[0].(*ast.IndexExpr); ok &&
 					astutil.EqualSyntax(rng.Key, index.Index) &&
-					astutil.EqualSyntax(rng.Value, assign.Rhs[0]) &&
-					is[*types.Map](typeparams.CoreType(info.TypeOf(index.X))) &&
-					types.Identical(info.TypeOf(index), info.TypeOf(rng.Value)) { // m[k], v
+					astutil.EqualSyntax(rng.Value, assign.Rhs[0]) {
+					if tmap, ok := typeparams.CoreType(info.TypeOf(index.X)).(*types.Map); ok &&
+						types.Identical(info.TypeOf(index), info.TypeOf(rng.Value)) && // m[k], v
+						types.Identical(tmap.Key(), info.TypeOf(rng.Key)) {
 
-					// Have: for k, v := range x { m[k] = v }
-					// where there is no implicit conversion.
-					check(file, curRange, assign, index.X, rng.X)
+						// Have: for k, v := range x { m[k] = v }
+						// where there is no implicit conversion
+						// of either key or value.
+						check(file, curRange, assign, index.X, rng.X)
+					}
 				}
 			}
 		}

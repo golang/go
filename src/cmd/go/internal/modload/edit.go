@@ -5,16 +5,17 @@
 package modload
 
 import (
-	"cmd/go/internal/cfg"
-	"cmd/go/internal/gover"
-	"cmd/go/internal/mvs"
-	"cmd/internal/par"
 	"context"
 	"errors"
 	"fmt"
 	"maps"
 	"os"
 	"slices"
+
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/gover"
+	"cmd/go/internal/mvs"
+	"cmd/internal/par"
 
 	"golang.org/x/mod/module"
 )

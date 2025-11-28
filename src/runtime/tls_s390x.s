@@ -19,7 +19,7 @@
 //
 // If !iscgo, this is a no-op.
 //
-// NOTE: setg_gcc<> assume this clobbers only R10 and R11.
+// NOTE: setg_gcc<> and mcall assume this clobbers only R10 and R11.
 TEXT runtime·save_g(SB),NOSPLIT|NOFRAME,$0-0
 	MOVB	runtime·iscgo(SB),  R10
 	CMPBEQ	R10, $0, nocgo

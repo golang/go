@@ -9,6 +9,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"fmt"
+	"internal/buildcfg"
 	"math"
 	"sort"
 	"strings"
@@ -471,9 +472,9 @@ func (v *Value) copyIntoWithXPos(b *Block, pos src.XPos) *Value {
 	return c
 }
 
-func (v *Value) Logf(msg string, args ...interface{}) { v.Block.Logf(msg, args...) }
-func (v *Value) Log() bool                            { return v.Block.Log() }
-func (v *Value) Fatalf(msg string, args ...interface{}) {
+func (v *Value) Logf(msg string, args ...any) { v.Block.Logf(msg, args...) }
+func (v *Value) Log() bool                    { return v.Block.Log() }
+func (v *Value) Fatalf(msg string, args ...any) {
 	v.Block.Func.fe.Fatalf(v.Pos, msg, args...)
 }
 
@@ -612,11 +613,17 @@ func AutoVar(v *Value) (*ir.Name, int64) {
 // CanSSA reports whether values of type t can be represented as a Value.
 func CanSSA(t *types.Type) bool {
 	types.CalcSize(t)
-	if t.Size() > int64(4*types.PtrSize) {
+	if t.IsSIMD() {
+		return true
+	}
+	sizeLimit := int64(MaxStruct * types.PtrSize)
+	if t.Size() > sizeLimit {
 		// 4*Widthptr is an arbitrary constant. We want it
 		// to be at least 3*Widthptr so slices can be registerized.
 		// Too big and we'll introduce too much register pressure.
-		return false
+		if !buildcfg.Experiment.SIMD {
+			return false
+		}
 	}
 	switch t.Kind() {
 	case types.TARRAY:
@@ -636,7 +643,17 @@ func CanSSA(t *types.Type) bool {
 				return false
 			}
 		}
-		return true
+		// Special check for SIMD. If the composite type
+		// contains SIMD vectors we can return true
+		// if it pass the checks below.
+		if !buildcfg.Experiment.SIMD {
+			return true
+		}
+		if t.Size() <= sizeLimit {
+			return true
+		}
+		i, f := t.Registers()
+		return i+f <= MaxStruct
 	default:
 		return true
 	}

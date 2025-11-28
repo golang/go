@@ -13,7 +13,7 @@ import (
 //go:generate go run . -out ../sha1block_amd64.s -pkg sha1
 
 // AVX2 version by Intel, same algorithm as code in Linux kernel:
-// https://github.com/torvalds/linux/blob/master/arch/x86/crypto/sha1_avx2_x86_64_asm.S
+// https://github.com/torvalds/linux/blob/master/lib/crypto/x86/sha1-avx2-asm.S
 // Authors:
 // Ilya Albrekht <ilya.albrekht@intel.com>
 // Maxim Locktyukhin <maxim.locktyukhin@intel.com>

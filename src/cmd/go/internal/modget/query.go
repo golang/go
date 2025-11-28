@@ -184,7 +184,7 @@ func (q *query) validate(loaderstate *modload.State) error {
 
 	if q.pattern == "all" {
 		// If there is no main module, "all" is not meaningful.
-		if !modload.HasModRoot(loaderstate) {
+		if !loaderstate.HasModRoot() {
 			return fmt.Errorf(`cannot match "all": %v`, modload.NewNoMainModulesError(loaderstate))
 		}
 		if !versionOkForMainModule(q.version) {

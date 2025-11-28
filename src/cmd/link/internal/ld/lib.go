@@ -923,9 +923,7 @@ func (ctxt *Link) linksetup() {
 		mdsb = ctxt.loader.MakeSymbolUpdater(moduledata)
 		ctxt.loader.SetAttrLocal(moduledata, true)
 	}
-	// In all cases way we mark the moduledata as noptrdata to hide it from
-	// the GC.
-	mdsb.SetType(sym.SNOPTRDATA)
+	mdsb.SetType(sym.SMODULEDATA)
 	ctxt.loader.SetAttrReachable(moduledata, true)
 	ctxt.Moduledata = moduledata
 

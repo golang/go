@@ -60,6 +60,7 @@ func BuildInit(loaderstate *modload.State) {
 	modload.Init(loaderstate)
 	instrumentInit()
 	buildModeInit()
+	initCompilerConcurrencyPool()
 	cfgChangedEnv = makeCfgChangedEnv()
 
 	if err := fsys.Init(); err != nil {

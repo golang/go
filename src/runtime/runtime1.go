@@ -8,7 +8,7 @@ import (
 	"internal/bytealg"
 	"internal/goarch"
 	"internal/runtime/atomic"
-	"internal/runtime/strconv"
+	"internal/strconv"
 	"unsafe"
 )
 
@@ -39,7 +39,7 @@ func gotraceback() (level int32, all, crash bool) {
 	gp := getg()
 	t := atomic.Load(&traceback_cache)
 	crash = t&tracebackCrash != 0
-	all = gp.m.throwing >= throwTypeUser || t&tracebackAll != 0
+	all = gp.m.throwing > throwTypeUser || t&tracebackAll != 0
 	if gp.m.traceback != 0 {
 		level = int32(gp.m.traceback)
 	} else if gp.m.throwing >= throwTypeRuntime {
@@ -212,10 +212,6 @@ func check() {
 		throw("bad unsafe.Sizeof y1")
 	}
 
-	if timediv(12345*1000000000+54321, 1000000000, &e) != 12345 || e != 54321 {
-		throw("bad timediv")
-	}
-
 	var z uint32
 	z = 1
 	if !atomic.Cas(&z, 1, 2) {
@@ -364,6 +360,10 @@ var debug struct {
 	// but allowing it is convenient for testing and for programs
 	// that do an os.Setenv in main.init or main.main.
 	asynctimerchan atomic.Int32
+
+	// tracebacklabels controls the inclusion of goroutine labels in the
+	// goroutine status header line.
+	tracebacklabels atomic.Int32
 }
 
 var dbgvars = []*dbgVar{
@@ -398,6 +398,7 @@ var dbgvars = []*dbgVar{
 	{name: "traceallocfree", atomic: &debug.traceallocfree},
 	{name: "tracecheckstackownership", value: &debug.traceCheckStackOwnership},
 	{name: "tracebackancestors", value: &debug.tracebackancestors},
+	{name: "tracebacklabels", atomic: &debug.tracebacklabels, def: 0},
 	{name: "tracefpunwindoff", value: &debug.tracefpunwindoff},
 	{name: "updatemaxprocs", value: &debug.updatemaxprocs, def: 1},
 }
@@ -532,17 +533,17 @@ func parsegodebug(godebug string, seen map[string]bool) {
 		// is int, not int32, and should only be updated
 		// if specified in GODEBUG.
 		if seen == nil && key == "memprofilerate" {
-			if n, ok := strconv.Atoi(value); ok {
+			if n, err := strconv.Atoi(value); err == nil {
 				MemProfileRate = n
 			}
 		} else {
 			for _, v := range dbgvars {
 				if v.name == key {
-					if n, ok := strconv.Atoi32(value); ok {
+					if n, err := strconv.ParseInt(value, 10, 32); err == nil {
 						if seen == nil && v.value != nil {
-							*v.value = n
+							*v.value = int32(n)
 						} else if v.atomic != nil {
-							v.atomic.Store(n)
+							v.atomic.Store(int32(n))
 						}
 					}
 				}
@@ -578,7 +579,7 @@ func setTraceback(level string) {
 		fallthrough
 	default:
 		t = tracebackAll
-		if n, ok := strconv.Atoi(level); ok && n == int(uint32(n)) {
+		if n, err := strconv.Atoi(level); err == nil && n == int(uint32(n)) {
 			t |= uint32(n) << tracebackShift
 		}
 	}
@@ -591,35 +592,6 @@ func setTraceback(level string) {
 	t |= traceback_env
 
 	atomic.Store(&traceback_cache, t)
-}
-
-// Poor mans 64-bit division.
-// This is a very special function, do not use it if you are not sure what you are doing.
-// int64 division is lowered into _divv() call on 386, which does not fit into nosplit functions.
-// Handles overflow in a time-specific manner.
-// This keeps us within no-split stack limits on 32-bit processors.
-//
-//go:nosplit
-func timediv(v int64, div int32, rem *int32) int32 {
-	res := int32(0)
-	for bit := 30; bit >= 0; bit-- {
-		if v >= int64(div)<<uint(bit) {
-			v = v - (int64(div) << uint(bit))
-			// Before this for loop, res was 0, thus all these
-			// power of 2 increments are now just bitsets.
-			res |= 1 << uint(bit)
-		}
-	}
-	if v >= int64(div) {
-		if rem != nil {
-			*rem = 0
-		}
-		return 0x7fffffff
-	}
-	if rem != nil {
-		*rem = int32(v)
-	}
-	return res
 }
 
 // Helpers for Go. Must be NOSPLIT, must only call NOSPLIT functions, and must not block.

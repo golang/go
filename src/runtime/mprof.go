@@ -1261,7 +1261,7 @@ func goroutineProfileWithLabels(p []profilerecord.StackRecord, labels []unsafe.P
 
 //go:linkname pprof_goroutineLeakProfileWithLabels
 func pprof_goroutineLeakProfileWithLabels(p []profilerecord.StackRecord, labels []unsafe.Pointer) (n int, ok bool) {
-	return goroutineLeakProfileWithLabelsConcurrent(p, labels)
+	return goroutineLeakProfileWithLabels(p, labels)
 }
 
 // labels may be nil. If labels is non-nil, it must have the same length as p.
@@ -1323,30 +1323,26 @@ func goroutineLeakProfileWithLabelsConcurrent(p []profilerecord.StackRecord, lab
 		return work.goroutineLeak.count, false
 	}
 
-	// Use the same semaphore as goroutineProfileWithLabelsConcurrent,
-	// because ultimately we still use goroutine profiles.
-	semacquire(&goroutineProfile.sema)
-
-	// Unlike in goroutineProfileWithLabelsConcurrent, we don't need to
-	// save the current goroutine stack, because it is obviously not leaked.
-
 	pcbuf := makeProfStack() // see saveg() for explanation
 
 	// Prepare a profile large enough to store all leaked goroutines.
 	n = work.goroutineLeak.count
 
 	if n > len(p) {
-		// There's not enough space in p to store the whole profile, so (per the
-		// contract of runtime.GoroutineProfile) we're not allowed to write to p
-		// at all and must return n, false.
-		semrelease(&goroutineProfile.sema)
+		// There's not enough space in p to store the whole profile, so
+		// we're not allowed to write to p at all and must return n, false.
 		return n, false
 	}
 
 	// Visit each leaked goroutine and try to record its stack.
+	var offset int
 	forEachGRace(func(gp1 *g) {
-		if readgstatus(gp1) == _Gleaked {
-			doRecordGoroutineProfile(gp1, pcbuf)
+		if readgstatus(gp1)&^_Gscan == _Gleaked {
+			systemstack(func() { saveg(^uintptr(0), ^uintptr(0), gp1, &p[offset], pcbuf) })
+			if labels != nil {
+				labels[offset] = gp1.labels
+			}
+			offset++
 		}
 	})
 
@@ -1354,7 +1350,6 @@ func goroutineLeakProfileWithLabelsConcurrent(p []profilerecord.StackRecord, lab
 		raceacquire(unsafe.Pointer(&labelSync))
 	}
 
-	semrelease(&goroutineProfile.sema)
 	return n, true
 }
 
@@ -1535,7 +1530,18 @@ func doRecordGoroutineProfile(gp1 *g, pcbuf []uintptr) {
 		// everything else, we just don't record the stack in the profile.
 		return
 	}
-	if readgstatus(gp1) == _Grunning {
+	// Double-check that we didn't make a grave mistake. If the G is running then in
+	// general, we cannot safely read its stack.
+	//
+	// However, there is one case where it's OK. There's a small window of time in
+	// exitsyscall where a goroutine could be in _Grunning as it's exiting a syscall.
+	// This is OK because goroutine will not exit the syscall until it passes through
+	// a call to tryRecordGoroutineProfile. (An explicit one on the fast path, an
+	// implicit one via the scheduler on the slow path.)
+	//
+	// This is also why it's safe to check syscallsp here. The syscall path mutates
+	// syscallsp only after passing through tryRecordGoroutineProfile.
+	if readgstatus(gp1) == _Grunning && gp1.syscallsp == 0 {
 		print("doRecordGoroutineProfile gp1=", gp1.goid, "\n")
 		throw("cannot read stack of running goroutine")
 	}

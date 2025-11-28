@@ -4,7 +4,7 @@
 
 // This file contains rules to decompose builtin compound types
 // (complex,string,slice,interface) into their constituent
-// types.  These rules work together with the decomposeBuiltIn
+// types.  These rules work together with the decomposeBuiltin
 // pass which handles phis of these types.
 
 (Store {t} _ _ mem) && t.Size() == 0 => mem
@@ -97,8 +97,10 @@
 // Helpers for expand calls
 // Some of these are copied from generic.rules
 
-(IMake _typ (StructMake val)) => (IMake _typ val)
-(StructSelect [0] (IData x)) => (IData x)
+(IMake _typ (StructMake ___)) => imakeOfStructMake(v)
+(StructSelect (IData x)) && v.Type.Size() > 0 => (IData x)
+(StructSelect (IData x)) && v.Type.Size() == 0 && v.Type.IsStruct() => (StructMake)
+(StructSelect (IData x)) && v.Type.Size() == 0 && v.Type.IsArray() => (ArrayMake0)
 
 (StructSelect [i] x:(StructMake ___)) => x.Args[i]
 
@@ -109,7 +111,7 @@
 // More annoying case: (ArraySelect[0] (StructSelect[0] isAPtr))
 // There, result of the StructSelect is an Array (not a pointer) and
 // the pre-rewrite input to the ArraySelect is a struct, not a pointer.
-(StructSelect [0] x) && x.Type.IsPtrShaped()  => x
+(StructSelect x) && x.Type.IsPtrShaped()  => x
 (ArraySelect [0] x) && x.Type.IsPtrShaped()  => x
 
 // These, too.  Bits is bits.
@@ -119,6 +121,7 @@
 
 (Store _ (StructMake ___) _) => rewriteStructStore(v)
 
+(IMake _typ (ArrayMake1 val)) => (IMake _typ val)
 (ArraySelect (ArrayMake1 x)) => x
 (ArraySelect [0] (IData x)) => (IData x)
 

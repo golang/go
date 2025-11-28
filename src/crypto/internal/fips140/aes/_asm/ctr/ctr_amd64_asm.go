@@ -16,7 +16,7 @@ import (
 //go:generate go run . -out ../../ctr_amd64.s
 
 func main() {
-	Package("crypto/aes")
+	Package("crypto/internal/fips140/aes")
 	ConstraintExpr("!purego")
 
 	ctrBlocks(1)
@@ -40,19 +40,79 @@ func ctrBlocks(numBlocks int) {
 	bswap := XMM()
 	MOVOU(bswapMask(), bswap)
 
-	blocks := make([]VecVirtual, 0, numBlocks)
+	blocks := make([]VecVirtual, numBlocks)
 
-	// Lay out counter block plaintext.
-	for i := 0; i < numBlocks; i++ {
-		x := XMM()
-		blocks = append(blocks, x)
+	// For the 8-block case we optimize counter generation. We build the first
+	// counter as usual, then check whether the remaining seven increments will
+	// overflow. When they do not (the common case) we keep the work entirely in
+	// XMM registers to avoid expensive general-purpose -> XMM moves. Otherwise
+	// we fall back to the traditional scalar path.
+	if numBlocks == 8 {
+		for i := range blocks {
+			blocks[i] = XMM()
+		}
 
-		MOVQ(ivlo, x)
-		PINSRQ(Imm(1), ivhi, x)
-		PSHUFB(bswap, x)
-		if i < numBlocks-1 {
-			ADDQ(Imm(1), ivlo)
-			ADCQ(Imm(0), ivhi)
+		base := XMM()
+		tmp := GP64()
+		addVec := XMM()
+
+		MOVQ(ivlo, blocks[0])
+		PINSRQ(Imm(1), ivhi, blocks[0])
+		MOVAPS(blocks[0], base)
+		PSHUFB(bswap, blocks[0])
+
+		// Check whether any of these eight counters will overflow.
+		MOVQ(ivlo, tmp)
+		ADDQ(Imm(uint64(numBlocks-1)), tmp)
+		slowLabel := fmt.Sprintf("ctr%d_slow", numBlocks)
+		doneLabel := fmt.Sprintf("ctr%d_done", numBlocks)
+		JC(LabelRef(slowLabel))
+
+		// Fast branch: create an XMM increment vector containing the value 1.
+		// Adding it to the base counter yields each subsequent counter.
+		XORQ(tmp, tmp)
+		INCQ(tmp)
+		PXOR(addVec, addVec)
+		PINSRQ(Imm(0), tmp, addVec)
+
+		for i := 1; i < numBlocks; i++ {
+			PADDQ(addVec, base)
+			MOVAPS(base, blocks[i])
+		}
+		JMP(LabelRef(doneLabel))
+
+		Label(slowLabel)
+		ADDQ(Imm(1), ivlo)
+		ADCQ(Imm(0), ivhi)
+		for i := 1; i < numBlocks; i++ {
+			MOVQ(ivlo, blocks[i])
+			PINSRQ(Imm(1), ivhi, blocks[i])
+			if i < numBlocks-1 {
+				ADDQ(Imm(1), ivlo)
+				ADCQ(Imm(0), ivhi)
+			}
+		}
+
+		Label(doneLabel)
+
+		// Convert little-endian counters to big-endian after the branch since
+		// both paths share the same shuffle sequence.
+		for i := 1; i < numBlocks; i++ {
+			PSHUFB(bswap, blocks[i])
+		}
+	} else {
+		// Lay out counter block plaintext.
+		for i := 0; i < numBlocks; i++ {
+			x := XMM()
+			blocks[i] = x
+
+			MOVQ(ivlo, x)
+			PINSRQ(Imm(1), ivhi, x)
+			PSHUFB(bswap, x)
+			if i < numBlocks-1 {
+				ADDQ(Imm(1), ivlo)
+				ADCQ(Imm(0), ivhi)
+			}
 		}
 	}
 

@@ -126,7 +126,7 @@ func run(ctx context.Context, cmd *base.Command, args []string) {
 
 	// The vet/fix commands do custom flag processing;
 	// initialize workspaces after that.
-	modload.InitWorkfile(moduleLoaderState)
+	moduleLoaderState.InitWorkfile()
 
 	if cfg.DebugTrace != "" {
 		var close func() error

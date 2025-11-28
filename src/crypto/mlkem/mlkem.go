@@ -11,7 +11,10 @@
 // [NIST FIPS 203]: https://doi.org/10.6028/NIST.FIPS.203
 package mlkem
 
-import "crypto/internal/fips140/mlkem"
+import (
+	"crypto"
+	"crypto/internal/fips140/mlkem"
+)
 
 const (
 	// SharedKeySize is the size of a shared key produced by ML-KEM.
@@ -40,7 +43,7 @@ type DecapsulationKey768 struct {
 }
 
 // GenerateKey768 generates a new decapsulation key, drawing random bytes from
-// the default crypto/rand source. The decapsulation key must be kept secret.
+// a secure source. The decapsulation key must be kept secret.
 func GenerateKey768() (*DecapsulationKey768, error) {
 	key, err := mlkem.GenerateKey768()
 	if err != nil {
@@ -82,6 +85,16 @@ func (dk *DecapsulationKey768) EncapsulationKey() *EncapsulationKey768 {
 	return &EncapsulationKey768{dk.key.EncapsulationKey()}
 }
 
+// Encapsulator returns the encapsulation key, like
+// [DecapsulationKey768.EncapsulationKey].
+//
+// It implements [crypto.Decapsulator].
+func (dk *DecapsulationKey768) Encapsulator() crypto.Encapsulator {
+	return dk.EncapsulationKey()
+}
+
+var _ crypto.Decapsulator = (*DecapsulationKey768)(nil)
+
 // An EncapsulationKey768 is the public key used to produce ciphertexts to be
 // decapsulated by the corresponding DecapsulationKey768.
 type EncapsulationKey768 struct {
@@ -105,9 +118,12 @@ func (ek *EncapsulationKey768) Bytes() []byte {
 }
 
 // Encapsulate generates a shared key and an associated ciphertext from an
-// encapsulation key, drawing random bytes from the default crypto/rand source.
+// encapsulation key, drawing random bytes from a secure source.
 //
 // The shared key must be kept secret.
+//
+// For testing, derandomized encapsulation is provided by the
+// [crypto/mlkem/mlkemtest] package.
 func (ek *EncapsulationKey768) Encapsulate() (sharedKey, ciphertext []byte) {
 	return ek.key.Encapsulate()
 }
@@ -119,7 +135,7 @@ type DecapsulationKey1024 struct {
 }
 
 // GenerateKey1024 generates a new decapsulation key, drawing random bytes from
-// the default crypto/rand source. The decapsulation key must be kept secret.
+// a secure source. The decapsulation key must be kept secret.
 func GenerateKey1024() (*DecapsulationKey1024, error) {
 	key, err := mlkem.GenerateKey1024()
 	if err != nil {
@@ -161,6 +177,16 @@ func (dk *DecapsulationKey1024) EncapsulationKey() *EncapsulationKey1024 {
 	return &EncapsulationKey1024{dk.key.EncapsulationKey()}
 }
 
+// Encapsulator returns the encapsulation key, like
+// [DecapsulationKey1024.EncapsulationKey].
+//
+// It implements [crypto.Decapsulator].
+func (dk *DecapsulationKey1024) Encapsulator() crypto.Encapsulator {
+	return dk.EncapsulationKey()
+}
+
+var _ crypto.Decapsulator = (*DecapsulationKey1024)(nil)
+
 // An EncapsulationKey1024 is the public key used to produce ciphertexts to be
 // decapsulated by the corresponding DecapsulationKey1024.
 type EncapsulationKey1024 struct {
@@ -184,9 +210,12 @@ func (ek *EncapsulationKey1024) Bytes() []byte {
 }
 
 // Encapsulate generates a shared key and an associated ciphertext from an
-// encapsulation key, drawing random bytes from the default crypto/rand source.
+// encapsulation key, drawing random bytes from a secure source.
 //
 // The shared key must be kept secret.
+//
+// For testing, derandomized encapsulation is provided by the
+// [crypto/mlkem/mlkemtest] package.
 func (ek *EncapsulationKey1024) Encapsulate() (sharedKey, ciphertext []byte) {
 	return ek.key.Encapsulate()
 }

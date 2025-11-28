@@ -1192,7 +1192,7 @@ func TestRenameCaseDifference(pt *testing.T) {
 			}
 
 			if dirNamesLen := len(dirNames); dirNamesLen != 1 {
-				t.Fatalf("unexpected dirNames len, got %q, want %q", dirNamesLen, 1)
+				t.Fatalf("unexpected dirNames len, got %d, want %d", dirNamesLen, 1)
 			}
 
 			if dirNames[0] != to {

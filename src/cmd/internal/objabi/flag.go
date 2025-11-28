@@ -85,7 +85,7 @@ var buildID string // filled in by linker
 type versionFlag struct{}
 
 func (versionFlag) IsBoolFlag() bool { return true }
-func (versionFlag) Get() interface{} { return nil }
+func (versionFlag) Get() any         { return nil }
 func (versionFlag) String() string   { return "" }
 func (versionFlag) Set(s string) error {
 	name := os.Args[0]
@@ -95,16 +95,10 @@ func (versionFlag) Set(s string) error {
 
 	p := ""
 
-	if s == "goexperiment" {
-		// test/run.go uses this to discover the full set of
-		// experiment tags. Report everything.
-		p = " X:" + strings.Join(buildcfg.Experiment.All(), ",")
-	} else {
-		// If the enabled experiments differ from the baseline,
-		// include that difference.
-		if goexperiment := buildcfg.Experiment.String(); goexperiment != "" {
-			p = " X:" + goexperiment
-		}
+	// If the enabled experiments differ from the baseline,
+	// include that difference.
+	if goexperiment := buildcfg.Experiment.String(); goexperiment != "" {
+		p = " X:" + goexperiment
 	}
 
 	// The go command invokes -V=full to get a unique identifier
@@ -148,7 +142,7 @@ func (c *count) Set(s string) error {
 	return nil
 }
 
-func (c *count) Get() interface{} {
+func (c *count) Get() any {
 	return int(*c)
 }
 
@@ -206,8 +200,8 @@ func DecodeArg(arg string) string {
 type debugField struct {
 	name         string
 	help         string
-	concurrentOk bool        // true if this field/flag is compatible with concurrent compilation
-	val          interface{} // *int or *string
+	concurrentOk bool // true if this field/flag is compatible with concurrent compilation
+	val          any  // *int or *string
 }
 
 type DebugFlag struct {
@@ -234,7 +228,7 @@ type DebugSSA func(phase, flag string, val int, valString string) string
 //
 // If debugSSA is non-nil, any debug flags of the form ssa/... will be
 // passed to debugSSA for processing.
-func NewDebugFlag(debug interface{}, debugSSA DebugSSA) *DebugFlag {
+func NewDebugFlag(debug any, debugSSA DebugSSA) *DebugFlag {
 	flag := &DebugFlag{
 		tab:      make(map[string]debugField),
 		debugSSA: debugSSA,

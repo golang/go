@@ -12,8 +12,8 @@ func cmovint(c int) int {
 		x = 182
 	}
 	// amd64:"CMOVQLT"
-	// arm64:"CSEL\tLT"
-	// ppc64x:"ISEL\t[$]0"
+	// arm64:"CSEL LT"
+	// ppc64x:"ISEL [$]0"
 	// wasm:"Select"
 	return x
 }
@@ -23,8 +23,8 @@ func cmovchan(x, y chan int) chan int {
 		x = y
 	}
 	// amd64:"CMOVQNE"
-	// arm64:"CSEL\tNE"
-	// ppc64x:"ISEL\t[$]2"
+	// arm64:"CSEL NE"
+	// ppc64x:"ISEL [$]2"
 	// wasm:"Select"
 	return x
 }
@@ -34,8 +34,8 @@ func cmovuintptr(x, y uintptr) uintptr {
 		x = -y
 	}
 	// amd64:"CMOVQ(HI|CS)"
-	// arm64:"CSNEG\tLS"
-	// ppc64x:"ISEL\t[$]1"
+	// arm64:"CSNEG LS"
+	// ppc64x:"ISEL [$]1"
 	// wasm:"Select"
 	return x
 }
@@ -45,8 +45,8 @@ func cmov32bit(x, y uint32) uint32 {
 		x = -y
 	}
 	// amd64:"CMOVL(HI|CS)"
-	// arm64:"CSNEG\t(LS|HS)"
-	// ppc64x:"ISEL\t[$]1"
+	// arm64:"CSNEG (LS|HS)"
+	// ppc64x:"ISEL [$]1"
 	// wasm:"Select"
 	return x
 }
@@ -56,8 +56,8 @@ func cmov16bit(x, y uint16) uint16 {
 		x = -y
 	}
 	// amd64:"CMOVW(HI|CS)"
-	// arm64:"CSNEG\t(LS|HS)"
-	// ppc64x:"ISEL\t[$][01]"
+	// arm64:"CSNEG (LS|HS)"
+	// ppc64x:"ISEL [$][01]"
 	// wasm:"Select"
 	return x
 }
@@ -69,9 +69,9 @@ func cmovfloateq(x, y float64) int {
 	if x == y {
 		a = 256
 	}
-	// amd64:"CMOVQNE","CMOVQPC"
-	// arm64:"CSEL\tEQ"
-	// ppc64x:"ISEL\t[$]2"
+	// amd64:"CMOVQNE" "CMOVQPC"
+	// arm64:"CSEL EQ"
+	// ppc64x:"ISEL [$]2"
 	// wasm:"Select"
 	return a
 }
@@ -81,9 +81,9 @@ func cmovfloatne(x, y float64) int {
 	if x != y {
 		a = 256
 	}
-	// amd64:"CMOVQNE","CMOVQPS"
-	// arm64:"CSEL\tNE"
-	// ppc64x:"ISEL\t[$]2"
+	// amd64:"CMOVQNE" "CMOVQPS"
+	// arm64:"CSEL NE"
+	// ppc64x:"ISEL [$]2"
 	// wasm:"Select"
 	return a
 }
@@ -109,8 +109,8 @@ func cmovfloatint2(x, y float64) float64 {
 			rexp = rexp - 42
 		}
 		// amd64:"CMOVQHI"
-		// arm64:"CSEL\tMI"
-		// ppc64x:"ISEL\t[$]0"
+		// arm64:"CSEL MI"
+		// ppc64x:"ISEL [$]0"
 		// wasm:"Select"
 		r = r - ldexp(y, rexp-yexp)
 	}
@@ -124,8 +124,8 @@ func cmovloaded(x [4]int, y int) int {
 		y = y >> 2
 	}
 	// amd64:"CMOVQNE"
-	// arm64:"CSEL\tNE"
-	// ppc64x:"ISEL\t[$]2"
+	// arm64:"CSEL NE"
+	// ppc64x:"ISEL [$]2"
 	// wasm:"Select"
 	return y
 }
@@ -136,8 +136,8 @@ func cmovuintptr2(x, y uintptr) uintptr {
 		a = 256
 	}
 	// amd64:"CMOVQEQ"
-	// arm64:"CSEL\tEQ"
-	// ppc64x:"ISEL\t[$]2"
+	// arm64:"CSEL EQ"
+	// ppc64x:"ISEL [$]2"
 	// wasm:"Select"
 	return a
 }
@@ -230,7 +230,7 @@ func cmovinc(cond bool, a, b, c int) {
 	} else {
 		x0 = b + 1
 	}
-	// arm64:"CSINC\tNE", -"CSEL"
+	// arm64:"CSINC NE", -"CSEL"
 	r0 = x0
 
 	if cond {
@@ -238,13 +238,13 @@ func cmovinc(cond bool, a, b, c int) {
 	} else {
 		x1 = a
 	}
-	// arm64:"CSINC\tEQ", -"CSEL"
+	// arm64:"CSINC EQ", -"CSEL"
 	r1 = x1
 
 	if cond {
 		c++
 	}
-	// arm64:"CSINC\tEQ", -"CSEL"
+	// arm64:"CSINC EQ", -"CSEL"
 	r2 = c
 }
 
@@ -256,7 +256,7 @@ func cmovinv(cond bool, a, b int) {
 	} else {
 		x0 = ^b
 	}
-	// arm64:"CSINV\tNE", -"CSEL"
+	// arm64:"CSINV NE", -"CSEL"
 	r0 = x0
 
 	if cond {
@@ -264,7 +264,7 @@ func cmovinv(cond bool, a, b int) {
 	} else {
 		x1 = a
 	}
-	// arm64:"CSINV\tEQ", -"CSEL"
+	// arm64:"CSINV EQ", -"CSEL"
 	r1 = x1
 }
 
@@ -276,7 +276,7 @@ func cmovneg(cond bool, a, b, c int) {
 	} else {
 		x0 = -b
 	}
-	// arm64:"CSNEG\tNE", -"CSEL"
+	// arm64:"CSNEG NE", -"CSEL"
 	r0 = x0
 
 	if cond {
@@ -284,7 +284,7 @@ func cmovneg(cond bool, a, b, c int) {
 	} else {
 		x1 = a
 	}
-	// arm64:"CSNEG\tEQ", -"CSEL"
+	// arm64:"CSNEG EQ", -"CSEL"
 	r1 = x1
 }
 
@@ -296,7 +296,7 @@ func cmovsetm(cond bool, x int) {
 	} else {
 		x0 = 0
 	}
-	// arm64:"CSETM\tNE", -"CSEL"
+	// arm64:"CSETM NE", -"CSEL"
 	r0 = x0
 
 	if cond {
@@ -304,7 +304,7 @@ func cmovsetm(cond bool, x int) {
 	} else {
 		x1 = -1
 	}
-	// arm64:"CSETM\tEQ", -"CSEL"
+	// arm64:"CSETM EQ", -"CSEL"
 	r1 = x1
 }
 
@@ -316,7 +316,7 @@ func cmovFcmp0(s, t float64, a, b int) {
 	} else {
 		x0 = b + 1
 	}
-	// arm64:"CSINC\tMI", -"CSEL"
+	// arm64:"CSINC MI", -"CSEL"
 	r0 = x0
 
 	if s <= t {
@@ -324,7 +324,7 @@ func cmovFcmp0(s, t float64, a, b int) {
 	} else {
 		x1 = ^b
 	}
-	// arm64:"CSINV\tLS", -"CSEL"
+	// arm64:"CSINV LS", -"CSEL"
 	r1 = x1
 
 	if s > t {
@@ -332,7 +332,7 @@ func cmovFcmp0(s, t float64, a, b int) {
 	} else {
 		x2 = -b
 	}
-	// arm64:"CSNEG\tMI", -"CSEL"
+	// arm64:"CSNEG MI", -"CSEL"
 	r2 = x2
 
 	if s >= t {
@@ -340,7 +340,7 @@ func cmovFcmp0(s, t float64, a, b int) {
 	} else {
 		x3 = 0
 	}
-	// arm64:"CSETM\tLS", -"CSEL"
+	// arm64:"CSETM LS", -"CSEL"
 	r3 = x3
 
 	if s == t {
@@ -348,7 +348,7 @@ func cmovFcmp0(s, t float64, a, b int) {
 	} else {
 		x4 = b + 1
 	}
-	// arm64:"CSINC\tEQ", -"CSEL"
+	// arm64:"CSINC EQ", -"CSEL"
 	r4 = x4
 
 	if s != t {
@@ -356,7 +356,7 @@ func cmovFcmp0(s, t float64, a, b int) {
 	} else {
 		x5 = b + 1
 	}
-	// arm64:"CSINC\tNE", -"CSEL"
+	// arm64:"CSINC NE", -"CSEL"
 	r5 = x5
 }
 
@@ -368,7 +368,7 @@ func cmovFcmp1(s, t float64, a, b int) {
 	} else {
 		x0 = a
 	}
-	// arm64:"CSINC\tPL", -"CSEL"
+	// arm64:"CSINC PL", -"CSEL"
 	r0 = x0
 
 	if s <= t {
@@ -376,7 +376,7 @@ func cmovFcmp1(s, t float64, a, b int) {
 	} else {
 		x1 = a
 	}
-	// arm64:"CSINV\tHI", -"CSEL"
+	// arm64:"CSINV HI", -"CSEL"
 	r1 = x1
 
 	if s > t {
@@ -384,7 +384,7 @@ func cmovFcmp1(s, t float64, a, b int) {
 	} else {
 		x2 = a
 	}
-	// arm64:"CSNEG\tPL", -"CSEL"
+	// arm64:"CSNEG PL", -"CSEL"
 	r2 = x2
 
 	if s >= t {
@@ -392,7 +392,7 @@ func cmovFcmp1(s, t float64, a, b int) {
 	} else {
 		x3 = -1
 	}
-	// arm64:"CSETM\tHI", -"CSEL"
+	// arm64:"CSETM HI", -"CSEL"
 	r3 = x3
 
 	if s == t {
@@ -400,7 +400,7 @@ func cmovFcmp1(s, t float64, a, b int) {
 	} else {
 		x4 = a
 	}
-	// arm64:"CSINC\tNE", -"CSEL"
+	// arm64:"CSINC NE", -"CSEL"
 	r4 = x4
 
 	if s != t {
@@ -408,7 +408,7 @@ func cmovFcmp1(s, t float64, a, b int) {
 	} else {
 		x5 = a
 	}
-	// arm64:"CSINC\tEQ", -"CSEL"
+	// arm64:"CSINC EQ", -"CSEL"
 	r5 = x5
 }
 
@@ -439,7 +439,7 @@ func cmovzeroreg0(a, b int) int {
 	if a == b {
 		x = a
 	}
-	// ppc64x:"ISEL\t[$]2, R[0-9]+, R0, R[0-9]+"
+	// ppc64x:"ISEL [$]2, R[0-9]+, R0, R[0-9]+"
 	return x
 }
 
@@ -448,7 +448,7 @@ func cmovzeroreg1(a, b int) int {
 	if a == b {
 		x = 0
 	}
-	// ppc64x:"ISEL\t[$]2, R0, R[0-9]+, R[0-9]+"
+	// ppc64x:"ISEL [$]2, R0, R[0-9]+, R[0-9]+"
 	return x
 }
 

@@ -52,7 +52,7 @@ func findStandardImportPath(path string) string {
 // standard library or if the package was not successfully loaded with
 // LoadPackages or ImportFromFiles, nil is returned.
 func PackageModuleInfo(loaderstate *State, ctx context.Context, pkgpath string) *modinfo.ModulePublic {
-	if isStandardImportPath(pkgpath) || !Enabled(loaderstate) {
+	if isStandardImportPath(pkgpath) || !loaderstate.Enabled() {
 		return nil
 	}
 	m, ok := findModule(loaded, pkgpath)
@@ -69,7 +69,7 @@ func PackageModuleInfo(loaderstate *State, ctx context.Context, pkgpath string) 
 // standard library or if the package was not successfully loaded with
 // LoadPackages or ImportFromFiles, the empty string is returned.
 func PackageModRoot(loaderstate *State, ctx context.Context, pkgpath string) string {
-	if isStandardImportPath(pkgpath) || !Enabled(loaderstate) || cfg.BuildMod == "vendor" {
+	if isStandardImportPath(pkgpath) || !loaderstate.Enabled() || cfg.BuildMod == "vendor" {
 		return ""
 	}
 	m, ok := findModule(loaded, pkgpath)
@@ -84,7 +84,7 @@ func PackageModRoot(loaderstate *State, ctx context.Context, pkgpath string) str
 }
 
 func ModuleInfo(loaderstate *State, ctx context.Context, path string) *modinfo.ModulePublic {
-	if !Enabled(loaderstate) {
+	if !loaderstate.Enabled() {
 		return nil
 	}
 
@@ -188,6 +188,12 @@ func mergeOrigin(m1, m2 *codehost.Origin) *codehost.Origin {
 		}
 		merged.TagSum = m2.TagSum
 		merged.TagPrefix = m2.TagPrefix
+	}
+	if m2.RepoSum != "" {
+		if m1.RepoSum != "" && m1.RepoSum != m2.RepoSum {
+			return nil
+		}
+		merged.RepoSum = m2.RepoSum
 	}
 	if m2.Ref != "" {
 		if m1.Ref != "" && m1.Ref != m2.Ref {
@@ -323,7 +329,7 @@ func moduleInfo(loaderstate *State, ctx context.Context, rs *Requirements, m mod
 
 		checksumOk := func(suffix string) bool {
 			return rs == nil || m.Version == "" || !mustHaveSums(loaderstate) ||
-				modfetch.HaveSum(module.Version{Path: m.Path, Version: m.Version + suffix})
+				modfetch.HaveSum(loaderstate.Fetcher(), module.Version{Path: m.Path, Version: m.Version + suffix})
 		}
 
 		mod := module.Version{Path: m.Path, Version: m.Version}
@@ -362,7 +368,7 @@ func moduleInfo(loaderstate *State, ctx context.Context, rs *Requirements, m mod
 						m.GoMod = gomod
 					}
 				}
-				if gomodsum, ok := modfetch.RecordedSum(modkey(mod)); ok {
+				if gomodsum, ok := loaderstate.fetcher.RecordedSum(modkey(mod)); ok {
 					m.GoModSum = gomodsum
 				}
 			}
@@ -371,7 +377,7 @@ func moduleInfo(loaderstate *State, ctx context.Context, rs *Requirements, m mod
 				if err == nil {
 					m.Dir = dir
 				}
-				if sum, ok := modfetch.RecordedSum(mod); ok {
+				if sum, ok := loaderstate.fetcher.RecordedSum(mod); ok {
 					m.Sum = sum
 				}
 			}

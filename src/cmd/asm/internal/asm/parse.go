@@ -78,7 +78,7 @@ func NewParser(ctxt *obj.Link, ar *arch.Arch, lexer lex.TokenReader) *Parser {
 // and turn it into a recoverable panic.
 var panicOnError bool
 
-func (p *Parser) errorf(format string, args ...interface{}) {
+func (p *Parser) errorf(format string, args ...any) {
 	if panicOnError {
 		panic(fmt.Errorf(format, args...))
 	}
@@ -90,7 +90,7 @@ func (p *Parser) errorf(format string, args ...interface{}) {
 	if p.lex != nil {
 		// Put file and line information on head of message.
 		format = "%s:%d: " + format + "\n"
-		args = append([]interface{}{p.lex.File(), p.lineNum}, args...)
+		args = append([]any{p.lex.File(), p.lineNum}, args...)
 	}
 	fmt.Fprintf(p.errorWriter, format, args...)
 	p.errorCount++

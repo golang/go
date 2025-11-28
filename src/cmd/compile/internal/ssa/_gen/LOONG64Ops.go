@@ -205,6 +205,8 @@ func init() {
 		{name: "DIVVU", argLength: 2, reg: gp21, asm: "DIVVU", typ: "UInt64"},                      // arg0 / arg1, unsigned
 		{name: "REMV", argLength: 2, reg: gp21, asm: "REMV", typ: "Int64"},                         // arg0 / arg1, signed
 		{name: "REMVU", argLength: 2, reg: gp21, asm: "REMVU", typ: "UInt64"},                      // arg0 / arg1, unsigned
+		{name: "MULWVW", argLength: 2, reg: gp21, asm: "MULWVW", commutative: true},                // arg0 * arg1, signed, 32-bit mult results in 64-bit
+		{name: "MULWVWU", argLength: 2, reg: gp21, asm: "MULWVWU", commutative: true},              // arg0 * arg1, unsigned, 32-bit mult results in 64-bit
 
 		{name: "ADDF", argLength: 2, reg: fp21, asm: "ADDF", commutative: true}, // arg0 + arg1
 		{name: "ADDD", argLength: 2, reg: fp21, asm: "ADDD", commutative: true}, // arg0 + arg1
@@ -388,6 +390,7 @@ func init() {
 			argLength: 2,
 			reg: regInfo{
 				inputs:       []regMask{gp},
+				clobbers:     buildReg("F31"),
 				clobbersArg0: true,
 			},
 			faultOnNilArg0: true,

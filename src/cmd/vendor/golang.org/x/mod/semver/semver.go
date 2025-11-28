@@ -45,8 +45,8 @@ func IsValid(v string) bool {
 
 // Canonical returns the canonical formatting of the semantic version v.
 // It fills in any missing .MINOR or .PATCH and discards build metadata.
-// Two semantic versions compare equal only if their canonical formattings
-// are identical strings.
+// Two semantic versions compare equal only if their canonical formatting
+// is an identical string.
 // The canonical invalid semantic version is the empty string.
 func Canonical(v string) string {
 	p, ok := parse(v)

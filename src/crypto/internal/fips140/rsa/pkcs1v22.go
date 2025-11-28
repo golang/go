@@ -9,6 +9,7 @@ package rsa
 
 import (
 	"bytes"
+	"crypto/internal/constanttime"
 	"crypto/internal/fips140"
 	"crypto/internal/fips140/drbg"
 	"crypto/internal/fips140/sha256"
@@ -271,8 +272,8 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash hash.Hash, hashed []byte, sa
 	checkApprovedHash(hash)
 
 	// Note that while we don't commit to deterministic execution with respect
-	// to the rand stream, we also don't apply MaybeReadByte, so per Hyrum's Law
-	// it's probably relied upon by some. It's a tolerable promise because a
+	// to the rand stream, we also never applied MaybeReadByte, so per Hyrum's
+	// Law it's probably relied upon by some. It's a tolerable promise because a
 	// well-specified number of random bytes is included in the signature, in a
 	// well-specified way.
 
@@ -285,7 +286,7 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash hash.Hash, hashed []byte, sa
 		fips140.RecordNonApproved()
 	}
 	salt := make([]byte, saltLength)
-	if err := drbg.ReadWithReaderDeterministic(rand, salt); err != nil {
+	if err := drbg.ReadWithReader(rand, salt); err != nil {
 		return nil, err
 	}
 
@@ -371,7 +372,7 @@ func checkApprovedHash(hash hash.Hash) {
 // EncryptOAEP encrypts the given message with RSAES-OAEP.
 func EncryptOAEP(hash, mgfHash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, label []byte) ([]byte, error) {
 	// Note that while we don't commit to deterministic execution with respect
-	// to the random stream, we also don't apply MaybeReadByte, so per Hyrum's
+	// to the random stream, we also never applied MaybeReadByte, so per Hyrum's
 	// Law it's probably relied upon by some. It's a tolerable promise because a
 	// well-specified number of random bytes is included in the ciphertext, in a
 	// well-specified way.
@@ -401,7 +402,7 @@ func EncryptOAEP(hash, mgfHash hash.Hash, random io.Reader, pub *PublicKey, msg 
 	db[len(db)-len(msg)-1] = 1
 	copy(db[len(db)-len(msg):], msg)
 
-	if err := drbg.ReadWithReaderDeterministic(random, seed); err != nil {
+	if err := drbg.ReadWithReader(random, seed); err != nil {
 		return nil, err
 	}
 
@@ -432,7 +433,7 @@ func DecryptOAEP(hash, mgfHash hash.Hash, priv *PrivateKey, ciphertext []byte, l
 	hash.Write(label)
 	lHash := hash.Sum(nil)
 
-	firstByteIsZero := subtle.ConstantTimeByteEq(em[0], 0)
+	firstByteIsZero := constanttime.ByteEq(em[0], 0)
 
 	seed := em[1 : hash.Size()+1]
 	db := em[hash.Size()+1:]
@@ -458,11 +459,11 @@ func DecryptOAEP(hash, mgfHash hash.Hash, priv *PrivateKey, ciphertext []byte, l
 	rest := db[hash.Size():]
 
 	for i := 0; i < len(rest); i++ {
-		equals0 := subtle.ConstantTimeByteEq(rest[i], 0)
-		equals1 := subtle.ConstantTimeByteEq(rest[i], 1)
-		index = subtle.ConstantTimeSelect(lookingForIndex&equals1, i, index)
-		lookingForIndex = subtle.ConstantTimeSelect(equals1, 0, lookingForIndex)
-		invalid = subtle.ConstantTimeSelect(lookingForIndex&^equals0, 1, invalid)
+		equals0 := constanttime.ByteEq(rest[i], 0)
+		equals1 := constanttime.ByteEq(rest[i], 1)
+		index = constanttime.Select(lookingForIndex&equals1, i, index)
+		lookingForIndex = constanttime.Select(equals1, 0, lookingForIndex)
+		invalid = constanttime.Select(lookingForIndex&^equals0, 1, invalid)
 	}
 
 	if firstByteIsZero&lHash2Good&^invalid&^lookingForIndex != 1 {

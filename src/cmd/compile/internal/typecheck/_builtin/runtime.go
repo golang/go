@@ -49,12 +49,15 @@ func goPanicSlice3CU(x uint, y int)
 func goPanicSliceConvert(x int, y int)
 
 func printbool(bool)
-func printfloat(float64)
+func printfloat64(float64)
+func printfloat32(float32)
 func printint(int64)
 func printhex(uint64)
 func printuint(uint64)
-func printcomplex(complex128)
+func printcomplex128(complex128)
+func printcomplex64(complex64)
 func printstring(string)
+func printquoted(string)
 func printpointer(any)
 func printuintptr(uintptr)
 func printiface(any)
@@ -193,12 +196,20 @@ func makeslice(typ *byte, len int, cap int) unsafe.Pointer
 func makeslice64(typ *byte, len int64, cap int64) unsafe.Pointer
 func makeslicecopy(typ *byte, tolen int, fromlen int, from unsafe.Pointer) unsafe.Pointer
 func growslice(oldPtr *any, newLen, oldCap, num int, et *byte) (ary []any)
+func growsliceBuf(oldPtr *any, newLen, oldCap, num int, et *byte, buf *any, bufLen int) (ary []any)
+func growsliceBufNoAlias(oldPtr *any, newLen, oldCap, num int, et *byte, buf *any, bufLen int) (ary []any)
+func growsliceNoAlias(oldPtr *any, newLen, oldCap, num int, et *byte) (ary []any)
 func unsafeslicecheckptr(typ *byte, ptr unsafe.Pointer, len int64)
 func panicunsafeslicelen()
 func panicunsafeslicenilptr()
 func unsafestringcheckptr(ptr unsafe.Pointer, len int64)
 func panicunsafestringlen()
 func panicunsafestringnilptr()
+
+func moveSlice(typ *byte, old *byte, len, cap int) (*byte, int, int)
+func moveSliceNoScan(elemSize uintptr, old *byte, len, cap int) (*byte, int, int)
+func moveSliceNoCap(typ *byte, old *byte, len int) (*byte, int, int)
+func moveSliceNoCapNoScan(elemSize uintptr, old *byte, len int) (*byte, int, int)
 
 func memmove(to *any, frm *any, length uintptr)
 func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
@@ -284,9 +295,10 @@ func libfuzzerHookEqualFold(string, string, uint)
 func addCovMeta(p unsafe.Pointer, len uint32, hash [16]byte, pkpath string, pkgId int, cmode uint8, cgran uint8) uint32
 
 // architecture variants
+var x86HasAVX bool
+var x86HasFMA bool
 var x86HasPOPCNT bool
 var x86HasSSE41 bool
-var x86HasFMA bool
 var armHasVFPv4 bool
 var arm64HasATOMICS bool
 var loong64HasLAMCAS bool
@@ -295,3 +307,6 @@ var loong64HasLSX bool
 var riscv64HasZbb bool
 
 func asanregisterglobals(unsafe.Pointer, uintptr)
+
+// used by testing.B.Loop
+func KeepAlive(interface{})

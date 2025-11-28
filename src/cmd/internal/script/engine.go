@@ -55,6 +55,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -518,7 +520,7 @@ func (e *Engine) conditionsActive(s *State, conds []condition) (bool, error) {
 		if ok {
 			impl = e.Conds[prefix]
 			if impl == nil {
-				return false, fmt.Errorf("unknown condition prefix %q", prefix)
+				return false, fmt.Errorf("unknown condition prefix %q; known: %v", prefix, slices.Collect(maps.Keys(e.Conds)))
 			}
 			if !impl.Usage().Prefix {
 				return false, fmt.Errorf("condition %q cannot be used with a suffix", prefix)

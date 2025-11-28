@@ -12,6 +12,8 @@ func rewriteValuedec64(v *Value) bool {
 		return rewriteValuedec64_OpAnd64(v)
 	case OpArg:
 		return rewriteValuedec64_OpArg(v)
+	case OpAvg64u:
+		return rewriteValuedec64_OpAvg64u(v)
 	case OpBitLen64:
 		return rewriteValuedec64_OpBitLen64(v)
 	case OpBswap64:
@@ -27,10 +29,16 @@ func rewriteValuedec64(v *Value) bool {
 		return true
 	case OpEq64:
 		return rewriteValuedec64_OpEq64(v)
+	case OpHmul64:
+		return rewriteValuedec64_OpHmul64(v)
+	case OpHmul64u:
+		return rewriteValuedec64_OpHmul64u(v)
 	case OpInt64Hi:
 		return rewriteValuedec64_OpInt64Hi(v)
 	case OpInt64Lo:
 		return rewriteValuedec64_OpInt64Lo(v)
+	case OpLast:
+		return rewriteValuedec64_OpLast(v)
 	case OpLeq64:
 		return rewriteValuedec64_OpLeq64(v)
 	case OpLeq64U:
@@ -57,6 +65,8 @@ func rewriteValuedec64(v *Value) bool {
 		return rewriteValuedec64_OpLsh8x64(v)
 	case OpMul64:
 		return rewriteValuedec64_OpMul64(v)
+	case OpMul64uhilo:
+		return rewriteValuedec64_OpMul64uhilo(v)
 	case OpNeg64:
 		return rewriteValuedec64_OpNeg64(v)
 	case OpNeq64:
@@ -101,6 +111,10 @@ func rewriteValuedec64(v *Value) bool {
 		return rewriteValuedec64_OpRsh8Ux64(v)
 	case OpRsh8x64:
 		return rewriteValuedec64_OpRsh8x64(v)
+	case OpSelect0:
+		return rewriteValuedec64_OpSelect0(v)
+	case OpSelect1:
+		return rewriteValuedec64_OpSelect1(v)
 	case OpSignExt16to64:
 		return rewriteValuedec64_OpSignExt16to64(v)
 	case OpSignExt32to64:
@@ -133,29 +147,33 @@ func rewriteValuedec64_OpAdd64(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
-	// match: (Add64 x y)
-	// result: (Int64Make (Add32withcarry <typ.Int32> (Int64Hi x) (Int64Hi y) (Select1 <types.TypeFlags> (Add32carry (Int64Lo x) (Int64Lo y)))) (Select0 <typ.UInt32> (Add32carry (Int64Lo x) (Int64Lo y))))
+	// match: (Add64 <t> x y)
+	// result: (Last <t> x0: (Int64Lo x) x1: (Int64Hi x) y0: (Int64Lo y) y1: (Int64Hi y) add: (Add32carry x0 y0) (Int64Make (Add32withcarry <typ.UInt32> x1 y1 (Select1 <types.TypeFlags> add)) (Select0 <typ.UInt32> add)))
 	for {
+		t := v.Type
 		x := v_0
 		y := v_1
-		v.reset(OpInt64Make)
-		v0 := b.NewValue0(v.Pos, OpAdd32withcarry, typ.Int32)
-		v1 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
-		v1.AddArg(x)
-		v2 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
-		v2.AddArg(y)
-		v3 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
-		v4 := b.NewValue0(v.Pos, OpAdd32carry, types.NewTuple(typ.UInt32, types.TypeFlags))
-		v5 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
-		v5.AddArg(x)
-		v6 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
-		v6.AddArg(y)
-		v4.AddArg2(v5, v6)
-		v3.AddArg(v4)
-		v0.AddArg3(v1, v2, v3)
-		v7 := b.NewValue0(v.Pos, OpSelect0, typ.UInt32)
-		v7.AddArg(v4)
-		v.AddArg2(v0, v7)
+		v.reset(OpLast)
+		v.Type = t
+		x0 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
+		x0.AddArg(x)
+		x1 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
+		x1.AddArg(x)
+		y0 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
+		y0.AddArg(y)
+		y1 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
+		y1.AddArg(y)
+		add := b.NewValue0(v.Pos, OpAdd32carry, types.NewTuple(typ.UInt32, types.TypeFlags))
+		add.AddArg2(x0, y0)
+		v5 := b.NewValue0(v.Pos, OpInt64Make, typ.UInt64)
+		v6 := b.NewValue0(v.Pos, OpAdd32withcarry, typ.UInt32)
+		v7 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
+		v7.AddArg(add)
+		v6.AddArg3(x1, y1, v7)
+		v8 := b.NewValue0(v.Pos, OpSelect0, typ.UInt32)
+		v8.AddArg(add)
+		v5.AddArg2(v6, v8)
+		v.AddArg6(x0, x1, y0, y1, add, v5)
 		return true
 	}
 }
@@ -267,6 +285,28 @@ func rewriteValuedec64_OpArg(v *Value) bool {
 		return true
 	}
 	return false
+}
+func rewriteValuedec64_OpAvg64u(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Avg64u <t> x y)
+	// result: (Add64 (Rsh64Ux32 <t> (Sub64 <t> x y) (Const32 <typ.UInt32> [1])) y)
+	for {
+		t := v.Type
+		x := v_0
+		y := v_1
+		v.reset(OpAdd64)
+		v0 := b.NewValue0(v.Pos, OpRsh64Ux32, t)
+		v1 := b.NewValue0(v.Pos, OpSub64, t)
+		v1.AddArg2(x, y)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int32ToAuxInt(1)
+		v0.AddArg2(v1, v2)
+		v.AddArg2(v0, y)
+		return true
+	}
 }
 func rewriteValuedec64_OpBitLen64(v *Value) bool {
 	v_0 := v.Args[0]
@@ -430,6 +470,62 @@ func rewriteValuedec64_OpEq64(v *Value) bool {
 		return true
 	}
 }
+func rewriteValuedec64_OpHmul64(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Hmul64 x y)
+	// result: (Last p: (Hmul64u <typ.UInt64> x y) xSign: (Int64Make xs:(Rsh32x32 <typ.UInt32> (Int64Hi x) (Const32 <typ.UInt32> [31])) xs) ySign: (Int64Make ys:(Rsh32x32 <typ.UInt32> (Int64Hi y) (Const32 <typ.UInt32> [31])) ys) (Sub64 <typ.Int64> (Sub64 <typ.Int64> p (And64 <typ.Int64> xSign y)) (And64 <typ.Int64> ySign x)))
+	for {
+		x := v_0
+		y := v_1
+		v.reset(OpLast)
+		p := b.NewValue0(v.Pos, OpHmul64u, typ.UInt64)
+		p.AddArg2(x, y)
+		xSign := b.NewValue0(v.Pos, OpInt64Make, typ.UInt64)
+		xs := b.NewValue0(v.Pos, OpRsh32x32, typ.UInt32)
+		v3 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
+		v3.AddArg(x)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int32ToAuxInt(31)
+		xs.AddArg2(v3, v4)
+		xSign.AddArg2(xs, xs)
+		ySign := b.NewValue0(v.Pos, OpInt64Make, typ.UInt64)
+		ys := b.NewValue0(v.Pos, OpRsh32x32, typ.UInt32)
+		v7 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
+		v7.AddArg(y)
+		ys.AddArg2(v7, v4)
+		ySign.AddArg2(ys, ys)
+		v8 := b.NewValue0(v.Pos, OpSub64, typ.Int64)
+		v9 := b.NewValue0(v.Pos, OpSub64, typ.Int64)
+		v10 := b.NewValue0(v.Pos, OpAnd64, typ.Int64)
+		v10.AddArg2(xSign, y)
+		v9.AddArg2(p, v10)
+		v11 := b.NewValue0(v.Pos, OpAnd64, typ.Int64)
+		v11.AddArg2(ySign, x)
+		v8.AddArg2(v9, v11)
+		v.AddArg4(p, xSign, ySign, v8)
+		return true
+	}
+}
+func rewriteValuedec64_OpHmul64u(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Hmul64u x y)
+	// result: (Select0 (Mul64uhilo x y))
+	for {
+		x := v_0
+		y := v_1
+		v.reset(OpSelect0)
+		v0 := b.NewValue0(v.Pos, OpMul64uhilo, types.NewTuple(typ.UInt64, typ.UInt64))
+		v0.AddArg2(x, y)
+		v.AddArg(v0)
+		return true
+	}
+}
 func rewriteValuedec64_OpInt64Hi(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Int64Hi (Int64Make hi _))
@@ -457,6 +553,14 @@ func rewriteValuedec64_OpInt64Lo(v *Value) bool {
 		return true
 	}
 	return false
+}
+func rewriteValuedec64_OpLast(v *Value) bool {
+	// match: (Last ___)
+	// result: v.Args[len(v.Args)-1]
+	for {
+		v.copyOf(v.Args[len(v.Args)-1])
+		return true
+	}
 }
 func rewriteValuedec64_OpLeq64(v *Value) bool {
 	v_1 := v.Args[1]
@@ -1114,35 +1218,124 @@ func rewriteValuedec64_OpMul64(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
-	// match: (Mul64 x y)
-	// result: (Int64Make (Add32 <typ.UInt32> (Mul32 <typ.UInt32> (Int64Lo x) (Int64Hi y)) (Add32 <typ.UInt32> (Mul32 <typ.UInt32> (Int64Hi x) (Int64Lo y)) (Select0 <typ.UInt32> (Mul32uhilo (Int64Lo x) (Int64Lo y))))) (Select1 <typ.UInt32> (Mul32uhilo (Int64Lo x) (Int64Lo y))))
+	// match: (Mul64 <t> x y)
+	// result: (Last <t> x0: (Int64Lo x) x1: (Int64Hi x) y0: (Int64Lo y) y1: (Int64Hi y) x0y0: (Mul32uhilo x0 y0) x0y0Hi: (Select0 <typ.UInt32> x0y0) x0y0Lo: (Select1 <typ.UInt32> x0y0) (Int64Make (Add32 <typ.UInt32> x0y0Hi (Add32 <typ.UInt32> (Mul32 <typ.UInt32> x0 y1) (Mul32 <typ.UInt32> x1 y0))) x0y0Lo))
 	for {
+		t := v.Type
 		x := v_0
 		y := v_1
-		v.reset(OpInt64Make)
-		v0 := b.NewValue0(v.Pos, OpAdd32, typ.UInt32)
-		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
-		v2 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
-		v2.AddArg(x)
-		v3 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
-		v3.AddArg(y)
-		v1.AddArg2(v2, v3)
-		v4 := b.NewValue0(v.Pos, OpAdd32, typ.UInt32)
-		v5 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
-		v6 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
-		v6.AddArg(x)
-		v7 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
-		v7.AddArg(y)
-		v5.AddArg2(v6, v7)
-		v8 := b.NewValue0(v.Pos, OpSelect0, typ.UInt32)
-		v9 := b.NewValue0(v.Pos, OpMul32uhilo, types.NewTuple(typ.UInt32, typ.UInt32))
-		v9.AddArg2(v2, v7)
-		v8.AddArg(v9)
-		v4.AddArg2(v5, v8)
-		v0.AddArg2(v1, v4)
-		v10 := b.NewValue0(v.Pos, OpSelect1, typ.UInt32)
-		v10.AddArg(v9)
-		v.AddArg2(v0, v10)
+		v.reset(OpLast)
+		v.Type = t
+		x0 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
+		x0.AddArg(x)
+		x1 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
+		x1.AddArg(x)
+		y0 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
+		y0.AddArg(y)
+		y1 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
+		y1.AddArg(y)
+		x0y0 := b.NewValue0(v.Pos, OpMul32uhilo, types.NewTuple(typ.UInt32, typ.UInt32))
+		x0y0.AddArg2(x0, y0)
+		x0y0Hi := b.NewValue0(v.Pos, OpSelect0, typ.UInt32)
+		x0y0Hi.AddArg(x0y0)
+		x0y0Lo := b.NewValue0(v.Pos, OpSelect1, typ.UInt32)
+		x0y0Lo.AddArg(x0y0)
+		v7 := b.NewValue0(v.Pos, OpInt64Make, typ.UInt64)
+		v8 := b.NewValue0(v.Pos, OpAdd32, typ.UInt32)
+		v9 := b.NewValue0(v.Pos, OpAdd32, typ.UInt32)
+		v10 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v10.AddArg2(x0, y1)
+		v11 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v11.AddArg2(x1, y0)
+		v9.AddArg2(v10, v11)
+		v8.AddArg2(x0y0Hi, v9)
+		v7.AddArg2(v8, x0y0Lo)
+		v.AddArgs(x0, x1, y0, y1, x0y0, x0y0Hi, x0y0Lo, v7)
+		return true
+	}
+}
+func rewriteValuedec64_OpMul64uhilo(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Mul64uhilo <t> x y)
+	// result: (Last <t> x0: (Int64Lo x) x1: (Int64Hi x) y0: (Int64Lo y) y1: (Int64Hi y) x0y0: (Mul32uhilo x0 y0) x0y1: (Mul32uhilo x0 y1) x1y0: (Mul32uhilo x1 y0) x1y1: (Mul32uhilo x1 y1) x0y0Hi: (Select0 <typ.UInt32> x0y0) x0y0Lo: (Select1 <typ.UInt32> x0y0) x0y1Hi: (Select0 <typ.UInt32> x0y1) x0y1Lo: (Select1 <typ.UInt32> x0y1) x1y0Hi: (Select0 <typ.UInt32> x1y0) x1y0Lo: (Select1 <typ.UInt32> x1y0) x1y1Hi: (Select0 <typ.UInt32> x1y1) x1y1Lo: (Select1 <typ.UInt32> x1y1) w1a: (Add32carry x0y0Hi x0y1Lo) w2a: (Add32carrywithcarry x0y1Hi x1y0Hi (Select1 <types.TypeFlags> w1a)) w3a: (Add32withcarry <typ.UInt32> x1y1Hi (Const32 <typ.UInt32> [0]) (Select1 <types.TypeFlags> w2a)) w1b: (Add32carry x1y0Lo (Select0 <typ.UInt32> w1a)) w2b: (Add32carrywithcarry x1y1Lo (Select0 <typ.UInt32> w2a) (Select1 <types.TypeFlags> w1b)) w3b: (Add32withcarry <typ.UInt32> w3a (Const32 <typ.UInt32> [0]) (Select1 <types.TypeFlags> w2b)) (MakeTuple <types.NewTuple(typ.UInt64,typ.UInt64)> (Int64Make w3b (Select0 <typ.UInt32> w2b)) (Int64Make (Select0 <typ.UInt32> w1b) x0y0Lo)))
+	for {
+		t := v.Type
+		x := v_0
+		y := v_1
+		v.reset(OpLast)
+		v.Type = t
+		x0 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
+		x0.AddArg(x)
+		x1 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
+		x1.AddArg(x)
+		y0 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
+		y0.AddArg(y)
+		y1 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
+		y1.AddArg(y)
+		x0y0 := b.NewValue0(v.Pos, OpMul32uhilo, types.NewTuple(typ.UInt32, typ.UInt32))
+		x0y0.AddArg2(x0, y0)
+		x0y1 := b.NewValue0(v.Pos, OpMul32uhilo, types.NewTuple(typ.UInt32, typ.UInt32))
+		x0y1.AddArg2(x0, y1)
+		x1y0 := b.NewValue0(v.Pos, OpMul32uhilo, types.NewTuple(typ.UInt32, typ.UInt32))
+		x1y0.AddArg2(x1, y0)
+		x1y1 := b.NewValue0(v.Pos, OpMul32uhilo, types.NewTuple(typ.UInt32, typ.UInt32))
+		x1y1.AddArg2(x1, y1)
+		x0y0Hi := b.NewValue0(v.Pos, OpSelect0, typ.UInt32)
+		x0y0Hi.AddArg(x0y0)
+		x0y0Lo := b.NewValue0(v.Pos, OpSelect1, typ.UInt32)
+		x0y0Lo.AddArg(x0y0)
+		x0y1Hi := b.NewValue0(v.Pos, OpSelect0, typ.UInt32)
+		x0y1Hi.AddArg(x0y1)
+		x0y1Lo := b.NewValue0(v.Pos, OpSelect1, typ.UInt32)
+		x0y1Lo.AddArg(x0y1)
+		x1y0Hi := b.NewValue0(v.Pos, OpSelect0, typ.UInt32)
+		x1y0Hi.AddArg(x1y0)
+		x1y0Lo := b.NewValue0(v.Pos, OpSelect1, typ.UInt32)
+		x1y0Lo.AddArg(x1y0)
+		x1y1Hi := b.NewValue0(v.Pos, OpSelect0, typ.UInt32)
+		x1y1Hi.AddArg(x1y1)
+		x1y1Lo := b.NewValue0(v.Pos, OpSelect1, typ.UInt32)
+		x1y1Lo.AddArg(x1y1)
+		w1a := b.NewValue0(v.Pos, OpAdd32carry, types.NewTuple(typ.UInt32, types.TypeFlags))
+		w1a.AddArg2(x0y0Hi, x0y1Lo)
+		w2a := b.NewValue0(v.Pos, OpAdd32carrywithcarry, types.NewTuple(typ.UInt32, types.TypeFlags))
+		v18 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
+		v18.AddArg(w1a)
+		w2a.AddArg3(x0y1Hi, x1y0Hi, v18)
+		w3a := b.NewValue0(v.Pos, OpAdd32withcarry, typ.UInt32)
+		v20 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v20.AuxInt = int32ToAuxInt(0)
+		v21 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
+		v21.AddArg(w2a)
+		w3a.AddArg3(x1y1Hi, v20, v21)
+		w1b := b.NewValue0(v.Pos, OpAdd32carry, types.NewTuple(typ.UInt32, types.TypeFlags))
+		v23 := b.NewValue0(v.Pos, OpSelect0, typ.UInt32)
+		v23.AddArg(w1a)
+		w1b.AddArg2(x1y0Lo, v23)
+		w2b := b.NewValue0(v.Pos, OpAdd32carrywithcarry, types.NewTuple(typ.UInt32, types.TypeFlags))
+		v25 := b.NewValue0(v.Pos, OpSelect0, typ.UInt32)
+		v25.AddArg(w2a)
+		v26 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
+		v26.AddArg(w1b)
+		w2b.AddArg3(x1y1Lo, v25, v26)
+		w3b := b.NewValue0(v.Pos, OpAdd32withcarry, typ.UInt32)
+		v28 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
+		v28.AddArg(w2b)
+		w3b.AddArg3(w3a, v20, v28)
+		v29 := b.NewValue0(v.Pos, OpMakeTuple, types.NewTuple(typ.UInt64, typ.UInt64))
+		v30 := b.NewValue0(v.Pos, OpInt64Make, typ.UInt64)
+		v31 := b.NewValue0(v.Pos, OpSelect0, typ.UInt32)
+		v31.AddArg(w2b)
+		v30.AddArg2(w3b, v31)
+		v32 := b.NewValue0(v.Pos, OpInt64Make, typ.UInt64)
+		v33 := b.NewValue0(v.Pos, OpSelect0, typ.UInt32)
+		v33.AddArg(w1b)
+		v32.AddArg2(v33, x0y0Lo)
+		v29.AddArg2(v30, v32)
+		v.AddArgs(x0, x1, y0, y1, x0y0, x0y1, x1y0, x1y1, x0y0Hi, x0y0Lo, x0y1Hi, x0y1Lo, x1y0Hi, x1y0Lo, x1y1Hi, x1y1Lo, w1a, w2a, w3a, w1b, w2b, w3b, v29)
 		return true
 	}
 }
@@ -1310,6 +1503,8 @@ func rewriteValuedec64_OpRotateLeft32(v *Value) bool {
 func rewriteValuedec64_OpRotateLeft64(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
 	// match: (RotateLeft64 x (Int64Make hi lo))
 	// result: (RotateLeft64 x lo)
 	for {
@@ -1320,6 +1515,458 @@ func rewriteValuedec64_OpRotateLeft64(v *Value) bool {
 		lo := v_1.Args[1]
 		v.reset(OpRotateLeft64)
 		v.AddArg2(x, lo)
+		return true
+	}
+	// match: (RotateLeft64 <t> x (Const64 [c]))
+	// cond: c&63 == 0
+	// result: x
+	for {
+		x := v_0
+		if v_1.Op != OpConst64 {
+			break
+		}
+		c := auxIntToInt64(v_1.AuxInt)
+		if !(c&63 == 0) {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
+	// match: (RotateLeft64 <t> x (Const32 [c]))
+	// cond: c&63 == 0
+	// result: x
+	for {
+		x := v_0
+		if v_1.Op != OpConst32 {
+			break
+		}
+		c := auxIntToInt32(v_1.AuxInt)
+		if !(c&63 == 0) {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
+	// match: (RotateLeft64 <t> x (Const16 [c]))
+	// cond: c&63 == 0
+	// result: x
+	for {
+		x := v_0
+		if v_1.Op != OpConst16 {
+			break
+		}
+		c := auxIntToInt16(v_1.AuxInt)
+		if !(c&63 == 0) {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
+	// match: (RotateLeft64 <t> x (Const8 [c]))
+	// cond: c&63 == 0
+	// result: x
+	for {
+		x := v_0
+		if v_1.Op != OpConst8 {
+			break
+		}
+		c := auxIntToInt8(v_1.AuxInt)
+		if !(c&63 == 0) {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
+	// match: (RotateLeft64 <t> x (Const64 [c]))
+	// cond: c&63 == 32
+	// result: (Int64Make <t> (Int64Lo x) (Int64Hi x))
+	for {
+		t := v.Type
+		x := v_0
+		if v_1.Op != OpConst64 {
+			break
+		}
+		c := auxIntToInt64(v_1.AuxInt)
+		if !(c&63 == 32) {
+			break
+		}
+		v.reset(OpInt64Make)
+		v.Type = t
+		v0 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
+		v1.AddArg(x)
+		v.AddArg2(v0, v1)
+		return true
+	}
+	// match: (RotateLeft64 <t> x (Const32 [c]))
+	// cond: c&63 == 32
+	// result: (Int64Make <t> (Int64Lo x) (Int64Hi x))
+	for {
+		t := v.Type
+		x := v_0
+		if v_1.Op != OpConst32 {
+			break
+		}
+		c := auxIntToInt32(v_1.AuxInt)
+		if !(c&63 == 32) {
+			break
+		}
+		v.reset(OpInt64Make)
+		v.Type = t
+		v0 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
+		v1.AddArg(x)
+		v.AddArg2(v0, v1)
+		return true
+	}
+	// match: (RotateLeft64 <t> x (Const16 [c]))
+	// cond: c&63 == 32
+	// result: (Int64Make <t> (Int64Lo x) (Int64Hi x))
+	for {
+		t := v.Type
+		x := v_0
+		if v_1.Op != OpConst16 {
+			break
+		}
+		c := auxIntToInt16(v_1.AuxInt)
+		if !(c&63 == 32) {
+			break
+		}
+		v.reset(OpInt64Make)
+		v.Type = t
+		v0 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
+		v1.AddArg(x)
+		v.AddArg2(v0, v1)
+		return true
+	}
+	// match: (RotateLeft64 <t> x (Const8 [c]))
+	// cond: c&63 == 32
+	// result: (Int64Make <t> (Int64Lo x) (Int64Hi x))
+	for {
+		t := v.Type
+		x := v_0
+		if v_1.Op != OpConst8 {
+			break
+		}
+		c := auxIntToInt8(v_1.AuxInt)
+		if !(c&63 == 32) {
+			break
+		}
+		v.reset(OpInt64Make)
+		v.Type = t
+		v0 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
+		v1.AddArg(x)
+		v.AddArg2(v0, v1)
+		return true
+	}
+	// match: (RotateLeft64 <t> x (Const64 [c]))
+	// cond: 0 < c&63 && c&63 < 32
+	// result: (Int64Make <t> (Or32 <typ.UInt32> (Lsh32x32 <typ.UInt32> (Int64Hi x) (Const32 <typ.UInt32> [int32(c&31)])) (Rsh32Ux32 <typ.UInt32> (Int64Lo x) (Const32 <typ.UInt32> [int32(32-c&31)]))) (Or32 <typ.UInt32> (Lsh32x32 <typ.UInt32> (Int64Lo x) (Const32 <typ.UInt32> [int32(c&31)])) (Rsh32Ux32 <typ.UInt32> (Int64Hi x) (Const32 <typ.UInt32> [int32(32-c&31)]))))
+	for {
+		t := v.Type
+		x := v_0
+		if v_1.Op != OpConst64 {
+			break
+		}
+		c := auxIntToInt64(v_1.AuxInt)
+		if !(0 < c&63 && c&63 < 32) {
+			break
+		}
+		v.reset(OpInt64Make)
+		v.Type = t
+		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpLsh32x32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
+		v2.AddArg(x)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int32ToAuxInt(int32(c & 31))
+		v1.AddArg2(v2, v3)
+		v4 := b.NewValue0(v.Pos, OpRsh32Ux32, typ.UInt32)
+		v5 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
+		v5.AddArg(x)
+		v6 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v6.AuxInt = int32ToAuxInt(int32(32 - c&31))
+		v4.AddArg2(v5, v6)
+		v0.AddArg2(v1, v4)
+		v7 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
+		v8 := b.NewValue0(v.Pos, OpLsh32x32, typ.UInt32)
+		v8.AddArg2(v5, v3)
+		v9 := b.NewValue0(v.Pos, OpRsh32Ux32, typ.UInt32)
+		v9.AddArg2(v2, v6)
+		v7.AddArg2(v8, v9)
+		v.AddArg2(v0, v7)
+		return true
+	}
+	// match: (RotateLeft64 <t> x (Const32 [c]))
+	// cond: 0 < c&63 && c&63 < 32
+	// result: (Int64Make <t> (Or32 <typ.UInt32> (Lsh32x32 <typ.UInt32> (Int64Hi x) (Const32 <typ.UInt32> [int32(c&31)])) (Rsh32Ux32 <typ.UInt32> (Int64Lo x) (Const32 <typ.UInt32> [int32(32-c&31)]))) (Or32 <typ.UInt32> (Lsh32x32 <typ.UInt32> (Int64Lo x) (Const32 <typ.UInt32> [int32(c&31)])) (Rsh32Ux32 <typ.UInt32> (Int64Hi x) (Const32 <typ.UInt32> [int32(32-c&31)]))))
+	for {
+		t := v.Type
+		x := v_0
+		if v_1.Op != OpConst32 {
+			break
+		}
+		c := auxIntToInt32(v_1.AuxInt)
+		if !(0 < c&63 && c&63 < 32) {
+			break
+		}
+		v.reset(OpInt64Make)
+		v.Type = t
+		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpLsh32x32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
+		v2.AddArg(x)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int32ToAuxInt(int32(c & 31))
+		v1.AddArg2(v2, v3)
+		v4 := b.NewValue0(v.Pos, OpRsh32Ux32, typ.UInt32)
+		v5 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
+		v5.AddArg(x)
+		v6 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v6.AuxInt = int32ToAuxInt(int32(32 - c&31))
+		v4.AddArg2(v5, v6)
+		v0.AddArg2(v1, v4)
+		v7 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
+		v8 := b.NewValue0(v.Pos, OpLsh32x32, typ.UInt32)
+		v8.AddArg2(v5, v3)
+		v9 := b.NewValue0(v.Pos, OpRsh32Ux32, typ.UInt32)
+		v9.AddArg2(v2, v6)
+		v7.AddArg2(v8, v9)
+		v.AddArg2(v0, v7)
+		return true
+	}
+	// match: (RotateLeft64 <t> x (Const16 [c]))
+	// cond: 0 < c&63 && c&63 < 32
+	// result: (Int64Make <t> (Or32 <typ.UInt32> (Lsh32x32 <typ.UInt32> (Int64Hi x) (Const32 <typ.UInt32> [int32(c&31)])) (Rsh32Ux32 <typ.UInt32> (Int64Lo x) (Const32 <typ.UInt32> [int32(32-c&31)]))) (Or32 <typ.UInt32> (Lsh32x32 <typ.UInt32> (Int64Lo x) (Const32 <typ.UInt32> [int32(c&31)])) (Rsh32Ux32 <typ.UInt32> (Int64Hi x) (Const32 <typ.UInt32> [int32(32-c&31)]))))
+	for {
+		t := v.Type
+		x := v_0
+		if v_1.Op != OpConst16 {
+			break
+		}
+		c := auxIntToInt16(v_1.AuxInt)
+		if !(0 < c&63 && c&63 < 32) {
+			break
+		}
+		v.reset(OpInt64Make)
+		v.Type = t
+		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpLsh32x32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
+		v2.AddArg(x)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int32ToAuxInt(int32(c & 31))
+		v1.AddArg2(v2, v3)
+		v4 := b.NewValue0(v.Pos, OpRsh32Ux32, typ.UInt32)
+		v5 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
+		v5.AddArg(x)
+		v6 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v6.AuxInt = int32ToAuxInt(int32(32 - c&31))
+		v4.AddArg2(v5, v6)
+		v0.AddArg2(v1, v4)
+		v7 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
+		v8 := b.NewValue0(v.Pos, OpLsh32x32, typ.UInt32)
+		v8.AddArg2(v5, v3)
+		v9 := b.NewValue0(v.Pos, OpRsh32Ux32, typ.UInt32)
+		v9.AddArg2(v2, v6)
+		v7.AddArg2(v8, v9)
+		v.AddArg2(v0, v7)
+		return true
+	}
+	// match: (RotateLeft64 <t> x (Const8 [c]))
+	// cond: 0 < c&63 && c&63 < 32
+	// result: (Int64Make <t> (Or32 <typ.UInt32> (Lsh32x32 <typ.UInt32> (Int64Hi x) (Const32 <typ.UInt32> [int32(c&31)])) (Rsh32Ux32 <typ.UInt32> (Int64Lo x) (Const32 <typ.UInt32> [int32(32-c&31)]))) (Or32 <typ.UInt32> (Lsh32x32 <typ.UInt32> (Int64Lo x) (Const32 <typ.UInt32> [int32(c&31)])) (Rsh32Ux32 <typ.UInt32> (Int64Hi x) (Const32 <typ.UInt32> [int32(32-c&31)]))))
+	for {
+		t := v.Type
+		x := v_0
+		if v_1.Op != OpConst8 {
+			break
+		}
+		c := auxIntToInt8(v_1.AuxInt)
+		if !(0 < c&63 && c&63 < 32) {
+			break
+		}
+		v.reset(OpInt64Make)
+		v.Type = t
+		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpLsh32x32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
+		v2.AddArg(x)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int32ToAuxInt(int32(c & 31))
+		v1.AddArg2(v2, v3)
+		v4 := b.NewValue0(v.Pos, OpRsh32Ux32, typ.UInt32)
+		v5 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
+		v5.AddArg(x)
+		v6 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v6.AuxInt = int32ToAuxInt(int32(32 - c&31))
+		v4.AddArg2(v5, v6)
+		v0.AddArg2(v1, v4)
+		v7 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
+		v8 := b.NewValue0(v.Pos, OpLsh32x32, typ.UInt32)
+		v8.AddArg2(v5, v3)
+		v9 := b.NewValue0(v.Pos, OpRsh32Ux32, typ.UInt32)
+		v9.AddArg2(v2, v6)
+		v7.AddArg2(v8, v9)
+		v.AddArg2(v0, v7)
+		return true
+	}
+	// match: (RotateLeft64 <t> x (Const64 [c]))
+	// cond: 32 < c&63 && c&63 < 64
+	// result: (Int64Make <t> (Or32 <typ.UInt32> (Lsh32x32 <typ.UInt32> (Int64Lo x) (Const32 <typ.UInt32> [int32(c&31)])) (Rsh32Ux32 <typ.UInt32> (Int64Hi x) (Const32 <typ.UInt32> [int32(32-c&31)]))) (Or32 <typ.UInt32> (Lsh32x32 <typ.UInt32> (Int64Hi x) (Const32 <typ.UInt32> [int32(c&31)])) (Rsh32Ux32 <typ.UInt32> (Int64Lo x) (Const32 <typ.UInt32> [int32(32-c&31)]))))
+	for {
+		t := v.Type
+		x := v_0
+		if v_1.Op != OpConst64 {
+			break
+		}
+		c := auxIntToInt64(v_1.AuxInt)
+		if !(32 < c&63 && c&63 < 64) {
+			break
+		}
+		v.reset(OpInt64Make)
+		v.Type = t
+		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpLsh32x32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
+		v2.AddArg(x)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int32ToAuxInt(int32(c & 31))
+		v1.AddArg2(v2, v3)
+		v4 := b.NewValue0(v.Pos, OpRsh32Ux32, typ.UInt32)
+		v5 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
+		v5.AddArg(x)
+		v6 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v6.AuxInt = int32ToAuxInt(int32(32 - c&31))
+		v4.AddArg2(v5, v6)
+		v0.AddArg2(v1, v4)
+		v7 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
+		v8 := b.NewValue0(v.Pos, OpLsh32x32, typ.UInt32)
+		v8.AddArg2(v5, v3)
+		v9 := b.NewValue0(v.Pos, OpRsh32Ux32, typ.UInt32)
+		v9.AddArg2(v2, v6)
+		v7.AddArg2(v8, v9)
+		v.AddArg2(v0, v7)
+		return true
+	}
+	// match: (RotateLeft64 <t> x (Const32 [c]))
+	// cond: 32 < c&63 && c&63 < 64
+	// result: (Int64Make <t> (Or32 <typ.UInt32> (Lsh32x32 <typ.UInt32> (Int64Lo x) (Const32 <typ.UInt32> [int32(c&31)])) (Rsh32Ux32 <typ.UInt32> (Int64Hi x) (Const32 <typ.UInt32> [int32(32-c&31)]))) (Or32 <typ.UInt32> (Lsh32x32 <typ.UInt32> (Int64Hi x) (Const32 <typ.UInt32> [int32(c&31)])) (Rsh32Ux32 <typ.UInt32> (Int64Lo x) (Const32 <typ.UInt32> [int32(32-c&31)]))))
+	for {
+		t := v.Type
+		x := v_0
+		if v_1.Op != OpConst32 {
+			break
+		}
+		c := auxIntToInt32(v_1.AuxInt)
+		if !(32 < c&63 && c&63 < 64) {
+			break
+		}
+		v.reset(OpInt64Make)
+		v.Type = t
+		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpLsh32x32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
+		v2.AddArg(x)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int32ToAuxInt(int32(c & 31))
+		v1.AddArg2(v2, v3)
+		v4 := b.NewValue0(v.Pos, OpRsh32Ux32, typ.UInt32)
+		v5 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
+		v5.AddArg(x)
+		v6 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v6.AuxInt = int32ToAuxInt(int32(32 - c&31))
+		v4.AddArg2(v5, v6)
+		v0.AddArg2(v1, v4)
+		v7 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
+		v8 := b.NewValue0(v.Pos, OpLsh32x32, typ.UInt32)
+		v8.AddArg2(v5, v3)
+		v9 := b.NewValue0(v.Pos, OpRsh32Ux32, typ.UInt32)
+		v9.AddArg2(v2, v6)
+		v7.AddArg2(v8, v9)
+		v.AddArg2(v0, v7)
+		return true
+	}
+	// match: (RotateLeft64 <t> x (Const16 [c]))
+	// cond: 32 < c&63 && c&63 < 64
+	// result: (Int64Make <t> (Or32 <typ.UInt32> (Lsh32x32 <typ.UInt32> (Int64Lo x) (Const32 <typ.UInt32> [int32(c&31)])) (Rsh32Ux32 <typ.UInt32> (Int64Hi x) (Const32 <typ.UInt32> [int32(32-c&31)]))) (Or32 <typ.UInt32> (Lsh32x32 <typ.UInt32> (Int64Hi x) (Const32 <typ.UInt32> [int32(c&31)])) (Rsh32Ux32 <typ.UInt32> (Int64Lo x) (Const32 <typ.UInt32> [int32(32-c&31)]))))
+	for {
+		t := v.Type
+		x := v_0
+		if v_1.Op != OpConst16 {
+			break
+		}
+		c := auxIntToInt16(v_1.AuxInt)
+		if !(32 < c&63 && c&63 < 64) {
+			break
+		}
+		v.reset(OpInt64Make)
+		v.Type = t
+		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpLsh32x32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
+		v2.AddArg(x)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int32ToAuxInt(int32(c & 31))
+		v1.AddArg2(v2, v3)
+		v4 := b.NewValue0(v.Pos, OpRsh32Ux32, typ.UInt32)
+		v5 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
+		v5.AddArg(x)
+		v6 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v6.AuxInt = int32ToAuxInt(int32(32 - c&31))
+		v4.AddArg2(v5, v6)
+		v0.AddArg2(v1, v4)
+		v7 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
+		v8 := b.NewValue0(v.Pos, OpLsh32x32, typ.UInt32)
+		v8.AddArg2(v5, v3)
+		v9 := b.NewValue0(v.Pos, OpRsh32Ux32, typ.UInt32)
+		v9.AddArg2(v2, v6)
+		v7.AddArg2(v8, v9)
+		v.AddArg2(v0, v7)
+		return true
+	}
+	// match: (RotateLeft64 <t> x (Const8 [c]))
+	// cond: 32 < c&63 && c&63 < 64
+	// result: (Int64Make <t> (Or32 <typ.UInt32> (Lsh32x32 <typ.UInt32> (Int64Lo x) (Const32 <typ.UInt32> [int32(c&31)])) (Rsh32Ux32 <typ.UInt32> (Int64Hi x) (Const32 <typ.UInt32> [int32(32-c&31)]))) (Or32 <typ.UInt32> (Lsh32x32 <typ.UInt32> (Int64Hi x) (Const32 <typ.UInt32> [int32(c&31)])) (Rsh32Ux32 <typ.UInt32> (Int64Lo x) (Const32 <typ.UInt32> [int32(32-c&31)]))))
+	for {
+		t := v.Type
+		x := v_0
+		if v_1.Op != OpConst8 {
+			break
+		}
+		c := auxIntToInt8(v_1.AuxInt)
+		if !(32 < c&63 && c&63 < 64) {
+			break
+		}
+		v.reset(OpInt64Make)
+		v.Type = t
+		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpLsh32x32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
+		v2.AddArg(x)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int32ToAuxInt(int32(c & 31))
+		v1.AddArg2(v2, v3)
+		v4 := b.NewValue0(v.Pos, OpRsh32Ux32, typ.UInt32)
+		v5 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
+		v5.AddArg(x)
+		v6 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v6.AuxInt = int32ToAuxInt(int32(32 - c&31))
+		v4.AddArg2(v5, v6)
+		v0.AddArg2(v1, v4)
+		v7 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
+		v8 := b.NewValue0(v.Pos, OpLsh32x32, typ.UInt32)
+		v8.AddArg2(v5, v3)
+		v9 := b.NewValue0(v.Pos, OpRsh32Ux32, typ.UInt32)
+		v9.AddArg2(v2, v6)
+		v7.AddArg2(v8, v9)
+		v.AddArg2(v0, v7)
 		return true
 	}
 	return false
@@ -2251,6 +2898,34 @@ func rewriteValuedec64_OpRsh8x64(v *Value) bool {
 		return true
 	}
 }
+func rewriteValuedec64_OpSelect0(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (Select0 (MakeTuple x y))
+	// result: x
+	for {
+		if v_0.Op != OpMakeTuple {
+			break
+		}
+		x := v_0.Args[0]
+		v.copyOf(x)
+		return true
+	}
+	return false
+}
+func rewriteValuedec64_OpSelect1(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (Select1 (MakeTuple x y))
+	// result: y
+	for {
+		if v_0.Op != OpMakeTuple {
+			break
+		}
+		y := v_0.Args[1]
+		v.copyOf(y)
+		return true
+	}
+	return false
+}
 func rewriteValuedec64_OpSignExt16to64(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2361,29 +3036,33 @@ func rewriteValuedec64_OpSub64(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
-	// match: (Sub64 x y)
-	// result: (Int64Make (Sub32withcarry <typ.Int32> (Int64Hi x) (Int64Hi y) (Select1 <types.TypeFlags> (Sub32carry (Int64Lo x) (Int64Lo y)))) (Select0 <typ.UInt32> (Sub32carry (Int64Lo x) (Int64Lo y))))
+	// match: (Sub64 <t> x y)
+	// result: (Last <t> x0: (Int64Lo x) x1: (Int64Hi x) y0: (Int64Lo y) y1: (Int64Hi y) sub: (Sub32carry x0 y0) (Int64Make (Sub32withcarry <typ.UInt32> x1 y1 (Select1 <types.TypeFlags> sub)) (Select0 <typ.UInt32> sub)))
 	for {
+		t := v.Type
 		x := v_0
 		y := v_1
-		v.reset(OpInt64Make)
-		v0 := b.NewValue0(v.Pos, OpSub32withcarry, typ.Int32)
-		v1 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
-		v1.AddArg(x)
-		v2 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
-		v2.AddArg(y)
-		v3 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
-		v4 := b.NewValue0(v.Pos, OpSub32carry, types.NewTuple(typ.UInt32, types.TypeFlags))
-		v5 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
-		v5.AddArg(x)
-		v6 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
-		v6.AddArg(y)
-		v4.AddArg2(v5, v6)
-		v3.AddArg(v4)
-		v0.AddArg3(v1, v2, v3)
-		v7 := b.NewValue0(v.Pos, OpSelect0, typ.UInt32)
-		v7.AddArg(v4)
-		v.AddArg2(v0, v7)
+		v.reset(OpLast)
+		v.Type = t
+		x0 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
+		x0.AddArg(x)
+		x1 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
+		x1.AddArg(x)
+		y0 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
+		y0.AddArg(y)
+		y1 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
+		y1.AddArg(y)
+		sub := b.NewValue0(v.Pos, OpSub32carry, types.NewTuple(typ.UInt32, types.TypeFlags))
+		sub.AddArg2(x0, y0)
+		v5 := b.NewValue0(v.Pos, OpInt64Make, typ.UInt64)
+		v6 := b.NewValue0(v.Pos, OpSub32withcarry, typ.UInt32)
+		v7 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
+		v7.AddArg(sub)
+		v6.AddArg3(x1, y1, v7)
+		v8 := b.NewValue0(v.Pos, OpSelect0, typ.UInt32)
+		v8.AddArg(sub)
+		v5.AddArg2(v6, v8)
+		v.AddArg6(x0, x1, y0, y1, sub, v5)
 		return true
 	}
 }

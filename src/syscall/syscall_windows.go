@@ -10,10 +10,10 @@ import (
 	errorspkg "errors"
 	"internal/asan"
 	"internal/bytealg"
-	"internal/itoa"
 	"internal/msan"
 	"internal/oserror"
 	"internal/race"
+	"internal/strconv"
 	"sync"
 	"unsafe"
 )
@@ -170,7 +170,7 @@ func (e Errno) error() string {
 	if err != nil {
 		n, err = formatMessage(flags, 0, uint32(e), 0, b, nil)
 		if err != nil {
-			return "winapi error #" + itoa.Itoa(int(e))
+			return "winapi error #" + strconv.Itoa(int(e))
 		}
 	}
 	// trim terminating \r and \n
@@ -468,6 +468,14 @@ func Open(name string, flag int, perm uint32) (fd Handle, err error) {
 	if flag&O_TRUNC == O_TRUNC &&
 		(createmode == OPEN_EXISTING || (createmode == OPEN_ALWAYS && err == ERROR_ALREADY_EXISTS)) {
 		err = Ftruncate(h, 0)
+		if err == _ERROR_INVALID_PARAMETER {
+			// ERROR_INVALID_PARAMETER means truncation is not supported on this file handle.
+			// Unix's O_TRUNC specification says to ignore O_TRUNC on named pipes and terminal devices.
+			// We do the same here.
+			if t, err1 := GetFileType(h); err1 == nil && (t == FILE_TYPE_PIPE || t == FILE_TYPE_CHAR) {
+				err = nil
+			}
+		}
 		if err != nil {
 			CloseHandle(h)
 			return InvalidHandle, err
@@ -1358,7 +1366,7 @@ func (s Signal) String() string {
 			return str
 		}
 	}
-	return "signal " + itoa.Itoa(int(s))
+	return "signal " + strconv.Itoa(int(s))
 }
 
 func LoadCreateSymbolicLink() error {

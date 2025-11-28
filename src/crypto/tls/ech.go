@@ -6,26 +6,13 @@ package tls
 
 import (
 	"bytes"
-	"crypto/internal/hpke"
+	"crypto/hpke"
 	"errors"
 	"fmt"
-	"slices"
 	"strings"
 
 	"golang.org/x/crypto/cryptobyte"
 )
-
-// sortedSupportedAEADs is just a sorted version of hpke.SupportedAEADS.
-// We need this so that when we insert them into ECHConfigs the ordering
-// is stable.
-var sortedSupportedAEADs []uint16
-
-func init() {
-	for aeadID := range hpke.SupportedAEADs {
-		sortedSupportedAEADs = append(sortedSupportedAEADs, aeadID)
-	}
-	slices.Sort(sortedSupportedAEADs)
-}
 
 type echCipher struct {
 	KDFID  uint16
@@ -162,25 +149,8 @@ func parseECHConfigList(data []byte) ([]echConfig, error) {
 	return configs, nil
 }
 
-func pickECHConfig(list []echConfig) *echConfig {
+func pickECHConfig(list []echConfig) (*echConfig, hpke.PublicKey, hpke.KDF, hpke.AEAD) {
 	for _, ec := range list {
-		if _, ok := hpke.SupportedKEMs[ec.KemID]; !ok {
-			continue
-		}
-		var validSCS bool
-		for _, cs := range ec.SymmetricCipherSuite {
-			if _, ok := hpke.SupportedAEADs[cs.AEADID]; !ok {
-				continue
-			}
-			if _, ok := hpke.SupportedKDFs[cs.KDFID]; !ok {
-				continue
-			}
-			validSCS = true
-			break
-		}
-		if !validSCS {
-			continue
-		}
 		if !validDNSName(string(ec.PublicName)) {
 			continue
 		}
@@ -196,25 +166,32 @@ func pickECHConfig(list []echConfig) *echConfig {
 		if unsupportedExt {
 			continue
 		}
-		return &ec
-	}
-	return nil
-}
-
-func pickECHCipherSuite(suites []echCipher) (echCipher, error) {
-	for _, s := range suites {
-		// NOTE: all of the supported AEADs and KDFs are fine, rather than
-		// imposing some sort of preference here, we just pick the first valid
-		// suite.
-		if _, ok := hpke.SupportedAEADs[s.AEADID]; !ok {
+		kem, err := hpke.NewKEM(ec.KemID)
+		if err != nil {
 			continue
 		}
-		if _, ok := hpke.SupportedKDFs[s.KDFID]; !ok {
+		pub, err := kem.NewPublicKey(ec.PublicKey)
+		if err != nil {
+			// This is an error in the config, but killing the connection feels
+			// excessive.
 			continue
 		}
-		return s, nil
+		for _, cs := range ec.SymmetricCipherSuite {
+			// All of the supported AEADs and KDFs are fine, rather than
+			// imposing some sort of preference here, we just pick the first
+			// valid suite.
+			kdf, err := hpke.NewKDF(cs.KDFID)
+			if err != nil {
+				continue
+			}
+			aead, err := hpke.NewAEAD(cs.AEADID)
+			if err != nil {
+				continue
+			}
+			return &ec, pub, kdf, aead
+		}
 	}
-	return echCipher{}, errors.New("tls: no supported symmetric ciphersuites for ECH")
+	return nil, nil, nil, nil
 }
 
 func encodeInnerClientHello(inner *clientHelloMsg, maxNameLength int) ([]byte, error) {
@@ -592,18 +569,33 @@ func (c *Conn) processECHClientHello(outer *clientHelloMsg, echKeys []EncryptedC
 		skip, config, err := parseECHConfig(echKey.Config)
 		if err != nil || skip {
 			c.sendAlert(alertInternalError)
-			return nil, nil, fmt.Errorf("tls: invalid EncryptedClientHelloKeys Config: %s", err)
+			return nil, nil, fmt.Errorf("tls: invalid EncryptedClientHelloKey Config: %s", err)
 		}
 		if skip {
 			continue
 		}
-		echPriv, err := hpke.ParseHPKEPrivateKey(config.KemID, echKey.PrivateKey)
+		kem, err := hpke.NewKEM(config.KemID)
 		if err != nil {
 			c.sendAlert(alertInternalError)
-			return nil, nil, fmt.Errorf("tls: invalid EncryptedClientHelloKeys PrivateKey: %s", err)
+			return nil, nil, fmt.Errorf("tls: invalid EncryptedClientHelloKey Config KEM: %s", err)
+		}
+		echPriv, err := kem.NewPrivateKey(echKey.PrivateKey)
+		if err != nil {
+			c.sendAlert(alertInternalError)
+			return nil, nil, fmt.Errorf("tls: invalid EncryptedClientHelloKey PrivateKey: %s", err)
+		}
+		kdf, err := hpke.NewKDF(echCiphersuite.KDFID)
+		if err != nil {
+			c.sendAlert(alertInternalError)
+			return nil, nil, fmt.Errorf("tls: invalid EncryptedClientHelloKey Config KDF: %s", err)
+		}
+		aead, err := hpke.NewAEAD(echCiphersuite.AEADID)
+		if err != nil {
+			c.sendAlert(alertInternalError)
+			return nil, nil, fmt.Errorf("tls: invalid EncryptedClientHelloKey Config AEAD: %s", err)
 		}
 		info := append([]byte("tls ech\x00"), echKey.Config...)
-		hpkeContext, err := hpke.SetupRecipient(hpke.DHKEM_X25519_HKDF_SHA256, echCiphersuite.KDFID, echCiphersuite.AEADID, echPriv, info, encap)
+		hpkeContext, err := hpke.NewRecipient(encap, echPriv, kdf, aead, info)
 		if err != nil {
 			// attempt next trial decryption
 			continue

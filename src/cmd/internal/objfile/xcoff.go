@@ -87,15 +87,14 @@ func (f *xcoffFile) symbols() ([]Sym, error) {
 	return syms, nil
 }
 
-func (f *xcoffFile) pcln() (textStart uint64, symtab, pclntab []byte, err error) {
+func (f *xcoffFile) pcln() (textStart uint64, pclntab []byte, err error) {
 	if sect := f.xcoff.Section(".text"); sect != nil {
 		textStart = sect.VirtualAddress
 	}
 	if pclntab, err = loadXCOFFTable(f.xcoff, "runtime.pclntab", "runtime.epclntab"); err != nil {
-		return 0, nil, nil, err
+		return 0, nil, err
 	}
-	symtab, _ = loadXCOFFTable(f.xcoff, "runtime.symtab", "runtime.esymtab") // ignore error, this symbol is not useful anyway
-	return textStart, symtab, pclntab, nil
+	return textStart, pclntab, nil
 }
 
 func (f *xcoffFile) text() (textStart uint64, text []byte, err error) {

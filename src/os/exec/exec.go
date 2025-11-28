@@ -142,8 +142,8 @@ func (w wrappedError) Unwrap() error {
 
 // Cmd represents an external command being prepared or run.
 //
-// A Cmd cannot be reused after calling its [Cmd.Run], [Cmd.Output] or [Cmd.CombinedOutput]
-// methods.
+// A Cmd cannot be reused after calling its [Cmd.Start], [Cmd.Run],
+// [Cmd.Output], or [Cmd.CombinedOutput] methods.
 type Cmd struct {
 	// Path is the path of the command to run.
 	//

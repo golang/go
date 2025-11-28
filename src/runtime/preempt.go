@@ -55,6 +55,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
+	"internal/goexperiment"
 	"internal/stringslite"
 )
 
@@ -286,7 +287,7 @@ func resumeG(state suspendGState) {
 //
 //go:nosplit
 func canPreemptM(mp *m) bool {
-	return mp.locks == 0 && mp.mallocing == 0 && mp.preemptoff == "" && mp.p.ptr().status == _Prunning
+	return mp.locks == 0 && mp.mallocing == 0 && mp.preemptoff == "" && mp.p.ptr().status == _Prunning && mp.curg != nil && readgstatus(mp.curg)&^_Gscan != _Gsyscall
 }
 
 //go:generate go run mkpreempt.go
@@ -403,6 +404,22 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
 
 	// Check stack space.
 	if sp < gp.stack.lo || sp-gp.stack.lo < asyncPreemptStack {
+		return false, 0
+	}
+
+	// If we're in the middle of a secret computation, we can't
+	// allow any conservative scanning of stacks, as that may lead
+	// to secrets leaking out from the stack into work buffers.
+	// Additionally, the preemption code will store the
+	// machine state (including registers which may contain confidential
+	// information) into the preemption buffers.
+	//
+	// TODO(dmo): there's technically nothing stopping us from doing the
+	// preemption, granted that don't conservatively scan and we clean up after
+	// ourselves. This is made slightly harder by the xRegs cached allocations
+	// that can move between Gs and Ps. In any case, for the intended users (cryptography code)
+	// they are unlikely get stuck in unterminating loops.
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
 		return false, 0
 	}
 

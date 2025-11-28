@@ -6,8 +6,6 @@
 
 package cpu
 
-import _ "unsafe" // for linkname
-
 func osInit() {
 	// macOS 12 moved these to the hw.optional.arm tree, but as of Go 1.24 we
 	// still support macOS 11. See [Determine Encryption Capabilities].
@@ -28,25 +26,4 @@ func osInit() {
 	ARM64.HasPMULL = true
 	ARM64.HasSHA1 = true
 	ARM64.HasSHA2 = true
-}
-
-//go:noescape
-func getsysctlbyname(name []byte) (int32, int32)
-
-// sysctlEnabled should be an internal detail,
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
-//   - github.com/bytedance/gopkg
-//   - github.com/songzhibin97/gkit
-//
-// Do not remove or change the type signature.
-// See go.dev/issue/67401.
-//
-//go:linkname sysctlEnabled
-func sysctlEnabled(name []byte) bool {
-	ret, value := getsysctlbyname(name)
-	if ret < 0 {
-		return false
-	}
-	return value > 0
 }

@@ -26,7 +26,7 @@ var val8 [8]uint8
 func set16(x8 int8, u8 *uint8, y8 int8, z8 uint8) {
 	// Truncate not needed, load does sign/zero extend
 
-	// ppc64x:-"MOVBZ\tR\\d+,\\sR\\d+"
+	// ppc64x:-"MOVBZ R\\d+,\\sR\\d+"
 	val16[0] = uint16(*u8)
 
 	// AND not needed due to size
@@ -39,20 +39,20 @@ func set16(x8 int8, u8 *uint8, y8 int8, z8 uint8) {
 }
 func shiftidx(u8 *uint8, x16 *int16, u16 *uint16) {
 
-	// ppc64x:-"MOVBZ\tR\\d+,\\sR\\d+"
+	// ppc64x:-"MOVBZ R\\d+,\\sR\\d+"
 	val16[0] = uint16(sval16[*u8>>2])
 
-	// ppc64x:-"MOVH\tR\\d+,\\sR\\d+"
+	// ppc64x:-"MOVH R\\d+,\\sR\\d+"
 	sval16[1] = int16(val16[*x16>>1])
 
-	// ppc64x:-"MOVHZ\tR\\d+,\\sR\\d+"
+	// ppc64x:-"MOVHZ R\\d+,\\sR\\d+"
 	val16[1] = uint16(sval16[*u16>>2])
 
 }
 
 func setnox(x8 int8, u8 *uint8, y8 *int8, z8 *uint8, x16 *int16, u16 *uint16, x32 *int32, u32 *uint32) {
 
-	// ppc64x:-"MOVBZ\tR\\d+,\\sR\\d+"
+	// ppc64x:-"MOVBZ R\\d+,\\sR\\d+"
 	val16[0] = uint16(*u8)
 
 	// AND not needed due to size
@@ -62,65 +62,65 @@ func setnox(x8 int8, u8 *uint8, y8 *int8, z8 *uint8, x16 *int16, u16 *uint16, x3
 	// ppc64x:-"ANDCC"
 	val16[1] = 255 & uint16(*u8+*z8)
 
-	// ppc64x:-"MOVH\tR\\d+,\\sR\\d+"
+	// ppc64x:-"MOVH R\\d+,\\sR\\d+"
 	sval32[1] = int32(*x16)
 
-	// ppc64x:-"MOVBZ\tR\\d+,\\sR\\d+"
+	// ppc64x:-"MOVBZ R\\d+,\\sR\\d+"
 	val32[0] = uint32(*u8)
 
-	// ppc64x:-"MOVHZ\tR\\d+,\\sR\\d+"
+	// ppc64x:-"MOVHZ R\\d+,\\sR\\d+"
 	val32[1] = uint32(*u16)
 
-	// ppc64x:-"MOVH\tR\\d+,\\sR\\d+"
+	// ppc64x:-"MOVH R\\d+,\\sR\\d+"
 	sval64[1] = int64(*x16)
 
-	// ppc64x:-"MOVW\tR\\d+,\\sR\\d+"
+	// ppc64x:-"MOVW R\\d+,\\sR\\d+"
 	sval64[2] = int64(*x32)
 
-	// ppc64x:-"MOVBZ\tR\\d+,\\sR\\d+"
+	// ppc64x:-"MOVBZ R\\d+,\\sR\\d+"
 	val64[0] = uint64(*u8)
 
-	// ppc64x:-"MOVHZ\tR\\d+,\\sR\\d+"
+	// ppc64x:-"MOVHZ R\\d+,\\sR\\d+"
 	val64[1] = uint64(*u16)
 
-	// ppc64x:-"MOVWZ\tR\\d+,\\sR\\d+"
+	// ppc64x:-"MOVWZ R\\d+,\\sR\\d+"
 	val64[2] = uint64(*u32)
 }
 
 func cmp16(u8 *uint8, x32 *int32, u32 *uint32, x64 *int64, u64 *uint64) bool {
 
-	// ppc64x:-"MOVBZ\tR\\d+,\\sR\\d+"
+	// ppc64x:-"MOVBZ R\\d+,\\sR\\d+"
 	if uint16(*u8) == val16[0] {
 		return true
 	}
 
-	// ppc64x:-"MOVHZ\tR\\d+,\\sR\\d+"
+	// ppc64x:-"MOVHZ R\\d+,\\sR\\d+"
 	if uint16(*u32>>16) == val16[0] {
 		return true
 	}
 
-	// ppc64x:-"MOVHZ\tR\\d+,\\sR\\d+"
+	// ppc64x:-"MOVHZ R\\d+,\\sR\\d+"
 	if uint16(*u64>>48) == val16[0] {
 		return true
 	}
 
 	// Verify the truncates are using the correct sign.
-	// ppc64x:-"MOVHZ\tR\\d+,\\sR\\d+"
+	// ppc64x:-"MOVHZ R\\d+,\\sR\\d+"
 	if int16(*x32) == sval16[0] {
 		return true
 	}
 
-	// ppc64x:-"MOVH\tR\\d+,\\sR\\d+"
+	// ppc64x:-"MOVH R\\d+,\\sR\\d+"
 	if uint16(*u32) == val16[0] {
 		return true
 	}
 
-	// ppc64x:-"MOVHZ\tR\\d+,\\sR\\d+"
+	// ppc64x:-"MOVHZ R\\d+,\\sR\\d+"
 	if int16(*x64) == sval16[0] {
 		return true
 	}
 
-	// ppc64x:-"MOVH\tR\\d+,\\sR\\d+"
+	// ppc64x:-"MOVH R\\d+,\\sR\\d+"
 	if uint16(*u64) == val16[0] {
 		return true
 	}
@@ -130,28 +130,28 @@ func cmp16(u8 *uint8, x32 *int32, u32 *uint32, x64 *int64, u64 *uint64) bool {
 
 func cmp32(u8 *uint8, x16 *int16, u16 *uint16, x64 *int64, u64 *uint64) bool {
 
-	// ppc64x:-"MOVBZ\tR\\d+,\\sR\\d+"
+	// ppc64x:-"MOVBZ R\\d+,\\sR\\d+"
 	if uint32(*u8) == val32[0] {
 		return true
 	}
 
-	// ppc64x:-"MOVH\tR\\d+,\\sR\\d+"
+	// ppc64x:-"MOVH R\\d+,\\sR\\d+"
 	if int32(*x16) == sval32[0] {
 		return true
 	}
 
-	// ppc64x:-"MOVHZ\tR\\d+,\\sR\\d+"
+	// ppc64x:-"MOVHZ R\\d+,\\sR\\d+"
 	if uint32(*u16) == val32[0] {
 		return true
 	}
 
 	// Verify the truncates are using the correct sign.
-	// ppc64x:-"MOVWZ\tR\\d+,\\sR\\d+"
+	// ppc64x:-"MOVWZ R\\d+,\\sR\\d+"
 	if int32(*x64) == sval32[0] {
 		return true
 	}
 
-	// ppc64x:-"MOVW\tR\\d+,\\sR\\d+"
+	// ppc64x:-"MOVW R\\d+,\\sR\\d+"
 	if uint32(*u64) == val32[0] {
 		return true
 	}
@@ -161,27 +161,27 @@ func cmp32(u8 *uint8, x16 *int16, u16 *uint16, x64 *int64, u64 *uint64) bool {
 
 func cmp64(u8 *uint8, x16 *int16, u16 *uint16, x32 *int32, u32 *uint32) bool {
 
-	// ppc64x:-"MOVBZ\tR\\d+,\\sR\\d+"
+	// ppc64x:-"MOVBZ R\\d+,\\sR\\d+"
 	if uint64(*u8) == val64[0] {
 		return true
 	}
 
-	// ppc64x:-"MOVH\tR\\d+,\\sR\\d+"
+	// ppc64x:-"MOVH R\\d+,\\sR\\d+"
 	if int64(*x16) == sval64[0] {
 		return true
 	}
 
-	// ppc64x:-"MOVHZ\tR\\d+,\\sR\\d+"
+	// ppc64x:-"MOVHZ R\\d+,\\sR\\d+"
 	if uint64(*u16) == val64[0] {
 		return true
 	}
 
-	// ppc64x:-"MOVW\tR\\d+,\\sR\\d+"
+	// ppc64x:-"MOVW R\\d+,\\sR\\d+"
 	if int64(*x32) == sval64[0] {
 		return true
 	}
 
-	// ppc64x:-"MOVWZ\tR\\d+,\\sR\\d+"
+	// ppc64x:-"MOVWZ R\\d+,\\sR\\d+"
 	if uint64(*u32) == val64[0] {
 		return true
 	}
@@ -193,40 +193,40 @@ func cmp64(u8 *uint8, x16 *int16, u16 *uint16, x32 *int32, u32 *uint32) bool {
 func noUnsignEXT(t1, t2, t3, t4 uint32, k int64) uint64 {
 	var ret uint64
 
-	// arm64:"RORW",-"MOVWU"
+	// arm64:"RORW" -"MOVWU"
 	ret += uint64(bits.RotateLeft32(t1, 7))
 
-	// arm64:"MULW",-"MOVWU"
+	// arm64:"MULW" -"MOVWU"
 	ret *= uint64(t1 * t2)
 
-	// arm64:"MNEGW",-"MOVWU"
+	// arm64:"MNEGW" -"MOVWU"
 	ret += uint64(-t1 * t3)
 
-	// arm64:"UDIVW",-"MOVWU"
+	// arm64:"UDIVW" -"MOVWU"
 	ret += uint64(t1 / t4)
 
 	// arm64:-"MOVWU"
 	ret += uint64(t2 % t3)
 
-	// arm64:"MSUBW",-"MOVWU"
+	// arm64:"MSUBW" -"MOVWU"
 	ret += uint64(t1 - t2*t3)
 
-	// arm64:"MADDW",-"MOVWU"
+	// arm64:"MADDW" -"MOVWU"
 	ret += uint64(t3*t4 + t2)
 
-	// arm64:"REVW",-"MOVWU"
+	// arm64:"REVW" -"MOVWU"
 	ret += uint64(bits.ReverseBytes32(t1))
 
-	// arm64:"RBITW",-"MOVWU"
+	// arm64:"RBITW" -"MOVWU"
 	ret += uint64(bits.Reverse32(t1))
 
-	// arm64:"CLZW",-"MOVWU"
+	// arm64:"CLZW" -"MOVWU"
 	ret += uint64(bits.LeadingZeros32(t1))
 
-	// arm64:"REV16W",-"MOVWU"
+	// arm64:"REV16W" -"MOVWU"
 	ret += uint64(((t1 & 0xff00ff00) >> 8) | ((t1 & 0x00ff00ff) << 8))
 
-	// arm64:"EXTRW",-"MOVWU"
+	// arm64:"EXTRW" -"MOVWU"
 	ret += uint64((t1 << 25) | (t2 >> 7))
 
 	return ret

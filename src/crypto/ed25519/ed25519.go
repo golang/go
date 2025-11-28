@@ -17,12 +17,15 @@ package ed25519
 
 import (
 	"crypto"
+	"crypto/internal/fips140/drbg"
 	"crypto/internal/fips140/ed25519"
 	"crypto/internal/fips140cache"
 	"crypto/internal/fips140only"
+	"crypto/internal/rand"
 	cryptorand "crypto/rand"
 	"crypto/subtle"
 	"errors"
+	"internal/godebug"
 	"io"
 	"strconv"
 )
@@ -110,7 +113,7 @@ func (priv PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOp
 	case hash == crypto.SHA512: // Ed25519ph
 		return ed25519.SignPH(k, message, context)
 	case hash == crypto.Hash(0) && context != "": // Ed25519ctx
-		if fips140only.Enabled {
+		if fips140only.Enforced() {
 			return nil, errors.New("crypto/ed25519: use of Ed25519ctx is not allowed in FIPS 140-only mode")
 		}
 		return ed25519.SignCtx(k, message, context)
@@ -135,18 +138,31 @@ type Options struct {
 // HashFunc returns o.Hash.
 func (o *Options) HashFunc() crypto.Hash { return o.Hash }
 
-// GenerateKey generates a public/private key pair using entropy from rand.
-// If rand is nil, [crypto/rand.Reader] will be used.
+var cryptocustomrand = godebug.New("cryptocustomrand")
+
+// GenerateKey generates a public/private key pair using entropy from random.
+//
+// If random is nil, a secure random source is used. (Before Go 1.26, a custom
+// [crypto/rand.Reader] was used if set by the application. That behavior can be
+// restored with GODEBUG=cryptocustomrand=1. This setting will be removed in a
+// future Go release. Instead, use [testing/cryptotest.SetGlobalRandom].)
 //
 // The output of this function is deterministic, and equivalent to reading
-// [SeedSize] bytes from rand, and passing them to [NewKeyFromSeed].
-func GenerateKey(rand io.Reader) (PublicKey, PrivateKey, error) {
-	if rand == nil {
-		rand = cryptorand.Reader
+// [SeedSize] bytes from random, and passing them to [NewKeyFromSeed].
+func GenerateKey(random io.Reader) (PublicKey, PrivateKey, error) {
+	if random == nil {
+		if cryptocustomrand.Value() == "1" {
+			random = cryptorand.Reader
+			if _, ok := random.(drbg.DefaultReader); !ok {
+				cryptocustomrand.IncNonDefault()
+			}
+		} else {
+			random = rand.Reader
+		}
 	}
 
 	seed := make([]byte, SeedSize)
-	if _, err := io.ReadFull(rand, seed); err != nil {
+	if _, err := io.ReadFull(random, seed); err != nil {
 		return nil, nil, err
 	}
 
@@ -230,7 +246,7 @@ func VerifyWithOptions(publicKey PublicKey, message, sig []byte, opts *Options) 
 	case opts.Hash == crypto.SHA512: // Ed25519ph
 		return ed25519.VerifyPH(k, message, sig, opts.Context)
 	case opts.Hash == crypto.Hash(0) && opts.Context != "": // Ed25519ctx
-		if fips140only.Enabled {
+		if fips140only.Enforced() {
 			return errors.New("crypto/ed25519: use of Ed25519ctx is not allowed in FIPS 140-only mode")
 		}
 		return ed25519.VerifyCtx(k, message, sig, opts.Context)

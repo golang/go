@@ -518,9 +518,8 @@ The parser for the execution trace format lives in the `internal/trace` package.
 If you plan on adding new trace events, consider starting with a [trace
 experiment](../internal/trace/tracev2/EXPERIMENTS.md).
 
-If you plan to add new trace instrumentation to the runtime, wrap whatever operation
-you're tracing in `traceAcquire` and `traceRelease` fully. These functions mark a
-critical section that appears atomic to the execution tracer (but nothing else).
+If you plan to add new trace instrumentation to the runtime, read the comment
+at the top of [trace.go](./trace.go), especially the invariants.
 
 debuglog
 ========

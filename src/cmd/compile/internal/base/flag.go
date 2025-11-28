@@ -177,10 +177,12 @@ func ParseFlags() {
 	Flag.WB = true
 
 	Debug.ConcurrentOk = true
+	Debug.CompressInstructions = 1
 	Debug.MaxShapeLen = 500
 	Debug.AlignHot = 1
 	Debug.InlFuncsWithClosures = 1
 	Debug.InlStaticInit = 1
+	Debug.FreeAppend = 1
 	Debug.PGOInline = 1
 	Debug.PGODevirtualize = 2
 	Debug.SyncFrames = -1            // disable sync markers by default
@@ -299,6 +301,7 @@ func ParseFlags() {
 	}
 	parseSpectre(Flag.Spectre) // left as string for RecordFlags
 
+	Ctxt.CompressInstructions = Debug.CompressInstructions != 0
 	Ctxt.Flag_shared = Ctxt.Flag_dynlink || Ctxt.Flag_shared
 	Ctxt.Flag_optimize = Flag.N == 0
 	Ctxt.Debugasm = int(Flag.S)

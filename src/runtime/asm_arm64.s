@@ -109,6 +109,14 @@ TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	MOVW	R0, 8(RSP) // argc
 	MOVD	R1, 16(RSP) // argv
 
+	// This is typically the entry point for Go programs.
+	// Call stack unwinding must not proceed past this frame.
+	// Set the frame pointer register to 0 so that frame pointer-based unwinders
+	// (which don't use debug info for performance reasons)
+	// won't attempt to unwind past this function.
+	// See go.dev/issue/63630
+	MOVD	$0, R29
+
 #ifdef TLS_darwin
 	// Initialize TLS.
 	MOVD	ZR, g // clear g, make sure it's not junk.
@@ -248,6 +256,13 @@ TEXT runtime·asminit(SB),NOSPLIT|NOFRAME,$0-0
 	RET
 
 TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME,$0
+	// This is the root frame of new Go-created OS threads.
+	// Call stack unwinding must not proceed past this frame.
+	// Set the frame pointer register to 0 so that frame pointer-based unwinders
+	// (which don't use debug info for performance reasons)
+	// won't attempt to unwind past this function.
+	// See go.dev/issue/63630
+	MOVD	$0, R29
 	BL	runtime·mstart0(SB)
 	RET // not reached
 
@@ -285,6 +300,17 @@ TEXT gogo<>(SB), NOSPLIT|NOFRAME, $0
 // Fn must never return. It should gogo(&g->sched)
 // to keep running g.
 TEXT runtime·mcall<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-8
+#ifdef GOEXPERIMENT_runtimesecret
+	MOVW	g_secret(g), R26
+	CBZ 	R26, nosecret
+	// Use R26 as a secondary link register
+	// We purposefully don't erase it in secretEraseRegistersMcall
+	MOVD	LR, R26
+	BL 	runtime·secretEraseRegistersMcall(SB)
+	MOVD	R26, LR
+
+nosecret:
+#endif
 	MOVD	R0, R26				// context
 
 	// Save caller state in g->sched
@@ -325,6 +351,13 @@ TEXT runtime·systemstack_switch(SB), NOSPLIT, $0-0
 
 // func systemstack(fn func())
 TEXT runtime·systemstack(SB), NOSPLIT, $0-8
+#ifdef GOEXPERIMENT_runtimesecret
+	MOVW	g_secret(g), R3
+	CBZ		R3, nosecret
+	BL 		·secretEraseRegisters(SB)
+
+nosecret:
+#endif
 	MOVD	fn+0(FP), R3	// R3 = fn
 	MOVD	R3, R26		// context
 	MOVD	g_m(g), R4	// R4 = m
@@ -453,6 +486,16 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	MOVD	RSP, R0
 	MOVD	R0, (m_morebuf+gobuf_sp)(R8)	// f's caller's RSP
 	MOVD	g, (m_morebuf+gobuf_g)(R8)
+
+	// If in secret mode, erase registers on transition
+	// from G stack to M stack,
+#ifdef GOEXPERIMENT_runtimesecret
+	MOVW	g_secret(g), R4
+	CBZ 	R4, nosecret
+	BL	·secretEraseRegisters(SB)
+	MOVD	g_m(g), R8
+nosecret:
+#endif
 
 	// Call newstack on m->g0's stack.
 	MOVD	m_g0(R8), g
@@ -1128,12 +1171,7 @@ TEXT ·asmcgocall_no_g(SB),NOSPLIT,$0-16
 // aligned appropriately for the gcc ABI.
 // See cgocall.go for more details.
 TEXT ·asmcgocall(SB),NOSPLIT,$0-20
-	MOVD	fn+0(FP), R1
-	MOVD	arg+8(FP), R0
-
-	MOVD	RSP, R2		// save original stack pointer
 	CBZ	g, nosave
-	MOVD	g, R4
 
 	// Figure out if we need to switch to m->g0 stack.
 	// We get called to create new OS threads too, and those
@@ -1146,6 +1184,23 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 	MOVD	m_g0(R8), R3
 	CMP	R3, g
 	BEQ	nosave
+
+	// running on a user stack. Figure out if we're running
+	// secret code and clear our registers if so.
+#ifdef GOEXPERIMENT_runtimesecret
+	MOVW 	g_secret(g), R5
+	CBZ		R5, nosecret
+	BL 	·secretEraseRegisters(SB)
+	// restore g0 back into R3
+	MOVD	g_m(g), R3
+	MOVD	m_g0(R3), R3
+
+nosecret:
+#endif
+	MOVD	fn+0(FP), R1
+	MOVD	arg+8(FP), R0
+	MOVD	RSP, R2
+	MOVD	g, R4
 
 	// Switch to system stack.
 	MOVD	R0, R9	// gosave_systemstack_switch<> and save_g might clobber R0
@@ -1193,7 +1248,10 @@ nosave:
 	// but then the only path through this code would be a rare case on Solaris.
 	// Using this code for all "already on system stack" calls exercises it more,
 	// which should help keep it correct.
-	MOVD	RSP, R13
+	MOVD	fn+0(FP), R1
+	MOVD	arg+8(FP), R0
+	MOVD	RSP, R2
+	MOVD 	R2, R13
 	SUB	$16, R13
 	MOVD	R13, RSP
 	MOVD	$0, R4

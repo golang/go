@@ -7,6 +7,8 @@
 // to produce a full mallocgc function that's specialized for a span class
 // or specific size in the case of the tiny allocator.
 //
+// To generate the specialized mallocgc functions, do 'go run .' inside runtime/_mkmalloc.
+//
 // To assemble a mallocgc function, the mallocStub function is cloned, and the call to
 // inlinedMalloc is replaced with the inlined body of smallScanNoHeaderStub,
 // smallNoScanStub or tinyStub, depending on the parameters being specialized.
@@ -20,6 +22,7 @@ package runtime
 
 import (
 	"internal/goarch"
+	"internal/goexperiment"
 	"internal/runtime/sys"
 	"unsafe"
 )
@@ -34,6 +37,7 @@ const elemsize_ = 8
 const sizeclass_ = 0
 const noscanint_ = 0
 const size_ = 0
+const isTiny_ = false
 
 func malloc0(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	if doubleCheckMalloc {
@@ -53,6 +57,18 @@ func mallocPanic(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 // WARNING: mallocStub does not do any work for sanitizers so callers need
 // to steer out of this codepath early if sanitizers are enabled.
 func mallocStub(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
+	if isTiny_ {
+		// secret code, need to avoid the tiny allocator since it might keep
+		// co-located values alive longer and prevent timely zero-ing
+		//
+		// Call directly into the NoScan allocator.
+		// See go.dev/issue/76356
+		gp := getg()
+		if goexperiment.RuntimeSecret && gp.secret > 0 {
+			return mallocgcSmallNoScanSC2(size, typ, needzero)
+		}
+	}
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -71,13 +87,23 @@ func mallocStub(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		}
 	}
 
-	// Assist the GC if needed.
+	// Assist the GC if needed. (On the reuse path, we currently compensate for this;
+	// changes here might require changes there.)
 	if gcBlackenEnabled != 0 {
 		deductAssistCredit(size)
 	}
 
 	// Actually do the allocation.
 	x, elemsize := inlinedMalloc(size, typ, needzero)
+
+	if !isTiny_ {
+		gp := getg()
+		if goexperiment.RuntimeSecret && gp.secret > 0 {
+			// Mark any object allocated while in secret mode as secret.
+			// This ensures we zero it immediately when freeing it.
+			addSecret(x)
+		}
+	}
 
 	// Notify valgrind, if enabled.
 	// To allow the compiler to not know about valgrind, we do valgrind instrumentation
@@ -242,6 +268,23 @@ func smallNoScanStub(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, u
 	c := getMCache(mp)
 	const spc = spanClass(sizeclass<<1) | spanClass(noscanint_)
 	span := c.alloc[spc]
+
+	// First, check for a reusable object.
+	if runtimeFreegcEnabled && c.hasReusableNoscan(spc) {
+		// We have a reusable object, use it.
+		v := mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
+		mp.mallocing = 0
+		releasem(mp)
+
+		// TODO(thepudds): note that the generated return path is essentially duplicated
+		// by the generator. For example, see the two postMallocgcDebug calls and
+		// related duplicated code on the return path currently in the generated
+		// mallocgcSmallNoScanSC2 function. One set of those correspond to this
+		// return here. We might be able to de-duplicate the generated return path
+		// by updating the generator, perhaps by jumping to a shared return or similar.
+		return v, elemsize
+	}
+
 	v := nextFreeFastStub(span)
 	if v == 0 {
 		v, span, checkGCTrigger = c.nextFree(spc)

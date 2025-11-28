@@ -25,17 +25,22 @@ var X86 struct {
 	HasAES              bool
 	HasADX              bool
 	HasAVX              bool
+	HasAVXVNNI          bool
 	HasAVX2             bool
 	HasAVX512           bool // Virtual feature: F+CD+BW+DQ+VL
 	HasAVX512F          bool
 	HasAVX512CD         bool
-	HasAVX512BITALG     bool
 	HasAVX512BW         bool
 	HasAVX512DQ         bool
 	HasAVX512VL         bool
-	HasAVX512VPCLMULQDQ bool
+	HasAVX512GFNI       bool
+	HasAVX512VAES       bool
+	HasAVX512VNNI       bool
 	HasAVX512VBMI       bool
 	HasAVX512VBMI2      bool
+	HasAVX512BITALG     bool
+	HasAVX512VPOPCNTDQ  bool
+	HasAVX512VPCLMULQDQ bool
 	HasBMI1             bool
 	HasBMI2             bool
 	HasERMS             bool

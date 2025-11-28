@@ -132,3 +132,7 @@ func sysReserveOS(v unsafe.Pointer, n uintptr, _ string) unsafe.Pointer {
 
 func sysMapOS(v unsafe.Pointer, n uintptr, _ string) {
 }
+
+func needZeroAfterSysUnusedOS() bool {
+	return true
+}

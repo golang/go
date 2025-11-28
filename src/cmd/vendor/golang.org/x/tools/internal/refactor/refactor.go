@@ -17,6 +17,11 @@ import (
 
 // FreshName returns the name of an identifier that is undefined
 // at the specified position, based on the preferred name.
+//
+// TODO(adonovan): refine this to choose a fresh name only when there
+// would be a conflict with the existing declaration: it's fine to
+// redeclare a name in a narrower scope so long as there are no free
+// references to the outer name from within the narrower scope.
 func FreshName(scope *types.Scope, pos token.Pos, preferred string) string {
 	newName := preferred
 	for i := 0; ; i++ {

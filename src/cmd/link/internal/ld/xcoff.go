@@ -167,8 +167,7 @@ const (
 )
 
 // Type representing all XCOFF symbols.
-type xcoffSym interface {
-}
+type xcoffSym any
 
 // Symbol Table Entry
 type XcoffSymEnt64 struct {
@@ -1121,7 +1120,7 @@ func (f *xcoffFile) asmaixsym(ctxt *Link) {
 				putaixsym(ctxt, s, BSSSym)
 			}
 
-		case st >= sym.SELFRXSECT && st < sym.SXREF: // data sections handled in dodata
+		case st >= sym.SELFRXSECT && st < sym.SFirstUnallocated: // data sections handled in dodata
 			if ldr.AttrReachable(s) {
 				putaixsym(ctxt, s, DataSym)
 			}
@@ -1255,7 +1254,7 @@ func Xcoffadddynrel(target *Target, ldr *loader.Loader, syms *ArchSyms, s loader
 					break
 				}
 			}
-		} else if t := ldr.SymType(s); t.IsDATA() || t.IsNOPTRDATA() || t == sym.SBUILDINFO || t == sym.SXCOFFTOC {
+		} else if t := ldr.SymType(s); t.IsDATA() || t.IsNOPTRDATA() || t == sym.SBUILDINFO || t == sym.SXCOFFTOC || t == sym.SMODULEDATA {
 			switch ldr.SymSect(targ).Seg {
 			default:
 				ldr.Errorf(s, "unknown segment for .loader relocation with symbol %s", ldr.SymName(targ))

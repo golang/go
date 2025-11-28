@@ -8,6 +8,7 @@ import (
 	"internal/abi"
 	"internal/bytealg"
 	"internal/goarch"
+	"internal/runtime/pprof/label"
 	"internal/runtime/sys"
 	"internal/stringslite"
 	"unsafe"
@@ -1270,6 +1271,19 @@ func goroutineheader(gp *g) {
 	if bubble := gp.bubble; bubble != nil {
 		print(", synctest bubble ", bubble.id)
 	}
+	if gp.labels != nil && debug.tracebacklabels.Load() == 1 {
+		labels := (*label.Set)(gp.labels).List
+		if len(labels) > 0 {
+			print(" labels:{")
+			for i, kv := range labels {
+				print(quoted(kv.Key), ": ", quoted(kv.Value))
+				if i < len(labels)-1 {
+					print(", ")
+				}
+			}
+			print("}")
+		}
+	}
 	print("]:\n")
 }
 
@@ -1314,7 +1328,16 @@ func tracebacksomeothers(me *g, showf func(*g) bool) {
 		// from a signal handler initiated during a systemstack call.
 		// The original G is still in the running state, and we want to
 		// print its stack.
-		if gp.m != getg().m && readgstatus(gp)&^_Gscan == _Grunning {
+		//
+		// There's a small window of time in exitsyscall where a goroutine could be
+		// in _Grunning as it's exiting a syscall. This could be the case even if the
+		// world is stopped or frozen.
+		//
+		// This is OK because the goroutine will not exit the syscall while the world
+		// is stopped or frozen. This is also why it's safe to check syscallsp here,
+		// and safe to take the goroutine's stack trace. The syscall path mutates
+		// syscallsp only just before exiting the syscall.
+		if gp.m != getg().m && readgstatus(gp)&^_Gscan == _Grunning && gp.syscallsp == 0 {
 			print("\tgoroutine running on other thread; stack unavailable\n")
 			printcreatedby(gp)
 		} else {
@@ -1357,16 +1380,19 @@ func tracebackHexdump(stk stack, frame *stkframe, bad uintptr) {
 
 	// Print the hex dump.
 	print("stack: frame={sp:", hex(frame.sp), ", fp:", hex(frame.fp), "} stack=[", hex(stk.lo), ",", hex(stk.hi), ")\n")
-	hexdumpWords(lo, hi, func(p uintptr) byte {
-		switch p {
-		case frame.fp:
-			return '>'
-		case frame.sp:
-			return '<'
-		case bad:
-			return '!'
+	hexdumpWords(lo, hi-lo, func(p uintptr, m hexdumpMarker) {
+		if p == frame.fp {
+			m.start()
+			println("FP")
 		}
-		return 0
+		if p == frame.sp {
+			m.start()
+			println("SP")
+		}
+		if p == bad {
+			m.start()
+			println("bad")
+		}
 	})
 }
 

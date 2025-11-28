@@ -1749,7 +1749,7 @@ func pcToName(pc uintptr) string {
 	return frame.Function
 }
 
-const parallelConflict = `testing: test using t.Setenv or t.Chdir can not use t.Parallel`
+const parallelConflict = `testing: test using t.Setenv, t.Chdir, or cryptotest.SetGlobalRandom can not use t.Parallel`
 
 // Parallel signals that this test is to be run in parallel with (and only with)
 // other parallel tests. When a test is run multiple times due to use of
@@ -1818,6 +1818,13 @@ func (t *T) Parallel() {
 	// if other parallel subtests have already introduced races, we want to
 	// let them report those races instead of attributing them to the parent.)
 	t.lastRaceErrors.Store(int64(race.Errors()))
+}
+
+// checkParallel is called by [testing/cryptotest.SetGlobalRandom].
+//
+//go:linkname checkParallel testing.checkParallel
+func checkParallel(t *T) {
+	t.checkParallel()
 }
 
 func (t *T) checkParallel() {

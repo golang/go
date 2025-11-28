@@ -50,7 +50,7 @@ func init() {
 func runSync(ctx context.Context, cmd *base.Command, args []string) {
 	moduleLoaderState := modload.NewState()
 	moduleLoaderState.ForceUseModules = true
-	modload.InitWorkfile(moduleLoaderState)
+	moduleLoaderState.InitWorkfile()
 	if modload.WorkFilePath(moduleLoaderState) == "" {
 		base.Fatalf("go: no go.work file found\n\t(run 'go work init' first or specify path using GOWORK environment variable)")
 	}

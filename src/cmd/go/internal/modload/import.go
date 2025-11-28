@@ -29,10 +29,11 @@ import (
 )
 
 type ImportMissingError struct {
-	Path             string
-	Module           module.Version
-	QueryErr         error
-	modContainingCWD module.Version
+	Path                      string
+	Module                    module.Version
+	QueryErr                  error
+	modContainingCWD          module.Version
+	allowMissingModuleImports bool
 
 	// modRoot is dependent on the value of ImportingMainModule and should be
 	// kept in sync.
@@ -70,7 +71,7 @@ func (e *ImportMissingError) Error() string {
 		if e.QueryErr != nil && !errors.Is(e.QueryErr, ErrNoModRoot) {
 			return fmt.Sprintf("cannot find module providing package %s: %v", e.Path, e.QueryErr)
 		}
-		if cfg.BuildMod == "mod" || (cfg.BuildMod == "readonly" && allowMissingModuleImports) {
+		if cfg.BuildMod == "mod" || (cfg.BuildMod == "readonly" && e.allowMissingModuleImports) {
 			return "cannot find module providing package " + e.Path
 		}
 
@@ -267,7 +268,7 @@ func (e *invalidImportError) Unwrap() error {
 // 1.20, preventing unnecessary go.sum churn and network access in those
 // modules.
 func importFromModules(loaderstate *State, ctx context.Context, path string, rs *Requirements, mg *ModuleGraph, skipModFile bool) (m module.Version, modroot, dir string, altMods []module.Version, err error) {
-	invalidf := func(format string, args ...interface{}) (module.Version, string, string, []module.Version, error) {
+	invalidf := func(format string, args ...any) (module.Version, string, string, []module.Version, error) {
 		return module.Version{}, "", "", nil, &invalidImportError{
 			importPath: path,
 			err:        fmt.Errorf(format, args...),
@@ -340,7 +341,7 @@ func importFromModules(loaderstate *State, ctx context.Context, path string, rs 
 			}
 		}
 
-		if HasModRoot(loaderstate) {
+		if loaderstate.HasModRoot() {
 			vendorDir := VendorDir(loaderstate)
 			dir, inVendorDir, _ := dirInModule(path, "", vendorDir, false)
 			if inVendorDir {
@@ -355,7 +356,7 @@ func importFromModules(loaderstate *State, ctx context.Context, path string, rs 
 					roots = append(roots, vendorDir)
 				} else {
 					subCommand := "mod"
-					if inWorkspaceMode(loaderstate) {
+					if loaderstate.inWorkspaceMode() {
 						subCommand = "work"
 					}
 					fmt.Fprintf(os.Stderr, "go: ignoring package %s which exists in the vendor directory but is missing from vendor/modules.txt. To sync the vendor directory run go %s vendor.\n", path, subCommand)
@@ -373,8 +374,9 @@ func importFromModules(loaderstate *State, ctx context.Context, path string, rs 
 
 		if len(mods) == 0 {
 			return module.Version{}, "", "", nil, &ImportMissingError{
-				Path:             path,
-				modContainingCWD: loaderstate.MainModules.ModContainingCWD(),
+				Path:                      path,
+				modContainingCWD:          loaderstate.MainModules.ModContainingCWD(),
+				allowMissingModuleImports: loaderstate.allowMissingModuleImports,
 			}
 		}
 
@@ -490,14 +492,15 @@ func importFromModules(loaderstate *State, ctx context.Context, path string, rs 
 			// We checked the full module graph and still didn't find the
 			// requested package.
 			var queryErr error
-			if !HasModRoot(loaderstate) {
+			if !loaderstate.HasModRoot() {
 				queryErr = NewNoMainModulesError(loaderstate)
 			}
 			return module.Version{}, "", "", nil, &ImportMissingError{
-				Path:             path,
-				QueryErr:         queryErr,
-				isStd:            pathIsStd,
-				modContainingCWD: loaderstate.MainModules.ModContainingCWD(),
+				Path:                      path,
+				QueryErr:                  queryErr,
+				isStd:                     pathIsStd,
+				modContainingCWD:          loaderstate.MainModules.ModContainingCWD(),
+				allowMissingModuleImports: loaderstate.allowMissingModuleImports,
 			}
 		}
 
@@ -571,9 +574,10 @@ func queryImport(loaderstate *State, ctx context.Context, path string, rs *Requi
 		} else if ok {
 			if cfg.BuildMod == "readonly" {
 				return module.Version{}, &ImportMissingError{
-					Path:             path,
-					replaced:         m,
-					modContainingCWD: loaderstate.MainModules.ModContainingCWD(),
+					Path:                      path,
+					replaced:                  m,
+					modContainingCWD:          loaderstate.MainModules.ModContainingCWD(),
+					allowMissingModuleImports: loaderstate.allowMissingModuleImports,
 				}
 			}
 			return m, nil
@@ -601,13 +605,14 @@ func queryImport(loaderstate *State, ctx context.Context, path string, rs *Requi
 		//
 		// Instead of trying QueryPattern, report an ImportMissingError immediately.
 		return module.Version{}, &ImportMissingError{
-			Path:             path,
-			isStd:            true,
-			modContainingCWD: loaderstate.MainModules.ModContainingCWD(),
+			Path:                      path,
+			isStd:                     true,
+			modContainingCWD:          loaderstate.MainModules.ModContainingCWD(),
+			allowMissingModuleImports: loaderstate.allowMissingModuleImports,
 		}
 	}
 
-	if (cfg.BuildMod == "readonly" || cfg.BuildMod == "vendor") && !allowMissingModuleImports {
+	if (cfg.BuildMod == "readonly" || cfg.BuildMod == "vendor") && !loaderstate.allowMissingModuleImports {
 		// In readonly mode, we can't write go.mod, so we shouldn't try to look up
 		// the module. If readonly mode was enabled explicitly, include that in
 		// the error message.
@@ -620,9 +625,10 @@ func queryImport(loaderstate *State, ctx context.Context, path string, rs *Requi
 			queryErr = fmt.Errorf("import lookup disabled by -mod=%s\n\t(%s)", cfg.BuildMod, cfg.BuildModReason)
 		}
 		return module.Version{}, &ImportMissingError{
-			Path:             path,
-			QueryErr:         queryErr,
-			modContainingCWD: loaderstate.MainModules.ModContainingCWD(),
+			Path:                      path,
+			QueryErr:                  queryErr,
+			modContainingCWD:          loaderstate.MainModules.ModContainingCWD(),
+			allowMissingModuleImports: loaderstate.allowMissingModuleImports,
 		}
 	}
 
@@ -642,9 +648,10 @@ func queryImport(loaderstate *State, ctx context.Context, path string, rs *Requi
 			// Return "cannot find module providing package […]" instead of whatever
 			// low-level error QueryPattern produced.
 			return module.Version{}, &ImportMissingError{
-				Path:             path,
-				QueryErr:         err,
-				modContainingCWD: loaderstate.MainModules.ModContainingCWD(),
+				Path:                      path,
+				QueryErr:                  err,
+				modContainingCWD:          loaderstate.MainModules.ModContainingCWD(),
+				allowMissingModuleImports: loaderstate.allowMissingModuleImports,
 			}
 		} else {
 			return module.Version{}, err
@@ -670,10 +677,11 @@ func queryImport(loaderstate *State, ctx context.Context, path string, rs *Requi
 		return c.Mod, nil
 	}
 	return module.Version{}, &ImportMissingError{
-		Path:              path,
-		Module:            candidates[0].Mod,
-		newMissingVersion: candidate0MissingVersion,
-		modContainingCWD:  loaderstate.MainModules.ModContainingCWD(),
+		Path:                      path,
+		Module:                    candidates[0].Mod,
+		newMissingVersion:         candidate0MissingVersion,
+		modContainingCWD:          loaderstate.MainModules.ModContainingCWD(),
+		allowMissingModuleImports: loaderstate.allowMissingModuleImports,
 	}
 }
 
@@ -809,18 +817,18 @@ func fetch(loaderstate *State, ctx context.Context, mod module.Version) (dir str
 		mod = r
 	}
 
-	if mustHaveSums(loaderstate) && !modfetch.HaveSum(mod) {
+	if mustHaveSums(loaderstate) && !modfetch.HaveSum(loaderstate.Fetcher(), mod) {
 		return "", false, module.VersionError(mod, &sumMissingError{})
 	}
 
-	dir, err = modfetch.Download(ctx, mod)
+	dir, err = loaderstate.Fetcher().Download(ctx, mod)
 	return dir, false, err
 }
 
 // mustHaveSums reports whether we require that all checksums
 // needed to load or build packages are already present in the go.sum file.
 func mustHaveSums(loaderstate *State) bool {
-	return HasModRoot(loaderstate) && cfg.BuildMod == "readonly" && !inWorkspaceMode(loaderstate)
+	return loaderstate.HasModRoot() && cfg.BuildMod == "readonly" && !loaderstate.inWorkspaceMode()
 }
 
 type sumMissingError struct {

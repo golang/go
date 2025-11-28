@@ -294,7 +294,7 @@ func LoadPackages(loaderstate *State, ctx context.Context, opts PackageOpts, pat
 
 						// If we're outside of a module, ensure that the failure mode
 						// indicates that.
-						if !HasModRoot(loaderstate) {
+						if !loaderstate.HasModRoot() {
 							die(loaderstate)
 						}
 
@@ -462,13 +462,13 @@ func LoadPackages(loaderstate *State, ctx context.Context, opts PackageOpts, pat
 			}
 			goModDiff := diff.Diff("current/go.mod", currentGoMod, "tidy/go.mod", updatedGoMod)
 
-			modfetch.TrimGoSum(keep)
+			loaderstate.Fetcher().TrimGoSum(keep)
 			// Dropping compatibility for 1.16 may result in a strictly smaller go.sum.
 			// Update the keep map with only the loaded.requirements.
 			if gover.Compare(compatVersion, "1.16") > 0 {
 				keep = keepSums(loaderstate, ctx, loaded, loaderstate.requirements, addBuildListZipSums)
 			}
-			currentGoSum, tidyGoSum := modfetch.TidyGoSum(keep)
+			currentGoSum, tidyGoSum := loaderstate.fetcher.TidyGoSum(keep)
 			goSumDiff := diff.Diff("current/go.sum", currentGoSum, "tidy/go.sum", tidyGoSum)
 
 			if len(goModDiff) > 0 {
@@ -483,14 +483,14 @@ func LoadPackages(loaderstate *State, ctx context.Context, opts PackageOpts, pat
 		}
 
 		if !ExplicitWriteGoMod {
-			modfetch.TrimGoSum(keep)
+			loaderstate.Fetcher().TrimGoSum(keep)
 
 			// commitRequirements below will also call WriteGoSum, but the "keep" map
 			// we have here could be strictly larger: commitRequirements only commits
 			// loaded.requirements, but here we may have also loaded (and want to
 			// preserve checksums for) additional entities from compatRS, which are
 			// only needed for compatibility with ld.TidyCompatibleVersion.
-			if err := modfetch.WriteGoSum(ctx, keep, mustHaveCompleteRequirements(loaderstate)); err != nil {
+			if err := loaderstate.Fetcher().WriteGoSum(ctx, keep, mustHaveCompleteRequirements(loaderstate)); err != nil {
 				base.Fatal(err)
 			}
 		}
@@ -546,7 +546,7 @@ func matchLocalDirs(loaderstate *State, ctx context.Context, modRoots []string, 
 		if !slices.Contains(modRoots, modRoot) && search.InDir(absDir, cfg.GOROOTsrc) == "" && pathInModuleCache(loaderstate, ctx, absDir, rs) == "" {
 			m.Dirs = []string{}
 			scope := "main module or its selected dependencies"
-			if inWorkspaceMode(loaderstate) {
+			if loaderstate.inWorkspaceMode() {
 				scope = "modules listed in go.work or their selected dependencies"
 			}
 			m.AddError(fmt.Errorf("directory prefix %s does not contain %s", base.ShortPath(absDir), scope))
@@ -674,7 +674,7 @@ func resolveLocalPackage(loaderstate *State, ctx context.Context, dir string, rs
 		if dirstr == "directory ." {
 			dirstr = "current directory"
 		}
-		if inWorkspaceMode(loaderstate) {
+		if loaderstate.inWorkspaceMode() {
 			if mr := findModuleRoot(absDir); mr != "" {
 				return "", fmt.Errorf("%s is contained in a module that is not one of the workspace modules listed in go.work. You can add the module to the workspace using:\n\tgo work use %s", dirstr, base.ShortPath(mr))
 			}
@@ -800,7 +800,7 @@ func ImportFromFiles(loaderstate *State, ctx context.Context, gofiles []string) 
 // DirImportPath returns the effective import path for dir,
 // provided it is within a main module, or else returns ".".
 func (mms *MainModuleSet) DirImportPath(loaderstate *State, ctx context.Context, dir string) (path string, m module.Version) {
-	if !HasModRoot(loaderstate) {
+	if !loaderstate.HasModRoot() {
 		return ".", module.Version{}
 	}
 	LoadModFile(loaderstate, ctx) // Sets targetPrefix.
@@ -1184,7 +1184,7 @@ func loadFromRoots(loaderstate *State, ctx context.Context, params loaderParams)
 			continue
 		}
 
-		if !ld.ResolveMissingImports || (!HasModRoot(loaderstate) && !allowMissingModuleImports) {
+		if !ld.ResolveMissingImports || (!loaderstate.HasModRoot() && !loaderstate.allowMissingModuleImports) {
 			// We've loaded as much as we can without resolving missing imports.
 			break
 		}
@@ -1399,7 +1399,7 @@ func (ld *loader) updateRequirements(loaderstate *State, ctx context.Context) (c
 				continue
 			}
 
-			if inWorkspaceMode(loaderstate) {
+			if loaderstate.inWorkspaceMode() {
 				// In workspace mode / workspace pruning mode, the roots are the main modules
 				// rather than the main module's direct dependencies. The check below on the selected
 				// roots does not apply.

@@ -9,8 +9,8 @@ import (
 	"internal/goexperiment"
 	"internal/runtime/atomic"
 	"internal/runtime/math"
-	"internal/runtime/strconv"
-	_ "unsafe" // for go:linkname
+	"internal/strconv"
+	_ "unsafe"
 )
 
 const (
@@ -427,7 +427,7 @@ func (c *gcControllerState) startCycle(markStartTime int64, procs int, trigger g
 	// Clear per-P state
 	for _, p := range allp {
 		p.gcAssistTime = 0
-		p.gcFractionalMarkTime = 0
+		p.gcFractionalMarkTime.Store(0)
 	}
 
 	if trigger.kind == gcTriggerTime {
@@ -749,22 +749,25 @@ func (c *gcControllerState) enlistWorker() {
 	}
 }
 
-// findRunnableGCWorker returns a background mark worker for pp if it
-// should be run. This must only be called when gcBlackenEnabled != 0.
-func (c *gcControllerState) findRunnableGCWorker(pp *p, now int64) (*g, int64) {
+// assignWaitingGCWorker assigns a background mark worker to pp if one should
+// be run.
+//
+// If a worker is selected, it is assigned to pp.nextMarkGCWorker and the P is
+// wired as a GC mark worker. The G is still in _Gwaiting. If no worker is
+// selected, ok returns false.
+//
+// If assignedWaitingGCWorker returns true, this P must either:
+// - Mark the G as runnable and run it, clearing pp.nextMarkGCWorker.
+// - Or, call c.releaseNextGCMarkWorker.
+//
+// This must only be called when gcBlackenEnabled != 0.
+func (c *gcControllerState) assignWaitingGCWorker(pp *p, now int64) (bool, int64) {
 	if gcBlackenEnabled == 0 {
 		throw("gcControllerState.findRunnable: blackening not enabled")
 	}
 
-	// Since we have the current time, check if the GC CPU limiter
-	// hasn't had an update in a while. This check is necessary in
-	// case the limiter is on but hasn't been checked in a while and
-	// so may have left sufficient headroom to turn off again.
 	if now == 0 {
 		now = nanotime()
-	}
-	if gcCPULimiter.needUpdate(now) {
-		gcCPULimiter.update(now)
 	}
 
 	if !gcShouldScheduleWorker(pp) {
@@ -772,7 +775,7 @@ func (c *gcControllerState) findRunnableGCWorker(pp *p, now int64) (*g, int64) {
 		// the end of the mark phase when there are still
 		// assists tapering off. Don't bother running a worker
 		// now because it'll just return immediately.
-		return nil, now
+		return false, now
 	}
 
 	if c.dedicatedMarkWorkersNeeded.Load() <= 0 && c.fractionalUtilizationGoal == 0 {
@@ -783,7 +786,7 @@ func (c *gcControllerState) findRunnableGCWorker(pp *p, now int64) (*g, int64) {
 		// When a dedicated worker stops running, the gcBgMarkWorker loop notes
 		// the need for the worker before returning it to the pool. If we don't
 		// see the need now, we wouldn't have found it in the pool anyway.
-		return nil, now
+		return false, now
 	}
 
 	// Grab a worker before we commit to running below.
@@ -800,7 +803,7 @@ func (c *gcControllerState) findRunnableGCWorker(pp *p, now int64) (*g, int64) {
 		// it will always do so with queued global work. Thus, that P
 		// will be immediately eligible to re-run the worker G it was
 		// just using, ensuring work can complete.
-		return nil, now
+		return false, now
 	}
 
 	decIfPositive := func(val *atomic.Int64) bool {
@@ -823,21 +826,60 @@ func (c *gcControllerState) findRunnableGCWorker(pp *p, now int64) (*g, int64) {
 	} else if c.fractionalUtilizationGoal == 0 {
 		// No need for fractional workers.
 		gcBgMarkWorkerPool.push(&node.node)
-		return nil, now
+		return false, now
 	} else {
 		// Is this P behind on the fractional utilization
 		// goal?
 		//
 		// This should be kept in sync with pollFractionalWorkerExit.
 		delta := now - c.markStartTime
-		if delta > 0 && float64(pp.gcFractionalMarkTime)/float64(delta) > c.fractionalUtilizationGoal {
+		if delta > 0 && float64(pp.gcFractionalMarkTime.Load())/float64(delta) > c.fractionalUtilizationGoal {
 			// Nope. No need to run a fractional worker.
 			gcBgMarkWorkerPool.push(&node.node)
-			return nil, now
+			return false, now
 		}
 		// Run a fractional worker.
 		pp.gcMarkWorkerMode = gcMarkWorkerFractionalMode
 	}
+
+	pp.nextGCMarkWorker = node
+	return true, now
+}
+
+// findRunnableGCWorker returns a background mark worker for pp if it
+// should be run.
+//
+// If findRunnableGCWorker returns a G, this P is wired as a GC mark worker and
+// must run the G.
+//
+// This must only be called when gcBlackenEnabled != 0.
+//
+// This function is allowed to have write barriers because it is called from
+// the portion of findRunnable that always has a P.
+//
+//go:yeswritebarrierrec
+func (c *gcControllerState) findRunnableGCWorker(pp *p, now int64) (*g, int64) {
+	// Since we have the current time, check if the GC CPU limiter
+	// hasn't had an update in a while. This check is necessary in
+	// case the limiter is on but hasn't been checked in a while and
+	// so may have left sufficient headroom to turn off again.
+	if now == 0 {
+		now = nanotime()
+	}
+	if gcCPULimiter.needUpdate(now) {
+		gcCPULimiter.update(now)
+	}
+
+	// If a worker wasn't already assigned by procresize, assign one now.
+	if pp.nextGCMarkWorker == nil {
+		ok, now := c.assignWaitingGCWorker(pp, now)
+		if !ok {
+			return nil, now
+		}
+	}
+
+	node := pp.nextGCMarkWorker
+	pp.nextGCMarkWorker = nil
 
 	// Run the background mark worker.
 	gp := node.gp.ptr()
@@ -848,6 +890,23 @@ func (c *gcControllerState) findRunnableGCWorker(pp *p, now int64) (*g, int64) {
 		traceRelease(trace)
 	}
 	return gp, now
+}
+
+// Release an unused pp.nextGCMarkWorker, if any.
+//
+// This function is allowed to have write barriers because it is called from
+// the portion of schedule.
+//
+//go:yeswritebarrierrec
+func (c *gcControllerState) releaseNextGCMarkWorker(pp *p) {
+	node := pp.nextGCMarkWorker
+	if node == nil {
+		return
+	}
+
+	c.markWorkerStop(pp.gcMarkWorkerMode, 0)
+	gcBgMarkWorkerPool.push(&node.node)
+	pp.nextGCMarkWorker = nil
 }
 
 // resetLive sets up the controller state for the next mark phase after the end
@@ -1313,8 +1372,8 @@ func readGOGC() int32 {
 	if p == "off" {
 		return -1
 	}
-	if n, ok := strconv.Atoi32(p); ok {
-		return n
+	if n, err := strconv.ParseInt(p, 10, 32); err == nil {
+		return int32(n)
 	}
 	return 100
 }

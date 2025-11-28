@@ -1,0 +1,25 @@
+!sum
+- go: And
+  commutative: true
+  documentation: !string |-
+    // NAME performs a bitwise AND operation between two vectors.
+- go: Or
+  commutative: true
+  documentation: !string |-
+    // NAME performs a bitwise OR operation between two vectors.
+- go: AndNot
+  commutative: false
+  documentation: !string |-
+    // NAME performs a bitwise x &^ y.
+- go: Xor
+  commutative: true
+  documentation: !string |-
+    // NAME performs a bitwise XOR operation between two vectors.
+- go: tern
+  commutative: false
+  documentation: !string |-
+    // NAME performs a logical operation on three vectors based on the 8-bit truth table.
+    // Bitwise, the result is equal to 1 & (table >> (x<<2 + y<<1 + z))
+
+# We also have PTEST and VPTERNLOG, those should be hidden from the users
+# and only appear in rewrite rules.

@@ -5,6 +5,7 @@
 package windows
 
 import (
+	"internal/oserror"
 	"runtime"
 	"structs"
 	"syscall"
@@ -26,7 +27,6 @@ const (
 // to avoid overlap.
 const (
 	O_NOFOLLOW_ANY = 0x200000000 // disallow symlinks anywhere in the path
-	O_OPEN_REPARSE = 0x400000000 // FILE_OPEN_REPARSE_POINT, used by Lstat
 	O_WRITE_ATTRS  = 0x800000000 // FILE_WRITE_ATTRIBUTES, used by Chmod
 )
 
@@ -36,23 +36,53 @@ func Openat(dirfd syscall.Handle, name string, flag uint64, perm uint32) (_ sysc
 	}
 
 	var access, options uint32
+	// Map Win32 file flags to NT create options.
+	fileFlags := uint32(flag) & FileFlagsMask
+	if fileFlags&^ValidFileFlagsMask != 0 {
+		return syscall.InvalidHandle, oserror.ErrInvalid
+	}
+	if fileFlags&O_FILE_FLAG_OVERLAPPED == 0 {
+		options |= FILE_SYNCHRONOUS_IO_NONALERT
+	}
+	if fileFlags&O_FILE_FLAG_DELETE_ON_CLOSE != 0 {
+		access |= DELETE
+	}
+	setOptionFlag := func(ntFlag, win32Flag uint32) {
+		if fileFlags&win32Flag != 0 {
+			options |= ntFlag
+		}
+	}
+	setOptionFlag(FILE_NO_INTERMEDIATE_BUFFERING, O_FILE_FLAG_NO_BUFFERING)
+	setOptionFlag(FILE_WRITE_THROUGH, O_FILE_FLAG_WRITE_THROUGH)
+	setOptionFlag(FILE_SEQUENTIAL_ONLY, O_FILE_FLAG_SEQUENTIAL_SCAN)
+	setOptionFlag(FILE_RANDOM_ACCESS, O_FILE_FLAG_RANDOM_ACCESS)
+	setOptionFlag(FILE_OPEN_FOR_BACKUP_INTENT, O_FILE_FLAG_BACKUP_SEMANTICS)
+	setOptionFlag(FILE_SESSION_AWARE, O_FILE_FLAG_SESSION_AWARE)
+	setOptionFlag(FILE_DELETE_ON_CLOSE, O_FILE_FLAG_DELETE_ON_CLOSE)
+	setOptionFlag(FILE_OPEN_NO_RECALL, O_FILE_FLAG_OPEN_NO_RECALL)
+	setOptionFlag(FILE_OPEN_REPARSE_POINT, O_FILE_FLAG_OPEN_REPARSE_POINT)
+
 	switch flag & (syscall.O_RDONLY | syscall.O_WRONLY | syscall.O_RDWR) {
 	case syscall.O_RDONLY:
 		// FILE_GENERIC_READ includes FILE_LIST_DIRECTORY.
-		access = FILE_GENERIC_READ
+		access |= FILE_GENERIC_READ
 	case syscall.O_WRONLY:
-		access = FILE_GENERIC_WRITE
+		access |= FILE_GENERIC_WRITE
 		options |= FILE_NON_DIRECTORY_FILE
 	case syscall.O_RDWR:
-		access = FILE_GENERIC_READ | FILE_GENERIC_WRITE
+		access |= FILE_GENERIC_READ | FILE_GENERIC_WRITE
 		options |= FILE_NON_DIRECTORY_FILE
 	default:
 		// Stat opens files without requesting read or write permissions,
 		// but we still need to request SYNCHRONIZE.
-		access = SYNCHRONIZE
+		access |= SYNCHRONIZE
 	}
 	if flag&syscall.O_CREAT != 0 {
 		access |= FILE_GENERIC_WRITE
+	}
+	if fileFlags&O_FILE_FLAG_NO_BUFFERING != 0 {
+		// Disable buffering implies no implicit append access.
+		access &^= FILE_APPEND_DATA
 	}
 	if flag&syscall.O_APPEND != 0 {
 		access |= FILE_APPEND_DATA
@@ -82,12 +112,11 @@ func Openat(dirfd syscall.Handle, name string, flag uint64, perm uint32) (_ sysc
 	if flag&syscall.O_CLOEXEC == 0 {
 		objAttrs.Attributes |= OBJ_INHERIT
 	}
+	if fileFlags&O_FILE_FLAG_POSIX_SEMANTICS == 0 {
+		objAttrs.Attributes |= OBJ_CASE_INSENSITIVE
+	}
 	if err := objAttrs.init(dirfd, name); err != nil {
 		return syscall.InvalidHandle, err
-	}
-
-	if flag&O_OPEN_REPARSE != 0 {
-		options |= FILE_OPEN_REPARSE_POINT
 	}
 
 	// We don't use FILE_OVERWRITE/FILE_OVERWRITE_IF, because when opening
@@ -121,7 +150,7 @@ func Openat(dirfd syscall.Handle, name string, flag uint64, perm uint32) (_ sysc
 		fileAttrs,
 		FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,
 		disposition,
-		FILE_SYNCHRONOUS_IO_NONALERT|FILE_OPEN_FOR_BACKUP_INTENT|options,
+		FILE_OPEN_FOR_BACKUP_INTENT|options,
 		nil,
 		0,
 	)
@@ -131,6 +160,14 @@ func Openat(dirfd syscall.Handle, name string, flag uint64, perm uint32) (_ sysc
 
 	if flag&syscall.O_TRUNC != 0 {
 		err = syscall.Ftruncate(h, 0)
+		if err == ERROR_INVALID_PARAMETER {
+			// ERROR_INVALID_PARAMETER means truncation is not supported on this file handle.
+			// Unix's O_TRUNC specification says to ignore O_TRUNC on named pipes and terminal devices.
+			// We do the same here.
+			if t, err1 := syscall.GetFileType(h); err1 == nil && (t == syscall.FILE_TYPE_PIPE || t == syscall.FILE_TYPE_CHAR) {
+				err = nil
+			}
+		}
 		if err != nil {
 			syscall.CloseHandle(h)
 			return syscall.InvalidHandle, err

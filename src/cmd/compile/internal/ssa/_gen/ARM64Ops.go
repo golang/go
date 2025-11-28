@@ -517,15 +517,15 @@ func init() {
 		//   If the condition 'Cond' evaluates to true against current flags,
 		//   flags are set to the result of the comparison operation.
 		//   Otherwise, flags are set to the fallback value 'Nzcv'.
-		{name: "CCMP", argLength: 3, reg: gp2flagsflags, asm: "CCMP", aux: "ARM64ConditionalParams", typ: "Flag"},      // If Cond then flags = CMP arg0 arg1 else flags = Nzcv
-		{name: "CCMN", argLength: 3, reg: gp2flagsflags, asm: "CCMN", aux: "ARM64ConditionalParams", typ: "Flag"},      // If Cond then flags = CMN arg0 arg1 else flags = Nzcv
-		{name: "CCMPconst", argLength: 2, reg: gp1flagsflags, asm: "CCMP", aux: "ARM64ConditionalParams", typ: "Flag"}, // If Cond then flags = CMPconst [ConstValue] arg0 else flags = Nzcv
-		{name: "CCMNconst", argLength: 2, reg: gp1flagsflags, asm: "CCMN", aux: "ARM64ConditionalParams", typ: "Flag"}, // If Cond then flags = CMNconst [ConstValue] arg0 else flags = Nzcv
+		{name: "CCMP", argLength: 3, reg: gp2flagsflags, asm: "CCMP", aux: "ARM64ConditionalParams", typ: "Flags"},      // If Cond then flags = CMP arg0 arg1 else flags = Nzcv
+		{name: "CCMN", argLength: 3, reg: gp2flagsflags, asm: "CCMN", aux: "ARM64ConditionalParams", typ: "Flags"},      // If Cond then flags = CMN arg0 arg1 else flags = Nzcv
+		{name: "CCMPconst", argLength: 2, reg: gp1flagsflags, asm: "CCMP", aux: "ARM64ConditionalParams", typ: "Flags"}, // If Cond then flags = CMPconst [ConstValue] arg0 else flags = Nzcv
+		{name: "CCMNconst", argLength: 2, reg: gp1flagsflags, asm: "CCMN", aux: "ARM64ConditionalParams", typ: "Flags"}, // If Cond then flags = CMNconst [ConstValue] arg0 else flags = Nzcv
 
-		{name: "CCMPW", argLength: 3, reg: gp2flagsflags, asm: "CCMPW", aux: "ARM64ConditionalParams", typ: "Flag"},      // If Cond then flags = CMPW arg0 arg1 else flags = Nzcv
-		{name: "CCMNW", argLength: 3, reg: gp2flagsflags, asm: "CCMNW", aux: "ARM64ConditionalParams", typ: "Flag"},      // If Cond then flags = CMNW arg0 arg1 else flags = Nzcv
-		{name: "CCMPWconst", argLength: 2, reg: gp1flagsflags, asm: "CCMPW", aux: "ARM64ConditionalParams", typ: "Flag"}, // If Cond then flags = CCMPWconst [ConstValue] arg0 else flags = Nzcv
-		{name: "CCMNWconst", argLength: 2, reg: gp1flagsflags, asm: "CCMNW", aux: "ARM64ConditionalParams", typ: "Flag"}, // If Cond then flags = CCMNWconst [ConstValue] arg0 else flags = Nzcv
+		{name: "CCMPW", argLength: 3, reg: gp2flagsflags, asm: "CCMPW", aux: "ARM64ConditionalParams", typ: "Flags"},      // If Cond then flags = CMPW arg0 arg1 else flags = Nzcv
+		{name: "CCMNW", argLength: 3, reg: gp2flagsflags, asm: "CCMNW", aux: "ARM64ConditionalParams", typ: "Flags"},      // If Cond then flags = CMNW arg0 arg1 else flags = Nzcv
+		{name: "CCMPWconst", argLength: 2, reg: gp1flagsflags, asm: "CCMPW", aux: "ARM64ConditionalParams", typ: "Flags"}, // If Cond then flags = CCMPWconst [ConstValue] arg0 else flags = Nzcv
+		{name: "CCMNWconst", argLength: 2, reg: gp1flagsflags, asm: "CCMNW", aux: "ARM64ConditionalParams", typ: "Flags"}, // If Cond then flags = CCMNWconst [ConstValue] arg0 else flags = Nzcv
 
 		// function calls
 		{name: "CALLstatic", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                               // call static function aux.(*obj.LSym).  last arg=mem, auxint=argsize, returns mem
@@ -534,7 +534,8 @@ func init() {
 		{name: "CALLinter", argLength: -1, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                         // call fn by pointer.  arg0=codeptr, last arg=mem, auxint=argsize, returns mem
 
 		// pseudo-ops
-		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpg}}, nilCheck: true, faultOnNilArg0: true}, // panic if arg0 is nil.  arg1=mem.
+		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpg}}, nilCheck: true, faultOnNilArg0: true},                                                                                                                                                      // panic if arg0 is nil.  arg1=mem.
+		{name: "LoweredMemEq", argLength: 4, reg: regInfo{inputs: []regMask{buildReg("R0"), buildReg("R1"), buildReg("R2")}, outputs: []regMask{buildReg("R0")}, clobbers: callerSave}, typ: "Bool", faultOnNilArg0: true, faultOnNilArg1: true, clobberFlags: true, call: true}, // arg0, arg1 - pointers to memory, arg2=size, arg3=mem.
 
 		{name: "Equal", argLength: 1, reg: readflags},            // bool, true flags encode x==y false otherwise.
 		{name: "NotEqual", argLength: 1, reg: readflags},         // bool, true flags encode x!=y false otherwise.

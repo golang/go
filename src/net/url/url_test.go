@@ -13,6 +13,7 @@ import (
 	"io"
 	"net"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -507,26 +508,6 @@ var urltests = []URLTest{
 		"",
 	},
 	{
-		// Malformed IPv6 but still accepted.
-		"http://2b01:e34:ef40:7730:8e70:5aff:fefe:edac:8080/foo",
-		&URL{
-			Scheme: "http",
-			Host:   "2b01:e34:ef40:7730:8e70:5aff:fefe:edac:8080",
-			Path:   "/foo",
-		},
-		"",
-	},
-	{
-		// Malformed IPv6 but still accepted.
-		"http://2b01:e34:ef40:7730:8e70:5aff:fefe:edac:/foo",
-		&URL{
-			Scheme: "http",
-			Host:   "2b01:e34:ef40:7730:8e70:5aff:fefe:edac:",
-			Path:   "/foo",
-		},
-		"",
-	},
-	{
 		"http://[2b01:e34:ef40:7730:8e70:5aff:fefe:edac]:8080/foo",
 		&URL{
 			Scheme: "http",
@@ -624,6 +605,26 @@ var urltests = []URLTest{
 			RawQuery: "subject=hi",
 		},
 		"mailto:?subject=hi",
+	},
+	// PostgreSQL URLs can include a comma-separated list of host:post hosts.
+	// https://go.dev/issue/75859
+	{
+		"postgres://host1:1,host2:2,host3:3",
+		&URL{
+			Scheme: "postgres",
+			Host:   "host1:1,host2:2,host3:3",
+			Path:   "",
+		},
+		"postgres://host1:1,host2:2,host3:3",
+	},
+	{
+		"postgresql://host1:1,host2:2,host3:3",
+		&URL{
+			Scheme: "postgresql",
+			Host:   "host1:1,host2:2,host3:3",
+			Path:   "",
+		},
+		"postgresql://host1:1,host2:2,host3:3",
 	},
 }
 
@@ -735,6 +736,9 @@ var parseRequestURLTests = []struct {
 	{"https://[0:0::test.com]:80", false},
 	{"https://[2001:db8::test.com]", false},
 	{"https://[test.com]", false},
+	{"https://1:2:3:4:5:6:7:8", false},
+	{"https://1:2:3:4:5:6:7:8:80", false},
+	{"https://example.com:80:", false},
 }
 
 func TestParseRequestURI(t *testing.T) {
@@ -876,7 +880,6 @@ func TestURLRedacted(t *testing.T) {
 	}
 
 	for _, tt := range cases {
-		t := t
 		t.Run(tt.name, func(t *testing.T) {
 			if g, w := tt.url.Redacted(), tt.want; g != w {
 				t.Fatalf("got: %q\nwant: %q", g, w)
@@ -2158,11 +2161,6 @@ func TestJoinPath(t *testing.T) {
 		},
 		{
 			base: "https://go.googlesource.com",
-			elem: []string{"../go"},
-			out:  "https://go.googlesource.com/go",
-		},
-		{
-			base: "https://go.googlesource.com",
 			elem: []string{"../go", "../../go", "../../../go"},
 			out:  "https://go.googlesource.com/go",
 		},
@@ -2226,6 +2224,10 @@ func TestJoinPath(t *testing.T) {
 			out:  "https://go.googlesource.com/a/b/go",
 		},
 		{
+			base: "https://go.googlesource.com/",
+			elem: []string{"100%"},
+		},
+		{
 			base: "/",
 			elem: nil,
 			out:  "/",
@@ -2266,17 +2268,47 @@ func TestJoinPath(t *testing.T) {
 		if tt.out == "" {
 			wantErr = "non-nil error"
 		}
-		if out, err := JoinPath(tt.base, tt.elem...); out != tt.out || (err == nil) != (tt.out != "") {
+		out, err := JoinPath(tt.base, tt.elem...)
+		if out != tt.out || (err == nil) != (tt.out != "") {
 			t.Errorf("JoinPath(%q, %q) = %q, %v, want %q, %v", tt.base, tt.elem, out, err, tt.out, wantErr)
 		}
-		var out string
+
 		u, err := Parse(tt.base)
-		if err == nil {
-			u = u.JoinPath(tt.elem...)
-			out = u.String()
+		if err != nil {
+			if tt.out != "" {
+				t.Errorf("Parse(%q) = %v", tt.base, err)
+			}
+			continue
 		}
-		if out != tt.out || (err == nil) != (tt.out != "") {
-			t.Errorf("Parse(%q).JoinPath(%q) = %q, %v, want %q, %v", tt.base, tt.elem, out, err, tt.out, wantErr)
+		if tt.out == "" {
+			// URL.JoinPath doesn't return an error, so leave it unchanged
+			tt.out = tt.base
+		}
+		out = u.JoinPath(tt.elem...).String()
+		if out != tt.out {
+			t.Errorf("Parse(%q).JoinPath(%q) = %q, want %q", tt.base, tt.elem, out, tt.out)
 		}
 	}
+}
+
+func TestParseStrictIpv6(t *testing.T) {
+	t.Setenv("GODEBUG", "urlstrictcolons=0")
+
+	tests := []struct {
+		url string
+	}{
+		// Malformed URLs that used to parse.
+		{"https://1:2:3:4:5:6:7:8"},
+		{"https://1:2:3:4:5:6:7:8:80"},
+		{"https://example.com:80:"},
+	}
+	for i, tc := range tests {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			_, err := Parse(tc.url)
+			if err != nil {
+				t.Errorf("Parse(%q) error = %v, want nil", tc.url, err)
+			}
+		})
+	}
+
 }

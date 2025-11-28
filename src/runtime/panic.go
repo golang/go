@@ -341,6 +341,13 @@ func panicmemAddr(addr uintptr) {
 	panic(errorAddressString{msg: "invalid memory address or nil pointer dereference", addr: addr})
 }
 
+var simdImmError = error(errorString("out-of-range immediate for simd intrinsic"))
+
+func panicSimdImm() {
+	panicCheck2("simd immediate error")
+	panic(simdImmError)
+}
+
 // Create a new deferred function fn, which has no arguments and results.
 // The compiler turns a defer statement into a call to this.
 func deferproc(fn func()) {
@@ -549,15 +556,13 @@ func deferprocStack(d *_defer) {
 	d.sp = sys.GetCallerSP()
 	d.pc = sys.GetCallerPC()
 	// The lines below implement:
-	//   d.panic = nil
-	//   d.fd = nil
 	//   d.link = gp._defer
 	//   d.head = nil
 	//   gp._defer = d
-	// But without write barriers. The first three are writes to
+	// But without write barriers. The first two are writes to
 	// the stack so they don't need a write barrier, and furthermore
 	// are to uninitialized memory, so they must not use a write barrier.
-	// The fourth write does not require a write barrier because we
+	// The third write does not require a write barrier because we
 	// explicitly mark all the defer structures, so we don't need to
 	// keep track of pointers to them with a write barrier.
 	*(*uintptr)(unsafe.Pointer(&d.link)) = uintptr(unsafe.Pointer(gp._defer))
@@ -741,7 +746,7 @@ func printpanics(p *_panic) {
 	}
 	print("panic: ")
 	printpanicval(p.arg)
-	if p.repanicked {
+	if p.recovered && p.repanicked {
 		print(" [recovered, repanicked]")
 	} else if p.recovered {
 		print(" [recovered]")
@@ -795,10 +800,7 @@ var panicnil = &godebugInc{name: "panicnil"}
 // The compiler emits calls to this function.
 //
 // gopanic should be an internal detail,
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
-//   - go.undefinedlabs.com/scopeagent
-//   - github.com/goplus/igop
+// but historically, widely used packages access it using linkname.
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
@@ -1108,7 +1110,7 @@ func gorecover() any {
 	// frame between gopanic and gorecover.
 	//
 	// We don't recover this:
-	//     defer func() { func() { recover() }() }
+	//     defer func() { func() { recover() }() }()
 	// because there are 2 non-wrapper frames.
 	//
 	// We don't recover this:
@@ -1237,10 +1239,12 @@ func throw(s string) {
 //
 //go:nosplit
 func fatal(s string) {
+	p := getg()._panic
 	// Everything fatal does should be recursively nosplit so it
 	// can be called even when it's unsafe to grow the stack.
 	printlock() // Prevent multiple interleaved fatal reports. See issue 69447.
 	systemstack(func() {
+		printPreFatalDeferPanic(p)
 		print("fatal error: ")
 		printindented(s) // logically printpanicval(s), but avoids convTstring write barrier
 		print("\n")
@@ -1248,6 +1252,27 @@ func fatal(s string) {
 
 	fatalthrow(throwTypeUser)
 	printunlock()
+}
+
+// printPreFatalDeferPanic prints the panic
+// when fatal occurs in panics while running defer.
+func printPreFatalDeferPanic(p *_panic) {
+	// Don`t call preprintpanics, because
+	// don't want to call String/Error on the panicked values.
+	// When we fatal we really want to just print and exit,
+	// no more executing user Go code.
+	for x := p; x != nil; x = x.link {
+		if x.link != nil && *efaceOf(&x.link.arg) == *efaceOf(&x.arg) {
+			// This panic contains the same value as the next one in the chain.
+			// Mark it as repanicked. We will skip printing it twice in a row.
+			x.link.repanicked = true
+		}
+	}
+	if p != nil {
+		printpanics(p)
+		// make fatal have the same indentation as non-first panics.
+		print("\t")
+	}
 }
 
 // runningPanicDefers is non-zero while running deferred functions for panic.

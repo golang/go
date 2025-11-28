@@ -451,6 +451,10 @@ func (fd *FD) Init(net string, pollable bool) error {
 	fd.isFile = fd.kind != kindNet
 	fd.isBlocking = !pollable
 
+	if !pollable {
+		return nil
+	}
+
 	// It is safe to add overlapped handles that also perform I/O
 	// outside of the runtime poller. The runtime poller will ignore
 	// I/O completion notifications not initiated by us.

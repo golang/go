@@ -110,14 +110,14 @@ type ModuleJSON struct {
 
 func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	moduleLoaderState := modload.NewState()
-	modload.InitWorkfile(moduleLoaderState)
+	moduleLoaderState.InitWorkfile()
 
 	// Check whether modules are enabled and whether we're in a module.
 	moduleLoaderState.ForceUseModules = true
 	modload.ExplicitWriteGoMod = true
 	haveExplicitArgs := len(args) > 0
 
-	if modload.HasModRoot(moduleLoaderState) || modload.WorkFilePath(moduleLoaderState) != "" {
+	if moduleLoaderState.HasModRoot() || modload.WorkFilePath(moduleLoaderState) != "" {
 		modload.LoadModFile(moduleLoaderState, ctx) // to fill MainModules
 
 		if haveExplicitArgs {
@@ -170,7 +170,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	if len(args) == 0 {
-		if modload.HasModRoot(moduleLoaderState) {
+		if moduleLoaderState.HasModRoot() {
 			os.Stderr.WriteString("go: no module dependencies to download\n")
 		} else {
 			base.Errorf("go: no modules specified (see 'go help mod download')")
@@ -178,7 +178,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 		base.Exit()
 	}
 
-	if *downloadReuse != "" && modload.HasModRoot(moduleLoaderState) {
+	if *downloadReuse != "" && moduleLoaderState.HasModRoot() {
 		base.Fatalf("go mod download -reuse cannot be used inside a module")
 	}
 
@@ -264,7 +264,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 		}
 		sem <- token{}
 		go func() {
-			err := DownloadModule(ctx, m)
+			err := DownloadModule(ctx, moduleLoaderState.Fetcher(), m)
 			if err != nil {
 				downloadErrs.Store(m, err)
 				m.Error = err.Error()
@@ -364,27 +364,27 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 
 // DownloadModule runs 'go mod download' for m.Path@m.Version,
 // leaving the results (including any error) in m itself.
-func DownloadModule(ctx context.Context, m *ModuleJSON) error {
+func DownloadModule(ctx context.Context, f *modfetch.Fetcher, m *ModuleJSON) error {
 	var err error
-	_, file, err := modfetch.InfoFile(ctx, m.Path, m.Version)
+	_, file, err := f.InfoFile(ctx, m.Path, m.Version)
 	if err != nil {
 		return err
 	}
 	m.Info = file
-	m.GoMod, err = modfetch.GoModFile(ctx, m.Path, m.Version)
+	m.GoMod, err = f.GoModFile(ctx, m.Path, m.Version)
 	if err != nil {
 		return err
 	}
-	m.GoModSum, err = modfetch.GoModSum(ctx, m.Path, m.Version)
+	m.GoModSum, err = f.GoModSum(ctx, m.Path, m.Version)
 	if err != nil {
 		return err
 	}
 	mod := module.Version{Path: m.Path, Version: m.Version}
-	m.Zip, err = modfetch.DownloadZip(ctx, mod)
+	m.Zip, err = f.DownloadZip(ctx, mod)
 	if err != nil {
 		return err
 	}
 	m.Sum = modfetch.Sum(ctx, mod)
-	m.Dir, err = modfetch.Download(ctx, mod)
+	m.Dir, err = f.Download(ctx, mod)
 	return err
 }

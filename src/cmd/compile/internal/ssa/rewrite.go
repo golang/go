@@ -57,11 +57,15 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter, deadcode deadValu
 	var iters int
 	var states map[string]bool
 	for {
+		if debug > 1 {
+			fmt.Printf("%s: iter %d\n", f.pass.name, iters)
+		}
 		change := false
 		deadChange := false
 		for _, b := range f.Blocks {
 			var b0 *Block
 			if debug > 1 {
+				fmt.Printf("%s: start block\n", f.pass.name)
 				b0 = new(Block)
 				*b0 = *b
 				b0.Succs = append([]Edge{}, b.Succs...) // make a new copy, not aliasing
@@ -79,6 +83,9 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter, deadcode deadValu
 				}
 			}
 			for j, v := range b.Values {
+				if debug > 1 {
+					fmt.Printf("%s: consider %v\n", f.pass.name, v.LongString())
+				}
 				var v0 *Value
 				if debug > 1 {
 					v0 = new(Value)
@@ -758,10 +765,6 @@ func arm64ConditionalParamsToAuxInt(v arm64ConditionalParams) int64 {
 	return i
 }
 
-func float64ExactBits(f float64, c float64) bool {
-	return math.Float64bits(f) == math.Float64bits(c)
-}
-
 func flagConstantToAuxInt(x flagConstant) int64 {
 	return int64(x)
 }
@@ -1260,10 +1263,8 @@ func logRule(s string) {
 		}
 		ruleFile = w
 	}
-	_, err := fmt.Fprintln(ruleFile, s)
-	if err != nil {
-		panic(err)
-	}
+	// Ignore errors in case of multiple processes fighting over the file.
+	fmt.Fprintln(ruleFile, s)
 }
 
 var ruleFile io.Writer
@@ -2770,4 +2771,18 @@ func panicBoundsCCToAux(p PanicBoundsCC) Aux {
 
 func isDictArgSym(sym Sym) bool {
 	return sym.(*ir.Name).Sym().Name == typecheck.LocalDictName
+}
+
+// When v is (IMake typ (StructMake ...)), convert to
+// (IMake typ arg) where arg is the pointer-y argument to
+// the StructMake (there must be exactly one).
+func imakeOfStructMake(v *Value) *Value {
+	var arg *Value
+	for _, a := range v.Args[1].Args {
+		if a.Type.Size() > 0 {
+			arg = a
+			break
+		}
+	}
+	return v.Block.NewValue2(v.Pos, OpIMake, v.Type, v.Args[0], arg)
 }

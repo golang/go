@@ -192,12 +192,12 @@ func findEnv(env []cfg.EnvVar, name string) string {
 func ExtraEnvVars(loaderstate *modload.State) []cfg.EnvVar {
 	gomod := ""
 	modload.Init(loaderstate)
-	if modload.HasModRoot(loaderstate) {
-		gomod = modload.ModFilePath(loaderstate)
-	} else if modload.Enabled(loaderstate) {
+	if loaderstate.HasModRoot() {
+		gomod = loaderstate.ModFilePath()
+	} else if loaderstate.Enabled() {
 		gomod = os.DevNull
 	}
-	modload.InitWorkfile(loaderstate)
+	loaderstate.InitWorkfile()
 	gowork := modload.WorkFilePath(loaderstate)
 	// As a special case, if a user set off explicitly, report that in GOWORK.
 	if cfg.Getenv("GOWORK") == "off" {

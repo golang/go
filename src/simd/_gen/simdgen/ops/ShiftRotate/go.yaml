@@ -1,0 +1,172 @@
+!sum
+# Integers
+# ShiftAll*
+- go: ShiftAllLeft
+  asm: "VPSLL[WDQ]"
+  in:
+  - &any
+    go: $t
+  - &vecAsScalar64
+    go: "Uint.*"
+    treatLikeAScalarOfSize: 64
+  out:
+  - *any
+- go: ShiftAllRight
+  signed: false
+  asm: "VPSRL[WDQ]"
+  in:
+  - &uint
+    go: $t
+    base: uint
+  - *vecAsScalar64
+  out:
+  - *uint
+- go: ShiftAllRight
+  signed: true
+  asm: "VPSRA[WDQ]"
+  in:
+  - &int
+    go: $t
+    base: int
+  - *vecAsScalar64
+  out:
+  - *int
+
+- go: shiftAllLeftConst
+  asm: "VPSLL[WDQ]"
+  in:
+  - *any
+  - &imm
+    class: immediate
+    immOffset: 0
+  out:
+  - *any
+- go: shiftAllRightConst
+  asm: "VPSRL[WDQ]"
+  in:
+  - *int
+  - *imm
+  out:
+  - *int
+- go: shiftAllRightConst
+  asm: "VPSRA[WDQ]"
+  in:
+  - *uint
+  - *imm
+  out:
+  - *uint
+
+# Shift* (variable)
+- go: ShiftLeft
+  asm: "VPSLLV[WD]"
+  in:
+  - *any
+  - *any
+  out:
+  - *any
+# XED data of VPSLLVQ marks the element bits 32 which is off to the actual semantic, we need to overwrite
+# it to 64.
+- go: ShiftLeft
+  asm: "VPSLLVQ"
+  in:
+  - &anyOverwriteElemBits
+    go: $t
+    overwriteElementBits: 64
+  - *anyOverwriteElemBits
+  out:
+  - *anyOverwriteElemBits
+- go: ShiftRight
+  signed: false
+  asm: "VPSRLV[WD]"
+  in:
+  - *uint
+  - *uint
+  out:
+  - *uint
+# XED data of VPSRLVQ needs the same overwrite as VPSLLVQ.
+- go: ShiftRight
+  signed: false
+  asm: "VPSRLVQ"
+  in:
+  - &uintOverwriteElemBits
+    go: $t
+    base: uint
+    overwriteElementBits: 64
+  - *uintOverwriteElemBits
+  out:
+  - *uintOverwriteElemBits
+- go: ShiftRight
+  signed: true
+  asm: "VPSRAV[WDQ]"
+  in:
+  - *int
+  - *int
+  out:
+  - *int
+
+# Rotate
+- go: RotateAllLeft
+  asm: "VPROL[DQ]"
+  in:
+  - *any
+  - &pureImm
+    class: immediate
+    immOffset: 0
+    name: shift
+  out:
+  - *any
+- go: RotateAllRight
+  asm: "VPROR[DQ]"
+  in:
+  - *any
+  - *pureImm
+  out:
+  - *any
+- go: RotateLeft
+  asm: "VPROLV[DQ]"
+  in:
+  - *any
+  - *any
+  out:
+  - *any
+- go: RotateRight
+  asm: "VPRORV[DQ]"
+  in:
+  - *any
+  - *any
+  out:
+  - *any
+
+# Bizzare shifts.
+- go: ShiftAllLeftConcat
+  asm: "VPSHLD[WDQ]"
+  in:
+  - *any
+  - *any
+  - *pureImm
+  out:
+  - *any
+- go: ShiftAllRightConcat
+  asm: "VPSHRD[WDQ]"
+  in:
+  - *any
+  - *any
+  - *pureImm
+  out:
+  - *any
+- go: ShiftLeftConcat
+  asm: "VPSHLDV[WDQ]"
+  in:
+  - *any
+  - *any
+  - *any
+  out:
+  - *any
+- go: ShiftRightConcat
+  asm: "VPSHRDV[WDQ]"
+  in:
+  - *any
+  - *any
+  - *any
+  out:
+  - *any

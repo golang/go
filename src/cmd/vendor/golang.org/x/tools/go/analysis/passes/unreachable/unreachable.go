@@ -15,7 +15,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
-	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
 	"golang.org/x/tools/internal/refactor"
 )
 
@@ -24,7 +24,7 @@ var doc string
 
 var Analyzer = &analysis.Analyzer{
 	Name:             "unreachable",
-	Doc:              analysisinternal.MustExtractDoc(doc, "unreachable"),
+	Doc:              analyzerutil.MustExtractDoc(doc, "unreachable"),
 	URL:              "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/unreachable",
 	Requires:         []*analysis.Analyzer{inspect.Analyzer},
 	RunDespiteErrors: true,

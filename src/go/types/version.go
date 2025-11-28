@@ -58,7 +58,7 @@ func (check *Checker) allowVersion(want goVersion) bool {
 
 // verifyVersionf is like allowVersion but also accepts a format string and arguments
 // which are used to report a version error if allowVersion returns false.
-func (check *Checker) verifyVersionf(at positioner, v goVersion, format string, args ...interface{}) bool {
+func (check *Checker) verifyVersionf(at positioner, v goVersion, format string, args ...any) bool {
 	if !check.allowVersion(v) {
 		check.versionErrorf(at, v, format, args...)
 		return false

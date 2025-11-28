@@ -121,8 +121,8 @@ const (
 	TFlagGCMaskOnDemand TFlag = 1 << 4
 
 	// TFlagDirectIface means that a value of this type is stored directly
-	// in the data field of an interface, instead of indirectly. Normally
-	// this means the type is pointer-ish.
+	// in the data field of an interface, instead of indirectly.
+	// This flag is just a cached computation of Size_ == PtrBytes == goarch.PtrSize.
 	TFlagDirectIface TFlag = 1 << 5
 
 	// Leaving this breadcrumb behind for dlv. It should not be used, and no
@@ -655,7 +655,7 @@ func writeVarint(buf []byte, n int) int {
 	}
 }
 
-// Name returns the tag string for n, or empty if there is none.
+// Name returns the name of n, or empty if it does not actually have a name.
 func (n Name) Name() string {
 	if n.Bytes == nil {
 		return ""

@@ -1,0 +1,167 @@
+// Copyright 2025 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Divisibility checks (x%c == 0 or x%c != 0) convert to multiply, rotate, compare.
+// The opt pass rewrote x%c to x-(x/c)*c
+// and then also rewrote x-(x/c)*c == 0 to x == (x/c)*c.
+// If x/c is being used for a division already (div.Uses != 1)
+// then we leave the expression alone.
+//
+// See ../magic.go for a detailed description of these algorithms.
+// See test/codegen/divmod.go for tests.
+// See divmod.rules for other division rules that run after these.
+
+// Divisiblity by unsigned or signed power of two.
+(Eq(8|16|32|64)  x (Mul(8|16|32|64) <t> (Div(8|16|32|64)u x (Const(8|16|32|64) [c])) (Const(8|16|32|64) [c])))
+  && x.Op != OpConst64 && isPowerOfTwo(c) =>
+  (Eq(8|16|32|64)  (And(8|16|32|64) <t> x (Const(8|16|32|64) <t> [c-1])) (Const(8|16|32|64) <t> [0]))
+(Eq(8|16|32|64)  x (Mul(8|16|32|64) <t> (Div(8|16|32|64)  x (Const(8|16|32|64) [c])) (Const(8|16|32|64) [c])))
+  && x.Op != OpConst64 && isPowerOfTwo(c) =>
+  (Eq(8|16|32|64)  (And(8|16|32|64) <t> x (Const(8|16|32|64) <t> [c-1])) (Const(8|16|32|64) <t> [0]))
+(Neq(8|16|32|64) x (Mul(8|16|32|64) <t> (Div(8|16|32|64)u x (Const(8|16|32|64) [c])) (Const(8|16|32|64) [c])))
+  && x.Op != OpConst64 && isPowerOfTwo(c) =>
+  (Neq(8|16|32|64) (And(8|16|32|64) <t> x (Const(8|16|32|64) <t> [c-1])) (Const(8|16|32|64) <t> [0]))
+(Neq(8|16|32|64) x (Mul(8|16|32|64) <t> (Div(8|16|32|64)  x (Const(8|16|32|64) [c])) (Const(8|16|32|64) [c])))
+  && x.Op != OpConst64 && isPowerOfTwo(c) =>
+  (Neq(8|16|32|64) (And(8|16|32|64) <t> x (Const(8|16|32|64) <t> [c-1])) (Const(8|16|32|64) <t> [0]))
+
+// Divisiblity by unsigned.
+(Eq8 x (Mul8 <t> div:(Div8u x (Const8 [c])) (Const8 [c])))
+  && div.Uses == 1
+  && x.Op != OpConst8 && udivisibleOK8(c) =>
+  (Leq8U
+    (RotateLeft8 <t>
+      (Mul8 <t> x (Const8 <t> [int8(udivisible8(c).m)]))
+      (Const8 <t> [int8(8 - udivisible8(c).k)]))
+    (Const8 <t> [int8(udivisible8(c).max)]))
+(Neq8 x (Mul8 <t> div:(Div8u x (Const8 [c])) (Const8 [c])))
+  && div.Uses == 1
+  && x.Op != OpConst8 && udivisibleOK8(c) =>
+  (Less8U
+    (Const8 <t> [int8(udivisible8(c).max)])
+    (RotateLeft8 <t>
+      (Mul8 <t> x (Const8 <t> [int8(udivisible8(c).m)]))
+      (Const8 <t> [int8(8 - udivisible8(c).k)])))
+(Eq16 x (Mul16 <t> div:(Div16u x (Const16 [c])) (Const16 [c])))
+  && div.Uses == 1
+  && x.Op != OpConst16 && udivisibleOK16(c) =>
+  (Leq16U
+    (RotateLeft16 <t>
+      (Mul16 <t> x (Const16 <t> [int16(udivisible16(c).m)]))
+      (Const16 <t> [int16(16 - udivisible16(c).k)]))
+    (Const16 <t> [int16(udivisible16(c).max)]))
+(Neq16 x (Mul16 <t> div:(Div16u x (Const16 [c])) (Const16 [c])))
+  && div.Uses == 1
+  && x.Op != OpConst16 && udivisibleOK16(c) =>
+  (Less16U
+    (Const16 <t> [int16(udivisible16(c).max)])
+    (RotateLeft16 <t>
+      (Mul16 <t> x (Const16 <t> [int16(udivisible16(c).m)]))
+      (Const16 <t> [int16(16 - udivisible16(c).k)])))
+(Eq32 x (Mul32 <t> div:(Div32u x (Const32 [c])) (Const32 [c])))
+  && div.Uses == 1
+  && x.Op != OpConst32 && udivisibleOK32(c) =>
+  (Leq32U
+    (RotateLeft32 <t>
+      (Mul32 <t> x (Const32 <t> [int32(udivisible32(c).m)]))
+      (Const32 <t> [int32(32 - udivisible32(c).k)]))
+    (Const32 <t> [int32(udivisible32(c).max)]))
+(Neq32 x (Mul32 <t> div:(Div32u x (Const32 [c])) (Const32 [c])))
+  && div.Uses == 1
+  && x.Op != OpConst32 && udivisibleOK32(c) =>
+  (Less32U
+    (Const32 <t> [int32(udivisible32(c).max)])
+    (RotateLeft32 <t>
+      (Mul32 <t> x (Const32 <t> [int32(udivisible32(c).m)]))
+      (Const32 <t> [int32(32 - udivisible32(c).k)])))
+(Eq64 x (Mul64 <t> div:(Div64u x (Const64 [c])) (Const64 [c])))
+  && div.Uses == 1
+  && x.Op != OpConst64 && udivisibleOK64(c) =>
+  (Leq64U
+    (RotateLeft64 <t>
+      (Mul64 <t> x (Const64 <t> [int64(udivisible64(c).m)]))
+      (Const64 <t> [int64(64 - udivisible64(c).k)]))
+    (Const64 <t> [int64(udivisible64(c).max)]))
+(Neq64 x (Mul64 <t> div:(Div64u x (Const64 [c])) (Const64 [c])))
+  && div.Uses == 1
+  && x.Op != OpConst64 && udivisibleOK64(c) =>
+  (Less64U
+    (Const64 <t> [int64(udivisible64(c).max)])
+    (RotateLeft64 <t>
+      (Mul64 <t> x (Const64 <t> [int64(udivisible64(c).m)]))
+      (Const64 <t> [int64(64 - udivisible64(c).k)])))
+
+// Divisiblity by signed.
+(Eq8 x (Mul8 <t> div:(Div8  x (Const8 [c])) (Const8 [c])))
+  && div.Uses == 1
+  && x.Op != OpConst8 && sdivisibleOK8(c) =>
+  (Leq8U
+    (RotateLeft8 <t>
+      (Add8 <t> (Mul8 <t> x (Const8 <t> [int8(sdivisible8(c).m)]))
+        (Const8 <t> [int8(sdivisible8(c).a)]))
+      (Const8 <t> [int8(8 - sdivisible8(c).k)]))
+    (Const8 <t> [int8(sdivisible8(c).max)]))
+(Neq8 x (Mul8 <t> div:(Div8  x (Const8 [c])) (Const8 [c])))
+  && div.Uses == 1
+  && x.Op != OpConst8 && sdivisibleOK8(c) =>
+  (Less8U
+    (Const8 <t> [int8(sdivisible8(c).max)])
+    (RotateLeft8 <t>
+      (Add8 <t> (Mul8 <t> x (Const8 <t> [int8(sdivisible8(c).m)]))
+        (Const8 <t> [int8(sdivisible8(c).a)]))
+      (Const8 <t> [int8(8 - sdivisible8(c).k)])))
+(Eq16 x (Mul16 <t> div:(Div16 x (Const16 [c])) (Const16 [c])))
+  && div.Uses == 1
+  && x.Op != OpConst16 && sdivisibleOK16(c) =>
+  (Leq16U
+    (RotateLeft16 <t>
+      (Add16 <t> (Mul16 <t> x (Const16 <t> [int16(sdivisible16(c).m)]))
+        (Const16 <t> [int16(sdivisible16(c).a)]))
+      (Const16 <t> [int16(16 - sdivisible16(c).k)]))
+    (Const16 <t> [int16(sdivisible16(c).max)]))
+(Neq16 x (Mul16 <t> div:(Div16 x (Const16 [c])) (Const16 [c])))
+  && div.Uses == 1
+  && x.Op != OpConst16 && sdivisibleOK16(c) =>
+  (Less16U
+    (Const16 <t> [int16(sdivisible16(c).max)])
+    (RotateLeft16 <t>
+      (Add16 <t> (Mul16 <t> x (Const16 <t> [int16(sdivisible16(c).m)]))
+        (Const16 <t> [int16(sdivisible16(c).a)]))
+      (Const16 <t> [int16(16 - sdivisible16(c).k)])))
+(Eq32 x (Mul32 <t> div:(Div32 x (Const32 [c])) (Const32 [c])))
+  && div.Uses == 1
+  && x.Op != OpConst32 && sdivisibleOK32(c) =>
+  (Leq32U
+    (RotateLeft32 <t>
+      (Add32 <t> (Mul32 <t> x (Const32 <t> [int32(sdivisible32(c).m)]))
+        (Const32 <t> [int32(sdivisible32(c).a)]))
+      (Const32 <t> [int32(32 - sdivisible32(c).k)]))
+    (Const32 <t> [int32(sdivisible32(c).max)]))
+(Neq32 x (Mul32 <t> div:(Div32 x (Const32 [c])) (Const32 [c])))
+  && div.Uses == 1
+  && x.Op != OpConst32 && sdivisibleOK32(c) =>
+  (Less32U
+    (Const32 <t> [int32(sdivisible32(c).max)])
+    (RotateLeft32 <t>
+      (Add32 <t> (Mul32 <t> x (Const32 <t> [int32(sdivisible32(c).m)]))
+        (Const32 <t> [int32(sdivisible32(c).a)]))
+      (Const32 <t> [int32(32 - sdivisible32(c).k)])))
+(Eq64 x (Mul64 <t> div:(Div64 x (Const64 [c])) (Const64 [c])))
+  && div.Uses == 1
+  && x.Op != OpConst64 && sdivisibleOK64(c) =>
+  (Leq64U
+    (RotateLeft64 <t>
+      (Add64 <t> (Mul64 <t> x (Const64 <t> [int64(sdivisible64(c).m)]))
+        (Const64 <t> [int64(sdivisible64(c).a)]))
+      (Const64 <t> [int64(64 - sdivisible64(c).k)]))
+    (Const64 <t> [int64(sdivisible64(c).max)]))
+(Neq64 x (Mul64 <t> div:(Div64 x (Const64 [c])) (Const64 [c])))
+  && div.Uses == 1
+  && x.Op != OpConst64 && sdivisibleOK64(c) =>
+  (Less64U
+    (Const64 <t> [int64(sdivisible64(c).max)])
+    (RotateLeft64 <t>
+      (Add64 <t> (Mul64 <t> x (Const64 <t> [int64(sdivisible64(c).m)]))
+        (Const64 <t> [int64(sdivisible64(c).a)]))
+      (Const64 <t> [int64(64 - sdivisible64(c).k)])))

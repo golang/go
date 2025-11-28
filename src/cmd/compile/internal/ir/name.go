@@ -43,8 +43,8 @@ type Name struct {
 	Func      *Func // TODO(austin): nil for I.M
 	Offset_   int64
 	val       constant.Value
-	Opt       interface{} // for use by escape analysis
-	Embed     *[]Embed    // list of embedded files, for ONAME var
+	Opt       any      // for use by escape or slice analysis
+	Embed     *[]Embed // list of embedded files, for ONAME var
 
 	// For a local variable (not param) or extern, the initializing assignment (OAS or OAS2).
 	// For a closure var, the ONAME node of the original (outermost) captured variable.

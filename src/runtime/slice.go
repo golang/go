@@ -7,6 +7,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
+	"internal/goexperiment"
 	"internal/runtime/math"
 	"internal/runtime/sys"
 	"unsafe"
@@ -285,6 +286,42 @@ func growslice(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type) slice 
 	return slice{p, newLen, newcap}
 }
 
+// growsliceNoAlias is like growslice but only for the case where
+// we know that oldPtr is not aliased.
+//
+// In other words, the caller must know that there are no other references
+// to the backing memory of the slice being grown aside from the slice header
+// that will be updated with new backing memory when growsliceNoAlias
+// returns, and therefore oldPtr must be the only pointer to its referent
+// aside from the slice header updated by the returned slice.
+//
+// In addition, oldPtr must point to the start of the allocation and match
+// the pointer that was returned by mallocgc. In particular, oldPtr must not
+// be an interior pointer, such as after a reslice.
+//
+// See freegc for details.
+func growsliceNoAlias(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type) slice {
+	s := growslice(oldPtr, newLen, oldCap, num, et)
+	if goexperiment.RuntimeFreegc && oldPtr != nil && oldPtr != s.array {
+		if gp := getg(); uintptr(oldPtr) < gp.stack.lo || gp.stack.hi <= uintptr(oldPtr) {
+			// oldPtr does not point into the current stack, and it is not
+			// the data pointer for s after the grow, so attempt to free it.
+			// (Note that freegc also verifies that oldPtr does not point into our stack,
+			// but checking here first is slightly cheaper for the case when
+			// oldPtr is on the stack and freegc would be a no-op.)
+			//
+			// TODO(thepudds): it may be that oldPtr==s.array only when elemsize==0,
+			// so perhaps we could prohibit growsliceNoAlias being called in that case
+			// and eliminate that check here, or alternatively, we could lean into
+			// freegc being a no-op for zero-sized allocations (that is, no check of
+			// oldPtr != s.array here and just let freegc return quickly).
+			noscan := !et.Pointers()
+			freegc(oldPtr, uintptr(oldCap)*et.Size_, noscan)
+		}
+	}
+	return s
+}
+
 // nextslicecap computes the next appropriate slice length.
 func nextslicecap(newLen, oldCap int) int {
 	newcap := oldCap
@@ -398,4 +435,127 @@ func bytealg_MakeNoZero(len int) []byte {
 	}
 	cap := roundupsize(uintptr(len), true)
 	return unsafe.Slice((*byte)(mallocgc(cap, nil, false)), cap)[:len]
+}
+
+// moveSlice copies the input slice to the heap and returns it.
+// et is the element type of the slice.
+func moveSlice(et *_type, old unsafe.Pointer, len, cap int) (unsafe.Pointer, int, int) {
+	if cap == 0 {
+		if old != nil {
+			old = unsafe.Pointer(&zerobase)
+		}
+		return old, 0, 0
+	}
+	capmem := uintptr(cap) * et.Size_
+	new := mallocgc(capmem, et, true)
+	bulkBarrierPreWriteSrcOnly(uintptr(new), uintptr(old), capmem, et)
+	memmove(new, old, capmem)
+	return new, len, cap
+}
+
+// moveSliceNoScan is like moveSlice except the element type is known to
+// not have any pointers. We instead pass in the size of the element.
+func moveSliceNoScan(elemSize uintptr, old unsafe.Pointer, len, cap int) (unsafe.Pointer, int, int) {
+	if cap == 0 {
+		if old != nil {
+			old = unsafe.Pointer(&zerobase)
+		}
+		return old, 0, 0
+	}
+	capmem := uintptr(cap) * elemSize
+	new := mallocgc(capmem, nil, false)
+	memmove(new, old, capmem)
+	return new, len, cap
+}
+
+// moveSliceNoCap is like moveSlice, but can pick any appropriate capacity
+// for the returned slice.
+// Elements between len and cap in the returned slice will be zeroed.
+func moveSliceNoCap(et *_type, old unsafe.Pointer, len int) (unsafe.Pointer, int, int) {
+	if len == 0 {
+		if old != nil {
+			old = unsafe.Pointer(&zerobase)
+		}
+		return old, 0, 0
+	}
+	lenmem := uintptr(len) * et.Size_
+	capmem := roundupsize(lenmem, false)
+	new := mallocgc(capmem, et, true)
+	bulkBarrierPreWriteSrcOnly(uintptr(new), uintptr(old), lenmem, et)
+	memmove(new, old, lenmem)
+	return new, len, int(capmem / et.Size_)
+}
+
+// moveSliceNoCapNoScan is a combination of moveSliceNoScan and moveSliceNoCap.
+func moveSliceNoCapNoScan(elemSize uintptr, old unsafe.Pointer, len int) (unsafe.Pointer, int, int) {
+	if len == 0 {
+		if old != nil {
+			old = unsafe.Pointer(&zerobase)
+		}
+		return old, 0, 0
+	}
+	lenmem := uintptr(len) * elemSize
+	capmem := roundupsize(lenmem, true)
+	new := mallocgc(capmem, nil, false)
+	memmove(new, old, lenmem)
+	if capmem > lenmem {
+		memclrNoHeapPointers(add(new, lenmem), capmem-lenmem)
+	}
+	return new, len, int(capmem / elemSize)
+}
+
+// growsliceBuf is like growslice, but we can use the given buffer
+// as a backing store if we want. bufPtr must be on the stack.
+func growsliceBuf(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type, bufPtr unsafe.Pointer, bufLen int) slice {
+	if newLen > bufLen {
+		// Doesn't fit, process like a normal growslice.
+		return growslice(oldPtr, newLen, oldCap, num, et)
+	}
+	oldLen := newLen - num
+	if oldPtr != bufPtr && oldLen != 0 {
+		// Move data to start of buffer.
+		// Note: bufPtr is on the stack, so no write barrier needed.
+		memmove(bufPtr, oldPtr, uintptr(oldLen)*et.Size_)
+	}
+	// Pick a new capacity.
+	//
+	// Unlike growslice, we don't need to double the size each time.
+	// The work done here is not proportional to the length of the slice.
+	// (Unless the memmove happens above, but that is rare, and in any
+	// case there are not many elements on this path.)
+	//
+	// Instead, we try to just bump up to the next size class.
+	// This will ensure that we don't waste any space when we eventually
+	// call moveSlice with the resulting slice.
+	newCap := int(roundupsize(uintptr(newLen)*et.Size_, !et.Pointers()) / et.Size_)
+
+	// Zero slice beyond newLen.
+	// The buffer is stack memory, so NoHeapPointers is ok.
+	// Caller will overwrite [oldLen:newLen], so we don't need to zero that portion.
+	// If et.Pointers(), buffer is at least initialized so we don't need to
+	// worry about the caller overwriting junk in [oldLen:newLen].
+	if newLen < newCap {
+		memclrNoHeapPointers(add(bufPtr, uintptr(newLen)*et.Size_), uintptr(newCap-newLen)*et.Size_)
+	}
+
+	return slice{bufPtr, newLen, newCap}
+}
+
+// growsliceBufNoAlias is a combination of growsliceBuf and growsliceNoAlias.
+// bufPtr must be on the stack.
+func growsliceBufNoAlias(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type, bufPtr unsafe.Pointer, bufLen int) slice {
+	s := growsliceBuf(oldPtr, newLen, oldCap, num, et, bufPtr, bufLen)
+	if goexperiment.RuntimeFreegc && oldPtr != bufPtr && oldPtr != nil && oldPtr != s.array {
+		// oldPtr is not bufPtr (the stack buffer) and it is not
+		// the data pointer for s after the grow, so attempt to free it.
+		// (Note that freegc does a broader check that oldPtr does not point into our stack,
+		// but checking here first is slightly cheaper for a common case when oldPtr is bufPtr
+		// and freegc would be a no-op.)
+		//
+		// TODO(thepudds): see related TODO in growsliceNoAlias about possibly eliminating
+		// the oldPtr != s.array check.
+		noscan := !et.Pointers()
+		freegc(oldPtr, uintptr(oldCap)*et.Size_, noscan)
+	}
+	return s
 }

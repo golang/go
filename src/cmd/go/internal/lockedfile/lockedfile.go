@@ -94,6 +94,11 @@ func (f *File) Close() error {
 
 	err := closeFile(f.osFile.File)
 	f.cleanup.Stop()
+	// f may be dead at the moment after we access f.cleanup,
+	// so the cleanup can fire before Stop completes. Keep f
+	// alive while we call Stop. See the documentation for
+	// runtime.Cleanup.Stop.
+	runtime.KeepAlive(f)
 	return err
 }
 

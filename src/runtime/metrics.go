@@ -818,9 +818,12 @@ func (a *schedStatsAggregate) compute() {
 		a.gCreated += p.goroutinesCreated
 		switch p.status {
 		case _Prunning:
-			a.gRunning++
-		case _Psyscall:
-			a.gNonGo++
+			if thread, ok := setBlockOnExitSyscall(p); ok {
+				thread.resume()
+				a.gNonGo++
+			} else {
+				a.gRunning++
+			}
 		case _Pgcstop:
 			// The world is stopping or stopped.
 			// This is fine. The results will be
@@ -847,7 +850,7 @@ func (a *schedStatsAggregate) compute() {
 	// Global run queue.
 	a.gRunnable += uint64(sched.runq.size)
 
-	// Account for Gs that are in _Gsyscall without a P in _Psyscall.
+	// Account for Gs that are in _Gsyscall without a P.
 	nGsyscallNoP := sched.nGsyscallNoP.Load()
 
 	// nGsyscallNoP can go negative during temporary races.

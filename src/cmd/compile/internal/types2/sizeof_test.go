@@ -15,9 +15,9 @@ func TestSizeof(t *testing.T) {
 	const _64bit = ^uint(0)>>32 != 0
 
 	var tests = []struct {
-		val    interface{} // type as a value
-		_32bit uintptr     // size on 32bit platforms
-		_64bit uintptr     // size on 64bit platforms
+		val    any     // type as a value
+		_32bit uintptr // size on 32bit platforms
+		_64bit uintptr // size on 64bit platforms
 	}{
 		// Types
 		{Basic{}, 16, 32},
@@ -36,14 +36,14 @@ func TestSizeof(t *testing.T) {
 		{term{}, 12, 24},
 
 		// Objects
-		{PkgName{}, 60, 96},
-		{Const{}, 64, 104},
-		{TypeName{}, 56, 88},
-		{Var{}, 64, 104},
-		{Func{}, 64, 104},
-		{Label{}, 60, 96},
-		{Builtin{}, 60, 96},
-		{Nil{}, 56, 88},
+		{PkgName{}, 56, 96},
+		{Const{}, 60, 104},
+		{TypeName{}, 52, 88},
+		{Var{}, 60, 104},
+		{Func{}, 60, 104},
+		{Label{}, 56, 96},
+		{Builtin{}, 56, 96},
+		{Nil{}, 52, 88},
 
 		// Misc
 		{Scope{}, 60, 104},

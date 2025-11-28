@@ -40,13 +40,15 @@ rm $TOOLDIR/test2json$GOEXE
 go tool -n test2json
 ! stdout $NEWTOOLDIR${/}test2json$GOEXE
 # Set GOOS/GOARCH to different values than host GOOS/GOARCH.
-env GOOS=windows
-[GOOS:windows] env GOOS=linux
-env GOARCH=arm64
-[GOARCH:arm64] env GOARCH=amd64
+env GOOS=js
+env GOARCH=wasm
 # Control case: go run shouldn't work because it respects
 # GOOS/GOARCH, and we can't execute non-native binary.
-! go run cmd/test2json -exec=''
-# But go tool should because it doesn't respect GOOS/GOARCH.
+# Don't actually run the binary because maybe we can.
+# (Maybe the user has a go_js_wasm_exec installed.)
+# Instead just look to see that the right binary got linked.
+go run -n cmd/test2json
+stderr modinfo.*GOARCH=wasm.*GOOS=js
+# go tool should succeed because it doesn't respect GOOS/GOARCH.
 go tool test2json
 stdout '{"Action":"start"}'

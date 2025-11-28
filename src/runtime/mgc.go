@@ -195,10 +195,12 @@ func gcinit() {
 
 	work.startSema = 1
 	work.markDoneSema = 1
+	work.spanSPMCs.list.init(unsafe.Offsetof(spanSPMC{}.allnode))
 	lockInit(&work.sweepWaiters.lock, lockRankSweepWaiters)
 	lockInit(&work.assistQueue.lock, lockRankAssistQueue)
 	lockInit(&work.strongFromWeak.lock, lockRankStrongFromWeakQueue)
 	lockInit(&work.wbufSpans.lock, lockRankWbufSpans)
+	lockInit(&work.spanSPMCs.lock, lockRankSpanSPMCs)
 	lockInit(&gcCleanups.lock, lockRankCleanupQueue)
 }
 
@@ -314,7 +316,7 @@ func pollFractionalWorkerExit() bool {
 		return true
 	}
 	p := getg().m.p.ptr()
-	selfTime := p.gcFractionalMarkTime + (now - p.gcMarkWorkerStartTime)
+	selfTime := p.gcFractionalMarkTime.Load() + (now - p.gcMarkWorkerStartTime)
 	// Add some slack to the utilization goal so that the
 	// fractional worker isn't behind again the instant it exits.
 	return float64(selfTime)/float64(delta) > 1.2*gcController.fractionalUtilizationGoal
@@ -352,8 +354,8 @@ type workType struct {
 	//
 	// Only used if goexperiment.GreenTeaGC.
 	spanSPMCs struct {
-		lock mutex // no lock rank because it's a leaf lock (see mklockrank.go).
-		all  *spanSPMC
+		lock mutex
+		list listHeadManual // *spanSPMC
 	}
 
 	// Restore 64-bit alignment on 32-bit.
@@ -835,6 +837,33 @@ func gcStart(trigger gcTrigger) {
 
 	// Accumulate fine-grained stopping time.
 	work.cpuStats.accumulateGCPauseTime(stw.stoppingCPUTime, 1)
+
+	if goexperiment.RuntimeSecret {
+		// The world is stopped. Every M is either parked
+		// or in a syscall, or running some non-go code which can't run in secret mode.
+		// To get to a parked or a syscall state
+		// they have to transition through a point where we erase any
+		// confidential information in the registers. Making them
+		// handle a signal now would clobber the signal stack
+		// with non-confidential information.
+		//
+		// TODO(dmo): this is linear with respect to the number of Ms.
+		// Investigate just how long this takes and whether we can somehow
+		// loop over just the Ms that have secret info on their signal stack,
+		// or cooperatively have the Ms send signals to themselves just
+		// after they erase their registers, but before they enter a syscall
+		for mp := allm; mp != nil; mp = mp.alllink {
+			// even through the world is stopped, the kernel can still
+			// invoke our signal handlers. No confidential information can be spilled
+			// (because it's been erased by this time), but we can avoid
+			// sending additional signals by atomically inspecting this variable
+			if atomic.Xchg(&mp.signalSecret, 0) != 0 {
+				noopSignal(mp)
+			}
+			// TODO: syncronize with the signal handler to ensure that the signal
+			// was actually delivered.
+		}
+	}
 
 	// Finish sweep before we start concurrent scan.
 	systemstack(func() {
@@ -1725,7 +1754,13 @@ func gcBgMarkWorker(ready chan struct{}) {
 	// the stack (see gopark). Prevent deadlock from recursively
 	// starting GC by disabling preemption.
 	gp.m.preemptoff = "GC worker init"
-	node := &new(gcBgMarkWorkerNodePadded).gcBgMarkWorkerNode // TODO: technically not allowed in the heap. See comment in tagptr.go.
+	// TODO: This is technically not allowed in the heap. See comment in tagptr.go.
+	//
+	// It is kept alive simply by virtue of being used in the infinite loop
+	// below. gcBgMarkWorkerPool keeps pointers to nodes that are not
+	// GC-visible, so this must be kept alive indefinitely (even if
+	// GOMAXPROCS decreases).
+	node := &new(gcBgMarkWorkerNodePadded).gcBgMarkWorkerNode
 	gp.m.preemptoff = ""
 
 	node.gp.set(gp)
@@ -1856,7 +1891,7 @@ func gcBgMarkWorker(ready chan struct{}) {
 			pp.limiterEvent.stop(limiterEventIdleMarkWork, now)
 		}
 		if pp.gcMarkWorkerMode == gcMarkWorkerFractionalMode {
-			atomic.Xaddint64(&pp.gcFractionalMarkTime, duration)
+			pp.gcFractionalMarkTime.Add(duration)
 		}
 
 		// We'll releasem after this point and thus this P may run

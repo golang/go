@@ -326,6 +326,9 @@ const (
 	NEED_GOT_PCREL_ITYPE_RELOC
 )
 
+const NEED_RELOC = NEED_JAL_RELOC | NEED_CALL_RELOC | NEED_PCREL_ITYPE_RELOC |
+	NEED_PCREL_STYPE_RELOC | NEED_GOT_PCREL_ITYPE_RELOC
+
 // RISC-V mnemonics, as defined in the "opcodes" and "opcodes-pseudo" files
 // at https://github.com/riscv/riscv-opcodes.
 //

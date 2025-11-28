@@ -16,12 +16,12 @@ package codegen
 // Direct use of constants in fast map access calls (Issue #19015).
 
 func AccessInt1(m map[int]int) int {
-	// amd64:"MOV[LQ]\t[$]5"
+	// amd64:"MOV[LQ] [$]5"
 	return m[5]
 }
 
 func AccessInt2(m map[int]int) bool {
-	// amd64:"MOV[LQ]\t[$]5"
+	// amd64:"MOV[LQ] [$]5"
 	_, ok := m[5]
 	return ok
 }
@@ -34,6 +34,28 @@ func AccessString1(m map[string]int) int {
 func AccessString2(m map[string]int) bool {
 	// amd64:`.*"abc"`
 	_, ok := m["abc"]
+	return ok
+}
+
+func AccessStringIntArray2(m map[string][16]int, k string) bool {
+	// amd64:-"MOVUPS"
+	_, ok := m[k]
+	return ok
+}
+
+type Struct struct {
+	A, B, C, D, E, F, G, H, I, J int
+}
+
+func AccessStringStruct2(m map[string]Struct, k string) bool {
+	// amd64:-"MOVUPS"
+	_, ok := m[k]
+	return ok
+}
+
+func AccessIntArrayLarge2(m map[int][512]int, k int) bool {
+	// amd64:-"REP",-"MOVSQ"
+	_, ok := m[k]
 	return ok
 }
 
@@ -147,7 +169,7 @@ func MapClearSideEffect(m map[int]int) int {
 
 func MapLiteralSizing(x int) (map[int]int, map[int]int) {
 	// This is tested for internal/abi/maps.go:MapBucketCountBits={3,4,5}
-	// amd64:"MOVL\t[$]33,"
+	// amd64:"MOVL [$]33,"
 	m := map[int]int{
 		0:  0,
 		1:  1,
@@ -183,7 +205,7 @@ func MapLiteralSizing(x int) (map[int]int, map[int]int) {
 		31: 32,
 		32: 32,
 	}
-	// amd64:"MOVL\t[$]33,"
+	// amd64:"MOVL [$]33,"
 	n := map[int]int{
 		0:  0,
 		1:  1,

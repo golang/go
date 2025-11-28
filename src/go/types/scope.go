@@ -220,10 +220,8 @@ func (*lazyObject) Exported() bool                     { panic("unreachable") }
 func (*lazyObject) Id() string                         { panic("unreachable") }
 func (*lazyObject) String() string                     { panic("unreachable") }
 func (*lazyObject) order() uint32                      { panic("unreachable") }
-func (*lazyObject) color() color                       { panic("unreachable") }
 func (*lazyObject) setType(Type)                       { panic("unreachable") }
 func (*lazyObject) setOrder(uint32)                    { panic("unreachable") }
-func (*lazyObject) setColor(color color)               { panic("unreachable") }
 func (*lazyObject) setParent(*Scope)                   { panic("unreachable") }
 func (*lazyObject) sameId(*Package, string, bool) bool { panic("unreachable") }
 func (*lazyObject) scopePos() token.Pos                { panic("unreachable") }

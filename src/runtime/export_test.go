@@ -238,6 +238,12 @@ func SetEnvs(e []string) { envs = e }
 
 const PtrSize = goarch.PtrSize
 
+const ClobberdeadPtr = clobberdeadPtr
+
+func Clobberfree() bool {
+	return debug.clobberfree != 0
+}
+
 var ForceGCPeriod = &forcegcperiod
 
 // SetTracebackEnv is like runtime/debug.SetTraceback, but it raises
@@ -632,6 +638,34 @@ func RunGetgThreadSwitchTest() {
 		panic("g1 != g3")
 	}
 }
+
+// Expose freegc for testing.
+func Freegc(p unsafe.Pointer, size uintptr, noscan bool) {
+	freegc(p, size, noscan)
+}
+
+// Expose gcAssistBytes for the current g for testing.
+func AssistCredit() int64 {
+	assistG := getg()
+	if assistG.m.curg != nil {
+		assistG = assistG.m.curg
+	}
+	return assistG.gcAssistBytes
+}
+
+// Expose gcBlackenEnabled for testing.
+func GcBlackenEnable() bool {
+	// Note we do a non-atomic load here.
+	// Some checks against gcBlackenEnabled (e.g., in mallocgc)
+	// are currently done via non-atomic load for performance reasons,
+	// but other checks are done via atomic load (e.g., in mgcmark.go),
+	// so interpreting this value in a test may be subtle.
+	return gcBlackenEnabled != 0
+}
+
+const SizeSpecializedMallocEnabled = sizeSpecializedMallocEnabled
+
+const RuntimeFreegcEnabled = runtimeFreegcEnabled
 
 const (
 	PageSize         = pageSize
@@ -1472,7 +1506,14 @@ func Releasem() {
 	releasem(getg().m)
 }
 
-var Timediv = timediv
+// GoschedIfBusy is an explicit preemption check to call back
+// into the scheduler. This is useful for tests that run code
+// which spend most of their time as non-preemptible, as it
+// can be placed right after becoming preemptible again to ensure
+// that the scheduler gets a chance to preempt the goroutine.
+func GoschedIfBusy() {
+	goschedIfBusy()
+}
 
 type PIController struct {
 	piController
@@ -1937,6 +1978,101 @@ func TraceStack(gp *G, tab *TraceStackTable) {
 	traceStack(0, gp, (*traceStackTable)(tab))
 }
 
+var X86HasAVX = &x86HasAVX
+
 var DebugDecorateMappings = &debug.decoratemappings
 
 func SetVMANameSupported() bool { return setVMANameSupported() }
+
+type ListHead struct {
+	l listHead
+}
+
+func (head *ListHead) Init(off uintptr) {
+	head.l.init(off)
+}
+
+type ListNode struct {
+	l listNode
+}
+
+func (head *ListHead) Push(p unsafe.Pointer) {
+	head.l.push(p)
+}
+
+func (head *ListHead) Pop() unsafe.Pointer {
+	return head.l.pop()
+}
+
+func (head *ListHead) Remove(p unsafe.Pointer) {
+	head.l.remove(p)
+}
+
+type ListHeadManual struct {
+	l listHeadManual
+}
+
+func (head *ListHeadManual) Init(off uintptr) {
+	head.l.init(off)
+}
+
+type ListNodeManual struct {
+	l listNodeManual
+}
+
+func (head *ListHeadManual) Push(p unsafe.Pointer) {
+	head.l.push(p)
+}
+
+func (head *ListHeadManual) Pop() unsafe.Pointer {
+	return head.l.pop()
+}
+
+func (head *ListHeadManual) Remove(p unsafe.Pointer) {
+	head.l.remove(p)
+}
+
+func Hexdumper(base uintptr, wordBytes int, mark func(addr uintptr, start func()), data ...[]byte) string {
+	buf := make([]byte, 0, 2048)
+	getg().writebuf = buf
+	h := hexdumper{addr: base, addrBytes: 4, wordBytes: uint8(wordBytes)}
+	if mark != nil {
+		h.mark = func(addr uintptr, m hexdumpMarker) {
+			mark(addr, m.start)
+		}
+	}
+	for _, d := range data {
+		h.write(d)
+	}
+	h.close()
+	n := len(getg().writebuf)
+	getg().writebuf = nil
+	if n == cap(buf) {
+		panic("Hexdumper buf too small")
+	}
+	return string(buf[:n])
+}
+
+func HexdumpWords(p, bytes uintptr) string {
+	buf := make([]byte, 0, 2048)
+	getg().writebuf = buf
+	hexdumpWords(p, bytes, nil)
+	n := len(getg().writebuf)
+	getg().writebuf = nil
+	if n == cap(buf) {
+		panic("HexdumpWords buf too small")
+	}
+	return string(buf[:n])
+}
+
+// DumpPrintQuoted provides access to print(quoted()) for the tests in
+// runtime/print_quoted_test.go, allowing us to test that implementation.
+func DumpPrintQuoted(s string) string {
+	gp := getg()
+	gp.writebuf = make([]byte, 0, 1<<20)
+	print(quoted(s))
+	buf := gp.writebuf
+	gp.writebuf = nil
+
+	return string(buf)
+}

@@ -41,8 +41,6 @@ type Config struct {
 	hasGReg        bool      // has hardware g register
 	ctxt           *obj.Link // Generic arch information
 	optimize       bool      // Do optimization
-	useAvg         bool      // Use optimizations that need Avg* operations
-	useHmul        bool      // Use optimizations that need Hmul* operations
 	SoftFloat      bool      //
 	Race           bool      // race detector enabled
 	BigEndian      bool      //
@@ -90,6 +88,10 @@ type Types struct {
 	Float32Ptr *types.Type
 	Float64Ptr *types.Type
 	BytePtrPtr *types.Type
+	Vec128     *types.Type
+	Vec256     *types.Type
+	Vec512     *types.Type
+	Mask       *types.Type
 }
 
 // NewTypes creates and populates a Types.
@@ -124,21 +126,25 @@ func (t *Types) SetTypPtrs() {
 	t.Float32Ptr = types.NewPtr(types.Types[types.TFLOAT32])
 	t.Float64Ptr = types.NewPtr(types.Types[types.TFLOAT64])
 	t.BytePtrPtr = types.NewPtr(types.NewPtr(types.Types[types.TUINT8]))
+	t.Vec128 = types.TypeVec128
+	t.Vec256 = types.TypeVec256
+	t.Vec512 = types.TypeVec512
+	t.Mask = types.TypeMask
 }
 
 type Logger interface {
 	// Logf logs a message from the compiler.
-	Logf(string, ...interface{})
+	Logf(string, ...any)
 
 	// Log reports whether logging is not a no-op
 	// some logging calls account for more than a few heap allocations.
 	Log() bool
 
 	// Fatalf reports a compiler error and exits.
-	Fatalf(pos src.XPos, msg string, args ...interface{})
+	Fatalf(pos src.XPos, msg string, args ...any)
 
 	// Warnl writes compiler messages in the form expected by "errorcheck" tests
-	Warnl(pos src.XPos, fmt_ string, args ...interface{})
+	Warnl(pos src.XPos, fmt_ string, args ...any)
 
 	// Forwards the Debug flags from gc
 	Debug_checknil() bool
@@ -168,8 +174,6 @@ type Frontend interface {
 // NewConfig returns a new configuration object for the given architecture.
 func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat bool) *Config {
 	c := &Config{arch: arch, Types: types}
-	c.useAvg = true
-	c.useHmul = true
 	switch arch {
 	case "amd64":
 		c.PtrSize = 8
@@ -309,6 +313,8 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.registers = registersS390X[:]
 		c.gpRegMask = gpRegMaskS390X
 		c.fpRegMask = fpRegMaskS390X
+		c.intParamRegs = paramIntRegS390X
+		c.floatParamRegs = paramFloatRegS390X
 		c.FPReg = framepointerRegS390X
 		c.LinkReg = linkRegS390X
 		c.hasGReg = true
@@ -359,8 +365,6 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.FPReg = framepointerRegWasm
 		c.LinkReg = linkRegWasm
 		c.hasGReg = true
-		c.useAvg = false
-		c.useHmul = false
 		c.unalignedOK = true
 		c.haveCondSelect = true
 	default:

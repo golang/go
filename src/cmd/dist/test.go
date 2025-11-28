@@ -753,6 +753,15 @@ func (t *tester) registerTests() {
 		})
 	}
 
+	// Test GOEXPERIMENT=runtimesecret.
+	if !strings.Contains(goexperiment, "runtimesecret") {
+		t.registerTest("GOEXPERIMENT=runtimesecret go test runtime/secret/...", &goTest{
+			variant: "runtimesecret",
+			env:     []string{"GOEXPERIMENT=runtimesecret"},
+			pkg:     "runtime/secret/...",
+		})
+	}
+
 	// Test ios/amd64 for the iOS simulator.
 	if goos == "darwin" && goarch == "amd64" && t.cgoEnabled {
 		t.registerTest("GOOS=ios on darwin/amd64",
@@ -956,7 +965,9 @@ func (t *tester) registerTests() {
 	// which is darwin,linux,windows/amd64 and darwin/arm64.
 	//
 	// The same logic applies to the release notes that correspond to each api/next file.
-	if goos == "darwin" || ((goos == "linux" || goos == "windows") && goarch == "amd64") {
+	//
+	// TODO: remove the exclusion of goexperiment simd right before dev.simd branch is merged to master.
+	if goos == "darwin" || ((goos == "linux" || goos == "windows") && (goarch == "amd64" && !strings.Contains(goexperiment, "simd"))) {
 		t.registerTest("API release note check", &goTest{variant: "check", pkg: "cmd/relnote", testFlags: []string{"-check"}})
 		t.registerTest("API check", &goTest{variant: "check", pkg: "cmd/api", timeout: 5 * time.Minute, testFlags: []string{"-check"}})
 	}
@@ -1108,7 +1119,7 @@ func (t *tester) registerTest(heading string, test *goTest, opts ...registerTest
 // dirCmd constructs a Cmd intended to be run in the foreground.
 // The command will be run in dir, and Stdout and Stderr will go to os.Stdout
 // and os.Stderr.
-func (t *tester) dirCmd(dir string, cmdline ...interface{}) *exec.Cmd {
+func (t *tester) dirCmd(dir string, cmdline ...any) *exec.Cmd {
 	bin, args := flattenCmdline(cmdline)
 	cmd := exec.Command(bin, args...)
 	if filepath.IsAbs(dir) {
@@ -1126,7 +1137,7 @@ func (t *tester) dirCmd(dir string, cmdline ...interface{}) *exec.Cmd {
 
 // flattenCmdline flattens a mixture of string and []string as single list
 // and then interprets it as a command line: first element is binary, then args.
-func flattenCmdline(cmdline []interface{}) (bin string, args []string) {
+func flattenCmdline(cmdline []any) (bin string, args []string) {
 	var list []string
 	for _, x := range cmdline {
 		switch x := x.(type) {
