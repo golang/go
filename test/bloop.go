@@ -31,23 +31,23 @@ func test(b *testing.B, localsink, cond int) { // ERROR ".*"
 	}
 	somethingptr := &something
 	for b.Loop() { // ERROR "inlining call to testing\.\(\*B\)\.Loop"
-		caninline(1)                 // ERROR "inlining call to caninline" "function result will be kept alive" ".* does not escape"
-		caninlineNoRet(1)            // ERROR "inlining call to caninlineNoRet" "function arg will be kept alive" ".* does not escape"
+		caninline(1)                 // ERROR "inlining call to caninline" "function result will be kept alive"
+		caninlineNoRet(1)            // ERROR "inlining call to caninlineNoRet" "function arg will be kept alive"
 		caninlineVariadic(1)         // ERROR "inlining call to caninlineVariadic" "function arg will be kept alive" ".* does not escape"
 		caninlineVariadic(localsink) // ERROR "inlining call to caninlineVariadic" "localsink will be kept alive" ".* does not escape"
-		localsink = caninline(1)     // ERROR "inlining call to caninline" "localsink will be kept alive" ".* does not escape"
-		localsink += 5               // ERROR "localsink will be kept alive" ".* does not escape"
-		localsink, cond = 1, 2       // ERROR "localsink will be kept alive" "cond will be kept alive" ".* does not escape"
+		localsink = caninline(1)     // ERROR "inlining call to caninline" "localsink will be kept alive"
+		localsink += 5               // ERROR "localsink will be kept alive"
+		localsink, cond = 1, 2       // ERROR "localsink will be kept alive" "cond will be kept alive"
 		*somethingptr = 1            // ERROR "dereference will be kept alive"
 		if cond > 0 {
-			caninline(1) // ERROR "inlining call to caninline" "function result will be kept alive" ".* does not escape"
+			caninline(1) // ERROR "inlining call to caninline" "function result will be kept alive"
 		}
 		switch cond {
 		case 2:
-			caninline(1) // ERROR "inlining call to caninline" "function result will be kept alive" ".* does not escape"
+			caninline(1) // ERROR "inlining call to caninline" "function result will be kept alive"
 		}
 		{
-			caninline(1) // ERROR "inlining call to caninline" "function result will be kept alive" ".* does not escape"
+			caninline(1) // ERROR "inlining call to caninline" "function result will be kept alive"
 		}
 	}
 }

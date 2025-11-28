@@ -74,7 +74,7 @@ func getNameFromNode(n ir.Node) *ir.Name {
 }
 
 // keepAliveAt returns a statement that is either curNode, or a
-// block containing curNode followed by a call to runtime.keepAlive for each
+// block containing curNode followed by a call to runtime.KeepAlive for each
 // node in ns. These calls ensure that nodes in ns will be live until
 // after curNode's execution.
 func keepAliveAt(ns []ir.Node, curNode ir.Node) ir.Node {
@@ -94,7 +94,7 @@ func keepAliveAt(ns []ir.Node, curNode ir.Node) ir.Node {
 		if n.Sym().IsBlank() {
 			continue
 		}
-		arg := ir.NewConvExpr(pos, ir.OCONV, types.Types[types.TINTER], n)
+		arg := ir.NewConvExpr(pos, ir.OCONV, types.Types[types.TUNSAFEPTR], typecheck.NodAddr(n))
 		if !n.Type().IsInterface() {
 			srcRType0 := reflectdata.TypePtrAt(pos, n.Type())
 			arg.TypeWord = srcRType0
