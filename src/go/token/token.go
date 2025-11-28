@@ -279,19 +279,35 @@ func (op Token) Precedence() int {
 	return LowestPrec
 }
 
-var keywords map[string]Token
+var keywords [256]Token
 
 func init() {
-	keywords = make(map[string]Token, keyword_end-(keyword_beg+1))
 	for i := keyword_beg + 1; i < keyword_end; i++ {
-		keywords[tokens[i]] = i
+		keywords[keywordsIndex(i.String())] = i
 	}
+}
+
+// keywordsIndex maps an identifier to an index in keywords array.
+func keywordsIndex(maybeKeyword string) uint8 {
+	if len(maybeKeyword) <= 3 {
+		if len(maybeKeyword) == 0 {
+			return 0
+		}
+		return maybeKeyword[0]
+	}
+	v0 := maybeKeyword[0]
+	v1 := maybeKeyword[1]
+	v2 := maybeKeyword[2]
+	v3 := maybeKeyword[3]
+	h := v0 + v1*8 + v2 - v3
+	return h
 }
 
 // Lookup maps an identifier to its keyword token or [IDENT] (if not a keyword).
 func Lookup(ident string) Token {
-	if tok, is_keyword := keywords[ident]; is_keyword {
-		return tok
+	maybeMatch := keywords[keywordsIndex(ident)]
+	if maybeMatch != 0 && maybeMatch.String() == ident {
+		return maybeMatch
 	}
 	return IDENT
 }
@@ -319,10 +335,9 @@ func IsExported(name string) bool {
 }
 
 // IsKeyword reports whether name is a Go keyword, such as "func" or "return".
-func IsKeyword(name string) bool {
-	// TODO: opt: use a perfect hash function instead of a global map.
-	_, ok := keywords[name]
-	return ok
+func IsKeyword(ident string) bool {
+	tok := keywords[keywordsIndex(ident)]
+	return tok != 0 && tok.String() == ident
 }
 
 // IsIdentifier reports whether name is a Go identifier, that is, a non-empty
