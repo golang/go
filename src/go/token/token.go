@@ -290,11 +290,25 @@ func init() {
 // keywordsIndex maps an identifier to an index in keywords array.
 func keywordsIndex(maybeKeyword string) uint8 {
 	if len(maybeKeyword) <= 3 {
+		// If adding a 2 or 3 letter keyword that starts with `i`(if),`f`(for) or `g`(go)
+		// you'd need to add logic to this if statement to differentiate between them.
 		if len(maybeKeyword) == 0 {
 			return 0
 		}
 		return maybeKeyword[0]
 	}
+	// This hash was adjusted by hand. Finding the working combinations
+	// for this hash is quite straightforward, even when restricting all
+	// operations to power-of-two multiplications and addition/subtractions
+	// for performance reasons since multiplication of an integer by a power-of-two
+	// can be optimized to a bitshift which is faster on some architectures.
+	//
+	// Here is a list of hashes that also works for current keyword set:
+	// h = v0 + v1*2 + v2*4 + v3*8
+	// h = v0 + v1*4 + v2*8 + v3
+	// h = v0 + v1*2 + (v2+v3)*2
+	// h = v0*4 + v1*2 + v2*2 + v3*2
+	// h = v0*4 + v1*2 + v2*v3
 	v0 := maybeKeyword[0]
 	v1 := maybeKeyword[1]
 	v2 := maybeKeyword[2]
