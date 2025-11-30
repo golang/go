@@ -620,6 +620,9 @@ func (w *huffmanBitWriter) writeBlockDynamic(tokens *tokens, eof bool, input []b
 	sync = sync || eof
 	if sync {
 		tokens.AddEOB()
+	} else {
+		// Ensure we can always write EOB.
+		tokens.extraHist[0] = 1
 	}
 
 	// We cannot reuse pure huffman table, and must mark as EOF.
