@@ -25,6 +25,12 @@ func caninlineVariadic(x ...int) { // ERROR "can inline caninlineVariadic" "x do
 	something = x[0]
 }
 
+func receiver(f func()) { // ERROR "can inline receiver" "f does not escape"
+	f()
+}
+
+func argument() {} // ERROR "can inline argument"
+
 func test(b *testing.B, localsink, cond int) { // ERROR ".*"
 	for i := 0; i < b.N; i++ {
 		caninline(1) // ERROR "inlining call to caninline"
@@ -49,5 +55,7 @@ func test(b *testing.B, localsink, cond int) { // ERROR ".*"
 		{
 			caninline(1) // ERROR "inlining call to caninline" "function result will be kept alive"
 		}
+
+		receiver(argument) // ERROR inlining call to receiver" "function arg will be kept alive"
 	}
 }

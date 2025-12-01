@@ -73,6 +73,14 @@ func getNameFromNode(n ir.Node) *ir.Name {
 	return nil
 }
 
+// getAddressableNameFromNode is like getNameFromNode but returns nil if the node is not addressable.
+func getAddressableNameFromNode(n ir.Node) *ir.Name {
+	if name := getNameFromNode(n); name != nil && ir.IsAddressable(name) {
+		return name
+	}
+	return nil
+}
+
 // keepAliveAt returns a statement that is either curNode, or a
 // block containing curNode followed by a call to runtime.KeepAlive for each
 // node in ns. These calls ensure that nodes in ns will be live until
@@ -93,6 +101,9 @@ func keepAliveAt(ns []ir.Node, curNode ir.Node) ir.Node {
 		}
 		if n.Sym().IsBlank() {
 			continue
+		}
+		if !ir.IsAddressable(n) {
+			base.FatalfAt(n.Pos(), "keepAliveAt: node %v is not addressable", n)
 		}
 		arg := ir.NewConvExpr(pos, ir.OCONV, types.Types[types.TUNSAFEPTR], typecheck.NodAddr(n))
 		if !n.Type().IsInterface() {
@@ -129,7 +140,7 @@ func preserveStmt(curFn *ir.Func, stmt ir.Node) (ret ir.Node) {
 	switch n := stmt.(type) {
 	case *ir.AssignStmt:
 		// Peel down struct and slice indexing to get the names
-		name := getNameFromNode(n.X)
+		name := getAddressableNameFromNode(n.X)
 		if name != nil {
 			debugName(name, n.Pos())
 			ret = keepAliveAt([]ir.Node{name}, n)
@@ -144,7 +155,7 @@ func preserveStmt(curFn *ir.Func, stmt ir.Node) (ret ir.Node) {
 	case *ir.AssignListStmt:
 		ns := []ir.Node{}
 		for _, lhs := range n.Lhs {
-			name := getNameFromNode(lhs)
+			name := getAddressableNameFromNode(lhs)
 			if name != nil {
 				debugName(name, n.Pos())
 				ns = append(ns, name)
@@ -159,7 +170,7 @@ func preserveStmt(curFn *ir.Func, stmt ir.Node) (ret ir.Node) {
 		}
 		ret = keepAliveAt(ns, n)
 	case *ir.AssignOpStmt:
-		name := getNameFromNode(n.X)
+		name := getAddressableNameFromNode(n.X)
 		if name != nil {
 			debugName(name, n.Pos())
 			ret = keepAliveAt([]ir.Node{name}, n)
@@ -206,7 +217,7 @@ func preserveStmt(curFn *ir.Func, stmt ir.Node) (ret ir.Node) {
 			argTmps := []ir.Node{}
 			names := []ir.Node{}
 			for i, a := range n.Args {
-				if name := getNameFromNode(a); name != nil {
+				if name := getAddressableNameFromNode(a); name != nil {
 					// If they are name, keep them alive directly.
 					debugName(name, n.Pos())
 					names = append(names, name)
@@ -215,7 +226,7 @@ func preserveStmt(curFn *ir.Func, stmt ir.Node) (ret ir.Node) {
 					s := a.(*ir.CompLitExpr)
 					ns := []ir.Node{}
 					for i, elem := range s.List {
-						if name := getNameFromNode(elem); name != nil {
+						if name := getAddressableNameFromNode(elem); name != nil {
 							debugName(name, n.Pos())
 							ns = append(ns, name)
 						} else {
