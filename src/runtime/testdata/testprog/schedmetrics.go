@@ -72,6 +72,9 @@ func SchedMetrics() {
 		}
 	}
 
+	initialGMP := runtime.GOMAXPROCS(-1)
+	logf("Initial GOMAXPROCS=%d", initialGMP)
+
 	// generalSlack is the amount of goroutines we allow ourselves to be
 	// off by in any given category, either due to background system
 	// goroutines. This excludes GC goroutines.
@@ -80,7 +83,7 @@ func SchedMetrics() {
 	// waitingSlack is the max number of blocked goroutines controlled
 	// by the runtime that we'll allow for. This includes GC goroutines
 	// as well as finalizer and cleanup goroutines.
-	waitingSlack := generalSlack + uint64(2*runtime.GOMAXPROCS(-1))
+	waitingSlack := generalSlack + uint64(2*initialGMP)
 
 	// threadsSlack is the maximum number of threads left over
 	// from the runtime (sysmon, the template thread, etc.)
