@@ -2108,8 +2108,8 @@ func TestACVP(t *testing.T) {
 	const (
 		bsslModule    = "boringssl.googlesource.com/boringssl.git"
 		bsslVersion   = "v0.0.0-20251111011041-baaf868e6e8f"
-		goAcvpModule  = "github.com/cpu/go-acvp"
-		goAcvpVersion = "v0.0.0-20251111204335-5c8bf7f5cac1"
+		goAcvpModule  = "github.com/geomys/acvp-testdata"
+		goAcvpVersion = "v0.0.0-20251201200548-d893de8b8b1c"
 	)
 
 	// In crypto/tls/bogo_shim_test.go the test is skipped if run on a builder with runtime.GOOS == "windows"
