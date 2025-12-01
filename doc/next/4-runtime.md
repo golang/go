@@ -20,3 +20,9 @@ The new garbage collector may be disabled by setting
 This opt-out setting is expected to be removed in Go 1.27.
 If you disable the new garbage collector for any reason related to its
 performance or behavior, please [file an issue](/issue/new).
+
+### Faster cgo calls
+
+<!-- CL 646198 -->
+
+The baseline runtime overhead of cgo calls has been reduced by ~30%.
