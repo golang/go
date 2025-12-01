@@ -88,6 +88,9 @@ type vcsRepo struct {
 
 	repoSumOnce sync.Once
 	repoSum     string
+
+	statCache     par.ErrCache[string, *RevInfo]  // cache key is revision
+	readFileCache par.ErrCache[[2]string, []byte] // cache key is revision and file path
 }
 
 func newVCSRepo(ctx context.Context, vcs, remote string, local bool) (Repo, error) {
@@ -471,40 +474,42 @@ func (r *vcsRepo) Tags(ctx context.Context, prefix string) (*Tags, error) {
 }
 
 func (r *vcsRepo) Stat(ctx context.Context, rev string) (*RevInfo, error) {
-	unlock, err := r.mu.Lock()
-	if err != nil {
-		return nil, err
-	}
-	defer unlock()
-
-	if rev == "latest" {
-		rev = r.cmd.latest
-	}
-	r.branchesOnce.Do(func() { r.loadBranches(ctx) })
-	if r.local {
-		// Ignore the badLocalRevRE precondition in local only mode.
-		// We cannot fetch latest upstream changes so only serve what's in the local cache.
-		return r.statLocal(ctx, rev)
-	}
-	revOK := (r.cmd.badLocalRevRE == nil || !r.cmd.badLocalRevRE.MatchString(rev)) && !r.branches[rev]
-	if revOK {
-		if info, err := r.statLocal(ctx, rev); err == nil {
-			return info, nil
+	return r.statCache.Do(rev, func() (*RevInfo, error) {
+		unlock, err := r.mu.Lock()
+		if err != nil {
+			return nil, err
 		}
-	}
+		defer unlock()
 
-	r.fetchOnce.Do(func() { r.fetch(ctx) })
-	if r.fetchErr != nil {
-		return nil, r.fetchErr
-	}
-	info, err := r.statLocal(ctx, rev)
-	if err != nil {
-		return info, err
-	}
-	if !revOK {
-		info.Version = info.Name
-	}
-	return info, nil
+		if rev == "latest" {
+			rev = r.cmd.latest
+		}
+		r.branchesOnce.Do(func() { r.loadBranches(ctx) })
+		if r.local {
+			// Ignore the badLocalRevRE precondition in local only mode.
+			// We cannot fetch latest upstream changes so only serve what's in the local cache.
+			return r.statLocal(ctx, rev)
+		}
+		revOK := (r.cmd.badLocalRevRE == nil || !r.cmd.badLocalRevRE.MatchString(rev)) && !r.branches[rev]
+		if revOK {
+			if info, err := r.statLocal(ctx, rev); err == nil {
+				return info, nil
+			}
+		}
+
+		r.fetchOnce.Do(func() { r.fetch(ctx) })
+		if r.fetchErr != nil {
+			return nil, r.fetchErr
+		}
+		info, err := r.statLocal(ctx, rev)
+		if err != nil {
+			return info, err
+		}
+		if !revOK {
+			info.Version = info.Name
+		}
+		return info, nil
+	})
 }
 
 func (r *vcsRepo) fetch(ctx context.Context) {
@@ -547,26 +552,28 @@ func (r *vcsRepo) Latest(ctx context.Context) (*RevInfo, error) {
 }
 
 func (r *vcsRepo) ReadFile(ctx context.Context, rev, file string, maxSize int64) ([]byte, error) {
-	if rev == "latest" {
-		rev = r.cmd.latest
-	}
-	_, err := r.Stat(ctx, rev) // download rev into local repo
-	if err != nil {
-		return nil, err
-	}
+	return r.readFileCache.Do([2]string{rev, file}, func() ([]byte, error) {
+		if rev == "latest" {
+			rev = r.cmd.latest
+		}
+		_, err := r.Stat(ctx, rev) // download rev into local repo
+		if err != nil {
+			return nil, err
+		}
 
-	// r.Stat acquires r.mu, so lock after that.
-	unlock, err := r.mu.Lock()
-	if err != nil {
-		return nil, err
-	}
-	defer unlock()
+		// r.Stat acquires r.mu, so lock after that.
+		unlock, err := r.mu.Lock()
+		if err != nil {
+			return nil, err
+		}
+		defer unlock()
 
-	out, err := Run(ctx, r.dir, r.cmd.readFile(rev, file, r.remote))
-	if err != nil {
-		return nil, fs.ErrNotExist
-	}
-	return out, nil
+		out, err := Run(ctx, r.dir, r.cmd.readFile(rev, file, r.remote))
+		if err != nil {
+			return nil, fs.ErrNotExist
+		}
+		return out, nil
+	})
 }
 
 func (r *vcsRepo) RecentTag(ctx context.Context, rev, prefix string, allowed func(string) bool) (tag string, err error) {
