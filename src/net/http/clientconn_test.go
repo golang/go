@@ -286,9 +286,10 @@ func TestClientConnReserveAndConsume(t *testing.T) {
 				synctest.Wait()
 
 				// State hook should be called, either to report the
-				// connection availability increasing or the connection closing.
-				if got, want := stateHookCalls, 1; got != want {
-					t.Errorf("connection state hook calls: %v, want %v", got, want)
+				// connection availability increasing or the connection closing,
+				// or both.
+				if stateHookCalls == 0 {
+					t.Errorf("connection state hook calls: %v, want >1", stateHookCalls)
 				}
 
 				if test.h1Closed && (mode == http1Mode || mode == https1Mode) {
