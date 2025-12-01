@@ -339,6 +339,9 @@ fixloop:
 // information for the fixed file and thus cannot accurately tell
 // whether k is among the free names of T{k: 0}, which requires
 // knowledge of whether T is a struct type.
+//
+// Like [imports.Process] (the core of x/tools/cmd/goimports), it also
+// merges import decls.
 func FormatSourceRemoveImports(pkg *types.Package, src []byte) ([]byte, error) {
 	// This function was reduced from the "strict entire file"
 	// path through [format.Source].
@@ -352,6 +355,10 @@ func FormatSourceRemoveImports(pkg *types.Package, src []byte) ([]byte, error) {
 	ast.SortImports(fset, file)
 
 	removeUnneededImports(fset, pkg, file)
+
+	// TODO(adonovan): to generate cleaner edits when adding an import,
+	// consider adding a call to imports.mergeImports; however, it does
+	// cause comments to migrate.
 
 	// printerNormalizeNumbers means to canonicalize number literal prefixes
 	// and exponents while printing. See https://golang.org/doc/go1.13#gofmt.
