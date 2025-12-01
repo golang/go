@@ -19,3 +19,8 @@ offer fixes to use newer features of the language and library.
 
 ### Cgo {#cgo}
 
+### Pprof {#pprof}
+
+<!-- go.dev/issue/74774 -->
+The `pprof` tool web UI, enabled with the `-http` flag, now defaults to the flame graph view.
+The previous graph view is available in the "View -> Graph" menu, or via `/ui/graph`.
