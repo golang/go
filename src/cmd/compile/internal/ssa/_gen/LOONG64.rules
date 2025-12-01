@@ -843,6 +843,11 @@
 
 (MOVBUreg (ANDconst [c] x)) => (ANDconst [c&0xff] x)
 
+// Avoid extending when already sufficiently shifted.
+(MOVBUreg x:(SRLconst [c] y)) && c >= 24 => x
+(MOVHUreg x:(SRLconst [c] y)) && c >= 16 => x
+(MOVWUreg x:(SRLconst [c] y)) => x
+
 // Avoid extending when already sufficiently masked.
 (MOVBreg  x:(ANDconst [c] y)) && c >= 0 && int64(int8(c)) == c => x
 (MOVHreg  x:(ANDconst [c] y)) && c >= 0 && int64(int16(c)) == c => x

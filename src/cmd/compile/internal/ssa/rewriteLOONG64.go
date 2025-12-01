@@ -2677,6 +2677,21 @@ func rewriteValueLOONG64_OpLOONG64MOVBUreg(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (MOVBUreg x:(SRLconst [c] y))
+	// cond: c >= 24
+	// result: x
+	for {
+		x := v_0
+		if x.Op != OpLOONG64SRLconst {
+			break
+		}
+		c := auxIntToInt64(x.AuxInt)
+		if !(c >= 24) {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
 	// match: (MOVBUreg x:(ANDconst [c] y))
 	// cond: c >= 0 && int64(uint8(c)) == c
 	// result: x
@@ -4067,6 +4082,21 @@ func rewriteValueLOONG64_OpLOONG64MOVHUreg(v *Value) bool {
 		v.AuxInt = int64ToAuxInt(int64(uint16(c)))
 		return true
 	}
+	// match: (MOVHUreg x:(SRLconst [c] y))
+	// cond: c >= 16
+	// result: x
+	for {
+		x := v_0
+		if x.Op != OpLOONG64SRLconst {
+			break
+		}
+		c := auxIntToInt64(x.AuxInt)
+		if !(c >= 16) {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
 	// match: (MOVHUreg x:(ANDconst [c] y))
 	// cond: c >= 0 && int64(uint16(c)) == c
 	// result: x
@@ -5299,6 +5329,16 @@ func rewriteValueLOONG64_OpLOONG64MOVWUreg(v *Value) bool {
 		c := auxIntToInt64(v_0.AuxInt)
 		v.reset(OpLOONG64MOVVconst)
 		v.AuxInt = int64ToAuxInt(int64(uint32(c)))
+		return true
+	}
+	// match: (MOVWUreg x:(SRLconst [c] y))
+	// result: x
+	for {
+		x := v_0
+		if x.Op != OpLOONG64SRLconst {
+			break
+		}
+		v.copyOf(x)
 		return true
 	}
 	// match: (MOVWUreg x:(ANDconst [c] y))
