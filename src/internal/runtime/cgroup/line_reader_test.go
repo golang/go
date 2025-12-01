@@ -6,7 +6,6 @@ package cgroup_test
 
 import (
 	"internal/runtime/cgroup"
-	"io"
 	"strings"
 	"testing"
 )
@@ -120,18 +119,6 @@ var readerTests = []struct {
 			complete("5678"),
 		},
 	},
-}
-
-func readString(contents string) func(fd int, b []byte) (int, uintptr) {
-	r := strings.NewReader(contents)
-	return func(fd int, b []byte) (int, uintptr) {
-		n, err := r.Read(b)
-		if err != nil && err != io.EOF {
-			const dummyErrno = 42
-			return n, dummyErrno
-		}
-		return n, 0
-	}
 }
 
 func TestLineReader(t *testing.T) {
