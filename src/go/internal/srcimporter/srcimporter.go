@@ -105,11 +105,9 @@ func (p *Importer) ImportFrom(path, srcDir string, mode types.ImportMode) (*type
 		}
 	}()
 
-	var filenames []string
-	filenames = append(filenames, bp.GoFiles...)
-	filenames = append(filenames, bp.CgoFiles...)
-
-	files, err := p.parseFiles(bp.Dir, filenames)
+	// First parse the not-CGO files, then (after running CGO)
+	// parse the CGO-processed versions of the CGO files.
+	files, err := p.parseFiles(bp.Dir, bp.GoFiles)
 	if err != nil {
 		return nil, err
 	}
@@ -132,13 +130,18 @@ func (p *Importer) ImportFrom(path, srcDir string, mode types.ImportMode) (*type
 			// cgo, gcc, pkg-config, etc. do not support
 			// build.Context's VFS.
 			conf.FakeImportC = true
+			cgofiles, err := p.parseFiles(bp.Dir, bp.CgoFiles)
+			if err != nil {
+				return nil, err
+			}
+			files = append(files, cgofiles...)
 		} else {
 			setUsesCgo(&conf)
-			file, err := p.cgo(bp)
+			cgofiles, err := p.cgo(bp)
 			if err != nil {
 				return nil, fmt.Errorf("error processing cgo for package %q: %w", bp.ImportPath, err)
 			}
-			files = append(files, file)
+			files = append(files, cgofiles...)
 		}
 	}
 
@@ -198,7 +201,7 @@ func (p *Importer) parseFiles(dir string, filenames []string) ([]*ast.File, erro
 	return files, nil
 }
 
-func (p *Importer) cgo(bp *build.Package) (*ast.File, error) {
+func (p *Importer) cgo(bp *build.Package) ([]*ast.File, error) {
 	tmpdir, err := os.MkdirTemp("", "srcimporter")
 	if err != nil {
 		return nil, err
@@ -240,7 +243,19 @@ func (p *Importer) cgo(bp *build.Package) (*ast.File, error) {
 		return nil, fmt.Errorf("go tool cgo: %w", err)
 	}
 
-	return parser.ParseFile(p.fset, filepath.Join(tmpdir, "_cgo_gotypes.go"), nil, parser.SkipObjectResolution)
+	entries, err := os.ReadDir(tmpdir)
+	if err != nil {
+		return nil, err
+	}
+
+	var filenames []string
+	for _, entry := range entries {
+		if n := entry.Name(); !entry.IsDir() && strings.HasSuffix(n, ".go") {
+			filenames = append(filenames, n)
+		}
+	}
+
+	return p.parseFiles(tmpdir, filenames)
 }
 
 // context-controlled file system operations
