@@ -448,6 +448,10 @@ func runMain(m *testing.M) int {
 		os.Exit(1)
 	}
 
+	// TODO(filippo): deprecate Config.Rand, and regenerate handshake recordings
+	// to use cryptotest.SetGlobalRandom instead.
+	os.Setenv("GODEBUG", "cryptocustomrand=1,"+os.Getenv("GODEBUG"))
+
 	testConfig = &Config{
 		Time:               func() time.Time { return time.Unix(0, 0) },
 		Rand:               zeroSource{},

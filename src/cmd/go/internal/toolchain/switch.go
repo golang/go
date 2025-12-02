@@ -97,7 +97,7 @@ func (s *Switcher) Switch(ctx context.Context) {
 	}
 
 	// Switch to newer Go toolchain if necessary and possible.
-	tv, err := NewerToolchain(ctx, s.TooNew.GoVersion)
+	tv, err := NewerToolchain(ctx, s.loaderstate.Fetcher(), s.TooNew.GoVersion)
 	if err != nil {
 		for _, err := range s.Errors {
 			base.Error(err)
@@ -130,8 +130,11 @@ func SwitchOrFatal(loaderstate *modload.State, ctx context.Context, err error) {
 // If the latest major release is 1.N.0, we use the latest patch release of 1.(N-1) if that's >= version.
 // Otherwise we use the latest 1.N if that's allowed.
 // Otherwise we use the latest release.
-func NewerToolchain(ctx context.Context, version string) (string, error) {
-	fetch := autoToolchains
+func NewerToolchain(ctx context.Context, f *modfetch.Fetcher, version string) (string, error) {
+	fetch := func(ctx context.Context) ([]string, error) {
+		return autoToolchains(ctx, f)
+	}
+
 	if !HasAuto() {
 		fetch = pathToolchains
 	}
@@ -143,10 +146,10 @@ func NewerToolchain(ctx context.Context, version string) (string, error) {
 }
 
 // autoToolchains returns the list of toolchain versions available to GOTOOLCHAIN=auto or =min+auto mode.
-func autoToolchains(ctx context.Context) ([]string, error) {
+func autoToolchains(ctx context.Context, f *modfetch.Fetcher) ([]string, error) {
 	var versions *modfetch.Versions
 	err := modfetch.TryProxies(func(proxy string) error {
-		v, err := modfetch.Lookup(ctx, proxy, "go").Versions(ctx, "")
+		v, err := f.Lookup(ctx, proxy, "go").Versions(ctx, "")
 		if err != nil {
 			return err
 		}

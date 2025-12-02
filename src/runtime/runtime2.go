@@ -545,9 +545,11 @@ type g struct {
 	runnableTime    int64 // the amount of time spent runnable, cleared when running, only used when tracking
 	lockedm         muintptr
 	fipsIndicator   uint8
+	fipsOnlyBypass  bool
 	syncSafePoint   bool // set if g is stopped at a synchronous safe point.
 	runningCleanups atomic.Bool
 	sig             uint32
+	secret          int32 // current nesting of runtime/secret.Do calls.
 	writebuf        []byte
 	sigcode0        uintptr
 	sigcode1        uintptr
@@ -619,14 +621,15 @@ type m struct {
 
 	// Fields whose offsets are not known to debuggers.
 
-	procid     uint64            // for debuggers, but offset not hard-coded
-	gsignal    *g                // signal-handling g
-	goSigStack gsignalStack      // Go-allocated signal handling stack
-	sigmask    sigset            // storage for saved signal mask
-	tls        [tlsSlots]uintptr // thread-local storage (for x86 extern register)
-	mstartfn   func()
-	curg       *g       // current running goroutine
-	caughtsig  guintptr // goroutine running during fatal signal
+	procid       uint64            // for debuggers, but offset not hard-coded
+	gsignal      *g                // signal-handling g
+	goSigStack   gsignalStack      // Go-allocated signal handling stack
+	sigmask      sigset            // storage for saved signal mask
+	tls          [tlsSlots]uintptr // thread-local storage (for x86 extern register)
+	mstartfn     func()
+	curg         *g       // current running goroutine
+	caughtsig    guintptr // goroutine running during fatal signal
+	signalSecret uint32   // whether we have secret information in our signal stack
 
 	// p is the currently attached P for executing Go code, nil if not executing user Go code.
 	//
@@ -838,7 +841,7 @@ type p struct {
 	palloc persistentAlloc // per-P to avoid mutex
 
 	// Per-P GC state
-	gcAssistTime         int64 // Nanoseconds in assistAlloc
+	gcAssistTime         int64        // Nanoseconds in assistAlloc
 	gcFractionalMarkTime atomic.Int64 // Nanoseconds in fractional mark worker
 
 	// limiterEvent tracks events for the GC CPU limiter.
@@ -934,12 +937,12 @@ type schedt struct {
 	// sure to call checkdead().
 
 	midle        listHeadManual // idle m's waiting for work
-	nmidle       int32    // number of idle m's waiting for work
-	nmidlelocked int32    // number of locked m's waiting for work
-	mnext        int64    // number of m's that have been created and next M ID
-	maxmcount    int32    // maximum number of m's allowed (or die)
-	nmsys        int32    // number of system m's not counted for deadlock
-	nmfreed      int64    // cumulative number of freed m's
+	nmidle       int32          // number of idle m's waiting for work
+	nmidlelocked int32          // number of locked m's waiting for work
+	mnext        int64          // number of m's that have been created and next M ID
+	maxmcount    int32          // maximum number of m's allowed (or die)
+	nmsys        int32          // number of system m's not counted for deadlock
+	nmfreed      int64          // cumulative number of freed m's
 
 	ngsys        atomic.Int32 // number of system goroutines
 	nGsyscallNoP atomic.Int32 // number of goroutines in syscalls without a P

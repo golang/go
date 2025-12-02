@@ -420,7 +420,7 @@ func nobce2(a string) {
 		useString(a[i:]) // ERROR "Proved IsSliceInBounds$"
 	}
 	for i := int64(0); i < int64(len(a))-31337; i++ { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
-		useString(a[i:]) // ERROR "Proved IsSliceInBounds$"
+		useString(a[i:]) // ERROR "Proved IsSliceInBounds$" "Proved slicemask not needed"
 	}
 	for i := int64(0); i < int64(len(a))+int64(-1<<63); i++ { // ERROR "Disproved Less64$" "Induction variable: limits \[0,\?\), increment 1$"
 		useString(a[i:])

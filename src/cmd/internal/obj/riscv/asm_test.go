@@ -17,7 +17,8 @@ import (
 )
 
 // TestLargeBranch generates a large function with a very far conditional
-// branch, in order to ensure that it assembles successfully.
+// branch, in order to ensure that it assembles correctly. This requires
+// inverting the branch and using a jump to reach the target.
 func TestLargeBranch(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping test in short mode")
@@ -25,6 +26,23 @@ func TestLargeBranch(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
 	dir := t.TempDir()
+
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module largecall"), 0644); err != nil {
+		t.Fatalf("Failed to write file: %v\n", err)
+	}
+	main := `package main
+
+import "fmt"
+
+func main() {
+        fmt.Print(x())
+}
+
+func x() uint64
+`
+	if err := os.WriteFile(filepath.Join(dir, "x.go"), []byte(main), 0644); err != nil {
+		t.Fatalf("failed to write main: %v\n", err)
+	}
 
 	// Generate a very large function.
 	buf := bytes.NewBuffer(make([]byte, 0, 7000000))
@@ -36,27 +54,62 @@ func TestLargeBranch(t *testing.T) {
 	}
 
 	// Assemble generated file.
-	cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), "-S", tmpfile)
 	cmd.Env = append(os.Environ(), "GOARCH=riscv64", "GOOS=linux")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
+		t.Errorf("Failed to assemble: %v\n%s", err, out)
+	}
+
+	// The expected instruction sequence for the long branch is:
+	//	BNEZ
+	//	AUIPC	$..., X31
+	//	JALR	X0, $..., X31
+	want := regexp.MustCompile(`\sBNEZ\s.*\s.*\n.*\n.*AUIPC\s\$\d+, X31.*\n.*JALR\sX0, \$\d+, ?X31`)
+	if !want.Match(out) {
+		t.Error("Missing assembly instructions")
+	}
+
+	// Build generated files.
+	cmd = testenv.Command(t, testenv.GoToolPath(t), "build", "-o", "x.exe", "-ldflags=-linkmode=internal")
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "GOARCH=riscv64", "GOOS=linux")
+	out, err = cmd.CombinedOutput()
+	if err != nil {
 		t.Errorf("Build failed: %v, output: %s", err, out)
+	}
+
+	if runtime.GOARCH == "riscv64" && runtime.GOOS == "linux" {
+		cmd = testenv.Command(t, filepath.Join(dir, "x.exe"))
+		out, err = cmd.CombinedOutput()
+		if err != nil {
+			t.Errorf("Failed to run test binary: %v", err)
+		}
+		if string(out) != "1" {
+			t.Errorf(`Got test output %q, want "2"`, string(out))
+		}
 	}
 }
 
 func genLargeBranch(buf *bytes.Buffer) {
-	fmt.Fprintln(buf, "TEXT f(SB),0,$0-0")
-	fmt.Fprintln(buf, "BEQ X0, X0, label")
-	for i := 0; i < 1<<19; i++ {
+	fmt.Fprintln(buf, "TEXT ·x(SB),0,$0-8")
+	fmt.Fprintln(buf, "MOV X0, X10")
+	fmt.Fprintln(buf, "BEQZ X10, label")
+	for i := 0; i < 1<<18; i++ {
+		// Use a non-compressable instruction.
 		fmt.Fprintln(buf, "ADD $0, X5, X0")
 	}
+	fmt.Fprintln(buf, "ADD $1, X10, X10")
 	fmt.Fprintln(buf, "label:")
-	fmt.Fprintln(buf, "ADD $0, X5, X0")
+	fmt.Fprintln(buf, "ADD $1, X10, X10")
+	fmt.Fprintln(buf, "MOV X10, r+0(FP)")
+	fmt.Fprintln(buf, "RET")
 }
 
 // TestLargeCall generates a large function (>1MB of text) with a call to
 // a following function, in order to ensure that it assembles and links
-// correctly.
+// correctly. This requires the use of AUIPC+JALR instruction sequences,
+// which are fixed up by the linker.
 func TestLargeCall(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping test in short mode")
@@ -69,12 +122,15 @@ func TestLargeCall(t *testing.T) {
 		t.Fatalf("Failed to write file: %v\n", err)
 	}
 	main := `package main
+
+import "fmt"
+
 func main() {
-        x()
+        fmt.Print(x())
 }
 
-func x()
-func y()
+func x() uint64
+func y() uint64
 `
 	if err := os.WriteFile(filepath.Join(dir, "x.go"), []byte(main), 0644); err != nil {
 		t.Fatalf("failed to write main: %v\n", err)
@@ -84,50 +140,93 @@ func y()
 	buf := bytes.NewBuffer(make([]byte, 0, 7000000))
 	genLargeCall(buf)
 
-	if err := os.WriteFile(filepath.Join(dir, "x.s"), buf.Bytes(), 0644); err != nil {
+	tmpfile := filepath.Join(dir, "x.s")
+	if err := os.WriteFile(tmpfile, buf.Bytes(), 0644); err != nil {
 		t.Fatalf("Failed to write file: %v\n", err)
 	}
 
-	// Build generated files.
-	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-linkmode=internal")
-	cmd.Dir = dir
+	// Assemble generated file.
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), "-S", tmpfile)
 	cmd.Env = append(os.Environ(), "GOARCH=riscv64", "GOOS=linux")
 	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Errorf("Failed to assemble: %v\n%s", err, out)
+	}
+
+	// The expected instruction sequence for the long call is:
+	//	AUIPC	$0, $0, X31
+	//	JALR	X.., X31
+	want := regexp.MustCompile(`\sAUIPC\s\$0, \$0, X31.*\n.*\sJALR\sX.*, X31`)
+	if !want.Match(out) {
+		t.Error("Missing assembly instructions")
+	}
+
+	// Build generated files.
+	cmd = testenv.Command(t, testenv.GoToolPath(t), "build", "-o", "x.exe", "-ldflags=-linkmode=internal")
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "GOARCH=riscv64", "GOOS=linux")
+	out, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Errorf("Build failed: %v, output: %s", err, out)
 	}
 
+	if runtime.GOARCH == "riscv64" && runtime.GOOS == "linux" {
+		cmd = testenv.Command(t, filepath.Join(dir, "x.exe"))
+		out, err = cmd.CombinedOutput()
+		if err != nil {
+			t.Errorf("Failed to run test binary: %v", err)
+		}
+		if string(out) != "2" {
+			t.Errorf(`Got test output %q, want "2"`, string(out))
+		}
+	}
+
 	if runtime.GOARCH == "riscv64" && testenv.HasCGO() {
-		cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-linkmode=external")
+		cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", "x.exe", "-ldflags=-linkmode=external")
 		cmd.Dir = dir
 		cmd.Env = append(os.Environ(), "GOARCH=riscv64", "GOOS=linux")
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			t.Errorf("Build failed: %v, output: %s", err, out)
 		}
+
+		if runtime.GOARCH == "riscv64" && runtime.GOOS == "linux" {
+			cmd = testenv.Command(t, filepath.Join(dir, "x.exe"))
+			out, err = cmd.CombinedOutput()
+			if err != nil {
+				t.Errorf("Failed to run test binary: %v", err)
+			}
+			if string(out) != "2" {
+				t.Errorf(`Got test output %q, want "2"`, string(out))
+			}
+		}
 	}
 }
 
 func genLargeCall(buf *bytes.Buffer) {
-	fmt.Fprintln(buf, "TEXT ·x(SB),0,$0-0")
+	fmt.Fprintln(buf, "TEXT ·x(SB),0,$0-8")
+	fmt.Fprintln(buf, "MOV  X0, X10")
 	fmt.Fprintln(buf, "CALL ·y(SB)")
-	for i := 0; i < 1<<19; i++ {
+	fmt.Fprintln(buf, "ADD $1, X10, X10")
+	fmt.Fprintln(buf, "MOV X10, r+0(FP)")
+	fmt.Fprintln(buf, "RET")
+	for i := 0; i < 1<<18; i++ {
+		// Use a non-compressable instruction.
 		fmt.Fprintln(buf, "ADD $0, X5, X0")
 	}
+	fmt.Fprintln(buf, "ADD $1, X10, X10")
 	fmt.Fprintln(buf, "RET")
 	fmt.Fprintln(buf, "TEXT ·y(SB),0,$0-0")
-	fmt.Fprintln(buf, "ADD $0, X5, X0")
+	fmt.Fprintln(buf, "ADD $1, X10, X10")
 	fmt.Fprintln(buf, "RET")
 }
 
 // TestLargeJump generates a large jump (>1MB of text) with a JMP to the
 // end of the function, in order to ensure that it assembles correctly.
+// This requires the use of AUIPC+JALR instruction sequences.
 func TestLargeJump(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping test in short mode")
-	}
-	if runtime.GOARCH != "riscv64" {
-		t.Skip("Require riscv64 to run")
 	}
 	testenv.MustHaveGoBuild(t)
 
@@ -154,22 +253,46 @@ func x() uint64
 	buf := bytes.NewBuffer(make([]byte, 0, 7000000))
 	genLargeJump(buf)
 
-	if err := os.WriteFile(filepath.Join(dir, "x.s"), buf.Bytes(), 0644); err != nil {
+	tmpfile := filepath.Join(dir, "x.s")
+	if err := os.WriteFile(tmpfile, buf.Bytes(), 0644); err != nil {
 		t.Fatalf("Failed to write file: %v\n", err)
 	}
 
-	// Build generated files.
-	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", "x.exe")
-	cmd.Dir = dir
+	// Assemble generated file.
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), "-S", tmpfile)
+	cmd.Env = append(os.Environ(), "GOARCH=riscv64", "GOOS=linux")
 	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Errorf("Failed to assemble: %v\n%s", err, out)
+	}
+
+	// The expected instruction sequence for the long call is:
+	//	AUIPC	$..., X31
+	//	JALR	X0, $.., X31
+	want := regexp.MustCompile(`\sAUIPC\s\$\d+, X31.*\n.*\sJALR\sX0, \$\d+, ?X31`)
+	if !want.Match(out) {
+		t.Error("Missing assembly instructions")
+		t.Errorf("%s", out)
+	}
+
+	// Build generated files.
+	cmd = testenv.Command(t, testenv.GoToolPath(t), "build", "-o", "x.exe")
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "GOARCH=riscv64", "GOOS=linux")
+	out, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Errorf("Build failed: %v, output: %s", err, out)
 	}
 
-	cmd = testenv.Command(t, filepath.Join(dir, "x.exe"))
-	out, err = cmd.CombinedOutput()
-	if string(out) != "1" {
-		t.Errorf(`Got test output %q, want "1"`, string(out))
+	if runtime.GOARCH == "riscv64" && runtime.GOOS == "linux" {
+		cmd = testenv.Command(t, filepath.Join(dir, "x.exe"))
+		out, err = cmd.CombinedOutput()
+		if err != nil {
+			t.Errorf("Failed to run test binary: %v", err)
+		}
+		if string(out) != "1" {
+			t.Errorf(`Got test output %q, want "1"`, string(out))
+		}
 	}
 }
 
@@ -178,8 +301,10 @@ func genLargeJump(buf *bytes.Buffer) {
 	fmt.Fprintln(buf, "MOV  X0, X10")
 	fmt.Fprintln(buf, "JMP end")
 	for i := 0; i < 1<<18; i++ {
-		fmt.Fprintln(buf, "ADD $1, X10, X10")
+		// Use a non-compressable instruction.
+		fmt.Fprintln(buf, "ADD $0, X5, X0")
 	}
+	fmt.Fprintln(buf, "ADD $1, X10, X10")
 	fmt.Fprintln(buf, "end:")
 	fmt.Fprintln(buf, "ADD $1, X10, X10")
 	fmt.Fprintln(buf, "MOV X10, r+0(FP)")

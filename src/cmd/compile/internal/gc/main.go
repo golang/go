@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/bloop"
 	"cmd/compile/internal/coverage"
 	"cmd/compile/internal/deadlocals"
 	"cmd/compile/internal/dwarfgen"
@@ -82,10 +83,13 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	base.DebugSSA = ssa.PhaseOption
 	base.ParseFlags()
 
-	if os.Getenv("GOGC") == "" { // GOGC set disables starting heap adjustment
-		// More processors will use more heap, but assume that more memory is available.
-		// So 1 processor -> 40MB, 4 -> 64MB, 12 -> 128MB
-		base.AdjustStartingHeap(uint64(32+8*base.Flag.LowerC) << 20)
+	if flagGCStart := base.Debug.GCStart; flagGCStart > 0 || // explicit flags overrides environment variable disable of GC boost
+		os.Getenv("GOGC") == "" && os.Getenv("GOMEMLIMIT") == "" && base.Flag.LowerC != 1 { // explicit GC knobs or no concurrency implies default heap
+		startHeapMB := int64(128)
+		if flagGCStart > 0 {
+			startHeapMB = int64(flagGCStart)
+		}
+		base.AdjustStartingHeap(uint64(startHeapMB)<<20, 0, 0, 0, base.Debug.GCAdjust == 1)
 	}
 
 	types.LocalPkg = types.NewPkg(base.Ctxt.Pkgpath, "")
@@ -187,9 +191,9 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 
 	ir.EscFmt = escape.Fmt
 	ir.IsIntrinsicCall = ssagen.IsIntrinsicCall
+	ir.IsIntrinsicSym = ssagen.IsIntrinsicSym
 	inline.SSADumpInline = ssagen.DumpInline
 	ssagen.InitEnv()
-	ssagen.InitTables()
 
 	types.PtrSize = ssagen.Arch.LinkArch.PtrSize
 	types.RegSize = ssagen.Arch.LinkArch.RegSize
@@ -202,6 +206,11 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	typecheck.InitUniverse()
 	typecheck.InitRuntime()
 	rttype.Init()
+
+	// Some intrinsics (notably, the simd intrinsics) mention
+	// types "eagerly", thus ssagen must be initialized AFTER
+	// the type system is ready.
+	ssagen.InitTables()
 
 	// Parse and typecheck input.
 	noder.LoadPackage(flag.Args())
@@ -233,6 +242,9 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 			log.Fatalf("%s: PGO error: %v", base.Flag.PgoProfile, err)
 		}
 	}
+
+	// Apply bloop markings.
+	bloop.BloopWalk(typecheck.Target)
 
 	// Interleaved devirtualization and inlining.
 	base.Timer.Start("fe", "devirtualize-and-inline")
@@ -305,7 +317,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 		}
 
 		if nextFunc < len(typecheck.Target.Funcs) {
-			enqueueFunc(typecheck.Target.Funcs[nextFunc])
+			enqueueFunc(typecheck.Target.Funcs[nextFunc], symABIs)
 			nextFunc++
 			continue
 		}

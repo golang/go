@@ -43,6 +43,7 @@ var builtins = [...]struct {
 	{"runtime.printcomplex128", 1},
 	{"runtime.printcomplex64", 1},
 	{"runtime.printstring", 1},
+	{"runtime.printquoted", 1},
 	{"runtime.printpointer", 1},
 	{"runtime.printuintptr", 1},
 	{"runtime.printiface", 1},

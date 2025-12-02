@@ -5,8 +5,12 @@
 package runtime_test
 
 import (
+	"fmt"
+	"regexp"
+	"runtime"
 	. "runtime"
 	"slices"
+	"sync"
 	"testing"
 	"time"
 	"unsafe"
@@ -173,4 +177,92 @@ func TestProfBuf(t *testing.T) {
 			read(t, b, nil, nil) // release data returned by previous read
 		}
 	})
+}
+
+func TestProfBufDoubleWakeup(t *testing.T) {
+	b := NewProfBuf(2, 16, 2)
+	go func() {
+		for range 1000 {
+			b.Write(nil, 1, []uint64{5, 6}, []uintptr{7, 8})
+		}
+		b.Close()
+	}()
+	for {
+		_, _, eof := b.Read(ProfBufBlocking)
+		if eof {
+			return
+		}
+	}
+}
+
+func TestProfBufWakeup(t *testing.T) {
+	b := NewProfBuf(2, 16, 2)
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		read := 0
+		for {
+			rdata, _, eof := b.Read(ProfBufBlocking)
+			if read == 0 && len(rdata) < 8 {
+				t.Errorf("first wake up at less than half full, got %x", rdata)
+			}
+			read += len(rdata)
+			if eof {
+				return
+			}
+		}
+	})
+
+	// Under the hood profBuf uses notetsleepg when the reader blocks.
+	// Different platforms have different implementations, leading to
+	// different statuses we need to look for to determine whether the
+	// reader is blocked.
+	var waitStatus string
+	switch runtime.GOOS {
+	case "js":
+		waitStatus = "waiting"
+	case "wasip1":
+		waitStatus = "runnable"
+	default:
+		waitStatus = "syscall"
+	}
+
+	// Ensure that the reader is blocked
+	awaitBlockedGoroutine(waitStatus, "TestProfBufWakeup.func1")
+	// NB: this writes 6 words not 4. Fine for the test.
+	// The reader shouldn't wake up for this
+	b.Write(nil, 1, []uint64{1, 2}, []uintptr{3, 4})
+
+	// The reader should still be blocked
+	//
+	// TODO(nick): this is racy. We could Gosched and still have the reader
+	// blocked in a buggy implementation because it just didn't get a chance
+	// to run
+	awaitBlockedGoroutine(waitStatus, "TestProfBufWakeup.func1")
+	b.Write(nil, 1, []uint64{5, 6}, []uintptr{7, 8})
+	b.Close()
+
+	// Wait here so we can be sure the reader got the data
+	wg.Wait()
+}
+
+// see also runtime/pprof tests
+func awaitBlockedGoroutine(state, fName string) {
+	re := fmt.Sprintf(`(?m)^goroutine \d+ \[%s\]:\n(?:.+\n\t.+\n)*runtime_test\.%s`, regexp.QuoteMeta(state), fName)
+	r := regexp.MustCompile(re)
+
+	buf := make([]byte, 64<<10)
+	for {
+		Gosched()
+		n := Stack(buf, true)
+		if n == len(buf) {
+			// Buffer wasn't large enough for a full goroutine dump.
+			// Resize it and try again.
+			buf = make([]byte, 2*len(buf))
+			continue
+		}
+		const count = 1
+		if len(r.FindAll(buf[:n], -1)) >= count {
+			return
+		}
+	}
 }

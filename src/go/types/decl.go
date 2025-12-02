@@ -46,8 +46,7 @@ func pathString(path []Object) string {
 }
 
 // objDecl type-checks the declaration of obj in its respective (file) environment.
-// For the meaning of def, see Checker.definedType, in typexpr.go.
-func (check *Checker) objDecl(obj Object, def *TypeName) {
+func (check *Checker) objDecl(obj Object) {
 	if tracePos {
 		check.pushPos(atPos(obj.Pos()))
 		defer func() {
@@ -134,11 +133,8 @@ func (check *Checker) objDecl(obj Object, def *TypeName) {
 	check.push(obj) // mark as grey
 	defer check.pop()
 
-	d := check.objMap[obj]
-	if d == nil {
-		check.dump("%v: %s should have been declared", obj.Pos(), obj)
-		panic("unreachable")
-	}
+	d, ok := check.objMap[obj]
+	assert(ok)
 
 	// save/restore current environment and set up object environment
 	defer func(env environment) {
@@ -160,7 +156,7 @@ func (check *Checker) objDecl(obj Object, def *TypeName) {
 		check.varDecl(obj, d.lhs, d.vtyp, d.init)
 	case *TypeName:
 		// invalid recursive types are detected via path
-		check.typeDecl(obj, d.tdecl, def)
+		check.typeDecl(obj, d.tdecl)
 		check.collectMethods(obj) // methods can only be added to top-level types
 	case *Func:
 		// functions may be recursive - no need to track dependencies
@@ -518,7 +514,7 @@ func (check *Checker) isImportedConstraint(typ Type) bool {
 	return u != nil && !u.IsMethodSet()
 }
 
-func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *TypeName) {
+func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec) {
 	assert(obj.typ == nil)
 
 	// Only report a version error if we have not reported one already.
@@ -552,7 +548,6 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *TypeName
 
 		if check.conf._EnableAlias {
 			alias := check.newAlias(obj, nil)
-			setDefType(def, alias)
 
 			// If we could not type the RHS, set it to invalid. This should
 			// only ever happen if we panic before setting.
@@ -606,7 +601,6 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *TypeName
 	}
 
 	named := check.newNamed(obj, nil, nil)
-	setDefType(def, named)
 
 	// The RHS of a named N can be nil if, for example, N is defined as a cycle of aliases with
 	// gotypesalias=0. Consider:
@@ -940,7 +934,7 @@ func (check *Checker) declStmt(d ast.Decl) {
 			scopePos := d.spec.Name.Pos()
 			check.declare(check.scope, d.spec.Name, obj, scopePos)
 			check.push(obj) // mark as grey
-			check.typeDecl(obj, d.spec, nil)
+			check.typeDecl(obj, d.spec)
 			check.pop()
 		default:
 			check.errorf(d.node(), InvalidSyntaxTree, "unknown ast.Decl node %T", d.node())

@@ -250,9 +250,51 @@ func fitsInBitsU(x uint64, b uint) bool {
 	return x>>b == 0
 }
 
+func noLimitForBitsize(bitsize uint) limit {
+	return limit{min: -(1 << (bitsize - 1)), max: 1<<(bitsize-1) - 1, umin: 0, umax: 1<<bitsize - 1}
+}
+
+func convertIntWithBitsize[Target uint64 | int64, Source uint64 | int64](x Source, bitsize uint) Target {
+	switch bitsize {
+	case 64:
+		return Target(x)
+	case 32:
+		return Target(int32(x))
+	case 16:
+		return Target(int16(x))
+	case 8:
+		return Target(int8(x))
+	default:
+		panic("unreachable")
+	}
+}
+
 // add returns the limit obtained by adding a value with limit l
 // to a value with limit l2. The result must fit in b bits.
 func (l limit) add(l2 limit, b uint) limit {
+	var isLConst, isL2Const bool
+	var lConst, l2Const uint64
+	if l.min == l.max {
+		isLConst = true
+		lConst = convertIntWithBitsize[uint64](l.min, b)
+	} else if l.umin == l.umax {
+		isLConst = true
+		lConst = l.umin
+	}
+	if l2.min == l2.max {
+		isL2Const = true
+		l2Const = convertIntWithBitsize[uint64](l2.min, b)
+	} else if l2.umin == l2.umax {
+		isL2Const = true
+		l2Const = l2.umin
+	}
+	if isLConst && isL2Const {
+		r := lConst + l2Const
+		r &= (uint64(1) << b) - 1
+		int64r := convertIntWithBitsize[int64](r, b)
+		return limit{min: int64r, max: int64r, umin: r, umax: r}
+	}
+
 	r := noLimit
 	min, minOk := safeAdd(l.min, l2.min, b)
 	max, maxOk := safeAdd(l.max, l2.max, b)
@@ -355,6 +397,11 @@ func (l limit) com(b uint) limit {
 	default:
 		panic("unreachable")
 	}
+}
+
+// Similar to add, but computes the negation of the limit for bitsize b.
+func (l limit) neg(b uint) limit {
+	return l.com(b).add(limit{min: 1, max: 1, umin: 1, umax: 1}, b)
 }
 
 var noLimit = limit{math.MinInt64, math.MaxInt64, 0, math.MaxUint64}
@@ -1753,8 +1800,7 @@ func initLimit(v *Value) limit {
 	}
 
 	// Default limits based on type.
-	bitsize := v.Type.Size() * 8
-	lim := limit{min: -(1 << (bitsize - 1)), max: 1<<(bitsize-1) - 1, umin: 0, umax: 1<<bitsize - 1}
+	lim := noLimitForBitsize(uint(v.Type.Size()) * 8)
 
 	// Tighter limits on some opcodes.
 	switch v.Op {
@@ -1949,7 +1995,7 @@ func (ft *factsTable) flowLimit(v *Value) {
 	case OpNeg64, OpNeg32, OpNeg16, OpNeg8:
 		a := ft.limits[v.Args[0].ID]
 		bitsize := uint(v.Type.Size()) * 8
-		ft.newLimit(v, a.com(bitsize).add(limit{min: 1, max: 1, umin: 1, umax: 1}, bitsize))
+		ft.newLimit(v, a.neg(bitsize))
 	case OpMul64, OpMul32, OpMul16, OpMul8:
 		a := ft.limits[v.Args[0].ID]
 		b := ft.limits[v.Args[1].ID]
@@ -2040,19 +2086,22 @@ func (ft *factsTable) flowLimit(v *Value) {
 //
 // slicecap - index >= slicelen - index >= K
 //
-// Note that "index" is not useed for indexing in this pattern, but
+// Note that "index" is not used for indexing in this pattern, but
 // in the motivating example (chunked slice iteration) it is.
 func (ft *factsTable) detectSliceLenRelation(v *Value) {
 	if v.Op != OpSub64 {
 		return
 	}
 
-	if !(v.Args[0].Op == OpSliceLen || v.Args[0].Op == OpSliceCap) {
+	if !(v.Args[0].Op == OpSliceLen || v.Args[0].Op == OpStringLen || v.Args[0].Op == OpSliceCap) {
 		return
 	}
 
-	slice := v.Args[0].Args[0]
 	index := v.Args[1]
+	if !ft.isNonNegative(index) {
+		return
+	}
+	slice := v.Args[0].Args[0]
 
 	for o := ft.orderings[index.ID]; o != nil; o = o.next {
 		if o.d != signed {
@@ -2067,9 +2116,9 @@ func (ft *factsTable) detectSliceLenRelation(v *Value) {
 			continue
 		}
 		var lenOffset *Value
-		if bound := ow.Args[0]; bound.Op == OpSliceLen && bound.Args[0] == slice {
+		if bound := ow.Args[0]; (bound.Op == OpSliceLen || bound.Op == OpStringLen) && bound.Args[0] == slice {
 			lenOffset = ow.Args[1]
-		} else if bound := ow.Args[1]; bound.Op == OpSliceLen && bound.Args[0] == slice {
+		} else if bound := ow.Args[1]; (bound.Op == OpSliceLen || bound.Op == OpStringLen) && bound.Args[0] == slice {
 			lenOffset = ow.Args[0]
 		}
 		if lenOffset == nil || lenOffset.Op != OpConst64 {
@@ -2329,7 +2378,7 @@ func unsignedSubUnderflows(a, b uint64) bool {
 // iteration where the index is not directly compared to the length.
 // if isReslice, then delta can be equal to K.
 func checkForChunkedIndexBounds(ft *factsTable, b *Block, index, bound *Value, isReslice bool) bool {
-	if bound.Op != OpSliceLen && bound.Op != OpSliceCap {
+	if bound.Op != OpSliceLen && bound.Op != OpStringLen && bound.Op != OpSliceCap {
 		return false
 	}
 
@@ -2364,9 +2413,9 @@ func checkForChunkedIndexBounds(ft *factsTable, b *Block, index, bound *Value, i
 		}
 		if ow := o.w; ow.Op == OpAdd64 {
 			var lenOffset *Value
-			if bound := ow.Args[0]; bound.Op == OpSliceLen && bound.Args[0] == slice {
+			if bound := ow.Args[0]; (bound.Op == OpSliceLen || bound.Op == OpStringLen) && bound.Args[0] == slice {
 				lenOffset = ow.Args[1]
-			} else if bound := ow.Args[1]; bound.Op == OpSliceLen && bound.Args[0] == slice {
+			} else if bound := ow.Args[1]; (bound.Op == OpSliceLen || bound.Op == OpStringLen) && bound.Args[0] == slice {
 				lenOffset = ow.Args[0]
 			}
 			if lenOffset == nil || lenOffset.Op != OpConst64 {
@@ -2471,9 +2520,18 @@ func addLocalFacts(ft *factsTable, b *Block) {
 			//ft.update(b, v, v.Args[0], unsigned, gt|eq)
 			//ft.update(b, v, v.Args[1], unsigned, gt|eq)
 		case OpDiv64, OpDiv32, OpDiv16, OpDiv8:
-			if ft.isNonNegative(v.Args[0]) && ft.isNonNegative(v.Args[1]) {
-				ft.update(b, v, v.Args[0], unsigned, lt|eq)
+			if !ft.isNonNegative(v.Args[1]) {
+				break
 			}
+			fallthrough
+		case OpRsh8x64, OpRsh8x32, OpRsh8x16, OpRsh8x8,
+			OpRsh16x64, OpRsh16x32, OpRsh16x16, OpRsh16x8,
+			OpRsh32x64, OpRsh32x32, OpRsh32x16, OpRsh32x8,
+			OpRsh64x64, OpRsh64x32, OpRsh64x16, OpRsh64x8:
+			if !ft.isNonNegative(v.Args[0]) {
+				break
+			}
+			fallthrough
 		case OpDiv64u, OpDiv32u, OpDiv16u, OpDiv8u,
 			OpRsh8Ux64, OpRsh8Ux32, OpRsh8Ux16, OpRsh8Ux8,
 			OpRsh16Ux64, OpRsh16Ux32, OpRsh16Ux16, OpRsh16Ux8,
@@ -2488,12 +2546,17 @@ func addLocalFacts(ft *factsTable, b *Block) {
 				zl := ft.limits[z.ID]
 				var uminDivisor uint64
 				switch v.Op {
-				case OpDiv64u, OpDiv32u, OpDiv16u, OpDiv8u:
+				case OpDiv64u, OpDiv32u, OpDiv16u, OpDiv8u,
+					OpDiv64, OpDiv32, OpDiv16, OpDiv8:
 					uminDivisor = zl.umin
 				case OpRsh8Ux64, OpRsh8Ux32, OpRsh8Ux16, OpRsh8Ux8,
 					OpRsh16Ux64, OpRsh16Ux32, OpRsh16Ux16, OpRsh16Ux8,
 					OpRsh32Ux64, OpRsh32Ux32, OpRsh32Ux16, OpRsh32Ux8,
-					OpRsh64Ux64, OpRsh64Ux32, OpRsh64Ux16, OpRsh64Ux8:
+					OpRsh64Ux64, OpRsh64Ux32, OpRsh64Ux16, OpRsh64Ux8,
+					OpRsh8x64, OpRsh8x32, OpRsh8x16, OpRsh8x8,
+					OpRsh16x64, OpRsh16x32, OpRsh16x16, OpRsh16x8,
+					OpRsh32x64, OpRsh32x32, OpRsh32x16, OpRsh32x8,
+					OpRsh64x64, OpRsh64x32, OpRsh64x16, OpRsh64x8:
 					uminDivisor = 1 << zl.umin
 				default:
 					panic("unreachable")
@@ -2647,14 +2710,30 @@ var mostNegativeDividend = map[Op]int64{
 	OpMod64: -1 << 63,
 }
 var unsignedOp = map[Op]Op{
-	OpDiv8:  OpDiv8u,
-	OpDiv16: OpDiv16u,
-	OpDiv32: OpDiv32u,
-	OpDiv64: OpDiv64u,
-	OpMod8:  OpMod8u,
-	OpMod16: OpMod16u,
-	OpMod32: OpMod32u,
-	OpMod64: OpMod64u,
+	OpDiv8:     OpDiv8u,
+	OpDiv16:    OpDiv16u,
+	OpDiv32:    OpDiv32u,
+	OpDiv64:    OpDiv64u,
+	OpMod8:     OpMod8u,
+	OpMod16:    OpMod16u,
+	OpMod32:    OpMod32u,
+	OpMod64:    OpMod64u,
+	OpRsh8x8:   OpRsh8Ux8,
+	OpRsh8x16:  OpRsh8Ux16,
+	OpRsh8x32:  OpRsh8Ux32,
+	OpRsh8x64:  OpRsh8Ux64,
+	OpRsh16x8:  OpRsh16Ux8,
+	OpRsh16x16: OpRsh16Ux16,
+	OpRsh16x32: OpRsh16Ux32,
+	OpRsh16x64: OpRsh16Ux64,
+	OpRsh32x8:  OpRsh32Ux8,
+	OpRsh32x16: OpRsh32Ux16,
+	OpRsh32x32: OpRsh32Ux32,
+	OpRsh32x64: OpRsh32Ux64,
+	OpRsh64x8:  OpRsh64Ux8,
+	OpRsh64x16: OpRsh64Ux16,
+	OpRsh64x32: OpRsh64Ux32,
+	OpRsh64x64: OpRsh64Ux64,
 }
 
 var bytesizeToConst = [...]Op{
@@ -2741,8 +2820,15 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 		case OpRsh8x8, OpRsh8x16, OpRsh8x32, OpRsh8x64,
 			OpRsh16x8, OpRsh16x16, OpRsh16x32, OpRsh16x64,
 			OpRsh32x8, OpRsh32x16, OpRsh32x32, OpRsh32x64,
-			OpRsh64x8, OpRsh64x16, OpRsh64x32, OpRsh64x64,
-			OpLsh8x8, OpLsh8x16, OpLsh8x32, OpLsh8x64,
+			OpRsh64x8, OpRsh64x16, OpRsh64x32, OpRsh64x64:
+			if ft.isNonNegative(v.Args[0]) {
+				if b.Func.pass.debug > 0 {
+					b.Func.Warnl(v.Pos, "Proved %v is unsigned", v.Op)
+				}
+				v.Op = unsignedOp[v.Op]
+			}
+			fallthrough
+		case OpLsh8x8, OpLsh8x16, OpLsh8x32, OpLsh8x64,
 			OpLsh16x8, OpLsh16x16, OpLsh16x32, OpLsh16x64,
 			OpLsh32x8, OpLsh32x16, OpLsh32x32, OpLsh32x64,
 			OpLsh64x8, OpLsh64x16, OpLsh64x32, OpLsh64x64,

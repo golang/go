@@ -238,8 +238,6 @@ See also: go install, go get, go clean.
 	`,
 }
 
-const concurrentGCBackendCompilationEnabledByDefault = true
-
 func init() {
 	// break init cycle
 	CmdBuild.Run = runBuild

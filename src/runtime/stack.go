@@ -8,10 +8,12 @@ import (
 	"internal/abi"
 	"internal/cpu"
 	"internal/goarch"
+	"internal/goexperiment"
 	"internal/goos"
 	"internal/runtime/atomic"
 	"internal/runtime/gc"
 	"internal/runtime/sys"
+	"math/bits"
 	"unsafe"
 )
 
@@ -181,12 +183,10 @@ func stackinit() {
 
 // stacklog2 returns ⌊log_2(n)⌋.
 func stacklog2(n uintptr) int {
-	log2 := 0
-	for n > 1 {
-		n >>= 1
-		log2++
+	if n == 0 {
+		return 0
 	}
-	return log2
+	return bits.Len64(uint64(n))
 }
 
 // Allocates a stack from the free pool. Must be called with
@@ -986,6 +986,16 @@ func copystack(gp *g, newsize uintptr) {
 	}
 
 	// free old stack
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+		// Some portion of the old stack has secret stuff on it.
+		// We don't really know where we entered secret mode,
+		// so just clear the whole thing.
+		// TODO(dmo): traceback until we hit secret.Do? clearing
+		// is fast and optimized, might not be worth it.
+		memclrNoHeapPointers(unsafe.Pointer(old.lo), old.hi-old.lo)
+		// The memmove call above might put secrets from the stack into registers.
+		secretEraseRegisters()
+	}
 	if stackPoisonCopy != 0 {
 		fillstack(old, 0xfc)
 	}
@@ -1027,6 +1037,14 @@ func newstack() {
 	}
 
 	gp := thisg.m.curg
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+		// If we're entering here from a secret context, clear
+		// all the registers. This is important because we
+		// might context switch to a different goroutine which
+		// is not in secret mode, and it will not be careful
+		// about clearing its registers.
+		secretEraseRegisters()
+	}
 
 	if thisg.m.curg.throwsplit {
 		// Update syscallsp, syscallpc in case traceback uses them.

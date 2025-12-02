@@ -161,7 +161,22 @@ func rangeint(pass *analysis.Pass) (any, error) {
 						// don't offer a fix, as a range loop
 						// leaves i with a different final value (limit-1).
 						if init.Tok == token.ASSIGN {
-							for curId := range curLoop.Parent().Preorder((*ast.Ident)(nil)) {
+							// Find the nearest ancestor that is not a label.
+							// Otherwise, checking for i usage outside of a for
+							// loop might not function properly further below.
+							// This is because the i usage might be a child of
+							// the loop's parent's parent, for example:
+							//     var i int
+							// Loop:
+							//     for i = 0; i < 10; i++ { break loop }
+							//     // i is in the sibling of the label, not the loop
+							//     fmt.Println(i)
+							//
+							ancestor := curLoop.Parent()
+							for is[*ast.LabeledStmt](ancestor.Node()) {
+								ancestor = ancestor.Parent()
+							}
+							for curId := range ancestor.Preorder((*ast.Ident)(nil)) {
 								id := curId.Node().(*ast.Ident)
 								if info.Uses[id] == v {
 									// Is i used after loop?

@@ -481,6 +481,7 @@
 (GetClosurePtr ...) => (LoweredGetClosurePtr ...)
 (GetCallerSP   ...) => (LoweredGetCallerSP   ...)
 (GetCallerPC   ...) => (LoweredGetCallerPC   ...)
+(MemEq ...) => (LoweredMemEq ...)
 
 // Absorb pseudo-ops into blocks.
 (If (Equal         cc) yes no) => (EQ cc yes no)

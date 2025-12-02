@@ -187,6 +187,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpLOONG64DIVD,
 		ssa.OpLOONG64MULV, ssa.OpLOONG64MULHV, ssa.OpLOONG64MULHVU, ssa.OpLOONG64MULH, ssa.OpLOONG64MULHU,
 		ssa.OpLOONG64DIVV, ssa.OpLOONG64REMV, ssa.OpLOONG64DIVVU, ssa.OpLOONG64REMVU,
+		ssa.OpLOONG64MULWVW, ssa.OpLOONG64MULWVWU,
 		ssa.OpLOONG64FCOPYSGD:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG

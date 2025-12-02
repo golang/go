@@ -221,23 +221,9 @@ func (h finishedHash) serverSum(masterSecret []byte) []byte {
 	return h.prf(masterSecret, serverFinishedLabel, h.Sum(), finishedVerifyLength)
 }
 
-// hashForClientCertificate returns the handshake messages so far, pre-hashed if
-// necessary, suitable for signing by a TLS client certificate.
-func (h finishedHash) hashForClientCertificate(sigType uint8, hashAlg crypto.Hash) []byte {
-	if (h.version >= VersionTLS12 || sigType == signatureEd25519) && h.buffer == nil {
-		panic("tls: handshake hash for a client certificate requested after discarding the handshake buffer")
-	}
-
-	if sigType == signatureEd25519 {
-		return h.buffer
-	}
-
-	if h.version >= VersionTLS12 {
-		hash := hashAlg.New()
-		hash.Write(h.buffer)
-		return hash.Sum(nil)
-	}
-
+// hashForClientCertificate returns the handshake messages so far, pre-hashed,
+// suitable for signing by a TLS 1.0 and 1.1 client certificate.
+func (h finishedHash) hashForClientCertificate(sigType uint8) []byte {
 	if sigType == signatureECDSA {
 		return h.server.Sum(nil)
 	}

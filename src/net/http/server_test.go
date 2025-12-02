@@ -91,12 +91,12 @@ func TestFindHandler(t *testing.T) {
 		wantHandler string
 	}{
 		{"GET", "/", "&http.handler{i:1}"},
-		{"GET", "//", `&http.redirectHandler{url:"/", code:301}`},
-		{"GET", "/foo/../bar/./..//baz", `&http.redirectHandler{url:"/baz", code:301}`},
+		{"GET", "//", `&http.redirectHandler{url:"/", code:307}`},
+		{"GET", "/foo/../bar/./..//baz", `&http.redirectHandler{url:"/baz", code:307}`},
 		{"GET", "/foo", "&http.handler{i:3}"},
 		{"GET", "/foo/x", "&http.handler{i:2}"},
 		{"GET", "/bar/x", "&http.handler{i:4}"},
-		{"GET", "/bar", `&http.redirectHandler{url:"/bar/", code:301}`},
+		{"GET", "/bar", `&http.redirectHandler{url:"/bar/", code:307}`},
 		{"CONNECT", "", "(http.HandlerFunc)(.*)"},
 		{"CONNECT", "/", "&http.handler{i:1}"},
 		{"CONNECT", "//", "&http.handler{i:1}"},
@@ -105,7 +105,7 @@ func TestFindHandler(t *testing.T) {
 		{"CONNECT", "/foo", "&http.handler{i:3}"},
 		{"CONNECT", "/foo/x", "&http.handler{i:2}"},
 		{"CONNECT", "/bar/x", "&http.handler{i:4}"},
-		{"CONNECT", "/bar", `&http.redirectHandler{url:"/bar/", code:301}`},
+		{"CONNECT", "/bar", `&http.redirectHandler{url:"/bar/", code:307}`},
 	} {
 		var r Request
 		r.Method = test.method

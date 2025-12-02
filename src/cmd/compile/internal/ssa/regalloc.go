@@ -897,7 +897,15 @@ func (s *regAllocState) dropIfUnused(v *Value) {
 	}
 	vi := &s.values[v.ID]
 	r := vi.uses
-	if r == nil || (!opcodeTable[v.Op].fixedReg && r.dist > s.nextCall[s.curIdx]) {
+	nextCall := s.nextCall[s.curIdx]
+	if opcodeTable[v.Op].call {
+		if s.curIdx == len(s.nextCall)-1 {
+			nextCall = math.MaxInt32
+		} else {
+			nextCall = s.nextCall[s.curIdx+1]
+		}
+	}
+	if r == nil || (!opcodeTable[v.Op].fixedReg && r.dist > nextCall) {
 		s.freeRegs(vi.regs)
 	}
 }
@@ -930,6 +938,14 @@ func (s *regAllocState) compatRegs(t *types.Type) regMask {
 	var m regMask
 	if t.IsTuple() || t.IsFlags() {
 		return 0
+	}
+	if t.IsSIMD() {
+		if t.Size() > 8 {
+			return s.f.Config.fpRegMask & s.allocatable
+		} else {
+			// K mask
+			return s.f.Config.gpRegMask & s.allocatable
+		}
 	}
 	if t.IsFloat() || t == types.TypeInt128 {
 		if t.Kind() == types.TFLOAT32 && s.f.Config.fp32RegMask != 0 {
@@ -1028,8 +1044,11 @@ func (s *regAllocState) regalloc(f *Func) {
 				regValLiveSet.add(v.ID)
 			}
 		}
-		if len(s.nextCall) < len(b.Values) {
-			s.nextCall = append(s.nextCall, make([]int32, len(b.Values)-len(s.nextCall))...)
+		if cap(s.nextCall) < len(b.Values) {
+			c := cap(s.nextCall)
+			s.nextCall = append(s.nextCall[:c], make([]int32, len(b.Values)-c)...)
+		} else {
+			s.nextCall = s.nextCall[:len(b.Values)]
 		}
 		var nextCall int32 = math.MaxInt32
 		for i := len(b.Values) - 1; i >= 0; i-- {
@@ -1439,6 +1458,13 @@ func (s *regAllocState) regalloc(f *Func) {
 					s.sb = v.ID
 				case OpARM64ZERO, OpLOONG64ZERO, OpMIPS64ZERO:
 					s.assignReg(s.ZeroIntReg, v, v)
+				case OpAMD64Zero128, OpAMD64Zero256, OpAMD64Zero512:
+					regspec := s.regspec(v)
+					m := regspec.outputs[0].regs
+					if countRegs(m) != 1 {
+						f.Fatalf("bad fixed-register op %s", v)
+					}
+					s.assignReg(pickReg(m), v, v)
 				default:
 					f.Fatalf("unknown fixed-register op %s", v)
 				}

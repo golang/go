@@ -206,10 +206,17 @@ var ftoatests = []ftoaTest{
 	{8393378656576888. * (1 << 1), 'e', 15, "1.678675731315378e+16"},
 	{8738676561280626. * (1 << 4), 'e', 16, "1.3981882498049002e+17"},
 	{8291032395191335. / (1 << 30), 'e', 5, "7.72163e+06"},
+	{8880392441509914. / (1 << 80), 'e', 16, "7.3456884594794477e-09"},
 
 	// Exercise divisiblePow5 case in fixedFtoa
 	{2384185791015625. * (1 << 12), 'e', 5, "9.76562e+18"},
 	{2384185791015625. * (1 << 13), 'e', 5, "1.95312e+19"},
+
+	// Exercise potential mistakes in fixedFtoa.
+	// Found by introducing mistakes and running 'go test -testbase'.
+	{0x1.000000000005p+71, 'e', 16, "2.3611832414348645e+21"},
+	{0x1.0000p-27, 'e', 17, "7.45058059692382812e-09"},
+	{0x1.0000p-41, 'e', 17, "4.54747350886464119e-13"},
 }
 
 func TestFtoa(t *testing.T) {
@@ -351,6 +358,10 @@ var ftoaBenches = []struct {
 	// 622666234635.321497e-320 ~= 622666234635.3215e-320
 	// making it hard to find the 3rd digit
 	{"SlowpathDenormal64", 622666234635.3213e-320, 'e', -1, 64},
+
+	// Trigger the shorter interval case (3.90625e-3 = 1/256).
+	{"ShorterIntervalCase32", 3.90625e-3, 'e', -1, 32},
+	{"ShorterIntervalCase64", 3.90625e-3, 'e', -1, 64},
 }
 
 func BenchmarkFormatFloat(b *testing.B) {

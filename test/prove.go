@@ -253,9 +253,10 @@ func f9(a, b bool) int {
 
 func f10(a string) int {
 	n := len(a)
+	b := a[:n>>1] // ERROR "(Proved IsSliceInBounds|Proved Rsh64x64 is unsigned)$"
 	// We optimize comparisons with small constant strings (see cmd/compile/internal/gc/walk.go),
 	// so this string literal must be long.
-	if a[:n>>1] == "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" {
+	if b == "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" {
 		return 0
 	}
 	return 1
@@ -1081,6 +1082,13 @@ func issue57077(s []int) (left, right []int) {
 	middle := len(s) / 2 // ERROR "Proved Div64 is unsigned$"
 	left = s[:middle]    // ERROR "Proved IsSliceInBounds$"
 	right = s[middle:]   // ERROR "Proved IsSliceInBounds$"
+	return
+}
+
+func issue76332(s []int) (left, right []int) {
+	middle := len(s) >> 1 // ERROR "Proved Rsh64x64 is unsigned$"
+	left = s[:middle]     // ERROR "Proved IsSliceInBounds$"
+	right = s[middle:]    // ERROR "Proved IsSliceInBounds$"
 	return
 }
 
@@ -2556,7 +2564,7 @@ func rightshift(v *[256]int) int {
 		}
 	}
 	for i := range 1024 { // ERROR "Induction"
-		if v[i>>2] == 0 { // ERROR "Proved IsInBounds"
+		if v[i>>2] == 0 { // ERROR "(Proved IsInBounds|Proved Rsh64x64 is unsigned)"
 			return i
 		}
 	}
@@ -2648,6 +2656,66 @@ func subLengths2(b []byte, i int) {
 	if i >= 0 && i <= len(b) {
 		_ = b[:len(b)-i] // ERROR "Proved IsSliceInBounds"
 	}
+}
+
+func issue76355(s []int, i int) int {
+	var a [10]int
+	if i <= len(s)-1 {
+		v := len(s) - i
+		if v < 10 {
+			return a[v]
+		}
+	}
+	return 0
+}
+
+func stringDotDotDot(s string) bool {
+	for i := 0; i < len(s)-2; i++ { // ERROR "Induction variable: limits \[0,[?][)], increment 1"
+		if s[i] == '.' && // ERROR "Proved IsInBounds"
+			s[i+1] == '.' && // ERROR "Proved IsInBounds"
+			s[i+2] == '.' { // ERROR "Proved IsInBounds"
+			return true
+		}
+	}
+	return false
+}
+
+func bytesDotDotDot(s []byte) bool {
+	for i := 0; i < len(s)-2; i++ { // ERROR "Induction variable"
+		if s[i] == '.' && // ERROR "Proved IsInBounds"
+			s[i+1] == '.' && // ERROR "Proved IsInBounds"
+			s[i+2] == '.' { // ERROR "Proved IsInBounds"
+			return true
+		}
+	}
+	return false
+}
+
+// detectSliceLenRelation matches the pattern where
+//  1. v := slicelen - index, OR v := slicecap - index
+//     AND
+//  2. index <= slicelen - K
+//     THEN
+//
+// slicecap - index >= slicelen - index >= K
+func detectSliceLenRelation(s []byte) bool {
+	for i := 0; i <= len(s)-3; i++ { // ERROR "Induction variable"
+		v := len(s) - i
+		if v >= 3 { // ERROR "Proved Leq"
+			return true
+		}
+	}
+	return false
+}
+
+func detectStringLenRelation(s string) bool {
+	for i := 0; i <= len(s)-3; i++ { // ERROR "Induction variable"
+		v := len(s) - i
+		if v >= 3 { // ERROR "Proved Leq"
+			return true
+		}
+	}
+	return false
 }
 
 //go:noinline

@@ -43,11 +43,15 @@ func isTLS13CipherSuite(id uint16) bool {
 }
 
 func generateKeyShare(group CurveID) keyShare {
-	key, err := generateECDHEKey(rand.Reader, group)
+	ke, err := keyExchangeForCurveID(group)
 	if err != nil {
 		panic(err)
 	}
-	return keyShare{group: group, data: key.PublicKey().Bytes()}
+	_, shares, err := ke.keyShares(rand.Reader)
+	if err != nil {
+		panic(err)
+	}
+	return shares[0]
 }
 
 func TestFIPSServerProtocolVersion(t *testing.T) {
@@ -132,7 +136,7 @@ func isFIPSCurve(id CurveID) bool {
 	switch id {
 	case CurveP256, CurveP384, CurveP521:
 		return true
-	case X25519MLKEM768:
+	case X25519MLKEM768, SecP256r1MLKEM768, SecP384r1MLKEM1024:
 		// Only for the native module.
 		return !boring.Enabled
 	case X25519:

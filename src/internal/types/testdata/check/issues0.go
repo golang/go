@@ -96,8 +96,8 @@ func issue10979() {
 	type _ interface {
 		nosuchpkg /* ERROR "undefined: nosuchpkg" */ .Nosuchtype
 	}
-	type I interface {
-		I.m /* ERROR "I.m is not a type" */
+	type I /* ERROR "invalid recursive type" */ interface {
+		I.m
 		m()
 	}
 }

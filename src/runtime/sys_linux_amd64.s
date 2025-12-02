@@ -228,6 +228,18 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$16-8
 	// due to stack probes inserted to avoid stack/heap collisions.
 	// See issue #20427.
 
+#ifdef GOEXPERIMENT_runtimesecret
+	// The kernel might spill our secrets onto g0
+	// erase our registers here.
+	// TODO(dmo): what is the ABI guarantee here? we use
+	// R14 later, but the function is ABI0
+	CMPL	g_secret(R14), $0
+	JEQ	nosecret
+	CALL	·secretEraseRegisters(SB)
+
+nosecret:
+#endif
+
 	MOVQ	SP, R12	// Save old SP; R12 unchanged by C code.
 
 	MOVQ	g_m(R14), BX // BX unchanged by C code.
@@ -340,6 +352,11 @@ TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME|NOFRAME,$0
 	get_tls(R12)
 	MOVQ	g(R12), R14
 	PXOR	X15, X15
+#ifdef GOEXPERIMENT_simd
+	CMPB	internal∕cpu·X86+const_offsetX86HasAVX(SB), $1
+	JNE	2(PC)
+	VXORPS	X15, X15, X15
+#endif
 
 	// Reserve space for spill slots.
 	NOP	SP		// disable vet stack checking
@@ -365,6 +382,11 @@ TEXT runtime·sigprofNonGoWrapper<>(SB),NOSPLIT|NOFRAME,$0
 	get_tls(R12)
 	MOVQ	g(R12), R14
 	PXOR	X15, X15
+#ifdef GOEXPERIMENT_simd
+	CMPB	internal∕cpu·X86+const_offsetX86HasAVX(SB), $1
+	JNE	2(PC)
+	VXORPS	X15, X15, X15
+#endif
 
 	// Reserve space for spill slots.
 	NOP	SP		// disable vet stack checking

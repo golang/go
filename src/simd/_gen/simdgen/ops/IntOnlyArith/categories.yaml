@@ -1,0 +1,21 @@
+!sum
+- go: Average
+  commutative: true
+  documentation: !string |-
+    // NAME computes the rounded average of corresponding elements.
+- go: Abs
+  commutative: false
+  # Unary operation, not commutative
+  documentation: !string |-
+    // NAME computes the absolute value of each element.
+- go: CopySign
+  # Applies sign of second operand to first: sign(val, sign_src)
+  commutative: false
+  documentation: !string |-
+    // NAME returns the product of the first operand with -1, 0, or 1,
+    // whichever constant is nearest to the value of the second operand.
+  # Sign does not have masked version
+- go: OnesCount
+  commutative: false
+  documentation: !string |-
+    // NAME counts the number of set bits in each element.

@@ -81,23 +81,20 @@ func blockGeneric(dig *Digest, p []byte) {
 	var w [64]uint32
 	h0, h1, h2, h3, h4, h5, h6, h7 := dig.h[0], dig.h[1], dig.h[2], dig.h[3], dig.h[4], dig.h[5], dig.h[6], dig.h[7]
 	for len(p) >= chunk {
-		// Can interlace the computation of w with the
-		// rounds below if needed for speed.
-		for i := 0; i < 16; i++ {
-			j := i * 4
-			w[i] = uint32(p[j])<<24 | uint32(p[j+1])<<16 | uint32(p[j+2])<<8 | uint32(p[j+3])
-		}
-		for i := 16; i < 64; i++ {
-			v1 := w[i-2]
-			t1 := (bits.RotateLeft32(v1, -17)) ^ (bits.RotateLeft32(v1, -19)) ^ (v1 >> 10)
-			v2 := w[i-15]
-			t2 := (bits.RotateLeft32(v2, -7)) ^ (bits.RotateLeft32(v2, -18)) ^ (v2 >> 3)
-			w[i] = t1 + w[i-7] + t2 + w[i-16]
-		}
-
 		a, b, c, d, e, f, g, h := h0, h1, h2, h3, h4, h5, h6, h7
 
-		for i := 0; i < 64; i++ {
+		for i := range 64 {
+			if i < 16 {
+				j := i * 4
+				w[i] = uint32(p[j])<<24 | uint32(p[j+1])<<16 | uint32(p[j+2])<<8 | uint32(p[j+3])
+			} else {
+				v1 := w[i-2]
+				t1 := (bits.RotateLeft32(v1, -17)) ^ (bits.RotateLeft32(v1, -19)) ^ (v1 >> 10)
+				v2 := w[i-15]
+				t2 := (bits.RotateLeft32(v2, -7)) ^ (bits.RotateLeft32(v2, -18)) ^ (v2 >> 3)
+				w[i] = t1 + w[i-7] + t2 + w[i-16]
+			}
+
 			t1 := h + ((bits.RotateLeft32(e, -6)) ^ (bits.RotateLeft32(e, -11)) ^ (bits.RotateLeft32(e, -25))) + ((e & f) ^ (^e & g)) + _K[i] + w[i]
 
 			t2 := ((bits.RotateLeft32(a, -2)) ^ (bits.RotateLeft32(a, -13)) ^ (bits.RotateLeft32(a, -22))) + ((a & b) ^ (a & c) ^ (b & c))

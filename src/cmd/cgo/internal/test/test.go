@@ -953,6 +953,24 @@ typedef struct {
 } issue69086struct;
 static int issue690861(issue69086struct* p) { p->b = 1234; return p->c; }
 static int issue690862(unsigned long ul1, unsigned long ul2, unsigned int u, issue69086struct s) { return (int)(s.b); }
+
+char issue75751v = 1;
+char * const issue75751p = &issue75751v;
+#define issue75751m issue75751p
+char * const volatile issue75751p2 = &issue75751v;
+#define issue75751m2 issue75751p2
+
+typedef struct { void *t; void *v; } GoInterface;
+extern int exportAny76340Param(GoInterface);
+extern GoInterface exportAny76340Return(int);
+
+int issue76340testFromC(GoInterface obj) {
+	return exportAny76340Param(obj);
+}
+
+GoInterface issue76340returnFromC(int val) {
+	return exportAny76340Return(val);
+}
 */
 import "C"
 
@@ -2394,5 +2412,29 @@ func test69086(t *testing.T) {
 	got = C.issue690862(1, 2, 3, s)
 	if got != 1234 {
 		t.Errorf("call: got %d, want 1234", got)
+	}
+}
+
+// Issue 75751: no runtime test, just make sure it compiles.
+func test75751() int {
+	return int(*C.issue75751m) + int(*C.issue75751m2)
+}
+
+// Issue 76340.
+func test76340(t *testing.T) {
+	var emptyInterface C.GoInterface
+	r1 := C.issue76340testFromC(emptyInterface)
+	if r1 != 0 {
+		t.Errorf("issue76340testFromC with nil interface: got %d, want 0", r1)
+	}
+
+	r2 := C.issue76340returnFromC(42)
+	if r2.t == nil && r2.v == nil {
+		t.Error("issue76340returnFromC(42) returned nil interface")
+	}
+
+	r3 := C.issue76340returnFromC(0)
+	if r3.t != nil || r3.v != nil {
+		t.Errorf("issue76340returnFromC(0) returned non-nil interface: got %v, want nil", r3)
 	}
 }

@@ -1124,7 +1124,7 @@ func lookupRepo(loaderstate *State, ctx context.Context, proxy, path string) (re
 		err = module.CheckPath(path)
 	}
 	if err == nil {
-		repo = modfetch.Lookup(ctx, proxy, path)
+		repo = loaderstate.Fetcher().Lookup(ctx, proxy, path)
 	} else {
 		repo = emptyRepo{path: path, err: err}
 	}
@@ -1150,9 +1150,11 @@ func (er emptyRepo) ModulePath() string { return er.path }
 func (er emptyRepo) CheckReuse(ctx context.Context, old *codehost.Origin) error {
 	return fmt.Errorf("empty repo")
 }
+
 func (er emptyRepo) Versions(ctx context.Context, prefix string) (*modfetch.Versions, error) {
 	return &modfetch.Versions{}, nil
 }
+
 func (er emptyRepo) Stat(ctx context.Context, rev string) (*modfetch.RevInfo, error) {
 	return nil, er.err
 }

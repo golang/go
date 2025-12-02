@@ -1,0 +1,51 @@
+!sum
+- go: DotProductPairs
+  commutative: false
+  documentation: !string |-
+    // NAME multiplies the elements and add the pairs together,
+    // yielding a vector of half as many elements with twice the input element size.
+# TODO: maybe simplify this name within the receiver-type + method-naming scheme we use.
+- go: DotProductPairsSaturated
+  commutative: false
+  documentation: !string |-
+    // NAME multiplies the elements and add the pairs together with saturation,
+    // yielding a vector of half as many elements with twice the input element size.
+# QuadDotProduct, i.e. VPDPBUSD(S) are operations with src/dst on the same register, we are not supporting this as of now.
+# - go: DotProductBroadcast
+#   commutative: true
+# #   documentation: !string |-
+#     // NAME multiplies all elements and broadcasts the sum.
+- go: DotProductQuadruple
+  commutative: false
+  documentation: !string |-
+    // NAME performs dot products on groups of 4 elements of x and y.
+    // NAME(x, y).Add(z) will be optimized to the full form of the underlying instruction.
+- go: DotProductQuadrupleSaturated
+  commutative: false
+  documentation: !string |-
+    // NAME multiplies performs dot products on groups of 4 elements of x and y.
+    // NAME(x, y).Add(z) will be optimized to the full form of the underlying instruction.
+- go: AddDotProductPairs
+  commutative: false
+  noTypes: "true"
+  noGenericOps: "true"
+  documentation: !string |-
+    // NAME performs dot products on pairs of elements of y and z and then adds x.
+- go: MulAdd
+  commutative: false
+  documentation: !string |-
+    // NAME performs a fused (x * y) + z.
+- go: MulAddSub
+  commutative: false
+  documentation: !string |-
+    // NAME performs a fused (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
+- go: MulSubAdd
+  commutative: false
+  documentation: !string |-
+    // NAME performs a fused (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
+- go: SumAbsDiff
+  commutative: false
+  documentation: !string |-
+    // NAME sums the absolute distance of the two input vectors, each adjacent 8 bytes as a group. The output sum will
+    // be a vector of word-sized elements whose each 4*n-th element contains the sum of the n-th input group. The other elements in the result vector are zeroed.
+    // This method could be seen as the norm of the L1 distance of each adjacent 8-byte vector group of the two input vectors.

@@ -29,6 +29,7 @@ import (
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/search"
+	igover "internal/gover"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
@@ -59,7 +60,7 @@ func EnterModule(loaderstate *State, ctx context.Context, enterModroot string) {
 	loaderstate.MainModules = nil // reset MainModules
 	loaderstate.requirements = nil
 	loaderstate.workFilePath = "" // Force module mode
-	modfetch.Reset()
+	loaderstate.Fetcher().Reset()
 
 	loaderstate.modRoots = []string{enterModroot}
 	LoadModFile(loaderstate, ctx)
@@ -79,7 +80,7 @@ func EnterWorkspace(loaderstate *State, ctx context.Context) (exit func(), err e
 	}
 
 	// Reset the state to a clean state.
-	oldstate := loaderstate.setState(State{})
+	oldstate := loaderstate.setState(NewState())
 	loaderstate.ForceUseModules = true
 
 	// Load in workspace mode.
@@ -384,11 +385,11 @@ func WorkFilePath(loaderstate *State) string {
 // Reset clears all the initialized, cached state about the use of modules,
 // so that we can start over.
 func (s *State) Reset() {
-	s.setState(State{})
+	s.setState(NewState())
 }
 
-func (s *State) setState(new State) State {
-	oldState := State{
+func (s *State) setState(new *State) (old *State) {
+	old = &State{
 		initialized:     s.initialized,
 		ForceUseModules: s.ForceUseModules,
 		RootMode:        s.RootMode,
@@ -396,6 +397,8 @@ func (s *State) setState(new State) State {
 		modulesEnabled:  cfg.ModulesEnabled,
 		MainModules:     s.MainModules,
 		requirements:    s.requirements,
+		workFilePath:    s.workFilePath,
+		fetcher:         s.fetcher,
 	}
 	s.initialized = new.initialized
 	s.ForceUseModules = new.ForceUseModules
@@ -408,8 +411,9 @@ func (s *State) setState(new State) State {
 	// The modfetch package's global state is used to compute
 	// the go.sum file, so save and restore it along with the
 	// modload state.
-	oldState.modfetchState = modfetch.SetState(new.modfetchState)
-	return oldState
+	old.fetcher = s.fetcher.SetState(new.fetcher)
+
+	return old
 }
 
 type State struct {
@@ -446,11 +450,19 @@ type State struct {
 
 	// Set to the path to the go.work file, or "" if workspace mode is
 	// disabled
-	workFilePath  string
-	modfetchState modfetch.State
+	workFilePath string
+	fetcher      *modfetch.Fetcher
 }
 
-func NewState() *State { return &State{} }
+func NewState() *State {
+	s := new(State)
+	s.fetcher = modfetch.NewFetcher()
+	return s
+}
+
+func (s *State) Fetcher() *modfetch.Fetcher {
+	return s.fetcher
+}
 
 // Init determines whether module mode is enabled, locates the root of the
 // current module (if any), sets environment variables for Git subprocesses, and
@@ -826,7 +838,7 @@ func WriteWorkFile(path string, wf *modfile.WorkFile) error {
 	wf.Cleanup()
 	out := modfile.Format(wf.Syntax)
 
-	return os.WriteFile(path, out, 0666)
+	return os.WriteFile(path, out, 0o666)
 }
 
 // UpdateWorkGoVersion updates the go line in wf to be at least goVers,
@@ -928,9 +940,9 @@ func loadModFile(loaderstate *State, ctx context.Context, opts *PackageOpts) (*R
 		}
 		for _, modRoot := range loaderstate.modRoots {
 			sumFile := strings.TrimSuffix(modFilePath(modRoot), ".mod") + ".sum"
-			modfetch.ModuleFetchState.WorkspaceGoSumFiles = append(modfetch.ModuleFetchState.WorkspaceGoSumFiles, sumFile)
+			loaderstate.Fetcher().AddWorkspaceGoSumFile(sumFile)
 		}
-		modfetch.ModuleFetchState.GoSumFile = loaderstate.workFilePath + ".sum"
+		loaderstate.Fetcher().SetGoSumFile(loaderstate.workFilePath + ".sum")
 	} else if len(loaderstate.modRoots) == 0 {
 		// We're in module mode, but not inside a module.
 		//
@@ -950,7 +962,7 @@ func loadModFile(loaderstate *State, ctx context.Context, opts *PackageOpts) (*R
 		//
 		// See golang.org/issue/32027.
 	} else {
-		modfetch.ModuleFetchState.GoSumFile = strings.TrimSuffix(modFilePath(loaderstate.modRoots[0]), ".mod") + ".sum"
+		loaderstate.Fetcher().SetGoSumFile(strings.TrimSuffix(modFilePath(loaderstate.modRoots[0]), ".mod") + ".sum")
 	}
 	if len(loaderstate.modRoots) == 0 {
 		// TODO(#49228): Instead of creating a fake module with an empty modroot,
@@ -1200,7 +1212,7 @@ func CreateModFile(loaderstate *State, ctx context.Context, modPath string) {
 	modFile := new(modfile.File)
 	modFile.AddModuleStmt(modPath)
 	loaderstate.MainModules = makeMainModules(loaderstate, []module.Version{modFile.Module.Mod}, []string{modRoot}, []*modfile.File{modFile}, []*modFileIndex{nil}, nil)
-	addGoStmt(modFile, modFile.Module.Mod, gover.Local()) // Add the go directive before converted module requirements.
+	addGoStmt(modFile, modFile.Module.Mod, DefaultModInitGoVersion()) // Add the go directive before converted module requirements.
 
 	rs := requirementsFromModFiles(loaderstate, ctx, nil, []*modfile.File{modFile}, nil)
 	rs, err := updateRoots(loaderstate, ctx, rs.direct, rs, nil, nil, false)
@@ -1811,9 +1823,7 @@ Run 'go help mod init' for more information.
 	return "", fmt.Errorf(msg, dir, reason)
 }
 
-var (
-	importCommentRE = lazyregexp.New(`(?m)^package[ \t]+[^ \t\r\n/]+[ \t]+//[ \t]+import[ \t]+(\"[^"]+\")[ \t]*\r?\n`)
-)
+var importCommentRE = lazyregexp.New(`(?m)^package[ \t]+[^ \t\r\n/]+[ \t]+//[ \t]+import[ \t]+(\"[^"]+\")[ \t]*\r?\n`)
 
 func findImportComment(file string) string {
 	data, err := os.ReadFile(file)
@@ -1958,7 +1968,7 @@ func commitRequirements(loaderstate *State, ctx context.Context, opts WriteOpts)
 	if loaderstate.inWorkspaceMode() {
 		// go.mod files aren't updated in workspace mode, but we still want to
 		// update the go.work.sum file.
-		return modfetch.WriteGoSum(ctx, keepSums(loaderstate, ctx, loaded, loaderstate.requirements, addBuildListZipSums), mustHaveCompleteRequirements(loaderstate))
+		return loaderstate.Fetcher().WriteGoSum(ctx, keepSums(loaderstate, ctx, loaded, loaderstate.requirements, addBuildListZipSums), mustHaveCompleteRequirements(loaderstate))
 	}
 	_, updatedGoMod, modFile, err := UpdateGoModFromReqs(loaderstate, ctx, opts)
 	if err != nil {
@@ -1982,7 +1992,7 @@ func commitRequirements(loaderstate *State, ctx context.Context, opts WriteOpts)
 		// Don't write go.mod, but write go.sum in case we added or trimmed sums.
 		// 'go mod init' shouldn't write go.sum, since it will be incomplete.
 		if cfg.CmdName != "mod init" {
-			if err := modfetch.WriteGoSum(ctx, keepSums(loaderstate, ctx, loaded, loaderstate.requirements, addBuildListZipSums), mustHaveCompleteRequirements(loaderstate)); err != nil {
+			if err := loaderstate.Fetcher().WriteGoSum(ctx, keepSums(loaderstate, ctx, loaded, loaderstate.requirements, addBuildListZipSums), mustHaveCompleteRequirements(loaderstate)); err != nil {
 				return err
 			}
 		}
@@ -2005,7 +2015,7 @@ func commitRequirements(loaderstate *State, ctx context.Context, opts WriteOpts)
 		// 'go mod init' shouldn't write go.sum, since it will be incomplete.
 		if cfg.CmdName != "mod init" {
 			if err == nil {
-				err = modfetch.WriteGoSum(ctx, keepSums(loaderstate, ctx, loaded, loaderstate.requirements, addBuildListZipSums), mustHaveCompleteRequirements(loaderstate))
+				err = loaderstate.Fetcher().WriteGoSum(ctx, keepSums(loaderstate, ctx, loaded, loaderstate.requirements, addBuildListZipSums), mustHaveCompleteRequirements(loaderstate))
 			}
 		}
 	}()
@@ -2251,4 +2261,30 @@ func CheckGodebug(verb, k, v string) error {
 		}
 	}
 	return fmt.Errorf("unknown %s %q", verb, k)
+}
+
+// DefaultModInitGoVersion returns the appropriate go version to include in a
+// newly initialized module or work file.
+//
+// If the current toolchain version is a stable version of Go 1.N.M, default to
+// go 1.(N-1).0
+//
+// If the current toolchain version is a pre-release version of Go 1.N (Release
+// Candidate M) or a development version of Go 1.N, default to go 1.(N-2).0
+func DefaultModInitGoVersion() string {
+	v := gover.Local()
+	if isPrereleaseOrDevelVersion(v) {
+		v = gover.Prev(gover.Prev(v))
+	} else {
+		v = gover.Prev(v)
+	}
+	if strings.Count(v, ".") < 2 {
+		v += ".0"
+	}
+	return v
+}
+
+func isPrereleaseOrDevelVersion(s string) bool {
+	v := igover.Parse(s)
+	return v.Kind != "" || v.Patch == ""
 }

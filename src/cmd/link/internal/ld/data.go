@@ -1937,6 +1937,26 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	}
 	ldr := ctxt.loader
 
+	// SMODULEDATA needs to be writable, but the GC doesn't need to
+	// look at it. We don't use allocateSingleSymSections because
+	// the name of the section is not the name of the symbol.
+	if len(state.data[sym.SMODULEDATA]) > 0 {
+		if len(state.data[sym.SMODULEDATA]) != 1 {
+			Errorf("internal error: more than one SMODULEDATA symbol")
+		}
+		s := state.data[sym.SMODULEDATA][0]
+		sect := addsection(ldr, ctxt.Arch, &Segdata, ".go.module", 06)
+		sect.Align = symalign(ldr, s)
+		state.datsize = Rnd(state.datsize, int64(sect.Align))
+		sect.Vaddr = uint64(state.datsize)
+		ldr.SetSymSect(s, sect)
+		state.setSymType(s, sym.SDATA)
+		ldr.SetSymValue(s, int64(uint64(state.datsize)-sect.Vaddr))
+		state.datsize += ldr.SymSize(s)
+		sect.Length = uint64(state.datsize) - sect.Vaddr
+		state.checkdatsize(sym.SMODULEDATA)
+	}
+
 	// writable .got (note that for PIE binaries .got goes in relro)
 	if len(state.data[sym.SELFGOT]) > 0 {
 		state.allocateNamedSectionAndAssignSyms(&Segdata, ".got", sym.SELFGOT, sym.SDATA, 06)
@@ -2128,6 +2148,7 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.filetab", 0), sect)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.pctab", 0), sect)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.functab", 0), sect)
+	ldr.SetSymSect(ldr.LookupOrCreateSym("go:func.*", 0), sect)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.epclntab", 0), sect)
 	setCarrierSize(sym.SPCLNTAB, int64(sect.Length))
 	if ctxt.HeadType == objabi.Haix {
@@ -3066,6 +3087,7 @@ func (ctxt *Link) address() []*sym.Segment {
 	ctxt.defineInternal("runtime.filetab", sym.SRODATA)
 	ctxt.defineInternal("runtime.pctab", sym.SRODATA)
 	ctxt.defineInternal("runtime.functab", sym.SRODATA)
+	ctxt.defineInternal("go:func.*", sym.SRODATA)
 	ctxt.xdefine("runtime.epclntab", sym.SRODATA, int64(pclntab.Vaddr+pclntab.Length))
 	ctxt.xdefine("runtime.noptrdata", sym.SNOPTRDATA, int64(noptr.Vaddr))
 	ctxt.xdefine("runtime.enoptrdata", sym.SNOPTRDATAEND, int64(noptr.Vaddr+noptr.Length))

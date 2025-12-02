@@ -101,7 +101,7 @@ func putelfsym(ctxt *Link, x loader.Sym, typ elf.SymType, curbind elf.SymBind) {
 			ldr.Errorf(x, "missing ELF section in putelfsym")
 			return
 		}
-		elfshnum = xosect.Elfsect.(*ElfShdr).shnum
+		elfshnum = elfShdrShnum(xosect.Elfsect.(*ElfShdr))
 	}
 
 	sname := ldr.SymExtname(x)
@@ -496,13 +496,13 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 	}
 	var (
 		symgostring = groupSym("go:string.*", sym.SGOSTRING)
-		symgofunc   = groupSym("go:func.*", sym.SGOFUNC)
+		symgofunc   = groupSym("go:funcdesc", sym.SGOFUNC)
 		symgcbits   = groupSym("runtime.gcbits.*", sym.SGCBITS)
 	)
 
 	symgofuncrel := symgofunc
 	if ctxt.UseRelro() {
-		symgofuncrel = groupSym("go:funcrel.*", sym.SGOFUNCRELRO)
+		symgofuncrel = groupSym("go:funcdescrel", sym.SGOFUNCRELRO)
 	}
 
 	// assign specific types so that they sort together.
@@ -548,28 +548,6 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 				ldr.SetCarrierSym(s, symgofunc)
 			}
 
-		case strings.HasPrefix(name, "gcargs."),
-			strings.HasPrefix(name, "gclocals."),
-			strings.HasPrefix(name, "gclocals·"),
-			ldr.SymType(s) == sym.SGOFUNC && s != symgofunc, // inltree, see pcln.go
-			strings.HasSuffix(name, ".opendefer"),
-			strings.HasSuffix(name, ".arginfo0"),
-			strings.HasSuffix(name, ".arginfo1"),
-			strings.HasSuffix(name, ".argliveinfo"),
-			strings.HasSuffix(name, ".wrapinfo"),
-			strings.HasSuffix(name, ".args_stackmap"),
-			strings.HasSuffix(name, ".stkobj"):
-			ldr.SetAttrNotInSymbolTable(s, true)
-			symGroupType[s] = sym.SGOFUNC
-			ldr.SetCarrierSym(s, symgofunc)
-			if ctxt.Debugvlog != 0 {
-				align := ldr.SymAlign(s)
-				liveness += (ldr.SymSize(s) + int64(align) - 1) &^ (int64(align) - 1)
-			}
-
-		// Note: Check for "type:" prefix after checking for .arginfo1 suffix.
-		// That way symbols like "type:.eq.[2]interface {}.arginfo1" that belong
-		// in go:func.* end up there.
 		case strings.HasPrefix(name, "type:"):
 			if !ctxt.DynlinkingGo() {
 				ldr.SetAttrNotInSymbolTable(s, true)

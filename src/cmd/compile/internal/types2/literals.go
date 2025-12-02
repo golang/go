@@ -145,13 +145,6 @@ func (check *Checker) compositeLit(x *operand, e *syntax.CompositeLit, hint Type
 
 	switch u, _ := commonUnder(base, nil); utyp := u.(type) {
 	case *Struct:
-		// Prevent crash if the struct referred to is not yet set up.
-		// See analogous comment for *Array.
-		if utyp.fields == nil {
-			check.error(e, InvalidTypeCycle, "invalid recursive type")
-			x.mode = invalid
-			return
-		}
 		if len(e.ElemList) == 0 {
 			break
 		}
@@ -225,14 +218,6 @@ func (check *Checker) compositeLit(x *operand, e *syntax.CompositeLit, hint Type
 		}
 
 	case *Array:
-		// Prevent crash if the array referred to is not yet set up. Was go.dev/issue/18643.
-		// This is a stop-gap solution. Should use Checker.objPath to report entire
-		// path starting with earliest declaration in the source. TODO(gri) fix this.
-		if utyp.elem == nil {
-			check.error(e, InvalidTypeCycle, "invalid recursive type")
-			x.mode = invalid
-			return
-		}
 		n := check.indexedElts(e.ElemList, utyp.elem, utyp.len)
 		// If we have an array of unknown length (usually [...]T arrays, but also
 		// arrays [n]T where n is invalid) set the length now that we know it and
@@ -254,23 +239,9 @@ func (check *Checker) compositeLit(x *operand, e *syntax.CompositeLit, hint Type
 		}
 
 	case *Slice:
-		// Prevent crash if the slice referred to is not yet set up.
-		// See analogous comment for *Array.
-		if utyp.elem == nil {
-			check.error(e, InvalidTypeCycle, "invalid recursive type")
-			x.mode = invalid
-			return
-		}
 		check.indexedElts(e.ElemList, utyp.elem, -1)
 
 	case *Map:
-		// Prevent crash if the map referred to is not yet set up.
-		// See analogous comment for *Array.
-		if utyp.key == nil || utyp.elem == nil {
-			check.error(e, InvalidTypeCycle, "invalid recursive type")
-			x.mode = invalid
-			return
-		}
 		// If the map key type is an interface (but not a type parameter),
 		// the type of a constant key must be considered when checking for
 		// duplicates.

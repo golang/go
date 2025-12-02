@@ -661,7 +661,7 @@ func rsh64to32(v int64) int32 {
 	x := int32(v)
 	// riscv64:"MOVW"
 	if x > 8 {
-		// riscv64:"SRAIW" -"MOVW" -"SLLI"
+		// riscv64:"SRLIW" -"MOVW" -"SLLI"
 		x >>= 2
 	}
 	return x
@@ -671,7 +671,7 @@ func rsh64to16(v int64) int16 {
 	x := int16(v)
 	// riscv64:"MOVH"
 	if x > 8 {
-		// riscv64:"SLLI" "SRAI"
+		// riscv64:"SLLI" "SRLI"
 		x >>= 2
 	}
 	return x
@@ -681,7 +681,7 @@ func rsh64to8(v int64) int8 {
 	x := int8(v)
 	// riscv64:"MOVB"
 	if x > 8 {
-		// riscv64:"SLLI" "SRAI"
+		// riscv64:"SLLI" "SRLI"
 		x >>= 2
 	}
 	return x

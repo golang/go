@@ -817,11 +817,11 @@ func fetch(loaderstate *State, ctx context.Context, mod module.Version) (dir str
 		mod = r
 	}
 
-	if mustHaveSums(loaderstate) && !modfetch.HaveSum(mod) {
+	if mustHaveSums(loaderstate) && !modfetch.HaveSum(loaderstate.Fetcher(), mod) {
 		return "", false, module.VersionError(mod, &sumMissingError{})
 	}
 
-	dir, err = modfetch.Download(ctx, mod)
+	dir, err = loaderstate.Fetcher().Download(ctx, mod)
 	return dir, false, err
 }
 

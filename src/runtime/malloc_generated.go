@@ -5,11 +5,13 @@ package runtime
 
 import (
 	"internal/goarch"
+	"internal/goexperiment"
 	"internal/runtime/sys"
 	"unsafe"
 )
 
 func mallocgcSmallScanNoHeaderSC1(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -151,6 +153,12 @@ func mallocgcSmallScanNoHeaderSC1(size uintptr, typ *_type, needzero bool) unsaf
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -168,6 +176,7 @@ func mallocgcSmallScanNoHeaderSC1(size uintptr, typ *_type, needzero bool) unsaf
 }
 
 func mallocgcSmallScanNoHeaderSC2(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -309,6 +318,12 @@ func mallocgcSmallScanNoHeaderSC2(size uintptr, typ *_type, needzero bool) unsaf
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -326,6 +341,7 @@ func mallocgcSmallScanNoHeaderSC2(size uintptr, typ *_type, needzero bool) unsaf
 }
 
 func mallocgcSmallScanNoHeaderSC3(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -467,6 +483,12 @@ func mallocgcSmallScanNoHeaderSC3(size uintptr, typ *_type, needzero bool) unsaf
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -484,6 +506,7 @@ func mallocgcSmallScanNoHeaderSC3(size uintptr, typ *_type, needzero bool) unsaf
 }
 
 func mallocgcSmallScanNoHeaderSC4(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -625,6 +648,12 @@ func mallocgcSmallScanNoHeaderSC4(size uintptr, typ *_type, needzero bool) unsaf
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -642,6 +671,7 @@ func mallocgcSmallScanNoHeaderSC4(size uintptr, typ *_type, needzero bool) unsaf
 }
 
 func mallocgcSmallScanNoHeaderSC5(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -783,6 +813,12 @@ func mallocgcSmallScanNoHeaderSC5(size uintptr, typ *_type, needzero bool) unsaf
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -800,6 +836,7 @@ func mallocgcSmallScanNoHeaderSC5(size uintptr, typ *_type, needzero bool) unsaf
 }
 
 func mallocgcSmallScanNoHeaderSC6(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -941,6 +978,12 @@ func mallocgcSmallScanNoHeaderSC6(size uintptr, typ *_type, needzero bool) unsaf
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -958,6 +1001,7 @@ func mallocgcSmallScanNoHeaderSC6(size uintptr, typ *_type, needzero bool) unsaf
 }
 
 func mallocgcSmallScanNoHeaderSC7(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -1099,6 +1143,12 @@ func mallocgcSmallScanNoHeaderSC7(size uintptr, typ *_type, needzero bool) unsaf
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -1116,6 +1166,7 @@ func mallocgcSmallScanNoHeaderSC7(size uintptr, typ *_type, needzero bool) unsaf
 }
 
 func mallocgcSmallScanNoHeaderSC8(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -1257,6 +1308,12 @@ func mallocgcSmallScanNoHeaderSC8(size uintptr, typ *_type, needzero bool) unsaf
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -1274,6 +1331,7 @@ func mallocgcSmallScanNoHeaderSC8(size uintptr, typ *_type, needzero bool) unsaf
 }
 
 func mallocgcSmallScanNoHeaderSC9(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -1415,6 +1473,12 @@ func mallocgcSmallScanNoHeaderSC9(size uintptr, typ *_type, needzero bool) unsaf
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -1432,6 +1496,7 @@ func mallocgcSmallScanNoHeaderSC9(size uintptr, typ *_type, needzero bool) unsaf
 }
 
 func mallocgcSmallScanNoHeaderSC10(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -1573,6 +1638,12 @@ func mallocgcSmallScanNoHeaderSC10(size uintptr, typ *_type, needzero bool) unsa
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -1590,6 +1661,7 @@ func mallocgcSmallScanNoHeaderSC10(size uintptr, typ *_type, needzero bool) unsa
 }
 
 func mallocgcSmallScanNoHeaderSC11(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -1731,6 +1803,12 @@ func mallocgcSmallScanNoHeaderSC11(size uintptr, typ *_type, needzero bool) unsa
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -1748,6 +1826,7 @@ func mallocgcSmallScanNoHeaderSC11(size uintptr, typ *_type, needzero bool) unsa
 }
 
 func mallocgcSmallScanNoHeaderSC12(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -1889,6 +1968,12 @@ func mallocgcSmallScanNoHeaderSC12(size uintptr, typ *_type, needzero bool) unsa
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -1906,6 +1991,7 @@ func mallocgcSmallScanNoHeaderSC12(size uintptr, typ *_type, needzero bool) unsa
 }
 
 func mallocgcSmallScanNoHeaderSC13(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -2047,6 +2133,12 @@ func mallocgcSmallScanNoHeaderSC13(size uintptr, typ *_type, needzero bool) unsa
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -2064,6 +2156,7 @@ func mallocgcSmallScanNoHeaderSC13(size uintptr, typ *_type, needzero bool) unsa
 }
 
 func mallocgcSmallScanNoHeaderSC14(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -2205,6 +2298,12 @@ func mallocgcSmallScanNoHeaderSC14(size uintptr, typ *_type, needzero bool) unsa
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -2222,6 +2321,7 @@ func mallocgcSmallScanNoHeaderSC14(size uintptr, typ *_type, needzero bool) unsa
 }
 
 func mallocgcSmallScanNoHeaderSC15(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -2363,6 +2463,12 @@ func mallocgcSmallScanNoHeaderSC15(size uintptr, typ *_type, needzero bool) unsa
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -2380,6 +2486,7 @@ func mallocgcSmallScanNoHeaderSC15(size uintptr, typ *_type, needzero bool) unsa
 }
 
 func mallocgcSmallScanNoHeaderSC16(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -2521,6 +2628,12 @@ func mallocgcSmallScanNoHeaderSC16(size uintptr, typ *_type, needzero bool) unsa
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -2538,6 +2651,7 @@ func mallocgcSmallScanNoHeaderSC16(size uintptr, typ *_type, needzero bool) unsa
 }
 
 func mallocgcSmallScanNoHeaderSC17(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -2679,6 +2793,12 @@ func mallocgcSmallScanNoHeaderSC17(size uintptr, typ *_type, needzero bool) unsa
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -2696,6 +2816,7 @@ func mallocgcSmallScanNoHeaderSC17(size uintptr, typ *_type, needzero bool) unsa
 }
 
 func mallocgcSmallScanNoHeaderSC18(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -2837,6 +2958,12 @@ func mallocgcSmallScanNoHeaderSC18(size uintptr, typ *_type, needzero bool) unsa
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -2854,6 +2981,7 @@ func mallocgcSmallScanNoHeaderSC18(size uintptr, typ *_type, needzero bool) unsa
 }
 
 func mallocgcSmallScanNoHeaderSC19(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -2995,6 +3123,12 @@ func mallocgcSmallScanNoHeaderSC19(size uintptr, typ *_type, needzero bool) unsa
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -3012,6 +3146,7 @@ func mallocgcSmallScanNoHeaderSC19(size uintptr, typ *_type, needzero bool) unsa
 }
 
 func mallocgcSmallScanNoHeaderSC20(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -3153,6 +3288,12 @@ func mallocgcSmallScanNoHeaderSC20(size uintptr, typ *_type, needzero bool) unsa
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -3170,6 +3311,7 @@ func mallocgcSmallScanNoHeaderSC20(size uintptr, typ *_type, needzero bool) unsa
 }
 
 func mallocgcSmallScanNoHeaderSC21(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -3311,6 +3453,12 @@ func mallocgcSmallScanNoHeaderSC21(size uintptr, typ *_type, needzero bool) unsa
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -3328,6 +3476,7 @@ func mallocgcSmallScanNoHeaderSC21(size uintptr, typ *_type, needzero bool) unsa
 }
 
 func mallocgcSmallScanNoHeaderSC22(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -3469,6 +3618,12 @@ func mallocgcSmallScanNoHeaderSC22(size uintptr, typ *_type, needzero bool) unsa
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -3486,6 +3641,7 @@ func mallocgcSmallScanNoHeaderSC22(size uintptr, typ *_type, needzero bool) unsa
 }
 
 func mallocgcSmallScanNoHeaderSC23(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -3627,6 +3783,12 @@ func mallocgcSmallScanNoHeaderSC23(size uintptr, typ *_type, needzero bool) unsa
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -3644,6 +3806,7 @@ func mallocgcSmallScanNoHeaderSC23(size uintptr, typ *_type, needzero bool) unsa
 }
 
 func mallocgcSmallScanNoHeaderSC24(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -3785,6 +3948,12 @@ func mallocgcSmallScanNoHeaderSC24(size uintptr, typ *_type, needzero bool) unsa
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -3802,6 +3971,7 @@ func mallocgcSmallScanNoHeaderSC24(size uintptr, typ *_type, needzero bool) unsa
 }
 
 func mallocgcSmallScanNoHeaderSC25(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -3943,6 +4113,12 @@ func mallocgcSmallScanNoHeaderSC25(size uintptr, typ *_type, needzero bool) unsa
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -3960,6 +4136,7 @@ func mallocgcSmallScanNoHeaderSC25(size uintptr, typ *_type, needzero bool) unsa
 }
 
 func mallocgcSmallScanNoHeaderSC26(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -4101,6 +4278,12 @@ func mallocgcSmallScanNoHeaderSC26(size uintptr, typ *_type, needzero bool) unsa
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -4118,6 +4301,12 @@ func mallocgcSmallScanNoHeaderSC26(size uintptr, typ *_type, needzero bool) unsa
 }
 
 func mallocTiny1(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+		return mallocgcSmallNoScanSC2(size, typ, needzero)
+	}
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -4268,6 +4457,12 @@ func mallocTiny1(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 }
 
 func mallocTiny2(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+		return mallocgcSmallNoScanSC2(size, typ, needzero)
+	}
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -4418,6 +4613,12 @@ func mallocTiny2(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 }
 
 func mallocTiny3(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+		return mallocgcSmallNoScanSC2(size, typ, needzero)
+	}
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -4568,6 +4769,12 @@ func mallocTiny3(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 }
 
 func mallocTiny4(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+		return mallocgcSmallNoScanSC2(size, typ, needzero)
+	}
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -4718,6 +4925,12 @@ func mallocTiny4(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 }
 
 func mallocTiny5(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+		return mallocgcSmallNoScanSC2(size, typ, needzero)
+	}
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -4868,6 +5081,12 @@ func mallocTiny5(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 }
 
 func mallocTiny6(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+		return mallocgcSmallNoScanSC2(size, typ, needzero)
+	}
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -5018,6 +5237,12 @@ func mallocTiny6(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 }
 
 func mallocTiny7(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+		return mallocgcSmallNoScanSC2(size, typ, needzero)
+	}
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -5168,6 +5393,12 @@ func mallocTiny7(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 }
 
 func mallocTiny8(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+		return mallocgcSmallNoScanSC2(size, typ, needzero)
+	}
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -5318,6 +5549,12 @@ func mallocTiny8(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 }
 
 func mallocTiny9(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+		return mallocgcSmallNoScanSC2(size, typ, needzero)
+	}
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -5468,6 +5705,12 @@ func mallocTiny9(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 }
 
 func mallocTiny10(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+		return mallocgcSmallNoScanSC2(size, typ, needzero)
+	}
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -5618,6 +5861,12 @@ func mallocTiny10(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 }
 
 func mallocTiny11(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+		return mallocgcSmallNoScanSC2(size, typ, needzero)
+	}
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -5768,6 +6017,12 @@ func mallocTiny11(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 }
 
 func mallocTiny12(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+		return mallocgcSmallNoScanSC2(size, typ, needzero)
+	}
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -5918,6 +6173,12 @@ func mallocTiny12(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 }
 
 func mallocTiny13(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+		return mallocgcSmallNoScanSC2(size, typ, needzero)
+	}
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -6068,6 +6329,12 @@ func mallocTiny13(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 }
 
 func mallocTiny14(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+		return mallocgcSmallNoScanSC2(size, typ, needzero)
+	}
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -6218,6 +6485,12 @@ func mallocTiny14(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 }
 
 func mallocTiny15(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+		return mallocgcSmallNoScanSC2(size, typ, needzero)
+	}
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -6368,6 +6641,7 @@ func mallocTiny15(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 }
 
 func mallocgcSmallNoScanSC2(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -6408,6 +6682,12 @@ func mallocgcSmallNoScanSC2(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		releasem(mp)
 		x := v
 		{
+
+			gp := getg()
+			if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+				addSecret(x)
+			}
 
 			if valgrindenabled {
 				valgrindMalloc(x, size)
@@ -6474,6 +6754,12 @@ func mallocgcSmallNoScanSC2(size uintptr, typ *_type, needzero bool) unsafe.Poin
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -6491,6 +6777,7 @@ func mallocgcSmallNoScanSC2(size uintptr, typ *_type, needzero bool) unsafe.Poin
 }
 
 func mallocgcSmallNoScanSC3(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -6531,6 +6818,12 @@ func mallocgcSmallNoScanSC3(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		releasem(mp)
 		x := v
 		{
+
+			gp := getg()
+			if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+				addSecret(x)
+			}
 
 			if valgrindenabled {
 				valgrindMalloc(x, size)
@@ -6597,6 +6890,12 @@ func mallocgcSmallNoScanSC3(size uintptr, typ *_type, needzero bool) unsafe.Poin
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -6614,6 +6913,7 @@ func mallocgcSmallNoScanSC3(size uintptr, typ *_type, needzero bool) unsafe.Poin
 }
 
 func mallocgcSmallNoScanSC4(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -6654,6 +6954,12 @@ func mallocgcSmallNoScanSC4(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		releasem(mp)
 		x := v
 		{
+
+			gp := getg()
+			if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+				addSecret(x)
+			}
 
 			if valgrindenabled {
 				valgrindMalloc(x, size)
@@ -6720,6 +7026,12 @@ func mallocgcSmallNoScanSC4(size uintptr, typ *_type, needzero bool) unsafe.Poin
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -6737,6 +7049,7 @@ func mallocgcSmallNoScanSC4(size uintptr, typ *_type, needzero bool) unsafe.Poin
 }
 
 func mallocgcSmallNoScanSC5(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -6777,6 +7090,12 @@ func mallocgcSmallNoScanSC5(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		releasem(mp)
 		x := v
 		{
+
+			gp := getg()
+			if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+				addSecret(x)
+			}
 
 			if valgrindenabled {
 				valgrindMalloc(x, size)
@@ -6843,6 +7162,12 @@ func mallocgcSmallNoScanSC5(size uintptr, typ *_type, needzero bool) unsafe.Poin
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -6860,6 +7185,7 @@ func mallocgcSmallNoScanSC5(size uintptr, typ *_type, needzero bool) unsafe.Poin
 }
 
 func mallocgcSmallNoScanSC6(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -6900,6 +7226,12 @@ func mallocgcSmallNoScanSC6(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		releasem(mp)
 		x := v
 		{
+
+			gp := getg()
+			if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+				addSecret(x)
+			}
 
 			if valgrindenabled {
 				valgrindMalloc(x, size)
@@ -6966,6 +7298,12 @@ func mallocgcSmallNoScanSC6(size uintptr, typ *_type, needzero bool) unsafe.Poin
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -6983,6 +7321,7 @@ func mallocgcSmallNoScanSC6(size uintptr, typ *_type, needzero bool) unsafe.Poin
 }
 
 func mallocgcSmallNoScanSC7(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -7023,6 +7362,12 @@ func mallocgcSmallNoScanSC7(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		releasem(mp)
 		x := v
 		{
+
+			gp := getg()
+			if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+				addSecret(x)
+			}
 
 			if valgrindenabled {
 				valgrindMalloc(x, size)
@@ -7089,6 +7434,12 @@ func mallocgcSmallNoScanSC7(size uintptr, typ *_type, needzero bool) unsafe.Poin
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -7106,6 +7457,7 @@ func mallocgcSmallNoScanSC7(size uintptr, typ *_type, needzero bool) unsafe.Poin
 }
 
 func mallocgcSmallNoScanSC8(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -7146,6 +7498,12 @@ func mallocgcSmallNoScanSC8(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		releasem(mp)
 		x := v
 		{
+
+			gp := getg()
+			if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+				addSecret(x)
+			}
 
 			if valgrindenabled {
 				valgrindMalloc(x, size)
@@ -7212,6 +7570,12 @@ func mallocgcSmallNoScanSC8(size uintptr, typ *_type, needzero bool) unsafe.Poin
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -7229,6 +7593,7 @@ func mallocgcSmallNoScanSC8(size uintptr, typ *_type, needzero bool) unsafe.Poin
 }
 
 func mallocgcSmallNoScanSC9(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -7269,6 +7634,12 @@ func mallocgcSmallNoScanSC9(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		releasem(mp)
 		x := v
 		{
+
+			gp := getg()
+			if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+				addSecret(x)
+			}
 
 			if valgrindenabled {
 				valgrindMalloc(x, size)
@@ -7335,6 +7706,12 @@ func mallocgcSmallNoScanSC9(size uintptr, typ *_type, needzero bool) unsafe.Poin
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -7352,6 +7729,7 @@ func mallocgcSmallNoScanSC9(size uintptr, typ *_type, needzero bool) unsafe.Poin
 }
 
 func mallocgcSmallNoScanSC10(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -7392,6 +7770,12 @@ func mallocgcSmallNoScanSC10(size uintptr, typ *_type, needzero bool) unsafe.Poi
 		releasem(mp)
 		x := v
 		{
+
+			gp := getg()
+			if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+				addSecret(x)
+			}
 
 			if valgrindenabled {
 				valgrindMalloc(x, size)
@@ -7458,6 +7842,12 @@ func mallocgcSmallNoScanSC10(size uintptr, typ *_type, needzero bool) unsafe.Poi
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -7475,6 +7865,7 @@ func mallocgcSmallNoScanSC10(size uintptr, typ *_type, needzero bool) unsafe.Poi
 }
 
 func mallocgcSmallNoScanSC11(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -7515,6 +7906,12 @@ func mallocgcSmallNoScanSC11(size uintptr, typ *_type, needzero bool) unsafe.Poi
 		releasem(mp)
 		x := v
 		{
+
+			gp := getg()
+			if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+				addSecret(x)
+			}
 
 			if valgrindenabled {
 				valgrindMalloc(x, size)
@@ -7581,6 +7978,12 @@ func mallocgcSmallNoScanSC11(size uintptr, typ *_type, needzero bool) unsafe.Poi
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -7598,6 +8001,7 @@ func mallocgcSmallNoScanSC11(size uintptr, typ *_type, needzero bool) unsafe.Poi
 }
 
 func mallocgcSmallNoScanSC12(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -7638,6 +8042,12 @@ func mallocgcSmallNoScanSC12(size uintptr, typ *_type, needzero bool) unsafe.Poi
 		releasem(mp)
 		x := v
 		{
+
+			gp := getg()
+			if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+				addSecret(x)
+			}
 
 			if valgrindenabled {
 				valgrindMalloc(x, size)
@@ -7704,6 +8114,12 @@ func mallocgcSmallNoScanSC12(size uintptr, typ *_type, needzero bool) unsafe.Poi
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -7721,6 +8137,7 @@ func mallocgcSmallNoScanSC12(size uintptr, typ *_type, needzero bool) unsafe.Poi
 }
 
 func mallocgcSmallNoScanSC13(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -7761,6 +8178,12 @@ func mallocgcSmallNoScanSC13(size uintptr, typ *_type, needzero bool) unsafe.Poi
 		releasem(mp)
 		x := v
 		{
+
+			gp := getg()
+			if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+				addSecret(x)
+			}
 
 			if valgrindenabled {
 				valgrindMalloc(x, size)
@@ -7827,6 +8250,12 @@ func mallocgcSmallNoScanSC13(size uintptr, typ *_type, needzero bool) unsafe.Poi
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -7844,6 +8273,7 @@ func mallocgcSmallNoScanSC13(size uintptr, typ *_type, needzero bool) unsafe.Poi
 }
 
 func mallocgcSmallNoScanSC14(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -7884,6 +8314,12 @@ func mallocgcSmallNoScanSC14(size uintptr, typ *_type, needzero bool) unsafe.Poi
 		releasem(mp)
 		x := v
 		{
+
+			gp := getg()
+			if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+				addSecret(x)
+			}
 
 			if valgrindenabled {
 				valgrindMalloc(x, size)
@@ -7950,6 +8386,12 @@ func mallocgcSmallNoScanSC14(size uintptr, typ *_type, needzero bool) unsafe.Poi
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -7967,6 +8409,7 @@ func mallocgcSmallNoScanSC14(size uintptr, typ *_type, needzero bool) unsafe.Poi
 }
 
 func mallocgcSmallNoScanSC15(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -8007,6 +8450,12 @@ func mallocgcSmallNoScanSC15(size uintptr, typ *_type, needzero bool) unsafe.Poi
 		releasem(mp)
 		x := v
 		{
+
+			gp := getg()
+			if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+				addSecret(x)
+			}
 
 			if valgrindenabled {
 				valgrindMalloc(x, size)
@@ -8073,6 +8522,12 @@ func mallocgcSmallNoScanSC15(size uintptr, typ *_type, needzero bool) unsafe.Poi
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -8090,6 +8545,7 @@ func mallocgcSmallNoScanSC15(size uintptr, typ *_type, needzero bool) unsafe.Poi
 }
 
 func mallocgcSmallNoScanSC16(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -8130,6 +8586,12 @@ func mallocgcSmallNoScanSC16(size uintptr, typ *_type, needzero bool) unsafe.Poi
 		releasem(mp)
 		x := v
 		{
+
+			gp := getg()
+			if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+				addSecret(x)
+			}
 
 			if valgrindenabled {
 				valgrindMalloc(x, size)
@@ -8196,6 +8658,12 @@ func mallocgcSmallNoScanSC16(size uintptr, typ *_type, needzero bool) unsafe.Poi
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -8213,6 +8681,7 @@ func mallocgcSmallNoScanSC16(size uintptr, typ *_type, needzero bool) unsafe.Poi
 }
 
 func mallocgcSmallNoScanSC17(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -8253,6 +8722,12 @@ func mallocgcSmallNoScanSC17(size uintptr, typ *_type, needzero bool) unsafe.Poi
 		releasem(mp)
 		x := v
 		{
+
+			gp := getg()
+			if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+				addSecret(x)
+			}
 
 			if valgrindenabled {
 				valgrindMalloc(x, size)
@@ -8319,6 +8794,12 @@ func mallocgcSmallNoScanSC17(size uintptr, typ *_type, needzero bool) unsafe.Poi
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -8336,6 +8817,7 @@ func mallocgcSmallNoScanSC17(size uintptr, typ *_type, needzero bool) unsafe.Poi
 }
 
 func mallocgcSmallNoScanSC18(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -8376,6 +8858,12 @@ func mallocgcSmallNoScanSC18(size uintptr, typ *_type, needzero bool) unsafe.Poi
 		releasem(mp)
 		x := v
 		{
+
+			gp := getg()
+			if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+				addSecret(x)
+			}
 
 			if valgrindenabled {
 				valgrindMalloc(x, size)
@@ -8442,6 +8930,12 @@ func mallocgcSmallNoScanSC18(size uintptr, typ *_type, needzero bool) unsafe.Poi
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -8459,6 +8953,7 @@ func mallocgcSmallNoScanSC18(size uintptr, typ *_type, needzero bool) unsafe.Poi
 }
 
 func mallocgcSmallNoScanSC19(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -8499,6 +8994,12 @@ func mallocgcSmallNoScanSC19(size uintptr, typ *_type, needzero bool) unsafe.Poi
 		releasem(mp)
 		x := v
 		{
+
+			gp := getg()
+			if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+				addSecret(x)
+			}
 
 			if valgrindenabled {
 				valgrindMalloc(x, size)
@@ -8565,6 +9066,12 @@ func mallocgcSmallNoScanSC19(size uintptr, typ *_type, needzero bool) unsafe.Poi
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -8582,6 +9089,7 @@ func mallocgcSmallNoScanSC19(size uintptr, typ *_type, needzero bool) unsafe.Poi
 }
 
 func mallocgcSmallNoScanSC20(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -8622,6 +9130,12 @@ func mallocgcSmallNoScanSC20(size uintptr, typ *_type, needzero bool) unsafe.Poi
 		releasem(mp)
 		x := v
 		{
+
+			gp := getg()
+			if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+				addSecret(x)
+			}
 
 			if valgrindenabled {
 				valgrindMalloc(x, size)
@@ -8688,6 +9202,12 @@ func mallocgcSmallNoScanSC20(size uintptr, typ *_type, needzero bool) unsafe.Poi
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -8705,6 +9225,7 @@ func mallocgcSmallNoScanSC20(size uintptr, typ *_type, needzero bool) unsafe.Poi
 }
 
 func mallocgcSmallNoScanSC21(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -8745,6 +9266,12 @@ func mallocgcSmallNoScanSC21(size uintptr, typ *_type, needzero bool) unsafe.Poi
 		releasem(mp)
 		x := v
 		{
+
+			gp := getg()
+			if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+				addSecret(x)
+			}
 
 			if valgrindenabled {
 				valgrindMalloc(x, size)
@@ -8811,6 +9338,12 @@ func mallocgcSmallNoScanSC21(size uintptr, typ *_type, needzero bool) unsafe.Poi
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -8828,6 +9361,7 @@ func mallocgcSmallNoScanSC21(size uintptr, typ *_type, needzero bool) unsafe.Poi
 }
 
 func mallocgcSmallNoScanSC22(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -8868,6 +9402,12 @@ func mallocgcSmallNoScanSC22(size uintptr, typ *_type, needzero bool) unsafe.Poi
 		releasem(mp)
 		x := v
 		{
+
+			gp := getg()
+			if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+				addSecret(x)
+			}
 
 			if valgrindenabled {
 				valgrindMalloc(x, size)
@@ -8934,6 +9474,12 @@ func mallocgcSmallNoScanSC22(size uintptr, typ *_type, needzero bool) unsafe.Poi
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -8951,6 +9497,7 @@ func mallocgcSmallNoScanSC22(size uintptr, typ *_type, needzero bool) unsafe.Poi
 }
 
 func mallocgcSmallNoScanSC23(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -8991,6 +9538,12 @@ func mallocgcSmallNoScanSC23(size uintptr, typ *_type, needzero bool) unsafe.Poi
 		releasem(mp)
 		x := v
 		{
+
+			gp := getg()
+			if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+				addSecret(x)
+			}
 
 			if valgrindenabled {
 				valgrindMalloc(x, size)
@@ -9057,6 +9610,12 @@ func mallocgcSmallNoScanSC23(size uintptr, typ *_type, needzero bool) unsafe.Poi
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -9074,6 +9633,7 @@ func mallocgcSmallNoScanSC23(size uintptr, typ *_type, needzero bool) unsafe.Poi
 }
 
 func mallocgcSmallNoScanSC24(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -9114,6 +9674,12 @@ func mallocgcSmallNoScanSC24(size uintptr, typ *_type, needzero bool) unsafe.Poi
 		releasem(mp)
 		x := v
 		{
+
+			gp := getg()
+			if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+				addSecret(x)
+			}
 
 			if valgrindenabled {
 				valgrindMalloc(x, size)
@@ -9180,6 +9746,12 @@ func mallocgcSmallNoScanSC24(size uintptr, typ *_type, needzero bool) unsafe.Poi
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -9197,6 +9769,7 @@ func mallocgcSmallNoScanSC24(size uintptr, typ *_type, needzero bool) unsafe.Poi
 }
 
 func mallocgcSmallNoScanSC25(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -9237,6 +9810,12 @@ func mallocgcSmallNoScanSC25(size uintptr, typ *_type, needzero bool) unsafe.Poi
 		releasem(mp)
 		x := v
 		{
+
+			gp := getg()
+			if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+				addSecret(x)
+			}
 
 			if valgrindenabled {
 				valgrindMalloc(x, size)
@@ -9303,6 +9882,12 @@ func mallocgcSmallNoScanSC25(size uintptr, typ *_type, needzero bool) unsafe.Poi
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}
@@ -9320,6 +9905,7 @@ func mallocgcSmallNoScanSC25(size uintptr, typ *_type, needzero bool) unsafe.Poi
 }
 
 func mallocgcSmallNoScanSC26(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
@@ -9360,6 +9946,12 @@ func mallocgcSmallNoScanSC26(size uintptr, typ *_type, needzero bool) unsafe.Poi
 		releasem(mp)
 		x := v
 		{
+
+			gp := getg()
+			if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+				addSecret(x)
+			}
 
 			if valgrindenabled {
 				valgrindMalloc(x, size)
@@ -9426,6 +10018,12 @@ func mallocgcSmallNoScanSC26(size uintptr, typ *_type, needzero bool) unsafe.Poi
 			gcStart(t)
 		}
 	}
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+
+		addSecret(x)
+	}
+
 	if valgrindenabled {
 		valgrindMalloc(x, size)
 	}

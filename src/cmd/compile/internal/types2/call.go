@@ -669,7 +669,7 @@ var cgoPrefixes = [...]string{
 	"_Cmacro_", // function to evaluate the expanded expression
 }
 
-func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName, wantType bool) {
+func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, wantType bool) {
 	// these must be declared before the "goto Error" statements
 	var (
 		obj      Object
@@ -715,7 +715,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
 					}
 					goto Error
 				}
-				check.objDecl(exp, nil)
+				check.objDecl(exp)
 			} else {
 				exp = pkg.scope.Lookup(sel)
 				if exp == nil {
@@ -777,12 +777,6 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
 
 	check.exprOrType(x, e.X, false)
 	switch x.mode {
-	case typexpr:
-		// don't crash for "type T T.x" (was go.dev/issue/51509)
-		if def != nil && def.typ == x.typ {
-			check.cycleError([]Object{def}, 0)
-			goto Error
-		}
 	case builtin:
 		check.errorf(e.Pos(), UncalledBuiltin, "invalid use of %s in selector expression", x)
 		goto Error
@@ -844,7 +838,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
 
 	// methods may not have a fully set up signature yet
 	if m, _ := obj.(*Func); m != nil {
-		check.objDecl(m, nil)
+		check.objDecl(m)
 	}
 
 	if x.mode == typexpr {

@@ -1,0 +1,14 @@
+!sum
+- go: Mul
+  commutative: true
+  documentation: !string |-
+    // NAME multiplies corresponding elements of two vectors.
+- go: MulEvenWiden
+  commutative: true
+  documentation: !string |-
+    // NAME multiplies even-indexed elements, widening the result.
+    // Result[i] = v1.Even[i] * v2.Even[i].
+- go: MulHigh
+  commutative: true
+  documentation: !string |-
+    // NAME multiplies elements and stores the high part of the result.

@@ -462,13 +462,13 @@ func LoadPackages(loaderstate *State, ctx context.Context, opts PackageOpts, pat
 			}
 			goModDiff := diff.Diff("current/go.mod", currentGoMod, "tidy/go.mod", updatedGoMod)
 
-			modfetch.TrimGoSum(keep)
+			loaderstate.Fetcher().TrimGoSum(keep)
 			// Dropping compatibility for 1.16 may result in a strictly smaller go.sum.
 			// Update the keep map with only the loaded.requirements.
 			if gover.Compare(compatVersion, "1.16") > 0 {
 				keep = keepSums(loaderstate, ctx, loaded, loaderstate.requirements, addBuildListZipSums)
 			}
-			currentGoSum, tidyGoSum := modfetch.TidyGoSum(keep)
+			currentGoSum, tidyGoSum := loaderstate.fetcher.TidyGoSum(keep)
 			goSumDiff := diff.Diff("current/go.sum", currentGoSum, "tidy/go.sum", tidyGoSum)
 
 			if len(goModDiff) > 0 {
@@ -483,14 +483,14 @@ func LoadPackages(loaderstate *State, ctx context.Context, opts PackageOpts, pat
 		}
 
 		if !ExplicitWriteGoMod {
-			modfetch.TrimGoSum(keep)
+			loaderstate.Fetcher().TrimGoSum(keep)
 
 			// commitRequirements below will also call WriteGoSum, but the "keep" map
 			// we have here could be strictly larger: commitRequirements only commits
 			// loaded.requirements, but here we may have also loaded (and want to
 			// preserve checksums for) additional entities from compatRS, which are
 			// only needed for compatibility with ld.TidyCompatibleVersion.
-			if err := modfetch.WriteGoSum(ctx, keep, mustHaveCompleteRequirements(loaderstate)); err != nil {
+			if err := loaderstate.Fetcher().WriteGoSum(ctx, keep, mustHaveCompleteRequirements(loaderstate)); err != nil {
 				base.Fatal(err)
 			}
 		}

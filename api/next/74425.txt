@@ -1,0 +1,2 @@
+pkg crypto/tls, type ConnectionState struct, HelloRetryRequest bool #74425
+pkg crypto/tls, type ClientHelloInfo struct, HelloRetryRequest bool #74425

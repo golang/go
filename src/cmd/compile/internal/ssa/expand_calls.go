@@ -396,6 +396,9 @@ func (x *expandState) decomposeAsNecessary(pos src.XPos, b *Block, a, m0 *Value,
 		return mem
 
 	case types.TSTRUCT:
+		if at.IsSIMD() {
+			break // XXX
+		}
 		for i := 0; i < at.NumFields(); i++ {
 			et := at.Field(i).Type // might need to read offsets from the fields
 			e := b.NewValue1I(pos, OpStructSelect, et, int64(i), a)
@@ -551,6 +554,9 @@ func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *Block, container, a, m
 
 	case types.TSTRUCT:
 		// Assume ssagen/ssa.go (in buildssa) spills large aggregates so they won't appear here.
+		if at.IsSIMD() {
+			break // XXX
+		}
 		for i := 0; i < at.NumFields(); i++ {
 			et := at.Field(i).Type
 			e := x.rewriteSelectOrArg(pos, b, container, nil, m0, et, rc.next(et))
@@ -717,6 +723,9 @@ func (x *expandState) rewriteWideSelectToStores(pos src.XPos, b *Block, containe
 
 	case types.TSTRUCT:
 		// Assume ssagen/ssa.go (in buildssa) spills large aggregates so they won't appear here.
+		if at.IsSIMD() {
+			break // XXX
+		}
 		for i := 0; i < at.NumFields(); i++ {
 			et := at.Field(i).Type
 			m0 = x.rewriteWideSelectToStores(pos, b, container, m0, et, rc.next(et))

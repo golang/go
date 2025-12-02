@@ -1,0 +1,43 @@
+!sum
+# const imm predicate(holds for both float and int|uint):
+# 0: Equal
+# 1: Less
+# 2: LessEqual
+# 4: NotEqual
+# 5: GreaterEqual
+# 6: Greater
+- go: Equal
+  constImm: 0
+  commutative: true
+  documentation: !string |-
+    // NAME compares for equality.
+- go: Less
+  constImm: 1
+  commutative: false
+  documentation: !string |-
+    // NAME compares for less than.
+- go: LessEqual
+  constImm: 2
+  commutative: false
+  documentation: !string |-
+    // NAME compares for less than or equal.
+- go: IsNan # For float only.
+  constImm: 3
+  commutative: true
+  documentation: !string |-
+    // NAME checks if elements are NaN. Use as x.IsNan(x).
+- go: NotEqual
+  constImm: 4
+  commutative: true
+  documentation: !string |-
+    // NAME compares for inequality.
+- go: GreaterEqual
+  constImm: 13
+  commutative: false
+  documentation: !string |-
+    // NAME compares for greater than or equal.
+- go: Greater
+  constImm: 14
+  commutative: false
+  documentation: !string |-
+    // NAME compares for greater than.

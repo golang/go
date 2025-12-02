@@ -139,8 +139,8 @@ const (
 	REG_RESERVED // end of allocated registers
 
 	REGARG  = -1      // -1 disables passing the first argument in register
-	REGRT1  = REG_R3  // used during zeroing of the stack - not reserved
-	REGRT2  = REG_R4  // used during zeroing of the stack - not reserved
+	REGRT1  = REG_R1  // used during zeroing of the stack - not reserved
+	REGRT2  = REG_R10 // used during zeroing of the stack - not reserved
 	REGTMP  = REG_R10 // scratch register used in the assembler and linker
 	REGTMP2 = REG_R11 // scratch register used in the assembler and linker
 	REGCTXT = REG_R12 // context for closures

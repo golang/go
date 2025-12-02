@@ -125,21 +125,23 @@ func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options, d
 		Host:     host,
 		Port:     port,
 		Handlers: map[string]http.Handler{
-			"/":              http.HandlerFunc(ui.dot),
-			"/top":           http.HandlerFunc(ui.top),
-			"/disasm":        http.HandlerFunc(ui.disasm),
-			"/source":        http.HandlerFunc(ui.source),
-			"/peek":          http.HandlerFunc(ui.peek),
-			"/flamegraph":    http.HandlerFunc(ui.stackView),
-			"/flamegraph2":   redirectWithQuery("flamegraph", http.StatusMovedPermanently), // Keep legacy URL working.
-			"/flamegraphold": redirectWithQuery("flamegraph", http.StatusMovedPermanently), // Keep legacy URL working.
-			"/saveconfig":    http.HandlerFunc(ui.saveConfig),
-			"/deleteconfig":  http.HandlerFunc(ui.deleteConfig),
+			"/":             redirectWithQuery("flamegraph", http.StatusMovedPermanently),
+			"/graph":        http.HandlerFunc(ui.dot),
+			"/top":          http.HandlerFunc(ui.top),
+			"/disasm":       http.HandlerFunc(ui.disasm),
+			"/source":       http.HandlerFunc(ui.source),
+			"/peek":         http.HandlerFunc(ui.peek),
+			"/flamegraph":   http.HandlerFunc(ui.stackView),
+			"/saveconfig":   http.HandlerFunc(ui.saveConfig),
+			"/deleteconfig": http.HandlerFunc(ui.deleteConfig),
 			"/download": http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 				w.Header().Set("Content-Type", "application/vnd.google.protobuf+gzip")
 				w.Header().Set("Content-Disposition", "attachment;filename=profile.pb.gz")
 				p.Write(w)
 			}),
+			// Keep legacy URLs working.
+			"/flamegraph2":   redirectWithQuery("flamegraph", http.StatusMovedPermanently),
+			"/flamegraphold": redirectWithQuery("flamegraph", http.StatusMovedPermanently),
 		},
 	}
 

@@ -156,24 +156,38 @@ var p521Order = []byte{0x01, 0xff,
 	0x3b, 0xb5, 0xc9, 0xb8, 0x89, 0x9c, 0x47, 0xae,
 	0xbb, 0x6f, 0xb7, 0x1e, 0x91, 0x38, 0x64, 0x09}
 
+// NewPrivateKey creates a new ECDSA private key from the given D and Q byte
+// slices. D must be the fixed-length big-endian encoding of the private scalar,
+// and Q must be the compressed or uncompressed encoding of the public point.
 func NewPrivateKey[P Point[P]](c *Curve[P], D, Q []byte) (*PrivateKey, error) {
 	fips140.RecordApproved()
 	pub, err := NewPublicKey(c, Q)
 	if err != nil {
 		return nil, err
 	}
+	if len(D) != c.N.Size() {
+		return nil, errors.New("ecdsa: invalid private key length")
+	}
 	d, err := bigmod.NewNat().SetBytes(D, c.N)
 	if err != nil {
 		return nil, err
+	}
+	if d.IsZero() == 1 {
+		return nil, errors.New("ecdsa: private key is zero")
 	}
 	priv := &PrivateKey{pub: *pub, d: d.Bytes(c.N)}
 	return priv, nil
 }
 
+// NewPublicKey creates a new ECDSA public key from the given Q byte slice.
+// Q must be the compressed or uncompressed encoding of the public point.
 func NewPublicKey[P Point[P]](c *Curve[P], Q []byte) (*PublicKey, error) {
 	// SetBytes checks that Q is a valid point on the curve, and that its
 	// coordinates are reduced modulo p, fulfilling the requirements of SP
 	// 800-89, Section 5.3.2.
+	if len(Q) < 1 || Q[0] == 0 {
+		return nil, errors.New("ecdsa: invalid public key encoding")
+	}
 	_, err := c.newPoint().SetBytes(Q)
 	if err != nil {
 		return nil, err

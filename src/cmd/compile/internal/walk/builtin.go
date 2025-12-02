@@ -729,13 +729,18 @@ func walkPrint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
 			if ir.IsConst(n, constant.String) {
 				cs = ir.StringVal(n)
 			}
-			switch cs {
-			case " ":
-				on = typecheck.LookupRuntime("printsp")
-			case "\n":
-				on = typecheck.LookupRuntime("printnl")
-			default:
-				on = typecheck.LookupRuntime("printstring")
+			// Print values of the named type `quoted` using printquoted.
+			if types.RuntimeSymName(n.Type().Sym()) == "quoted" {
+				on = typecheck.LookupRuntime("printquoted")
+			} else {
+				switch cs {
+				case " ":
+					on = typecheck.LookupRuntime("printsp")
+				case "\n":
+					on = typecheck.LookupRuntime("printnl")
+				default:
+					on = typecheck.LookupRuntime("printstring")
+				}
 			}
 		default:
 			badtype(ir.OPRINT, n.Type(), nil)

@@ -989,6 +989,36 @@ func TestEncryptDecryptOAEP(t *testing.T) {
 			if !bytes.Equal(dec, message.in) {
 				t.Errorf("#%d,%d: round trip %q -> %q", i, j, message.in, dec)
 			}
+
+			// Using different hash for MGF.
+			enc, err = EncryptOAEPWithOptions(rand.Reader, &priv.PublicKey, message.in, &OAEPOptions{Hash: crypto.SHA256, MGFHash: crypto.SHA1, Label: label})
+			if err != nil {
+				t.Errorf("#%d,%d: EncryptOAEP with different MGFHash: %v", i, j, err)
+				continue
+			}
+			dec, err = priv.Decrypt(rand.Reader, enc, &OAEPOptions{Hash: crypto.SHA256, MGFHash: crypto.SHA1, Label: label})
+			if err != nil {
+				t.Errorf("#%d,%d: DecryptOAEP with different MGFHash: %v", i, j, err)
+				continue
+			}
+			if !bytes.Equal(dec, message.in) {
+				t.Errorf("#%d,%d: round trip with different MGFHash %q -> %q", i, j, message.in, dec)
+			}
+
+			// Using a zero MGFHash.
+			enc, err = EncryptOAEPWithOptions(rand.Reader, &priv.PublicKey, message.in, &OAEPOptions{Hash: crypto.SHA256, Label: label})
+			if err != nil {
+				t.Errorf("#%d,%d: EncryptOAEP with zero MGFHash: %v", i, j, err)
+				continue
+			}
+			dec, err = DecryptOAEP(sha256, rand.Reader, priv, enc, label)
+			if err != nil {
+				t.Errorf("#%d,%d: DecryptOAEP with zero MGFHash: %v", i, j, err)
+				continue
+			}
+			if !bytes.Equal(dec, message.in) {
+				t.Errorf("#%d,%d: round trip with zero MGFHash %q -> %q", i, j, message.in, dec)
+			}
 		}
 	}
 }

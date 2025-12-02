@@ -25,7 +25,6 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/gover"
-	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/run"
 	"cmd/go/internal/work"
@@ -86,8 +85,10 @@ func FilterEnv(env []string) []string {
 	return out
 }
 
-var counterErrorsInvalidToolchainInFile = counter.New("go/errors:invalid-toolchain-in-file")
-var toolchainTrace = godebug.New("#toolchaintrace").Value() == "1"
+var (
+	counterErrorsInvalidToolchainInFile = counter.New("go/errors:invalid-toolchain-in-file")
+	toolchainTrace                      = godebug.New("#toolchaintrace").Value() == "1"
+)
 
 // Select invokes a different Go toolchain if directed by
 // the GOTOOLCHAIN environment variable or the user's configuration
@@ -360,7 +361,7 @@ func Exec(s *modload.State, gotoolchain string) {
 		Path:    gotoolchainModule,
 		Version: gotoolchainVersion + "-" + gotoolchain + "." + runtime.GOOS + "-" + runtime.GOARCH,
 	}
-	dir, err := modfetch.Download(context.Background(), m)
+	dir, err := s.Fetcher().Download(context.Background(), m)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			toolVers := gover.FromToolchain(gotoolchain)
@@ -380,7 +381,7 @@ func Exec(s *modload.State, gotoolchain string) {
 		if err != nil {
 			base.Fatalf("download %s: %v", gotoolchain, err)
 		}
-		if info.Mode()&0111 == 0 {
+		if info.Mode()&0o111 == 0 {
 			// allowExec sets the exec permission bits on all files found in dir if pattern is the empty string,
 			// or only those files that match the pattern if it's non-empty.
 			allowExec := func(dir, pattern string) {
@@ -399,7 +400,7 @@ func Exec(s *modload.State, gotoolchain string) {
 						if err != nil {
 							return err
 						}
-						if err := os.Chmod(path, info.Mode()&0777|0111); err != nil {
+						if err := os.Chmod(path, info.Mode()&0o777|0o111); err != nil {
 							return err
 						}
 					}

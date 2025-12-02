@@ -15,6 +15,10 @@
 (Select0 (Mul64uover x y)) => (MULV x y)
 (Select1 (Mul64uover x y)) => (SGTU <typ.Bool> (MULHVU x y) (MOVVconst <typ.UInt64> [0]))
 
+// 32 mul 32 -> 64
+(MULV r:(MOVWUreg x) s:(MOVWUreg y)) && r.Uses == 1 && s.Uses == 1 => (MULWVWU x y)
+(MULV r:(MOVWreg  x) s:(MOVWreg  y)) && r.Uses == 1 && s.Uses == 1 =>  (MULWVW x y)
+
 (Hmul64 ...)  => (MULHV  ...)
 (Hmul64u ...) => (MULHVU ...)
 (Hmul32 ...)  => (MULH  ...)

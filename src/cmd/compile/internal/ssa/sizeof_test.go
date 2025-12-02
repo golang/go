@@ -21,7 +21,7 @@ func TestSizeof(t *testing.T) {
 		_64bit uintptr // size on 64bit platforms
 	}{
 		{Value{}, 72, 112},
-		{Block{}, 164, 304},
+		{Block{}, 168, 312},
 		{LocalSlot{}, 28, 40},
 		{valState{}, 28, 40},
 	}

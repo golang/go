@@ -5,8 +5,7 @@
 // Package refactor provides operators to compute common textual edits
 // for refactoring tools.
 //
-// This package should not use features of the analysis API
-// other than [analysis.TextEdit].
+// This package should not use features of the analysis API other than [Edit].
 package refactor
 
 import (

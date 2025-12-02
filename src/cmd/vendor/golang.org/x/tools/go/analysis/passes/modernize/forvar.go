@@ -35,7 +35,7 @@ var ForVarAnalyzer = &analysis.Analyzer{
 // where the two idents are the same,
 // and the ident is defined (:=) as a variable in the for statement.
 // (Note that this 'fix' does not work for three clause loops
-// because the Go specfilesUsingGoVersionsays "The variable used by each subsequent iteration
+// because the Go spec says "The variable used by each subsequent iteration
 // is declared implicitly before executing the post statement and initialized to the
 // value of the previous iteration's variable at that moment.")
 //

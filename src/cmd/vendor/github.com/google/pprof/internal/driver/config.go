@@ -164,7 +164,7 @@ func init() {
 
 	def := defaultConfig()
 	configFieldMap = map[string]configField{}
-	t := reflect.TypeOf(config{})
+	t := reflect.TypeFor[config]()
 	for i, n := 0, t.NumField(); i < n; i++ {
 		field := t.Field(i)
 		js := strings.Split(field.Tag.Get("json"), ",")

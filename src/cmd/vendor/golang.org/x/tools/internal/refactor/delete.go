@@ -13,7 +13,6 @@ import (
 	"go/types"
 	"slices"
 
-	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/ast/edge"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/internal/astutil"
@@ -32,7 +31,7 @@ import (
 //
 // If it cannot make the necessary edits, such as for a function
 // parameter or result, it returns nil.
-func DeleteVar(tokFile *token.File, info *types.Info, curId inspector.Cursor) []analysis.TextEdit {
+func DeleteVar(tokFile *token.File, info *types.Info, curId inspector.Cursor) []Edit {
 	switch ek, _ := curId.ParentEdge(); ek {
 	case edge.ValueSpec_Names:
 		return deleteVarFromValueSpec(tokFile, info, curId)
@@ -52,7 +51,7 @@ func DeleteVar(tokFile *token.File, info *types.Info, curId inspector.Cursor) []
 // Precondition: curId is Ident beneath ValueSpec.Names beneath GenDecl.
 //
 // See also [deleteVarFromAssignStmt], which has parallel structure.
-func deleteVarFromValueSpec(tokFile *token.File, info *types.Info, curIdent inspector.Cursor) []analysis.TextEdit {
+func deleteVarFromValueSpec(tokFile *token.File, info *types.Info, curIdent inspector.Cursor) []Edit {
 	var (
 		id      = curIdent.Node().(*ast.Ident)
 		curSpec = curIdent.Parent()
@@ -95,7 +94,7 @@ func deleteVarFromValueSpec(tokFile *token.File, info *types.Info, curIdent insp
 			pos = spec.Names[index].Pos()
 			end = spec.Names[index+1].Pos()
 		}
-		return []analysis.TextEdit{{
+		return []Edit{{
 			Pos: pos,
 			End: end,
 		}}
@@ -111,7 +110,7 @@ func deleteVarFromValueSpec(tokFile *token.File, info *types.Info, curIdent insp
 			//
 			// var _, lhs1 = rhs0, rhs1
 			//      ------       ------
-			return []analysis.TextEdit{
+			return []Edit{
 				{
 					Pos: spec.Names[index-1].End(),
 					End: spec.Names[index].End(),
@@ -126,7 +125,7 @@ func deleteVarFromValueSpec(tokFile *token.File, info *types.Info, curIdent insp
 			//
 			// var lhs0, _ = rhs0, rhs1
 			//     ------    ------
-			return []analysis.TextEdit{
+			return []Edit{
 				{
 					Pos: spec.Names[index].Pos(),
 					End: spec.Names[index+1].Pos(),
@@ -141,7 +140,7 @@ func deleteVarFromValueSpec(tokFile *token.File, info *types.Info, curIdent insp
 
 	// We cannot delete the RHS.
 	// Blank out the LHS.
-	return []analysis.TextEdit{{
+	return []Edit{{
 		Pos:     id.Pos(),
 		End:     id.End(),
 		NewText: []byte("_"),
@@ -151,7 +150,7 @@ func deleteVarFromValueSpec(tokFile *token.File, info *types.Info, curIdent insp
 // Precondition: curId is Ident beneath AssignStmt.Lhs.
 //
 // See also [deleteVarFromValueSpec], which has parallel structure.
-func deleteVarFromAssignStmt(tokFile *token.File, info *types.Info, curIdent inspector.Cursor) []analysis.TextEdit {
+func deleteVarFromAssignStmt(tokFile *token.File, info *types.Info, curIdent inspector.Cursor) []Edit {
 	var (
 		id      = curIdent.Node().(*ast.Ident)
 		curStmt = curIdent.Parent()
@@ -192,7 +191,7 @@ func deleteVarFromAssignStmt(tokFile *token.File, info *types.Info, curIdent ins
 			//
 			// _, lhs1 := rhs0, rhs1
 			//  ------        ------
-			return []analysis.TextEdit{
+			return []Edit{
 				{
 					Pos: assign.Lhs[index-1].End(),
 					End: assign.Lhs[index].End(),
@@ -207,7 +206,7 @@ func deleteVarFromAssignStmt(tokFile *token.File, info *types.Info, curIdent ins
 			//
 			// lhs0, _ := rhs0, rhs1
 			// ------     ------
-			return []analysis.TextEdit{
+			return []Edit{
 				{
 					Pos: assign.Lhs[index].Pos(),
 					End: assign.Lhs[index+1].Pos(),
@@ -222,7 +221,7 @@ func deleteVarFromAssignStmt(tokFile *token.File, info *types.Info, curIdent ins
 
 	// We cannot delete the RHS.
 	// Blank out the LHS.
-	edits := []analysis.TextEdit{{
+	edits := []Edit{{
 		Pos:     id.Pos(),
 		End:     id.End(),
 		NewText: []byte("_"),
@@ -233,7 +232,7 @@ func deleteVarFromAssignStmt(tokFile *token.File, info *types.Info, curIdent ins
 	// assignment to avoid a "no new variables on left
 	// side of :=" error.
 	if !declaresOtherNames {
-		edits = append(edits, analysis.TextEdit{
+		edits = append(edits, Edit{
 			Pos:     assign.TokPos,
 			End:     assign.TokPos + token.Pos(len(":=")),
 			NewText: []byte("="),
@@ -246,7 +245,7 @@ func deleteVarFromAssignStmt(tokFile *token.File, info *types.Info, curIdent ins
 // DeleteSpec returns edits to delete the {Type,Value}Spec identified by curSpec.
 //
 // TODO(adonovan): add test suite. Test for consts as well.
-func DeleteSpec(tokFile *token.File, curSpec inspector.Cursor) []analysis.TextEdit {
+func DeleteSpec(tokFile *token.File, curSpec inspector.Cursor) []Edit {
 	var (
 		spec    = curSpec.Node().(ast.Spec)
 		curDecl = curSpec.Parent()
@@ -277,7 +276,7 @@ func DeleteSpec(tokFile *token.File, curSpec inspector.Cursor) []analysis.TextEd
 		//         -----
 		end = decl.Specs[index+1].Pos()
 	}
-	return []analysis.TextEdit{{
+	return []Edit{{
 		Pos: pos,
 		End: end,
 	}}
@@ -286,7 +285,7 @@ func DeleteSpec(tokFile *token.File, curSpec inspector.Cursor) []analysis.TextEd
 // DeleteDecl returns edits to delete the ast.Decl identified by curDecl.
 //
 // TODO(adonovan): add test suite.
-func DeleteDecl(tokFile *token.File, curDecl inspector.Cursor) []analysis.TextEdit {
+func DeleteDecl(tokFile *token.File, curDecl inspector.Cursor) []Edit {
 	decl := curDecl.Node().(ast.Decl)
 
 	ek, _ := curDecl.ParentEdge()
@@ -321,7 +320,7 @@ func DeleteDecl(tokFile *token.File, curDecl inspector.Cursor) []analysis.TextEd
 			}
 		}
 
-		return []analysis.TextEdit{{
+		return []Edit{{
 			Pos: pos,
 			End: end,
 		}}
@@ -366,7 +365,7 @@ func filterPos(nds []*ast.Comment, start, end token.Pos) (token.Pos, token.Pos, 
 // it removes whole lines like
 //
 //	stmt // comment
-func DeleteStmt(file *token.File, curStmt inspector.Cursor) []analysis.TextEdit {
+func DeleteStmt(file *token.File, curStmt inspector.Cursor) []Edit {
 	// if the stmt is on a line by itself, or a range of lines, delete the whole thing
 	// including comments. Except for the heads of switches, type
 	// switches, and for-statements that's the usual case. Complexity occurs where
@@ -516,13 +515,13 @@ Big:
 		}
 	}
 
-	return []analysis.TextEdit{{Pos: leftEdit, End: rightEdit}}
+	return []Edit{{Pos: leftEdit, End: rightEdit}}
 }
 
 // DeleteUnusedVars computes the edits required to delete the
 // declarations of any local variables whose last uses are in the
 // curDelend subtree, which is about to be deleted.
-func DeleteUnusedVars(index *typeindex.Index, info *types.Info, tokFile *token.File, curDelend inspector.Cursor) []analysis.TextEdit {
+func DeleteUnusedVars(index *typeindex.Index, info *types.Info, tokFile *token.File, curDelend inspector.Cursor) []Edit {
 	// TODO(adonovan): we might want to generalize this by
 	// splitting the two phases below, so that we can gather
 	// across a whole sequence of deletions then finally compute the
@@ -539,7 +538,7 @@ func DeleteUnusedVars(index *typeindex.Index, info *types.Info, tokFile *token.F
 	}
 
 	// Delete declaration of each var that became unused.
-	var edits []analysis.TextEdit
+	var edits []Edit
 	for v, count := range delcount {
 		if len(slices.Collect(index.Uses(v))) == count {
 			if curDefId, ok := index.Def(v); ok {

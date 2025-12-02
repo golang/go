@@ -157,7 +157,8 @@ func hasWorkingGit() bool {
 	return err == nil
 }
 
-var gitVersLineExtract = regexp.MustCompile(`git version\s+([\d.]+)`)
+// Capture the major, minor and (optionally) patch version, but ignore anything later
+var gitVersLineExtract = regexp.MustCompile(`git version\s+(\d+\.\d+(?:\.\d+)?)`)
 
 func gitVersion() (string, error) {
 	gitOut, runErr := exec.Command("git", "version").CombinedOutput()

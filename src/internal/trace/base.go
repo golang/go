@@ -108,6 +108,16 @@ func (d *dataTable[EI, E]) insert(id EI, data E) error {
 	return nil
 }
 
+// append adds a new element to the data table and returns its ID.
+func (d *dataTable[EI, E]) append(data E) EI {
+	if d.sparse == nil {
+		d.sparse = make(map[EI]E)
+	}
+	id := EI(len(d.sparse)) + 1
+	d.sparse[id] = data
+	return id
+}
+
 // compactify attempts to compact sparse into dense.
 //
 // This is intended to be called only once after insertions are done.

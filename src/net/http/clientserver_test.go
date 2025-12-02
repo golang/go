@@ -46,6 +46,16 @@ const (
 	http2UnencryptedMode = testMode("h2unencrypted") // HTTP/2
 )
 
+func (m testMode) Scheme() string {
+	switch m {
+	case http1Mode, http2UnencryptedMode:
+		return "http"
+	case https1Mode, http2Mode:
+		return "https"
+	}
+	panic("unknown testMode")
+}
+
 type testNotParallelOpt struct{}
 
 var (

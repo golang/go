@@ -64,6 +64,7 @@ var runtimeDecls = [...]struct {
 	{"printcomplex128", funcTag, 27},
 	{"printcomplex64", funcTag, 29},
 	{"printstring", funcTag, 31},
+	{"printquoted", funcTag, 31},
 	{"printpointer", funcTag, 32},
 	{"printuintptr", funcTag, 33},
 	{"printiface", funcTag, 32},
@@ -161,6 +162,8 @@ var runtimeDecls = [...]struct {
 	{"makeslicecopy", funcTag, 125},
 	{"growslice", funcTag, 127},
 	{"growsliceBuf", funcTag, 128},
+	{"growsliceBufNoAlias", funcTag, 128},
+	{"growsliceNoAlias", funcTag, 127},
 	{"unsafeslicecheckptr", funcTag, 129},
 	{"panicunsafeslicelen", funcTag, 9},
 	{"panicunsafeslicenilptr", funcTag, 9},
@@ -239,9 +242,10 @@ var runtimeDecls = [...]struct {
 	{"libfuzzerHookStrCmp", funcTag, 163},
 	{"libfuzzerHookEqualFold", funcTag, 163},
 	{"addCovMeta", funcTag, 165},
+	{"x86HasAVX", varTag, 6},
+	{"x86HasFMA", varTag, 6},
 	{"x86HasPOPCNT", varTag, 6},
 	{"x86HasSSE41", varTag, 6},
-	{"x86HasFMA", varTag, 6},
 	{"armHasVFPv4", varTag, 6},
 	{"arm64HasATOMICS", varTag, 6},
 	{"loong64HasLAMCAS", varTag, 6},
@@ -249,6 +253,7 @@ var runtimeDecls = [...]struct {
 	{"loong64HasLSX", varTag, 6},
 	{"riscv64HasZbb", varTag, 6},
 	{"asanregisterglobals", funcTag, 136},
+	{"KeepAlive", funcTag, 11},
 }
 
 func runtimeTypes() []*types.Type {

@@ -7,10 +7,14 @@
 // See memclrNoHeapPointers Go doc for important implementation constraints.
 
 // func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
-TEXT runtime·memclrNoHeapPointers(SB),NOSPLIT|NOFRAME,$0-16
+TEXT runtime·memclrNoHeapPointers<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-16
+#ifndef GOEXPERIMENT_regabiargs
 	MOVD	ptr+0(FP), R4
 	MOVD	n+8(FP), R5
-
+#else
+	MOVD	R2, R4
+	MOVD	R3, R5
+#endif
 	CMPBGE	R5, $32, clearge32
 
 start:

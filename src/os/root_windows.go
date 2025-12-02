@@ -134,8 +134,8 @@ func rootOpenFileNolog(root *Root, name string, flag int, perm FileMode) (*File,
 	if err != nil {
 		return nil, &PathError{Op: "openat", Path: name, Err: err}
 	}
-	// openat always returns a non-blocking handle.
-	return newFile(fd, joinPath(root.Name(), name), "file", false), nil
+	nonblocking := flag&windows.O_FILE_FLAG_OVERLAPPED != 0
+	return newFile(fd, joinPath(root.Name(), name), kindOpenFile, nonblocking), nil
 }
 
 func openat(dirfd syscall.Handle, name string, flag uint64, perm FileMode) (syscall.Handle, error) {
@@ -213,7 +213,7 @@ func rootStat(r *Root, name string, lstat bool) (FileInfo, error) {
 		lstat = false
 	}
 	fi, err := doInRoot(r, name, nil, func(parent syscall.Handle, n string) (FileInfo, error) {
-		fd, err := openat(parent, n, windows.O_OPEN_REPARSE, 0)
+		fd, err := openat(parent, n, windows.O_FILE_FLAG_OPEN_REPARSE_POINT, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -290,7 +290,7 @@ func chmodat(parent syscall.Handle, name string, mode FileMode) error {
 	// This may or may not be the desired behavior: https://go.dev/issue/71492
 	//
 	// For now, be consistent with os.Symlink.
-	// Passing O_OPEN_REPARSE causes us to open the named file itself,
+	// Passing O_FILE_FLAG_OPEN_REPARSE_POINT causes us to open the named file itself,
 	// not any file that it links to.
 	//
 	// If we want to change this in the future, pass O_NOFOLLOW_ANY instead
@@ -301,7 +301,7 @@ func chmodat(parent syscall.Handle, name string, mode FileMode) error {
 	//                 return errSymlink(link)
 	//         }
 	//     }
-	h, err := windows.Openat(parent, name, syscall.O_CLOEXEC|windows.O_OPEN_REPARSE|windows.O_WRITE_ATTRS, 0)
+	h, err := windows.Openat(parent, name, syscall.O_CLOEXEC|windows.O_FILE_FLAG_OPEN_REPARSE_POINT|windows.O_WRITE_ATTRS, 0)
 	if err != nil {
 		return err
 	}
@@ -382,7 +382,7 @@ func linkat(oldfd syscall.Handle, oldname string, newfd syscall.Handle, newname 
 }
 
 func readlinkat(dirfd syscall.Handle, name string) (string, error) {
-	fd, err := openat(dirfd, name, windows.O_OPEN_REPARSE, 0)
+	fd, err := openat(dirfd, name, windows.O_FILE_FLAG_OPEN_REPARSE_POINT, 0)
 	if err != nil {
 		return "", err
 	}
@@ -391,7 +391,7 @@ func readlinkat(dirfd syscall.Handle, name string) (string, error) {
 }
 
 func modeAt(parent syscall.Handle, name string) (FileMode, error) {
-	fd, err := openat(parent, name, windows.O_OPEN_REPARSE|windows.O_DIRECTORY, 0)
+	fd, err := openat(parent, name, windows.O_FILE_FLAG_OPEN_REPARSE_POINT|windows.O_DIRECTORY, 0)
 	if err != nil {
 		return 0, err
 	}

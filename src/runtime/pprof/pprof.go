@@ -547,8 +547,8 @@ func printCountProfile(w io.Writer, debug int, name string, p countProfile) erro
 		var labels func()
 		if p.Label(idx) != nil {
 			labels = func() {
-				for _, lbl := range p.Label(idx).list {
-					b.pbLabel(tagSample_Label, lbl.key, lbl.value, 0)
+				for _, lbl := range p.Label(idx).Set.List {
+					b.pbLabel(tagSample_Label, lbl.Key, lbl.Value, 0)
 				}
 			}
 		}
@@ -924,7 +924,10 @@ func profileWriter(w io.Writer) {
 	b := newProfileBuilder(w)
 	var err error
 	for {
-		time.Sleep(100 * time.Millisecond)
+		if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+			// see runtime_pprof_readProfile
+			time.Sleep(100 * time.Millisecond)
+		}
 		data, tags, eof := readProfile()
 		if e := b.addCPUData(data, tags); e != nil && err == nil {
 			err = e
