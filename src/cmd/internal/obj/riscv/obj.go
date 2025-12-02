@@ -139,11 +139,11 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		p.As = AEBREAK
 
 	case AMOV:
-		if p.From.Type == obj.TYPE_CONST && p.From.Name == obj.NAME_NONE && p.From.Reg == obj.REG_NONE && int64(int32(p.From.Offset)) != p.From.Offset {
-			if isShiftConst(p.From.Offset) {
+		if p.From.Type == obj.TYPE_CONST && p.From.Name == obj.NAME_NONE && p.From.Reg == obj.REG_NONE {
+			if isMaterialisableConst(p.From.Offset) {
 				break
 			}
-			// Put >32-bit constants in memory and load them.
+			// Put non-materialisable constants in memory and load them.
 			p.From.Type = obj.TYPE_MEM
 			p.From.Sym = ctxt.Int64Sym(p.From.Offset)
 			p.From.Name = obj.NAME_EXTERN
@@ -3477,6 +3477,17 @@ func splitShiftConst(v int64) (imm int64, lsh int, rsh int, ok bool) {
 func isShiftConst(v int64) bool {
 	_, lsh, rsh, ok := splitShiftConst(v)
 	return ok && (lsh > 0 || rsh > 0)
+}
+
+// isMaterialisableConst indicates whether a constant can be materialised
+// via a small sequence of instructions.
+func isMaterialisableConst(v int64) bool {
+	// Signed 32 bit value that can be constructed with one or two instructions
+	// (ADDIW or LUI+ADDIW).
+	if int64(int32(v)) == v {
+		return true
+	}
+	return isShiftConst(v)
 }
 
 type instruction struct {
