@@ -113,9 +113,7 @@ func hasPort(s string) bool { return strings.LastIndex(s, ":") > strings.LastInd
 // removeEmptyPort strips the empty port in ":port" to ""
 // as mandated by RFC 3986 Section 6.2.3.
 func removeEmptyPort(host string) string {
-	if len(host) > 0 && host[len(host)-1] == ':' {
-		return host[:len(host)-1]
-	}
+	host, _ = strings.CutSuffix(host, ":")
 	return host
 }
 
