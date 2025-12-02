@@ -7,7 +7,7 @@ Go 1.25, is now enabled by default after incorporating feedback.
 
 This garbage collector’s design improves the performance of marking and
 scanning small objects through better locality and CPU scalability.
-Benchmark result vary, but we expect somewhere between a 10—40% reduction
+Benchmark results vary, but we expect somewhere between a 10—40% reduction
 in garbage collection overhead in real-world programs that heavily use the
 garbage collector.
 Further improvements, on the order of 10% in garbage collection overhead,
