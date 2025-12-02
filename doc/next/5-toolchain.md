@@ -1,5 +1,14 @@
 ## Compiler {#compiler}
 
+<!-- CLs 707755, 722440 -->
+
+The compiler can now allocate the backing store for slices on the stack in more
+situations, which improves performance. If this change is causing trouble, the
+[bisect tool](https://pkg.go.dev/golang.org/x/tools/cmd/bisect) can be used to
+find the allocation causing trouble using the `-compile=variablemake` flag. All
+such new stack allocations can also be turned off using
+`-gcflags=all=-d=variablemakehash=n`.
+
 ## Assembler {#assembler}
 
 ## Linker {#linker}
