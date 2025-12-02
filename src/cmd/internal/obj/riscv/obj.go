@@ -3883,6 +3883,74 @@ func instructionsForTLSStore(p *obj.Prog) []*instruction {
 	return instructionsForTLS(p, ins)
 }
 
+func instructionsForMOVConst(p *obj.Prog) []*instruction {
+	ins := instructionForProg(p)
+	inss := []*instruction{ins}
+
+	// For constants larger than 32 bits in size that have trailing zeros,
+	// use the value with the trailing zeros removed and then use a SLLI
+	// instruction to restore the original constant.
+	//
+	// For example:
+	//     MOV $0x8000000000000000, X10
+	// becomes
+	//     MOV $1, X10
+	//     SLLI $63, X10, X10
+	//
+	// Similarly, we can construct large constants that have a consecutive
+	// sequence of ones from a small negative constant, with a right and/or
+	// left shift.
+	//
+	// For example:
+	//     MOV $0x000fffffffffffda, X10
+	// becomes
+	//     MOV $-19, X10
+	//     SLLI $13, X10
+	//     SRLI $12, X10
+	//
+	var insSLLI, insSRLI *instruction
+	if err := immIFits(ins.imm, 32); err != nil {
+		if c, lsh, rsh, ok := splitShiftConst(ins.imm); ok {
+			ins.imm = c
+			if lsh > 0 {
+				insSLLI = &instruction{as: ASLLI, rd: ins.rd, rs1: ins.rd, imm: int64(lsh)}
+			}
+			if rsh > 0 {
+				insSRLI = &instruction{as: ASRLI, rd: ins.rd, rs1: ins.rd, imm: int64(rsh)}
+			}
+		}
+	}
+
+	low, high, err := Split32BitImmediate(ins.imm)
+	if err != nil {
+		p.Ctxt.Diag("%v: constant %d too large: %v", p, ins.imm, err)
+		return nil
+	}
+
+	// MOV $c, R -> ADD $c, ZERO, R
+	ins.as, ins.rs1, ins.rs2, ins.imm = AADDI, REG_ZERO, obj.REG_NONE, low
+
+	// LUI is only necessary if the constant does not fit in 12 bits.
+	if high != 0 {
+		// LUI top20bits(c), R
+		// ADD bottom12bits(c), R, R
+		insLUI := &instruction{as: ALUI, rd: ins.rd, imm: high}
+		inss = []*instruction{insLUI}
+		if low != 0 {
+			ins.as, ins.rs1 = AADDIW, ins.rd
+			inss = append(inss, ins)
+		}
+	}
+	if insSLLI != nil {
+		inss = append(inss, insSLLI)
+	}
+	if insSRLI != nil {
+		inss = append(inss, insSRLI)
+	}
+
+	return inss
+}
+
 // instructionsForMOV returns the machine instructions for an *obj.Prog that
 // uses a MOV pseudo-instruction.
 func instructionsForMOV(p *obj.Prog) []*instruction {
@@ -3901,67 +3969,7 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
 			p.Ctxt.Diag("%v: unsupported constant load", p)
 			return nil
 		}
-
-		// For constants larger than 32 bits in size that have trailing zeros,
-		// use the value with the trailing zeros removed and then use a SLLI
-		// instruction to restore the original constant.
-		//
-		// For example:
-		//     MOV $0x8000000000000000, X10
-		// becomes
-		//     MOV $1, X10
-		//     SLLI $63, X10, X10
-		//
-		// Similarly, we can construct large constants that have a consecutive
-		// sequence of ones from a small negative constant, with a right and/or
-		// left shift.
-		//
-		// For example:
-		//     MOV $0x000fffffffffffda, X10
-		// becomes
-		//     MOV $-19, X10
-		//     SLLI $13, X10
-		//     SRLI $12, X10
-		//
-		var insSLLI, insSRLI *instruction
-		if err := immIFits(ins.imm, 32); err != nil {
-			if c, lsh, rsh, ok := splitShiftConst(ins.imm); ok {
-				ins.imm = c
-				if lsh > 0 {
-					insSLLI = &instruction{as: ASLLI, rd: ins.rd, rs1: ins.rd, imm: int64(lsh)}
-				}
-				if rsh > 0 {
-					insSRLI = &instruction{as: ASRLI, rd: ins.rd, rs1: ins.rd, imm: int64(rsh)}
-				}
-			}
-		}
-
-		low, high, err := Split32BitImmediate(ins.imm)
-		if err != nil {
-			p.Ctxt.Diag("%v: constant %d too large: %v", p, ins.imm, err)
-			return nil
-		}
-
-		// MOV $c, R -> ADD $c, ZERO, R
-		ins.as, ins.rs1, ins.rs2, ins.imm = AADDI, REG_ZERO, obj.REG_NONE, low
-
-		// LUI is only necessary if the constant does not fit in 12 bits.
-		if high != 0 {
-			// LUI top20bits(c), R
-			// ADD bottom12bits(c), R, R
-			insLUI := &instruction{as: ALUI, rd: ins.rd, imm: high}
-			inss = []*instruction{insLUI}
-			if low != 0 {
-				ins.as, ins.rs1 = AADDIW, ins.rd
-				inss = append(inss, ins)
-			}
-		}
-		if insSLLI != nil {
-			inss = append(inss, insSLLI)
-		}
-		if insSRLI != nil {
-			inss = append(inss, insSRLI)
-		}
+		return instructionsForMOVConst(p)
 
 	case p.From.Type == obj.TYPE_CONST && p.To.Type != obj.TYPE_REG:
 		p.Ctxt.Diag("%v: constant load must target register", p)
