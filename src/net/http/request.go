@@ -908,7 +908,7 @@ func NewRequestWithContext(ctx context.Context, method, url string, body io.Read
 		rc = io.NopCloser(body)
 	}
 	// The host's colon:port should be normalized. See Issue 14836.
-	u.Host = removeEmptyPort(u.Host)
+	u.Host = strings.TrimSuffix(u.Host, ":")
 	req := &Request{
 		ctx:        ctx,
 		Method:     method,
