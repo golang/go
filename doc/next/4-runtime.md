@@ -68,17 +68,11 @@ func processWorkItems(ws []workItem) ([]workResult, error) {
 ```
 Because `ch` is unbuffered, if `processWorkItems` returns early due to
 an error, all remaining `processWorkItem` goroutines will leak.
-However, `ch` also becomes inaccessible to all other goroutines
+However, `ch` also becomes unreachable to all other goroutines
 not involved in the leak soon after the leak itself occurs.
-
-In general, a goroutine is leaked if it is blocked on an operation
-over concurrency primitives (e.g., channels,
-[sync.Mutex]) that are only reachable via leaked goroutines.
-In the example above, the culprit send operation involves
-a channel only reachable to `processWorkItem` goroutines.
-The runtime is now equipped to detect such leaks via goroutine
-leak profiles. All leaks reported by profiles are real, i.e.,
-there are no false positives.
+In general, the runtime is now equipped to identify as leaked
+any goroutines blocked on operations over concurrency primitives
+(e.g., channels, [sync.Mutex]) that are not reachable from runnable goroutines.
 
 Note, however, that the runtime may fail to identify leaks caused by
 blocking on operations over concurrency primitives reachable
