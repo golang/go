@@ -74,7 +74,7 @@ not involved in the leak soon after the leak itself occurs.
 In general, a goroutine is leaked if it is blocked on an operation
 over concurrency primitives (e.g., channels,
 [sync.Mutex]) that are only reachable via leaked goroutines.
-In the example above, the culprit channel send operation involves
+In the example above, the culprit send operation involves
 a channel only reachable to `processWorkItem` goroutines.
 The runtime is now equipped to detect such leaks via goroutine
 leak profiles. All leaks reported by profiles are real, i.e.,
