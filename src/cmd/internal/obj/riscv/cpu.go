@@ -469,6 +469,11 @@ const (
 	AWRSNTO
 	AWRSSTO
 
+	// 16: Extension for Atomic Compare-and-Swap (CAS) Instructions (Zacas)
+	AAMOCASW
+	AAMOCASD
+	AAMOCASQ
+
 	// 16.1: Byte and Halfword Atomic Memory Operation Instructions (Zabha)
 	AAMOSWAPB
 	AAMOADDB

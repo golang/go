@@ -2550,6 +2550,11 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	AAMOMINUW & obj.AMask: {enc: rIIIEncoding},
 	AAMOMINUD & obj.AMask: {enc: rIIIEncoding},
 
+	// 16: Extension for Atomic Compare-and-Swap (CAS) Instructions (Zacas)
+	AAMOCASW & obj.AMask: {enc: rIIIEncoding},
+	AAMOCASD & obj.AMask: {enc: rIIIEncoding},
+	AAMOCASQ & obj.AMask: {enc: rIIIEncoding},
+
 	// 16.1: Byte and Halfword Atomic Memory Operation Instructions (Zabha)
 	AAMOSWAPB & obj.AMask: {enc: rIIIEncoding},
 	AAMOSWAPH & obj.AMask: {enc: rIIIEncoding},
@@ -4558,7 +4563,8 @@ func instructionsForProg(p *obj.Prog, compress bool) []*instruction {
 	case AAMOSWAPW, AAMOSWAPD, AAMOADDW, AAMOADDD, AAMOANDW, AAMOANDD, AAMOORW, AAMOORD,
 		AAMOXORW, AAMOXORD, AAMOMINW, AAMOMIND, AAMOMINUW, AAMOMINUD, AAMOMAXW, AAMOMAXD, AAMOMAXUW, AAMOMAXUD,
 		AAMOSWAPB, AAMOSWAPH, AAMOADDB, AAMOADDH, AAMOANDB, AAMOANDH, AAMOORB, AAMOORH, AAMOXORB, AAMOXORH,
-		AAMOMINB, AAMOMINH, AAMOMINUB, AAMOMINUH, AAMOMAXB, AAMOMAXH, AAMOMAXUB, AAMOMAXUH, AAMOCASB, AAMOCASH:
+		AAMOMINB, AAMOMINH, AAMOMINUB, AAMOMINUH, AAMOMAXB, AAMOMAXH, AAMOMAXUB, AAMOMAXUH, AAMOCASB, AAMOCASH,
+		AAMOCASW, AAMOCASD, AAMOCASQ:
 		// Set aqrl to use acquire & release access ordering
 		ins.funct7 = 3
 		ins.rd, ins.rs1, ins.rs2 = uint32(p.RegTo2), uint32(p.To.Reg), uint32(p.From.Reg)
