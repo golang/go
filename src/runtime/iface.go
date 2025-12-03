@@ -212,9 +212,9 @@ func itabInit(m *itab, firstTime bool) string {
 	// the loop is O(ni+nt) not O(ni*nt).
 	ni := len(inter.Methods)
 	nt := int(x.Mcount)
-	xmhdr := (*[1 << 16]abi.Method)(add(unsafe.Pointer(x), uintptr(x.Moff)))[:nt:nt]
+	xmhdr := unsafe.Slice((*abi.Method)(add(unsafe.Pointer(x), uintptr(x.Moff))), nt)
 	j := 0
-	methods := (*[1 << 16]unsafe.Pointer)(unsafe.Pointer(&m.Fun[0]))[:ni:ni]
+	methods := unsafe.Slice((*unsafe.Pointer)(unsafe.Pointer(&m.Fun[0])), ni)
 	var fun0 unsafe.Pointer
 imethods:
 	for k := 0; k < ni; k++ {
