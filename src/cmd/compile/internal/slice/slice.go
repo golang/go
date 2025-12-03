@@ -152,6 +152,11 @@ func analyze(fn *ir.Func) {
 		// least weight 2. (Note: appends in loops have weight >= 2.)
 		appendWeight int
 
+		// Loop depth at declaration point.
+		// Use for heuristics only, it is not guaranteed to be correct
+		// in the presence of gotos.
+		declDepth int
+
 		// Whether we ever do cap(s), or other operations that use cap(s)
 		// (possibly implicitly), like s[i:j].
 		capUsed bool
@@ -209,6 +214,20 @@ func analyze(fn *ir.Func) {
 			i.s.Opt = nil
 			return
 		}
+		if loopDepth > i.declDepth {
+			// Conservatively, we disable this optimization when the
+			// transition is inside a loop. This can result in adding
+			// overhead unnecessarily in cases like:
+			// func f(n int, p *[]byte) {
+			//     var s []byte
+			//     for i := range n {
+			//         *p = s
+			//         s = append(s, 0)
+			//     }
+			// }
+			i.s.Opt = nil
+			return
+		}
 		i.transition = loc
 	}
 
@@ -237,7 +256,7 @@ func analyze(fn *ir.Func) {
 					// s = append(s, ...) is ok
 					i.okUses += 2
 					i.appends = append(i.appends, y)
-					i.appendWeight += 1 + loopDepth
+					i.appendWeight += 1 + (loopDepth - i.declDepth)
 				}
 				// TODO: s = append(nil, ...)?
 			}
@@ -277,6 +296,7 @@ func analyze(fn *ir.Func) {
 			n := n.(*ir.Decl)
 			if i := tracking(n.X); i != nil {
 				i.okUses++
+				i.declDepth = loopDepth
 			}
 		case ir.OINDEX:
 			n := n.(*ir.IndexExpr)

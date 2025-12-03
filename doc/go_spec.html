@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Language version go1.26 (Nov 18, 2025)",
+	"Subtitle": "Language version go1.26 (Dec 2, 2025)",
 	"Path": "/ref/spec"
 }-->
 
@@ -7496,7 +7496,7 @@ returns a received value along with an indication of whether the channel is clos
 <p>
 If the type of the argument to <code>close</code> is a
 <a href="#Type_parameter_declarations">type parameter</a>,
-all types in its type set must be channels with the same element type.
+all types in its type set must be channels.
 It is an error if any of those channels is a receive-only channel.
 </p>
 
@@ -7794,40 +7794,32 @@ min(x, y, z) == min(min(x, y), z)
 <h3 id="Allocation">Allocation</h3>
 
 <p>
-  The built-in function <code>new</code> creates a new, initialized
-  <a href="#Variables">variable</a> and returns
-  a <a href="#Pointer_types">pointer</a> to it.
-
-  It accepts a single argument, which may be either an expression or a type.
-</p>
-<p>
-  If the argument <code>expr</code> is an expression of
-  type <code>T</code>, or an untyped constant expression
-  whose <a href="#Constants">default type</a> is <code>T</code>,
-  then <code>new(expr)</code> allocates a variable of
-  type <code>T</code>, initializes it to the value
-  of <code>expr</code>, and returns its address, a value of
-  type <code>*T</code>.
-</p>
-<p>
-  If the argument is a type <code>T</code>, then <code>new(T)</code>
-  allocates a variable initialized to
-  the <a href="#The_zero_value">zero value</a> of type <code>T</code>.
-</p>
-<p>
-  For example, <code>new(123)</code> and <code>new(int)</code> each
-  return a pointer to a new variable of type <code>int</code>.
-
-  The value of the first variable is <code>123</code>, and the value
-  of the second is <code>0</code>.
+The built-in function <code>new</code> creates a new, initialized
+<a href="#Variables">variable</a> and returns
+a <a href="#Pointer_types">pointer</a> to it.
+It accepts a single argument, which may be either a type or an expression.
 </p>
 
-<pre class="grammar">
-new(T)
-</pre>
+<p>
+If the argument is a type <code>T</code>, then <code>new(T)</code>
+allocates a variable of type <code>T</code> initialized to its
+<a href="#The_zero_value">zero value</a>.
+</p>
 
 <p>
-For instance
+If the argument is an expression <code>x</code>, then <code>new(x)</code>
+allocates a variable of the type of <code>x</code> initialized to the value of <code>x</code>.
+If that value is an untyped constant, it is first implicitly <a href="#Conversions">converted</a>
+to its <a href="#Constants">default type</a>;
+if it is an untyped boolean value, it is first implicitly converted to type bool.
+The predeclared identifier <code>nil</code> cannot be used as an argument to <code>new</code>.
+</p>
+
+<p>
+For example, <code>new(int)</code> and <code>new(123)</code> each
+return a pointer to a new variable of type <code>int</code>.
+The value of the first variable is <code>0</code>, and the value
+of the second is <code>123</code>. Similarly
 </p>
 
 <pre>
@@ -7836,12 +7828,11 @@ new(S)
 </pre>
 
 <p>
-allocates storage for a variable of type <code>S</code>,
+allocates a variable of type <code>S</code>,
 initializes it (<code>a=0</code>, <code>b=0.0</code>),
 and returns a value of type <code>*S</code> containing the address
-of the location.
+of the variable.
 </p>
-
 
 <h3 id="Handling_panics">Handling panics</h3>
 

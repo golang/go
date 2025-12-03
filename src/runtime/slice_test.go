@@ -7,6 +7,7 @@ package runtime_test
 import (
 	"fmt"
 	"internal/asan"
+	"internal/goexperiment"
 	"internal/msan"
 	"internal/race"
 	"internal/testenv"
@@ -541,6 +542,18 @@ func TestAppendByteInLoop(t *testing.T) {
 		n := test[0]
 		want := test[1]
 		wantCap := test[2]
+
+		if goexperiment.RuntimeFreegc && n > 64 {
+			// Only 1 allocation is expected to be reported.
+			//
+			// TODO(thepudds): consider a test export or similar that lets us more directly see
+			// the count of freed objects, reused objects, and allocated objects. This could
+			// be in advance of any future runtime/metrics or user-visible API, or perhaps
+			// we could introduce the concept of build tag or debug flag controlled runtime/metrics
+			// targeting people working on the runtime and compiler (but not formally supported).
+			want = 1
+		}
+
 		var r []byte
 		got := testing.AllocsPerRun(10, func() {
 			r = byteSlice(n)
@@ -659,6 +672,12 @@ func TestAppendByteCapInLoop(t *testing.T) {
 		n := test[0]
 		want := test[1]
 		wantCap := test[2]
+
+		if goexperiment.RuntimeFreegc && n > 64 {
+			// Only 1 allocation is expected to be reported.
+			want = 1
+		}
+
 		var r []byte
 		got := testing.AllocsPerRun(10, func() {
 			r, _ = byteCapSlice(n)

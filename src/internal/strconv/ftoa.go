@@ -86,6 +86,7 @@ func genericFtoa(dst []byte, val float64, fmt byte, prec, bitSize int) []byte {
 	neg := bits>>(flt.expbits+flt.mantbits) != 0
 	exp := int(bits>>flt.mantbits) & (1<<flt.expbits - 1)
 	mant := bits & (uint64(1)<<flt.mantbits - 1)
+	denorm := false
 
 	switch exp {
 	case 1<<flt.expbits - 1:
@@ -104,6 +105,7 @@ func genericFtoa(dst []byte, val float64, fmt byte, prec, bitSize int) []byte {
 	case 0:
 		// denormalized
 		exp++
+		denorm = true
 
 	default:
 		// add implicit top bit
@@ -130,10 +132,10 @@ func genericFtoa(dst []byte, val float64, fmt byte, prec, bitSize int) []byte {
 		return formatDigits(dst, shortest, neg, digs, prec, fmt)
 	}
 	if shortest {
-		// Use Ryu algorithm.
+		// Use the Dragonbox algorithm.
 		var buf [32]byte
 		digs.d = buf[:]
-		ryuFtoaShortest(&digs, mant, exp-int(flt.mantbits), flt)
+		dboxFtoa(&digs, mant, exp-int(flt.mantbits), denorm, bitSize)
 		// Precision for shortest representation mode.
 		switch fmt {
 		case 'e', 'E':

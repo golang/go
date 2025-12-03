@@ -14,14 +14,24 @@ import (
 // them to apply local policies.
 
 var tlsmlkem = godebug.New("tlsmlkem")
+var tlssecpmlkem = godebug.New("tlssecpmlkem")
 
 // defaultCurvePreferences is the default set of supported key exchanges, as
 // well as the preference order.
 func defaultCurvePreferences() []CurveID {
-	if tlsmlkem.Value() == "0" {
+	switch {
+	// tlsmlkem=0 restores the pre-Go 1.24 default.
+	case tlsmlkem.Value() == "0":
 		return []CurveID{X25519, CurveP256, CurveP384, CurveP521}
+	// tlssecpmlkem=0 restores the pre-Go 1.26 default.
+	case tlssecpmlkem.Value() == "0":
+		return []CurveID{X25519MLKEM768, X25519, CurveP256, CurveP384, CurveP521}
+	default:
+		return []CurveID{
+			X25519MLKEM768, SecP256r1MLKEM768, SecP384r1MLKEM1024,
+			X25519, CurveP256, CurveP384, CurveP521,
+		}
 	}
-	return []CurveID{X25519MLKEM768, X25519, CurveP256, CurveP384, CurveP521}
 }
 
 // defaultSupportedSignatureAlgorithms returns the signature and hash algorithms that

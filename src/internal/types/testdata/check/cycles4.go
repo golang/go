@@ -114,8 +114,8 @@ type Event interface {
 // Check that accessing an interface method too early doesn't lead
 // to follow-on errors due to an incorrectly computed type set.
 
-type T8 interface {
-	m() [unsafe.Sizeof(T8.m /* ERROR "undefined" */ )]int
+type T8 /* ERROR "invalid recursive type" */ interface {
+	m() [unsafe.Sizeof(T8.m)]int
 }
 
 var _ = T8.m // no error expected here

@@ -4263,3 +4263,12 @@ func TestCreateCertificateNegativeMaxPathLength(t *testing.T) {
 		t.Fatalf(`CreateCertificate() = %v; want = "x509: invalid MaxPathLen, must be greater or equal to -1"`, err)
 	}
 }
+
+func TestEKUOIDS(t *testing.T) {
+	for _, eku := range extKeyUsageOIDs {
+		oid := eku.extKeyUsage.OID()
+		if !oid.EqualASN1OID(eku.oid) {
+			t.Errorf("extKeyUsage %v: expected OID %v, got %v", eku.extKeyUsage, eku.oid, oid)
+		}
+	}
+}

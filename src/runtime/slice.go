@@ -7,6 +7,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
+	"internal/goexperiment"
 	"internal/runtime/math"
 	"internal/runtime/sys"
 	"unsafe"
@@ -285,6 +286,42 @@ func growslice(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type) slice 
 	return slice{p, newLen, newcap}
 }
 
+// growsliceNoAlias is like growslice but only for the case where
+// we know that oldPtr is not aliased.
+//
+// In other words, the caller must know that there are no other references
+// to the backing memory of the slice being grown aside from the slice header
+// that will be updated with new backing memory when growsliceNoAlias
+// returns, and therefore oldPtr must be the only pointer to its referent
+// aside from the slice header updated by the returned slice.
+//
+// In addition, oldPtr must point to the start of the allocation and match
+// the pointer that was returned by mallocgc. In particular, oldPtr must not
+// be an interior pointer, such as after a reslice.
+//
+// See freegc for details.
+func growsliceNoAlias(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type) slice {
+	s := growslice(oldPtr, newLen, oldCap, num, et)
+	if goexperiment.RuntimeFreegc && oldPtr != nil && oldPtr != s.array {
+		if gp := getg(); uintptr(oldPtr) < gp.stack.lo || gp.stack.hi <= uintptr(oldPtr) {
+			// oldPtr does not point into the current stack, and it is not
+			// the data pointer for s after the grow, so attempt to free it.
+			// (Note that freegc also verifies that oldPtr does not point into our stack,
+			// but checking here first is slightly cheaper for the case when
+			// oldPtr is on the stack and freegc would be a no-op.)
+			//
+			// TODO(thepudds): it may be that oldPtr==s.array only when elemsize==0,
+			// so perhaps we could prohibit growsliceNoAlias being called in that case
+			// and eliminate that check here, or alternatively, we could lean into
+			// freegc being a no-op for zero-sized allocations (that is, no check of
+			// oldPtr != s.array here and just let freegc return quickly).
+			noscan := !et.Pointers()
+			freegc(oldPtr, uintptr(oldCap)*et.Size_, noscan)
+		}
+	}
+	return s
+}
+
 // nextslicecap computes the next appropriate slice length.
 func nextslicecap(newLen, oldCap int) int {
 	newcap := oldCap
@@ -502,4 +539,23 @@ func growsliceBuf(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type, buf
 	}
 
 	return slice{bufPtr, newLen, newCap}
+}
+
+// growsliceBufNoAlias is a combination of growsliceBuf and growsliceNoAlias.
+// bufPtr must be on the stack.
+func growsliceBufNoAlias(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type, bufPtr unsafe.Pointer, bufLen int) slice {
+	s := growsliceBuf(oldPtr, newLen, oldCap, num, et, bufPtr, bufLen)
+	if goexperiment.RuntimeFreegc && oldPtr != bufPtr && oldPtr != nil && oldPtr != s.array {
+		// oldPtr is not bufPtr (the stack buffer) and it is not
+		// the data pointer for s after the grow, so attempt to free it.
+		// (Note that freegc does a broader check that oldPtr does not point into our stack,
+		// but checking here first is slightly cheaper for a common case when oldPtr is bufPtr
+		// and freegc would be a no-op.)
+		//
+		// TODO(thepudds): see related TODO in growsliceNoAlias about possibly eliminating
+		// the oldPtr != s.array check.
+		noscan := !et.Pointers()
+		freegc(oldPtr, uintptr(oldCap)*et.Size_, noscan)
+	}
+	return s
 }

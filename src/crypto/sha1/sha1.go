@@ -126,7 +126,7 @@ func (d *digest) Size() int { return Size }
 func (d *digest) BlockSize() int { return BlockSize }
 
 func (d *digest) Write(p []byte) (nn int, err error) {
-	if fips140only.Enabled {
+	if fips140only.Enforced() {
 		return 0, errors.New("crypto/sha1: use of SHA-1 is not allowed in FIPS 140-only mode")
 	}
 	boring.Unreachable()
@@ -161,7 +161,7 @@ func (d *digest) Sum(in []byte) []byte {
 }
 
 func (d *digest) checkSum() [Size]byte {
-	if fips140only.Enabled {
+	if fips140only.Enforced() {
 		panic("crypto/sha1: use of SHA-1 is not allowed in FIPS 140-only mode")
 	}
 
@@ -205,7 +205,7 @@ func (d *digest) ConstantTimeSum(in []byte) []byte {
 }
 
 func (d *digest) constSum() [Size]byte {
-	if fips140only.Enabled {
+	if fips140only.Enforced() {
 		panic("crypto/sha1: use of SHA-1 is not allowed in FIPS 140-only mode")
 	}
 
@@ -274,7 +274,7 @@ func Sum(data []byte) [Size]byte {
 	if boring.Enabled {
 		return boring.SHA1(data)
 	}
-	if fips140only.Enabled {
+	if fips140only.Enforced() {
 		panic("crypto/sha1: use of SHA-1 is not allowed in FIPS 140-only mode")
 	}
 	var d digest

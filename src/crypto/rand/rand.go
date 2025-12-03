@@ -8,11 +8,14 @@ package rand
 
 import (
 	"crypto/internal/boring"
-	"crypto/internal/fips140"
 	"crypto/internal/fips140/drbg"
-	"crypto/internal/sysrand"
+	"crypto/internal/rand"
 	"io"
 	_ "unsafe"
+
+	// Ensure the go:linkname from testing/cryptotest to
+	// crypto/internal/rand.SetTestingReader works.
+	_ "crypto/internal/rand"
 )
 
 // Reader is a global, shared instance of a cryptographically
@@ -35,21 +38,7 @@ func init() {
 		Reader = boring.RandReader
 		return
 	}
-	Reader = &reader{}
-}
-
-type reader struct {
-	drbg.DefaultReader
-}
-
-func (r *reader) Read(b []byte) (n int, err error) {
-	boring.Unreachable()
-	if fips140.Enabled {
-		drbg.Read(b)
-	} else {
-		sysrand.Read(b)
-	}
-	return len(b), nil
+	Reader = rand.Reader
 }
 
 // fatal is [runtime.fatal], pushed via linkname.
@@ -68,8 +57,9 @@ func Read(b []byte) (n int, err error) {
 	// through a potentially overridden Reader, so we special-case the default
 	// case which we can keep non-escaping, and in the general case we read into
 	// a heap buffer and copy from it.
-	if r, ok := Reader.(*reader); ok {
-		_, err = r.Read(b)
+	if _, ok := Reader.(drbg.DefaultReader); ok {
+		boring.Unreachable()
+		drbg.Read(b)
 	} else {
 		bb := make([]byte, len(b))
 		_, err = io.ReadFull(Reader, bb)

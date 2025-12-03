@@ -10,9 +10,8 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
-	"crypto/internal/fips140/mlkem"
+	"crypto/hpke"
 	"crypto/internal/fips140/tls13"
-	"crypto/internal/hpke"
 	"crypto/rsa"
 	"crypto/subtle"
 	"crypto/tls/internal/fips140tls"
@@ -142,43 +141,21 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *keySharePrivateKeys, *echCli
 		if len(hello.supportedCurves) == 0 {
 			return nil, nil, nil, errors.New("tls: no supported elliptic curves for ECDHE")
 		}
+		// Since the order is fixed, the first one is always the one to send a
+		// key share for. All the PQ hybrids sort first, and produce a fallback
+		// ECDH share.
 		curveID := hello.supportedCurves[0]
-		keyShareKeys = &keySharePrivateKeys{curveID: curveID}
-		// Note that if X25519MLKEM768 is supported, it will be first because
-		// the preference order is fixed.
-		if curveID == X25519MLKEM768 {
-			keyShareKeys.ecdhe, err = generateECDHEKey(config.rand(), X25519)
-			if err != nil {
-				return nil, nil, nil, err
-			}
-			seed := make([]byte, mlkem.SeedSize)
-			if _, err := io.ReadFull(config.rand(), seed); err != nil {
-				return nil, nil, nil, err
-			}
-			keyShareKeys.mlkem, err = mlkem.NewDecapsulationKey768(seed)
-			if err != nil {
-				return nil, nil, nil, err
-			}
-			mlkemEncapsulationKey := keyShareKeys.mlkem.EncapsulationKey().Bytes()
-			x25519EphemeralKey := keyShareKeys.ecdhe.PublicKey().Bytes()
-			hello.keyShares = []keyShare{
-				{group: X25519MLKEM768, data: append(mlkemEncapsulationKey, x25519EphemeralKey...)},
-			}
-			// If both X25519MLKEM768 and X25519 are supported, we send both key
-			// shares (as a fallback) and we reuse the same X25519 ephemeral
-			// key, as allowed by draft-ietf-tls-hybrid-design-09, Section 3.2.
-			if slices.Contains(hello.supportedCurves, X25519) {
-				hello.keyShares = append(hello.keyShares, keyShare{group: X25519, data: x25519EphemeralKey})
-			}
-		} else {
-			if _, ok := curveForCurveID(curveID); !ok {
-				return nil, nil, nil, errors.New("tls: CurvePreferences includes unsupported curve")
-			}
-			keyShareKeys.ecdhe, err = generateECDHEKey(config.rand(), curveID)
-			if err != nil {
-				return nil, nil, nil, err
-			}
-			hello.keyShares = []keyShare{{group: curveID, data: keyShareKeys.ecdhe.PublicKey().Bytes()}}
+		ke, err := keyExchangeForCurveID(curveID)
+		if err != nil {
+			return nil, nil, nil, errors.New("tls: CurvePreferences includes unsupported curve")
+		}
+		keyShareKeys, hello.keyShares, err = ke.keyShares(config.rand())
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		// Only send the fallback ECDH share if the corresponding CurveID is enabled.
+		if len(hello.keyShares) == 2 && !slices.Contains(hello.supportedCurves, hello.keyShares[1].group) {
+			hello.keyShares = hello.keyShares[:1]
 		}
 	}
 
@@ -804,15 +781,13 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 			return fmt.Errorf("tls: client certificate private key of type %T does not implement crypto.Signer", chainToSend.PrivateKey)
 		}
 
-		var sigType uint8
-		var sigHash crypto.Hash
 		if c.vers >= VersionTLS12 {
 			signatureAlgorithm, err := selectSignatureScheme(c.vers, chainToSend, certReq.supportedSignatureAlgorithms)
 			if err != nil {
 				c.sendAlert(alertHandshakeFailure)
 				return err
 			}
-			sigType, sigHash, err = typeAndHashFromSignatureScheme(signatureAlgorithm)
+			sigType, sigHash, err := typeAndHashFromSignatureScheme(signatureAlgorithm)
 			if err != nil {
 				return c.sendAlert(alertInternalError)
 			}
@@ -822,23 +797,31 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 				tlssha1.Value() // ensure godebug is initialized
 				tlssha1.IncNonDefault()
 			}
+			if hs.finishedHash.buffer == nil {
+				c.sendAlert(alertInternalError)
+				return errors.New("tls: internal error: did not keep handshake transcript for TLS 1.2")
+			}
+			signOpts := crypto.SignerOpts(sigHash)
+			if sigType == signatureRSAPSS {
+				signOpts = &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash, Hash: sigHash}
+			}
+			certVerify.signature, err = crypto.SignMessage(key, c.config.rand(), hs.finishedHash.buffer, signOpts)
+			if err != nil {
+				c.sendAlert(alertInternalError)
+				return err
+			}
 		} else {
-			sigType, sigHash, err = legacyTypeAndHashFromPublicKey(key.Public())
+			sigType, sigHash, err := legacyTypeAndHashFromPublicKey(key.Public())
 			if err != nil {
 				c.sendAlert(alertIllegalParameter)
 				return err
 			}
-		}
-
-		signed := hs.finishedHash.hashForClientCertificate(sigType, sigHash)
-		signOpts := crypto.SignerOpts(sigHash)
-		if sigType == signatureRSAPSS {
-			signOpts = &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash, Hash: sigHash}
-		}
-		certVerify.signature, err = key.Sign(c.config.rand(), signed, signOpts)
-		if err != nil {
-			c.sendAlert(alertInternalError)
-			return err
+			signed := hs.finishedHash.hashForClientCertificate(sigType)
+			certVerify.signature, err = key.Sign(c.config.rand(), signed, sigHash)
+			if err != nil {
+				c.sendAlert(alertInternalError)
+				return err
+			}
 		}
 
 		if _, err := hs.c.writeHandshakeRecord(certVerify, &hs.finishedHash); err != nil {

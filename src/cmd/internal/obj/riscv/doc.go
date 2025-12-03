@@ -289,6 +289,33 @@ the constant literal is 0.0, MOVF and MOVD will be encoded as FLW and FLD
 instructions that load the constant from a location within the program's
 binary.
 
+# Compressed instructions
+
+The Go assembler converts 32 bit RISC-V instructions to compressed
+instructions when generating machine code. This conversion happens
+automatically without the need for any direct involvement from the programmer,
+although judicious choice of registers can improve the compression rate for
+certain instructions (see the [RISC-V ISA Manual] for more details). This
+behaviour is enabled by default for all of the supported RISC-V profiles, i.e.,
+it is not affected by the value of the GORISCV64 environment variable.
+
+The use of compressed instructions can be disabled via a debug flag,
+compressinstructions:
+
+  - Use -gcflags=all=-d=compressinstructions=0 to disable compressed
+    instructions in Go code.
+  - Use -asmflags=all=-d=compressinstructions=0 to disable compressed
+    instructions in assembly code.
+
+To completely disable automatic instruction compression in a Go binary both
+options must be specified.
+
+The assembler also permits the use of compressed instructions in hand coded
+assembly language, but this should generally be avoided. Note that the
+compressinstructions flag only prevents the automatic compression of 32
+bit instructions. It has no effect on compressed instructions that are
+hand coded directly into an assembly file.
+
 [RISC-V ISA Manual]: https://github.com/riscv/riscv-isa-manual
 [rva20u64]: https://github.com/riscv/riscv-profiles/blob/main/src/profiles.adoc#51-rva20u64-profile
 [rva22u64]: https://github.com/riscv/riscv-profiles/blob/main/src/profiles.adoc#rva22u64-profile

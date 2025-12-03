@@ -753,6 +753,15 @@ func (t *tester) registerTests() {
 		})
 	}
 
+	// Test GOEXPERIMENT=runtimesecret.
+	if !strings.Contains(goexperiment, "runtimesecret") {
+		t.registerTest("GOEXPERIMENT=runtimesecret go test runtime/secret/...", &goTest{
+			variant: "runtimesecret",
+			env:     []string{"GOEXPERIMENT=runtimesecret"},
+			pkg:     "runtime/secret/...",
+		})
+	}
+
 	// Test ios/amd64 for the iOS simulator.
 	if goos == "darwin" && goarch == "amd64" && t.cgoEnabled {
 		t.registerTest("GOOS=ios on darwin/amd64",

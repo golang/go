@@ -58,6 +58,7 @@ var depsRules = `
 	  internal/nettrace,
 	  internal/platform,
 	  internal/profilerecord,
+	  internal/runtime/pprof/label,
 	  internal/syslist,
 	  internal/trace/tracev2,
 	  internal/trace/traceviewer/format,
@@ -85,6 +86,7 @@ var depsRules = `
 	internal/goos,
 	internal/itoa,
 	internal/profilerecord,
+	internal/runtime/pprof/label,
 	internal/strconv,
 	internal/trace/tracev2,
 	math/bits,
@@ -106,6 +108,7 @@ var depsRules = `
 	< internal/runtime/cgroup
 	< internal/runtime/gc/scan
 	< runtime
+	< runtime/secret
 	< sync/atomic
 	< internal/sync
 	< weak
@@ -535,7 +538,7 @@ var depsRules = `
 	< crypto/internal/fips140/edwards25519
 	< crypto/internal/fips140/ed25519
 	< crypto/internal/fips140/rsa
-	< FIPS < crypto/fips140;
+	< crypto/fips140 < FIPS;
 
 	crypto !< FIPS;
 
@@ -557,6 +560,7 @@ var depsRules = `
 	< crypto/cipher
 	< crypto/internal/boring
 	< crypto/boring
+	< crypto/internal/rand
 	< crypto/aes,
 	  crypto/des,
 	  crypto/rc4,
@@ -602,9 +606,11 @@ var depsRules = `
 	< golang.org/x/crypto/internal/poly1305
 	< golang.org/x/crypto/chacha20poly1305;
 
-	CRYPTO-MATH, NET, container/list, encoding/hex, encoding/pem,
+	CRYPTO-MATH, golang.org/x/crypto/chacha20poly1305
+	< crypto/hpke;
+
+	CRYPTO-MATH, NET, container/list, encoding/hex, encoding/pem, crypto/hpke,
 	golang.org/x/crypto/chacha20poly1305, crypto/tls/internal/fips140tls
-	< crypto/internal/hpke
 	< crypto/x509/internal/macos
 	< crypto/x509/pkix
 	< crypto/x509
@@ -672,7 +678,8 @@ var depsRules = `
 	< net/http/fcgi;
 
 	# Profiling
-	FMT, compress/gzip, encoding/binary, sort, text/tabwriter
+	internal/runtime/pprof/label, runtime, context < internal/runtime/pprof;
+	FMT, compress/gzip, encoding/binary, sort, text/tabwriter, internal/runtime/pprof, internal/runtime/pprof/label
 	< runtime/pprof;
 
 	OS, compress/gzip, internal/lazyregexp
@@ -706,6 +713,9 @@ var depsRules = `
 
 	log/slog, testing
 	< testing/slogtest;
+
+	testing, crypto/rand
+	< testing/cryptotest;
 
 	FMT, crypto/sha256, encoding/binary, encoding/json,
 	go/ast, go/parser, go/token,
@@ -761,7 +771,7 @@ var depsRules = `
 	FMT, internal/trace/version, io, sort, encoding/binary
 	< internal/trace/internal/tracev1;
 
-	FMT, encoding/binary, internal/trace/version, internal/trace/internal/tracev1, container/heap, math/rand
+	FMT, encoding/binary, internal/trace/version, internal/trace/internal/tracev1, container/heap, math/rand, regexp
 	< internal/trace;
 
 	# cmd/trace dependencies.

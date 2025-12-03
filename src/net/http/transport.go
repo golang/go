@@ -1067,6 +1067,22 @@ func (t *Transport) tryPutIdleConn(pconn *persistConn) error {
 		return errConnBroken
 	}
 	pconn.markReused()
+	if pconn.isClientConn {
+		// internalStateHook is always set for conns created by NewClientConn.
+		defer pconn.internalStateHook()
+		pconn.mu.Lock()
+		defer pconn.mu.Unlock()
+		if !pconn.inFlight {
+			panic("pconn is not in flight")
+		}
+		pconn.inFlight = false
+		select {
+		case pconn.availch <- struct{}{}:
+		default:
+			panic("unable to make pconn available")
+		}
+		return nil
+	}
 
 	t.idleMu.Lock()
 	defer t.idleMu.Unlock()
@@ -1243,6 +1259,9 @@ func (t *Transport) queueForIdleConn(w *wantConn) (delivered bool) {
 
 // removeIdleConn marks pconn as dead.
 func (t *Transport) removeIdleConn(pconn *persistConn) bool {
+	if pconn.isClientConn {
+		return true
+	}
 	t.idleMu.Lock()
 	defer t.idleMu.Unlock()
 	return t.removeIdleConnLocked(pconn)
@@ -1625,7 +1644,8 @@ func (t *Transport) dialConnFor(w *wantConn) {
 		return
 	}
 
-	pc, err := t.dialConn(ctx, w.cm)
+	const isClientConn = false
+	pc, err := t.dialConn(ctx, w.cm, isClientConn, nil)
 	delivered := w.tryDeliver(pc, err, time.Time{})
 	if err == nil && (!delivered || pc.alt != nil) {
 		// pconn was not passed to w,
@@ -1746,15 +1766,17 @@ type erringRoundTripper interface {
 
 var testHookProxyConnectTimeout = context.WithTimeout
 
-func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *persistConn, err error) {
+func (t *Transport) dialConn(ctx context.Context, cm connectMethod, isClientConn bool, internalStateHook func()) (pconn *persistConn, err error) {
 	pconn = &persistConn{
-		t:             t,
-		cacheKey:      cm.key(),
-		reqch:         make(chan requestAndChan, 1),
-		writech:       make(chan writeRequest, 1),
-		closech:       make(chan struct{}),
-		writeErrCh:    make(chan error, 1),
-		writeLoopDone: make(chan struct{}),
+		t:                 t,
+		cacheKey:          cm.key(),
+		reqch:             make(chan requestAndChan, 1),
+		writech:           make(chan writeRequest, 1),
+		closech:           make(chan struct{}),
+		writeErrCh:        make(chan error, 1),
+		writeLoopDone:     make(chan struct{}),
+		isClientConn:      isClientConn,
+		internalStateHook: internalStateHook,
 	}
 	trace := httptrace.ContextClientTrace(ctx)
 	wrapErr := func(err error) error {
@@ -1927,6 +1949,21 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 		t.Protocols != nil &&
 		t.Protocols.UnencryptedHTTP2() &&
 		!t.Protocols.HTTP1()
+
+	if isClientConn && (unencryptedHTTP2 || (pconn.tlsState != nil && pconn.tlsState.NegotiatedProtocol == "h2")) {
+		altProto, _ := t.altProto.Load().(map[string]RoundTripper)
+		h2, ok := altProto["https"].(newClientConner)
+		if !ok {
+			return nil, errors.New("http: HTTP/2 implementation does not support NewClientConn (update golang.org/x/net?)")
+		}
+		alt, err := h2.NewClientConn(pconn.conn, internalStateHook)
+		if err != nil {
+			pconn.conn.Close()
+			return nil, err
+		}
+		return &persistConn{t: t, cacheKey: pconn.cacheKey, alt: alt, isClientConn: true}, nil
+	}
+
 	if unencryptedHTTP2 {
 		next, ok := t.TLSNextProto[nextProtoUnencryptedHTTP2]
 		if !ok {
@@ -2081,19 +2118,21 @@ type persistConn struct {
 	// If it's non-nil, the rest of the fields are unused.
 	alt RoundTripper
 
-	t         *Transport
-	cacheKey  connectMethodKey
-	conn      net.Conn
-	tlsState  *tls.ConnectionState
-	br        *bufio.Reader       // from conn
-	bw        *bufio.Writer       // to conn
-	nwrite    int64               // bytes written
-	reqch     chan requestAndChan // written by roundTrip; read by readLoop
-	writech   chan writeRequest   // written by roundTrip; read by writeLoop
-	closech   chan struct{}       // closed when conn closed
-	isProxy   bool
-	sawEOF    bool  // whether we've seen EOF from conn; owned by readLoop
-	readLimit int64 // bytes allowed to be read; owned by readLoop
+	t            *Transport
+	cacheKey     connectMethodKey
+	conn         net.Conn
+	tlsState     *tls.ConnectionState
+	br           *bufio.Reader       // from conn
+	bw           *bufio.Writer       // to conn
+	nwrite       int64               // bytes written
+	reqch        chan requestAndChan // written by roundTrip; read by readLoop
+	writech      chan writeRequest   // written by roundTrip; read by writeLoop
+	closech      chan struct{}       // closed when conn closed
+	availch      chan struct{}       // ClientConn only: contains a value when conn is usable
+	isProxy      bool
+	sawEOF       bool  // whether we've seen EOF from conn; owned by readLoop
+	isClientConn bool  // whether this is a ClientConn (outside any pool)
+	readLimit    int64 // bytes allowed to be read; owned by readLoop
 	// writeErrCh passes the request write error (usually nil)
 	// from the writeLoop goroutine to the readLoop which passes
 	// it off to the res.Body reader, which then uses it to decide
@@ -2108,9 +2147,13 @@ type persistConn struct {
 
 	mu                   sync.Mutex // guards following fields
 	numExpectedResponses int
-	closed               error // set non-nil when conn is closed, before closech is closed
-	canceledErr          error // set non-nil if conn is canceled
-	reused               bool  // whether conn has had successful request/response and is being reused.
+	closed               error  // set non-nil when conn is closed, before closech is closed
+	canceledErr          error  // set non-nil if conn is canceled
+	reused               bool   // whether conn has had successful request/response and is being reused.
+	reserved             bool   // ClientConn only: concurrency slot reserved
+	inFlight             bool   // ClientConn only: request is in flight
+	internalStateHook    func() // ClientConn state hook
+
 	// mutateHeaderFunc is an optional func to modify extra
 	// headers on each outbound request before it's written. (the
 	// original Request given to RoundTrip is not modified)
@@ -2250,6 +2293,9 @@ func (pc *persistConn) readLoop() {
 	defer func() {
 		pc.close(closeErr)
 		pc.t.removeIdleConn(pc)
+		if pc.internalStateHook != nil {
+			pc.internalStateHook()
+		}
 	}()
 
 	tryPutIdleConn := func(treq *transportRequest) bool {
@@ -2753,9 +2799,32 @@ var (
 	testHookReadLoopBeforeNextRead             = nop
 )
 
+func (pc *persistConn) waitForAvailability(ctx context.Context) error {
+	select {
+	case <-pc.availch:
+		return nil
+	case <-pc.closech:
+		return pc.closed
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
 func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err error) {
 	testHookEnterRoundTrip()
+
 	pc.mu.Lock()
+	if pc.isClientConn {
+		if !pc.reserved {
+			pc.mu.Unlock()
+			if err := pc.waitForAvailability(req.ctx); err != nil {
+				return nil, err
+			}
+			pc.mu.Lock()
+		}
+		pc.reserved = false
+		pc.inFlight = true
+	}
 	pc.numExpectedResponses++
 	headerFn := pc.mutateHeaderFunc
 	pc.mu.Unlock()

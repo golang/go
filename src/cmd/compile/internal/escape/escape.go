@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"go/constant"
 	"go/token"
+	"internal/goexperiment"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -369,6 +370,16 @@ func (b *batch) finish(fns []*ir.Func) {
 			}
 		}
 	}
+
+	if goexperiment.RuntimeFreegc {
+		// Look for specific patterns of usage, such as appends
+		// to slices that we can prove are not aliased.
+		for _, fn := range fns {
+			a := aliasAnalysis{}
+			a.analyze(fn)
+		}
+	}
+
 }
 
 // inMutualBatch reports whether function fn is in the batch of

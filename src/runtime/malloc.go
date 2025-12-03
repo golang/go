@@ -1185,7 +1185,11 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	} else {
 		if size <= maxSmallSize-gc.MallocHeaderSize {
 			if typ == nil || !typ.Pointers() {
-				if size < maxTinySize {
+				// tiny allocations might be kept alive by other co-located values.
+				// Make sure secret allocations get zeroed by avoiding the tiny allocator
+				// See go.dev/issue/76356
+				gp := getg()
+				if size < maxTinySize && gp.secret == 0 {
 					x, elemsize = mallocgcTiny(size, typ)
 				} else {
 					x, elemsize = mallocgcSmallNoscan(size, typ, needzero)
@@ -1203,6 +1207,13 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		} else {
 			x, elemsize = mallocgcLarge(size, typ, needzero)
 		}
+	}
+
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+		// Mark any object allocated while in secret mode as secret.
+		// This ensures we zero it immediately when freeing it.
+		addSecret(x)
 	}
 
 	// Notify sanitizers, if enabled.

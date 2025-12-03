@@ -83,10 +83,13 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	base.DebugSSA = ssa.PhaseOption
 	base.ParseFlags()
 
-	if os.Getenv("GOGC") == "" { // GOGC set disables starting heap adjustment
-		// More processors will use more heap, but assume that more memory is available.
-		// So 1 processor -> 40MB, 4 -> 64MB, 12 -> 128MB
-		base.AdjustStartingHeap(uint64(32+8*base.Flag.LowerC) << 20)
+	if flagGCStart := base.Debug.GCStart; flagGCStart > 0 || // explicit flags overrides environment variable disable of GC boost
+		os.Getenv("GOGC") == "" && os.Getenv("GOMEMLIMIT") == "" && base.Flag.LowerC != 1 { // explicit GC knobs or no concurrency implies default heap
+		startHeapMB := int64(128)
+		if flagGCStart > 0 {
+			startHeapMB = int64(flagGCStart)
+		}
+		base.AdjustStartingHeap(uint64(startHeapMB)<<20, 0, 0, 0, base.Debug.GCAdjust == 1)
 	}
 
 	types.LocalPkg = types.NewPkg(base.Ctxt.Pkgpath, "")

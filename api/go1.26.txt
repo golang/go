@@ -1,0 +1,185 @@
+pkg bytes, method (*Buffer) Peek(int) ([]uint8, error) #73794
+pkg crypto, type Decapsulator interface { Decapsulate, Encapsulator } #75300
+pkg crypto, type Decapsulator interface, Decapsulate([]uint8) ([]uint8, error) #75300
+pkg crypto, type Decapsulator interface, Encapsulator() Encapsulator #75300
+pkg crypto, type Encapsulator interface { Bytes, Encapsulate } #75300
+pkg crypto, type Encapsulator interface, Bytes() []uint8 #75300
+pkg crypto, type Encapsulator interface, Encapsulate() ([]uint8, []uint8) #75300
+pkg crypto/ecdh, type KeyExchanger interface { Curve, ECDH, PublicKey } #75300
+pkg crypto/ecdh, type KeyExchanger interface, Curve() Curve #75300
+pkg crypto/ecdh, type KeyExchanger interface, ECDH(*PublicKey) ([]uint8, error) #75300
+pkg crypto/ecdh, type KeyExchanger interface, PublicKey() *PublicKey #75300
+pkg crypto/ecdsa, type PrivateKey struct, D //deprecated #63963
+pkg crypto/ecdsa, type PublicKey struct, X //deprecated #63963
+pkg crypto/ecdsa, type PublicKey struct, Y //deprecated #63963
+pkg crypto/fips140, func Enforced() bool #74630
+pkg crypto/fips140, func Version() string #75301
+pkg crypto/fips140, func WithoutEnforcement(func()) #74630
+pkg crypto/hpke, func AES128GCM() AEAD #75300
+pkg crypto/hpke, func AES256GCM() AEAD #75300
+pkg crypto/hpke, func ChaCha20Poly1305() AEAD #75300
+pkg crypto/hpke, func DHKEM(ecdh.Curve) KEM #75300
+pkg crypto/hpke, func ExportOnly() AEAD #75300
+pkg crypto/hpke, func HKDFSHA256() KDF #75300
+pkg crypto/hpke, func HKDFSHA384() KDF #75300
+pkg crypto/hpke, func HKDFSHA512() KDF #75300
+pkg crypto/hpke, func MLKEM1024() KEM #75300
+pkg crypto/hpke, func MLKEM1024P384() KEM #75300
+pkg crypto/hpke, func MLKEM768() KEM #75300
+pkg crypto/hpke, func MLKEM768P256() KEM #75300
+pkg crypto/hpke, func MLKEM768X25519() KEM #75300
+pkg crypto/hpke, func NewAEAD(uint16) (AEAD, error) #75300
+pkg crypto/hpke, func NewDHKEMPrivateKey(ecdh.KeyExchanger) (PrivateKey, error) #75300
+pkg crypto/hpke, func NewDHKEMPublicKey(*ecdh.PublicKey) (PublicKey, error) #75300
+pkg crypto/hpke, func NewHybridPrivateKey(crypto.Decapsulator, ecdh.KeyExchanger) (PrivateKey, error) #75300
+pkg crypto/hpke, func NewHybridPublicKey(crypto.Encapsulator, *ecdh.PublicKey) (PublicKey, error) #75300
+pkg crypto/hpke, func NewKDF(uint16) (KDF, error) #75300
+pkg crypto/hpke, func NewKEM(uint16) (KEM, error) #75300
+pkg crypto/hpke, func NewMLKEMPrivateKey(crypto.Decapsulator) (PrivateKey, error) #75300
+pkg crypto/hpke, func NewMLKEMPublicKey(crypto.Encapsulator) (PublicKey, error) #75300
+pkg crypto/hpke, func NewRecipient([]uint8, PrivateKey, KDF, AEAD, []uint8) (*Recipient, error) #75300
+pkg crypto/hpke, func NewSender(PublicKey, KDF, AEAD, []uint8) ([]uint8, *Sender, error) #75300
+pkg crypto/hpke, func Open(PrivateKey, KDF, AEAD, []uint8, []uint8) ([]uint8, error) #75300
+pkg crypto/hpke, func SHAKE128() KDF #75300
+pkg crypto/hpke, func SHAKE256() KDF #75300
+pkg crypto/hpke, func Seal(PublicKey, KDF, AEAD, []uint8, []uint8) ([]uint8, error) #75300
+pkg crypto/hpke, method (*Recipient) Export(string, int) ([]uint8, error) #75300
+pkg crypto/hpke, method (*Recipient) Open([]uint8, []uint8) ([]uint8, error) #75300
+pkg crypto/hpke, method (*Sender) Export(string, int) ([]uint8, error) #75300
+pkg crypto/hpke, method (*Sender) Seal([]uint8, []uint8) ([]uint8, error) #75300
+pkg crypto/hpke, type AEAD interface, ID() uint16 #75300
+pkg crypto/hpke, type AEAD interface, unexported methods #75300
+pkg crypto/hpke, type KDF interface, ID() uint16 #75300
+pkg crypto/hpke, type KDF interface, unexported methods #75300
+pkg crypto/hpke, type KEM interface, DeriveKeyPair([]uint8) (PrivateKey, error) #75300
+pkg crypto/hpke, type KEM interface, GenerateKey() (PrivateKey, error) #75300
+pkg crypto/hpke, type KEM interface, ID() uint16 #75300
+pkg crypto/hpke, type KEM interface, NewPrivateKey([]uint8) (PrivateKey, error) #75300
+pkg crypto/hpke, type KEM interface, NewPublicKey([]uint8) (PublicKey, error) #75300
+pkg crypto/hpke, type KEM interface, unexported methods #75300
+pkg crypto/hpke, type PrivateKey interface, Bytes() ([]uint8, error) #75300
+pkg crypto/hpke, type PrivateKey interface, KEM() KEM #75300
+pkg crypto/hpke, type PrivateKey interface, PublicKey() PublicKey #75300
+pkg crypto/hpke, type PrivateKey interface, unexported methods #75300
+pkg crypto/hpke, type PublicKey interface, Bytes() []uint8 #75300
+pkg crypto/hpke, type PublicKey interface, KEM() KEM #75300
+pkg crypto/hpke, type PublicKey interface, unexported methods #75300
+pkg crypto/hpke, type Recipient struct #75300
+pkg crypto/hpke, type Sender struct #75300
+pkg crypto/mlkem, method (*DecapsulationKey1024) Encapsulator() crypto.Encapsulator #75300
+pkg crypto/mlkem, method (*DecapsulationKey768) Encapsulator() crypto.Encapsulator #75300
+pkg crypto/mlkem/mlkemtest, func Encapsulate1024(*mlkem.EncapsulationKey1024, []uint8) ([]uint8, []uint8, error) #73627
+pkg crypto/mlkem/mlkemtest, func Encapsulate768(*mlkem.EncapsulationKey768, []uint8) ([]uint8, []uint8, error) #73627
+pkg crypto/rsa, func DecryptPKCS1v15 //deprecated #75302
+pkg crypto/rsa, func DecryptPKCS1v15SessionKey //deprecated #75302
+pkg crypto/rsa, func EncryptOAEPWithOptions(io.Reader, *PublicKey, []uint8, *OAEPOptions) ([]uint8, error) #65716
+pkg crypto/rsa, func EncryptPKCS1v15 //deprecated #75302
+pkg crypto/rsa, type PKCS1v15DecryptOptions //deprecated #75302
+pkg crypto/tls, const QUICErrorEvent = 10 #75108
+pkg crypto/tls, const QUICErrorEvent QUICEventKind #75108
+pkg crypto/tls, const SecP256r1MLKEM768 = 4587 #71206
+pkg crypto/tls, const SecP256r1MLKEM768 CurveID #71206
+pkg crypto/tls, const SecP384r1MLKEM1024 = 4589 #71206
+pkg crypto/tls, const SecP384r1MLKEM1024 CurveID #71206
+pkg crypto/tls, type ClientHelloInfo struct, HelloRetryRequest bool #74425
+pkg crypto/tls, type ConnectionState struct, HelloRetryRequest bool #74425
+pkg crypto/tls, type QUICEvent struct, Err error #75108
+pkg crypto/x509, func OIDFromASN1OID(asn1.ObjectIdentifier) (OID, error) #75325
+pkg crypto/x509, method (ExtKeyUsage) OID() OID #75325
+pkg crypto/x509, method (ExtKeyUsage) String() string #56866
+pkg crypto/x509, method (KeyUsage) String() string #56866
+pkg database/sql/driver, type RowsColumnScanner interface { Close, Columns, Next, ScanColumn } #67546
+pkg database/sql/driver, type RowsColumnScanner interface, Close() error #67546
+pkg database/sql/driver, type RowsColumnScanner interface, Columns() []string #67546
+pkg database/sql/driver, type RowsColumnScanner interface, Next([]Value) error #67546
+pkg database/sql/driver, type RowsColumnScanner interface, ScanColumn(interface{}, int) error #67546
+pkg debug/elf, const R_LARCH_CALL36 = 110 #75562
+pkg debug/elf, const R_LARCH_CALL36 R_LARCH #75562
+pkg debug/elf, const R_LARCH_TLS_DESC32 = 13 #75562
+pkg debug/elf, const R_LARCH_TLS_DESC32 R_LARCH #75562
+pkg debug/elf, const R_LARCH_TLS_DESC64 = 14 #75562
+pkg debug/elf, const R_LARCH_TLS_DESC64 R_LARCH #75562
+pkg debug/elf, const R_LARCH_TLS_DESC64_HI12 = 118 #75562
+pkg debug/elf, const R_LARCH_TLS_DESC64_HI12 R_LARCH #75562
+pkg debug/elf, const R_LARCH_TLS_DESC64_LO20 = 117 #75562
+pkg debug/elf, const R_LARCH_TLS_DESC64_LO20 R_LARCH #75562
+pkg debug/elf, const R_LARCH_TLS_DESC64_PC_HI12 = 114 #75562
+pkg debug/elf, const R_LARCH_TLS_DESC64_PC_HI12 R_LARCH #75562
+pkg debug/elf, const R_LARCH_TLS_DESC64_PC_LO20 = 113 #75562
+pkg debug/elf, const R_LARCH_TLS_DESC64_PC_LO20 R_LARCH #75562
+pkg debug/elf, const R_LARCH_TLS_DESC_CALL = 120 #75562
+pkg debug/elf, const R_LARCH_TLS_DESC_CALL R_LARCH #75562
+pkg debug/elf, const R_LARCH_TLS_DESC_HI20 = 115 #75562
+pkg debug/elf, const R_LARCH_TLS_DESC_HI20 R_LARCH #75562
+pkg debug/elf, const R_LARCH_TLS_DESC_LD = 119 #75562
+pkg debug/elf, const R_LARCH_TLS_DESC_LD R_LARCH #75562
+pkg debug/elf, const R_LARCH_TLS_DESC_LO12 = 116 #75562
+pkg debug/elf, const R_LARCH_TLS_DESC_LO12 R_LARCH #75562
+pkg debug/elf, const R_LARCH_TLS_DESC_PCREL20_S2 = 126 #75562
+pkg debug/elf, const R_LARCH_TLS_DESC_PCREL20_S2 R_LARCH #75562
+pkg debug/elf, const R_LARCH_TLS_DESC_PC_HI20 = 111 #75562
+pkg debug/elf, const R_LARCH_TLS_DESC_PC_HI20 R_LARCH #75562
+pkg debug/elf, const R_LARCH_TLS_DESC_PC_LO12 = 112 #75562
+pkg debug/elf, const R_LARCH_TLS_DESC_PC_LO12 R_LARCH #75562
+pkg debug/elf, const R_LARCH_TLS_GD_PCREL20_S2 = 125 #75562
+pkg debug/elf, const R_LARCH_TLS_GD_PCREL20_S2 R_LARCH #75562
+pkg debug/elf, const R_LARCH_TLS_LD_PCREL20_S2 = 124 #75562
+pkg debug/elf, const R_LARCH_TLS_LD_PCREL20_S2 R_LARCH #75562
+pkg debug/elf, const R_LARCH_TLS_LE_ADD_R = 122 #75562
+pkg debug/elf, const R_LARCH_TLS_LE_ADD_R R_LARCH #75562
+pkg debug/elf, const R_LARCH_TLS_LE_HI20_R = 121 #75562
+pkg debug/elf, const R_LARCH_TLS_LE_HI20_R R_LARCH #75562
+pkg debug/elf, const R_LARCH_TLS_LE_LO12_R = 123 #75562
+pkg debug/elf, const R_LARCH_TLS_LE_LO12_R R_LARCH #75562
+pkg errors, func AsType[$0 error](error) ($0, bool) #51945
+pkg go/ast, func ParseDirective(token.Pos, string) (Directive, bool) #68021
+pkg go/ast, method (*Directive) End() token.Pos #68021
+pkg go/ast, method (*Directive) ParseArgs() ([]DirectiveArg, error) #68021
+pkg go/ast, method (*Directive) Pos() token.Pos #68021
+pkg go/ast, type BasicLit struct, ValueEnd token.Pos #76031
+pkg go/ast, type Directive struct #68021
+pkg go/ast, type Directive struct, Args string #68021
+pkg go/ast, type Directive struct, ArgsPos token.Pos #68021
+pkg go/ast, type Directive struct, Name string #68021
+pkg go/ast, type Directive struct, Slash token.Pos #68021
+pkg go/ast, type Directive struct, Tool string #68021
+pkg go/ast, type DirectiveArg struct #68021
+pkg go/ast, type DirectiveArg struct, Arg string #68021
+pkg go/ast, type DirectiveArg struct, Pos token.Pos #68021
+pkg go/token, method (*File) End() Pos #75849
+pkg log/slog, func NewMultiHandler(...Handler) *MultiHandler #65954
+pkg log/slog, method (*MultiHandler) Enabled(context.Context, Level) bool #65954
+pkg log/slog, method (*MultiHandler) Handle(context.Context, Record) error #65954
+pkg log/slog, method (*MultiHandler) WithAttrs([]Attr) Handler #65954
+pkg log/slog, method (*MultiHandler) WithGroup(string) Handler #65954
+pkg log/slog, type MultiHandler struct #65954
+pkg net, method (*Dialer) DialIP(context.Context, string, netip.Addr, netip.Addr) (*IPConn, error) #49097
+pkg net, method (*Dialer) DialTCP(context.Context, string, netip.AddrPort, netip.AddrPort) (*TCPConn, error) #49097
+pkg net, method (*Dialer) DialUDP(context.Context, string, netip.AddrPort, netip.AddrPort) (*UDPConn, error) #49097
+pkg net, method (*Dialer) DialUnix(context.Context, string, *UnixAddr, *UnixAddr) (*UnixConn, error) #49097
+pkg net/http, method (*ClientConn) Available() int #75772
+pkg net/http, method (*ClientConn) Close() error #75772
+pkg net/http, method (*ClientConn) Err() error #75772
+pkg net/http, method (*ClientConn) InFlight() int #75772
+pkg net/http, method (*ClientConn) Release() #75772
+pkg net/http, method (*ClientConn) Reserve() error #75772
+pkg net/http, method (*ClientConn) RoundTrip(*Request) (*Response, error) #75772
+pkg net/http, method (*ClientConn) SetStateHook(func(*ClientConn)) #75772
+pkg net/http, method (*Transport) NewClientConn(context.Context, string, string) (*ClientConn, error) #75772
+pkg net/http, type ClientConn struct #75772
+pkg net/http, type HTTP2Config struct, StrictMaxConcurrentRequests bool #67813
+pkg net/http/httputil, type ReverseProxy struct, Director //deprecated #73161
+pkg net/netip, method (Prefix) Compare(Prefix) int #61642
+pkg os, method (*Process) WithHandle(func(uintptr)) error #70352
+pkg os, var ErrNoHandle error #70352
+pkg reflect, method (Value) Fields() iter.Seq2[StructField, Value] #66631
+pkg reflect, method (Value) Methods() iter.Seq2[Method, Value] #66631
+pkg reflect, type Type interface, Fields() iter.Seq[StructField] #66631
+pkg reflect, type Type interface, Ins() iter.Seq[Type] #66631
+pkg reflect, type Type interface, Methods() iter.Seq[Method] #66631
+pkg reflect, type Type interface, Outs() iter.Seq[Type] #66631
+pkg testing, method (*B) ArtifactDir() string #71287
+pkg testing, method (*F) ArtifactDir() string #71287
+pkg testing, method (*T) ArtifactDir() string #71287
+pkg testing, type TB interface, ArtifactDir() string #71287
+pkg testing/cryptotest, func SetGlobalRandom(*testing.T, uint64) #70942

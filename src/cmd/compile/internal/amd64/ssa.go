@@ -1871,6 +1871,10 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 
 // zeroX15 zeroes the X15 register.
 func zeroX15(s *ssagen.State) {
+	if !buildcfg.Experiment.SIMD {
+		opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+		return
+	}
 	vxorps := func(s *ssagen.State) {
 		p := s.Prog(x86.AVXORPS)
 		p.From.Type = obj.TYPE_REG

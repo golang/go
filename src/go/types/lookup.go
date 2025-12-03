@@ -450,7 +450,7 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
 
 			// methods may not have a fully set up signature yet
 			if check != nil {
-				check.objDecl(f, nil)
+				check.objDecl(f)
 			}
 
 			if !equivalent(f.typ, m.typ) {
@@ -469,7 +469,7 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
 			// This method may be formatted in funcString below, so must have a fully
 			// set up signature.
 			if check != nil {
-				check.objDecl(f, nil)
+				check.objDecl(f)
 			}
 		}
 		switch state {

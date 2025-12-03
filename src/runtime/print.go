@@ -13,6 +13,10 @@ import (
 // should use printhex instead of printuint (decimal).
 type hex uint64
 
+// The compiler knows that a print of a value of this type should use
+// printquoted instead of printstring.
+type quoted string
+
 func bytes(s string) (ret []byte) {
 	rp := (*slice)(unsafe.Pointer(&ret))
 	sp := stringStructOf(&s)
@@ -169,22 +173,65 @@ func printint(v int64) {
 
 var minhexdigits = 0 // protected by printlock
 
-func printhex(v uint64) {
+func printhexopts(include0x bool, mindigits int, v uint64) {
 	const dig = "0123456789abcdef"
 	var buf [100]byte
 	i := len(buf)
 	for i--; i > 0; i-- {
 		buf[i] = dig[v%16]
-		if v < 16 && len(buf)-i >= minhexdigits {
+		if v < 16 && len(buf)-i >= mindigits {
 			break
 		}
 		v /= 16
 	}
-	i--
-	buf[i] = 'x'
-	i--
-	buf[i] = '0'
+	if include0x {
+		i--
+		buf[i] = 'x'
+		i--
+		buf[i] = '0'
+	}
 	gwrite(buf[i:])
+}
+
+func printhex(v uint64) {
+	printhexopts(true, minhexdigits, v)
+}
+
+func printquoted(s string) {
+	printlock()
+	gwrite([]byte(`"`))
+	for _, r := range s {
+		switch r {
+		case '\n':
+			gwrite([]byte(`\n`))
+			continue
+		case '\r':
+			gwrite([]byte(`\r`))
+			continue
+		case '\t':
+			gwrite([]byte(`\t`))
+			print()
+			continue
+		case '\\', '"':
+			gwrite([]byte{byte('\\'), byte(r)})
+			continue
+		}
+		// For now, only allow basic printable ascii through unescaped
+		if r >= ' ' && r <= '~' {
+			gwrite([]byte{byte(r)})
+		} else if r < 127 {
+			gwrite(bytes(`\x`))
+			printhexopts(false, 2, uint64(r))
+		} else if r < 0x1_0000 {
+			gwrite(bytes(`\u`))
+			printhexopts(false, 4, uint64(r))
+		} else {
+			gwrite(bytes(`\U`))
+			printhexopts(false, 8, uint64(r))
+		}
+	}
+	gwrite([]byte{byte('"')})
+	printunlock()
 }
 
 func printpointer(p unsafe.Pointer) {

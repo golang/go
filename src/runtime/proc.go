@@ -8,6 +8,7 @@ import (
 	"internal/abi"
 	"internal/cpu"
 	"internal/goarch"
+	"internal/goexperiment"
 	"internal/goos"
 	"internal/runtime/atomic"
 	"internal/runtime/exithook"
@@ -4454,6 +4455,13 @@ func goexit1() {
 
 // goexit continuation on g0.
 func goexit0(gp *g) {
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+		// Erase the whole stack. This path only occurs when
+		// runtime.Goexit is called from within a runtime/secret.Do call.
+		memclrNoHeapPointers(unsafe.Pointer(gp.stack.lo), gp.stack.hi-gp.stack.lo)
+		// Since this is running on g0, our registers are already zeroed from going through
+		// mcall in secret mode.
+	}
 	gdestroy(gp)
 	schedule()
 }
@@ -4481,6 +4489,8 @@ func gdestroy(gp *g) {
 	gp.labels = nil
 	gp.timer = nil
 	gp.bubble = nil
+	gp.fipsOnlyBypass = false
+	gp.secret = 0
 
 	if gcBlackenEnabled != 0 && gp.gcAssistBytes > 0 {
 		// Flush assist credit to the global pool. This gives
@@ -5215,6 +5225,10 @@ func malg(stacksize int32) *g {
 // The compiler turns a go statement into a call to this.
 func newproc(fn *funcval) {
 	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+		panic("goroutine spawned while running in secret mode")
+	}
+
 	pc := sys.GetCallerPC()
 	systemstack(func() {
 		newg := newproc1(fn, gp, pc, false, waitReasonZero)
@@ -5324,6 +5338,9 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr, parked bool, waitreaso
 		trace.GoCreate(newg, newg.startpc, parked)
 		traceRelease(trace)
 	}
+
+	// fips140 bubble
+	newg.fipsOnlyBypass = callergp.fipsOnlyBypass
 
 	// Set up race context.
 	if raceenabled {

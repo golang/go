@@ -8,6 +8,7 @@ import (
 	"internal/abi"
 	"internal/bytealg"
 	"internal/goarch"
+	"internal/runtime/pprof/label"
 	"internal/runtime/sys"
 	"internal/stringslite"
 	"unsafe"
@@ -1269,6 +1270,19 @@ func goroutineheader(gp *g) {
 	}
 	if bubble := gp.bubble; bubble != nil {
 		print(", synctest bubble ", bubble.id)
+	}
+	if gp.labels != nil && debug.tracebacklabels.Load() == 1 {
+		labels := (*label.Set)(gp.labels).List
+		if len(labels) > 0 {
+			print(" labels:{")
+			for i, kv := range labels {
+				print(quoted(kv.Key), ": ", quoted(kv.Value))
+				if i < len(labels)-1 {
+					print(", ")
+				}
+			}
+			print("}")
+		}
 	}
 	print("]:\n")
 }

@@ -99,9 +99,10 @@ const (
 	SFIPSINFO           // go:fipsinfo aka crypto/internal/fips140/check.Linkinfo (why is this writable)?
 	SELFSECT            // .got.plt, .plt, .dynamic where appropriate.
 	SMACHO              // Used only for .llvmasm?
-	SMACHOGOT           // Mach-O GOT.
 	SWINDOWS            // Windows dynamic symbols.
+	SMODULEDATA         // Linker generated moduledata struct.
 	SELFGOT             // Writable ELF GOT section.
+	SMACHOGOT           // Mach-O GOT.
 	SNOPTRDATA          // Data with no heap pointers.
 	SNOPTRDATAFIPSSTART // Start of FIPS non-pointer writable data.
 	SNOPTRDATAFIPS      // FIPS non-pointer writable data.

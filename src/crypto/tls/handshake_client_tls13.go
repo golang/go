@@ -10,7 +10,6 @@ import (
 	"crypto"
 	"crypto/hkdf"
 	"crypto/hmac"
-	"crypto/internal/fips140/mlkem"
 	"crypto/internal/fips140/tls13"
 	"crypto/rsa"
 	"crypto/subtle"
@@ -320,22 +319,18 @@ func (hs *clientHandshakeStateTLS13) processHelloRetryRequest() error {
 			c.sendAlert(alertIllegalParameter)
 			return errors.New("tls: server sent an unnecessary HelloRetryRequest key_share")
 		}
-		// Note: we don't support selecting X25519MLKEM768 in a HRR, because it
-		// is currently first in preference order, so if it's enabled we'll
-		// always send a key share for it.
-		//
-		// This will have to change once we support multiple hybrid KEMs.
-		if _, ok := curveForCurveID(curveID); !ok {
+		ke, err := keyExchangeForCurveID(curveID)
+		if err != nil {
 			c.sendAlert(alertInternalError)
 			return errors.New("tls: CurvePreferences includes unsupported curve")
 		}
-		key, err := generateECDHEKey(c.config.rand(), curveID)
+		hs.keyShareKeys, hello.keyShares, err = ke.keyShares(c.config.rand())
 		if err != nil {
 			c.sendAlert(alertInternalError)
 			return err
 		}
-		hs.keyShareKeys = &keySharePrivateKeys{curveID: curveID, ecdhe: key}
-		hello.keyShares = []keyShare{{group: curveID, data: key.PublicKey().Bytes()}}
+		// Do not send the fallback ECDH key share in a HRR response.
+		hello.keyShares = hello.keyShares[:1]
 	}
 
 	if len(hello.pskIdentities) > 0 {
@@ -475,35 +470,15 @@ func (hs *clientHandshakeStateTLS13) processServerHello() error {
 func (hs *clientHandshakeStateTLS13) establishHandshakeKeys() error {
 	c := hs.c
 
-	ecdhePeerData := hs.serverHello.serverShare.data
-	if hs.serverHello.serverShare.group == X25519MLKEM768 {
-		if len(ecdhePeerData) != mlkem.CiphertextSize768+x25519PublicKeySize {
-			c.sendAlert(alertIllegalParameter)
-			return errors.New("tls: invalid server X25519MLKEM768 key share")
-		}
-		ecdhePeerData = hs.serverHello.serverShare.data[mlkem.CiphertextSize768:]
+	ke, err := keyExchangeForCurveID(hs.serverHello.serverShare.group)
+	if err != nil {
+		c.sendAlert(alertInternalError)
+		return err
 	}
-	peerKey, err := hs.keyShareKeys.ecdhe.Curve().NewPublicKey(ecdhePeerData)
+	sharedKey, err := ke.clientSharedSecret(hs.keyShareKeys, hs.serverHello.serverShare.data)
 	if err != nil {
 		c.sendAlert(alertIllegalParameter)
 		return errors.New("tls: invalid server key share")
-	}
-	sharedKey, err := hs.keyShareKeys.ecdhe.ECDH(peerKey)
-	if err != nil {
-		c.sendAlert(alertIllegalParameter)
-		return errors.New("tls: invalid server key share")
-	}
-	if hs.serverHello.serverShare.group == X25519MLKEM768 {
-		if hs.keyShareKeys.mlkem == nil {
-			return c.sendAlert(alertInternalError)
-		}
-		ciphertext := hs.serverHello.serverShare.data[:mlkem.CiphertextSize768]
-		mlkemShared, err := hs.keyShareKeys.mlkem.Decapsulate(ciphertext)
-		if err != nil {
-			c.sendAlert(alertIllegalParameter)
-			return errors.New("tls: invalid X25519MLKEM768 server key share")
-		}
-		sharedKey = append(mlkemShared, sharedKey...)
 	}
 	c.curveID = hs.serverHello.serverShare.group
 
@@ -689,7 +664,7 @@ func (hs *clientHandshakeStateTLS13) readServerCertificate() error {
 	if sigType == signaturePKCS1v15 || sigHash == crypto.SHA1 {
 		return c.sendAlert(alertInternalError)
 	}
-	signed := signedMessage(sigHash, serverSignatureContext, hs.transcript)
+	signed := signedMessage(serverSignatureContext, hs.transcript)
 	if err := verifyHandshakeSignature(sigType, c.peerCertificates[0].PublicKey,
 		sigHash, signed, certVerify.signature); err != nil {
 		c.sendAlert(alertDecryptError)
@@ -808,12 +783,12 @@ func (hs *clientHandshakeStateTLS13) sendClientCertificate() error {
 		return c.sendAlert(alertInternalError)
 	}
 
-	signed := signedMessage(sigHash, clientSignatureContext, hs.transcript)
+	signed := signedMessage(clientSignatureContext, hs.transcript)
 	signOpts := crypto.SignerOpts(sigHash)
 	if sigType == signatureRSAPSS {
 		signOpts = &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash, Hash: sigHash}
 	}
-	sig, err := cert.PrivateKey.(crypto.Signer).Sign(c.config.rand(), signed, signOpts)
+	sig, err := crypto.SignMessage(cert.PrivateKey.(crypto.Signer), c.config.rand(), signed, signOpts)
 	if err != nil {
 		c.sendAlert(alertInternalError)
 		return errors.New("tls: failed to sign handshake: " + err.Error())

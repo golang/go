@@ -641,7 +641,7 @@ func (f *File) getSymbols32(typ SectionType) ([]Symbol, []byte, error) {
 		return nil, nil, fmt.Errorf("cannot load symbol section: %w", err)
 	}
 	if len(data) == 0 {
-		return nil, nil, errors.New("symbol section is empty")
+		return nil, nil, ErrNoSymbols
 	}
 	if len(data)%Sym32Size != 0 {
 		return nil, nil, errors.New("length of symbol section is not a multiple of SymSize")
@@ -690,11 +690,11 @@ func (f *File) getSymbols64(typ SectionType) ([]Symbol, []byte, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot load symbol section: %w", err)
 	}
-	if len(data)%Sym64Size != 0 {
-		return nil, nil, errors.New("length of symbol section is not a multiple of Sym64Size")
-	}
 	if len(data) == 0 {
 		return nil, nil, ErrNoSymbols
+	}
+	if len(data)%Sym64Size != 0 {
+		return nil, nil, errors.New("length of symbol section is not a multiple of Sym64Size")
 	}
 
 	strdata, err := f.stringTable(symtabSection.Link)
@@ -1300,7 +1300,7 @@ func (f *File) DWARF() (*dwarf.Data, error) {
 		return b, nil
 	}
 
-	// There are many DWARf sections, but these are the ones
+	// There are many DWARF sections, but these are the ones
 	// the debug/dwarf package started with.
 	var dat = map[string][]byte{"abbrev": nil, "info": nil, "str": nil, "line": nil, "ranges": nil}
 	for i, s := range f.Sections {

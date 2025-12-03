@@ -449,22 +449,25 @@ func (w *typeWriter) tuple(tup *Tuple, variadic bool) {
 			}
 			typ := v.typ
 			if variadic && i == len(tup.vars)-1 {
-				if s, ok := typ.(*Slice); ok {
+				if slice, ok := typ.(*Slice); ok {
 					w.string("...")
-					typ = s.elem
+					w.typ(slice.elem)
 				} else {
-					// special case:
-					// append(s, "foo"...) leads to signature func([]byte, string...)
-					if t, _ := typ.Underlying().(*Basic); t == nil || t.kind != String {
-						w.error("expected string type")
-						continue
-					}
+					// append(slice, str...) entails various special
+					// cases, especially in conjunction with generics.
+					// str may be:
+					// - a string,
+					// - a TypeParam whose typeset includes string, or
+					// - a named []byte slice type B resulting from
+					//   a client instantiating append([]byte, T) at T=B.
+					// For such cases we use the irregular notation
+					// func([]byte, T...), with the dots after the type.
 					w.typ(typ)
 					w.string("...")
-					continue
 				}
+			} else {
+				w.typ(typ)
 			}
-			w.typ(typ)
 		}
 	}
 	w.byte(')')

@@ -456,9 +456,11 @@ call:
 	// Back to Go world, set special registers.
 	// The g register (R14) is preserved in C.
 	XORPS	X15, X15
+#ifdef GOEXPERIMENT_simd
 	CMPB	internal∕cpu·X86+const_offsetX86HasAVX(SB), $1
 	JNE	2(PC)
 	VXORPS	X15, X15, X15
+#endif
 	RET
 
 // C->Go callback thunk that allows to call runtime·racesymbolize from C code.

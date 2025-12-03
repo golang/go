@@ -71,7 +71,14 @@ import (
 // mentions it. To ensure a cleanup does not get called prematurely,
 // pass the object to the [KeepAlive] function after the last point
 // where the object must remain reachable.
+//
+//go:nocheckptr
 func AddCleanup[T, S any](ptr *T, cleanup func(S), arg S) Cleanup {
+	// This is marked nocheckptr because checkptr doesn't understand the
+	// pointer manipulation done when looking at closure pointers.
+	// Similar code in mbitmap.go works because the functions are
+	// go:nosplit, which implies go:nocheckptr (CL 202158).
+
 	// Explicitly force ptr and cleanup to escape to the heap.
 	ptr = abi.Escape(ptr)
 	cleanup = abi.Escape(cleanup)
@@ -84,7 +91,8 @@ func AddCleanup[T, S any](ptr *T, cleanup func(S), arg S) Cleanup {
 
 	// Check that arg is not equal to ptr.
 	argType := abi.TypeOf(arg)
-	if kind := argType.Kind(); kind == abi.Pointer || kind == abi.UnsafePointer {
+	kind := argType.Kind()
+	if kind == abi.Pointer || kind == abi.UnsafePointer {
 		if unsafe.Pointer(ptr) == *((*unsafe.Pointer)(unsafe.Pointer(&arg))) {
 			panic("runtime.AddCleanup: ptr is equal to arg, cleanup will never run")
 		}
@@ -119,13 +127,46 @@ func AddCleanup[T, S any](ptr *T, cleanup func(S), arg S) Cleanup {
 	*argv = arg
 
 	// Find the containing object.
-	base, _, _ := findObject(usptr, 0, 0)
+	base, span, _ := findObject(usptr, 0, 0)
 	if base == 0 {
 		if isGoPointerWithoutSpan(unsafe.Pointer(ptr)) {
 			// Cleanup is a noop.
 			return Cleanup{}
 		}
 		panic("runtime.AddCleanup: ptr not in allocated block")
+	}
+
+	// Check that arg is not within ptr.
+	if kind == abi.Pointer || kind == abi.UnsafePointer {
+		argPtr := uintptr(*(*unsafe.Pointer)(unsafe.Pointer(&arg)))
+		if argPtr >= base && argPtr < base+span.elemsize {
+			// It's possible that both pointers are separate
+			// parts of a tiny allocation, which is OK.
+			// We side-stepped the tiny allocator above for
+			// the allocation for the cleanup,
+			// but the argument itself can still overlap
+			// with the value to which the cleanup is attached.
+			if span.spanclass != tinySpanClass {
+				panic("runtime.AddCleanup: ptr is within arg, cleanup will never run")
+			}
+		}
+	}
+
+	// Check that the cleanup function doesn't close over the pointer.
+	cleanupFV := unsafe.Pointer(*(**funcval)(unsafe.Pointer(&cleanup)))
+	cBase, cSpan, _ := findObject(uintptr(cleanupFV), 0, 0)
+	if cBase != 0 {
+		tp := cSpan.typePointersOfUnchecked(cBase)
+		for {
+			var addr uintptr
+			if tp, addr = tp.next(cBase + cSpan.elemsize); addr == 0 {
+				break
+			}
+			ptr := *(*uintptr)(unsafe.Pointer(addr))
+			if ptr >= base && ptr < base+span.elemsize {
+				panic("runtime.AddCleanup: cleanup function closes over ptr, cleanup will never run")
+			}
+		}
 	}
 
 	// Create another G if necessary.

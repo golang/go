@@ -271,6 +271,11 @@ Below is the full list of supported metrics, ordered lexicographically.
 		package due to a non-default GODEBUG=containermaxprocs=...
 		setting.
 
+	/godebug/non-default-behavior/cryptocustomrand:events
+		The number of non-default behaviors executed by the crypto
+		package due to a non-default GODEBUG=cryptocustomrand=...
+		setting.
+
 	/godebug/non-default-behavior/embedfollowsymlinks:events
 		The number of non-default behaviors executed by the cmd/go
 		package due to a non-default GODEBUG=embedfollowsymlinks=...

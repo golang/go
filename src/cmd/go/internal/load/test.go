@@ -301,7 +301,7 @@ func TestPackagesAndErrors(loaderstate *modload.State, ctx context.Context, done
 		// pmain won't have buildinfo set (since we copy it from the package under test). If the default GODEBUG
 		// used for the package under test is different from that of the test main, the BuildInfo assigned above from the package
 		// under test incorrect for the test main package. Either set or correct pmain's build info.
-		pmain.setBuildInfo(ctx, opts.AutoVCS)
+		pmain.setBuildInfo(ctx, loaderstate.Fetcher(), opts.AutoVCS)
 	}
 
 	// The generated main also imports testing, regexp, and os.

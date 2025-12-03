@@ -7,13 +7,12 @@ package refactor
 // This file defines operations for computing edits to imports.
 
 import (
-	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
 	pathpkg "path"
+	"strconv"
 
-	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/internal/packagepath"
 )
 
@@ -35,7 +34,7 @@ import (
 // package declares member.
 //
 // AddImport does not mutate its arguments.
-func AddImport(info *types.Info, file *ast.File, preferredName, pkgpath, member string, pos token.Pos) (prefix string, edits []analysis.TextEdit) {
+func AddImport(info *types.Info, file *ast.File, preferredName, pkgpath, member string, pos token.Pos) (prefix string, edits []Edit) {
 	// Find innermost enclosing lexical block.
 	scope := info.Scopes[file].Innermost(pos)
 	if scope == nil {
@@ -69,33 +68,53 @@ func AddImport(info *types.Info, file *ast.File, preferredName, pkgpath, member 
 	newName := preferredName
 	if preferredName != "_" {
 		newName = FreshName(scope, pos, preferredName)
+		prefix = newName + "."
+	}
+
+	// Use a renaming import whenever the preferred name is not
+	// available, or the chosen name does not match the last
+	// segment of its path.
+	if newName == preferredName && newName == pathpkg.Base(pkgpath) {
+		newName = ""
+	}
+
+	return prefix, AddImportEdits(file, newName, pkgpath)
+}
+
+// AddImportEdits returns the edits to add an import of the specified
+// package, without any analysis of whether this is necessary or safe.
+// If name is nonempty, it is used as an explicit [ImportSpec.Name].
+//
+// A sequence of calls to AddImportEdits that each add the file's
+// first import (or in a file that does not have a grouped import) may
+// result in multiple import declarations, rather than a single one
+// with multiple ImportSpecs. However, a subsequent run of
+// x/tools/cmd/goimports ([imports.Process]) will combine them.
+//
+// AddImportEdits does not mutate the AST.
+func AddImportEdits(file *ast.File, name, pkgpath string) []Edit {
+	newText := strconv.Quote(pkgpath)
+	if name != "" {
+		newText = name + " " + newText
 	}
 
 	// Create a new import declaration either before the first existing
 	// declaration (which must exist), including its comments; or
 	// inside the declaration, if it is an import group.
-	//
-	// Use a renaming import whenever the preferred name is not
-	// available, or the chosen name does not match the last
-	// segment of its path.
-	newText := fmt.Sprintf("%q", pkgpath)
-	if newName != preferredName || newName != pathpkg.Base(pkgpath) {
-		newText = fmt.Sprintf("%s %q", newName, pkgpath)
-	}
-
 	decl0 := file.Decls[0]
-	var before ast.Node = decl0
+	before := decl0.Pos()
 	switch decl0 := decl0.(type) {
 	case *ast.GenDecl:
 		if decl0.Doc != nil {
-			before = decl0.Doc
+			before = decl0.Doc.Pos()
 		}
 	case *ast.FuncDecl:
 		if decl0.Doc != nil {
-			before = decl0.Doc
+			before = decl0.Doc.Pos()
 		}
 	}
-	if gd, ok := before.(*ast.GenDecl); ok && gd.Tok == token.IMPORT && gd.Rparen.IsValid() {
+	var pos token.Pos
+	if gd, ok := decl0.(*ast.GenDecl); ok && gd.Tok == token.IMPORT && gd.Rparen.IsValid() {
 		// Have existing grouped import ( ... ) decl.
 		if packagepath.IsStdPackage(pkgpath) && len(gd.Specs) > 0 {
 			// Add spec for a std package before
@@ -116,10 +135,13 @@ func AddImport(info *types.Info, file *ast.File, preferredName, pkgpath, member 
 		// No import decl, or non-grouped import.
 		// Add a new import decl before first decl.
 		// (gofmt will merge multiple import decls.)
-		pos = before.Pos()
+		//
+		// TODO(adonovan): do better here; plunder the
+		// mergeImports logic from [imports.Process].
+		pos = before
 		newText = "import " + newText + "\n\n"
 	}
-	return newName + ".", []analysis.TextEdit{{
+	return []Edit{{
 		Pos:     pos,
 		End:     pos,
 		NewText: []byte(newText),

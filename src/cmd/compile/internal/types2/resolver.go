@@ -664,7 +664,7 @@ func (check *Checker) packageObjects() {
 		//
 		// Investigate and reenable this branch.
 		for _, obj := range check.objList {
-			check.objDecl(obj, nil)
+			check.objDecl(obj)
 		}
 	} else {
 		// Without Alias nodes, we process non-alias type declarations first, followed by
@@ -680,7 +680,7 @@ func (check *Checker) packageObjects() {
 				if check.objMap[tname].tdecl.Alias {
 					aliasList = append(aliasList, tname)
 				} else {
-					check.objDecl(obj, nil)
+					check.objDecl(obj)
 				}
 			} else {
 				othersList = append(othersList, obj)
@@ -688,11 +688,11 @@ func (check *Checker) packageObjects() {
 		}
 		// phase 2: alias type declarations
 		for _, obj := range aliasList {
-			check.objDecl(obj, nil)
+			check.objDecl(obj)
 		}
 		// phase 3: all other declarations
 		for _, obj := range othersList {
-			check.objDecl(obj, nil)
+			check.objDecl(obj)
 		}
 	}
 

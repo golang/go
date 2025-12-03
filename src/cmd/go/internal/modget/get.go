@@ -1788,11 +1788,11 @@ func (r *resolver) checkPackageProblems(loaderstate *modload.State, ctx context.
 		if oldRepl := modload.Replacement(loaderstate, old); oldRepl.Path != "" {
 			oldActual = oldRepl
 		}
-		if mActual == oldActual || mActual.Version == "" || !modfetch.HaveSum(oldActual) {
+		if mActual == oldActual || mActual.Version == "" || !modfetch.HaveSum(loaderstate.Fetcher(), oldActual) {
 			continue
 		}
 		r.work.Add(func() {
-			if _, err := modfetch.DownloadZip(ctx, mActual); err != nil {
+			if _, err := loaderstate.Fetcher().DownloadZip(ctx, mActual); err != nil {
 				verb := "upgraded"
 				if gover.ModCompare(m.Path, m.Version, old.Version) < 0 {
 					verb = "downgraded"

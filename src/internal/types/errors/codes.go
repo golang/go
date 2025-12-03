@@ -114,15 +114,16 @@ const (
 	//  	S
 	//  }
 	//
-	InvalidDeclCycle
-
-	// InvalidTypeCycle occurs when a cycle in type definitions results in a
-	// type that is not well-defined.
-	//
 	// Example:
 	//  import "unsafe"
 	//
 	//  type T [unsafe.Sizeof(T{})]int
+	InvalidDeclCycle
+
+	// TODO(markfreeman): Retire InvalidTypeCycle, as it's never emitted.
+
+	// InvalidTypeCycle occurs when a cycle in type definitions results in a
+	// type that is not well-defined.
 	InvalidTypeCycle
 
 	// InvalidConstInit occurs when a const declaration has a non-constant

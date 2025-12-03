@@ -413,7 +413,7 @@ func (t *Terminal) eraseNPreviousChars(n int) {
 	}
 }
 
-// countToLeftWord returns then number of characters from the cursor to the
+// countToLeftWord returns the number of characters from the cursor to the
 // start of the previous word.
 func (t *Terminal) countToLeftWord() int {
 	if t.pos == 0 {
@@ -438,7 +438,7 @@ func (t *Terminal) countToLeftWord() int {
 	return t.pos - pos
 }
 
-// countToRightWord returns then number of characters from the cursor to the
+// countToRightWord returns the number of characters from the cursor to the
 // start of the next word.
 func (t *Terminal) countToRightWord() int {
 	pos := t.pos
@@ -478,7 +478,7 @@ func visualLength(runes []rune) int {
 	return length
 }
 
-// histroryAt unlocks the terminal and relocks it while calling History.At.
+// historyAt unlocks the terminal and relocks it while calling History.At.
 func (t *Terminal) historyAt(idx int) (string, bool) {
 	t.lock.Unlock()     // Unlock to avoid deadlock if History methods use the output writer.
 	defer t.lock.Lock() // panic in At (or Len) protection.

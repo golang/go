@@ -4409,6 +4409,7 @@ const (
 	OpARM64CALLclosure
 	OpARM64CALLinter
 	OpARM64LoweredNilCheck
+	OpARM64LoweredMemEq
 	OpARM64Equal
 	OpARM64NotEqual
 	OpARM64LessThan
@@ -6123,6 +6124,7 @@ const (
 	OpClobberReg
 	OpPrefetchCache
 	OpPrefetchCacheStreamed
+	OpMemEq
 	OpZeroSIMD
 	OpCvt16toMask8x16
 	OpCvt32toMask8x32
@@ -68797,6 +68799,25 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:           "LoweredMemEq",
+		argLen:         4,
+		clobberFlags:   true,
+		call:           true,
+		faultOnNilArg0: true,
+		faultOnNilArg1: true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1}, // R0
+				{1, 2}, // R1
+				{2, 4}, // R2
+			},
+			clobbers: 9223372035109945343, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			outputs: []outputInfo{
+				{0, 1}, // R0
+			},
+		},
+	},
+	{
 		name:   "Equal",
 		argLen: 1,
 		reg: regInfo{
@@ -88792,6 +88813,12 @@ var opcodeTable = [...]opInfo{
 		argLen:         2,
 		hasSideEffects: true,
 		generic:        true,
+	},
+	{
+		name:        "MemEq",
+		argLen:      4,
+		commutative: true,
+		generic:     true,
 	},
 	{
 		name:    "ZeroSIMD",

@@ -89,16 +89,6 @@ type compressor struct {
 	step      func(*compressor)             // process window
 	bestSpeed *deflateFast                  // Encoder for BestSpeed
 
-	// Input hash chains
-	// hashHead[hashValue] contains the largest inputIndex with the specified hash value
-	// If hashHead[hashValue] is within the current window, then
-	// hashPrev[hashHead[hashValue] & windowMask] contains the previous index
-	// with the same hash value.
-	chainHead  int
-	hashHead   [hashSize]uint32
-	hashPrev   [windowSize]uint32
-	hashOffset int
-
 	// input window: unprocessed data is window[index:windowEnd]
 	index         int
 	window        []byte
@@ -116,6 +106,18 @@ type compressor struct {
 	offset         int
 	maxInsertIndex int
 	err            error
+
+	// Input hash chains
+	// hashHead[hashValue] contains the largest inputIndex with the specified hash value
+	// If hashHead[hashValue] is within the current window, then
+	// hashPrev[hashHead[hashValue] & windowMask] contains the previous index
+	// with the same hash value.
+	// These are large and do not contain pointers, so put them
+	// near the end of the struct so the GC has to scan less.
+	chainHead  int
+	hashHead   [hashSize]uint32
+	hashPrev   [windowSize]uint32
+	hashOffset int
 
 	// hashMatch must be able to contain hashes for the maximum match length.
 	hashMatch [maxMatchLength - 1]uint32

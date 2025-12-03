@@ -6,6 +6,7 @@ package runtime_test
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"internal/abi"
 	"internal/asan"
@@ -15,6 +16,7 @@ import (
 	"regexp"
 	"runtime"
 	"runtime/debug"
+	"runtime/pprof"
 	"strconv"
 	"strings"
 	"sync"
@@ -881,4 +883,72 @@ func TestSetCgoTracebackNoCgo(t *testing.T) {
 	if output != want {
 		t.Fatalf("want %s, got %s\n", want, output)
 	}
+}
+
+func TestTracebackGoroutineLabels(t *testing.T) {
+	t.Setenv("GODEBUG", "tracebacklabels=1")
+	for _, tbl := range []struct {
+		l     pprof.LabelSet
+		expTB string
+	}{
+		{l: pprof.Labels("foobar", "baz"), expTB: `{"foobar": "baz"}`},
+		// Make sure the keys are sorted because the runtime/pprof package sorts for consistency
+		{l: pprof.Labels("foobar", "baz", "fizzle", "bit"), expTB: `{"fizzle": "bit", "foobar": "baz"}`},
+		// make sure newlines get escaped
+		{l: pprof.Labels("fizzle", "bit", "foobar", "baz\n"), expTB: `{"fizzle": "bit", "foobar": "baz\n"}`},
+		// make sure null and escape bytes are properly escaped
+		{l: pprof.Labels("fizzle", "b\033it", "foo\"ba\x00r", "baz\n"), expTB: `{"fizzle": "b\x1bit", "foo\"ba\x00r": "baz\n"}`},
+		// verify that simple 16-bit unicode runes are escaped with \u, including a greek upper-case sigma and an arbitrary unicode character.
+		{l: pprof.Labels("fizzle", "\u1234Σ", "fooba\x00r", "baz\n"), expTB: `{"fizzle": "\u1234\u03a3", "fooba\x00r": "baz\n"}`},
+		// verify that 32-bit unicode runes are escaped with \U along with tabs
+		{l: pprof.Labels("fizz\tle", "\U00045678boop", "fooba\x00r", "baz\n"), expTB: `{"fizz\tle": "\U00045678boop", "fooba\x00r": "baz\n"}`},
+		// verify carriage returns and backslashes get escaped along with our nulls, newlines and a 32-bit unicode character
+		{l: pprof.Labels("fiz\\zl\re", "\U00045678boop", "fooba\x00r", "baz\n"), expTB: `{"fiz\\zl\re": "\U00045678boop", "fooba\x00r": "baz\n"}`},
+	} {
+		t.Run(tbl.expTB, func(t *testing.T) {
+			verifyLabels := func() {
+				t.Helper()
+				buf := make([]byte, 1<<10)
+				// We collect the stack only for this goroutine (by passing
+				// false to runtime.Stack). We expect to see the parent's goroutine labels in the traceback.
+				stack := string(buf[:runtime.Stack(buf, false)])
+				if !strings.Contains(stack, "labels:"+tbl.expTB) {
+					t.Errorf("failed to find goroutine labels with labels %s (as %s) got:\n%s\n---", tbl.l, tbl.expTB, stack)
+				}
+			}
+			// Use a clean context so the testing package can add whatever goroutine labels it wants to the testing.T context.
+			lblCtx := pprof.WithLabels(context.Background(), tbl.l)
+			pprof.SetGoroutineLabels(lblCtx)
+			var wg sync.WaitGroup
+			// make sure the labels are visible in a child goroutine
+			wg.Go(verifyLabels)
+			// and in this parent goroutine
+			verifyLabels()
+			wg.Wait()
+		})
+	}
+}
+
+func TestTracebackGoroutineLabelsDisabledGODEBUG(t *testing.T) {
+	t.Setenv("GODEBUG", "tracebacklabels=0")
+	lbls := pprof.Labels("foobar", "baz")
+	verifyLabels := func() {
+		t.Helper()
+		buf := make([]byte, 1<<10)
+		// We collect the stack only for this goroutine (by passing
+		// false to runtime.Stack).
+		stack := string(buf[:runtime.Stack(buf, false)])
+		if strings.Contains(stack, "labels:") {
+			t.Errorf("found goroutine labels with labels %s  got:\n%s\n---", lbls, stack)
+		}
+	}
+	// Use a clean context so the testing package can add whatever goroutine labels it wants to the testing.T context.
+	lblCtx := pprof.WithLabels(context.Background(), lbls)
+	pprof.SetGoroutineLabels(lblCtx)
+	var wg sync.WaitGroup
+	// make sure the labels are visible in a child goroutine
+	wg.Go(verifyLabels)
+	// and in this parent goroutine
+	verifyLabels()
+	wg.Wait()
 }

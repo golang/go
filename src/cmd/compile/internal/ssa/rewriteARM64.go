@@ -840,6 +840,9 @@ func rewriteValueARM64(v *Value) bool {
 	case OpMax64F:
 		v.Op = OpARM64FMAXD
 		return true
+	case OpMemEq:
+		v.Op = OpARM64LoweredMemEq
+		return true
 	case OpMin32F:
 		v.Op = OpARM64FMINS
 		return true

@@ -6,7 +6,7 @@ package tls
 
 import (
 	"bytes"
-	"crypto/internal/hpke"
+	"crypto/hpke"
 	"errors"
 	"fmt"
 	"strings"

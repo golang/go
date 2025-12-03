@@ -534,7 +534,8 @@ func init() {
 		{name: "CALLinter", argLength: -1, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                         // call fn by pointer.  arg0=codeptr, last arg=mem, auxint=argsize, returns mem
 
 		// pseudo-ops
-		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpg}}, nilCheck: true, faultOnNilArg0: true}, // panic if arg0 is nil.  arg1=mem.
+		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpg}}, nilCheck: true, faultOnNilArg0: true},                                                                                                                                                      // panic if arg0 is nil.  arg1=mem.
+		{name: "LoweredMemEq", argLength: 4, reg: regInfo{inputs: []regMask{buildReg("R0"), buildReg("R1"), buildReg("R2")}, outputs: []regMask{buildReg("R0")}, clobbers: callerSave}, typ: "Bool", faultOnNilArg0: true, faultOnNilArg1: true, clobberFlags: true, call: true}, // arg0, arg1 - pointers to memory, arg2=size, arg3=mem.
 
 		{name: "Equal", argLength: 1, reg: readflags},            // bool, true flags encode x==y false otherwise.
 		{name: "NotEqual", argLength: 1, reg: readflags},         // bool, true flags encode x!=y false otherwise.

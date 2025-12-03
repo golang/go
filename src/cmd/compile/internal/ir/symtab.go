@@ -30,6 +30,8 @@ type symsStruct struct {
 	Goschedguarded            *obj.LSym
 	Growslice                 *obj.LSym
 	GrowsliceBuf              *obj.LSym
+	GrowsliceBufNoAlias       *obj.LSym
+	GrowsliceNoAlias          *obj.LSym
 	MoveSlice                 *obj.LSym
 	MoveSliceNoScan           *obj.LSym
 	MoveSliceNoCap            *obj.LSym
@@ -40,6 +42,7 @@ type symsStruct struct {
 	MallocGCSmallScanNoHeader [27]*obj.LSym
 	MallocGCTiny              [16]*obj.LSym
 	Memmove                   *obj.LSym
+	Memequal                  *obj.LSym
 	Msanread                  *obj.LSym
 	Msanwrite                 *obj.LSym
 	Msanmove                  *obj.LSym

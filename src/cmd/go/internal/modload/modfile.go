@@ -604,7 +604,7 @@ func goModSummary(loaderstate *State, m module.Version) (*modFileSummary, error)
 	actual := resolveReplacement(loaderstate, m)
 	if mustHaveSums(loaderstate) && actual.Version != "" {
 		key := module.Version{Path: actual.Path, Version: actual.Version + "/go.mod"}
-		if !modfetch.HaveSum(key) {
+		if !modfetch.HaveSum(loaderstate.Fetcher(), key) {
 			suggestion := fmt.Sprintf(" for go.mod file; to add it:\n\tgo mod download %s", m.Path)
 			return nil, module.VersionError(actual, &sumMissingError{suggestion: suggestion})
 		}
@@ -810,7 +810,7 @@ func rawGoModData(loaderstate *State, m module.Version) (name string, data []byt
 			base.Fatalf("go: internal error: %s@%s: unexpected invalid semantic version", m.Path, m.Version)
 		}
 		name = "go.mod"
-		data, err = modfetch.GoMod(context.TODO(), m.Path, m.Version)
+		data, err = loaderstate.Fetcher().GoMod(context.TODO(), m.Path, m.Version)
 	}
 	return name, data, err
 }

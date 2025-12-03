@@ -2659,14 +2659,63 @@ func subLengths2(b []byte, i int) {
 }
 
 func issue76355(s []int, i int) int {
-    var a [10]int
-    if i <= len(s)-1 {
-        v := len(s) - i
-        if v < 10 {
-            return a[v]
-        }
-    }
-    return 0
+	var a [10]int
+	if i <= len(s)-1 {
+		v := len(s) - i
+		if v < 10 {
+			return a[v]
+		}
+	}
+	return 0
+}
+
+func stringDotDotDot(s string) bool {
+	for i := 0; i < len(s)-2; i++ { // ERROR "Induction variable: limits \[0,[?][)], increment 1"
+		if s[i] == '.' && // ERROR "Proved IsInBounds"
+			s[i+1] == '.' && // ERROR "Proved IsInBounds"
+			s[i+2] == '.' { // ERROR "Proved IsInBounds"
+			return true
+		}
+	}
+	return false
+}
+
+func bytesDotDotDot(s []byte) bool {
+	for i := 0; i < len(s)-2; i++ { // ERROR "Induction variable"
+		if s[i] == '.' && // ERROR "Proved IsInBounds"
+			s[i+1] == '.' && // ERROR "Proved IsInBounds"
+			s[i+2] == '.' { // ERROR "Proved IsInBounds"
+			return true
+		}
+	}
+	return false
+}
+
+// detectSliceLenRelation matches the pattern where
+//  1. v := slicelen - index, OR v := slicecap - index
+//     AND
+//  2. index <= slicelen - K
+//     THEN
+//
+// slicecap - index >= slicelen - index >= K
+func detectSliceLenRelation(s []byte) bool {
+	for i := 0; i <= len(s)-3; i++ { // ERROR "Induction variable"
+		v := len(s) - i
+		if v >= 3 { // ERROR "Proved Leq"
+			return true
+		}
+	}
+	return false
+}
+
+func detectStringLenRelation(s string) bool {
+	for i := 0; i <= len(s)-3; i++ { // ERROR "Induction variable"
+		v := len(s) - i
+		if v >= 3 { // ERROR "Proved Leq"
+			return true
+		}
+	}
+	return false
 }
 
 //go:noinline

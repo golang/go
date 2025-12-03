@@ -456,6 +456,13 @@ TEXT gogo<>(SB), NOSPLIT, $0
 // Fn must never return. It should gogo(&g->sched)
 // to keep running g.
 TEXT runtime·mcall<ABIInternal>(SB), NOSPLIT, $0-8
+#ifdef GOEXPERIMENT_runtimesecret
+	CMPL	g_secret(R14), $0
+	JEQ	nosecret
+	CALL	·secretEraseRegistersMcall(SB)
+nosecret:
+#endif
+
 	MOVQ	AX, DX	// DX = fn
 
 	// Save state in g->sched. The caller's SP and PC are restored by gogo to
@@ -511,6 +518,17 @@ TEXT runtime·systemstack_switch(SB), NOSPLIT, $0-0
 
 // func systemstack(fn func())
 TEXT runtime·systemstack(SB), NOSPLIT, $0-8
+#ifdef GOEXPERIMENT_runtimesecret
+	// If in secret mode, erase registers on transition
+	// from G stack to M stack,
+	get_tls(CX)
+	MOVQ	g(CX), AX
+	CMPL	g_secret(AX), $0
+	JEQ	nosecret
+	CALL	·secretEraseRegisters(SB)
+nosecret:
+#endif
+
 	MOVQ	fn+0(FP), DI	// DI = fn
 	get_tls(CX)
 	MOVQ	g(CX), AX	// AX = g
@@ -642,6 +660,18 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	LEAQ	16(SP), AX	// f's caller's SP
 	MOVQ	AX, (m_morebuf+gobuf_sp)(BX)
 	MOVQ	DI, (m_morebuf+gobuf_g)(BX)
+
+	// If in secret mode, erase registers on transition
+	// from G stack to M stack,
+#ifdef GOEXPERIMENT_runtimesecret
+	CMPL	g_secret(DI), $0
+	JEQ	nosecret
+	CALL	·secretEraseRegisters(SB)
+	get_tls(CX)
+	MOVQ	g(CX), DI     // DI = g
+	MOVQ	g_m(DI), BX   // BX = m
+nosecret:
+#endif
 
 	// Call newstack on m->g0's stack.
 	MOVQ	m_g0(BX), BX
@@ -917,11 +947,6 @@ TEXT ·asmcgocall_landingpad(SB),NOSPLIT,$0-0
 // aligned appropriately for the gcc ABI.
 // See cgocall.go for more details.
 TEXT ·asmcgocall(SB),NOSPLIT,$0-20
-	MOVQ	fn+0(FP), AX
-	MOVQ	arg+8(FP), BX
-
-	MOVQ	SP, DX
-
 	// Figure out if we need to switch to m->g0 stack.
 	// We get called to create new OS threads too, and those
 	// come in on the m->g0 stack already. Or we might already
@@ -937,6 +962,21 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 	MOVQ	m_g0(R8), SI
 	CMPQ	DI, SI
 	JEQ	nosave
+
+	// Running on a user G
+	// Figure out if we're running secret code and clear the registers
+	// so that the C code we're about to call doesn't spill confidential
+	// information into memory
+#ifdef GOEXPERIMENT_runtimesecret
+	CMPL	g_secret(DI), $0
+	JEQ	nosecret
+	CALL	·secretEraseRegisters(SB)
+
+nosecret:
+#endif
+	MOVQ	fn+0(FP), AX
+	MOVQ	arg+8(FP), BX
+	MOVQ	SP, DX
 
 	// Switch to system stack.
 	// The original frame pointer is stored in BP,
@@ -976,6 +1016,10 @@ nosave:
 	// but then the only path through this code would be a rare case on Solaris.
 	// Using this code for all "already on system stack" calls exercises it more,
 	// which should help keep it correct.
+	MOVQ	fn+0(FP), AX
+	MOVQ	arg+8(FP), BX
+	MOVQ	SP, DX
+
 	SUBQ	$16, SP
 	ANDQ	$~15, SP
 	MOVQ	$0, 8(SP)		// where above code stores g, in case someone looks during debugging
@@ -1049,9 +1093,11 @@ needm:
 	// there's no need to handle that. Clear R14 so that there's
 	// a bad value in there, in case needm tries to use it.
 	XORPS	X15, X15
+#ifdef GOEXPERIMENT_simd
 	CMPB	internal∕cpu·X86+const_offsetX86HasAVX(SB), $1
 	JNE	2(PC)
 	VXORPS	X15, X15, X15
+#endif
 	XORQ    R14, R14
 	MOVQ	$runtime·needAndBindM<ABIInternal>(SB), AX
 	CALL	AX
@@ -1749,9 +1795,11 @@ TEXT ·sigpanic0(SB),NOSPLIT,$0-0
 	get_tls(R14)
 	MOVQ	g(R14), R14
 	XORPS	X15, X15
+#ifdef GOEXPERIMENT_simd
 	CMPB	internal∕cpu·X86+const_offsetX86HasAVX(SB), $1
 	JNE	2(PC)
 	VXORPS	X15, X15, X15
+#endif
 	JMP	·sigpanic<ABIInternal>(SB)
 
 // gcWriteBarrier informs the GC about heap pointer writes.

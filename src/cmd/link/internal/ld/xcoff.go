@@ -1254,7 +1254,7 @@ func Xcoffadddynrel(target *Target, ldr *loader.Loader, syms *ArchSyms, s loader
 					break
 				}
 			}
-		} else if t := ldr.SymType(s); t.IsDATA() || t.IsNOPTRDATA() || t == sym.SBUILDINFO || t == sym.SXCOFFTOC {
+		} else if t := ldr.SymType(s); t.IsDATA() || t.IsNOPTRDATA() || t == sym.SBUILDINFO || t == sym.SXCOFFTOC || t == sym.SMODULEDATA {
 			switch ldr.SymSect(targ).Seg {
 			default:
 				ldr.Errorf(s, "unknown segment for .loader relocation with symbol %s", ldr.SymName(targ))

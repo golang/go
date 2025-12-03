@@ -2064,3 +2064,15 @@ func HexdumpWords(p, bytes uintptr) string {
 	}
 	return string(buf[:n])
 }
+
+// DumpPrintQuoted provides access to print(quoted()) for the tests in
+// runtime/print_quoted_test.go, allowing us to test that implementation.
+func DumpPrintQuoted(s string) string {
+	gp := getg()
+	gp.writebuf = make([]byte, 0, 1<<20)
+	print(quoted(s))
+	buf := gp.writebuf
+	gp.writebuf = nil
+
+	return string(buf)
+}
