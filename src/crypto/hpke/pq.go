@@ -33,9 +33,6 @@ var mlkem768X25519 = &hybridKEM{
 	pqNewPrivateKey: func(data []byte) (crypto.Decapsulator, error) {
 		return mlkem.NewDecapsulationKey768(data)
 	},
-	pqGenerateKey: func() (crypto.Decapsulator, error) {
-		return mlkem.GenerateKey768()
-	},
 }
 
 // MLKEM768X25519 returns a KEM implementing MLKEM768-X25519 (a.k.a. X-Wing)
@@ -60,9 +57,6 @@ var mlkem768P256 = &hybridKEM{
 	pqNewPrivateKey: func(data []byte) (crypto.Decapsulator, error) {
 		return mlkem.NewDecapsulationKey768(data)
 	},
-	pqGenerateKey: func() (crypto.Decapsulator, error) {
-		return mlkem.GenerateKey768()
-	},
 }
 
 // MLKEM768P256 returns a KEM implementing MLKEM768-P256 from draft-ietf-hpke-pq.
@@ -86,9 +80,6 @@ var mlkem1024P384 = &hybridKEM{
 	pqNewPrivateKey: func(data []byte) (crypto.Decapsulator, error) {
 		return mlkem.NewDecapsulationKey1024(data)
 	},
-	pqGenerateKey: func() (crypto.Decapsulator, error) {
-		return mlkem.GenerateKey1024()
-	},
 }
 
 // MLKEM1024P384 returns a KEM implementing MLKEM1024-P384 from draft-ietf-hpke-pq.
@@ -108,7 +99,6 @@ type hybridKEM struct {
 
 	pqNewPublicKey  func(data []byte) (crypto.Encapsulator, error)
 	pqNewPrivateKey func(data []byte) (crypto.Decapsulator, error)
-	pqGenerateKey   func() (crypto.Decapsulator, error)
 }
 
 func (kem *hybridKEM) ID() uint16 {
