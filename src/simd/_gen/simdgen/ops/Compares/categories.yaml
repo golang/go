@@ -10,17 +10,17 @@
   constImm: 0
   commutative: true
   documentation: !string |-
-    // NAME compares for equality.
+    // NAME returns x equals y, elementwise.
 - go: Less
   constImm: 1
   commutative: false
   documentation: !string |-
-    // NAME compares for less than.
+    // NAME returns x less-than y, elementwise.
 - go: LessEqual
   constImm: 2
   commutative: false
   documentation: !string |-
-    // NAME compares for less than or equal.
+    // NAME returns x less-than-or-equals y, elementwise.
 - go: IsNan # For float only.
   constImm: 3
   commutative: true
@@ -30,14 +30,14 @@
   constImm: 4
   commutative: true
   documentation: !string |-
-    // NAME compares for inequality.
+    // NAME returns x not-equals y, elementwise.
 - go: GreaterEqual
   constImm: 13
   commutative: false
   documentation: !string |-
-    // NAME compares for greater than or equal.
+    // NAME returns x greater-than-or-equals y, elementwise.
 - go: Greater
   constImm: 14
   commutative: false
   documentation: !string |-
-    // NAME compares for greater than.
+    // NAME returns x greater-than y, elementwise.

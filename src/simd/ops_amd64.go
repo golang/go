@@ -1544,39 +1544,331 @@ func (x Uint8x32) ConcatShiftBytesRightGrouped(constant uint8, y Uint8x32) Uint8
 // Asm: VPALIGNR, CPU Feature: AVX512
 func (x Uint8x64) ConcatShiftBytesRightGrouped(constant uint8, y Uint8x64) Uint8x64
 
+/* ConvertToFloat32 */
+
+// ConvertToFloat32 converts element values to float32.
+// The result vector's elements are rounded to the nearest value.
+//
+// Asm: VCVTPD2PSX, CPU Feature: AVX
+func (x Float64x2) ConvertToFloat32() Float32x4
+
+// ConvertToFloat32 converts element values to float32.
+// The result vector's elements are rounded to the nearest value.
+//
+// Asm: VCVTPD2PSY, CPU Feature: AVX
+func (x Float64x4) ConvertToFloat32() Float32x4
+
+// ConvertToFloat32 converts element values to float32.
+// The result vector's elements are rounded to the nearest value.
+//
+// Asm: VCVTPD2PS, CPU Feature: AVX512
+func (x Float64x8) ConvertToFloat32() Float32x8
+
+// ConvertToFloat32 converts element values to float32.
+//
+// Asm: VCVTDQ2PS, CPU Feature: AVX
+func (x Int32x4) ConvertToFloat32() Float32x4
+
+// ConvertToFloat32 converts element values to float32.
+//
+// Asm: VCVTDQ2PS, CPU Feature: AVX
+func (x Int32x8) ConvertToFloat32() Float32x8
+
+// ConvertToFloat32 converts element values to float32.
+//
+// Asm: VCVTDQ2PS, CPU Feature: AVX512
+func (x Int32x16) ConvertToFloat32() Float32x16
+
+// ConvertToFloat32 converts element values to float32.
+//
+// Asm: VCVTQQ2PSX, CPU Feature: AVX512
+func (x Int64x2) ConvertToFloat32() Float32x4
+
+// ConvertToFloat32 converts element values to float32.
+//
+// Asm: VCVTQQ2PSY, CPU Feature: AVX512
+func (x Int64x4) ConvertToFloat32() Float32x4
+
+// ConvertToFloat32 converts element values to float32.
+//
+// Asm: VCVTQQ2PS, CPU Feature: AVX512
+func (x Int64x8) ConvertToFloat32() Float32x8
+
+// ConvertToFloat32 converts element values to float32.
+//
+// Asm: VCVTUDQ2PS, CPU Feature: AVX512
+func (x Uint32x4) ConvertToFloat32() Float32x4
+
+// ConvertToFloat32 converts element values to float32.
+//
+// Asm: VCVTUDQ2PS, CPU Feature: AVX512
+func (x Uint32x8) ConvertToFloat32() Float32x8
+
+// ConvertToFloat32 converts element values to float32.
+//
+// Asm: VCVTUDQ2PS, CPU Feature: AVX512
+func (x Uint32x16) ConvertToFloat32() Float32x16
+
+// ConvertToFloat32 converts element values to float32.
+//
+// Asm: VCVTUQQ2PSX, CPU Feature: AVX512
+func (x Uint64x2) ConvertToFloat32() Float32x4
+
+// ConvertToFloat32 converts element values to float32.
+//
+// Asm: VCVTUQQ2PSY, CPU Feature: AVX512
+func (x Uint64x4) ConvertToFloat32() Float32x4
+
+// ConvertToFloat32 converts element values to float32.
+//
+// Asm: VCVTUQQ2PS, CPU Feature: AVX512
+func (x Uint64x8) ConvertToFloat32() Float32x8
+
+/* ConvertToFloat64 */
+
+// ConvertToFloat64 converts element values to float64.
+//
+// Asm: VCVTPS2PD, CPU Feature: AVX
+func (x Float32x4) ConvertToFloat64() Float64x4
+
+// ConvertToFloat64 converts element values to float64.
+//
+// Asm: VCVTPS2PD, CPU Feature: AVX512
+func (x Float32x8) ConvertToFloat64() Float64x8
+
+// ConvertToFloat64 converts element values to float64.
+//
+// Asm: VCVTDQ2PD, CPU Feature: AVX
+func (x Int32x4) ConvertToFloat64() Float64x4
+
+// ConvertToFloat64 converts element values to float64.
+//
+// Asm: VCVTDQ2PD, CPU Feature: AVX512
+func (x Int32x8) ConvertToFloat64() Float64x8
+
+// ConvertToFloat64 converts element values to float64.
+//
+// Asm: VCVTQQ2PD, CPU Feature: AVX512
+func (x Int64x2) ConvertToFloat64() Float64x2
+
+// ConvertToFloat64 converts element values to float64.
+//
+// Asm: VCVTQQ2PD, CPU Feature: AVX512
+func (x Int64x4) ConvertToFloat64() Float64x4
+
+// ConvertToFloat64 converts element values to float64.
+//
+// Asm: VCVTQQ2PD, CPU Feature: AVX512
+func (x Int64x8) ConvertToFloat64() Float64x8
+
+// ConvertToFloat64 converts element values to float64.
+//
+// Asm: VCVTUDQ2PD, CPU Feature: AVX512
+func (x Uint32x4) ConvertToFloat64() Float64x4
+
+// ConvertToFloat64 converts element values to float64.
+//
+// Asm: VCVTUDQ2PD, CPU Feature: AVX512
+func (x Uint32x8) ConvertToFloat64() Float64x8
+
+// ConvertToFloat64 converts element values to float64.
+//
+// Asm: VCVTUQQ2PD, CPU Feature: AVX512
+func (x Uint64x2) ConvertToFloat64() Float64x2
+
+// ConvertToFloat64 converts element values to float64.
+//
+// Asm: VCVTUQQ2PD, CPU Feature: AVX512
+func (x Uint64x4) ConvertToFloat64() Float64x4
+
+// ConvertToFloat64 converts element values to float64.
+//
+// Asm: VCVTUQQ2PD, CPU Feature: AVX512
+func (x Uint64x8) ConvertToFloat64() Float64x8
+
 /* ConvertToInt32 */
 
 // ConvertToInt32 converts element values to int32.
+// When a conversion is inexact, a truncated (round toward zero) value is returned.
+// If a converted result cannot be represented in int32, an implementation-defined
+// architecture-specific value is returned.
 //
 // Asm: VCVTTPS2DQ, CPU Feature: AVX
 func (x Float32x4) ConvertToInt32() Int32x4
 
 // ConvertToInt32 converts element values to int32.
+// When a conversion is inexact, a truncated (round toward zero) value is returned.
+// If a converted result cannot be represented in int32, an implementation-defined
+// architecture-specific value is returned.
 //
 // Asm: VCVTTPS2DQ, CPU Feature: AVX
 func (x Float32x8) ConvertToInt32() Int32x8
 
 // ConvertToInt32 converts element values to int32.
+// When a conversion is inexact, a truncated (round toward zero) value is returned.
+// If a converted result cannot be represented in int32, an implementation-defined
+// architecture-specific value is returned.
 //
 // Asm: VCVTTPS2DQ, CPU Feature: AVX512
 func (x Float32x16) ConvertToInt32() Int32x16
 
+// ConvertToInt32 converts element values to int32.
+// When a conversion is inexact, a truncated (round toward zero) value is returned.
+// If a converted result cannot be represented in int32, an implementation-defined
+// architecture-specific value is returned.
+//
+// Asm: VCVTTPD2DQX, CPU Feature: AVX
+func (x Float64x2) ConvertToInt32() Int32x4
+
+// ConvertToInt32 converts element values to int32.
+// When a conversion is inexact, a truncated (round toward zero) value is returned.
+// If a converted result cannot be represented in int32, an implementation-defined
+// architecture-specific value is returned.
+//
+// Asm: VCVTTPD2DQY, CPU Feature: AVX
+func (x Float64x4) ConvertToInt32() Int32x4
+
+// ConvertToInt32 converts element values to int32.
+// When a conversion is inexact, a truncated (round toward zero) value is returned.
+// If a converted result cannot be represented in int32, an implementation-defined
+// architecture-specific value is returned.
+//
+// Asm: VCVTTPD2DQ, CPU Feature: AVX512
+func (x Float64x8) ConvertToInt32() Int32x8
+
+/* ConvertToInt64 */
+
+// ConvertToInt64 converts element values to int64.
+// When a conversion is inexact, a truncated (round toward zero) value is returned.
+// If a converted result cannot be represented in int64, an implementation-defined
+// architecture-specific value is returned.
+//
+// Asm: VCVTTPS2QQ, CPU Feature: AVX512
+func (x Float32x4) ConvertToInt64() Int64x4
+
+// ConvertToInt64 converts element values to int64.
+// When a conversion is inexact, a truncated (round toward zero) value is returned.
+// If a converted result cannot be represented in int64, an implementation-defined
+// architecture-specific value is returned.
+//
+// Asm: VCVTTPS2QQ, CPU Feature: AVX512
+func (x Float32x8) ConvertToInt64() Int64x8
+
+// ConvertToInt64 converts element values to int64.
+// When a conversion is inexact, a truncated (round toward zero) value is returned.
+// If a converted result cannot be represented in int64, an implementation-defined
+// architecture-specific value is returned.
+//
+// Asm: VCVTTPD2QQ, CPU Feature: AVX512
+func (x Float64x2) ConvertToInt64() Int64x2
+
+// ConvertToInt64 converts element values to int64.
+// When a conversion is inexact, a truncated (round toward zero) value is returned.
+// If a converted result cannot be represented in int64, an implementation-defined
+// architecture-specific value is returned.
+//
+// Asm: VCVTTPD2QQ, CPU Feature: AVX512
+func (x Float64x4) ConvertToInt64() Int64x4
+
+// ConvertToInt64 converts element values to int64.
+// When a conversion is inexact, a truncated (round toward zero) value is returned.
+// If a converted result cannot be represented in int64, an implementation-defined
+// architecture-specific value is returned.
+//
+// Asm: VCVTTPD2QQ, CPU Feature: AVX512
+func (x Float64x8) ConvertToInt64() Int64x8
+
 /* ConvertToUint32 */
 
 // ConvertToUint32 converts element values to uint32.
+// When a conversion is inexact, a truncated (round toward zero) value is returned.
+// If a converted result cannot be represented in uint32, an implementation-defined
+// architecture-specific value is returned.
 //
-// Asm: VCVTPS2UDQ, CPU Feature: AVX512
+// Asm: VCVTTPS2UDQ, CPU Feature: AVX512
 func (x Float32x4) ConvertToUint32() Uint32x4
 
 // ConvertToUint32 converts element values to uint32.
+// When a conversion is inexact, a truncated (round toward zero) value is returned.
+// If a converted result cannot be represented in uint32, an implementation-defined
+// architecture-specific value is returned.
 //
-// Asm: VCVTPS2UDQ, CPU Feature: AVX512
+// Asm: VCVTTPS2UDQ, CPU Feature: AVX512
 func (x Float32x8) ConvertToUint32() Uint32x8
 
 // ConvertToUint32 converts element values to uint32.
+// When a conversion is inexact, a truncated (round toward zero) value is returned.
+// If a converted result cannot be represented in uint32, an implementation-defined
+// architecture-specific value is returned.
 //
-// Asm: VCVTPS2UDQ, CPU Feature: AVX512
+// Asm: VCVTTPS2UDQ, CPU Feature: AVX512
 func (x Float32x16) ConvertToUint32() Uint32x16
+
+// ConvertToUint32 converts element values to uint32.
+// When a conversion is inexact, a truncated (round toward zero) value is returned.
+// If a converted result cannot be represented in uint32, an implementation-defined
+// architecture-specific value is returned.
+//
+// Asm: VCVTTPD2UDQX, CPU Feature: AVX512
+func (x Float64x2) ConvertToUint32() Uint32x4
+
+// ConvertToUint32 converts element values to uint32.
+// When a conversion is inexact, a truncated (round toward zero) value is returned.
+// If a converted result cannot be represented in uint32, an implementation-defined
+// architecture-specific value is returned.
+//
+// Asm: VCVTTPD2UDQY, CPU Feature: AVX512
+func (x Float64x4) ConvertToUint32() Uint32x4
+
+// ConvertToUint32 converts element values to uint32.
+// When a conversion is inexact, a truncated (round toward zero) value is returned.
+// If a converted result cannot be represented in uint32, an implementation-defined
+// architecture-specific value is returned.
+//
+// Asm: VCVTTPD2UDQ, CPU Feature: AVX512
+func (x Float64x8) ConvertToUint32() Uint32x8
+
+/* ConvertToUint64 */
+
+// ConvertToUint64 converts element values to uint64.
+// When a conversion is inexact, a truncated (round toward zero) value is returned.
+// If a converted result cannot be represented in uint64, an implementation-defined
+// architecture-specific value is returned.
+//
+// Asm: VCVTTPS2UQQ, CPU Feature: AVX512
+func (x Float32x4) ConvertToUint64() Uint64x4
+
+// ConvertToUint64 converts element values to uint64.
+// When a conversion is inexact, a truncated (round toward zero) value is returned.
+// If a converted result cannot be represented in uint64, an implementation-defined
+// architecture-specific value is returned.
+//
+// Asm: VCVTTPS2UQQ, CPU Feature: AVX512
+func (x Float32x8) ConvertToUint64() Uint64x8
+
+// ConvertToUint64 converts element values to uint64.
+// When a conversion is inexact, a truncated (round toward zero) value is returned.
+// If a converted result cannot be represented in uint64, an implementation-defined
+// architecture-specific value is returned.
+//
+// Asm: VCVTTPD2UQQ, CPU Feature: AVX512
+func (x Float64x2) ConvertToUint64() Uint64x2
+
+// ConvertToUint64 converts element values to uint64.
+// When a conversion is inexact, a truncated (round toward zero) value is returned.
+// If a converted result cannot be represented in uint64, an implementation-defined
+// architecture-specific value is returned.
+//
+// Asm: VCVTTPD2UQQ, CPU Feature: AVX512
+func (x Float64x4) ConvertToUint64() Uint64x4
+
+// ConvertToUint64 converts element values to uint64.
+// When a conversion is inexact, a truncated (round toward zero) value is returned.
+// If a converted result cannot be represented in uint64, an implementation-defined
+// architecture-specific value is returned.
+//
+// Asm: VCVTTPD2UQQ, CPU Feature: AVX512
+func (x Float64x8) ConvertToUint64() Uint64x8
 
 /* CopySign */
 
@@ -1730,152 +2022,152 @@ func (x Int8x64) DotProductQuadrupleSaturated(y Uint8x64) Int32x16
 
 /* Equal */
 
-// Equal compares for equality.
+// Equal returns x equals y, elementwise.
 //
 // Asm: VPCMPEQB, CPU Feature: AVX
 func (x Int8x16) Equal(y Int8x16) Mask8x16
 
-// Equal compares for equality.
+// Equal returns x equals y, elementwise.
 //
 // Asm: VPCMPEQB, CPU Feature: AVX2
 func (x Int8x32) Equal(y Int8x32) Mask8x32
 
-// Equal compares for equality.
+// Equal returns x equals y, elementwise.
 //
 // Asm: VPCMPEQB, CPU Feature: AVX512
 func (x Int8x64) Equal(y Int8x64) Mask8x64
 
-// Equal compares for equality.
+// Equal returns x equals y, elementwise.
 //
 // Asm: VPCMPEQW, CPU Feature: AVX
 func (x Int16x8) Equal(y Int16x8) Mask16x8
 
-// Equal compares for equality.
+// Equal returns x equals y, elementwise.
 //
 // Asm: VPCMPEQW, CPU Feature: AVX2
 func (x Int16x16) Equal(y Int16x16) Mask16x16
 
-// Equal compares for equality.
+// Equal returns x equals y, elementwise.
 //
 // Asm: VPCMPEQW, CPU Feature: AVX512
 func (x Int16x32) Equal(y Int16x32) Mask16x32
 
-// Equal compares for equality.
+// Equal returns x equals y, elementwise.
 //
 // Asm: VPCMPEQD, CPU Feature: AVX
 func (x Int32x4) Equal(y Int32x4) Mask32x4
 
-// Equal compares for equality.
+// Equal returns x equals y, elementwise.
 //
 // Asm: VPCMPEQD, CPU Feature: AVX2
 func (x Int32x8) Equal(y Int32x8) Mask32x8
 
-// Equal compares for equality.
+// Equal returns x equals y, elementwise.
 //
 // Asm: VPCMPEQD, CPU Feature: AVX512
 func (x Int32x16) Equal(y Int32x16) Mask32x16
 
-// Equal compares for equality.
+// Equal returns x equals y, elementwise.
 //
 // Asm: VPCMPEQQ, CPU Feature: AVX
 func (x Int64x2) Equal(y Int64x2) Mask64x2
 
-// Equal compares for equality.
+// Equal returns x equals y, elementwise.
 //
 // Asm: VPCMPEQQ, CPU Feature: AVX2
 func (x Int64x4) Equal(y Int64x4) Mask64x4
 
-// Equal compares for equality.
+// Equal returns x equals y, elementwise.
 //
 // Asm: VPCMPEQQ, CPU Feature: AVX512
 func (x Int64x8) Equal(y Int64x8) Mask64x8
 
-// Equal compares for equality.
+// Equal returns x equals y, elementwise.
 //
 // Asm: VPCMPEQB, CPU Feature: AVX
 func (x Uint8x16) Equal(y Uint8x16) Mask8x16
 
-// Equal compares for equality.
+// Equal returns x equals y, elementwise.
 //
 // Asm: VPCMPEQB, CPU Feature: AVX2
 func (x Uint8x32) Equal(y Uint8x32) Mask8x32
 
-// Equal compares for equality.
+// Equal returns x equals y, elementwise.
 //
 // Asm: VPCMPEQB, CPU Feature: AVX512
 func (x Uint8x64) Equal(y Uint8x64) Mask8x64
 
-// Equal compares for equality.
+// Equal returns x equals y, elementwise.
 //
 // Asm: VPCMPEQW, CPU Feature: AVX
 func (x Uint16x8) Equal(y Uint16x8) Mask16x8
 
-// Equal compares for equality.
+// Equal returns x equals y, elementwise.
 //
 // Asm: VPCMPEQW, CPU Feature: AVX2
 func (x Uint16x16) Equal(y Uint16x16) Mask16x16
 
-// Equal compares for equality.
+// Equal returns x equals y, elementwise.
 //
 // Asm: VPCMPEQW, CPU Feature: AVX512
 func (x Uint16x32) Equal(y Uint16x32) Mask16x32
 
-// Equal compares for equality.
+// Equal returns x equals y, elementwise.
 //
 // Asm: VPCMPEQD, CPU Feature: AVX
 func (x Uint32x4) Equal(y Uint32x4) Mask32x4
 
-// Equal compares for equality.
+// Equal returns x equals y, elementwise.
 //
 // Asm: VPCMPEQD, CPU Feature: AVX2
 func (x Uint32x8) Equal(y Uint32x8) Mask32x8
 
-// Equal compares for equality.
+// Equal returns x equals y, elementwise.
 //
 // Asm: VPCMPEQD, CPU Feature: AVX512
 func (x Uint32x16) Equal(y Uint32x16) Mask32x16
 
-// Equal compares for equality.
+// Equal returns x equals y, elementwise.
 //
 // Asm: VPCMPEQQ, CPU Feature: AVX
 func (x Uint64x2) Equal(y Uint64x2) Mask64x2
 
-// Equal compares for equality.
+// Equal returns x equals y, elementwise.
 //
 // Asm: VPCMPEQQ, CPU Feature: AVX2
 func (x Uint64x4) Equal(y Uint64x4) Mask64x4
 
-// Equal compares for equality.
+// Equal returns x equals y, elementwise.
 //
 // Asm: VPCMPEQQ, CPU Feature: AVX512
 func (x Uint64x8) Equal(y Uint64x8) Mask64x8
 
-// Equal compares for equality.
+// Equal returns x equals y, elementwise.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) Equal(y Float32x4) Mask32x4
 
-// Equal compares for equality.
+// Equal returns x equals y, elementwise.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) Equal(y Float32x8) Mask32x8
 
-// Equal compares for equality.
+// Equal returns x equals y, elementwise.
 //
 // Asm: VCMPPS, CPU Feature: AVX512
 func (x Float32x16) Equal(y Float32x16) Mask32x16
 
-// Equal compares for equality.
+// Equal returns x equals y, elementwise.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) Equal(y Float64x2) Mask64x2
 
-// Equal compares for equality.
+// Equal returns x equals y, elementwise.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) Equal(y Float64x4) Mask64x4
 
-// Equal compares for equality.
+// Equal returns x equals y, elementwise.
 //
 // Asm: VCMPPD, CPU Feature: AVX512
 func (x Float64x8) Equal(y Float64x8) Mask64x8
@@ -2789,184 +3081,184 @@ func (x Uint64x8) GetLo() Uint64x4
 
 /* Greater */
 
-// Greater compares for greater than.
+// Greater returns x greater-than y, elementwise.
 //
 // Asm: VPCMPGTB, CPU Feature: AVX
 func (x Int8x16) Greater(y Int8x16) Mask8x16
 
-// Greater compares for greater than.
+// Greater returns x greater-than y, elementwise.
 //
 // Asm: VPCMPGTB, CPU Feature: AVX2
 func (x Int8x32) Greater(y Int8x32) Mask8x32
 
-// Greater compares for greater than.
+// Greater returns x greater-than y, elementwise.
 //
 // Asm: VPCMPGTB, CPU Feature: AVX512
 func (x Int8x64) Greater(y Int8x64) Mask8x64
 
-// Greater compares for greater than.
+// Greater returns x greater-than y, elementwise.
 //
 // Asm: VPCMPGTW, CPU Feature: AVX
 func (x Int16x8) Greater(y Int16x8) Mask16x8
 
-// Greater compares for greater than.
+// Greater returns x greater-than y, elementwise.
 //
 // Asm: VPCMPGTW, CPU Feature: AVX2
 func (x Int16x16) Greater(y Int16x16) Mask16x16
 
-// Greater compares for greater than.
+// Greater returns x greater-than y, elementwise.
 //
 // Asm: VPCMPGTW, CPU Feature: AVX512
 func (x Int16x32) Greater(y Int16x32) Mask16x32
 
-// Greater compares for greater than.
+// Greater returns x greater-than y, elementwise.
 //
 // Asm: VPCMPGTD, CPU Feature: AVX
 func (x Int32x4) Greater(y Int32x4) Mask32x4
 
-// Greater compares for greater than.
+// Greater returns x greater-than y, elementwise.
 //
 // Asm: VPCMPGTD, CPU Feature: AVX2
 func (x Int32x8) Greater(y Int32x8) Mask32x8
 
-// Greater compares for greater than.
+// Greater returns x greater-than y, elementwise.
 //
 // Asm: VPCMPGTD, CPU Feature: AVX512
 func (x Int32x16) Greater(y Int32x16) Mask32x16
 
-// Greater compares for greater than.
+// Greater returns x greater-than y, elementwise.
 //
 // Asm: VPCMPGTQ, CPU Feature: AVX
 func (x Int64x2) Greater(y Int64x2) Mask64x2
 
-// Greater compares for greater than.
+// Greater returns x greater-than y, elementwise.
 //
 // Asm: VPCMPGTQ, CPU Feature: AVX2
 func (x Int64x4) Greater(y Int64x4) Mask64x4
 
-// Greater compares for greater than.
+// Greater returns x greater-than y, elementwise.
 //
 // Asm: VPCMPGTQ, CPU Feature: AVX512
 func (x Int64x8) Greater(y Int64x8) Mask64x8
 
-// Greater compares for greater than.
+// Greater returns x greater-than y, elementwise.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) Greater(y Float32x4) Mask32x4
 
-// Greater compares for greater than.
+// Greater returns x greater-than y, elementwise.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) Greater(y Float32x8) Mask32x8
 
-// Greater compares for greater than.
+// Greater returns x greater-than y, elementwise.
 //
 // Asm: VCMPPS, CPU Feature: AVX512
 func (x Float32x16) Greater(y Float32x16) Mask32x16
 
-// Greater compares for greater than.
+// Greater returns x greater-than y, elementwise.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) Greater(y Float64x2) Mask64x2
 
-// Greater compares for greater than.
+// Greater returns x greater-than y, elementwise.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) Greater(y Float64x4) Mask64x4
 
-// Greater compares for greater than.
+// Greater returns x greater-than y, elementwise.
 //
 // Asm: VCMPPD, CPU Feature: AVX512
 func (x Float64x8) Greater(y Float64x8) Mask64x8
 
-// Greater compares for greater than.
+// Greater returns x greater-than y, elementwise.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512
 func (x Uint8x64) Greater(y Uint8x64) Mask8x64
 
-// Greater compares for greater than.
+// Greater returns x greater-than y, elementwise.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512
 func (x Uint16x32) Greater(y Uint16x32) Mask16x32
 
-// Greater compares for greater than.
+// Greater returns x greater-than y, elementwise.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512
 func (x Uint32x16) Greater(y Uint32x16) Mask32x16
 
-// Greater compares for greater than.
+// Greater returns x greater-than y, elementwise.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512
 func (x Uint64x8) Greater(y Uint64x8) Mask64x8
 
 /* GreaterEqual */
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqual returns x greater-than-or-equals y, elementwise.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) GreaterEqual(y Float32x4) Mask32x4
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqual returns x greater-than-or-equals y, elementwise.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) GreaterEqual(y Float32x8) Mask32x8
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqual returns x greater-than-or-equals y, elementwise.
 //
 // Asm: VCMPPS, CPU Feature: AVX512
 func (x Float32x16) GreaterEqual(y Float32x16) Mask32x16
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqual returns x greater-than-or-equals y, elementwise.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) GreaterEqual(y Float64x2) Mask64x2
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqual returns x greater-than-or-equals y, elementwise.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) GreaterEqual(y Float64x4) Mask64x4
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqual returns x greater-than-or-equals y, elementwise.
 //
 // Asm: VCMPPD, CPU Feature: AVX512
 func (x Float64x8) GreaterEqual(y Float64x8) Mask64x8
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqual returns x greater-than-or-equals y, elementwise.
 //
 // Asm: VPCMPB, CPU Feature: AVX512
 func (x Int8x64) GreaterEqual(y Int8x64) Mask8x64
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqual returns x greater-than-or-equals y, elementwise.
 //
 // Asm: VPCMPW, CPU Feature: AVX512
 func (x Int16x32) GreaterEqual(y Int16x32) Mask16x32
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqual returns x greater-than-or-equals y, elementwise.
 //
 // Asm: VPCMPD, CPU Feature: AVX512
 func (x Int32x16) GreaterEqual(y Int32x16) Mask32x16
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqual returns x greater-than-or-equals y, elementwise.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512
 func (x Int64x8) GreaterEqual(y Int64x8) Mask64x8
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqual returns x greater-than-or-equals y, elementwise.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512
 func (x Uint8x64) GreaterEqual(y Uint8x64) Mask8x64
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqual returns x greater-than-or-equals y, elementwise.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512
 func (x Uint16x32) GreaterEqual(y Uint16x32) Mask16x32
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqual returns x greater-than-or-equals y, elementwise.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512
 func (x Uint32x16) GreaterEqual(y Uint32x16) Mask32x16
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqual returns x greater-than-or-equals y, elementwise.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512
 func (x Uint64x8) GreaterEqual(y Uint64x8) Mask64x8
@@ -3255,144 +3547,144 @@ func (x Uint64x8) LeadingZeros() Uint64x8
 
 /* Less */
 
-// Less compares for less than.
+// Less returns x less-than y, elementwise.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) Less(y Float32x4) Mask32x4
 
-// Less compares for less than.
+// Less returns x less-than y, elementwise.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) Less(y Float32x8) Mask32x8
 
-// Less compares for less than.
+// Less returns x less-than y, elementwise.
 //
 // Asm: VCMPPS, CPU Feature: AVX512
 func (x Float32x16) Less(y Float32x16) Mask32x16
 
-// Less compares for less than.
+// Less returns x less-than y, elementwise.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) Less(y Float64x2) Mask64x2
 
-// Less compares for less than.
+// Less returns x less-than y, elementwise.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) Less(y Float64x4) Mask64x4
 
-// Less compares for less than.
+// Less returns x less-than y, elementwise.
 //
 // Asm: VCMPPD, CPU Feature: AVX512
 func (x Float64x8) Less(y Float64x8) Mask64x8
 
-// Less compares for less than.
+// Less returns x less-than y, elementwise.
 //
 // Asm: VPCMPB, CPU Feature: AVX512
 func (x Int8x64) Less(y Int8x64) Mask8x64
 
-// Less compares for less than.
+// Less returns x less-than y, elementwise.
 //
 // Asm: VPCMPW, CPU Feature: AVX512
 func (x Int16x32) Less(y Int16x32) Mask16x32
 
-// Less compares for less than.
+// Less returns x less-than y, elementwise.
 //
 // Asm: VPCMPD, CPU Feature: AVX512
 func (x Int32x16) Less(y Int32x16) Mask32x16
 
-// Less compares for less than.
+// Less returns x less-than y, elementwise.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512
 func (x Int64x8) Less(y Int64x8) Mask64x8
 
-// Less compares for less than.
+// Less returns x less-than y, elementwise.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512
 func (x Uint8x64) Less(y Uint8x64) Mask8x64
 
-// Less compares for less than.
+// Less returns x less-than y, elementwise.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512
 func (x Uint16x32) Less(y Uint16x32) Mask16x32
 
-// Less compares for less than.
+// Less returns x less-than y, elementwise.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512
 func (x Uint32x16) Less(y Uint32x16) Mask32x16
 
-// Less compares for less than.
+// Less returns x less-than y, elementwise.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512
 func (x Uint64x8) Less(y Uint64x8) Mask64x8
 
 /* LessEqual */
 
-// LessEqual compares for less than or equal.
+// LessEqual returns x less-than-or-equals y, elementwise.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) LessEqual(y Float32x4) Mask32x4
 
-// LessEqual compares for less than or equal.
+// LessEqual returns x less-than-or-equals y, elementwise.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) LessEqual(y Float32x8) Mask32x8
 
-// LessEqual compares for less than or equal.
+// LessEqual returns x less-than-or-equals y, elementwise.
 //
 // Asm: VCMPPS, CPU Feature: AVX512
 func (x Float32x16) LessEqual(y Float32x16) Mask32x16
 
-// LessEqual compares for less than or equal.
+// LessEqual returns x less-than-or-equals y, elementwise.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) LessEqual(y Float64x2) Mask64x2
 
-// LessEqual compares for less than or equal.
+// LessEqual returns x less-than-or-equals y, elementwise.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) LessEqual(y Float64x4) Mask64x4
 
-// LessEqual compares for less than or equal.
+// LessEqual returns x less-than-or-equals y, elementwise.
 //
 // Asm: VCMPPD, CPU Feature: AVX512
 func (x Float64x8) LessEqual(y Float64x8) Mask64x8
 
-// LessEqual compares for less than or equal.
+// LessEqual returns x less-than-or-equals y, elementwise.
 //
 // Asm: VPCMPB, CPU Feature: AVX512
 func (x Int8x64) LessEqual(y Int8x64) Mask8x64
 
-// LessEqual compares for less than or equal.
+// LessEqual returns x less-than-or-equals y, elementwise.
 //
 // Asm: VPCMPW, CPU Feature: AVX512
 func (x Int16x32) LessEqual(y Int16x32) Mask16x32
 
-// LessEqual compares for less than or equal.
+// LessEqual returns x less-than-or-equals y, elementwise.
 //
 // Asm: VPCMPD, CPU Feature: AVX512
 func (x Int32x16) LessEqual(y Int32x16) Mask32x16
 
-// LessEqual compares for less than or equal.
+// LessEqual returns x less-than-or-equals y, elementwise.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512
 func (x Int64x8) LessEqual(y Int64x8) Mask64x8
 
-// LessEqual compares for less than or equal.
+// LessEqual returns x less-than-or-equals y, elementwise.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512
 func (x Uint8x64) LessEqual(y Uint8x64) Mask8x64
 
-// LessEqual compares for less than or equal.
+// LessEqual returns x less-than-or-equals y, elementwise.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512
 func (x Uint16x32) LessEqual(y Uint16x32) Mask16x32
 
-// LessEqual compares for less than or equal.
+// LessEqual returns x less-than-or-equals y, elementwise.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512
 func (x Uint32x16) LessEqual(y Uint32x16) Mask32x16
 
-// LessEqual compares for less than or equal.
+// LessEqual returns x less-than-or-equals y, elementwise.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512
 func (x Uint64x8) LessEqual(y Uint64x8) Mask64x8
@@ -3979,72 +4271,72 @@ func (x Float64x8) MulSubAdd(y Float64x8, z Float64x8) Float64x8
 
 /* NotEqual */
 
-// NotEqual compares for inequality.
+// NotEqual returns x not-equals y, elementwise.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) NotEqual(y Float32x4) Mask32x4
 
-// NotEqual compares for inequality.
+// NotEqual returns x not-equals y, elementwise.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) NotEqual(y Float32x8) Mask32x8
 
-// NotEqual compares for inequality.
+// NotEqual returns x not-equals y, elementwise.
 //
 // Asm: VCMPPS, CPU Feature: AVX512
 func (x Float32x16) NotEqual(y Float32x16) Mask32x16
 
-// NotEqual compares for inequality.
+// NotEqual returns x not-equals y, elementwise.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) NotEqual(y Float64x2) Mask64x2
 
-// NotEqual compares for inequality.
+// NotEqual returns x not-equals y, elementwise.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) NotEqual(y Float64x4) Mask64x4
 
-// NotEqual compares for inequality.
+// NotEqual returns x not-equals y, elementwise.
 //
 // Asm: VCMPPD, CPU Feature: AVX512
 func (x Float64x8) NotEqual(y Float64x8) Mask64x8
 
-// NotEqual compares for inequality.
+// NotEqual returns x not-equals y, elementwise.
 //
 // Asm: VPCMPB, CPU Feature: AVX512
 func (x Int8x64) NotEqual(y Int8x64) Mask8x64
 
-// NotEqual compares for inequality.
+// NotEqual returns x not-equals y, elementwise.
 //
 // Asm: VPCMPW, CPU Feature: AVX512
 func (x Int16x32) NotEqual(y Int16x32) Mask16x32
 
-// NotEqual compares for inequality.
+// NotEqual returns x not-equals y, elementwise.
 //
 // Asm: VPCMPD, CPU Feature: AVX512
 func (x Int32x16) NotEqual(y Int32x16) Mask32x16
 
-// NotEqual compares for inequality.
+// NotEqual returns x not-equals y, elementwise.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512
 func (x Int64x8) NotEqual(y Int64x8) Mask64x8
 
-// NotEqual compares for inequality.
+// NotEqual returns x not-equals y, elementwise.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512
 func (x Uint8x64) NotEqual(y Uint8x64) Mask8x64
 
-// NotEqual compares for inequality.
+// NotEqual returns x not-equals y, elementwise.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512
 func (x Uint16x32) NotEqual(y Uint16x32) Mask16x32
 
-// NotEqual compares for inequality.
+// NotEqual returns x not-equals y, elementwise.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512
 func (x Uint32x16) NotEqual(y Uint32x16) Mask32x16
 
-// NotEqual compares for inequality.
+// NotEqual returns x not-equals y, elementwise.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512
 func (x Uint64x8) NotEqual(y Uint64x8) Mask64x8

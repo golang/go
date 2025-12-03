@@ -322,7 +322,7 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 				rule := fmt.Sprintf("(VPBLENDVB%d dst (%s %s) mask) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (%sMerging dst %s (VPMOVVec%dx%dToM <types.TypeMask> mask))\n",
 					*maskElem.Bits, noMaskName, data.Args, data.Asm, data.Args, *maskElem.ElemBits, *maskElem.Lanes)
 				if ok && ruleExisting != rule {
-					panic("multiple masked merge rules for one op")
+					panic(fmt.Sprintf("multiple masked merge rules for one op:\n%s\n%s\n", ruleExisting, rule))
 				} else {
 					maskedMergeOpts[noMaskName] = rule
 				}
@@ -333,7 +333,7 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 				rule := fmt.Sprintf("(VPBLENDM%sMasked%d dst (%s %s) mask) => (%sMerging dst %s mask)\n",
 					s2n[*maskElem.ElemBits], *maskElem.Bits, noMaskName, data.Args, data.Asm, data.Args)
 				if ok && ruleExisting != rule {
-					panic("multiple masked merge rules for one op")
+					panic(fmt.Sprintf("multiple masked merge rules for one op:\n%s\n%s\n", ruleExisting, rule))
 				} else {
 					maskedMergeOpts[noMaskName] = rule
 				}

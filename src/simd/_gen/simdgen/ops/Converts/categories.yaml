@@ -1,6 +1,49 @@
 !sum
-# Non-truncating conversions
-# int<->int or uint<->uint widening, float<->int|uint conversions or trucating conversions.
+# Float <-> Int conversions
+- go: "ConvertToInt32"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME converts element values to int32.
+    // When a conversion is inexact, a truncated (round toward zero) value is returned.
+    // If a converted result cannot be represented in int32, an implementation-defined
+    // architecture-specific value is returned.
+- go: "ConvertToUint32"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME converts element values to uint32.
+    // When a conversion is inexact, a truncated (round toward zero) value is returned.
+    // If a converted result cannot be represented in uint32, an implementation-defined
+    // architecture-specific value is returned.
+- go: "ConvertToInt64"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME converts element values to int64.
+    // When a conversion is inexact, a truncated (round toward zero) value is returned.
+    // If a converted result cannot be represented in int64, an implementation-defined
+    // architecture-specific value is returned.
+- go: "ConvertToUint64"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME converts element values to uint64.
+    // When a conversion is inexact, a truncated (round toward zero) value is returned.
+    // If a converted result cannot be represented in uint64, an implementation-defined
+    // architecture-specific value is returned.
+- go: "ConvertToFloat32" # Also float64 -> float32
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME converts element values to float32.
+- go: "ConvertToFloat64" # Also float32 -> float64
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME converts element values to float64.
+
+# Int <-> Int conversions
 - go: "(Extend|Saturate|Truncate)?ToInt8"
   commutative: false
   regexpTag: "convert"
@@ -11,7 +54,7 @@
   regexpTag: "convert"
   documentation: !string |-
     // NAME converts element values to int16.
-- go: "(Extend|Saturate|Truncate)?(Convert)?ToInt32"
+- go: "(Extend|Saturate|Truncate)?ToInt32"
   commutative: false
   regexpTag: "convert"
   documentation: !string |-
@@ -31,7 +74,7 @@
   regexpTag: "convert"
   documentation: !string |-
     // NAME converts element values to uint16.
-- go: "(Extend|Saturate|Truncate)?(Convert)?ToUint32"
+- go: "(Extend|Saturate|Truncate)?ToUint32"
   regexpTag: "convert"
   commutative: false
   documentation: !string |-
@@ -41,9 +84,7 @@
   commutative: false
   documentation: !string |-
     // NAME converts element values to uint64.
-
-# low-part only conversions
-# int<->int or uint<->uint widening conversions.
+# low-part only Int <-> Int conversions
 - go: ExtendLo8ToUint16x8
   commutative: false
   documentation: !string |-

@@ -335,6 +335,20 @@ func (op *Operation) sortOperand() {
 	})
 }
 
+// adjustAsm adjusts the asm to make it align with Go's assembler.
+func (op *Operation) adjustAsm() {
+	if op.Asm == "VCVTTPD2DQ" || op.Asm == "VCVTTPD2UDQ" ||
+		op.Asm == "VCVTQQ2PS" || op.Asm == "VCVTUQQ2PS" ||
+		op.Asm == "VCVTPD2PS" {
+		switch *op.In[0].Bits {
+		case 128:
+			op.Asm += "X"
+		case 256:
+			op.Asm += "Y"
+		}
+	}
+}
+
 // goNormalType returns the Go type name for the result of an Op that
 // does not return a vector, i.e., that returns a result in a general
 // register.  Currently there's only one family of Ops in Go's simd library
@@ -650,6 +664,12 @@ func dedupGodef(ops []Operation) ([]Operation, error) {
 					return -1
 				}
 				if i.MemFeatures == nil && j.MemFeatures != nil {
+					return 1
+				}
+				if i.Commutative != j.Commutative {
+					if j.Commutative {
+						return -1
+					}
 					return 1
 				}
 				// Their order does not matter anymore, at least for now.
