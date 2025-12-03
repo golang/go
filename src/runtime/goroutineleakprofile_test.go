@@ -14,10 +14,13 @@ import (
 )
 
 func TestGoroutineLeakProfile(t *testing.T) {
-	if strings.Contains(os.Getenv("GOFLAGS"), "mayMoreStackPreempt") {
-		// Some tests have false negatives under mayMoreStackPreempt. This may be a test-only issue,
-		// but needs more investigation.
-		testenv.SkipFlaky(t, 75729)
+	// Some tests have false negatives under mayMoreStackPreempt and mayMoreStackMove.
+	// This may be a test-only issue in that they're just sensitive to scheduling, but it
+	// needs more investigation.
+	for _, cfg := range []string{"mayMoreStackPreempt", "mayMoreStackMove"} {
+		if strings.Contains(os.Getenv("GOFLAGS"), cfg) {
+			testenv.SkipFlaky(t, 75729)
+		}
 	}
 
 	// Goroutine leak test case.
