@@ -98,6 +98,10 @@ func writeSIMDMachineOps(ops []Operation) *bytes.Buffer {
 			mOpOrder = append(mOpOrder, asm)
 			continue
 		}
+		if !op.Commutative && other.Commutative { // if there's a non-commutative version of the op, it wins.
+			best[asm] = op
+			continue
+		}
 		// see if "op" is better than "other"
 		if countOverrides(op.In)+countOverrides(op.Out) < countOverrides(other.In)+countOverrides(other.Out) {
 			best[asm] = op

@@ -666,6 +666,12 @@ func dedupGodef(ops []Operation) ([]Operation, error) {
 				if i.MemFeatures == nil && j.MemFeatures != nil {
 					return 1
 				}
+				if i.Commutative != j.Commutative {
+					if j.Commutative {
+						return -1
+					}
+					return 1
+				}
 				// Their order does not matter anymore, at least for now.
 				return 0
 			})

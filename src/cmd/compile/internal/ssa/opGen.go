@@ -38629,11 +38629,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VCMPPD128",
-		auxType:     auxUInt8,
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVCMPPD,
+		name:    "VCMPPD128",
+		auxType: auxUInt8,
+		argLen:  2,
+		asm:     x86.AVCMPPD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -38645,11 +38644,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VCMPPD256",
-		auxType:     auxUInt8,
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVCMPPD,
+		name:    "VCMPPD256",
+		auxType: auxUInt8,
+		argLen:  2,
+		asm:     x86.AVCMPPD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -38661,11 +38659,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VCMPPD512",
-		auxType:     auxUInt8,
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVCMPPD,
+		name:    "VCMPPD512",
+		auxType: auxUInt8,
+		argLen:  2,
+		asm:     x86.AVCMPPD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
@@ -38677,11 +38674,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VCMPPDMasked128",
-		auxType:     auxUInt8,
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVCMPPD,
+		name:    "VCMPPDMasked128",
+		auxType: auxUInt8,
+		argLen:  3,
+		asm:     x86.AVCMPPD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -38694,11 +38690,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VCMPPDMasked256",
-		auxType:     auxUInt8,
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVCMPPD,
+		name:    "VCMPPDMasked256",
+		auxType: auxUInt8,
+		argLen:  3,
+		asm:     x86.AVCMPPD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -38711,11 +38706,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VCMPPDMasked512",
-		auxType:     auxUInt8,
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVCMPPD,
+		name:    "VCMPPDMasked512",
+		auxType: auxUInt8,
+		argLen:  3,
+		asm:     x86.AVCMPPD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -38728,11 +38722,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VCMPPS128",
-		auxType:     auxUInt8,
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVCMPPS,
+		name:    "VCMPPS128",
+		auxType: auxUInt8,
+		argLen:  2,
+		asm:     x86.AVCMPPS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -38744,11 +38737,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VCMPPS256",
-		auxType:     auxUInt8,
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVCMPPS,
+		name:    "VCMPPS256",
+		auxType: auxUInt8,
+		argLen:  2,
+		asm:     x86.AVCMPPS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -38760,11 +38752,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VCMPPS512",
-		auxType:     auxUInt8,
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVCMPPS,
+		name:    "VCMPPS512",
+		auxType: auxUInt8,
+		argLen:  2,
+		asm:     x86.AVCMPPS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
@@ -38776,11 +38767,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VCMPPSMasked128",
-		auxType:     auxUInt8,
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVCMPPS,
+		name:    "VCMPPSMasked128",
+		auxType: auxUInt8,
+		argLen:  3,
+		asm:     x86.AVCMPPS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -38793,11 +38783,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VCMPPSMasked256",
-		auxType:     auxUInt8,
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVCMPPS,
+		name:    "VCMPPSMasked256",
+		auxType: auxUInt8,
+		argLen:  3,
+		asm:     x86.AVCMPPS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -38810,11 +38799,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VCMPPSMasked512",
-		auxType:     auxUInt8,
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVCMPPS,
+		name:    "VCMPPSMasked512",
+		auxType: auxUInt8,
+		argLen:  3,
+		asm:     x86.AVCMPPS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -39237,11 +39225,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPBMasked128",
-		auxType:     auxUInt8,
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPCMPB,
+		name:    "VPCMPBMasked128",
+		auxType: auxUInt8,
+		argLen:  3,
+		asm:     x86.AVPCMPB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -39254,11 +39241,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPBMasked256",
-		auxType:     auxUInt8,
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPCMPB,
+		name:    "VPCMPBMasked256",
+		auxType: auxUInt8,
+		argLen:  3,
+		asm:     x86.AVPCMPB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -39271,11 +39257,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPBMasked512",
-		auxType:     auxUInt8,
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPCMPB,
+		name:    "VPCMPBMasked512",
+		auxType: auxUInt8,
+		argLen:  3,
+		asm:     x86.AVPCMPB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -39303,11 +39288,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPDMasked128",
-		auxType:     auxUInt8,
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPCMPD,
+		name:    "VPCMPDMasked128",
+		auxType: auxUInt8,
+		argLen:  3,
+		asm:     x86.AVPCMPD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -39320,11 +39304,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPDMasked256",
-		auxType:     auxUInt8,
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPCMPD,
+		name:    "VPCMPDMasked256",
+		auxType: auxUInt8,
+		argLen:  3,
+		asm:     x86.AVPCMPD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -39337,11 +39320,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPDMasked512",
-		auxType:     auxUInt8,
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPCMPD,
+		name:    "VPCMPDMasked512",
+		auxType: auxUInt8,
+		argLen:  3,
+		asm:     x86.AVPCMPD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -39369,11 +39351,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPQMasked128",
-		auxType:     auxUInt8,
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPCMPQ,
+		name:    "VPCMPQMasked128",
+		auxType: auxUInt8,
+		argLen:  3,
+		asm:     x86.AVPCMPQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -39386,11 +39367,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPQMasked256",
-		auxType:     auxUInt8,
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPCMPQ,
+		name:    "VPCMPQMasked256",
+		auxType: auxUInt8,
+		argLen:  3,
+		asm:     x86.AVPCMPQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -39403,11 +39383,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPQMasked512",
-		auxType:     auxUInt8,
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPCMPQ,
+		name:    "VPCMPQMasked512",
+		auxType: auxUInt8,
+		argLen:  3,
+		asm:     x86.AVPCMPQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -39435,11 +39414,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPUBMasked128",
-		auxType:     auxUInt8,
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPCMPUB,
+		name:    "VPCMPUBMasked128",
+		auxType: auxUInt8,
+		argLen:  3,
+		asm:     x86.AVPCMPUB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -39452,11 +39430,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPUBMasked256",
-		auxType:     auxUInt8,
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPCMPUB,
+		name:    "VPCMPUBMasked256",
+		auxType: auxUInt8,
+		argLen:  3,
+		asm:     x86.AVPCMPUB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -39469,11 +39446,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPUBMasked512",
-		auxType:     auxUInt8,
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPCMPUB,
+		name:    "VPCMPUBMasked512",
+		auxType: auxUInt8,
+		argLen:  3,
+		asm:     x86.AVPCMPUB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -39501,11 +39477,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPUDMasked128",
-		auxType:     auxUInt8,
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPCMPUD,
+		name:    "VPCMPUDMasked128",
+		auxType: auxUInt8,
+		argLen:  3,
+		asm:     x86.AVPCMPUD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -39518,11 +39493,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPUDMasked256",
-		auxType:     auxUInt8,
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPCMPUD,
+		name:    "VPCMPUDMasked256",
+		auxType: auxUInt8,
+		argLen:  3,
+		asm:     x86.AVPCMPUD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -39535,11 +39509,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPUDMasked512",
-		auxType:     auxUInt8,
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPCMPUD,
+		name:    "VPCMPUDMasked512",
+		auxType: auxUInt8,
+		argLen:  3,
+		asm:     x86.AVPCMPUD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -39567,11 +39540,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPUQMasked128",
-		auxType:     auxUInt8,
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPCMPUQ,
+		name:    "VPCMPUQMasked128",
+		auxType: auxUInt8,
+		argLen:  3,
+		asm:     x86.AVPCMPUQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -39584,11 +39556,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPUQMasked256",
-		auxType:     auxUInt8,
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPCMPUQ,
+		name:    "VPCMPUQMasked256",
+		auxType: auxUInt8,
+		argLen:  3,
+		asm:     x86.AVPCMPUQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -39601,11 +39572,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPUQMasked512",
-		auxType:     auxUInt8,
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPCMPUQ,
+		name:    "VPCMPUQMasked512",
+		auxType: auxUInt8,
+		argLen:  3,
+		asm:     x86.AVPCMPUQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -39633,11 +39603,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPUWMasked128",
-		auxType:     auxUInt8,
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPCMPUW,
+		name:    "VPCMPUWMasked128",
+		auxType: auxUInt8,
+		argLen:  3,
+		asm:     x86.AVPCMPUW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -39650,11 +39619,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPUWMasked256",
-		auxType:     auxUInt8,
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPCMPUW,
+		name:    "VPCMPUWMasked256",
+		auxType: auxUInt8,
+		argLen:  3,
+		asm:     x86.AVPCMPUW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -39667,11 +39635,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPUWMasked512",
-		auxType:     auxUInt8,
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPCMPUW,
+		name:    "VPCMPUWMasked512",
+		auxType: auxUInt8,
+		argLen:  3,
+		asm:     x86.AVPCMPUW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -39699,11 +39666,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPWMasked128",
-		auxType:     auxUInt8,
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPCMPW,
+		name:    "VPCMPWMasked128",
+		auxType: auxUInt8,
+		argLen:  3,
+		asm:     x86.AVPCMPW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -39716,11 +39682,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPWMasked256",
-		auxType:     auxUInt8,
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPCMPW,
+		name:    "VPCMPWMasked256",
+		auxType: auxUInt8,
+		argLen:  3,
+		asm:     x86.AVPCMPW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -39733,11 +39698,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPWMasked512",
-		auxType:     auxUInt8,
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPCMPW,
+		name:    "VPCMPWMasked512",
+		auxType: auxUInt8,
+		argLen:  3,
+		asm:     x86.AVPCMPW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
