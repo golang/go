@@ -551,8 +551,11 @@ func MapNextArenaHint() (start, end uintptr, ok bool) {
 	return
 }
 
-func GetNextArenaHint() uintptr {
-	return mheap_.arenaHints.addr
+func NextArenaHint() (uintptr, bool) {
+	if mheap_.arenaHints == nil {
+		return 0, false
+	}
+	return mheap_.arenaHints.addr, true
 }
 
 type G = g

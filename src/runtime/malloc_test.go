@@ -664,10 +664,24 @@ func TestArenaCollision(t *testing.T) {
 		}
 		t.Logf("reserved [%#x, %#x)", start, end)
 		disallowed = append(disallowed, [2]uintptr{start, end})
+
+		hint, ok := NextArenaHint()
+		if !ok {
+			// We're out of arena hints. There's not much we can do now except give up.
+			// This might happen for a number of reasons, like if there's just something
+			// else already mapped in the address space where we put our hints. This is
+			// a bit more common than it used to be thanks to heap base randomization.
+			t.Skip("ran out of arena hints")
+		}
+
 		// Allocate until the runtime tries to use the hint we
 		// just mapped over.
-		hint := GetNextArenaHint()
-		for GetNextArenaHint() == hint {
+		for {
+			if next, ok := NextArenaHint(); !ok {
+				t.Skip("ran out of arena hints")
+			} else if next != hint {
+				break
+			}
 			ac := new(acLink)
 			arenaCollisionSink = append(arenaCollisionSink, ac)
 			// The allocation must not have fallen into
