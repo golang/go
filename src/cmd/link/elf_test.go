@@ -11,6 +11,7 @@ import (
 	"cmd/internal/hash"
 	"cmd/link/internal/ld"
 	"debug/elf"
+	"encoding/binary"
 	"fmt"
 	"internal/platform"
 	"internal/testenv"
@@ -22,6 +23,7 @@ import (
 	"sync"
 	"testing"
 	"text/template"
+	"unsafe"
 )
 
 func getCCAndCCFLAGS(t *testing.T, env []string) (string, []string) {
@@ -677,12 +679,23 @@ func testFlagDError(t *testing.T, dataAddr string, roundQuantum string, expected
 }
 
 func TestELFHeadersSorted(t *testing.T) {
+	for _, buildmode := range []string{"exe", "pie"} {
+		t.Run(buildmode, func(t *testing.T) {
+			testELFHeadersSorted(t, buildmode)
+		})
+	}
+}
+
+func testELFHeadersSorted(t *testing.T, buildmode string) {
 	testenv.MustHaveGoBuild(t)
 
 	// We can only test this for internal linking mode.
 	// For external linking the external linker will
 	// decide how to sort the sections.
 	testenv.MustInternalLink(t, testenv.NoSpecialBuildTypes)
+	if buildmode == "pie" {
+		testenv.MustInternalLinkPIE(t)
+	}
 
 	t.Parallel()
 
@@ -693,12 +706,71 @@ func TestELFHeadersSorted(t *testing.T) {
 	}
 
 	exe := filepath.Join(tmpdir, "x.exe")
-	cmd := goCmd(t, "build", "-ldflags=-linkmode=internal", "-o", exe, src)
+	cmd := goCmd(t, "build", "-buildmode="+buildmode, "-ldflags=-linkmode=internal", "-o", exe, src)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("build failed: %v, output:\n%s", err, out)
 	}
 
-	ef, err := elf.Open(exe)
+	// Check that the first section header is all zeroes.
+	f, err := os.Open(exe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	var ident [elf.EI_NIDENT]byte
+	if _, err := f.Read(ident[:]); err != nil {
+		t.Fatal(err)
+	}
+
+	var bo binary.ByteOrder
+	switch elf.Data(ident[elf.EI_DATA]) {
+	case elf.ELFDATA2LSB:
+		bo = binary.LittleEndian
+	case elf.ELFDATA2MSB:
+		bo = binary.BigEndian
+	default:
+		t.Fatalf("unrecognized data encoding %d", ident[elf.EI_DATA])
+	}
+
+	var shoff int64
+	var shsize int
+	switch elf.Class(ident[elf.EI_CLASS]) {
+	case elf.ELFCLASS32:
+		var hdr elf.Header32
+		data := make([]byte, unsafe.Sizeof(hdr))
+		if _, err := f.ReadAt(data, 0); err != nil {
+			t.Fatal(err)
+		}
+		shoff = int64(bo.Uint32(data[unsafe.Offsetof(hdr.Shoff):]))
+		shsize = int(unsafe.Sizeof(elf.Section32{}))
+
+	case elf.ELFCLASS64:
+		var hdr elf.Header64
+		data := make([]byte, unsafe.Sizeof(hdr))
+		if _, err := f.ReadAt(data, 0); err != nil {
+			t.Fatal(err)
+		}
+		shoff = int64(bo.Uint64(data[unsafe.Offsetof(hdr.Shoff):]))
+		shsize = int(unsafe.Sizeof(elf.Section64{}))
+
+	default:
+		t.Fatalf("unrecognized class %d", ident[elf.EI_CLASS])
+	}
+
+	if shoff > 0 {
+		data := make([]byte, shsize)
+		if _, err := f.ReadAt(data, shoff); err != nil {
+			t.Fatal(err)
+		}
+		for i, c := range data {
+			if c != 0 {
+				t.Errorf("section header 0 byte %d is %d, should be zero", i, c)
+			}
+		}
+	}
+
+	ef, err := elf.NewFile(f)
 	if err != nil {
 		t.Fatal(err)
 	}

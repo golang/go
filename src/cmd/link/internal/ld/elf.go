@@ -434,7 +434,9 @@ func elfWriteShstrtab(ctxt *Link) uint32 {
 	// are likely to be the only match.
 	for _, sh := range shdr {
 		if suffix, ok := strings.CutPrefix(sh.nameString, elfRelType); ok {
-			m[suffix] = off + uint32(len(elfRelType))
+			if _, found := m[suffix]; !found {
+				m[suffix] = off + uint32(len(elfRelType))
+			}
 			writeString(sh.nameString)
 		}
 	}
