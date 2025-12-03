@@ -487,9 +487,9 @@ func TestGoroutineLeakProfile(t *testing.T) {
 	testCases = append(testCases, patternTestCases...)
 
 	// Test cases must not panic or cause fatal exceptions.
-	failStates := regexp.MustCompile(`fatal|panic|DATA RACE`)
+	failStates := regexp.MustCompile(`segmentation fault|fatal|panic|DATA RACE`)
 
-	testApp := func(exepath string, testCases []testCase) {
+	runTests := func(exepath string, testCases []testCase) {
 
 		// Build the test program once.
 		exe, err := buildTestProg(t, exepath)
@@ -598,6 +598,6 @@ func TestGoroutineLeakProfile(t *testing.T) {
 		}
 	}
 
-	testApp("testgoroutineleakprofile", testCases)
-	testApp("testgoroutineleakprofile/goker", gokerTestCases)
+	runTests("testgoroutineleakprofile", testCases)
+	runTests("testgoroutineleakprofile/goker", gokerTestCases)
 }
