@@ -486,9 +486,6 @@ func TestGoroutineLeakProfile(t *testing.T) {
 	testCases := append(microTests, stressTestCases...)
 	testCases = append(testCases, patternTestCases...)
 
-	// Test cases must not panic or cause fatal exceptions.
-	failStates := regexp.MustCompile(`segmentation fault|fatal|panic|DATA RACE`)
-
 	runTests := func(exepath string, testCases []testCase) {
 
 		// Build the test program once.
@@ -515,14 +512,14 @@ func TestGoroutineLeakProfile(t *testing.T) {
 				var output string
 				for i := 0; i < tcase.repetitions; i++ {
 					// Run program for one repetition and get runOutput trace.
-					runOutput := runBuiltTestProg(t, exe, tcase.name, cmdEnv...)
+					runOutput, err := runBuiltTestProgErr(t, exe, tcase.name, cmdEnv...)
 					if len(runOutput) == 0 {
 						t.Errorf("Test %s produced no output. Is the goroutine leak profile collected?", tcase.name)
 					}
-
-					// Zero tolerance policy for fatal exceptions, panics, or data races.
-					if failStates.MatchString(runOutput) {
-						t.Errorf("unexpected fatal exception or panic\noutput:\n%s\n\n", runOutput)
+					// Test cases must not end in a non-zero exit code, or otherwise experience a failure to
+					// actually execute.
+					if err != nil {
+						t.Errorf("unexpected failure\noutput:\n%s\n\n", runOutput)
 					}
 
 					output += runOutput + "\n\n"
