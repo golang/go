@@ -706,7 +706,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		if dstReg == srcReg {
 			break
 		}
-		tmpReg := int16(loong64.REG_R20)
+		tmpReg := int16(loong64.REG_R23)
 		n := v.AuxInt
 		if n < 16 {
 			v.Fatalf("Move too small %d", n)
@@ -732,8 +732,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		if dstReg == srcReg {
 			break
 		}
-		countReg := int16(loong64.REG_R20)
-		tmpReg := int16(loong64.REG_R21)
+		countReg := int16(loong64.REG_R23)
+		tmpReg := int16(loong64.REG_R24)
 		var off int64
 		n := v.AuxInt
 		loopSize := int64(64)

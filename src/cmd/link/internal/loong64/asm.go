@@ -760,13 +760,6 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 	r := relocs.At(ri)
 	switch r.Type() {
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_LARCH_B26), objabi.R_CALLLOONG64:
-		if ldr.SymType(rs) == sym.SDYNIMPORT {
-			// Nothing to do.
-			// The plt symbol has not been added. If we add tramp
-			// here, plt will not work.
-			return
-		}
-
 		var t int64
 		// ldr.SymValue(rs) == 0 indicates a cross-package jump to a function that is not yet
 		// laid out. Conservatively use a trampoline. This should be rare, as we lay out packages
@@ -835,7 +828,7 @@ func gentramp(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder, ta
 	tramp.SetSize(12) // 3 instructions
 	P := make([]byte, tramp.Size())
 
-	o1 := uint32(0x1a00001e) // pcalau12i $r30, 0
+	o1 := uint32(0x1a000014) // pcalau12i $r20, 0
 	ctxt.Arch.ByteOrder.PutUint32(P, o1)
 	r1, _ := tramp.AddRel(objabi.R_LOONG64_ADDR_HI)
 	r1.SetOff(0)
@@ -843,7 +836,7 @@ func gentramp(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder, ta
 	r1.SetSym(target)
 	r1.SetAdd(offset)
 
-	o2 := uint32(0x02c003de) // addi.d $r30, $r30, 0
+	o2 := uint32(0x02c00294) // addi.d $r20, $r20, 0
 	ctxt.Arch.ByteOrder.PutUint32(P[4:], o2)
 	r2, _ := tramp.AddRel(objabi.R_LOONG64_ADDR_LO)
 	r2.SetOff(4)
@@ -851,7 +844,7 @@ func gentramp(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder, ta
 	r2.SetSym(target)
 	r2.SetAdd(offset)
 
-	o3 := uint32(0x4c0003c0) // jirl $r0, $r30, 0
+	o3 := uint32(0x4c000280) // jirl $r0, $r20, 0
 	ctxt.Arch.ByteOrder.PutUint32(P[8:], o3)
 
 	tramp.SetData(P)
@@ -861,21 +854,21 @@ func gentrampgot(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder,
 	tramp.SetSize(12) // 3 instructions
 	P := make([]byte, tramp.Size())
 
-	o1 := uint32(0x1a00001e) // pcalau12i $r30, 0
+	o1 := uint32(0x1a000014) // pcalau12i $r20, 0
 	ctxt.Arch.ByteOrder.PutUint32(P, o1)
 	r1, _ := tramp.AddRel(objabi.R_LOONG64_GOT_HI)
 	r1.SetOff(0)
 	r1.SetSiz(4)
 	r1.SetSym(target)
 
-	o2 := uint32(0x28c003de) // ld.d $r30, $r30, 0
+	o2 := uint32(0x28c00294) // ld.d $r20, $r20, 0
 	ctxt.Arch.ByteOrder.PutUint32(P[4:], o2)
 	r2, _ := tramp.AddRel(objabi.R_LOONG64_GOT_LO)
 	r2.SetOff(4)
 	r2.SetSiz(4)
 	r2.SetSym(target)
 
-	o3 := uint32(0x4c0003c0) // jirl $r0, $r30, 0
+	o3 := uint32(0x4c000280) // jirl $r0, $r20, 0
 	ctxt.Arch.ByteOrder.PutUint32(P[8:], o3)
 
 	tramp.SetData(P)

@@ -410,8 +410,8 @@ func init() {
 			aux:       "Int64",
 			argLength: 3,
 			reg: regInfo{
-				inputs:   []regMask{gp &^ buildReg("R20"), gp &^ buildReg("R20")},
-				clobbers: buildReg("R20"),
+				inputs:   []regMask{gp &^ buildReg("R23"), gp &^ buildReg("R23")},
+				clobbers: buildReg("R23"),
 			},
 			faultOnNilArg0: true,
 			faultOnNilArg1: true,
@@ -428,8 +428,8 @@ func init() {
 			aux:       "Int64",
 			argLength: 3,
 			reg: regInfo{
-				inputs:       []regMask{gp &^ buildReg("R20 R21"), gp &^ buildReg("R20 R21")},
-				clobbers:     buildReg("R20 R21"),
+				inputs:       []regMask{gp &^ buildReg("R23 R24"), gp &^ buildReg("R23 R24")},
+				clobbers:     buildReg("R23 R24"),
 				clobbersArg0: true,
 				clobbersArg1: true,
 			},
