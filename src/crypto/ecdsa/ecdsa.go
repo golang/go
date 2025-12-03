@@ -334,7 +334,7 @@ func (priv *PrivateKey) Sign(random io.Reader, digest []byte, opts crypto.Signer
 // ignored unless GODEBUG=cryptocustomrand=1 is set. This setting will be removed
 // in a future Go release. Instead, use [testing/cryptotest.SetGlobalRandom].
 func GenerateKey(c elliptic.Curve, r io.Reader) (*PrivateKey, error) {
-	if boring.Enabled && r == boring.RandReader {
+	if boring.Enabled && rand.IsDefaultReader(r) {
 		x, y, d, err := boring.GenerateKeyECDSA(c.Params().Name)
 		if err != nil {
 			return nil, err
@@ -380,7 +380,7 @@ func generateFIPS[P ecdsa.Point[P]](curve elliptic.Curve, c *ecdsa.Curve[P], ran
 // is set. This setting will be removed in a future Go release. Instead, use
 // [testing/cryptotest.SetGlobalRandom].
 func SignASN1(r io.Reader, priv *PrivateKey, hash []byte) ([]byte, error) {
-	if boring.Enabled && r == boring.RandReader {
+	if boring.Enabled && rand.IsDefaultReader(r) {
 		b, err := boringPrivateKey(priv)
 		if err != nil {
 			return nil, err

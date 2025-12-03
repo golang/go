@@ -10,6 +10,7 @@ import (
 	"crypto/internal/fips140/rsa"
 	"crypto/internal/fips140hash"
 	"crypto/internal/fips140only"
+	"crypto/internal/rand"
 	"errors"
 	"hash"
 	"io"
@@ -59,9 +60,9 @@ func (opts *PSSOptions) saltLength() int {
 // used. If opts.Hash is set, it overrides hash.
 //
 // The signature is randomized depending on the message, key, and salt size,
-// using bytes from rand. Most applications should use [crypto/rand.Reader] as
-// rand.
-func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte, opts *PSSOptions) ([]byte, error) {
+// using bytes from random. Most applications should use [crypto/rand.Reader] as
+// random.
+func SignPSS(random io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte, opts *PSSOptions) ([]byte, error) {
 	if err := checkPublicKeySize(&priv.PublicKey); err != nil {
 		return nil, err
 	}
@@ -70,7 +71,7 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte, 
 		hash = opts.Hash
 	}
 
-	if boring.Enabled && rand == boring.RandReader {
+	if boring.Enabled && rand.IsDefaultReader(random) {
 		bkey, err := boringPrivateKey(priv)
 		if err != nil {
 			return nil, err
@@ -87,7 +88,7 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte, 
 	if fips140only.Enforced() && !fips140only.ApprovedHash(h) {
 		return nil, errors.New("crypto/rsa: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
 	}
-	if fips140only.Enforced() && !fips140only.ApprovedRandomReader(rand) {
+	if fips140only.Enforced() && !fips140only.ApprovedRandomReader(random) {
 		return nil, errors.New("crypto/rsa: only crypto/rand.Reader is allowed in FIPS 140-only mode")
 	}
 
@@ -116,7 +117,7 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte, 
 		}
 	}
 
-	return fipsError2(rsa.SignPSS(rand, k, h, digest, saltLength))
+	return fipsError2(rsa.SignPSS(random, k, h, digest, saltLength))
 }
 
 // VerifyPSS verifies a PSS signature.
@@ -216,7 +217,7 @@ func encryptOAEP(hash hash.Hash, mgfHash hash.Hash, random io.Reader, pub *Publi
 	defer hash.Reset()
 	defer mgfHash.Reset()
 
-	if boring.Enabled && random == boring.RandReader {
+	if boring.Enabled && rand.IsDefaultReader(random) {
 		k := pub.Size()
 		if len(msg) > k-2*hash.Size()-2 {
 			return nil, ErrMessageTooLong

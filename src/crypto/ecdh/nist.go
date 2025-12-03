@@ -27,7 +27,7 @@ func (c *nistCurve) String() string {
 }
 
 func (c *nistCurve) GenerateKey(r io.Reader) (*PrivateKey, error) {
-	if boring.Enabled && r == boring.RandReader {
+	if boring.Enabled && rand.IsDefaultReader(r) {
 		key, bytes, err := boring.GenerateKeyECDH(c.name)
 		if err != nil {
 			return nil, err
