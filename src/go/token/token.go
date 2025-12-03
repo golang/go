@@ -279,47 +279,31 @@ func (op Token) Precedence() int {
 	return LowestPrec
 }
 
-var keywords [256]Token
-
-func init() {
-	for i := keyword_beg + 1; i < keyword_end; i++ {
-		keywords[keywordsIndex(i.String())] = i
-	}
+// hash is a perfect hash function for keywords.
+// It assumes that s has at least length 2.
+func hash(s string) uint {
+	return (uint(s[0])<<4 ^ uint(s[1]) + uint(len(s))) & uint(len(keywordMap)-1)
 }
 
-// keywordsIndex maps an identifier to an index in keywords array.
-func keywordsIndex(maybeKeyword string) uint8 {
-	if len(maybeKeyword) <= 3 {
-		// If adding a 2 or 3 letter keyword that starts with `i`(if),`f`(for) or `g`(go)
-		// you'd need to add logic to this if statement to differentiate between them.
-		if len(maybeKeyword) == 0 {
-			return 0
+var keywordMap [1 << 6]Token // size must be power of two
+
+func init() {
+	// populate keywordMap
+	for tok := keyword_beg + 1; tok < keyword_end; tok++ {
+		h := hash(tok.String())
+		if keywordMap[h] != 0 {
+			panic("imperfect hash")
 		}
-		return maybeKeyword[0]
+		keywordMap[h] = tok
 	}
-	// This hash was adjusted by hand. Finding the working combinations
-	// for this hash is quite straightforward, even when restricting all
-	// operations to power-of-two multiplications and addition/subtractions
-	// for performance reasons since multiplication of an integer by a power-of-two
-	// can be optimized to a bitshift which is faster on some architectures.
-	//
-	// Here is a list of hashes that also works for current keyword set:
-	// h = v0 + v1*2 + v2*4 + v3*8
-	// h = v0 + v1*4 + v2*8 + v3
-	// h = v0 + v1*2 + (v2+v3)*2
-	// h = v0*4 + v1*2 + v2*2 + v3*2
-	// h = v0*4 + v1*2 + v2*v3
-	v0 := maybeKeyword[0]
-	v1 := maybeKeyword[1]
-	v2 := maybeKeyword[2]
-	v3 := maybeKeyword[3]
-	h := v0 + v1*8 + v2 - v3
-	return h
 }
 
 // Lookup maps an identifier to its keyword token or [IDENT] (if not a keyword).
 func Lookup(ident string) Token {
-	maybeMatch := keywords[keywordsIndex(ident)]
+	if len(ident) < 2 {
+		return IDENT
+	}
+	maybeMatch := keywordMap[hash(ident)]
 	if maybeMatch != 0 && maybeMatch.String() == ident {
 		return maybeMatch
 	}
@@ -350,7 +334,10 @@ func IsExported(name string) bool {
 
 // IsKeyword reports whether name is a Go keyword, such as "func" or "return".
 func IsKeyword(ident string) bool {
-	tok := keywords[keywordsIndex(ident)]
+	if len(ident) < 2 {
+		return false
+	}
+	tok := keywordMap[hash(ident)]
 	return tok != 0 && tok.String() == ident
 }
 

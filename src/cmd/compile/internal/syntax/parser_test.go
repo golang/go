@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -56,7 +57,6 @@ func BenchmarkParseStdLib(b *testing.B) {
 		base *PosBase
 		data []byte
 	}
-	var largestfile *file
 	var files []file
 	goroot := testenv.GOROOT(b)
 	dirs := []string{
@@ -80,18 +80,35 @@ func BenchmarkParseStdLib(b *testing.B) {
 				data: data,
 				base: NewFileBase(filename),
 			})
-			f := &files[len(files)-1]
-			if largestfile == nil || len(f.data) > len(largestfile.data) {
-				largestfile = f
-			}
 		})
 	}
+	slices.SortStableFunc(files, func(a, b file) int {
+		return len(a.data) - len(b.data)
+	})
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		var buf bytes.Reader
-		buf.Reset(largestfile.data)
-		Parse(largestfile.base, &buf, nil, nil, 0)
+	const numberOfFiles = 10
+	if len(files) < numberOfFiles*2 {
+		b.Error("too few files matched to run")
 	}
+	b.Run(fmt.Sprintf("longest %d files", numberOfFiles), func(b *testing.B) {
+		var buf bytes.Reader
+		for i := 0; i < b.N; i++ {
+			for _, file := range files[len(files)-numberOfFiles:] {
+				buf.Reset(file.data)
+				Parse(file.base, &buf, nil, nil, 0)
+			}
+		}
+	})
+
+	b.Run(fmt.Sprintf("shortest %d files", numberOfFiles), func(b *testing.B) {
+		var buf bytes.Reader
+		for i := 0; i < b.N; i++ {
+			for _, file := range files[:numberOfFiles] {
+				buf.Reset(file.data)
+				Parse(file.base, &buf, nil, nil, 0)
+			}
+		}
+	})
 }
 
 func TestStdLib(t *testing.T) {
