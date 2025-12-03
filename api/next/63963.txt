@@ -1,3 +1,0 @@
-pkg crypto/ecdsa, type PrivateKey struct, D //deprecated #63963
-pkg crypto/ecdsa, type PublicKey struct, X //deprecated #63963
-pkg crypto/ecdsa, type PublicKey struct, Y //deprecated #63963

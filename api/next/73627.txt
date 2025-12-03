@@ -1,2 +1,0 @@
-pkg crypto/mlkem/mlkemtest, func Encapsulate1024(*mlkem.EncapsulationKey1024, []uint8) ([]uint8, []uint8, error) #73627
-pkg crypto/mlkem/mlkemtest, func Encapsulate768(*mlkem.EncapsulationKey768, []uint8) ([]uint8, []uint8, error) #73627
