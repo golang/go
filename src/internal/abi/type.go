@@ -5,6 +5,7 @@
 package abi
 
 import (
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -412,12 +413,36 @@ func (t *Type) MapType() *MapType {
 	return (*MapType)(unsafe.Pointer(t))
 }
 
+// PointerType returns t cast to a *PtrType, or nil if its tag does not match.
+func (t *Type) PointerType() *PtrType {
+	if t.Kind() != Pointer {
+		return nil
+	}
+	return (*PtrType)(unsafe.Pointer(t))
+}
+
+// SliceType returns t cast to a *SliceType, or nil if its tag does not match.
+func (t *Type) SliceType() *SliceType {
+	if t.Kind() != Slice {
+		return nil
+	}
+	return (*SliceType)(unsafe.Pointer(t))
+}
+
 // ArrayType returns t cast to a *ArrayType, or nil if its tag does not match.
 func (t *Type) ArrayType() *ArrayType {
 	if t.Kind() != Array {
 		return nil
 	}
 	return (*ArrayType)(unsafe.Pointer(t))
+}
+
+// ChanType returns t cast to a *ChanType, or nil if its tag does not match.
+func (t *Type) ChanType() *ChanType {
+	if t.Kind() != Chan {
+		return nil
+	}
+	return (*ChanType)(unsafe.Pointer(t))
 }
 
 // FuncType returns t cast to a *FuncType, or nil if its tag does not match.
@@ -710,6 +735,105 @@ func NewName(n, tag string, exported, embedded bool) Name {
 	}
 
 	return Name{Bytes: &b[0]}
+}
+
+// DescriptorSize returns the contiguous size taken in memory by the
+// type descriptor. This is the size of the Type struct,
+// plus other fields used by some type kinds, plus the UncommonType
+// struct if present, plus other optional information.
+// This is just the size of the bytes that appear contiguously in memory.
+// It does not include the size of things like type strings
+// and field names that appear elsewhere.
+//
+// This code must match the data structures build by
+// cmd/compile/internal/reflectdata/reflect.go:writeType.
+func (t *Type) DescriptorSize() int {
+	var baseSize, addSize int
+	switch t.Kind_ {
+	case Array:
+		baseSize, addSize = t.ArrayType().descriptorSizes()
+	case Chan:
+		baseSize, addSize = t.ChanType().descriptorSizes()
+	case Func:
+		baseSize, addSize = t.FuncType().descriptorSizes()
+	case Interface:
+		baseSize, addSize = t.InterfaceType().descriptorSizes()
+	case Map:
+		baseSize, addSize = t.MapType().descriptorSizes()
+	case Pointer:
+		baseSize, addSize = t.PointerType().descriptorSizes()
+	case Slice:
+		baseSize, addSize = t.SliceType().descriptorSizes()
+	case Struct:
+		baseSize, addSize = t.StructType().descriptorSizes()
+	case Bool,
+		Int, Int8, Int16, Int32, Int64,
+		Uint, Uint8, Uint16, Uint32, Uint64, Uintptr,
+		Float32, Float64, Complex64, Complex128,
+		String, UnsafePointer:
+
+		baseSize = int(unsafe.Sizeof(*t))
+		addSize = 0
+
+	default:
+		panic("DescriptorSize: invalid type descriptor")
+	}
+
+	// For clarity, we add the sizes together in the order
+	// they appear in memory.
+
+	ret := baseSize
+
+	mcount := 0
+	ut := t.Uncommon()
+	if ut != nil {
+		ret += int(unsafe.Sizeof(*ut))
+		mcount = int(ut.Mcount)
+	}
+
+	ret += addSize
+
+	ret += mcount * int(unsafe.Sizeof(Method{}))
+
+	return ret
+}
+
+func (at *ArrayType) descriptorSizes() (base, add int) {
+	return int(unsafe.Sizeof(*at)), 0
+}
+
+func (ct *ChanType) descriptorSizes() (base, add int) {
+	return int(unsafe.Sizeof(*ct)), 0
+}
+
+func (ft *FuncType) descriptorSizes() (base, add int) {
+	base = int(unsafe.Sizeof(*ft))
+	add = (ft.NumIn() + ft.NumOut()) * goarch.PtrSize
+	return base, add
+}
+
+func (it *InterfaceType) descriptorSizes() (base, add int) {
+	base = int(unsafe.Sizeof(*it))
+	add = len(it.Methods) * int(unsafe.Sizeof(Imethod{}))
+	return base, add
+}
+
+func (mt *MapType) descriptorSizes() (base, add int) {
+	return int(unsafe.Sizeof(*mt)), 0
+}
+
+func (pt *PtrType) descriptorSizes() (base, add int) {
+	return int(unsafe.Sizeof(*pt)), 0
+}
+
+func (st *SliceType) descriptorSizes() (base, add int) {
+	return int(unsafe.Sizeof(*st)), 0
+}
+
+func (st *StructType) descriptorSizes() (base, add int) {
+	base = int(unsafe.Sizeof(*st))
+	add = len(st.Fields) * int(unsafe.Sizeof(StructField{}))
+	return base, add
 }
 
 const (
