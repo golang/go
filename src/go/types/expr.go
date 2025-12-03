@@ -1033,12 +1033,9 @@ func (check *Checker) pendingType(x *operand) {
 	if x.mode == invalid || x.mode == novalue {
 		return
 	}
-	if n, ok := Unalias(x.typ).(*Named); ok {
-		if i, ok := check.objPathIdx[n.obj]; ok {
-			check.cycleError(check.objPath, i)
-			x.mode = invalid
-			x.typ = Typ[Invalid]
-		}
+	if !check.finiteSize(x.typ) {
+		x.mode = invalid
+		x.typ = Typ[Invalid]
 	}
 }
 
