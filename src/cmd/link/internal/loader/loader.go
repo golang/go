@@ -2449,6 +2449,8 @@ var blockedLinknames = map[string][]string{
 	"runtime.mapdelete_faststr":  {"runtime"},
 	// New internal linknames in Go 1.25
 	// Pushed from runtime
+	"crypto/subtle.setDITEnabled":                    {"crypto/subtle"},
+	"crypto/subtle.setDITDisabled":                   {"crypto/subtle"},
 	"internal/cpu.riscvHWProbe":                      {"internal/cpu"},
 	"internal/runtime/cgroup.throw":                  {"internal/runtime/cgroup"},
 	"internal/runtime/maps.typeString":               {"internal/runtime/maps"},

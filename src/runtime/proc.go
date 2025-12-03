@@ -3342,6 +3342,23 @@ func execute(gp *g, inheritTime bool) {
 		mp.p.ptr().schedtick++
 	}
 
+	if sys.DITSupported && debug.dataindependenttiming != 1 {
+		if gp.ditWanted && !mp.ditEnabled {
+			// The current M doesn't have DIT enabled, but the goroutine we're
+			// executing does need it, so turn it on.
+			sys.EnableDIT()
+			mp.ditEnabled = true
+		} else if !gp.ditWanted && mp.ditEnabled {
+			// The current M has DIT enabled, but the goroutine we're executing does
+			// not need it, so turn it off.
+			// NOTE: turning off DIT here means that the scheduler will have DIT enabled
+			// when it runs after this goroutine yields or is preempted. This may have
+			// a minor performance impact on the scheduler.
+			sys.DisableDIT()
+			mp.ditEnabled = false
+		}
+	}
+
 	// Check whether the profiler needs to be turned on or off.
 	hz := sched.profilehz
 	if mp.profilehz != hz {
@@ -5377,6 +5394,9 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr, parked bool, waitreaso
 
 	// fips140 bubble
 	newg.fipsOnlyBypass = callergp.fipsOnlyBypass
+
+	// dit bubble
+	newg.ditWanted = callergp.ditWanted
 
 	// Set up race context.
 	if raceenabled {

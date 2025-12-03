@@ -11,6 +11,7 @@
 package cgotest
 
 import (
+	"internal/runtime/sys"
 	"runtime"
 	"runtime/cgo"
 	"runtime/debug"
@@ -612,4 +613,12 @@ func exportAny76340Return(val C.int) any {
 	}
 
 	return int(val)
+}
+
+//export ditCallback
+func ditCallback() uint8 {
+	if sys.DITEnabled() {
+		return 1
+	}
+	return 0
 }
