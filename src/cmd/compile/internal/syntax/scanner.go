@@ -381,7 +381,10 @@ func (s *scanner) ident() {
 	// possibly a keyword
 	lit := s.segment()
 	if len(lit) >= 2 {
-		if tok := keywordMap[hash(lit)]; tok != 0 && tokStrFast(tok) == string(lit) {
+		// tok := keywordMap[hash(lit)]
+		// tok := keywords[keywordsIndex(lit)]
+		tok := keywordRuntimeMap[string(lit)]
+		if tok != 0 && tokStrFast(tok) == string(lit) {
 			s.nlsemi = contains(1<<_Break|1<<_Continue|1<<_Fallthrough|1<<_Return, tok)
 			s.tok = tok
 			return
@@ -422,15 +425,47 @@ func hash(s []byte) uint {
 }
 
 var keywordMap [1 << 6]token // size must be power of two
+var keywordRuntimeMap = make(map[string]token)
+var keywords [256]Token
+
+// keywordsIndex maps an identifier to an index in keywords array.
+func keywordsIndex(maybeKeyword []byte) uint8 {
+	if len(maybeKeyword) <= 3 {
+		return maybeKeyword[0]
+	}
+	// This hash was adjusted by hand. Finding the working combinations
+	// for this hash is quite straightforward, even when restricting all
+	// operations to power-of-two multiplications and addition/subtractions
+	// for performance reasons since multiplication of an integer by a power-of-two
+	// can be optimized to a bitshift which is faster on some architectures.
+	//
+	// Here is a list of hashes that also works for current keyword set:
+	// h = v0 + v1*2 + v2*4 + v3*8
+	// h = v0 + v1*4 + v2*8 + v3
+	// h = v0 + v1*2 + (v2+v3)*2
+	// h = v0*4 + v1*2 + v2*2 + v3*2
+	// h = v0*4 + v1*2 + v2*v3
+	v0 := maybeKeyword[0]
+	v1 := maybeKeyword[1]
+	v2 := maybeKeyword[2]
+	v3 := maybeKeyword[3]
+	h := v0 + v1*8 + v2 - v3
+	return h
+}
 
 func init() {
 	// populate keywordMap
 	for tok := _Break; tok <= _Var; tok++ {
-		h := hash([]byte(tok.String()))
-		if keywordMap[h] != 0 {
+		kws := tok.String()
+		kw := []byte(kws)
+		i := keywordsIndex(kw)
+		h := hash(kw)
+		if keywordMap[h] != 0 || keywords[i] != 0 {
 			panic("imperfect hash")
 		}
+		keywords[i] = tok
 		keywordMap[h] = tok
+		keywordRuntimeMap[kws] = tok
 	}
 }
 

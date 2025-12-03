@@ -38,6 +38,62 @@ func TestVerify(t *testing.T) {
 	verifyPrint(t, *src_, ast)
 }
 
+func BenchmarkParseStdLib(b *testing.B) {
+	if testing.Short() {
+		b.Skip("skipping test in short mode")
+	}
+	var skipRx *regexp.Regexp
+	if *skip != "" {
+		var err error
+		skipRx, err = regexp.Compile(*skip)
+		if err != nil {
+			b.Fatalf("invalid argument for -skip (%v)", err)
+		}
+	}
+	// We read in all files to ignore
+	type file struct {
+		name string
+		base *PosBase
+		data []byte
+	}
+	var largestfile *file
+	var files []file
+	goroot := testenv.GOROOT(b)
+	dirs := []string{
+		filepath.Join(goroot, "src"),
+		filepath.Join(goroot, "misc"),
+	}
+	for _, dir := range dirs {
+		walkDirs(b, dir, func(filename string) {
+			if skipRx != nil && skipRx.MatchString(filename) {
+				// Always report skipped files since regexp
+				// typos can lead to surprising results.
+				fmt.Printf("skipping %s\n", filename)
+				return
+			}
+			data, err := os.ReadFile(filename)
+			if err != nil {
+				b.Fatal(err)
+			}
+			files = append(files, file{
+				name: filename,
+				data: data,
+				base: NewFileBase(filename),
+			})
+			f := &files[len(files)-1]
+			if largestfile == nil || len(f.data) > len(largestfile.data) {
+				largestfile = f
+			}
+		})
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		var buf bytes.Reader
+		buf.Reset(largestfile.data)
+		Parse(largestfile.base, &buf, nil, nil, 0)
+	}
+}
+
 func TestStdLib(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode")
@@ -123,7 +179,7 @@ func TestStdLib(t *testing.T) {
 	fmt.Printf("allocated %.3fMb (%.3fMb/s)\n", dm, dm/dt.Seconds())
 }
 
-func walkDirs(t *testing.T, dir string, action func(string)) {
+func walkDirs(t testing.TB, dir string, action func(string)) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		t.Error(err)
