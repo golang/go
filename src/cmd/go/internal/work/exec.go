@@ -1652,6 +1652,14 @@ func (b *Builder) getPkgConfigFlags(a *Action) (cflags, ldflags []string, err er
 				return nil, nil, fmt.Errorf("invalid pkg-config package name: %s", pkg)
 			}
 		}
+
+		// Running 'pkg-config' can cause execution of
+		// arbitrary code using flags that are not in
+		// the safelist.
+		if err := checkCompilerFlags("CFLAGS", "pkg-config --cflags", pcflags); err != nil {
+			return nil, nil, err
+		}
+
 		var out []byte
 		out, err = sh.runOut(p.Dir, nil, b.PkgconfigCmd(), "--cflags", pcflags, "--", pkgs)
 		if err != nil {

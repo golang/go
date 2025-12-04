@@ -125,6 +125,7 @@ var validCompilerFlags = []*lazyregexp.Regexp{
 	re(`-pedantic(-errors)?`),
 	re(`-pipe`),
 	re(`-pthread`),
+	re(`--static`),
 	re(`-?-std=([^@\-].*)`),
 	re(`-?-stdlib=([^@\-].*)`),
 	re(`--sysroot=([^@\-].*)`),
