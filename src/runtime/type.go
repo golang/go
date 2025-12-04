@@ -535,16 +535,7 @@ func moduleTypelinks(md *moduledata) []*_type {
 
 	etypedesc := md.types + md.typedesclen
 	for td < etypedesc {
-		// TODO: The fact that type descriptors are aligned to
-		// 0x20 does not make sense.
-		if GOARCH == "arm" {
-			td = alignUp(td, 0x8)
-		} else if GOOS == "aix" {
-			// The alignment of 8 is forced in the linker on AIX.
-			td = alignUp(td, 0x8)
-		} else {
-			td = alignUp(td, 0x20)
-		}
+		td = alignUp(td, goarch.PtrSize)
 
 		typ := (*_type)(unsafe.Pointer(td))
 		ret = append(ret, typ)

@@ -963,6 +963,7 @@ func writeType(t *types.Type) *obj.LSym {
 		keep = false
 	}
 	lsym.Set(obj.AttrMakeTypelink, keep)
+	lsym.Align = int16(types.PtrSize)
 
 	return lsym
 }
