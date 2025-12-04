@@ -2552,7 +2552,7 @@ func swapbound(v []int) {
 	for i := 0; i < len(v)/2; i++ { // ERROR "Proved Div64 is unsigned|Induction variable"
 		v[i], // ERROR "Proved IsInBounds"
 			v[len(v)-1-i] = // ERROR "Proved IsInBounds"
-			v[len(v)-1-i],
+			v[len(v)-1-i],  // ERROR "Proved IsInBounds"
 			v[i] // ERROR "Proved IsInBounds"
 	}
 }
@@ -2716,6 +2716,14 @@ func detectStringLenRelation(s string) bool {
 		}
 	}
 	return false
+}
+
+func issue76429(s []byte, k int) byte {
+	if k < 0 || k >= len(s) {
+		return 0
+	}
+	s = s[k:]   // ERROR "Proved IsSliceInBounds" "Proved slicemask not needed"
+	return s[0] // ERROR "Proved IsInBounds"
 }
 
 //go:noinline
