@@ -2718,6 +2718,14 @@ func detectStringLenRelation(s string) bool {
 	return false
 }
 
+func issue76688(x, y uint64) uint64 {
+	if x > 1 || y != 1<<63 {
+		return 42
+	}
+	// We do not want to rewrite the multiply to a condselect here since opt can do a better job with a left shift.
+	return x * y
+}
+
 //go:noinline
 func prove(x int) {
 }

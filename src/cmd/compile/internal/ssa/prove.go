@@ -2885,9 +2885,9 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 			xl := ft.limits[x.ID]
 			y := v.Args[1]
 			yl := ft.limits[y.ID]
-			if xl.umin == xl.umax && isPowerOfTwo(int64(xl.umin)) ||
+			if xl.umin == xl.umax && isUnsignedPowerOfTwo(xl.umin) ||
 				xl.min == xl.max && isPowerOfTwo(xl.min) ||
-				yl.umin == yl.umax && isPowerOfTwo(int64(yl.umin)) ||
+				yl.umin == yl.umax && isUnsignedPowerOfTwo(yl.umin) ||
 				yl.min == yl.max && isPowerOfTwo(yl.min) {
 				// 0,1 * a power of two is better done as a shift
 				break
