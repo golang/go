@@ -23,15 +23,15 @@ TEXT _rt0_riscv64_lib(SB),NOSPLIT,$224
 	MOV	A1, _rt0_riscv64_lib_argv<>(SB)
 
 	// Synchronous initialization.
-	MOV	$runtime·libpreinit(SB), T0
-	JALR	RA, T0
+	MOV	$runtime·libpreinit(SB), T1
+	JALR	RA, T1
 
 	// Create a new thread to do the runtime initialization and return.
-	MOV	_cgo_sys_thread_create(SB), T0
-	BEQZ	T0, nocgo
+	MOV	_cgo_sys_thread_create(SB), T1
+	BEQZ	T1, nocgo
 	MOV	$_rt0_riscv64_lib_go(SB), A0
 	MOV	$0, A1
-	JALR	RA, T0
+	JALR	RA, T1
 	JMP	restore
 
 nocgo:
@@ -39,8 +39,8 @@ nocgo:
 	MOV	$_rt0_riscv64_lib_go(SB), A1
 	MOV	A0, 8(X2)
 	MOV	A1, 16(X2)
-	MOV	$runtime·newosproc0(SB), T0
-	JALR	RA, T0
+	MOV	$runtime·newosproc0(SB), T1
+	JALR	RA, T1
 
 restore:
 	// Restore callee-save registers, along with X1 (LR).
