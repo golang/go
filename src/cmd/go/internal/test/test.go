@@ -1371,7 +1371,7 @@ func addTestVet(loaderstate *modload.State, b *work.Builder, p *load.Package, ru
 		return
 	}
 
-	vet := b.VetAction(loaderstate, work.ModeBuild, work.ModeBuild, p)
+	vet := b.VetAction(loaderstate, work.ModeBuild, work.ModeBuild, false, p)
 	runAction.Deps = append(runAction.Deps, vet)
 	// Install will clean the build directory.
 	// Make sure vet runs first.
