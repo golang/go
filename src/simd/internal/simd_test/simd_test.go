@@ -1194,3 +1194,21 @@ func TestPermuteScalarsLoGrouped(t *testing.T) {
 	simd.LoadInt16x16Slice(x).PermuteScalarsLoGrouped(1, 2, 3, 0).StoreSlice(got)
 	checkSlices(t, got, want)
 }
+
+func TestClMul(t *testing.T) {
+	var x = simd.LoadUint64x2Slice([]uint64{1, 5})
+	var y = simd.LoadUint64x2Slice([]uint64{3, 9})
+
+	foo := func(v simd.Uint64x2, s []uint64) {
+		r := make([]uint64, 2, 2)
+		v.StoreSlice(r)
+		checkSlices[uint64](t, r, s)
+	}
+
+	foo(x.CarrylessMultiply(0, 0, y), []uint64{3, 0})
+	foo(x.CarrylessMultiply(0, 1, y), []uint64{9, 0})
+	foo(x.CarrylessMultiply(1, 0, y), []uint64{15, 0})
+	foo(x.CarrylessMultiply(1, 1, y), []uint64{45, 0})
+	foo(y.CarrylessMultiply(0, 0, y), []uint64{5, 0})
+
+}

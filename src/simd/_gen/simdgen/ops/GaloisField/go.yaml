@@ -30,3 +30,63 @@
   - *uint8
   out:
   - *uint8
+
+- go: carrylessMultiply
+  documentation: !string |-
+    // NAME computes one of four possible Galois polynomial
+    // products of selected high and low halves of x and y,
+    // depending on the value of xyHiLo, returning the 128-bit
+    // product in the concatenated two elements of the result.
+    // Bit 0 selects the low (0) or high (1) element of x and
+    // bit 4 selects the low (0x00) or high (0x10) element of y.
+  asm: V?PCLMULQDQ
+  in:
+  - go: Uint64x2
+  - go: Uint64x2
+  - class: immediate
+    immOffset: 0
+    name: xyHiLo
+  out:
+  - go: Uint64x2
+    overwriteElementBits: 64
+  hideMaskMethods: true
+
+- go: carrylessMultiply
+  documentation: !string |-
+    // NAME computes one of two possible Galois polynomial
+    // products of selected high and low halves of each of the two
+    // 128-bit lanes of x and y, depending on the value of xyHiLo,
+    // and returns the four 128-bit products in the result's lanes.
+    // Bit 0 selects the low (0) or high (1) elements of x's lanes and
+    // bit 4 selects the low (0x00) or high (0x10) elements of y's lanes.
+  asm: V?PCLMULQDQ
+  in:
+  - go: Uint64x4
+  - go: Uint64x4
+  - class: immediate
+    immOffset: 0
+    name: xyHiLo
+  out:
+  - go: Uint64x4
+    overwriteElementBits: 64
+  hideMaskMethods: true
+
+- go: carrylessMultiply
+  documentation: !string |-
+    // NAME computes one of four possible Galois polynomial
+    // products of selected high and low halves of each of the four
+    // 128-bit lanes of x and y, depending on the value of xyHiLo,
+    // and returns the four 128-bit products in the result's lanes.
+    // Bit 0 selects the low (0) or high (1) elements of x's lanes and
+    // bit 4 selects the low (0x00) or high (0x10) elements of y's lanes.
+  asm: V?PCLMULQDQ
+  in:
+  - go: Uint64x8
+  - go: Uint64x8
+  - class: immediate
+    immOffset: 0
+    name: xyHiLo
+  out:
+  - go: Uint64x8
+    overwriteElementBits: 64
+  hideMaskMethods: true

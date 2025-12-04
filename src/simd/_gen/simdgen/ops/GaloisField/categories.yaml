@@ -19,3 +19,5 @@
   documentation: !string |-
     // NAME computes element-wise GF(2^8) multiplication with
     // reduction polynomial x^8 + x^4 + x^3 + x + 1.
+- go: carrylessMultiply
+  commutative: false

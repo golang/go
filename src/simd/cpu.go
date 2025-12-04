@@ -95,6 +95,14 @@ func (X86Features) AVX512VNNI() bool {
 	return cpu.X86.HasAVX512VNNI
 }
 
+// AVX512VPCLMULQDQ returns whether the CPU supports the AVX512VPCLMULQDQ feature.
+//
+// AVX512VPCLMULQDQ is defined on all GOARCHes, but will only return true on
+// GOARCH amd64.
+func (X86Features) AVX512VPCLMULQDQ() bool {
+	return cpu.X86.HasAVX512VPCLMULQDQ
+}
+
 // AVX512VPOPCNTDQ returns whether the CPU supports the AVX512VPOPCNTDQ feature.
 //
 // AVX512VPOPCNTDQ is defined on all GOARCHes, but will only return true on

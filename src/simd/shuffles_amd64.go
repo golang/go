@@ -1266,3 +1266,75 @@ func (x Uint16x16) PermuteScalarsLoGrouped(a, b, c, d uint8) Uint16x16 {
 func (x Uint16x32) PermuteScalarsLoGrouped(a, b, c, d uint8) Uint16x32 {
 	return x.permuteScalarsLoGrouped(a&3 | (b&3)<<2 | (c&3)<<4 | d<<6)
 }
+
+// CarrylessMultiply computes one of four possible carryless
+// multiplications of selected high and low halves of x and y,
+// depending on the values of a and b, returning the 128-bit
+// product in the concatenated two elements of the result.
+// a selects the low (0) or high (1) element of x and
+// b selects the low (0) or high (1) element of y.
+//
+// A carryless multiplication uses bitwise XOR instead of
+// add-with-carry, for example (in base two):
+// 11 * 11 = 11 * (10 ^ 1) = (11 * 10) ^ (11 * 1) = 110 ^ 11 = 101
+//
+// This also models multiplication of polynomials with coefficients
+// from GF(2) -- 11 * 11 models (x+1)*(x+1) = x**2 + (1^1)x + 1 =
+// x**2 + 0x + 1 = x**2 + 1 modeled by 101.  (Note that "+" adds
+// polynomial terms, but coefficients "add" with XOR.)
+//
+// constant values of a and b will result in better performance,
+// otherwise the intrinsic may translate into a jump table.
+//
+// Asm: VPCLMULQDQ, CPU Feature: AVX
+func (x Uint64x2) CarrylessMultiply(a, b uint8, y Uint64x2) Uint64x2 {
+	return x.carrylessMultiply(a&1+((b&1)<<4), y)
+}
+
+// CarrylessMultiplyGrouped computes one of four possible carryless
+// multiplications of selected high and low halves of each of the two
+// 128-bit lanes of x and y, depending on the values of a and b,
+// and returns the four 128-bit products in the result's lanes.
+// a selects the low (0) or high (1) elements of x's lanes and
+// b selects the low (0) or high (1) elements of y's lanes.
+//
+// A carryless multiplication uses bitwise XOR instead of
+// add-with-carry, for example (in base two):
+// 11 * 11 = 11 * (10 ^ 1) = (11 * 10) ^ (11 * 1) = 110 ^ 11 = 101
+//
+// This also models multiplication of polynomials with coefficients
+// from GF(2) -- 11 * 11 models (x+1)*(x+1) = x**2 + (1^1)x + 1 =
+// x**2 + 0x + 1 = x**2 + 1 modeled by 101.  (Note that "+" adds
+// polynomial terms, but coefficients "add" with XOR.)
+//
+// constant values of a and b will result in better performance,
+// otherwise the intrinsic may translate into a jump table.
+//
+// Asm: VPCLMULQDQ, CPU Feature: AVX512VPCLMULQDQ
+func (x Uint64x4) CarrylessMultiplyGrouped(a, b uint8, y Uint64x4) Uint64x4 {
+	return x.carrylessMultiply(a&1+((b&1)<<4), y)
+}
+
+// CarrylessMultiplyGrouped computes one of four possible carryless
+// multiplications of selected high and low halves of each of the four
+// 128-bit lanes of x and y, depending on the values of a and b,
+// and returns the four 128-bit products in the result's lanes.
+// a selects the low (0) or high (1) elements of x's lanes and
+// b selects the low (0) or high (1) elements of y's lanes.
+//
+// A carryless multiplication uses bitwise XOR instead of
+// add-with-carry, for example (in base two):
+// 11 * 11 = 11 * (10 ^ 1) = (11 * 10) ^ (11 * 1) = 110 ^ 11 = 101
+//
+// This also models multiplication of polynomials with coefficients
+// from GF(2) -- 11 * 11 models (x+1)*(x+1) = x**2 + (1^1)x + 1 =
+// x**2 + 0x + 1 = x**2 + 1 modeled by 101.  (Note that "+" adds
+// polynomial terms, but coefficients "add" with XOR.)
+//
+// constant values of a and b will result in better performance,
+// otherwise the intrinsic may translate into a jump table.
+//
+// Asm: VPCLMULQDQ, CPU Feature: AVX512VPCLMULQDQ
+func (x Uint64x8) CarrylessMultiplyGrouped(a, b uint8, y Uint64x8) Uint64x8 {
+	return x.carrylessMultiply(a&1+((b&1)<<4), y)
+}

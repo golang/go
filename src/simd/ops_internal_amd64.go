@@ -52,6 +52,44 @@ func (x Int32x16) blendMasked(y Int32x16, mask Mask32x16) Int32x16
 // Asm: VPBLENDMQ, CPU Feature: AVX512
 func (x Int64x8) blendMasked(y Int64x8, mask Mask64x8) Int64x8
 
+/* carrylessMultiply */
+
+// carrylessMultiply computes one of four possible Galois polynomial
+// products of selected high and low halves of x and y,
+// depending on the value of xyHiLo, returning the 128-bit
+// product in the concatenated two elements of the result.
+// Bit 0 selects the low (0) or high (1) element of x and
+// bit 4 selects the low (0x00) or high (0x10) element of y.
+//
+// xyHiLo results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPCLMULQDQ, CPU Feature: AVX
+func (x Uint64x2) carrylessMultiply(xyHiLo uint8, y Uint64x2) Uint64x2
+
+// carrylessMultiply computes one of two possible Galois polynomial
+// products of selected high and low halves of each of the two
+// 128-bit lanes of x and y, depending on the value of xyHiLo,
+// and returns the four 128-bit products in the result's lanes.
+// Bit 0 selects the low (0) or high (1) elements of x's lanes and
+// bit 4 selects the low (0x00) or high (0x10) elements of y's lanes.
+//
+// xyHiLo results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPCLMULQDQ, CPU Feature: AVX512VPCLMULQDQ
+func (x Uint64x4) carrylessMultiply(xyHiLo uint8, y Uint64x4) Uint64x4
+
+// carrylessMultiply computes one of four possible Galois polynomial
+// products of selected high and low halves of each of the four
+// 128-bit lanes of x and y, depending on the value of xyHiLo,
+// and returns the four 128-bit products in the result's lanes.
+// Bit 0 selects the low (0) or high (1) elements of x's lanes and
+// bit 4 selects the low (0x00) or high (0x10) elements of y's lanes.
+//
+// xyHiLo results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPCLMULQDQ, CPU Feature: AVX512VPCLMULQDQ
+func (x Uint64x8) carrylessMultiply(xyHiLo uint8, y Uint64x8) Uint64x8
+
 /* concatSelectedConstant */
 
 // concatSelectedConstant concatenates selected elements from x and y into the lower and upper

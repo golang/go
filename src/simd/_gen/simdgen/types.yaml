@@ -83,6 +83,9 @@ in: !repeat
   - {class: vreg, go: Int64x4,    base: "int",   elemBits: 128, bits: 256, lanes: 4}
   - {class: vreg, go: Uint64x4,   base: "uint",  elemBits: 128, bits: 256, lanes: 4}
 
+# Special for carryless multiply
+  - {class: vreg, go: Uint64x8,   base: "uint",  elemBits: 128, bits: 512, lanes: 8}
+
 # Special shapes just to make VAES(ENC|DEC)(LAST)?512 work.
 # The elemBits field of these shapes are wrong, it would be overwritten by overwriteElemBits.
   - {class: vreg, go: Int8x32,    base: "int",   elemBits: 128, bits: 512, lanes: 32}
