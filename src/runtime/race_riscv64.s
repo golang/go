@@ -27,7 +27,7 @@
 // Called from instrumented code.
 TEXT	runtime·raceread<ABIInternal>(SB), NOSPLIT, $0-8
 	// void __tsan_read(ThreadState *thr, void *addr, void *pc);
-	MOV	$__tsan_read(SB), X5
+	MOV	$__tsan_read(SB), X23
 	MOV	X10, X11
 	MOV	X1, X12
 	JMP	racecalladdr<>(SB)
@@ -40,7 +40,7 @@ TEXT	runtime·RaceRead(SB), NOSPLIT, $0-8
 // func runtime·racereadpc(void *addr, void *callpc, void *pc)
 TEXT	runtime·racereadpc(SB), NOSPLIT, $0-24
 	// void __tsan_read_pc(ThreadState *thr, void *addr, void *callpc, void *pc);
-	MOV	$__tsan_read_pc(SB), X5
+	MOV	$__tsan_read_pc(SB), X23
 	MOV	addr+0(FP), X11
 	MOV	callpc+8(FP), X12
 	MOV	pc+16(FP), X13
@@ -50,7 +50,7 @@ TEXT	runtime·racereadpc(SB), NOSPLIT, $0-24
 // Called from instrumented code.
 TEXT	runtime·racewrite<ABIInternal>(SB), NOSPLIT, $0-8
 	// void __tsan_write(ThreadState *thr, void *addr, void *pc);
-	MOV	$__tsan_write(SB), X5
+	MOV	$__tsan_write(SB), X23
 	MOV	X10, X11
 	MOV	X1, X12
 	JMP	racecalladdr<>(SB)
@@ -63,7 +63,7 @@ TEXT	runtime·RaceWrite(SB), NOSPLIT, $0-8
 // func runtime·racewritepc(void *addr, void *callpc, void *pc)
 TEXT	runtime·racewritepc(SB), NOSPLIT, $0-24
 	// void __tsan_write_pc(ThreadState *thr, void *addr, void *callpc, void *pc);
-	MOV	$__tsan_write_pc(SB), X5
+	MOV	$__tsan_write_pc(SB), X23
 	MOV	addr+0(FP), X11
 	MOV	callpc+8(FP), X12
 	MOV	pc+16(FP), X13
@@ -73,7 +73,7 @@ TEXT	runtime·racewritepc(SB), NOSPLIT, $0-24
 // Called from instrumented code.
 TEXT	runtime·racereadrange<ABIInternal>(SB), NOSPLIT, $0-16
 	// void __tsan_read_range(ThreadState *thr, void *addr, uintptr size, void *pc);
-	MOV	$__tsan_read_range(SB), X5
+	MOV	$__tsan_read_range(SB), X23
 	MOV	X11, X12
 	MOV	X10, X11
 	MOV	X1, X13
@@ -87,7 +87,7 @@ TEXT	runtime·RaceReadRange(SB), NOSPLIT, $0-16
 // func runtime·racereadrangepc1(void *addr, uintptr sz, void *pc)
 TEXT	runtime·racereadrangepc1(SB), NOSPLIT, $0-24
 	// void __tsan_read_range(ThreadState *thr, void *addr, uintptr size, void *pc);
-	MOV	$__tsan_read_range(SB), X5
+	MOV	$__tsan_read_range(SB), X23
 	MOV	addr+0(FP), X11
 	MOV	size+8(FP), X12
 	MOV	pc+16(FP), X13
@@ -101,7 +101,7 @@ TEXT	runtime·racereadrangepc1(SB), NOSPLIT, $0-24
 // Called from instrumented code.
 TEXT	runtime·racewriterange<ABIInternal>(SB), NOSPLIT, $0-16
 	// void __tsan_write_range(ThreadState *thr, void *addr, uintptr size, void *pc);
-	MOV	$__tsan_write_range(SB), X5
+	MOV	$__tsan_write_range(SB), X23
 	MOV	X11, X12
 	MOV	X10, X11
 	MOV	X1, X13
@@ -115,7 +115,7 @@ TEXT	runtime·RaceWriteRange(SB), NOSPLIT, $0-16
 // func runtime·racewriterangepc1(void *addr, uintptr sz, void *pc)
 TEXT	runtime·racewriterangepc1(SB), NOSPLIT, $0-24
 	// void __tsan_write_range(ThreadState *thr, void *addr, uintptr size, void *pc);
-	MOV	$__tsan_write_range(SB), X5
+	MOV	$__tsan_write_range(SB), X23
 	MOV	addr+0(FP), X11
 	MOV	size+8(FP), X12
 	MOV	pc+16(FP), X13
@@ -145,7 +145,7 @@ ret:
 // func runtime·racefuncenter(pc uintptr)
 // Called from instrumented code.
 TEXT	runtime·racefuncenter<ABIInternal>(SB), NOSPLIT, $0-8
-	MOV	$__tsan_func_enter(SB), X5
+	MOV	$__tsan_func_enter(SB), X23
 	MOV	X10, X11
 	MOV	g_racectx(g), X10
 	JMP	racecall<>(SB)
@@ -154,7 +154,7 @@ TEXT	runtime·racefuncenter<ABIInternal>(SB), NOSPLIT, $0-8
 // X1 = caller's return address
 TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
 	// void __tsan_func_enter(ThreadState *thr, void *pc);
-	MOV	$__tsan_func_enter(SB), X5
+	MOV	$__tsan_func_enter(SB), X23
 	MOV	g_racectx(g), X10
 	MOV	X1, X11
 	JMP	racecall<>(SB)
@@ -163,7 +163,7 @@ TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
 // Called from instrumented code.
 TEXT	runtime·racefuncexit<ABIInternal>(SB), NOSPLIT, $0-0
 	// void __tsan_func_exit(ThreadState *thr);
-	MOV	$__tsan_func_exit(SB), X5
+	MOV	$__tsan_func_exit(SB), X23
 	MOV	g_racectx(g), X10
 	JMP	racecall<>(SB)
 
@@ -173,13 +173,13 @@ TEXT	runtime·racefuncexit<ABIInternal>(SB), NOSPLIT, $0-0
 
 TEXT	sync∕atomic·LoadInt32(SB), NOSPLIT, $0-12
 	GO_ARGS
-	MOV	$__tsan_go_atomic32_load(SB), X5
+	MOV	$__tsan_go_atomic32_load(SB), X23
 	CALL	racecallatomic<>(SB)
 	RET
 
 TEXT	sync∕atomic·LoadInt64(SB), NOSPLIT, $0-16
 	GO_ARGS
-	MOV	$__tsan_go_atomic64_load(SB), X5
+	MOV	$__tsan_go_atomic64_load(SB), X23
 	CALL	racecallatomic<>(SB)
 	RET
 
@@ -203,13 +203,13 @@ TEXT	sync∕atomic·LoadPointer(SB), NOSPLIT, $0-16
 
 TEXT	sync∕atomic·StoreInt32(SB), NOSPLIT, $0-12
 	GO_ARGS
-	MOV	$__tsan_go_atomic32_store(SB), X5
+	MOV	$__tsan_go_atomic32_store(SB), X23
 	CALL	racecallatomic<>(SB)
 	RET
 
 TEXT	sync∕atomic·StoreInt64(SB), NOSPLIT, $0-16
 	GO_ARGS
-	MOV	$__tsan_go_atomic64_store(SB), X5
+	MOV	$__tsan_go_atomic64_store(SB), X23
 	CALL	racecallatomic<>(SB)
 	RET
 
@@ -229,13 +229,13 @@ TEXT	sync∕atomic·StoreUintptr(SB), NOSPLIT, $0-16
 
 TEXT	sync∕atomic·SwapInt32(SB), NOSPLIT, $0-20
 	GO_ARGS
-	MOV	$__tsan_go_atomic32_exchange(SB), X5
+	MOV	$__tsan_go_atomic32_exchange(SB), X23
 	CALL	racecallatomic<>(SB)
 	RET
 
 TEXT	sync∕atomic·SwapInt64(SB), NOSPLIT, $0-24
 	GO_ARGS
-	MOV	$__tsan_go_atomic64_exchange(SB), X5
+	MOV	$__tsan_go_atomic64_exchange(SB), X23
 	CALL	racecallatomic<>(SB)
 	RET
 
@@ -255,7 +255,7 @@ TEXT	sync∕atomic·SwapUintptr(SB), NOSPLIT, $0-24
 
 TEXT	sync∕atomic·AddInt32(SB), NOSPLIT, $0-20
 	GO_ARGS
-	MOV	$__tsan_go_atomic32_fetch_add(SB), X5
+	MOV	$__tsan_go_atomic32_fetch_add(SB), X23
 	CALL	racecallatomic<>(SB)
 	// TSan performed fetch_add, but Go needs add_fetch.
 	MOVW	add+8(FP), X5
@@ -266,7 +266,7 @@ TEXT	sync∕atomic·AddInt32(SB), NOSPLIT, $0-20
 
 TEXT	sync∕atomic·AddInt64(SB), NOSPLIT, $0-24
 	GO_ARGS
-	MOV	$__tsan_go_atomic64_fetch_add(SB), X5
+	MOV	$__tsan_go_atomic64_fetch_add(SB), X23
 	CALL	racecallatomic<>(SB)
 	// TSan performed fetch_add, but Go needs add_fetch.
 	MOV	add+8(FP), X5
@@ -290,13 +290,13 @@ TEXT	sync∕atomic·AddUintptr(SB), NOSPLIT, $0-24
 // And
 TEXT	sync∕atomic·AndInt32(SB), NOSPLIT, $0-20
 	GO_ARGS
-	MOV	$__tsan_go_atomic32_fetch_and(SB), X5
+	MOV	$__tsan_go_atomic32_fetch_and(SB), X23
 	CALL	racecallatomic<>(SB)
 	RET
 
 TEXT	sync∕atomic·AndInt64(SB), NOSPLIT, $0-24
 	GO_ARGS
-	MOV	$__tsan_go_atomic64_fetch_and(SB), X5
+	MOV	$__tsan_go_atomic64_fetch_and(SB), X23
 	CALL	racecallatomic<>(SB)
 	RET
 
@@ -315,13 +315,13 @@ TEXT	sync∕atomic·AndUintptr(SB), NOSPLIT, $0-24
 // Or
 TEXT	sync∕atomic·OrInt32(SB), NOSPLIT, $0-20
 	GO_ARGS
-	MOV	$__tsan_go_atomic32_fetch_or(SB), X5
+	MOV	$__tsan_go_atomic32_fetch_or(SB), X23
 	CALL	racecallatomic<>(SB)
 	RET
 
 TEXT	sync∕atomic·OrInt64(SB), NOSPLIT, $0-24
 	GO_ARGS
-	MOV	$__tsan_go_atomic64_fetch_or(SB), X5
+	MOV	$__tsan_go_atomic64_fetch_or(SB), X23
 	CALL	racecallatomic<>(SB)
 	RET
 
@@ -341,13 +341,13 @@ TEXT	sync∕atomic·OrUintptr(SB), NOSPLIT, $0-24
 
 TEXT	sync∕atomic·CompareAndSwapInt32(SB), NOSPLIT, $0-17
 	GO_ARGS
-	MOV	$__tsan_go_atomic32_compare_exchange(SB), X5
+	MOV	$__tsan_go_atomic32_compare_exchange(SB), X23
 	CALL	racecallatomic<>(SB)
 	RET
 
 TEXT	sync∕atomic·CompareAndSwapInt64(SB), NOSPLIT, $0-25
 	GO_ARGS
-	MOV	$__tsan_go_atomic64_compare_exchange(SB), X5
+	MOV	$__tsan_go_atomic64_compare_exchange(SB), X23
 	CALL	racecallatomic<>(SB)
 	RET
 
@@ -364,7 +364,7 @@ TEXT	sync∕atomic·CompareAndSwapUintptr(SB), NOSPLIT, $0-25
 	JMP	sync∕atomic·CompareAndSwapInt64(SB)
 
 // Generic atomic operation implementation.
-// X5 = addr of target function
+// X23 = addr of target function
 TEXT	racecallatomic<>(SB), NOSPLIT, $0
 	// Set up these registers
 	// X10 = *ThreadState
@@ -398,11 +398,11 @@ racecallatomic_ignore:
 	// Call __tsan_go_ignore_sync_begin to ignore synchronization during the atomic op.
 	// An attempt to synchronize on the address would cause crash.
 	MOV	X1, X20			// save PC
-	MOV	X5, X21			// save target function
-	MOV	$__tsan_go_ignore_sync_begin(SB), X5
+	MOV	X23, X21			// save target function
+	MOV	$__tsan_go_ignore_sync_begin(SB), X23
 	MOV	g_racectx(g), X10	// goroutine context
 	CALL	racecall<>(SB)
-	MOV	X21, X5			// restore the target function
+	MOV	X21, X23			// restore the target function
 	// Call the atomic function.
 	MOV	g_racectx(g), X10	// goroutine context
 	MOV	8(X2), X11		// caller pc
@@ -410,7 +410,7 @@ racecallatomic_ignore:
 	ADD	$24, X2, X13		// arguments
 	CALL	racecall<>(SB)
 	// Call __tsan_go_ignore_sync_end.
-	MOV	$__tsan_go_ignore_sync_end(SB), X5
+	MOV	$__tsan_go_ignore_sync_end(SB), X23
 	MOV	g_racectx(g), X10	// goroutine context
 	CALL	racecall<>(SB)
 	RET
@@ -420,14 +420,14 @@ racecallatomic_ignore:
 // The arguments are never heap-object-preserving pointers, so we pretend there
 // are no arguments.
 TEXT	runtime·racecall(SB), NOSPLIT, $0-0
-	MOV	fn+0(FP), X5
+	MOV	fn+0(FP), X23
 	MOV	arg0+8(FP), X10
 	MOV	arg1+16(FP), X11
 	MOV	arg2+24(FP), X12
 	MOV	arg3+32(FP), X13
 	JMP	racecall<>(SB)
 
-// Switches SP to g0 stack and calls X5. Arguments are already set.
+// Switches SP to g0 stack and calls X23. Arguments are already set.
 TEXT	racecall<>(SB), NOSPLIT|NOFRAME, $0-0
 	MOV	X1, X18				// Save RA in callee save register
 	MOV	X2, X19				// Save SP in callee save register
@@ -443,7 +443,7 @@ TEXT	racecall<>(SB), NOSPLIT|NOFRAME, $0-0
 
 	MOV	(g_sched+gobuf_sp)(X7), X2	// Switch to g0 stack
 call:
-	JALR	RA, (X5)			// Call C function
+	JALR	RA, (X23)			// Call C function
 	MOV	X19, X2				// Restore SP
 	JMP	(X18)				// Return to Go.
 
@@ -458,7 +458,7 @@ TEXT	runtime·racecallbackthunk(SB), NOSPLIT|NOFRAME, $0
 	// can be executed on g0. Second, it is called frequently, so will
 	// benefit from this fast path.
 	BNEZ	X10, rest
-	MOV	X1, X5
+	MOV	X1, X23
 	MOV	g, X6
 	CALL	runtime·load_g(SB)
 	MOV	g_m(g), X7
@@ -466,7 +466,7 @@ TEXT	runtime·racecallbackthunk(SB), NOSPLIT|NOFRAME, $0
 	MOV	p_raceprocctx(X7), X7
 	MOV	X7, (X11)
 	MOV	X6, g
-	JMP	(X5)
+	JMP	(X23)
 rest:
 	// Save callee-save registers (X8, X9, X18..X27, F8, F9, F18..F27),
 	// since Go code will not respect this.
