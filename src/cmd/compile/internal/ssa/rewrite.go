@@ -518,20 +518,15 @@ func log32(n int32) int64 { return log32u(uint32(n)) }
 func log64(n int64) int64 { return log64u(uint64(n)) }
 
 // logXu returns the logarithm of n base 2.
-// n must be a power of 2 (isUnsignedPowerOfTwo returns true)
+// n must be a power of 2 (isPowerOfTwo returns true)
 func log8u(n uint8) int64   { return int64(bits.Len8(n)) - 1 }
 func log16u(n uint16) int64 { return int64(bits.Len16(n)) - 1 }
 func log32u(n uint32) int64 { return int64(bits.Len32(n)) - 1 }
 func log64u(n uint64) int64 { return int64(bits.Len64(n)) - 1 }
 
 // isPowerOfTwoX functions report whether n is a power of 2.
-func isPowerOfTwo[T int8 | int16 | int32 | int64](n T) bool {
+func isPowerOfTwo[T int8 | int16 | int32 | int64 | uint8 | uint16 | uint32 | uint64](n T) bool {
 	return n > 0 && n&(n-1) == 0
-}
-
-// isUnsignedPowerOfTwo reports whether n is an unsigned power of 2.
-func isUnsignedPowerOfTwo[T uint8 | uint16 | uint32 | uint64](n T) bool {
-	return n != 0 && n&(n-1) == 0
 }
 
 // is32Bit reports whether n can be represented as a signed 32 bit integer.
