@@ -737,7 +737,7 @@ func AlignmentPaddingLength(pc int32, p *Prog, ctxt *Link) int {
 // the required code alignment
 func requireAlignment(a int64, ctxt *Link, cursym *LSym) {
 	// TODO remove explicit knowledge about AIX.
-	if ctxt.Headtype != objabi.Haix && cursym.Func().Align < int32(a) {
-		cursym.Func().Align = int32(a)
+	if ctxt.Headtype != objabi.Haix && cursym.Align < int16(a) {
+		cursym.Align = int16(a)
 	}
 }

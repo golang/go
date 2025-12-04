@@ -369,11 +369,8 @@ func (w *writer) Sym(s *LSym) {
 	if strings.HasPrefix(name, "gofile..") {
 		name = filepath.ToSlash(name)
 	}
-	var align uint32
-	if fn := s.Func(); fn != nil {
-		align = uint32(fn.Align)
-	}
-	if s.ContentAddressable() && s.Size != 0 {
+	align := uint32(s.Align)
+	if s.ContentAddressable() && s.Size != 0 && align == 0 {
 		// We generally assume data symbols are naturally aligned
 		// (e.g. integer constants), except for strings and a few
 		// compiler-emitted funcdata. If we dedup a string symbol and
@@ -895,10 +892,10 @@ func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
 	if s.Func() != nil && s.Func().FuncFlag&abi.FuncFlagAsm != 0 {
 		fmt.Fprintf(ctxt.Bso, "asm ")
 	}
-	fmt.Fprintf(ctxt.Bso, "size=%d", s.Size)
+	fmt.Fprintf(ctxt.Bso, "size=%d align=%#x", s.Size, s.Align)
 	if s.Type.IsText() {
 		fn := s.Func()
-		fmt.Fprintf(ctxt.Bso, " args=%#x locals=%#x funcid=%#x align=%#x", uint64(fn.Args), uint64(fn.Locals), uint64(fn.FuncID), uint64(fn.Align))
+		fmt.Fprintf(ctxt.Bso, " args=%#x locals=%#x funcid=%#x", uint64(fn.Args), uint64(fn.Locals), uint64(fn.FuncID))
 		if s.Leaf() {
 			fmt.Fprintf(ctxt.Bso, " leaf")
 		}

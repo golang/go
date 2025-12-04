@@ -595,8 +595,8 @@ func addpad(pc, a int64, ctxt *obj.Link, cursym *obj.LSym) int {
 		// requested then the function alignment must also be promoted.
 		// The function alignment is not promoted on AIX at this time.
 		// TODO: Investigate AIX function alignment.
-		if ctxt.Headtype != objabi.Haix && cursym.Func().Align < int32(a) {
-			cursym.Func().Align = int32(a)
+		if ctxt.Headtype != objabi.Haix && cursym.Align < int16(a) {
+			cursym.Align = int16(a)
 		}
 		if pc&(a-1) != 0 {
 			return int(a - (pc & (a - 1)))
@@ -796,7 +796,7 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	}
 
 	c.cursym.Size = pc
-	c.cursym.Func().Align = falign
+	c.cursym.Align = int16(falign)
 	c.cursym.Grow(c.cursym.Size)
 
 	// lay out the code, emitting code and data relocations.
