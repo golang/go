@@ -27,6 +27,7 @@ package unitchecker
 //   printf checker.
 
 import (
+	"archive/zip"
 	"encoding/gob"
 	"encoding/json"
 	"flag"
@@ -74,6 +75,7 @@ type Config struct {
 	VetxOnly                  bool              // run analysis only for facts, not diagnostics
 	VetxOutput                string            // where to write file of fact information
 	Stdout                    string            // write stdout (e.g. JSON, unified diff) to this file
+	FixArchive                string            // write fixed files to this zip archive, if non-empty
 	SucceedOnTypecheckFailure bool              // obsolete awful hack; see #18395 and below
 }
 
@@ -153,7 +155,7 @@ func Run(configFile string, analyzers []*analysis.Analyzer) {
 
 	// In VetxOnly mode, the analysis is run only for facts.
 	if !cfg.VetxOnly {
-		code = processResults(fset, cfg.ID, results)
+		code = processResults(fset, cfg.ID, cfg.FixArchive, results)
 	}
 
 	os.Exit(code)
@@ -177,7 +179,7 @@ func readConfig(filename string) (*Config, error) {
 	return cfg, nil
 }
 
-func processResults(fset *token.FileSet, id string, results []result) (exit int) {
+func processResults(fset *token.FileSet, id, fixArchive string, results []result) (exit int) {
 	if analysisflags.Fix {
 		// Don't print the diagnostics,
 		// but apply all fixes from the root actions.
@@ -194,7 +196,40 @@ func processResults(fset *token.FileSet, id string, results []result) (exit int)
 				Diagnostics:  res.diagnostics,
 			}
 		}
-		if err := driverutil.ApplyFixes(fixActions, analysisflags.Diff, false); err != nil {
+
+		// By default, fixes overwrite the original file.
+		// With the -diff flag, print the diffs to stdout.
+		// If "go fix" provides a fix archive, we write files
+		// into it so that mutations happen after the build.
+		write := func(filename string, content []byte) error {
+			return os.WriteFile(filename, content, 0644)
+		}
+		if fixArchive != "" {
+			f, err := os.Create(fixArchive)
+			if err != nil {
+				log.Fatalf("can't create -fix archive: %v", err)
+			}
+			zw := zip.NewWriter(f)
+			zw.SetComment(id) // ignore error
+			defer func() {
+				if err := zw.Close(); err != nil {
+					log.Fatalf("closing -fix archive zip writer: %v", err)
+				}
+				if err := f.Close(); err != nil {
+					log.Fatalf("closing -fix archive file: %v", err)
+				}
+			}()
+			write = func(filename string, content []byte) error {
+				f, err := zw.Create(filename)
+				if err != nil {
+					return err
+				}
+				_, err = f.Write(content)
+				return err
+			}
+		}
+
+		if err := driverutil.ApplyFixes(fixActions, write, analysisflags.Diff, false); err != nil {
 			// Fail when applying fixes failed.
 			log.Print(err)
 			exit = 1

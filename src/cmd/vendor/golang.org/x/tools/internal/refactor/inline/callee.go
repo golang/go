@@ -725,8 +725,48 @@ func analyzeAssignment(info *types.Info, stack []ast.Node) (assignable, ifaceAss
 					paramType := paramTypeAtIndex(sig, call, i)
 					ifaceAssign := paramType == nil || types.IsInterface(paramType)
 					affectsInference := false
-					if fn := typeutil.StaticCallee(info, call); fn != nil {
-						if sig2 := fn.Type().(*types.Signature); sig2.Recv() == nil {
+					switch callee := typeutil.Callee(info, call).(type) {
+					case *types.Builtin:
+						// Consider this litmus test:
+						//
+						//   func f(x int64) any { return max(x) }
+						//   func main() { fmt.Printf("%T", f(42)) }
+						//
+						// If we lose the implicit conversion from untyped int
+						// to int64, the type inferred for the max(x) call changes,
+						// resulting in a different dynamic behavior: it prints
+						// int, not int64.
+						//
+						// Inferred result type affected:
+						//    new
+						//    complex, real, imag
+						//    min, max
+						//
+						// Dynamic behavior change:
+						//    append         -- dynamic type of append([]any(nil), x)[0]
+						//    delete(m, x)   -- dynamic key type where m is map[any]unit
+						//    panic          -- dynamic type of panic value
+						//
+						// Unaffected:
+						//    recover
+						//    make
+						//    len, cap
+						//    clear
+						//    close
+						//    copy
+						//    print, println  -- only uses underlying types (?)
+						//
+						// The dynamic type cases are all covered by
+						// the ifaceAssign logic.
+						switch callee.Name() {
+						case "new", "complex", "real", "imag", "min", "max":
+							affectsInference = true
+						}
+
+					case *types.Func:
+						// Only standalone (non-method) functions have type
+						// parameters affected by the call arguments.
+						if sig2 := callee.Signature(); sig2.Recv() == nil {
 							originParamType := paramTypeAtIndex(sig2, call, i)
 							affectsInference = originParamType == nil || new(typeparams.Free).Has(originParamType)
 						}

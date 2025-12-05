@@ -91,8 +91,10 @@ func SchedMetrics() {
 	// threads through frequent scheduling, like mayMoreStackPreempt.
 	// A slack of 5 is arbitrary but appears to be enough to cover
 	// the leftovers plus any inflation from scheduling-heavy build
-	// modes.
-	const threadsSlack = 5
+	// modes. We then also add initialGMP to this slack, since we're
+	// about to call runtime.GC, and in the worst case this will
+	// spin up GOMAXPROCS new threads to run those workers.
+	threadsSlack := 5 + uint64(initialGMP)
 
 	// Make sure GC isn't running, since GC workers interfere with
 	// expected counts.

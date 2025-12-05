@@ -2433,7 +2433,7 @@ func needm(signal bool) {
 	sp := sys.GetCallerSP()
 	callbackUpdateSystemStack(mp, sp, signal)
 
-	// Should mark we are already in Go now.
+	// We must mark that we are already in Go now.
 	// Otherwise, we may call needm again when we get a signal, before cgocallbackg1,
 	// which means the extram list may be empty, that will cause a deadlock.
 	mp.isExtraInC = false
@@ -2455,7 +2455,8 @@ func needm(signal bool) {
 	// mp.curg is now a real goroutine.
 	casgstatus(mp.curg, _Gdeadextra, _Gsyscall)
 	sched.ngsys.Add(-1)
-	sched.nGsyscallNoP.Add(1)
+	// N.B. We do not update nGsyscallNoP, because isExtraInC threads are not
+	// counted as real goroutines while they're in C.
 
 	if !signal {
 		if trace.ok() {
@@ -2590,7 +2591,7 @@ func dropm() {
 	casgstatus(mp.curg, _Gsyscall, _Gdeadextra)
 	mp.curg.preemptStop = false
 	sched.ngsys.Add(1)
-	sched.nGsyscallNoP.Add(-1)
+	decGSyscallNoP(mp)
 
 	if !mp.isExtraInSig {
 		if trace.ok() {
@@ -4732,7 +4733,7 @@ func entersyscallHandleGCWait(trace traceLocker) {
 		if trace.ok() {
 			trace.ProcStop(pp)
 		}
-		sched.nGsyscallNoP.Add(1)
+		addGSyscallNoP(gp.m) // We gave up our P voluntarily.
 		pp.gcStopTime = nanotime()
 		pp.syscalltick++
 		if sched.stopwait--; sched.stopwait == 0 {
@@ -4763,7 +4764,7 @@ func entersyscallblock() {
 	gp.m.syscalltick = gp.m.p.ptr().syscalltick
 	gp.m.p.ptr().syscalltick++
 
-	sched.nGsyscallNoP.Add(1)
+	addGSyscallNoP(gp.m) // We're going to give up our P.
 
 	// Leave SP around for GC and traceback.
 	pc := sys.GetCallerPC()
@@ -5001,8 +5002,8 @@ func exitsyscallTryGetP(oldp *p) *p {
 	if oldp != nil {
 		if thread, ok := setBlockOnExitSyscall(oldp); ok {
 			thread.takeP()
+			addGSyscallNoP(thread.mp) // takeP does the opposite, but this is a net zero change.
 			thread.resume()
-			sched.nGsyscallNoP.Add(-1) // takeP adds 1.
 			return oldp
 		}
 	}
@@ -5017,7 +5018,7 @@ func exitsyscallTryGetP(oldp *p) *p {
 		}
 		unlock(&sched.lock)
 		if pp != nil {
-			sched.nGsyscallNoP.Add(-1)
+			decGSyscallNoP(getg().m) // We got a P for ourselves.
 			return pp
 		}
 	}
@@ -5043,7 +5044,7 @@ func exitsyscallNoP(gp *g) {
 		trace.GoSysExit(true)
 		traceRelease(trace)
 	}
-	sched.nGsyscallNoP.Add(-1)
+	decGSyscallNoP(getg().m)
 	dropg()
 	lock(&sched.lock)
 	var pp *p
@@ -5079,6 +5080,41 @@ func exitsyscallNoP(gp *g) {
 	}
 	stopm()
 	schedule() // Never returns.
+}
+
+// addGSyscallNoP must be called when a goroutine in a syscall loses its P.
+// This function updates all relevant accounting.
+//
+// nosplit because it's called on the syscall paths.
+//
+//go:nosplit
+func addGSyscallNoP(mp *m) {
+	// It's safe to read isExtraInC here because it's only mutated
+	// outside of _Gsyscall, and we know this thread is attached
+	// to a goroutine in _Gsyscall and blocked from exiting.
+	if !mp.isExtraInC {
+		// Increment nGsyscallNoP since we're taking away a P
+		// from a _Gsyscall goroutine, but only if isExtraInC
+		// is not set on the M. If it is, then this thread is
+		// back to being a full C thread, and will just inflate
+		// the count of not-in-go goroutines. See go.dev/issue/76435.
+		sched.nGsyscallNoP.Add(1)
+	}
+}
+
+// decGSsyscallNoP must be called whenever a goroutine in a syscall without
+// a P exits the system call. This function updates all relevant accounting.
+//
+// nosplit because it's called from dropm.
+//
+//go:nosplit
+func decGSyscallNoP(mp *m) {
+	// Update nGsyscallNoP, but only if this is not a thread coming
+	// out of C. See the comment in addGSyscallNoP. This logic must match,
+	// to avoid unmatched increments and decrements.
+	if !mp.isExtraInC {
+		sched.nGsyscallNoP.Add(-1)
+	}
 }
 
 // Called from syscall package before fork.
@@ -6758,7 +6794,7 @@ func (s syscallingThread) releaseP(state uint32) {
 		trace.ProcSteal(s.pp)
 		traceRelease(trace)
 	}
-	sched.nGsyscallNoP.Add(1)
+	addGSyscallNoP(s.mp)
 	s.pp.syscalltick++
 }
 

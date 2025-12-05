@@ -1187,6 +1187,7 @@ type vetConfig struct {
 	VetxOutput    string            // write vetx data to this output file
 	Stdout        string            // write stdout (JSON, unified diff) to this output file
 	GoVersion     string            // Go version for package
+	FixArchive    string            // write fixed files to this zip archive, if non-empty
 
 	SucceedOnTypecheckFailure bool // awful hack; see #18395 and below
 }
@@ -1308,6 +1309,9 @@ func (b *Builder) vet(ctx context.Context, a *Action) error {
 	vcfg.VetxOnly = a.VetxOnly
 	vcfg.VetxOutput = a.Objdir + "vet.out"
 	vcfg.Stdout = a.Objdir + "vet.stdout"
+	if a.needFix {
+		vcfg.FixArchive = a.Objdir + "vet.fix.zip"
+	}
 	vcfg.PackageVetx = make(map[string]string)
 
 	h := cache.NewHash("vet " + a.Package.ImportPath)
@@ -1368,31 +1372,60 @@ func (b *Builder) vet(ctx context.Context, a *Action) error {
 			vcfg.PackageVetx[a1.Package.ImportPath] = a1.built
 		}
 	}
-	vetxKey := cache.ActionID(h.Sum()) // for .vetx file
-
-	fmt.Fprintf(h, "stdout\n")
-	stdoutKey := cache.ActionID(h.Sum()) // for .stdout file
+	var (
+		id            = cache.ActionID(h.Sum())     // for .vetx file
+		stdoutKey     = cache.Subkey(id, "stdout")  // for .stdout file
+		fixArchiveKey = cache.Subkey(id, "fix.zip") // for .fix.zip file
+	)
 
 	// Check the cache; -a forces a rebuild.
 	if !cfg.BuildA {
 		c := cache.Default()
-		if vcfg.VetxOnly {
-			if file, _, err := cache.GetFile(c, vetxKey); err == nil {
-				a.built = file
-				return nil
-			}
-		} else {
-			// Copy cached vet.std files to stdout.
-			if file, _, err := cache.GetFile(c, stdoutKey); err == nil {
-				f, err := os.Open(file)
-				if err != nil {
-					return err
-				}
-				defer f.Close() // ignore error (can't fail)
-				return VetHandleStdout(f)
-			}
+
+		// There may be multiple artifacts in the cache.
+		// We need to retrieve them all, or none:
+		// the effect must be transactional.
+		var (
+			vetxFile   string                           // name of cached .vetx file
+			fixArchive string                           // name of cached .fix.zip file
+			stdout     io.Reader = bytes.NewReader(nil) // cached stdout stream
+		)
+
+		// Obtain location of cached .vetx file.
+		vetxFile, _, err := cache.GetFile(c, id)
+		if err != nil {
+			goto cachemiss
 		}
+
+		// Obtain location of cached .fix.zip file (if needed).
+		if a.needFix {
+			file, _, err := cache.GetFile(c, fixArchiveKey)
+			if err != nil {
+				goto cachemiss
+			}
+			fixArchive = file
+		}
+
+		// Copy cached .stdout file to stdout.
+		if file, _, err := cache.GetFile(c, stdoutKey); err == nil {
+			f, err := os.Open(file)
+			if err != nil {
+				goto cachemiss
+			}
+			defer f.Close() // ignore error (can't fail)
+			stdout = f
+		}
+
+		// Cache hit: commit transaction.
+		a.built = vetxFile
+		a.FixArchive = fixArchive
+		if err := VetHandleStdout(stdout); err != nil {
+			return err // internal error (don't fall through to cachemiss)
+		}
+
+		return nil
 	}
+cachemiss:
 
 	js, err := json.MarshalIndent(vcfg, "", "\t")
 	if err != nil {
@@ -1419,13 +1452,23 @@ func (b *Builder) vet(ctx context.Context, a *Action) error {
 		return err
 	}
 
-	// Vet tool succeeded, possibly with facts and JSON stdout. Save both in cache.
+	// Vet tool succeeded, possibly with facts, fixes, or JSON stdout.
+	// Save all in cache.
 
-	// Save facts
+	// Save facts.
 	if f, err := os.Open(vcfg.VetxOutput); err == nil {
 		defer f.Close() // ignore error
 		a.built = vcfg.VetxOutput
-		cache.Default().Put(vetxKey, f) // ignore error
+		cache.Default().Put(id, f) // ignore error
+	}
+
+	// Save fix archive (if any).
+	if a.needFix {
+		if f, err := os.Open(vcfg.FixArchive); err == nil {
+			defer f.Close() // ignore error
+			a.FixArchive = vcfg.FixArchive
+			cache.Default().Put(fixArchiveKey, f) // ignore error
+		}
 	}
 
 	// Save stdout.

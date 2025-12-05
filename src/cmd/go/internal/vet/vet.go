@@ -6,6 +6,8 @@
 package vet
 
 import (
+	"archive/zip"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -176,6 +178,7 @@ func run(ctx context.Context, cmd *base.Command, args []string) {
 
 	work.VetExplicit = len(toolFlags) > 0
 
+	applyFixes := false
 	if cmd.Name() == "fix" || *vetFixFlag {
 		// fix mode: 'go fix' or 'go vet -fix'
 		if jsonFlag {
@@ -186,6 +189,8 @@ func run(ctx context.Context, cmd *base.Command, args []string) {
 			toolFlags = append(toolFlags, "-fix")
 			if diffFlag {
 				toolFlags = append(toolFlags, "-diff")
+			} else {
+				applyFixes = true
 			}
 		}
 		if contextFlag != -1 {
@@ -226,12 +231,20 @@ func run(ctx context.Context, cmd *base.Command, args []string) {
 		base.Fatalf("no packages to %s", cmd.Name())
 	}
 
+	// Build action graph.
 	b := work.NewBuilder("", moduleLoaderState.VendorDirOrEmpty)
 	defer func() {
 		if err := b.Close(); err != nil {
 			base.Fatal(err)
 		}
 	}()
+
+	root := &work.Action{Mode: "go " + cmd.Name()}
+
+	addVetAction := func(p *load.Package) {
+		act := b.VetAction(moduleLoaderState, work.ModeBuild, work.ModeBuild, applyFixes, p)
+		root.Deps = append(root.Deps, act)
+	}
 
 	// To avoid file corruption from duplicate application of
 	// fixes (in fix mode), and duplicate reporting of diagnostics
@@ -248,8 +261,6 @@ func run(ctx context.Context, cmd *base.Command, args []string) {
 	// We needn't worry about intermediate test variants, as they
 	// will only be executed in VetxOnly mode, for facts but not
 	// diagnostics.
-
-	root := &work.Action{Mode: "go " + cmd.Name()}
 	for _, p := range pkgs {
 		_, ptest, pxtest, perr := load.TestPackagesFor(moduleLoaderState, ctx, pkgOpts, p, nil)
 		if perr != nil {
@@ -262,13 +273,65 @@ func run(ctx context.Context, cmd *base.Command, args []string) {
 		}
 		if len(ptest.GoFiles) > 0 || len(ptest.CgoFiles) > 0 {
 			// The test package includes all the files of primary package.
-			root.Deps = append(root.Deps, b.VetAction(moduleLoaderState, work.ModeBuild, work.ModeBuild, ptest))
+			addVetAction(ptest)
 		}
 		if pxtest != nil {
-			root.Deps = append(root.Deps, b.VetAction(moduleLoaderState, work.ModeBuild, work.ModeBuild, pxtest))
+			addVetAction(pxtest)
 		}
 	}
 	b.Do(ctx, root)
+
+	// Apply fixes.
+	//
+	// We do this as a separate phase after the build to avoid
+	// races between source file updates and reads of those same
+	// files by concurrent actions of the ongoing build.
+	//
+	// If a file is fixed by multiple actions, they must be consistent.
+	if applyFixes {
+		contents := make(map[string][]byte)
+		// Gather the fixes.
+		for _, act := range root.Deps {
+			if act.FixArchive != "" {
+				if err := readZip(act.FixArchive, contents); err != nil {
+					base.Errorf("reading archive of fixes: %v", err)
+					return
+				}
+			}
+		}
+		// Apply them.
+		for filename, content := range contents {
+			if err := os.WriteFile(filename, content, 0644); err != nil {
+				base.Errorf("applying fix: %v", err)
+			}
+		}
+	}
+}
+
+// readZip reads the zipfile entries into the provided map.
+// It reports an error if updating the map would change an existing entry.
+func readZip(zipfile string, out map[string][]byte) error {
+	r, err := zip.OpenReader(zipfile)
+	if err != nil {
+		return err
+	}
+	defer r.Close() // ignore error
+	for _, f := range r.File {
+		rc, err := f.Open()
+		if err != nil {
+			return err
+		}
+		content, err := io.ReadAll(rc)
+		rc.Close() // ignore error
+		if err != nil {
+			return err
+		}
+		if prev, ok := out[f.Name]; ok && !bytes.Equal(prev, content) {
+			return fmt.Errorf("inconsistent fixes to file %v", f.Name)
+		}
+		out[f.Name] = content
+	}
+	return nil
 }
 
 // printJSONDiagnostics parses JSON (from the tool's stdout) and

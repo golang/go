@@ -97,6 +97,13 @@ func runTestProg(t *testing.T, binary, name string, env ...string) string {
 func runBuiltTestProg(t *testing.T, exe, name string, env ...string) string {
 	t.Helper()
 
+	out, _ := runBuiltTestProgErr(t, exe, name, env...)
+	return out
+}
+
+func runBuiltTestProgErr(t *testing.T, exe, name string, env ...string) (string, error) {
+	t.Helper()
+
 	if *flagQuick {
 		t.Skip("-quick")
 	}
@@ -120,7 +127,7 @@ func runBuiltTestProg(t *testing.T, exe, name string, env ...string) string {
 			t.Fatalf("%v failed to start: %v", cmd, err)
 		}
 	}
-	return string(out)
+	return string(out), err
 }
 
 var serializeBuild = make(chan bool, 2)
