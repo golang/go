@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/parser"
+	"go/scanner"
 	"go/token"
 	"internal/coverage"
 	"internal/coverage/encodemeta"
@@ -274,86 +275,10 @@ type BlockSegment struct {
 	hasCode bool // true if this segment contains executable code
 }
 
-// blockSplitter holds the state for splitting a block by comments.
-// It tracks cursor position, line state, and section boundaries
-// while scanning through source code character by character.
-type blockSplitter struct {
-	// Source information
-	file        *token.File
-	startOffset int
-
-	// Accumulated results
-	segments []BlockSegment
-
-	// Cursor position
-	i                     int
-	indexStartCurrentLine int
-	currentOffset         int
-	currentSegmentStart   token.Pos
-
-	// Section state (persists across lines)
-	inCommentedSection bool
-
-	// Line state (reset each line)
-	lineHasCode    bool
-	lineHasComment bool
-
-	// Cursor state (tracks what we're inside)
-	inSingleLineComment bool
-	inMultiLineComment  bool
-	inString            bool
-	inRawString         bool
-}
-
-// processLine handles end-of-line processing: computes state transitions
-// and decides whether to create a new segment based on code/comment boundaries.
-func (bs *blockSplitter) processLine() {
-	lineStart := bs.currentOffset
-	lineEnd := bs.currentOffset + (bs.i - bs.indexStartCurrentLine)
-
-	if bs.inCommentedSection && bs.lineHasCode {
-		// End of commented section, start of code section
-		segmentEnd := bs.file.Pos(lineStart)
-		bs.segments = append(bs.segments, BlockSegment{
-			start:   bs.currentSegmentStart,
-			end:     segmentEnd,
-			hasCode: false,
-		})
-		bs.currentSegmentStart = bs.file.Pos(lineStart)
-		bs.inCommentedSection = false
-	} else if !bs.inCommentedSection && !bs.lineHasCode && bs.lineHasComment {
-		// End of code section, start of commented section
-		segmentEnd := bs.file.Pos(lineStart)
-		if bs.currentSegmentStart < segmentEnd {
-			bs.segments = append(bs.segments, BlockSegment{
-				start:   bs.currentSegmentStart,
-				end:     segmentEnd,
-				hasCode: true,
-			})
-		}
-		bs.currentSegmentStart = bs.file.Pos(lineStart)
-		bs.inCommentedSection = true
-	}
-
-	bs.currentOffset = lineEnd
-}
-
-// resetLineState resets line-specific state for a new line.
-func (bs *blockSplitter) resetLineState() {
-	bs.indexStartCurrentLine = bs.i
-	bs.lineHasComment = bs.inMultiLineComment
-	bs.lineHasCode = false
-	bs.inSingleLineComment = false
-}
-
-// inStringOrComment returns true if currently inside a string or comment.
-func (bs *blockSplitter) inStringOrComment() bool {
-	return bs.inString || bs.inRawString || bs.inSingleLineComment || bs.inMultiLineComment
-}
-
 // splitBlockByComments analyzes a block range and splits it into segments,
 // separating executable code from any commented lines.
-// To do this, it reads character by character the original source code.
+// It uses go/scanner to tokenize the source and identify which lines
+// contain executable code vs. only comments.
 func (f *File) splitBlockByComments(start, end token.Pos) []BlockSegment {
 	startOffset := f.offset(start)
 	endOffset := f.offset(end)
@@ -362,99 +287,101 @@ func (f *File) splitBlockByComments(start, end token.Pos) []BlockSegment {
 		return []BlockSegment{{start: start, end: end, hasCode: true}}
 	}
 
-	originalSourceCode := f.content[startOffset:endOffset]
+	src := f.content[startOffset:endOffset]
+	origFile := f.fset.File(start)
 
-	bs := &blockSplitter{
-		file:                f.fset.File(start),
-		startOffset:         startOffset,
-		currentOffset:       startOffset,
-		currentSegmentStart: start,
+	// Create a new file set for scanning this block
+	fset := token.NewFileSet()
+	file := fset.AddFile("", -1, len(src))
+
+	var s scanner.Scanner
+	s.Init(file, src, nil, scanner.ScanComments)
+
+	// Track which lines have code vs only comments
+	lineHasCode := make(map[int]bool)
+	lineHasComment := make(map[int]bool)
+
+	for {
+		pos, tok, lit := s.Scan()
+		if tok == token.EOF {
+			break
+		}
+
+		// Calculate start and end lines using the standard pattern from go/ast
+		// (e.g., ast.Comment.End() returns pos + len(text))
+		startLine := file.Line(pos)
+		endLine := file.Line(pos + token.Pos(len(lit)) - 1)
+		if endLine < startLine {
+			endLine = startLine
+		}
+
+		if tok == token.COMMENT {
+			// Mark all lines spanned by this comment
+			for line := startLine; line <= endLine; line++ {
+				lineHasComment[line] = true
+			}
+		} else {
+			// Mark all lines spanned by this token as having code
+			for line := startLine; line <= endLine; line++ {
+				lineHasCode[line] = true
+			}
+		}
 	}
 
-	for bs.i < len(originalSourceCode) {
-		char := originalSourceCode[bs.i]
+	// Build segments based on line transitions
+	// The scanner has already built the line table in file, so we can use
+	// file.LineStart() to get positions directly instead of manual calculation.
+	var segments []BlockSegment
+	var currentSegmentStart token.Pos = start
+	inCommentedSection := false
 
-		if char == '\\' && bs.inString && bs.i+1 < len(originalSourceCode) {
-			bs.lineHasCode = true
-			bs.i += 2 // Skip escaped character
-			continue
-		}
+	totalLines := file.LineCount()
+	for line := 1; line <= totalLines; line++ {
+		hasCode := lineHasCode[line]
+		hasComment := lineHasComment[line]
 
-		if char == '"' && !bs.inRawString && !bs.inSingleLineComment && !bs.inMultiLineComment {
-			bs.lineHasCode = true
-			bs.inString = !bs.inString
-			bs.i++
-			continue
-		}
-
-		if char == '`' && !bs.inString && !bs.inSingleLineComment && !bs.inMultiLineComment {
-			bs.lineHasCode = true
-			bs.inRawString = !bs.inRawString
-			bs.i++
-			continue
-		}
-
-		if char == '\n' {
-			bs.i++
-			bs.processLine()
-			bs.resetLineState()
-			continue
-		}
-
-		if bs.i+1 < len(originalSourceCode) {
-			nextChar := originalSourceCode[bs.i+1]
-			if char == '/' && nextChar == '/' && !bs.inString && !bs.inRawString && !bs.inMultiLineComment {
-				bs.inSingleLineComment = true
-				bs.lineHasComment = true
-				bs.i += 2
-				continue
+		if inCommentedSection && hasCode {
+			// End of commented section, start of code section
+			lineOffset := file.Offset(file.LineStart(line))
+			segmentEnd := origFile.Pos(startOffset + lineOffset)
+			segments = append(segments, BlockSegment{
+				start:   currentSegmentStart,
+				end:     segmentEnd,
+				hasCode: false,
+			})
+			currentSegmentStart = segmentEnd
+			inCommentedSection = false
+		} else if !inCommentedSection && !hasCode && hasComment {
+			// End of code section, start of commented section
+			lineOffset := file.Offset(file.LineStart(line))
+			segmentEnd := origFile.Pos(startOffset + lineOffset)
+			if currentSegmentStart < segmentEnd {
+				segments = append(segments, BlockSegment{
+					start:   currentSegmentStart,
+					end:     segmentEnd,
+					hasCode: true,
+				})
 			}
-
-			if char == '/' && nextChar == '*' && !bs.inString && !bs.inRawString && !bs.inSingleLineComment {
-				bs.inMultiLineComment = true
-				bs.lineHasComment = true
-				bs.i += 2
-				continue
-			}
-
-			if char == '*' && nextChar == '/' && bs.inMultiLineComment {
-				bs.inMultiLineComment = false
-				bs.lineHasComment = true
-				bs.i += 2
-				continue
-			}
+			currentSegmentStart = segmentEnd
+			inCommentedSection = true
 		}
-
-		// If we matched nothing else and the char is not a whitespace, we are in normal code.
-		if !bs.lineHasCode && !isWhitespace(char) && !bs.inSingleLineComment && !bs.inMultiLineComment {
-			bs.lineHasCode = true
-		}
-
-		bs.i++
 	}
-
-	// Process the last line if it doesn't end with a newline
-	bs.processLine()
 
 	// Add the final segment
-	if bs.currentSegmentStart < end {
-		bs.segments = append(bs.segments, BlockSegment{
-			start:   bs.currentSegmentStart,
+	if currentSegmentStart < end {
+		segments = append(segments, BlockSegment{
+			start:   currentSegmentStart,
 			end:     end,
-			hasCode: !bs.inCommentedSection,
+			hasCode: !inCommentedSection,
 		})
 	}
 
 	// If no segments were created, return the original block as a code segment
-	if len(bs.segments) == 0 {
+	if len(segments) == 0 {
 		return []BlockSegment{{start: start, end: end, hasCode: true}}
 	}
 
-	return bs.segments
-}
-
-func isWhitespace(b byte) bool {
-	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
+	return segments
 }
 
 // findText finds text in the original source, starting at pos.
