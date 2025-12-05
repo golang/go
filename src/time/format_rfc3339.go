@@ -18,9 +18,8 @@ import "errors"
 func (t Time) appendFormatRFC3339(b []byte, nanos bool) []byte {
 	_, offset, abs := t.locabs()
 
-	// Format date.
+	// Format date and time.
 	year, month, day := abs.days().date()
-	// Format time.
 	hour, min, sec := abs.clock()
 
 	b = appendIntWidth4(b, year)
