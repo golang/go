@@ -10,7 +10,6 @@ import (
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
-	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/rttype"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/typecheck"
@@ -194,7 +193,7 @@ func mapfast(t *types.Type) int {
 	if t.Elem().Size() > abi.MapMaxElemBytes {
 		return mapslow
 	}
-	switch reflectdata.AlgType(t.Key()) {
+	switch algType(t.Key()) {
 	case types.AMEM32:
 		if !t.Key().HasPointers() {
 			return mapfast32
@@ -216,6 +215,35 @@ func mapfast(t *types.Type) int {
 		return mapfaststr
 	}
 	return mapslow
+}
+
+// algType returns the fixed-width AMEMxx variants instead of the general
+// AMEM kind when possible.
+func algType(t *types.Type) types.AlgKind {
+	a := types.AlgType(t)
+	if a == types.AMEM {
+		if t.Alignment() < int64(base.Ctxt.Arch.Alignment) && t.Alignment() < t.Size() {
+			// For example, we can't treat [2]int16 as an int32 if int32s require
+			// 4-byte alignment. See issue 46283.
+			return a
+		}
+		switch t.Size() {
+		case 0:
+			return types.AMEM0
+		case 1:
+			return types.AMEM8
+		case 2:
+			return types.AMEM16
+		case 4:
+			return types.AMEM32
+		case 8:
+			return types.AMEM64
+		case 16:
+			return types.AMEM128
+		}
+	}
+
+	return a
 }
 
 func walkAppendArgs(n *ir.CallExpr, init *ir.Nodes) {

@@ -18,35 +18,6 @@ import (
 	"cmd/internal/obj"
 )
 
-// AlgType returns the fixed-width AMEMxx variants instead of the general
-// AMEM kind when possible.
-func AlgType(t *types.Type) types.AlgKind {
-	a := types.AlgType(t)
-	if a == types.AMEM {
-		if t.Alignment() < int64(base.Ctxt.Arch.Alignment) && t.Alignment() < t.Size() {
-			// For example, we can't treat [2]int16 as an int32 if int32s require
-			// 4-byte alignment. See issue 46283.
-			return a
-		}
-		switch t.Size() {
-		case 0:
-			return types.AMEM0
-		case 1:
-			return types.AMEM8
-		case 2:
-			return types.AMEM16
-		case 4:
-			return types.AMEM32
-		case 8:
-			return types.AMEM64
-		case 16:
-			return types.AMEM128
-		}
-	}
-
-	return a
-}
-
 // genhash returns a symbol which is the closure used to compute
 // the hash of a value of type t.
 func genhash(t *types.Type) *obj.LSym {
@@ -266,7 +237,7 @@ func sysClosure(name string) *obj.LSym {
 // geneq returns a symbol which is the closure used to compute
 // equality for two objects of type t.
 func geneq(t *types.Type) *obj.LSym {
-	switch AlgType(t) {
+	switch types.AlgType(t) {
 	case types.ANOEQ, types.ANOALG:
 		// The runtime will panic if it tries to compare
 		// a type with a nil equality function.
