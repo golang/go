@@ -1088,14 +1088,16 @@ func TestDialContext(t *testing.T) {
 			var c Conn
 			switch network {
 			case "tcp", "tcp4", "tcp6":
-				raddr, err := netip.ParseAddrPort(ln.Addr().String())
+				var raddr netip.AddrPort
+				raddr, err = netip.ParseAddrPort(ln.Addr().String())
 				if err != nil {
 					t.Error(err)
 					continue
 				}
 				c, err = d.DialTCP(context.WithValue(context.Background(), "id", i+1), network, (*TCPAddr)(nil).AddrPort(), raddr)
 			case "unix", "unixpacket":
-				raddr, err := ResolveUnixAddr(network, ln.Addr().String())
+				var raddr *UnixAddr
+				raddr, err = ResolveUnixAddr(network, ln.Addr().String())
 				if err != nil {
 					t.Error(err)
 					continue
@@ -1131,14 +1133,16 @@ func TestDialContext(t *testing.T) {
 			var c2 Conn
 			switch network {
 			case "udp", "udp4", "udp6":
-				raddr, err := netip.ParseAddrPort(c1.LocalAddr().String())
+				var raddr netip.AddrPort
+				raddr, err = netip.ParseAddrPort(c1.LocalAddr().String())
 				if err != nil {
 					t.Error(err)
 					continue
 				}
 				c2, err = d.DialUDP(context.WithValue(context.Background(), "id", i+1), network, (*UDPAddr)(nil).AddrPort(), raddr)
 			case "unixgram":
-				raddr, err := ResolveUnixAddr(network, c1.LocalAddr().String())
+				var raddr *UnixAddr
+				raddr, err = ResolveUnixAddr(network, c1.LocalAddr().String())
 				if err != nil {
 					t.Error(err)
 					continue
