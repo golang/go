@@ -778,7 +778,6 @@ func TestSyscallN(t *testing.T) {
 	}
 
 	for arglen := 0; arglen <= windows.MaxArgs; arglen++ {
-		arglen := arglen
 		t.Run(fmt.Sprintf("arg-%d", arglen), func(t *testing.T) {
 			t.Parallel()
 			args := make([]string, arglen)

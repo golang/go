@@ -1545,7 +1545,6 @@ func TestListTemplateContextFunction(t *testing.T) {
 		{"ReleaseTags", ""},
 		{"InstallSuffix", ""},
 	} {
-		tt := tt
 		t.Run(tt.v, func(t *testing.T) {
 			tg := testgo(t)
 			tg.parallel()
