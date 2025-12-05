@@ -282,9 +282,14 @@ func (op Token) Precedence() int {
 // hash is a perfect hash function for keywords.
 // It assumes that s has at least length 2.
 func hash(s string) uint {
+	// If you get collisions on adding a keyword you'll need to
+	// process more bytes of the identifier since this'll indicate
+	// two keywords share the same first two bytes.
+	// Best course of action is incrementing keyword map size or tuning the hash operations.
 	return (uint(s[0])<<4 ^ uint(s[1]) + uint(len(s))) & uint(len(keywordMap)-1)
 }
 
+// keywordMap is a perfect map taken from src/cmd/compile/internal/syntax/scanner.go
 var keywordMap [1 << 6]Token // size must be power of two
 
 func init() {

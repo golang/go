@@ -39,6 +39,8 @@ func TestVerify(t *testing.T) {
 	verifyPrint(t, *src_, ast)
 }
 
+// To run only this benchmark and obtain results for benchstat:
+// go test -bench=ParseStdLib -benchtime=5s -run none -count=20
 func BenchmarkParseStdLib(b *testing.B) {
 	if testing.Short() {
 		b.Skip("skipping test in short mode")
@@ -55,7 +57,8 @@ func BenchmarkParseStdLib(b *testing.B) {
 	type file struct {
 		name string
 		base *PosBase
-		data []byte
+		data []byte // data populated only for files being tested.
+		size int64
 	}
 	var files []file
 	goroot := testenv.GOROOT(b)
@@ -71,25 +74,37 @@ func BenchmarkParseStdLib(b *testing.B) {
 				fmt.Printf("skipping %s\n", filename)
 				return
 			}
-			data, err := os.ReadFile(filename)
+			info, err := os.Stat(filename)
 			if err != nil {
 				b.Fatal(err)
 			}
 			files = append(files, file{
 				name: filename,
-				data: data,
+				size: info.Size(),
 				base: NewFileBase(filename),
 			})
 		})
 	}
-	slices.SortStableFunc(files, func(a, b file) int {
-		return len(a.data) - len(b.data)
-	})
-	b.ResetTimer()
 	const numberOfFiles = 10
 	if len(files) < numberOfFiles*2 {
 		b.Error("too few files matched to run")
 	}
+	loadFile := func(f *file) {
+		var err error
+		f.data, err = os.ReadFile(f.name)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+	slices.SortStableFunc(files, func(a, b file) int {
+		return int(a.size - b.size)
+	})
+	// We load the files we'll be testing into memory to avoid noise introduced by operating system.
+	for i := 0; i < numberOfFiles; i++ {
+		loadFile(&files[i])              // Load smallest files.
+		loadFile(&files[len(files)-i-1]) // Load largest files.
+	}
+	b.ResetTimer()
 	b.Run(fmt.Sprintf("longest %d files", numberOfFiles), func(b *testing.B) {
 		var buf bytes.Reader
 		for i := 0; i < b.N; i++ {
@@ -99,7 +114,6 @@ func BenchmarkParseStdLib(b *testing.B) {
 			}
 		}
 	})
-
 	b.Run(fmt.Sprintf("shortest %d files", numberOfFiles), func(b *testing.B) {
 		var buf bytes.Reader
 		for i := 0; i < b.N; i++ {
