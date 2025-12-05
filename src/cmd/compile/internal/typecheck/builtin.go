@@ -184,64 +184,64 @@ var runtimeDecls = [...]struct {
 	{"memequal32", funcTag, 138},
 	{"memequal64", funcTag, 138},
 	{"memequal128", funcTag, 138},
-	{"f32equal", funcTag, 139},
-	{"f64equal", funcTag, 139},
-	{"c64equal", funcTag, 139},
-	{"c128equal", funcTag, 139},
-	{"strequal", funcTag, 139},
-	{"interequal", funcTag, 139},
-	{"nilinterequal", funcTag, 139},
-	{"memhash", funcTag, 140},
-	{"memhash0", funcTag, 141},
-	{"memhash8", funcTag, 141},
-	{"memhash16", funcTag, 141},
-	{"memhash32", funcTag, 141},
-	{"memhash64", funcTag, 141},
-	{"memhash128", funcTag, 141},
-	{"f32hash", funcTag, 142},
-	{"f64hash", funcTag, 142},
-	{"c64hash", funcTag, 142},
-	{"c128hash", funcTag, 142},
-	{"strhash", funcTag, 142},
-	{"interhash", funcTag, 142},
-	{"nilinterhash", funcTag, 142},
-	{"int64div", funcTag, 143},
-	{"uint64div", funcTag, 144},
-	{"int64mod", funcTag, 143},
-	{"uint64mod", funcTag, 144},
-	{"float64toint64", funcTag, 145},
-	{"float64touint64", funcTag, 146},
-	{"float64touint32", funcTag, 147},
-	{"int64tofloat64", funcTag, 148},
-	{"int64tofloat32", funcTag, 149},
-	{"uint64tofloat64", funcTag, 150},
-	{"uint64tofloat32", funcTag, 151},
-	{"uint32tofloat64", funcTag, 152},
-	{"complex128div", funcTag, 153},
+	{"f32equal", funcTag, 138},
+	{"f64equal", funcTag, 138},
+	{"c64equal", funcTag, 138},
+	{"c128equal", funcTag, 138},
+	{"strequal", funcTag, 138},
+	{"interequal", funcTag, 138},
+	{"nilinterequal", funcTag, 138},
+	{"memhash", funcTag, 139},
+	{"memhash0", funcTag, 140},
+	{"memhash8", funcTag, 140},
+	{"memhash16", funcTag, 140},
+	{"memhash32", funcTag, 140},
+	{"memhash64", funcTag, 140},
+	{"memhash128", funcTag, 140},
+	{"f32hash", funcTag, 140},
+	{"f64hash", funcTag, 140},
+	{"c64hash", funcTag, 140},
+	{"c128hash", funcTag, 140},
+	{"strhash", funcTag, 140},
+	{"interhash", funcTag, 140},
+	{"nilinterhash", funcTag, 140},
+	{"int64div", funcTag, 141},
+	{"uint64div", funcTag, 142},
+	{"int64mod", funcTag, 141},
+	{"uint64mod", funcTag, 142},
+	{"float64toint64", funcTag, 143},
+	{"float64touint64", funcTag, 144},
+	{"float64touint32", funcTag, 145},
+	{"int64tofloat64", funcTag, 146},
+	{"int64tofloat32", funcTag, 147},
+	{"uint64tofloat64", funcTag, 148},
+	{"uint64tofloat32", funcTag, 149},
+	{"uint32tofloat64", funcTag, 150},
+	{"complex128div", funcTag, 151},
 	{"racefuncenter", funcTag, 33},
 	{"racefuncexit", funcTag, 9},
 	{"raceread", funcTag, 33},
 	{"racewrite", funcTag, 33},
-	{"racereadrange", funcTag, 154},
-	{"racewriterange", funcTag, 154},
-	{"msanread", funcTag, 154},
-	{"msanwrite", funcTag, 154},
-	{"msanmove", funcTag, 155},
-	{"asanread", funcTag, 154},
-	{"asanwrite", funcTag, 154},
-	{"checkptrAlignment", funcTag, 156},
-	{"checkptrArithmetic", funcTag, 158},
-	{"libfuzzerTraceCmp1", funcTag, 159},
-	{"libfuzzerTraceCmp2", funcTag, 160},
-	{"libfuzzerTraceCmp4", funcTag, 161},
-	{"libfuzzerTraceCmp8", funcTag, 162},
-	{"libfuzzerTraceConstCmp1", funcTag, 159},
-	{"libfuzzerTraceConstCmp2", funcTag, 160},
-	{"libfuzzerTraceConstCmp4", funcTag, 161},
-	{"libfuzzerTraceConstCmp8", funcTag, 162},
-	{"libfuzzerHookStrCmp", funcTag, 163},
-	{"libfuzzerHookEqualFold", funcTag, 163},
-	{"addCovMeta", funcTag, 165},
+	{"racereadrange", funcTag, 152},
+	{"racewriterange", funcTag, 152},
+	{"msanread", funcTag, 152},
+	{"msanwrite", funcTag, 152},
+	{"msanmove", funcTag, 153},
+	{"asanread", funcTag, 152},
+	{"asanwrite", funcTag, 152},
+	{"checkptrAlignment", funcTag, 154},
+	{"checkptrArithmetic", funcTag, 156},
+	{"libfuzzerTraceCmp1", funcTag, 157},
+	{"libfuzzerTraceCmp2", funcTag, 158},
+	{"libfuzzerTraceCmp4", funcTag, 159},
+	{"libfuzzerTraceCmp8", funcTag, 160},
+	{"libfuzzerTraceConstCmp1", funcTag, 157},
+	{"libfuzzerTraceConstCmp2", funcTag, 158},
+	{"libfuzzerTraceConstCmp4", funcTag, 159},
+	{"libfuzzerTraceConstCmp8", funcTag, 160},
+	{"libfuzzerHookStrCmp", funcTag, 161},
+	{"libfuzzerHookEqualFold", funcTag, 161},
+	{"addCovMeta", funcTag, 163},
 	{"x86HasAVX", varTag, 6},
 	{"x86HasFMA", varTag, 6},
 	{"x86HasPOPCNT", varTag, 6},
@@ -257,7 +257,7 @@ var runtimeDecls = [...]struct {
 }
 
 func runtimeTypes() []*types.Type {
-	var typs [166]*types.Type
+	var typs [164]*types.Type
 	typs[0] = types.ByteType
 	typs[1] = types.NewPtr(typs[0])
 	typs[2] = types.Types[types.TANY]
@@ -395,35 +395,33 @@ func runtimeTypes() []*types.Type {
 	typs[134] = newSig(params(typs[5], typs[1], typs[13]), params(typs[1], typs[13], typs[13]))
 	typs[135] = newSig(params(typs[3], typs[3], typs[5]), nil)
 	typs[136] = newSig(params(typs[7], typs[5]), nil)
-	typs[137] = newSig(params(typs[3], typs[3], typs[5]), params(typs[6]))
-	typs[138] = newSig(params(typs[3], typs[3]), params(typs[6]))
-	typs[139] = newSig(params(typs[7], typs[7]), params(typs[6]))
-	typs[140] = newSig(params(typs[3], typs[5], typs[5]), params(typs[5]))
-	typs[141] = newSig(params(typs[7], typs[5]), params(typs[5]))
-	typs[142] = newSig(params(typs[3], typs[5]), params(typs[5]))
-	typs[143] = newSig(params(typs[22], typs[22]), params(typs[22]))
-	typs[144] = newSig(params(typs[24], typs[24]), params(typs[24]))
-	typs[145] = newSig(params(typs[18]), params(typs[22]))
-	typs[146] = newSig(params(typs[18]), params(typs[24]))
-	typs[147] = newSig(params(typs[18]), params(typs[67]))
-	typs[148] = newSig(params(typs[22]), params(typs[18]))
-	typs[149] = newSig(params(typs[22]), params(typs[20]))
-	typs[150] = newSig(params(typs[24]), params(typs[18]))
-	typs[151] = newSig(params(typs[24]), params(typs[20]))
-	typs[152] = newSig(params(typs[67]), params(typs[18]))
-	typs[153] = newSig(params(typs[26], typs[26]), params(typs[26]))
-	typs[154] = newSig(params(typs[5], typs[5]), nil)
-	typs[155] = newSig(params(typs[5], typs[5], typs[5]), nil)
-	typs[156] = newSig(params(typs[7], typs[1], typs[5]), nil)
-	typs[157] = types.NewSlice(typs[7])
-	typs[158] = newSig(params(typs[7], typs[157]), nil)
-	typs[159] = newSig(params(typs[71], typs[71], typs[15]), nil)
-	typs[160] = newSig(params(typs[65], typs[65], typs[15]), nil)
-	typs[161] = newSig(params(typs[67], typs[67], typs[15]), nil)
-	typs[162] = newSig(params(typs[24], typs[24], typs[15]), nil)
-	typs[163] = newSig(params(typs[30], typs[30], typs[15]), nil)
-	typs[164] = types.NewArray(typs[0], 16)
-	typs[165] = newSig(params(typs[7], typs[67], typs[164], typs[30], typs[13], typs[71], typs[71]), params(typs[67]))
+	typs[137] = newSig(params(typs[7], typs[7], typs[5]), params(typs[6]))
+	typs[138] = newSig(params(typs[7], typs[7]), params(typs[6]))
+	typs[139] = newSig(params(typs[7], typs[5], typs[5]), params(typs[5]))
+	typs[140] = newSig(params(typs[7], typs[5]), params(typs[5]))
+	typs[141] = newSig(params(typs[22], typs[22]), params(typs[22]))
+	typs[142] = newSig(params(typs[24], typs[24]), params(typs[24]))
+	typs[143] = newSig(params(typs[18]), params(typs[22]))
+	typs[144] = newSig(params(typs[18]), params(typs[24]))
+	typs[145] = newSig(params(typs[18]), params(typs[67]))
+	typs[146] = newSig(params(typs[22]), params(typs[18]))
+	typs[147] = newSig(params(typs[22]), params(typs[20]))
+	typs[148] = newSig(params(typs[24]), params(typs[18]))
+	typs[149] = newSig(params(typs[24]), params(typs[20]))
+	typs[150] = newSig(params(typs[67]), params(typs[18]))
+	typs[151] = newSig(params(typs[26], typs[26]), params(typs[26]))
+	typs[152] = newSig(params(typs[5], typs[5]), nil)
+	typs[153] = newSig(params(typs[5], typs[5], typs[5]), nil)
+	typs[154] = newSig(params(typs[7], typs[1], typs[5]), nil)
+	typs[155] = types.NewSlice(typs[7])
+	typs[156] = newSig(params(typs[7], typs[155]), nil)
+	typs[157] = newSig(params(typs[71], typs[71], typs[15]), nil)
+	typs[158] = newSig(params(typs[65], typs[65], typs[15]), nil)
+	typs[159] = newSig(params(typs[67], typs[67], typs[15]), nil)
+	typs[160] = newSig(params(typs[24], typs[24], typs[15]), nil)
+	typs[161] = newSig(params(typs[30], typs[30], typs[15]), nil)
+	typs[162] = types.NewArray(typs[0], 16)
+	typs[163] = newSig(params(typs[7], typs[67], typs[162], typs[30], typs[13], typs[71], typs[71]), params(typs[67]))
 	return typs[:]
 }
 

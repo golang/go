@@ -190,7 +190,7 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 		// a struct/array containing a non-memory field/element.
 		// Small memory is handled inline, and single non-memory
 		// is handled by walkCompare.
-		fn, needsLength, ptrType := reflectdata.EqFor(t)
+		fn, needsLength := reflectdata.EqFor(t)
 		call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil)
 		addrCmpL := typecheck.NodAddr(cmpl)
 		addrCmpR := typecheck.NodAddr(cmpr)
@@ -202,13 +202,8 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 			call.PtrInit().Append(mkcall1(raceFn, nil, init, ptrL, size))
 			call.PtrInit().Append(mkcall1(raceFn, nil, init, ptrR, size))
 		}
-		if ptrType != t.PtrTo() {
-			call.Args.Append(typecheck.Conv(typecheck.Conv(addrCmpL, types.Types[types.TUNSAFEPTR]), ptrType))
-			call.Args.Append(typecheck.Conv(typecheck.Conv(addrCmpR, types.Types[types.TUNSAFEPTR]), ptrType))
-		} else {
-			call.Args.Append(addrCmpL)
-			call.Args.Append(addrCmpR)
-		}
+		call.Args.Append(typecheck.Conv(addrCmpL, types.Types[types.TUNSAFEPTR]))
+		call.Args.Append(typecheck.Conv(addrCmpR, types.Types[types.TUNSAFEPTR]))
 		if needsLength {
 			call.Args.Append(ir.NewInt(base.Pos, t.Size()))
 		}

@@ -154,20 +154,19 @@ func hashFunc(sig string) *ir.Func {
 	// offset from np that we're currently working on
 	var off int64
 
-	// Return np+off cast to a t (t must be a pointer-y type).
-	ptr := func(t *types.Type) ir.Node {
+	// Return np+off (as an unsafe.Pointer).
+	ptr := func() ir.Node {
 		c := ir.NewBasicLit(pos, types.Types[types.TUINTPTR], constant.MakeInt64(off))
-		p := ir.NewBinaryExpr(pos, ir.OUNSAFEADD, np, c)
-		return ir.NewConvExpr(pos, ir.OCONVNOP, t, p)
+		return ir.NewBinaryExpr(pos, ir.OUNSAFEADD, np, c)
 	}
-	// hash data of type t at np+off.
-	// Increment off by the size of t.
-	hash := func(t *types.Type) {
-		p := ptr(t.PtrTo())
-		hashFn := hashfor(t)
+	// hash data using function name at np+off.
+	// Increment off by size.
+	hash := func(name string, size int64) {
+		p := ptr()
+		hashFn := typecheck.LookupRuntime(name)
 		call := ir.NewCallExpr(pos, ir.OCALL, hashFn, []ir.Node{p, nh})
 		fn.Body.Append(ir.NewAssignStmt(pos, nh, call))
-		off += t.Size()
+		off += size
 	}
 
 	for len(sig) > 0 {
@@ -179,34 +178,33 @@ func hashFunc(sig string) *ir.Func {
 			n, sig = parseNum(sig)
 			switch {
 			case n == 4:
-				p := ptr(types.Types[types.TUNSAFEPTR])
+				p := ptr()
 				memhash := typecheck.LookupRuntime("memhash32")
 				call := ir.NewCallExpr(pos, ir.OCALL, memhash, []ir.Node{p, nh})
 				fn.Body.Append(ir.NewAssignStmt(pos, nh, call))
 			case n == 8:
-				p := ptr(types.Types[types.TUNSAFEPTR])
+				p := ptr()
 				memhash := typecheck.LookupRuntime("memhash64")
 				call := ir.NewCallExpr(pos, ir.OCALL, memhash, []ir.Node{p, nh})
 				fn.Body.Append(ir.NewAssignStmt(pos, nh, call))
 			default:
-				p := ptr(types.Types[types.TUINT8].PtrTo())
-				memhash := typecheck.LookupRuntime("memhash", types.Types[types.TUINT8])
+				p := ptr()
+				memhash := typecheck.LookupRuntime("memhash")
 				size := ir.NewBasicLit(pos, types.Types[types.TUINTPTR], constant.MakeInt64(n))
 				call := ir.NewCallExpr(pos, ir.OCALL, memhash, []ir.Node{p, nh, size})
 				fn.Body.Append(ir.NewAssignStmt(pos, nh, call))
 			}
 			off += n
 		case sigFloat32:
-			hash(types.Types[types.TFLOAT32])
+			hash("f32hash", 4)
 		case sigFloat64:
-			hash(types.Types[types.TFLOAT64])
+			hash("f64hash", 8)
 		case sigString:
-			hash(types.Types[types.TSTRING])
+			hash("strhash", 2*int64(types.PtrSize))
 		case sigEface:
-			hash(types.NewInterface(nil))
+			hash("nilinterhash", 2*int64(types.PtrSize))
 		case sigIface:
-			// arg kinda hacky. TODO: clean this up.
-			hash(types.NewInterface([]*types.Field{types.NewField(pos, typecheck.Lookup("A"), types.Types[types.TBOOL])}))
+			hash("interhash", 2*int64(types.PtrSize))
 		case sigSkip:
 			var n int64
 			n, sig = parseNum(sig)
@@ -272,33 +270,6 @@ func hashFunc(sig string) *ir.Func {
 
 	fn.SetNilCheckDisabled(true)
 	return fn
-}
-
-func runtimeHashFor(name string, t *types.Type) *ir.Name {
-	return typecheck.LookupRuntime(name, t)
-}
-
-// hashfor returns the function to compute the hash of a value of type t.
-func hashfor(t *types.Type) *ir.Name {
-	switch types.AlgType(t) {
-	default:
-		base.Fatalf("hashfor with bad type %v", t)
-		return nil
-	case types.AINTER:
-		return runtimeHashFor("interhash", t)
-	case types.ANILINTER:
-		return runtimeHashFor("nilinterhash", t)
-	case types.ASTRING:
-		return runtimeHashFor("strhash", t)
-	case types.AFLOAT32:
-		return runtimeHashFor("f32hash", t)
-	case types.AFLOAT64:
-		return runtimeHashFor("f64hash", t)
-	case types.ACPLX64:
-		return runtimeHashFor("c64hash", t)
-	case types.ACPLX128:
-		return runtimeHashFor("c128hash", t)
-	}
 }
 
 // sysClosure returns a closure which will call the
@@ -483,13 +454,12 @@ func eqFunc(sig string) *ir.Func {
 		defer func(saveOff int64) {
 			off = saveOff
 		}(off)
-		byte := types.Types[types.TUINT8]
 		for _, x := range pendingStrings {
 			off = x
-			ptrA, ptrB := load(byte.PtrTo())
+			ptrA, ptrB := load(types.Types[types.TUNSAFEPTR])
 			len, _ := load(types.Types[types.TUINTPTR])
 			// Note: we already checked that the lengths are equal.
-			memeq := typecheck.LookupRuntime("memequal", byte, byte)
+			memeq := typecheck.LookupRuntime("memequal")
 			test(typecheck.Call(pos, memeq, []ir.Node{ptrA, ptrB, len}, false))
 			hasCall = true
 		}
@@ -509,11 +479,8 @@ func eqFunc(sig string) *ir.Func {
 				p := ir.NewBinaryExpr(pos, ir.OUNSAFEADD, np, c)
 				q := ir.NewBinaryExpr(pos, ir.OUNSAFEADD, nq, c)
 				len := ir.NewBasicLit(pos, types.Types[types.TUINTPTR], constant.MakeInt64(n))
-				byte := types.Types[types.TUINT8]
-				p2 := ir.NewConvExpr(pos, ir.OCONVNOP, byte.PtrTo(), p)
-				q2 := ir.NewConvExpr(pos, ir.OCONVNOP, byte.PtrTo(), q)
-				memeq := typecheck.LookupRuntime("memequal", byte, byte)
-				test(typecheck.Call(pos, memeq, []ir.Node{p2, q2, len}, false))
+				memeq := typecheck.LookupRuntime("memequal")
+				test(typecheck.Call(pos, memeq, []ir.Node{p, q, len}, false))
 				hasCall = true
 				off += n
 				n = 0
@@ -688,21 +655,16 @@ func eqFunc(sig string) *ir.Func {
 
 // EqFor returns ONAME node represents type t's equal function, and a boolean
 // to indicates whether a length needs to be passed when calling the function.
-// Also returns the argument type of the function (TODO: remove somehow).
-func EqFor(t *types.Type) (ir.Node, bool, *types.Type) {
+func EqFor(t *types.Type) (ir.Node, bool) {
 	switch types.AlgType(t) {
 	case types.AMEM:
-		return typecheck.LookupRuntime("memequal", t, t), true, t.PtrTo()
+		return typecheck.LookupRuntime("memequal"), true
 	case types.ASPECIAL:
 		fn := eqFunc(eqSignature(t))
-		return fn.Nname, false, types.Types[types.TUNSAFEPTR]
+		return fn.Nname, false
 	}
 	base.Fatalf("EqFor %v", t)
-	return nil, false, nil
-}
-
-func hashmem(t *types.Type) ir.Node {
-	return typecheck.LookupRuntime("memhash", t)
+	return nil, false
 }
 
 // eqSignature returns a signature of the equality function for type t.
