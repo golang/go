@@ -947,10 +947,11 @@ func trimUnexportedFields(fields *ast.FieldList, isInterface bool) *ast.FieldLis
 			constraint := false
 			switch ident := ty.(type) {
 			case *ast.Ident:
-				if isInterface && ident.Name == "error" && ident.Obj == nil {
+				if isInterface && ident.Obj == nil &&
+					(ident.Name == "error" || ident.Name == "comparable") {
 					// For documentation purposes, we consider the builtin error
-					// type special when embedded in an interface, such that it
-					// always gets shown publicly.
+					// and comparable types special when embedded in an interface,
+					// such that they always get shown publicly.
 					list = append(list, field)
 					continue
 				}
