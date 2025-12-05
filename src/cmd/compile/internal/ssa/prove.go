@@ -2119,7 +2119,10 @@ func (ft *factsTable) detectSliceLenRelation(v *Value) {
 		if bound := ow.Args[0]; (bound.Op == OpSliceLen || bound.Op == OpStringLen) && bound.Args[0] == slice {
 			lenOffset = ow.Args[1]
 		} else if bound := ow.Args[1]; (bound.Op == OpSliceLen || bound.Op == OpStringLen) && bound.Args[0] == slice {
-			lenOffset = ow.Args[0]
+			// Do not infer K - slicelen, see issue #76709.
+			if ow.Op == OpAdd64 {
+				lenOffset = ow.Args[0]
+			}
 		}
 		if lenOffset == nil || lenOffset.Op != OpConst64 {
 			continue
