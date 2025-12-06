@@ -404,7 +404,7 @@ func (c *gcControllerState) startCycle(markStartTime int64, procs int, trigger g
 	dedicatedMarkWorkersNeeded := int64(totalUtilizationGoal + 0.5)
 	utilError := float64(dedicatedMarkWorkersNeeded)/totalUtilizationGoal - 1
 	const maxUtilError = 0.3
-	if utilError < -maxUtilError || utilError > maxUtilError {
+	if utilError < -maxUtilError || maxUtilError < utilError {
 		// Rounding put us more than 30% off our goal. With
 		// gcBackgroundUtilization of 25%, this happens for
 		// GOMAXPROCS<=3 or GOMAXPROCS=6. Enable fractional
@@ -536,9 +536,7 @@ func (c *gcControllerState) revise() {
 		// This maintains the invariant that we use no more memory than the next GC cycle
 		// will anyway.
 		hardGoal := int64((1.0 + float64(gcPercent)/100.0) * float64(heapGoal))
-		if extHeapGoal > hardGoal {
-			extHeapGoal = hardGoal
-		}
+		extHeapGoal = min(extHeapGoal, hardGoal)
 		heapGoal = extHeapGoal
 	}
 	if int64(live) > heapGoal {
@@ -560,17 +558,16 @@ func (c *gcControllerState) revise() {
 	// slowly in the soft regime and not at all in the hard
 	// regime.
 	scanWorkRemaining := scanWorkExpected - work
-	if scanWorkRemaining < 1000 {
-		// We set a somewhat arbitrary lower bound on
-		// remaining scan work since if we aim a little high,
-		// we can miss by a little.
-		//
-		// We *do* need to enforce that this is at least 1,
-		// since marking is racy and double-scanning objects
-		// may legitimately make the remaining scan work
-		// negative, even in the hard goal regime.
-		scanWorkRemaining = 1000
-	}
+
+	// We set a somewhat arbitrary lower bound on
+	// remaining scan work since if we aim a little high,
+	// we can miss by a little.
+	//
+	// We *do* need to enforce that this is at least 1,
+	// since marking is racy and double-scanning objects
+	// may legitimately make the remaining scan work
+	// negative, even in the hard goal regime.
+	scanWorkRemaining = max(scanWorkRemaining, 1000)
 
 	// Compute the heap distance remaining.
 	heapRemaining := heapGoal - int64(live)
@@ -666,9 +663,7 @@ func (c *gcControllerState) endCycle(now int64, procs int, userForced bool) {
 	oldConsMark := c.consMark
 	c.consMark = currentConsMark
 	for i := range c.lastConsMark {
-		if c.lastConsMark[i] > c.consMark {
-			c.consMark = c.lastConsMark[i]
-		}
+		c.consMark = max(c.consMark, c.lastConsMark[i])
 	}
 	copy(c.lastConsMark[:], c.lastConsMark[1:])
 	c.lastConsMark[len(c.lastConsMark)-1] = currentConsMark
@@ -979,7 +974,7 @@ func (c *gcControllerState) addScannableStack(pp *p, amount int64) {
 		return
 	}
 	pp.maxStackScanDelta += amount
-	if pp.maxStackScanDelta >= maxStackScanSlack || pp.maxStackScanDelta <= -maxStackScanSlack {
+	if pp.maxStackScanDelta <= -maxStackScanSlack || maxStackScanSlack <= pp.maxStackScanDelta {
 		c.maxStackScan.Add(pp.maxStackScanDelta)
 		pp.maxStackScanDelta = 0
 	}
@@ -1004,43 +999,44 @@ func (c *gcControllerState) heapGoalInternal() (goal, minTrigger uint64) {
 	goal = c.gcPercentHeapGoal.Load()
 
 	// Check if the memory-limit-based goal is smaller, and if so, pick that.
-	if newGoal := c.memoryLimitHeapGoal(); newGoal < goal {
-		goal = newGoal
-	} else {
-		// We're not limited by the memory limit goal, so perform a series of
-		// adjustments that might move the goal forward in a variety of circumstances.
-
-		sweepDistTrigger := c.sweepDistMinTrigger.Load()
-		if sweepDistTrigger > goal {
-			// Set the goal to maintain a minimum sweep distance since
-			// the last call to commit. Note that we never want to do this
-			// if we're in the memory limit regime, because it could push
-			// the goal up.
-			goal = sweepDistTrigger
-		}
-		// Since we ignore the sweep distance trigger in the memory
-		// limit regime, we need to ensure we don't propagate it to
-		// the trigger, because it could cause a violation of the
-		// invariant that the trigger < goal.
-		minTrigger = sweepDistTrigger
-
-		// Ensure that the heap goal is at least a little larger than
-		// the point at which we triggered. This may not be the case if GC
-		// start is delayed or if the allocation that pushed gcController.heapLive
-		// over trigger is large or if the trigger is really close to
-		// GOGC. Assist is proportional to this distance, so enforce a
-		// minimum distance, even if it means going over the GOGC goal
-		// by a tiny bit.
-		//
-		// Ignore this if we're in the memory limit regime: we'd prefer to
-		// have the GC respond hard about how close we are to the goal than to
-		// push the goal back in such a manner that it could cause us to exceed
-		// the memory limit.
-		const minRunway = 64 << 10
-		if c.triggered != ^uint64(0) && goal < c.triggered+minRunway {
-			goal = c.triggered + minRunway
-		}
+	if limitGoal := c.memoryLimitHeapGoal(); limitGoal < goal {
+		goal = limitGoal
+		return
 	}
+	// We're not limited by the memory limit goal, so perform a series of
+	// adjustments that might move the goal forward in a variety of circumstances.
+
+	sweepDistTrigger := c.sweepDistMinTrigger.Load()
+
+	// Set the goal to maintain a minimum sweep distance since
+	// the last call to commit. Note that we never want to do this
+	// if we're in the memory limit regime, because it could push
+	// the goal up.
+	goal = max(goal, sweepDistTrigger)
+
+	// Since we ignore the sweep distance trigger in the memory
+	// limit regime, we need to ensure we don't propagate it to
+	// the trigger, because it could cause a violation of the
+	// invariant that the trigger < goal.
+	minTrigger = sweepDistTrigger
+
+	// Ensure that the heap goal is at least a little larger than
+	// the point at which we triggered. This may not be the case if GC
+	// start is delayed or if the allocation that pushed gcController.heapLive
+	// over trigger is large or if the trigger is really close to
+	// GOGC. Assist is proportional to this distance, so enforce a
+	// minimum distance, even if it means going over the GOGC goal
+	// by a tiny bit.
+	//
+	// Ignore this if we're in the memory limit regime: we'd prefer to
+	// have the GC respond hard about how close we are to the goal than to
+	// push the goal back in such a manner that it could cause us to exceed
+	// the memory limit.
+	const minRunway = 64 << 10
+	if c.triggered != ^uint64(0) {
+		goal = max(goal, c.triggered+minRunway)
+	}
+
 	return
 }
 
@@ -1142,20 +1138,17 @@ func (c *gcControllerState) memoryLimitHeapGoal() uint64 {
 	// the impact of scavenging at allocation time in response to a high allocation rate
 	// when GOGC=off. See issue #57069. Also, be careful about small limits.
 	headroom := goal / 100 * memoryLimitHeapGoalHeadroomPercent
-	if headroom < memoryLimitMinHeapGoalHeadroom {
-		// Set a fixed minimum to deal with the particularly large effect pacing inaccuracies
-		// have for smaller heaps.
-		headroom = memoryLimitMinHeapGoalHeadroom
-	}
+	// Set a fixed minimum to deal with the particularly large effect pacing inaccuracies
+	// have for smaller heaps.
+	headroom = max(headroom, memoryLimitMinHeapGoalHeadroom)
+
 	if goal < headroom || goal-headroom < headroom {
 		goal = headroom
 	} else {
 		goal = goal - headroom
 	}
 	// Don't let us go below the live heap. A heap goal below the live heap doesn't make sense.
-	if goal < c.heapMarked {
-		goal = c.heapMarked
-	}
+	goal = max(goal, c.heapMarked)
 	return goal
 }
 
@@ -1207,9 +1200,7 @@ func (c *gcControllerState) trigger() (uint64, uint64) {
 
 	// heapMarked is our absolute minimum, and it's possible the trigger
 	// bound we get from heapGoalinternal is less than that.
-	if minTrigger < c.heapMarked {
-		minTrigger = c.heapMarked
-	}
+	minTrigger = max(minTrigger, c.heapMarked)
 
 	// If we let the trigger go too low, then if the application
 	// is allocating very rapidly we might end up in a situation
@@ -1219,9 +1210,7 @@ func (c *gcControllerState) trigger() (uint64, uint64) {
 	// saying that we're OK using more CPU during the GC to prevent
 	// this growth in RSS.
 	triggerLowerBound := ((goal-c.heapMarked)/triggerRatioDen)*minTriggerRatioNum + c.heapMarked
-	if minTrigger < triggerLowerBound {
-		minTrigger = triggerLowerBound
-	}
+	minTrigger = max(minTrigger, triggerLowerBound)
 
 	// For small heaps, set the max trigger point at maxTriggerRatio of the way
 	// from the live heap to the heap goal. This ensures we always have *some*
@@ -1298,9 +1287,7 @@ func (c *gcControllerState) commit(isSweepDone bool) {
 	}
 	// Apply the minimum heap size here. It's defined in terms of gcPercent
 	// and is only updated by functions that call commit.
-	if gcPercentHeapGoal < c.heapMinimum {
-		gcPercentHeapGoal = c.heapMinimum
-	}
+	gcPercentHeapGoal = max(gcPercentHeapGoal, c.heapMinimum)
 	c.gcPercentHeapGoal.Store(gcPercentHeapGoal)
 
 	// Compute the amount of runway we want the GC to have by using our
@@ -1326,7 +1313,9 @@ func (c *gcControllerState) commit(isSweepDone bool) {
 	// Furthermore, by setting the runway so that CPU resources are divided
 	// this way, assuming that the cons/mark ratio is correct, we make that
 	// division a reality.
-	c.runway.Store(uint64((c.consMark * (1 - gcGoalUtilization) / (gcGoalUtilization)) * float64(c.lastHeapScan+c.lastStackScan.Load()+c.globalsScan.Load())))
+	c.runway.Store(uint64(
+		(c.consMark * (1 - gcGoalUtilization) / (gcGoalUtilization)) *
+			float64(c.lastHeapScan+c.lastStackScan.Load()+c.globalsScan.Load())))
 }
 
 // setGCPercent updates gcPercent. commit must be called after.
