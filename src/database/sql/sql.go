@@ -2354,7 +2354,7 @@ func (tx *Tx) rollback(discardConn bool) error {
 	return err
 }
 
-// Rollback aborts the transaction.
+// Rollback aborts the transaction. This is a no-op if the transaction is already committed or aborted.
 func (tx *Tx) Rollback() error {
 	return tx.rollback(false)
 }
