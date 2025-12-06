@@ -352,6 +352,9 @@ func editPrintJSON(workFile *modfile.WorkFile) {
 	for _, d := range workFile.Use {
 		f.Use = append(f.Use, useJSON{DiskPath: d.Path, ModPath: d.ModulePath})
 	}
+	if workFile.Toolchain != nil {
+		f.Toolchain = workFile.Toolchain.Name
+	}
 
 	for _, r := range workFile.Replace {
 		f.Replace = append(f.Replace, replaceJSON{r.Old, r.New})
@@ -366,9 +369,10 @@ func editPrintJSON(workFile *modfile.WorkFile) {
 
 // workfileJSON is the -json output data structure.
 type workfileJSON struct {
-	Go      string `json:",omitempty"`
-	Use     []useJSON
-	Replace []replaceJSON
+	Go        string `json:",omitempty"`
+	Toolchain string `json:",omitempty"`
+	Use       []useJSON
+	Replace   []replaceJSON
 }
 
 type useJSON struct {
