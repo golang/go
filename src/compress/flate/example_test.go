@@ -93,7 +93,7 @@ func Example_dictionary() {
 	var b bytes.Buffer
 
 	// Compress the data using the specially crafted dictionary.
-	zw, err := flate.NewWriterDict(&b, flate.DefaultCompression, []byte(dict))
+	zw, err := flate.NewWriterDict(&b, flate.BestCompression, []byte(dict))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -168,6 +168,7 @@ func Example_synchronization() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+		defer wp.Close()
 
 		zw, err := flate.NewWriter(wp, flate.BestSpeed)
 		if err != nil {
