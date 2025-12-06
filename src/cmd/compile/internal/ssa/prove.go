@@ -463,6 +463,17 @@ func (l limit) popcount(b uint) limit {
 	return noLimit().unsignedMinMax(min, max)
 }
 
+func (l limit) constValue() (_ int64, ok bool) {
+	switch {
+	case l.min == l.max:
+		return l.min, true
+	case l.umin == l.umax:
+		return int64(l.umin), true
+	default:
+		return 0, false
+	}
+}
+
 // a limitFact is a limit known for a particular value.
 type limitFact struct {
 	vid   ID
@@ -2805,6 +2816,20 @@ var bytesizeToAnd = [...]Op{
 	64 / 8: OpAnd64,
 }
 
+var invertEqNeqOp = map[Op]Op{
+	OpEq8:  OpNeq8,
+	OpNeq8: OpEq8,
+
+	OpEq16:  OpNeq16,
+	OpNeq16: OpEq16,
+
+	OpEq32:  OpNeq32,
+	OpNeq32: OpEq32,
+
+	OpEq64:  OpNeq64,
+	OpNeq64: OpEq64,
+}
+
 // simplifyBlock simplifies some constant values in b and evaluates
 // branches to non-uniquely dominated successors of b.
 func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
@@ -2974,19 +2999,47 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 					b.Func.Warnl(v.Pos, "Rewrote Mul %v into CondSelect; %v is bool", v, x)
 				}
 			}
+		case OpEq64, OpEq32, OpEq16, OpEq8,
+			OpNeq64, OpNeq32, OpNeq16, OpNeq8:
+			// Canonicalize:
+			// [0,1] != 1 → [0,1] == 0
+			// [0,1] == 1 → [0,1] != 0
+			// Comparison with zero often encode smaller.
+			xPos, yPos := 0, 1
+			x, y := v.Args[xPos], v.Args[yPos]
+			xl, yl := ft.limits[x.ID], ft.limits[y.ID]
+			xConst, xIsConst := xl.constValue()
+			yConst, yIsConst := yl.constValue()
+			switch {
+			case xIsConst && yIsConst:
+			case xIsConst:
+				xPos, yPos = yPos, xPos
+				x, y = y, x
+				xl, yl = yl, xl
+				xConst, yConst = yConst, xConst
+				fallthrough
+			case yIsConst:
+				if yConst != 1 ||
+					xl.umax > 1 {
+					break
+				}
+				zero := b.Func.constVal(bytesizeToConst[x.Type.Size()], x.Type, 0, true)
+				ft.initLimitForNewValue(zero)
+				oldOp := v.Op
+				v.Op = invertEqNeqOp[v.Op]
+				v.SetArg(yPos, zero)
+				if b.Func.pass.debug > 0 {
+					b.Func.Warnl(v.Pos, "Rewrote %v (%v) %v argument is boolean-like; rewrote to %v against 0", v, oldOp, x, v.Op)
+				}
+			}
 		}
 
 		// Fold provable constant results.
 		// Helps in cases where we reuse a value after branching on its equality.
 		for i, arg := range v.Args {
 			lim := ft.limits[arg.ID]
-			var constValue int64
-			switch {
-			case lim.min == lim.max:
-				constValue = lim.min
-			case lim.umin == lim.umax:
-				constValue = int64(lim.umin)
-			default:
+			constValue, ok := lim.constValue()
+			if !ok {
 				continue
 			}
 			switch arg.Op {
