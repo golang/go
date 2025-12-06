@@ -595,7 +595,6 @@ func goLookupIPFiles(name string) (addrs []IPAddr, canonical string) {
 			addrs = append(addrs, addr)
 		}
 	}
-	sortByRFC6724(addrs)
 	return addrs, canonical
 }
 
@@ -607,6 +606,12 @@ func (r *Resolver) goLookupIP(ctx context.Context, network, host string, order h
 }
 
 func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name string, order hostLookupOrder, conf *dnsConfig) (addrs []IPAddr, cname dnsmessage.Name, err error) {
+	addrs, cname, err = r.goLookupIPCNAME(ctx, network, name, order, conf)
+	sortByRFC6724(addrs)
+	return addrs, cname, err
+}
+
+func (r *Resolver) goLookupIPCNAME(ctx context.Context, network, name string, order hostLookupOrder, conf *dnsConfig) (addrs []IPAddr, cname dnsmessage.Name, err error) {
 	if order == hostLookupFilesDNS || order == hostLookupFiles {
 		var canonical string
 		addrs, canonical = goLookupIPFiles(name)
@@ -796,7 +801,6 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name strin
 		// just one is misleading. See also golang.org/issue/6324.
 		lastErr.Name = name
 	}
-	sortByRFC6724(addrs)
 	if len(addrs) == 0 && !(network == "CNAME" && cname.Length > 0) {
 		if order == hostLookupDNSFiles {
 			var canonical string
