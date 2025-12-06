@@ -1123,6 +1123,7 @@ func BenchmarkAppendIntWidth4(b *testing.B) {
 func BenchmarkTimeFormatRFC3339(b *testing.B) {
 	tm := Unix(1661201140, 676836973)
 	buf := make([]byte, 0, 64)
+	b.ReportAllocs()
 	for b.Loop() {
 		buf = tm.AppendFormat(buf[:0], RFC3339)
 	}

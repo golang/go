@@ -53,6 +53,13 @@ func (t Time) appendFormatRFC3339(b []byte, nanos bool) []byte {
 		b = append(b, '+')
 	}
 
+	if zone > 3600 {
+		b = appendInt(b, zone/60, 2)
+		b = append(b, ':')
+		b = appendInt(b, zone%60, 2)
+		return b
+	}
+
 	zone %= 3600
 	b = append(b,
 		tensDigit[zone/60], onesDigit[zone/60],
