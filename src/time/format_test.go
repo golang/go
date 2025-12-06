@@ -1091,3 +1091,40 @@ func FuzzParseRFC3339(f *testing.F) {
 		}
 	})
 }
+
+func TestAppendIntWidth(t *testing.T) {
+	values := []int{0, -1, 1, 10, -10, 99, -99, 9999, -9999, 10001}
+	for _, v := range values {
+		want := AppendInt(nil, v, 4)
+		got := AppendIntWidth4(nil, v)
+		if !bytes.Equal(got, want) {
+			t.Errorf("AppendIntWidth4(%d) = %s, want %s", v, got, want)
+		}
+	}
+}
+
+func BenchmarkAppendIntWidth4(b *testing.B) {
+	b.Run("name=AppendInt", func(b *testing.B) {
+		var buf = make([]byte, 0, 8)
+		b.ResetTimer()
+		for b.Loop() {
+			buf = AppendInt(buf[:0], 360, 4)
+		}
+	})
+	b.Run("name=AppendIntWidth4", func(b *testing.B) {
+		var buf = make([]byte, 0, 8)
+		b.ResetTimer()
+		for b.Loop() {
+			buf = AppendIntWidth4(buf[:0], 360)
+		}
+	})
+}
+
+func BenchmarkTimeFormatRFC3339(b *testing.B) {
+	tm := Unix(1661201140, 676836973)
+	buf := make([]byte, 0, 64)
+	b.ReportAllocs()
+	for b.Loop() {
+		buf = tm.AppendFormat(buf[:0], RFC3339)
+	}
+}
