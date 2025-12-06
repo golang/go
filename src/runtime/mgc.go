@@ -1167,7 +1167,7 @@ top:
 	// endCycle depends on all gcWork cache stats being flushed.
 	// The termination algorithm above ensured that up to
 	// allocations since the ragged barrier.
-	gcController.endCycle(now, int(gomaxprocs), work.userForced)
+	gcController.endCycle(now, int(gomaxprocs))
 
 	// Perform mark termination. This will restart the world.
 	gcMarkTermination(stw)
