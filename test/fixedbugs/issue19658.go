@@ -47,7 +47,7 @@ func main() {
 		Input  string
 		Expect string
 	}{
-		{"", "nil", "panic: panic called with nil argument"},
+		{"", "nil", "panic: runtime error: panic called with nil argument"},
 		{"errors.New", `"test"`, "panic: test"},
 		{"S", "S{}", "panic: s-stringer"},
 		{"byte", "8", "panic: 8"},
