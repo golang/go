@@ -561,7 +561,7 @@ func writeSIMDFeatures(ops []Operation) *bytes.Buffer {
 	}
 	featureSet := make(map[featureKey]struct{})
 	for _, op := range ops {
-		// Generate a feature check for each independant feature in a
+		// Generate a feature check for each independent feature in a
 		// composite feature.
 		for feature := range strings.SplitSeq(op.CPUFeature, ",") {
 			feature = strings.TrimSpace(feature)

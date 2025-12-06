@@ -392,7 +392,7 @@ func (op Operation) GoType() string {
 }
 
 // ImmName returns the name to use for an operation's immediate operand.
-// This can be overriden in the yaml with "name" on an operand,
+// This can be overridden in the yaml with "name" on an operand,
 // otherwise, for now, "constant"
 func (op Operation) ImmName() string {
 	return op.Op0Name("constant")
