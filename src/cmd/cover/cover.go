@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/parser"
+	"go/scanner"
 	"go/token"
 	"internal/coverage"
 	"internal/coverage/encodemeta"
@@ -264,6 +265,123 @@ type File struct {
 	mdb     *encodemeta.CoverageMetaDataBuilder
 	fn      Func
 	pkg     *Package
+}
+
+// BlockSegment represents a segment of a basic block that can be either
+// executable code or commented-out code.
+type BlockSegment struct {
+	start   token.Pos
+	end     token.Pos
+	hasCode bool // true if this segment contains executable code
+}
+
+// splitBlockByComments analyzes a block range and splits it into segments,
+// separating executable code from any commented lines.
+// It uses go/scanner to tokenize the source and identify which lines
+// contain executable code vs. only comments.
+func (f *File) splitBlockByComments(start, end token.Pos) []BlockSegment {
+	startOffset := f.offset(start)
+	endOffset := f.offset(end)
+
+	if startOffset >= endOffset || endOffset > len(f.content) {
+		return []BlockSegment{{start: start, end: end, hasCode: true}}
+	}
+
+	src := f.content[startOffset:endOffset]
+	origFile := f.fset.File(start)
+
+	// Create a new file set for scanning this block
+	fset := token.NewFileSet()
+	file := fset.AddFile("", -1, len(src))
+
+	var s scanner.Scanner
+	s.Init(file, src, nil, scanner.ScanComments)
+
+	// Track which lines have code vs only comments
+	lineHasCode := make(map[int]bool)
+	lineHasComment := make(map[int]bool)
+
+	for {
+		pos, tok, lit := s.Scan()
+		if tok == token.EOF {
+			break
+		}
+
+		// Calculate start and end lines using the standard pattern from go/ast
+		// (e.g., ast.Comment.End() returns pos + len(text))
+		startLine := file.Line(pos)
+		endLine := file.Line(pos + token.Pos(len(lit)) - 1)
+		if endLine < startLine {
+			endLine = startLine
+		}
+
+		if tok == token.COMMENT {
+			// Mark all lines spanned by this comment
+			for line := startLine; line <= endLine; line++ {
+				lineHasComment[line] = true
+			}
+		} else {
+			// Mark all lines spanned by this token as having code
+			for line := startLine; line <= endLine; line++ {
+				lineHasCode[line] = true
+			}
+		}
+	}
+
+	// Build segments based on line transitions
+	// The scanner has already built the line table in file, so we can use
+	// file.LineStart() to get positions directly instead of manual calculation.
+	var segments []BlockSegment
+	var currentSegmentStart token.Pos = start
+	inCommentedSection := false
+
+	totalLines := file.LineCount()
+	for line := 1; line <= totalLines; line++ {
+		hasCode := lineHasCode[line]
+		hasComment := lineHasComment[line]
+
+		if inCommentedSection && hasCode {
+			// End of commented section, start of code section
+			lineOffset := file.Offset(file.LineStart(line))
+			segmentEnd := origFile.Pos(startOffset + lineOffset)
+			segments = append(segments, BlockSegment{
+				start:   currentSegmentStart,
+				end:     segmentEnd,
+				hasCode: false,
+			})
+			currentSegmentStart = segmentEnd
+			inCommentedSection = false
+		} else if !inCommentedSection && !hasCode && hasComment {
+			// End of code section, start of commented section
+			lineOffset := file.Offset(file.LineStart(line))
+			segmentEnd := origFile.Pos(startOffset + lineOffset)
+			if currentSegmentStart < segmentEnd {
+				segments = append(segments, BlockSegment{
+					start:   currentSegmentStart,
+					end:     segmentEnd,
+					hasCode: true,
+				})
+			}
+			currentSegmentStart = segmentEnd
+			inCommentedSection = true
+		}
+	}
+
+	// Add the final segment
+	if currentSegmentStart < end {
+		segments = append(segments, BlockSegment{
+			start:   currentSegmentStart,
+			end:     end,
+			hasCode: !inCommentedSection,
+		})
+	}
+
+	// If no segments were created, return the original block as a code segment
+	if len(segments) == 0 {
+		return []BlockSegment{{start: start, end: end, hasCode: true}}
+	}
+
+	return segments
 }
 
 // findText finds text in the original source, starting at pos.
@@ -755,7 +873,14 @@ func (f *File) addCounters(pos, insertPos, blockEnd token.Pos, list []ast.Stmt, 
 	// Special case: make sure we add a counter to an empty block. Can't do this below
 	// or we will add a counter to an empty statement list after, say, a return statement.
 	if len(list) == 0 {
-		f.edit.Insert(f.offset(insertPos), f.newCounter(insertPos, blockEnd, 0)+";")
+		// Split the empty block by comments and only add counter if there's executable content
+		segments := f.splitBlockByComments(insertPos, blockEnd)
+		for _, segment := range segments {
+			if segment.hasCode {
+				f.edit.Insert(f.offset(segment.start), f.newCounter(segment.start, segment.end, 0)+";")
+				break // Only insert one counter per basic block
+			}
+		}
 		return
 	}
 	// Make a copy of the list, as we may mutate it and should leave the
@@ -805,7 +930,20 @@ func (f *File) addCounters(pos, insertPos, blockEnd token.Pos, list []ast.Stmt, 
 			end = blockEnd
 		}
 		if pos != end { // Can have no source to cover if e.g. blocks abut.
-			f.edit.Insert(f.offset(insertPos), f.newCounter(pos, end, last)+";")
+			// Split the block by comments and create counters only for executable segments
+			segments := f.splitBlockByComments(pos, end)
+			for i, segment := range segments {
+				if segment.hasCode {
+					// Only create counter for executable code segments
+					// Insert counter at the beginning of the executable segment
+					insertOffset := f.offset(segment.start)
+					// For the first segment, use the original insertPos if it's before the segment
+					if i == 0 {
+						insertOffset = f.offset(insertPos)
+					}
+					f.edit.Insert(insertOffset, f.newCounter(segment.start, segment.end, last)+";")
+				}
+			}
 		}
 		list = list[last:]
 		if len(list) == 0 {
