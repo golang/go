@@ -495,9 +495,8 @@ func avoidDNS(name string) bool {
 // nameList returns a list of names for sequential DNS queries.
 func (conf *dnsConfig) nameList(name string) []string {
 	// Check name length (see isDomainName).
-	l := len(name)
-	rooted := l > 0 && name[l-1] == '.'
-	if l > 254 || l == 254 && !rooted {
+	rooted := len(name) > 0 && name[len(name)-1] == '.'
+	if len(name) > 254 || len(name) == 254 && !rooted {
 		return nil
 	}
 
@@ -511,7 +510,6 @@ func (conf *dnsConfig) nameList(name string) []string {
 
 	hasNdots := bytealg.CountString(name, '.') >= conf.ndots
 	name += "."
-	l++
 
 	// Build list of search choices.
 	names := make([]string, 0, 1+len(conf.search))
