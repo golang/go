@@ -46,6 +46,7 @@ import "C"
 import (
 	"bytes"
 	"crypto/cipher"
+	"crypto/internal/alias"
 	"errors"
 	"runtime"
 	"strconv"
@@ -89,7 +90,7 @@ func NewAESCipher(key []byte) (cipher.Block, error) {
 func (c *aesCipher) BlockSize() int { return aesBlockSize }
 
 func (c *aesCipher) Encrypt(dst, src []byte) {
-	if inexactOverlap(dst, src) {
+	if alias.InexactOverlap(dst, src) {
 		panic("crypto/cipher: invalid buffer overlap")
 	}
 	if len(src) < aesBlockSize {
@@ -105,7 +106,7 @@ func (c *aesCipher) Encrypt(dst, src []byte) {
 }
 
 func (c *aesCipher) Decrypt(dst, src []byte) {
-	if inexactOverlap(dst, src) {
+	if alias.InexactOverlap(dst, src) {
 		panic("crypto/cipher: invalid buffer overlap")
 	}
 	if len(src) < aesBlockSize {
@@ -129,7 +130,7 @@ type aesCBC struct {
 func (x *aesCBC) BlockSize() int { return aesBlockSize }
 
 func (x *aesCBC) CryptBlocks(dst, src []byte) {
-	if inexactOverlap(dst, src) {
+	if alias.InexactOverlap(dst, src) {
 		panic("crypto/cipher: invalid buffer overlap")
 	}
 	if len(src)%aesBlockSize != 0 {
@@ -174,7 +175,7 @@ type aesCTR struct {
 }
 
 func (x *aesCTR) XORKeyStream(dst, src []byte) {
-	if inexactOverlap(dst, src) {
+	if alias.InexactOverlap(dst, src) {
 		panic("crypto/cipher: invalid buffer overlap")
 	}
 	if len(dst) < len(src) {
@@ -329,7 +330,7 @@ func (g *aesGCM) Seal(dst, nonce, plaintext, additionalData []byte) []byte {
 	dst = dst[:n+len(plaintext)+gcmTagSize]
 
 	// Check delayed until now to make sure len(dst) is accurate.
-	if inexactOverlap(dst[n:], plaintext) {
+	if alias.InexactOverlap(dst[n:], plaintext) {
 		panic("cipher: invalid buffer overlap")
 	}
 
@@ -368,7 +369,7 @@ func (g *aesGCM) Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, er
 	dst = dst[:n+len(ciphertext)-gcmTagSize]
 
 	// Check delayed until now to make sure len(dst) is accurate.
-	if inexactOverlap(dst[n:], ciphertext) {
+	if alias.InexactOverlap(dst[n:], ciphertext) {
 		panic("cipher: invalid buffer overlap")
 	}
 
@@ -384,17 +385,4 @@ func (g *aesGCM) Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, er
 		return nil, errOpen
 	}
 	return dst[:n+int(outLen)], nil
-}
-
-func anyOverlap(x, y []byte) bool {
-	return len(x) > 0 && len(y) > 0 &&
-		uintptr(unsafe.Pointer(&x[0])) <= uintptr(unsafe.Pointer(&y[len(y)-1])) &&
-		uintptr(unsafe.Pointer(&y[0])) <= uintptr(unsafe.Pointer(&x[len(x)-1]))
-}
-
-func inexactOverlap(x, y []byte) bool {
-	if len(x) == 0 || len(y) == 0 || &x[0] == &y[0] {
-		return false
-	}
-	return anyOverlap(x, y)
 }
