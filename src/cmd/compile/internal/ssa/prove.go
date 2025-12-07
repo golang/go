@@ -428,6 +428,14 @@ func (l limit) ctz(b uint) limit {
 	return noLimit.unsignedMax(uint64(min(uint(bits.TrailingZeros64(fixed)), b)))
 }
 
+// Similar to add, but computes the Len of the limit for bitsize b.
+func (l limit) bitlen(b uint) limit {
+	return noLimit.unsignedMinMax(
+		uint64(bits.Len64(l.umin)),
+		uint64(bits.Len64(l.umax)),
+	)
+}
+
 var noLimit = limit{math.MinInt64, math.MaxInt64, 0, math.MaxUint64}
 
 // a limitFact is a limit known for a particular value.
@@ -1941,26 +1949,10 @@ func (ft *factsTable) flowLimit(v *Value) {
 		min := uint64(bits.OnesCount64(fixedBits))
 		ft.unsignedMinMax(v, min, min+changingBitsCount)
 
-	case OpBitLen64:
-		a := ft.limits[v.Args[0].ID]
-		ft.unsignedMinMax(v,
-			uint64(bits.Len64(a.umin)),
-			uint64(bits.Len64(a.umax)))
-	case OpBitLen32:
-		a := ft.limits[v.Args[0].ID]
-		ft.unsignedMinMax(v,
-			uint64(bits.Len32(uint32(a.umin))),
-			uint64(bits.Len32(uint32(a.umax))))
-	case OpBitLen16:
-		a := ft.limits[v.Args[0].ID]
-		ft.unsignedMinMax(v,
-			uint64(bits.Len16(uint16(a.umin))),
-			uint64(bits.Len16(uint16(a.umax))))
-	case OpBitLen8:
-		a := ft.limits[v.Args[0].ID]
-		ft.unsignedMinMax(v,
-			uint64(bits.Len8(uint8(a.umin))),
-			uint64(bits.Len8(uint8(a.umax))))
+	case OpBitLen64, OpBitLen32, OpBitLen16, OpBitLen8:
+		a := v.Args[0]
+		al := ft.limits[a.ID]
+		ft.newLimit(v, al.bitlen(uint(a.Type.Size())*8))
 
 	// Masks.
 
