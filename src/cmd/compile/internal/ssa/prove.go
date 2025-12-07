@@ -250,6 +250,10 @@ func fitsInBitsU(x uint64, b uint) bool {
 	return x>>b == 0
 }
 
+func noLimit() limit {
+	return noLimitForBitsize(64)
+}
+
 func noLimitForBitsize(bitsize uint) limit {
 	return limit{min: -(1 << (bitsize - 1)), max: 1<<(bitsize-1) - 1, umin: 0, umax: 1<<bitsize - 1}
 }
@@ -302,7 +306,7 @@ func (l limit) add(l2 limit, b uint) limit {
 		return limit{min: int64r, max: int64r, umin: r, umax: r}
 	}
 
-	r := noLimit
+	r := noLimit()
 	min, minOk := safeAdd(l.min, l2.min, b)
 	max, maxOk := safeAdd(l.max, l2.max, b)
 	if minOk && maxOk {
@@ -320,7 +324,7 @@ func (l limit) add(l2 limit, b uint) limit {
 
 // same as add but for subtraction.
 func (l limit) sub(l2 limit, b uint) limit {
-	r := noLimit
+	r := noLimit()
 	min, minOk := safeSub(l.min, l2.max, b)
 	max, maxOk := safeSub(l.max, l2.min, b)
 	if minOk && maxOk {
@@ -338,7 +342,7 @@ func (l limit) sub(l2 limit, b uint) limit {
 
 // same as add but for multiplication.
 func (l limit) mul(l2 limit, b uint) limit {
-	r := noLimit
+	r := noLimit()
 	umaxhi, umaxlo := bits.Mul64(l.umax, l2.umax)
 	if umaxhi == 0 && fitsInBitsU(umaxlo, b) {
 		r.umax = umaxlo
@@ -360,7 +364,7 @@ func (l limit) mul(l2 limit, b uint) limit {
 
 // Similar to add, but compute 1 << l if it fits without overflow in b bits.
 func (l limit) exp2(b uint) limit {
-	r := noLimit
+	r := noLimit()
 	if l.umax < uint64(b) {
 		r.umin = 1 << l.umin
 		r.umax = 1 << l.umax
@@ -423,14 +427,14 @@ func (l limit) ctz(b uint) limit {
 	if l.umin&((1<<varying)-1) != 0 {
 		// there will always be at least one non-zero bit in the varying part
 		varying--
-		return noLimit.unsignedMax(uint64(varying))
+		return noLimit().unsignedMax(uint64(varying))
 	}
-	return noLimit.unsignedMax(uint64(min(uint(bits.TrailingZeros64(fixed)), b)))
+	return noLimit().unsignedMax(uint64(min(uint(bits.TrailingZeros64(fixed)), b)))
 }
 
 // Similar to add, but computes the Len of the limit for bitsize b.
 func (l limit) bitlen(b uint) limit {
-	return noLimit.unsignedMinMax(
+	return noLimit().unsignedMinMax(
 		uint64(bits.Len64(l.umin)),
 		uint64(bits.Len64(l.umax)),
 	)
@@ -456,10 +460,8 @@ func (l limit) popcount(b uint) limit {
 		min++
 	}
 
-	return noLimit.unsignedMinMax(min, max)
+	return noLimit().unsignedMinMax(min, max)
 }
-
-var noLimit = limit{math.MinInt64, math.MaxInt64, 0, math.MaxUint64}
 
 // a limitFact is a limit known for a particular value.
 type limitFact struct {
@@ -611,7 +613,7 @@ func (ft *factsTable) pointerNil(v *Value) {
 	ft.newLimit(v, limit{min: 0, max: 0, umin: 0, umax: 0})
 }
 func (ft *factsTable) pointerNonNil(v *Value) {
-	l := noLimit
+	l := noLimit()
 	l.umin = 1
 	ft.newLimit(v, l)
 }
@@ -1843,15 +1845,15 @@ func initLimit(v *Value) limit {
 		case OpConstNil:
 			return limit{min: 0, max: 0, umin: 0, umax: 0}
 		case OpAddr, OpLocalAddr: // TODO: others?
-			l := noLimit
+			l := noLimit()
 			l.umin = 1
 			return l
 		default:
-			return noLimit
+			return noLimit()
 		}
 	}
 	if !v.Type.IsInteger() {
-		return noLimit
+		return noLimit()
 	}
 
 	// Default limits based on type.
@@ -2063,7 +2065,7 @@ func (ft *factsTable) flowLimit(v *Value) {
 	case OpDiv64u, OpDiv32u, OpDiv16u, OpDiv8u:
 		a := ft.limits[v.Args[0].ID]
 		b := ft.limits[v.Args[1].ID]
-		lim := noLimit
+		lim := noLimit()
 		if b.umax > 0 {
 			lim = lim.unsignedMin(a.umin / b.umax)
 		}
