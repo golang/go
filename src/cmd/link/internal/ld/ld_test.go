@@ -418,6 +418,11 @@ func main() {
 }
 
 func TestRISCVTrampolines(t *testing.T) {
+	// Don't build library for non-standard target in short mode.
+	if testing.Short() && (runtime.GOOS != "linux" || runtime.GOARCH != "riscv64") {
+		t.Skipf("skipping on %s/%s in short mode", runtime.GOOS, runtime.GOARCH)
+	}
+
 	testenv.MustHaveGoBuild(t)
 	t.Parallel()
 
