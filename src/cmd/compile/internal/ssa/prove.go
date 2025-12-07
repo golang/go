@@ -436,6 +436,29 @@ func (l limit) bitlen(b uint) limit {
 	)
 }
 
+// Similar to add, but computes the PopCount of the limit for bitsize b.
+func (l limit) popcount(b uint) limit {
+	fixed, fixedCount := l.unsignedFixedLeadingBits()
+	varying := 64 - fixedCount
+	fixedContribution := uint64(bits.OnesCount64(fixed))
+
+	min := fixedContribution
+	max := fixedContribution + uint64(varying)
+
+	varyingMask := uint64(1)<<varying - 1
+
+	if varyingPartOfUmax := l.umax & varyingMask; uint(bits.OnesCount64(varyingPartOfUmax)) != varying {
+		// there is at least one zero bit in the varying part
+		max--
+	}
+	if varyingPartOfUmin := l.umin & varyingMask; varyingPartOfUmin != 0 {
+		// there is at least one non-zero bit in the varying part
+		min++
+	}
+
+	return noLimit.unsignedMinMax(min, max)
+}
+
 var noLimit = limit{math.MinInt64, math.MaxInt64, 0, math.MaxUint64}
 
 // a limitFact is a limit known for a particular value.
@@ -1942,12 +1965,9 @@ func (ft *factsTable) flowLimit(v *Value) {
 		ft.newLimit(v, al.ctz(uint(a.Type.Size())*8))
 
 	case OpPopCount64, OpPopCount32, OpPopCount16, OpPopCount8:
-		a := ft.limits[v.Args[0].ID]
-		changingBitsCount := uint64(bits.Len64(a.umax ^ a.umin))
-		sharedLeadingMask := ^(uint64(1)<<changingBitsCount - 1)
-		fixedBits := a.umax & sharedLeadingMask
-		min := uint64(bits.OnesCount64(fixedBits))
-		ft.unsignedMinMax(v, min, min+changingBitsCount)
+		a := v.Args[0]
+		al := ft.limits[a.ID]
+		ft.newLimit(v, al.popcount(uint(a.Type.Size())*8))
 
 	case OpBitLen64, OpBitLen32, OpBitLen16, OpBitLen8:
 		a := v.Args[0]

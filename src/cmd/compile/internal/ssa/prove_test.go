@@ -81,3 +81,7 @@ func TestLimitCtzUnsigned(t *testing.T) {
 func TestLimitBitlenUnsigned(t *testing.T) {
 	testLimitUnaryOpUnsigned8(t, "bitlen", limit{-128, 127, 0, 8}, limit.bitlen, func(x uint8) uint8 { return uint8(bits.Len8(x)) })
 }
+
+func TestLimitPopcountUnsigned(t *testing.T) {
+	testLimitUnaryOpUnsigned8(t, "popcount", limit{-128, 127, 0, 8}, limit.popcount, func(x uint8) uint8 { return uint8(bits.OnesCount8(x)) })
+}
