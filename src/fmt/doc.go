@@ -15,6 +15,9 @@ There are four families of printing functions defined by their output destinatio
 [Fprint], [Fprintln] and [Fprintf] write to an [io.Writer]; and
 [Append], [Appendln] and [Appendf] append the output to a byte slice.
 
+[Join] formats each element of a slice using the default format and joins
+them with a separator string.
+
 The functions within each family do the formatting according to the end of the name.
 Print, Sprint, Fprint and Append use the default format for each argument,
 adding a space between operands when neither is a string.

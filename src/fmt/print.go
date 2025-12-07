@@ -336,6 +336,27 @@ func Appendln(b []byte, a ...any) []byte {
 	return b
 }
 
+// Join formats each element of the slice using the default format (%v),
+// joins them with the separator string, and returns the resulting string.
+// If the slice is empty, Join returns an empty string.
+// If the slice is nil, Join returns an empty string.
+func Join[T any](elems []T, sep string) string {
+	if len(elems) == 0 {
+		return ""
+	}
+	if len(elems) == 1 {
+		return Sprint(elems[0])
+	}
+	var result string
+	for i, elem := range elems {
+		if i > 0 {
+			result += sep
+		}
+		result += Sprint(elem)
+	}
+	return result
+}
+
 // getField gets the i'th field of the struct value.
 // If the field itself is a non-nil interface, return a value for
 // the thing inside the interface, not the interface itself.
