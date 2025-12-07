@@ -28,7 +28,11 @@ license that can be found in the LICENSE file.
 
 		const go = new Go();
 		let mod, inst;
-		WebAssembly.instantiateStreaming(fetch("test.wasm"), go.importObject).then((result) => {
+		// Fetch with integrity verification for security
+		// Replace the integrity hash with the actual SHA384 hash of your test.wasm file
+		WebAssembly.instantiateStreaming(fetch("test.wasm", {
+			integrity: "sha384-x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcd"
+		}), go.importObject).then((result) => {
 			mod = result.module;
 			inst = result.instance;
 			document.getElementById("runButton").disabled = false;
