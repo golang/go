@@ -269,6 +269,13 @@ func convertIntWithBitsize[Target uint64 | int64, Source uint64 | int64](x Sourc
 	}
 }
 
+func (l limit) unsignedFixedLeadingBits() (fixed uint64, count uint) {
+	varying := uint(bits.Len64(l.umin ^ l.umax))
+	count = uint(bits.LeadingZeros64(l.umin ^ l.umax))
+	fixed = l.umin &^ (1<<varying - 1)
+	return
+}
+
 // add returns the limit obtained by adding a value with limit l
 // to a value with limit l2. The result must fit in b bits.
 func (l limit) add(l2 limit, b uint) limit {
@@ -402,6 +409,23 @@ func (l limit) com(b uint) limit {
 // Similar to add, but computes the negation of the limit for bitsize b.
 func (l limit) neg(b uint) limit {
 	return l.com(b).add(limit{min: 1, max: 1, umin: 1, umax: 1}, b)
+}
+
+// Similar to add, but computes the TrailingZeros of the limit for bitsize b.
+func (l limit) ctz(b uint) limit {
+	fixed, fixedCount := l.unsignedFixedLeadingBits()
+	if fixedCount == 64 {
+		constResult := min(uint(bits.TrailingZeros64(fixed)), b)
+		return limit{min: int64(constResult), max: int64(constResult), umin: uint64(constResult), umax: uint64(constResult)}
+	}
+
+	varying := 64 - fixedCount
+	if l.umin&((1<<varying)-1) != 0 {
+		// there will always be at least one non-zero bit in the varying part
+		varying--
+		return noLimit.unsignedMax(uint64(varying))
+	}
+	return noLimit.unsignedMax(uint64(min(uint(bits.TrailingZeros64(fixed)), b)))
 }
 
 var noLimit = limit{math.MinInt64, math.MaxInt64, 0, math.MaxUint64}
@@ -1904,26 +1928,10 @@ func (ft *factsTable) flowLimit(v *Value) {
 		}
 
 	// math/bits
-	case OpCtz64:
-		a := ft.limits[v.Args[0].ID]
-		if a.nonzero() {
-			ft.unsignedMax(v, uint64(bits.Len64(a.umax)-1))
-		}
-	case OpCtz32:
-		a := ft.limits[v.Args[0].ID]
-		if a.nonzero() {
-			ft.unsignedMax(v, uint64(bits.Len32(uint32(a.umax))-1))
-		}
-	case OpCtz16:
-		a := ft.limits[v.Args[0].ID]
-		if a.nonzero() {
-			ft.unsignedMax(v, uint64(bits.Len16(uint16(a.umax))-1))
-		}
-	case OpCtz8:
-		a := ft.limits[v.Args[0].ID]
-		if a.nonzero() {
-			ft.unsignedMax(v, uint64(bits.Len8(uint8(a.umax))-1))
-		}
+	case OpCtz64, OpCtz32, OpCtz16, OpCtz8:
+		a := v.Args[0]
+		al := ft.limits[a.ID]
+		ft.newLimit(v, al.ctz(uint(a.Type.Size())*8))
 
 	case OpPopCount64, OpPopCount32, OpPopCount16, OpPopCount8:
 		a := ft.limits[v.Args[0].ID]
