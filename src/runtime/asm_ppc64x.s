@@ -30,9 +30,6 @@ TEXT _rt0_ppc64x_lib(SB),NOSPLIT|NOFRAME,$0
 	MOVD	$runtime·reginit(SB), R12
 	MOVD	R12, CTR
 	BL	(CTR)
-	MOVD	$runtime·libpreinit(SB), R12
-	MOVD	R12, CTR
-	BL	(CTR)
 
 #ifdef GOOS_aix
 	// See runtime/cgo/gcc_aix_ppc64.c
@@ -40,6 +37,10 @@ TEXT _rt0_ppc64x_lib(SB),NOSPLIT|NOFRAME,$0
 	CMP		$0, R3
 	BEQ		done
 #endif
+
+	MOVD	$runtime·libpreinit(SB), R12
+	MOVD	R12, CTR
+	BL	(CTR)
 
 	// Create a new thread to do the runtime initialization and return.
 	// _cgo_sys_thread_create is a C function.
