@@ -14,8 +14,8 @@ package main
 
 extern void Ready();
 
-static int spinning;
-static int released;
+static _Atomic int spinning;
+static _Atomic int released;
 
 static void* enterGoThenSpinTwice(void* arg __attribute__ ((unused))) {
 	Ready();
