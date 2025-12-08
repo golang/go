@@ -50,9 +50,14 @@ func init() {
 // The following must hold for a replacement to occur:
 //
 //  1. All instances of i and s must be in one of these forms.
-//     Binary expressions:
-//     (a): establishing that i < 0: e.g.: i < 0, 0 > i, i == -1, -1 == i
-//     (b): establishing that i > -1: e.g.: i >= 0, 0 <= i, i == 0, 0 == i
+//
+//     Binary expressions must be inequalities equivalent to
+//     "Index failed" (e.g. i < 0) or "Index succeeded" (i >= 0),
+//     or identities such as these (and their negations):
+//
+//     0 > i                 (flips left and right)
+//     i <= -1, -1 >= i      (replace strict inequality by non-strict)
+//     i == -1, -1 == i      (Index() guarantees i < 0 => i == -1)
 //
 //     Slice expressions:
 //     a: s[:i], s[0:i]
@@ -86,9 +91,9 @@ func init() {
 //     use(before, after)
 //     }
 //
-// If the condition involving `i` establishes that i > -1, then we replace it with
-// `if ok“. Variants listed above include i >= 0, i > 0, and i == 0.
-// If the condition is negated (e.g. establishes `i < 0`), we use `if !ok` instead.
+// If the condition involving `i` is equivalent to i >= 0, then we replace it with
+// `if ok“.
+// If the condition is negated (e.g. equivalent to `i < 0`), we use `if !ok` instead.
 // If the slices of `s` match `s[:i]` or `s[i+len(substr):]` or their variants listed above,
 // then we replace them with before and after.
 //
@@ -178,16 +183,16 @@ func stringscut(pass *analysis.Pass) (any, error) {
 			// len(substr)]), then we can replace the call to Index()
 			// with a call to Cut() and use the returned ok, before,
 			// and after variables accordingly.
-			lessZero, greaterNegOne, beforeSlice, afterSlice := checkIdxUses(pass.TypesInfo, index.Uses(iObj), s, substr)
+			negative, nonnegative, beforeSlice, afterSlice := checkIdxUses(pass.TypesInfo, index.Uses(iObj), s, substr)
 
 			// Either there are no uses of before, after, or ok, or some use
 			// of i does not match our criteria - don't suggest a fix.
-			if lessZero == nil && greaterNegOne == nil && beforeSlice == nil && afterSlice == nil {
+			if negative == nil && nonnegative == nil && beforeSlice == nil && afterSlice == nil {
 				continue
 			}
 
 			// If the only uses are ok and !ok, don't suggest a Cut() fix - these should be using Contains()
-			isContains := (len(lessZero) > 0 || len(greaterNegOne) > 0) && len(beforeSlice) == 0 && len(afterSlice) == 0
+			isContains := (len(negative) > 0 || len(nonnegative) > 0) && len(beforeSlice) == 0 && len(afterSlice) == 0
 
 			scope := iObj.Parent()
 			var (
@@ -200,7 +205,7 @@ func stringscut(pass *analysis.Pass) (any, error) {
 
 			// If there will be no uses of ok, before, or after, use the
 			// blank identifier instead.
-			if len(lessZero) == 0 && len(greaterNegOne) == 0 {
+			if len(negative) == 0 && len(nonnegative) == 0 {
 				okVarName = "_"
 			}
 			if len(beforeSlice) == 0 {
@@ -226,8 +231,8 @@ func stringscut(pass *analysis.Pass) (any, error) {
 			replacedFunc := "Cut"
 			if isContains {
 				replacedFunc = "Contains"
-				replace(lessZero, "!"+foundVarName)  // idx < 0   ->  !found
-				replace(greaterNegOne, foundVarName) // idx > -1  ->   found
+				replace(negative, "!"+foundVarName) // idx < 0   ->  !found
+				replace(nonnegative, foundVarName)  // idx > -1  ->   found
 
 				// Replace the assignment with found, and replace the call to
 				// Index or IndexByte with a call to Contains.
@@ -244,8 +249,8 @@ func stringscut(pass *analysis.Pass) (any, error) {
 					NewText: []byte("Contains"),
 				})
 			} else {
-				replace(lessZero, "!"+okVarName)    // idx < 0   ->  !ok
-				replace(greaterNegOne, okVarName)   // idx > -1  ->   ok
+				replace(negative, "!"+okVarName)    // idx < 0   ->  !ok
+				replace(nonnegative, okVarName)     // idx > -1  ->   ok
 				replace(beforeSlice, beforeVarName) // s[:idx]   ->   before
 				replace(afterSlice, afterVarName)   // s[idx+k:] ->   after
 
@@ -364,11 +369,11 @@ func indexArgValid(info *types.Info, index *typeindex.Index, expr ast.Expr, afte
 // one of the following four valid formats, it returns a list of occurrences for
 // each format. If any of the uses do not match one of the formats, return nil
 // for all values, since we should not offer a replacement.
-// 1. lessZero - a condition involving i establishing that i is negative (e.g. i < 0, 0 > i, i == -1, -1 == i)
-// 2. greaterNegOne - a condition involving i establishing that i is non-negative (e.g. i >= 0, 0 <= i, i == 0, 0 == i)
+// 1. negative - a condition equivalent to i < 0
+// 2. nonnegative - a condition equivalent to i >= 0
 // 3. beforeSlice - a slice of `s` that matches either s[:i], s[0:i]
 // 4. afterSlice - a slice of `s` that matches one of: s[i+len(substr):], s[len(substr) + i:], s[i + const], s[k + i] (where k = len(substr))
-func checkIdxUses(info *types.Info, uses iter.Seq[inspector.Cursor], s, substr ast.Expr) (lessZero, greaterNegOne, beforeSlice, afterSlice []ast.Expr) {
+func checkIdxUses(info *types.Info, uses iter.Seq[inspector.Cursor], s, substr ast.Expr) (negative, nonnegative, beforeSlice, afterSlice []ast.Expr) {
 	use := func(cur inspector.Cursor) bool {
 		ek, _ := cur.ParentEdge()
 		n := cur.Parent().Node()
@@ -377,13 +382,13 @@ func checkIdxUses(info *types.Info, uses iter.Seq[inspector.Cursor], s, substr a
 			check := n.(*ast.BinaryExpr)
 			switch checkIdxComparison(info, check) {
 			case -1:
-				lessZero = append(lessZero, check)
+				negative = append(negative, check)
 				return true
 			case 1:
-				greaterNegOne = append(greaterNegOne, check)
+				nonnegative = append(nonnegative, check)
 				return true
 			}
-			// Check does not establish that i < 0 or i > -1.
+			// Check is not equivalent to that i < 0 or i >= 0.
 			// Might be part of an outer slice expression like s[i + k]
 			// which requires a different check.
 			// Check that the thing being sliced is s and that the slice
@@ -421,7 +426,7 @@ func checkIdxUses(info *types.Info, uses iter.Seq[inspector.Cursor], s, substr a
 			return nil, nil, nil, nil
 		}
 	}
-	return lessZero, greaterNegOne, beforeSlice, afterSlice
+	return negative, nonnegative, beforeSlice, afterSlice
 }
 
 // hasModifyingUses reports whether any of the uses involve potential
@@ -451,52 +456,57 @@ func hasModifyingUses(info *types.Info, uses iter.Seq[inspector.Cursor], afterPo
 	return false
 }
 
-// checkIdxComparison reports whether the check establishes that i is negative
-// or non-negative. It returns -1 in the first case, 1 in the second, and 0 if
-// we can confirm neither condition. We assume that a check passed to
-// checkIdxComparison has i as one of its operands.
+// checkIdxComparison reports whether the check is equivalent to i < 0 or its negation, or neither.
+// For equivalent to i >= 0, we only accept this exact BinaryExpr since
+// expressions like i > 0 or i >= 1 make a stronger statement about the value of i.
+// We avoid suggesting a fix in this case since it may result in an invalid
+// transformation (See golang/go#76687).
+// Since strings.Index returns exactly -1 if the substring is not found, we
+// don't need to handle expressions like i <= -3.
+// We return 0 if the expression does not match any of these options.
+// We assume that a check passed to checkIdxComparison has i as one of its operands.
 func checkIdxComparison(info *types.Info, check *ast.BinaryExpr) int {
-	// Check establishes that i is negative.
-	// e.g.: i < 0, 0 > i, i == -1, -1 == i
-	if check.Op == token.LSS && (isNegativeConst(info, check.Y) || isZeroIntConst(info, check.Y)) || //i < (0 or neg)
-		check.Op == token.GTR && (isNegativeConst(info, check.X) || isZeroIntConst(info, check.X)) || // (0 or neg) > i
-		check.Op == token.LEQ && (isNegativeConst(info, check.Y)) || //i <= (neg)
-		check.Op == token.GEQ && (isNegativeConst(info, check.X)) || // (neg) >= i
-		check.Op == token.EQL &&
-			(isNegativeConst(info, check.X) || isNegativeConst(info, check.Y)) { // i == neg; neg == i
-		return -1
+	// Ensure that the constant (if any) is on the right.
+	x, op, y := check.X, check.Op, check.Y
+	if info.Types[x].Value != nil {
+		x, op, y = y, flip(op), x
 	}
-	// Check establishes that i is non-negative.
-	// e.g.: i >= 0, 0 <= i, i == 0, 0 == i
-	if check.Op == token.GTR && (isNonNegativeConst(info, check.Y) || isIntLiteral(info, check.Y, -1)) || // i > (non-neg or -1)
-		check.Op == token.LSS && (isNonNegativeConst(info, check.X) || isIntLiteral(info, check.X, -1)) || // (non-neg or -1) < i
-		check.Op == token.GEQ && isNonNegativeConst(info, check.Y) || // i >= (non-neg)
-		check.Op == token.LEQ && isNonNegativeConst(info, check.X) || // (non-neg) <= i
-		check.Op == token.EQL &&
-			(isNonNegativeConst(info, check.X) || isNonNegativeConst(info, check.Y)) { // i == non-neg; non-neg == i
-		return 1
+
+	yIsInt := func(k int64) bool {
+		return isIntLiteral(info, y, k)
 	}
-	return 0
+
+	if op == token.LSS && yIsInt(0) || // i < 0
+		op == token.EQL && yIsInt(-1) || // i == -1
+		op == token.LEQ && yIsInt(-1) { // i <= -1
+		return -1 // check <=> i is negative
+	}
+
+	if op == token.GEQ && yIsInt(0) || // i >= 0
+		op == token.NEQ && yIsInt(-1) || // i != -1
+		op == token.GTR && yIsInt(-1) { // i > -1
+		return +1 // check <=> i is non-negative
+	}
+
+	return 0 // unknown
 }
 
-// isNegativeConst returns true if the expr is a const int with value < zero.
-func isNegativeConst(info *types.Info, expr ast.Expr) bool {
-	if tv, ok := info.Types[expr]; ok && tv.Value != nil && tv.Value.Kind() == constant.Int {
-		if v, ok := constant.Int64Val(tv.Value); ok {
-			return v < 0
-		}
+// flip changes the comparison token as if the operands were flipped.
+// It is defined only for == and the four inequalities.
+func flip(op token.Token) token.Token {
+	switch op {
+	case token.EQL:
+		return token.EQL // (same)
+	case token.GEQ:
+		return token.LEQ
+	case token.GTR:
+		return token.LSS
+	case token.LEQ:
+		return token.GEQ
+	case token.LSS:
+		return token.GTR
 	}
-	return false
-}
-
-// isNonNegativeConst returns true if the expr is a const int with value >= zero.
-func isNonNegativeConst(info *types.Info, expr ast.Expr) bool {
-	if tv, ok := info.Types[expr]; ok && tv.Value != nil && tv.Value.Kind() == constant.Int {
-		if v, ok := constant.Int64Val(tv.Value); ok {
-			return v >= 0
-		}
-	}
-	return false
+	return op
 }
 
 // isBeforeSlice reports whether the SliceExpr is of the form s[:i] or s[0:i].

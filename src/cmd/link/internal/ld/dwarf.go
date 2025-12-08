@@ -2036,7 +2036,7 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 		t := d.ldr.SymType(idx)
 		switch {
 		case t.IsRODATA(), t.IsDATA(), t.IsNOPTRDATA(),
-			t == sym.STYPE, t == sym.SBSS, t == sym.SNOPTRBSS, t == sym.STLSBSS:
+			t == sym.STYPE, t == sym.SBSS, t == sym.SNOPTRBSS, t == sym.STLSBSS, t == sym.SMODULEDATA:
 			// ok
 		default:
 			continue

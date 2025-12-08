@@ -93,11 +93,13 @@ type FixAction struct {
 //
 // If printDiff (from the -diff flag) is set, instead of updating the
 // files it display the final patch composed of all the cleanly merged
-// fixes.
+// fixes. (It is tempting to factor printDiff as just a variant of
+// writeFile that is provided the old and new content, but it's hard
+// to generate a good summary that way.)
 //
 // TODO(adonovan): handle file-system level aliases such as symbolic
 // links using robustio.FileID.
-func ApplyFixes(actions []FixAction, printDiff, verbose bool) error {
+func ApplyFixes(actions []FixAction, writeFile func(filename string, content []byte) error, printDiff, verbose bool) error {
 	generated := make(map[*token.File]bool)
 
 	// Select fixes to apply.
@@ -264,12 +266,11 @@ fixloop:
 			os.Stdout.WriteString(unified)
 
 		} else {
-			// write
+			// write file
 			totalFiles++
-			// TODO(adonovan): abstract the I/O.
-			if err := os.WriteFile(file, final, 0644); err != nil {
+			if err := writeFile(file, final); err != nil {
 				log.Println(err)
-				continue
+				continue // (causes ApplyFix to return an error)
 			}
 			filesUpdated++
 		}

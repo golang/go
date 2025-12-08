@@ -443,7 +443,8 @@ func isCookieDomainName(s string) bool {
 	}
 
 	if s[0] == '.' {
-		// A cookie a domain attribute may start with a leading dot.
+		// A cookie domain attribute may start with a leading dot.
+		// Per RFC 6265 section 5.2.3, a leading dot is ignored.
 		s = s[1:]
 	}
 	last := byte('.')

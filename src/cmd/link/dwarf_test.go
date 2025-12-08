@@ -156,7 +156,99 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 			if !strings.HasSuffix(line.File.Name, wantFile) || line.Line != wantLine {
 				t.Errorf("%#x is %s:%d, want %s:%d", addr, line.File.Name, line.Line, filepath.Join("...", wantFile), wantLine)
 			}
+
+			if buildmode != "c-archive" {
+				testModuledata(t, d)
+			}
 		})
+	}
+}
+
+// testModuledata makes sure that runtime.firstmoduledata exists
+// and has a type. Issue #76731.
+func testModuledata(t *testing.T, d *dwarf.Data) {
+	const symName = "runtime.firstmoduledata"
+
+	r := d.Reader()
+	for {
+		e, err := r.Next()
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		if e == nil {
+			t.Errorf("did not find DWARF entry for %s", symName)
+			return
+		}
+
+		switch e.Tag {
+		case dwarf.TagVariable:
+			// carry on after switch
+		case dwarf.TagCompileUnit, dwarf.TagSubprogram:
+			continue
+		default:
+			r.SkipChildren()
+			continue
+		}
+
+		nameIdx, typeIdx := -1, -1
+		for i := range e.Field {
+			f := &e.Field[i]
+			switch f.Attr {
+			case dwarf.AttrName:
+				nameIdx = i
+			case dwarf.AttrType:
+				typeIdx = i
+			}
+		}
+		if nameIdx == -1 {
+			// unnamed variable?
+			r.SkipChildren()
+			continue
+		}
+		nameStr, ok := e.Field[nameIdx].Val.(string)
+		if !ok {
+			// variable name is not a string?
+			r.SkipChildren()
+			continue
+		}
+		if nameStr != symName {
+			r.SkipChildren()
+			continue
+		}
+
+		if typeIdx == -1 {
+			t.Errorf("%s has no DWARF type", symName)
+			return
+		}
+		off, ok := e.Field[typeIdx].Val.(dwarf.Offset)
+		if !ok {
+			t.Errorf("unexpected Go type %T for DWARF type for %s; expected %T", e.Field[typeIdx].Val, symName, dwarf.Offset(0))
+			return
+		}
+
+		typeInfo, err := d.Type(off)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+
+		typeName := typeInfo.Common().Name
+		if want := "runtime.moduledata"; typeName != want {
+			t.Errorf("type of %s is %s, expected %s", symName, typeName, want)
+		}
+		for {
+			typedef, ok := typeInfo.(*dwarf.TypedefType)
+			if !ok {
+				break
+			}
+			typeInfo = typedef.Type
+		}
+		if _, ok := typeInfo.(*dwarf.StructType); !ok {
+			t.Errorf("type of %s is %T, expected %T", symName, typeInfo, dwarf.StructType{})
+		}
+
+		return
 	}
 }
 

@@ -14,10 +14,13 @@ import (
 )
 
 func TestGoroutineLeakProfile(t *testing.T) {
-	if strings.Contains(os.Getenv("GOFLAGS"), "mayMoreStackPreempt") {
-		// Some tests have false negatives under mayMoreStackPreempt. This may be a test-only issue,
-		// but needs more investigation.
-		testenv.SkipFlaky(t, 75729)
+	// Some tests have false negatives under mayMoreStackPreempt and mayMoreStackMove.
+	// This may be a test-only issue in that they're just sensitive to scheduling, but it
+	// needs more investigation.
+	for _, cfg := range []string{"mayMoreStackPreempt", "mayMoreStackMove"} {
+		if strings.Contains(os.Getenv("GOFLAGS"), cfg) {
+			testenv.SkipFlaky(t, 75729)
+		}
 	}
 
 	// Goroutine leak test case.
@@ -486,10 +489,7 @@ func TestGoroutineLeakProfile(t *testing.T) {
 	testCases := append(microTests, stressTestCases...)
 	testCases = append(testCases, patternTestCases...)
 
-	// Test cases must not panic or cause fatal exceptions.
-	failStates := regexp.MustCompile(`fatal|panic|DATA RACE`)
-
-	testApp := func(exepath string, testCases []testCase) {
+	runTests := func(exepath string, testCases []testCase) {
 
 		// Build the test program once.
 		exe, err := buildTestProg(t, exepath)
@@ -503,7 +503,7 @@ func TestGoroutineLeakProfile(t *testing.T) {
 
 				cmdEnv := []string{
 					"GODEBUG=asyncpreemptoff=1",
-					"GOEXPERIMENT=greenteagc,goroutineleakprofile",
+					"GOEXPERIMENT=goroutineleakprofile",
 				}
 
 				if tcase.simple {
@@ -515,14 +515,14 @@ func TestGoroutineLeakProfile(t *testing.T) {
 				var output string
 				for i := 0; i < tcase.repetitions; i++ {
 					// Run program for one repetition and get runOutput trace.
-					runOutput := runBuiltTestProg(t, exe, tcase.name, cmdEnv...)
+					runOutput, err := runBuiltTestProgErr(t, exe, tcase.name, cmdEnv...)
 					if len(runOutput) == 0 {
 						t.Errorf("Test %s produced no output. Is the goroutine leak profile collected?", tcase.name)
 					}
-
-					// Zero tolerance policy for fatal exceptions, panics, or data races.
-					if failStates.MatchString(runOutput) {
-						t.Errorf("unexpected fatal exception or panic\noutput:\n%s\n\n", runOutput)
+					// Test cases must not end in a non-zero exit code, or otherwise experience a failure to
+					// actually execute.
+					if err != nil {
+						t.Errorf("unexpected failure\noutput:\n%s\n\n", runOutput)
 					}
 
 					output += runOutput + "\n\n"
@@ -598,6 +598,6 @@ func TestGoroutineLeakProfile(t *testing.T) {
 		}
 	}
 
-	testApp("testgoroutineleakprofile", testCases)
-	testApp("testgoroutineleakprofile/goker", gokerTestCases)
+	runTests("testgoroutineleakprofile", testCases)
+	runTests("testgoroutineleakprofile/goker", gokerTestCases)
 }

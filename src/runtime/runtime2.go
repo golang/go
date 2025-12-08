@@ -945,7 +945,7 @@ type schedt struct {
 	nmfreed      int64          // cumulative number of freed m's
 
 	ngsys        atomic.Int32 // number of system goroutines
-	nGsyscallNoP atomic.Int32 // number of goroutines in syscalls without a P
+	nGsyscallNoP atomic.Int32 // number of goroutines in syscalls without a P but whose M is not isExtraInC
 
 	pidle        puintptr // idle p's
 	npidle       atomic.Int32

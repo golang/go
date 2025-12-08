@@ -20,6 +20,7 @@ import (
 var (
 	logEvents  = flag.Bool("log-events", false, "whether to log high-level events; significantly slows down tests")
 	dumpTraces = flag.Bool("dump-traces", false, "dump traces even on success")
+	allocFree  = flag.Bool("alloc-free", false, "run alloc/free trace experiment tests")
 )
 
 func TestReaderGolden(t *testing.T) {

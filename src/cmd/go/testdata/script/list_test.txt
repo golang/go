@@ -1,0 +1,33 @@
+# This is a script test conversion of TestGoListTest which was added in
+# CL 107916, which added support for go list -test.
+# Test the behavior of go list -test.
+
+[compiler:gccgo] skip 'gccgo does not have standard packages'
+
+go list -test -deps bytes
+stdout '^bytes.test$' # test main
+stdout '^bytes$' # real bytes
+stdout '^bytes \[bytes.test\]$' # test copy of bytes
+stdout 'testing \[bytes.test\]$' # test copy of testing
+! stdout ^testing$ # should not have real testing
+
+go list -test bytes
+stdout '^bytes.test$' # test main
+stdout '^bytes$' # real bytes
+stdout '^bytes \[bytes.test\]$' # test copy of bytes
+! stdout '^testing \[bytes.test\]$' # should not have test copy of testing
+! stdout '^testing$' # should not have real testing
+
+go list -test cmd/buildid cmd/gofmt
+stdout '^cmd/buildid$' # cmd/buildid
+stdout '^cmd/gofmt$' # cmd/gofmt
+stdout '^cmd/gofmt\.test$' # cmd/gofmt test
+! stdout '^cmd/buildid\.test$' # should not have cmd/buildid test
+! stdout '^testing' # should not have real testing
+
+go list -test runtime/cgo
+stdout '^runtime/cgo$' # runtime/cgo
+
+go list -deps -f '{{if .DepOnly}}{{.ImportPath}}{{end}}' sort
+stdout '^internal/reflectlite$' # internal/reflectlite
+! stdout '^sort' # should not have sort

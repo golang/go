@@ -137,6 +137,9 @@ func RunToolScriptTest(t *testing.T, repls []ToolReplacement, scriptsdir string,
 	env := os.Environ()
 	prependToPath(env, filepath.Join(tgr, "bin"))
 	env = setenv(env, "GOROOT", tgr)
+	// GOOS and GOARCH are expected to be set by the toolchain script conditions.
+	env = setenv(env, "GOOS", runtime.GOOS)
+	env = setenv(env, "GOARCH", runtime.GOARCH)
 	for _, repl := range repls {
 		// consistency check
 		chunks := strings.Split(repl.EnvVar, "=")
