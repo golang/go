@@ -1236,7 +1236,7 @@ func (t *tester) externalLinkPIE() bool {
 	return t.internalLinkPIE() && t.extLink()
 }
 
-// supportedBuildMode reports whether the given build mode is supported.
+// supportedBuildmode reports whether the given build mode is supported.
 func (t *tester) supportedBuildmode(mode string) bool {
 	switch mode {
 	case "c-archive", "c-shared", "shared", "plugin", "pie":

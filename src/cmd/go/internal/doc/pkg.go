@@ -526,7 +526,7 @@ func (pkg *Package) funcsDoc() {
 	}
 }
 
-// funcsDoc prints all type documentation, if any, including a header.
+// typesDoc prints all type documentation, if any, including a header.
 func (pkg *Package) typesDoc() {
 	var header bool
 	for _, typ := range pkg.doc.Types {

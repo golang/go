@@ -122,9 +122,9 @@ func (pa *paramsAnalyzer) findParamIdx(n *ir.Name) int {
 
 type testfType func(x ir.Node, param *ir.Name, idx int) (bool, bool)
 
-// paramsAnalyzer invokes function 'testf' on the specified expression
-// 'x' for each parameter, and if the result is TRUE, or's 'flag' into
-// the flags for that param.
+// checkParams invokes function 'testf' on the specified expression 'x'
+// for each parameter. If the result is TRUE, it OR's either 'flag' or 'mayflag'
+// into the flags for that param, depending on whether we are in a conditional context.
 func (pa *paramsAnalyzer) checkParams(x ir.Node, flag ParamPropBits, mayflag ParamPropBits, testf testfType) {
 	for idx, p := range pa.params {
 		if !pa.top[idx] && pa.values[idx] == ParamNoInfo {
