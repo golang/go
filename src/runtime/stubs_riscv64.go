@@ -22,4 +22,6 @@ func unspillArgs()
 
 // getfp returns the frame pointer register of its caller or 0 if not implemented.
 // TODO: Make this a compiler intrinsic
+//
+//go:nosplit
 func getfp() uintptr { return 0 }
