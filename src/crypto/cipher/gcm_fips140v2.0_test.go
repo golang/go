@@ -8,15 +8,32 @@ package cipher_test
 
 import (
 	"crypto/cipher"
+	"crypto/internal/cryptotest"
 	"crypto/internal/fips140"
 	fipsaes "crypto/internal/fips140/aes"
 	"crypto/internal/fips140/aes/gcm"
 	"encoding/binary"
+	"internal/testenv"
 	"math"
 	"testing"
 )
 
 func TestGCMNoncesFIPSV2(t *testing.T) {
+	cryptotest.MustSupportFIPS140(t)
+	if !fips140.Enabled {
+		cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^TestGCMNoncesFIPSV2$", "-test.v")
+		cmd = testenv.CleanCmdEnv(cmd)
+		cmd.Env = append(cmd.Env, "GODEBUG=fips140=on")
+		out, err := cmd.CombinedOutput()
+		if len(out) != 0 {
+			t.Logf("\n%s", out)
+		}
+		if err != nil {
+			t.Errorf("fips140=on subprocess failed: %v", err)
+		}
+		return
+	}
+
 	tryNonce := func(aead cipher.AEAD, nonce []byte) bool {
 		fips140.ResetServiceIndicator()
 		aead.Seal(nil, nonce, []byte("x"), nil)

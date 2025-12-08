@@ -107,31 +107,33 @@ func (g *GCMWithCounterNonce) Seal(dst, nonce, plaintext, data []byte) []byte {
 		panic("crypto/cipher: incorrect nonce length given to GCM")
 	}
 
-	if !g.prefixReady {
-		// The first invocation sets the fixed prefix.
-		g.prefixReady = true
-		g.prefix = byteorder.BEUint32(nonce[:4])
-	}
-	if g.prefix != byteorder.BEUint32(nonce[:4]) {
-		panic("crypto/cipher: GCM nonce prefix changed")
-	}
+	if fips140.Enabled {
+		if !g.prefixReady {
+			// The first invocation sets the fixed prefix.
+			g.prefixReady = true
+			g.prefix = byteorder.BEUint32(nonce[:4])
+		}
+		if g.prefix != byteorder.BEUint32(nonce[:4]) {
+			panic("crypto/cipher: GCM nonce prefix changed")
+		}
 
-	counter := byteorder.BEUint64(nonce[len(nonce)-8:])
-	if !g.startReady {
-		// The first invocation sets the starting counter, if not fixed.
-		g.startReady = true
-		g.start = counter
-	}
-	counter -= g.start
+		counter := byteorder.BEUint64(nonce[len(nonce)-8:])
+		if !g.startReady {
+			// The first invocation sets the starting counter, if not fixed.
+			g.startReady = true
+			g.start = counter
+		}
+		counter -= g.start
 
-	// Ensure the counter is strictly increasing.
-	if counter == math.MaxUint64 {
-		panic("crypto/cipher: counter exhausted")
+		// Ensure the counter is strictly increasing.
+		if counter == math.MaxUint64 {
+			panic("crypto/cipher: counter exhausted")
+		}
+		if counter < g.next {
+			panic("crypto/cipher: counter decreased or remained the same")
+		}
+		g.next = counter + 1
 	}
-	if counter < g.next {
-		panic("crypto/cipher: counter decreased or remained the same")
-	}
-	g.next = counter + 1
 
 	fips140.RecordApproved()
 	return g.g.sealAfterIndicator(dst, nonce, plaintext, data)
@@ -250,28 +252,30 @@ func (g *GCMWithXORCounterNonce) Seal(dst, nonce, plaintext, data []byte) []byte
 		panic("crypto/cipher: incorrect nonce length given to GCM")
 	}
 
-	counter := byteorder.BEUint64(nonce[len(nonce)-8:])
-	if !g.ready {
-		// In the first call, if [GCMWithXORCounterNonce.SetNoncePrefixAndMask]
-		// wasn't used, we assume the counter is zero to learn the XOR mask and
-		// fixed prefix.
-		g.ready = true
-		g.mask = counter
-		g.prefix = byteorder.BEUint32(nonce[:4])
-	}
-	if g.prefix != byteorder.BEUint32(nonce[:4]) {
-		panic("crypto/cipher: GCM nonce prefix changed")
-	}
-	counter ^= g.mask
+	if fips140.Enabled {
+		counter := byteorder.BEUint64(nonce[len(nonce)-8:])
+		if !g.ready {
+			// In the first call, if [GCMWithXORCounterNonce.SetNoncePrefixAndMask]
+			// wasn't used, we assume the counter is zero to learn the XOR mask and
+			// fixed prefix.
+			g.ready = true
+			g.mask = counter
+			g.prefix = byteorder.BEUint32(nonce[:4])
+		}
+		if g.prefix != byteorder.BEUint32(nonce[:4]) {
+			panic("crypto/cipher: GCM nonce prefix changed")
+		}
+		counter ^= g.mask
 
-	// Ensure the counter is strictly increasing.
-	if counter == math.MaxUint64 {
-		panic("crypto/cipher: counter exhausted")
+		// Ensure the counter is strictly increasing.
+		if counter == math.MaxUint64 {
+			panic("crypto/cipher: counter exhausted")
+		}
+		if counter < g.next {
+			panic("crypto/cipher: counter decreased or remained the same")
+		}
+		g.next = counter + 1
 	}
-	if counter < g.next {
-		panic("crypto/cipher: counter decreased or remained the same")
-	}
-	g.next = counter + 1
 
 	fips140.RecordApproved()
 	return g.g.sealAfterIndicator(dst, nonce, plaintext, data)
