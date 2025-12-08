@@ -518,10 +518,31 @@ func (k Kind) String() string {
 	}
 }
 
-// normalize coalesces all possible starting characters of a number as just '0'.
+var normKind = [256]Kind{
+	'n': 'n',
+	'f': 'f',
+	't': 't',
+	'"': '"',
+	'{': '{',
+	'}': '}',
+	'[': '[',
+	']': ']',
+	'-': '0',
+	'0': '0',
+	'1': '0',
+	'2': '0',
+	'3': '0',
+	'4': '0',
+	'5': '0',
+	'6': '0',
+	'7': '0',
+	'8': '0',
+	'9': '0',
+}
+
+// normalize coalesces all possible starting characters of a number as just '0',
+// and converts all invalid kinds to 0.
 func (k Kind) normalize() Kind {
-	if k == '-' || ('0' <= k && k <= '9') {
-		return '0'
-	}
-	return k
+	// A lookup table keeps the inlining cost as low as possible.
+	return normKind[k]
 }
