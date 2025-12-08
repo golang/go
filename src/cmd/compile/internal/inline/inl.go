@@ -445,7 +445,7 @@ type hairyVisitor struct {
 
 func isDebugFn(fn *ir.Func) bool {
 	// if n := fn.Nname; n != nil {
-	// 	if n.Sym().Name == "Int32x8.Transpose8" && n.Sym().Pkg.Path == "simd" {
+	// 	if n.Sym().Name == "Int32x8.Transpose8" && n.Sym().Pkg.Path == "simd/archsimd" {
 	// 		fmt.Printf("isDebugFn '%s' DOT '%s'\n", n.Sym().Pkg.Path, n.Sym().Name)
 	// 		return true
 	// 	}

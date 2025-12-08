@@ -214,6 +214,7 @@ func init() {
 		vloadk  = regInfo{inputs: []regMask{gpspsb, mask, 0}, outputs: vonly}
 		vstorek = regInfo{inputs: []regMask{gpspsb, mask, v, 0}}
 
+		v01     = regInfo{inputs: nil, outputs: vonly}
 		v11     = regInfo{inputs: vonly, outputs: vonly}            // used in resultInArg0 ops, arg0 must not be x15
 		v21     = regInfo{inputs: []regMask{v, vz}, outputs: vonly} // used in resultInArg0 ops, arg0 must not be x15
 		vk      = regInfo{inputs: vzonly, outputs: maskonly}
@@ -232,6 +233,7 @@ func init() {
 		gpv     = regInfo{inputs: []regMask{gp}, outputs: vonly}
 		v2flags = regInfo{inputs: []regMask{vz, vz}}
 
+		w01   = regInfo{inputs: nil, outputs: wonly}
 		w11   = regInfo{inputs: wonly, outputs: wonly} // used in resultInArg0 ops, arg0 must not be x15
 		w21   = regInfo{inputs: []regMask{wz, wz}, outputs: wonly}
 		wk    = regInfo{inputs: wzonly, outputs: maskonly}
@@ -1398,12 +1400,15 @@ func init() {
 		{name: "VPMOVVec64x4ToM", argLength: 1, reg: vk, asm: "VPMOVQ2M"},
 		{name: "VPMOVVec64x8ToM", argLength: 1, reg: wk, asm: "VPMOVQ2M"},
 
+		// X15 is the zero register up to 128-bit. For larger values, we zero it on the fly.
 		{name: "Zero128", argLength: 0, reg: x15only, zeroWidth: true, fixedReg: true},
-		{name: "Zero256", argLength: 0, reg: x15only, zeroWidth: true, fixedReg: true},
-		{name: "Zero512", argLength: 0, reg: x15only, zeroWidth: true, fixedReg: true},
+		{name: "Zero256", argLength: 0, reg: v01, asm: "VPXOR"},
+		{name: "Zero512", argLength: 0, reg: w01, asm: "VPXORQ"},
 
+		// Move a 32/64 bit float to a 128-bit SIMD register.
 		{name: "VMOVSDf2v", argLength: 1, reg: fpv, asm: "VMOVSD"},
 		{name: "VMOVSSf2v", argLength: 1, reg: fpv, asm: "VMOVSS"},
+
 		{name: "VMOVQ", argLength: 1, reg: gpv, asm: "VMOVQ"},
 		{name: "VMOVD", argLength: 1, reg: gpv, asm: "VMOVD"},
 

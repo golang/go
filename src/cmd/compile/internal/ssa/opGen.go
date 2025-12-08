@@ -2510,6 +2510,9 @@ const (
 	OpAMD64VPALIGNRMasked128
 	OpAMD64VPALIGNRMasked256
 	OpAMD64VPALIGNRMasked512
+	OpAMD64VPCLMULQDQ128
+	OpAMD64VPCLMULQDQ256
+	OpAMD64VPCLMULQDQ512
 	OpAMD64VPCMPB512
 	OpAMD64VPCMPBMasked128
 	OpAMD64VPCMPBMasked256
@@ -7448,6 +7451,9 @@ const (
 	OpTruncScaledResidueFloat64x2
 	OpTruncScaledResidueFloat64x4
 	OpTruncScaledResidueFloat64x8
+	OpcarrylessMultiplyUint64x2
+	OpcarrylessMultiplyUint64x4
+	OpcarrylessMultiplyUint64x8
 	OpconcatSelectedConstantFloat32x4
 	OpconcatSelectedConstantFloat64x2
 	OpconcatSelectedConstantGroupedFloat32x8
@@ -20359,24 +20365,22 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:      "Zero256",
-		argLen:    0,
-		zeroWidth: true,
-		fixedReg:  true,
+		name:   "Zero256",
+		argLen: 0,
+		asm:    x86.AVPXOR,
 		reg: regInfo{
 			outputs: []outputInfo{
-				{0, 2147483648}, // X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
 	{
-		name:      "Zero512",
-		argLen:    0,
-		zeroWidth: true,
-		fixedReg:  true,
+		name:   "Zero512",
+		argLen: 0,
+		asm:    x86.AVPXORQ,
 		reg: regInfo{
 			outputs: []outputInfo{
-				{0, 2147483648}, // X15
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
 			},
 		},
 	},
@@ -39205,6 +39209,51 @@ var opcodeTable = [...]opInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
 				{0, 281472829161472},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
 				{1, 281474976645120},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:    "VPCLMULQDQ128",
+		auxType: auxUInt8,
+		argLen:  2,
+		asm:     x86.AVPCLMULQDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VPCLMULQDQ256",
+		auxType: auxUInt8,
+		argLen:  2,
+		asm:     x86.AVPCLMULQDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:    "VPCLMULQDQ512",
+		auxType: auxUInt8,
+		argLen:  2,
+		asm:     x86.AVPCLMULQDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281474976645120}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
 			},
 			outputs: []outputInfo{
 				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
@@ -95846,6 +95895,24 @@ var opcodeTable = [...]opInfo{
 		name:    "TruncScaledResidueFloat64x8",
 		auxType: auxUInt8,
 		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "carrylessMultiplyUint64x2",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "carrylessMultiplyUint64x4",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "carrylessMultiplyUint64x8",
+		auxType: auxUInt8,
+		argLen:  2,
 		generic: true,
 	},
 	{

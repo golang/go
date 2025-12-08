@@ -9,7 +9,7 @@ import (
 	"cmd/internal/sys"
 )
 
-const simdPackage = "simd"
+const simdPackage = "simd/archsimd"
 
 func simdIntrinsics(addF func(pkg, fn string, b intrinsicBuilder, archFamilies ...sys.ArchFamily)) {
 	addF(simdPackage, "Uint8x16.AESDecryptLastRound", opLen2(ssa.OpAESDecryptLastRoundUint8x16, types.TypeVec128), sys.AMD64)
@@ -1309,6 +1309,9 @@ func simdIntrinsics(addF func(pkg, fn string, b intrinsicBuilder, archFamilies .
 	addF(simdPackage, "Int16x32.blendMasked", opLen3(ssa.OpblendMaskedInt16x32, types.TypeVec512), sys.AMD64)
 	addF(simdPackage, "Int32x16.blendMasked", opLen3(ssa.OpblendMaskedInt32x16, types.TypeVec512), sys.AMD64)
 	addF(simdPackage, "Int64x8.blendMasked", opLen3(ssa.OpblendMaskedInt64x8, types.TypeVec512), sys.AMD64)
+	addF(simdPackage, "Uint64x2.carrylessMultiply", opLen2Imm8(ssa.OpcarrylessMultiplyUint64x2, types.TypeVec128, 0), sys.AMD64)
+	addF(simdPackage, "Uint64x4.carrylessMultiply", opLen2Imm8(ssa.OpcarrylessMultiplyUint64x4, types.TypeVec256, 0), sys.AMD64)
+	addF(simdPackage, "Uint64x8.carrylessMultiply", opLen2Imm8(ssa.OpcarrylessMultiplyUint64x8, types.TypeVec512, 0), sys.AMD64)
 	addF(simdPackage, "Float32x4.concatSelectedConstant", opLen2Imm8(ssa.OpconcatSelectedConstantFloat32x4, types.TypeVec128, 0), sys.AMD64)
 	addF(simdPackage, "Float64x2.concatSelectedConstant", opLen2Imm8(ssa.OpconcatSelectedConstantFloat64x2, types.TypeVec128, 0), sys.AMD64)
 	addF(simdPackage, "Int32x4.concatSelectedConstant", opLen2Imm8(ssa.OpconcatSelectedConstantInt32x4, types.TypeVec128, 0), sys.AMD64)
