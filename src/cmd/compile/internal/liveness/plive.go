@@ -1473,6 +1473,7 @@ func (lv *Liveness) emitStackObjects() *obj.LSym {
 	// Format must match runtime/stack.go:stackObjectRecord.
 	x := base.Ctxt.Lookup(lv.fn.LSym.Name + ".stkobj")
 	x.Set(obj.AttrContentAddressable, true)
+	x.Align = 4
 	lv.fn.LSym.Func().StackObjects = x
 	off := 0
 	off = objw.Uintptr(x, off, uint64(len(vars)))

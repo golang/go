@@ -316,6 +316,7 @@ func (lv *argLiveness) emit() *obj.LSym {
 
 	lsym := base.Ctxt.Lookup(lv.fn.LSym.Name + ".argliveinfo")
 	lsym.Set(obj.AttrContentAddressable, true)
+	lsym.Align = 1
 
 	off := objw.Uint8(lsym, 0, argOffsets[0]) // smallest offset that needs liveness info.
 	for idx, live := range livenessMaps {
