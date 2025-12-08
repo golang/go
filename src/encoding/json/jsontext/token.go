@@ -472,29 +472,33 @@ func (t Token) Kind() Kind {
 	}
 }
 
+// A Kind represents the kind of a JSON token.
+//
 // Kind represents each possible JSON token kind with a single byte,
 // which is conveniently the first byte of that kind's grammar
-// with the restriction that numbers always be represented with '0':
-//
-//   - 'n': null
-//   - 'f': false
-//   - 't': true
-//   - '"': string
-//   - '0': number
-//   - '{': object begin
-//   - '}': object end
-//   - '[': array begin
-//   - ']': array end
-//
-// An invalid kind is usually represented using 0,
-// but may be non-zero due to invalid JSON data.
+// with the restriction that numbers always be represented with '0'.
 type Kind byte
+
+const (
+	KindInvalid     Kind = 0   // invalid kind
+	KindNull        Kind = 'n' // null
+	KindFalse       Kind = 'f' // false
+	KindTrue        Kind = 't' // true
+	KindString      Kind = '"' // string
+	KindNumber      Kind = '0' // number
+	KindBeginObject Kind = '{' // begin object
+	KindEndObject   Kind = '}' // end object
+	KindBeginArray  Kind = '[' // begin array
+	KindEndArray    Kind = ']' // end array
+)
 
 const invalidKind Kind = 0
 
 // String prints the kind in a humanly readable fashion.
 func (k Kind) String() string {
 	switch k {
+	case 0:
+		return "invalid"
 	case 'n':
 		return "null"
 	case 'f':
