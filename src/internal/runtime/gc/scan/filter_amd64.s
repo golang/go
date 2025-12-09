@@ -16,6 +16,7 @@ TEXT ·FilterNilAVX512(SB), NOSPLIT, $0-20
 	SUBL R10, R12	// R12 = n - scanned
 	CMPL R12, $8	// Compare (n - scanned) with 8
 	JLT scalar_loop	// If (n - scanned) < 8, jump to the scalar cleanup
+	VPXOR X15, X15, X15	// Zero the high bits of Z15
 
 vector_loop:
 	LEAQ (R8)(R10*8), R13	// R13 = buf[scanned:] address
@@ -61,4 +62,5 @@ scalar_increment_i:
 
 end:
 	MOVL R11, ret+16(FP)
+	VZEROUPPER
 	RET
