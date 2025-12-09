@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"crypto"
 	"crypto/ecdh"
+	"crypto/fips140"
 	"crypto/internal/fips140/drbg"
 	"crypto/internal/rand"
 	"crypto/mlkem"
@@ -168,7 +169,10 @@ func (kem *hybridKEM) NewPublicKey(data []byte) (PublicKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	k, err := kem.curve.NewPublicKey(data[kem.pqEncapsKeySize:])
+	var k *ecdh.PublicKey
+	fips140.WithoutEnforcement(func() { // Hybrid of ML-KEM, which is Approved.
+		k, err = kem.curve.NewPublicKey(data[kem.pqEncapsKeySize:])
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -186,14 +190,20 @@ func (pk *hybridPublicKey) Bytes() []byte {
 var testingOnlyEncapsulate func() (ss, ct []byte)
 
 func (pk *hybridPublicKey) encap() (sharedSecret []byte, encapPub []byte, err error) {
-	skE, err := pk.t.Curve().GenerateKey(rand.Reader)
+	var skE *ecdh.PrivateKey
+	fips140.WithoutEnforcement(func() { // Hybrid of ML-KEM, which is Approved.
+		skE, err = pk.t.Curve().GenerateKey(rand.Reader)
+	})
 	if err != nil {
 		return nil, nil, err
 	}
 	if testingOnlyGenerateKey != nil {
 		skE = testingOnlyGenerateKey()
 	}
-	ssT, err := skE.ECDH(pk.t)
+	var ssT []byte
+	fips140.WithoutEnforcement(func() {
+		ssT, err = skE.ECDH(pk.t)
+	})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -259,7 +269,10 @@ func (kem *hybridKEM) NewPrivateKey(priv []byte) (PrivateKey, error) {
 	seedT := make([]byte, kem.curveSeedSize)
 	for {
 		s.Read(seedT)
-		k, err := kem.curve.NewPrivateKey(seedT)
+		var k ecdh.KeyExchanger
+		fips140.WithoutEnforcement(func() { // Hybrid of ML-KEM, which is Approved.
+			k, err = kem.curve.NewPrivateKey(seedT)
+		})
 		if err != nil {
 			continue
 		}
@@ -326,11 +339,17 @@ func (k *hybridPrivateKey) decap(enc []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	pub, err := k.t.Curve().NewPublicKey(ctT)
+	var pub *ecdh.PublicKey
+	fips140.WithoutEnforcement(func() { // Hybrid of ML-KEM, which is Approved.
+		pub, err = k.t.Curve().NewPublicKey(ctT)
+	})
 	if err != nil {
 		return nil, err
 	}
-	ssT, err := k.t.ECDH(pub)
+	var ssT []byte
+	fips140.WithoutEnforcement(func() {
+		ssT, err = k.t.ECDH(pub)
+	})
 	if err != nil {
 		return nil, err
 	}
