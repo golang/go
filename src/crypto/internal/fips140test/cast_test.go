@@ -78,7 +78,7 @@ func TestAllCASTs(t *testing.T) {
 	// Ask "go list" for the location of the crypto/internal/fips140 tree, as it
 	// might be the unpacked frozen tree selected with GOFIPS140.
 	cmd := testenv.Command(t, testenv.GoToolPath(t), "list", "-f", `{{.Dir}}`, "crypto/internal/fips140")
-	out, err := cmd.CombinedOutput()
+	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
 	if err != nil {
 		t.Fatalf("go list: %v\n%s", err, out)
 	}
@@ -161,13 +161,12 @@ func TestConditionals(t *testing.T) {
 
 func TestCASTPasses(t *testing.T) {
 	moduleStatus(t)
-	testenv.MustHaveExec(t)
 	cryptotest.MustSupportFIPS140(t)
 
 	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^TestConditionals$", "-test.v")
-	cmd.Env = append(cmd.Env, "GODEBUG=fips140=debug")
+	cmd.Env = append(cmd.Environ(), "GODEBUG=fips140=debug")
 	out, err := cmd.CombinedOutput()
-	t.Logf("%s", out)
+	t.Logf("running with GODEBUG=fips140=debug:\n%s", out)
 	if err != nil || !strings.Contains(string(out), "completed successfully") {
 		t.Errorf("TestConditionals did not complete successfully")
 	}
@@ -185,7 +184,6 @@ func TestCASTPasses(t *testing.T) {
 
 func TestCASTFailures(t *testing.T) {
 	moduleStatus(t)
-	testenv.MustHaveExec(t)
 	cryptotest.MustSupportFIPS140(t)
 
 	for _, name := range allCASTs {
@@ -197,11 +195,12 @@ func TestCASTFailures(t *testing.T) {
 			}
 			t.Logf("Testing CAST/PCT failure...")
 			cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^TestConditionals$", "-test.v")
-			cmd.Env = append(cmd.Env, fmt.Sprintf("GODEBUG=failfipscast=%s,fips140=on", name))
+			GODEBUG := fmt.Sprintf("GODEBUG=failfipscast=%s,fips140=on", name)
+			cmd.Env = append(cmd.Environ(), GODEBUG)
 			out, err := cmd.CombinedOutput()
-			t.Logf("%s", out)
+			t.Logf("running with %s:\n%s", GODEBUG, out)
 			if err == nil {
-				t.Fatal("Test did not fail as expected")
+				t.Fatal("test did not fail as expected")
 			}
 			if strings.Contains(string(out), "completed successfully") {
 				t.Errorf("CAST/PCT %s failure did not stop the program", name)

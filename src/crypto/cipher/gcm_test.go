@@ -766,12 +766,9 @@ func TestGCMNoncesFIPSV1(t *testing.T) {
 	cryptotest.MustSupportFIPS140(t)
 	if !fips140.Enabled {
 		cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^TestGCMNoncesFIPSV1$", "-test.v")
-		cmd = testenv.CleanCmdEnv(cmd)
-		cmd.Env = append(cmd.Env, "GODEBUG=fips140=on")
+		cmd.Env = append(cmd.Environ(), "GODEBUG=fips140=on")
 		out, err := cmd.CombinedOutput()
-		if len(out) != 0 {
-			t.Logf("\n%s", out)
-		}
+		t.Logf("running with GODEBUG=fips140=on:\n%s", out)
 		if err != nil {
 			t.Errorf("fips140=on subprocess failed: %v", err)
 		}

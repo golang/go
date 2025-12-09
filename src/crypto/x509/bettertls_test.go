@@ -148,13 +148,9 @@ func betterTLSTestData(t *testing.T) (betterTLS, *CertPool) {
 		"export-tests",
 		"--out", testsJSONPath)
 	cmd.Dir = bettertlsDir
-
 	t.Log("running bettertls export-tests command")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf(
-			"failed to run bettertls export-tests: %v\nOutput: %s",
-			err, output)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to run bettertls export-tests: %v\n%s", err, out)
 	}
 
 	jsonData, err := os.ReadFile(testsJSONPath)

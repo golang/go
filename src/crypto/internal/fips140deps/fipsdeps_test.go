@@ -44,7 +44,7 @@ func TestImports(t *testing.T) {
 {{range .XTestImports -}}
 {{$path}} {{.}}
 {{end -}}`, "crypto/internal/fips140/...")
-	bout, err := cmd.CombinedOutput()
+	bout, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
 	if err != nil {
 		t.Fatalf("go list: %v\n%s", err, bout)
 	}

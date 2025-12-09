@@ -14,6 +14,7 @@ import (
 	"encoding/hex"
 	"encoding/pem"
 	"fmt"
+	"internal/testenv"
 	"math/big"
 	"net"
 	"net/url"
@@ -2044,13 +2045,9 @@ func testChainAgainstOpenSSL(t *testing.T, leaf *Certificate, intermediates, roo
 	}
 	args = append(args, leafFile.Name())
 
-	var output bytes.Buffer
-	cmd := exec.Command("openssl", args...)
-	cmd.Stdout = &output
-	cmd.Stderr = &output
-
-	err := cmd.Run()
-	return output.String(), err
+	cmd := testenv.Command(t, "openssl", args...)
+	out, err := cmd.CombinedOutput()
+	return string(out), err
 }
 
 var rfc2821Tests = []struct {
