@@ -692,7 +692,7 @@ func TestUsesInfo(t *testing.T) {
 
 		// Uses of fields are instantiated.
 		{`package s1; type N[A any] struct{ a A }; var f = N[int]{}.a`, `a`, `field a int`},
-		{`package s1; type N[A any] struct{ a A }; func (r N[B]) m(b B) { r.a = b }`, `a`, `field a B`},
+		{`package s2; type N[A any] struct{ a A }; func (r N[B]) m(b B) { r.a = b }`, `a`, `field a B`},
 
 		// Uses of methods are uses of the instantiated method.
 		{`package m0; type N[A any] int; func (r N[B]) m() { r.n() }; func (N[C]) n() {}`, `n`, `func (m0.N[B]).n()`},
@@ -945,9 +945,9 @@ func TestPredicatesInfo(t *testing.T) {
 		{`package v0; var (a, b int; _ = a + b)`, `a + b`, `value`},
 		{`package v1; var _ = &[]int{1}`, `[]int{…}`, `value`},
 		{`package v2; var _ = func(){}`, `func() {}`, `value`},
-		{`package v4; func f() { _ = f }`, `f`, `value`},
-		{`package v3; var _ *int = nil`, `nil`, `value, nil`},
-		{`package v3; var _ *int = (nil)`, `(nil)`, `value, nil`},
+		{`package v3; func f() { _ = f }`, `f`, `value`},
+		{`package v4; var _ *int = nil`, `nil`, `value, nil`},
+		{`package v5; var _ *int = (nil)`, `(nil)`, `value, nil`},
 
 		// addressable (and thus assignable) operands
 		{`package a0; var (x int; _ = x)`, `x`, `value, addressable, assignable`},
@@ -978,8 +978,8 @@ func TestPredicatesInfo(t *testing.T) {
 		{`package m4; var v int`, `v`, `<missing>`},
 		{`package m5; func f() {}`, `f`, `<missing>`},
 		{`package m6; func _(x int) {}`, `x`, `<missing>`},
-		{`package m6; func _()(x int) { return }`, `x`, `<missing>`},
-		{`package m6; type T int; func (x T) _() {}`, `x`, `<missing>`},
+		{`package m7; func _()(x int) { return }`, `x`, `<missing>`},
+		{`package m8; type T int; func (x T) _() {}`, `x`, `<missing>`},
 	}
 
 	for _, test := range tests {
