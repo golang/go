@@ -507,6 +507,42 @@ func TestValidateRepoRoot(t *testing.T) {
 	}
 }
 
+func TestValidateRepoSubDir(t *testing.T) {
+	tests := []struct {
+		subdir string
+		ok     bool
+	}{
+		{
+			subdir: "",
+			ok:     true,
+		},
+		{
+			subdir: "sub/dir",
+			ok:     true,
+		},
+		{
+			subdir: "/leading/slash",
+			ok:     false,
+		},
+		{
+			subdir: "-leading/hyphen",
+			ok:     false,
+		},
+	}
+
+	for _, test := range tests {
+		err := validateRepoSubDir(test.subdir)
+		ok := err == nil
+		if ok != test.ok {
+			want := "error"
+			if test.ok {
+				want = "nil"
+			}
+			t.Errorf("validateRepoSubDir(%q) = %q, want %s", test.subdir, err, want)
+		}
+	}
+}
+
 var govcsTests = []struct {
 	govcs string
 	path  string
