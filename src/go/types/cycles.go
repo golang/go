@@ -113,7 +113,7 @@ func (check *Checker) finiteSize(t Type) bool {
 	switch t := Unalias(t).(type) {
 	case *Named:
 		if t.stateHas(hasFinite) {
-			return *t.finite
+			return t.finite
 		}
 
 		if i, ok := check.objPathIdx[t.obj]; ok {
@@ -132,7 +132,7 @@ func (check *Checker) finiteSize(t Type) bool {
 		// another call to finiteSize, we have to avoid overwriting t.finite.
 		// Otherwise, the race detector will be tripped.
 		if !t.stateHas(hasFinite) {
-			t.finite = &isFinite
+			t.finite = isFinite
 			t.setState(hasFinite)
 		}
 

@@ -120,7 +120,7 @@ type Named struct {
 	fromRHS    Type           // the declaration RHS this type is derived from
 	tparams    *TypeParamList // type parameters, or nil
 	underlying Type           // underlying type, or nil
-	finite     *bool          // whether the type has finite size, or nil
+	finite     bool           // whether the type has finite size
 
 	// methods declared for this type (not the method set of this type)
 	// Signatures are type-checked lazily.
