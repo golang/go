@@ -294,36 +294,6 @@ func (from Int64x2) ToMask() (to Mask64x2) {
 	return from.NotEqual(Int64x2{})
 }
 
-// ToMask converts from Uint8x16 to Mask8x16, mask element is set to true when the corresponding vector element is non-zero.
-func (from Uint8x16) ToMask() (to Mask8x16) {
-	return from.NotEqual(Uint8x16{})
-}
-
-// ToMask converts from Uint16x8 to Mask16x8, mask element is set to true when the corresponding vector element is non-zero.
-func (from Uint16x8) ToMask() (to Mask16x8) {
-	return from.NotEqual(Uint16x8{})
-}
-
-// ToMask converts from Uint32x4 to Mask32x4, mask element is set to true when the corresponding vector element is non-zero.
-func (from Uint32x4) ToMask() (to Mask32x4) {
-	return from.NotEqual(Uint32x4{})
-}
-
-// ToMask converts from Uint64x2 to Mask64x2, mask element is set to true when the corresponding vector element is non-zero.
-func (from Uint64x2) ToMask() (to Mask64x2) {
-	return from.NotEqual(Uint64x2{})
-}
-
-// ToMask converts from Float32x4 to Mask32x4, mask element is set to true when the corresponding vector element is non-zero.
-func (from Float32x4) ToMask() (to Mask32x4) {
-	return from.NotEqual(Float32x4{})
-}
-
-// ToMask converts from Float64x2 to Mask64x2, mask element is set to true when the corresponding vector element is non-zero.
-func (from Float64x2) ToMask() (to Mask64x2) {
-	return from.NotEqual(Float64x2{})
-}
-
 // ToMask converts from Int8x32 to Mask8x32, mask element is set to true when the corresponding vector element is non-zero.
 func (from Int8x32) ToMask() (to Mask8x32) {
 	return from.NotEqual(Int8x32{})
@@ -344,36 +314,6 @@ func (from Int64x4) ToMask() (to Mask64x4) {
 	return from.NotEqual(Int64x4{})
 }
 
-// ToMask converts from Uint8x32 to Mask8x32, mask element is set to true when the corresponding vector element is non-zero.
-func (from Uint8x32) ToMask() (to Mask8x32) {
-	return from.NotEqual(Uint8x32{})
-}
-
-// ToMask converts from Uint16x16 to Mask16x16, mask element is set to true when the corresponding vector element is non-zero.
-func (from Uint16x16) ToMask() (to Mask16x16) {
-	return from.NotEqual(Uint16x16{})
-}
-
-// ToMask converts from Uint32x8 to Mask32x8, mask element is set to true when the corresponding vector element is non-zero.
-func (from Uint32x8) ToMask() (to Mask32x8) {
-	return from.NotEqual(Uint32x8{})
-}
-
-// ToMask converts from Uint64x4 to Mask64x4, mask element is set to true when the corresponding vector element is non-zero.
-func (from Uint64x4) ToMask() (to Mask64x4) {
-	return from.NotEqual(Uint64x4{})
-}
-
-// ToMask converts from Float32x8 to Mask32x8, mask element is set to true when the corresponding vector element is non-zero.
-func (from Float32x8) ToMask() (to Mask32x8) {
-	return from.NotEqual(Float32x8{})
-}
-
-// ToMask converts from Float64x4 to Mask64x4, mask element is set to true when the corresponding vector element is non-zero.
-func (from Float64x4) ToMask() (to Mask64x4) {
-	return from.NotEqual(Float64x4{})
-}
-
 // ToMask converts from Int8x64 to Mask8x64, mask element is set to true when the corresponding vector element is non-zero.
 func (from Int8x64) ToMask() (to Mask8x64) {
 	return from.NotEqual(Int8x64{})
@@ -392,36 +332,6 @@ func (from Int32x16) ToMask() (to Mask32x16) {
 // ToMask converts from Int64x8 to Mask64x8, mask element is set to true when the corresponding vector element is non-zero.
 func (from Int64x8) ToMask() (to Mask64x8) {
 	return from.NotEqual(Int64x8{})
-}
-
-// ToMask converts from Uint8x64 to Mask8x64, mask element is set to true when the corresponding vector element is non-zero.
-func (from Uint8x64) ToMask() (to Mask8x64) {
-	return from.NotEqual(Uint8x64{})
-}
-
-// ToMask converts from Uint16x32 to Mask16x32, mask element is set to true when the corresponding vector element is non-zero.
-func (from Uint16x32) ToMask() (to Mask16x32) {
-	return from.NotEqual(Uint16x32{})
-}
-
-// ToMask converts from Uint32x16 to Mask32x16, mask element is set to true when the corresponding vector element is non-zero.
-func (from Uint32x16) ToMask() (to Mask32x16) {
-	return from.NotEqual(Uint32x16{})
-}
-
-// ToMask converts from Uint64x8 to Mask64x8, mask element is set to true when the corresponding vector element is non-zero.
-func (from Uint64x8) ToMask() (to Mask64x8) {
-	return from.NotEqual(Uint64x8{})
-}
-
-// ToMask converts from Float32x16 to Mask32x16, mask element is set to true when the corresponding vector element is non-zero.
-func (from Float32x16) ToMask() (to Mask32x16) {
-	return from.NotEqual(Float32x16{})
-}
-
-// ToMask converts from Float64x8 to Mask64x8, mask element is set to true when the corresponding vector element is non-zero.
-func (from Float64x8) ToMask() (to Mask64x8) {
-	return from.NotEqual(Float64x8{})
 }
 
 // Not returns the bitwise complement of x
