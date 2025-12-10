@@ -248,6 +248,7 @@ func init() {
 		{name: "NEGSflags", argLength: 1, reg: gp11flags, typ: "(UInt64,Flags)", asm: "NEGS"}, // -arg0, set flags.
 		{name: "NGCzerocarry", argLength: 1, reg: gp0flags1, typ: "UInt64", asm: "NGC"},       // -1 if borrowing, 0 otherwise.
 		{name: "FABSD", argLength: 1, reg: fp11, asm: "FABSD"},                                // abs(arg0), float64
+		{name: "FABSS", argLength: 1, reg: fp11, asm: "FABSS"},                                // abs(arg0), float32
 		{name: "FNEGS", argLength: 1, reg: fp11, asm: "FNEGS"},                                // -arg0, float32
 		{name: "FNEGD", argLength: 1, reg: fp11, asm: "FNEGD"},                                // -arg0, float64
 		{name: "FSQRTD", argLength: 1, reg: fp11, asm: "FSQRTD"},                              // sqrt(arg0), float64
@@ -495,12 +496,18 @@ func init() {
 		{name: "FCVTSD", argLength: 1, reg: fp11, asm: "FCVTSD"},     // float32 -> float64
 		{name: "FCVTDS", argLength: 1, reg: fp11, asm: "FCVTDS"},     // float64 -> float32
 
-		// floating-point round to integral
-		{name: "FRINTAD", argLength: 1, reg: fp11, asm: "FRINTAD"},
-		{name: "FRINTMD", argLength: 1, reg: fp11, asm: "FRINTMD"},
-		{name: "FRINTND", argLength: 1, reg: fp11, asm: "FRINTND"},
-		{name: "FRINTPD", argLength: 1, reg: fp11, asm: "FRINTPD"},
-		{name: "FRINTZD", argLength: 1, reg: fp11, asm: "FRINTZD"},
+		// 64-bit floating-point round to integers in 64-bit FP format
+		{name: "FRINTAD", argLength: 1, reg: fp11, asm: "FRINTAD"}, // Round (ties Away from zero; 0.5 -> 1, -0.5 -> -1)
+		{name: "FRINTMD", argLength: 1, reg: fp11, asm: "FRINTMD"}, // Floor (towards Minus; 0.5 -> 0, -0.5 -> -1)
+		{name: "FRINTND", argLength: 1, reg: fp11, asm: "FRINTND"}, // Round (ties to even; ; 0.5 -> 0, 1.5 -> 2)
+		{name: "FRINTPD", argLength: 1, reg: fp11, asm: "FRINTPD"}, // Ceil (towards Positive; 0.5 -> 1, -0.5 -> 0)
+		{name: "FRINTZD", argLength: 1, reg: fp11, asm: "FRINTZD"}, // Trunc (towards Zero; 0.5 -> 0, -0.5 -> 0))
+		// 32-bit floating-point round to integers in 32-bit FP format
+		{name: "FRINTAS", argLength: 1, reg: fp11, asm: "FRINTAS"}, // Round (ties Away from zero; 0.5 -> 1, -0.5 -> -1)
+		{name: "FRINTMS", argLength: 1, reg: fp11, asm: "FRINTMS"}, // Floor (towards Minus; 0.5 -> 0, -0.5 -> -1)
+		{name: "FRINTNS", argLength: 1, reg: fp11, asm: "FRINTNS"}, // Round (ties to even; ; 0.5 -> 0, 1.5 -> 2)
+		{name: "FRINTPS", argLength: 1, reg: fp11, asm: "FRINTPS"}, // Ceil (towards Positive; 0.5 -> 1, -0.5 -> 0)
+		{name: "FRINTZS", argLength: 1, reg: fp11, asm: "FRINTZS"}, // Trunc (towards Zero; 0.5 -> 0, -0.5 -> 0))
 
 		// conditional instructions; auxint is
 		// one of the arm64 comparison pseudo-ops (LessThan, LessThanU, etc.)

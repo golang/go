@@ -282,11 +282,13 @@ func Float64ConstantStore(p *float64) {
 
 func WideCeilNarrow(x float32) float32 {
 	// amd64/v3:"ROUNDSS"
+	// arm64:"FRINTPS"
 	return float32(math.Ceil(float64(x)))
 }
 
 func WideTruncNarrow(x float32) float32 {
 	// amd64/v3:"ROUNDSS"
+	// arm64:"FRINTZS"
 	return float32(math.Trunc(float64(x)))
 }
 

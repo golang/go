@@ -963,6 +963,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	case ssa.OpARM64MVN,
 		ssa.OpARM64NEG,
 		ssa.OpARM64FABSD,
+		ssa.OpARM64FABSS,
 		ssa.OpARM64FMOVDfpgp,
 		ssa.OpARM64FMOVDgpfp,
 		ssa.OpARM64FMOVSfpgp,
@@ -1001,7 +1002,12 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpARM64FRINTMD,
 		ssa.OpARM64FRINTND,
 		ssa.OpARM64FRINTPD,
-		ssa.OpARM64FRINTZD:
+		ssa.OpARM64FRINTZD,
+		ssa.OpARM64FRINTAS,
+		ssa.OpARM64FRINTMS,
+		ssa.OpARM64FRINTNS,
+		ssa.OpARM64FRINTPS,
+		ssa.OpARM64FRINTZS:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
