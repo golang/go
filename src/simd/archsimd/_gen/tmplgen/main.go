@@ -796,7 +796,7 @@ func Broadcast{{.VType}}(x {{.Etype}}) {{.VType}} {
 }
 `)
 
-var maskCvtTemplate = templateOf("Mask conversions", `
+var maskCvtTemplate = shapedTemplateOf(intShapes, "Mask conversions", `
 // ToMask converts from {{.Base}}{{.WxC}} to Mask{{.WxC}}, mask element is set to true when the corresponding vector element is non-zero.
 func (from {{.Base}}{{.WxC}}) ToMask() (to Mask{{.WxC}}) {
 	return from.NotEqual({{.Base}}{{.WxC}}{})
