@@ -422,6 +422,7 @@ type moduledata struct {
 	types, etypes         uintptr
 	rodata                uintptr
 	gofunc                uintptr // go.func.*
+	epclntab              uintptr
 
 	textsectmap []textsect
 	typelinks   []int32 // offsets from types

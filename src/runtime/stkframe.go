@@ -269,7 +269,7 @@ func stkobjinit() {
 	ptr := uintptr(unsafe.Pointer(&methodValueCallFrameObjs[0]))
 	var mod *moduledata
 	for datap := &firstmoduledata; datap != nil; datap = datap.next {
-		if datap.gofunc <= ptr && ptr < datap.end {
+		if datap.noptrbss <= ptr && ptr < datap.enoptrbss {
 			mod = datap
 			break
 		}
