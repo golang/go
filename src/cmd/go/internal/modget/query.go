@@ -139,7 +139,10 @@ func errSet(err error) pathSet { return pathSet{err: err} }
 // newQuery returns a new query parsed from the raw argument,
 // which must be either path or path@version.
 func newQuery(raw string) (*query, error) {
-	pattern, rawVers, found := strings.Cut(raw, "@")
+	pattern, rawVers, found, err := modload.ParsePathVersion(raw)
+	if err != nil {
+		return nil, err
+	}
 	if found && (strings.Contains(rawVers, "@") || rawVers == "") {
 		return nil, fmt.Errorf("invalid module version syntax %q", raw)
 	}

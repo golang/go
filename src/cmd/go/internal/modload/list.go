@@ -150,7 +150,11 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 			}
 			continue
 		}
-		if path, vers, found := strings.Cut(arg, "@"); found {
+		path, vers, found, err := ParsePathVersion(arg)
+		if err != nil {
+			base.Fatalf("go: %v", err)
+		}
+		if found {
 			if vers == "upgrade" || vers == "patch" {
 				if _, ok := rs.rootSelected(path); !ok || rs.pruning == unpruned {
 					needFullGraph = true
@@ -176,7 +180,11 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 
 	matchedModule := map[module.Version]bool{}
 	for _, arg := range args {
-		if path, vers, found := strings.Cut(arg, "@"); found {
+		path, vers, found, err := ParsePathVersion(arg)
+		if err != nil {
+			base.Fatalf("go: %v", err)
+		}
+		if found {
 			var current string
 			if mg == nil {
 				current, _ = rs.rootSelected(path)
@@ -318,4 +326,22 @@ func modinfoError(path, vers string, err error) *modinfo.ModuleError {
 	}
 
 	return &modinfo.ModuleError{Err: err.Error()}
+}
+
+// ParsePathVersion parses arg expecting arg to be path@version. If there is no
+// '@' in arg, found is false, vers is "", and path is arg. This mirrors the
+// typical usage of strings.Cut. ParsePathVersion is meant to be a general
+// replacement for strings.Cut in module version parsing. If the version is
+// invalid, an error is returned. The version is considered invalid if it is
+// prefixed with '-' or '/', which can cause security problems when constructing
+// commands to execute that use the version.
+func ParsePathVersion(arg string) (path, vers string, found bool, err error) {
+	path, vers, found = strings.Cut(arg, "@")
+	if !found {
+		return arg, "", false, nil
+	}
+	if len(vers) > 0 && (vers[0] == '-' || vers[0] == '/') {
+		return "", "", false, fmt.Errorf("invalid module version %q", vers)
+	}
+	return path, vers, true, nil
 }

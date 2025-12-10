@@ -668,7 +668,10 @@ func goInstallVersion(minVers string) bool {
 	if !strings.Contains(pkgArg, "@") || build.IsLocalImport(pkgArg) || filepath.IsAbs(pkgArg) {
 		return false
 	}
-	path, version, _ := strings.Cut(pkgArg, "@")
+	path, version, _, err := modload.ParsePathVersion(pkgArg)
+	if err != nil {
+		base.Fatalf("go: %v", err)
+	}
 	if path == "" || version == "" || gover.IsToolchain(path) {
 		return false
 	}
@@ -704,7 +707,7 @@ func goInstallVersion(minVers string) bool {
 		allowed = nil
 	}
 	noneSelected := func(path string) (version string) { return "none" }
-	_, err := modload.QueryPackages(ctx, path, version, noneSelected, allowed)
+	_, err = modload.QueryPackages(ctx, path, version, noneSelected, allowed)
 	if errors.Is(err, gover.ErrTooNew) {
 		// Run early switch, same one go install or go run would eventually do,
 		// if it understood all the command-line flags.
