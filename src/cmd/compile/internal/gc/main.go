@@ -244,7 +244,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	}
 
 	// Apply bloop markings.
-	bloop.BloopWalk(typecheck.Target)
+	bloop.Walk(typecheck.Target)
 
 	// Interleaved devirtualization and inlining.
 	base.Timer.Start("fe", "devirtualize-and-inline")

@@ -325,7 +325,7 @@ func (e editor) edit(n ir.Node) ir.Node {
 	return n
 }
 
-// BloopWalk performs a walk on all functions in the package
+// Walk performs a walk on all functions in the package
 // if it imports testing and wrap the results of all qualified
 // statements in a runtime.KeepAlive intrinsic call. See package
 // doc for more details.
@@ -333,7 +333,7 @@ func (e editor) edit(n ir.Node) ir.Node {
 //	for b.Loop() {...}
 //
 // loop's body.
-func BloopWalk(pkg *ir.Package) {
+func Walk(pkg *ir.Package) {
 	hasTesting := false
 	for _, i := range pkg.Imports {
 		if i.Path == "testing" {
