@@ -109,16 +109,12 @@ func (check *Checker) directCycle(tname *TypeName, pathIdx map[*TypeName]int) {
 // TODO(markfreeman): Can the value cached on Named be used in validType / hasVarSize?
 
 // finiteSize returns whether a type has finite size.
-func (check *Checker) finiteSize(t Type) (b bool) {
+func (check *Checker) finiteSize(t Type) bool {
 	switch t := Unalias(t).(type) {
 	case *Named:
-		if t.finite != nil {
+		if t.stateHas(hasFinite) {
 			return *t.finite
 		}
-
-		defer func() {
-			t.finite = &b
-		}()
 
 		if i, ok := check.objPathIdx[t.obj]; ok {
 			cycle := check.objPath[i:]
@@ -128,7 +124,19 @@ func (check *Checker) finiteSize(t Type) (b bool) {
 		check.push(t.obj)
 		defer check.pop()
 
-		return check.finiteSize(t.fromRHS)
+		isFinite := check.finiteSize(t.fromRHS)
+
+		t.mu.Lock()
+		defer t.mu.Unlock()
+		// Careful, t.finite has lock-free readers. Since we might be racing
+		// another call to finiteSize, we have to avoid overwriting t.finite.
+		// Otherwise, the race detector will be tripped.
+		if !t.stateHas(hasFinite) {
+			t.finite = &isFinite
+			t.setState(hasFinite)
+		}
+
+		return isFinite
 
 	case *Array:
 		// The array length is already computed. If it was a valid length, it
