@@ -338,168 +338,168 @@ func (from Int64x8) ToMask() (to Mask64x8) {
 //
 // Emulated, CPU Feature AVX
 func (x Int8x16) Not() Int8x16 {
-	return x.Xor(x.Equal(x).AsInt8x16())
+	return x.Xor(x.Equal(x).ToInt8x16())
 }
 
 // Not returns the bitwise complement of x
 //
 // Emulated, CPU Feature AVX
 func (x Int16x8) Not() Int16x8 {
-	return x.Xor(x.Equal(x).AsInt16x8())
+	return x.Xor(x.Equal(x).ToInt16x8())
 }
 
 // Not returns the bitwise complement of x
 //
 // Emulated, CPU Feature AVX
 func (x Int32x4) Not() Int32x4 {
-	return x.Xor(x.Equal(x).AsInt32x4())
+	return x.Xor(x.Equal(x).ToInt32x4())
 }
 
 // Not returns the bitwise complement of x
 //
 // Emulated, CPU Feature AVX
 func (x Int64x2) Not() Int64x2 {
-	return x.Xor(x.Equal(x).AsInt64x2())
+	return x.Xor(x.Equal(x).ToInt64x2())
 }
 
 // Not returns the bitwise complement of x
 //
 // Emulated, CPU Feature AVX2
 func (x Int8x32) Not() Int8x32 {
-	return x.Xor(x.Equal(x).AsInt8x32())
+	return x.Xor(x.Equal(x).ToInt8x32())
 }
 
 // Not returns the bitwise complement of x
 //
 // Emulated, CPU Feature AVX2
 func (x Int16x16) Not() Int16x16 {
-	return x.Xor(x.Equal(x).AsInt16x16())
+	return x.Xor(x.Equal(x).ToInt16x16())
 }
 
 // Not returns the bitwise complement of x
 //
 // Emulated, CPU Feature AVX2
 func (x Int32x8) Not() Int32x8 {
-	return x.Xor(x.Equal(x).AsInt32x8())
+	return x.Xor(x.Equal(x).ToInt32x8())
 }
 
 // Not returns the bitwise complement of x
 //
 // Emulated, CPU Feature AVX2
 func (x Int64x4) Not() Int64x4 {
-	return x.Xor(x.Equal(x).AsInt64x4())
+	return x.Xor(x.Equal(x).ToInt64x4())
 }
 
 // Not returns the bitwise complement of x
 //
 // Emulated, CPU Feature AVX512
 func (x Int8x64) Not() Int8x64 {
-	return x.Xor(x.Equal(x).AsInt8x64())
+	return x.Xor(x.Equal(x).ToInt8x64())
 }
 
 // Not returns the bitwise complement of x
 //
 // Emulated, CPU Feature AVX512
 func (x Int16x32) Not() Int16x32 {
-	return x.Xor(x.Equal(x).AsInt16x32())
+	return x.Xor(x.Equal(x).ToInt16x32())
 }
 
 // Not returns the bitwise complement of x
 //
 // Emulated, CPU Feature AVX512
 func (x Int32x16) Not() Int32x16 {
-	return x.Xor(x.Equal(x).AsInt32x16())
+	return x.Xor(x.Equal(x).ToInt32x16())
 }
 
 // Not returns the bitwise complement of x
 //
 // Emulated, CPU Feature AVX512
 func (x Int64x8) Not() Int64x8 {
-	return x.Xor(x.Equal(x).AsInt64x8())
+	return x.Xor(x.Equal(x).ToInt64x8())
 }
 
 // Not returns the bitwise complement of x
 //
 // Emulated, CPU Feature AVX
 func (x Uint8x16) Not() Uint8x16 {
-	return x.Xor(x.Equal(x).AsInt8x16().AsUint8x16())
+	return x.Xor(x.Equal(x).ToInt8x16().AsUint8x16())
 }
 
 // Not returns the bitwise complement of x
 //
 // Emulated, CPU Feature AVX
 func (x Uint16x8) Not() Uint16x8 {
-	return x.Xor(x.Equal(x).AsInt16x8().AsUint16x8())
+	return x.Xor(x.Equal(x).ToInt16x8().AsUint16x8())
 }
 
 // Not returns the bitwise complement of x
 //
 // Emulated, CPU Feature AVX
 func (x Uint32x4) Not() Uint32x4 {
-	return x.Xor(x.Equal(x).AsInt32x4().AsUint32x4())
+	return x.Xor(x.Equal(x).ToInt32x4().AsUint32x4())
 }
 
 // Not returns the bitwise complement of x
 //
 // Emulated, CPU Feature AVX
 func (x Uint64x2) Not() Uint64x2 {
-	return x.Xor(x.Equal(x).AsInt64x2().AsUint64x2())
+	return x.Xor(x.Equal(x).ToInt64x2().AsUint64x2())
 }
 
 // Not returns the bitwise complement of x
 //
 // Emulated, CPU Feature AVX2
 func (x Uint8x32) Not() Uint8x32 {
-	return x.Xor(x.Equal(x).AsInt8x32().AsUint8x32())
+	return x.Xor(x.Equal(x).ToInt8x32().AsUint8x32())
 }
 
 // Not returns the bitwise complement of x
 //
 // Emulated, CPU Feature AVX2
 func (x Uint16x16) Not() Uint16x16 {
-	return x.Xor(x.Equal(x).AsInt16x16().AsUint16x16())
+	return x.Xor(x.Equal(x).ToInt16x16().AsUint16x16())
 }
 
 // Not returns the bitwise complement of x
 //
 // Emulated, CPU Feature AVX2
 func (x Uint32x8) Not() Uint32x8 {
-	return x.Xor(x.Equal(x).AsInt32x8().AsUint32x8())
+	return x.Xor(x.Equal(x).ToInt32x8().AsUint32x8())
 }
 
 // Not returns the bitwise complement of x
 //
 // Emulated, CPU Feature AVX2
 func (x Uint64x4) Not() Uint64x4 {
-	return x.Xor(x.Equal(x).AsInt64x4().AsUint64x4())
+	return x.Xor(x.Equal(x).ToInt64x4().AsUint64x4())
 }
 
 // Not returns the bitwise complement of x
 //
 // Emulated, CPU Feature AVX512
 func (x Uint8x64) Not() Uint8x64 {
-	return x.Xor(x.Equal(x).AsInt8x64().AsUint8x64())
+	return x.Xor(x.Equal(x).ToInt8x64().AsUint8x64())
 }
 
 // Not returns the bitwise complement of x
 //
 // Emulated, CPU Feature AVX512
 func (x Uint16x32) Not() Uint16x32 {
-	return x.Xor(x.Equal(x).AsInt16x32().AsUint16x32())
+	return x.Xor(x.Equal(x).ToInt16x32().AsUint16x32())
 }
 
 // Not returns the bitwise complement of x
 //
 // Emulated, CPU Feature AVX512
 func (x Uint32x16) Not() Uint32x16 {
-	return x.Xor(x.Equal(x).AsInt32x16().AsUint32x16())
+	return x.Xor(x.Equal(x).ToInt32x16().AsUint32x16())
 }
 
 // Not returns the bitwise complement of x
 //
 // Emulated, CPU Feature AVX512
 func (x Uint64x8) Not() Uint64x8 {
-	return x.Xor(x.Equal(x).AsInt64x8().AsUint64x8())
+	return x.Xor(x.Equal(x).ToInt64x8().AsUint64x8())
 }
 
 // String returns a string representation of SIMD vector x

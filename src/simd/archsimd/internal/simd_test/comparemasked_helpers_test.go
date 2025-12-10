@@ -26,7 +26,7 @@ func testInt8x16CompareMasked(t *testing.T,
 		b := archsimd.LoadInt8x16Slice(y)
 		k := archsimd.LoadInt8x16Slice(toVect[int8](m)).ToMask()
 		g := make([]int8, n)
-		f(a, b, k).AsInt8x16().StoreSlice(g)
+		f(a, b, k).ToInt8x16().StoreSlice(g)
 		w := want(x, y)
 		for i := range m {
 			if !m[i] {
@@ -50,7 +50,7 @@ func testInt16x8CompareMasked(t *testing.T,
 		b := archsimd.LoadInt16x8Slice(y)
 		k := archsimd.LoadInt16x8Slice(toVect[int16](m)).ToMask()
 		g := make([]int16, n)
-		f(a, b, k).AsInt16x8().StoreSlice(g)
+		f(a, b, k).ToInt16x8().StoreSlice(g)
 		w := want(x, y)
 		for i := range m {
 			if !m[i] {
@@ -74,7 +74,7 @@ func testInt32x4CompareMasked(t *testing.T,
 		b := archsimd.LoadInt32x4Slice(y)
 		k := archsimd.LoadInt32x4Slice(toVect[int32](m)).ToMask()
 		g := make([]int32, n)
-		f(a, b, k).AsInt32x4().StoreSlice(g)
+		f(a, b, k).ToInt32x4().StoreSlice(g)
 		w := want(x, y)
 		for i := range m {
 			if !m[i] {
@@ -98,7 +98,7 @@ func testInt64x2CompareMasked(t *testing.T,
 		b := archsimd.LoadInt64x2Slice(y)
 		k := archsimd.LoadInt64x2Slice(toVect[int64](m)).ToMask()
 		g := make([]int64, n)
-		f(a, b, k).AsInt64x2().StoreSlice(g)
+		f(a, b, k).ToInt64x2().StoreSlice(g)
 		w := want(x, y)
 		for i := range m {
 			if !m[i] {
@@ -122,7 +122,7 @@ func testUint8x16CompareMasked(t *testing.T,
 		b := archsimd.LoadUint8x16Slice(y)
 		k := archsimd.LoadInt8x16Slice(toVect[int8](m)).ToMask()
 		g := make([]int8, n)
-		f(a, b, k).AsInt8x16().StoreSlice(g)
+		f(a, b, k).ToInt8x16().StoreSlice(g)
 		w := want(x, y)
 		for i := range m {
 			if !m[i] {
@@ -146,7 +146,7 @@ func testUint16x8CompareMasked(t *testing.T,
 		b := archsimd.LoadUint16x8Slice(y)
 		k := archsimd.LoadInt16x8Slice(toVect[int16](m)).ToMask()
 		g := make([]int16, n)
-		f(a, b, k).AsInt16x8().StoreSlice(g)
+		f(a, b, k).ToInt16x8().StoreSlice(g)
 		w := want(x, y)
 		for i := range m {
 			if !m[i] {
@@ -170,7 +170,7 @@ func testUint32x4CompareMasked(t *testing.T,
 		b := archsimd.LoadUint32x4Slice(y)
 		k := archsimd.LoadInt32x4Slice(toVect[int32](m)).ToMask()
 		g := make([]int32, n)
-		f(a, b, k).AsInt32x4().StoreSlice(g)
+		f(a, b, k).ToInt32x4().StoreSlice(g)
 		w := want(x, y)
 		for i := range m {
 			if !m[i] {
@@ -194,7 +194,7 @@ func testUint64x2CompareMasked(t *testing.T,
 		b := archsimd.LoadUint64x2Slice(y)
 		k := archsimd.LoadInt64x2Slice(toVect[int64](m)).ToMask()
 		g := make([]int64, n)
-		f(a, b, k).AsInt64x2().StoreSlice(g)
+		f(a, b, k).ToInt64x2().StoreSlice(g)
 		w := want(x, y)
 		for i := range m {
 			if !m[i] {
@@ -218,7 +218,7 @@ func testFloat32x4CompareMasked(t *testing.T,
 		b := archsimd.LoadFloat32x4Slice(y)
 		k := archsimd.LoadInt32x4Slice(toVect[int32](m)).ToMask()
 		g := make([]int32, n)
-		f(a, b, k).AsInt32x4().StoreSlice(g)
+		f(a, b, k).ToInt32x4().StoreSlice(g)
 		w := want(x, y)
 		for i := range m {
 			if !m[i] {
@@ -242,7 +242,7 @@ func testFloat64x2CompareMasked(t *testing.T,
 		b := archsimd.LoadFloat64x2Slice(y)
 		k := archsimd.LoadInt64x2Slice(toVect[int64](m)).ToMask()
 		g := make([]int64, n)
-		f(a, b, k).AsInt64x2().StoreSlice(g)
+		f(a, b, k).ToInt64x2().StoreSlice(g)
 		w := want(x, y)
 		for i := range m {
 			if !m[i] {
@@ -266,7 +266,7 @@ func testInt8x32CompareMasked(t *testing.T,
 		b := archsimd.LoadInt8x32Slice(y)
 		k := archsimd.LoadInt8x32Slice(toVect[int8](m)).ToMask()
 		g := make([]int8, n)
-		f(a, b, k).AsInt8x32().StoreSlice(g)
+		f(a, b, k).ToInt8x32().StoreSlice(g)
 		w := want(x, y)
 		for i := range m {
 			if !m[i] {
@@ -290,7 +290,7 @@ func testInt16x16CompareMasked(t *testing.T,
 		b := archsimd.LoadInt16x16Slice(y)
 		k := archsimd.LoadInt16x16Slice(toVect[int16](m)).ToMask()
 		g := make([]int16, n)
-		f(a, b, k).AsInt16x16().StoreSlice(g)
+		f(a, b, k).ToInt16x16().StoreSlice(g)
 		w := want(x, y)
 		for i := range m {
 			if !m[i] {
@@ -314,7 +314,7 @@ func testInt32x8CompareMasked(t *testing.T,
 		b := archsimd.LoadInt32x8Slice(y)
 		k := archsimd.LoadInt32x8Slice(toVect[int32](m)).ToMask()
 		g := make([]int32, n)
-		f(a, b, k).AsInt32x8().StoreSlice(g)
+		f(a, b, k).ToInt32x8().StoreSlice(g)
 		w := want(x, y)
 		for i := range m {
 			if !m[i] {
@@ -338,7 +338,7 @@ func testInt64x4CompareMasked(t *testing.T,
 		b := archsimd.LoadInt64x4Slice(y)
 		k := archsimd.LoadInt64x4Slice(toVect[int64](m)).ToMask()
 		g := make([]int64, n)
-		f(a, b, k).AsInt64x4().StoreSlice(g)
+		f(a, b, k).ToInt64x4().StoreSlice(g)
 		w := want(x, y)
 		for i := range m {
 			if !m[i] {
@@ -362,7 +362,7 @@ func testUint8x32CompareMasked(t *testing.T,
 		b := archsimd.LoadUint8x32Slice(y)
 		k := archsimd.LoadInt8x32Slice(toVect[int8](m)).ToMask()
 		g := make([]int8, n)
-		f(a, b, k).AsInt8x32().StoreSlice(g)
+		f(a, b, k).ToInt8x32().StoreSlice(g)
 		w := want(x, y)
 		for i := range m {
 			if !m[i] {
@@ -386,7 +386,7 @@ func testUint16x16CompareMasked(t *testing.T,
 		b := archsimd.LoadUint16x16Slice(y)
 		k := archsimd.LoadInt16x16Slice(toVect[int16](m)).ToMask()
 		g := make([]int16, n)
-		f(a, b, k).AsInt16x16().StoreSlice(g)
+		f(a, b, k).ToInt16x16().StoreSlice(g)
 		w := want(x, y)
 		for i := range m {
 			if !m[i] {
@@ -410,7 +410,7 @@ func testUint32x8CompareMasked(t *testing.T,
 		b := archsimd.LoadUint32x8Slice(y)
 		k := archsimd.LoadInt32x8Slice(toVect[int32](m)).ToMask()
 		g := make([]int32, n)
-		f(a, b, k).AsInt32x8().StoreSlice(g)
+		f(a, b, k).ToInt32x8().StoreSlice(g)
 		w := want(x, y)
 		for i := range m {
 			if !m[i] {
@@ -434,7 +434,7 @@ func testUint64x4CompareMasked(t *testing.T,
 		b := archsimd.LoadUint64x4Slice(y)
 		k := archsimd.LoadInt64x4Slice(toVect[int64](m)).ToMask()
 		g := make([]int64, n)
-		f(a, b, k).AsInt64x4().StoreSlice(g)
+		f(a, b, k).ToInt64x4().StoreSlice(g)
 		w := want(x, y)
 		for i := range m {
 			if !m[i] {
@@ -458,7 +458,7 @@ func testFloat32x8CompareMasked(t *testing.T,
 		b := archsimd.LoadFloat32x8Slice(y)
 		k := archsimd.LoadInt32x8Slice(toVect[int32](m)).ToMask()
 		g := make([]int32, n)
-		f(a, b, k).AsInt32x8().StoreSlice(g)
+		f(a, b, k).ToInt32x8().StoreSlice(g)
 		w := want(x, y)
 		for i := range m {
 			if !m[i] {
@@ -482,7 +482,7 @@ func testFloat64x4CompareMasked(t *testing.T,
 		b := archsimd.LoadFloat64x4Slice(y)
 		k := archsimd.LoadInt64x4Slice(toVect[int64](m)).ToMask()
 		g := make([]int64, n)
-		f(a, b, k).AsInt64x4().StoreSlice(g)
+		f(a, b, k).ToInt64x4().StoreSlice(g)
 		w := want(x, y)
 		for i := range m {
 			if !m[i] {
@@ -506,7 +506,7 @@ func testInt8x64CompareMasked(t *testing.T,
 		b := archsimd.LoadInt8x64Slice(y)
 		k := archsimd.LoadInt8x64Slice(toVect[int8](m)).ToMask()
 		g := make([]int8, n)
-		f(a, b, k).AsInt8x64().StoreSlice(g)
+		f(a, b, k).ToInt8x64().StoreSlice(g)
 		w := want(x, y)
 		for i := range m {
 			if !m[i] {
@@ -530,7 +530,7 @@ func testInt16x32CompareMasked(t *testing.T,
 		b := archsimd.LoadInt16x32Slice(y)
 		k := archsimd.LoadInt16x32Slice(toVect[int16](m)).ToMask()
 		g := make([]int16, n)
-		f(a, b, k).AsInt16x32().StoreSlice(g)
+		f(a, b, k).ToInt16x32().StoreSlice(g)
 		w := want(x, y)
 		for i := range m {
 			if !m[i] {
@@ -554,7 +554,7 @@ func testInt32x16CompareMasked(t *testing.T,
 		b := archsimd.LoadInt32x16Slice(y)
 		k := archsimd.LoadInt32x16Slice(toVect[int32](m)).ToMask()
 		g := make([]int32, n)
-		f(a, b, k).AsInt32x16().StoreSlice(g)
+		f(a, b, k).ToInt32x16().StoreSlice(g)
 		w := want(x, y)
 		for i := range m {
 			if !m[i] {
@@ -578,7 +578,7 @@ func testInt64x8CompareMasked(t *testing.T,
 		b := archsimd.LoadInt64x8Slice(y)
 		k := archsimd.LoadInt64x8Slice(toVect[int64](m)).ToMask()
 		g := make([]int64, n)
-		f(a, b, k).AsInt64x8().StoreSlice(g)
+		f(a, b, k).ToInt64x8().StoreSlice(g)
 		w := want(x, y)
 		for i := range m {
 			if !m[i] {
@@ -602,7 +602,7 @@ func testUint8x64CompareMasked(t *testing.T,
 		b := archsimd.LoadUint8x64Slice(y)
 		k := archsimd.LoadInt8x64Slice(toVect[int8](m)).ToMask()
 		g := make([]int8, n)
-		f(a, b, k).AsInt8x64().StoreSlice(g)
+		f(a, b, k).ToInt8x64().StoreSlice(g)
 		w := want(x, y)
 		for i := range m {
 			if !m[i] {
@@ -626,7 +626,7 @@ func testUint16x32CompareMasked(t *testing.T,
 		b := archsimd.LoadUint16x32Slice(y)
 		k := archsimd.LoadInt16x32Slice(toVect[int16](m)).ToMask()
 		g := make([]int16, n)
-		f(a, b, k).AsInt16x32().StoreSlice(g)
+		f(a, b, k).ToInt16x32().StoreSlice(g)
 		w := want(x, y)
 		for i := range m {
 			if !m[i] {
@@ -650,7 +650,7 @@ func testUint32x16CompareMasked(t *testing.T,
 		b := archsimd.LoadUint32x16Slice(y)
 		k := archsimd.LoadInt32x16Slice(toVect[int32](m)).ToMask()
 		g := make([]int32, n)
-		f(a, b, k).AsInt32x16().StoreSlice(g)
+		f(a, b, k).ToInt32x16().StoreSlice(g)
 		w := want(x, y)
 		for i := range m {
 			if !m[i] {
@@ -674,7 +674,7 @@ func testUint64x8CompareMasked(t *testing.T,
 		b := archsimd.LoadUint64x8Slice(y)
 		k := archsimd.LoadInt64x8Slice(toVect[int64](m)).ToMask()
 		g := make([]int64, n)
-		f(a, b, k).AsInt64x8().StoreSlice(g)
+		f(a, b, k).ToInt64x8().StoreSlice(g)
 		w := want(x, y)
 		for i := range m {
 			if !m[i] {
@@ -698,7 +698,7 @@ func testFloat32x16CompareMasked(t *testing.T,
 		b := archsimd.LoadFloat32x16Slice(y)
 		k := archsimd.LoadInt32x16Slice(toVect[int32](m)).ToMask()
 		g := make([]int32, n)
-		f(a, b, k).AsInt32x16().StoreSlice(g)
+		f(a, b, k).ToInt32x16().StoreSlice(g)
 		w := want(x, y)
 		for i := range m {
 			if !m[i] {
@@ -722,7 +722,7 @@ func testFloat64x8CompareMasked(t *testing.T,
 		b := archsimd.LoadFloat64x8Slice(y)
 		k := archsimd.LoadInt64x8Slice(toVect[int64](m)).ToMask()
 		g := make([]int64, n)
-		f(a, b, k).AsInt64x8().StoreSlice(g)
+		f(a, b, k).ToInt64x8().StoreSlice(g)
 		w := want(x, y)
 		for i := range m {
 			if !m[i] {

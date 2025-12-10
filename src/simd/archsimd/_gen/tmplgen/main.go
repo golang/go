@@ -440,7 +440,7 @@ func test{{.VType}}Compare(t *testing.T, f func(_, _ archsimd.{{.VType}}) archsi
 		a := archsimd.Load{{.VType}}Slice(x)
 		b := archsimd.Load{{.VType}}Slice(y)
 		g := make([]int{{.EWidth}}, n)
-		f(a, b).AsInt{{.WxC}}().StoreSlice(g)
+		f(a, b).ToInt{{.WxC}}().StoreSlice(g)
 		w := want(x, y)
 		return checkSlicesLogInput(t, s64(g), w, 0.0, func() {t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); })
 	})
@@ -462,7 +462,7 @@ func test{{.VType}}CompareMasked(t *testing.T,
 		b := archsimd.Load{{.VType}}Slice(y)
 		k := archsimd.LoadInt{{.WxC}}Slice(toVect[int{{.EWidth}}](m)).ToMask()
 		g := make([]int{{.EWidth}}, n)
-		f(a, b, k).AsInt{{.WxC}}().StoreSlice(g)
+		f(a, b, k).ToInt{{.WxC}}().StoreSlice(g)
 		w := want(x, y)
 		for i := range m {
 			if !m[i] {
@@ -591,24 +591,24 @@ func (x {{.VType}}) Less(y {{.VType}}) Mask{{.WxC}} {
 //
 // Emulated, CPU Feature {{.CPUfeature}}
 func (x {{.VType}}) GreaterEqual(y {{.VType}}) Mask{{.WxC}} {
-	ones := x.Equal(x).AsInt{{.WxC}}()
-	return y.Greater(x).AsInt{{.WxC}}().Xor(ones).asMask()
+	ones := x.Equal(x).ToInt{{.WxC}}()
+	return y.Greater(x).ToInt{{.WxC}}().Xor(ones).asMask()
 }
 
 // LessEqual returns a mask whose elements indicate whether x <= y
 //
 // Emulated, CPU Feature {{.CPUfeature}}
 func (x {{.VType}}) LessEqual(y {{.VType}}) Mask{{.WxC}} {
-	ones := x.Equal(x).AsInt{{.WxC}}()
-	return x.Greater(y).AsInt{{.WxC}}().Xor(ones).asMask()
+	ones := x.Equal(x).ToInt{{.WxC}}()
+	return x.Greater(y).ToInt{{.WxC}}().Xor(ones).asMask()
 }
 
 // NotEqual returns a mask whose elements indicate whether x != y
 //
 // Emulated, CPU Feature {{.CPUfeature}}
 func (x {{.VType}}) NotEqual(y {{.VType}}) Mask{{.WxC}} {
-	ones := x.Equal(x).AsInt{{.WxC}}()
-	return x.Equal(y).AsInt{{.WxC}}().Xor(ones).asMask()	
+	ones := x.Equal(x).ToInt{{.WxC}}()
+	return x.Equal(y).ToInt{{.WxC}}().Xor(ones).asMask()	
 }
 `)
 
@@ -617,7 +617,7 @@ var bitWiseIntTemplate = shapedTemplateOf(intShapes, "bitwise int complement", `
 //
 // Emulated, CPU Feature {{.CPUfeature}}
 func (x {{.VType}}) Not() {{.VType}} {
-	return x.Xor(x.Equal(x).As{{.VType}}())
+	return x.Xor(x.Equal(x).ToInt{{.WxC}}())
 }
 `)
 
@@ -626,7 +626,7 @@ var bitWiseUintTemplate = shapedTemplateOf(uintShapes, "bitwise uint complement"
 //
 // Emulated, CPU Feature {{.CPUfeature}}
 func (x {{.VType}}) Not() {{.VType}} {
-	return x.Xor(x.Equal(x).AsInt{{.WxC}}().As{{.VType}}())
+	return x.Xor(x.Equal(x).ToInt{{.WxC}}().As{{.VType}}())
 }
 `)
 
@@ -651,7 +651,7 @@ func (x {{.VType}}) Greater(y {{.VType}}) Mask{{.WxC}} {
 {{- if eq .EWidth 8}}
 	signs := BroadcastInt{{.WxC}}(-1 << ({{.EWidth}}-1))
 {{- else}}
-	ones := x.Equal(x).AsInt{{.WxC}}()
+	ones := x.Equal(x).ToInt{{.WxC}}()
 	signs := ones.ShiftAllLeft({{.EWidth}}-1)
 {{- end }}
 	return a.Xor(signs).Greater(b.Xor(signs))
@@ -665,7 +665,7 @@ func (x {{.VType}}) Less(y {{.VType}}) Mask{{.WxC}} {
 {{- if eq .EWidth 8}}
 	signs := BroadcastInt{{.WxC}}(-1 << ({{.EWidth}}-1))
 {{- else}}
-	ones := x.Equal(x).AsInt{{.WxC}}()
+	ones := x.Equal(x).ToInt{{.WxC}}()
 	signs := ones.ShiftAllLeft({{.EWidth}}-1)
 {{- end }}
 	return b.Xor(signs).Greater(a.Xor(signs))
@@ -676,13 +676,13 @@ func (x {{.VType}}) Less(y {{.VType}}) Mask{{.WxC}} {
 // Emulated, CPU Feature {{.CPUfeatureAVX2if8}}
 func (x {{.VType}}) GreaterEqual(y {{.VType}}) Mask{{.WxC}} {
 	a, b := x.AsInt{{.WxC}}(), y.AsInt{{.WxC}}()
-	ones := x.Equal(x).AsInt{{.WxC}}()
+	ones := x.Equal(x).ToInt{{.WxC}}()
 {{- if eq .EWidth 8}}
 	signs := BroadcastInt{{.WxC}}(-1 << ({{.EWidth}}-1))
 {{- else}}
 	signs := ones.ShiftAllLeft({{.EWidth}}-1)
 {{- end }}
-	return b.Xor(signs).Greater(a.Xor(signs)).AsInt{{.WxC}}().Xor(ones).asMask()
+	return b.Xor(signs).Greater(a.Xor(signs)).ToInt{{.WxC}}().Xor(ones).asMask()
 }
 
 // LessEqual returns a mask whose elements indicate whether x <= y
@@ -690,13 +690,13 @@ func (x {{.VType}}) GreaterEqual(y {{.VType}}) Mask{{.WxC}} {
 // Emulated, CPU Feature {{.CPUfeatureAVX2if8}}
 func (x {{.VType}}) LessEqual(y {{.VType}}) Mask{{.WxC}} {
 	a, b := x.AsInt{{.WxC}}(), y.AsInt{{.WxC}}()
-	ones := x.Equal(x).AsInt{{.WxC}}()
+	ones := x.Equal(x).ToInt{{.WxC}}()
 {{- if eq .EWidth 8}}
 	signs := BroadcastInt{{.WxC}}(-1 << ({{.EWidth}}-1))
 {{- else}}
 	signs := ones.ShiftAllLeft({{.EWidth}}-1)
 {{- end }}
-	return a.Xor(signs).Greater(b.Xor(signs)).AsInt{{.WxC}}().Xor(ones).asMask()
+	return a.Xor(signs).Greater(b.Xor(signs)).ToInt{{.WxC}}().Xor(ones).asMask()
 }
 
 // NotEqual returns a mask whose elements indicate whether x != y
@@ -704,8 +704,8 @@ func (x {{.VType}}) LessEqual(y {{.VType}}) Mask{{.WxC}} {
 // Emulated, CPU Feature {{.CPUfeature}}
 func (x {{.VType}}) NotEqual(y {{.VType}}) Mask{{.WxC}} {
 	a, b := x.AsInt{{.WxC}}(), y.AsInt{{.WxC}}()
-	ones := x.Equal(x).AsInt{{.WxC}}()
-	return a.Equal(b).AsInt{{.WxC}}().Xor(ones).asMask()
+	ones := x.Equal(x).ToInt{{.WxC}}()
+	return a.Equal(b).ToInt{{.WxC}}().Xor(ones).asMask()
 }
 `)
 
@@ -721,7 +721,7 @@ func pa{{.VType}}(s []{{.Etype}}) *[{{.Count}}]{{.Etype}} {
 var avx2MaskedTemplate = shapedTemplateOf(avx2Shapes, "avx2 .Masked methods", `
 // Masked returns x but with elements zeroed where mask is false.
 func (x {{.VType}}) Masked(mask Mask{{.WxC}}) {{.VType}} {
-	im := mask.AsInt{{.WxC}}()
+	im := mask.ToInt{{.WxC}}()
 {{- if eq .Base "Int" }}
 	return im.And(x)
 {{- else}}
@@ -732,9 +732,9 @@ func (x {{.VType}}) Masked(mask Mask{{.WxC}}) {{.VType}} {
 // Merge returns x but with elements set to y where mask is false.
 func (x {{.VType}}) Merge(y {{.VType}}, mask Mask{{.WxC}}) {{.VType}} {
 {{- if eq .BxC .WxC -}}
-	im := mask.AsInt{{.BxC}}()
+	im := mask.ToInt{{.BxC}}()
 {{- else}}
-    im := mask.AsInt{{.WxC}}().AsInt{{.BxC}}()
+    im := mask.ToInt{{.WxC}}().AsInt{{.BxC}}()
 {{- end -}}
 {{- if and (eq .Base "Int") (eq .BxC .WxC) }}
 	return y.blend(x, im)
@@ -750,7 +750,7 @@ func (x {{.VType}}) Merge(y {{.VType}}, mask Mask{{.WxC}}) {{.VType}} {
 var avx512MaskedTemplate = shapedTemplateOf(avx512Shapes, "avx512 .Masked methods", `
 // Masked returns x but with elements zeroed where mask is false.
 func (x {{.VType}}) Masked(mask Mask{{.WxC}}) {{.VType}} {
-	im := mask.AsInt{{.WxC}}()
+	im := mask.ToInt{{.WxC}}()
 {{- if eq .Base "Int" }}
 	return im.And(x)
 {{- else}}
