@@ -381,7 +381,7 @@ func TestMergeFloat(t *testing.T) {
 	a := archsimd.LoadFloat64x4Slice([]float64{1, 2, 3, 4})
 	b := archsimd.LoadFloat64x4Slice([]float64{4, 2, 3, 1})
 	g := a.Greater(b)
-	g.AsInt64x4().StoreSlice(k)
+	g.ToInt64x4().StoreSlice(k)
 	c := a.Merge(b, g)
 
 	c.StoreSlice(s)
@@ -402,7 +402,7 @@ func TestMergeFloat512(t *testing.T) {
 	a := archsimd.LoadFloat64x8Slice([]float64{1, 2, 3, 4, 5, 6, 7, 8})
 	b := archsimd.LoadFloat64x8Slice([]float64{8, 7, 6, 5, 4, 2, 3, 1})
 	g := a.Greater(b)
-	g.AsInt64x8().StoreSlice(k)
+	g.ToInt64x8().StoreSlice(k)
 	c := a.Merge(b, g)
 	d := a.Masked(g)
 
@@ -487,7 +487,7 @@ func TestMaskOpt512(t *testing.T) {
 	g := a.Greater(b)
 	e := c.Add(d).Masked(g)
 	e.StoreSlice(s)
-	g.AsInt64x8().StoreSlice(k)
+	g.ToInt64x8().StoreSlice(k)
 	checkSlices[int64](t, k, []int64{-1, 0, -1, 0, -1, 0, -1, 0})
 	checkSlices[float64](t, s, []float64{3, 0, 9, 0, 15, 0, 21, 0})
 }

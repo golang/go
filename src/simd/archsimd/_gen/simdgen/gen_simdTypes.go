@@ -400,8 +400,8 @@ func (from {{.Tsrc.Name}}) As{{.Tdst.Name}}() (to {{.Tdst.Name}})
 {{end}}
 
 {{define "mask"}}
-// As{{.VectorCounterpart}} converts from {{.Name}} to {{.VectorCounterpart}}
-func (from {{.Name}}) As{{.VectorCounterpart}}() (to {{.VectorCounterpart}})
+// To{{.VectorCounterpart}} converts from {{.Name}} to {{.VectorCounterpart}}
+func (from {{.Name}}) To{{.VectorCounterpart}}() (to {{.VectorCounterpart}})
 
 // asMask converts from {{.VectorCounterpart}} to {{.Name}}
 func (from {{.VectorCounterpart}}) asMask() (to {{.Name}})
