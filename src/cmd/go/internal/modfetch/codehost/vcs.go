@@ -188,6 +188,7 @@ var vcsCmds = map[string]*vcsCmd{
 				"hg",
 				"--config=extensions.goreposum=" + filepath.Join(cfg.GOROOT, "lib/hg/goreposum.py"),
 				"goreposum",
+				"--",
 				remote,
 			}
 		},
@@ -196,6 +197,7 @@ var vcsCmds = map[string]*vcsCmd{
 				"hg",
 				"--config=extensions.goreposum=" + filepath.Join(cfg.GOROOT, "lib/hg/goreposum.py"),
 				"golookup",
+				"--",
 				remote,
 				ref,
 			}
@@ -216,26 +218,26 @@ var vcsCmds = map[string]*vcsCmd{
 		branchRE:           re(`(?m)^[^\n]+$`),
 		badLocalRevRE:      re(`(?m)^(tip)$`),
 		statLocal: func(rev, remote string) []string {
-			return []string{"hg", "log", "-l1", "-r", rev, "--template", "{node} {date|hgdate} {tags}"}
+			return []string{"hg", "log", "-l1", fmt.Sprintf("--rev=%s", rev), "--template", "{node} {date|hgdate} {tags}"}
 		},
 		parseStat: hgParseStat,
 		fetch:     []string{"hg", "pull", "-f"},
 		latest:    "tip",
 		descendsFrom: func(rev, tag string) []string {
-			return []string{"hg", "log", "-r", "ancestors(" + rev + ") and " + tag}
+			return []string{"hg", "log", "--rev=ancestors(" + rev + ") and " + tag}
 		},
 		recentTags: func(rev string) []string {
-			return []string{"hg", "log", "-r", "ancestors(" + rev + ") and tag()", "--template", "{tags}\n"}
+			return []string{"hg", "log", "--rev=ancestors(" + rev + ") and tag()", "--template", "{tags}\n"}
 		},
 		readFile: func(rev, file, remote string) []string {
-			return []string{"hg", "cat", "-r", rev, file}
+			return []string{"hg", "cat", fmt.Sprintf("--rev=%s", rev), "--", file}
 		},
 		readZip: func(rev, subdir, remote, target string) []string {
 			pattern := []string{}
 			if subdir != "" {
-				pattern = []string{"-I", subdir + "/**"}
+				pattern = []string{fmt.Sprintf("--include=%s", subdir+"/**")}
 			}
-			return str.StringList("hg", "archive", "-t", "zip", "--no-decode", "-r", rev, "--prefix=prefix/", pattern, "--", target)
+			return str.StringList("hg", "archive", "-t", "zip", "--no-decode", fmt.Sprintf("--rev=%s", rev), "--prefix=prefix/", pattern, "--", target)
 		},
 	},
 
@@ -275,19 +277,19 @@ var vcsCmds = map[string]*vcsCmd{
 		tagRE:         re(`(?m)^\S+`),
 		badLocalRevRE: re(`^revno:-`),
 		statLocal: func(rev, remote string) []string {
-			return []string{"bzr", "log", "-l1", "--long", "--show-ids", "-r", rev}
+			return []string{"bzr", "log", "-l1", "--long", "--show-ids", fmt.Sprintf("--revision=%s", rev)}
 		},
 		parseStat: bzrParseStat,
 		latest:    "revno:-1",
 		readFile: func(rev, file, remote string) []string {
-			return []string{"bzr", "cat", "-r", rev, file}
+			return []string{"bzr", "cat", fmt.Sprintf("--revision=%s", rev), "--", file}
 		},
 		readZip: func(rev, subdir, remote, target string) []string {
 			extra := []string{}
 			if subdir != "" {
 				extra = []string{"./" + subdir}
 			}
-			return str.StringList("bzr", "export", "--format=zip", "-r", rev, "--root=prefix/", "--", target, extra)
+			return str.StringList("bzr", "export", "--format=zip", fmt.Sprintf("--revision=%s", rev), "--root=prefix/", "--", target, extra)
 		},
 	},
 
@@ -302,17 +304,17 @@ var vcsCmds = map[string]*vcsCmd{
 		},
 		tagRE: re(`XXXTODO`),
 		statLocal: func(rev, remote string) []string {
-			return []string{"fossil", "info", "-R", ".fossil", rev}
+			return []string{"fossil", "info", "-R", ".fossil", "--", rev}
 		},
 		parseStat: fossilParseStat,
 		latest:    "trunk",
 		readFile: func(rev, file, remote string) []string {
-			return []string{"fossil", "cat", "-R", ".fossil", "-r", rev, file}
+			return []string{"fossil", "cat", "-R", ".fossil", fmt.Sprintf("-r=%s", rev), "--", file}
 		},
 		readZip: func(rev, subdir, remote, target string) []string {
 			extra := []string{}
 			if subdir != "" && !strings.ContainsAny(subdir, "*?[],") {
-				extra = []string{"--include", subdir}
+				extra = []string{fmt.Sprintf("--include=%s", subdir)}
 			}
 			// Note that vcsRepo.ReadZip below rewrites this command
 			// to run in a different directory, to work around a fossil bug.
