@@ -222,6 +222,8 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpAMD64CMPXCHGLlock(v)
 	case OpAMD64CMPXCHGQlock:
 		return rewriteValueAMD64_OpAMD64CMPXCHGQlock(v)
+	case OpAMD64CVTSD2SS:
+		return rewriteValueAMD64_OpAMD64CVTSD2SS(v)
 	case OpAMD64DIVSD:
 		return rewriteValueAMD64_OpAMD64DIVSD(v)
 	case OpAMD64DIVSDload:
@@ -13457,6 +13459,27 @@ func rewriteValueAMD64_OpAMD64CMPXCHGQlock(v *Value) bool {
 		v.AuxInt = int32ToAuxInt(off1 + off2)
 		v.Aux = symToAux(sym)
 		v.AddArg4(ptr, old, new_, mem)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64CVTSD2SS(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (CVTSD2SS (ROUNDSD [c] (CVTSS2SD x)))
+	// result: (ROUNDSS [c] x)
+	for {
+		if v_0.Op != OpAMD64ROUNDSD {
+			break
+		}
+		c := auxIntToInt8(v_0.AuxInt)
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpAMD64CVTSS2SD {
+			break
+		}
+		x := v_0_0.Args[0]
+		v.reset(OpAMD64ROUNDSS)
+		v.AuxInt = int8ToAuxInt(c)
+		v.AddArg(x)
 		return true
 	}
 	return false

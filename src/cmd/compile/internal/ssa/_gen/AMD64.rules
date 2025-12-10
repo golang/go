@@ -124,6 +124,8 @@
 (Ceil x)        => (ROUNDSD [2] x)
 (Trunc x)       => (ROUNDSD [3] x)
 
+(CVTSD2SS (ROUNDSD [c] (CVTSS2SD x))) => (ROUNDSS [c] x)
+
 (FMA x y z) => (VFMADD231SD z x y)
 
 // Lowering extension

@@ -929,6 +929,7 @@ const (
 	OpAMD64SQRTSD
 	OpAMD64SQRTSS
 	OpAMD64ROUNDSD
+	OpAMD64ROUNDSS
 	OpAMD64LoweredRound32F
 	OpAMD64LoweredRound64F
 	OpAMD64VFMADD231SS
@@ -16222,6 +16223,20 @@ var opcodeTable = [...]opInfo{
 		auxType: auxInt8,
 		argLen:  1,
 		asm:     x86.AROUNDSD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "ROUNDSS",
+		auxType: auxInt8,
+		argLen:  1,
+		asm:     x86.AROUNDSS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14

@@ -280,6 +280,16 @@ func Float64ConstantStore(p *float64) {
 	*p = 5.432
 }
 
+func WideCeilNarrow(x float32) float32 {
+	// amd64/v3:"ROUNDSS"
+	return float32(math.Ceil(float64(x)))
+}
+
+func WideTruncNarrow(x float32) float32 {
+	// amd64/v3:"ROUNDSS"
+	return float32(math.Trunc(float64(x)))
+}
+
 // ------------------------ //
 //  Subnormal tests         //
 // ------------------------ //
