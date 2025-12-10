@@ -28,7 +28,7 @@ import (
 //   - Currently only supported on linux/amd64 and linux/arm64.  On unsupported
 //     platforms, Do will invoke f directly.
 //   - Protection does not extend to any global variables written by f.
-//   - Any attempt to launch a goroutine by f will result in a panic.
+//   - Protection does not extend to any new goroutines made by f.
 //   - If f calls runtime.Goexit, erasure can be delayed by defers
 //     higher up on the call stack.
 //   - Heap allocations will only be erased if the program drops all

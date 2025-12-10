@@ -5286,10 +5286,6 @@ func malg(stacksize int32) *g {
 // The compiler turns a go statement into a call to this.
 func newproc(fn *funcval) {
 	gp := getg()
-	if goexperiment.RuntimeSecret && gp.secret > 0 {
-		panic("goroutine spawned while running in secret mode")
-	}
-
 	pc := sys.GetCallerPC()
 	systemstack(func() {
 		newg := newproc1(fn, gp, pc, false, waitReasonZero)
