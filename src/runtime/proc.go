@@ -5442,6 +5442,18 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr, parked bool, waitreaso
 	// dit bubble
 	newg.ditWanted = callergp.ditWanted
 
+	if goexperiment.RuntimeSecret && callergp.secret > 0 {
+		// while it might seem weird to have a non-zero gp.secret value
+		// with no calls to secret.Do on the stack, this case is handled
+		// just fine by the cleanup logic in goexit0
+		// TODO: secret mode is invisible to the user if they don't ask about it via secret.Enabled
+		// and can have severe performance penalties (at time of writing, wrapping the entire
+		// tls handshake resulted in a 30% slowdown of the benchmarks).
+		// Whether a goroutine is running in secret mode should be more visible,
+		// maybe with a stack frame or some sort of bubble inspecting mechanism
+		newg.secret = 1
+	}
+
 	// Set up race context.
 	if raceenabled {
 		newg.racectx = racegostart(callerpc)
