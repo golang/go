@@ -27,6 +27,7 @@ import (
 	"cmd/go/internal/str"
 	"cmd/go/internal/web"
 	"cmd/internal/pathcache"
+	"cmd/internal/telemetry/counter"
 
 	"golang.org/x/mod/module"
 )
@@ -872,6 +873,12 @@ func RepoRootForImportPath(importPath string, mod ModuleMode, security web.Secur
 		rr = nil
 		err = importErrorf(importPath, "cannot expand ... in %q", importPath)
 	}
+
+	// Record telemetry about which VCS was used.
+	if err == nil {
+		counter.Inc("go/vcs:" + rr.VCS.Name)
+	}
+
 	return rr, err
 }
 
