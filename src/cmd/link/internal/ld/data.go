@@ -2430,6 +2430,7 @@ func (state *dodataState) dodataSect(ctxt *Link, symn sym.SymKind, syms []loader
 		// Sort type descriptors with the typelink flag first,
 		// sorted by type string. The reflect package will use
 		// this to ensure that type descriptor pointers are unique.
+		// Sort itabs after type descriptors.
 
 		// We define type:* for some links.
 		typeStar := ldr.Lookup("type:*", 0)
@@ -2458,23 +2459,32 @@ func (state *dodataState) dodataSect(ctxt *Link, symn sym.SymKind, syms []loader
 				}
 			}
 
-			iTypestr, iIsTypelink := typelinkStrings[si]
-			jTypestr, jIsTypelink := typelinkStrings[sj]
+			iIsType := !ldr.IsItab(si)
+			jIsType := !ldr.IsItab(sj)
+			if iIsType && jIsType {
+				iTypestr, iIsTypelink := typelinkStrings[si]
+				jTypestr, jIsTypelink := typelinkStrings[sj]
 
-			if iIsTypelink {
-				if jIsTypelink {
+				if iIsTypelink && jIsTypelink {
 					// typelink symbols sort by type string
 					return iTypestr < jTypestr
+				} else if iIsTypelink {
+					// typelink < non-typelink
+					return true
+				} else if jIsTypelink {
+					// non-typelink > typelink
+					return false
 				}
-
-				// typelink < non-typelink
+			} else if iIsType {
+				// type < itab
 				return true
-			} else if jIsTypelink {
-				// non-typelink greater than typelink
+			} else if jIsType {
+				// itab > type
 				return false
 			}
 
-			// non-typelink symbols sort by size as usual
+			// Otherwise, within non-typelink types and itabs,
+			// sort by size as usual.
 			return sortFn(i, j)
 		})
 
