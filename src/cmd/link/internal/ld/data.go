@@ -2267,16 +2267,6 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	state.allocateSingleSymSections(segRelro, sym.SELFRELROSECT, sym.SRODATA, relroPerm)
 	state.allocateSingleSymSections(segRelro, sym.SMACHORELROSECT, sym.SRODATA, relroPerm)
 
-	/* itablink */
-	sect = state.allocateNamedDataSection(segRelro, genrelrosecname(".itablink"), []sym.SymKind{sym.SITABLINK}, relroPerm)
-
-	itablink := ldr.CreateSymForUpdate("runtime.itablink", 0)
-	ldr.SetSymSect(itablink.Sym(), sect)
-	itablink.SetType(sym.SRODATA)
-	state.datsize += itablink.Size()
-	state.checkdatsize(sym.SITABLINK)
-	sect.Length = uint64(state.datsize) - sect.Vaddr
-
 	// 6g uses 4-byte relocation offsets, so the entire segment must fit in 32 bits.
 	if state.datsize != int64(uint32(state.datsize)) {
 		Errorf("read-only data segment too large: %d", state.datsize)
@@ -2510,7 +2500,8 @@ func (state *dodataState) dodataSect(ctxt *Link, symn sym.SymKind, syms []loader
 		// there will be an increment either way.
 		// TODO: This wastes some space.
 		typeLinkSize := int64(ctxt.Arch.PtrSize)
-		for i := range sl {
+		i := 0
+		for ; i < len(sl); i++ {
 			si := sl[i].sym
 			if si == head || si == typeStar {
 				continue
@@ -2529,6 +2520,27 @@ func (state *dodataState) dodataSect(ctxt *Link, symn sym.SymKind, syms []loader
 		} else {
 			su := ldr.MakeSymbolUpdater(ctxt.Moduledata)
 			su.SetUint(ctxt.Arch, ctxt.moduledataTypeDescOffset, uint64(typeLinkSize))
+		}
+
+		// Find the end of the type descriptors.
+		typeSize := typeLinkSize
+		for ; i < len(sl); i++ {
+			if ldr.IsItab(sl[i].sym) {
+				break
+			}
+			typeSize = Rnd(typeSize, int64(symalign(ldr, sl[i].sym)))
+			typeSize += sl[i].sz
+		}
+
+		if i < len(sl) {
+			typeSize = Rnd(typeSize, int64(symalign(ldr, sl[i].sym)))
+		}
+
+		if ctxt.moduledataItabOffset == 0 {
+			Errorf("internal error: phase error: moduledataItabOffset not set in dodataSect")
+		} else {
+			su := ldr.MakeSymbolUpdater(ctxt.Moduledata)
+			su.SetUint(ctxt.Arch, ctxt.moduledataItabOffset, uint64(typeSize))
 		}
 
 	default:

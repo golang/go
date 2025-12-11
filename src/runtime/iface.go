@@ -260,11 +260,20 @@ func itabsinit() {
 	lockInit(&itabLock, lockRankItab)
 	lock(&itabLock)
 	for _, md := range activeModules() {
-		for _, i := range md.itablinks {
-			itabAdd(i)
-		}
+		addModuleItabs(md)
 	}
 	unlock(&itabLock)
+}
+
+// addModuleItabs adds the pre-compiled itabs from md to the itab hash table.
+// This is an optimization to let us skip creating itabs we already have.
+func addModuleItabs(md *moduledata) {
+	p := md.types + md.itaboffset
+	for p < md.etypes {
+		itab := (*itab)(unsafe.Pointer(p))
+		itabAdd(itab)
+		p += uintptr(itab.Size())
+	}
 }
 
 // panicdottypeE is called when doing an e.(T) conversion and the conversion fails.

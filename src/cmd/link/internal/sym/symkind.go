@@ -62,7 +62,6 @@ const (
 	SRODATAFIPSEND   // End of FIPS read-only data.
 	SRODATAEND       // End of read-only data.
 	SPCLNTAB         // Pclntab data.
-	STYPELINK        // Type links.
 	SELFROSECT       // ELF read-only data: relocs, dynamic linking info.
 
 	// Read-only, non-executable, dynamically relocatable segment.

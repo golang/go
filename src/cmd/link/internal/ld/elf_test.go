@@ -408,7 +408,7 @@ func TestElfBindNow(t *testing.T) {
 }
 
 // This program is intended to be just big/complicated enough that
-// we wind up with a decent-sized .data.rel.ro.itablink section.
+// we wind up with a decent-sized .data.rel.ro.go.type section.
 const ifacecallsProg = `
 package main
 

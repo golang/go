@@ -420,12 +420,12 @@ type moduledata struct {
 	covctrs, ecovctrs          uintptr
 	end, gcdata, gcbss         uintptr
 	types, typedesclen, etypes uintptr
+	itaboffset                 uintptr
 	rodata                     uintptr
 	gofunc                     uintptr // go.func.*
 	epclntab                   uintptr
 
 	textsectmap []textsect
-	itablinks   []*itab
 
 	ptab []ptabEntry
 
