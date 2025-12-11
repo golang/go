@@ -283,13 +283,20 @@ func Float64ConstantStore(p *float64) {
 func WideCeilNarrow(x float32) float32 {
 	// amd64/v3:"ROUNDSS"
 	// arm64:"FRINTPS"
+	// wasm:"F32Ceil"
 	return float32(math.Ceil(float64(x)))
 }
 
 func WideTruncNarrow(x float32) float32 {
 	// amd64/v3:"ROUNDSS"
 	// arm64:"FRINTZS"
+	// wasm:"F32Trunc"
 	return float32(math.Trunc(float64(x)))
+}
+
+func WideCopysignNarrow(x, y float32) float32 {
+	// wasm:"F32Copysign"
+	return float32(math.Copysign(float64(x), float64(y)))
 }
 
 // ------------------------ //
