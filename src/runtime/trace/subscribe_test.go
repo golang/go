@@ -17,9 +17,10 @@ import (
 
 func TestSubscribers(t *testing.T) {
 	validate := func(t *testing.T, source string, tr []byte) {
+		t.Log("validating", source)
 		defer func() {
 			if t.Failed() {
-				testtrace.Dump(t, "trace", tr, *dumpTraces)
+				testtrace.Dump(t, "TestSubscribers."+source, tr, *dumpTraces)
 			}
 		}()
 

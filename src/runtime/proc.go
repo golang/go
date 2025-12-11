@@ -4385,7 +4385,6 @@ func preemptPark(gp *g) {
 	// up. Hence, we set the scan bit to lock down further
 	// transitions until we can dropg.
 	casGToPreemptScan(gp, _Grunning, _Gscan|_Gpreempted)
-	dropg()
 
 	// Be careful about ownership as we trace this next event.
 	//
@@ -4411,10 +4410,19 @@ func preemptPark(gp *g) {
 	if trace.ok() {
 		trace.GoPark(traceBlockPreempted, 0)
 	}
+
+	// Drop the goroutine from the M. Only do this after the tracer has
+	// emitted an event, because it needs the association for GoPark to
+	// work correctly.
+	dropg()
+
+	// Drop the scan bit and release the trace locker if necessary.
 	casfrom_Gscanstatus(gp, _Gscan|_Gpreempted, _Gpreempted)
 	if trace.ok() {
 		traceRelease(trace)
 	}
+
+	// All done.
 	schedule()
 }
 
