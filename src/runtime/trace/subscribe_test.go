@@ -16,15 +16,15 @@ import (
 )
 
 func TestSubscribers(t *testing.T) {
-	validate := func(t *testing.T, source string, tr *bytes.Buffer) {
+	validate := func(t *testing.T, source string, tr []byte) {
 		defer func() {
 			if t.Failed() {
-				testtrace.Dump(t, "trace", tr.Bytes(), *dumpTraces)
+				testtrace.Dump(t, "trace", tr, *dumpTraces)
 			}
 		}()
 
 		// Prepare to read the trace snapshot.
-		r, err := inttrace.NewReader(tr)
+		r, err := inttrace.NewReader(bytes.NewReader(tr))
 		if err != nil {
 			t.Errorf("unexpected error creating trace reader for %s: %v", source, err)
 			return
@@ -45,9 +45,11 @@ func TestSubscribers(t *testing.T) {
 			}
 			if err != nil {
 				t.Errorf("unexpected error reading trace for %s: %v", source, err)
+				break
 			}
 			if err := v.Event(ev); err != nil {
 				t.Errorf("event validation failed: %s", err)
+				break
 			}
 			if ev.Kind() == inttrace.EventSync {
 				syncs = append(syncs, evs)
@@ -64,8 +66,8 @@ func TestSubscribers(t *testing.T) {
 	}
 
 	validateTraces := func(t *testing.T, trace, frTrace *bytes.Buffer) {
-		validate(t, "tracer", trace)
-		validate(t, "flightRecorder", frTrace)
+		validate(t, "tracer", trace.Bytes())
+		validate(t, "flightRecorder", frTrace.Bytes())
 	}
 	startFlightRecorder := func(t *testing.T) *trace.FlightRecorder {
 		fr := trace.NewFlightRecorder(trace.FlightRecorderConfig{})
