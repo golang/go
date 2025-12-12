@@ -2868,6 +2868,28 @@ func (p *parser) parseDecl(sync map[token.Token]bool) ast.Decl {
 	case token.FUNC:
 		return p.parseFuncDecl()
 
+	case token.AT:
+		// Decorator syntax: @decoratorName func ...
+		p.next() // consume '@'
+		if p.tok != token.IDENT {
+			p.errorExpected(p.pos, "decorator name")
+			p.advance(sync)
+			return &ast.BadDecl{From: p.pos, To: p.pos}
+		}
+		decorator := p.parseIdent()
+		// Allow newline (semicolon) between decorator and func
+		if p.tok == token.SEMICOLON && p.lit == "\n" {
+			p.next()
+		}
+		if p.tok != token.FUNC {
+			p.errorExpected(p.pos, "func after decorator")
+			p.advance(sync)
+			return &ast.BadDecl{From: p.pos, To: p.pos}
+		}
+		decl := p.parseFuncDecl()
+		decl.Decorator = decorator
+		return decl
+
 	default:
 		pos := p.pos
 		p.errorExpected(pos, "declaration")

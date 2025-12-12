@@ -873,6 +873,8 @@ scanAgain:
 		case ';':
 			tok = token.SEMICOLON
 			lit = ";"
+		case '@':
+			tok = token.AT
 		case '(':
 			tok = token.LPAREN
 		case ')':

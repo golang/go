@@ -40,6 +40,7 @@ const (
 	_Colon     // :
 	_Dot       // .
 	_DotDotDot // ...
+	_At        // @
 
 	// keywords
 	_Break       // break

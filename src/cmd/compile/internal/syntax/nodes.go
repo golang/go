@@ -109,6 +109,7 @@ type (
 		TParamList []*Field // nil means no type parameters
 		Type       *FuncType
 		Body       *BlockStmt // nil means no body (forward declaration)
+		Decorator  *Name      // decorator function name (e.g., @decorator)
 		decl
 	}
 )

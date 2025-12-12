@@ -12,6 +12,7 @@ import (
 	"internal/buildcfg"
 	"internal/pkgbits"
 	"os"
+	"slices"
 	"strings"
 
 	"cmd/compile/internal/base"
@@ -84,6 +85,9 @@ type pkgWriter struct {
 	funDecls map[*types2.Func]*syntax.FuncDecl
 	typDecls map[*types2.TypeName]typeDeclGen
 
+	// decorators maps functions to their decorator names
+	decorators map[*types2.Func]string
+
 	// linknames maps package-scope objects to their linker symbol name,
 	// if specified by a //go:linkname directive.
 	linknames map[types2.Object]string
@@ -118,7 +122,8 @@ func newPkgWriter(m posMap, pkg *types2.Package, info *types2.Info, otherInfo ma
 		funDecls: make(map[*types2.Func]*syntax.FuncDecl),
 		typDecls: make(map[*types2.TypeName]typeDeclGen),
 
-		linknames: make(map[types2.Object]string),
+		decorators: make(map[*types2.Func]string),
+		linknames:  make(map[types2.Object]string),
 	}
 }
 
@@ -1070,6 +1075,17 @@ func (w *writer) funcExt(obj *types2.Func) {
 	}
 	wi := asWasmImport(decl.Pragma)
 	we := asWasmExport(decl.Pragma)
+
+	// Check if function has a decorator
+	if decl.Decorator != nil {
+		// Decorator functions are not allowed with certain pragmas
+		if pragma != 0 {
+			w.p.errorf(decl, "decorator functions cannot have compiler pragmas")
+		}
+		if wi != nil || we != nil {
+			w.p.errorf(decl, "decorator functions cannot be used with wasm directives")
+		}
+	}
 
 	if decl.Body != nil {
 		if pragma&ir.Noescape != 0 {
@@ -2605,6 +2621,11 @@ func (c *declCollector) Visit(n syntax.Node) syntax.Visitor {
 		obj := pw.info.Defs[n.Name].(*types2.Func)
 		pw.funDecls[obj] = n
 
+		// Store decorator information if present
+		if n.Decorator != nil {
+			pw.decorators[obj] = n.Decorator.Value
+		}
+
 		return c.withTParams(obj)
 
 	case *syntax.TypeDecl:
@@ -2718,6 +2739,9 @@ func (w *writer) pkgInit(noders []*noder) {
 
 	w.pkgInitOrder()
 
+	// Write decorator information
+	w.pkgDecorators(noders)
+
 	w.Sync(pkgbits.SyncDecls)
 	for _, p := range noders {
 		for _, decl := range p.file.DeclList {
@@ -2738,6 +2762,33 @@ func (w *writer) pkgInitOrder() {
 			w.obj(v, nil)
 		}
 		w.expr(init.Rhs)
+	}
+}
+
+func (w *writer) pkgDecorators(noders []*noder) {
+	// Collect all functions with decorators
+	var decoratedFuncs []*types2.Func
+	for obj, _ := range w.p.decorators {
+		decoratedFuncs = append(decoratedFuncs, obj)
+	}
+
+	// Sort for deterministic output
+	slices.SortFunc(decoratedFuncs, func(a, b *types2.Func) int {
+		return strings.Compare(a.Name(), b.Name())
+	})
+
+	// Write decorator count
+	w.Len(len(decoratedFuncs))
+
+	// Write each decorator pair (function, decorator)
+	for _, obj := range decoratedFuncs {
+		decoratorName := w.p.decorators[obj]
+
+		// Write the decorated function
+		w.obj(obj, nil)
+
+		// Write the decorator function name
+		w.String(decoratorName)
 	}
 }
 

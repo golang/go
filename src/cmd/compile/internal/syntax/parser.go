@@ -451,6 +451,26 @@ func (p *parser) fileOrNil() *File {
 				f.DeclList = append(f.DeclList, d)
 			}
 
+		case _At:
+			p.next()
+			if p.tok != _Name {
+				p.syntaxError("expected decorator name after @")
+				p.advance(_Import, _Const, _Type, _Var, _Func)
+				continue
+			}
+			decoratorName := p.name()
+			// 允许装饰器和 func 之间有换行（即 _Semi token）
+			p.got(_Semi)
+			if !p.got(_Func) {
+				p.syntaxError("expected func after decorator")
+				p.advance(_Import, _Const, _Type, _Var, _Func)
+				continue
+			}
+			if d := p.funcDeclOrNil(); d != nil {
+				d.Decorator = decoratorName
+				f.DeclList = append(f.DeclList, d)
+			}
+
 		default:
 			if p.tok == _Lbrace && len(f.DeclList) > 0 && isEmptyFuncDecl(f.DeclList[len(f.DeclList)-1]) {
 				// opening { of function declaration on next line

@@ -1331,11 +1331,113 @@ func (r *reader) funcBody(fn *ir.Func) {
 		if body == nil {
 			body = []ir.Node{typecheck.Stmt(ir.NewBlockStmt(src.NoXPos, nil))}
 		}
+
+		// Check if this function has a decorator
+		decoratorName := r.getDecoratorForFunc(fn.Nname.Sym().Name)
+		if decoratorName != "" {
+			// Transform body to apply decorator
+			body = r.applyDecoratorToBody(fn, body, decoratorName)
+		}
+
 		fn.Body = body
 		fn.Endlineno = r.pos()
 	})
 
 	r.marker.WriteTo(fn)
+}
+
+// getDecoratorForFunc checks if a function has a decorator
+func (r *reader) getDecoratorForFunc(funcName string) string {
+	for _, info := range pendingDecorators {
+		if info.decoratedFunc == funcName {
+			return info.decoratorName
+		}
+	}
+	return ""
+}
+
+// applyDecoratorToBody wraps the function body with decorator logic
+// For a decorated function like:
+//
+//	@logger
+//	func greet() { fmt.Println("Hello") }
+//
+// We transform it to:
+//
+//	func greet() {
+//	    logger(func() { fmt.Println("Hello") })()
+//	}
+//
+// For functions with parameters:
+//
+//	@loggerWithParams
+//	func greet2(name string) { fmt.Println("Hello", name) }
+//
+// We transform it to:
+//
+//	func greet2(name string) {
+//	    loggerWithParams(func(name string) { fmt.Println("Hello", name) })(name)
+//	}
+//
+// The closure has the SAME signature as the original function, and the decorated
+// result is called with the original function's parameters.
+func (r *reader) applyDecoratorToBody(fn *ir.Func, originalBody []ir.Node, decoratorName string) []ir.Node {
+	pos := fn.Pos()
+
+	// Look up decorator function
+	decoratorSym := types.LocalPkg.Lookup(decoratorName)
+	if decoratorSym.Def == nil {
+		base.Errorf("decorator function %s not found", decoratorName)
+		return originalBody
+	}
+	decoratorFunc := decoratorSym.Def.(*ir.Name)
+
+	// Get the original function's parameters
+	var origParams []*ir.Name
+	for _, decl := range fn.Dcl {
+		if decl.Class == ir.PPARAM {
+			origParams = append(origParams, decl)
+		}
+	}
+
+	// For functions with no parameters, use simple closure approach
+	// For functions with parameters, use closure with captured variables
+	// which avoids the complex parameter mapping issues
+
+	// Create closure type that captures outer params (so closure has no params)
+	closureType := types.NewSignature(nil, nil, fn.Type().Results())
+	closureFn := ir.NewClosureFunc(pos, pos, ir.OCLOSURE, closureType, fn, typecheck.Target)
+
+	// Capture outer function parameters as closure variables
+	for _, param := range origParams {
+		cv := ir.NewClosureVar(param.Pos(), closureFn, param)
+		cv.SetByval(true) // Capture by value
+	}
+
+	// The closure body is the original body (uses captured params)
+	closureFn.Body = originalBody
+	closureFn.SetTypecheck(1)
+
+	closure := closureFn.OClosure
+
+	// Call decorator with the closure: wrapped := decorator(closure)
+	decoratorCall := ir.NewCallExpr(pos, ir.OCALL, decoratorFunc, []ir.Node{closure})
+	decoratorCall = typecheck.Expr(decoratorCall).(*ir.CallExpr)
+
+	// Call the wrapped function (no args - closure captured them)
+	wrappedCall := ir.NewCallExpr(pos, ir.OCALL, decoratorCall, nil)
+	wrappedCall = typecheck.Expr(wrappedCall).(*ir.CallExpr)
+
+	// Return statement if function has return values
+	var newBody []ir.Node
+	if fn.Type().NumResults() > 0 {
+		ret := ir.NewReturnStmt(pos, []ir.Node{wrappedCall})
+		newBody = []ir.Node{typecheck.Stmt(ret)}
+	} else {
+		newBody = []ir.Node{typecheck.Stmt(wrappedCall)}
+	}
+
+	return newBody
 }
 
 // syntheticBody adds a synthetic body to r.curfn if appropriate, and
@@ -3276,6 +3378,9 @@ func (r *reader) pkgInit(self *types.Pkg, target *ir.Package) {
 
 	r.pkgInitOrder(target)
 
+	// Read decorator information (but don't process yet)
+	r.pkgDecoratorsInfo(target)
+
 	r.pkgDecls(target)
 
 	r.Sync(pkgbits.SyncEOF)
@@ -3332,6 +3437,25 @@ func (r *reader) pkgInitOrder(target *ir.Package) {
 	staticinit.OutlineMapInits(fn)
 
 	target.Inits = append(target.Inits, fn)
+}
+
+func (r *reader) pkgDecoratorsInfo(target *ir.Package) {
+	count := r.Len()
+
+	for i := 0; i < count; i++ {
+		// Read the decorated function
+		decoratedFuncObj := r.obj()
+		decoratedFuncName := decoratedFuncObj.(*ir.Name)
+
+		// Read the decorator function name
+		decoratorName := r.String()
+
+		// Store for later processing
+		pendingDecorators = append(pendingDecorators, decoratorInfo{
+			decoratedFunc: decoratedFuncName.Sym().Name,
+			decoratorName: decoratorName,
+		})
+	}
 }
 
 func (r *reader) pkgDecls(target *ir.Package) {

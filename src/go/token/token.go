@@ -90,6 +90,7 @@ const (
 	RBRACE    // }
 	SEMICOLON // ;
 	COLON     // :
+	AT        // @
 	operator_end
 
 	keyword_beg
@@ -199,6 +200,7 @@ var tokens = [...]string{
 	RBRACE:    "}",
 	SEMICOLON: ";",
 	COLON:     ":",
+	AT:        "@",
 
 	BREAK:    "break",
 	CASE:     "case",
