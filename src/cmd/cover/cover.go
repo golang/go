@@ -267,121 +267,93 @@ type File struct {
 	pkg     *Package
 }
 
-// BlockSegment represents a segment of a basic block that can be either
-// executable code or commented-out code.
-type BlockSegment struct {
-	start   token.Pos
-	end     token.Pos
-	hasCode bool // true if this segment contains executable code
+// Range represents a contiguous range of executable code within a basic block.
+type Range struct {
+	pos token.Pos
+	end token.Pos
 }
 
-// splitBlockByComments analyzes a block range and splits it into segments,
-// separating executable code from any commented lines.
+// codeRanges analyzes a block range and returns the ranges that contain
+// executable code (excluding comment-only and blank lines).
 // It uses go/scanner to tokenize the source and identify which lines
-// contain executable code vs. only comments.
-func (f *File) splitBlockByComments(start, end token.Pos) []BlockSegment {
+// contain executable code.
+//
+// Precondition: start < end (both are valid positions within f.content).
+// start and end are positions in origFile (f.fset).
+func (f *File) codeRanges(start, end token.Pos) []Range {
 	startOffset := f.offset(start)
 	endOffset := f.offset(end)
-
-	if startOffset >= endOffset || endOffset > len(f.content) {
-		return []BlockSegment{{start: start, end: end, hasCode: true}}
-	}
-
 	src := f.content[startOffset:endOffset]
 	origFile := f.fset.File(start)
 
-	// Create a new file set for scanning this block
-	fset := token.NewFileSet()
-	file := fset.AddFile("", -1, len(src))
+	// Create a temporary file for scanning this block.
+	// We use a separate FileSet because we're scanning a slice of the original source,
+	// so positions in scanFile are relative to the block start, not the original file.
+	scanFile := token.NewFileSet().AddFile("", -1, len(src))
 
 	var s scanner.Scanner
-	s.Init(file, src, nil, scanner.ScanComments)
+	s.Init(scanFile, src, nil, scanner.ScanComments)
 
-	// Track which lines have code vs only comments
+	// Track which lines have executable code
 	lineHasCode := make(map[int]bool)
-	lineHasComment := make(map[int]bool)
 
 	for {
 		pos, tok, lit := s.Scan()
 		if tok == token.EOF {
 			break
 		}
-
-		// Calculate start and end lines using the standard pattern from go/ast
-		// (e.g., ast.Comment.End() returns pos + len(text))
-		startLine := file.Line(pos)
-		endLine := file.Line(pos + token.Pos(len(lit)) - 1)
-		if endLine < startLine {
-			endLine = startLine
+		if tok == token.COMMENT {
+			continue // Skip comments - we only care about code
 		}
 
-		if tok == token.COMMENT {
-			// Mark all lines spanned by this comment
-			for line := startLine; line <= endLine; line++ {
-				lineHasComment[line] = true
-			}
-		} else {
-			// Mark all lines spanned by this token as having code
-			for line := startLine; line <= endLine; line++ {
-				lineHasCode[line] = true
-			}
+		// Use PositionFor with adjusted=false to ignore //line directives.
+		startLine := scanFile.PositionFor(pos, false).Line
+		endLine := startLine
+		if tok == token.STRING {
+			// Only string literals can span multiple lines.
+			// TODO(adonovan): simplify when https://go.dev/issue/74958 is resolved.
+			endLine = scanFile.PositionFor(pos+token.Pos(len(lit)), false).Line
+		}
+
+		for line := startLine; line <= endLine; line++ {
+			lineHasCode[line] = true
 		}
 	}
 
-	// Build segments based on line transitions
-	// The scanner has already built the line table in file, so we can use
-	// file.LineStart() to get positions directly instead of manual calculation.
-	var segments []BlockSegment
-	var currentSegmentStart token.Pos = start
-	inCommentedSection := false
+	// Build ranges for contiguous sections of code lines.
+	var ranges []Range
+	var codeStart token.Pos // start of current code range (in origFile)
+	inCode := false
 
-	totalLines := file.LineCount()
+	totalLines := scanFile.LineCount()
 	for line := 1; line <= totalLines; line++ {
 		hasCode := lineHasCode[line]
-		hasComment := lineHasComment[line]
 
-		if inCommentedSection && hasCode {
-			// End of commented section, start of code section
-			lineOffset := file.Offset(file.LineStart(line))
-			segmentEnd := origFile.Pos(startOffset + lineOffset)
-			segments = append(segments, BlockSegment{
-				start:   currentSegmentStart,
-				end:     segmentEnd,
-				hasCode: false,
-			})
-			currentSegmentStart = segmentEnd
-			inCommentedSection = false
-		} else if !inCommentedSection && !hasCode && hasComment {
-			// End of code section, start of commented section
-			lineOffset := file.Offset(file.LineStart(line))
-			segmentEnd := origFile.Pos(startOffset + lineOffset)
-			if currentSegmentStart < segmentEnd {
-				segments = append(segments, BlockSegment{
-					start:   currentSegmentStart,
-					end:     segmentEnd,
-					hasCode: true,
-				})
-			}
-			currentSegmentStart = segmentEnd
-			inCommentedSection = true
+		if hasCode && !inCode {
+			// Start of a new code range
+			lineOffset := scanFile.Offset(scanFile.LineStart(line))
+			codeStart = origFile.Pos(startOffset + lineOffset)
+			inCode = true
+		} else if !hasCode && inCode {
+			// End of code range
+			lineOffset := scanFile.Offset(scanFile.LineStart(line))
+			codeEnd := origFile.Pos(startOffset + lineOffset)
+			ranges = append(ranges, Range{pos: codeStart, end: codeEnd})
+			inCode = false
 		}
 	}
 
-	// Add the final segment
-	if currentSegmentStart < end {
-		segments = append(segments, BlockSegment{
-			start:   currentSegmentStart,
-			end:     end,
-			hasCode: !inCommentedSection,
-		})
+	// Close any open code range at the end
+	if inCode {
+		ranges = append(ranges, Range{pos: codeStart, end: end})
 	}
 
-	// If no segments were created, return the original block as a code segment
-	if len(segments) == 0 {
-		return []BlockSegment{{start: start, end: end, hasCode: true}}
+	// If no ranges were created, return the original block
+	if len(ranges) == 0 {
+		return []Range{{pos: start, end: end}}
 	}
 
-	return segments
+	return ranges
 }
 
 // findText finds text in the original source, starting at pos.
@@ -838,8 +810,9 @@ func (f *File) newCounter(start, end token.Pos, numStmt int) string {
 			panic("internal error: counter var unset")
 		}
 		stmt = counterStmt(f, fmt.Sprintf("%s[%d]", f.fn.counterVar, slot))
-		stpos := f.fset.Position(start)
-		enpos := f.fset.Position(end)
+		// Use PositionFor with adjusted=false to ignore //line directives.
+		stpos := f.fset.PositionFor(start, false)
+		enpos := f.fset.PositionFor(end, false)
 		stpos, enpos = dedup(stpos, enpos)
 		unit := coverage.CoverableUnit{
 			StLine:  uint32(stpos.Line),
@@ -873,13 +846,11 @@ func (f *File) addCounters(pos, insertPos, blockEnd token.Pos, list []ast.Stmt, 
 	// Special case: make sure we add a counter to an empty block. Can't do this below
 	// or we will add a counter to an empty statement list after, say, a return statement.
 	if len(list) == 0 {
-		// Split the empty block by comments and only add counter if there's executable content
-		segments := f.splitBlockByComments(insertPos, blockEnd)
-		for _, segment := range segments {
-			if segment.hasCode {
-				f.edit.Insert(f.offset(segment.start), f.newCounter(segment.start, segment.end, 0)+";")
-				break // Only insert one counter per basic block
-			}
+		// Only add counter if there's executable content (not just comments)
+		ranges := f.codeRanges(insertPos, blockEnd)
+		if len(ranges) > 0 {
+			r := ranges[0]
+			f.edit.Insert(f.offset(r.pos), f.newCounter(r.pos, r.end, 0)+";")
 		}
 		return
 	}
@@ -930,19 +901,16 @@ func (f *File) addCounters(pos, insertPos, blockEnd token.Pos, list []ast.Stmt, 
 			end = blockEnd
 		}
 		if pos != end { // Can have no source to cover if e.g. blocks abut.
-			// Split the block by comments and create counters only for executable segments
-			segments := f.splitBlockByComments(pos, end)
-			for i, segment := range segments {
-				if segment.hasCode {
-					// Only create counter for executable code segments
-					// Insert counter at the beginning of the executable segment
-					insertOffset := f.offset(segment.start)
-					// For the first segment, use the original insertPos if it's before the segment
-					if i == 0 {
-						insertOffset = f.offset(insertPos)
-					}
-					f.edit.Insert(insertOffset, f.newCounter(segment.start, segment.end, last)+";")
+			// Create counters only for executable code ranges
+			ranges := f.codeRanges(pos, end)
+			for i, r := range ranges {
+				// Insert counter at the beginning of the code range
+				insertOffset := f.offset(r.pos)
+				// For the first range, use the original insertPos if it's before the range
+				if i == 0 {
+					insertOffset = f.offset(insertPos)
 				}
+				f.edit.Insert(insertOffset, f.newCounter(r.pos, r.end, last)+";")
 			}
 		}
 		list = list[last:]
@@ -1116,7 +1084,7 @@ type block1 struct {
 
 // offset translates a token position into a 0-indexed byte offset.
 func (f *File) offset(pos token.Pos) int {
-	return f.fset.Position(pos).Offset
+	return f.fset.PositionFor(pos, false).Offset
 }
 
 // addVariables adds to the end of the file the declarations to set up the counter and position variables.
@@ -1158,8 +1126,9 @@ func (f *File) addVariables(w io.Writer) {
 	// - 32-bit ending line number
 	// - (16 bit ending column number << 16) | (16-bit starting column number).
 	for i, block := range f.blocks {
-		start := f.fset.Position(block.startByte)
-		end := f.fset.Position(block.endByte)
+		// Use PositionFor with adjusted=false to ignore //line directives.
+		start := f.fset.PositionFor(block.startByte, false)
+		end := f.fset.PositionFor(block.endByte, false)
 
 		start, end = dedup(start, end)
 
