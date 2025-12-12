@@ -30,14 +30,6 @@ import (
 // later.
 var localPkgReader *pkgReader
 
-// decoratorInfo stores information about decorators to apply after all functions are defined
-type decoratorInfo struct {
-	decoratedFunc string
-	decoratorName string
-}
-
-var pendingDecorators []decoratorInfo
-
 // LookupFunc returns the ir.Func for an arbitrary full symbol name if
 // that function exists in the set of available export data.
 //

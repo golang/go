@@ -2869,7 +2869,9 @@ func (p *parser) parseDecl(sync map[token.Token]bool) ast.Decl {
 		return p.parseFuncDecl()
 
 	case token.AT:
-		// Decorator syntax: @decoratorName func ...
+		// Decorator syntax: @decoratorName func foo() {...}
+		// Transform to: var foo = decoratorName(func() {...})
+		atPos := p.pos
 		p.next() // consume '@'
 		if p.tok != token.IDENT {
 			p.errorExpected(p.pos, "decorator name")
@@ -2886,9 +2888,34 @@ func (p *parser) parseDecl(sync map[token.Token]bool) ast.Decl {
 			p.advance(sync)
 			return &ast.BadDecl{From: p.pos, To: p.pos}
 		}
-		decl := p.parseFuncDecl()
-		decl.Decorator = decorator
-		return decl
+		funcDecl := p.parseFuncDecl()
+
+		// Create FuncLit from the function declaration
+		funcLit := &ast.FuncLit{
+			Type: funcDecl.Type,
+			Body: funcDecl.Body,
+		}
+
+		// Create call to decorator: decorator(func() {...})
+		decoratorCall := &ast.CallExpr{
+			Fun:    decorator,
+			Lparen: decorator.End(),
+			Args:   []ast.Expr{funcLit},
+			Rparen: funcDecl.Body.End(),
+		}
+
+		// Create ValueSpec: foo = decorator(func() {...})
+		valueSpec := &ast.ValueSpec{
+			Names:  []*ast.Ident{funcDecl.Name},
+			Values: []ast.Expr{decoratorCall},
+		}
+
+		// Create GenDecl: var foo = decorator(func() {...})
+		return &ast.GenDecl{
+			TokPos: atPos,
+			Tok:    token.VAR,
+			Specs:  []ast.Spec{valueSpec},
+		}
 
 	default:
 		pos := p.pos

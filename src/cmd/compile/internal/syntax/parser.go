@@ -466,9 +466,32 @@ func (p *parser) fileOrNil() *File {
 				p.advance(_Import, _Const, _Type, _Var, _Func)
 				continue
 			}
-			if d := p.funcDeclOrNil(); d != nil {
-				d.Decorator = decoratorName
-				f.DeclList = append(f.DeclList, d)
+			if funcDecl := p.funcDeclOrNil(); funcDecl != nil {
+				// Transform @decorator func foo() {...} into:
+				// var foo = decorator(func() {...})
+				//
+				// This AST-level transformation is simpler than IR-level
+				// transformation and supports all function signatures.
+
+				// Create FuncLit from the function declaration
+				funcLit := new(FuncLit)
+				funcLit.pos = funcDecl.pos
+				funcLit.Type = funcDecl.Type
+				funcLit.Body = funcDecl.Body
+
+				// Create call to decorator: decorator(func() {...})
+				decoratorCall := new(CallExpr)
+				decoratorCall.pos = decoratorName.Pos()
+				decoratorCall.Fun = decoratorName
+				decoratorCall.ArgList = []Expr{funcLit}
+
+				// Create VarDecl: var foo = decorator(func() {...})
+				varDecl := new(VarDecl)
+				varDecl.pos = funcDecl.pos
+				varDecl.NameList = []*Name{funcDecl.Name}
+				varDecl.Values = decoratorCall
+
+				f.DeclList = append(f.DeclList, varDecl)
 			}
 
 		default:
