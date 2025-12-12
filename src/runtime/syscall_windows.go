@@ -453,36 +453,42 @@ func syscall_getprocaddress(handle uintptr, procname *byte) (outhandle, err uint
 
 //go:linkname syscall_Syscall syscall.Syscall
 //go:nosplit
+//go:uintptrkeepalive
 func syscall_Syscall(fn, nargs, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
 	return syscall_syscalln(fn, nargs, a1, a2, a3)
 }
 
 //go:linkname syscall_Syscall6 syscall.Syscall6
 //go:nosplit
+//go:uintptrkeepalive
 func syscall_Syscall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
 	return syscall_syscalln(fn, nargs, a1, a2, a3, a4, a5, a6)
 }
 
 //go:linkname syscall_Syscall9 syscall.Syscall9
 //go:nosplit
+//go:uintptrkeepalive
 func syscall_Syscall9(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, err uintptr) {
 	return syscall_syscalln(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9)
 }
 
 //go:linkname syscall_Syscall12 syscall.Syscall12
 //go:nosplit
+//go:uintptrkeepalive
 func syscall_Syscall12(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12 uintptr) (r1, r2, err uintptr) {
 	return syscall_syscalln(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12)
 }
 
 //go:linkname syscall_Syscall15 syscall.Syscall15
 //go:nosplit
+//go:uintptrkeepalive
 func syscall_Syscall15(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15 uintptr) (r1, r2, err uintptr) {
 	return syscall_syscalln(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15)
 }
 
 //go:linkname syscall_Syscall18 syscall.Syscall18
 //go:nosplit
+//go:uintptrkeepalive
 func syscall_Syscall18(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18 uintptr) (r1, r2, err uintptr) {
 	return syscall_syscalln(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18)
 }
@@ -496,11 +502,13 @@ const maxArgs = 42
 
 //go:linkname syscall_SyscallN syscall.SyscallN
 //go:nosplit
+//go:uintptrkeepalive
 func syscall_SyscallN(fn uintptr, args ...uintptr) (r1, r2, err uintptr) {
 	return syscall_syscalln(fn, uintptr(len(args)), args...)
 }
 
 //go:nosplit
+//go:uintptrkeepalive
 func syscall_syscalln(fn, n uintptr, args ...uintptr) (r1, r2, err uintptr) {
 	if n > uintptr(len(args)) {
 		panic("syscall: n > len(args)") // should not be reachable from user code
