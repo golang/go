@@ -877,6 +877,7 @@ var optab = []Optab{
 	{ATLBI, C_SPOP, C_NONE, C_NONE, C_ZREG, C_NONE, 107, 4, 0, 0, 0},
 	{ABTI, C_NONE, C_NONE, C_NONE, C_NONE, C_NONE, 108, 4, 0, 0, 0},
 	{ABTI, C_SPOP, C_NONE, C_NONE, C_NONE, C_NONE, 108, 4, 0, 0, 0},
+	{ASB, C_NONE, C_NONE, C_NONE, C_NONE, C_NONE, 10, 4, 0, 0, 0},
 
 	/* encryption instructions */
 	{AAESD, C_VREG, C_NONE, C_NONE, C_VREG, C_NONE, 26, 4, 0, 0, 0}, // for compatibility with old code
@@ -3241,6 +3242,9 @@ func buildop(ctxt *obj.Link) {
 
 		case AVTBL:
 			oprangeset(AVTBX, t)
+
+		case ASB:
+			break
 
 		case AVCNT,
 			AVMOV,
@@ -6841,6 +6845,9 @@ func (c *ctxt7) opimm(p *obj.Prog, a obj.As) uint32 {
 
 	case ACLREX:
 		return SYSOP(0, 0, 3, 3, 0, 2, 0x1F)
+
+	case ASB:
+		return SYSOP(0, 0, 3, 3, 0, 0, 0xFF)
 	}
 
 	c.ctxt.Diag("%v: bad imm %v", p, a)
