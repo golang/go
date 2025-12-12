@@ -762,6 +762,15 @@ func (t *tester) registerTests() {
 		})
 	}
 
+	// Test GOEXPERIMENT=simd on amd64.
+	if goarch == "amd64" && !strings.Contains(goexperiment, "simd") {
+		t.registerTest("GOEXPERIMENT=simd go test simd/archsimd/...", &goTest{
+			variant: "simd",
+			env:     []string{"GOEXPERIMENT=simd"},
+			pkg:     "simd/archsimd/...",
+		})
+	}
+
 	// Test ios/amd64 for the iOS simulator.
 	if goos == "darwin" && goarch == "amd64" && t.cgoEnabled {
 		t.registerTest("GOOS=ios on darwin/amd64",
