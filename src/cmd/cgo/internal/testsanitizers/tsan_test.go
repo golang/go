@@ -59,7 +59,7 @@ func TestTSAN(t *testing.T) {
 		{src: "tsan_tracebackctxt", needsRuntime: true}, // Subdirectory
 	}
 	for _, tc := range cases {
-		tc := tc
+
 		name := strings.TrimSuffix(tc.src, ".go")
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()

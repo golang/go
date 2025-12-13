@@ -56,7 +56,7 @@ func TestTestRun(t *testing.T) {
 		"fib.go",
 		"hello.go",
 	} {
-		file := file
+
 		wantFile := strings.Replace(file, ".go", ".out", 1)
 		t.Run(file, func(t *testing.T) {
 			cmd := exec.Command(testenv.GoToolPath(t), "run", file)

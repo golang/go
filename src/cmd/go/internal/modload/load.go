@@ -1578,7 +1578,6 @@ func (ld *loader) resolveMissingImports(loaderstate *State, ctx context.Context)
 			continue
 		}
 
-		pkg := pkg
 		var mod module.Version
 		ld.work.Add(func() {
 			var err error
@@ -1762,7 +1761,7 @@ func (ld *loader) preloadRootModules(loaderstate *State, ctx context.Context, ro
 	needc := make(chan map[module.Version]bool, 1)
 	needc <- map[module.Version]bool{}
 	for _, path := range rootPkgs {
-		path := path
+
 		ld.work.Add(func() {
 			// First, try to identify the module containing the package using only roots.
 			//
@@ -2131,7 +2130,6 @@ func (ld *loader) checkTidyCompatibility(loaderstate *State, ctx context.Context
 			continue
 		}
 
-		pkg := pkg
 		ld.work.Add(func() {
 			mod, _, _, _, err := importFromModules(loaderstate, ctx, pkg.path, rs, mg, ld.skipImportModFiles)
 			if mod != pkg.mod {

@@ -152,7 +152,7 @@ func TestToleratesOptimizationFlag(t *testing.T) {
 		"",
 		"-O",
 	} {
-		cflags := cflags
+
 		t.Run(cflags, func(t *testing.T) {
 			testenv.MustHaveGoBuild(t)
 			testenv.MustHaveCGO(t)

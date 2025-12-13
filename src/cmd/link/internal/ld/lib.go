@@ -1306,7 +1306,7 @@ func (ctxt *Link) hostobjCopy() (paths []string) {
 	var wg sync.WaitGroup
 	sema := make(chan struct{}, runtime.NumCPU()) // limit open file descriptors
 	for i, h := range hostobj {
-		h := h
+
 		dst := filepath.Join(*flagTmpdir, fmt.Sprintf("%06d.o", i))
 		paths = append(paths, dst)
 		if ctxt.Debugvlog != 0 {

@@ -163,7 +163,7 @@ func TestCode(t *testing.T) {
 
 		// Now we have a test binary. Run it with all the tests as subtests of this one.
 		for _, test := range tests {
-			test := test
+
 			if flag == ",softfloat" && !test.usesFloat {
 				// No point in running the soft float version if the test doesn't use floats.
 				continue

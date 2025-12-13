@@ -121,7 +121,7 @@ func Check(t *testing.T) {
 	walkers := make([]*Walker, len(contexts))
 	var wg sync.WaitGroup
 	for i, context := range contexts {
-		i, context := i, context
+
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

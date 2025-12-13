@@ -232,7 +232,7 @@ var warmupCache = sync.OnceFunc(func() {
 	// Warm up the import cache in parallel.
 	var wg sync.WaitGroup
 	for _, context := range contexts {
-		context := context
+
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

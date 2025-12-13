@@ -59,7 +59,6 @@ func TestStdlib(t *testing.T) {
 	var wg sync.WaitGroup
 
 	for dir := range dirFiles {
-		dir := dir
 
 		cpulimit <- struct{}{}
 		wg.Add(1)
