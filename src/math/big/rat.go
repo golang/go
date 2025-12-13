@@ -559,3 +559,18 @@ func (z *Rat) Quo(x, y *Rat) *Rat {
 	z.a.neg = a.neg != b.neg
 	return z.norm()
 }
+
+// Floor returns the largest [Int] <= z.
+func (z *Rat) Floor() *Int {
+	// z.b is positive, so Euclidean division == floor division
+	return new(Int).Div(&z.a, &z.b)
+}
+
+// Ceil returns the smallest [Int] >= z.
+func (z *Rat) Ceil() *Int {
+	if z.IsInt() {
+		return new(Int).Set(&z.a)
+	}
+	f := z.Floor()
+	return f.Add(f, intOne)
+}

@@ -744,3 +744,53 @@ func TestDenomRace(t *testing.T) {
 		<-c
 	}
 }
+
+var ratFloorTests = []struct {
+	rat string
+	out int64
+}{
+	{"123456.78", 123456},
+	{"100.5", 100},
+	{"5645.0222", 5645},
+	{"89898989", 89898989},
+	{"0", 0},
+	{"-123456.78", -123457},
+	{"-100.5", -101},
+	{"-5645.0222", -5646},
+	{"-89898989", -89898989},
+}
+
+func TestRatFloor(t *testing.T) {
+	for i, test := range ratFloorTests {
+		x, _ := new(Rat).SetString(test.rat)
+		out := x.Floor()
+		if out.Cmp(NewInt(test.out)) != 0 {
+			t.Errorf("#%d got out = %v; want %v", i, out, test.out)
+		}
+	}
+}
+
+var ratCeilTests = []struct {
+	rat string
+	out int64
+}{
+	{"123456.78", 123457},
+	{"100.5", 101},
+	{"5645.0222", 5646},
+	{"89898989", 89898989},
+	{"0", 0},
+	{"-123456.78", -123456},
+	{"-100.5", -100},
+	{"-5645.0222", -5645},
+	{"-89898989", -89898989},
+}
+
+func TestRatCeil(t *testing.T) {
+	for i, test := range ratCeilTests {
+		x, _ := new(Rat).SetString(test.rat)
+		out := x.Ceil()
+		if out.Cmp(NewInt(test.out)) != 0 {
+			t.Errorf("#%d got out = %v; want %v", i, out, test.out)
+		}
+	}
+}
