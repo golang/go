@@ -403,6 +403,15 @@ func (p *printer) printRawNode(n Node) {
 	case *SelectorExpr:
 		p.print(n.X, _Dot, n.Sel)
 
+	case *OptionalChainExpr:
+		p.print(n.X, _OptionalDot, n.Sel)
+
+	case *TernaryExpr:
+		p.print(n.Cond, blank, _Question, blank, n.X)
+		if n.Y != nil {
+			p.print(blank, _Colon, blank, n.Y)
+		}
+
 	case *IndexExpr:
 		p.print(n.X, _Lbrack, n.Index, _Rbrack)
 

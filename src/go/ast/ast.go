@@ -429,6 +429,26 @@ type (
 		Colon token.Pos // position of ":"
 		Value Expr
 	}
+
+	// An OptionalChainExpr node represents an optional chaining expression
+	// of the form X?.Sel or X?.Method().
+	// It returns nil if X is nil, otherwise evaluates normally.
+	OptionalChainExpr struct {
+		X        Expr      // expression (must be pointer type)
+		Question token.Pos // position of "?."
+		Sel      *Ident    // field selector
+	}
+
+	// A TernaryExpr node represents a ternary conditional expression
+	// of the form Cond ? X : Y (or Cond ? X for short form).
+	// If Cond is true, evaluates to X, otherwise Y (or nil for short form).
+	TernaryExpr struct {
+		Cond     Expr      // condition
+		Question token.Pos // position of "?"
+		X        Expr      // true value
+		Colon    token.Pos // position of ":" (NoPos for short form)
+		Y        Expr      // false value (nil for short form)
+	}
 )
 
 // The direction of a channel type is indicated by a bit
@@ -504,19 +524,21 @@ func (x *CompositeLit) Pos() token.Pos {
 	}
 	return x.Lbrace
 }
-func (x *ParenExpr) Pos() token.Pos      { return x.Lparen }
-func (x *SelectorExpr) Pos() token.Pos   { return x.X.Pos() }
-func (x *IndexExpr) Pos() token.Pos      { return x.X.Pos() }
-func (x *IndexListExpr) Pos() token.Pos  { return x.X.Pos() }
-func (x *SliceExpr) Pos() token.Pos      { return x.X.Pos() }
-func (x *TypeAssertExpr) Pos() token.Pos { return x.X.Pos() }
-func (x *CallExpr) Pos() token.Pos       { return x.Fun.Pos() }
-func (x *StarExpr) Pos() token.Pos       { return x.Star }
-func (x *UnaryExpr) Pos() token.Pos      { return x.OpPos }
-func (x *BinaryExpr) Pos() token.Pos     { return x.X.Pos() }
-func (x *KeyValueExpr) Pos() token.Pos   { return x.Key.Pos() }
-func (x *ArrayType) Pos() token.Pos      { return x.Lbrack }
-func (x *StructType) Pos() token.Pos     { return x.Struct }
+func (x *ParenExpr) Pos() token.Pos         { return x.Lparen }
+func (x *SelectorExpr) Pos() token.Pos      { return x.X.Pos() }
+func (x *IndexExpr) Pos() token.Pos         { return x.X.Pos() }
+func (x *IndexListExpr) Pos() token.Pos     { return x.X.Pos() }
+func (x *SliceExpr) Pos() token.Pos         { return x.X.Pos() }
+func (x *TypeAssertExpr) Pos() token.Pos    { return x.X.Pos() }
+func (x *CallExpr) Pos() token.Pos          { return x.Fun.Pos() }
+func (x *StarExpr) Pos() token.Pos          { return x.Star }
+func (x *UnaryExpr) Pos() token.Pos         { return x.OpPos }
+func (x *BinaryExpr) Pos() token.Pos        { return x.X.Pos() }
+func (x *KeyValueExpr) Pos() token.Pos      { return x.Key.Pos() }
+func (x *OptionalChainExpr) Pos() token.Pos { return x.X.Pos() }
+func (x *TernaryExpr) Pos() token.Pos       { return x.Cond.Pos() }
+func (x *ArrayType) Pos() token.Pos         { return x.Lbrack }
+func (x *StructType) Pos() token.Pos        { return x.Struct }
 func (x *FuncType) Pos() token.Pos {
 	if x.Func.IsValid() || x.Params == nil { // see issue 3870
 		return x.Func
@@ -535,22 +557,29 @@ func (x *Ellipsis) End() token.Pos {
 	}
 	return x.Ellipsis + 3 // len("...")
 }
-func (x *BasicLit) End() token.Pos       { return token.Pos(int(x.ValuePos) + len(x.Value)) }
-func (x *FuncLit) End() token.Pos        { return x.Body.End() }
-func (x *CompositeLit) End() token.Pos   { return x.Rbrace + 1 }
-func (x *ParenExpr) End() token.Pos      { return x.Rparen + 1 }
-func (x *SelectorExpr) End() token.Pos   { return x.Sel.End() }
-func (x *IndexExpr) End() token.Pos      { return x.Rbrack + 1 }
-func (x *IndexListExpr) End() token.Pos  { return x.Rbrack + 1 }
-func (x *SliceExpr) End() token.Pos      { return x.Rbrack + 1 }
-func (x *TypeAssertExpr) End() token.Pos { return x.Rparen + 1 }
-func (x *CallExpr) End() token.Pos       { return x.Rparen + 1 }
-func (x *StarExpr) End() token.Pos       { return x.X.End() }
-func (x *UnaryExpr) End() token.Pos      { return x.X.End() }
-func (x *BinaryExpr) End() token.Pos     { return x.Y.End() }
-func (x *KeyValueExpr) End() token.Pos   { return x.Value.End() }
-func (x *ArrayType) End() token.Pos      { return x.Elt.End() }
-func (x *StructType) End() token.Pos     { return x.Fields.End() }
+func (x *BasicLit) End() token.Pos          { return token.Pos(int(x.ValuePos) + len(x.Value)) }
+func (x *FuncLit) End() token.Pos           { return x.Body.End() }
+func (x *CompositeLit) End() token.Pos      { return x.Rbrace + 1 }
+func (x *ParenExpr) End() token.Pos         { return x.Rparen + 1 }
+func (x *SelectorExpr) End() token.Pos      { return x.Sel.End() }
+func (x *IndexExpr) End() token.Pos         { return x.Rbrack + 1 }
+func (x *IndexListExpr) End() token.Pos     { return x.Rbrack + 1 }
+func (x *SliceExpr) End() token.Pos         { return x.Rbrack + 1 }
+func (x *TypeAssertExpr) End() token.Pos    { return x.Rparen + 1 }
+func (x *CallExpr) End() token.Pos          { return x.Rparen + 1 }
+func (x *StarExpr) End() token.Pos          { return x.X.End() }
+func (x *UnaryExpr) End() token.Pos         { return x.X.End() }
+func (x *BinaryExpr) End() token.Pos        { return x.Y.End() }
+func (x *KeyValueExpr) End() token.Pos      { return x.Value.End() }
+func (x *OptionalChainExpr) End() token.Pos { return x.Sel.End() }
+func (x *TernaryExpr) End() token.Pos {
+	if x.Y != nil {
+		return x.Y.End()
+	}
+	return x.X.End()
+}
+func (x *ArrayType) End() token.Pos  { return x.Elt.End() }
+func (x *StructType) End() token.Pos { return x.Fields.End() }
 func (x *FuncType) End() token.Pos {
 	if x.Results != nil {
 		return x.Results.End()
@@ -563,23 +592,25 @@ func (x *ChanType) End() token.Pos      { return x.Value.End() }
 
 // exprNode() ensures that only expression/type nodes can be
 // assigned to an Expr.
-func (*BadExpr) exprNode()        {}
-func (*Ident) exprNode()          {}
-func (*Ellipsis) exprNode()       {}
-func (*BasicLit) exprNode()       {}
-func (*FuncLit) exprNode()        {}
-func (*CompositeLit) exprNode()   {}
-func (*ParenExpr) exprNode()      {}
-func (*SelectorExpr) exprNode()   {}
-func (*IndexExpr) exprNode()      {}
-func (*IndexListExpr) exprNode()  {}
-func (*SliceExpr) exprNode()      {}
-func (*TypeAssertExpr) exprNode() {}
-func (*CallExpr) exprNode()       {}
-func (*StarExpr) exprNode()       {}
-func (*UnaryExpr) exprNode()      {}
-func (*BinaryExpr) exprNode()     {}
-func (*KeyValueExpr) exprNode()   {}
+func (*BadExpr) exprNode()           {}
+func (*Ident) exprNode()             {}
+func (*Ellipsis) exprNode()          {}
+func (*BasicLit) exprNode()          {}
+func (*FuncLit) exprNode()           {}
+func (*CompositeLit) exprNode()      {}
+func (*ParenExpr) exprNode()         {}
+func (*SelectorExpr) exprNode()      {}
+func (*IndexExpr) exprNode()         {}
+func (*IndexListExpr) exprNode()     {}
+func (*SliceExpr) exprNode()         {}
+func (*TypeAssertExpr) exprNode()    {}
+func (*CallExpr) exprNode()          {}
+func (*StarExpr) exprNode()          {}
+func (*UnaryExpr) exprNode()         {}
+func (*BinaryExpr) exprNode()        {}
+func (*KeyValueExpr) exprNode()      {}
+func (*OptionalChainExpr) exprNode() {}
+func (*TernaryExpr) exprNode()       {}
 
 func (*ArrayType) exprNode()     {}
 func (*StructType) exprNode()    {}

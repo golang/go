@@ -1763,6 +1763,23 @@ func (p *parser) parsePrimaryExpr(x ast.Expr) ast.Expr {
 				sel := &ast.Ident{NamePos: pos, Name: "_"}
 				x = &ast.SelectorExpr{X: x, Sel: sel}
 			}
+		case token.OPTIONAL_DOT:
+			// Optional chaining: x?.field
+			questionPos := p.pos
+			p.next()
+			if p.tok != token.IDENT {
+				pos := p.pos
+				p.errorExpected(pos, "field name after ?.")
+				if p.tok != token.RBRACE {
+					p.next() // make progress
+				}
+				sel := &ast.Ident{NamePos: pos, Name: "_"}
+				x = &ast.OptionalChainExpr{X: x, Question: questionPos, Sel: sel}
+			} else {
+				sel := &ast.Ident{NamePos: p.pos, Name: p.lit}
+				p.next()
+				x = &ast.OptionalChainExpr{X: x, Question: questionPos, Sel: sel}
+			}
 		case token.LBRACK:
 			x = p.parseIndexOrSliceOrInstance(x)
 		case token.LPAREN:
@@ -1913,7 +1930,33 @@ func (p *parser) parseExpr() ast.Expr {
 		defer un(trace(p, "Expression"))
 	}
 
-	return p.parseBinaryExpr(nil, token.LowestPrec+1)
+	x := p.parseBinaryExpr(nil, token.LowestPrec+1)
+
+	// Check for ternary operator: cond ? trueExpr : falseExpr
+	// or short form: cond ? trueExpr
+	if p.tok == token.QUESTION {
+		questionPos := p.pos
+		p.next()
+		trueExpr := p.parseBinaryExpr(nil, token.LowestPrec+1)
+		var falseExpr ast.Expr
+		colonPos := token.NoPos
+
+		if p.tok == token.COLON {
+			colonPos = p.pos
+			p.next()
+			falseExpr = p.parseExpr() // recursive to allow nested ternary
+		}
+
+		x = &ast.TernaryExpr{
+			Cond:     x,
+			Question: questionPos,
+			X:        trueExpr,
+			Colon:    colonPos,
+			Y:        falseExpr,
+		}
+	}
+
+	return x
 }
 
 func (p *parser) parseRhs() ast.Expr {

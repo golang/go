@@ -1892,6 +1892,14 @@ func (w *writer) expr(expr syntax.Expr) {
 	default:
 		w.p.unexpected("expression", expr)
 
+	case *syntax.OptionalChainExpr:
+		// Should have been rewritten by syntax.RewriteQuestionExprs
+		w.p.fatalf(expr, "unexpected OptionalChainExpr (should have been rewritten)")
+
+	case *syntax.TernaryExpr:
+		// Should have been rewritten by syntax.RewriteQuestionExprs
+		w.p.fatalf(expr, "unexpected TernaryExpr (should have been rewritten)")
+
 	case *syntax.CompositeLit:
 		w.Code(exprCompLit)
 		w.compLit(expr)

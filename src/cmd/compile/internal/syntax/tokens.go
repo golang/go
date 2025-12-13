@@ -29,18 +29,20 @@ const (
 	_Star     // *
 
 	// delimiters
-	_Lparen    // (
-	_Lbrack    // [
-	_Lbrace    // {
-	_Rparen    // )
-	_Rbrack    // ]
-	_Rbrace    // }
-	_Comma     // ,
-	_Semi      // ;
-	_Colon     // :
-	_Dot       // .
-	_DotDotDot // ...
-	_At        // @
+	_Lparen      // (
+	_Lbrack      // [
+	_Lbrace      // {
+	_Rparen      // )
+	_Rbrack      // ]
+	_Rbrace      // }
+	_Comma       // ,
+	_Semi        // ;
+	_Colon       // :
+	_Dot         // .
+	_DotDotDot   // ...
+	_At          // @
+	_Question    // ?
+	_OptionalDot // ?.
 
 	// keywords
 	_Break       // break

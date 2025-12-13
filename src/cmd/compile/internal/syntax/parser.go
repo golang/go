@@ -946,7 +946,24 @@ func (p *parser) expr() Expr {
 		defer p.trace("expr")()
 	}
 
-	return p.binaryExpr(nil, 0)
+	x := p.binaryExpr(nil, 0)
+
+	// Check for ternary operator: cond ? trueExpr : falseExpr
+	// or short form: cond ? trueExpr
+	if p.tok == _Question {
+		t := new(TernaryExpr)
+		t.pos = p.pos()
+		t.Cond = x
+		p.next()
+		t.X = p.binaryExpr(nil, 0)
+		if p.tok == _Colon {
+			p.next()
+			t.Y = p.expr() // recursive to allow nested ternary
+		}
+		x = t
+	}
+
+	return x
 }
 
 // Expression = UnaryExpr | Expression binary_op Expression .
@@ -1225,6 +1242,20 @@ loop:
 			default:
 				p.syntaxError("expected name or (")
 				p.advance(_Semi, _Rparen)
+			}
+
+		case _OptionalDot:
+			// pexpr '?.' sym (optional chaining)
+			p.next()
+			if p.tok != _Name {
+				p.syntaxError("expected name after ?.")
+				p.advance(_Semi, _Rparen)
+			} else {
+				t := new(OptionalChainExpr)
+				t.pos = pos
+				t.X = x
+				t.Sel = p.name()
+				x = t
 			}
 
 		case _Lbrack:

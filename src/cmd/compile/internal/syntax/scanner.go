@@ -352,6 +352,15 @@ redo:
 		s.nextch()
 		s.tok = _At
 
+	case '?':
+		s.nextch()
+		if s.ch == '.' {
+			s.nextch()
+			s.tok = _OptionalDot
+		} else {
+			s.tok = _Question
+		}
+
 	default:
 		s.errorf("invalid character %#U", s.ch)
 		s.nextch()

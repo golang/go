@@ -135,6 +135,17 @@ func (w walker) node(n Node) {
 		w.node(n.X)
 		w.node(n.Sel)
 
+	case *OptionalChainExpr:
+		w.node(n.X)
+		w.node(n.Sel)
+
+	case *TernaryExpr:
+		w.node(n.Cond)
+		w.node(n.X)
+		if n.Y != nil {
+			w.node(n.Y)
+		}
+
 	case *IndexExpr:
 		w.node(n.X)
 		w.node(n.Index)

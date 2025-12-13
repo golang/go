@@ -195,6 +195,22 @@ type (
 		expr
 	}
 
+	// X?.Sel (optional chaining)
+	OptionalChainExpr struct {
+		X   Expr
+		Sel *Name
+		expr
+	}
+
+	// Cond ? X : Y (ternary operator)
+	// Cond ? X (short form, Y is implicitly nil)
+	TernaryExpr struct {
+		Cond Expr
+		X    Expr
+		Y    Expr // nil means short form (Cond ? X)
+		expr
+	}
+
 	// X[Index]
 	// X[T1, T2, ...] (with Ti = Index.(*ListExpr).ElemList[i])
 	IndexExpr struct {

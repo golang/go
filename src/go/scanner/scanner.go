@@ -952,6 +952,14 @@ scanAgain:
 			tok = s.switch3(token.OR, token.OR_ASSIGN, '|', token.LOR)
 		case '~':
 			tok = token.TILDE
+		case '?':
+			// Check for ?. (optional chaining)
+			if s.ch == '.' {
+				s.next()
+				tok = token.OPTIONAL_DOT
+			} else {
+				tok = token.QUESTION
+			}
 		default:
 			// next reports unexpected BOMs - don't repeat
 			if ch != bom {

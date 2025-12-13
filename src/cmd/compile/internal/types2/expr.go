@@ -1077,6 +1077,16 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 	case *syntax.SelectorExpr:
 		check.selector(x, e, nil, false)
 
+	case *syntax.OptionalChainExpr:
+		// Should have been rewritten by syntax.RewriteQuestionExprs
+		check.errorf(e, InvalidSyntaxTree, "unexpected OptionalChainExpr (should have been rewritten)")
+		goto Error
+
+	case *syntax.TernaryExpr:
+		// Should have been rewritten by syntax.RewriteQuestionExprs
+		check.errorf(e, InvalidSyntaxTree, "unexpected TernaryExpr (should have been rewritten)")
+		goto Error
+
 	case *syntax.IndexExpr:
 		if check.indexExpr(x, e) {
 			if !enableReverseTypeInference {
