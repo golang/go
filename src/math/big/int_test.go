@@ -2010,3 +2010,87 @@ func TestFloat64(t *testing.T) {
 		}
 	}
 }
+
+func TestIntDivide(t *testing.T) {
+	x := new(Int)
+	y := new(Int)
+	q := new(Int)
+	r := new(Int)
+	qExp := new(Int)
+	rExp := new(Int)
+	factor, _ := new(Int).SetString("123_456_789_012_345_678_901", 0)
+	msg := "%v(%v/%v): got q = %v r = %v, want q = %v r = %v"
+	for i := int64(-10); i <= 10; i++ {
+		for j := int64(-10); j <= 10; j++ {
+			if j == 0 {
+				continue
+			}
+			x.SetInt64(i)
+			y.SetInt64(j)
+			qExp.SetInt64(i / j)
+			rExp.SetInt64(i % j)
+			q, r = q.Divide(x, y, r, Trunc)
+			if q.Cmp(qExp) != 0 || r.Cmp(rExp) != 0 {
+				t.Errorf(msg, "trunc", x, y, q, r, qExp, rExp)
+			}
+			x.Mul(x, factor)
+			y.Mul(y, factor)
+			rExp.Mul(rExp, factor)
+			q, r = q.Divide(x, y, r, Trunc)
+			if q.Cmp(qExp) != 0 || r.Cmp(rExp) != 0 {
+				t.Errorf(msg, "trunc", x, y, q, r, qExp, rExp)
+			}
+
+			x.SetInt64(i)
+			y.SetInt64(j)
+			floor := int64(math.Floor(float64(i) / float64(j)))
+			qExp.SetInt64(floor)
+			rExp.SetInt64(i - j*floor)
+			q, r = q.Divide(x, y, r, Floor)
+			if q.Cmp(qExp) != 0 || r.Cmp(rExp) != 0 {
+				t.Errorf(msg, "floor", x, y, q, r, qExp, rExp)
+			}
+			x.Mul(x, factor)
+			y.Mul(y, factor)
+			rExp.Mul(rExp, factor)
+			q, r = q.Divide(x, y, r, Floor)
+			if q.Cmp(qExp) != 0 || r.Cmp(rExp) != 0 {
+				t.Errorf(msg, "floor", x, y, q, r, qExp, rExp)
+			}
+
+			x.SetInt64(i)
+			y.SetInt64(j)
+			ceil := int64(math.Ceil(float64(i) / float64(j)))
+			qExp.SetInt64(ceil)
+			rExp.SetInt64(i - j*ceil)
+			q, r = q.Divide(x, y, r, Ceil)
+			if q.Cmp(qExp) != 0 || r.Cmp(rExp) != 0 {
+				t.Errorf(msg, "ceil", x, y, q, r, qExp, rExp)
+			}
+			x.Mul(x, factor)
+			y.Mul(y, factor)
+			rExp.Mul(rExp, factor)
+			q, r = q.Divide(x, y, r, Ceil)
+			if q.Cmp(qExp) != 0 || r.Cmp(rExp) != 0 {
+				t.Errorf(msg, "ceil", x, y, q, r, qExp, rExp)
+			}
+
+			x.SetInt64(i)
+			y.SetInt64(j)
+			round := int64(math.RoundToEven(float64(i) / float64(j)))
+			qExp.SetInt64(round)
+			rExp.SetInt64(i - j*round)
+			q, r = q.Divide(x, y, r, Round)
+			if q.Cmp(qExp) != 0 || r.Cmp(rExp) != 0 {
+				t.Errorf(msg, "round", x, y, q, r, qExp, rExp)
+			}
+			x.Mul(x, factor)
+			y.Mul(y, factor)
+			rExp.Mul(rExp, factor)
+			q, r = q.Divide(x, y, r, Round)
+			if q.Cmp(qExp) != 0 || r.Cmp(rExp) != 0 {
+				t.Errorf(msg, "round", x, y, q, r, qExp, rExp)
+			}
+		}
+	}
+}

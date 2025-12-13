@@ -1,0 +1,9 @@
+pkg math/big, method (*Int) Divide(*Int, *Int, *Int, RoundingMode) (*Int, *Int) #76821
+pkg math/big, const Trunc = 2 #76821
+pkg math/big, const Trunc RoundingMode #76821
+pkg math/big, const Floor = 4 #76821
+pkg math/big, const Floor RoundingMode #76821
+pkg math/big, const Round = 0 #76821
+pkg math/big, const Round RoundingMode #76821
+pkg math/big, const Ceil = 5 #76821
+pkg math/big, const Ceil RoundingMode #76821
