@@ -442,7 +442,7 @@ func (r *rewriter) buildReflectMethodCall(pos Pos, base Expr, methodName string,
 
 	// Block for if len(results) > 0
 	thenStmts := []Stmt{}
-	
+
 	// r0 := results[0]
 	r0Name := r.newName(pos, "_r0")
 	r0Ref1 := r.newName(pos, "_r0")
@@ -456,7 +456,7 @@ func (r *rewriter) buildReflectMethodCall(pos Pos, base Expr, methodName string,
 	indexExpr := r.createIndexExpr(pos, resultsRef2, zero2)
 	r0Assign := r.createShortVarDecl(pos, r0Name, indexExpr)
 	thenStmts = append(thenStmts, r0Assign)
-	
+
 	// if r0.Kind() == reflect.Ptr && r0.IsNil() { return nil }
 	r0KindCall := r.createCallExpr(pos, r.createSelectorExpr(pos, r0Ref1, "Kind"), nil)
 	reflectPtr4 := r.createSelectorExpr(pos, r.newName(pos, "reflect"), "Ptr")
@@ -466,22 +466,22 @@ func (r *rewriter) buildReflectMethodCall(pos Pos, base Expr, methodName string,
 	nilRet3 := r.createReturnNil(pos)
 	ifR0Nil := r.createIfStmt(pos, r0AndCond, nilRet3)
 	thenStmts = append(thenStmts, ifR0Nil)
-	
+
 	// return r0.Interface()
 	interfaceCall := r.createCallExpr(pos, r.createSelectorExpr(pos, r0Ref3, "Interface"), nil)
 	returnResult := r.createReturnStmt(pos, interfaceCall)
 	thenStmts = append(thenStmts, returnResult)
-	
+
 	// Create the then block
 	thenBlock := new(BlockStmt)
 	thenBlock.SetPos(pos)
 	thenBlock.List = thenStmts
-	
+
 	ifLenGt0 := new(IfStmt)
 	ifLenGt0.SetPos(pos)
 	ifLenGt0.Cond = lenGt0
 	ifLenGt0.Then = thenBlock
-	
+
 	stmts = append(stmts, ifLenGt0)
 
 	// return nil
@@ -556,7 +556,7 @@ func (r *rewriter) buildReflectFieldAccess(pos Pos, base Expr, fieldName string)
 	fKindEq := r.createBinaryOp(pos, Eql, fKindCall, reflectPtr3)
 	fIsNilCall := r.createCallExpr(pos, r.createSelectorExpr(pos, fRef2, "IsNil"), nil)
 	fAndCond := r.createBinaryOp(pos, AndAnd, fKindEq, fIsNilCall)
-	
+
 	nilRet2 := r.createReturnNil(pos)
 	ifFieldNil := r.createIfStmt(pos, fAndCond, nilRet2)
 	stmts = append(stmts, ifFieldNil)
