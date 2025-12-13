@@ -14,12 +14,32 @@ func logger(f func()) func() {
 	}
 }
 
-func loggerWithParams(f func(string)) func(string) {
+
+func logger2(f func()) func() {
+	fmt.Println("[Decorator] logger called during program init")
+	return func() {
+		fmt.Println("[Decorator] Before function call 2")
+		f()
+		fmt.Println("[Decorator] After function call 2")
+	}
+}
+
+
+func logger3(f func(), message string) func() {
+	fmt.Println("[Decorator] logger called during program init")
+	return func() {
+		fmt.Println("[Decorator] Before function call 2", message)
+		f()
+		fmt.Println("[Decorator] After function call 2", message)
+	}
+}
+
+func loggerWithParams(f func(string, string)) func(string, string) {
 	fmt.Println("[Decorator] loggerWithParams called during program init")
-	return func(name string) {
-		fmt.Println("[Decorator] Before function call")
-		f(name)
-		fmt.Println("[Decorator] After function call")
+	return func(name string, message string) {
+		fmt.Println("[Decorator] Before function call", name)
+		f(name, message)
+		fmt.Println("[Decorator] After function call", message)
 	}
 }
 
@@ -34,7 +54,21 @@ func loggerWithReturn(f func(int) int) func(int) int {
 	}
 }
 
+
+func loggerWithReturnAndParams(f func(int) int, logName string, logMessage string) func(int) int {
+	fmt.Println("[Decorator] loggerWithReturn called during program init")
+	return func(x int) int {
+		fmt.Println("[Decorator] Before function call", logName)
+		result := f(x)
+		fmt.Println("[Decorator] After function call", logName)
+		return result
+	}
+}
+
+
 // 装饰无参数、无返回值函数
+@logger3("Hello from greet1!")
+@logger2
 @logger
 func greet1() {
 	fmt.Println("Hello from greet1!")
@@ -42,13 +76,19 @@ func greet1() {
 
 // 装饰带参数、无返回值函数（参数会被闭包捕获）
 @loggerWithParams
-func greet2(name string) {
-	fmt.Println("Hello from greet2,", name)
+func greet2(name string, message string) {
+	fmt.Println("Hello from greet2,", name, message)
 }
 
 // 装饰带参数、带返回值的函数
 @loggerWithReturn
 func calculate(x int) int {
+	fmt.Printf("Calculating square of %d\n", x)
+	return x * x
+}
+
+@loggerWithReturnAndParams("calculate2", "Calculating square of %d")
+func calculate2(x int) int {
 	fmt.Printf("Calculating square of %d\n", x)
 	return x * x
 }
@@ -62,7 +102,7 @@ func main() {
 	fmt.Println()
 	
 	fmt.Println("--- 测试 2: 带参数函数 ---")
-	greet2("Alice")
+	greet2("Alice", "Hello from greet2, Alice")
 	fmt.Println()
 	
 	fmt.Println("--- 测试 3: 带返回值函数 ---")

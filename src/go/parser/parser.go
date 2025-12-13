@@ -2869,20 +2869,60 @@ func (p *parser) parseDecl(sync map[token.Token]bool) ast.Decl {
 		return p.parseFuncDecl()
 
 	case token.AT:
-		// Decorator syntax: @decoratorName func foo() {...}
-		// Transform to: var foo = decoratorName(func() {...})
+		// Decorator syntax:
+		// 1. @decoratorName func foo() {...}
+		// 2. @decoratorName(arg1, arg2) func foo() {...}
+		// 3. @dec1 @dec2 func foo() {...} (stacked decorators)
+		//
+		// Transform to:
+		// 1. var foo = decoratorName(func() {...})
+		// 2. var foo = decoratorName(func() {...}, arg1, arg2)
+		// 3. var foo = dec1(dec2(func() {...}))
+
 		atPos := p.pos
-		p.next() // consume '@'
-		if p.tok != token.IDENT {
-			p.errorExpected(p.pos, "decorator name")
-			p.advance(sync)
-			return &ast.BadDecl{From: p.pos, To: p.pos}
+
+		// Parse all decorators (support stacking)
+		type decoratorInfo struct {
+			name *ast.Ident
+			args []ast.Expr // decorator arguments (if any)
 		}
-		decorator := p.parseIdent()
-		// Allow newline (semicolon) between decorator and func
-		if p.tok == token.SEMICOLON && p.lit == "\n" {
-			p.next()
+		var decorators []decoratorInfo
+
+		for p.tok == token.AT {
+			p.next() // consume '@'
+			if p.tok != token.IDENT {
+				p.errorExpected(p.pos, "decorator name")
+				p.advance(sync)
+				return &ast.BadDecl{From: p.pos, To: p.pos}
+			}
+
+			decName := p.parseIdent()
+			var decArgs []ast.Expr
+
+			// Check for decorator arguments: @decorator(arg1, arg2)
+			if p.tok == token.LPAREN {
+				p.next() // consume '('
+				for p.tok != token.RPAREN && p.tok != token.EOF {
+					decArgs = append(decArgs, p.parseExpr())
+					if !p.atComma("decorator arguments", token.RPAREN) {
+						break
+					}
+					p.next() // consume ','
+				}
+				p.expect(token.RPAREN)
+			}
+
+			decorators = append(decorators, decoratorInfo{
+				name: decName,
+				args: decArgs,
+			})
+
+			// Allow newline (semicolon) between decorators or before func
+			if p.tok == token.SEMICOLON && p.lit == "\n" {
+				p.next()
+			}
 		}
+
 		if p.tok != token.FUNC {
 			p.errorExpected(p.pos, "func after decorator")
 			p.advance(sync)
@@ -2896,18 +2936,27 @@ func (p *parser) parseDecl(sync map[token.Token]bool) ast.Decl {
 			Body: funcDecl.Body,
 		}
 
-		// Create call to decorator: decorator(func() {...})
-		decoratorCall := &ast.CallExpr{
-			Fun:    decorator,
-			Lparen: decorator.End(),
-			Args:   []ast.Expr{funcLit},
-			Rparen: funcDecl.Body.End(),
+		// Apply decorators from innermost to outermost (reverse order)
+		// @dec1 @dec2 func foo() => dec1(dec2(func()))
+		var result ast.Expr = funcLit
+		for i := len(decorators) - 1; i >= 0; i-- {
+			dec := decorators[i]
+			// Build argument list: (funcLit/previousResult, ...decoratorArgs)
+			args := []ast.Expr{result}
+			args = append(args, dec.args...)
+
+			result = &ast.CallExpr{
+				Fun:    dec.name,
+				Lparen: dec.name.End(),
+				Args:   args,
+				Rparen: dec.name.End() + 1,
+			}
 		}
 
-		// Create ValueSpec: foo = decorator(func() {...})
+		// Create ValueSpec: foo = decorator(...)(func() {...})
 		valueSpec := &ast.ValueSpec{
 			Names:  []*ast.Ident{funcDecl.Name},
-			Values: []ast.Expr{decoratorCall},
+			Values: []ast.Expr{result},
 		}
 
 		// Create GenDecl: var foo = decorator(func() {...})

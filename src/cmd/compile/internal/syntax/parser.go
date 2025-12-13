@@ -452,44 +452,89 @@ func (p *parser) fileOrNil() *File {
 			}
 
 		case _At:
-			p.next()
-			if p.tok != _Name {
-				p.syntaxError("expected decorator name after @")
-				p.advance(_Import, _Const, _Type, _Var, _Func)
-				continue
+			// Decorator syntax:
+			// 1. @decoratorName func foo() {...}
+			// 2. @decoratorName(arg1, arg2) func foo() {...}
+			// 3. @dec1 @dec2 func foo() {...} (stacked decorators)
+			//
+			// Transform to:
+			// 1. var foo = decoratorName(func() {...})
+			// 2. var foo = decoratorName(func() {...}, arg1, arg2)
+			// 3. var foo = dec1(dec2(func() {...}))
+
+			// Parse all decorators (support stacking)
+			type decoratorInfo struct {
+				name *Name
+				args []Expr // decorator arguments (if any)
 			}
-			decoratorName := p.name()
-			// 允许装饰器和 func 之间有换行（即 _Semi token）
-			p.got(_Semi)
+			var decorators []decoratorInfo
+
+			for p.tok == _At {
+				p.next() // consume '@'
+				if p.tok != _Name {
+					p.syntaxError("expected decorator name after @")
+					p.advance(_Import, _Const, _Type, _Var, _Func)
+					continue
+				}
+
+				decName := p.name()
+				var decArgs []Expr
+
+				// Check for decorator arguments: @decorator(arg1, arg2)
+				if p.tok == _Lparen {
+					p.next() // consume '('
+					for p.tok != _Rparen && p.tok != _EOF {
+						decArgs = append(decArgs, p.expr())
+						if !p.got(_Comma) {
+							break
+						}
+					}
+					p.want(_Rparen)
+				}
+
+				decorators = append(decorators, decoratorInfo{
+					name: decName,
+					args: decArgs,
+				})
+
+				// Allow newline (semicolon) between decorators or before func
+				p.got(_Semi)
+			}
+
 			if !p.got(_Func) {
 				p.syntaxError("expected func after decorator")
 				p.advance(_Import, _Const, _Type, _Var, _Func)
 				continue
 			}
-			if funcDecl := p.funcDeclOrNil(); funcDecl != nil {
-				// Transform @decorator func foo() {...} into:
-				// var foo = decorator(func() {...})
-				//
-				// This AST-level transformation is simpler than IR-level
-				// transformation and supports all function signatures.
 
+			if funcDecl := p.funcDeclOrNil(); funcDecl != nil {
 				// Create FuncLit from the function declaration
 				funcLit := new(FuncLit)
 				funcLit.pos = funcDecl.pos
 				funcLit.Type = funcDecl.Type
 				funcLit.Body = funcDecl.Body
 
-				// Create call to decorator: decorator(func() {...})
-				decoratorCall := new(CallExpr)
-				decoratorCall.pos = decoratorName.Pos()
-				decoratorCall.Fun = decoratorName
-				decoratorCall.ArgList = []Expr{funcLit}
+				// Apply decorators from innermost to outermost (reverse order)
+				// @dec1 @dec2 func foo() => dec1(dec2(func()))
+				var result Expr = funcLit
+				for i := len(decorators) - 1; i >= 0; i-- {
+					dec := decorators[i]
+					// Build argument list: (funcLit/previousResult, ...decoratorArgs)
+					args := []Expr{result}
+					args = append(args, dec.args...)
 
-				// Create VarDecl: var foo = decorator(func() {...})
+					call := new(CallExpr)
+					call.pos = dec.name.Pos()
+					call.Fun = dec.name
+					call.ArgList = args
+					result = call
+				}
+
+				// Create VarDecl: var foo = decorator(...)(func() {...})
 				varDecl := new(VarDecl)
 				varDecl.pos = funcDecl.pos
 				varDecl.NameList = []*Name{funcDecl.Name}
-				varDecl.Values = decoratorCall
+				varDecl.Values = result
 
 				f.DeclList = append(f.DeclList, varDecl)
 			}
