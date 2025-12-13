@@ -61,6 +61,7 @@ func LoadPackage(filenames []string) {
 				if p.file != nil {
 					syntax.RewriteQuestionExprs(p.file)
 					syntax.RewriteDefaultParams(p.file)
+					p.overloadInfo = syntax.PreprocessOverloadedMethods(p.file)
 				}
 			}()
 		}
@@ -103,10 +104,11 @@ func trimFilename(b *syntax.PosBase) string {
 
 // noder transforms package syntax's AST into a Node tree.
 type noder struct {
-	file       *syntax.File
-	linknames  []linkname
-	pragcgobuf [][]string
-	err        chan syntax.Error
+	file         *syntax.File
+	linknames    []linkname
+	pragcgobuf   [][]string
+	err          chan syntax.Error
+	overloadInfo map[string]*syntax.OverloadInfo // Method overload information
 }
 
 // linkname records a //go:linkname directive.

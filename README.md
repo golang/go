@@ -304,6 +304,161 @@ func main() {
 }
 ```
 
+## 5. 结构体方法重载
+
+支持为结构体定义多个同名方法，只要参数类型不同即可。编译器会根据调用时的参数类型自动选择正确的方法。
+
+### 5.1 基础用法
+
+```go
+type Calculator struct{}
+
+// 整数加法
+func (c *Calculator) Add(a int, b int) int {
+    return a + b
+}
+
+// 浮点数加法
+func (c *Calculator) Add(a float64, b float64) float64 {
+    return a + b
+}
+
+// 字符串拼接
+func (c *Calculator) Add(a string, b string) string {
+    return a + b
+}
+
+func main() {
+    calc := &Calculator{}
+    
+    intResult := calc.Add(1, 2)           // 调用 int 版本，返回 int
+    floatResult := calc.Add(1.5, 2.5)     // 调用 float64 版本，返回 float64
+    strResult := calc.Add("Hello", "GO")  // 调用 string 版本，返回 string
+    
+    fmt.Printf("int: %T = %v\n", intResult, intResult)       // int: int = 3
+    fmt.Printf("float64: %T = %v\n", floatResult, floatResult) // float64: float64 = 4.0
+    fmt.Printf("string: %T = %v\n", strResult, strResult)    // string: string = HelloGO
+}
+```
+
+### 5.2 不同参数数量
+
+```go
+type Greeter struct{}
+
+// 无参数版本
+func (g *Greeter) SayHello() string {
+    return "Hello, World!"
+}
+
+// 单参数版本
+func (g *Greeter) SayHello(name string) string {
+    return "Hello, " + name + "!"
+}
+
+// 双参数版本
+func (g *Greeter) SayHello(firstName string, lastName string) string {
+    return "Hello, " + firstName + " " + lastName + "!"
+}
+
+func main() {
+    g := &Greeter{}
+    
+    fmt.Println(g.SayHello())                    // 输出: Hello, World!
+    fmt.Println(g.SayHello("Alice"))             // 输出: Hello, Alice!
+    fmt.Println(g.SayHello("Bob", "Smith"))      // 输出: Hello, Bob Smith!
+}
+```
+
+### 5.3 不同返回值类型
+
+```go
+type Processor struct{}
+
+// 处理整数，返回平方值
+func (p *Processor) Process(x int) int {
+    return x * x
+}
+
+// 处理浮点数，返回平方根
+func (p *Processor) Process(x float64) float64 {
+    return math.Sqrt(x)
+}
+
+// 处理字符串，返回长度
+func (p *Processor) Process(s string) int {
+    return len(s)
+}
+
+func main() {
+    proc := &Processor{}
+    
+    intResult := proc.Process(5)        // int: 25
+    floatResult := proc.Process(16.0)   // float64: 4.0
+    lenResult := proc.Process("MyGO")   // int: 4
+    
+    // 无需类型断言！编译器知道每个返回值的确切类型
+    fmt.Printf("%T: %v\n", intResult, intResult)
+    fmt.Printf("%T: %v\n", floatResult, floatResult)
+    fmt.Printf("%T: %v\n", lenResult, lenResult)
+}
+```
+
+### 5.4 实际应用示例
+
+```go
+type DataStore struct {
+    intData    map[string]int
+    stringData map[string]string
+}
+
+// 存储整数
+func (ds *DataStore) Set(key string, value int) {
+    if ds.intData == nil {
+        ds.intData = make(map[string]int)
+    }
+    ds.intData[key] = value
+}
+
+// 存储字符串
+func (ds *DataStore) Set(key string, value string) {
+    if ds.stringData == nil {
+        ds.stringData = make(map[string]string)
+    }
+    ds.stringData[key] = value
+}
+
+// 获取整数
+func (ds *DataStore) Get(key string, defaultValue int) int {
+    if v, ok := ds.intData[key]; ok {
+        return v
+    }
+    return defaultValue
+}
+
+// 获取字符串
+func (ds *DataStore) Get(key string, defaultValue string) string {
+    if v, ok := ds.stringData[key]; ok {
+        return v
+    }
+    return defaultValue
+}
+
+func main() {
+    store := &DataStore{}
+    
+    // 存储不同类型的数据
+    store.Set("age", 25)
+    store.Set("name", "Alice")
+    
+    // 获取数据，类型安全
+    age := store.Get("age", 0)           // int
+    name := store.Get("name", "Unknown") // string
+    
+    fmt.Printf("Age: %d, Name: %s\n", age, name) // Age: 25, Name: Alice
+}
+```
+
 ---
 
 ## 编译和使用

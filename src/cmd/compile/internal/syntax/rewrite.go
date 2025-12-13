@@ -984,3 +984,807 @@ func (d *defaultParamRewriter) createDefaultOverride(pos Pos, paramName string, 
 
 	return ifStmt
 }
+
+// ============================================================================
+// Method Overloading Support
+// ============================================================================
+
+// OverloadInfo stores information about overloaded methods for a receiver type
+type OverloadInfo struct {
+	ReceiverType string           // Receiver type name (e.g., "User" or "*User")
+	MethodName   string           // Original method name (e.g., "SayHello")
+	Overloads    []*OverloadEntry // All overload versions
+}
+
+// OverloadEntry represents a single overload version of a method
+type OverloadEntry struct {
+	ParamTypes []string  // Parameter type signatures (e.g., ["int"] or ["float64"])
+	NewName    string    // Renamed method name (e.g., "_SayHello_int")
+	OrigDecl   *FuncDecl // Original declaration
+}
+
+// PreprocessOverloadedMethods collects overloaded methods, renames them,
+// and rewrites call sites based on argument literal types.
+// Returns a map of "ReceiverType.MethodName" -> OverloadInfo.
+func PreprocessOverloadedMethods(file *File) map[string]*OverloadInfo {
+	// Step 1: Collect all methods grouped by (receiver type, method name)
+	methodGroups := make(map[string][]*FuncDecl)
+
+	for _, decl := range file.DeclList {
+		fn, ok := decl.(*FuncDecl)
+		if !ok || fn.Recv == nil {
+			continue // Not a method
+		}
+
+		recvType := typeExprToString(fn.Recv.Type)
+		methodName := fn.Name.Value
+		key := recvType + "." + methodName
+
+		methodGroups[key] = append(methodGroups[key], fn)
+	}
+
+	// Step 2: Process groups with multiple methods (overloads)
+	overloadInfos := make(map[string]*OverloadInfo)
+
+	for key, methods := range methodGroups {
+		if len(methods) <= 1 {
+			continue // No overloading
+		}
+
+		// Extract receiver type and method name from key
+		parts := splitFirst(key, ".")
+		recvType := parts[0]
+		methodName := parts[1]
+
+		info := &OverloadInfo{
+			ReceiverType: recvType,
+			MethodName:   methodName,
+			Overloads:    make([]*OverloadEntry, 0, len(methods)),
+		}
+
+		for _, fn := range methods {
+			// Generate parameter type signature
+			paramTypes := getParamTypeStrings(fn.Type.ParamList)
+			suffix := generateMethodSuffix(paramTypes)
+			newName := "_" + methodName + suffix
+
+			entry := &OverloadEntry{
+				ParamTypes: paramTypes,
+				NewName:    newName,
+				OrigDecl:   fn,
+			}
+			info.Overloads = append(info.Overloads, entry)
+
+			// Rename the method definition
+			fn.Name.Value = newName
+		}
+
+		overloadInfos[key] = info
+	}
+
+	// Step 3: Rewrite call sites (before type checking)
+	if len(overloadInfos) > 0 {
+		rewriter := &overloadPreRewriter{
+			overloads:     overloadInfos,
+			methodNameMap: buildMethodNameMap(overloadInfos),
+		}
+		rewriter.rewriteFile(file)
+	}
+
+	return overloadInfos
+}
+
+// buildMethodNameMap creates a map from original method name to overload info
+func buildMethodNameMap(overloads map[string]*OverloadInfo) map[string][]*OverloadInfo {
+	result := make(map[string][]*OverloadInfo)
+	for _, info := range overloads {
+		result[info.MethodName] = append(result[info.MethodName], info)
+	}
+	return result
+}
+
+// overloadPreRewriter rewrites method calls before type checking
+type overloadPreRewriter struct {
+	overloads     map[string]*OverloadInfo
+	methodNameMap map[string][]*OverloadInfo
+}
+
+func (r *overloadPreRewriter) rewriteFile(file *File) {
+	for _, decl := range file.DeclList {
+		r.rewriteDeclPre(decl)
+	}
+}
+
+func (r *overloadPreRewriter) rewriteDeclPre(decl Decl) {
+	switch d := decl.(type) {
+	case *FuncDecl:
+		if d.Body != nil {
+			r.rewriteBlockStmtPre(d.Body)
+		}
+	case *VarDecl:
+		if d.Values != nil {
+			r.rewriteExprPre(d.Values)
+		}
+	}
+}
+
+func (r *overloadPreRewriter) rewriteBlockStmtPre(block *BlockStmt) {
+	if block == nil {
+		return
+	}
+	for _, stmt := range block.List {
+		r.rewriteStmtPre(stmt)
+	}
+}
+
+func (r *overloadPreRewriter) rewriteStmtPre(stmt Stmt) {
+	if stmt == nil {
+		return
+	}
+	switch s := stmt.(type) {
+	case *ExprStmt:
+		r.rewriteExprPre(s.X)
+	case *AssignStmt:
+		r.rewriteExprPre(s.Lhs)
+		r.rewriteExprPre(s.Rhs)
+	case *ReturnStmt:
+		if s.Results != nil {
+			r.rewriteExprPre(s.Results)
+		}
+	case *IfStmt:
+		if s.Init != nil {
+			r.rewriteSimpleStmtPre(s.Init)
+		}
+		r.rewriteExprPre(s.Cond)
+		r.rewriteBlockStmtPre(s.Then)
+		if s.Else != nil {
+			r.rewriteStmtPre(s.Else)
+		}
+	case *ForStmt:
+		if s.Init != nil {
+			r.rewriteSimpleStmtPre(s.Init)
+		}
+		if s.Cond != nil {
+			r.rewriteExprPre(s.Cond)
+		}
+		if s.Post != nil {
+			r.rewriteSimpleStmtPre(s.Post)
+		}
+		r.rewriteBlockStmtPre(s.Body)
+	case *SwitchStmt:
+		if s.Init != nil {
+			r.rewriteSimpleStmtPre(s.Init)
+		}
+		if s.Tag != nil {
+			r.rewriteExprPre(s.Tag)
+		}
+		for _, cc := range s.Body {
+			r.rewriteCaseClausePre(cc)
+		}
+	case *BlockStmt:
+		r.rewriteBlockStmtPre(s)
+	case *DeclStmt:
+		for _, d := range s.DeclList {
+			r.rewriteDeclPre(d)
+		}
+	}
+}
+
+func (r *overloadPreRewriter) rewriteSimpleStmtPre(stmt SimpleStmt) {
+	if stmt == nil {
+		return
+	}
+	switch s := stmt.(type) {
+	case *ExprStmt:
+		r.rewriteExprPre(s.X)
+	case *AssignStmt:
+		r.rewriteExprPre(s.Lhs)
+		r.rewriteExprPre(s.Rhs)
+	}
+}
+
+func (r *overloadPreRewriter) rewriteCaseClausePre(cc *CaseClause) {
+	if cc.Cases != nil {
+		r.rewriteExprPre(cc.Cases)
+	}
+	for _, stmt := range cc.Body {
+		r.rewriteStmtPre(stmt)
+	}
+}
+
+func (r *overloadPreRewriter) rewriteExprPre(expr Expr) {
+	if expr == nil {
+		return
+	}
+
+	switch e := expr.(type) {
+	case *CallExpr:
+		// Check if this is a method call on an overloaded method
+		if sel, ok := e.Fun.(*SelectorExpr); ok {
+			r.tryRewriteMethodCallPre(e, sel)
+		}
+		// Recursively process
+		r.rewriteExprPre(e.Fun)
+		for _, arg := range e.ArgList {
+			r.rewriteExprPre(arg)
+		}
+
+	case *FuncLit:
+		if e.Body != nil {
+			r.rewriteBlockStmtPre(e.Body)
+		}
+
+	case *ParenExpr:
+		r.rewriteExprPre(e.X)
+
+	case *SelectorExpr:
+		r.rewriteExprPre(e.X)
+
+	case *IndexExpr:
+		r.rewriteExprPre(e.X)
+		r.rewriteExprPre(e.Index)
+
+	case *Operation:
+		r.rewriteExprPre(e.X)
+		if e.Y != nil {
+			r.rewriteExprPre(e.Y)
+		}
+
+	case *ListExpr:
+		for _, elem := range e.ElemList {
+			r.rewriteExprPre(elem)
+		}
+	}
+}
+
+func (r *overloadPreRewriter) tryRewriteMethodCallPre(call *CallExpr, sel *SelectorExpr) {
+	methodName := sel.Sel.Value
+
+	// Check if this method name has any overloads
+	infos, ok := r.methodNameMap[methodName]
+	if !ok {
+		return
+	}
+
+	// Infer argument types from literals
+	argTypes := make([]string, len(call.ArgList))
+	for i, arg := range call.ArgList {
+		argTypes[i] = inferLiteralType(arg)
+	}
+
+	// Find matching overload
+	for _, info := range infos {
+		for _, entry := range info.Overloads {
+			if matchParamTypesPreCheck(entry.ParamTypes, argTypes) {
+				// Replace the method name
+				sel.Sel.Value = entry.NewName
+				return
+			}
+		}
+	}
+}
+
+// inferLiteralType tries to infer the type of a literal expression
+func inferLiteralType(expr Expr) string {
+	switch e := expr.(type) {
+	case *BasicLit:
+		switch e.Kind {
+		case IntLit:
+			// Check if it contains a decimal point
+			if containsDecimalPoint(e.Value) {
+				return "float64"
+			}
+			return "int"
+		case FloatLit:
+			return "float64"
+		case ImagLit:
+			return "complex128"
+		case RuneLit:
+			return "rune"
+		case StringLit:
+			return "string"
+		}
+	case *Name:
+		// Could be a variable - we don't know the type yet
+		// Return "unknown" and try to match based on other criteria
+		if e.Value == "true" || e.Value == "false" {
+			return "bool"
+		}
+		if e.Value == "nil" {
+			return "nil"
+		}
+		return "unknown:" + e.Value
+	case *Operation:
+		// Unary operation - infer from operand
+		if e.Y == nil {
+			return inferLiteralType(e.X)
+		}
+		// Binary operation - try to infer from operands
+		leftType := inferLiteralType(e.X)
+		rightType := inferLiteralType(e.Y)
+		if leftType == "float64" || rightType == "float64" {
+			return "float64"
+		}
+		if leftType == "int" || rightType == "int" {
+			return "int"
+		}
+		return "unknown"
+	case *ParenExpr:
+		return inferLiteralType(e.X)
+	}
+	return "unknown"
+}
+
+// containsDecimalPoint checks if a number literal contains a decimal point
+func containsDecimalPoint(s string) bool {
+	for _, c := range s {
+		if c == '.' {
+			return true
+		}
+	}
+	return false
+}
+
+// matchParamTypesPreCheck matches parameter types during pre-processing
+func matchParamTypesPreCheck(paramTypes, argTypes []string) bool {
+	if len(paramTypes) != len(argTypes) {
+		return false
+	}
+	for i := range paramTypes {
+		if !typeMatchesPre(paramTypes[i], argTypes[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+// typeMatchesPre checks if types match during pre-processing
+func typeMatchesPre(paramType, argType string) bool {
+	// Exact match
+	if paramType == argType {
+		return true
+	}
+
+	// int literal can match various int types
+	if argType == "int" {
+		switch paramType {
+		case "int", "int8", "int16", "int32", "int64",
+			"uint", "uint8", "uint16", "uint32", "uint64":
+			return true
+		}
+	}
+
+	// float64 literal matches float types
+	if argType == "float64" {
+		switch paramType {
+		case "float32", "float64":
+			return true
+		}
+	}
+
+	// Unknown type - we'll be optimistic and check param count only
+	if len(argType) > 8 && argType[:8] == "unknown:" {
+		return true
+	}
+	if argType == "unknown" {
+		return true
+	}
+
+	return false
+}
+
+// typeExprToString converts a type expression to a string representation
+func typeExprToString(expr Expr) string {
+	if expr == nil {
+		return ""
+	}
+
+	switch t := expr.(type) {
+	case *Name:
+		return t.Value
+	case *Operation:
+		if t.Op == Mul && t.Y == nil {
+			// Pointer type: *T
+			return "*" + typeExprToString(t.X)
+		}
+	case *SelectorExpr:
+		// Qualified type: pkg.Type
+		return typeExprToString(t.X) + "." + t.Sel.Value
+	case *IndexExpr:
+		// Generic type: Type[T]
+		return typeExprToString(t.X) + "[" + typeExprToString(t.Index) + "]"
+	case *SliceType:
+		return "[]" + typeExprToString(t.Elem)
+	case *ArrayType:
+		if t.Len != nil {
+			return "[...]" + typeExprToString(t.Elem)
+		}
+		return "[]" + typeExprToString(t.Elem)
+	case *MapType:
+		return "map[" + typeExprToString(t.Key) + "]" + typeExprToString(t.Value)
+	case *ChanType:
+		prefix := "chan "
+		if t.Dir == SendOnly {
+			prefix = "chan<- "
+		} else if t.Dir == RecvOnly {
+			prefix = "<-chan "
+		}
+		return prefix + typeExprToString(t.Elem)
+	case *InterfaceType:
+		return "interface{}"
+	case *FuncType:
+		return "func(...)"
+	}
+
+	return "unknown"
+}
+
+// getParamTypeStrings extracts parameter type strings from a parameter list
+func getParamTypeStrings(params []*Field) []string {
+	var types []string
+	for _, p := range params {
+		typeStr := typeExprToString(p.Type)
+		// If multiple names share the same type, add one entry per name
+		if p.Name != nil {
+			types = append(types, typeStr)
+		} else {
+			// Anonymous parameter
+			types = append(types, typeStr)
+		}
+	}
+	return types
+}
+
+// generateMethodSuffix creates a unique suffix based on parameter types
+func generateMethodSuffix(paramTypes []string) string {
+	if len(paramTypes) == 0 {
+		return "_void"
+	}
+	result := ""
+	for _, pt := range paramTypes {
+		// Sanitize type string for use in identifier
+		sanitized := sanitizeTypeName(pt)
+		result += "_" + sanitized
+	}
+	return result
+}
+
+// sanitizeTypeName converts a type string to a valid identifier suffix
+func sanitizeTypeName(typeName string) string {
+	// Replace special characters
+	result := ""
+	for _, ch := range typeName {
+		switch ch {
+		case '*':
+			result += "ptr"
+		case '[':
+			result += "slice"
+		case ']':
+			// skip
+		case '.':
+			result += "_"
+		case ' ':
+			// skip
+		default:
+			result += string(ch)
+		}
+	}
+	return result
+}
+
+// splitFirst splits a string by the first occurrence of sep
+func splitFirst(s, sep string) []string {
+	for i := 0; i < len(s); i++ {
+		if i+len(sep) <= len(s) && s[i:i+len(sep)] == sep {
+			return []string{s[:i], s[i+len(sep):]}
+		}
+	}
+	return []string{s, ""}
+}
+
+// RewriteOverloadedCalls replaces method calls with the correct overloaded version
+// based on argument types determined during type checking.
+// This function should be called after types2 type checking.
+func RewriteOverloadedCalls(file *File, overloads map[string]*OverloadInfo) {
+	if len(overloads) == 0 {
+		return
+	}
+
+	rewriter := &overloadCallRewriter{overloads: overloads}
+	rewriter.rewriteFile(file)
+}
+
+type overloadCallRewriter struct {
+	overloads map[string]*OverloadInfo
+}
+
+func (r *overloadCallRewriter) rewriteFile(file *File) {
+	for _, decl := range file.DeclList {
+		r.rewriteDecl(decl)
+	}
+}
+
+func (r *overloadCallRewriter) rewriteDecl(decl Decl) {
+	switch d := decl.(type) {
+	case *FuncDecl:
+		if d.Body != nil {
+			r.rewriteBlockStmt(d.Body)
+		}
+	case *VarDecl:
+		if d.Values != nil {
+			r.rewriteExpr(d.Values)
+		}
+	case *ConstDecl:
+		if d.Values != nil {
+			r.rewriteExpr(d.Values)
+		}
+	}
+}
+
+func (r *overloadCallRewriter) rewriteBlockStmt(block *BlockStmt) {
+	if block == nil {
+		return
+	}
+	for _, stmt := range block.List {
+		r.rewriteStmt(stmt)
+	}
+}
+
+func (r *overloadCallRewriter) rewriteStmt(stmt Stmt) {
+	if stmt == nil {
+		return
+	}
+	switch s := stmt.(type) {
+	case *ExprStmt:
+		r.rewriteExpr(s.X)
+	case *AssignStmt:
+		r.rewriteExpr(s.Lhs)
+		r.rewriteExpr(s.Rhs)
+	case *ReturnStmt:
+		if s.Results != nil {
+			r.rewriteExpr(s.Results)
+		}
+	case *IfStmt:
+		if s.Init != nil {
+			r.rewriteSimpleStmt(s.Init)
+		}
+		r.rewriteExpr(s.Cond)
+		r.rewriteBlockStmt(s.Then)
+		if s.Else != nil {
+			r.rewriteStmt(s.Else)
+		}
+	case *ForStmt:
+		if s.Init != nil {
+			r.rewriteSimpleStmt(s.Init)
+		}
+		if s.Cond != nil {
+			r.rewriteExpr(s.Cond)
+		}
+		if s.Post != nil {
+			r.rewriteSimpleStmt(s.Post)
+		}
+		r.rewriteBlockStmt(s.Body)
+	case *SwitchStmt:
+		if s.Init != nil {
+			r.rewriteSimpleStmt(s.Init)
+		}
+		if s.Tag != nil {
+			r.rewriteExpr(s.Tag)
+		}
+		for _, cc := range s.Body {
+			r.rewriteCaseClause(cc)
+		}
+	case *SelectStmt:
+		for _, cc := range s.Body {
+			r.rewriteCommClause(cc)
+		}
+	case *BlockStmt:
+		r.rewriteBlockStmt(s)
+	case *DeclStmt:
+		for _, d := range s.DeclList {
+			r.rewriteDecl(d)
+		}
+	case *SendStmt:
+		r.rewriteExpr(s.Chan)
+		r.rewriteExpr(s.Value)
+	}
+}
+
+func (r *overloadCallRewriter) rewriteSimpleStmt(stmt SimpleStmt) {
+	if stmt == nil {
+		return
+	}
+	switch s := stmt.(type) {
+	case *ExprStmt:
+		r.rewriteExpr(s.X)
+	case *AssignStmt:
+		r.rewriteExpr(s.Lhs)
+		r.rewriteExpr(s.Rhs)
+	case *SendStmt:
+		r.rewriteExpr(s.Chan)
+		r.rewriteExpr(s.Value)
+	}
+}
+
+func (r *overloadCallRewriter) rewriteCaseClause(cc *CaseClause) {
+	if cc.Cases != nil {
+		r.rewriteExpr(cc.Cases)
+	}
+	for _, stmt := range cc.Body {
+		r.rewriteStmt(stmt)
+	}
+}
+
+func (r *overloadCallRewriter) rewriteCommClause(cc *CommClause) {
+	if cc.Comm != nil {
+		r.rewriteSimpleStmt(cc.Comm)
+	}
+	for _, stmt := range cc.Body {
+		r.rewriteStmt(stmt)
+	}
+}
+
+func (r *overloadCallRewriter) rewriteExpr(expr Expr) {
+	if expr == nil {
+		return
+	}
+
+	switch e := expr.(type) {
+	case *CallExpr:
+		// Check if this is a method call on an overloaded method
+		if sel, ok := e.Fun.(*SelectorExpr); ok {
+			r.tryRewriteMethodCall(e, sel)
+		}
+		// Recursively process the function and arguments
+		r.rewriteExpr(e.Fun)
+		for _, arg := range e.ArgList {
+			r.rewriteExpr(arg)
+		}
+
+	case *CompositeLit:
+		if e.Type != nil {
+			r.rewriteExpr(e.Type)
+		}
+		for _, elem := range e.ElemList {
+			r.rewriteExpr(elem)
+		}
+
+	case *KeyValueExpr:
+		r.rewriteExpr(e.Key)
+		r.rewriteExpr(e.Value)
+
+	case *FuncLit:
+		if e.Body != nil {
+			r.rewriteBlockStmt(e.Body)
+		}
+
+	case *ParenExpr:
+		r.rewriteExpr(e.X)
+
+	case *SelectorExpr:
+		r.rewriteExpr(e.X)
+
+	case *IndexExpr:
+		r.rewriteExpr(e.X)
+		r.rewriteExpr(e.Index)
+
+	case *SliceExpr:
+		r.rewriteExpr(e.X)
+		for _, idx := range e.Index {
+			if idx != nil {
+				r.rewriteExpr(idx)
+			}
+		}
+
+	case *AssertExpr:
+		r.rewriteExpr(e.X)
+		if e.Type != nil {
+			r.rewriteExpr(e.Type)
+		}
+
+	case *Operation:
+		r.rewriteExpr(e.X)
+		if e.Y != nil {
+			r.rewriteExpr(e.Y)
+		}
+
+	case *ListExpr:
+		for _, elem := range e.ElemList {
+			r.rewriteExpr(elem)
+		}
+	}
+}
+
+func (r *overloadCallRewriter) tryRewriteMethodCall(call *CallExpr, sel *SelectorExpr) {
+	methodName := sel.Sel.Value
+
+	// Get the receiver type from the type info stored in the expression
+	recvTypeInfo := sel.X.GetTypeInfo()
+	if recvTypeInfo.Type == nil {
+		return // No type info available
+	}
+
+	recvTypeStr := recvTypeInfo.Type.String()
+
+	// Try to find matching overload info
+	// We need to check both the exact type and pointer variations
+	key := recvTypeStr + "." + methodName
+	overloadInfo := r.overloads[key]
+
+	// If not found, try with pointer prefix removed or added
+	if overloadInfo == nil {
+		// Try without pointer
+		if len(recvTypeStr) > 0 && recvTypeStr[0] == '*' {
+			key = recvTypeStr[1:] + "." + methodName
+			overloadInfo = r.overloads[key]
+		}
+		// Try with pointer
+		if overloadInfo == nil {
+			key = "*" + recvTypeStr + "." + methodName
+			overloadInfo = r.overloads[key]
+		}
+	}
+
+	if overloadInfo == nil {
+		return // Not an overloaded method
+	}
+
+	// Get argument types from type info
+	argTypes := make([]string, len(call.ArgList))
+	for i, arg := range call.ArgList {
+		argTypeInfo := arg.GetTypeInfo()
+		if argTypeInfo.Type != nil {
+			argTypes[i] = argTypeInfo.Type.String()
+		} else {
+			argTypes[i] = "unknown"
+		}
+	}
+
+	// Find matching overload
+	for _, entry := range overloadInfo.Overloads {
+		if matchParamTypes(entry.ParamTypes, argTypes) {
+			// Replace the method name with the renamed version
+			sel.Sel.Value = entry.NewName
+			return
+		}
+	}
+}
+
+// matchParamTypes checks if the argument types match the parameter types
+func matchParamTypes(paramTypes, argTypes []string) bool {
+	if len(paramTypes) != len(argTypes) {
+		return false
+	}
+	for i := range paramTypes {
+		if !typesMatch(paramTypes[i], argTypes[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+// typesMatch checks if two type strings represent compatible types
+func typesMatch(paramType, argType string) bool {
+	// Exact match
+	if paramType == argType {
+		return true
+	}
+
+	// Handle untyped constants and basic type compatibility
+	// e.g., "untyped int" matches "int", "untyped float" matches "float64"
+	switch argType {
+	case "untyped int":
+		return paramType == "int" || paramType == "int8" || paramType == "int16" ||
+			paramType == "int32" || paramType == "int64" || paramType == "uint" ||
+			paramType == "uint8" || paramType == "uint16" || paramType == "uint32" ||
+			paramType == "uint64" || paramType == "float32" || paramType == "float64"
+	case "untyped float":
+		return paramType == "float32" || paramType == "float64"
+	case "untyped string":
+		return paramType == "string"
+	case "untyped bool":
+		return paramType == "bool"
+	}
+
+	return false
+}
