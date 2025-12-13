@@ -483,7 +483,7 @@ func readOptionalHeader(r io.ReadSeeker, sz uint16) (any, error) {
 		return nil, fmt.Errorf("optional header size is less than optional header magic size")
 	}
 
-	// read reads from io.ReadSeeke, r, into data.
+	// read reads from io.ReadSeeker, r, into data.
 	var err error
 	read := func(data any) bool {
 		err = binary.Read(r, binary.LittleEndian, data)
