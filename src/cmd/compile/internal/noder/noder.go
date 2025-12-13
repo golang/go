@@ -60,9 +60,9 @@ func LoadPackage(filenames []string) {
 				// Rewrite syntax extensions to standard Go syntax
 				if p.file != nil {
 					syntax.RewriteQuestionExprs(p.file)
-					syntax.RewriteDefaultParams(p.file)
-					syntax.RewriteMethodDecorators(p.file) // Rewrite decorated methods
-					p.overloadInfo = syntax.PreprocessOverloadedMethods(p.file)
+					p.overloadInfo = syntax.PreprocessOverloadedMethods(p.file) // 1. 先处理方法重载
+					syntax.RewriteMethodDecorators(p.file)                      // 2. 再处理装饰器（需要原始签名）
+					syntax.RewriteDefaultParams(p.file)                         // 3. 最后处理默认参数
 				}
 			}()
 		}

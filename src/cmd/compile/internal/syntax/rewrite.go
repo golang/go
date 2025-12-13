@@ -857,6 +857,20 @@ func (d *defaultParamRewriter) rewriteFuncDecl(fn *FuncDecl) {
 		return // No default parameters
 	}
 
+	// Save original parameter list before rewriting (for decorator use)
+	if fn.OrigParamList == nil {
+		fn.OrigParamList = make([]*Field, len(params))
+		for i, p := range params {
+			// Create a copy of the parameter without DefaultValue
+			origParam := &Field{
+				Name: p.Name,
+				Type: p.Type,
+			}
+			origParam.SetPos(p.Pos())
+			fn.OrigParamList[i] = origParam
+		}
+	}
+
 	// Check that all default parameters have the same type
 	// For simplicity, we require all default parameters to have the same type
 	defaultParams := params[firstDefaultIdx:]
@@ -999,6 +1013,8 @@ type OverloadInfo struct {
 // OverloadEntry represents a single overload version of a method
 type OverloadEntry struct {
 	ParamTypes []string  // Parameter type signatures (e.g., ["int"] or ["float64"])
+	MinArgs    int       // Minimum number of arguments (considering default params)
+	MaxArgs    int       // Maximum number of arguments
 	NewName    string    // Renamed method name (e.g., "_SayHello_int")
 	OrigDecl   *FuncDecl // Original declaration
 }
@@ -1048,8 +1064,19 @@ func PreprocessOverloadedMethods(file *File) map[string]*OverloadInfo {
 			suffix := generateMethodSuffix(paramTypes)
 			newName := "_" + methodName + suffix
 
+			// Calculate min/max args considering default parameters
+			minArgs := 0
+			maxArgs := len(fn.Type.ParamList)
+			for i, param := range fn.Type.ParamList {
+				if param.DefaultValue == nil {
+					minArgs = i + 1
+				}
+			}
+
 			entry := &OverloadEntry{
 				ParamTypes: paramTypes,
+				MinArgs:    minArgs,
+				MaxArgs:    maxArgs,
 				NewName:    newName,
 				OrigDecl:   fn,
 			}
@@ -1255,7 +1282,22 @@ func (r *overloadPreRewriter) tryRewriteMethodCallPre(call *CallExpr, sel *Selec
 	// Find matching overload
 	for _, info := range infos {
 		for _, entry := range info.Overloads {
-			if matchParamTypesPreCheck(entry.ParamTypes, argTypes) {
+			// Check if argument count is within the valid range
+			numArgs := len(argTypes)
+			if numArgs < entry.MinArgs || numArgs > entry.MaxArgs {
+				continue // Argument count doesn't match
+			}
+
+			// Check if argument types match (only check provided arguments)
+			match := true
+			for i := 0; i < numArgs; i++ {
+				if !typeMatchesPre(entry.ParamTypes[i], argTypes[i]) {
+					match = false
+					break
+				}
+			}
+
+			if match {
 				// Replace the method name
 				sel.Sel.Value = entry.NewName
 				return
@@ -1831,6 +1873,8 @@ func rewriteDecoratedMethod(fn *FuncDecl) {
 	pos := fn.Pos()
 	decoratorName := fn.Decorator
 
+	// At this point, default params haven't been rewritten yet,
+	// so fn.Type.ParamList contains the original parameters
 	// Create a function literal with the same signature (without receiver)
 	funcLit := new(FuncLit)
 	funcLit.SetPos(pos)

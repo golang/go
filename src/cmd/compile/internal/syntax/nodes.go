@@ -103,13 +103,14 @@ type (
 	// func Receiver Name Type { Body }
 	// func Receiver Name Type
 	FuncDecl struct {
-		Pragma     Pragma
-		Recv       *Field // nil means regular function
-		Name       *Name
-		TParamList []*Field // nil means no type parameters
-		Type       *FuncType
-		Body       *BlockStmt // nil means no body (forward declaration)
-		Decorator  *Name      // decorator function name (e.g., @decorator)
+		Pragma        Pragma
+		Recv          *Field // nil means regular function
+		Name          *Name
+		TParamList    []*Field // nil means no type parameters
+		Type          *FuncType
+		Body          *BlockStmt // nil means no body (forward declaration)
+		Decorator     *Name      // decorator function name (e.g., @decorator)
+		OrigParamList []*Field   // original parameter list before default param rewriting
 		decl
 	}
 )
