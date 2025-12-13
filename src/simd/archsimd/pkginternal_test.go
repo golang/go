@@ -7,10 +7,20 @@
 package archsimd_test
 
 import (
+	"fmt"
+	"os"
 	"simd/archsimd"
 	"simd/archsimd/internal/test_helpers"
 	"testing"
 )
+
+func TestMain(m *testing.M) {
+	if !archsimd.X86.AVX() {
+		fmt.Fprintln(os.Stderr, "Skipping tests: AVX is not available")
+		os.Exit(0)
+	}
+	os.Exit(m.Run())
+}
 
 func TestConcatSelectedConstant64(t *testing.T) {
 	a := make([]int64, 2)
