@@ -54,7 +54,7 @@ func TestShared(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
+
 		name := strings.TrimSuffix(tc.src, ".go")
 		//The memory sanitizer tests require support for the -msan option.
 		if tc.sanitizer == "memory" && !platform.MSanSupported(GOOS, GOARCH) {

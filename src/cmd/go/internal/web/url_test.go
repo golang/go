@@ -14,7 +14,6 @@ func TestURLToFilePath(t *testing.T) {
 		if tc.url == "" {
 			continue
 		}
-		tc := tc
 
 		t.Run(tc.url, func(t *testing.T) {
 			u, err := url.Parse(tc.url)
@@ -46,7 +45,6 @@ func TestURLFromFilePath(t *testing.T) {
 		if tc.filePath == "" {
 			continue
 		}
-		tc := tc
 
 		t.Run(tc.filePath, func(t *testing.T) {
 			u, err := urlFromFilePath(tc.filePath)

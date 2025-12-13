@@ -48,7 +48,7 @@ func TestASAN(t *testing.T) {
 		{src: "arena_fail.go", memoryAccessError: "use-after-poison", errorLocation: "arena_fail.go:26", experiments: []string{"arenas"}},
 	}
 	for _, tc := range cases {
-		tc := tc
+
 		name := strings.TrimSuffix(tc.src, ".go")
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()

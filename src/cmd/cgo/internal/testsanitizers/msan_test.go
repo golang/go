@@ -62,7 +62,7 @@ func TestMSAN(t *testing.T) {
 		{src: "arena_fail.go", wantErr: true, experiments: []string{"arenas"}},
 	}
 	for _, tc := range cases {
-		tc := tc
+
 		name := strings.TrimSuffix(tc.src, ".go")
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()

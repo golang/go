@@ -824,7 +824,7 @@ func (r *resolver) performLocalQueries(loaderstate *modload.State, ctx context.C
 // build list.
 func (r *resolver) performWildcardQueries(loaderstate *modload.State, ctx context.Context) {
 	for _, q := range r.wildcardQueries {
-		q := q
+
 		r.work.Add(func() {
 			if q.version == "none" {
 				r.queryNone(loaderstate, ctx, q)
@@ -1027,7 +1027,7 @@ func (r *resolver) checkWildcardVersions(loaderstate *modload.State, ctx context
 // literals once.
 func (r *resolver) performPathQueries(loaderstate *modload.State, ctx context.Context) {
 	for _, q := range r.pathQueries {
-		q := q
+
 		r.work.Add(func() {
 			if q.version == "none" {
 				r.queryNone(loaderstate, ctx, q)
@@ -1724,7 +1724,7 @@ func (r *resolver) checkPackageProblems(loaderstate *modload.State, ctx context.
 	}
 	sort.Slice(retractions, func(i, j int) bool { return retractions[i].m.Path < retractions[j].m.Path })
 	for i := range retractions {
-		i := i
+
 		r.work.Add(func() {
 			err := loaderstate.CheckRetractions(ctx, retractions[i].m)
 			if _, ok := errors.AsType[*modload.ModuleRetractedError](err); ok {
@@ -1745,7 +1745,7 @@ func (r *resolver) checkPackageProblems(loaderstate *modload.State, ctx context.
 	}
 	sort.Slice(deprecations, func(i, j int) bool { return deprecations[i].m.Path < deprecations[j].m.Path })
 	for i := range deprecations {
-		i := i
+
 		r.work.Add(func() {
 			deprecation, err := modload.CheckDeprecation(loaderstate, ctx, deprecations[i].m)
 			if err != nil || deprecation == "" {
@@ -1774,7 +1774,7 @@ func (r *resolver) checkPackageProblems(loaderstate *modload.State, ctx context.
 	// need previously. We can't handle that case without loading 'all'.
 	sumErrs := make([]error, len(r.buildList))
 	for i := range r.buildList {
-		i := i
+
 		m := r.buildList[i]
 		mActual := m
 		if mRepl := modload.Replacement(loaderstate, m); mRepl.Path != "" {

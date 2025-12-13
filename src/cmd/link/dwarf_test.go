@@ -32,7 +32,7 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 	t.Parallel()
 
 	for _, prog := range []string{"testprog", "testprogcgo"} {
-		prog := prog
+
 		expectDWARF := expectDWARF
 		if runtime.GOOS == "aix" && prog == "testprogcgo" {
 			extld := os.Getenv("CC")

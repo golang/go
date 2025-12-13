@@ -202,7 +202,7 @@ func RunTests(t *testing.T, ctx context.Context, engine *script.Engine, env []st
 		t.Fatal("no testdata")
 	}
 	for _, file := range files {
-		file := file
+
 		name := strings.TrimSuffix(filepath.Base(file), ".txt")
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()

@@ -43,7 +43,7 @@ func TestLibFuzzer(t *testing.T) {
 		{goSrc: "libfuzzer2.go", cSrc: "libfuzzer2.c", expectedError: "panic: found it"},
 	}
 	for _, tc := range cases {
-		tc := tc
+
 		name := strings.TrimSuffix(tc.goSrc, ".go")
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()

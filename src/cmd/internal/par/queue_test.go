@@ -51,7 +51,7 @@ func TestQueueBacklog(t *testing.T) {
 	unblock := make(chan struct{})
 	for i := range started {
 		started[i] = make(chan struct{})
-		i := i
+
 		q.Add(func() {
 			close(started[i])
 			<-unblock

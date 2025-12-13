@@ -918,7 +918,7 @@ func tidyPrunedRoots(loaderstate *State, ctx context.Context, mainModule module.
 				// that are only indirectly required. It is as unambiguous as possible.
 				continue
 			}
-			pkg := pkg
+
 			q.Add(func() {
 				skipModFile := true
 				_, _, _, _, err := importFromModules(loaderstate, ctx, pkg.path, tidy, nil, skipModFile)
@@ -1229,7 +1229,7 @@ func spotCheckRoots(loaderstate *State, ctx context.Context, rs *Requirements, m
 
 	work := par.NewQueue(runtime.GOMAXPROCS(0))
 	for m := range mods {
-		m := m
+
 		work.Add(func() {
 			if ctx.Err() != nil {
 				return
