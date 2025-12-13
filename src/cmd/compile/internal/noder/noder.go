@@ -57,9 +57,10 @@ func LoadPackage(filenames []string) {
 				defer f.Close()
 
 				p.file, _ = syntax.Parse(fbase, f, p.error, p.pragma, syntax.CheckBranches) // errors are tracked via p.error
-				// Rewrite question expressions (?.  and ? :) to standard Go syntax
+				// Rewrite syntax extensions to standard Go syntax
 				if p.file != nil {
 					syntax.RewriteQuestionExprs(p.file)
+					syntax.RewriteDefaultParams(p.file)
 				}
 			}()
 		}

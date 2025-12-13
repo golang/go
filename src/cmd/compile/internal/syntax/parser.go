@@ -2100,6 +2100,13 @@ func (p *parser) paramDeclOrNil(name *Name, follow token) *Field {
 		// [name] type "|"
 		f = p.embeddedElem(f)
 	}
+
+	// Check for default value: name type = value
+	if f.Name != nil && f.Type != nil && p.tok == _Assign {
+		p.next()
+		f.DefaultValue = p.expr()
+	}
+
 	if f.Name != nil || f.Type != nil {
 		return f
 	}
@@ -2243,6 +2250,28 @@ func (p *parser) paramList(name *Name, typ Expr, close token, requireNames, dddo
 			}
 			// use T instead of invalid ...T
 			f.Type = t.Elem
+		}
+	}
+
+	// check default value order: default values must be trailing (from right to left)
+	// i.e., once a parameter has a default value, all following parameters must also have default values
+	hasDefault := false
+	for _, f := range list {
+		if f.DefaultValue != nil {
+			hasDefault = true
+		} else if hasDefault {
+			// found a parameter without default value after one with default value
+			p.syntaxErrorAt(f.Pos(), "parameter without default value cannot follow parameter with default value")
+			break
+		}
+	}
+
+	// check that ... parameter cannot have default value
+	for _, f := range list {
+		if f.DefaultValue != nil {
+			if _, ok := f.Type.(*DotsType); ok {
+				p.syntaxErrorAt(f.Pos(), "variadic parameter cannot have default value")
+			}
 		}
 	}
 

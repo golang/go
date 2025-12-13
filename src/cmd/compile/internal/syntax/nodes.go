@@ -294,10 +294,12 @@ type (
 	}
 
 	// Name Type
+	// Name Type = DefaultValue
 	//      Type
 	Field struct {
-		Name *Name // nil means anonymous field/parameter (structs/parameters), or embedded element (interfaces)
-		Type Expr  // field names declared in a list share the same Type (identical pointers)
+		Name         *Name // nil means anonymous field/parameter (structs/parameters), or embedded element (interfaces)
+		Type         Expr  // field names declared in a list share the same Type (identical pointers)
+		DefaultValue Expr  // default value for function parameters (nil means no default)
 		node
 	}
 

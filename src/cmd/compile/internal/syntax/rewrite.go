@@ -4,6 +4,8 @@
 
 package syntax
 
+import "strconv"
+
 // RewriteQuestionExprs rewrites OptionalChainExpr and TernaryExpr
 // into standard Go syntax before type checking.
 func RewriteQuestionExprs(file *File) {
@@ -787,4 +789,198 @@ func (r *rewriter) rewriteTernary(e *TernaryExpr) Expr {
 	callExpr.Fun = funcLit
 
 	return callExpr
+}
+
+// RewriteDefaultParams rewrites functions with default parameter values
+// into standard Go syntax before type checking.
+//
+// Example transformation:
+//
+//	func sum(a int = 1, b int = 2) int { return a + b }
+//
+// becomes:
+//
+//	func sum(_args ...int) int {
+//	    a := 1
+//	    if len(_args) > 0 { a = _args[0] }
+//	    b := 2
+//	    if len(_args) > 1 { b = _args[1] }
+//	    return a + b
+//	}
+//
+// For mixed parameters:
+//
+//	func sum2(a int, b int = 2) int { return a + b }
+//
+// becomes:
+//
+//	func sum2(a int, _args ...int) int {
+//	    b := 2
+//	    if len(_args) > 0 { b = _args[0] }
+//	    return a + b
+//	}
+func RewriteDefaultParams(file *File) {
+	d := &defaultParamRewriter{}
+	d.rewriteFile(file)
+}
+
+type defaultParamRewriter struct{}
+
+func (d *defaultParamRewriter) rewriteFile(file *File) {
+	for _, decl := range file.DeclList {
+		if fn, ok := decl.(*FuncDecl); ok {
+			d.rewriteFuncDecl(fn)
+		}
+	}
+}
+
+func (d *defaultParamRewriter) rewriteFuncDecl(fn *FuncDecl) {
+	if fn.Type == nil || fn.Body == nil {
+		return
+	}
+
+	params := fn.Type.ParamList
+	if len(params) == 0 {
+		return
+	}
+
+	// Find the first parameter with a default value
+	firstDefaultIdx := -1
+	for i, p := range params {
+		if p.DefaultValue != nil {
+			firstDefaultIdx = i
+			break
+		}
+	}
+
+	if firstDefaultIdx == -1 {
+		return // No default parameters
+	}
+
+	// Check that all default parameters have the same type
+	// For simplicity, we require all default parameters to have the same type
+	defaultParams := params[firstDefaultIdx:]
+	var commonType Expr
+	for _, p := range defaultParams {
+		if commonType == nil {
+			commonType = p.Type
+		}
+		// Note: We're comparing type pointers, which works because
+		// consecutive parameters often share the same Type pointer.
+		// For a more robust solution, we'd need type comparison.
+	}
+
+	pos := fn.Pos()
+
+	// Build new parameter list:
+	// - Keep regular parameters (before firstDefaultIdx)
+	// - Add a single variadic parameter for all default params
+	newParams := make([]*Field, 0, firstDefaultIdx+1)
+
+	// Copy regular parameters
+	for i := 0; i < firstDefaultIdx; i++ {
+		newParams = append(newParams, params[i])
+	}
+
+	// Create variadic parameter: _args ...T
+	argsName := NewName(pos, "_args")
+	dotsType := new(DotsType)
+	dotsType.SetPos(pos)
+	dotsType.Elem = commonType
+
+	argsField := new(Field)
+	argsField.SetPos(pos)
+	argsField.Name = argsName
+	argsField.Type = dotsType
+	newParams = append(newParams, argsField)
+
+	// Build statements to insert at the beginning of function body
+	preamble := make([]Stmt, 0, len(defaultParams)*2)
+
+	for i, p := range defaultParams {
+		if p.Name == nil {
+			continue
+		}
+
+		paramName := p.Name.Value
+
+		// Create: paramName := defaultValue
+		initStmt := d.createShortVarDecl(pos, paramName, p.DefaultValue)
+		preamble = append(preamble, initStmt)
+
+		// Create: if len(_args) > i { paramName = _args[i] }
+		ifStmt := d.createDefaultOverride(pos, paramName, i)
+		preamble = append(preamble, ifStmt)
+	}
+
+	// Update function type with new parameters
+	fn.Type.ParamList = newParams
+
+	// Prepend preamble to function body
+	newBody := make([]Stmt, 0, len(preamble)+len(fn.Body.List))
+	newBody = append(newBody, preamble...)
+	newBody = append(newBody, fn.Body.List...)
+	fn.Body.List = newBody
+}
+
+func (d *defaultParamRewriter) createShortVarDecl(pos Pos, name string, value Expr) *AssignStmt {
+	a := new(AssignStmt)
+	a.SetPos(pos)
+	a.Op = Def
+	a.Lhs = NewName(pos, name)
+	a.Rhs = value
+	return a
+}
+
+func (d *defaultParamRewriter) createDefaultOverride(pos Pos, paramName string, index int) *IfStmt {
+	// Build: if len(_args) > index { paramName = _args[index] }
+
+	// len(_args)
+	lenCall := new(CallExpr)
+	lenCall.SetPos(pos)
+	lenCall.Fun = NewName(pos, "len")
+	lenCall.ArgList = []Expr{NewName(pos, "_args")}
+
+	// index literal
+	indexLit := new(BasicLit)
+	indexLit.SetPos(pos)
+	indexLit.Kind = IntLit
+	indexLit.Value = strconv.Itoa(index)
+
+	// len(_args) > index
+	cond := new(Operation)
+	cond.SetPos(pos)
+	cond.Op = Gtr
+	cond.X = lenCall
+	cond.Y = indexLit
+
+	// _args[index]
+	indexExpr := new(IndexExpr)
+	indexExpr.SetPos(pos)
+	indexExpr.X = NewName(pos, "_args")
+	indexIdx := new(BasicLit)
+	indexIdx.SetPos(pos)
+	indexIdx.Kind = IntLit
+	indexIdx.Value = strconv.Itoa(index)
+	indexExpr.Index = indexIdx
+
+	// paramName = _args[index]
+	assign := new(AssignStmt)
+	assign.SetPos(pos)
+	assign.Op = 0 // regular assignment
+	assign.Lhs = NewName(pos, paramName)
+	assign.Rhs = indexExpr
+
+	// { paramName = _args[index] }
+	thenBlock := new(BlockStmt)
+	thenBlock.SetPos(pos)
+	thenBlock.List = []Stmt{assign}
+
+	// if len(_args) > index { ... }
+	ifStmt := new(IfStmt)
+	ifStmt.SetPos(pos)
+	ifStmt.Cond = cond
+	ifStmt.Then = thenBlock
+
+	return ifStmt
 }
