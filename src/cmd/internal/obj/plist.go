@@ -183,16 +183,16 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int, start src.XPos) {
 		return
 	}
 	if s.Func() != nil {
-		ctxt.Diag("%s: symbol %s redeclared\n\t%s: other declaration of symbol %s", ctxt.PosTable.Pos(start), s.Name, ctxt.PosTable.Pos(s.Func().Text.Pos), s.Name)
+		ctxt.Diag("symbol %s redeclared at %s", s.Name, ctxt.PosTable.Pos(start))
 		return
 	}
 	s.NewFuncInfo()
 	if s.OnList() {
-		ctxt.Diag("%s: symbol %s redeclared", ctxt.PosTable.Pos(start), s.Name)
+		ctxt.Diag("symbol %s redeclared at %s", s.Name, ctxt.PosTable.Pos(start))
 		return
 	}
 	if strings.HasPrefix(s.Name, `"".`) {
-		ctxt.Diag("%s: unqualified symbol name: %s", ctxt.PosTable.Pos(start), s.Name)
+		ctxt.Diag("unqualified symbol name %s at %s", s.Name, ctxt.PosTable.Pos(start))
 	}
 
 	// startLine should be the same line number that would be displayed via
