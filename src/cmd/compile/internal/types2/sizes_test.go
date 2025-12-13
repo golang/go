@@ -184,7 +184,7 @@ func main() {
 func TestGCSizes(t *testing.T) {
 	types2.DefPredeclaredTestFuncs()
 	for _, tc := range gcSizesTests {
-		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			conf := types2.Config{Importer: defaultImporter(), Sizes: types2.SizesFor("gc", "amd64")}

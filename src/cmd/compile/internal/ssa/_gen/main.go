@@ -175,7 +175,7 @@ func main() {
 		genAllocators,
 	}
 	for _, a := range archs {
-		a := a // the funcs are ran concurrently at a later time
+		// the funcs are ran concurrently at a later time
 		tasks = append(tasks, func() {
 			genRules(a)
 			genSplitLoadRules(a)
@@ -184,7 +184,7 @@ func main() {
 	}
 	var wg sync.WaitGroup
 	for _, task := range tasks {
-		task := task
+
 		wg.Add(1)
 		go func() {
 			task()

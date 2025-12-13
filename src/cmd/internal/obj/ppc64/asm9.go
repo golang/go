@@ -1267,7 +1267,7 @@ func buildop(ctxt *obj.Link) {
 	// Configure the optab entries which may generate prefix opcodes.
 	prefixOptab := make([]Optab, 0, len(prefixableOptab))
 	for _, entry := range prefixableOptab {
-		entry := entry
+
 		if pfxEnabled && buildcfg.GOPPC64 >= entry.minGOPPC64 {
 			// Enable prefix opcode generation and resize.
 			entry.ispfx = true

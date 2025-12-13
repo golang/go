@@ -41,7 +41,7 @@ func LoadPackage(filenames []string) {
 	// Move the entire syntax processing logic into a separate goroutine to avoid blocking on the "sem".
 	go func() {
 		for i, filename := range filenames {
-			filename := filename
+
 			p := noders[i]
 			sem <- struct{}{}
 			go func() {

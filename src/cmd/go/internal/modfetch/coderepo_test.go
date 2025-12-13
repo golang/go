@@ -819,7 +819,7 @@ func TestCodeRepoVersions(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 	fetcher := NewFetcher()
 	for _, tt := range codeRepoVersionsTests {
-		tt := tt
+
 		t.Run(strings.ReplaceAll(tt.path, "/", "_"), func(t *testing.T) {
 			if strings.Contains(tt.path, "gopkg.in") {
 				testenv.SkipFlaky(t, 54503)

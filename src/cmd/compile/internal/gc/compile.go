@@ -194,7 +194,7 @@ func compileFunctions(profile *pgoir.Profile) {
 	compile = func(fns []*ir.Func) {
 		wg.Add(len(fns))
 		for _, fn := range fns {
-			fn := fn
+
 			queue(func(worker int) {
 				ssagen.Compile(fn, worker, profile)
 				compile(fn.Closures)

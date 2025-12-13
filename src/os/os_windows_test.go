@@ -1234,7 +1234,7 @@ func TestReadlink(t *testing.T) {
 		{junction: false, dir: false, drive: false, relative: true},
 	}
 	for _, tt := range tests {
-		tt := tt
+
 		var name string
 		if tt.junction {
 			name = "junction"

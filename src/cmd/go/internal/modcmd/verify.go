@@ -70,7 +70,6 @@ func runVerify(ctx context.Context, cmd *base.Command, args []string) {
 		sem <- token{}
 		errsc := make(chan []error, 1)
 		errsChans[i] = errsc
-		mod := mod // use a copy to avoid data races
 		go func() {
 			errsc <- verifyMod(moduleLoaderState, ctx, mod)
 			<-sem
