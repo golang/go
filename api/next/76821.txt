@@ -1,0 +1,6 @@
+pkg math/big, method (*Int) FloorDiv(*Int, *Int) *Int #76821
+pkg math/big, method (*Int) FloorDivMod(*Int, *Int, *Int) (*Int, *Int) #76821
+pkg math/big, method (*Int) CeilDiv(*Int, *Int) *Int #76821
+pkg math/big, method (*Int) CeilDivMod(*Int, *Int, *Int) (*Int, *Int) #76821
+pkg math/big, method (*Rat) Floor() *Int #76821
+pkg math/big, method (*Rat) Ceil() *Int #76821

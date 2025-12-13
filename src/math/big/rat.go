@@ -559,3 +559,13 @@ func (z *Rat) Quo(x, y *Rat) *Rat {
 	z.a.neg = a.neg != b.neg
 	return z.norm()
 }
+
+// Floor returns ⌊x⌋ (the floor of x) as a new [Int].
+func (x *Rat) Floor() *Int {
+	return new(Int).FloorDiv(x.Num(), x.Denom())
+}
+
+// Ceil returns ⌈x⌉ (the ceiling of x) as a new [Int].
+func (x *Rat) Ceil() *Int {
+	return new(Int).CeilDiv(x.Num(), x.Denom())
+}
