@@ -1788,3 +1788,110 @@ func typesMatch(paramType, argType string) bool {
 
 	return false
 }
+
+// ============================================================================
+// Method Decorator Support
+// ============================================================================
+
+// RewriteMethodDecorators rewrites decorated methods by wrapping their bodies
+// with decorator function calls.
+//
+// Example transformation:
+//
+//	@logging
+//	func (ds *DataStore) Get(key string, defaultValue string) string {
+//	    if v, ok := ds.stringData[key]; ok { return v }
+//	    return defaultValue
+//	}
+//
+// becomes:
+//
+//	func (ds *DataStore) Get(key string, defaultValue string) string {
+//	    _decorated := logging(func(key string, defaultValue string) string {
+//	        if v, ok := ds.stringData[key]; ok { return v }
+//	        return defaultValue
+//	    })
+//	    return _decorated(key, defaultValue)
+//	}
+func RewriteMethodDecorators(file *File) {
+	for _, decl := range file.DeclList {
+		if fn, ok := decl.(*FuncDecl); ok {
+			if fn.Decorator != nil && fn.Recv != nil {
+				rewriteDecoratedMethod(fn)
+			}
+		}
+	}
+}
+
+func rewriteDecoratedMethod(fn *FuncDecl) {
+	if fn.Body == nil || fn.Type == nil {
+		return
+	}
+
+	pos := fn.Pos()
+	decoratorName := fn.Decorator
+
+	// Create a function literal with the same signature (without receiver)
+	funcLit := new(FuncLit)
+	funcLit.SetPos(pos)
+	funcLit.Type = &FuncType{
+		ParamList:  fn.Type.ParamList,
+		ResultList: fn.Type.ResultList,
+	}
+	funcLit.Type.SetPos(pos)
+	funcLit.Body = fn.Body
+
+	// Create decorator call: decoratorName(funcLit)
+	decoratorCall := new(CallExpr)
+	decoratorCall.SetPos(pos)
+	decoratorCall.Fun = decoratorName
+	decoratorCall.ArgList = []Expr{funcLit}
+
+	// Create: _decorated := decoratorCall
+	decoratedName := NewName(pos, "_decorated")
+	decoratedRef := NewName(pos, "_decorated")
+	decoratedAssign := &AssignStmt{
+		Op:  Def,
+		Lhs: decoratedName,
+		Rhs: decoratorCall,
+	}
+	decoratedAssign.SetPos(pos)
+
+	// Create argument list for calling _decorated: param1, param2, ...
+	var callArgs []Expr
+	for _, param := range fn.Type.ParamList {
+		if param.Name != nil {
+			argName := NewName(pos, param.Name.Value)
+			callArgs = append(callArgs, argName)
+		}
+	}
+
+	// Create: _decorated(param1, param2, ...)
+	wrappedCall := new(CallExpr)
+	wrappedCall.SetPos(pos)
+	wrappedCall.Fun = decoratedRef
+	wrappedCall.ArgList = callArgs
+
+	// Build new method body
+	newBody := new(BlockStmt)
+	newBody.SetPos(pos)
+	newBody.List = []Stmt{decoratedAssign}
+
+	// Add return statement if function has return values
+	if fn.Type.ResultList != nil && len(fn.Type.ResultList) > 0 {
+		returnStmt := new(ReturnStmt)
+		returnStmt.SetPos(pos)
+		returnStmt.Results = wrappedCall
+		newBody.List = append(newBody.List, returnStmt)
+	} else {
+		// No return value, just call the decorated function
+		exprStmt := new(ExprStmt)
+		exprStmt.SetPos(pos)
+		exprStmt.X = wrappedCall
+		newBody.List = append(newBody.List, exprStmt)
+	}
+
+	// Replace method body with wrapped version
+	fn.Body = newBody
+	fn.Decorator = nil // Clear decorator marker
+}

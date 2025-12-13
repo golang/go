@@ -61,6 +61,7 @@ func LoadPackage(filenames []string) {
 				if p.file != nil {
 					syntax.RewriteQuestionExprs(p.file)
 					syntax.RewriteDefaultParams(p.file)
+					syntax.RewriteMethodDecorators(p.file) // Rewrite decorated methods
 					p.overloadInfo = syntax.PreprocessOverloadedMethods(p.file)
 				}
 			}()

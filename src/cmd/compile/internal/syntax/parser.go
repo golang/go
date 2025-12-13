@@ -453,14 +453,14 @@ func (p *parser) fileOrNil() *File {
 
 		case _At:
 			// Decorator syntax:
-			// 1. @decoratorName func foo() {...}
-			// 2. @decoratorName(arg1, arg2) func foo() {...}
-			// 3. @dec1 @dec2 func foo() {...} (stacked decorators)
+			// 1. @decoratorName func foo() {...}              - regular function
+			// 2. @decoratorName(arg1, arg2) func foo() {...}  - with args
+			// 3. @dec1 @dec2 func foo() {...}                 - stacked decorators
+			// 4. @decoratorName func (r *T) Method() {...}    - method decorator
 			//
 			// Transform to:
-			// 1. var foo = decoratorName(func() {...})
-			// 2. var foo = decoratorName(func() {...}, arg1, arg2)
-			// 3. var foo = dec1(dec2(func() {...}))
+			// Regular function: var foo = decoratorName(func() {...})
+			// Method: Store decorator info, will be rewritten in rewrite.go
 
 			// Parse all decorators (support stacking)
 			type decoratorInfo struct {
@@ -508,35 +508,46 @@ func (p *parser) fileOrNil() *File {
 			}
 
 			if funcDecl := p.funcDeclOrNil(); funcDecl != nil {
-				// Create FuncLit from the function declaration
-				funcLit := new(FuncLit)
-				funcLit.pos = funcDecl.pos
-				funcLit.Type = funcDecl.Type
-				funcLit.Body = funcDecl.Body
+				// Check if this is a method (has receiver)
+				if funcDecl.Recv != nil {
+					// Method with decorator - store decorator info for later rewriting
+					if len(decorators) > 0 {
+						funcDecl.Decorator = decorators[0].name
+						// TODO: Support multiple decorators on methods
+					}
+					f.DeclList = append(f.DeclList, funcDecl)
+				} else {
+					// Regular function - transform to variable declaration
+					// Create FuncLit from the function declaration
+					funcLit := new(FuncLit)
+					funcLit.pos = funcDecl.pos
+					funcLit.Type = funcDecl.Type
+					funcLit.Body = funcDecl.Body
 
-				// Apply decorators from innermost to outermost (reverse order)
-				// @dec1 @dec2 func foo() => dec1(dec2(func()))
-				var result Expr = funcLit
-				for i := len(decorators) - 1; i >= 0; i-- {
-					dec := decorators[i]
-					// Build argument list: (funcLit/previousResult, ...decoratorArgs)
-					args := []Expr{result}
-					args = append(args, dec.args...)
+					// Apply decorators from innermost to outermost (reverse order)
+					// @dec1 @dec2 func foo() => dec1(dec2(func()))
+					var result Expr = funcLit
+					for i := len(decorators) - 1; i >= 0; i-- {
+						dec := decorators[i]
+						// Build argument list: (funcLit/previousResult, ...decoratorArgs)
+						args := []Expr{result}
+						args = append(args, dec.args...)
 
-					call := new(CallExpr)
-					call.pos = dec.name.Pos()
-					call.Fun = dec.name
-					call.ArgList = args
-					result = call
+						call := new(CallExpr)
+						call.pos = dec.name.Pos()
+						call.Fun = dec.name
+						call.ArgList = args
+						result = call
+					}
+
+					// Create VarDecl: var foo = decorator(...)(func() {...})
+					varDecl := new(VarDecl)
+					varDecl.pos = funcDecl.pos
+					varDecl.NameList = []*Name{funcDecl.Name}
+					varDecl.Values = result
+
+					f.DeclList = append(f.DeclList, varDecl)
 				}
-
-				// Create VarDecl: var foo = decorator(...)(func() {...})
-				varDecl := new(VarDecl)
-				varDecl.pos = funcDecl.pos
-				varDecl.NameList = []*Name{funcDecl.Name}
-				varDecl.Values = result
-
-				f.DeclList = append(f.DeclList, varDecl)
 			}
 
 		default:
