@@ -1063,10 +1063,14 @@ func PreprocessOverloadedMethods(file *File) map[string]*OverloadInfo {
 			paramTypes := getParamTypeStrings(fn.Type.ParamList)
 			suffix := generateMethodSuffix(paramTypes)
 
-			// Special handling for _init methods: use _init_xxx instead of __init_xxx
+			// Special handling for _init and magic methods: keep single underscore prefix
 			var newName string
 			if methodName == "_init" {
 				newName = "_init" + suffix // Keep single underscore prefix
+			} else if methodName == "_getitem" {
+				newName = "_getitem" + suffix // Keep single underscore prefix
+			} else if methodName == "_setitem" {
+				newName = "_setitem" + suffix // Keep single underscore prefix
 			} else {
 				newName = "_" + methodName + suffix
 			}
@@ -2188,6 +2192,724 @@ func (r *constructorRewriter) rewriteConstructorCallWithArgs(call *CallExpr, typ
 	newCall.ArgList = args
 
 	return newCall
+}
+
+// ============================================================================
+// Magic Methods Support (_getitem and _setitem)
+// ============================================================================
+
+// RewriteMagicMethods rewrites indexing operations (a[x]) and index assignments (a[x] = y)
+// to method calls (_getitem and _setitem) when the receiver type has these methods defined.
+//
+// Example transformations:
+//
+//	ds[2]        -> ds._getitem(2)
+//	ds[1:2]      -> ds._getitem(1, 2)
+//	ds[1:2:"str"]-> ds._getitem(1, 2, "str")
+//	ds[2] = 5    -> ds._setitem(2, 5)
+//	ds[1:2] = 5  -> ds._setitem(1, 2, 5)
+func RewriteMagicMethods(file *File) {
+	// Step 1: Collect all types with _getitem or _setitem methods
+	magicMethods := make(map[string]*MagicMethodInfo)
+
+	for _, decl := range file.DeclList {
+		fn, ok := decl.(*FuncDecl)
+		if !ok || fn.Recv == nil {
+			continue
+		}
+
+		methodName := fn.Name.Value
+		// Check for _getitem or _setitem methods (including overloaded versions)
+		if !isMagicMethodName(methodName) {
+			continue
+		}
+
+		// Get receiver type name
+		recvType := typeExprToString(fn.Recv.Type)
+		// Remove * prefix if pointer receiver
+		if len(recvType) > 0 && recvType[0] == '*' {
+			recvType = recvType[1:]
+		}
+
+		info, exists := magicMethods[recvType]
+		if !exists {
+			info = &MagicMethodInfo{
+				TypeName:       recvType,
+				GetItemMethods: make([]*FuncDecl, 0),
+				SetItemMethods: make([]*FuncDecl, 0),
+			}
+			magicMethods[recvType] = info
+		}
+
+		if isGetItemMethod(methodName) {
+			info.GetItemMethods = append(info.GetItemMethods, fn)
+		} else if isSetItemMethod(methodName) {
+			info.SetItemMethods = append(info.SetItemMethods, fn)
+		}
+	}
+
+	// Step 2: Rewrite indexing operations in the file, BUT skip magic method bodies
+	if len(magicMethods) > 0 {
+		rewriter := &magicMethodRewriter{
+			magicMethods:      magicMethods,
+			insideMagicMethod: false,
+			varTypes:          make(map[string]string),
+			funcReturnTypes:   make(map[string]string),
+		}
+		// First pass: collect function return types
+		rewriter.collectFunctionReturnTypes(file)
+		// Second pass: rewrite magic method calls
+		rewriter.rewriteFile(file)
+	}
+}
+
+// MagicMethodInfo stores information about magic methods for a type
+type MagicMethodInfo struct {
+	TypeName       string
+	GetItemMethods []*FuncDecl
+	SetItemMethods []*FuncDecl
+}
+
+func isMagicMethodName(name string) bool {
+	return isGetItemMethod(name) || isSetItemMethod(name)
+}
+
+func isGetItemMethod(name string) bool {
+	return name == "_getitem" || (len(name) >= 9 && name[:9] == "_getitem_")
+}
+
+func isSetItemMethod(name string) bool {
+	return name == "_setitem" || (len(name) >= 9 && name[:9] == "_setitem_")
+}
+
+type magicMethodRewriter struct {
+	magicMethods      map[string]*MagicMethodInfo
+	insideMagicMethod bool              // Track if we're inside a _getitem or _setitem method
+	varTypes          map[string]string // Track variable name -> struct type name
+	funcReturnTypes   map[string]string // Track function name -> return type name
+}
+
+// collectFunctionReturnTypes scans all function declarations and records their return types
+func (r *magicMethodRewriter) collectFunctionReturnTypes(file *File) {
+	for _, decl := range file.DeclList {
+		if fn, ok := decl.(*FuncDecl); ok {
+			// Skip methods (they have receivers)
+			if fn.Recv != nil {
+				continue
+			}
+
+			// Check if this function returns a magic method type
+			if fn.Type != nil && fn.Type.ResultList != nil && len(fn.Type.ResultList) > 0 {
+				// We only care about functions that return a single value
+				if len(fn.Type.ResultList) == 1 {
+					result := fn.Type.ResultList[0]
+					if result.Type != nil {
+						returnType := typeExprToString(result.Type)
+						// Remove * prefix
+						if len(returnType) > 0 && returnType[0] == '*' {
+							returnType = returnType[1:]
+						}
+						// Only record if it's a magic method type
+						if _, exists := r.magicMethods[returnType]; exists {
+							r.funcReturnTypes[fn.Name.Value] = returnType
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+func (r *magicMethodRewriter) rewriteFile(file *File) {
+	for _, decl := range file.DeclList {
+		r.rewriteDecl(decl)
+	}
+}
+
+func (r *magicMethodRewriter) rewriteDecl(decl Decl) {
+	switch d := decl.(type) {
+	case *FuncDecl:
+		if d.Body != nil {
+			// Track function parameters
+			if d.Type != nil && d.Type.ParamList != nil {
+				for _, param := range d.Type.ParamList {
+					if param.Name != nil && param.Type != nil {
+						paramType := typeExprToString(param.Type)
+						// Remove * prefix
+						if len(paramType) > 0 && paramType[0] == '*' {
+							paramType = paramType[1:]
+						}
+						if _, exists := r.magicMethods[paramType]; exists {
+							r.varTypes[param.Name.Value] = paramType
+						}
+					}
+				}
+			}
+
+			// Track receiver type for methods
+			if d.Recv != nil && d.Recv.Name != nil {
+				recvType := typeExprToString(d.Recv.Type)
+				// Remove * prefix
+				if len(recvType) > 0 && recvType[0] == '*' {
+					recvType = recvType[1:]
+				}
+				// Add receiver to varTypes so it can be recognized in method body
+				if _, exists := r.magicMethods[recvType]; exists {
+					r.varTypes[d.Recv.Name.Value] = recvType
+				}
+			}
+
+			// Check if this is a magic method - if so, don't rewrite its body
+			wasMagic := r.insideMagicMethod
+			if d.Recv != nil && isMagicMethodName(d.Name.Value) {
+				r.insideMagicMethod = true
+			}
+			r.rewriteBlockStmt(d.Body)
+			r.insideMagicMethod = wasMagic
+		}
+	case *VarDecl:
+		// Track variable types from declarations like: var ds *DataStore = ...
+		r.trackVarDeclTypes(d)
+		if d.Values != nil {
+			d.Values = r.rewriteExpr(d.Values)
+		}
+	}
+}
+
+// trackVarDeclTypes records variable types from var declarations
+func (r *magicMethodRewriter) trackVarDeclTypes(d *VarDecl) {
+	if d.Type != nil {
+		// Explicit type: var ds *DataStore
+		typeName := typeExprToString(d.Type)
+		// Remove * prefix
+		if len(typeName) > 0 && typeName[0] == '*' {
+			typeName = typeName[1:]
+		}
+		if _, exists := r.magicMethods[typeName]; exists {
+			for _, name := range d.NameList {
+				r.varTypes[name.Value] = typeName
+			}
+		}
+	} else if d.Values != nil {
+		// Inferred type: var ds = &DataStore{}
+		r.trackAssignmentTypes(d.NameList, d.Values)
+	}
+}
+
+// trackAssignmentTypes records variable types from assignment expressions
+func (r *magicMethodRewriter) trackAssignmentTypes(names []*Name, values Expr) {
+	if len(names) == 0 {
+		return
+	}
+
+	// Handle single assignment
+	if len(names) == 1 {
+		typeName := r.tryInferStructTypeName(values)
+		if typeName != "" {
+			if _, exists := r.magicMethods[typeName]; exists {
+				r.varTypes[names[0].Value] = typeName
+			}
+		}
+		return
+	}
+
+	// Handle multiple assignment (e.g., a, b := x, y)
+	if listExpr, ok := values.(*ListExpr); ok {
+		for i, name := range names {
+			if i < len(listExpr.ElemList) {
+				typeName := r.tryInferStructTypeName(listExpr.ElemList[i])
+				if typeName != "" {
+					if _, exists := r.magicMethods[typeName]; exists {
+						r.varTypes[name.Value] = typeName
+					}
+				}
+			}
+		}
+	}
+}
+
+// trackShortVarDeclTypes records variable types from short variable declarations
+// e.g., ds := &DataStore{...} or m := NewMatrix()
+func (r *magicMethodRewriter) trackShortVarDeclTypes(stmt *AssignStmt) {
+	// Get LHS names
+	var names []*Name
+	switch lhs := stmt.Lhs.(type) {
+	case *Name:
+		names = []*Name{lhs}
+	case *ListExpr:
+		for _, elem := range lhs.ElemList {
+			if name, ok := elem.(*Name); ok {
+				names = append(names, name)
+			}
+		}
+	default:
+		return
+	}
+
+	r.trackAssignmentTypes(names, stmt.Rhs)
+}
+
+func (r *magicMethodRewriter) rewriteBlockStmt(block *BlockStmt) {
+	if block == nil {
+		return
+	}
+	// Process statements and potentially replace them
+	newList := make([]Stmt, 0, len(block.List))
+	for _, stmt := range block.List {
+		rewritten := r.rewriteStmt(stmt)
+		if rewritten != nil {
+			newList = append(newList, rewritten)
+		}
+	}
+	block.List = newList
+}
+
+func (r *magicMethodRewriter) rewriteStmt(stmt Stmt) Stmt {
+	if stmt == nil {
+		return nil
+	}
+	switch s := stmt.(type) {
+	case *ExprStmt:
+		s.X = r.rewriteExpr(s.X)
+		return s
+	case *AssignStmt:
+		// Check if this is an indexed assignment: a[x] = y
+		return r.rewriteAssignStmt(s)
+	case *ReturnStmt:
+		if s.Results != nil {
+			s.Results = r.rewriteExpr(s.Results)
+		}
+		return s
+	case *IfStmt:
+		if s.Init != nil {
+			s.Init = r.rewriteSimpleStmt(s.Init)
+		}
+		s.Cond = r.rewriteExpr(s.Cond)
+		r.rewriteBlockStmt(s.Then)
+		if s.Else != nil {
+			s.Else = r.rewriteStmt(s.Else)
+		}
+		return s
+	case *ForStmt:
+		if s.Init != nil {
+			s.Init = r.rewriteSimpleStmt(s.Init)
+		}
+		if s.Cond != nil {
+			s.Cond = r.rewriteExpr(s.Cond)
+		}
+		if s.Post != nil {
+			s.Post = r.rewriteSimpleStmt(s.Post)
+		}
+		r.rewriteBlockStmt(s.Body)
+		return s
+	case *BlockStmt:
+		r.rewriteBlockStmt(s)
+		return s
+	case *DeclStmt:
+		for _, d := range s.DeclList {
+			r.rewriteDecl(d)
+		}
+		return s
+	}
+	return stmt
+}
+
+func (r *magicMethodRewriter) rewriteSimpleStmt(stmt SimpleStmt) SimpleStmt {
+	if stmt == nil {
+		return nil
+	}
+	switch s := stmt.(type) {
+	case *ExprStmt:
+		s.X = r.rewriteExpr(s.X)
+		return s
+	case *AssignStmt:
+		// Note: rewriteAssignStmt might convert AssignStmt to ExprStmt
+		// which is not a SimpleStmt. For now, we handle this specially.
+		rewritten := r.rewriteAssignStmt(s)
+		if simpleRewritten, ok := rewritten.(SimpleStmt); ok {
+			return simpleRewritten
+		}
+		// If it's no longer a SimpleStmt, we have a problem
+		// For now, just return the original
+		s.Lhs = r.rewriteExpr(s.Lhs)
+		s.Rhs = r.rewriteExpr(s.Rhs)
+		return s
+	}
+	return stmt
+}
+
+// rewriteAssignStmt handles index assignment: a[x] = y -> a._setitem(x, y)
+func (r *magicMethodRewriter) rewriteAssignStmt(stmt *AssignStmt) Stmt {
+	// Track variable types for short variable declarations: ds := &DataStore{}
+	if stmt.Op == Def {
+		r.trackShortVarDeclTypes(stmt)
+	}
+
+	// Check if LHS is an IndexExpr or SliceExpr
+	var indexExpr *IndexExpr
+	var sliceExpr *SliceExpr
+
+	switch lhs := stmt.Lhs.(type) {
+	case *IndexExpr:
+		indexExpr = lhs
+	case *SliceExpr:
+		sliceExpr = lhs
+	default:
+		// Not an index assignment, just rewrite the expressions normally
+		stmt.Lhs = r.rewriteExpr(stmt.Lhs)
+		stmt.Rhs = r.rewriteExpr(stmt.Rhs)
+		return stmt
+	}
+
+	var baseExpr Expr
+	var args []Expr
+
+	if indexExpr != nil {
+		baseExpr = indexExpr.X
+
+		// AGGRESSIVE: Check if we should rewrite this
+		if !r.shouldRewriteIndex(baseExpr) {
+			// It's a built-in type, don't rewrite
+			stmt.Lhs = r.rewriteExpr(stmt.Lhs)
+			stmt.Rhs = r.rewriteExpr(stmt.Rhs)
+			return stmt
+		}
+
+		// Parse the index - could be a single value or colon-separated values
+		args = r.parseIndexArgs(indexExpr.Index)
+	} else if sliceExpr != nil {
+		baseExpr = sliceExpr.X
+
+		// AGGRESSIVE: Check if we should rewrite this
+		if !r.shouldRewriteSlice(sliceExpr) {
+			// It's a built-in type, don't rewrite
+			stmt.Lhs = r.rewriteExpr(stmt.Lhs)
+			stmt.Rhs = r.rewriteExpr(stmt.Rhs)
+			return stmt
+		}
+
+		// SliceExpr has Index[0], Index[1], Index[2] (for a[x:y:z])
+		args = make([]Expr, 0)
+		for _, idx := range sliceExpr.Index {
+			if idx != nil {
+				args = append(args, idx)
+			}
+		}
+	}
+
+	// Transform: a[x, y] = z -> a._setitem(x, y, z)
+	pos := stmt.Pos()
+
+	// Add the RHS value as the last argument
+	args = append(args, r.rewriteExpr(stmt.Rhs))
+
+	// Create method call: base._setitem(args...)
+	methodCall := r.createMagicMethodCall(pos, baseExpr, "_setitem", args)
+
+	// Convert to expression statement (since _setitem typically returns nothing)
+	exprStmt := new(ExprStmt)
+	exprStmt.SetPos(pos)
+	exprStmt.X = methodCall
+
+	return exprStmt
+}
+
+func (r *magicMethodRewriter) rewriteExpr(expr Expr) Expr {
+	if expr == nil {
+		return nil
+	}
+
+	switch e := expr.(type) {
+	case *IndexExpr:
+		// AGGRESSIVE STRATEGY: Try to rewrite ALL IndexExpr to method calls
+		// If the type doesn't have _getitem, type checker will catch it later
+		// But first check if this looks like a built-in type operation
+		if r.shouldRewriteIndex(e.X) {
+			return r.rewriteIndexToGetItem(e)
+		}
+		// Otherwise, just recursively rewrite
+		e.X = r.rewriteExpr(e.X)
+		e.Index = r.rewriteExpr(e.Index)
+		return e
+
+	case *SliceExpr:
+		// AGGRESSIVE STRATEGY: Try to rewrite slice expressions with multiple indices
+		// This handles a[x:y] syntax for multi-parameter _getitem
+		if r.shouldRewriteSlice(e) {
+			return r.rewriteSliceToGetItem(e)
+		}
+		// Otherwise, just recursively rewrite
+		e.X = r.rewriteExpr(e.X)
+		for i, idx := range e.Index {
+			if idx != nil {
+				e.Index[i] = r.rewriteExpr(idx)
+			}
+		}
+		return e
+
+	case *CallExpr:
+		e.Fun = r.rewriteExpr(e.Fun)
+		for i, arg := range e.ArgList {
+			e.ArgList[i] = r.rewriteExpr(arg)
+		}
+		return e
+
+	case *ParenExpr:
+		e.X = r.rewriteExpr(e.X)
+		return e
+
+	case *SelectorExpr:
+		e.X = r.rewriteExpr(e.X)
+		return e
+
+	case *Operation:
+		e.X = r.rewriteExpr(e.X)
+		if e.Y != nil {
+			e.Y = r.rewriteExpr(e.Y)
+		}
+		return e
+
+	case *ListExpr:
+		for i, elem := range e.ElemList {
+			e.ElemList[i] = r.rewriteExpr(elem)
+		}
+		return e
+
+	case *CompositeLit:
+		if e.Type != nil {
+			e.Type = r.rewriteExpr(e.Type)
+		}
+		for i, elem := range e.ElemList {
+			e.ElemList[i] = r.rewriteExpr(elem)
+		}
+		return e
+
+	default:
+		return expr
+	}
+}
+
+// rewriteIndexToGetItem converts a[x] to a._getitem(x)
+func (r *magicMethodRewriter) rewriteIndexToGetItem(indexExpr *IndexExpr) Expr {
+	pos := indexExpr.Pos()
+	baseExpr := r.rewriteExpr(indexExpr.X)
+
+	// Parse the index expression - could be colon-separated values
+	args := r.parseIndexArgs(indexExpr.Index)
+
+	return r.createMagicMethodCall(pos, baseExpr, "_getitem", args)
+}
+
+// rewriteSliceToGetItem converts a[x:y:z] to a._getitem(x, y, z)
+func (r *magicMethodRewriter) rewriteSliceToGetItem(sliceExpr *SliceExpr) Expr {
+	pos := sliceExpr.Pos()
+	baseExpr := r.rewriteExpr(sliceExpr.X)
+
+	args := make([]Expr, 0)
+	for _, idx := range sliceExpr.Index {
+		if idx != nil {
+			args = append(args, r.rewriteExpr(idx))
+		}
+	}
+
+	return r.createMagicMethodCall(pos, baseExpr, "_getitem", args)
+}
+
+// parseIndexArgs parses the index expression which might contain colon-separated values
+// For the custom syntax a[1:2:"string"], we leverage Go's existing slice syntax a[x:y:z]
+// The parser will create either IndexExpr (for single index) or SliceExpr (for colon-separated)
+//
+// For a single index a[x], this returns [x]
+// For compatibility with existing code, we just return the single argument
+//
+// Now also supports mixed syntax: a[1:2, 3:4] returns flattened arguments [1, 2, 3, 4]
+func (r *magicMethodRewriter) parseIndexArgs(index Expr) []Expr {
+	// If the index is a ListExpr, it contains comma-separated values
+	// e.g., a[x, y, z] would be ListExpr with [x, y, z]
+	// or a[1:2, 3:4] would be ListExpr with [SliceExpr{1,2}, SliceExpr{3,4}]
+	if listExpr, ok := index.(*ListExpr); ok {
+		result := make([]Expr, 0)
+		for _, elem := range listExpr.ElemList {
+			// Check if element is a SliceExpr (for a[1:2, 3:4] syntax)
+			if sliceExpr, ok := elem.(*SliceExpr); ok {
+				// Flatten slice arguments
+				for _, idx := range sliceExpr.Index {
+					if idx != nil {
+						result = append(result, r.rewriteExpr(idx))
+					}
+				}
+			} else {
+				result = append(result, r.rewriteExpr(elem))
+			}
+		}
+		return result
+	}
+
+	// Single value
+	return []Expr{r.rewriteExpr(index)}
+}
+
+// createMagicMethodCall creates a method call like: base.methodName(args...)
+func (r *magicMethodRewriter) createMagicMethodCall(pos Pos, base Expr, methodName string, args []Expr) *CallExpr {
+	// Create selector: base._getitem or base._setitem
+	selector := new(SelectorExpr)
+	selector.SetPos(pos)
+	selector.X = base
+	selector.Sel = NewName(pos, methodName)
+
+	// Create call expression
+	call := new(CallExpr)
+	call.SetPos(pos)
+	call.Fun = selector
+	call.ArgList = args
+
+	return call
+}
+
+// shouldRewriteIndex determines if an index expression should be rewritten
+// STRICT RULE: Only rewrite if the base is a known struct type with magic methods
+func (r *magicMethodRewriter) shouldRewriteIndex(expr Expr) bool {
+	// Don't rewrite if we're inside a magic method definition
+	if r.insideMagicMethod {
+		return false
+	}
+
+	// STRICT: Only rewrite if we know the type has _getitem method
+	return r.hasMagicMethodType(expr)
+}
+
+// shouldRewriteSlice determines if a slice expression should be rewritten
+func (r *magicMethodRewriter) shouldRewriteSlice(sliceExpr *SliceExpr) bool {
+	// Don't rewrite if we're inside a magic method definition
+	if r.insideMagicMethod {
+		return false
+	}
+
+	// STRICT: Only rewrite if we know the type has _getitem method
+	return r.hasMagicMethodType(sliceExpr.X)
+}
+
+// hasMagicMethodType checks if an expression's type is a known struct with magic methods
+// This is the ONLY way an index/slice expression will be rewritten
+func (r *magicMethodRewriter) hasMagicMethodType(expr Expr) bool {
+	typeName := r.tryInferStructTypeName(expr)
+	if typeName == "" {
+		return false
+	}
+
+	_, exists := r.magicMethods[typeName]
+	return exists
+}
+
+// tryInferStructTypeName attempts to infer the struct type name from an expression
+// Returns empty string if type cannot be determined or is not a struct
+func (r *magicMethodRewriter) tryInferStructTypeName(expr Expr) string {
+	switch e := expr.(type) {
+	case *Name:
+		// Variable reference - look it up in tracked variables
+		if typeName, ok := r.varTypes[e.Value]; ok {
+			return typeName
+		}
+		return ""
+
+	case *ParenExpr:
+		return r.tryInferStructTypeName(e.X)
+
+	case *Operation:
+		// Handle &Type{} or *var
+		if e.Op == And && e.Y == nil {
+			// Address-of: &Type{} or &var
+			return r.tryInferStructTypeName(e.X)
+		}
+		if e.Op == Mul && e.Y == nil {
+			// Dereference: *ptr
+			return r.tryInferStructTypeName(e.X)
+		}
+		return ""
+
+	case *CompositeLit:
+		// Composite literal: Type{...}
+		if e.Type != nil {
+			return typeExprToString(e.Type)
+		}
+		return ""
+
+	case *CallExpr:
+		// Function call - check if it's a known constructor
+		if name, ok := e.Fun.(*Name); ok {
+			// Check if this function returns a magic method type
+			if returnType, exists := r.funcReturnTypes[name.Value]; exists {
+				return returnType
+			}
+		}
+		return ""
+
+	case *SelectorExpr:
+		// Field access like obj.field - we can't know the field's type
+		return ""
+
+	default:
+		return ""
+	}
+}
+
+// hasGetItemMethod checks if an expression's type has _getitem method
+func (r *magicMethodRewriter) hasGetItemMethod(expr Expr) bool {
+	typeName := r.inferTypeName(expr)
+	if typeName == "" {
+		return false
+	}
+
+	info, exists := r.magicMethods[typeName]
+	return exists && len(info.GetItemMethods) > 0
+}
+
+// hasSetItemMethod checks if an expression's type has _setitem method
+func (r *magicMethodRewriter) hasSetItemMethod(expr Expr) bool {
+	typeName := r.inferTypeName(expr)
+	if typeName == "" {
+		return false
+	}
+
+	info, exists := r.magicMethods[typeName]
+	return exists && len(info.SetItemMethods) > 0
+}
+
+// inferTypeName tries to infer the type name from an expression
+func (r *magicMethodRewriter) inferTypeName(expr Expr) string {
+	switch e := expr.(type) {
+	case *Name:
+		// Variable name - we'd need type info to resolve this
+		// For now, return empty (will be handled by type checker later)
+		return ""
+	case *SelectorExpr:
+		// Could be a field access or method call
+		return ""
+	case *CallExpr:
+		// Function call - would need to know return type
+		return ""
+	case *ParenExpr:
+		return r.inferTypeName(e.X)
+	case *Operation:
+		// Could be &Type{} or *var
+		if e.Op == And && e.Y == nil {
+			// Address-of operation
+			return r.inferTypeName(e.X)
+		}
+		if e.Op == Mul && e.Y == nil {
+			// Dereference operation
+			return r.inferTypeName(e.X)
+		}
+		return ""
+	case *CompositeLit:
+		// Type literal like DataStore{}
+		if e.Type != nil {
+			return typeExprToString(e.Type)
+		}
+		return ""
+	default:
+		return ""
+	}
 }
 
 // RewriteMethodDecorators rewrites decorated methods by wrapping their bodies

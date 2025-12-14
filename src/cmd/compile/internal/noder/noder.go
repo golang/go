@@ -60,11 +60,12 @@ func LoadPackage(filenames []string) {
 				// Rewrite syntax extensions to standard Go syntax
 				if p.file != nil {
 					syntax.RewriteQuestionExprs(p.file)
-					p.overloadInfo = syntax.PreprocessOverloadedMethods(p.file) // 1. 处理方法重载（会重命名_init）
-					syntax.AddReturnToInitMethods(p.file)                       // 2. 给所有_init方法添加返回值
-					syntax.RewriteMethodDecorators(p.file)                      // 3. 处理装饰器
-					syntax.RewriteDefaultParams(p.file)                         // 4. 处理默认参数
-					syntax.RewriteConstructors(p.file)                          // 5. 最后处理构造函数
+					syntax.RewriteMagicMethods(p.file)                          // 1. 先处理魔法方法 (_getitem, _setitem) - 必须在重载前!
+					p.overloadInfo = syntax.PreprocessOverloadedMethods(p.file) // 2. 处理方法重载（会重命名_init和_getitem/_setitem）
+					syntax.AddReturnToInitMethods(p.file)                       // 3. 给所有_init方法添加返回值
+					syntax.RewriteMethodDecorators(p.file)                      // 4. 处理装饰器
+					syntax.RewriteDefaultParams(p.file)                         // 5. 处理默认参数
+					syntax.RewriteConstructors(p.file)                          // 6. 最后处理构造函数
 				}
 			}()
 		}

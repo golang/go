@@ -1305,7 +1305,7 @@ loop:
 			t.pos = pos
 			t.X = x
 			t.Index[0] = i
-			if p.tok != _Colon && p.tok != _Rbrack {
+			if p.tok != _Colon && p.tok != _Rbrack && p.tok != _Comma {
 				// x[i:j...
 				t.Index[1] = p.expr()
 			}
@@ -1317,17 +1317,72 @@ loop:
 					t.Index[1] = p.badExpr()
 				}
 				p.next()
-				if p.tok != _Rbrack {
+				if p.tok != _Rbrack && p.tok != _Comma {
 					// x[i:j:k...
 					t.Index[2] = p.expr()
-				} else {
+				} else if p.tok == _Rbrack {
 					p.error("final index required in 3-index slice")
 					t.Index[2] = p.badExpr()
 				}
 			}
 			p.xnest--
-			p.want(_Rbrack)
-			x = t
+
+			// Check for comma-separated slice expressions: a[1:2, 3:4]
+			if p.tok == _Comma {
+				// We have multiple slice/index expressions
+				list := []Expr{t}
+				for p.got(_Comma) {
+					if p.tok == _Rbrack {
+						break
+					}
+					// Parse next element (could be index or slice)
+					var elem Expr
+					var start Expr
+					if p.tok != _Colon {
+						start = p.expr()
+					}
+					if p.tok == _Colon {
+						// It's a slice expression
+						p.next()
+						slice := new(SliceExpr)
+						slice.pos = p.pos()
+						slice.X = x
+						slice.Index[0] = start
+						if p.tok != _Colon && p.tok != _Rbrack && p.tok != _Comma {
+							slice.Index[1] = p.expr()
+						}
+						if p.tok == _Colon {
+							slice.Full = true
+							if slice.Index[1] == nil {
+								p.error("middle index required in 3-index slice")
+								slice.Index[1] = p.badExpr()
+							}
+							p.next()
+							if p.tok != _Rbrack && p.tok != _Comma {
+								slice.Index[2] = p.expr()
+							}
+						}
+						elem = slice
+					} else {
+						// It's a simple index
+						elem = start
+					}
+					list = append(list, elem)
+				}
+				// Wrap in IndexExpr with ListExpr
+				idx := new(IndexExpr)
+				idx.pos = pos
+				idx.X = x
+				l := new(ListExpr)
+				l.pos = pos
+				l.ElemList = list
+				idx.Index = l
+				p.want(_Rbrack)
+				x = idx
+			} else {
+				p.want(_Rbrack)
+				x = t
+			}
 
 		case _Lparen:
 			t := new(CallExpr)
@@ -3016,10 +3071,29 @@ func (p *parser) typeList(strict bool) (x Expr, comma bool) {
 	}
 	if p.got(_Comma) {
 		comma = true
-		if t := p.typeOrNil(); t != nil {
+		var t Expr
+		if strict {
+			t = p.typeOrNil()
+		} else {
+			// In non-strict mode, accept expressions (for magic method indexing with literals)
+			if p.tok != _Rbrack && p.tok != _Colon {
+				t = p.expr()
+			}
+		}
+		if t != nil {
 			list := []Expr{x, t}
 			for p.got(_Comma) {
-				if t = p.typeOrNil(); t == nil {
+				if strict {
+					t = p.typeOrNil()
+				} else {
+					// In non-strict mode, accept expressions
+					if p.tok != _Rbrack && p.tok != _Colon {
+						t = p.expr()
+					} else {
+						t = nil
+					}
+				}
+				if t == nil {
 					break
 				}
 				list = append(list, t)
