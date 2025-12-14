@@ -459,6 +459,89 @@ func main() {
 }
 ```
 
+## 6. 构造函数
+
+使用 `make(TypeName, args...)` 语法创建结构体实例，支持自定义初始化逻辑。
+
+**规则**：
+- 构造方法必须命名为 `_init`
+- 必须是指针接收器方法（`func (t *Type) _init(...)`）
+- 不需要手动写返回值（编译器自动添加）
+- 支持重载（不同参数类型）和默认参数
+
+### 6.1 基础用法
+
+```go
+type Person struct {
+    name string
+    age  int
+}
+
+func (p *Person) _init(name string, age int) {
+    p.name = name
+    p.age = age
+}
+
+func main() {
+    p := make(Person, "Alice", 25)
+    fmt.Println(p.name, p.age) // 输出: Alice 25
+}
+```
+
+### 6.2 构造函数重载
+
+```go
+type Database struct {
+    host     string
+    port     int
+    username string
+}
+
+// 通过端口号初始化
+func (d *Database) _init(host string, port int) {
+    d.host = host
+    d.port = port
+    d.username = "admin"
+}
+
+// 通过用户名初始化
+func (d *Database) _init(host string, username string) {
+    d.host = host
+    d.port = 3306 // 默认端口
+    d.username = username
+}
+
+func main() {
+    db1 := make(Database, "localhost", 3306)   // 调用第一个 _init
+    db2 := make(Database, "localhost", "root") // 调用第二个 _init
+    
+    fmt.Println(db1.host, db1.port, db1.username) // localhost 3306 admin
+    fmt.Println(db2.host, db2.port, db2.username) // localhost 3306 root
+}
+```
+
+### 6.3 构造函数 + 默认参数
+
+```go
+type Server struct {
+    host string
+    port int
+}
+
+func (s *Server) _init(host string, port int = 8080) {
+    s.host = host
+    s.port = port
+}
+
+func main() {
+    s1 := make(Server, "localhost")         // 使用默认端口 8080
+    s2 := make(Server, "0.0.0.0", 3000)     // 指定端口
+    
+    fmt.Printf("%s:%d\n", s1.host, s1.port) // localhost:8080
+    fmt.Printf("%s:%d\n", s2.host, s2.port) // 0.0.0.0:3000
+}
+```
+
 ---
 
 ## 编译和使用
