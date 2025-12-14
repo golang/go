@@ -74,6 +74,9 @@ func Examples(testFiles ...*ast.File) []*Example {
 			if params := f.Type.Params; len(params.List) != 0 {
 				continue // function has params; not a valid example
 			}
+			if results := f.Type.Results; results != nil && len(results.List) != 0 {
+				continue // function has results; not a valid example
+			}
 			if f.Body == nil { // ast.File.Body nil dereference (see issue 28044)
 				continue
 			}
