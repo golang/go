@@ -548,7 +548,7 @@ func main() {
 
 ### 索引运算符重载 (_getitem / _setitem)
 
-MyGo+ 支持通过 _getitem 和 _setitem 方法实现自定义类型的索引操作
+MyGo 支持通过 _getitem 和 _setitem 方法实现自定义类型的索引操作
 
 #### 规则描述
 
@@ -645,6 +645,57 @@ func main() {
 	// 逗号语法 - 匹配 ...[]int 版本  
 	_ = arr[1, 2]     // 输出: 多维索引: [[1], [2]]
 	_ = arr[1:2, 3:4] // 输出: 多维索引: [[1, 2], [3, 4]]
+}
+```
+
+#### 用法案例
+
+```go
+package main
+
+import "fmt"
+
+type Person struct {
+	data map[string]string
+}
+
+func (p *Person) _init() {
+	p.data = make(map[string]string)
+	p.data["name"] = "Alice"
+	p.data["age"] = "25"
+	p.data["city"] = "Beijing"
+}
+
+// _getitem: 支持 person["name"] 语法
+func (p *Person) _getitem(name string) string {
+	if value, ok := p.data[name]; ok {
+		return value
+	}
+	return "not found"
+}
+
+// _setitem: 支持 person["name"] = value 语法
+func (p *Person) _setitem(name string, value string) {
+	p.data[name] = value
+}
+
+func main() {
+	// 使用 make 创建 Person，自动调用 _init
+	person := make(Person)
+
+	// 获取值 - 调用 _getitem
+	fmt.Println("Name:", person["name"]) // 输出: Name: Alice
+	fmt.Println("Age:", person["age"])   // 输出: Age: 25
+	fmt.Println("City:", person["city"]) // 输出: City: Beijing
+
+	// 设置值 - 调用 _setitem
+	person["name"] = "Bob"
+	person["country"] = "China"
+
+	// 再次获取值
+	fmt.Println("Updated Name:", person["name"]) // 输出: Updated Name: Bob
+	fmt.Println("Country:", person["country"])   // 输出: Country: China
+	fmt.Println("Unknown:", person["unknown"])   // 输出: Unknown: not found
 }
 ```
 
