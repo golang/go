@@ -71,33 +71,40 @@ avx:
 	JNE	noavx512
 
 	// Zero X16-X31
-	// Note that VZEROALL above already cleared Z0-Z15.
-	VMOVAPD	Z0, Z16
-	VMOVAPD	Z0, Z17
-	VMOVAPD	Z0, Z18
-	VMOVAPD	Z0, Z19
-	VMOVAPD	Z0, Z20
-	VMOVAPD	Z0, Z21
-	VMOVAPD	Z0, Z22
-	VMOVAPD	Z0, Z23
-	VMOVAPD	Z0, Z24
-	VMOVAPD	Z0, Z25
-	VMOVAPD	Z0, Z26
-	VMOVAPD	Z0, Z27
-	VMOVAPD	Z0, Z28
-	VMOVAPD	Z0, Z29
-	VMOVAPD	Z0, Z30
-	VMOVAPD	Z0, Z31
+	// VPXORQ r, r, r is a zeroing idiom according to section
+	// 3.5.1.7 "Clearing Registers and Dependency Breaking Idioms" in
+	// "Intel® 64 and IA-32 Architectures Optimization Reference Manual: Volume 1"
+	// (April 2024)
+	VPXORQ  Z16, Z16, Z16
+	VPXORQ  Z17, Z17, Z17
+	VPXORQ  Z18, Z18, Z18
+	VPXORQ  Z19, Z19, Z19
+	VPXORQ  Z20, Z20, Z20
+	VPXORQ  Z21, Z21, Z21
+	VPXORQ  Z22, Z22, Z22
+	VPXORQ  Z23, Z23, Z23
+	VPXORQ  Z24, Z24, Z24
+	VPXORQ  Z25, Z25, Z25
+	VPXORQ  Z26, Z26, Z26
+	VPXORQ  Z27, Z27, Z27
+	VPXORQ  Z28, Z28, Z28
+	VPXORQ  Z29, Z29, Z29
+	VPXORQ  Z30, Z30, Z30
+	VPXORQ  Z31, Z31, Z31
 
 	// Zero k0-k7
+	// While these are not categorized as zeroing idioms, having them
+	// operate on a single register per instruction makes it easy to
+	// understand what each instruction does.
+	// Note: for wider compatibility these could equally also be KXORW.
 	KXORQ	K0, K0, K0
-	KXORQ	K0, K0, K1
-	KXORQ	K0, K0, K2
-	KXORQ	K0, K0, K3
-	KXORQ	K0, K0, K4
-	KXORQ	K0, K0, K5
-	KXORQ	K0, K0, K6
-	KXORQ	K0, K0, K7
+	KXORQ	K1, K1, K1
+	KXORQ	K2, K2, K2
+	KXORQ	K3, K3, K3
+	KXORQ	K4, K4, K4
+	KXORQ	K5, K5, K5
+	KXORQ	K6, K6, K6
+	KXORQ	K7, K7, K7
 
 noavx512:
 	// misc registers
