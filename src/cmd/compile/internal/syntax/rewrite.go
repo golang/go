@@ -1453,11 +1453,16 @@ func typeMatchesPre(paramType, argType string) bool {
 		return true
 	}
 
+	// interface{} matches any type
+	if paramType == "interface{}" {
+		return true
+	}
+
 	// int literal can match various int types
 	if argType == "int" {
 		switch paramType {
 		case "int", "int8", "int16", "int32", "int64",
-			"uint", "uint8", "uint16", "uint32", "uint64":
+			"uint", "uint8", "uint16", "uint32", "uint64", "interface{}":
 			return true
 		}
 	}
@@ -1465,9 +1470,14 @@ func typeMatchesPre(paramType, argType string) bool {
 	// float64 literal matches float types
 	if argType == "float64" {
 		switch paramType {
-		case "float32", "float64":
+		case "float32", "float64", "interface{}":
 			return true
 		}
+	}
+
+	// string matches interface{}
+	if argType == "string" && paramType == "interface{}" {
+		return true
 	}
 
 	// Unknown type - we'll be optimistic and check param count only
@@ -1508,6 +1518,9 @@ func typeExprToString(expr Expr) string {
 			return "[...]" + typeExprToString(t.Elem)
 		}
 		return "[]" + typeExprToString(t.Elem)
+	case *DotsType:
+		// Variadic parameter: ...T
+		return "..." + typeExprToString(t.Elem)
 	case *MapType:
 		return "map[" + typeExprToString(t.Key) + "]" + typeExprToString(t.Value)
 	case *ChanType:
@@ -1559,6 +1572,11 @@ func generateMethodSuffix(paramTypes []string) string {
 
 // sanitizeTypeName converts a type string to a valid identifier suffix
 func sanitizeTypeName(typeName string) string {
+	// Handle variadic parameters first: ...T -> variadic_T
+	if len(typeName) >= 3 && typeName[:3] == "..." {
+		return "variadic_" + sanitizeTypeName(typeName[3:])
+	}
+
 	// Replace special characters
 	result := ""
 	for _, ch := range typeName {
@@ -2750,12 +2768,16 @@ func (r *magicMethodRewriter) parseIndexArgs(index Expr) []Expr {
 }
 
 // createMagicMethodCall creates a method call like: base.methodName(args...)
+// It also handles method overloading by selecting the correct overload based on argument types
 func (r *magicMethodRewriter) createMagicMethodCall(pos Pos, base Expr, methodName string, args []Expr) *CallExpr {
-	// Create selector: base._getitem or base._setitem
+	// Try to resolve the correct overloaded method name
+	resolvedName := r.resolveMagicMethodOverload(base, methodName, args)
+
+	// Create selector: base._getitem or base._setitem (or overloaded version)
 	selector := new(SelectorExpr)
 	selector.SetPos(pos)
 	selector.X = base
-	selector.Sel = NewName(pos, methodName)
+	selector.Sel = NewName(pos, resolvedName)
 
 	// Create call expression
 	call := new(CallExpr)
@@ -2764,6 +2786,164 @@ func (r *magicMethodRewriter) createMagicMethodCall(pos Pos, base Expr, methodNa
 	call.ArgList = args
 
 	return call
+}
+
+// resolveMagicMethodOverload finds the correct overloaded method name based on argument types
+func (r *magicMethodRewriter) resolveMagicMethodOverload(base Expr, methodName string, args []Expr) string {
+	// Get the type name of the base expression
+	typeName := r.tryInferStructTypeName(base)
+	if typeName == "" {
+		return methodName // Can't infer type, return original name
+	}
+
+	// Get the magic method info for this type
+	// Try exact match first, then try with/without * prefix
+	info, exists := r.magicMethods[typeName]
+	if !exists {
+		// Try pointer type if we have value type
+		if len(typeName) > 0 && typeName[0] != '*' {
+			info, exists = r.magicMethods["*"+typeName]
+		} else if len(typeName) > 0 && typeName[0] == '*' {
+			// Try value type if we have pointer type
+			info, exists = r.magicMethods[typeName[1:]]
+		}
+
+		if !exists {
+			return methodName
+		}
+	}
+
+	// Get the list of methods to search
+	var methods []*FuncDecl
+	if methodName == "_getitem" {
+		methods = info.GetItemMethods
+	} else if methodName == "_setitem" {
+		methods = info.SetItemMethods
+	} else {
+		return methodName
+	}
+
+	// If only one method, no overloading needed - use original name
+	if len(methods) <= 1 {
+		return methodName
+	}
+
+	// Multiple overloads - need to find the matching one
+	// Infer argument types
+	argTypes := make([]string, len(args))
+	for i, arg := range args {
+		argTypes[i] = inferLiteralType(arg)
+	}
+
+	// Find matching method
+	bestMatch := ""
+	bestMatchScore := -1
+
+	for _, fn := range methods {
+		paramTypes := getParamTypeStrings(fn.Type.ParamList)
+
+		// Check for variadic parameter
+		isVariadic := len(paramTypes) > 0 && len(paramTypes[len(paramTypes)-1]) >= 3 &&
+			paramTypes[len(paramTypes)-1][:3] == "..."
+
+		if isVariadic {
+			// Variadic function matching
+			if r.matchesVariadicMethod(paramTypes, argTypes) {
+				suffix := generateMethodSuffix(paramTypes)
+				return methodName + suffix
+			}
+		} else {
+			// Non-variadic: exact parameter count required
+			if len(argTypes) != len(paramTypes) {
+				continue
+			}
+
+			// For _setitem, we need special handling:
+			// The last parameter is the value to set, which can be of any type
+			// So we're more lenient with the last parameter type matching
+			isSetitem := methodName == "_setitem"
+
+			match := true
+			matchScore := 0
+			for i := 0; i < len(argTypes); i++ {
+				// For _setitem's last parameter, be lenient with numeric types
+				if isSetitem && i == len(argTypes)-1 {
+					// Last parameter is the value - accept any numeric type matching
+					if isNumericType(paramTypes[i]) && isNumericType(argTypes[i]) {
+						matchScore++
+						continue
+					}
+				}
+
+				if !typeMatchesPre(paramTypes[i], argTypes[i]) {
+					match = false
+					break
+				}
+				matchScore++
+			}
+
+			if match {
+				// Keep the best match (highest score)
+				if matchScore > bestMatchScore {
+					bestMatchScore = matchScore
+					suffix := generateMethodSuffix(paramTypes)
+					bestMatch = methodName + suffix
+				}
+			}
+		}
+	}
+
+	if bestMatch != "" {
+		return bestMatch
+	}
+
+	// No match found, return original name (will cause compile error if truly no match)
+	return methodName
+}
+
+// isNumericType checks if a type string represents a numeric type
+func isNumericType(typeName string) bool {
+	switch typeName {
+	case "int", "int8", "int16", "int32", "int64",
+		"uint", "uint8", "uint16", "uint32", "uint64",
+		"float32", "float64",
+		"complex64", "complex128",
+		"interface{}": // interface{} can hold any type
+		return true
+	}
+	return false
+}
+
+// matchesVariadicMethod checks if argument types match a variadic method signature
+func (r *magicMethodRewriter) matchesVariadicMethod(paramTypes []string, argTypes []string) bool {
+	numParams := len(paramTypes)
+	numArgs := len(argTypes)
+
+	if numParams == 0 {
+		return false
+	}
+
+	// The last parameter is variadic (e.g., "...int")
+	variadicType := paramTypes[numParams-1][3:] // Remove "..." prefix
+
+	// Check non-variadic parameters first
+	for i := 0; i < numParams-1; i++ {
+		if i >= numArgs {
+			return false
+		}
+		if !typeMatchesPre(paramTypes[i], argTypes[i]) {
+			return false
+		}
+	}
+
+	// All remaining arguments (from numParams-1 onwards) must match the variadic type
+	for i := numParams - 1; i < numArgs; i++ {
+		if !typeMatchesPre(variadicType, argTypes[i]) {
+			return false
+		}
+	}
+
+	return true
 }
 
 // shouldRewriteIndex determines if an index expression should be rewritten
@@ -2797,8 +2977,26 @@ func (r *magicMethodRewriter) hasMagicMethodType(expr Expr) bool {
 		return false
 	}
 
+	// Check exact match first
 	_, exists := r.magicMethods[typeName]
-	return exists
+	if exists {
+		return true
+	}
+
+	// Go 允许值类型调用指针接收者的方法（自动取地址）
+	// 所以如果我们有值类型，尝试查找指针类型的魔法方法
+	if len(typeName) > 0 && typeName[0] != '*' {
+		_, exists = r.magicMethods["*"+typeName]
+		return exists
+	}
+
+	// 反之，如果我们有指针类型，也尝试查找值类型的魔法方法
+	if len(typeName) > 0 && typeName[0] == '*' {
+		_, exists = r.magicMethods[typeName[1:]]
+		return exists
+	}
+
+	return false
 }
 
 // tryInferStructTypeName attempts to infer the struct type name from an expression
@@ -2835,8 +3033,19 @@ func (r *magicMethodRewriter) tryInferStructTypeName(expr Expr) string {
 		return ""
 
 	case *CallExpr:
-		// Function call - check if it's a known constructor
+		// Function call - check if it's a known constructor or make()
 		if name, ok := e.Fun.(*Name); ok {
+			// Special handling for make(Type, ...) - extract the type from first argument
+			if name.Value == "make" && len(e.ArgList) > 0 {
+				// make(Type, ...) - first arg is the type
+				typeName := typeExprToString(e.ArgList[0])
+				// Remove * prefix if present (though make doesn't work with pointers)
+				if len(typeName) > 0 && typeName[0] == '*' {
+					typeName = typeName[1:]
+				}
+				return typeName
+			}
+
 			// Check if this function returns a magic method type
 			if returnType, exists := r.funcReturnTypes[name.Value]; exists {
 				return returnType
