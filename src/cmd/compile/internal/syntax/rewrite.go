@@ -1062,7 +1062,14 @@ func PreprocessOverloadedMethods(file *File) map[string]*OverloadInfo {
 			// Generate parameter type signature
 			paramTypes := getParamTypeStrings(fn.Type.ParamList)
 			suffix := generateMethodSuffix(paramTypes)
-			newName := "_" + methodName + suffix
+
+			// Special handling for _init methods: use _init_xxx instead of __init_xxx
+			var newName string
+			if methodName == "_init" {
+				newName = "_init" + suffix // Keep single underscore prefix
+			} else {
+				newName = "_" + methodName + suffix
+			}
 
 			// Calculate min/max args considering default parameters
 			minArgs := 0
@@ -1099,6 +1106,61 @@ func PreprocessOverloadedMethods(file *File) map[string]*OverloadInfo {
 	}
 
 	return overloadInfos
+}
+
+// AddReturnToInitMethods adds return values to all _init methods
+// This should be called after method overloading but before constructors
+func AddReturnToInitMethods(file *File) {
+	for _, decl := range file.DeclList {
+		fn, ok := decl.(*FuncDecl)
+		if !ok || fn.Recv == nil {
+			continue
+		}
+
+		methodName := fn.Name.Value
+		// Check if this is an _init method (original or renamed by overloading)
+		if methodName == "_init" || (len(methodName) >= 6 && methodName[:6] == "_init_") {
+			addReturnToInitMethod(fn)
+		}
+	}
+}
+
+// addReturnToInitMethod adds return type and return statement to _init methods
+func addReturnToInitMethod(fn *FuncDecl) {
+	if fn.Body == nil || fn.Type == nil || fn.Recv == nil {
+		return
+	}
+
+	// Skip if already has return values
+	if fn.Type.ResultList != nil && len(fn.Type.ResultList) > 0 {
+		return
+	}
+
+	pos := fn.Pos()
+	recvType := fn.Recv.Type
+
+	// Only support pointer receivers for _init
+	if op, ok := recvType.(*Operation); !ok || op.Op != Mul || op.Y != nil {
+		// Not a pointer receiver - skip
+		return
+	}
+
+	// Create result field with pointer type
+	resultField := new(Field)
+	resultField.SetPos(pos)
+	resultField.Type = recvType // Already a pointer type
+
+	// Add return type to function
+	fn.Type.ResultList = []*Field{resultField}
+
+	// Add "return receiver" at the end of body
+	recvName := fn.Recv.Name.Value
+	returnStmt := new(ReturnStmt)
+	returnStmt.SetPos(pos)
+	returnStmt.Results = NewName(pos, recvName)
+
+	// Append return statement to body
+	fn.Body.List = append(fn.Body.List, returnStmt)
 }
 
 // buildMethodNameMap creates a map from original method name to overload info
@@ -1832,8 +1894,301 @@ func typesMatch(paramType, argType string) bool {
 }
 
 // ============================================================================
-// Method Decorator Support
+// Constructor Support (_init methods)
 // ============================================================================
+
+// RewriteConstructors rewrites constructor syntax to standard Go code.
+//
+// It transforms:
+//
+//	ds := make(DataStoreInt, "age", 18)
+//
+// into:
+//
+//	ds := (&DataStoreInt{})._init("age", 18)  // or _init_xxx if overloaded
+//
+// Note: This should run AFTER method overloading and default params,
+// so _init methods have already been renamed and modified.
+func RewriteConstructors(file *File) {
+	// Step 1: Find all types with _init methods (including overloaded/renamed ones)
+	initMethods := make(map[string][]*FuncDecl) // typename -> list of _init methods
+
+	for _, decl := range file.DeclList {
+		fn, ok := decl.(*FuncDecl)
+		if !ok || fn.Recv == nil {
+			continue
+		}
+
+		// Check if method name is "_init" or starts with "_init_" (overloaded)
+		methodName := fn.Name.Value
+		if methodName != "_init" && (len(methodName) < 6 || methodName[:6] != "_init_") {
+			continue
+		}
+
+		// Get receiver type name
+		recvType := typeExprToString(fn.Recv.Type)
+		// Remove * prefix if pointer receiver
+		if len(recvType) > 0 && recvType[0] == '*' {
+			recvType = recvType[1:]
+		}
+
+		initMethods[recvType] = append(initMethods[recvType], fn)
+	}
+
+	// Step 2: NO NEED to modify _init methods - they've already been processed by other rewriters
+
+	// Step 3: Rewrite constructor calls
+	if len(initMethods) > 0 {
+		rewriter := &constructorRewriter{initMethods: initMethods}
+		rewriter.rewriteFile(file)
+	}
+}
+
+// constructorRewriter rewrites constructor calls
+type constructorRewriter struct {
+	initMethods map[string][]*FuncDecl // typename -> list of _init methods
+}
+
+func (r *constructorRewriter) rewriteFile(file *File) {
+	for _, decl := range file.DeclList {
+		r.rewriteDecl(decl)
+	}
+}
+
+func (r *constructorRewriter) rewriteDecl(decl Decl) {
+	switch d := decl.(type) {
+	case *FuncDecl:
+		if d.Body != nil {
+			r.rewriteBlockStmt(d.Body)
+		}
+	case *VarDecl:
+		if d.Values != nil {
+			d.Values = r.rewriteExpr(d.Values)
+		}
+	}
+}
+
+func (r *constructorRewriter) rewriteBlockStmt(block *BlockStmt) {
+	if block == nil {
+		return
+	}
+	for i, stmt := range block.List {
+		block.List[i] = r.rewriteStmt(stmt)
+	}
+}
+
+func (r *constructorRewriter) rewriteStmt(stmt Stmt) Stmt {
+	if stmt == nil {
+		return nil
+	}
+	switch s := stmt.(type) {
+	case *ExprStmt:
+		s.X = r.rewriteExpr(s.X)
+	case *AssignStmt:
+		s.Lhs = r.rewriteExpr(s.Lhs)
+		s.Rhs = r.rewriteExpr(s.Rhs)
+	case *ReturnStmt:
+		if s.Results != nil {
+			s.Results = r.rewriteExpr(s.Results)
+		}
+	case *IfStmt:
+		if s.Init != nil {
+			s.Init = r.rewriteSimpleStmt(s.Init)
+		}
+		s.Cond = r.rewriteExpr(s.Cond)
+		r.rewriteBlockStmt(s.Then)
+		if s.Else != nil {
+			s.Else = r.rewriteStmt(s.Else)
+		}
+	case *ForStmt:
+		if s.Init != nil {
+			s.Init = r.rewriteSimpleStmt(s.Init)
+		}
+		if s.Cond != nil {
+			s.Cond = r.rewriteExpr(s.Cond)
+		}
+		if s.Post != nil {
+			s.Post = r.rewriteSimpleStmt(s.Post)
+		}
+		r.rewriteBlockStmt(s.Body)
+	case *BlockStmt:
+		r.rewriteBlockStmt(s)
+	case *DeclStmt:
+		for _, d := range s.DeclList {
+			r.rewriteDecl(d)
+		}
+	}
+	return stmt
+}
+
+func (r *constructorRewriter) rewriteSimpleStmt(stmt SimpleStmt) SimpleStmt {
+	if stmt == nil {
+		return nil
+	}
+	switch s := stmt.(type) {
+	case *ExprStmt:
+		s.X = r.rewriteExpr(s.X)
+	case *AssignStmt:
+		s.Lhs = r.rewriteExpr(s.Lhs)
+		s.Rhs = r.rewriteExpr(s.Rhs)
+	}
+	return stmt
+}
+
+func (r *constructorRewriter) rewriteExpr(expr Expr) Expr {
+	if expr == nil {
+		return nil
+	}
+
+	switch e := expr.(type) {
+	case *CallExpr:
+		// Check if this is: make(TypeName, args...)
+		// where TypeName has an _init method
+		if makeName, ok := e.Fun.(*Name); ok && makeName.Value == "make" {
+			// This is a make call
+			if len(e.ArgList) > 0 {
+				// First argument should be the type name
+				if typeName, ok := e.ArgList[0].(*Name); ok {
+					typeNameStr := typeName.Value
+					// Check if this type has an _init method
+					if _, hasInit := r.initMethods[typeNameStr]; hasInit {
+						// Extract constructor arguments (skip the first arg which is the type)
+						constructorArgs := e.ArgList[1:]
+						// Rewrite: make(TypeName, args...) -> (&TypeName{})._init(args...)
+						return r.rewriteConstructorCallWithArgs(e, typeNameStr, constructorArgs)
+					}
+				}
+			}
+		}
+
+		// Recursively process function and arguments
+		e.Fun = r.rewriteExpr(e.Fun)
+		for i, arg := range e.ArgList {
+			e.ArgList[i] = r.rewriteExpr(arg)
+		}
+		return e
+
+	case *ListExpr:
+		for i, elem := range e.ElemList {
+			e.ElemList[i] = r.rewriteExpr(elem)
+		}
+		return e
+
+	case *ParenExpr:
+		e.X = r.rewriteExpr(e.X)
+		return e
+
+	case *Operation:
+		e.X = r.rewriteExpr(e.X)
+		if e.Y != nil {
+			e.Y = r.rewriteExpr(e.Y)
+		}
+		return e
+
+	case *CompositeLit:
+		if e.Type != nil {
+			e.Type = r.rewriteExpr(e.Type)
+		}
+		for i, elem := range e.ElemList {
+			e.ElemList[i] = r.rewriteExpr(elem)
+		}
+		return e
+
+	default:
+		return expr
+	}
+}
+
+func (r *constructorRewriter) rewriteConstructorCall(call *CallExpr, typeName string) Expr {
+	return r.rewriteConstructorCallWithArgs(call, typeName, call.ArgList)
+}
+
+func (r *constructorRewriter) rewriteConstructorCallWithArgs(call *CallExpr, typeName string, args []Expr) Expr {
+	pos := call.Pos()
+
+	// Get init methods for this type
+	methods := r.initMethods[typeName]
+	if len(methods) == 0 {
+		return call // Should not happen
+	}
+
+	// Determine which _init method to call
+	var methodName string
+	if len(methods) == 1 {
+		// Only one _init method
+		methodName = methods[0].Name.Value
+	} else {
+		// Multiple _init methods (overloaded) - need to find the right one
+		// Use simple type inference based on argument literals
+		argTypes := make([]string, len(args))
+		for i, arg := range args {
+			argTypes[i] = inferLiteralType(arg)
+		}
+
+		// Find matching method
+		for _, method := range methods {
+			paramTypes := getParamTypeStrings(method.Type.ParamList)
+
+			// Check if argument count matches (considering MinArgs/MaxArgs would be ideal)
+			if len(argTypes) != len(paramTypes) {
+				continue
+			}
+
+			// Check if types match
+			match := true
+			for i := 0; i < len(argTypes); i++ {
+				if !typeMatchesPre(paramTypes[i], argTypes[i]) {
+					match = false
+					break
+				}
+			}
+
+			if match {
+				methodName = method.Name.Value
+				break
+			}
+		}
+
+		// If no match found, use the first one (will fail at type checking)
+		if methodName == "" {
+			methodName = methods[0].Name.Value
+		}
+	}
+
+	// Create: &TypeName{}
+	typeNameExpr := NewName(pos, typeName)
+
+	// Create composite literal: TypeName{}
+	compositeLit := new(CompositeLit)
+	compositeLit.SetPos(pos)
+	compositeLit.Type = typeNameExpr
+	compositeLit.ElemList = nil // empty
+
+	// Create address-of operation: &TypeName{}
+	addrOp := new(Operation)
+	addrOp.SetPos(pos)
+	addrOp.Op = And
+	addrOp.X = compositeLit
+
+	// Wrap in parentheses: (&TypeName{})
+	parenExpr := new(ParenExpr)
+	parenExpr.SetPos(pos)
+	parenExpr.X = addrOp
+
+	// Create selector: (&TypeName{})._init or (&TypeName{})._init_xxx
+	selector := new(SelectorExpr)
+	selector.SetPos(pos)
+	selector.X = parenExpr
+	selector.Sel = NewName(pos, methodName)
+
+	// Create call: (&TypeName{})._init(args)
+	newCall := new(CallExpr)
+	newCall.SetPos(pos)
+	newCall.Fun = selector
+	newCall.ArgList = args
+
+	return newCall
+}
 
 // RewriteMethodDecorators rewrites decorated methods by wrapping their bodies
 // with decorator function calls.
