@@ -1453,8 +1453,8 @@ func typeMatchesPre(paramType, argType string) bool {
 		return true
 	}
 
-	// interface{} matches any type
-	if paramType == "interface{}" {
+	// interface{} and any match any type
+	if paramType == "interface{}" || paramType == "any" {
 		return true
 	}
 
@@ -1462,7 +1462,8 @@ func typeMatchesPre(paramType, argType string) bool {
 	if argType == "int" {
 		switch paramType {
 		case "int", "int8", "int16", "int32", "int64",
-			"uint", "uint8", "uint16", "uint32", "uint64", "interface{}":
+			"uint", "uint8", "uint16", "uint32", "uint64",
+			"interface{}", "any":
 			return true
 		}
 	}
@@ -1470,13 +1471,13 @@ func typeMatchesPre(paramType, argType string) bool {
 	// float64 literal matches float types
 	if argType == "float64" {
 		switch paramType {
-		case "float32", "float64", "interface{}":
+		case "float32", "float64", "interface{}", "any":
 			return true
 		}
 	}
 
-	// string matches interface{}
-	if argType == "string" && paramType == "interface{}" {
+	// string matches interface{} and any
+	if argType == "string" && (paramType == "interface{}" || paramType == "any") {
 		return true
 	}
 
@@ -2581,6 +2582,7 @@ func (r *magicMethodRewriter) rewriteAssignStmt(stmt *AssignStmt) Stmt {
 
 	var baseExpr Expr
 	var args []Expr
+	var hasComma bool
 
 	if indexExpr != nil {
 		baseExpr = indexExpr.X
@@ -2594,7 +2596,7 @@ func (r *magicMethodRewriter) rewriteAssignStmt(stmt *AssignStmt) Stmt {
 		}
 
 		// Parse the index - could be a single value or colon-separated values
-		args = r.parseIndexArgs(indexExpr.Index)
+		args, hasComma = r.parseIndexArgs(indexExpr.Index)
 	} else if sliceExpr != nil {
 		baseExpr = sliceExpr.X
 
@@ -2613,6 +2615,7 @@ func (r *magicMethodRewriter) rewriteAssignStmt(stmt *AssignStmt) Stmt {
 				args = append(args, idx)
 			}
 		}
+		hasComma = false
 	}
 
 	// Transform: a[x, y] = z -> a._setitem(x, y, z)
@@ -2622,7 +2625,7 @@ func (r *magicMethodRewriter) rewriteAssignStmt(stmt *AssignStmt) Stmt {
 	args = append(args, r.rewriteExpr(stmt.Rhs))
 
 	// Create method call: base._setitem(args...)
-	methodCall := r.createMagicMethodCall(pos, baseExpr, "_setitem", args)
+	methodCall := r.createMagicMethodCallWithComma(pos, baseExpr, "_setitem", args, hasComma)
 
 	// Convert to expression statement (since _setitem typically returns nothing)
 	exprStmt := new(ExprStmt)
@@ -2713,9 +2716,9 @@ func (r *magicMethodRewriter) rewriteIndexToGetItem(indexExpr *IndexExpr) Expr {
 	baseExpr := r.rewriteExpr(indexExpr.X)
 
 	// Parse the index expression - could be colon-separated values
-	args := r.parseIndexArgs(indexExpr.Index)
+	args, hasComma := r.parseIndexArgs(indexExpr.Index)
 
-	return r.createMagicMethodCall(pos, baseExpr, "_getitem", args)
+	return r.createMagicMethodCallWithComma(pos, baseExpr, "_getitem", args, hasComma)
 }
 
 // rewriteSliceToGetItem converts a[x:y:z] to a._getitem(x, y, z)
@@ -2730,48 +2733,85 @@ func (r *magicMethodRewriter) rewriteSliceToGetItem(sliceExpr *SliceExpr) Expr {
 		}
 	}
 
-	return r.createMagicMethodCall(pos, baseExpr, "_getitem", args)
+	// No comma in pure slice syntax
+	return r.createMagicMethodCallWithComma(pos, baseExpr, "_getitem", args, false)
 }
 
 // parseIndexArgs parses the index expression which might contain colon-separated values
-// For the custom syntax a[1:2:"string"], we leverage Go's existing slice syntax a[x:y:z]
-// The parser will create either IndexExpr (for single index) or SliceExpr (for colon-separated)
-//
-// For a single index a[x], this returns [x]
-// For compatibility with existing code, we just return the single argument
-//
-// Now also supports mixed syntax: a[1:2, 3:4] returns flattened arguments [1, 2, 3, 4]
-func (r *magicMethodRewriter) parseIndexArgs(index Expr) []Expr {
+// Returns: (args []Expr, hasComma bool)
+// hasComma indicates if the original syntax used commas
+// When hasComma is true, each comma-separated element is wrapped into a slice literal
+func (r *magicMethodRewriter) parseIndexArgs(index Expr) ([]Expr, bool) {
 	// If the index is a ListExpr, it contains comma-separated values
 	// e.g., a[x, y, z] would be ListExpr with [x, y, z]
 	// or a[1:2, 3:4] would be ListExpr with [SliceExpr{1,2}, SliceExpr{3,4}]
 	if listExpr, ok := index.(*ListExpr); ok {
 		result := make([]Expr, 0)
+
+		// Process each comma-separated element
 		for _, elem := range listExpr.ElemList {
+			var elemArgs []Expr
+
 			// Check if element is a SliceExpr (for a[1:2, 3:4] syntax)
 			if sliceExpr, ok := elem.(*SliceExpr); ok {
-				// Flatten slice arguments
+				// Collect all indices from the slice expression
 				for _, idx := range sliceExpr.Index {
 					if idx != nil {
-						result = append(result, r.rewriteExpr(idx))
+						elemArgs = append(elemArgs, r.rewriteExpr(idx))
 					}
 				}
 			} else {
-				result = append(result, r.rewriteExpr(elem))
+				// Single element
+				elemArgs = append(elemArgs, r.rewriteExpr(elem))
 			}
+
+			// Wrap elemArgs into a slice literal []T{...}
+			// We need to create: []int{1, 2} or []int{1}
+			sliceLit := r.createSliceLiteral(elemArgs)
+			result = append(result, sliceLit)
 		}
-		return result
+
+		return result, true // Has comma
 	}
 
-	// Single value
-	return []Expr{r.rewriteExpr(index)}
+	// Single value - no comma, no wrapping
+	return []Expr{r.rewriteExpr(index)}, false
+}
+
+// createSliceLiteral creates a slice literal: []int{elem1, elem2, ...}
+// We assume int type for now - this works for most numeric indexing cases
+func (r *magicMethodRewriter) createSliceLiteral(elements []Expr) Expr {
+	if len(elements) == 0 {
+		return nil
+	}
+
+	pos := elements[0].Pos()
+
+	// Create slice type: []int
+	sliceType := new(SliceType)
+	sliceType.SetPos(pos)
+	sliceType.Elem = NewName(pos, "int")
+
+	// Create composite literal: []int{elements...}
+	compositeLit := new(CompositeLit)
+	compositeLit.SetPos(pos)
+	compositeLit.Type = sliceType
+	compositeLit.ElemList = elements
+
+	return compositeLit
 }
 
 // createMagicMethodCall creates a method call like: base.methodName(args...)
 // It also handles method overloading by selecting the correct overload based on argument types
 func (r *magicMethodRewriter) createMagicMethodCall(pos Pos, base Expr, methodName string, args []Expr) *CallExpr {
+	return r.createMagicMethodCallWithComma(pos, base, methodName, args, false)
+}
+
+// createMagicMethodCallWithComma creates a method call with comma information
+// hasComma: true if original syntax used commas (requires []T parameters)
+func (r *magicMethodRewriter) createMagicMethodCallWithComma(pos Pos, base Expr, methodName string, args []Expr, hasComma bool) *CallExpr {
 	// Try to resolve the correct overloaded method name
-	resolvedName := r.resolveMagicMethodOverload(base, methodName, args)
+	resolvedName := r.resolveMagicMethodOverloadWithComma(base, methodName, args, hasComma)
 
 	// Create selector: base._getitem or base._setitem (or overloaded version)
 	selector := new(SelectorExpr)
@@ -2790,6 +2830,14 @@ func (r *magicMethodRewriter) createMagicMethodCall(pos Pos, base Expr, methodNa
 
 // resolveMagicMethodOverload finds the correct overloaded method name based on argument types
 func (r *magicMethodRewriter) resolveMagicMethodOverload(base Expr, methodName string, args []Expr) string {
+	return r.resolveMagicMethodOverloadWithComma(base, methodName, args, false)
+}
+
+// resolveMagicMethodOverloadWithComma finds the correct overloaded method with comma info
+// hasComma: if true, ONLY match functions with []T parameters
+//
+//	if false, PREFER T parameters, fallback to []T parameters
+func (r *magicMethodRewriter) resolveMagicMethodOverloadWithComma(base Expr, methodName string, args []Expr, hasComma bool) string {
 	// Get the type name of the base expression
 	typeName := r.tryInferStructTypeName(base)
 	if typeName == "" {
@@ -2836,8 +2884,15 @@ func (r *magicMethodRewriter) resolveMagicMethodOverload(base Expr, methodName s
 	}
 
 	// Find matching method
-	bestMatch := ""
-	bestMatchScore := -1
+	// We'll collect candidates and score them
+	type candidate struct {
+		fn                  *FuncDecl
+		paramTypes          []string
+		score               int
+		requiresSliceParams bool
+	}
+
+	candidates := make([]candidate, 0)
 
 	for _, fn := range methods {
 		paramTypes := getParamTypeStrings(fn.Type.ParamList)
@@ -2846,11 +2901,25 @@ func (r *magicMethodRewriter) resolveMagicMethodOverload(base Expr, methodName s
 		isVariadic := len(paramTypes) > 0 && len(paramTypes[len(paramTypes)-1]) >= 3 &&
 			paramTypes[len(paramTypes)-1][:3] == "..."
 
+		// Check if this method has slice parameters
+		requiresSliceParams := r.methodHasSliceParams(paramTypes, methodName)
+
 		if isVariadic {
 			// Variadic function matching
 			if r.matchesVariadicMethod(paramTypes, argTypes) {
-				suffix := generateMethodSuffix(paramTypes)
-				return methodName + suffix
+				score := 100
+				// If hasComma and requires slice params, high priority
+				// If !hasComma and doesn't require slice params, high priority
+				if hasComma == requiresSliceParams {
+					score += 50
+				}
+
+				candidates = append(candidates, candidate{
+					fn:                  fn,
+					paramTypes:          paramTypes,
+					score:               score,
+					requiresSliceParams: requiresSliceParams,
+				})
 			}
 		} else {
 			// Non-variadic: exact parameter count required
@@ -2883,22 +2952,94 @@ func (r *magicMethodRewriter) resolveMagicMethodOverload(base Expr, methodName s
 			}
 
 			if match {
-				// Keep the best match (highest score)
-				if matchScore > bestMatchScore {
-					bestMatchScore = matchScore
-					suffix := generateMethodSuffix(paramTypes)
-					bestMatch = methodName + suffix
+				score := matchScore
+				// If hasComma and requires slice params, high priority
+				// If !hasComma and doesn't require slice params, high priority
+				if hasComma == requiresSliceParams {
+					score += 50
 				}
+
+				candidates = append(candidates, candidate{
+					fn:                  fn,
+					paramTypes:          paramTypes,
+					score:               score,
+					requiresSliceParams: requiresSliceParams,
+				})
 			}
 		}
 	}
 
-	if bestMatch != "" {
-		return bestMatch
+	// Filter and select best candidate
+	if len(candidates) > 0 {
+		// If hasComma, ONLY consider slice param candidates
+		if hasComma {
+			sliceCandidates := make([]candidate, 0)
+			for _, c := range candidates {
+				if c.requiresSliceParams {
+					sliceCandidates = append(sliceCandidates, c)
+				}
+			}
+			candidates = sliceCandidates
+		}
+
+		// If no comma, prefer non-slice, but allow slice as fallback
+		if !hasComma && len(candidates) > 0 {
+			// Check if there are non-slice candidates
+			nonSliceCandidates := make([]candidate, 0)
+			for _, c := range candidates {
+				if !c.requiresSliceParams {
+					nonSliceCandidates = append(nonSliceCandidates, c)
+				}
+			}
+
+			// Prefer non-slice if available
+			if len(nonSliceCandidates) > 0 {
+				candidates = nonSliceCandidates
+			}
+		}
+
+		// Select best score
+		if len(candidates) > 0 {
+			best := candidates[0]
+			for _, c := range candidates[1:] {
+				if c.score > best.score {
+					best = c
+				}
+			}
+
+			suffix := generateMethodSuffix(best.paramTypes)
+			return methodName + suffix
+		}
 	}
 
 	// No match found, return original name (will cause compile error if truly no match)
 	return methodName
+}
+
+// methodHasSliceParams checks if a method's parameters include slice types
+// For _setitem, ignores the last parameter (the value)
+func (r *magicMethodRewriter) methodHasSliceParams(paramTypes []string, methodName string) bool {
+	isSetitem := methodName == "_setitem"
+
+	for i, pt := range paramTypes {
+		// Skip the last parameter for _setitem (it's the value)
+		if isSetitem && i == len(paramTypes)-1 {
+			continue
+		}
+
+		// Remove variadic prefix
+		typeStr := pt
+		if len(typeStr) >= 3 && typeStr[:3] == "..." {
+			typeStr = typeStr[3:]
+		}
+
+		// Check if it's a slice type
+		if len(typeStr) >= 2 && typeStr[:2] == "[]" {
+			return true
+		}
+	}
+
+	return false
 }
 
 // isNumericType checks if a type string represents a numeric type
@@ -2908,7 +3049,7 @@ func isNumericType(typeName string) bool {
 		"uint", "uint8", "uint16", "uint32", "uint64",
 		"float32", "float64",
 		"complex64", "complex128",
-		"interface{}": // interface{} can hold any type
+		"interface{}", "any": // interface{} and any can hold any type
 		return true
 	}
 	return false

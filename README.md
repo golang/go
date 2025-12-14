@@ -542,6 +542,113 @@ func main() {
 }
 ```
 
+## 7. 魔法函数(实验特性)
+
+注意，标记为实验特性的可能有BUG，慎用
+
+### 索引运算符重载 (_getitem / _setitem)
+
+MyGo+ 支持通过 _getitem 和 _setitem 方法实现自定义类型的索引操作
+
+#### 规则描述
+
+1. 有逗号 → 强制匹配 []T 参数
+2. 无逗号 → 优先匹配 T 参数，fallback 到 []T
+
+#### 基础示例
+
+```go
+package main
+
+import "fmt"
+
+type Matrix struct {
+	data [][]int
+	rows int
+	cols int
+}
+
+func (m *Matrix) _init(rows, cols int) {
+	m.rows = rows
+	m.cols = cols
+	m.data = make([][]int, rows)
+	for i := range m.data {
+		m.data[i] = make([]int, cols)
+	}
+}
+
+// _getitem: 支持 matrix[row, col] 语法
+func (m *Matrix) _getitem(indices1 []int, indices2 []int) int {
+	row, col := indices1[0], indices2[0]
+	return m.data[row][col]
+}
+
+// _setitem: 支持 matrix[row, col] = value 语法
+func (m *Matrix) _setitem(indices1 []int, indices2 []int, value int) {
+	row, col := indices1[0], indices2[0]
+	m.data[row][col] = value
+}
+
+func main() {
+	// 使用 make 创建 Matrix，自动调用 _init
+	m := make(Matrix, 3, 3)
+	
+	// 设置值 - 调用 _setitem
+	m[0, 0] = 1
+	m[1, 1] = 5
+	m[2, 2] = 9
+	
+	// 获取值 - 调用 _getitem
+	fmt.Println(m[0, 0])  // 输出: 1
+	fmt.Println(m[1, 1])  // 输出: 5
+	fmt.Println(m[2, 2])  // 输出: 9
+}
+```
+
+#### 逗号语法 与 冒号语法
+
+MyGO 可以区分 逗号分隔 和 冒号切片 两种索引语法：
+
+```go
+package main
+
+import "fmt"
+
+type NDArray struct {
+	data []int
+}
+
+func (a *NDArray) _init(data []int) {
+	a.data = data
+}
+
+// 冒号语法: arr[start:end] → 传入普通参数
+func (a *NDArray) _getitem(args ...int) []int {
+	fmt.Printf("切片访问: %v\n", args)
+	start, end := args[0], args[1]
+	return a.data[start:end]
+}
+
+// 逗号语法: arr[i, j, k] → 传入切片参数
+func (a *NDArray) _getitem(indices ...[]int) int {
+	fmt.Printf("多维索引: %v\n", indices)
+	// 处理多维索引逻辑...
+	return 0
+}
+
+func main() {
+	arr := make(NDArray, []int{1, 2, 3, 4, 5})
+	
+	// 冒号语法 - 匹配 ...int 版本
+	_ = arr[1:3]      // 输出: 切片访问: [1, 3]
+	
+	// 逗号语法 - 匹配 ...[]int 版本  
+	_ = arr[1, 2]     // 输出: 多维索引: [[1], [2]]
+	_ = arr[1:2, 3:4] // 输出: 多维索引: [[1, 2], [3, 4]]
+}
+```
+
+
 ---
 
 ## 注意事项
