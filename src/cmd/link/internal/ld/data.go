@@ -2044,6 +2044,12 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.noptrbss", 0), sect)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.enoptrbss", 0), sect)
 
+	// Put gcmask symbols together.
+	gcmaskSym := ldr.LookupOrCreateSym("runtime.gcmask.*", 0)
+	ldr.SetSymValue(gcmaskSym, int64(sect.Length))
+	ldr.SetSymSect(gcmaskSym, sect)
+	state.assignToSection(sect, sym.SGCMASK, sym.SNOPTRBSS)
+
 	// Code coverage counters are assigned to the .noptrbss section.
 	// We assign them in a separate pass so that they stay aggregated
 	// together in a single blob (coverage runtime depends on this).
@@ -3223,6 +3229,8 @@ func (ctxt *Link) address() []*sym.Segment {
 	ctxt.xdefine("runtime.edata", sym.SDATAEND, int64(data.Vaddr+data.Length))
 	ctxt.xdefine("runtime.noptrbss", sym.SNOPTRBSS, int64(noptrbss.Vaddr))
 	ctxt.xdefine("runtime.enoptrbss", sym.SNOPTRBSS, int64(noptrbss.Vaddr+noptrbss.Length))
+	s = ldr.Lookup("runtime.gcmask.*", 0)
+	ctxt.xdefine("runtime.gcmask.*", sym.SGCMASK, int64(noptrbss.Vaddr+uint64(ldr.SymValue(s))))
 	ctxt.xdefine("runtime.covctrs", sym.SCOVERAGE_COUNTER, int64(noptrbss.Vaddr+covCounterDataStartOff))
 	ctxt.xdefine("runtime.ecovctrs", sym.SCOVERAGE_COUNTER, int64(noptrbss.Vaddr+covCounterDataStartOff+covCounterDataLen))
 	ctxt.xdefine("runtime.end", sym.SBSS, int64(Segdata.Vaddr+Segdata.Length))

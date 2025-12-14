@@ -1105,7 +1105,7 @@ func (f *xcoffFile) asmaixsym(ctxt *Link) {
 				putaixsym(ctxt, s, TLSSym)
 			}
 
-		case st == sym.SBSS, st == sym.SNOPTRBSS, st == sym.SLIBFUZZER_8BIT_COUNTER, st == sym.SCOVERAGE_COUNTER:
+		case st == sym.SBSS, st == sym.SNOPTRBSS, st == sym.SGCMASK, st == sym.SLIBFUZZER_8BIT_COUNTER, st == sym.SCOVERAGE_COUNTER:
 			if ldr.AttrReachable(s) {
 				data := ldr.Data(s)
 				if len(data) > 0 {
@@ -1256,7 +1256,7 @@ func Xcoffadddynrel(target *Target, ldr *loader.Loader, syms *ArchSyms, s loader
 			case &Segrodata:
 				xldr.symndx = 0 // .text
 			case &Segdata:
-				if targType == sym.SBSS || targType == sym.SNOPTRBSS {
+				if targType == sym.SBSS || targType == sym.SNOPTRBSS || targType == sym.SGCMASK {
 					xldr.symndx = 2 // .bss
 				} else {
 					xldr.symndx = 1 // .data
