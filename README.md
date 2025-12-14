@@ -544,6 +544,112 @@ func main() {
 
 ---
 
+## 注意事项
+
+### 构造函数装饰器的使用
+
+装饰器可以应用到 `_init` 构造函数上，但需要注意以下几点：
+
+**要求**：
+- 装饰器函数的签名必须匹配 `_init` 的**原始签名**（未重写前）
+- 装饰器必须接受并返回函数类型，并且返回类型要包含 `*TypeName`
+
+**正确示例**：
+
+```go
+// 装饰器签名：接受和返回 func(string, int) *Server
+func logger(f func(string, int) *Server) func(string, int) *Server {
+    return func(host string, port int) *Server {
+        fmt.Println("创建服务器:", host, port)
+        return f(host, port)
+    }
+}
+
+type Server struct {
+    host string
+    port int
+}
+
+@logger
+func (s *Server) _init(host string, port int) {
+    s.host = host
+    s.port = port
+}
+
+func main() {
+    s := make(Server, "localhost", 8080)
+    // 输出: 创建服务器: localhost 8080
+    fmt.Printf("%s:%d\n", s.host, s.port)
+}
+```
+
+### 方法重载与默认参数的歧义
+
+当同一个方法既有重载又有默认参数时，可能产生歧义。编译器使用**声明顺序优先**的规则进行匹配。
+
+**示例**：
+
+```go
+type DataStore struct {
+    intData    map[string]int
+    stringData map[string]string
+}
+
+
+// 存储整数
+func (ds *DataStore) Set(key string, value int) {
+	if ds.intData == nil {
+		ds.intData = make(map[string]int)
+	}
+	ds.intData[key] = value
+}
+
+// 存储字符串
+func (ds *DataStore) Set(key string, value string) {
+	if ds.stringData == nil {
+		ds.stringData = make(map[string]string)
+	}
+	ds.stringData[key] = value
+}
+
+// 第一个 Get 方法：处理整数，带默认参数
+func (ds *DataStore) Get(key string, defaultValue int = 0) int {
+    if v, ok := ds.intData[key]; ok {
+        return v
+    }
+    return defaultValue
+}
+
+// 第二个 Get 方法：处理字符串，带默认参数
+func (ds *DataStore) Get(key string, defaultValue string = "Unknown") string {
+    if v, ok := ds.stringData[key]; ok {
+        return v
+    }
+    return defaultValue
+}
+
+func main() {
+    store := &DataStore{}
+    store.Set("age", 25)
+    store.Set("name", "Alice")
+    
+    // ⚠️ 歧义情况：只传一个参数时
+    result := store.Get("someKey")  // 调用第一个方法（int 版本）
+
+    fmt.Println(result)
+    // ✅ 明确指定：传入完整参数避免歧义
+    intResult := store.Get("age", 0)           // 调用 int 版本
+    strResult := store.Get("name", "Unknown")  // 调用 string 版本
+	fmt.Println(intResult, strResult)
+}
+
+```
+
+**建议**：
+- 避免在重载方法中同时使用默认参数
+- 如果必须使用，建议显式传递所有参数以避免歧义
+- 或者使用不同的方法名（如 `GetInt`、`GetString`）
+
 ## 编译和使用
 
 1. 克隆仓库并编译：
