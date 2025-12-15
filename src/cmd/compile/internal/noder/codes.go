@@ -62,7 +62,8 @@ const (
 	exprFuncInst
 	exprRecv
 	exprReshape
-	exprRuntimeBuiltin // a reference to a runtime function from transformed syntax. Followed by string name, e.g., "panicrangeexit"
+	exprRuntimeBuiltin  // a reference to a runtime function from transformed syntax. Followed by string name, e.g., "panicrangeexit"
+	exprOptionalChain   // nil-safe field access x?.field, returns *FieldType
 )
 
 type codeAssign int

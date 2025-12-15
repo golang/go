@@ -994,3 +994,68 @@ func (check *Checker) use1(e syntax.Expr, lhs bool) bool {
 	}
 	return x.mode != invalid
 }
+
+// optionalChain type-checks an optional chain expression x?.field
+// The result type is *FieldType if the chain succeeds, or nil if any
+// intermediate value is nil.
+func (check *Checker) optionalChain(x *operand, e *syntax.OptionalChainExpr) {
+	// Type-check the base expression
+	check.expr(nil, x, e.X)
+	if x.mode == invalid {
+		return
+	}
+
+	sel := e.Sel.Value
+
+	// Get the base type, dereferencing pointers as needed
+	baseTyp := x.typ
+	if ptr, ok := under(baseTyp).(*Pointer); ok {
+		baseTyp = ptr.base
+	}
+
+	// Look up the field or method
+	obj, index, indirect := lookupFieldOrMethod(baseTyp, true, check.pkg, sel, false)
+	if obj == nil {
+		// Field not found
+		if !isValid(under(baseTyp)) {
+			x.mode = invalid
+			return
+		}
+		var why string
+		if isInterfacePtr(x.typ) {
+			why = check.interfacePtrError(x.typ)
+		} else {
+			alt, _, _ := lookupFieldOrMethod(baseTyp, true, check.pkg, sel, true)
+			why = check.lookupError(x.typ, sel, alt, false)
+		}
+		check.errorf(e.Sel, MissingFieldOrMethod, "%s.%s undefined (%s)", x.expr, sel, why)
+		x.mode = invalid
+		return
+	}
+
+	switch obj := obj.(type) {
+	case *Var:
+		// Field access: result type depends on whether field is already a pointer
+		check.recordOptionalChainSelection(e, FieldVal, x.typ, obj, index, indirect)
+		x.mode = value
+		// If field type is already a pointer, return it directly
+		// Otherwise, wrap it in a pointer
+		if isPointer(obj.typ) {
+			x.typ = obj.typ
+		} else {
+			x.typ = NewPointer(obj.typ)
+		}
+		x.expr = e
+
+	case *Func:
+		// Method access: result is the method type (will be called)
+		check.recordOptionalChainSelection(e, MethodVal, x.typ, obj, index, indirect)
+		x.mode = value
+		x.typ = obj.typ
+		x.expr = e
+
+	default:
+		check.errorf(e.Sel, InvalidSyntaxTree, "unexpected object type in optional chain: %T", obj)
+		x.mode = invalid
+	}
+}

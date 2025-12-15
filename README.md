@@ -231,11 +231,9 @@ func main() {
 
 使用 `?.` 操作符进行空安全的字段访问和方法调用，避免 nil 指针错误。
 
-*重要! 需要导入`reflect`包！*
+*重要! 可选链返回的都是指针类型，需要转回值类型！————因为要支持nil*
 
 ```go
-import "reflect" // 重要！目前只能通过reflect实现?.表达式！
-
 type User struct {
     Name    string
     Profile *Profile
@@ -245,6 +243,7 @@ type Profile struct {
     Email string
     Age   int
 }
+
 
 func main() {
     user1 := &User{Name: "Alice", Profile: &Profile{Email: "alice@example.com", Age: 25}}
@@ -259,8 +258,8 @@ func main() {
     email1 := user1?.Profile?.Email  // "alice@example.com"
     email2 := user2?.Profile?.Email  // nil (不会 panic)
     
-    fmt.Println(email1)  // alice@example.com
-    fmt.Println(email2)  // <nil>
+    fmt.Println("email1:", *email1)  // alice@example.com
+    fmt.Println("email2:", email2)  // <nil>
 }
 ```
 

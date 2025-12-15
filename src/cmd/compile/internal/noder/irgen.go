@@ -62,14 +62,15 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info, map[*
 		conf.ErrorURL = " [go.dev/e/%s]"
 	}
 	info := &types2.Info{
-		StoreTypesInSyntax: true,
-		Defs:               make(map[*syntax.Name]types2.Object),
-		Uses:               make(map[*syntax.Name]types2.Object),
-		Selections:         make(map[*syntax.SelectorExpr]*types2.Selection),
-		Implicits:          make(map[syntax.Node]types2.Object),
-		Scopes:             make(map[syntax.Node]*types2.Scope),
-		Instances:          make(map[*syntax.Name]types2.Instance),
-		FileVersions:       make(map[*syntax.PosBase]string),
+		StoreTypesInSyntax:      true,
+		Defs:                    make(map[*syntax.Name]types2.Object),
+		Uses:                    make(map[*syntax.Name]types2.Object),
+		Selections:              make(map[*syntax.SelectorExpr]*types2.Selection),
+		OptionalChainSelections: make(map[*syntax.OptionalChainExpr]*types2.Selection),
+		Implicits:               make(map[syntax.Node]types2.Object),
+		Scopes:                  make(map[syntax.Node]*types2.Scope),
+		Instances:               make(map[*syntax.Name]types2.Instance),
+		FileVersions:            make(map[*syntax.PosBase]string),
 		// expand as needed
 	}
 	conf.Error = func(err error) {

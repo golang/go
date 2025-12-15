@@ -276,6 +276,10 @@ type Info struct {
 	// to their corresponding selections.
 	Selections map[*syntax.SelectorExpr]*Selection
 
+	// OptionalChainSelections maps optional chain expressions (x?.field)
+	// to their corresponding selections. This is used for nil-safe field access.
+	OptionalChainSelections map[*syntax.OptionalChainExpr]*Selection
+
 	// Scopes maps syntax.Nodes to the scopes they define. Package scopes are not
 	// associated with a specific node but with all files belonging to a package.
 	// Thus, the package scope can be found in the type-checked Package object.

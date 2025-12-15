@@ -2543,6 +2543,26 @@ func (r *reader) expr() (res ir.Node) {
 	case exprRuntimeBuiltin:
 		builtin := typecheck.LookupRuntime(r.String())
 		return builtin
+
+	case exprOptionalChain:
+		// Optional chain: x?.field
+		// Generates nil-safe field access that returns *FieldType
+		//
+		// Expansion:
+		//   func() *FieldType {
+		//       _tmp := x
+		//       if _tmp == nil { return nil }
+		//       // deref if pointer
+		//       if _tmp.field_is_ptr && _tmp.field == nil { return nil }
+		//       _v := _tmp.field
+		//       return &_v
+		//   }()
+		x := r.expr()
+		pos := r.pos()
+		sym := r.selector()
+		fieldType := r.typ() // the field's type
+
+		return r.optionalChainExpr(pos, x, sym, fieldType)
 	}
 }
 
@@ -2600,6 +2620,105 @@ func (r *reader) funcInst(pos src.XPos) (wrapperFn, baseFn, dictPtr ir.Node) {
 	dictPtr = typecheck.Expr(ir.NewAddrExpr(pos, dictName))
 
 	return
+}
+
+// optionalChainExpr generates nil-safe field access code for x?.field
+// This expands to:
+//
+//	func() *FieldType {
+//	    _tmp := x
+//	    if _tmp == nil { return nil }
+//	    // Handle pointer base type
+//	    _v := (*_tmp).field  or  _tmp.field
+//	    return &_v
+//	}()
+func (r *reader) optionalChainExpr(pos src.XPos, x ir.Node, sym *types.Sym, fieldType *types.Type) ir.Node {
+	// Get the base type (dereference if pointer)
+	baseType := x.Type()
+	needDeref := baseType.IsPtr()
+
+	// Result type: if field is already a pointer, use it directly; otherwise wrap in pointer
+	var resultType *types.Type
+	fieldIsPtr := fieldType.IsPtr()
+	if fieldIsPtr {
+		resultType = fieldType
+	} else {
+		resultType = types.NewPtr(fieldType)
+	}
+
+	// Create a function literal that does the nil check and field access
+	// fn := func() *FieldType { ... }
+
+	// Create function type: func() ResultType
+	params := []*types.Field{}
+	results := []*types.Field{types.NewField(pos, nil, resultType)}
+	fnType := types.NewSignature(nil, params, results)
+
+	// Create function literal using syntheticClosure pattern
+	captured := []ir.Node{x}
+
+	addBody := func(bodyPos src.XPos, bodyReader *reader, capturedVars []ir.Node) {
+		xVal := capturedVars[0]
+		fn := ir.CurFunc
+
+		// Create nil literal for return
+		nilVal := ir.NewNilExpr(bodyPos, resultType)
+		nilVal.SetType(resultType)
+
+		if needDeref {
+			// For pointer base type: if x == nil { return nil }
+			nilCmp := ir.NewBinaryExpr(bodyPos, ir.OEQ, xVal, typecheck.NodNil())
+			nilCmp = typecheck.Expr(nilCmp).(*ir.BinaryExpr)
+
+			retNil := ir.NewReturnStmt(bodyPos, []ir.Node{nilVal})
+			ifNil := ir.NewIfStmt(bodyPos, nilCmp, []ir.Node{retNil}, nil)
+			fn.Body.Append(typecheck.Stmt(ifNil))
+
+			// Dereference and field access: (*x).field
+			deref := Deref(bodyPos, baseType.Elem(), xVal)
+			fieldAccess := typecheck.XDotField(bodyPos, deref, sym)
+
+			if fieldIsPtr {
+				// If field is pointer, return it directly (no nil check for intermediate)
+				retField := ir.NewReturnStmt(bodyPos, []ir.Node{fieldAccess})
+				fn.Body.Append(typecheck.Stmt(retField))
+			} else {
+				// Take address of field value
+				valVar := typecheck.TempAt(bodyPos, fn, fieldType)
+				valAssign := ir.NewAssignStmt(bodyPos, valVar, fieldAccess)
+				fn.Body.Append(typecheck.Stmt(valAssign))
+
+				addrVal := Addr(bodyPos, valVar)
+				retAddr := ir.NewReturnStmt(bodyPos, []ir.Node{addrVal})
+				fn.Body.Append(typecheck.Stmt(retAddr))
+			}
+		} else {
+			// For non-pointer base type, just access the field
+			fieldAccess := typecheck.XDotField(bodyPos, xVal, sym)
+
+			if fieldIsPtr {
+				// If field is pointer, return it directly
+				retField := ir.NewReturnStmt(bodyPos, []ir.Node{fieldAccess})
+				fn.Body.Append(typecheck.Stmt(retField))
+			} else {
+				// Take address of field value
+				valVar := typecheck.TempAt(bodyPos, fn, fieldType)
+				valAssign := ir.NewAssignStmt(bodyPos, valVar, fieldAccess)
+				fn.Body.Append(typecheck.Stmt(valAssign))
+
+				addrVal := Addr(bodyPos, valVar)
+				retAddr := ir.NewReturnStmt(bodyPos, []ir.Node{addrVal})
+				fn.Body.Append(typecheck.Stmt(retAddr))
+			}
+		}
+	}
+
+	// Create and call the closure
+	clo := r.syntheticClosure(pos, fnType, false, captured, addBody)
+
+	// Call the closure: fn()
+	call := ir.NewCallExpr(pos, ir.OCALL, clo, nil)
+	return typecheck.Expr(call)
 }
 
 func (pr *pkgReader) objDictName(idx index, implicits, explicits []*types.Type) *ir.Name {

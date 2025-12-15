@@ -166,6 +166,14 @@ func (check *Checker) recordSelection(x *syntax.SelectorExpr, kind SelectionKind
 	}
 }
 
+func (check *Checker) recordOptionalChainSelection(x *syntax.OptionalChainExpr, kind SelectionKind, recv Type, obj Object, index []int, indirect bool) {
+	assert(obj != nil && (recv == nil || len(index) > 0))
+	check.recordUse(x.Sel, obj)
+	if m := check.OptionalChainSelections; m != nil {
+		m[x] = &Selection{kind, recv, obj, index, indirect}
+	}
+}
+
 func (check *Checker) recordScope(node syntax.Node, scope *Scope) {
 	assert(node != nil)
 	assert(scope != nil)

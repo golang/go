@@ -1893,8 +1893,18 @@ func (w *writer) expr(expr syntax.Expr) {
 		w.p.unexpected("expression", expr)
 
 	case *syntax.OptionalChainExpr:
-		// Should have been rewritten by syntax.RewriteQuestionExprs
-		w.p.fatalf(expr, "unexpected OptionalChainExpr (should have been rewritten)")
+		// Handle optional chain: x?.field generates nil-safe field access
+		// Result type is *FieldType
+		sel, ok := w.p.info.OptionalChainSelections[expr]
+		if !ok {
+			w.p.fatalf(expr, "missing OptionalChainSelection for %v", expr)
+		}
+
+		w.Code(exprOptionalChain)
+		w.expr(expr.X)              // base expression
+		w.pos(expr)                 // position
+		w.selector(sel.Obj())       // field being accessed
+		w.typ(sel.Obj().Type())     // type of the field (result is *FieldType)
 
 	case *syntax.TernaryExpr:
 		// Should have been rewritten by syntax.RewriteQuestionExprs

@@ -233,7 +233,10 @@ func (r *rewriter) rewriteExpr(expr Expr) Expr {
 
 	switch e := expr.(type) {
 	case *OptionalChainExpr:
-		return r.rewriteOptionalChain(e)
+		// OptionalChainExpr is now handled in types2/noder stage with type information
+		// We only need to recursively rewrite the base expression
+		e.X = r.rewriteExpr(e.X)
+		return e
 
 	case *TernaryExpr:
 		return r.rewriteTernary(e)
@@ -301,10 +304,8 @@ func (r *rewriter) rewriteExpr(expr Expr) Expr {
 		return e
 
 	case *CallExpr:
-		// Special handling for optional chaining with method calls
-		if opt, ok := e.Fun.(*OptionalChainExpr); ok {
-			return r.rewriteOptionalChainCall(opt, e)
-		}
+		// Optional chain method calls (x?.method(args)) are handled in types2/noder
+		// Just recursively process the expressions here
 		e.Fun = r.rewriteExpr(e.Fun)
 		for i, arg := range e.ArgList {
 			e.ArgList[i] = r.rewriteExpr(arg)

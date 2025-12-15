@@ -1078,9 +1078,9 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 		check.selector(x, e, nil, false)
 
 	case *syntax.OptionalChainExpr:
-		// Should have been rewritten by syntax.RewriteQuestionExprs
-		check.errorf(e, InvalidSyntaxTree, "unexpected OptionalChainExpr (should have been rewritten)")
-		goto Error
+		// Handle optional chaining: x?.field
+		// Result type is *FieldType (pointer to the field's type)
+		check.optionalChain(x, e)
 
 	case *syntax.TernaryExpr:
 		// Should have been rewritten by syntax.RewriteQuestionExprs
