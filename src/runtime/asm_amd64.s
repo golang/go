@@ -1093,11 +1093,6 @@ needm:
 	// there's no need to handle that. Clear R14 so that there's
 	// a bad value in there, in case needm tries to use it.
 	XORPS	X15, X15
-#ifdef GOEXPERIMENT_simd
-	CMPB	internal∕cpu·X86+const_offsetX86HasAVX(SB), $1
-	JNE	2(PC)
-	VXORPS	X15, X15, X15
-#endif
 	XORQ    R14, R14
 	MOVQ	$runtime·needAndBindM<ABIInternal>(SB), AX
 	CALL	AX
@@ -1795,11 +1790,6 @@ TEXT ·sigpanic0(SB),NOSPLIT,$0-0
 	get_tls(R14)
 	MOVQ	g(R14), R14
 	XORPS	X15, X15
-#ifdef GOEXPERIMENT_simd
-	CMPB	internal∕cpu·X86+const_offsetX86HasAVX(SB), $1
-	JNE	2(PC)
-	VXORPS	X15, X15, X15
-#endif
 	JMP	·sigpanic<ABIInternal>(SB)
 
 // gcWriteBarrier informs the GC about heap pointer writes.

@@ -697,6 +697,9 @@ func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace
 		runTest(t, true, "")
 	})
 	t.Run("AllocFree", func(t *testing.T) {
+		if !*allocFree {
+			t.Skip("skipping trace alloc/free tests by default; too flaky (see go.dev/issue/70838)")
+		}
 		if testing.Short() {
 			t.Skip("skipping trace alloc/free tests in short mode")
 		}

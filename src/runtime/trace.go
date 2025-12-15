@@ -440,11 +440,6 @@ func StartTrace() error {
 
 	// Record the heap goal so we have it at the very beginning of the trace.
 	tl.HeapGoal()
-
-	// Make sure a ProcStatus is emitted for every P, while we're here.
-	for _, pp := range allp {
-		tl.writer().writeProcStatusForP(pp, pp == tl.mp.p.ptr()).end()
-	}
 	traceRelease(tl)
 
 	unlock(&sched.sysmonlock)
@@ -553,14 +548,41 @@ func traceAdvance(stopTrace bool) {
 	// here to minimize the time that we prevent the world from stopping.
 	frequency := traceClockUnitsPerSecond()
 
-	// Now that we've done some of the heavy stuff, prevent the world from stopping.
+	// Prevent the world from stopping.
+	//
 	// This is necessary to ensure the consistency of the STW events. If we're feeling
 	// adventurous we could lift this restriction and add a STWActive event, but the
-	// cost of maintaining this consistency is low. We're not going to hold this semaphore
-	// for very long and most STW periods are very short.
-	// Once we hold worldsema, prevent preemption as well so we're not interrupted partway
-	// through this. We want to get this done as soon as possible.
+	// cost of maintaining this consistency is low.
+	//
+	// This is also a good time to preempt all the Ps and ensure they had a status traced.
 	semacquire(&worldsema)
+
+	// Go over each P and emit a status event for it if necessary.
+	//
+	// TODO(mknyszek): forEachP is very heavyweight. We could do better by integrating
+	// the statusWasTraced check into it, to avoid preempting unnecessarily.
+	forEachP(waitReasonTraceProcStatus, func(pp *p) {
+		tl := traceAcquire()
+		if !pp.trace.statusWasTraced(tl.gen) {
+			tl.writer().writeProcStatusForP(pp, false).end()
+		}
+		traceRelease(tl)
+	})
+
+	// While we're still holding worldsema (preventing a STW and thus a
+	// change in the number of Ps), reset the status on dead Ps.
+	// They just appear as idle.
+	//
+	// TODO(mknyszek): Consider explicitly emitting ProcCreate and ProcDestroy
+	// events to indicate whether a P exists, rather than just making its
+	// existence implicit.
+	for _, pp := range allp[len(allp):cap(allp)] {
+		pp.trace.readyNextGen(gen)
+	}
+
+	// Prevent preemption to make sure we're not interrupted.
+	//
+	// We want to get through the rest as soon as possible.
 	mp := acquirem()
 
 	// Advance the generation or stop the trace.
@@ -742,20 +764,6 @@ func traceAdvance(stopTrace bool) {
 		unlock(&trace.lock)
 	})
 
-	// Perform status reset on dead Ps because they just appear as idle.
-	//
-	// Preventing preemption is sufficient to access allp safely. allp is only
-	// mutated by GOMAXPROCS calls, which require a STW.
-	//
-	// TODO(mknyszek): Consider explicitly emitting ProcCreate and ProcDestroy
-	// events to indicate whether a P exists, rather than just making its
-	// existence implicit.
-	mp = acquirem()
-	for _, pp := range allp[len(allp):cap(allp)] {
-		pp.trace.readyNextGen(traceNextGen(gen))
-	}
-	releasem(mp)
-
 	if stopTrace {
 		// Acquire the shutdown sema to begin the shutdown process.
 		semacquire(&traceShutdownSema)
@@ -772,23 +780,6 @@ func traceAdvance(stopTrace bool) {
 			trace.enabledWithAllocFree = false
 			debug.malloc = trace.debugMalloc
 		}
-	} else {
-		// Go over each P and emit a status event for it if necessary.
-		//
-		// We do this at the beginning of the new generation instead of the
-		// end like we do for goroutines because forEachP doesn't give us a
-		// hook to skip Ps that have already been traced. Since we have to
-		// preempt all Ps anyway, might as well stay consistent with StartTrace
-		// which does this during the STW.
-		semacquire(&worldsema)
-		forEachP(waitReasonTraceProcStatus, func(pp *p) {
-			tl := traceAcquire()
-			if !pp.trace.statusWasTraced(tl.gen) {
-				tl.writer().writeProcStatusForP(pp, false).end()
-			}
-			traceRelease(tl)
-		})
-		semrelease(&worldsema)
 	}
 
 	// Block until the trace reader has finished processing the last generation.

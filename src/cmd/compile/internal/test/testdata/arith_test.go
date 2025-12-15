@@ -223,7 +223,7 @@ func testArithConstShift(t *testing.T) {
 	}
 }
 
-// overflowConstShift_ssa verifies that constant folding for shift
+// overflowConstShift64_ssa verifies that constant folding for shift
 // doesn't wrap (i.e. x << MAX_INT << 1 doesn't get folded to x << 0).
 //
 //go:noinline
@@ -1408,7 +1408,7 @@ var (
 	// These have to be global to avoid getting constant-folded in the function body:
 	// as locals, prove can see that they are actually constants.
 	sixU, nineteenU uint64 = 6, 19
-	sixS, nineteenS int64 = 6, 19
+	sixS, nineteenS int64  = 6, 19
 )
 
 // testDivisibility confirms that rewrite rules x%c ==0 for c constant are correct.

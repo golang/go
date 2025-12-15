@@ -43,7 +43,8 @@ type T struct {
 	SIEmpty []int
 	SB      []bool
 	// Arrays
-	AI [3]int
+	AI  [3]int
+	PAI *[3]int // pointer to array
 	// Maps
 	MSI      map[string]int
 	MSIone   map[string]int // one element, for deterministic output
@@ -142,6 +143,7 @@ var tVal = &T{
 	SI:     []int{3, 4, 5},
 	SICap:  make([]int, 5, 10),
 	AI:     [3]int{3, 4, 5},
+	PAI:    &[3]int{3, 4, 5},
 	SB:     []bool{true, false},
 	MSI:    map[string]int{"one": 1, "two": 2, "three": 3},
 	MSIone: map[string]int{"one": 1},
@@ -556,6 +558,9 @@ var execTests = []execTest{
 	{"array[:]", "{{slice .AI}}", "[3 4 5]", tVal, true},
 	{"array[1:]", "{{slice .AI 1}}", "[4 5]", tVal, true},
 	{"array[1:2]", "{{slice .AI 1 2}}", "[4]", tVal, true},
+	{"pointer to array[:]", "{{slice .PAI}}", "[3 4 5]", tVal, true},
+	{"pointer to array[1:]", "{{slice .PAI 1}}", "[4 5]", tVal, true},
+	{"pointer to array[1:2]", "{{slice .PAI 1 2}}", "[4]", tVal, true},
 	{"string[:]", "{{slice .S}}", "xyz", tVal, true},
 	{"string[0:1]", "{{slice .S 0 1}}", "x", tVal, true},
 	{"string[1:]", "{{slice .S 1}}", "yz", tVal, true},

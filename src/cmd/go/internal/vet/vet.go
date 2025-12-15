@@ -262,6 +262,15 @@ func run(ctx context.Context, cmd *base.Command, args []string) {
 	// will only be executed in VetxOnly mode, for facts but not
 	// diagnostics.
 	for _, p := range pkgs {
+		// Don't apply fixes to vendored packages, including
+		// the GOROOT vendor packages that are part of std,
+		// or to packages from non-main modules (#76479).
+		if applyFixes {
+			if p.Standard && strings.HasPrefix(p.ImportPath, "vendor/") ||
+				p.Module != nil && !p.Module.Main {
+				continue
+			}
+		}
 		_, ptest, pxtest, perr := load.TestPackagesFor(moduleLoaderState, ctx, pkgOpts, p, nil)
 		if perr != nil {
 			base.Errorf("%v", perr.Error)

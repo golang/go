@@ -471,11 +471,6 @@ func simdify(st *Type, isTag bool) {
 	} else {
 		st.floatRegs = 1
 	}
-	// if st.Sym() != nil {
-	// 	base.Warn("Simdify %s, %v, %d", st.Sym().Name, isTag, st.width)
-	// } else {
-	// 	base.Warn("Simdify %v, %v, %d", st, isTag, st.width)
-	// }
 }
 
 // CalcStructSize calculates the size of t,
@@ -491,10 +486,9 @@ func CalcStructSize(t *Type) {
 		case sym.Name == "align64" && isAtomicStdPkg(sym.Pkg):
 			maxAlign = 8
 
-		case buildcfg.Experiment.SIMD && (sym.Pkg.Path == "internal/simd" || sym.Pkg.Path == "simd") && len(t.Fields()) >= 1:
+		case buildcfg.Experiment.SIMD && (sym.Pkg.Path == "simd/archsimd") && len(t.Fields()) >= 1:
 			// This gates the experiment -- without it, no user-visible types can be "simd".
 			// The SSA-visible SIMD types remain.
-			// TODO after simd has been moved to package simd, remove internal/simd.
 			switch sym.Name {
 			case "v128":
 				simdify(t, true)

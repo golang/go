@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !plan9 && !windows
-// +build !plan9,!windows
 
 package main
 
@@ -14,8 +13,8 @@ package main
 
 extern void Ready();
 
-static int spinning;
-static int released;
+static _Atomic int spinning;
+static _Atomic int released;
 
 static void* enterGoThenSpinTwice(void* arg __attribute__ ((unused))) {
 	Ready();

@@ -9,6 +9,7 @@ import (
 	"crypto/internal/rand"
 	"errors"
 	"internal/byteorder"
+	"slices"
 )
 
 // A KEM is a Key Encapsulation Mechanism, one of the three components of an
@@ -377,6 +378,6 @@ func (k *dhKEMPrivateKey) decap(encPubEph []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	kemContext := append(encPubEph, k.priv.PublicKey().Bytes()...)
+	kemContext := append(slices.Clip(encPubEph), k.priv.PublicKey().Bytes()...)
 	return k.kem.extractAndExpand(dhVal, kemContext)
 }

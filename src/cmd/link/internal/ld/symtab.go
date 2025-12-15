@@ -656,6 +656,7 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.etypes", 0))
 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.rodata", 0))
 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("go:func.*", 0))
+	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.epclntab", 0))
 
 	if ctxt.IsAIX() && ctxt.IsExternal() {
 		// Add R_XCOFFREF relocation to prevent ld's garbage collection of
@@ -672,6 +673,7 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 		addRef("runtime.rodata")
 		addRef("runtime.erodata")
 		addRef("runtime.epclntab")
+		addRef("go:func.*")
 		// As we use relative addressing for text symbols in functab, it is
 		// important that the offsets we computed stay unchanged by the external
 		// linker, i.e. all symbols in Textp should not be removed.

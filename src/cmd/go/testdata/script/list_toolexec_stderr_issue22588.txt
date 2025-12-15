@@ -1,0 +1,11 @@
+# This is a script test conversion of TestIssue22588 which was added in CL 76017.
+# Test that the stderr of a tool run under toolexec doesn't affect caching.
+
+# Don't get confused by stderr coming from tools.
+[!exec:/usr/bin/time] skip
+
+! stale runtime 'must be non-stale to compare staleness under -toolexec'
+
+go list -f '{{.Stale}}' runtime
+go list -toolexec /usr/bin/time -f '{{.Stale}}' runtime
+stdout 'false' # runtime should not be reported as stale

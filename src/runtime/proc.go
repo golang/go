@@ -3342,6 +3342,23 @@ func execute(gp *g, inheritTime bool) {
 		mp.p.ptr().schedtick++
 	}
 
+	if sys.DITSupported && debug.dataindependenttiming != 1 {
+		if gp.ditWanted && !mp.ditEnabled {
+			// The current M doesn't have DIT enabled, but the goroutine we're
+			// executing does need it, so turn it on.
+			sys.EnableDIT()
+			mp.ditEnabled = true
+		} else if !gp.ditWanted && mp.ditEnabled {
+			// The current M has DIT enabled, but the goroutine we're executing does
+			// not need it, so turn it off.
+			// NOTE: turning off DIT here means that the scheduler will have DIT enabled
+			// when it runs after this goroutine yields or is preempted. This may have
+			// a minor performance impact on the scheduler.
+			sys.DisableDIT()
+			mp.ditEnabled = false
+		}
+	}
+
 	// Check whether the profiler needs to be turned on or off.
 	hz := sched.profilehz
 	if mp.profilehz != hz {
@@ -4368,7 +4385,6 @@ func preemptPark(gp *g) {
 	// up. Hence, we set the scan bit to lock down further
 	// transitions until we can dropg.
 	casGToPreemptScan(gp, _Grunning, _Gscan|_Gpreempted)
-	dropg()
 
 	// Be careful about ownership as we trace this next event.
 	//
@@ -4394,10 +4410,19 @@ func preemptPark(gp *g) {
 	if trace.ok() {
 		trace.GoPark(traceBlockPreempted, 0)
 	}
+
+	// Drop the goroutine from the M. Only do this after the tracer has
+	// emitted an event, because it needs the association for GoPark to
+	// work correctly.
+	dropg()
+
+	// Drop the scan bit and release the trace locker if necessary.
 	casfrom_Gscanstatus(gp, _Gscan|_Gpreempted, _Gpreempted)
 	if trace.ok() {
 		traceRelease(trace)
 	}
+
+	// All done.
 	schedule()
 }
 
@@ -5261,10 +5286,6 @@ func malg(stacksize int32) *g {
 // The compiler turns a go statement into a call to this.
 func newproc(fn *funcval) {
 	gp := getg()
-	if goexperiment.RuntimeSecret && gp.secret > 0 {
-		panic("goroutine spawned while running in secret mode")
-	}
-
 	pc := sys.GetCallerPC()
 	systemstack(func() {
 		newg := newproc1(fn, gp, pc, false, waitReasonZero)
@@ -5377,6 +5398,9 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr, parked bool, waitreaso
 
 	// fips140 bubble
 	newg.fipsOnlyBypass = callergp.fipsOnlyBypass
+
+	// dit bubble
+	newg.ditWanted = callergp.ditWanted
 
 	// Set up race context.
 	if raceenabled {

@@ -236,7 +236,7 @@ func (v *Value) UnmarshalJSON(b []byte) error {
 }
 
 // Kind returns the starting token kind.
-// For a valid value, this will never include '}' or ']'.
+// For a valid value, this will never include [KindEndObject] or [KindEndArray].
 func (v Value) Kind() Kind {
 	if v := v[jsonwire.ConsumeWhitespace(v):]; len(v) > 0 {
 		return Kind(v[0]).normalize()

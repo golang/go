@@ -73,7 +73,7 @@ var depsRules = `
 	internal/byteorder, internal/cpu, internal/goarch < internal/chacha8rand;
 	internal/goarch, math/bits < internal/strconv;
 
-	internal/cpu, internal/strconv < simd;
+	internal/cpu, internal/strconv < simd/archsimd;
 
 	# RUNTIME is the core runtime group of packages, all of them very light-weight.
 	internal/abi,
@@ -709,7 +709,7 @@ var depsRules = `
 	< testing;
 
 	testing, math
-	< simd/internal/test_helpers;
+	< simd/archsimd/internal/test_helpers;
 
 	log/slog, testing
 	< testing/slogtest;

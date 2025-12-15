@@ -1407,13 +1407,13 @@ func TestIntrinsics(t *testing.T) {
 		gotIntrinsics[testIntrinsicKey{ik.arch.Name, ik.pkg, ik.fn}] = struct{}{}
 	}
 	for ik, _ := range gotIntrinsics {
-		if _, found := wantIntrinsics[ik]; !found && (ik.pkg != "simd" || *simd) {
+		if _, found := wantIntrinsics[ik]; !found && (ik.pkg != "simd/archsimd" || *simd) {
 			t.Errorf("Got unwanted intrinsic %v %v.%v", ik.archName, ik.pkg, ik.fn)
 		}
 	}
 
 	for ik, _ := range wantIntrinsics {
-		if _, found := gotIntrinsics[ik]; !found && (ik.pkg != "simd" || *simd) {
+		if _, found := gotIntrinsics[ik]; !found && (ik.pkg != "simd/archsimd" || *simd) {
 			t.Errorf("Want missing intrinsic %v %v.%v", ik.archName, ik.pkg, ik.fn)
 		}
 	}

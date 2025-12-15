@@ -1960,33 +1960,55 @@ func TestFuncdataPlacement(t *testing.T) {
 	case xf != nil:
 		defer xf.Close()
 
+		var moddataSym, gofuncSym, pclntabSym, epclntabSym *xcoff.Symbol
 		for _, sym := range xf.Symbols {
 			switch sym.Name {
 			case moddataSymName:
-				moddataAddr = sym.Value
+				moddataSym = sym
 			case gofuncSymName:
-				gofuncAddr = sym.Value
+				gofuncSym = sym
+			case "runtime.pclntab":
+				pclntabSym = sym
+			case "runtime.epclntab":
+				epclntabSym = sym
 			}
 		}
 
-		for _, sec := range xf.Sections {
-			if sec.Name == ".go.pclntab" {
-				data, err := sec.Data()
-				if err != nil {
-					t.Fatal(err)
-				}
-				pclntab = data
-				pclntabAddr = sec.VirtualAddress
-				pclntabEnd = sec.VirtualAddress + sec.Size
-			}
-			if moddataAddr >= sec.VirtualAddress && moddataAddr < sec.VirtualAddress+sec.Size {
-				data, err := sec.Data()
-				if err != nil {
-					t.Fatal(err)
-				}
-				moddataBytes = data[moddataAddr-sec.VirtualAddress:]
-			}
+		if moddataSym == nil {
+			t.Fatalf("could not find symbol %s", moddataSymName)
 		}
+		if gofuncSym == nil {
+			t.Fatalf("could not find symbol %s", gofuncSymName)
+		}
+		if pclntabSym == nil {
+			t.Fatal("could not find symbol runtime.pclntab")
+		}
+		if epclntabSym == nil {
+			t.Fatal("could not find symbol runtime.epclntab")
+		}
+
+		sec := xf.Sections[moddataSym.SectionNumber-1]
+		data, err := sec.Data()
+		if err != nil {
+			t.Fatal(err)
+		}
+		moddataBytes = data[moddataSym.Value:]
+		moddataAddr = uint64(sec.VirtualAddress + moddataSym.Value)
+
+		sec = xf.Sections[gofuncSym.SectionNumber-1]
+		gofuncAddr = uint64(sec.VirtualAddress + gofuncSym.Value)
+
+		if pclntabSym.SectionNumber != epclntabSym.SectionNumber {
+			t.Fatalf("runtime.pclntab section %d != runtime.epclntab section %d", pclntabSym.SectionNumber, epclntabSym.SectionNumber)
+		}
+		sec = xf.Sections[pclntabSym.SectionNumber-1]
+		data, err = sec.Data()
+		if err != nil {
+			t.Fatal(err)
+		}
+		pclntab = data[pclntabSym.Value:epclntabSym.Value]
+		pclntabAddr = uint64(sec.VirtualAddress + pclntabSym.Value)
+		pclntabEnd = uint64(sec.VirtualAddress + epclntabSym.Value)
 
 	default:
 		panic("can't happen")
@@ -2183,31 +2205,16 @@ func TestModuledataPlacement(t *testing.T) {
 			}
 		}
 
-	case pf != nil:
-		defer pf.Close()
-
-		// On Windows all the Go specific sections seem to
-		// get stuffed into a few Windows sections,
-		// so there is nothing to test here.
-
-	case xf != nil:
-		defer xf.Close()
-
-		for _, sym := range xf.Symbols {
-			if sym.Name == moddataSymName {
-				if sym.SectionNumber == 0 {
-					t.Errorf("moduledata not in a section")
-				} else {
-					sec := xf.Sections[sym.SectionNumber-1]
-					if sec.Name != ".go.module" {
-						t.Errorf("moduledata in section %s, not .go.module", sec.Name)
-					}
-					if sym.Value != sec.VirtualAddress {
-						t.Errorf("moduledata address %#x != section start address %#x", sym.Value, sec.VirtualAddress)
-					}
-				}
-				break
-			}
+	case pf != nil, xf != nil:
+		if pf != nil {
+			defer pf.Close()
 		}
+		if xf != nil {
+			defer xf.Close()
+		}
+
+		// On Windows and AIX all the Go specific sections
+		// get stuffed into a few sections,
+		// so there is nothing to test here.
 	}
 }

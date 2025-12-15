@@ -6307,6 +6307,15 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpblendMaskedInt64x8(v)
 	case OpblendMaskedInt8x64:
 		return rewriteValueAMD64_OpblendMaskedInt8x64(v)
+	case OpcarrylessMultiplyUint64x2:
+		v.Op = OpAMD64VPCLMULQDQ128
+		return true
+	case OpcarrylessMultiplyUint64x4:
+		v.Op = OpAMD64VPCLMULQDQ256
+		return true
+	case OpcarrylessMultiplyUint64x8:
+		v.Op = OpAMD64VPCLMULQDQ512
+		return true
 	case OpconcatSelectedConstantFloat32x4:
 		v.Op = OpAMD64VSHUFPS128
 		return true

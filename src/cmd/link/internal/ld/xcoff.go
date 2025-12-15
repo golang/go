@@ -603,14 +603,20 @@ func xcoffUpdateOuterSize(ctxt *Link, size int64, stype sym.SymKind) {
 		outerSymSize["go:string.*"] = size
 	case sym.SGOFUNC:
 		if !ctxt.DynlinkingGo() {
-			outerSymSize["go:func.*"] = size
+			outerSymSize["go:funcdesc"] = size
 		}
 	case sym.SGOFUNCRELRO:
-		outerSymSize["go:funcrel.*"] = size
+		outerSymSize["go:funcdescrel"] = size
 	case sym.SGCBITS:
 		outerSymSize["runtime.gcbits.*"] = size
 	case sym.SPCLNTAB:
-		outerSymSize["runtime.pclntab"] = size
+		// go:func.* size must be removed from pclntab,
+		// as it's a real symbol. Same for runtime.findfunctab.
+		fsize := ldr.SymSize(ldr.Lookup("go:func.*", 0))
+		fft := ldr.Lookup("runtime.findfunctab", 0)
+		fsize = Rnd(fsize, int64(symalign(ldr, fft)))
+		tsize := ldr.SymSize(fft)
+		outerSymSize["runtime.pclntab"] = size - (fsize + tsize)
 	}
 }
 

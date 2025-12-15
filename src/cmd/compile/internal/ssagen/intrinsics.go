@@ -1644,7 +1644,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		// Only enable intrinsics, if SIMD experiment.
 		simdIntrinsics(addF)
 
-		addF("simd", "ClearAVXUpperBits",
+		addF(simdPackage, "ClearAVXUpperBits",
 			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 				s.vars[memVar] = s.newValue1(ssa.OpAMD64VZEROUPPER, types.TypeMem, s.mem())
 				return nil
@@ -1668,15 +1668,18 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		addF(simdPackage, "Uint32x8.IsZero", opLen1(ssa.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
 		addF(simdPackage, "Uint64x4.IsZero", opLen1(ssa.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
 
+		// sfp4 is intrinsic-if-constant, but otherwise it's complicated enough to just implement in Go.
 		sfp4 := func(method string, hwop ssa.Op, vectype *types.Type) {
-			addF("simd", method,
+			addF(simdPackage, method,
 				func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 					x, a, b, c, d, y := args[0], args[1], args[2], args[3], args[4], args[5]
 					if a.Op == ssa.OpConst8 && b.Op == ssa.OpConst8 && c.Op == ssa.OpConst8 && d.Op == ssa.OpConst8 {
-						return select4FromPair(x, a, b, c, d, y, s, hwop, vectype)
-					} else {
-						return s.callResult(n, callNormal)
+						z := select4FromPair(x, a, b, c, d, y, s, hwop, vectype)
+						if z != nil {
+							return z
+						}
 					}
+					return s.callResult(n, callNormal)
 				},
 				sys.AMD64)
 		}
@@ -1693,15 +1696,18 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		sfp4("Uint32x16.SelectFromPairGrouped", ssa.OpconcatSelectedConstantGroupedUint32x16, types.TypeVec512)
 		sfp4("Float32x16.SelectFromPairGrouped", ssa.OpconcatSelectedConstantGroupedFloat32x16, types.TypeVec512)
 
+		// sfp2 is intrinsic-if-constant, but otherwise it's complicated enough to just implement in Go.
 		sfp2 := func(method string, hwop ssa.Op, vectype *types.Type, cscimm func(i, j uint8) int64) {
-			addF("simd", method,
+			addF(simdPackage, method,
 				func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 					x, a, b, y := args[0], args[1], args[2], args[3]
 					if a.Op == ssa.OpConst8 && b.Op == ssa.OpConst8 {
-						return select2FromPair(x, a, b, y, s, hwop, vectype, cscimm)
-					} else {
-						return s.callResult(n, callNormal)
+						z := select2FromPair(x, a, b, y, s, hwop, vectype, cscimm)
+						if z != nil {
+							return z
+						}
 					}
+					return s.callResult(n, callNormal)
 				},
 				sys.AMD64)
 		}
@@ -1767,6 +1773,9 @@ const (
 
 func select2FromPair(x, _a, _b, y *ssa.Value, s *state, op ssa.Op, t *types.Type, csc func(a, b uint8) int64) *ssa.Value {
 	a, b := uint8(_a.AuxInt8()), uint8(_b.AuxInt8())
+	if a > 3 || b > 3 {
+		return nil
+	}
 	pattern := (a&2)>>1 + (b & 2)
 	a, b = a&1, b&1
 
@@ -1785,6 +1794,9 @@ func select2FromPair(x, _a, _b, y *ssa.Value, s *state, op ssa.Op, t *types.Type
 
 func select4FromPair(x, _a, _b, _c, _d, y *ssa.Value, s *state, op ssa.Op, t *types.Type) *ssa.Value {
 	a, b, c, d := uint8(_a.AuxInt8()), uint8(_b.AuxInt8()), uint8(_c.AuxInt8()), uint8(_d.AuxInt8())
+	if a > 7 || b > 7 || c > 7 || d > 7 {
+		return nil
+	}
 	pattern := a>>2 + (b&4)>>1 + (c & 4) + (d&4)<<1
 
 	a, b, c, d = a&3, b&3, c&3, d&3
@@ -2154,7 +2166,7 @@ func findIntrinsic(sym *types.Sym) intrinsicBuilder {
 	fn := sym.Name
 	if ssa.IntrinsicsDisable {
 		if pkg == "internal/runtime/sys" && (fn == "GetCallerPC" || fn == "GrtCallerSP" || fn == "GetClosurePtr") ||
-			pkg == "internal/simd" || pkg == "simd" { // TODO after simd has been moved to package simd, remove internal/simd
+			pkg == simdPackage {
 			// These runtime functions don't have definitions, must be intrinsics.
 		} else {
 			return nil

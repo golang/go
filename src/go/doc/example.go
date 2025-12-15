@@ -11,7 +11,6 @@ import (
 	"go/ast"
 	"go/token"
 	"internal/lazyregexp"
-	"path"
 	"slices"
 	"strconv"
 	"strings"
@@ -221,7 +220,7 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
 			// because the package syscall/js is not available in the playground.
 			return nil
 		}
-		n := path.Base(p)
+		n := assumedPackageName(p)
 		if s.Name != nil {
 			n = s.Name.Name
 			switch n {

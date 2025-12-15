@@ -232,11 +232,14 @@ func TestProfBufWakeup(t *testing.T) {
 	// The reader shouldn't wake up for this
 	b.Write(nil, 1, []uint64{1, 2}, []uintptr{3, 4})
 
-	// The reader should still be blocked
-	//
-	// TODO(nick): this is racy. We could Gosched and still have the reader
-	// blocked in a buggy implementation because it just didn't get a chance
-	// to run
+	// The reader should still be blocked. The awaitBlockedGoroutine here
+	// checks that and also gives a buggy implementation a chance to
+	// actually wake up (it calls Gosched) before the next write. There is a
+	// small chance that a buggy implementation would have woken up but
+	// doesn't get scheduled by the time we do the next write. In that case
+	// the reader will see a more-than-half-full buffer and the test will
+	// pass. But if the implementation is broken, this test should fail
+	// regularly, even if not 100% of the time.
 	awaitBlockedGoroutine(waitStatus, "TestProfBufWakeup.func1")
 	b.Write(nil, 1, []uint64{5, 6}, []uintptr{7, 8})
 	b.Close()
@@ -247,7 +250,8 @@ func TestProfBufWakeup(t *testing.T) {
 
 // see also runtime/pprof tests
 func awaitBlockedGoroutine(state, fName string) {
-	re := fmt.Sprintf(`(?m)^goroutine \d+ \[%s\]:\n(?:.+\n\t.+\n)*runtime_test\.%s`, regexp.QuoteMeta(state), fName)
+	// NB: this matches [state] as well as [state, n minutes]
+	re := fmt.Sprintf(`(?m)^goroutine \d+ \[%s.*\]:\n(?:.+\n\t.+\n)*runtime_test\.%s`, regexp.QuoteMeta(state), fName)
 	r := regexp.MustCompile(re)
 
 	buf := make([]byte, 64<<10)

@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"hash/crc32"
+	"internal/obscuretestdata"
 	"io"
 	"maps"
 	"math"
@@ -25,10 +26,11 @@ import (
 
 func TestReader(t *testing.T) {
 	vectors := []struct {
-		file    string    // Test input file
-		headers []*Header // Expected output headers
-		chksums []string  // CRC32 checksum of files, leave as nil if not checked
-		err     error     // Expected error to occur
+		file     string    // Test input file
+		obscured bool      // Obscured with obscuretestdata package
+		headers  []*Header // Expected output headers
+		chksums  []string  // CRC32 checksum of files, leave as nil if not checked
+		err      error     // Expected error to occur
 	}{{
 		file: "testdata/gnu.tar",
 		headers: []*Header{{
@@ -523,8 +525,9 @@ func TestReader(t *testing.T) {
 		file: "testdata/pax-nul-path.tar",
 		err:  ErrHeader,
 	}, {
-		file: "testdata/neg-size.tar",
-		err:  ErrHeader,
+		file:     "testdata/neg-size.tar.base64",
+		obscured: true,
+		err:      ErrHeader,
 	}, {
 		file: "testdata/issue10968.tar",
 		err:  ErrHeader,
@@ -629,15 +632,24 @@ func TestReader(t *testing.T) {
 	}}
 
 	for _, v := range vectors {
-		t.Run(path.Base(v.file), func(t *testing.T) {
-			f, err := os.Open(v.file)
+		t.Run(strings.TrimSuffix(path.Base(v.file), ".base64"), func(t *testing.T) {
+			path := v.file
+			if v.obscured {
+				tf, err := obscuretestdata.DecodeToTempFile(path)
+				if err != nil {
+					t.Fatalf("obscuredtestdata.DecodeToTempFile(%s): %v", path, err)
+				}
+				path = tf
+			}
+
+			f, err := os.Open(path)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 			defer f.Close()
 
 			var fr io.Reader = f
-			if strings.HasSuffix(v.file, ".bz2") {
+			if strings.HasSuffix(v.file, ".bz2") || strings.HasSuffix(v.file, ".bz2.base64") {
 				fr = bzip2.NewReader(fr)
 			}
 

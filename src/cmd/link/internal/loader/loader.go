@@ -2420,6 +2420,7 @@ var blockedLinknames = map[string][]string{
 	"internal/runtime/maps.fatal":           {"internal/runtime/maps"},
 	"internal/runtime/maps.newarray":        {"internal/runtime/maps"},
 	"internal/runtime/maps.newobject":       {"internal/runtime/maps"},
+	"internal/runtime/maps.rand":            {"internal/runtime/maps"},
 	"internal/runtime/maps.typedmemclr":     {"internal/runtime/maps"},
 	"internal/runtime/maps.typedmemmove":    {"internal/runtime/maps"},
 	"internal/sync.fatal":                   {"internal/sync"},
@@ -2461,14 +2462,34 @@ var blockedLinknames = map[string][]string{
 	"sync_test.runtime_blockUntilEmptyCleanupQueue":  {"sync_test"},
 	"time.runtimeIsBubbled":                          {"time"},
 	"unique.runtime_blockUntilEmptyCleanupQueue":     {"unique"},
-	// Experimental features
-	"runtime.goroutineLeakGC":    {"runtime/pprof"},
-	"runtime.goroutineleakcount": {"runtime/pprof"},
-	"runtime.freegc":             {}, // disallow all packages
 	// Others
 	"net.newWindowsFile":                   {"net"},              // pushed from os
 	"testing/synctest.testingSynctestTest": {"testing/synctest"}, // pushed from testing
-	"runtime.addmoduledata":                {},                   // disallow all packages
+	// New internal linknames in Go 1.26
+	// Pushed from runtime
+	"crypto/fips140.isBypassed":                    {"crypto/fips140"},
+	"crypto/fips140.setBypass":                     {"crypto/fips140"},
+	"crypto/fips140.unsetBypass":                   {"crypto/fips140"},
+	"crypto/subtle.setDITEnabled":                  {"crypto/subtle"},
+	"crypto/subtle.setDITDisabled":                 {"crypto/subtle"},
+	"internal/cpu.sysctlbynameBytes":               {"internal/cpu"},
+	"internal/cpu.sysctlbynameInt32":               {"internal/cpu"},
+	"runtime.pprof_goroutineLeakProfileWithLabels": {"runtime/pprof"},
+	"runtime/pprof.runtime_goroutineLeakGC":        {"runtime/pprof"},
+	"runtime/pprof.runtime_goroutineleakcount":     {"runtime/pprof"},
+	"runtime/secret.appendSignalStacks":            {"runtime/secret"},
+	"runtime/secret.count":                         {"runtime/secret"},
+	"runtime/secret.dec":                           {"runtime/secret"},
+	"runtime/secret.eraseSecrets":                  {"runtime/secret"},
+	"runtime/secret.getStack":                      {"runtime/secret"},
+	"runtime/secret.inc":                           {"runtime/secret"},
+	"syscall.rawsyscalln":                          {"syscall"},
+	"syscall.runtimeClearenv":                      {"syscall"},
+	"syscall.syscalln":                             {"syscall"},
+	// Others
+	"crypto/internal/rand.SetTestingReader": {"testing/cryptotest"}, // pushed from crypto/internal/rand
+	"testing.checkParallel":                 {"testing/cryptotest"}, // pushed from testing
+	"runtime.addmoduledata":                 {},                     // assembly symbol, disallow all packages
 }
 
 // check if a linkname reference to symbol s from pkg is allowed
