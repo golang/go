@@ -280,6 +280,10 @@ type Info struct {
 	// to their corresponding selections. This is used for nil-safe field access.
 	OptionalChainSelections map[*syntax.OptionalChainExpr]*Selection
 
+	// TernaryTypes maps ternary expressions (cond ? x : y) to their result types.
+	// The result type is inferred from the types of both branches.
+	TernaryTypes map[*syntax.TernaryExpr]Type
+
 	// Scopes maps syntax.Nodes to the scopes they define. Package scopes are not
 	// associated with a specific node but with all files belonging to a package.
 	// Thus, the package scope can be found in the type-checked Package object.

@@ -239,7 +239,14 @@ func (r *rewriter) rewriteExpr(expr Expr) Expr {
 		return e
 
 	case *TernaryExpr:
-		return r.rewriteTernary(e)
+		// TernaryExpr is now handled in types2/noder stage with type information
+		// This allows proper type inference when both branches have the same type
+		e.Cond = r.rewriteExpr(e.Cond)
+		e.X = r.rewriteExpr(e.X)
+		if e.Y != nil {
+			e.Y = r.rewriteExpr(e.Y)
+		}
+		return e
 
 	case *Name:
 		return e
@@ -722,74 +729,6 @@ func (r *rewriter) createIIFE(pos Pos, param *Name, body []Stmt, arg Expr) *Call
 	call.ArgList = []Expr{arg}
 
 	return call
-}
-
-// rewriteTernary converts cond ? x : y to:
-// func() interface{} { if cond { return x } else { return y } }()
-func (r *rewriter) rewriteTernary(e *TernaryExpr) Expr {
-	pos := e.Pos()
-
-	cond := r.rewriteExpr(e.Cond)
-	trueExpr := r.rewriteExpr(e.X)
-
-	var falseExpr Expr
-	if e.Y != nil {
-		falseExpr = r.rewriteExpr(e.Y)
-	} else {
-		falseExpr = trueExpr
-	}
-
-	// Create return statements
-	retTrue := new(ReturnStmt)
-	retTrue.SetPos(pos)
-	retTrue.Results = trueExpr
-
-	retFalse := new(ReturnStmt)
-	retFalse.SetPos(pos)
-	retFalse.Results = falseExpr
-
-	// Create blocks
-	thenBlock := new(BlockStmt)
-	thenBlock.SetPos(pos)
-	thenBlock.List = []Stmt{retTrue}
-
-	elseBlock := new(BlockStmt)
-	elseBlock.SetPos(pos)
-	elseBlock.List = []Stmt{retFalse}
-
-	// Create if statement
-	ifStmt := new(IfStmt)
-	ifStmt.SetPos(pos)
-	ifStmt.Cond = cond
-	ifStmt.Then = thenBlock
-	ifStmt.Else = elseBlock
-
-	// Create return type: interface{}
-	interfaceType := new(InterfaceType)
-	interfaceType.SetPos(pos)
-
-	resultField := new(Field)
-	resultField.SetPos(pos)
-	resultField.Type = interfaceType
-
-	funcType := new(FuncType)
-	funcType.SetPos(pos)
-	funcType.ResultList = []*Field{resultField}
-
-	funcBody := new(BlockStmt)
-	funcBody.SetPos(pos)
-	funcBody.List = []Stmt{ifStmt}
-
-	funcLit := new(FuncLit)
-	funcLit.SetPos(pos)
-	funcLit.Type = funcType
-	funcLit.Body = funcBody
-
-	callExpr := new(CallExpr)
-	callExpr.SetPos(pos)
-	callExpr.Fun = funcLit
-
-	return callExpr
 }
 
 // RewriteDefaultParams rewrites functions with default parameter values

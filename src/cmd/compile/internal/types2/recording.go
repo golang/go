@@ -174,6 +174,12 @@ func (check *Checker) recordOptionalChainSelection(x *syntax.OptionalChainExpr, 
 	}
 }
 
+func (check *Checker) recordTernaryInfo(x *syntax.TernaryExpr, typ Type) {
+	if m := check.TernaryTypes; m != nil {
+		m[x] = typ
+	}
+}
+
 func (check *Checker) recordScope(node syntax.Node, scope *Scope) {
 	assert(node != nil)
 	assert(scope != nil)

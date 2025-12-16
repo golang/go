@@ -2563,6 +2563,23 @@ func (r *reader) expr() (res ir.Node) {
 		fieldType := r.typ() // the field's type
 
 		return r.optionalChainExpr(pos, x, sym, fieldType)
+
+	case exprTernary:
+		// Ternary expression: cond ? trueExpr : falseExpr
+		// Expands to: func() T { if cond { return trueExpr } else { return falseExpr } }()
+		cond := r.expr()
+		trueExpr := r.expr()
+		hasFalse := r.Bool()
+		var falseExpr ir.Node
+		if hasFalse {
+			falseExpr = r.expr()
+		} else {
+			// Short form: use trueExpr as falseExpr
+			falseExpr = trueExpr
+		}
+		resultType := r.typ()
+
+		return r.ternaryExpr(cond, trueExpr, falseExpr, resultType)
 	}
 }
 
@@ -2719,6 +2736,44 @@ func (r *reader) optionalChainExpr(pos src.XPos, x ir.Node, sym *types.Sym, fiel
 	// Call the closure: fn()
 	call := ir.NewCallExpr(pos, ir.OCALL, clo, nil)
 	return typecheck.Expr(call)
+}
+
+// ternaryExpr generates IR for a ternary expression: cond ? trueExpr : falseExpr
+// Uses OSELECT2 pattern: generates a temporary variable and if-else assignment
+func (r *reader) ternaryExpr(cond, trueExpr, falseExpr ir.Node, resultType *types.Type) ir.Node {
+	pos := cond.Pos()
+
+	// Convert untyped expressions to the result type
+	// This handles cases like: true ? "hello" : "world" where literals are untyped
+	trueExpr = typecheck.DefaultLit(trueExpr, resultType)
+	falseExpr = typecheck.DefaultLit(falseExpr, resultType)
+
+	// If types still don't match exactly, add explicit conversion
+	if !types.Identical(trueExpr.Type(), resultType) {
+		conv := ir.NewConvExpr(pos, ir.OCONV, resultType, trueExpr)
+		trueExpr = typecheck.Expr(conv)
+	}
+	if !types.Identical(falseExpr.Type(), resultType) {
+		conv := ir.NewConvExpr(pos, ir.OCONV, resultType, falseExpr)
+		falseExpr = typecheck.Expr(conv)
+	}
+
+	// Create a temporary variable to hold the result
+	tmp := typecheck.TempAt(pos, r.curfn, resultType)
+	tmp.SetTypecheck(1)
+
+	// Create assignment for true branch: tmp = trueExpr
+	trueAssign := ir.NewAssignStmt(pos, tmp, trueExpr)
+
+	// Create assignment for false branch: tmp = falseExpr
+	falseAssign := ir.NewAssignStmt(pos, tmp, falseExpr)
+
+	// Create if statement: if cond { tmp = trueExpr } else { return falseExpr }
+	ifStmt := ir.NewIfStmt(pos, cond, []ir.Node{trueAssign}, []ir.Node{falseAssign})
+	ifStmt = typecheck.Stmt(ifStmt).(*ir.IfStmt)
+
+	// Use ir.InitExpr to combine the if statement with the result value
+	return ir.InitExpr([]ir.Node{ifStmt}, tmp)
 }
 
 func (pr *pkgReader) objDictName(idx index, implicits, explicits []*types.Type) *ir.Name {

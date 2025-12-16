@@ -1901,14 +1901,30 @@ func (w *writer) expr(expr syntax.Expr) {
 		}
 
 		w.Code(exprOptionalChain)
-		w.expr(expr.X)              // base expression
-		w.pos(expr)                 // position
-		w.selector(sel.Obj())       // field being accessed
-		w.typ(sel.Obj().Type())     // type of the field (result is *FieldType)
+		w.expr(expr.X)          // base expression
+		w.pos(expr)             // position
+		w.selector(sel.Obj())   // field being accessed
+		w.typ(sel.Obj().Type()) // type of the field (result is *FieldType)
 
 	case *syntax.TernaryExpr:
-		// Should have been rewritten by syntax.RewriteQuestionExprs
-		w.p.fatalf(expr, "unexpected TernaryExpr (should have been rewritten)")
+		// Handle ternary expression: cond ? trueExpr : falseExpr
+		typ, ok := w.p.info.TernaryTypes[expr]
+		if !ok {
+			w.p.fatalf(expr, "missing TernaryType for %v", expr)
+		}
+		// untyped string -> string, untyped int -> int
+		typ = types2.Default(typ)
+
+		w.Code(exprTernary)
+		w.expr(expr.Cond)               // condition
+		w.implicitConvExpr(typ, expr.X) // true branch - with implicit conversion if needed
+		if expr.Y != nil {
+			w.Bool(true)
+			w.implicitConvExpr(typ, expr.Y) // false branch - with implicit conversion if needed
+		} else {
+			w.Bool(false) // short form, no false branch
+		}
+		w.typ(typ) // result type
 
 	case *syntax.CompositeLit:
 		w.Code(exprCompLit)

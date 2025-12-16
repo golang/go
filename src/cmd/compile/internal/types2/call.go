@@ -1059,3 +1059,95 @@ func (check *Checker) optionalChain(x *operand, e *syntax.OptionalChainExpr) {
 		x.mode = invalid
 	}
 }
+
+// ternary type-checks a ternary expression: cond ? trueExpr : falseExpr
+// Both branches must have the same type, and the condition must be boolean.
+func (check *Checker) ternary(x *operand, e *syntax.TernaryExpr) {
+	// Type-check the condition
+	var cond operand
+	check.expr(nil, &cond, e.Cond)
+	if cond.mode == invalid {
+		x.mode = invalid
+		return
+	}
+
+	// Condition must be boolean
+	if !isBoolean(cond.typ) {
+		check.errorf(e.Cond, InvalidCond, "non-boolean condition in ternary expression")
+		x.mode = invalid
+		return
+	}
+
+	// Type-check the true branch
+	var trueOp operand
+	check.expr(nil, &trueOp, e.X)
+	if trueOp.mode == invalid {
+		x.mode = invalid
+		return
+	}
+
+	// Type-check the false branch (or use true branch if short form)
+	var falseOp operand
+	if e.Y != nil {
+		check.expr(nil, &falseOp, e.Y)
+		if falseOp.mode == invalid {
+			x.mode = invalid
+			return
+		}
+	} else {
+		// Short form: cond ? trueExpr (falseExpr defaults to same as trueExpr)
+		falseOp = trueOp
+	}
+
+	// Both branches must have compatible types
+	// Check if they can be unified to a common type
+	var resultType Type
+
+	// If both are the same type, use that type
+	if Identical(trueOp.typ, falseOp.typ) {
+		resultType = trueOp.typ
+	} else if isUntyped(trueOp.typ) && !isUntyped(falseOp.typ) {
+		// True branch is untyped, try to use false branch type
+		if ok, _ := trueOp.assignableTo(check, falseOp.typ, nil); ok {
+			resultType = falseOp.typ
+		}
+	} else if !isUntyped(trueOp.typ) && isUntyped(falseOp.typ) {
+		// False branch is untyped, try to use true branch type
+		if ok, _ := falseOp.assignableTo(check, trueOp.typ, nil); ok {
+			resultType = trueOp.typ
+		}
+	} else if isUntyped(trueOp.typ) && isUntyped(falseOp.typ) {
+		// Both are untyped, use the "larger" type
+		resultType = trueOp.typ
+		if isNumeric(trueOp.typ) && isNumeric(falseOp.typ) {
+			// For numeric types, use the one with higher precision
+			tb, tok := trueOp.typ.(*Basic)
+			fb, fok := falseOp.typ.(*Basic)
+			if tok && fok && tb.kind < fb.kind {
+				resultType = falseOp.typ
+			}
+		}
+	}
+
+	if resultType == nil {
+		check.errorf(e, MismatchedTypes, "mismatched types %s and %s in ternary expression (branches must have the same type)", trueOp.typ, falseOp.typ)
+		x.mode = invalid
+		return
+	}
+
+	// Update the types of untyped branch expressions to the result type
+	// This is crucial so that when the expressions are serialized, they have the correct type
+	if isUntyped(trueOp.typ) {
+		check.updateExprType(e.X, resultType, true)
+	}
+	if e.Y != nil && isUntyped(falseOp.typ) {
+		check.updateExprType(e.Y, resultType, true)
+	}
+
+	// Record the ternary expression info for noder
+	check.recordTernaryInfo(e, resultType)
+
+	x.mode = value
+	x.typ = resultType
+	x.expr = e
+}

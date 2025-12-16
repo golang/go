@@ -303,6 +303,17 @@ func (check *Checker) updateExprType(x syntax.Expr, typ Type, final bool) {
 	case *syntax.ParenExpr:
 		check.updateExprType(x.X, typ, final)
 
+	case *syntax.TernaryExpr:
+		// Update both branches of the ternary expression (but not the condition)
+		// The condition is always boolean and doesn't need type updating
+		if old.val != nil {
+			break // constant ternary
+		}
+		check.updateExprType(x.X, typ, final)
+		if x.Y != nil {
+			check.updateExprType(x.Y, typ, final)
+		}
+
 	// case *syntax.UnaryExpr:
 	// 	// If x is a constant, the operands were constants.
 	// 	// The operands don't need to be updated since they
@@ -1083,9 +1094,8 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 		check.optionalChain(x, e)
 
 	case *syntax.TernaryExpr:
-		// Should have been rewritten by syntax.RewriteQuestionExprs
-		check.errorf(e, InvalidSyntaxTree, "unexpected TernaryExpr (should have been rewritten)")
-		goto Error
+		// Handle ternary expression: cond ? trueExpr : falseExpr
+		check.ternary(x, e)
 
 	case *syntax.IndexExpr:
 		if check.indexExpr(x, e) {

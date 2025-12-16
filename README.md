@@ -267,7 +267,7 @@ func main() {
 
 支持简洁的条件表达式 `condition ? trueValue : falseValue`。
 
-**注意**：由于实现原理，三元表达式返回 `interface{}` 类型，在赋值给具体类型变量时需要类型断言。
+**注意** 三元表达式的True分支和False分支，必须保证同类型，否则报错！
 
 ```go
 func main() {
@@ -281,24 +281,21 @@ func main() {
         status = "未成年"
     }
     
-    // 使用三元表达式（需要类型断言）
-    status = (age >= 18 ? "成年" : "未成年").(string)
+    status = age >= 18 ? "成年" : "未成年"
     fmt.Println(status)  // 输出: 成年
     
-    // 直接在表达式中使用（无需类型断言）
     fmt.Println(age >= 18 ? "成年" : "未成年")  // 输出: 成年
     
-    // 短格式（省略 else，默认使用 true 值）
-    result := (age >= 18 ? "已成年").(string)
+    result := age >= 18 ? "已成年"
     fmt.Println(result)  // 输出: 已成年
     
     // 嵌套三元表达式
     score := 85
-    grade := (score >= 90 ? "A" : score >= 80 ? "B" : score >= 60 ? "C" : "D").(string)
+    grade := score >= 90 ? "A" : score >= 80 ? "B" : score >= 60 ? "C" : "D"
     fmt.Println(grade)   // 输出: B
     
     // 用于数值类型
-    max := (10 > 5 ? 10 : 5).(int)
+    max := 10 > 5 ? 10 : 5
     fmt.Println(max)  // 输出: 10
 }
 ```
