@@ -284,6 +284,10 @@ type Info struct {
 	// The result type is inferred from the types of both branches.
 	TernaryTypes map[*syntax.TernaryExpr]Type
 
+	// CoalesceTypes maps coalesce expressions (x ?: y) to their result types.
+	// The result type is Elem(x), where x must have pointer type *T.
+	CoalesceTypes map[*syntax.CoalesceExpr]Type
+
 	// Scopes maps syntax.Nodes to the scopes they define. Package scopes are not
 	// associated with a specific node but with all files belonging to a package.
 	// Thus, the package scope can be found in the type-checked Package object.

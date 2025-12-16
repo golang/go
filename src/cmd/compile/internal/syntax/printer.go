@@ -412,6 +412,10 @@ func (p *printer) printRawNode(n Node) {
 			p.print(blank, _Colon, blank, n.Y)
 		}
 
+	case *CoalesceExpr:
+		// print as: X?:Y
+		p.print(n.X, _Question, _Colon, blank, n.Y)
+
 	case *IndexExpr:
 		p.print(n.X, _Lbrack, n.Index, _Rbrack)
 

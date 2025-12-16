@@ -286,9 +286,6 @@ func main() {
     
     fmt.Println(age >= 18 ? "成年" : "未成年")  // 输出: 成年
     
-    result := age >= 18 ? "已成年"
-    fmt.Println(result)  // 输出: 已成年
-    
     // 嵌套三元表达式
     score := 85
     grade := score >= 90 ? "A" : score >= 80 ? "B" : score >= 60 ? "C" : "D"
@@ -302,6 +299,7 @@ func main() {
 
 ### 与可选链联动的优雅用法
 
+MyGO 支持Elvis运算符`x?:y`，可以通过Elvis运算符进行空值运算，他是三目运算符的一种特例
 由于可选链返回的都是指针类型，需要转回值类型。但是对nil直接取值会导致panic，于是建议使用下面的方案写
 
 
@@ -321,6 +319,14 @@ func main() {
     
     fmt.Println("email1:", email1)  // alice@example.com
     fmt.Println("email2:", email2)  // ""
+    
+    // 上述复杂的三元表达式可写作 新语法：x?:y  等价于  (x!=nil) ? *x : y
+    email1 := user1?.Profile?.Email?:""
+    email2 := user2?.Profile?.Email?:""
+    
+    fmt.Println("email1:", email1)  // alice@example.com
+    fmt.Println("email2:", email2)  // ""
+
 }
 ```
 

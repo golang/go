@@ -180,6 +180,12 @@ func (check *Checker) recordTernaryInfo(x *syntax.TernaryExpr, typ Type) {
 	}
 }
 
+func (check *Checker) recordCoalesceInfo(x *syntax.CoalesceExpr, typ Type) {
+	if m := check.CoalesceTypes; m != nil {
+		m[x] = typ
+	}
+}
+
 func (check *Checker) recordScope(node syntax.Node, scope *Scope) {
 	assert(node != nil)
 	assert(scope != nil)

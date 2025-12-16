@@ -243,9 +243,7 @@ func (r *rewriter) rewriteExpr(expr Expr) Expr {
 		// This allows proper type inference when both branches have the same type
 		e.Cond = r.rewriteExpr(e.Cond)
 		e.X = r.rewriteExpr(e.X)
-		if e.Y != nil {
-			e.Y = r.rewriteExpr(e.Y)
-		}
+		e.Y = r.rewriteExpr(e.Y)
 		return e
 
 	case *Name:

@@ -212,6 +212,14 @@ type (
 		expr
 	}
 
+	// X ?: Y (nil-coalescing deref)
+	// If X is non-nil pointer, evaluates to *X; otherwise evaluates to Y.
+	CoalesceExpr struct {
+		X Expr // must have pointer type
+		Y Expr // default value; must have type Elem(X)
+		expr
+	}
+
 	// X[Index]
 	// X[T1, T2, ...] (with Ti = Index.(*ListExpr).ElemList[i])
 	IndexExpr struct {

@@ -146,6 +146,10 @@ func (w walker) node(n Node) {
 			w.node(n.Y)
 		}
 
+	case *CoalesceExpr:
+		w.node(n.X)
+		w.node(n.Y)
+
 	case *IndexExpr:
 		w.node(n.X)
 		w.node(n.Index)

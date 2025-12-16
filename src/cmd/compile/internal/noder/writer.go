@@ -1926,6 +1926,19 @@ func (w *writer) expr(expr syntax.Expr) {
 		}
 		w.typ(typ) // result type
 
+	case *syntax.CoalesceExpr:
+		// Handle coalesce expression: x ?: y
+		typ, ok := w.p.info.CoalesceTypes[expr]
+		if !ok {
+			w.p.fatalf(expr, "missing CoalesceType for %v", expr)
+		}
+		typ = types2.Default(typ)
+
+		w.Code(exprCoalesce)
+		w.expr(expr.X)                  // pointer expression
+		w.implicitConvExpr(typ, expr.Y) // default expression
+		w.typ(typ)                      // result type (Elem(pointer))
+
 	case *syntax.CompositeLit:
 		w.Code(exprCompLit)
 		w.compLit(expr)

@@ -959,19 +959,32 @@ func (p *parser) expr() Expr {
 
 	x := p.binaryExpr(nil, 0)
 
-	// Check for ternary operator: cond ? trueExpr : falseExpr
-	// or short form: cond ? trueExpr
+	// Check for:
+	// - Ternary operator: cond ? trueExpr : falseExpr (or short form: cond ? trueExpr)
+	// - Nil-coalescing deref: x ?: y
 	if p.tok == _Question {
-		t := new(TernaryExpr)
-		t.pos = p.pos()
-		t.Cond = x
+		qpos := p.pos()
 		p.next()
-		t.X = p.binaryExpr(nil, 0)
 		if p.tok == _Colon {
+			// x ?: y
+			c := new(CoalesceExpr)
+			c.pos = qpos
+			c.X = x
 			p.next()
-			t.Y = p.expr() // recursive to allow nested ternary
+			c.Y = p.expr()
+			x = c
+		} else {
+			// cond ? x : y (or short form: cond ? x)
+			t := new(TernaryExpr)
+			t.pos = qpos
+			t.Cond = x
+			t.X = p.binaryExpr(nil, 0)
+			if p.tok == _Colon {
+				p.next()
+				t.Y = p.expr() // recursive to allow nested ternary
+			}
+			x = t
 		}
-		x = t
 	}
 
 	return x

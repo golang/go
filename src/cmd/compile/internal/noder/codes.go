@@ -65,6 +65,7 @@ const (
 	exprRuntimeBuiltin // a reference to a runtime function from transformed syntax. Followed by string name, e.g., "panicrangeexit"
 	exprOptionalChain  // nil-safe field access x?.field, returns *FieldType
 	exprTernary        // ternary expression: cond ? trueExpr : falseExpr
+	exprCoalesce       // coalesce expression: x ?: y (nil-coalescing deref)
 )
 
 type codeAssign int

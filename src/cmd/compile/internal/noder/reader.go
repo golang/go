@@ -2580,6 +2580,14 @@ func (r *reader) expr() (res ir.Node) {
 		resultType := r.typ()
 
 		return r.ternaryExpr(cond, trueExpr, falseExpr, resultType)
+
+	case exprCoalesce:
+		// Coalesce expression: x ?: y
+		// Expands to: func() T { _p := x; if _p != nil { return *_p } else { return y } }()
+		ptrExpr := r.expr()
+		defExpr := r.expr()
+		resultType := r.typ()
+		return r.coalesceExpr(ptrExpr, defExpr, resultType)
 	}
 }
 
@@ -2774,6 +2782,41 @@ func (r *reader) ternaryExpr(cond, trueExpr, falseExpr ir.Node, resultType *type
 
 	// Use ir.InitExpr to combine the if statement with the result value
 	return ir.InitExpr([]ir.Node{ifStmt}, tmp)
+}
+
+// coalesceExpr generates IR for a coalesce expression: x ?: y
+// x must be *T, result is T; y is only evaluated if x is nil.
+func (r *reader) coalesceExpr(ptrExpr, defExpr ir.Node, resultType *types.Type) ir.Node {
+	pos := ptrExpr.Pos()
+
+	// Convert untyped/default expression to the result type.
+	defExpr = typecheck.DefaultLit(defExpr, resultType)
+	if !types.Identical(defExpr.Type(), resultType) {
+		conv := ir.NewConvExpr(pos, ir.OCONV, resultType, defExpr)
+		defExpr = typecheck.Expr(conv)
+	}
+
+	// Evaluate pointer expression exactly once.
+	ptrTmp := typecheck.TempAt(pos, r.curfn, ptrExpr.Type())
+	ptrTmp.SetTypecheck(1)
+	assignPtr := typecheck.Stmt(ir.NewAssignStmt(pos, ptrTmp, ptrExpr))
+
+	// Result temporary.
+	resTmp := typecheck.TempAt(pos, r.curfn, resultType)
+	resTmp.SetTypecheck(1)
+
+	// if ptrTmp != nil { resTmp = *ptrTmp } else { resTmp = defExpr }
+	cond := ir.NewBinaryExpr(pos, ir.ONE, ptrTmp, typecheck.NodNil())
+	cond = typecheck.Expr(cond).(*ir.BinaryExpr)
+
+	deref := Deref(pos, resultType, ptrTmp)
+	trueAssign := ir.NewAssignStmt(pos, resTmp, deref)
+	falseAssign := ir.NewAssignStmt(pos, resTmp, defExpr)
+
+	ifStmt := ir.NewIfStmt(pos, cond, []ir.Node{trueAssign}, []ir.Node{falseAssign})
+	ifStmt = typecheck.Stmt(ifStmt).(*ir.IfStmt)
+
+	return ir.InitExpr([]ir.Node{assignPtr, ifStmt}, resTmp)
 }
 
 func (pr *pkgReader) objDictName(idx index, implicits, explicits []*types.Type) *ir.Name {

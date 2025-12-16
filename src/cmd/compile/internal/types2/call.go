@@ -1096,7 +1096,10 @@ func (check *Checker) ternary(x *operand, e *syntax.TernaryExpr) {
 		}
 	} else {
 		// Short form: cond ? trueExpr (falseExpr defaults to same as trueExpr)
-		falseOp = trueOp
+		// falseOp = trueOp
+		check.errorf(e.Cond, InvalidSyntaxTree, "cond ? x (short form, Y is implicitly nil)")
+		x.mode = invalid
+		return
 	}
 
 	// Both branches must have compatible types
@@ -1149,5 +1152,65 @@ func (check *Checker) ternary(x *operand, e *syntax.TernaryExpr) {
 
 	x.mode = value
 	x.typ = resultType
+	x.expr = e
+}
+
+// coalesce type-checks a coalesce expression: x ?: y
+// x must have pointer type *T, and the result type is T.
+// y must be assignable to T (with usual untyped handling).
+func (check *Checker) coalesce(x *operand, e *syntax.CoalesceExpr) {
+	// Type-check the pointer expression
+	var ptr operand
+	check.expr(nil, &ptr, e.X)
+	if ptr.mode == invalid {
+		x.mode = invalid
+		return
+	}
+
+	// Left operand must be a pointer
+	u := under(ptr.typ)
+	p, ok := u.(*Pointer)
+	if !ok {
+		// Still type-check default for better error recovery.
+		check.use(e.Y)
+		check.errorf(e, UndefinedOp, invalidOp+"%s ?: %s (left operand must be pointer)", ptr.expr, e.Y)
+		x.mode = invalid
+		return
+	}
+	elem := p.base
+
+	// Type-check the default expression
+	var def operand
+	check.expr(nil, &def, e.Y)
+	if def.mode == invalid {
+		x.mode = invalid
+		return
+	}
+
+	// Check assignability of default to elem type.
+	if Identical(def.typ, elem) {
+		// ok
+	} else if isUntyped(def.typ) {
+		if ok, _ := def.assignableTo(check, elem, nil); ok {
+			// Ensure untyped literal gets serialized with the concrete type.
+			check.updateExprType(e.Y, elem, true)
+		} else {
+			check.errorf(e, MismatchedTypes, "mismatched types %s and %s in ?: expression (default must be %s)", def.typ, elem, elem)
+			x.mode = invalid
+			return
+		}
+	} else {
+		if ok, _ := def.assignableTo(check, elem, nil); !ok {
+			check.errorf(e, MismatchedTypes, "mismatched types %s and %s in ?: expression (default must be %s)", def.typ, elem, elem)
+			x.mode = invalid
+			return
+		}
+	}
+
+	// Record result type for noder.
+	check.recordCoalesceInfo(e, elem)
+
+	x.mode = value
+	x.typ = elem
 	x.expr = e
 }

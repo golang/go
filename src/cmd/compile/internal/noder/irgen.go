@@ -68,6 +68,7 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info, map[*
 		Selections:              make(map[*syntax.SelectorExpr]*types2.Selection),
 		OptionalChainSelections: make(map[*syntax.OptionalChainExpr]*types2.Selection),
 		TernaryTypes:            make(map[*syntax.TernaryExpr]types2.Type),
+		CoalesceTypes:           make(map[*syntax.CoalesceExpr]types2.Type),
 		Implicits:               make(map[syntax.Node]types2.Object),
 		Scopes:                  make(map[syntax.Node]*types2.Scope),
 		Instances:               make(map[*syntax.Name]types2.Instance),

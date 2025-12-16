@@ -1097,6 +1097,10 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 		// Handle ternary expression: cond ? trueExpr : falseExpr
 		check.ternary(x, e)
 
+	case *syntax.CoalesceExpr:
+		// Handle coalesce expression: x ?: y
+		check.coalesce(x, e)
+
 	case *syntax.IndexExpr:
 		if check.indexExpr(x, e) {
 			if !enableReverseTypeInference {
