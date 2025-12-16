@@ -2242,7 +2242,7 @@ func trimLinkerArgv(argv []string) []string {
 		"-resource-dir",
 		"-rtlib",
 		"--rtlib",
-		"-stdlib"
+		"-stdlib",
 		"--stdlib",
 		"-unwindlib",
 		"--unwindlib",
