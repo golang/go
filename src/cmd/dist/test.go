@@ -748,7 +748,7 @@ func (t *tester) registerTests() {
 	if !strings.Contains(goexperiment, "jsonv2") {
 		t.registerTest("GOEXPERIMENT=jsonv2 go test encoding/json/...", &goTest{
 			variant: "jsonv2",
-			env:     []string{"GOEXPERIMENT=jsonv2"},
+			env:     []string{"GOEXPERIMENT=" + goexperiments("jsonv2")},
 			pkg:     "encoding/json/...",
 		})
 	}
@@ -757,7 +757,7 @@ func (t *tester) registerTests() {
 	if !strings.Contains(goexperiment, "runtimesecret") {
 		t.registerTest("GOEXPERIMENT=runtimesecret go test runtime/secret/...", &goTest{
 			variant: "runtimesecret",
-			env:     []string{"GOEXPERIMENT=runtimesecret"},
+			env:     []string{"GOEXPERIMENT=" + goexperiments("runtimesecret")},
 			pkg:     "runtime/secret/...",
 		})
 	}
@@ -766,7 +766,7 @@ func (t *tester) registerTests() {
 	if goarch == "amd64" && !strings.Contains(goexperiment, "simd") {
 		t.registerTest("GOEXPERIMENT=simd go test simd/archsimd/...", &goTest{
 			variant: "simd",
-			env:     []string{"GOEXPERIMENT=simd"},
+			env:     []string{"GOEXPERIMENT=" + goexperiments("simd")},
 			pkg:     "simd/archsimd/...",
 		})
 	}
@@ -1887,4 +1887,20 @@ func fipsVersions(short bool) []string {
 		versions = append(versions, strings.TrimSuffix(filepath.Base(txt), ".txt"))
 	}
 	return versions
+}
+
+// goexperiments returns the GOEXPERIMENT value to use
+// when running a test with the given experiments enabled.
+//
+// It preserves any existing GOEXPERIMENTs.
+func goexperiments(exps ...string) string {
+	if len(exps) == 0 {
+		return goexperiment
+	}
+	existing := goexperiment
+	if existing != "" {
+		existing += ","
+	}
+	return existing + strings.Join(exps, ",")
+
 }
