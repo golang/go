@@ -176,6 +176,10 @@ func xinit() {
 		b = "rva20u64"
 	}
 	goriscv64 = b
+	// get the profile part of the string
+	if idx := strings.Index(goriscv64, ","); idx >= 0 {
+		goriscv64 = goriscv64[:idx]
+	}
 
 	b = os.Getenv("GOFIPS140")
 	if b == "" {
