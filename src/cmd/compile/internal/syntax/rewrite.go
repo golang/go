@@ -1332,6 +1332,13 @@ func inferLiteralType(expr Expr) string {
 		case StringLit:
 			return "string"
 		}
+	case *CompositeLit:
+		// Handle composite literals with explicit types, e.g. []int{1, 2}
+		// This is important for magic method / overload resolution which runs
+		// before full type checking.
+		if e.Type != nil {
+			return typeExprToString(e.Type)
+		}
 	case *Name:
 		// Could be a variable - we don't know the type yet
 		// Return "unknown" and try to match based on other criteria
@@ -1361,6 +1368,29 @@ func inferLiteralType(expr Expr) string {
 		return inferLiteralType(e.X)
 	}
 	return "unknown"
+}
+
+// canWrapArgsAsIntSlice reports whether it's reasonable to try the "no comma → []int fallback"
+// by wrapping the given args into a single []int{...} slice literal.
+//
+// We keep this conservative: don't attempt to wrap obvious non-integer literals (like "str").
+// For names/expressions with unknown types, we allow wrapping and rely on the type checker later.
+func canWrapArgsAsIntSlice(args []Expr) bool {
+	if len(args) == 0 {
+		return false
+	}
+	for _, a := range args {
+		if a == nil {
+			return false
+		}
+		if lit, ok := a.(*BasicLit); ok {
+			// Only allow integer literals here. Other literal kinds should not be wrapped into []int.
+			if lit.Kind != IntLit {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // containsDecimalPoint checks if a number literal contains a decimal point
@@ -2753,6 +2783,54 @@ func (r *magicMethodRewriter) createMagicMethodCallWithComma(pos Pos, base Expr,
 	// Try to resolve the correct overloaded method name
 	resolvedName := r.resolveMagicMethodOverloadWithComma(base, methodName, args, hasComma)
 
+	// Fallback behavior (README rule):
+	// - No comma: prefer T parameters; if no match, fallback to []T by wrapping indices into []int{...}
+	//
+	// This enables cases like:
+	//   - only _getitem(indices []int) exists, but user writes a[i] or a[i:j]
+	//   - only _getitem(indices ...[]int) exists, but user writes a[i] or a[i:j]
+	//
+	// We only attempt this for []int-based index methods to avoid breaking string-key indexing.
+	if !hasComma {
+		switch methodName {
+		case "_getitem":
+			// Only attempt fallback if we didn't already resolve to a specific overload.
+			if resolvedName == methodName && canWrapArgsAsIntSlice(args) && r.hasSingleIntSliceIndexMethod(base, methodName) {
+				wrapped := r.createSliceLiteral(args)
+				if wrapped != nil {
+					wrappedArgs := []Expr{wrapped}
+
+					// If there are overloads, resolve using slice preference.
+					// If there is only a single method, resolveMagicMethodOverloadWithComma returns
+					// the original name, but we still want to wrap the args.
+					resolved2 := r.resolveMagicMethodOverloadWithComma(base, methodName, wrappedArgs, true)
+					if resolved2 != methodName {
+						resolvedName = resolved2
+					}
+					// Apply wrapped args when slice fallback is applicable.
+					args = wrappedArgs
+				}
+			}
+
+		case "_setitem":
+			// For assignments, last arg is the value; only wrap the index arguments.
+			// Only attempt fallback if we didn't already resolve to a specific overload.
+			if resolvedName == methodName && len(args) >= 2 && canWrapArgsAsIntSlice(args[:len(args)-1]) && r.hasSingleIntSliceIndexMethod(base, methodName) {
+				indexArgs := args[:len(args)-1]
+				valueArg := args[len(args)-1]
+				wrapped := r.createSliceLiteral(indexArgs)
+				if wrapped != nil {
+					wrappedArgs := []Expr{wrapped, valueArg}
+					resolved2 := r.resolveMagicMethodOverloadWithComma(base, methodName, wrappedArgs, true)
+					if resolved2 != methodName {
+						resolvedName = resolved2
+					}
+					args = wrappedArgs
+				}
+			}
+		}
+	}
+
 	// Create selector: base._getitem or base._setitem (or overloaded version)
 	selector := new(SelectorExpr)
 	selector.SetPos(pos)
@@ -2766,6 +2844,61 @@ func (r *magicMethodRewriter) createMagicMethodCallWithComma(pos Pos, base Expr,
 	call.ArgList = args
 
 	return call
+}
+
+// hasSingleIntSliceIndexMethod reports whether the receiver type has at least one "single-dimension"
+// index magic method that accepts a single []int (or ...[]int for _getitem).
+//
+// This is used to gate the "no comma → []int fallback" wrapping so we don't accidentally wrap
+// string-key indexing (e.g. person["name"]) into []int{...}.
+func (r *magicMethodRewriter) hasSingleIntSliceIndexMethod(base Expr, methodName string) bool {
+	typeName := r.tryInferStructTypeName(base)
+	if typeName == "" {
+		return false
+	}
+
+	// Resolve magic method info with pointer/value fallback, same as resolveMagicMethodOverloadWithComma.
+	info, exists := r.magicMethods[typeName]
+	if !exists {
+		if len(typeName) > 0 && typeName[0] != '*' {
+			info, exists = r.magicMethods["*"+typeName]
+		} else if len(typeName) > 0 && typeName[0] == '*' {
+			info, exists = r.magicMethods[typeName[1:]]
+		}
+		if !exists {
+			return false
+		}
+	}
+
+	var methods []*FuncDecl
+	if methodName == "_getitem" {
+		methods = info.GetItemMethods
+	} else if methodName == "_setitem" {
+		methods = info.SetItemMethods
+	} else {
+		return false
+	}
+
+	for _, fn := range methods {
+		if fn == nil || fn.Type == nil {
+			continue
+		}
+		paramTypes := getParamTypeStrings(fn.Type.ParamList)
+		switch methodName {
+		case "_getitem":
+			// Only consider "single slice argument" forms: []int or ...[]int.
+			if len(paramTypes) == 1 && (paramTypes[0] == "[]int" || paramTypes[0] == "...[]int") {
+				return true
+			}
+		case "_setitem":
+			// Only consider (indices []int, value T) form for fallback wrapping.
+			if len(paramTypes) == 2 && paramTypes[0] == "[]int" {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 // resolveMagicMethodOverload finds the correct overloaded method name based on argument types
