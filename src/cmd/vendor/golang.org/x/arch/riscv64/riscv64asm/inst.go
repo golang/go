@@ -516,16 +516,16 @@ type MemOrder uint8
 
 func (memOrder MemOrder) String() string {
 	var str string
-	if memOrder<<7>>7 == 1 {
+	if memOrder&0b1000 != 0 {
 		str += "i"
 	}
-	if memOrder>>1<<7>>7 == 1 {
+	if memOrder&0b0100 != 0 {
 		str += "o"
 	}
-	if memOrder>>2<<7>>7 == 1 {
+	if memOrder&0b0010 != 0 {
 		str += "r"
 	}
-	if memOrder>>3<<7>>7 == 1 {
+	if memOrder&0b0001 != 0 {
 		str += "w"
 	}
 	return str
