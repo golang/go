@@ -55,15 +55,9 @@ func secret_eraseSecrets() {
 	// Don't put any code here: the stack frame's contents are gone!
 }
 
-// specialSecret tracks whether we need to zero an object immediately
-// upon freeing.
-type specialSecret struct {
-	special special
-}
-
 // addSecret records the fact that we need to zero p immediately
 // when it is freed.
-func addSecret(p unsafe.Pointer) {
+func addSecret(p unsafe.Pointer, size uintptr) {
 	// TODO(dmo): figure out the cost of these. These are mostly
 	// intended to catch allocations that happen via the runtime
 	// that the user has no control over and not big buffers that user
@@ -72,6 +66,7 @@ func addSecret(p unsafe.Pointer) {
 	lock(&mheap_.speciallock)
 	s := (*specialSecret)(mheap_.specialSecretAlloc.alloc())
 	s.special.kind = _KindSpecialSecret
+	s.size = size
 	unlock(&mheap_.speciallock)
 	addspecial(p, &s.special, false)
 }
