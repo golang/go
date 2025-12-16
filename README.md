@@ -300,6 +300,30 @@ func main() {
 }
 ```
 
+### 与可选链联动的优雅用法
+
+由于可选链返回的都是指针类型，需要转回值类型。但是对nil直接取值会导致panic，于是建议使用下面的方案写
+
+
+```go
+func main() {
+    user1 := &User{Name: "Alice", Profile: &Profile{Email: "alice@example.com", Age: 25}}
+    user2 := &User{Name: "Bob", Profile: nil}
+    
+    // 传统方式需要检查 nil
+    if user2.Profile != nil {
+        fmt.Println(user2.Profile.Email)
+    }
+    
+    // 使用三元表达式 + 可选链，自动处理 nil
+    email1 := (user1?.Profile?.Email!=nil) ? *user1?.Profile?.Email : ""  
+    email2 := (user2?.Profile?.Email!=nil) ? *user2?.Profile?.Email : ""  
+    
+    fmt.Println("email1:", email1)  // alice@example.com
+    fmt.Println("email2:", email2)  // ""
+}
+```
+
 ## 5. 结构体方法重载
 
 支持为结构体定义多个同名方法，只要参数类型不同即可。编译器会根据调用时的参数类型自动选择正确的方法。
@@ -540,7 +564,7 @@ func main() {
 
 ## 7. 魔法函数(实验特性)
 
-注意，标记为实验特性的可能有BUG，慎用
+注意，标记为实验特性的可能有BUG，慎用 (魔法方法所有的特性主要为未来的向量计算作准备)
 
 ### 索引运算符重载 (_getitem / _setitem)
 
