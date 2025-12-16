@@ -2220,9 +2220,11 @@ func trimLinkerArgv(argv []string) []string {
 		"-target",
 		"--target",
 		"-resource-dir",
-		"-stdlib",
+		"-rtlib",
 		"--rtlib",
+		"-stdlib",
 		"--stdlib",
+		"-unwindlib",
 		"--unwindlib",
 	}
 	prefixesToKeep := []string{
@@ -2238,9 +2240,11 @@ func trimLinkerArgv(argv []string) []string {
 		"-target",
 		"--target",
 		"-resource-dir",
-		"-stdlib"
+		"-rtlib",
 		"--rtlib",
+		"-stdlib"
 		"--stdlib",
+		"-unwindlib",
 		"--unwindlib",
 	}
 
