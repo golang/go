@@ -2214,6 +2214,7 @@ func trimLinkerArgv(argv []string) []string {
 		"-Wl,-undefined",
 	}
 	flagsWithNextArgKeep := []string{
+		"-B",
 		"-arch",
 		"-isysroot",
 		"--sysroot",
