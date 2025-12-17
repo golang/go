@@ -1212,6 +1212,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
 	{"riscv64", "sync/atomic", "SwapUint32"}:                           struct{}{},
 	{"riscv64", "sync/atomic", "SwapUint64"}:                           struct{}{},
 	{"riscv64", "sync/atomic", "SwapUintptr"}:                          struct{}{},
+	{"riscv64", "crypto/internal/constanttime", "Select"}:              struct{}{},
 	{"riscv64", "crypto/internal/constanttime", "boolToUint8"}:         struct{}{},
 	{"s390x", "internal/runtime/atomic", "And"}:                        struct{}{},
 	{"s390x", "internal/runtime/atomic", "And8"}:                       struct{}{},

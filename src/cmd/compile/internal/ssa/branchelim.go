@@ -4,10 +4,7 @@
 
 package ssa
 
-import (
-	"cmd/internal/src"
-	"internal/buildcfg"
-)
+import "cmd/internal/src"
 
 // branchelim tries to eliminate branches by
 // generating CondSelect instructions.
@@ -25,10 +22,6 @@ import (
 func branchelim(f *Func) {
 	// FIXME: add support for lowering CondSelects on more architectures
 	if !f.Config.haveCondSelect {
-		return
-	}
-
-	if f.Config.arch == "riscv64" && buildcfg.GORISCV64 < 23 {
 		return
 	}
 
