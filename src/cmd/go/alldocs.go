@@ -1954,7 +1954,7 @@
 //
 //	-o file
 //	    Save a copy of the test binary to the named file.
-//	    The test still runs (unless -c or -i is specified).
+//	    The test still runs (unless -c is specified).
 //	    If file ends in a slash or names an existing directory,
 //	    the test is written to pkg.test in that directory.
 //
