@@ -978,6 +978,10 @@ func (c *Config) ticketKeyFromBytes(b [32]byte) (key ticketKey) {
 // ticket, and the lifetime we set for all tickets we send.
 const maxSessionTicketLifetime = 7 * 24 * time.Hour
 
+// Maximum allowed mismatch between the stated age of a ticket and the server-observed one. 
+// See https://datatracker.ietf.org/doc/html/rfc8446#section-8.3
+const maxSessionTicketSkewAllowance = 10 * time.Second
+
 // Clone returns a shallow clone of c or nil if c is nil. It is safe to clone a [Config] that is
 // being used concurrently by a TLS client or server.
 func (c *Config) Clone() *Config {

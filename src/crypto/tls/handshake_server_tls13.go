@@ -346,7 +346,8 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() error {
 		}
 
 		createdAt := time.Unix(int64(sessionState.createdAt), 0)
-		if c.config.time().Sub(createdAt) > maxSessionTicketLifetime {
+		serverAge := c.config.time().Sub(createdAt)
+		if serverAge > maxSessionTicketLifetime || serverAge < -maxSessionTicketLifetime {
 			continue
 		}
 
@@ -374,12 +375,6 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() error {
 			continue
 		}
 
-		if c.quic != nil && c.quic.enableSessionEvents {
-			if err := c.quicResumeSession(sessionState); err != nil {
-				return err
-			}
-		}
-
 		hs.earlySecret = tls13.NewEarlySecret(hs.suite.hash.New, sessionState.secret)
 		binderKey := hs.earlySecret.ResumptionBinderKey()
 		// Clone the transcript in case a HelloRetryRequest was recorded.
@@ -400,17 +395,8 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() error {
 			return errors.New("tls: invalid PSK binder")
 		}
 
-		if c.quic != nil && hs.clientHello.earlyData && i == 0 &&
-			sessionState.EarlyData && sessionState.cipherSuite == hs.suite.id &&
-			sessionState.alpnProtocol == c.clientProtocol {
-			hs.earlyData = true
-
-			transcript := hs.suite.hash.New()
-			if err := transcriptMsg(hs.clientHello, transcript); err != nil {
-				return err
-			}
-			earlyTrafficSecret := hs.earlySecret.ClientEarlyTrafficSecret(transcript)
-			if err := c.quicSetReadSecret(QUICEncryptionLevelEarly, hs.suite.id, earlyTrafficSecret); err != nil {
+		if c.quic != nil && c.quic.enableSessionEvents {
+			if err := c.quicResumeSession(sessionState); err != nil {
 				return err
 			}
 		}
@@ -424,6 +410,33 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() error {
 		hs.hello.selectedIdentityPresent = true
 		hs.hello.selectedIdentity = uint16(i)
 		hs.usingPSK = true
+
+		if !hs.clientHello.earlyData || !sessionState.EarlyData || i != 0 {
+			return nil
+		}
+
+		clientAge := time.Duration(identity.obfuscatedTicketAge-sessionState.ageAdd) * time.Millisecond
+		if ageDiff := serverAge - clientAge; ageDiff > maxSessionTicketSkewAllowance || ageDiff < -maxSessionTicketSkewAllowance {
+			return nil
+		}
+
+		if sessionState.cipherSuite != hs.suite.id || sessionState.alpnProtocol != c.clientProtocol {
+			return nil
+		}
+
+		hs.earlyData = true
+
+		earlyTranscript := hs.suite.hash.New()
+		if err := transcriptMsg(hs.clientHello, earlyTranscript); err != nil {
+			return err
+		}
+
+		earlyTrafficSecret := hs.earlySecret.ClientEarlyTrafficSecret(earlyTranscript)
+		if c.quic != nil {
+			if err := c.quicSetReadSecret(QUICEncryptionLevelEarly, hs.suite.id, earlyTrafficSecret); err != nil {
+				return err
+			}
+		}
 		return nil
 	}
 
@@ -978,6 +991,15 @@ func (c *Conn) sendSessionTicket(earlyData bool, extra [][]byte) error {
 	state.secret = psk
 	state.EarlyData = earlyData
 	state.Extra = extra
+
+	// ticket_age_add is a random 32-bit value.
+	// See RFC 8446, section 4.6.1
+	ageAdd := make([]byte, 4)
+	if _, err := c.config.rand().Read(ageAdd); err != nil {
+		return err
+	}
+	state.ageAdd = byteorder.LEUint32(ageAdd)
+
 	if c.config.WrapSession != nil {
 		var err error
 		m.label, err = c.config.WrapSession(c.connectionStateLocked(), state)
@@ -996,15 +1018,7 @@ func (c *Conn) sendSessionTicket(earlyData bool, extra [][]byte) error {
 		}
 	}
 	m.lifetime = uint32(maxSessionTicketLifetime / time.Second)
-
-	// ticket_age_add is a random 32-bit value. See RFC 8446, section 4.6.1
-	// The value is not stored anywhere; we never need to check the ticket age
-	// because 0-RTT is not supported.
-	ageAdd := make([]byte, 4)
-	if _, err := c.config.rand().Read(ageAdd); err != nil {
-		return err
-	}
-	m.ageAdd = byteorder.LEUint32(ageAdd)
+	m.ageAdd = state.ageAdd
 
 	if earlyData {
 		// RFC 9001, Section 4.6.1
