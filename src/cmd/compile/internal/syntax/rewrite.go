@@ -941,6 +941,23 @@ func (d *defaultParamRewriter) createDefaultOverride(pos Pos, paramName string, 
 // Method Overloading Support
 // ============================================================================
 
+// isOverloadSingleUnderscoreMagic reports whether an overloaded method should
+// keep its single underscore prefix when being renamed.
+//
+// Without this, methods that already start with '_' would be renamed as
+// "__name_suffix", which is not desired for magic methods.
+func isOverloadSingleUnderscoreMagic(methodName string) bool {
+	switch methodName {
+	case "_init", "_getitem", "_setitem",
+		"_add", "_sub", "_mul", "_div", "_mod",
+		"_radd", "_rsub", "_rmul", "_rdiv", "_rmod",
+		"_inc", "_dec":
+		return true
+	default:
+		return false
+	}
+}
+
 // OverloadInfo stores information about overloaded methods for a receiver type
 type OverloadInfo struct {
 	ReceiverType string           // Receiver type name (e.g., "User" or "*User")
@@ -1003,12 +1020,8 @@ func PreprocessOverloadedMethods(file *File) map[string]*OverloadInfo {
 
 			// Special handling for _init and magic methods: keep single underscore prefix
 			var newName string
-			if methodName == "_init" {
-				newName = "_init" + suffix // Keep single underscore prefix
-			} else if methodName == "_getitem" {
-				newName = "_getitem" + suffix // Keep single underscore prefix
-			} else if methodName == "_setitem" {
-				newName = "_setitem" + suffix // Keep single underscore prefix
+			if isOverloadSingleUnderscoreMagic(methodName) {
+				newName = methodName + suffix // Keep single underscore prefix
 			} else {
 				newName = "_" + methodName + suffix
 			}
@@ -1575,6 +1588,746 @@ func splitFirst(s, sep string) []string {
 		}
 	}
 	return []string{s, ""}
+}
+
+// ============================================================================
+// Arithmetic Operator Overloading Support
+// ============================================================================
+
+// RewriteArithmeticOperators rewrites arithmetic operators into magic method calls.
+//
+// Supported operators:
+//   - Binary: + - * / %  ->  a._add(b) / a._sub(b) / ...
+//   - Reverse fallback:  if a doesn't have forward op, try b._radd(a) / ...
+//   - Inc/Dec: x++ / x-- -> x._inc() / x._dec()  (only forward; no reverse)
+//
+// This pass runs before type checking. It is conservative: it only rewrites
+// when it can infer that the involved receiver type defines the corresponding
+// magic method(s) in the current file.
+func RewriteArithmeticOperators(file *File) {
+	if file == nil {
+		return
+	}
+	r := &arithOpRewriter{
+		arithMethods:    make(map[string]map[string][]*FuncDecl),
+		varTypes:        make(map[string]string),
+		funcReturnTypes: make(map[string]string),
+	}
+	r.collectArithmeticMethods(file)
+	if len(r.arithMethods) == 0 {
+		return
+	}
+	r.collectFunctionReturnTypes(file)
+	r.rewriteFile(file)
+}
+
+type arithOpRewriter struct {
+	// arithMethods maps: receiverTypeName -> baseMagicMethodName -> candidate method decls.
+	// receiverTypeName has no leading '*'.
+	arithMethods map[string]map[string][]*FuncDecl
+	varTypes     map[string]string // var name -> typeName (no leading '*')
+
+	funcReturnTypes map[string]string // function name -> return typeName (no leading '*')
+
+	insideArithMethod bool
+}
+
+func (r *arithOpRewriter) collectArithmeticMethods(file *File) {
+	for _, decl := range file.DeclList {
+		fn, ok := decl.(*FuncDecl)
+		if !ok || fn.Recv == nil || fn.Name == nil {
+			continue
+		}
+		methodName := fn.Name.Value
+		if !isArithmeticMagicMethodName(methodName) {
+			continue
+		}
+
+		recvType := typeExprToString(fn.Recv.Type)
+		if len(recvType) > 0 && recvType[0] == '*' {
+			recvType = recvType[1:]
+		}
+		if recvType == "" {
+			continue
+		}
+		m, ok := r.arithMethods[recvType]
+		if !ok {
+			m = make(map[string][]*FuncDecl)
+			r.arithMethods[recvType] = m
+		}
+		base := arithMagicBaseName(methodName)
+		if base == "" {
+			continue
+		}
+		m[base] = append(m[base], fn)
+	}
+}
+
+func (r *arithOpRewriter) collectFunctionReturnTypes(file *File) {
+	for _, decl := range file.DeclList {
+		fn, ok := decl.(*FuncDecl)
+		if !ok || fn.Recv != nil || fn.Name == nil || fn.Type == nil {
+			continue
+		}
+		if fn.Type.ResultList == nil || len(fn.Type.ResultList) != 1 {
+			continue
+		}
+		res := fn.Type.ResultList[0]
+		if res.Type == nil {
+			continue
+		}
+		retType := typeExprToString(res.Type)
+		if len(retType) > 0 && retType[0] == '*' {
+			retType = retType[1:]
+		}
+		if retType == "" {
+			continue
+		}
+		if _, exists := r.arithMethods[retType]; exists {
+			r.funcReturnTypes[fn.Name.Value] = retType
+		}
+	}
+}
+
+func (r *arithOpRewriter) rewriteFile(file *File) {
+	for _, decl := range file.DeclList {
+		r.rewriteDecl(decl)
+	}
+}
+
+func (r *arithOpRewriter) rewriteDecl(decl Decl) {
+	switch d := decl.(type) {
+	case *FuncDecl:
+		if d.Body == nil {
+			return
+		}
+
+		// Track function parameters
+		if d.Type != nil && d.Type.ParamList != nil {
+			for _, param := range d.Type.ParamList {
+				if param.Name == nil || param.Type == nil {
+					continue
+				}
+				paramType := typeExprToString(param.Type)
+				if len(paramType) > 0 && paramType[0] == '*' {
+					paramType = paramType[1:]
+				}
+				if _, exists := r.arithMethods[paramType]; exists {
+					r.varTypes[param.Name.Value] = paramType
+				}
+			}
+		}
+
+		// Track receiver variable
+		if d.Recv != nil && d.Recv.Name != nil {
+			recvType := typeExprToString(d.Recv.Type)
+			if len(recvType) > 0 && recvType[0] == '*' {
+				recvType = recvType[1:]
+			}
+			if _, exists := r.arithMethods[recvType]; exists {
+				r.varTypes[d.Recv.Name.Value] = recvType
+			}
+		}
+
+		// Don't rewrite inside arithmetic magic method bodies to avoid recursion.
+		wasInside := r.insideArithMethod
+		if d.Recv != nil && d.Name != nil && isArithmeticMagicMethodName(d.Name.Value) {
+			r.insideArithMethod = true
+		}
+		r.rewriteBlockStmt(d.Body)
+		r.insideArithMethod = wasInside
+
+	case *VarDecl:
+		r.trackVarDeclTypes(d)
+		if d.Values != nil {
+			d.Values = r.rewriteExpr(d.Values)
+		}
+	case *ConstDecl:
+		if d.Values != nil {
+			d.Values = r.rewriteExpr(d.Values)
+		}
+	}
+}
+
+func (r *arithOpRewriter) rewriteBlockStmt(block *BlockStmt) {
+	if block == nil {
+		return
+	}
+	for i, stmt := range block.List {
+		block.List[i] = r.rewriteStmt(stmt)
+	}
+}
+
+func (r *arithOpRewriter) rewriteStmt(stmt Stmt) Stmt {
+	if stmt == nil {
+		return nil
+	}
+	switch s := stmt.(type) {
+	case *ExprStmt:
+		s.X = r.rewriteExpr(s.X)
+		return s
+	case *AssignStmt:
+		// Track short variable declarations.
+		if s.Op == Def {
+			r.trackShortVarDeclTypes(s)
+		}
+
+		// Inc/Dec: Lhs++ / Lhs--
+		if s.Rhs == nil && (s.Op == Add || s.Op == Sub) {
+			return r.rewriteIncDecStmt(s)
+		}
+
+		s.Lhs = r.rewriteExpr(s.Lhs)
+		s.Rhs = r.rewriteExpr(s.Rhs)
+		return s
+	case *ReturnStmt:
+		if s.Results != nil {
+			s.Results = r.rewriteExpr(s.Results)
+		}
+		return s
+	case *IfStmt:
+		if s.Init != nil {
+			s.Init = r.rewriteSimpleStmt(s.Init)
+		}
+		s.Cond = r.rewriteExpr(s.Cond)
+		r.rewriteBlockStmt(s.Then)
+		if s.Else != nil {
+			s.Else = r.rewriteStmt(s.Else)
+		}
+		return s
+	case *ForStmt:
+		if s.Init != nil {
+			s.Init = r.rewriteSimpleStmt(s.Init)
+		}
+		if s.Cond != nil {
+			s.Cond = r.rewriteExpr(s.Cond)
+		}
+		if s.Post != nil {
+			s.Post = r.rewriteSimpleStmt(s.Post)
+		}
+		r.rewriteBlockStmt(s.Body)
+		return s
+	case *SwitchStmt:
+		if s.Init != nil {
+			s.Init = r.rewriteSimpleStmt(s.Init)
+		}
+		if s.Tag != nil {
+			s.Tag = r.rewriteExpr(s.Tag)
+		}
+		for _, cc := range s.Body {
+			r.rewriteCaseClause(cc)
+		}
+		return s
+	case *SelectStmt:
+		for _, cc := range s.Body {
+			r.rewriteCommClause(cc)
+		}
+		return s
+	case *BlockStmt:
+		r.rewriteBlockStmt(s)
+		return s
+	case *DeclStmt:
+		for _, d := range s.DeclList {
+			r.rewriteDecl(d)
+		}
+		return s
+	case *SendStmt:
+		s.Chan = r.rewriteExpr(s.Chan)
+		s.Value = r.rewriteExpr(s.Value)
+		return s
+	default:
+		return stmt
+	}
+}
+
+func (r *arithOpRewriter) rewriteSimpleStmt(stmt SimpleStmt) SimpleStmt {
+	if stmt == nil {
+		return nil
+	}
+	switch s := stmt.(type) {
+	case *ExprStmt:
+		s.X = r.rewriteExpr(s.X)
+		return s
+	case *AssignStmt:
+		rewritten := r.rewriteStmt(s)
+		if simple, ok := rewritten.(SimpleStmt); ok {
+			return simple
+		}
+		// Fallback: keep as-is (should not happen often).
+		s.Lhs = r.rewriteExpr(s.Lhs)
+		s.Rhs = r.rewriteExpr(s.Rhs)
+		return s
+	case *SendStmt:
+		s.Chan = r.rewriteExpr(s.Chan)
+		s.Value = r.rewriteExpr(s.Value)
+		return s
+	default:
+		return stmt
+	}
+}
+
+func (r *arithOpRewriter) rewriteCaseClause(cc *CaseClause) {
+	if cc == nil {
+		return
+	}
+	if cc.Cases != nil {
+		cc.Cases = r.rewriteExpr(cc.Cases)
+	}
+	for i, st := range cc.Body {
+		cc.Body[i] = r.rewriteStmt(st)
+	}
+}
+
+func (r *arithOpRewriter) rewriteCommClause(cc *CommClause) {
+	if cc == nil {
+		return
+	}
+	if cc.Comm != nil {
+		cc.Comm = r.rewriteSimpleStmt(cc.Comm)
+	}
+	for i, st := range cc.Body {
+		cc.Body[i] = r.rewriteStmt(st)
+	}
+}
+
+func (r *arithOpRewriter) rewriteExpr(expr Expr) Expr {
+	if expr == nil {
+		return nil
+	}
+
+	switch e := expr.(type) {
+	case *Operation:
+		// Only handle binary arithmetic operators.
+		if e.Y == nil {
+			e.X = r.rewriteExpr(e.X)
+			return e
+		}
+
+		// Rewrite children first.
+		left := r.rewriteExpr(e.X)
+		right := r.rewriteExpr(e.Y)
+		e.X, e.Y = left, right
+
+		if r.insideArithMethod {
+			return e
+		}
+
+		fwd, rev := arithMethodNamesForOp(e.Op)
+		if fwd == "" {
+			return e
+		}
+
+		leftType := r.tryInferStructTypeName(left)
+		rightType := r.tryInferStructTypeName(right)
+
+		// Prefer forward: a._add(b) (only if signature plausibly matches)
+		if leftType != "" && r.hasArithBinary(leftType, fwd, rightType) {
+			return r.createMethodCall(e.Pos(), left, fwd, []Expr{right})
+		}
+		// Fallback to reverse: b._radd(a)
+		if rev != "" && rightType != "" && r.hasArithBinary(rightType, rev, leftType) {
+			return r.createMethodCall(e.Pos(), right, rev, []Expr{left})
+		}
+
+		return e
+
+	case *CallExpr:
+		e.Fun = r.rewriteExpr(e.Fun)
+		for i, a := range e.ArgList {
+			e.ArgList[i] = r.rewriteExpr(a)
+		}
+		return e
+
+	case *SelectorExpr:
+		e.X = r.rewriteExpr(e.X)
+		return e
+
+	case *ParenExpr:
+		e.X = r.rewriteExpr(e.X)
+		return e
+
+	case *IndexExpr:
+		e.X = r.rewriteExpr(e.X)
+		e.Index = r.rewriteExpr(e.Index)
+		return e
+
+	case *SliceExpr:
+		e.X = r.rewriteExpr(e.X)
+		for i, idx := range e.Index {
+			if idx != nil {
+				e.Index[i] = r.rewriteExpr(idx)
+			}
+		}
+		return e
+
+	case *CompositeLit:
+		if e.Type != nil {
+			e.Type = r.rewriteExpr(e.Type)
+		}
+		for i, elem := range e.ElemList {
+			e.ElemList[i] = r.rewriteExpr(elem)
+		}
+		return e
+
+	case *KeyValueExpr:
+		e.Key = r.rewriteExpr(e.Key)
+		e.Value = r.rewriteExpr(e.Value)
+		return e
+
+	case *FuncLit:
+		if e.Body != nil {
+			r.rewriteBlockStmt(e.Body)
+		}
+		return e
+
+	case *AssertExpr:
+		e.X = r.rewriteExpr(e.X)
+		if e.Type != nil {
+			e.Type = r.rewriteExpr(e.Type)
+		}
+		return e
+
+	case *ListExpr:
+		for i, elem := range e.ElemList {
+			e.ElemList[i] = r.rewriteExpr(elem)
+		}
+		return e
+
+	default:
+		return expr
+	}
+}
+
+func (r *arithOpRewriter) rewriteIncDecStmt(stmt *AssignStmt) Stmt {
+	// Only rewrite if the LHS looks assignable (to preserve Go's checks reasonably).
+	if !isAssignableLike(stmt.Lhs) {
+		return stmt
+	}
+
+	var method string
+	switch stmt.Op {
+	case Add:
+		method = "_inc"
+	case Sub:
+		method = "_dec"
+	default:
+		return stmt
+	}
+
+	lhs := r.rewriteExpr(stmt.Lhs)
+	if r.insideArithMethod {
+		stmt.Lhs = lhs
+		return stmt
+	}
+	lhsType := r.tryInferStructTypeName(lhs)
+	if lhsType == "" || !r.hasArithNoArg(lhsType, method) {
+		stmt.Lhs = lhs
+		return stmt
+	}
+
+	call := r.createMethodCall(stmt.Pos(), lhs, method, nil)
+	es := new(ExprStmt)
+	es.SetPos(stmt.Pos())
+	es.X = call
+	return es
+}
+
+func (r *arithOpRewriter) hasArithNoArg(recvType string, methodName string) bool {
+	m, ok := r.arithMethods[recvType]
+	if !ok {
+		return false
+	}
+	cands := m[methodName]
+	return len(cands) > 0
+}
+
+// hasArithBinary reports whether recvType has a candidate method for methodName
+// whose (single) parameter can plausibly accept argType.
+//
+// argType is inferred syntactically and has no leading '*'. Empty argType means unknown.
+func (r *arithOpRewriter) hasArithBinary(recvType string, methodName string, argType string) bool {
+	m, ok := r.arithMethods[recvType]
+	if !ok {
+		return false
+	}
+	cands := m[methodName]
+	if len(cands) == 0 {
+		return false
+	}
+	// Unknown arg type: be optimistic (we only rewrite when receiver is known anyway).
+	if argType == "" {
+		return true
+	}
+	for _, fn := range cands {
+		if fn == nil || fn.Type == nil {
+			continue
+		}
+		params := fn.Type.ParamList
+		if len(params) != 1 {
+			continue
+		}
+		p := params[0]
+		if p == nil || p.Type == nil {
+			continue
+		}
+		pt := typeExprToString(p.Type)
+		if len(pt) > 0 && pt[0] == '*' {
+			pt = pt[1:]
+		}
+		// any/interface{} accept any type
+		if pt == "any" || pt == "interface{}" {
+			return true
+		}
+		if pt == argType {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *arithOpRewriter) createMethodCall(pos Pos, base Expr, methodName string, args []Expr) *CallExpr {
+	sel := new(SelectorExpr)
+	sel.SetPos(pos)
+	sel.X = base
+	sel.Sel = NewName(pos, methodName)
+
+	call := new(CallExpr)
+	call.SetPos(pos)
+	call.Fun = sel
+	call.ArgList = args
+	return call
+}
+
+// trackVarDeclTypes records variable types from var declarations.
+func (r *arithOpRewriter) trackVarDeclTypes(d *VarDecl) {
+	if d == nil {
+		return
+	}
+	if d.Type != nil {
+		typeName := typeExprToString(d.Type)
+		if len(typeName) > 0 && typeName[0] == '*' {
+			typeName = typeName[1:]
+		}
+		if _, exists := r.arithMethods[typeName]; exists {
+			for _, n := range d.NameList {
+				r.varTypes[n.Value] = typeName
+			}
+		}
+		return
+	}
+	if d.Values != nil {
+		r.trackAssignmentTypes(d.NameList, d.Values)
+	}
+}
+
+func (r *arithOpRewriter) trackShortVarDeclTypes(stmt *AssignStmt) {
+	if stmt == nil {
+		return
+	}
+	var names []*Name
+	switch lhs := stmt.Lhs.(type) {
+	case *Name:
+		names = []*Name{lhs}
+	case *ListExpr:
+		for _, elem := range lhs.ElemList {
+			if n, ok := elem.(*Name); ok {
+				names = append(names, n)
+			}
+		}
+	default:
+		return
+	}
+	r.trackAssignmentTypes(names, stmt.Rhs)
+}
+
+func (r *arithOpRewriter) trackAssignmentTypes(names []*Name, values Expr) {
+	if len(names) == 0 {
+		return
+	}
+	if len(names) == 1 {
+		typeName := r.tryInferStructTypeName(values)
+		if typeName != "" {
+			if _, exists := r.arithMethods[typeName]; exists {
+				r.varTypes[names[0].Value] = typeName
+			}
+		}
+		return
+	}
+	if list, ok := values.(*ListExpr); ok {
+		for i, n := range names {
+			if i >= len(list.ElemList) {
+				break
+			}
+			typeName := r.tryInferStructTypeName(list.ElemList[i])
+			if typeName != "" {
+				if _, exists := r.arithMethods[typeName]; exists {
+					r.varTypes[n.Value] = typeName
+				}
+			}
+		}
+	}
+}
+
+// tryInferStructTypeName attempts to infer the (non-pointer) struct type name
+// from an expression, using only local syntactic information.
+func (r *arithOpRewriter) tryInferStructTypeName(expr Expr) string {
+	switch e := expr.(type) {
+	case *Name:
+		if t, ok := r.varTypes[e.Value]; ok {
+			return t
+		}
+		return ""
+	case *ParenExpr:
+		return r.tryInferStructTypeName(e.X)
+	case *Operation:
+		// &T{} or *p
+		if e.Op == And && e.Y == nil {
+			return r.tryInferStructTypeName(e.X)
+		}
+		if e.Op == Mul && e.Y == nil {
+			return r.tryInferStructTypeName(e.X)
+		}
+		return ""
+	case *CompositeLit:
+		if e.Type != nil {
+			t := typeExprToString(e.Type)
+			if len(t) > 0 && t[0] == '*' {
+				t = t[1:]
+			}
+			return t
+		}
+		return ""
+	case *CallExpr:
+		// Try to infer from method call: x._add(y) etc.
+		// This enables chaining like: a + b + a  ->  a._add(b)._add(a)
+		if sel, ok := e.Fun.(*SelectorExpr); ok && sel.Sel != nil {
+			baseMagic := arithMagicBaseName(sel.Sel.Value)
+			if baseMagic != "" {
+				recvType := r.tryInferStructTypeName(sel.X)
+				if recvType != "" {
+					if r.methodReturnsReceiverType(recvType, baseMagic) {
+						return recvType
+					}
+				}
+			}
+		}
+		if name, ok := e.Fun.(*Name); ok {
+			if name.Value == "make" && len(e.ArgList) > 0 {
+				t := typeExprToString(e.ArgList[0])
+				if len(t) > 0 && t[0] == '*' {
+					t = t[1:]
+				}
+				return t
+			}
+			if rt, ok := r.funcReturnTypes[name.Value]; ok {
+				return rt
+			}
+		}
+		return ""
+	default:
+		return ""
+	}
+}
+
+// methodReturnsReceiverType reports whether receiver type's magic method returns
+// the receiver type (either as value or pointer). This is used only for
+// syntactic inference to enable chaining rewrites.
+func (r *arithOpRewriter) methodReturnsReceiverType(recvType string, baseMagic string) bool {
+	m, ok := r.arithMethods[recvType]
+	if !ok {
+		return false
+	}
+	cands := m[baseMagic]
+	for _, fn := range cands {
+		if fn == nil || fn.Type == nil || fn.Type.ResultList == nil || len(fn.Type.ResultList) != 1 {
+			continue
+		}
+		res := fn.Type.ResultList[0]
+		if res == nil || res.Type == nil {
+			continue
+		}
+		rt := typeExprToString(res.Type)
+		if rt == recvType {
+			return true
+		}
+		// Allow *T returning to infer T.
+		if len(rt) > 0 && rt[0] == '*' && rt[1:] == recvType {
+			return true
+		}
+	}
+	return false
+}
+
+func arithMethodNamesForOp(op Operator) (forward string, reverse string) {
+	switch op {
+	case Add:
+		return "_add", "_radd"
+	case Sub:
+		return "_sub", "_rsub"
+	case Mul:
+		return "_mul", "_rmul"
+	case Div:
+		return "_div", "_rdiv"
+	case Rem:
+		return "_mod", "_rmod"
+	default:
+		return "", ""
+	}
+}
+
+func isArithmeticMagicMethodName(name string) bool {
+	return isArithmeticMagicBase(name) || arithMagicBaseName(name) != ""
+}
+
+func isArithmeticMagicBase(name string) bool {
+	switch name {
+	case "_add", "_sub", "_mul", "_div", "_mod",
+		"_radd", "_rsub", "_rmul", "_rdiv", "_rmod",
+		"_inc", "_dec":
+		return true
+	default:
+		return false
+	}
+}
+
+// arithMagicBaseName returns the base magic name if name is a magic method or
+// its overloaded form (e.g. "_add_int" -> "_add").
+func arithMagicBaseName(name string) string {
+	if isArithmeticMagicBase(name) {
+		return name
+	}
+	// Overloaded form: base + "_" + suffix
+	bases := []string{
+		"_add", "_sub", "_mul", "_div", "_mod",
+		"_radd", "_rsub", "_rmul", "_rdiv", "_rmod",
+		"_inc", "_dec",
+	}
+	for _, b := range bases {
+		if len(name) > len(b) && name[:len(b)] == b && name[len(b)] == '_' {
+			return b
+		}
+	}
+	return ""
+}
+
+func isAssignableLike(e Expr) bool {
+	switch x := e.(type) {
+	case *Name:
+		return true
+	case *SelectorExpr:
+		return true
+	case *IndexExpr:
+		return true
+	case *SliceExpr:
+		return true
+	case *ParenExpr:
+		return isAssignableLike(x.X)
+	case *Operation:
+		// *p
+		return x.Op == Mul && x.Y == nil && isAssignableLike(x.X)
+	default:
+		return false
+	}
 }
 
 // RewriteOverloadedCalls replaces method calls with the correct overloaded version

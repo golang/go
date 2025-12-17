@@ -61,11 +61,12 @@ func LoadPackage(filenames []string) {
 				if p.file != nil {
 					syntax.RewriteQuestionExprs(p.file)
 					syntax.RewriteMagicMethods(p.file)                          // 1. 先处理魔法方法 (_getitem, _setitem) - 必须在重载前!
-					p.overloadInfo = syntax.PreprocessOverloadedMethods(p.file) // 2. 处理方法重载（会重命名_init和_getitem/_setitem）
-					syntax.AddReturnToInitMethods(p.file)                       // 3. 给所有_init方法添加返回值
-					syntax.RewriteMethodDecorators(p.file)                      // 4. 处理装饰器
-					syntax.RewriteDefaultParams(p.file)                         // 5. 处理默认参数
-					syntax.RewriteConstructors(p.file)                          // 6. 最后处理构造函数
+					syntax.RewriteArithmeticOperators(p.file)                   // 2. 处理算术运算符重载（_add/_radd/.../_inc/_dec）- 必须在重载前!
+					p.overloadInfo = syntax.PreprocessOverloadedMethods(p.file) // 3. 处理方法重载（会重命名_init和_getitem/_setitem）
+					syntax.AddReturnToInitMethods(p.file)                       // 4. 给所有_init方法添加返回值
+					syntax.RewriteMethodDecorators(p.file)                      // 5. 处理装饰器
+					syntax.RewriteDefaultParams(p.file)                         // 6. 处理默认参数
+					syntax.RewriteConstructors(p.file)                          // 7. 最后处理构造函数
 				}
 			}()
 		}
