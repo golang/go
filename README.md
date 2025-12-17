@@ -726,6 +726,136 @@ func main() {
 }
 ```
 
+### 算数运算符重载
+
+MyGo 支持通过 `_add`、`_sub` 等一系列特定命名的方法，实现对标准算术运算符（`+`, `-`, `*`, `/` 等）的重载。
+
+规则描述
+编译器在处理二元运算（如 `a + b`）时，遵循以下解析顺序：
+
+1. 正向优先 (*Forward*)：优先尝试调用左操作数的方法（如 `a._add(b)`）。
+
+2. 反向回退 (*Fallback*)：如果正向方法不存在或不匹配，尝试调用右操作数反向方法（如 `b._radd(a)`）。
+
+3. 单目特例：自增 (`++`) 和自减 (`--`) 仅支持正向调用，不支持反向。
+
+| 运算符 | 正向方法 (主) | 反向方法 (备选) | 备注 |
+| :---: | :--- | :--- | :--- |
+| `+` | `func _add(b T) T` | `func _radd(a T) T` | 加法 |
+| `-` | `func _sub(b T) T` | `func _rsub(a T) T` | 减法 |
+| `*` | `func _mul(b T) T` | `func _rmul(a T) T` | 乘法 |
+| `/` | `func _div(b T) T` | `func _rdiv(a T) T` | 除法 |
+| `%` | `func _mod(b T) T` | `func _rmod(a T) T` | 取模 |
+| `++` | `func _inc()` | N/A | 自增 (无返回值) |
+| `--` | `func _dec()` | N/A | 自减 (无返回值) |
+
+#### 向量运算
+
+这个特性最常见的场景就是`向量计算`
+
+```go
+package main
+
+import "fmt"
+
+// Vector 支持正向 + 和 ++
+type Vector struct {
+    x, y int
+}
+
+// _add: 对应 a + b
+func (v *Vector) _add(other *Vector) *Vector {
+    return &Vector{x: v.x + other.x, y: v.y + other.y}
+}
+
+// _sub: 对应 a - b
+func (v *Vector) _sub(other *Vector) *Vector {
+    return &Vector{x: v.x - other.x, y: v.y - other.y}
+}
+
+// _inc: 对应 v++
+func (v *Vector) _inc() {
+    v.x++
+    v.y++
+}
+
+func main() {
+    v1 := &Vector{x: 1, y: 1}
+    v2 := &Vector{x: 2, y: 3}
+
+    // 基础加减
+    v3 := v1 + v2       // 调用 v1._add(v2)
+    fmt.Println(v3)     // 输出: &{3 4}
+    
+    // 链式运算
+    v4 := v1 + v2 - v1  // (v1._add(v2))._sub(v1)
+    fmt.Println(v4)     // 输出: &{2 3}
+
+    // 自增操作
+    v1++                // 调用 v1._inc()
+    fmt.Println(v1)     // 输出: &{2 2}
+}
+```
+
+#### 混合类型与反向运算
+
+MyGo 可以通过反向运算符（*Reverse Operators*）处理混合类型运算。例如，当实现 `Vector` + `Scalar`（`向量` + `标量`）时，如果 `Vector` 未定义对 `Scalar` 的加法，可以由 `Scalar` 定义对 `Vector` 的反向加法。
+
+```go
+package main
+
+import "fmt"
+
+type NDArray struct {
+	data []int
+}
+
+// _add: NDArray + NDArray
+func (a *NDArray) _add(b *NDArray) *NDArray {
+	// 简化演示：假设长度一致
+	res := make([]int, len(a.data))
+	for i, v := range a.data {
+		res[i] = v + b.data[i]
+	}
+	return &NDArray{data: res}
+}
+
+type Scalar struct {
+	val int
+}
+
+// _radd: 处理 NDArray + Scalar
+// 当左侧是 NDArray 且没有匹配的 _add(Scalar) 时，
+// 编译器会尝试调用右侧 Scalar 的 _radd(NDArray)
+func (s *Scalar) _radd(arr *NDArray) *NDArray {
+	fmt.Println("触发反向运算: Scalar._radd")
+	res := make([]int, len(arr.data))
+	for i, v := range arr.data {
+		res[i] = v + s.val
+	}
+	return &NDArray{data: res}
+}
+
+func main() {
+	arr := &NDArray{data: []int{10, 20, 30}}
+	num := &Scalar{val: 5}
+
+	// 1. 同类型运算
+	// arr._add(arr)
+	sumArr := arr + arr
+	fmt.Println("Vec + Vec:", sumArr.data)
+	// 输出: [20 40 60]
+
+	// 2. 混合类型运算 (触发反向)
+	// 流程:
+	// a. 查找 arr._add(num) -> 未找到
+	// b. 查找 num._radd(arr) -> 找到并调用
+	mixed := arr + num
+	fmt.Println("Vec + Scalar:", mixed.data)
+	// 输出: 触发反向运算: Scalar._radd
+	// 输出: [15 25 35]
+}
+```
 
 ---
 
