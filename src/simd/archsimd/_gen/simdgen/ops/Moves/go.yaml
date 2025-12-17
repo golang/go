@@ -1001,6 +1001,7 @@
   - *uint128
   - class: immediate
     immOffset: 0
+    name: shift
   out:
   - *uint128
 
@@ -1014,5 +1015,6 @@
   - *uint256512
   - class: immediate
     immOffset: 0
+    name: shift
   out:
   - *uint256512

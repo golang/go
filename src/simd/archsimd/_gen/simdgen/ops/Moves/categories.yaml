@@ -236,12 +236,12 @@
 - go: ConcatShiftBytesRight
   commutative: false
   documentation: !string |-
-    // NAME concatenates x and y and shift it right by constant bytes.
+    // NAME concatenates x and y and shift it right by shift bytes.
     // The result vector will be the lower half of the concatenated vector.
 
 - go: ConcatShiftBytesRightGrouped
   commutative: false
   documentation: !string |-
-    // NAME concatenates x and y and shift it right by constant bytes.
+    // NAME concatenates x and y and shift it right by shift bytes.
     // The result vector will be the lower half of the concatenated vector.
     // This operation is performed grouped by each 16 byte.

@@ -23,7 +23,7 @@
   commutative: false
   constImm: 0
   documentation: !string |-
-    // NAME rounds elements to the nearest integer.
+    // NAME rounds elements to the nearest integer, rounding ties to even.
 - go: RoundToEvenScaled
   commutative: false
   constImm: 0

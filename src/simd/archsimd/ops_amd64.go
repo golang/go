@@ -1516,33 +1516,33 @@ func (x Uint64x8) ConcatPermute(y Uint64x8, indices Uint64x8) Uint64x8
 
 /* ConcatShiftBytesRight */
 
-// ConcatShiftBytesRight concatenates x and y and shift it right by constant bytes.
+// ConcatShiftBytesRight concatenates x and y and shift it right by shift bytes.
 // The result vector will be the lower half of the concatenated vector.
 //
-// constant results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPALIGNR, CPU Feature: AVX
-func (x Uint8x16) ConcatShiftBytesRight(constant uint8, y Uint8x16) Uint8x16
+func (x Uint8x16) ConcatShiftBytesRight(shift uint8, y Uint8x16) Uint8x16
 
 /* ConcatShiftBytesRightGrouped */
 
-// ConcatShiftBytesRightGrouped concatenates x and y and shift it right by constant bytes.
+// ConcatShiftBytesRightGrouped concatenates x and y and shift it right by shift bytes.
 // The result vector will be the lower half of the concatenated vector.
 // This operation is performed grouped by each 16 byte.
 //
-// constant results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPALIGNR, CPU Feature: AVX2
-func (x Uint8x32) ConcatShiftBytesRightGrouped(constant uint8, y Uint8x32) Uint8x32
+func (x Uint8x32) ConcatShiftBytesRightGrouped(shift uint8, y Uint8x32) Uint8x32
 
-// ConcatShiftBytesRightGrouped concatenates x and y and shift it right by constant bytes.
+// ConcatShiftBytesRightGrouped concatenates x and y and shift it right by shift bytes.
 // The result vector will be the lower half of the concatenated vector.
 // This operation is performed grouped by each 16 byte.
 //
-// constant results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPALIGNR, CPU Feature: AVX512
-func (x Uint8x64) ConcatShiftBytesRightGrouped(constant uint8, y Uint8x64) Uint8x64
+func (x Uint8x64) ConcatShiftBytesRightGrouped(shift uint8, y Uint8x64) Uint8x64
 
 /* ConvertToFloat32 */
 
@@ -1872,38 +1872,38 @@ func (x Float64x8) ConvertToUint64() Uint64x8
 
 /* CopySign */
 
-// CopySign returns the product of the first operand with -1, 0, or 1,
-// whichever constant is nearest to the value of the second operand.
+// CopySign returns the product of x with -1, 0, or 1,
+// whichever constant is nearest to the value of y.
 //
 // Asm: VPSIGNB, CPU Feature: AVX
 func (x Int8x16) CopySign(y Int8x16) Int8x16
 
-// CopySign returns the product of the first operand with -1, 0, or 1,
-// whichever constant is nearest to the value of the second operand.
+// CopySign returns the product of x with -1, 0, or 1,
+// whichever constant is nearest to the value of y.
 //
 // Asm: VPSIGNB, CPU Feature: AVX2
 func (x Int8x32) CopySign(y Int8x32) Int8x32
 
-// CopySign returns the product of the first operand with -1, 0, or 1,
-// whichever constant is nearest to the value of the second operand.
+// CopySign returns the product of x with -1, 0, or 1,
+// whichever constant is nearest to the value of y.
 //
 // Asm: VPSIGNW, CPU Feature: AVX
 func (x Int16x8) CopySign(y Int16x8) Int16x8
 
-// CopySign returns the product of the first operand with -1, 0, or 1,
-// whichever constant is nearest to the value of the second operand.
+// CopySign returns the product of x with -1, 0, or 1,
+// whichever constant is nearest to the value of y.
 //
 // Asm: VPSIGNW, CPU Feature: AVX2
 func (x Int16x16) CopySign(y Int16x16) Int16x16
 
-// CopySign returns the product of the first operand with -1, 0, or 1,
-// whichever constant is nearest to the value of the second operand.
+// CopySign returns the product of x with -1, 0, or 1,
+// whichever constant is nearest to the value of y.
 //
 // Asm: VPSIGND, CPU Feature: AVX
 func (x Int32x4) CopySign(y Int32x4) Int32x4
 
-// CopySign returns the product of the first operand with -1, 0, or 1,
-// whichever constant is nearest to the value of the second operand.
+// CopySign returns the product of x with -1, 0, or 1,
+// whichever constant is nearest to the value of y.
 //
 // Asm: VPSIGND, CPU Feature: AVX2
 func (x Int32x8) CopySign(y Int32x8) Int32x8
@@ -3655,304 +3655,304 @@ func (x Uint64x8) LessEqual(y Uint64x8) Mask64x8
 
 /* Max */
 
-// Max computes the maximum of corresponding elements.
+// Max computes the maximum of each pair of corresponding elements in x and y.
 //
 // Asm: VMAXPS, CPU Feature: AVX
 func (x Float32x4) Max(y Float32x4) Float32x4
 
-// Max computes the maximum of corresponding elements.
+// Max computes the maximum of each pair of corresponding elements in x and y.
 //
 // Asm: VMAXPS, CPU Feature: AVX
 func (x Float32x8) Max(y Float32x8) Float32x8
 
-// Max computes the maximum of corresponding elements.
+// Max computes the maximum of each pair of corresponding elements in x and y.
 //
 // Asm: VMAXPS, CPU Feature: AVX512
 func (x Float32x16) Max(y Float32x16) Float32x16
 
-// Max computes the maximum of corresponding elements.
+// Max computes the maximum of each pair of corresponding elements in x and y.
 //
 // Asm: VMAXPD, CPU Feature: AVX
 func (x Float64x2) Max(y Float64x2) Float64x2
 
-// Max computes the maximum of corresponding elements.
+// Max computes the maximum of each pair of corresponding elements in x and y.
 //
 // Asm: VMAXPD, CPU Feature: AVX
 func (x Float64x4) Max(y Float64x4) Float64x4
 
-// Max computes the maximum of corresponding elements.
+// Max computes the maximum of each pair of corresponding elements in x and y.
 //
 // Asm: VMAXPD, CPU Feature: AVX512
 func (x Float64x8) Max(y Float64x8) Float64x8
 
-// Max computes the maximum of corresponding elements.
+// Max computes the maximum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMAXSB, CPU Feature: AVX
 func (x Int8x16) Max(y Int8x16) Int8x16
 
-// Max computes the maximum of corresponding elements.
+// Max computes the maximum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMAXSB, CPU Feature: AVX2
 func (x Int8x32) Max(y Int8x32) Int8x32
 
-// Max computes the maximum of corresponding elements.
+// Max computes the maximum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMAXSB, CPU Feature: AVX512
 func (x Int8x64) Max(y Int8x64) Int8x64
 
-// Max computes the maximum of corresponding elements.
+// Max computes the maximum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMAXSW, CPU Feature: AVX
 func (x Int16x8) Max(y Int16x8) Int16x8
 
-// Max computes the maximum of corresponding elements.
+// Max computes the maximum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMAXSW, CPU Feature: AVX2
 func (x Int16x16) Max(y Int16x16) Int16x16
 
-// Max computes the maximum of corresponding elements.
+// Max computes the maximum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMAXSW, CPU Feature: AVX512
 func (x Int16x32) Max(y Int16x32) Int16x32
 
-// Max computes the maximum of corresponding elements.
+// Max computes the maximum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMAXSD, CPU Feature: AVX
 func (x Int32x4) Max(y Int32x4) Int32x4
 
-// Max computes the maximum of corresponding elements.
+// Max computes the maximum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMAXSD, CPU Feature: AVX2
 func (x Int32x8) Max(y Int32x8) Int32x8
 
-// Max computes the maximum of corresponding elements.
+// Max computes the maximum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMAXSD, CPU Feature: AVX512
 func (x Int32x16) Max(y Int32x16) Int32x16
 
-// Max computes the maximum of corresponding elements.
+// Max computes the maximum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMAXSQ, CPU Feature: AVX512
 func (x Int64x2) Max(y Int64x2) Int64x2
 
-// Max computes the maximum of corresponding elements.
+// Max computes the maximum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMAXSQ, CPU Feature: AVX512
 func (x Int64x4) Max(y Int64x4) Int64x4
 
-// Max computes the maximum of corresponding elements.
+// Max computes the maximum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMAXSQ, CPU Feature: AVX512
 func (x Int64x8) Max(y Int64x8) Int64x8
 
-// Max computes the maximum of corresponding elements.
+// Max computes the maximum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMAXUB, CPU Feature: AVX
 func (x Uint8x16) Max(y Uint8x16) Uint8x16
 
-// Max computes the maximum of corresponding elements.
+// Max computes the maximum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMAXUB, CPU Feature: AVX2
 func (x Uint8x32) Max(y Uint8x32) Uint8x32
 
-// Max computes the maximum of corresponding elements.
+// Max computes the maximum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMAXUB, CPU Feature: AVX512
 func (x Uint8x64) Max(y Uint8x64) Uint8x64
 
-// Max computes the maximum of corresponding elements.
+// Max computes the maximum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMAXUW, CPU Feature: AVX
 func (x Uint16x8) Max(y Uint16x8) Uint16x8
 
-// Max computes the maximum of corresponding elements.
+// Max computes the maximum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMAXUW, CPU Feature: AVX2
 func (x Uint16x16) Max(y Uint16x16) Uint16x16
 
-// Max computes the maximum of corresponding elements.
+// Max computes the maximum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMAXUW, CPU Feature: AVX512
 func (x Uint16x32) Max(y Uint16x32) Uint16x32
 
-// Max computes the maximum of corresponding elements.
+// Max computes the maximum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMAXUD, CPU Feature: AVX
 func (x Uint32x4) Max(y Uint32x4) Uint32x4
 
-// Max computes the maximum of corresponding elements.
+// Max computes the maximum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMAXUD, CPU Feature: AVX2
 func (x Uint32x8) Max(y Uint32x8) Uint32x8
 
-// Max computes the maximum of corresponding elements.
+// Max computes the maximum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMAXUD, CPU Feature: AVX512
 func (x Uint32x16) Max(y Uint32x16) Uint32x16
 
-// Max computes the maximum of corresponding elements.
+// Max computes the maximum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMAXUQ, CPU Feature: AVX512
 func (x Uint64x2) Max(y Uint64x2) Uint64x2
 
-// Max computes the maximum of corresponding elements.
+// Max computes the maximum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMAXUQ, CPU Feature: AVX512
 func (x Uint64x4) Max(y Uint64x4) Uint64x4
 
-// Max computes the maximum of corresponding elements.
+// Max computes the maximum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMAXUQ, CPU Feature: AVX512
 func (x Uint64x8) Max(y Uint64x8) Uint64x8
 
 /* Min */
 
-// Min computes the minimum of corresponding elements.
+// Min computes the minimum of each pair of corresponding elements in x and y.
 //
 // Asm: VMINPS, CPU Feature: AVX
 func (x Float32x4) Min(y Float32x4) Float32x4
 
-// Min computes the minimum of corresponding elements.
+// Min computes the minimum of each pair of corresponding elements in x and y.
 //
 // Asm: VMINPS, CPU Feature: AVX
 func (x Float32x8) Min(y Float32x8) Float32x8
 
-// Min computes the minimum of corresponding elements.
+// Min computes the minimum of each pair of corresponding elements in x and y.
 //
 // Asm: VMINPS, CPU Feature: AVX512
 func (x Float32x16) Min(y Float32x16) Float32x16
 
-// Min computes the minimum of corresponding elements.
+// Min computes the minimum of each pair of corresponding elements in x and y.
 //
 // Asm: VMINPD, CPU Feature: AVX
 func (x Float64x2) Min(y Float64x2) Float64x2
 
-// Min computes the minimum of corresponding elements.
+// Min computes the minimum of each pair of corresponding elements in x and y.
 //
 // Asm: VMINPD, CPU Feature: AVX
 func (x Float64x4) Min(y Float64x4) Float64x4
 
-// Min computes the minimum of corresponding elements.
+// Min computes the minimum of each pair of corresponding elements in x and y.
 //
 // Asm: VMINPD, CPU Feature: AVX512
 func (x Float64x8) Min(y Float64x8) Float64x8
 
-// Min computes the minimum of corresponding elements.
+// Min computes the minimum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMINSB, CPU Feature: AVX
 func (x Int8x16) Min(y Int8x16) Int8x16
 
-// Min computes the minimum of corresponding elements.
+// Min computes the minimum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMINSB, CPU Feature: AVX2
 func (x Int8x32) Min(y Int8x32) Int8x32
 
-// Min computes the minimum of corresponding elements.
+// Min computes the minimum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMINSB, CPU Feature: AVX512
 func (x Int8x64) Min(y Int8x64) Int8x64
 
-// Min computes the minimum of corresponding elements.
+// Min computes the minimum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMINSW, CPU Feature: AVX
 func (x Int16x8) Min(y Int16x8) Int16x8
 
-// Min computes the minimum of corresponding elements.
+// Min computes the minimum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMINSW, CPU Feature: AVX2
 func (x Int16x16) Min(y Int16x16) Int16x16
 
-// Min computes the minimum of corresponding elements.
+// Min computes the minimum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMINSW, CPU Feature: AVX512
 func (x Int16x32) Min(y Int16x32) Int16x32
 
-// Min computes the minimum of corresponding elements.
+// Min computes the minimum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMINSD, CPU Feature: AVX
 func (x Int32x4) Min(y Int32x4) Int32x4
 
-// Min computes the minimum of corresponding elements.
+// Min computes the minimum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMINSD, CPU Feature: AVX2
 func (x Int32x8) Min(y Int32x8) Int32x8
 
-// Min computes the minimum of corresponding elements.
+// Min computes the minimum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMINSD, CPU Feature: AVX512
 func (x Int32x16) Min(y Int32x16) Int32x16
 
-// Min computes the minimum of corresponding elements.
+// Min computes the minimum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMINSQ, CPU Feature: AVX512
 func (x Int64x2) Min(y Int64x2) Int64x2
 
-// Min computes the minimum of corresponding elements.
+// Min computes the minimum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMINSQ, CPU Feature: AVX512
 func (x Int64x4) Min(y Int64x4) Int64x4
 
-// Min computes the minimum of corresponding elements.
+// Min computes the minimum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMINSQ, CPU Feature: AVX512
 func (x Int64x8) Min(y Int64x8) Int64x8
 
-// Min computes the minimum of corresponding elements.
+// Min computes the minimum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMINUB, CPU Feature: AVX
 func (x Uint8x16) Min(y Uint8x16) Uint8x16
 
-// Min computes the minimum of corresponding elements.
+// Min computes the minimum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMINUB, CPU Feature: AVX2
 func (x Uint8x32) Min(y Uint8x32) Uint8x32
 
-// Min computes the minimum of corresponding elements.
+// Min computes the minimum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMINUB, CPU Feature: AVX512
 func (x Uint8x64) Min(y Uint8x64) Uint8x64
 
-// Min computes the minimum of corresponding elements.
+// Min computes the minimum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMINUW, CPU Feature: AVX
 func (x Uint16x8) Min(y Uint16x8) Uint16x8
 
-// Min computes the minimum of corresponding elements.
+// Min computes the minimum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMINUW, CPU Feature: AVX2
 func (x Uint16x16) Min(y Uint16x16) Uint16x16
 
-// Min computes the minimum of corresponding elements.
+// Min computes the minimum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMINUW, CPU Feature: AVX512
 func (x Uint16x32) Min(y Uint16x32) Uint16x32
 
-// Min computes the minimum of corresponding elements.
+// Min computes the minimum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMINUD, CPU Feature: AVX
 func (x Uint32x4) Min(y Uint32x4) Uint32x4
 
-// Min computes the minimum of corresponding elements.
+// Min computes the minimum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMINUD, CPU Feature: AVX2
 func (x Uint32x8) Min(y Uint32x8) Uint32x8
 
-// Min computes the minimum of corresponding elements.
+// Min computes the minimum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMINUD, CPU Feature: AVX512
 func (x Uint32x16) Min(y Uint32x16) Uint32x16
 
-// Min computes the minimum of corresponding elements.
+// Min computes the minimum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMINUQ, CPU Feature: AVX512
 func (x Uint64x2) Min(y Uint64x2) Uint64x2
 
-// Min computes the minimum of corresponding elements.
+// Min computes the minimum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMINUQ, CPU Feature: AVX512
 func (x Uint64x4) Min(y Uint64x4) Uint64x4
 
-// Min computes the minimum of corresponding elements.
+// Min computes the minimum of each pair of corresponding elements in x and y.
 //
 // Asm: VPMINUQ, CPU Feature: AVX512
 func (x Uint64x8) Min(y Uint64x8) Uint64x8
@@ -4146,25 +4146,25 @@ func (x Float64x8) MulAddSub(y Float64x8, z Float64x8) Float64x8
 /* MulEvenWiden */
 
 // MulEvenWiden multiplies even-indexed elements, widening the result.
-// Result[i] = v1.Even[i] * v2.Even[i].
+// Result[i] = v1[2*i] * v2[2*i].
 //
 // Asm: VPMULDQ, CPU Feature: AVX
 func (x Int32x4) MulEvenWiden(y Int32x4) Int64x2
 
 // MulEvenWiden multiplies even-indexed elements, widening the result.
-// Result[i] = v1.Even[i] * v2.Even[i].
+// Result[i] = v1[2*i] * v2[2*i].
 //
 // Asm: VPMULDQ, CPU Feature: AVX2
 func (x Int32x8) MulEvenWiden(y Int32x8) Int64x4
 
 // MulEvenWiden multiplies even-indexed elements, widening the result.
-// Result[i] = v1.Even[i] * v2.Even[i].
+// Result[i] = v1[2*i] * v2[2*i].
 //
 // Asm: VPMULUDQ, CPU Feature: AVX
 func (x Uint32x4) MulEvenWiden(y Uint32x4) Uint64x2
 
 // MulEvenWiden multiplies even-indexed elements, widening the result.
-// Result[i] = v1.Even[i] * v2.Even[i].
+// Result[i] = v1[2*i] * v2[2*i].
 //
 // Asm: VPMULUDQ, CPU Feature: AVX2
 func (x Uint32x8) MulEvenWiden(y Uint32x8) Uint64x4
@@ -5137,22 +5137,22 @@ func (x Uint64x8) RotateRight(y Uint64x8) Uint64x8
 
 /* RoundToEven */
 
-// RoundToEven rounds elements to the nearest integer.
+// RoundToEven rounds elements to the nearest integer, rounding ties to even.
 //
 // Asm: VROUNDPS, CPU Feature: AVX
 func (x Float32x4) RoundToEven() Float32x4
 
-// RoundToEven rounds elements to the nearest integer.
+// RoundToEven rounds elements to the nearest integer, rounding ties to even.
 //
 // Asm: VROUNDPS, CPU Feature: AVX
 func (x Float32x8) RoundToEven() Float32x8
 
-// RoundToEven rounds elements to the nearest integer.
+// RoundToEven rounds elements to the nearest integer, rounding ties to even.
 //
 // Asm: VROUNDPD, CPU Feature: AVX
 func (x Float64x2) RoundToEven() Float64x2
 
-// RoundToEven rounds elements to the nearest integer.
+// RoundToEven rounds elements to the nearest integer, rounding ties to even.
 //
 // Asm: VROUNDPD, CPU Feature: AVX
 func (x Float64x4) RoundToEven() Float64x4
