@@ -4877,84 +4877,84 @@ func (x Float64x8) ReciprocalSqrt() Float64x8
 
 /* RotateAllLeft */
 
-// RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
+// RotateAllLeft rotates each element to the left by the number of bits specified by shift.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPROLD, CPU Feature: AVX512
 func (x Int32x4) RotateAllLeft(shift uint8) Int32x4
 
-// RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
+// RotateAllLeft rotates each element to the left by the number of bits specified by shift.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPROLD, CPU Feature: AVX512
 func (x Int32x8) RotateAllLeft(shift uint8) Int32x8
 
-// RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
+// RotateAllLeft rotates each element to the left by the number of bits specified by shift.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPROLD, CPU Feature: AVX512
 func (x Int32x16) RotateAllLeft(shift uint8) Int32x16
 
-// RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
+// RotateAllLeft rotates each element to the left by the number of bits specified by shift.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPROLQ, CPU Feature: AVX512
 func (x Int64x2) RotateAllLeft(shift uint8) Int64x2
 
-// RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
+// RotateAllLeft rotates each element to the left by the number of bits specified by shift.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPROLQ, CPU Feature: AVX512
 func (x Int64x4) RotateAllLeft(shift uint8) Int64x4
 
-// RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
+// RotateAllLeft rotates each element to the left by the number of bits specified by shift.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPROLQ, CPU Feature: AVX512
 func (x Int64x8) RotateAllLeft(shift uint8) Int64x8
 
-// RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
+// RotateAllLeft rotates each element to the left by the number of bits specified by shift.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPROLD, CPU Feature: AVX512
 func (x Uint32x4) RotateAllLeft(shift uint8) Uint32x4
 
-// RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
+// RotateAllLeft rotates each element to the left by the number of bits specified by shift.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPROLD, CPU Feature: AVX512
 func (x Uint32x8) RotateAllLeft(shift uint8) Uint32x8
 
-// RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
+// RotateAllLeft rotates each element to the left by the number of bits specified by shift.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPROLD, CPU Feature: AVX512
 func (x Uint32x16) RotateAllLeft(shift uint8) Uint32x16
 
-// RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
+// RotateAllLeft rotates each element to the left by the number of bits specified by shift.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPROLQ, CPU Feature: AVX512
 func (x Uint64x2) RotateAllLeft(shift uint8) Uint64x2
 
-// RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
+// RotateAllLeft rotates each element to the left by the number of bits specified by shift.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPROLQ, CPU Feature: AVX512
 func (x Uint64x4) RotateAllLeft(shift uint8) Uint64x4
 
-// RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
+// RotateAllLeft rotates each element to the left by the number of bits specified by shift.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
@@ -4963,84 +4963,84 @@ func (x Uint64x8) RotateAllLeft(shift uint8) Uint64x8
 
 /* RotateAllRight */
 
-// RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
+// RotateAllRight rotates each element to the right by the number of bits specified by shift.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPRORD, CPU Feature: AVX512
 func (x Int32x4) RotateAllRight(shift uint8) Int32x4
 
-// RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
+// RotateAllRight rotates each element to the right by the number of bits specified by shift.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPRORD, CPU Feature: AVX512
 func (x Int32x8) RotateAllRight(shift uint8) Int32x8
 
-// RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
+// RotateAllRight rotates each element to the right by the number of bits specified by shift.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPRORD, CPU Feature: AVX512
 func (x Int32x16) RotateAllRight(shift uint8) Int32x16
 
-// RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
+// RotateAllRight rotates each element to the right by the number of bits specified by shift.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPRORQ, CPU Feature: AVX512
 func (x Int64x2) RotateAllRight(shift uint8) Int64x2
 
-// RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
+// RotateAllRight rotates each element to the right by the number of bits specified by shift.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPRORQ, CPU Feature: AVX512
 func (x Int64x4) RotateAllRight(shift uint8) Int64x4
 
-// RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
+// RotateAllRight rotates each element to the right by the number of bits specified by shift.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPRORQ, CPU Feature: AVX512
 func (x Int64x8) RotateAllRight(shift uint8) Int64x8
 
-// RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
+// RotateAllRight rotates each element to the right by the number of bits specified by shift.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPRORD, CPU Feature: AVX512
 func (x Uint32x4) RotateAllRight(shift uint8) Uint32x4
 
-// RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
+// RotateAllRight rotates each element to the right by the number of bits specified by shift.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPRORD, CPU Feature: AVX512
 func (x Uint32x8) RotateAllRight(shift uint8) Uint32x8
 
-// RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
+// RotateAllRight rotates each element to the right by the number of bits specified by shift.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPRORD, CPU Feature: AVX512
 func (x Uint32x16) RotateAllRight(shift uint8) Uint32x16
 
-// RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
+// RotateAllRight rotates each element to the right by the number of bits specified by shift.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPRORQ, CPU Feature: AVX512
 func (x Uint64x2) RotateAllRight(shift uint8) Uint64x2
 
-// RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
+// RotateAllRight rotates each element to the right by the number of bits specified by shift.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPRORQ, CPU Feature: AVX512
 func (x Uint64x4) RotateAllRight(shift uint8) Uint64x4
 
-// RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
+// RotateAllRight rotates each element to the right by the number of bits specified by shift.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
@@ -6131,236 +6131,236 @@ func (x Uint64x8) SetLo(y Uint64x4) Uint64x8
 
 /* ShiftAllLeft */
 
-// ShiftAllLeft shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+// ShiftAllLeft shifts each element to the left by y bits.
 //
 // Asm: VPSLLW, CPU Feature: AVX
 func (x Int16x8) ShiftAllLeft(y uint64) Int16x8
 
-// ShiftAllLeft shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+// ShiftAllLeft shifts each element to the left by y bits.
 //
 // Asm: VPSLLW, CPU Feature: AVX2
 func (x Int16x16) ShiftAllLeft(y uint64) Int16x16
 
-// ShiftAllLeft shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+// ShiftAllLeft shifts each element to the left by y bits.
 //
 // Asm: VPSLLW, CPU Feature: AVX512
 func (x Int16x32) ShiftAllLeft(y uint64) Int16x32
 
-// ShiftAllLeft shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+// ShiftAllLeft shifts each element to the left by y bits.
 //
 // Asm: VPSLLD, CPU Feature: AVX
 func (x Int32x4) ShiftAllLeft(y uint64) Int32x4
 
-// ShiftAllLeft shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+// ShiftAllLeft shifts each element to the left by y bits.
 //
 // Asm: VPSLLD, CPU Feature: AVX2
 func (x Int32x8) ShiftAllLeft(y uint64) Int32x8
 
-// ShiftAllLeft shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+// ShiftAllLeft shifts each element to the left by y bits.
 //
 // Asm: VPSLLD, CPU Feature: AVX512
 func (x Int32x16) ShiftAllLeft(y uint64) Int32x16
 
-// ShiftAllLeft shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+// ShiftAllLeft shifts each element to the left by y bits.
 //
 // Asm: VPSLLQ, CPU Feature: AVX
 func (x Int64x2) ShiftAllLeft(y uint64) Int64x2
 
-// ShiftAllLeft shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+// ShiftAllLeft shifts each element to the left by y bits.
 //
 // Asm: VPSLLQ, CPU Feature: AVX2
 func (x Int64x4) ShiftAllLeft(y uint64) Int64x4
 
-// ShiftAllLeft shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+// ShiftAllLeft shifts each element to the left by y bits.
 //
 // Asm: VPSLLQ, CPU Feature: AVX512
 func (x Int64x8) ShiftAllLeft(y uint64) Int64x8
 
-// ShiftAllLeft shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+// ShiftAllLeft shifts each element to the left by y bits.
 //
 // Asm: VPSLLW, CPU Feature: AVX
 func (x Uint16x8) ShiftAllLeft(y uint64) Uint16x8
 
-// ShiftAllLeft shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+// ShiftAllLeft shifts each element to the left by y bits.
 //
 // Asm: VPSLLW, CPU Feature: AVX2
 func (x Uint16x16) ShiftAllLeft(y uint64) Uint16x16
 
-// ShiftAllLeft shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+// ShiftAllLeft shifts each element to the left by y bits.
 //
 // Asm: VPSLLW, CPU Feature: AVX512
 func (x Uint16x32) ShiftAllLeft(y uint64) Uint16x32
 
-// ShiftAllLeft shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+// ShiftAllLeft shifts each element to the left by y bits.
 //
 // Asm: VPSLLD, CPU Feature: AVX
 func (x Uint32x4) ShiftAllLeft(y uint64) Uint32x4
 
-// ShiftAllLeft shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+// ShiftAllLeft shifts each element to the left by y bits.
 //
 // Asm: VPSLLD, CPU Feature: AVX2
 func (x Uint32x8) ShiftAllLeft(y uint64) Uint32x8
 
-// ShiftAllLeft shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+// ShiftAllLeft shifts each element to the left by y bits.
 //
 // Asm: VPSLLD, CPU Feature: AVX512
 func (x Uint32x16) ShiftAllLeft(y uint64) Uint32x16
 
-// ShiftAllLeft shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+// ShiftAllLeft shifts each element to the left by y bits.
 //
 // Asm: VPSLLQ, CPU Feature: AVX
 func (x Uint64x2) ShiftAllLeft(y uint64) Uint64x2
 
-// ShiftAllLeft shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+// ShiftAllLeft shifts each element to the left by y bits.
 //
 // Asm: VPSLLQ, CPU Feature: AVX2
 func (x Uint64x4) ShiftAllLeft(y uint64) Uint64x4
 
-// ShiftAllLeft shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+// ShiftAllLeft shifts each element to the left by y bits.
 //
 // Asm: VPSLLQ, CPU Feature: AVX512
 func (x Uint64x8) ShiftAllLeft(y uint64) Uint64x8
 
 /* ShiftAllLeftConcat */
 
-// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by
+// shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
 func (x Int16x8) ShiftAllLeftConcat(shift uint8, y Int16x8) Int16x8
 
-// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by
+// shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
 func (x Int16x16) ShiftAllLeftConcat(shift uint8, y Int16x16) Int16x16
 
-// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by
+// shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
 func (x Int16x32) ShiftAllLeftConcat(shift uint8, y Int16x32) Int16x32
 
-// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by
+// shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
 func (x Int32x4) ShiftAllLeftConcat(shift uint8, y Int32x4) Int32x4
 
-// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by
+// shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
 func (x Int32x8) ShiftAllLeftConcat(shift uint8, y Int32x8) Int32x8
 
-// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by
+// shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
 func (x Int32x16) ShiftAllLeftConcat(shift uint8, y Int32x16) Int32x16
 
-// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by
+// shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
 func (x Int64x2) ShiftAllLeftConcat(shift uint8, y Int64x2) Int64x2
 
-// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by
+// shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
 func (x Int64x4) ShiftAllLeftConcat(shift uint8, y Int64x4) Int64x4
 
-// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by
+// shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
 func (x Int64x8) ShiftAllLeftConcat(shift uint8, y Int64x8) Int64x8
 
-// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by
+// shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
 func (x Uint16x8) ShiftAllLeftConcat(shift uint8, y Uint16x8) Uint16x8
 
-// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by
+// shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
 func (x Uint16x16) ShiftAllLeftConcat(shift uint8, y Uint16x16) Uint16x16
 
-// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by
+// shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
 func (x Uint16x32) ShiftAllLeftConcat(shift uint8, y Uint16x32) Uint16x32
 
-// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by
+// shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
 func (x Uint32x4) ShiftAllLeftConcat(shift uint8, y Uint32x4) Uint32x4
 
-// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by
+// shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
 func (x Uint32x8) ShiftAllLeftConcat(shift uint8, y Uint32x8) Uint32x8
 
-// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by
+// shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
 func (x Uint32x16) ShiftAllLeftConcat(shift uint8, y Uint32x16) Uint32x16
 
-// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by
+// shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
 func (x Uint64x2) ShiftAllLeftConcat(shift uint8, y Uint64x2) Uint64x2
 
-// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by
+// shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
 func (x Uint64x4) ShiftAllLeftConcat(shift uint8, y Uint64x4) Uint64x4
 
-// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by
+// shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
@@ -6369,236 +6369,236 @@ func (x Uint64x8) ShiftAllLeftConcat(shift uint8, y Uint64x8) Uint64x8
 
 /* ShiftAllRight */
 
-// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
+// ShiftAllRight performs a signed right shift on each element by y bits.
 //
 // Asm: VPSRAW, CPU Feature: AVX
 func (x Int16x8) ShiftAllRight(y uint64) Int16x8
 
-// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
+// ShiftAllRight performs a signed right shift on each element by y bits.
 //
 // Asm: VPSRAW, CPU Feature: AVX2
 func (x Int16x16) ShiftAllRight(y uint64) Int16x16
 
-// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
+// ShiftAllRight performs a signed right shift on each element by y bits.
 //
 // Asm: VPSRAW, CPU Feature: AVX512
 func (x Int16x32) ShiftAllRight(y uint64) Int16x32
 
-// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
+// ShiftAllRight performs a signed right shift on each element by y bits.
 //
 // Asm: VPSRAD, CPU Feature: AVX
 func (x Int32x4) ShiftAllRight(y uint64) Int32x4
 
-// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
+// ShiftAllRight performs a signed right shift on each element by y bits.
 //
 // Asm: VPSRAD, CPU Feature: AVX2
 func (x Int32x8) ShiftAllRight(y uint64) Int32x8
 
-// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
+// ShiftAllRight performs a signed right shift on each element by y bits.
 //
 // Asm: VPSRAD, CPU Feature: AVX512
 func (x Int32x16) ShiftAllRight(y uint64) Int32x16
 
-// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
+// ShiftAllRight performs a signed right shift on each element by y bits.
 //
 // Asm: VPSRAQ, CPU Feature: AVX512
 func (x Int64x2) ShiftAllRight(y uint64) Int64x2
 
-// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
+// ShiftAllRight performs a signed right shift on each element by y bits.
 //
 // Asm: VPSRAQ, CPU Feature: AVX512
 func (x Int64x4) ShiftAllRight(y uint64) Int64x4
 
-// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
+// ShiftAllRight performs a signed right shift on each element by y bits.
 //
 // Asm: VPSRAQ, CPU Feature: AVX512
 func (x Int64x8) ShiftAllRight(y uint64) Int64x8
 
-// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
+// ShiftAllRight performs an unsigned right shift on each element by y bits.
 //
 // Asm: VPSRLW, CPU Feature: AVX
 func (x Uint16x8) ShiftAllRight(y uint64) Uint16x8
 
-// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
+// ShiftAllRight performs an unsigned right shift on each element by y bits.
 //
 // Asm: VPSRLW, CPU Feature: AVX2
 func (x Uint16x16) ShiftAllRight(y uint64) Uint16x16
 
-// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
+// ShiftAllRight performs an unsigned right shift on each element by y bits.
 //
 // Asm: VPSRLW, CPU Feature: AVX512
 func (x Uint16x32) ShiftAllRight(y uint64) Uint16x32
 
-// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
+// ShiftAllRight performs an unsigned right shift on each element by y bits.
 //
 // Asm: VPSRLD, CPU Feature: AVX
 func (x Uint32x4) ShiftAllRight(y uint64) Uint32x4
 
-// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
+// ShiftAllRight performs an unsigned right shift on each element by y bits.
 //
 // Asm: VPSRLD, CPU Feature: AVX2
 func (x Uint32x8) ShiftAllRight(y uint64) Uint32x8
 
-// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
+// ShiftAllRight performs an unsigned right shift on each element by y bits.
 //
 // Asm: VPSRLD, CPU Feature: AVX512
 func (x Uint32x16) ShiftAllRight(y uint64) Uint32x16
 
-// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
+// ShiftAllRight performs an unsigned right shift on each element by y bits.
 //
 // Asm: VPSRLQ, CPU Feature: AVX
 func (x Uint64x2) ShiftAllRight(y uint64) Uint64x2
 
-// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
+// ShiftAllRight performs an unsigned right shift on each element by y bits.
 //
 // Asm: VPSRLQ, CPU Feature: AVX2
 func (x Uint64x4) ShiftAllRight(y uint64) Uint64x4
 
-// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
+// ShiftAllRight performs an unsigned right shift on each element by y bits.
 //
 // Asm: VPSRLQ, CPU Feature: AVX512
 func (x Uint64x8) ShiftAllRight(y uint64) Uint64x8
 
 /* ShiftAllRightConcat */
 
-// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by
+// shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
 func (x Int16x8) ShiftAllRightConcat(shift uint8, y Int16x8) Int16x8
 
-// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by
+// shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
 func (x Int16x16) ShiftAllRightConcat(shift uint8, y Int16x16) Int16x16
 
-// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by
+// shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
 func (x Int16x32) ShiftAllRightConcat(shift uint8, y Int16x32) Int16x32
 
-// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by
+// shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
 func (x Int32x4) ShiftAllRightConcat(shift uint8, y Int32x4) Int32x4
 
-// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by
+// shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
 func (x Int32x8) ShiftAllRightConcat(shift uint8, y Int32x8) Int32x8
 
-// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by
+// shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
 func (x Int32x16) ShiftAllRightConcat(shift uint8, y Int32x16) Int32x16
 
-// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by
+// shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
 func (x Int64x2) ShiftAllRightConcat(shift uint8, y Int64x2) Int64x2
 
-// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by
+// shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
 func (x Int64x4) ShiftAllRightConcat(shift uint8, y Int64x4) Int64x4
 
-// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by
+// shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
 func (x Int64x8) ShiftAllRightConcat(shift uint8, y Int64x8) Int64x8
 
-// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by
+// shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
 func (x Uint16x8) ShiftAllRightConcat(shift uint8, y Uint16x8) Uint16x8
 
-// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by
+// shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
 func (x Uint16x16) ShiftAllRightConcat(shift uint8, y Uint16x16) Uint16x16
 
-// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by
+// shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
 func (x Uint16x32) ShiftAllRightConcat(shift uint8, y Uint16x32) Uint16x32
 
-// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by
+// shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
 func (x Uint32x4) ShiftAllRightConcat(shift uint8, y Uint32x4) Uint32x4
 
-// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by
+// shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
 func (x Uint32x8) ShiftAllRightConcat(shift uint8, y Uint32x8) Uint32x8
 
-// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by
+// shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
 func (x Uint32x16) ShiftAllRightConcat(shift uint8, y Uint32x16) Uint32x16
 
-// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by
+// shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
 func (x Uint64x2) ShiftAllRightConcat(shift uint8, y Uint64x2) Uint64x2
 
-// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by
+// shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
 func (x Uint64x4) ShiftAllRightConcat(shift uint8, y Uint64x4) Uint64x4
 
-// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by
+// shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
@@ -6607,92 +6607,92 @@ func (x Uint64x8) ShiftAllRightConcat(shift uint8, y Uint64x8) Uint64x8
 
 /* ShiftLeft */
 
-// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
+// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements.
 //
 // Asm: VPSLLVW, CPU Feature: AVX512
 func (x Int16x8) ShiftLeft(y Int16x8) Int16x8
 
-// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
+// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements.
 //
 // Asm: VPSLLVW, CPU Feature: AVX512
 func (x Int16x16) ShiftLeft(y Int16x16) Int16x16
 
-// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
+// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements.
 //
 // Asm: VPSLLVW, CPU Feature: AVX512
 func (x Int16x32) ShiftLeft(y Int16x32) Int16x32
 
-// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
+// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements.
 //
 // Asm: VPSLLVD, CPU Feature: AVX2
 func (x Int32x4) ShiftLeft(y Int32x4) Int32x4
 
-// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
+// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements.
 //
 // Asm: VPSLLVD, CPU Feature: AVX2
 func (x Int32x8) ShiftLeft(y Int32x8) Int32x8
 
-// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
+// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements.
 //
 // Asm: VPSLLVD, CPU Feature: AVX512
 func (x Int32x16) ShiftLeft(y Int32x16) Int32x16
 
-// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
+// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements.
 //
 // Asm: VPSLLVQ, CPU Feature: AVX2
 func (x Int64x2) ShiftLeft(y Int64x2) Int64x2
 
-// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
+// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements.
 //
 // Asm: VPSLLVQ, CPU Feature: AVX2
 func (x Int64x4) ShiftLeft(y Int64x4) Int64x4
 
-// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
+// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements.
 //
 // Asm: VPSLLVQ, CPU Feature: AVX512
 func (x Int64x8) ShiftLeft(y Int64x8) Int64x8
 
-// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
+// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements.
 //
 // Asm: VPSLLVW, CPU Feature: AVX512
 func (x Uint16x8) ShiftLeft(y Uint16x8) Uint16x8
 
-// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
+// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements.
 //
 // Asm: VPSLLVW, CPU Feature: AVX512
 func (x Uint16x16) ShiftLeft(y Uint16x16) Uint16x16
 
-// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
+// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements.
 //
 // Asm: VPSLLVW, CPU Feature: AVX512
 func (x Uint16x32) ShiftLeft(y Uint16x32) Uint16x32
 
-// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
+// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements.
 //
 // Asm: VPSLLVD, CPU Feature: AVX2
 func (x Uint32x4) ShiftLeft(y Uint32x4) Uint32x4
 
-// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
+// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements.
 //
 // Asm: VPSLLVD, CPU Feature: AVX2
 func (x Uint32x8) ShiftLeft(y Uint32x8) Uint32x8
 
-// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
+// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements.
 //
 // Asm: VPSLLVD, CPU Feature: AVX512
 func (x Uint32x16) ShiftLeft(y Uint32x16) Uint32x16
 
-// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
+// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements.
 //
 // Asm: VPSLLVQ, CPU Feature: AVX2
 func (x Uint64x2) ShiftLeft(y Uint64x2) Uint64x2
 
-// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
+// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements.
 //
 // Asm: VPSLLVQ, CPU Feature: AVX2
 func (x Uint64x4) ShiftLeft(y Uint64x4) Uint64x4
 
-// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
+// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements.
 //
 // Asm: VPSLLVQ, CPU Feature: AVX512
 func (x Uint64x8) ShiftLeft(y Uint64x8) Uint64x8
@@ -6700,201 +6700,201 @@ func (x Uint64x8) ShiftLeft(y Uint64x8) Uint64x8
 /* ShiftLeftConcat */
 
 // ShiftLeftConcat shifts each element of x to the left by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
+// corresponding elements in y (only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVW, CPU Feature: AVX512VBMI2
 func (x Int16x8) ShiftLeftConcat(y Int16x8, z Int16x8) Int16x8
 
 // ShiftLeftConcat shifts each element of x to the left by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
+// corresponding elements in y (only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVW, CPU Feature: AVX512VBMI2
 func (x Int16x16) ShiftLeftConcat(y Int16x16, z Int16x16) Int16x16
 
 // ShiftLeftConcat shifts each element of x to the left by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
+// corresponding elements in y (only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVW, CPU Feature: AVX512VBMI2
 func (x Int16x32) ShiftLeftConcat(y Int16x32, z Int16x32) Int16x32
 
 // ShiftLeftConcat shifts each element of x to the left by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
+// corresponding elements in y (only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVD, CPU Feature: AVX512VBMI2
 func (x Int32x4) ShiftLeftConcat(y Int32x4, z Int32x4) Int32x4
 
 // ShiftLeftConcat shifts each element of x to the left by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
+// corresponding elements in y (only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVD, CPU Feature: AVX512VBMI2
 func (x Int32x8) ShiftLeftConcat(y Int32x8, z Int32x8) Int32x8
 
 // ShiftLeftConcat shifts each element of x to the left by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
+// corresponding elements in y (only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVD, CPU Feature: AVX512VBMI2
 func (x Int32x16) ShiftLeftConcat(y Int32x16, z Int32x16) Int32x16
 
 // ShiftLeftConcat shifts each element of x to the left by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
+// corresponding elements in y (only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVQ, CPU Feature: AVX512VBMI2
 func (x Int64x2) ShiftLeftConcat(y Int64x2, z Int64x2) Int64x2
 
 // ShiftLeftConcat shifts each element of x to the left by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
+// corresponding elements in y (only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVQ, CPU Feature: AVX512VBMI2
 func (x Int64x4) ShiftLeftConcat(y Int64x4, z Int64x4) Int64x4
 
 // ShiftLeftConcat shifts each element of x to the left by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
+// corresponding elements in y (only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVQ, CPU Feature: AVX512VBMI2
 func (x Int64x8) ShiftLeftConcat(y Int64x8, z Int64x8) Int64x8
 
 // ShiftLeftConcat shifts each element of x to the left by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
+// corresponding elements in y (only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVW, CPU Feature: AVX512VBMI2
 func (x Uint16x8) ShiftLeftConcat(y Uint16x8, z Uint16x8) Uint16x8
 
 // ShiftLeftConcat shifts each element of x to the left by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
+// corresponding elements in y (only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVW, CPU Feature: AVX512VBMI2
 func (x Uint16x16) ShiftLeftConcat(y Uint16x16, z Uint16x16) Uint16x16
 
 // ShiftLeftConcat shifts each element of x to the left by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
+// corresponding elements in y (only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVW, CPU Feature: AVX512VBMI2
 func (x Uint16x32) ShiftLeftConcat(y Uint16x32, z Uint16x32) Uint16x32
 
 // ShiftLeftConcat shifts each element of x to the left by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
+// corresponding elements in y (only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVD, CPU Feature: AVX512VBMI2
 func (x Uint32x4) ShiftLeftConcat(y Uint32x4, z Uint32x4) Uint32x4
 
 // ShiftLeftConcat shifts each element of x to the left by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
+// corresponding elements in y (only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVD, CPU Feature: AVX512VBMI2
 func (x Uint32x8) ShiftLeftConcat(y Uint32x8, z Uint32x8) Uint32x8
 
 // ShiftLeftConcat shifts each element of x to the left by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
+// corresponding elements in y (only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVD, CPU Feature: AVX512VBMI2
 func (x Uint32x16) ShiftLeftConcat(y Uint32x16, z Uint32x16) Uint32x16
 
 // ShiftLeftConcat shifts each element of x to the left by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
+// corresponding elements in y (only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVQ, CPU Feature: AVX512VBMI2
 func (x Uint64x2) ShiftLeftConcat(y Uint64x2, z Uint64x2) Uint64x2
 
 // ShiftLeftConcat shifts each element of x to the left by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
+// corresponding elements in y (only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVQ, CPU Feature: AVX512VBMI2
 func (x Uint64x4) ShiftLeftConcat(y Uint64x4, z Uint64x4) Uint64x4
 
 // ShiftLeftConcat shifts each element of x to the left by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
+// corresponding elements in y (only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVQ, CPU Feature: AVX512VBMI2
 func (x Uint64x8) ShiftLeftConcat(y Uint64x8, z Uint64x8) Uint64x8
 
 /* ShiftRight */
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
+// ShiftRight performs a signed right shift on each element in x by the number of bits specified in y's corresponding elements.
 //
 // Asm: VPSRAVW, CPU Feature: AVX512
 func (x Int16x8) ShiftRight(y Int16x8) Int16x8
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
+// ShiftRight performs a signed right shift on each element in x by the number of bits specified in y's corresponding elements.
 //
 // Asm: VPSRAVW, CPU Feature: AVX512
 func (x Int16x16) ShiftRight(y Int16x16) Int16x16
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
+// ShiftRight performs a signed right shift on each element in x by the number of bits specified in y's corresponding elements.
 //
 // Asm: VPSRAVW, CPU Feature: AVX512
 func (x Int16x32) ShiftRight(y Int16x32) Int16x32
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
+// ShiftRight performs a signed right shift on each element in x by the number of bits specified in y's corresponding elements.
 //
 // Asm: VPSRAVD, CPU Feature: AVX2
 func (x Int32x4) ShiftRight(y Int32x4) Int32x4
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
+// ShiftRight performs a signed right shift on each element in x by the number of bits specified in y's corresponding elements.
 //
 // Asm: VPSRAVD, CPU Feature: AVX2
 func (x Int32x8) ShiftRight(y Int32x8) Int32x8
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
+// ShiftRight performs a signed right shift on each element in x by the number of bits specified in y's corresponding elements.
 //
 // Asm: VPSRAVD, CPU Feature: AVX512
 func (x Int32x16) ShiftRight(y Int32x16) Int32x16
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
+// ShiftRight performs a signed right shift on each element in x by the number of bits specified in y's corresponding elements.
 //
 // Asm: VPSRAVQ, CPU Feature: AVX512
 func (x Int64x2) ShiftRight(y Int64x2) Int64x2
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
+// ShiftRight performs a signed right shift on each element in x by the number of bits specified in y's corresponding elements.
 //
 // Asm: VPSRAVQ, CPU Feature: AVX512
 func (x Int64x4) ShiftRight(y Int64x4) Int64x4
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
+// ShiftRight performs a signed right shift on each element in x by the number of bits specified in y's corresponding elements.
 //
 // Asm: VPSRAVQ, CPU Feature: AVX512
 func (x Int64x8) ShiftRight(y Int64x8) Int64x8
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRight performs an unsigned right shift on each element in x by the number of bits specified in y's corresponding elements.
 //
 // Asm: VPSRLVW, CPU Feature: AVX512
 func (x Uint16x8) ShiftRight(y Uint16x8) Uint16x8
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRight performs an unsigned right shift on each element in x by the number of bits specified in y's corresponding elements.
 //
 // Asm: VPSRLVW, CPU Feature: AVX512
 func (x Uint16x16) ShiftRight(y Uint16x16) Uint16x16
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRight performs an unsigned right shift on each element in x by the number of bits specified in y's corresponding elements.
 //
 // Asm: VPSRLVW, CPU Feature: AVX512
 func (x Uint16x32) ShiftRight(y Uint16x32) Uint16x32
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRight performs an unsigned right shift on each element in x by the number of bits specified in y's corresponding elements.
 //
 // Asm: VPSRLVD, CPU Feature: AVX2
 func (x Uint32x4) ShiftRight(y Uint32x4) Uint32x4
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRight performs an unsigned right shift on each element in x by the number of bits specified in y's corresponding elements.
 //
 // Asm: VPSRLVD, CPU Feature: AVX2
 func (x Uint32x8) ShiftRight(y Uint32x8) Uint32x8
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRight performs an unsigned right shift on each element in x by the number of bits specified in y's corresponding elements.
 //
 // Asm: VPSRLVD, CPU Feature: AVX512
 func (x Uint32x16) ShiftRight(y Uint32x16) Uint32x16
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRight performs an unsigned right shift on each element in x by the number of bits specified in y's corresponding elements.
 //
 // Asm: VPSRLVQ, CPU Feature: AVX2
 func (x Uint64x2) ShiftRight(y Uint64x2) Uint64x2
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRight performs an unsigned right shift on each element in x by the number of bits specified in y's corresponding elements.
 //
 // Asm: VPSRLVQ, CPU Feature: AVX2
 func (x Uint64x4) ShiftRight(y Uint64x4) Uint64x4
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRight performs an unsigned right shift on each element in x by the number of bits specified in y's corresponding elements.
 //
 // Asm: VPSRLVQ, CPU Feature: AVX512
 func (x Uint64x8) ShiftRight(y Uint64x8) Uint64x8
@@ -6902,109 +6902,109 @@ func (x Uint64x8) ShiftRight(y Uint64x8) Uint64x8
 /* ShiftRightConcat */
 
 // ShiftRightConcat shifts each element of x to the right by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
+// corresponding elements in y (only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVW, CPU Feature: AVX512VBMI2
 func (x Int16x8) ShiftRightConcat(y Int16x8, z Int16x8) Int16x8
 
 // ShiftRightConcat shifts each element of x to the right by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
+// corresponding elements in y (only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVW, CPU Feature: AVX512VBMI2
 func (x Int16x16) ShiftRightConcat(y Int16x16, z Int16x16) Int16x16
 
 // ShiftRightConcat shifts each element of x to the right by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
+// corresponding elements in y (only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVW, CPU Feature: AVX512VBMI2
 func (x Int16x32) ShiftRightConcat(y Int16x32, z Int16x32) Int16x32
 
 // ShiftRightConcat shifts each element of x to the right by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
+// corresponding elements in y (only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVD, CPU Feature: AVX512VBMI2
 func (x Int32x4) ShiftRightConcat(y Int32x4, z Int32x4) Int32x4
 
 // ShiftRightConcat shifts each element of x to the right by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
+// corresponding elements in y (only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVD, CPU Feature: AVX512VBMI2
 func (x Int32x8) ShiftRightConcat(y Int32x8, z Int32x8) Int32x8
 
 // ShiftRightConcat shifts each element of x to the right by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
+// corresponding elements in y (only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVD, CPU Feature: AVX512VBMI2
 func (x Int32x16) ShiftRightConcat(y Int32x16, z Int32x16) Int32x16
 
 // ShiftRightConcat shifts each element of x to the right by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
+// corresponding elements in y (only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVQ, CPU Feature: AVX512VBMI2
 func (x Int64x2) ShiftRightConcat(y Int64x2, z Int64x2) Int64x2
 
 // ShiftRightConcat shifts each element of x to the right by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
+// corresponding elements in y (only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVQ, CPU Feature: AVX512VBMI2
 func (x Int64x4) ShiftRightConcat(y Int64x4, z Int64x4) Int64x4
 
 // ShiftRightConcat shifts each element of x to the right by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
+// corresponding elements in y (only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVQ, CPU Feature: AVX512VBMI2
 func (x Int64x8) ShiftRightConcat(y Int64x8, z Int64x8) Int64x8
 
 // ShiftRightConcat shifts each element of x to the right by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
+// corresponding elements in y (only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVW, CPU Feature: AVX512VBMI2
 func (x Uint16x8) ShiftRightConcat(y Uint16x8, z Uint16x8) Uint16x8
 
 // ShiftRightConcat shifts each element of x to the right by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
+// corresponding elements in y (only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVW, CPU Feature: AVX512VBMI2
 func (x Uint16x16) ShiftRightConcat(y Uint16x16, z Uint16x16) Uint16x16
 
 // ShiftRightConcat shifts each element of x to the right by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
+// corresponding elements in y (only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVW, CPU Feature: AVX512VBMI2
 func (x Uint16x32) ShiftRightConcat(y Uint16x32, z Uint16x32) Uint16x32
 
 // ShiftRightConcat shifts each element of x to the right by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
+// corresponding elements in y (only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVD, CPU Feature: AVX512VBMI2
 func (x Uint32x4) ShiftRightConcat(y Uint32x4, z Uint32x4) Uint32x4
 
 // ShiftRightConcat shifts each element of x to the right by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
+// corresponding elements in y (only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVD, CPU Feature: AVX512VBMI2
 func (x Uint32x8) ShiftRightConcat(y Uint32x8, z Uint32x8) Uint32x8
 
 // ShiftRightConcat shifts each element of x to the right by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
+// corresponding elements in y (only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVD, CPU Feature: AVX512VBMI2
 func (x Uint32x16) ShiftRightConcat(y Uint32x16, z Uint32x16) Uint32x16
 
 // ShiftRightConcat shifts each element of x to the right by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
+// corresponding elements in y (only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVQ, CPU Feature: AVX512VBMI2
 func (x Uint64x2) ShiftRightConcat(y Uint64x2, z Uint64x2) Uint64x2
 
 // ShiftRightConcat shifts each element of x to the right by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
+// corresponding elements in y (only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVQ, CPU Feature: AVX512VBMI2
 func (x Uint64x4) ShiftRightConcat(y Uint64x4, z Uint64x4) Uint64x4
 
 // ShiftRightConcat shifts each element of x to the right by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
+// corresponding elements in y (only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVQ, CPU Feature: AVX512VBMI2
 func (x Uint64x8) ShiftRightConcat(y Uint64x8, z Uint64x8) Uint64x8

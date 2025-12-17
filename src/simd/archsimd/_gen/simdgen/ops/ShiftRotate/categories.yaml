@@ -4,21 +4,21 @@
   specialLower: sftimm
   commutative: false
   documentation: !string |-
-    // NAME shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+    // NAME shifts each element to the left by y bits.
 - go: ShiftAllRight
   signed: false
   nameAndSizeCheck: true
   specialLower: sftimm
   commutative: false
   documentation: !string |-
-    // NAME shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
+    // NAME performs an unsigned right shift on each element by y bits.
 - go: ShiftAllRight
   signed: true
   specialLower: sftimm
   nameAndSizeCheck: true
   commutative: false
   documentation: !string |-
-    // NAME shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
+    // NAME performs a signed right shift on each element by y bits.
 - go: shiftAllLeftConst # no APIs, only ssa ops.
   noTypes: "true"
   noGenericOps: "true"
@@ -44,24 +44,24 @@
   nameAndSizeCheck: true
   commutative: false
   documentation: !string |-
-    // NAME shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
+    // NAME shifts each element in x to the left by the number of bits specified in y's corresponding elements.
 - go: ShiftRight
   signed: false
   nameAndSizeCheck: true
   commutative: false
   documentation: !string |-
-    // NAME shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+    // NAME performs an unsigned right shift on each element in x by the number of bits specified in y's corresponding elements.
 - go: ShiftRight
   signed: true
   nameAndSizeCheck: true
   commutative: false
   documentation: !string |-
-    // NAME shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
+    // NAME performs a signed right shift on each element in x by the number of bits specified in y's corresponding elements.
 - go: RotateAllLeft
   nameAndSizeCheck: true
   commutative: false
   documentation: !string |-
-    // NAME rotates each element to the left by the number of bits specified by the immediate.
+    // NAME rotates each element to the left by the number of bits specified by shift.
 - go: RotateLeft
   nameAndSizeCheck: true
   commutative: false
@@ -71,7 +71,7 @@
   nameAndSizeCheck: true
   commutative: false
   documentation: !string |-
-    // NAME rotates each element to the right by the number of bits specified by the immediate.
+    // NAME rotates each element to the right by the number of bits specified by shift.
 - go: RotateRight
   nameAndSizeCheck: true
   commutative: false
@@ -81,23 +81,23 @@
   nameAndSizeCheck: true
   commutative: false
   documentation: !string |-
-    // NAME shifts each element of x to the left by the number of bits specified by the
-    // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+    // NAME shifts each element of x to the left by the number of bits specified by
+    // shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 - go: ShiftAllRightConcat
   nameAndSizeCheck: true
   commutative: false
   documentation: !string |-
-    // NAME shifts each element of x to the right by the number of bits specified by the
-    // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+    // NAME shifts each element of x to the right by the number of bits specified by
+    // shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 - go: ShiftLeftConcat
   nameAndSizeCheck: true
   commutative: false
   documentation: !string |-
     // NAME shifts each element of x to the left by the number of bits specified by the
-    // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
+    // corresponding elements in y (only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 - go: ShiftRightConcat
   nameAndSizeCheck: true
   commutative: false
   documentation: !string |-
     // NAME shifts each element of x to the right by the number of bits specified by the
-    // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
+    // corresponding elements in y (only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
