@@ -30,6 +30,13 @@ func (x simdType) ElemBits() int {
 	return x.Size / x.Lanes
 }
 
+func (x simdType) Article() string {
+	if strings.HasPrefix(x.Name, "Int") {
+		return "an"
+	}
+	return "a" // Float, Uint
+}
+
 // LanesContainer returns the smallest int/uint bit size that is
 // large enough to hold one bit for each lane.  E.g., Mask32x4
 // is 4 lanes, and a uint8 is the smallest uint that has 4 bits.
@@ -395,8 +402,8 @@ func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} uint8, {{.Op2NameAndType "y"
 {{end}}
 
 {{define "vectorConversion"}}
-// {{.Tdst.Name}} converts from {{.Tsrc.Name}} to {{.Tdst.Name}}
-func (from {{.Tsrc.Name}}) As{{.Tdst.Name}}() (to {{.Tdst.Name}})
+// As{{.Tdst.Name}} returns {{.Tdst.Article}} {{.Tdst.Name}} with the same bit representation as x.
+func (x {{.Tsrc.Name}}) As{{.Tdst.Name}}() {{.Tdst.Name}}
 {{end}}
 
 {{define "mask"}}

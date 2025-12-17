@@ -7842,815 +7842,815 @@ func (x Uint64x4) Xor(y Uint64x4) Uint64x4
 // Asm: VPXORQ, CPU Feature: AVX512
 func (x Uint64x8) Xor(y Uint64x8) Uint64x8
 
-// Float64x2 converts from Float32x4 to Float64x2
-func (from Float32x4) AsFloat64x2() (to Float64x2)
+// AsFloat64x2 returns a Float64x2 with the same bit representation as x.
+func (x Float32x4) AsFloat64x2() Float64x2
 
-// Int8x16 converts from Float32x4 to Int8x16
-func (from Float32x4) AsInt8x16() (to Int8x16)
+// AsInt8x16 returns an Int8x16 with the same bit representation as x.
+func (x Float32x4) AsInt8x16() Int8x16
 
-// Int16x8 converts from Float32x4 to Int16x8
-func (from Float32x4) AsInt16x8() (to Int16x8)
+// AsInt16x8 returns an Int16x8 with the same bit representation as x.
+func (x Float32x4) AsInt16x8() Int16x8
 
-// Int32x4 converts from Float32x4 to Int32x4
-func (from Float32x4) AsInt32x4() (to Int32x4)
+// AsInt32x4 returns an Int32x4 with the same bit representation as x.
+func (x Float32x4) AsInt32x4() Int32x4
 
-// Int64x2 converts from Float32x4 to Int64x2
-func (from Float32x4) AsInt64x2() (to Int64x2)
+// AsInt64x2 returns an Int64x2 with the same bit representation as x.
+func (x Float32x4) AsInt64x2() Int64x2
 
-// Uint8x16 converts from Float32x4 to Uint8x16
-func (from Float32x4) AsUint8x16() (to Uint8x16)
+// AsUint8x16 returns a Uint8x16 with the same bit representation as x.
+func (x Float32x4) AsUint8x16() Uint8x16
 
-// Uint16x8 converts from Float32x4 to Uint16x8
-func (from Float32x4) AsUint16x8() (to Uint16x8)
+// AsUint16x8 returns a Uint16x8 with the same bit representation as x.
+func (x Float32x4) AsUint16x8() Uint16x8
 
-// Uint32x4 converts from Float32x4 to Uint32x4
-func (from Float32x4) AsUint32x4() (to Uint32x4)
+// AsUint32x4 returns a Uint32x4 with the same bit representation as x.
+func (x Float32x4) AsUint32x4() Uint32x4
 
-// Uint64x2 converts from Float32x4 to Uint64x2
-func (from Float32x4) AsUint64x2() (to Uint64x2)
+// AsUint64x2 returns a Uint64x2 with the same bit representation as x.
+func (x Float32x4) AsUint64x2() Uint64x2
 
-// Float64x4 converts from Float32x8 to Float64x4
-func (from Float32x8) AsFloat64x4() (to Float64x4)
+// AsFloat64x4 returns a Float64x4 with the same bit representation as x.
+func (x Float32x8) AsFloat64x4() Float64x4
 
-// Int8x32 converts from Float32x8 to Int8x32
-func (from Float32x8) AsInt8x32() (to Int8x32)
+// AsInt8x32 returns an Int8x32 with the same bit representation as x.
+func (x Float32x8) AsInt8x32() Int8x32
 
-// Int16x16 converts from Float32x8 to Int16x16
-func (from Float32x8) AsInt16x16() (to Int16x16)
+// AsInt16x16 returns an Int16x16 with the same bit representation as x.
+func (x Float32x8) AsInt16x16() Int16x16
 
-// Int32x8 converts from Float32x8 to Int32x8
-func (from Float32x8) AsInt32x8() (to Int32x8)
+// AsInt32x8 returns an Int32x8 with the same bit representation as x.
+func (x Float32x8) AsInt32x8() Int32x8
 
-// Int64x4 converts from Float32x8 to Int64x4
-func (from Float32x8) AsInt64x4() (to Int64x4)
+// AsInt64x4 returns an Int64x4 with the same bit representation as x.
+func (x Float32x8) AsInt64x4() Int64x4
 
-// Uint8x32 converts from Float32x8 to Uint8x32
-func (from Float32x8) AsUint8x32() (to Uint8x32)
+// AsUint8x32 returns a Uint8x32 with the same bit representation as x.
+func (x Float32x8) AsUint8x32() Uint8x32
 
-// Uint16x16 converts from Float32x8 to Uint16x16
-func (from Float32x8) AsUint16x16() (to Uint16x16)
+// AsUint16x16 returns a Uint16x16 with the same bit representation as x.
+func (x Float32x8) AsUint16x16() Uint16x16
 
-// Uint32x8 converts from Float32x8 to Uint32x8
-func (from Float32x8) AsUint32x8() (to Uint32x8)
+// AsUint32x8 returns a Uint32x8 with the same bit representation as x.
+func (x Float32x8) AsUint32x8() Uint32x8
 
-// Uint64x4 converts from Float32x8 to Uint64x4
-func (from Float32x8) AsUint64x4() (to Uint64x4)
+// AsUint64x4 returns a Uint64x4 with the same bit representation as x.
+func (x Float32x8) AsUint64x4() Uint64x4
 
-// Float64x8 converts from Float32x16 to Float64x8
-func (from Float32x16) AsFloat64x8() (to Float64x8)
+// AsFloat64x8 returns a Float64x8 with the same bit representation as x.
+func (x Float32x16) AsFloat64x8() Float64x8
 
-// Int8x64 converts from Float32x16 to Int8x64
-func (from Float32x16) AsInt8x64() (to Int8x64)
+// AsInt8x64 returns an Int8x64 with the same bit representation as x.
+func (x Float32x16) AsInt8x64() Int8x64
 
-// Int16x32 converts from Float32x16 to Int16x32
-func (from Float32x16) AsInt16x32() (to Int16x32)
+// AsInt16x32 returns an Int16x32 with the same bit representation as x.
+func (x Float32x16) AsInt16x32() Int16x32
 
-// Int32x16 converts from Float32x16 to Int32x16
-func (from Float32x16) AsInt32x16() (to Int32x16)
+// AsInt32x16 returns an Int32x16 with the same bit representation as x.
+func (x Float32x16) AsInt32x16() Int32x16
 
-// Int64x8 converts from Float32x16 to Int64x8
-func (from Float32x16) AsInt64x8() (to Int64x8)
+// AsInt64x8 returns an Int64x8 with the same bit representation as x.
+func (x Float32x16) AsInt64x8() Int64x8
 
-// Uint8x64 converts from Float32x16 to Uint8x64
-func (from Float32x16) AsUint8x64() (to Uint8x64)
+// AsUint8x64 returns a Uint8x64 with the same bit representation as x.
+func (x Float32x16) AsUint8x64() Uint8x64
 
-// Uint16x32 converts from Float32x16 to Uint16x32
-func (from Float32x16) AsUint16x32() (to Uint16x32)
+// AsUint16x32 returns a Uint16x32 with the same bit representation as x.
+func (x Float32x16) AsUint16x32() Uint16x32
 
-// Uint32x16 converts from Float32x16 to Uint32x16
-func (from Float32x16) AsUint32x16() (to Uint32x16)
+// AsUint32x16 returns a Uint32x16 with the same bit representation as x.
+func (x Float32x16) AsUint32x16() Uint32x16
 
-// Uint64x8 converts from Float32x16 to Uint64x8
-func (from Float32x16) AsUint64x8() (to Uint64x8)
+// AsUint64x8 returns a Uint64x8 with the same bit representation as x.
+func (x Float32x16) AsUint64x8() Uint64x8
 
-// Float32x4 converts from Float64x2 to Float32x4
-func (from Float64x2) AsFloat32x4() (to Float32x4)
+// AsFloat32x4 returns a Float32x4 with the same bit representation as x.
+func (x Float64x2) AsFloat32x4() Float32x4
 
-// Int8x16 converts from Float64x2 to Int8x16
-func (from Float64x2) AsInt8x16() (to Int8x16)
+// AsInt8x16 returns an Int8x16 with the same bit representation as x.
+func (x Float64x2) AsInt8x16() Int8x16
 
-// Int16x8 converts from Float64x2 to Int16x8
-func (from Float64x2) AsInt16x8() (to Int16x8)
+// AsInt16x8 returns an Int16x8 with the same bit representation as x.
+func (x Float64x2) AsInt16x8() Int16x8
 
-// Int32x4 converts from Float64x2 to Int32x4
-func (from Float64x2) AsInt32x4() (to Int32x4)
+// AsInt32x4 returns an Int32x4 with the same bit representation as x.
+func (x Float64x2) AsInt32x4() Int32x4
 
-// Int64x2 converts from Float64x2 to Int64x2
-func (from Float64x2) AsInt64x2() (to Int64x2)
+// AsInt64x2 returns an Int64x2 with the same bit representation as x.
+func (x Float64x2) AsInt64x2() Int64x2
 
-// Uint8x16 converts from Float64x2 to Uint8x16
-func (from Float64x2) AsUint8x16() (to Uint8x16)
+// AsUint8x16 returns a Uint8x16 with the same bit representation as x.
+func (x Float64x2) AsUint8x16() Uint8x16
 
-// Uint16x8 converts from Float64x2 to Uint16x8
-func (from Float64x2) AsUint16x8() (to Uint16x8)
+// AsUint16x8 returns a Uint16x8 with the same bit representation as x.
+func (x Float64x2) AsUint16x8() Uint16x8
 
-// Uint32x4 converts from Float64x2 to Uint32x4
-func (from Float64x2) AsUint32x4() (to Uint32x4)
+// AsUint32x4 returns a Uint32x4 with the same bit representation as x.
+func (x Float64x2) AsUint32x4() Uint32x4
 
-// Uint64x2 converts from Float64x2 to Uint64x2
-func (from Float64x2) AsUint64x2() (to Uint64x2)
+// AsUint64x2 returns a Uint64x2 with the same bit representation as x.
+func (x Float64x2) AsUint64x2() Uint64x2
 
-// Float32x8 converts from Float64x4 to Float32x8
-func (from Float64x4) AsFloat32x8() (to Float32x8)
+// AsFloat32x8 returns a Float32x8 with the same bit representation as x.
+func (x Float64x4) AsFloat32x8() Float32x8
 
-// Int8x32 converts from Float64x4 to Int8x32
-func (from Float64x4) AsInt8x32() (to Int8x32)
+// AsInt8x32 returns an Int8x32 with the same bit representation as x.
+func (x Float64x4) AsInt8x32() Int8x32
 
-// Int16x16 converts from Float64x4 to Int16x16
-func (from Float64x4) AsInt16x16() (to Int16x16)
+// AsInt16x16 returns an Int16x16 with the same bit representation as x.
+func (x Float64x4) AsInt16x16() Int16x16
 
-// Int32x8 converts from Float64x4 to Int32x8
-func (from Float64x4) AsInt32x8() (to Int32x8)
+// AsInt32x8 returns an Int32x8 with the same bit representation as x.
+func (x Float64x4) AsInt32x8() Int32x8
 
-// Int64x4 converts from Float64x4 to Int64x4
-func (from Float64x4) AsInt64x4() (to Int64x4)
+// AsInt64x4 returns an Int64x4 with the same bit representation as x.
+func (x Float64x4) AsInt64x4() Int64x4
 
-// Uint8x32 converts from Float64x4 to Uint8x32
-func (from Float64x4) AsUint8x32() (to Uint8x32)
+// AsUint8x32 returns a Uint8x32 with the same bit representation as x.
+func (x Float64x4) AsUint8x32() Uint8x32
 
-// Uint16x16 converts from Float64x4 to Uint16x16
-func (from Float64x4) AsUint16x16() (to Uint16x16)
+// AsUint16x16 returns a Uint16x16 with the same bit representation as x.
+func (x Float64x4) AsUint16x16() Uint16x16
 
-// Uint32x8 converts from Float64x4 to Uint32x8
-func (from Float64x4) AsUint32x8() (to Uint32x8)
+// AsUint32x8 returns a Uint32x8 with the same bit representation as x.
+func (x Float64x4) AsUint32x8() Uint32x8
 
-// Uint64x4 converts from Float64x4 to Uint64x4
-func (from Float64x4) AsUint64x4() (to Uint64x4)
+// AsUint64x4 returns a Uint64x4 with the same bit representation as x.
+func (x Float64x4) AsUint64x4() Uint64x4
 
-// Float32x16 converts from Float64x8 to Float32x16
-func (from Float64x8) AsFloat32x16() (to Float32x16)
+// AsFloat32x16 returns a Float32x16 with the same bit representation as x.
+func (x Float64x8) AsFloat32x16() Float32x16
 
-// Int8x64 converts from Float64x8 to Int8x64
-func (from Float64x8) AsInt8x64() (to Int8x64)
+// AsInt8x64 returns an Int8x64 with the same bit representation as x.
+func (x Float64x8) AsInt8x64() Int8x64
 
-// Int16x32 converts from Float64x8 to Int16x32
-func (from Float64x8) AsInt16x32() (to Int16x32)
+// AsInt16x32 returns an Int16x32 with the same bit representation as x.
+func (x Float64x8) AsInt16x32() Int16x32
 
-// Int32x16 converts from Float64x8 to Int32x16
-func (from Float64x8) AsInt32x16() (to Int32x16)
+// AsInt32x16 returns an Int32x16 with the same bit representation as x.
+func (x Float64x8) AsInt32x16() Int32x16
 
-// Int64x8 converts from Float64x8 to Int64x8
-func (from Float64x8) AsInt64x8() (to Int64x8)
+// AsInt64x8 returns an Int64x8 with the same bit representation as x.
+func (x Float64x8) AsInt64x8() Int64x8
 
-// Uint8x64 converts from Float64x8 to Uint8x64
-func (from Float64x8) AsUint8x64() (to Uint8x64)
+// AsUint8x64 returns a Uint8x64 with the same bit representation as x.
+func (x Float64x8) AsUint8x64() Uint8x64
 
-// Uint16x32 converts from Float64x8 to Uint16x32
-func (from Float64x8) AsUint16x32() (to Uint16x32)
+// AsUint16x32 returns a Uint16x32 with the same bit representation as x.
+func (x Float64x8) AsUint16x32() Uint16x32
 
-// Uint32x16 converts from Float64x8 to Uint32x16
-func (from Float64x8) AsUint32x16() (to Uint32x16)
+// AsUint32x16 returns a Uint32x16 with the same bit representation as x.
+func (x Float64x8) AsUint32x16() Uint32x16
 
-// Uint64x8 converts from Float64x8 to Uint64x8
-func (from Float64x8) AsUint64x8() (to Uint64x8)
+// AsUint64x8 returns a Uint64x8 with the same bit representation as x.
+func (x Float64x8) AsUint64x8() Uint64x8
 
-// Float32x4 converts from Int8x16 to Float32x4
-func (from Int8x16) AsFloat32x4() (to Float32x4)
+// AsFloat32x4 returns a Float32x4 with the same bit representation as x.
+func (x Int8x16) AsFloat32x4() Float32x4
 
-// Float64x2 converts from Int8x16 to Float64x2
-func (from Int8x16) AsFloat64x2() (to Float64x2)
+// AsFloat64x2 returns a Float64x2 with the same bit representation as x.
+func (x Int8x16) AsFloat64x2() Float64x2
 
-// Int16x8 converts from Int8x16 to Int16x8
-func (from Int8x16) AsInt16x8() (to Int16x8)
+// AsInt16x8 returns an Int16x8 with the same bit representation as x.
+func (x Int8x16) AsInt16x8() Int16x8
 
-// Int32x4 converts from Int8x16 to Int32x4
-func (from Int8x16) AsInt32x4() (to Int32x4)
+// AsInt32x4 returns an Int32x4 with the same bit representation as x.
+func (x Int8x16) AsInt32x4() Int32x4
 
-// Int64x2 converts from Int8x16 to Int64x2
-func (from Int8x16) AsInt64x2() (to Int64x2)
+// AsInt64x2 returns an Int64x2 with the same bit representation as x.
+func (x Int8x16) AsInt64x2() Int64x2
 
-// Uint8x16 converts from Int8x16 to Uint8x16
-func (from Int8x16) AsUint8x16() (to Uint8x16)
+// AsUint8x16 returns a Uint8x16 with the same bit representation as x.
+func (x Int8x16) AsUint8x16() Uint8x16
 
-// Uint16x8 converts from Int8x16 to Uint16x8
-func (from Int8x16) AsUint16x8() (to Uint16x8)
+// AsUint16x8 returns a Uint16x8 with the same bit representation as x.
+func (x Int8x16) AsUint16x8() Uint16x8
 
-// Uint32x4 converts from Int8x16 to Uint32x4
-func (from Int8x16) AsUint32x4() (to Uint32x4)
+// AsUint32x4 returns a Uint32x4 with the same bit representation as x.
+func (x Int8x16) AsUint32x4() Uint32x4
 
-// Uint64x2 converts from Int8x16 to Uint64x2
-func (from Int8x16) AsUint64x2() (to Uint64x2)
+// AsUint64x2 returns a Uint64x2 with the same bit representation as x.
+func (x Int8x16) AsUint64x2() Uint64x2
 
-// Float32x8 converts from Int8x32 to Float32x8
-func (from Int8x32) AsFloat32x8() (to Float32x8)
+// AsFloat32x8 returns a Float32x8 with the same bit representation as x.
+func (x Int8x32) AsFloat32x8() Float32x8
 
-// Float64x4 converts from Int8x32 to Float64x4
-func (from Int8x32) AsFloat64x4() (to Float64x4)
+// AsFloat64x4 returns a Float64x4 with the same bit representation as x.
+func (x Int8x32) AsFloat64x4() Float64x4
 
-// Int16x16 converts from Int8x32 to Int16x16
-func (from Int8x32) AsInt16x16() (to Int16x16)
+// AsInt16x16 returns an Int16x16 with the same bit representation as x.
+func (x Int8x32) AsInt16x16() Int16x16
 
-// Int32x8 converts from Int8x32 to Int32x8
-func (from Int8x32) AsInt32x8() (to Int32x8)
+// AsInt32x8 returns an Int32x8 with the same bit representation as x.
+func (x Int8x32) AsInt32x8() Int32x8
 
-// Int64x4 converts from Int8x32 to Int64x4
-func (from Int8x32) AsInt64x4() (to Int64x4)
+// AsInt64x4 returns an Int64x4 with the same bit representation as x.
+func (x Int8x32) AsInt64x4() Int64x4
 
-// Uint8x32 converts from Int8x32 to Uint8x32
-func (from Int8x32) AsUint8x32() (to Uint8x32)
+// AsUint8x32 returns a Uint8x32 with the same bit representation as x.
+func (x Int8x32) AsUint8x32() Uint8x32
 
-// Uint16x16 converts from Int8x32 to Uint16x16
-func (from Int8x32) AsUint16x16() (to Uint16x16)
+// AsUint16x16 returns a Uint16x16 with the same bit representation as x.
+func (x Int8x32) AsUint16x16() Uint16x16
 
-// Uint32x8 converts from Int8x32 to Uint32x8
-func (from Int8x32) AsUint32x8() (to Uint32x8)
+// AsUint32x8 returns a Uint32x8 with the same bit representation as x.
+func (x Int8x32) AsUint32x8() Uint32x8
 
-// Uint64x4 converts from Int8x32 to Uint64x4
-func (from Int8x32) AsUint64x4() (to Uint64x4)
+// AsUint64x4 returns a Uint64x4 with the same bit representation as x.
+func (x Int8x32) AsUint64x4() Uint64x4
 
-// Float32x16 converts from Int8x64 to Float32x16
-func (from Int8x64) AsFloat32x16() (to Float32x16)
+// AsFloat32x16 returns a Float32x16 with the same bit representation as x.
+func (x Int8x64) AsFloat32x16() Float32x16
 
-// Float64x8 converts from Int8x64 to Float64x8
-func (from Int8x64) AsFloat64x8() (to Float64x8)
+// AsFloat64x8 returns a Float64x8 with the same bit representation as x.
+func (x Int8x64) AsFloat64x8() Float64x8
 
-// Int16x32 converts from Int8x64 to Int16x32
-func (from Int8x64) AsInt16x32() (to Int16x32)
+// AsInt16x32 returns an Int16x32 with the same bit representation as x.
+func (x Int8x64) AsInt16x32() Int16x32
 
-// Int32x16 converts from Int8x64 to Int32x16
-func (from Int8x64) AsInt32x16() (to Int32x16)
+// AsInt32x16 returns an Int32x16 with the same bit representation as x.
+func (x Int8x64) AsInt32x16() Int32x16
 
-// Int64x8 converts from Int8x64 to Int64x8
-func (from Int8x64) AsInt64x8() (to Int64x8)
+// AsInt64x8 returns an Int64x8 with the same bit representation as x.
+func (x Int8x64) AsInt64x8() Int64x8
 
-// Uint8x64 converts from Int8x64 to Uint8x64
-func (from Int8x64) AsUint8x64() (to Uint8x64)
+// AsUint8x64 returns a Uint8x64 with the same bit representation as x.
+func (x Int8x64) AsUint8x64() Uint8x64
 
-// Uint16x32 converts from Int8x64 to Uint16x32
-func (from Int8x64) AsUint16x32() (to Uint16x32)
+// AsUint16x32 returns a Uint16x32 with the same bit representation as x.
+func (x Int8x64) AsUint16x32() Uint16x32
 
-// Uint32x16 converts from Int8x64 to Uint32x16
-func (from Int8x64) AsUint32x16() (to Uint32x16)
+// AsUint32x16 returns a Uint32x16 with the same bit representation as x.
+func (x Int8x64) AsUint32x16() Uint32x16
 
-// Uint64x8 converts from Int8x64 to Uint64x8
-func (from Int8x64) AsUint64x8() (to Uint64x8)
+// AsUint64x8 returns a Uint64x8 with the same bit representation as x.
+func (x Int8x64) AsUint64x8() Uint64x8
 
-// Float32x4 converts from Int16x8 to Float32x4
-func (from Int16x8) AsFloat32x4() (to Float32x4)
+// AsFloat32x4 returns a Float32x4 with the same bit representation as x.
+func (x Int16x8) AsFloat32x4() Float32x4
 
-// Float64x2 converts from Int16x8 to Float64x2
-func (from Int16x8) AsFloat64x2() (to Float64x2)
+// AsFloat64x2 returns a Float64x2 with the same bit representation as x.
+func (x Int16x8) AsFloat64x2() Float64x2
 
-// Int8x16 converts from Int16x8 to Int8x16
-func (from Int16x8) AsInt8x16() (to Int8x16)
+// AsInt8x16 returns an Int8x16 with the same bit representation as x.
+func (x Int16x8) AsInt8x16() Int8x16
 
-// Int32x4 converts from Int16x8 to Int32x4
-func (from Int16x8) AsInt32x4() (to Int32x4)
+// AsInt32x4 returns an Int32x4 with the same bit representation as x.
+func (x Int16x8) AsInt32x4() Int32x4
 
-// Int64x2 converts from Int16x8 to Int64x2
-func (from Int16x8) AsInt64x2() (to Int64x2)
+// AsInt64x2 returns an Int64x2 with the same bit representation as x.
+func (x Int16x8) AsInt64x2() Int64x2
 
-// Uint8x16 converts from Int16x8 to Uint8x16
-func (from Int16x8) AsUint8x16() (to Uint8x16)
+// AsUint8x16 returns a Uint8x16 with the same bit representation as x.
+func (x Int16x8) AsUint8x16() Uint8x16
 
-// Uint16x8 converts from Int16x8 to Uint16x8
-func (from Int16x8) AsUint16x8() (to Uint16x8)
+// AsUint16x8 returns a Uint16x8 with the same bit representation as x.
+func (x Int16x8) AsUint16x8() Uint16x8
 
-// Uint32x4 converts from Int16x8 to Uint32x4
-func (from Int16x8) AsUint32x4() (to Uint32x4)
+// AsUint32x4 returns a Uint32x4 with the same bit representation as x.
+func (x Int16x8) AsUint32x4() Uint32x4
 
-// Uint64x2 converts from Int16x8 to Uint64x2
-func (from Int16x8) AsUint64x2() (to Uint64x2)
+// AsUint64x2 returns a Uint64x2 with the same bit representation as x.
+func (x Int16x8) AsUint64x2() Uint64x2
 
-// Float32x8 converts from Int16x16 to Float32x8
-func (from Int16x16) AsFloat32x8() (to Float32x8)
+// AsFloat32x8 returns a Float32x8 with the same bit representation as x.
+func (x Int16x16) AsFloat32x8() Float32x8
 
-// Float64x4 converts from Int16x16 to Float64x4
-func (from Int16x16) AsFloat64x4() (to Float64x4)
+// AsFloat64x4 returns a Float64x4 with the same bit representation as x.
+func (x Int16x16) AsFloat64x4() Float64x4
 
-// Int8x32 converts from Int16x16 to Int8x32
-func (from Int16x16) AsInt8x32() (to Int8x32)
+// AsInt8x32 returns an Int8x32 with the same bit representation as x.
+func (x Int16x16) AsInt8x32() Int8x32
 
-// Int32x8 converts from Int16x16 to Int32x8
-func (from Int16x16) AsInt32x8() (to Int32x8)
+// AsInt32x8 returns an Int32x8 with the same bit representation as x.
+func (x Int16x16) AsInt32x8() Int32x8
 
-// Int64x4 converts from Int16x16 to Int64x4
-func (from Int16x16) AsInt64x4() (to Int64x4)
+// AsInt64x4 returns an Int64x4 with the same bit representation as x.
+func (x Int16x16) AsInt64x4() Int64x4
 
-// Uint8x32 converts from Int16x16 to Uint8x32
-func (from Int16x16) AsUint8x32() (to Uint8x32)
+// AsUint8x32 returns a Uint8x32 with the same bit representation as x.
+func (x Int16x16) AsUint8x32() Uint8x32
 
-// Uint16x16 converts from Int16x16 to Uint16x16
-func (from Int16x16) AsUint16x16() (to Uint16x16)
+// AsUint16x16 returns a Uint16x16 with the same bit representation as x.
+func (x Int16x16) AsUint16x16() Uint16x16
 
-// Uint32x8 converts from Int16x16 to Uint32x8
-func (from Int16x16) AsUint32x8() (to Uint32x8)
+// AsUint32x8 returns a Uint32x8 with the same bit representation as x.
+func (x Int16x16) AsUint32x8() Uint32x8
 
-// Uint64x4 converts from Int16x16 to Uint64x4
-func (from Int16x16) AsUint64x4() (to Uint64x4)
+// AsUint64x4 returns a Uint64x4 with the same bit representation as x.
+func (x Int16x16) AsUint64x4() Uint64x4
 
-// Float32x16 converts from Int16x32 to Float32x16
-func (from Int16x32) AsFloat32x16() (to Float32x16)
+// AsFloat32x16 returns a Float32x16 with the same bit representation as x.
+func (x Int16x32) AsFloat32x16() Float32x16
 
-// Float64x8 converts from Int16x32 to Float64x8
-func (from Int16x32) AsFloat64x8() (to Float64x8)
+// AsFloat64x8 returns a Float64x8 with the same bit representation as x.
+func (x Int16x32) AsFloat64x8() Float64x8
 
-// Int8x64 converts from Int16x32 to Int8x64
-func (from Int16x32) AsInt8x64() (to Int8x64)
+// AsInt8x64 returns an Int8x64 with the same bit representation as x.
+func (x Int16x32) AsInt8x64() Int8x64
 
-// Int32x16 converts from Int16x32 to Int32x16
-func (from Int16x32) AsInt32x16() (to Int32x16)
+// AsInt32x16 returns an Int32x16 with the same bit representation as x.
+func (x Int16x32) AsInt32x16() Int32x16
 
-// Int64x8 converts from Int16x32 to Int64x8
-func (from Int16x32) AsInt64x8() (to Int64x8)
+// AsInt64x8 returns an Int64x8 with the same bit representation as x.
+func (x Int16x32) AsInt64x8() Int64x8
 
-// Uint8x64 converts from Int16x32 to Uint8x64
-func (from Int16x32) AsUint8x64() (to Uint8x64)
+// AsUint8x64 returns a Uint8x64 with the same bit representation as x.
+func (x Int16x32) AsUint8x64() Uint8x64
 
-// Uint16x32 converts from Int16x32 to Uint16x32
-func (from Int16x32) AsUint16x32() (to Uint16x32)
+// AsUint16x32 returns a Uint16x32 with the same bit representation as x.
+func (x Int16x32) AsUint16x32() Uint16x32
 
-// Uint32x16 converts from Int16x32 to Uint32x16
-func (from Int16x32) AsUint32x16() (to Uint32x16)
+// AsUint32x16 returns a Uint32x16 with the same bit representation as x.
+func (x Int16x32) AsUint32x16() Uint32x16
 
-// Uint64x8 converts from Int16x32 to Uint64x8
-func (from Int16x32) AsUint64x8() (to Uint64x8)
+// AsUint64x8 returns a Uint64x8 with the same bit representation as x.
+func (x Int16x32) AsUint64x8() Uint64x8
 
-// Float32x4 converts from Int32x4 to Float32x4
-func (from Int32x4) AsFloat32x4() (to Float32x4)
+// AsFloat32x4 returns a Float32x4 with the same bit representation as x.
+func (x Int32x4) AsFloat32x4() Float32x4
 
-// Float64x2 converts from Int32x4 to Float64x2
-func (from Int32x4) AsFloat64x2() (to Float64x2)
+// AsFloat64x2 returns a Float64x2 with the same bit representation as x.
+func (x Int32x4) AsFloat64x2() Float64x2
 
-// Int8x16 converts from Int32x4 to Int8x16
-func (from Int32x4) AsInt8x16() (to Int8x16)
+// AsInt8x16 returns an Int8x16 with the same bit representation as x.
+func (x Int32x4) AsInt8x16() Int8x16
 
-// Int16x8 converts from Int32x4 to Int16x8
-func (from Int32x4) AsInt16x8() (to Int16x8)
+// AsInt16x8 returns an Int16x8 with the same bit representation as x.
+func (x Int32x4) AsInt16x8() Int16x8
 
-// Int64x2 converts from Int32x4 to Int64x2
-func (from Int32x4) AsInt64x2() (to Int64x2)
+// AsInt64x2 returns an Int64x2 with the same bit representation as x.
+func (x Int32x4) AsInt64x2() Int64x2
 
-// Uint8x16 converts from Int32x4 to Uint8x16
-func (from Int32x4) AsUint8x16() (to Uint8x16)
+// AsUint8x16 returns a Uint8x16 with the same bit representation as x.
+func (x Int32x4) AsUint8x16() Uint8x16
 
-// Uint16x8 converts from Int32x4 to Uint16x8
-func (from Int32x4) AsUint16x8() (to Uint16x8)
+// AsUint16x8 returns a Uint16x8 with the same bit representation as x.
+func (x Int32x4) AsUint16x8() Uint16x8
 
-// Uint32x4 converts from Int32x4 to Uint32x4
-func (from Int32x4) AsUint32x4() (to Uint32x4)
+// AsUint32x4 returns a Uint32x4 with the same bit representation as x.
+func (x Int32x4) AsUint32x4() Uint32x4
 
-// Uint64x2 converts from Int32x4 to Uint64x2
-func (from Int32x4) AsUint64x2() (to Uint64x2)
+// AsUint64x2 returns a Uint64x2 with the same bit representation as x.
+func (x Int32x4) AsUint64x2() Uint64x2
 
-// Float32x8 converts from Int32x8 to Float32x8
-func (from Int32x8) AsFloat32x8() (to Float32x8)
+// AsFloat32x8 returns a Float32x8 with the same bit representation as x.
+func (x Int32x8) AsFloat32x8() Float32x8
 
-// Float64x4 converts from Int32x8 to Float64x4
-func (from Int32x8) AsFloat64x4() (to Float64x4)
+// AsFloat64x4 returns a Float64x4 with the same bit representation as x.
+func (x Int32x8) AsFloat64x4() Float64x4
 
-// Int8x32 converts from Int32x8 to Int8x32
-func (from Int32x8) AsInt8x32() (to Int8x32)
+// AsInt8x32 returns an Int8x32 with the same bit representation as x.
+func (x Int32x8) AsInt8x32() Int8x32
 
-// Int16x16 converts from Int32x8 to Int16x16
-func (from Int32x8) AsInt16x16() (to Int16x16)
+// AsInt16x16 returns an Int16x16 with the same bit representation as x.
+func (x Int32x8) AsInt16x16() Int16x16
 
-// Int64x4 converts from Int32x8 to Int64x4
-func (from Int32x8) AsInt64x4() (to Int64x4)
+// AsInt64x4 returns an Int64x4 with the same bit representation as x.
+func (x Int32x8) AsInt64x4() Int64x4
 
-// Uint8x32 converts from Int32x8 to Uint8x32
-func (from Int32x8) AsUint8x32() (to Uint8x32)
+// AsUint8x32 returns a Uint8x32 with the same bit representation as x.
+func (x Int32x8) AsUint8x32() Uint8x32
 
-// Uint16x16 converts from Int32x8 to Uint16x16
-func (from Int32x8) AsUint16x16() (to Uint16x16)
+// AsUint16x16 returns a Uint16x16 with the same bit representation as x.
+func (x Int32x8) AsUint16x16() Uint16x16
 
-// Uint32x8 converts from Int32x8 to Uint32x8
-func (from Int32x8) AsUint32x8() (to Uint32x8)
+// AsUint32x8 returns a Uint32x8 with the same bit representation as x.
+func (x Int32x8) AsUint32x8() Uint32x8
 
-// Uint64x4 converts from Int32x8 to Uint64x4
-func (from Int32x8) AsUint64x4() (to Uint64x4)
+// AsUint64x4 returns a Uint64x4 with the same bit representation as x.
+func (x Int32x8) AsUint64x4() Uint64x4
 
-// Float32x16 converts from Int32x16 to Float32x16
-func (from Int32x16) AsFloat32x16() (to Float32x16)
+// AsFloat32x16 returns a Float32x16 with the same bit representation as x.
+func (x Int32x16) AsFloat32x16() Float32x16
 
-// Float64x8 converts from Int32x16 to Float64x8
-func (from Int32x16) AsFloat64x8() (to Float64x8)
+// AsFloat64x8 returns a Float64x8 with the same bit representation as x.
+func (x Int32x16) AsFloat64x8() Float64x8
 
-// Int8x64 converts from Int32x16 to Int8x64
-func (from Int32x16) AsInt8x64() (to Int8x64)
+// AsInt8x64 returns an Int8x64 with the same bit representation as x.
+func (x Int32x16) AsInt8x64() Int8x64
 
-// Int16x32 converts from Int32x16 to Int16x32
-func (from Int32x16) AsInt16x32() (to Int16x32)
+// AsInt16x32 returns an Int16x32 with the same bit representation as x.
+func (x Int32x16) AsInt16x32() Int16x32
 
-// Int64x8 converts from Int32x16 to Int64x8
-func (from Int32x16) AsInt64x8() (to Int64x8)
+// AsInt64x8 returns an Int64x8 with the same bit representation as x.
+func (x Int32x16) AsInt64x8() Int64x8
 
-// Uint8x64 converts from Int32x16 to Uint8x64
-func (from Int32x16) AsUint8x64() (to Uint8x64)
+// AsUint8x64 returns a Uint8x64 with the same bit representation as x.
+func (x Int32x16) AsUint8x64() Uint8x64
 
-// Uint16x32 converts from Int32x16 to Uint16x32
-func (from Int32x16) AsUint16x32() (to Uint16x32)
+// AsUint16x32 returns a Uint16x32 with the same bit representation as x.
+func (x Int32x16) AsUint16x32() Uint16x32
 
-// Uint32x16 converts from Int32x16 to Uint32x16
-func (from Int32x16) AsUint32x16() (to Uint32x16)
+// AsUint32x16 returns a Uint32x16 with the same bit representation as x.
+func (x Int32x16) AsUint32x16() Uint32x16
 
-// Uint64x8 converts from Int32x16 to Uint64x8
-func (from Int32x16) AsUint64x8() (to Uint64x8)
+// AsUint64x8 returns a Uint64x8 with the same bit representation as x.
+func (x Int32x16) AsUint64x8() Uint64x8
 
-// Float32x4 converts from Int64x2 to Float32x4
-func (from Int64x2) AsFloat32x4() (to Float32x4)
+// AsFloat32x4 returns a Float32x4 with the same bit representation as x.
+func (x Int64x2) AsFloat32x4() Float32x4
 
-// Float64x2 converts from Int64x2 to Float64x2
-func (from Int64x2) AsFloat64x2() (to Float64x2)
+// AsFloat64x2 returns a Float64x2 with the same bit representation as x.
+func (x Int64x2) AsFloat64x2() Float64x2
 
-// Int8x16 converts from Int64x2 to Int8x16
-func (from Int64x2) AsInt8x16() (to Int8x16)
+// AsInt8x16 returns an Int8x16 with the same bit representation as x.
+func (x Int64x2) AsInt8x16() Int8x16
 
-// Int16x8 converts from Int64x2 to Int16x8
-func (from Int64x2) AsInt16x8() (to Int16x8)
+// AsInt16x8 returns an Int16x8 with the same bit representation as x.
+func (x Int64x2) AsInt16x8() Int16x8
 
-// Int32x4 converts from Int64x2 to Int32x4
-func (from Int64x2) AsInt32x4() (to Int32x4)
+// AsInt32x4 returns an Int32x4 with the same bit representation as x.
+func (x Int64x2) AsInt32x4() Int32x4
 
-// Uint8x16 converts from Int64x2 to Uint8x16
-func (from Int64x2) AsUint8x16() (to Uint8x16)
+// AsUint8x16 returns a Uint8x16 with the same bit representation as x.
+func (x Int64x2) AsUint8x16() Uint8x16
 
-// Uint16x8 converts from Int64x2 to Uint16x8
-func (from Int64x2) AsUint16x8() (to Uint16x8)
+// AsUint16x8 returns a Uint16x8 with the same bit representation as x.
+func (x Int64x2) AsUint16x8() Uint16x8
 
-// Uint32x4 converts from Int64x2 to Uint32x4
-func (from Int64x2) AsUint32x4() (to Uint32x4)
+// AsUint32x4 returns a Uint32x4 with the same bit representation as x.
+func (x Int64x2) AsUint32x4() Uint32x4
 
-// Uint64x2 converts from Int64x2 to Uint64x2
-func (from Int64x2) AsUint64x2() (to Uint64x2)
+// AsUint64x2 returns a Uint64x2 with the same bit representation as x.
+func (x Int64x2) AsUint64x2() Uint64x2
 
-// Float32x8 converts from Int64x4 to Float32x8
-func (from Int64x4) AsFloat32x8() (to Float32x8)
+// AsFloat32x8 returns a Float32x8 with the same bit representation as x.
+func (x Int64x4) AsFloat32x8() Float32x8
 
-// Float64x4 converts from Int64x4 to Float64x4
-func (from Int64x4) AsFloat64x4() (to Float64x4)
+// AsFloat64x4 returns a Float64x4 with the same bit representation as x.
+func (x Int64x4) AsFloat64x4() Float64x4
 
-// Int8x32 converts from Int64x4 to Int8x32
-func (from Int64x4) AsInt8x32() (to Int8x32)
+// AsInt8x32 returns an Int8x32 with the same bit representation as x.
+func (x Int64x4) AsInt8x32() Int8x32
 
-// Int16x16 converts from Int64x4 to Int16x16
-func (from Int64x4) AsInt16x16() (to Int16x16)
+// AsInt16x16 returns an Int16x16 with the same bit representation as x.
+func (x Int64x4) AsInt16x16() Int16x16
 
-// Int32x8 converts from Int64x4 to Int32x8
-func (from Int64x4) AsInt32x8() (to Int32x8)
+// AsInt32x8 returns an Int32x8 with the same bit representation as x.
+func (x Int64x4) AsInt32x8() Int32x8
 
-// Uint8x32 converts from Int64x4 to Uint8x32
-func (from Int64x4) AsUint8x32() (to Uint8x32)
+// AsUint8x32 returns a Uint8x32 with the same bit representation as x.
+func (x Int64x4) AsUint8x32() Uint8x32
 
-// Uint16x16 converts from Int64x4 to Uint16x16
-func (from Int64x4) AsUint16x16() (to Uint16x16)
+// AsUint16x16 returns a Uint16x16 with the same bit representation as x.
+func (x Int64x4) AsUint16x16() Uint16x16
 
-// Uint32x8 converts from Int64x4 to Uint32x8
-func (from Int64x4) AsUint32x8() (to Uint32x8)
+// AsUint32x8 returns a Uint32x8 with the same bit representation as x.
+func (x Int64x4) AsUint32x8() Uint32x8
 
-// Uint64x4 converts from Int64x4 to Uint64x4
-func (from Int64x4) AsUint64x4() (to Uint64x4)
+// AsUint64x4 returns a Uint64x4 with the same bit representation as x.
+func (x Int64x4) AsUint64x4() Uint64x4
 
-// Float32x16 converts from Int64x8 to Float32x16
-func (from Int64x8) AsFloat32x16() (to Float32x16)
+// AsFloat32x16 returns a Float32x16 with the same bit representation as x.
+func (x Int64x8) AsFloat32x16() Float32x16
 
-// Float64x8 converts from Int64x8 to Float64x8
-func (from Int64x8) AsFloat64x8() (to Float64x8)
+// AsFloat64x8 returns a Float64x8 with the same bit representation as x.
+func (x Int64x8) AsFloat64x8() Float64x8
 
-// Int8x64 converts from Int64x8 to Int8x64
-func (from Int64x8) AsInt8x64() (to Int8x64)
+// AsInt8x64 returns an Int8x64 with the same bit representation as x.
+func (x Int64x8) AsInt8x64() Int8x64
 
-// Int16x32 converts from Int64x8 to Int16x32
-func (from Int64x8) AsInt16x32() (to Int16x32)
+// AsInt16x32 returns an Int16x32 with the same bit representation as x.
+func (x Int64x8) AsInt16x32() Int16x32
 
-// Int32x16 converts from Int64x8 to Int32x16
-func (from Int64x8) AsInt32x16() (to Int32x16)
+// AsInt32x16 returns an Int32x16 with the same bit representation as x.
+func (x Int64x8) AsInt32x16() Int32x16
 
-// Uint8x64 converts from Int64x8 to Uint8x64
-func (from Int64x8) AsUint8x64() (to Uint8x64)
+// AsUint8x64 returns a Uint8x64 with the same bit representation as x.
+func (x Int64x8) AsUint8x64() Uint8x64
 
-// Uint16x32 converts from Int64x8 to Uint16x32
-func (from Int64x8) AsUint16x32() (to Uint16x32)
+// AsUint16x32 returns a Uint16x32 with the same bit representation as x.
+func (x Int64x8) AsUint16x32() Uint16x32
 
-// Uint32x16 converts from Int64x8 to Uint32x16
-func (from Int64x8) AsUint32x16() (to Uint32x16)
+// AsUint32x16 returns a Uint32x16 with the same bit representation as x.
+func (x Int64x8) AsUint32x16() Uint32x16
 
-// Uint64x8 converts from Int64x8 to Uint64x8
-func (from Int64x8) AsUint64x8() (to Uint64x8)
+// AsUint64x8 returns a Uint64x8 with the same bit representation as x.
+func (x Int64x8) AsUint64x8() Uint64x8
 
-// Float32x4 converts from Uint8x16 to Float32x4
-func (from Uint8x16) AsFloat32x4() (to Float32x4)
+// AsFloat32x4 returns a Float32x4 with the same bit representation as x.
+func (x Uint8x16) AsFloat32x4() Float32x4
 
-// Float64x2 converts from Uint8x16 to Float64x2
-func (from Uint8x16) AsFloat64x2() (to Float64x2)
+// AsFloat64x2 returns a Float64x2 with the same bit representation as x.
+func (x Uint8x16) AsFloat64x2() Float64x2
 
-// Int8x16 converts from Uint8x16 to Int8x16
-func (from Uint8x16) AsInt8x16() (to Int8x16)
+// AsInt8x16 returns an Int8x16 with the same bit representation as x.
+func (x Uint8x16) AsInt8x16() Int8x16
 
-// Int16x8 converts from Uint8x16 to Int16x8
-func (from Uint8x16) AsInt16x8() (to Int16x8)
+// AsInt16x8 returns an Int16x8 with the same bit representation as x.
+func (x Uint8x16) AsInt16x8() Int16x8
 
-// Int32x4 converts from Uint8x16 to Int32x4
-func (from Uint8x16) AsInt32x4() (to Int32x4)
+// AsInt32x4 returns an Int32x4 with the same bit representation as x.
+func (x Uint8x16) AsInt32x4() Int32x4
 
-// Int64x2 converts from Uint8x16 to Int64x2
-func (from Uint8x16) AsInt64x2() (to Int64x2)
+// AsInt64x2 returns an Int64x2 with the same bit representation as x.
+func (x Uint8x16) AsInt64x2() Int64x2
 
-// Uint16x8 converts from Uint8x16 to Uint16x8
-func (from Uint8x16) AsUint16x8() (to Uint16x8)
+// AsUint16x8 returns a Uint16x8 with the same bit representation as x.
+func (x Uint8x16) AsUint16x8() Uint16x8
 
-// Uint32x4 converts from Uint8x16 to Uint32x4
-func (from Uint8x16) AsUint32x4() (to Uint32x4)
+// AsUint32x4 returns a Uint32x4 with the same bit representation as x.
+func (x Uint8x16) AsUint32x4() Uint32x4
 
-// Uint64x2 converts from Uint8x16 to Uint64x2
-func (from Uint8x16) AsUint64x2() (to Uint64x2)
+// AsUint64x2 returns a Uint64x2 with the same bit representation as x.
+func (x Uint8x16) AsUint64x2() Uint64x2
 
-// Float32x8 converts from Uint8x32 to Float32x8
-func (from Uint8x32) AsFloat32x8() (to Float32x8)
+// AsFloat32x8 returns a Float32x8 with the same bit representation as x.
+func (x Uint8x32) AsFloat32x8() Float32x8
 
-// Float64x4 converts from Uint8x32 to Float64x4
-func (from Uint8x32) AsFloat64x4() (to Float64x4)
+// AsFloat64x4 returns a Float64x4 with the same bit representation as x.
+func (x Uint8x32) AsFloat64x4() Float64x4
 
-// Int8x32 converts from Uint8x32 to Int8x32
-func (from Uint8x32) AsInt8x32() (to Int8x32)
+// AsInt8x32 returns an Int8x32 with the same bit representation as x.
+func (x Uint8x32) AsInt8x32() Int8x32
 
-// Int16x16 converts from Uint8x32 to Int16x16
-func (from Uint8x32) AsInt16x16() (to Int16x16)
+// AsInt16x16 returns an Int16x16 with the same bit representation as x.
+func (x Uint8x32) AsInt16x16() Int16x16
 
-// Int32x8 converts from Uint8x32 to Int32x8
-func (from Uint8x32) AsInt32x8() (to Int32x8)
+// AsInt32x8 returns an Int32x8 with the same bit representation as x.
+func (x Uint8x32) AsInt32x8() Int32x8
 
-// Int64x4 converts from Uint8x32 to Int64x4
-func (from Uint8x32) AsInt64x4() (to Int64x4)
+// AsInt64x4 returns an Int64x4 with the same bit representation as x.
+func (x Uint8x32) AsInt64x4() Int64x4
 
-// Uint16x16 converts from Uint8x32 to Uint16x16
-func (from Uint8x32) AsUint16x16() (to Uint16x16)
+// AsUint16x16 returns a Uint16x16 with the same bit representation as x.
+func (x Uint8x32) AsUint16x16() Uint16x16
 
-// Uint32x8 converts from Uint8x32 to Uint32x8
-func (from Uint8x32) AsUint32x8() (to Uint32x8)
+// AsUint32x8 returns a Uint32x8 with the same bit representation as x.
+func (x Uint8x32) AsUint32x8() Uint32x8
 
-// Uint64x4 converts from Uint8x32 to Uint64x4
-func (from Uint8x32) AsUint64x4() (to Uint64x4)
+// AsUint64x4 returns a Uint64x4 with the same bit representation as x.
+func (x Uint8x32) AsUint64x4() Uint64x4
 
-// Float32x16 converts from Uint8x64 to Float32x16
-func (from Uint8x64) AsFloat32x16() (to Float32x16)
+// AsFloat32x16 returns a Float32x16 with the same bit representation as x.
+func (x Uint8x64) AsFloat32x16() Float32x16
 
-// Float64x8 converts from Uint8x64 to Float64x8
-func (from Uint8x64) AsFloat64x8() (to Float64x8)
+// AsFloat64x8 returns a Float64x8 with the same bit representation as x.
+func (x Uint8x64) AsFloat64x8() Float64x8
 
-// Int8x64 converts from Uint8x64 to Int8x64
-func (from Uint8x64) AsInt8x64() (to Int8x64)
+// AsInt8x64 returns an Int8x64 with the same bit representation as x.
+func (x Uint8x64) AsInt8x64() Int8x64
 
-// Int16x32 converts from Uint8x64 to Int16x32
-func (from Uint8x64) AsInt16x32() (to Int16x32)
+// AsInt16x32 returns an Int16x32 with the same bit representation as x.
+func (x Uint8x64) AsInt16x32() Int16x32
 
-// Int32x16 converts from Uint8x64 to Int32x16
-func (from Uint8x64) AsInt32x16() (to Int32x16)
+// AsInt32x16 returns an Int32x16 with the same bit representation as x.
+func (x Uint8x64) AsInt32x16() Int32x16
 
-// Int64x8 converts from Uint8x64 to Int64x8
-func (from Uint8x64) AsInt64x8() (to Int64x8)
+// AsInt64x8 returns an Int64x8 with the same bit representation as x.
+func (x Uint8x64) AsInt64x8() Int64x8
 
-// Uint16x32 converts from Uint8x64 to Uint16x32
-func (from Uint8x64) AsUint16x32() (to Uint16x32)
+// AsUint16x32 returns a Uint16x32 with the same bit representation as x.
+func (x Uint8x64) AsUint16x32() Uint16x32
 
-// Uint32x16 converts from Uint8x64 to Uint32x16
-func (from Uint8x64) AsUint32x16() (to Uint32x16)
+// AsUint32x16 returns a Uint32x16 with the same bit representation as x.
+func (x Uint8x64) AsUint32x16() Uint32x16
 
-// Uint64x8 converts from Uint8x64 to Uint64x8
-func (from Uint8x64) AsUint64x8() (to Uint64x8)
+// AsUint64x8 returns a Uint64x8 with the same bit representation as x.
+func (x Uint8x64) AsUint64x8() Uint64x8
 
-// Float32x4 converts from Uint16x8 to Float32x4
-func (from Uint16x8) AsFloat32x4() (to Float32x4)
+// AsFloat32x4 returns a Float32x4 with the same bit representation as x.
+func (x Uint16x8) AsFloat32x4() Float32x4
 
-// Float64x2 converts from Uint16x8 to Float64x2
-func (from Uint16x8) AsFloat64x2() (to Float64x2)
+// AsFloat64x2 returns a Float64x2 with the same bit representation as x.
+func (x Uint16x8) AsFloat64x2() Float64x2
 
-// Int8x16 converts from Uint16x8 to Int8x16
-func (from Uint16x8) AsInt8x16() (to Int8x16)
+// AsInt8x16 returns an Int8x16 with the same bit representation as x.
+func (x Uint16x8) AsInt8x16() Int8x16
 
-// Int16x8 converts from Uint16x8 to Int16x8
-func (from Uint16x8) AsInt16x8() (to Int16x8)
+// AsInt16x8 returns an Int16x8 with the same bit representation as x.
+func (x Uint16x8) AsInt16x8() Int16x8
 
-// Int32x4 converts from Uint16x8 to Int32x4
-func (from Uint16x8) AsInt32x4() (to Int32x4)
+// AsInt32x4 returns an Int32x4 with the same bit representation as x.
+func (x Uint16x8) AsInt32x4() Int32x4
 
-// Int64x2 converts from Uint16x8 to Int64x2
-func (from Uint16x8) AsInt64x2() (to Int64x2)
+// AsInt64x2 returns an Int64x2 with the same bit representation as x.
+func (x Uint16x8) AsInt64x2() Int64x2
 
-// Uint8x16 converts from Uint16x8 to Uint8x16
-func (from Uint16x8) AsUint8x16() (to Uint8x16)
+// AsUint8x16 returns a Uint8x16 with the same bit representation as x.
+func (x Uint16x8) AsUint8x16() Uint8x16
 
-// Uint32x4 converts from Uint16x8 to Uint32x4
-func (from Uint16x8) AsUint32x4() (to Uint32x4)
+// AsUint32x4 returns a Uint32x4 with the same bit representation as x.
+func (x Uint16x8) AsUint32x4() Uint32x4
 
-// Uint64x2 converts from Uint16x8 to Uint64x2
-func (from Uint16x8) AsUint64x2() (to Uint64x2)
+// AsUint64x2 returns a Uint64x2 with the same bit representation as x.
+func (x Uint16x8) AsUint64x2() Uint64x2
 
-// Float32x8 converts from Uint16x16 to Float32x8
-func (from Uint16x16) AsFloat32x8() (to Float32x8)
+// AsFloat32x8 returns a Float32x8 with the same bit representation as x.
+func (x Uint16x16) AsFloat32x8() Float32x8
 
-// Float64x4 converts from Uint16x16 to Float64x4
-func (from Uint16x16) AsFloat64x4() (to Float64x4)
+// AsFloat64x4 returns a Float64x4 with the same bit representation as x.
+func (x Uint16x16) AsFloat64x4() Float64x4
 
-// Int8x32 converts from Uint16x16 to Int8x32
-func (from Uint16x16) AsInt8x32() (to Int8x32)
+// AsInt8x32 returns an Int8x32 with the same bit representation as x.
+func (x Uint16x16) AsInt8x32() Int8x32
 
-// Int16x16 converts from Uint16x16 to Int16x16
-func (from Uint16x16) AsInt16x16() (to Int16x16)
+// AsInt16x16 returns an Int16x16 with the same bit representation as x.
+func (x Uint16x16) AsInt16x16() Int16x16
 
-// Int32x8 converts from Uint16x16 to Int32x8
-func (from Uint16x16) AsInt32x8() (to Int32x8)
+// AsInt32x8 returns an Int32x8 with the same bit representation as x.
+func (x Uint16x16) AsInt32x8() Int32x8
 
-// Int64x4 converts from Uint16x16 to Int64x4
-func (from Uint16x16) AsInt64x4() (to Int64x4)
+// AsInt64x4 returns an Int64x4 with the same bit representation as x.
+func (x Uint16x16) AsInt64x4() Int64x4
 
-// Uint8x32 converts from Uint16x16 to Uint8x32
-func (from Uint16x16) AsUint8x32() (to Uint8x32)
+// AsUint8x32 returns a Uint8x32 with the same bit representation as x.
+func (x Uint16x16) AsUint8x32() Uint8x32
 
-// Uint32x8 converts from Uint16x16 to Uint32x8
-func (from Uint16x16) AsUint32x8() (to Uint32x8)
+// AsUint32x8 returns a Uint32x8 with the same bit representation as x.
+func (x Uint16x16) AsUint32x8() Uint32x8
 
-// Uint64x4 converts from Uint16x16 to Uint64x4
-func (from Uint16x16) AsUint64x4() (to Uint64x4)
+// AsUint64x4 returns a Uint64x4 with the same bit representation as x.
+func (x Uint16x16) AsUint64x4() Uint64x4
 
-// Float32x16 converts from Uint16x32 to Float32x16
-func (from Uint16x32) AsFloat32x16() (to Float32x16)
+// AsFloat32x16 returns a Float32x16 with the same bit representation as x.
+func (x Uint16x32) AsFloat32x16() Float32x16
 
-// Float64x8 converts from Uint16x32 to Float64x8
-func (from Uint16x32) AsFloat64x8() (to Float64x8)
+// AsFloat64x8 returns a Float64x8 with the same bit representation as x.
+func (x Uint16x32) AsFloat64x8() Float64x8
 
-// Int8x64 converts from Uint16x32 to Int8x64
-func (from Uint16x32) AsInt8x64() (to Int8x64)
+// AsInt8x64 returns an Int8x64 with the same bit representation as x.
+func (x Uint16x32) AsInt8x64() Int8x64
 
-// Int16x32 converts from Uint16x32 to Int16x32
-func (from Uint16x32) AsInt16x32() (to Int16x32)
+// AsInt16x32 returns an Int16x32 with the same bit representation as x.
+func (x Uint16x32) AsInt16x32() Int16x32
 
-// Int32x16 converts from Uint16x32 to Int32x16
-func (from Uint16x32) AsInt32x16() (to Int32x16)
+// AsInt32x16 returns an Int32x16 with the same bit representation as x.
+func (x Uint16x32) AsInt32x16() Int32x16
 
-// Int64x8 converts from Uint16x32 to Int64x8
-func (from Uint16x32) AsInt64x8() (to Int64x8)
+// AsInt64x8 returns an Int64x8 with the same bit representation as x.
+func (x Uint16x32) AsInt64x8() Int64x8
 
-// Uint8x64 converts from Uint16x32 to Uint8x64
-func (from Uint16x32) AsUint8x64() (to Uint8x64)
+// AsUint8x64 returns a Uint8x64 with the same bit representation as x.
+func (x Uint16x32) AsUint8x64() Uint8x64
 
-// Uint32x16 converts from Uint16x32 to Uint32x16
-func (from Uint16x32) AsUint32x16() (to Uint32x16)
+// AsUint32x16 returns a Uint32x16 with the same bit representation as x.
+func (x Uint16x32) AsUint32x16() Uint32x16
 
-// Uint64x8 converts from Uint16x32 to Uint64x8
-func (from Uint16x32) AsUint64x8() (to Uint64x8)
+// AsUint64x8 returns a Uint64x8 with the same bit representation as x.
+func (x Uint16x32) AsUint64x8() Uint64x8
 
-// Float32x4 converts from Uint32x4 to Float32x4
-func (from Uint32x4) AsFloat32x4() (to Float32x4)
+// AsFloat32x4 returns a Float32x4 with the same bit representation as x.
+func (x Uint32x4) AsFloat32x4() Float32x4
 
-// Float64x2 converts from Uint32x4 to Float64x2
-func (from Uint32x4) AsFloat64x2() (to Float64x2)
+// AsFloat64x2 returns a Float64x2 with the same bit representation as x.
+func (x Uint32x4) AsFloat64x2() Float64x2
 
-// Int8x16 converts from Uint32x4 to Int8x16
-func (from Uint32x4) AsInt8x16() (to Int8x16)
+// AsInt8x16 returns an Int8x16 with the same bit representation as x.
+func (x Uint32x4) AsInt8x16() Int8x16
 
-// Int16x8 converts from Uint32x4 to Int16x8
-func (from Uint32x4) AsInt16x8() (to Int16x8)
+// AsInt16x8 returns an Int16x8 with the same bit representation as x.
+func (x Uint32x4) AsInt16x8() Int16x8
 
-// Int32x4 converts from Uint32x4 to Int32x4
-func (from Uint32x4) AsInt32x4() (to Int32x4)
+// AsInt32x4 returns an Int32x4 with the same bit representation as x.
+func (x Uint32x4) AsInt32x4() Int32x4
 
-// Int64x2 converts from Uint32x4 to Int64x2
-func (from Uint32x4) AsInt64x2() (to Int64x2)
+// AsInt64x2 returns an Int64x2 with the same bit representation as x.
+func (x Uint32x4) AsInt64x2() Int64x2
 
-// Uint8x16 converts from Uint32x4 to Uint8x16
-func (from Uint32x4) AsUint8x16() (to Uint8x16)
+// AsUint8x16 returns a Uint8x16 with the same bit representation as x.
+func (x Uint32x4) AsUint8x16() Uint8x16
 
-// Uint16x8 converts from Uint32x4 to Uint16x8
-func (from Uint32x4) AsUint16x8() (to Uint16x8)
+// AsUint16x8 returns a Uint16x8 with the same bit representation as x.
+func (x Uint32x4) AsUint16x8() Uint16x8
 
-// Uint64x2 converts from Uint32x4 to Uint64x2
-func (from Uint32x4) AsUint64x2() (to Uint64x2)
+// AsUint64x2 returns a Uint64x2 with the same bit representation as x.
+func (x Uint32x4) AsUint64x2() Uint64x2
 
-// Float32x8 converts from Uint32x8 to Float32x8
-func (from Uint32x8) AsFloat32x8() (to Float32x8)
+// AsFloat32x8 returns a Float32x8 with the same bit representation as x.
+func (x Uint32x8) AsFloat32x8() Float32x8
 
-// Float64x4 converts from Uint32x8 to Float64x4
-func (from Uint32x8) AsFloat64x4() (to Float64x4)
+// AsFloat64x4 returns a Float64x4 with the same bit representation as x.
+func (x Uint32x8) AsFloat64x4() Float64x4
 
-// Int8x32 converts from Uint32x8 to Int8x32
-func (from Uint32x8) AsInt8x32() (to Int8x32)
+// AsInt8x32 returns an Int8x32 with the same bit representation as x.
+func (x Uint32x8) AsInt8x32() Int8x32
 
-// Int16x16 converts from Uint32x8 to Int16x16
-func (from Uint32x8) AsInt16x16() (to Int16x16)
+// AsInt16x16 returns an Int16x16 with the same bit representation as x.
+func (x Uint32x8) AsInt16x16() Int16x16
 
-// Int32x8 converts from Uint32x8 to Int32x8
-func (from Uint32x8) AsInt32x8() (to Int32x8)
+// AsInt32x8 returns an Int32x8 with the same bit representation as x.
+func (x Uint32x8) AsInt32x8() Int32x8
 
-// Int64x4 converts from Uint32x8 to Int64x4
-func (from Uint32x8) AsInt64x4() (to Int64x4)
+// AsInt64x4 returns an Int64x4 with the same bit representation as x.
+func (x Uint32x8) AsInt64x4() Int64x4
 
-// Uint8x32 converts from Uint32x8 to Uint8x32
-func (from Uint32x8) AsUint8x32() (to Uint8x32)
+// AsUint8x32 returns a Uint8x32 with the same bit representation as x.
+func (x Uint32x8) AsUint8x32() Uint8x32
 
-// Uint16x16 converts from Uint32x8 to Uint16x16
-func (from Uint32x8) AsUint16x16() (to Uint16x16)
+// AsUint16x16 returns a Uint16x16 with the same bit representation as x.
+func (x Uint32x8) AsUint16x16() Uint16x16
 
-// Uint64x4 converts from Uint32x8 to Uint64x4
-func (from Uint32x8) AsUint64x4() (to Uint64x4)
+// AsUint64x4 returns a Uint64x4 with the same bit representation as x.
+func (x Uint32x8) AsUint64x4() Uint64x4
 
-// Float32x16 converts from Uint32x16 to Float32x16
-func (from Uint32x16) AsFloat32x16() (to Float32x16)
+// AsFloat32x16 returns a Float32x16 with the same bit representation as x.
+func (x Uint32x16) AsFloat32x16() Float32x16
 
-// Float64x8 converts from Uint32x16 to Float64x8
-func (from Uint32x16) AsFloat64x8() (to Float64x8)
+// AsFloat64x8 returns a Float64x8 with the same bit representation as x.
+func (x Uint32x16) AsFloat64x8() Float64x8
 
-// Int8x64 converts from Uint32x16 to Int8x64
-func (from Uint32x16) AsInt8x64() (to Int8x64)
+// AsInt8x64 returns an Int8x64 with the same bit representation as x.
+func (x Uint32x16) AsInt8x64() Int8x64
 
-// Int16x32 converts from Uint32x16 to Int16x32
-func (from Uint32x16) AsInt16x32() (to Int16x32)
+// AsInt16x32 returns an Int16x32 with the same bit representation as x.
+func (x Uint32x16) AsInt16x32() Int16x32
 
-// Int32x16 converts from Uint32x16 to Int32x16
-func (from Uint32x16) AsInt32x16() (to Int32x16)
+// AsInt32x16 returns an Int32x16 with the same bit representation as x.
+func (x Uint32x16) AsInt32x16() Int32x16
 
-// Int64x8 converts from Uint32x16 to Int64x8
-func (from Uint32x16) AsInt64x8() (to Int64x8)
+// AsInt64x8 returns an Int64x8 with the same bit representation as x.
+func (x Uint32x16) AsInt64x8() Int64x8
 
-// Uint8x64 converts from Uint32x16 to Uint8x64
-func (from Uint32x16) AsUint8x64() (to Uint8x64)
+// AsUint8x64 returns a Uint8x64 with the same bit representation as x.
+func (x Uint32x16) AsUint8x64() Uint8x64
 
-// Uint16x32 converts from Uint32x16 to Uint16x32
-func (from Uint32x16) AsUint16x32() (to Uint16x32)
+// AsUint16x32 returns a Uint16x32 with the same bit representation as x.
+func (x Uint32x16) AsUint16x32() Uint16x32
 
-// Uint64x8 converts from Uint32x16 to Uint64x8
-func (from Uint32x16) AsUint64x8() (to Uint64x8)
+// AsUint64x8 returns a Uint64x8 with the same bit representation as x.
+func (x Uint32x16) AsUint64x8() Uint64x8
 
-// Float32x4 converts from Uint64x2 to Float32x4
-func (from Uint64x2) AsFloat32x4() (to Float32x4)
+// AsFloat32x4 returns a Float32x4 with the same bit representation as x.
+func (x Uint64x2) AsFloat32x4() Float32x4
 
-// Float64x2 converts from Uint64x2 to Float64x2
-func (from Uint64x2) AsFloat64x2() (to Float64x2)
+// AsFloat64x2 returns a Float64x2 with the same bit representation as x.
+func (x Uint64x2) AsFloat64x2() Float64x2
 
-// Int8x16 converts from Uint64x2 to Int8x16
-func (from Uint64x2) AsInt8x16() (to Int8x16)
+// AsInt8x16 returns an Int8x16 with the same bit representation as x.
+func (x Uint64x2) AsInt8x16() Int8x16
 
-// Int16x8 converts from Uint64x2 to Int16x8
-func (from Uint64x2) AsInt16x8() (to Int16x8)
+// AsInt16x8 returns an Int16x8 with the same bit representation as x.
+func (x Uint64x2) AsInt16x8() Int16x8
 
-// Int32x4 converts from Uint64x2 to Int32x4
-func (from Uint64x2) AsInt32x4() (to Int32x4)
+// AsInt32x4 returns an Int32x4 with the same bit representation as x.
+func (x Uint64x2) AsInt32x4() Int32x4
 
-// Int64x2 converts from Uint64x2 to Int64x2
-func (from Uint64x2) AsInt64x2() (to Int64x2)
+// AsInt64x2 returns an Int64x2 with the same bit representation as x.
+func (x Uint64x2) AsInt64x2() Int64x2
 
-// Uint8x16 converts from Uint64x2 to Uint8x16
-func (from Uint64x2) AsUint8x16() (to Uint8x16)
+// AsUint8x16 returns a Uint8x16 with the same bit representation as x.
+func (x Uint64x2) AsUint8x16() Uint8x16
 
-// Uint16x8 converts from Uint64x2 to Uint16x8
-func (from Uint64x2) AsUint16x8() (to Uint16x8)
+// AsUint16x8 returns a Uint16x8 with the same bit representation as x.
+func (x Uint64x2) AsUint16x8() Uint16x8
 
-// Uint32x4 converts from Uint64x2 to Uint32x4
-func (from Uint64x2) AsUint32x4() (to Uint32x4)
+// AsUint32x4 returns a Uint32x4 with the same bit representation as x.
+func (x Uint64x2) AsUint32x4() Uint32x4
 
-// Float32x8 converts from Uint64x4 to Float32x8
-func (from Uint64x4) AsFloat32x8() (to Float32x8)
+// AsFloat32x8 returns a Float32x8 with the same bit representation as x.
+func (x Uint64x4) AsFloat32x8() Float32x8
 
-// Float64x4 converts from Uint64x4 to Float64x4
-func (from Uint64x4) AsFloat64x4() (to Float64x4)
+// AsFloat64x4 returns a Float64x4 with the same bit representation as x.
+func (x Uint64x4) AsFloat64x4() Float64x4
 
-// Int8x32 converts from Uint64x4 to Int8x32
-func (from Uint64x4) AsInt8x32() (to Int8x32)
+// AsInt8x32 returns an Int8x32 with the same bit representation as x.
+func (x Uint64x4) AsInt8x32() Int8x32
 
-// Int16x16 converts from Uint64x4 to Int16x16
-func (from Uint64x4) AsInt16x16() (to Int16x16)
+// AsInt16x16 returns an Int16x16 with the same bit representation as x.
+func (x Uint64x4) AsInt16x16() Int16x16
 
-// Int32x8 converts from Uint64x4 to Int32x8
-func (from Uint64x4) AsInt32x8() (to Int32x8)
+// AsInt32x8 returns an Int32x8 with the same bit representation as x.
+func (x Uint64x4) AsInt32x8() Int32x8
 
-// Int64x4 converts from Uint64x4 to Int64x4
-func (from Uint64x4) AsInt64x4() (to Int64x4)
+// AsInt64x4 returns an Int64x4 with the same bit representation as x.
+func (x Uint64x4) AsInt64x4() Int64x4
 
-// Uint8x32 converts from Uint64x4 to Uint8x32
-func (from Uint64x4) AsUint8x32() (to Uint8x32)
+// AsUint8x32 returns a Uint8x32 with the same bit representation as x.
+func (x Uint64x4) AsUint8x32() Uint8x32
 
-// Uint16x16 converts from Uint64x4 to Uint16x16
-func (from Uint64x4) AsUint16x16() (to Uint16x16)
+// AsUint16x16 returns a Uint16x16 with the same bit representation as x.
+func (x Uint64x4) AsUint16x16() Uint16x16
 
-// Uint32x8 converts from Uint64x4 to Uint32x8
-func (from Uint64x4) AsUint32x8() (to Uint32x8)
+// AsUint32x8 returns a Uint32x8 with the same bit representation as x.
+func (x Uint64x4) AsUint32x8() Uint32x8
 
-// Float32x16 converts from Uint64x8 to Float32x16
-func (from Uint64x8) AsFloat32x16() (to Float32x16)
+// AsFloat32x16 returns a Float32x16 with the same bit representation as x.
+func (x Uint64x8) AsFloat32x16() Float32x16
 
-// Float64x8 converts from Uint64x8 to Float64x8
-func (from Uint64x8) AsFloat64x8() (to Float64x8)
+// AsFloat64x8 returns a Float64x8 with the same bit representation as x.
+func (x Uint64x8) AsFloat64x8() Float64x8
 
-// Int8x64 converts from Uint64x8 to Int8x64
-func (from Uint64x8) AsInt8x64() (to Int8x64)
+// AsInt8x64 returns an Int8x64 with the same bit representation as x.
+func (x Uint64x8) AsInt8x64() Int8x64
 
-// Int16x32 converts from Uint64x8 to Int16x32
-func (from Uint64x8) AsInt16x32() (to Int16x32)
+// AsInt16x32 returns an Int16x32 with the same bit representation as x.
+func (x Uint64x8) AsInt16x32() Int16x32
 
-// Int32x16 converts from Uint64x8 to Int32x16
-func (from Uint64x8) AsInt32x16() (to Int32x16)
+// AsInt32x16 returns an Int32x16 with the same bit representation as x.
+func (x Uint64x8) AsInt32x16() Int32x16
 
-// Int64x8 converts from Uint64x8 to Int64x8
-func (from Uint64x8) AsInt64x8() (to Int64x8)
+// AsInt64x8 returns an Int64x8 with the same bit representation as x.
+func (x Uint64x8) AsInt64x8() Int64x8
 
-// Uint8x64 converts from Uint64x8 to Uint8x64
-func (from Uint64x8) AsUint8x64() (to Uint8x64)
+// AsUint8x64 returns a Uint8x64 with the same bit representation as x.
+func (x Uint64x8) AsUint8x64() Uint8x64
 
-// Uint16x32 converts from Uint64x8 to Uint16x32
-func (from Uint64x8) AsUint16x32() (to Uint16x32)
+// AsUint16x32 returns a Uint16x32 with the same bit representation as x.
+func (x Uint64x8) AsUint16x32() Uint16x32
 
-// Uint32x16 converts from Uint64x8 to Uint32x16
-func (from Uint64x8) AsUint32x16() (to Uint32x16)
+// AsUint32x16 returns a Uint32x16 with the same bit representation as x.
+func (x Uint64x8) AsUint32x16() Uint32x16
 
 // ToInt8x16 converts from Mask8x16 to Int8x16
 func (from Mask8x16) ToInt8x16() (to Int8x16)
