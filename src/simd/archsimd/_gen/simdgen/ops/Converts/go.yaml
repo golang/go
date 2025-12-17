@@ -138,9 +138,6 @@
 # Widening integer conversions.
 # uint8 -> uint16
 - go: ExtendToUint16
-  addDoc: &zeroExtendDoc
-    !string |-
-    // The result vector's elements are zero-extended.
   regexpTag: "convert"
   asm: "VPMOVZXBW"
   in:
@@ -156,7 +153,6 @@
 - go: ExtendToUint16
   regexpTag: "convert"
   asm: "VPMOVZXBW"
-  addDoc: *zeroExtendDoc
   in:
   - &u8x32
     base: uint
@@ -171,9 +167,6 @@
 - go: ExtendToInt16
   regexpTag: "convert"
   asm: "VPMOVSXBW"
-  addDoc: &signExtendDoc
-    !string |-
-    // The result vector's elements are sign-extended.
   in:
   - &i8x16
     base: int
@@ -187,7 +180,6 @@
 - go: ExtendToInt16
   regexpTag: "convert"
   asm: "VPMOVSXBW"
-  addDoc: *signExtendDoc
   in:
   - &i8x32
     base: int
@@ -202,7 +194,6 @@
 - go: ExtendToUint32
   regexpTag: "convert"
   asm: "VPMOVZXWD"
-  addDoc: *zeroExtendDoc
   in:
   - &u16x8
     base: uint
@@ -216,7 +207,6 @@
 - go: ExtendToUint32
   regexpTag: "convert"
   asm: "VPMOVZXWD"
-  addDoc: *zeroExtendDoc
   in:
   - *u16x16
   out:
@@ -228,7 +218,6 @@
 - go: ExtendToInt32
   regexpTag: "convert"
   asm: "VPMOVSXWD"
-  addDoc: *signExtendDoc
   in:
   - &i16x8
     base: int
@@ -242,7 +231,6 @@
 - go: ExtendToInt32
   regexpTag: "convert"
   asm: "VPMOVSXWD"
-  addDoc: *signExtendDoc
   in:
   - *i16x16
   out:
@@ -254,7 +242,6 @@
 - go: ExtendToUint64
   regexpTag: "convert"
   asm: "VPMOVZXDQ"
-  addDoc: *zeroExtendDoc
   in:
   - &u32x4
     base: uint
@@ -268,7 +255,6 @@
 - go: ExtendToUint64
   regexpTag: "convert"
   asm: "VPMOVZXDQ"
-  addDoc: *zeroExtendDoc
   in:
   - *u32x8
   out:
@@ -280,7 +266,6 @@
 - go: ExtendToInt64
   regexpTag: "convert"
   asm: "VPMOVSXDQ"
-  addDoc: *signExtendDoc
   in:
   - &i32x4
     base: int
@@ -294,7 +279,6 @@
 - go: ExtendToInt64
   regexpTag: "convert"
   asm: "VPMOVSXDQ"
-  addDoc: *signExtendDoc
   in:
   - *i32x8
   out:
@@ -306,7 +290,6 @@
 - go: ExtendToUint64
   regexpTag: "convert"
   asm: "VPMOVZXWQ"
-  addDoc: *zeroExtendDoc
   in:
   - *u16x8
   out:
@@ -315,7 +298,6 @@
 - go: ExtendToInt64
   regexpTag: "convert"
   asm: "VPMOVSXWQ"
-  addDoc: *signExtendDoc
   in:
   - *i16x8
   out:
@@ -324,7 +306,6 @@
 - go: ExtendToUint32
   regexpTag: "convert"
   asm: "VPMOVZXBD"
-  addDoc: *zeroExtendDoc
   in:
   - *u8x16
   out:
@@ -333,7 +314,6 @@
 - go: ExtendToInt32
   regexpTag: "convert"
   asm: "VPMOVSXBD"
-  addDoc: *signExtendDoc
   in:
   - *i8x16
   out:
@@ -342,10 +322,6 @@
 - go: TruncateToInt8
   regexpTag: "convert"
   asm: "VPMOV[WDQ]B"
-  addDoc: &truncDocZeroUpper
-    !string |-
-    // Conversion is done with truncation on the vector elements.
-    // Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
   in:
     - base: int
   out:
@@ -354,7 +330,6 @@
 - go: TruncateToUint8
   regexpTag: "convert"
   asm: "VPMOV[WDQ]B"
-  addDoc: *truncDocZeroUpper
   in:
     - base: uint
   out:
@@ -363,9 +338,6 @@
 - go: TruncateToInt8
   regexpTag: "convert"
   asm: "VPMOV[WDQ]B"
-  addDoc: &truncDoc
-    !string |-
-    // Conversion is done with truncation on the vector elements.
   in:
     - base: int
   out:
@@ -374,7 +346,6 @@
 - go: TruncateToUint8
   regexpTag: "convert"
   asm: "VPMOV[WDQ]B"
-  addDoc: *truncDoc
   in:
     - base: uint
   out:
@@ -383,7 +354,6 @@
 - go: TruncateToInt16
   regexpTag: "convert"
   asm: "VPMOV[DQ]W"
-  addDoc: *truncDoc
   in:
     - base: int
   out:
@@ -391,7 +361,6 @@
 - go: TruncateToUint16
   regexpTag: "convert"
   asm: "VPMOV[DQ]W"
-  addDoc: *truncDoc
   in:
     - base: uint
   out:
@@ -399,7 +368,6 @@
 - go: TruncateToInt32
   regexpTag: "convert"
   asm: "VPMOVQD"
-  addDoc: *truncDoc
   in:
     - base: int
   out:
@@ -407,7 +375,6 @@
 - go: TruncateToUint32
   regexpTag: "convert"
   asm: "VPMOVQD"
-  addDoc: *truncDoc
   in:
     - base: uint
   out:
@@ -416,10 +383,6 @@
 - go: SaturateToInt8
   regexpTag: "convert"
   asm: "VPMOVS[WDQ]B"
-  addDoc: &satDocZeroUpper
-    !string |-
-    // Conversion is done with saturation on the vector elements.
-    // Results are packed to low elements in the returned vector, its upper elements are zero-cleared.
   in:
     - base: int
   out:
@@ -428,7 +391,6 @@
 - go: SaturateToUint8
   regexpTag: "convert"
   asm: "VPMOVS[WDQ]B"
-  addDoc: *satDocZeroUpper
   in:
     - base: int
   out:
@@ -437,9 +399,6 @@
 - go: SaturateToInt8
   regexpTag: "convert"
   asm: "VPMOVS[WDQ]B"
-  addDoc: &satDoc
-    !string |-
-    // Conversion is done with saturation on the vector elements.
   in:
     - base: int
   out:
@@ -448,7 +407,6 @@
 - go: SaturateToUint8
   regexpTag: "convert"
   asm: "VPMOVUS[WDQ]B"
-  addDoc: *satDoc
   in:
     - base: uint
   out:
@@ -457,7 +415,6 @@
 - go: SaturateToInt16
   regexpTag: "convert"
   asm: "VPMOVS[DQ]W"
-  addDoc: *satDoc
   in:
     - base: int
   out:
@@ -465,7 +422,6 @@
 - go: SaturateToUint16
   regexpTag: "convert"
   asm: "VPMOVUS[DQ]W"
-  addDoc: *satDoc
   in:
     - base: uint
   out:
@@ -473,7 +429,6 @@
 - go: SaturateToInt32
   regexpTag: "convert"
   asm: "VPMOVSQD"
-  addDoc: *satDoc
   in:
     - base: int
   out:
@@ -481,7 +436,6 @@
 - go: SaturateToUint32
   regexpTag: "convert"
   asm: "VPMOVUSQD"
-  addDoc: *satDoc
   in:
     - base: uint
   out:
@@ -495,7 +449,6 @@
     // With each 128-bit as a group:
     // The converted group from the first input vector will be packed to the lower part of the result vector,
     // the converted group from the second input vector will be packed to the upper part of the result vector.
-    // Conversion is done with saturation on the vector elements.
   in:
     - base: int
     - base: int
@@ -504,7 +457,6 @@
 - go: SaturateToUint16Concat
   regexpTag: "convert"
   asm: "VPACKUSDW"
-  addDoc: *satDocConcat
   in:
     - base: uint
     - base: uint
@@ -516,7 +468,6 @@
 - go: ExtendLo8ToUint16x8
   regexpTag: "convert"
   asm: "VPMOVZXBW"
-  addDoc: *zeroExtendDoc
   in:
   - *u8x16
   out:
@@ -525,7 +476,6 @@
 - go: ExtendLo8ToInt16x8
   regexpTag: "convert"
   asm: "VPMOVSXBW"
-  addDoc: *signExtendDoc
   in:
   - *i8x16
   out:
@@ -534,7 +484,6 @@
 - go: ExtendLo4ToUint32x4
   regexpTag: "convert"
   asm: "VPMOVZXWD"
-  addDoc: *zeroExtendDoc
   in:
   - *u16x8
   out:
@@ -543,7 +492,6 @@
 - go: ExtendLo4ToInt32x4
   regexpTag: "convert"
   asm: "VPMOVSXWD"
-  addDoc: *signExtendDoc
   in:
   - *i16x8
   out:
@@ -552,7 +500,6 @@
 - go: ExtendLo2ToUint64x2
   regexpTag: "convert"
   asm: "VPMOVZXDQ"
-  addDoc: *zeroExtendDoc
   in:
   - *u32x4
   out:
@@ -564,7 +511,6 @@
 - go: ExtendLo2ToInt64x2
   regexpTag: "convert"
   asm: "VPMOVSXDQ"
-  addDoc: *signExtendDoc
   in:
   - *i32x4
   out:
@@ -576,7 +522,6 @@
 - go: ExtendLo2ToUint64x2
   regexpTag: "convert"
   asm: "VPMOVZXWQ"
-  addDoc: *zeroExtendDoc
   in:
   - *u16x8
   out:
@@ -584,7 +529,6 @@
 - go: ExtendLo4ToUint64x4
   regexpTag: "convert"
   asm: "VPMOVZXWQ"
-  addDoc: *zeroExtendDoc
   in:
   - *u16x8
   out:
@@ -593,7 +537,6 @@
 - go: ExtendLo2ToInt64x2
   regexpTag: "convert"
   asm: "VPMOVSXWQ"
-  addDoc: *signExtendDoc
   in:
   - *i16x8
   out:
@@ -601,7 +544,6 @@
 - go: ExtendLo4ToInt64x4
   regexpTag: "convert"
   asm: "VPMOVSXWQ"
-  addDoc: *signExtendDoc
   in:
   - *i16x8
   out:
@@ -610,7 +552,6 @@
 - go: ExtendLo4ToUint32x4
   regexpTag: "convert"
   asm: "VPMOVZXBD"
-  addDoc: *zeroExtendDoc
   in:
   - *u8x16
   out:
@@ -618,7 +559,6 @@
 - go: ExtendLo8ToUint32x8
   regexpTag: "convert"
   asm: "VPMOVZXBD"
-  addDoc: *zeroExtendDoc
   in:
   - *u8x16
   out:
@@ -627,7 +567,6 @@
 - go: ExtendLo4ToInt32x4
   regexpTag: "convert"
   asm: "VPMOVSXBD"
-  addDoc: *signExtendDoc
   in:
   - *i8x16
   out:
@@ -635,7 +574,6 @@
 - go: ExtendLo8ToInt32x8
   regexpTag: "convert"
   asm: "VPMOVSXBD"
-  addDoc: *signExtendDoc
   in:
   - *i8x16
   out:
@@ -644,7 +582,6 @@
 - go: ExtendLo2ToUint64x2
   regexpTag: "convert"
   asm: "VPMOVZXBQ"
-  addDoc: *zeroExtendDoc
   in:
   - *u8x16
   out:
@@ -652,7 +589,6 @@
 - go: ExtendLo4ToUint64x4
   regexpTag: "convert"
   asm: "VPMOVZXBQ"
-  addDoc: *zeroExtendDoc
   in:
   - *u8x16
   out:
@@ -660,7 +596,6 @@
 - go: ExtendLo8ToUint64x8
   regexpTag: "convert"
   asm: "VPMOVZXBQ"
-  addDoc: *zeroExtendDoc
   in:
   - *u8x16
   out:
@@ -669,7 +604,6 @@
 - go: ExtendLo2ToInt64x2
   regexpTag: "convert"
   asm: "VPMOVSXBQ"
-  addDoc: *signExtendDoc
   in:
   - *i8x16
   out:
@@ -677,7 +611,6 @@
 - go: ExtendLo4ToInt64x4
   regexpTag: "convert"
   asm: "VPMOVSXBQ"
-  addDoc: *signExtendDoc
   in:
   - *i8x16
   out:
@@ -685,7 +618,6 @@
 - go: ExtendLo8ToInt64x8
   regexpTag: "convert"
   asm: "VPMOVSXBQ"
-  addDoc: *signExtendDoc
   in:
   - *i8x16
   out:

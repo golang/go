@@ -135,6 +135,19 @@ func (o *Operation) DecodeUnified(v *unify.Value) error {
 
 	o.In = append(o.rawOperation.In, o.rawOperation.InVariant...)
 
+	// For down conversions, the high elements are zeroed if the result has more elements.
+	// TODO: we should encode this logic in the YAML file, instead of hardcoding it here.
+	if len(o.In) > 0 && len(o.Out) > 0 {
+		inLanes := o.In[0].Lanes
+		outLanes := o.Out[0].Lanes
+		if inLanes != nil && outLanes != nil && *inLanes < *outLanes {
+			if (strings.Contains(o.Go, "Saturate") || strings.Contains(o.Go, "Truncate")) &&
+				!strings.HasSuffix(o.Go, "Concat") {
+				o.Documentation += "\n// Results are packed to low elements in the returned vector, its upper elements are zeroed."
+			}
+		}
+	}
+
 	return nil
 }
 
