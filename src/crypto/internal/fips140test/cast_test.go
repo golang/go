@@ -115,7 +115,7 @@ func TestAllCASTs(t *testing.T) {
 
 // TestConditionals causes the conditional CASTs and PCTs to be invoked.
 func TestConditionals(t *testing.T) {
-	fips140v2Conditionals()
+	fips140v126Conditionals()
 	// ML-KEM PCT
 	kMLKEM, err := mlkem.GenerateKey768()
 	if err != nil {
