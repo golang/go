@@ -219,7 +219,7 @@ func doinit() {
 	if eax7 >= 1 {
 		eax71, _, _, _ := cpuid(7, 1)
 		if X86.HasAVX {
-			X86.HasAVXVNNI = isSet(4, eax71)
+			X86.HasAVXVNNI = isSet(eax71, cpuid_AVXVNNI)
 		}
 	}
 
