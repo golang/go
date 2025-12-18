@@ -60,8 +60,9 @@ func LoadPackage(filenames []string) {
 				// Rewrite syntax extensions to standard Go syntax
 				if p.file != nil {
 					syntax.RewriteQuestionExprs(p.file)
-					syntax.RewriteMagicMethods(p.file)                          // 1. 先处理魔法方法 (_getitem, _setitem) - 必须在重载前!
-					syntax.RewriteArithmeticOperators(p.file)                   // 2. 处理算术运算符重载（_add/_radd/.../_inc/_dec）- 必须在重载前!
+					syntax.RewriteMagicMethods(p.file)        // 1. 先处理魔法方法 (_getitem, _setitem) - 必须在重载前!
+					syntax.RewriteArithmeticOperators(p.file) // 2. 处理算术运算符重载（_add/_radd/.../_inc/_dec）- 必须在重载前!
+					warnPointerEqOverload(p.file)
 					p.overloadInfo = syntax.PreprocessOverloadedMethods(p.file) // 3. 处理方法重载（会重命名_init和_getitem/_setitem）
 					syntax.AddReturnToInitMethods(p.file)                       // 4. 给所有_init方法添加返回值
 					syntax.RewriteMethodDecorators(p.file)                      // 5. 处理装饰器
@@ -162,6 +163,39 @@ var binOps = [...]ir.Op{
 // error is called concurrently if files are parsed concurrently.
 func (p *noder) error(err error) {
 	p.err <- err.(syntax.Error)
+}
+
+// warnPointerEqOverload emits a compiler warning if a pointer receiver defines
+// an overloaded equality method (_eq), because this will override the built-in
+// pointer == semantics for that type.
+func warnPointerEqOverload(file *syntax.File) {
+	if file == nil {
+		return
+	}
+	// Local posMap; safe to use with zero value.
+	var m posMap
+
+	seen := make(map[string]bool) // recvType string (e.g. "*T") -> warned
+	for _, decl := range file.DeclList {
+		fn, ok := decl.(*syntax.FuncDecl)
+		if !ok || fn.Recv == nil || fn.Name == nil {
+			continue
+		}
+		name := fn.Name.Value
+		// _eq or overloaded form _eq_...
+		if name != "_eq" && !(len(name) >= 4 && name[:4] == "_eq_") {
+			continue
+		}
+		recvType := syntax.String(fn.Recv.Type)
+		if len(recvType) == 0 || recvType[0] != '*' {
+			continue
+		}
+		if seen[recvType] {
+			continue
+		}
+		seen[recvType] = true
+		base.WarnfAt(m.makeXPos(fn.Pos()), "warning: %s defines _eq (== overload), which overrides the native pointer == semantics for this type", recvType)
+	}
 }
 
 // pragmas that are allowed in the std lib, but don't have

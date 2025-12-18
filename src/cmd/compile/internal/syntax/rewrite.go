@@ -951,7 +951,13 @@ func isOverloadSingleUnderscoreMagic(methodName string) bool {
 	case "_init", "_getitem", "_setitem",
 		"_add", "_sub", "_mul", "_div", "_mod",
 		"_radd", "_rsub", "_rmul", "_rdiv", "_rmod",
-		"_inc", "_dec":
+		"_inc", "_dec",
+		"_pos", "_neg", "_invert",
+		"_eq", "_ne", "_gt", "_ge", "_lt", "_le",
+		"_or", "_ror", "_and", "_rand", "_xor", "_rxor",
+		"_lshift", "_rlshift", "_rshift", "_rrshift",
+		"_bitclear", "_rbitclear",
+		"_recv", "_send":
 		return true
 	default:
 		return false
@@ -1591,15 +1597,43 @@ func splitFirst(s, sep string) []string {
 }
 
 // ============================================================================
-// Arithmetic Operator Overloading Support
+// Operator Overloading Support
 // ============================================================================
 
-// RewriteArithmeticOperators rewrites arithmetic operators into magic method calls.
+// RewriteArithmeticOperators rewrites overloaded operators into magic method calls.
 //
-// Supported operators:
-//   - Binary: + - * / %  ->  a._add(b) / a._sub(b) / ...
-//   - Reverse fallback:  if a doesn't have forward op, try b._radd(a) / ...
-//   - Inc/Dec: x++ / x-- -> x._inc() / x._dec()  (only forward; no reverse)
+// Supported operators/methods:
+//   - Unary:
+//     +x -> x._pos()
+//     -x -> x._neg()
+//     ^x -> x._invert()
+//     <-x -> x._recv()
+//   - Binary arithmetic:
+//     x + y -> x._add(y) ; fallback y._radd(x)
+//     x - y -> x._sub(y) ; fallback y._rsub(x)
+//     x * y -> x._mul(y) ; fallback y._rmul(x)
+//     x / y -> x._div(y) ; fallback y._rdiv(x)
+//     x % y -> x._mod(y) ; fallback y._rmod(x)
+//   - Inc/Dec:
+//     x++ -> x._inc() ; x-- -> x._dec() (only forward)
+//   - Comparisons (mirror fallback when lhs doesn't support):
+//     x == y -> x._eq(y) ; mirror y._eq(x)
+//     x != y -> x._ne(y) ; mirror y._ne(x)
+//     x <  y -> x._lt(y) ; mirror y._gt(x)
+//     x <= y -> x._le(y) ; mirror y._ge(x)
+//     x >  y -> x._gt(y) ; mirror y._lt(x)
+//     x >= y -> x._ge(y) ; mirror y._le(x)
+//   - Bitwise and shifts:
+//     x |  y -> x._or(y)       ; fallback y._ror(x)
+//     x &  y -> x._and(y)      ; fallback y._rand(x)
+//     x ^  y -> x._xor(y)      ; fallback y._rxor(x)
+//     x << y -> x._lshift(y)   ; fallback y._rlshift(x)
+//     x >> y -> x._rshift(y)   ; fallback y._rrshift(x)
+//     x &^ y -> x._bitclear(y) ; fallback y._rbitclear(x)
+//   - Send statement:
+//     x <- v -> x._send(v) (only forward)
+//   - Compound assignments:
+//     if lhs supports operator overloading, expand: a += b -> a = a + b (etc.)
 //
 // This pass runs before type checking. It is conservative: it only rewrites
 // when it can infer that the involved receiver type defines the corresponding
@@ -1655,7 +1689,7 @@ func (r *arithOpRewriter) collectArithmeticMethods(file *File) {
 			m = make(map[string][]*FuncDecl)
 			r.arithMethods[recvType] = m
 		}
-		base := arithMagicBaseName(methodName)
+		base := operatorMagicBaseName(methodName)
 		if base == "" {
 			continue
 		}
@@ -1772,6 +1806,32 @@ func (r *arithOpRewriter) rewriteStmt(stmt Stmt) Stmt {
 			r.trackShortVarDeclTypes(s)
 		}
 
+		// Compound assignment expansion for overloaded operators:
+		// a op= b  =>  a = a op b
+		// (We expand before rewriteExpr so that the operator overloading logic applies.)
+		if s.Rhs != nil && s.Op != 0 && s.Op != Def {
+			if isCompoundAssignableOp(s.Op) {
+				recvType := r.tryInferStructTypeName(s.Lhs)
+				fwd, _ := arithMethodNamesForOp(s.Op)
+				if recvType != "" && fwd != "" && r.hasArithBinary(recvType, fwd, r.tryInferStructTypeName(s.Rhs)) {
+					// Build: a = a <op> b
+					opExpr := new(Operation)
+					opExpr.SetPos(s.Pos())
+					opExpr.Op = s.Op
+					opExpr.X = s.Lhs
+					opExpr.Y = s.Rhs
+
+					// Rewrite RHS to magic call (may rewrite subexpressions too).
+					newRhs := r.rewriteExpr(opExpr)
+
+					s.Op = 0
+					s.Lhs = r.rewriteExpr(s.Lhs)
+					s.Rhs = newRhs
+					return s
+				}
+			}
+		}
+
 		// Inc/Dec: Lhs++ / Lhs--
 		if s.Rhs == nil && (s.Op == Add || s.Op == Sub) {
 			return r.rewriteIncDecStmt(s)
@@ -1832,11 +1892,34 @@ func (r *arithOpRewriter) rewriteStmt(stmt Stmt) Stmt {
 		}
 		return s
 	case *SendStmt:
-		s.Chan = r.rewriteExpr(s.Chan)
-		s.Value = r.rewriteExpr(s.Value)
+		// Try overload: x <- v  ->  x._send(v)
+		ch := r.rewriteExpr(s.Chan)
+		val := r.rewriteExpr(s.Value)
+		s.Chan, s.Value = ch, val
+
+		if !r.insideArithMethod {
+			recvType := r.tryInferStructTypeName(ch)
+			argType := r.tryInferStructTypeName(val)
+			if recvType != "" && r.hasArithBinary(recvType, "_send", argType) {
+				call := r.createMethodCall(s.Pos(), ch, "_send", []Expr{val})
+				es := new(ExprStmt)
+				es.SetPos(s.Pos())
+				es.X = call
+				return es
+			}
+		}
 		return s
 	default:
 		return stmt
+	}
+}
+
+func isCompoundAssignableOp(op Operator) bool {
+	switch op {
+	case Add, Sub, Mul, Div, Rem, Or, And, Xor, Shl, Shr, AndNot:
+		return true
+	default:
+		return false
 	}
 }
 
@@ -1897,9 +1980,38 @@ func (r *arithOpRewriter) rewriteExpr(expr Expr) Expr {
 
 	switch e := expr.(type) {
 	case *Operation:
-		// Only handle binary arithmetic operators.
+		// Handle unary and binary overloaded operators.
 		if e.Y == nil {
-			e.X = r.rewriteExpr(e.X)
+			// Unary
+			x := r.rewriteExpr(e.X)
+			e.X = x
+
+			if r.insideArithMethod {
+				return e
+			}
+
+			recvType := r.tryInferStructTypeName(x)
+			if recvType == "" {
+				return e
+			}
+
+			var method string
+			switch e.Op {
+			case Add:
+				method = "_pos"
+			case Sub:
+				method = "_neg"
+			case Xor:
+				method = "_invert"
+			case Recv:
+				method = "_recv"
+			default:
+				return e
+			}
+
+			if r.hasArithNoArg(recvType, method) {
+				return r.createMethodCall(e.Pos(), x, method, nil)
+			}
 			return e
 		}
 
@@ -1912,23 +2024,35 @@ func (r *arithOpRewriter) rewriteExpr(expr Expr) Expr {
 			return e
 		}
 
+		leftType := r.tryInferStructTypeName(left)
+		rightType := r.tryInferStructTypeName(right)
+
+		// Comparisons: special mirror fallback.
+		if isComparisonOp(e.Op) {
+			fwd, mirror := compareMethodNamesForOp(e.Op)
+			if fwd == "" {
+				return e
+			}
+			if leftType != "" && r.hasArithBinary(leftType, fwd, rightType) {
+				return r.createMethodCall(e.Pos(), left, fwd, []Expr{right})
+			}
+			if mirror != "" && rightType != "" && r.hasArithBinary(rightType, mirror, leftType) {
+				return r.createMethodCall(e.Pos(), right, mirror, []Expr{left})
+			}
+			return e
+		}
+
+		// Arithmetic + bitwise + shifts + &^ : forward with reverse fallback.
 		fwd, rev := arithMethodNamesForOp(e.Op)
 		if fwd == "" {
 			return e
 		}
-
-		leftType := r.tryInferStructTypeName(left)
-		rightType := r.tryInferStructTypeName(right)
-
-		// Prefer forward: a._add(b) (only if signature plausibly matches)
 		if leftType != "" && r.hasArithBinary(leftType, fwd, rightType) {
 			return r.createMethodCall(e.Pos(), left, fwd, []Expr{right})
 		}
-		// Fallback to reverse: b._radd(a)
 		if rev != "" && rightType != "" && r.hasArithBinary(rightType, rev, leftType) {
 			return r.createMethodCall(e.Pos(), right, rev, []Expr{left})
 		}
-
 		return e
 
 	case *CallExpr:
@@ -1995,6 +2119,36 @@ func (r *arithOpRewriter) rewriteExpr(expr Expr) Expr {
 
 	default:
 		return expr
+	}
+}
+
+func isComparisonOp(op Operator) bool {
+	switch op {
+	case Eql, Neq, Lss, Leq, Gtr, Geq:
+		return true
+	default:
+		return false
+	}
+}
+
+// compareMethodNamesForOp returns (forwardMethod, mirrorMethodOnRhs).
+// Mirror method is used when lhs doesn't support comparison, by swapping operands.
+func compareMethodNamesForOp(op Operator) (string, string) {
+	switch op {
+	case Eql:
+		return "_eq", "_eq"
+	case Neq:
+		return "_ne", "_ne"
+	case Lss:
+		return "_lt", "_gt"
+	case Leq:
+		return "_le", "_ge"
+	case Gtr:
+		return "_gt", "_lt"
+	case Geq:
+		return "_ge", "_le"
+	default:
+		return "", ""
 	}
 }
 
@@ -2201,7 +2355,7 @@ func (r *arithOpRewriter) tryInferStructTypeName(expr Expr) string {
 		// Try to infer from method call: x._add(y) etc.
 		// This enables chaining like: a + b + a  ->  a._add(b)._add(a)
 		if sel, ok := e.Fun.(*SelectorExpr); ok && sel.Sel != nil {
-			baseMagic := arithMagicBaseName(sel.Sel.Value)
+			baseMagic := operatorMagicBaseName(sel.Sel.Value)
 			if baseMagic != "" {
 				recvType := r.tryInferStructTypeName(sel.X)
 				if recvType != "" {
@@ -2270,44 +2424,76 @@ func arithMethodNamesForOp(op Operator) (forward string, reverse string) {
 		return "_div", "_rdiv"
 	case Rem:
 		return "_mod", "_rmod"
+	case Or:
+		return "_or", "_ror"
+	case And:
+		return "_and", "_rand"
+	case Xor:
+		return "_xor", "_rxor"
+	case Shl:
+		return "_lshift", "_rlshift"
+	case Shr:
+		return "_rshift", "_rrshift"
+	case AndNot:
+		return "_bitclear", "_rbitclear"
 	default:
 		return "", ""
 	}
 }
 
 func isArithmeticMagicMethodName(name string) bool {
-	return isArithmeticMagicBase(name) || arithMagicBaseName(name) != ""
+	return isOperatorMagicBase(name) || operatorMagicBaseName(name) != ""
 }
 
 func isArithmeticMagicBase(name string) bool {
-	switch name {
-	case "_add", "_sub", "_mul", "_div", "_mod",
-		"_radd", "_rsub", "_rmul", "_rdiv", "_rmod",
-		"_inc", "_dec":
-		return true
-	default:
-		return false
-	}
+	return isOperatorMagicBase(name)
 }
 
-// arithMagicBaseName returns the base magic name if name is a magic method or
+// operatorMagicBaseName returns the base magic name if name is a magic method or
 // its overloaded form (e.g. "_add_int" -> "_add").
-func arithMagicBaseName(name string) string {
-	if isArithmeticMagicBase(name) {
+func operatorMagicBaseName(name string) string {
+	if isOperatorMagicBase(name) {
 		return name
 	}
 	// Overloaded form: base + "_" + suffix
-	bases := []string{
-		"_add", "_sub", "_mul", "_div", "_mod",
-		"_radd", "_rsub", "_rmul", "_rdiv", "_rmod",
-		"_inc", "_dec",
-	}
+	bases := operatorMagicBases()
 	for _, b := range bases {
 		if len(name) > len(b) && name[:len(b)] == b && name[len(b)] == '_' {
 			return b
 		}
 	}
 	return ""
+}
+
+func isOperatorMagicBase(name string) bool {
+	switch name {
+	case "_add", "_sub", "_mul", "_div", "_mod",
+		"_radd", "_rsub", "_rmul", "_rdiv", "_rmod",
+		"_inc", "_dec",
+		"_pos", "_neg", "_invert",
+		"_eq", "_ne", "_gt", "_ge", "_lt", "_le",
+		"_or", "_ror", "_and", "_rand", "_xor", "_rxor",
+		"_lshift", "_rlshift", "_rshift", "_rrshift",
+		"_bitclear", "_rbitclear",
+		"_recv", "_send":
+		return true
+	default:
+		return false
+	}
+}
+
+func operatorMagicBases() []string {
+	return []string{
+		"_add", "_sub", "_mul", "_div", "_mod",
+		"_radd", "_rsub", "_rmul", "_rdiv", "_rmod",
+		"_inc", "_dec",
+		"_pos", "_neg", "_invert",
+		"_eq", "_ne", "_gt", "_ge", "_lt", "_le",
+		"_or", "_ror", "_and", "_rand", "_xor", "_rxor",
+		"_lshift", "_rlshift", "_rshift", "_rrshift",
+		"_bitclear", "_rbitclear",
+		"_recv", "_send",
+	}
 }
 
 func isAssignableLike(e Expr) bool {
