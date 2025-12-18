@@ -1648,9 +1648,6 @@ func RewriteArithmeticOperators(file *File) {
 		funcReturnTypes: make(map[string]string),
 	}
 	r.collectArithmeticMethods(file)
-	if len(r.arithMethods) == 0 {
-		return
-	}
 	r.collectFunctionReturnTypes(file)
 	r.rewriteFile(file)
 }
@@ -1664,6 +1661,41 @@ type arithOpRewriter struct {
 	funcReturnTypes map[string]string // function name -> return typeName (no leading '*')
 
 	insideArithMethod bool
+
+	typeParamScopes []map[string]*operatorCaps
+}
+
+type operatorCaps struct {
+	methods     map[string]bool
+	returnsSelf map[string]bool
+}
+
+func newOperatorCaps() *operatorCaps {
+	return &operatorCaps{
+		methods:     make(map[string]bool),
+		returnsSelf: make(map[string]bool),
+	}
+}
+
+func (c *operatorCaps) add(method string, returnsSelf bool) {
+	c.methods[method] = true
+	if returnsSelf {
+		c.returnsSelf[method] = true
+	}
+}
+
+func (c *operatorCaps) has(method string) bool {
+	if c == nil {
+		return false
+	}
+	return c.methods[method]
+}
+
+func (c *operatorCaps) returns(method string) bool {
+	if c == nil {
+		return false
+	}
+	return c.returnsSelf[method]
 }
 
 func (r *arithOpRewriter) collectArithmeticMethods(file *File) {
@@ -1732,6 +1764,9 @@ func (r *arithOpRewriter) rewriteFile(file *File) {
 func (r *arithOpRewriter) rewriteDecl(decl Decl) {
 	switch d := decl.(type) {
 	case *FuncDecl:
+		r.pushTypeParamScope(d.TParamList)
+		defer r.popTypeParamScope()
+
 		if d.Body == nil {
 			return
 		}
@@ -1746,7 +1781,7 @@ func (r *arithOpRewriter) rewriteDecl(decl Decl) {
 				if len(paramType) > 0 && paramType[0] == '*' {
 					paramType = paramType[1:]
 				}
-				if _, exists := r.arithMethods[paramType]; exists {
+				if r.typeSupportsOperators(paramType) {
 					r.varTypes[param.Name.Value] = paramType
 				}
 			}
@@ -1758,7 +1793,7 @@ func (r *arithOpRewriter) rewriteDecl(decl Decl) {
 			if len(recvType) > 0 && recvType[0] == '*' {
 				recvType = recvType[1:]
 			}
-			if _, exists := r.arithMethods[recvType]; exists {
+			if r.typeSupportsOperators(recvType) {
 				r.varTypes[d.Recv.Name.Value] = recvType
 			}
 		}
@@ -1777,10 +1812,116 @@ func (r *arithOpRewriter) rewriteDecl(decl Decl) {
 			d.Values = r.rewriteExpr(d.Values)
 		}
 	case *ConstDecl:
+		r.trackConstDeclTypes(d)
 		if d.Values != nil {
 			d.Values = r.rewriteExpr(d.Values)
 		}
 	}
+}
+
+func (r *arithOpRewriter) pushTypeParamScope(tparams []*Field) {
+	if len(tparams) == 0 {
+		r.typeParamScopes = append(r.typeParamScopes, nil)
+		return
+	}
+	scope := make(map[string]*operatorCaps)
+	for _, tp := range tparams {
+		if tp == nil || tp.Name == nil || tp.Type == nil {
+			continue
+		}
+		if caps := r.extractTypeParamCaps(tp.Name.Value, tp.Type); caps != nil {
+			scope[tp.Name.Value] = caps
+		}
+	}
+	if len(scope) == 0 {
+		scope = nil
+	}
+	r.typeParamScopes = append(r.typeParamScopes, scope)
+}
+
+func (r *arithOpRewriter) popTypeParamScope() {
+	if n := len(r.typeParamScopes); n > 0 {
+		r.typeParamScopes = r.typeParamScopes[:n-1]
+	}
+}
+
+func (r *arithOpRewriter) extractTypeParamCaps(typeParam string, constraint Expr) *operatorCaps {
+	if constraint == nil {
+		return nil
+	}
+	iface, ok := constraint.(*InterfaceType)
+	if !ok {
+		return nil
+	}
+	caps := newOperatorCaps()
+	for _, method := range iface.MethodList {
+		if method == nil || method.Name == nil {
+			continue
+		}
+		base := operatorMagicBaseName(method.Name.Value)
+		if base == "" {
+			continue
+		}
+		returnsSelf := false
+		if ft, ok := method.Type.(*FuncType); ok {
+			returnsSelf = methodReturnsTypeParam(ft, typeParam)
+		}
+		caps.add(base, returnsSelf)
+	}
+	if len(caps.methods) == 0 {
+		return nil
+	}
+	return caps
+}
+
+func methodReturnsTypeParam(ft *FuncType, typeParam string) bool {
+	if ft == nil || ft.ResultList == nil || len(ft.ResultList) != 1 {
+		return false
+	}
+	res := ft.ResultList[0]
+	if res == nil || res.Type == nil {
+		return false
+	}
+	if name, ok := res.Type.(*Name); ok {
+		return name.Value == typeParam
+	}
+	return false
+}
+
+func (r *arithOpRewriter) lookupTypeParamCaps(typeName string) *operatorCaps {
+	for i := len(r.typeParamScopes) - 1; i >= 0; i-- {
+		scope := r.typeParamScopes[i]
+		if scope == nil {
+			continue
+		}
+		if caps, ok := scope[typeName]; ok {
+			return caps
+		}
+	}
+	return nil
+}
+
+func (r *arithOpRewriter) lookupTypeParamCapsByTypeName(typeName string) *operatorCaps {
+	if caps := r.lookupTypeParamCaps(typeName); caps != nil {
+		return caps
+	}
+	if len(typeName) > 0 && typeName[0] == '*' {
+		return r.lookupTypeParamCaps(typeName[1:])
+	}
+	return nil
+}
+
+func (r *arithOpRewriter) typeSupportsOperators(typeName string) bool {
+	if typeName == "" {
+		return false
+	}
+	if _, exists := r.arithMethods[typeName]; exists {
+		return true
+	}
+	if caps := r.lookupTypeParamCapsByTypeName(typeName); caps != nil {
+		return true
+	}
+	return false
 }
 
 func (r *arithOpRewriter) rewriteBlockStmt(block *BlockStmt) {
@@ -2189,6 +2330,9 @@ func (r *arithOpRewriter) rewriteIncDecStmt(stmt *AssignStmt) Stmt {
 func (r *arithOpRewriter) hasArithNoArg(recvType string, methodName string) bool {
 	m, ok := r.arithMethods[recvType]
 	if !ok {
+		if caps := r.lookupTypeParamCapsByTypeName(recvType); caps != nil {
+			return caps.has(methodName)
+		}
 		return false
 	}
 	cands := m[methodName]
@@ -2202,6 +2346,9 @@ func (r *arithOpRewriter) hasArithNoArg(recvType string, methodName string) bool
 func (r *arithOpRewriter) hasArithBinary(recvType string, methodName string, argType string) bool {
 	m, ok := r.arithMethods[recvType]
 	if !ok {
+		if caps := r.lookupTypeParamCapsByTypeName(recvType); caps != nil {
+			return caps.has(methodName)
+		}
 		return false
 	}
 	cands := m[methodName]
@@ -2262,7 +2409,28 @@ func (r *arithOpRewriter) trackVarDeclTypes(d *VarDecl) {
 		if len(typeName) > 0 && typeName[0] == '*' {
 			typeName = typeName[1:]
 		}
-		if _, exists := r.arithMethods[typeName]; exists {
+		if r.typeSupportsOperators(typeName) {
+			for _, n := range d.NameList {
+				r.varTypes[n.Value] = typeName
+			}
+		}
+		return
+	}
+	if d.Values != nil {
+		r.trackAssignmentTypes(d.NameList, d.Values)
+	}
+}
+
+func (r *arithOpRewriter) trackConstDeclTypes(d *ConstDecl) {
+	if d == nil {
+		return
+	}
+	if d.Type != nil {
+		typeName := typeExprToString(d.Type)
+		if len(typeName) > 0 && typeName[0] == '*' {
+			typeName = typeName[1:]
+		}
+		if r.typeSupportsOperators(typeName) {
 			for _, n := range d.NameList {
 				r.varTypes[n.Value] = typeName
 			}
@@ -2301,7 +2469,7 @@ func (r *arithOpRewriter) trackAssignmentTypes(names []*Name, values Expr) {
 	if len(names) == 1 {
 		typeName := r.tryInferStructTypeName(values)
 		if typeName != "" {
-			if _, exists := r.arithMethods[typeName]; exists {
+			if r.typeSupportsOperators(typeName) {
 				r.varTypes[names[0].Value] = typeName
 			}
 		}
@@ -2314,7 +2482,7 @@ func (r *arithOpRewriter) trackAssignmentTypes(names []*Name, values Expr) {
 			}
 			typeName := r.tryInferStructTypeName(list.ElemList[i])
 			if typeName != "" {
-				if _, exists := r.arithMethods[typeName]; exists {
+				if r.typeSupportsOperators(typeName) {
 					r.varTypes[n.Value] = typeName
 				}
 			}
@@ -2335,13 +2503,27 @@ func (r *arithOpRewriter) tryInferStructTypeName(expr Expr) string {
 		return r.tryInferStructTypeName(e.X)
 	case *Operation:
 		// &T{} or *p
-		if e.Op == And && e.Y == nil {
-			return r.tryInferStructTypeName(e.X)
+		if e.Y == nil {
+			if e.Op == And {
+				return r.tryInferStructTypeName(e.X)
+			}
+			if e.Op == Mul {
+				return r.tryInferStructTypeName(e.X)
+			}
+			return ""
 		}
-		if e.Op == Mul && e.Y == nil {
+
+		switch e.Op {
+		case Add, Sub, Mul, Div, Rem, Or, And, Xor, Shl, Shr, AndNot:
+			if lt := r.tryInferStructTypeName(e.X); lt != "" {
+				return lt
+			}
+			return r.tryInferStructTypeName(e.Y)
+		case Recv:
 			return r.tryInferStructTypeName(e.X)
+		default:
+			return ""
 		}
-		return ""
 	case *CompositeLit:
 		if e.Type != nil {
 			t := typeExprToString(e.Type)
@@ -2389,6 +2571,9 @@ func (r *arithOpRewriter) tryInferStructTypeName(expr Expr) string {
 func (r *arithOpRewriter) methodReturnsReceiverType(recvType string, baseMagic string) bool {
 	m, ok := r.arithMethods[recvType]
 	if !ok {
+		if caps := r.lookupTypeParamCapsByTypeName(recvType); caps != nil {
+			return caps.returns(baseMagic)
+		}
 		return false
 	}
 	cands := m[baseMagic]
