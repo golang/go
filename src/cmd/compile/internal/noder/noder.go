@@ -183,7 +183,7 @@ func warnPointerEqOverload(file *syntax.File) {
 		}
 		name := fn.Name.Value
 		// _eq or overloaded form _eq_...
-		if name != "_eq" && !(len(name) >= 4 && name[:4] == "_eq_") {
+		if (name != "_eq" && !(len(name) >= 4 && name[:4] == "_eq_")) && (name != "_ne" && !(len(name) >= 4 && name[:4] == "_ne_")) {
 			continue
 		}
 		recvType := syntax.String(fn.Recv.Type)
@@ -194,7 +194,7 @@ func warnPointerEqOverload(file *syntax.File) {
 			continue
 		}
 		seen[recvType] = true
-		base.WarnfAt(m.makeXPos(fn.Pos()), "warning: %s defines _eq (== overload), which overrides the native pointer == semantics for this type", recvType)
+		base.WarnfAt(m.makeXPos(fn.Pos()), "warning: %s defines _eq (== overload) or _ne (!= overload), which overrides the native pointer == or != semantics for this type", recvType)
 	}
 }
 
