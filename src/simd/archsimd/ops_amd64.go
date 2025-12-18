@@ -2022,152 +2022,152 @@ func (x Int8x64) DotProductQuadrupleSaturated(y Uint8x64) Int32x16
 
 /* Equal */
 
-// Equal returns x equals y, elementwise.
+// Equal returns a mask whose elements indicate whether x == y.
 //
 // Asm: VPCMPEQB, CPU Feature: AVX
 func (x Int8x16) Equal(y Int8x16) Mask8x16
 
-// Equal returns x equals y, elementwise.
+// Equal returns a mask whose elements indicate whether x == y.
 //
 // Asm: VPCMPEQB, CPU Feature: AVX2
 func (x Int8x32) Equal(y Int8x32) Mask8x32
 
-// Equal returns x equals y, elementwise.
+// Equal returns a mask whose elements indicate whether x == y.
 //
 // Asm: VPCMPEQB, CPU Feature: AVX512
 func (x Int8x64) Equal(y Int8x64) Mask8x64
 
-// Equal returns x equals y, elementwise.
+// Equal returns a mask whose elements indicate whether x == y.
 //
 // Asm: VPCMPEQW, CPU Feature: AVX
 func (x Int16x8) Equal(y Int16x8) Mask16x8
 
-// Equal returns x equals y, elementwise.
+// Equal returns a mask whose elements indicate whether x == y.
 //
 // Asm: VPCMPEQW, CPU Feature: AVX2
 func (x Int16x16) Equal(y Int16x16) Mask16x16
 
-// Equal returns x equals y, elementwise.
+// Equal returns a mask whose elements indicate whether x == y.
 //
 // Asm: VPCMPEQW, CPU Feature: AVX512
 func (x Int16x32) Equal(y Int16x32) Mask16x32
 
-// Equal returns x equals y, elementwise.
+// Equal returns a mask whose elements indicate whether x == y.
 //
 // Asm: VPCMPEQD, CPU Feature: AVX
 func (x Int32x4) Equal(y Int32x4) Mask32x4
 
-// Equal returns x equals y, elementwise.
+// Equal returns a mask whose elements indicate whether x == y.
 //
 // Asm: VPCMPEQD, CPU Feature: AVX2
 func (x Int32x8) Equal(y Int32x8) Mask32x8
 
-// Equal returns x equals y, elementwise.
+// Equal returns a mask whose elements indicate whether x == y.
 //
 // Asm: VPCMPEQD, CPU Feature: AVX512
 func (x Int32x16) Equal(y Int32x16) Mask32x16
 
-// Equal returns x equals y, elementwise.
+// Equal returns a mask whose elements indicate whether x == y.
 //
 // Asm: VPCMPEQQ, CPU Feature: AVX
 func (x Int64x2) Equal(y Int64x2) Mask64x2
 
-// Equal returns x equals y, elementwise.
+// Equal returns a mask whose elements indicate whether x == y.
 //
 // Asm: VPCMPEQQ, CPU Feature: AVX2
 func (x Int64x4) Equal(y Int64x4) Mask64x4
 
-// Equal returns x equals y, elementwise.
+// Equal returns a mask whose elements indicate whether x == y.
 //
 // Asm: VPCMPEQQ, CPU Feature: AVX512
 func (x Int64x8) Equal(y Int64x8) Mask64x8
 
-// Equal returns x equals y, elementwise.
+// Equal returns a mask whose elements indicate whether x == y.
 //
 // Asm: VPCMPEQB, CPU Feature: AVX
 func (x Uint8x16) Equal(y Uint8x16) Mask8x16
 
-// Equal returns x equals y, elementwise.
+// Equal returns a mask whose elements indicate whether x == y.
 //
 // Asm: VPCMPEQB, CPU Feature: AVX2
 func (x Uint8x32) Equal(y Uint8x32) Mask8x32
 
-// Equal returns x equals y, elementwise.
+// Equal returns a mask whose elements indicate whether x == y.
 //
 // Asm: VPCMPEQB, CPU Feature: AVX512
 func (x Uint8x64) Equal(y Uint8x64) Mask8x64
 
-// Equal returns x equals y, elementwise.
+// Equal returns a mask whose elements indicate whether x == y.
 //
 // Asm: VPCMPEQW, CPU Feature: AVX
 func (x Uint16x8) Equal(y Uint16x8) Mask16x8
 
-// Equal returns x equals y, elementwise.
+// Equal returns a mask whose elements indicate whether x == y.
 //
 // Asm: VPCMPEQW, CPU Feature: AVX2
 func (x Uint16x16) Equal(y Uint16x16) Mask16x16
 
-// Equal returns x equals y, elementwise.
+// Equal returns a mask whose elements indicate whether x == y.
 //
 // Asm: VPCMPEQW, CPU Feature: AVX512
 func (x Uint16x32) Equal(y Uint16x32) Mask16x32
 
-// Equal returns x equals y, elementwise.
+// Equal returns a mask whose elements indicate whether x == y.
 //
 // Asm: VPCMPEQD, CPU Feature: AVX
 func (x Uint32x4) Equal(y Uint32x4) Mask32x4
 
-// Equal returns x equals y, elementwise.
+// Equal returns a mask whose elements indicate whether x == y.
 //
 // Asm: VPCMPEQD, CPU Feature: AVX2
 func (x Uint32x8) Equal(y Uint32x8) Mask32x8
 
-// Equal returns x equals y, elementwise.
+// Equal returns a mask whose elements indicate whether x == y.
 //
 // Asm: VPCMPEQD, CPU Feature: AVX512
 func (x Uint32x16) Equal(y Uint32x16) Mask32x16
 
-// Equal returns x equals y, elementwise.
+// Equal returns a mask whose elements indicate whether x == y.
 //
 // Asm: VPCMPEQQ, CPU Feature: AVX
 func (x Uint64x2) Equal(y Uint64x2) Mask64x2
 
-// Equal returns x equals y, elementwise.
+// Equal returns a mask whose elements indicate whether x == y.
 //
 // Asm: VPCMPEQQ, CPU Feature: AVX2
 func (x Uint64x4) Equal(y Uint64x4) Mask64x4
 
-// Equal returns x equals y, elementwise.
+// Equal returns a mask whose elements indicate whether x == y.
 //
 // Asm: VPCMPEQQ, CPU Feature: AVX512
 func (x Uint64x8) Equal(y Uint64x8) Mask64x8
 
-// Equal returns x equals y, elementwise.
+// Equal returns a mask whose elements indicate whether x == y.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) Equal(y Float32x4) Mask32x4
 
-// Equal returns x equals y, elementwise.
+// Equal returns a mask whose elements indicate whether x == y.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) Equal(y Float32x8) Mask32x8
 
-// Equal returns x equals y, elementwise.
+// Equal returns a mask whose elements indicate whether x == y.
 //
 // Asm: VCMPPS, CPU Feature: AVX512
 func (x Float32x16) Equal(y Float32x16) Mask32x16
 
-// Equal returns x equals y, elementwise.
+// Equal returns a mask whose elements indicate whether x == y.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) Equal(y Float64x2) Mask64x2
 
-// Equal returns x equals y, elementwise.
+// Equal returns a mask whose elements indicate whether x == y.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) Equal(y Float64x4) Mask64x4
 
-// Equal returns x equals y, elementwise.
+// Equal returns a mask whose elements indicate whether x == y.
 //
 // Asm: VCMPPD, CPU Feature: AVX512
 func (x Float64x8) Equal(y Float64x8) Mask64x8
@@ -3045,184 +3045,184 @@ func (x Uint64x8) GetLo() Uint64x4
 
 /* Greater */
 
-// Greater returns x greater-than y, elementwise.
+// Greater returns a mask whose elements indicate whether x > y.
 //
 // Asm: VPCMPGTB, CPU Feature: AVX
 func (x Int8x16) Greater(y Int8x16) Mask8x16
 
-// Greater returns x greater-than y, elementwise.
+// Greater returns a mask whose elements indicate whether x > y.
 //
 // Asm: VPCMPGTB, CPU Feature: AVX2
 func (x Int8x32) Greater(y Int8x32) Mask8x32
 
-// Greater returns x greater-than y, elementwise.
+// Greater returns a mask whose elements indicate whether x > y.
 //
 // Asm: VPCMPGTB, CPU Feature: AVX512
 func (x Int8x64) Greater(y Int8x64) Mask8x64
 
-// Greater returns x greater-than y, elementwise.
+// Greater returns a mask whose elements indicate whether x > y.
 //
 // Asm: VPCMPGTW, CPU Feature: AVX
 func (x Int16x8) Greater(y Int16x8) Mask16x8
 
-// Greater returns x greater-than y, elementwise.
+// Greater returns a mask whose elements indicate whether x > y.
 //
 // Asm: VPCMPGTW, CPU Feature: AVX2
 func (x Int16x16) Greater(y Int16x16) Mask16x16
 
-// Greater returns x greater-than y, elementwise.
+// Greater returns a mask whose elements indicate whether x > y.
 //
 // Asm: VPCMPGTW, CPU Feature: AVX512
 func (x Int16x32) Greater(y Int16x32) Mask16x32
 
-// Greater returns x greater-than y, elementwise.
+// Greater returns a mask whose elements indicate whether x > y.
 //
 // Asm: VPCMPGTD, CPU Feature: AVX
 func (x Int32x4) Greater(y Int32x4) Mask32x4
 
-// Greater returns x greater-than y, elementwise.
+// Greater returns a mask whose elements indicate whether x > y.
 //
 // Asm: VPCMPGTD, CPU Feature: AVX2
 func (x Int32x8) Greater(y Int32x8) Mask32x8
 
-// Greater returns x greater-than y, elementwise.
+// Greater returns a mask whose elements indicate whether x > y.
 //
 // Asm: VPCMPGTD, CPU Feature: AVX512
 func (x Int32x16) Greater(y Int32x16) Mask32x16
 
-// Greater returns x greater-than y, elementwise.
+// Greater returns a mask whose elements indicate whether x > y.
 //
 // Asm: VPCMPGTQ, CPU Feature: AVX
 func (x Int64x2) Greater(y Int64x2) Mask64x2
 
-// Greater returns x greater-than y, elementwise.
+// Greater returns a mask whose elements indicate whether x > y.
 //
 // Asm: VPCMPGTQ, CPU Feature: AVX2
 func (x Int64x4) Greater(y Int64x4) Mask64x4
 
-// Greater returns x greater-than y, elementwise.
+// Greater returns a mask whose elements indicate whether x > y.
 //
 // Asm: VPCMPGTQ, CPU Feature: AVX512
 func (x Int64x8) Greater(y Int64x8) Mask64x8
 
-// Greater returns x greater-than y, elementwise.
+// Greater returns a mask whose elements indicate whether x > y.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) Greater(y Float32x4) Mask32x4
 
-// Greater returns x greater-than y, elementwise.
+// Greater returns a mask whose elements indicate whether x > y.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) Greater(y Float32x8) Mask32x8
 
-// Greater returns x greater-than y, elementwise.
+// Greater returns a mask whose elements indicate whether x > y.
 //
 // Asm: VCMPPS, CPU Feature: AVX512
 func (x Float32x16) Greater(y Float32x16) Mask32x16
 
-// Greater returns x greater-than y, elementwise.
+// Greater returns a mask whose elements indicate whether x > y.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) Greater(y Float64x2) Mask64x2
 
-// Greater returns x greater-than y, elementwise.
+// Greater returns a mask whose elements indicate whether x > y.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) Greater(y Float64x4) Mask64x4
 
-// Greater returns x greater-than y, elementwise.
+// Greater returns a mask whose elements indicate whether x > y.
 //
 // Asm: VCMPPD, CPU Feature: AVX512
 func (x Float64x8) Greater(y Float64x8) Mask64x8
 
-// Greater returns x greater-than y, elementwise.
+// Greater returns a mask whose elements indicate whether x > y.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512
 func (x Uint8x64) Greater(y Uint8x64) Mask8x64
 
-// Greater returns x greater-than y, elementwise.
+// Greater returns a mask whose elements indicate whether x > y.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512
 func (x Uint16x32) Greater(y Uint16x32) Mask16x32
 
-// Greater returns x greater-than y, elementwise.
+// Greater returns a mask whose elements indicate whether x > y.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512
 func (x Uint32x16) Greater(y Uint32x16) Mask32x16
 
-// Greater returns x greater-than y, elementwise.
+// Greater returns a mask whose elements indicate whether x > y.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512
 func (x Uint64x8) Greater(y Uint64x8) Mask64x8
 
 /* GreaterEqual */
 
-// GreaterEqual returns x greater-than-or-equals y, elementwise.
+// GreaterEqual returns a mask whose elements indicate whether x >= y.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) GreaterEqual(y Float32x4) Mask32x4
 
-// GreaterEqual returns x greater-than-or-equals y, elementwise.
+// GreaterEqual returns a mask whose elements indicate whether x >= y.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) GreaterEqual(y Float32x8) Mask32x8
 
-// GreaterEqual returns x greater-than-or-equals y, elementwise.
+// GreaterEqual returns a mask whose elements indicate whether x >= y.
 //
 // Asm: VCMPPS, CPU Feature: AVX512
 func (x Float32x16) GreaterEqual(y Float32x16) Mask32x16
 
-// GreaterEqual returns x greater-than-or-equals y, elementwise.
+// GreaterEqual returns a mask whose elements indicate whether x >= y.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) GreaterEqual(y Float64x2) Mask64x2
 
-// GreaterEqual returns x greater-than-or-equals y, elementwise.
+// GreaterEqual returns a mask whose elements indicate whether x >= y.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) GreaterEqual(y Float64x4) Mask64x4
 
-// GreaterEqual returns x greater-than-or-equals y, elementwise.
+// GreaterEqual returns a mask whose elements indicate whether x >= y.
 //
 // Asm: VCMPPD, CPU Feature: AVX512
 func (x Float64x8) GreaterEqual(y Float64x8) Mask64x8
 
-// GreaterEqual returns x greater-than-or-equals y, elementwise.
+// GreaterEqual returns a mask whose elements indicate whether x >= y.
 //
 // Asm: VPCMPB, CPU Feature: AVX512
 func (x Int8x64) GreaterEqual(y Int8x64) Mask8x64
 
-// GreaterEqual returns x greater-than-or-equals y, elementwise.
+// GreaterEqual returns a mask whose elements indicate whether x >= y.
 //
 // Asm: VPCMPW, CPU Feature: AVX512
 func (x Int16x32) GreaterEqual(y Int16x32) Mask16x32
 
-// GreaterEqual returns x greater-than-or-equals y, elementwise.
+// GreaterEqual returns a mask whose elements indicate whether x >= y.
 //
 // Asm: VPCMPD, CPU Feature: AVX512
 func (x Int32x16) GreaterEqual(y Int32x16) Mask32x16
 
-// GreaterEqual returns x greater-than-or-equals y, elementwise.
+// GreaterEqual returns a mask whose elements indicate whether x >= y.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512
 func (x Int64x8) GreaterEqual(y Int64x8) Mask64x8
 
-// GreaterEqual returns x greater-than-or-equals y, elementwise.
+// GreaterEqual returns a mask whose elements indicate whether x >= y.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512
 func (x Uint8x64) GreaterEqual(y Uint8x64) Mask8x64
 
-// GreaterEqual returns x greater-than-or-equals y, elementwise.
+// GreaterEqual returns a mask whose elements indicate whether x >= y.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512
 func (x Uint16x32) GreaterEqual(y Uint16x32) Mask16x32
 
-// GreaterEqual returns x greater-than-or-equals y, elementwise.
+// GreaterEqual returns a mask whose elements indicate whether x >= y.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512
 func (x Uint32x16) GreaterEqual(y Uint32x16) Mask32x16
 
-// GreaterEqual returns x greater-than-or-equals y, elementwise.
+// GreaterEqual returns a mask whose elements indicate whether x >= y.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512
 func (x Uint64x8) GreaterEqual(y Uint64x8) Mask64x8
@@ -3511,144 +3511,144 @@ func (x Uint64x8) LeadingZeros() Uint64x8
 
 /* Less */
 
-// Less returns x less-than y, elementwise.
+// Less returns a mask whose elements indicate whether x < y.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) Less(y Float32x4) Mask32x4
 
-// Less returns x less-than y, elementwise.
+// Less returns a mask whose elements indicate whether x < y.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) Less(y Float32x8) Mask32x8
 
-// Less returns x less-than y, elementwise.
+// Less returns a mask whose elements indicate whether x < y.
 //
 // Asm: VCMPPS, CPU Feature: AVX512
 func (x Float32x16) Less(y Float32x16) Mask32x16
 
-// Less returns x less-than y, elementwise.
+// Less returns a mask whose elements indicate whether x < y.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) Less(y Float64x2) Mask64x2
 
-// Less returns x less-than y, elementwise.
+// Less returns a mask whose elements indicate whether x < y.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) Less(y Float64x4) Mask64x4
 
-// Less returns x less-than y, elementwise.
+// Less returns a mask whose elements indicate whether x < y.
 //
 // Asm: VCMPPD, CPU Feature: AVX512
 func (x Float64x8) Less(y Float64x8) Mask64x8
 
-// Less returns x less-than y, elementwise.
+// Less returns a mask whose elements indicate whether x < y.
 //
 // Asm: VPCMPB, CPU Feature: AVX512
 func (x Int8x64) Less(y Int8x64) Mask8x64
 
-// Less returns x less-than y, elementwise.
+// Less returns a mask whose elements indicate whether x < y.
 //
 // Asm: VPCMPW, CPU Feature: AVX512
 func (x Int16x32) Less(y Int16x32) Mask16x32
 
-// Less returns x less-than y, elementwise.
+// Less returns a mask whose elements indicate whether x < y.
 //
 // Asm: VPCMPD, CPU Feature: AVX512
 func (x Int32x16) Less(y Int32x16) Mask32x16
 
-// Less returns x less-than y, elementwise.
+// Less returns a mask whose elements indicate whether x < y.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512
 func (x Int64x8) Less(y Int64x8) Mask64x8
 
-// Less returns x less-than y, elementwise.
+// Less returns a mask whose elements indicate whether x < y.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512
 func (x Uint8x64) Less(y Uint8x64) Mask8x64
 
-// Less returns x less-than y, elementwise.
+// Less returns a mask whose elements indicate whether x < y.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512
 func (x Uint16x32) Less(y Uint16x32) Mask16x32
 
-// Less returns x less-than y, elementwise.
+// Less returns a mask whose elements indicate whether x < y.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512
 func (x Uint32x16) Less(y Uint32x16) Mask32x16
 
-// Less returns x less-than y, elementwise.
+// Less returns a mask whose elements indicate whether x < y.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512
 func (x Uint64x8) Less(y Uint64x8) Mask64x8
 
 /* LessEqual */
 
-// LessEqual returns x less-than-or-equals y, elementwise.
+// LessEqual returns a mask whose elements indicate whether x <= y.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) LessEqual(y Float32x4) Mask32x4
 
-// LessEqual returns x less-than-or-equals y, elementwise.
+// LessEqual returns a mask whose elements indicate whether x <= y.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) LessEqual(y Float32x8) Mask32x8
 
-// LessEqual returns x less-than-or-equals y, elementwise.
+// LessEqual returns a mask whose elements indicate whether x <= y.
 //
 // Asm: VCMPPS, CPU Feature: AVX512
 func (x Float32x16) LessEqual(y Float32x16) Mask32x16
 
-// LessEqual returns x less-than-or-equals y, elementwise.
+// LessEqual returns a mask whose elements indicate whether x <= y.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) LessEqual(y Float64x2) Mask64x2
 
-// LessEqual returns x less-than-or-equals y, elementwise.
+// LessEqual returns a mask whose elements indicate whether x <= y.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) LessEqual(y Float64x4) Mask64x4
 
-// LessEqual returns x less-than-or-equals y, elementwise.
+// LessEqual returns a mask whose elements indicate whether x <= y.
 //
 // Asm: VCMPPD, CPU Feature: AVX512
 func (x Float64x8) LessEqual(y Float64x8) Mask64x8
 
-// LessEqual returns x less-than-or-equals y, elementwise.
+// LessEqual returns a mask whose elements indicate whether x <= y.
 //
 // Asm: VPCMPB, CPU Feature: AVX512
 func (x Int8x64) LessEqual(y Int8x64) Mask8x64
 
-// LessEqual returns x less-than-or-equals y, elementwise.
+// LessEqual returns a mask whose elements indicate whether x <= y.
 //
 // Asm: VPCMPW, CPU Feature: AVX512
 func (x Int16x32) LessEqual(y Int16x32) Mask16x32
 
-// LessEqual returns x less-than-or-equals y, elementwise.
+// LessEqual returns a mask whose elements indicate whether x <= y.
 //
 // Asm: VPCMPD, CPU Feature: AVX512
 func (x Int32x16) LessEqual(y Int32x16) Mask32x16
 
-// LessEqual returns x less-than-or-equals y, elementwise.
+// LessEqual returns a mask whose elements indicate whether x <= y.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512
 func (x Int64x8) LessEqual(y Int64x8) Mask64x8
 
-// LessEqual returns x less-than-or-equals y, elementwise.
+// LessEqual returns a mask whose elements indicate whether x <= y.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512
 func (x Uint8x64) LessEqual(y Uint8x64) Mask8x64
 
-// LessEqual returns x less-than-or-equals y, elementwise.
+// LessEqual returns a mask whose elements indicate whether x <= y.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512
 func (x Uint16x32) LessEqual(y Uint16x32) Mask16x32
 
-// LessEqual returns x less-than-or-equals y, elementwise.
+// LessEqual returns a mask whose elements indicate whether x <= y.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512
 func (x Uint32x16) LessEqual(y Uint32x16) Mask32x16
 
-// LessEqual returns x less-than-or-equals y, elementwise.
+// LessEqual returns a mask whose elements indicate whether x <= y.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512
 func (x Uint64x8) LessEqual(y Uint64x8) Mask64x8
@@ -4235,72 +4235,72 @@ func (x Float64x8) MulSubAdd(y Float64x8, z Float64x8) Float64x8
 
 /* NotEqual */
 
-// NotEqual returns x not-equals y, elementwise.
+// NotEqual returns a mask whose elements indicate whether x != y.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) NotEqual(y Float32x4) Mask32x4
 
-// NotEqual returns x not-equals y, elementwise.
+// NotEqual returns a mask whose elements indicate whether x != y.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) NotEqual(y Float32x8) Mask32x8
 
-// NotEqual returns x not-equals y, elementwise.
+// NotEqual returns a mask whose elements indicate whether x != y.
 //
 // Asm: VCMPPS, CPU Feature: AVX512
 func (x Float32x16) NotEqual(y Float32x16) Mask32x16
 
-// NotEqual returns x not-equals y, elementwise.
+// NotEqual returns a mask whose elements indicate whether x != y.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) NotEqual(y Float64x2) Mask64x2
 
-// NotEqual returns x not-equals y, elementwise.
+// NotEqual returns a mask whose elements indicate whether x != y.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) NotEqual(y Float64x4) Mask64x4
 
-// NotEqual returns x not-equals y, elementwise.
+// NotEqual returns a mask whose elements indicate whether x != y.
 //
 // Asm: VCMPPD, CPU Feature: AVX512
 func (x Float64x8) NotEqual(y Float64x8) Mask64x8
 
-// NotEqual returns x not-equals y, elementwise.
+// NotEqual returns a mask whose elements indicate whether x != y.
 //
 // Asm: VPCMPB, CPU Feature: AVX512
 func (x Int8x64) NotEqual(y Int8x64) Mask8x64
 
-// NotEqual returns x not-equals y, elementwise.
+// NotEqual returns a mask whose elements indicate whether x != y.
 //
 // Asm: VPCMPW, CPU Feature: AVX512
 func (x Int16x32) NotEqual(y Int16x32) Mask16x32
 
-// NotEqual returns x not-equals y, elementwise.
+// NotEqual returns a mask whose elements indicate whether x != y.
 //
 // Asm: VPCMPD, CPU Feature: AVX512
 func (x Int32x16) NotEqual(y Int32x16) Mask32x16
 
-// NotEqual returns x not-equals y, elementwise.
+// NotEqual returns a mask whose elements indicate whether x != y.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512
 func (x Int64x8) NotEqual(y Int64x8) Mask64x8
 
-// NotEqual returns x not-equals y, elementwise.
+// NotEqual returns a mask whose elements indicate whether x != y.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512
 func (x Uint8x64) NotEqual(y Uint8x64) Mask8x64
 
-// NotEqual returns x not-equals y, elementwise.
+// NotEqual returns a mask whose elements indicate whether x != y.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512
 func (x Uint16x32) NotEqual(y Uint16x32) Mask16x32
 
-// NotEqual returns x not-equals y, elementwise.
+// NotEqual returns a mask whose elements indicate whether x != y.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512
 func (x Uint32x16) NotEqual(y Uint32x16) Mask32x16
 
-// NotEqual returns x not-equals y, elementwise.
+// NotEqual returns a mask whose elements indicate whether x != y.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512
 func (x Uint64x8) NotEqual(y Uint64x8) Mask64x8

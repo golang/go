@@ -10,17 +10,17 @@
   constImm: 0
   commutative: true
   documentation: !string |-
-    // NAME returns x equals y, elementwise.
+    // NAME returns a mask whose elements indicate whether x == y.
 - go: Less
   constImm: 1
   commutative: false
   documentation: !string |-
-    // NAME returns x less-than y, elementwise.
+    // NAME returns a mask whose elements indicate whether x < y.
 - go: LessEqual
   constImm: 2
   commutative: false
   documentation: !string |-
-    // NAME returns x less-than-or-equals y, elementwise.
+    // NAME returns a mask whose elements indicate whether x <= y.
 - go: IsNan # For float only.
   constImm: 3
   commutative: true
@@ -30,14 +30,14 @@
   constImm: 4
   commutative: true
   documentation: !string |-
-    // NAME returns x not-equals y, elementwise.
+    // NAME returns a mask whose elements indicate whether x != y.
 - go: GreaterEqual
   constImm: 13
   commutative: false
   documentation: !string |-
-    // NAME returns x greater-than-or-equals y, elementwise.
+    // NAME returns a mask whose elements indicate whether x >= y.
 - go: Greater
   constImm: 14
   commutative: false
   documentation: !string |-
-    // NAME returns x greater-than y, elementwise.
+    // NAME returns a mask whose elements indicate whether x > y.
