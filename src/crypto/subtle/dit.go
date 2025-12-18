@@ -6,19 +6,29 @@ package subtle
 
 import (
 	"internal/runtime/sys"
-	"runtime"
+	_ "unsafe"
 )
 
 // WithDataIndependentTiming enables architecture specific features which ensure
 // that the timing of specific instructions is independent of their inputs
 // before executing f. On f returning it disables these features.
 //
+// Any goroutine spawned by f will also have data independent timing enabled for
+// its lifetime, as well as any of their descendant goroutines.
+//
+// Any C code called via cgo from within f, or from a goroutine spawned by f, will
+// also have data independent timing enabled for the duration of the call. If the
+// C code disables data independent timing, it will be re-enabled on return to Go.
+//
+// If C code called via cgo, from f or elsewhere, enables or disables data
+// independent timing then calling into Go will preserve that state for the
+// duration of the call.
+//
 // WithDataIndependentTiming should only be used when f is written to make use
 // of constant-time operations. WithDataIndependentTiming does not make
 // variable-time code constant-time.
 //
-// WithDataIndependentTiming may lock the current goroutine to the OS thread for
-// the duration of f. Calls to WithDataIndependentTiming may be nested.
+// Calls to WithDataIndependentTiming may be nested.
 //
 // On Arm64 processors with FEAT_DIT, WithDataIndependentTiming enables
 // PSTATE.DIT. See https://developer.arm.com/documentation/ka005181/1-0/?lang=en.
@@ -33,18 +43,21 @@ func WithDataIndependentTiming(f func()) {
 		return
 	}
 
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-
-	alreadyEnabled := sys.EnableDIT()
+	alreadyEnabled := setDITEnabled()
 
 	// disableDIT is called in a deferred function so that if f panics we will
 	// still disable DIT, in case the panic is recovered further up the stack.
 	defer func() {
 		if !alreadyEnabled {
-			sys.DisableDIT()
+			setDITDisabled()
 		}
 	}()
 
 	f()
 }
+
+//go:linkname setDITEnabled
+func setDITEnabled() bool
+
+//go:linkname setDITDisabled
+func setDITDisabled()

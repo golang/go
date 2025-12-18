@@ -12,10 +12,10 @@ import (
 	"fmt"
 )
 
-//go:embed acvp_capabilities_fips140v2.0.json
+//go:embed acvp_capabilities_fips140v1.26.json
 var capabilitiesJson []byte
 
-var testConfigFile = "acvp_test_fips140v2.0.config.json"
+var testConfigFile = "acvp_test_fips140v1.26.config.json"
 
 func init() {
 	commands["ML-DSA-44/keyGen"] = cmdMlDsaKeyGenAft(mldsa.NewPrivateKey44)

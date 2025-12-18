@@ -197,6 +197,9 @@ func (d Delim) String() string {
 // to mark the start and end of arrays and objects.
 // Commas and colons are elided.
 func (dec *Decoder) Token() (Token, error) {
+	if dec.err != nil {
+		return nil, dec.err
+	}
 	tok, err := dec.dec.ReadToken()
 	if err != nil {
 		// Historically, v1 would report just [io.EOF] if
@@ -238,7 +241,20 @@ func (dec *Decoder) Token() (Token, error) {
 func (dec *Decoder) More() bool {
 	dec.hadPeeked = true
 	k := dec.dec.PeekKind()
-	return k > 0 && k != ']' && k != '}'
+	if k == 0 {
+		if dec.err == nil {
+			// PeekKind doesn't distinguish between EOF and error,
+			// so read the next token to see which we get.
+			_, err := dec.dec.ReadToken()
+			if err == nil {
+				// This is only possible if jsontext violates its documentation.
+				err = errors.New("json: successful read after failed peek")
+			}
+			dec.err = transformSyntacticError(err)
+		}
+		return dec.err != io.EOF
+	}
+	return k != ']' && k != '}'
 }
 
 // InputOffset returns the input stream byte offset of the current decoder position.

@@ -88,11 +88,6 @@ pkg crypto/x509, func OIDFromASN1OID(asn1.ObjectIdentifier) (OID, error) #75325
 pkg crypto/x509, method (ExtKeyUsage) OID() OID #75325
 pkg crypto/x509, method (ExtKeyUsage) String() string #56866
 pkg crypto/x509, method (KeyUsage) String() string #56866
-pkg database/sql/driver, type RowsColumnScanner interface { Close, Columns, Next, ScanColumn } #67546
-pkg database/sql/driver, type RowsColumnScanner interface, Close() error #67546
-pkg database/sql/driver, type RowsColumnScanner interface, Columns() []string #67546
-pkg database/sql/driver, type RowsColumnScanner interface, Next([]Value) error #67546
-pkg database/sql/driver, type RowsColumnScanner interface, ScanColumn(interface{}, int) error #67546
 pkg debug/elf, const R_LARCH_CALL36 = 110 #75562
 pkg debug/elf, const R_LARCH_CALL36 R_LARCH #75562
 pkg debug/elf, const R_LARCH_TLS_DESC32 = 13 #75562

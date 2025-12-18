@@ -44,7 +44,6 @@ func TestIntegrityCheck(t *testing.T) {
 
 func TestIntegrityCheckFailure(t *testing.T) {
 	moduleStatus(t)
-	testenv.MustHaveExec(t)
 	cryptotest.MustSupportFIPS140(t)
 
 	bin, err := os.ReadFile(os.Args[0])
@@ -73,7 +72,7 @@ func TestIntegrityCheckFailure(t *testing.T) {
 	cmd := testenv.Command(t, binPath, "-test.v", "-test.run=^TestIntegrityCheck$")
 	cmd.Env = append(cmd.Environ(), "GODEBUG=fips140=on")
 	out, err := cmd.CombinedOutput()
-	t.Logf("%s", out)
+	t.Logf("running with GODEBUG=fips140=on:\n%s", out)
 	if err == nil {
 		t.Errorf("modified binary did not fail as expected")
 	}

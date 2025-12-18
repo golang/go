@@ -10,3 +10,4 @@
 #	go test cmd/go/internal/fips140 -update
 #
 v1.0.0-c2097c7c.zip daf3614e0406f67ae6323c902db3f953a1effb199142362a039e7526dfb9368b
+v1.1.0-rc1.zip ea94f8c3885294c9efe1bd8f9b6e86daeb25b6aff2aeb20707cd9a5101f6f54e

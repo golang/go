@@ -398,7 +398,7 @@ func machofips(ctxt *Link, exe, fipso string) error {
 	return f.Close()
 }
 
-// machofips updates go:fipsinfo after external linking
+// elffips updates go:fipsinfo after external linking
 // on systems using ELF (most Unix systems).
 func elffips(ctxt *Link, exe, fipso string) error {
 	// Open executable both for reading ELF and for the fipsObj.

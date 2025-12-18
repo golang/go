@@ -259,7 +259,7 @@ func (frame *stkframe) getStackMap(debug bool) (locals, args bitvector, objs []s
 	return
 }
 
-var methodValueCallFrameObjs [1]stackObjectRecord // initialized in stackobjectinit
+var methodValueCallFrameObjs [1]stackObjectRecord // initialized in stkobjinit
 
 func stkobjinit() {
 	var abiRegArgsEface any = abi.RegArgs{}
@@ -269,7 +269,7 @@ func stkobjinit() {
 	ptr := uintptr(unsafe.Pointer(&methodValueCallFrameObjs[0]))
 	var mod *moduledata
 	for datap := &firstmoduledata; datap != nil; datap = datap.next {
-		if datap.gofunc <= ptr && ptr < datap.end {
+		if datap.noptrbss <= ptr && ptr < datap.enoptrbss {
 			mod = datap
 			break
 		}

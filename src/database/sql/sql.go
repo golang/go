@@ -3396,16 +3396,7 @@ func (rs *Rows) scanLocked(dest ...any) error {
 	}
 
 	for i, sv := range rs.lastcols {
-		err := driver.ErrSkip
-
-		if rcs, ok := rs.rowsi.(driver.RowsColumnScanner); ok {
-			err = rcs.ScanColumn(dest[i], i)
-		}
-
-		if err == driver.ErrSkip {
-			err = convertAssignRows(dest[i], sv, rs)
-		}
-
+		err := convertAssignRows(dest[i], sv, rs)
 		if err != nil {
 			return fmt.Errorf(`sql: Scan error on column index %d, name %q: %w`, i, rs.rowsi.Columns()[i], err)
 		}

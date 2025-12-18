@@ -2745,6 +2745,14 @@ type specialPinCounter struct {
 	counter uintptr
 }
 
+// specialSecret tracks whether we need to zero an object immediately
+// upon freeing.
+type specialSecret struct {
+	_       sys.NotInHeap
+	special special
+	size    uintptr
+}
+
 // specialsIter helps iterate over specials lists.
 type specialsIter struct {
 	pprev **special
@@ -2775,6 +2783,12 @@ func (i *specialsIter) unlinkAndNext() *special {
 
 // freeSpecial performs any cleanup on special s and deallocates it.
 // s must already be unlinked from the specials list.
+// TODO(mknyszek): p and size together DO NOT represent a valid allocation.
+// size is the size of the allocation block in the span (mspan.elemsize), and p is
+// whatever pointer the special was attached to, which need not point to the
+// beginning of the block, though it may.
+// Consider passing the arguments differently to avoid giving the impression
+// that p and size together represent an address range.
 func freeSpecial(s *special, p unsafe.Pointer, size uintptr) {
 	switch s.kind {
 	case _KindSpecialFinalizer:
@@ -2828,7 +2842,19 @@ func freeSpecial(s *special, p unsafe.Pointer, size uintptr) {
 		mheap_.specialBubbleAlloc.free(unsafe.Pointer(st))
 		unlock(&mheap_.speciallock)
 	case _KindSpecialSecret:
-		memclrNoHeapPointers(p, size)
+		ss := (*specialSecret)(unsafe.Pointer(s))
+		// p is the actual byte location that the special was
+		// attached to, but the size argument is the span
+		// element size. If we were to zero out using the size
+		// argument, we'd trounce over adjacent memory in cases
+		// where the allocation contains a header. Hence, we use
+		// the user-visible size which we stash in the special itself.
+		//
+		// p always points to the beginning of the user-visible
+		// allocation since the only way to attach a secret special
+		// is via the allocation path. This isn't universal for
+		// tiny allocs, but we avoid them in mallocgc anyway.
+		memclrNoHeapPointers(p, ss.size)
 		lock(&mheap_.speciallock)
 		mheap_.specialSecretAlloc.free(unsafe.Pointer(s))
 		unlock(&mheap_.speciallock)

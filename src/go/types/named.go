@@ -120,6 +120,7 @@ type Named struct {
 	fromRHS    Type           // the declaration RHS this type is derived from
 	tparams    *TypeParamList // type parameters, or nil
 	underlying Type           // underlying type, or nil
+	finite     bool           // whether the type has finite size
 
 	// methods declared for this type (not the method set of this type)
 	// Signatures are type-checked lazily.
@@ -151,10 +152,11 @@ type instance struct {
 //	unpacked
 //	└── hasMethods
 //	└── hasUnder
+//	└── hasFinite
 //
 // That is, descent down the tree is mostly linear (initial through unpacked), except upon
-// reaching the leaves (hasMethods and hasUnder). A type may occupy any combination of the
-// leaf states at once (they are independent states).
+// reaching the leaves (hasMethods, hasUnder, and hasFinite). A type may occupy any
+// combination of the leaf states at once (they are independent states).
 //
 // To represent this independence, the set of active states is represented with a bit set. State
 // transitions are monotonic. Once a state bit is set, it remains set.
@@ -162,12 +164,14 @@ type instance struct {
 // The above constraints significantly narrow the possible bit sets for a named type. With bits
 // set left-to-right, they are:
 //
-//	0000 | initial
-//	1000 | lazyLoaded
-//	1100 | unpacked, which implies lazyLoaded
-//	1110 | hasMethods, which implies unpacked (which in turn implies lazyLoaded)
-//	1101 | hasUnder, which implies unpacked ...
-//	1111 | both hasMethods and hasUnder which implies unpacked ...
+//	00000 | initial
+//	10000 | lazyLoaded
+//	11000 | unpacked, which implies lazyLoaded
+//	11100 | hasMethods, which implies unpacked (which in turn implies lazyLoaded)
+//	11010 | hasUnder, which implies unpacked ...
+//	11001 | hasFinite, which implies unpacked ...
+//	11110 | both hasMethods and hasUnder which implies unpacked ...
+//	...   | (other combinations of leaf states)
 //
 // To read the state of a named type, use [Named.stateHas]; to write, use [Named.setState].
 type stateMask uint32
@@ -178,6 +182,7 @@ const (
 	unpacked                         // methods might be unexpanded (for instances)
 	hasMethods                       // methods are all expanded (for instances)
 	hasUnder                         // underlying type is available
+	hasFinite                        // size finiteness is available
 )
 
 // NewNamed returns a new named type for the given type name, underlying type, and associated methods.
@@ -305,6 +310,10 @@ func (n *Named) setState(m stateMask) {
 		}
 		// hasUnder => unpacked
 		if m&hasUnder != 0 {
+			assert(u)
+		}
+		// hasFinite => unpacked
+		if m&hasFinite != 0 {
 			assert(u)
 		}
 	}

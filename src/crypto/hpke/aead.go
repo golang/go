@@ -5,7 +5,6 @@
 package hpke
 
 import (
-	"crypto/aes"
 	"crypto/cipher"
 	"errors"
 	"fmt"
@@ -82,14 +81,6 @@ var chacha20poly1305AEAD = &aead{
 	nN:  chacha20poly1305.NonceSize,
 	new: chacha20poly1305.New,
 	id:  0x0003,
-}
-
-func newAESGCM(key []byte) (cipher.AEAD, error) {
-	b, err := aes.NewCipher(key)
-	if err != nil {
-		return nil, err
-	}
-	return cipher.NewGCM(b)
 }
 
 func (a *aead) ID() uint16 {

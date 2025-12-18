@@ -1,0 +1,15 @@
+-- .Play --
+package main
+
+import (
+	"example.com/foo/v3"
+	"example.com/go-bar"
+)
+
+func main() {
+	foo.Print("hello")
+	bar.Print("world")
+}
+-- .Output --
+hello
+world

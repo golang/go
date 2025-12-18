@@ -23,7 +23,7 @@ import (
 	"bytes"
 	"crypto/elliptic"
 	"crypto/internal/cryptotest"
-	"crypto/internal/entropy/v1.0.0"
+	entropy "crypto/internal/entropy/v1.0.0"
 	"crypto/internal/fips140"
 	"crypto/internal/fips140/aes"
 	"crypto/internal/fips140/aes/gcm"
@@ -2108,8 +2108,8 @@ func TestACVP(t *testing.T) {
 	const (
 		bsslModule    = "boringssl.googlesource.com/boringssl.git"
 		bsslVersion   = "v0.0.0-20251111011041-baaf868e6e8f"
-		goAcvpModule  = "github.com/cpu/go-acvp"
-		goAcvpVersion = "v0.0.0-20251111204335-5c8bf7f5cac1"
+		goAcvpModule  = "github.com/geomys/acvp-testdata"
+		goAcvpVersion = "v0.0.0-20251201200548-d893de8b8b1c"
 	)
 
 	// In crypto/tls/bogo_shim_test.go the test is skipped if run on a builder with runtime.GOOS == "windows"
@@ -2128,16 +2128,13 @@ func TestACVP(t *testing.T) {
 
 	// Build the acvptool binary.
 	toolPath := filepath.Join(t.TempDir(), "acvptool.exe")
-	goTool := testenv.GoToolPath(t)
-	cmd := testenv.Command(t, goTool,
+	cmd := testenv.Command(t, testenv.GoToolPath(t),
 		"build",
 		"-o", toolPath,
 		"./util/fipstools/acvp/acvptool")
 	cmd.Dir = bsslDir
-	out := &strings.Builder{}
-	cmd.Stderr = out
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("failed to build acvptool: %s\n%s", err, out.String())
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build acvptool: %s\n%s", err, out)
 	}
 
 	// Similarly, fetch the ACVP data module that has vectors/expected answers.
@@ -2163,17 +2160,17 @@ func TestACVP(t *testing.T) {
 		"-module-wrappers", "go:" + os.Args[0],
 		"-tests", configPath,
 	}
-	cmd = testenv.Command(t, goTool, args...)
+	cmd = testenv.Command(t, testenv.GoToolPath(t), args...)
 	cmd.Dir = dataDir
 	cmd.Env = append(os.Environ(),
 		"ACVP_WRAPPER=1",
 		"GODEBUG=fips140=on",
 	)
-	output, err := cmd.CombinedOutput()
+	out, err := cmd.CombinedOutput()
+	t.Logf("\n%s", out)
 	if err != nil {
-		t.Fatalf("failed to run acvp tests: %s\n%s", err, string(output))
+		t.Fatalf("failed to run acvp tests: %s", err)
 	}
-	t.Log(string(output))
 }
 
 func TestTooFewArgs(t *testing.T) {

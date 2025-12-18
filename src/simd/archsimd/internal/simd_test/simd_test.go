@@ -7,11 +7,21 @@
 package simd_test
 
 import (
+	"fmt"
+	"os"
 	"reflect"
 	"simd/archsimd"
 	"slices"
 	"testing"
 )
+
+func TestMain(m *testing.M) {
+	if !archsimd.X86.AVX() {
+		fmt.Fprintln(os.Stderr, "Skipping tests: AVX is not available")
+		os.Exit(0)
+	}
+	os.Exit(m.Run())
+}
 
 var sink any
 

@@ -11,7 +11,6 @@ import (
 	"go/ast"
 	"go/token"
 	"internal/lazyregexp"
-	"path"
 	"slices"
 	"strconv"
 	"strings"
@@ -74,6 +73,9 @@ func Examples(testFiles ...*ast.File) []*Example {
 			}
 			if params := f.Type.Params; len(params.List) != 0 {
 				continue // function has params; not a valid example
+			}
+			if results := f.Type.Results; results != nil && len(results.List) != 0 {
+				continue // function has results; not a valid example
 			}
 			if f.Body == nil { // ast.File.Body nil dereference (see issue 28044)
 				continue
@@ -221,7 +223,7 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
 			// because the package syscall/js is not available in the playground.
 			return nil
 		}
-		n := path.Base(p)
+		n := assumedPackageName(p)
 		if s.Name != nil {
 			n = s.Name.Name
 			switch n {

@@ -18,17 +18,28 @@ import (
 // entire call tree initiated by f.)
 //   - Any registers used by f are erased before Do returns.
 //   - Any stack used by f is erased before Do returns.
-//   - Any heap allocation done by f is erased as soon as the garbage
-//     collector realizes that it is no longer reachable.
+//   - Heap allocations done by f are erased as soon as the garbage
+//     collector realizes that all allocated values are no longer reachable.
 //   - Do works even if f panics or calls runtime.Goexit.  As part of
 //     that, any panic raised by f will appear as if it originates from
 //     Do itself.
+//
+// Users should be cautious of allocating inside Do.
+// Erasing heap memory after Do returns may increase garbage collector sweep times and
+// requires additional memory to keep track of allocations until they are to be erased.
+// These costs can compound when an allocation is done in the service of growing a value,
+// like appending to a slice or inserting into a map. In these cases, the entire new allocation is erased rather
+// than just the secret parts of it.
+//
+// To reduce lifetimes of allocations and avoid unexpected performance issues,
+// if a function invoked by Do needs to yield a result that shouldn't be erased,
+// it should do so by copying the result into an allocation created by the caller.
 //
 // Limitations:
 //   - Currently only supported on linux/amd64 and linux/arm64.  On unsupported
 //     platforms, Do will invoke f directly.
 //   - Protection does not extend to any global variables written by f.
-//   - Any attempt to launch a goroutine by f will result in a panic.
+//   - Protection does not extend to any new goroutines made by f.
 //   - If f calls runtime.Goexit, erasure can be delayed by defers
 //     higher up on the call stack.
 //   - Heap allocations will only be erased if the program drops all
