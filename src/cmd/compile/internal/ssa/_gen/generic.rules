@@ -1090,7 +1090,7 @@
   (Neg64 (Lsh64x64 <t> x (Const64 <typ.UInt64> [log64(-c)])))
 
 // Strength reduction of mod to div.
-// Strength reduction of div to mul is delayed to genericlateopt.rules.
+// Strength reduction of div to mul is delayed to divmod.rules.
 
 // Unsigned mod by power of 2 constant.
 (Mod8u  <t> n (Const8  [c])) && isUnsignedPowerOfTwo(uint8(c)) => (And8  n (Const8  <t> [c-1]))
