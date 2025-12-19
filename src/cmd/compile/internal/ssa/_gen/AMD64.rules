@@ -1817,11 +1817,3 @@
 (EQ (VPTEST x:(VPAND(D|Q)512 j k) y) yes no) && x == y && x.Uses == 2 => (EQ (VPTEST j k) yes no)
 (EQ (VPTEST x:(VPANDN(128|256) j k) y) yes no) && x == y && x.Uses == 2 => (ULT (VPTEST k j) yes no) // AndNot has swapped its operand order
 (EQ (VPTEST x:(VPANDN(D|Q)512 j k) y) yes no) && x == y && x.Uses == 2 => (ULT (VPTEST k j) yes no) // AndNot has swapped its operand order
-
-// DotProductQuadruple optimizations
-(VPADDD128 (VPDPBUSD128 (Zero128 <t>) x y) z) => (VPDPBUSD128 <t> z x y)
-(VPADDD256 (VPDPBUSD256 (Zero256 <t>) x y) z) => (VPDPBUSD256 <t> z x y)
-(VPADDD512 (VPDPBUSD512 (Zero512 <t>) x y) z) => (VPDPBUSD512 <t> z x y)
-(VPADDD128 (VPDPBUSDS128 (Zero128 <t>) x y) z) => (VPDPBUSDS128 <t> z x y)
-(VPADDD256 (VPDPBUSDS256 (Zero256 <t>) x y) z) => (VPDPBUSDS256 <t> z x y)
-(VPADDD512 (VPDPBUSDS512 (Zero512 <t>) x y) z) => (VPDPBUSDS512 <t> z x y)

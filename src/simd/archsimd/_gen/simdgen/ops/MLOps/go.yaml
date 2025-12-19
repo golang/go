@@ -33,33 +33,6 @@
 #     const: 127
 #   out:
 #   - *dpb_src
-- go: DotProductQuadruple
-  asm: "VPDPBUSD"
-  operandOrder: "31Zero3" # switch operand 3 and 1, and make 3 always 0
-  in:
-  - &qdpa_acc
-    go: $t_acc
-    base: int
-    elemBits: 32
-  - &qdpa_src1
-    go: $t_src1
-    base: uint
-    overwriteElementBits: 8
-  - &qdpa_src2
-    go: $t_src2
-    base: int
-    overwriteElementBits: 8
-  out:
-  - *qdpa_acc
-- go: DotProductQuadrupleSaturated
-  asm: "VPDPBUSDS"
-  operandOrder: "31Zero3" # switch operand 3 and 1, and make 3 always 0
-  in:
-  - *qdpa_acc
-  - *qdpa_src1
-  - *qdpa_src2
-  out:
-  - *qdpa_acc
 - go: AddDotProductPairs
   asm: "VPDPWSSD"
   in:

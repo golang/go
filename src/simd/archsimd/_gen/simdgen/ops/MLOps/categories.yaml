@@ -10,21 +10,10 @@
   documentation: !string |-
     // NAME multiplies the elements and add the pairs together with saturation,
     // yielding a vector of half as many elements with twice the input element size.
-# QuadDotProduct, i.e. VPDPBUSD(S) are operations with src/dst on the same register, we are not supporting this as of now.
 # - go: DotProductBroadcast
 #   commutative: true
 # #   documentation: !string |-
 #     // NAME multiplies all elements and broadcasts the sum.
-- go: DotProductQuadruple
-  commutative: false
-  documentation: !string |-
-    // NAME performs dot products on groups of 4 elements of x and y.
-    // NAME(x, y).Add(z) will be optimized to the full form of the underlying instruction.
-- go: DotProductQuadrupleSaturated
-  commutative: false
-  documentation: !string |-
-    // NAME multiplies performs dot products on groups of 4 elements of x and y.
-    // NAME(x, y).Add(z) will be optimized to the full form of the underlying instruction.
 - go: AddDotProductPairs
   commutative: false
   noTypes: "true"
