@@ -227,7 +227,7 @@
 - go: Permute
   asm: "VPERMQ|VPERMPD"
   addDoc: !string |-
-    // The low 2 bits (values 0-3) of each element of indices is used
+    // The low 2 bits (values 0-3) of each element of indices is used.
   operandOrder: "21Type1"
   in:
   - &anyindices
@@ -244,7 +244,7 @@
 - go: Permute
   asm: "VPERM[WDQ]|VPERMP[SD]"
   addDoc: !string |-
-    // The low 3 bits (values 0-7) of each element of indices is used
+    // The low 3 bits (values 0-7) of each element of indices is used.
   operandOrder: "21Type1"
   in:
   - *anyindices
@@ -257,7 +257,7 @@
 - go: Permute
   asm: "VPERM[BWD]|VPERMPS"
   addDoc: !string |-
-    // The low 4 bits (values 0-15) of each element of indices is used
+    // The low 4 bits (values 0-15) of each element of indices is used.
   operandOrder: "21Type1"
   in:
   - *anyindices
@@ -270,7 +270,7 @@
 - go: Permute
   asm: "VPERM[BW]"
   addDoc: !string |-
-    // The low 5 bits (values 0-31) of each element of indices is used
+    // The low 5 bits (values 0-31) of each element of indices is used.
   operandOrder: "21Type1"
   in:
   - *anyindices
@@ -283,7 +283,7 @@
 - go: Permute
   asm: "VPERMB"
   addDoc: !string |-
-    // The low 6 bits (values 0-63) of each element of indices is used
+    // The low 6 bits (values 0-63) of each element of indices is used.
   operandOrder: "21Type1"
   in:
   - *anyindices
@@ -489,7 +489,9 @@
 - go: PermuteOrZeroGrouped
   asm: VPSHUFB
   addDoc: !string |-
-    // result = {x_group0[indices[0]], x_group0[indices[1]], ..., x_group1[indices[16]], x_group1[indices[17]], ...}
+    //
+    //   result = {x_group0[indices[0]], x_group0[indices[1]], ..., x_group1[indices[16]], x_group1[indices[17]], ...}
+    //
     // The lower four bits of each byte-sized index in indices select an element from its corresponding group in x,
     // unless the index's sign bit is set in which case zero is used instead.
     // Each group is of size 128-bit.
@@ -506,7 +508,9 @@
 - go: permuteScalars
   asm: VPSHUFD
   addDoc: !string |-
-    // result = {x[indices[0:2]], x[indices[2:4]], x[indices[4:6]], x[indices[6:8]]}
+    //
+    //   result = {x[indices[0:2]], x[indices[2:4]], x[indices[4:6]], x[indices[6:8]]}
+    //
     // Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
   in:
   - *128any
@@ -520,7 +524,9 @@
 - go: permuteScalarsGrouped
   asm: VPSHUFD
   addDoc: !string |-
-    // result = {x_group0[indices[0:2]], x_group0[indices[2:4]], x_group0[indices[4:6]], x_group0[indices[6:8]], x_group1[indices[0:2]], ...}
+    //
+    //   result = {x_group0[indices[0:2]], x_group0[indices[2:4]], x_group0[indices[4:6]], x_group0[indices[6:8]], x_group1[indices[0:2]], ...}
+    //
     // Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
     // Each group is of size 128-bit.
   in:
@@ -535,7 +541,9 @@
 - go: permuteScalarsLo
   asm: VPSHUFLW
   addDoc: !string |-
-    // result = {x[indices[0:2]], x[indices[2:4]], x[indices[4:6]], x[indices[6:8]], x[4], x[5], x[6], x[7]}
+    //
+    //   result = {x[indices[0:2]], x[indices[2:4]], x[indices[4:6]], x[indices[6:8]], x[4], x[5], x[6], x[7]}
+    //
     // Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
   in:
     - &128lanes8
@@ -573,7 +581,9 @@
 - go: permuteScalarsHi
   asm: VPSHUFHW
   addDoc: !string |-
-    // result = {x[0], x[1], x[2], x[3], x[indices[0:2]+4], x[indices[2:4]+4], x[indices[4:6]+4], x[indices[6:8]+4]}
+    //
+    //   result = {x[0], x[1], x[2], x[3], x[indices[0:2]+4], x[indices[2:4]+4], x[indices[4:6]+4], x[indices[6:8]+4]}
+    //
     // Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
   in:
   - *128lanes8

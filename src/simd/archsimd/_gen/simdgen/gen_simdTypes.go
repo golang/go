@@ -142,7 +142,7 @@ type v{{.}} struct {
 {{end}}
 
 {{define "typeTmpl"}}
-// {{.Name}} is a {{.Size}}-bit SIMD vector of {{.Lanes}} {{.Base}}
+// {{.Name}} is a {{.Size}}-bit SIMD vector of {{.Lanes}} {{.Base}}s.
 type {{.Name}} struct {
 {{.Fields}}
 }
@@ -178,15 +178,15 @@ func (X86Features) {{.Feature}}() bool {
 `
 
 const simdLoadStoreTemplate = `
-// Len returns the number of elements in a {{.Name}}
+// Len returns the number of elements in {{.Article}} {{.Name}}.
 func (x {{.Name}}) Len() int { return {{.Lanes}} }
 
-// Load{{.Name}} loads a {{.Name}} from an array
+// Load{{.Name}} loads {{.Article}} {{.Name}} from an array.
 //
 //go:noescape
 func Load{{.Name}}(y *[{{.Lanes}}]{{.Base}}) {{.Name}}
 
-// Store stores a {{.Name}} to an array
+// Store stores {{.Article}} {{.Name}} to an array.
 //
 //go:noescape
 func (x {{.Name}}) Store(y *[{{.Lanes}}]{{.Base}})
@@ -211,16 +211,16 @@ func (x {{.Name}}) ToBits() uint{{.LanesContainer}}
 `
 
 const simdMaskedLoadStoreTemplate = `
-// LoadMasked{{.Name}} loads a {{.Name}} from an array,
-// at those elements enabled by mask
+// LoadMasked{{.Name}} loads {{.Article}} {{.Name}} from an array,
+// at those elements enabled by mask.
 //
 {{.MaskedLoadDoc}}
 //
 //go:noescape
 func LoadMasked{{.Name}}(y *[{{.Lanes}}]{{.Base}}, mask Mask{{.ElemBits}}x{{.Lanes}}) {{.Name}}
 
-// StoreMasked stores a {{.Name}} to an array,
-// at those elements enabled by mask
+// StoreMasked stores {{.Article}} {{.Name}} to an array,
+// at those elements enabled by mask.
 //
 {{.MaskedStoreDoc}}
 //
@@ -407,10 +407,10 @@ func (x {{.Tsrc.Name}}) As{{.Tdst.Name}}() {{.Tdst.Name}}
 {{end}}
 
 {{define "mask"}}
-// To{{.VectorCounterpart}} converts from {{.Name}} to {{.VectorCounterpart}}
+// To{{.VectorCounterpart}} converts from {{.Name}} to {{.VectorCounterpart}}.
 func (from {{.Name}}) To{{.VectorCounterpart}}() (to {{.VectorCounterpart}})
 
-// asMask converts from {{.VectorCounterpart}} to {{.Name}}
+// asMask converts from {{.VectorCounterpart}} to {{.Name}}.
 func (from {{.VectorCounterpart}}) asMask() (to {{.Name}})
 
 func (x {{.Name}}) And(y {{.Name}}) {{.Name}}

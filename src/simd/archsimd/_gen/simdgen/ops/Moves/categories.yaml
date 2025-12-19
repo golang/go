@@ -31,17 +31,23 @@
   commutative: false
   documentation: !string |-
     // NAME performs a full permutation of vector x using indices:
-    // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+    //
+    //   result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+    //
 - go: Permute
   commutative: false
   documentation: !string |-
     // NAME performs a full permutation of vector x using indices:
-    // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+    //
+    //   result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+    //
 - go: ConcatPermute # ConcatPermute is only available on or after AVX512
   commutative: false
   documentation: !string |-
     // NAME performs a full permutation of vector x, y using indices:
-    // result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+    //
+    //   result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+    //
     // where xy is the concatenation of x (lower half) and y (upper half).
     // Only the needed bits to represent xy's index are used in indices' elements.
 - go: Compress

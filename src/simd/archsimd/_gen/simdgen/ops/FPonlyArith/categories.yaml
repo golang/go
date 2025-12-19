@@ -18,7 +18,8 @@
 - go: Scale
   commutative: false
   documentation: !string |-
-    // NAME multiplies elements by a power of 2.
+    // NAME multiplies each element of x by 2 raised to the power of the
+    // floor of the corresponding element in y.
 - go: RoundToEven
   commutative: false
   constImm: 0

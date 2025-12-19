@@ -1286,7 +1286,9 @@ func (x Uint64x8) Compress(mask Mask64x8) Uint64x8
 /* ConcatPermute */
 
 // ConcatPermute performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
+//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
 // where xy is the concatenation of x (lower half) and y (upper half).
 // Only the needed bits to represent xy's index are used in indices' elements.
 //
@@ -1294,7 +1296,9 @@ func (x Uint64x8) Compress(mask Mask64x8) Uint64x8
 func (x Int8x16) ConcatPermute(y Int8x16, indices Uint8x16) Int8x16
 
 // ConcatPermute performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
+//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
 // where xy is the concatenation of x (lower half) and y (upper half).
 // Only the needed bits to represent xy's index are used in indices' elements.
 //
@@ -1302,7 +1306,9 @@ func (x Int8x16) ConcatPermute(y Int8x16, indices Uint8x16) Int8x16
 func (x Uint8x16) ConcatPermute(y Uint8x16, indices Uint8x16) Uint8x16
 
 // ConcatPermute performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
+//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
 // where xy is the concatenation of x (lower half) and y (upper half).
 // Only the needed bits to represent xy's index are used in indices' elements.
 //
@@ -1310,7 +1316,9 @@ func (x Uint8x16) ConcatPermute(y Uint8x16, indices Uint8x16) Uint8x16
 func (x Int8x32) ConcatPermute(y Int8x32, indices Uint8x32) Int8x32
 
 // ConcatPermute performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
+//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
 // where xy is the concatenation of x (lower half) and y (upper half).
 // Only the needed bits to represent xy's index are used in indices' elements.
 //
@@ -1318,7 +1326,9 @@ func (x Int8x32) ConcatPermute(y Int8x32, indices Uint8x32) Int8x32
 func (x Uint8x32) ConcatPermute(y Uint8x32, indices Uint8x32) Uint8x32
 
 // ConcatPermute performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
+//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
 // where xy is the concatenation of x (lower half) and y (upper half).
 // Only the needed bits to represent xy's index are used in indices' elements.
 //
@@ -1326,7 +1336,9 @@ func (x Uint8x32) ConcatPermute(y Uint8x32, indices Uint8x32) Uint8x32
 func (x Int8x64) ConcatPermute(y Int8x64, indices Uint8x64) Int8x64
 
 // ConcatPermute performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
+//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
 // where xy is the concatenation of x (lower half) and y (upper half).
 // Only the needed bits to represent xy's index are used in indices' elements.
 //
@@ -1334,7 +1346,9 @@ func (x Int8x64) ConcatPermute(y Int8x64, indices Uint8x64) Int8x64
 func (x Uint8x64) ConcatPermute(y Uint8x64, indices Uint8x64) Uint8x64
 
 // ConcatPermute performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
+//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
 // where xy is the concatenation of x (lower half) and y (upper half).
 // Only the needed bits to represent xy's index are used in indices' elements.
 //
@@ -1342,7 +1356,9 @@ func (x Uint8x64) ConcatPermute(y Uint8x64, indices Uint8x64) Uint8x64
 func (x Int16x8) ConcatPermute(y Int16x8, indices Uint16x8) Int16x8
 
 // ConcatPermute performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
+//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
 // where xy is the concatenation of x (lower half) and y (upper half).
 // Only the needed bits to represent xy's index are used in indices' elements.
 //
@@ -1350,7 +1366,9 @@ func (x Int16x8) ConcatPermute(y Int16x8, indices Uint16x8) Int16x8
 func (x Uint16x8) ConcatPermute(y Uint16x8, indices Uint16x8) Uint16x8
 
 // ConcatPermute performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
+//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
 // where xy is the concatenation of x (lower half) and y (upper half).
 // Only the needed bits to represent xy's index are used in indices' elements.
 //
@@ -1358,7 +1376,9 @@ func (x Uint16x8) ConcatPermute(y Uint16x8, indices Uint16x8) Uint16x8
 func (x Int16x16) ConcatPermute(y Int16x16, indices Uint16x16) Int16x16
 
 // ConcatPermute performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
+//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
 // where xy is the concatenation of x (lower half) and y (upper half).
 // Only the needed bits to represent xy's index are used in indices' elements.
 //
@@ -1366,7 +1386,9 @@ func (x Int16x16) ConcatPermute(y Int16x16, indices Uint16x16) Int16x16
 func (x Uint16x16) ConcatPermute(y Uint16x16, indices Uint16x16) Uint16x16
 
 // ConcatPermute performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
+//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
 // where xy is the concatenation of x (lower half) and y (upper half).
 // Only the needed bits to represent xy's index are used in indices' elements.
 //
@@ -1374,7 +1396,9 @@ func (x Uint16x16) ConcatPermute(y Uint16x16, indices Uint16x16) Uint16x16
 func (x Int16x32) ConcatPermute(y Int16x32, indices Uint16x32) Int16x32
 
 // ConcatPermute performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
+//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
 // where xy is the concatenation of x (lower half) and y (upper half).
 // Only the needed bits to represent xy's index are used in indices' elements.
 //
@@ -1382,7 +1406,9 @@ func (x Int16x32) ConcatPermute(y Int16x32, indices Uint16x32) Int16x32
 func (x Uint16x32) ConcatPermute(y Uint16x32, indices Uint16x32) Uint16x32
 
 // ConcatPermute performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
+//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
 // where xy is the concatenation of x (lower half) and y (upper half).
 // Only the needed bits to represent xy's index are used in indices' elements.
 //
@@ -1390,7 +1416,9 @@ func (x Uint16x32) ConcatPermute(y Uint16x32, indices Uint16x32) Uint16x32
 func (x Float32x4) ConcatPermute(y Float32x4, indices Uint32x4) Float32x4
 
 // ConcatPermute performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
+//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
 // where xy is the concatenation of x (lower half) and y (upper half).
 // Only the needed bits to represent xy's index are used in indices' elements.
 //
@@ -1398,7 +1426,9 @@ func (x Float32x4) ConcatPermute(y Float32x4, indices Uint32x4) Float32x4
 func (x Int32x4) ConcatPermute(y Int32x4, indices Uint32x4) Int32x4
 
 // ConcatPermute performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
+//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
 // where xy is the concatenation of x (lower half) and y (upper half).
 // Only the needed bits to represent xy's index are used in indices' elements.
 //
@@ -1406,7 +1436,9 @@ func (x Int32x4) ConcatPermute(y Int32x4, indices Uint32x4) Int32x4
 func (x Uint32x4) ConcatPermute(y Uint32x4, indices Uint32x4) Uint32x4
 
 // ConcatPermute performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
+//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
 // where xy is the concatenation of x (lower half) and y (upper half).
 // Only the needed bits to represent xy's index are used in indices' elements.
 //
@@ -1414,7 +1446,9 @@ func (x Uint32x4) ConcatPermute(y Uint32x4, indices Uint32x4) Uint32x4
 func (x Float32x8) ConcatPermute(y Float32x8, indices Uint32x8) Float32x8
 
 // ConcatPermute performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
+//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
 // where xy is the concatenation of x (lower half) and y (upper half).
 // Only the needed bits to represent xy's index are used in indices' elements.
 //
@@ -1422,7 +1456,9 @@ func (x Float32x8) ConcatPermute(y Float32x8, indices Uint32x8) Float32x8
 func (x Int32x8) ConcatPermute(y Int32x8, indices Uint32x8) Int32x8
 
 // ConcatPermute performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
+//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
 // where xy is the concatenation of x (lower half) and y (upper half).
 // Only the needed bits to represent xy's index are used in indices' elements.
 //
@@ -1430,7 +1466,9 @@ func (x Int32x8) ConcatPermute(y Int32x8, indices Uint32x8) Int32x8
 func (x Uint32x8) ConcatPermute(y Uint32x8, indices Uint32x8) Uint32x8
 
 // ConcatPermute performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
+//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
 // where xy is the concatenation of x (lower half) and y (upper half).
 // Only the needed bits to represent xy's index are used in indices' elements.
 //
@@ -1438,7 +1476,9 @@ func (x Uint32x8) ConcatPermute(y Uint32x8, indices Uint32x8) Uint32x8
 func (x Float32x16) ConcatPermute(y Float32x16, indices Uint32x16) Float32x16
 
 // ConcatPermute performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
+//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
 // where xy is the concatenation of x (lower half) and y (upper half).
 // Only the needed bits to represent xy's index are used in indices' elements.
 //
@@ -1446,7 +1486,9 @@ func (x Float32x16) ConcatPermute(y Float32x16, indices Uint32x16) Float32x16
 func (x Int32x16) ConcatPermute(y Int32x16, indices Uint32x16) Int32x16
 
 // ConcatPermute performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
+//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
 // where xy is the concatenation of x (lower half) and y (upper half).
 // Only the needed bits to represent xy's index are used in indices' elements.
 //
@@ -1454,7 +1496,9 @@ func (x Int32x16) ConcatPermute(y Int32x16, indices Uint32x16) Int32x16
 func (x Uint32x16) ConcatPermute(y Uint32x16, indices Uint32x16) Uint32x16
 
 // ConcatPermute performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
+//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
 // where xy is the concatenation of x (lower half) and y (upper half).
 // Only the needed bits to represent xy's index are used in indices' elements.
 //
@@ -1462,7 +1506,9 @@ func (x Uint32x16) ConcatPermute(y Uint32x16, indices Uint32x16) Uint32x16
 func (x Float64x2) ConcatPermute(y Float64x2, indices Uint64x2) Float64x2
 
 // ConcatPermute performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
+//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
 // where xy is the concatenation of x (lower half) and y (upper half).
 // Only the needed bits to represent xy's index are used in indices' elements.
 //
@@ -1470,7 +1516,9 @@ func (x Float64x2) ConcatPermute(y Float64x2, indices Uint64x2) Float64x2
 func (x Int64x2) ConcatPermute(y Int64x2, indices Uint64x2) Int64x2
 
 // ConcatPermute performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
+//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
 // where xy is the concatenation of x (lower half) and y (upper half).
 // Only the needed bits to represent xy's index are used in indices' elements.
 //
@@ -1478,7 +1526,9 @@ func (x Int64x2) ConcatPermute(y Int64x2, indices Uint64x2) Int64x2
 func (x Uint64x2) ConcatPermute(y Uint64x2, indices Uint64x2) Uint64x2
 
 // ConcatPermute performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
+//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
 // where xy is the concatenation of x (lower half) and y (upper half).
 // Only the needed bits to represent xy's index are used in indices' elements.
 //
@@ -1486,7 +1536,9 @@ func (x Uint64x2) ConcatPermute(y Uint64x2, indices Uint64x2) Uint64x2
 func (x Float64x4) ConcatPermute(y Float64x4, indices Uint64x4) Float64x4
 
 // ConcatPermute performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
+//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
 // where xy is the concatenation of x (lower half) and y (upper half).
 // Only the needed bits to represent xy's index are used in indices' elements.
 //
@@ -1494,7 +1546,9 @@ func (x Float64x4) ConcatPermute(y Float64x4, indices Uint64x4) Float64x4
 func (x Int64x4) ConcatPermute(y Int64x4, indices Uint64x4) Int64x4
 
 // ConcatPermute performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
+//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
 // where xy is the concatenation of x (lower half) and y (upper half).
 // Only the needed bits to represent xy's index are used in indices' elements.
 //
@@ -1502,7 +1556,9 @@ func (x Int64x4) ConcatPermute(y Int64x4, indices Uint64x4) Int64x4
 func (x Uint64x4) ConcatPermute(y Uint64x4, indices Uint64x4) Uint64x4
 
 // ConcatPermute performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
+//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
 // where xy is the concatenation of x (lower half) and y (upper half).
 // Only the needed bits to represent xy's index are used in indices' elements.
 //
@@ -1510,7 +1566,9 @@ func (x Uint64x4) ConcatPermute(y Uint64x4, indices Uint64x4) Uint64x4
 func (x Float64x8) ConcatPermute(y Float64x8, indices Uint64x8) Float64x8
 
 // ConcatPermute performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
+//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
 // where xy is the concatenation of x (lower half) and y (upper half).
 // Only the needed bits to represent xy's index are used in indices' elements.
 //
@@ -1518,7 +1576,9 @@ func (x Float64x8) ConcatPermute(y Float64x8, indices Uint64x8) Float64x8
 func (x Int64x8) ConcatPermute(y Int64x8, indices Uint64x8) Int64x8
 
 // ConcatPermute performs a full permutation of vector x, y using indices:
-// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
+//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+//
 // where xy is the concatenation of x (lower half) and y (upper half).
 // Only the needed bits to represent xy's index are used in indices' elements.
 //
@@ -4523,169 +4583,217 @@ func (x Uint64x8) Or(y Uint64x8) Uint64x8
 /* Permute */
 
 // Permute performs a full permutation of vector x using indices:
-// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// The low 4 bits (values 0-15) of each element of indices is used
+//
+//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+//
+// The low 4 bits (values 0-15) of each element of indices is used.
 //
 // Asm: VPERMB, CPU Feature: AVX512VBMI
 func (x Int8x16) Permute(indices Uint8x16) Int8x16
 
 // Permute performs a full permutation of vector x using indices:
-// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// The low 4 bits (values 0-15) of each element of indices is used
+//
+//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+//
+// The low 4 bits (values 0-15) of each element of indices is used.
 //
 // Asm: VPERMB, CPU Feature: AVX512VBMI
 func (x Uint8x16) Permute(indices Uint8x16) Uint8x16
 
 // Permute performs a full permutation of vector x using indices:
-// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// The low 5 bits (values 0-31) of each element of indices is used
+//
+//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+//
+// The low 5 bits (values 0-31) of each element of indices is used.
 //
 // Asm: VPERMB, CPU Feature: AVX512VBMI
 func (x Int8x32) Permute(indices Uint8x32) Int8x32
 
 // Permute performs a full permutation of vector x using indices:
-// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// The low 5 bits (values 0-31) of each element of indices is used
+//
+//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+//
+// The low 5 bits (values 0-31) of each element of indices is used.
 //
 // Asm: VPERMB, CPU Feature: AVX512VBMI
 func (x Uint8x32) Permute(indices Uint8x32) Uint8x32
 
 // Permute performs a full permutation of vector x using indices:
-// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// The low 6 bits (values 0-63) of each element of indices is used
+//
+//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+//
+// The low 6 bits (values 0-63) of each element of indices is used.
 //
 // Asm: VPERMB, CPU Feature: AVX512VBMI
 func (x Int8x64) Permute(indices Uint8x64) Int8x64
 
 // Permute performs a full permutation of vector x using indices:
-// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// The low 6 bits (values 0-63) of each element of indices is used
+//
+//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+//
+// The low 6 bits (values 0-63) of each element of indices is used.
 //
 // Asm: VPERMB, CPU Feature: AVX512VBMI
 func (x Uint8x64) Permute(indices Uint8x64) Uint8x64
 
 // Permute performs a full permutation of vector x using indices:
-// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// The low 3 bits (values 0-7) of each element of indices is used
+//
+//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+//
+// The low 3 bits (values 0-7) of each element of indices is used.
 //
 // Asm: VPERMW, CPU Feature: AVX512
 func (x Int16x8) Permute(indices Uint16x8) Int16x8
 
 // Permute performs a full permutation of vector x using indices:
-// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// The low 3 bits (values 0-7) of each element of indices is used
+//
+//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+//
+// The low 3 bits (values 0-7) of each element of indices is used.
 //
 // Asm: VPERMW, CPU Feature: AVX512
 func (x Uint16x8) Permute(indices Uint16x8) Uint16x8
 
 // Permute performs a full permutation of vector x using indices:
-// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// The low 4 bits (values 0-15) of each element of indices is used
+//
+//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+//
+// The low 4 bits (values 0-15) of each element of indices is used.
 //
 // Asm: VPERMW, CPU Feature: AVX512
 func (x Int16x16) Permute(indices Uint16x16) Int16x16
 
 // Permute performs a full permutation of vector x using indices:
-// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// The low 4 bits (values 0-15) of each element of indices is used
+//
+//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+//
+// The low 4 bits (values 0-15) of each element of indices is used.
 //
 // Asm: VPERMW, CPU Feature: AVX512
 func (x Uint16x16) Permute(indices Uint16x16) Uint16x16
 
 // Permute performs a full permutation of vector x using indices:
-// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// The low 5 bits (values 0-31) of each element of indices is used
+//
+//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+//
+// The low 5 bits (values 0-31) of each element of indices is used.
 //
 // Asm: VPERMW, CPU Feature: AVX512
 func (x Int16x32) Permute(indices Uint16x32) Int16x32
 
 // Permute performs a full permutation of vector x using indices:
-// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// The low 5 bits (values 0-31) of each element of indices is used
+//
+//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+//
+// The low 5 bits (values 0-31) of each element of indices is used.
 //
 // Asm: VPERMW, CPU Feature: AVX512
 func (x Uint16x32) Permute(indices Uint16x32) Uint16x32
 
 // Permute performs a full permutation of vector x using indices:
-// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// The low 3 bits (values 0-7) of each element of indices is used
+//
+//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+//
+// The low 3 bits (values 0-7) of each element of indices is used.
 //
 // Asm: VPERMPS, CPU Feature: AVX2
 func (x Float32x8) Permute(indices Uint32x8) Float32x8
 
 // Permute performs a full permutation of vector x using indices:
-// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// The low 3 bits (values 0-7) of each element of indices is used
+//
+//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+//
+// The low 3 bits (values 0-7) of each element of indices is used.
 //
 // Asm: VPERMD, CPU Feature: AVX2
 func (x Int32x8) Permute(indices Uint32x8) Int32x8
 
 // Permute performs a full permutation of vector x using indices:
-// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// The low 3 bits (values 0-7) of each element of indices is used
+//
+//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+//
+// The low 3 bits (values 0-7) of each element of indices is used.
 //
 // Asm: VPERMD, CPU Feature: AVX2
 func (x Uint32x8) Permute(indices Uint32x8) Uint32x8
 
 // Permute performs a full permutation of vector x using indices:
-// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// The low 4 bits (values 0-15) of each element of indices is used
+//
+//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+//
+// The low 4 bits (values 0-15) of each element of indices is used.
 //
 // Asm: VPERMPS, CPU Feature: AVX512
 func (x Float32x16) Permute(indices Uint32x16) Float32x16
 
 // Permute performs a full permutation of vector x using indices:
-// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// The low 4 bits (values 0-15) of each element of indices is used
+//
+//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+//
+// The low 4 bits (values 0-15) of each element of indices is used.
 //
 // Asm: VPERMD, CPU Feature: AVX512
 func (x Int32x16) Permute(indices Uint32x16) Int32x16
 
 // Permute performs a full permutation of vector x using indices:
-// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// The low 4 bits (values 0-15) of each element of indices is used
+//
+//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+//
+// The low 4 bits (values 0-15) of each element of indices is used.
 //
 // Asm: VPERMD, CPU Feature: AVX512
 func (x Uint32x16) Permute(indices Uint32x16) Uint32x16
 
 // Permute performs a full permutation of vector x using indices:
-// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// The low 2 bits (values 0-3) of each element of indices is used
+//
+//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+//
+// The low 2 bits (values 0-3) of each element of indices is used.
 //
 // Asm: VPERMPD, CPU Feature: AVX512
 func (x Float64x4) Permute(indices Uint64x4) Float64x4
 
 // Permute performs a full permutation of vector x using indices:
-// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// The low 2 bits (values 0-3) of each element of indices is used
+//
+//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+//
+// The low 2 bits (values 0-3) of each element of indices is used.
 //
 // Asm: VPERMQ, CPU Feature: AVX512
 func (x Int64x4) Permute(indices Uint64x4) Int64x4
 
 // Permute performs a full permutation of vector x using indices:
-// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// The low 2 bits (values 0-3) of each element of indices is used
+//
+//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+//
+// The low 2 bits (values 0-3) of each element of indices is used.
 //
 // Asm: VPERMQ, CPU Feature: AVX512
 func (x Uint64x4) Permute(indices Uint64x4) Uint64x4
 
 // Permute performs a full permutation of vector x using indices:
-// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// The low 3 bits (values 0-7) of each element of indices is used
+//
+//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+//
+// The low 3 bits (values 0-7) of each element of indices is used.
 //
 // Asm: VPERMPD, CPU Feature: AVX512
 func (x Float64x8) Permute(indices Uint64x8) Float64x8
 
 // Permute performs a full permutation of vector x using indices:
-// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// The low 3 bits (values 0-7) of each element of indices is used
+//
+//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+//
+// The low 3 bits (values 0-7) of each element of indices is used.
 //
 // Asm: VPERMQ, CPU Feature: AVX512
 func (x Int64x8) Permute(indices Uint64x8) Int64x8
 
 // Permute performs a full permutation of vector x using indices:
-// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-// The low 3 bits (values 0-7) of each element of indices is used
+//
+//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+//
+// The low 3 bits (values 0-7) of each element of indices is used.
 //
 // Asm: VPERMQ, CPU Feature: AVX512
 func (x Uint64x8) Permute(indices Uint64x8) Uint64x8
@@ -4693,7 +4801,9 @@ func (x Uint64x8) Permute(indices Uint64x8) Uint64x8
 /* PermuteOrZero */
 
 // PermuteOrZero performs a full permutation of vector x using indices:
-// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+//
+//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+//
 // The lower four bits of each byte-sized index in indices select an element from x,
 // unless the index's sign bit is set in which case zero is used instead.
 //
@@ -4701,7 +4811,9 @@ func (x Uint64x8) Permute(indices Uint64x8) Uint64x8
 func (x Int8x16) PermuteOrZero(indices Int8x16) Int8x16
 
 // PermuteOrZero performs a full permutation of vector x using indices:
-// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+//
+//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+//
 // The lower four bits of each byte-sized index in indices select an element from x,
 // unless the index's sign bit is set in which case zero is used instead.
 //
@@ -4711,7 +4823,9 @@ func (x Uint8x16) PermuteOrZero(indices Int8x16) Uint8x16
 /* PermuteOrZeroGrouped */
 
 // PermuteOrZeroGrouped performs a grouped permutation of vector x using indices:
-// result = {x_group0[indices[0]], x_group0[indices[1]], ..., x_group1[indices[16]], x_group1[indices[17]], ...}
+//
+//	result = {x_group0[indices[0]], x_group0[indices[1]], ..., x_group1[indices[16]], x_group1[indices[17]], ...}
+//
 // The lower four bits of each byte-sized index in indices select an element from its corresponding group in x,
 // unless the index's sign bit is set in which case zero is used instead.
 // Each group is of size 128-bit.
@@ -4720,7 +4834,9 @@ func (x Uint8x16) PermuteOrZero(indices Int8x16) Uint8x16
 func (x Int8x32) PermuteOrZeroGrouped(indices Int8x32) Int8x32
 
 // PermuteOrZeroGrouped performs a grouped permutation of vector x using indices:
-// result = {x_group0[indices[0]], x_group0[indices[1]], ..., x_group1[indices[16]], x_group1[indices[17]], ...}
+//
+//	result = {x_group0[indices[0]], x_group0[indices[1]], ..., x_group1[indices[16]], x_group1[indices[17]], ...}
+//
 // The lower four bits of each byte-sized index in indices select an element from its corresponding group in x,
 // unless the index's sign bit is set in which case zero is used instead.
 // Each group is of size 128-bit.
@@ -4729,7 +4845,9 @@ func (x Int8x32) PermuteOrZeroGrouped(indices Int8x32) Int8x32
 func (x Int8x64) PermuteOrZeroGrouped(indices Int8x64) Int8x64
 
 // PermuteOrZeroGrouped performs a grouped permutation of vector x using indices:
-// result = {x_group0[indices[0]], x_group0[indices[1]], ..., x_group1[indices[16]], x_group1[indices[17]], ...}
+//
+//	result = {x_group0[indices[0]], x_group0[indices[1]], ..., x_group1[indices[16]], x_group1[indices[17]], ...}
+//
 // The lower four bits of each byte-sized index in indices select an element from its corresponding group in x,
 // unless the index's sign bit is set in which case zero is used instead.
 // Each group is of size 128-bit.
@@ -4738,7 +4856,9 @@ func (x Int8x64) PermuteOrZeroGrouped(indices Int8x64) Int8x64
 func (x Uint8x32) PermuteOrZeroGrouped(indices Int8x32) Uint8x32
 
 // PermuteOrZeroGrouped performs a grouped permutation of vector x using indices:
-// result = {x_group0[indices[0]], x_group0[indices[1]], ..., x_group1[indices[16]], x_group1[indices[17]], ...}
+//
+//	result = {x_group0[indices[0]], x_group0[indices[1]], ..., x_group1[indices[16]], x_group1[indices[17]], ...}
+//
 // The lower four bits of each byte-sized index in indices select an element from its corresponding group in x,
 // unless the index's sign bit is set in which case zero is used instead.
 // Each group is of size 128-bit.
@@ -5566,32 +5686,38 @@ func (x Uint64x8) SaturateToUint32() Uint32x8
 
 /* Scale */
 
-// Scale multiplies elements by a power of 2.
+// Scale multiplies each element of x by 2 raised to the power of the
+// floor of the corresponding element in y.
 //
 // Asm: VSCALEFPS, CPU Feature: AVX512
 func (x Float32x4) Scale(y Float32x4) Float32x4
 
-// Scale multiplies elements by a power of 2.
+// Scale multiplies each element of x by 2 raised to the power of the
+// floor of the corresponding element in y.
 //
 // Asm: VSCALEFPS, CPU Feature: AVX512
 func (x Float32x8) Scale(y Float32x8) Float32x8
 
-// Scale multiplies elements by a power of 2.
+// Scale multiplies each element of x by 2 raised to the power of the
+// floor of the corresponding element in y.
 //
 // Asm: VSCALEFPS, CPU Feature: AVX512
 func (x Float32x16) Scale(y Float32x16) Float32x16
 
-// Scale multiplies elements by a power of 2.
+// Scale multiplies each element of x by 2 raised to the power of the
+// floor of the corresponding element in y.
 //
 // Asm: VSCALEFPD, CPU Feature: AVX512
 func (x Float64x2) Scale(y Float64x2) Float64x2
 
-// Scale multiplies elements by a power of 2.
+// Scale multiplies each element of x by 2 raised to the power of the
+// floor of the corresponding element in y.
 //
 // Asm: VSCALEFPD, CPU Feature: AVX512
 func (x Float64x4) Scale(y Float64x4) Float64x4
 
-// Scale multiplies elements by a power of 2.
+// Scale multiplies each element of x by 2 raised to the power of the
+// floor of the corresponding element in y.
 //
 // Asm: VSCALEFPD, CPU Feature: AVX512
 func (x Float64x8) Scale(y Float64x8) Float64x8
@@ -8530,120 +8656,120 @@ func (x Uint64x8) AsUint16x32() Uint16x32
 // AsUint32x16 returns a Uint32x16 with the same bit representation as x.
 func (x Uint64x8) AsUint32x16() Uint32x16
 
-// ToInt8x16 converts from Mask8x16 to Int8x16
+// ToInt8x16 converts from Mask8x16 to Int8x16.
 func (from Mask8x16) ToInt8x16() (to Int8x16)
 
-// asMask converts from Int8x16 to Mask8x16
+// asMask converts from Int8x16 to Mask8x16.
 func (from Int8x16) asMask() (to Mask8x16)
 
 func (x Mask8x16) And(y Mask8x16) Mask8x16
 
 func (x Mask8x16) Or(y Mask8x16) Mask8x16
 
-// ToInt8x32 converts from Mask8x32 to Int8x32
+// ToInt8x32 converts from Mask8x32 to Int8x32.
 func (from Mask8x32) ToInt8x32() (to Int8x32)
 
-// asMask converts from Int8x32 to Mask8x32
+// asMask converts from Int8x32 to Mask8x32.
 func (from Int8x32) asMask() (to Mask8x32)
 
 func (x Mask8x32) And(y Mask8x32) Mask8x32
 
 func (x Mask8x32) Or(y Mask8x32) Mask8x32
 
-// ToInt8x64 converts from Mask8x64 to Int8x64
+// ToInt8x64 converts from Mask8x64 to Int8x64.
 func (from Mask8x64) ToInt8x64() (to Int8x64)
 
-// asMask converts from Int8x64 to Mask8x64
+// asMask converts from Int8x64 to Mask8x64.
 func (from Int8x64) asMask() (to Mask8x64)
 
 func (x Mask8x64) And(y Mask8x64) Mask8x64
 
 func (x Mask8x64) Or(y Mask8x64) Mask8x64
 
-// ToInt16x8 converts from Mask16x8 to Int16x8
+// ToInt16x8 converts from Mask16x8 to Int16x8.
 func (from Mask16x8) ToInt16x8() (to Int16x8)
 
-// asMask converts from Int16x8 to Mask16x8
+// asMask converts from Int16x8 to Mask16x8.
 func (from Int16x8) asMask() (to Mask16x8)
 
 func (x Mask16x8) And(y Mask16x8) Mask16x8
 
 func (x Mask16x8) Or(y Mask16x8) Mask16x8
 
-// ToInt16x16 converts from Mask16x16 to Int16x16
+// ToInt16x16 converts from Mask16x16 to Int16x16.
 func (from Mask16x16) ToInt16x16() (to Int16x16)
 
-// asMask converts from Int16x16 to Mask16x16
+// asMask converts from Int16x16 to Mask16x16.
 func (from Int16x16) asMask() (to Mask16x16)
 
 func (x Mask16x16) And(y Mask16x16) Mask16x16
 
 func (x Mask16x16) Or(y Mask16x16) Mask16x16
 
-// ToInt16x32 converts from Mask16x32 to Int16x32
+// ToInt16x32 converts from Mask16x32 to Int16x32.
 func (from Mask16x32) ToInt16x32() (to Int16x32)
 
-// asMask converts from Int16x32 to Mask16x32
+// asMask converts from Int16x32 to Mask16x32.
 func (from Int16x32) asMask() (to Mask16x32)
 
 func (x Mask16x32) And(y Mask16x32) Mask16x32
 
 func (x Mask16x32) Or(y Mask16x32) Mask16x32
 
-// ToInt32x4 converts from Mask32x4 to Int32x4
+// ToInt32x4 converts from Mask32x4 to Int32x4.
 func (from Mask32x4) ToInt32x4() (to Int32x4)
 
-// asMask converts from Int32x4 to Mask32x4
+// asMask converts from Int32x4 to Mask32x4.
 func (from Int32x4) asMask() (to Mask32x4)
 
 func (x Mask32x4) And(y Mask32x4) Mask32x4
 
 func (x Mask32x4) Or(y Mask32x4) Mask32x4
 
-// ToInt32x8 converts from Mask32x8 to Int32x8
+// ToInt32x8 converts from Mask32x8 to Int32x8.
 func (from Mask32x8) ToInt32x8() (to Int32x8)
 
-// asMask converts from Int32x8 to Mask32x8
+// asMask converts from Int32x8 to Mask32x8.
 func (from Int32x8) asMask() (to Mask32x8)
 
 func (x Mask32x8) And(y Mask32x8) Mask32x8
 
 func (x Mask32x8) Or(y Mask32x8) Mask32x8
 
-// ToInt32x16 converts from Mask32x16 to Int32x16
+// ToInt32x16 converts from Mask32x16 to Int32x16.
 func (from Mask32x16) ToInt32x16() (to Int32x16)
 
-// asMask converts from Int32x16 to Mask32x16
+// asMask converts from Int32x16 to Mask32x16.
 func (from Int32x16) asMask() (to Mask32x16)
 
 func (x Mask32x16) And(y Mask32x16) Mask32x16
 
 func (x Mask32x16) Or(y Mask32x16) Mask32x16
 
-// ToInt64x2 converts from Mask64x2 to Int64x2
+// ToInt64x2 converts from Mask64x2 to Int64x2.
 func (from Mask64x2) ToInt64x2() (to Int64x2)
 
-// asMask converts from Int64x2 to Mask64x2
+// asMask converts from Int64x2 to Mask64x2.
 func (from Int64x2) asMask() (to Mask64x2)
 
 func (x Mask64x2) And(y Mask64x2) Mask64x2
 
 func (x Mask64x2) Or(y Mask64x2) Mask64x2
 
-// ToInt64x4 converts from Mask64x4 to Int64x4
+// ToInt64x4 converts from Mask64x4 to Int64x4.
 func (from Mask64x4) ToInt64x4() (to Int64x4)
 
-// asMask converts from Int64x4 to Mask64x4
+// asMask converts from Int64x4 to Mask64x4.
 func (from Int64x4) asMask() (to Mask64x4)
 
 func (x Mask64x4) And(y Mask64x4) Mask64x4
 
 func (x Mask64x4) Or(y Mask64x4) Mask64x4
 
-// ToInt64x8 converts from Mask64x8 to Int64x8
+// ToInt64x8 converts from Mask64x8 to Int64x8.
 func (from Mask64x8) ToInt64x8() (to Int64x8)
 
-// asMask converts from Int64x8 to Mask64x8
+// asMask converts from Int64x8 to Mask64x8.
 func (from Int64x8) asMask() (to Mask64x8)
 
 func (x Mask64x8) And(y Mask64x8) Mask64x8

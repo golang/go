@@ -286,7 +286,7 @@ func (x Int8x64) Masked(mask Mask8x64) Int8x64 {
 	return im.And(x)
 }
 
-// Merge returns x but with elements set to y where m is false.
+// Merge returns x but with elements set to y where mask is false.
 func (x Int8x64) Merge(y Int8x64, mask Mask8x64) Int8x64 {
 	return y.blendMasked(x, mask)
 }
@@ -297,7 +297,7 @@ func (x Int16x32) Masked(mask Mask16x32) Int16x32 {
 	return im.And(x)
 }
 
-// Merge returns x but with elements set to y where m is false.
+// Merge returns x but with elements set to y where mask is false.
 func (x Int16x32) Merge(y Int16x32, mask Mask16x32) Int16x32 {
 	return y.blendMasked(x, mask)
 }
@@ -308,7 +308,7 @@ func (x Int32x16) Masked(mask Mask32x16) Int32x16 {
 	return im.And(x)
 }
 
-// Merge returns x but with elements set to y where m is false.
+// Merge returns x but with elements set to y where mask is false.
 func (x Int32x16) Merge(y Int32x16, mask Mask32x16) Int32x16 {
 	return y.blendMasked(x, mask)
 }
@@ -319,7 +319,7 @@ func (x Int64x8) Masked(mask Mask64x8) Int64x8 {
 	return im.And(x)
 }
 
-// Merge returns x but with elements set to y where m is false.
+// Merge returns x but with elements set to y where mask is false.
 func (x Int64x8) Merge(y Int64x8, mask Mask64x8) Int64x8 {
 	return y.blendMasked(x, mask)
 }
@@ -330,7 +330,7 @@ func (x Uint8x64) Masked(mask Mask8x64) Uint8x64 {
 	return x.AsInt8x64().And(im).AsUint8x64()
 }
 
-// Merge returns x but with elements set to y where m is false.
+// Merge returns x but with elements set to y where mask is false.
 func (x Uint8x64) Merge(y Uint8x64, mask Mask8x64) Uint8x64 {
 	ix := x.AsInt8x64()
 	iy := y.AsInt8x64()
@@ -343,7 +343,7 @@ func (x Uint16x32) Masked(mask Mask16x32) Uint16x32 {
 	return x.AsInt16x32().And(im).AsUint16x32()
 }
 
-// Merge returns x but with elements set to y where m is false.
+// Merge returns x but with elements set to y where mask is false.
 func (x Uint16x32) Merge(y Uint16x32, mask Mask16x32) Uint16x32 {
 	ix := x.AsInt16x32()
 	iy := y.AsInt16x32()
@@ -356,7 +356,7 @@ func (x Uint32x16) Masked(mask Mask32x16) Uint32x16 {
 	return x.AsInt32x16().And(im).AsUint32x16()
 }
 
-// Merge returns x but with elements set to y where m is false.
+// Merge returns x but with elements set to y where mask is false.
 func (x Uint32x16) Merge(y Uint32x16, mask Mask32x16) Uint32x16 {
 	ix := x.AsInt32x16()
 	iy := y.AsInt32x16()
@@ -369,7 +369,7 @@ func (x Uint64x8) Masked(mask Mask64x8) Uint64x8 {
 	return x.AsInt64x8().And(im).AsUint64x8()
 }
 
-// Merge returns x but with elements set to y where m is false.
+// Merge returns x but with elements set to y where mask is false.
 func (x Uint64x8) Merge(y Uint64x8, mask Mask64x8) Uint64x8 {
 	ix := x.AsInt64x8()
 	iy := y.AsInt64x8()
@@ -382,7 +382,7 @@ func (x Float32x16) Masked(mask Mask32x16) Float32x16 {
 	return x.AsInt32x16().And(im).AsFloat32x16()
 }
 
-// Merge returns x but with elements set to y where m is false.
+// Merge returns x but with elements set to y where mask is false.
 func (x Float32x16) Merge(y Float32x16, mask Mask32x16) Float32x16 {
 	ix := x.AsInt32x16()
 	iy := y.AsInt32x16()
@@ -395,7 +395,7 @@ func (x Float64x8) Masked(mask Mask64x8) Float64x8 {
 	return x.AsInt64x8().And(im).AsFloat64x8()
 }
 
-// Merge returns x but with elements set to y where m is false.
+// Merge returns x but with elements set to y where mask is false.
 func (x Float64x8) Merge(y Float64x8, mask Mask64x8) Float64x8 {
 	ix := x.AsInt64x8()
 	iy := y.AsInt64x8()

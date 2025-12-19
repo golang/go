@@ -9,27 +9,27 @@ type v128 struct {
 	_128 [0]func() // uncomparable
 }
 
-// Float32x4 is a 128-bit SIMD vector of 4 float32
+// Float32x4 is a 128-bit SIMD vector of 4 float32s.
 type Float32x4 struct {
 	float32x4 v128
 	vals      [4]float32
 }
 
-// Len returns the number of elements in a Float32x4
+// Len returns the number of elements in a Float32x4.
 func (x Float32x4) Len() int { return 4 }
 
-// LoadFloat32x4 loads a Float32x4 from an array
+// LoadFloat32x4 loads a Float32x4 from an array.
 //
 //go:noescape
 func LoadFloat32x4(y *[4]float32) Float32x4
 
-// Store stores a Float32x4 to an array
+// Store stores a Float32x4 to an array.
 //
 //go:noescape
 func (x Float32x4) Store(y *[4]float32)
 
 // LoadMaskedFloat32x4 loads a Float32x4 from an array,
-// at those elements enabled by mask
+// at those elements enabled by mask.
 //
 // Asm: VMASKMOVD, CPU Feature: AVX2
 //
@@ -37,34 +37,34 @@ func (x Float32x4) Store(y *[4]float32)
 func LoadMaskedFloat32x4(y *[4]float32, mask Mask32x4) Float32x4
 
 // StoreMasked stores a Float32x4 to an array,
-// at those elements enabled by mask
+// at those elements enabled by mask.
 //
 // Asm: VMASKMOVD, CPU Feature: AVX2
 //
 //go:noescape
 func (x Float32x4) StoreMasked(y *[4]float32, mask Mask32x4)
 
-// Float64x2 is a 128-bit SIMD vector of 2 float64
+// Float64x2 is a 128-bit SIMD vector of 2 float64s.
 type Float64x2 struct {
 	float64x2 v128
 	vals      [2]float64
 }
 
-// Len returns the number of elements in a Float64x2
+// Len returns the number of elements in a Float64x2.
 func (x Float64x2) Len() int { return 2 }
 
-// LoadFloat64x2 loads a Float64x2 from an array
+// LoadFloat64x2 loads a Float64x2 from an array.
 //
 //go:noescape
 func LoadFloat64x2(y *[2]float64) Float64x2
 
-// Store stores a Float64x2 to an array
+// Store stores a Float64x2 to an array.
 //
 //go:noescape
 func (x Float64x2) Store(y *[2]float64)
 
 // LoadMaskedFloat64x2 loads a Float64x2 from an array,
-// at those elements enabled by mask
+// at those elements enabled by mask.
 //
 // Asm: VMASKMOVQ, CPU Feature: AVX2
 //
@@ -72,180 +72,180 @@ func (x Float64x2) Store(y *[2]float64)
 func LoadMaskedFloat64x2(y *[2]float64, mask Mask64x2) Float64x2
 
 // StoreMasked stores a Float64x2 to an array,
-// at those elements enabled by mask
+// at those elements enabled by mask.
 //
 // Asm: VMASKMOVQ, CPU Feature: AVX2
 //
 //go:noescape
 func (x Float64x2) StoreMasked(y *[2]float64, mask Mask64x2)
 
-// Int8x16 is a 128-bit SIMD vector of 16 int8
+// Int8x16 is a 128-bit SIMD vector of 16 int8s.
 type Int8x16 struct {
 	int8x16 v128
 	vals    [16]int8
 }
 
-// Len returns the number of elements in a Int8x16
+// Len returns the number of elements in an Int8x16.
 func (x Int8x16) Len() int { return 16 }
 
-// LoadInt8x16 loads a Int8x16 from an array
+// LoadInt8x16 loads an Int8x16 from an array.
 //
 //go:noescape
 func LoadInt8x16(y *[16]int8) Int8x16
 
-// Store stores a Int8x16 to an array
+// Store stores an Int8x16 to an array.
 //
 //go:noescape
 func (x Int8x16) Store(y *[16]int8)
 
-// Int16x8 is a 128-bit SIMD vector of 8 int16
+// Int16x8 is a 128-bit SIMD vector of 8 int16s.
 type Int16x8 struct {
 	int16x8 v128
 	vals    [8]int16
 }
 
-// Len returns the number of elements in a Int16x8
+// Len returns the number of elements in an Int16x8.
 func (x Int16x8) Len() int { return 8 }
 
-// LoadInt16x8 loads a Int16x8 from an array
+// LoadInt16x8 loads an Int16x8 from an array.
 //
 //go:noescape
 func LoadInt16x8(y *[8]int16) Int16x8
 
-// Store stores a Int16x8 to an array
+// Store stores an Int16x8 to an array.
 //
 //go:noescape
 func (x Int16x8) Store(y *[8]int16)
 
-// Int32x4 is a 128-bit SIMD vector of 4 int32
+// Int32x4 is a 128-bit SIMD vector of 4 int32s.
 type Int32x4 struct {
 	int32x4 v128
 	vals    [4]int32
 }
 
-// Len returns the number of elements in a Int32x4
+// Len returns the number of elements in an Int32x4.
 func (x Int32x4) Len() int { return 4 }
 
-// LoadInt32x4 loads a Int32x4 from an array
+// LoadInt32x4 loads an Int32x4 from an array.
 //
 //go:noescape
 func LoadInt32x4(y *[4]int32) Int32x4
 
-// Store stores a Int32x4 to an array
+// Store stores an Int32x4 to an array.
 //
 //go:noescape
 func (x Int32x4) Store(y *[4]int32)
 
-// LoadMaskedInt32x4 loads a Int32x4 from an array,
-// at those elements enabled by mask
+// LoadMaskedInt32x4 loads an Int32x4 from an array,
+// at those elements enabled by mask.
 //
 // Asm: VMASKMOVD, CPU Feature: AVX2
 //
 //go:noescape
 func LoadMaskedInt32x4(y *[4]int32, mask Mask32x4) Int32x4
 
-// StoreMasked stores a Int32x4 to an array,
-// at those elements enabled by mask
+// StoreMasked stores an Int32x4 to an array,
+// at those elements enabled by mask.
 //
 // Asm: VMASKMOVD, CPU Feature: AVX2
 //
 //go:noescape
 func (x Int32x4) StoreMasked(y *[4]int32, mask Mask32x4)
 
-// Int64x2 is a 128-bit SIMD vector of 2 int64
+// Int64x2 is a 128-bit SIMD vector of 2 int64s.
 type Int64x2 struct {
 	int64x2 v128
 	vals    [2]int64
 }
 
-// Len returns the number of elements in a Int64x2
+// Len returns the number of elements in an Int64x2.
 func (x Int64x2) Len() int { return 2 }
 
-// LoadInt64x2 loads a Int64x2 from an array
+// LoadInt64x2 loads an Int64x2 from an array.
 //
 //go:noescape
 func LoadInt64x2(y *[2]int64) Int64x2
 
-// Store stores a Int64x2 to an array
+// Store stores an Int64x2 to an array.
 //
 //go:noescape
 func (x Int64x2) Store(y *[2]int64)
 
-// LoadMaskedInt64x2 loads a Int64x2 from an array,
-// at those elements enabled by mask
+// LoadMaskedInt64x2 loads an Int64x2 from an array,
+// at those elements enabled by mask.
 //
 // Asm: VMASKMOVQ, CPU Feature: AVX2
 //
 //go:noescape
 func LoadMaskedInt64x2(y *[2]int64, mask Mask64x2) Int64x2
 
-// StoreMasked stores a Int64x2 to an array,
-// at those elements enabled by mask
+// StoreMasked stores an Int64x2 to an array,
+// at those elements enabled by mask.
 //
 // Asm: VMASKMOVQ, CPU Feature: AVX2
 //
 //go:noescape
 func (x Int64x2) StoreMasked(y *[2]int64, mask Mask64x2)
 
-// Uint8x16 is a 128-bit SIMD vector of 16 uint8
+// Uint8x16 is a 128-bit SIMD vector of 16 uint8s.
 type Uint8x16 struct {
 	uint8x16 v128
 	vals     [16]uint8
 }
 
-// Len returns the number of elements in a Uint8x16
+// Len returns the number of elements in a Uint8x16.
 func (x Uint8x16) Len() int { return 16 }
 
-// LoadUint8x16 loads a Uint8x16 from an array
+// LoadUint8x16 loads a Uint8x16 from an array.
 //
 //go:noescape
 func LoadUint8x16(y *[16]uint8) Uint8x16
 
-// Store stores a Uint8x16 to an array
+// Store stores a Uint8x16 to an array.
 //
 //go:noescape
 func (x Uint8x16) Store(y *[16]uint8)
 
-// Uint16x8 is a 128-bit SIMD vector of 8 uint16
+// Uint16x8 is a 128-bit SIMD vector of 8 uint16s.
 type Uint16x8 struct {
 	uint16x8 v128
 	vals     [8]uint16
 }
 
-// Len returns the number of elements in a Uint16x8
+// Len returns the number of elements in a Uint16x8.
 func (x Uint16x8) Len() int { return 8 }
 
-// LoadUint16x8 loads a Uint16x8 from an array
+// LoadUint16x8 loads a Uint16x8 from an array.
 //
 //go:noescape
 func LoadUint16x8(y *[8]uint16) Uint16x8
 
-// Store stores a Uint16x8 to an array
+// Store stores a Uint16x8 to an array.
 //
 //go:noescape
 func (x Uint16x8) Store(y *[8]uint16)
 
-// Uint32x4 is a 128-bit SIMD vector of 4 uint32
+// Uint32x4 is a 128-bit SIMD vector of 4 uint32s.
 type Uint32x4 struct {
 	uint32x4 v128
 	vals     [4]uint32
 }
 
-// Len returns the number of elements in a Uint32x4
+// Len returns the number of elements in a Uint32x4.
 func (x Uint32x4) Len() int { return 4 }
 
-// LoadUint32x4 loads a Uint32x4 from an array
+// LoadUint32x4 loads a Uint32x4 from an array.
 //
 //go:noescape
 func LoadUint32x4(y *[4]uint32) Uint32x4
 
-// Store stores a Uint32x4 to an array
+// Store stores a Uint32x4 to an array.
 //
 //go:noescape
 func (x Uint32x4) Store(y *[4]uint32)
 
 // LoadMaskedUint32x4 loads a Uint32x4 from an array,
-// at those elements enabled by mask
+// at those elements enabled by mask.
 //
 // Asm: VMASKMOVD, CPU Feature: AVX2
 //
@@ -253,34 +253,34 @@ func (x Uint32x4) Store(y *[4]uint32)
 func LoadMaskedUint32x4(y *[4]uint32, mask Mask32x4) Uint32x4
 
 // StoreMasked stores a Uint32x4 to an array,
-// at those elements enabled by mask
+// at those elements enabled by mask.
 //
 // Asm: VMASKMOVD, CPU Feature: AVX2
 //
 //go:noescape
 func (x Uint32x4) StoreMasked(y *[4]uint32, mask Mask32x4)
 
-// Uint64x2 is a 128-bit SIMD vector of 2 uint64
+// Uint64x2 is a 128-bit SIMD vector of 2 uint64s.
 type Uint64x2 struct {
 	uint64x2 v128
 	vals     [2]uint64
 }
 
-// Len returns the number of elements in a Uint64x2
+// Len returns the number of elements in a Uint64x2.
 func (x Uint64x2) Len() int { return 2 }
 
-// LoadUint64x2 loads a Uint64x2 from an array
+// LoadUint64x2 loads a Uint64x2 from an array.
 //
 //go:noescape
 func LoadUint64x2(y *[2]uint64) Uint64x2
 
-// Store stores a Uint64x2 to an array
+// Store stores a Uint64x2 to an array.
 //
 //go:noescape
 func (x Uint64x2) Store(y *[2]uint64)
 
 // LoadMaskedUint64x2 loads a Uint64x2 from an array,
-// at those elements enabled by mask
+// at those elements enabled by mask.
 //
 // Asm: VMASKMOVQ, CPU Feature: AVX2
 //
@@ -288,14 +288,14 @@ func (x Uint64x2) Store(y *[2]uint64)
 func LoadMaskedUint64x2(y *[2]uint64, mask Mask64x2) Uint64x2
 
 // StoreMasked stores a Uint64x2 to an array,
-// at those elements enabled by mask
+// at those elements enabled by mask.
 //
 // Asm: VMASKMOVQ, CPU Feature: AVX2
 //
 //go:noescape
 func (x Uint64x2) StoreMasked(y *[2]uint64, mask Mask64x2)
 
-// Mask8x16 is a 128-bit SIMD vector of 16 int8
+// Mask8x16 is a 128-bit SIMD vector of 16 int8s.
 type Mask8x16 struct {
 	int8x16 v128
 	vals    [16]int8
@@ -311,7 +311,7 @@ func Mask8x16FromBits(y uint16) Mask8x16
 // Asm: KMOVB, CPU Features: AVX512
 func (x Mask8x16) ToBits() uint16
 
-// Mask16x8 is a 128-bit SIMD vector of 8 int16
+// Mask16x8 is a 128-bit SIMD vector of 8 int16s.
 type Mask16x8 struct {
 	int16x8 v128
 	vals    [8]int16
@@ -327,7 +327,7 @@ func Mask16x8FromBits(y uint8) Mask16x8
 // Asm: KMOVW, CPU Features: AVX512
 func (x Mask16x8) ToBits() uint8
 
-// Mask32x4 is a 128-bit SIMD vector of 4 int32
+// Mask32x4 is a 128-bit SIMD vector of 4 int32s.
 type Mask32x4 struct {
 	int32x4 v128
 	vals    [4]int32
@@ -345,7 +345,7 @@ func Mask32x4FromBits(y uint8) Mask32x4
 // Asm: KMOVD, CPU Features: AVX512
 func (x Mask32x4) ToBits() uint8
 
-// Mask64x2 is a 128-bit SIMD vector of 2 int64
+// Mask64x2 is a 128-bit SIMD vector of 2 int64s.
 type Mask64x2 struct {
 	int64x2 v128
 	vals    [2]int64
@@ -368,27 +368,27 @@ type v256 struct {
 	_256 [0]func() // uncomparable
 }
 
-// Float32x8 is a 256-bit SIMD vector of 8 float32
+// Float32x8 is a 256-bit SIMD vector of 8 float32s.
 type Float32x8 struct {
 	float32x8 v256
 	vals      [8]float32
 }
 
-// Len returns the number of elements in a Float32x8
+// Len returns the number of elements in a Float32x8.
 func (x Float32x8) Len() int { return 8 }
 
-// LoadFloat32x8 loads a Float32x8 from an array
+// LoadFloat32x8 loads a Float32x8 from an array.
 //
 //go:noescape
 func LoadFloat32x8(y *[8]float32) Float32x8
 
-// Store stores a Float32x8 to an array
+// Store stores a Float32x8 to an array.
 //
 //go:noescape
 func (x Float32x8) Store(y *[8]float32)
 
 // LoadMaskedFloat32x8 loads a Float32x8 from an array,
-// at those elements enabled by mask
+// at those elements enabled by mask.
 //
 // Asm: VMASKMOVD, CPU Feature: AVX2
 //
@@ -396,34 +396,34 @@ func (x Float32x8) Store(y *[8]float32)
 func LoadMaskedFloat32x8(y *[8]float32, mask Mask32x8) Float32x8
 
 // StoreMasked stores a Float32x8 to an array,
-// at those elements enabled by mask
+// at those elements enabled by mask.
 //
 // Asm: VMASKMOVD, CPU Feature: AVX2
 //
 //go:noescape
 func (x Float32x8) StoreMasked(y *[8]float32, mask Mask32x8)
 
-// Float64x4 is a 256-bit SIMD vector of 4 float64
+// Float64x4 is a 256-bit SIMD vector of 4 float64s.
 type Float64x4 struct {
 	float64x4 v256
 	vals      [4]float64
 }
 
-// Len returns the number of elements in a Float64x4
+// Len returns the number of elements in a Float64x4.
 func (x Float64x4) Len() int { return 4 }
 
-// LoadFloat64x4 loads a Float64x4 from an array
+// LoadFloat64x4 loads a Float64x4 from an array.
 //
 //go:noescape
 func LoadFloat64x4(y *[4]float64) Float64x4
 
-// Store stores a Float64x4 to an array
+// Store stores a Float64x4 to an array.
 //
 //go:noescape
 func (x Float64x4) Store(y *[4]float64)
 
 // LoadMaskedFloat64x4 loads a Float64x4 from an array,
-// at those elements enabled by mask
+// at those elements enabled by mask.
 //
 // Asm: VMASKMOVQ, CPU Feature: AVX2
 //
@@ -431,180 +431,180 @@ func (x Float64x4) Store(y *[4]float64)
 func LoadMaskedFloat64x4(y *[4]float64, mask Mask64x4) Float64x4
 
 // StoreMasked stores a Float64x4 to an array,
-// at those elements enabled by mask
+// at those elements enabled by mask.
 //
 // Asm: VMASKMOVQ, CPU Feature: AVX2
 //
 //go:noescape
 func (x Float64x4) StoreMasked(y *[4]float64, mask Mask64x4)
 
-// Int8x32 is a 256-bit SIMD vector of 32 int8
+// Int8x32 is a 256-bit SIMD vector of 32 int8s.
 type Int8x32 struct {
 	int8x32 v256
 	vals    [32]int8
 }
 
-// Len returns the number of elements in a Int8x32
+// Len returns the number of elements in an Int8x32.
 func (x Int8x32) Len() int { return 32 }
 
-// LoadInt8x32 loads a Int8x32 from an array
+// LoadInt8x32 loads an Int8x32 from an array.
 //
 //go:noescape
 func LoadInt8x32(y *[32]int8) Int8x32
 
-// Store stores a Int8x32 to an array
+// Store stores an Int8x32 to an array.
 //
 //go:noescape
 func (x Int8x32) Store(y *[32]int8)
 
-// Int16x16 is a 256-bit SIMD vector of 16 int16
+// Int16x16 is a 256-bit SIMD vector of 16 int16s.
 type Int16x16 struct {
 	int16x16 v256
 	vals     [16]int16
 }
 
-// Len returns the number of elements in a Int16x16
+// Len returns the number of elements in an Int16x16.
 func (x Int16x16) Len() int { return 16 }
 
-// LoadInt16x16 loads a Int16x16 from an array
+// LoadInt16x16 loads an Int16x16 from an array.
 //
 //go:noescape
 func LoadInt16x16(y *[16]int16) Int16x16
 
-// Store stores a Int16x16 to an array
+// Store stores an Int16x16 to an array.
 //
 //go:noescape
 func (x Int16x16) Store(y *[16]int16)
 
-// Int32x8 is a 256-bit SIMD vector of 8 int32
+// Int32x8 is a 256-bit SIMD vector of 8 int32s.
 type Int32x8 struct {
 	int32x8 v256
 	vals    [8]int32
 }
 
-// Len returns the number of elements in a Int32x8
+// Len returns the number of elements in an Int32x8.
 func (x Int32x8) Len() int { return 8 }
 
-// LoadInt32x8 loads a Int32x8 from an array
+// LoadInt32x8 loads an Int32x8 from an array.
 //
 //go:noescape
 func LoadInt32x8(y *[8]int32) Int32x8
 
-// Store stores a Int32x8 to an array
+// Store stores an Int32x8 to an array.
 //
 //go:noescape
 func (x Int32x8) Store(y *[8]int32)
 
-// LoadMaskedInt32x8 loads a Int32x8 from an array,
-// at those elements enabled by mask
+// LoadMaskedInt32x8 loads an Int32x8 from an array,
+// at those elements enabled by mask.
 //
 // Asm: VMASKMOVD, CPU Feature: AVX2
 //
 //go:noescape
 func LoadMaskedInt32x8(y *[8]int32, mask Mask32x8) Int32x8
 
-// StoreMasked stores a Int32x8 to an array,
-// at those elements enabled by mask
+// StoreMasked stores an Int32x8 to an array,
+// at those elements enabled by mask.
 //
 // Asm: VMASKMOVD, CPU Feature: AVX2
 //
 //go:noescape
 func (x Int32x8) StoreMasked(y *[8]int32, mask Mask32x8)
 
-// Int64x4 is a 256-bit SIMD vector of 4 int64
+// Int64x4 is a 256-bit SIMD vector of 4 int64s.
 type Int64x4 struct {
 	int64x4 v256
 	vals    [4]int64
 }
 
-// Len returns the number of elements in a Int64x4
+// Len returns the number of elements in an Int64x4.
 func (x Int64x4) Len() int { return 4 }
 
-// LoadInt64x4 loads a Int64x4 from an array
+// LoadInt64x4 loads an Int64x4 from an array.
 //
 //go:noescape
 func LoadInt64x4(y *[4]int64) Int64x4
 
-// Store stores a Int64x4 to an array
+// Store stores an Int64x4 to an array.
 //
 //go:noescape
 func (x Int64x4) Store(y *[4]int64)
 
-// LoadMaskedInt64x4 loads a Int64x4 from an array,
-// at those elements enabled by mask
+// LoadMaskedInt64x4 loads an Int64x4 from an array,
+// at those elements enabled by mask.
 //
 // Asm: VMASKMOVQ, CPU Feature: AVX2
 //
 //go:noescape
 func LoadMaskedInt64x4(y *[4]int64, mask Mask64x4) Int64x4
 
-// StoreMasked stores a Int64x4 to an array,
-// at those elements enabled by mask
+// StoreMasked stores an Int64x4 to an array,
+// at those elements enabled by mask.
 //
 // Asm: VMASKMOVQ, CPU Feature: AVX2
 //
 //go:noescape
 func (x Int64x4) StoreMasked(y *[4]int64, mask Mask64x4)
 
-// Uint8x32 is a 256-bit SIMD vector of 32 uint8
+// Uint8x32 is a 256-bit SIMD vector of 32 uint8s.
 type Uint8x32 struct {
 	uint8x32 v256
 	vals     [32]uint8
 }
 
-// Len returns the number of elements in a Uint8x32
+// Len returns the number of elements in a Uint8x32.
 func (x Uint8x32) Len() int { return 32 }
 
-// LoadUint8x32 loads a Uint8x32 from an array
+// LoadUint8x32 loads a Uint8x32 from an array.
 //
 //go:noescape
 func LoadUint8x32(y *[32]uint8) Uint8x32
 
-// Store stores a Uint8x32 to an array
+// Store stores a Uint8x32 to an array.
 //
 //go:noescape
 func (x Uint8x32) Store(y *[32]uint8)
 
-// Uint16x16 is a 256-bit SIMD vector of 16 uint16
+// Uint16x16 is a 256-bit SIMD vector of 16 uint16s.
 type Uint16x16 struct {
 	uint16x16 v256
 	vals      [16]uint16
 }
 
-// Len returns the number of elements in a Uint16x16
+// Len returns the number of elements in a Uint16x16.
 func (x Uint16x16) Len() int { return 16 }
 
-// LoadUint16x16 loads a Uint16x16 from an array
+// LoadUint16x16 loads a Uint16x16 from an array.
 //
 //go:noescape
 func LoadUint16x16(y *[16]uint16) Uint16x16
 
-// Store stores a Uint16x16 to an array
+// Store stores a Uint16x16 to an array.
 //
 //go:noescape
 func (x Uint16x16) Store(y *[16]uint16)
 
-// Uint32x8 is a 256-bit SIMD vector of 8 uint32
+// Uint32x8 is a 256-bit SIMD vector of 8 uint32s.
 type Uint32x8 struct {
 	uint32x8 v256
 	vals     [8]uint32
 }
 
-// Len returns the number of elements in a Uint32x8
+// Len returns the number of elements in a Uint32x8.
 func (x Uint32x8) Len() int { return 8 }
 
-// LoadUint32x8 loads a Uint32x8 from an array
+// LoadUint32x8 loads a Uint32x8 from an array.
 //
 //go:noescape
 func LoadUint32x8(y *[8]uint32) Uint32x8
 
-// Store stores a Uint32x8 to an array
+// Store stores a Uint32x8 to an array.
 //
 //go:noescape
 func (x Uint32x8) Store(y *[8]uint32)
 
 // LoadMaskedUint32x8 loads a Uint32x8 from an array,
-// at those elements enabled by mask
+// at those elements enabled by mask.
 //
 // Asm: VMASKMOVD, CPU Feature: AVX2
 //
@@ -612,34 +612,34 @@ func (x Uint32x8) Store(y *[8]uint32)
 func LoadMaskedUint32x8(y *[8]uint32, mask Mask32x8) Uint32x8
 
 // StoreMasked stores a Uint32x8 to an array,
-// at those elements enabled by mask
+// at those elements enabled by mask.
 //
 // Asm: VMASKMOVD, CPU Feature: AVX2
 //
 //go:noescape
 func (x Uint32x8) StoreMasked(y *[8]uint32, mask Mask32x8)
 
-// Uint64x4 is a 256-bit SIMD vector of 4 uint64
+// Uint64x4 is a 256-bit SIMD vector of 4 uint64s.
 type Uint64x4 struct {
 	uint64x4 v256
 	vals     [4]uint64
 }
 
-// Len returns the number of elements in a Uint64x4
+// Len returns the number of elements in a Uint64x4.
 func (x Uint64x4) Len() int { return 4 }
 
-// LoadUint64x4 loads a Uint64x4 from an array
+// LoadUint64x4 loads a Uint64x4 from an array.
 //
 //go:noescape
 func LoadUint64x4(y *[4]uint64) Uint64x4
 
-// Store stores a Uint64x4 to an array
+// Store stores a Uint64x4 to an array.
 //
 //go:noescape
 func (x Uint64x4) Store(y *[4]uint64)
 
 // LoadMaskedUint64x4 loads a Uint64x4 from an array,
-// at those elements enabled by mask
+// at those elements enabled by mask.
 //
 // Asm: VMASKMOVQ, CPU Feature: AVX2
 //
@@ -647,14 +647,14 @@ func (x Uint64x4) Store(y *[4]uint64)
 func LoadMaskedUint64x4(y *[4]uint64, mask Mask64x4) Uint64x4
 
 // StoreMasked stores a Uint64x4 to an array,
-// at those elements enabled by mask
+// at those elements enabled by mask.
 //
 // Asm: VMASKMOVQ, CPU Feature: AVX2
 //
 //go:noescape
 func (x Uint64x4) StoreMasked(y *[4]uint64, mask Mask64x4)
 
-// Mask8x32 is a 256-bit SIMD vector of 32 int8
+// Mask8x32 is a 256-bit SIMD vector of 32 int8s.
 type Mask8x32 struct {
 	int8x32 v256
 	vals    [32]int8
@@ -670,7 +670,7 @@ func Mask8x32FromBits(y uint32) Mask8x32
 // Asm: KMOVB, CPU Features: AVX512
 func (x Mask8x32) ToBits() uint32
 
-// Mask16x16 is a 256-bit SIMD vector of 16 int16
+// Mask16x16 is a 256-bit SIMD vector of 16 int16s.
 type Mask16x16 struct {
 	int16x16 v256
 	vals     [16]int16
@@ -686,7 +686,7 @@ func Mask16x16FromBits(y uint16) Mask16x16
 // Asm: KMOVW, CPU Features: AVX512
 func (x Mask16x16) ToBits() uint16
 
-// Mask32x8 is a 256-bit SIMD vector of 8 int32
+// Mask32x8 is a 256-bit SIMD vector of 8 int32s.
 type Mask32x8 struct {
 	int32x8 v256
 	vals    [8]int32
@@ -702,7 +702,7 @@ func Mask32x8FromBits(y uint8) Mask32x8
 // Asm: KMOVD, CPU Features: AVX512
 func (x Mask32x8) ToBits() uint8
 
-// Mask64x4 is a 256-bit SIMD vector of 4 int64
+// Mask64x4 is a 256-bit SIMD vector of 4 int64s.
 type Mask64x4 struct {
 	int64x4 v256
 	vals    [4]int64
@@ -725,27 +725,27 @@ type v512 struct {
 	_512 [0]func() // uncomparable
 }
 
-// Float32x16 is a 512-bit SIMD vector of 16 float32
+// Float32x16 is a 512-bit SIMD vector of 16 float32s.
 type Float32x16 struct {
 	float32x16 v512
 	vals       [16]float32
 }
 
-// Len returns the number of elements in a Float32x16
+// Len returns the number of elements in a Float32x16.
 func (x Float32x16) Len() int { return 16 }
 
-// LoadFloat32x16 loads a Float32x16 from an array
+// LoadFloat32x16 loads a Float32x16 from an array.
 //
 //go:noescape
 func LoadFloat32x16(y *[16]float32) Float32x16
 
-// Store stores a Float32x16 to an array
+// Store stores a Float32x16 to an array.
 //
 //go:noescape
 func (x Float32x16) Store(y *[16]float32)
 
 // LoadMaskedFloat32x16 loads a Float32x16 from an array,
-// at those elements enabled by mask
+// at those elements enabled by mask.
 //
 // Asm: VMOVDQU32.Z, CPU Feature: AVX512
 //
@@ -753,34 +753,34 @@ func (x Float32x16) Store(y *[16]float32)
 func LoadMaskedFloat32x16(y *[16]float32, mask Mask32x16) Float32x16
 
 // StoreMasked stores a Float32x16 to an array,
-// at those elements enabled by mask
+// at those elements enabled by mask.
 //
 // Asm: VMOVDQU32, CPU Feature: AVX512
 //
 //go:noescape
 func (x Float32x16) StoreMasked(y *[16]float32, mask Mask32x16)
 
-// Float64x8 is a 512-bit SIMD vector of 8 float64
+// Float64x8 is a 512-bit SIMD vector of 8 float64s.
 type Float64x8 struct {
 	float64x8 v512
 	vals      [8]float64
 }
 
-// Len returns the number of elements in a Float64x8
+// Len returns the number of elements in a Float64x8.
 func (x Float64x8) Len() int { return 8 }
 
-// LoadFloat64x8 loads a Float64x8 from an array
+// LoadFloat64x8 loads a Float64x8 from an array.
 //
 //go:noescape
 func LoadFloat64x8(y *[8]float64) Float64x8
 
-// Store stores a Float64x8 to an array
+// Store stores a Float64x8 to an array.
 //
 //go:noescape
 func (x Float64x8) Store(y *[8]float64)
 
 // LoadMaskedFloat64x8 loads a Float64x8 from an array,
-// at those elements enabled by mask
+// at those elements enabled by mask.
 //
 // Asm: VMOVDQU64.Z, CPU Feature: AVX512
 //
@@ -788,174 +788,174 @@ func (x Float64x8) Store(y *[8]float64)
 func LoadMaskedFloat64x8(y *[8]float64, mask Mask64x8) Float64x8
 
 // StoreMasked stores a Float64x8 to an array,
-// at those elements enabled by mask
+// at those elements enabled by mask.
 //
 // Asm: VMOVDQU64, CPU Feature: AVX512
 //
 //go:noescape
 func (x Float64x8) StoreMasked(y *[8]float64, mask Mask64x8)
 
-// Int8x64 is a 512-bit SIMD vector of 64 int8
+// Int8x64 is a 512-bit SIMD vector of 64 int8s.
 type Int8x64 struct {
 	int8x64 v512
 	vals    [64]int8
 }
 
-// Len returns the number of elements in a Int8x64
+// Len returns the number of elements in an Int8x64.
 func (x Int8x64) Len() int { return 64 }
 
-// LoadInt8x64 loads a Int8x64 from an array
+// LoadInt8x64 loads an Int8x64 from an array.
 //
 //go:noescape
 func LoadInt8x64(y *[64]int8) Int8x64
 
-// Store stores a Int8x64 to an array
+// Store stores an Int8x64 to an array.
 //
 //go:noescape
 func (x Int8x64) Store(y *[64]int8)
 
-// LoadMaskedInt8x64 loads a Int8x64 from an array,
-// at those elements enabled by mask
+// LoadMaskedInt8x64 loads an Int8x64 from an array,
+// at those elements enabled by mask.
 //
 // Asm: VMOVDQU8.Z, CPU Feature: AVX512
 //
 //go:noescape
 func LoadMaskedInt8x64(y *[64]int8, mask Mask8x64) Int8x64
 
-// StoreMasked stores a Int8x64 to an array,
-// at those elements enabled by mask
+// StoreMasked stores an Int8x64 to an array,
+// at those elements enabled by mask.
 //
 // Asm: VMOVDQU8, CPU Feature: AVX512
 //
 //go:noescape
 func (x Int8x64) StoreMasked(y *[64]int8, mask Mask8x64)
 
-// Int16x32 is a 512-bit SIMD vector of 32 int16
+// Int16x32 is a 512-bit SIMD vector of 32 int16s.
 type Int16x32 struct {
 	int16x32 v512
 	vals     [32]int16
 }
 
-// Len returns the number of elements in a Int16x32
+// Len returns the number of elements in an Int16x32.
 func (x Int16x32) Len() int { return 32 }
 
-// LoadInt16x32 loads a Int16x32 from an array
+// LoadInt16x32 loads an Int16x32 from an array.
 //
 //go:noescape
 func LoadInt16x32(y *[32]int16) Int16x32
 
-// Store stores a Int16x32 to an array
+// Store stores an Int16x32 to an array.
 //
 //go:noescape
 func (x Int16x32) Store(y *[32]int16)
 
-// LoadMaskedInt16x32 loads a Int16x32 from an array,
-// at those elements enabled by mask
+// LoadMaskedInt16x32 loads an Int16x32 from an array,
+// at those elements enabled by mask.
 //
 // Asm: VMOVDQU16.Z, CPU Feature: AVX512
 //
 //go:noescape
 func LoadMaskedInt16x32(y *[32]int16, mask Mask16x32) Int16x32
 
-// StoreMasked stores a Int16x32 to an array,
-// at those elements enabled by mask
+// StoreMasked stores an Int16x32 to an array,
+// at those elements enabled by mask.
 //
 // Asm: VMOVDQU16, CPU Feature: AVX512
 //
 //go:noescape
 func (x Int16x32) StoreMasked(y *[32]int16, mask Mask16x32)
 
-// Int32x16 is a 512-bit SIMD vector of 16 int32
+// Int32x16 is a 512-bit SIMD vector of 16 int32s.
 type Int32x16 struct {
 	int32x16 v512
 	vals     [16]int32
 }
 
-// Len returns the number of elements in a Int32x16
+// Len returns the number of elements in an Int32x16.
 func (x Int32x16) Len() int { return 16 }
 
-// LoadInt32x16 loads a Int32x16 from an array
+// LoadInt32x16 loads an Int32x16 from an array.
 //
 //go:noescape
 func LoadInt32x16(y *[16]int32) Int32x16
 
-// Store stores a Int32x16 to an array
+// Store stores an Int32x16 to an array.
 //
 //go:noescape
 func (x Int32x16) Store(y *[16]int32)
 
-// LoadMaskedInt32x16 loads a Int32x16 from an array,
-// at those elements enabled by mask
+// LoadMaskedInt32x16 loads an Int32x16 from an array,
+// at those elements enabled by mask.
 //
 // Asm: VMOVDQU32.Z, CPU Feature: AVX512
 //
 //go:noescape
 func LoadMaskedInt32x16(y *[16]int32, mask Mask32x16) Int32x16
 
-// StoreMasked stores a Int32x16 to an array,
-// at those elements enabled by mask
+// StoreMasked stores an Int32x16 to an array,
+// at those elements enabled by mask.
 //
 // Asm: VMOVDQU32, CPU Feature: AVX512
 //
 //go:noescape
 func (x Int32x16) StoreMasked(y *[16]int32, mask Mask32x16)
 
-// Int64x8 is a 512-bit SIMD vector of 8 int64
+// Int64x8 is a 512-bit SIMD vector of 8 int64s.
 type Int64x8 struct {
 	int64x8 v512
 	vals    [8]int64
 }
 
-// Len returns the number of elements in a Int64x8
+// Len returns the number of elements in an Int64x8.
 func (x Int64x8) Len() int { return 8 }
 
-// LoadInt64x8 loads a Int64x8 from an array
+// LoadInt64x8 loads an Int64x8 from an array.
 //
 //go:noescape
 func LoadInt64x8(y *[8]int64) Int64x8
 
-// Store stores a Int64x8 to an array
+// Store stores an Int64x8 to an array.
 //
 //go:noescape
 func (x Int64x8) Store(y *[8]int64)
 
-// LoadMaskedInt64x8 loads a Int64x8 from an array,
-// at those elements enabled by mask
+// LoadMaskedInt64x8 loads an Int64x8 from an array,
+// at those elements enabled by mask.
 //
 // Asm: VMOVDQU64.Z, CPU Feature: AVX512
 //
 //go:noescape
 func LoadMaskedInt64x8(y *[8]int64, mask Mask64x8) Int64x8
 
-// StoreMasked stores a Int64x8 to an array,
-// at those elements enabled by mask
+// StoreMasked stores an Int64x8 to an array,
+// at those elements enabled by mask.
 //
 // Asm: VMOVDQU64, CPU Feature: AVX512
 //
 //go:noescape
 func (x Int64x8) StoreMasked(y *[8]int64, mask Mask64x8)
 
-// Uint8x64 is a 512-bit SIMD vector of 64 uint8
+// Uint8x64 is a 512-bit SIMD vector of 64 uint8s.
 type Uint8x64 struct {
 	uint8x64 v512
 	vals     [64]uint8
 }
 
-// Len returns the number of elements in a Uint8x64
+// Len returns the number of elements in a Uint8x64.
 func (x Uint8x64) Len() int { return 64 }
 
-// LoadUint8x64 loads a Uint8x64 from an array
+// LoadUint8x64 loads a Uint8x64 from an array.
 //
 //go:noescape
 func LoadUint8x64(y *[64]uint8) Uint8x64
 
-// Store stores a Uint8x64 to an array
+// Store stores a Uint8x64 to an array.
 //
 //go:noescape
 func (x Uint8x64) Store(y *[64]uint8)
 
 // LoadMaskedUint8x64 loads a Uint8x64 from an array,
-// at those elements enabled by mask
+// at those elements enabled by mask.
 //
 // Asm: VMOVDQU8.Z, CPU Feature: AVX512
 //
@@ -963,34 +963,34 @@ func (x Uint8x64) Store(y *[64]uint8)
 func LoadMaskedUint8x64(y *[64]uint8, mask Mask8x64) Uint8x64
 
 // StoreMasked stores a Uint8x64 to an array,
-// at those elements enabled by mask
+// at those elements enabled by mask.
 //
 // Asm: VMOVDQU8, CPU Feature: AVX512
 //
 //go:noescape
 func (x Uint8x64) StoreMasked(y *[64]uint8, mask Mask8x64)
 
-// Uint16x32 is a 512-bit SIMD vector of 32 uint16
+// Uint16x32 is a 512-bit SIMD vector of 32 uint16s.
 type Uint16x32 struct {
 	uint16x32 v512
 	vals      [32]uint16
 }
 
-// Len returns the number of elements in a Uint16x32
+// Len returns the number of elements in a Uint16x32.
 func (x Uint16x32) Len() int { return 32 }
 
-// LoadUint16x32 loads a Uint16x32 from an array
+// LoadUint16x32 loads a Uint16x32 from an array.
 //
 //go:noescape
 func LoadUint16x32(y *[32]uint16) Uint16x32
 
-// Store stores a Uint16x32 to an array
+// Store stores a Uint16x32 to an array.
 //
 //go:noescape
 func (x Uint16x32) Store(y *[32]uint16)
 
 // LoadMaskedUint16x32 loads a Uint16x32 from an array,
-// at those elements enabled by mask
+// at those elements enabled by mask.
 //
 // Asm: VMOVDQU16.Z, CPU Feature: AVX512
 //
@@ -998,34 +998,34 @@ func (x Uint16x32) Store(y *[32]uint16)
 func LoadMaskedUint16x32(y *[32]uint16, mask Mask16x32) Uint16x32
 
 // StoreMasked stores a Uint16x32 to an array,
-// at those elements enabled by mask
+// at those elements enabled by mask.
 //
 // Asm: VMOVDQU16, CPU Feature: AVX512
 //
 //go:noescape
 func (x Uint16x32) StoreMasked(y *[32]uint16, mask Mask16x32)
 
-// Uint32x16 is a 512-bit SIMD vector of 16 uint32
+// Uint32x16 is a 512-bit SIMD vector of 16 uint32s.
 type Uint32x16 struct {
 	uint32x16 v512
 	vals      [16]uint32
 }
 
-// Len returns the number of elements in a Uint32x16
+// Len returns the number of elements in a Uint32x16.
 func (x Uint32x16) Len() int { return 16 }
 
-// LoadUint32x16 loads a Uint32x16 from an array
+// LoadUint32x16 loads a Uint32x16 from an array.
 //
 //go:noescape
 func LoadUint32x16(y *[16]uint32) Uint32x16
 
-// Store stores a Uint32x16 to an array
+// Store stores a Uint32x16 to an array.
 //
 //go:noescape
 func (x Uint32x16) Store(y *[16]uint32)
 
 // LoadMaskedUint32x16 loads a Uint32x16 from an array,
-// at those elements enabled by mask
+// at those elements enabled by mask.
 //
 // Asm: VMOVDQU32.Z, CPU Feature: AVX512
 //
@@ -1033,34 +1033,34 @@ func (x Uint32x16) Store(y *[16]uint32)
 func LoadMaskedUint32x16(y *[16]uint32, mask Mask32x16) Uint32x16
 
 // StoreMasked stores a Uint32x16 to an array,
-// at those elements enabled by mask
+// at those elements enabled by mask.
 //
 // Asm: VMOVDQU32, CPU Feature: AVX512
 //
 //go:noescape
 func (x Uint32x16) StoreMasked(y *[16]uint32, mask Mask32x16)
 
-// Uint64x8 is a 512-bit SIMD vector of 8 uint64
+// Uint64x8 is a 512-bit SIMD vector of 8 uint64s.
 type Uint64x8 struct {
 	uint64x8 v512
 	vals     [8]uint64
 }
 
-// Len returns the number of elements in a Uint64x8
+// Len returns the number of elements in a Uint64x8.
 func (x Uint64x8) Len() int { return 8 }
 
-// LoadUint64x8 loads a Uint64x8 from an array
+// LoadUint64x8 loads a Uint64x8 from an array.
 //
 //go:noescape
 func LoadUint64x8(y *[8]uint64) Uint64x8
 
-// Store stores a Uint64x8 to an array
+// Store stores a Uint64x8 to an array.
 //
 //go:noescape
 func (x Uint64x8) Store(y *[8]uint64)
 
 // LoadMaskedUint64x8 loads a Uint64x8 from an array,
-// at those elements enabled by mask
+// at those elements enabled by mask.
 //
 // Asm: VMOVDQU64.Z, CPU Feature: AVX512
 //
@@ -1068,14 +1068,14 @@ func (x Uint64x8) Store(y *[8]uint64)
 func LoadMaskedUint64x8(y *[8]uint64, mask Mask64x8) Uint64x8
 
 // StoreMasked stores a Uint64x8 to an array,
-// at those elements enabled by mask
+// at those elements enabled by mask.
 //
 // Asm: VMOVDQU64, CPU Feature: AVX512
 //
 //go:noescape
 func (x Uint64x8) StoreMasked(y *[8]uint64, mask Mask64x8)
 
-// Mask8x64 is a 512-bit SIMD vector of 64 int8
+// Mask8x64 is a 512-bit SIMD vector of 64 int8s.
 type Mask8x64 struct {
 	int8x64 v512
 	vals    [64]int8
@@ -1091,7 +1091,7 @@ func Mask8x64FromBits(y uint64) Mask8x64
 // Asm: KMOVB, CPU Features: AVX512
 func (x Mask8x64) ToBits() uint64
 
-// Mask16x32 is a 512-bit SIMD vector of 32 int16
+// Mask16x32 is a 512-bit SIMD vector of 32 int16s.
 type Mask16x32 struct {
 	int16x32 v512
 	vals     [32]int16
@@ -1107,7 +1107,7 @@ func Mask16x32FromBits(y uint32) Mask16x32
 // Asm: KMOVW, CPU Features: AVX512
 func (x Mask16x32) ToBits() uint32
 
-// Mask32x16 is a 512-bit SIMD vector of 16 int32
+// Mask32x16 is a 512-bit SIMD vector of 16 int32s.
 type Mask32x16 struct {
 	int32x16 v512
 	vals     [16]int32
@@ -1123,7 +1123,7 @@ func Mask32x16FromBits(y uint16) Mask32x16
 // Asm: KMOVD, CPU Features: AVX512
 func (x Mask32x16) ToBits() uint16
 
-// Mask64x8 is a 512-bit SIMD vector of 8 int64
+// Mask64x8 is a 512-bit SIMD vector of 8 int64s.
 type Mask64x8 struct {
 	int64x8 v512
 	vals    [8]int64

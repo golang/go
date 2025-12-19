@@ -323,12 +323,12 @@ func shapedTemplateOf(s *shapes, name, temp string) shapeAndTemplate {
 }
 
 var sliceTemplate = templateOf("slice", `
-// Load{{.VType}}Slice loads {{.AOrAn}} {{.VType}} from a slice of at least {{.Count}} {{.Etype}}s
+// Load{{.VType}}Slice loads {{.AOrAn}} {{.VType}} from a slice of at least {{.Count}} {{.Etype}}s.
 func Load{{.VType}}Slice(s []{{.Etype}}) {{.VType}} {
 	return Load{{.VType}}((*[{{.Count}}]{{.Etype}})(s))
 }
 
-// StoreSlice stores x into a slice of at least {{.Count}} {{.Etype}}s
+// StoreSlice stores x into a slice of at least {{.Count}} {{.Etype}}s.
 func (x {{.VType}}) StoreSlice(s []{{.Etype}}) {
 	x.Store((*[{{.Count}}]{{.Etype}})(s))
 }
@@ -640,32 +640,32 @@ func (t templateData) CPUfeature() string {
 }
 
 var avx2SignedComparisonsTemplate = shapedTemplateOf(avx2SignedComparisons, "avx2 signed comparisons", `
-// Less returns a mask whose elements indicate whether x < y
+// Less returns a mask whose elements indicate whether x < y.
 //
-// Emulated, CPU Feature {{.CPUfeature}}
+// Emulated, CPU Feature: {{.CPUfeature}}
 func (x {{.VType}}) Less(y {{.VType}}) Mask{{.WxC}} {
 	return y.Greater(x)
 }
 
-// GreaterEqual returns a mask whose elements indicate whether x >= y
+// GreaterEqual returns a mask whose elements indicate whether x >= y.
 //
-// Emulated, CPU Feature {{.CPUfeature}}
+// Emulated, CPU Feature: {{.CPUfeature}}
 func (x {{.VType}}) GreaterEqual(y {{.VType}}) Mask{{.WxC}} {
 	ones := x.Equal(x).ToInt{{.WxC}}()
 	return y.Greater(x).ToInt{{.WxC}}().Xor(ones).asMask()
 }
 
-// LessEqual returns a mask whose elements indicate whether x <= y
+// LessEqual returns a mask whose elements indicate whether x <= y.
 //
-// Emulated, CPU Feature {{.CPUfeature}}
+// Emulated, CPU Feature: {{.CPUfeature}}
 func (x {{.VType}}) LessEqual(y {{.VType}}) Mask{{.WxC}} {
 	ones := x.Equal(x).ToInt{{.WxC}}()
 	return x.Greater(y).ToInt{{.WxC}}().Xor(ones).asMask()
 }
 
-// NotEqual returns a mask whose elements indicate whether x != y
+// NotEqual returns a mask whose elements indicate whether x != y.
 //
-// Emulated, CPU Feature {{.CPUfeature}}
+// Emulated, CPU Feature: {{.CPUfeature}}
 func (x {{.VType}}) NotEqual(y {{.VType}}) Mask{{.WxC}} {
 	ones := x.Equal(x).ToInt{{.WxC}}()
 	return x.Equal(y).ToInt{{.WxC}}().Xor(ones).asMask()	
@@ -673,18 +673,18 @@ func (x {{.VType}}) NotEqual(y {{.VType}}) Mask{{.WxC}} {
 `)
 
 var bitWiseIntTemplate = shapedTemplateOf(intShapes, "bitwise int complement", `
-// Not returns the bitwise complement of x
+// Not returns the bitwise complement of x.
 //
-// Emulated, CPU Feature {{.CPUfeature}}
+// Emulated, CPU Feature: {{.CPUfeature}}
 func (x {{.VType}}) Not() {{.VType}} {
 	return x.Xor(x.Equal(x).ToInt{{.WxC}}())
 }
 `)
 
 var bitWiseUintTemplate = shapedTemplateOf(uintShapes, "bitwise uint complement", `
-// Not returns the bitwise complement of x
+// Not returns the bitwise complement of x.
 //
-// Emulated, CPU Feature {{.CPUfeature}}
+// Emulated, CPU Feature: {{.CPUfeature}}
 func (x {{.VType}}) Not() {{.VType}} {
 	return x.Xor(x.Equal(x).ToInt{{.WxC}}().As{{.VType}}())
 }
@@ -703,9 +703,9 @@ func (t templateData) CPUfeatureAVX2if8() string {
 }
 
 var avx2UnsignedComparisonsTemplate = shapedTemplateOf(avx2UnsignedComparisons, "avx2 unsigned comparisons", `
-// Greater returns a mask whose elements indicate whether x > y
+// Greater returns a mask whose elements indicate whether x > y.
 //
-// Emulated, CPU Feature {{.CPUfeatureAVX2if8}}
+// Emulated, CPU Feature: {{.CPUfeatureAVX2if8}}
 func (x {{.VType}}) Greater(y {{.VType}}) Mask{{.WxC}} {
 	a, b := x.AsInt{{.WxC}}(), y.AsInt{{.WxC}}()
 {{- if eq .EWidth 8}}
@@ -717,9 +717,9 @@ func (x {{.VType}}) Greater(y {{.VType}}) Mask{{.WxC}} {
 	return a.Xor(signs).Greater(b.Xor(signs))
 }
 
-// Less returns a mask whose elements indicate whether x < y
+// Less returns a mask whose elements indicate whether x < y.
 //
-// Emulated, CPU Feature {{.CPUfeatureAVX2if8}}
+// Emulated, CPU Feature: {{.CPUfeatureAVX2if8}}
 func (x {{.VType}}) Less(y {{.VType}}) Mask{{.WxC}} {
 	a, b := x.AsInt{{.WxC}}(), y.AsInt{{.WxC}}()
 {{- if eq .EWidth 8}}
@@ -731,9 +731,9 @@ func (x {{.VType}}) Less(y {{.VType}}) Mask{{.WxC}} {
 	return b.Xor(signs).Greater(a.Xor(signs))
 }
 
-// GreaterEqual returns a mask whose elements indicate whether x >= y
+// GreaterEqual returns a mask whose elements indicate whether x >= y.
 //
-// Emulated, CPU Feature {{.CPUfeatureAVX2if8}}
+// Emulated, CPU Feature: {{.CPUfeatureAVX2if8}}
 func (x {{.VType}}) GreaterEqual(y {{.VType}}) Mask{{.WxC}} {
 	a, b := x.AsInt{{.WxC}}(), y.AsInt{{.WxC}}()
 	ones := x.Equal(x).ToInt{{.WxC}}()
@@ -745,9 +745,9 @@ func (x {{.VType}}) GreaterEqual(y {{.VType}}) Mask{{.WxC}} {
 	return b.Xor(signs).Greater(a.Xor(signs)).ToInt{{.WxC}}().Xor(ones).asMask()
 }
 
-// LessEqual returns a mask whose elements indicate whether x <= y
+// LessEqual returns a mask whose elements indicate whether x <= y.
 //
-// Emulated, CPU Feature {{.CPUfeatureAVX2if8}}
+// Emulated, CPU Feature: {{.CPUfeatureAVX2if8}}
 func (x {{.VType}}) LessEqual(y {{.VType}}) Mask{{.WxC}} {
 	a, b := x.AsInt{{.WxC}}(), y.AsInt{{.WxC}}()
 	ones := x.Equal(x).ToInt{{.WxC}}()
@@ -759,9 +759,9 @@ func (x {{.VType}}) LessEqual(y {{.VType}}) Mask{{.WxC}} {
 	return a.Xor(signs).Greater(b.Xor(signs)).ToInt{{.WxC}}().Xor(ones).asMask()
 }
 
-// NotEqual returns a mask whose elements indicate whether x != y
+// NotEqual returns a mask whose elements indicate whether x != y.
 //
-// Emulated, CPU Feature {{.CPUfeature}}
+// Emulated, CPU Feature: {{.CPUfeature}}
 func (x {{.VType}}) NotEqual(y {{.VType}}) Mask{{.WxC}} {
 	a, b := x.AsInt{{.WxC}}(), y.AsInt{{.WxC}}()
 	ones := x.Equal(x).ToInt{{.WxC}}()
@@ -818,7 +818,7 @@ func (x {{.VType}}) Masked(mask Mask{{.WxC}}) {{.VType}} {
 {{- end -}}
 }
 
-// Merge returns x but with elements set to y where m is false.
+// Merge returns x but with elements set to y where mask is false.
 func (x {{.VType}}) Merge(y {{.VType}}, mask Mask{{.WxC}}) {{.VType}} {
 {{- if eq .Base "Int" }}
 	return y.blendMasked(x, mask)
@@ -849,7 +849,7 @@ var broadcastTemplate = templateOf("Broadcast functions", `
 // Broadcast{{.VType}} returns a vector with the input
 // x assigned to all elements of the output.
 //
-// Emulated, CPU Feature {{.CPUfeatureBC}}
+// Emulated, CPU Feature: {{.CPUfeatureBC}}
 func Broadcast{{.VType}}(x {{.Etype}}) {{.VType}} {
 	var z {{.As128BitVec }}
 	return z.SetElem(0, x).Broadcast{{.Vwidth}}()
@@ -864,7 +864,7 @@ func (from {{.Base}}{{.WxC}}) ToMask() (to Mask{{.WxC}}) {
 `)
 
 var stringTemplate = shapedTemplateOf(allShapes, "String methods", `
-// String returns a string representation of SIMD vector x
+// String returns a string representation of SIMD vector x.
 func (x {{.VType}}) String() string {
 	var s [{{.Count}}]{{.Etype}}
 	x.Store(&s)
