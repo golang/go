@@ -7004,9 +7004,9 @@ const (
 	OpSaturateToInt8Int64x2
 	OpSaturateToInt8Int64x4
 	OpSaturateToInt8Int64x8
+	OpSaturateToInt16ConcatGroupedInt32x8
+	OpSaturateToInt16ConcatGroupedInt32x16
 	OpSaturateToInt16ConcatInt32x4
-	OpSaturateToInt16ConcatInt32x8
-	OpSaturateToInt16ConcatInt32x16
 	OpSaturateToInt16Int32x4
 	OpSaturateToInt16Int32x8
 	OpSaturateToInt16Int32x16
@@ -7025,9 +7025,9 @@ const (
 	OpSaturateToUint8Uint64x2
 	OpSaturateToUint8Uint64x4
 	OpSaturateToUint8Uint64x8
-	OpSaturateToUint16ConcatUint32x4
-	OpSaturateToUint16ConcatUint32x8
-	OpSaturateToUint16ConcatUint32x16
+	OpSaturateToUint16ConcatGroupedInt32x8
+	OpSaturateToUint16ConcatGroupedInt32x16
+	OpSaturateToUint16ConcatInt32x4
 	OpSaturateToUint16Uint32x4
 	OpSaturateToUint16Uint32x8
 	OpSaturateToUint16Uint32x16
@@ -93738,17 +93738,17 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "SaturateToInt16ConcatGroupedInt32x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SaturateToInt16ConcatGroupedInt32x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
 		name:    "SaturateToInt16ConcatInt32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SaturateToInt16ConcatInt32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SaturateToInt16ConcatInt32x16",
 		argLen:  2,
 		generic: true,
 	},
@@ -93843,17 +93843,17 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "SaturateToUint16ConcatUint32x4",
+		name:    "SaturateToUint16ConcatGroupedInt32x8",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "SaturateToUint16ConcatUint32x8",
+		name:    "SaturateToUint16ConcatGroupedInt32x16",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "SaturateToUint16ConcatUint32x16",
+		name:    "SaturateToUint16ConcatInt32x4",
 		argLen:  2,
 		generic: true,
 	},

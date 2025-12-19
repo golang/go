@@ -142,7 +142,7 @@ func (o *Operation) DecodeUnified(v *unify.Value) error {
 		outLanes := o.Out[0].Lanes
 		if inLanes != nil && outLanes != nil && *inLanes < *outLanes {
 			if (strings.Contains(o.Go, "Saturate") || strings.Contains(o.Go, "Truncate")) &&
-				!strings.HasSuffix(o.Go, "Concat") {
+				!strings.Contains(o.Go, "Concat") {
 				o.Documentation += "\n// Results are packed to low elements in the returned vector, its upper elements are zeroed."
 			}
 		}

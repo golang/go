@@ -446,22 +446,48 @@
   asm: "VPACKSSDW"
   addDoc: &satDocConcat
     !string |-
-    // With each 128-bit as a group:
-    // The converted group from the first input vector will be packed to the lower part of the result vector,
-    // the converted group from the second input vector will be packed to the upper part of the result vector.
+    // The converted elements from x will be packed to the lower part of the result vector,
+    // the converted elements from y will be packed to the upper part of the result vector.
   in:
     - base: int
     - base: int
   out:
     - base: int
+      bits: 128
+- go: SaturateToInt16ConcatGrouped
+  regexpTag: "convert"
+  asm: "VPACKSSDW"
+  addDoc: &satDocConcatGrouped
+    !string |-
+    // With each 128-bit as a group:
+    // The converted elements from x will be packed to the lower part of the group in the result vector,
+    // the converted elements from y will be packed to the upper part of the group in the result vector.
+  in:
+    - base: int
+    - base: int
+  out:
+    - base: int
+      bits: 256|512
 - go: SaturateToUint16Concat
   regexpTag: "convert"
   asm: "VPACKUSDW"
+  addDoc: *satDocConcat
   in:
-    - base: uint
-    - base: uint
+    - base: int
+    - base: int
   out:
     - base: uint
+      bits: 128
+- go: SaturateToUint16ConcatGrouped
+  regexpTag: "convert"
+  asm: "VPACKUSDW"
+  addDoc: *satDocConcatGrouped
+  in:
+    - base: int
+    - base: int
+  out:
+    - base: uint
+      bits: 256|512
 
 # low-part only conversions.
 # uint8->uint16

@@ -5040,14 +5040,14 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpSHA256TwoRoundsUint32x4:
 		v.Op = OpAMD64SHA256RNDS2128
 		return true
-	case OpSaturateToInt16ConcatInt32x16:
+	case OpSaturateToInt16ConcatGroupedInt32x16:
 		v.Op = OpAMD64VPACKSSDW512
+		return true
+	case OpSaturateToInt16ConcatGroupedInt32x8:
+		v.Op = OpAMD64VPACKSSDW256
 		return true
 	case OpSaturateToInt16ConcatInt32x4:
 		v.Op = OpAMD64VPACKSSDW128
-		return true
-	case OpSaturateToInt16ConcatInt32x8:
-		v.Op = OpAMD64VPACKSSDW256
 		return true
 	case OpSaturateToInt16Int32x16:
 		v.Op = OpAMD64VPMOVSDW256
@@ -5103,14 +5103,14 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpSaturateToInt8Int64x8:
 		v.Op = OpAMD64VPMOVSQB128_512
 		return true
-	case OpSaturateToUint16ConcatUint32x16:
+	case OpSaturateToUint16ConcatGroupedInt32x16:
 		v.Op = OpAMD64VPACKUSDW512
 		return true
-	case OpSaturateToUint16ConcatUint32x4:
-		v.Op = OpAMD64VPACKUSDW128
-		return true
-	case OpSaturateToUint16ConcatUint32x8:
+	case OpSaturateToUint16ConcatGroupedInt32x8:
 		v.Op = OpAMD64VPACKUSDW256
+		return true
+	case OpSaturateToUint16ConcatInt32x4:
+		v.Op = OpAMD64VPACKUSDW128
 		return true
 	case OpSaturateToUint16Uint32x16:
 		v.Op = OpAMD64VPMOVUSDW256

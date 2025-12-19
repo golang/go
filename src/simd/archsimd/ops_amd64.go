@@ -5418,28 +5418,29 @@ func (x Int64x8) SaturateToInt16() Int16x8
 /* SaturateToInt16Concat */
 
 // SaturateToInt16Concat converts element values to int16 with signed saturation.
-// With each 128-bit as a group:
-// The converted group from the first input vector will be packed to the lower part of the result vector,
-// the converted group from the second input vector will be packed to the upper part of the result vector.
+// The converted elements from x will be packed to the lower part of the result vector,
+// the converted elements from y will be packed to the upper part of the result vector.
 //
 // Asm: VPACKSSDW, CPU Feature: AVX
 func (x Int32x4) SaturateToInt16Concat(y Int32x4) Int16x8
 
-// SaturateToInt16Concat converts element values to int16 with signed saturation.
+/* SaturateToInt16ConcatGrouped */
+
+// SaturateToInt16ConcatGrouped converts element values to int16 with signed saturation.
 // With each 128-bit as a group:
-// The converted group from the first input vector will be packed to the lower part of the result vector,
-// the converted group from the second input vector will be packed to the upper part of the result vector.
+// The converted elements from x will be packed to the lower part of the group in the result vector,
+// the converted elements from y will be packed to the upper part of the group in the result vector.
 //
 // Asm: VPACKSSDW, CPU Feature: AVX2
-func (x Int32x8) SaturateToInt16Concat(y Int32x8) Int16x16
+func (x Int32x8) SaturateToInt16ConcatGrouped(y Int32x8) Int16x16
 
-// SaturateToInt16Concat converts element values to int16 with signed saturation.
+// SaturateToInt16ConcatGrouped converts element values to int16 with signed saturation.
 // With each 128-bit as a group:
-// The converted group from the first input vector will be packed to the lower part of the result vector,
-// the converted group from the second input vector will be packed to the upper part of the result vector.
+// The converted elements from x will be packed to the lower part of the group in the result vector,
+// the converted elements from y will be packed to the upper part of the group in the result vector.
 //
 // Asm: VPACKSSDW, CPU Feature: AVX512
-func (x Int32x16) SaturateToInt16Concat(y Int32x16) Int16x32
+func (x Int32x16) SaturateToInt16ConcatGrouped(y Int32x16) Int16x32
 
 /* SaturateToInt32 */
 
@@ -5550,19 +5551,29 @@ func (x Uint64x8) SaturateToUint16() Uint16x8
 /* SaturateToUint16Concat */
 
 // SaturateToUint16Concat converts element values to uint16 with unsigned saturation.
+// The converted elements from x will be packed to the lower part of the result vector,
+// the converted elements from y will be packed to the upper part of the result vector.
 //
 // Asm: VPACKUSDW, CPU Feature: AVX
-func (x Uint32x4) SaturateToUint16Concat(y Uint32x4) Uint16x8
+func (x Int32x4) SaturateToUint16Concat(y Int32x4) Uint16x8
 
-// SaturateToUint16Concat converts element values to uint16 with unsigned saturation.
+/* SaturateToUint16ConcatGrouped */
+
+// SaturateToUint16ConcatGrouped converts element values to uint16 with unsigned saturation.
+// With each 128-bit as a group:
+// The converted elements from x will be packed to the lower part of the group in the result vector,
+// the converted elements from y will be packed to the upper part of the group in the result vector.
 //
 // Asm: VPACKUSDW, CPU Feature: AVX2
-func (x Uint32x8) SaturateToUint16Concat(y Uint32x8) Uint16x16
+func (x Int32x8) SaturateToUint16ConcatGrouped(y Int32x8) Uint16x16
 
-// SaturateToUint16Concat converts element values to uint16 with unsigned saturation.
+// SaturateToUint16ConcatGrouped converts element values to uint16 with unsigned saturation.
+// With each 128-bit as a group:
+// The converted elements from x will be packed to the lower part of the group in the result vector,
+// the converted elements from y will be packed to the upper part of the group in the result vector.
 //
 // Asm: VPACKUSDW, CPU Feature: AVX512
-func (x Uint32x16) SaturateToUint16Concat(y Uint32x16) Uint16x32
+func (x Int32x16) SaturateToUint16ConcatGrouped(y Int32x16) Uint16x32
 
 /* SaturateToUint32 */
 
