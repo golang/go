@@ -5464,53 +5464,53 @@ func (x Int64x8) SaturateToInt32() Int32x8
 // SaturateToUint8 converts element values to uint8 with unsigned saturation.
 // Results are packed to low elements in the returned vector, its upper elements are zeroed.
 //
-// Asm: VPMOVSWB, CPU Feature: AVX512
-func (x Int16x8) SaturateToUint8() Int8x16
+// Asm: VPMOVUSWB, CPU Feature: AVX512
+func (x Uint16x8) SaturateToUint8() Uint8x16
 
 // SaturateToUint8 converts element values to uint8 with unsigned saturation.
 //
-// Asm: VPMOVSWB, CPU Feature: AVX512
-func (x Int16x16) SaturateToUint8() Int8x16
-
-// SaturateToUint8 converts element values to uint8 with unsigned saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zeroed.
-//
-// Asm: VPMOVSDB, CPU Feature: AVX512
-func (x Int32x4) SaturateToUint8() Int8x16
-
-// SaturateToUint8 converts element values to uint8 with unsigned saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zeroed.
-//
-// Asm: VPMOVSDB, CPU Feature: AVX512
-func (x Int32x8) SaturateToUint8() Int8x16
-
-// SaturateToUint8 converts element values to uint8 with unsigned saturation.
-//
-// Asm: VPMOVSDB, CPU Feature: AVX512
-func (x Int32x16) SaturateToUint8() Int8x16
-
-// SaturateToUint8 converts element values to uint8 with unsigned saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zeroed.
-//
-// Asm: VPMOVSQB, CPU Feature: AVX512
-func (x Int64x2) SaturateToUint8() Int8x16
-
-// SaturateToUint8 converts element values to uint8 with unsigned saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zeroed.
-//
-// Asm: VPMOVSQB, CPU Feature: AVX512
-func (x Int64x4) SaturateToUint8() Int8x16
-
-// SaturateToUint8 converts element values to uint8 with unsigned saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zeroed.
-//
-// Asm: VPMOVSQB, CPU Feature: AVX512
-func (x Int64x8) SaturateToUint8() Int8x16
+// Asm: VPMOVUSWB, CPU Feature: AVX512
+func (x Uint16x16) SaturateToUint8() Uint8x16
 
 // SaturateToUint8 converts element values to uint8 with unsigned saturation.
 //
 // Asm: VPMOVUSWB, CPU Feature: AVX512
 func (x Uint16x32) SaturateToUint8() Uint8x32
+
+// SaturateToUint8 converts element values to uint8 with unsigned saturation.
+// Results are packed to low elements in the returned vector, its upper elements are zeroed.
+//
+// Asm: VPMOVUSDB, CPU Feature: AVX512
+func (x Uint32x4) SaturateToUint8() Uint8x16
+
+// SaturateToUint8 converts element values to uint8 with unsigned saturation.
+// Results are packed to low elements in the returned vector, its upper elements are zeroed.
+//
+// Asm: VPMOVUSDB, CPU Feature: AVX512
+func (x Uint32x8) SaturateToUint8() Uint8x16
+
+// SaturateToUint8 converts element values to uint8 with unsigned saturation.
+//
+// Asm: VPMOVUSDB, CPU Feature: AVX512
+func (x Uint32x16) SaturateToUint8() Uint8x16
+
+// SaturateToUint8 converts element values to uint8 with unsigned saturation.
+// Results are packed to low elements in the returned vector, its upper elements are zeroed.
+//
+// Asm: VPMOVUSQB, CPU Feature: AVX512
+func (x Uint64x2) SaturateToUint8() Uint8x16
+
+// SaturateToUint8 converts element values to uint8 with unsigned saturation.
+// Results are packed to low elements in the returned vector, its upper elements are zeroed.
+//
+// Asm: VPMOVUSQB, CPU Feature: AVX512
+func (x Uint64x4) SaturateToUint8() Uint8x16
+
+// SaturateToUint8 converts element values to uint8 with unsigned saturation.
+// Results are packed to low elements in the returned vector, its upper elements are zeroed.
+//
+// Asm: VPMOVUSQB, CPU Feature: AVX512
+func (x Uint64x8) SaturateToUint8() Uint8x16
 
 /* SaturateToUint16 */
 

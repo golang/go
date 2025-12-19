@@ -390,11 +390,11 @@
       bits: 128
 - go: SaturateToUint8
   regexpTag: "convert"
-  asm: "VPMOVS[WDQ]B"
+  asm: "VPMOVUS[WDQ]B"
   in:
-    - base: int
+    - base: uint
   out:
-    - base: int
+    - base: uint
       bits: 128
 - go: SaturateToInt8
   regexpTag: "convert"
