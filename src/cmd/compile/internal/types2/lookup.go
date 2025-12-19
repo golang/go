@@ -157,6 +157,110 @@ func lookupFieldOrMethodImpl(T Type, addressable bool, pkg *Package, name string
 		}
 	}
 
+	// Go spec: basic types don't have methods. But this toolchain supports "magic"
+	// operator methods (e.g. _add/_sub/...) via a front-end rewrite pass.
+	//
+	// To allow generic constraints such as `interface{ _add(T) T }` to be satisfied
+	// by numeric basic types (int/float64/etc.), we synthesize these magic methods
+	// on-demand during lookup and constraint checking.
+	//
+	// Note: This is intentionally limited to a small, well-known set of magic
+	// method names and only for numeric basic types, to avoid accidentally making
+	// basic types satisfy arbitrary method constraints.
+	if !isPtr {
+		if b, _ := under(typ).(*Basic); b != nil {
+			// 定义三种类型的操作符集合
+
+			// 1. 一元运算符 (Unary): func() T
+			//    - _pos (+a), _neg (-a), _invert (^a)
+			isUnary := false
+			switch name {
+			case "_pos", "_neg", "_invert":
+				isUnary = true
+			}
+
+			// 2. 比较运算符 (Compare): func(T) bool
+			//    - _eq, _ne, _lt, _le, _gt, _ge
+			isCompare := false
+			switch name {
+			case "_eq", "_ne", "_lt", "_le", "_gt", "_ge":
+				isCompare = true
+			}
+
+			// 3. 二元算术/位运算符 (Binary): func(T) T
+			//    - _add, _sub, _mul, _div, _mod
+			//    - _and, _or, _xor, _bitclear
+			//    - _lshift, _rshift
+			//    - 以及它们的反向版本 _radd...
+			isBinary := false
+			switch name {
+			case "_add", "_sub", "_mul", "_div", "_mod",
+				"_and", "_or", "_xor", "_bitclear",
+				"_lshift", "_rshift",
+				"_radd", "_rsub", "_rmul", "_rdiv", "_rmod",
+				"_rand", "_ror", "_rxor", "_rbitclear",
+				"_rlshift", "_rrshift":
+				isBinary = true
+			}
+
+			// 检查类型是否支持这些操作
+			info := b.Info()
+			isNumeric := info&IsNumeric != 0
+			isString := info&IsString != 0
+
+			// 只有数值或字符串才支持
+			if isNumeric || isString {
+				isValidMagic := true
+
+				if isString {
+					if name != "_add" && !isCompare {
+						isValidMagic = false
+					}
+				}
+
+				if isValidMagic && (isUnary || isCompare || isBinary) {
+					// 1. 构造接收者 (Receiver)
+					recv := NewParam(nopos, pkg, "", typ)
+					recv.SetKind(RecvVar)
+
+					// 2. 构造参数列表 (Params)
+					var params []*Var
+					if isUnary {
+						// 一元运算没有参数: func (T) _neg() ...
+						params = nil
+					} else {
+						// 二元/比较运算有一个参数: func (T) _add(other T) ...
+						arg := NewParam(nopos, pkg, "", typ)
+						params = []*Var{arg}
+					}
+
+					// 3. 构造返回值列表 (Results)
+					var results []*Var
+					if isCompare {
+						// 比较运算返回 bool: ... bool
+						// 注意：这里使用 Typ[Bool] 获取 types2 内部的 bool 类型
+						boolType := Typ[Bool]
+						res := NewParam(nopos, pkg, "", boolType)
+						res.SetKind(ResultVar)
+						results = []*Var{res}
+					} else {
+						// 其他运算返回自身类型 T: ... T
+						res := NewParam(nopos, pkg, "", typ)
+						res.SetKind(ResultVar)
+						results = []*Var{res}
+					}
+
+					// 4. 合成函数签名
+					sig := NewSignatureType(recv, nil, nil, NewTuple(params...), NewTuple(results...), false)
+
+					// 5. 返回对象
+					return NewFunc(nopos, pkg, name, sig), []int{0}, false
+				}
+			}
+
+		}
+	}
+
 	// Start with typ as single entry at shallowest depth.
 	current := []embeddedType{{typ, nil, isPtr, false}}
 

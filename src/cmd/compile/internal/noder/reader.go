@@ -29,6 +29,274 @@ import (
 	"cmd/internal/src"
 )
 
+// magicBasicMethodWrapper returns a synthetic function implementing a "magic"
+// operator method (e.g. _add/_rsub/...) for numeric basic types.
+//
+// This is needed for type-parameter method expressions recorded in runtime
+// dictionaries: for instantiations where the type argument is a numeric basic
+// type (int/float64/etc.), we don't have a real method to reference, so we
+// generate a small wrapper that performs the builtin operation.
+func magicBasicMethodWrapper(recv *types.Type, msym *types.Sym, pos src.XPos) (fn *ir.Func, ok bool) {
+	if recv == nil || msym == nil {
+		return nil, false
+	}
+	if recv.IsPtr() {
+		return nil, false
+	}
+
+	// 1. 类型初步筛选：支持 数值型(Int/Float/Complex) 和 字符串(String)
+	isNumeric := recv.IsInteger() || recv.IsFloat() || recv.IsComplex()
+	isString := recv.IsString()
+
+	// 如果既不是数值也不是字符串，或者你是 channel/map 等（暂不处理 channel 的魔法方法，除非它是 basic type）
+	// 注意：Go 的 Chan 属于 *Type，不是 Basic，这里假设只处理 Basic
+	if !isNumeric && !isString {
+		return nil, false
+	}
+
+	// 2. 定义操作符属性
+	var (
+		op      ir.Op
+		swap    bool // 是否交换参数 (反向操作)
+		isUnary bool // 是否是一元运算 (如 -a)
+		isCmp   bool // 是否是比较运算 (返回 bool)
+	)
+
+	// 3. 巨型 Switch：映射名字到 IR Op，并做具体的类型合法性检查
+	name := msym.Name
+	switch name {
+	// --- 算术运算 (二元) ---
+	case "_add":
+		op = ir.OADD // string 也支持 OADD
+	case "_radd":
+		op, swap = ir.OADD, true
+	case "_sub":
+		if isString {
+			return nil, false
+		} // string 不支持减法
+		op = ir.OSUB
+	case "_rsub":
+		if isString {
+			return nil, false
+		}
+		op, swap = ir.OSUB, true
+	case "_mul":
+		if isString {
+			return nil, false
+		}
+		op = ir.OMUL
+	case "_rmul":
+		if isString {
+			return nil, false
+		}
+		op, swap = ir.OMUL, true
+	case "_div":
+		if isString {
+			return nil, false
+		}
+		op = ir.ODIV
+	case "_rdiv":
+		if isString {
+			return nil, false
+		}
+		op, swap = ir.ODIV, true
+	case "_mod":
+		if !recv.IsInteger() {
+			return nil, false
+		} // 只有整数支持取模
+		op = ir.OMOD
+	case "_rmod":
+		if !recv.IsInteger() {
+			return nil, false
+		}
+		op, swap = ir.OMOD, true
+
+	// --- 一元运算 ---
+	case "_pos": // +a
+		if !isNumeric {
+			return nil, false
+		}
+		op, isUnary = ir.OPLUS, true
+	case "_neg": // -a
+		if !isNumeric {
+			return nil, false
+		}
+		op, isUnary = ir.ONEG, true
+	case "_invert": // ^a (按位取反)
+		if !recv.IsInteger() {
+			return nil, false
+		}
+		op, isUnary = ir.OBITNOT, true
+
+	// --- 比较运算 (返回 Bool) ---
+	// 注意：String 原生支持以下所有比较 IR
+	case "_eq":
+		op, isCmp = ir.OEQ, true
+	case "_ne":
+		op, isCmp = ir.ONE, true
+	case "_lt":
+		op, isCmp = ir.OLT, true
+	case "_gt":
+		op, isCmp = ir.OGT, true
+	case "_le":
+		op, isCmp = ir.OLE, true
+	case "_ge":
+		op, isCmp = ir.OGE, true
+
+	// --- 位运算 (仅整数) ---
+	case "_or":
+		if !recv.IsInteger() {
+			return nil, false
+		}
+		op = ir.OOR
+	case "_ror":
+		if !recv.IsInteger() {
+			return nil, false
+		}
+		op, swap = ir.OOR, true // OR 其实是对称的，swap 无所谓，但保持一致
+	case "_and":
+		if !recv.IsInteger() {
+			return nil, false
+		}
+		op = ir.OAND
+	case "_rand":
+		if !recv.IsInteger() {
+			return nil, false
+		}
+		op, swap = ir.OAND, true
+	case "_xor":
+		if !recv.IsInteger() {
+			return nil, false
+		}
+		op = ir.OXOR
+	case "_rxor":
+		if !recv.IsInteger() {
+			return nil, false
+		}
+		op, swap = ir.OXOR, true
+	case "_bitclear": // &^
+		if !recv.IsInteger() {
+			return nil, false
+		}
+		op = ir.OANDNOT
+	case "_rbitclear":
+		if !recv.IsInteger() {
+			return nil, false
+		}
+		op, swap = ir.OANDNOT, true
+
+	// --- 移位运算 (通常要求右侧是无符号，但在泛型包装器里，通常假设都是 T) ---
+	// Go 1.13+ 允许有符号位移计数，后端会处理
+	case "_lshift":
+		if !recv.IsInteger() {
+			return nil, false
+		}
+		op = ir.OLSH
+	case "_rlshift":
+		if !recv.IsInteger() {
+			return nil, false
+		}
+		op, swap = ir.OLSH, true
+	case "_rshift":
+		if !recv.IsInteger() {
+			return nil, false
+		}
+		op = ir.ORSH
+	case "_rrshift":
+		if !recv.IsInteger() {
+			return nil, false
+		}
+		op, swap = ir.ORSH, true
+
+	default:
+		// 不支持的操作符，或者 _inc/_dec (语句级), _recv/_send (Channel)
+		return nil, false
+	}
+
+	// 4. 构造函数签名
+	var params []*types.Field
+	var results []*types.Field
+
+	// 接收者永远是 recv
+	// params[0] 是 receiver (方法接收者)
+	// params[1] 是 argument (二元运算才有)
+	recvField := types.NewField(base.Pos, nil, recv)
+
+	if isUnary {
+		// func (recv T) _op() T
+		params = []*types.Field{recvField}
+	} else {
+		// func (recv T) _op(other T) ...
+		otherField := types.NewField(base.Pos, nil, recv)
+		params = []*types.Field{recvField, otherField}
+	}
+
+	// 返回值处理
+	var retType *types.Type
+	if isCmp {
+		retType = types.Types[types.TBOOL] // 返回 bool
+	} else {
+		retType = recv // 返回 T (自身)
+	}
+	results = []*types.Field{types.NewField(base.Pos, nil, retType)}
+
+	sig := types.NewSignature(nil, params, results)
+
+	// 5. 生成唯一符号名 (去重)
+	// 名字类似: .magic._add.int 或 .magic._eq.string
+	sym := types.LocalPkg.Lookup(".magic." + msym.Name + "." + recv.String())
+	if sym.Uniq() {
+		if sym.Def != nil {
+			if name, ok := sym.Def.(*ir.Name); ok && name.Func != nil {
+				return name.Func, true
+			}
+		}
+	} else {
+		sym.SetUniq(true)
+	}
+
+	// 6. 创建函数实体
+	fn = ir.NewFunc(pos, pos, sym, sig)
+	fn.DeclareParams(true)
+	fn.SetDupok(true)
+	fn.SetWrapper(true)
+	sym.Def = fn.Nname
+
+	// 7. 构建函数体
+	ir.WithFunc(fn, func() {
+		var expr ir.Node
+		params := fn.Type().Params()
+
+		if isUnary {
+			// 一元运算: op x
+			x := params[0].Nname.(*ir.Name)
+			expr = ir.NewUnaryExpr(pos, op, x)
+		} else {
+			// 二元运算: x op y
+			p0 := params[0].Nname.(*ir.Name)
+			p1 := params[1].Nname.(*ir.Name)
+			var x, y ir.Node
+			if swap {
+				x, y = p1, p0
+			} else {
+				x, y = p0, p1
+			}
+			expr = ir.NewBinaryExpr(pos, op, x, y)
+		}
+
+		// 类型检查表达式 (必要步骤，确保 IR 类型正确)
+		typedExpr := typecheck.Expr(expr)
+
+		// 构造 return 语句
+		ret := ir.NewReturnStmt(pos, []ir.Node{typedExpr})
+		fn.Body.Append(typecheck.Stmt(ret))
+	})
+
+	fn.Nname.Defn = fn
+	typecheck.Target.Funcs = append(typecheck.Target.Funcs, fn)
+	return fn, true
+}
+
 // This file implements cmd/compile backend's reader for the Unified
 // IR export data.
 
@@ -1448,9 +1716,14 @@ func (pr *pkgReader) dictNameOf(dict *readerDict) *ir.Name {
 	assertOffset("type param method exprs", dict.typeParamMethodExprsOffset())
 	for _, info := range dict.typeParamMethodExprs {
 		typeParam := dict.targs[info.typeParamIdx]
-		method := typecheck.NewMethodExpr(pos, typeParam, info.method)
+		var rsym *obj.LSym
+		if fn, ok := magicBasicMethodWrapper(typeParam, info.method, pos); ok && fn != nil && fn.Nname != nil {
+			rsym = fn.Nname.Linksym()
+		} else {
+			method := typecheck.NewMethodExpr(pos, typeParam, info.method)
+			rsym = method.FuncName().Linksym()
+		}
 
-		rsym := method.FuncName().Linksym()
 		assert(rsym.ABI() == obj.ABIInternal) // must be ABIInternal; see ir.OCFUNC in ssagen/ssa.go
 
 		ot = objw.SymPtr(lsym, ot, rsym, 0)

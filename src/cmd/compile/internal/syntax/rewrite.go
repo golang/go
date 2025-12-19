@@ -1646,7 +1646,15 @@ func RewriteArithmeticOperators(file *File) {
 		arithMethods:    make(map[string]map[string][]*FuncDecl),
 		varTypes:        make(map[string]string),
 		funcReturnTypes: make(map[string]string),
+		genericTypes:    make(map[string]*genericTypeInfo),
+		varTypeArgs:     make(map[string][]Expr),
 	}
+
+	// 收集泛型接口的定义
+	r.collectGenericInterfaces(file)
+	// 收集泛型结构体的定义
+	r.collectGenericStructs(file)
+
 	r.collectArithmeticMethods(file)
 	r.collectFunctionReturnTypes(file)
 	r.rewriteFile(file)
@@ -1660,9 +1668,188 @@ type arithOpRewriter struct {
 
 	funcReturnTypes map[string]string // function name -> return typeName (no leading '*')
 
-	insideArithMethod bool
+	insideArithMethod    bool
+	currentMagicRecvType string
+	currentMagicBase     string
 
 	typeParamScopes []map[string]*operatorCaps
+
+	// genericTypes maps base type name -> generic type info (type-decl params + their caps).
+	genericTypes map[string]*genericTypeInfo
+
+	// varTypeArgs maps variable name -> its (syntactic) type arguments, if it is an instantiated generic type.
+	// Example: v := Vector[int]{}  =>  varTypes["v"]="Vector", varTypeArgs["v"] = []Expr{Name("int")}
+	varTypeArgs map[string][]Expr
+}
+
+type genericTypeInfo struct {
+	paramNames []string
+	paramCaps  []*operatorCaps // aligned with paramNames
+
+	// fieldTypeExpr maps struct field name -> its type expression as written in the type declaration.
+	// Used for inferring selector types like v.X when v is of a generic struct type.
+	fieldTypeExpr map[string]Expr
+}
+
+// 第一步：只扫描接口
+func (r *arithOpRewriter) collectGenericInterfaces(file *File) {
+	if file == nil {
+		return
+	}
+	for _, decl := range file.DeclList {
+		if td, ok := decl.(*TypeDecl); ok {
+			// 复用你之前写的 analyzeTypeDecl
+			r.analyzeTypeDecl(td)
+		}
+	}
+}
+
+// 第二步：只扫描结构体 (替代原来的 collectGenericTypeDecls)
+func (r *arithOpRewriter) collectGenericStructs(file *File) {
+	if file == nil {
+		return
+	}
+	for _, decl := range file.DeclList {
+		td, ok := decl.(*TypeDecl)
+		if !ok || td == nil || td.Name == nil {
+			continue
+		}
+		// 必须是泛型
+		if len(td.TParamList) == 0 {
+			continue
+		}
+		// 必须是结构体 (接口在第一步已经处理过了)
+		if _, ok := td.Type.(*StructType); !ok {
+			continue
+		}
+
+		info := &genericTypeInfo{
+			paramCaps:  make([]*operatorCaps, len(td.TParamList)),
+			paramNames: make([]string, 0, len(td.TParamList)),
+		}
+
+		// 解析结构体的泛型约束
+		for i, tp := range td.TParamList {
+			if tp == nil || tp.Name == nil {
+				continue
+			}
+			info.paramNames = append(info.paramNames, tp.Name.Value)
+
+			// 【关键】这里调用 extractTypeParamCaps，现在它能查表了
+			info.paramCaps[i] = r.extractTypeParamCaps(tp.Name.Value, tp.Type)
+		}
+
+		// 记录结构体字段 (用于推导 v.X 的类型)
+		if st, ok := td.Type.(*StructType); ok && st != nil {
+			info.fieldTypeExpr = make(map[string]Expr)
+			for _, f := range st.FieldList {
+				if f == nil || f.Name == nil || f.Type == nil {
+					continue
+				}
+				info.fieldTypeExpr[f.Name.Value] = f.Type
+			}
+		}
+
+		if len(info.paramNames) > 0 {
+			r.genericTypes[td.Name.Value] = info
+		}
+	}
+}
+
+// analyzeTypeDecl 扫描类型定义，如果是泛型接口且包含魔法方法，则记录到 r.genericTypes
+func (r *arithOpRewriter) analyzeTypeDecl(d *TypeDecl) {
+	// 1. 基本过滤
+	if d.Alias || len(d.TParamList) == 0 || d.Name == nil {
+		return
+	}
+
+	// 2. 必须是接口类型
+	iface, ok := d.Type.(*InterfaceType)
+	if !ok {
+		return
+	}
+
+	typeName := d.Name.Value
+	tParams := d.TParamList
+
+	// 初始化记录结构
+	info := &genericTypeInfo{
+		paramCaps: make([]*operatorCaps, len(tParams)),
+	}
+
+	hasMagic := false
+
+	// 3. 遍历接口方法
+	for _, method := range iface.MethodList {
+		if method.Name == nil || method.Type == nil {
+			continue
+		}
+
+		methodName := method.Name.Value
+
+		// 检查是否是魔法方法名
+		baseOp := ""
+		if isArithmeticMagicMethodName(methodName) {
+			baseOp = operatorMagicBaseName(methodName)
+		} else {
+			continue
+		}
+
+		// 4. 确定该方法绑定到了哪个泛型参数上
+		ft, ok := method.Type.(*FuncType)
+		if !ok {
+			continue
+		}
+
+		// 策略：检查方法的第一个参数类型
+		if len(ft.ParamList) > 0 {
+			firstParamType := ft.ParamList[0].Type
+			if pName, ok := firstParamType.(*Name); ok {
+				for i, tp := range tParams {
+					if tp.Name != nil && tp.Name.Value == pName.Value {
+						// 【适配你的结构体】
+						if info.paramCaps[i] == nil {
+							info.paramCaps[i] = &operatorCaps{
+								methods:     make(map[string]bool), // 使用 methods
+								returnsSelf: make(map[string]bool), // 顺便初始化 returnsSelf 防止 panic
+							}
+						}
+						info.paramCaps[i].methods[baseOp] = true // 使用 methods
+						hasMagic = true
+					}
+				}
+			}
+		} else {
+			// 处理一元运算 (无参数)
+			if len(tParams) > 0 {
+				if info.paramCaps[0] == nil {
+					info.paramCaps[0] = &operatorCaps{
+						methods:     make(map[string]bool),
+						returnsSelf: make(map[string]bool),
+					}
+				}
+				info.paramCaps[0].methods[baseOp] = true // 使用 methods
+				hasMagic = true
+			}
+		}
+	}
+
+	// 5. 存入全局表
+	if hasMagic {
+		if r.genericTypes == nil {
+			// 注意：这里必须和 arithOpRewriter 定义一致 (map[string]*genericTypeInfo)
+			r.genericTypes = make(map[string]*genericTypeInfo)
+		}
+		r.genericTypes[typeName] = info
+	}
+}
+
+func isComparisonMagicMethodName(name string) bool {
+	switch name {
+	case "_eq", "_ne", "_lt", "_le", "_gt", "_ge":
+		return true
+	}
+	return false
 }
 
 type operatorCaps struct {
@@ -1709,10 +1896,7 @@ func (r *arithOpRewriter) collectArithmeticMethods(file *File) {
 			continue
 		}
 
-		recvType := typeExprToString(fn.Recv.Type)
-		if len(recvType) > 0 && recvType[0] == '*' {
-			recvType = recvType[1:]
-		}
+		recvType := baseTypeNameFromTypeExpr(fn.Recv.Type)
 		if recvType == "" {
 			continue
 		}
@@ -1763,13 +1947,37 @@ func (r *arithOpRewriter) rewriteFile(file *File) {
 
 func (r *arithOpRewriter) rewriteDecl(decl Decl) {
 	switch d := decl.(type) {
+	case *TypeDecl:
+		// 【新增】处理类型声明，记录带有魔法方法的接口定义
+		r.analyzeTypeDecl(d)
 	case *FuncDecl:
-		r.pushTypeParamScope(d.TParamList)
-		defer r.popTypeParamScope()
-
 		if d.Body == nil {
 			return
 		}
+		// If this is a method on a generic type (e.g. func (v Vector[T]) ...),
+		// inject the type-decl parameter constraints for the receiver's type args.
+		// 逻辑分支：是方法还是普通函数？
+		if d.Recv != nil {
+			// 情况 A: 方法。
+			// 能力来自于接收者类型 (e.g. Vector 实现了 _add)
+			r.pushReceiverTypeParamScope(d.Recv)
+		} else {
+			// 情况 B: 泛型函数。
+			// 能力来自于泛型约束 (e.g. T 是 Addable)
+			// 使用在这个位置唯一正确的 pushTypeParamScope
+			r.pushTypeParamScope(d.TParamList)
+		}
+		// 变量绑定
+		if d.Type != nil && d.Type.ParamList != nil {
+			for _, param := range d.Type.ParamList {
+				if param.Name == nil || param.Type == nil {
+					continue
+				}
+				r.bindVarType(param.Name.Value, param.Type)
+			}
+		}
+
+		defer r.popTypeParamScope()
 
 		// Track function parameters
 		if d.Type != nil && d.Type.ParamList != nil {
@@ -1777,34 +1985,28 @@ func (r *arithOpRewriter) rewriteDecl(decl Decl) {
 				if param.Name == nil || param.Type == nil {
 					continue
 				}
-				paramType := typeExprToString(param.Type)
-				if len(paramType) > 0 && paramType[0] == '*' {
-					paramType = paramType[1:]
-				}
-				if r.typeSupportsOperators(paramType) {
-					r.varTypes[param.Name.Value] = paramType
-				}
+				r.bindVarType(param.Name.Value, param.Type)
 			}
 		}
 
 		// Track receiver variable
 		if d.Recv != nil && d.Recv.Name != nil {
-			recvType := typeExprToString(d.Recv.Type)
-			if len(recvType) > 0 && recvType[0] == '*' {
-				recvType = recvType[1:]
-			}
-			if r.typeSupportsOperators(recvType) {
-				r.varTypes[d.Recv.Name.Value] = recvType
-			}
+			r.bindVarType(d.Recv.Name.Value, d.Recv.Type)
 		}
 
 		// Don't rewrite inside arithmetic magic method bodies to avoid recursion.
 		wasInside := r.insideArithMethod
+		wasMagicRecv := r.currentMagicRecvType
+		wasMagicBase := r.currentMagicBase
 		if d.Recv != nil && d.Name != nil && isArithmeticMagicMethodName(d.Name.Value) {
 			r.insideArithMethod = true
+			r.currentMagicRecvType = baseTypeNameFromTypeExpr(d.Recv.Type)
+			r.currentMagicBase = operatorMagicBaseName(d.Name.Value)
 		}
 		r.rewriteBlockStmt(d.Body)
 		r.insideArithMethod = wasInside
+		r.currentMagicRecvType = wasMagicRecv
+		r.currentMagicBase = wasMagicBase
 
 	case *VarDecl:
 		r.trackVarDeclTypes(d)
@@ -1819,18 +2021,33 @@ func (r *arithOpRewriter) rewriteDecl(decl Decl) {
 	}
 }
 
-func (r *arithOpRewriter) pushTypeParamScope(tparams []*Field) {
-	if len(tparams) == 0 {
+func (r *arithOpRewriter) pushReceiverTypeParamScope(recv *Field) {
+	if recv == nil || recv.Type == nil {
 		r.typeParamScopes = append(r.typeParamScopes, nil)
 		return
 	}
+
+	baseName, args := splitGenericTypeExpr(recv.Type)
+	if baseName == "" || len(args) == 0 {
+		r.typeParamScopes = append(r.typeParamScopes, nil)
+		return
+	}
+	info, ok := r.genericTypes[baseName]
+	if !ok || len(info.paramCaps) == 0 {
+		r.typeParamScopes = append(r.typeParamScopes, nil)
+		return
+	}
+
 	scope := make(map[string]*operatorCaps)
-	for _, tp := range tparams {
-		if tp == nil || tp.Name == nil || tp.Type == nil {
+	for i := 0; i < len(args) && i < len(info.paramCaps); i++ {
+		arg := args[i]
+		caps := info.paramCaps[i]
+		if caps == nil {
 			continue
 		}
-		if caps := r.extractTypeParamCaps(tp.Name.Value, tp.Type); caps != nil {
-			scope[tp.Name.Value] = caps
+		// Only bind if the receiver argument is a type parameter name (e.g. T).
+		if n, ok := arg.(*Name); ok && n != nil {
+			scope[n.Value] = caps
 		}
 	}
 	if len(scope) == 0 {
@@ -1839,39 +2056,227 @@ func (r *arithOpRewriter) pushTypeParamScope(tparams []*Field) {
 	r.typeParamScopes = append(r.typeParamScopes, scope)
 }
 
+func splitGenericTypeExpr(expr Expr) (baseName string, args []Expr) {
+	if expr == nil {
+		return "", nil
+	}
+	// Strip pointer and parens.
+	for {
+		switch e := expr.(type) {
+		case *ParenExpr:
+			expr = e.X
+			continue
+		case *Operation:
+			if e.Y == nil && (e.Op == Mul || e.Op == And) {
+				expr = e.X
+				continue
+			}
+		}
+		break
+	}
+
+	ix, ok := expr.(*IndexExpr)
+	if !ok || ix == nil {
+		// Non-generic receiver.
+		if n, ok := expr.(*Name); ok && n != nil {
+			return n.Value, nil
+		}
+		return "", nil
+	}
+	if n, ok := ix.X.(*Name); ok && n != nil {
+		baseName = n.Value
+	} else {
+		baseName = typeExprToString(ix.X)
+	}
+	args = UnpackListExpr(ix.Index)
+	return baseName, args
+}
+
+// pushTypeParamScope 解析泛型参数列表，支持命名接口和匿名接口
+func (r *arithOpRewriter) pushTypeParamScope(tparams []*Field) {
+	if len(tparams) == 0 {
+		r.typeParamScopes = append(r.typeParamScopes, nil)
+		return
+	}
+
+	scope := make(map[string]*operatorCaps)
+
+	for _, field := range tparams {
+		// field.Name 是 T
+		// field.Type 是约束 (Constraint)
+		if field.Name == nil || field.Type == nil {
+			continue
+		}
+		tName := field.Name.Value
+
+		// --- 【新增】情况 A: 匿名接口 interface{ _add() ... } ---
+		if iface, ok := field.Type.(*InterfaceType); ok {
+			// 当场解析这个匿名接口
+			caps := r.extractCapsFromAnonymousInterface(iface)
+			if caps != nil {
+				scope[tName] = caps
+			}
+			continue
+		}
+
+		// --- 情况 B: 命名接口 Addable[T] ---
+		baseName, args := splitGenericTypeExpr(field.Type)
+		if baseName == "" {
+			continue
+		}
+
+		// 查找全局表
+		info, ok := r.genericTypes[baseName]
+		if !ok || len(info.paramCaps) == 0 {
+			continue
+		}
+
+		// 绑定能力
+		// 遍历约束的参数，找到对应 T 的位置
+		for i, argExpr := range args {
+			if n, ok := argExpr.(*Name); ok && n.Value == tName {
+				if i < len(info.paramCaps) {
+					caps := info.paramCaps[i]
+					if caps != nil {
+						scope[tName] = caps
+					}
+				}
+			}
+		}
+	}
+
+	if len(scope) == 0 {
+		scope = nil
+	}
+	r.typeParamScopes = append(r.typeParamScopes, scope)
+}
+
+// extractCapsFromAnonymousInterface 从匿名接口中提取魔法能力
+// 新增的辅助函数
+func (r *arithOpRewriter) extractCapsFromAnonymousInterface(iface *InterfaceType) *operatorCaps {
+	caps := newOperatorCaps()
+	hasMagic := false
+
+	for _, method := range iface.MethodList {
+		if method.Name == nil || method.Type == nil {
+			continue
+		}
+		methodName := method.Name.Value
+
+		baseOp := ""
+		// 检查是否是算术魔法方法
+		if isArithmeticMagicMethodName(methodName) {
+			baseOp = operatorMagicBaseName(methodName)
+		} else if isComparisonMagicMethodName(methodName) {
+			// 检查是否是比较魔法方法
+			baseOp = operatorMagicBaseName(methodName)
+		} else {
+			continue
+		}
+
+		// 只要接口里声明了 _add / _eq 等方法，就认为它具备该能力
+		// 对于匿名接口，我们不做严格的 "returnsSelf" 检查，默认 false 即可，
+		// 因为这主要影响链式调用的类型推导，对于基本的 a+b 重写已经足够。
+		caps.add(baseOp, false)
+		hasMagic = true
+	}
+
+	if hasMagic {
+		return caps
+	}
+	return nil
+}
+
 func (r *arithOpRewriter) popTypeParamScope() {
 	if n := len(r.typeParamScopes); n > 0 {
 		r.typeParamScopes = r.typeParamScopes[:n-1]
 	}
 }
 
+// extractCapsFromStructType 从具体的结构体类型中提取魔法能力
+// (用于支持 ~MyStruct 这种泛型约束)
+func (r *arithOpRewriter) extractCapsFromStructType(typeName string) *operatorCaps {
+	// r.arithMethods 存储了: receiverType -> methodName -> methodDecls
+	methodMap, ok := r.arithMethods[typeName]
+	if !ok {
+		// 尝试查找指针类型的方法 (MyInt 可能没方法，但 *MyInt 有)
+		methodMap, ok = r.arithMethods["*"+typeName]
+		if !ok {
+			// 再尝试反过来，如果是 *MyInt，查 MyInt
+			if len(typeName) > 0 && typeName[0] == '*' {
+				methodMap, ok = r.arithMethods[typeName[1:]]
+			}
+		}
+	}
+
+	if !ok || len(methodMap) == 0 {
+		return nil
+	}
+
+	caps := newOperatorCaps()
+	hasMagic := false
+
+	// 遍历该结构体拥有的所有方法
+	for methodName := range methodMap {
+		baseOp := ""
+		if isArithmeticMagicMethodName(methodName) {
+			baseOp = operatorMagicBaseName(methodName)
+		} else if isComparisonMagicMethodName(methodName) {
+			baseOp = operatorMagicBaseName(methodName)
+		} else {
+			continue
+		}
+
+		// 记录能力
+		caps.add(baseOp, false)
+		hasMagic = true
+	}
+
+	if hasMagic {
+		return caps
+	}
+	return nil
+}
+
 func (r *arithOpRewriter) extractTypeParamCaps(typeParam string, constraint Expr) *operatorCaps {
 	if constraint == nil {
 		return nil
 	}
-	iface, ok := constraint.(*InterfaceType)
-	if !ok {
-		return nil
+
+	// 1. 处理匿名接口 interface{ _add() ... }
+	if iface, ok := constraint.(*InterfaceType); ok {
+		return r.extractCapsFromAnonymousInterface(iface)
 	}
-	caps := newOperatorCaps()
-	for _, method := range iface.MethodList {
-		if method == nil || method.Name == nil {
-			continue
+
+	if op, ok := constraint.(*Operation); ok && op.Op == Tilde {
+		structName := baseTypeNameFromTypeExpr(op.X)
+		if structName != "" {
+			return r.extractCapsFromStructType(structName)
 		}
-		base := operatorMagicBaseName(method.Name.Value)
-		if base == "" {
-			continue
-		}
-		returnsSelf := false
-		if ft, ok := method.Type.(*FuncType); ok {
-			returnsSelf = methodReturnsTypeParam(ft, typeParam)
-		}
-		caps.add(base, returnsSelf)
 	}
-	if len(caps.methods) == 0 {
-		return nil
+
+	// 3. 处理具名接口/泛型实例化 AddableSubable[T]
+	baseName, args := splitGenericTypeExpr(constraint)
+	if baseName != "" {
+		// 查全局表
+		info, ok := r.genericTypes[baseName]
+		if ok && len(info.paramCaps) > 0 {
+			// 匹配参数位置
+			// AddableSubable[T] -> base=AddableSubable, args=[T]
+			// 我们需要看 T 对应 AddableSubable 定义里的第几个参数，并取其能力
+			for i, argExpr := range args {
+				// 检查 argExpr 是否就是我们正在处理的 typeParam (例如 "T")
+				if n, ok := argExpr.(*Name); ok && n.Value == typeParam {
+					if i < len(info.paramCaps) {
+						// 找到了！返回对应位置的能力
+						return info.paramCaps[i]
+					}
+				}
+			}
+		}
 	}
-	return caps
+
+	return nil
 }
 
 func methodReturnsTypeParam(ft *FuncType, typeParam string) bool {
@@ -2127,10 +2532,6 @@ func (r *arithOpRewriter) rewriteExpr(expr Expr) Expr {
 			x := r.rewriteExpr(e.X)
 			e.X = x
 
-			if r.insideArithMethod {
-				return e
-			}
-
 			recvType := r.tryInferStructTypeName(x)
 			if recvType == "" {
 				return e
@@ -2150,6 +2551,12 @@ func (r *arithOpRewriter) rewriteExpr(expr Expr) Expr {
 				return e
 			}
 
+			// Avoid direct recursion: inside a magic method body, don't rewrite the same
+			// operator for the same receiver type back into itself.
+			if r.insideArithMethod && recvType == r.currentMagicRecvType && method == r.currentMagicBase {
+				return e
+			}
+
 			if r.hasArithNoArg(recvType, method) {
 				return r.createMethodCall(e.Pos(), x, method, nil)
 			}
@@ -2161,10 +2568,6 @@ func (r *arithOpRewriter) rewriteExpr(expr Expr) Expr {
 		right := r.rewriteExpr(e.Y)
 		e.X, e.Y = left, right
 
-		if r.insideArithMethod {
-			return e
-		}
-
 		leftType := r.tryInferStructTypeName(left)
 		rightType := r.tryInferStructTypeName(right)
 
@@ -2174,8 +2577,14 @@ func (r *arithOpRewriter) rewriteExpr(expr Expr) Expr {
 			if fwd == "" {
 				return e
 			}
+			if r.insideArithMethod && leftType == r.currentMagicRecvType && fwd == r.currentMagicBase {
+				return e
+			}
 			if leftType != "" && r.hasArithBinary(leftType, fwd, rightType) {
 				return r.createMethodCall(e.Pos(), left, fwd, []Expr{right})
+			}
+			if r.insideArithMethod && rightType == r.currentMagicRecvType && mirror == r.currentMagicBase {
+				return e
 			}
 			if mirror != "" && rightType != "" && r.hasArithBinary(rightType, mirror, leftType) {
 				return r.createMethodCall(e.Pos(), right, mirror, []Expr{left})
@@ -2188,8 +2597,14 @@ func (r *arithOpRewriter) rewriteExpr(expr Expr) Expr {
 		if fwd == "" {
 			return e
 		}
+		if r.insideArithMethod && leftType == r.currentMagicRecvType && fwd == r.currentMagicBase {
+			return e
+		}
 		if leftType != "" && r.hasArithBinary(leftType, fwd, rightType) {
 			return r.createMethodCall(e.Pos(), left, fwd, []Expr{right})
+		}
+		if r.insideArithMethod && rightType == r.currentMagicRecvType && rev == r.currentMagicBase {
+			return e
 		}
 		if rev != "" && rightType != "" && r.hasArithBinary(rightType, rev, leftType) {
 			return r.createMethodCall(e.Pos(), right, rev, []Expr{left})
@@ -2375,15 +2790,25 @@ func (r *arithOpRewriter) hasArithBinary(recvType string, methodName string, arg
 		if len(pt) > 0 && pt[0] == '*' {
 			pt = pt[1:]
 		}
+		pt = stripGenericArgs(pt)
 		// any/interface{} accept any type
 		if pt == "any" || pt == "interface{}" {
 			return true
 		}
-		if pt == argType {
+		if stripGenericArgs(pt) == stripGenericArgs(argType) {
 			return true
 		}
 	}
 	return false
+}
+
+func stripGenericArgs(s string) string {
+	for i := 0; i < len(s); i++ {
+		if s[i] == '[' {
+			return s[:i]
+		}
+	}
+	return s
 }
 
 func (r *arithOpRewriter) createMethodCall(pos Pos, base Expr, methodName string, args []Expr) *CallExpr {
@@ -2405,13 +2830,9 @@ func (r *arithOpRewriter) trackVarDeclTypes(d *VarDecl) {
 		return
 	}
 	if d.Type != nil {
-		typeName := typeExprToString(d.Type)
-		if len(typeName) > 0 && typeName[0] == '*' {
-			typeName = typeName[1:]
-		}
-		if r.typeSupportsOperators(typeName) {
-			for _, n := range d.NameList {
-				r.varTypes[n.Value] = typeName
+		for _, n := range d.NameList {
+			if n != nil {
+				r.bindVarType(n.Value, d.Type)
 			}
 		}
 		return
@@ -2426,13 +2847,9 @@ func (r *arithOpRewriter) trackConstDeclTypes(d *ConstDecl) {
 		return
 	}
 	if d.Type != nil {
-		typeName := typeExprToString(d.Type)
-		if len(typeName) > 0 && typeName[0] == '*' {
-			typeName = typeName[1:]
-		}
-		if r.typeSupportsOperators(typeName) {
-			for _, n := range d.NameList {
-				r.varTypes[n.Value] = typeName
+		for _, n := range d.NameList {
+			if n != nil {
+				r.bindVarType(n.Value, d.Type)
 			}
 		}
 		return
@@ -2499,6 +2916,33 @@ func (r *arithOpRewriter) tryInferStructTypeName(expr Expr) string {
 			return t
 		}
 		return ""
+	case *SelectorExpr:
+		// Infer v.X via the (syntactic) struct type declaration, if available.
+		if e.X == nil || e.Sel == nil {
+			return ""
+		}
+		baseVar, ok := e.X.(*Name)
+		if !ok || baseVar == nil {
+			return ""
+		}
+		baseType, ok := r.varTypes[baseVar.Value]
+		if !ok || baseType == "" {
+			return ""
+		}
+		info, ok := r.genericTypes[baseType]
+		if !ok || info.fieldTypeExpr == nil {
+			return ""
+		}
+		ft, ok := info.fieldTypeExpr[e.Sel.Value]
+		if !ok || ft == nil {
+			return ""
+		}
+		// If v is an instantiated generic type, substitute type params.
+		if args, ok := r.varTypeArgs[baseVar.Value]; ok && len(args) > 0 {
+			return r.substTypeParamsInFieldType(baseType, ft, args)
+		}
+		// Otherwise, return as-written (e.g. "T").
+		return baseTypeNameFromTypeExpr(ft)
 	case *ParenExpr:
 		return r.tryInferStructTypeName(e.X)
 	case *Operation:
@@ -2526,11 +2970,7 @@ func (r *arithOpRewriter) tryInferStructTypeName(expr Expr) string {
 		}
 	case *CompositeLit:
 		if e.Type != nil {
-			t := typeExprToString(e.Type)
-			if len(t) > 0 && t[0] == '*' {
-				t = t[1:]
-			}
-			return t
+			return baseTypeNameFromTypeExpr(e.Type)
 		}
 		return ""
 	case *CallExpr:
@@ -2549,11 +2989,7 @@ func (r *arithOpRewriter) tryInferStructTypeName(expr Expr) string {
 		}
 		if name, ok := e.Fun.(*Name); ok {
 			if name.Value == "make" && len(e.ArgList) > 0 {
-				t := typeExprToString(e.ArgList[0])
-				if len(t) > 0 && t[0] == '*' {
-					t = t[1:]
-				}
-				return t
+				return baseTypeNameFromTypeExpr(e.ArgList[0])
 			}
 			if rt, ok := r.funcReturnTypes[name.Value]; ok {
 				return rt
@@ -2562,6 +2998,77 @@ func (r *arithOpRewriter) tryInferStructTypeName(expr Expr) string {
 		return ""
 	default:
 		return ""
+	}
+}
+
+func (r *arithOpRewriter) substTypeParamsInFieldType(baseType string, fieldType Expr, args []Expr) string {
+	info, ok := r.genericTypes[baseType]
+	if !ok || len(info.paramNames) == 0 {
+		return baseTypeNameFromTypeExpr(fieldType)
+	}
+	// If the field type is a single type parameter name, substitute directly.
+	if n, ok := fieldType.(*Name); ok && n != nil {
+		for i, pn := range info.paramNames {
+			if pn == n.Value && i < len(args) {
+				return baseTypeNameFromTypeExpr(args[i])
+			}
+		}
+	}
+	// Fallback to base name.
+	return baseTypeNameFromTypeExpr(fieldType)
+}
+
+func baseTypeNameFromTypeExpr(expr Expr) string {
+	if expr == nil {
+		return ""
+	}
+	// Strip pointer/parens.
+	for {
+		switch e := expr.(type) {
+		case *ParenExpr:
+			expr = e.X
+			continue
+		case *Operation:
+			if e.Y == nil && (e.Op == Mul || e.Op == And) {
+				expr = e.X
+				continue
+			}
+		}
+		break
+	}
+	// For instantiated generic types, use the base name.
+	if ix, ok := expr.(*IndexExpr); ok && ix != nil {
+		if n, ok := ix.X.(*Name); ok && n != nil {
+			return n.Value
+		}
+		return typeExprToString(ix.X)
+	}
+	if n, ok := expr.(*Name); ok && n != nil {
+		return n.Value
+	}
+	return typeExprToString(expr)
+}
+
+func (r *arithOpRewriter) bindVarType(varName string, typeExpr Expr) {
+	if varName == "" || typeExpr == nil {
+		return
+	}
+	base, args := splitGenericTypeExpr(typeExpr)
+	if base == "" {
+		return
+	}
+	if !r.typeSupportsOperators(base) && r.lookupTypeParamCapsByTypeName(base) == nil {
+		// Still record the base name if it is a generic type (selector inference needs it),
+		// even if the type itself doesn't overload operators.
+		if _, ok := r.genericTypes[base]; !ok {
+			return
+		}
+	}
+	r.varTypes[varName] = base
+	if len(args) > 0 {
+		r.varTypeArgs[varName] = args
+	} else {
+		delete(r.varTypeArgs, varName)
 	}
 }
 
@@ -2586,7 +3093,7 @@ func (r *arithOpRewriter) methodReturnsReceiverType(recvType string, baseMagic s
 			continue
 		}
 		rt := typeExprToString(res.Type)
-		if rt == recvType {
+		if stripGenericArgs(rt) == stripGenericArgs(recvType) {
 			return true
 		}
 		// Allow *T returning to infer T.

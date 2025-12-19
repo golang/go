@@ -2064,6 +2064,174 @@ func (w *writer) expr(expr syntax.Expr) {
 		w.implicitConvExpr(commonType, expr.Y)
 
 	case *syntax.CallExpr:
+		// Lower synthetic magic method calls on numeric basic types into real
+		// binary operations in export data.
+		//
+		// This pairs with types2 synthesizing `_add/_sub/_mul/_div` on numeric
+		// basic types so that generic constraints like `interface{ _add(T) T }`
+		// can accept int/float64/etc. Without this lowering, the second (gc)
+		// typecheck pass would see calls like `int._add(int)` and fail.
+		if !expr.HasDots && len(expr.ArgList) == 1 {
+			if sel, ok := syntax.Unparen(expr.Fun).(*syntax.SelectorExpr); ok && sel != nil && sel.Sel != nil {
+				name := sel.Sel.Value
+				var op syntax.Operator
+				swap := false
+
+				switch name {
+				// 算术 (Arithmetic)
+				case "_add":
+					op = syntax.Add
+				case "_sub":
+					op = syntax.Sub
+				case "_mul":
+					op = syntax.Mul
+				case "_div":
+					op = syntax.Div
+				case "_mod":
+					op = syntax.Rem // 注意：取模通常对应 Rem
+
+				// 算术反向 (Reverse)
+				case "_radd":
+					op, swap = syntax.Add, true
+				case "_rsub":
+					op, swap = syntax.Sub, true
+				case "_rmul":
+					op, swap = syntax.Mul, true
+				case "_rdiv":
+					op, swap = syntax.Div, true
+				case "_rmod":
+					op, swap = syntax.Rem, true
+
+				// 位运算 (Bitwise)
+				case "_and":
+					op = syntax.And
+				case "_or":
+					op = syntax.Or
+				case "_xor":
+					op = syntax.Xor
+				case "_bitclear":
+					op = syntax.AndNot // &^ 对应 AndNot
+
+				// 位运算反向
+				case "_rand":
+					op, swap = syntax.And, true
+				case "_ror":
+					op, swap = syntax.Or, true
+				case "_rxor":
+					op, swap = syntax.Xor, true
+				case "_rbitclear":
+					op, swap = syntax.AndNot, true
+
+				// 移位 (Shifts)
+				case "_lshift":
+					op = syntax.Shl
+				case "_rshift":
+					op = syntax.Shr
+				case "_rlshift":
+					op, swap = syntax.Shl, true
+				case "_rrshift":
+					op, swap = syntax.Shr, true
+
+				// 比较 (Comparisons) - 新增支持
+				case "_eq":
+					op = syntax.Eql
+				case "_ne":
+					op = syntax.Neq
+				case "_lt":
+					op = syntax.Lss
+				case "_le":
+					op = syntax.Leq
+				case "_gt":
+					op = syntax.Gtr
+				case "_ge":
+					op = syntax.Geq
+				}
+
+				if op != 0 {
+					recvTyp := w.p.typeOf(sel.X)
+
+					// 【修改点】：检查 IsNumeric 或 IsString
+					// 注意：这里需要确保你引用的 types2 包能访问到这些常量
+					b, _ := types2.CoreType(recvTyp).(*types2.Basic)
+					if b != nil {
+						info := b.Info()
+						isNumeric := info&types2.IsNumeric != 0
+						isString := info&types2.IsString != 0
+
+						// 只有数值或字符串才进行降级
+						if isNumeric || isString {
+							// 确定公共类型 (Common Type) 用于隐式转换
+							argTyp := w.p.typeOf(expr.ArgList[0])
+							var commonType types2.Type
+
+							// 简单的类型推导策略
+							switch {
+							case types2.AssignableTo(recvTyp, argTyp):
+								commonType = argTyp
+							case types2.AssignableTo(argTyp, recvTyp):
+								commonType = recvTyp
+							default:
+								commonType = recvTyp
+							}
+
+							// 生成二元操作指令
+							w.Code(exprBinaryOp)
+							w.op(binOps[op]) // 确保 binOps 数组里映射了所有新加的 Operator
+
+							if swap {
+								w.implicitConvExpr(commonType, expr.ArgList[0])
+								w.pos(expr)
+								w.implicitConvExpr(commonType, sel.X)
+							} else {
+								w.implicitConvExpr(commonType, sel.X)
+								w.pos(expr)
+								w.implicitConvExpr(commonType, expr.ArgList[0])
+							}
+							break // 处理完毕，跳出 switch
+						}
+					}
+				}
+			}
+		}
+
+		// --- 第二部分：处理一元运算 (Unary Ops) ---
+		// 新增代码：因为 _neg, _invert 没有参数，len(ArgList) == 0
+		if !expr.HasDots && len(expr.ArgList) == 0 {
+			if sel, ok := syntax.Unparen(expr.Fun).(*syntax.SelectorExpr); ok && sel != nil && sel.Sel != nil {
+				name := sel.Sel.Value
+				var op syntax.Operator
+
+				switch name {
+				case "_pos":
+					op = syntax.Add // +a (Unary Add)
+				case "_neg":
+					op = syntax.Sub // -a (Unary Sub)
+				case "_invert":
+					op = syntax.Xor // ^a (Unary Xor)
+					// case "_not": op = syntax.Not // !a (如果支持 bool 取反)
+				}
+
+				if op != 0 {
+					recvTyp := w.p.typeOf(sel.X)
+					b, _ := types2.CoreType(recvTyp).(*types2.Basic)
+
+					// 一元运算通常只针对数值 (IsNumeric)
+					// String 不支持一元运算
+					if b != nil && (b.Info()&types2.IsNumeric != 0) {
+
+						// 生成一元操作指令
+						// 注意：这里调用 exprUnaryOp 而不是 exprBinaryOp
+						w.Code(exprUnaryOp)
+						w.op(unOps[op]) // 确保 unOps 数组里有映射
+
+						w.pos(expr)
+						w.implicitConvExpr(recvTyp, sel.X)
+						break
+					}
+				}
+			}
+		}
+
 		tv := w.p.typeAndValue(expr.Fun)
 		if tv.IsType() {
 			assert(len(expr.ArgList) == 1)
