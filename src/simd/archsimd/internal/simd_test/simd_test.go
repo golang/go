@@ -225,6 +225,10 @@ func TestShiftAll(t *testing.T) {
 }
 
 func TestSlicesInt8(t *testing.T) {
+	if !archsimd.X86.AVX2() {
+		t.Skip("Test requires X86.AVX2, not available on this hardware")
+		return
+	}
 	a := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
 		17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
 	v := archsimd.LoadInt8x32Slice(a)
@@ -258,6 +262,10 @@ func TestSlicesInt8GetElem(t *testing.T) {
 }
 
 func TestSlicesInt8TooShortLoad(t *testing.T) {
+	if !archsimd.X86.AVX2() {
+		t.Skip("Test requires X86.AVX2, not available on this hardware")
+		return
+	}
 	defer func() {
 		if r := recover(); r != nil {
 			t.Logf("Saw EXPECTED panic %v", r)
@@ -274,6 +282,10 @@ func TestSlicesInt8TooShortLoad(t *testing.T) {
 }
 
 func TestSlicesInt8TooShortStore(t *testing.T) {
+	if !archsimd.X86.AVX2() {
+		t.Skip("Test requires X86.AVX2, not available on this hardware")
+		return
+	}
 	defer func() {
 		if r := recover(); r != nil {
 			t.Logf("Saw EXPECTED panic %v", r)
@@ -303,6 +315,10 @@ func TestSlicesFloat64(t *testing.T) {
 
 // TODO: try to reduce this test to be smaller.
 func TestMergeLocals(t *testing.T) {
+	if !archsimd.X86.AVX2() {
+		t.Skip("Test requires X86.AVX2, not available on this hardware")
+		return
+	}
 	testMergeLocalswrapper(t, archsimd.Int64x4.Add)
 }
 
@@ -385,6 +401,10 @@ func TestBitMaskToBitsStore(t *testing.T) {
 }
 
 func TestMergeFloat(t *testing.T) {
+	if !archsimd.X86.AVX2() {
+		t.Skip("Test requires X86.AVX2, not available on this hardware")
+		return
+	}
 	k := make([]int64, 4, 4)
 	s := make([]float64, 4, 4)
 
@@ -472,6 +492,10 @@ func TestBroadcastUint16x8(t *testing.T) {
 }
 
 func TestBroadcastInt8x32(t *testing.T) {
+	if !archsimd.X86.AVX2() {
+		t.Skip("Test requires X86.AVX2, not available on this hardware")
+		return
+	}
 	s := make([]int8, 32, 32)
 	archsimd.BroadcastInt8x32(-123).StoreSlice(s)
 	checkSlices(t, s, []int8{-123, -123, -123, -123, -123, -123, -123, -123,
@@ -1105,6 +1129,10 @@ func TestSelectTernOptInt32x16(t *testing.T) {
 }
 
 func TestMaskedMerge(t *testing.T) {
+	if !archsimd.X86.AVX2() {
+		t.Skip("Test requires X86.AVX2, not available on this hardware")
+		return
+	}
 	x := archsimd.LoadInt64x4Slice([]int64{1, 2, 3, 4})
 	y := archsimd.LoadInt64x4Slice([]int64{5, 6, 1, 1})
 	z := archsimd.LoadInt64x4Slice([]int64{-1, -2, -3, -4})
@@ -1132,6 +1160,10 @@ func TestPermuteScalars(t *testing.T) {
 }
 
 func TestPermuteScalarsGrouped(t *testing.T) {
+	if !archsimd.X86.AVX2() {
+		t.Skip("Test requires X86.AVX2, not available on this hardware")
+		return
+	}
 	x := []int32{11, 12, 13, 14, 21, 22, 23, 24}
 	want := []int32{12, 13, 14, 11, 22, 23, 24, 21}
 	got := make([]int32, 8)
@@ -1156,6 +1188,10 @@ func TestPermuteScalarsLo(t *testing.T) {
 }
 
 func TestPermuteScalarsHiGrouped(t *testing.T) {
+	if !archsimd.X86.AVX2() {
+		t.Skip("Test requires X86.AVX2, not available on this hardware")
+		return
+	}
 	x := []int16{-1, -2, -3, -4, 11, 12, 13, 14, -11, -12, -13, -14, 111, 112, 113, 114}
 	want := []int16{-1, -2, -3, -4, 12, 13, 14, 11, -11, -12, -13, -14, 112, 113, 114, 111}
 	got := make([]int16, len(x))
@@ -1164,6 +1200,10 @@ func TestPermuteScalarsHiGrouped(t *testing.T) {
 }
 
 func TestPermuteScalarsLoGrouped(t *testing.T) {
+	if !archsimd.X86.AVX2() {
+		t.Skip("Test requires X86.AVX2, not available on this hardware")
+		return
+	}
 	x := []int16{11, 12, 13, 14, 4, 5, 6, 7, 111, 112, 113, 114, 14, 15, 16, 17}
 	want := []int16{12, 13, 14, 11, 4, 5, 6, 7, 112, 113, 114, 111, 14, 15, 16, 17}
 	got := make([]int16, len(x))

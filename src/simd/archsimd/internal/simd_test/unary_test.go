@@ -69,20 +69,26 @@ func TestSqrt(t *testing.T) {
 
 func TestNot(t *testing.T) {
 	testInt8x16Unary(t, archsimd.Int8x16.Not, map1[int8](not))
-	testInt8x32Unary(t, archsimd.Int8x32.Not, map1[int8](not))
 	testInt16x8Unary(t, archsimd.Int16x8.Not, map1[int16](not))
-	testInt16x16Unary(t, archsimd.Int16x16.Not, map1[int16](not))
 	testInt32x4Unary(t, archsimd.Int32x4.Not, map1[int32](not))
-	testInt32x8Unary(t, archsimd.Int32x8.Not, map1[int32](not))
+
+	if archsimd.X86.AVX2() {
+		testInt8x32Unary(t, archsimd.Int8x32.Not, map1[int8](not))
+		testInt16x16Unary(t, archsimd.Int16x16.Not, map1[int16](not))
+		testInt32x8Unary(t, archsimd.Int32x8.Not, map1[int32](not))
+	}
 }
 
 func TestAbsolute(t *testing.T) {
 	testInt8x16Unary(t, archsimd.Int8x16.Abs, map1[int8](abs))
-	testInt8x32Unary(t, archsimd.Int8x32.Abs, map1[int8](abs))
 	testInt16x8Unary(t, archsimd.Int16x8.Abs, map1[int16](abs))
-	testInt16x16Unary(t, archsimd.Int16x16.Abs, map1[int16](abs))
 	testInt32x4Unary(t, archsimd.Int32x4.Abs, map1[int32](abs))
-	testInt32x8Unary(t, archsimd.Int32x8.Abs, map1[int32](abs))
+
+	if archsimd.X86.AVX2() {
+		testInt8x32Unary(t, archsimd.Int8x32.Abs, map1[int8](abs))
+		testInt16x16Unary(t, archsimd.Int16x16.Abs, map1[int16](abs))
+		testInt32x8Unary(t, archsimd.Int32x8.Abs, map1[int32](abs))
+	}
 	if archsimd.X86.AVX512() {
 		testInt8x64Unary(t, archsimd.Int8x64.Abs, map1[int8](abs))
 		testInt16x32Unary(t, archsimd.Int16x32.Abs, map1[int16](abs))
