@@ -3088,31 +3088,22 @@ func baseTypeNameFromTypeExpr(expr Expr) string {
 	if expr == nil {
 		return ""
 	}
-	// Strip pointer/parens.
-	for {
-		switch e := expr.(type) {
-		case *ParenExpr:
-			expr = e.X
-			continue
-		case *Operation:
-			if e.Y == nil && (e.Op == Mul || e.Op == And) {
-				expr = e.X
-				continue
-			}
+	switch e := expr.(type) {
+	case *Name:
+		return e.Value
+	case *IndexExpr:
+		// 泛型实例化 GBox[int] 或 定义 GBox[T]
+		// e.X 是 GBox
+		return baseTypeNameFromTypeExpr(e.X)
+	case *Operation:
+		// 指针 *T
+		if e.Op == Mul && e.Y == nil {
+			return baseTypeNameFromTypeExpr(e.X)
 		}
-		break
+	case *ParenExpr:
+		return baseTypeNameFromTypeExpr(e.X)
 	}
-	// For instantiated generic types, use the base name.
-	if ix, ok := expr.(*IndexExpr); ok && ix != nil {
-		if n, ok := ix.X.(*Name); ok && n != nil {
-			return n.Value
-		}
-		return typeExprToString(ix.X)
-	}
-	if n, ok := expr.(*Name); ok && n != nil {
-		return n.Value
-	}
-	return typeExprToString(expr)
+	return ""
 }
 
 func (r *arithOpRewriter) bindVarType(varName string, typeExpr Expr) {
@@ -3600,8 +3591,9 @@ func typesMatch(paramType, argType string) bool {
 // Note: This should run AFTER method overloading and default params,
 // so _init methods have already been renamed and modified.
 func RewriteConstructors(file *File) {
-	// Step 1: Find all types with _init methods (including overloaded/renamed ones)
-	initMethods := make(map[string][]*FuncDecl) // typename -> list of _init methods
+	// Step 1: Find all types with _init methods
+	// Key 是基础类型名，例如 "GBox" (而不是 "GBox[T]")
+	initMethods := make(map[string][]*FuncDecl)
 
 	for _, decl := range file.DeclList {
 		fn, ok := decl.(*FuncDecl)
@@ -3609,25 +3601,21 @@ func RewriteConstructors(file *File) {
 			continue
 		}
 
-		// Check if method name is "_init" or starts with "_init_" (overloaded)
 		methodName := fn.Name.Value
+		// Check if method name is "_init" or starts with "_init_"
 		if methodName != "_init" && (len(methodName) < 6 || methodName[:6] != "_init_") {
 			continue
 		}
 
-		// Get receiver type name
-		recvType := typeExprToString(fn.Recv.Type)
-		// Remove * prefix if pointer receiver
-		if len(recvType) > 0 && recvType[0] == '*' {
-			recvType = recvType[1:]
-		}
+		// 【关键修复】使用辅助函数提取基础名
+		// 这样 func (b *GBox[T]) ... 就会被注册到 "GBox" 下
+		recvType := baseTypeNameFromTypeExpr(fn.Recv.Type)
 
-		initMethods[recvType] = append(initMethods[recvType], fn)
+		if recvType != "" {
+			initMethods[recvType] = append(initMethods[recvType], fn)
+		}
 	}
 
-	// Step 2: NO NEED to modify _init methods - they've already been processed by other rewriters
-
-	// Step 3: Rewrite constructor calls
 	if len(initMethods) > 0 {
 		rewriter := &constructorRewriter{initMethods: initMethods}
 		rewriter.rewriteFile(file)
@@ -3725,6 +3713,42 @@ func (r *constructorRewriter) rewriteSimpleStmt(stmt SimpleStmt) SimpleStmt {
 	return stmt
 }
 
+// getTypeParamsFromReceiver extracts type parameter names from the receiver type.
+// e.g. func (r *GBox[T, U]) -> returns {"T": true, "U": true}
+func getTypeParamsFromReceiver(fn *FuncDecl) map[string]bool {
+	if fn.Recv == nil || fn.Recv.Type == nil {
+		return nil
+	}
+
+	// 1. Peel pointer (*GBox[T] -> GBox[T])
+	expr := fn.Recv.Type
+	if op, ok := expr.(*Operation); ok && op.Op == Mul {
+		expr = op.X
+	}
+
+	// 2. Check for IndexExpr (GBox[T])
+	if idx, ok := expr.(*IndexExpr); ok {
+		tparams := make(map[string]bool)
+
+		// Unpack list (T, U) or single (T)
+		var args []Expr
+		if list, ok := idx.Index.(*ListExpr); ok {
+			args = list.ElemList
+		} else {
+			args = []Expr{idx.Index}
+		}
+
+		for _, arg := range args {
+			if name, ok := arg.(*Name); ok {
+				tparams[name.Value] = true
+			}
+		}
+		return tparams
+	}
+
+	return nil
+}
+
 func (r *constructorRewriter) rewriteExpr(expr Expr) Expr {
 	if expr == nil {
 		return nil
@@ -3737,16 +3761,23 @@ func (r *constructorRewriter) rewriteExpr(expr Expr) Expr {
 		if makeName, ok := e.Fun.(*Name); ok && makeName.Value == "make" {
 			// This is a make call
 			if len(e.ArgList) > 0 {
-				// First argument should be the type name
-				if typeName, ok := e.ArgList[0].(*Name); ok {
-					typeNameStr := typeName.Value
-					// Check if this type has an _init method
-					if _, hasInit := r.initMethods[typeNameStr]; hasInit {
-						// Extract constructor arguments (skip the first arg which is the type)
-						constructorArgs := e.ArgList[1:]
-						// Rewrite: make(TypeName, args...) -> (&TypeName{})._init(args...)
-						return r.rewriteConstructorCallWithArgs(e, typeNameStr, constructorArgs)
+				// make 的第一个参数是类型
+				typeExpr := e.ArgList[0]
+
+				// make(GBox[int], ...) -> typeExpr 是 IndexExpr -> baseName 是 "GBox"
+				// make(Person, ...)    -> typeExpr 是 Name      -> baseName 是 "Person"
+				baseName := baseTypeNameFromTypeExpr(typeExpr)
+
+				// 查表：如果这个基础类型有 _init 方法
+				if _, hasInit := r.initMethods[baseName]; hasInit {
+					constructorArgs := e.ArgList[1:]
+
+					// 递归重写参数 (防止参数里也有 make 调用)
+					for i, arg := range constructorArgs {
+						constructorArgs[i] = r.rewriteExpr(arg)
 					}
+
+					return r.rewriteConstructorCallWithArgs(e, typeExpr, constructorArgs, baseName)
 				}
 			}
 		}
@@ -3789,45 +3820,50 @@ func (r *constructorRewriter) rewriteExpr(expr Expr) Expr {
 	}
 }
 
-func (r *constructorRewriter) rewriteConstructorCall(call *CallExpr, typeName string) Expr {
-	return r.rewriteConstructorCallWithArgs(call, typeName, call.ArgList)
-}
-
-func (r *constructorRewriter) rewriteConstructorCallWithArgs(call *CallExpr, typeName string, args []Expr) Expr {
+// rewriteConstructorCallWithArgs generates (&Type{})._init(...)
+// typeNode: The full type expression (e.g. GBox[int] or Person)
+// baseName: The base type name (e.g. GBox or Person) for method lookup
+func (r *constructorRewriter) rewriteConstructorCallWithArgs(call *CallExpr, typeNode Expr, args []Expr, baseName string) Expr {
 	pos := call.Pos()
 
-	// Get init methods for this type
-	methods := r.initMethods[typeName]
+	// 1. Get init methods
+	methods := r.initMethods[baseName]
 	if len(methods) == 0 {
-		return call // Should not happen
+		return call
 	}
 
-	// Determine which _init method to call
+	// 2. Overload Resolution
 	var methodName string
 	if len(methods) == 1 {
-		// Only one _init method
 		methodName = methods[0].Name.Value
 	} else {
-		// Multiple _init methods (overloaded) - need to find the right one
-		// Use simple type inference based on argument literals
 		argTypes := make([]string, len(args))
 		for i, arg := range args {
 			argTypes[i] = inferLiteralType(arg)
 		}
 
-		// Find matching method
 		for _, method := range methods {
 			paramTypes := getParamTypeStrings(method.Type.ParamList)
 
-			// Check if argument count matches (considering MinArgs/MaxArgs would be ideal)
+			// Step A: Check arg count
 			if len(argTypes) != len(paramTypes) {
 				continue
 			}
 
-			// Check if types match
+			// Step B: Get generic type params (e.g. "T") to allow loose matching
+			tparams := getTypeParamsFromReceiver(method)
+
 			match := true
 			for i := 0; i < len(argTypes); i++ {
-				if !typeMatchesPre(paramTypes[i], argTypes[i]) {
+				pType := paramTypes[i]
+				aType := argTypes[i]
+
+				// 【核心修改】如果参数类型是泛型参数之一 (如 "T")，则匹配任意实参
+				if tparams != nil && tparams[pType] {
+					continue
+				}
+
+				if !typeMatchesPre(pType, aType) {
 					match = false
 					break
 				}
@@ -3839,39 +3875,32 @@ func (r *constructorRewriter) rewriteConstructorCallWithArgs(call *CallExpr, typ
 			}
 		}
 
-		// If no match found, use the first one (will fail at type checking)
+		// Fallback
 		if methodName == "" {
 			methodName = methods[0].Name.Value
 		}
 	}
 
-	// Create: &TypeName{}
-	typeNameExpr := NewName(pos, typeName)
-
-	// Create composite literal: TypeName{}
+	// 3. Construct AST
 	compositeLit := new(CompositeLit)
 	compositeLit.SetPos(pos)
-	compositeLit.Type = typeNameExpr
-	compositeLit.ElemList = nil // empty
+	compositeLit.Type = typeNode
+	compositeLit.ElemList = nil
 
-	// Create address-of operation: &TypeName{}
 	addrOp := new(Operation)
 	addrOp.SetPos(pos)
 	addrOp.Op = And
 	addrOp.X = compositeLit
 
-	// Wrap in parentheses: (&TypeName{})
 	parenExpr := new(ParenExpr)
 	parenExpr.SetPos(pos)
 	parenExpr.X = addrOp
 
-	// Create selector: (&TypeName{})._init or (&TypeName{})._init_xxx
 	selector := new(SelectorExpr)
 	selector.SetPos(pos)
 	selector.X = parenExpr
 	selector.Sel = NewName(pos, methodName)
 
-	// Create call: (&TypeName{})._init(args)
 	newCall := new(CallExpr)
 	newCall.SetPos(pos)
 	newCall.Fun = selector
