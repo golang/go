@@ -199,6 +199,86 @@ func main() {
 }
 ```
 
+### 1.7 适配不同参数数量的装饰器的最佳时间
+
+可以使用`reflect`来实现
+
+```go
+package main
+
+import (
+	"fmt"
+	"reflect"
+	"time"
+)
+
+// 通用计时装饰器
+// T 可以是任意函数类型
+func TimeIt[T any](f T) T {
+	// 1. 获取函数的反射值和类型
+	fnVal := reflect.ValueOf(f)
+	fnType := fnVal.Type()
+
+	// 确保传入的是一个函数
+	if fnType.Kind() != reflect.Func {
+		panic("TimeIt decorator requires a function")
+	}
+
+	// 2. 使用 MakeFunc 创建一个新的函数
+	// MakeFunc 创建一个具有给定类型 fnType 的新函数
+	// 当该函数被调用时，它会执行传入的匿名函数 (args []reflect.Value) []reflect.Value
+	wrapper := reflect.MakeFunc(fnType, func(args []reflect.Value) []reflect.Value {
+		start := time.Now()
+
+		// 3. 调用原始函数
+		// 注意：这里会有一定的反射性能开销，但在大多数业务逻辑中可以忽略
+		results := fnVal.Call(args)
+
+		elapsed := time.Since(start)
+		fmt.Printf("==> 执行耗时: %v\n", elapsed)
+
+		return results
+	})
+
+	// 4. 将创建的反射值转换回 T 类型并返回
+	return wrapper.Interface().(T)
+}
+
+// 装饰器：两个参数
+@TimeIt
+func add(x, y int) int {
+	time.Sleep(50 * time.Millisecond)
+	return x + y
+}
+
+// 装饰器：一个参数
+@TimeIt
+func inverse(x int) int {
+	time.Sleep(50 * time.Millisecond)
+	return 100 / x
+}
+
+// 装饰器：无参数，无返回值
+@TimeIt
+func sayHello() {
+	fmt.Println("Hello MyGO!")
+}
+
+func main() {
+	fmt.Println("--- Test 1: Add ---")
+	r1 := add(3, 5)
+	fmt.Println("Result:", r1)
+
+	fmt.Println("\n--- Test 2: Inverse ---")
+	r2 := inverse(2)
+	fmt.Println("Result:", r2)
+
+	fmt.Println("\n--- Test 3: Void ---")
+	sayHello()
+}
+```
+
+
 ## 2. 函数默认参数
 
 支持为函数参数设置默认值，调用时可省略有默认值的参数。
