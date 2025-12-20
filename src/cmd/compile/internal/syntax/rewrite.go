@@ -1844,14 +1844,6 @@ func (r *arithOpRewriter) analyzeTypeDecl(d *TypeDecl) {
 	}
 }
 
-func isComparisonMagicMethodName(name string) bool {
-	switch name {
-	case "_eq", "_ne", "_lt", "_le", "_gt", "_ge":
-		return true
-	}
-	return false
-}
-
 type operatorCaps struct {
 	methods     map[string]bool
 	returnsSelf map[string]bool
@@ -2167,9 +2159,6 @@ func (r *arithOpRewriter) extractCapsFromAnonymousInterface(iface *InterfaceType
 		// 检查是否是算术魔法方法
 		if isArithmeticMagicMethodName(methodName) {
 			baseOp = operatorMagicBaseName(methodName)
-		} else if isComparisonMagicMethodName(methodName) {
-			// 检查是否是比较魔法方法
-			baseOp = operatorMagicBaseName(methodName)
 		} else {
 			continue
 		}
@@ -2220,8 +2209,6 @@ func (r *arithOpRewriter) extractCapsFromStructType(typeName string) *operatorCa
 	for methodName := range methodMap {
 		baseOp := ""
 		if isArithmeticMagicMethodName(methodName) {
-			baseOp = operatorMagicBaseName(methodName)
-		} else if isComparisonMagicMethodName(methodName) {
 			baseOp = operatorMagicBaseName(methodName)
 		} else {
 			continue
