@@ -185,6 +185,17 @@ func (r regMask) empty() bool {
 	return r.v1 == 0 && r.v2 == 0
 }
 
+func (r regMask) pickReg() register {
+	if r.empty() {
+		panic("can't pick a register from an empty set")
+	}
+	// pick the lowest one
+	if r.v1 != 0 {
+		return register(bits.TrailingZeros64(r.v1))
+	}
+	return register(bits.TrailingZeros64(r.v2) + 64)
+}
+
 func regMaskAt(i register) regMask {
 	if i < 64 {
 		return regMask{v1: 1 << i}
@@ -248,16 +259,16 @@ func countRegs(r regMask) int {
 	return bits.OnesCount64(r.v1) + bits.OnesCount64(r.v2)
 }
 
-// pickReg picks an arbitrary register from the register mask.
-func pickReg(r regMask) register {
-	if r.empty() {
-		panic("can't pick a register from an empty set")
+// pickReg picks a register from the register mask.
+func (s *regAllocState) pickReg(rm regMask) register {
+	if s.f.Config.ctxt.Arch.Arch == sys.ArchRISCV64 {
+		// Prefer x8-x15 and f8-f15 to enable increased use of compressed instructions.
+		riscv64CompressedMask := rm.intersect(regMask{v1: 0x0000ff000000ff00})
+		if !riscv64CompressedMask.empty() {
+			rm = riscv64CompressedMask
+		}
 	}
-	// pick the lowest one
-	if r.v1 != 0 {
-		return register(bits.TrailingZeros64(r.v1))
-	}
-	return register(bits.TrailingZeros64(r.v2) + 64)
+	return rm.pickReg()
 }
 
 type use struct {
@@ -420,7 +431,7 @@ func (s *regAllocState) freeReg(r register) {
 // freeRegs frees up all registers listed in m.
 func (s *regAllocState) freeRegs(m regMask) {
 	for !m.intersect(s.used).empty() {
-		s.freeReg(pickReg(m.intersect(s.used)))
+		s.freeReg(s.pickReg(m.intersect(s.used)))
 	}
 }
 
@@ -428,7 +439,7 @@ func (s *regAllocState) freeRegs(m regMask) {
 func (s *regAllocState) clobberRegs(m regMask) {
 	m = m.intersect(s.allocatable.intersect(s.f.Config.gpRegMask)) // only integer register can contain pointers, only clobber them
 	for !m.empty() {
-		r := pickReg(m)
+		r := s.pickReg(m)
 		m = m.removeReg(r)
 		x := s.curBlock.NewValue0(src.NoXPos, OpClobberReg, types.TypeVoid)
 		s.f.setHome(x, &s.registers[r])
@@ -490,7 +501,7 @@ func (s *regAllocState) allocReg(mask regMask, v *Value) register {
 
 	// Pick an unused register if one is available.
 	if !mask.minus(s.used).empty() {
-		r := pickReg(mask.minus(s.used))
+		r := s.pickReg(mask.minus(s.used))
 		s.usedSinceBlockStart = s.usedSinceBlockStart.addReg(r)
 		return r
 	}
@@ -537,7 +548,7 @@ func (s *regAllocState) allocReg(mask regMask, v *Value) register {
 	m := s.compatRegs(v2.Type).minus(s.used).minus(s.tmpused).removeReg(r)
 	if !m.empty() && !s.values[v2.ID].rematerializeable && countRegs(s.values[v2.ID].regs) == 1 {
 		s.usedSinceBlockStart = s.usedSinceBlockStart.addReg(r)
-		r2 := pickReg(m)
+		r2 := s.pickReg(m)
 		c := s.curBlock.NewValue1(v2.Pos, OpCopy, v2.Type, s.regs[r].c)
 		s.copies[c] = false
 		if s.f.pass.debug > regDebug {
@@ -608,7 +619,7 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos 
 	// Check if v is already in a requested register.
 	if !mask.intersect(vi.regs).empty() {
 		mask = mask.intersect(vi.regs)
-		r := pickReg(mask)
+		r := s.pickReg(mask)
 		if mask.hasReg(s.SPReg) {
 			// Prefer the stack pointer if it is allowed.
 			// (Needed because the op might have an Aux symbol
@@ -645,7 +656,7 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos 
 			// v is in a fixed register, prefer that
 			current = v
 		} else {
-			r2 := pickReg(vi.regs)
+			r2 := s.pickReg(vi.regs)
 			if s.regs[r2].v != v {
 				panic("bad register state")
 			}
@@ -1251,7 +1262,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				// They're not suitable for further (phi-function) allocation.
 				m := s.values[a.ID].regs.minus(phiUsed).intersect(s.allocatable)
 				if !m.empty() {
-					r := pickReg(m)
+					r := s.pickReg(m)
 					phiUsed = phiUsed.addReg(r)
 					phiRegs = append(phiRegs, r)
 				} else {
@@ -1280,7 +1291,7 @@ func (s *regAllocState) regalloc(f *Func) {
 					// them (and they are not going to be helpful anyway).
 					m := s.compatRegs(a.Type).minus(s.used).minus(phiUsed)
 					if !m.empty() && !s.values[a.ID].rematerializeable && countRegs(s.values[a.ID].regs) == 1 {
-						r2 := pickReg(m)
+						r2 := s.pickReg(m)
 						c := p.NewValue1(a.Pos, OpCopy, a.Type, s.regs[r].c)
 						s.copies[c] = false
 						if s.f.pass.debug > regDebug {
@@ -1326,7 +1337,7 @@ func (s *regAllocState) regalloc(f *Func) {
 					}
 				}
 				if !m.empty() {
-					r := pickReg(m)
+					r := s.pickReg(m)
 					phiRegs[i] = r
 					phiUsed = phiUsed.addReg(r)
 				}
@@ -1458,7 +1469,7 @@ func (s *regAllocState) regalloc(f *Func) {
 					continue
 				}
 				desired.clobber(j.regs)
-				desired.add(v.Args[j.idx].ID, pickReg(j.regs))
+				desired.add(v.Args[j.idx].ID, s.pickReg(j.regs))
 			}
 			if opcodeTable[v.Op].resultInArg0 || v.Op == OpAMD64ADDQconst || v.Op == OpAMD64ADDLconst || v.Op == OpSelect0 {
 				if opcodeTable[v.Op].commutative {
@@ -1508,7 +1519,7 @@ func (s *regAllocState) regalloc(f *Func) {
 					if countRegs(m) != 1 {
 						f.Fatalf("bad fixed-register op %s", v)
 					}
-					s.assignReg(pickReg(m), v, v)
+					s.assignReg(s.pickReg(m), v, v)
 				default:
 					f.Fatalf("unknown fixed-register op %s", v)
 				}
@@ -2848,19 +2859,19 @@ func (e *edgeState) findRegFor(typ *types.Type) Location {
 	// 4) a register holding a rematerializeable value
 	x := m.minus(e.usedRegs)
 	if !x.empty() {
-		return &e.s.registers[pickReg(x)]
+		return &e.s.registers[e.s.pickReg(x)]
 	}
 	x = m.minus(e.uniqueRegs).minus(e.finalRegs)
 	if !x.empty() {
-		return &e.s.registers[pickReg(x)]
+		return &e.s.registers[e.s.pickReg(x)]
 	}
 	x = m.minus(e.uniqueRegs)
 	if !x.empty() {
-		return &e.s.registers[pickReg(x)]
+		return &e.s.registers[e.s.pickReg(x)]
 	}
 	x = m.intersect(e.rematerializeableRegs)
 	if !x.empty() {
-		return &e.s.registers[pickReg(x)]
+		return &e.s.registers[e.s.pickReg(x)]
 	}
 
 	// No register is available.
@@ -3281,7 +3292,7 @@ func (s *regAllocState) computeDesired() {
 						continue
 					}
 					desired.clobber(j.regs)
-					desired.add(v.Args[j.idx].ID, pickReg(j.regs))
+					desired.add(v.Args[j.idx].ID, s.pickReg(j.regs))
 				}
 				// Set desired register of input 0 if this is a 2-operand instruction.
 				if opcodeTable[v.Op].resultInArg0 || v.Op == OpAMD64ADDQconst || v.Op == OpAMD64ADDLconst || v.Op == OpSelect0 {
