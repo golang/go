@@ -4675,6 +4675,9 @@ func (r *magicMethodRewriter) resolveMagicMethodOverloadWithComma(base Expr, met
 	for _, fn := range methods {
 		paramTypes := getParamTypeStrings(fn.Type.ParamList)
 
+		// Extract generic type parameter set (e.g. {"K": true, "V": true})
+		tparams := getTypeParamsFromReceiver(fn)
+
 		// Check for variadic parameter
 		isVariadic := len(paramTypes) > 0 && len(paramTypes[len(paramTypes)-1]) >= 3 &&
 			paramTypes[len(paramTypes)-1][:3] == "..."
@@ -4691,13 +4694,7 @@ func (r *magicMethodRewriter) resolveMagicMethodOverloadWithComma(base Expr, met
 				if hasComma == requiresSliceParams {
 					score += 50
 				}
-
-				candidates = append(candidates, candidate{
-					fn:                  fn,
-					paramTypes:          paramTypes,
-					score:               score,
-					requiresSliceParams: requiresSliceParams,
-				})
+				candidates = append(candidates, candidate{fn, paramTypes, score, requiresSliceParams})
 			}
 		} else {
 			// Non-variadic: exact parameter count required
@@ -4720,6 +4717,11 @@ func (r *magicMethodRewriter) resolveMagicMethodOverloadWithComma(base Expr, met
 						matchScore++
 						continue
 					}
+				}
+
+				if tparams != nil && tparams[paramTypes[i]] {
+					matchScore++
+					continue
 				}
 
 				if !typeMatchesPre(paramTypes[i], argTypes[i]) {
