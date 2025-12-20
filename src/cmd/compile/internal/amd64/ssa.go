@@ -43,6 +43,10 @@ func ssaMarkMoves(s *ssagen.State, b *ssa.Block) {
 	}
 }
 
+func isGPReg(r int16) bool {
+	return x86.REG_AL <= r && r <= x86.REG_R15
+}
+
 func isFPReg(r int16) bool {
 	return x86.REG_X0 <= r && r <= x86.REG_Z31
 }
@@ -1225,14 +1229,23 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		if v.Type.IsMemory() {
 			return
 		}
-		x := v.Args[0].Reg()
+		arg := v.Args[0]
+		x := arg.Reg()
 		y := v.Reg()
 		if v.Type.IsSIMD() {
-			x = simdOrMaskReg(v.Args[0])
+			x = simdOrMaskReg(arg)
 			y = simdOrMaskReg(v)
 		}
 		if x != y {
-			opregreg(s, moveByRegsWidth(y, x, v.Type.Size()), y, x)
+			width := v.Type.Size()
+			if width == 8 && isGPReg(y) && ssa.ZeroUpper32Bits(arg, 3) {
+				// The source was naturally zext-ed from 32 to 64 bits,
+				// but we are asked to do a full 64-bit copy.
+				// Save the REX prefix byte in I-CACHE by using a 32-bit move,
+				// since it zeroes the upper 32 bits anyway.
+				width = 4
+			}
+			opregreg(s, moveByRegsWidth(y, x, width), y, x)
 		}
 	case ssa.OpLoadReg:
 		if v.Type.IsFlags() {

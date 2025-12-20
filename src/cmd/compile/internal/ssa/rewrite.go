@@ -1351,7 +1351,7 @@ func overlap(offset1, size1, offset2, size2 int64) bool {
 // check if value zeroes out upper 32-bit of 64-bit register.
 // depth limits recursion depth. In AMD64.rules 3 is used as limit,
 // because it catches same amount of cases as 4.
-func zeroUpper32Bits(x *Value, depth int) bool {
+func ZeroUpper32Bits(x *Value, depth int) bool {
 	if x.Type.IsSigned() && x.Type.Size() < 8 {
 		// If the value is signed, it might get re-sign-extended
 		// during spill and restore. See issue 68227.
@@ -1368,6 +1368,8 @@ func zeroUpper32Bits(x *Value, depth int) bool {
 		OpAMD64SHRL, OpAMD64SHRLconst, OpAMD64SARL, OpAMD64SARLconst,
 		OpAMD64SHLL, OpAMD64SHLLconst:
 		return true
+	case OpAMD64MOVQconst:
+		return uint64(uint32(x.AuxInt)) == uint64(x.AuxInt)
 	case OpARM64REV16W, OpARM64REVW, OpARM64RBITW, OpARM64CLZW, OpARM64EXTRWconst,
 		OpARM64MULW, OpARM64MNEGW, OpARM64UDIVW, OpARM64DIVW, OpARM64UMODW,
 		OpARM64MADDW, OpARM64MSUBW, OpARM64RORW, OpARM64RORWconst:
@@ -1383,7 +1385,7 @@ func zeroUpper32Bits(x *Value, depth int) bool {
 			return false
 		}
 		for i := range x.Args {
-			if !zeroUpper32Bits(x.Args[i], depth-1) {
+			if !ZeroUpper32Bits(x.Args[i], depth-1) {
 				return false
 			}
 		}
@@ -1393,14 +1395,16 @@ func zeroUpper32Bits(x *Value, depth int) bool {
 	return false
 }
 
-// zeroUpper48Bits is similar to zeroUpper32Bits, but for upper 48 bits.
-func zeroUpper48Bits(x *Value, depth int) bool {
+// ZeroUpper48Bits is similar to ZeroUpper32Bits, but for upper 48 bits.
+func ZeroUpper48Bits(x *Value, depth int) bool {
 	if x.Type.IsSigned() && x.Type.Size() < 8 {
 		return false
 	}
 	switch x.Op {
 	case OpAMD64MOVWQZX, OpAMD64MOVWload, OpAMD64MOVWloadidx1, OpAMD64MOVWloadidx2:
 		return true
+	case OpAMD64MOVQconst, OpAMD64MOVLconst:
+		return uint64(uint16(x.AuxInt)) == uint64(x.AuxInt)
 	case OpArg: // note: but not ArgIntReg
 		return x.Type.Size() == 2 && x.Block.Func.Config.arch == "amd64"
 	case OpPhi, OpSelect0, OpSelect1:
@@ -1410,7 +1414,7 @@ func zeroUpper48Bits(x *Value, depth int) bool {
 			return false
 		}
 		for i := range x.Args {
-			if !zeroUpper48Bits(x.Args[i], depth-1) {
+			if !ZeroUpper48Bits(x.Args[i], depth-1) {
 				return false
 			}
 		}
@@ -1420,14 +1424,16 @@ func zeroUpper48Bits(x *Value, depth int) bool {
 	return false
 }
 
-// zeroUpper56Bits is similar to zeroUpper32Bits, but for upper 56 bits.
-func zeroUpper56Bits(x *Value, depth int) bool {
+// ZeroUpper56Bits is similar to ZeroUpper32Bits, but for upper 56 bits.
+func ZeroUpper56Bits(x *Value, depth int) bool {
 	if x.Type.IsSigned() && x.Type.Size() < 8 {
 		return false
 	}
 	switch x.Op {
 	case OpAMD64MOVBQZX, OpAMD64MOVBload, OpAMD64MOVBloadidx1:
 		return true
+	case OpAMD64MOVQconst, OpAMD64MOVLconst:
+		return uint64(uint8(x.AuxInt)) == uint64(x.AuxInt)
 	case OpArg: // note: but not ArgIntReg
 		return x.Type.Size() == 1 && x.Block.Func.Config.arch == "amd64"
 	case OpPhi, OpSelect0, OpSelect1:
@@ -1437,7 +1443,7 @@ func zeroUpper56Bits(x *Value, depth int) bool {
 			return false
 		}
 		for i := range x.Args {
-			if !zeroUpper56Bits(x.Args[i], depth-1) {
+			if !ZeroUpper56Bits(x.Args[i], depth-1) {
 				return false
 			}
 		}
