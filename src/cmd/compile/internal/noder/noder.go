@@ -60,8 +60,10 @@ func LoadPackage(filenames []string) {
 				// Rewrite syntax extensions to standard Go syntax
 				if p.file != nil {
 					syntax.RewriteQuestionExprs(p.file)
-					syntax.RewriteMagicMethods(p.file)        // 1. 先处理魔法方法 (_getitem, _setitem) - 必须在重载前!
-					syntax.RewriteArithmeticOperators(p.file) // 2. 处理算术运算符重载（_add/_radd/.../_inc/_dec）- 必须在重载前!
+					// 1. 统一处理魔法方法与运算符重载（共享同一套“泛型/结构体泛型”推导信息）
+					//    - _getitem/_setitem
+					//    - _add/_radd/.../_inc/_dec 等
+					syntax.RewriteMagicAndArithmetic(p.file)
 					warnPointerEqOverload(p.file)
 					p.overloadInfo = syntax.PreprocessOverloadedMethods(p.file) // 3. 处理方法重载（会重命名_init和_getitem/_setitem）
 					syntax.AddReturnToInitMethods(p.file)                       // 4. 给所有_init方法添加返回值

@@ -1639,25 +1639,7 @@ func splitFirst(s, sep string) []string {
 // when it can infer that the involved receiver type defines the corresponding
 // magic method(s) in the current file.
 func RewriteArithmeticOperators(file *File) {
-	if file == nil {
-		return
-	}
-	r := &arithOpRewriter{
-		arithMethods:    make(map[string]map[string][]*FuncDecl),
-		varTypes:        make(map[string]string),
-		funcReturnTypes: make(map[string]string),
-		genericTypes:    make(map[string]*genericTypeInfo),
-		varTypeArgs:     make(map[string][]Expr),
-	}
-
-	// 收集泛型接口的定义
-	r.collectGenericInterfaces(file)
-	// 收集泛型结构体的定义
-	r.collectGenericStructs(file)
-
-	r.collectArithmeticMethods(file)
-	r.collectFunctionReturnTypes(file)
-	r.rewriteFile(file)
+	RewriteMagicAndArithmetic(file)
 }
 
 type arithOpRewriter struct {
@@ -1680,11 +1662,64 @@ type arithOpRewriter struct {
 	// varTypeArgs maps variable name -> its (syntactic) type arguments, if it is an instantiated generic type.
 	// Example: v := Vector[int]{}  =>  varTypes["v"]="Vector", varTypeArgs["v"] = []Expr{Name("int")}
 	varTypeArgs map[string][]Expr
+
+	// magicMethods stores information about _getitem/_setitem methods for types in this file.
+	// Keyed by base receiver type name (no leading '*', no type args).
+	magicMethods map[string]*MagicMethodInfo
+}
+
+// RewriteMagicAndArithmetic runs all "magic method" rewrites (getitem/setitem)
+// and arithmetic operator rewrites in a single shared inference context.
+//
+// The motivation is to share the (best-effort) generic/struct generic inference
+// used by arithmetic rewriting with magic methods rewriting, so that index/slice
+// magic methods also work well with generic structs and type parameters.
+func RewriteMagicAndArithmetic(file *File) {
+	if file == nil {
+		return
+	}
+
+	r := &arithOpRewriter{
+		arithMethods:    make(map[string]map[string][]*FuncDecl),
+		varTypes:        make(map[string]string),
+		funcReturnTypes: make(map[string]string),
+		genericTypes:    make(map[string]*genericTypeInfo),
+		varTypeArgs:     make(map[string][]Expr),
+		magicMethods:    make(map[string]*MagicMethodInfo),
+	}
+
+	// 1) Collect generic type/interface info (shared by both rewrites).
+	r.collectGenericInterfaces(file)
+	r.collectGenericStructs(file)
+
+	// 2) Collect method inventories.
+	r.collectArithmeticMethods(file)
+	r.collectMagicMethods(file)
+	r.collectFunctionReturnTypes(file)
+
+	// 3) Rewrite magic index/slice first, then arithmetic operators.
+	if len(r.magicMethods) > 0 {
+		mr := &magicMethodRewriter{
+			arithOpRewriter:   r,
+			insideMagicMethod: false,
+		}
+		mr.rewriteFile(file)
+	}
+
+	r.rewriteFile(file)
 }
 
 type genericTypeInfo struct {
 	paramNames []string
 	paramCaps  []*operatorCaps // aligned with paramNames
+
+	// selfCaps records magic-method capabilities declared directly on a named
+	// interface itself (e.g. Indexable[T] with methods _getitem/_setitem).
+	//
+	// This is used to support constraints like:
+	//   func F[Container Indexable[Elem]](c Container) { _ = c[i] }
+	// where Container must support _getitem/_setitem regardless of how Elem maps.
+	selfCaps *operatorCaps
 
 	// fieldTypeExpr maps struct field name -> its type expression as written in the type declaration.
 	// Used for inferring selector types like v.X when v is of a generic struct type.
@@ -1778,6 +1813,7 @@ func (r *arithOpRewriter) analyzeTypeDecl(d *TypeDecl) {
 	}
 
 	hasMagic := false
+	selfCaps := newOperatorCaps()
 
 	// 3. 遍历接口方法
 	for _, method := range iface.MethodList {
@@ -1793,6 +1829,11 @@ func (r *arithOpRewriter) analyzeTypeDecl(d *TypeDecl) {
 			baseOp = operatorMagicBaseName(methodName)
 		} else {
 			continue
+		}
+		// Record interface-level capability (works for Indexable[T]-style constraints).
+		if baseOp != "" {
+			selfCaps.add(baseOp, false)
+			hasMagic = true
 		}
 
 		// 4. 确定该方法绑定到了哪个泛型参数上
@@ -1815,7 +1856,6 @@ func (r *arithOpRewriter) analyzeTypeDecl(d *TypeDecl) {
 							}
 						}
 						info.paramCaps[i].methods[baseOp] = true // 使用 methods
-						hasMagic = true
 					}
 				}
 			}
@@ -1829,13 +1869,13 @@ func (r *arithOpRewriter) analyzeTypeDecl(d *TypeDecl) {
 					}
 				}
 				info.paramCaps[0].methods[baseOp] = true // 使用 methods
-				hasMagic = true
 			}
 		}
 	}
 
 	// 5. 存入全局表
 	if hasMagic {
+		info.selfCaps = selfCaps
 		if r.genericTypes == nil {
 			// 注意：这里必须和 arithOpRewriter 定义一致 (map[string]*genericTypeInfo)
 			r.genericTypes = make(map[string]*genericTypeInfo)
@@ -1905,6 +1945,54 @@ func (r *arithOpRewriter) collectArithmeticMethods(file *File) {
 	}
 }
 
+func (r *arithOpRewriter) collectMagicMethods(file *File) {
+	if file == nil {
+		return
+	}
+	if r.magicMethods == nil {
+		r.magicMethods = make(map[string]*MagicMethodInfo)
+	}
+	for _, decl := range file.DeclList {
+		fn, ok := decl.(*FuncDecl)
+		if !ok || fn.Recv == nil {
+			continue
+		}
+
+		methodName := fn.Name.Value
+		if !isMagicMethodName(methodName) {
+			continue
+		}
+
+		recvType := typeExprToString(fn.Recv.Type)
+		if len(recvType) > 0 && recvType[0] == '*' {
+			recvType = recvType[1:]
+		}
+		recvType = stripGenericArgs(recvType)
+		if recvType == "" {
+			continue
+		}
+
+		info, exists := r.magicMethods[recvType]
+		if !exists {
+			info = &MagicMethodInfo{
+				TypeName:       recvType,
+				GetItemMethods: make([]*FuncDecl, 0),
+				SetItemMethods: make([]*FuncDecl, 0),
+			}
+			r.magicMethods[recvType] = info
+			// Also register a "*T" alias so legacy lookup code that tries
+			// pointer variations keeps working.
+			r.magicMethods["*"+recvType] = info
+		}
+
+		if isGetItemMethod(methodName) {
+			info.GetItemMethods = append(info.GetItemMethods, fn)
+		} else if isSetItemMethod(methodName) {
+			info.SetItemMethods = append(info.SetItemMethods, fn)
+		}
+	}
+}
+
 func (r *arithOpRewriter) collectFunctionReturnTypes(file *File) {
 	for _, decl := range file.DeclList {
 		fn, ok := decl.(*FuncDecl)
@@ -1926,6 +2014,21 @@ func (r *arithOpRewriter) collectFunctionReturnTypes(file *File) {
 			continue
 		}
 		if _, exists := r.arithMethods[retType]; exists {
+			r.funcReturnTypes[fn.Name.Value] = retType
+			continue
+		}
+		// Also record if it returns a type that has magic methods.
+		// This helps infer types across helper functions that return those types.
+		if r.magicMethods != nil {
+			if _, exists := r.magicMethods[stripGenericArgs(retType)]; exists {
+				r.funcReturnTypes[fn.Name.Value] = stripGenericArgs(retType)
+				continue
+			}
+		}
+
+		// Finally, if it returns a generic struct type we know about, record it
+		// for selector inference even if it doesn't overload operators directly.
+		if _, exists := r.genericTypes[stripGenericArgs(retType)]; exists {
 			r.funcReturnTypes[fn.Name.Value] = retType
 		}
 	}
@@ -2120,6 +2223,16 @@ func (r *arithOpRewriter) pushTypeParamScope(tparams []*Field) {
 		// 查找全局表
 		info, ok := r.genericTypes[baseName]
 		if !ok || len(info.paramCaps) == 0 {
+			// Even if we didn't record paramCaps, we might have recorded interface selfCaps.
+			if ok && info.selfCaps != nil {
+				scope[tName] = info.selfCaps
+			}
+			continue
+		}
+
+		// If the named interface declares magic methods itself, bind them to this type parameter.
+		if info.selfCaps != nil {
+			scope[tName] = info.selfCaps
 			continue
 		}
 
@@ -2247,6 +2360,12 @@ func (r *arithOpRewriter) extractTypeParamCaps(typeParam string, constraint Expr
 	if baseName != "" {
 		// 查全局表
 		info, ok := r.genericTypes[baseName]
+		if ok {
+			// Prefer interface-level caps when present.
+			if info.selfCaps != nil {
+				return info.selfCaps
+			}
+		}
 		if ok && len(info.paramCaps) > 0 {
 			// 匹配参数位置
 			// AddableSubable[T] -> base=AddableSubable, args=[T]
@@ -2307,8 +2426,14 @@ func (r *arithOpRewriter) typeSupportsOperators(typeName string) bool {
 	if typeName == "" {
 		return false
 	}
+	typeName = stripGenericArgs(typeName)
 	if _, exists := r.arithMethods[typeName]; exists {
 		return true
+	}
+	if r.magicMethods != nil {
+		if _, exists := r.magicMethods[typeName]; exists {
+			return true
+		}
 	}
 	if caps := r.lookupTypeParamCapsByTypeName(typeName); caps != nil {
 		return true
@@ -3154,7 +3279,8 @@ func isOperatorMagicBase(name string) bool {
 		"_or", "_ror", "_and", "_rand", "_xor", "_rxor",
 		"_lshift", "_rlshift", "_rshift", "_rrshift",
 		"_bitclear", "_rbitclear",
-		"_recv", "_send":
+		"_recv", "_send",
+		"_getitem", "_setitem":
 		return true
 	default:
 		return false
@@ -3172,6 +3298,7 @@ func operatorMagicBases() []string {
 		"_lshift", "_rlshift", "_rshift", "_rrshift",
 		"_bitclear", "_rbitclear",
 		"_recv", "_send",
+		"_getitem", "_setitem",
 	}
 }
 
@@ -3814,58 +3941,7 @@ func (r *constructorRewriter) rewriteConstructorCallWithArgs(call *CallExpr, typ
 //	ds[2] = 5    -> ds._setitem(2, 5)
 //	ds[1:2] = 5  -> ds._setitem(1, 2, 5)
 func RewriteMagicMethods(file *File) {
-	// Step 1: Collect all types with _getitem or _setitem methods
-	magicMethods := make(map[string]*MagicMethodInfo)
-
-	for _, decl := range file.DeclList {
-		fn, ok := decl.(*FuncDecl)
-		if !ok || fn.Recv == nil {
-			continue
-		}
-
-		methodName := fn.Name.Value
-		// Check for _getitem or _setitem methods (including overloaded versions)
-		if !isMagicMethodName(methodName) {
-			continue
-		}
-
-		// Get receiver type name
-		recvType := typeExprToString(fn.Recv.Type)
-		// Remove * prefix if pointer receiver
-		if len(recvType) > 0 && recvType[0] == '*' {
-			recvType = recvType[1:]
-		}
-
-		info, exists := magicMethods[recvType]
-		if !exists {
-			info = &MagicMethodInfo{
-				TypeName:       recvType,
-				GetItemMethods: make([]*FuncDecl, 0),
-				SetItemMethods: make([]*FuncDecl, 0),
-			}
-			magicMethods[recvType] = info
-		}
-
-		if isGetItemMethod(methodName) {
-			info.GetItemMethods = append(info.GetItemMethods, fn)
-		} else if isSetItemMethod(methodName) {
-			info.SetItemMethods = append(info.SetItemMethods, fn)
-		}
-	}
-
-	// Step 2: Rewrite indexing operations in the file, BUT skip magic method bodies
-	if len(magicMethods) > 0 {
-		rewriter := &magicMethodRewriter{
-			magicMethods:      magicMethods,
-			insideMagicMethod: false,
-			varTypes:          make(map[string]string),
-			funcReturnTypes:   make(map[string]string),
-		}
-		// First pass: collect function return types
-		rewriter.collectFunctionReturnTypes(file)
-		// Second pass: rewrite magic method calls
-		rewriter.rewriteFile(file)
-	}
+	RewriteMagicAndArithmetic(file)
 }
 
 // MagicMethodInfo stores information about magic methods for a type
@@ -3888,10 +3964,8 @@ func isSetItemMethod(name string) bool {
 }
 
 type magicMethodRewriter struct {
-	magicMethods      map[string]*MagicMethodInfo
-	insideMagicMethod bool              // Track if we're inside a _getitem or _setitem method
-	varTypes          map[string]string // Track variable name -> struct type name
-	funcReturnTypes   map[string]string // Track function name -> return type name
+	*arithOpRewriter
+	insideMagicMethod bool // Track if we're inside a _getitem or _setitem method
 }
 
 // collectFunctionReturnTypes scans all function declarations and records their return types
@@ -3935,33 +4009,27 @@ func (r *magicMethodRewriter) rewriteDecl(decl Decl) {
 	switch d := decl.(type) {
 	case *FuncDecl:
 		if d.Body != nil {
-			// Track function parameters
+			// Mirror arithOpRewriter's type-parameter scoping so that
+			// constraint-derived capabilities (_getitem/_setitem) are visible
+			// while rewriting inside generic functions/methods.
+			if d.Recv != nil {
+				r.pushReceiverTypeParamScope(d.Recv)
+			} else {
+				r.pushTypeParamScope(d.TParamList)
+			}
+			defer r.popTypeParamScope()
+
+			// Track function parameters/receiver using the shared generic-aware binder.
 			if d.Type != nil && d.Type.ParamList != nil {
 				for _, param := range d.Type.ParamList {
-					if param.Name != nil && param.Type != nil {
-						paramType := typeExprToString(param.Type)
-						// Remove * prefix
-						if len(paramType) > 0 && paramType[0] == '*' {
-							paramType = paramType[1:]
-						}
-						if _, exists := r.magicMethods[paramType]; exists {
-							r.varTypes[param.Name.Value] = paramType
-						}
+					if param == nil || param.Name == nil || param.Type == nil {
+						continue
 					}
+					r.bindVarType(param.Name.Value, param.Type)
 				}
 			}
-
-			// Track receiver type for methods
-			if d.Recv != nil && d.Recv.Name != nil {
-				recvType := typeExprToString(d.Recv.Type)
-				// Remove * prefix
-				if len(recvType) > 0 && recvType[0] == '*' {
-					recvType = recvType[1:]
-				}
-				// Add receiver to varTypes so it can be recognized in method body
-				if _, exists := r.magicMethods[recvType]; exists {
-					r.varTypes[d.Recv.Name.Value] = recvType
-				}
+			if d.Recv != nil && d.Recv.Name != nil && d.Recv.Type != nil {
+				r.bindVarType(d.Recv.Name.Value, d.Recv.Type)
 			}
 
 			// Check if this is a magic method - if so, don't rewrite its body
@@ -3974,7 +4042,7 @@ func (r *magicMethodRewriter) rewriteDecl(decl Decl) {
 		}
 	case *VarDecl:
 		// Track variable types from declarations like: var ds *DataStore = ...
-		r.trackVarDeclTypes(d)
+		r.arithOpRewriter.trackVarDeclTypes(d)
 		if d.Values != nil {
 			d.Values = r.rewriteExpr(d.Values)
 		}
@@ -3983,75 +4051,18 @@ func (r *magicMethodRewriter) rewriteDecl(decl Decl) {
 
 // trackVarDeclTypes records variable types from var declarations
 func (r *magicMethodRewriter) trackVarDeclTypes(d *VarDecl) {
-	if d.Type != nil {
-		// Explicit type: var ds *DataStore
-		typeName := typeExprToString(d.Type)
-		// Remove * prefix
-		if len(typeName) > 0 && typeName[0] == '*' {
-			typeName = typeName[1:]
-		}
-		if _, exists := r.magicMethods[typeName]; exists {
-			for _, name := range d.NameList {
-				r.varTypes[name.Value] = typeName
-			}
-		}
-	} else if d.Values != nil {
-		// Inferred type: var ds = &DataStore{}
-		r.trackAssignmentTypes(d.NameList, d.Values)
-	}
+	r.arithOpRewriter.trackVarDeclTypes(d)
 }
 
 // trackAssignmentTypes records variable types from assignment expressions
 func (r *magicMethodRewriter) trackAssignmentTypes(names []*Name, values Expr) {
-	if len(names) == 0 {
-		return
-	}
-
-	// Handle single assignment
-	if len(names) == 1 {
-		typeName := r.tryInferStructTypeName(values)
-		if typeName != "" {
-			if _, exists := r.magicMethods[typeName]; exists {
-				r.varTypes[names[0].Value] = typeName
-			}
-		}
-		return
-	}
-
-	// Handle multiple assignment (e.g., a, b := x, y)
-	if listExpr, ok := values.(*ListExpr); ok {
-		for i, name := range names {
-			if i < len(listExpr.ElemList) {
-				typeName := r.tryInferStructTypeName(listExpr.ElemList[i])
-				if typeName != "" {
-					if _, exists := r.magicMethods[typeName]; exists {
-						r.varTypes[name.Value] = typeName
-					}
-				}
-			}
-		}
-	}
+	r.arithOpRewriter.trackAssignmentTypes(names, values)
 }
 
 // trackShortVarDeclTypes records variable types from short variable declarations
 // e.g., ds := &DataStore{...} or m := NewMatrix()
 func (r *magicMethodRewriter) trackShortVarDeclTypes(stmt *AssignStmt) {
-	// Get LHS names
-	var names []*Name
-	switch lhs := stmt.Lhs.(type) {
-	case *Name:
-		names = []*Name{lhs}
-	case *ListExpr:
-		for _, elem := range lhs.ElemList {
-			if name, ok := elem.(*Name); ok {
-				names = append(names, name)
-			}
-		}
-	default:
-		return
-	}
-
-	r.trackAssignmentTypes(names, stmt.Rhs)
+	r.arithOpRewriter.trackShortVarDeclTypes(stmt)
 }
 
 func (r *magicMethodRewriter) rewriteBlockStmt(block *BlockStmt) {
@@ -4326,42 +4337,96 @@ func (r *magicMethodRewriter) rewriteSliceToGetItem(sliceExpr *SliceExpr) Expr {
 // parseIndexArgs parses the index expression which might contain colon-separated values
 // Returns: (args []Expr, hasComma bool)
 // hasComma indicates if the original syntax used commas
-// When hasComma is true, each comma-separated element is wrapped into a slice literal
 func (r *magicMethodRewriter) parseIndexArgs(index Expr) ([]Expr, bool) {
 	// If the index is a ListExpr, it contains comma-separated values
 	// e.g., a[x, y, z] would be ListExpr with [x, y, z]
 	// or a[1:2, 3:4] would be ListExpr with [SliceExpr{1,2}, SliceExpr{3,4}]
 	if listExpr, ok := index.(*ListExpr); ok {
-		result := make([]Expr, 0)
-
-		// Process each comma-separated element
+		// Important: don't eagerly wrap comma elements into []int here.
+		// Some receivers (e.g. Matrix) want plain multi-arg signatures like _getitem(i, j int),
+		// while others (e.g. NDArray) want slice-based signatures like _getitem(...[]int).
+		//
+		// We'll decide whether to wrap/flatten later in createMagicMethodCallWithComma
+		// by inspecting available receiver overloads.
+		result := make([]Expr, 0, len(listExpr.ElemList))
 		for _, elem := range listExpr.ElemList {
-			var elemArgs []Expr
-
-			// Check if element is a SliceExpr (for a[1:2, 3:4] syntax)
-			if sliceExpr, ok := elem.(*SliceExpr); ok {
-				// Collect all indices from the slice expression
-				for _, idx := range sliceExpr.Index {
-					if idx != nil {
-						elemArgs = append(elemArgs, r.rewriteExpr(idx))
-					}
-				}
-			} else {
-				// Single element
-				elemArgs = append(elemArgs, r.rewriteExpr(elem))
-			}
-
-			// Wrap elemArgs into a slice literal []T{...}
-			// We need to create: []int{1, 2} or []int{1}
-			sliceLit := r.createSliceLiteral(elemArgs)
-			result = append(result, sliceLit)
+			result = append(result, elem)
 		}
-
 		return result, true // Has comma
 	}
 
 	// Single value - no comma, no wrapping
 	return []Expr{r.rewriteExpr(index)}, false
+}
+
+// receiverHasSliceMagicOverload reports whether receiver has any _getitem/_setitem overload
+// that uses slice parameters for indices (e.g. ...[]int or []int).
+func (r *magicMethodRewriter) receiverHasSliceMagicOverload(base Expr, methodName string) bool {
+	typeName := r.tryInferStructTypeName(base)
+	if typeName == "" {
+		return false
+	}
+
+	info, exists := r.magicMethods[typeName]
+	if !exists {
+		// Best-effort pointer/value fallback.
+		if len(typeName) > 0 && typeName[0] != '*' {
+			info, exists = r.magicMethods["*"+typeName]
+		} else if len(typeName) > 0 && typeName[0] == '*' {
+			info, exists = r.magicMethods[typeName[1:]]
+		}
+		if !exists {
+			return false
+		}
+	}
+
+	var methods []*FuncDecl
+	switch methodName {
+	case "_getitem":
+		methods = info.GetItemMethods
+	case "_setitem":
+		methods = info.SetItemMethods
+	default:
+		return false
+	}
+
+	for _, fn := range methods {
+		if fn == nil || fn.Type == nil {
+			continue
+		}
+		paramTypes := getParamTypeStrings(fn.Type.ParamList)
+		if r.methodHasSliceParams(paramTypes, methodName) {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *magicMethodRewriter) wrapCommaElemToIntSlice(elem Expr) Expr {
+	var parts []Expr
+	if se, ok := elem.(*SliceExpr); ok && se != nil {
+		for _, idx := range se.Index {
+			if idx != nil {
+				parts = append(parts, r.rewriteExpr(idx))
+			}
+		}
+	} else {
+		parts = []Expr{r.rewriteExpr(elem)}
+	}
+	return r.createSliceLiteral(parts)
+}
+
+func (r *magicMethodRewriter) flattenCommaElem(elem Expr) []Expr {
+	var out []Expr
+	if se, ok := elem.(*SliceExpr); ok && se != nil {
+		for _, idx := range se.Index {
+			if idx != nil {
+				out = append(out, r.rewriteExpr(idx))
+			}
+		}
+		return out
+	}
+	return []Expr{r.rewriteExpr(elem)}
 }
 
 // createSliceLiteral creates a slice literal: []int{elem1, elem2, ...}
@@ -4396,6 +4461,47 @@ func (r *magicMethodRewriter) createMagicMethodCall(pos Pos, base Expr, methodNa
 // createMagicMethodCallWithComma creates a method call with comma information
 // hasComma: true if original syntax used commas (requires []T parameters)
 func (r *magicMethodRewriter) createMagicMethodCallWithComma(pos Pos, base Expr, methodName string, args []Expr, hasComma bool) *CallExpr {
+	// If this came from comma syntax, decide whether to keep comma as slice-based
+	// (e.g. ...[]int) or flatten to plain args (e.g. int, int, ...), depending on
+	// receiver overloads.
+	if hasComma {
+		// For _setitem, last arg is the value; only the index portion participates
+		// in slice-vs-flat selection.
+		var valueArg Expr
+		indexArgs := args
+		if methodName == "_setitem" && len(args) > 0 {
+			valueArg = args[len(args)-1]
+			indexArgs = args[:len(args)-1]
+		}
+
+		if r.receiverHasSliceMagicOverload(base, methodName) {
+			// Prefer slice-based forms: each comma element becomes a []int literal.
+			wrapped := make([]Expr, 0, len(indexArgs))
+			for _, a := range indexArgs {
+				wrapped = append(wrapped, r.wrapCommaElemToIntSlice(a))
+			}
+			indexArgs = wrapped
+			if valueArg != nil {
+				args = append(indexArgs, valueArg)
+			} else {
+				args = indexArgs
+			}
+			// Keep hasComma=true for overload resolution (favor slice params).
+		} else {
+			// Fall back to plain multi-arg signature: flatten comma elements.
+			flat := make([]Expr, 0)
+			for _, a := range indexArgs {
+				flat = append(flat, r.flattenCommaElem(a)...)
+			}
+			if valueArg != nil {
+				args = append(flat, valueArg)
+			} else {
+				args = flat
+			}
+			hasComma = false
+		}
+	}
+
 	// Try to resolve the correct overloaded method name
 	resolvedName := r.resolveMagicMethodOverloadWithComma(base, methodName, args, hasComma)
 
@@ -4813,6 +4919,14 @@ func (r *magicMethodRewriter) hasMagicMethodType(expr Expr) bool {
 		return true
 	}
 
+	// If this is a type parameter name (or resolved to one), consult the
+	// generic constraint capabilities collected by arithOpRewriter.
+	if caps := r.lookupTypeParamCapsByTypeName(typeName); caps != nil {
+		if caps.has("_getitem") || caps.has("_setitem") {
+			return true
+		}
+	}
+
 	// Go 允许值类型调用指针接收者的方法（自动取地址）
 	// 所以如果我们有值类型，尝试查找指针类型的魔法方法
 	if len(typeName) > 0 && typeName[0] != '*' {
@@ -4832,64 +4946,8 @@ func (r *magicMethodRewriter) hasMagicMethodType(expr Expr) bool {
 // tryInferStructTypeName attempts to infer the struct type name from an expression
 // Returns empty string if type cannot be determined or is not a struct
 func (r *magicMethodRewriter) tryInferStructTypeName(expr Expr) string {
-	switch e := expr.(type) {
-	case *Name:
-		// Variable reference - look it up in tracked variables
-		if typeName, ok := r.varTypes[e.Value]; ok {
-			return typeName
-		}
-		return ""
-
-	case *ParenExpr:
-		return r.tryInferStructTypeName(e.X)
-
-	case *Operation:
-		// Handle &Type{} or *var
-		if e.Op == And && e.Y == nil {
-			// Address-of: &Type{} or &var
-			return r.tryInferStructTypeName(e.X)
-		}
-		if e.Op == Mul && e.Y == nil {
-			// Dereference: *ptr
-			return r.tryInferStructTypeName(e.X)
-		}
-		return ""
-
-	case *CompositeLit:
-		// Composite literal: Type{...}
-		if e.Type != nil {
-			return typeExprToString(e.Type)
-		}
-		return ""
-
-	case *CallExpr:
-		// Function call - check if it's a known constructor or make()
-		if name, ok := e.Fun.(*Name); ok {
-			// Special handling for make(Type, ...) - extract the type from first argument
-			if name.Value == "make" && len(e.ArgList) > 0 {
-				// make(Type, ...) - first arg is the type
-				typeName := typeExprToString(e.ArgList[0])
-				// Remove * prefix if present (though make doesn't work with pointers)
-				if len(typeName) > 0 && typeName[0] == '*' {
-					typeName = typeName[1:]
-				}
-				return typeName
-			}
-
-			// Check if this function returns a magic method type
-			if returnType, exists := r.funcReturnTypes[name.Value]; exists {
-				return returnType
-			}
-		}
-		return ""
-
-	case *SelectorExpr:
-		// Field access like obj.field - we can't know the field's type
-		return ""
-
-	default:
-		return ""
-	}
+	// Delegate to the shared generic-aware inference used by arithOpRewriter.
+	return r.arithOpRewriter.tryInferStructTypeName(expr)
 }
 
 // hasGetItemMethod checks if an expression's type has _getitem method
