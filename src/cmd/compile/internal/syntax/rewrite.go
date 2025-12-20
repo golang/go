@@ -1596,52 +1596,6 @@ func splitFirst(s, sep string) []string {
 	return []string{s, ""}
 }
 
-// ============================================================================
-// Operator Overloading Support
-// ============================================================================
-
-// RewriteArithmeticOperators rewrites overloaded operators into magic method calls.
-//
-// Supported operators/methods:
-//   - Unary:
-//     +x -> x._pos()
-//     -x -> x._neg()
-//     ^x -> x._invert()
-//     <-x -> x._recv()
-//   - Binary arithmetic:
-//     x + y -> x._add(y) ; fallback y._radd(x)
-//     x - y -> x._sub(y) ; fallback y._rsub(x)
-//     x * y -> x._mul(y) ; fallback y._rmul(x)
-//     x / y -> x._div(y) ; fallback y._rdiv(x)
-//     x % y -> x._mod(y) ; fallback y._rmod(x)
-//   - Inc/Dec:
-//     x++ -> x._inc() ; x-- -> x._dec() (only forward)
-//   - Comparisons (mirror fallback when lhs doesn't support):
-//     x == y -> x._eq(y) ; mirror y._eq(x)
-//     x != y -> x._ne(y) ; mirror y._ne(x)
-//     x <  y -> x._lt(y) ; mirror y._gt(x)
-//     x <= y -> x._le(y) ; mirror y._ge(x)
-//     x >  y -> x._gt(y) ; mirror y._lt(x)
-//     x >= y -> x._ge(y) ; mirror y._le(x)
-//   - Bitwise and shifts:
-//     x |  y -> x._or(y)       ; fallback y._ror(x)
-//     x &  y -> x._and(y)      ; fallback y._rand(x)
-//     x ^  y -> x._xor(y)      ; fallback y._rxor(x)
-//     x << y -> x._lshift(y)   ; fallback y._rlshift(x)
-//     x >> y -> x._rshift(y)   ; fallback y._rrshift(x)
-//     x &^ y -> x._bitclear(y) ; fallback y._rbitclear(x)
-//   - Send statement:
-//     x <- v -> x._send(v) (only forward)
-//   - Compound assignments:
-//     if lhs supports operator overloading, expand: a += b -> a = a + b (etc.)
-//
-// This pass runs before type checking. It is conservative: it only rewrites
-// when it can infer that the involved receiver type defines the corresponding
-// magic method(s) in the current file.
-func RewriteArithmeticOperators(file *File) {
-	RewriteMagicAndArithmetic(file)
-}
-
 type arithOpRewriter struct {
 	// arithMethods maps: receiverTypeName -> baseMagicMethodName -> candidate method decls.
 	// receiverTypeName has no leading '*'.
@@ -1698,13 +1652,13 @@ func RewriteMagicAndArithmetic(file *File) {
 	r.collectFunctionReturnTypes(file)
 
 	// 3) Rewrite magic index/slice first, then arithmetic operators.
-	if len(r.magicMethods) > 0 {
-		mr := &magicMethodRewriter{
-			arithOpRewriter:   r,
-			insideMagicMethod: false,
-		}
-		mr.rewriteFile(file)
+	// if len(r.magicMethods) > 0 {
+	mr := &magicMethodRewriter{
+		arithOpRewriter:   r,
+		insideMagicMethod: false,
 	}
+	mr.rewriteFile(file)
+	// }
 
 	r.rewriteFile(file)
 }

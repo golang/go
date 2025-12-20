@@ -1377,6 +1377,68 @@ func (w *writer) stmt1(stmt syntax.Stmt) {
 		}
 
 	case *syntax.ExprStmt:
+		// ---------------------------------------------------------
+		// 新增逻辑：检查是否是 _setitem 调用
+		// 如果是原生 Slice/Map 的 _setitem，将其降级回原生赋值指令 (OINDEX + OAS)
+		// ---------------------------------------------------------
+		if call, ok := syntax.Unparen(stmt.X).(*syntax.CallExpr); ok {
+			if sel, ok := syntax.Unparen(call.Fun).(*syntax.SelectorExpr); ok && sel.Sel != nil {
+				if sel.Sel.Value == "_setitem" {
+					// 【修正 1】使用 w.p.typeOf 而不是 pw.p.typeOf
+					recvTyp := w.p.typeOf(sel.X)
+					core := types2.CoreType(recvTyp)
+
+					// 检查是否是原生 Slice 或 Map
+					switch t := core.(type) {
+					case *types2.Slice, *types2.Map:
+						// 1. 发射 Assign (OAS) 指令
+						w.Code(stmtAssign) // 【修正 2】使用 w.Code
+
+						// 2. 发射左值 (LHS): IndexExpr (OINDEX)
+						w.Code(exprIndex)
+						w.implicitConvExpr(recvTyp, sel.X) // 接收者 (slice/map)
+						w.pos(stmt)                        // 使用语句的位置
+
+						// 索引参数 (Slice: int, Map: Key)
+						indexArg := call.ArgList[0]
+
+						// 处理索引类型的隐式转换
+						var targetIndexTyp types2.Type
+						if _, ok := t.(*types2.Slice); ok {
+							targetIndexTyp = types2.Typ[types2.Int]
+						} else if mp, ok := t.(*types2.Map); ok {
+							targetIndexTyp = mp.Key()
+						}
+
+						if targetIndexTyp != nil {
+							w.implicitConvExpr(targetIndexTyp, indexArg)
+						} else {
+							w.expr(indexArg) // 【修正 3】使用 w.expr
+						}
+
+						// 3. 发射右值 (RHS): Value
+						// _setitem(i, v) 的第二个参数是值
+						valArg := call.ArgList[1]
+
+						// 处理值类型的隐式转换
+						var targetElemTyp types2.Type
+						if sl, ok := t.(*types2.Slice); ok {
+							targetElemTyp = sl.Elem()
+						} else if mp, ok := t.(*types2.Map); ok {
+							targetElemTyp = mp.Elem()
+						}
+
+						if targetElemTyp != nil {
+							w.implicitConvExpr(targetElemTyp, valArg)
+						} else {
+							w.expr(valArg)
+						}
+
+						return // 处理完毕，直接返回
+					}
+				}
+			}
+		}
 		w.Code(stmtExpr)
 		w.expr(stmt.X)
 
@@ -2145,6 +2207,46 @@ func (w *writer) expr(expr syntax.Expr) {
 					op = syntax.Gtr
 				case "_ge":
 					op = syntax.Geq
+				}
+
+				if name == "_getitem" {
+					recvTyp := w.p.typeOf(sel.X)
+					// 获取底层核心类型 (CoreType)，穿透 Named Type
+					core := types2.CoreType(recvTyp)
+
+					switch t := core.(type) {
+					case *types2.Slice, *types2.Map: // 仅针对原生 Slice 和 Map
+						// 1. 发射 exprIndex 指令 (对应 OINDEX)
+						// 注意：你需要确认你的 writer 定义了 exprIndex 常量
+						w.Code(exprIndex)
+
+						// 2. 发射接收者 (Slice/Map)
+						w.implicitConvExpr(recvTyp, sel.X)
+						w.pos(expr)
+
+						// 3. 发射索引参数
+						// 对于 Slice，索引必须是 int；对于 Map，索引是 Key 类型
+						indexArg := expr.ArgList[0]
+
+						// Map 的 Key 可能需要隐式转换，Slice 的 Index 也可能需要
+						// 这里直接用 implicitConvExpr 让 writer 处理赋值兼容性
+						var targetTyp types2.Type
+						if sl, ok := t.(*types2.Slice); ok {
+							_ = sl
+							targetTyp = types2.Typ[types2.Int] // Slice 索引期望 int
+						} else if mp, ok := t.(*types2.Map); ok {
+							targetTyp = mp.Key() // Map 索引期望 Key 类型
+						}
+
+						if targetTyp != nil {
+							w.implicitConvExpr(targetTyp, indexArg)
+						} else {
+							// Fallback (通常不应发生)
+							w.expr(indexArg)
+						}
+
+						return // 处理完毕，直接返回，跳过后续逻辑
+					}
 				}
 
 				if op != 0 {

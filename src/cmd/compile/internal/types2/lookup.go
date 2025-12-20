@@ -259,6 +259,96 @@ func lookupFieldOrMethodImpl(T Type, addressable bool, pkg *Package, name string
 			}
 
 		}
+
+		// =========================================================
+		// B. 新增: Slice 支持 _getitem / _setitem
+		//    func (s []E) _getitem(index int) E
+		//    func (s []E) _setitem(index int, val E)
+		// =========================================================
+		if s, ok := under(typ).(*Slice); ok {
+			if name == "_getitem" || name == "_setitem" {
+				// 1. 构造接收者 (Receiver): []E
+				recv := NewParam(nopos, pkg, "", typ)
+				recv.SetKind(RecvVar)
+
+				// 2. 准备类型
+				intType := Typ[Int]  // 索引类型
+				elemType := s.Elem() // 元素类型
+
+				var params []*Var
+				var results []*Var
+
+				if name == "_getitem" {
+					// signature: func(int) Elem
+					arg1 := NewParam(nopos, pkg, "index", intType)
+					params = []*Var{arg1}
+
+					res := NewParam(nopos, pkg, "", elemType)
+					res.SetKind(ResultVar)
+					results = []*Var{res}
+				} else { // _setitem
+					// signature: func(int, Elem)
+					arg1 := NewParam(nopos, pkg, "index", intType)
+					arg2 := NewParam(nopos, pkg, "val", elemType)
+					params = []*Var{arg1, arg2}
+
+					// 无返回值
+					results = nil
+				}
+
+				// 3. 合成函数签名
+				sig := NewSignatureType(recv, nil, nil, NewTuple(params...), NewTuple(results...), false)
+
+				// 4. 返回对象
+				return NewFunc(nopos, pkg, name, sig), []int{0}, false
+			}
+		}
+
+		// =========================================================
+		// C. 新增: Map 支持 _getitem / _setitem
+		//    func (m map[K]V) _getitem(key K) V
+		//    func (m map[K]V) _setitem(key K, val V)
+		// =========================================================
+		if m, ok := under(typ).(*Map); ok {
+			if name == "_getitem" || name == "_setitem" {
+				// 1. 构造接收者 (Receiver): map[K]V
+				recv := NewParam(nopos, pkg, "", typ)
+				recv.SetKind(RecvVar)
+
+				// 2. 准备类型
+				keyType := m.Key()
+				elemType := m.Elem()
+
+				var params []*Var
+				var results []*Var
+
+				if name == "_getitem" {
+					// signature: func(Key) Elem
+					// 注意：这里为了简化泛型约束匹配，_getitem 只返回 Value
+					// 忽略了 comma-ok 模式
+					arg1 := NewParam(nopos, pkg, "key", keyType)
+					params = []*Var{arg1}
+
+					res := NewParam(nopos, pkg, "", elemType)
+					res.SetKind(ResultVar)
+					results = []*Var{res}
+				} else { // _setitem
+					// signature: func(Key, Elem)
+					arg1 := NewParam(nopos, pkg, "key", keyType)
+					arg2 := NewParam(nopos, pkg, "val", elemType)
+					params = []*Var{arg1, arg2}
+
+					// 无返回值
+					results = nil
+				}
+
+				// 3. 合成函数签名
+				sig := NewSignatureType(recv, nil, nil, NewTuple(params...), NewTuple(results...), false)
+
+				// 4. 返回对象
+				return NewFunc(nopos, pkg, name, sig), []int{0}, false
+			}
+		}
 	}
 
 	// Start with typ as single entry at shallowest depth.

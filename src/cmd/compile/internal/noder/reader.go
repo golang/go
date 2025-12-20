@@ -30,31 +30,126 @@ import (
 )
 
 // magicBasicMethodWrapper returns a synthetic function implementing a "magic"
-// operator method (e.g. _add/_rsub/...) for numeric basic types.
+// operator method (e.g. _add/_rsub/...) for numeric basic types, and
+// _getitem/_setitem for slices and maps.
 //
 // This is needed for type-parameter method expressions recorded in runtime
 // dictionaries: for instantiations where the type argument is a numeric basic
-// type (int/float64/etc.), we don't have a real method to reference, so we
-// generate a small wrapper that performs the builtin operation.
+// type (int/float64/etc.) or a composite type (slice/map), we don't have a
+// real method to reference, so we generate a small wrapper that performs
+// the builtin operation.
 func magicBasicMethodWrapper(recv *types.Type, msym *types.Sym, pos src.XPos) (fn *ir.Func, ok bool) {
 	if recv == nil || msym == nil {
 		return nil, false
 	}
+
+	name := msym.Name
+
+	// ========================================================================
+	// 分支 A: 处理 Slice 和 Map 的 _getitem / _setitem
+	// ========================================================================
+	if recv.IsSlice() || recv.IsMap() {
+		if name != "_getitem" && name != "_setitem" {
+			return nil, false
+		}
+
+		// 1. 构造参数列表
+		var params []*types.Field
+		var results []*types.Field
+
+		// Param 0: Receiver (s []int or m map[K]V)
+		params = append(params, types.NewField(pos, typecheck.Lookup("recv"), recv))
+
+		// Param 1: Index (int for slice, KeyType for map)
+		var idxType *types.Type
+		if recv.IsSlice() {
+			idxType = types.Types[types.TINT]
+		} else {
+			idxType = recv.Key()
+		}
+		params = append(params, types.NewField(pos, typecheck.Lookup("idx"), idxType))
+
+		if name == "_setitem" {
+			// Param 2: Value (ElemType) - 仅 _setitem 需要
+			params = append(params, types.NewField(pos, typecheck.Lookup("val"), recv.Elem()))
+			// No results
+		} else {
+			// Result: ElemType - 仅 _getitem 需要
+			results = append(results, types.NewField(pos, nil, recv.Elem()))
+		}
+
+		// 2. 构造函数签名
+		sig := types.NewSignature(nil, params, results)
+
+		// 3. 生成唯一符号名
+		// e.g. .magic._getitem.[]int
+		sym := types.LocalPkg.Lookup(".magic." + name + "." + recv.String())
+		if sym.Uniq() {
+			if sym.Def != nil {
+				if n, ok := sym.Def.(*ir.Name); ok && n.Func != nil {
+					return n.Func, true
+				}
+			}
+		} else {
+			sym.SetUniq(true)
+		}
+
+		// 4. 创建函数
+		fn = ir.NewFunc(pos, pos, sym, sig)
+		fn.DeclareParams(true)
+		fn.SetDupok(true)
+		fn.SetWrapper(true)
+		sym.Def = fn.Nname
+
+		// 5. 构建函数体
+		ir.WithFunc(fn, func() {
+			params := fn.Type().Params()
+			recvNode := params[0].Nname.(*ir.Name)
+			idxNode := params[1].Nname.(*ir.Name)
+
+			// 构造索引表达式: recv[idx]
+			// OINDEX 会自动处理 map 和 slice 的索引逻辑
+			indexExpr := ir.NewIndexExpr(pos, recvNode, idxNode)
+			indexExpr.SetOp(ir.OINDEX)
+
+			var stmt ir.Node
+			if name == "_setitem" {
+				// 赋值: recv[idx] = val
+				valNode := params[2].Nname.(*ir.Name)
+				assign := ir.NewAssignStmt(pos, indexExpr, valNode)
+				stmt = assign
+			} else {
+				// 返回: return recv[idx]
+				// 必须先进行类型检查，确保 indexExpr 有类型信息
+				typedIdxExpr := typecheck.Expr(indexExpr)
+				ret := ir.NewReturnStmt(pos, []ir.Node{typedIdxExpr})
+				stmt = ret
+			}
+
+			// 添加语句到函数体，并确保语句经过类型检查
+			fn.Body.Append(typecheck.Stmt(stmt))
+		})
+
+		fn.Nname.Defn = fn
+		typecheck.Target.Funcs = append(typecheck.Target.Funcs, fn)
+		return fn, true
+	}
+
+	// ========================================================================
+	// 分支 B: 处理 基础类型 (int, float, string) 的算术/比较运算
+	// ========================================================================
 	if recv.IsPtr() {
 		return nil, false
 	}
 
-	// 1. 类型初步筛选：支持 数值型(Int/Float/Complex) 和 字符串(String)
 	isNumeric := recv.IsInteger() || recv.IsFloat() || recv.IsComplex()
 	isString := recv.IsString()
 
-	// 如果既不是数值也不是字符串，或者你是 channel/map 等（暂不处理 channel 的魔法方法，除非它是 basic type）
-	// 注意：Go 的 Chan 属于 *Type，不是 Basic，这里假设只处理 Basic
 	if !isNumeric && !isString {
 		return nil, false
 	}
 
-	// 2. 定义操作符属性
+	// 定义操作符属性
 	var (
 		op      ir.Op
 		swap    bool // 是否交换参数 (反向操作)
@@ -62,18 +157,16 @@ func magicBasicMethodWrapper(recv *types.Type, msym *types.Sym, pos src.XPos) (f
 		isCmp   bool // 是否是比较运算 (返回 bool)
 	)
 
-	// 3. 巨型 Switch：映射名字到 IR Op，并做具体的类型合法性检查
-	name := msym.Name
 	switch name {
 	// --- 算术运算 (二元) ---
 	case "_add":
-		op = ir.OADD // string 也支持 OADD
+		op = ir.OADD
 	case "_radd":
 		op, swap = ir.OADD, true
 	case "_sub":
 		if isString {
 			return nil, false
-		} // string 不支持减法
+		}
 		op = ir.OSUB
 	case "_rsub":
 		if isString {
@@ -103,7 +196,7 @@ func magicBasicMethodWrapper(recv *types.Type, msym *types.Sym, pos src.XPos) (f
 	case "_mod":
 		if !recv.IsInteger() {
 			return nil, false
-		} // 只有整数支持取模
+		}
 		op = ir.OMOD
 	case "_rmod":
 		if !recv.IsInteger() {
@@ -112,24 +205,23 @@ func magicBasicMethodWrapper(recv *types.Type, msym *types.Sym, pos src.XPos) (f
 		op, swap = ir.OMOD, true
 
 	// --- 一元运算 ---
-	case "_pos": // +a
+	case "_pos":
 		if !isNumeric {
 			return nil, false
 		}
 		op, isUnary = ir.OPLUS, true
-	case "_neg": // -a
+	case "_neg":
 		if !isNumeric {
 			return nil, false
 		}
 		op, isUnary = ir.ONEG, true
-	case "_invert": // ^a (按位取反)
+	case "_invert":
 		if !recv.IsInteger() {
 			return nil, false
 		}
 		op, isUnary = ir.OBITNOT, true
 
-	// --- 比较运算 (返回 Bool) ---
-	// 注意：String 原生支持以下所有比较 IR
+	// --- 比较运算 ---
 	case "_eq":
 		op, isCmp = ir.OEQ, true
 	case "_ne":
@@ -143,7 +235,7 @@ func magicBasicMethodWrapper(recv *types.Type, msym *types.Sym, pos src.XPos) (f
 	case "_ge":
 		op, isCmp = ir.OGE, true
 
-	// --- 位运算 (仅整数) ---
+	// --- 位运算 ---
 	case "_or":
 		if !recv.IsInteger() {
 			return nil, false
@@ -153,7 +245,7 @@ func magicBasicMethodWrapper(recv *types.Type, msym *types.Sym, pos src.XPos) (f
 		if !recv.IsInteger() {
 			return nil, false
 		}
-		op, swap = ir.OOR, true // OR 其实是对称的，swap 无所谓，但保持一致
+		op, swap = ir.OOR, true
 	case "_and":
 		if !recv.IsInteger() {
 			return nil, false
@@ -174,7 +266,7 @@ func magicBasicMethodWrapper(recv *types.Type, msym *types.Sym, pos src.XPos) (f
 			return nil, false
 		}
 		op, swap = ir.OXOR, true
-	case "_bitclear": // &^
+	case "_bitclear":
 		if !recv.IsInteger() {
 			return nil, false
 		}
@@ -185,8 +277,7 @@ func magicBasicMethodWrapper(recv *types.Type, msym *types.Sym, pos src.XPos) (f
 		}
 		op, swap = ir.OANDNOT, true
 
-	// --- 移位运算 (通常要求右侧是无符号，但在泛型包装器里，通常假设都是 T) ---
-	// Go 1.13+ 允许有符号位移计数，后端会处理
+	// --- 移位运算 ---
 	case "_lshift":
 		if !recv.IsInteger() {
 			return nil, false
@@ -209,70 +300,59 @@ func magicBasicMethodWrapper(recv *types.Type, msym *types.Sym, pos src.XPos) (f
 		op, swap = ir.ORSH, true
 
 	default:
-		// 不支持的操作符，或者 _inc/_dec (语句级), _recv/_send (Channel)
 		return nil, false
 	}
 
-	// 4. 构造函数签名
+	// 构造函数签名 (Basic Types)
 	var params []*types.Field
 	var results []*types.Field
 
-	// 接收者永远是 recv
-	// params[0] 是 receiver (方法接收者)
-	// params[1] 是 argument (二元运算才有)
 	recvField := types.NewField(base.Pos, nil, recv)
 
 	if isUnary {
-		// func (recv T) _op() T
 		params = []*types.Field{recvField}
 	} else {
-		// func (recv T) _op(other T) ...
 		otherField := types.NewField(base.Pos, nil, recv)
 		params = []*types.Field{recvField, otherField}
 	}
 
-	// 返回值处理
 	var retType *types.Type
 	if isCmp {
-		retType = types.Types[types.TBOOL] // 返回 bool
+		retType = types.Types[types.TBOOL]
 	} else {
-		retType = recv // 返回 T (自身)
+		retType = recv
 	}
 	results = []*types.Field{types.NewField(base.Pos, nil, retType)}
 
 	sig := types.NewSignature(nil, params, results)
 
-	// 5. 生成唯一符号名 (去重)
-	// 名字类似: .magic._add.int 或 .magic._eq.string
-	sym := types.LocalPkg.Lookup(".magic." + msym.Name + "." + recv.String())
+	// 生成符号名
+	sym := types.LocalPkg.Lookup(".magic." + name + "." + recv.String())
 	if sym.Uniq() {
 		if sym.Def != nil {
-			if name, ok := sym.Def.(*ir.Name); ok && name.Func != nil {
-				return name.Func, true
+			if n, ok := sym.Def.(*ir.Name); ok && n.Func != nil {
+				return n.Func, true
 			}
 		}
 	} else {
 		sym.SetUniq(true)
 	}
 
-	// 6. 创建函数实体
 	fn = ir.NewFunc(pos, pos, sym, sig)
 	fn.DeclareParams(true)
 	fn.SetDupok(true)
 	fn.SetWrapper(true)
 	sym.Def = fn.Nname
 
-	// 7. 构建函数体
+	// 构建函数体 (Basic Types)
 	ir.WithFunc(fn, func() {
 		var expr ir.Node
-		params := fn.Type().Params()
+		params := fn.Type().Params() // 获取参数切片
 
 		if isUnary {
-			// 一元运算: op x
 			x := params[0].Nname.(*ir.Name)
 			expr = ir.NewUnaryExpr(pos, op, x)
 		} else {
-			// 二元运算: x op y
 			p0 := params[0].Nname.(*ir.Name)
 			p1 := params[1].Nname.(*ir.Name)
 			var x, y ir.Node
@@ -284,10 +364,7 @@ func magicBasicMethodWrapper(recv *types.Type, msym *types.Sym, pos src.XPos) (f
 			expr = ir.NewBinaryExpr(pos, op, x, y)
 		}
 
-		// 类型检查表达式 (必要步骤，确保 IR 类型正确)
 		typedExpr := typecheck.Expr(expr)
-
-		// 构造 return 语句
 		ret := ir.NewReturnStmt(pos, []ir.Node{typedExpr})
 		fn.Body.Append(typecheck.Stmt(ret))
 	})
