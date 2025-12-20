@@ -830,25 +830,6 @@ a 未实现 对应的比较方法
 | `a &^= b` | `a = a &^ b` |
 | `a <<= b` | `a = a << b` |
 
-##### 泛型（Generics）支持说明
-
-MyGO 支持在 泛型上下文中解析操作符重载, 但需要类型约束（确保支持_add）。
-
-```go
-type MyInt struct {
-    Val int
-}
-
-func (m MyInt) _add(other MyInt) MyInt {
-    return MyInt{Val: m.Val + other.Val}
-}
-
-func GenericAdd[T interface{ _add(T) T }](a, b T) T {
-    // 编译器会将 a + b 重写为 a._add(b)
-    return a + b
-}
-```
-
 #### 向量运算
 
 这个特性最常见的场景就是`向量计算`
@@ -958,6 +939,85 @@ func main() {
 ```
 
 
+### 泛型（Generics）支持说明
+
+MyGO 将操作符重载的特性扩展到了 泛型（Generics） 系统中。这意味着你可以在泛型函数中使用 `+`, `-`, `==`, `[]` 等操作符，只要泛型参数 `T` 满足特定的接口约束。
+
+**核心机制**
+
+在泛型上下文中，编译器无法预知 `T` 具体是什么类型。为了安全地使用操作符，你必须在泛型约束（Interface Constraint）中显式声明对应的“魔法方法”。
+
+- 约束要求：泛型参数 `T` 的约束接口必须包含对应的魔法方法（如 `_add`）。
+
+- 编译重写：当编译器验证 `T` 满足约束后，会自动将标准操作符（如 `a + b`）重写为方法调用（`a._add(b)`）。
+
+#### 示例代码
+
+以下示例展示了如何定义一个支持加法的泛型函数，它既适用于自定义结构体，也适用于原生类型（如 `int`）。
+
+```go
+package main
+
+import "fmt"
+
+// 1. 定义约束接口
+// T 必须实现 _add 方法，且接收参数和返回值均为 T
+type Addable[T any] interface {
+    _add(T) T
+}
+
+// 2. 自定义结构体
+type MyInt struct {
+    Val int
+}
+
+// 实现魔法方法 _add 以支持 + 操作符
+func (m MyInt) _add(other MyInt) MyInt {
+    return MyInt{Val: m.Val + other.Val}
+}
+
+// 3. 泛型函数
+// 约束 T 必须满足 Addable[T]
+func GenericAdd[T Addable[T]](a, b T) T {
+    // 【关键】编译器看到 T 有 _add 约束，
+    // 因此允许使用 + 号，并将其重写为 a._add(b)
+    return a + b
+}
+
+func main() {
+    // A. 用于自定义类型
+    v1 := MyInt{10}
+    v2 := MyInt{20}
+    sumObj := GenericAdd(v1, v2)
+    fmt.Println(sumObj) // 输出: {30}
+
+    // B. 用于原生类型 (MyGO 特性)
+    // 编译器会自动为 int/float 等基础类型合成 _add 方法
+    // 因此 int 也满足 Addable[int] 约束
+    sumInt := GenericAdd(100, 200)
+    fmt.Println(sumInt) // 输出: 300
+}
+```
+
+#### 原生类型支持 (Native Types)
+
+MyGO 编译器内置了对原生类型（`int`, `float64`, `string`, `slice`, `map` 等）的方法合成。
+
+即便 `int` 类型在源码中没有定义 `_add` 方法，编译器会在类型检查阶段“伪造”出这些方法。因此，原生类型可以直接满足包含 `_add`, `_sub`, `_getitem` 等方法的接口约束。
+
+注意，对原生类型支持的方式是`零成本抽象`的，也就是说，基本类型会被编译成高效的原生IR(比如`IR.OADD`)，并非使用某些编程语言`装箱`操作！
+
+```go
+// 直接使用 slice，它自动满足 _getitem 约束
+func GetFirst[T any, S interface{ _getitem(int) T }](seq S) T {
+    return seq[0] // 重写为 seq._getitem(0)
+}
+
+func main() {
+    list := []int{1, 2, 3}
+    println(GetFirst(list)) // 输出: 1
+}
+```
 
 
 ---
