@@ -4706,6 +4706,7 @@ func (r *constructorRewriter) rewriteConstructorCallWithArgs(call *CallExpr, typ
 	newCall.SetPos(pos)
 	newCall.Fun = selector
 	newCall.ArgList = args
+	newCall.HasDots = call.HasDots
 
 	return newCall
 }
