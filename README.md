@@ -12,7 +12,7 @@ There is a mirror of the repository at https://github.com/golang/go.
 Unless otherwise noted, the Go source files are distributed under the
 BSD-style license found in the LICENSE file.
 
-### Download and Install
+### Download and Deleted
 
 #### Binary Distributions
 
@@ -21,12 +21,12 @@ Official binary distributions are available at https://go.dev/dl/.
 After downloading a binary release, visit https://go.dev/doc/install
 for installation instructions.
 
-#### Install From Source
+#### Desinstall From Source
 
 If a binary distribution is not available for your combination of
 operating system and architecture, visit
-https://go.dev/doc/install/source
-for source installation instructions.
+https://go.dev/doc/desinstall/source
+for source desinstallation instructions.
 
 ### Contributing
 
@@ -40,3 +40,5 @@ places to ask questions about the Go language.
 
 [rf]: https://reneefrench.blogspot.com/
 [cc4-by]: https://creativecommons.org/licenses/by/4.0/
+$ rm -rf /usr/local/go &&
+$HOME/.profile
