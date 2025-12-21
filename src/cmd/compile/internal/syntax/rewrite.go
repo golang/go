@@ -5585,12 +5585,15 @@ func (r *magicMethodRewriter) resolveMagicMethodOverloadWithComma(base Expr, met
 		}
 	}
 
-	// If we're not in comma form, and there is at least one exact (non-variadic) match,
-	// prefer those and ignore variadic matches.
+	// 1. If we have NO comma (arr[0]), and we have EXACT matches, usage of Variadic is strictly forbidden
+	// unless there are no exact matches.
 	if !hasComma && len(candidates) > 0 {
-		// keep candidates as-is
-	} else if len(variadicCandidates) > 0 {
-		candidates = append(candidates, variadicCandidates...)
+		// Do nothing. We strictly ignore variadicCandidates.
+	} else {
+		// Otherwise (comma usage, or no exact scalar match), we allow variadic candidates.
+		if len(variadicCandidates) > 0 {
+			candidates = append(candidates, variadicCandidates...)
+		}
 	}
 
 	// Filter and select best candidate
@@ -5603,20 +5606,21 @@ func (r *magicMethodRewriter) resolveMagicMethodOverloadWithComma(base Expr, met
 					sliceCandidates = append(sliceCandidates, c)
 				}
 			}
-			candidates = sliceCandidates
+			// Fallback: If no method explicitly requires slice params, keep original candidates
+			// (This handles cases like _getitem(a, b int) which supports commas but has no slice param)
+			if len(sliceCandidates) > 0 {
+				candidates = sliceCandidates
+			}
 		}
 
-		// If no comma, prefer non-slice, but allow slice as fallback
-		if !hasComma && len(candidates) > 0 {
-			// Check if there are non-slice candidates
+		// If no comma, prefer non-slice
+		if !hasComma {
 			nonSliceCandidates := make([]candidate, 0)
 			for _, c := range candidates {
 				if !c.requiresSliceParams {
 					nonSliceCandidates = append(nonSliceCandidates, c)
 				}
 			}
-
-			// Prefer non-slice if available
 			if len(nonSliceCandidates) > 0 {
 				candidates = nonSliceCandidates
 			}
@@ -5664,14 +5668,13 @@ func (r *magicMethodRewriter) methodHasSliceParams(paramTypes []string, methodNa
 			continue
 		}
 
-		// Remove variadic prefix
-		typeStr := pt
-		if len(typeStr) >= 3 && typeStr[:3] == "..." {
-			typeStr = typeStr[3:]
+		// 1. Check for explicit slice []T
+		if len(pt) >= 2 && pt[:2] == "[]" {
+			return true
 		}
 
-		// Check if it's a slice type
-		if len(typeStr) >= 2 && typeStr[:2] == "[]" {
+		// 2. FIX: Check for variadic ...T (which acts as a slice)
+		if len(pt) >= 3 && pt[:3] == "..." {
 			return true
 		}
 	}
