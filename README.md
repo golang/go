@@ -1187,6 +1187,7 @@ func main() {
 ```
 
 `slice` 默认"伪实现"了 _init(pos int) _init(pos int, pos cap)
+
 `map/chan` 默认"伪实现"了 _init() _init(pos int)
 
 
