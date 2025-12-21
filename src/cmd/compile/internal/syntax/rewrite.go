@@ -3529,8 +3529,8 @@ func (r *arithOpRewriter) tryInferStructTypeName(expr Expr) string {
 			if baseMagic != "" {
 				recvType := r.tryInferStructTypeName(sel.X)
 				if recvType != "" {
-					if r.methodReturnsReceiverType(recvType, baseMagic) {
-						return recvType
+					if rt := r.getMagicMethodReturnType(recvType, baseMagic); rt != "" {
+						return rt
 					}
 				}
 			}
@@ -3614,18 +3614,25 @@ func (r *arithOpRewriter) bindVarType(varName string, typeExpr Expr) {
 	}
 }
 
-// methodReturnsReceiverType reports whether receiver type's magic method returns
-// the receiver type (either as value or pointer). This is used only for
-// syntactic inference to enable chaining rewrites.
-func (r *arithOpRewriter) methodReturnsReceiverType(recvType string, baseMagic string) bool {
+// getMagicMethodReturnType looks up the return type of a magic method.
+// It handles cases where the return type differs from the receiver type (e.g. Scalar._rmul -> NDArray).
+func (r *arithOpRewriter) getMagicMethodReturnType(recvType string, baseMagic string) string {
 	m, ok := r.arithMethods[recvType]
 	if !ok {
+		// If looking up via capabilities (generics), we conservatively assume
+		// it returns self if declared, as we can't easily parse complex constraints here.
 		if caps := r.lookupTypeParamCapsByTypeName(recvType); caps != nil {
-			return caps.returns(baseMagic)
+			if caps.returns(baseMagic) {
+				return recvType
+			}
 		}
-		return false
+		return ""
 	}
+
 	cands := m[baseMagic]
+	// Simple heuristic: look at the first candidate.
+	// In a perfect world, we would match arg types, but for the purpose of
+	// chaining inference (a.Op(b).Op(c)), the return type is usually consistent across overloads.
 	for _, fn := range cands {
 		if fn == nil || fn.Type == nil || fn.Type.ResultList == nil || len(fn.Type.ResultList) != 1 {
 			continue
@@ -3634,17 +3641,50 @@ func (r *arithOpRewriter) methodReturnsReceiverType(recvType string, baseMagic s
 		if res == nil || res.Type == nil {
 			continue
 		}
+
 		rt := typeExprToString(res.Type)
-		if stripGenericArgs(rt) == stripGenericArgs(recvType) {
-			return true
+
+		// Strip pointer prefix (*NDArray -> NDArray) to get the struct name
+		if len(rt) > 0 && rt[0] == '*' {
+			rt = rt[1:]
 		}
-		// Allow *T returning to infer T.
-		if len(rt) > 0 && rt[0] == '*' && rt[1:] == recvType {
-			return true
-		}
+
+		return stripGenericArgs(rt)
 	}
-	return false
+	return ""
 }
+
+// methodReturnsReceiverType reports whether receiver type's magic method returns
+// the receiver type (either as value or pointer). This is used only for
+// syntactic inference to enable chaining rewrites.
+// func (r *arithOpRewriter) methodReturnsReceiverType(recvType string, baseMagic string) bool {
+// 	m, ok := r.arithMethods[recvType]
+// 	if !ok {
+// 		if caps := r.lookupTypeParamCapsByTypeName(recvType); caps != nil {
+// 			return caps.returns(baseMagic)
+// 		}
+// 		return false
+// 	}
+// 	cands := m[baseMagic]
+// 	for _, fn := range cands {
+// 		if fn == nil || fn.Type == nil || fn.Type.ResultList == nil || len(fn.Type.ResultList) != 1 {
+// 			continue
+// 		}
+// 		res := fn.Type.ResultList[0]
+// 		if res == nil || res.Type == nil {
+// 			continue
+// 		}
+// 		rt := typeExprToString(res.Type)
+// 		if stripGenericArgs(rt) == stripGenericArgs(recvType) {
+// 			return true
+// 		}
+// 		// Allow *T returning to infer T.
+// 		if len(rt) > 0 && rt[0] == '*' && rt[1:] == recvType {
+// 			return true
+// 		}
+// 	}
+// 	return false
+// }
 
 func arithMethodNamesForOp(op Operator) (forward string, reverse string) {
 	switch op {
