@@ -526,6 +526,10 @@ func (f *peFile) addDWARF(ctxt *Link) {
 	}
 	for _, sect := range Segdwarf.Sections {
 		h := f.peshbits(ctxt, sect, &Segdwarf)
+		if h == nil {
+			// peshbits returns nil for empty sections
+			continue
+		}
 		fileoff := sect.Vaddr - Segdwarf.Vaddr + Segdwarf.Fileoff
 		if uint64(h.pointerToRawData) != fileoff {
 			Exitf("%s.PointerToRawData = %#x, want %#x", sect.Name, h.pointerToRawData, fileoff)
@@ -575,6 +579,9 @@ func (f *peFile) peshbits(ctxt *Link, sect *sym.Section, seg *sym.Segment) *peSe
 	}
 
 	if ctxt.LinkMode == LinkExternal && seg != &Segdwarf {
+		// For external linking, set explicit 32-byte alignment in COFF object.
+		// This ensures the external linker honors our alignment requirements.
+		// DWARF sections use 1-byte alignment as they don't need special alignment.
 		h.characteristics |= IMAGE_SCN_ALIGN_32BYTES
 	}
 	if fileSize == 0 {
