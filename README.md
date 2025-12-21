@@ -781,8 +781,8 @@ func (p *Person) _getitem(name string) string {
 	return "not found"
 }
 
-// _setitem: 支持 person["name"] = value 语法
-func (p *Person) _setitem(name string, value string) {
+// _setitem: 支持 person["name"] = value 语法 ⚠️ 注意 value 在前面 key 在后面
+func (p *Person) _setitem(value string, name string) {
 	p.data[name] = value
 }
 

@@ -140,6 +140,12 @@ func (r *rewriter) rewriteStmt(stmt Stmt) Stmt {
 	case *AssignStmt:
 		s.Lhs = r.rewriteExpr(s.Lhs)
 		s.Rhs = r.rewriteExpr(s.Rhs)
+	case *CallStmt:
+		// go f(...) / defer f(...)
+		s.Call = r.rewriteExpr(s.Call)
+		if s.DeferAt != nil {
+			s.DeferAt = r.rewriteExpr(s.DeferAt)
+		}
 	case *ReturnStmt:
 		if s.Results != nil {
 			s.Results = r.rewriteExpr(s.Results)
@@ -1080,6 +1086,7 @@ func PreprocessOverloadedMethods(file *File) map[string]*OverloadInfo {
 		rewriter := &overloadPreRewriter{
 			overloads:     overloadInfos,
 			methodNameMap: buildMethodNameMap(overloadInfos),
+			varTypes:      make(map[string]string),
 		}
 		rewriter.rewriteFile(file)
 	}
@@ -1169,6 +1176,9 @@ func buildMethodNameMap(overloads map[string]*OverloadInfo) map[string][]*Overlo
 type overloadPreRewriter struct {
 	overloads     map[string]*OverloadInfo
 	methodNameMap map[string][]*OverloadInfo
+	// varTypes provides best-effort syntactic type inference for named variables,
+	// so pre-typecheck overload rewriting can filter overload sets by receiver type.
+	varTypes map[string]string // var name -> base type name (no leading '*', no type args)
 }
 
 func (r *overloadPreRewriter) rewriteFile(file *File) {
@@ -1181,9 +1191,23 @@ func (r *overloadPreRewriter) rewriteDeclPre(decl Decl) {
 	switch d := decl.(type) {
 	case *FuncDecl:
 		if d.Body != nil {
+			// Track receiver/parameter types so calls inside bodies can use them.
+			if d.Recv != nil && d.Recv.Name != nil && d.Recv.Type != nil {
+				r.bindVarTypePre(d.Recv.Name.Value, d.Recv.Type)
+			}
+			if d.Type != nil && d.Type.ParamList != nil {
+				for _, p := range d.Type.ParamList {
+					if p == nil || p.Name == nil || p.Type == nil {
+						continue
+					}
+					r.bindVarTypePre(p.Name.Value, p.Type)
+				}
+			}
 			r.rewriteBlockStmtPre(d.Body)
 		}
 	case *VarDecl:
+		// Track variable types (var x T = ... / var x = &T{} / var x = make(T,...)).
+		r.trackVarDeclTypesPre(d)
 		if d.Values != nil {
 			r.rewriteExprPre(d.Values)
 		}
@@ -1207,8 +1231,17 @@ func (r *overloadPreRewriter) rewriteStmtPre(stmt Stmt) {
 	case *ExprStmt:
 		r.rewriteExprPre(s.X)
 	case *AssignStmt:
+		// Track short variable declarations: x := &T{} / x := make(T,...)
+		if s.Op == Def {
+			r.trackShortVarDeclTypesPre(s)
+		}
 		r.rewriteExprPre(s.Lhs)
 		r.rewriteExprPre(s.Rhs)
+	case *CallStmt:
+		r.rewriteExprPre(s.Call)
+		if s.DeferAt != nil {
+			r.rewriteExprPre(s.DeferAt)
+		}
 	case *ReturnStmt:
 		if s.Results != nil {
 			r.rewriteExprPre(s.Results)
@@ -1250,6 +1283,127 @@ func (r *overloadPreRewriter) rewriteStmtPre(stmt Stmt) {
 			r.rewriteDeclPre(d)
 		}
 	}
+}
+
+func (r *overloadPreRewriter) trackVarDeclTypesPre(d *VarDecl) {
+	if d == nil {
+		return
+	}
+	// var x T = ...
+	if d.Type != nil {
+		base := stripGenericArgs(baseTypeNameFromTypeExpr(d.Type))
+		if base == "" {
+			return
+		}
+		if r.varTypes == nil {
+			r.varTypes = make(map[string]string)
+		}
+		for _, n := range d.NameList {
+			if n != nil && n.Value != "" {
+				r.varTypes[n.Value] = base
+			}
+		}
+		return
+	}
+	// var x = rhs
+	if d.Values != nil {
+		r.trackAssignmentTypesPre(d.NameList, d.Values)
+	}
+}
+
+func (r *overloadPreRewriter) trackShortVarDeclTypesPre(s *AssignStmt) {
+	if s == nil || s.Op != Def {
+		return
+	}
+	var names []*Name
+	switch lhs := s.Lhs.(type) {
+	case *Name:
+		names = []*Name{lhs}
+	case *ListExpr:
+		for _, e := range lhs.ElemList {
+			if n, ok := e.(*Name); ok && n != nil {
+				names = append(names, n)
+			}
+		}
+	default:
+		return
+	}
+	r.trackAssignmentTypesPre(names, s.Rhs)
+}
+
+func (r *overloadPreRewriter) trackAssignmentTypesPre(names []*Name, rhs Expr) {
+	if len(names) == 0 || rhs == nil {
+		return
+	}
+	if r.varTypes == nil {
+		r.varTypes = make(map[string]string)
+	}
+	if len(names) == 1 {
+		if t := inferBaseTypeFromValueExprPre(rhs); t != "" {
+			r.varTypes[names[0].Value] = t
+		}
+		return
+	}
+	// Multi-assign: a, b := f()
+	if list, ok := rhs.(*ListExpr); ok {
+		for i, n := range names {
+			if i >= len(list.ElemList) {
+				break
+			}
+			if t := inferBaseTypeFromValueExprPre(list.ElemList[i]); t != "" {
+				r.varTypes[n.Value] = t
+			}
+		}
+	}
+}
+
+func (r *overloadPreRewriter) bindVarTypePre(varName string, typeExpr Expr) {
+	if varName == "" || typeExpr == nil {
+		return
+	}
+	base := stripGenericArgs(baseTypeNameFromTypeExpr(typeExpr))
+	if base == "" {
+		return
+	}
+	if r.varTypes == nil {
+		r.varTypes = make(map[string]string)
+	}
+	r.varTypes[varName] = base
+}
+
+func inferBaseTypeFromValueExprPre(e Expr) string {
+	if e == nil {
+		return ""
+	}
+	// Peel parens.
+	for {
+		if p, ok := e.(*ParenExpr); ok && p != nil {
+			e = p.X
+			continue
+		}
+		break
+	}
+	switch x := e.(type) {
+	case *Operation:
+		// &T{} or *p
+		if x != nil && x.Y == nil {
+			if x.Op == And || x.Op == Mul {
+				return inferBaseTypeFromValueExprPre(x.X)
+			}
+		}
+	case *CompositeLit:
+		if x != nil && x.Type != nil {
+			return stripGenericArgs(baseTypeNameFromTypeExpr(x.Type))
+		}
+	case *CallExpr:
+		if x != nil {
+			// make(T, ...) => T
+			if n, ok := x.Fun.(*Name); ok && n != nil && n.Value == "make" && len(x.ArgList) > 0 {
+				return stripGenericArgs(baseTypeNameFromTypeExpr(x.ArgList[0]))
+			}
+		}
+	}
+	return ""
 }
 
 func (r *overloadPreRewriter) rewriteSimpleStmtPre(stmt SimpleStmt) {
@@ -1368,6 +1522,22 @@ func (r *overloadPreRewriter) tryRewriteMethodCallPre(call *CallExpr, sel *Selec
 		return
 	}
 
+	// IMPORTANT: Pre-typecheck overload rewriting must be conservative.
+	// We should only rewrite when we can reliably infer the receiver type syntactically,
+	// otherwise we may apply another type's overload set to this call.
+	//
+	// Example failure mode (before this guard):
+	// - SliceArray has overloaded _getitem(int) and _getitem(...int), so we rename them to _getitem_int, ...
+	// - SafeCache has a single _getitem(string)
+	// - An index rewrite produces cache._getitem(key) where key is non-literal
+	// - inferLiteralType(key) is "unknown:key", which matches anything
+	// - Pre-rewriter may pick SliceArray's _getitem_int and rewrite the selector on SafeCache,
+	//   yielding "cache._getitem_int undefined".
+	recvBase := r.inferReceiverBaseTypeFromExprPre(sel.X)
+	if recvBase == "" {
+		return
+	}
+
 	// Infer argument types from literals
 	argTypes := make([]string, len(call.ArgList))
 	for i, arg := range call.ArgList {
@@ -1376,6 +1546,10 @@ func (r *overloadPreRewriter) tryRewriteMethodCallPre(call *CallExpr, sel *Selec
 
 	// Find matching overload
 	for _, info := range infos {
+		// Filter overload sets by receiver type (syntactic best-effort).
+		if stripGenericArgs(stripLeadingStar(info.ReceiverType)) != recvBase {
+			continue
+		}
 		for _, entry := range info.Overloads {
 			// Check if argument count is within the valid range
 			numArgs := len(argTypes)
@@ -1399,6 +1573,57 @@ func (r *overloadPreRewriter) tryRewriteMethodCallPre(call *CallExpr, sel *Selec
 			}
 		}
 	}
+}
+
+func stripLeadingStar(s string) string {
+	if len(s) > 0 && s[0] == '*' {
+		return s[1:]
+	}
+	return s
+}
+
+func (r *overloadPreRewriter) inferReceiverBaseTypeFromExprPre(x Expr) string {
+	// Prefer tracked variable types when receiver is a name.
+	if n, ok := x.(*Name); ok && n != nil && r.varTypes != nil {
+		if t, ok := r.varTypes[n.Value]; ok && t != "" {
+			return stripGenericArgs(stripLeadingStar(t))
+		}
+	}
+	return inferReceiverBaseTypePre(x)
+}
+
+// inferReceiverBaseTypePre tries to infer the receiver's base type name from syntax only.
+// It returns the base name without leading '*' and without generic args, or "" if unknown.
+func inferReceiverBaseTypePre(x Expr) string {
+	// Peel parens.
+	for {
+		if p, ok := x.(*ParenExpr); ok && p != nil {
+			x = p.X
+			continue
+		}
+		break
+	}
+	switch e := x.(type) {
+	case *Operation:
+		// &T{}  =>  *T
+		if e != nil && e.Y == nil && e.Op == And {
+			if cl, ok := e.X.(*CompositeLit); ok && cl != nil && cl.Type != nil {
+				return stripGenericArgs(baseTypeNameFromTypeExpr(cl.Type))
+			}
+		}
+	case *CompositeLit:
+		if e != nil && e.Type != nil {
+			return stripGenericArgs(baseTypeNameFromTypeExpr(e.Type))
+		}
+	case *CallExpr:
+		// make(T, ...) => T
+		if e != nil {
+			if n, ok := e.Fun.(*Name); ok && n != nil && n.Value == "make" && len(e.ArgList) > 0 {
+				return stripGenericArgs(baseTypeNameFromTypeExpr(e.ArgList[0]))
+			}
+		}
+	}
+	return ""
 }
 
 // inferLiteralType tries to infer the type of a literal expression
@@ -1673,6 +1898,9 @@ type arithOpRewriter struct {
 	// receiverTypeName has no leading '*'.
 	arithMethods map[string]map[string][]*FuncDecl
 	varTypes     map[string]string // var name -> typeName (no leading '*')
+	// varTypeExpr records syntactic type expressions for variables/params/receivers.
+	// This enables inferring element types for indexing on []T / ...T in generic code.
+	varTypeExpr map[string]Expr
 
 	funcReturnTypes map[string]string // function name -> return typeName (no leading '*')
 
@@ -1708,6 +1936,7 @@ func RewriteMagicAndArithmetic(file *File) {
 	r := &arithOpRewriter{
 		arithMethods:    make(map[string]map[string][]*FuncDecl),
 		varTypes:        make(map[string]string),
+		varTypeExpr:     make(map[string]Expr),
 		funcReturnTypes: make(map[string]string),
 		genericTypes:    make(map[string]*genericTypeInfo),
 		varTypeArgs:     make(map[string][]Expr),
@@ -2593,6 +2822,13 @@ func (r *arithOpRewriter) rewriteStmt(stmt Stmt) Stmt {
 			}
 		}
 		return s
+	case *CallStmt:
+		// go f(...) / defer f(...)
+		s.Call = r.rewriteExpr(s.Call)
+		if s.DeferAt != nil {
+			s.DeferAt = r.rewriteExpr(s.DeferAt)
+		}
+		return s
 	default:
 		return stmt
 	}
@@ -2628,9 +2864,101 @@ func (r *arithOpRewriter) rewriteSimpleStmt(stmt SimpleStmt) SimpleStmt {
 		s.Chan = r.rewriteExpr(s.Chan)
 		s.Value = r.rewriteExpr(s.Value)
 		return s
+	case *RangeClause:
+		// for ... := range X { ... }
+		// Rewrite X and bind newly declared iteration variables so magic methods
+		// work on range elements (e.g. for _, obj := range objs { obj["k"] = 1 }).
+		if s.Lhs != nil {
+			s.Lhs = r.rewriteExpr(s.Lhs)
+		}
+		s.X = r.rewriteExpr(s.X)
+		if s.Def {
+			r.bindRangeClauseVars(s)
+		}
+		return s
 	default:
 		return stmt
 	}
+}
+
+func (r *arithOpRewriter) bindRangeClauseVars(rc *RangeClause) {
+	if rc == nil || !rc.Def {
+		return
+	}
+	// Only handle common slice/array range: for i, v := range xs
+	elemType := r.inferElemTypeExprFromContainer(rc.X)
+	if elemType == nil {
+		return
+	}
+
+	// Extract the value variable (second lhs in "i, v := range").
+	var valName *Name
+	switch lhs := rc.Lhs.(type) {
+	case *ListExpr:
+		if lhs != nil && len(lhs.ElemList) >= 2 {
+			if n, ok := lhs.ElemList[1].(*Name); ok {
+				valName = n
+			}
+		}
+	case *Name:
+		// for v := range xs  (rare for slices; allowed syntax-wise)
+		valName = lhs
+	}
+	if valName == nil || valName.Value == "" || valName.Value == "_" {
+		return
+	}
+	r.bindVarType(valName.Value, elemType)
+}
+
+func (r *arithOpRewriter) inferElemTypeExprFromContainer(x Expr) Expr {
+	if x == nil || r.varTypeExpr == nil {
+		return nil
+	}
+	// Peel parens.
+	for {
+		if p, ok := x.(*ParenExpr); ok && p != nil {
+			x = p.X
+			continue
+		}
+		break
+	}
+	n, ok := x.(*Name)
+	if !ok || n == nil {
+		return nil
+	}
+	te := r.varTypeExpr[n.Value]
+	if te == nil {
+		return nil
+	}
+	// Peel parens/pointers.
+	for {
+		switch tt := te.(type) {
+		case *ParenExpr:
+			te = tt.X
+			continue
+		case *Operation:
+			if tt.Y == nil && (tt.Op == Mul || tt.Op == And) {
+				te = tt.X
+				continue
+			}
+		}
+		break
+	}
+	switch tt := te.(type) {
+	case *SliceType:
+		if tt != nil {
+			return tt.Elem
+		}
+	case *ArrayType:
+		if tt != nil {
+			return tt.Elem
+		}
+	case *DotsType:
+		if tt != nil {
+			return tt.Elem
+		}
+	}
+	return nil
 }
 
 func (r *arithOpRewriter) rewriteCaseClause(cc *CaseClause) {
@@ -3022,6 +3350,9 @@ func (r *arithOpRewriter) trackAssignmentTypes(names []*Name, values Expr) {
 		return
 	}
 	if len(names) == 1 {
+		// Record syntactic type expression (e.g. x := make([]*T, n)) so that
+		// later indexing x[i] can infer element type for magic methods.
+		r.recordVarTypeExprFromValue(names[0].Value, values)
 		typeName := r.tryInferStructTypeName(values)
 		if typeName != "" {
 			if r.typeSupportsOperators(typeName) {
@@ -3035,11 +3366,49 @@ func (r *arithOpRewriter) trackAssignmentTypes(names []*Name, values Expr) {
 			if i >= len(list.ElemList) {
 				break
 			}
+			r.recordVarTypeExprFromValue(n.Value, list.ElemList[i])
 			typeName := r.tryInferStructTypeName(list.ElemList[i])
 			if typeName != "" {
 				if r.typeSupportsOperators(typeName) {
 					r.varTypes[n.Value] = typeName
 				}
+			}
+		}
+	}
+}
+
+// recordVarTypeExprFromValue records a best-effort syntactic type expression for varName
+// based on a value expression (short var decl / assignment RHS). This is intentionally
+// broader than operator support tracking: it helps infer element types for indexing and
+// thus enables magic _getitem/_setitem on values derived from slices/arrays.
+func (r *arithOpRewriter) recordVarTypeExprFromValue(varName string, value Expr) {
+	if varName == "" || value == nil || r.varTypeExpr == nil {
+		return
+	}
+	// Peel parens and unary ops like & and *.
+	for {
+		switch e := value.(type) {
+		case *ParenExpr:
+			value = e.X
+			continue
+		case *Operation:
+			if e.Y == nil && (e.Op == And || e.Op == Mul) {
+				value = e.X
+				continue
+			}
+		}
+		break
+	}
+	switch e := value.(type) {
+	case *CompositeLit:
+		if e != nil && e.Type != nil {
+			r.varTypeExpr[varName] = e.Type
+		}
+	case *CallExpr:
+		if e != nil {
+			if n, ok := e.Fun.(*Name); ok && n != nil && n.Value == "make" && len(e.ArgList) > 0 {
+				// make(T, ...) where T is a type expression node in the AST.
+				r.varTypeExpr[varName] = e.ArgList[0]
 			}
 		}
 	}
@@ -3052,6 +3421,47 @@ func (r *arithOpRewriter) tryInferStructTypeName(expr Expr) string {
 	case *Name:
 		if t, ok := r.varTypes[e.Value]; ok {
 			return t
+		}
+		return ""
+	case *IndexExpr:
+		// Infer element type for indexing a slice/array/variadic variable:
+		//   v1[i] where v1 is []T  =>  T
+		//   items[i] where items is ...T  =>  T
+		//
+		// This enables generic operator rewriting like:
+		//   v1[i] * v2[i]  =>  v1[i]._mul(v2[i])
+		if base, ok := e.X.(*Name); ok && base != nil && r.varTypeExpr != nil {
+			if te, ok := r.varTypeExpr[base.Value]; ok && te != nil {
+				// Peel parens and pointer operations (conservative).
+				te2 := te
+				for {
+					switch tt := te2.(type) {
+					case *ParenExpr:
+						te2 = tt.X
+						continue
+					case *Operation:
+						if tt.Y == nil && (tt.Op == Mul || tt.Op == And) {
+							te2 = tt.X
+							continue
+						}
+					}
+					break
+				}
+				switch tt := te2.(type) {
+				case *SliceType:
+					if tt != nil && tt.Elem != nil {
+						return baseTypeNameFromTypeExpr(tt.Elem)
+					}
+				case *ArrayType:
+					if tt != nil && tt.Elem != nil {
+						return baseTypeNameFromTypeExpr(tt.Elem)
+					}
+				case *DotsType:
+					if tt != nil && tt.Elem != nil {
+						return baseTypeNameFromTypeExpr(tt.Elem)
+					}
+				}
+			}
 		}
 		return ""
 	case *SelectorExpr:
@@ -3181,6 +3591,9 @@ func baseTypeNameFromTypeExpr(expr Expr) string {
 func (r *arithOpRewriter) bindVarType(varName string, typeExpr Expr) {
 	if varName == "" || typeExpr == nil {
 		return
+	}
+	if r.varTypeExpr != nil {
+		r.varTypeExpr[varName] = typeExpr
 	}
 	base, args := splitGenericTypeExpr(typeExpr)
 	if base == "" {
@@ -3397,6 +3810,11 @@ func (r *overloadCallRewriter) rewriteStmt(stmt Stmt) {
 	case *AssignStmt:
 		r.rewriteExpr(s.Lhs)
 		r.rewriteExpr(s.Rhs)
+	case *CallStmt:
+		r.rewriteExpr(s.Call)
+		if s.DeferAt != nil {
+			r.rewriteExpr(s.DeferAt)
+		}
 	case *ReturnStmt:
 		if s.Results != nil {
 			r.rewriteExpr(s.Results)
@@ -3805,6 +4223,11 @@ func (r *constructorRewriter) rewriteStmt(stmt Stmt) Stmt {
 	case *AssignStmt:
 		s.Lhs = r.rewriteExpr(s.Lhs)
 		s.Rhs = r.rewriteExpr(s.Rhs)
+	case *CallStmt:
+		s.Call = r.rewriteExpr(s.Call)
+		if s.DeferAt != nil {
+			s.DeferAt = r.rewriteExpr(s.DeferAt)
+		}
 	case *ReturnStmt:
 		if s.Results != nil {
 			s.Results = r.rewriteExpr(s.Results)
@@ -4452,6 +4875,13 @@ func (r *magicMethodRewriter) rewriteStmt(stmt Stmt) Stmt {
 	case *AssignStmt:
 		// Check if this is an indexed assignment: a[x] = y
 		return r.rewriteAssignStmt(s)
+	case *CallStmt:
+		// go f(...) / defer f(...)
+		s.Call = r.rewriteExpr(s.Call)
+		if s.DeferAt != nil {
+			s.DeferAt = r.rewriteExpr(s.DeferAt)
+		}
+		return s
 	case *ReturnStmt:
 		if s.Results != nil {
 			s.Results = r.rewriteExpr(s.Results)
@@ -4510,6 +4940,16 @@ func (r *magicMethodRewriter) rewriteSimpleStmt(stmt SimpleStmt) SimpleStmt {
 		// For now, just return the original
 		s.Lhs = r.rewriteExpr(s.Lhs)
 		s.Rhs = r.rewriteExpr(s.Rhs)
+		return s
+	case *RangeClause:
+		// Keep range clause traversed and bind iteration variables for magic methods.
+		if s.Lhs != nil {
+			s.Lhs = r.rewriteExpr(s.Lhs)
+		}
+		s.X = r.rewriteExpr(s.X)
+		if s.Def {
+			r.arithOpRewriter.bindRangeClauseVars(s)
+		}
 		return s
 	}
 	return stmt
@@ -4579,8 +5019,10 @@ func (r *magicMethodRewriter) rewriteAssignStmt(stmt *AssignStmt) Stmt {
 	// Transform: a[x, y] = z -> a._setitem(x, y, z)
 	pos := stmt.Pos()
 
-	// Add the RHS value as the last argument
-	args = append(args, r.rewriteExpr(stmt.Rhs))
+	// New convention (value-first): a[idx] = v -> a._setitem(v, idx)
+	// Put the RHS value as the first argument.
+	valueArg := r.rewriteExpr(stmt.Rhs)
+	args = append([]Expr{valueArg}, args...)
 
 	// Create method call: base._setitem(args...)
 	methodCall := r.createMagicMethodCallWithComma(pos, baseExpr, "_setitem", args, hasComma)
@@ -4630,6 +5072,14 @@ func (r *magicMethodRewriter) rewriteExpr(expr Expr) Expr {
 		e.Fun = r.rewriteExpr(e.Fun)
 		for i, arg := range e.ArgList {
 			e.ArgList[i] = r.rewriteExpr(arg)
+		}
+		return e
+
+	case *FuncLit:
+		// Traverse nested function literals so magic index/slice rewrites
+		// apply inside goroutines/closures too.
+		if e.Body != nil {
+			r.rewriteBlockStmt(e.Body)
 		}
 		return e
 
@@ -4826,13 +5276,13 @@ func (r *magicMethodRewriter) createMagicMethodCallWithComma(pos Pos, base Expr,
 	// (e.g. ...[]int) or flatten to plain args (e.g. int, int, ...), depending on
 	// receiver overloads.
 	if hasComma {
-		// For _setitem, last arg is the value; only the index portion participates
+		// For _setitem (value-first), first arg is the value; only the index portion participates
 		// in slice-vs-flat selection.
 		var valueArg Expr
 		indexArgs := args
 		if methodName == "_setitem" && len(args) > 0 {
-			valueArg = args[len(args)-1]
-			indexArgs = args[:len(args)-1]
+			valueArg = args[0]
+			indexArgs = args[1:]
 		}
 
 		if r.receiverHasSliceMagicOverload(base, methodName) {
@@ -4843,7 +5293,7 @@ func (r *magicMethodRewriter) createMagicMethodCallWithComma(pos Pos, base Expr,
 			}
 			indexArgs = wrapped
 			if valueArg != nil {
-				args = append(indexArgs, valueArg)
+				args = append([]Expr{valueArg}, indexArgs...)
 			} else {
 				args = indexArgs
 			}
@@ -4855,7 +5305,7 @@ func (r *magicMethodRewriter) createMagicMethodCallWithComma(pos Pos, base Expr,
 				flat = append(flat, r.flattenCommaElem(a)...)
 			}
 			if valueArg != nil {
-				args = append(flat, valueArg)
+				args = append([]Expr{valueArg}, flat...)
 			} else {
 				args = flat
 			}
@@ -4896,14 +5346,15 @@ func (r *magicMethodRewriter) createMagicMethodCallWithComma(pos Pos, base Expr,
 			}
 
 		case "_setitem":
-			// For assignments, last arg is the value; only wrap the index arguments.
+			// For assignments (value-first), first arg is the value; only wrap the index arguments.
 			// Only attempt fallback if we didn't already resolve to a specific overload.
-			if resolvedName == methodName && len(args) >= 2 && canWrapArgsAsIntSlice(args[:len(args)-1]) && r.hasSingleIntSliceIndexMethod(base, methodName) {
-				indexArgs := args[:len(args)-1]
-				valueArg := args[len(args)-1]
+			if resolvedName == methodName && len(args) >= 2 && canWrapArgsAsIntSlice(args[1:]) && r.hasSingleIntSliceIndexMethod(base, methodName) {
+				valueArg := args[0]
+				indexArgs := args[1:]
 				wrapped := r.createSliceLiteral(indexArgs)
 				if wrapped != nil {
-					wrappedArgs := []Expr{wrapped, valueArg}
+					// value-first: _setitem(value, []int{...})
+					wrappedArgs := []Expr{valueArg, wrapped}
 					resolved2 := r.resolveMagicMethodOverloadWithComma(base, methodName, wrappedArgs, true)
 					if resolved2 != methodName {
 						resolvedName = resolved2
@@ -4974,8 +5425,8 @@ func (r *magicMethodRewriter) hasSingleIntSliceIndexMethod(base Expr, methodName
 				return true
 			}
 		case "_setitem":
-			// Only consider (indices []int, value T) form for fallback wrapping.
-			if len(paramTypes) == 2 && paramTypes[0] == "[]int" {
+			// value-first: consider (value T, indices []int) or (value T, indices ...[]int)
+			if len(paramTypes) == 2 && (paramTypes[1] == "[]int" || paramTypes[1] == "...[]int") {
 				return true
 			}
 		}
@@ -5046,9 +5497,11 @@ func (r *magicMethodRewriter) resolveMagicMethodOverloadWithComma(base Expr, met
 		paramTypes          []string
 		score               int
 		requiresSliceParams bool
+		isVariadic          bool
 	}
 
 	candidates := make([]candidate, 0)
+	var variadicCandidates []candidate
 
 	for _, fn := range methods {
 		paramTypes := getParamTypeStrings(fn.Type.ParamList)
@@ -5066,13 +5519,18 @@ func (r *magicMethodRewriter) resolveMagicMethodOverloadWithComma(base Expr, met
 		if isVariadic {
 			// Variadic function matching
 			if r.matchesVariadicMethod(paramTypes, argTypes) {
-				score := 100
+				// Score variadic matches lower than exact (non-variadic) matches when both apply.
+				// This ensures cases like:
+				//   _getitem(index int) and _getitem(args ...int)
+				// prefer the fixed-arity overload for arr[i], while still selecting the
+				// variadic overload for arr[i:j] (where fixed-arity doesn't match).
+				score := 1
 				// If hasComma and requires slice params, high priority
 				// If !hasComma and doesn't require slice params, high priority
 				if hasComma == requiresSliceParams {
 					score += 50
 				}
-				candidates = append(candidates, candidate{fn, paramTypes, score, requiresSliceParams})
+				variadicCandidates = append(variadicCandidates, candidate{fn, paramTypes, score, requiresSliceParams, true})
 			}
 		} else {
 			// Non-variadic: exact parameter count required
@@ -5080,17 +5538,16 @@ func (r *magicMethodRewriter) resolveMagicMethodOverloadWithComma(base Expr, met
 				continue
 			}
 
-			// For _setitem, we need special handling:
-			// The last parameter is the value to set, which can be of any type
-			// So we're more lenient with the last parameter type matching
+			// For _setitem (value-first), we need special handling:
+			// The first parameter is the value to set, which can be of any type.
 			isSetitem := methodName == "_setitem"
 
 			match := true
 			matchScore := 0
 			for i := 0; i < len(argTypes); i++ {
-				// For _setitem's last parameter, be lenient with numeric types
-				if isSetitem && i == len(argTypes)-1 {
-					// Last parameter is the value - accept any numeric type matching
+				// For _setitem's value parameter (first), be lenient with numeric types
+				if isSetitem && i == 0 {
+					// Value parameter - accept any numeric type matching
 					if isNumericType(paramTypes[i]) && isNumericType(argTypes[i]) {
 						matchScore++
 						continue
@@ -5122,9 +5579,18 @@ func (r *magicMethodRewriter) resolveMagicMethodOverloadWithComma(base Expr, met
 					paramTypes:          paramTypes,
 					score:               score,
 					requiresSliceParams: requiresSliceParams,
+					isVariadic:          false,
 				})
 			}
 		}
+	}
+
+	// If we're not in comma form, and there is at least one exact (non-variadic) match,
+	// prefer those and ignore variadic matches.
+	if !hasComma && len(candidates) > 0 {
+		// keep candidates as-is
+	} else if len(variadicCandidates) > 0 {
+		candidates = append(candidates, variadicCandidates...)
 	}
 
 	// Filter and select best candidate
@@ -5156,6 +5622,19 @@ func (r *magicMethodRewriter) resolveMagicMethodOverloadWithComma(base Expr, met
 			}
 		}
 
+		// Prefer non-variadic overloads over variadic ones when both match.
+		if !hasComma && len(candidates) > 0 {
+			nonVariadic := make([]candidate, 0, len(candidates))
+			for _, c := range candidates {
+				if !c.isVariadic {
+					nonVariadic = append(nonVariadic, c)
+				}
+			}
+			if len(nonVariadic) > 0 {
+				candidates = nonVariadic
+			}
+		}
+
 		// Select best score
 		if len(candidates) > 0 {
 			best := candidates[0]
@@ -5174,14 +5653,14 @@ func (r *magicMethodRewriter) resolveMagicMethodOverloadWithComma(base Expr, met
 	return methodName
 }
 
-// methodHasSliceParams checks if a method's parameters include slice types
-// For _setitem, ignores the last parameter (the value)
+// methodHasSliceParams checks if a method's parameters include slice types.
+// For _setitem (value-first), ignores the first parameter (the value).
 func (r *magicMethodRewriter) methodHasSliceParams(paramTypes []string, methodName string) bool {
 	isSetitem := methodName == "_setitem"
 
 	for i, pt := range paramTypes {
-		// Skip the last parameter for _setitem (it's the value)
-		if isSetitem && i == len(paramTypes)-1 {
+		// Skip the first parameter for _setitem (it's the value)
+		if isSetitem && i == 0 {
 			continue
 		}
 
@@ -5409,6 +5888,7 @@ func rewriteDecoratedMethod(fn *FuncDecl) {
 
 	pos := fn.Pos()
 	decoratorName := fn.Decorator
+	decoratorArgs := fn.DecoratorArgs
 
 	// At this point, default params haven't been rewritten yet,
 	// so fn.Type.ParamList contains the original parameters
@@ -5426,7 +5906,15 @@ func rewriteDecoratedMethod(fn *FuncDecl) {
 	decoratorCall := new(CallExpr)
 	decoratorCall.SetPos(pos)
 	decoratorCall.Fun = decoratorName
-	decoratorCall.ArgList = []Expr{funcLit}
+	// For method decorators, support optional decorator arguments:
+	//   @retry(3) func (s *Service) Connect() error
+	// becomes:
+	//   _decorated := retry(func() error { ... }, 3)
+	args := []Expr{funcLit}
+	if len(decoratorArgs) > 0 {
+		args = append(args, decoratorArgs...)
+	}
+	decoratorCall.ArgList = args
 
 	// Create: _decorated := decoratorCall
 	decoratedName := NewName(pos, "_decorated")
@@ -5475,4 +5963,5 @@ func rewriteDecoratedMethod(fn *FuncDecl) {
 	// Replace method body with wrapped version
 	fn.Body = newBody
 	fn.Decorator = nil // Clear decorator marker
+	fn.DecoratorArgs = nil
 }
