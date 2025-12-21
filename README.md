@@ -566,7 +566,11 @@ func main() {
 }
 ```
 
-## 6. 构造函数
+## 6. 魔法函数(实验特性)
+
+注意，标记为实验特性的可能有BUG，慎用 (魔法方法所有的特性主要为未来的向量计算作准备)
+
+### 构造函数
 
 使用 `make(TypeName, args...)` 语法创建结构体实例，支持自定义初始化逻辑。
 
@@ -576,7 +580,7 @@ func main() {
 - 不需要手动写返回值（编译器自动添加）
 - 支持重载（不同参数类型）和默认参数
 
-### 6.1 基础用法
+#### 基础用法
 
 ```go
 type Person struct {
@@ -595,7 +599,7 @@ func main() {
 }
 ```
 
-### 6.2 构造函数重载
+#### 构造函数重载
 
 ```go
 type Database struct {
@@ -627,7 +631,7 @@ func main() {
 }
 ```
 
-### 6.3 构造函数 + 默认参数
+#### 构造函数 + 默认参数
 
 ```go
 type Server struct {
@@ -648,10 +652,6 @@ func main() {
     fmt.Printf("%s:%d\n", s2.host, s2.port) // 0.0.0.0:3000
 }
 ```
-
-## 7. 魔法函数(实验特性)
-
-注意，标记为实验特性的可能有BUG，慎用 (魔法方法所有的特性主要为未来的向量计算作准备)
 
 ### 索引运算符重载 (_getitem / _setitem)
 
@@ -1035,6 +1035,8 @@ MyGO 将操作符重载的特性扩展到了 泛型（Generics） 系统中。�
 
 以下示例展示了如何定义一个支持加法的泛型函数，它既适用于自定义结构体，也适用于原生类型（如 `int`）。
 
+##### 简单示例
+
 ```go
 package main
 
@@ -1079,6 +1081,48 @@ func main() {
 }
 ```
 
+##### 范型构造函数
+
+`MyGO` 完美支持泛型类型的构造函数。当使用 `make(GenericType[T], ...)` 时，编译器会根据实例化的具体类型 `T` 来查找和匹配对应的 `_init` 方法。
+
+```go
+package main
+
+import (
+	"fmt"
+)
+
+// 定义泛型结构体
+type Box[T any] struct {
+	Value T
+	Tag   string
+}
+
+// 定义泛型构造函数
+// 注意：接收者是 *Box[T]
+func (b *Box[T]) _init(val T, tag string) {
+	b.Value = val
+	b.Tag = tag
+}
+
+// 支持针对泛型的重载
+func (b *Box[T]) _init() {
+	// Value 将保持零值
+	b.Tag = "default"
+}
+
+func main() {
+	// 1. 实例化为 int，参数匹配 _init(int, string)
+	b1 := make(Box[int], 100, "manual")
+
+	// 2. 实例化为 string，无参匹配 _init()
+	b2 := make(Box[string])
+
+	fmt.Printf("b1: %v, %s\n", b1.Value, b1.Tag) // b1: 100, manual
+	fmt.Printf("b2: %q, %s\n", b2.Value, b2.Tag) // b2: "", default
+}
+```
+
 #### 原生类型支持 (Native Types)
 
 MyGO 编译器内置了对原生类型（`int`, `float64`, `string`, `slice`, `map` 等）的方法合成。
@@ -1098,6 +1142,52 @@ func main() {
     println(GetFirst(list)) // 输出: 1
 }
 ```
+
+同样，对`构造函数`来说，也是支持的
+
+```go
+package main
+
+import "fmt"
+
+type ValIniter[T any] interface {
+	_init(pos int)
+}
+
+func CreateBoxViaFunc[T ValIniter[T]](val int) *T {
+	return make(T, val)
+}
+
+type Box[T int] struct {
+	Value T
+}
+
+func (b *Box[T]) _init(val int) {
+	b.Value = T(val)
+}
+
+type MySlice []int
+type MyMap map[string]int
+type MyChan chan int
+
+func main() {
+	b := CreateBoxViaFunc[Box[int]](10)
+	fmt.Println("box", b.Value)
+
+	s := CreateBoxViaFunc[MySlice](3)
+	fmt.Println("slice", len(*s), cap(*s))
+
+	m := CreateBoxViaFunc[MyMap](2)
+	(*m)["a"] = 42
+	fmt.Println("map", len(*m), (*m)["a"])
+
+	ch := CreateBoxViaFunc[MyChan](2)
+	fmt.Println("chan", cap(*ch))
+}
+```
+
+`slice` 默认"伪实现"了 _init(pos int) _init(pos int, pos cap)
+`map/chan` 默认"伪实现"了 _init() _init(pos int)
 
 
 ---
