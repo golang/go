@@ -6,7 +6,10 @@
 
 package types2
 
-import "bytes"
+import (
+	"bytes"
+	"strings"
+)
 
 // LookupSelection selects the field or method whose ID is Id(pkg,
 // name), on a value of type T. If addressable is set, T is the type
@@ -168,6 +171,67 @@ func lookupFieldOrMethodImpl(T Type, addressable bool, pkg *Package, name string
 	// method names and only for numeric basic types, to avoid accidentally making
 	// basic types satisfy arbitrary method constraints.
 	if !isPtr {
+		// Helper: parse synthesized _init overload names.
+		// Supported forms:
+		//   _init            -> 0 args
+		//   _init_int        -> 1 arg (int-ish)
+		//   _init_int_int64  -> 2 args (int-ish, int-ish)
+		// Where "int-ish" is any integer basic type token used by the overload rewriter.
+		parseInitArgs := func(mname string) (argTypes []*Basic, ok bool) {
+			// For compatibility with constraints like `interface{ _init(int) }`,
+			// treat plain "_init" as the 1-arg "int" form for builtin containers.
+			// (Note: we can't represent both _init() and _init(int) under the same
+			// name without an overload suffix, so we pick the common 1-arg form.)
+			if mname == "_init" {
+				return []*Basic{Typ[Int]}, true
+			}
+			const prefix = "_init_"
+			if !strings.HasPrefix(mname, prefix) {
+				return nil, false
+			}
+			rest := mname[len(prefix):]
+			if rest == "" {
+				return nil, false
+			}
+			parts := strings.Split(rest, "_")
+			argTypes = make([]*Basic, 0, len(parts))
+			for _, p := range parts {
+				var bt *Basic
+				switch p {
+				case "int":
+					bt = Typ[Int]
+				case "int8":
+					bt = Typ[Int8]
+				case "int16":
+					bt = Typ[Int16]
+				case "int32":
+					bt = Typ[Int32]
+				case "int64":
+					bt = Typ[Int64]
+				case "uint":
+					bt = Typ[Uint]
+				case "uint8":
+					bt = Typ[Uint8]
+				case "uint16":
+					bt = Typ[Uint16]
+				case "uint32":
+					bt = Typ[Uint32]
+				case "uint64":
+					bt = Typ[Uint64]
+				case "uintptr":
+					bt = Typ[Uintptr]
+				case "byte":
+					bt = Typ[Byte]
+				case "rune":
+					bt = Typ[Rune]
+				default:
+					return nil, false
+				}
+				argTypes = append(argTypes, bt)
+			}
+			return argTypes, true
+		}
+
 		if b, _ := under(typ).(*Basic); b != nil {
 			// 定义三种类型的操作符集合
 
@@ -347,6 +411,49 @@ func lookupFieldOrMethodImpl(T Type, addressable bool, pkg *Package, name string
 
 				// 4. 返回对象
 				return NewFunc(nopos, pkg, name, sig), []int{0}, false
+			}
+		}
+
+		// =========================================================
+		// D. 新增: Slice/Map/Chan 合成 _init（用于让它们满足构造器约束）
+		//
+		// - Slice: _init(int) / _init(int,int)  (对应 make([]T, len) / make([]T, len, cap))
+		// - Map:   _init() / _init(int)        (对应 make(map[K]V) / make(map[K]V, hint))
+		// - Chan:  _init() / _init(int)        (对应 make(chan T) / make(chan T, buf))
+		//
+		// 注意：这些是“合成方法”，只用于 lookup/约束检查，让类型参数约束可以写成
+		// interface{ _init(int) } 之类；并不意味着用户能在运行时真正调用到一个 Go 方法体。
+		// =========================================================
+		if argBasics, ok := parseInitArgs(name); ok {
+			// 1. 构造接收者：用当前 typ（保留 named 类型形态，和上面的 _getitem/_setitem 一致）
+			recv := NewParam(nopos, pkg, "", typ)
+			recv.SetKind(RecvVar)
+
+			makeSig := func() *Signature {
+				var params []*Var
+				for _, bt := range argBasics {
+					p := NewParam(nopos, pkg, "", bt)
+					params = append(params, p)
+				}
+				// 无返回值：让它直接匹配 interface{ _init(...) } 的常见写法
+				return NewSignatureType(recv, nil, nil, NewTuple(params...), nil, false)
+			}
+
+			switch under(typ).(type) {
+			case *Slice:
+				if len(argBasics) == 1 || len(argBasics) == 2 {
+					return NewFunc(nopos, pkg, name, makeSig()), []int{0}, false
+				}
+			case *Map:
+				// map 允许 0 或 1 个整数参数
+				if len(argBasics) == 0 || len(argBasics) == 1 {
+					return NewFunc(nopos, pkg, name, makeSig()), []int{0}, false
+				}
+			case *Chan:
+				// chan 允许 0 或 1 个整数参数
+				if len(argBasics) == 0 || len(argBasics) == 1 {
+					return NewFunc(nopos, pkg, name, makeSig()), []int{0}, false
+				}
 			}
 		}
 	}

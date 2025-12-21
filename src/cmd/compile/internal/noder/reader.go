@@ -374,6 +374,130 @@ func magicBasicMethodWrapper(recv *types.Type, msym *types.Sym, pos src.XPos) (f
 	return fn, true
 }
 
+// magicInitWrapper returns a synthetic function implementing constructor-style
+// "_init" for builtin container types (slice/map/chan) so they can satisfy
+// generic constraints like `interface{ _init(int) }`.
+//
+// The wrapper has signature:
+//
+//	func(recv *T, args...) { *recv = make(T, args...) }
+//
+// Supported names:
+//
+//	_init              -> 1 arg (int)  [for compatibility with ValIniter-style constraints]
+//	_init_int          -> 1 arg (int-ish)
+//	_init_int_int      -> 2 args (int-ish, int-ish)
+//
+// and similarly for other integer basic types in the suffix.
+func magicInitWrapper(base *types.Type, msym *types.Sym, pos src.XPos) (fn *ir.Func, ok bool) {
+	if base == nil || msym == nil {
+		return nil, false
+	}
+	if !(base.IsSlice() || base.IsMap() || base.IsChan()) {
+		return nil, false
+	}
+	name := msym.Name
+	if name != "_init" && !strings.HasPrefix(name, "_init_") {
+		return nil, false
+	}
+
+	// Parse arg list from name.
+	// For "_init", assume the common 1-arg int form.
+	var argTypes []*types.Type
+	if name == "_init" {
+		argTypes = []*types.Type{types.Types[types.TINT]}
+	} else {
+		rest := name[len("_init_"):]
+		if rest == "" {
+			return nil, false
+		}
+		parts := strings.Split(rest, "_")
+		argTypes = make([]*types.Type, 0, len(parts))
+		for _, p := range parts {
+			var t *types.Type
+			switch p {
+			case "int":
+				t = types.Types[types.TINT]
+			case "int8":
+				t = types.Types[types.TINT8]
+			case "int16":
+				t = types.Types[types.TINT16]
+			case "int32":
+				t = types.Types[types.TINT32]
+			case "int64":
+				t = types.Types[types.TINT64]
+			case "uint":
+				t = types.Types[types.TUINT]
+			case "uint8", "byte":
+				t = types.Types[types.TUINT8]
+			case "uint16":
+				t = types.Types[types.TUINT16]
+			case "uint32":
+				t = types.Types[types.TUINT32]
+			case "uint64":
+				t = types.Types[types.TUINT64]
+			case "uintptr":
+				t = types.Types[types.TUINTPTR]
+			case "rune":
+				t = types.Types[types.TINT32]
+			default:
+				return nil, false
+			}
+			argTypes = append(argTypes, t)
+		}
+	}
+
+	// Unique symbol name, e.g. .magic._init_int.[]int
+	sym := types.LocalPkg.Lookup(".magic." + name + "." + base.String())
+	if sym.Uniq() {
+		if sym.Def != nil {
+			if n, ok := sym.Def.(*ir.Name); ok && n.Func != nil {
+				return n.Func, true
+			}
+		}
+	} else {
+		sym.SetUniq(true)
+	}
+
+	recvPtr := types.NewPtr(base)
+	params := make([]*types.Field, 0, 1+len(argTypes))
+	params = append(params, types.NewField(pos, typecheck.Lookup("recv"), recvPtr))
+	for i, t := range argTypes {
+		params = append(params, types.NewField(pos, typecheck.Lookup(fmt.Sprintf("a%d", i)), t))
+	}
+	sig := types.NewSignature(nil, params, nil)
+
+	fn = ir.NewFunc(pos, pos, sym, sig)
+	fn.DeclareParams(true)
+	fn.SetDupok(true)
+	fn.SetWrapper(true)
+	sym.Def = fn.Nname
+
+	ir.WithFunc(fn, func() {
+		ps := fn.Type().Params()
+		recvNode := ps[0].Nname.(*ir.Name)
+
+		var args ir.Nodes
+		for i := 1; i < len(ps); i++ {
+			args.Append(ps[i].Nname.(*ir.Name))
+		}
+
+		mk := typecheck.Expr(ir.NewCallExpr(pos, ir.OMAKE, nil, append([]ir.Node{ir.TypeNode(base)}, args...))).(*ir.MakeExpr)
+		if base.IsSlice() {
+			mk.RType = reflectdata.TypePtrAt(pos, base.Elem())
+		} else {
+			mk.RType = reflectdata.TypePtrAt(pos, base)
+		}
+		lhs := typecheck.Expr(ir.NewStarExpr(pos, recvNode))
+		as := ir.NewAssignStmt(pos, lhs, mk)
+		fn.Body.Append(typecheck.Stmt(as))
+	})
+
+	fn.Nname.Defn = fn
+	typecheck.Target.Funcs = append(typecheck.Target.Funcs, fn)
+	return fn, true
+}
+
 // This file implements cmd/compile backend's reader for the Unified
 // IR export data.
 
@@ -1796,6 +1920,8 @@ func (pr *pkgReader) dictNameOf(dict *readerDict) *ir.Name {
 		var rsym *obj.LSym
 		if fn, ok := magicBasicMethodWrapper(typeParam, info.method, pos); ok && fn != nil && fn.Nname != nil {
 			rsym = fn.Nname.Linksym()
+		} else if fn, ok := magicInitWrapper(typeParam, info.method, pos); ok && fn != nil && fn.Nname != nil {
+			rsym = fn.Nname.Linksym()
 		} else {
 			// For constructor-style _init, we always store method expressions with a pointer receiver
 			// so that types whose _init is defined on *T are supported.
@@ -2804,17 +2930,39 @@ func (r *reader) expr() (res ir.Node) {
 		tmp.SetTypecheck(1)
 		as := typecheck.Stmt(ir.NewAssignStmt(pos, tmp, pNew))
 
-		// Load method expression pointer from dictionary and cast to callSig.
+		// If T instantiates to a native make type (slice/map/chan), then lower to:
+		//   tmp := new(T)
+		//   *tmp = make(T, args...)
+		//   return tmp
+		//
+		// This preserves the *T result type of init-make while still using native make.
+		if t := tmp.Type(); t != nil && t.IsPtr() {
+			elem := t.Elem()
+			if elem.IsSlice() || elem.IsMap() || elem.IsChan() {
+				mk := typecheck.Expr(ir.NewCallExpr(pos, ir.OMAKE, nil, append([]ir.Node{ir.TypeNode(elem)}, args...))).(*ir.MakeExpr)
+				if elem.IsSlice() {
+					mk.RType = reflectdata.TypePtrAt(pos, elem.Elem())
+				} else {
+					mk.RType = reflectdata.TypePtrAt(pos, elem)
+				}
+				lhs := typecheck.Expr(ir.NewStarExpr(pos, tmp))
+				setStmt := typecheck.Stmt(ir.NewAssignStmt(pos, lhs, mk))
+				return ir.InitExpr([]ir.Node{as, setStmt}, tmp)
+			}
+		}
+
+		// Otherwise, lower to an indirect call through the current function's runtime dictionary:
+		//   tmp := new(T)
+		//   .dict._init(tmp, args...)
+		//   return tmp
 		word := r.dictWord(pos, r.dict.typeParamMethodExprsOffset()+methodIdx)
 		fn := typecheck.Expr(ir.NewConvExpr(pos, ir.OCONVNOP, callSig, ir.NewAddrExpr(pos, word)))
 
-		// Call: fn(p, args...)
 		var callArgs ir.Nodes
 		callArgs.Append(tmp)
 		callArgs.Append(args...)
 		call := typecheck.Call(pos, fn, callArgs, false)
 
-		// Return tmp, sequencing allocation + call for side effects.
 		return ir.InitExpr([]ir.Node{as, typecheck.Stmt(call)}, tmp)
 
 	case exprNew:
