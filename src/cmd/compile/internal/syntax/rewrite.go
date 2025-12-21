@@ -1086,6 +1086,20 @@ func AddReturnToInitMethods(file *File) {
 	}
 }
 
+// RewriteInitAndOverloads runs the method-overloading preprocessing and then
+// applies all _init-related rewrites that depend on overload renaming.
+//
+// Order matters:
+// - PreprocessOverloadedMethods: renames overloaded methods (including _init) so the program type-checks
+// - AddReturnToInitMethods: ensures _init returns the receiver (*T) so constructor calls can be expressions
+// - RewriteConstructors: rewrites make(T, ...) into (&T{})._init(...)
+func RewriteInitAndOverloads(file *File) map[string]*OverloadInfo {
+	overloads := PreprocessOverloadedMethods(file)
+	AddReturnToInitMethods(file)
+	RewriteConstructors(file)
+	return overloads
+}
+
 // addReturnToInitMethod adds return type and return statement to _init methods
 func addReturnToInitMethod(fn *FuncDecl) {
 	if fn.Body == nil || fn.Type == nil || fn.Recv == nil {
@@ -3574,57 +3588,64 @@ func typesMatch(paramType, argType string) bool {
 	return false
 }
 
-// ============================================================================
-// Constructor Support (_init methods)
-// ============================================================================
-
-// RewriteConstructors rewrites constructor syntax to standard Go code.
-//
-// It transforms:
-//
-//	ds := make(DataStoreInt, "age", 18)
-//
-// into:
-//
-//	ds := (&DataStoreInt{})._init("age", 18)  // or _init_xxx if overloaded
-//
-// Note: This should run AFTER method overloading and default params,
-// so _init methods have already been renamed and modified.
-func RewriteConstructors(file *File) {
-	// Step 1: Find all types with _init methods
-	// Key 是基础类型名，例如 "GBox" (而不是 "GBox[T]")
-	initMethods := make(map[string][]*FuncDecl)
-
-	for _, decl := range file.DeclList {
-		fn, ok := decl.(*FuncDecl)
-		if !ok || fn.Recv == nil {
-			continue
-		}
-
-		methodName := fn.Name.Value
-		// Check if method name is "_init" or starts with "_init_"
-		if methodName != "_init" && (len(methodName) < 6 || methodName[:6] != "_init_") {
-			continue
-		}
-
-		// 【关键修复】使用辅助函数提取基础名
-		// 这样 func (b *GBox[T]) ... 就会被注册到 "GBox" 下
-		recvType := baseTypeNameFromTypeExpr(fn.Recv.Type)
-
-		if recvType != "" {
-			initMethods[recvType] = append(initMethods[recvType], fn)
-		}
-	}
-
-	if len(initMethods) > 0 {
-		rewriter := &constructorRewriter{initMethods: initMethods}
-		rewriter.rewriteFile(file)
-	}
+// isInitMethodName reports whether name is an _init method, including its overloaded form.
+func isInitMethodName(name string) bool {
+	return name == "_init" || (len(name) >= 6 && name[:6] == "_init_")
 }
 
 // constructorRewriter rewrites constructor calls
 type constructorRewriter struct {
 	initMethods map[string][]*FuncDecl // typename -> list of _init methods
+	// typeParamScopes tracks the set of in-scope type parameter names while rewriting.
+	// This lets _init overload selection work when make(...) instantiates with type params
+	// like make(GBox[T], ...), where "T" is not a concrete type at this stage.
+	typeParamScopes []map[string]bool
+}
+
+// RewriteConstructors rewrites make(T, ...) into (&T{})._init(...), when T has at least one _init method.
+// It should be called after AddReturnToInitMethods.
+func RewriteConstructors(file *File) {
+	if file == nil {
+		return
+	}
+	// Collect _init methods by base receiver type name (no pointer, no type args).
+	initMethods := make(map[string][]*FuncDecl)
+	for _, decl := range file.DeclList {
+		fn, ok := decl.(*FuncDecl)
+		if !ok || fn == nil || fn.Recv == nil || fn.Name == nil {
+			continue
+		}
+		if !isInitMethodName(fn.Name.Value) {
+			continue
+		}
+		base := baseTypeNameFromTypeExpr(fn.Recv.Type)
+		if base == "" {
+			continue
+		}
+		initMethods[base] = append(initMethods[base], fn)
+	}
+	if len(initMethods) == 0 {
+		return
+	}
+	r := &constructorRewriter{initMethods: initMethods}
+	r.rewriteFile(file)
+}
+
+// RewriteExtensions rewrites all supported syntax extensions into standard Go syntax
+// before type checking. It returns method-overload metadata (used later after types2).
+//
+// This centralizes the rewrite pipeline so callers (e.g. noder) don't need to
+// duplicate the sequencing logic.
+func RewriteExtensions(file *File) map[string]*OverloadInfo {
+	if file == nil {
+		return nil
+	}
+	RewriteQuestionExprs(file)
+	RewriteMagicAndArithmetic(file)
+	overloads := RewriteInitAndOverloads(file)
+	RewriteMethodDecorators(file)
+	RewriteDefaultParams(file)
+	return overloads
 }
 
 func (r *constructorRewriter) rewriteFile(file *File) {
@@ -3637,6 +3658,8 @@ func (r *constructorRewriter) rewriteDecl(decl Decl) {
 	switch d := decl.(type) {
 	case *FuncDecl:
 		if d.Body != nil {
+			r.pushTypeParamScope(d)
+			defer r.popTypeParamScope()
 			r.rewriteBlockStmt(d.Body)
 		}
 	case *VarDecl:
@@ -3644,6 +3667,56 @@ func (r *constructorRewriter) rewriteDecl(decl Decl) {
 			d.Values = r.rewriteExpr(d.Values)
 		}
 	}
+}
+
+func (r *constructorRewriter) pushTypeParamScope(fn *FuncDecl) {
+	if fn == nil {
+		r.typeParamScopes = append(r.typeParamScopes, nil)
+		return
+	}
+	scope := make(map[string]bool)
+
+	// Function type parameters: func F[T any, U any](...)
+	for _, tp := range fn.TParamList {
+		if tp == nil || tp.Name == nil {
+			continue
+		}
+		scope[tp.Name.Value] = true
+	}
+
+	// Receiver-instantiated type params: func (r *GBox[T, U]) ...
+	if recvTP := getTypeParamsFromReceiver(fn); recvTP != nil {
+		for k := range recvTP {
+			scope[k] = true
+		}
+	}
+
+	if len(scope) == 0 {
+		scope = nil
+	}
+	r.typeParamScopes = append(r.typeParamScopes, scope)
+}
+
+func (r *constructorRewriter) popTypeParamScope() {
+	if n := len(r.typeParamScopes); n > 0 {
+		r.typeParamScopes = r.typeParamScopes[:n-1]
+	}
+}
+
+func (r *constructorRewriter) isTypeParamName(name string) bool {
+	if name == "" {
+		return false
+	}
+	for i := len(r.typeParamScopes) - 1; i >= 0; i-- {
+		scope := r.typeParamScopes[i]
+		if scope == nil {
+			continue
+		}
+		if scope[name] {
+			return true
+		}
+	}
+	return false
 }
 
 func (r *constructorRewriter) rewriteBlockStmt(block *BlockStmt) {
@@ -3815,9 +3888,240 @@ func (r *constructorRewriter) rewriteExpr(expr Expr) Expr {
 		}
 		return e
 
+	case *FuncLit:
+		// Traverse nested function literals so constructor rewrites apply inside them too.
+		// (FuncLit can't declare type parameters in this AST, so we don't push a new scope.)
+		if e.Body != nil {
+			r.rewriteBlockStmt(e.Body)
+		}
+		return e
+
 	default:
 		return expr
 	}
+}
+
+// receiverTypeParamMapFromMakeType builds a mapping from receiver type parameter name (e.g. "T")
+// to the instantiated type argument string (e.g. "int"), using:
+//   - method receiver type: *GBox[T, U]
+//   - make type node:       GBox[int, string]
+//
+// If the receiver isn't a generic instantiation, or make doesn't provide concrete args,
+// it returns nil.
+func receiverTypeParamMapFromMakeType(method *FuncDecl, makeType Expr, isTypeParam func(string) bool) map[string]string {
+	if method == nil || method.Recv == nil || method.Recv.Type == nil || makeType == nil {
+		return nil
+	}
+
+	// Receiver side: extract param names from *GBox[T, U] (or GBox[T, U]).
+	_, recvArgs := splitGenericTypeExpr(method.Recv.Type)
+	if len(recvArgs) == 0 {
+		return nil
+	}
+	recvParamNames := make([]string, 0, len(recvArgs))
+	for _, a := range recvArgs {
+		if n, ok := a.(*Name); ok && n != nil {
+			recvParamNames = append(recvParamNames, n.Value)
+		} else {
+			// Non-name type arg in receiver: we can't map reliably.
+			return nil
+		}
+	}
+	if len(recvParamNames) == 0 {
+		return nil
+	}
+
+	// Make side: extract concrete args from GBox[int, string].
+	_, makeArgs := splitGenericTypeExpr(makeType)
+	if len(makeArgs) == 0 {
+		return nil
+	}
+
+	m := make(map[string]string)
+	for i := 0; i < len(recvParamNames) && i < len(makeArgs); i++ {
+		argStr := typeExprToString(makeArgs[i])
+		if argStr == "" || argStr == "unknown" {
+			continue
+		}
+		// If make instantiates with an in-scope type parameter (e.g. GBox[T]),
+		// don't treat it as a concrete substitution for overload selection.
+		if isTypeParam != nil && isTypeParam(argStr) {
+			continue
+		}
+		m[recvParamNames[i]] = argStr
+	}
+	if len(m) == 0 {
+		return nil
+	}
+	return m
+}
+
+// isTypeParamTypeString reports whether the given type string is (or is based on)
+// an in-scope type parameter name. It understands simple leading constructors:
+// ...T, []T, *T, ...[]T, *[]T, etc.
+func (r *constructorRewriter) isTypeParamTypeString(typeStr string) bool {
+	base := typeStr
+	for {
+		if len(base) >= 3 && base[:3] == "..." {
+			base = base[3:]
+			continue
+		}
+		if len(base) >= 2 && base[:2] == "[]" {
+			base = base[2:]
+			continue
+		}
+		if len(base) >= 1 && base[0] == '*' {
+			base = base[1:]
+			continue
+		}
+		break
+	}
+	return r.isTypeParamName(base)
+}
+
+func (r *constructorRewriter) typeMatchesInitParam(paramType, argType string) bool {
+	// If the parameter is (or is based on) an in-scope type parameter, treat it as a wildcard.
+	// This enables generic constructor selection like _init(T) to match args in make(GBox[T], ...),
+	// even though T isn't concretely known during this pre-typecheck rewrite.
+	if r.isTypeParamTypeString(paramType) {
+		return true
+	}
+	return typeMatchesPre(paramType, argType)
+}
+
+// substLeadingTypeParam substitutes simple leading type constructors:
+// T -> int, *T -> *int, []T -> []int, ...T -> ...int, ...[]T -> ...[]int.
+// It is intentionally conservative; complex types (e.g. map[T]U) are left unchanged.
+func substLeadingTypeParam(typeStr string, m map[string]string) (string, bool) {
+	if m == nil || typeStr == "" {
+		return typeStr, false
+	}
+	// Variadic
+	if len(typeStr) >= 3 && typeStr[:3] == "..." {
+		rest, ok := substLeadingTypeParam(typeStr[3:], m)
+		if ok {
+			return "..." + rest, true
+		}
+		return typeStr, false
+	}
+	// Slice
+	if len(typeStr) >= 2 && typeStr[:2] == "[]" {
+		rest, ok := substLeadingTypeParam(typeStr[2:], m)
+		if ok {
+			return "[]" + rest, true
+		}
+		return typeStr, false
+	}
+	// Pointer
+	if len(typeStr) >= 1 && typeStr[0] == '*' {
+		rest, ok := substLeadingTypeParam(typeStr[1:], m)
+		if ok {
+			return "*" + rest, true
+		}
+		return typeStr, false
+	}
+	// Direct match
+	if v, ok := m[typeStr]; ok {
+		return v, true
+	}
+	return typeStr, false
+}
+
+func initMinMaxArgs(fn *FuncDecl) (minArgs, maxArgs int) {
+	if fn == nil || fn.Type == nil {
+		return 0, 0
+	}
+	params := fn.Type.ParamList
+	maxArgs = len(params)
+	minArgs = 0
+	for i, p := range params {
+		if p == nil || p.DefaultValue == nil {
+			minArgs = i + 1
+		}
+	}
+	return minArgs, maxArgs
+}
+
+func (r *constructorRewriter) matchInitArgsWithTypeSubst(paramTypes []string, argTypes []string, subst map[string]string) (score int, ok bool) {
+	// Support variadic params ("...T") with 0+ trailing args.
+	isVariadic := len(paramTypes) > 0 && len(paramTypes[len(paramTypes)-1]) >= 3 && paramTypes[len(paramTypes)-1][:3] == "..."
+
+	if !isVariadic {
+		if len(paramTypes) != len(argTypes) {
+			return 0, false
+		}
+		score = 0
+		for i := 0; i < len(paramTypes); i++ {
+			pt := paramTypes[i]
+			at := argTypes[i]
+			origPt := pt
+			if subst != nil {
+				if s, changed := substLeadingTypeParam(pt, subst); changed {
+					pt = s
+				}
+			}
+			if !r.typeMatchesInitParam(pt, at) {
+				return 0, false
+			}
+			// Prefer concrete matches over substituted type-param matches.
+			if subst != nil && origPt != pt {
+				score += 1
+			} else if r.isTypeParamTypeString(pt) {
+				// We matched via a type parameter wildcard; weaker than a concrete match.
+				score += 1
+			} else {
+				score += 2
+			}
+		}
+		return score, true
+	}
+
+	// Variadic: first n-1 params must match, remaining args match element type.
+	fixed := len(paramTypes) - 1
+	if len(argTypes) < fixed {
+		return 0, false
+	}
+	score = 0
+	for i := 0; i < fixed; i++ {
+		pt := paramTypes[i]
+		at := argTypes[i]
+		origPt := pt
+		if subst != nil {
+			if s, changed := substLeadingTypeParam(pt, subst); changed {
+				pt = s
+			}
+		}
+		if !r.typeMatchesInitParam(pt, at) {
+			return 0, false
+		}
+		if subst != nil && origPt != pt {
+			score += 1
+		} else if r.isTypeParamTypeString(pt) {
+			score += 1
+		} else {
+			score += 2
+		}
+	}
+	elem := paramTypes[len(paramTypes)-1][3:] // strip "..."
+	origElem := elem
+	if subst != nil {
+		if s, changed := substLeadingTypeParam(elem, subst); changed {
+			elem = s
+		}
+	}
+	for i := fixed; i < len(argTypes); i++ {
+		if !r.typeMatchesInitParam(elem, argTypes[i]) {
+			return 0, false
+		}
+		if subst != nil && origElem != elem {
+			score += 1
+		} else if r.isTypeParamTypeString(elem) {
+			score += 1
+		} else {
+			score += 2
+		}
+	}
+	return score, true
 }
 
 // rewriteConstructorCallWithArgs generates (&Type{})._init(...)
@@ -3842,38 +4146,45 @@ func (r *constructorRewriter) rewriteConstructorCallWithArgs(call *CallExpr, typ
 			argTypes[i] = inferLiteralType(arg)
 		}
 
+		bestScore := -1
+		bestName := ""
 		for _, method := range methods {
+			if method == nil || method.Type == nil {
+				continue
+			}
 			paramTypes := getParamTypeStrings(method.Type.ParamList)
 
-			// Step A: Check arg count
-			if len(argTypes) != len(paramTypes) {
+			// Arg count gate: support default params (min/max) and variadic.
+			minArgs, maxArgs := initMinMaxArgs(method)
+			if len(argTypes) < minArgs {
+				continue
+			}
+			// Variadic methods can accept more than maxArgs.
+			isVariadic := len(paramTypes) > 0 && len(paramTypes[len(paramTypes)-1]) >= 3 && paramTypes[len(paramTypes)-1][:3] == "..."
+			if !isVariadic && len(argTypes) > maxArgs {
 				continue
 			}
 
-			// Step B: Get generic type params (e.g. "T") to allow loose matching
-			tparams := getTypeParamsFromReceiver(method)
+			// Build substitution map from receiver type params to make's type args (if any).
+			subst := receiverTypeParamMapFromMakeType(method, typeNode, r.isTypeParamName)
 
-			match := true
-			for i := 0; i < len(argTypes); i++ {
-				pType := paramTypes[i]
-				aType := argTypes[i]
-
-				// 【核心修改】如果参数类型是泛型参数之一 (如 "T")，则匹配任意实参
-				if tparams != nil && tparams[pType] {
-					continue
-				}
-
-				if !typeMatchesPre(pType, aType) {
-					match = false
-					break
-				}
+			// Step: Match provided arguments only (ignore omitted default params).
+			ptPrefix := paramTypes
+			if len(argTypes) <= len(paramTypes) {
+				ptPrefix = paramTypes[:len(argTypes)]
+			}
+			score, ok := r.matchInitArgsWithTypeSubst(ptPrefix, argTypes, subst)
+			if !ok {
+				continue
 			}
 
-			if match {
-				methodName = method.Name.Value
-				break
+			// Tie-breaker: prefer methods that require fewer substitutions.
+			if score > bestScore {
+				bestScore = score
+				bestName = method.Name.Value
 			}
 		}
+		methodName = bestName
 
 		// Fallback
 		if methodName == "" {

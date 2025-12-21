@@ -59,17 +59,10 @@ func LoadPackage(filenames []string) {
 				p.file, _ = syntax.Parse(fbase, f, p.error, p.pragma, syntax.CheckBranches) // errors are tracked via p.error
 				// Rewrite syntax extensions to standard Go syntax
 				if p.file != nil {
-					syntax.RewriteQuestionExprs(p.file)
-					// 1. 统一处理魔法方法与运算符重载（共享同一套“泛型/结构体泛型”推导信息）
-					//    - _getitem/_setitem
-					//    - _add/_radd/.../_inc/_dec 等
-					syntax.RewriteMagicAndArithmetic(p.file)
+					// 统一处理所有语法扩展改写（包含：? 表达式、魔法方法/运算符重载、_init 构造器、装饰器、默认参数）
+					p.overloadInfo = syntax.RewriteExtensions(p.file)
+					// 单独发出“指针 == 重载”告警（不影响 rewrite 顺序，只依赖最终方法名形态）。
 					warnPointerEqOverload(p.file)
-					p.overloadInfo = syntax.PreprocessOverloadedMethods(p.file) // 3. 处理方法重载（会重命名_init和_getitem/_setitem）
-					syntax.AddReturnToInitMethods(p.file)                       // 4. 给所有_init方法添加返回值
-					syntax.RewriteMethodDecorators(p.file)                      // 5. 处理装饰器
-					syntax.RewriteDefaultParams(p.file)                         // 6. 处理默认参数
-					syntax.RewriteConstructors(p.file)                          // 7. 最后处理构造函数
 				}
 			}()
 		}
