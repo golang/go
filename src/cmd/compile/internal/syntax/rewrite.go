@@ -809,17 +809,21 @@ func (d *defaultParamRewriter) rewriteFuncDecl(fn *FuncDecl) {
 		}
 	}
 
-	// Check that all default parameters have the same type
-	// For simplicity, we require all default parameters to have the same type
+	// Default parameters may have mixed types (e.g. int + string).
+	// If all default params share a common type, we can use a typed variadic.
+	// Otherwise, we fall back to `_args ...any` and insert type assertions at each use.
 	defaultParams := params[firstDefaultIdx:]
 	var commonType Expr
+	commonTypeStr := ""
+	mixedTypes := false
 	for _, p := range defaultParams {
 		if commonType == nil {
 			commonType = p.Type
+			commonTypeStr = String(p.Type)
 		}
-		// Note: We're comparing type pointers, which works because
-		// consecutive parameters often share the same Type pointer.
-		// For a more robust solution, we'd need type comparison.
+		if commonTypeStr != String(p.Type) {
+			mixedTypes = true
+		}
 	}
 
 	pos := fn.Pos()
@@ -834,11 +838,15 @@ func (d *defaultParamRewriter) rewriteFuncDecl(fn *FuncDecl) {
 		newParams = append(newParams, params[i])
 	}
 
-	// Create variadic parameter: _args ...T
+	// Create variadic parameter: _args ...T (or ...any if mixed)
 	argsName := NewName(pos, "_args")
 	dotsType := new(DotsType)
 	dotsType.SetPos(pos)
-	dotsType.Elem = commonType
+	if mixedTypes {
+		dotsType.Elem = NewName(pos, "any")
+	} else {
+		dotsType.Elem = commonType
+	}
 
 	argsField := new(Field)
 	argsField.SetPos(pos)
@@ -861,7 +869,7 @@ func (d *defaultParamRewriter) rewriteFuncDecl(fn *FuncDecl) {
 		preamble = append(preamble, initStmt)
 
 		// Create: if len(_args) > i { paramName = _args[i] }
-		ifStmt := d.createDefaultOverride(pos, paramName, i)
+		ifStmt := d.createDefaultOverride(pos, paramName, i, p.Type, mixedTypes)
 		preamble = append(preamble, ifStmt)
 	}
 
@@ -884,7 +892,7 @@ func (d *defaultParamRewriter) createShortVarDecl(pos Pos, name string, value Ex
 	return a
 }
 
-func (d *defaultParamRewriter) createDefaultOverride(pos Pos, paramName string, index int) *IfStmt {
+func (d *defaultParamRewriter) createDefaultOverride(pos Pos, paramName string, index int, paramType Expr, needAssert bool) *IfStmt {
 	// Build: if len(_args) > index { paramName = _args[index] }
 
 	// len(_args)
@@ -916,12 +924,22 @@ func (d *defaultParamRewriter) createDefaultOverride(pos Pos, paramName string, 
 	indexIdx.Value = strconv.Itoa(index)
 	indexExpr.Index = indexIdx
 
+	var rhs Expr = indexExpr
+	if needAssert && paramType != nil {
+		// paramName = _args[index].(ParamType)
+		ae := new(AssertExpr)
+		ae.SetPos(pos)
+		ae.X = indexExpr
+		ae.Type = paramType
+		rhs = ae
+	}
+
 	// paramName = _args[index]
 	assign := new(AssignStmt)
 	assign.SetPos(pos)
 	assign.Op = 0 // regular assignment
 	assign.Lhs = NewName(pos, paramName)
-	assign.Rhs = indexExpr
+	assign.Rhs = rhs
 
 	// { paramName = _args[index] }
 	thenBlock := new(BlockStmt)
