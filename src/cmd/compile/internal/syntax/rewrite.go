@@ -1280,6 +1280,20 @@ func (r *overloadPreRewriter) rewriteExprPre(expr Expr) {
 	}
 
 	switch e := expr.(type) {
+	case *TernaryExpr:
+		// Important: overload preprocessing must traverse ternary expressions;
+		// otherwise method calls inside won't be renamed after overload renaming,
+		// leading to "x.Foo undefined" errors.
+		r.rewriteExprPre(e.Cond)
+		r.rewriteExprPre(e.X)
+		r.rewriteExprPre(e.Y)
+
+	case *OptionalChainExpr:
+		// Optional chaining is primarily handled later (types2/noder),
+		// but we still need to traverse the base expression so overload
+		// calls nested under it can be processed.
+		r.rewriteExprPre(e.X)
+
 	case *CallExpr:
 		// Check if this is a method call on an overloaded method
 		if sel, ok := e.Fun.(*SelectorExpr); ok {
@@ -1306,10 +1320,36 @@ func (r *overloadPreRewriter) rewriteExprPre(expr Expr) {
 		r.rewriteExprPre(e.X)
 		r.rewriteExprPre(e.Index)
 
+	case *SliceExpr:
+		r.rewriteExprPre(e.X)
+		for _, idx := range e.Index {
+			if idx != nil {
+				r.rewriteExprPre(idx)
+			}
+		}
+
 	case *Operation:
 		r.rewriteExprPre(e.X)
 		if e.Y != nil {
 			r.rewriteExprPre(e.Y)
+		}
+
+	case *CompositeLit:
+		if e.Type != nil {
+			r.rewriteExprPre(e.Type)
+		}
+		for _, elem := range e.ElemList {
+			r.rewriteExprPre(elem)
+		}
+
+	case *KeyValueExpr:
+		r.rewriteExprPre(e.Key)
+		r.rewriteExprPre(e.Value)
+
+	case *AssertExpr:
+		r.rewriteExprPre(e.X)
+		if e.Type != nil {
+			r.rewriteExprPre(e.Type)
 		}
 
 	case *ListExpr:
@@ -3447,6 +3487,15 @@ func (r *overloadCallRewriter) rewriteExpr(expr Expr) {
 	}
 
 	switch e := expr.(type) {
+	case *TernaryExpr:
+		r.rewriteExpr(e.Cond)
+		r.rewriteExpr(e.X)
+		r.rewriteExpr(e.Y)
+
+	case *OptionalChainExpr:
+		// Optional chaining is handled later, but still traverse base expression.
+		r.rewriteExpr(e.X)
+
 	case *CallExpr:
 		// Check if this is a method call on an overloaded method
 		if sel, ok := e.Fun.(*SelectorExpr); ok {
