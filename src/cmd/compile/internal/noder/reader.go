@@ -29,38 +29,111 @@ import (
 	"cmd/internal/src"
 )
 
-// magicBasicMethodWrapper returns a synthetic function implementing a "magic"
-// operator method (e.g. _add/_rsub/...) for numeric basic types, and
-// _getitem/_setitem for slices and maps.
-//
-// This is needed for type-parameter method expressions recorded in runtime
-// dictionaries: for instantiations where the type argument is a numeric basic
-// type (int/float64/etc.) or a composite type (slice/map), we don't have a
-// real method to reference, so we generate a small wrapper that performs
-// the builtin operation.
-func magicBasicMethodWrapper(recv *types.Type, msym *types.Sym, pos src.XPos) (fn *ir.Func, ok bool) {
+// magicMethodWrapper is the unified entry point for generating synthetic "magic" methods
+// for generic runtime dictionaries. It handles:
+// 1. Constructors: _init, _init_int... (for slices/maps/chans)
+// 2. Container Ops: _getitem, _setitem (for slices/maps)
+// 3. Basic Ops: _add, _eq, _sub... (for basic types)
+func magicMethodWrapper(recv *types.Type, msym *types.Sym, pos src.XPos) (fn *ir.Func, ok bool) {
 	if recv == nil || msym == nil {
 		return nil, false
 	}
-
 	name := msym.Name
 
-	// ========================================================================
-	// 分支 A: 处理 Slice 和 Map 的 _getitem / _setitem
-	// ========================================================================
-	if recv.IsSlice() || recv.IsMap() {
-		if name != "_getitem" && name != "_setitem" {
-			return nil, false
+	// -------------------------------------------------------------------------
+	// 阶段 1: 策略路由 (Determine Strategy)
+	// -------------------------------------------------------------------------
+
+	// 定义后续需要的变量
+	var (
+		params          []*types.Field
+		results         []*types.Field
+		bodyGen         func(fn *ir.Func) // 闭包：生成函数体
+		canDelayResults bool              // 内联配置：是否有副作用
+	)
+
+	// === 策略 A: 构造函数 (_init) ===
+	if (recv.IsSlice() || recv.IsMap() || recv.IsChan()) &&
+		(name == "_init" || strings.HasPrefix(name, "_init_")) {
+
+		// 1. 解析参数类型 (e.g. _init_int_int -> [int, int])
+		var argTypes []*types.Type
+		if name == "_init" {
+			argTypes = []*types.Type{types.Types[types.TINT]}
+		} else {
+			parts := strings.Split(name[len("_init_"):], "_")
+			for _, p := range parts {
+				var t *types.Type
+				switch p {
+				case "int":
+					t = types.Types[types.TINT]
+				case "int8":
+					t = types.Types[types.TINT8]
+				case "int16":
+					t = types.Types[types.TINT16]
+				case "int32":
+					t = types.Types[types.TINT32]
+				case "int64":
+					t = types.Types[types.TINT64]
+				case "uint":
+					t = types.Types[types.TUINT]
+				case "uint8", "byte":
+					t = types.Types[types.TUINT8]
+				case "uint16":
+					t = types.Types[types.TUINT16]
+				case "uint32":
+					t = types.Types[types.TUINT32]
+				case "uint64":
+					t = types.Types[types.TUINT64]
+				case "uintptr":
+					t = types.Types[types.TUINTPTR]
+				case "rune":
+					t = types.Types[types.TINT32]
+				default:
+					return nil, false // 无法识别的后缀
+				}
+				argTypes = append(argTypes, t)
+			}
 		}
 
-		// 1. 构造参数列表
-		var params []*types.Field
-		var results []*types.Field
+		// 2. 构建签名: func(recv *T, args...)
+		recvPtr := types.NewPtr(recv)
+		params = append(params, types.NewField(pos, typecheck.Lookup("recv"), recvPtr))
+		for i, t := range argTypes {
+			params = append(params, types.NewField(pos, typecheck.Lookup(fmt.Sprintf("a%d", i)), t))
+		}
+		// 无返回值
 
-		// Param 0: Receiver (s []int or m map[K]V)
+		// 3. 定义函数体生成逻辑 (Make)
+		bodyGen = func(fn *ir.Func) {
+			ps := fn.Type().Params()
+			recvNode := ps[0].Nname.(*ir.Name)
+			var args ir.Nodes
+			for i := 1; i < len(ps); i++ {
+				args.Append(ps[i].Nname.(*ir.Name))
+			}
+			// make(T, args...)
+			mk := typecheck.Expr(ir.NewCallExpr(pos, ir.OMAKE, nil, append([]ir.Node{ir.TypeNode(recv)}, args...))).(*ir.MakeExpr)
+			if recv.IsSlice() {
+				mk.RType = reflectdata.TypePtrAt(pos, recv.Elem())
+			} else {
+				mk.RType = reflectdata.TypePtrAt(pos, recv)
+			}
+			// *recv = make(...)
+			lhs := typecheck.Expr(ir.NewStarExpr(pos, recvNode))
+			as := ir.NewAssignStmt(pos, lhs, mk)
+			fn.Body.Append(typecheck.Stmt(as))
+		}
+
+		canDelayResults = false // 赋值是副作用
+
+		// === 策略 B: 容器索引 (_getitem / _setitem) ===
+	} else if (recv.IsSlice() || recv.IsMap()) && (name == "_getitem" || name == "_setitem") {
+
+		// 1. 构建签名
+		// Param 0: Receiver
 		params = append(params, types.NewField(pos, typecheck.Lookup("recv"), recv))
-
-		// Param 1: Index (int for slice, KeyType for map)
+		// Param 1: Index
 		var idxType *types.Type
 		if recv.IsSlice() {
 			idxType = types.Types[types.TINT]
@@ -70,386 +143,237 @@ func magicBasicMethodWrapper(recv *types.Type, msym *types.Sym, pos src.XPos) (f
 		params = append(params, types.NewField(pos, typecheck.Lookup("idx"), idxType))
 
 		if name == "_setitem" {
-			// Param 2: Value (ElemType) - 仅 _setitem 需要
+			// Param 2: Value
 			params = append(params, types.NewField(pos, typecheck.Lookup("val"), recv.Elem()))
-			// No results
+			canDelayResults = false // 赋值副作用
 		} else {
-			// Result: ElemType - 仅 _getitem 需要
+			// Result: Value
 			results = append(results, types.NewField(pos, nil, recv.Elem()))
+			canDelayResults = true // 纯取值
 		}
 
-		// 2. 构造函数签名
-		sig := types.NewSignature(nil, params, results)
+		// 2. 定义函数体生成逻辑 (Index)
+		bodyGen = func(fn *ir.Func) {
+			ps := fn.Type().Params()
+			recvNode := ps[0].Nname.(*ir.Name)
+			idxNode := ps[1].Nname.(*ir.Name)
 
-		// 3. 生成唯一符号名
-		// e.g. .magic._getitem.[]int
-		sym := types.LocalPkg.Lookup(".magic." + name + "." + recv.String())
-		if sym.Uniq() {
-			if sym.Def != nil {
-				if n, ok := sym.Def.(*ir.Name); ok && n.Func != nil {
-					return n.Func, true
-				}
-			}
-		} else {
-			sym.SetUniq(true)
-		}
-
-		// 4. 创建函数
-		fn = ir.NewFunc(pos, pos, sym, sig)
-		fn.DeclareParams(true)
-		fn.SetDupok(true)
-		fn.SetWrapper(true)
-		sym.Def = fn.Nname
-
-		// 5. 构建函数体
-		ir.WithFunc(fn, func() {
-			params := fn.Type().Params()
-			recvNode := params[0].Nname.(*ir.Name)
-			idxNode := params[1].Nname.(*ir.Name)
-
-			// 构造索引表达式: recv[idx]
-			// OINDEX 会自动处理 map 和 slice 的索引逻辑
 			indexExpr := ir.NewIndexExpr(pos, recvNode, idxNode)
 			indexExpr.SetOp(ir.OINDEX)
 
 			var stmt ir.Node
 			if name == "_setitem" {
-				// 赋值: recv[idx] = val
-				valNode := params[2].Nname.(*ir.Name)
-				assign := ir.NewAssignStmt(pos, indexExpr, valNode)
-				stmt = assign
+				valNode := ps[2].Nname.(*ir.Name)
+				stmt = ir.NewAssignStmt(pos, indexExpr, valNode)
 			} else {
-				// 返回: return recv[idx]
-				// 必须先进行类型检查，确保 indexExpr 有类型信息
 				typedIdxExpr := typecheck.Expr(indexExpr)
-				ret := ir.NewReturnStmt(pos, []ir.Node{typedIdxExpr})
-				stmt = ret
+				stmt = ir.NewReturnStmt(pos, []ir.Node{typedIdxExpr})
 			}
-
-			// 添加语句到函数体，并确保语句经过类型检查
 			fn.Body.Append(typecheck.Stmt(stmt))
-		})
-
-		fn.Nname.Defn = fn
-		typecheck.Target.Funcs = append(typecheck.Target.Funcs, fn)
-		return fn, true
-	}
-
-	// ========================================================================
-	// 分支 B: 处理 基础类型 (int, float, string) 的算术/比较运算
-	// ========================================================================
-	if recv.IsPtr() {
-		return nil, false
-	}
-
-	isNumeric := recv.IsInteger() || recv.IsFloat() || recv.IsComplex()
-	isString := recv.IsString()
-
-	if !isNumeric && !isString {
-		return nil, false
-	}
-
-	// 定义操作符属性
-	var (
-		op      ir.Op
-		swap    bool // 是否交换参数 (反向操作)
-		isUnary bool // 是否是一元运算 (如 -a)
-		isCmp   bool // 是否是比较运算 (返回 bool)
-	)
-
-	switch name {
-	// --- 算术运算 (二元) ---
-	case "_add":
-		op = ir.OADD
-	case "_radd":
-		op, swap = ir.OADD, true
-	case "_sub":
-		if isString {
-			return nil, false
-		}
-		op = ir.OSUB
-	case "_rsub":
-		if isString {
-			return nil, false
-		}
-		op, swap = ir.OSUB, true
-	case "_mul":
-		if isString {
-			return nil, false
-		}
-		op = ir.OMUL
-	case "_rmul":
-		if isString {
-			return nil, false
-		}
-		op, swap = ir.OMUL, true
-	case "_div":
-		if isString {
-			return nil, false
-		}
-		op = ir.ODIV
-	case "_rdiv":
-		if isString {
-			return nil, false
-		}
-		op, swap = ir.ODIV, true
-	case "_mod":
-		if !recv.IsInteger() {
-			return nil, false
-		}
-		op = ir.OMOD
-	case "_rmod":
-		if !recv.IsInteger() {
-			return nil, false
-		}
-		op, swap = ir.OMOD, true
-
-	// --- 一元运算 ---
-	case "_pos":
-		if !isNumeric {
-			return nil, false
-		}
-		op, isUnary = ir.OPLUS, true
-	case "_neg":
-		if !isNumeric {
-			return nil, false
-		}
-		op, isUnary = ir.ONEG, true
-	case "_invert":
-		if !recv.IsInteger() {
-			return nil, false
-		}
-		op, isUnary = ir.OBITNOT, true
-
-	// --- 比较运算 ---
-	case "_eq":
-		op, isCmp = ir.OEQ, true
-	case "_ne":
-		op, isCmp = ir.ONE, true
-	case "_lt":
-		op, isCmp = ir.OLT, true
-	case "_gt":
-		op, isCmp = ir.OGT, true
-	case "_le":
-		op, isCmp = ir.OLE, true
-	case "_ge":
-		op, isCmp = ir.OGE, true
-
-	// --- 位运算 ---
-	case "_or":
-		if !recv.IsInteger() {
-			return nil, false
-		}
-		op = ir.OOR
-	case "_ror":
-		if !recv.IsInteger() {
-			return nil, false
-		}
-		op, swap = ir.OOR, true
-	case "_and":
-		if !recv.IsInteger() {
-			return nil, false
-		}
-		op = ir.OAND
-	case "_rand":
-		if !recv.IsInteger() {
-			return nil, false
-		}
-		op, swap = ir.OAND, true
-	case "_xor":
-		if !recv.IsInteger() {
-			return nil, false
-		}
-		op = ir.OXOR
-	case "_rxor":
-		if !recv.IsInteger() {
-			return nil, false
-		}
-		op, swap = ir.OXOR, true
-	case "_bitclear":
-		if !recv.IsInteger() {
-			return nil, false
-		}
-		op = ir.OANDNOT
-	case "_rbitclear":
-		if !recv.IsInteger() {
-			return nil, false
-		}
-		op, swap = ir.OANDNOT, true
-
-	// --- 移位运算 ---
-	case "_lshift":
-		if !recv.IsInteger() {
-			return nil, false
-		}
-		op = ir.OLSH
-	case "_rlshift":
-		if !recv.IsInteger() {
-			return nil, false
-		}
-		op, swap = ir.OLSH, true
-	case "_rshift":
-		if !recv.IsInteger() {
-			return nil, false
-		}
-		op = ir.ORSH
-	case "_rrshift":
-		if !recv.IsInteger() {
-			return nil, false
-		}
-		op, swap = ir.ORSH, true
-
-	default:
-		return nil, false
-	}
-
-	// 构造函数签名 (Basic Types)
-	var params []*types.Field
-	var results []*types.Field
-
-	recvField := types.NewField(base.Pos, nil, recv)
-
-	if isUnary {
-		params = []*types.Field{recvField}
-	} else {
-		otherField := types.NewField(base.Pos, nil, recv)
-		params = []*types.Field{recvField, otherField}
-	}
-
-	var retType *types.Type
-	if isCmp {
-		retType = types.Types[types.TBOOL]
-	} else {
-		retType = recv
-	}
-	results = []*types.Field{types.NewField(base.Pos, nil, retType)}
-
-	sig := types.NewSignature(nil, params, results)
-
-	// 生成符号名
-	sym := types.LocalPkg.Lookup(".magic." + name + "." + recv.String())
-	if sym.Uniq() {
-		if sym.Def != nil {
-			if n, ok := sym.Def.(*ir.Name); ok && n.Func != nil {
-				return n.Func, true
-			}
-		}
-	} else {
-		sym.SetUniq(true)
-	}
-
-	fn = ir.NewFunc(pos, pos, sym, sig)
-	fn.DeclareParams(true)
-	fn.SetDupok(true)
-	fn.SetWrapper(true)
-	sym.Def = fn.Nname
-
-	// 构建函数体 (Basic Types)
-	ir.WithFunc(fn, func() {
-		var expr ir.Node
-		params := fn.Type().Params() // 获取参数切片
-
-		if isUnary {
-			x := params[0].Nname.(*ir.Name)
-			expr = ir.NewUnaryExpr(pos, op, x)
-		} else {
-			p0 := params[0].Nname.(*ir.Name)
-			p1 := params[1].Nname.(*ir.Name)
-			var x, y ir.Node
-			if swap {
-				x, y = p1, p0
-			} else {
-				x, y = p0, p1
-			}
-			expr = ir.NewBinaryExpr(pos, op, x, y)
 		}
 
-		typedExpr := typecheck.Expr(expr)
-		ret := ir.NewReturnStmt(pos, []ir.Node{typedExpr})
-		fn.Body.Append(typecheck.Stmt(ret))
-	})
+		// === 策略 C: 基础运算 (_add, _eq, etc.) ===
+	} else if (recv.IsInteger() || recv.IsFloat() || recv.IsComplex() || recv.IsString()) && !recv.IsPtr() {
 
-	fn.Nname.Defn = fn
-	typecheck.Target.Funcs = append(typecheck.Target.Funcs, fn)
-	return fn, true
-}
+		// 1. 映射操作符
+		var op ir.Op
+		var swap, isUnary, isCmp bool
+		isNumeric := recv.IsInteger() || recv.IsFloat() || recv.IsComplex()
+		isString := recv.IsString()
 
-// magicInitWrapper returns a synthetic function implementing constructor-style
-// "_init" for builtin container types (slice/map/chan) so they can satisfy
-// generic constraints like `interface{ _init(int) }`.
-//
-// The wrapper has signature:
-//
-//	func(recv *T, args...) { *recv = make(T, args...) }
-//
-// Supported names:
-//
-//	_init              -> 1 arg (int)  [for compatibility with ValIniter-style constraints]
-//	_init_int          -> 1 arg (int-ish)
-//	_init_int_int      -> 2 args (int-ish, int-ish)
-//
-// and similarly for other integer basic types in the suffix.
-func magicInitWrapper(base *types.Type, msym *types.Sym, pos src.XPos) (fn *ir.Func, ok bool) {
-	if base == nil || msym == nil {
-		return nil, false
-	}
-	if !(base.IsSlice() || base.IsMap() || base.IsChan()) {
-		return nil, false
-	}
-	name := msym.Name
-	if name != "_init" && !strings.HasPrefix(name, "_init_") {
-		return nil, false
-	}
-
-	// Parse arg list from name.
-	// For "_init", assume the common 1-arg int form.
-	var argTypes []*types.Type
-	if name == "_init" {
-		argTypes = []*types.Type{types.Types[types.TINT]}
-	} else {
-		rest := name[len("_init_"):]
-		if rest == "" {
-			return nil, false
-		}
-		parts := strings.Split(rest, "_")
-		argTypes = make([]*types.Type, 0, len(parts))
-		for _, p := range parts {
-			var t *types.Type
-			switch p {
-			case "int":
-				t = types.Types[types.TINT]
-			case "int8":
-				t = types.Types[types.TINT8]
-			case "int16":
-				t = types.Types[types.TINT16]
-			case "int32":
-				t = types.Types[types.TINT32]
-			case "int64":
-				t = types.Types[types.TINT64]
-			case "uint":
-				t = types.Types[types.TUINT]
-			case "uint8", "byte":
-				t = types.Types[types.TUINT8]
-			case "uint16":
-				t = types.Types[types.TUINT16]
-			case "uint32":
-				t = types.Types[types.TUINT32]
-			case "uint64":
-				t = types.Types[types.TUINT64]
-			case "uintptr":
-				t = types.Types[types.TUINTPTR]
-			case "rune":
-				t = types.Types[types.TINT32]
-			default:
+		switch name {
+		// --- 算术运算 (二元) ---
+		case "_add":
+			op = ir.OADD
+		case "_radd":
+			op, swap = ir.OADD, true
+		case "_sub":
+			if isString {
 				return nil, false
 			}
-			argTypes = append(argTypes, t)
+			op = ir.OSUB
+		case "_rsub":
+			if isString {
+				return nil, false
+			}
+			op, swap = ir.OSUB, true
+		case "_mul":
+			if isString {
+				return nil, false
+			}
+			op = ir.OMUL
+		case "_rmul":
+			if isString {
+				return nil, false
+			}
+			op, swap = ir.OMUL, true
+		case "_div":
+			if isString {
+				return nil, false
+			}
+			op = ir.ODIV
+		case "_rdiv":
+			if isString {
+				return nil, false
+			}
+			op, swap = ir.ODIV, true
+		case "_mod":
+			if !recv.IsInteger() {
+				return nil, false
+			}
+			op = ir.OMOD
+		case "_rmod":
+			if !recv.IsInteger() {
+				return nil, false
+			}
+			op, swap = ir.OMOD, true
+
+		// --- 一元运算 ---
+		case "_pos":
+			if !isNumeric {
+				return nil, false
+			}
+			op, isUnary = ir.OPLUS, true
+		case "_neg":
+			if !isNumeric {
+				return nil, false
+			}
+			op, isUnary = ir.ONEG, true
+		case "_invert":
+			if !recv.IsInteger() {
+				return nil, false
+			}
+			op, isUnary = ir.OBITNOT, true
+
+		// --- 比较运算 ---
+		case "_eq":
+			op, isCmp = ir.OEQ, true
+		case "_ne":
+			op, isCmp = ir.ONE, true
+		case "_lt":
+			op, isCmp = ir.OLT, true
+		case "_gt":
+			op, isCmp = ir.OGT, true
+		case "_le":
+			op, isCmp = ir.OLE, true
+		case "_ge":
+			op, isCmp = ir.OGE, true
+
+		// --- 位运算 ---
+		case "_or":
+			if !recv.IsInteger() {
+				return nil, false
+			}
+			op = ir.OOR
+		case "_ror":
+			if !recv.IsInteger() {
+				return nil, false
+			}
+			op, swap = ir.OOR, true
+		case "_and":
+			if !recv.IsInteger() {
+				return nil, false
+			}
+			op = ir.OAND
+		case "_rand":
+			if !recv.IsInteger() {
+				return nil, false
+			}
+			op, swap = ir.OAND, true
+		case "_xor":
+			if !recv.IsInteger() {
+				return nil, false
+			}
+			op = ir.OXOR
+		case "_rxor":
+			if !recv.IsInteger() {
+				return nil, false
+			}
+			op, swap = ir.OXOR, true
+		case "_bitclear":
+			if !recv.IsInteger() {
+				return nil, false
+			}
+			op = ir.OANDNOT
+		case "_rbitclear":
+			if !recv.IsInteger() {
+				return nil, false
+			}
+			op, swap = ir.OANDNOT, true
+
+		// --- 移位运算 ---
+		case "_lshift":
+			if !recv.IsInteger() {
+				return nil, false
+			}
+			op = ir.OLSH
+		case "_rlshift":
+			if !recv.IsInteger() {
+				return nil, false
+			}
+			op, swap = ir.OLSH, true
+		case "_rshift":
+			if !recv.IsInteger() {
+				return nil, false
+			}
+			op = ir.ORSH
+		case "_rrshift":
+			if !recv.IsInteger() {
+				return nil, false
+			}
+			op, swap = ir.ORSH, true
+
+		default:
+			return nil, false
 		}
+
+		if (strings.Contains(name, "sub") || strings.Contains(name, "mul") || strings.Contains(name, "div")) && isString {
+			return nil, false // 字符串不支持减乘除
+		}
+
+		// 2. 构建签名
+		params = append(params, types.NewField(base.Pos, nil, recv))
+		if !isUnary {
+			params = append(params, types.NewField(base.Pos, nil, recv))
+		}
+		var retType *types.Type = recv
+		if isCmp {
+			retType = types.Types[types.TBOOL]
+		}
+		results = append(results, types.NewField(base.Pos, nil, retType))
+
+		// 3. 定义函数体生成逻辑 (Binary/Unary Expr)
+		bodyGen = func(fn *ir.Func) {
+			ps := fn.Type().Params()
+			var expr ir.Node
+			if isUnary {
+				expr = ir.NewUnaryExpr(pos, op, ps[0].Nname.(*ir.Name))
+			} else {
+				p0, p1 := ps[0].Nname.(*ir.Name), ps[1].Nname.(*ir.Name)
+				if swap {
+					expr = ir.NewBinaryExpr(pos, op, p1, p0)
+				} else {
+					expr = ir.NewBinaryExpr(pos, op, p0, p1)
+				}
+			}
+			fn.Body.Append(typecheck.Stmt(ir.NewReturnStmt(pos, []ir.Node{typecheck.Expr(expr)})))
+		}
+
+		canDelayResults = true
+
+	} else {
+		// 无法匹配任何策略
+		return nil, false
 	}
 
-	// Unique symbol name, e.g. .magic._init_int.[]int
-	sym := types.LocalPkg.Lookup(".magic." + name + "." + base.String())
+	// -------------------------------------------------------------------------
+	// 阶段 2: 统一构建与注册 (Common Build & Register)
+	// -------------------------------------------------------------------------
+
+	// 1. 生成唯一符号
+	sym := types.LocalPkg.Lookup(".magic." + name + "." + recv.String())
 	if sym.Uniq() {
+		// 如果已存在且已定义，直接返回
 		if sym.Def != nil {
 			if n, ok := sym.Def.(*ir.Name); ok && n.Func != nil {
 				return n.Func, true
@@ -459,42 +383,30 @@ func magicInitWrapper(base *types.Type, msym *types.Sym, pos src.XPos) (fn *ir.F
 		sym.SetUniq(true)
 	}
 
-	recvPtr := types.NewPtr(base)
-	params := make([]*types.Field, 0, 1+len(argTypes))
-	params = append(params, types.NewField(pos, typecheck.Lookup("recv"), recvPtr))
-	for i, t := range argTypes {
-		params = append(params, types.NewField(pos, typecheck.Lookup(fmt.Sprintf("a%d", i)), t))
-	}
-	sig := types.NewSignature(nil, params, nil)
-
+	// 2. 创建函数对象
+	sig := types.NewSignature(nil, params, results)
 	fn = ir.NewFunc(pos, pos, sym, sig)
 	fn.DeclareParams(true)
 	fn.SetDupok(true)
 	fn.SetWrapper(true)
 	sym.Def = fn.Nname
 
+	// 3. 生成函数体 (执行对应的策略闭包)
 	ir.WithFunc(fn, func() {
-		ps := fn.Type().Params()
-		recvNode := ps[0].Nname.(*ir.Name)
-
-		var args ir.Nodes
-		for i := 1; i < len(ps); i++ {
-			args.Append(ps[i].Nname.(*ir.Name))
-		}
-
-		mk := typecheck.Expr(ir.NewCallExpr(pos, ir.OMAKE, nil, append([]ir.Node{ir.TypeNode(base)}, args...))).(*ir.MakeExpr)
-		if base.IsSlice() {
-			mk.RType = reflectdata.TypePtrAt(pos, base.Elem())
-		} else {
-			mk.RType = reflectdata.TypePtrAt(pos, base)
-		}
-		lhs := typecheck.Expr(ir.NewStarExpr(pos, recvNode))
-		as := ir.NewAssignStmt(pos, lhs, mk)
-		fn.Body.Append(typecheck.Stmt(as))
+		bodyGen(fn)
 	})
 
+	// 4. 配置强制内联
+	fn.Inl = &ir.Inline{
+		Cost:            1,
+		Dcl:             fn.Dcl,
+		CanDelayResults: canDelayResults,
+	}
+
+	// 5. 注册到编译器目标
 	fn.Nname.Defn = fn
 	typecheck.Target.Funcs = append(typecheck.Target.Funcs, fn)
+
 	return fn, true
 }
 
@@ -1918,9 +1830,7 @@ func (pr *pkgReader) dictNameOf(dict *readerDict) *ir.Name {
 	for _, info := range dict.typeParamMethodExprs {
 		typeParam := dict.targs[info.typeParamIdx]
 		var rsym *obj.LSym
-		if fn, ok := magicBasicMethodWrapper(typeParam, info.method, pos); ok && fn != nil && fn.Nname != nil {
-			rsym = fn.Nname.Linksym()
-		} else if fn, ok := magicInitWrapper(typeParam, info.method, pos); ok && fn != nil && fn.Nname != nil {
+		if fn, ok := magicMethodWrapper(typeParam, info.method, pos); ok && fn != nil && fn.Nname != nil {
 			rsym = fn.Nname.Linksym()
 		} else {
 			// For constructor-style _init, we always store method expressions with a pointer receiver
