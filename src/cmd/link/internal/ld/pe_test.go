@@ -29,8 +29,8 @@ func TestPESectionsReadOnly(t *testing.T) {
 		name                string
 		args                []string
 		prog                string
-		wantSecsRO          []string
-		wantSecsROIfPresent []string
+		wantSecsRO          [][]string // each entry is a list of alternative names (first found wins)
+		wantSecsROIfPresent [][]string
 		mustHaveCGO         bool
 		mustInternalLink    bool
 	}{
@@ -39,10 +39,10 @@ func TestPESectionsReadOnly(t *testing.T) {
 			args:             []string{"-ldflags", "-linkmode=internal"},
 			prog:             prog,
 			mustInternalLink: true,
-			wantSecsRO:       []string{".rodata", ".gopclntab"},
-			wantSecsROIfPresent: []string{
-				".typelink",
-				".itablink",
+			wantSecsRO:       [][]string{{".rodata"}, {".gopclntab"}},
+			wantSecsROIfPresent: [][]string{
+				{".typelink"},
+				{".itablink"},
 			},
 		},
 		{
@@ -50,10 +50,12 @@ func TestPESectionsReadOnly(t *testing.T) {
 			args:        []string{"-ldflags", "-linkmode=external"},
 			prog:        progC,
 			mustHaveCGO: true,
-			wantSecsRO:  []string{".rodata", ".gopclntab"},
-			wantSecsROIfPresent: []string{
-				".typelink",
-				".itablink",
+			// External linkers may truncate section names to 8 characters (lld)
+			// or preserve long names via string table (GNU ld).
+			wantSecsRO: [][]string{{".rodata"}, {".gopclntab", ".gopclnt"}},
+			wantSecsROIfPresent: [][]string{
+				{".typelink", ".typelin"},
+				{".itablink", ".itablin"},
 			},
 		},
 	}
@@ -92,27 +94,37 @@ func TestPESectionsReadOnly(t *testing.T) {
 				secByName[sec.Name] = sec
 			}
 
-			checkRO := func(name string, required bool) {
-				sec := secByName[name]
+			// checkRO checks that one of the alternative section names exists and is read-only.
+			// names is a list of alternative names (first found wins).
+			checkRO := func(names []string, required bool) {
+				var sec *pe.Section
+				var foundName string
+				for _, name := range names {
+					if s := secByName[name]; s != nil {
+						sec = s
+						foundName = name
+						break
+					}
+				}
 				if sec == nil {
 					if required {
-						t.Fatalf("test %s: can't locate %q section", test.name, name)
+						t.Fatalf("test %s: can't locate any of %q sections", test.name, names)
 					}
 					return
 				}
 				if sec.Characteristics&pe.IMAGE_SCN_MEM_READ == 0 {
-					t.Errorf("section %s missing IMAGE_SCN_MEM_READ", name)
+					t.Errorf("section %s missing IMAGE_SCN_MEM_READ", foundName)
 				}
 				if sec.Characteristics&pe.IMAGE_SCN_MEM_WRITE != 0 {
-					t.Errorf("section %s unexpectedly writable", name)
+					t.Errorf("section %s unexpectedly writable", foundName)
 				}
 			}
 
-			for _, name := range test.wantSecsRO {
-				checkRO(name, true)
+			for _, names := range test.wantSecsRO {
+				checkRO(names, true)
 			}
-			for _, name := range test.wantSecsROIfPresent {
-				checkRO(name, false)
+			for _, names := range test.wantSecsROIfPresent {
+				checkRO(names, false)
 			}
 		})
 	}
