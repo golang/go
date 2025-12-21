@@ -199,6 +199,11 @@ Diff:
 	}
 	obj.Flushplist(ctxt, pList, nil)
 
+	if !ok {
+		// If we've encountered errors, the output is unlikely to be sane.
+		t.FailNow()
+	}
+
 	for p := top; p != nil; p = p.Link {
 		if p.As == obj.ATEXT {
 			text = p.From.Sym
