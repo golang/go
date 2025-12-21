@@ -2349,20 +2349,91 @@ func (w *writer) expr(expr syntax.Expr) {
 				assert(len(expr.ArgList) >= 1)
 				assert(!expr.HasDots)
 
-				w.Code(exprMake)
-				w.pos(expr)
-				w.exprType(nil, expr.ArgList[0])
-				w.exprs(expr.ArgList[1:])
-
 				typ := w.p.typeOf(expr)
 				switch coreType := types2.CoreType(typ).(type) {
 				default:
 					w.p.fatalf(expr, "unexpected core type: %v", coreType)
+				case *types2.Pointer:
+					// Compiler extension: init-make for type parameters.
+					// types2/builtins.go type-checks this form as *T.
+					w.Code(exprInitMake)
+					w.pos(expr)
+					w.exprType(nil, expr.ArgList[0])
+					w.exprs(expr.ArgList[1:])
+					// Encode dictionary-backed method call information for _init.
+					// We will lower this in reader.go to an indirect call through the
+					// current function's runtime dictionary.
+					// Note: expr.ArgList[0] is a *type* expression (T), not a value expression.
+					// So we must use typeAndValue, not typeOf, to avoid "expected value" ICEs.
+					tv0 := w.p.typeAndValue(expr.ArgList[0])
+					if !tv0.IsType() {
+						w.p.fatalf(expr, "exprInitMake: first argument is not a type expression")
+					}
+					tp, ok := types2.Unalias(tv0.Type).(*types2.TypeParam)
+					if !ok || w.dict == nil {
+						w.p.fatalf(expr, "exprInitMake requires type parameter and active dictionary")
+					}
+
+					// Find the _init method object from the type parameter's constraint.
+					var initFn *types2.Func
+					if c := tp.Constraint(); c != nil {
+						if iface, _ := types2.CoreType(c).(*types2.Interface); iface != nil {
+							// Prefer explicitly declared methods to avoid forcing type set computation early.
+							for i := 0; i < iface.NumExplicitMethods(); i++ {
+								m := iface.ExplicitMethod(i)
+								if m != nil && m.Name() == "_init" {
+									initFn = m
+									break
+								}
+							}
+							if initFn == nil {
+								for i := 0; i < iface.NumMethods(); i++ {
+									m := iface.Method(i)
+									if m != nil && m.Name() == "_init" {
+										initFn = m
+										break
+									}
+								}
+							}
+						}
+					}
+					if initFn == nil {
+						w.p.fatalf(expr, "exprInitMake: missing _init in type parameter constraint")
+					}
+
+					// We will store a method expression entry for receiver *T in the runtime dictionary.
+					// Build the function type: func(*T, <args...>)
+					recvPtr := types2.NewPointer(tp)
+					params := make([]*types2.Var, 0, 1+len(expr.ArgList)-1)
+					params = append(params, types2.NewParam(syntax.Pos{}, w.p.curpkg, "", recvPtr))
+					for _, a := range expr.ArgList[1:] {
+						params = append(params, types2.NewParam(syntax.Pos{}, w.p.curpkg, "", w.p.typeOf(a)))
+					}
+					callSig := types2.NewSignatureType(nil, nil, nil, types2.NewTuple(params...), nil, false)
+					w.typ(callSig)
+
+					// Reserve/encode the dictionary entry index.
+					typeParamIdx := w.dict.typeParamIndex(tp)
+					methodInfo := w.p.selectorIdx(initFn)
+					w.Len(w.dict.typeParamMethodExprIdx(typeParamIdx, methodInfo))
+					return
 				case *types2.Chan:
+					w.Code(exprMake)
+					w.pos(expr)
+					w.exprType(nil, expr.ArgList[0])
+					w.exprs(expr.ArgList[1:])
 					w.rtype(typ)
 				case *types2.Map:
+					w.Code(exprMake)
+					w.pos(expr)
+					w.exprType(nil, expr.ArgList[0])
+					w.exprs(expr.ArgList[1:])
 					w.rtype(typ)
 				case *types2.Slice:
+					w.Code(exprMake)
+					w.pos(expr)
+					w.exprType(nil, expr.ArgList[0])
+					w.exprs(expr.ArgList[1:])
 					w.rtype(sliceElem(typ))
 				}
 

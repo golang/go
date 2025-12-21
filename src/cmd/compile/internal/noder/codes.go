@@ -66,6 +66,7 @@ const (
 	exprOptionalChain  // nil-safe field access x?.field, returns *FieldType
 	exprTernary        // ternary expression: cond ? trueExpr : falseExpr
 	exprCoalesce       // coalesce expression: x ?: y (nil-coalescing deref)
+	exprInitMake       // compiler extension: make(T, ...) where T is a type parameter with _init constraint; lowered to new(T)._init(...)
 )
 
 type codeAssign int

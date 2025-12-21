@@ -532,6 +532,38 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			}
 		})
 		if err != nil {
+			// Compiler extension: allow "constructor make" for type parameters
+			// whose constraint includes an _init method.
+			//
+			// This is used to support patterns like:
+			//   type Initer[T any] interface { _init(int) }
+			//   func F[T Initer[T]](x int) *T { return make(T, x) }
+			//
+			// The expression make(T, args...) type-checks as *T, and will be
+			// lowered later in the noder pipeline to new(T)._init(args...).
+			if isTypeParam(T) && check.isInitMakeTypeParam(T) {
+				// Evaluate and type-check the remaining arguments (as ordinary values).
+				// We don't try to fully type-check them against the _init signature here;
+				// the lowering step will produce a real method call which will be checked.
+				argTypes := make([]Type, 0, nargs-1)
+				for _, a := range argList[1:] {
+					ta := new(operand)
+					check.expr(nil, ta, a)
+					argTypes = append(argTypes, ta.typ)
+				}
+
+				x.mode = value
+				x.typ = &Pointer{base: T}
+				if check.recordTypes() {
+					// Record a best-effort "signature" for tooling.
+					types := make([]Type, 0, 1+len(argTypes))
+					types = append(types, T)
+					types = append(types, argTypes...)
+					check.recordBuiltinType(call.Fun, makeSig(x.typ, types...))
+				}
+				return true
+			}
+
 			check.errorf(arg0, InvalidMake, invalidArg+"cannot make %s: %s", arg0, err.format(check))
 			return
 		}
@@ -955,6 +987,43 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 	assert(x.mode != invalid)
 	return true
+}
+
+// isInitMakeTypeParam reports whether a type parameter should be eligible for the
+// compiler extension "constructor make(T, ...)".
+//
+// We keep this intentionally narrow: it only triggers for type parameters whose
+// constraint includes an _init method.
+func (check *Checker) isInitMakeTypeParam(T Type) bool {
+	// T must be (or alias to) a type parameter.
+	tp, _ := Unalias(T).(*TypeParam)
+	if tp == nil {
+		return false
+	}
+	c := tp.Constraint()
+	if c == nil {
+		return false
+	}
+	iface, _ := under(c).(*Interface)
+	if iface == nil {
+		return false
+	}
+	// Prefer explicitly declared methods to avoid forcing type set computation
+	// too early during type checking.
+	for i := 0; i < iface.NumExplicitMethods(); i++ {
+		m := iface.ExplicitMethod(i)
+		if m != nil && m.name == "_init" {
+			return true
+		}
+	}
+	// Fall back to the full method set (may trigger type set computation).
+	for i := 0; i < iface.NumMethods(); i++ {
+		m := iface.Method(i)
+		if m != nil && m.name == "_init" {
+			return true
+		}
+	}
+	return false
 }
 
 // sliceElem returns the slice element type for a slice operand x

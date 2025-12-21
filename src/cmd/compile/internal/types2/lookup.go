@@ -600,7 +600,7 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
 				break
 			}
 
-			if !equivalent(f.typ, m.typ) {
+			if !equivalentOrInit(equivalent, f, m) {
 				state = wrongSig
 				break
 			}
@@ -615,6 +615,18 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
 				case index != nil:
 					state = ambigSel
 				case indirect:
+					// Compiler extension: treat _init as "constructor-like".
+					// For the purpose of constraint satisfaction, allow a pointer-receiver
+					// _init method on *V to satisfy an _init requirement on V.
+					//
+					// This is used together with the "constructor make(T, ...)" extension
+					// which always allocates a *T anyway.
+					if m != nil && m.name == "_init" {
+						if ok := initMethodOnPtrSatisfies(V, m, equivalent); ok {
+							// treat as satisfied; continue checking other methods
+							continue
+						}
+					}
 					state = ptrRecv
 				default:
 					state = notFound
@@ -644,7 +656,7 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
 				check.objDecl(f, nil)
 			}
 
-			if !equivalent(f.typ, m.typ) {
+			if !equivalentOrInit(equivalent, f, m) {
 				state = wrongSig
 				break
 			}
@@ -709,6 +721,70 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
 	}
 
 	return m, state == wrongSig || state == ptrRecv
+}
+
+// equivalentOrInit wraps the usual signature comparator with a narrow compatibility
+// rule for "_init": allow an implementation method to have a single return value
+// equal to its receiver type, even if the interface method has no results.
+func equivalentOrInit(equivalent func(x, y Type) bool, impl, want *Func) bool {
+	if equivalent(impl.typ, want.typ) {
+		return true
+	}
+	if want == nil || want.name != "_init" || impl == nil {
+		return false
+	}
+	return initSigCompatible(impl.typ, want.typ)
+}
+
+func initSigCompatible(impl, want Type) bool {
+	isig, _ := impl.(*Signature)
+	wsig, _ := want.(*Signature)
+	if isig == nil || wsig == nil {
+		return false
+	}
+	// Compare parameters (receiver excluded).
+	if isig.Params().Len() != wsig.Params().Len() {
+		return false
+	}
+	for i := 0; i < isig.Params().Len(); i++ {
+		if !Identical(isig.Params().At(i).typ, wsig.Params().At(i).typ) {
+			return false
+		}
+	}
+	// Want must have no results.
+	if wsig.Results().Len() != 0 {
+		return false
+	}
+	// Impl may have 0 results, or 1 result equal to its receiver type.
+	switch isig.Results().Len() {
+	case 0:
+		return true
+	case 1:
+		recv := isig.Recv()
+		if recv == nil {
+			return false
+		}
+		return Identical(isig.Results().At(0).typ, recv.typ)
+	default:
+		return false
+	}
+}
+
+func initMethodOnPtrSatisfies(V Type, want *Func, equivalent func(x, y Type) bool) bool {
+	if want == nil {
+		return false
+	}
+	// Look up _init on *V and verify it matches the wanted signature under initSigCompatible.
+	pv := &Pointer{base: V}
+	obj, _, _ := lookupFieldOrMethodImpl(pv, false, want.pkg, want.name, false)
+	impl, _ := obj.(*Func)
+	if impl == nil {
+		return false
+	}
+	if equivalent(impl.typ, want.typ) {
+		return true
+	}
+	return initSigCompatible(impl.typ, want.typ)
 }
 
 // hasAllMethods is similar to checkMissingMethod but instead reports whether all methods are present.

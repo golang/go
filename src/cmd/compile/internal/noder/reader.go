@@ -1797,7 +1797,13 @@ func (pr *pkgReader) dictNameOf(dict *readerDict) *ir.Name {
 		if fn, ok := magicBasicMethodWrapper(typeParam, info.method, pos); ok && fn != nil && fn.Nname != nil {
 			rsym = fn.Nname.Linksym()
 		} else {
-			method := typecheck.NewMethodExpr(pos, typeParam, info.method)
+			// For constructor-style _init, we always store method expressions with a pointer receiver
+			// so that types whose _init is defined on *T are supported.
+			recv := typeParam
+			if info.method != nil && info.method.Name == "_init" {
+				recv = types.NewPtr(typeParam)
+			}
+			method := typecheck.NewMethodExpr(pos, recv, info.method)
 			rsym = method.FuncName().Linksym()
 		}
 
@@ -2779,6 +2785,37 @@ func (r *reader) expr() (res ir.Node) {
 		n := typecheck.Expr(ir.NewCallExpr(pos, ir.OMAKE, nil, append([]ir.Node{typ}, extra...))).(*ir.MakeExpr)
 		n.RType = r.rtype(pos)
 		return n
+
+	case exprInitMake:
+		// Compiler extension: make(T, args...) for type parameters with _init constraint.
+		// Lowered to an indirect call through the current function's runtime dictionary:
+		//   p := new(T)
+		//   .dict._init(p, args...)   // where _init is stored as a type-parameter method expression
+		//   return p
+		pos := r.pos()
+		typ := r.exprType()
+		args := r.exprs()
+		callSig := r.typ() // func(*T, args...)
+		methodIdx := r.Len()
+
+		// Allocate: tmp := new(T) (evaluate once)
+		pNew := typecheck.Expr(ir.NewUnaryExpr(pos, ir.ONEW, typ))
+		tmp := typecheck.TempAt(pos, r.curfn, pNew.Type())
+		tmp.SetTypecheck(1)
+		as := typecheck.Stmt(ir.NewAssignStmt(pos, tmp, pNew))
+
+		// Load method expression pointer from dictionary and cast to callSig.
+		word := r.dictWord(pos, r.dict.typeParamMethodExprsOffset()+methodIdx)
+		fn := typecheck.Expr(ir.NewConvExpr(pos, ir.OCONVNOP, callSig, ir.NewAddrExpr(pos, word)))
+
+		// Call: fn(p, args...)
+		var callArgs ir.Nodes
+		callArgs.Append(tmp)
+		callArgs.Append(args...)
+		call := typecheck.Call(pos, fn, callArgs, false)
+
+		// Return tmp, sequencing allocation + call for side effects.
+		return ir.InitExpr([]ir.Node{as, typecheck.Stmt(call)}, tmp)
 
 	case exprNew:
 		pos := r.pos()
