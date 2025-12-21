@@ -578,9 +578,10 @@ func (f *peFile) peshbits(ctxt *Link, sect *sym.Section, seg *sym.Segment) *peSe
 		h.characteristics |= IMAGE_SCN_ALIGN_32BYTES
 	}
 	if fileSize == 0 {
+		// BSS section: no file data, but size is stored in sizeOfRawData
+		// (which was correctly set by appendSection).
+		// GNU ld and lld expect BSS size in sizeOfRawData, not virtualSize.
 		h.pointerToRawData = 0
-		h.virtualSize = uint32(sect.Length)
-		h.sizeOfRawData = 0
 	}
 
 	f.sectMap[sect] = h
