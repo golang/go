@@ -690,8 +690,8 @@ func (m *Matrix) _getitem(indices1 []int, indices2 []int) int {
 	return m.data[row][col]
 }
 
-// _setitem: 支持 matrix[row, col] = value 语法
-func (m *Matrix) _setitem(indices1 []int, indices2 []int, value int) {
+// _setitem: 支持 matrix[row, col] = value 语法  ⚠️ 注意 value 在前面 key 在后面
+func (m *Matrix) _setitem(value int, indices1 []int, indices2 []int) {
 	row, col := indices1[0], indices2[0]
 	m.data[row][col] = value
 }
