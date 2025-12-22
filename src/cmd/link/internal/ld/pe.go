@@ -63,17 +63,6 @@ var (
 	PEFILEALIGN int64 = 2 << 8
 )
 
-// peSectionAlign returns the appropriate section alignment for PE files.
-// For Windows internal linking, sections must be aligned to PESECTALIGN.
-func peSectionAlign(ctxt *Link, align int32) int32 {
-	if ctxt.HeadType == objabi.Hwindows && ctxt.LinkMode == LinkInternal {
-		if peAlign := int32(PESECTALIGN); align < peAlign {
-			return peAlign
-		}
-	}
-	return align
-}
-
 // peSectionHeaderReserve reserves header space for section headers.
 const peSectionHeaderReserve = 64
 

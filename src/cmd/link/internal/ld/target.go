@@ -19,9 +19,10 @@ type Target struct {
 	LinkMode  LinkMode
 	BuildMode BuildMode
 
-	linkShared    bool
-	canUsePlugins bool
-	IsELF         bool
+	linkShared       bool
+	canUsePlugins    bool
+	IsELF            bool
+	MinimumAlignment int32 // minimum section alignment for the target
 }
 
 //
@@ -203,4 +204,10 @@ func (t *Target) UsesLibc() bool {
 		return true
 	}
 	return false
+}
+
+// Align returns the alignment adjusted to meet the target's minimum
+// section alignment requirement.
+func (t *Target) Align(align int32) int32 {
+	return max(align, t.MinimumAlignment)
 }
