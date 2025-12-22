@@ -9,7 +9,7 @@
 TEXT _rt0_arm64_freebsd(SB),NOSPLIT,$0
 	ADD	$8, R0, R1	// argv (use R0 while it's still the pointer)
 	MOVD	0(R0), R0	// argc
-	JMP runtime·rt0_go(SB)
+	JMP	runtime·rt0_go(SB)
 
 // When building with -buildmode=c-shared, this symbol is called when the shared
 // library is loaded.
