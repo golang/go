@@ -13,6 +13,7 @@ import (
 	"simd/archsimd"
 	"slices"
 	"testing"
+	"unsafe"
 )
 
 func TestMain(m *testing.M) {
@@ -1227,4 +1228,71 @@ func TestClMul(t *testing.T) {
 	foo(x.CarrylessMultiply(1, 1, y), []uint64{45, 0})
 	foo(y.CarrylessMultiply(0, 0, y), []uint64{5, 0})
 
+}
+
+func addPairsSlice[T number](a, b []T) []T {
+	r := make([]T, len(a))
+	for i := range len(a) / 2 {
+		r[i] = a[2*i] + a[2*i+1]
+		r[i+len(a)/2] = b[2*i] + b[2*i+1]
+	}
+	return r
+}
+
+func subPairsSlice[T number](a, b []T) []T {
+	r := make([]T, len(a))
+	for i := range len(a) / 2 {
+		r[i] = a[2*i] - a[2*i+1]
+		r[i+len(a)/2] = b[2*i] - b[2*i+1]
+	}
+	return r
+}
+
+func addPairsGroupedSlice[T number](a, b []T) []T {
+	group := int(128 / unsafe.Sizeof(a[0]))
+	r := make([]T, 0, len(a))
+	for i := range len(a) / group {
+		r = append(r, addPairsSlice(a[i*group:(i+1)*group], b[i*group:(i+1)*group])...)
+	}
+	return r
+}
+
+func subPairsGroupedSlice[T number](a, b []T) []T {
+	group := int(128 / unsafe.Sizeof(a[0]))
+	r := make([]T, 0, len(a))
+	for i := range len(a) / group {
+		r = append(r, subPairsSlice(a[i*group:(i+1)*group], b[i*group:(i+1)*group])...)
+	}
+	return r
+}
+
+func TestAddSubPairs(t *testing.T) {
+	testInt16x8Binary(t, archsimd.Int16x8.AddPairs, addPairsSlice[int16])
+	testInt16x8Binary(t, archsimd.Int16x8.SubPairs, subPairsSlice[int16])
+	testUint16x8Binary(t, archsimd.Uint16x8.AddPairs, addPairsSlice[uint16])
+	testUint16x8Binary(t, archsimd.Uint16x8.SubPairs, subPairsSlice[uint16])
+	testInt32x4Binary(t, archsimd.Int32x4.AddPairs, addPairsSlice[int32])
+	testInt32x4Binary(t, archsimd.Int32x4.SubPairs, subPairsSlice[int32])
+	testUint32x4Binary(t, archsimd.Uint32x4.AddPairs, addPairsSlice[uint32])
+	testUint32x4Binary(t, archsimd.Uint32x4.SubPairs, subPairsSlice[uint32])
+	testFloat32x4Binary(t, archsimd.Float32x4.AddPairs, addPairsSlice[float32])
+	testFloat32x4Binary(t, archsimd.Float32x4.SubPairs, subPairsSlice[float32])
+	testFloat64x2Binary(t, archsimd.Float64x2.AddPairs, addPairsSlice[float64])
+	testFloat64x2Binary(t, archsimd.Float64x2.SubPairs, subPairsSlice[float64])
+
+	// Grouped versions
+	if archsimd.X86.AVX2() {
+		testInt16x16Binary(t, archsimd.Int16x16.AddPairsGrouped, addPairsGroupedSlice[int16])
+		testInt16x16Binary(t, archsimd.Int16x16.SubPairsGrouped, subPairsGroupedSlice[int16])
+		testUint16x16Binary(t, archsimd.Uint16x16.AddPairsGrouped, addPairsGroupedSlice[uint16])
+		testUint16x16Binary(t, archsimd.Uint16x16.SubPairsGrouped, subPairsGroupedSlice[uint16])
+		testInt32x8Binary(t, archsimd.Int32x8.AddPairsGrouped, addPairsGroupedSlice[int32])
+		testInt32x8Binary(t, archsimd.Int32x8.SubPairsGrouped, subPairsGroupedSlice[int32])
+		testUint32x8Binary(t, archsimd.Uint32x8.AddPairsGrouped, addPairsGroupedSlice[uint32])
+		testUint32x8Binary(t, archsimd.Uint32x8.SubPairsGrouped, subPairsGroupedSlice[uint32])
+		testFloat32x8Binary(t, archsimd.Float32x8.AddPairsGrouped, addPairsGroupedSlice[float32])
+		testFloat32x8Binary(t, archsimd.Float32x8.SubPairsGrouped, subPairsGroupedSlice[float32])
+		testFloat64x4Binary(t, archsimd.Float64x4.AddPairsGrouped, addPairsGroupedSlice[float64])
+		testFloat64x4Binary(t, archsimd.Float64x4.SubPairsGrouped, subPairsGroupedSlice[float64])
+	}
 }

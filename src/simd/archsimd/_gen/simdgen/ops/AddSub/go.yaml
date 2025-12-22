@@ -53,25 +53,71 @@
   - *uint
 - go: AddPairs
   asm: "VPHADD[DW]"
-  in: *2any
-  out: *1any
+  in: &2any128
+  - &any128
+    go: $t
+    bits: 128
+  - *any128
+  out: &1any128
+  - *any128
 - go: SubPairs
   asm: "VPHSUB[DW]"
-  in: *2any
-  out: *1any
+  in: *2any128
+  out: *1any128
 - go: AddPairs
   asm: "VHADDP[SD]" # floats
-  in: *2any
-  out: *1any
+  in: *2any128
+  out: *1any128
 - go: SubPairs
   asm: "VHSUBP[SD]"  # floats
-  in: *2any
-  out: *1any
+  in: *2any128
+  out: *1any128
 - go: AddPairsSaturated
   asm: "VPHADDS[DW]"
-  in: *2int
-  out: *1int
+  in: &2int128
+  - &int128
+    go: $t
+    base: int
+    bits: 128
+  - *int128
+  out: &1int128
+  - *int128
 - go: SubPairsSaturated
   asm: "VPHSUBS[DW]"
-  in: *2int
-  out: *1int
+  in: *2int128
+  out: *1int128
+- go: AddPairsGrouped
+  asm: "VPHADD[DW]"
+  in: &2any256
+  - &any256
+    go: $t
+    bits: 256
+  - *any256
+  out: &1any256
+  - *any256
+- go: SubPairsGrouped
+  asm: "VPHSUB[DW]"
+  in: *2any256
+  out: *1any256
+- go: AddPairsGrouped
+  asm: "VHADDP[SD]" # floats
+  in: *2any256
+  out: *1any256
+- go: SubPairsGrouped
+  asm: "VHSUBP[SD]"  # floats
+  in: *2any256
+  out: *1any256
+- go: AddPairsSaturatedGrouped
+  asm: "VPHADDS[DW]"
+  in: &2int256
+  - &int256
+    go: $t
+    base: int
+    bits: 256
+  - *int256
+  out: &1int256
+  - *int256
+- go: SubPairsSaturatedGrouped
+  asm: "VPHSUBS[DW]"
+  in: *2int256
+  out: *1int256

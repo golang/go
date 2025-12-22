@@ -349,90 +349,101 @@ func (x Uint64x8) Add(y Uint64x8) Uint64x8
 /* AddPairs */
 
 // AddPairs horizontally adds adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
 //
 // Asm: VHADDPS, CPU Feature: AVX
 func (x Float32x4) AddPairs(y Float32x4) Float32x4
 
 // AddPairs horizontally adds adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
-//
-// Asm: VHADDPS, CPU Feature: AVX
-func (x Float32x8) AddPairs(y Float32x8) Float32x8
-
-// AddPairs horizontally adds adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
+// For x = [x0, x1] and y = [y0, y1], the result is [x0+x1, y0+y1].
 //
 // Asm: VHADDPD, CPU Feature: AVX
 func (x Float64x2) AddPairs(y Float64x2) Float64x2
 
 // AddPairs horizontally adds adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
-//
-// Asm: VHADDPD, CPU Feature: AVX
-func (x Float64x4) AddPairs(y Float64x4) Float64x4
-
-// AddPairs horizontally adds adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
 //
 // Asm: VPHADDW, CPU Feature: AVX
 func (x Int16x8) AddPairs(y Int16x8) Int16x8
 
 // AddPairs horizontally adds adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
-//
-// Asm: VPHADDW, CPU Feature: AVX2
-func (x Int16x16) AddPairs(y Int16x16) Int16x16
-
-// AddPairs horizontally adds adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
 //
 // Asm: VPHADDD, CPU Feature: AVX
 func (x Int32x4) AddPairs(y Int32x4) Int32x4
 
 // AddPairs horizontally adds adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
-//
-// Asm: VPHADDD, CPU Feature: AVX2
-func (x Int32x8) AddPairs(y Int32x8) Int32x8
-
-// AddPairs horizontally adds adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
 //
 // Asm: VPHADDW, CPU Feature: AVX
 func (x Uint16x8) AddPairs(y Uint16x8) Uint16x8
 
 // AddPairs horizontally adds adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
-//
-// Asm: VPHADDW, CPU Feature: AVX2
-func (x Uint16x16) AddPairs(y Uint16x16) Uint16x16
-
-// AddPairs horizontally adds adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
 //
 // Asm: VPHADDD, CPU Feature: AVX
 func (x Uint32x4) AddPairs(y Uint32x4) Uint32x4
 
-// AddPairs horizontally adds adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
+/* AddPairsGrouped */
+
+// AddPairsGrouped horizontally adds adjacent pairs of elements.
+// With each 128-bit as a group:
+// for x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
+//
+// Asm: VHADDPS, CPU Feature: AVX
+func (x Float32x8) AddPairsGrouped(y Float32x8) Float32x8
+
+// AddPairsGrouped horizontally adds adjacent pairs of elements.
+// With each 128-bit as a group:
+// for x = [x0, x1] and y = [y0, y1], the result is [x0+x1, y0+y1].
+//
+// Asm: VHADDPD, CPU Feature: AVX
+func (x Float64x4) AddPairsGrouped(y Float64x4) Float64x4
+
+// AddPairsGrouped horizontally adds adjacent pairs of elements.
+// With each 128-bit as a group:
+// for x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
+//
+// Asm: VPHADDW, CPU Feature: AVX2
+func (x Int16x16) AddPairsGrouped(y Int16x16) Int16x16
+
+// AddPairsGrouped horizontally adds adjacent pairs of elements.
+// With each 128-bit as a group:
+// for x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
 //
 // Asm: VPHADDD, CPU Feature: AVX2
-func (x Uint32x8) AddPairs(y Uint32x8) Uint32x8
+func (x Int32x8) AddPairsGrouped(y Int32x8) Int32x8
+
+// AddPairsGrouped horizontally adds adjacent pairs of elements.
+// With each 128-bit as a group:
+// for x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
+//
+// Asm: VPHADDW, CPU Feature: AVX2
+func (x Uint16x16) AddPairsGrouped(y Uint16x16) Uint16x16
+
+// AddPairsGrouped horizontally adds adjacent pairs of elements.
+// With each 128-bit as a group:
+// for x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
+//
+// Asm: VPHADDD, CPU Feature: AVX2
+func (x Uint32x8) AddPairsGrouped(y Uint32x8) Uint32x8
 
 /* AddPairsSaturated */
 
 // AddPairsSaturated horizontally adds adjacent pairs of elements with saturation.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
 //
 // Asm: VPHADDSW, CPU Feature: AVX
 func (x Int16x8) AddPairsSaturated(y Int16x8) Int16x8
 
-// AddPairsSaturated horizontally adds adjacent pairs of elements with saturation.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
+/* AddPairsSaturatedGrouped */
+
+// AddPairsSaturatedGrouped horizontally adds adjacent pairs of elements with saturation.
+// With each 128-bit as a group:
+// for x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
 //
 // Asm: VPHADDSW, CPU Feature: AVX2
-func (x Int16x16) AddPairsSaturated(y Int16x16) Int16x16
+func (x Int16x16) AddPairsSaturatedGrouped(y Int16x16) Int16x16
 
 /* AddSaturated */
 
@@ -7084,90 +7095,101 @@ func (x Uint64x8) Sub(y Uint64x8) Uint64x8
 /* SubPairs */
 
 // SubPairs horizontally subtracts adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0-x1, x2-x3, ..., y0-y1, y2-y3, ...].
 //
 // Asm: VHSUBPS, CPU Feature: AVX
 func (x Float32x4) SubPairs(y Float32x4) Float32x4
 
 // SubPairs horizontally subtracts adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
-//
-// Asm: VHSUBPS, CPU Feature: AVX
-func (x Float32x8) SubPairs(y Float32x8) Float32x8
-
-// SubPairs horizontally subtracts adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
+// For x = [x0, x1] and y = [y0, y1], the result is [x0-x1, y0-y1].
 //
 // Asm: VHSUBPD, CPU Feature: AVX
 func (x Float64x2) SubPairs(y Float64x2) Float64x2
 
 // SubPairs horizontally subtracts adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
-//
-// Asm: VHSUBPD, CPU Feature: AVX
-func (x Float64x4) SubPairs(y Float64x4) Float64x4
-
-// SubPairs horizontally subtracts adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0-x1, x2-x3, ..., y0-y1, y2-y3, ...].
 //
 // Asm: VPHSUBW, CPU Feature: AVX
 func (x Int16x8) SubPairs(y Int16x8) Int16x8
 
 // SubPairs horizontally subtracts adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
-//
-// Asm: VPHSUBW, CPU Feature: AVX2
-func (x Int16x16) SubPairs(y Int16x16) Int16x16
-
-// SubPairs horizontally subtracts adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0-x1, x2-x3, ..., y0-y1, y2-y3, ...].
 //
 // Asm: VPHSUBD, CPU Feature: AVX
 func (x Int32x4) SubPairs(y Int32x4) Int32x4
 
 // SubPairs horizontally subtracts adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
-//
-// Asm: VPHSUBD, CPU Feature: AVX2
-func (x Int32x8) SubPairs(y Int32x8) Int32x8
-
-// SubPairs horizontally subtracts adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0-x1, x2-x3, ..., y0-y1, y2-y3, ...].
 //
 // Asm: VPHSUBW, CPU Feature: AVX
 func (x Uint16x8) SubPairs(y Uint16x8) Uint16x8
 
 // SubPairs horizontally subtracts adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
-//
-// Asm: VPHSUBW, CPU Feature: AVX2
-func (x Uint16x16) SubPairs(y Uint16x16) Uint16x16
-
-// SubPairs horizontally subtracts adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0-x1, x2-x3, ..., y0-y1, y2-y3, ...].
 //
 // Asm: VPHSUBD, CPU Feature: AVX
 func (x Uint32x4) SubPairs(y Uint32x4) Uint32x4
 
-// SubPairs horizontally subtracts adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
+/* SubPairsGrouped */
+
+// SubPairsGrouped horizontally subtracts adjacent pairs of elements.
+// With each 128-bit as a group:
+// for x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0-x1, x2-x3, ..., y0-y1, y2-y3, ...].
+//
+// Asm: VHSUBPS, CPU Feature: AVX
+func (x Float32x8) SubPairsGrouped(y Float32x8) Float32x8
+
+// SubPairsGrouped horizontally subtracts adjacent pairs of elements.
+// With each 128-bit as a group:
+// for x = [x0, x1] and y = [y0, y1], the result is [x0-x1, y0-y1].
+//
+// Asm: VHSUBPD, CPU Feature: AVX
+func (x Float64x4) SubPairsGrouped(y Float64x4) Float64x4
+
+// SubPairsGrouped horizontally subtracts adjacent pairs of elements.
+// With each 128-bit as a group:
+// for x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0-x1, x2-x3, ..., y0-y1, y2-y3, ...].
+//
+// Asm: VPHSUBW, CPU Feature: AVX2
+func (x Int16x16) SubPairsGrouped(y Int16x16) Int16x16
+
+// SubPairsGrouped horizontally subtracts adjacent pairs of elements.
+// With each 128-bit as a group:
+// for x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0-x1, x2-x3, ..., y0-y1, y2-y3, ...].
 //
 // Asm: VPHSUBD, CPU Feature: AVX2
-func (x Uint32x8) SubPairs(y Uint32x8) Uint32x8
+func (x Int32x8) SubPairsGrouped(y Int32x8) Int32x8
+
+// SubPairsGrouped horizontally subtracts adjacent pairs of elements.
+// With each 128-bit as a group:
+// for x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0-x1, x2-x3, ..., y0-y1, y2-y3, ...].
+//
+// Asm: VPHSUBW, CPU Feature: AVX2
+func (x Uint16x16) SubPairsGrouped(y Uint16x16) Uint16x16
+
+// SubPairsGrouped horizontally subtracts adjacent pairs of elements.
+// With each 128-bit as a group:
+// for x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0-x1, x2-x3, ..., y0-y1, y2-y3, ...].
+//
+// Asm: VPHSUBD, CPU Feature: AVX2
+func (x Uint32x8) SubPairsGrouped(y Uint32x8) Uint32x8
 
 /* SubPairsSaturated */
 
 // SubPairsSaturated horizontally subtracts adjacent pairs of elements with saturation.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0-x1, x2-x3, ..., y0-y1, y2-y3, ...].
 //
 // Asm: VPHSUBSW, CPU Feature: AVX
 func (x Int16x8) SubPairsSaturated(y Int16x8) Int16x8
 
-// SubPairsSaturated horizontally subtracts adjacent pairs of elements with saturation.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
+/* SubPairsSaturatedGrouped */
+
+// SubPairsSaturatedGrouped horizontally subtracts adjacent pairs of elements with saturation.
+// With each 128-bit as a group:
+// for x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0-x1, x2-x3, ..., y0-y1, y2-y3, ...].
 //
 // Asm: VPHSUBSW, CPU Feature: AVX2
-func (x Int16x16) SubPairsSaturated(y Int16x16) Int16x16
+func (x Int16x16) SubPairsSaturatedGrouped(y Int16x16) Int16x16
 
 /* SubSaturated */
 

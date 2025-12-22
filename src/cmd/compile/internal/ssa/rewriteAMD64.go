@@ -2113,17 +2113,26 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpAddPairsFloat32x4:
 		v.Op = OpAMD64VHADDPS128
 		return true
-	case OpAddPairsFloat32x8:
-		v.Op = OpAMD64VHADDPS256
-		return true
 	case OpAddPairsFloat64x2:
 		v.Op = OpAMD64VHADDPD128
 		return true
-	case OpAddPairsFloat64x4:
+	case OpAddPairsGroupedFloat32x8:
+		v.Op = OpAMD64VHADDPS256
+		return true
+	case OpAddPairsGroupedFloat64x4:
 		v.Op = OpAMD64VHADDPD256
 		return true
-	case OpAddPairsInt16x16:
+	case OpAddPairsGroupedInt16x16:
 		v.Op = OpAMD64VPHADDW256
+		return true
+	case OpAddPairsGroupedInt32x8:
+		v.Op = OpAMD64VPHADDD256
+		return true
+	case OpAddPairsGroupedUint16x16:
+		v.Op = OpAMD64VPHADDW256
+		return true
+	case OpAddPairsGroupedUint32x8:
+		v.Op = OpAMD64VPHADDD256
 		return true
 	case OpAddPairsInt16x8:
 		v.Op = OpAMD64VPHADDW128
@@ -2131,26 +2140,17 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpAddPairsInt32x4:
 		v.Op = OpAMD64VPHADDD128
 		return true
-	case OpAddPairsInt32x8:
-		v.Op = OpAMD64VPHADDD256
-		return true
-	case OpAddPairsSaturatedInt16x16:
+	case OpAddPairsSaturatedGroupedInt16x16:
 		v.Op = OpAMD64VPHADDSW256
 		return true
 	case OpAddPairsSaturatedInt16x8:
 		v.Op = OpAMD64VPHADDSW128
-		return true
-	case OpAddPairsUint16x16:
-		v.Op = OpAMD64VPHADDW256
 		return true
 	case OpAddPairsUint16x8:
 		v.Op = OpAMD64VPHADDW128
 		return true
 	case OpAddPairsUint32x4:
 		v.Op = OpAMD64VPHADDD128
-		return true
-	case OpAddPairsUint32x8:
-		v.Op = OpAMD64VPHADDD256
 		return true
 	case OpAddPtr:
 		v.Op = OpAMD64ADDQ
@@ -5860,17 +5860,26 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpSubPairsFloat32x4:
 		v.Op = OpAMD64VHSUBPS128
 		return true
-	case OpSubPairsFloat32x8:
-		v.Op = OpAMD64VHSUBPS256
-		return true
 	case OpSubPairsFloat64x2:
 		v.Op = OpAMD64VHSUBPD128
 		return true
-	case OpSubPairsFloat64x4:
+	case OpSubPairsGroupedFloat32x8:
+		v.Op = OpAMD64VHSUBPS256
+		return true
+	case OpSubPairsGroupedFloat64x4:
 		v.Op = OpAMD64VHSUBPD256
 		return true
-	case OpSubPairsInt16x16:
+	case OpSubPairsGroupedInt16x16:
 		v.Op = OpAMD64VPHSUBW256
+		return true
+	case OpSubPairsGroupedInt32x8:
+		v.Op = OpAMD64VPHSUBD256
+		return true
+	case OpSubPairsGroupedUint16x16:
+		v.Op = OpAMD64VPHSUBW256
+		return true
+	case OpSubPairsGroupedUint32x8:
+		v.Op = OpAMD64VPHSUBD256
 		return true
 	case OpSubPairsInt16x8:
 		v.Op = OpAMD64VPHSUBW128
@@ -5878,26 +5887,17 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpSubPairsInt32x4:
 		v.Op = OpAMD64VPHSUBD128
 		return true
-	case OpSubPairsInt32x8:
-		v.Op = OpAMD64VPHSUBD256
-		return true
-	case OpSubPairsSaturatedInt16x16:
+	case OpSubPairsSaturatedGroupedInt16x16:
 		v.Op = OpAMD64VPHSUBSW256
 		return true
 	case OpSubPairsSaturatedInt16x8:
 		v.Op = OpAMD64VPHSUBSW128
-		return true
-	case OpSubPairsUint16x16:
-		v.Op = OpAMD64VPHSUBW256
 		return true
 	case OpSubPairsUint16x8:
 		v.Op = OpAMD64VPHSUBW128
 		return true
 	case OpSubPairsUint32x4:
 		v.Op = OpAMD64VPHSUBD128
-		return true
-	case OpSubPairsUint32x8:
-		v.Op = OpAMD64VPHSUBD256
 		return true
 	case OpSubPtr:
 		v.Op = OpAMD64SUBQ
