@@ -4,7 +4,7 @@
 
 //go:build windows
 
-package ld
+package main
 
 import (
 	"debug/pe"
@@ -78,7 +78,7 @@ func TestPESectionsReadOnly(t *testing.T) {
 			}
 
 			cmdArgs := append([]string{"build", "-o", binFile}, append(test.args, src)...)
-			cmd := testenv.Command(t, testenv.GoToolPath(t), cmdArgs...)
+			cmd := goCmd(t, cmdArgs...)
 			if out, err := cmd.CombinedOutput(); err != nil {
 				t.Fatalf("failed to build %v: %v:\n%s", cmd.Args, err, out)
 			}
@@ -145,7 +145,7 @@ func TestPESectionAlignment(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", binFile, "-ldflags", "-linkmode=internal", src)
+	cmd := goCmd(t, "build", "-o", binFile, "-ldflags", "-linkmode=internal", src)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to build: %v:\n%s", err, out)
 	}
@@ -205,7 +205,7 @@ func main() {
 		t.Fatal(err)
 	}
 
-	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", binFile, "-ldflags", "-linkmode=internal", src)
+	cmd := goCmd(t, "build", "-o", binFile, "-ldflags", "-linkmode=internal", src)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to build: %v:\n%s", err, out)
 	}
@@ -294,7 +294,7 @@ func main() {
 		t.Fatal(err)
 	}
 
-	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", binFile, "-ldflags", "-linkmode=internal", src)
+	cmd := goCmd(t, "build", "-o", binFile, "-ldflags", "-linkmode=internal", src)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to build: %v:\n%s", err, out)
 	}
@@ -365,7 +365,7 @@ func TestPEDWARFSections(t *testing.T) {
 	}
 
 	// Build without -w to include DWARF
-	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", binFile, "-ldflags", "-linkmode=internal", src)
+	cmd := goCmd(t, "build", "-o", binFile, "-ldflags", "-linkmode=internal", src)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to build: %v:\n%s", err, out)
 	}
@@ -424,7 +424,7 @@ func TestPEOptionalHeaderSizes(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", binFile, "-ldflags", "-linkmode=internal", src)
+	cmd := goCmd(t, "build", "-o", binFile, "-ldflags", "-linkmode=internal", src)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to build: %v:\n%s", err, out)
 	}
