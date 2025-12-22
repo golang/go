@@ -271,13 +271,21 @@ func lookupFieldOrMethodImpl(T Type, addressable bool, pkg *Package, name string
 			info := b.Info()
 			isNumeric := info&IsNumeric != 0
 			isString := info&IsString != 0
+			isBoolean := info&IsBoolean != 0
 
 			// 只有数值或字符串才支持
-			if isNumeric || isString {
+			if isNumeric || isString || isBoolean {
 				isValidMagic := true
 
 				if isString {
 					if name != "_add" && !isCompare {
+						isValidMagic = false
+					}
+				}
+
+				if isBoolean {
+					// bool
+					if name != "_eq" && name != "_ne" {
 						isValidMagic = false
 					}
 				}

@@ -173,13 +173,14 @@ func magicMethodWrapper(recv *types.Type, msym *types.Sym, pos src.XPos) (fn *ir
 		}
 
 		// === 策略 C: 基础运算 (_add, _eq, etc.) ===
-	} else if (recv.IsInteger() || recv.IsFloat() || recv.IsComplex() || recv.IsString()) && !recv.IsPtr() {
+	} else if (recv.IsInteger() || recv.IsFloat() || recv.IsComplex() || recv.IsString() || recv.IsBoolean()) && !recv.IsPtr() {
 
 		// 1. 映射操作符
 		var op ir.Op
 		var swap, isUnary, isCmp bool
 		isNumeric := recv.IsInteger() || recv.IsFloat() || recv.IsComplex()
 		isString := recv.IsString()
+		isBoolean := recv.IsBoolean()
 
 		switch name {
 		// --- 算术运算 (二元) ---
@@ -329,6 +330,12 @@ func magicMethodWrapper(recv *types.Type, msym *types.Sym, pos src.XPos) (fn *ir
 
 		if (strings.Contains(name, "sub") || strings.Contains(name, "mul") || strings.Contains(name, "div")) && isString {
 			return nil, false // 字符串不支持减乘除
+		}
+
+		if isBoolean {
+			if name != "_eq" && name != "_ne" {
+				return nil, false
+			}
 		}
 
 		// 2. 构建签名
