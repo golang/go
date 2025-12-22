@@ -514,9 +514,9 @@ func (f *peFile) addDWARF(ctxt *Link) {
 		return
 	}
 	for _, sect := range Segdwarf.Sections {
-		h := f.peshbits(ctxt, sect, &Segdwarf)
+		h := f.createSection(ctxt, sect, &Segdwarf)
 		if h == nil {
-			// peshbits returns nil for empty sections
+			// createSection returns nil for empty sections
 			continue
 		}
 		fileoff := sect.Vaddr - Segdwarf.Vaddr + Segdwarf.Fileoff
@@ -526,8 +526,8 @@ func (f *peFile) addDWARF(ctxt *Link) {
 	}
 }
 
-// peshbits creates a PE section for the given sym.Section.
-func (f *peFile) peshbits(ctxt *Link, sect *sym.Section, seg *sym.Segment) *peSection {
+// createSection creates a PE section for the given sym.Section.
+func (f *peFile) createSection(ctxt *Link, sect *sym.Section, seg *sym.Segment) *peSection {
 	if sect.Length == 0 {
 		return nil
 	}
@@ -1847,7 +1847,7 @@ func asmbPe(ctxt *Link) {
 	pefile.sectMap = make(map[*sym.Section]*peSection)
 
 	for _, sect := range Segtext.Sections {
-		h := pefile.peshbits(ctxt, sect, &Segtext)
+		h := pefile.createSection(ctxt, sect, &Segtext)
 		if h == nil {
 			continue
 		}
@@ -1857,7 +1857,7 @@ func asmbPe(ctxt *Link) {
 		}
 	}
 	for _, sect := range Segrodata.Sections {
-		h := pefile.peshbits(ctxt, sect, &Segrodata)
+		h := pefile.createSection(ctxt, sect, &Segrodata)
 		if h == nil {
 			continue
 		}
@@ -1869,10 +1869,10 @@ func asmbPe(ctxt *Link) {
 		}
 	}
 	for _, sect := range Segrelrodata.Sections {
-		_ = pefile.peshbits(ctxt, sect, &Segrelrodata)
+		_ = pefile.createSection(ctxt, sect, &Segrelrodata)
 	}
 	for _, sect := range Segdata.Sections {
-		h := pefile.peshbits(ctxt, sect, &Segdata)
+		h := pefile.createSection(ctxt, sect, &Segdata)
 		if h == nil {
 			continue
 		}
