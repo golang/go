@@ -201,6 +201,11 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64), text 
 
 	// Fence instruction in plan9 doesn't have any operands.
 	case FENCE:
+		//PAUSE is encoded as a FENCE instruction with pred=W, succ=0
+		if inst.Args[0].(MemOrder).String() == "w" &&
+			inst.Args[1].(MemOrder).String() == "" {
+			op = "PAUSE"
+		}
 		args = nil
 
 	case FMADD_D, FMADD_H, FMADD_Q, FMADD_S, FMSUB_D, FMSUB_H,
