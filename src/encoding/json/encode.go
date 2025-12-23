@@ -58,7 +58,6 @@ import (
 	"sync"
 	"unicode"
 	"unicode/utf8"
-	_ "unsafe" // for linkname
 )
 
 // Marshal returns the JSON encoding of v.
