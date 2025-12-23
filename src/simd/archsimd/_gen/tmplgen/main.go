@@ -1018,7 +1018,7 @@ func nonTemplateRewrites(filename string, prologue func(s string, out io.Writer)
 
 	out := new(bytes.Buffer)
 
-	prologue("go run genfiles.go", out)
+	prologue("tmplgen", out)
 	for _, rewrite := range rewrites {
 		rewrite(out)
 	}
@@ -1054,7 +1054,7 @@ func one(filename string, prologue func(s string, out io.Writer), sats ...shapeA
 
 	out := new(bytes.Buffer)
 
-	prologue("go run genfiles.go", out)
+	prologue("tmplgen", out)
 	for _, sat := range sats {
 		sat.forTemplates(out)
 	}
