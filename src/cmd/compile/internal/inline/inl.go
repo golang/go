@@ -516,6 +516,9 @@ opSwitch:
 						break opSwitch
 					case "panicrangestate":
 						cheap = true
+					case "deferrangefunc":
+						v.reason = "defer call in range func"
+						return true
 					}
 				}
 			}
