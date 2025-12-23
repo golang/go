@@ -678,6 +678,31 @@ var gentab = []struct {
 var installed = make(map[string]chan struct{})
 var installedMu sync.Mutex
 
+// waitingOn tracks which package each installing package is currently blocked
+// on, forming an implicit import stack. Before blocking on a dependency, we
+// walk this chain to check whether the dependency is already waiting on us
+// (directly or transitively). This is the concurrent equivalent of the import
+// stack approach used by cmd/go to detect import cycles.
+var waitingOn = make(map[string]string)
+
+// checkImportCycle checks whether pkg waiting on dep would create an import
+// cycle by walking the waitingOn chain from dep. If the chain leads back to
+// pkg, it returns a string describing the cycle (e.g. "A -> B -> A").
+// If no cycle is found, it returns the empty string.
+// Must be called with installedMu held.
+func checkImportCycle(pkg, dep string) string {
+	stk := []string{pkg, dep}
+	for p := dep; p != pkg; {
+		next, ok := waitingOn[p]
+		if !ok {
+			return ""
+		}
+		stk = append(stk, next)
+		p = next
+	}
+	return strings.Join(stk, " -> ")
+}
+
 func install(dir string) {
 	<-startInstall(dir)
 }
@@ -890,7 +915,19 @@ func runInstall(pkg string, ch chan struct{}) {
 		startInstall(dep)
 	}
 	for _, dep := range importMap {
+		installedMu.Lock()
+		if cycle := checkImportCycle(pkg, dep); cycle != "" {
+			installedMu.Unlock()
+			fatalf("import cycle: %s", cycle)
+		}
+		waitingOn[pkg] = dep
+		installedMu.Unlock()
+
 		install(dep)
+
+		installedMu.Lock()
+		delete(waitingOn, pkg)
+		installedMu.Unlock()
 	}
 
 	if goos != gohostos || goarch != gohostarch {
