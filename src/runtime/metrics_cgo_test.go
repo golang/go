@@ -12,7 +12,7 @@ import (
 	"testing"
 )
 
-func TestNotInGoMetricCallback(t *testing.T) {
+func TestNotInGoMetric(t *testing.T) {
 	switch runtime.GOOS {
 	case "windows", "plan9":
 		t.Skip("unsupported on Windows and Plan9")
@@ -22,11 +22,22 @@ func TestNotInGoMetricCallback(t *testing.T) {
 		}
 	}
 
-	// This test is run in a subprocess to prevent other tests from polluting the metrics
-	// and because we need to make some cgo callbacks.
-	output := runTestProg(t, "testprogcgo", "NotInGoMetricCallback")
-	want := "OK\n"
-	if output != want {
-		t.Fatalf("output:\n%s\n\nwanted:\n%s", output, want)
+	run := func(t *testing.T, name string) {
+		// This test is run in a subprocess to prevent other tests from polluting the metrics
+		// and because we need to make some cgo callbacks.
+		output := runTestProg(t, "testprogcgo", name)
+		want := "OK\n"
+		if output != want {
+			t.Fatalf("output:\n%s\n\nwanted:\n%s", output, want)
+		}
 	}
+	t.Run("CgoCall", func(t *testing.T) {
+		run(t, "NotInGoMetricCgoCall")
+	})
+	t.Run("CgoCallback", func(t *testing.T) {
+		run(t, "NotInGoMetricCgoCallback")
+	})
+	t.Run("CgoCallAndCallback", func(t *testing.T) {
+		run(t, "NotInGoMetricCgoCallAndCallback")
+	})
 }
