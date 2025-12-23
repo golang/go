@@ -104,3 +104,24 @@ func BenchmarkJoin(b *testing.B) {
 		})
 	}
 }
+
+func TestJoin_returns_wrapped_error(t *testing.T) {
+	x := CustomUnwrappableError{errors.ErrUnsupported}
+	if errors.Join(x) == error(x) { // Actually this comparison panics.
+		t.Errorf("Join(x) returns x, expected to return a wrapped error")
+	}
+}
+
+type CustomUnwrappableError []error
+
+func (c CustomUnwrappableError) Error() (s string) {
+	for i, err := range c {
+		if i > 0 {
+			s += "\n"
+		}
+		s += err.Error()
+	}
+	return s
+}
+
+func (c CustomUnwrappableError) Unwrap() []error { return c }
