@@ -14,14 +14,17 @@ import "math/bits"
 
 func bitcheck64_constleft(a uint64) (n int) {
 	// amd64:"BTQ [$]63"
+	// riscv64:"MOV [$]" "AND" "BNEZ"
 	if a&(1<<63) != 0 {
 		return 1
 	}
 	// amd64:"BTQ [$]60"
+	// riscv64:"MOV [$]" "AND" "BNEZ"
 	if a&(1<<60) != 0 {
 		return 1
 	}
 	// amd64:"BTL [$]0"
+	// riscv64:"ANDI" "BEQZ"
 	if a&(1<<0) != 0 {
 		return 1
 	}
@@ -30,30 +33,37 @@ func bitcheck64_constleft(a uint64) (n int) {
 
 func bitcheck64_constright(a [8]uint64) (n int) {
 	// amd64:"BTQ [$]63"
+	// riscv64:"SRLI" "ANDI" "BNEZ"
 	if (a[0]>>63)&1 != 0 {
 		return 1
 	}
 	// amd64:"BTQ [$]63"
+	// riscv64:"SRLI" "BNEZ"
 	if a[1]>>63 != 0 {
 		return 1
 	}
 	// amd64:"BTQ [$]63"
+	// riscv64:"SRLI" "BEQZ"
 	if a[2]>>63 == 0 {
 		return 1
 	}
 	// amd64:"BTQ [$]60"
+	// riscv64:"SRLI", "ANDI" "BEQZ"
 	if (a[3]>>60)&1 == 0 {
 		return 1
 	}
 	// amd64:"BTL [$]1"
+	// riscv64:"SRLI" "ANDI" "BEQZ"
 	if (a[4]>>1)&1 == 0 {
 		return 1
 	}
 	// amd64:"BTL [$]0"
+	// riscv64:"ANDI" "BEQZ" -"SRLI"
 	if (a[5]>>0)&1 == 0 {
 		return 1
 	}
 	// amd64:"BTL [$]7"
+	// riscv64:"SRLI" "ANDI" "BNEZ"
 	if (a[6]>>5)&4 == 0 {
 		return 1
 	}
@@ -62,10 +72,12 @@ func bitcheck64_constright(a [8]uint64) (n int) {
 
 func bitcheck64_var(a, b uint64) (n int) {
 	// amd64:"BTQ"
+	// riscv64:"ANDI [$]63," "SLL " "AND "
 	if a&(1<<(b&63)) != 0 {
 		return 1
 	}
 	// amd64:"BTQ" -"BT. [$]0"
+	// riscv64:"ANDI [$]63," "SRL " "ANDI [$]1,"
 	if (b>>(a&63))&1 != 0 {
 		return 1
 	}
@@ -74,14 +86,17 @@ func bitcheck64_var(a, b uint64) (n int) {
 
 func bitcheck64_mask(a uint64) (n int) {
 	// amd64:"BTQ [$]63"
+	// riscv64:"MOV [$]" "AND" "BNEZ"
 	if a&0x8000000000000000 != 0 {
 		return 1
 	}
 	// amd64:"BTQ [$]59"
+	// riscv64:"MOV [$]" "AND" "BNEZ"
 	if a&0x800000000000000 != 0 {
 		return 1
 	}
 	// amd64:"BTL [$]0"
+	// riscv64:"ANDI" "BEQZ"
 	if a&0x1 != 0 {
 		return 1
 	}
@@ -90,15 +105,19 @@ func bitcheck64_mask(a uint64) (n int) {
 
 func biton64(a, b uint64) (n uint64) {
 	// amd64:"BTSQ"
+	// riscv64:"ANDI" "SLL" "OR"
 	n += b | (1 << (a & 63))
 
 	// amd64:"BTSQ [$]63"
+	// riscv64:"MOV [$]" "OR "
 	n += a | (1 << 63)
 
 	// amd64:"BTSQ [$]60"
+	// riscv64:"MOV [$]" "OR "
 	n += a | (1 << 60)
 
 	// amd64:"ORQ [$]1"
+	// riscv64:"ORI"
 	n += a | (1 << 0)
 
 	return n
@@ -106,15 +125,19 @@ func biton64(a, b uint64) (n uint64) {
 
 func bitoff64(a, b uint64) (n uint64) {
 	// amd64:"BTRQ"
+	// riscv64:"ANDI" "SLL" "ANDN"
 	n += b &^ (1 << (a & 63))
 
 	// amd64:"BTRQ [$]63"
+	// riscv64:"MOV [$]" "AND "
 	n += a &^ (1 << 63)
 
 	// amd64:"BTRQ [$]60"
+	// riscv64:"MOV [$]" "AND "
 	n += a &^ (1 << 60)
 
 	// amd64:"ANDQ [$]-2"
+	// riscv64:"ANDI [$]-2"
 	n += a &^ (1 << 0)
 
 	return n
@@ -122,9 +145,11 @@ func bitoff64(a, b uint64) (n uint64) {
 
 func clearLastBit(x int64, y int32) (int64, int32) {
 	// amd64:"ANDQ [$]-2"
+	// riscv64:"ANDI [$]-2"
 	a := (x >> 1) << 1
 
 	// amd64:"ANDL [$]-2"
+	// riscv64:"ANDI [$]-2"
 	b := (y >> 1) << 1
 
 	return a, b
@@ -132,15 +157,19 @@ func clearLastBit(x int64, y int32) (int64, int32) {
 
 func bitcompl64(a, b uint64) (n uint64) {
 	// amd64:"BTCQ"
+	// riscv64:"ANDI" "SLL" "XOR "
 	n += b ^ (1 << (a & 63))
 
 	// amd64:"BTCQ [$]63"
+	// riscv64:"MOV [$]" "XOR "
 	n += a ^ (1 << 63)
 
 	// amd64:"BTCQ [$]60"
+	// riscv64:"MOV [$]" "XOR "
 	n += a ^ (1 << 60)
 
 	// amd64:"XORQ [$]1"
+	// riscv64:"XORI [$]1"
 	n += a ^ (1 << 0)
 
 	return n
@@ -152,14 +181,17 @@ func bitcompl64(a, b uint64) (n uint64) {
 
 func bitcheck32_constleft(a uint32) (n int) {
 	// amd64:"BTL [$]31"
+	// riscv64:"MOV [$]" "AND" "BNEZ"
 	if a&(1<<31) != 0 {
 		return 1
 	}
 	// amd64:"BTL [$]28"
+	// riscv64:"ANDI" "BNEZ"
 	if a&(1<<28) != 0 {
 		return 1
 	}
 	// amd64:"BTL [$]0"
+	// riscv64:"ANDI" "BEQZ"
 	if a&(1<<0) != 0 {
 		return 1
 	}
@@ -168,30 +200,37 @@ func bitcheck32_constleft(a uint32) (n int) {
 
 func bitcheck32_constright(a [8]uint32) (n int) {
 	// amd64:"BTL [$]31"
+	// riscv64:"SRLI" "ANDI" "BNEZ"
 	if (a[0]>>31)&1 != 0 {
 		return 1
 	}
 	// amd64:"BTL [$]31"
+	// riscv64:"SRLI" "BNEZ"
 	if a[1]>>31 != 0 {
 		return 1
 	}
 	// amd64:"BTL [$]31"
+	// riscv64:"SRLI" "BEQZ"
 	if a[2]>>31 == 0 {
 		return 1
 	}
 	// amd64:"BTL [$]28"
+	// riscv64:"SRLI" "ANDI" "BEQZ"
 	if (a[3]>>28)&1 == 0 {
 		return 1
 	}
 	// amd64:"BTL [$]1"
+	// riscv64:"SRLI" "ANDI" "BEQZ"
 	if (a[4]>>1)&1 == 0 {
 		return 1
 	}
 	// amd64:"BTL [$]0"
+	// riscv64:"ANDI" "BEQZ" -"SRLI"
 	if (a[5]>>0)&1 == 0 {
 		return 1
 	}
 	// amd64:"BTL [$]7"
+	// riscv64:"SRLI" "ANDI" "BNEZ"
 	if (a[6]>>5)&4 == 0 {
 		return 1
 	}
@@ -200,10 +239,12 @@ func bitcheck32_constright(a [8]uint32) (n int) {
 
 func bitcheck32_var(a, b uint32) (n int) {
 	// amd64:"BTL"
+	// riscv64:"ANDI [$]31," "SLL " "AND "
 	if a&(1<<(b&31)) != 0 {
 		return 1
 	}
 	// amd64:"BTL" -"BT. [$]0"
+	// riscv64:"ANDI [$]31," "SRLW " "ANDI [$]1,"
 	if (b>>(a&31))&1 != 0 {
 		return 1
 	}
@@ -212,14 +253,17 @@ func bitcheck32_var(a, b uint32) (n int) {
 
 func bitcheck32_mask(a uint32) (n int) {
 	// amd64:"BTL [$]31"
+	// riscv64:"MOV [$]" "AND" "BNEZ"
 	if a&0x80000000 != 0 {
 		return 1
 	}
 	// amd64:"BTL [$]27"
+	// riscv64:"ANDI" "BNEZ"
 	if a&0x8000000 != 0 {
 		return 1
 	}
 	// amd64:"BTL [$]0"
+	// riscv64:"ANDI" "BEQZ"
 	if a&0x1 != 0 {
 		return 1
 	}
@@ -228,15 +272,19 @@ func bitcheck32_mask(a uint32) (n int) {
 
 func biton32(a, b uint32) (n uint32) {
 	// amd64:"BTSL"
+	// riscv64:"ANDI" "SLL" "OR"
 	n += b | (1 << (a & 31))
 
 	// amd64:"ORL [$]-2147483648"
+	// riscv64:"ORI [$]-2147483648"
 	n += a | (1 << 31)
 
 	// amd64:"ORL [$]268435456"
+	// riscv64:"ORI [$]268435456"
 	n += a | (1 << 28)
 
 	// amd64:"ORL [$]1"
+	// riscv64:"ORI [$]1"
 	n += a | (1 << 0)
 
 	return n
@@ -244,15 +292,19 @@ func biton32(a, b uint32) (n uint32) {
 
 func bitoff32(a, b uint32) (n uint32) {
 	// amd64:"BTRL"
+	// riscv64:"ANDI" "SLL" "ANDN"
 	n += b &^ (1 << (a & 31))
 
 	// amd64:"ANDL [$]2147483647"
+	// riscv64:"ANDI [$]2147483647"
 	n += a &^ (1 << 31)
 
 	// amd64:"ANDL [$]-268435457"
+	// riscv64:"ANDI [$]-268435457"
 	n += a &^ (1 << 28)
 
 	// amd64:"ANDL [$]-2"
+	// riscv64:"ANDI [$]-2"
 	n += a &^ (1 << 0)
 
 	return n
@@ -260,15 +312,19 @@ func bitoff32(a, b uint32) (n uint32) {
 
 func bitcompl32(a, b uint32) (n uint32) {
 	// amd64:"BTCL"
+	// riscv64:"ANDI" "SLL" "XOR "
 	n += b ^ (1 << (a & 31))
 
 	// amd64:"XORL [$]-2147483648"
+	// riscv64:"XORI [$]-2147483648"
 	n += a ^ (1 << 31)
 
 	// amd64:"XORL [$]268435456"
+	// riscv64:"XORI [$]268435456"
 	n += a ^ (1 << 28)
 
 	// amd64:"XORL [$]1"
+	// riscv64:"XORI [$]1"
 	n += a ^ (1 << 0)
 
 	return n
@@ -286,6 +342,7 @@ func bitOpOnMem(a []uint32, b, c, d uint32) {
 
 func bitcheckMostNegative(b uint8) bool {
 	// amd64:"TESTB"
+	// riscv64:"ANDI [$]128," "SNEZ" -"ADDI"
 	return b&0x80 == 0x80
 }
 
@@ -318,21 +375,26 @@ func op_bic(x, y uint32) uint32 {
 
 func op_eon(x, y, z uint32, a []uint32, n, m uint64) uint64 {
 	// arm64:`EON `,-`EOR`,-`MVN`
+	// riscv64:"XNOR " -"MOV [$]" -"XOR"
 	a[0] = x ^ (y ^ 0xffffffff)
 
 	// arm64:`EON `,-`EOR`,-`MVN`
+	// riscv64:"XNOR" -"XOR"
 	a[1] = ^(y ^ z)
 
 	// arm64:`EON `,-`XOR`
+	// riscv64:"XNOR" -"XOR" -"NOT"
 	a[2] = x ^ ^z
 
 	// arm64:`EON `,-`EOR`,-`MVN`
+	// riscv64:"XNOR" -"MOV [$]" -"XOR"
 	return n ^ (m ^ 0xffffffffffffffff)
 }
 
 func op_orn(x, y uint32) uint32 {
-	// arm64:`ORN `,-`ORR`
-	// loong64:"ORN" ,-"OR "
+	// arm64:"ORN " -"ORR"
+	// loong64:"ORN" -"OR "
+	// riscv64:"ORN" -"OR "
 	return x | ^y
 }
 
@@ -347,18 +409,21 @@ func op_nor(x int64, a []int64) {
 
 func op_andn(x, y uint32) uint32 {
 	// loong64:"ANDN " -"AND "
+	// riscv64:"ANDN" -"AND "
 	return x &^ y
 }
 
 // check bitsets
 func bitSetPowerOf2Test(x int) bool {
 	// amd64:"BTL [$]3"
+	// riscv64:"ANDI [$]8," "SNEZ" -"ADDI"
 	return x&8 == 8
 }
 
 func bitSetTest(x int) bool {
 	// amd64:"ANDL [$]9, AX"
 	// amd64:"CMPQ AX, [$]9"
+	// riscv64:"ANDI [$]9," "ADDI [$]-9," "SEQZ"
 	return x&9 == 9
 }
 
