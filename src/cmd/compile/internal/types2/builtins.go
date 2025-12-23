@@ -531,6 +531,8 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 				return typeErrorf("type must be slice, map, or channel")
 			}
 		})
+		
+		// *Enum?
 		if err != nil {
 			// Compiler extension: allow "constructor make" for type parameters
 			// whose constraint includes an _init method.

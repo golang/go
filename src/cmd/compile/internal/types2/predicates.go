@@ -490,6 +490,31 @@ func (c *comparer) identical(x, y Type, p *ifacePair) bool {
 	case nil:
 		// avoid a crash in case of nil type
 
+	case *Enum:
+		// 1. 确保 y 也是 Enum
+		y, ok := y.(*Enum)
+		if !ok {
+			return false
+		}
+
+		// 2. 比较变体数量
+		if len(x.variants) != len(y.variants) {
+			return false
+		}
+
+		// 3. 逐个比较变体 (名称 + 类型)
+		for i, v := range x.variants {
+			// 变体名称必须相同
+			if v.Name() != y.variants[i].Name() {
+				return false
+			}
+			// 变体关联的类型必须相同 (递归调用 identical)
+			if !c.identical(v.Type(), y.variants[i].Type(), p) {
+				return false
+			}
+		}
+		return true
+
 	default:
 		panic("unreachable")
 	}

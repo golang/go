@@ -347,6 +347,22 @@ func (w *typeWriter) typ(typ Type) {
 			w.typ(Unalias(t.obj.typ))
 		}
 
+	case *Enum:
+		w.string("enum {")
+		for i, v := range t.variants {
+			if i > 0 {
+				w.string("; ")
+			}
+			w.string(v.Name())
+			// 如果关联类型不是空结构体，则打印它
+			if s, ok := v.Type().(*Struct); !ok || s.NumFields() > 0 {
+				w.string("(")
+				w.typ(v.Type())
+				w.string(")")
+			}
+		}
+		w.string("}")
+
 	default:
 		// For externally defined implementations of Type.
 		// Note: In this case cycles won't be caught.

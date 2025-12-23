@@ -61,7 +61,7 @@ func LoadPackage(filenames []string) {
 				if p.file != nil {
 					// 统一处理所有语法扩展改写（包含：? 表达式、魔法方法/运算符重载、_init 构造器、装饰器、默认参数）
 					p.overloadInfo = syntax.RewriteExtensions(p.file)
-					// 单独发出“指针 == 重载”告警（不影响 rewrite 顺序，只依赖最终方法名形态）。
+					// 单独发出"指针 == 重载"告警（不影响 rewrite 顺序，只依赖最终方法名形态）。
 					warnPointerEqOverload(p.file)
 				}
 			}()

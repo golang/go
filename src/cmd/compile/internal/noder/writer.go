@@ -516,6 +516,10 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
 		}
 	}
 
+	if basic, ok := typ.(*types2.Basic); ok && basic.Kind() == types2.Invalid {
+		return pw.typIdx(types2.NewStruct(nil, nil), dict)
+	}
+
 	if idx, ok := pw.typsIdx[typ]; ok {
 		return typeInfo{idx: idx, derived: false}
 	}
@@ -612,6 +616,23 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
 	case *types2.Union:
 		w.Code(pkgbits.TypeUnion)
 		w.unionType(typ)
+
+	case *types2.Enum:
+		w.Code(pkgbits.TypeEnum)
+		w.Len(typ.NumVariants())
+		for i := 0; i < typ.NumVariants(); i++ {
+			v := typ.Variant(i)
+			w.pos(v.Pos())     // 写入位置
+			w.pkg(v.Pkg())     // 写入所属包
+			w.String(v.Name()) // 写入变体名称
+
+			payloadType := v.Type()
+			if payloadType == types2.Typ[types2.Invalid] || payloadType == nil {
+				payloadType = types2.NewStruct(nil, nil)
+			}
+
+			w.typ(payloadType) // 写入净化后的类型
+		}
 	}
 
 	if w.derived {

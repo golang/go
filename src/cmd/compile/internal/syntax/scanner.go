@@ -401,6 +401,21 @@ func (s *scanner) ident() {
 		}
 	}
 
+	// "enum" 作为上下文关键字：仅当其后（可有空白）紧跟 '{' 时，识别为 enum type。
+	// 不能把 enum 放进 keywordMap（标准库里很多地方把 enum 当变量名/参数名用）。
+	if string(lit) == "enum" {
+		tmp := *s // copy scanner state to peek ahead
+		for tmp.ch == ' ' || tmp.ch == '\t' || tmp.ch == '\n' || tmp.ch == '\r' {
+			tmp.nextch()
+		}
+		if tmp.ch == '{' {
+			s.nlsemi = false
+			s.lit = "enum"
+			s.tok = _Enum
+			return
+		}
+	}
+
 	s.nlsemi = true
 	s.lit = string(lit)
 	s.tok = _Name
@@ -434,7 +449,7 @@ func hash(s []byte) uint {
 	return (uint(s[0])<<4 ^ uint(s[1]) + uint(len(s))) & uint(len(keywordMap)-1)
 }
 
-var keywordMap [1 << 6]token // size must be power of two
+var keywordMap [1 << 7]token // size must be power of two
 
 func init() {
 	// populate keywordMap

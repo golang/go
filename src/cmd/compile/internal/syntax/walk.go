@@ -322,7 +322,17 @@ func (w walker) node(n Node) {
 			w.node(n.Comm)
 		}
 		w.stmtList(n.Body)
-
+	case *EnumType:
+		for _, v := range n.VariantList {
+			w.node(v)
+		}
+	case *EnumVariant:
+		if n.Type != nil {
+			w.node(n.Type)
+		}
+		if n.Value != nil {
+			w.node(n.Value)
+		}
 	default:
 		panic(fmt.Sprintf("internal error: unknown node type %T", n))
 	}

@@ -914,6 +914,8 @@ func (r *reader) doTyp() *types.Type {
 		return r.interfaceType()
 	case pkgbits.TypeUnion:
 		return r.unionType()
+	case pkgbits.TypeEnum:
+		return r.enumType()
 	}
 }
 
@@ -4744,4 +4746,23 @@ func shapeSig(fn *ir.Func, dict *readerDict) *types.Type {
 	}
 
 	return types.NewSignature(recv, params, results)
+}
+
+func (r *reader) enumType() *types.Type {
+	n := r.Len()
+	fields := make([]*types.Field, n)
+
+	for i := range fields {
+		// Pos -> Pkg -> Name -> Type
+		pos := r.pos()
+		pkg := r.pkg()
+		name := r.String()
+		typ := r.typ()
+
+		// enum { A(int); B(string) } -> struct { A int; B string }
+		sym := pkg.Lookup(name)
+		fields[i] = types.NewField(pos, sym, typ)
+	}
+
+	return types.NewStruct(fields)
 }

@@ -407,6 +407,9 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *TypeName) (T Type) {
 		typ.elem = check.varType(e.Elem)
 		return typ
 
+	case *syntax.EnumType:
+		return check.enumType(e, def)
+
 	default:
 		check.errorf(e0, NotAType, "%s is not a type", e0)
 		check.use(e0)
@@ -567,4 +570,35 @@ func (check *Checker) typeList(list []syntax.Expr) []Type {
 		}
 	}
 	return res
+}
+
+func (check *Checker) enumType(e *syntax.EnumType, def *TypeName) Type {
+	t := new(Enum)
+	if def != nil {
+		setDefType(def, t)
+	}
+
+	var variants []*Var
+
+	for _, v := range e.VariantList {
+		name := v.Name.Value
+		var typ Type
+
+		if v.Type != nil {
+			typ = check.typ(v.Type)
+			if typ == Typ[Invalid] {
+				typ = NewStruct(nil, nil)
+			}
+		} else {
+			typ = NewStruct(nil, nil)
+		}
+
+		variant := NewVar(v.Pos(), check.pkg, name, typ)
+		variants = append(variants, variant)
+	}
+
+	// 2. 填充 variants
+	t.variants = variants
+
+	return t
 }

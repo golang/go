@@ -823,6 +823,43 @@ func (check *Checker) binary(x *operand, e syntax.Expr, lhs, rhs syntax.Expr, op
 		return
 	}
 
+	isConst := x.mode == constant_
+	isNil := x.typ == Typ[UntypedNil] || y.typ == Typ[UntypedNil]
+
+	// magic method support
+	if !(isConst || isNil) {
+		if magic := opToMagic(op); magic != "" {
+			// find magic method (e.g. _add) in x.typ
+			obj, _, _ := LookupFieldOrMethod(x.typ, false, check.pkg, magic)
+
+			// check: must be a function, and the signature must be符合要求 (1个参数，1个返回值)
+			if fn, ok := obj.(*Func); ok {
+				if sig, ok := fn.Type().(*Signature); ok {
+					if sig.Params().Len() == 1 && sig.Results().Len() == 1 {
+						// set result mode to value
+						x.mode = value
+
+						// result type = magic method's return value type (e.g. Number)
+						x.typ = sig.Results().At(0).Type()
+
+						// ensure x.expr points to the correct AST node (for subsequent Noder rewrite)
+						if e != nil {
+							x.expr = e
+						} else {
+							// if e is nil (e.g. implicit assignment), create a new Operation node
+							opNode := &syntax.Operation{Op: op, X: lhs, Y: rhs}
+							// line number!!!
+							opNode.SetPos(lhs.Pos())
+							x.expr = opNode
+						}
+						// intercept successfully, return immediately, skip subsequent standard type checking
+						return
+					}
+				}
+			}
+		}
+	}
+
 	if isComparison(op) {
 		check.comparison(x, &y, op, false)
 		return
@@ -1455,4 +1492,42 @@ var op2tok = [...]token.Token{
 	syntax.AndNot: token.AND_NOT,
 	syntax.Shl:    token.SHL,
 	syntax.Shr:    token.SHR,
+}
+
+func opToMagic(op syntax.Operator) string {
+	switch op {
+	case syntax.Add:
+		return "_add"
+	case syntax.Sub:
+		return "_sub"
+	case syntax.Mul:
+		return "_mul"
+	case syntax.Div:
+		return "_div"
+	case syntax.Rem:
+		return "_mod"
+	case syntax.And:
+		return "_and"
+	case syntax.Or:
+		return "_or"
+	case syntax.Xor:
+		return "_xor"
+	case syntax.Shl:
+		return "_lshift"
+	case syntax.Shr:
+		return "_rshift"
+	case syntax.Eql:
+		return "_eq"
+	case syntax.Neq:
+		return "_ne"
+	case syntax.Lss:
+		return "_lt"
+	case syntax.Leq:
+		return "_le"
+	case syntax.Gtr:
+		return "_gt"
+	case syntax.Geq:
+		return "_ge"
+	}
+	return ""
 }

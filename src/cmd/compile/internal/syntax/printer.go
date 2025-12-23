@@ -737,6 +737,30 @@ func (p *printer) printRawNode(n Node) {
 			p.printDeclList(n.DeclList)
 		}
 
+	case *EnumType:
+		p.print(_Enum, _Lbrace)
+		if len(n.VariantList) > 0 {
+			p.print(newline)
+			p.indent++
+			for _, v := range n.VariantList {
+				p.printNode(v)
+				p.print(newline)
+			}
+			p.indent--
+		}
+		p.print(_Rbrace)
+
+	case *EnumVariant:
+		p.printNode(n.Name)
+		if n.Type != nil {
+			p.print(_Lparen)
+			p.printNode(n.Type)
+			p.print(_Rparen)
+		}
+		if n.Value != nil {
+			p.print(_Assign, blank)
+			p.printNode(n.Value)
+		}
 	default:
 		panic(fmt.Sprintf("syntax.Iterate: unexpected node type %T", n))
 	}

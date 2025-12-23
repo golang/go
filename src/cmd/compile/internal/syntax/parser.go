@@ -1609,6 +1609,9 @@ func (p *parser) typeOrNil() Expr {
 	case _Name:
 		return p.qualifiedName(nil)
 
+	case _Enum:
+		return p.enumType()
+
 	case _Lparen:
 		p.next()
 		t := p.type_()
@@ -1627,6 +1630,68 @@ func (p *parser) typeOrNil() Expr {
 	}
 
 	return nil
+}
+
+// EnumType = "enum" "{" { EnumVariant ";" } "}" .
+func (p *parser) enumType() *EnumType {
+	if trace {
+		defer p.trace("enumType")()
+	}
+
+	typ := new(EnumType)
+	typ.pos = p.pos()
+
+	p.want(_Enum)   // pop "enum"
+	p.want(_Lbrace) // pop "{"
+
+	// use p.list to parse the list separated by semicolons
+	p.list("enum type", _Semi, _Rbrace, func() bool {
+		// parse a single variant
+		variant := p.enumVariant()
+		if variant != nil {
+			typ.VariantList = append(typ.VariantList, variant)
+		}
+		return false
+	})
+
+	return typ
+}
+
+// EnumVariant = Identifier [ "(" Type ")" ] [ "=" Expression ] .
+func (p *parser) enumVariant() *EnumVariant {
+	if trace {
+		defer p.trace("enumVariant")()
+	}
+
+	// 1. parse the name (Int, Float, None...)
+	if p.tok != _Name {
+		p.syntaxError("expected enum variant name")
+		p.advance(_Semi, _Rbrace)
+		return nil
+	}
+
+	v := new(EnumVariant)
+	v.pos = p.pos()
+	v.Name = p.name()
+
+	// 2. parse the payload type: Int(int)
+	if p.tok == _Lparen {
+		p.next() // pop "("
+
+		// here we reuse type_() to parse the type
+		// if you want to support multiple parameters like Point(int, int), you can use p.typeList(true)
+		v.Type, _ = p.typeList(true)
+
+		p.want(_Rparen) // pop ")"
+	}
+
+	// 3. parse the explicit assignment (for simple enumeration): Red = 1
+	if p.tok == _Assign {
+		p.next() // pop "="
+		v.Value = p.expr()
+	}
+
+	return v
 }
 
 func (p *parser) typeInstance(typ Expr) Expr {

@@ -209,7 +209,7 @@ type (
 	TernaryExpr struct {
 		Cond Expr
 		X    Expr
-		Y    Expr // nil means short form (Cond ? X)
+		Y    Expr
 		expr
 	}
 
@@ -301,6 +301,20 @@ type (
 		FieldList []*Field
 		TagList   []*BasicLit // i >= len(TagList) || TagList[i] == nil means no tag for field i
 		expr
+	}
+
+	// enum { ... }
+	EnumType struct {
+		expr
+		VariantList []*EnumVariant
+	}
+
+	// enum variant: Int(int) or None
+	EnumVariant struct {
+		node
+		Name  *Name
+		Type  Expr // Paylaod type, such as int in Int(int). If it is a Unit variant (like None), it is nil.
+		Value Expr // Explicit assignment, such as Red = 1 (for simple enumeration)
 	}
 
 	// Name Type
