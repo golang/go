@@ -585,7 +585,7 @@ func (ctxt *Link) loadlib() {
 
 	// Set minimum section alignment for PE files.
 	if ctxt.HeadType == objabi.Hwindows && ctxt.LinkMode == LinkInternal {
-		ctxt.Target.MinimumAlignment = int32(PESECTALIGN)
+		ctxt.Target.MinimumSectAlign = int32(PESECTALIGN)
 	}
 
 	if ctxt.LinkMode == LinkExternal && !iscgo && !(buildcfg.GOOS == "darwin" && ctxt.BuildMode != BuildModePlugin && ctxt.Arch.Family == sys.AMD64) {

@@ -22,7 +22,7 @@ type Target struct {
 	linkShared       bool
 	canUsePlugins    bool
 	IsELF            bool
-	MinimumAlignment int32 // minimum section alignment for the target
+	MinimumSectAlign int32 // minimum section alignment for the target
 }
 
 //
@@ -206,8 +206,8 @@ func (t *Target) UsesLibc() bool {
 	return false
 }
 
-// Align returns the alignment adjusted to meet the target's minimum
+// SectAlign returns the alignment adjusted to meet the target's minimum
 // section alignment requirement.
-func (t *Target) Align(align int32) int32 {
-	return max(align, t.MinimumAlignment)
+func (t *Target) SectAlign(align int32) int32 {
+	return max(align, t.MinimumSectAlign)
 }

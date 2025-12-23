@@ -1828,7 +1828,7 @@ func (state *dodataState) allocateDataSectionForSym(seg *sym.Segment, s loader.S
 		sname = ".go." + sname[len("go:"):]
 	}
 	sect := addsection(ldr, state.ctxt.Arch, seg, sname, rwx)
-	sect.Align = state.ctxt.Target.Align(symalign(ldr, s))
+	sect.Align = state.ctxt.Target.SectAlign(symalign(ldr, s))
 	state.datsize = Rnd(state.datsize, int64(sect.Align))
 	sect.Vaddr = uint64(state.datsize)
 	return sect
@@ -1853,7 +1853,7 @@ func (state *dodataState) allocateNamedDataSection(seg *sym.Segment, sName strin
 			}
 		}
 	}
-	sect.Align = state.ctxt.Target.Align(sect.Align)
+	sect.Align = state.ctxt.Target.SectAlign(sect.Align)
 	state.datsize = Rnd(state.datsize, int64(sect.Align))
 	sect.Vaddr = uint64(state.datsize)
 	return sect
@@ -1947,7 +1947,7 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 		}
 		s := state.data[sym.SMODULEDATA][0]
 		sect := addsection(ldr, ctxt.Arch, &Segdata, ".go.module", 06)
-		sect.Align = ctxt.Target.Align(symalign(ldr, s))
+		sect.Align = ctxt.Target.SectAlign(symalign(ldr, s))
 		state.datsize = Rnd(state.datsize, int64(sect.Align))
 		sect.Vaddr = uint64(state.datsize)
 		ldr.SetSymSect(s, sect)
@@ -2524,7 +2524,7 @@ func (ctxt *Link) textaddress() {
 	// Could parallelize, by assigning to text
 	// and then letting threads copy down, but probably not worth it.
 	sect := Segtext.Sections[0]
-	sect.Align = ctxt.Target.Align(int32(Funcalign))
+	sect.Align = ctxt.Target.SectAlign(int32(Funcalign))
 	ldr := ctxt.loader
 
 	if *flagRandLayout != 0 {
@@ -2756,7 +2756,7 @@ func assignAddress(ctxt *Link, sect *sym.Section, n int, s loader.Sym, va uint64
 			sect = addsection(ctxt.loader, ctxt.Arch, &Segtext, ".text", 05)
 
 			sect.Vaddr = va
-			sect.Align = ctxt.Target.Align(sectAlign)
+			sect.Align = ctxt.Target.SectAlign(sectAlign)
 			ldr.SetSymSect(s, sect)
 
 			// Create a symbol for the start of the secondary text sections
