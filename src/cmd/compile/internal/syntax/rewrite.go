@@ -26,7 +26,120 @@ type rewriter struct {
 type enumVariantInfo struct {
 	tag        int
 	hasPayload bool
-	payload    Expr // nil if unit variant
+	payload    Expr     // nil if unit variant
+	tparams    []string // type parameter names (e.g., ["T", "E"] for Result[T, E])
+	isGeneric  bool     // true if this is from a generic enum (uses _heap for all payloads)
+}
+
+// substituteTypeParams replaces type parameter references in expr with actual type arguments.
+// enumName is the name of the enum (used to look up tparams), typeArgs are the actual types.
+func (r *rewriter) substituteTypeParams(expr Expr, enumName string, typeArgs []Expr) Expr {
+	if expr == nil {
+		return nil
+	}
+
+	// 获取类型参数名列表
+	variants, ok := r.enumVariants[enumName]
+	if !ok || len(variants) == 0 {
+		return expr
+	}
+	// 从第一个变体获取 tparams
+	var tparamNames []string
+	for _, v := range variants {
+		tparamNames = v.tparams
+		break
+	}
+
+	if len(tparamNames) == 0 || len(typeArgs) == 0 {
+		return expr
+	}
+
+	// 构建名称到类型的映射
+	paramToArg := make(map[string]Expr)
+	for i := 0; i < len(tparamNames) && i < len(typeArgs); i++ {
+		paramToArg[tparamNames[i]] = typeArgs[i]
+	}
+
+	return r.substituteExpr(expr, paramToArg)
+}
+
+// substituteExpr recursively substitutes type parameters in an expression.
+func (r *rewriter) substituteExpr(expr Expr, paramToArg map[string]Expr) Expr {
+	if expr == nil {
+		return nil
+	}
+
+	switch e := expr.(type) {
+	case *Name:
+		// 如果是类型参数名，替换为实际类型
+		if arg, ok := paramToArg[e.Value]; ok {
+			return arg
+		}
+		return expr
+
+	case *ListExpr:
+		// 对于元组类型 (T, E)，递归替换每个元素
+		newElems := make([]Expr, len(e.ElemList))
+		changed := false
+		for i, elem := range e.ElemList {
+			newElem := r.substituteExpr(elem, paramToArg)
+			newElems[i] = newElem
+			if newElem != elem {
+				changed = true
+			}
+		}
+		if changed {
+			return &ListExpr{ElemList: newElems}
+		}
+		return expr
+
+	case *Operation:
+		// 指针类型 *T
+		if e.Op == Mul && e.Y == nil {
+			newX := r.substituteExpr(e.X, paramToArg)
+			if newX != e.X {
+				return &Operation{Op: Mul, X: newX}
+			}
+		}
+		return expr
+
+	case *SliceType:
+		// 切片类型 []T
+		newElem := r.substituteExpr(e.Elem, paramToArg)
+		if newElem != e.Elem {
+			return &SliceType{Elem: newElem}
+		}
+		return expr
+
+	case *ArrayType:
+		// 数组类型 [N]T
+		newElem := r.substituteExpr(e.Elem, paramToArg)
+		if newElem != e.Elem {
+			return &ArrayType{Len: e.Len, Elem: newElem}
+		}
+		return expr
+
+	case *MapType:
+		// Map 类型 map[K]V
+		newKey := r.substituteExpr(e.Key, paramToArg)
+		newValue := r.substituteExpr(e.Value, paramToArg)
+		if newKey != e.Key || newValue != e.Value {
+			return &MapType{Key: newKey, Value: newValue}
+		}
+		return expr
+
+	case *IndexExpr:
+		// 泛型实例化类型 SomeType[T]
+		newX := r.substituteExpr(e.X, paramToArg)
+		newIndex := r.substituteExpr(e.Index, paramToArg)
+		if newX != e.X || newIndex != e.Index {
+			return &IndexExpr{X: newX, Index: newIndex}
+		}
+		return expr
+
+	default:
+		return expr
+	}
 }
 
 func (r *rewriter) rewriteFile(file *File) {
@@ -317,11 +430,17 @@ noEnumMatchRewrite:
 	r.needsUnsafe = true
 	pos := s.Pos()
 
-	// 1. switch _match := <tag>; { ... }
+		// 1. switch _match := <tag>; { ... }
 	r.tempCounter++
 	matchVarName := "_match" + strconv.Itoa(r.tempCounter)
 	matchVar := NewName(pos, matchVarName)
 	matchVarRef := NewName(pos, matchVarName)
+
+		// Capture type information of the original switch tag (from the first types2 pass).
+		var switchTagType Type
+		if s.Tag != nil {
+			switchTagType = s.Tag.GetTypeInfo().Type
+		}
 
 	init := new(AssignStmt)
 	init.SetPos(pos)
@@ -351,9 +470,10 @@ noEnumMatchRewrite:
 		var bindNames []string
 		var bindType Expr
 		var bindVarPos Pos
+		var forceHeap bool
 
 		for _, ce := range elems {
-			cond, bNames, bTyp, bPos, ok := r.buildEnumCaseCondition(matchVarRef, ce)
+			cond, bNames, bTyp, bPos, fHeap, ok := r.buildEnumCaseCondition(matchVarRef, ce, switchTagType)
 
 			if !ok {
 				c := new(Operation)
@@ -375,7 +495,7 @@ noEnumMatchRewrite:
 					}
 				}
 				if hasRealName {
-					bindNames, bindType, bindVarPos = bNames, bTyp, bPos
+					bindNames, bindType, bindVarPos, forceHeap = bNames, bTyp, bPos, fHeap
 				}
 			}
 		}
@@ -392,7 +512,7 @@ noEnumMatchRewrite:
 		var newStmts []Stmt
 
 		if len(bindNames) > 0 && bindType != nil {
-			payloadExpr := r.enumPayloadReadExpr(matchVarRef, bindType, bindVarPos)
+			payloadExpr := r.enumPayloadReadExpr(matchVarRef, bindType, bindVarPos, forceHeap)
 
 			r.tempCounter++
 			payloadTempName := "_payload" + strconv.Itoa(r.tempCounter)
@@ -478,18 +598,36 @@ func (r *rewriter) parseEnumCasePatternFull(expr Expr) (string, string, string, 
 		args = call.ArgList
 	}
 
-	// 2. 解析 Enum.Variant
+	// 2. 解析 Enum.Variant 或 Enum[T1, T2].Variant
 	sel, ok := selector.(*SelectorExpr)
 	if !ok {
 		return "", "", "", nil, nil, enumVariantInfo{}, false
 	}
 
-	// 必须是 Name.Name 的形式
-	lhs, ok := sel.X.(*Name)
-	if !ok {
+	var enumName string
+	var typeArgs []Expr // 泛型实例化的类型参数
+
+	// 支持两种形式:
+	// - Name.Name (非泛型): Box.Full
+	// - IndexExpr.Name (泛型): Box[int].Full
+	if lhs, ok := sel.X.(*Name); ok {
+		enumName = lhs.Value
+	} else if idx, ok := sel.X.(*IndexExpr); ok {
+		// 泛型实例化形式: Box[int].Full
+		if baseName, ok := idx.X.(*Name); ok {
+			enumName = baseName.Value
+			// 提取类型参数
+			if listExpr, ok := idx.Index.(*ListExpr); ok {
+				typeArgs = listExpr.ElemList
+			} else {
+				typeArgs = []Expr{idx.Index}
+			}
+		} else {
+			return "", "", "", nil, nil, enumVariantInfo{}, false
+		}
+	} else {
 		return "", "", "", nil, nil, enumVariantInfo{}, false
 	}
-	enumName := lhs.Value
 	variantName := sel.Sel.Value
 
 	// 3. 查找元数据
@@ -520,7 +658,6 @@ func (r *rewriter) parseEnumCasePatternFull(expr Expr) (string, string, string, 
 	}
 
 	// 简单提取第一个绑定名和字面量 (用于兼容旧逻辑)
-	// 复杂的绑定分析由 buildEnumCaseCondition 处理
 	firstBindName := ""
 	var firstLit Expr
 
@@ -532,23 +669,52 @@ func (r *rewriter) parseEnumCasePatternFull(expr Expr) (string, string, string, 
 		}
 	}
 
-	return enumName, variantName, firstBindName, firstLit, info.payload, info, true
+	// 对于泛型 enum，使用实际的类型参数替换 info.payload 中的类型参数引用
+	payloadType := info.payload
+	if len(typeArgs) > 0 {
+		payloadType = r.substituteTypeParams(payloadType, enumName, typeArgs)
+	}
+
+	return enumName, variantName, firstBindName, firstLit, payloadType, info, true
 }
 
 // buildEnumCaseCondition builds a boolean condition expression for a case arm.
-// Returns: cond, bindNames, bindType, bindPos, ok
-func (r *rewriter) buildEnumCaseCondition(matchVar *Name, caseExpr Expr) (Expr, []string, Expr, Pos, bool) {
+// Returns: cond, bindNames, bindType, bindPos, forceHeap, ok
+func (r *rewriter) buildEnumCaseCondition(matchVar *Name, caseExpr Expr, switchTagType Type) (Expr, []string, Expr, Pos, bool, bool) {
 	// 1. 解析基础信息 (Enum名, 变体名, Payload类型)
 	// 注意：我们可以复用 parseEnumCasePatternFull，但忽略它返回的单数 bindName/lit
 	en, vn, _, _, payloadType, _, ok := r.parseEnumCasePatternFull(caseExpr)
 	if !ok {
-		return nil, nil, nil, Pos{}, false
+		return nil, nil, nil, Pos{}, false, false
 	}
 	info, ok := r.enumVariants[en][vn]
 	if !ok {
-		return nil, nil, nil, Pos{}, false
+		return nil, nil, nil, Pos{}, false, false
 	}
 	pos := caseExpr.Pos()
+
+	// types2-aware override:
+	// If we have a concrete enum type from the first types2 pass, use it to:
+	// - decide whether this variant must go to heap (has pointers)
+	// - obtain a concrete payload type syntax for this variant (so `case Result.Ok(v)` works)
+	forceHeap := info.isGeneric
+	if switchTagType != nil {
+		if u := switchTagType.Underlying(); u != nil {
+			// duck-typed methods implemented by types2.Enum
+			type enumLayoutIface interface {
+				VariantLayoutInfo(string) (int64, bool, bool)
+				VariantPayloadSyntax(string, Pos) Expr
+			}
+			if ei, ok := u.(enumLayoutIface); ok {
+				if _, hp, ok := ei.VariantLayoutInfo(vn); ok {
+					forceHeap = hp
+				}
+				if pt := ei.VariantPayloadSyntax(vn, pos); pt != nil {
+					payloadType = pt
+				}
+			}
+		}
+	}
 
 	// 2. 构建 Tag 检查: _match._tag == tagVal
 	tagEq := new(Operation)
@@ -563,7 +729,7 @@ func (r *rewriter) buildEnumCaseCondition(matchVar *Name, caseExpr Expr) (Expr, 
 
 	// Unit variant (没有负载): 只需要检查 Tag
 	if !info.hasPayload {
-		return tagEq, nil, nil, pos, true
+		return tagEq, nil, nil, pos, forceHeap, true
 	}
 
 	// 3. 分析参数 (Bindings vs Literals)
@@ -574,7 +740,7 @@ func (r *rewriter) buildEnumCaseCondition(matchVar *Name, caseExpr Expr) (Expr, 
 
 	// 如果没有参数但有 payloadType (理论上不应发生，除非语法允许省略)
 	if len(args) == 0 {
-		return tagEq, nil, nil, pos, true
+		return tagEq, nil, nil, pos, forceHeap, true
 	}
 
 	// 检查参数中是否包含字面量 (Literals)
@@ -596,7 +762,7 @@ func (r *rewriter) buildEnumCaseCondition(matchVar *Name, caseExpr Expr) (Expr, 
 
 		// 这里的逻辑稍微复杂，需要读取 Payload
 		// 1. 读取 Payload (复用之前的逻辑)
-		payloadExpr := r.enumPayloadReadExpr(matchVar, payloadType, pos)
+		payloadExpr := r.enumPayloadReadExpr(matchVar, payloadType, pos, forceHeap)
 
 		// 2. 如果是多参数，payloadExpr 是结构体指针，需要逐个字段比较
 		//    如果是单参数标量，payloadExpr 是值
@@ -640,7 +806,7 @@ func (r *rewriter) buildEnumCaseCondition(matchVar *Name, caseExpr Expr) (Expr, 
 		}
 
 		// 返回完整条件，无绑定变量
-		return fullCond, nil, nil, pos, true
+		return fullCond, nil, nil, pos, forceHeap, true
 	}
 
 	// === 情况 B: 纯变量绑定 (Variable Binding) ===
@@ -657,7 +823,7 @@ func (r *rewriter) buildEnumCaseCondition(matchVar *Name, caseExpr Expr) (Expr, 
 	}
 
 	// 返回 Tag 条件 和 变量名列表
-	return tagEq, bindNames, payloadType, pos, true
+	return tagEq, bindNames, payloadType, pos, forceHeap, true
 }
 
 func (r *rewriter) enumTagReadExpr(matchVar *Name, pos Pos) Expr {
@@ -698,41 +864,85 @@ func (r *rewriter) enumTagReadExpr(matchVar *Name, pos Pos) Expr {
 	return deref
 }
 
-func (r *rewriter) enumPayloadReadExpr(matchVar *Name, payloadType Expr, pos Pos) Expr {
+func (r *rewriter) enumPayloadReadExpr(matchVar *Name, payloadType Expr, pos Pos, forceHeap bool) Expr {
 	// 假设 payloadType 可能是 ListExpr (Tuple) 或单个 Expr
 	typeList := unpackTypeList(payloadType)
 
-	// === 路径 A: 标量优化 ===
-	if len(typeList) == 1 && isOptimizableScalar(typeList[0]) {
-		// 目标: *(*T)(unsafe.Pointer(&matchVar._scalar))
-		// 这样可以把 uint64 的 bits 完美还原回 int/bool/float
-
-		targetType := typeList[0]
-
-		// &matchVar._scalar
-		selScalar := &SelectorExpr{X: matchVar, Sel: NewName(pos, "_scalar")}
-		addrScalar := &Operation{Op: And, X: selScalar}
-
-		// unsafe.Pointer(...)
-		ptrScalar := &CallExpr{
-			Fun:     &SelectorExpr{X: NewName(pos, "unsafe"), Sel: NewName(pos, "Pointer")},
-			ArgList: []Expr{addrScalar},
+	// 判断是否包含指针
+	hasPointer := false
+	for _, t := range typeList {
+		if containsPointer(t) {
+			hasPointer = true
+			break
 		}
-
-		// (*T)(...)
-		ptrToTarget := &Operation{Op: Mul, X: targetType} // *T
-		cast := &CallExpr{
-			Fun:     &ParenExpr{X: ptrToTarget},
-			ArgList: []Expr{ptrScalar},
-		}
-
-		// *cast (解引用)
-		deref := &Operation{Op: Mul, X: cast}
-		return deref
 	}
 
-	// === 路径 B: 通用路径 (指针 或 Tuple) ===
-	// 还原回匿名结构体指针: (*struct{_0 T0; _1 T1})(matchVar._ptr)
+	// 如果是泛型 enum (forceHeap=true) 或包含指针，使用 _heap
+	useHeap := forceHeap || hasPointer
+
+	if !useHeap {
+		// === 路径 A: 纯值变体 → 从 _stack 读取 ===
+		// 目标: *(*T)(unsafe.Pointer(&matchVar._stack[0]))
+
+		// 如果是单个类型，直接转换
+		if len(typeList) == 1 {
+			targetType := typeList[0]
+
+			// &matchVar._stack[0]
+			stackSel := &SelectorExpr{X: matchVar, Sel: NewName(pos, "_stack")}
+			zeroLit := &BasicLit{Value: "0", Kind: IntLit}
+			indexExpr := &IndexExpr{X: stackSel, Index: zeroLit}
+			addrStack := &Operation{Op: And, X: indexExpr}
+
+			// unsafe.Pointer(...)
+			ptrStack := &CallExpr{
+				Fun:     &SelectorExpr{X: NewName(pos, "unsafe"), Sel: NewName(pos, "Pointer")},
+				ArgList: []Expr{addrStack},
+			}
+
+			// (*T)(...)
+			ptrToTarget := &Operation{Op: Mul, X: targetType}
+			cast := &CallExpr{
+				Fun:     &ParenExpr{X: ptrToTarget},
+				ArgList: []Expr{ptrStack},
+			}
+
+			// *cast (解引用)
+			deref := &Operation{Op: Mul, X: cast}
+			return deref
+		}
+
+		// 如果是多个类型，转换成匿名结构体指针
+		// (*struct{_0 T0; _1 T1; ...})(unsafe.Pointer(&matchVar._stack[0]))
+		structFields := make([]*Field, len(typeList))
+		for idx, t := range typeList {
+			structFields[idx] = &Field{Name: NewName(pos, "_"+strconv.Itoa(idx)), Type: t}
+		}
+		anonStruct := &StructType{FieldList: structFields}
+		ptrToStruct := &Operation{Op: Mul, X: anonStruct}
+
+		// &matchVar._stack[0]
+		stackSel := &SelectorExpr{X: matchVar, Sel: NewName(pos, "_stack")}
+		zeroLit := &BasicLit{Value: "0", Kind: IntLit}
+		indexExpr := &IndexExpr{X: stackSel, Index: zeroLit}
+		addrStack := &Operation{Op: And, X: indexExpr}
+
+		// unsafe.Pointer(...)
+		ptrStack := &CallExpr{
+			Fun:     &SelectorExpr{X: NewName(pos, "unsafe"), Sel: NewName(pos, "Pointer")},
+			ArgList: []Expr{addrStack},
+		}
+
+		cast := &CallExpr{
+			Fun:     &ParenExpr{X: ptrToStruct},
+			ArgList: []Expr{ptrStack},
+		}
+
+		return cast
+	}
+
+	// === 路径 B: 含指针变体 → 从 _heap 读取 ===
+	// 还原回匿名结构体指针: (*struct{_0 T0; _1 T1})(matchVar._heap)
 
 	structFields := make([]*Field, len(typeList))
 	for idx, t := range typeList {
@@ -742,11 +952,11 @@ func (r *rewriter) enumPayloadReadExpr(matchVar *Name, payloadType Expr, pos Pos
 
 	ptrToStruct := &Operation{Op: Mul, X: anonStruct} // *struct{...}
 
-	selPtr := &SelectorExpr{X: matchVar, Sel: NewName(pos, "_ptr")}
+	selHeap := &SelectorExpr{X: matchVar, Sel: NewName(pos, "_heap")}
 
 	cast := &CallExpr{
 		Fun:     &ParenExpr{X: ptrToStruct},
-		ArgList: []Expr{selPtr},
+		ArgList: []Expr{selHeap},
 	}
 
 	return cast
@@ -806,15 +1016,59 @@ func (r *rewriter) rewriteExpr(expr Expr) Expr {
 		e.X = r.rewriteExpr(e.X)
 		// Rewrite enum unit-variant constructor sugar:
 		//   EnumName.Variant  =>  EnumName_Variant()
-		// Only applies to unit variants (no payload), so it doesn't conflict with
-		// value selections on variables (since EnumName must be an identifier).
-		if r.enumVariants != nil {
-			if x, ok := e.X.(*Name); ok && e.Sel != nil {
-				if variants, ok := r.enumVariants[x.Value]; ok {
+		//   EnumName[T].Variant  =>  EnumName_Variant[T]()
+		// Only applies to unit variants (no payload).
+		if r.enumVariants != nil && e.Sel != nil {
+			var enumName string
+			var typeArgs []Expr
+
+			if x, ok := e.X.(*Name); ok {
+				// Simple case: EnumName.Variant
+				enumName = x.Value
+			} else if idx, ok := e.X.(*IndexExpr); ok {
+				// Generic case: EnumName[T1, T2].Variant
+				if baseName, ok := idx.X.(*Name); ok {
+					enumName = baseName.Value
+					// Extract type arguments
+					if listExpr, ok := idx.Index.(*ListExpr); ok {
+						typeArgs = listExpr.ElemList
+					} else {
+						typeArgs = []Expr{idx.Index}
+					}
+				}
+			}
+
+			if enumName != "" {
+				if variants, ok := r.enumVariants[enumName]; ok {
 					if info, ok := variants[e.Sel.Value]; ok && !info.hasPayload {
 						call := new(CallExpr)
 						call.SetPos(e.Pos())
-						call.Fun = NewName(e.Sel.Pos(), x.Value+"_"+e.Sel.Value)
+
+						// Create constructor name
+						constructorName := NewName(e.Sel.Pos(), enumName+"_"+e.Sel.Value)
+
+						// If we have type arguments, create IndexExpr
+						if len(typeArgs) > 0 {
+							var funExpr Expr
+							if len(typeArgs) == 1 {
+								funExpr = &IndexExpr{
+									X:     constructorName,
+									Index: typeArgs[0],
+								}
+							} else {
+								funExpr = &IndexExpr{
+									X: constructorName,
+									Index: &ListExpr{
+										ElemList: typeArgs,
+									},
+								}
+							}
+							funExpr.SetPos(e.Sel.Pos())
+							call.Fun = funExpr
+						} else {
+							call.Fun = constructorName
+						}
+
 						// ArgList nil => no args
 						return call
 					}
@@ -860,11 +1114,30 @@ func (r *rewriter) rewriteExpr(expr Expr) Expr {
 		}
 
 		if r.enumVariants != nil {
-			if sel, ok := e.Fun.(*SelectorExpr); ok {
-				if x, ok := sel.X.(*Name); ok && sel.Sel != nil {
-					if variants, ok := r.enumVariants[x.Value]; ok {
-						if info, ok := variants[sel.Sel.Value]; ok {
+			if sel, ok := e.Fun.(*SelectorExpr); ok && sel.Sel != nil {
+				// Extract enum base name: support both EnumName and EnumName[T1, T2]
+				var enumName string
+				var typeArgs []Expr
 
+				if x, ok := sel.X.(*Name); ok {
+					// Simple case: EnumName.Variant
+					enumName = x.Value
+				} else if idx, ok := sel.X.(*IndexExpr); ok {
+					// Generic case: EnumName[T1, T2].Variant
+					if baseName, ok := idx.X.(*Name); ok {
+						enumName = baseName.Value
+						// Extract type arguments
+						if listExpr, ok := idx.Index.(*ListExpr); ok {
+							typeArgs = listExpr.ElemList
+						} else {
+							typeArgs = []Expr{idx.Index}
+						}
+					}
+				}
+
+				if enumName != "" {
+					if variants, ok := r.enumVariants[enumName]; ok {
+						if info, ok := variants[sel.Sel.Value]; ok {
 							shouldRewrite := false
 							if info.hasPayload {
 								shouldRewrite = len(e.ArgList) >= 1
@@ -873,7 +1146,57 @@ func (r *rewriter) rewriteExpr(expr Expr) Expr {
 							}
 
 							if shouldRewrite {
-								e.Fun = NewName(sel.Sel.Pos(), x.Value+"_"+sel.Sel.Value)
+								// Create constructor call:
+								// - non-generic: EnumName_Variant(args...)
+								// - generic payload: EnumName_Variant_{stack|heap}[T...](args...) depending on inferred payload layout
+								fnBase := enumName + "_" + sel.Sel.Value
+								if info.hasPayload && info.isGeneric && len(typeArgs) > 0 {
+									// default to heap (safe)
+									suffix := "_heap"
+
+									// If types2 says this variant payload has no pointers, prefer stack ctor (if available).
+									if idx, ok := sel.X.(*IndexExpr); ok {
+										if tv := idx.GetTypeInfo(); tv.Type != nil {
+											if u := tv.Type.Underlying(); u != nil {
+												type enumLayoutIface interface {
+													VariantLayoutInfo(string) (int64, bool, bool)
+												}
+												if ei, ok := u.(enumLayoutIface); ok {
+													if _, hp, ok := ei.VariantLayoutInfo(sel.Sel.Value); ok && !hp {
+														if h, ok := getEnumLoweringHint(enumName); ok && h.MaxStack > 0 {
+															suffix = "_stack"
+														}
+													}
+												}
+											}
+										}
+									}
+									fnBase += suffix
+								}
+
+								constructorName := NewName(sel.Sel.Pos(), fnBase)
+
+								// If we have type arguments, create IndexExpr
+								if len(typeArgs) > 0 {
+									var indexExpr Expr
+									if len(typeArgs) == 1 {
+										indexExpr = &IndexExpr{
+											X:     constructorName,
+											Index: typeArgs[0],
+										}
+									} else {
+										indexExpr = &IndexExpr{
+											X: constructorName,
+											Index: &ListExpr{
+												ElemList: typeArgs,
+											},
+										}
+									}
+									indexExpr.SetPos(sel.Pos())
+									e.Fun = indexExpr
+								} else {
+									e.Fun = constructorName
+								}
 							}
 						}
 					}

@@ -222,6 +222,14 @@ func (subst *subster) typ(typ Type) Type {
 			return iface
 		}
 
+	case *Enum:
+		// Substitute within enum variant payload types.
+		// Each variant is represented as a *Var whose type is the (effective) payload type
+		// (or struct{} for unit variants).
+		if vars := substList(t.variants, subst.var_); vars != nil {
+			return &Enum{variants: vars}
+		}
+
 	case *Map:
 		key := subst.typ(t.key)
 		elem := subst.typ(t.elem)

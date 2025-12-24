@@ -721,6 +721,17 @@ func (check *Checker) switchStmt(inner stmtContext, s *syntax.SwitchStmt) {
 		// By checking assignment of x to an invisible temporary
 		// (as a compiler would), we get all the relevant checks.
 		check.assignment(&x, nil, "switch expression")
+
+		// --- enum pattern match (extension) ---
+		// Must run before the comparability check: enums are not comparable,
+		// but enum-match switches are allowed.
+		if enum, ok := asEnumType(x.typ); ok && enum != nil {
+			if check.hasEnumCasePattern(enum, s.Body) {
+				check.enumMatchSwitchStmt(inner, &x, enum, s)
+				return
+			}
+		}
+
 		if x.mode != invalid && !Comparable(x.typ) && !hasNil(x.typ) {
 			check.errorf(&x, InvalidExprSwitch, "cannot switch on %s (%s is not comparable)", &x, x.typ)
 			x.mode = invalid
@@ -755,6 +766,65 @@ func (check *Checker) switchStmt(inner stmtContext, s *syntax.SwitchStmt) {
 		}
 		check.caseValues(&x, syntax.UnpackListExpr(clause.Cases), seen)
 		check.openScope(clause, "case")
+		check.stmtList(inner, clause.Body)
+		check.closeScope()
+	}
+}
+
+func (check *Checker) hasEnumCasePattern(enum *Enum, clauses []*syntax.CaseClause) bool {
+	for _, clause := range clauses {
+		if clause == nil || clause.Cases == nil {
+			continue
+		}
+		for _, e := range syntax.UnpackListExpr(clause.Cases) {
+			if _, ok := check.parseEnumCasePattern(enum, e); ok {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (check *Checker) enumMatchSwitchStmt(inner stmtContext, x *operand, enum *Enum, s *syntax.SwitchStmt) {
+	// We deliberately do NOT apply standard expression-switch comparability rules.
+	// The enum match switch is lowered later; here we only typecheck and declare bindings.
+
+	for i, clause := range s.Body {
+		if clause == nil {
+			check.error(clause, InvalidSyntaxTree, "incorrect expression switch case")
+			continue
+		}
+		inner := inner
+		if i+1 < len(s.Body) {
+			inner |= fallthroughOk
+		} else {
+			inner |= finalSwitchCase
+		}
+
+		check.openScope(clause, "case")
+
+		// Declare bindings from patterns, if any.
+		if clause.Cases != nil {
+			for _, e := range syntax.UnpackListExpr(clause.Cases) {
+				pat, ok := check.parseEnumCasePattern(enum, e)
+				if !ok {
+					// Non-pattern expression: still run through expr for Info recordings.
+					var v operand
+					check.expr(nil, &v, e)
+					continue
+				}
+				for j, id := range pat.bindNames {
+					if id == nil || id.Value == "_" {
+						continue
+					}
+					// recordDef makes this identifier a definition for Info.
+					check.recordDef(id, nil)
+					obj := newVar(LocalVar, id.Pos(), check.pkg, id.Value, pat.bindTypes[j])
+					check.declare(check.scope, nil, obj, clause.Colon)
+				}
+			}
+		}
+
 		check.stmtList(inner, clause.Body)
 		check.closeScope()
 	}

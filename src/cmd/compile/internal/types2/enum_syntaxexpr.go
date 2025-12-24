@@ -1,0 +1,100 @@
+package types2
+
+import (
+	"cmd/compile/internal/syntax"
+	"strconv"
+)
+
+// VariantPayloadSyntax is a duck-typed helper used by syntax-lowering code to
+// obtain a concrete syntax.Expr for a variant payload type, after type inference.
+// It returns nil for unit variants.
+func (t *Enum) VariantPayloadSyntax(variantName string, pos syntax.Pos) syntax.Expr {
+	if t == nil {
+		return nil
+	}
+	for _, v := range t.variants {
+		if v != nil && v.name == variantName {
+			// Unit variant payload modeled as empty struct.
+			if st, _ := v.typ.Underlying().(*Struct); st != nil && st.NumFields() == 0 {
+				return nil
+			}
+			return typeToSyntaxExpr(pos, v.typ)
+		}
+	}
+	return nil
+}
+
+// typeToSyntaxExpr converts a (sufficiently concrete) types2.Type into a syntax type expression.
+// This is intentionally partial, but covers all enum payload shapes we generate.
+func typeToSyntaxExpr(pos syntax.Pos, t Type) syntax.Expr {
+	if t == nil {
+		return nil
+	}
+	t = Unalias(t)
+	switch tt := t.(type) {
+	case *Basic:
+		n := syntax.NewName(pos, tt.name)
+		return n
+	case *TypeParam:
+		return syntax.NewName(pos, tt.obj.name)
+	case *Pointer:
+		op := new(syntax.Operation)
+		op.SetPos(pos)
+		op.Op = syntax.Mul
+		op.X = typeToSyntaxExpr(pos, tt.base)
+		return op
+	case *Slice:
+		st := new(syntax.SliceType)
+		st.SetPos(pos)
+		st.Elem = typeToSyntaxExpr(pos, tt.elem)
+		return st
+	case *Array:
+		at := new(syntax.ArrayType)
+		at.SetPos(pos)
+		at.Elem = typeToSyntaxExpr(pos, tt.elem)
+		// length is an int64 constant in types2
+		lit := new(syntax.BasicLit)
+		lit.SetPos(pos)
+		lit.Kind = syntax.IntLit
+		lit.Value = strconv.FormatInt(tt.len, 10)
+		at.Len = lit
+		return at
+	case *Map:
+		mt := new(syntax.MapType)
+		mt.SetPos(pos)
+		mt.Key = typeToSyntaxExpr(pos, tt.key)
+		mt.Value = typeToSyntaxExpr(pos, tt.elem)
+		return mt
+	case *Chan:
+		ct := new(syntax.ChanType)
+		ct.SetPos(pos)
+		ct.Elem = typeToSyntaxExpr(pos, tt.elem)
+		// ignore direction for now
+		return ct
+	case *Struct:
+		st := new(syntax.StructType)
+		st.SetPos(pos)
+		for i := 0; i < tt.NumFields(); i++ {
+			f := tt.Field(i)
+			sf := new(syntax.Field)
+			sf.SetPos(pos)
+			if f.name != "" {
+				sf.Name = syntax.NewName(pos, f.name)
+			}
+			sf.Type = typeToSyntaxExpr(pos, f.typ)
+			st.FieldList = append(st.FieldList, sf)
+		}
+		return st
+	case *Named:
+		// Build a name or selector. For now, prefer unqualified if same package.
+		if tt.obj != nil {
+			return syntax.NewName(pos, tt.obj.name)
+		}
+		return syntax.NewName(pos, "/*named*/")
+	default:
+		// Fallback: use string form as a Name (best-effort).
+		return syntax.NewName(pos, t.String())
+	}
+}
+
+

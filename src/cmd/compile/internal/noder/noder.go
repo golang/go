@@ -60,7 +60,8 @@ func LoadPackage(filenames []string) {
 				// Rewrite syntax extensions to standard Go syntax
 				if p.file != nil {
 					// 统一处理所有语法扩展改写（包含：? 表达式、魔法方法/运算符重载、_init 构造器、装饰器、默认参数）
-					p.overloadInfo = syntax.RewriteExtensions(p.file)
+					// B1 enum pipeline: first pass rewrite excludes enum lowering so types2 can infer.
+					p.overloadInfo = syntax.RewriteExtensionsPreTypes2(p.file)
 					// 单独发出"指针 == 重载"告警（不影响 rewrite 顺序，只依赖最终方法名形态）。
 					warnPointerEqOverload(p.file)
 				}

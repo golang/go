@@ -809,6 +809,49 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
 		goto Error
 	}
 
+	// --- enum variant constructor/value (extension) ---
+	// Support:
+	//   - Enum.Variant        (unit variant value)
+	//   - Enum.Variant(...)   (constructor; handled by returning a signature here)
+	//
+	// This is a selector on a type expression (x.mode == typexpr).
+	// We treat the selector as either:
+	//   - a value of the enum type (unit variant), or
+	//   - a function value with signature func(args...) EnumType (payload variant)
+	if x.mode == typexpr {
+		if enum, ok := asEnumType(x.typ); ok && enum != nil {
+			if vv, ok := enumVariantByName(enum, sel); ok && vv != nil {
+				// Record the variant "use" for tooling/Info (best-effort).
+				check.recordUse(e.Sel, vv)
+
+				// Unit variant: treat as a value of the enum type.
+				// In our enum encoding, unit variants have payload type struct{}.
+				if st, _ := vv.typ.Underlying().(*Struct); st != nil && st.NumFields() == 0 {
+					x.mode = value
+					x.typ = x.typ
+					x.expr = e
+					return
+				}
+
+				// Payload variant: expose a constructor signature.
+				// Tuple payloads are represented as an anonymous struct { _0 T0; _1 T1; ... }.
+				var params []*Var
+				if st, _ := vv.typ.Underlying().(*Struct); st != nil && st.NumFields() > 0 {
+					for i := 0; i < st.NumFields(); i++ {
+						params = append(params, newVar(LocalVar, e.Pos(), check.pkg, "", st.Field(i).typ))
+					}
+				} else {
+					params = []*Var{newVar(LocalVar, e.Pos(), check.pkg, "", vv.typ)}
+				}
+				results := []*Var{newVar(LocalVar, e.Pos(), check.pkg, "", x.typ)}
+				x.mode = value
+				x.typ = &Signature{params: NewTuple(params...), results: NewTuple(results...)}
+				x.expr = e
+				return
+			}
+		}
+	}
+
 	obj, index, indirect = lookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel, false)
 	if obj == nil {
 		// Don't report another error if the underlying type was invalid (go.dev/issue/49541).

@@ -24,6 +24,17 @@ var versionErrorRx = regexp.MustCompile(`requires go[0-9]+\.[0-9]+ or later`)
 // parsed source files and then returns the result.
 // The map result value indicates which closures are generated from the bodies of range function loops.
 func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info, map[*syntax.FuncLit]bool) {
+	ctxt := types2.NewContext()
+	importer := gcimports{
+		ctxt:     ctxt,
+		packages: make(map[string]*types2.Package),
+	}
+	return checkFilesWith(m, noders, ctxt, &importer, true)
+}
+
+// checkFilesWith is like checkFiles, but reuses the provided types2 context and importer cache.
+// This is required for the B1 enum pipeline which runs types2 twice on the same package.
+func checkFilesWith(m posMap, noders []*noder, ctxt *types2.Context, importer *gcimports, doRangeRewrite bool) (*types2.Package, *types2.Info, map[*syntax.FuncLit]bool) {
 	if base.SyntaxErrors() != 0 {
 		base.ErrorExit()
 	}
@@ -45,16 +56,21 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info, map[*
 	}
 
 	// typechecking
-	ctxt := types2.NewContext()
-	importer := gcimports{
-		ctxt:     ctxt,
-		packages: make(map[string]*types2.Package),
+	if ctxt == nil {
+		ctxt = types2.NewContext()
+	}
+	if importer == nil {
+		imp := gcimports{
+			ctxt:     ctxt,
+			packages: make(map[string]*types2.Package),
+		}
+		importer = &imp
 	}
 	conf := types2.Config{
 		Context:            ctxt,
 		GoVersion:          base.Flag.Lang,
 		IgnoreBranchErrors: true, // parser already checked via syntax.CheckBranches mode
-		Importer:           &importer,
+		Importer:           importer,
 		Sizes:              types2.SizesFor("gc", buildcfg.GOARCH),
 		EnableAlias:        true,
 	}
@@ -175,14 +191,17 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info, map[*
 	}
 	base.ExitIfErrors()
 
-	// Rewrite range over function to explicit function calls
-	// with the loop bodies converted into new implicit closures.
-	// We do this now, before serialization to unified IR, so that if the
-	// implicit closures are inlined, we will have the unified IR form.
-	// If we do the rewrite in the back end, like between typecheck and walk,
-	// then the new implicit closure will not have a unified IR inline body,
-	// and bodyReaderFor will fail.
-	rangeInfo := rangefunc.Rewrite(pkg, info, files)
+	var rangeInfo map[*syntax.FuncLit]bool
+	if doRangeRewrite {
+		// Rewrite range over function to explicit function calls
+		// with the loop bodies converted into new implicit closures.
+		// We do this now, before serialization to unified IR, so that if the
+		// implicit closures are inlined, we will have the unified IR form.
+		// If we do the rewrite in the back end, like between typecheck and walk,
+		// then the new implicit closure will not have a unified IR inline body,
+		// and bodyReaderFor will fail.
+		rangeInfo = rangefunc.Rewrite(pkg, info, files)
+	}
 
 	return pkg, info, rangeInfo
 }

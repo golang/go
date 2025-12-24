@@ -19,6 +19,7 @@ import (
 	"cmd/compile/internal/inline"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/pgoir"
+	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/compile/internal/types2"
@@ -316,7 +317,36 @@ func readBodies(target *ir.Package, duringInlining bool) {
 // writes an export data package stub representing them,
 // and returns the result.
 func writePkgStub(m posMap, noders []*noder) string {
-	pkg, info, otherInfo := checkFiles(m, noders)
+	// B1 enum pipeline: run types2 twice.
+	// We must reuse the same importer cache across both passes to avoid inconsistencies
+	// in import bookkeeping (types.Pkg.Direct assertions).
+	ctxt := types2.NewContext()
+	importer := gcimports{
+		ctxt:     ctxt,
+		packages: make(map[string]*types2.Package),
+	}
+
+	// First types2 pass: enum syntax is preserved so we can infer instances/layout.
+	pkg1, info1, _ := checkFilesWith(m, noders, ctxt, &importer, false)
+
+	// Compute enum lowering hints from the inferred types (shape-based).
+	// Then lower enums (syntax phase), after inference.
+	syntax.SetEnumLoweringHints(collectEnumLoweringHints(noders))
+
+	// Lower enums now (syntax phase), after inference.
+	// This reuses existing enum lowering rewrites in syntax (constructors + match lowering).
+	for _, p := range noders {
+		if p != nil && p.file != nil {
+			syntax.RewriteQuestionExprs(p.file)
+		}
+	}
+
+	// Second types2 pass: typecheck lowered code for export data.
+	// pkg1/info1 are only used to populate type info in syntax trees for hint collection.
+	_ = pkg1
+	_ = info1
+
+	pkg, info, otherInfo := checkFilesWith(m, noders, ctxt, &importer, true)
 
 	pw := newPkgWriter(m, pkg, info, otherInfo)
 

@@ -668,6 +668,11 @@ func (n *Named) expandUnderlying() Type {
 		ctxt = check.context()
 	}
 	underlying := n.check.subst(n.obj.pos, orig.underlying, smap, n, ctxt)
+	// If this named type is an instantiated enum, compute concrete layout info now
+	// that all type parameters have been substituted.
+	if e, ok := underlying.(*Enum); ok && e != nil {
+		e.maxPayloadSize, e.hasPointers = check.enumLayoutFromVariants(e)
+	}
 	// If the underlying type of n is an interface, we need to set the receiver of
 	// its methods accurately -- we set the receiver of interface methods on
 	// the RHS of a type declaration to the defined type.

@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"go/constant"
 	. "internal/types/errors"
+	"strconv"
 	"strings"
 )
 
@@ -585,7 +586,25 @@ func (check *Checker) enumType(e *syntax.EnumType, def *TypeName) Type {
 		var typ Type
 
 		if v.Type != nil {
-			typ = check.typ(v.Type)
+			// Support tuple payloads written as a syntax.ListExpr: Some(T, E)
+			// by modeling them as an anonymous struct { _0 T0; _1 T1; ... }.
+			if list, ok := v.Type.(*syntax.ListExpr); ok {
+				fields := make([]*Var, 0, len(list.ElemList))
+				tags := make([]string, 0, len(list.ElemList))
+				for i, elem := range list.ElemList {
+					ft := check.typ(elem)
+					if ft == Typ[Invalid] {
+						ft = NewStruct(nil, nil)
+					}
+					f := NewVar(v.Pos(), check.pkg, "_"+strconv.Itoa(i), ft)
+					fields = append(fields, f)
+					tags = append(tags, "")
+				}
+				st := NewStruct(fields, tags)
+				typ = st
+			} else {
+				typ = check.typ(v.Type)
+			}
 			if typ == Typ[Invalid] {
 				typ = NewStruct(nil, nil)
 			}
@@ -599,6 +618,9 @@ func (check *Checker) enumType(e *syntax.EnumType, def *TypeName) Type {
 
 	// 2. 填充 variants
 	t.variants = variants
+
+	// Best-effort layout info (may be conservative for generic/uninstantiated enums).
+	t.maxPayloadSize, t.hasPointers = check.enumLayoutFromVariants(t)
 
 	return t
 }
