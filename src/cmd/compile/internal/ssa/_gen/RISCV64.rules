@@ -721,6 +721,14 @@
 (SRLI [x] (MOVHUreg y)) && x >= 16 => (MOVDconst [0])
 (SRLI [x] (MOVWUreg y)) && x >= 32 => (MOVDconst [0])
 
+// Remove unnecessary masking with shifts.
+(SLL  x (ANDI [63] y)) => (SLL  x y)
+(SRL  x (ANDI [63] y)) => (SRL  x y)
+(SRA  x (ANDI [63] y)) => (SRA  x y)
+(SLLW x (ANDI [31] y)) => (SLLW x y)
+(SRLW x (ANDI [31] y)) => (SRLW x y)
+(SRAW x (ANDI [31] y)) => (SRAW x y)
+
 // Fold constant into immediate instructions where possible.
 (ADD (MOVDconst <t> [val]) x) && ssa.Is32Bit(val) && !t.IsPtr() => (ADDI [val] x)
 (AND (MOVDconst [val]) x) && ssa.Is32Bit(val) => (ANDI [val] x)

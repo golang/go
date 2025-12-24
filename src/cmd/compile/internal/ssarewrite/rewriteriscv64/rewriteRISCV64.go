@@ -8311,6 +8311,18 @@ func rewriteValue_OpRISCV64SEQZ(v *ssa.Value) bool {
 func rewriteValue_OpRISCV64SLL(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	// match: (SLL x (ANDI [63] y))
+	// result: (SLL x y)
+	for {
+		x := v_0
+		if v_1.Op != ssaop.OpRISCV64ANDI || ssa.AuxIntToInt64(v_1.AuxInt) != 63 {
+			break
+		}
+		y := v_1.Args[0]
+		v.Reset(ssaop.OpRISCV64SLL)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (SLL x (MOVDconst [val]))
 	// result: (SLLI [val&63] x)
 	for {
@@ -8384,6 +8396,18 @@ func rewriteValue_OpRISCV64SLLI(v *ssa.Value) bool {
 func rewriteValue_OpRISCV64SLLW(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	// match: (SLLW x (ANDI [31] y))
+	// result: (SLLW x y)
+	for {
+		x := v_0
+		if v_1.Op != ssaop.OpRISCV64ANDI || ssa.AuxIntToInt64(v_1.AuxInt) != 31 {
+			break
+		}
+		y := v_1.Args[0]
+		v.Reset(ssaop.OpRISCV64SLLW)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (SLLW x (MOVDconst [val]))
 	// result: (SLLIW [val&31] x)
 	for {
@@ -8637,6 +8661,18 @@ func rewriteValue_OpRISCV64SNEZ(v *ssa.Value) bool {
 func rewriteValue_OpRISCV64SRA(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	// match: (SRA x (ANDI [63] y))
+	// result: (SRA x y)
+	for {
+		x := v_0
+		if v_1.Op != ssaop.OpRISCV64ANDI || ssa.AuxIntToInt64(v_1.AuxInt) != 63 {
+			break
+		}
+		y := v_1.Args[0]
+		v.Reset(ssaop.OpRISCV64SRA)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (SRA x (MOVDconst [val]))
 	// result: (SRAI [val&63] x)
 	for {
@@ -8748,6 +8784,18 @@ func rewriteValue_OpRISCV64SRAI(v *ssa.Value) bool {
 func rewriteValue_OpRISCV64SRAW(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	// match: (SRAW x (ANDI [31] y))
+	// result: (SRAW x y)
+	for {
+		x := v_0
+		if v_1.Op != ssaop.OpRISCV64ANDI || ssa.AuxIntToInt64(v_1.AuxInt) != 31 {
+			break
+		}
+		y := v_1.Args[0]
+		v.Reset(ssaop.OpRISCV64SRAW)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (SRAW x (MOVDconst [val]))
 	// result: (SRAIW [val&31] x)
 	for {
@@ -8766,6 +8814,18 @@ func rewriteValue_OpRISCV64SRAW(v *ssa.Value) bool {
 func rewriteValue_OpRISCV64SRL(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	// match: (SRL x (ANDI [63] y))
+	// result: (SRL x y)
+	for {
+		x := v_0
+		if v_1.Op != ssaop.OpRISCV64ANDI || ssa.AuxIntToInt64(v_1.AuxInt) != 63 {
+			break
+		}
+		y := v_1.Args[0]
+		v.Reset(ssaop.OpRISCV64SRL)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (SRL x (MOVDconst [val]))
 	// result: (SRLI [val&63] x)
 	for {
@@ -8862,6 +8922,18 @@ func rewriteValue_OpRISCV64SRLI(v *ssa.Value) bool {
 func rewriteValue_OpRISCV64SRLW(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	// match: (SRLW x (ANDI [31] y))
+	// result: (SRLW x y)
+	for {
+		x := v_0
+		if v_1.Op != ssaop.OpRISCV64ANDI || ssa.AuxIntToInt64(v_1.AuxInt) != 31 {
+			break
+		}
+		y := v_1.Args[0]
+		v.Reset(ssaop.OpRISCV64SRLW)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (SRLW x (MOVDconst [val]))
 	// result: (SRLIW [val&31] x)
 	for {
