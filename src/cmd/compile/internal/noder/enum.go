@@ -25,13 +25,7 @@ func clearForwardRefCache() {
 	}
 }
 
-// ProcessEnumDeclarations 处理文件中的所有 enum 声明
-// 应在类型检查之前调用，将 enum 转换为 struct + 构造函数
-//
-// 集成策略：
-// 1. 在 syntax.Parse 之后立即调用
-// 2. 在 types2.Check 之前调用
-// 3. 将 enum 转换为等价的 Go 代码（struct + 函数）
+// 废弃函数，之后可能使用｜原生转换｜
 func ProcessEnumDeclarations(m posMap, file *syntax.File) {
 	if file == nil {
 		return
@@ -80,15 +74,8 @@ func ProcessEnumDeclarations(m posMap, file *syntax.File) {
 			pos := m.makeXPos(ed.typeDecl.Pos())
 			nodes := transformEnumDecl(ed.enumType, ed.typeDecl.Name, pos)
 
-			// 将生成的 IR 节点转换回 syntax 节点
-			// 注意：这里需要将 ir.Node 转换为 syntax.Decl
-			// 由于 IR 和 syntax 是不同的表示，我们需要创建对应的 syntax 节点
-
-			// 简化方案：直接替换为注释节点，实际转换在后续阶段完成
-			// TODO: 完整实现需要在 unified IR 阶段处理
 			_ = nodes
 
-			// 保留原始声明（暂时），添加标记
 			newDeclList = append(newDeclList, decl)
 			enumIdx++
 		} else {
@@ -116,7 +103,7 @@ func ProcessPackageEnums(m posMap, files []*syntax.File) {
 	clearForwardRefCache()
 }
 
-// transformEnumDecl 将 Enum 声明转换为 Struct + 构造函数
+// 废弃函数，之后可能使用｜原生转换｜
 func transformEnumDecl(n *syntax.EnumType, typeName *syntax.Name, pos src.XPos) []ir.Node {
 	var nodes []ir.Node
 
