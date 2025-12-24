@@ -1755,13 +1755,9 @@ func TestLinknameBSS(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fail to get symbols: %v", err)
 	}
-	prefix := ""
-	if runtime.GOOS == "windows" && runtime.GOARCH == "386" {
-		prefix = "_"
-	}
 	found := false
 	for _, s := range syms {
-		if s.Name == prefix+"runtime.sched" {
+		if s.Name == "runtime.sched" || s.Name == "_runtime.sched" {
 			found = true
 			if s.Size < 100 {
 				// As of Go 1.25 (Mar 2025), runtime.sched has 6848 bytes on
@@ -1772,7 +1768,7 @@ func TestLinknameBSS(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Errorf("%sruntime.sched symbol not found", prefix)
+		t.Errorf("runtime.sched symbol not found")
 	}
 
 	// Executable should run.
@@ -2212,19 +2208,15 @@ func TestModuledataPlacement(t *testing.T) {
 	case pf != nil:
 		defer pf.Close()
 
-		prefix := ""
-		if runtime.GOARCH == "386" {
-			prefix = "_"
-		}
 		var moddataSym *pe.Symbol
 		for _, sym := range pf.Symbols {
-			if sym.Name == prefix+moddataSymName {
+			if sym.Name == moddataSymName || sym.Name == "_"+moddataSymName {
 				moddataSym = sym
 				break
 			}
 		}
 		if moddataSym == nil {
-			t.Fatalf("could not find symbol %s%s", prefix, moddataSymName)
+			t.Fatalf("could not find symbol %s", moddataSymName)
 		}
 		if moddataSym.SectionNumber <= 0 {
 			t.Fatalf("moduledata not in a section (section number %d)", moddataSym.SectionNumber)
@@ -2268,19 +2260,15 @@ func TestPEEdataSection(t *testing.T) {
 	}
 	defer pf.Close()
 
-	prefix := ""
-	if runtime.GOARCH == "386" {
-		prefix = "_"
-	}
 	var edataSym *pe.Symbol
 	for _, sym := range pf.Symbols {
-		if sym.Name == prefix+"runtime.edata" {
+		if sym.Name == "runtime.edata" || sym.Name == "_runtime.edata" {
 			edataSym = sym
 			break
 		}
 	}
 	if edataSym == nil {
-		t.Fatalf("could not find symbol %sruntime.edata", prefix)
+		t.Fatal("could not find symbol runtime.edata")
 	}
 	if edataSym.SectionNumber <= 0 {
 		t.Fatalf("runtime.edata not in a section (section number %d)", edataSym.SectionNumber)
