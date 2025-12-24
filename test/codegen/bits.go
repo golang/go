@@ -16,14 +16,14 @@ func bitsCheckConstLeftShiftU64(a uint64) (n int) {
 	// amd64:"BTQ [$]63,"
 	// arm64:"TBNZ [$]63,"
 	// loong64:"MOVV [$]" "AND" "BNE"
-	// riscv64:"MOV [$]-9223372036854775808," "AND " "BNEZ"
+	// riscv64:"SRLI [$]63," "ANDI [$]1," "BNEZ" -"MOV [$]"
 	if a&(1<<63) != 0 {
 		return 1
 	}
 	// amd64:"BTQ [$]60,"
 	// arm64:"TBNZ [$]60,"
 	// loong64:"MOVV [$]" "AND" "BNE"
-	// riscv64:"MOV [$]1152921504606846976," "AND " "BNEZ"
+	// riscv64:"SRLI [$]60," "ANDI [$]1," "BNEZ" -"MOV [$]"
 	if a&(1<<60) != 0 {
 		return 1
 	}
@@ -69,7 +69,7 @@ func bitsCheckConstRightShiftU64(a [8]uint64) (n int) {
 	// amd64:"BTL [$]1,"
 	// arm64:"TBZ [$]1," -"LSR"
 	// loong64:"SRLV [$]1," "AND [$]1," "BEQ"
-	// riscv64:"SRLI [$]1," "ANDI [$]1," "BEQZ"
+	// riscv64:"ANDI [$]2," "BEQZ" -"SRLI"
 	if (a[4]>>1)&1 == 0 {
 		return 1
 	}
@@ -83,7 +83,7 @@ func bitsCheckConstRightShiftU64(a [8]uint64) (n int) {
 	// amd64:"BTL [$]7,"
 	// arm64:"TBNZ [$]7," -"LSR"
 	// loong64:"SRLV [$]5," "AND [$]4," "BNE"
-	// riscv64:"SRLI [$]5," "ANDI [$]4," "BNEZ"
+	// riscv64:"ANDI [$]128," "BNEZ" -"SRLI"
 	if (a[6]>>5)&4 == 0 {
 		return 1
 	}
@@ -112,14 +112,14 @@ func bitsCheckMaskU64(a uint64) (n int) {
 	// amd64:"BTQ [$]63,"
 	// arm64:"TBNZ [$]63,"
 	// loong64:"MOVV [$]" "AND" "BNE"
-	// riscv64:"MOV [$]-9223372036854775808" "AND " "BNEZ"
+	// riscv64:"SRLI [$]63," "ANDI [$]1," "BNEZ" -"MOV [$]"
 	if a&0x8000000000000000 != 0 {
 		return 1
 	}
 	// amd64:"BTQ [$]59,"
 	// arm64:"TBNZ [$]59,"
 	// loong64:"MOVV [$]" "AND" "BNE"
-	// riscv64:"MOV [$]576460752303423488" "AND " "BNEZ"
+	// riscv64:"SRLI [$]59," "ANDI [$]1," "BNEZ" -"MOV [$]"
 	if a&0x800000000000000 != 0 {
 		return 1
 	}
@@ -241,14 +241,14 @@ func bitsCheckConstShiftLeftU32(a uint32) (n int) {
 	// amd64:"BTL [$]31,"
 	// arm64:"TBNZ [$]31,"
 	// loong64:"AND [$]" "MOVWU" "BNE"
-	// riscv64:"MOV [$]2147483648," "AND " "BNEZ"
+	// riscv64:"SRLI [$]31," "ANDI [$]1," "BNEZ" -"MOV [$]"
 	if a&(1<<31) != 0 {
 		return 1
 	}
 	// amd64:"BTL [$]28,"
 	// arm64:"TBNZ [$]28,"
 	// loong64:"AND [$]" "BNE"
-	// riscv64:"ANDI [$]268435456," "BNEZ"
+	// riscv64:"SRLI [$]28," "ANDI [$]1," "BNEZ" -"MOV [$]"
 	if a&(1<<28) != 0 {
 		return 1
 	}
@@ -337,14 +337,14 @@ func bitsCheckMaskU32(a uint32) (n int) {
 	// amd64:"BTL [$]31,"
 	// arm64:"TBNZ [$]31,"
 	// loong64:"AND [$]" "MOVWU" "BNE"
-	// riscv64:"MOV [$]2147483648," "AND " "BNEZ"
+	// riscv64:"SRLI [$]31," "ANDI [$]1," "BNEZ" -"MOV [$]"
 	if a&0x80000000 != 0 {
 		return 1
 	}
 	// amd64:"BTL [$]27,"
 	// arm64:"TBNZ [$]27,"
 	// loong64:"AND [$]" "BNE"
-	// riscv64:"ANDI [$]134217728," "BNEZ"
+	// riscv64:"SRLI [$]27," "ANDI [$]1," "BNEZ" -"MOV [$]"
 	if a&0x8000000 != 0 {
 		return 1
 	}

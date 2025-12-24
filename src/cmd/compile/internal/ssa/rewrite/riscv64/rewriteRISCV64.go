@@ -8258,6 +8258,86 @@ func rewriteValue_OpRISCV64SEQZ(v *ssa.Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (SEQZ a:(ANDI [x] y))
+	// cond: ssa.IsPowerOfTwo(uint64(x)) && !ssa.Is12Bit(x) && a.Uses == 1
+	// result: (SEQZ (ANDI <typ.UInt64> [1] (SRLI <typ.UInt64> [ssa.Log64u(uint64(x))] y)))
+	for {
+		a := v_0
+		if a.Op != ssaop.OpRISCV64ANDI {
+			break
+		}
+		x := ssa.AuxIntToInt64(a.AuxInt)
+		y := a.Args[0]
+		if !(ssa.IsPowerOfTwo(uint64(x)) && !ssa.Is12Bit(x) && a.Uses == 1) {
+			break
+		}
+		v.Reset(ssaop.OpRISCV64SEQZ)
+		v0 := b.NewValue0(v.Pos, ssaop.OpRISCV64ANDI, typ.UInt64)
+		v0.AuxInt = ssa.Int64ToAuxInt(1)
+		v1 := b.NewValue0(v.Pos, ssaop.OpRISCV64SRLI, typ.UInt64)
+		v1.AuxInt = ssa.Int64ToAuxInt(ssa.Log64u(uint64(x)))
+		v1.AddArg(y)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (SEQZ a:(AND (MOVDconst [x]) y))
+	// cond: ssa.IsPowerOfTwo(uint64(x)) && !ssa.Is12Bit(x) && a.Uses == 1
+	// result: (SEQZ (ANDI <typ.UInt64> [1] (SRLI <typ.UInt64> [ssa.Log64u(uint64(x))] y)))
+	for {
+		a := v_0
+		if a.Op != ssaop.OpRISCV64AND {
+			break
+		}
+		_ = a.Args[1]
+		a_0 := a.Args[0]
+		a_1 := a.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, a_0, a_1 = _i0+1, a_1, a_0 {
+			if a_0.Op != ssaop.OpRISCV64MOVDconst {
+				continue
+			}
+			x := ssa.AuxIntToInt64(a_0.AuxInt)
+			y := a_1
+			if !(ssa.IsPowerOfTwo(uint64(x)) && !ssa.Is12Bit(x) && a.Uses == 1) {
+				continue
+			}
+			v.Reset(ssaop.OpRISCV64SEQZ)
+			v0 := b.NewValue0(v.Pos, ssaop.OpRISCV64ANDI, typ.UInt64)
+			v0.AuxInt = ssa.Int64ToAuxInt(1)
+			v1 := b.NewValue0(v.Pos, ssaop.OpRISCV64SRLI, typ.UInt64)
+			v1.AuxInt = ssa.Int64ToAuxInt(ssa.Log64u(uint64(x)))
+			v1.AddArg(y)
+			v0.AddArg(v1)
+			v.AddArg(v0)
+			return true
+		}
+		break
+	}
+	// match: (SEQZ a:(ANDI [x] (SRLI [y] z)))
+	// cond: ssa.IsPowerOfTwo(uint64(x)) && ssa.Is12Bit(x << y) && a.Uses == 1
+	// result: (SEQZ (ANDI <typ.UInt64> [x << y] z))
+	for {
+		a := v_0
+		if a.Op != ssaop.OpRISCV64ANDI {
+			break
+		}
+		x := ssa.AuxIntToInt64(a.AuxInt)
+		a_0 := a.Args[0]
+		if a_0.Op != ssaop.OpRISCV64SRLI {
+			break
+		}
+		y := ssa.AuxIntToInt64(a_0.AuxInt)
+		z := a_0.Args[0]
+		if !(ssa.IsPowerOfTwo(uint64(x)) && ssa.Is12Bit(x<<y) && a.Uses == 1) {
+			break
+		}
+		v.Reset(ssaop.OpRISCV64SEQZ)
+		v0 := b.NewValue0(v.Pos, ssaop.OpRISCV64ANDI, typ.UInt64)
+		v0.AuxInt = ssa.Int64ToAuxInt(x << y)
+		v0.AddArg(z)
+		v.AddArg(v0)
+		return true
+	}
 	// match: (SEQZ (ANDI [c] (FCLASSD (FNEGD x))))
 	// result: (SEQZ (ANDI <typ.Int64> [(c&0b11_0000_0000)|int64(bits.Reverse8(uint8(c))&0b1111_1111)] (FCLASSD x)))
 	for {
@@ -8606,6 +8686,86 @@ func rewriteValue_OpRISCV64SNEZ(v *ssa.Value) bool {
 		x := v_0.Args[0]
 		v.Reset(ssaop.OpRISCV64SNEZ)
 		v.AddArg(x)
+		return true
+	}
+	// match: (SNEZ a:(ANDI [x] y))
+	// cond: ssa.IsPowerOfTwo(uint64(x)) && !ssa.Is12Bit(x) && a.Uses == 1
+	// result: (SNEZ (ANDI <typ.UInt64> [1] (SRLI <typ.UInt64> [ssa.Log64u(uint64(x))] y)))
+	for {
+		a := v_0
+		if a.Op != ssaop.OpRISCV64ANDI {
+			break
+		}
+		x := ssa.AuxIntToInt64(a.AuxInt)
+		y := a.Args[0]
+		if !(ssa.IsPowerOfTwo(uint64(x)) && !ssa.Is12Bit(x) && a.Uses == 1) {
+			break
+		}
+		v.Reset(ssaop.OpRISCV64SNEZ)
+		v0 := b.NewValue0(v.Pos, ssaop.OpRISCV64ANDI, typ.UInt64)
+		v0.AuxInt = ssa.Int64ToAuxInt(1)
+		v1 := b.NewValue0(v.Pos, ssaop.OpRISCV64SRLI, typ.UInt64)
+		v1.AuxInt = ssa.Int64ToAuxInt(ssa.Log64u(uint64(x)))
+		v1.AddArg(y)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (SNEZ a:(AND (MOVDconst [x]) y))
+	// cond: ssa.IsPowerOfTwo(uint64(x)) && !ssa.Is12Bit(x) && a.Uses == 1
+	// result: (SNEZ (ANDI <typ.UInt64> [1] (SRLI <typ.UInt64> [ssa.Log64u(uint64(x))] y)))
+	for {
+		a := v_0
+		if a.Op != ssaop.OpRISCV64AND {
+			break
+		}
+		_ = a.Args[1]
+		a_0 := a.Args[0]
+		a_1 := a.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, a_0, a_1 = _i0+1, a_1, a_0 {
+			if a_0.Op != ssaop.OpRISCV64MOVDconst {
+				continue
+			}
+			x := ssa.AuxIntToInt64(a_0.AuxInt)
+			y := a_1
+			if !(ssa.IsPowerOfTwo(uint64(x)) && !ssa.Is12Bit(x) && a.Uses == 1) {
+				continue
+			}
+			v.Reset(ssaop.OpRISCV64SNEZ)
+			v0 := b.NewValue0(v.Pos, ssaop.OpRISCV64ANDI, typ.UInt64)
+			v0.AuxInt = ssa.Int64ToAuxInt(1)
+			v1 := b.NewValue0(v.Pos, ssaop.OpRISCV64SRLI, typ.UInt64)
+			v1.AuxInt = ssa.Int64ToAuxInt(ssa.Log64u(uint64(x)))
+			v1.AddArg(y)
+			v0.AddArg(v1)
+			v.AddArg(v0)
+			return true
+		}
+		break
+	}
+	// match: (SNEZ a:(ANDI [x] (SRLI [y] z)))
+	// cond: ssa.IsPowerOfTwo(uint64(x)) && ssa.Is12Bit(x << y) && a.Uses == 1
+	// result: (SNEZ (ANDI <typ.UInt64> [x << y] z))
+	for {
+		a := v_0
+		if a.Op != ssaop.OpRISCV64ANDI {
+			break
+		}
+		x := ssa.AuxIntToInt64(a.AuxInt)
+		a_0 := a.Args[0]
+		if a_0.Op != ssaop.OpRISCV64SRLI {
+			break
+		}
+		y := ssa.AuxIntToInt64(a_0.AuxInt)
+		z := a_0.Args[0]
+		if !(ssa.IsPowerOfTwo(uint64(x)) && ssa.Is12Bit(x<<y) && a.Uses == 1) {
+			break
+		}
+		v.Reset(ssaop.OpRISCV64SNEZ)
+		v0 := b.NewValue0(v.Pos, ssaop.OpRISCV64ANDI, typ.UInt64)
+		v0.AuxInt = ssa.Int64ToAuxInt(x << y)
+		v0.AddArg(z)
+		v.AddArg(v0)
 		return true
 	}
 	// match: (SNEZ (ANDI [c] (FCLASSD (FNEGD x))))
@@ -11258,6 +11418,74 @@ func RewriteBlock(b *ssa.Block) bool {
 			b.ResetWithControl2(block.BlockRISCV64BGEU, y, v0)
 			return true
 		}
+		// match: (BEQZ a:(ANDI [x] y) yes no)
+		// cond: ssa.IsPowerOfTwo(uint64(x)) && !ssa.Is12Bit(x) && a.Uses == 1
+		// result: (BEQZ (ANDI <typ.UInt64> [1] (SRLI <typ.UInt64> [ssa.Log64u(uint64(x))] y)) yes no)
+		for b.Controls[0].Op == ssaop.OpRISCV64ANDI {
+			a := b.Controls[0]
+			x := ssa.AuxIntToInt64(a.AuxInt)
+			y := a.Args[0]
+			if !(ssa.IsPowerOfTwo(uint64(x)) && !ssa.Is12Bit(x) && a.Uses == 1) {
+				break
+			}
+			v0 := b.NewValue0(a.Pos, ssaop.OpRISCV64ANDI, typ.UInt64)
+			v0.AuxInt = ssa.Int64ToAuxInt(1)
+			v1 := b.NewValue0(a.Pos, ssaop.OpRISCV64SRLI, typ.UInt64)
+			v1.AuxInt = ssa.Int64ToAuxInt(ssa.Log64u(uint64(x)))
+			v1.AddArg(y)
+			v0.AddArg(v1)
+			b.ResetWithControl(block.BlockRISCV64BEQZ, v0)
+			return true
+		}
+		// match: (BEQZ a:(AND (MOVDconst [x]) y) yes no)
+		// cond: ssa.IsPowerOfTwo(uint64(x)) && !ssa.Is12Bit(x) && a.Uses == 1
+		// result: (BEQZ (ANDI <typ.UInt64> [1] (SRLI <typ.UInt64> [ssa.Log64u(uint64(x))] y)) yes no)
+		for b.Controls[0].Op == ssaop.OpRISCV64AND {
+			a := b.Controls[0]
+			_ = a.Args[1]
+			a_0 := a.Args[0]
+			a_1 := a.Args[1]
+			for _i0 := 0; _i0 <= 1; _i0, a_0, a_1 = _i0+1, a_1, a_0 {
+				if a_0.Op != ssaop.OpRISCV64MOVDconst {
+					continue
+				}
+				x := ssa.AuxIntToInt64(a_0.AuxInt)
+				y := a_1
+				if !(ssa.IsPowerOfTwo(uint64(x)) && !ssa.Is12Bit(x) && a.Uses == 1) {
+					continue
+				}
+				v0 := b.NewValue0(a.Pos, ssaop.OpRISCV64ANDI, typ.UInt64)
+				v0.AuxInt = ssa.Int64ToAuxInt(1)
+				v1 := b.NewValue0(a.Pos, ssaop.OpRISCV64SRLI, typ.UInt64)
+				v1.AuxInt = ssa.Int64ToAuxInt(ssa.Log64u(uint64(x)))
+				v1.AddArg(y)
+				v0.AddArg(v1)
+				b.ResetWithControl(block.BlockRISCV64BEQZ, v0)
+				return true
+			}
+			break
+		}
+		// match: (BEQZ a:(ANDI [x] (SRLI [y] z)) yes no)
+		// cond: ssa.IsPowerOfTwo(uint64(x)) && ssa.Is12Bit(x << y) && a.Uses == 1
+		// result: (BEQZ (ANDI <typ.UInt64> [x << y] z) yes no)
+		for b.Controls[0].Op == ssaop.OpRISCV64ANDI {
+			a := b.Controls[0]
+			x := ssa.AuxIntToInt64(a.AuxInt)
+			a_0 := a.Args[0]
+			if a_0.Op != ssaop.OpRISCV64SRLI {
+				break
+			}
+			y := ssa.AuxIntToInt64(a_0.AuxInt)
+			z := a_0.Args[0]
+			if !(ssa.IsPowerOfTwo(uint64(x)) && ssa.Is12Bit(x<<y) && a.Uses == 1) {
+				break
+			}
+			v0 := b.NewValue0(a.Pos, ssaop.OpRISCV64ANDI, typ.UInt64)
+			v0.AuxInt = ssa.Int64ToAuxInt(x << y)
+			v0.AddArg(z)
+			b.ResetWithControl(block.BlockRISCV64BEQZ, v0)
+			return true
+		}
 		// match: (BEQZ (ANDI [c] (FCLASSD (FNEGD x))) yes no)
 		// result: (BEQZ (ANDI <typ.Int64> [(c&0b11_0000_0000)|int64(bits.Reverse8(uint8(c))&0b1111_1111)] (FCLASSD x)) yes no)
 		for b.Controls[0].Op == ssaop.OpRISCV64ANDI {
@@ -11501,6 +11729,74 @@ func RewriteBlock(b *ssa.Block) bool {
 			v0 := b.NewValue0(b.Pos, ssaop.OpRISCV64MOVDconst, typ.UInt64)
 			v0.AuxInt = ssa.Int64ToAuxInt(x)
 			b.ResetWithControl2(block.BlockRISCV64BLTU, y, v0)
+			return true
+		}
+		// match: (BNEZ a:(ANDI [x] y) yes no)
+		// cond: ssa.IsPowerOfTwo(uint64(x)) && !ssa.Is12Bit(x) && a.Uses == 1
+		// result: (BNEZ (ANDI <typ.UInt64> [1] (SRLI <typ.UInt64> [ssa.Log64u(uint64(x))] y)) yes no)
+		for b.Controls[0].Op == ssaop.OpRISCV64ANDI {
+			a := b.Controls[0]
+			x := ssa.AuxIntToInt64(a.AuxInt)
+			y := a.Args[0]
+			if !(ssa.IsPowerOfTwo(uint64(x)) && !ssa.Is12Bit(x) && a.Uses == 1) {
+				break
+			}
+			v0 := b.NewValue0(a.Pos, ssaop.OpRISCV64ANDI, typ.UInt64)
+			v0.AuxInt = ssa.Int64ToAuxInt(1)
+			v1 := b.NewValue0(a.Pos, ssaop.OpRISCV64SRLI, typ.UInt64)
+			v1.AuxInt = ssa.Int64ToAuxInt(ssa.Log64u(uint64(x)))
+			v1.AddArg(y)
+			v0.AddArg(v1)
+			b.ResetWithControl(block.BlockRISCV64BNEZ, v0)
+			return true
+		}
+		// match: (BNEZ a:(AND (MOVDconst [x]) y) yes no)
+		// cond: ssa.IsPowerOfTwo(uint64(x)) && !ssa.Is12Bit(x) && a.Uses == 1
+		// result: (BNEZ (ANDI <typ.UInt64> [1] (SRLI <typ.UInt64> [ssa.Log64u(uint64(x))] y)) yes no)
+		for b.Controls[0].Op == ssaop.OpRISCV64AND {
+			a := b.Controls[0]
+			_ = a.Args[1]
+			a_0 := a.Args[0]
+			a_1 := a.Args[1]
+			for _i0 := 0; _i0 <= 1; _i0, a_0, a_1 = _i0+1, a_1, a_0 {
+				if a_0.Op != ssaop.OpRISCV64MOVDconst {
+					continue
+				}
+				x := ssa.AuxIntToInt64(a_0.AuxInt)
+				y := a_1
+				if !(ssa.IsPowerOfTwo(uint64(x)) && !ssa.Is12Bit(x) && a.Uses == 1) {
+					continue
+				}
+				v0 := b.NewValue0(a.Pos, ssaop.OpRISCV64ANDI, typ.UInt64)
+				v0.AuxInt = ssa.Int64ToAuxInt(1)
+				v1 := b.NewValue0(a.Pos, ssaop.OpRISCV64SRLI, typ.UInt64)
+				v1.AuxInt = ssa.Int64ToAuxInt(ssa.Log64u(uint64(x)))
+				v1.AddArg(y)
+				v0.AddArg(v1)
+				b.ResetWithControl(block.BlockRISCV64BNEZ, v0)
+				return true
+			}
+			break
+		}
+		// match: (BNEZ a:(ANDI [x] (SRLI [y] z)) yes no)
+		// cond: ssa.IsPowerOfTwo(uint64(x)) && ssa.Is12Bit(x << y) && a.Uses == 1
+		// result: (BNEZ (ANDI <typ.UInt64> [x << y] z) yes no)
+		for b.Controls[0].Op == ssaop.OpRISCV64ANDI {
+			a := b.Controls[0]
+			x := ssa.AuxIntToInt64(a.AuxInt)
+			a_0 := a.Args[0]
+			if a_0.Op != ssaop.OpRISCV64SRLI {
+				break
+			}
+			y := ssa.AuxIntToInt64(a_0.AuxInt)
+			z := a_0.Args[0]
+			if !(ssa.IsPowerOfTwo(uint64(x)) && ssa.Is12Bit(x<<y) && a.Uses == 1) {
+				break
+			}
+			v0 := b.NewValue0(a.Pos, ssaop.OpRISCV64ANDI, typ.UInt64)
+			v0.AuxInt = ssa.Int64ToAuxInt(x << y)
+			v0.AddArg(z)
+			b.ResetWithControl(block.BlockRISCV64BNEZ, v0)
 			return true
 		}
 		// match: (BNEZ (ANDI [c] (FCLASSD (FNEGD x))) yes no)

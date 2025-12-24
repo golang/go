@@ -829,6 +829,16 @@
 (Select0 m:(LoweredMuluhilo x y)) && m.Uses == 1 => (MULHU x y)
 (Select1 m:(LoweredMuluhilo x y)) && m.Uses == 1 => (MUL x y)
 
+// Optimise bit tests with larger than 12 bit values.
+(S(EQ|NE)Z a:(ANDI [x] y)) && ssa.IsPowerOfTwo(uint64(x)) && !ssa.Is12Bit(x) && a.Uses == 1 => (S(EQ|NE)Z (ANDI <typ.UInt64> [1] (SRLI <typ.UInt64> [ssa.Log64u(uint64(x))] y)))
+(B(EQ|NE)Z a:(ANDI [x] y) yes no) && ssa.IsPowerOfTwo(uint64(x)) && !ssa.Is12Bit(x) && a.Uses == 1 => (B(EQ|NE)Z (ANDI <typ.UInt64> [1] (SRLI <typ.UInt64> [ssa.Log64u(uint64(x))] y)) yes no)
+(S(EQ|NE)Z a:(AND (MOVDconst [x]) y)) && ssa.IsPowerOfTwo(uint64(x)) && !ssa.Is12Bit(x) && a.Uses == 1 => (S(EQ|NE)Z (ANDI <typ.UInt64> [1] (SRLI <typ.UInt64> [ssa.Log64u(uint64(x))] y)))
+(B(EQ|NE)Z a:(AND (MOVDconst [x]) y) yes no) && ssa.IsPowerOfTwo(uint64(x)) && !ssa.Is12Bit(x) && a.Uses == 1 => (B(EQ|NE)Z (ANDI <typ.UInt64> [1] (SRLI <typ.UInt64> [ssa.Log64u(uint64(x))] y)) yes no)
+
+// Combine small shifts into bit tests.
+(S(EQ|NE)Z a:(ANDI [x] (SRLI [y] z))) && ssa.IsPowerOfTwo(uint64(x)) && ssa.Is12Bit(x << y) && a.Uses == 1 => (S(EQ|NE)Z (ANDI <typ.UInt64> [x << y] z))
+(B(EQ|NE)Z a:(ANDI [x] (SRLI [y] z)) yes no) && ssa.IsPowerOfTwo(uint64(x)) && ssa.Is12Bit(x << y) && a.Uses == 1 => (B(EQ|NE)Z (ANDI <typ.UInt64> [x << y] z) yes no)
+
 (FADD(S|D) a (FMUL(S|D) x y)) && a.Block.Func.UseFMA(v) => (FMADD(S|D) x y a)
 (FSUB(S|D) a (FMUL(S|D) x y)) && a.Block.Func.UseFMA(v) => (FNMSUB(S|D) x y a)
 (FSUB(S|D) (FMUL(S|D) x y) a) && a.Block.Func.UseFMA(v) => (FMSUB(S|D) x y a)
