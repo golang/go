@@ -260,9 +260,6 @@ func (r *rewriter) rewriteSwitchStmt(s *SwitchStmt) Stmt {
 		return s
 	}
 
-	// If there's already an init statement, keep the switch as-is (for now).
-	// Supporting both an existing init and a synthesized match temp would require
-	// introducing an enclosing block, which is out of scope for this sugar.
 	if s.Init != nil {
 		s.Init = r.rewriteSimpleStmt(s.Init)
 		if s.Tag != nil {
@@ -274,9 +271,7 @@ func (r *rewriter) rewriteSwitchStmt(s *SwitchStmt) Stmt {
 		return s
 	}
 
-	// Detect enum-pattern cases and require they all refer to the same enum type name.
-	// Also reject multi-case clauses with payload binding (conservative, to avoid
-	// changing fallthrough semantics).
+	// Detect enum-pattern cases...
 	enumName := ""
 	if r.enumVariants != nil {
 		for _, cc := range s.Body {
@@ -285,7 +280,6 @@ func (r *rewriter) rewriteSwitchStmt(s *SwitchStmt) Stmt {
 				for _, ce := range elems {
 					_, _, bindName, _, _, _, ok := r.parseEnumCasePatternFull(ce)
 					if ok && bindName != "" && bindName != "_" {
-						// Don't rewrite this switch at all.
 						enumName = ""
 						goto noEnumMatchRewrite
 					}
@@ -299,20 +293,17 @@ func (r *rewriter) rewriteSwitchStmt(s *SwitchStmt) Stmt {
 				if enumName == "" {
 					enumName = en
 				} else if enumName != en {
-					// Mixed-enum patterns in one switch: don't rewrite.
 					enumName = ""
 					break
 				}
 			}
 			if enumName == "" {
-				// either none found yet, or mixed-enum reset; continue scanning but we'll only rewrite if non-empty at end
 				continue
 			}
 		}
 	}
 
 noEnumMatchRewrite:
-	// If no enum patterns found, do the normal rewrite.
 	if enumName == "" || s.Tag == nil {
 		if s.Tag != nil {
 			s.Tag = r.rewriteExpr(s.Tag)
@@ -323,13 +314,10 @@ noEnumMatchRewrite:
 		return s
 	}
 
-	// We will generate unsafe reads for tag/payload.
 	r.needsUnsafe = true
-
 	pos := s.Pos()
 
-	// Create a temp holding the switch tag expression so we can take its address.
-	// switch _m := <tag>; { ... }
+	// 1. switch _match := <tag>; { ... }
 	r.tempCounter++
 	matchVarName := "_match" + strconv.Itoa(r.tempCounter)
 	matchVar := NewName(pos, matchVarName)
@@ -341,19 +329,15 @@ noEnumMatchRewrite:
 	init.Lhs = matchVar
 	init.Rhs = r.rewriteExpr(s.Tag)
 	s.Init = init
-
-	// Turn into expression-less (boolean) switch.
 	s.Tag = nil
 
-	// Rewrite case clauses.
 	var newBody []*CaseClause
 	for _, cc := range s.Body {
 		if cc == nil {
 			continue
 		}
 
-		// default:
-		if cc.Cases == nil {
+		if cc.Cases == nil { // default
 			for i, st := range cc.Body {
 				cc.Body[i] = r.rewriteStmt(st)
 			}
@@ -362,16 +346,16 @@ noEnumMatchRewrite:
 		}
 
 		elems := UnpackListExpr(cc.Cases)
-
 		conds := make([]Expr, 0, len(elems))
-		var bindName string
+
+		var bindNames []string
 		var bindType Expr
 		var bindVarPos Pos
+
 		for _, ce := range elems {
-			cond, bName, bTyp, bPos, ok := r.buildEnumCaseCondition(matchVarRef, ce)
+			cond, bNames, bTyp, bPos, ok := r.buildEnumCaseCondition(matchVarRef, ce)
+
 			if !ok {
-				// Non-pattern: compare directly against the original switch tag value.
-				// case expr  =>  case _match == expr
 				c := new(Operation)
 				c.SetPos(pos)
 				c.Op = Eql
@@ -381,12 +365,21 @@ noEnumMatchRewrite:
 				continue
 			}
 			conds = append(conds, cond)
-			if bName != "" && bName != "_" {
-				bindName, bindType, bindVarPos = bName, bTyp, bPos
+
+			if len(bNames) > 0 {
+				hasRealName := false
+				for _, n := range bNames {
+					if n != "_" {
+						hasRealName = true
+						break
+					}
+				}
+				if hasRealName {
+					bindNames, bindType, bindVarPos = bNames, bTyp, bPos
+				}
 			}
 		}
 
-		// Set rewritten case conditions.
 		if len(conds) == 1 {
 			cc.Cases = conds[0]
 		} else {
@@ -396,23 +389,60 @@ noEnumMatchRewrite:
 			cc.Cases = l
 		}
 
-		// Build rewritten body, inserting binding if needed.
 		var newStmts []Stmt
-		if bindName != "" && bindName != "_" && bindType != nil {
-			// i := <payload>
-			payload := r.enumPayloadReadExpr(matchVarRef, bindType, bindVarPos)
-			as := new(AssignStmt)
-			as.SetPos(bindVarPos)
-			as.Op = Def
-			as.Lhs = NewName(bindVarPos, bindName)
-			as.Rhs = payload
-			newStmts = append(newStmts, as)
+
+		if len(bindNames) > 0 && bindType != nil {
+			payloadExpr := r.enumPayloadReadExpr(matchVarRef, bindType, bindVarPos)
+
+			r.tempCounter++
+			payloadTempName := "_payload" + strconv.Itoa(r.tempCounter)
+			payloadTempRef := NewName(bindVarPos, payloadTempName)
+
+			assignTemp := new(AssignStmt)
+			assignTemp.SetPos(bindVarPos)
+			assignTemp.Op = Def
+			assignTemp.Lhs = NewName(bindVarPos, payloadTempName)
+			assignTemp.Rhs = payloadExpr
+			newStmts = append(newStmts, assignTemp)
+
+			typeList := unpackTypeList(bindType)
+
+			if len(typeList) == 1 && isOptimizableScalar(typeList[0]) {
+				if len(bindNames) == 1 && bindNames[0] != "_" {
+					// v := _payloadN
+					as := new(AssignStmt)
+					as.SetPos(bindVarPos)
+					as.Op = Def
+					as.Lhs = NewName(bindVarPos, bindNames[0])
+					as.Rhs = payloadTempRef
+					newStmts = append(newStmts, as)
+				}
+
+			} else {
+				for i, name := range bindNames {
+					if name == "_" {
+						continue
+					}
+
+					fieldSel := &SelectorExpr{
+						X:   payloadTempRef,
+						Sel: NewName(bindVarPos, "_"+strconv.Itoa(i)),
+					}
+
+					as := new(AssignStmt)
+					as.SetPos(bindVarPos)
+					as.Op = Def
+					as.Lhs = NewName(bindVarPos, name)
+					as.Rhs = fieldSel
+					newStmts = append(newStmts, as)
+				}
+			}
 		}
+
 		for _, st := range cc.Body {
 			newStmts = append(newStmts, r.rewriteStmt(st))
 		}
 		cc.Body = newStmts
-
 		newBody = append(newBody, cc)
 	}
 	s.Body = newBody
@@ -432,74 +462,95 @@ func (r *rewriter) parseEnumCasePattern(e Expr) (string, string, bool) {
 //   - Enum.Variant(_)
 //   - Enum.Variant(name)
 //   - Enum.Variant(lit)
+//   - Enum.Variant(args...)
 //
 // Returns:
 //
-//	enumName, variantName, bindName, litExpr, payloadType, bindsPayload, ok
+//	enumName, variantName, firstBindName, literalExpr, payloadType, variantInfo, ok
 //
 // Exactly one of (bindName, litExpr) may be set for payload variants.
-func (r *rewriter) parseEnumCasePatternFull(e Expr) (string, string, string, Expr, Expr, bool, bool) {
-	if e == nil || r.enumVariants == nil {
-		return "", "", "", nil, nil, false, false
+func (r *rewriter) parseEnumCasePatternFull(expr Expr) (string, string, string, Expr, Expr, enumVariantInfo, bool) {
+	// 1. 解包 CallExpr (如果有)
+	var selector Expr = expr
+	var args []Expr
+	if call, ok := expr.(*CallExpr); ok {
+		selector = call.Fun
+		args = call.ArgList
 	}
 
-	// Unit: Enum.Variant
-	if sel, ok := e.(*SelectorExpr); ok && sel != nil {
-		if x, ok := sel.X.(*Name); ok && x != nil && sel.Sel != nil {
-			if m, ok := r.enumVariants[x.Value]; ok {
-				if info, ok := m[sel.Sel.Value]; ok && !info.hasPayload {
-					return x.Value, sel.Sel.Value, "", nil, nil, false, true
-				}
-			}
+	// 2. 解析 Enum.Variant
+	sel, ok := selector.(*SelectorExpr)
+	if !ok {
+		return "", "", "", nil, nil, enumVariantInfo{}, false
+	}
+
+	// 必须是 Name.Name 的形式
+	lhs, ok := sel.X.(*Name)
+	if !ok {
+		return "", "", "", nil, nil, enumVariantInfo{}, false
+	}
+	enumName := lhs.Value
+	variantName := sel.Sel.Value
+
+	// 3. 查找元数据
+	if r.enumVariants == nil {
+		return "", "", "", nil, nil, enumVariantInfo{}, false
+	}
+	variants, ok := r.enumVariants[enumName]
+	if !ok {
+		return "", "", "", nil, nil, enumVariantInfo{}, false
+	}
+	info, ok := variants[variantName]
+	if !ok {
+		return "", "", "", nil, nil, enumVariantInfo{}, false
+	}
+
+	// 4. 验证参数
+	if !info.hasPayload {
+		// 无 Payload 变体，不允许有参数
+		if len(args) > 0 {
+			return "", "", "", nil, nil, enumVariantInfo{}, false
+		}
+		return enumName, variantName, "", nil, nil, info, true
+	}
+
+	// 有 Payload 变体，必须有参数
+	if len(args) == 0 {
+		return "", "", "", nil, nil, enumVariantInfo{}, false
+	}
+
+	// 简单提取第一个绑定名和字面量 (用于兼容旧逻辑)
+	// 复杂的绑定分析由 buildEnumCaseCondition 处理
+	firstBindName := ""
+	var firstLit Expr
+
+	if len(args) > 0 {
+		if name, ok := args[0].(*Name); ok {
+			firstBindName = name.Value
+		} else {
+			firstLit = args[0]
 		}
 	}
 
-	// Call: Enum.Variant(...)
-	if call, ok := e.(*CallExpr); ok && call != nil {
-		if sel, ok := call.Fun.(*SelectorExpr); ok && sel != nil {
-			if x, ok := sel.X.(*Name); ok && x != nil && sel.Sel != nil {
-				if m, ok := r.enumVariants[x.Value]; ok {
-					if info, ok := m[sel.Sel.Value]; ok {
-						// Unit with (): Enum.None()
-						if !info.hasPayload && len(call.ArgList) == 0 {
-							return x.Value, sel.Sel.Value, "", nil, nil, false, true
-						}
-						// Payload variants: allow exactly one argument for now.
-						if info.hasPayload && len(call.ArgList) == 1 {
-							arg := call.ArgList[0]
-							// "_" wildcard or binding name
-							if n, ok := arg.(*Name); ok && n != nil {
-								if n.Value == "_" {
-									return x.Value, sel.Sel.Value, "_", nil, info.payload, true, true
-								}
-								return x.Value, sel.Sel.Value, n.Value, nil, info.payload, true, true
-							}
-							// Literal/value match
-							return x.Value, sel.Sel.Value, "", arg, info.payload, false, true
-						}
-					}
-				}
-			}
-		}
-	}
-
-	return "", "", "", nil, nil, false, false
+	return enumName, variantName, firstBindName, firstLit, info.payload, info, true
 }
 
 // buildEnumCaseCondition builds a boolean condition expression for a case arm.
-// If the arm binds a variable, the condition only checks the tag; binding is done in the body.
-// Returns: cond, bindName, bindType, bindPos, ok
-func (r *rewriter) buildEnumCaseCondition(matchVar *Name, caseExpr Expr) (Expr, string, Expr, Pos, bool) {
-	en, vn, bindName, lit, payloadType, _, ok := r.parseEnumCasePatternFull(caseExpr)
+// Returns: cond, bindNames, bindType, bindPos, ok
+func (r *rewriter) buildEnumCaseCondition(matchVar *Name, caseExpr Expr) (Expr, []string, Expr, Pos, bool) {
+	// 1. 解析基础信息 (Enum名, 变体名, Payload类型)
+	// 注意：我们可以复用 parseEnumCasePatternFull，但忽略它返回的单数 bindName/lit
+	en, vn, _, _, payloadType, _, ok := r.parseEnumCasePatternFull(caseExpr)
 	if !ok {
-		return nil, "", nil, Pos{}, false
+		return nil, nil, nil, Pos{}, false
 	}
 	info, ok := r.enumVariants[en][vn]
 	if !ok {
-		return nil, "", nil, Pos{}, false
+		return nil, nil, nil, Pos{}, false
 	}
 	pos := caseExpr.Pos()
 
+	// 2. 构建 Tag 检查: _match._tag == tagVal
 	tagEq := new(Operation)
 	tagEq.SetPos(pos)
 	tagEq.Op = Eql
@@ -510,33 +561,103 @@ func (r *rewriter) buildEnumCaseCondition(matchVar *Name, caseExpr Expr) (Expr, 
 	tagLit.Value = strconv.Itoa(info.tag)
 	tagEq.Y = tagLit
 
-	// Unit variant: only tag check.
+	// Unit variant (没有负载): 只需要检查 Tag
 	if !info.hasPayload {
-		return tagEq, "", nil, pos, true
+		return tagEq, nil, nil, pos, true
 	}
 
-	// Payload literal match: tag && payload == lit
-	if lit != nil && payloadType != nil {
-		payloadEq := new(Operation)
-		payloadEq.SetPos(pos)
-		payloadEq.Op = Eql
-		payloadEq.X = r.enumPayloadReadExpr(matchVar, payloadType, pos)
-		payloadEq.Y = r.rewriteExpr(lit)
-
-		and := new(Operation)
-		and.SetPos(pos)
-		and.Op = AndAnd
-		and.X = tagEq
-		and.Y = payloadEq
-		return and, "", nil, pos, true
+	// 3. 分析参数 (Bindings vs Literals)
+	var args []Expr
+	if call, ok := caseExpr.(*CallExpr); ok {
+		args = call.ArgList
 	}
 
-	// Binding or wildcard: only tag check, binding extracted in body.
-	if bindName != "" && payloadType != nil {
-		return tagEq, bindName, payloadType, caseExpr.Pos(), true
+	// 如果没有参数但有 payloadType (理论上不应发生，除非语法允许省略)
+	if len(args) == 0 {
+		return tagEq, nil, nil, pos, true
 	}
 
-	return tagEq, "", nil, pos, true
+	// 检查参数中是否包含字面量 (Literals)
+	// 如果包含字面量 (e.g. Rect(10, y))，我们需要生成混合检查条件
+	hasLiteral := false
+	for _, arg := range args {
+		if _, isName := arg.(*Name); !isName {
+			// 如果不是变量名 (例如是 BasicLit, Operation 等)，则是字面量匹配
+			hasLiteral = true
+			break
+		}
+		// 注意：_ (Blank Identifier) 也是 Name
+	}
+
+	// === 情况 A: 包含字面量 (Pattern Matching) ===
+	// 生成: Tag == 1 && Payload._0 == 10 && Payload._1 == 20
+	if hasLiteral {
+		fullCond := tagEq
+
+		// 这里的逻辑稍微复杂，需要读取 Payload
+		// 1. 读取 Payload (复用之前的逻辑)
+		payloadExpr := r.enumPayloadReadExpr(matchVar, payloadType, pos)
+
+		// 2. 如果是多参数，payloadExpr 是结构体指针，需要逐个字段比较
+		//    如果是单参数标量，payloadExpr 是值
+
+		typeList := unpackTypeList(payloadType)
+		isScalarOpt := len(typeList) == 1 && isOptimizableScalar(typeList[0])
+
+		for i, arg := range args {
+			// 如果是变量名且不是 _，我们这里不支持 (混合绑定+字面量太复杂，暂不支持)
+			// 简单起见：如果是字面量模式，要求全匹配或忽略(_)，不支持提取变量
+			if name, ok := arg.(*Name); ok && name.Value == "_" {
+				continue // 通配符，跳过检查
+			}
+
+			// 构造读取表达式: val
+			var val Expr
+			if isScalarOpt {
+				val = payloadExpr
+			} else {
+				// pointer/tuple access: payloadExpr._i
+				val = &SelectorExpr{
+					X:   payloadExpr,
+					Sel: NewName(pos, "_"+strconv.Itoa(i)),
+				}
+			}
+
+			// 构造比较: val == arg
+			cmp := new(Operation)
+			cmp.SetPos(pos)
+			cmp.Op = Eql
+			cmp.X = val
+			cmp.Y = r.rewriteExpr(arg) // 递归重写右侧 (以防是常量表达式)
+
+			// AND 到主条件
+			and := new(Operation)
+			and.SetPos(pos)
+			and.Op = AndAnd
+			and.X = fullCond
+			and.Y = cmp
+			fullCond = and
+		}
+
+		// 返回完整条件，无绑定变量
+		return fullCond, nil, nil, pos, true
+	}
+
+	// === 情况 B: 纯变量绑定 (Variable Binding) ===
+	// 生成: Tag == 1 (变量提取由 rewriteSwitchStmt 完成)
+
+	var bindNames []string
+	for _, arg := range args {
+		if name, ok := arg.(*Name); ok {
+			bindNames = append(bindNames, name.Value)
+		} else {
+			// 防御性代码，前面已经检查过 hasLiteral
+			bindNames = append(bindNames, "_")
+		}
+	}
+
+	// 返回 Tag 条件 和 变量名列表
+	return tagEq, bindNames, payloadType, pos, true
 }
 
 func (r *rewriter) enumTagReadExpr(matchVar *Name, pos Pos) Expr {
@@ -578,76 +699,57 @@ func (r *rewriter) enumTagReadExpr(matchVar *Name, pos Pos) Expr {
 }
 
 func (r *rewriter) enumPayloadReadExpr(matchVar *Name, payloadType Expr, pos Pos) Expr {
-	// *(*T)(unsafe.Add(unsafe.Pointer(&matchVar), unsafe.Sizeof(int(0))))
-	// unsafe.Pointer(&matchVar)
-	addr := new(Operation)
-	addr.SetPos(pos)
-	addr.Op = And
-	addr.X = NewName(pos, matchVar.Value)
+	// 假设 payloadType 可能是 ListExpr (Tuple) 或单个 Expr
+	typeList := unpackTypeList(payloadType)
 
-	selPtr := new(SelectorExpr)
-	selPtr.SetPos(pos)
-	selPtr.X = NewName(pos, "unsafe")
-	selPtr.Sel = NewName(pos, "Pointer")
+	// === 路径 A: 标量优化 ===
+	if len(typeList) == 1 && isOptimizableScalar(typeList[0]) {
+		// 目标: *(*T)(unsafe.Pointer(&matchVar._scalar))
+		// 这样可以把 uint64 的 bits 完美还原回 int/bool/float
 
-	ptrCall := new(CallExpr)
-	ptrCall.SetPos(pos)
-	ptrCall.Fun = selPtr
-	ptrCall.ArgList = []Expr{addr}
+		targetType := typeList[0]
 
-	// unsafe.Sizeof(int(0))
-	zero := new(BasicLit)
-	zero.SetPos(pos)
-	zero.Kind = IntLit
-	zero.Value = "0"
+		// &matchVar._scalar
+		selScalar := &SelectorExpr{X: matchVar, Sel: NewName(pos, "_scalar")}
+		addrScalar := &Operation{Op: And, X: selScalar}
 
-	intCall := new(CallExpr)
-	intCall.SetPos(pos)
-	intCall.Fun = NewName(pos, "int")
-	intCall.ArgList = []Expr{zero}
+		// unsafe.Pointer(...)
+		ptrScalar := &CallExpr{
+			Fun:     &SelectorExpr{X: NewName(pos, "unsafe"), Sel: NewName(pos, "Pointer")},
+			ArgList: []Expr{addrScalar},
+		}
 
-	selSizeof := new(SelectorExpr)
-	selSizeof.SetPos(pos)
-	selSizeof.X = NewName(pos, "unsafe")
-	selSizeof.Sel = NewName(pos, "Sizeof")
+		// (*T)(...)
+		ptrToTarget := &Operation{Op: Mul, X: targetType} // *T
+		cast := &CallExpr{
+			Fun:     &ParenExpr{X: ptrToTarget},
+			ArgList: []Expr{ptrScalar},
+		}
 
-	sizeOfCall := new(CallExpr)
-	sizeOfCall.SetPos(pos)
-	sizeOfCall.Fun = selSizeof
-	sizeOfCall.ArgList = []Expr{intCall}
+		// *cast (解引用)
+		deref := &Operation{Op: Mul, X: cast}
+		return deref
+	}
 
-	// unsafe.Add(ptr, offset)
-	selAdd := new(SelectorExpr)
-	selAdd.SetPos(pos)
-	selAdd.X = NewName(pos, "unsafe")
-	selAdd.Sel = NewName(pos, "Add")
+	// === 路径 B: 通用路径 (指针 或 Tuple) ===
+	// 还原回匿名结构体指针: (*struct{_0 T0; _1 T1})(matchVar._ptr)
 
-	addCall := new(CallExpr)
-	addCall.SetPos(pos)
-	addCall.Fun = selAdd
-	addCall.ArgList = []Expr{ptrCall, sizeOfCall}
+	structFields := make([]*Field, len(typeList))
+	for idx, t := range typeList {
+		structFields[idx] = &Field{Name: NewName(pos, "_"+strconv.Itoa(idx)), Type: t}
+	}
+	anonStruct := &StructType{FieldList: structFields}
 
-	// (*T)(...)
-	ptrT := new(Operation)
-	ptrT.SetPos(pos)
-	ptrT.Op = Mul
-	ptrT.X = payloadType
+	ptrToStruct := &Operation{Op: Mul, X: anonStruct} // *struct{...}
 
-	parenT := new(ParenExpr)
-	parenT.SetPos(pos)
-	parenT.X = ptrT
+	selPtr := &SelectorExpr{X: matchVar, Sel: NewName(pos, "_ptr")}
 
-	cast := new(CallExpr)
-	cast.SetPos(pos)
-	cast.Fun = parenT
-	cast.ArgList = []Expr{addCall}
+	cast := &CallExpr{
+		Fun:     &ParenExpr{X: ptrToStruct},
+		ArgList: []Expr{selPtr},
+	}
 
-	deref := new(Operation)
-	deref.SetPos(pos)
-	deref.Op = Mul
-	deref.X = cast
-
-	return deref
+	return cast
 }
 
 func (r *rewriter) rewriteExpr(expr Expr) Expr {
@@ -756,18 +858,21 @@ func (r *rewriter) rewriteExpr(expr Expr) Expr {
 		for i, arg := range e.ArgList {
 			e.ArgList[i] = r.rewriteExpr(arg)
 		}
-		// Rewrite enum variant constructor sugar:
-		//   EnumName.Variant(args...)  =>  EnumName_Variant(args...)
-		// This is purely syntactic sugar and relies on rewriteEnums generating
-		// the underlying constructor functions.
+
 		if r.enumVariants != nil {
 			if sel, ok := e.Fun.(*SelectorExpr); ok {
 				if x, ok := sel.X.(*Name); ok && sel.Sel != nil {
 					if variants, ok := r.enumVariants[x.Value]; ok {
 						if info, ok := variants[sel.Sel.Value]; ok {
-							// Basic arity sanity checks. We don't report errors here to keep
-							// the rewriter simple; typechecking will diagnose mismatches.
-							if (info.hasPayload && len(e.ArgList) == 1) || (!info.hasPayload && len(e.ArgList) == 0) {
+
+							shouldRewrite := false
+							if info.hasPayload {
+								shouldRewrite = len(e.ArgList) >= 1
+							} else {
+								shouldRewrite = len(e.ArgList) == 0
+							}
+
+							if shouldRewrite {
 								e.Fun = NewName(sel.Sel.Pos(), x.Value+"_"+sel.Sel.Value)
 							}
 						}

@@ -203,15 +203,37 @@ func transformEnumDecl(n *syntax.EnumType, typeName *syntax.Name, pos src.XPos) 
 		ctorName := typeName.Value + "_" + variant.Name.Value
 		ctorSym := typecheck.Lookup(ctorName)
 
-		var params []*types.Field
-		if variant.Type != nil {
-			paramType := convertSyntaxTypeToIRType(variant.Type)
-			// 安全检查：如果类型转换失败，这里要报错
-			if paramType == nil {
-				base.ErrorfAt(pos, 0, "invalid type in enum variant %s", variant.Name.Value)
-				continue
+		// A. 解析所有参数类型
+		argTypes := extractVariantTypes(variant.Type)
+
+		// B. 确定"有效负载类型" (Effective Payload Type)
+		// 如果是多参数，我们在内存中把它视为一个 Struct
+		var effectiveType *types.Type
+		if len(argTypes) == 1 {
+			effectiveType = argTypes[0]
+		} else if len(argTypes) > 1 {
+			// 构建隐式 Tuple Struct: struct { _0 T0; _1 T1; ... }
+			fields := make([]*types.Field, len(argTypes))
+			for i, t := range argTypes {
+				fieldName := typecheck.Lookup("_" + strconv.Itoa(i))
+				fields[i] = types.NewField(pos, fieldName, t)
 			}
-			params = []*types.Field{types.NewField(pos, typecheck.Lookup("v"), paramType)}
+			effectiveType = types.NewStruct(fields)
+			// 必须手动计算一下 Struct 的大小/偏移，确保后端能处理
+			types.CalcSize(effectiveType)
+		}
+
+		// C. 构建构造函数签名 func Cons(v0 T0, v1 T1) ...
+		var params []*types.Field
+		if len(argTypes) > 0 {
+			for i, t := range argTypes {
+				// 参数名 v0, v1, v2 ... (单参数时保持 v)
+				pName := "v"
+				if len(argTypes) > 1 {
+					pName = "v" + strconv.Itoa(i)
+				}
+				params = append(params, types.NewField(pos, typecheck.Lookup(pName), t))
+			}
 		}
 
 		results := []*types.Field{types.NewField(pos, nil, structType)}
@@ -220,7 +242,7 @@ func transformEnumDecl(n *syntax.EnumType, typeName *syntax.Name, pos src.XPos) 
 		fn.DeclareParams(true)
 
 		ir.WithFunc(fn, func() {
-			// var n Number
+			// var n EnumStruct
 			nVar := fn.NewLocal(pos, typecheck.Lookup("n"), structType)
 
 			// n.tag = i
@@ -231,30 +253,53 @@ func transformEnumDecl(n *syntax.EnumType, typeName *syntax.Name, pos src.XPos) 
 			fn.Body.Append(typecheck.Stmt(tagAssign))
 
 			// Payload 写入
-			if variant.Type != nil && len(params) > 0 {
-				paramVar := fn.Dcl[0]
-
+			if effectiveType != nil {
 				// 获取 data 字段地址: &n.data
 				dataSel := ir.NewSelectorExpr(pos, ir.ODOT, nVar, typecheck.Lookup("data"))
-				dataSel.SetType(arrayType)
+				dataSel.SetType(arrayType) // arrayType 在函数前面定义
 				dataSel.SetTypecheck(1)
 				dataAddr := ir.NewAddrExpr(pos, dataSel)
 				dataAddr.SetType(types.NewPtr(arrayType))
 
-				// OCONVNOP 魔法: *(*T)(unsafe.Pointer(&n.data)) = v
-				// 1. &n.data -> unsafe.Pointer
+				// 统一处理：将 data 区域强转为 *EffectiveType
+				// uPtr = unsafe.Pointer(&n.data)
 				uPtr := ir.NewConvExpr(pos, ir.OCONVNOP, types.Types[types.TUNSAFEPTR], dataAddr)
 
-				// 2. unsafe.Pointer -> *T
-				paramType := convertSyntaxTypeToIRType(variant.Type)
-				targetPtr := types.NewPtr(paramType)
-				typedPtr := ir.NewConvExpr(pos, ir.OCONVNOP, targetPtr, uPtr)
+				// typedPtr = (*EffectiveType)(uPtr)
+				targetPtrType := types.NewPtr(effectiveType)
+				typedPtr := ir.NewConvExpr(pos, ir.OCONVNOP, targetPtrType, uPtr)
 
-				// 3. *ptr = v
-				deref := ir.NewStarExpr(pos, typedPtr)
-				deref.SetType(paramType)
-				assign := ir.NewAssignStmt(pos, deref, paramVar)
-				fn.Body.Append(typecheck.Stmt(assign))
+				if len(argTypes) == 1 {
+					// 单参数情况：直接赋值 *ptr = v
+					deref := ir.NewStarExpr(pos, typedPtr)
+					deref.SetType(effectiveType)
+					assign := ir.NewAssignStmt(pos, deref, fn.Dcl[0])
+					fn.Body.Append(typecheck.Stmt(assign))
+				} else {
+					// 多参数情况：逐个字段赋值
+					// ptr._0 = v0; ptr._1 = v1;
+					// 注意：typedPtr 是指向隐式 Struct 的指针
+
+					// 为了避免多次计算 typedPtr，应该先把它赋值给一个临时变量?
+					// 或者直接复用表达式（IR 生成阶段通常没问题）
+
+					for i := 0; i < len(argTypes); i++ {
+						// 目标字段: ptr._i
+						fieldSym := typecheck.Lookup("_" + strconv.Itoa(i))
+						// 注意：对于指针访问字段，IR 通常会自动处理解引用，
+						// 但为了严谨，我们构建 ODOTPTR (ptr.field) 或 ODOT (*ptr).field
+
+						// 这里使用 ODOT，因为 typedPtr 有类型信息
+						// ir.NewSelectorExpr 会处理指针的隐式解引用
+						fieldSel := ir.NewSelectorExpr(pos, ir.ODOT, typedPtr, fieldSym)
+						fieldSel.SetType(argTypes[i])
+						fieldSel.SetTypecheck(1)
+
+						// 赋值: ptr._i = vi
+						assign := ir.NewAssignStmt(pos, fieldSel, fn.Dcl[i])
+						fn.Body.Append(typecheck.Stmt(assign))
+					}
+				}
 			}
 
 			fn.Body.Append(ir.NewReturnStmt(pos, []ir.Node{nVar}))
@@ -289,30 +334,37 @@ func computeMaxPayloadSize(variants []*syntax.EnumVariant) int64 {
 	visiting := make(map[*types.Type]bool)
 
 	for _, v := range variants {
-		if v.Type == nil {
+		argTypes := extractVariantTypes(v.Type)
+		if len(argTypes) == 0 {
 			continue
 		}
 
-		// 关键修复：将 syntax 转换为 IR Type，然后计算 Size
-		typ := convertSyntaxTypeToIRType(v.Type)
-		if typ == nil {
-			continue
+		var currentSize int64
+
+		if len(argTypes) == 1 {
+			t := argTypes[0]
+			if isForwardRefPlaceholder(t) {
+				base.ErrorfAt(src.NoXPos, 0, "invalid forward reference in value position: %v (must use pointer for recursive/forward types)", v.Name.Value)
+				continue
+			}
+			currentSize = safeCalcTypeSize(t, visiting)
+		} else {
+			// 多参数逻辑：构造临时 Struct 计算大小
+			// 这样能自动处理 Padding 和 Alignment
+			fields := make([]*types.Field, len(argTypes))
+			for i, t := range argTypes {
+				if isForwardRefPlaceholder(t) {
+					base.ErrorfAt(src.NoXPos, 0, "invalid forward reference in value position: %v (must use pointer for recursive/forward types)", v.Name.Value)
+				}
+				fields[i] = types.NewField(src.NoXPos, nil, t)
+			}
+			tempStruct := types.NewStruct(fields)
+			types.CalcSize(tempStruct)
+			currentSize = tempStruct.Size()
 		}
 
-		// 关键检查：如果是占位符类型（前向引用），必须确保它是通过指针引用的
-		// 否则我们无法知道它的大小
-		if isForwardRefPlaceholder(typ) {
-			// 这种情况下，CalcSize 得到的是假的 1 字节
-			// 必须报错，或者强制要求用户使用指针
-			base.ErrorfAt(src.NoXPos, 0, "invalid forward reference in value position: %v (must use pointer for recursive/forward types)", v.Name.Value)
-			continue
-		}
-
-		// 安全地计算类型大小，处理递归情况
-		sz := safeCalcTypeSize(typ, visiting)
-
-		if sz > maxSize {
-			maxSize = sz
+		if currentSize > maxSize {
+			maxSize = currentSize
 		}
 	}
 	return maxSize
@@ -425,21 +477,45 @@ func safeCalcTypeSize(typ *types.Type, visiting map[*types.Type]bool) int64 {
 	}
 }
 
-// hasAnyPointers 修复版：使用真实的 Type 系统判断
+// hasAnyPointers
 func hasAnyPointers(variants []*syntax.EnumVariant) bool {
 	for _, v := range variants {
 		if v.Type == nil {
 			continue
 		}
-		typ := convertSyntaxTypeToIRType(v.Type)
-		if typ == nil {
-			continue
-		}
-		if typ.HasPointers() {
-			return true
+		argTypes := extractVariantIRTypes(v.Type)
+		for _, t := range argTypes {
+			if t != nil && t.HasPointers() {
+				return true
+			}
 		}
 	}
 	return false
+}
+
+func extractVariantIRTypes(expr syntax.Expr) []*types.Type {
+	if expr == nil {
+		return nil
+	}
+
+	var irTypes []*types.Type
+
+	// 检查是否是列表表达式 (多参数情况)
+	if list, ok := expr.(*syntax.ListExpr); ok {
+		for _, elem := range list.ElemList {
+			t := convertSyntaxTypeToIRType(elem)
+			if t != nil {
+				irTypes = append(irTypes, t)
+			}
+		}
+	} else {
+		// 单参数情况
+		t := convertSyntaxTypeToIRType(expr)
+		if t != nil {
+			irTypes = append(irTypes, t)
+		}
+	}
+	return irTypes
 }
 
 // convertSyntaxTypeToIRType 增强版
@@ -585,4 +661,30 @@ func convertSyntaxTypeToIRType(expr syntax.Expr) *types.Type {
 	}
 
 	return nil
+}
+
+// 支持 ListExpr
+func extractVariantTypes(expr syntax.Expr) []*types.Type {
+	if expr == nil {
+		return nil
+	}
+
+	var typeList []*types.Type
+
+	// 检查是否是列表表达式 (Cons(A, B))
+	if list, ok := expr.(*syntax.ListExpr); ok {
+		for _, elem := range list.ElemList {
+			t := convertSyntaxTypeToIRType(elem)
+			if t != nil {
+				typeList = append(typeList, t)
+			}
+		}
+	} else {
+		// 单参数 (Cons(A))
+		t := convertSyntaxTypeToIRType(expr)
+		if t != nil {
+			typeList = append(typeList, t)
+		}
+	}
+	return typeList
 }

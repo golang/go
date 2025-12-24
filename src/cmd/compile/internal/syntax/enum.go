@@ -28,13 +28,41 @@ func (r *rewriter) rewriteEnums() {
 				}
 				r.enumVariants[td.Name.Value] = m
 
-				// 为该 Enum 生成所有变体的构造函数
+				// 2. 生成构造函数 (保持不变，但 generateConstructorBody 内部实现需要对应修改!)
 				ctors := r.generateEnumConstructors(td.Name, enumType)
 				newDecls = append(newDecls, ctors...)
 
-				if len(ctors) > 0 {
-					r.needsUnsafe = true
+				pos := td.Pos() // 获取位置信息
+
+				// 字段 1: _tag int
+				tagField := &Field{
+					Name: NewName(pos, "_tag"),
+					Type: NewName(pos, "int"),
 				}
+
+				// 字段 2: _ptr unsafe.Pointer
+				ptrField := &Field{
+					Name: NewName(pos, "_ptr"),
+					Type: &SelectorExpr{
+						X:   NewName(pos, "unsafe"),
+						Sel: NewName(pos, "Pointer"),
+					},
+				}
+
+				// 字段 3: _scalar uint64
+				// 用来存放 int, float, bool 等非指针数据
+				scalarField := &Field{
+					Name: NewName(pos, "_scalar"),
+					Type: NewName(pos, "uint64"), // 足够存 float64 或 int64
+				}
+
+				// 替换 AST：Enum 变成了 Struct
+				td.Type = &StructType{
+					FieldList: []*Field{tagField, ptrField, scalarField},
+				}
+
+				// 标记需要引入 unsafe 包 (因为 struct 定义里用了 unsafe.Pointer)
+				r.needsUnsafe = true
 			}
 		}
 	}
@@ -51,191 +79,145 @@ func (r *rewriter) generateEnumConstructors(typeName *Name, enum *EnumType) []De
 		}
 
 		funcName := NewName(v.Pos(), typeName.Value+"_"+v.Name.Value)
-
 		fn := new(FuncDecl)
 		T(fn)
 		fn.Name = funcName
 
-		// 1. 构建参数列表
+		// --- 1. 构建参数列表 (支持多参数) ---
+		// 使用 unpackTypeList 将 int, int 拆开
+		typeList := unpackTypeList(v.Type)
+
 		var params []*Field
-		var paramName *Name
-
-		if v.Type != nil {
-			paramName = NewName(v.Pos(), "v")
-
+		for idx, t := range typeList {
+			argName := "v"
+			if len(typeList) > 1 {
+				argName = "v" + strconv.Itoa(idx)
+			}
 			paramField := &Field{
-				Name: paramName,
-				Type: v.Type,
+				Name: NewName(v.Pos(), argName),
+				Type: t,
 			}
 			T(paramField)
-
-			params = []*Field{paramField}
+			params = append(params, paramField)
 		}
 
-		// 2. 构建返回值列表 (返回 Enum 类型)
+		// --- 2. 返回值 ---
 		retType := NewName(v.Pos(), typeName.Value)
-		resField := &Field{
-			Type: retType,
-		}
+		resField := &Field{Type: retType}
 		T(resField)
 
-		results := []*Field{resField}
-
-		// 3. 构建函数类型 (FuncType)
-		ft := &FuncType{
+		fn.Type = &FuncType{
 			ParamList:  params,
-			ResultList: results,
+			ResultList: []*Field{resField},
 		}
-		T(ft)
-		fn.Type = ft
+		T(fn.Type)
 
-		fn.Body = r.generateConstructorBody(v.Pos(), typeName, i, paramName, v.Type)
+		// --- 3. 生成函数体 ---
+		// 关键修复：传入 params slice 和 typeList slice
+		fn.Body = r.generateConstructorBody(v.Pos(), typeName, i, params, typeList)
 
 		decls = append(decls, fn)
 	}
 	return decls
 }
 
-func (r *rewriter) generateConstructorBody(pos Pos, typeName *Name, tagVal int, paramName *Name, paramType Expr) *BlockStmt {
-	T := func(n Node) Node {
-		n.SetPos(pos)
-		return n
-	}
+func (r *rewriter) generateConstructorBody(pos Pos, typeName *Name, tagVal int, params []*Field, types []Expr) *BlockStmt {
+	T := func(n Node) Node { n.SetPos(pos); return n }
 
 	block := new(BlockStmt)
 	block.SetPos(pos)
 
+	// 1. var ret TypeName
 	retName := NewName(pos, "ret")
-
-	newCall := &CallExpr{
-		Fun:     NewName(pos, "new"),
-		ArgList: []Expr{NewName(pos, typeName.Value)},
+	varDecl := &VarDecl{
+		NameList: []*Name{retName},
+		Type:     NewName(pos, typeName.Value),
 	}
-	T(newCall)
+	T(varDecl)
+	block.List = append(block.List, &DeclStmt{DeclList: []Decl{varDecl}})
 
-	deref := &Operation{
-		Op: Mul,
-		X:  newCall,
+	// 2. ret._tag = tagVal
+	tagAssign := &AssignStmt{
+		Op:  0,
+		Lhs: &SelectorExpr{X: retName, Sel: NewName(pos, "_tag")},
+		Rhs: &BasicLit{Value: strconv.Itoa(tagVal), Kind: IntLit},
 	}
-	T(deref)
+	T(tagAssign)
+	block.List = append(block.List, tagAssign)
 
-	assignRet := &AssignStmt{
-		Op:  Def,
-		Lhs: retName,
-		Rhs: deref,
-	}
-	T(assignRet)
-	block.List = append(block.List, assignRet)
+	// 3. Payload 存储分流
+	if len(params) == 1 && isOptimizableScalar(types[0]) {
+		// === 路径 A: 标量优化 (int, bool, float...) ===
+		// ret._scalar = *(*uint64)(unsafe.Pointer(&v))
+		// 这样可以处理 float 到 uint64 的 bit-cast，也可以处理 bool
 
-	// Helper: create `unsafe.Pointer(&ret)`
-	unsafePtr := func() Expr {
-		// &ret
-		addrRet := &Operation{Op: And, X: retName}
-		T(addrRet)
+		// &v
+		addrParam := &Operation{Op: And, X: params[0].Name}
 
-		// unsafe.Pointer
-		sel := &SelectorExpr{X: NewName(pos, "unsafe"), Sel: NewName(pos, "Pointer")}
-		T(sel)
-
-		// unsafe.Pointer(&ret)
-		call := &CallExpr{
-			Fun:     sel,
-			ArgList: []Expr{addrRet},
+		// unsafe.Pointer(&v)
+		ptrParam := &CallExpr{
+			Fun:     &SelectorExpr{X: NewName(pos, "unsafe"), Sel: NewName(pos, "Pointer")},
+			ArgList: []Expr{addrParam},
 		}
-		T(call)
-		return call
-	}
 
-	// 2. Set Tag: *(*int)(unsafe.Pointer(&ret)) = tagVal
-	{
-		// (*int)
-		ptrInt := &Operation{Op: Mul, X: NewName(pos, "int")}
-		T(ptrInt)
-
-		// (*int)(...)
-		paren := &ParenExpr{X: ptrInt}
-		T(paren)
-
-		// Cast Call
-		cast := &CallExpr{Fun: paren, ArgList: []Expr{unsafePtr()}}
-		T(cast)
-
-		// *...
-		deref := &Operation{Op: Mul, X: cast}
-		T(deref)
-
-		// Lit: tagVal
-		tagLit := &BasicLit{Value: strconv.Itoa(tagVal), Kind: IntLit}
-		T(tagLit)
-
-		// = tagVal
-		assign := &AssignStmt{
-			Op:  0, // =
-			Lhs: deref,
-			Rhs: tagLit,
+		// (*uint64)(ptr)
+		castPtr := &CallExpr{
+			Fun:     &ParenExpr{X: &Operation{Op: Mul, X: NewName(pos, "uint64")}}, // *uint64
+			ArgList: []Expr{ptrParam},
 		}
-		T(assign)
-		block.List = append(block.List, assign)
-	}
 
-	// 3. Set Payload (if exists)
-	if paramName != nil {
-		// Construct: unsafe.Sizeof(int(0))
+		// *castPtr
+		valUint64 := &Operation{Op: Mul, X: castPtr}
 
-		// int(0)
-		zeroLit := &BasicLit{Value: "0", Kind: IntLit}
-		T(zeroLit) // <--- 别漏了
-
-		intCall := &CallExpr{Fun: NewName(pos, "int"), ArgList: []Expr{zeroLit}}
-		T(intCall)
-
-		// unsafe.Sizeof
-		selSizeof := &SelectorExpr{X: NewName(pos, "unsafe"), Sel: NewName(pos, "Sizeof")}
-		T(selSizeof)
-
-		sizeOfCall := &CallExpr{
-			Fun:     selSizeof,
-			ArgList: []Expr{intCall},
-		}
-		T(sizeOfCall)
-
-		// Construct: unsafe.Add(ptr, offset)
-		selAdd := &SelectorExpr{X: NewName(pos, "unsafe"), Sel: NewName(pos, "Add")}
-		T(selAdd)
-
-		unsafeAdd := &CallExpr{
-			Fun:     selAdd,
-			ArgList: []Expr{unsafePtr(), sizeOfCall},
-		}
-		T(unsafeAdd)
-
-		// Construct: (*PayloadType)(...)
-		ptrPayload := &Operation{Op: Mul, X: paramType} // paramType 应该已有 Pos，但保险起见...
-		// 注意：paramType 是传进来的，最好不要修改它的 Pos，或者它本身就是有 Pos 的。
-		// 这里我们要给新创建的 Operation 加 Pos
-		T(ptrPayload)
-
-		parenPayload := &ParenExpr{X: ptrPayload}
-		T(parenPayload)
-
-		cast := &CallExpr{Fun: parenPayload, ArgList: []Expr{unsafeAdd}}
-		T(cast)
-
-		// *...
-		derefPayload := &Operation{Op: Mul, X: cast}
-		T(derefPayload)
-
-		// = v
-		assign := &AssignStmt{
+		// ret._scalar = ...
+		scalarAssign := &AssignStmt{
 			Op:  0,
-			Lhs: derefPayload,
-			Rhs: paramName,
+			Lhs: &SelectorExpr{X: retName, Sel: NewName(pos, "_scalar")},
+			Rhs: valUint64,
 		}
-		T(assign)
-		block.List = append(block.List, assign)
+		T(scalarAssign)
+		block.List = append(block.List, scalarAssign)
+
+	} else if len(params) > 0 {
+		// === 路径 B: 通用路径 (指针 或 Tuple) ===
+		// 打包成匿名结构体指针: &struct{...}{...} -> _ptr
+
+		// 构造匿名结构体类型
+		structFields := make([]*Field, len(types))
+		for idx, t := range types {
+			structFields[idx] = &Field{Name: NewName(pos, "_"+strconv.Itoa(idx)), Type: t}
+		}
+		anonStructType := &StructType{FieldList: structFields}
+		T(anonStructType)
+
+		// 构造 CompositeLit
+		compLit := &CompositeLit{Type: anonStructType}
+		T(compLit)
+		for _, p := range params {
+			compLit.ElemList = append(compLit.ElemList, p.Name)
+		}
+
+		// 取地址 &Literal -> 堆分配
+		addrExpr := &Operation{Op: And, X: compLit}
+		T(addrExpr)
+
+		// ret._ptr = unsafe.Pointer(...)
+		toPtr := &CallExpr{
+			Fun:     &SelectorExpr{X: NewName(pos, "unsafe"), Sel: NewName(pos, "Pointer")},
+			ArgList: []Expr{addrExpr},
+		}
+		T(toPtr)
+
+		ptrAssign := &AssignStmt{
+			Op:  0,
+			Lhs: &SelectorExpr{X: retName, Sel: NewName(pos, "_ptr")},
+			Rhs: toPtr,
+		}
+		T(ptrAssign)
+		block.List = append(block.List, ptrAssign)
 	}
 
-	// 4. return ret
+	// return ret
 	retStmt := &ReturnStmt{Results: retName}
 	T(retStmt)
 	block.List = append(block.List, retStmt)
@@ -277,4 +259,47 @@ func (r *rewriter) addImport(pkgName string) {
 
 	// Prepend to DeclList
 	r.file.DeclList = append([]Decl{imp}, r.file.DeclList...)
+}
+
+func (r *rewriter) isPointerType(typ Expr) bool {
+	switch t := typ.(type) {
+	case *Operation: // *T (指针)
+		return t.Op == Mul
+	case *MapType, *ChanType, *FuncType, *InterfaceType:
+		return true
+	case *Name:
+		// struct/slice/string to scalar
+		return false
+	}
+	return false
+}
+
+func isOptimizableScalar(t Expr) bool {
+	if name, ok := t.(*Name); ok {
+		switch name.Value {
+		// 8字节及以下的数值类型，且不含指针
+		case "int", "int8", "int16", "int32", "int64":
+			return true
+		case "uint", "uint8", "uint16", "uint32", "uint64", "byte", "rune":
+			return true
+		case "bool":
+			return true
+		case "float32", "float64":
+			return true
+		case "uintptr":
+			return true
+			// 注意：string 和 complex128 大于 8 字节，必须走指针路径
+		}
+	}
+	return false
+}
+
+func unpackTypeList(x Expr) []Expr {
+	if x == nil {
+		return nil
+	}
+	if l, ok := x.(*ListExpr); ok {
+		return l.ElemList
+	}
+	return []Expr{x}
 }
