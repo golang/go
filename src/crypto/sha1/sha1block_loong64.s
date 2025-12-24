@@ -26,6 +26,10 @@
 #define REGTMP1	R17
 #define REGTMP2	R18
 #define REGTMP3	R19
+#define KEYREG1	R25
+#define KEYREG2	R26
+#define KEYREG3	R27
+#define KEYREG4	R28
 
 #define LOAD1(index) \
 	MOVW	(index*4)(R5), REGTMP3; \
@@ -63,38 +67,38 @@
 
 #define FUNC4 FUNC2
 
-#define MIX(a, b, c, d, e, const) \
+#define MIX(a, b, c, d, e, key) \
 	ROTR	$2, b; \	// b << 30
 	ADD	REGTMP1, e; \	// e = e + f
 	ROTR	$27, a, REGTMP2; \	// a << 5
 	ADD	REGTMP3, e; \	// e = e + w[i]
-	ADDV	$const, e; \	// e = e + k
+	ADDV	key, e; \	// e = e + k
 	ADD	REGTMP2, e	// e = e + a<<5
 
 #define ROUND1(a, b, c, d, e, index) \
 	LOAD1(index); \
 	FUNC1(a, b, c, d, e); \
-	MIX(a, b, c, d, e, 0x5A827999)
+	MIX(a, b, c, d, e, KEYREG1)
 
 #define ROUND1x(a, b, c, d, e, index) \
 	LOAD(index); \
 	FUNC1(a, b, c, d, e); \
-	MIX(a, b, c, d, e, 0x5A827999)
+	MIX(a, b, c, d, e, KEYREG1)
 
 #define ROUND2(a, b, c, d, e, index) \
 	LOAD(index); \
 	FUNC2(a, b, c, d, e); \
-	MIX(a, b, c, d, e, 0x6ED9EBA1)
+	MIX(a, b, c, d, e, KEYREG2)
 
 #define ROUND3(a, b, c, d, e, index) \
 	LOAD(index); \
 	FUNC3(a, b, c, d, e); \
-	MIX(a, b, c, d, e, 0x8F1BBCDC)
+	MIX(a, b, c, d, e, KEYREG3)
 
 #define ROUND4(a, b, c, d, e, index) \
 	LOAD(index); \
 	FUNC4(a, b, c, d, e); \
-	MIX(a, b, c, d, e, 0xCA62C1D6)
+	MIX(a, b, c, d, e, KEYREG4)
 
 // A stack frame size of 64 bytes is required here, because
 // the frame size used for data expansion is 64 bytes.
@@ -108,12 +112,18 @@ TEXT ·block(SB),NOSPLIT,$64-32
 	BEQ	R6, zero
 
 	// p_len >= 64
-	ADDV    R5, R6, R24
+	ADDV	R5, R6, R24
 	MOVW	(0*4)(R4), R7
 	MOVW	(1*4)(R4), R8
 	MOVW	(2*4)(R4), R9
 	MOVW	(3*4)(R4), R10
 	MOVW	(4*4)(R4), R11
+
+	MOVV	$·_K(SB), R21
+	MOVW	(0*4)(R21), KEYREG1
+	MOVW	(1*4)(R21), KEYREG2
+	MOVW	(2*4)(R21), KEYREG3
+	MOVW	(3*4)(R21), KEYREG4
 
 loop:
 	MOVW	R7,	R12
@@ -224,3 +234,9 @@ end:
 	MOVW	R11, (4*4)(R4)
 zero:
 	RET
+
+GLOBL	·_K(SB),RODATA,$16
+DATA	·_K+0(SB)/4, $0x5A827999
+DATA	·_K+4(SB)/4, $0x6ED9EBA1
+DATA	·_K+8(SB)/4, $0x8F1BBCDC
+DATA	·_K+12(SB)/4, $0xCA62C1D6
