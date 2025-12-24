@@ -471,9 +471,10 @@ noEnumMatchRewrite:
 		var bindType Expr
 		var bindVarPos Pos
 		var forceHeap bool
+		var bindAllowStackFallback bool
 
 		for _, ce := range elems {
-			cond, bNames, bTyp, bPos, fHeap, ok := r.buildEnumCaseCondition(matchVarRef, ce, switchTagType)
+			cond, bNames, bTyp, bPos, fHeap, stackFallback, ok := r.buildEnumCaseCondition(matchVarRef, ce, switchTagType)
 
 			if !ok {
 				c := new(Operation)
@@ -495,7 +496,7 @@ noEnumMatchRewrite:
 					}
 				}
 				if hasRealName {
-					bindNames, bindType, bindVarPos, forceHeap = bNames, bTyp, bPos, fHeap
+					bindNames, bindType, bindVarPos, forceHeap, bindAllowStackFallback = bNames, bTyp, bPos, fHeap, stackFallback
 				}
 			}
 		}
@@ -512,22 +513,77 @@ noEnumMatchRewrite:
 		var newStmts []Stmt
 
 		if len(bindNames) > 0 && bindType != nil {
-			payloadExpr := r.enumPayloadReadExpr(matchVarRef, bindType, bindVarPos, forceHeap)
-
 			r.tempCounter++
 			payloadTempName := "_payload" + strconv.Itoa(r.tempCounter)
 			payloadTempRef := NewName(bindVarPos, payloadTempName)
 
-			assignTemp := new(AssignStmt)
-			assignTemp.SetPos(bindVarPos)
-			assignTemp.Op = Def
-			assignTemp.Lhs = NewName(bindVarPos, payloadTempName)
-			assignTemp.Rhs = payloadExpr
-			newStmts = append(newStmts, assignTemp)
-
 			typeList := unpackTypeList(bindType)
+			isScalarOpt := len(typeList) == 1 && isOptimizableScalar(typeList[0])
 
-			if len(typeList) == 1 && isOptimizableScalar(typeList[0]) {
+			// Determine carrier type for _payload temp:
+			// - optimizable scalar: T
+			// - otherwise: *struct{_0 T0; _1 T1; ...}
+			var carrierType Expr
+			if isScalarOpt {
+				carrierType = bindType
+			} else {
+				structFields := make([]*Field, len(typeList))
+				for idx, t := range typeList {
+					structFields[idx] = &Field{Name: NewName(bindVarPos, "_"+strconv.Itoa(idx)), Type: t}
+				}
+				anonStruct := &StructType{FieldList: structFields}
+				carrierType = &Operation{Op: Mul, X: anonStruct}
+				carrierType.SetPos(bindVarPos)
+				anonStruct.SetPos(bindVarPos)
+				for _, f := range structFields {
+					if f != nil {
+						f.SetPos(bindVarPos)
+					}
+				}
+			}
+
+			if forceHeap && bindAllowStackFallback {
+				// var _payloadN <carrierType>
+				varDecl := &VarDecl{
+					NameList: []*Name{NewName(bindVarPos, payloadTempName)},
+					Type:     carrierType,
+				}
+				varDecl.SetPos(bindVarPos)
+				newStmts = append(newStmts, &DeclStmt{DeclList: []Decl{varDecl}})
+
+				// if _match._heap != nil { _payloadN = heapRead } else { _payloadN = stackRead }
+				heapSel := &SelectorExpr{X: matchVarRef, Sel: NewName(bindVarPos, "_heap")}
+				heapSel.SetPos(bindVarPos)
+				cond := &Operation{Op: Neq, X: heapSel, Y: NewName(bindVarPos, "nil")}
+				cond.SetPos(bindVarPos)
+
+				heapRead := r.enumPayloadReadExpr(matchVarRef, bindType, bindVarPos, true, false)  // forceHeap=true, forceStack=false
+				stackRead := r.enumPayloadReadExpr(matchVarRef, bindType, bindVarPos, false, true) // forceHeap=false, forceStack=true
+
+				thenAs := &AssignStmt{Op: 0, Lhs: payloadTempRef, Rhs: heapRead}
+				thenAs.SetPos(bindVarPos)
+				elseAs := &AssignStmt{Op: 0, Lhs: payloadTempRef, Rhs: stackRead}
+				elseAs.SetPos(bindVarPos)
+				thenBlk := &BlockStmt{List: []Stmt{thenAs}}
+				thenBlk.SetPos(bindVarPos)
+				elseBlk := &BlockStmt{List: []Stmt{elseAs}}
+				elseBlk.SetPos(bindVarPos)
+				ifs := &IfStmt{Cond: cond, Then: thenBlk, Else: elseBlk}
+				ifs.SetPos(bindVarPos)
+				newStmts = append(newStmts, ifs)
+
+			} else {
+				// _payloadN := payloadRead(...)
+				payloadExpr := r.enumPayloadReadExpr(matchVarRef, bindType, bindVarPos, forceHeap, false)
+				assignTemp := new(AssignStmt)
+				assignTemp.SetPos(bindVarPos)
+				assignTemp.Op = Def
+				assignTemp.Lhs = NewName(bindVarPos, payloadTempName)
+				assignTemp.Rhs = payloadExpr
+				newStmts = append(newStmts, assignTemp)
+			}
+
+			if isScalarOpt {
 				if len(bindNames) == 1 && bindNames[0] != "_" {
 					// v := _payloadN
 					as := new(AssignStmt)
@@ -680,16 +736,16 @@ func (r *rewriter) parseEnumCasePatternFull(expr Expr) (string, string, string, 
 
 // buildEnumCaseCondition builds a boolean condition expression for a case arm.
 // Returns: cond, bindNames, bindType, bindPos, forceHeap, ok
-func (r *rewriter) buildEnumCaseCondition(matchVar *Name, caseExpr Expr, switchTagType Type) (Expr, []string, Expr, Pos, bool, bool) {
+func (r *rewriter) buildEnumCaseCondition(matchVar *Name, caseExpr Expr, switchTagType Type) (Expr, []string, Expr, Pos, bool, bool, bool) {
 	// 1. 解析基础信息 (Enum名, 变体名, Payload类型)
 	// 注意：我们可以复用 parseEnumCasePatternFull，但忽略它返回的单数 bindName/lit
 	en, vn, _, _, payloadType, _, ok := r.parseEnumCasePatternFull(caseExpr)
 	if !ok {
-		return nil, nil, nil, Pos{}, false, false
+		return nil, nil, nil, Pos{}, false, false, false
 	}
 	info, ok := r.enumVariants[en][vn]
 	if !ok {
-		return nil, nil, nil, Pos{}, false, false
+		return nil, nil, nil, Pos{}, false, false, false
 	}
 	pos := caseExpr.Pos()
 
@@ -698,6 +754,12 @@ func (r *rewriter) buildEnumCaseCondition(matchVar *Name, caseExpr Expr, switchT
 	// - decide whether this variant must go to heap (has pointers)
 	// - obtain a concrete payload type syntax for this variant (so `case Result.Ok(v)` works)
 	forceHeap := info.isGeneric
+	allowStackFallback := false
+	if info.isGeneric {
+		if h, ok := getEnumLoweringHint(en); ok && h.MaxStack > 0 {
+			allowStackFallback = true
+		}
+	}
 	if switchTagType != nil {
 		if u := switchTagType.Underlying(); u != nil {
 			// duck-typed methods implemented by types2.Enum
@@ -707,6 +769,9 @@ func (r *rewriter) buildEnumCaseCondition(matchVar *Name, caseExpr Expr, switchT
 			}
 			if ei, ok := u.(enumLayoutIface); ok {
 				if _, hp, ok := ei.VariantLayoutInfo(vn); ok {
+					// If hp==true for a type-parameterized switch (e.g. Option[T]),
+					// we may still need to support stack-shaped instantiations at runtime.
+					// In that case, keep forceHeap=true but allow stack fallback when _heap==nil.
 					forceHeap = hp
 				}
 				if pt := ei.VariantPayloadSyntax(vn, pos); pt != nil {
@@ -729,7 +794,7 @@ func (r *rewriter) buildEnumCaseCondition(matchVar *Name, caseExpr Expr, switchT
 
 	// Unit variant (没有负载): 只需要检查 Tag
 	if !info.hasPayload {
-		return tagEq, nil, nil, pos, forceHeap, true
+		return tagEq, nil, nil, pos, forceHeap, allowStackFallback, true
 	}
 
 	// 3. 分析参数 (Bindings vs Literals)
@@ -740,7 +805,7 @@ func (r *rewriter) buildEnumCaseCondition(matchVar *Name, caseExpr Expr, switchT
 
 	// 如果没有参数但有 payloadType (理论上不应发生，除非语法允许省略)
 	if len(args) == 0 {
-		return tagEq, nil, nil, pos, forceHeap, true
+		return tagEq, nil, nil, pos, forceHeap, allowStackFallback, true
 	}
 
 	// 检查参数中是否包含字面量 (Literals)
@@ -762,7 +827,9 @@ func (r *rewriter) buildEnumCaseCondition(matchVar *Name, caseExpr Expr, switchT
 
 		// 这里的逻辑稍微复杂，需要读取 Payload
 		// 1. 读取 Payload (复用之前的逻辑)
-		payloadExpr := r.enumPayloadReadExpr(matchVar, payloadType, pos, forceHeap)
+		// In literal patterns, we don't currently support runtime stack/heap fallback in expression context.
+		// (This is primarily needed for variable-binding cases inside generic functions.)
+		payloadExpr := r.enumPayloadReadExpr(matchVar, payloadType, pos, forceHeap, false)
 
 		// 2. 如果是多参数，payloadExpr 是结构体指针，需要逐个字段比较
 		//    如果是单参数标量，payloadExpr 是值
@@ -806,7 +873,7 @@ func (r *rewriter) buildEnumCaseCondition(matchVar *Name, caseExpr Expr, switchT
 		}
 
 		// 返回完整条件，无绑定变量
-		return fullCond, nil, nil, pos, forceHeap, true
+		return fullCond, nil, nil, pos, forceHeap, allowStackFallback, true
 	}
 
 	// === 情况 B: 纯变量绑定 (Variable Binding) ===
@@ -823,7 +890,7 @@ func (r *rewriter) buildEnumCaseCondition(matchVar *Name, caseExpr Expr, switchT
 	}
 
 	// 返回 Tag 条件 和 变量名列表
-	return tagEq, bindNames, payloadType, pos, forceHeap, true
+	return tagEq, bindNames, payloadType, pos, forceHeap, allowStackFallback, true
 }
 
 func (r *rewriter) enumTagReadExpr(matchVar *Name, pos Pos) Expr {
@@ -864,52 +931,64 @@ func (r *rewriter) enumTagReadExpr(matchVar *Name, pos Pos) Expr {
 	return deref
 }
 
-func (r *rewriter) enumPayloadReadExpr(matchVar *Name, payloadType Expr, pos Pos, forceHeap bool) Expr {
+// enumPayloadReadExpr generates an expression to read the payload from an enum.
+// matchVar: the match variable (e.g., _match1)
+// payloadType: the payload type expression
+// pos: position for generated nodes
+// forceHeap: if true, always read from _heap
+// forceStack: if true, always read from _stack (used by fallback code)
+func (r *rewriter) enumPayloadReadExpr(matchVar *Name, payloadType Expr, pos Pos, forceHeap bool, forceStack bool) Expr {
 	// 假设 payloadType 可能是 ListExpr (Tuple) 或单个 Expr
 	typeList := unpackTypeList(payloadType)
 
-	// 判断是否包含指针
-	hasPointer := false
-	for _, t := range typeList {
-		if containsPointer(t) {
-			hasPointer = true
-			break
-		}
-	}
+	isScalarOpt := len(typeList) == 1 && isOptimizableScalar(typeList[0])
 
-	// 如果是泛型 enum (forceHeap=true) 或包含指针，使用 _heap
-	useHeap := forceHeap || hasPointer
+	// Determine which storage to use:
+	// - forceStack=true: always use _stack (from if-else fallback)
+	// - forceHeap=true: always use _heap
+	// - otherwise: check containsPointer
+	var useHeap bool
+	if forceStack {
+		useHeap = false
+	} else if forceHeap {
+		useHeap = true
+	} else {
+		// 判断是否包含指针
+		hasPointer := false
+		for _, t := range typeList {
+			if containsPointer(t) {
+				hasPointer = true
+				break
+			}
+		}
+		useHeap = hasPointer
+	}
 
 	if !useHeap {
 		// === 路径 A: 纯值变体 → 从 _stack 读取 ===
 		// 目标: *(*T)(unsafe.Pointer(&matchVar._stack[0]))
 
-		// 如果是单个类型，直接转换
 		if len(typeList) == 1 {
-			targetType := typeList[0]
-
-			// &matchVar._stack[0]
-			stackSel := &SelectorExpr{X: matchVar, Sel: NewName(pos, "_stack")}
-			zeroLit := &BasicLit{Value: "0", Kind: IntLit}
-			indexExpr := &IndexExpr{X: stackSel, Index: zeroLit}
-			addrStack := &Operation{Op: And, X: indexExpr}
-
-			// unsafe.Pointer(...)
-			ptrStack := &CallExpr{
-				Fun:     &SelectorExpr{X: NewName(pos, "unsafe"), Sel: NewName(pos, "Pointer")},
-				ArgList: []Expr{addrStack},
+			// Optimizable scalar: read value directly.
+			if isScalarOpt {
+				targetType := typeList[0]
+				stackSel := &SelectorExpr{X: matchVar, Sel: NewName(pos, "_stack")}
+				zeroLit := &BasicLit{Value: "0", Kind: IntLit}
+				indexExpr := &IndexExpr{X: stackSel, Index: zeroLit}
+				addrStack := &Operation{Op: And, X: indexExpr}
+				ptrStack := &CallExpr{
+					Fun:     &SelectorExpr{X: NewName(pos, "unsafe"), Sel: NewName(pos, "Pointer")},
+					ArgList: []Expr{addrStack},
+				}
+				ptrToTarget := &Operation{Op: Mul, X: targetType}
+				cast := &CallExpr{
+					Fun:     &ParenExpr{X: ptrToTarget},
+					ArgList: []Expr{ptrStack},
+				}
+				return &Operation{Op: Mul, X: cast}
 			}
-
-			// (*T)(...)
-			ptrToTarget := &Operation{Op: Mul, X: targetType}
-			cast := &CallExpr{
-				Fun:     &ParenExpr{X: ptrToTarget},
-				ArgList: []Expr{ptrStack},
-			}
-
-			// *cast (解引用)
-			deref := &Operation{Op: Mul, X: cast}
-			return deref
+			// Non-optimizable single arg: treat as tuple carrier *struct{_0 T}.
+			// Fall through to the tuple carrier code below by letting len(typeList)>1 path run.
 		}
 
 		// 如果是多个类型，转换成匿名结构体指针
@@ -942,7 +1021,19 @@ func (r *rewriter) enumPayloadReadExpr(matchVar *Name, payloadType Expr, pos Pos
 	}
 
 	// === 路径 B: 含指针变体 → 从 _heap 读取 ===
-	// 还原回匿名结构体指针: (*struct{_0 T0; _1 T1})(matchVar._heap)
+	// - optimizable scalar: *(*T)(matchVar._heap)
+	// - otherwise: (*struct{_0 T0; _1 T1})(matchVar._heap)
+
+	if len(typeList) == 1 && isScalarOpt {
+		targetType := typeList[0]
+		ptrToTarget := &Operation{Op: Mul, X: targetType}
+		selHeap := &SelectorExpr{X: matchVar, Sel: NewName(pos, "_heap")}
+		cast := &CallExpr{
+			Fun:     &ParenExpr{X: ptrToTarget},
+			ArgList: []Expr{selHeap},
+		}
+		return &Operation{Op: Mul, X: cast}
+	}
 
 	structFields := make([]*Field, len(typeList))
 	for idx, t := range typeList {
