@@ -446,6 +446,34 @@ func (w *Writer) CreateRaw(fh *FileHeader) (io.Writer, error) {
 	fh.CompressedSize = uint32(min(fh.CompressedSize64, uint32max))
 	fh.UncompressedSize = uint32(min(fh.UncompressedSize64, uint32max))
 
+	// If Modified is set, this takes precedence over MS-DOS timestamp fields.
+	if !fh.Modified.IsZero() {
+		// Contrary to the FileHeader.SetModTime method, we intentionally
+		// do not convert to UTC, because we assume the user intends to encode
+		// the date using the specified timezone. A user may want this control
+		// because many legacy ZIP readers interpret the timestamp according
+		// to the local timezone.
+		//
+		// The timezone is only non-UTC if a user directly sets the Modified
+		// field directly themselves. All other approaches sets UTC.
+		fh.ModifiedDate, fh.ModifiedTime = timeToMsDosTime(fh.Modified)
+
+		// Use "extended timestamp" format since this is what Info-ZIP uses.
+		// Nearly every major ZIP implementation uses a different format,
+		// but at least most seem to be able to understand the other formats.
+		//
+		// This format happens to be identical for both local and central header
+		// if modification time is the only timestamp being encoded.
+		var mbuf [9]byte // 2*SizeOf(uint16) + SizeOf(uint8) + SizeOf(uint32)
+		mt := uint32(fh.Modified.Unix())
+		eb := writeBuf(mbuf[:])
+		eb.uint16(extTimeExtraID)
+		eb.uint16(5)  // Size: SizeOf(uint8) + SizeOf(uint32)
+		eb.uint8(1)   // Flags: ModTime
+		eb.uint32(mt) // ModTime
+		fh.Extra = append(fh.Extra, mbuf[:]...)
+	}
+
 	h := &header{
 		FileHeader: fh,
 		offset:     uint64(w.cw.count),
