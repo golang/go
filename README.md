@@ -1244,7 +1244,7 @@ o2 := Option[int].None
 
 #### 7.3 模式匹配
 
-MyGO 允许对 enum 做类似 Rust `match` 的 `switch`：
+MyGO 允许对 `enum` 做通过不同的类型分发执行分支
 
 ```go
 func area(s Shape) float64 {
