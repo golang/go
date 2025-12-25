@@ -834,9 +834,12 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
 				}
 
 				// Payload variant: expose a constructor signature.
-				// Tuple payloads are represented as an anonymous struct { _0 T0; _1 T1; ... }.
+				// Tuple payloads are represented as a synthetic carrier:
+				//   struct{ _0 T0; _1 T1; ... }
+				//
+				// Do NOT explode arbitrary structs (e.g. User) into multiple constructor params.
 				var params []*Var
-				if st, _ := vv.typ.Underlying().(*Struct); st != nil && st.NumFields() > 0 {
+				if st, _ := vv.typ.Underlying().(*Struct); st != nil && isTuplePayloadStruct(st) {
 					for i := 0; i < st.NumFields(); i++ {
 						params = append(params, newVar(LocalVar, e.Pos(), check.pkg, "", st.Field(i).typ))
 					}

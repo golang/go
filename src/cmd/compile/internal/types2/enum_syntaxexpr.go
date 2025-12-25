@@ -104,9 +104,31 @@ func typeToSyntaxExpr(pos syntax.Pos, t Type) syntax.Expr {
 		l.ElemList = list
 		return l
 	case *Named:
-		// Build a name or selector. For now, prefer unqualified if same package.
+		// Build a name (best-effort). If this is an instantiated named type,
+		// preserve its type arguments so syntax-lowering can generate concrete
+		// payload types like Option[int] rather than the uninstantiated Option.
 		if tt.obj != nil {
-			return syntax.NewName(pos, tt.obj.name)
+			base := syntax.NewName(pos, tt.obj.name)
+			if ta := tt.TypeArgs(); ta != nil && ta.Len() > 0 {
+				var idx syntax.Expr
+				if ta.Len() == 1 {
+					idx = typeToSyntaxExpr(pos, ta.At(0))
+				} else {
+					l := new(syntax.ListExpr)
+					l.SetPos(pos)
+					l.ElemList = make([]syntax.Expr, 0, ta.Len())
+					for i := 0; i < ta.Len(); i++ {
+						l.ElemList = append(l.ElemList, typeToSyntaxExpr(pos, ta.At(i)))
+					}
+					idx = l
+				}
+				ix := new(syntax.IndexExpr)
+				ix.SetPos(pos)
+				ix.X = base
+				ix.Index = idx
+				return ix
+			}
+			return base
 		}
 		return syntax.NewName(pos, "/*named*/")
 	default:

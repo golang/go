@@ -82,8 +82,9 @@ func (check *Checker) parseEnumCasePattern(enum *Enum, e syntax.Expr) (enumCaseP
 		return pat, true
 	}
 
-	// Treat struct payload (tuple) specially.
-	if st, _ := payload.Underlying().(*Struct); st != nil && st.NumFields() > 0 && len(args) > 0 {
+	// Treat tuple payload (synthetic carrier struct{ _0 T0; _1 T1; ... }) specially.
+	// Do NOT treat arbitrary user structs as tuples.
+	if st, _ := payload.Underlying().(*Struct); st != nil && isTuplePayloadStruct(st) && len(args) > 0 {
 		// Tuple payload: bind names correspond to struct fields _0.._n.
 		n := st.NumFields()
 		// If arg count mismatches, still return ok=true and let checker report in switch logic.
@@ -108,5 +109,3 @@ func (check *Checker) parseEnumCasePattern(enum *Enum, e syntax.Expr) (enumCaseP
 	}
 	return pat, true
 }
-
-

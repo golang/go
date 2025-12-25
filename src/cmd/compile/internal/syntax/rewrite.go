@@ -430,17 +430,17 @@ noEnumMatchRewrite:
 	r.needsUnsafe = true
 	pos := s.Pos()
 
-		// 1. switch _match := <tag>; { ... }
+	// 1. switch _match := <tag>; { ... }
 	r.tempCounter++
 	matchVarName := "_match" + strconv.Itoa(r.tempCounter)
 	matchVar := NewName(pos, matchVarName)
 	matchVarRef := NewName(pos, matchVarName)
 
-		// Capture type information of the original switch tag (from the first types2 pass).
-		var switchTagType Type
-		if s.Tag != nil {
-			switchTagType = s.Tag.GetTypeInfo().Type
-		}
+	// Capture type information of the original switch tag (from the first types2 pass).
+	var switchTagType Type
+	if s.Tag != nil {
+		switchTagType = s.Tag.GetTypeInfo().Type
+	}
 
 	init := new(AssignStmt)
 	init.SetPos(pos)
@@ -574,7 +574,11 @@ noEnumMatchRewrite:
 
 			} else {
 				// _payloadN := payloadRead(...)
-				payloadExpr := r.enumPayloadReadExpr(matchVarRef, bindType, bindVarPos, forceHeap, false)
+				// If we have a generic enum with a known stack representation (allowStackFallback),
+				// and types2 determined this variant payload has no pointers (forceHeap==false),
+				// force stack reads to avoid heuristic containsPointer misclassifying named types
+				// like Option[int] and accidentally reading from _heap (nil).
+				payloadExpr := r.enumPayloadReadExpr(matchVarRef, bindType, bindVarPos, forceHeap, !forceHeap && bindAllowStackFallback)
 				assignTemp := new(AssignStmt)
 				assignTemp.SetPos(bindVarPos)
 				assignTemp.Op = Def
@@ -837,7 +841,9 @@ func (r *rewriter) buildEnumCaseCondition(matchVar *Name, caseExpr Expr, switchT
 		// 1. 读取 Payload (复用之前的逻辑)
 		// In literal patterns, we don't currently support runtime stack/heap fallback in expression context.
 		// (This is primarily needed for variable-binding cases inside generic functions.)
-		payloadExpr := r.enumPayloadReadExpr(matchVar, payloadType, pos, forceHeap, false)
+		// But if types2 told us this payload is stack-shaped (forceHeap==false) and the enum supports
+		// stack storage, force stack reads to avoid heuristic misclassification.
+		payloadExpr := r.enumPayloadReadExpr(matchVar, payloadType, pos, forceHeap, !forceHeap && allowStackFallback)
 
 		// 2. 如果是多参数，payloadExpr 是结构体指针，需要逐个字段比较
 		//    如果是单参数标量，payloadExpr 是值
@@ -902,7 +908,9 @@ func (r *rewriter) buildEnumCaseCondition(matchVar *Name, caseExpr Expr, switchT
 }
 
 // normalizeTuplePayloadType converts a carrier struct payload type like
-//   struct{_0 T0; _1 T1; ...}
+//
+//	struct{_0 T0; _1 T1; ...}
+//
 // into a ListExpr(T0, T1, ...), but only when it looks like a compiler-generated
 // tuple carrier (fields named _0.. in order) and has arity > 1.
 func normalizeTuplePayloadType(pos Pos, payloadType Expr) Expr {
