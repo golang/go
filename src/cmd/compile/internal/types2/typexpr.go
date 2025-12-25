@@ -590,6 +590,8 @@ func (check *Checker) enumType(e *syntax.EnumType, def *TypeName) Type {
 			// by modeling them as an anonymous struct { _0 T0; _1 T1; ... }.
 			if list, ok := v.Type.(*syntax.ListExpr); ok {
 				fields := make([]*Var, 0, len(list.ElemList))
+				// Mark tuple carrier fields with an internal sentinel tag so we can reliably
+				// distinguish them from user-defined structs that happen to use _0/_1/... names.
 				tags := make([]string, 0, len(list.ElemList))
 				for i, elem := range list.ElemList {
 					ft := check.typ(elem)
@@ -598,7 +600,7 @@ func (check *Checker) enumType(e *syntax.EnumType, def *TypeName) Type {
 					}
 					f := NewVar(v.Pos(), check.pkg, "_"+strconv.Itoa(i), ft)
 					fields = append(fields, f)
-					tags = append(tags, "")
+					tags = append(tags, enumTupleTagSentinel)
 				}
 				st := NewStruct(fields, tags)
 				typ = st

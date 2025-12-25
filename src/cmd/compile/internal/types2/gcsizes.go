@@ -155,6 +155,23 @@ func (s *gcSizes) Sizeof(T Type) int64 {
 		return s.WordSize * 2
 	case *TypeParam, *Union:
 		panic("unreachable")
+	case *Enum:
+		// Model enums as a conservative lowered representation:
+		//   struct{ _tag int; _stack [maxPayloadSize]byte; _heap uintptr }
+		//
+		// We intentionally include a heap pointer slot even if an enum ultimately
+		// lowers to a pure-stack form, because overestimating size is safe and
+		// avoids underallocating stack storage for enums used as payloads of other enums.
+		payload := t.maxPayloadSize
+		if payload <= 0 {
+			// Ensure non-zero so size doesn't collapse to just the tag.
+			payload = 1
+		}
+		// tag (WordSize) + stack payload + heap ptr (WordSize), with padding before heap ptr.
+		size := s.WordSize + payload
+		size = align(size, s.WordSize)
+		size += s.WordSize
+		return align(size, s.WordSize)
 	}
 	return s.WordSize // catch-all
 }
