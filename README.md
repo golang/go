@@ -1194,7 +1194,7 @@ func main() {
 
 ### 枚举
 
-MyGO 支持 `enum`（Tagged Union / ADT），一个枚举类型由多个 **Variant（变体）** 组成，每个变体可携带不同类型的 payload。
+MyGO 支持 `enum`（Tagged Union / ADT），一个枚举类型由多个 **`Variant（变体）`** 组成，每个变体可携带不同类型的 payload。
 
 PS: 这个特性一开始测试的时候BUG有点多，我已经把我能想到的边界条件测试了一遍，不知道还有没有其他BUG
 
@@ -1274,7 +1274,7 @@ case Shape.Rect(_, _):
 
 MyGO 的 `enum` 在 `模式匹配` 中支持 `编译期穷尽性检查`，用于确保所有可能的 `Variant` 都被显式处理，从而避免遗漏分支导致的逻辑错误
 
-如果 `switch` 缺少某些 `Variant，且` 没有 `default` 分支，编译器将报错：
+如果 `switch` 缺少某些 `Variant` ，且没有 `default` 分支，编译器将报错：
 
 ```go
 package main
