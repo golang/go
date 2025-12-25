@@ -105,6 +105,20 @@ func containsTypeParam(t Type) bool {
 
 // typeHasPointers is a conservative pointer-contains check for types2 types.
 func typeHasPointers(t Type) bool {
+	seen := make(map[Type]bool)
+	return typeHasPointersImpl(t, seen)
+}
+
+func typeHasPointersImpl(t Type, seen map[Type]bool) bool {
+	// Prevent infinite recursion for recursive types (e.g., enum List { Cons(int, List); Nil })
+	if seen[t] {
+		// Conservative: assume recursive types may contain pointers
+		// (in practice, if it's a direct enum recursion like List -> List, it's a value cycle,
+		// but safer to return true to avoid stack overflow)
+		return true
+	}
+	seen[t] = true
+
 	switch tt := Unalias(t).Underlying().(type) {
 	case *Basic:
 		switch tt.kind {
@@ -116,17 +130,17 @@ func typeHasPointers(t Type) bool {
 	case *Pointer, *Slice, *Map, *Chan, *Signature, *Interface:
 		return true
 	case *Array:
-		return typeHasPointers(tt.elem)
+		return typeHasPointersImpl(tt.elem, seen)
 	case *Struct:
 		for _, f := range tt.fields {
-			if f != nil && typeHasPointers(f.typ) {
+			if f != nil && typeHasPointersImpl(f.typ, seen) {
 				return true
 			}
 		}
 		return false
 	case *Tuple:
 		for _, v := range tt.vars {
-			if v != nil && typeHasPointers(v.typ) {
+			if v != nil && typeHasPointersImpl(v.typ, seen) {
 				return true
 			}
 		}
@@ -137,14 +151,14 @@ func typeHasPointers(t Type) bool {
 	case *Enum:
 		// payload may contain pointers
 		for _, v := range tt.variants {
-			if v != nil && typeHasPointers(v.typ) {
+			if v != nil && typeHasPointersImpl(v.typ, seen) {
 				return true
 			}
 		}
 		return false
 	case *Named:
 		// Underlying already handled, but keep conservative.
-		return typeHasPointers(tt.Underlying())
+		return typeHasPointersImpl(tt.Underlying(), seen)
 	default:
 		return true
 	}

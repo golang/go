@@ -781,6 +781,14 @@ func (r *rewriter) buildEnumCaseCondition(matchVar *Name, caseExpr Expr, switchT
 		}
 	}
 
+	// Normalize payloadType:
+	// types2 may report multi-arg payloads as a carrier struct type
+	//   struct{_0 T0; _1 T1; ...}
+	// but the syntax rewriter expects a ListExpr for tuples so that:
+	// - payload read doesn't double-wrap (avoids nested struct)
+	// - binding can use unpackTypeList to get arity
+	payloadType = normalizeTuplePayloadType(pos, payloadType)
+
 	// 2. 构建 Tag 检查: _match._tag == tagVal
 	tagEq := new(Operation)
 	tagEq.SetPos(pos)
@@ -891,6 +899,37 @@ func (r *rewriter) buildEnumCaseCondition(matchVar *Name, caseExpr Expr, switchT
 
 	// 返回 Tag 条件 和 变量名列表
 	return tagEq, bindNames, payloadType, pos, forceHeap, allowStackFallback, true
+}
+
+// normalizeTuplePayloadType converts a carrier struct payload type like
+//   struct{_0 T0; _1 T1; ...}
+// into a ListExpr(T0, T1, ...), but only when it looks like a compiler-generated
+// tuple carrier (fields named _0.. in order) and has arity > 1.
+func normalizeTuplePayloadType(pos Pos, payloadType Expr) Expr {
+	st, ok := payloadType.(*StructType)
+	if !ok || st == nil {
+		return payloadType
+	}
+	if len(st.FieldList) <= 1 {
+		// Keep single-field struct payloads as-is (some codepaths rely on _0 carrier).
+		return payloadType
+	}
+	for i, f := range st.FieldList {
+		if f == nil || f.Name == nil || f.Type == nil {
+			return payloadType
+		}
+		want := "_" + strconv.Itoa(i)
+		if f.Name.Value != want {
+			return payloadType
+		}
+	}
+	l := new(ListExpr)
+	l.SetPos(pos)
+	l.ElemList = make([]Expr, 0, len(st.FieldList))
+	for _, f := range st.FieldList {
+		l.ElemList = append(l.ElemList, f.Type)
+	}
+	return l
 }
 
 func (r *rewriter) enumTagReadExpr(matchVar *Name, pos Pos) Expr {

@@ -85,6 +85,24 @@ func typeToSyntaxExpr(pos syntax.Pos, t Type) syntax.Expr {
 			st.FieldList = append(st.FieldList, sf)
 		}
 		return st
+	case *Tuple:
+		// Convert tuple (T1, T2, ...) into a ListExpr
+		if tt.Len() == 0 {
+			return nil
+		}
+		if tt.Len() == 1 {
+			// Single element: return as-is (not wrapped in ListExpr)
+			return typeToSyntaxExpr(pos, tt.At(0).typ)
+		}
+		// Multiple elements: return as ListExpr
+		list := make([]syntax.Expr, tt.Len())
+		for i := 0; i < tt.Len(); i++ {
+			list[i] = typeToSyntaxExpr(pos, tt.At(i).typ)
+		}
+		l := new(syntax.ListExpr)
+		l.SetPos(pos)
+		l.ElemList = list
+		return l
 	case *Named:
 		// Build a name or selector. For now, prefer unqualified if same package.
 		if tt.obj != nil {
