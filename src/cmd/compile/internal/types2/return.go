@@ -50,7 +50,7 @@ func (check *Checker) isTerminating(s syntax.Stmt, label string) bool {
 		}
 
 	case *syntax.SwitchStmt:
-		return check.isTerminatingSwitch(s.Body, label)
+		return check.isTerminatingSwitchStmt(s, label)
 
 	case *syntax.SelectStmt:
 		for _, cc := range s.Body {
@@ -96,6 +96,75 @@ func (check *Checker) isTerminatingSwitch(body []*syntax.CaseClause, label strin
 		}
 	}
 	return hasDefault
+}
+
+// isTerminatingSwitchStmt is like isTerminatingSwitch but also treats exhaustive enum-match
+// switches as terminating even without an explicit default clause.
+//
+// This prevents spurious "missing return" errors for code like:
+//
+//	switch e {
+//	case Enum.A:
+//		return 1
+//	case Enum.B:
+//		return 2
+//	}
+//
+// where Enum has exactly variants {A, B}.
+func (check *Checker) isTerminatingSwitchStmt(s *syntax.SwitchStmt, label string) bool {
+	if s == nil {
+		return false
+	}
+
+	// First, require that every case body is terminating and doesn't break out.
+	hasDefault := false
+	for _, cc := range s.Body {
+		if cc.Cases == nil {
+			hasDefault = true
+		}
+		if !check.isTerminatingList(cc.Body, "") || hasBreakList(cc.Body, label, true) {
+			return false
+		}
+	}
+	if hasDefault {
+		return true
+	}
+
+	// No default: if this is an enum-match switch and it fully covers all variants,
+	// treat it as terminating.
+	if s.Tag == nil {
+		return false
+	}
+	t := s.Tag.GetTypeInfo().Type
+	enum, ok := asEnumType(t)
+	if !ok || enum == nil {
+		return false
+	}
+	if !check.hasEnumCasePattern(enum, s.Body) {
+		return false
+	}
+
+	covered := make(map[string]bool)
+	for _, clause := range s.Body {
+		if clause == nil || clause.Cases == nil {
+			continue
+		}
+		for _, e := range syntax.UnpackListExpr(clause.Cases) {
+			if vname, full, ok := check.enumCasePatternCoverage(enum, e); ok && full {
+				covered[vname] = true
+			}
+		}
+	}
+	for i := 0; i < enum.NumVariants(); i++ {
+		v := enum.Variant(i)
+		if v == nil {
+			continue
+		}
+		if !covered[v.name] {
+			return false
+		}
+	}
+	return true
 }
 
 // TODO(gri) For nested breakable statements, the current implementation of hasBreak

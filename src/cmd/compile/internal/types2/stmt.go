@@ -11,6 +11,7 @@ import (
 	"go/constant"
 	. "internal/types/errors"
 	"slices"
+	"strings"
 )
 
 // decl may be nil
@@ -789,6 +790,18 @@ func (check *Checker) enumMatchSwitchStmt(inner stmtContext, x *operand, enum *E
 	// We deliberately do NOT apply standard expression-switch comparability rules.
 	// The enum match switch is lowered later; here we only typecheck and declare bindings.
 
+	// Exhaustiveness check (best-effort):
+	// If there's no default clause, require full coverage of all enum variants.
+	// We only count a case as "fully covering" a variant if it uses binding-only patterns:
+	//   - unit:   Enum.Variant
+	//   - scalar: Enum.Variant(_|name)
+	//   - tuple:  Enum.Variant(_|name, _|name, ...) with exact arity
+	//
+	// Literal patterns like Enum.Variant(123) are treated as *not* exhaustive for that variant,
+	// so users must still provide a binding/wildcard case to cover the rest.
+	hasDefault := false
+	covered := make(map[string]bool)
+
 	for i, clause := range s.Body {
 		if clause == nil {
 			check.error(clause, InvalidSyntaxTree, "incorrect expression switch case")
@@ -806,6 +819,9 @@ func (check *Checker) enumMatchSwitchStmt(inner stmtContext, x *operand, enum *E
 		// Declare bindings from patterns, if any.
 		if clause.Cases != nil {
 			for _, e := range syntax.UnpackListExpr(clause.Cases) {
+				if vname, full, ok := check.enumCasePatternCoverage(enum, e); ok && full {
+					covered[vname] = true
+				}
 				pat, ok := check.parseEnumCasePattern(enum, e)
 				if !ok {
 					// Non-pattern expression: still run through expr for Info recordings.
@@ -823,11 +839,106 @@ func (check *Checker) enumMatchSwitchStmt(inner stmtContext, x *operand, enum *E
 					check.declare(check.scope, nil, obj, clause.Colon)
 				}
 			}
+		} else {
+			hasDefault = true
 		}
 
 		check.stmtList(inner, clause.Body)
 		check.closeScope()
 	}
+
+	if !hasDefault {
+		var missing []string
+		for i := 0; i < enum.NumVariants(); i++ {
+			v := enum.Variant(i)
+			if v == nil {
+				continue
+			}
+			if !covered[v.name] {
+				missing = append(missing, v.name)
+			}
+		}
+		if len(missing) > 0 {
+			check.errorf(s, InvalidExprSwitch, "enum match on %s is not exhaustive (missing: %s)", x.typ, strings.Join(missing, ", "))
+		}
+	}
+}
+
+// enumCasePatternCoverage returns (variantName, fullCoverage, ok).
+//
+// fullCoverage is true only for binding-only patterns that cover the entire variant:
+//   - unit:   Enum.Variant
+//   - scalar: Enum.Variant(_|name)
+//   - tuple:  Enum.Variant(_|name, _|name, ...) with exact arity, where the payload is the
+//     synthetic tuple carrier struct{ _0 T0; _1 T1; ... }.
+//
+// Any pattern containing non-identifier arguments (e.g. literals) is treated as not fully covering.
+func (check *Checker) enumCasePatternCoverage(enum *Enum, e syntax.Expr) (string, bool, bool) {
+	if e == nil || enum == nil {
+		return "", false, false
+	}
+
+	var sel *syntax.SelectorExpr
+	var args []syntax.Expr
+	switch x := syntax.Unparen(e).(type) {
+	case *syntax.SelectorExpr:
+		sel = x
+	case *syntax.CallExpr:
+		if s, ok := syntax.Unparen(x.Fun).(*syntax.SelectorExpr); ok {
+			sel = s
+			args = x.ArgList
+		}
+	default:
+		return "", false, false
+	}
+	if sel == nil || sel.Sel == nil {
+		return "", false, false
+	}
+
+	vname := sel.Sel.Value
+	v, ok := enumVariantByName(enum, vname)
+	if !ok || v == nil {
+		return "", false, false
+	}
+
+	payload := v.typ
+	if payload == nil {
+		// Be conservative: treat as not exhaustive unless it's unit-with-no-args,
+		// but payload should never be nil in our enum encoding.
+		return vname, len(args) == 0, true
+	}
+
+	// Unit variant (payload modeled as empty struct{}).
+	if st, _ := payload.Underlying().(*Struct); st != nil && st.NumFields() == 0 {
+		return vname, len(args) == 0, true
+	}
+
+	// Payload variants must be CallExpr patterns to be meaningful.
+	if len(args) == 0 {
+		return vname, false, true
+	}
+
+	// Tuple payload: only when payload is the synthetic tuple carrier.
+	if st, _ := payload.Underlying().(*Struct); st != nil && isTuplePayloadStruct(st) {
+		if len(args) != st.NumFields() {
+			return vname, false, true
+		}
+		for _, a := range args {
+			if _, ok := a.(*syntax.Name); !ok {
+				return vname, false, true
+			}
+		}
+		return vname, true, true
+	}
+
+	// Scalar payload: requires exactly one identifier argument (Name, including "_").
+	if len(args) != 1 {
+		return vname, false, true
+	}
+	if _, ok := args[0].(*syntax.Name); !ok {
+		return vname, false, true
+	}
+	return vname, true, true
 }
 
 func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, guard *syntax.TypeSwitchGuard) {

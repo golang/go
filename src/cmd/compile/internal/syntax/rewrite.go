@@ -451,12 +451,14 @@ noEnumMatchRewrite:
 	s.Tag = nil
 
 	var newBody []*CaseClause
+	sawDefault := false
 	for _, cc := range s.Body {
 		if cc == nil {
 			continue
 		}
 
 		if cc.Cases == nil { // default
+			sawDefault = true
 			for i, st := range cc.Body {
 				cc.Body[i] = r.rewriteStmt(st)
 			}
@@ -624,6 +626,25 @@ noEnumMatchRewrite:
 		}
 		cc.Body = newStmts
 		newBody = append(newBody, cc)
+	}
+
+	// If the original enum-match switch had no default, add an explicit default that panics.
+	// This makes control-flow analysis understand the switch is total w.r.t. returning functions,
+	// avoiding "missing return" for exhaustive matches (which we type-check separately).
+	if !sawDefault {
+		msg := "non-exhaustive enum match"
+		bl := &BasicLit{Kind: StringLit, Value: `"` + msg + `"`}
+		bl.SetPos(pos)
+		panicCall := &CallExpr{
+			Fun:     NewName(pos, "panic"),
+			ArgList: []Expr{bl},
+		}
+		panicCall.SetPos(pos)
+		es := &ExprStmt{X: panicCall}
+		es.SetPos(pos)
+		def := &CaseClause{Cases: nil, Body: []Stmt{es}}
+		def.SetPos(pos)
+		newBody = append(newBody, def)
 	}
 	s.Body = newBody
 
