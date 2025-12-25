@@ -1244,7 +1244,7 @@ o2 := Option[int].None
 
 #### 7.3 模式匹配
 
-MyGO 允许对 `enum` 做通过不同的类型执行不同分支
+MyGO 允许对 `enum` 在编译时根据数据的结构进行条件分支处理
 
 ```go
 func area(s Shape) float64 {
@@ -1268,6 +1268,41 @@ switch s {
 case Shape.Rect(_, _):
 	// any rectangle
 }
+```
+
+##### 穷尽性检查
+
+`MyGO` 的 `enum` 在 `模式匹配` 中支持 `编译期穷尽性检查`，用于确保所有可能的 `Variant` 都被显式处理，从而避免遗漏分支导致的逻辑错误
+
+如果 `switch` 缺少某些 `Variant，且` 没有 `default` 分支，编译器将报错：
+
+```go
+package main
+
+import "fmt"
+
+type Shape enum {
+	Circle(float64)
+	Rect(float64, float64)
+	Point
+}
+
+func area(s Shape) float64 {
+	switch s {
+	case Shape.Circle(r):
+		return 3.14159 * r * r
+	case Shape.Rect(w, h):
+		return w * h
+	}
+}
+
+func main() {
+	s := Shape.Circle(1.5)
+	fmt.Println(area(s))
+}
+
+// 报错  enum match on Shape is not exhaustive (missing: Point)
+
 ```
 
 #### 7.4 泛型 + shape（GC Shape）与存储策略（stack/heap）

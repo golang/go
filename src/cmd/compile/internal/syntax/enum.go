@@ -16,6 +16,9 @@ func (r *rewriter) rewriteEnums() {
 				if r.enumVariants == nil {
 					r.enumVariants = make(map[string]map[string]enumVariantInfo)
 				}
+				if r.enumHasHeap == nil {
+					r.enumHasHeap = make(map[string]bool)
+				}
 
 				// 提取类型参数名列表
 				var tparamNames []string
@@ -98,6 +101,8 @@ func (r *rewriter) rewriteEnums() {
 					}
 					fields = append(fields, heapField)
 				}
+				// Record whether this enum lowered with a _heap field for later match rewriting.
+				r.enumHasHeap[td.Name.Value] = hasPointers
 
 				// 替换 AST：Enum 变成了 Struct
 				td.Type = &StructType{

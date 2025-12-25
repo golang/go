@@ -21,6 +21,10 @@ type rewriter struct {
 	// enumVariants records enum type names declared in this file and their variant info.
 	// Key: Enum type name (e.g. "Number"), value: variant name -> whether it has a payload.
 	enumVariants map[string]map[string]enumVariantInfo
+	// enumHasHeap records whether the lowered enum struct includes a `_heap` field.
+	// Populated during rewriteEnums (syntax/enum.go) and used by enum-match lowering
+	// to avoid referencing `_heap` for pure-value enums that only have `_stack`.
+	enumHasHeap map[string]bool
 }
 
 type enumVariantInfo struct {
@@ -474,9 +478,10 @@ noEnumMatchRewrite:
 		var bindVarPos Pos
 		var forceHeap bool
 		var bindAllowStackFallback bool
+		var bindHasHeapField bool
 
 		for _, ce := range elems {
-			cond, bNames, bTyp, bPos, fHeap, stackFallback, ok := r.buildEnumCaseCondition(matchVarRef, ce, switchTagType)
+			cond, bNames, bTyp, bPos, fHeap, stackFallback, hasHeapField, ok := r.buildEnumCaseCondition(matchVarRef, ce, switchTagType)
 
 			if !ok {
 				c := new(Operation)
@@ -499,6 +504,7 @@ noEnumMatchRewrite:
 				}
 				if hasRealName {
 					bindNames, bindType, bindVarPos, forceHeap, bindAllowStackFallback = bNames, bTyp, bPos, fHeap, stackFallback
+					bindHasHeapField = hasHeapField
 				}
 			}
 		}
@@ -551,7 +557,7 @@ noEnumMatchRewrite:
 			// - values constructed in a concrete context may go to _stack
 			// Relying on the static payload type here can misread (e.g. Ok(int) read from _stack
 			// even though the value was stored in _heap), producing zero values.
-			if bindAllowStackFallback {
+			if bindAllowStackFallback && bindHasHeapField {
 				// var _payloadN <carrierType>
 				varDecl := &VarDecl{
 					NameList: []*Name{NewName(bindVarPos, payloadTempName)},
@@ -764,16 +770,16 @@ func (r *rewriter) parseEnumCasePatternFull(expr Expr) (string, string, string, 
 
 // buildEnumCaseCondition builds a boolean condition expression for a case arm.
 // Returns: cond, bindNames, bindType, bindPos, forceHeap, ok
-func (r *rewriter) buildEnumCaseCondition(matchVar *Name, caseExpr Expr, switchTagType Type) (Expr, []string, Expr, Pos, bool, bool, bool) {
+func (r *rewriter) buildEnumCaseCondition(matchVar *Name, caseExpr Expr, switchTagType Type) (Expr, []string, Expr, Pos, bool, bool, bool, bool) {
 	// 1. 解析基础信息 (Enum名, 变体名, Payload类型)
 	// 注意：我们可以复用 parseEnumCasePatternFull，但忽略它返回的单数 bindName/lit
 	en, vn, _, _, payloadType, _, ok := r.parseEnumCasePatternFull(caseExpr)
 	if !ok {
-		return nil, nil, nil, Pos{}, false, false, false
+		return nil, nil, nil, Pos{}, false, false, false, false
 	}
 	info, ok := r.enumVariants[en][vn]
 	if !ok {
-		return nil, nil, nil, Pos{}, false, false, false
+		return nil, nil, nil, Pos{}, false, false, false, false
 	}
 	pos := caseExpr.Pos()
 
@@ -781,12 +787,21 @@ func (r *rewriter) buildEnumCaseCondition(matchVar *Name, caseExpr Expr, switchT
 	// If we have a concrete enum type from the first types2 pass, use it to:
 	// - decide whether this variant must go to heap (has pointers)
 	// - obtain a concrete payload type syntax for this variant (so `case Result.Ok(v)` works)
-	forceHeap := info.isGeneric
+	//
+	// IMPORTANT: do not rely on info.isGeneric here; use presence of type parameters
+	// which is stable for both pre- and post-types2 lowering passes.
+	declGeneric := len(info.tparams) > 0
+	forceHeap := declGeneric
 	allowStackFallback := false
-	if info.isGeneric {
+	hasHeapField := false
+	if r.enumHasHeap != nil {
+		hasHeapField = r.enumHasHeap[en]
+	}
+	if declGeneric {
 		if h, ok := getEnumLoweringHint(en); ok && h.MaxStack > 0 {
 			allowStackFallback = true
 		}
+		// Generic enums are allowed to use runtime heap/stack dispatch when MaxStack > 0.
 	}
 	if switchTagType != nil {
 		if u := switchTagType.Underlying(); u != nil {
@@ -807,6 +822,12 @@ func (r *rewriter) buildEnumCaseCondition(matchVar *Name, caseExpr Expr, switchT
 				}
 			}
 		}
+	}
+
+	// If the lowered enum struct does not have a _heap field, never attempt heap reads.
+	// (Non-generic, pure-value enums lower to {_tag,_stack} only.)
+	if !hasHeapField {
+		forceHeap = false
 	}
 
 	// Normalize payloadType:
@@ -830,7 +851,7 @@ func (r *rewriter) buildEnumCaseCondition(matchVar *Name, caseExpr Expr, switchT
 
 	// Unit variant (没有负载): 只需要检查 Tag
 	if !info.hasPayload {
-		return tagEq, nil, nil, pos, forceHeap, allowStackFallback, true
+		return tagEq, nil, nil, pos, forceHeap, allowStackFallback, hasHeapField, true
 	}
 
 	// 3. 分析参数 (Bindings vs Literals)
@@ -841,7 +862,7 @@ func (r *rewriter) buildEnumCaseCondition(matchVar *Name, caseExpr Expr, switchT
 
 	// 如果没有参数但有 payloadType (理论上不应发生，除非语法允许省略)
 	if len(args) == 0 {
-		return tagEq, nil, nil, pos, forceHeap, allowStackFallback, true
+		return tagEq, nil, nil, pos, forceHeap, allowStackFallback, hasHeapField, true
 	}
 
 	// 检查参数中是否包含字面量 (Literals)
@@ -911,7 +932,7 @@ func (r *rewriter) buildEnumCaseCondition(matchVar *Name, caseExpr Expr, switchT
 		}
 
 		// 返回完整条件，无绑定变量
-		return fullCond, nil, nil, pos, forceHeap, allowStackFallback, true
+		return fullCond, nil, nil, pos, forceHeap, allowStackFallback, hasHeapField, true
 	}
 
 	// === 情况 B: 纯变量绑定 (Variable Binding) ===
@@ -928,7 +949,7 @@ func (r *rewriter) buildEnumCaseCondition(matchVar *Name, caseExpr Expr, switchT
 	}
 
 	// 返回 Tag 条件 和 变量名列表
-	return tagEq, bindNames, payloadType, pos, forceHeap, allowStackFallback, true
+	return tagEq, bindNames, payloadType, pos, forceHeap, allowStackFallback, hasHeapField, true
 }
 
 // normalizeTuplePayloadType converts a carrier struct payload type like
