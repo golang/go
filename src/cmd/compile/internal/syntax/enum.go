@@ -269,7 +269,7 @@ func (r *rewriter) generateConstructorBody(pos Pos, typeName *Name, tagVal int, 
 		Op:  0,
 		Lhs: &SelectorExpr{X: retName, Sel: NewName(pos, "_tag")},
 		Rhs: &BasicLit{Value: strconv.Itoa(tagVal), Kind: IntLit},
-	}
+		}
 	T(tagAssign)
 	block.List = append(block.List, tagAssign)
 

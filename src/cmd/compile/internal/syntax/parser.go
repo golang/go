@@ -28,6 +28,8 @@ type parser struct {
 	pragma    Pragma   // pragmas
 	goVersion string   // Go version from //go:build line
 
+	gen int // counter for generating unique names during parsing (MyGo extensions)
+
 	top    bool   // in top of file (before package clause)
 	fnest  int    // function nesting level (for error handling)
 	xnest  int    // expression nesting level (for complit ambiguity resolution)
@@ -92,10 +94,16 @@ func (p *parser) init(file *PosBase, r io.Reader, errh ErrorHandler, pragh Pragm
 	p.first = nil
 	p.errcnt = 0
 	p.pragma = nil
+	p.gen = 0
 
 	p.fnest = 0
 	p.xnest = 0
 	p.indent = nil
+}
+
+func (p *parser) gensym(pos Pos, prefix string) *Name {
+	p.gen++
+	return NewName(pos, prefix+strconv.Itoa(p.gen))
 }
 
 // takePragma returns the current parsed pragmas
@@ -2631,6 +2639,91 @@ func (p *parser) forStmt() Stmt {
 	s.Init, s.Cond, s.Post = p.header(_For)
 	s.Body = p.blockStmt("for clause")
 
+	// MyGo: for pattern match desugaring.
+	// Recognize:
+	//   for Type.Variant(pats...) := X { Body }
+	//   for Type.Variant(pats...) := X; Guard { Body }
+	// Parsed as a ForStmt where Init is AssignStmt(Op=Def) with Lhs being the pattern.
+	// We desugar to:
+	//   _lbl:
+	//     for {
+	//       switch _v := X; _v {
+	//       case Type.Variant(...):
+	//         if Guard { Body } else { break _lbl }
+	//       default:
+	//         break _lbl
+	//       }
+	//     }
+	if _, pat, rhs, ok := extractEnumPatternAssign(s.Init); ok && s.Post == nil {
+		pos := s.Pos()
+		lbl := p.gensym(pos, "_matchfor")
+		lblName := lbl.Value
+
+		sw := new(SwitchStmt)
+		sw.pos = pos
+		// Keep Init=nil so enum-pattern switch lowering runs.
+		sw.Init = nil
+		sw.Tag = rhs
+
+		newBreak := func() *BranchStmt {
+			br := new(BranchStmt)
+			br.pos = pos
+			br.Tok = Break
+			// Use a fresh label identifier node for each use; the definition node
+			// is in the LabeledStmt below.
+			br.Label = NewName(pos, lblName)
+			return br
+		}
+
+		// default: break _lbl
+		def := new(CaseClause)
+		def.pos = pos
+		def.Cases = nil
+		def.Body = []Stmt{newBreak()}
+
+		// case pat: [if guard] body [else break _lbl]
+		caseBody := s.Body.List
+		if s.Cond != nil {
+			thenBlk := new(BlockStmt)
+			thenBlk.pos = pos
+			thenBlk.List = caseBody
+
+			elseBlk := new(BlockStmt)
+			elseBlk.pos = pos
+			elseBlk.List = []Stmt{newBreak()}
+
+			ifs := new(IfStmt)
+			ifs.pos = pos
+			ifs.Cond = s.Cond
+			ifs.Then = thenBlk
+			ifs.Else = elseBlk
+			caseBody = []Stmt{ifs}
+		}
+
+		cc := new(CaseClause)
+		cc.pos = pos
+		cc.Cases = pat
+		cc.Body = caseBody
+
+		sw.Body = []*CaseClause{cc, def}
+		sw.Rbrace = s.Body.Rbrace
+
+		loopBody := new(BlockStmt)
+		loopBody.pos = pos
+		loopBody.List = []Stmt{sw}
+		loopBody.Rbrace = s.Body.Rbrace
+
+		loop := new(ForStmt)
+		loop.pos = pos
+		loop.Body = loopBody
+
+		ls := new(LabeledStmt)
+		ls.pos = pos
+		ls.Label = lbl
+		ls.Stmt = loop
+		return ls
+	}
+
 	return s
 }
 
@@ -2660,6 +2753,18 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
 			p.xnest = outer
 			return
 		}
+		// MyGo: if/for pattern match form without semicolon:
+		//   if  Type.Variant(pats...) := X { ... }
+		//   for Type.Variant(pats...) := X { ... }
+		// In standard Go this would be rejected as "cannot use assignment as value".
+		// We keep it as an init statement with implicit condition and desugar later.
+		if (keyword == _If || keyword == _For) && p.tok == _Lbrace {
+			if isEnumPatternAssign(init) {
+				// init is the match clause; no cond/post here.
+				p.xnest = outer
+				return
+			}
+		}
 	}
 
 	var condStmt SimpleStmt
@@ -2686,6 +2791,12 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
 					goto done
 				}
 				condStmt = p.simpleStmt(nil, 0 /* range not permitted */)
+			}
+			// MyGo: for pattern match with optional guard:
+			//   for Type.Variant(pats...) := X; guard { ... }
+			// This has only one semicolon; accept it when init is a pattern assignment.
+			if p.tok == _Lbrace && isEnumPatternAssign(init) {
+				goto done
 			}
 			p.want(_Semi)
 			if p.tok != _Lbrace {
@@ -2748,7 +2859,88 @@ func emphasize(x Expr) string {
 	return s
 }
 
-func (p *parser) ifStmt() *IfStmt {
+// ----------------------------
+// MyGo: if/for enum pattern match helpers
+
+// isEnumPatternExpr reports whether e looks like an enum variant pattern:
+//   - TypeName.Variant
+//   - TypeName.Variant(...)
+//   - TypeName[T...].Variant
+//   - TypeName[T...].Variant(...)
+//
+// We only use syntactic shape (SelectorExpr with base Name/IndexExpr).
+func isEnumPatternExpr(e Expr) bool {
+	switch x := e.(type) {
+	case *CallExpr:
+		if x.Fun == nil {
+			return false
+		}
+		return isEnumPatternExpr(x.Fun)
+	case *SelectorExpr:
+		if x.Sel == nil || x.X == nil {
+			return false
+		}
+		switch x.X.(type) {
+		case *Name, *IndexExpr:
+			return true
+		default:
+			return false
+		}
+	default:
+		return false
+	}
+}
+
+// extractEnumPatternAssign recognizes a single-definition assignment of the form:
+//
+//	<pattern> := <expr>
+//
+// where <pattern> is an enum variant pattern expression.
+// Returns the underlying AssignStmt, pattern expr, rhs expr.
+func extractEnumPatternAssign(s SimpleStmt) (*AssignStmt, Expr, Expr, bool) {
+	as, ok := s.(*AssignStmt)
+	if !ok || as == nil || as.Op != Def {
+		return nil, nil, nil, false
+	}
+
+	// Only support single LHS/RHS expression (no x,y := ...).
+	lhs := as.Lhs
+	if l, ok := lhs.(*ListExpr); ok {
+		if len(l.ElemList) != 1 {
+			return nil, nil, nil, false
+		}
+		lhs = l.ElemList[0]
+	}
+	rhs := as.Rhs
+	if r, ok := rhs.(*ListExpr); ok {
+		if len(r.ElemList) != 1 {
+			return nil, nil, nil, false
+		}
+		rhs = r.ElemList[0]
+	}
+
+	if !isEnumPatternExpr(lhs) {
+		return nil, nil, nil, false
+	}
+	return as, lhs, rhs, true
+}
+
+func isEnumPatternAssign(s SimpleStmt) bool {
+	_, _, _, ok := extractEnumPatternAssign(s)
+	return ok
+}
+
+func stmtsFromElse(e Stmt) []Stmt {
+	if e == nil {
+		return nil
+	}
+	if b, ok := e.(*BlockStmt); ok && b != nil {
+		return b.List
+	}
+	return []Stmt{e}
+}
+
+func (p *parser) ifStmt() Stmt {
 	if trace {
 		defer p.trace("ifStmt")()
 	}
@@ -2769,6 +2961,165 @@ func (p *parser) ifStmt() *IfStmt {
 			p.syntaxError("else must be followed by if or statement block")
 			p.advance(_Name, _Rbrace)
 		}
+	}
+
+	// MyGo: if pattern match desugaring.
+	// Recognize:
+	//   if Type.Variant(pats...) := X { Then } [else Else]
+	//   if Type.Variant(pats...) := X; Guard { Then } [else Else]
+	// Parsed as an IfStmt with Init = AssignStmt(Op=Def) and Cond = nil or Guard.
+	if as, pat, rhs, ok := extractEnumPatternAssign(s.Init); ok {
+		_ = as
+		pos := s.Pos()
+
+		// Keep Init=nil so enum-pattern switch lowering runs.
+		// (rewriteSwitchStmt skips enum-match rewrite when Init != nil.)
+		sw := new(SwitchStmt)
+		sw.pos = pos
+		sw.Init = nil
+		sw.Tag = rhs
+
+		// No-guard case: straightforward switch lowering.
+		if s.Cond == nil {
+			cc := new(CaseClause)
+			cc.pos = pos
+			cc.Cases = pat
+			cc.Body = s.Then.List
+
+			def := new(CaseClause)
+			def.pos = pos
+			def.Cases = nil
+			def.Body = stmtsFromElse(s.Else)
+
+			sw.Body = []*CaseClause{cc, def}
+			sw.Rbrace = s.Then.Rbrace
+			return sw
+		}
+
+		// Guarded case:
+		//
+		//   if Pat := X; Guard { Then } else { Else }
+		//
+		// MUST NOT duplicate Else into multiple AST parents (it can ICE noder due to
+		// non-unique nodes and mismatched TypeAndValue). We implement:
+		//
+		//   _matched := false
+		//   switch X {
+		//   case Pat:
+		//       if Guard { Then; _matched = true }
+		//   default:
+		//       // empty (suppresses enum exhaustiveness checking)
+		//   }
+		//   if !_matched { Else }
+		//
+		// Else is emitted exactly once.
+
+		// If there's no else-branch, we don't need the _matched flag at all.
+		// We can simply:
+		//
+		//   switch X {
+		//   case Pat:
+		//       if Guard { Then }
+		//   default:
+		//   }
+		//
+		// The empty default suppresses enum exhaustiveness checking in types2.
+		if s.Else == nil {
+			thenBlk := new(BlockStmt)
+			thenBlk.pos = pos
+			thenBlk.List = s.Then.List
+
+			ifs := new(IfStmt)
+			ifs.pos = pos
+			ifs.Cond = s.Cond
+			ifs.Then = thenBlk
+
+			cc := new(CaseClause)
+			cc.pos = pos
+			cc.Cases = pat
+			cc.Body = []Stmt{ifs}
+
+			def := new(CaseClause)
+			def.pos = pos
+			def.Cases = nil
+			def.Body = nil
+
+			sw.Body = []*CaseClause{cc, def}
+			sw.Rbrace = s.Then.Rbrace
+			return sw
+		}
+
+		matchedDef := p.gensym(pos, "_matched")
+		matchedName := matchedDef.Value
+
+		// _matched := false
+		initMatched := new(AssignStmt)
+		initMatched.pos = pos
+		initMatched.Op = Def
+		initMatched.Lhs = matchedDef
+		initMatched.Rhs = NewName(pos, "false")
+
+		// case Pat: if Guard { Then; _matched = true }
+		setTrue := new(AssignStmt)
+		setTrue.pos = pos
+		setTrue.Op = 0
+		setTrue.Lhs = NewName(pos, matchedName) // use occurrence (do not reuse matchedDef node)
+		setTrue.Rhs = NewName(pos, "true")
+
+		thenBody := append([]Stmt{}, s.Then.List...)
+		thenBody = append(thenBody, setTrue)
+
+		thenBlk := new(BlockStmt)
+		thenBlk.pos = pos
+		thenBlk.List = thenBody
+
+		ifs := new(IfStmt)
+		ifs.pos = pos
+		ifs.Cond = s.Cond
+		ifs.Then = thenBlk
+		// No else: guard failure means "_matched" remains false.
+
+		cc := new(CaseClause)
+		cc.pos = pos
+		cc.Cases = pat
+		cc.Body = []Stmt{ifs}
+
+		// Add an explicit empty default to suppress enum exhaustiveness checking.
+		def := new(CaseClause)
+		def.pos = pos
+		def.Cases = nil
+		def.Body = nil
+
+		sw.Body = []*CaseClause{cc, def}
+		sw.Rbrace = s.Then.Rbrace
+
+		// if !_matched { Else }
+		var after []Stmt
+		after = append(after, initMatched)
+		after = append(after, sw)
+
+		if elseBody := stmtsFromElse(s.Else); len(elseBody) > 0 {
+			notMatched := new(Operation)
+			notMatched.pos = pos
+			notMatched.Op = Not
+			notMatched.X = NewName(pos, matchedName) // use occurrence (do not reuse matchedDef node)
+
+			elseBlk := new(BlockStmt)
+			elseBlk.pos = pos
+			elseBlk.List = elseBody
+
+			outIf := new(IfStmt)
+			outIf.pos = pos
+			outIf.Cond = notMatched
+			outIf.Then = elseBlk
+			after = append(after, outIf)
+		}
+
+		blk := new(BlockStmt)
+		blk.pos = pos
+		blk.List = after
+		blk.Rbrace = s.Then.Rbrace
+		return blk
 	}
 
 	return s

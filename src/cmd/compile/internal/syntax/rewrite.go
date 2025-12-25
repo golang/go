@@ -318,6 +318,8 @@ func (r *rewriter) rewriteStmt(stmt Stmt) Stmt {
 	case *SendStmt:
 		s.Chan = r.rewriteExpr(s.Chan)
 		s.Value = r.rewriteExpr(s.Value)
+	case *LabeledStmt:
+		s.Stmt = r.rewriteStmt(s.Stmt)
 	}
 	return stmt
 }
@@ -2347,6 +2349,8 @@ func (r *overloadPreRewriter) rewriteStmtPre(stmt Stmt) {
 		for _, d := range s.DeclList {
 			r.rewriteDeclPre(d)
 		}
+	case *LabeledStmt:
+		r.rewriteStmtPre(s.Stmt)
 	}
 }
 
@@ -3897,6 +3901,9 @@ func (r *arithOpRewriter) rewriteStmt(stmt Stmt) Stmt {
 			s.DeferAt = r.rewriteExpr(s.DeferAt)
 		}
 		return s
+	case *LabeledStmt:
+		s.Stmt = r.rewriteStmt(s.Stmt)
+		return s
 	default:
 		return stmt
 	}
@@ -4997,6 +5004,8 @@ func (r *overloadCallRewriter) rewriteStmt(stmt Stmt) {
 	case *SendStmt:
 		r.rewriteExpr(s.Chan)
 		r.rewriteExpr(s.Value)
+	case *LabeledStmt:
+		r.rewriteStmt(s.Stmt)
 	}
 }
 
@@ -5393,6 +5402,8 @@ func (r *constructorRewriter) rewriteStmt(stmt Stmt) Stmt {
 		for _, d := range s.DeclList {
 			r.rewriteDecl(d)
 		}
+	case *LabeledStmt:
+		s.Stmt = r.rewriteStmt(s.Stmt)
 	}
 	return stmt
 }
@@ -6052,6 +6063,9 @@ func (r *magicMethodRewriter) rewriteStmt(stmt Stmt) Stmt {
 		for _, d := range s.DeclList {
 			r.rewriteDecl(d)
 		}
+		return s
+	case *LabeledStmt:
+		s.Stmt = r.rewriteStmt(s.Stmt)
 		return s
 	}
 	return stmt

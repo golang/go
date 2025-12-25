@@ -1314,7 +1314,73 @@ func main() {
 
 在泛型函数里（例如 `func f[T any](o Option[T])`），如果 shape 在编译期不可知，模式匹配/读 payload 会使用运行时分支在 `_heap` 与 `_stack` 之间选择。
 
-#### 7.5 enum 支持“魔法函数”（运算符分发器）
+#### 7.5 if/for 模式匹配
+
+除了 `switch` 模式匹配，MyGO 还支持更简洁的 `if`/`for` 模式匹配语法。（没有穷尽性检查）
+
+##### if 模式匹配
+
+```go
+opt := Option[int].Some(42)
+
+// 基础形式
+if Option.Some(x) := opt {
+    fmt.Println("value:", x)
+}
+
+// 带 else
+if Option.Some(x) := opt {
+    fmt.Println("value:", x)
+} else {
+    fmt.Println("no value")
+}
+
+// 带 guard
+if Option.Some(x) := opt; x > 0 {
+    fmt.Println("positive:", x)
+}
+
+
+// else-if 链
+if Option.Some(x) := opt {
+	fmt.Println("opt1:", x)
+} else if Option.Some(y) := opt {
+	fmt.Println("opt2:", y)
+} else {
+	fmt.Println("both none")
+}
+```
+
+##### for 模式匹配
+
+`for` 模式匹配会循环执行直到模式不匹配为止：
+
+```go
+// 基础形式：循环直到不匹配
+shape := Shape.Circle(1.5)
+for Shape.Circle(r) := shape {
+    fmt.Println("radius:", r)
+    shape = Shape.Point  // 改变值以退出循环
+}
+
+// 带 guard
+shape2 := Shape.Circle(5.0)
+for Shape.Circle(r) := shape2; r > 1.0 {
+    fmt.Println("r =", r)
+    shape2 = Shape.Circle(r - 2.0)  // 递减，当 r <= 1.0 时退出
+}
+
+// 多字段解构
+rect := Shape.Rect(3.0, 4.0)
+for Shape.Rect(w, h) := rect {
+    fmt.Println("area:", w*h)
+    rect = Shape.Point
+}
+```
+
+
+
+#### 7.6 enum 支持"魔法函数"（运算符分发器）
 
 你可以给 enum 定义除 `_init` 以外的魔法方法，例如 `_add/_radd/_eq/_ne/_lt/_getitem/...`，让 enum 本身充当 **动态分发器**：
 
@@ -1363,7 +1429,7 @@ func main() {
 **注意**：
 - 在魔法方法内部写 `a + b` 可能触发递归重写；建议在魔法方法体内直接写分发逻辑，不要再用同一个运算符调用自身。
 
-#### 7.6 枚举使用示例
+#### 7.7 枚举使用示例
 
 ##### 构造Option[T]
 
