@@ -544,7 +544,14 @@ noEnumMatchRewrite:
 				}
 			}
 
-			if forceHeap && bindAllowStackFallback {
+			// If the enum type supports both heap and stack storage (e.g. a generic enum with
+			// shape-derived MaxStack > 0, or any other case we marked as allowStackFallback),
+			// choose payload source at runtime:
+			// - values constructed in a generic context may conservatively go to _heap
+			// - values constructed in a concrete context may go to _stack
+			// Relying on the static payload type here can misread (e.g. Ok(int) read from _stack
+			// even though the value was stored in _heap), producing zero values.
+			if bindAllowStackFallback {
 				// var _payloadN <carrierType>
 				varDecl := &VarDecl{
 					NameList: []*Name{NewName(bindVarPos, payloadTempName)},
@@ -576,11 +583,7 @@ noEnumMatchRewrite:
 
 			} else {
 				// _payloadN := payloadRead(...)
-				// If we have a generic enum with a known stack representation (allowStackFallback),
-				// and types2 determined this variant payload has no pointers (forceHeap==false),
-				// force stack reads to avoid heuristic containsPointer misclassifying named types
-				// like Option[int] and accidentally reading from _heap (nil).
-				payloadExpr := r.enumPayloadReadExpr(matchVarRef, bindType, bindVarPos, forceHeap, !forceHeap && bindAllowStackFallback)
+				payloadExpr := r.enumPayloadReadExpr(matchVarRef, bindType, bindVarPos, forceHeap, false)
 				assignTemp := new(AssignStmt)
 				assignTemp.SetPos(bindVarPos)
 				assignTemp.Op = Def

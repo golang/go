@@ -1190,6 +1190,531 @@ func main() {
 
 `map/chan` 默认"伪实现"了 _init() _init(pos int)
 
+## 7. 代数数据类型(实验特性)
+
+### 枚举
+
+MyGO 支持 `enum`（Tagged Union / ADT），一个枚举类型由多个 **Variant（变体）** 组成，每个变体可携带不同类型的 payload。
+
+PS: 这个特性一开始测试的时候BUG有点多，我已经把我能想到的边界条件测试了一遍，不知道还有没有其他BUG
+
+#### 7.1 定义枚举
+
+```go
+// Unit variants（无 payload）
+type Color enum {
+	Red
+	Green
+	Blue
+}
+
+// Payload variants（带 payload，支持多参数 tuple）
+type Shape enum {
+	Circle(float64)
+	Rect(float64, float64)
+	Point
+}
+
+
+// 递归枚举也支持
+type List enum {
+	Cons(int, List)
+	Nil
+}
+
+// 泛型枚举
+type Option[T any] enum {
+	Some(T)
+	None
+}
+
+```
+
+#### 7.2 构造枚举值
+
+```go
+c1 := Color.Red            // unit variant: 不需要括号
+s1 := Shape.Circle(1.5)    // payload variant: 需要参数
+s2 := Shape.Rect(3, 4)
+s3 := Shape.Point
+
+o1 := Option[int].Some(42)
+o2 := Option[int].None
+```
+
+#### 7.3 模式匹配
+
+MyGO 允许对 enum 做类似 Rust `match` 的 `switch`：
+
+```go
+func area(s Shape) float64 {
+	switch s {
+	case Shape.Circle(r):
+		return 3.14159 * r * r
+	case Shape.Rect(w, h):
+		return w * h
+	case Shape.Point:
+		return 0
+	default:
+		return 0
+	}
+}
+```
+
+**通配符**：用 `_` 忽略不关心的字段
+
+```go
+switch s {
+case Shape.Rect(_, _):
+	// any rectangle
+}
+```
+
+#### 7.4 泛型 + shape（GC Shape）与存储策略（stack/heap）
+
+枚举会被 lowering 成普通 Go `struct` + 类型构造函数（内部使用 `unsafe`）。为减少 GC 压力：
+- **纯值 payload**（无指针）优先走 `_stack [N]byte`（栈内联）
+- **含指针 payload** 走 `_heap unsafe.Pointer`
+- **泛型枚举**：以 *实例化后的具体类型 shape* 决定（例如 `Option[int]` vs `Option[string]`）
+
+在泛型函数里（例如 `func f[T any](o Option[T])`），如果 shape 在编译期不可知，模式匹配/读 payload 会使用运行时分支在 `_heap` 与 `_stack` 之间选择。
+
+#### 7.5 enum 支持“魔法函数”（运算符分发器）
+
+你可以给 enum 定义除 `_init` 以外的魔法方法，例如 `_add/_radd/_eq/_ne/_lt/_getitem/...`，让 enum 本身充当 **动态分发器**：
+
+```go
+type Value enum {
+	Integer(int)
+	Float(float64)
+}
+
+// 支持 Value + Value（同构/异构都可在这里分发）
+func (lhs Value) _add(rhs Value) Value {
+	switch lhs {
+	case Value.Integer(a):
+		switch rhs {
+		case Value.Integer(b):
+			return Value.Integer(a + b)
+		case Value.Float(b):
+			return Value.Float(float64(a) + b)
+		}
+	case Value.Float(a):
+		switch rhs {
+		case Value.Integer(b):
+			return Value.Float(a + float64(b))
+		case Value.Float(b):
+			return Value.Float(a + b)
+		}
+	}
+	panic("unsupported Value + Value")
+}
+
+func main() {
+	x := Value.Integer(1)
+	y := Value.Float(2.5)
+	z := x + y // 会被重写为 x._add(y)
+	switch z {
+	case Value.Integer(a):
+		fmt.Printf("z := %d\n", a)
+	case Value.Float(b):
+		fmt.Printf("z := %f\n", b)
+	}
+}
+```
+
+**反向运算**：如果正向 `_add` 不匹配，会尝试右侧的 `_radd`（和 README 里魔法函数规则一致）。
+
+**注意**：
+- 在魔法方法内部写 `a + b` 可能触发递归重写；建议在魔法方法体内直接写分发逻辑，不要再用同一个运算符调用自身。
+
+#### 7.6 枚举使用示例
+
+##### 构造Option[T]
+
+`Option[T]` 用于显式表示「有值 / 无值」，避免 nil、多返回值、隐式错误。
+
+```go
+type Divable interface {
+	~int | ~int8 | ~int16 | ~int32 | ~int64 |
+		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
+		~float32 | ~float64
+}
+
+type Option[T Divable] enum {
+	Some(T)
+	None
+}
+
+func (o Option[T]) _eq(a Option[T]) bool {
+	switch o {
+	case Option[T].Some(_):
+		switch a {
+		case Option[T].Some(_):
+			return true
+		case Option[T].None:
+			return false
+		}
+	case Option[T].None:
+		switch a {
+		case Option[T].None:
+			return true
+		case Option[T].Some(_):
+			return false
+		}
+	}
+	panic("unreachable")
+}
+
+func (o Option[T]) _div(a Option[T]) Option[T] {
+	switch o {
+	case Option[T].Some(v):
+		switch a {
+		case Option[T].None:
+			return Option[T].None
+		case Option[T].Some(d):
+			var zero T
+			if d == zero {
+				return Option[T].None
+			}
+			return Option[T].Some(v / d)
+		}
+	case Option[T].None:
+		return Option[T].None
+	}
+	panic("unreachable")
+}
+
+func main() {
+	x := Option[int].Some(10) / Option[int].Some(2)
+	y := Option[int].Some(10) / Option[int].Some(0)
+
+	switch x {
+	case Option[int].Some(v):
+		fmt.Println("x =", v)
+	case Option[int].None:
+		fmt.Println("x = None")
+	}
+
+	switch y {
+	case Option[int].Some(v):
+		fmt.Println("y =", v)
+	case Option[int].None:
+		fmt.Println("y = None")
+	}
+}
+```
+
+##### 构造Result[T, E]
+
+`Result[T, E]` 用于显式错误传播，比 `error` 更适合表达结构化失败原因。
+
+```go
+type Result[T any, E error] enum {
+	Ok(T)
+	Err(E)
+}
+
+// 示例1: 安全的除法，返回 Result[int, error]
+func safeDiv(a, b int) Result[int, error] {
+	if b == 0 {
+		return Result[int, error].Err(errors.New("division by zero"))
+	}
+	return Result[int, error].Ok(a / b)
+}
+
+// 示例2: 字符串转整数，返回 Result[int, error]
+func parseIntSafe(s string) Result[int, error] {
+	val, err := strconv.Atoi(s)
+	if err != nil {
+		return Result[int, error].Err(err)
+	}
+	return Result[int, error].Ok(val)
+}
+
+// 示例3: Result 的 map 操作（将 Ok 中的值进行转换）
+func (r Result[T, E]) mapOk(f func(T) T) Result[T, E] {
+	switch r {
+	case Result[T, E].Ok(val):
+		return Result[T, E].Ok(f(val))
+	case Result[T, E].Err(e):
+		return Result[T, E].Err(e)
+	}
+	panic("unreachable")
+}
+
+func main() {
+	// 测试安全除法
+	fmt.Println("=== 安全除法示例 ===")
+	r1 := safeDiv(10, 2)
+	switch r1 {
+	case Result[int, error].Ok(v):
+		fmt.Printf("10 / 2 = %d\n", v)
+	case Result[int, error].Err(e):
+		fmt.Printf("错误: %v\n", e)
+	}
+
+	r2 := safeDiv(10, 0)
+	switch r2 {
+	case Result[int, error].Ok(v):
+		fmt.Printf("10 / 0 = %d\n", v)
+	case Result[int, error].Err(e):
+		fmt.Printf("错误: %v\n", e)
+	}
+
+	// 测试字符串转整数
+	fmt.Println("\n=== 字符串解析示例 ===")
+	r3 := parseIntSafe("42")
+	switch r3 {
+	case Result[int, error].Ok(v):
+		fmt.Printf("解析成功: %d\n", v)
+	case Result[int, error].Err(e):
+		fmt.Printf("解析失败: %v\n", e)
+	}
+
+	r4 := parseIntSafe("not a number")
+	switch r4 {
+	case Result[int, error].Ok(v):
+		fmt.Printf("解析成功: %d\n", v)
+	case Result[int, error].Err(e):
+		fmt.Printf("解析失败: %v\n", e)
+	}
+
+	// 测试 map 操作
+	fmt.Println("\n=== Result map 操作示例 ===")
+	r5 := parseIntSafe("5").mapOk(func(x int) int {
+		return x * 2
+	})
+	switch r5 {
+	case Result[int, error].Ok(v):
+		fmt.Printf("5 * 2 = %d\n", v)
+	case Result[int, error].Err(e):
+		fmt.Printf("错误: %v\n", e)
+	}
+
+	r6 := parseIntSafe("invalid").mapOk(func(x int) int {
+		return x * 2
+	})
+	switch r6 {
+	case Result[int, error].Ok(v):
+		fmt.Printf("结果: %d\n", v)
+	case Result[int, error].Err(e):
+		fmt.Printf("错误: %v\n", e)
+	}
+}
+```
+
+##### Monad 风格
+
+MyGO 的 `enum` + `魔法函数`，非常自然地支持 `Monad` / `Functor` 模式。
+
+###### Map / AndThen / UnwrapOr 
+
+```go
+package main
+
+import (
+	"errors"
+	"fmt"
+	"strconv"
+)
+
+type Divable interface {
+	~int | ~int8 | ~int16 | ~int32 | ~int64 |
+		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
+		~float32 | ~float64
+}
+
+type Option[T Divable] enum {
+	Some(T)
+	None
+}
+
+func (o Option[T]) _eq(a Option[T]) bool {
+	switch o {
+	case Option[T].Some(_):
+		switch a {
+		case Option[T].Some(_):
+			return true
+		case Option[T].None:
+			return false
+		}
+	case Option[T].None:
+		switch a {
+		case Option[T].None:
+			return true
+		case Option[T].Some(_):
+			return false
+		}
+	}
+	panic("unreachable")
+}
+
+// Monad 风格 API（Option）
+func (o Option[T]) Map(f func(T) T) Option[T] {
+	switch o {
+	case Option[T].Some(v):
+		return Option[T].Some(f(v))
+	case Option[T].None:
+		return Option[T].None
+	}
+	panic("unreachable")
+}
+
+func (o Option[T]) AndThen(f func(T) Option[T]) Option[T] {
+	switch o {
+	case Option[T].Some(v):
+		return f(v)
+	case Option[T].None:
+		return Option[T].None
+	}
+	panic("unreachable")
+}
+
+func (o Option[T]) UnwrapOr(def T) T {
+	switch o {
+	case Option[T].Some(v):
+		return v
+	case Option[T].None:
+		return def
+	}
+	panic("unreachable")
+}
+
+func (o Option[T]) _div(a Option[T]) Option[T] {
+	switch o {
+	case Option[T].Some(v):
+		switch a {
+		case Option[T].None:
+			return Option[T].None
+		case Option[T].Some(d):
+			var zero T
+			if d == zero {
+				return Option[T].None
+			}
+			return Option[T].Some(v / d)
+		}
+	case Option[T].None:
+		return Option[T].None
+	}
+	panic("unreachable")
+}
+
+type Result[T any, E error] enum {
+	Ok(T)
+	Err(E)
+}
+
+// Monad 风格 API（Result）
+func (r Result[T, E]) Map(f func(T) T) Result[T, E] {
+	switch r {
+	case Result[T, E].Ok(v):
+		return Result[T, E].Ok(f(v))
+	case Result[T, E].Err(e):
+		return Result[T, E].Err(e)
+	}
+	panic("unreachable")
+}
+
+func (r Result[T, E]) AndThen(f func(T) Result[T, E]) Result[T, E] {
+	switch r {
+	case Result[T, E].Ok(v):
+		return f(v)
+	case Result[T, E].Err(e):
+		return Result[T, E].Err(e)
+	}
+	panic("unreachable")
+}
+
+// unwrapOr：错误时返回默认值（不抛错）
+func (r Result[T, E]) UnwrapOr(def T) T {
+	switch r {
+	case Result[T, E].Ok(v):
+		return v
+	case Result[T, E].Err(_):
+		return def
+	}
+	panic("unreachable")
+}
+
+// unwrapOrHandle：错误时先调用 onErr 再返回默认值（用于“unwrapOr 的错误处理”）
+func (r Result[T, E]) UnwrapOrHandle(def T, onErr func(E)) T {
+	switch r {
+	case Result[T, E].Ok(v):
+		return v
+	case Result[T, E].Err(e):
+		if onErr != nil {
+			onErr(e)
+		}
+		return def
+	}
+	panic("unreachable")
+}
+
+// unwrap：错误时直接 panic（更接近 Rust 的 unwrap）
+func (r Result[T, E]) Unwrap() T {
+	switch r {
+	case Result[T, E].Ok(v):
+		return v
+	case Result[T, E].Err(e):
+		panic(e)
+	}
+	panic("unreachable")
+}
+
+func parseInt(s string) Result[int, error] {
+	v, err := strconv.Atoi(s)
+	if err != nil {
+		return Result[int, error].Err(err)
+	}
+	return Result[int, error].Ok(v)
+}
+
+func safeDiv(a, b int) Result[int, error] {
+	if b == 0 {
+		return Result[int, error].Err(errors.New("division by zero"))
+	}
+	return Result[int, error].Ok(a / b)
+}
+
+func printOption(s string, o Option[int]) {
+	switch o {
+	case Option[int].Some(v):
+		fmt.Println(s, "=", v)
+	case Option[int].None:
+		fmt.Println(s, "= None")
+	}
+}
+
+func main() {
+	// --- Option: / 运算符 + monad 链式 ---
+	x := Option[int].Some(10) / Option[int].Some(2) // 5
+	y := Option[int].Some(10) / Option[int].Some(0) // None
+
+	// map / andThen / unwrapOr
+	x2 := x.
+		Map(func(v int) int { return v * 2 }).
+		AndThen(func(v int) Option[int] { return Option[int].Some(v + 1) })
+	fmt.Println("x2 =", x2.UnwrapOr(-1)) // 11
+	fmt.Println("y2 =", y.Map(func(v int) int { return v * 2 }).UnwrapOr(-1))
+
+	printOption("x", x)
+	printOption("y", y)
+
+	// --- Result: map / andThen / unwrapOr(含错误处理) ---
+	r1 := parseInt("5").
+		Map(func(v int) int { return v * 2 }).
+		AndThen(func(v int) Result[int, error] { return safeDiv(100, v) })
+	fmt.Println("r1 =", r1.UnwrapOr(-1))
+
+	r2 := parseInt("not a number").
+		AndThen(func(v int) Result[int, error] { return safeDiv(100, v) })
+	fmt.Println("r2 =", r2.UnwrapOrHandle(-1, func(e error) {
+		fmt.Println("r2 err:", e)
+	}))
+}
+```
+
 
 ---
 

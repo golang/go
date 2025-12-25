@@ -361,29 +361,43 @@ func (r *rewriter) generateConstructorBody(pos Pos, typeName *Name, tagVal int, 
 	} else {
 		// === 路径 B: 含指针变体 → 分配到堆，写入 _heap ===
 
-		// 构造匿名结构体类型
-		structFields := make([]*Field, len(types))
-		for idx, t := range types {
-			structFields[idx] = &Field{Name: NewName(pos, "_"+strconv.Itoa(idx)), Type: t}
+		var heapValue Expr
+
+		if len(types) == 1 && isOptimizableScalar(types[0]) {
+			// 单参数且是可优化标量：直接取地址并转换
+			// &param -> unsafe.Pointer
+			heapValue = &Operation{Op: And, X: params[0].Name}
+			T(heapValue)
+		} else {
+			// 构造匿名结构体类型（多参数或非标量单参数）
+			structFields := make([]*Field, len(types))
+			for idx, t := range types {
+				structFields[idx] = &Field{Name: NewName(pos, "_"+strconv.Itoa(idx)), Type: t}
+			}
+			anonStructType := &StructType{FieldList: structFields}
+			T(anonStructType)
+
+			// 构造 CompositeLit，需要使用 key-value 形式
+			compLit := &CompositeLit{Type: anonStructType}
+			T(compLit)
+			for idx, p := range params {
+				kvExpr := &KeyValueExpr{
+					Key:   NewName(pos, "_"+strconv.Itoa(idx)),
+					Value: p.Name,
+				}
+				T(kvExpr)
+				compLit.ElemList = append(compLit.ElemList, kvExpr)
+			}
+
+			// 取地址 &Literal -> 堆分配
+			heapValue = &Operation{Op: And, X: compLit}
+			T(heapValue)
 		}
-		anonStructType := &StructType{FieldList: structFields}
-		T(anonStructType)
 
-		// 构造 CompositeLit
-		compLit := &CompositeLit{Type: anonStructType}
-		T(compLit)
-		for _, p := range params {
-			compLit.ElemList = append(compLit.ElemList, p.Name)
-		}
-
-		// 取地址 &Literal -> 堆分配
-		addrExpr := &Operation{Op: And, X: compLit}
-		T(addrExpr)
-
-		// ret._heap = unsafe.Pointer(...)
+		// ret._heap = unsafe.Pointer(heapValue)
 		toPtr := &CallExpr{
 			Fun:     &SelectorExpr{X: NewName(pos, "unsafe"), Sel: NewName(pos, "Pointer")},
-			ArgList: []Expr{addrExpr},
+			ArgList: []Expr{heapValue},
 		}
 		T(toPtr)
 
