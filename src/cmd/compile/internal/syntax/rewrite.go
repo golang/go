@@ -4519,6 +4519,16 @@ func (r *arithOpRewriter) tryInferStructTypeName(expr Expr) string {
 		}
 		baseType, ok := r.varTypes[baseVar.Value]
 		if !ok || baseType == "" {
+			// Not a variable selector. This could be an enum unit-variant selector:
+			//   Enum.Variant
+			// or a generic instantiation:
+			//   Enum[T].Variant
+			// In standard Go this is not a value selector on a type, so in MyGO this
+			// strongly indicates enum syntax sugar. If the base name supports operators
+			// (has magic methods), treat the expression as having the enum base type.
+			if r.typeSupportsOperators(baseVar.Value) {
+				return baseVar.Value
+			}
 			return ""
 		}
 		info, ok := r.genericTypes[baseType]
@@ -4575,6 +4585,23 @@ func (r *arithOpRewriter) tryInferStructTypeName(expr Expr) string {
 				if recvType != "" {
 					if rt := r.getMagicMethodReturnType(recvType, baseMagic); rt != "" {
 						return rt
+					}
+				}
+			}
+			// Enum constructor sugar (pre-types2):
+			//   Enum.Variant(...) or Enum[T].Variant(...)
+			// In standard Go this form is not a valid call, so if the base name supports
+			// operators, infer the call result as that base enum type.
+			switch bx := sel.X.(type) {
+			case *Name:
+				if bx != nil && r.typeSupportsOperators(bx.Value) {
+					return bx.Value
+				}
+			case *IndexExpr:
+				// Generic instantiation Enum[T] as base of selector.
+				if bx != nil {
+					if bn, ok := bx.X.(*Name); ok && bn != nil && r.typeSupportsOperators(bn.Value) {
+						return bn.Value
 					}
 				}
 			}
