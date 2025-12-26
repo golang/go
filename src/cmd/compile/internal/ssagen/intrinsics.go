@@ -406,6 +406,16 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		},
 		sys.AMD64, sys.Loong64, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 
+	if buildcfg.GORISCV64EXT.Zabha {
+		addF("internal/runtime/atomic", "Xchg8",
+			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+				v := s.newValue3(ssa.OpRISCV64LoweredAtomicExchange8, types.NewTuple(types.Types[types.TUINT8], types.TypeMem), args[0], args[1], s.mem())
+				s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
+				return s.newValue1(ssa.OpSelect0, types.Types[types.TUINT8], v)
+			},
+			sys.RISCV64)
+	}
+
 	makeAtomicGuardedIntrinsicARM64common := func(op0, op1 ssa.Op, typ types.Kind, emit atomicOpEmitter, needReturn bool) intrinsicBuilder {
 
 		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {

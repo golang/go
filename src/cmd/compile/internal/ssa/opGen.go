@@ -5290,12 +5290,15 @@ const (
 	OpRISCV64LoweredAtomicStore8
 	OpRISCV64LoweredAtomicStore32
 	OpRISCV64LoweredAtomicStore64
+	OpRISCV64LoweredAtomicExchange8
 	OpRISCV64LoweredAtomicExchange32
 	OpRISCV64LoweredAtomicExchange64
 	OpRISCV64LoweredAtomicAdd32
 	OpRISCV64LoweredAtomicAdd64
 	OpRISCV64LoweredAtomicCas32
 	OpRISCV64LoweredAtomicCas64
+	OpRISCV64LoweredAtomicAnd8
+	OpRISCV64LoweredAtomicOr8
 	OpRISCV64LoweredAtomicAnd32
 	OpRISCV64LoweredAtomicOr32
 	OpRISCV64LoweredNilCheck
@@ -80521,6 +80524,22 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:            "LoweredAtomicExchange8",
+		argLen:          3,
+		resultNotInArgs: true,
+		faultOnNilArg0:  true,
+		hasSideEffects:  true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 1073741808},          // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30
+				{0, 9223372037928517618}, // SP X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30 SB
+			},
+			outputs: []outputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
 		name:            "LoweredAtomicExchange32",
 		argLen:          3,
 		resultNotInArgs: true,
@@ -80619,6 +80638,32 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
+		name:           "LoweredAtomicAnd8",
+		argLen:         3,
+		faultOnNilArg0: true,
+		hasSideEffects: true,
+		asm:            riscv.AAMOANDB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 1073741808},          // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30
+				{0, 9223372037928517618}, // SP X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30 SB
+			},
+		},
+	},
+	{
+		name:           "LoweredAtomicOr8",
+		argLen:         3,
+		faultOnNilArg0: true,
+		hasSideEffects: true,
+		asm:            riscv.AAMOORB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 1073741808},          // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30
+				{0, 9223372037928517618}, // SP X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30 SB
 			},
 		},
 	},

@@ -390,6 +390,7 @@ func init() {
 
 		// Atomic exchange.
 		// store arg1 to *arg0. arg2=mem. returns <old content of *arg0, memory>.
+		{name: "LoweredAtomicExchange8", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
 		{name: "LoweredAtomicExchange32", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
 		{name: "LoweredAtomicExchange64", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
 
@@ -414,6 +415,11 @@ func init() {
 		// MOV  $1, Rout
 		{name: "LoweredAtomicCas32", argLength: 4, reg: gpcas, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
 		{name: "LoweredAtomicCas64", argLength: 4, reg: gpcas, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+
+		// Atomic 8 bit AND/OR.
+		// *arg0 &= (|=) arg1. arg2=mem. returns nil.
+		{name: "LoweredAtomicAnd8", argLength: 3, reg: gpatomic, asm: "AMOANDB", faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicOr8", argLength: 3, reg: gpatomic, asm: "AMOORB", faultOnNilArg0: true, hasSideEffects: true},
 
 		// Atomic 32 bit AND/OR.
 		// *arg0 &= (|=) arg1. arg2=mem. returns nil.

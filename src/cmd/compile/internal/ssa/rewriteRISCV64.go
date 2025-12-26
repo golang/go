@@ -882,11 +882,29 @@ func rewriteValueRISCV64_OpAtomicAnd8(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (AtomicAnd8 ptr val mem)
+	// cond: buildcfg.GORISCV64EXT.Zabha
+	// result: (LoweredAtomicAnd8 ptr val mem)
+	for {
+		ptr := v_0
+		val := v_1
+		mem := v_2
+		if !(buildcfg.GORISCV64EXT.Zabha) {
+			break
+		}
+		v.reset(OpRISCV64LoweredAtomicAnd8)
+		v.AddArg3(ptr, val, mem)
+		return true
+	}
+	// match: (AtomicAnd8 ptr val mem)
+	// cond: !buildcfg.GORISCV64EXT.Zabha
 	// result: (LoweredAtomicAnd32 (ANDI <typ.Uintptr> [^3] ptr) (NOT <typ.UInt32> (SLL <typ.UInt32> (XORI <typ.UInt32> [0xff] (ZeroExt8to32 val)) (SLLI <typ.UInt64> [3] (ANDI <typ.UInt64> [3] ptr)))) mem)
 	for {
 		ptr := v_0
 		val := v_1
 		mem := v_2
+		if !(!buildcfg.GORISCV64EXT.Zabha) {
+			break
+		}
 		v.reset(OpRISCV64LoweredAtomicAnd32)
 		v0 := b.NewValue0(v.Pos, OpRISCV64ANDI, typ.Uintptr)
 		v0.AuxInt = int64ToAuxInt(^3)
@@ -909,6 +927,7 @@ func rewriteValueRISCV64_OpAtomicAnd8(v *Value) bool {
 		v.AddArg3(v0, v1, mem)
 		return true
 	}
+	return false
 }
 func rewriteValueRISCV64_OpAtomicCompareAndSwap32(v *Value) bool {
 	v_3 := v.Args[3]
@@ -938,11 +957,29 @@ func rewriteValueRISCV64_OpAtomicOr8(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (AtomicOr8 ptr val mem)
+	// cond: buildcfg.GORISCV64EXT.Zabha
+	// result: (LoweredAtomicOr8 ptr val mem)
+	for {
+		ptr := v_0
+		val := v_1
+		mem := v_2
+		if !(buildcfg.GORISCV64EXT.Zabha) {
+			break
+		}
+		v.reset(OpRISCV64LoweredAtomicOr8)
+		v.AddArg3(ptr, val, mem)
+		return true
+	}
+	// match: (AtomicOr8 ptr val mem)
+	// cond: !buildcfg.GORISCV64EXT.Zabha
 	// result: (LoweredAtomicOr32 (ANDI <typ.Uintptr> [^3] ptr) (SLL <typ.UInt32> (ZeroExt8to32 val) (SLLI <typ.UInt64> [3] (ANDI <typ.UInt64> [3] ptr))) mem)
 	for {
 		ptr := v_0
 		val := v_1
 		mem := v_2
+		if !(!buildcfg.GORISCV64EXT.Zabha) {
+			break
+		}
 		v.reset(OpRISCV64LoweredAtomicOr32)
 		v0 := b.NewValue0(v.Pos, OpRISCV64ANDI, typ.Uintptr)
 		v0.AuxInt = int64ToAuxInt(^3)
@@ -960,6 +997,7 @@ func rewriteValueRISCV64_OpAtomicOr8(v *Value) bool {
 		v.AddArg3(v0, v1, mem)
 		return true
 	}
+	return false
 }
 func rewriteValueRISCV64_OpAvg64u(v *Value) bool {
 	v_1 := v.Args[1]
