@@ -19,7 +19,7 @@ func testMul(fact, bits int) string {
 	for i := 0; i < 200; i++ {
 		fmt.Printf(`	if want, got := int%d(%d), s*%d; want != got {
 		failed = true
-		fmt.Printf("got %d * %%d == %%d, wanted %d\n",  s, got)
+		fmt.Printf("s*%d = %%d, want %%d (s=%%d)\n", got, want, s)
 	}
 `, bits, want, i, i, want)
 		want += fact
