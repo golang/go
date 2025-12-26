@@ -6154,6 +6154,24 @@ func (r *constructorRewriter) matchInitArgsWithTypeSubst(paramTypes []string, ar
 	// Support variadic params ("...T") with 0+ trailing args.
 	isVariadic := len(paramTypes) > 0 && len(paramTypes[len(paramTypes)-1]) >= 3 && paramTypes[len(paramTypes)-1][:3] == "..."
 
+	scoreFor := func(origPT, pt, at string) int {
+		// Prefer concrete matches over substituted type-param matches.
+		// When we match via type parameters, keep the score relatively low so that
+		// concrete overloads win when they exist.
+		if subst != nil && origPT != pt {
+			return 30
+		}
+		if r.isTypeParamTypeString(pt) {
+			return 20
+		}
+		if s, ok := matchScorePre(pt, at); ok {
+			return s
+		}
+		// Fallback: we already know typeMatchesInitParam() accepted it, but we
+		// don't have a specialized score (e.g. complex/unknown types).
+		return 10
+	}
+
 	if !isVariadic {
 		if len(paramTypes) != len(argTypes) {
 			return 0, false
@@ -6171,15 +6189,7 @@ func (r *constructorRewriter) matchInitArgsWithTypeSubst(paramTypes []string, ar
 			if !r.typeMatchesInitParam(pt, at) {
 				return 0, false
 			}
-			// Prefer concrete matches over substituted type-param matches.
-			if subst != nil && origPt != pt {
-				score += 1
-			} else if r.isTypeParamTypeString(pt) {
-				// We matched via a type parameter wildcard; weaker than a concrete match.
-				score += 1
-			} else {
-				score += 2
-			}
+			score += scoreFor(origPt, pt, at)
 		}
 		return score, true
 	}
@@ -6202,13 +6212,7 @@ func (r *constructorRewriter) matchInitArgsWithTypeSubst(paramTypes []string, ar
 		if !r.typeMatchesInitParam(pt, at) {
 			return 0, false
 		}
-		if subst != nil && origPt != pt {
-			score += 1
-		} else if r.isTypeParamTypeString(pt) {
-			score += 1
-		} else {
-			score += 2
-		}
+		score += scoreFor(origPt, pt, at)
 	}
 	elem := paramTypes[len(paramTypes)-1][3:] // strip "..."
 	origElem := elem
@@ -6221,13 +6225,7 @@ func (r *constructorRewriter) matchInitArgsWithTypeSubst(paramTypes []string, ar
 		if !r.typeMatchesInitParam(elem, argTypes[i]) {
 			return 0, false
 		}
-		if subst != nil && origElem != elem {
-			score += 1
-		} else if r.isTypeParamTypeString(elem) {
-			score += 1
-		} else {
-			score += 2
-		}
+		score += scoreFor(origElem, elem, argTypes[i])
 	}
 	return score, true
 }
@@ -6256,6 +6254,7 @@ func (r *constructorRewriter) rewriteConstructorCallWithArgs(call *CallExpr, typ
 
 		bestScore := -1
 		bestName := ""
+		bestIsVariadic := false
 		for _, method := range methods {
 			if method == nil || method.Type == nil {
 				continue
@@ -6286,10 +6285,13 @@ func (r *constructorRewriter) rewriteConstructorCallWithArgs(call *CallExpr, typ
 				continue
 			}
 
-			// Tie-breaker: prefer methods that require fewer substitutions.
-			if score > bestScore {
+			// Tie-breakers:
+			// - higher score wins
+			// - if scores tie, prefer non-variadic over variadic (i.e. "..."" is last-resort)
+			if score > bestScore || (score == bestScore && bestIsVariadic && !isVariadic) {
 				bestScore = score
 				bestName = method.Name.Value
+				bestIsVariadic = isVariadic
 			}
 		}
 		methodName = bestName
