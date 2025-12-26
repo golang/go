@@ -116,18 +116,59 @@ func TestCeilScaledResidue(t *testing.T) {
 		map1[float64](func(x float64) float64 { return x - math.Ceil(x) }))
 }
 
-func TestToUint32(t *testing.T) {
-	if !archsimd.X86.AVX512() {
-		t.Skip("Needs AVX512")
-	}
-	testFloat32x4ConvertToUint32(t, archsimd.Float32x4.ConvertToUint32, map1[float32](toUint32))
-	testFloat32x8ConvertToUint32(t, archsimd.Float32x8.ConvertToUint32, map1[float32](toUint32))
-	testFloat32x16ConvertToUint32(t, archsimd.Float32x16.ConvertToUint32, map1[float32](toUint32))
-}
+func TestConvert(t *testing.T) {
+	testFloat32x4ConvertToFloat64(t, archsimd.Float32x4.ConvertToFloat64, map1[float32](toFloat64))
+	testFloat64x4ConvertToFloat32(t, archsimd.Float64x4.ConvertToFloat32, map1[float64](toFloat32))
 
-func TestToInt32(t *testing.T) {
-	testFloat32x4ConvertToInt32(t, archsimd.Float32x4.ConvertToInt32, map1[float32](toInt32))
-	testFloat32x8ConvertToInt32(t, archsimd.Float32x8.ConvertToInt32, map1[float32](toInt32))
+	testFloat32x4ConvertToInt32(t, archsimd.Float32x4.ConvertToInt32, map1[float32](floatToInt32_x86))
+	testFloat32x8ConvertToInt32(t, archsimd.Float32x8.ConvertToInt32, map1[float32](floatToInt32_x86))
+	testFloat64x4ConvertToInt32(t, archsimd.Float64x4.ConvertToInt32, map1[float64](floatToInt32_x86))
+
+	testInt32x4ConvertToFloat32(t, archsimd.Int32x4.ConvertToFloat32, map1[int32](toFloat32))
+	testInt32x4ConvertToFloat64(t, archsimd.Int32x4.ConvertToFloat64, map1[int32](toFloat64))
+	testInt32x8ConvertToFloat32(t, archsimd.Int32x8.ConvertToFloat32, map1[int32](toFloat32))
+
+	if archsimd.X86.AVX512() {
+		testFloat32x8ConvertToFloat64(t, archsimd.Float32x8.ConvertToFloat64, map1[float32](toFloat64))
+		testFloat64x8ConvertToFloat32(t, archsimd.Float64x8.ConvertToFloat32, map1[float64](toFloat32))
+
+		testFloat32x16ConvertToInt32(t, archsimd.Float32x16.ConvertToInt32, map1[float32](floatToInt32_x86))
+		testFloat64x8ConvertToInt32(t, archsimd.Float64x8.ConvertToInt32, map1[float64](floatToInt32_x86))
+		testFloat32x4ConvertToInt64(t, archsimd.Float32x4.ConvertToInt64, map1[float32](floatToInt64_x86))
+		testFloat32x8ConvertToInt64(t, archsimd.Float32x8.ConvertToInt64, map1[float32](floatToInt64_x86))
+		testFloat64x2ConvertToInt64(t, archsimd.Float64x2.ConvertToInt64, map1[float64](floatToInt64_x86))
+		testFloat64x4ConvertToInt64(t, archsimd.Float64x4.ConvertToInt64, map1[float64](floatToInt64_x86))
+		testFloat64x8ConvertToInt64(t, archsimd.Float64x8.ConvertToInt64, map1[float64](floatToInt64_x86))
+
+		testFloat32x4ConvertToUint32(t, archsimd.Float32x4.ConvertToUint32, map1[float32](floatToUint32_x86))
+		testFloat32x8ConvertToUint32(t, archsimd.Float32x8.ConvertToUint32, map1[float32](floatToUint32_x86))
+		testFloat32x16ConvertToUint32(t, archsimd.Float32x16.ConvertToUint32, map1[float32](floatToUint32_x86))
+		testFloat64x4ConvertToUint32(t, archsimd.Float64x4.ConvertToUint32, map1[float64](floatToUint32_x86))
+		testFloat64x8ConvertToUint32(t, archsimd.Float64x8.ConvertToUint32, map1[float64](floatToUint32_x86))
+		testFloat32x4ConvertToUint64(t, archsimd.Float32x4.ConvertToUint64, map1[float32](floatToUint64_x86))
+		testFloat32x8ConvertToUint64(t, archsimd.Float32x8.ConvertToUint64, map1[float32](floatToUint64_x86))
+		testFloat64x2ConvertToUint64(t, archsimd.Float64x2.ConvertToUint64, map1[float64](floatToUint64_x86))
+		testFloat64x4ConvertToUint64(t, archsimd.Float64x4.ConvertToUint64, map1[float64](floatToUint64_x86))
+		testFloat64x8ConvertToUint64(t, archsimd.Float64x8.ConvertToUint64, map1[float64](floatToUint64_x86))
+
+		testInt32x16ConvertToFloat32(t, archsimd.Int32x16.ConvertToFloat32, map1[int32](toFloat32))
+		testInt64x4ConvertToFloat32(t, archsimd.Int64x4.ConvertToFloat32, map1[int64](toFloat32))
+		testInt64x8ConvertToFloat32(t, archsimd.Int64x8.ConvertToFloat32, map1[int64](toFloat32))
+		testInt64x2ConvertToFloat64(t, archsimd.Int64x2.ConvertToFloat64, map1[int64](toFloat64))
+		testInt64x4ConvertToFloat64(t, archsimd.Int64x4.ConvertToFloat64, map1[int64](toFloat64))
+		testInt64x8ConvertToFloat64(t, archsimd.Int64x8.ConvertToFloat64, map1[int64](toFloat64))
+
+		testUint32x4ConvertToFloat32(t, archsimd.Uint32x4.ConvertToFloat32, map1[uint32](toFloat32))
+		testUint32x8ConvertToFloat32(t, archsimd.Uint32x8.ConvertToFloat32, map1[uint32](toFloat32))
+		testUint32x16ConvertToFloat32(t, archsimd.Uint32x16.ConvertToFloat32, map1[uint32](toFloat32))
+		testUint64x4ConvertToFloat32(t, archsimd.Uint64x4.ConvertToFloat32, map1[uint64](toFloat32))
+		testUint64x8ConvertToFloat32(t, archsimd.Uint64x8.ConvertToFloat32, map1[uint64](toFloat32))
+		testUint32x4ConvertToFloat64(t, archsimd.Uint32x4.ConvertToFloat64, map1[uint32](toFloat64))
+		testUint32x8ConvertToFloat64(t, archsimd.Uint32x8.ConvertToFloat64, map1[uint32](toFloat64))
+		testUint64x2ConvertToFloat64(t, archsimd.Uint64x2.ConvertToFloat64, map1[uint64](toFloat64))
+		testUint64x4ConvertToFloat64(t, archsimd.Uint64x4.ConvertToFloat64, map1[uint64](toFloat64))
+		testUint64x8ConvertToFloat64(t, archsimd.Uint64x8.ConvertToFloat64, map1[uint64](toFloat64))
+	}
 }
 
 func TestExtend(t *testing.T) {
