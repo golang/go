@@ -511,6 +511,39 @@ func main() {
 }
 ```
 
+### 5.4 重载的优先级
+
+当同一个类型存在多个候选重载时，MyGO 会按“更精确优先”的原则选择目标重载：
+
+1. **优先匹配定长参数（非 variadic）**  
+   - 只要存在“强匹配”的定长重载（见下方第 2 条），就不会选择 `...` 版本  
+   - `...`（variadic）只作为 **fallback/兜底**
+
+2. **同类型/更精确的类型匹配优先**  
+   - **精确匹配**（例如 `int` 实参匹配 `int` 形参）优先级最高  
+   - **同类强匹配**（例如整型字面量匹配各类 `int/uint` 形参）优先级次之  
+   - **弱匹配**（例如 `int` 字面量去匹配 `float32/float64`）只有在没有更精确候选时才会发生  
+   - `any/interface{}` 与 `unknown`（编译前推断不出类型的表达式）属于更弱的匹配
+
+3. **当定长重载仅靠 “unknown/any” 才能匹配时，允许更精确的 variadic 胜出**  
+   这用于避免某些场景在预类型检查阶段信息不足时误选到“看起来能匹配”的定长重载，例如：
+
+> 注：由于重载选择发生在预类型检查阶段（pre-typecheck），当某些表达式类型暂时推断不出来（unknown）时，编译器会做保守推断，但仍尽量让“更精确”的候选胜出。
+
+```go
+type NDArray struct{ shape []int }
+
+func (a *NDArray) _init(shape ...int) {}
+func (a *NDArray) _init(data []float64, shape []int) {}
+
+func f(a *NDArray) {
+    // rows/cols 的类型需要推断为 int，否则可能被当成 unknown
+    rows, cols := a.shape[0], a.shape[1]
+    _ = make(NDArray, rows, cols) // 期望匹配 _init(...int)
+}
+```
+
+
 ### 5.4 实际应用示例
 
 ```go
@@ -661,6 +694,8 @@ MyGo 支持通过 _getitem 和 _setitem 方法实现自定义类型的索引操�
 
 1. 有逗号 → 强制匹配 []T 参数
 2. 无逗号 → 优先匹配 T 参数，fallback 到 []T
+
+> `_getitem/_setitem` 在应用上述“逗号/非逗号规则”筛选候选集合后，也会继续套用与其他重载一致的 **统一优先级**（定长优先、同类型优先、弱匹配兜底），从而尽可能让行为一致。
 
 #### 基础示例
 

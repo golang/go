@@ -2071,10 +2071,11 @@ type OverloadEntry struct {
 	OrigDecl   *FuncDecl // Original declaration
 }
 
-// PreprocessOverloadedMethods collects overloaded methods, renames them,
-// and rewrites call sites based on argument literal types.
-// Returns a map of "ReceiverType.MethodName" -> OverloadInfo.
-func PreprocessOverloadedMethods(file *File) map[string]*OverloadInfo {
+// RenameOverloadedMethods collects overloaded methods and renames their declarations.
+// It returns overload metadata, but does NOT rewrite call sites.
+// Call sites should be rewritten later (after other syntactic rewrites that may
+// introduce new method calls, e.g. operator overloading).
+func RenameOverloadedMethods(file *File) map[string]*OverloadInfo {
 	// Step 1: Collect all methods grouped by (receiver type, method name)
 	methodGroups := make(map[string][]*FuncDecl)
 
@@ -2148,16 +2149,27 @@ func PreprocessOverloadedMethods(file *File) map[string]*OverloadInfo {
 		overloadInfos[key] = info
 	}
 
-	// Step 3: Rewrite call sites (before type checking)
-	if len(overloadInfos) > 0 {
-		rewriter := &overloadPreRewriter{
-			overloads:     overloadInfos,
-			methodNameMap: buildMethodNameMap(overloadInfos),
-			varTypes:      make(map[string]string),
-		}
-		rewriter.rewriteFile(file)
-	}
+	return overloadInfos
+}
 
+// RewriteOverloadedCallSitesPre rewrites method call sites to the correct overloaded name
+// using syntactic argument inference (pre-typecheck).
+func RewriteOverloadedCallSitesPre(file *File, overloadInfos map[string]*OverloadInfo) {
+	if file == nil || len(overloadInfos) == 0 {
+		return
+	}
+	rewriter := &overloadPreRewriter{
+		overloads:     overloadInfos,
+		methodNameMap: buildMethodNameMap(overloadInfos),
+		varTypes:      make(map[string]string),
+	}
+	rewriter.rewriteFile(file)
+}
+
+// PreprocessOverloadedMethods keeps the old behavior: rename + pre-typecheck call site rewrite.
+func PreprocessOverloadedMethods(file *File) map[string]*OverloadInfo {
+	overloadInfos := RenameOverloadedMethods(file)
+	RewriteOverloadedCallSitesPre(file, overloadInfos)
 	return overloadInfos
 }
 
@@ -2551,9 +2563,18 @@ func (r *overloadPreRewriter) inferTypeStringFromValueExprPre(e Expr) string {
 		}
 	case *CallExpr:
 		if x != nil {
-			// make(T, ...) => T (including slice types like []float64)
+			// make(T, ...) => *T for constructor-make on named types,
+			// but keep standard Go make semantics for non-named types like []T/map/chan.
 			if n, ok := x.Fun.(*Name); ok && n != nil && n.Value == "make" && len(x.ArgList) > 0 {
-				return typeExprToString(x.ArgList[0])
+				t0 := x.ArgList[0]
+				switch t0.(type) {
+				case *Name, *IndexExpr:
+					// MyGO constructor make(TypeName, ...) returns *TypeName after lowering.
+					return "*" + typeExprToString(t0)
+				default:
+					// Standard make([]T, ...)/make(map[K]V,...)/make(chan T,...)
+					return typeExprToString(t0)
+				}
 			}
 			// Function call: f(...) => return type if known.
 			if n, ok := x.Fun.(*Name); ok && n != nil && r.funcReturnTypes != nil {
@@ -2739,12 +2760,10 @@ func (r *overloadPreRewriter) tryRewriteMethodCallPre(call *CallExpr, sel *Selec
 		argTypes[i] = r.inferArgTypePre(arg)
 	}
 
-	// Find best matching overload (pre-typecheck, so we use a conservative scoring rule).
-	//
-	// Key property: if both (int) and (float64) overloads could match an integer constant,
-	// we must prefer the int overload to avoid surprising selection.
+	// Find best matching overload (pre-typecheck) using unified overloadRank.
 	bestName := ""
 	bestScore := -1
+	bestTier := -1
 	bestIsVariadic := false
 	for _, info := range infos {
 		// Filter overload sets by receiver type (syntactic best-effort).
@@ -2766,16 +2785,14 @@ func (r *overloadPreRewriter) tryRewriteMethodCallPre(call *CallExpr, sel *Selec
 				if numArgs != len(paramTypes) {
 					continue
 				}
-				score := 0
-				for i := 0; i < numArgs; i++ {
-					s, ok := matchScorePre(paramTypes[i], argTypes[i])
-					if !ok {
-						break
-					}
-					score += s
+				rank, tier, _, ok := overloadRankBasic(paramTypes, argTypes, nil)
+				if !ok {
+					continue
 				}
-				if score > bestScore || (score == bestScore && bestIsVariadic && !isVariadic) {
-					bestScore = score
+				// Prefer stronger tier; if tie, prefer non-variadic; then by rank.
+				if tier > bestTier || (tier == bestTier && bestIsVariadic && !isVariadic) || (tier == bestTier && rank > bestScore) {
+					bestTier = tier
+					bestScore = rank
 					bestName = entry.NewName
 					bestIsVariadic = false
 				}
@@ -2796,29 +2813,14 @@ func (r *overloadPreRewriter) tryRewriteMethodCallPre(call *CallExpr, sel *Selec
 			if numArgs < minArgs {
 				continue
 			}
-			elemType := paramTypes[len(paramTypes)-1][3:]
-			score := 0
-			for i := 0; i < fixed; i++ {
-				s, ok := matchScorePre(paramTypes[i], argTypes[i])
-				if !ok {
-					break
-				}
-				score += s
-			}
-			if score == 0 && fixed > 0 {
+			rank, tier, _, ok := overloadRankBasic(paramTypes, argTypes, nil)
+			if !ok {
 				continue
 			}
-			for i := fixed; i < numArgs; i++ {
-				s, ok := matchScorePre(elemType, argTypes[i])
-				if !ok {
-					break
-				}
-				score += s
-			}
-			// Prefer non-variadic if tie (handled by tie-breaker above).
-			// Among variadic ties, keep earlier one.
-			if score > bestScore {
-				bestScore = score
+			// Variadic is fallback unless it has strictly better tier (rare here, but keep consistent).
+			if tier > bestTier || (tier == bestTier && rank > bestScore && !bestIsVariadic) || (tier == bestTier && bestIsVariadic && rank > bestScore) {
+				bestTier = tier
+				bestScore = rank
 				bestName = entry.NewName
 				bestIsVariadic = true
 			}
@@ -2881,6 +2883,159 @@ func matchScorePre(paramType, argType string) (int, bool) {
 	return 0, false
 }
 
+// ----------------------------------------------------------------------------
+// Unified overload ranking (pre-typecheck)
+//
+// We rank overload candidates by a (tier, score) scheme where:
+// - tier dominates score (higher tier = more exact)
+// - variadic ("...") is treated as fallback (a small penalty), but may still win
+//   when fixed-arity only matches via unknown/any (tier too low).
+
+func tierForMatchScorePre(s int) int {
+	switch {
+	case s >= 100:
+		return 4 // exact
+	case s >= 90:
+		return 3 // strong numeric / same-kind
+	case s >= 70:
+		return 2 // weaker numeric (e.g. int literal -> float param)
+	case s >= 20:
+		return 1 // any/interface/unknown-ish
+	default:
+		return 0
+	}
+}
+
+// overloadRankBasic ranks a candidate overload using matchScorePre.
+// paramTypes may include a trailing variadic param ("...T").
+// wildcardParam, if non-nil, marks a parameter type string as a wildcard (generic type params etc).
+// Wildcards match anything but are low-tier.
+//
+// Returns:
+//   - rank: tier*1000 + sumScore - variadicPenalty
+//   - tier: min tier across all argument positions
+//   - isVariadic: whether the signature is variadic
+//   - ok: whether args match this signature shape
+func overloadRankBasic(paramTypes, argTypes []string, wildcardParam func(string) bool) (rank int, tier int, isVariadic bool, ok bool) {
+	if len(paramTypes) == 0 {
+		return 0, 0, false, false
+	}
+	isVariadic = len(paramTypes[len(paramTypes)-1]) >= 3 && paramTypes[len(paramTypes)-1][:3] == "..."
+
+	// Non-variadic: exact arity
+	if !isVariadic {
+		if len(paramTypes) != len(argTypes) {
+			return 0, 0, false, false
+		}
+		tier = 4
+		sum := 0
+		for i := 0; i < len(argTypes); i++ {
+			pt := paramTypes[i]
+			at := argTypes[i]
+			if wildcardParam != nil && wildcardParam(pt) {
+				if 1 < tier {
+					tier = 1
+				}
+				sum += 20
+				continue
+			}
+			s, ok := matchScorePre(pt, at)
+			if !ok {
+				return 0, 0, false, false
+			}
+			t := tierForMatchScorePre(s)
+			if t < tier {
+				tier = t
+			}
+			sum += s
+		}
+		return tier*1000 + sum, tier, false, true
+	}
+
+	// Variadic: fixed prefix + 0+ tail
+	fixed := len(paramTypes) - 1
+	if len(argTypes) < fixed {
+		return 0, 0, true, false
+	}
+	elem := paramTypes[len(paramTypes)-1][3:]
+	tier = 4
+	sum := 0
+	for i := 0; i < fixed; i++ {
+		pt := paramTypes[i]
+		at := argTypes[i]
+		if wildcardParam != nil && wildcardParam(pt) {
+			if 1 < tier {
+				tier = 1
+			}
+			sum += 20
+			continue
+		}
+		s, ok := matchScorePre(pt, at)
+		if !ok {
+			return 0, 0, true, false
+		}
+		t := tierForMatchScorePre(s)
+		if t < tier {
+			tier = t
+		}
+		sum += s
+	}
+	for i := fixed; i < len(argTypes); i++ {
+		at := argTypes[i]
+		if wildcardParam != nil && wildcardParam(elem) {
+			if 1 < tier {
+				tier = 1
+			}
+			sum += 20
+			continue
+		}
+		s, ok := matchScorePre(elem, at)
+		if !ok {
+			return 0, 0, true, false
+		}
+		t := tierForMatchScorePre(s)
+		if t < tier {
+			tier = t
+		}
+		sum += s
+	}
+
+	// Slight penalty to keep variadic as fallback in ties.
+	return tier*1000 + sum - 1, tier, true, true
+}
+
+// overloadRankSetitem is like overloadRankBasic, but allows lenient numeric matching
+// for the first parameter (the "value" in _setitem(value, ...indices)).
+func overloadRankSetitem(paramTypes, argTypes []string, wildcardParam func(string) bool) (rank int, tier int, isVariadic bool, ok bool) {
+	if len(paramTypes) == 0 {
+		return 0, 0, false, false
+	}
+	// We still support variadic for index params, but arity rules remain standard.
+	rank, tier, isVariadic, ok = overloadRankBasic(paramTypes, argTypes, wildcardParam)
+	if !ok {
+		return 0, 0, false, false
+	}
+
+	// Improve scoring for the first arg when it is numeric and types are unknown-ish.
+	// (We keep it permissive but don't let it dominate index selection.)
+	if len(paramTypes) > 0 && len(argTypes) > 0 {
+		pt0 := paramTypes[0]
+		at0 := argTypes[0]
+		if isNumericType(pt0) && isNumericType(at0) {
+			if s, ok := matchScorePre(pt0, at0); ok {
+				// recompute tier with this score (might only raise it)
+				t := tierForMatchScorePre(s)
+				if t < tier {
+					tier = t
+				}
+				// fold into rank slightly
+				rank = (rank/1000)*1000 + (rank % 1000) + (s - 20)
+			}
+		}
+	}
+	return rank, tier, isVariadic, true
+}
+
 func (r *overloadPreRewriter) inferArgTypePre(arg Expr) string {
 	if arg == nil {
 		return "unknown"
@@ -2901,10 +3056,27 @@ func stripLeadingStar(s string) string {
 }
 
 func (r *overloadPreRewriter) inferReceiverBaseTypeFromExprPre(x Expr) string {
+	// Peel parens.
+	for {
+		if p, ok := x.(*ParenExpr); ok && p != nil {
+			x = p.X
+			continue
+		}
+		break
+	}
 	// Prefer tracked variable types when receiver is a name.
 	if n, ok := x.(*Name); ok && n != nil && r.varTypes != nil {
 		if t, ok := r.varTypes[n.Value]; ok && t != "" {
 			return stripGenericArgs(stripLeadingStar(t))
+		}
+	}
+	// Best-effort for chained calls on magic methods / _init:
+	// (v1._add(v2))._mul(...) should treat call result as the same receiver type.
+	if call, ok := x.(*CallExpr); ok && call != nil {
+		if sel, ok := call.Fun.(*SelectorExpr); ok && sel != nil && sel.Sel != nil {
+			if m := operatorMagicBaseName(sel.Sel.Value); m != "" || isInitMethodName(sel.Sel.Value) {
+				return r.inferReceiverBaseTypeFromExprPre(sel.X)
+			}
 		}
 	}
 	return inferReceiverBaseTypePre(x)
@@ -2938,6 +3110,17 @@ func inferReceiverBaseTypePre(x Expr) string {
 		if e != nil {
 			if n, ok := e.Fun.(*Name); ok && n != nil && n.Value == "make" && len(e.ArgList) > 0 {
 				return stripGenericArgs(baseTypeNameFromTypeExpr(e.ArgList[0]))
+			}
+			// Best-effort for chained calls:
+			// (recv._add(...))._mul(...) should treat the call result as the same receiver type.
+			// This is conservative and mainly intended for magic methods / _init chaining.
+			if sel, ok := e.Fun.(*SelectorExpr); ok && sel != nil && sel.Sel != nil {
+				if base := inferReceiverBaseTypePre(sel.X); base != "" {
+					m := operatorMagicBaseName(sel.Sel.Value)
+					if m != "" || isInitMethodName(sel.Sel.Value) {
+						return base
+					}
+				}
 			}
 		}
 	}
@@ -5639,8 +5822,16 @@ func RewriteExtensions(file *File) map[string]*OverloadInfo {
 		return nil
 	}
 	RewriteQuestionExprs(file)
+	// Overload pipeline must run in this order:
+	// - rename overloaded methods first, so method sets are disambiguated
+	// - run other rewrites that may introduce new method calls (operators, etc.)
+	// - then rewrite method call sites to the correct overloaded names
+	// - finally apply _init-specific rewrites (return + make(...) lowering)
+	overloads := RenameOverloadedMethods(file)
 	RewriteMagicAndArithmetic(file)
-	overloads := RewriteInitAndOverloads(file)
+	RewriteOverloadedCallSitesPre(file, overloads)
+	AddReturnToInitMethods(file)
+	RewriteConstructors(file)
 	RewriteMethodDecorators(file)
 	RewriteDefaultParams(file)
 	return overloads
@@ -7344,142 +7535,14 @@ func (r *magicMethodRewriter) resolveMagicMethodOverloadWithComma(base Expr, met
 	candidates := make([]candidate, 0)
 	var variadicCandidates []candidate
 
-	tierForMatchScore := func(s int) int {
-		switch {
-		case s >= 100:
-			return 4
-		case s >= 90:
-			return 3
-		case s >= 70:
-			return 2
-		case s >= 20:
-			return 1
-		default:
-			return 0
-		}
-	}
-
-	// scoreArgsNonVariadic computes a tiered score for non-variadic methods.
-	// It respects receiver type params as wildcards (low tier).
-	scoreArgsNonVariadic := func(paramTypes []string, argTypes []string, tparams map[string]bool, isSetitem bool) (int, bool) {
-		if len(paramTypes) != len(argTypes) {
-			return 0, false
-		}
-		tier := 4
-		sum := 0
-		for i := 0; i < len(argTypes); i++ {
-			pt := paramTypes[i]
-			at := argTypes[i]
-
-			// For _setitem(value-first), allow numeric flexibility for the value param,
-			// but still score it by matchScorePre when possible.
-			if isSetitem && i == 0 {
-				if isNumericType(pt) && isNumericType(at) {
-					if s, ok := matchScorePre(pt, at); ok {
-						t := tierForMatchScore(s)
-						if t < tier {
-							tier = t
-						}
-						sum += s
-					} else {
-						// Unknown numeric pairing; treat as weak match.
-						if 1 < tier {
-							tier = 1
-						}
-						sum += 10
-					}
-					continue
-				}
-			}
-
-			if tparams != nil && tparams[pt] {
-				// Type-param wildcard match: low tier.
-				if 1 < tier {
-					tier = 1
-				}
-				sum += 20
-				continue
-			}
-			if !typeMatchesPre(pt, at) {
-				return 0, false
-			}
-			if s, ok := matchScorePre(pt, at); ok {
-				t := tierForMatchScore(s)
-				if t < tier {
-					tier = t
-				}
-				sum += s
-			} else {
-				if 1 < tier {
-					tier = 1
-				}
-				sum += 10
-			}
-		}
-		return tier*1000 + sum, true
-	}
-
-	// scoreArgsVariadic computes a tiered score for variadic methods ("...T").
-	scoreArgsVariadic := func(paramTypes []string, argTypes []string) (int, bool) {
-		numParams := len(paramTypes)
-		if numParams == 0 {
-			return 0, false
-		}
-		// last parameter is variadic
-		variadicElem := paramTypes[numParams-1][3:]
-		fixed := numParams - 1
-		if len(argTypes) < fixed {
-			return 0, false
-		}
-
-		tier := 4
-		sum := 0
-		// fixed args
-		for i := 0; i < fixed; i++ {
-			if !typeMatchesPre(paramTypes[i], argTypes[i]) {
-				return 0, false
-			}
-			if s, ok := matchScorePre(paramTypes[i], argTypes[i]); ok {
-				t := tierForMatchScore(s)
-				if t < tier {
-					tier = t
-				}
-				sum += s
-			} else {
-				if 1 < tier {
-					tier = 1
-				}
-				sum += 10
-			}
-		}
-		// variadic tail
-		for i := fixed; i < len(argTypes); i++ {
-			if !typeMatchesPre(variadicElem, argTypes[i]) {
-				return 0, false
-			}
-			if s, ok := matchScorePre(variadicElem, argTypes[i]); ok {
-				t := tierForMatchScore(s)
-				if t < tier {
-					tier = t
-				}
-				sum += s
-			} else {
-				if 1 < tier {
-					tier = 1
-				}
-				sum += 10
-			}
-		}
-		// Variadic is always fallback vs any matching fixed-arity method.
-		// Encode a small penalty so ties prefer non-variadic even if caller forgets to filter.
-		return tier*1000 + sum - 1, true
-	}
-
 	for _, fn := range methods {
 		paramTypes := getParamTypeStrings(fn.Type.ParamList)
 
 		// Extract generic type parameter set (e.g. {"K": true, "V": true})
 		tparams := getTypeParamsFromReceiver(fn)
+		wildcard := func(pt string) bool {
+			return tparams != nil && tparams[pt]
+		}
 
 		// Check for variadic parameter
 		isVariadic := len(paramTypes) > 0 && len(paramTypes[len(paramTypes)-1]) >= 3 &&
@@ -7489,13 +7552,26 @@ func (r *magicMethodRewriter) resolveMagicMethodOverloadWithComma(base Expr, met
 		requiresSliceParams := r.methodHasSliceParams(paramTypes, methodName)
 
 		if isVariadic {
-			if score, ok := scoreArgsVariadic(paramTypes, argTypes); ok {
-				variadicCandidates = append(variadicCandidates, candidate{fn, paramTypes, score, requiresSliceParams, true})
+			// Variadic is fallback; only consider if no fixed-arity matches later.
+			if methodName == "_setitem" {
+				if score, _, _, ok := overloadRankSetitem(paramTypes, argTypes, wildcard); ok {
+					variadicCandidates = append(variadicCandidates, candidate{fn, paramTypes, score, requiresSliceParams, true})
+				}
+			} else {
+				if score, _, _, ok := overloadRankBasic(paramTypes, argTypes, wildcard); ok {
+					variadicCandidates = append(variadicCandidates, candidate{fn, paramTypes, score, requiresSliceParams, true})
+				}
 			}
 		} else {
-			// Non-variadic: exact parameter count required
 			isSetitem := methodName == "_setitem"
-			if score, ok := scoreArgsNonVariadic(paramTypes, argTypes, tparams, isSetitem); ok {
+			var score int
+			var ok bool
+			if isSetitem {
+				score, _, _, ok = overloadRankSetitem(paramTypes, argTypes, wildcard)
+			} else {
+				score, _, _, ok = overloadRankBasic(paramTypes, argTypes, wildcard)
+			}
+			if ok {
 				candidates = append(candidates, candidate{
 					fn:                  fn,
 					paramTypes:          paramTypes,
