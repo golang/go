@@ -544,7 +544,7 @@ func f(a *NDArray) {
 ```
 
 
-### 5.4 实际应用示例
+### 5.5 实际应用示例
 
 ```go
 type DataStore struct {
