@@ -205,7 +205,7 @@ func checkAllocations(records []runtime.MemProfileRecord, leafFrame string, fram
 // consistently far from the expected value.
 func checkValue(fname string, ln int, testName string, want int64, got []int64) error {
 	if got == nil {
-		return fmt.Errorf("Unexpected empty result")
+		return fmt.Errorf("unexpected empty result")
 	}
 	min, max := got[0], got[0]
 	for _, g := range got[1:] {
