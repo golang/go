@@ -2246,11 +2246,41 @@ type overloadPreRewriter struct {
 	// varTypes provides best-effort syntactic type inference for named variables,
 	// so pre-typecheck overload rewriting can filter overload sets by receiver type.
 	varTypes map[string]string // var name -> base type name (no leading '*', no type args)
+	// varTypeStr records a best-effort full type string for variables/params (e.g. "[]float64", "*NDArray").
+	// This is used to improve overload selection when arguments are names (non-literals).
+	varTypeStr map[string]string // var name -> type string
+	// funcReturnTypes records a best-effort return type for functions in this file (non-methods).
+	// This allows tracking: x := FromSlice(...) where FromSlice returns *NDArray.
+	funcReturnTypes map[string]string // func name -> return type string
 }
 
 func (r *overloadPreRewriter) rewriteFile(file *File) {
+	r.collectFuncReturnTypesPre(file)
 	for _, decl := range file.DeclList {
 		r.rewriteDeclPre(decl)
+	}
+}
+
+func (r *overloadPreRewriter) collectFuncReturnTypesPre(file *File) {
+	if file == nil {
+		return
+	}
+	if r.funcReturnTypes == nil {
+		r.funcReturnTypes = make(map[string]string)
+	}
+	for _, decl := range file.DeclList {
+		fn, ok := decl.(*FuncDecl)
+		if !ok || fn == nil || fn.Recv != nil || fn.Name == nil || fn.Type == nil {
+			continue
+		}
+		if fn.Type.ResultList == nil || len(fn.Type.ResultList) != 1 {
+			continue
+		}
+		res := fn.Type.ResultList[0]
+		if res == nil || res.Type == nil {
+			continue
+		}
+		r.funcReturnTypes[fn.Name.Value] = typeExprToString(res.Type)
 	}
 }
 
@@ -2361,15 +2391,19 @@ func (r *overloadPreRewriter) trackVarDeclTypesPre(d *VarDecl) {
 	// var x T = ...
 	if d.Type != nil {
 		base := stripGenericArgs(baseTypeNameFromTypeExpr(d.Type))
-		if base == "" {
-			return
+		if r.varTypeStr == nil {
+			r.varTypeStr = make(map[string]string)
 		}
+		typeStr := typeExprToString(d.Type)
 		if r.varTypes == nil {
 			r.varTypes = make(map[string]string)
 		}
 		for _, n := range d.NameList {
 			if n != nil && n.Value != "" {
-				r.varTypes[n.Value] = base
+				r.varTypeStr[n.Value] = typeStr
+				if base != "" {
+					r.varTypes[n.Value] = base
+				}
 			}
 		}
 		return
@@ -2408,6 +2442,16 @@ func (r *overloadPreRewriter) trackAssignmentTypesPre(names []*Name, rhs Expr) {
 		r.varTypes = make(map[string]string)
 	}
 	if len(names) == 1 {
+		if ts := r.inferTypeStringFromValueExprPre(rhs); ts != "" {
+			if r.varTypeStr == nil {
+				r.varTypeStr = make(map[string]string)
+			}
+			r.varTypeStr[names[0].Value] = ts
+			if base := stripGenericArgs(stripLeadingStar(baseTypeNameFromTypeExprString(ts))); base != "" {
+				r.varTypes[names[0].Value] = base
+			}
+			return
+		}
 		if t := inferBaseTypeFromValueExprPre(rhs); t != "" {
 			r.varTypes[names[0].Value] = t
 		}
@@ -2418,6 +2462,16 @@ func (r *overloadPreRewriter) trackAssignmentTypesPre(names []*Name, rhs Expr) {
 		for i, n := range names {
 			if i >= len(list.ElemList) {
 				break
+			}
+			if ts := r.inferTypeStringFromValueExprPre(list.ElemList[i]); ts != "" {
+				if r.varTypeStr == nil {
+					r.varTypeStr = make(map[string]string)
+				}
+				r.varTypeStr[n.Value] = ts
+				if base := stripGenericArgs(stripLeadingStar(baseTypeNameFromTypeExprString(ts))); base != "" {
+					r.varTypes[n.Value] = base
+				}
+				continue
 			}
 			if t := inferBaseTypeFromValueExprPre(list.ElemList[i]); t != "" {
 				r.varTypes[n.Value] = t
@@ -2430,14 +2484,86 @@ func (r *overloadPreRewriter) bindVarTypePre(varName string, typeExpr Expr) {
 	if varName == "" || typeExpr == nil {
 		return
 	}
-	base := stripGenericArgs(baseTypeNameFromTypeExpr(typeExpr))
-	if base == "" {
-		return
+	if r.varTypeStr == nil {
+		r.varTypeStr = make(map[string]string)
 	}
+	r.varTypeStr[varName] = typeExprToString(typeExpr)
+
+	base := stripGenericArgs(baseTypeNameFromTypeExpr(typeExpr))
 	if r.varTypes == nil {
 		r.varTypes = make(map[string]string)
 	}
-	r.varTypes[varName] = base
+	if base != "" {
+		r.varTypes[varName] = base
+	}
+}
+
+// baseTypeNameFromTypeExprString extracts a base named type from a type string like "*T" or "T[A]".
+// It returns "" for non-named types like "[]int" / "...int".
+func baseTypeNameFromTypeExprString(typeStr string) string {
+	if typeStr == "" {
+		return ""
+	}
+	// strip leading '*'
+	for len(typeStr) > 0 && typeStr[0] == '*' {
+		typeStr = typeStr[1:]
+	}
+	// strip generic args: Foo[T] -> Foo
+	for i := 0; i < len(typeStr); i++ {
+		if typeStr[i] == '[' {
+			typeStr = typeStr[:i]
+			break
+		}
+	}
+	// reject non-named types
+	if len(typeStr) >= 2 && typeStr[:2] == "[]" {
+		return ""
+	}
+	if len(typeStr) >= 3 && typeStr[:3] == "..." {
+		return ""
+	}
+	return typeStr
+}
+
+func (r *overloadPreRewriter) inferTypeStringFromValueExprPre(e Expr) string {
+	if e == nil {
+		return ""
+	}
+	// Peel parens.
+	for {
+		if p, ok := e.(*ParenExpr); ok && p != nil {
+			e = p.X
+			continue
+		}
+		break
+	}
+	switch x := e.(type) {
+	case *Operation:
+		// &T{...} => *T
+		if x != nil && x.Y == nil && x.Op == And {
+			if cl, ok := x.X.(*CompositeLit); ok && cl != nil && cl.Type != nil {
+				return "*" + typeExprToString(cl.Type)
+			}
+		}
+	case *CompositeLit:
+		if x != nil && x.Type != nil {
+			return typeExprToString(x.Type)
+		}
+	case *CallExpr:
+		if x != nil {
+			// make(T, ...) => T (including slice types like []float64)
+			if n, ok := x.Fun.(*Name); ok && n != nil && n.Value == "make" && len(x.ArgList) > 0 {
+				return typeExprToString(x.ArgList[0])
+			}
+			// Function call: f(...) => return type if known.
+			if n, ok := x.Fun.(*Name); ok && n != nil && r.funcReturnTypes != nil {
+				if rt, ok := r.funcReturnTypes[n.Value]; ok && rt != "" {
+					return rt
+				}
+			}
+		}
+	}
+	return ""
 }
 
 func inferBaseTypeFromValueExprPre(e Expr) string {
@@ -2610,38 +2736,161 @@ func (r *overloadPreRewriter) tryRewriteMethodCallPre(call *CallExpr, sel *Selec
 	// Infer argument types from literals
 	argTypes := make([]string, len(call.ArgList))
 	for i, arg := range call.ArgList {
-		argTypes[i] = inferLiteralType(arg)
+		argTypes[i] = r.inferArgTypePre(arg)
 	}
 
-	// Find matching overload
+	// Find best matching overload (pre-typecheck, so we use a conservative scoring rule).
+	//
+	// Key property: if both (int) and (float64) overloads could match an integer constant,
+	// we must prefer the int overload to avoid surprising selection.
+	bestName := ""
+	bestScore := -1
+	bestIsVariadic := false
 	for _, info := range infos {
 		// Filter overload sets by receiver type (syntactic best-effort).
 		if stripGenericArgs(stripLeadingStar(info.ReceiverType)) != recvBase {
 			continue
 		}
 		for _, entry := range info.Overloads {
-			// Check if argument count is within the valid range
 			numArgs := len(argTypes)
-			if numArgs < entry.MinArgs || numArgs > entry.MaxArgs {
-				continue // Argument count doesn't match
+			paramTypes := entry.ParamTypes
+			if len(paramTypes) == 0 {
+				continue
 			}
-
-			// Check if argument types match (only check provided arguments)
-			match := true
-			for i := 0; i < numArgs; i++ {
-				if !typeMatchesPre(entry.ParamTypes[i], argTypes[i]) {
-					match = false
+			isVariadic := len(paramTypes[len(paramTypes)-1]) >= 3 && paramTypes[len(paramTypes)-1][:3] == "..."
+			if !isVariadic {
+				// Non-variadic: exact count within min/max.
+				if numArgs < entry.MinArgs || numArgs > entry.MaxArgs {
+					continue
+				}
+				if numArgs != len(paramTypes) {
+					continue
+				}
+				score := 0
+				for i := 0; i < numArgs; i++ {
+					s, ok := matchScorePre(paramTypes[i], argTypes[i])
+					if !ok {
+						break
+					}
+					score += s
+				}
+				if score > bestScore || (score == bestScore && bestIsVariadic && !isVariadic) {
+					bestScore = score
+					bestName = entry.NewName
+					bestIsVariadic = false
+				}
+				continue
+			}
+			// Variadic: last param "...T" matches 0+ trailing args of type T.
+			fixed := len(paramTypes) - 1
+			if numArgs < fixed {
+				continue
+			}
+			// Respect default-parameter min-args, but allow omitting variadic tail.
+			// (PreprocessOverloadedMethods currently computes MinArgs pessimistically for variadic,
+			// so we apply a safer gate here.)
+			minArgs := entry.MinArgs
+			if minArgs == len(paramTypes) {
+				minArgs = len(paramTypes) - 1
+			}
+			if numArgs < minArgs {
+				continue
+			}
+			elemType := paramTypes[len(paramTypes)-1][3:]
+			score := 0
+			for i := 0; i < fixed; i++ {
+				s, ok := matchScorePre(paramTypes[i], argTypes[i])
+				if !ok {
 					break
 				}
+				score += s
 			}
-
-			if match {
-				// Replace the method name
-				sel.Sel.Value = entry.NewName
-				return
+			if score == 0 && fixed > 0 {
+				continue
+			}
+			for i := fixed; i < numArgs; i++ {
+				s, ok := matchScorePre(elemType, argTypes[i])
+				if !ok {
+					break
+				}
+				score += s
+			}
+			// Prefer non-variadic if tie (handled by tie-breaker above).
+			// Among variadic ties, keep earlier one.
+			if score > bestScore {
+				bestScore = score
+				bestName = entry.NewName
+				bestIsVariadic = true
 			}
 		}
 	}
+	if bestName != "" {
+		sel.Sel.Value = bestName
+	}
+}
+
+// matchScorePre returns (score, ok).
+// ok==false means "definitely not a match".
+//
+// The score is used to prefer "more exact" overloads:
+// - exact type match wins
+// - for integer constants, prefer int/uint params over float params
+// - still allow integer constants to match float params when there is no better candidate
+func matchScorePre(paramType, argType string) (int, bool) {
+	// Exact match
+	if paramType == argType {
+		return 100, true
+	}
+
+	// interface{} / any
+	if paramType == "interface{}" || paramType == "any" {
+		// Slightly better than "unknown", worse than exact numeric matches.
+		return 20, true
+	}
+
+	// Unknown types (names, complex expressions) - keep permissive but low-score.
+	if len(argType) > 8 && argType[:8] == "unknown:" {
+		return 10, true
+	}
+	if argType == "unknown" {
+		return 10, true
+	}
+
+	// int literal can match various int types
+	if argType == "int" {
+		switch paramType {
+		case "int", "int8", "int16", "int32", "int64",
+			"uint", "uint8", "uint16", "uint32", "uint64":
+			return 90, true
+		case "float32", "float64":
+			// Allow (untyped) integer constants to match float params,
+			// but score lower than integer params to preserve "int wins" behavior.
+			return 70, true
+		}
+	}
+
+	// float64 literal matches float types
+	if argType == "float64" {
+		switch paramType {
+		case "float32", "float64":
+			return 90, true
+		}
+	}
+
+	// string literal: only match interface/any (handled above) or exact (handled above).
+	return 0, false
+}
+
+func (r *overloadPreRewriter) inferArgTypePre(arg Expr) string {
+	if arg == nil {
+		return "unknown"
+	}
+	if n, ok := arg.(*Name); ok && n != nil && r.varTypeStr != nil {
+		if t, ok := r.varTypeStr[n.Value]; ok && t != "" {
+			return t
+		}
+	}
+	return inferLiteralType(arg)
 }
 
 func stripLeadingStar(s string) string {
@@ -2816,6 +3065,10 @@ func typeMatchesPre(paramType, argType string) bool {
 		switch paramType {
 		case "int", "int8", "int16", "int32", "int64",
 			"uint", "uint8", "uint16", "uint32", "uint64",
+			// In Go, untyped integer constants are representable as float constants too.
+			// This matters for pre-typecheck overload selection, e.g. calling a method
+			// that expects float64 with a literal like 99.
+			"float32", "float64",
 			"interface{}", "any":
 			return true
 		}
@@ -5314,6 +5567,10 @@ type constructorRewriter struct {
 	// This lets _init overload selection work when make(...) instantiates with type params
 	// like make(GBox[T], ...), where "T" is not a concrete type at this stage.
 	typeParamScopes []map[string]bool
+	// varTypeStrScopes tracks best-effort local variable/parameter types while rewriting.
+	// This is used to improve _init overload selection when args are names (non-literals),
+	// e.g. data := make([]float64, n); make(NDArray, data, n) should prefer _init([]float64, ...int).
+	varTypeStrScopes []map[string]string
 }
 
 // RewriteConstructors rewrites make(T, ...) into (&T{})._init(...), when T has at least one _init method.
@@ -5373,7 +5630,11 @@ func (r *constructorRewriter) rewriteDecl(decl Decl) {
 	case *FuncDecl:
 		if d.Body != nil {
 			r.pushTypeParamScope(d)
-			defer r.popTypeParamScope()
+			r.pushVarTypeScope(d)
+			defer func() {
+				r.popVarTypeScope()
+				r.popTypeParamScope()
+			}()
 			r.rewriteBlockStmt(d.Body)
 		}
 	case *VarDecl:
@@ -5417,6 +5678,123 @@ func (r *constructorRewriter) popTypeParamScope() {
 	}
 }
 
+func (r *constructorRewriter) pushVarTypeScope(fn *FuncDecl) {
+	scope := make(map[string]string)
+	if fn != nil {
+		// Receiver
+		if fn.Recv != nil && fn.Recv.Name != nil && fn.Recv.Type != nil {
+			scope[fn.Recv.Name.Value] = typeExprToString(fn.Recv.Type)
+		}
+		// Params
+		if fn.Type != nil && fn.Type.ParamList != nil {
+			for _, p := range fn.Type.ParamList {
+				if p == nil || p.Name == nil || p.Type == nil {
+					continue
+				}
+				scope[p.Name.Value] = typeExprToString(p.Type)
+			}
+		}
+	}
+	if len(scope) == 0 {
+		scope = nil
+	}
+	r.varTypeStrScopes = append(r.varTypeStrScopes, scope)
+}
+
+func (r *constructorRewriter) popVarTypeScope() {
+	if n := len(r.varTypeStrScopes); n > 0 {
+		r.varTypeStrScopes = r.varTypeStrScopes[:n-1]
+	}
+}
+
+func (r *constructorRewriter) currentVarTypeScope() map[string]string {
+	if len(r.varTypeStrScopes) == 0 {
+		return nil
+	}
+	return r.varTypeStrScopes[len(r.varTypeStrScopes)-1]
+}
+
+func (r *constructorRewriter) setVarType(name, typeStr string) {
+	if name == "" || typeStr == "" {
+		return
+	}
+	scope := r.currentVarTypeScope()
+	if scope == nil {
+		// Create a scope lazily if needed.
+		scope = make(map[string]string)
+		if len(r.varTypeStrScopes) == 0 {
+			r.varTypeStrScopes = append(r.varTypeStrScopes, scope)
+		} else {
+			r.varTypeStrScopes[len(r.varTypeStrScopes)-1] = scope
+		}
+	}
+	scope[name] = typeStr
+}
+
+func (r *constructorRewriter) inferArgType(arg Expr) string {
+	if arg == nil {
+		return "unknown"
+	}
+	if n, ok := arg.(*Name); ok && n != nil {
+		for i := len(r.varTypeStrScopes) - 1; i >= 0; i-- {
+			scope := r.varTypeStrScopes[i]
+			if scope == nil {
+				continue
+			}
+			if t, ok := scope[n.Value]; ok && t != "" {
+				return t
+			}
+		}
+	}
+	return inferLiteralType(arg)
+}
+
+func (r *constructorRewriter) inferTypeStringFromValueExpr(e Expr) string {
+	if e == nil {
+		return ""
+	}
+	// Peel parens.
+	for {
+		if p, ok := e.(*ParenExpr); ok && p != nil {
+			e = p.X
+			continue
+		}
+		break
+	}
+	switch x := e.(type) {
+	case *Operation:
+		// &T{...} => *T
+		if x != nil && x.Y == nil && x.Op == And {
+			if cl, ok := x.X.(*CompositeLit); ok && cl != nil && cl.Type != nil {
+				return "*" + typeExprToString(cl.Type)
+			}
+		}
+	case *CompositeLit:
+		if x != nil && x.Type != nil {
+			return typeExprToString(x.Type)
+		}
+	case *CallExpr:
+		if x != nil {
+			// make(T, ...) => T (including slice types)
+			if n, ok := x.Fun.(*Name); ok && n != nil && n.Value == "make" && len(x.ArgList) > 0 {
+				return typeExprToString(x.ArgList[0])
+			}
+			// Basic type conversion: int(x) / float64(x) etc.
+			if n, ok := x.Fun.(*Name); ok && n != nil {
+				switch n.Value {
+				case "int", "int8", "int16", "int32", "int64",
+					"uint", "uint8", "uint16", "uint32", "uint64",
+					"float32", "float64",
+					"complex64", "complex128",
+					"string", "bool", "rune", "byte":
+					return n.Value
+				}
+			}
+		}
+	}
+	return ""
+}
+
 func (r *constructorRewriter) isTypeParamName(name string) bool {
 	if name == "" {
 		return false
@@ -5450,6 +5828,15 @@ func (r *constructorRewriter) rewriteStmt(stmt Stmt) Stmt {
 	case *ExprStmt:
 		s.X = r.rewriteExpr(s.X)
 	case *AssignStmt:
+		// Track short variable declarations: x := make([]T, ...) etc.
+		if s.Op == Def {
+			// Only handle the common single-name case for now.
+			if lhs, ok := s.Lhs.(*Name); ok && lhs != nil {
+				if ts := r.inferTypeStringFromValueExpr(s.Rhs); ts != "" {
+					r.setVarType(lhs.Value, ts)
+				}
+			}
+		}
 		s.Lhs = r.rewriteExpr(s.Lhs)
 		s.Rhs = r.rewriteExpr(s.Rhs)
 	case *CallStmt:
@@ -5864,7 +6251,7 @@ func (r *constructorRewriter) rewriteConstructorCallWithArgs(call *CallExpr, typ
 	} else {
 		argTypes := make([]string, len(args))
 		for i, arg := range args {
-			argTypes[i] = inferLiteralType(arg)
+			argTypes[i] = r.inferArgType(arg)
 		}
 
 		bestScore := -1
