@@ -130,14 +130,26 @@ func TestToInt32(t *testing.T) {
 	testFloat32x8ConvertToInt32(t, archsimd.Float32x8.ConvertToInt32, map1[float32](toInt32))
 }
 
-func TestConverts(t *testing.T) {
-	testUint8x16ConvertToUint16(t, archsimd.Uint8x16.ExtendToUint16, map1[uint8](toUint16))
-	testUint16x8ConvertToUint32(t, archsimd.Uint16x8.ExtendToUint32, map1[uint16](toUint32))
-}
-
-func TestConvertsAVX512(t *testing.T) {
-	if !archsimd.X86.AVX512() {
-		t.Skip("Needs AVX512")
+func TestExtend(t *testing.T) {
+	if archsimd.X86.AVX2() {
+		testInt8x16ConvertToInt16(t, archsimd.Int8x16.ExtendToInt16, map1[int8](toInt16))
+		testInt16x8ConvertToInt32(t, archsimd.Int16x8.ExtendToInt32, map1[int16](toInt32))
+		testInt32x4ConvertToInt64(t, archsimd.Int32x4.ExtendToInt64, map1[int32](toInt64))
+		testUint8x16ConvertToUint16(t, archsimd.Uint8x16.ExtendToUint16, map1[uint8](toUint16))
+		testUint16x8ConvertToUint32(t, archsimd.Uint16x8.ExtendToUint32, map1[uint16](toUint32))
+		testUint32x4ConvertToUint64(t, archsimd.Uint32x4.ExtendToUint64, map1[uint32](toUint64))
 	}
-	testUint8x32ConvertToUint16(t, archsimd.Uint8x32.ExtendToUint16, map1[uint8](toUint16))
+
+	if archsimd.X86.AVX512() {
+		testInt8x32ConvertToInt16(t, archsimd.Int8x32.ExtendToInt16, map1[int8](toInt16))
+		testInt8x16ConvertToInt32(t, archsimd.Int8x16.ExtendToInt32, map1[int8](toInt32))
+		testInt16x16ConvertToInt32(t, archsimd.Int16x16.ExtendToInt32, map1[int16](toInt32))
+		testInt16x8ConvertToInt64(t, archsimd.Int16x8.ExtendToInt64, map1[int16](toInt64))
+		testInt32x8ConvertToInt64(t, archsimd.Int32x8.ExtendToInt64, map1[int32](toInt64))
+		testUint8x32ConvertToUint16(t, archsimd.Uint8x32.ExtendToUint16, map1[uint8](toUint16))
+		testUint8x16ConvertToUint32(t, archsimd.Uint8x16.ExtendToUint32, map1[uint8](toUint32))
+		testUint16x16ConvertToUint32(t, archsimd.Uint16x16.ExtendToUint32, map1[uint16](toUint32))
+		testUint16x8ConvertToUint64(t, archsimd.Uint16x8.ExtendToUint64, map1[uint16](toUint64))
+		testUint32x8ConvertToUint64(t, archsimd.Uint32x8.ExtendToUint64, map1[uint32](toUint64))
+	}
 }

@@ -126,8 +126,9 @@ func map1[T, U any](elem func(x T) U) func(x []T) []U {
 	}
 }
 
-// map1 returns a function that returns the slice of the results of applying
-// comparison function elem to the respective elements of its two slice inputs.
+// mapCompare returns a function that returns the slice of the results of applying
+// comparison function elem to the respective elements of its two slice inputs,
+// and returns -1 if the comparison is true, 0 otherwise.
 func mapCompare[T number](elem func(x, y T) bool) func(x, y []T) []int64 {
 	return func(x, y []T) []int64 {
 		s := make([]int64, len(x))
