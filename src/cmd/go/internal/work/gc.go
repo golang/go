@@ -382,8 +382,8 @@ func asmArgs(a *Action, p *load.Package) []any {
 		}
 		args = append(args, "-D", "GORISCV64_"+profile)
 
-		for it := range buildcfg.GORISCV64EXT {
-			args = append(args, "-D", "GORISCV64EXT_"+strings.ToLower(it))
+		for _, ext := range buildcfg.GORISCV64EXT.EnabledExtensions() {
+			args = append(args, "-D", "GORISCV64EXT_"+strings.ToLower(ext))
 		}
 	}
 

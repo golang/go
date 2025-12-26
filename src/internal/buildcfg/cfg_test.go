@@ -104,25 +104,24 @@ func TestParseGORISCV64InvalidExtension(t *testing.T) {
 	}
 }
 
-func TestAllowedRiscv64OptListTrueOnly(t *testing.T) {
-	orig := allowedRiscv64Opt
-	t.Cleanup(func() { allowedRiscv64Opt = orig })
-
-	allowedRiscv64Opt = map[string]bool{
-		Riscv64ExtZacas: true,
-		"zfake":         false,
+func TestGoriscv64ExtensionsHas(t *testing.T) {
+	ext := Goriscv64Extensions{Zacas: true, Zabha: false}
+	if !ext.Has(Riscv64ExtZacas) {
+		t.Errorf("Has(%q) = false, want true", Riscv64ExtZacas)
 	}
-	list := allowedRiscv64OptList()
-	if list != Riscv64ExtZacas {
-		t.Fatalf("allowedRiscv64OptList() = %q, want %q", list, Riscv64ExtZacas)
+	if ext.Has(Riscv64ExtZabha) {
+		t.Errorf("Has(%q) = true, want false", Riscv64ExtZabha)
+	}
+	if ext.Has("nonexistent") {
+		t.Errorf("Has(%q) = true, want false", "nonexistent")
 	}
 }
 
 func TestGoriscv64Extensions(t *testing.T) {
 	t.Setenv("GORISCV64", "rva23u64,zacas")
 	ext := goriscv64Extensions()
-	want := map[string]bool{Riscv64ExtZacas: true}
-	if !reflect.DeepEqual(ext, want) {
+	want := Goriscv64Extensions{Zacas: true, Zabha: false}
+	if ext != want {
 		t.Fatalf("extensions = %#v, want %#v", ext, want)
 	}
 }
@@ -130,8 +129,9 @@ func TestGoriscv64Extensions(t *testing.T) {
 func TestGoriscv64ExtensionsInvalid(t *testing.T) {
 	t.Setenv("GORISCV64", "rva23u64,foo")
 	ext := goriscv64Extensions()
-	if len(ext) != 0 {
-		t.Fatalf("extensions = %#v, want empty map on invalid extension", ext)
+	want := Goriscv64Extensions{Zacas: false, Zabha: false}
+	if ext != want {
+		t.Fatalf("extensions = %#v, want %#v on invalid extension", ext, want)
 	}
 }
 
