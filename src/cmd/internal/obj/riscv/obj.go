@@ -248,6 +248,12 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		}
 
 	case APREFETCHI, APREFETCHR, APREFETCHW:
+		low5bits := p.From.Offset & 0b11111
+		if low5bits != 0 {
+			p.Ctxt.Diag("%v: The imm[4:0] of PREFETCH must equal 0b00000", p)
+			return
+		}
+
 		p.From.Offset = p.From.Offset &^ 0b11111
 		switch p.As {
 		case APREFETCHI:

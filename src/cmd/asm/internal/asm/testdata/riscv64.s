@@ -312,9 +312,8 @@ start:
 	// 19.6.3: Cache-Block Prefetch Instructions
 	PREFETCHI 448(X5)					// 13e0021c
 	PREFETCHI -64(X5)					// 13e002fc
-	PREFETCHI 453(X5)					// 13e0021c
-	PREFETCHR 449(X5)					// 13e0121c
-	PREFETCHW 451(X5)					// 13e0321c
+	PREFETCHR 448(X5)					// 13e0121c
+	PREFETCHW 448(X5)					// 13e0321c
 
 	// 20.5: Single-Precision Load and Store Instructions
 	FLW	(X5), F0				// 07a00200
