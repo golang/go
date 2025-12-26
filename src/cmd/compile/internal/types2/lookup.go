@@ -232,7 +232,10 @@ func lookupFieldOrMethodImpl(T Type, addressable bool, pkg *Package, name string
 			return argTypes, true
 		}
 
-		if b, _ := under(typ).(*Basic); b != nil {
+		// Only synthesize magic methods for actual basic types.
+		// If typ is a defined (*Named) type with a basic underlying type (e.g. `type Scalar float64`),
+		// it may legitimately declare methods itself; synthesizing here would incorrectly shadow them.
+		if b, ok := typ.(*Basic); ok && b != nil {
 			// 定义三种类型的操作符集合
 
 			// 1. 一元运算符 (Unary): func() T

@@ -2977,6 +2977,13 @@ type arithOpRewriter struct {
 	currentMagicRecvType string
 	currentMagicBase     string
 
+	// currentFuncRecvVar/currentFuncRecvType provide a fallback for Name-based type
+	// inference inside method bodies. This is used by strict magic index/slice
+	// rewriting (e.g. `recv[i, j]` -> `recv._getitem(...)`) which relies on
+	// tryInferStructTypeName.
+	currentFuncRecvVar  string
+	currentFuncRecvType string
+
 	typeParamScopes []map[string]*operatorCaps
 
 	// genericTypes maps base type name -> generic type info (type-decl params + their caps).
@@ -3416,6 +3423,16 @@ func (r *arithOpRewriter) rewriteDecl(decl Decl) {
 			r.bindVarType(d.Recv.Name.Value, d.Recv.Type)
 		}
 
+		// Track current receiver (if any) as a fallback for Name-based inference inside the body.
+		wasFuncRecvVar := r.currentFuncRecvVar
+		wasFuncRecvType := r.currentFuncRecvType
+		if d.Recv != nil && d.Recv.Name != nil && d.Recv.Type != nil {
+			r.currentFuncRecvVar = d.Recv.Name.Value
+			r.currentFuncRecvType = baseTypeNameFromTypeExpr(d.Recv.Type)
+		} else {
+			r.currentFuncRecvVar, r.currentFuncRecvType = "", ""
+		}
+
 		// Don't rewrite inside arithmetic magic method bodies to avoid recursion.
 		wasInside := r.insideArithMethod
 		wasMagicRecv := r.currentMagicRecvType
@@ -3429,6 +3446,8 @@ func (r *arithOpRewriter) rewriteDecl(decl Decl) {
 		r.insideArithMethod = wasInside
 		r.currentMagicRecvType = wasMagicRecv
 		r.currentMagicBase = wasMagicBase
+		r.currentFuncRecvVar = wasFuncRecvVar
+		r.currentFuncRecvType = wasFuncRecvType
 
 	case *VarDecl:
 		r.trackVarDeclTypes(d)
@@ -4122,13 +4141,15 @@ func (r *arithOpRewriter) rewriteExpr(expr Expr) Expr {
 				return e
 			}
 			if leftType != "" && r.hasArithBinary(leftType, fwd, rightType) {
-				return r.createMethodCall(e.Pos(), left, fwd, []Expr{right})
+				name := r.resolveArithBinaryName(leftType, fwd, rightType)
+				return r.createMethodCall(e.Pos(), left, name, []Expr{right})
 			}
 			if r.insideArithMethod && rightType == r.currentMagicRecvType && mirror == r.currentMagicBase {
 				return e
 			}
 			if mirror != "" && rightType != "" && r.hasArithBinary(rightType, mirror, leftType) {
-				return r.createMethodCall(e.Pos(), right, mirror, []Expr{left})
+				name := r.resolveArithBinaryName(rightType, mirror, leftType)
+				return r.createMethodCall(e.Pos(), right, name, []Expr{left})
 			}
 			return e
 		}
@@ -4142,13 +4163,15 @@ func (r *arithOpRewriter) rewriteExpr(expr Expr) Expr {
 			return e
 		}
 		if leftType != "" && r.hasArithBinary(leftType, fwd, rightType) {
-			return r.createMethodCall(e.Pos(), left, fwd, []Expr{right})
+			name := r.resolveArithBinaryName(leftType, fwd, rightType)
+			return r.createMethodCall(e.Pos(), left, name, []Expr{right})
 		}
 		if r.insideArithMethod && rightType == r.currentMagicRecvType && rev == r.currentMagicBase {
 			return e
 		}
 		if rev != "" && rightType != "" && r.hasArithBinary(rightType, rev, leftType) {
-			return r.createMethodCall(e.Pos(), right, rev, []Expr{left})
+			name := r.resolveArithBinaryName(rightType, rev, leftType)
+			return r.createMethodCall(e.Pos(), right, name, []Expr{left})
 		}
 		return e
 
@@ -4343,6 +4366,56 @@ func (r *arithOpRewriter) hasArithBinary(recvType string, methodName string, arg
 	return false
 }
 
+// resolveArithBinaryName selects the best concrete method name for a magic-method
+// call on recvType with base name methodBase and a single argument of (syntactic)
+// type argType.
+//
+// This is important when the receiver type has multiple overloads for the same
+// magic base (including compiler-injected numeric overloads). In such cases, the
+// actual declared method names may be suffixed (e.g. "_rdiv_ptrVector"), and
+// emitting only the base name (e.g. "_rdiv") can accidentally bind to the wrong
+// overload.
+//
+// argType is inferred syntactically and has no leading '*'. Empty argType means unknown.
+func (r *arithOpRewriter) resolveArithBinaryName(recvType string, methodBase string, argType string) string {
+	m, ok := r.arithMethods[recvType]
+	if !ok {
+		return methodBase
+	}
+	cands := m[methodBase]
+	if len(cands) == 0 {
+		return methodBase
+	}
+	// Unknown arg type: keep base name (be conservative; don't guess a suffix).
+	if argType == "" {
+		return methodBase
+	}
+
+	// Prefer the first matching candidate by syntactic param type.
+	for _, fn := range cands {
+		if fn == nil || fn.Type == nil {
+			continue
+		}
+		params := fn.Type.ParamList
+		if len(params) != 1 || params[0] == nil || params[0].Type == nil {
+			continue
+		}
+		pt := typeExprToString(params[0].Type)
+		if len(pt) > 0 && pt[0] == '*' {
+			pt = pt[1:]
+		}
+		pt = stripGenericArgs(pt)
+		// any/interface{} accept any type
+		if pt == "any" || pt == "interface{}" {
+			return fn.Name.Value
+		}
+		if stripGenericArgs(pt) == stripGenericArgs(argType) {
+			return fn.Name.Value
+		}
+	}
+	return methodBase
+}
+
 func stripGenericArgs(s string) string {
 	for i := 0; i < len(s); i++ {
 		if s[i] == '[' {
@@ -4497,6 +4570,10 @@ func (r *arithOpRewriter) tryInferStructTypeName(expr Expr) string {
 		if t, ok := r.varTypes[e.Value]; ok {
 			return t
 		}
+		// Fallback: receiver name within the current method body.
+		if r.currentFuncRecvVar != "" && e.Value == r.currentFuncRecvVar && r.currentFuncRecvType != "" {
+			return r.currentFuncRecvType
+		}
 		return ""
 	case *IndexExpr:
 		// Infer element type for indexing a slice/array/variadic variable:
@@ -4640,6 +4717,14 @@ func (r *arithOpRewriter) tryInferStructTypeName(expr Expr) string {
 		if name, ok := e.Fun.(*Name); ok {
 			if name.Value == "make" && len(e.ArgList) > 0 {
 				return baseTypeNameFromTypeExpr(e.ArgList[0])
+			}
+			// Type conversion call: T(x).
+			// In Go syntax this is parsed as a CallExpr with Fun=Name("T").
+			// For MyGO operator rewriting, recognizing this lets us infer the operand type
+			// and properly select forward overload vs reverse fallback (e.g. v * Scalar(2)
+			// should prefer Scalar._rmul(v) if Vector has no matching _mul(Scalar)).
+			if r.typeSupportsOperators(name.Value) {
+				return name.Value
 			}
 			if rt, ok := r.funcReturnTypes[name.Value]; ok {
 				return rt
@@ -5963,6 +6048,16 @@ func (r *magicMethodRewriter) rewriteDecl(decl Decl) {
 				r.bindVarType(d.Recv.Name.Value, d.Recv.Type)
 			}
 
+			// Track current receiver (if any) as a fallback for Name-based inference inside the body.
+			wasFuncRecvVar := r.currentFuncRecvVar
+			wasFuncRecvType := r.currentFuncRecvType
+			if d.Recv != nil && d.Recv.Name != nil && d.Recv.Type != nil {
+				r.currentFuncRecvVar = d.Recv.Name.Value
+				r.currentFuncRecvType = baseTypeNameFromTypeExpr(d.Recv.Type)
+			} else {
+				r.currentFuncRecvVar, r.currentFuncRecvType = "", ""
+			}
+
 			// Check if this is a magic method - if so, don't rewrite its body
 			wasMagic := r.insideMagicMethod
 			if d.Recv != nil && isMagicMethodName(d.Name.Value) {
@@ -5970,6 +6065,8 @@ func (r *magicMethodRewriter) rewriteDecl(decl Decl) {
 			}
 			r.rewriteBlockStmt(d.Body)
 			r.insideMagicMethod = wasMagic
+			r.currentFuncRecvVar = wasFuncRecvVar
+			r.currentFuncRecvType = wasFuncRecvType
 		}
 	case *VarDecl:
 		// Track variable types from declarations like: var ds *DataStore = ...
@@ -6067,8 +6164,48 @@ func (r *magicMethodRewriter) rewriteStmt(stmt Stmt) Stmt {
 	case *LabeledStmt:
 		s.Stmt = r.rewriteStmt(s.Stmt)
 		return s
+	case *SwitchStmt:
+		if s.Init != nil {
+			s.Init = r.rewriteSimpleStmt(s.Init)
+		}
+		if s.Tag != nil {
+			s.Tag = r.rewriteExpr(s.Tag)
+		}
+		for _, cc := range s.Body {
+			r.rewriteCaseClause(cc)
+		}
+		return s
+	case *SelectStmt:
+		for _, cc := range s.Body {
+			r.rewriteCommClause(cc)
+		}
+		return s
 	}
 	return stmt
+}
+
+func (r *magicMethodRewriter) rewriteCaseClause(cc *CaseClause) {
+	if cc == nil {
+		return
+	}
+	if cc.Cases != nil {
+		cc.Cases = r.rewriteExpr(cc.Cases)
+	}
+	for i, stmt := range cc.Body {
+		cc.Body[i] = r.rewriteStmt(stmt)
+	}
+}
+
+func (r *magicMethodRewriter) rewriteCommClause(cc *CommClause) {
+	if cc == nil {
+		return
+	}
+	if cc.Comm != nil {
+		cc.Comm = r.rewriteSimpleStmt(cc.Comm)
+	}
+	for i, stmt := range cc.Body {
+		cc.Body[i] = r.rewriteStmt(stmt)
+	}
 }
 
 func (r *magicMethodRewriter) rewriteSimpleStmt(stmt SimpleStmt) SimpleStmt {

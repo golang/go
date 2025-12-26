@@ -2272,45 +2272,51 @@ func (w *writer) expr(expr syntax.Expr) {
 
 				if op != 0 {
 					recvTyp := w.p.typeOf(sel.X)
+					// Only lower calls on actual basic types (int/float64/etc.).
+					// For defined (named) types with basic underlyings (e.g. `type Scalar float64`),
+					// users may legitimately define their own magic methods with arbitrary
+					// signatures (e.g. Scalar._rmul(*Vector)->*Vector). Those should be encoded
+					// as normal calls, not lowered here.
+					if _, ok := recvTyp.(*types2.Basic); ok {
+						// 【修改点】：检查 IsNumeric 或 IsString
+						// 注意：这里需要确保你引用的 types2 包能访问到这些常量
+						b, _ := types2.CoreType(recvTyp).(*types2.Basic)
+						if b != nil {
+							info := b.Info()
+							isNumeric := info&types2.IsNumeric != 0
+							isString := info&types2.IsString != 0
 
-					// 【修改点】：检查 IsNumeric 或 IsString
-					// 注意：这里需要确保你引用的 types2 包能访问到这些常量
-					b, _ := types2.CoreType(recvTyp).(*types2.Basic)
-					if b != nil {
-						info := b.Info()
-						isNumeric := info&types2.IsNumeric != 0
-						isString := info&types2.IsString != 0
+							// 只有数值或字符串才进行降级
+							if isNumeric || isString {
+								// 确定公共类型 (Common Type) 用于隐式转换
+								argTyp := w.p.typeOf(expr.ArgList[0])
+								var commonType types2.Type
 
-						// 只有数值或字符串才进行降级
-						if isNumeric || isString {
-							// 确定公共类型 (Common Type) 用于隐式转换
-							argTyp := w.p.typeOf(expr.ArgList[0])
-							var commonType types2.Type
+								// 简单的类型推导策略
+								switch {
+								case types2.AssignableTo(recvTyp, argTyp):
+									commonType = argTyp
+								case types2.AssignableTo(argTyp, recvTyp):
+									commonType = recvTyp
+								default:
+									commonType = recvTyp
+								}
 
-							// 简单的类型推导策略
-							switch {
-							case types2.AssignableTo(recvTyp, argTyp):
-								commonType = argTyp
-							case types2.AssignableTo(argTyp, recvTyp):
-								commonType = recvTyp
-							default:
-								commonType = recvTyp
+								// 生成二元操作指令
+								w.Code(exprBinaryOp)
+								w.op(binOps[op]) // 确保 binOps 数组里映射了所有新加的 Operator
+
+								if swap {
+									w.implicitConvExpr(commonType, expr.ArgList[0])
+									w.pos(expr)
+									w.implicitConvExpr(commonType, sel.X)
+								} else {
+									w.implicitConvExpr(commonType, sel.X)
+									w.pos(expr)
+									w.implicitConvExpr(commonType, expr.ArgList[0])
+								}
+								break // 处理完毕，跳出 switch
 							}
-
-							// 生成二元操作指令
-							w.Code(exprBinaryOp)
-							w.op(binOps[op]) // 确保 binOps 数组里映射了所有新加的 Operator
-
-							if swap {
-								w.implicitConvExpr(commonType, expr.ArgList[0])
-								w.pos(expr)
-								w.implicitConvExpr(commonType, sel.X)
-							} else {
-								w.implicitConvExpr(commonType, sel.X)
-								w.pos(expr)
-								w.implicitConvExpr(commonType, expr.ArgList[0])
-							}
-							break // 处理完毕，跳出 switch
 						}
 					}
 				}
