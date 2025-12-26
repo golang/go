@@ -5563,6 +5563,10 @@ func isInitMethodName(name string) bool {
 // constructorRewriter rewrites constructor calls
 type constructorRewriter struct {
 	initMethods map[string][]*FuncDecl // typename -> list of _init methods
+	// fieldTypes records struct field types by struct name, for light-weight type inference
+	// during pre-typecheck constructor overload selection.
+	// Example: fieldTypes["NDArray"]["shape"] == "[]int".
+	fieldTypes map[string]map[string]string
 	// typeParamScopes tracks the set of in-scope type parameter names while rewriting.
 	// This lets _init overload selection work when make(...) instantiates with type params
 	// like make(GBox[T], ...), where "T" is not a concrete type at this stage.
@@ -5581,24 +5585,47 @@ func RewriteConstructors(file *File) {
 	}
 	// Collect _init methods by base receiver type name (no pointer, no type args).
 	initMethods := make(map[string][]*FuncDecl)
+	// Collect struct field types for light-weight inference (used by constructorRewriter).
+	fieldTypes := make(map[string]map[string]string)
 	for _, decl := range file.DeclList {
-		fn, ok := decl.(*FuncDecl)
-		if !ok || fn == nil || fn.Recv == nil || fn.Name == nil {
-			continue
+		switch d := decl.(type) {
+		case *FuncDecl:
+			fn := d
+			if fn == nil || fn.Recv == nil || fn.Name == nil {
+				continue
+			}
+			if !isInitMethodName(fn.Name.Value) {
+				continue
+			}
+			base := baseTypeNameFromTypeExpr(fn.Recv.Type)
+			if base == "" {
+				continue
+			}
+			initMethods[base] = append(initMethods[base], fn)
+		case *TypeDecl:
+			if d == nil || d.Name == nil || d.Type == nil || d.Alias {
+				continue
+			}
+			st, ok := d.Type.(*StructType)
+			if !ok || st == nil {
+				continue
+			}
+			m := make(map[string]string)
+			for _, f := range st.FieldList {
+				if f == nil || f.Name == nil || f.Type == nil {
+					continue
+				}
+				m[f.Name.Value] = typeExprToString(f.Type)
+			}
+			if len(m) > 0 {
+				fieldTypes[d.Name.Value] = m
+			}
 		}
-		if !isInitMethodName(fn.Name.Value) {
-			continue
-		}
-		base := baseTypeNameFromTypeExpr(fn.Recv.Type)
-		if base == "" {
-			continue
-		}
-		initMethods[base] = append(initMethods[base], fn)
 	}
 	if len(initMethods) == 0 {
 		return
 	}
-	r := &constructorRewriter{initMethods: initMethods}
+	r := &constructorRewriter{initMethods: initMethods, fieldTypes: fieldTypes}
 	r.rewriteFile(file)
 }
 
@@ -5746,6 +5773,10 @@ func (r *constructorRewriter) inferArgType(arg Expr) string {
 			}
 		}
 	}
+	// Try best-effort inference for non-Name expressions (calls, selectors, indexing, etc.).
+	if ts := r.inferTypeStringFromValueExpr(arg); ts != "" {
+		return ts
+	}
 	return inferLiteralType(arg)
 }
 
@@ -5775,6 +5806,12 @@ func (r *constructorRewriter) inferTypeStringFromValueExpr(e Expr) string {
 		}
 	case *CallExpr:
 		if x != nil {
+			// Builtins with known result types.
+			if n, ok := x.Fun.(*Name); ok && n != nil {
+				if n.Value == "len" || n.Value == "cap" {
+					return "int"
+				}
+			}
 			// make(T, ...) => T (including slice types)
 			if n, ok := x.Fun.(*Name); ok && n != nil && n.Value == "make" && len(x.ArgList) > 0 {
 				return typeExprToString(x.ArgList[0])
@@ -5788,6 +5825,61 @@ func (r *constructorRewriter) inferTypeStringFromValueExpr(e Expr) string {
 					"complex64", "complex128",
 					"string", "bool", "rune", "byte":
 					return n.Value
+				}
+			}
+		}
+	case *SelectorExpr:
+		// Best-effort: infer field types for "recv.field" from known receiver type + struct field table.
+		if x != nil && x.X != nil && x.Sel != nil {
+			if n, ok := x.X.(*Name); ok && n != nil {
+				// Look up tracked variable type directly (avoid recursion through inferArgType).
+				recvType := ""
+				for i := len(r.varTypeStrScopes) - 1; i >= 0; i-- {
+					scope := r.varTypeStrScopes[i]
+					if scope == nil {
+						continue
+					}
+					if t, ok := scope[n.Value]; ok && t != "" {
+						recvType = t
+						break
+					}
+				}
+				if recvType != "" {
+					recvType = stripGenericArgs(stripLeadingStar(recvType))
+					if r.fieldTypes != nil {
+						if ft, ok := r.fieldTypes[recvType]; ok && ft != nil {
+							if t, ok := ft[x.Sel.Value]; ok {
+								return t
+							}
+						}
+					}
+				}
+			}
+		}
+	case *IndexExpr:
+		// Best-effort: infer element type for "container[i]" when container is a slice/array of known type.
+		if x != nil && x.X != nil {
+			ct := r.inferTypeStringFromValueExpr(x.X)
+			if ct == "" {
+				// Avoid recursion; fall back to literal inference (likely unknown).
+				ct = inferLiteralType(x.X)
+			}
+			if ct != "" {
+				// Variadic treated like slice.
+				if len(ct) >= 3 && ct[:3] == "..." {
+					ct = ct[3:]
+				}
+				// Slice: []T
+				if len(ct) >= 2 && ct[:2] == "[]" {
+					return ct[2:]
+				}
+				// Array: [N]T
+				if len(ct) > 0 && ct[0] == '[' {
+					for i := 1; i < len(ct); i++ {
+						if ct[i] == ']' && i+1 < len(ct) {
+							return ct[i+1:]
+						}
+					}
 				}
 			}
 		}
@@ -5830,10 +5922,24 @@ func (r *constructorRewriter) rewriteStmt(stmt Stmt) Stmt {
 	case *AssignStmt:
 		// Track short variable declarations: x := make([]T, ...) etc.
 		if s.Op == Def {
-			// Only handle the common single-name case for now.
-			if lhs, ok := s.Lhs.(*Name); ok && lhs != nil {
-				if ts := r.inferTypeStringFromValueExpr(s.Rhs); ts != "" {
-					r.setVarType(lhs.Value, ts)
+			// Handle common "x := <expr>" and "x, y := <expr1>, <expr2>" forms.
+			lhsList := UnpackListExpr(s.Lhs)
+			rhsList := UnpackListExpr(s.Rhs)
+			if len(lhsList) == len(rhsList) && len(lhsList) > 0 {
+				for i := 0; i < len(lhsList); i++ {
+					lhs, ok := lhsList[i].(*Name)
+					if !ok || lhs == nil || lhs.Value == "_" {
+						continue
+					}
+					if ts := r.inferTypeStringFromValueExpr(rhsList[i]); ts != "" {
+						r.setVarType(lhs.Value, ts)
+					}
+				}
+			} else if len(lhsList) == 1 {
+				if lhs, ok := lhsList[0].(*Name); ok && lhs != nil && lhs.Value != "_" {
+					if ts := r.inferTypeStringFromValueExpr(s.Rhs); ts != "" {
+						r.setVarType(lhs.Value, ts)
+					}
 				}
 			}
 		}
@@ -6154,22 +6260,42 @@ func (r *constructorRewriter) matchInitArgsWithTypeSubst(paramTypes []string, ar
 	// Support variadic params ("...T") with 0+ trailing args.
 	isVariadic := len(paramTypes) > 0 && len(paramTypes[len(paramTypes)-1]) >= 3 && paramTypes[len(paramTypes)-1][:3] == "..."
 
-	scoreFor := func(origPT, pt, at string) int {
+	tierForMatchScore := func(s int) int {
+		// Higher tier means "more exact".
+		// Tiers dominate final score, so we only use weaker matches (e.g. int->float)
+		// when no better-tier overload exists.
+		switch {
+		case s >= 100:
+			return 4 // exact
+		case s >= 90:
+			return 3 // strong numeric / same-kind
+		case s >= 70:
+			return 2 // weaker numeric (e.g. int literal -> float param)
+		case s >= 20:
+			return 1 // any/interface/unknown-ish
+		default:
+			return 0
+		}
+	}
+
+	// scoreFor returns (tier, score) for a single (param, arg) match.
+	// Caller is responsible for checking typeMatchesInitParam(pt, at) first.
+	scoreFor := func(origPT, pt, at string) (tier int, s int) {
 		// Prefer concrete matches over substituted type-param matches.
 		// When we match via type parameters, keep the score relatively low so that
 		// concrete overloads win when they exist.
 		if subst != nil && origPT != pt {
-			return 30
+			return 1, 30
 		}
 		if r.isTypeParamTypeString(pt) {
-			return 20
+			return 1, 20
 		}
 		if s, ok := matchScorePre(pt, at); ok {
-			return s
+			return tierForMatchScore(s), s
 		}
 		// Fallback: we already know typeMatchesInitParam() accepted it, but we
 		// don't have a specialized score (e.g. complex/unknown types).
-		return 10
+		return 1, 10
 	}
 
 	if !isVariadic {
@@ -6177,6 +6303,7 @@ func (r *constructorRewriter) matchInitArgsWithTypeSubst(paramTypes []string, ar
 			return 0, false
 		}
 		score = 0
+		tier := 4
 		for i := 0; i < len(paramTypes); i++ {
 			pt := paramTypes[i]
 			at := argTypes[i]
@@ -6189,9 +6316,14 @@ func (r *constructorRewriter) matchInitArgsWithTypeSubst(paramTypes []string, ar
 			if !r.typeMatchesInitParam(pt, at) {
 				return 0, false
 			}
-			score += scoreFor(origPt, pt, at)
+			t, s := scoreFor(origPt, pt, at)
+			if t < tier {
+				tier = t
+			}
+			score += s
 		}
-		return score, true
+		// Encode tier into score so "exactness" dominates.
+		return tier*1000 + score, true
 	}
 
 	// Variadic: first n-1 params must match, remaining args match element type.
@@ -6200,6 +6332,7 @@ func (r *constructorRewriter) matchInitArgsWithTypeSubst(paramTypes []string, ar
 		return 0, false
 	}
 	score = 0
+	tier := 4
 	for i := 0; i < fixed; i++ {
 		pt := paramTypes[i]
 		at := argTypes[i]
@@ -6212,7 +6345,11 @@ func (r *constructorRewriter) matchInitArgsWithTypeSubst(paramTypes []string, ar
 		if !r.typeMatchesInitParam(pt, at) {
 			return 0, false
 		}
-		score += scoreFor(origPt, pt, at)
+		t, s := scoreFor(origPt, pt, at)
+		if t < tier {
+			tier = t
+		}
+		score += s
 	}
 	elem := paramTypes[len(paramTypes)-1][3:] // strip "..."
 	origElem := elem
@@ -6225,9 +6362,13 @@ func (r *constructorRewriter) matchInitArgsWithTypeSubst(paramTypes []string, ar
 		if !r.typeMatchesInitParam(elem, argTypes[i]) {
 			return 0, false
 		}
-		score += scoreFor(origElem, elem, argTypes[i])
+		t, s := scoreFor(origElem, elem, argTypes[i])
+		if t < tier {
+			tier = t
+		}
+		score += s
 	}
-	return score, true
+	return tier*1000 + score, true
 }
 
 // rewriteConstructorCallWithArgs generates (&Type{})._init(...)
@@ -6252,9 +6393,17 @@ func (r *constructorRewriter) rewriteConstructorCallWithArgs(call *CallExpr, typ
 			argTypes[i] = r.inferArgType(arg)
 		}
 
-		bestScore := -1
-		bestName := ""
-		bestIsVariadic := false
+		// Overload priority:
+		// - Prefer stronger type matches (exact / same-kind) over weaker ones (int->float / any / unknown).
+		// - Prefer non-variadic over variadic, but only when the non-variadic match is "strong"
+		//   (i.e. not purely relying on unknown/any wildcard matches).
+		bestScoreNonVar := -1
+		bestNameNonVar := ""
+		bestTierNonVar := -1
+		bestScoreVar := -1
+		bestNameVar := ""
+		bestTierVar := -1
+
 		for _, method := range methods {
 			if method == nil || method.Type == nil {
 				continue
@@ -6266,7 +6415,6 @@ func (r *constructorRewriter) rewriteConstructorCallWithArgs(call *CallExpr, typ
 			if len(argTypes) < minArgs {
 				continue
 			}
-			// Variadic methods can accept more than maxArgs.
 			isVariadic := len(paramTypes) > 0 && len(paramTypes[len(paramTypes)-1]) >= 3 && paramTypes[len(paramTypes)-1][:3] == "..."
 			if !isVariadic && len(argTypes) > maxArgs {
 				continue
@@ -6275,7 +6423,7 @@ func (r *constructorRewriter) rewriteConstructorCallWithArgs(call *CallExpr, typ
 			// Build substitution map from receiver type params to make's type args (if any).
 			subst := receiverTypeParamMapFromMakeType(method, typeNode, r.isTypeParamName)
 
-			// Step: Match provided arguments only (ignore omitted default params).
+			// Match provided arguments only (ignore omitted default params).
 			ptPrefix := paramTypes
 			if len(argTypes) <= len(paramTypes) {
 				ptPrefix = paramTypes[:len(argTypes)]
@@ -6285,16 +6433,33 @@ func (r *constructorRewriter) rewriteConstructorCallWithArgs(call *CallExpr, typ
 				continue
 			}
 
-			// Tie-breakers:
-			// - higher score wins
-			// - if scores tie, prefer non-variadic over variadic (i.e. "..."" is last-resort)
-			if score > bestScore || (score == bestScore && bestIsVariadic && !isVariadic) {
-				bestScore = score
-				bestName = method.Name.Value
-				bestIsVariadic = isVariadic
+			if isVariadic {
+				if score > bestScoreVar {
+					bestScoreVar = score
+					bestNameVar = method.Name.Value
+					bestTierVar = score / 1000
+				}
+			} else {
+				if score > bestScoreNonVar {
+					bestScoreNonVar = score
+					bestNameNonVar = method.Name.Value
+					bestTierNonVar = score / 1000
+				}
 			}
 		}
-		methodName = bestName
+
+		// Strong non-variadic match wins (tier >= 2).
+		// Otherwise, allow a better-tier variadic match to win (important when arg types
+		// are unknown at this stage, e.g. "rows, cols := a.shape[0], a.shape[1]").
+		if bestNameNonVar != "" && bestTierNonVar >= 2 {
+			methodName = bestNameNonVar
+		} else if bestNameVar != "" && bestTierVar > bestTierNonVar {
+			methodName = bestNameVar
+		} else if bestNameNonVar != "" {
+			methodName = bestNameNonVar
+		} else {
+			methodName = bestNameVar
+		}
 
 		// Fallback
 		if methodName == "" {
@@ -7179,6 +7344,137 @@ func (r *magicMethodRewriter) resolveMagicMethodOverloadWithComma(base Expr, met
 	candidates := make([]candidate, 0)
 	var variadicCandidates []candidate
 
+	tierForMatchScore := func(s int) int {
+		switch {
+		case s >= 100:
+			return 4
+		case s >= 90:
+			return 3
+		case s >= 70:
+			return 2
+		case s >= 20:
+			return 1
+		default:
+			return 0
+		}
+	}
+
+	// scoreArgsNonVariadic computes a tiered score for non-variadic methods.
+	// It respects receiver type params as wildcards (low tier).
+	scoreArgsNonVariadic := func(paramTypes []string, argTypes []string, tparams map[string]bool, isSetitem bool) (int, bool) {
+		if len(paramTypes) != len(argTypes) {
+			return 0, false
+		}
+		tier := 4
+		sum := 0
+		for i := 0; i < len(argTypes); i++ {
+			pt := paramTypes[i]
+			at := argTypes[i]
+
+			// For _setitem(value-first), allow numeric flexibility for the value param,
+			// but still score it by matchScorePre when possible.
+			if isSetitem && i == 0 {
+				if isNumericType(pt) && isNumericType(at) {
+					if s, ok := matchScorePre(pt, at); ok {
+						t := tierForMatchScore(s)
+						if t < tier {
+							tier = t
+						}
+						sum += s
+					} else {
+						// Unknown numeric pairing; treat as weak match.
+						if 1 < tier {
+							tier = 1
+						}
+						sum += 10
+					}
+					continue
+				}
+			}
+
+			if tparams != nil && tparams[pt] {
+				// Type-param wildcard match: low tier.
+				if 1 < tier {
+					tier = 1
+				}
+				sum += 20
+				continue
+			}
+			if !typeMatchesPre(pt, at) {
+				return 0, false
+			}
+			if s, ok := matchScorePre(pt, at); ok {
+				t := tierForMatchScore(s)
+				if t < tier {
+					tier = t
+				}
+				sum += s
+			} else {
+				if 1 < tier {
+					tier = 1
+				}
+				sum += 10
+			}
+		}
+		return tier*1000 + sum, true
+	}
+
+	// scoreArgsVariadic computes a tiered score for variadic methods ("...T").
+	scoreArgsVariadic := func(paramTypes []string, argTypes []string) (int, bool) {
+		numParams := len(paramTypes)
+		if numParams == 0 {
+			return 0, false
+		}
+		// last parameter is variadic
+		variadicElem := paramTypes[numParams-1][3:]
+		fixed := numParams - 1
+		if len(argTypes) < fixed {
+			return 0, false
+		}
+
+		tier := 4
+		sum := 0
+		// fixed args
+		for i := 0; i < fixed; i++ {
+			if !typeMatchesPre(paramTypes[i], argTypes[i]) {
+				return 0, false
+			}
+			if s, ok := matchScorePre(paramTypes[i], argTypes[i]); ok {
+				t := tierForMatchScore(s)
+				if t < tier {
+					tier = t
+				}
+				sum += s
+			} else {
+				if 1 < tier {
+					tier = 1
+				}
+				sum += 10
+			}
+		}
+		// variadic tail
+		for i := fixed; i < len(argTypes); i++ {
+			if !typeMatchesPre(variadicElem, argTypes[i]) {
+				return 0, false
+			}
+			if s, ok := matchScorePre(variadicElem, argTypes[i]); ok {
+				t := tierForMatchScore(s)
+				if t < tier {
+					tier = t
+				}
+				sum += s
+			} else {
+				if 1 < tier {
+					tier = 1
+				}
+				sum += 10
+			}
+		}
+		// Variadic is always fallback vs any matching fixed-arity method.
+		// Encode a small penalty so ties prefer non-variadic even if caller forgets to filter.
+		return tier*1000 + sum - 1, true
+	}
+
 	for _, fn := range methods {
 		paramTypes := getParamTypeStrings(fn.Type.ParamList)
 
@@ -7193,63 +7489,13 @@ func (r *magicMethodRewriter) resolveMagicMethodOverloadWithComma(base Expr, met
 		requiresSliceParams := r.methodHasSliceParams(paramTypes, methodName)
 
 		if isVariadic {
-			// Variadic function matching
-			if r.matchesVariadicMethod(paramTypes, argTypes) {
-				// Score variadic matches lower than exact (non-variadic) matches when both apply.
-				// This ensures cases like:
-				//   _getitem(index int) and _getitem(args ...int)
-				// prefer the fixed-arity overload for arr[i], while still selecting the
-				// variadic overload for arr[i:j] (where fixed-arity doesn't match).
-				score := 1
-				// If hasComma and requires slice params, high priority
-				// If !hasComma and doesn't require slice params, high priority
-				if hasComma == requiresSliceParams {
-					score += 50
-				}
+			if score, ok := scoreArgsVariadic(paramTypes, argTypes); ok {
 				variadicCandidates = append(variadicCandidates, candidate{fn, paramTypes, score, requiresSliceParams, true})
 			}
 		} else {
 			// Non-variadic: exact parameter count required
-			if len(argTypes) != len(paramTypes) {
-				continue
-			}
-
-			// For _setitem (value-first), we need special handling:
-			// The first parameter is the value to set, which can be of any type.
 			isSetitem := methodName == "_setitem"
-
-			match := true
-			matchScore := 0
-			for i := 0; i < len(argTypes); i++ {
-				// For _setitem's value parameter (first), be lenient with numeric types
-				if isSetitem && i == 0 {
-					// Value parameter - accept any numeric type matching
-					if isNumericType(paramTypes[i]) && isNumericType(argTypes[i]) {
-						matchScore++
-						continue
-					}
-				}
-
-				if tparams != nil && tparams[paramTypes[i]] {
-					matchScore++
-					continue
-				}
-
-				if !typeMatchesPre(paramTypes[i], argTypes[i]) {
-					match = false
-					break
-				}
-				matchScore++
-			}
-
-			if match {
-				score := matchScore
-				// If hasComma and requires slice params, high priority
-				// If !hasComma and doesn't require slice params, high priority
-				if hasComma == requiresSliceParams {
-					score += 50
-				}
-
+			if score, ok := scoreArgsNonVariadic(paramTypes, argTypes, tparams, isSetitem); ok {
 				candidates = append(candidates, candidate{
 					fn:                  fn,
 					paramTypes:          paramTypes,
@@ -7261,15 +7507,9 @@ func (r *magicMethodRewriter) resolveMagicMethodOverloadWithComma(base Expr, met
 		}
 	}
 
-	// 1. If we have NO comma (arr[0]), and we have EXACT matches, usage of Variadic is strictly forbidden
-	// unless there are no exact matches.
-	if !hasComma && len(candidates) > 0 {
-		// Do nothing. We strictly ignore variadicCandidates.
-	} else {
-		// Otherwise (comma usage, or no exact scalar match), we allow variadic candidates.
-		if len(variadicCandidates) > 0 {
-			candidates = append(candidates, variadicCandidates...)
-		}
+	// Hard rule: if any non-variadic overload matches, variadic ("...") overloads are fallback only.
+	if len(candidates) == 0 && len(variadicCandidates) > 0 {
+		candidates = append(candidates, variadicCandidates...)
 	}
 
 	// Filter and select best candidate
@@ -7299,19 +7539,6 @@ func (r *magicMethodRewriter) resolveMagicMethodOverloadWithComma(base Expr, met
 			}
 			if len(nonSliceCandidates) > 0 {
 				candidates = nonSliceCandidates
-			}
-		}
-
-		// Prefer non-variadic overloads over variadic ones when both match.
-		if !hasComma && len(candidates) > 0 {
-			nonVariadic := make([]candidate, 0, len(candidates))
-			for _, c := range candidates {
-				if !c.isVariadic {
-					nonVariadic = append(nonVariadic, c)
-				}
-			}
-			if len(nonVariadic) > 0 {
-				candidates = nonVariadic
 			}
 		}
 
