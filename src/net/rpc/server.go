@@ -202,7 +202,7 @@ func NewServer() *Server {
 // DefaultServer is the default instance of [*Server].
 var DefaultServer = NewServer()
 
-// Is this type exported or a builtin?
+// isExportedOrBuiltinType reports whether t is an exported or builtin type
 func isExportedOrBuiltinType(t reflect.Type) bool {
 	for t.Kind() == reflect.Pointer {
 		t = t.Elem()
