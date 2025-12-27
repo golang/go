@@ -75,7 +75,7 @@ func (r *CoverageMetaFileReader) readFileHeader() error {
 	// Vet the version. If this is a meta-data file from the future,
 	// we won't be able to read it.
 	if r.hdr.Version > coverage.MetaFileVersion {
-		return fmt.Errorf("meta-data file withn unknown version %d (expected %d)", r.hdr.Version, coverage.MetaFileVersion)
+		return fmt.Errorf("meta-data file with an unknown version %d (expected %d)", r.hdr.Version, coverage.MetaFileVersion)
 	}
 
 	// Read package offsets for good measure
