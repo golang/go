@@ -158,30 +158,30 @@ func _Copy[T any](s, t []T) int {
 func TestEqual() {
 	s1 := []int{1, 2, 3}
 	if !_Equal(s1, s1) {
-		panic(fmt.Sprintf("_Equal(%v, %v) = false, want true", s1, s1))
+		panic(fmt.Sprintf("_equal(%v, %v) = false, want true", s1, s1))
 	}
 	s2 := []int{1, 2, 3}
 	if !_Equal(s1, s2) {
-		panic(fmt.Sprintf("_Equal(%v, %v) = false, want true", s1, s2))
+		panic(fmt.Sprintf("_equal(%v, %v) = false, want true", s1, s2))
 	}
 	s2 = append(s2, 4)
 	if _Equal(s1, s2) {
-		panic(fmt.Sprintf("_Equal(%v, %v) = true, want false", s1, s2))
+		panic(fmt.Sprintf("_equal(%v, %v) = true, want false", s1, s2))
 	}
 
 	s3 := []float64{1, 2, math.NaN()}
 	if !_Equal(s3, s3) {
-		panic(fmt.Sprintf("_Equal(%v, %v) = false, want true", s3, s3))
+		panic(fmt.Sprintf("_equal(%v, %v) = false, want true", s3, s3))
 	}
 
 	if _Equal(s1, nil) {
-		panic(fmt.Sprintf("_Equal(%v, nil) = true, want false", s1))
+		panic(fmt.Sprintf("_equal(%v, nil) = true, want false", s1))
 	}
 	if _Equal(nil, s1) {
-		panic(fmt.Sprintf("_Equal(nil, %v) = true, want false", s1))
+		panic(fmt.Sprintf("_equal(nil, %v) = true, want false", s1))
 	}
 	if !_Equal(s1[:0], nil) {
-		panic(fmt.Sprintf("_Equal(%v, nil = false, want true", s1[:0]))
+		panic(fmt.Sprintf("_equal(%v, nil) = false, want true", s1[:0]))
 	}
 }
 
@@ -193,20 +193,20 @@ func TestEqualFn() {
 	s1 := []int{1, 2, 3}
 	s2 := []int{2, 3, 4}
 	if _EqualFn(s1, s1, offByOne[int]) {
-		panic(fmt.Sprintf("_EqualFn(%v, %v, offByOne) = true, want false", s1, s1))
+		panic(fmt.Sprintf("_equalFn(%v, %v, offByOne) = true, want false", s1, s1))
 	}
 	if !_EqualFn(s1, s2, offByOne[int]) {
-		panic(fmt.Sprintf("_EqualFn(%v, %v, offByOne) = false, want true", s1, s2))
+		panic(fmt.Sprintf("_equalFn(%v, %v, offByOne) = false, want true", s1, s2))
 	}
 
 	if !_EqualFn(s1[:0], nil, offByOne[int]) {
-		panic(fmt.Sprintf("_EqualFn(%v, nil, offByOne) = false, want true", s1[:0]))
+		panic(fmt.Sprintf("_equalFn(%v, nil, offByOne) = false, want true", s1[:0]))
 	}
 
 	s3 := []string{"a", "b", "c"}
 	s4 := []string{"A", "B", "C"}
 	if !_EqualFn(s3, s4, strings.EqualFold) {
-		panic(fmt.Sprintf("_EqualFn(%v, %v, strings.EqualFold) = false, want true", s3, s4))
+		panic(fmt.Sprintf("_equalFn(%v, %v, strings.EqualFold) = false, want true", s3, s4))
 	}
 }
 
@@ -214,18 +214,18 @@ func TestMap() {
 	s1 := []int{1, 2, 3}
 	s2 := _Map(s1, func(i int) float64 { return float64(i) * 2.5 })
 	if want := []float64{2.5, 5, 7.5}; !_Equal(s2, want) {
-		panic(fmt.Sprintf("_Map(%v, ...) = %v, want %v", s1, s2, want))
+		panic(fmt.Sprintf("_map(%v, ...) = %v, want %v", s1, s2, want))
 	}
 
 	s3 := []string{"Hello", "World"}
 	s4 := _Map(s3, strings.ToLower)
 	if want := []string{"hello", "world"}; !_Equal(s4, want) {
-		panic(fmt.Sprintf("_Map(%v, strings.ToLower) = %v, want %v", s3, s4, want))
+		panic(fmt.Sprintf("_map(%v, strings.ToLower) = %v, want %v", s3, s4, want))
 	}
 
 	s5 := _Map(nil, func(i int) int { return i })
 	if len(s5) != 0 {
-		panic(fmt.Sprintf("_Map(nil, identity) = %v, want empty slice", s5))
+		panic(fmt.Sprintf("_map(nil, identity) = %v, want empty slice", s5))
 	}
 }
 
@@ -298,7 +298,7 @@ func TestCopy() {
 	s1 := []int{1, 2, 3}
 	s2 := []int{4, 5}
 	if got := _Copy(s1, s2); got != 2 {
-		panic(fmt.Sprintf("_Copy returned %d, want 2", got))
+		panic(fmt.Sprintf("_copy returned %d, want 2", got))
 	}
 	want := []int{4, 5, 3}
 	if !_Equal(s1, want) {
