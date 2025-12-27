@@ -595,9 +595,7 @@ func (c *gcControllerState) revise() {
 }
 
 // endCycle computes the consMark estimate for the next cycle.
-// userForced indicates whether the current GC cycle was forced
-// by the application.
-func (c *gcControllerState) endCycle(now int64, procs int, userForced bool) {
+func (c *gcControllerState) endCycle(now int64, procs int) {
 	// Record last heap goal for the scavenger.
 	// We'll be updating the heap goal soon.
 	gcController.lastHeapGoal = c.heapGoal()
