@@ -35,7 +35,7 @@ func main() {
 				fmt.Printf("BUG\n")
 				bad = true
 			}
-			fmt.Printf("%v/%v: expected %v error; got %v\n", t.f, t.g, t.out, x)
+			fmt.Printf("%v/%v: got %v, want %v\n", t.f, t.g, x, t.out)
 		}
 	}
 	if bad {

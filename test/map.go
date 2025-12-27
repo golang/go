@@ -431,7 +431,7 @@ func testbasic() {
 		{
 			_, b := mpTi[apT[i]]
 			if b {
-				panic(fmt.Sprintf("tuple nonexistence decl: mpTi[apt[%d]]", i))
+				panic(fmt.Sprintf("tuple nonexistence decl: mpTi[apT[%d]]", i))
 			}
 			_, b = mpTi[apT[i]]
 			if b {
