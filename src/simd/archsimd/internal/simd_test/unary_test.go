@@ -194,3 +194,23 @@ func TestExtend(t *testing.T) {
 		testUint32x8ConvertToUint64(t, archsimd.Uint32x8.ExtendToUint64, map1[uint32](toUint64))
 	}
 }
+
+func TestTruncate(t *testing.T) {
+	if archsimd.X86.AVX512() {
+		testInt16x16ConvertToInt8(t, archsimd.Int16x16.TruncateToInt8, map1[int16](toInt8))
+		testInt16x32ConvertToInt8(t, archsimd.Int16x32.TruncateToInt8, map1[int16](toInt8))
+		testInt32x16ConvertToInt8(t, archsimd.Int32x16.TruncateToInt8, map1[int32](toInt8))
+		testInt32x8ConvertToInt16(t, archsimd.Int32x8.TruncateToInt16, map1[int32](toInt16))
+		testInt32x16ConvertToInt16(t, archsimd.Int32x16.TruncateToInt16, map1[int32](toInt16))
+		testInt64x8ConvertToInt16(t, archsimd.Int64x8.TruncateToInt16, map1[int64](toInt16))
+		testInt64x8ConvertToInt32(t, archsimd.Int64x8.TruncateToInt32, map1[int64](toInt32))
+
+		testUint16x16ConvertToUint8(t, archsimd.Uint16x16.TruncateToUint8, map1[uint16](toUint8))
+		testUint16x32ConvertToUint8(t, archsimd.Uint16x32.TruncateToUint8, map1[uint16](toUint8))
+		testUint32x16ConvertToUint8(t, archsimd.Uint32x16.TruncateToUint8, map1[uint32](toUint8))
+		testUint32x8ConvertToUint16(t, archsimd.Uint32x8.TruncateToUint16, map1[uint32](toUint16))
+		testUint32x16ConvertToUint16(t, archsimd.Uint32x16.TruncateToUint16, map1[uint32](toUint16))
+		testUint64x8ConvertToUint16(t, archsimd.Uint64x8.TruncateToUint16, map1[uint64](toUint16))
+		testUint64x8ConvertToUint32(t, archsimd.Uint64x8.TruncateToUint32, map1[uint64](toUint32))
+	}
+}
