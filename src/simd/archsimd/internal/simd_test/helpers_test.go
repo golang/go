@@ -126,6 +126,19 @@ func map1[T, U any](elem func(x T) U) func(x []T) []U {
 	}
 }
 
+// map1n returns a function that returns the slice of the results of applying
+// input parameter elem to the respective elements of its single slice input,
+// extended (with zero values) or truncated to length n.
+func map1n[T, U any](elem func(x T) U, n int) func(x []T) []U {
+	return func(x []T) []U {
+		s := make([]U, n)
+		for i := range min(len(x), n) {
+			s[i] = elem(x[i])
+		}
+		return s
+	}
+}
+
 // mapCompare returns a function that returns the slice of the results of applying
 // comparison function elem to the respective elements of its two slice inputs,
 // and returns -1 if the comparison is true, 0 otherwise.
