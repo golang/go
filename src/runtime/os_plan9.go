@@ -587,10 +587,3 @@ func nanotime1() int64 {
 	// fall back to unix time
 	return int64(frombe(t[0]))
 }
-
-//go:nosplit
-func walltime() (sec int64, nsec int32) {
-	var t [1]uint64
-	readtime(&t[0], 1, 1)
-	return timesplit(frombe(t[0]))
-}
