@@ -59,7 +59,7 @@ func main() {
 
 	for _, c := range "a\xed\xa0\x80a" {
 		if c != 'a' && c != utf8.RuneError {
-			fmt.Printf("surrogate UTF-8 does not error: %U\n", c)
+			fmt.Printf("surrogate UTF-8 does not produce an error: %U\n", c)
 			ok = false
 		}
 	}
