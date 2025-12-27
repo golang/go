@@ -1015,13 +1015,13 @@ func (r *N[C]) n() {  }
 		t.Errorf(`N.Method(...) returns %v for "m", but Info.Defs has %v`, gm, dm)
 	}
 	if gn != dn {
-		t.Errorf(`N.Method(...) returns %v for "m", but Info.Defs has %v`, gm, dm)
+		t.Errorf(`N.Method(...) returns %v for "n", but Info.Defs has %v`, gn, dn)
 	}
 	if dmm != dm {
 		t.Errorf(`Inside "m", r.m uses %v, want the defined func %v`, dmm, dm)
 	}
 	if dmn == dn {
-		t.Errorf(`Inside "m", r.n uses %v, want a func distinct from %v`, dmm, dm)
+		t.Errorf(`Inside "m", r.n uses %v, want a func distinct from %v`, dmn, dn)
 	}
 }
 
@@ -1225,9 +1225,9 @@ func TestPredicatesInfo(t *testing.T) {
 		{`package v0; var (a, b int; _ = a + b)`, `a + b`, `value`},
 		{`package v1; var _ = &[]int{1}`, `[]int{…}`, `value`},
 		{`package v2; var _ = func(){}`, `func() {}`, `value`},
-		{`package v4; func f() { _ = f }`, `f`, `value`},
-		{`package v3; var _ *int = nil`, `nil`, `value, nil`},
-		{`package v3; var _ *int = (nil)`, `(nil)`, `value, nil`},
+		{`package v3; func f() { _ = f }`, `f`, `value`},
+		{`package v4; var _ *int = nil`, `nil`, `value, nil`},
+		{`package v5; var _ *int = (nil)`, `(nil)`, `value, nil`},
 
 		// addressable (and thus assignable) operands
 		{`package a0; var (x int; _ = x)`, `x`, `value, addressable, assignable`},
@@ -1258,8 +1258,8 @@ func TestPredicatesInfo(t *testing.T) {
 		{`package m4; var v int`, `v`, `<missing>`},
 		{`package m5; func f() {}`, `f`, `<missing>`},
 		{`package m6; func _(x int) {}`, `x`, `<missing>`},
-		{`package m6; func _()(x int) { return }`, `x`, `<missing>`},
-		{`package m6; type T int; func (x T) _() {}`, `x`, `<missing>`},
+		{`package m7; func _()(x int) { return }`, `x`, `<missing>`},
+		{`package m8; type T int; func (x T) _() {}`, `x`, `<missing>`},
 	}
 
 	for _, test := range tests {
