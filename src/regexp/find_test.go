@@ -159,23 +159,23 @@ func TestFind(t *testing.T) {
 	for _, test := range findTests {
 		re := MustCompile(test.pat)
 		if re.String() != test.pat {
-			t.Errorf("String() = `%s`; should be `%s`", re.String(), test.pat)
+			t.Errorf("re.String() = %q, want %q", re.String(), test.pat)
 		}
 		result := re.Find([]byte(test.text))
 		switch {
 		case len(test.matches) == 0 && len(result) == 0:
 			// ok
 		case test.matches == nil && result != nil:
-			t.Errorf("expected no match; got one: %s", test)
+			t.Errorf("got match %q, want none: %s", result, test)
 		case test.matches != nil && result == nil:
-			t.Errorf("expected match; got none: %s", test)
+			t.Errorf("got no match, want one: %s", test)
 		case test.matches != nil && result != nil:
-			expect := test.text[test.matches[0][0]:test.matches[0][1]]
+			want := test.text[test.matches[0][0]:test.matches[0][1]]
 			if len(result) != cap(result) {
-				t.Errorf("expected capacity %d got %d: %s", len(result), cap(result), test)
+				t.Errorf("got capacity %d, want %d: %s", cap(result), len(result), test)
 			}
-			if expect != string(result) {
-				t.Errorf("expected %q got %q: %s", expect, result, test)
+			if want != string(result) {
+				t.Errorf("got %q, want %q: %s", result, want, test)
 			}
 		}
 	}
@@ -188,16 +188,16 @@ func TestFindString(t *testing.T) {
 		case len(test.matches) == 0 && len(result) == 0:
 			// ok
 		case test.matches == nil && result != "":
-			t.Errorf("expected no match; got one: %s", test)
+			t.Errorf("got match %q, want none: %s", result, test)
 		case test.matches != nil && result == "":
 			// Tricky because an empty result has two meanings: no match or empty match.
 			if test.matches[0][0] != test.matches[0][1] {
-				t.Errorf("expected match; got none: %s", test)
+				t.Errorf("got no match, want one: %s", test)
 			}
 		case test.matches != nil && result != "":
-			expect := test.text[test.matches[0][0]:test.matches[0][1]]
-			if expect != result {
-				t.Errorf("expected %q got %q: %s", expect, result, test)
+			want := test.text[test.matches[0][0]:test.matches[0][1]]
+			if want != result {
+				t.Errorf("got %q, want %q: %s", result, want, test)
 			}
 		}
 	}
@@ -208,13 +208,13 @@ func testFindIndex(test *FindTest, result []int, t *testing.T) {
 	case len(test.matches) == 0 && len(result) == 0:
 		// ok
 	case test.matches == nil && result != nil:
-		t.Errorf("expected no match; got one: %s", test)
+		t.Errorf("got match %v, want none: %s", result, test)
 	case test.matches != nil && result == nil:
-		t.Errorf("expected match; got none: %s", test)
+		t.Errorf("got no match, want one: %s", test)
 	case test.matches != nil && result != nil:
-		expect := test.matches[0]
-		if expect[0] != result[0] || expect[1] != result[1] {
-			t.Errorf("expected %v got %v: %s", expect, result, test)
+		want := test.matches[0]
+		if want[0] != result[0] || want[1] != result[1] {
+			t.Errorf("got %v, want %v: %s", result, want, test)
 		}
 	}
 }
@@ -246,22 +246,22 @@ func TestFindAll(t *testing.T) {
 		case test.matches == nil && result == nil:
 			// ok
 		case test.matches == nil && result != nil:
-			t.Errorf("expected no match; got one: %s", test)
+			t.Errorf("got match %q, want none: %s", result, test)
 		case test.matches != nil && result == nil:
-			t.Fatalf("expected match; got none: %s", test)
+			t.Fatalf("got no match, want one: %s", test)
 		case test.matches != nil && result != nil:
 			if len(test.matches) != len(result) {
-				t.Errorf("expected %d matches; got %d: %s", len(test.matches), len(result), test)
+				t.Errorf("got %d matches, want %d: %s", len(result), len(test.matches), test)
 				continue
 			}
 			for k, e := range test.matches {
 				got := result[k]
 				if len(got) != cap(got) {
-					t.Errorf("match %d: expected capacity %d got %d: %s", k, len(got), cap(got), test)
+					t.Errorf("match %d: got capacity %d, want %d: %s", k, cap(got), len(got), test)
 				}
-				expect := test.text[e[0]:e[1]]
-				if expect != string(got) {
-					t.Errorf("match %d: expected %q got %q: %s", k, expect, got, test)
+				want := test.text[e[0]:e[1]]
+				if want != string(got) {
+					t.Errorf("match %d: got %q, want %q: %s", k, got, want, test)
 				}
 			}
 		}
@@ -275,18 +275,18 @@ func TestFindAllString(t *testing.T) {
 		case test.matches == nil && result == nil:
 			// ok
 		case test.matches == nil && result != nil:
-			t.Errorf("expected no match; got one: %s", test)
+			t.Errorf("got match %q, want none: %s", result, test)
 		case test.matches != nil && result == nil:
-			t.Errorf("expected match; got none: %s", test)
+			t.Errorf("got no match, want one: %s", test)
 		case test.matches != nil && result != nil:
 			if len(test.matches) != len(result) {
-				t.Errorf("expected %d matches; got %d: %s", len(test.matches), len(result), test)
+				t.Errorf("got %d matches, want %d: %s", len(result), len(test.matches), test)
 				continue
 			}
 			for k, e := range test.matches {
-				expect := test.text[e[0]:e[1]]
-				if expect != result[k] {
-					t.Errorf("expected %q got %q: %s", expect, result, test)
+				want := test.text[e[0]:e[1]]
+				if want != result[k] {
+					t.Errorf("got %q, want %q: %s", result[k], want, test)
 				}
 			}
 		}
@@ -298,17 +298,17 @@ func testFindAllIndex(test *FindTest, result [][]int, t *testing.T) {
 	case test.matches == nil && result == nil:
 		// ok
 	case test.matches == nil && result != nil:
-		t.Errorf("expected no match; got one: %s", test)
+		t.Errorf("got match %v, want none: %s", result, test)
 	case test.matches != nil && result == nil:
-		t.Errorf("expected match; got none: %s", test)
+		t.Errorf("got no match, want one: %s", test)
 	case test.matches != nil && result != nil:
 		if len(test.matches) != len(result) {
-			t.Errorf("expected %d matches; got %d: %s", len(test.matches), len(result), test)
+			t.Errorf("got %d matches, want %d: %s", len(result), len(test.matches), test)
 			return
 		}
 		for k, e := range test.matches {
 			if e[0] != result[k][0] || e[1] != result[k][1] {
-				t.Errorf("match %d: expected %v got %v: %s", k, e, result[k], test)
+				t.Errorf("match %d: got %v, want %v: %s", k, result[k], e, test)
 			}
 		}
 	}
@@ -330,24 +330,24 @@ func TestFindAllStringIndex(t *testing.T) {
 
 func testSubmatchBytes(test *FindTest, n int, submatches []int, result [][]byte, t *testing.T) {
 	if len(submatches) != len(result)*2 {
-		t.Errorf("match %d: expected %d submatches; got %d: %s", n, len(submatches)/2, len(result), test)
+		t.Errorf("match %d: got %d submatches, want %d: %s", n, len(result), len(submatches)/2, test)
 		return
 	}
 	for k := 0; k < len(submatches); k += 2 {
 		if submatches[k] == -1 {
 			if result[k/2] != nil {
-				t.Errorf("match %d: expected nil got %q: %s", n, result, test)
+				t.Errorf("match %d: got %q, want nil: %s", n, result, test)
 			}
 			continue
 		}
 		got := result[k/2]
 		if len(got) != cap(got) {
-			t.Errorf("match %d: expected capacity %d got %d: %s", n, len(got), cap(got), test)
+			t.Errorf("match %d: got capacity %d, want %d: %s", n, cap(got), len(got), test)
 			return
 		}
-		expect := test.text[submatches[k]:submatches[k+1]]
-		if expect != string(got) {
-			t.Errorf("match %d: expected %q got %q: %s", n, expect, got, test)
+		want := test.text[submatches[k]:submatches[k+1]]
+		if want != string(got) {
+			t.Errorf("match %d: got %q, want %q: %s", n, got, want, test)
 			return
 		}
 	}
@@ -360,9 +360,9 @@ func TestFindSubmatch(t *testing.T) {
 		case test.matches == nil && result == nil:
 			// ok
 		case test.matches == nil && result != nil:
-			t.Errorf("expected no match; got one: %s", test)
+			t.Errorf("got match %q, want none: %s", result, test)
 		case test.matches != nil && result == nil:
-			t.Errorf("expected match; got none: %s", test)
+			t.Errorf("got no match, want one: %s", test)
 		case test.matches != nil && result != nil:
 			testSubmatchBytes(&test, 0, test.matches[0], result, t)
 		}
@@ -371,19 +371,19 @@ func TestFindSubmatch(t *testing.T) {
 
 func testSubmatchString(test *FindTest, n int, submatches []int, result []string, t *testing.T) {
 	if len(submatches) != len(result)*2 {
-		t.Errorf("match %d: expected %d submatches; got %d: %s", n, len(submatches)/2, len(result), test)
+		t.Errorf("match %d: got %d submatches, want %d: %s", n, len(result), len(submatches)/2, test)
 		return
 	}
 	for k := 0; k < len(submatches); k += 2 {
 		if submatches[k] == -1 {
 			if result[k/2] != "" {
-				t.Errorf("match %d: expected nil got %q: %s", n, result, test)
+				t.Errorf("match %d: got %q, want empty string: %s", n, result, test)
 			}
 			continue
 		}
-		expect := test.text[submatches[k]:submatches[k+1]]
-		if expect != result[k/2] {
-			t.Errorf("match %d: expected %q got %q: %s", n, expect, result, test)
+		want := test.text[submatches[k]:submatches[k+1]]
+		if want != result[k/2] {
+			t.Errorf("match %d: got %q, want %q: %s", n, result[k/2], want, test)
 			return
 		}
 	}
@@ -396,23 +396,23 @@ func TestFindStringSubmatch(t *testing.T) {
 		case test.matches == nil && result == nil:
 			// ok
 		case test.matches == nil && result != nil:
-			t.Errorf("expected no match; got one: %s", test)
+			t.Errorf("got match %q, want none: %s", result, test)
 		case test.matches != nil && result == nil:
-			t.Errorf("expected match; got none: %s", test)
+			t.Errorf("got no match, want one: %s", test)
 		case test.matches != nil && result != nil:
 			testSubmatchString(&test, 0, test.matches[0], result, t)
 		}
 	}
 }
 
-func testSubmatchIndices(test *FindTest, n int, expect, result []int, t *testing.T) {
-	if len(expect) != len(result) {
-		t.Errorf("match %d: expected %d matches; got %d: %s", n, len(expect)/2, len(result)/2, test)
+func testSubmatchIndices(test *FindTest, n int, want, result []int, t *testing.T) {
+	if len(want) != len(result) {
+		t.Errorf("match %d: got %d matches, want %d: %s", n, len(result)/2, len(want)/2, test)
 		return
 	}
-	for k, e := range expect {
+	for k, e := range want {
 		if e != result[k] {
-			t.Errorf("match %d: submatch error: expected %v got %v: %s", n, expect, result, test)
+			t.Errorf("match %d: submatch error: got %v, want %v: %s", n, result, want, test)
 		}
 	}
 }
@@ -422,9 +422,9 @@ func testFindSubmatchIndex(test *FindTest, result []int, t *testing.T) {
 	case test.matches == nil && result == nil:
 		// ok
 	case test.matches == nil && result != nil:
-		t.Errorf("expected no match; got one: %s", test)
+		t.Errorf("got match %v, want none: %s", result, test)
 	case test.matches != nil && result == nil:
-		t.Errorf("expected match; got none: %s", test)
+		t.Errorf("got no match, want one: %s", test)
 	case test.matches != nil && result != nil:
 		testSubmatchIndices(test, 0, test.matches[0], result, t)
 	}
@@ -457,11 +457,11 @@ func TestFindAllSubmatch(t *testing.T) {
 		case test.matches == nil && result == nil:
 			// ok
 		case test.matches == nil && result != nil:
-			t.Errorf("expected no match; got one: %s", test)
+			t.Errorf("got match %q, want none: %s", result, test)
 		case test.matches != nil && result == nil:
-			t.Errorf("expected match; got none: %s", test)
+			t.Errorf("got no match, want one: %s", test)
 		case len(test.matches) != len(result):
-			t.Errorf("expected %d matches; got %d: %s", len(test.matches), len(result), test)
+			t.Errorf("got %d matches, want %d: %s", len(result), len(test.matches), test)
 		case test.matches != nil && result != nil:
 			for k, match := range test.matches {
 				testSubmatchBytes(&test, k, match, result[k], t)
@@ -477,11 +477,11 @@ func TestFindAllStringSubmatch(t *testing.T) {
 		case test.matches == nil && result == nil:
 			// ok
 		case test.matches == nil && result != nil:
-			t.Errorf("expected no match; got one: %s", test)
+			t.Errorf("got match %q, want none: %s", result, test)
 		case test.matches != nil && result == nil:
-			t.Errorf("expected match; got none: %s", test)
+			t.Errorf("got no match, want one: %s", test)
 		case len(test.matches) != len(result):
-			t.Errorf("expected %d matches; got %d: %s", len(test.matches), len(result), test)
+			t.Errorf("got %d matches, want %d: %s", len(result), len(test.matches), test)
 		case test.matches != nil && result != nil:
 			for k, match := range test.matches {
 				testSubmatchString(&test, k, match, result[k], t)
@@ -495,11 +495,11 @@ func testFindAllSubmatchIndex(test *FindTest, result [][]int, t *testing.T) {
 	case test.matches == nil && result == nil:
 		// ok
 	case test.matches == nil && result != nil:
-		t.Errorf("expected no match; got one: %s", test)
+		t.Errorf("got match %v, want none: %s", result, test)
 	case test.matches != nil && result == nil:
-		t.Errorf("expected match; got none: %s", test)
+		t.Errorf("got no match, want one: %s", test)
 	case len(test.matches) != len(result):
-		t.Errorf("expected %d matches; got %d: %s", len(test.matches), len(result), test)
+		t.Errorf("got %d matches, want %d: %s", len(result), len(test.matches), test)
 	case test.matches != nil && result != nil:
 		for k, match := range test.matches {
 			testSubmatchIndices(test, k, match, result[k], t)
