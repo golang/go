@@ -134,6 +134,21 @@ func Walk(v Visitor, node Node) {
 		Walk(v, n.Key)
 		Walk(v, n.Value)
 
+	case *OptionalChainExpr:
+		Walk(v, n.X)
+		Walk(v, n.Sel)
+
+	case *TernaryExpr:
+		Walk(v, n.Cond)
+		Walk(v, n.X)
+		if n.Y != nil {
+			Walk(v, n.Y)
+		}
+
+	case *ElvisExpr:
+		Walk(v, n.X)
+		Walk(v, n.Y)
+
 	// Types
 	case *ArrayType:
 		if n.Len != nil {

@@ -449,6 +449,18 @@ type (
 		Colon    token.Pos // position of ":" (NoPos for short form)
 		Y        Expr      // false value (nil for short form)
 	}
+
+	// An ElvisExpr node represents an elvis (nil-coalescing + deref) expression
+	// of the form X ?: Y.
+	//
+	// It is intended to be used with optional chaining, where X is a pointer.
+	// Semantics: if X != nil, evaluates to *X; otherwise evaluates to Y.
+	ElvisExpr struct {
+		X        Expr      // expression (typically pointer type)
+		Question token.Pos // position of "?"
+		Colon    token.Pos // position of ":"
+		Y        Expr      // default value when X is nil
+	}
 )
 
 // The direction of a channel type is indicated by a bit
@@ -537,6 +549,7 @@ func (x *BinaryExpr) Pos() token.Pos        { return x.X.Pos() }
 func (x *KeyValueExpr) Pos() token.Pos      { return x.Key.Pos() }
 func (x *OptionalChainExpr) Pos() token.Pos { return x.X.Pos() }
 func (x *TernaryExpr) Pos() token.Pos       { return x.Cond.Pos() }
+func (x *ElvisExpr) Pos() token.Pos         { return x.X.Pos() }
 func (x *ArrayType) Pos() token.Pos         { return x.Lbrack }
 func (x *StructType) Pos() token.Pos        { return x.Struct }
 func (x *FuncType) Pos() token.Pos {
@@ -578,6 +591,7 @@ func (x *TernaryExpr) End() token.Pos {
 	}
 	return x.X.End()
 }
+func (x *ElvisExpr) End() token.Pos { return x.Y.End() }
 func (x *ArrayType) End() token.Pos  { return x.Elt.End() }
 func (x *StructType) End() token.Pos { return x.Fields.End() }
 func (x *FuncType) End() token.Pos {
@@ -611,6 +625,7 @@ func (*BinaryExpr) exprNode()        {}
 func (*KeyValueExpr) exprNode()      {}
 func (*OptionalChainExpr) exprNode() {}
 func (*TernaryExpr) exprNode()       {}
+func (*ElvisExpr) exprNode()         {}
 
 func (*ArrayType) exprNode()     {}
 func (*StructType) exprNode()    {}

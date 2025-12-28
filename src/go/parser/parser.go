@@ -1932,27 +1932,41 @@ func (p *parser) parseExpr() ast.Expr {
 
 	x := p.parseBinaryExpr(nil, token.LowestPrec+1)
 
-	// Check for ternary operator: cond ? trueExpr : falseExpr
-	// or short form: cond ? trueExpr
+	// Check for:
+	// - ternary operator: cond ? trueExpr : falseExpr (or short form: cond ? trueExpr)
+	// - elvis operator: x ?: y
 	if p.tok == token.QUESTION {
 		questionPos := p.pos
 		p.next()
-		trueExpr := p.parseBinaryExpr(nil, token.LowestPrec+1)
-		var falseExpr ast.Expr
-		colonPos := token.NoPos
-
+		// Elvis form: x ?: y
 		if p.tok == token.COLON {
-			colonPos = p.pos
+			colonPos := p.pos
 			p.next()
-			falseExpr = p.parseExpr() // recursive to allow nested ternary
-		}
+			y := p.parseExpr()
+			x = &ast.ElvisExpr{
+				X:        x,
+				Question: questionPos,
+				Colon:    colonPos,
+				Y:        y,
+			}
+		} else {
+			trueExpr := p.parseBinaryExpr(nil, token.LowestPrec+1)
+			var falseExpr ast.Expr
+			colonPos := token.NoPos
 
-		x = &ast.TernaryExpr{
-			Cond:     x,
-			Question: questionPos,
-			X:        trueExpr,
-			Colon:    colonPos,
-			Y:        falseExpr,
+			if p.tok == token.COLON {
+				colonPos = p.pos
+				p.next()
+				falseExpr = p.parseExpr() // recursive to allow nested ternary
+			}
+
+			x = &ast.TernaryExpr{
+				Cond:     x,
+				Question: questionPos,
+				X:        trueExpr,
+				Colon:    colonPos,
+				Y:        falseExpr,
+			}
 		}
 	}
 
