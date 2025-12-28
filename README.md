@@ -1135,13 +1135,6 @@ func main() {
 }
 ```
 
-Native constructors are also supported:
-
-```go
-// slice implies _init(pos int) and _init(pos int, cap int)
-// map/chan implies _init() and _init(pos int)
-```
-
 **Native Type Method Synthesis Table**
 
 | Native Type                                                | Synthesized Methods                          | Semantics / Lowering (Conceptual)                                              |
