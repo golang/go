@@ -368,6 +368,43 @@ func magicMethodWrapper(recv *types.Type, msym *types.Sym, pos src.XPos) (fn *ir
 
 		canDelayResults = true
 
+		// === 策略 D: 数据流运算 (chan 的 _send / _recv) ===
+	} else if recv.IsChan() && (name == "_send" || name == "_recv") {
+		// Respect channel direction.
+		if name == "_send" && !recv.ChanDir().CanSend() {
+			return nil, false
+		}
+		if name == "_recv" && !recv.ChanDir().CanRecv() {
+			return nil, false
+		}
+
+		// Signature:
+		//   func(recv chan T, v T)          // _send
+		//   func(recv chan T) T             // _recv
+		params = append(params, types.NewField(pos, typecheck.Lookup("recv"), recv))
+		if name == "_send" {
+			params = append(params, types.NewField(pos, typecheck.Lookup("v"), recv.Elem()))
+		} else {
+			results = append(results, types.NewField(pos, nil, recv.Elem()))
+		}
+
+		bodyGen = func(fn *ir.Func) {
+			ps := fn.Type().Params()
+			recvNode := ps[0].Nname.(*ir.Name)
+			if name == "_send" {
+				valNode := ps[1].Nname.(*ir.Name)
+				st := ir.NewSendStmt(pos, recvNode, valNode)
+				fn.Body.Append(typecheck.Stmt(st))
+				return
+			}
+			// _recv: return <-recv
+			rx := typecheck.Expr(ir.NewUnaryExpr(pos, ir.ORECV, recvNode))
+			fn.Body.Append(typecheck.Stmt(ir.NewReturnStmt(pos, []ir.Node{rx})))
+		}
+
+		// Send/recv are side-effecting and may block.
+		canDelayResults = false
+
 	} else {
 		// 无法匹配任何策略
 		return nil, false

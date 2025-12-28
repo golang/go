@@ -1121,6 +1121,8 @@ func main() {
 
 MyGO compiler synthesizes methods for native types (`int`, `float64`, `string`, `slice`, `map`). They are **Zero-Cost Abstractions** (compiled to native IR, no boxing).
 
+Case:
+
 ```go
 // Slice automatically satisfies _getitem constraint
 func GetFirst[T any, S interface{ _getitem(int) T }](seq S) T {
@@ -1139,6 +1141,26 @@ Native constructors are also supported:
 // slice implies _init(pos int) and _init(pos int, cap int)
 // map/chan implies _init() and _init(pos int)
 ```
+
+**Native Type Method Synthesis Table**
+
+| Native Type                                                | Synthesized Methods                          | Semantics / Lowering (Conceptual)                                              |
+| ---------------------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------ |
+| Numeric basic (`int` / `uint` / `float` / `complex`, etc.) | `_add / _sub / _mul / _div / _mod`           | `a + b` / `a - b` / `a * b` / `a / b` / `a % b`                                |
+| Numeric basic                                              | `_radd / _rsub / _rmul / _rdiv / _rmod`      | Reverse operation: `b OP a` (used when operand swapping is required)           |
+| Numeric basic                                              | `_and / _or / _xor / _bitclear`              | `a & b` / `a \| b` / `a ^ b` / `a &^ b`                                        |
+| Numeric basic                                              | `_rand / _ror / _rxor / _rbitclear`          | Reverse bitwise operation: `b OP a`                                            |
+| Numeric basic (integers only)                              | `_lshift / _rshift`                          | `a << b` / `a >> b`                                                            |
+| Numeric basic (integers only)                              | `_rlshift / _rrshift`                        | Reverse shift: `b << a` / `b >> a`                                             |
+| Numeric basic / `string`                                   | `_eq / _ne / _lt / _le / _gt / _ge`          | `a == b` / `!=` / `<` / `<=` / `>` / `>=`                                      |
+| Numeric basic                                              | `_pos / _neg / _invert`                      | `+a` / `-a` / `^a`                                                             |
+| `string`                                                   | `_add / _radd`                               | String concatenation: `a + b` (including operand swap)                         |
+| `slice`                                                    | `_getitem(int) T` / `_setitem(int, T)`       | `seq[i]` / `seq[i] = v`                                                        |
+| `map`                                                      | `_getitem(K) V` / `_setitem(V, K)`           | `m[k]` / `m[k] = v`                                                            |
+| `chan`                                                     | `_send(T)` / `_recv() T`                     | Data flow: `ch <- v` / `<-ch`                                                  |
+| `slice`                                                    | `_init(len int)` / `_init(len int, cap int)` | `make([]T, len)` / `make([]T, len, cap)`                                       |
+| `map` / `chan`                                             | `_init()` / `_init(size int)`                | `make(map[K]V)` / `make(map[K]V, size)`; `make(chan T)` / `make(chan T, size)` |
+
 
 **⚠️ Warning ⚠️**
 `type Name float64` declarations can be overloaded, but it is **not recommended**. It causes boxing of the primitive type, hurting performance, and the type is no longer treated as its underlying type.

@@ -426,6 +426,59 @@ func lookupFieldOrMethodImpl(T Type, addressable bool, pkg *Package, name string
 		}
 
 		// =========================================================
+		// C2. 新增: Chan 支持 _send / _recv（用于数据流运算符重载与泛型约束）
+		//
+		//    func (c chan E) _send(v E)
+		//    func (c chan E) _recv() E
+		//
+		// 注意：
+		// - 这是“合成方法”，用于 lookup/约束检查 与让 rewrite.go 能把 `<-` 语法改写为方法调用。
+		// - 会尊重通道方向：<-chan 只提供 _recv；chan<- 只提供 _send。
+		// =========================================================
+		if ch, ok := under(typ).(*Chan); ok {
+			if name == "_send" || name == "_recv" {
+				// 1. 构造接收者 (Receiver): chan E / <-chan E / chan<- E（保留 named 形态）
+				recv := NewParam(nopos, pkg, "", typ)
+				recv.SetKind(RecvVar)
+
+				elemType := ch.elem
+				var params []*Var
+				var results []*Var
+
+				switch name {
+				case "_send":
+					// recv-only channel has no send
+					if ch.dir == RecvOnly {
+						break
+					}
+					arg := NewParam(nopos, pkg, "v", elemType)
+					params = []*Var{arg}
+					results = nil
+				case "_recv":
+					// send-only channel has no recv
+					if ch.dir == SendOnly {
+						break
+					}
+					// no params
+					res := NewParam(nopos, pkg, "", elemType)
+					res.SetKind(ResultVar)
+					results = []*Var{res}
+				}
+
+				// 如果方向不允许，上面 break 会导致 results/params 维持零值；
+				// 这里用一个简单的方向检查兜底判断是否生成。
+				if name == "_send" && ch.dir == RecvOnly {
+					// not supported
+				} else if name == "_recv" && ch.dir == SendOnly {
+					// not supported
+				} else {
+					sig := NewSignatureType(recv, nil, nil, NewTuple(params...), NewTuple(results...), false)
+					return NewFunc(nopos, pkg, name, sig), []int{0}, false
+				}
+			}
+		}
+
+		// =========================================================
 		// D. 新增: Slice/Map/Chan 合成 _init（用于让它们满足构造器约束）
 		//
 		// - Slice: _init(int) / _init(int,int)  (对应 make([]T, len) / make([]T, len, cap))
