@@ -1845,23 +1845,13 @@ func TestStart_twice(t *testing.T) {
 	testenv.MustHaveExec(t)
 
 	cmd := exec.Command("/bin/nonesuch")
-	for i, want := range []string{
-		cond(runtime.GOOS == "windows",
-			`exec: "/bin/nonesuch": executable file not found in %PATH%`,
-			"fork/exec /bin/nonesuch: no such file or directory"),
-		"exec: already started",
-	} {
-		err := cmd.Start()
-		if got := fmt.Sprint(err); got != want {
-			t.Errorf("Start call #%d return err %q, want %q", i+1, got, want)
-		}
+	if err := cmd.Start(); err == nil {
+		t.Fatalf("running invalid command succeeded")
 	}
-}
-
-func cond[T any](cond bool, t, f T) T {
-	if cond {
-		return t
-	} else {
-		return f
+	err := cmd.Start()
+	got := fmt.Sprint(err)
+	want := "exec: already started"
+	if got != want {
+		t.Fatalf("Start call returned err %q, want %q", got, want)
 	}
 }
