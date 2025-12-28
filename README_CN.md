@@ -1186,8 +1186,8 @@ MyGO 编译器内置了对原生类型（`int`, `float64`, `string`, `slice`, `m
 | 数值 basic / string | `_eq/_ne/_lt/_le/_gt/_ge` | `a == b` / `!=` / `<` / `<=` / `>` / `>=` |
 | 数值 basic | `_pos/_neg/_invert` | `+a` / `-a` / `^a` |
 | string | `_add/_radd` | 字符串拼接：`a + b`（含 swap） |
-| slice | `_getitem(int) T` | `seq[i]`（索引读） |
-| map | `_getitem(K) V` | `m[k]`（索引读） |
+| slice | `_getitem(int) T` `_setitem(int, T)` | `seq[i]` `seq[i]=T` |
+| map | `_getitem(K) V` `_setitem(V, K)`| `m[k]` `m[k]=v` |
 | slice | `_init(len int)` / `_init(len int, cap int)` | `make([]T, len)` / `make([]T, len, cap)`（用于泛型约束场景的“伪实现”） |
 | map / chan | `_init()` / `_init(size int)` | `make(map[K]V)` / `make(map[K]V, size)`；`make(chan T)` / `make(chan T, size)`（用于泛型约束场景的“伪实现”） |
 
