@@ -1173,6 +1173,24 @@ MyGO 编译器内置了对原生类型（`int`, `float64`, `string`, `slice`, `m
 
 注意，对原生类型支持的方式是`零成本抽象`的，也就是说，基本类型会被编译成高效的原生IR(比如`IR.OADD`)，并非使用某些编程语言`装箱`操作！
 
+原生类型默认合成一览表
+
+| 原生类型 | 合成方法 | 对应语义 / lowering（概念上） |
+| --- | --- | --- |
+| 数值 basic（int/uint/float/complex 等） | `_add/_sub/_mul/_div/_mod` | `a + b` / `a - b` / `a * b` / `a / b` / `a % b` |
+| 数值 basic | `_radd/_rsub/_rmul/_rdiv/_rmod` | 反向运算：`b OP a`（在需要 swap 的场景） |
+| 数值 basic | `_and/_or/_xor/_bitclear` | `a & b` / `a \| b` / `a ^ b` / `a &^ b` |
+| 数值 basic | `_rand/_ror/_rxor/_rbitclear` | 反向位运算：`b OP a` |
+| 数值 basic（整数类） | `_lshift/_rshift` | `a << b` / `a >> b` |
+| 数值 basic（整数类） | `_rlshift/_rrshift` | 反向移位：`b << a` / `b >> a` |
+| 数值 basic / string | `_eq/_ne/_lt/_le/_gt/_ge` | `a == b` / `!=` / `<` / `<=` / `>` / `>=` |
+| 数值 basic | `_pos/_neg/_invert` | `+a` / `-a` / `^a` |
+| string | `_add/_radd` | 字符串拼接：`a + b`（含 swap） |
+| slice | `_getitem(int) T` | `seq[i]`（索引读） |
+| map | `_getitem(K) V` | `m[k]`（索引读） |
+| slice | `_init(len int)` / `_init(len int, cap int)` | `make([]T, len)` / `make([]T, len, cap)`（用于泛型约束场景的“伪实现”） |
+| map / chan | `_init()` / `_init(size int)` | `make(map[K]V)` / `make(map[K]V, size)`；`make(chan T)` / `make(chan T, size)`（用于泛型约束场景的“伪实现”） |
+
 ```go
 // 直接使用 slice，它自动满足 _getitem 约束
 func GetFirst[T any, S interface{ _getitem(int) T }](seq S) T {

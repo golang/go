@@ -1950,22 +1950,22 @@ func (p *parser) parseExpr() ast.Expr {
 				Y:        y,
 			}
 		} else {
-			trueExpr := p.parseBinaryExpr(nil, token.LowestPrec+1)
-			var falseExpr ast.Expr
-			colonPos := token.NoPos
+		trueExpr := p.parseBinaryExpr(nil, token.LowestPrec+1)
+		var falseExpr ast.Expr
+		colonPos := token.NoPos
 
-			if p.tok == token.COLON {
-				colonPos = p.pos
-				p.next()
-				falseExpr = p.parseExpr() // recursive to allow nested ternary
-			}
+		if p.tok == token.COLON {
+			colonPos = p.pos
+			p.next()
+			falseExpr = p.parseExpr() // recursive to allow nested ternary
+		}
 
-			x = &ast.TernaryExpr{
-				Cond:     x,
-				Question: questionPos,
-				X:        trueExpr,
-				Colon:    colonPos,
-				Y:        falseExpr,
+		x = &ast.TernaryExpr{
+			Cond:     x,
+			Question: questionPos,
+			X:        trueExpr,
+			Colon:    colonPos,
+			Y:        falseExpr,
 			}
 		}
 	}
