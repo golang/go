@@ -96,7 +96,7 @@ func main() {
 	for i, s := range same {
 		if !reflect.DeepEqual(s.a, s.b) {
 			ok = false
-			fmt.Printf("#%d: got %v, want %v\n", i+1, s.a, s.b)
+			fmt.Printf("#%d not same: %v and %v\n", i+1, s.a, s.b)
 		}
 	}
 	if !ok {
