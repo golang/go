@@ -330,3 +330,90 @@ func imaSlice[T integer](x, y, z []T) []T {
 func fmaSlice[T float](x, y, z []T) []T {
 	return map3[T](fma)(x, y, z)
 }
+
+func satToInt8[T integer](x T) int8 {
+	var m int8 = -128
+	var M int8 = 127
+	if T(M) < T(m) { // expecting T being a larger type
+		panic("bad input type")
+	}
+	if x < T(m) {
+		return m
+	}
+	if x > T(M) {
+		return M
+	}
+	return int8(x)
+}
+
+func satToUint8[T integer](x T) uint8 {
+	var M uint8 = 255
+	if T(M) < 0 { // expecting T being a larger type
+		panic("bad input type")
+	}
+	if x < 0 {
+		return 0
+	}
+	if x > T(M) {
+		return M
+	}
+	return uint8(x)
+}
+
+func satToInt16[T integer](x T) int16 {
+	var m int16 = -32768
+	var M int16 = 32767
+	if T(M) < T(m) { // expecting T being a larger type
+		panic("bad input type")
+	}
+	if x < T(m) {
+		return m
+	}
+	if x > T(M) {
+		return M
+	}
+	return int16(x)
+}
+
+func satToUint16[T integer](x T) uint16 {
+	var M uint16 = 65535
+	if T(M) < 0 { // expecting T being a larger type
+		panic("bad input type")
+	}
+	if x < 0 {
+		return 0
+	}
+	if x > T(M) {
+		return M
+	}
+	return uint16(x)
+}
+
+func satToInt32[T integer](x T) int32 {
+	var m int32 = -1 << 31
+	var M int32 = 1<<31 - 1
+	if T(M) < T(m) { // expecting T being a larger type
+		panic("bad input type")
+	}
+	if x < T(m) {
+		return m
+	}
+	if x > T(M) {
+		return M
+	}
+	return int32(x)
+}
+
+func satToUint32[T integer](x T) uint32 {
+	var M uint32 = 1<<32 - 1
+	if T(M) < 0 { // expecting T being a larger type
+		panic("bad input type")
+	}
+	if x < 0 {
+		return 0
+	}
+	if x > T(M) {
+		return M
+	}
+	return uint32(x)
+}
