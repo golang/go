@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include "asm_riscv64.h"
+#include "go_asm.h"
 #include "textflag.h"
 
 // See memclrNoHeapPointers Go doc for important implementation constraints.
@@ -15,6 +17,32 @@ TEXT runtime·memclrNoHeapPointers<ABIInternal>(SB),NOSPLIT,$0-16
 	MOV	$8, X9
 	BLT	X11, X9, check4
 
+#ifndef hasV
+	MOVB	internal∕cpu·RISCV64+const_offsetRISCV64HasV(SB), X5
+	BEQZ	X5, memclr_scalar
+#endif
+
+	// Use vector if not 8 byte aligned.
+	AND	$7, X10, X5
+	BNEZ	X5, vector_start
+
+	// Use scalar if 8 byte aligned and <= 64 bytes.
+	SUB	$64, X11, X6
+	BLEZ	X6, aligned
+
+	PCALIGN	$16
+vector_start:
+	VSETVLI	X0, E8, M8, TA, MA, X5
+	VMVVI	  $0, V8
+vector_loop:
+	VSETVLI	X11, E8, M8, TA, MA, X5
+	VSE8V	   V8, (X10) 
+	ADD     	X5, X10
+	SUB	        X5, X11
+	BNEZ	X11, vector_loop
+	RET
+
+memclr_scalar:
 	// Check alignment
 	AND	$7, X10, X5
 	BEQZ	X5, aligned
@@ -37,6 +65,8 @@ aligned:
 	BLT	X11, X9, zero16
 	MOV	$64, X9
 	BLT	X11, X9, zero32
+
+	PCALIGN	$16
 loop64:
 	MOV	ZERO, 0(X10)
 	MOV	ZERO, 8(X10)

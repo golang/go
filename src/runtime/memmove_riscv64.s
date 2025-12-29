@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include "asm_riscv64.h"
+#include "go_asm.h"
 #include "textflag.h"
 
 // See memmove Go doc for important implementation constraints.
 
-// void runtime·memmove(void*, void*, uintptr)
-TEXT runtime·memmove<ABIInternal>(SB),NOSPLIT,$-0-24
+// func memmove(to, from unsafe.Pointer, n uintptr)
+TEXT runtime·memmove<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
 	// X10 = to
 	// X11 = from
 	// X12 = n
@@ -22,6 +24,32 @@ TEXT runtime·memmove<ABIInternal>(SB),NOSPLIT,$-0-24
 	MOV	$8, X9
 	BLT	X12, X9, f_loop4_check
 
+#ifndef hasV
+	MOVB	internal∕cpu·RISCV64+const_offsetRISCV64HasV(SB), X5
+	BEQZ	X5, f_memmove_scalar
+#endif
+
+	// Use vector if destination and source are not 8 byte aligned.
+	OR	X10, X11, X5
+	AND	$7, X5
+	BNEZ	X5, f_vector_loop
+
+	// Use scalar if destination and source are 8 byte aligned and n <= 64 bytes.
+	SUB	$64, X12, X6
+	BLEZ	X6, f_loop_check
+
+	PCALIGN	$16
+f_vector_loop:
+	VSETVLI	X12, E8, M8, TA, MA, X5
+	VLE8V	(X11), V8
+	VSE8V	V8, (X10)
+	ADD	X5, X10
+	ADD	X5, X11
+	SUB	X5, X12
+	BNEZ	X12, f_vector_loop
+	RET
+
+f_memmove_scalar:
 	// Check alignment - if alignment differs we have to do one byte at a time.
 	AND	$7, X10, X5
 	AND	$7, X11, X6
@@ -46,6 +74,8 @@ f_loop_check:
 	BLT	X12, X9, f_loop16_check
 	MOV	$64, X9
 	BLT	X12, X9, f_loop32_check
+
+	PCALIGN	$16
 f_loop64:
 	MOV	0(X11), X14
 	MOV	8(X11), X15
@@ -173,6 +203,32 @@ backward:
 	MOV	$8, X9
 	BLT	X12, X9, b_loop4_check
 
+#ifndef hasV
+	MOVB	internal∕cpu·RISCV64+const_offsetRISCV64HasV(SB), X5
+	BEQZ	X5, b_memmove_scalar
+#endif
+
+	// Use vector if destination and source are not 8 byte aligned.
+	OR	X10, X11, X5
+	AND	$7, X5
+	BNEZ	X5, b_vector_loop
+
+	// Use scalar if destination and source are 8 byte aligned and n <= 64 bytes.
+	SUB	$32, X12, X6
+	BLEZ	X6, b_loop_check
+
+	PCALIGN	$16
+b_vector_loop:
+	VSETVLI	X12, E8, M8, TA, MA, X5
+	SUB	X5, X10
+	SUB	X5, X11
+	VLE8V	(X11), V8
+	VSE8V	V8, (X10)
+	SUB	X5, X12
+	BNEZ	X12, b_vector_loop
+	RET
+
+b_memmove_scalar:
 	// Check alignment - if alignment differs we have to do one byte at a time.
 	AND	$7, X10, X5
 	AND	$7, X11, X6
