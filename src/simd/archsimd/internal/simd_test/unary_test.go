@@ -200,6 +200,35 @@ func TestExtend(t *testing.T) {
 	}
 }
 
+func TestExtendLo(t *testing.T) {
+	testInt8x16ConvertLoToInt64x2(t, archsimd.Int8x16.ExtendLo2ToInt64, map1n[int8](toInt64, 2))
+	testInt16x8ConvertLoToInt64x2(t, archsimd.Int16x8.ExtendLo2ToInt64, map1n[int16](toInt64, 2))
+	testInt32x4ConvertLoToInt64x2(t, archsimd.Int32x4.ExtendLo2ToInt64, map1n[int32](toInt64, 2))
+	testUint8x16ConvertLoToUint64x2(t, archsimd.Uint8x16.ExtendLo2ToUint64, map1n[uint8](toUint64, 2))
+	testUint16x8ConvertLoToUint64x2(t, archsimd.Uint16x8.ExtendLo2ToUint64, map1n[uint16](toUint64, 2))
+	testUint32x4ConvertLoToUint64x2(t, archsimd.Uint32x4.ExtendLo2ToUint64, map1n[uint32](toUint64, 2))
+	testInt8x16ConvertLoToInt32x4(t, archsimd.Int8x16.ExtendLo4ToInt32, map1n[int8](toInt32, 4))
+	testInt16x8ConvertLoToInt32x4(t, archsimd.Int16x8.ExtendLo4ToInt32, map1n[int16](toInt32, 4))
+	testUint8x16ConvertLoToUint32x4(t, archsimd.Uint8x16.ExtendLo4ToUint32, map1n[uint8](toUint32, 4))
+	testUint16x8ConvertLoToUint32x4(t, archsimd.Uint16x8.ExtendLo4ToUint32, map1n[uint16](toUint32, 4))
+	testInt8x16ConvertLoToInt16x8(t, archsimd.Int8x16.ExtendLo8ToInt16, map1n[int8](toInt16, 8))
+	testUint8x16ConvertLoToUint16x8(t, archsimd.Uint8x16.ExtendLo8ToUint16, map1n[uint8](toUint16, 8))
+
+	if archsimd.X86.AVX2() {
+		testInt8x16ConvertLoToInt64x4(t, archsimd.Int8x16.ExtendLo4ToInt64, map1n[int8](toInt64, 4))
+		testInt16x8ConvertLoToInt64x4(t, archsimd.Int16x8.ExtendLo4ToInt64, map1n[int16](toInt64, 4))
+		testUint8x16ConvertLoToUint64x4(t, archsimd.Uint8x16.ExtendLo4ToUint64, map1n[uint8](toUint64, 4))
+		testUint16x8ConvertLoToUint64x4(t, archsimd.Uint16x8.ExtendLo4ToUint64, map1n[uint16](toUint64, 4))
+		testInt8x16ConvertLoToInt32x8(t, archsimd.Int8x16.ExtendLo8ToInt32, map1n[int8](toInt32, 8))
+		testUint8x16ConvertLoToUint32x8(t, archsimd.Uint8x16.ExtendLo8ToUint32, map1n[uint8](toUint32, 8))
+	}
+
+	if archsimd.X86.AVX512() {
+		testInt8x16ConvertToInt64(t, archsimd.Int8x16.ExtendLo8ToInt64, map1n[int8](toInt64, 8))
+		testUint8x16ConvertToUint64(t, archsimd.Uint8x16.ExtendLo8ToUint64, map1n[uint8](toUint64, 8))
+	}
+}
+
 func TestTruncate(t *testing.T) {
 	if archsimd.X86.AVX512() {
 		testInt16x8ConvertToInt8(t, archsimd.Int16x8.TruncateToInt8, map1n[int16](toInt8, 16))
