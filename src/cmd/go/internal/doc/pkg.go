@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
-	"go/build"
 	"go/doc"
 	"go/format"
 	"go/parser"
@@ -22,6 +21,9 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/load"
 )
 
 const (
@@ -36,7 +38,7 @@ type Package struct {
 	pkg         *ast.Package // Parsed package.
 	file        *ast.File    // Merged from all files in the package
 	doc         *doc.Package
-	build       *build.Package
+	build       *load.Package
 	typedValue  map[*doc.Value]bool // Consts and vars related to types.
 	constructor map[*doc.Func]bool  // Constructors.
 	fs          *token.FileSet      // Needed for printing.
@@ -96,8 +98,8 @@ func (pkg *Package) prettyPath() string {
 	// Also convert everything to slash-separated paths for uniform handling.
 	path = filepath.Clean(filepath.ToSlash(pkg.build.Dir))
 	// Can we find a decent prefix?
-	if buildCtx.GOROOT != "" {
-		goroot := filepath.Join(buildCtx.GOROOT, "src")
+	if cfg.GOROOT != "" {
+		goroot := filepath.Join(cfg.GOROOT, "src")
 		if p, ok := trim(path, filepath.ToSlash(goroot)); ok {
 			return p
 		}
@@ -137,7 +139,7 @@ func (pkg *Package) Fatalf(format string, args ...any) {
 
 // parsePackage turns the build package we found into a parsed package
 // we can then use to generate documentation.
-func parsePackage(writer io.Writer, pkg *build.Package, userPath string) *Package {
+func parsePackage(writer io.Writer, pkg *load.Package, userPath string) *Package {
 	// include tells parser.ParseDir which files to include.
 	// That means the file must be in the build package's GoFiles, CgoFiles,
 	// TestGoFiles or XTestGoFiles list only (no tag-ignored files, swig or

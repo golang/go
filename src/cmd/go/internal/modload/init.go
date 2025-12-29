@@ -467,6 +467,11 @@ func NewState() *State {
 	return s
 }
 
+func DisabledState() *State {
+	fips140.Init()
+	return &State{initialized: true, modulesEnabled: false}
+}
+
 func (s *State) Fetcher() *modfetch.Fetcher {
 	return s.fetcher
 }

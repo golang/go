@@ -38,9 +38,8 @@ go doc rsc.io/quote
 stdout 'Package quote collects pithy sayings.'
 
 # Check that a sensible error message is printed when a package is not found.
-env GOPROXY=off
 ! go doc example.com/hello
-stderr '^doc: cannot find module providing package example.com/hello: module lookup disabled by GOPROXY=off$'
+stderr 'doc: no required module provides package example.com/hello; to add it:\n\s+go get example.com/hello'
 
 # When in a module with a vendor directory, doc should use the vendored copies
 # of the packages. 'std' and 'cmd' are convenient examples of such modules.

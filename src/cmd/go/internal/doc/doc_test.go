@@ -7,7 +7,6 @@ package doc
 import (
 	"bytes"
 	"flag"
-	"go/build"
 	"internal/testenv"
 	"log"
 	"os"
@@ -16,18 +15,19 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"cmd/go/internal/cfg"
 )
 
 func TestMain(m *testing.M) {
 	// Clear GOPATH so we don't access the user's own packages in the test.
-	buildCtx.GOPATH = ""
+	cfg.BuildContext.GOPATH = ""
 	testGOPATH = true // force GOPATH mode; module test is in cmd/go/testdata/script/mod_doc.txt
 
 	// Set GOROOT in case runtime.GOROOT is wrong (for example, if the test was
 	// built with -trimpath). dirsInit would identify it using 'go env GOROOT',
 	// but we can't be sure that the 'go' in $PATH is the right one either.
-	buildCtx.GOROOT = testenv.GOROOT(nil)
-	build.Default.GOROOT = testenv.GOROOT(nil)
+	cfg.GOROOT = testenv.GOROOT(nil)
 
 	// Add $GOROOT/src/cmd/go/internal/doc/testdata explicitly so we can access its contents in the test.
 	// Normally testdata directories are ignored, but sending it to dirs.scan directly is
@@ -37,9 +37,9 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 	dirsInit(
-		Dir{importPath: "testdata", dir: testdataDir},
-		Dir{importPath: "testdata/nested", dir: filepath.Join(testdataDir, "nested")},
-		Dir{importPath: "testdata/nested/nested", dir: filepath.Join(testdataDir, "nested", "nested")})
+		Dir{importPath: "cmd/go/internal/doc/testdata", dir: testdataDir},
+		Dir{importPath: "cmd/go/internal/doc/testdata/nested", dir: filepath.Join(testdataDir, "nested")},
+		Dir{importPath: "cmd/go/internal/doc/testdata/nested/nested", dir: filepath.Join(testdataDir, "nested", "nested")})
 
 	os.Exit(m.Run())
 }
@@ -1204,7 +1204,7 @@ func TestDotSlashLookup(t *testing.T) {
 		t.Skip("scanning file system takes too long")
 	}
 	maybeSkip(t)
-	t.Chdir(filepath.Join(buildCtx.GOROOT, "src", "text"))
+	t.Chdir(filepath.Join(cfg.GOROOT, "src", "text"))
 
 	var b strings.Builder
 	var flagSet flag.FlagSet
