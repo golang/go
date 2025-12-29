@@ -2325,129 +2325,129 @@ func (x Uint64x4) Expand(mask Mask64x4) Uint64x4
 // Asm: VPEXPANDQ, CPU Feature: AVX512
 func (x Uint64x8) Expand(mask Mask64x8) Uint64x8
 
-/* ExtendLo2ToInt64x2 */
+/* ExtendLo2ToInt64 */
 
-// ExtendLo2ToInt64x2 sign-extends 2 lowest vector element values to int64.
+// ExtendLo2ToInt64 sign-extends 2 lowest vector element values to int64.
 //
 // Asm: VPMOVSXBQ, CPU Feature: AVX
-func (x Int8x16) ExtendLo2ToInt64x2() Int64x2
+func (x Int8x16) ExtendLo2ToInt64() Int64x2
 
-// ExtendLo2ToInt64x2 sign-extends 2 lowest vector element values to int64.
+// ExtendLo2ToInt64 sign-extends 2 lowest vector element values to int64.
 //
 // Asm: VPMOVSXWQ, CPU Feature: AVX
-func (x Int16x8) ExtendLo2ToInt64x2() Int64x2
+func (x Int16x8) ExtendLo2ToInt64() Int64x2
 
-// ExtendLo2ToInt64x2 sign-extends 2 lowest vector element values to int64.
+// ExtendLo2ToInt64 sign-extends 2 lowest vector element values to int64.
 //
 // Asm: VPMOVSXDQ, CPU Feature: AVX
-func (x Int32x4) ExtendLo2ToInt64x2() Int64x2
+func (x Int32x4) ExtendLo2ToInt64() Int64x2
 
-/* ExtendLo2ToUint64x2 */
+/* ExtendLo2ToUint64 */
 
-// ExtendLo2ToUint64x2 zero-extends 2 lowest vector element values to uint64.
+// ExtendLo2ToUint64 zero-extends 2 lowest vector element values to uint64.
 //
 // Asm: VPMOVZXBQ, CPU Feature: AVX
-func (x Uint8x16) ExtendLo2ToUint64x2() Uint64x2
+func (x Uint8x16) ExtendLo2ToUint64() Uint64x2
 
-// ExtendLo2ToUint64x2 zero-extends 2 lowest vector element values to uint64.
+// ExtendLo2ToUint64 zero-extends 2 lowest vector element values to uint64.
 //
 // Asm: VPMOVZXWQ, CPU Feature: AVX
-func (x Uint16x8) ExtendLo2ToUint64x2() Uint64x2
+func (x Uint16x8) ExtendLo2ToUint64() Uint64x2
 
-// ExtendLo2ToUint64x2 zero-extends 2 lowest vector element values to uint64.
+// ExtendLo2ToUint64 zero-extends 2 lowest vector element values to uint64.
 //
 // Asm: VPMOVZXDQ, CPU Feature: AVX
-func (x Uint32x4) ExtendLo2ToUint64x2() Uint64x2
+func (x Uint32x4) ExtendLo2ToUint64() Uint64x2
 
-/* ExtendLo4ToInt32x4 */
+/* ExtendLo4ToInt32 */
 
-// ExtendLo4ToInt32x4 sign-extends 4 lowest vector element values to int32.
+// ExtendLo4ToInt32 sign-extends 4 lowest vector element values to int32.
 //
 // Asm: VPMOVSXBD, CPU Feature: AVX
-func (x Int8x16) ExtendLo4ToInt32x4() Int32x4
+func (x Int8x16) ExtendLo4ToInt32() Int32x4
 
-// ExtendLo4ToInt32x4 sign-extends 4 lowest vector element values to int32.
+// ExtendLo4ToInt32 sign-extends 4 lowest vector element values to int32.
 //
 // Asm: VPMOVSXWD, CPU Feature: AVX
-func (x Int16x8) ExtendLo4ToInt32x4() Int32x4
+func (x Int16x8) ExtendLo4ToInt32() Int32x4
 
-/* ExtendLo4ToInt64x4 */
+/* ExtendLo4ToInt64 */
 
-// ExtendLo4ToInt64x4 sign-extends 4 lowest vector element values to int64.
+// ExtendLo4ToInt64 sign-extends 4 lowest vector element values to int64.
 //
 // Asm: VPMOVSXBQ, CPU Feature: AVX2
-func (x Int8x16) ExtendLo4ToInt64x4() Int64x4
+func (x Int8x16) ExtendLo4ToInt64() Int64x4
 
-// ExtendLo4ToInt64x4 sign-extends 4 lowest vector element values to int64.
+// ExtendLo4ToInt64 sign-extends 4 lowest vector element values to int64.
 //
 // Asm: VPMOVSXWQ, CPU Feature: AVX2
-func (x Int16x8) ExtendLo4ToInt64x4() Int64x4
+func (x Int16x8) ExtendLo4ToInt64() Int64x4
 
-/* ExtendLo4ToUint32x4 */
+/* ExtendLo4ToUint32 */
 
-// ExtendLo4ToUint32x4 zero-extends 4 lowest vector element values to uint32.
+// ExtendLo4ToUint32 zero-extends 4 lowest vector element values to uint32.
 //
 // Asm: VPMOVZXBD, CPU Feature: AVX
-func (x Uint8x16) ExtendLo4ToUint32x4() Uint32x4
+func (x Uint8x16) ExtendLo4ToUint32() Uint32x4
 
-// ExtendLo4ToUint32x4 zero-extends 4 lowest vector element values to uint32.
+// ExtendLo4ToUint32 zero-extends 4 lowest vector element values to uint32.
 //
 // Asm: VPMOVZXWD, CPU Feature: AVX
-func (x Uint16x8) ExtendLo4ToUint32x4() Uint32x4
+func (x Uint16x8) ExtendLo4ToUint32() Uint32x4
 
-/* ExtendLo4ToUint64x4 */
+/* ExtendLo4ToUint64 */
 
-// ExtendLo4ToUint64x4 zero-extends 4 lowest vector element values to uint64.
+// ExtendLo4ToUint64 zero-extends 4 lowest vector element values to uint64.
 //
 // Asm: VPMOVZXBQ, CPU Feature: AVX2
-func (x Uint8x16) ExtendLo4ToUint64x4() Uint64x4
+func (x Uint8x16) ExtendLo4ToUint64() Uint64x4
 
-// ExtendLo4ToUint64x4 zero-extends 4 lowest vector element values to uint64.
+// ExtendLo4ToUint64 zero-extends 4 lowest vector element values to uint64.
 //
 // Asm: VPMOVZXWQ, CPU Feature: AVX2
-func (x Uint16x8) ExtendLo4ToUint64x4() Uint64x4
+func (x Uint16x8) ExtendLo4ToUint64() Uint64x4
 
-/* ExtendLo8ToInt16x8 */
+/* ExtendLo8ToInt16 */
 
-// ExtendLo8ToInt16x8 sign-extends 8 lowest vector element values to int16.
+// ExtendLo8ToInt16 sign-extends 8 lowest vector element values to int16.
 //
 // Asm: VPMOVSXBW, CPU Feature: AVX
-func (x Int8x16) ExtendLo8ToInt16x8() Int16x8
+func (x Int8x16) ExtendLo8ToInt16() Int16x8
 
-/* ExtendLo8ToInt32x8 */
+/* ExtendLo8ToInt32 */
 
-// ExtendLo8ToInt32x8 sign-extends 8 lowest vector element values to int32.
+// ExtendLo8ToInt32 sign-extends 8 lowest vector element values to int32.
 //
 // Asm: VPMOVSXBD, CPU Feature: AVX2
-func (x Int8x16) ExtendLo8ToInt32x8() Int32x8
+func (x Int8x16) ExtendLo8ToInt32() Int32x8
 
-/* ExtendLo8ToInt64x8 */
+/* ExtendLo8ToInt64 */
 
-// ExtendLo8ToInt64x8 sign-extends 8 lowest vector element values to int64.
+// ExtendLo8ToInt64 sign-extends 8 lowest vector element values to int64.
 //
 // Asm: VPMOVSXBQ, CPU Feature: AVX512
-func (x Int8x16) ExtendLo8ToInt64x8() Int64x8
+func (x Int8x16) ExtendLo8ToInt64() Int64x8
 
-/* ExtendLo8ToUint16x8 */
+/* ExtendLo8ToUint16 */
 
-// ExtendLo8ToUint16x8 zero-extends 8 lowest vector element values to uint16.
+// ExtendLo8ToUint16 zero-extends 8 lowest vector element values to uint16.
 //
 // Asm: VPMOVZXBW, CPU Feature: AVX
-func (x Uint8x16) ExtendLo8ToUint16x8() Uint16x8
+func (x Uint8x16) ExtendLo8ToUint16() Uint16x8
 
-/* ExtendLo8ToUint32x8 */
+/* ExtendLo8ToUint32 */
 
-// ExtendLo8ToUint32x8 zero-extends 8 lowest vector element values to uint32.
+// ExtendLo8ToUint32 zero-extends 8 lowest vector element values to uint32.
 //
 // Asm: VPMOVZXBD, CPU Feature: AVX2
-func (x Uint8x16) ExtendLo8ToUint32x8() Uint32x8
+func (x Uint8x16) ExtendLo8ToUint32() Uint32x8
 
-/* ExtendLo8ToUint64x8 */
+/* ExtendLo8ToUint64 */
 
-// ExtendLo8ToUint64x8 zero-extends 8 lowest vector element values to uint64.
+// ExtendLo8ToUint64 zero-extends 8 lowest vector element values to uint64.
 //
 // Asm: VPMOVZXBQ, CPU Feature: AVX512
-func (x Uint8x16) ExtendLo8ToUint64x8() Uint64x8
+func (x Uint8x16) ExtendLo8ToUint64() Uint64x8
 
 /* ExtendToInt16 */
 

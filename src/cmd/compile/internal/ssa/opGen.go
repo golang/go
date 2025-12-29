@@ -6518,26 +6518,26 @@ const (
 	OpExpandUint64x2
 	OpExpandUint64x4
 	OpExpandUint64x8
-	OpExtendLo2ToInt64x2Int8x16
-	OpExtendLo2ToInt64x2Int16x8
-	OpExtendLo2ToInt64x2Int32x4
-	OpExtendLo2ToUint64x2Uint8x16
-	OpExtendLo2ToUint64x2Uint16x8
-	OpExtendLo2ToUint64x2Uint32x4
-	OpExtendLo4ToInt32x4Int8x16
-	OpExtendLo4ToInt32x4Int16x8
-	OpExtendLo4ToInt64x4Int8x16
-	OpExtendLo4ToInt64x4Int16x8
-	OpExtendLo4ToUint32x4Uint8x16
-	OpExtendLo4ToUint32x4Uint16x8
-	OpExtendLo4ToUint64x4Uint8x16
-	OpExtendLo4ToUint64x4Uint16x8
-	OpExtendLo8ToInt16x8Int8x16
-	OpExtendLo8ToInt32x8Int8x16
-	OpExtendLo8ToInt64x8Int8x16
-	OpExtendLo8ToUint16x8Uint8x16
-	OpExtendLo8ToUint32x8Uint8x16
-	OpExtendLo8ToUint64x8Uint8x16
+	OpExtendLo2ToInt64Int8x16
+	OpExtendLo2ToInt64Int16x8
+	OpExtendLo2ToInt64Int32x4
+	OpExtendLo2ToUint64Uint8x16
+	OpExtendLo2ToUint64Uint16x8
+	OpExtendLo2ToUint64Uint32x4
+	OpExtendLo4ToInt32Int8x16
+	OpExtendLo4ToInt32Int16x8
+	OpExtendLo4ToInt64Int8x16
+	OpExtendLo4ToInt64Int16x8
+	OpExtendLo4ToUint32Uint8x16
+	OpExtendLo4ToUint32Uint16x8
+	OpExtendLo4ToUint64Uint8x16
+	OpExtendLo4ToUint64Uint16x8
+	OpExtendLo8ToInt16Int8x16
+	OpExtendLo8ToInt32Int8x16
+	OpExtendLo8ToInt64Int8x16
+	OpExtendLo8ToUint16Uint8x16
+	OpExtendLo8ToUint32Uint8x16
+	OpExtendLo8ToUint64Uint8x16
 	OpExtendToInt16Int8x16
 	OpExtendToInt16Int8x32
 	OpExtendToInt32Int8x16
@@ -90896,102 +90896,102 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "ExtendLo2ToInt64x2Int8x16",
+		name:    "ExtendLo2ToInt64Int8x16",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "ExtendLo2ToInt64x2Int16x8",
+		name:    "ExtendLo2ToInt64Int16x8",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "ExtendLo2ToInt64x2Int32x4",
+		name:    "ExtendLo2ToInt64Int32x4",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "ExtendLo2ToUint64x2Uint8x16",
+		name:    "ExtendLo2ToUint64Uint8x16",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "ExtendLo2ToUint64x2Uint16x8",
+		name:    "ExtendLo2ToUint64Uint16x8",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "ExtendLo2ToUint64x2Uint32x4",
+		name:    "ExtendLo2ToUint64Uint32x4",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "ExtendLo4ToInt32x4Int8x16",
+		name:    "ExtendLo4ToInt32Int8x16",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "ExtendLo4ToInt32x4Int16x8",
+		name:    "ExtendLo4ToInt32Int16x8",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "ExtendLo4ToInt64x4Int8x16",
+		name:    "ExtendLo4ToInt64Int8x16",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "ExtendLo4ToInt64x4Int16x8",
+		name:    "ExtendLo4ToInt64Int16x8",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "ExtendLo4ToUint32x4Uint8x16",
+		name:    "ExtendLo4ToUint32Uint8x16",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "ExtendLo4ToUint32x4Uint16x8",
+		name:    "ExtendLo4ToUint32Uint16x8",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "ExtendLo4ToUint64x4Uint8x16",
+		name:    "ExtendLo4ToUint64Uint8x16",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "ExtendLo4ToUint64x4Uint16x8",
+		name:    "ExtendLo4ToUint64Uint16x8",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "ExtendLo8ToInt16x8Int8x16",
+		name:    "ExtendLo8ToInt16Int8x16",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "ExtendLo8ToInt32x8Int8x16",
+		name:    "ExtendLo8ToInt32Int8x16",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "ExtendLo8ToInt64x8Int8x16",
+		name:    "ExtendLo8ToInt64Int8x16",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "ExtendLo8ToUint16x8Uint8x16",
+		name:    "ExtendLo8ToUint16Uint8x16",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "ExtendLo8ToUint32x8Uint8x16",
+		name:    "ExtendLo8ToUint32Uint8x16",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "ExtendLo8ToUint64x8Uint8x16",
+		name:    "ExtendLo8ToUint64Uint8x16",
 		argLen:  1,
 		generic: true,
 	},

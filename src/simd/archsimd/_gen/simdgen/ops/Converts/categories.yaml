@@ -135,83 +135,83 @@
   documentation: !string |-
     // NAME zero-extends element values to uint64.
 # low-part only Int <-> Int conversions
-- go: ExtendLo8ToUint16x8
+- go: ExtendLo8ToUint16
   commutative: false
   documentation: !string |-
     // NAME zero-extends 8 lowest vector element values to uint16.
-- go: ExtendLo8ToInt16x8
+- go: ExtendLo8ToInt16
   commutative: false
   documentation: !string |-
     // NAME sign-extends 8 lowest vector element values to int16.
-- go: ExtendLo4ToUint32x4
+- go: ExtendLo4ToUint32
   commutative: false
   documentation: !string |-
     // NAME zero-extends 4 lowest vector element values to uint32.
-- go: ExtendLo4ToInt32x4
+- go: ExtendLo4ToInt32
   commutative: false
   documentation: !string |-
     // NAME sign-extends 4 lowest vector element values to int32.
-- go: ExtendLo2ToUint64x2
+- go: ExtendLo2ToUint64
   commutative: false
   documentation: !string |-
     // NAME zero-extends 2 lowest vector element values to uint64.
-- go: ExtendLo2ToInt64x2
+- go: ExtendLo2ToInt64
   commutative: false
   documentation: !string |-
     // NAME sign-extends 2 lowest vector element values to int64.
-- go: ExtendLo2ToUint64x2
+- go: ExtendLo2ToUint64
   commutative: false
   documentation: !string |-
     // NAME zero-extends 2 lowest vector element values to uint64.
-- go: ExtendLo4ToUint64x4
+- go: ExtendLo4ToUint64
   commutative: false
   documentation: !string |-
     // NAME zero-extends 4 lowest vector element values to uint64.
-- go: ExtendLo2ToInt64x2
+- go: ExtendLo2ToInt64
   commutative: false
   documentation: !string |-
     // NAME sign-extends 2 lowest vector element values to int64.
-- go: ExtendLo4ToInt64x4
+- go: ExtendLo4ToInt64
   commutative: false
   documentation: !string |-
     // NAME sign-extends 4 lowest vector element values to int64.
-- go: ExtendLo4ToUint32x4
+- go: ExtendLo4ToUint32
   commutative: false
   documentation: !string |-
     // NAME zero-extends 4 lowest vector element values to uint32.
-- go: ExtendLo8ToUint32x8
+- go: ExtendLo8ToUint32
   commutative: false
   documentation: !string |-
     // NAME zero-extends 8 lowest vector element values to uint32.
-- go: ExtendLo4ToInt32x4
+- go: ExtendLo4ToInt32
   commutative: false
   documentation: !string |-
     // NAME sign-extends 4 lowest vector element values to int32.
-- go: ExtendLo8ToInt32x8
+- go: ExtendLo8ToInt32
   commutative: false
   documentation: !string |-
     // NAME sign-extends 8 lowest vector element values to int32.
-- go: ExtendLo2ToUint64x2
+- go: ExtendLo2ToUint64
   commutative: false
   documentation: !string |-
     // NAME zero-extends 2 lowest vector element values to uint64.
-- go: ExtendLo4ToUint64x4
+- go: ExtendLo4ToUint64
   commutative: false
   documentation: !string |-
     // NAME zero-extends 4 lowest vector element values to uint64.
-- go: ExtendLo8ToUint64x8
+- go: ExtendLo8ToUint64
   commutative: false
   documentation: !string |-
     // NAME zero-extends 8 lowest vector element values to uint64.
-- go: ExtendLo2ToInt64x2
+- go: ExtendLo2ToInt64
   commutative: false
   documentation: !string |-
     // NAME sign-extends 2 lowest vector element values to int64.
-- go: ExtendLo4ToInt64x4
+- go: ExtendLo4ToInt64
   commutative: false
   documentation: !string |-
     // NAME sign-extends 4 lowest vector element values to int64.
-- go: ExtendLo8ToInt64x8
+- go: ExtendLo8ToInt64
   commutative: false
   documentation: !string |-
     // NAME sign-extends 8 lowest vector element values to int64.

@@ -3274,64 +3274,64 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpExpandUint8x32(v)
 	case OpExpandUint8x64:
 		return rewriteValueAMD64_OpExpandUint8x64(v)
-	case OpExtendLo2ToInt64x2Int16x8:
+	case OpExtendLo2ToInt64Int16x8:
 		v.Op = OpAMD64VPMOVSXWQ128
 		return true
-	case OpExtendLo2ToInt64x2Int32x4:
+	case OpExtendLo2ToInt64Int32x4:
 		v.Op = OpAMD64VPMOVSXDQ128
 		return true
-	case OpExtendLo2ToInt64x2Int8x16:
+	case OpExtendLo2ToInt64Int8x16:
 		v.Op = OpAMD64VPMOVSXBQ128
 		return true
-	case OpExtendLo2ToUint64x2Uint16x8:
+	case OpExtendLo2ToUint64Uint16x8:
 		v.Op = OpAMD64VPMOVZXWQ128
 		return true
-	case OpExtendLo2ToUint64x2Uint32x4:
+	case OpExtendLo2ToUint64Uint32x4:
 		v.Op = OpAMD64VPMOVZXDQ128
 		return true
-	case OpExtendLo2ToUint64x2Uint8x16:
+	case OpExtendLo2ToUint64Uint8x16:
 		v.Op = OpAMD64VPMOVZXBQ128
 		return true
-	case OpExtendLo4ToInt32x4Int16x8:
+	case OpExtendLo4ToInt32Int16x8:
 		v.Op = OpAMD64VPMOVSXWD128
 		return true
-	case OpExtendLo4ToInt32x4Int8x16:
+	case OpExtendLo4ToInt32Int8x16:
 		v.Op = OpAMD64VPMOVSXBD128
 		return true
-	case OpExtendLo4ToInt64x4Int16x8:
+	case OpExtendLo4ToInt64Int16x8:
 		v.Op = OpAMD64VPMOVSXWQ256
 		return true
-	case OpExtendLo4ToInt64x4Int8x16:
+	case OpExtendLo4ToInt64Int8x16:
 		v.Op = OpAMD64VPMOVSXBQ256
 		return true
-	case OpExtendLo4ToUint32x4Uint16x8:
+	case OpExtendLo4ToUint32Uint16x8:
 		v.Op = OpAMD64VPMOVZXWD128
 		return true
-	case OpExtendLo4ToUint32x4Uint8x16:
+	case OpExtendLo4ToUint32Uint8x16:
 		v.Op = OpAMD64VPMOVZXBD128
 		return true
-	case OpExtendLo4ToUint64x4Uint16x8:
+	case OpExtendLo4ToUint64Uint16x8:
 		v.Op = OpAMD64VPMOVZXWQ256
 		return true
-	case OpExtendLo4ToUint64x4Uint8x16:
+	case OpExtendLo4ToUint64Uint8x16:
 		v.Op = OpAMD64VPMOVZXBQ256
 		return true
-	case OpExtendLo8ToInt16x8Int8x16:
+	case OpExtendLo8ToInt16Int8x16:
 		v.Op = OpAMD64VPMOVSXBW128
 		return true
-	case OpExtendLo8ToInt32x8Int8x16:
+	case OpExtendLo8ToInt32Int8x16:
 		v.Op = OpAMD64VPMOVSXBD256
 		return true
-	case OpExtendLo8ToInt64x8Int8x16:
+	case OpExtendLo8ToInt64Int8x16:
 		v.Op = OpAMD64VPMOVSXBQ512
 		return true
-	case OpExtendLo8ToUint16x8Uint8x16:
+	case OpExtendLo8ToUint16Uint8x16:
 		v.Op = OpAMD64VPMOVZXBW128
 		return true
-	case OpExtendLo8ToUint32x8Uint8x16:
+	case OpExtendLo8ToUint32Uint8x16:
 		v.Op = OpAMD64VPMOVZXBD256
 		return true
-	case OpExtendLo8ToUint64x8Uint8x16:
+	case OpExtendLo8ToUint64Uint8x16:
 		v.Op = OpAMD64VPMOVZXBQ512
 		return true
 	case OpExtendToInt16Int8x16:

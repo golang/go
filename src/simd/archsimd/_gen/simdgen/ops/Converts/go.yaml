@@ -491,7 +491,7 @@
 
 # low-part only conversions.
 # uint8->uint16
-- go: ExtendLo8ToUint16x8
+- go: ExtendLo8ToUint16
   regexpTag: "convert"
   asm: "VPMOVZXBW"
   in:
@@ -499,7 +499,7 @@
   out:
   - *u16x8
 # int8->int16
-- go: ExtendLo8ToInt16x8
+- go: ExtendLo8ToInt16
   regexpTag: "convert"
   asm: "VPMOVSXBW"
   in:
@@ -507,7 +507,7 @@
   out:
   - *i16x8
 # uint16->uint32
-- go: ExtendLo4ToUint32x4
+- go: ExtendLo4ToUint32
   regexpTag: "convert"
   asm: "VPMOVZXWD"
   in:
@@ -515,7 +515,7 @@
   out:
   - *u32x4
 # int16->int32
-- go: ExtendLo4ToInt32x4
+- go: ExtendLo4ToInt32
   regexpTag: "convert"
   asm: "VPMOVSXWD"
   in:
@@ -523,7 +523,7 @@
   out:
   - *i32x4
 # uint32 -> uint64
-- go: ExtendLo2ToUint64x2
+- go: ExtendLo2ToUint64
   regexpTag: "convert"
   asm: "VPMOVZXDQ"
   in:
@@ -534,7 +534,7 @@
     elemBits: 64
     bits: 128
 # int32 -> int64
-- go: ExtendLo2ToInt64x2
+- go: ExtendLo2ToInt64
   regexpTag: "convert"
   asm: "VPMOVSXDQ"
   in:
@@ -545,14 +545,14 @@
     elemBits: 64
     bits: 128
 # uint16 -> uint64
-- go: ExtendLo2ToUint64x2
+- go: ExtendLo2ToUint64
   regexpTag: "convert"
   asm: "VPMOVZXWQ"
   in:
   - *u16x8
   out:
   - *u64x2
-- go: ExtendLo4ToUint64x4
+- go: ExtendLo4ToUint64
   regexpTag: "convert"
   asm: "VPMOVZXWQ"
   in:
@@ -560,14 +560,14 @@
   out:
   - *u64x4
 # int16 -> int64
-- go: ExtendLo2ToInt64x2
+- go: ExtendLo2ToInt64
   regexpTag: "convert"
   asm: "VPMOVSXWQ"
   in:
   - *i16x8
   out:
   - *i64x2
-- go: ExtendLo4ToInt64x4
+- go: ExtendLo4ToInt64
   regexpTag: "convert"
   asm: "VPMOVSXWQ"
   in:
@@ -575,14 +575,14 @@
   out:
   - *i64x4
 # uint8 -> uint32
-- go: ExtendLo4ToUint32x4
+- go: ExtendLo4ToUint32
   regexpTag: "convert"
   asm: "VPMOVZXBD"
   in:
   - *u8x16
   out:
   - *u32x4
-- go: ExtendLo8ToUint32x8
+- go: ExtendLo8ToUint32
   regexpTag: "convert"
   asm: "VPMOVZXBD"
   in:
@@ -590,14 +590,14 @@
   out:
   - *u32x8
 # int8 -> int32
-- go: ExtendLo4ToInt32x4
+- go: ExtendLo4ToInt32
   regexpTag: "convert"
   asm: "VPMOVSXBD"
   in:
   - *i8x16
   out:
   - *i32x4
-- go: ExtendLo8ToInt32x8
+- go: ExtendLo8ToInt32
   regexpTag: "convert"
   asm: "VPMOVSXBD"
   in:
@@ -605,21 +605,21 @@
   out:
   - *i32x8
 # uint8 -> uint64
-- go: ExtendLo2ToUint64x2
+- go: ExtendLo2ToUint64
   regexpTag: "convert"
   asm: "VPMOVZXBQ"
   in:
   - *u8x16
   out:
   - *u64x2
-- go: ExtendLo4ToUint64x4
+- go: ExtendLo4ToUint64
   regexpTag: "convert"
   asm: "VPMOVZXBQ"
   in:
   - *u8x16
   out:
   - *u64x4
-- go: ExtendLo8ToUint64x8
+- go: ExtendLo8ToUint64
   regexpTag: "convert"
   asm: "VPMOVZXBQ"
   in:
@@ -627,21 +627,21 @@
   out:
   - *u64x8
 # int8 -> int64
-- go: ExtendLo2ToInt64x2
+- go: ExtendLo2ToInt64
   regexpTag: "convert"
   asm: "VPMOVSXBQ"
   in:
   - *i8x16
   out:
   - *i64x2
-- go: ExtendLo4ToInt64x4
+- go: ExtendLo4ToInt64
   regexpTag: "convert"
   asm: "VPMOVSXBQ"
   in:
   - *i8x16
   out:
   - *i64x4
-- go: ExtendLo8ToInt64x8
+- go: ExtendLo8ToInt64
   regexpTag: "convert"
   asm: "VPMOVSXBQ"
   in:
