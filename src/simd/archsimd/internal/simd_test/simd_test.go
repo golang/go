@@ -1296,3 +1296,80 @@ func TestAddSubPairs(t *testing.T) {
 		testFloat64x4Binary(t, archsimd.Float64x4.SubPairsGrouped, subPairsGroupedSlice[float64])
 	}
 }
+
+func convConcatSlice[T, U number](a, b []T, conv func(T) U) []U {
+	r := make([]U, len(a)+len(b))
+	for i, v := range a {
+		r[i] = conv(v)
+	}
+	for i, v := range b {
+		r[len(a)+i] = conv(v)
+	}
+	return r
+}
+
+func convConcatGroupedSlice[T, U number](a, b []T, conv func(T) U) []U {
+	group := int(128 / unsafe.Sizeof(a[0]))
+	r := make([]U, 0, len(a)+len(b))
+	for i := 0; i < len(a)/group; i++ {
+		r = append(r, convConcatSlice(a[i*group:(i+1)*group], b[i*group:(i+1)*group], conv)...)
+	}
+	return r
+}
+
+func TestSaturateConcat(t *testing.T) {
+	// Int32x4.SaturateToInt16Concat
+	forSlicePair(t, int32s, 4, func(x, y []int32) bool {
+		a, b := archsimd.LoadInt32x4Slice(x), archsimd.LoadInt32x4Slice(y)
+		var out [8]int16
+		a.SaturateToInt16Concat(b).Store(&out)
+		want := convConcatSlice(x, y, satToInt16)
+		return checkSlicesLogInput(t, out[:], want, 0, func() { t.Logf("x=%v, y=%v", x, y) })
+	})
+	// Int32x4.SaturateToUint16Concat
+	forSlicePair(t, int32s, 4, func(x, y []int32) bool {
+		a, b := archsimd.LoadInt32x4Slice(x), archsimd.LoadInt32x4Slice(y)
+		var out [8]uint16
+		a.SaturateToUint16Concat(b).Store(&out)
+		want := convConcatSlice(x, y, satToUint16)
+		return checkSlicesLogInput(t, out[:], want, 0, func() { t.Logf("x=%v, y=%v", x, y) })
+	})
+
+	if archsimd.X86.AVX2() {
+		// Int32x8.SaturateToInt16ConcatGrouped
+		forSlicePair(t, int32s, 8, func(x, y []int32) bool {
+			a, b := archsimd.LoadInt32x8Slice(x), archsimd.LoadInt32x8Slice(y)
+			var out [16]int16
+			a.SaturateToInt16ConcatGrouped(b).Store(&out)
+			want := convConcatGroupedSlice(x, y, satToInt16)
+			return checkSlicesLogInput(t, out[:], want, 0, func() { t.Logf("x=%v, y=%v", x, y) })
+		})
+		// Int32x8.SaturateToUint16ConcatGrouped
+		forSlicePair(t, int32s, 8, func(x, y []int32) bool {
+			a, b := archsimd.LoadInt32x8Slice(x), archsimd.LoadInt32x8Slice(y)
+			var out [16]uint16
+			a.SaturateToUint16ConcatGrouped(b).Store(&out)
+			want := convConcatGroupedSlice(x, y, satToUint16)
+			return checkSlicesLogInput(t, out[:], want, 0, func() { t.Logf("x=%v, y=%v", x, y) })
+		})
+	}
+
+	if archsimd.X86.AVX512() {
+		// Int32x16.SaturateToInt16ConcatGrouped
+		forSlicePair(t, int32s, 16, func(x, y []int32) bool {
+			a, b := archsimd.LoadInt32x16Slice(x), archsimd.LoadInt32x16Slice(y)
+			var out [32]int16
+			a.SaturateToInt16ConcatGrouped(b).Store(&out)
+			want := convConcatGroupedSlice(x, y, satToInt16)
+			return checkSlicesLogInput(t, out[:], want, 0, func() { t.Logf("x=%v, y=%v", x, y) })
+		})
+		// Int32x16.SaturateToUint16ConcatGrouped
+		forSlicePair(t, int32s, 16, func(x, y []int32) bool {
+			a, b := archsimd.LoadInt32x16Slice(x), archsimd.LoadInt32x16Slice(y)
+			var out [32]uint16
+			a.SaturateToUint16ConcatGrouped(b).Store(&out)
+			want := convConcatGroupedSlice(x, y, satToUint16)
+			return checkSlicesLogInput(t, out[:], want, 0, func() { t.Logf("x=%v, y=%v", x, y) })
+		})
+	}
+}
