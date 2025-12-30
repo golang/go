@@ -1157,6 +1157,137 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type)
 			goto Error
 		}
 
+	case *ast.TernaryExpr:
+		// cond ? x : y  or  cond ? x (short form)
+		var cond operand
+		check.expr(nil, &cond, e.Cond)
+		if cond.mode == invalid {
+			goto Error
+		}
+		if !allBoolean(cond.typ) {
+			check.errorf(&cond, InvalidSyntaxTree, "non-boolean condition in ternary expression")
+			goto Error
+		}
+		check.expr(nil, x, e.X)
+		if x.mode == invalid {
+			goto Error
+		}
+		if e.Y != nil {
+			// Full form: cond ? x : y
+			var y operand
+			check.expr(nil, &y, e.Y)
+			if y.mode == invalid {
+				goto Error
+			}
+			// Result type is the common type of x and y
+			check.convertUntyped(x, y.typ)
+			if x.mode == invalid {
+				goto Error
+			}
+			check.convertUntyped(&y, x.typ)
+			if y.mode == invalid {
+				goto Error
+			}
+			check.comparison(x, &y, token.EQL, false)
+			if x.mode == invalid {
+				goto Error
+			}
+			x.mode = value
+		} else {
+			// Short form: cond ? x (result is x or zero value)
+			x.mode = value
+		}
+
+	case *ast.OptionalChainExpr:
+		// x?.sel
+		check.exprOrType(x, e.X, false)
+		if x.mode == invalid {
+			goto Error
+		}
+		// x must be a pointer type
+		var base Type
+		if !underIs(x.typ, func(u Type) bool {
+			p, _ := u.(*Pointer)
+			if p == nil {
+				check.errorf(x, InvalidIndirection, "cannot use optional chaining on non-pointer type %s", x.typ)
+				return false
+			}
+			base = p.base
+			return true
+		}) {
+			goto Error
+		}
+		// Now select the field/method from the base type
+		obj, index, indirect := lookupFieldOrMethod(base, false, check.pkg, e.Sel.Name, false)
+		if obj == nil {
+			check.errorf(e.Sel, MissingFieldOrMethod, "%s.%s undefined (type %s has no field or method %s)", e.X, e.Sel.Name, base, e.Sel.Name)
+			goto Error
+		}
+		if x.mode == typexpr {
+			check.errorf(x, NotAnExpr, "%s is not an expression", x)
+			goto Error
+		}
+		switch obj := obj.(type) {
+		case *Var:
+			if indirect {
+				x.mode = variable
+			} else {
+				x.mode = value
+			}
+			// Result is a pointer to the field type
+			x.typ = &Pointer{base: obj.typ}
+		case *Func:
+			x.mode = value
+			x.typ = &Pointer{base: obj.typ}
+		default:
+			panic("unreachable")
+		}
+		// Don't record selection for optional chain (not a real selector)
+		_ = index // unused
+
+	case *ast.ElvisExpr:
+		// x ?: y  (nil coalescing with auto-deref)
+		check.expr(nil, x, e.X)
+		if x.mode == invalid {
+			goto Error
+		}
+		// x should be a pointer type
+		var base Type
+		isPtr := underIs(x.typ, func(u Type) bool {
+			p, _ := u.(*Pointer)
+			if p != nil {
+				base = p.base
+				return true
+			}
+			return false
+		})
+		var y operand
+		check.expr(nil, &y, e.Y)
+		if y.mode == invalid {
+			goto Error
+		}
+		if isPtr {
+			// If x is pointer, result type should be common type of *x (dereferenced) and y
+			check.convertUntyped(&y, base)
+			if y.mode == invalid {
+				goto Error
+			}
+			x.mode = value
+			x.typ = base
+			check.convertUntyped(x, y.typ)
+		} else {
+			// If x is not pointer, just use common type of x and y
+			check.convertUntyped(x, y.typ)
+			if x.mode == invalid {
+				goto Error
+			}
+			check.convertUntyped(&y, x.typ)
+		}
+		if y.mode == invalid {
+			goto Error
+		}
+		x.mode = value
+
 	case *ast.KeyValueExpr:
 		// key:value expressions are handled in composite literals
 		check.error(e, InvalidSyntaxTree, "no key:value expected")
