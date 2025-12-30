@@ -1158,172 +1158,627 @@ func main() {
 **⚠️ Warning ⚠️**
 `type Name float64` declarations can be overloaded, but it is **not recommended**. It causes boxing of the primitive type, hurting performance, and the type is no longer treated as its underlying type.
 
-## 7. Algebraic Data Types (Experimental)
+## 7. Algebraic Data Types (Experimental Feature)
 
 ### Enums
 
-MyGO supports `enum` (Tagged Union / ADT). An enum consists of multiple **Variants**.
+MyGO supports `enum` (Tagged Union / ADT). An enum type consists of multiple **`Variants`**, where each variant can carry a payload of a different type.
+
+PS: There were quite a few bugs during the initial testing of this feature. I have tested all the boundary conditions I could think of, but I am not sure if other bugs remain.
 
 #### 7.1 Defining Enums
 
 ```go
-// Unit variants
+// Unit variants (no payload)
 type Color enum {
-    Red
-    Green
-    Blue
+	Red
+	Green
+	Blue
 }
 
-// Payload variants (Tuple)
+// Payload variants (with payload, supports multi-parameter tuples)
 type Shape enum {
-    Circle(float64)
-    Rect(float64, float64)
-    Point
+	Circle(float64)
+	Rect(float64, float64)
+	Point
 }
 
-// Recursive Enum
+
+// Recursive enums are also supported
 type List enum {
-    Cons(int, List)
-    Nil
+	Cons(int, List)
+	Nil
 }
 
-// Generic Enum
+// Generic enums
 type Option[T any] enum {
-    Some(T)
-    None
+	Some(T)
+	None
 }
 ```
 
-#### 7.2 Constructing Values
+#### 7.2 Constructing Enum Values
 
 ```go
-c1 := Color.Red             // unit: no parens
-s1 := Shape.Circle(1.5)     // payload: args required
+c1 := Color.Red            // unit variant: no parentheses needed
+s1 := Shape.Circle(1.5)    // payload variant: requires arguments
 s2 := Shape.Rect(3, 4)
+s3 := Shape.Point
+
 o1 := Option[int].Some(42)
+o2 := Option[int].None
 ```
 
 #### 7.3 Pattern Matching
 
-Use `switch` to match structure at compile time.
+MyGO allows conditional branching based on the data structure of an `enum` at compile time.
 
 ```go
 func area(s Shape) float64 {
-    switch s {
-    case Shape.Circle(r):
-        return 3.14159 * r * r
-    case Shape.Rect(w, h):
-        return w * h
-    case Shape.Point:
-        return 0
-    default:
-        return 0
-    }
+	switch s {
+	case Shape.Circle(r):
+		return 3.14159 * r * r
+	case Shape.Rect(w, h):
+		return w * h
+	case Shape.Point:
+		return 0
+	default:
+		return 0
+	}
 }
 ```
 
-**Wildcard**: Use `_` to ignore fields.
+**Wildcard**: Use `_` to ignore fields you don't care about.
+
+```go
+switch s {
+case Shape.Rect(_, _):
+	// any rectangle
+}
+```
 
 ##### Exhaustiveness Checking
 
-MyGO checks if all variants are handled in a `switch`. If not (and no default), the compiler errors:
-`error: enum match on Shape is not exhaustive (missing: Point)`
+MyGO's `enum` supports **compile-time exhaustiveness checking** in `pattern matching`. This ensures that all possible `Variants` are explicitly handled, avoiding logical errors caused by missing branches.
 
-#### 7.4 Generics + Shape (GC Shape) & Storage
+If a `switch` is missing certain `Variants` and has no `default` branch, the compiler will report an error:
 
-Enums are lowered to Go `struct` + `unsafe` constructors.
-*   **Pure Values**: Stored in `_stack [N]byte` (Stack inline).
-*   **Pointer Payloads**: Stored in `_heap unsafe.Pointer`.
-*   **Generics**: Strategy depends on instantiated type.
+```go
+package main
+
+import "fmt"
+
+type Shape enum {
+	Circle(float64)
+	Rect(float64, float64)
+	Point
+}
+
+func area(s Shape) float64 {
+	switch s {
+	case Shape.Circle(r):
+		return 3.14159 * r * r
+	case Shape.Rect(w, h):
+		return w * h
+	}
+}
+
+func main() {
+	s := Shape.Circle(1.5)
+	fmt.Println(area(s))
+}
+
+// Error: enum match on Shape is not exhaustive (missing: Point)
+```
+
+#### 7.4 Generics + Shape (GC Shape) and Storage Strategy (stack/heap)
+
+Enums are lowered into standard Go `structs` + type constructors (using `unsafe` internally). To reduce GC pressure:
+- **Pure value payloads** (no pointers) prefer `_stack [N]byte` (stack inlining).
+- **Pointer-containing payloads** use `_heap unsafe.Pointer`.
+- **Generic enums**: Determined by the *instantiated concrete type shape* (e.g., `Option[int]` vs `Option[string]`).
+
+In generic functions (e.g., `func f[T any](o Option[T])`), if the shape is unknown at compile time, pattern matching/reading payloads will use runtime branching to select between `_heap` and `_stack`.
 
 #### 7.5 if/for Pattern Matching
 
-##### if match
+In addition to `switch` pattern matching, MyGO supports cleaner syntax for `if`/`for` pattern matching. (Note: These do not have exhaustiveness checking).
+
+##### if Pattern Matching
 
 ```go
 opt := Option[int].Some(42)
 
+// Basic form
+if Option.Some(x) := opt {
+    fmt.Println("value:", x)
+}
+
+// With else
 if Option.Some(x) := opt {
     fmt.Println("value:", x)
 } else {
     fmt.Println("no value")
 }
 
-// Guard
+// With guard
 if Option.Some(x) := opt; x > 0 {
     fmt.Println("positive:", x)
 }
+
+
+// else-if chain
+if Option.Some(x) := opt {
+	fmt.Println("opt1:", x)
+} else if Option.Some(y) := opt {
+	fmt.Println("opt2:", y)
+} else {
+	fmt.Println("both none")
+}
 ```
 
-##### for match
+##### for Pattern Matching
 
-Loops while pattern matches:
+The `for` pattern match loop continues executing until the pattern no longer matches:
 
 ```go
+// Basic form: loops until mismatch
 shape := Shape.Circle(1.5)
 for Shape.Circle(r) := shape {
     fmt.Println("radius:", r)
-    shape = Shape.Point // Exit loop
+    shape = Shape.Point  // Change value to exit loop
+}
+
+// With guard
+shape2 := Shape.Circle(5.0)
+for Shape.Circle(r) := shape2; r > 1.0 {
+    fmt.Println("r =", r)
+    shape2 = Shape.Circle(r - 2.0)  // Decrement, exit when r <= 1.0
+}
+
+// Multi-field destructuring
+rect := Shape.Rect(3.0, 4.0)
+for Shape.Rect(w, h) := rect {
+    fmt.Println("area:", w*h)
+    rect = Shape.Point
 }
 ```
 
-#### 7.6 Enum Magic Functions
+#### 7.6 "Magic Functions" support for Enums (Operator Dispatchers)
 
-Enums can act as **Dynamic Dispatchers** by implementing magic methods (`_add`, etc.).
+You can define magic methods (other than `_init`) for enums, such as `_add/_radd/_eq/_ne/_lt/_getitem/...`, letting the enum itself act as a **dynamic dispatcher**:
 
 ```go
 type Value enum {
-    Integer(int)
-    Float(float64)
+	Integer(int)
+	Float(float64)
 }
 
-// Value + Value
+// Supports Value + Value (homogenous/heterogenous dispatch here)
 func (lhs Value) _add(rhs Value) Value {
-    switch lhs {
-    case Value.Integer(a):
-        switch rhs {
-        case Value.Integer(b):
-            return Value.Integer(a + b)
-        case Value.Float(b):
-            return Value.Float(float64(a) + b)
-        }
-    // ... handle other cases
-    }
-    panic("unsupported")
+	switch lhs {
+	case Value.Integer(a):
+		switch rhs {
+		case Value.Integer(b):
+			return Value.Integer(a + b)
+		case Value.Float(b):
+			return Value.Float(float64(a) + b)
+		}
+	case Value.Float(a):
+		switch rhs {
+		case Value.Integer(b):
+			return Value.Float(a + float64(b))
+		case Value.Float(b):
+			return Value.Float(a + b)
+		}
+	}
+	panic("unsupported Value + Value")
+}
+
+func main() {
+	x := Value.Integer(1)
+	y := Value.Float(2.5)
+	z := x + y // Rewritten as x._add(y)
+	switch z {
+	case Value.Integer(a):
+		fmt.Printf("z := %d\n", a)
+	case Value.Float(b):
+		fmt.Printf("z := %f\n", b)
+	}
 }
 ```
+
+**Reverse Operation**: If the forward `_add` does not match, it attempts the right-side `_radd` (consistent with the magic function rules in the README).
+
+**Note**:
+- Writing `a + b` inside the magic method might trigger recursive rewriting; it is recommended to write dispatch logic directly inside the magic method body and avoid calling itself with the same operator.
 
 #### 7.7 Enum Usage Examples
 
-##### Option[T]
+##### Constructing Option[T]
+
+`Option[T]` is used to explicitly represent "Present / Absent", avoiding nil, multiple return values, and implicit errors.
 
 ```go
-// Option implementation with _eq and _div overloading...
-// Allows code like:
-// x := Option[int].Some(10) / Option[int].Some(2)
+type Divable interface {
+	~int | ~int8 | ~int16 | ~int32 | ~int64 |
+		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
+		~float32 | ~float64
+}
+
+type Option[T Divable] enum {
+	Some(T)
+	None
+}
+
+func (o Option[T]) _eq(a Option[T]) bool {
+	switch o {
+	case Option[T].Some(_):
+		switch a {
+		case Option[T].Some(_):
+			return true
+		case Option[T].None:
+			return false
+		}
+	case Option[T].None:
+		switch a {
+		case Option[T].None:
+			return true
+		case Option[T].Some(_):
+			return false
+		}
+	}
+	panic("unreachable")
+}
+
+func (o Option[T]) _div(a Option[T]) Option[T] {
+	switch o {
+	case Option[T].Some(v):
+		switch a {
+		case Option[T].None:
+			return Option[T].None
+		case Option[T].Some(d):
+			var zero T
+			if d == zero {
+				return Option[T].None
+			}
+			return Option[T].Some(v / d)
+		}
+	case Option[T].None:
+		return Option[T].None
+	}
+	panic("unreachable")
+}
+
+func main() {
+	x := Option[int].Some(10) / Option[int].Some(2)
+	y := Option[int].Some(10) / Option[int].Some(0)
+
+	switch x {
+	case Option[int].Some(v):
+		fmt.Println("x =", v)
+	case Option[int].None:
+		fmt.Println("x = None")
+	}
+
+	switch y {
+	case Option[int].Some(v):
+		fmt.Println("y =", v)
+	case Option[int].None:
+		fmt.Println("y = None")
+	}
+}
 ```
 
-##### Result[T, E]
+##### Constructing Result[T, E]
 
-Structured error handling.
+`Result[T, E]` is used for explicit error propagation, making it more suitable for expressing structured failure reasons than `error`.
 
 ```go
 type Result[T any, E error] enum {
-    Ok(T)
-    Err(E)
+	Ok(T)
+	Err(E)
 }
 
+// Example 1: Safe division, returning Result[int, error]
 func safeDiv(a, b int) Result[int, error] {
-    if b == 0 {
-        return Result[int, error].Err(errors.New("division by zero"))
-    }
-    return Result[int, error].Ok(a / b)
+	if b == 0 {
+		return Result[int, error].Err(errors.New("division by zero"))
+	}
+	return Result[int, error].Ok(a / b)
+}
+
+// Example 2: String to int, returning Result[int, error]
+func parseIntSafe(s string) Result[int, error] {
+	val, err := strconv.Atoi(s)
+	if err != nil {
+		return Result[int, error].Err(err)
+	}
+	return Result[int, error].Ok(val)
+}
+
+// Example 3: Map operation on Result (transforming the value inside Ok)
+func (r Result[T, E]) mapOk(f func(T) T) Result[T, E] {
+	switch r {
+	case Result[T, E].Ok(val):
+		return Result[T, E].Ok(f(val))
+	case Result[T, E].Err(e):
+		return Result[T, E].Err(e)
+	}
+	panic("unreachable")
+}
+
+func main() {
+	// Test safe division
+	fmt.Println("=== Safe Division Example ===")
+	r1 := safeDiv(10, 2)
+	switch r1 {
+	case Result[int, error].Ok(v):
+		fmt.Printf("10 / 2 = %d\n", v)
+	case Result[int, error].Err(e):
+		fmt.Printf("Error: %v\n", e)
+	}
+
+	r2 := safeDiv(10, 0)
+	switch r2 {
+	case Result[int, error].Ok(v):
+		fmt.Printf("10 / 0 = %d\n", v)
+	case Result[int, error].Err(e):
+		fmt.Printf("Error: %v\n", e)
+	}
+
+	// Test string parsing
+	fmt.Println("\n=== String Parsing Example ===")
+	r3 := parseIntSafe("42")
+	switch r3 {
+	case Result[int, error].Ok(v):
+		fmt.Printf("Parse success: %d\n", v)
+	case Result[int, error].Err(e):
+		fmt.Printf("Parse failure: %v\n", e)
+	}
+
+	r4 := parseIntSafe("not a number")
+	switch r4 {
+	case Result[int, error].Ok(v):
+		fmt.Printf("Parse success: %d\n", v)
+	case Result[int, error].Err(e):
+		fmt.Printf("Parse failure: %v\n", e)
+	}
+
+	// Test map operation
+	fmt.Println("\n=== Result map Operation Example ===")
+	r5 := parseIntSafe("5").mapOk(func(x int) int {
+		return x * 2
+	})
+	switch r5 {
+	case Result[int, error].Ok(v):
+		fmt.Printf("5 * 2 = %d\n", v)
+	case Result[int, error].Err(e):
+		fmt.Printf("Error: %v\n", e)
+	}
+
+	r6 := parseIntSafe("invalid").mapOk(func(x int) int {
+		return x * 2
+	})
+	switch r6 {
+	case Result[int, error].Ok(v):
+		fmt.Printf("Result: %d\n", v)
+	case Result[int, error].Err(e):
+		fmt.Printf("Error: %v\n", e)
+	}
 }
 ```
 
 ##### Monad Style
 
-Supports `Map`, `AndThen`, `UnwrapOr` patterns easily.
+MyGO's `enum` + `magic functions` naturally support `Monad` / `Functor` patterns.
+
+###### Map / AndThen / UnwrapOr
+
+```go
+package main
+
+import (
+	"errors"
+	"fmt"
+	"strconv"
+)
+
+type Divable interface {
+	~int | ~int8 | ~int16 | ~int32 | ~int64 |
+		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
+		~float32 | ~float64
+}
+
+type Option[T Divable] enum {
+	Some(T)
+	None
+}
+
+func (o Option[T]) _eq(a Option[T]) bool {
+	switch o {
+	case Option[T].Some(_):
+		switch a {
+		case Option[T].Some(_):
+			return true
+		case Option[T].None:
+			return false
+		}
+	case Option[T].None:
+		switch a {
+		case Option[T].None:
+			return true
+		case Option[T].Some(_):
+			return false
+		}
+	}
+	panic("unreachable")
+}
+
+// Monad Style API (Option)
+func (o Option[T]) Map(f func(T) T) Option[T] {
+	switch o {
+	case Option[T].Some(v):
+		return Option[T].Some(f(v))
+	case Option[T].None:
+		return Option[T].None
+	}
+	panic("unreachable")
+}
+
+func (o Option[T]) AndThen(f func(T) Option[T]) Option[T] {
+	switch o {
+	case Option[T].Some(v):
+		return f(v)
+	case Option[T].None:
+		return Option[T].None
+	}
+	panic("unreachable")
+}
+
+func (o Option[T]) UnwrapOr(def T) T {
+	switch o {
+	case Option[T].Some(v):
+		return v
+	case Option[T].None:
+		return def
+	}
+	panic("unreachable")
+}
+
+func (o Option[T]) _div(a Option[T]) Option[T] {
+	switch o {
+	case Option[T].Some(v):
+		switch a {
+		case Option[T].None:
+			return Option[T].None
+		case Option[T].Some(d):
+			var zero T
+			if d == zero {
+				return Option[T].None
+			}
+			return Option[T].Some(v / d)
+		}
+	case Option[T].None:
+		return Option[T].None
+	}
+	panic("unreachable")
+}
+
+type Result[T any, E error] enum {
+	Ok(T)
+	Err(E)
+}
+
+// Monad Style API (Result)
+func (r Result[T, E]) Map(f func(T) T) Result[T, E] {
+	switch r {
+	case Result[T, E].Ok(v):
+		return Result[T, E].Ok(f(v))
+	case Result[T, E].Err(e):
+		return Result[T, E].Err(e)
+	}
+	panic("unreachable")
+}
+
+func (r Result[T, E]) AndThen(f func(T) Result[T, E]) Result[T, E] {
+	switch r {
+	case Result[T, E].Ok(v):
+		return f(v)
+	case Result[T, E].Err(e):
+		return Result[T, E].Err(e)
+	}
+	panic("unreachable")
+}
+
+// unwrapOr: returns default value on error (no panic)
+func (r Result[T, E]) UnwrapOr(def T) T {
+	switch r {
+	case Result[T, E].Ok(v):
+		return v
+	case Result[T, E].Err(_):
+		return def
+	}
+	panic("unreachable")
+}
+
+// unwrapOrHandle: calls onErr on error then returns default value (used for "unwrapOr with error handling")
+func (r Result[T, E]) UnwrapOrHandle(def T, onErr func(E)) T {
+	switch r {
+	case Result[T, E].Ok(v):
+		return v
+	case Result[T, E].Err(e):
+		if onErr != nil {
+			onErr(e)
+		}
+		return def
+	}
+	panic("unreachable")
+}
+
+// unwrap: panics on error (closer to Rust's unwrap)
+func (r Result[T, E]) Unwrap() T {
+	switch r {
+	case Result[T, E].Ok(v):
+		return v
+	case Result[T, E].Err(e):
+		panic(e)
+	}
+	panic("unreachable")
+}
+
+func parseInt(s string) Result[int, error] {
+	v, err := strconv.Atoi(s)
+	if err != nil {
+		return Result[int, error].Err(err)
+	}
+	return Result[int, error].Ok(v)
+}
+
+func safeDiv(a, b int) Result[int, error] {
+	if b == 0 {
+		return Result[int, error].Err(errors.New("division by zero"))
+	}
+	return Result[int, error].Ok(a / b)
+}
+
+func printOption(s string, o Option[int]) {
+	switch o {
+	case Option[int].Some(v):
+		fmt.Println(s, "=", v)
+	case Option[int].None:
+		fmt.Println(s, "= None")
+	}
+}
+
+func main() {
+	// --- Option: / operator + monad chaining ---
+	x := Option[int].Some(10) / Option[int].Some(2) // 5
+	y := Option[int].Some(10) / Option[int].Some(0) // None
+
+	// map / andThen / unwrapOr
+	x2 := x.
+		Map(func(v int) int { return v * 2 }).
+		AndThen(func(v int) Option[int] { return Option[int].Some(v + 1) })
+	fmt.Println("x2 =", x2.UnwrapOr(-1)) // 11
+	fmt.Println("y2 =", y.Map(func(v int) int { return v * 2 }).UnwrapOr(-1))
+
+	printOption("x", x)
+	printOption("y", y)
+
+	// --- Result: map / andThen / unwrapOr (with error handling) ---
+	r1 := parseInt("5").
+		Map(func(v int) int { return v * 2 }).
+		AndThen(func(v int) Result[int, error] { return safeDiv(100, v) })
+	fmt.Println("r1 =", r1.UnwrapOr(-1))
+
+	r2 := parseInt("not a number").
+		AndThen(func(v int) Result[int, error] { return safeDiv(100, v) })
+	fmt.Println("r2 =", r2.UnwrapOrHandle(-1, func(e error) {
+		fmt.Println("r2 err:", e)
+	}))
+}
+```
 
 ---
 
