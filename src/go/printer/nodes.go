@@ -916,6 +916,17 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 			p.expr1(x.Y, token.LowestPrec, depth)
 		}
 
+	case *ast.ElvisExpr:
+		// Elvis: x ?: y
+		p.expr1(x.X, token.LowestPrec, depth)
+		p.print(blank)
+		p.setPos(x.Question)
+		p.print(token.QUESTION)
+		p.setPos(x.Colon)
+		p.print(token.COLON)
+		p.print(blank)
+		p.expr1(x.Y, token.LowestPrec, depth)
+
 	case *ast.TypeAssertExpr:
 		p.expr1(x.X, token.HighestPrec, depth)
 		p.print(token.PERIOD)
