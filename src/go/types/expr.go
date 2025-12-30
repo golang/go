@@ -1184,33 +1184,45 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type)
 			check.errorf(&cond, InvalidSyntaxTree, "non-boolean condition in ternary expression")
 			goto Error
 		}
-		check.expr(nil, x, e.X)
-		if x.mode == invalid {
-			goto Error
-		}
 		if e.Y != nil {
 			// Full form: cond ? x : y
+			var xt operand
+			check.expr(nil, &xt, e.X)
+			if xt.mode == invalid {
+				goto Error
+			}
 			var y operand
 			check.expr(nil, &y, e.Y)
 			if y.mode == invalid {
 				goto Error
 			}
-			// Result type is the common type of x and y
-			check.convertUntyped(x, y.typ)
-			if x.mode == invalid {
+
+			// Determine result type: both branches must have identical (final) type,
+			// after applying untyped conversions.
+			//
+			// NOTE: Do NOT call check.comparison here: it would force the result to bool.
+			if isUntyped(xt.typ) && !isUntyped(y.typ) {
+				check.convertUntyped(&xt, y.typ)
+			}
+			if isUntyped(y.typ) && !isUntyped(xt.typ) {
+				check.convertUntyped(&y, xt.typ)
+			}
+			if xt.mode == invalid || y.mode == invalid {
 				goto Error
 			}
-			check.convertUntyped(&y, x.typ)
-			if y.mode == invalid {
+			if !Identical(xt.typ, y.typ) {
+				check.errorf(e, MismatchedTypes, invalidOp+"%s (mismatched types %s and %s)", e, xt.typ, y.typ)
 				goto Error
 			}
-			check.comparison(x, &y, token.EQL, false)
-			if x.mode == invalid {
-				goto Error
-			}
+
 			x.mode = value
+			x.typ = xt.typ
 		} else {
 			// Short form: cond ? x (result is x or zero value)
+			check.expr(nil, x, e.X)
+			if x.mode == invalid {
+				goto Error
+			}
 			x.mode = value
 		}
 
