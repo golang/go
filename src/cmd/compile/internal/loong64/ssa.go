@@ -732,7 +732,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		if dstReg == srcReg {
 			break
 		}
-		countReg := int16(loong64.REG_R23)
+		srcEndReg := int16(loong64.REG_R23)
 		tmpReg := int16(loong64.REG_R24)
 		var off int64
 		n := v.AuxInt
@@ -749,69 +749,65 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			v.Fatalf("MoveLoop size too small %d", n)
 		}
 
-		// Put iteration count in a register.
-		//   MOVV     $n/loopSize, countReg
-		p := s.Prog(loong64.AMOVV)
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = n / loopSize
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = countReg
-		cntInit := p
+		//    ADDV    n - n%loopSize, srcReg, srcEndReg
+		// Loop8:
+		//    for off = 0; off < loopSize; off += 8 {
+		//            move8(s, srcReg, dstReg, tmpReg, off)
+		//    }
+		//    ADDV    $loopSize, srcReg
+		//    ADDV    $loopSize, dstReg
+		//    BNE     srcEndReg, srcReg, Loop8
+		//
+		//    n %= loopSize
+		//    for off = 0; n >= 8; off += 8 {
+		//           move8(s, srcReg, dstReg, tmpReg, off)
+		//           n -= 8
+		//    }
+		//
+		//    if n != 0 {
+		//           move8(s, srcReg, dstReg, tmpReg, off+n-8)
+		//    }
 
-		// Move loopSize bytes starting at srcReg to dstReg.
-		for range loopSize / 8 {
-			// MOVV     off(srcReg), tmpReg
-			// MOVV     tmpReg, off(dstReg)
+		p1 := s.Prog(loong64.AADDV)
+		p1.From.Type = obj.TYPE_CONST
+		p1.From.Offset = n - n%loopSize
+		p1.Reg = srcReg
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = srcEndReg
+
+		for off = 0; off < loopSize; off += 8 {
 			move8(s, srcReg, dstReg, tmpReg, off)
-			off += 8
 		}
 
-		// Increment srcReg and destReg by loopSize.
-		//   ADDV     $loopSize, srcReg
-		p = s.Prog(loong64.AADDV)
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = loopSize
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = srcReg
-		//   ADDV     $loopSize, dstReg
-		p = s.Prog(loong64.AADDV)
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = loopSize
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = dstReg
+		p2 := s.Prog(loong64.AADDV)
+		p2.From.Type = obj.TYPE_CONST
+		p2.From.Offset = loopSize
+		p2.To.Type = obj.TYPE_REG
+		p2.To.Reg = srcReg
 
-		// Decrement loop count.
-		//   SUBV     $1, countReg
-		p = s.Prog(loong64.ASUBV)
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = 1
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = countReg
+		p3 := s.Prog(loong64.AADDV)
+		p3.From.Type = obj.TYPE_CONST
+		p3.From.Offset = loopSize
+		p3.To.Type = obj.TYPE_REG
+		p3.To.Reg = dstReg
 
-		// Jump to loop header if we're not done yet.
-		//   BNE     countReg, loop header
-		p = s.Prog(loong64.ABNE)
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = countReg
-		p.To.Type = obj.TYPE_BRANCH
-		p.To.SetTarget(cntInit.Link)
+		p4 := s.Prog(loong64.ABNE)
+		p4.From.Type = obj.TYPE_REG
+		p4.From.Reg = srcEndReg
+		p4.Reg = srcReg
+		p4.To.Type = obj.TYPE_BRANCH
+		p4.To.SetTarget(p1.Link)
 
 		// Multiples of the loop size are now done.
 		n %= loopSize
 
-		off = 0
 		// Copy any fractional portion.
-		for n >= 8 {
-			// MOVV     off(srcReg), tmpReg
-			// MOVV     tmpReg, off(dstReg)
+		for off = 0; n >= 8; off += 8 {
 			move8(s, srcReg, dstReg, tmpReg, off)
-			off += 8
 			n -= 8
 		}
 
 		if n != 0 {
-			// MOVV     off+n-8(srcReg), tmpReg
-			// MOVV     tmpReg, off+n-8(srcReg)
 			move8(s, srcReg, dstReg, tmpReg, off+n-8)
 		}
 
