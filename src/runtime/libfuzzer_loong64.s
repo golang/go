@@ -18,11 +18,11 @@
 #define REPEAT_8(a) REPEAT_2(REPEAT_2(REPEAT_2(a)))
 #define REPEAT_128(a) REPEAT_2(REPEAT_8(REPEAT_8(a)))
 
-// void runtime·libfuzzerCall4(fn, hookId int, s1, s2 unsafe.Pointer, result uintptr)
+// void runtime·libfuzzerCall4(fn *byte, fakePC uintptr, s1, s2 unsafe.Pointer, result uintptr)
 // Calls C function fn from libFuzzer and passes 4 arguments to it.
 TEXT	runtime·libfuzzerCall4<ABIInternal>(SB), NOSPLIT, $0-0
 	MOVV	R4, R12	// fn
-	MOVV	R5, RARG0	// hookId
+	MOVV	R5, RARG0	// fakePC
 	MOVV	R6, RARG1	// s1
 	MOVV	R7, RARG2	// s2
 	MOVV	R8, RARG3	// result
