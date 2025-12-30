@@ -1254,7 +1254,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type)
 		// Use lookupFieldOrMethod with addressable=true
 		obj, index, indirect := lookupFieldOrMethod(typ, true, check.pkg, e.Sel.Name, false)
 		if obj == nil {
-			check.errorf(e.Sel, MissingFieldOrMethod, "optional chain: %s.%s undefined (type %s has no field or method %s)", e.X, e.Sel.Name, typ, e.Sel.Name)
+			check.errorf(e.Sel, MissingFieldOrMethod, "%s undefined (type %s has no field or method %s)", ExprString(e), typ, e.Sel.Name)
 			goto Error
 		}
 
