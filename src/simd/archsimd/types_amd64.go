@@ -295,7 +295,7 @@ func LoadMaskedUint64x2(y *[2]uint64, mask Mask64x2) Uint64x2
 //go:noescape
 func (x Uint64x2) StoreMasked(y *[2]uint64, mask Mask64x2)
 
-// Mask8x16 is a 128-bit SIMD vector of 16 int8s.
+// Mask8x16 is a mask for a SIMD vector of 16 8-bit elements.
 type Mask8x16 struct {
 	int8x16 v128
 	vals    [16]int8
@@ -311,7 +311,7 @@ func Mask8x16FromBits(y uint16) Mask8x16
 // Asm: KMOVB, CPU Features: AVX512
 func (x Mask8x16) ToBits() uint16
 
-// Mask16x8 is a 128-bit SIMD vector of 8 int16s.
+// Mask16x8 is a mask for a SIMD vector of 8 16-bit elements.
 type Mask16x8 struct {
 	int16x8 v128
 	vals    [8]int16
@@ -327,7 +327,7 @@ func Mask16x8FromBits(y uint8) Mask16x8
 // Asm: KMOVW, CPU Features: AVX512
 func (x Mask16x8) ToBits() uint8
 
-// Mask32x4 is a 128-bit SIMD vector of 4 int32s.
+// Mask32x4 is a mask for a SIMD vector of 4 32-bit elements.
 type Mask32x4 struct {
 	int32x4 v128
 	vals    [4]int32
@@ -345,7 +345,7 @@ func Mask32x4FromBits(y uint8) Mask32x4
 // Asm: KMOVD, CPU Features: AVX512
 func (x Mask32x4) ToBits() uint8
 
-// Mask64x2 is a 128-bit SIMD vector of 2 int64s.
+// Mask64x2 is a mask for a SIMD vector of 2 64-bit elements.
 type Mask64x2 struct {
 	int64x2 v128
 	vals    [2]int64
@@ -654,7 +654,7 @@ func LoadMaskedUint64x4(y *[4]uint64, mask Mask64x4) Uint64x4
 //go:noescape
 func (x Uint64x4) StoreMasked(y *[4]uint64, mask Mask64x4)
 
-// Mask8x32 is a 256-bit SIMD vector of 32 int8s.
+// Mask8x32 is a mask for a SIMD vector of 32 8-bit elements.
 type Mask8x32 struct {
 	int8x32 v256
 	vals    [32]int8
@@ -670,7 +670,7 @@ func Mask8x32FromBits(y uint32) Mask8x32
 // Asm: KMOVB, CPU Features: AVX512
 func (x Mask8x32) ToBits() uint32
 
-// Mask16x16 is a 256-bit SIMD vector of 16 int16s.
+// Mask16x16 is a mask for a SIMD vector of 16 16-bit elements.
 type Mask16x16 struct {
 	int16x16 v256
 	vals     [16]int16
@@ -686,7 +686,7 @@ func Mask16x16FromBits(y uint16) Mask16x16
 // Asm: KMOVW, CPU Features: AVX512
 func (x Mask16x16) ToBits() uint16
 
-// Mask32x8 is a 256-bit SIMD vector of 8 int32s.
+// Mask32x8 is a mask for a SIMD vector of 8 32-bit elements.
 type Mask32x8 struct {
 	int32x8 v256
 	vals    [8]int32
@@ -702,7 +702,7 @@ func Mask32x8FromBits(y uint8) Mask32x8
 // Asm: KMOVD, CPU Features: AVX512
 func (x Mask32x8) ToBits() uint8
 
-// Mask64x4 is a 256-bit SIMD vector of 4 int64s.
+// Mask64x4 is a mask for a SIMD vector of 4 64-bit elements.
 type Mask64x4 struct {
 	int64x4 v256
 	vals    [4]int64
@@ -1075,7 +1075,7 @@ func LoadMaskedUint64x8(y *[8]uint64, mask Mask64x8) Uint64x8
 //go:noescape
 func (x Uint64x8) StoreMasked(y *[8]uint64, mask Mask64x8)
 
-// Mask8x64 is a 512-bit SIMD vector of 64 int8s.
+// Mask8x64 is a mask for a SIMD vector of 64 8-bit elements.
 type Mask8x64 struct {
 	int8x64 v512
 	vals    [64]int8
@@ -1091,7 +1091,7 @@ func Mask8x64FromBits(y uint64) Mask8x64
 // Asm: KMOVB, CPU Features: AVX512
 func (x Mask8x64) ToBits() uint64
 
-// Mask16x32 is a 512-bit SIMD vector of 32 int16s.
+// Mask16x32 is a mask for a SIMD vector of 32 16-bit elements.
 type Mask16x32 struct {
 	int16x32 v512
 	vals     [32]int16
@@ -1107,7 +1107,7 @@ func Mask16x32FromBits(y uint32) Mask16x32
 // Asm: KMOVW, CPU Features: AVX512
 func (x Mask16x32) ToBits() uint32
 
-// Mask32x16 is a 512-bit SIMD vector of 16 int32s.
+// Mask32x16 is a mask for a SIMD vector of 16 32-bit elements.
 type Mask32x16 struct {
 	int32x16 v512
 	vals     [16]int32
@@ -1123,7 +1123,7 @@ func Mask32x16FromBits(y uint16) Mask32x16
 // Asm: KMOVD, CPU Features: AVX512
 func (x Mask32x16) ToBits() uint16
 
-// Mask64x8 is a 512-bit SIMD vector of 8 int64s.
+// Mask64x8 is a mask for a SIMD vector of 8 64-bit elements.
 type Mask64x8 struct {
 	int64x8 v512
 	vals    [8]int64

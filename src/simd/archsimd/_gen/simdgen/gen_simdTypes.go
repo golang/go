@@ -142,7 +142,11 @@ type v{{.}} struct {
 {{end}}
 
 {{define "typeTmpl"}}
+{{- if eq .Type "mask"}}
+// {{.Name}} is a mask for a SIMD vector of {{.Lanes}} {{.ElemBits}}-bit elements.
+{{- else}}
 // {{.Name}} is a {{.Size}}-bit SIMD vector of {{.Lanes}} {{.Base}}s.
+{{- end}}
 type {{.Name}} struct {
 {{.Fields}}
 }
