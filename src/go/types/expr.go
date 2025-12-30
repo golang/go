@@ -329,6 +329,22 @@ func (check *Checker) updateExprType(x ast.Expr, typ Type, final bool) {
 			check.updateExprType(x.Y, typ, final)
 		}
 
+	case *ast.TernaryExpr:
+		// For ternary expressions, update both branches to the result type
+		check.updateExprType(x.X, typ, final)
+		if x.Y != nil {
+			check.updateExprType(x.Y, typ, final)
+		}
+
+	case *ast.OptionalChainExpr:
+		// Optional chain result type doesn't affect the base expression
+		// No update needed for operands
+
+	case *ast.ElvisExpr:
+		// For elvis expressions, both sides should have the result type
+		check.updateExprType(x.X, typ, final)
+		check.updateExprType(x.Y, typ, final)
+
 	default:
 		panic("unreachable")
 	}
@@ -1199,51 +1215,64 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type)
 		}
 
 	case *ast.OptionalChainExpr:
-		// x?.sel
+		// x?.sel returns a pointer to the selected field (nil if x is nil)
+		// For x of type *T, x?.field returns *FieldType
+		// For chained calls like x?.a?.b where x?.a returns **A:
+		//   - The inner x?.a is processed first, returns **A
+		//   - The outer (x?.a)?.b receives **A as input, should dereference to A for lookup
+
 		check.exprOrType(x, e.X, false)
 		if x.mode == invalid {
 			goto Error
 		}
-		// x must be a pointer type
-		var base Type
-		if !underIs(x.typ, func(u Type) bool {
-			p, _ := u.(*Pointer)
-			if p == nil {
-				check.errorf(x, InvalidIndirection, "cannot use optional chaining on non-pointer type %s", x.typ)
-				return false
-			}
-			base = p.base
-			return true
-		}) {
-			goto Error
-		}
-		// Now select the field/method from the base type
-		obj, index, indirect := lookupFieldOrMethod(base, false, check.pkg, e.Sel.Name, false)
-		if obj == nil {
-			check.errorf(e.Sel, MissingFieldOrMethod, "%s.%s undefined (type %s has no field or method %s)", e.X, e.Sel.Name, base, e.Sel.Name)
-			goto Error
-		}
+
 		if x.mode == typexpr {
 			check.errorf(x, NotAnExpr, "%s is not an expression", x)
 			goto Error
 		}
+
+		// Dereference all pointer layers to get to the struct type
+		typ := x.typ
+		for {
+			if p, ok := typ.(*Pointer); ok {
+				typ = p.base
+				continue
+			}
+			u := under(typ)
+			if p, ok := u.(*Pointer); ok {
+				typ = p.base
+				continue
+			}
+			// Use under() result if it's different (for named types)
+			if u != typ {
+				typ = u
+			}
+			break
+		}
+
+		// typ should now be a struct or interface type
+		// Use lookupFieldOrMethod with addressable=true
+		obj, index, indirect := lookupFieldOrMethod(typ, true, check.pkg, e.Sel.Name, false)
+		if obj == nil {
+			check.errorf(e.Sel, MissingFieldOrMethod, "optional chain: %s.%s undefined (type %s has no field or method %s)", e.X, e.Sel.Name, typ, e.Sel.Name)
+			goto Error
+		}
+
 		switch obj := obj.(type) {
 		case *Var:
-			if indirect {
-				x.mode = variable
-			} else {
-				x.mode = value
-			}
-			// Result is a pointer to the field type
-			x.typ = &Pointer{base: obj.typ}
-		case *Func:
+			// Field access: result is a pointer to the field
 			x.mode = value
 			x.typ = &Pointer{base: obj.typ}
+		case *Func:
+			// Method: result is the method value
+			x.mode = value
+			x.typ = obj.typ
 		default:
 			panic("unreachable")
 		}
-		// Don't record selection for optional chain (not a real selector)
-		_ = index // unused
+
+		_ = index    // unused
+		_ = indirect // unused
 
 	case *ast.ElvisExpr:
 		// x ?: y  (nil coalescing with auto-deref)
