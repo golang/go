@@ -468,6 +468,14 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		if ch.mode == invalid || val.mode == invalid {
 			return
 		}
+		// MyGO extension: allow magic _send(v) on non-channel receivers.
+		// We avoid calling chanElem first to prevent spurious errors.
+		if _, ok := CoreType(ch.typ).(*Chan); !ok {
+			if _, sig, ok := check.lookupBestMagicMethod(ch.typ, "_send", []Type{val.typ}, 0, false); ok && sig.Params().Len() == 1 {
+				check.assignment(&val, sig.Params().At(0).Type(), "send")
+				return
+			}
+		}
 		if elem := check.chanElem(s, &ch, false); elem != nil {
 			check.assignment(&val, elem, "send")
 		}

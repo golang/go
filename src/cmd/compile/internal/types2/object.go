@@ -70,8 +70,48 @@ type Object interface {
 }
 
 func isExported(name string) bool {
+	// MyGO extension: Treat a small, well-known set of "magic method" names
+	// (e.g. _add/_getitem/_init/...) as exported so they can be referenced across
+	// packages and used in generic constraints.
+	//
+	// This intentionally does NOT make arbitrary leading-underscore identifiers
+	// exported: only recognized magic method bases (and their overload-suffixed
+	// forms like "_add_int", "_init_int_int", "_getitem_void", etc.).
+	if isMagicExported(name) {
+		return true
+	}
 	ch, _ := utf8.DecodeRuneInString(name)
 	return unicode.IsUpper(ch)
+}
+
+func isMagicExported(name string) bool {
+	// Never treat the blank identifier as exported.
+	if name == "_" || len(name) < 2 || name[0] != '_' {
+		return false
+	}
+
+	// Strip any overload suffix: "_add_int" -> "_add".
+	// We only care about the "base" magic name for export visibility.
+	base := name
+	if i := strings.IndexByte(name[1:], '_'); i >= 0 {
+		base = name[:1+i]
+	}
+
+	switch base {
+	case "_init", "_getitem", "_setitem",
+		"_add", "_sub", "_mul", "_div", "_mod",
+		"_radd", "_rsub", "_rmul", "_rdiv", "_rmod",
+		"_inc", "_dec",
+		"_pos", "_neg", "_invert",
+		"_eq", "_ne", "_gt", "_ge", "_lt", "_le",
+		"_or", "_ror", "_and", "_rand", "_xor", "_rxor",
+		"_lshift", "_rlshift", "_rshift", "_rrshift",
+		"_bitclear", "_rbitclear",
+		"_recv", "_send":
+		return true
+	default:
+		return false
+	}
 }
 
 // Id returns name if it is exported, otherwise it

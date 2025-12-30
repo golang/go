@@ -22,6 +22,189 @@ import (
 	"cmd/compile/internal/types2"
 )
 
+// --- MyGO: magic op fallback for writer ---
+//
+// The types2 checker can accept "magic" operator expressions (e.g. v + s)
+// even when operand types are not directly assignable, as long as a suitable
+// magic method exists (e.g. s._radd(v)).
+//
+// Normally, these are rewritten to explicit method calls in the post-types2
+// rewrite pass. However, to avoid internal compiler errors if any magic op
+// survives into the writer, we provide a last-resort lowering here.
+
+func magicBaseForBinaryOp(op syntax.Operator) (base, rev string) {
+	switch op {
+	case syntax.Add:
+		return "_add", "_radd"
+	case syntax.Sub:
+		return "_sub", "_rsub"
+	case syntax.Mul:
+		return "_mul", "_rmul"
+	case syntax.Div:
+		return "_div", "_rdiv"
+	case syntax.Rem:
+		return "_mod", "_rmod"
+	case syntax.And:
+		return "_and", "_rand"
+	case syntax.Or:
+		return "_or", "_ror"
+	case syntax.Xor:
+		return "_xor", "_rxor"
+	case syntax.AndNot:
+		return "_bitclear", "_rbitclear"
+	case syntax.Shl:
+		return "_lshift", "_rlshift"
+	case syntax.Shr:
+		return "_rshift", "_rrshift"
+
+	// Comparisons: reverse uses "mirror" method names.
+	case syntax.Eql:
+		return "_eq", "_eq"
+	case syntax.Neq:
+		return "_ne", "_ne"
+	case syntax.Lss:
+		return "_lt", "_gt"
+	case syntax.Leq:
+		return "_le", "_ge"
+	case syntax.Gtr:
+		return "_gt", "_lt"
+	case syntax.Geq:
+		return "_ge", "_le"
+	}
+	return "", ""
+}
+
+func isMagicOverloadNameWriter(name, base string) bool {
+	return name == base || strings.HasPrefix(name, base+"_")
+}
+
+func collectMagicCandidateNamesWriter(recv types2.Type, base string) []string {
+	seen := make(map[string]bool)
+	var out []string
+	add := func(n string) {
+		if !isMagicOverloadNameWriter(n, base) {
+			return
+		}
+		if !seen[n] {
+			seen[n] = true
+			out = append(out, n)
+		}
+	}
+	if n, _ := types2.Unalias(recv).(*types2.Named); n != nil {
+		for i := 0; i < n.NumMethods(); i++ {
+			m := n.Method(i)
+			if m != nil {
+				add(m.Name())
+			}
+		}
+	} else if p, _ := types2.Unalias(recv).(*types2.Pointer); p != nil {
+		if n, _ := types2.Unalias(p.Elem()).(*types2.Named); n != nil {
+			for i := 0; i < n.NumMethods(); i++ {
+				m := n.Method(i)
+				if m != nil {
+					add(m.Name())
+				}
+			}
+		}
+	}
+	if it, _ := types2.CoreType(recv).(*types2.Interface); it != nil {
+		for i := 0; i < it.NumMethods(); i++ {
+			m := it.Method(i)
+			if m != nil {
+				add(m.Name())
+			}
+		}
+	}
+	add(base)
+	return out
+}
+
+func pickMagicMethodWriter(pkg *types2.Package, recv types2.Type, base string, arg types2.Type, wantBool bool) (name string, sig *types2.Signature, ok bool) {
+	bestScore := -1
+	for _, cand := range collectMagicCandidateNamesWriter(recv, base) {
+		obj, _, _ := types2.LookupFieldOrMethod(recv, false, pkg, cand)
+		fn, _ := obj.(*types2.Func)
+		if fn == nil {
+			continue
+		}
+		s, _ := fn.Type().(*types2.Signature)
+		if s == nil {
+			continue
+		}
+		if s.Params().Len() != 1 || s.Results().Len() != 1 {
+			continue
+		}
+		if wantBool && !types2.Identical(s.Results().At(0).Type(), types2.Typ[types2.Bool]) {
+			continue
+		}
+		pt := s.Params().At(0).Type()
+		if pt == nil || arg == nil {
+			continue
+		}
+		score := 0
+		if types2.Identical(arg, pt) {
+			score = 3
+		} else if types2.AssignableTo(arg, pt) {
+			score = 2
+		} else {
+			continue
+		}
+		if score > bestScore {
+			bestScore = score
+			name = cand
+			sig = s
+			ok = true
+		}
+	}
+	return
+}
+
+func pickMagicSendMethodWriter(pkg *types2.Package, recv types2.Type, arg types2.Type) (name string, sig *types2.Signature, ok bool) {
+	// _send(v): 1 parameter, 0 results
+	bestScore := -1
+	for _, cand := range collectMagicCandidateNamesWriter(recv, "_send") {
+		obj, _, _ := types2.LookupFieldOrMethod(recv, false, pkg, cand)
+		fn, _ := obj.(*types2.Func)
+		if fn == nil {
+			continue
+		}
+		s, _ := fn.Type().(*types2.Signature)
+		if s == nil {
+			continue
+		}
+		if s.Params().Len() != 1 || s.Results().Len() != 0 {
+			continue
+		}
+		pt := s.Params().At(0).Type()
+		if pt == nil || arg == nil {
+			continue
+		}
+		score := 0
+		if types2.Identical(arg, pt) {
+			score = 3
+		} else if types2.AssignableTo(arg, pt) {
+			score = 2
+		} else {
+			continue
+		}
+		if score > bestScore {
+			bestScore = score
+			name = cand
+			sig = s
+			ok = true
+		}
+	}
+	return
+}
+
+func isComparisonOpWriter(op syntax.Operator) bool {
+	switch op {
+	case syntax.Eql, syntax.Neq, syntax.Lss, syntax.Leq, syntax.Gtr, syntax.Geq:
+		return true
+	}
+	return false
+}
+
 // This file implements the Unified IR package writer and defines the
 // Unified IR export data format.
 //
@@ -1492,12 +1675,41 @@ func (w *writer) stmt1(stmt syntax.Stmt) {
 		w.selectStmt(stmt)
 
 	case *syntax.SendStmt:
-		chanType := types2.CoreType(w.p.typeOf(stmt.Chan)).(*types2.Chan)
+		chtyp := w.p.typeOf(stmt.Chan)
+		if chanType, ok := types2.CoreType(chtyp).(*types2.Chan); ok {
+			w.Code(stmtSend)
+			w.pos(stmt)
+			w.expr(stmt.Chan)
+			w.implicitConvExpr(chanType.Elem(), stmt.Value)
+			return
+		}
 
-		w.Code(stmtSend)
-		w.pos(stmt)
-		w.expr(stmt.Chan)
-		w.implicitConvExpr(chanType.Elem(), stmt.Value)
+		// MyGO fallback: types2 may accept "x <- v" if x has a magic _send(v) method.
+		// If the post-types2 rewrite didn't lower this SendStmt into an ExprStmt call,
+		// lower it here to avoid panicking on a non-chan type.
+		valtyp := w.p.typeOf(stmt.Value)
+		if mname, sig, ok := pickMagicSendMethodWriter(w.p.curpkg, chtyp, valtyp); ok && sig != nil {
+			sel := &syntax.SelectorExpr{X: stmt.Chan, Sel: syntax.NewName(stmt.Pos(), mname)}
+			sel.SetPos(stmt.Pos())
+			selInfo, ok := types2.LookupSelection(chtyp, false, w.p.curpkg, mname)
+			if !ok {
+				w.p.fatalf(stmt, "missing selection for %v.%s (recv type %v)", stmt.Chan, mname, chtyp)
+			}
+			w.p.info.Selections[sel] = &selInfo
+			// CallExpr encoding reads type info for expr.Fun (selector).
+			tvSel := syntax.TypeAndValue{Type: selInfo.Type()}
+			tvSel.SetIsValue()
+			sel.SetTypeInfo(tvSel)
+			call := &syntax.CallExpr{Fun: sel, ArgList: []syntax.Expr{stmt.Value}}
+			call.SetPos(stmt.Pos())
+			// CallExpr encoding expects expr.Type to be the signature type.
+			call.SetTypeInfo(syntax.TypeAndValue{Type: selInfo.Type()})
+
+			w.Code(stmtExpr)
+			w.expr(call)
+			return
+		}
+		w.p.fatalf(stmt, "invalid send: %v (type %v) <- %v (type %v)", stmt.Chan, chtyp, stmt.Value, valtyp)
 
 	case *syntax.SwitchStmt:
 		w.Code(stmtSwitch)
@@ -1940,7 +2152,11 @@ func (w *writer) expr(expr syntax.Expr) {
 		// an expression of type "go.shape.*uint8", but need to reshape it
 		// to another shape-identical type to allow use in field
 		// selection, indexing, etc.
-		if typ := tv.Type; !tv.IsBuiltin() && !isTuple(typ) && !isUntyped(typ) {
+		//
+		// Important: exprReshape is only valid for shape types. At this stage,
+		// tv.Type is a syntax.Type (not cmd/compile/internal/types.Type), so we
+		// conservatively detect shape types by their printed form.
+		if typ := tv.Type; typ != nil && strings.Contains(typ.String(), "go.shape.") && !tv.IsBuiltin() && !isTuple(typ) && !isUntyped(typ) {
 			w.Code(exprReshape)
 			w.typ(typ)
 			// fallthrough
@@ -2136,6 +2352,47 @@ func (w *writer) expr(expr syntax.Expr) {
 			case types2.AssignableTo(ytyp, xtyp):
 				commonType = xtyp
 			default:
+				// MyGO fallback: treat as magic op and lower to method call if possible.
+				if base, rev := magicBaseForBinaryOp(expr.Op); base != "" {
+					wantBool := isComparisonOpWriter(expr.Op)
+					// Try forward on lhs.
+					if mname, _, ok := pickMagicMethodWriter(w.p.curpkg, xtyp, base, ytyp, wantBool); ok {
+						sel := &syntax.SelectorExpr{X: expr.X, Sel: syntax.NewName(expr.Pos(), mname)}
+						sel.SetPos(expr.Pos())
+						// Populate selection info so writer can encode the selector.
+						selInfo, ok := types2.LookupSelection(xtyp, false, w.p.curpkg, mname)
+						if !ok {
+							w.p.fatalf(expr, "missing selection for %v.%s (recv type %v)", expr.X, mname, xtyp)
+						}
+						w.p.info.Selections[sel] = &selInfo
+						tvSel := syntax.TypeAndValue{Type: selInfo.Type()}
+						tvSel.SetIsValue()
+						sel.SetTypeInfo(tvSel)
+						call := &syntax.CallExpr{Fun: sel, ArgList: []syntax.Expr{expr.Y}}
+						call.SetPos(expr.Pos())
+						call.SetTypeInfo(syntax.TypeAndValue{Type: selInfo.Type()})
+						w.expr(call)
+						return
+					}
+					// Try reverse/mirror on rhs.
+					if mname, _, ok := pickMagicMethodWriter(w.p.curpkg, ytyp, rev, xtyp, wantBool); ok {
+						sel := &syntax.SelectorExpr{X: expr.Y, Sel: syntax.NewName(expr.Pos(), mname)}
+						sel.SetPos(expr.Pos())
+						selInfo, ok := types2.LookupSelection(ytyp, false, w.p.curpkg, mname)
+						if !ok {
+							w.p.fatalf(expr, "missing selection for %v.%s (recv type %v)", expr.Y, mname, ytyp)
+						}
+						w.p.info.Selections[sel] = &selInfo
+						tvSel := syntax.TypeAndValue{Type: selInfo.Type()}
+						tvSel.SetIsValue()
+						sel.SetTypeInfo(tvSel)
+						call := &syntax.CallExpr{Fun: sel, ArgList: []syntax.Expr{expr.X}}
+						call.SetPos(expr.Pos())
+						call.SetTypeInfo(syntax.TypeAndValue{Type: selInfo.Type()})
+						w.expr(call)
+						return
+					}
+				}
 				w.p.fatalf(expr, "failed to find common type between %v and %v", xtyp, ytyp)
 			}
 		}

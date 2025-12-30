@@ -12,7 +12,204 @@ import (
 	"go/constant"
 	"go/token"
 	. "internal/types/errors"
+	"strings"
 )
+
+// isMagicOverloadName reports whether name is base or base_... (overload-suffixed).
+func isMagicOverloadName(name, base string) bool {
+	if name == base {
+		return true
+	}
+	return strings.HasPrefix(name, base+"_")
+}
+
+// opToReverseMagic returns the reverse (right-hand-side) magic method name to try
+// if the left-hand-side doesn't provide a matching magic method.
+//
+// This mirrors the "reverse operator" rule in MyGO's README.
+func opToReverseMagic(op syntax.Operator) string {
+	switch op {
+	case syntax.Add:
+		return "_radd"
+	case syntax.Sub:
+		return "_rsub"
+	case syntax.Mul:
+		return "_rmul"
+	case syntax.Div:
+		return "_rdiv"
+	case syntax.Rem:
+		return "_rmod"
+	case syntax.And:
+		return "_rand"
+	case syntax.Or:
+		return "_ror"
+	case syntax.Xor:
+		return "_rxor"
+	case syntax.AndNot:
+		return "_rbitclear"
+	case syntax.Shl:
+		return "_rlshift"
+	case syntax.Shr:
+		return "_rrshift"
+	// Comparisons use "mirror" fallback.
+	case syntax.Eql:
+		return "_eq"
+	case syntax.Neq:
+		return "_ne"
+	case syntax.Lss:
+		return "_gt"
+	case syntax.Leq:
+		return "_ge"
+	case syntax.Gtr:
+		return "_lt"
+	case syntax.Geq:
+		return "_le"
+	}
+	return ""
+}
+
+// lookupBestMagicMethod resolves a magic method possibly with overload suffixes.
+// It selects the best candidate among methods named base or base_* on recvType.
+//
+// It returns (fn, sig, ok). The returned signature is guaranteed non-nil.
+func (check *Checker) lookupBestMagicMethod(recvType Type, base string, argTypes []Type, wantResults int, wantBoolResult bool) (*Func, *Signature, bool) {
+	// Collect candidate names from the receiver's declared method list / interface method set.
+	// We intentionally don't rely on LookupFieldOrMethod for discovery because overloads
+	// are encoded in the name (base_...).
+	candidateNames := make([]string, 0, 4)
+	seen := make(map[string]bool)
+
+	add := func(name string) {
+		if !isMagicOverloadName(name, base) {
+			return
+		}
+		if !seen[name] {
+			seen[name] = true
+			candidateNames = append(candidateNames, name)
+		}
+	}
+
+	// Named / pointer-to-named: scan declared methods.
+	if named := asNamed(recvType); named != nil {
+		for i := 0; i < named.NumMethods(); i++ {
+			m := named.Method(i)
+			if m != nil {
+				add(m.Name())
+			}
+		}
+	} else if p, _ := recvType.(*Pointer); p != nil {
+		if named := asNamed(p.base); named != nil {
+			for i := 0; i < named.NumMethods(); i++ {
+				m := named.Method(i)
+				if m != nil {
+					add(m.Name())
+				}
+			}
+		}
+	}
+
+	// Interface / type parameter constraint interface: scan method set.
+	if it, _ := under(recvType).(*Interface); it != nil {
+		for i := 0; i < it.NumMethods(); i++ {
+			m := it.Method(i)
+			if m != nil {
+				add(m.Name())
+			}
+		}
+	}
+
+	if len(candidateNames) == 0 {
+		// Fast path: no overloads discovered; still try the base name in case it's synthesized
+		// (e.g. basic types) and not present in declared methods list.
+		candidateNames = append(candidateNames, base)
+	}
+
+	bestScore := -1
+	var bestFn *Func
+	var bestSig *Signature
+
+	// Helper: does argTypes match signature params (considering variadic).
+	match := func(sig *Signature) (score int, ok bool) {
+		if sig == nil {
+			return 0, false
+		}
+		if sig.Results().Len() != wantResults {
+			return 0, false
+		}
+		if wantBoolResult {
+			if sig.Results().Len() != 1 || !Identical(sig.Results().At(0).Type(), Typ[Bool]) {
+				return 0, false
+			}
+		}
+
+		nargs := len(argTypes)
+		npars := sig.Params().Len()
+		if !sig.Variadic() {
+			if npars != nargs {
+				return 0, false
+			}
+		} else {
+			// We only support typical variadic forms where the last param is ...T.
+			// For our magic methods, we primarily rely on this for indexing (_getitem(...int), etc.).
+			if npars == 0 || nargs < npars-1 {
+				return 0, false
+			}
+		}
+
+		score = 0
+		// Score each argument against its corresponding parameter.
+		for i := 0; i < nargs; i++ {
+			var ptyp Type
+			if sig.Variadic() && i >= npars-1 {
+				// variadic: last param must be a slice; match against its element type.
+				if sl, _ := sig.Params().At(npars - 1).Type().(*Slice); sl != nil {
+					ptyp = sl.elem
+				} else {
+					// unexpected, be conservative
+					ptyp = sig.Params().At(npars - 1).Type()
+				}
+			} else {
+				ptyp = sig.Params().At(i).Type()
+			}
+			atyp := argTypes[i]
+			if !isValid(atyp) || !isValid(ptyp) {
+				return 0, false
+			}
+			if Identical(atyp, ptyp) {
+				score += 3
+				continue
+			}
+			if AssignableTo(atyp, ptyp) {
+				score += 2
+				continue
+			}
+			return 0, false
+		}
+		return score, true
+	}
+
+	for _, name := range candidateNames {
+		obj, _, _ := LookupFieldOrMethod(recvType, false, check.pkg, name)
+		fn, _ := obj.(*Func)
+		if fn == nil {
+			continue
+		}
+		sig, _ := fn.Type().(*Signature)
+		if sig == nil {
+			continue
+		}
+		if s, ok := match(sig); ok && s > bestScore {
+			bestScore = s
+			bestFn = fn
+			bestSig = sig
+		}
+	}
+
+	if bestFn == nil || bestSig == nil {
+		return nil, nil, false
+	}
+	return bestFn, bestSig, true
+}
 
 /*
 Basic algorithm:
@@ -148,6 +345,16 @@ func (check *Checker) unary(x *operand, e *syntax.Operation) {
 		return
 
 	case syntax.Recv:
+		// Prefer native receive for real channels; otherwise, try magic _recv().
+		if _, ok := CoreType(x.typ).(*Chan); !ok {
+			if _, sig, ok := check.lookupBestMagicMethod(x.typ, "_recv", nil, 1, false); ok {
+				x.mode = value
+				x.typ = sig.Results().At(0).Type()
+				x.expr = e
+				check.hasCallOrRecv = true
+				return
+			}
+		}
 		if elem := check.chanElem(x, x, true); elem != nil {
 			x.mode = commaok
 			x.typ = elem
@@ -166,6 +373,28 @@ func (check *Checker) unary(x *operand, e *syntax.Operation) {
 		}
 		check.error(e, UndefinedOp, "cannot use ~ outside of interface or type constraint (use ^ for bitwise complement)")
 		op = syntax.Xor
+	}
+
+	// MyGO extension: magic unary methods for non-constant operands.
+	// Allow +a/-a/^a to typecheck if a has _pos/_neg/_invert (incl. overload-suffixed) methods.
+	if x.mode != constant_ {
+		var mname string
+		switch op {
+		case syntax.Add:
+			mname = "_pos"
+		case syntax.Sub:
+			mname = "_neg"
+		case syntax.Xor:
+			mname = "_invert"
+		}
+		if mname != "" {
+			if _, sig, ok := check.lookupBestMagicMethod(x.typ, mname, nil, 1, false); ok {
+				x.mode = value
+				x.typ = sig.Results().At(0).Type()
+				x.expr = e
+				return
+			}
+		}
 	}
 
 	if !check.op(unaryOpPredicates, x, op) {
@@ -829,32 +1058,38 @@ func (check *Checker) binary(x *operand, e syntax.Expr, lhs, rhs syntax.Expr, op
 	// magic method support
 	if !(isConst || isNil) {
 		if magic := opToMagic(op); magic != "" {
-			// find magic method (e.g. _add) in x.typ
-			obj, _, _ := LookupFieldOrMethod(x.typ, false, check.pkg, magic)
+			wantBool := isComparison(op)
 
-			// check: must be a function, and the signature must be符合要求 (1个参数，1个返回值)
-			if fn, ok := obj.(*Func); ok {
-				if sig, ok := fn.Type().(*Signature); ok {
-					if sig.Params().Len() == 1 && sig.Results().Len() == 1 {
-						// set result mode to value
-						x.mode = value
+			// Prefer forward method on lhs (e.g. a._add(b)).
+			if fn, sig, ok := check.lookupBestMagicMethod(x.typ, magic, []Type{y.typ}, 1, wantBool); ok {
+				x.mode = value
+				x.typ = sig.Results().At(0).Type()
+				// ensure x.expr points to the correct AST node (for subsequent Noder rewrite)
+				if e != nil {
+					x.expr = e
+				} else {
+					opNode := &syntax.Operation{Op: op, X: lhs, Y: rhs}
+					opNode.SetPos(lhs.Pos())
+					x.expr = opNode
+				}
+				_ = fn // fn is used for selection only; signature/result drives typing here.
+				return
+			}
 
-						// result type = magic method's return value type (e.g. Number)
-						x.typ = sig.Results().At(0).Type()
-
-						// ensure x.expr points to the correct AST node (for subsequent Noder rewrite)
-						if e != nil {
-							x.expr = e
-						} else {
-							// if e is nil (e.g. implicit assignment), create a new Operation node
-							opNode := &syntax.Operation{Op: op, X: lhs, Y: rhs}
-							// line number!!!
-							opNode.SetPos(lhs.Pos())
-							x.expr = opNode
-						}
-						// intercept successfully, return immediately, skip subsequent standard type checking
-						return
+			// Fallback to reverse method on rhs (e.g. b._radd(a) / mirror comparisons).
+			if rmagic := opToReverseMagic(op); rmagic != "" {
+				if fn, sig, ok := check.lookupBestMagicMethod(y.typ, rmagic, []Type{x.typ}, 1, wantBool); ok {
+					x.mode = value
+					x.typ = sig.Results().At(0).Type()
+					if e != nil {
+						x.expr = e
+					} else {
+						opNode := &syntax.Operation{Op: op, X: lhs, Y: rhs}
+						opNode.SetPos(lhs.Pos())
+						x.expr = opNode
 					}
+					_ = fn
+					return
 				}
 			}
 		}

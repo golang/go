@@ -47,6 +47,64 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 		return false
 	}
 
+	// MyGO extension: support "magic" indexing by typechecking a[x] as a call to
+	// x._getitem(...). This is primarily needed for:
+	// - cross-package operator/index sugar where the syntax pass can't see methods
+	// - generic constraints where the receiver is a type parameter or interface
+	//
+	// We keep native indexing semantics for built-in indexable types by only
+	// falling back to magic _getitem when native indexing doesn't apply, and by
+	// opportunistically handling comma-index syntax which Go doesn't natively support.
+	tryMagicIndex := func(argExprs []syntax.Expr) bool {
+		if len(argExprs) == 0 {
+			return false
+		}
+		argTypes := make([]Type, 0, len(argExprs))
+		for _, a := range argExprs {
+			var ax operand
+			check.expr(nil, &ax, a)
+			if ax.mode == invalid {
+				return false
+			}
+			argTypes = append(argTypes, ax.typ)
+		}
+		_, sig, ok := check.lookupBestMagicMethod(x.typ, "_getitem", argTypes, 1, false)
+		if !ok {
+			return false
+		}
+		// Treat like slice indexing: assignable (for later _setitem lowering).
+		x.mode = variable
+		x.typ = sig.Results().At(0).Type()
+		x.expr = e
+		return true
+	}
+
+	// Special-case comma syntax early to avoid Go's "more than one index" error
+	// when the receiver actually supports magic _getitem.
+	if list, _ := e.Index.(*syntax.ListExpr); list != nil && len(list.ElemList) > 1 {
+		// Prefer slice-form first (each elem is a single arg); if that doesn't match,
+		// flatten any "index slice literals" (SliceExpr with X==nil) into scalar args.
+		if tryMagicIndex(list.ElemList) {
+			return false
+		}
+		flat := make([]syntax.Expr, 0, len(list.ElemList))
+		for _, elem := range list.ElemList {
+			if se, _ := elem.(*syntax.SliceExpr); se != nil && se.X == nil {
+				for _, idx := range se.Index {
+					if idx != nil {
+						flat = append(flat, idx)
+					}
+				}
+				continue
+			}
+			flat = append(flat, elem)
+		}
+		if tryMagicIndex(flat) {
+			return false
+		}
+		// Fall through to Go's diagnostics if magic resolution fails.
+	}
+
 	// ordinary index expression
 	valid := false
 	length := int64(-1) // valid if >= 0
@@ -183,6 +241,13 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 	}
 
 	if !valid {
+		// Fallback: if native indexing didn't apply, try magic _getitem for single-index forms.
+		// (Comma/list indices were handled earlier.)
+		if e.Index != nil {
+			if tryMagicIndex([]syntax.Expr{e.Index}) {
+				return false
+			}
+		}
 		check.errorf(e.Pos(), NonSliceableOperand, "cannot index %s", x)
 		check.use(e.Index)
 		x.mode = invalid
@@ -207,6 +272,26 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 }
 
 func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
+	// MyGO extension: "index tuple" slice syntax inside comma indexing.
+	//
+	// The parser can produce SliceExpr nodes without an X (e.g. in a[1:2, 3:4]),
+	// which are not valid Go slice expressions. In MyGO, these are treated as an
+	// index descriptor that will be lowered to a []int literal later.
+	//
+	// Typecheck it as a []int value so overload resolution can distinguish between
+	// _getitem(i, j int) and _getitem(...[]int) styles.
+	if e.X == nil {
+		for _, idx := range e.Index {
+			if idx != nil {
+				check.index(idx, -1)
+			}
+		}
+		x.mode = value
+		x.typ = NewSlice(Typ[Int])
+		x.expr = e
+		return
+	}
+
 	check.expr(nil, x, e.X)
 	if x.mode == invalid {
 		check.use(e.Index[:]...)
@@ -306,6 +391,35 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
 	}
 
 	if !valid {
+		// MyGO extension: allow slice syntax as magic _getitem call on non-sliceable receivers.
+		// Lowering will later turn a[x:y:z] into a._getitem(x, y, z) (omitting nil indices).
+		args := make([]syntax.Expr, 0, 3)
+		for _, idx := range e.Index {
+			if idx != nil {
+				args = append(args, idx)
+			}
+		}
+		if len(args) > 0 {
+			argTypes := make([]Type, 0, len(args))
+			ok := true
+			for _, a := range args {
+				var ax operand
+				check.expr(nil, &ax, a)
+				if ax.mode == invalid {
+					ok = false
+					break
+				}
+				argTypes = append(argTypes, ax.typ)
+			}
+			if ok {
+				if _, sig, ok := check.lookupBestMagicMethod(x.typ, "_getitem", argTypes, 1, false); ok {
+					x.mode = value
+					x.typ = sig.Results().At(0).Type()
+					x.expr = e
+					return
+				}
+			}
+		}
 		check.errorf(x, NonSliceableOperand, "cannot slice %s", x)
 		x.mode = invalid
 		return

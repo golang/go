@@ -346,6 +346,19 @@ func writePkgStub(m posMap, noders []*noder) string {
 	_ = pkg1
 	_ = info1
 
+	// Pass 2: typecheck lowered code (but DO NOT run rangefunc rewrite yet).
+	// We need full cross-package type info to do our own post-types2 magic lowering,
+	// and we must do that lowering *before* rangefunc rewrite, because rangefunc
+	// injects synthetic FuncLits with intentionally empty FuncType nodes that should
+	// not be re-typechecked.
+	pkg, info, _ := checkFilesWith(m, noders, ctxt, &importer, false)
+
+	// Post-types2 rewrite: enable cross-package syntax sugar (magic methods, make ctor, etc.)
+	// using full type information.
+	rewriteMagicPostTypes2(noders, pkg, info)
+
+	// Pass 3 (final): re-typecheck after our rewrite to populate TypeInfo on new nodes,
+	// then run rangefunc rewrite once at the end. Do NOT run any further types2 passes.
 	pkg, info, otherInfo := checkFilesWith(m, noders, ctxt, &importer, true)
 
 	pw := newPkgWriter(m, pkg, info, otherInfo)

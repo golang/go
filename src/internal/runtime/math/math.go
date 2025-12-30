@@ -17,7 +17,9 @@ const (
 // MulUintptr returns a * b and whether the multiplication overflowed.
 // On supported platforms this is an intrinsic lowered by the compiler.
 func MulUintptr(a, b uintptr) (uintptr, bool) {
-	if a|b < 1<<(4*goarch.PtrSize) || a == 0 {
+	// Keep the comparison in uintptr space to avoid any dependency on how
+	// untyped shift constants are defaulted during type checking.
+	if a|b < uintptr(1)<<(4*goarch.PtrSize) || a == 0 {
 		return a * b, false
 	}
 	overflow := b > MaxUintptr/a
