@@ -182,12 +182,14 @@ var nzero = -zero
 var inf = 1 / zero
 var ninf = -1 / zero
 var nan = math.NaN()
+var snan32 = math.Float32frombits(0x7f800001)
+var snan64 = math.Float64frombits(0x7ff0000000000001)
 
 // N controls how large the test vectors are
 const N = 144
 
-var float32s = nOf(N, []float32{float32(inf), float32(ninf), 1, float32(nan), float32(zero), 2, float32(nan), float32(zero), 3, float32(-zero), float32(1.0 / zero), float32(-1.0 / zero), 1.0 / 2, 1.0 / 4, 1.0 / 8, 1.0 / 1000, 1.0 / 1000000, 1, -1, 0, 2, -2, 3, -3, math.MaxFloat32, 1 / math.MaxFloat32, 10, -10, 100, 20, -20, 300, -300, -4000, -80, -160, -3200, -64, -4, -8, -16, -32, -64})
-var float64s = nOf(N, []float64{inf, ninf, nan, zero, -zero, 1 / zero, -1 / zero, 0.0001, 0.0000001, 1, -1, 0, 2, -2, 3, -3, math.MaxFloat64, 1.0 / math.MaxFloat64, 10, -10, 100, 20, -20, 300, -300, -4000, -80, -16, -32, -64})
+var float32s = nOf(N, []float32{float32(inf), float32(ninf), 1, float32(nan), snan32, -float32(nan), -snan32, float32(zero), 2, float32(nan), float32(zero), 3, float32(-zero), float32(1.0 / zero), float32(-1.0 / zero), 1.0 / 2, 1.0 / 4, 1.0 / 8, 1.0 / 1000, 1.0 / 1000000, 1, -1, 0, 2, -2, 3, -3, math.MaxFloat32, 1 / math.MaxFloat32, 10, -10, 100, 20, -20, 300, -300, -4000, -80, -160, -3200, -64, -4, -8, -16, -32, -64})
+var float64s = nOf(N, []float64{inf, ninf, nan, snan64, -nan, -snan64, zero, -zero, 1 / zero, -1 / zero, 0.0001, 0.0000001, 1, -1, 0, 2, -2, 3, -3, math.MaxFloat64, 1.0 / math.MaxFloat64, 10, -10, 100, 20, -20, 300, -300, -4000, -80, -16, -32, -64})
 
 var int32s = nOf(N, []int32{1, -1, 0, 2, 4, 8, 1024, 0xffffff, -0xffffff, 0x55555, 0x77777, 0xccccc, -0x55555, -0x77777, -0xccccc, -4, -8, -16, -32, -64})
 var uint32s = nOf(N, []uint32{1, 0, 2, 4, 8, 1024, 0xffffff, ^uint32(0xffffff), 0x55555, 0x77777, 0xccccc, ^uint32(0x55555), ^uint32(0x77777), ^uint32(0xccccc)})

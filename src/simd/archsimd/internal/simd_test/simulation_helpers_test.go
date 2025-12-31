@@ -29,6 +29,10 @@ func notEqual[T number](x, y T) bool {
 	return x != y
 }
 
+func isNaN[T float](x T) bool {
+	return x != x
+}
+
 func abs[T number](x T) T {
 	// TODO this will need a non-standard FP-equality test.
 	if x == 0 { // true if x is -0.
@@ -297,6 +301,15 @@ func equalSlice[T number](x, y []T) []int64 {
 
 func notEqualSlice[T number](x, y []T) []int64 {
 	return mapCompare[T](notEqual)(x, y)
+}
+
+func isNaNSlice[T float](x []T) []int64 {
+	return map1[T](func(x T) int64 {
+		if isNaN(x) {
+			return -1
+		}
+		return 0
+	})(x)
 }
 
 func ceilSlice[T float](x []T) []T {

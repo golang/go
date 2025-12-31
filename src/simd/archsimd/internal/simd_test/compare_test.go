@@ -298,3 +298,15 @@ func TestNotEqual(t *testing.T) {
 		testUint64x8Compare(t, archsimd.Uint64x8.NotEqual, notEqualSlice[uint64])
 	}
 }
+
+func TestIsNaN(t *testing.T) {
+	testFloat32x4UnaryCompare(t, archsimd.Float32x4.IsNaN, isNaNSlice[float32])
+	testFloat32x8UnaryCompare(t, archsimd.Float32x8.IsNaN, isNaNSlice[float32])
+	testFloat64x2UnaryCompare(t, archsimd.Float64x2.IsNaN, isNaNSlice[float64])
+	testFloat64x4UnaryCompare(t, archsimd.Float64x4.IsNaN, isNaNSlice[float64])
+
+	if archsimd.X86.AVX512() {
+		testFloat32x16UnaryCompare(t, archsimd.Float32x16.IsNaN, isNaNSlice[float32])
+		testFloat64x8UnaryCompare(t, archsimd.Float64x8.IsNaN, isNaNSlice[float64])
+	}
+}
