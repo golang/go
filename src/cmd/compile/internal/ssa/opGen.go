@@ -6158,6 +6158,12 @@ const (
 	OpCvtMask64x4to8
 	OpCvtMask64x8to8
 	OpIsZeroVec
+	OpIsNaNFloat32x4
+	OpIsNaNFloat32x8
+	OpIsNaNFloat32x16
+	OpIsNaNFloat64x2
+	OpIsNaNFloat64x4
+	OpIsNaNFloat64x8
 	OpAESDecryptLastRoundUint8x16
 	OpAESDecryptLastRoundUint8x32
 	OpAESDecryptLastRoundUint8x64
@@ -6673,12 +6679,6 @@ const (
 	OpInterleaveLoUint16x8
 	OpInterleaveLoUint32x4
 	OpInterleaveLoUint64x2
-	OpIsNanFloat32x4
-	OpIsNanFloat32x8
-	OpIsNanFloat32x16
-	OpIsNanFloat64x2
-	OpIsNanFloat64x4
-	OpIsNanFloat64x8
 	OpLeadingZerosInt32x4
 	OpLeadingZerosInt32x8
 	OpLeadingZerosInt32x16
@@ -88994,6 +88994,36 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "IsNaNFloat32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "IsNaNFloat32x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "IsNaNFloat32x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "IsNaNFloat64x2",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "IsNaNFloat64x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "IsNaNFloat64x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
 		name:    "AESDecryptLastRoundUint8x16",
 		argLen:  2,
 		generic: true,
@@ -91669,42 +91699,6 @@ var opcodeTable = [...]opInfo{
 		name:    "InterleaveLoUint64x2",
 		argLen:  2,
 		generic: true,
-	},
-	{
-		name:        "IsNanFloat32x4",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "IsNanFloat32x8",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "IsNanFloat32x16",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "IsNanFloat64x2",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "IsNanFloat64x4",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "IsNanFloat64x8",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
 	},
 	{
 		name:    "LeadingZerosInt32x4",

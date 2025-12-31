@@ -3446,38 +3446,6 @@ func (x Uint64x4) InterleaveLoGrouped(y Uint64x4) Uint64x4
 // Asm: VPUNPCKLQDQ, CPU Feature: AVX512
 func (x Uint64x8) InterleaveLoGrouped(y Uint64x8) Uint64x8
 
-/* IsNan */
-
-// IsNan checks if elements are NaN. Use as x.IsNan(x).
-//
-// Asm: VCMPPS, CPU Feature: AVX
-func (x Float32x4) IsNan(y Float32x4) Mask32x4
-
-// IsNan checks if elements are NaN. Use as x.IsNan(x).
-//
-// Asm: VCMPPS, CPU Feature: AVX
-func (x Float32x8) IsNan(y Float32x8) Mask32x8
-
-// IsNan checks if elements are NaN. Use as x.IsNan(x).
-//
-// Asm: VCMPPS, CPU Feature: AVX512
-func (x Float32x16) IsNan(y Float32x16) Mask32x16
-
-// IsNan checks if elements are NaN. Use as x.IsNan(x).
-//
-// Asm: VCMPPD, CPU Feature: AVX
-func (x Float64x2) IsNan(y Float64x2) Mask64x2
-
-// IsNan checks if elements are NaN. Use as x.IsNan(x).
-//
-// Asm: VCMPPD, CPU Feature: AVX
-func (x Float64x4) IsNan(y Float64x4) Mask64x4
-
-// IsNan checks if elements are NaN. Use as x.IsNan(x).
-//
-// Asm: VCMPPD, CPU Feature: AVX512
-func (x Float64x8) IsNan(y Float64x8) Mask64x8
-
 /* LeadingZeros */
 
 // LeadingZeros counts the leading zeros of each element in x.

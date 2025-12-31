@@ -21,11 +21,6 @@
   commutative: false
   documentation: !string |-
     // NAME returns a mask whose elements indicate whether x <= y.
-- go: IsNan # For float only.
-  constImm: 3
-  commutative: true
-  documentation: !string |-
-    // NAME checks if elements are NaN. Use as x.IsNan(x).
 - go: NotEqual
   constImm: 4
   commutative: true

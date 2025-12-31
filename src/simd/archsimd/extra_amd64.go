@@ -143,3 +143,39 @@ func (x Uint64x2) IsZero() bool
 //
 // Asm: VPTEST, CPU Feature: AVX
 func (x Uint64x4) IsZero() bool
+
+// IsNaN returns a mask whose elements indicate whether the corresponding
+// elements of x are NaN.
+//
+// Asm: VCMPPS, CPU Feature: AVX
+func (x Float32x4) IsNaN() Mask32x4
+
+// IsNaN returns a mask whose elements indicate whether the corresponding
+// elements of x are NaN.
+//
+// Asm: VCMPPS, CPU Feature: AVX
+func (x Float32x8) IsNaN() Mask32x8
+
+// IsNaN returns a mask whose elements indicate whether the corresponding
+// elements of x are NaN.
+//
+// Asm: VCMPPS, CPU Feature: AVX512
+func (x Float32x16) IsNaN() Mask32x16
+
+// IsNaN returns a mask whose elements indicate whether the corresponding
+// elements of x are NaN.
+//
+// Asm: VCMPPD, CPU Feature: AVX
+func (x Float64x2) IsNaN() Mask64x2
+
+// IsNaN returns a mask whose elements indicate whether the corresponding
+// elements of x are NaN.
+//
+// Asm: VCMPPD, CPU Feature: AVX
+func (x Float64x4) IsNaN() Mask64x4
+
+// IsNaN returns a mask whose elements indicate whether the corresponding
+// elements of x are NaN.
+//
+// Asm: VCMPPD, CPU Feature: AVX512
+func (x Float64x8) IsNaN() Mask64x8

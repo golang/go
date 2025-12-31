@@ -121,7 +121,7 @@
   - class: mask
 
 # Floats
-- go: Equal|Greater|Less|LessEqual|GreaterEqual|NotEqual|IsNan
+- go: (Equal|Greater|Less|LessEqual|GreaterEqual|NotEqual)
   regexpTag: "compares"
   asm: "VCMPP[SD]"
   in:
@@ -135,7 +135,7 @@
   - go: $t
     overwriteBase: int
     overwriteClass: mask
-- go: (Equal|Greater|Less|LessEqual|GreaterEqual|NotEqual|IsNan)
+- go: (Equal|Greater|Less|LessEqual|GreaterEqual|NotEqual)
   regexpTag: "compares"
   asm: "VCMPP[SD]"
   in:

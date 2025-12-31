@@ -1730,6 +1730,13 @@
 // Misc
 (IsZeroVec x) => (SETEQ (VPTEST x x))
 
+(IsNaNFloat32x4  x) => (VCMPPS128 [3] x x)
+(IsNaNFloat32x8  x) => (VCMPPS256 [3] x x)
+(IsNaNFloat32x16 x) => (VPMOVMToVec32x16 (VCMPPS512 [3] x x))
+(IsNaNFloat64x2  x) => (VCMPPD128 [3] x x)
+(IsNaNFloat64x4  x) => (VCMPPD256 [3] x x)
+(IsNaNFloat64x8  x) => (VPMOVMToVec64x8 (VCMPPD512 [3] x x))
+
 // SIMD vector K-masked loads and stores
 
 (LoadMasked64 <t> ptr mask mem) && t.Size() == 64 => (VPMASK64load512 ptr (VPMOVVec64x8ToM  <types.TypeMask> mask) mem)

@@ -3773,18 +3773,18 @@ func rewriteValueAMD64(v *Value) bool {
 		return true
 	case OpIsInBounds:
 		return rewriteValueAMD64_OpIsInBounds(v)
-	case OpIsNanFloat32x16:
-		return rewriteValueAMD64_OpIsNanFloat32x16(v)
-	case OpIsNanFloat32x4:
-		return rewriteValueAMD64_OpIsNanFloat32x4(v)
-	case OpIsNanFloat32x8:
-		return rewriteValueAMD64_OpIsNanFloat32x8(v)
-	case OpIsNanFloat64x2:
-		return rewriteValueAMD64_OpIsNanFloat64x2(v)
-	case OpIsNanFloat64x4:
-		return rewriteValueAMD64_OpIsNanFloat64x4(v)
-	case OpIsNanFloat64x8:
-		return rewriteValueAMD64_OpIsNanFloat64x8(v)
+	case OpIsNaNFloat32x16:
+		return rewriteValueAMD64_OpIsNaNFloat32x16(v)
+	case OpIsNaNFloat32x4:
+		return rewriteValueAMD64_OpIsNaNFloat32x4(v)
+	case OpIsNaNFloat32x8:
+		return rewriteValueAMD64_OpIsNaNFloat32x8(v)
+	case OpIsNaNFloat64x2:
+		return rewriteValueAMD64_OpIsNaNFloat64x2(v)
+	case OpIsNaNFloat64x4:
+		return rewriteValueAMD64_OpIsNaNFloat64x4(v)
+	case OpIsNaNFloat64x8:
+		return rewriteValueAMD64_OpIsNaNFloat64x8(v)
 	case OpIsNonNil:
 		return rewriteValueAMD64_OpIsNonNil(v)
 	case OpIsSliceInBounds:
@@ -70957,94 +70957,82 @@ func rewriteValueAMD64_OpIsInBounds(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64_OpIsNanFloat32x16(v *Value) bool {
-	v_1 := v.Args[1]
+func rewriteValueAMD64_OpIsNaNFloat32x16(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
-	// match: (IsNanFloat32x16 x y)
-	// result: (VPMOVMToVec32x16 (VCMPPS512 [3] x y))
+	// match: (IsNaNFloat32x16 x)
+	// result: (VPMOVMToVec32x16 (VCMPPS512 [3] x x))
 	for {
 		x := v_0
-		y := v_1
 		v.reset(OpAMD64VPMOVMToVec32x16)
 		v0 := b.NewValue0(v.Pos, OpAMD64VCMPPS512, typ.Mask)
 		v0.AuxInt = uint8ToAuxInt(3)
-		v0.AddArg2(x, y)
+		v0.AddArg2(x, x)
 		v.AddArg(v0)
 		return true
 	}
 }
-func rewriteValueAMD64_OpIsNanFloat32x4(v *Value) bool {
-	v_1 := v.Args[1]
+func rewriteValueAMD64_OpIsNaNFloat32x4(v *Value) bool {
 	v_0 := v.Args[0]
-	// match: (IsNanFloat32x4 x y)
-	// result: (VCMPPS128 [3] x y)
+	// match: (IsNaNFloat32x4 x)
+	// result: (VCMPPS128 [3] x x)
 	for {
 		x := v_0
-		y := v_1
 		v.reset(OpAMD64VCMPPS128)
 		v.AuxInt = uint8ToAuxInt(3)
-		v.AddArg2(x, y)
+		v.AddArg2(x, x)
 		return true
 	}
 }
-func rewriteValueAMD64_OpIsNanFloat32x8(v *Value) bool {
-	v_1 := v.Args[1]
+func rewriteValueAMD64_OpIsNaNFloat32x8(v *Value) bool {
 	v_0 := v.Args[0]
-	// match: (IsNanFloat32x8 x y)
-	// result: (VCMPPS256 [3] x y)
+	// match: (IsNaNFloat32x8 x)
+	// result: (VCMPPS256 [3] x x)
 	for {
 		x := v_0
-		y := v_1
 		v.reset(OpAMD64VCMPPS256)
 		v.AuxInt = uint8ToAuxInt(3)
-		v.AddArg2(x, y)
+		v.AddArg2(x, x)
 		return true
 	}
 }
-func rewriteValueAMD64_OpIsNanFloat64x2(v *Value) bool {
-	v_1 := v.Args[1]
+func rewriteValueAMD64_OpIsNaNFloat64x2(v *Value) bool {
 	v_0 := v.Args[0]
-	// match: (IsNanFloat64x2 x y)
-	// result: (VCMPPD128 [3] x y)
+	// match: (IsNaNFloat64x2 x)
+	// result: (VCMPPD128 [3] x x)
 	for {
 		x := v_0
-		y := v_1
 		v.reset(OpAMD64VCMPPD128)
 		v.AuxInt = uint8ToAuxInt(3)
-		v.AddArg2(x, y)
+		v.AddArg2(x, x)
 		return true
 	}
 }
-func rewriteValueAMD64_OpIsNanFloat64x4(v *Value) bool {
-	v_1 := v.Args[1]
+func rewriteValueAMD64_OpIsNaNFloat64x4(v *Value) bool {
 	v_0 := v.Args[0]
-	// match: (IsNanFloat64x4 x y)
-	// result: (VCMPPD256 [3] x y)
+	// match: (IsNaNFloat64x4 x)
+	// result: (VCMPPD256 [3] x x)
 	for {
 		x := v_0
-		y := v_1
 		v.reset(OpAMD64VCMPPD256)
 		v.AuxInt = uint8ToAuxInt(3)
-		v.AddArg2(x, y)
+		v.AddArg2(x, x)
 		return true
 	}
 }
-func rewriteValueAMD64_OpIsNanFloat64x8(v *Value) bool {
-	v_1 := v.Args[1]
+func rewriteValueAMD64_OpIsNaNFloat64x8(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
-	// match: (IsNanFloat64x8 x y)
-	// result: (VPMOVMToVec64x8 (VCMPPD512 [3] x y))
+	// match: (IsNaNFloat64x8 x)
+	// result: (VPMOVMToVec64x8 (VCMPPD512 [3] x x))
 	for {
 		x := v_0
-		y := v_1
 		v.reset(OpAMD64VPMOVMToVec64x8)
 		v0 := b.NewValue0(v.Pos, OpAMD64VCMPPD512, typ.Mask)
 		v0.AuxInt = uint8ToAuxInt(3)
-		v0.AddArg2(x, y)
+		v0.AddArg2(x, x)
 		v.AddArg(v0)
 		return true
 	}
