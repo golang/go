@@ -522,7 +522,6 @@ func (p *parser) fileOrNil() *File {
 					if len(decorators) > 0 {
 						funcDecl.Decorator = decorators[0].name
 						funcDecl.DecoratorArgs = decorators[0].args
-						// TODO: Support multiple decorators on methods
 					}
 					f.DeclList = append(f.DeclList, funcDecl)
 				} else {

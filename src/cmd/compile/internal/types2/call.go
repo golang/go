@@ -181,6 +181,20 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 		x.expr = iexpr
 		check.record(x)
 	} else {
+		// MyGO extension: cross-package method overloading.
+		//
+		// The syntax rewrite pass encodes overloaded (non-magic) methods by renaming
+		// their declarations to _Name_suffix (e.g. "_Add_int_int") so they can exist
+		// in regular Go. Within a package, call sites are rewritten syntactically.
+		// Across packages, we don't have that metadata available pre-types2, so we
+		// do best-effort overload resolution at the call site here:
+		//
+		//   x.Add(1, 2)  =>  x._Add_int_int(1, 2)
+		//
+		// We only attempt this for direct selector calls.
+		if sel, _ := syntax.Unparen(call.Fun).(*syntax.SelectorExpr); sel != nil && sel.Sel != nil {
+			check.tryRewriteOverloadedSelectorCall(sel, call.ArgList)
+		}
 		check.exprOrType(x, call.Fun, true)
 	}
 	// x.typ may be generic
@@ -656,6 +670,198 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 	}
 
 	return
+}
+
+// --- MyGO: cross-package method overloading support ---
+//
+// Non-magic method overloading is encoded by the syntax rewriter by renaming
+// declarations to "_Name_<suffix>" so they can coexist in regular Go.
+// This file implements a best-effort overload resolution for selector calls
+// when the current package doesn't have local overload metadata (i.e. across packages).
+
+// isOverloadName reports whether name is base or base_... (overload-suffixed).
+func isOverloadName(name, base string) bool {
+	if name == base {
+		return true
+	}
+	return strings.HasPrefix(name, base+"_")
+}
+
+// lookupBestOverloadedMethod selects the best overload among methods named "_Name_*"
+// for a source-level selector "Name".
+func (check *Checker) lookupBestOverloadedMethod(recvType Type, baseName string, argTypes []Type) (methodName string, sig *Signature, ok bool) {
+	if check == nil || recvType == nil || baseName == "" {
+		return "", nil, false
+	}
+	base := "_" + baseName
+
+	// Collect candidate names from declared methods and interface method sets.
+	candidateNames := make([]string, 0, 4)
+	seen := make(map[string]bool)
+	add := func(name string) {
+		if !isOverloadName(name, base) {
+			return
+		}
+		if !seen[name] {
+			seen[name] = true
+			candidateNames = append(candidateNames, name)
+		}
+	}
+
+	// Named / pointer-to-named: scan declared methods.
+	if named := asNamed(recvType); named != nil {
+		for i := 0; i < named.NumMethods(); i++ {
+			m := named.Method(i)
+			if m != nil {
+				add(m.Name())
+			}
+		}
+	} else if p, _ := recvType.(*Pointer); p != nil {
+		if named := asNamed(p.base); named != nil {
+			for i := 0; i < named.NumMethods(); i++ {
+				m := named.Method(i)
+				if m != nil {
+					add(m.Name())
+				}
+			}
+		}
+	}
+
+	// Interface / type parameter constraint interface: scan method set.
+	if it, _ := under(recvType).(*Interface); it != nil {
+		for i := 0; i < it.NumMethods(); i++ {
+			m := it.Method(i)
+			if m != nil {
+				add(m.Name())
+			}
+		}
+	}
+
+	if len(candidateNames) == 0 {
+		return "", nil, false
+	}
+
+	bestScore := -1
+	bestName := ""
+	var bestSig *Signature
+
+	match := func(s *Signature) (score int, ok bool) {
+		if s == nil {
+			return 0, false
+		}
+		nargs := len(argTypes)
+		npars := s.Params().Len()
+		if !s.Variadic() {
+			if npars != nargs {
+				return 0, false
+			}
+		} else {
+			if npars == 0 || nargs < npars-1 {
+				return 0, false
+			}
+		}
+		score = 0
+		for i := 0; i < nargs; i++ {
+			var ptyp Type
+			if s.Variadic() && i >= npars-1 {
+				if sl, _ := s.Params().At(npars-1).Type().(*Slice); sl != nil {
+					ptyp = sl.elem
+				} else {
+					ptyp = s.Params().At(npars - 1).Type()
+				}
+			} else {
+				ptyp = s.Params().At(i).Type()
+			}
+			atyp := argTypes[i]
+			if !isValid(atyp) || !isValid(ptyp) {
+				return 0, false
+			}
+			if Identical(atyp, ptyp) {
+				score += 3
+				continue
+			}
+			if AssignableTo(atyp, ptyp) {
+				score += 2
+				continue
+			}
+			return 0, false
+		}
+		return score, true
+	}
+
+	for _, name := range candidateNames {
+		obj, _, _ := LookupFieldOrMethod(recvType, false, check.pkg, name)
+		fn, _ := obj.(*Func)
+		if fn == nil {
+			continue
+		}
+		s, _ := fn.Type().(*Signature)
+		if s == nil {
+			continue
+		}
+		if sc, ok := match(s); ok && sc > bestScore {
+			bestScore = sc
+			bestName = name
+			bestSig = s
+		}
+	}
+
+	if bestName == "" || bestSig == nil {
+		return "", nil, false
+	}
+	return bestName, bestSig, true
+}
+
+// tryRewriteOverloadedSelectorCall tries to rewrite sel.Sel (source name) to a
+// compiler-generated overload name before the selector is typechecked.
+func (check *Checker) tryRewriteOverloadedSelectorCall(sel *syntax.SelectorExpr, args []syntax.Expr) {
+	if check == nil || sel == nil || sel.Sel == nil {
+		return
+	}
+
+	// Do not attempt overload resolution for package-qualified selectors
+	// like unsafe.Add(...). The selector checker has dedicated logic for
+	// package names; evaluating the package name as an expression here
+	// would trigger "use of package X not in selector".
+	if id, ok := sel.X.(*syntax.Name); ok && id != nil {
+		if obj := check.lookup(id.Value); obj != nil {
+			if _, ok := obj.(*PkgName); ok {
+				return
+			}
+		}
+	}
+
+	// Type-check receiver to get its type.
+	var recv operand
+	check.expr(nil, &recv, sel.X)
+	if recv.mode == invalid {
+		return
+	}
+
+	// If the member exists normally, don't interfere.
+	name := sel.Sel.Value
+	if name == "" {
+		return
+	}
+	if obj, _, _ := lookupFieldOrMethod(recv.typ, recv.mode == variable, check.pkg, name, false); obj != nil {
+		return
+	}
+
+	// Type-check arguments (best-effort) to get their types for overload selection.
+	argTypes := make([]Type, 0, len(args))
+	for _, a := range args {
+		var op operand
+		check.expr(nil, &op, a)
+		if op.mode == invalid {
+			return
+		}
+		argTypes = append(argTypes, op.typ)
+	}
+
+	if bestName, _, ok := check.lookupBestOverloadedMethod(recv.typ, name, argTypes); ok {
+		// Rewrite selector to point at the resolved overload method name.
+		sel.Sel.Value = bestName
+	}
 }
 
 var cgoPrefixes = [...]string{

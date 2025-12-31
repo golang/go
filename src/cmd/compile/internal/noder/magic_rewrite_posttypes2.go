@@ -139,6 +139,27 @@ func (r *postTypes2MagicRewriter) rewriteStmt(st syntax.Stmt) syntax.Stmt {
 			}
 		}
 		return s
+	case *syntax.SelectStmt:
+		// MyGO extension: allow select cases to be lowered for non-channel receivers
+		// by rewriting the channel operand through an exported Chan() chan T method:
+		//   case x <- v:   => case x.Chan() <- v:
+		//   case <-x:      => case <-x.Chan():
+		//
+		// We must be careful to NOT rewrite the receive operation itself into a magic
+		// _recv() call here, because select syntax requires a receive op.
+		for i := range s.Body {
+			cc := s.Body[i]
+			if cc == nil {
+				continue
+			}
+			if cc.Comm != nil {
+				cc.Comm = r.rewriteSelectComm(cc.Comm)
+			}
+			for j := range cc.Body {
+				cc.Body[j] = r.rewriteStmt(cc.Body[j])
+			}
+		}
+		return s
 	case *syntax.ReturnStmt:
 		if s.Results != nil {
 			s.Results = r.rewriteExpr(s.Results)
@@ -166,6 +187,66 @@ func (r *postTypes2MagicRewriter) rewriteStmt(st syntax.Stmt) syntax.Stmt {
 	default:
 		// Fall back to rewriting child expressions we care about.
 		return s
+	}
+}
+
+// rewriteSelectComm rewrites the Comm of a select clause.
+// It preserves receive/send syntax but may rewrite the channel operand using Chan().
+func (r *postTypes2MagicRewriter) rewriteSelectComm(comm syntax.SimpleStmt) syntax.SimpleStmt {
+	if comm == nil {
+		return nil
+	}
+
+	// Helper: if expr is non-channel, rewrite it to expr.Chan().
+	needChanCall := func(expr syntax.Expr) syntax.Expr {
+		if expr == nil {
+			return nil
+		}
+		// Rewrite sub-expressions first (but do not rewrite receive op itself).
+		recv := r.rewriteExpr(expr)
+		typ := r.typeOf(expr)
+		if typ == nil {
+			return recv
+		}
+		if _, ok := types2.CoreType(typ).(*types2.Chan); ok {
+			return recv
+		}
+		// Non-channel: lower through exported Chan() method.
+		return r.makeCall(syntax.StartPos(expr), recv, "Chan", nil)
+	}
+
+	switch s := comm.(type) {
+	case *syntax.SendStmt:
+		origChan := s.Chan
+		s.Chan = needChanCall(origChan)
+		s.Value = r.rewriteExpr(s.Value)
+		return s
+
+	case *syntax.AssignStmt:
+		// Receive with optional assignment: x := <-ch or x, ok := <-ch
+		s.Lhs = r.rewriteExpr(s.Lhs)
+
+		// If RHS is a receive operation, only rewrite its channel operand.
+		if op, _ := syntax.Unparen(s.Rhs).(*syntax.Operation); op != nil && op.Y == nil && op.Op == syntax.Recv {
+			op.X = needChanCall(op.X)
+			return s
+		}
+		// Otherwise, rewrite RHS normally.
+		s.Rhs = r.rewriteExpr(s.Rhs)
+		return s
+
+	case *syntax.ExprStmt:
+		// case <-ch:
+		if op, _ := syntax.Unparen(s.X).(*syntax.Operation); op != nil && op.Y == nil && op.Op == syntax.Recv {
+			op.X = needChanCall(op.X)
+			return s
+		}
+		s.X = r.rewriteExpr(s.X)
+		return s
+
+	default:
+		// Conservative fallback: just return as-is.
+		return comm
 	}
 }
 

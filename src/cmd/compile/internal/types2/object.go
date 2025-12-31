@@ -80,6 +80,20 @@ func isExported(name string) bool {
 	if isMagicExported(name) {
 		return true
 	}
+	// MyGO extension: treat compiler-generated overload methods for exported methods
+	// as exported as well, so overload resolution can work across packages.
+	//
+	// Overload rewriter encodes non-magic overloads as:
+	//   _Foo_int
+	//   _Foo_int_int
+	//   _Foo_void
+	// etc.
+	//
+	// We intentionally do NOT export arbitrary leading-underscore identifiers;
+	// only names that look like compiler-generated overloads for an exported base.
+	if isOverloadExported(name) {
+		return true
+	}
 	ch, _ := utf8.DecodeRuneInString(name)
 	return unicode.IsUpper(ch)
 }
@@ -112,6 +126,24 @@ func isMagicExported(name string) bool {
 	default:
 		return false
 	}
+}
+
+func isOverloadExported(name string) bool {
+	// Never treat the blank identifier as exported.
+	if name == "_" || len(name) < 4 || name[0] != '_' {
+		return false
+	}
+	// Require the base method name to be exported: _Foo_...
+	ch, _ := utf8.DecodeRuneInString(name[1:])
+	if !unicode.IsUpper(ch) {
+		return false
+	}
+	// Require at least one additional '_' after the leading '_' to indicate a suffix.
+	// This avoids exporting user-written single-underscore helpers like "_Foo".
+	if strings.IndexByte(name[1:], '_') < 0 {
+		return false
+	}
+	return true
 }
 
 // Id returns name if it is exported, otherwise it

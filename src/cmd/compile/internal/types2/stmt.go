@@ -154,6 +154,121 @@ func (check *Checker) multipleSelectDefaults(list []*syntax.CommClause) {
 	}
 }
 
+// checkSelectCommChanLowering enforces MyGO's select lowering rule for non-channel receivers.
+//
+// If a select case uses a non-channel receiver, it must provide an exported
+// `Chan() chan T` method so the compiler can lower:
+//   case x <- v:   => case x.Chan() <- v:
+//   case <-x:      => case <-x.Chan():
+//
+// Without an actual channel, preserving select semantics is not possible.
+func (check *Checker) rewriteSelectCommChanLowering(comm syntax.SimpleStmt) syntax.SimpleStmt {
+	if comm == nil {
+		return nil
+	}
+
+	mkChanCall := func(pos syntax.Pos, recv syntax.Expr) syntax.Expr {
+		sel := &syntax.SelectorExpr{X: recv, Sel: syntax.NewName(pos, "Chan")}
+		sel.SetPos(pos)
+		if sel.Sel != nil {
+			sel.Sel.SetPos(pos)
+		}
+		call := &syntax.CallExpr{Fun: sel}
+		call.SetPos(pos)
+		return call
+	}
+
+	// Helper: verify that x is a native channel, or has Chan() chan T.
+	// wantRecv indicates whether this channel is used for receiving.
+	checkChanLike := func(pos poser, xexpr syntax.Expr, wantRecv bool) (ch *Chan, needRewrite bool) {
+		var x operand
+		check.expr(nil, &x, xexpr)
+		if x.mode == invalid {
+			return nil, false
+		}
+		if ch, _ := CoreType(x.typ).(*Chan); ch != nil {
+			return ch, false
+		}
+
+		// Try method: Chan() chan T
+		obj, _, _ := LookupFieldOrMethod(x.typ, false, check.pkg, "Chan")
+		fn, _ := obj.(*Func)
+		if fn == nil {
+			check.errorf(pos, InvalidSelectCase, "select on non-channel %s requires method Chan() chan T", x.typ)
+			return nil, false
+		}
+		sig, _ := fn.Type().(*Signature)
+		if sig == nil || sig.Params().Len() != 0 || sig.Results().Len() != 1 {
+			check.errorf(pos, InvalidSelectCase, "select on %s requires Chan() chan T (wrong signature)", x.typ)
+			return nil, false
+		}
+		rt := sig.Results().At(0).Type()
+		ch, _ = CoreType(rt).(*Chan)
+		if ch == nil {
+			check.errorf(pos, InvalidSelectCase, "select on %s requires Chan() chan T (got %s)", x.typ, rt)
+			return nil, false
+		}
+		if wantRecv && ch.dir == SendOnly {
+			check.errorf(pos, InvalidSelectCase, "select receive requires Chan() returning receive-capable channel (got %s)", rt)
+			return nil, false
+		}
+		if !wantRecv && ch.dir == RecvOnly {
+			check.errorf(pos, InvalidSelectCase, "select send requires Chan() returning send-capable channel (got %s)", rt)
+			return nil, false
+		}
+		return ch, true
+	}
+
+	switch s := comm.(type) {
+	case *syntax.SendStmt:
+		// case x <- v:
+		var val operand
+		check.expr(nil, &val, s.Value)
+		if val.mode == invalid {
+			return comm
+		}
+		ch, needRewrite := checkChanLike(s, s.Chan, false)
+		if ch == nil {
+			return comm
+		}
+		// Enforce that v is assignable to the channel element type.
+		check.assignment(&val, ch.elem, "send")
+		if needRewrite {
+			s.Chan = mkChanCall(s.Pos(), s.Chan)
+		}
+		return s
+
+	case *syntax.AssignStmt:
+		// case lhs := <-x:
+		// rhs may be a list expression (multi-assign) or a single expr.
+		var rhs syntax.Expr
+		if _, ok := s.Rhs.(*syntax.ListExpr); !ok {
+			rhs = s.Rhs
+		}
+		if rhs == nil {
+			return comm
+		}
+		if op, _ := syntax.Unparen(rhs).(*syntax.Operation); op != nil && op.Y == nil && op.Op == syntax.Recv {
+			_, needRewrite := checkChanLike(op, op.X, true)
+			if needRewrite {
+				op.X = mkChanCall(op.Pos(), op.X)
+			}
+		}
+		return s
+
+	case *syntax.ExprStmt:
+		// case <-x:
+		if op, _ := syntax.Unparen(s.X).(*syntax.Operation); op != nil && op.Y == nil && op.Op == syntax.Recv {
+			_, needRewrite := checkChanLike(op, op.X, true)
+			if needRewrite {
+				op.X = mkChanCall(op.Pos(), op.X)
+			}
+		}
+		return s
+	}
+	return comm
+}
+
 func (check *Checker) openScope(node syntax.Node, comment string) {
 	scope := NewScope(check.scope, node.Pos(), syntax.EndPos(node), comment)
 	check.recordScope(node, scope)
@@ -665,6 +780,21 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 				continue
 			}
 			check.openScope(clause, "case")
+			// MyGO extension: select on non-native channel-like values.
+			//
+			// We allow send/recv cases on non-channel receivers only if the receiver can be
+			// lowered to a real channel via an exported `Chan() chan T` method.
+			//
+			// This is a deliberate restriction: `select` semantics are defined in terms of
+			// native channel readiness, so without an actual channel we cannot preserve
+			// correct behavior by merely calling _send/_recv.
+			//
+			// Important: We must rewrite the select comm *before* typechecking it,
+			// otherwise the send/recv statements would error (non-channel) during
+			// ordinary stmt checking.
+			if clause.Comm != nil {
+				clause.Comm = check.rewriteSelectCommChanLowering(clause.Comm)
+			}
 			if clause.Comm != nil {
 				check.stmt(inner, clause.Comm)
 			}
