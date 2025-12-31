@@ -1241,7 +1241,7 @@ func TestParsingMemoryConsumption(t *testing.T) {
 		Value    []byte
 	}
 	_, err := Unmarshal(derBomb, &out)
-	if !errors.As(err, &SyntaxError{}) {
+	if _, ok := errors.AsType[SyntaxError](err); !ok {
 		t.Fatalf("Incorrect error result: want (%v), but got (%v) instead", &SyntaxError{}, err)
 	}
 
