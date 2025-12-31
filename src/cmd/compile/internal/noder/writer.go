@@ -3295,7 +3295,9 @@ func (c *declCollector) Visit(n syntax.Node) syntax.Visitor {
 
 		// Store decorator information if present
 		if n.Decorator != nil {
-			pw.decorators[obj] = n.Decorator.Value
+			// Decorators are handled at AST level (rewritten away) in MyGO, but
+			// keep best-effort string info for any remaining metadata consumers.
+			pw.decorators[obj] = syntax.String(n.Decorator)
 		}
 
 		return c.withTParams(obj)

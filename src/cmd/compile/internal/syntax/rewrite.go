@@ -7869,7 +7869,7 @@ func rewriteDecoratedMethod(fn *FuncDecl) {
 	}
 
 	pos := fn.Pos()
-	decoratorName := fn.Decorator
+	decoratorExpr := fn.Decorator
 	decoratorArgs := fn.DecoratorArgs
 
 	// At this point, default params haven't been rewritten yet,
@@ -7887,7 +7887,7 @@ func rewriteDecoratedMethod(fn *FuncDecl) {
 	// Create decorator call: decoratorName(funcLit)
 	decoratorCall := new(CallExpr)
 	decoratorCall.SetPos(pos)
-	decoratorCall.Fun = decoratorName
+	decoratorCall.Fun = decoratorExpr
 	// For method decorators, support optional decorator arguments:
 	//   @retry(3) func (s *Service) Connect() error
 	// becomes:

@@ -2930,6 +2930,7 @@ func (p *parser) parseDecl(sync map[token.Token]bool) ast.Decl {
 		// 1. @decoratorName func foo() {...}
 		// 2. @decoratorName(arg1, arg2) func foo() {...}
 		// 3. @dec1 @dec2 func foo() {...} (stacked decorators)
+		// 4. @pkg.decoratorName func foo() {...} (cross-package selector)
 		//
 		// Transform to:
 		// 1. var foo = decoratorName(func() {...})
@@ -2940,10 +2941,29 @@ func (p *parser) parseDecl(sync map[token.Token]bool) ast.Decl {
 
 		// Parse all decorators (support stacking)
 		type decoratorInfo struct {
-			name *ast.Ident
+			expr ast.Expr // decorator name expression (Ident or SelectorExpr chain)
 			args []ast.Expr // decorator arguments (if any)
 		}
 		var decorators []decoratorInfo
+
+		// parseDecoratorExpr parses "ident(.ident)*" into an ast.Expr.
+		// This enables @pkg.Decorator in addition to @Decorator.
+		parseDecoratorExpr := func() ast.Expr {
+			if p.tok != token.IDENT {
+				return nil
+			}
+			var x ast.Expr = p.parseIdent()
+			for p.tok == token.PERIOD {
+				p.next() // consume '.'
+				if p.tok != token.IDENT {
+					p.errorExpected(p.pos, "name after '.' in decorator selector")
+					return x
+				}
+				sel := p.parseIdent()
+				x = &ast.SelectorExpr{X: x, Sel: sel}
+			}
+			return x
+		}
 
 		for p.tok == token.AT {
 			p.next() // consume '@'
@@ -2953,7 +2973,12 @@ func (p *parser) parseDecl(sync map[token.Token]bool) ast.Decl {
 				return &ast.BadDecl{From: p.pos, To: p.pos}
 			}
 
-			decName := p.parseIdent()
+			decExpr := parseDecoratorExpr()
+			if decExpr == nil {
+				p.errorExpected(p.pos, "decorator name")
+				p.advance(sync)
+				return &ast.BadDecl{From: p.pos, To: p.pos}
+			}
 			var decArgs []ast.Expr
 
 			// Check for decorator arguments: @decorator(arg1, arg2)
@@ -2970,7 +2995,7 @@ func (p *parser) parseDecl(sync map[token.Token]bool) ast.Decl {
 			}
 
 			decorators = append(decorators, decoratorInfo{
-				name: decName,
+				expr: decExpr,
 				args: decArgs,
 			})
 
@@ -3002,11 +3027,12 @@ func (p *parser) parseDecl(sync map[token.Token]bool) ast.Decl {
 			args := []ast.Expr{result}
 			args = append(args, dec.args...)
 
+			funEnd := dec.expr.End()
 			result = &ast.CallExpr{
-				Fun:    dec.name,
-				Lparen: dec.name.End(),
+				Fun:    dec.expr,
+				Lparen: funEnd,
 				Args:   args,
-				Rparen: dec.name.End() + 1,
+				Rparen: funEnd + 1,
 			}
 		}
 

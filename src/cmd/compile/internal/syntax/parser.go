@@ -465,6 +465,7 @@ func (p *parser) fileOrNil() *File {
 			// 2. @decoratorName(arg1, arg2) func foo() {...}  - with args
 			// 3. @dec1 @dec2 func foo() {...}                 - stacked decorators
 			// 4. @decoratorName func (r *T) Method() {...}    - method decorator
+			// 5. @pkg.decorator func foo() {...}              - cross-package decorator (selector)
 			//
 			// Transform to:
 			// Regular function: var foo = decoratorName(func() {...})
@@ -472,10 +473,34 @@ func (p *parser) fileOrNil() *File {
 
 			// Parse all decorators (support stacking)
 			type decoratorInfo struct {
-				name *Name
+				expr Expr
 				args []Expr // decorator arguments (if any)
 			}
 			var decorators []decoratorInfo
+
+			// parseDecoratorExpr parses "name(.name)*" into an Expr.
+			// This enables @pkg.Decorator in addition to @Decorator.
+			parseDecoratorExpr := func() Expr {
+				if p.tok != _Name {
+					return nil
+				}
+				base := p.name()
+				var x Expr = base
+				for p.got(_Dot) {
+					if p.tok != _Name {
+						p.syntaxError("expected name after '.' in decorator selector")
+						p.advance(_Import, _Const, _Type, _Var, _Func)
+						return x
+					}
+					selName := p.name()
+					sel := new(SelectorExpr)
+					sel.SetPos(base.Pos())
+					sel.X = x
+					sel.Sel = selName
+					x = sel
+				}
+				return x
+			}
 
 			for p.tok == _At {
 				p.next() // consume '@'
@@ -485,7 +510,12 @@ func (p *parser) fileOrNil() *File {
 					continue
 				}
 
-				decName := p.name()
+				decExpr := parseDecoratorExpr()
+				if decExpr == nil {
+					p.syntaxError("expected decorator name after @")
+					p.advance(_Import, _Const, _Type, _Var, _Func)
+					continue
+				}
 				var decArgs []Expr
 
 				// Check for decorator arguments: @decorator(arg1, arg2)
@@ -501,7 +531,7 @@ func (p *parser) fileOrNil() *File {
 				}
 
 				decorators = append(decorators, decoratorInfo{
-					name: decName,
+					expr: decExpr,
 					args: decArgs,
 				})
 
@@ -520,7 +550,7 @@ func (p *parser) fileOrNil() *File {
 				if funcDecl.Recv != nil {
 					// Method with decorator - store decorator info for later rewriting
 					if len(decorators) > 0 {
-						funcDecl.Decorator = decorators[0].name
+						funcDecl.Decorator = decorators[0].expr
 						funcDecl.DecoratorArgs = decorators[0].args
 					}
 					f.DeclList = append(f.DeclList, funcDecl)
@@ -542,8 +572,8 @@ func (p *parser) fileOrNil() *File {
 						args = append(args, dec.args...)
 
 						call := new(CallExpr)
-						call.pos = dec.name.Pos()
-						call.Fun = dec.name
+						call.pos = dec.expr.Pos()
+						call.Fun = dec.expr
 						call.ArgList = args
 						result = call
 					}
