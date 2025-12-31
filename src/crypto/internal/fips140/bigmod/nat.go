@@ -1211,6 +1211,16 @@ func rshift1(a *Nat, carry uint) {
 	}
 }
 
+// ShiftRightByOne sets x = x >> 1.
+//
+// The announced length of x is unchanged.
+//
+//go:norace
+func (x *Nat) ShiftRightByOne() *Nat {
+	rshift1(x, 0)
+	return x
+}
+
 // DivShortVarTime calculates x = x / y and returns the remainder.
 //
 // It panics if y is zero.

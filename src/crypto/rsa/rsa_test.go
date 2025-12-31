@@ -826,6 +826,7 @@ func BenchmarkParsePKCS8PrivateKey(b *testing.B) {
 
 func BenchmarkGenerateKey(b *testing.B) {
 	b.Run("2048", func(b *testing.B) {
+		b.Setenv("GODEBUG", "cryptocustomrand=1")
 		primes, err := os.ReadFile("testdata/keygen2048.txt")
 		if err != nil {
 			b.Fatal(err)
@@ -833,6 +834,32 @@ func BenchmarkGenerateKey(b *testing.B) {
 		for b.Loop() {
 			r := &testPrimeReader{primes: string(primes)}
 			if _, err := GenerateKey(r, 2048); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+	b.Run("3072", func(b *testing.B) {
+		b.Setenv("GODEBUG", "cryptocustomrand=1")
+		primes, err := os.ReadFile("testdata/keygen3072.txt")
+		if err != nil {
+			b.Fatal(err)
+		}
+		for b.Loop() {
+			r := &testPrimeReader{primes: string(primes)}
+			if _, err := GenerateKey(r, 3072); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+	b.Run("4096", func(b *testing.B) {
+		b.Setenv("GODEBUG", "cryptocustomrand=1")
+		primes, err := os.ReadFile("testdata/keygen4096.txt")
+		if err != nil {
+			b.Fatal(err)
+		}
+		for b.Loop() {
+			r := &testPrimeReader{primes: string(primes)}
+			if _, err := GenerateKey(r, 4096); err != nil {
 				b.Fatal(err)
 			}
 		}
