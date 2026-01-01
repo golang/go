@@ -319,7 +319,7 @@ func bitsCheckVarU32(a, b uint32) (n int) {
 	// amd64:"BTL"
 	// arm64:"AND [$]31," "MOVD [$]1," "LSL" "TSTW"
 	// loong64:"MOVV [$]1," "SLL R" "AND R" "MOVWU" "BNE"
-	// riscv64:"ANDI [$]31," "MOV [$]1," "SLL " "AND "
+	// riscv64:"ANDI [$]31," "MOV [$]1," "SLLW" "AND "
 	if a&(1<<(b&31)) != 0 {
 		return 1
 	}
@@ -362,7 +362,7 @@ func bitsSetU32(a, b uint32) (n uint32) {
 	// amd64:"BTSL"
 	// arm64:"AND [$]31," "MOVD [$]1," "LSL" "ORR"
 	// loong64:"MOVV [$]1," "SLL " "OR "
-	// riscv64:"ANDI [$]31," "MOV [$]1," "SLL " "OR "
+	// riscv64:"ANDI [$]31," "MOV [$]1," "SLLW " "OR "
 	n += b | (1 << (a & 31))
 
 	// amd64:"ORL [$]-2147483648,"
@@ -390,7 +390,7 @@ func bitsClearU32(a, b uint32) (n uint32) {
 	// amd64:"BTRL"
 	// arm64:"AND [$]31," "MOVD [$]1," "LSL" "BIC"
 	// loong64:"MOVV [$]1," "SLL R" "ANDN"
-	// riscv64:"ANDI [$]31," "MOV [$]1," "SLL " "ANDN"
+	// riscv64:"ANDI [$]31," "MOV [$]1," "SLLW " "ANDN"
 	n += b &^ (1 << (a & 31))
 
 	// amd64:"ANDL [$]2147483647,"
@@ -418,7 +418,7 @@ func bitsFlipU32(a, b uint32) (n uint32) {
 	// amd64:"BTCL"
 	// arm64:"AND [$]31," "MOVD [$]1," "LSL" "EOR"
 	// loong64:"MOVV [$]1," "SLL R" "XOR"
-	// riscv64:"ANDI [$]31," "MOV [$]1," "SLL " "XOR "
+	// riscv64:"ANDI [$]31," "MOV [$]1," "SLLW " "XOR "
 	n += b ^ (1 << (a & 31))
 
 	// amd64:"XORL [$]-2147483648,"

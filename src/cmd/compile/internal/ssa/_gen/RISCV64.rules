@@ -120,8 +120,9 @@
 
 // Shifts
 
-// SLL only considers the bottom 6 bits of y. If y > 64, the result should
-// always be 0.
+// SLL only considers the bottom 6 bits of y, similarly SLLW only considers the
+// bottom 5 bits of y. Ensure that the result is always zero if the shift exceeds
+// the maximum value.
 //
 // Breaking down the operation:
 //
@@ -130,27 +131,27 @@
 // If y < 64, this is the value we want. Otherwise, we want zero.
 //
 // So, we AND with -1 * uint64(y < 64), which is 0xfffff... if y < 64 and 0 otherwise.
-(Lsh8x8   <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL <t> x y) (Neg8  <t> (SLTIU <t> [64] (ZeroExt8to64  y))))
-(Lsh8x16  <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL <t> x y) (Neg8  <t> (SLTIU <t> [64] (ZeroExt16to64 y))))
-(Lsh8x32  <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL <t> x y) (Neg8  <t> (SLTIU <t> [64] (ZeroExt32to64 y))))
-(Lsh8x64  <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL <t> x y) (Neg8  <t> (SLTIU <t> [64] y)))
-(Lsh16x8  <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL <t> x y) (Neg16 <t> (SLTIU <t> [64] (ZeroExt8to64  y))))
-(Lsh16x16 <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL <t> x y) (Neg16 <t> (SLTIU <t> [64] (ZeroExt16to64 y))))
-(Lsh16x32 <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL <t> x y) (Neg16 <t> (SLTIU <t> [64] (ZeroExt32to64 y))))
-(Lsh16x64 <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL <t> x y) (Neg16 <t> (SLTIU <t> [64] y)))
-(Lsh32x8  <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL <t> x y) (Neg32 <t> (SLTIU <t> [64] (ZeroExt8to64  y))))
-(Lsh32x16 <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL <t> x y) (Neg32 <t> (SLTIU <t> [64] (ZeroExt16to64 y))))
-(Lsh32x32 <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL <t> x y) (Neg32 <t> (SLTIU <t> [64] (ZeroExt32to64 y))))
-(Lsh32x64 <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL <t> x y) (Neg32 <t> (SLTIU <t> [64] y)))
-(Lsh64x8  <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL <t> x y) (Neg64 <t> (SLTIU <t> [64] (ZeroExt8to64  y))))
-(Lsh64x16 <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL <t> x y) (Neg64 <t> (SLTIU <t> [64] (ZeroExt16to64 y))))
-(Lsh64x32 <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL <t> x y) (Neg64 <t> (SLTIU <t> [64] (ZeroExt32to64 y))))
-(Lsh64x64 <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL <t> x y) (Neg64 <t> (SLTIU <t> [64] y)))
+(Lsh8x8   <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL  <t> x y) (Neg8  <t> (SLTIU <t> [64] (ZeroExt8to64  y))))
+(Lsh8x16  <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL  <t> x y) (Neg8  <t> (SLTIU <t> [64] (ZeroExt16to64 y))))
+(Lsh8x32  <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL  <t> x y) (Neg8  <t> (SLTIU <t> [64] (ZeroExt32to64 y))))
+(Lsh8x64  <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL  <t> x y) (Neg8  <t> (SLTIU <t> [64] y)))
+(Lsh16x8  <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL  <t> x y) (Neg16 <t> (SLTIU <t> [64] (ZeroExt8to64  y))))
+(Lsh16x16 <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL  <t> x y) (Neg16 <t> (SLTIU <t> [64] (ZeroExt16to64 y))))
+(Lsh16x32 <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL  <t> x y) (Neg16 <t> (SLTIU <t> [64] (ZeroExt32to64 y))))
+(Lsh16x64 <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL  <t> x y) (Neg16 <t> (SLTIU <t> [64] y)))
+(Lsh32x8  <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLLW <t> x y) (Neg32 <t> (SLTIU <t> [32] (ZeroExt8to64  y))))
+(Lsh32x16 <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLLW <t> x y) (Neg32 <t> (SLTIU <t> [32] (ZeroExt16to64 y))))
+(Lsh32x32 <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLLW <t> x y) (Neg32 <t> (SLTIU <t> [32] (ZeroExt32to64 y))))
+(Lsh32x64 <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLLW <t> x y) (Neg32 <t> (SLTIU <t> [32] y)))
+(Lsh64x8  <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL  <t> x y) (Neg64 <t> (SLTIU <t> [64] (ZeroExt8to64  y))))
+(Lsh64x16 <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL  <t> x y) (Neg64 <t> (SLTIU <t> [64] (ZeroExt16to64 y))))
+(Lsh64x32 <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL  <t> x y) (Neg64 <t> (SLTIU <t> [64] (ZeroExt32to64 y))))
+(Lsh64x64 <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL  <t> x y) (Neg64 <t> (SLTIU <t> [64] y)))
 
-(Lsh8x(64|32|16|8)  x y) && ssa.ShiftIsBounded(v) => (SLL x y)
-(Lsh16x(64|32|16|8) x y) && ssa.ShiftIsBounded(v) => (SLL x y)
-(Lsh32x(64|32|16|8) x y) && ssa.ShiftIsBounded(v) => (SLL x y)
-(Lsh64x(64|32|16|8) x y) && ssa.ShiftIsBounded(v) => (SLL x y)
+(Lsh8x(64|32|16|8)  x y) && ssa.ShiftIsBounded(v) => (SLL  x y)
+(Lsh16x(64|32|16|8) x y) && ssa.ShiftIsBounded(v) => (SLL  x y)
+(Lsh32x(64|32|16|8) x y) && ssa.ShiftIsBounded(v) => (SLLW x y)
+(Lsh64x(64|32|16|8) x y) && ssa.ShiftIsBounded(v) => (SLL  x y)
 
 // SRL only considers the bottom 6 bits of y, similarly SRLW only considers the
 // bottom 5 bits of y. Ensure that the result is always zero if the shift exceeds

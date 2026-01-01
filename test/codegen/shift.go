@@ -13,7 +13,7 @@ package codegen
 func lshConst64x64(v int64) int64 {
 	// loong64:"SLLV"
 	// ppc64x:"SLD"
-	// riscv64:"SLLI" -"AND" -"SLTIU"
+	// riscv64:"SLLI " -"AND" -"SLTIU"
 	return v << uint64(33)
 }
 
@@ -122,7 +122,7 @@ func rshConst64x32(v int64) int64 {
 func lshConst32x1Add(x int32) int32 {
 	// amd64:-"ADD" "SHLL [$]2"
 	// loong64:-"ADD" "SLL [$]2"
-	// riscv64:-"ADD" "SLLI [$]2"
+	// riscv64:-"ADD" "SLLIW [$]2"
 	// ppc64x:-"ADD" "SLW [$]2"
 	return (x + x) << 1
 }
@@ -138,7 +138,7 @@ func lshConst64x1Add(x int64) int64 {
 func lshConst32x2Add(x int32) int32 {
 	// amd64:-"ADD" "SHLL [$]3"
 	// loong64:-"ADD" "SLL [$]3"
-	// riscv64:-"ADD" "SLLI [$]3"
+	// riscv64:-"ADD" "SLLIW [$]3"
 	// ppc64x:-"ADD" "SLW [$]3"
 	return (x + x) << 2
 }
@@ -154,7 +154,7 @@ func lshConst64x2Add(x int64) int64 {
 func lshConst32x31Add(x int32) int32 {
 	// amd64:-"ADD" -"SHL" "XORL AX, AX"
 	// loong64:-"ADD" -"SLL " "MOVV R0"
-	// riscv64:-"ADD" -"SLLI" "MOV [$]0"
+	// riscv64:-"ADD" -"SLLIW" "MOV [$]0"
 	// ppc64x:-"ADD" -"SLW" "MOVD [$]0"
 	return (x + x) << 31
 }
@@ -261,13 +261,14 @@ func lshMask32x64(v int32, s uint64) int32 {
 	// arm64:"LSL" -"AND"
 	// loong64:"SLL " "AND" "SGTU" "MASKEQZ"
 	// ppc64x:"ISEL" -"ORN"
-	// riscv64:"SLL" -"AND " -"SLTIU"
+	// riscv64:"SLLW" "AND " "SLTIU"
 	// s390x:-"RISBGZ" -"AND" -"LOCGR"
 	return v << (s & 63)
 }
 
 func lsh5Mask32x64(v int32, s uint64) int32 {
 	// loong64:"SLL " -"AND"
+	// riscv64:"SLLW" -"AND " -"SLTIU"
 	return v << (s & 31)
 }
 
