@@ -2248,7 +2248,9 @@ func (w *writer) expr(expr syntax.Expr) {
 
 	case *syntax.SelectorExpr:
 		sel, ok := w.p.info.Selections[expr]
-		assert(ok)
+		if !ok {
+			w.p.fatalf(expr, "missing Selection for selector %v (X=%T, Sel=%s)", syntax.String(expr), expr.X, expr.Sel.Value)
+		}
 
 		switch sel.Kind() {
 		default:

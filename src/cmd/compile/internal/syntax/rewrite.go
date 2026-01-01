@@ -25,6 +25,11 @@ type rewriter struct {
 	// Populated during rewriteEnums (syntax/enum.go) and used by enum-match lowering
 	// to avoid referencing `_heap` for pure-value enums that only have `_stack`.
 	enumHasHeap map[string]bool
+	// enumVariantsScopes tracks enum declarations in nested scopes (e.g. inside functions).
+	// Each element maps enum name -> variant map for that scope.
+	enumVariantsScopes []map[string]map[string]enumVariantInfo
+	// enumHasHeapScopes tracks enum heap-field availability in nested scopes.
+	enumHasHeapScopes []map[string]bool
 }
 
 type enumVariantInfo struct {
@@ -42,8 +47,8 @@ func (r *rewriter) substituteTypeParams(expr Expr, enumName string, typeArgs []E
 		return nil
 	}
 
-	// 获取类型参数名列表
-	variants, ok := r.enumVariants[enumName]
+	// 获取类型参数名列表（支持局部 enum）
+	variants, ok := r.lookupEnumVariants(enumName)
 	if !ok || len(variants) == 0 {
 		return expr
 	}
@@ -65,6 +70,72 @@ func (r *rewriter) substituteTypeParams(expr Expr, enumName string, typeArgs []E
 	}
 
 	return r.substituteExpr(expr, paramToArg)
+}
+
+func (r *rewriter) pushEnumScope() {
+	r.enumVariantsScopes = append(r.enumVariantsScopes, make(map[string]map[string]enumVariantInfo))
+	r.enumHasHeapScopes = append(r.enumHasHeapScopes, make(map[string]bool))
+}
+
+func (r *rewriter) popEnumScope() {
+	if n := len(r.enumVariantsScopes); n > 0 {
+		r.enumVariantsScopes = r.enumVariantsScopes[:n-1]
+	}
+	if n := len(r.enumHasHeapScopes); n > 0 {
+		r.enumHasHeapScopes = r.enumHasHeapScopes[:n-1]
+	}
+}
+
+func (r *rewriter) lookupEnumVariants(enumName string) (map[string]enumVariantInfo, bool) {
+	for i := len(r.enumVariantsScopes) - 1; i >= 0; i-- {
+		if m := r.enumVariantsScopes[i]; m != nil {
+			if v, ok := m[enumName]; ok {
+				return v, true
+			}
+		}
+	}
+	if r.enumVariants != nil {
+		v, ok := r.enumVariants[enumName]
+		return v, ok
+	}
+	return nil, false
+}
+
+func (r *rewriter) setEnumVariants(enumName string, variants map[string]enumVariantInfo) {
+	if len(r.enumVariantsScopes) > 0 {
+		r.enumVariantsScopes[len(r.enumVariantsScopes)-1][enumName] = variants
+		return
+	}
+	if r.enumVariants == nil {
+		r.enumVariants = make(map[string]map[string]enumVariantInfo)
+	}
+	r.enumVariants[enumName] = variants
+}
+
+func (r *rewriter) lookupEnumHasHeap(enumName string) (bool, bool) {
+	for i := len(r.enumHasHeapScopes) - 1; i >= 0; i-- {
+		if m := r.enumHasHeapScopes[i]; m != nil {
+			if v, ok := m[enumName]; ok {
+				return v, true
+			}
+		}
+	}
+	if r.enumHasHeap != nil {
+		v, ok := r.enumHasHeap[enumName]
+		return v, ok
+	}
+	return false, false
+}
+
+func (r *rewriter) setEnumHasHeap(enumName string, hasHeap bool) {
+	if len(r.enumHasHeapScopes) > 0 {
+		r.enumHasHeapScopes[len(r.enumHasHeapScopes)-1][enumName] = hasHeap
+		return
+	}
+	if r.enumHasHeap == nil {
+		r.enumHasHeap = make(map[string]bool)
+	}
+	r.enumHasHeap[enumName] = hasHeap
 }
 
 // substituteExpr recursively substitutes type parameters in an expression.
@@ -239,6 +310,9 @@ func (r *rewriter) rewriteDecl(decl Decl) Decl {
 	switch d := decl.(type) {
 	case *FuncDecl:
 		if d.Body != nil {
+			// Enter function-local enum scope (supports enums declared inside functions).
+			r.pushEnumScope()
+			defer r.popEnumScope()
 			d.Body = r.rewriteBlockStmt(d.Body)
 		}
 	case *VarDecl:
@@ -257,9 +331,176 @@ func (r *rewriter) rewriteBlockStmt(block *BlockStmt) *BlockStmt {
 	if block == nil {
 		return nil
 	}
-	for i, stmt := range block.List {
-		block.List[i] = r.rewriteStmt(stmt)
+	// We may need to insert extra statements (e.g., local enum constructors) while rewriting.
+	var out []Stmt
+	for _, stmt := range block.List {
+		// Special-case: local declarations inside a function body.
+		// In particular, support local enum declarations:
+		//   type Status enum { ... }
+		// by lowering the enum to a local struct type and inserting local constructor
+		// variables (Status_Pending := func() Status { ... }) immediately after.
+		if ds, ok := stmt.(*DeclStmt); ok && ds != nil {
+			var ctorStmts []Stmt
+
+			for _, d := range ds.DeclList {
+				// Rewrite any expressions within the declaration (e.g., var/const values).
+				r.rewriteDecl(d)
+
+				td, ok := d.(*TypeDecl)
+				if !ok || td == nil || td.Alias || td.Name == nil {
+					continue
+				}
+				et, ok := td.Type.(*EnumType)
+				if !ok || et == nil {
+					continue
+				}
+
+				// NOTE: Local generic enums would require generic function literals to generate
+				// local constructors, which Go does not support. Keep them as-is for now.
+				if len(td.TParamList) != 0 {
+					continue
+				}
+
+				// Record enum variants in the current (function-local) scope so later expression
+				// rewriting can resolve Status.Pending / Status.Failed(...) etc.
+				var tparamNames []string
+				m := make(map[string]enumVariantInfo, len(et.VariantList))
+				for i, v := range et.VariantList {
+					if v != nil && v.Name != nil {
+						m[v.Name.Value] = enumVariantInfo{
+							tag:        i,
+							hasPayload: v.Type != nil,
+							payload:    v.Type,
+							tparams:    tparamNames,
+							isGeneric:  false,
+						}
+					}
+				}
+				r.setEnumVariants(td.Name.Value, m)
+
+				// Lower the enum type to a struct type (same representation as package-level lowering).
+				pos := td.Pos()
+				maxPureSize := computeMaxPureValueSize(et.VariantList)
+				hasPointers := hasAnyPointerVariant(et.VariantList)
+
+				fields := []*Field{
+					{
+						Name: NewName(pos, "_tag"),
+						Type: NewName(pos, "int"),
+					},
+				}
+				for _, f := range fields {
+					if f != nil {
+						f.SetPos(pos)
+					}
+				}
+
+				if maxPureSize > 0 {
+					lenLit := &BasicLit{Value: strconv.Itoa(maxPureSize), Kind: IntLit}
+					lenLit.SetPos(pos)
+					arr := &ArrayType{
+						Len:  lenLit,
+						Elem: NewName(pos, "byte"),
+					}
+					arr.SetPos(pos)
+					stackField := &Field{
+						Name: NewName(pos, "_stack"),
+						Type: arr,
+					}
+					stackField.SetPos(pos)
+					fields = append(fields, stackField)
+				}
+
+				if hasPointers {
+					selPtr := &SelectorExpr{
+						X:   NewName(pos, "unsafe"),
+						Sel: NewName(pos, "Pointer"),
+					}
+					selPtr.SetPos(pos)
+					heapField := &Field{
+						Name: NewName(pos, "_heap"),
+						Type: selPtr,
+					}
+					heapField.SetPos(pos)
+					fields = append(fields, heapField)
+					r.needsUnsafe = true
+				}
+				r.setEnumHasHeap(td.Name.Value, hasPointers)
+
+				st := &StructType{FieldList: fields}
+				st.SetPos(pos)
+				td.Type = st
+
+				// Synthesize local constructor variables:
+				//   Status_Pending := func() Status { ... }
+				//   Status_Failed  := func(err error) Status { ... }
+				for i, v := range et.VariantList {
+					if v == nil || v.Name == nil {
+						continue
+					}
+					ctorName := td.Name.Value + "_" + v.Name.Value
+
+					typeList := unpackTypeList(v.Type)
+					var params []*Field
+					for idx, t := range typeList {
+						argName := "v"
+						if len(typeList) > 1 {
+							argName = "v" + strconv.Itoa(idx)
+						}
+						pf := &Field{
+							Name: NewName(v.Pos(), argName),
+							Type: t,
+						}
+						pf.SetPos(v.Pos())
+						params = append(params, pf)
+					}
+
+					resField := &Field{Type: NewName(v.Pos(), td.Name.Value)}
+					resField.SetPos(v.Pos())
+
+					fl := new(FuncLit)
+					fl.SetPos(v.Pos())
+					ft := &FuncType{
+						ParamList:  params,
+						ResultList: []*Field{resField},
+					}
+					ft.SetPos(v.Pos())
+					fl.Type = ft
+					// storage=0 => payloadAuto (see generateConstructorBody)
+					fl.Body = r.generateConstructorBody(v.Pos(), td.Name, i, params, typeList, nil, 0)
+
+					assign := new(AssignStmt)
+					assign.SetPos(v.Pos())
+					assign.Op = Def
+					assign.Lhs = NewName(v.Pos(), ctorName)
+					assign.Rhs = fl
+
+					ctorStmts = append(ctorStmts, assign)
+
+					// Avoid "declared and not used" errors for synthesized local constructor variables.
+					// These constructors may not be referenced by user code (e.g. unused variants),
+					// but we still need them to exist so selector/call rewriting can target them.
+					markUsed := new(AssignStmt)
+					markUsed.SetPos(v.Pos())
+					markUsed.Op = 0
+					markUsed.Lhs = NewName(v.Pos(), "_")
+					markUsed.Rhs = NewName(v.Pos(), ctorName)
+					ctorStmts = append(ctorStmts, markUsed)
+				}
+			}
+
+			// Append the rewritten DeclStmt itself.
+			out = append(out, ds)
+			// Then append synthesized constructors (and rewrite them, for nested constructs).
+			for _, cs := range ctorStmts {
+				out = append(out, r.rewriteStmt(cs))
+			}
+			continue
+		}
+
+		out = append(out, r.rewriteStmt(stmt))
 	}
+	block.List = out
 	return block
 }
 
@@ -392,7 +633,7 @@ func (r *rewriter) rewriteSwitchStmt(s *SwitchStmt) Stmt {
 
 	// Detect enum-pattern cases...
 	enumName := ""
-	if r.enumVariants != nil {
+	if r.enumVariants != nil || len(r.enumVariantsScopes) != 0 {
 		for _, cc := range s.Body {
 			elems := UnpackListExpr(cc.Cases)
 			if len(elems) > 1 {
@@ -723,10 +964,7 @@ func (r *rewriter) parseEnumCasePatternFull(expr Expr) (string, string, string, 
 	variantName := sel.Sel.Value
 
 	// 3. 查找元数据
-	if r.enumVariants == nil {
-		return "", "", "", nil, nil, enumVariantInfo{}, false
-	}
-	variants, ok := r.enumVariants[enumName]
+	variants, ok := r.lookupEnumVariants(enumName)
 	if !ok {
 		return "", "", "", nil, nil, enumVariantInfo{}, false
 	}
@@ -779,7 +1017,11 @@ func (r *rewriter) buildEnumCaseCondition(matchVar *Name, caseExpr Expr, switchT
 	if !ok {
 		return nil, nil, nil, Pos{}, false, false, false, false
 	}
-	info, ok := r.enumVariants[en][vn]
+	variants, ok := r.lookupEnumVariants(en)
+	if !ok {
+		return nil, nil, nil, Pos{}, false, false, false, false
+	}
+	info, ok := variants[vn]
 	if !ok {
 		return nil, nil, nil, Pos{}, false, false, false, false
 	}
@@ -796,8 +1038,8 @@ func (r *rewriter) buildEnumCaseCondition(matchVar *Name, caseExpr Expr, switchT
 	forceHeap := declGeneric
 	allowStackFallback := false
 	hasHeapField := false
-	if r.enumHasHeap != nil {
-		hasHeapField = r.enumHasHeap[en]
+	if v, ok := r.lookupEnumHasHeap(en); ok {
+		hasHeapField = v
 	}
 	if declGeneric {
 		if h, ok := getEnumLoweringHint(en); ok && h.MaxStack > 0 {
@@ -1203,7 +1445,7 @@ func (r *rewriter) rewriteExpr(expr Expr) Expr {
 		//   EnumName.Variant  =>  EnumName_Variant()
 		//   EnumName[T].Variant  =>  EnumName_Variant[T]()
 		// Only applies to unit variants (no payload).
-		if r.enumVariants != nil && e.Sel != nil {
+		if e.Sel != nil {
 			var enumName string
 			var typeArgs []Expr
 
@@ -1224,38 +1466,89 @@ func (r *rewriter) rewriteExpr(expr Expr) Expr {
 			}
 
 			if enumName != "" {
-				if variants, ok := r.enumVariants[enumName]; ok {
-					if info, ok := variants[e.Sel.Value]; ok && !info.hasPayload {
-						call := new(CallExpr)
-						call.SetPos(e.Pos())
+				if variants, ok := r.lookupEnumVariants(enumName); ok {
+					if info, ok := variants[e.Sel.Value]; ok {
+						// Unit variant: rewrite to a constructor call (no args).
+						if !info.hasPayload {
+							call := new(CallExpr)
+							call.SetPos(e.Pos())
 
-						// Create constructor name
-						constructorName := NewName(e.Sel.Pos(), enumName+"_"+e.Sel.Value)
+							// Create constructor name
+							constructorName := NewName(e.Sel.Pos(), enumName+"_"+e.Sel.Value)
 
-						// If we have type arguments, create IndexExpr
-						if len(typeArgs) > 0 {
-							var funExpr Expr
-							if len(typeArgs) == 1 {
-								funExpr = &IndexExpr{
-									X:     constructorName,
-									Index: typeArgs[0],
+							// If we have type arguments, create IndexExpr
+							if len(typeArgs) > 0 {
+								var funExpr Expr
+								if len(typeArgs) == 1 {
+									funExpr = &IndexExpr{
+										X:     constructorName,
+										Index: typeArgs[0],
+									}
+								} else {
+									funExpr = &IndexExpr{
+										X: constructorName,
+										Index: &ListExpr{
+											ElemList: typeArgs,
+										},
+									}
 								}
+								funExpr.SetPos(e.Sel.Pos())
+								call.Fun = funExpr
 							} else {
-								funExpr = &IndexExpr{
-									X: constructorName,
-									Index: &ListExpr{
-										ElemList: typeArgs,
-									},
-								}
+								call.Fun = constructorName
 							}
-							funExpr.SetPos(e.Sel.Pos())
-							call.Fun = funExpr
-						} else {
-							call.Fun = constructorName
+
+							// ArgList nil => no args
+							return call
 						}
 
-						// ArgList nil => no args
-						return call
+						// Payload variant: rewrite selector-as-constructor-value:
+						//   Enum.Variant        => Enum_Variant[_heap|_stack][T...]
+						// This ensures the expression is plain Go (function value), and avoids relying
+						// on types2.Selections for enum variant selectors.
+						fnBase := enumName + "_" + e.Sel.Value
+						if info.isGeneric {
+							// default to heap (safe)
+							suffix := "_heap"
+
+							// If types2 says this variant payload has no pointers, prefer stack ctor (if available).
+							if idx, ok := e.X.(*IndexExpr); ok {
+								if tv := idx.GetTypeInfo(); tv.Type != nil {
+									if u := tv.Type.Underlying(); u != nil {
+										type enumLayoutIface interface {
+											VariantLayoutInfo(string) (int64, bool, bool)
+										}
+										if ei, ok := u.(enumLayoutIface); ok {
+											if _, hp, ok := ei.VariantLayoutInfo(e.Sel.Value); ok && !hp {
+												if h, ok := getEnumLoweringHint(enumName); ok && h.MaxStack > 0 {
+													suffix = "_stack"
+												}
+											}
+										}
+									}
+								}
+							}
+
+							fnBase += suffix
+						}
+
+						constructorName := NewName(e.Sel.Pos(), fnBase)
+						if len(typeArgs) > 0 {
+							if len(typeArgs) == 1 {
+								ix := &IndexExpr{X: constructorName, Index: typeArgs[0]}
+								ix.SetPos(e.Sel.Pos())
+								return ix
+							}
+							ix := &IndexExpr{
+								X: constructorName,
+								Index: &ListExpr{
+									ElemList: typeArgs,
+								},
+							}
+							ix.SetPos(e.Sel.Pos())
+							return ix
+						}
+						return constructorName
 					}
 				}
 			}
@@ -1298,7 +1591,7 @@ func (r *rewriter) rewriteExpr(expr Expr) Expr {
 			e.ArgList[i] = r.rewriteExpr(arg)
 		}
 
-		if r.enumVariants != nil {
+		{
 			if sel, ok := e.Fun.(*SelectorExpr); ok && sel.Sel != nil {
 				// Extract enum base name: support both EnumName and EnumName[T1, T2]
 				var enumName string
@@ -1321,7 +1614,7 @@ func (r *rewriter) rewriteExpr(expr Expr) Expr {
 				}
 
 				if enumName != "" {
-					if variants, ok := r.enumVariants[enumName]; ok {
+					if variants, ok := r.lookupEnumVariants(enumName); ok {
 						if info, ok := variants[sel.Sel.Value]; ok {
 							shouldRewrite := false
 							if info.hasPayload {
