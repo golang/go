@@ -3,6 +3,9 @@ package types2
 // Enum represents an enum type.
 type Enum struct {
 	variants []*Var
+	// variantHasPayload indicates whether a variant was declared with an explicit payload.
+	// It is aligned with variants slice.
+	variantHasPayload []bool
 
 	// layout info for enum payload storage.
 	// For a generic (uninstantiated) enum, these may be conservative/unknown.

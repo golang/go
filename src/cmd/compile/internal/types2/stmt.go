@@ -1034,7 +1034,7 @@ func (check *Checker) enumCasePatternCoverage(enum *Enum, e syntax.Expr) (string
 	}
 
 	vname := sel.Sel.Value
-	v, ok := enumVariantByName(enum, vname)
+	v, hasPayload, ok := enumVariantByName2(enum, vname)
 	if !ok || v == nil {
 		return "", false, false
 	}
@@ -1046,8 +1046,10 @@ func (check *Checker) enumCasePatternCoverage(enum *Enum, e syntax.Expr) (string
 		return vname, len(args) == 0, true
 	}
 
-	// Unit variant (payload modeled as empty struct{}).
-	if st, _ := payload.Underlying().(*Struct); st != nil && st.NumFields() == 0 {
+	// Unit variant: only exhaustive when written without args.
+	// Do NOT infer unit-ness from payload type shape; otherwise payload types like `struct{}`
+	// become indistinguishable from unit variants.
+	if !hasPayload {
 		return vname, len(args) == 0, true
 	}
 

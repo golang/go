@@ -12,10 +12,10 @@ func (t *Enum) VariantPayloadSyntax(variantName string, pos syntax.Pos) syntax.E
 	if t == nil {
 		return nil
 	}
-	for _, v := range t.variants {
+	for i, v := range t.variants {
 		if v != nil && v.name == variantName {
-			// Unit variant payload modeled as empty struct.
-			if st, _ := v.typ.Underlying().(*Struct); st != nil && st.NumFields() == 0 {
+			// Unit variant: identified by declaration metadata, not payload type shape.
+			if i < len(t.variantHasPayload) && !t.variantHasPayload[i] {
 				return nil
 			}
 			return typeToSyntaxExpr(pos, v.typ)
@@ -85,6 +85,43 @@ func typeToSyntaxExpr(pos syntax.Pos, t Type) syntax.Expr {
 			st.FieldList = append(st.FieldList, sf)
 		}
 		return st
+	case *Signature:
+		// Convert function types into a syntax.FuncType.
+		ft := new(syntax.FuncType)
+		ft.SetPos(pos)
+
+		// Params
+		if ps := tt.Params(); ps != nil && ps.Len() > 0 {
+			ft.ParamList = make([]*syntax.Field, 0, ps.Len())
+			for i := 0; i < ps.Len(); i++ {
+				pv := ps.At(i)
+				f := new(syntax.Field)
+				f.SetPos(pos)
+				f.Type = typeToSyntaxExpr(pos, pv.typ)
+				ft.ParamList = append(ft.ParamList, f)
+			}
+			// Variadic: last param becomes ...T
+			if tt.Variadic() && len(ft.ParamList) > 0 {
+				last := ft.ParamList[len(ft.ParamList)-1]
+				d := new(syntax.DotsType)
+				d.SetPos(pos)
+				d.Elem = last.Type
+				last.Type = d
+			}
+		}
+
+		// Results
+		if rs := tt.Results(); rs != nil && rs.Len() > 0 {
+			ft.ResultList = make([]*syntax.Field, 0, rs.Len())
+			for i := 0; i < rs.Len(); i++ {
+				rv := rs.At(i)
+				f := new(syntax.Field)
+				f.SetPos(pos)
+				f.Type = typeToSyntaxExpr(pos, rv.typ)
+				ft.ResultList = append(ft.ResultList, f)
+			}
+		}
+		return ft
 	case *Tuple:
 		// Convert tuple (T1, T2, ...) into a ListExpr
 		if tt.Len() == 0 {

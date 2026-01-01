@@ -708,12 +708,14 @@ func (check *Checker) enumType(e *syntax.EnumType, def *TypeName) Type {
 	}
 
 	var variants []*Var
+	var hasPayload []bool
 
 	for _, v := range e.VariantList {
 		name := v.Name.Value
 		var typ Type
 
 		if v.Type != nil {
+			hasPayload = append(hasPayload, true)
 			// Support tuple payloads written as a syntax.ListExpr: Some(T, E)
 			// by modeling them as an anonymous struct { _0 T0; _1 T1; ... }.
 			if list, ok := v.Type.(*syntax.ListExpr); ok {
@@ -739,6 +741,7 @@ func (check *Checker) enumType(e *syntax.EnumType, def *TypeName) Type {
 				typ = NewStruct(nil, nil)
 			}
 		} else {
+			hasPayload = append(hasPayload, false)
 			typ = NewStruct(nil, nil)
 		}
 
@@ -748,6 +751,7 @@ func (check *Checker) enumType(e *syntax.EnumType, def *TypeName) Type {
 
 	// 2. 填充 variants
 	t.variants = variants
+	t.variantHasPayload = hasPayload
 
 	// Best-effort layout info (may be conservative for generic/uninstantiated enums).
 	t.maxPayloadSize, t.hasPointers = check.enumLayoutFromVariants(t)

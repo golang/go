@@ -227,7 +227,9 @@ func (subst *subster) typ(typ Type) Type {
 		// Each variant is represented as a *Var whose type is the (effective) payload type
 		// (or struct{} for unit variants).
 		if vars := substList(t.variants, subst.var_); vars != nil {
-			return &Enum{variants: vars}
+			// Preserve variant metadata (payload presence) to avoid conflating unit variants
+			// with payload types like struct{}.
+			return &Enum{variants: vars, variantHasPayload: t.variantHasPayload}
 		}
 
 	case *Map:

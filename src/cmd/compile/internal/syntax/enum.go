@@ -369,10 +369,33 @@ func (r *rewriter) generateConstructorBody(pos Pos, typeName *Name, tagVal int, 
 		var heapValue Expr
 
 		if len(types) == 1 && isOptimizableScalar(types[0]) {
-			// 单参数且是可优化标量：直接取地址并转换
-			// &param -> unsafe.Pointer
-			heapValue = &Operation{Op: And, X: params[0].Name}
-			T(heapValue)
+			// 单参数且是可优化标量：
+			// 不能直接用 &param（可能把栈地址存进 _heap，导致悬空指针/读出“像地址”的大整数）。
+			// 正确做法：new(T) 在堆上分配并拷贝值，再把 *T 转成 unsafe.Pointer。
+
+			// _p := new(T)
+			pName := NewName(pos, "_p")
+			newCall := &CallExpr{
+				Fun:     NewName(pos, "new"),
+				ArgList: []Expr{types[0]},
+			}
+			T(newCall)
+			assignP := &AssignStmt{
+				Op:  Def,
+				Lhs: pName,
+				Rhs: newCall,
+			}
+			T(assignP)
+			block.List = append(block.List, assignP)
+
+			// *_p = v
+			derefP := &Operation{Op: Mul, X: pName}
+			T(derefP)
+			copyAs := &AssignStmt{Op: 0, Lhs: derefP, Rhs: params[0].Name}
+			T(copyAs)
+			block.List = append(block.List, copyAs)
+
+			heapValue = pName
 		} else {
 			// 构造匿名结构体类型（多参数或非标量单参数）
 			structFields := make([]*Field, len(types))

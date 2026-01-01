@@ -33,6 +33,25 @@ func enumVariantByName(e *Enum, name string) (*Var, bool) {
 	return nil, false
 }
 
+// enumVariantByName2 returns the variant, whether it has an explicit payload, and ok.
+// It relies on Enum.variantHasPayload to disambiguate unit variants from payload variants
+// whose payload type happens to be an empty struct.
+func enumVariantByName2(e *Enum, name string) (v *Var, hasPayload bool, ok bool) {
+	if e == nil {
+		return nil, false, false
+	}
+	for i, vv := range e.variants {
+		if vv != nil && vv.name == name {
+			if i < len(e.variantHasPayload) {
+				return vv, e.variantHasPayload[i], true
+			}
+			// Fallback: if metadata missing, be conservative and treat as payload.
+			return vv, true, true
+		}
+	}
+	return nil, false, false
+}
+
 type enumCasePattern struct {
 	variantName string
 	// bindNames are the identifiers in the pattern args (excluding blanks).

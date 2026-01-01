@@ -1032,13 +1032,14 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
 	//   - a function value with signature func(args...) EnumType (payload variant)
 	if x.mode == typexpr {
 		if enum, ok := asEnumType(x.typ); ok && enum != nil {
-			if vv, ok := enumVariantByName(enum, sel); ok && vv != nil {
+			if vv, hasPayload, ok := enumVariantByName2(enum, sel); ok && vv != nil {
 				// Record the variant "use" for tooling/Info (best-effort).
 				check.recordUse(e.Sel, vv)
 
 				// Unit variant: treat as a value of the enum type.
-				// In our enum encoding, unit variants have payload type struct{}.
-				if st, _ := vv.typ.Underlying().(*Struct); st != nil && st.NumFields() == 0 {
+				// Important: do NOT infer unit-ness from payload type shape, otherwise
+				// payload types like `struct{}` become indistinguishable from unit variants.
+				if !hasPayload {
 					x.mode = value
 					x.typ = x.typ
 					x.expr = e

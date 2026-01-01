@@ -228,6 +228,20 @@ func typeHasPointersImpl(t Type, seen map[Type]bool) bool {
 	// and re-entering resolve would deadlock.
 	u := Unalias(t)
 	if n, ok := u.(*Named); ok && n != nil {
+		// If this is an instance of an originally-generic named enum (i.e. it has type parameters),
+		// treat it as pointerful even if its current payload shape is pointer-free.
+		//
+		// Rationale: our enum lowering for generic enums conservatively includes a `_heap` pointer slot
+		// in the lowered struct representation. Therefore values of such enums always contain a pointer
+		// field at runtime, and storing them into raw byte stacks of other enums would lose pointer
+		// liveness for the GC and can corrupt reads.
+		//
+		// We must not call n.TypeParams() here (it triggers resolve); use the already-populated field.
+		if n.tparams != nil && n.tparams.Len() > 0 {
+			if _, isEnum := Unalias(n.underlying).(*Enum); isEnum {
+				return true
+			}
+		}
 		// Avoid resolve() entirely: consult the already-populated underlying field.
 		// If it's not available yet, be conservative.
 		if n.underlying == nil {
