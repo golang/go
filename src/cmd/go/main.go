@@ -33,6 +33,7 @@ import (
 	"cmd/go/internal/modget"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/run"
+	"cmd/go/internal/service"
 	"cmd/go/internal/telemetrycmd"
 	"cmd/go/internal/telemetrystats"
 	"cmd/go/internal/test"
@@ -66,6 +67,7 @@ func init() {
 		telemetrycmd.CmdTelemetry,
 		test.CmdTest,
 		tool.CmdTool,
+		service.CmdService,
 		version.CmdVersion,
 		vet.CmdVet,
 
