@@ -7,12 +7,17 @@ func asEnumType(typ Type) (*Enum, bool) {
 	if typ == nil {
 		return nil, false
 	}
-	switch t := Unalias(typ).Underlying().(type) {
-	case *Enum:
-		return t, true
-	default:
-		return nil, false
+	t := Unalias(typ)
+	// Be conservative: during typechecking we may see partially-initialized or
+	// not-yet-expanded Named instances. Try both the "safe" underlying (no instance
+	// expansion) and the full Underlying() result.
+	if e, ok := safeUnderlying(t).(*Enum); ok {
+		return e, true
 	}
+	if e, ok := t.Underlying().(*Enum); ok {
+		return e, true
+	}
+	return nil, false
 }
 
 // enumVariantByName returns the variant *Var and true if found.

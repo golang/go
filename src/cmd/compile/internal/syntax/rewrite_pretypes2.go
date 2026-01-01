@@ -13,6 +13,9 @@ func RewriteExtensionsPreTypes2(file *File) map[string]*OverloadInfo {
 	if file == nil {
 		return nil
 	}
+	// Type algebra (`+` sum types, `*` product types) must be rewritten early so the first
+	// types2 pass can typecheck the resulting enum/struct/interface shapes.
+	RewriteTypeAlgebra(file)
 	// Do NOT call RewriteQuestionExprs(file) here.
 	RewriteMagicAndArithmetic(file)
 	overloads := RewriteInitAndOverloads(file)

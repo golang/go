@@ -1497,7 +1497,57 @@ func main() {
 **注意**：
 - 在魔法方法内部写 `a + b` 可能触发递归重写；建议在魔法方法体内直接写分发逻辑，不要再用同一个运算符调用自身。
 
-#### 7.7 枚举使用示例
+#### 7.7 类型代数（Type Algebra）
+
+MyGO 支持在**类型表达式**中使用 `+` 与 `*` 来组合类型（结构性类型代数）。
+
+##### 7.7.1 和类型（Sum Types）
+
+`A + B` 表示逻辑上的 OR：一个值在运行时要么是 `A`，要么是 `B`。它等价于一个**匿名枚举**：
+
+```go
+// type ID = int + string
+// 等价（概念上）：
+// type ID = enum { int(int); string(string) }
+```
+
+- **变体名（tag/variant name）**：默认取操作数类型的“打印形态”并规范化为标识符；简单名字（如 `int`、`error`、`UserStruct`）保持不变。
+- **`nil`**：在和类型中，`nil` 被视作一个 Unit 变体（无 payload），用于表达 Optional（例如 `User + nil`）。
+- **结构性/交换律**：`A + B` 与 `B + A` 视为同一类型（编译器会做规范化排序）。
+
+示例：
+
+```go
+type ID = int + string
+type Result = UserStruct + error
+type UserOrNil = UserStruct + nil
+```
+
+##### 7.7.2 积类型（Product Types）
+
+`A * B` 表示逻辑上的 AND（合并）。行为取决于操作数的底层类型：
+
+- **Interface * Interface**：接口组合（新类型必须同时满足两个接口的方法集/约束）。
+- **Struct * Struct**：字段合并（Mixin）。新类型包含两侧结构体的字段集合（顺序无关，编译器会规范化排序）。
+- **其它（含基本类型）**：暂不支持（在实现元组等更通用形态前先收敛语义）。
+
+##### 7.7.3 运算符优先级与消歧
+
+由于 `*` 同时用于指针与积类型，MyGO 使用如下优先级（高 → 低）：
+
+- **前缀（Prefix）**：`*T`, `[]T`（指针/切片等）— 右结合
+- **中缀（Infix）**：`A * B`（积类型）— 左结合
+- **中缀（Infix）**：`A + B`（和类型）— 左结合
+
+示例：
+
+```go
+type T = *User * *Address         // 解析为: (*User) * (*Address)
+type T2 = User * Label + error    // 解析为: (User * Label) + error
+type Complex = *A + B * *C        // 解析为: (*A) + (B * (*C))
+```
+
+#### 7.8 枚举使用示例
 
 ##### 构造Option[T]
 

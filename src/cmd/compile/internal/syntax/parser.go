@@ -724,7 +724,7 @@ func (p *parser) constDecl(group *Group) Decl {
 
 	d.NameList = p.nameList(p.name())
 	if p.tok != _EOF && p.tok != _Semi && p.tok != _Rparen {
-		d.Type = p.typeOrNil()
+		d.Type = p.typeExprOrNil()
 		if p.gotAssign() {
 			d.Values = p.exprList()
 		}
@@ -789,7 +789,7 @@ func (p *parser) typeDecl(group *Group) Decl {
 				// d.Name "[" pname ptype "," ...
 				d.TParamList = p.paramList(pname, ptype, _Rbrack, true, false) // ptype may be nil
 				d.Alias = p.gotAssign()
-				d.Type = p.typeOrNil()
+				d.Type = p.typeExprOrNil()
 			} else {
 				// d.Name "[" pname "]" ...
 				// d.Name "[" x ...
@@ -805,7 +805,7 @@ func (p *parser) typeDecl(group *Group) Decl {
 		}
 	} else {
 		d.Alias = p.gotAssign()
-		d.Type = p.typeOrNil()
+		d.Type = p.typeExprOrNil()
 	}
 
 	if d.Type == nil {
@@ -1552,7 +1552,7 @@ func (p *parser) type_() Expr {
 		defer p.trace("type_")()
 	}
 
-	typ := p.typeOrNil()
+	typ := p.typeExprOrNil()
 	if typ == nil {
 		typ = p.badExpr()
 		p.syntaxError("expected type")
@@ -1560,6 +1560,70 @@ func (p *parser) type_() Expr {
 	}
 
 	return typ
+}
+
+// typeExprOrNil parses a type expression (including MyGo type algebra)
+// and returns nil if there was no type.
+//
+// Precedence (high -> low):
+//   1) prefix: *T, []T, ...
+//   2) infix:  A * B    (product type)   left-associative
+//   3) infix:  A + B    (sum type)       left-associative
+//
+// Note: '*' is tokenized as _Star (distinct from _Operator), so we treat _Star in infix
+// position as the product operator, and in prefix position as a pointer type.
+func (p *parser) typeExprOrNil() Expr {
+	if trace {
+		defer p.trace("typeExprOrNil")()
+	}
+	x := p.typeProductOrNil()
+	if x == nil {
+		return nil
+	}
+	for p.tok == _Operator && p.op == Add {
+		pos := p.pos()
+		p.next()
+		y := p.typeProductOrNil()
+		if y == nil {
+			y = p.badExpr()
+			p.syntaxError("expected type after +")
+			p.advance(_Comma, _Colon, _Semi, _Rparen, _Rbrack, _Rbrace)
+		}
+		t := new(Operation)
+		t.pos = pos
+		t.Op = Add
+		t.X = x
+		t.Y = y
+		x = t
+	}
+	return x
+}
+
+func (p *parser) typeProductOrNil() Expr {
+	if trace {
+		defer p.trace("typeProductOrNil")()
+	}
+	x := p.typeOrNil()
+	if x == nil {
+		return nil
+	}
+	for p.tok == _Star {
+		pos := p.pos()
+		p.next()
+		y := p.typeOrNil()
+		if y == nil {
+			y = p.badExpr()
+			p.syntaxError("expected type after *")
+			p.advance(_Comma, _Colon, _Semi, _Rparen, _Rbrack, _Rbrace)
+		}
+		t := new(Operation)
+		t.pos = pos
+		t.Op = Mul
+		t.X = x
+		t.Y = y
+		x = t
+	}
+	return x
 }
 
 func newIndirect(pos Pos, typ Expr) Expr {
@@ -1821,7 +1885,7 @@ func (p *parser) chanElem() Expr {
 		defer p.trace("chanElem")()
 	}
 
-	typ := p.typeOrNil()
+	typ := p.typeExprOrNil()
 	if typ == nil {
 		typ = p.badExpr()
 		p.syntaxError("missing channel element type")
@@ -1887,7 +1951,7 @@ func (p *parser) funcResult() []*Field {
 	}
 
 	pos := p.pos()
-	if typ := p.typeOrNil(); typ != nil {
+	if typ := p.typeExprOrNil(); typ != nil {
 		f := new(Field)
 		f.pos = pos
 		f.Type = typ
@@ -2016,7 +2080,7 @@ func (p *parser) arrayOrTArgs() Expr {
 	n, comma := p.typeList(false)
 	p.want(_Rbrack)
 	if !comma {
-		if elem := p.typeOrNil(); elem != nil {
+		if elem := p.typeExprOrNil(); elem != nil {
 			// x [n]E
 			t := new(ArrayType)
 			t.pos = pos
@@ -2183,7 +2247,7 @@ func (p *parser) embeddedTerm() Expr {
 		return t
 	}
 
-	t := p.typeOrNil()
+	t := p.typeExprOrNil()
 	if t == nil {
 		t = p.badExpr()
 		p.syntaxError("expected ~ term or type")
@@ -2261,7 +2325,7 @@ func (p *parser) paramDeclOrNil(name *Name, follow token) *Field {
 		t := new(DotsType)
 		t.pos = p.pos()
 		p.next()
-		t.Elem = p.typeOrNil()
+		t.Elem = p.typeExprOrNil()
 		if t.Elem == nil {
 			f.Type = p.badExpr()
 			p.syntaxError("... is missing type")
@@ -2277,7 +2341,7 @@ func (p *parser) paramDeclOrNil(name *Name, follow token) *Field {
 		return f
 	}
 
-	f.Type = p.typeOrNil()
+	f.Type = p.typeExprOrNil()
 	if typeSetsOk && p.tok == _Operator && p.op == Or && f.Type != nil {
 		// [name] type "|"
 		f = p.embeddedElem(f)
@@ -3532,7 +3596,7 @@ func (p *parser) typeList(strict bool) (x Expr, comma bool) {
 		comma = true
 		var t Expr
 		if strict {
-			t = p.typeOrNil()
+			t = p.typeExprOrNil()
 		} else {
 			// In non-strict mode, accept expressions (for magic method indexing with literals)
 			if p.tok != _Rbrack && p.tok != _Colon {
@@ -3543,7 +3607,7 @@ func (p *parser) typeList(strict bool) (x Expr, comma bool) {
 			list := []Expr{x, t}
 			for p.got(_Comma) {
 				if strict {
-					t = p.typeOrNil()
+					t = p.typeExprOrNil()
 				} else {
 					// In non-strict mode, accept expressions
 					if p.tok != _Rbrack && p.tok != _Colon {

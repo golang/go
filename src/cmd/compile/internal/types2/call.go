@@ -833,7 +833,13 @@ func (check *Checker) tryRewriteOverloadedSelectorCall(sel *syntax.SelectorExpr,
 
 	// Type-check receiver to get its type.
 	var recv operand
-	check.expr(nil, &recv, sel.X)
+	// Note: sel.X may be a type expression (MyGO enum ctor sugar uses Type.Variant / Type.Variant(...)).
+	// In that case, do not attempt overload resolution here; the selector checker has
+	// dedicated logic for enums on type receivers.
+	check.exprOrType(&recv, sel.X, true)
+	if recv.mode == typexpr {
+		return
+	}
 	if recv.mode == invalid {
 		return
 	}

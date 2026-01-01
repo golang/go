@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"go/constant"
 	. "internal/types/errors"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -332,18 +333,26 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *TypeName) (T Type) {
 		return typ
 
 	case *syntax.Operation:
-		if e.Op == syntax.Mul && e.Y == nil {
-			typ := new(Pointer)
-			typ.base = Typ[Invalid] // avoid nil base in invalid recursive type declaration
-			setDefType(def, typ)
-			typ.base = check.varType(e.X)
-			// If typ.base is invalid, it's unlikely that *base is particularly
-			// useful - even a valid dereferenciation will lead to an invalid
-			// type again, and in some cases we get unexpected follow-on errors
-			// (e.g., go.dev/issue/49005). Return an invalid type instead.
-			if !isValid(typ.base) {
-				return Typ[Invalid]
+		if e.Op == syntax.Mul {
+			// Pointer type: *T
+			if e.Y == nil {
+				typ := new(Pointer)
+				typ.base = Typ[Invalid] // avoid nil base in invalid recursive type declaration
+				setDefType(def, typ)
+				typ.base = check.varType(e.X)
+				// If typ.base is invalid, it's unlikely that *base is particularly
+				// useful - even a valid dereferenciation will lead to an invalid
+				// type again, and in some cases we get unexpected follow-on errors
+				// (e.g., go.dev/issue/49005). Return an invalid type instead.
+				if !isValid(typ.base) {
+					return Typ[Invalid]
+				}
+				return typ
 			}
+
+			// Product type: A * B (MyGo extension)
+			typ := check.productType(e)
+			setDefType(def, typ)
 			return typ
 		}
 
@@ -419,6 +428,125 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *TypeName) (T Type) {
 	typ := Typ[Invalid]
 	setDefType(def, typ)
 	return typ
+}
+
+// productType implements MyGo product types:
+//   - Interface * Interface: interface embedding (intersection)
+//   - Struct * Struct: field merge (mixin)
+// Other combinations are rejected (for now).
+func (check *Checker) productType(e *syntax.Operation) Type {
+	if e == nil || e.Op != syntax.Mul || e.Y == nil {
+		return Typ[Invalid]
+	}
+
+	a := check.varType(e.X)
+	b := check.varType(e.Y)
+	if !isValid(a) || !isValid(b) {
+		return Typ[Invalid]
+	}
+
+	ua := under(Unalias(a))
+	ub := under(Unalias(b))
+
+	// Interface * Interface
+	if _, ok := ua.(*Interface); ok {
+		if _, ok := ub.(*Interface); ok {
+			// Canonicalize embedded order for determinism (commutativity).
+			embeddeds := []Type{a, b}
+			sort.Slice(embeddeds, func(i, j int) bool {
+				return TypeString(embeddeds[i], nil) < TypeString(embeddeds[j], nil)
+			})
+			ityp := check.newInterface()
+			ityp.embeddeds = embeddeds
+			ityp.complete = true
+			// Compute type set later to surface any embedding errors.
+			check.later(func() {
+				computeInterfaceTypeSet(check, e.Pos(), ityp)
+			}).describef(e, "compute type set for %s", ityp)
+			return ityp
+		}
+		check.errorf(e, InvalidSyntaxTree, "invalid product type: %s * %s (interfaces can only be multiplied by interfaces)", a, b)
+		return Typ[Invalid]
+	}
+
+	// Struct * Struct
+	if sa, ok := ua.(*Struct); ok {
+		sb, ok := ub.(*Struct)
+		if !ok {
+			check.errorf(e, InvalidSyntaxTree, "invalid product type: %s * %s (structs can only be multiplied by structs)", a, b)
+			return Typ[Invalid]
+		}
+
+		type fieldEntry struct {
+			f   *Var
+			tag string
+			key string
+		}
+
+		var entries []fieldEntry
+		addFields := func(s *Struct) {
+			for i := 0; i < s.NumFields(); i++ {
+				f := s.Field(i)
+				if f == nil {
+					continue
+				}
+				tag := s.Tag(i)
+				// Copy field Var to keep the product type independent.
+				cf := NewField(f.pos, f.pkg, f.name, f.typ, f.embedded)
+				pkgPath := ""
+				if cf.pkg != nil {
+					pkgPath = cf.pkg.Path()
+				}
+				key := cf.name + "|" + pkgPath + "|" + TypeString(cf.typ, nil) + "|" + tag
+				if cf.embedded {
+					key += "|embedded"
+				} else {
+					key += "|named"
+				}
+				entries = append(entries, fieldEntry{f: cf, tag: tag, key: key})
+			}
+		}
+
+		addFields(sa)
+		addFields(sb)
+
+		// Sort for commutativity/structural identity.
+		sort.Slice(entries, func(i, j int) bool {
+			return entries[i].key < entries[j].key
+		})
+
+		// Uniqueness: Within a struct, non-blank field names must be unique.
+		seen := make(map[string]bool)
+		for _, it := range entries {
+			if it.f == nil {
+				continue
+			}
+			if it.f.name == "_" {
+				continue
+			}
+			if seen[it.f.name] {
+				check.errorf(e, DuplicateDecl, "duplicate field %q in product type %s * %s", it.f.name, a, b)
+				return Typ[Invalid]
+			}
+			seen[it.f.name] = true
+		}
+
+		fields := make([]*Var, 0, len(entries))
+		var tags []string
+		for _, it := range entries {
+			fields = append(fields, it.f)
+			if it.tag != "" && tags == nil {
+				tags = make([]string, len(fields)-1)
+			}
+			if tags != nil {
+				tags = append(tags, it.tag)
+			}
+		}
+		return NewStruct(fields, tags)
+	}
+
+	check.errorf(e, InvalidSyntaxTree, "invalid product type: %s * %s", a, b)
+	return Typ[Invalid]
 }
 
 func setDefType(def *TypeName, typ Type) {
