@@ -1898,9 +1898,21 @@ MyGO 支持在**类型表达式**中使用 `+` 与 `*` 来组合类型（结构�
 // type ID = enum { int(int); string(string) }
 ```
 
-- **变体名（tag/variant name）**：默认取操作数类型的“打印形态”并规范化为标识符；简单名字（如 `int`、`error`、`UserStruct`）保持不变。
+- **变体名（tag/variant name）**：默认取操作数类型的“打印形态”并规范化为标识符；简单名字（如 `int`、`error`、`UserStruct`）保持不变; 
+- **匿名和类型/积类型的命名**：`A + B` 与 `B + A` 会被规范化排序成同一个和类型；但**变体名来自各自操作数的打印形态**，例如 `User * Label` 与 `Label * User` 会分别得到 `User_Label` 与 `Label_User`。所以如果需要具体访问的变体名，而不是单纯的类型约束，**请给需要访问的类型起一个别名！**
 - **`nil`**：在和类型中，`nil` 被视作一个 Unit 变体（无 payload），用于表达 Optional（例如 `User + nil`）。
 - **结构性/交换律**：`A + B` 与 `B + A` 视为同一类型（编译器会做规范化排序）。
+
+变体命名规则
+
+**输入**：对每个和类型操作数 `Ti`，取其类型表达式的**打印形态** `S = print(Ti)`（例如 `int`、`error`、`User * Label`、`pkg.Type[T]` 等）。
+- **规范化（sanitize）**：将 `S` 转为合法标识符：
+  - 允许字符：字母/数字/下划线（`[A-Za-z0-9_]`）
+  - 其它字符（空格、`*`、`[]`、`()`、`.`、`,` 等）都折叠为单个 `_`（连续 `_` 会合并）
+  - 去掉末尾多余 `_`；若结果为空则使用 `_`
+  - 若结果首字符是数字，前面补一个 `_`
+- **`nil` 特例**：`Ti == nil` 时，变体名为 `nil`，并且是 Unit 变体（无 payload）。
+- **冲突消解**：若规范化后出现同名（例如两个不同类型最终都变成同一个标识符），会在后者后面追加 `_2`、`_3`… 保证唯一。
 
 示例：
 
@@ -1908,6 +1920,13 @@ MyGO 支持在**类型表达式**中使用 `+` 与 `*` 来组合类型（结构�
 type ID = int + string
 type Result = UserStruct + error
 type UserOrNil = UserStruct + nil
+
+type ID = int + string          // 变体: int / string
+type R = User * Label + error   // 变体: User_Label / error
+type O = User + nil             // 变体: User / nil（nil 为 Unit）
+
+type Alias = User * Label
+type R = Alias + error // 别名
 ```
 
 #### 7.9 积类型（Product Types）
