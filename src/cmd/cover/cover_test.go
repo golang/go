@@ -638,3 +638,12 @@ func main() {
 		t.Errorf("unexpected success; want failure due to newline in file path")
 	}
 }
+
+func TestAlignment(t *testing.T) {
+	// Test that cover data structures are aligned appropriately. See issue 58936.
+	testenv.MustHaveGoRun(t)
+	t.Parallel()
+
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "test", "-cover", filepath.Join(testdata, "align.go"), filepath.Join(testdata, "align_test.go"))
+	run(cmd, t)
+}

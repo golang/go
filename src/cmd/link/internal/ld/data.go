@@ -2022,6 +2022,13 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.covctrs", 0), sect)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.ecovctrs", 0), sect)
 
+	// If we started this blob at an odd alignment, then covctrs will
+	// not be correctly aligned. Each individual entry is aligned properly,
+	// but the start marker may be before any padding inserted to enforce
+	// that alignment. Fix that here. See issue 58936.
+	covCounterDataStartOff += covCounterDataLen % 4
+	covCounterDataLen -= covCounterDataLen % 4
+
 	// Coverage instrumentation counters for libfuzzer.
 	if len(state.data[sym.SLIBFUZZER_8BIT_COUNTER]) > 0 {
 		sect := state.allocateNamedSectionAndAssignSyms(&Segdata, ".go.fuzzcntrs", sym.SLIBFUZZER_8BIT_COUNTER, sym.Sxxx, 06)
