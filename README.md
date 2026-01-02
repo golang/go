@@ -2173,14 +2173,108 @@ func main() {
 
 ### Constructor Decorators
 
-You can decorate `_init`, but:
-*   Decorator signature must match `_init` args.
-*   Decorator must return a function that returns `*TypeName`.
+You can decorate `_init` constructors, but there are specific signature requirements.
+
+**Requirements:**
+- The decorator's function signature must match the original signature of the _init method (before any internal rewriting).
+- The decorator must accept and return a function type where the return type includes *TypeName.
+
+**Correct Example:**
+
+```go
+// Decorator signature: accepts and returns func(string, int) *Server
+func logger(f func(string, int) *Server) func(string, int) *Server {
+    return func(host string, port int) *Server {
+        fmt.Println("Creating server:", host, port)
+        return f(host, port)
+    }
+}
+
+type Server struct {
+    host string
+    port int
+}
+
+@logger
+func (s *Server) _init(host string, port int) {
+    s.host = host
+    s.port = port
+}
+
+func main() {
+    s := make(Server, "localhost", 8080)
+    // Output: Creating server: localhost 8080
+    fmt.Printf("%s:%d\n", s.host, s.port)
+}
+```
 
 ### Method Overloading vs Default Args
 
-Ambiguity can arise. Compiler prioritizes **Declaration Order**.
-**Advice**: Avoid mixing overloading and default args, or use explicit arguments.
+Ambiguity can arise when a method has both overloads and default arguments. MyGO resolves this using **Declaration Order Priority**.
+
+
+**Ambiguity Example:**
+
+
+```go
+type DataStore struct {
+    intData    map[string]int
+    stringData map[string]string
+}
+
+// Store Int
+func (ds *DataStore) Set(key string, value int) {
+    if ds.intData == nil {
+        ds.intData = make(map[string]int)
+    }
+    ds.intData[key] = value
+}
+
+// Store String
+func (ds *DataStore) Set(key string, value string) {
+    if ds.stringData == nil {
+        ds.stringData = make(map[string]string)
+    }
+    ds.stringData[key] = value
+}
+
+// First Get method: handles int with a default argument
+func (ds *DataStore) Get(key string, defaultValue int = 0) int {
+    if v, ok := ds.intData[key]; ok {
+        return v
+    }
+    return defaultValue
+}
+
+// Second Get method: handles string with a default argument
+func (ds *DataStore) Get(key string, defaultValue string = "Unknown") string {
+    if v, ok := ds.stringData[key]; ok {
+        return v
+    }
+    return defaultValue
+}
+
+func main() {
+    store := &DataStore{}
+    store.Set("age", 25)
+    
+    // ⚠️ Ambiguous Case: Only one argument provided
+    // This calls the first declared method (the int version)
+    result := store.Get("someKey") 
+
+    fmt.Println(result) // Output: 0
+
+    // ✅ Best Practice: Pass full arguments to avoid ambiguity
+    intResult := store.Get("age", 0)           // Calls int version
+    strResult := store.Get("name", "Unknown")  // Calls string version
+    fmt.Println(intResult, strResult)
+}
+```
+
+**Advice:**
+- Avoid using default arguments within overloaded methods whenever possible.
+- If you must use them, explicitly pass all arguments at the call site to ensure the correct overload is selected.
+- Alternatively, use distinct method names (e.g., `GetInt`, `GetString`).
 
 ## Build and Use
 
