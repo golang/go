@@ -912,7 +912,12 @@ If a pointer type overloads `==` or `!=`, it overrides native pointer address co
 | `<-a` | Prefix | `func _recv() T` | N/A | Receive |
 | `a <- v` | Infix | `func _send(v T)` | N/A | Send |
 
-**⚠️ Note: `select` statement not supported yet!**
+**⚠️ About `select`**
+
+At present, `select` does not directly support `_recv() T` and `_send(v T)`.
+However, you can enable `select` support for custom structs by overloading the `Chan() chan` method.
+
+That said, this approach may introduce **ambiguity**, so it is **not recommended**.
 
 ##### Compound Assignment Expansion
 
@@ -1777,6 +1782,388 @@ func main() {
 	fmt.Println("r2 =", r2.UnwrapOrHandle(-1, func(e error) {
 		fmt.Println("r2 err:", e)
 	}))
+}
+```
+
+### Type Algebra
+
+MyGO supports using `+` and `*` in **type expressions** to compose types (structural type algebra).
+
+#### 7.8 Sum Types
+
+`A + B` represents a logical **OR**: at runtime, a value is either `A` or `B`.
+It is equivalent to an **anonymous enum**:
+
+```go
+// type ID = int + string
+// Equivalent (conceptually):
+// type ID = enum { int(int); string(string) }
+```
+
+* **Variant name (tag / variant name)**:
+  By default, it is derived from the operand type’s *printed form* and normalized into an identifier.
+  Simple names (e.g. `int`, `error`, `UserStruct`) remain unchanged.
+* **Naming of anonymous sum/product types**:
+  `A + B` and `B + A` are normalized (sorted) into the same sum type; however, **variant names come from each operand’s printed form**.
+  For example, `User * Label` and `Label * User` produce `User_Label` and `Label_User` respectively.
+  Therefore, if you need to access concrete variant names (rather than just using the type as a constraint), **give the type an alias**.
+* **`nil`**:
+  In sum types, `nil` is treated as a **Unit variant** (no payload), used to express Optional types (e.g. `User + nil`).
+* **Structural / commutativity**:
+  `A + B` and `B + A` are considered the same type (the compiler performs normalization).
+
+---
+
+##### Variant Naming Rules
+
+**Input**: For each operand `Ti` of a sum type, take the *printed form* of its type expression `S = print(Ti)`
+(e.g. `int`, `error`, `User * Label`, `pkg.Type[T]`, etc.).
+
+* **Normalization (sanitize)**: Convert `S` into a valid identifier:
+
+  * Allowed characters: letters, digits, underscore (`[A-Za-z0-9_]`)
+  * All other characters (spaces, `*`, `[]`, `()`, `.`, `,`, etc.) are collapsed into a single `_`
+  * Consecutive `_` are merged
+  * Trailing `_` are removed; if the result is empty, use `_`
+  * If the first character is a digit, prefix it with `_`
+* **`nil` special case**:
+  If `Ti == nil`, the variant name is `nil`, and it is a Unit variant (no payload).
+* **Conflict resolution**:
+  If normalization produces duplicate names (e.g. two different types normalize to the same identifier), `_2`, `_3`, … are appended to ensure uniqueness.
+
+**Examples:**
+
+```go
+type ID = int + string
+type Result = UserStruct + error
+type UserOrNil = UserStruct + nil
+
+type ID = int + string          // Variants: int / string
+type R = User * Label + error   // Variants: User_Label / error
+type O = User + nil             // Variants: User / nil (nil is Unit)
+
+type Alias = User * Label
+type R = Alias + error // Using an alias
+```
+
+---
+
+#### 7.9 Product Types
+
+`A * B` represents a logical **AND** (composition). Its behavior depends on the underlying operand types:
+
+* **Interface * Interface**: Interface composition
+  (the new type must satisfy both method sets / constraints).
+* **Struct * Struct**: Field merging (Mixin).
+  The new type contains the combined fields of both structs (order-independent; the compiler normalizes the order).
+* **Others (including basic types)**: Not supported for now
+  (semantics are intentionally restricted until more general tuple forms are introduced).
+
+---
+
+#### 7.10 Operator Precedence and Disambiguation
+
+Because `*` is used both for pointers and for product types, MyGO uses the following precedence (high → low):
+
+* **Prefix**: `*T`, `[]T` (pointer / slice, etc.) — right-associative
+* **Infix**: `A * B` (product types) — left-associative
+* **Infix**: `A + B` (sum types) — left-associative
+
+**Examples:**
+
+```go
+type T = *User * *Address         // Parsed as: (*User) * (*Address)
+type T2 = User * Label + error    // Parsed as: (User * Label) + error
+type Complex = *A + B * *C        // Parsed as: (*A) + (B * (*C))
+```
+
+---
+
+#### 7.11 Use Cases of Type Algebra
+
+Type algebra can be used to express algebraic constraints abstractly.
+
+```go
+package main
+
+import "fmt"
+
+// ============================================
+// Layer 1: Interface definitions for basic algebraic structures
+// ============================================
+
+// Magma: a closed binary operation
+// Requirement: ∀a,b ∈ M, a·b ∈ M
+type Magma[T any] interface {
+    _mul(T) T
+}
+
+// Semigroup: a Magma that satisfies associativity
+// Semantic constraint (not checked by the compiler):
+// (a·b)·c = a·(b·c)
+type Semigroup[T any] interface {
+    Magma[T]
+}
+
+type Identity[T any] interface {
+    _identity() T
+}
+
+type Inverse[T any] interface {
+    _inverse() T
+}
+
+// Monoid: a Semigroup with an identity element
+// Semantic constraint: e·a = a·e = a
+type Monoid[T any] = Semigroup[T] * Identity[T]
+
+// Group: a Monoid where every element has an inverse
+// Semantic constraint: a·a⁻¹ = a⁻¹·a = e
+type Group[T any] = Monoid[T] * Inverse[T]
+
+// AbelianGroup: a Group that satisfies commutativity
+type AbelianGroup[T any] = Group[T]
+
+// ============================================
+// Layer 2: Composing algebraic structures using product types
+// ============================================
+
+// Additive structure (Abelian group structure for addition)
+type Additive[T any] interface {
+    _add(T) T     // a + b
+    _neg() T      // -a (additive inverse)
+    Zero() T      // 0 (additive identity)
+}
+
+// Multiplicative structure (Monoid structure for multiplication)
+type Multiplicative[T any] interface {
+    _mul(T) T     // a × b
+    One() T       // 1 (multiplicative identity)
+}
+
+// Multiplicative invertible structure (for non-zero elements of a field)
+type MulInvertible[T any] interface {
+    Reciprocal() T   // a⁻¹ (multiplicative inverse)
+    IsZero() bool    // check whether the value is zero (zero is not invertible)
+}
+
+// ============================================
+// 🔥 Type algebra definition: Ring = Additive * Multiplicative
+// ============================================
+
+// Ring = additive Abelian group * multiplicative monoid
+// Semantic constraint: distributive law
+// a×(b+c) = a×b + a×c
+type Ring[T any] = Additive[T] * Multiplicative[T]
+
+// CommutativeRing: a Ring whose multiplication is commutative
+type CommutativeRing[T any] = Ring[T]
+
+// Field = Ring * multiplicative invertibility
+// Semantic constraint: non-zero elements form an Abelian group under multiplication
+type Field[T any] = Ring[T] * MulInvertible[T]
+
+// ============================================
+// Implementation of the integer ring ℤ
+// ============================================
+
+type Z int
+
+// --- Additive interface ---
+func (a Z) _add(b Z) Z { return a + b }
+func (a Z) _neg() Z    { return -a }
+func (a Z) Zero() Z    { return 0 }
+
+// --- Multiplicative interface ---
+func (a Z) _mul(b Z) Z { return a * b }
+func (a Z) One() Z     { return 1 }
+
+// --- Subtraction implemented via addition and negation ---
+func (a Z) _sub(b Z) Z { return a + (-b) }
+
+// --- Comparison operations ---
+func (a Z) _eq(b Z) bool { return a == b }
+func (a Z) _lt(b Z) bool { return a < b }
+
+// ============================================
+// Using Ring constraints in generic functions
+// ============================================
+
+// Generic power function: works for any Ring
+func Pow[T Ring[T]](base T, exp int) T {
+    if exp == 0 {
+        return base.One()
+    }
+    result := base.One()
+    for i := 0; i < exp; i++ {
+        result = result * base  // uses overloaded _mul
+    }
+    return result
+}
+
+// Generic sum: works for any type with an Additive structure
+func Sum[T Additive[T]](elements ...T) T {
+    if len(elements) == 0 {
+        var zero T
+        return zero.Zero()
+    }
+    result := elements[0].Zero()
+    for _, e := range elements {
+        result = result + e  // uses overloaded _add
+    }
+    return result
+}
+
+// ============================================
+// Implementation of the rational field ℚ
+// ============================================
+
+type Q struct {
+    num int  // numerator
+    den int  // denominator
+}
+
+// Constructor: automatically reduces the fraction
+func (q *Q) _init(num int, den int = 1) {
+    if den == 0 {
+        panic("denominator cannot be zero")
+    }
+    // Normalize the sign
+    if den < 0 {
+        num, den = -num, -den
+    }
+    // Reduce the fraction
+    g := gcd(abs(num), abs(den))
+    q.num = num / g
+    q.den = den / g
+}
+
+func gcd(a, b int) int {
+    for b != 0 {
+        a, b = b, a%b
+    }
+    return a
+}
+
+func abs(x int) int {
+    if x < 0 {
+        return -x
+    }
+    return x
+}
+
+// --- Additive interface ---
+func (a Q) _add(b Q) Q {
+    return *make(Q, a.num*b.den + b.num*a.den, a.den*b.den)
+}
+
+func (a Q) _neg() Q {
+    return *make(Q, -a.num, a.den)
+}
+
+func (a Q) Zero() Q {
+    return *make(Q, 0, 1)
+}
+
+// --- Multiplicative interface ---
+func (a Q) _mul(b Q) Q {
+    return *make(Q, a.num*b.num, a.den*b.den)
+}
+
+func (a Q) One() Q {
+    return *make(Q, 1, 1)
+}
+
+// --- MulInvertible interface (field-specific) ---
+func (a Q) Reciprocal() Q {
+    if a.num == 0 {
+        panic("cannot invert zero")
+    }
+    return *make(Q, a.den, a.num)
+}
+
+func (a Q) IsZero() bool {
+    return a.num == 0
+}
+
+// --- Division implemented via multiplicative inverse ---
+func (a Q) _div(b Q) Q {
+    return a * b.Reciprocal()  // a × b⁻¹
+}
+
+// --- Subtraction ---
+func (a Q) _sub(b Q) Q {
+    return a + (-b)
+}
+
+// --- Comparison ---
+func (a Q) _eq(b Q) bool {
+    return a.num == b.num && a.den == b.den
+}
+
+func (a Q) _lt(b Q) bool {
+    return a.num*b.den < b.num*a.den
+}
+
+// --- String representation ---
+func (a Q) String() string {
+    if a.den == 1 {
+        return fmt.Sprintf("%d", a.num)
+    }
+    return fmt.Sprintf("%d/%d", a.num, a.den)
+}
+
+// ============================================
+// Generic field operations
+// ============================================
+
+// Division applicable to any Field
+func Divide[T Field[T]](a, b T) T {
+    if b.IsZero() {
+        panic("division by zero")
+    }
+    return a * b.Reciprocal()
+}
+
+// Solve a linear equation ax + b = 0, returning x = -b/a
+func SolveLinear[T Field[T]](a, b T) T {
+    return Divide(-b, a)
+}
+
+func main() {
+    a := Z(3)
+    b := Z(5)
+
+    // Operator overloading makes the syntax natural
+    fmt.Println("3 + 5 =", a + b)        // 8
+    fmt.Println("3 × 5 =", a * b)        // 15
+    fmt.Println("-3 =", -a)              // -3
+    fmt.Println("3 - 5 =", a - b)        // -2
+
+    // Generic power function
+    fmt.Println("3^4 =", Pow(a, 4))      // 81
+
+    // Generic summation
+    fmt.Println("Σ(1,2,3,4,5) =", Sum(Z(1), Z(2), Z(3), Z(4), Z(5)))  // 15
+
+    // Construct rational numbers using make
+    half := *make(Q, 1, 2)
+    third := *make(Q, 1, 3)
+
+    fmt.Println("1/2 + 1/3 =", half + third)       // 5/6
+    fmt.Println("1/2 × 1/3 =", half * third)       // 1/6
+    fmt.Println("1/2 ÷ 1/3 =", half / third)       // 3/2
+    fmt.Println("(1/2)⁻¹ =", half.Reciprocal())    // 2
+
+    // Reduction check
+    six_nine := *make(Q, 6, 9)
+    fmt.Println("6/9 =", six_nine)                 // 2/3
+
+    // Solve the equation 3x + 6 = 0
+    qa := *make(Q, 3)
+    qb := *make(Q, 6)
+    x := SolveLinear(qa, qb)
+    fmt.Println("3x + 6 = 0 → x =", x)             // -2
 }
 ```
 
