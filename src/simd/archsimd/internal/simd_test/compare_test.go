@@ -309,4 +309,38 @@ func TestIsNaN(t *testing.T) {
 		testFloat32x16UnaryCompare(t, archsimd.Float32x16.IsNaN, isNaNSlice[float32])
 		testFloat64x8UnaryCompare(t, archsimd.Float64x8.IsNaN, isNaNSlice[float64])
 	}
+
+	// Test x.IsNaN().Or(y.IsNaN()), which is optimized to VCMPP(S|D) $3, x, y.
+	want32 := mapCompare(func(x, y float32) bool { return x != x || y != y })
+	want64 := mapCompare(func(x, y float64) bool { return x != x || y != y })
+	testFloat32x4Compare(t,
+		func(x, y archsimd.Float32x4) archsimd.Mask32x4 {
+			return x.IsNaN().Or(y.IsNaN())
+		}, want32)
+	testFloat64x2Compare(t,
+		func(x, y archsimd.Float64x2) archsimd.Mask64x2 {
+			return x.IsNaN().Or(y.IsNaN())
+		}, want64)
+
+	if archsimd.X86.AVX2() {
+		testFloat32x8Compare(t,
+			func(x, y archsimd.Float32x8) archsimd.Mask32x8 {
+				return x.IsNaN().Or(y.IsNaN())
+			}, want32)
+		testFloat64x4Compare(t,
+			func(x, y archsimd.Float64x4) archsimd.Mask64x4 {
+				return x.IsNaN().Or(y.IsNaN())
+			}, want64)
+	}
+
+	if archsimd.X86.AVX512() {
+		testFloat32x16Compare(t,
+			func(x, y archsimd.Float32x16) archsimd.Mask32x16 {
+				return x.IsNaN().Or(y.IsNaN())
+			}, want32)
+		testFloat64x8Compare(t,
+			func(x, y archsimd.Float64x8) archsimd.Mask64x8 {
+				return x.IsNaN().Or(y.IsNaN())
+			}, want64)
+	}
 }
