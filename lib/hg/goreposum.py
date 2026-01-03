@@ -32,6 +32,7 @@ cmdtable = {}
 command = registrar.command(cmdtable)
 @command(b'goreposum', [], _('url'), norepo=True)
 def goreposum(ui, url):
+    """goreposum implementation"""
   """
   goreposum computes a checksum of all the named state in the remote repo.
   It hashes together all the branch names and hashes
@@ -57,6 +58,7 @@ def goreposum(ui, url):
 
 @command(b'golookup', [], _('url rev'), norepo=True)
 def golookup(ui, url, rev):
+    """golookup implementation"""
   """
   golookup looks up a single identifier in the repo,
   printing its hash.
