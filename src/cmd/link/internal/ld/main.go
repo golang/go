@@ -197,7 +197,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 	addstrdata1(ctxt, "runtime.buildVersion="+buildVersion)
 
 	// TODO(matloob): define these above and then check flag values here
-	if ctxt.Arch.Family == sys.AMD64 && buildcfg.GOOS == "plan9" {
+	if (ctxt.Arch.Family == sys.AMD64 || ctxt.Arch.Family == sys.ARM64) && buildcfg.GOOS == "plan9" {
 		flag.BoolVar(&flag8, "8", false, "use 64-bit addresses in symbol table")
 	}
 	flagHeadType := flag.String("H", "", "set header `type`")
