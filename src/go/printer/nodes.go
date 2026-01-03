@@ -600,33 +600,19 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool) 
 	} else { // interface
 
 		var line int
-		var prev *ast.Ident // previous "type" identifier
 		for i, f := range list {
-			var name *ast.Ident // first name, or nil
-			if len(f.Names) > 0 {
-				name = f.Names[0]
-			}
 			if i > 0 {
-				// don't do a line break (min == 0) if we are printing a list of types
-				// TODO(gri) this doesn't work quite right if the list of types is
-				//           spread across multiple lines
-				min := 1
-				if prev != nil && name == prev {
-					min = 0
-				}
-				p.linebreak(p.lineFor(f.Pos()), min, ignore, p.linesFrom(line) > 0)
+				p.linebreak(p.lineFor(f.Pos()), 1, ignore, p.linesFrom(line) > 0)
 			}
 			p.setComment(f.Doc)
 			p.recordLine(&line)
-			if name != nil {
-				// method
+			if len(f.Names) > 0 {
+				name := f.Names[0] // method name
 				p.expr(name)
 				p.signature(f.Type.(*ast.FuncType)) // don't print "func"
-				prev = nil
 			} else {
 				// embedded interface
 				p.expr(f.Type)
-				prev = nil
 			}
 			p.setComment(f.Comment)
 		}
