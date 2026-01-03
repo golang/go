@@ -157,7 +157,7 @@ func (op *Operation) shape() (shapeIn inShape, shapeOut outShape, maskType maskS
 			if shapeOut != OneVregOutAtIn && in.AsmPos == 0 && in.Class == "vreg" {
 				shapeOut = OneVregOutAtIn
 			} else {
-				panic(fmt.Errorf("simdgen only support output and input sharing the same position case of \"the first input is vreg and the only output\": %s", op))
+				panic(fmt.Errorf("simdgen only supports output and input sharing the same position case of \"the first input is vreg and the only output\": %s", op))
 			}
 		}
 		if in.Class == "immediate" {
@@ -204,7 +204,7 @@ func (op *Operation) shape() (shapeIn inShape, shapeOut outShape, maskType maskS
 			panic(fmt.Errorf("simdgen does not support immediates in pure mask operations: %s", op))
 		}
 		if hasVreg {
-			panic(fmt.Errorf("simdgen does not support more than 1 masks in non-pure mask operations: %s", op))
+			panic(fmt.Errorf("simdgen does not support more than 1 mask in non-pure mask operations: %s", op))
 		}
 		return false
 	}
@@ -734,7 +734,7 @@ func overwrite(ops []Operation) error {
 			oBase := *op[idx].OverwriteBase
 			oClass := *op[idx].OverwriteClass
 			if oClass != "mask" {
-				panic(fmt.Errorf("simdgen: [Class] overwrite only supports overwritting to mask: %s", op[idx]))
+				panic(fmt.Errorf("simdgen: [Class] overwrite only supports overwriting to mask: %s", op[idx]))
 			}
 			if oBase != "int" {
 				panic(fmt.Errorf("simdgen: [Class] overwrite must set [OverwriteBase] to int: %s", op[idx]))
