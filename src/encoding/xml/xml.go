@@ -794,13 +794,30 @@ func (d *Decoder) rawToken() (Token, error) {
 	}
 
 	attr = []Attr{}
-	for {
-		d.space()
+	Outer: for {
 		if b, ok = d.mustgetc(); !ok {
 			return nil, d.err
 		}
-		if b == '/' {
+		switch b {
+		case ' ', '\t', '\r', '\n':
+			// Skip subsequent spaces
+			d.space()
+			if b, ok = d.mustgetc(); !ok {
+				return nil, d.err
+			}
+			if b == '>' {
+				break Outer
+			}
+			empty = b == '/'
+		case '>':
+			break Outer
+		case '/':
 			empty = true
+		default:
+			d.err = d.syntaxError("expected whitespace, />, or > following element name or attribute value")
+			return nil, d.err
+		}
+		if empty {
 			if b, ok = d.mustgetc(); !ok {
 				return nil, d.err
 			}
@@ -808,9 +825,6 @@ func (d *Decoder) rawToken() (Token, error) {
 				d.err = d.syntaxError("expected /> in element")
 				return nil, d.err
 			}
-			break
-		}
-		if b == '>' {
 			break
 		}
 		d.ungetc(b)
