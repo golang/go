@@ -715,6 +715,14 @@ var genericOps = []opData{
 
 	// Returns true if arg0 is all zero.
 	{name: "IsZeroVec", argLength: 1},
+
+	// Returns a mask indicating whether arg0's elements are NaN.
+	{name: "IsNaNFloat32x4", argLength: 1},
+	{name: "IsNaNFloat32x8", argLength: 1},
+	{name: "IsNaNFloat32x16", argLength: 1},
+	{name: "IsNaNFloat64x2", argLength: 1},
+	{name: "IsNaNFloat64x4", argLength: 1},
+	{name: "IsNaNFloat64x8", argLength: 1},
 }
 
 //     kind          controls          successors   implicit exit

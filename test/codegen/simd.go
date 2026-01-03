@@ -6,11 +6,14 @@
 
 // These tests check code generation of simd peephole optimizations.
 
-//go:build goexperiment.simd
+//go:build goexperiment.simd && amd64
 
 package codegen
 
-import "simd/archsimd"
+import (
+	"math"
+	"simd/archsimd"
+)
 
 func vptest1() bool {
 	v1 := archsimd.LoadUint64x2Slice([]uint64{0, 1})
@@ -76,4 +79,28 @@ func simdMaskedMerge() archsimd.Int16x16 {
 	}
 	mask := archsimd.Mask16x16FromBits(5)
 	return x.Add(y).Merge(x, mask) // amd64:`VPBLENDVB\s.*$`
+}
+
+var nan = math.NaN()
+var floats64s = []float64{0, 1, 2, nan, 4, nan, 6, 7, 8, 9, 10, 11, nan, 13, 14, 15}
+var sinkInt64s = make([]int64, 100)
+
+func simdIsNaN() {
+	x := archsimd.LoadFloat64x4Slice(floats64s)
+	y := archsimd.LoadFloat64x4Slice(floats64s[4:])
+	a := x.IsNaN()
+	b := y.IsNaN()
+	// amd64:"VCMPPD [$]3," -"VPOR"
+	c := a.Or(b)
+	c.ToInt64x4().StoreSlice(sinkInt64s)
+}
+
+func simdIsNaN512() {
+	x := archsimd.LoadFloat64x8Slice(floats64s)
+	y := archsimd.LoadFloat64x8Slice(floats64s[8:])
+	a := x.IsNaN()
+	b := y.IsNaN()
+	// amd64:"VCMPPD [$]3," -"VPOR"
+	c := a.Or(b)
+	c.ToInt64x8().StoreSlice(sinkInt64s)
 }

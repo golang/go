@@ -1730,6 +1730,13 @@
 // Misc
 (IsZeroVec x) => (SETEQ (VPTEST x x))
 
+(IsNaNFloat32x4  x) => (VCMPPS128 [3] x x)
+(IsNaNFloat32x8  x) => (VCMPPS256 [3] x x)
+(IsNaNFloat32x16 x) => (VPMOVMToVec32x16 (VCMPPS512 [3] x x))
+(IsNaNFloat64x2  x) => (VCMPPD128 [3] x x)
+(IsNaNFloat64x4  x) => (VCMPPD256 [3] x x)
+(IsNaNFloat64x8  x) => (VPMOVMToVec64x8 (VCMPPD512 [3] x x))
+
 // SIMD vector K-masked loads and stores
 
 (LoadMasked64 <t> ptr mask mem) && t.Size() == 64 => (VPMASK64load512 ptr (VPMOVVec64x8ToM  <types.TypeMask> mask) mem)
@@ -1818,10 +1825,10 @@
 (EQ (VPTEST x:(VPANDN(128|256) j k) y) yes no) && x == y && x.Uses == 2 => (ULT (VPTEST k j) yes no) // AndNot has swapped its operand order
 (EQ (VPTEST x:(VPANDN(D|Q)512 j k) y) yes no) && x == y && x.Uses == 2 => (ULT (VPTEST k j) yes no) // AndNot has swapped its operand order
 
-// DotProductQuadruple optimizations
-(VPADDD128 (VPDPBUSD128 (Zero128 <t>) x y) z) => (VPDPBUSD128 <t> z x y)
-(VPADDD256 (VPDPBUSD256 (Zero256 <t>) x y) z) => (VPDPBUSD256 <t> z x y)
-(VPADDD512 (VPDPBUSD512 (Zero512 <t>) x y) z) => (VPDPBUSD512 <t> z x y)
-(VPADDD128 (VPDPBUSDS128 (Zero128 <t>) x y) z) => (VPDPBUSDS128 <t> z x y)
-(VPADDD256 (VPDPBUSDS256 (Zero256 <t>) x y) z) => (VPDPBUSDS256 <t> z x y)
-(VPADDD512 (VPDPBUSDS512 (Zero512 <t>) x y) z) => (VPDPBUSDS512 <t> z x y)
+// optimize x.IsNaN().Or(y.IsNaN())
+(VPOR128 (VCMPP(S|D)128 [3] x x) (VCMPP(S|D)128 [3] y y)) => (VCMPP(S|D)128 [3] x y)
+(VPOR256 (VCMPP(S|D)256 [3] x x) (VCMPP(S|D)256 [3] y y)) => (VCMPP(S|D)256 [3] x y)
+(VPORD512 (VPMOVMToVec32x16 (VCMPPS512 [3] x x)) (VPMOVMToVec32x16 (VCMPPS512 [3] y y))) =>
+	(VPMOVMToVec32x16 (VCMPPS512 [3] x y))
+(VPORD512 (VPMOVMToVec64x8  (VCMPPD512 [3] x x)) (VPMOVMToVec64x8  (VCMPPD512 [3] y y))) =>
+	(VPMOVMToVec64x8  (VCMPPD512 [3] x y))

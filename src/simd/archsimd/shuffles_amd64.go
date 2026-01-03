@@ -54,7 +54,10 @@ const (
 // requires two.  a is the source index of the least element in the
 // output, and b, c, and d are the indices of the 2nd, 3rd, and 4th
 // elements in the output.  For example,
-// {1,2,4,8}.SelectFromPair(2,3,5,7,{9,25,49,81}) returns {4,8,25,81}
+//
+//	{1,2,4,8}.SelectFromPair(2,3,5,7,{9,25,49,81})
+//
+// returns {4,8,25,81}.
 //
 // If the selectors are not constant this will translate to a function
 // call.
@@ -133,7 +136,10 @@ func (x Int32x4) SelectFromPair(a, b, c, d uint8, y Int32x4) Int32x4 {
 // it requires two. a is the source index of the least element in the
 // output, and b, c, and d are the indices of the 2nd, 3rd, and 4th
 // elements in the output.  For example,
-// {1,2,4,8}.SelectFromPair(2,3,5,7,{9,25,49,81}) returns {4,8,25,81}
+//
+//	{1,2,4,8}.SelectFromPair(2,3,5,7,{9,25,49,81})
+//
+// returns {4,8,25,81}.
 //
 // If the selectors are not constant this will translate to a function
 // call.
@@ -205,7 +211,10 @@ func (x Uint32x4) SelectFromPair(a, b, c, d uint8, y Uint32x4) Uint32x4 {
 // it requires two. a is the source index of the least element in the
 // output, and b, c, and d are the indices of the 2nd, 3rd, and 4th
 // elements in the output.  For example,
-// {1,2,4,8}.SelectFromPair(2,3,5,7,{9,25,49,81}) returns {4,8,25,81}
+//
+//	{1,2,4,8}.SelectFromPair(2,3,5,7,{9,25,49,81})
+//
+// returns {4,8,25,81}.
 //
 // If the selectors are not constant this will translate to a function
 // call.
@@ -278,9 +287,10 @@ func (x Float32x4) SelectFromPair(a, b, c, d uint8, y Float32x4) Float32x4 {
 // it requires two. a is the source index of the least element in the
 // output, and b, c, and d are the indices of the 2nd, 3rd, and 4th
 // elements in the output.  For example,
-// {1,2,4,8,16,32,64,128}.SelectFromPair(2,3,5,7,{9,25,49,81,121,169,225,289})
 //
-//	returns {4,8,25,81,64,128,169,289}
+//	{1,2,4,8,16,32,64,128}.SelectFromPair(2,3,5,7,{9,25,49,81,121,169,225,289})
+//
+// returns {4,8,25,81,64,128,169,289}.
 //
 // If the selectors are not constant this will translate to a function
 // call.
@@ -353,9 +363,10 @@ func (x Int32x8) SelectFromPairGrouped(a, b, c, d uint8, y Int32x8) Int32x8 {
 // it requires two. a is the source index of the least element in the
 // output, and b, c, and d are the indices of the 2nd, 3rd, and 4th
 // elements in the output.  For example,
-// {1,2,4,8,16,32,64,128}.SelectFromPair(2,3,5,7,{9,25,49,81,121,169,225,289})
 //
-//	returns {4,8,25,81,64,128,169,289}
+//	{1,2,4,8,16,32,64,128}.SelectFromPair(2,3,5,7,{9,25,49,81,121,169,225,289})
+//
+// returns {4,8,25,81,64,128,169,289}.
 //
 // If the selectors are not constant this will translate to a function
 // call.
@@ -428,9 +439,10 @@ func (x Uint32x8) SelectFromPairGrouped(a, b, c, d uint8, y Uint32x8) Uint32x8 {
 // it requires two. a is the source index of the least element in the
 // output, and b, c, and d are the indices of the 2nd, 3rd, and 4th
 // elements in the output.  For example,
-// {1,2,4,8,16,32,64,128}.SelectFromPair(2,3,5,7,{9,25,49,81,121,169,225,289})
 //
-//	returns {4,8,25,81,64,128,169,289}
+//	{1,2,4,8,16,32,64,128}.SelectFromPair(2,3,5,7,{9,25,49,81,121,169,225,289})
+//
+// returns {4,8,25,81,64,128,169,289}.
 //
 // If the selectors are not constant this will translate to a function
 // call.
@@ -1080,7 +1092,7 @@ func (x Uint32x16) PermuteScalarsGrouped(a, b, c, d uint8) Uint32x16 {
 
 // PermuteScalarsHi performs a permutation of vector x using the supplied indices:
 //
-// result = {x[0], x[1], x[2], x[3], x[a+4], x[b+4], x[c+4], x[d+4]}
+//	result = {x[0], x[1], x[2], x[3], x[a+4], x[b+4], x[c+4], x[d+4]}
 //
 // Parameters a,b,c,d should have values between 0 and 3.
 // If a through d are constants, then an instruction will be inlined, otherwise
@@ -1093,7 +1105,7 @@ func (x Int16x8) PermuteScalarsHi(a, b, c, d uint8) Int16x8 {
 
 // PermuteScalarsHi performs a permutation of vector x using the supplied indices:
 //
-// result = {x[0], x[1], x[2], x[3], x[a+4], x[b+4], x[c+4], x[d+4]}
+//	result = {x[0], x[1], x[2], x[3], x[a+4], x[b+4], x[c+4], x[d+4]}
 //
 // Parameters a,b,c,d should have values between 0 and 3.
 // If a through d are constants, then an instruction will be inlined, otherwise
@@ -1276,7 +1288,8 @@ func (x Uint16x32) PermuteScalarsLoGrouped(a, b, c, d uint8) Uint16x32 {
 //
 // A carryless multiplication uses bitwise XOR instead of
 // add-with-carry, for example (in base two):
-// 11 * 11 = 11 * (10 ^ 1) = (11 * 10) ^ (11 * 1) = 110 ^ 11 = 101
+//
+//	11 * 11 = 11 * (10 ^ 1) = (11 * 10) ^ (11 * 1) = 110 ^ 11 = 101
 //
 // This also models multiplication of polynomials with coefficients
 // from GF(2) -- 11 * 11 models (x+1)*(x+1) = x**2 + (1^1)x + 1 =
@@ -1300,7 +1313,8 @@ func (x Uint64x2) CarrylessMultiply(a, b uint8, y Uint64x2) Uint64x2 {
 //
 // A carryless multiplication uses bitwise XOR instead of
 // add-with-carry, for example (in base two):
-// 11 * 11 = 11 * (10 ^ 1) = (11 * 10) ^ (11 * 1) = 110 ^ 11 = 101
+//
+//	11 * 11 = 11 * (10 ^ 1) = (11 * 10) ^ (11 * 1) = 110 ^ 11 = 101
 //
 // This also models multiplication of polynomials with coefficients
 // from GF(2) -- 11 * 11 models (x+1)*(x+1) = x**2 + (1^1)x + 1 =
@@ -1324,7 +1338,8 @@ func (x Uint64x4) CarrylessMultiplyGrouped(a, b uint8, y Uint64x4) Uint64x4 {
 //
 // A carryless multiplication uses bitwise XOR instead of
 // add-with-carry, for example (in base two):
-// 11 * 11 = 11 * (10 ^ 1) = (11 * 10) ^ (11 * 1) = 110 ^ 11 = 101
+//
+//	11 * 11 = 11 * (10 ^ 1) = (11 * 10) ^ (11 * 1) = 110 ^ 11 = 101
 //
 // This also models multiplication of polynomials with coefficients
 // from GF(2) -- 11 * 11 models (x+1)*(x+1) = x**2 + (1^1)x + 1 =

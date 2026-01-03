@@ -1667,6 +1667,12 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		addF(simdPackage, "Uint16x16.IsZero", opLen1(ssa.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
 		addF(simdPackage, "Uint32x8.IsZero", opLen1(ssa.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
 		addF(simdPackage, "Uint64x4.IsZero", opLen1(ssa.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
+		addF(simdPackage, "Float32x4.IsNaN", opLen1(ssa.OpIsNaNFloat32x4, types.TypeVec128), sys.AMD64)
+		addF(simdPackage, "Float32x8.IsNaN", opLen1(ssa.OpIsNaNFloat32x8, types.TypeVec256), sys.AMD64)
+		addF(simdPackage, "Float32x16.IsNaN", opLen1(ssa.OpIsNaNFloat32x16, types.TypeVec512), sys.AMD64)
+		addF(simdPackage, "Float64x2.IsNaN", opLen1(ssa.OpIsNaNFloat64x2, types.TypeVec128), sys.AMD64)
+		addF(simdPackage, "Float64x4.IsNaN", opLen1(ssa.OpIsNaNFloat64x4, types.TypeVec256), sys.AMD64)
+		addF(simdPackage, "Float64x8.IsNaN", opLen1(ssa.OpIsNaNFloat64x8, types.TypeVec512), sys.AMD64)
 
 		// sfp4 is intrinsic-if-constant, but otherwise it's complicated enough to just implement in Go.
 		sfp4 := func(method string, hwop ssa.Op, vectype *types.Type) {

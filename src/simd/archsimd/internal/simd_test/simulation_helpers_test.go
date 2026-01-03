@@ -29,6 +29,10 @@ func notEqual[T number](x, y T) bool {
 	return x != y
 }
 
+func isNaN[T float](x T) bool {
+	return x != x
+}
+
 func abs[T number](x T) T {
 	// TODO this will need a non-standard FP-equality test.
 	if x == 0 { // true if x is -0.
@@ -121,16 +125,6 @@ func toUint64[T number](x T) uint64 {
 }
 
 func toUint32[T number](x T) uint32 {
-	switch y := (any(x)).(type) {
-	case float32:
-		if y < 0 || y > float32(math.MaxUint32) || y != y {
-			return math.MaxUint32
-		}
-	case float64:
-		if y < 0 || y > float64(math.MaxUint32) || y != y {
-			return math.MaxUint32
-		}
-	}
 	return uint32(x)
 }
 
@@ -156,6 +150,74 @@ func toFloat32[T number](x T) float32 {
 
 func toFloat64[T number](x T) float64 {
 	return float64(x)
+}
+
+// X86 specific behavior for conversion from float to int32.
+// If the value cannot be represented as int32, it returns -0x80000000.
+func floatToInt32_x86[T float](x T) int32 {
+	switch y := (any(x)).(type) {
+	case float32:
+		if y != y || y < math.MinInt32 ||
+			y >= math.MaxInt32 { // float32(MaxInt32) == 0x80000000, actually overflows
+			return -0x80000000
+		}
+	case float64:
+		if y != y || y < math.MinInt32 ||
+			y > math.MaxInt32 { // float64(MaxInt32) is exact, no overflow
+			return -0x80000000
+		}
+	}
+	return int32(x)
+}
+
+// X86 specific behavior for conversion from float to int64.
+// If the value cannot be represented as int64, it returns -0x80000000_00000000.
+func floatToInt64_x86[T float](x T) int64 {
+	switch y := (any(x)).(type) {
+	case float32:
+		if y != y || y < math.MinInt64 ||
+			y >= math.MaxInt64 { // float32(MaxInt64) == 0x80000000_00000000, actually overflows
+			return -0x80000000_00000000
+		}
+	case float64:
+		if y != y || y < math.MinInt64 ||
+			y >= math.MaxInt64 { // float64(MaxInt64) == 0x80000000_00000000, also overflows
+			return -0x80000000_00000000
+		}
+	}
+	return int64(x)
+}
+
+// X86 specific behavior for conversion from float to uint32.
+// If the value cannot be represented as uint32, it returns 1<<32 - 1.
+func floatToUint32_x86[T float](x T) uint32 {
+	switch y := (any(x)).(type) {
+	case float32:
+		if y < 0 || y > math.MaxUint32 || y != y {
+			return 1<<32 - 1
+		}
+	case float64:
+		if y < 0 || y > math.MaxUint32 || y != y {
+			return 1<<32 - 1
+		}
+	}
+	return uint32(x)
+}
+
+// X86 specific behavior for conversion from float to uint64.
+// If the value cannot be represented as uint64, it returns 1<<64 - 1.
+func floatToUint64_x86[T float](x T) uint64 {
+	switch y := (any(x)).(type) {
+	case float32:
+		if y < 0 || y > math.MaxUint64 || y != y {
+			return 1<<64 - 1
+		}
+	case float64:
+		if y < 0 || y > math.MaxUint64 || y != y {
+			return 1<<64 - 1
+		}
+	}
+	return uint64(x)
 }
 
 func ceilResidueForPrecision[T float](i int) func(T) T {
@@ -241,6 +303,15 @@ func notEqualSlice[T number](x, y []T) []int64 {
 	return mapCompare[T](notEqual)(x, y)
 }
 
+func isNaNSlice[T float](x []T) []int64 {
+	return map1[T](func(x T) int64 {
+		if isNaN(x) {
+			return -1
+		}
+		return 0
+	})(x)
+}
+
 func ceilSlice[T float](x []T) []T {
 	return map1[T](ceil)(x)
 }
@@ -271,4 +342,91 @@ func imaSlice[T integer](x, y, z []T) []T {
 
 func fmaSlice[T float](x, y, z []T) []T {
 	return map3[T](fma)(x, y, z)
+}
+
+func satToInt8[T integer](x T) int8 {
+	var m int8 = -128
+	var M int8 = 127
+	if T(M) < T(m) { // expecting T being a larger type
+		panic("bad input type")
+	}
+	if x < T(m) {
+		return m
+	}
+	if x > T(M) {
+		return M
+	}
+	return int8(x)
+}
+
+func satToUint8[T integer](x T) uint8 {
+	var M uint8 = 255
+	if T(M) < 0 { // expecting T being a larger type
+		panic("bad input type")
+	}
+	if x < 0 {
+		return 0
+	}
+	if x > T(M) {
+		return M
+	}
+	return uint8(x)
+}
+
+func satToInt16[T integer](x T) int16 {
+	var m int16 = -32768
+	var M int16 = 32767
+	if T(M) < T(m) { // expecting T being a larger type
+		panic("bad input type")
+	}
+	if x < T(m) {
+		return m
+	}
+	if x > T(M) {
+		return M
+	}
+	return int16(x)
+}
+
+func satToUint16[T integer](x T) uint16 {
+	var M uint16 = 65535
+	if T(M) < 0 { // expecting T being a larger type
+		panic("bad input type")
+	}
+	if x < 0 {
+		return 0
+	}
+	if x > T(M) {
+		return M
+	}
+	return uint16(x)
+}
+
+func satToInt32[T integer](x T) int32 {
+	var m int32 = -1 << 31
+	var M int32 = 1<<31 - 1
+	if T(M) < T(m) { // expecting T being a larger type
+		panic("bad input type")
+	}
+	if x < T(m) {
+		return m
+	}
+	if x > T(M) {
+		return M
+	}
+	return int32(x)
+}
+
+func satToUint32[T integer](x T) uint32 {
+	var M uint32 = 1<<32 - 1
+	if T(M) < 0 { // expecting T being a larger type
+		panic("bad input type")
+	}
+	if x < 0 {
+		return 0
+	}
+	if x > T(M) {
+		return M
+	}
+	return uint32(x)
 }

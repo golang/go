@@ -331,9 +331,14 @@ func TestCleanupLost(t *testing.T) {
 	}
 	wg.Wait()
 	runtime.GC()
-	runtime.BlockUntilEmptyCleanupQueue(int64(10 * time.Second))
+	timeout := 10 * time.Second
+	empty := runtime.BlockUntilEmptyCleanupQueue(int64(timeout))
+	if !empty {
+		t.Errorf("failed to drain cleanup queue within %s", timeout)
+	}
+
 	if got := int(got.Load()); got != want {
-		t.Errorf("expected %d cleanups to be executed, got %d", got, want)
+		t.Errorf("%d cleanups executed, expected %d", got, want)
 	}
 }
 

@@ -112,10 +112,10 @@ func parseErrorToString(err error) string {
 		return ""
 	}
 	var p parseError
-	if e, ok := err.(scanner.ErrorList); ok {
-		p.ErrorList = &e
+	if errlist, ok := err.(scanner.ErrorList); ok {
+		p.ErrorList = &errlist
 	} else {
-		p.ErrorString = e.Error()
+		p.ErrorString = err.Error()
 	}
 	s, err := json.Marshal(p)
 	if err != nil {

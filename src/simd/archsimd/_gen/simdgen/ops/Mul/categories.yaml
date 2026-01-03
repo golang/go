@@ -7,7 +7,7 @@
   commutative: true
   documentation: !string |-
     // NAME multiplies even-indexed elements, widening the result.
-    // Result[i] = v1.Even[i] * v2.Even[i].
+    // Result[i] = v1[2*i] * v2[2*i].
 - go: MulHigh
   commutative: true
   documentation: !string |-

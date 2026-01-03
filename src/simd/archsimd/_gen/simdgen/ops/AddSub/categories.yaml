@@ -17,21 +17,83 @@
     // NAME subtracts corresponding elements of two vectors with saturation.
 - go: AddPairs
   commutative: false
+  out:
+  - elemBits: 16|32
   documentation: !string |-
     // NAME horizontally adds adjacent pairs of elements.
-    // For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
+    // For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
+- go: AddPairs
+  commutative: false
+  out:
+  - elemBits: 64
+  documentation: !string |-
+    // NAME horizontally adds adjacent pairs of elements.
+    // For x = [x0, x1] and y = [y0, y1], the result is [x0+x1, y0+y1].
 - go: SubPairs
   commutative: false
+  out:
+  - elemBits: 16|32
   documentation: !string |-
     // NAME horizontally subtracts adjacent pairs of elements.
-    // For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
+    // For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0-x1, x2-x3, ..., y0-y1, y2-y3, ...].
+- go: SubPairs
+  commutative: false
+  out:
+  - elemBits: 64
+  documentation: !string |-
+    // NAME horizontally subtracts adjacent pairs of elements.
+    // For x = [x0, x1] and y = [y0, y1], the result is [x0-x1, y0-y1].
 - go: AddPairsSaturated
   commutative: false
   documentation: !string |-
     // NAME horizontally adds adjacent pairs of elements with saturation.
-    // For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
+    // For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
 - go: SubPairsSaturated
   commutative: false
   documentation: !string |-
     // NAME horizontally subtracts adjacent pairs of elements with saturation.
-    // For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
+    // For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0-x1, x2-x3, ..., y0-y1, y2-y3, ...].
+- go: AddPairsGrouped
+  commutative: false
+  out:
+  - elemBits: 16|32
+  documentation: !string |-
+    // NAME horizontally adds adjacent pairs of elements.
+    // With each 128-bit as a group:
+    // for x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
+- go: AddPairsGrouped
+  commutative: false
+  out:
+  - elemBits: 64
+  documentation: !string |-
+    // NAME horizontally adds adjacent pairs of elements.
+    // With each 128-bit as a group:
+    // for x = [x0, x1] and y = [y0, y1], the result is [x0+x1, y0+y1].
+- go: SubPairsGrouped
+  commutative: false
+  out:
+  - elemBits: 16|32
+  documentation: !string |-
+    // NAME horizontally subtracts adjacent pairs of elements.
+    // With each 128-bit as a group:
+    // for x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0-x1, x2-x3, ..., y0-y1, y2-y3, ...].
+- go: SubPairsGrouped
+  commutative: false
+  out:
+  - elemBits: 64
+  documentation: !string |-
+    // NAME horizontally subtracts adjacent pairs of elements.
+    // With each 128-bit as a group:
+    // for x = [x0, x1] and y = [y0, y1], the result is [x0-x1, y0-y1].
+- go: AddPairsSaturatedGrouped
+  commutative: false
+  documentation: !string |-
+    // NAME horizontally adds adjacent pairs of elements with saturation.
+    // With each 128-bit as a group:
+    // for x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
+- go: SubPairsSaturatedGrouped
+  commutative: false
+  documentation: !string |-
+    // NAME horizontally subtracts adjacent pairs of elements with saturation.
+    // With each 128-bit as a group:
+    // for x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0-x1, x2-x3, ..., y0-y1, y2-y3, ...].

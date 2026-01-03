@@ -869,6 +869,9 @@ func TestFuncAlignOption(t *testing.T) {
 			"_main.bar": false,
 			"_main.baz": false}
 		syms, err := f.Symbols()
+		if err != nil {
+			t.Errorf("failed to get symbols with err %v", err)
+		}
 		for _, s := range syms {
 			fn := s.Name
 			if _, ok := fname[fn]; !ok {

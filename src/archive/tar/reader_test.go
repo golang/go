@@ -787,7 +787,7 @@ type readBadSeeker struct{ io.ReadSeeker }
 
 func (rbs *readBadSeeker) Seek(int64, int) (int64, error) { return 0, fmt.Errorf("illegal seek") }
 
-// TestReadTruncation test the ending condition on various truncated files and
+// TestReadTruncation tests the ending condition on various truncated files and
 // that truncated files are still detected even if the underlying io.Reader
 // satisfies io.Seeker.
 func TestReadTruncation(t *testing.T) {

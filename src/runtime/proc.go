@@ -2455,8 +2455,16 @@ func needm(signal bool) {
 	// mp.curg is now a real goroutine.
 	casgstatus(mp.curg, _Gdeadextra, _Gsyscall)
 	sched.ngsys.Add(-1)
-	// N.B. We do not update nGsyscallNoP, because isExtraInC threads are not
-	// counted as real goroutines while they're in C.
+
+	// This is technically inaccurate, but we set isExtraInC to false above,
+	// and so we need to update addGSyscallNoP to keep the two pieces of state
+	// consistent (it's only updated when isExtraInC is false). More specifically,
+	// When we get to cgocallbackg and exitsyscall, we'll be looking for a P, and
+	// since isExtraInC is false, we will decrement this metric.
+	//
+	// The inaccuracy is thankfully transient: only until this thread can get a P.
+	// We're going into Go anyway, so it's okay to pretend we're a real goroutine now.
+	addGSyscallNoP(mp)
 
 	if !signal {
 		if trace.ok() {
@@ -5027,7 +5035,7 @@ func exitsyscallTryGetP(oldp *p) *p {
 	if oldp != nil {
 		if thread, ok := setBlockOnExitSyscall(oldp); ok {
 			thread.takeP()
-			addGSyscallNoP(thread.mp) // takeP does the opposite, but this is a net zero change.
+			decGSyscallNoP(getg().m) // We got a P for ourselves.
 			thread.resume()
 			return oldp
 		}

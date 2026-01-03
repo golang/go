@@ -13,6 +13,7 @@ import (
 	"simd/archsimd"
 	"slices"
 	"testing"
+	"unsafe"
 )
 
 func TestMain(m *testing.M) {
@@ -225,6 +226,10 @@ func TestShiftAll(t *testing.T) {
 }
 
 func TestSlicesInt8(t *testing.T) {
+	if !archsimd.X86.AVX2() {
+		t.Skip("Test requires X86.AVX2, not available on this hardware")
+		return
+	}
 	a := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
 		17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
 	v := archsimd.LoadInt8x32Slice(a)
@@ -258,6 +263,10 @@ func TestSlicesInt8GetElem(t *testing.T) {
 }
 
 func TestSlicesInt8TooShortLoad(t *testing.T) {
+	if !archsimd.X86.AVX2() {
+		t.Skip("Test requires X86.AVX2, not available on this hardware")
+		return
+	}
 	defer func() {
 		if r := recover(); r != nil {
 			t.Logf("Saw EXPECTED panic %v", r)
@@ -274,6 +283,10 @@ func TestSlicesInt8TooShortLoad(t *testing.T) {
 }
 
 func TestSlicesInt8TooShortStore(t *testing.T) {
+	if !archsimd.X86.AVX2() {
+		t.Skip("Test requires X86.AVX2, not available on this hardware")
+		return
+	}
 	defer func() {
 		if r := recover(); r != nil {
 			t.Logf("Saw EXPECTED panic %v", r)
@@ -303,6 +316,10 @@ func TestSlicesFloat64(t *testing.T) {
 
 // TODO: try to reduce this test to be smaller.
 func TestMergeLocals(t *testing.T) {
+	if !archsimd.X86.AVX2() {
+		t.Skip("Test requires X86.AVX2, not available on this hardware")
+		return
+	}
 	testMergeLocalswrapper(t, archsimd.Int64x4.Add)
 }
 
@@ -385,6 +402,10 @@ func TestBitMaskToBitsStore(t *testing.T) {
 }
 
 func TestMergeFloat(t *testing.T) {
+	if !archsimd.X86.AVX2() {
+		t.Skip("Test requires X86.AVX2, not available on this hardware")
+		return
+	}
 	k := make([]int64, 4, 4)
 	s := make([]float64, 4, 4)
 
@@ -472,6 +493,10 @@ func TestBroadcastUint16x8(t *testing.T) {
 }
 
 func TestBroadcastInt8x32(t *testing.T) {
+	if !archsimd.X86.AVX2() {
+		t.Skip("Test requires X86.AVX2, not available on this hardware")
+		return
+	}
 	s := make([]int8, 32, 32)
 	archsimd.BroadcastInt8x32(-123).StoreSlice(s)
 	checkSlices(t, s, []int8{-123, -123, -123, -123, -123, -123, -123, -123,
@@ -1105,6 +1130,10 @@ func TestSelectTernOptInt32x16(t *testing.T) {
 }
 
 func TestMaskedMerge(t *testing.T) {
+	if !archsimd.X86.AVX2() {
+		t.Skip("Test requires X86.AVX2, not available on this hardware")
+		return
+	}
 	x := archsimd.LoadInt64x4Slice([]int64{1, 2, 3, 4})
 	y := archsimd.LoadInt64x4Slice([]int64{5, 6, 1, 1})
 	z := archsimd.LoadInt64x4Slice([]int64{-1, -2, -3, -4})
@@ -1123,40 +1152,6 @@ func TestMaskedMerge(t *testing.T) {
 	}
 }
 
-func TestDotProductQuadruple(t *testing.T) {
-	if !archsimd.X86.AVXVNNI() {
-		t.Skip("Test requires X86.AVXVNNI, not available on this hardware")
-		return
-	}
-	xd := make([]int8, 16)
-	yd := make([]uint8, 16)
-	zd := make([]int32, 4)
-	wanted1 := make([]int32, 4)
-	wanted2 := make([]int32, 4)
-	res1 := make([]int32, 4)
-	res2 := make([]int32, 4)
-	for i := range 4 {
-		xd[i] = 5
-		yd[i] = 6
-		zd[i] = 3
-		wanted1[i] = 30
-		wanted2[i] = 30
-	}
-	x := archsimd.LoadInt8x16Slice(xd)
-	y := archsimd.LoadUint8x16Slice(yd)
-	z := archsimd.LoadInt32x4Slice(zd)
-	x.DotProductQuadruple(y).StoreSlice(res1)
-	x.DotProductQuadruple(y).Add(z).StoreSlice(res1)
-	for i := range 4 {
-		if res1[i] != wanted1[i] {
-			t.Errorf("got %d wanted %d", res1[i], wanted1[i])
-		}
-		if res2[i] != wanted2[i] {
-			t.Errorf("got %d wanted %d", res2[i], wanted2[i])
-		}
-	}
-}
-
 func TestPermuteScalars(t *testing.T) {
 	x := []int32{11, 12, 13, 14}
 	want := []int32{12, 13, 14, 11}
@@ -1166,6 +1161,10 @@ func TestPermuteScalars(t *testing.T) {
 }
 
 func TestPermuteScalarsGrouped(t *testing.T) {
+	if !archsimd.X86.AVX2() {
+		t.Skip("Test requires X86.AVX2, not available on this hardware")
+		return
+	}
 	x := []int32{11, 12, 13, 14, 21, 22, 23, 24}
 	want := []int32{12, 13, 14, 11, 22, 23, 24, 21}
 	got := make([]int32, 8)
@@ -1190,6 +1189,10 @@ func TestPermuteScalarsLo(t *testing.T) {
 }
 
 func TestPermuteScalarsHiGrouped(t *testing.T) {
+	if !archsimd.X86.AVX2() {
+		t.Skip("Test requires X86.AVX2, not available on this hardware")
+		return
+	}
 	x := []int16{-1, -2, -3, -4, 11, 12, 13, 14, -11, -12, -13, -14, 111, 112, 113, 114}
 	want := []int16{-1, -2, -3, -4, 12, 13, 14, 11, -11, -12, -13, -14, 112, 113, 114, 111}
 	got := make([]int16, len(x))
@@ -1198,6 +1201,10 @@ func TestPermuteScalarsHiGrouped(t *testing.T) {
 }
 
 func TestPermuteScalarsLoGrouped(t *testing.T) {
+	if !archsimd.X86.AVX2() {
+		t.Skip("Test requires X86.AVX2, not available on this hardware")
+		return
+	}
 	x := []int16{11, 12, 13, 14, 4, 5, 6, 7, 111, 112, 113, 114, 14, 15, 16, 17}
 	want := []int16{12, 13, 14, 11, 4, 5, 6, 7, 112, 113, 114, 111, 14, 15, 16, 17}
 	got := make([]int16, len(x))
@@ -1221,4 +1228,148 @@ func TestClMul(t *testing.T) {
 	foo(x.CarrylessMultiply(1, 1, y), []uint64{45, 0})
 	foo(y.CarrylessMultiply(0, 0, y), []uint64{5, 0})
 
+}
+
+func addPairsSlice[T number](a, b []T) []T {
+	r := make([]T, len(a))
+	for i := range len(a) / 2 {
+		r[i] = a[2*i] + a[2*i+1]
+		r[i+len(a)/2] = b[2*i] + b[2*i+1]
+	}
+	return r
+}
+
+func subPairsSlice[T number](a, b []T) []T {
+	r := make([]T, len(a))
+	for i := range len(a) / 2 {
+		r[i] = a[2*i] - a[2*i+1]
+		r[i+len(a)/2] = b[2*i] - b[2*i+1]
+	}
+	return r
+}
+
+func addPairsGroupedSlice[T number](a, b []T) []T {
+	group := int(128 / unsafe.Sizeof(a[0]))
+	r := make([]T, 0, len(a))
+	for i := range len(a) / group {
+		r = append(r, addPairsSlice(a[i*group:(i+1)*group], b[i*group:(i+1)*group])...)
+	}
+	return r
+}
+
+func subPairsGroupedSlice[T number](a, b []T) []T {
+	group := int(128 / unsafe.Sizeof(a[0]))
+	r := make([]T, 0, len(a))
+	for i := range len(a) / group {
+		r = append(r, subPairsSlice(a[i*group:(i+1)*group], b[i*group:(i+1)*group])...)
+	}
+	return r
+}
+
+func TestAddSubPairs(t *testing.T) {
+	testInt16x8Binary(t, archsimd.Int16x8.AddPairs, addPairsSlice[int16])
+	testInt16x8Binary(t, archsimd.Int16x8.SubPairs, subPairsSlice[int16])
+	testUint16x8Binary(t, archsimd.Uint16x8.AddPairs, addPairsSlice[uint16])
+	testUint16x8Binary(t, archsimd.Uint16x8.SubPairs, subPairsSlice[uint16])
+	testInt32x4Binary(t, archsimd.Int32x4.AddPairs, addPairsSlice[int32])
+	testInt32x4Binary(t, archsimd.Int32x4.SubPairs, subPairsSlice[int32])
+	testUint32x4Binary(t, archsimd.Uint32x4.AddPairs, addPairsSlice[uint32])
+	testUint32x4Binary(t, archsimd.Uint32x4.SubPairs, subPairsSlice[uint32])
+	testFloat32x4Binary(t, archsimd.Float32x4.AddPairs, addPairsSlice[float32])
+	testFloat32x4Binary(t, archsimd.Float32x4.SubPairs, subPairsSlice[float32])
+	testFloat64x2Binary(t, archsimd.Float64x2.AddPairs, addPairsSlice[float64])
+	testFloat64x2Binary(t, archsimd.Float64x2.SubPairs, subPairsSlice[float64])
+
+	// Grouped versions
+	if archsimd.X86.AVX2() {
+		testInt16x16Binary(t, archsimd.Int16x16.AddPairsGrouped, addPairsGroupedSlice[int16])
+		testInt16x16Binary(t, archsimd.Int16x16.SubPairsGrouped, subPairsGroupedSlice[int16])
+		testUint16x16Binary(t, archsimd.Uint16x16.AddPairsGrouped, addPairsGroupedSlice[uint16])
+		testUint16x16Binary(t, archsimd.Uint16x16.SubPairsGrouped, subPairsGroupedSlice[uint16])
+		testInt32x8Binary(t, archsimd.Int32x8.AddPairsGrouped, addPairsGroupedSlice[int32])
+		testInt32x8Binary(t, archsimd.Int32x8.SubPairsGrouped, subPairsGroupedSlice[int32])
+		testUint32x8Binary(t, archsimd.Uint32x8.AddPairsGrouped, addPairsGroupedSlice[uint32])
+		testUint32x8Binary(t, archsimd.Uint32x8.SubPairsGrouped, subPairsGroupedSlice[uint32])
+		testFloat32x8Binary(t, archsimd.Float32x8.AddPairsGrouped, addPairsGroupedSlice[float32])
+		testFloat32x8Binary(t, archsimd.Float32x8.SubPairsGrouped, subPairsGroupedSlice[float32])
+		testFloat64x4Binary(t, archsimd.Float64x4.AddPairsGrouped, addPairsGroupedSlice[float64])
+		testFloat64x4Binary(t, archsimd.Float64x4.SubPairsGrouped, subPairsGroupedSlice[float64])
+	}
+}
+
+func convConcatSlice[T, U number](a, b []T, conv func(T) U) []U {
+	r := make([]U, len(a)+len(b))
+	for i, v := range a {
+		r[i] = conv(v)
+	}
+	for i, v := range b {
+		r[len(a)+i] = conv(v)
+	}
+	return r
+}
+
+func convConcatGroupedSlice[T, U number](a, b []T, conv func(T) U) []U {
+	group := int(128 / unsafe.Sizeof(a[0]))
+	r := make([]U, 0, len(a)+len(b))
+	for i := 0; i < len(a)/group; i++ {
+		r = append(r, convConcatSlice(a[i*group:(i+1)*group], b[i*group:(i+1)*group], conv)...)
+	}
+	return r
+}
+
+func TestSaturateConcat(t *testing.T) {
+	// Int32x4.SaturateToInt16Concat
+	forSlicePair(t, int32s, 4, func(x, y []int32) bool {
+		a, b := archsimd.LoadInt32x4Slice(x), archsimd.LoadInt32x4Slice(y)
+		var out [8]int16
+		a.SaturateToInt16Concat(b).Store(&out)
+		want := convConcatSlice(x, y, satToInt16)
+		return checkSlicesLogInput(t, out[:], want, 0, func() { t.Logf("x=%v, y=%v", x, y) })
+	})
+	// Int32x4.SaturateToUint16Concat
+	forSlicePair(t, int32s, 4, func(x, y []int32) bool {
+		a, b := archsimd.LoadInt32x4Slice(x), archsimd.LoadInt32x4Slice(y)
+		var out [8]uint16
+		a.SaturateToUint16Concat(b).Store(&out)
+		want := convConcatSlice(x, y, satToUint16)
+		return checkSlicesLogInput(t, out[:], want, 0, func() { t.Logf("x=%v, y=%v", x, y) })
+	})
+
+	if archsimd.X86.AVX2() {
+		// Int32x8.SaturateToInt16ConcatGrouped
+		forSlicePair(t, int32s, 8, func(x, y []int32) bool {
+			a, b := archsimd.LoadInt32x8Slice(x), archsimd.LoadInt32x8Slice(y)
+			var out [16]int16
+			a.SaturateToInt16ConcatGrouped(b).Store(&out)
+			want := convConcatGroupedSlice(x, y, satToInt16)
+			return checkSlicesLogInput(t, out[:], want, 0, func() { t.Logf("x=%v, y=%v", x, y) })
+		})
+		// Int32x8.SaturateToUint16ConcatGrouped
+		forSlicePair(t, int32s, 8, func(x, y []int32) bool {
+			a, b := archsimd.LoadInt32x8Slice(x), archsimd.LoadInt32x8Slice(y)
+			var out [16]uint16
+			a.SaturateToUint16ConcatGrouped(b).Store(&out)
+			want := convConcatGroupedSlice(x, y, satToUint16)
+			return checkSlicesLogInput(t, out[:], want, 0, func() { t.Logf("x=%v, y=%v", x, y) })
+		})
+	}
+
+	if archsimd.X86.AVX512() {
+		// Int32x16.SaturateToInt16ConcatGrouped
+		forSlicePair(t, int32s, 16, func(x, y []int32) bool {
+			a, b := archsimd.LoadInt32x16Slice(x), archsimd.LoadInt32x16Slice(y)
+			var out [32]int16
+			a.SaturateToInt16ConcatGrouped(b).Store(&out)
+			want := convConcatGroupedSlice(x, y, satToInt16)
+			return checkSlicesLogInput(t, out[:], want, 0, func() { t.Logf("x=%v, y=%v", x, y) })
+		})
+		// Int32x16.SaturateToUint16ConcatGrouped
+		forSlicePair(t, int32s, 16, func(x, y []int32) bool {
+			a, b := archsimd.LoadInt32x16Slice(x), archsimd.LoadInt32x16Slice(y)
+			var out [32]uint16
+			a.SaturateToUint16ConcatGrouped(b).Store(&out)
+			want := convConcatGroupedSlice(x, y, satToUint16)
+			return checkSlicesLogInput(t, out[:], want, 0, func() { t.Logf("x=%v, y=%v", x, y) })
+		})
+	}
 }
