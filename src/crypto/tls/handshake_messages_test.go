@@ -421,9 +421,9 @@ func (*SessionState) Generate(rand *rand.Rand, size int) reflect.Value {
 		s.alpnProtocol = string(randomBytes(rand.Intn(10), rand))
 	}
 	if isTLS13 {
+		s.ageAdd = uint32(rand.Int63() & math.MaxUint32)
 		if s.isClient {
 			s.useBy = uint64(rand.Int63())
-			s.ageAdd = uint32(rand.Int63() & math.MaxUint32)
 		}
 	} else {
 		s.curveID = CurveID(rand.Intn(30000) + 1)
