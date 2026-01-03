@@ -56,7 +56,7 @@ func (v Version) EventName(typ tracev2.EventType) string {
 	if int(typ) < len(s) && s[typ].Name != "" {
 		return s[typ].Name
 	}
-	return fmt.Sprintf("Invalid(%d)", typ)
+	return fmt.Sprintf("invalid(%d)", typ)
 }
 
 func (v Version) Valid() bool {
