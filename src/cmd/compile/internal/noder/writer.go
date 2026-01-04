@@ -283,11 +283,7 @@ type pkgWriter struct {
 // newPkgWriter returns an initialized pkgWriter for the specified
 // package.
 func newPkgWriter(m posMap, pkg *types2.Package, info *types2.Info, otherInfo map[*syntax.FuncLit]bool) *pkgWriter {
-	// Use V2 as the encoded version aliastypeparams GOEXPERIMENT is enabled.
-	version := pkgbits.V1
-	if buildcfg.Experiment.AliasTypeParams {
-		version = pkgbits.V2
-	}
+	version := pkgbits.V2
 	return &pkgWriter{
 		PkgEncoder: pkgbits.NewPkgEncoder(version, base.Debug.SyncFrames),
 
@@ -1149,10 +1145,16 @@ func (w *writer) objDict(obj types2.Object, dict *writerDict) {
 	// arithmetic/conversions/etc, we could shape those together.
 	for _, implicit := range dict.implicits {
 		w.Bool(implicit.Underlying().(*types2.Interface).IsMethodSet())
+		if w.Version().Has(pkgbits.TypeParamStatic) {
+			w.Bool(implicit.IsStatic())
+		}
 	}
 	for i := 0; i < ntparams; i++ {
 		tparam := tparams.At(i)
 		w.Bool(tparam.Underlying().(*types2.Interface).IsMethodSet())
+		if w.Version().Has(pkgbits.TypeParamStatic) {
+			w.Bool(tparam.IsStatic())
+		}
 	}
 
 	w.Len(len(dict.typeParamMethodExprs))
@@ -2700,8 +2702,23 @@ func (w *writer) expr(expr syntax.Expr) {
 
 					// Reserve/encode the dictionary entry index.
 					typeParamIdx := w.dict.typeParamIndex(tp)
-					methodInfo := w.p.selectorIdx(initFn)
-					w.Len(w.dict.typeParamMethodExprIdx(typeParamIdx, methodInfo))
+					if w.Version() >= pkgbits.V2 {
+						w.Len(typeParamIdx)
+						isStatic := tp.IsStatic()
+						w.Bool(isStatic)
+						if isStatic {
+							// For static type params, don't allocate a runtime dictionary entry.
+							// reader.go will lower this to a direct method expression on the
+							// instantiated concrete receiver type.
+							w.selector(initFn)
+						} else {
+							methodInfo := w.p.selectorIdx(initFn)
+							w.Len(w.dict.typeParamMethodExprIdx(typeParamIdx, methodInfo))
+						}
+					} else {
+						methodInfo := w.p.selectorIdx(initFn)
+						w.Len(w.dict.typeParamMethodExprIdx(typeParamIdx, methodInfo))
+					}
 					return
 				case *types2.Chan:
 					w.Code(exprMake)
@@ -2908,9 +2925,18 @@ func (w *writer) methodExpr(expr *syntax.SelectorExpr, recv types2.Type, sel *ty
 	// through the current function's runtime dictionary.
 	if typeParam, ok := types2.Unalias(recv).(*types2.TypeParam); w.Bool(ok) {
 		typeParamIdx := w.dict.typeParamIndex(typeParam)
-		methodInfo := w.p.selectorIdx(fun)
-
-		w.Len(w.dict.typeParamMethodExprIdx(typeParamIdx, methodInfo))
+		if w.Version() >= pkgbits.V2 {
+			w.Len(typeParamIdx)
+			isStatic := typeParam.IsStatic()
+			w.Bool(isStatic)
+			if !isStatic {
+				methodInfo := w.p.selectorIdx(fun)
+				w.Len(w.dict.typeParamMethodExprIdx(typeParamIdx, methodInfo))
+			}
+		} else {
+			methodInfo := w.p.selectorIdx(fun)
+			w.Len(w.dict.typeParamMethodExprIdx(typeParamIdx, methodInfo))
+		}
 		return
 	}
 
@@ -3118,27 +3144,58 @@ func (w *writer) exprs(exprs []syntax.Expr) {
 
 // rtype writes information so that the reader can construct an
 // expression of type *runtime._type representing typ.
-func (w *writer) rtype(typ types2.Type) {
+func (w *writer) rtype(typ types2.Type) (dictBased bool) {
 	typ = types2.Default(typ)
 
+	// MyGo: static type parameters use a direct rtype (no runtime dict entry).
+	if w.Version() >= pkgbits.V2 {
+		if tp, ok := types2.Unalias(typ).(*types2.TypeParam); ok && tp.IsStatic() {
+			w.Sync(pkgbits.SyncRType)
+			w.Len(2) // kind: static type param
+			w.Len(w.dict.typeParamIndex(tp))
+			return false
+		}
+	}
+
 	info := w.p.typIdx(typ, w.dict)
-	w.rtypeInfo(info)
+	return w.rtypeInfo(info)
 }
 
-func (w *writer) rtypeInfo(info typeInfo) {
+func (w *writer) rtypeInfo(info typeInfo) (dictBased bool) {
 	w.Sync(pkgbits.SyncRType)
 
+	if w.Version() >= pkgbits.V2 {
+		if info.derived {
+			w.Len(1) // kind: derived via runtime dict
+			w.Len(w.dict.rtypeIdx(info))
+			return true
+		}
+		w.Len(0) // kind: direct
+		w.typInfo(info)
+		return false
+	}
+
+	// Legacy encoding: bool(derived) then either dict index or direct typInfo.
 	if w.Bool(info.derived) {
 		w.Len(w.dict.rtypeIdx(info))
-	} else {
-		w.typInfo(info)
+		return true
 	}
+	w.typInfo(info)
+	return false
 }
 
 // varDictIndex writes out information for populating DictIndex for
 // the ir.Name that will represent obj.
 func (w *writer) varDictIndex(obj *types2.Var) {
 	info := w.p.typIdx(obj.Type(), w.dict)
+	if w.Version() >= pkgbits.V2 {
+		// If the derived type is just a `static` type parameter, it won't
+		// use a runtime dictionary entry.
+		if tp, ok := types2.Unalias(obj.Type()).(*types2.TypeParam); ok && tp.IsStatic() {
+			w.Bool(false)
+			return
+		}
+	}
 	if w.Bool(info.derived) {
 		w.Len(w.dict.rtypeIdx(info))
 	}
@@ -3165,9 +3222,14 @@ func (w *writer) itab(typ, iface types2.Type) {
 	typInfo := w.p.typIdx(typ, w.dict)
 	ifaceInfo := w.p.typIdx(iface, w.dict)
 
-	w.rtypeInfo(typInfo)
-	w.rtypeInfo(ifaceInfo)
-	if w.Bool(typInfo.derived || ifaceInfo.derived) {
+	typDict := w.rtype(typ)
+	ifaceDict := w.rtype(iface)
+	if w.Version() < pkgbits.V2 {
+		// Legacy path used rtypeInfo(typInfo/ifaceInfo).
+		_ = typInfo
+		_ = ifaceInfo
+	}
+	if w.Bool(typDict || ifaceDict) {
 		w.Len(w.dict.itabIdx(typInfo, ifaceInfo))
 	}
 }

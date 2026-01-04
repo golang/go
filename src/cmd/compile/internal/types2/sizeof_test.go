@@ -32,7 +32,7 @@ func TestSizeof(t *testing.T) {
 		{Map{}, 16, 32},
 		{Chan{}, 12, 24},
 		{Named{}, 60, 112},
-		{TypeParam{}, 28, 48},
+		{TypeParam{}, 32, 56},
 		{term{}, 12, 24},
 
 		// Objects

@@ -599,6 +599,26 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
 		return Typ[Invalid]
 	}
 
+	// MyGo: static monomorphization requires concrete type arguments.
+	// A `static` type parameter may not be instantiated with a type that
+	// (transitively) contains type parameters.
+	if tparams := gtyp.TypeParams(); tparams != nil {
+		n := tparams.Len()
+		if len(targs) < n {
+			n = len(targs)
+		}
+		for i := 0; i < n; i++ {
+			if tparams.At(i).IsStatic() && containsTypeParam(targs[i]) {
+				pos := x.Pos()
+				if i < len(xlist) {
+					pos = syntax.StartPos(xlist[i])
+				}
+				check.softErrorf(pos, InvalidTypeArg, "static type parameter %s cannot be instantiated with %s", tparams.At(i).Obj().Name(), targs[i])
+				return Typ[Invalid]
+			}
+		}
+	}
+
 	// create instance
 	// The instance is not generic anymore as it has type arguments, but unless
 	// instantiation failed, it still satisfies the genericType interface because

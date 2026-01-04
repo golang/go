@@ -944,6 +944,12 @@ func (p *printer) printParameterList(list []*Field, tok token) {
 			p.print(_Comma, blank)
 		}
 		if f.Name != nil {
+			// Only print the "static" modifier for type parameter lists.
+			// If 'static' applies to a whole constraint group, only print it
+			// once at the beginning of the group.
+			if tok != 0 && f.Static && (i == 0 || list[i-1].Type != f.Type) {
+				p.print(_Name, "static", blank)
+			}
 			p.printNode(f.Name)
 			if i+1 < len(list) {
 				f1 := list[i+1]

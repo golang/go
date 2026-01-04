@@ -2240,6 +2240,185 @@ func main() {
 }
 ```
 
+## 8. 静态分派
+
+MyGO 的范型引入了 **静态分派机制（static dispatch generics）**：在类型参数前加 `static`，即可强制对该类型参数进行**单态化（Monomorphization）代码生成**，类似 Rust/C++ 的范型实例化方式。
+
+### 8.1 语法
+
+- **函数范型**：
+
+```go
+func MyFunc[static T, U any](t T, u U) {}
+```
+
+- **结构体/类型范型**：
+
+```go
+type Box[static T any, U any] struct {
+    t T
+    u U
+}
+```
+
+> `static` 是一个**上下文关键字**：仅在 `[...]` 类型参数列表中生效。
+
+### 8.2 组传播规则
+
+Go 的类型参数列表允许“同约束分组”，例如 `[T, U any]`，其中 `T` 与 `U` 共享同一个约束 `any`。
+
+MyGO 的 `static` 遵循“按组传播”的规则：
+
+- `func F[static T, U any]()`：由于 `T` 与 `U` 在同一约束组（`any`），因此 **T/U 都会被视为 static**。
+- `func F[static T Interface1, U Interface1]()`：`T` 与 `U` 不在同一组，因此 **只对 T 做 static**。
+
+打印/格式化时，`static` 只会在每个约束组的**组首**显示一次（例如 `static T, U any`），但语义上组内均为 static。
+
+### 8.3 语义：static 参数“无 dict”、非 static 仍可用 dict
+
+MyGO 目前同时支持两种机制：
+
+- **static 类型参数**：
+  - 在实例化点生成专门化实现（单态化）
+  - **static 对应的类型信息不再放入 runtime dictionary（dict）**
+  - 后端 IR 对 static 参数使用**原生具体类型**（不会 shapify 为 `go.shape.*`）
+
+- **非 static 类型参数**：
+  - 仍可走现有的 shape + runtime dictionary 机制（用于减少代码膨胀）
+
+因此，允许“部分 static”的混合模式：`[static T, U any]` 中 `T` 会单态化、而 `U` 仍可能需要 dict（例如用于接口方法分派、某些反射/转换信息等）。
+
+### 8.4 静态实参必须是具体类型
+
+static 参数要求在实例化时必须是“具体类型”（不能是类型参数，且不能包含类型参数），否则无法真正单态化。
+
+示例（将报错）：
+
+```go
+func F[static T any]() {}
+func G[U any]() { F[U]() } // ❌ U 是类型参数，不能用于实例化 static T
+```
+
+### 8.5 跨包行为（Rust 风格）：使用方生成专门化符号
+
+跨包调用时，MyGO 会在**使用方包**生成专门化实现，并使用稳定的 hash-mangling 符号名，避免符号过长：
+
+```
+mygo_ + PkgPath + "." + FuncName + "_STA_" + SignatureHash
+```
+
+其中 `SignatureHash` 是对“类型实参规范化全名”的哈希（当前实现为 SHA256 取前 8 位十六进制），既稳定又能控制符号长度。
+
+> 注意：`runtime.FuncForPC` 打印函数名时可能对范型实例化做省略（显示为 `[...]`），不适合用来验证最终符号。
+
+### 8.6 使用案例
+
+主要针对对性能敏感的范型场景使用，以下是一个测速程序，可看速度比
+
+```go
+package main
+
+import (
+	"fmt"
+	"time"
+)
+
+// 定义一个简单的接口
+type Number interface {
+	Get() int
+}
+
+// 定义具体结构体
+type MyInt struct {
+	Val int
+}
+
+// 实现接口方法 (这是个很小的函数，非常适合被内联)
+// 注意：必须用指针接收者，才能触发标准 Go 的 "Shape 共享 + 字典查找" 机制
+func (m *MyInt) Get() int {
+	return m.Val
+}
+
+// ---------------------------------------------------------
+// 1. 标准 Go 泛型 (Standard Generics)
+// ---------------------------------------------------------
+// 对于指针类型 T，Go 1.18+ 会使用 GCShape (go.shape.*uint8)，
+// 并通过运行时字典 (dictionary) 来查找 .Get() 方法。
+// 这导致无法内联，且有间接调用开销。
+func SumStandard[T Number](data []T) int {
+	sum := 0
+	for _, v := range data {
+		sum += v.Get() // Dictionary lookup + Indirect Call
+	}
+	return sum
+}
+
+// ---------------------------------------------------------
+// 2. MyGO 静态分派 (Static Dispatch)
+// ---------------------------------------------------------
+// 使用 static 关键字强制单态化。
+// 编译器会为 *MyInt 生成专门的代码副本。
+// v.Get() 会被编译为直接调用，甚至被内联为一条 ADD 指令。
+func SumStatic[static T Number](data []T) int {
+	sum := 0
+	for _, v := range data {
+		sum += v.Get() // Direct Call (High chance of Inlining)
+	}
+	return sum
+}
+
+// ---------------------------------------------------------
+// 3. 原生非泛型对照组 (Baseline)
+// ---------------------------------------------------------
+// 手写的具体类型函数，代表理论性能上限。
+func SumBaseline(data []*MyInt) int {
+	sum := 0
+	for _, v := range data {
+		sum += v.Get()
+	}
+	return sum
+}
+
+func main() {
+	const N = 100_000_000 // 1亿次调用，放大微小的开销差异
+	fmt.Printf("准备数据: %d 个元素...\n", N)
+
+	// 初始化切片
+	data := make([]*MyInt, N)
+	for i := 0; i < N; i++ {
+		data[i] = &MyInt{Val: 1}
+	}
+
+	// 预热 (避免 CPU 变频影响)
+	SumBaseline(data[:1000])
+
+	// --- 测试 1: 原生对照组 ---
+	start := time.Now()
+	resBase := SumBaseline(data)
+	durBase := time.Since(start)
+	fmt.Printf("[Baseline]  非泛型原生: %v (Result: %d)\n", durBase, resBase)
+
+	// --- 测试 2: 标准 Go 泛型 ---
+	start = time.Now()
+	resStd := SumStandard(data) // 隐式推导 T = *MyInt
+	durStd := time.Since(start)
+	fmt.Printf("[Standard]  标准 Go 泛型: %v (Result: %d)\n", durStd, resStd)
+
+	// --- 测试 3: MyGO Static ---
+	start = time.Now()
+	resSta := SumStatic(data) // 隐式推导 static T = *MyInt
+	durSta := time.Since(start)
+	fmt.Printf("[MyGO Static] 静态分派:   %v (Result: %d)\n", durSta, resSta)
+
+	// --- 结果分析 ---
+	fmt.Println("--------------------------------------------------")
+	fmt.Printf("加速比 (Static vs Standard): %.2fx 更快\n", float64(durStd)/float64(durSta))
+	fmt.Printf("额外开销 (Static vs Baseline): %.2f%% (接近 0 为最佳)\n", 
+		(float64(durSta)-float64(durBase))/float64(durBase)*100)
+}
+```
+
+
 ---
 
 ## 注意事项

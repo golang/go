@@ -752,6 +752,18 @@ func (p *parser) typeDecl(group *Group) Decl {
 		p.next()
 		switch p.tok {
 		case _Name:
+			// "static" is a context keyword for static type parameters:
+			// type T[static P C] ...
+			// We treat it as starting a type parameter list here (even though
+			// it could be used as an identifier in an array length expression),
+			// because the feature explicitly reserves it in this context.
+			if p.lit == "static" {
+				d.TParamList = p.paramList(nil, nil, _Rbrack, true, false)
+				d.Alias = p.gotAssign()
+				d.Type = p.typeExprOrNil()
+				break
+			}
+
 			// We may have an array type or a type parameter list.
 			// In either case we expect an expression x (which may
 			// just be a name, or a more complex expression) which
@@ -2387,6 +2399,15 @@ func (p *parser) paramList(name *Name, typ Expr, close token, requireNames, dddo
 	var named int // number of parameters that have an explicit name and type
 	var typed int // number of parameters that have an explicit type
 	end := p.list("parameter list", _Comma, close, func() bool {
+		// Soft-keyword support for `static` type parameters.
+		// Only meaningful inside type parameter lists (`[...]`), which are
+		// parsed with close==_Rbrack and requireNames==true.
+		staticThis := false
+		if requireNames && close == _Rbrack && typ == nil && name == nil && p.tok == _Name && p.lit == "static" {
+			staticThis = true
+			p.next()
+		}
+
 		var par *Field
 		if typ != nil {
 			if debug && name == nil {
@@ -2402,6 +2423,9 @@ func (p *parser) paramList(name *Name, typ Expr, close token, requireNames, dddo
 		name = nil // 1st name was consumed if present
 		typ = nil  // 1st type was consumed if present
 		if par != nil {
+			if staticThis {
+				par.Static = true
+			}
 			if debug && par.Name == nil && par.Type == nil {
 				panic("parameter without name or type")
 			}
@@ -2479,6 +2503,37 @@ func (p *parser) paramList(name *Name, typ Expr, close token, requireNames, dddo
 				}
 			}
 			p.syntaxErrorAt(errPos, msg)
+		}
+	}
+
+	// MyGo: propagate "static" modifier across a type-parameter group.
+	//
+	// In a type parameter list, parameters may be grouped by a shared constraint,
+	// e.g. [static T, U C]. The 'static' modifier applies to the whole group,
+	// not just the first name.
+	//
+	// The parser represents groups by reusing the same Type pointer across
+	// all fields in the group (see distribution logic above), so we can
+	// propagate after types are distributed.
+	if requireNames && close == _Rbrack {
+		for i := 0; i < len(list); {
+			j := i + 1
+			for j < len(list) && list[j].Type == list[i].Type {
+				j++
+			}
+			anyStatic := false
+			for k := i; k < j; k++ {
+				if list[k].Static {
+					anyStatic = true
+					break
+				}
+			}
+			if anyStatic {
+				for k := i; k < j; k++ {
+					list[k].Static = true
+				}
+			}
+			i = j
 		}
 	}
 

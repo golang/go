@@ -25,6 +25,7 @@ type TypeParam struct {
 	obj   *TypeName // corresponding type name
 	index int       // type parameter index in source order, starting at 0
 	bound Type      // any type, but underlying is eventually *Interface for correct programs (see TypeParam.iface)
+	static bool     // set if declared with `static` modifier (static monomorphization hint)
 }
 
 // NewTypeParam returns a new TypeParam. Type parameters may be set on a Named
@@ -61,6 +62,9 @@ func (check *Checker) newTypeParam(obj *TypeName, constraint Type) *TypeParam {
 
 // Obj returns the type name for the type parameter t.
 func (t *TypeParam) Obj() *TypeName { return t.obj }
+
+// IsStatic reports whether t was declared with the `static` modifier.
+func (t *TypeParam) IsStatic() bool { return t.static }
 
 // Index returns the index of the type param within its param list, or -1 if
 // the type parameter has not yet been bound to a type.

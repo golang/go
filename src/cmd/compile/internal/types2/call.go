@@ -120,6 +120,21 @@ func (check *Checker) funcInst(T *target, pos syntax.Pos, x *operand, inst *synt
 	}
 	assert(got == want)
 
+	// MyGo: static monomorphization requires concrete type arguments.
+	// A `static` type parameter may not be instantiated with a type that
+	// (transitively) contains type parameters.
+	for i := 0; i < want; i++ {
+		if sig.TypeParams().At(i).IsStatic() && containsTypeParam(targs[i]) {
+			errPos := instErrPos
+			if i < len(xlist) {
+				errPos = xlist[i]
+			}
+			check.errorf(errPos, InvalidTypeArg, "static type parameter %s cannot be instantiated with %s", sig.TypeParams().At(i).Obj().Name(), targs[i])
+			x.mode = invalid
+			return nil
+		}
+	}
+
 	// instantiate function signature
 	sig = check.instantiateSignature(x.Pos(), x.expr, sig, targs, xlist)
 
@@ -131,6 +146,20 @@ func (check *Checker) funcInst(T *target, pos syntax.Pos, x *operand, inst *synt
 func (check *Checker) instantiateSignature(pos syntax.Pos, expr syntax.Expr, typ *Signature, targs []Type, xlist []syntax.Expr) (res *Signature) {
 	assert(check != nil)
 	assert(len(targs) == typ.TypeParams().Len())
+
+	// MyGo: static monomorphization requires concrete type arguments.
+	// A `static` type parameter may not be instantiated with a type that
+	// (transitively) contains type parameters.
+	for i := 0; i < typ.TypeParams().Len(); i++ {
+		if typ.TypeParams().At(i).IsStatic() && containsTypeParam(targs[i]) {
+			errPos := poser(expr)
+			if i < len(xlist) {
+				errPos = xlist[i]
+			}
+			check.errorf(errPos, InvalidTypeArg, "static type parameter %s cannot be instantiated with %s", typ.TypeParams().At(i).Obj().Name(), targs[i])
+			// Continue instantiating to keep type checking moving; the error is already reported.
+		}
+	}
 
 	if check.conf.Trace {
 		check.trace(pos, "-- instantiating signature %s with %s", typ, targs)

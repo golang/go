@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"go/constant"
+	"crypto/sha256"
 	"internal/buildcfg"
 	"internal/pkgbits"
 	"path/filepath"
@@ -28,6 +29,23 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 )
+
+func sanitizeSymComponent(s string) string {
+	// Map everything that's not [A-Za-z0-9_] to '_' to keep symbol names conservative.
+	if s == "" {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s))
+	for _, r := range s {
+		if ('a' <= r && r <= 'z') || ('A' <= r && r <= 'Z') || ('0' <= r && r <= '9') || r == '_' {
+			b.WriteRune(r)
+		} else {
+			b.WriteByte('_')
+		}
+	}
+	return b.String()
+}
 
 // magicMethodWrapper is the unified entry point for generating synthetic "magic" methods
 // for generic runtime dictionaries. It handles:
@@ -619,6 +637,16 @@ type readerDict struct {
 	// literal's formal parameters, while implicits are variables
 	// captured by the function literal.)
 	targs []*types.Type
+
+	// origTargs records the original (unshaped) type arguments.
+	// It is used for name mangling decisions that depend on the declared
+	// type parameters (e.g. static type params forcing monomorphization).
+	origTargs []*types.Type
+
+	// tparamStatic records whether each corresponding type argument's
+	// type parameter was declared with the `static` modifier.
+	// Length matches len(targs) (including implicit type parameters).
+	tparamStatic []bool
 
 	// implicits counts how many of types within targs are implicit type
 	// arguments; the rest are explicit.
@@ -1292,6 +1320,60 @@ func (dict *readerDict) mangle(sym *types.Sym) *types.Sym {
 		return sym
 	}
 
+	// MyGo: hash-based mangling for static monomorphization.
+	//
+	// For shaped objects, if any corresponding type parameter was declared `static`,
+	// we generate a stable, bounded symbol name:
+	//
+	//   Prefix + PkgPath + "." + ObjName + "_STA_" + SignatureHash
+	//
+	// SignatureHash is sha256(canonicalArgs) with the first 8 hex chars.
+	// canonicalArgs includes *all* type arguments, where:
+	//   - static args use their original (unshaped) type argument
+	//   - non-static args use their (possibly shaped) type argument
+	//
+	// This provides determinism while avoiding symbol bloat from embedding deep types.
+	if dict.shaped {
+		anyStatic := false
+		for _, st := range dict.tparamStatic {
+			if st {
+				anyStatic = true
+				break
+			}
+		}
+		if anyStatic {
+			base, suffix := types.SplitVargenSuffix(sym.Name)
+
+			var canon strings.Builder
+			canon.WriteString(sym.Pkg.Path)
+			canon.WriteByte('.')
+			canon.WriteString(base)
+			canon.WriteByte('[')
+			for i := range dict.targs {
+				if i > 0 {
+					if i == dict.implicits {
+						canon.WriteByte(';')
+					} else {
+						canon.WriteByte(',')
+					}
+				}
+				if i < len(dict.tparamStatic) && dict.tparamStatic[i] && i < len(dict.origTargs) && dict.origTargs[i] != nil {
+					canon.WriteString(dict.origTargs[i].LinkString())
+				} else {
+					canon.WriteString(dict.targs[i].LinkString())
+				}
+			}
+			canon.WriteByte(']')
+
+			sum := sha256.Sum256([]byte(canon.String()))
+			hash8 := hex.EncodeToString(sum[:])[:8]
+
+			const prefix = "mygo_"
+			name := prefix + sanitizeSymComponent(sym.Pkg.Path) + "." + base + "_STA_" + hash8 + suffix
+			return sym.Pkg.Lookup(name)
+		}
+	}
+
 	// If sym is a locally defined generic type, we need the suffix to
 	// stay at the end after mangling so that types/fmt.go can strip it
 	// out again when writing the type's runtime descriptor (#54456).
@@ -1412,6 +1494,8 @@ func (pr *pkgReader) objDictIdx(sym *types.Sym, idx index, implicits, explicits 
 
 	dict.targs = append(implicits[:nimplicits:nimplicits], explicits...)
 	dict.implicits = nimplicits
+	dict.origTargs = append([]*types.Type(nil), dict.targs...)
+	dict.tparamStatic = make([]bool, len(dict.targs))
 
 	// Within the compiler, we can just skip over the type parameters.
 	for range dict.targs[dict.implicits:] {
@@ -1445,8 +1529,18 @@ func (pr *pkgReader) objDictIdx(sym *types.Sym, idx index, implicits, explicits 
 	// arguments.
 	for i, targ := range dict.targs {
 		basic := r.Bool()
+		if r.Version().Has(pkgbits.TypeParamStatic) {
+			dict.tparamStatic[i] = r.Bool()
+		}
 		if dict.shaped {
-			dict.targs[i] = shapify(targ, basic)
+			// MyGo: static type arguments remain concrete (unshaped) so the
+			// resulting IR uses native types and avoids dictionary indirection
+			// for those type parameters.
+			if i < len(dict.tparamStatic) && dict.tparamStatic[i] {
+				// keep targ as-is
+			} else {
+				dict.targs[i] = shapify(targ, basic)
+			}
 		}
 	}
 
@@ -2878,7 +2972,20 @@ func (r *reader) expr() (res ir.Node) {
 		typ := r.exprType()
 		args := r.exprs()
 		callSig := r.typ() // func(*T, args...)
-		methodIdx := r.Len()
+		var methodIdx int
+		var initSym *types.Sym
+		var isStatic bool
+		if r.Version() >= pkgbits.V2 {
+			_ = r.Len() // typeParamIdx (currently only used for validation/debug)
+			isStatic = r.Bool()
+			if isStatic {
+				initSym = r.selector()
+			} else {
+				methodIdx = r.Len()
+			}
+		} else {
+			methodIdx = r.Len()
+		}
 
 		// Allocate: tmp := new(T) (evaluate once)
 		pNew := typecheck.Expr(ir.NewUnaryExpr(pos, ir.ONEW, typ))
@@ -2907,12 +3014,24 @@ func (r *reader) expr() (res ir.Node) {
 			}
 		}
 
-		// Otherwise, lower to an indirect call through the current function's runtime dictionary:
-		//   tmp := new(T)
-		//   .dict._init(tmp, args...)
-		//   return tmp
-		word := r.dictWord(pos, r.dict.typeParamMethodExprsOffset()+methodIdx)
-		fn := typecheck.Expr(ir.NewConvExpr(pos, ir.OCONVNOP, callSig, ir.NewAddrExpr(pos, word)))
+		// Otherwise:
+		// - non-static: lower to an indirect call through the current function's runtime dictionary:
+		//     tmp := new(T)
+		//     .dict._init(tmp, args...)
+		//     return tmp
+		// - static: lower to a direct method expression call on the concrete receiver type:
+		//     tmp := new(T)
+		//     (*T)._init(tmp, args...)
+		//     return tmp
+		var fn ir.Node
+		if isStatic {
+			base.AssertfAt(initSym != nil, pos, "missing initSym for static init-make")
+			fn = typecheck.NewMethodExpr(pos, tmp.Type(), initSym)
+			base.AssertfAt(types.Identical(fn.Type(), callSig), pos, "static init-make method %L does not have type %v", fn, callSig)
+		} else {
+			word := r.dictWord(pos, r.dict.typeParamMethodExprsOffset()+methodIdx)
+			fn = typecheck.Expr(ir.NewConvExpr(pos, ir.OCONVNOP, callSig, ir.NewAddrExpr(pos, word)))
+		}
 
 		var callArgs ir.Nodes
 		callArgs.Append(tmp)
@@ -3555,6 +3674,33 @@ func (r *reader) methodExpr() (wrapperFn, baseFn, dictPtr ir.Node) {
 	sig := typecheck.NewMethodType(sig0, recv)
 
 	if r.Bool() { // type parameter method expression
+		if r.Version() >= pkgbits.V2 {
+			typeParamIdx := r.Len()
+			isStatic := r.Bool()
+			if isStatic {
+				// Static monomorphization: construct the method expression
+				// directly on the instantiated concrete receiver type.
+				recvArg := r.dict.targs[typeParamIdx]
+				fn := typecheck.NewMethodExpr(pos, recvArg, sym)
+				base.AssertfAt(types.Identical(sig, fn.Type()), pos, "static method expr %L does not have type %v", fn, sig)
+				return fn, fn, nil
+			}
+			idx := r.Len()
+			word := r.dictWord(pos, r.dict.typeParamMethodExprsOffset()+idx)
+
+			// TODO(mdempsky): If the type parameter was instantiated with an
+			// interface type (i.e., embed.IsInterface()), then we could
+			// return the OMETHEXPR instead and save an indirection.
+
+			// We wrote the method expression's entry point PC into the
+			// dictionary, but for Go `func` values we need to return a
+			// closure (i.e., pointer to a structure with the PC as the first
+			// field). Because method expressions don't have any closure
+			// variables, we pun the dictionary entry as the closure struct.
+			fn := typecheck.Expr(ir.NewConvExpr(pos, ir.OCONVNOP, sig, ir.NewAddrExpr(pos, word)))
+			return fn, fn, nil
+		}
+
 		idx := r.Len()
 		word := r.dictWord(pos, r.dict.typeParamMethodExprsOffset()+idx)
 
@@ -3855,6 +4001,30 @@ func (r *reader) rtype(pos src.XPos) ir.Node {
 
 func (r *reader) rtype0(pos src.XPos) (typ *types.Type, rtype ir.Node) {
 	r.Sync(pkgbits.SyncRType)
+	if r.Version() >= pkgbits.V2 {
+		kind := r.Len()
+		switch kind {
+		case 0: // direct
+			typ = r.typ()
+			rtype = reflectdata.TypePtrAt(pos, typ)
+			return
+		case 1: // derived via runtime dict
+			idx := r.Len()
+			info := r.dict.rtypes[idx]
+			typ = r.p.typIdx(info, r.dict, true)
+			rtype = r.rttiWord(pos, r.dict.rtypesOffset()+idx)
+			return
+		case 2: // static type param (direct)
+			tpIdx := r.Len()
+			typ = r.dict.targs[tpIdx]
+			rtype = reflectdata.TypePtrAt(pos, typ)
+			return
+		default:
+			base.FatalfAt(pos, "invalid rtype kind %v", kind)
+		}
+	}
+
+	// Legacy encoding: bool(derived) then either dict index or direct typ.
 	if r.Bool() { // derived type
 		idx := r.Len()
 		info := r.dict.rtypes[idx]

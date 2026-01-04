@@ -7,7 +7,6 @@ package noder
 import (
 	"cmp"
 	"fmt"
-	"internal/buildcfg"
 	"internal/pkgbits"
 	"internal/types/errors"
 	"io"
@@ -507,11 +506,7 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg, localStub bool) {
 // writeUnifiedExport writes to `out` the finalized, self-contained
 // Unified IR export data file for the current compilation unit.
 func writeUnifiedExport(out io.Writer) {
-	// Use V2 as the encoded version aliastypeparams GOEXPERIMENT is enabled.
-	version := pkgbits.V1
-	if buildcfg.Experiment.AliasTypeParams {
-		version = pkgbits.V2
-	}
+	version := pkgbits.V2
 	l := linker{
 		pw: pkgbits.NewPkgEncoder(version, base.Debug.SyncFrames),
 

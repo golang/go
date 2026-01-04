@@ -592,6 +592,7 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list []*syntax.Fiel
 		scopePos := list[0].Pos()
 		for i, f := range list {
 			tparams[i] = check.declareTypeParam(f.Name, scopePos)
+			tparams[i].static = f.Static
 		}
 	}
 

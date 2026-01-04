@@ -323,6 +323,7 @@ type (
 	Field struct {
 		Name         *Name // nil means anonymous field/parameter (structs/parameters), or embedded element (interfaces)
 		Type         Expr  // field names declared in a list share the same Type (identical pointers)
+		Static       bool  // only meaningful for type parameter lists: indicates a `static` type parameter
 		DefaultValue Expr  // default value for function parameters (nil means no default)
 		node
 	}

@@ -57,6 +57,11 @@ const (
 	// ObjAlias has a list of TypeParamNames.
 	AliasTypeParamNames
 
+	// TypeParamStatic adds a bool per type parameter (including implicit ones)
+	// to object dictionaries, indicating whether it was declared with the
+	// `static` modifier.
+	TypeParamStatic
+
 	// Deprecated: DerivedInfoNeeded was a bool indicating
 	// whether a type was a derived type.
 	DerivedInfoNeeded
@@ -68,6 +73,7 @@ const (
 var introduced = [numFields]Version{
 	Flags:               V1,
 	AliasTypeParamNames: V2,
+	TypeParamStatic:     V2,
 }
 
 // removed is the version a field was removed in or 0 for fields
