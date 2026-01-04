@@ -2167,6 +2167,214 @@ func main() {
 }
 ```
 
+## 8. Static Dispatch
+
+MyGO generics introduce a **static dispatch generics** mechanism:  
+by adding the `static` keyword before a type parameter, you can **force monomorphization** at compile time, similar to how generics are instantiated in Rust or C++.
+
+### 8.1 Syntax
+
+- **Generic functions**:
+
+```go
+func MyFunc[static T, U any](t T, u U) {}
+````
+
+* **Generic structs / types**:
+
+```go
+type Box[static T any, U any] struct {
+    t T
+    u U
+}
+```
+
+> `static` is a **contextual keyword**: it is only valid inside the `[...]` type parameter list.
+
+### 8.2 Group Propagation Rules
+
+Go allows *constraint grouping* in type parameter lists, for example `[T, U any]`, where `T` and `U` share the same constraint `any`.
+
+MyGO’s `static` follows a **group-based propagation rule**:
+
+* `func F[static T, U any]()`
+  Since `T` and `U` belong to the same constraint group (`any`), **both `T` and `U` are treated as static**.
+
+* `func F[static T Interface1, U Interface1]()`
+  Here `T` and `U` are in different constraint groups, so **only `T` is static**.
+
+When printing / formatting type parameter lists, `static` is shown only once at the **head of each constraint group** (e.g. `static T, U any`), but **semantically all parameters in the group are static**.
+
+### 8.3 Semantics: “No Dict” for Static, Dict Still Allowed for Non-Static
+
+MyGO currently supports **two generic dispatch mechanisms simultaneously**:
+
+* **Static type parameters**:
+
+  * Specialized implementations are generated at instantiation time (monomorphization)
+  * **No runtime dictionary (`dict`) is generated for static parameters**
+  * In the backend IR, static parameters use **concrete native types**
+    (they are not shapified into `go.shape.*`)
+
+* **Non-static type parameters**:
+
+  * Continue to use the existing *shape + runtime dictionary* mechanism
+    (to reduce code size bloat)
+
+Therefore, **mixed mode is allowed**.
+In `[static T, U any]`, `T` is monomorphized, while `U` may still require a dictionary
+(e.g. for interface method dispatch, reflection, or certain conversions).
+
+### 8.4 Static Arguments Must Be Concrete Types
+
+A `static` type parameter **must be instantiated with a concrete type**:
+
+* It cannot be another type parameter
+* It cannot contain type parameters
+
+Otherwise, true monomorphization is impossible.
+
+Example (this will fail):
+
+```go
+func F[static T any]() {}
+
+func G[U any]() {
+    F[U]() // ❌ U is a type parameter, cannot be used to instantiate static T
+}
+```
+
+### 8.5 Cross-Package Behavior: Specialization in the Caller Package
+
+For cross-package calls, MyGO generates the specialized implementation in the **caller’s package**, using a stable hash-mangled symbol name to avoid excessively long symbols:
+
+```text
+mygo_ + PkgPath + "." + FuncName + "_STA_" + SignatureHash
+```
+
+Where `SignatureHash` is a hash of the **canonicalized full names of the type arguments**
+(currently: first 8 hex digits of SHA256), providing both stability and controlled symbol length.
+
+> Note: `runtime.FuncForPC` may elide generic instantiations (displaying `[...]`),
+> so it is not reliable for verifying final symbol names.
+
+### 8.6 Usage Example
+
+This feature is primarily intended for **performance-critical generic code**.
+Below is a benchmark demonstrating the performance difference.
+
+```go
+package main
+
+import (
+    "fmt"
+    "time"
+)
+
+// Define a simple interface
+type Number interface {
+    Get() int
+}
+
+// Define a concrete struct
+type MyInt struct {
+    Val int
+}
+
+// Implement the interface method (very small, ideal for inlining)
+//
+// Note: a pointer receiver is required to trigger Go’s standard
+// "shape sharing + dictionary lookup" mechanism.
+func (m *MyInt) Get() int {
+    return m.Val
+}
+
+// ---------------------------------------------------------
+// 1. Standard Go Generics
+// ---------------------------------------------------------
+//
+// For pointer types T, Go 1.18+ uses GCShape (go.shape.*uint8)
+// and performs method lookup via a runtime dictionary.
+// This prevents inlining and introduces indirect call overhead.
+func SumStandard[T Number](data []T) int {
+    sum := 0
+    for _, v := range data {
+        sum += v.Get() // Dictionary lookup + indirect call
+    }
+    return sum
+}
+
+// ---------------------------------------------------------
+// 2. MyGO Static Dispatch
+// ---------------------------------------------------------
+//
+// Using the `static` keyword forces monomorphization.
+// The compiler generates a specialized version for *MyInt.
+// v.Get() becomes a direct call and may even be inlined
+// into a single ADD instruction.
+func SumStatic[static T Number](data []T) int {
+    sum := 0
+    for _, v := range data {
+        sum += v.Get() // Direct call (high chance of inlining)
+    }
+    return sum
+}
+
+// ---------------------------------------------------------
+// 3. Non-generic Baseline
+// ---------------------------------------------------------
+//
+// Hand-written concrete implementation, representing
+// the theoretical performance upper bound.
+func SumBaseline(data []*MyInt) int {
+    sum := 0
+    for _, v := range data {
+        sum += v.Get()
+    }
+    return sum
+}
+
+func main() {
+    const N = 100_000_000 // 100 million iterations to amplify tiny overheads
+
+    fmt.Printf("Preparing data: %d elements...\n", N)
+
+    // Initialize slice
+    data := make([]*MyInt, N)
+    for i := 0; i < N; i++ {
+        data[i] = &MyInt{Val: 1}
+    }
+
+    // Warm-up (avoid CPU frequency scaling effects)
+    SumBaseline(data[:1000])
+
+    // --- Test 1: Baseline ---
+    start := time.Now()
+    resBase := SumBaseline(data)
+    durBase := time.Since(start)
+    fmt.Printf("[Baseline]   Non-generic native: %v (Result: %d)\n", durBase, resBase)
+
+    // --- Test 2: Standard Go Generics ---
+    start = time.Now()
+    resStd := SumStandard(data) // T inferred as *MyInt
+    durStd := time.Since(start)
+    fmt.Printf("[Standard]   Go generics:        %v (Result: %d)\n", durStd, resStd)
+
+    // --- Test 3: MyGO Static ---
+    start = time.Now()
+    resSta := SumStatic(data) // static T inferred as *MyInt
+    durSta := time.Since(start)
+    fmt.Printf("[MyGO Static] Static dispatch:   %v (Result: %d)\n", durSta, resSta)
+
+    // --- Analysis ---
+    fmt.Println("--------------------------------------------------")
+    fmt.Printf("Speedup (Static vs Standard): %.2fx faster\n",
+        float64(durStd)/float64(durSta))
+    fmt.Printf("Overhead (Static vs Baseline): %.2f%% (closer to 0 is better)\n",
+        (float64(durSta)-float64(durBase))/float64(durBase)*100)
+}
+```
+
 ---
 
 ## Notes
