@@ -6,6 +6,7 @@ package zip
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"hash"
@@ -30,6 +31,10 @@ type Writer struct {
 	compressors map[uint16]Compressor
 	comment     string
 
+	// ws holds the underlying writer if it supports seeking, used for
+	// writing Local File Header versions for ZIP64 entries.
+	ws io.WriteSeeker
+
 	// testHookCloseSizeOffset if non-nil is called with the size
 	// of offset of the central directory at Close.
 	testHookCloseSizeOffset func(size, offset uint64)
@@ -41,9 +46,61 @@ type header struct {
 	raw    bool
 }
 
+// bufferWriteSeeker wraps a *bytes.Buffer to implement io.WriteSeeker.
+// This enables ZIP64 Local File Header writing for in-memory ZIP creation.
+type bufferWriteSeeker struct {
+	buf *bytes.Buffer
+	pos int
+}
+
+func (b *bufferWriteSeeker) Write(p []byte) (int, error) {
+	if b.pos == b.buf.Len() {
+		n, err := b.buf.Write(p)
+		b.pos += n
+		return n, err
+	}
+	data := b.buf.Bytes()
+	n := copy(data[b.pos:], p)
+	b.pos += n
+	if n < len(p) {
+		written, err := b.buf.Write(p[n:])
+		b.pos += written
+		n += written
+		if err != nil {
+			return n, err
+		}
+	}
+	return len(p), nil
+}
+
+func (b *bufferWriteSeeker) Seek(offset int64, whence int) (int64, error) {
+	var newPos int64
+	switch whence {
+	case io.SeekStart:
+		newPos = offset
+	case io.SeekCurrent:
+		newPos = int64(b.pos) + offset
+	case io.SeekEnd:
+		newPos = int64(b.buf.Len()) + offset
+	default:
+		return 0, errors.New("zip: invalid seek whence")
+	}
+	if newPos < 0 {
+		return 0, errors.New("zip: negative seek position")
+	}
+	b.pos = int(newPos)
+	return newPos, nil
+}
+
 // NewWriter returns a new [Writer] writing a zip file to w.
 func NewWriter(w io.Writer) *Writer {
-	return &Writer{cw: &countWriter{w: bufio.NewWriter(w)}}
+	zw := &Writer{cw: &countWriter{w: bufio.NewWriter(w)}}
+	if ws, ok := w.(io.WriteSeeker); ok {
+		zw.ws = ws
+	} else if buf, ok := w.(*bytes.Buffer); ok {
+		zw.ws = &bufferWriteSeeker{buf: buf}
+	}
+	return zw
 }
 
 // SetOffset sets the offset of the beginning of the zip data within the
@@ -55,6 +112,41 @@ func (w *Writer) SetOffset(n int64) {
 		panic("zip: SetOffset called after data was written")
 	}
 	w.cw.count = n
+}
+
+// writeZip64LFH writes the Local File Header (LFH) version field for ZIP64
+// entries to ensure consistency with the Central Directory. The LFH is written
+// before the file data when the final size is unknown, so it uses version 20.
+// After the data is written, if the entry exceeds 4GB, the Central Directory
+// uses version 45. This method seeks back to each ZIP64 entry's LFH and updates
+// the version to 45.
+func (w *Writer) writeZip64LFH() error {
+	if w.ws == nil {
+		return nil
+	}
+	if err := w.cw.w.(*bufio.Writer).Flush(); err != nil {
+		return err
+	}
+	currentPos, err := w.ws.Seek(0, io.SeekCurrent)
+	if err != nil {
+		return err
+	}
+	var versionBuf [2]byte
+	binary.LittleEndian.PutUint16(versionBuf[:], zipVersion45)
+	for _, h := range w.dir {
+		if h.isZip64() {
+			// LFH structure: signature(4) + version(2) + ...
+			// Seek to version field at offset + 4
+			if _, err := w.ws.Seek(int64(h.offset)+4, io.SeekStart); err != nil {
+				return err
+			}
+			if _, err := w.ws.Write(versionBuf[:]); err != nil {
+				return err
+			}
+		}
+	}
+	_, err = w.ws.Seek(currentPos, io.SeekStart)
+	return err
 }
 
 // Flush flushes any buffered data to the underlying writer.
@@ -86,6 +178,12 @@ func (w *Writer) Close() error {
 		return errors.New("zip: writer closed twice")
 	}
 	w.closed = true
+
+	// write Local File Header versions for ZIP64 entries to ensure consistency
+	// with the Central Directory. This is required by strict ZIP readers.
+	if err := w.writeZip64LFH(); err != nil {
+		return err
+	}
 
 	// write central directory
 	start := w.cw.count
@@ -445,6 +543,11 @@ func (w *Writer) CreateRaw(fh *FileHeader) (io.Writer, error) {
 
 	fh.CompressedSize = uint32(min(fh.CompressedSize64, uint32max))
 	fh.UncompressedSize = uint32(min(fh.UncompressedSize64, uint32max))
+
+	// Set version 45 for ZIP64 entries since sizes are known upfront
+	if fh.isZip64() {
+		fh.ReaderVersion = zipVersion45
+	}
 
 	h := &header{
 		FileHeader: fh,
