@@ -31,9 +31,9 @@ type Writer struct {
 	compressors map[uint16]Compressor
 	comment     string
 
-	// ws holds the underlying writer if it supports seeking, used for
-	// writing Local File Header versions for ZIP64 entries.
-	ws io.WriteSeeker
+	// wa holds the underlying writer if it supports WriteAt, used for
+	// writing local file header versions for ZIP64 entries.
+	wa io.WriterAt
 
 	// testHookCloseSizeOffset if non-nil is called with the size
 	// of offset of the central directory at Close.
@@ -46,59 +46,27 @@ type header struct {
 	raw    bool
 }
 
-// bufferWriteSeeker wraps a *bytes.Buffer to implement io.WriteSeeker.
-// This enables ZIP64 Local File Header writing for in-memory ZIP creation.
-type bufferWriteSeeker struct {
+// bufferWriterAt wraps a *bytes.Buffer to implement io.WriterAt.
+// This enables ZIP64 local file header writing for in-memory ZIP creation.
+type bufferWriterAt struct {
 	buf *bytes.Buffer
-	pos int
 }
 
-func (b *bufferWriteSeeker) Write(p []byte) (int, error) {
-	if b.pos == b.buf.Len() {
-		n, err := b.buf.Write(p)
-		b.pos += n
-		return n, err
-	}
+func (b *bufferWriterAt) WriteAt(p []byte, off int64) (int, error) {
 	data := b.buf.Bytes()
-	n := copy(data[b.pos:], p)
-	b.pos += n
-	if n < len(p) {
-		written, err := b.buf.Write(p[n:])
-		b.pos += written
-		n += written
-		if err != nil {
-			return n, err
-		}
+	if int(off)+len(p) > len(data) {
+		return 0, errors.New("zip: write beyond buffer length")
 	}
-	return len(p), nil
-}
-
-func (b *bufferWriteSeeker) Seek(offset int64, whence int) (int64, error) {
-	var newPos int64
-	switch whence {
-	case io.SeekStart:
-		newPos = offset
-	case io.SeekCurrent:
-		newPos = int64(b.pos) + offset
-	case io.SeekEnd:
-		newPos = int64(b.buf.Len()) + offset
-	default:
-		return 0, errors.New("zip: invalid seek whence")
-	}
-	if newPos < 0 {
-		return 0, errors.New("zip: negative seek position")
-	}
-	b.pos = int(newPos)
-	return newPos, nil
+	return copy(data[off:], p), nil
 }
 
 // NewWriter returns a new [Writer] writing a zip file to w.
 func NewWriter(w io.Writer) *Writer {
 	zw := &Writer{cw: &countWriter{w: bufio.NewWriter(w)}}
-	if ws, ok := w.(io.WriteSeeker); ok {
-		zw.ws = ws
+	if wa, ok := w.(io.WriterAt); ok {
+		zw.wa = wa
 	} else if buf, ok := w.(*bytes.Buffer); ok {
-		zw.ws = &bufferWriteSeeker{buf: buf}
+		zw.wa = &bufferWriterAt{buf: buf}
 	}
 	return zw
 }
@@ -114,21 +82,17 @@ func (w *Writer) SetOffset(n int64) {
 	w.cw.count = n
 }
 
-// writeZip64LFH writes the Local File Header (LFH) version field for ZIP64
-// entries to ensure consistency with the Central Directory. The LFH is 
-// written before the file data when the final size is unknown, so it uses 
-// version 20. After the data is written, if the entry exceeds 4GB, the 
-// Central Directory uses version 45. This method seeks back to each ZIP64 
-// entry's LFH and updates the version to 45.
+// writeZip64LFH writes the local file header (LFH) version field for ZIP64
+// entries to ensure consistency with the central directory. The LFH is
+// written before the file data when the final size is unknown, so it uses
+// version 20. After the data is written, if the entry exceeds 4GB, the
+// central directory uses version 45. This method write each ZIP64 entry's
+// LFH to update the version to 45.
 func (w *Writer) writeZip64LFH() error {
-	if w.ws == nil {
+	if w.wa == nil {
 		return nil
 	}
 	if err := w.cw.w.(*bufio.Writer).Flush(); err != nil {
-		return err
-	}
-	currentPos, err := w.ws.Seek(0, io.SeekCurrent)
-	if err != nil {
 		return err
 	}
 	var versionBuf [2]byte
@@ -136,17 +100,13 @@ func (w *Writer) writeZip64LFH() error {
 	for _, h := range w.dir {
 		if h.isZip64() {
 			// LFH structure: signature(4) + version(2) + ...
-			// Seek to version field at offset + 4
-			if _, err := w.ws.Seek(int64(h.offset)+4, io.SeekStart); err != nil {
-				return err
-			}
-			if _, err := w.ws.Write(versionBuf[:]); err != nil {
+			// Write version field at offset + 4
+			if _, err := w.wa.WriteAt(versionBuf[:], int64(h.offset)+4); err != nil {
 				return err
 			}
 		}
 	}
-	_, err = w.ws.Seek(currentPos, io.SeekStart)
-	return err
+	return nil
 }
 
 // Flush flushes any buffered data to the underlying writer.
@@ -179,8 +139,8 @@ func (w *Writer) Close() error {
 	}
 	w.closed = true
 
-	// write Local File Header versions for ZIP64 entries to ensure 
-	// consistency with the Central Directory. This is required by strict 
+	// write local file header versions for ZIP64 entries to ensure
+	// consistency with the central directory. This is required by strict
 	// ZIP readers.
 	if err := w.writeZip64LFH(); err != nil {
 		return err
