@@ -672,8 +672,8 @@ func TestIssue61875(t *testing.T) {
 	}
 }
 
-// TestZip64LFHVersion tests that the Local File Header version is written to 45
-// for ZIP64 entries to match the Central Directory version.
+// TestZip64LFHVersion tests that the Local File Header version is written 
+// to 45 for ZIP64 entries to match the Central Directory version.
 func TestZip64LFHVersion(t *testing.T) {
 	buf := new(bytes.Buffer)
 	w := NewWriter(buf)

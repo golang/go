@@ -115,11 +115,11 @@ func (w *Writer) SetOffset(n int64) {
 }
 
 // writeZip64LFH writes the Local File Header (LFH) version field for ZIP64
-// entries to ensure consistency with the Central Directory. The LFH is written
-// before the file data when the final size is unknown, so it uses version 20.
-// After the data is written, if the entry exceeds 4GB, the Central Directory
-// uses version 45. This method seeks back to each ZIP64 entry's LFH and updates
-// the version to 45.
+// entries to ensure consistency with the Central Directory. The LFH is 
+// written before the file data when the final size is unknown, so it uses 
+// version 20. After the data is written, if the entry exceeds 4GB, the 
+// Central Directory uses version 45. This method seeks back to each ZIP64 
+// entry's LFH and updates the version to 45.
 func (w *Writer) writeZip64LFH() error {
 	if w.ws == nil {
 		return nil
@@ -179,8 +179,9 @@ func (w *Writer) Close() error {
 	}
 	w.closed = true
 
-	// write Local File Header versions for ZIP64 entries to ensure consistency
-	// with the Central Directory. This is required by strict ZIP readers.
+	// write Local File Header versions for ZIP64 entries to ensure 
+	// consistency with the Central Directory. This is required by strict 
+	// ZIP readers.
 	if err := w.writeZip64LFH(); err != nil {
 		return err
 	}
