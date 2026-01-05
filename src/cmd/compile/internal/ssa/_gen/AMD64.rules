@@ -1679,21 +1679,21 @@
 (Cvt8toMask64x8 <t> x) => (VPMOVMToVec64x8 <types.TypeVec512> (KMOVBk <t> x))
 
 // masks to integers
-(CvtMask8x16to16 <t> x) => (KMOVWi <t> (VPMOVVec8x16ToM <types.TypeMask> x))
-(CvtMask8x32to32 <t> x) => (KMOVDi <t> (VPMOVVec8x32ToM <types.TypeMask> x))
-(CvtMask8x64to64 <t> x) => (KMOVQi <t> (VPMOVVec8x64ToM <types.TypeMask> x))
+(CvtMask8x16to16 ...) => (VPMOVMSKB128 ...)
+(CvtMask8x32to32 ...) => (VPMOVMSKB256 ...)
+(CvtMask8x64to64 x) => (KMOVQi (VPMOVVec8x64ToM <types.TypeMask> x))
 
-(CvtMask16x8to8 <t> x) => (KMOVBi <t> (VPMOVVec16x8ToM <types.TypeMask> x))
-(CvtMask16x16to16 <t> x) => (KMOVWi <t> (VPMOVVec16x16ToM <types.TypeMask> x))
-(CvtMask16x32to32 <t> x) => (KMOVDi <t> (VPMOVVec16x32ToM <types.TypeMask> x))
+(CvtMask16x8to8 x) => (KMOVBi (VPMOVVec16x8ToM <types.TypeMask> x))
+(CvtMask16x16to16 x) => (KMOVWi (VPMOVVec16x16ToM <types.TypeMask> x))
+(CvtMask16x32to32 x) => (KMOVDi (VPMOVVec16x32ToM <types.TypeMask> x))
 
-(CvtMask32x4to8 <t> x) => (KMOVBi <t> (VPMOVVec32x4ToM <types.TypeMask> x))
-(CvtMask32x8to8 <t> x) => (KMOVBi <t> (VPMOVVec32x8ToM <types.TypeMask> x))
-(CvtMask32x16to16 <t> x) => (KMOVWi <t> (VPMOVVec32x16ToM <types.TypeMask> x))
+(CvtMask32x4to8 ...) => (VMOVMSKPS128 ...)
+(CvtMask32x8to8 ...) => (VMOVMSKPS256 ...)
+(CvtMask32x16to16 x) => (KMOVWi (VPMOVVec32x16ToM <types.TypeMask> x))
 
-(CvtMask64x2to8 <t> x) => (KMOVBi <t> (VPMOVVec64x2ToM <types.TypeMask> x))
-(CvtMask64x4to8 <t> x) => (KMOVBi <t> (VPMOVVec64x4ToM <types.TypeMask> x))
-(CvtMask64x8to8 <t> x) => (KMOVBi <t> (VPMOVVec64x8ToM <types.TypeMask> x))
+(CvtMask64x2to8 ...) => (VMOVMSKPD128 ...)
+(CvtMask64x4to8 ...) => (VMOVMSKPD256 ...)
+(CvtMask64x8to8 x) => (KMOVBi (VPMOVVec64x8ToM <types.TypeMask> x))
 
 // optimizations
 (MOVBstore [off] {sym} ptr (KMOVBi mask) mem) => (KMOVBstore [off] {sym} ptr mask mem)

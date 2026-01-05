@@ -3050,19 +3050,25 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpCvtMask32x16to16:
 		return rewriteValueAMD64_OpCvtMask32x16to16(v)
 	case OpCvtMask32x4to8:
-		return rewriteValueAMD64_OpCvtMask32x4to8(v)
+		v.Op = OpAMD64VMOVMSKPS128
+		return true
 	case OpCvtMask32x8to8:
-		return rewriteValueAMD64_OpCvtMask32x8to8(v)
+		v.Op = OpAMD64VMOVMSKPS256
+		return true
 	case OpCvtMask64x2to8:
-		return rewriteValueAMD64_OpCvtMask64x2to8(v)
+		v.Op = OpAMD64VMOVMSKPD128
+		return true
 	case OpCvtMask64x4to8:
-		return rewriteValueAMD64_OpCvtMask64x4to8(v)
+		v.Op = OpAMD64VMOVMSKPD256
+		return true
 	case OpCvtMask64x8to8:
 		return rewriteValueAMD64_OpCvtMask64x8to8(v)
 	case OpCvtMask8x16to16:
-		return rewriteValueAMD64_OpCvtMask8x16to16(v)
+		v.Op = OpAMD64VPMOVMSKB128
+		return true
 	case OpCvtMask8x32to32:
-		return rewriteValueAMD64_OpCvtMask8x32to32(v)
+		v.Op = OpAMD64VPMOVMSKB256
+		return true
 	case OpCvtMask8x64to64:
 		return rewriteValueAMD64_OpCvtMask8x64to64(v)
 	case OpDiv128u:
@@ -68722,13 +68728,11 @@ func rewriteValueAMD64_OpCvt8toMask64x8(v *Value) bool {
 func rewriteValueAMD64_OpCvtMask16x16to16(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (CvtMask16x16to16 <t> x)
-	// result: (KMOVWi <t> (VPMOVVec16x16ToM <types.TypeMask> x))
+	// match: (CvtMask16x16to16 x)
+	// result: (KMOVWi (VPMOVVec16x16ToM <types.TypeMask> x))
 	for {
-		t := v.Type
 		x := v_0
 		v.reset(OpAMD64KMOVWi)
-		v.Type = t
 		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x16ToM, types.TypeMask)
 		v0.AddArg(x)
 		v.AddArg(v0)
@@ -68738,13 +68742,11 @@ func rewriteValueAMD64_OpCvtMask16x16to16(v *Value) bool {
 func rewriteValueAMD64_OpCvtMask16x32to32(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (CvtMask16x32to32 <t> x)
-	// result: (KMOVDi <t> (VPMOVVec16x32ToM <types.TypeMask> x))
+	// match: (CvtMask16x32to32 x)
+	// result: (KMOVDi (VPMOVVec16x32ToM <types.TypeMask> x))
 	for {
-		t := v.Type
 		x := v_0
 		v.reset(OpAMD64KMOVDi)
-		v.Type = t
 		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x32ToM, types.TypeMask)
 		v0.AddArg(x)
 		v.AddArg(v0)
@@ -68754,13 +68756,11 @@ func rewriteValueAMD64_OpCvtMask16x32to32(v *Value) bool {
 func rewriteValueAMD64_OpCvtMask16x8to8(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (CvtMask16x8to8 <t> x)
-	// result: (KMOVBi <t> (VPMOVVec16x8ToM <types.TypeMask> x))
+	// match: (CvtMask16x8to8 x)
+	// result: (KMOVBi (VPMOVVec16x8ToM <types.TypeMask> x))
 	for {
-		t := v.Type
 		x := v_0
 		v.reset(OpAMD64KMOVBi)
-		v.Type = t
 		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
 		v0.AddArg(x)
 		v.AddArg(v0)
@@ -68770,78 +68770,12 @@ func rewriteValueAMD64_OpCvtMask16x8to8(v *Value) bool {
 func rewriteValueAMD64_OpCvtMask32x16to16(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (CvtMask32x16to16 <t> x)
-	// result: (KMOVWi <t> (VPMOVVec32x16ToM <types.TypeMask> x))
+	// match: (CvtMask32x16to16 x)
+	// result: (KMOVWi (VPMOVVec32x16ToM <types.TypeMask> x))
 	for {
-		t := v.Type
 		x := v_0
 		v.reset(OpAMD64KMOVWi)
-		v.Type = t
 		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x16ToM, types.TypeMask)
-		v0.AddArg(x)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueAMD64_OpCvtMask32x4to8(v *Value) bool {
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (CvtMask32x4to8 <t> x)
-	// result: (KMOVBi <t> (VPMOVVec32x4ToM <types.TypeMask> x))
-	for {
-		t := v.Type
-		x := v_0
-		v.reset(OpAMD64KMOVBi)
-		v.Type = t
-		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
-		v0.AddArg(x)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueAMD64_OpCvtMask32x8to8(v *Value) bool {
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (CvtMask32x8to8 <t> x)
-	// result: (KMOVBi <t> (VPMOVVec32x8ToM <types.TypeMask> x))
-	for {
-		t := v.Type
-		x := v_0
-		v.reset(OpAMD64KMOVBi)
-		v.Type = t
-		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
-		v0.AddArg(x)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueAMD64_OpCvtMask64x2to8(v *Value) bool {
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (CvtMask64x2to8 <t> x)
-	// result: (KMOVBi <t> (VPMOVVec64x2ToM <types.TypeMask> x))
-	for {
-		t := v.Type
-		x := v_0
-		v.reset(OpAMD64KMOVBi)
-		v.Type = t
-		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
-		v0.AddArg(x)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueAMD64_OpCvtMask64x4to8(v *Value) bool {
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (CvtMask64x4to8 <t> x)
-	// result: (KMOVBi <t> (VPMOVVec64x4ToM <types.TypeMask> x))
-	for {
-		t := v.Type
-		x := v_0
-		v.reset(OpAMD64KMOVBi)
-		v.Type = t
-		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x4ToM, types.TypeMask)
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
@@ -68850,46 +68784,12 @@ func rewriteValueAMD64_OpCvtMask64x4to8(v *Value) bool {
 func rewriteValueAMD64_OpCvtMask64x8to8(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (CvtMask64x8to8 <t> x)
-	// result: (KMOVBi <t> (VPMOVVec64x8ToM <types.TypeMask> x))
+	// match: (CvtMask64x8to8 x)
+	// result: (KMOVBi (VPMOVVec64x8ToM <types.TypeMask> x))
 	for {
-		t := v.Type
 		x := v_0
 		v.reset(OpAMD64KMOVBi)
-		v.Type = t
 		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x8ToM, types.TypeMask)
-		v0.AddArg(x)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueAMD64_OpCvtMask8x16to16(v *Value) bool {
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (CvtMask8x16to16 <t> x)
-	// result: (KMOVWi <t> (VPMOVVec8x16ToM <types.TypeMask> x))
-	for {
-		t := v.Type
-		x := v_0
-		v.reset(OpAMD64KMOVWi)
-		v.Type = t
-		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
-		v0.AddArg(x)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueAMD64_OpCvtMask8x32to32(v *Value) bool {
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (CvtMask8x32to32 <t> x)
-	// result: (KMOVDi <t> (VPMOVVec8x32ToM <types.TypeMask> x))
-	for {
-		t := v.Type
-		x := v_0
-		v.reset(OpAMD64KMOVDi)
-		v.Type = t
-		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x32ToM, types.TypeMask)
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
@@ -68898,13 +68798,11 @@ func rewriteValueAMD64_OpCvtMask8x32to32(v *Value) bool {
 func rewriteValueAMD64_OpCvtMask8x64to64(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (CvtMask8x64to64 <t> x)
-	// result: (KMOVQi <t> (VPMOVVec8x64ToM <types.TypeMask> x))
+	// match: (CvtMask8x64to64 x)
+	// result: (KMOVQi (VPMOVVec8x64ToM <types.TypeMask> x))
 	for {
-		t := v.Type
 		x := v_0
 		v.reset(OpAMD64KMOVQi)
-		v.Type = t
 		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x64ToM, types.TypeMask)
 		v0.AddArg(x)
 		v.AddArg(v0)

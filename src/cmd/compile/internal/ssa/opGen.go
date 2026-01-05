@@ -1214,6 +1214,12 @@ const (
 	OpAMD64VPMOVVec64x2ToM
 	OpAMD64VPMOVVec64x4ToM
 	OpAMD64VPMOVVec64x8ToM
+	OpAMD64VPMOVMSKB128
+	OpAMD64VPMOVMSKB256
+	OpAMD64VMOVMSKPS128
+	OpAMD64VMOVMSKPS256
+	OpAMD64VMOVMSKPD128
+	OpAMD64VMOVMSKPD256
 	OpAMD64Zero128
 	OpAMD64Zero256
 	OpAMD64Zero512
@@ -20348,6 +20354,84 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:   "VPMOVMSKB128",
+		argLen: 1,
+		asm:    x86.AVPMOVMSKB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
+		name:   "VPMOVMSKB256",
+		argLen: 1,
+		asm:    x86.AVPMOVMSKB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
+		name:   "VMOVMSKPS128",
+		argLen: 1,
+		asm:    x86.AVMOVMSKPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
+		name:   "VMOVMSKPS256",
+		argLen: 1,
+		asm:    x86.AVMOVMSKPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
+		name:   "VMOVMSKPD128",
+		argLen: 1,
+		asm:    x86.AVMOVMSKPD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
+		name:   "VMOVMSKPD256",
+		argLen: 1,
+		asm:    x86.AVMOVMSKPD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},

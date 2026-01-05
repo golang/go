@@ -93,6 +93,33 @@ func (x simdType) MaskedStoreDoc() string {
 	}
 }
 
+func (x simdType) ToBitsDoc() string {
+	if x.Size == 512 || x.ElemBits() == 16 {
+		return fmt.Sprintf("// Asm: KMOV%s, CPU Features: AVX512", x.IntelSizeSuffix())
+	}
+	// 128/256 bit vectors with 8, 32, 64 bit elements
+	var asm string
+	var feat string
+	switch x.ElemBits() {
+	case 8:
+		asm = "VPMOVMSKB"
+		if x.Size == 256 {
+			feat = "AVX2"
+		} else {
+			feat = "AVX"
+		}
+	case 32:
+		asm = "VMOVMSKPS"
+		feat = "AVX"
+	case 64:
+		asm = "VMOVMSKPD"
+		feat = "AVX"
+	default:
+		panic("unexpected ElemBits")
+	}
+	return fmt.Sprintf("// Asm: %s, CPU Features: %s", asm, feat)
+}
+
 func compareSimdTypes(x, y simdType) int {
 	// "vreg" then "mask"
 	if c := -compareNatural(x.Type, y.Type); c != 0 {
@@ -210,7 +237,7 @@ func {{.Name}}FromBits(y uint{{.LanesContainer}}) {{.Name}}
 // Only the lower {{.Lanes}} bits of y are used.
 {{- end}}
 //
-// Asm: KMOV{{.IntelSizeSuffix}}, CPU Features: AVX512
+{{.ToBitsDoc}}
 func (x {{.Name}}) ToBits() uint{{.LanesContainer}}
 `
 
