@@ -2222,7 +2222,7 @@ MyGO currently supports **two generic dispatch mechanisms simultaneously**:
     (to reduce code size bloat)
 
 Therefore, **mixed mode is allowed**.
-In `[static T, U any]`, `T` is monomorphized, while `U` may still require a dictionary
+In `[static T any, U any]`, `T` is monomorphized, while `U` may still require a dictionary
 (e.g. for interface method dispatch, reflection, or certain conversions).
 
 ### 8.4 Static Arguments Must Be Concrete Types
