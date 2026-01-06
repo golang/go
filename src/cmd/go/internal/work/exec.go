@@ -248,6 +248,11 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
 
 	wg.Wait()
 
+	if tokens != totalTokens || concurrentProcesses != 0 {
+		base.Fatalf("internal error: tokens not restored at end of build: tokens: %d, totalTokens: %d, concurrentProcesses: %d",
+			tokens, totalTokens, concurrentProcesses)
+	}
+
 	// Write action graph again, this time with timing information.
 	writeActionGraph()
 }

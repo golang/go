@@ -227,6 +227,7 @@ func compilerConcurrency() (int, func()) {
 	return c, func() {
 		tokensMu.Lock()
 		defer tokensMu.Unlock()
+		concurrentProcesses--
 		tokens += c
 	}
 }
@@ -235,6 +236,7 @@ var maxCompilerConcurrency = runtime.GOMAXPROCS(0) // max value we will use for 
 
 var (
 	tokensMu            sync.Mutex
+	totalTokens         int // total number of tokens: this is used for checking that we get them all back in the end
 	tokens              int // number of available tokens
 	concurrentProcesses int // number of currently running compiles
 )
@@ -246,6 +248,7 @@ func initCompilerConcurrencyPool() {
 	// than what it was when we capped the concurrency to 4.
 	oldConcurrencyCap := min(4, maxCompilerConcurrency)
 	tokens = oldConcurrencyCap * cfg.BuildP
+	totalTokens = tokens
 }
 
 // trimpath returns the -trimpath argument to use
