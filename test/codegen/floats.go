@@ -294,6 +294,16 @@ func WideTruncNarrow(x float32) float32 {
 	return float32(math.Trunc(float64(x)))
 }
 
+func WideSqrtNarrow(x float32) float32 {
+	// riscv64:"FSQRTS" -"FCVTDS" -"FCVTSD"
+	return float32(math.Sqrt(float64(x)))
+}
+
+func WideAbsNarrow(x float32) float32 {
+	// riscv64:"FABSS" -"FCVTDS" -"FCVTSD"
+	return float32(math.Abs(float64(x)))
+}
+
 func WideCopysignNarrow(x, y float32) float32 {
 	// wasm:"F32Copysign"
 	return float32(math.Copysign(float64(x), float64(y)))

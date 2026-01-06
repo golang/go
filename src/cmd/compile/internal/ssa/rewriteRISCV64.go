@@ -524,6 +524,8 @@ func rewriteValueRISCV64(v *Value) bool {
 		return rewriteValueRISCV64_OpRISCV64FADDD(v)
 	case OpRISCV64FADDS:
 		return rewriteValueRISCV64_OpRISCV64FADDS(v)
+	case OpRISCV64FCVTSD:
+		return rewriteValueRISCV64_OpRISCV64FCVTSD(v)
 	case OpRISCV64FEQD:
 		return rewriteValueRISCV64_OpRISCV64FEQD(v)
 	case OpRISCV64FLED:
@@ -3731,6 +3733,40 @@ func rewriteValueRISCV64_OpRISCV64FADDS(v *Value) bool {
 			return true
 		}
 		break
+	}
+	return false
+}
+func rewriteValueRISCV64_OpRISCV64FCVTSD(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (FCVTSD (FABSD (FCVTDS X)))
+	// result: (FABSS X)
+	for {
+		if v_0.Op != OpRISCV64FABSD {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpRISCV64FCVTDS {
+			break
+		}
+		X := v_0_0.Args[0]
+		v.reset(OpRISCV64FABSS)
+		v.AddArg(X)
+		return true
+	}
+	// match: (FCVTSD (FSQRTD (FCVTDS X)))
+	// result: (FSQRTS X)
+	for {
+		if v_0.Op != OpRISCV64FSQRTD {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpRISCV64FCVTDS {
+			break
+		}
+		X := v_0_0.Args[0]
+		v.reset(OpRISCV64FSQRTS)
+		v.AddArg(X)
+		return true
 	}
 	return false
 }
