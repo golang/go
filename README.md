@@ -1398,7 +1398,7 @@ func main() {
 **Note**:
 - Writing `a + b` inside the magic method might trigger recursive rewriting; it is recommended to write dispatch logic directly inside the magic method body and avoid calling itself with the same operator.
 
-### 7.7 Tuple Pattern Matching
+#### 7.7 Tuple Pattern Matching
 
 When you need to perform pattern matching on multiple values simultaneously, you can use a **tuple switch**:
 
