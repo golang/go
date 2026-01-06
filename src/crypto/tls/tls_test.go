@@ -935,8 +935,8 @@ func TestCloneNonFuncFields(t *testing.T) {
 		}
 	}
 	// Set the unexported fields related to session ticket keys, which are copied with Clone().
-	c1.autoSessionTicketKeys = []ticketKey{c1.ticketKeyFromBytes(c1.SessionTicketKey)}
 	c1.sessionTicketKeys = []ticketKey{c1.ticketKeyFromBytes(c1.SessionTicketKey)}
+	// We explicitly don't copy autoSessionTicketKeys in Clone, so don't set it.
 
 	c2 := c1.Clone()
 	if !reflect.DeepEqual(&c1, c2) {
@@ -2346,4 +2346,13 @@ func TestECH(t *testing.T) {
 	}
 
 	check()
+}
+
+func TestConfigCloneAutoSessionTicketKeys(t *testing.T) {
+	orig := &Config{}
+	orig.ticketKeys(nil)
+	clone := orig.Clone()
+	if slices.Equal(orig.autoSessionTicketKeys, clone.autoSessionTicketKeys) {
+		t.Fatal("autoSessionTicketKeys slice copied in Clone")
+	}
 }
