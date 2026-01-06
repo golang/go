@@ -357,7 +357,9 @@ type Cmd struct {
 	cachedLookExtensions struct{ in, out string }
 
 	// startCalled records that Start was attempted, regardless of outcome.
-	startCalled atomic.Bool
+	// (Until go.dev/issue/77075 is resolved, we use atomic.SwapInt32,
+	// not atomic.Bool.Swap, to avoid triggering the copylocks vet check.)
+	startCalled int32
 }
 
 // A ctxResult reports the result of watching the Context associated with a
@@ -640,7 +642,7 @@ func (c *Cmd) Start() error {
 	// Check for doubled Start calls before we defer failure cleanup. If the prior
 	// call to Start succeeded, we don't want to spuriously close its pipes.
 	// It is an error to call Start twice even if the first call did not create a process.
-	if c.startCalled.Swap(true) {
+	if atomic.SwapInt32(&c.startCalled, 1) != 0 {
 		return errors.New("exec: already started")
 	}
 
