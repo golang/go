@@ -1398,7 +1398,54 @@ func main() {
 **Note**:
 - Writing `a + b` inside the magic method might trigger recursive rewriting; it is recommended to write dispatch logic directly inside the magic method body and avoid calling itself with the same operator.
 
-#### 7.7 Enum Usage Examples
+### 7.7 Tuple Pattern Matching
+
+When you need to perform pattern matching on multiple values simultaneously, you can use a **tuple switch**:
+
+```go
+// The _add function from example 7.6 can also be written using tuple pattern matching (more intuitive):
+func (lhs Value) _add(rhs Value) Value {
+    switch (lhs, rhs) {
+    case (Value.Integer(a), Value.Integer(b)):
+        return Value.Integer(a + b)
+    case (Value.Integer(a), Value.Float(b)):
+        return Value.Float(float64(a) + b)
+    case (Value.Float(a), Value.Integer(b)):
+        return Value.Float(a + float64(b))
+    case (Value.Float(a), Value.Float(b)):
+        return Value.Float(a + b)
+    default:
+        panic("unsupported Value + Value")
+    }
+}
+
+```
+
+**Compile-time Lowering (Safe Version)**: The syntax above is lowered into an equivalent nested `switch` at compile time.
+
+To prevent user variable names (like `a`) from causing scope conflicts or wildcard `_` issues when bound in outer `case` clauses, the compiler first binds the payload to temporary system variables. It then generates user variables via `:=` in the leaf branches on demand:
+
+```go
+// Pseudo-code illustration (details omitted, core logic only)
+switch lhs {
+case Value.Integer(_lhs_payload):
+    switch rhs {
+    case Value.Integer(b):
+        a := _lhs_payload // Generated only when needed
+        // ... original case body ...
+    case Value.Float(b):
+        // If the user wrote _, then a := ... is not generated
+        // ... original case body ...
+    }
+case Value.Float(_lhs_payload):
+    // ...
+}
+
+```
+
+* Currently, literal/expression patterns within the payload (e.g., `T.Variant(1)`, `T.Variant(x+1)`) are not supported.
+
+#### 7.8 Enum Usage Examples
 
 ##### Constructing Option[T]
 
@@ -1789,7 +1836,7 @@ func main() {
 
 MyGO supports using `+` and `*` in **type expressions** to compose types (structural type algebra).
 
-#### 7.8 Sum Types
+#### 7.9 Sum Types
 
 `A + B` represents a logical **OR**: at runtime, a value is either `A` or `B`.
 It is equivalent to an **anonymous enum**:
@@ -1848,7 +1895,7 @@ type R = Alias + error // Using an alias
 
 ---
 
-#### 7.9 Product Types
+#### 7.10 Product Types
 
 `A * B` represents a logical **AND** (composition). Its behavior depends on the underlying operand types:
 
@@ -1859,9 +1906,7 @@ type R = Alias + error // Using an alias
 * **Others (including basic types)**: Not supported for now
   (semantics are intentionally restricted until more general tuple forms are introduced).
 
----
-
-#### 7.10 Operator Precedence and Disambiguation
+#### 7.11 Operator Precedence and Disambiguation
 
 Because `*` is used both for pointers and for product types, MyGO uses the following precedence (high → low):
 
@@ -1879,7 +1924,7 @@ type Complex = *A + B * *C        // Parsed as: (*A) + (B * (*C))
 
 ---
 
-#### 7.11 Use Cases of Type Algebra
+#### 7.12 Use Cases of Type Algebra
 
 Type algebra can be used to express algebraic constraints abstractly.
 
