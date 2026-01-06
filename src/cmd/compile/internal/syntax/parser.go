@@ -1195,6 +1195,31 @@ func (p *parser) operand(keep_parens bool) Expr {
 		p.next()
 		p.xnest++
 		x := p.expr()
+		// MyGo: tuple expression (parenthesized expression list).
+		//
+		// Recognize:
+		//   (e1, e2, ...)
+		//
+		// We parse it as ParenExpr{X: ListExpr{ElemList: ...}}.
+		// Parentheses are semantically meaningful here (distinguishes from case-list),
+		// so we always keep them for tuple expressions.
+		if p.tok == _Comma {
+			var elems []Expr
+			elems = append(elems, x)
+			for p.got(_Comma) {
+				// Allow a trailing comma: (a, b,)
+				if p.tok == _Rparen {
+					break
+				}
+				elems = append(elems, p.expr())
+			}
+			le := new(ListExpr)
+			le.pos = pos
+			le.ElemList = elems
+			x = le
+			// Force keeping parentheses for tuple expressions.
+			keep_parens = true
+		}
 		p.xnest--
 		p.want(_Rparen)
 

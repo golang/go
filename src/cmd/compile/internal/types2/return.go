@@ -130,6 +130,87 @@ func (check *Checker) isTerminatingSwitchStmt(s *syntax.SwitchStmt, label string
 		return true
 	}
 
+	// Tuple match: if this is a tuple-match switch and it fully covers all variant combinations,
+	// treat it as terminating. This prevents spurious "missing return" for exhaustive tuple matches.
+	if s.Tag != nil {
+		if tagElems, ok := unpackTupleExpr(s.Tag); ok {
+			// Determine enum types for each element.
+			enums := make([]*Enum, len(tagElems))
+			for i, te := range tagElems {
+				t := te.GetTypeInfo().Type
+				enum, ok := asEnumType(t)
+				if !ok || enum == nil {
+					return false
+				}
+				enums[i] = enum
+			}
+			// Collect covered combinations.
+			covered := make(map[string]bool)
+			for _, clause := range s.Body {
+				if clause == nil || clause.Cases == nil {
+					continue
+				}
+				// Only consider single tuple patterns.
+				if _, isCaseList := clause.Cases.(*syntax.ListExpr); isCaseList {
+					return false
+				}
+				pats, ok := unpackTupleExpr(clause.Cases)
+				if !ok || len(pats) != len(enums) {
+					return false
+				}
+				vnames := make([]string, len(pats))
+				full := true
+				for i := range pats {
+					vn, isFull, ok := check.enumCasePatternCoverage(enums[i], pats[i])
+					if !ok || !isFull {
+						full = false
+						break
+					}
+					vnames[i] = vn
+				}
+				if full {
+					covered[tupleVariantComboKey(vnames)] = true
+				}
+			}
+			// Check all combinations.
+			varNames := make([][]string, len(enums))
+			for i, e := range enums {
+				for vi := 0; vi < e.NumVariants(); vi++ {
+					v := e.Variant(vi)
+					if v != nil {
+						varNames[i] = append(varNames[i], v.name)
+					}
+				}
+			}
+			var cur []string
+			exhaustive := true
+			var rec func(int)
+			rec = func(i int) {
+				if !exhaustive {
+					return
+				}
+				if i == len(varNames) {
+					if !covered[tupleVariantComboKey(cur)] {
+						exhaustive = false
+					}
+					return
+				}
+				for _, vn := range varNames[i] {
+					cur = append(cur, vn)
+					rec(i + 1)
+					cur = cur[:len(cur)-1]
+					if !exhaustive {
+						return
+					}
+				}
+			}
+			rec(0)
+			if exhaustive {
+				return true
+			}
+		}
+	}
+
 	// No default: if this is an enum-match switch and it fully covers all variants,
 	// treat it as terminating.
 	if s.Tag == nil {

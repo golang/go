@@ -856,6 +856,15 @@ func (check *Checker) switchStmt(inner stmtContext, s *syntax.SwitchStmt) {
 
 	var x operand
 	if s.Tag != nil {
+		// --- tuple pattern match (extension) ---
+		// Recognize:
+		//   switch (a, b, ...) { case (P1, P2, ...): ... }
+		// where each Pi is an enum variant pattern for the corresponding enum-typed expression.
+		if elems, ok := unpackTupleExpr(s.Tag); ok {
+			check.tupleMatchSwitchStmt(inner, elems, s)
+			return
+		}
+
 		check.expr(nil, &x, s.Tag)
 		// By checking assignment of x to an invisible temporary
 		// (as a compiler would), we get all the relevant checks.
@@ -907,6 +916,162 @@ func (check *Checker) switchStmt(inner stmtContext, s *syntax.SwitchStmt) {
 		check.openScope(clause, "case")
 		check.stmtList(inner, clause.Body)
 		check.closeScope()
+	}
+}
+
+func (check *Checker) tupleMatchSwitchStmt(inner stmtContext, tagElems []syntax.Expr, s *syntax.SwitchStmt) {
+	if s == nil || len(tagElems) < 2 {
+		check.error(s, InvalidSyntaxTree, "invalid tuple match switch")
+		return
+	}
+
+	// Typecheck each tag element and require enum types.
+	typs := make([]Type, len(tagElems))
+	enums := make([]*Enum, len(tagElems))
+	for i, e := range tagElems {
+		var op operand
+		check.expr(nil, &op, e)
+		check.assignment(&op, nil, "switch expression")
+		typs[i] = op.typ
+		if enum, ok := asEnumType(op.typ); ok && enum != nil {
+			enums[i] = enum
+		} else {
+			check.errorf(e, InvalidExprSwitch, "tuple match element %d has non-enum type %s", i, op.typ)
+		}
+	}
+
+	check.multipleSwitchDefaults(s.Body)
+
+	// Exhaustiveness check (best-effort):
+	// If there's no default clause, require full coverage of all enum-variant combinations.
+	hasDefault := false
+	covered := make(map[string]bool)
+
+	for i, clause := range s.Body {
+		if clause == nil {
+			check.error(clause, InvalidSyntaxTree, "incorrect expression switch case")
+			continue
+		}
+		inner := inner
+		if i+1 < len(s.Body) {
+			inner |= fallthroughOk
+		} else {
+			inner |= finalSwitchCase
+		}
+
+		check.openScope(clause, "case")
+
+		if clause.Cases == nil {
+			hasDefault = true
+			check.stmtList(inner, clause.Body)
+			check.closeScope()
+			continue
+		}
+
+		// For now, only allow a single tuple pattern per clause: case (p1, p2, ...):
+		// (i.e. disallow "case (..), (..):" to keep semantics simple and lowering consistent).
+		if _, isCaseList := clause.Cases.(*syntax.ListExpr); isCaseList {
+			check.error(clause.Cases, InvalidExprSwitch, "tuple match case must be a single tuple pattern (no case-list)")
+			check.stmtList(inner, clause.Body)
+			check.closeScope()
+			continue
+		}
+		pats, ok := unpackTupleExpr(clause.Cases)
+		if !ok || len(pats) != len(tagElems) {
+			check.error(clause.Cases, InvalidExprSwitch, "tuple match case arity does not match switch tuple arity")
+			check.stmtList(inner, clause.Body)
+			check.closeScope()
+			continue
+		}
+
+		// Declare bindings from patterns, and compute coverage combo if fully covering.
+		fullCombo := true
+		vnames := make([]string, len(pats))
+		for j := range pats {
+			enum := enums[j]
+			if enum == nil {
+				fullCombo = false
+				continue
+			}
+			vname, full, ok := check.enumCasePatternCoverage(enum, pats[j])
+			if !ok || !full {
+				fullCombo = false
+			} else {
+				vnames[j] = vname
+			}
+
+			pat, ok := check.parseEnumCasePattern(enum, pats[j])
+			if !ok {
+				check.errorf(pats[j], InvalidExprSwitch, "invalid enum pattern in tuple match case")
+				continue
+			}
+			for k, id := range pat.bindNames {
+				if id == nil || id.Value == "_" {
+					continue
+				}
+				check.recordDef(id, nil)
+				obj := newVar(LocalVar, id.Pos(), check.pkg, id.Value, pat.bindTypes[k])
+				check.declare(check.scope, nil, obj, clause.Colon)
+			}
+		}
+		if !hasDefault && fullCombo {
+			covered[tupleVariantComboKey(vnames)] = true
+		}
+
+		check.stmtList(inner, clause.Body)
+		check.closeScope()
+	}
+
+	if hasDefault {
+		return
+	}
+
+	// No default: require full coverage of all combinations.
+	// Collect per-position variant names.
+	varNames := make([][]string, len(enums))
+	for i, e := range enums {
+		if e == nil {
+			// already reported error
+			return
+		}
+		for vi := 0; vi < e.NumVariants(); vi++ {
+			v := e.Variant(vi)
+			if v != nil {
+				varNames[i] = append(varNames[i], v.name)
+			}
+		}
+	}
+
+	// Enumerate combinations, stop after collecting some missing examples.
+	const maxMissingReport = 20
+	var missing []string
+	var cur []string
+	var rec func(int)
+	rec = func(i int) {
+		if len(missing) >= maxMissingReport {
+			return
+		}
+		if i == len(varNames) {
+			key := tupleVariantComboKey(cur)
+			if !covered[key] {
+				missing = append(missing, tupleVariantComboString(cur))
+			}
+			return
+		}
+		for _, vn := range varNames[i] {
+			cur = append(cur, vn)
+			rec(i + 1)
+			cur = cur[:len(cur)-1]
+			if len(missing) >= maxMissingReport {
+				return
+			}
+		}
+	}
+	rec(0)
+
+	// If any missing combos found, report not exhaustive.
+	if len(missing) > 0 {
+		check.errorf(s, InvalidExprSwitch, "tuple match on %s is not exhaustive (missing: %s)", tupleTypeString(typs), strings.Join(missing, ", "))
 	}
 }
 

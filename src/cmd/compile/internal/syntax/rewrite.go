@@ -620,6 +620,13 @@ func (r *rewriter) rewriteSwitchStmt(s *SwitchStmt) Stmt {
 		return s
 	}
 
+	// MyGo: tuple pattern matching sugar:
+	//   switch (a, b, ...) { case (P1, P2, ...): ... }
+	// Lower to a boolean switch (`switch { case cond: ... }`) after enum lowering.
+	if ts := r.rewriteTupleMatchSwitchStmt(s); ts != nil {
+		return ts
+	}
+
 	if s.Init != nil {
 		s.Init = r.rewriteSimpleStmt(s.Init)
 		if s.Tag != nil {
@@ -901,6 +908,293 @@ noEnumMatchRewrite:
 	s.Body = newBody
 
 	return s
+}
+
+func (r *rewriter) rewriteTupleMatchSwitchStmt(s *SwitchStmt) Stmt {
+	if s == nil || s.Tag == nil {
+		return nil
+	}
+	tagElems, ok := unpackTupleExprSyntax(s.Tag)
+	if !ok {
+		return nil
+	}
+	// Require arity >= 2 (unpackTupleExprSyntax enforces that).
+	pos := s.Pos()
+
+	// Capture element type info from the types2 pass (used by enum match lowering helpers).
+	elemTypes := make([]Type, len(tagElems))
+	for i := range tagElems {
+		elemTypes[i] = tagElems[i].GetTypeInfo().Type
+	}
+
+	// Build temps for each tuple element.
+	var prefix []Stmt
+	if s.Init != nil {
+		// Preserve scoping of init by emitting it as a statement before temps/switch.
+		prefix = append(prefix, r.simpleStmtAsStmt(r.rewriteSimpleStmt(s.Init)))
+	}
+
+	tempRefs := make([]*Name, len(tagElems))
+	for i, e := range tagElems {
+		r.tempCounter++
+		name := "_tuple" + strconv.Itoa(r.tempCounter)
+		tempRefs[i] = NewName(pos, name)
+
+		as := new(AssignStmt)
+		as.SetPos(pos)
+		as.Op = Def
+		as.Lhs = NewName(pos, name)
+		as.Rhs = r.rewriteExpr(e)
+		prefix = append(prefix, as)
+	}
+
+	// Construct lowered boolean switch: switch { case cond: ...; default: ... }
+	sw := new(SwitchStmt)
+	sw.SetPos(pos)
+	sw.Init = nil
+	sw.Tag = nil
+	sw.Rbrace = s.Rbrace
+
+	sawDefault := false
+	for _, cc := range s.Body {
+		if cc == nil {
+			continue
+		}
+		if cc.Cases == nil {
+			sawDefault = true
+			for i, st := range cc.Body {
+				cc.Body[i] = r.rewriteStmt(st)
+			}
+			sw.Body = append(sw.Body, cc)
+			continue
+		}
+
+		// Only support a single tuple pattern per clause.
+		if _, isCaseList := cc.Cases.(*ListExpr); isCaseList {
+			return nil
+		}
+		pats, ok := unpackTupleExprSyntax(cc.Cases)
+		if !ok || len(pats) != len(tagElems) {
+			return nil
+		}
+
+		var cond Expr
+		var bindStmts []Stmt
+		for i := range pats {
+			condI, bNames, bTyp, bPos, forceHeap, stackFallback, hasHeapField, ok := r.buildEnumCaseCondition(tempRefs[i], pats[i], elemTypes[i])
+			if !ok {
+				return nil
+			}
+
+			if cond == nil {
+				cond = condI
+			} else {
+				and := new(Operation)
+				and.SetPos(cond.Pos())
+				and.Op = AndAnd
+				and.X = cond
+				and.Y = condI
+				cond = and
+			}
+
+			// Emit payload bindings for this tuple element (if it binds real names).
+			hasReal := false
+			for _, n := range bNames {
+				if n != "_" {
+					hasReal = true
+					break
+				}
+			}
+			if hasReal && bTyp != nil {
+				bindStmts = append(bindStmts, r.emitEnumPayloadBindings(tempRefs[i], bNames, bTyp, bPos, forceHeap, stackFallback, hasHeapField)...)
+			}
+		}
+
+		cc.Cases = cond
+
+		var newBody []Stmt
+		newBody = append(newBody, bindStmts...)
+		for _, st := range cc.Body {
+			newBody = append(newBody, r.rewriteStmt(st))
+		}
+		cc.Body = newBody
+		sw.Body = append(sw.Body, cc)
+	}
+
+	// If the original tuple-match switch had no default, add an explicit default that panics.
+	// Tuple-match switches without default are required to be exhaustive (checked in types2),
+	// so this default is unreachable and exists only for control-flow analysis ("missing return").
+	if !sawDefault {
+		msg := "non-exhaustive tuple match"
+		bl := &BasicLit{Kind: StringLit, Value: `"` + msg + `"`}
+		bl.SetPos(pos)
+		panicCall := &CallExpr{
+			Fun:     NewName(pos, "panic"),
+			ArgList: []Expr{bl},
+		}
+		panicCall.SetPos(pos)
+		es := &ExprStmt{X: panicCall}
+		es.SetPos(pos)
+		def := &CaseClause{Cases: nil, Body: []Stmt{es}}
+		def.SetPos(pos)
+		sw.Body = append(sw.Body, def)
+	}
+
+	// If we didn't need any prefix statements, return the switch directly.
+	if len(prefix) == 0 {
+		return sw
+	}
+	blk := new(BlockStmt)
+	blk.SetPos(pos)
+	blk.List = append(prefix, sw)
+	blk.Rbrace = s.Rbrace
+	return blk
+}
+
+func unpackTupleExprSyntax(e Expr) ([]Expr, bool) {
+	// NOTE: do NOT call Unparen here: tuple syntax relies on ParenExpr.
+	// Allow nested parens like ((a, b)).
+	pe, ok := e.(*ParenExpr)
+	for ok && pe != nil {
+		if le, ok := pe.X.(*ListExpr); ok && le != nil {
+			if len(le.ElemList) < 2 {
+				return nil, false
+			}
+			return le.ElemList, true
+		}
+		pe, ok = pe.X.(*ParenExpr)
+	}
+	return nil, false
+}
+
+func (r *rewriter) simpleStmtAsStmt(s SimpleStmt) Stmt {
+	// SimpleStmt also implements Stmt; just return it.
+	if st, ok := s.(Stmt); ok {
+		return st
+	}
+	return &EmptyStmt{}
+}
+
+// emitEnumPayloadBindings emits statements that bind enum payload values to user variables.
+// It mirrors the binding logic used in enum-match switch lowering, but is factored so tuple
+// lowering can bind payloads for multiple components in one case body.
+func (r *rewriter) emitEnumPayloadBindings(matchVarRef *Name, bindNames []string, bindType Expr, bindVarPos Pos, forceHeap bool, bindAllowStackFallback bool, bindHasHeapField bool) []Stmt {
+	var newStmts []Stmt
+	if len(bindNames) == 0 || bindType == nil {
+		return nil
+	}
+
+	hasReal := false
+	for _, n := range bindNames {
+		if n != "_" {
+			hasReal = true
+			break
+		}
+	}
+	if !hasReal {
+		return nil
+	}
+
+	r.tempCounter++
+	payloadTempName := "_payload" + strconv.Itoa(r.tempCounter)
+	payloadTempRef := NewName(bindVarPos, payloadTempName)
+
+	typeList := unpackTypeList(bindType)
+	isScalarOpt := len(typeList) == 1 && isOptimizableScalar(typeList[0])
+
+	// Determine carrier type for _payload temp:
+	// - optimizable scalar: T
+	// - otherwise: *struct{_0 T0; _1 T1; ...}
+	var carrierType Expr
+	if isScalarOpt {
+		carrierType = bindType
+	} else {
+		structFields := make([]*Field, len(typeList))
+		for idx, t := range typeList {
+			structFields[idx] = &Field{Name: NewName(bindVarPos, "_"+strconv.Itoa(idx)), Type: t}
+		}
+		anonStruct := &StructType{FieldList: structFields}
+		carrierType = &Operation{Op: Mul, X: anonStruct}
+		carrierType.SetPos(bindVarPos)
+		anonStruct.SetPos(bindVarPos)
+		for _, f := range structFields {
+			if f != nil {
+				f.SetPos(bindVarPos)
+			}
+		}
+	}
+
+	if bindAllowStackFallback && bindHasHeapField {
+		// var _payloadN <carrierType>
+		varDecl := &VarDecl{
+			NameList: []*Name{NewName(bindVarPos, payloadTempName)},
+			Type:     carrierType,
+		}
+		varDecl.SetPos(bindVarPos)
+		newStmts = append(newStmts, &DeclStmt{DeclList: []Decl{varDecl}})
+
+		// if _match._heap != nil { _payloadN = heapRead } else { _payloadN = stackRead }
+		heapSel := &SelectorExpr{X: matchVarRef, Sel: NewName(bindVarPos, "_heap")}
+		heapSel.SetPos(bindVarPos)
+		cond := &Operation{Op: Neq, X: heapSel, Y: NewName(bindVarPos, "nil")}
+		cond.SetPos(bindVarPos)
+
+		heapRead := r.enumPayloadReadExpr(matchVarRef, bindType, bindVarPos, true, false)  // forceHeap=true, forceStack=false
+		stackRead := r.enumPayloadReadExpr(matchVarRef, bindType, bindVarPos, false, true) // forceHeap=false, forceStack=true
+
+		thenAs := &AssignStmt{Op: 0, Lhs: payloadTempRef, Rhs: heapRead}
+		thenAs.SetPos(bindVarPos)
+		elseAs := &AssignStmt{Op: 0, Lhs: payloadTempRef, Rhs: stackRead}
+		elseAs.SetPos(bindVarPos)
+		thenBlk := &BlockStmt{List: []Stmt{thenAs}}
+		thenBlk.SetPos(bindVarPos)
+		elseBlk := &BlockStmt{List: []Stmt{elseAs}}
+		elseBlk.SetPos(bindVarPos)
+		ifs := &IfStmt{Cond: cond, Then: thenBlk, Else: elseBlk}
+		ifs.SetPos(bindVarPos)
+		newStmts = append(newStmts, ifs)
+
+	} else {
+		// _payloadN := payloadRead(...)
+		payloadExpr := r.enumPayloadReadExpr(matchVarRef, bindType, bindVarPos, forceHeap, false)
+		assignTemp := new(AssignStmt)
+		assignTemp.SetPos(bindVarPos)
+		assignTemp.Op = Def
+		assignTemp.Lhs = NewName(bindVarPos, payloadTempName)
+		assignTemp.Rhs = payloadExpr
+		newStmts = append(newStmts, assignTemp)
+	}
+
+	if isScalarOpt {
+		if len(bindNames) == 1 && bindNames[0] != "_" {
+			// v := _payloadN
+			as := new(AssignStmt)
+			as.SetPos(bindVarPos)
+			as.Op = Def
+			as.Lhs = NewName(bindVarPos, bindNames[0])
+			as.Rhs = payloadTempRef
+			newStmts = append(newStmts, as)
+		}
+
+	} else {
+		for i, name := range bindNames {
+			if name == "_" {
+				continue
+			}
+			fieldSel := &SelectorExpr{
+				X:   payloadTempRef,
+				Sel: NewName(bindVarPos, "_"+strconv.Itoa(i)),
+			}
+			as := new(AssignStmt)
+			as.SetPos(bindVarPos)
+			as.Op = Def
+			as.Lhs = NewName(bindVarPos, name)
+			as.Rhs = fieldSel
+			newStmts = append(newStmts, as)
+		}
+	}
+
+	return newStmts
 }
 
 // parseEnumCasePattern returns (EnumName, VariantName, ok) for pattern expressions.
