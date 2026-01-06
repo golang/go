@@ -1421,28 +1421,6 @@ func (lhs Value) _add(rhs Value) Value {
 
 ```
 
-**Compile-time Lowering (Safe Version)**: The syntax above is lowered into an equivalent nested `switch` at compile time.
-
-To prevent user variable names (like `a`) from causing scope conflicts or wildcard `_` issues when bound in outer `case` clauses, the compiler first binds the payload to temporary system variables. It then generates user variables via `:=` in the leaf branches on demand:
-
-```go
-// Pseudo-code illustration (details omitted, core logic only)
-switch lhs {
-case Value.Integer(_lhs_payload):
-    switch rhs {
-    case Value.Integer(b):
-        a := _lhs_payload // Generated only when needed
-        // ... original case body ...
-    case Value.Float(b):
-        // If the user wrote _, then a := ... is not generated
-        // ... original case body ...
-    }
-case Value.Float(_lhs_payload):
-    // ...
-}
-
-```
-
 * Currently, literal/expression patterns within the payload (e.g., `T.Variant(1)`, `T.Variant(x+1)`) are not supported.
 
 #### 7.8 Enum Usage Examples

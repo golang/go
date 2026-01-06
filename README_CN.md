@@ -1519,26 +1519,6 @@ func (lhs Value) _add(rhs Value) Value {
 }
 ```
 
-**编译期降级（安全版）**：上述写法会在编译期被降级成等价的嵌套 `switch`。
-为了避免用户变量名（如 `a`）在外层 `case` 绑定造成作用域/混写 `_` 的问题，编译器会先把 payload 绑定到系统临时变量，再在叶子分支里按需 `:=` 生成用户变量：
-
-```go
-// 伪代码示意（省略细节，仅说明核心思路）
-switch lhs {
-case Value.Integer(_lhs_payload):
-	switch rhs {
-	case Value.Integer(b):
-		a := _lhs_payload // 只有需要时才生成
-		// ... 原 case body ...
-	case Value.Float(b):
-		// 用户写的是 _ 则不会生成 a := ...
-		// ... 原 case body ...
-	}
-case Value.Float(_lhs_payload):
-	// ...
-}
-```
-
 - 暂不支持 payload 里写字面量/表达式模式（如 `T.Variant(1)`、`T.Variant(x+1)`）
 
 #### 7.8 枚举使用示例
