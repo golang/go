@@ -22,7 +22,7 @@ This produces `bin/go`.
 
 ## Feature 1: go-panikint
 
-### Overview
+#### Overview
 
 Go-Panikint adds **overflow/underflow detection** for integer arithmetic operations and **type truncation detection** for integer conversions. When overflow or truncation is detected, a **panic** with a detailed error message is triggered, including the specific operation type and integer types involved.
 
@@ -30,7 +30,7 @@ Go-Panikint adds **overflow/underflow detection** for integer arithmetic operati
 
 **Type truncation detection**: Detects potentially lossy integer type conversions. Covers all integer types: `int8`, `int16`, `int32`, `int64`, `uint8`, `uint16`, `uint32`, `uint64`. Excludes `uintptr` due to platform-dependent usage. **Disabled** by default.
 
-### How it works
+#### How it works
 
 Go-Panikint patches the compiler SSA generation so that integer arithmetic operations and integer conversions get extra runtime checks that call into the runtime to panic with a detailed error message when a bug is detected. Checks are applied using source-location-based filtering so user code is instrumented while standard library files and dependencies (module cache and `vendor/`) are skipped. 
 
@@ -44,7 +44,7 @@ Truncation detection is controlled by a compiler flag. Enable it for a build/tes
 ./bin/go test -gcflags=all=-truncationdetect=true ./...
 ```
 
-### Suppressing false positives
+#### Suppressing false positives
 
 Add a marker on the same line as the operation or the line immediately above to suppress a specific report:
 
@@ -73,7 +73,7 @@ CGO_ENABLED=1 ./bin/go test -fuzz=FuzzXxx --use-libafl
 
 Without `--use-libafl`, `go test -fuzz` behaves like upstream Go.
 
-### Example
+#### Example
 
 ```bash
 cd test/cybergo/examples/reverse
