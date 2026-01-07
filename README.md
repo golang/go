@@ -56,6 +56,9 @@ cd test/cybergo/examples/multiparams
 CGO_ENABLED=1 ../../../../bin/go test -fuzz=FuzzMultiParams --use-libafl
 ```
 
+### Credits
+Credits to Bruno Produit and Nills Ollrogge for their work on [golibafl](https://github.com/srlabs/golibafl/).
+
 ## About Go (upstream)
 
 Go is an open source programming language that makes it easy to build simple,
