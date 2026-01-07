@@ -51,5 +51,5 @@ jobs:
 
     - name: Run tests (truncation enabled)
       run: |
-        cd tests  
-        GOROOT=${{ github.workspace }} ${{ github.workspace }}/bin/go test -v .
+        cd tests
+        GOROOT=${{ github.workspace }} GOFLAGS="-gcflags=-truncationdetect=true" ${{ github.workspace }}/bin/go test -v .
