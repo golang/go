@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 
 	"cmd/compile/internal/abi"
 	"cmd/compile/internal/base"
@@ -159,6 +160,9 @@ func InitConfig() {
 	ir.Syms.PanicdottypeI = typecheck.LookupRuntimeFunc("panicdottypeI")
 	ir.Syms.Panicnildottype = typecheck.LookupRuntimeFunc("panicnildottype")
 	ir.Syms.Panicoverflow = typecheck.LookupRuntimeFunc("panicoverflow")
+	ir.Syms.Panicoverflowdetailed = typecheck.LookupRuntimeFunc("panicoverflowdetailed")
+	ir.Syms.Panictruncate = typecheck.LookupRuntimeFunc("panictruncate")
+	ir.Syms.Panictruncatedetailed = typecheck.LookupRuntimeFunc("panictruncatedetailed")
 	ir.Syms.Panicshift = typecheck.LookupRuntimeFunc("panicshift")
 	ir.Syms.PanicSimdImm = typecheck.LookupRuntimeFunc("panicSimdImm")
 	ir.Syms.Racefuncenter = typecheck.LookupRuntimeFunc("racefuncenter")
@@ -2824,6 +2828,11 @@ func (s *state) conv(n ir.Node, v *ssa.Value, ft, tt *types.Type) *ssa.Value {
 		var op ssa.Op
 		if tt.Size() == ft.Size() {
 			op = ssa.OpCopy
+
+			// Check for same-size signed/unsigned conversion issues
+			if s.shouldCheckTruncation(n, ft, tt) {
+				return s.checkTypeTruncation(n, v, ft, tt, op)
+			}
 		} else if tt.Size() < ft.Size() {
 			// truncation
 			switch 10*ft.Size() + tt.Size() {
@@ -2841,6 +2850,11 @@ func (s *state) conv(n ir.Node, v *ssa.Value, ft, tt *types.Type) *ssa.Value {
 				op = ssa.OpTrunc64to32
 			default:
 				s.Fatalf("weird integer truncation %v -> %v", ft, tt)
+			}
+
+			// Add truncation check if enabled
+			if s.shouldCheckTruncation(n, ft, tt) {
+				return s.checkTypeTruncation(n, v, ft, tt, op)
 			}
 		} else if ft.IsSigned() {
 			// sign extension
@@ -3303,7 +3317,7 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 			return s.newValueOrSfCall2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
 		}
 
-		return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
+		return s.intMul(n, a, b)
 
 	case ir.ODIV:
 		n := n.(*ir.BinaryExpr)
@@ -3372,7 +3386,11 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 		if n.Type().IsFloat() {
 			return s.newValueOrSfCall2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
 		}
-		return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
+		if n.Op() == ir.OADD {
+			return s.intAdd(n, a, b)
+		} else {
+			return s.intSub(n, a, b)
+		}
 	case ir.OAND, ir.OOR, ir.OXOR:
 		n := n.(*ir.BinaryExpr)
 		a := s.expr(n.X)
@@ -5514,7 +5532,739 @@ func (s *state) check(cmp *ssa.Value, fn *obj.LSym) {
 	s.startBlock(bNext)
 }
 
+// If cmp (a bool) is false, panic using the given function with a custom message.
+func (s *state) checkWithMessage(cmp *ssa.Value, fn *obj.LSym, msg string) {
+	b := s.endBlock()
+	b.Kind = ssa.BlockIf
+	b.SetControl(cmp)
+	b.Likely = ssa.BranchLikely
+	bNext := s.f.NewBlock(ssa.BlockPlain)
+	line := s.peekPos()
+	pos := base.Ctxt.PosTable.Pos(line)
+	fl := funcLine{f: fn, base: pos.Base(), line: pos.Line()}
+	bPanic := s.panics[fl]
+	if bPanic == nil {
+		bPanic = s.f.NewBlock(ssa.BlockPlain)
+		s.panics[fl] = bPanic
+		s.startBlock(bPanic)
+		// Create string argument for detailed panic message
+		msgVal := s.entryNewValue0A(ssa.OpConstString, types.Types[types.TSTRING], ssa.StringToAux(msg))
+		// The panic call takes/returns memory to ensure that the right
+		// memory state is observed if the panic happens.
+		s.rtcall(fn, false, nil, msgVal)
+	}
+	b.AddEdgeTo(bNext)
+	b.AddEdgeTo(bPanic)
+	s.startBlock(bNext)
+}
+
+// formatOverflowMessage creates a detailed overflow error message
+func formatOverflowMessage(op ir.Op, typ *types.Type) string {
+	var opStr string
+	switch op {
+	case ir.OADD:
+		opStr = "addition"
+	case ir.OSUB:
+		opStr = "subtraction"
+	case ir.OMUL:
+		opStr = "multiplication"
+	case ir.ODIV:
+		opStr = "division"
+	default:
+		opStr = "arithmetic"
+	}
+
+	var typeStr string
+	if typ.IsSigned() {
+		switch typ.Size() {
+		case 1:
+			typeStr = "int8"
+		case 2:
+			typeStr = "int16"
+		case 4:
+			typeStr = "int32"
+		case 8:
+			typeStr = "int64"
+		default:
+			typeStr = "signed integer"
+		}
+	} else {
+		switch typ.Size() {
+		case 1:
+			typeStr = "uint8"
+		case 2:
+			typeStr = "uint16"
+		case 4:
+			typeStr = "uint32"
+		case 8:
+			typeStr = "uint64"
+		default:
+			typeStr = "unsigned integer"
+		}
+	}
+
+	return fmt.Sprintf("integer overflow in %s %s operation", typeStr, opStr)
+}
+
+// formatTruncationMessage creates a detailed truncation error message
+func formatTruncationMessage(srcType, dstType *types.Type) string {
+	srcStr := getTypeString(srcType)
+	dstStr := getTypeString(dstType)
+	return fmt.Sprintf("integer truncation: %s cannot fit in %s", srcStr, dstStr)
+}
+
+// getTypeString returns a string representation of an integer type
+func getTypeString(typ *types.Type) string {
+	if typ.IsSigned() {
+		switch typ.Size() {
+		case 1:
+			return "int8"
+		case 2:
+			return "int16"
+		case 4:
+			return "int32"
+		case 8:
+			return "int64"
+		default:
+			return "signed integer"
+		}
+	} else {
+		switch typ.Size() {
+		case 1:
+			return "uint8"
+		case 2:
+			return "uint16"
+		case 4:
+			return "uint32"
+		case 8:
+			return "uint64"
+		default:
+			return "unsigned integer"
+		}
+	}
+}
+
 func (s *state) intDivide(n ir.Node, a, b *ssa.Value) *ssa.Value {
+	// For division operations, use intDiv which handles both zero-division and overflow
+	// For modulo operations, use the original behavior (only zero-division check)
+	if n.Op() == ir.ODIV {
+		return s.intDiv(n, a, b)
+	}
+
+	// Original behavior for modulo operations (only zero-division check)
+	needcheck := true
+	switch b.Op {
+	case ssa.OpConst8, ssa.OpConst16, ssa.OpConst32, ssa.OpConst64:
+		if b.AuxInt != 0 {
+			needcheck = false
+		}
+	}
+	if needcheck {
+		// do a size-appropriate check for zero
+		// cmp := s.newValue2(s.ssaOp(ir.ONE, n.Type()), types.Types[types.TBOOL], b, s.zeroVal(n.Type()))
+		// s.check(cmp, ir.Syms.Panicdivide) // temporarily commented out
+	}
+
+	return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
+}
+
+// isStandardLibraryPackage returns true if the package path represents a Go standard library
+// or internal package that should be excluded from overflow detection.
+func isStandardLibraryPackage(pkgPath string) bool {
+	// Standard library and internal packages to exclude
+	if pkgPath == "" ||
+		strings.HasPrefix(pkgPath, "cmd/") ||
+		strings.HasPrefix(pkgPath, "runtime") ||
+		strings.HasPrefix(pkgPath, "internal/") ||
+		strings.HasPrefix(pkgPath, "bootstrap") {
+		return true
+	}
+
+	// Standard library packages: no dots, not main, not test, not command-line-arguments
+	if !strings.Contains(pkgPath, ".") &&
+		pkgPath != "main" &&
+		pkgPath != "command-line-arguments" &&
+		!strings.HasSuffix(pkgPath, "_test") {
+		return true
+	}
+
+	return false
+}
+
+// isStandardLibraryFile returns true if the filename represents a Go standard library
+// or internal file that should be excluded from overflow detection.
+func isStandardLibraryFile(filename string) bool {
+	if filename == "" {
+		return false
+	}
+
+	// Check if file is from GOROOT (standard library)
+	if buildcfg.GOROOT != "" {
+		gorootSrc := filepath.Join(buildcfg.GOROOT, "src")
+		if strings.HasPrefix(filename, gorootSrc) {
+			return true
+		}
+	}
+
+	// Check if file is from module cache (third-party dependencies)
+	if strings.Contains(filename, "/pkg/mod/") {
+		return true
+	}
+
+	// Check if file is from vendor directory
+	if strings.Contains(filename, "/vendor/") {
+		return true
+	}
+
+	return false
+}
+
+// Suppression directives to skip integer overflow checks on specific source lines.
+// If a line contains one of these markers, or the immediately preceding line contains it,
+// arithmetic overflow checks for that line will be skipped.
+const (
+	// Match either with or without a leading '@' in comments
+	overflowSuppressionDirectivePrimary = "overflow_false_positive"
+)
+
+// cache mapping filename -> set of line numbers that contain the suppression directive
+var overflowSuppressionCache sync.Map // map[string]map[int]struct{}
+
+// hasOverflowSuppression reports whether the given position has a nearby suppression directive.
+// It returns true if the exact line or the immediately preceding line contains the directive.
+func hasOverflowSuppression(pos src.XPos) bool {
+	if !pos.IsKnown() {
+		return false
+	}
+	p := base.Ctxt.PosTable.Pos(pos)
+	filename := p.Filename()
+	intLine := int(p.Line())
+	if filename == "" || intLine <= 0 {
+		return false
+	}
+
+	// Load or populate the per-file directive line set.
+	var lineSet map[int]struct{}
+	if v, ok := overflowSuppressionCache.Load(filename); ok {
+		lineSet, _ = v.(map[int]struct{})
+	} else {
+		// Build the set once per file.
+		data, err := os.ReadFile(filename)
+		if err != nil {
+			return false
+		}
+		lines := strings.Split(string(data), "\n")
+		set := make(map[int]struct{}, 8)
+		for i, s := range lines {
+			if strings.Contains(s, overflowSuppressionDirectivePrimary) {
+				// Lines are 1-indexed in src.Pos
+				set[i+1] = struct{}{}
+			}
+		}
+		overflowSuppressionCache.Store(filename, set)
+		lineSet = set
+	}
+
+	if lineSet == nil {
+		return false
+	}
+	if _, ok := lineSet[intLine]; ok {
+		return true
+	}
+	if intLine > 1 {
+		if _, ok := lineSet[intLine-1]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+// Suppress truncation detection when a directive is present on the same or previous line.
+const (
+	// Match either with or without a leading '@' in comments
+	truncationSuppressionDirectivePrimary = "truncation_false_positive"
+)
+
+var truncationSuppressionCache sync.Map // map[string]map[int]struct{}
+
+func hasTruncationSuppression(pos src.XPos) bool {
+	if !pos.IsKnown() {
+		return false
+	}
+	p := base.Ctxt.PosTable.Pos(pos)
+	filename := p.Filename()
+	intLine := int(p.Line())
+	if filename == "" || intLine <= 0 {
+		return false
+	}
+
+	var lineSet map[int]struct{}
+	if v, ok := truncationSuppressionCache.Load(filename); ok {
+		lineSet, _ = v.(map[int]struct{})
+	} else {
+		data, err := os.ReadFile(filename)
+		if err != nil {
+			return false
+		}
+		lines := strings.Split(string(data), "\n")
+		set := make(map[int]struct{}, 8)
+		for i, s := range lines {
+			if strings.Contains(s, truncationSuppressionDirectivePrimary) {
+				set[i+1] = struct{}{}
+			}
+		}
+		truncationSuppressionCache.Store(filename, set)
+		lineSet = set
+	}
+
+	if lineSet == nil {
+		return false
+	}
+	if _, ok := lineSet[intLine]; ok {
+		return true
+	}
+	if intLine > 1 {
+		if _, ok := lineSet[intLine-1]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+// shouldCheckOverflow returns true if overflow detection should be applied for this operation.
+// It checks if the package should be excluded from overflow detection and if the type is supported.
+func (s *state) shouldCheckOverflow(typ *types.Type) bool {
+
+	// Apply overflow detection based on source location, not compilation context
+	// The key insight is that when user code calls library functions, those functions
+	// may get inlined, but the source positions still point to the original files.
+
+	// Check current package path - this helps during the initial toolchain build
+	pkgPath := base.Ctxt.Pkgpath
+
+	// During toolchain build, exclude standard library and internal packages
+	if isStandardLibraryPackage(pkgPath) {
+		return false
+	}
+
+	// Check overflow for signed (int8, int16, int32) and unsigned (uint8, uint16, uint32, uint64) integers
+	// Exclude int64 and uintptr due to complexity and platform dependencies
+	if typ.IsInteger() {
+		if typ.IsSigned() {
+			switch typ.Size() {
+			case 1, 2, 4: // int8, int16, int32
+				return true
+			}
+		} else {
+			// Include unsigned types: uint8, uint16, uint32, uint64
+			switch typ.Size() {
+			case 1, 2, 4, 8: // uint8, uint16, uint32, uint64
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// shouldCheckTruncation returns true if truncation detection should be applied for this conversion.
+// It checks if the package should be excluded from truncation detection and if the conversion is potentially lossy.
+func (s *state) shouldCheckTruncation(n ir.Node, fromType, toType *types.Type) bool {
+	// Check if truncation detection is enabled via flag
+	if !base.Flag.TruncationDetect {
+		return false
+	}
+
+	// Apply truncation detection based on source location, not compilation context
+	// The key insight is that when user code calls library functions, those functions
+	// may get inlined, but the source positions still point to the original files.
+
+	// Check current package path - this helps during the initial toolchain build
+	pkgPath := base.Ctxt.Pkgpath
+
+	// During toolchain build, exclude standard library and internal packages
+	if isStandardLibraryPackage(pkgPath) {
+		return false
+	}
+
+	// Check truncation for integer types in these cases:
+	// 1. Target type is smaller than source type (traditional truncation)
+	// 2. Same size but different signedness (problematic conversions)
+	if fromType.IsInteger() && toType.IsInteger() {
+		// Support all integer types: int8, int16, int32, int64, uint8, uint16, uint32, uint64
+		// But exclude uintptr as it's platform-dependent and often used for low-level operations
+		if fromType.Kind() != types.TUINTPTR && toType.Kind() != types.TUINTPTR {
+			// Case 1: Traditional truncation (target smaller than source)
+			if fromType.Size() > toType.Size() {
+				return true
+			}
+			// Case 2: Same size but different signedness (can cause unexpected values)
+			if fromType.Size() == toType.Size() && fromType.IsSigned() != toType.IsSigned() {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// checkTypeTruncation generates runtime checks to detect truncation during type conversion
+func (s *state) checkTypeTruncation(n ir.Node, value *ssa.Value, fromType, toType *types.Type, op ssa.Op) *ssa.Value {
+	// When Node is nil (like in s.conv(nil, load, loadType, lenType)),
+	// we cannot rely on source position. In this case, we must be conservative
+	// and assume it's standard library code that should be excluded.
+	//
+	// This happens in cases like:
+	// - Length conversions: s.conv(nil, load, loadType, lenType)
+	// - Compiler-generated conversions without source context
+	// - Internal operations within standard library functions
+
+	if n == nil {
+		// No source context - assume it's compiler-generated or standard library
+		// This matches the behavior of overflow detection which doesn't get
+		// called for these internal conversions
+		return s.newValue1(op, toType, value)
+	}
+
+	// Check source location of this specific conversion operation
+	// This is crucial for distinguishing user code from standard library code
+	pos := n.Pos()
+	if pos.IsKnown() {
+		filename := base.Ctxt.PosTable.Pos(pos).Filename()
+		if isStandardLibraryFile(filename) {
+			// Skip truncation detection for operations from standard library files
+			return s.newValue1(op, toType, value)
+		}
+
+		// Additional specific check for encoding/binary
+		if strings.Contains(filename, "/encoding/binary/") {
+			return s.newValue1(op, toType, value)
+		}
+	}
+
+	// Allow source-level suppression using the same directive key.
+	if hasTruncationSuppression(n.Pos()) {
+		return s.newValue1(op, toType, value)
+	}
+
+	// Perform the conversion first
+	result := s.newValue1(op, toType, value)
+
+	// Check if truncation/conversion issue occurred by comparing with range bounds
+	var maxVal, minVal int64
+
+	// Get the maximum and minimum values for the target type
+	switch toType.Size() {
+	case 1: // int8/uint8
+		if toType.IsSigned() {
+			maxVal = 127
+			minVal = -128
+		} else {
+			maxVal = 255
+			minVal = 0
+		}
+	case 2: // int16/uint16
+		if toType.IsSigned() {
+			maxVal = 32767
+			minVal = -32768
+		} else {
+			maxVal = 65535
+			minVal = 0
+		}
+	case 4: // int32/uint32
+		if toType.IsSigned() {
+			maxVal = 2147483647
+			minVal = -2147483648
+		} else {
+			maxVal = 4294967295
+			minVal = 0
+		}
+	default:
+		// For 8-byte types, no truncation check needed yet
+		return result
+	}
+
+	// Create constants with the correct type for comparison
+	maxConst := s.newValue0I(ssa.OpConst64, types.Types[types.TINT64], maxVal)
+	minConst := s.newValue0I(ssa.OpConst64, types.Types[types.TINT64], minVal)
+
+	// Convert value to int64 for comparison if needed
+	compareValue := value
+	if fromType.Size() < 8 {
+		if fromType.IsSigned() {
+			// Sign extend smaller signed types to int64
+			switch fromType.Size() {
+			case 1:
+				compareValue = s.newValue1(ssa.OpSignExt8to64, types.Types[types.TINT64], value)
+			case 2:
+				compareValue = s.newValue1(ssa.OpSignExt16to64, types.Types[types.TINT64], value)
+			case 4:
+				compareValue = s.newValue1(ssa.OpSignExt32to64, types.Types[types.TINT64], value)
+			}
+		} else {
+			// Zero extend smaller unsigned types to int64
+			switch fromType.Size() {
+			case 1:
+				compareValue = s.newValue1(ssa.OpZeroExt8to64, types.Types[types.TINT64], value)
+			case 2:
+				compareValue = s.newValue1(ssa.OpZeroExt16to64, types.Types[types.TINT64], value)
+			case 4:
+				compareValue = s.newValue1(ssa.OpZeroExt32to64, types.Types[types.TINT64], value)
+			}
+		}
+	}
+
+	// Check if value is within bounds: minVal <= value <= maxVal
+	geMin := s.newValue2(ssa.OpLeq64, types.Types[types.TBOOL], minConst, compareValue)
+	leMax := s.newValue2(ssa.OpLeq64, types.Types[types.TBOOL], compareValue, maxConst)
+	inBounds := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], geMin, leMax)
+
+	// s.checkWithMessage() panics when condition is FALSE, so pass the "no truncation" condition
+	errorMsg := formatTruncationMessage(fromType, toType)
+	s.checkWithMessage(inBounds, ir.Syms.Panictruncatedetailed, errorMsg)
+
+	return result
+}
+
+// intAdd performs addition with overflow detection for signed and unsigned integers
+func (s *state) intAdd(n ir.Node, a, b *ssa.Value) *ssa.Value {
+	// Check source location of this specific arithmetic operation
+	// This is crucial for distinguishing user code from standard library code
+	pos := n.Pos()
+	if pos.IsKnown() {
+		filename := base.Ctxt.PosTable.Pos(pos).Filename()
+		if isStandardLibraryFile(filename) {
+			// Skip overflow detection for operations from standard library files
+			return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
+		}
+	}
+
+	if hasOverflowSuppression(n.Pos()) {
+		return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
+	}
+
+	if !s.shouldCheckOverflow(n.Type()) {
+		return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
+	}
+
+	result := s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
+
+	if n.Type().IsSigned() {
+		// Signed integer overflow detection:
+		// For addition a + b:
+		// - Overflow if both positive and result < a (or result < b)
+		// - Underflow if both negative and result > a (or result > b)
+
+		zero := s.zeroVal(n.Type())
+
+		// Check if a >= 0 (use !(a < 0))
+		aLtZeroTemp := s.newValue2(s.ssaOp(ir.OLT, a.Type), types.Types[types.TBOOL], a, zero)
+		aGeZero := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], aLtZeroTemp)
+		// Check if b >= 0 (use !(b < 0))
+		bLtZeroTemp := s.newValue2(s.ssaOp(ir.OLT, b.Type), types.Types[types.TBOOL], b, zero)
+		bGeZero := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], bLtZeroTemp)
+		// Check if result < a
+		resultLtA := s.newValue2(s.ssaOp(ir.OLT, result.Type), types.Types[types.TBOOL], result, a)
+		// Check if result > a (use a < result)
+		resultGtA := s.newValue2(s.ssaOp(ir.OLT, a.Type), types.Types[types.TBOOL], a, result)
+
+		// Both operands >= 0 and result < a means positive overflow
+		bothPos := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], aGeZero, bGeZero)
+		posOverflow := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], bothPos, resultLtA)
+
+		// Both operands < 0 and result > a means negative overflow (underflow)
+		aNeg := s.newValue2(s.ssaOp(ir.OLT, a.Type), types.Types[types.TBOOL], a, zero)
+		bNeg := s.newValue2(s.ssaOp(ir.OLT, b.Type), types.Types[types.TBOOL], b, zero)
+		bothNeg := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], aNeg, bNeg)
+		negOverflow := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], bothNeg, resultGtA)
+
+		// Overall overflow condition
+		overflow := s.newValue2(ssa.OpOrB, types.Types[types.TBOOL], posOverflow, negOverflow)
+
+		// s.checkWithMessage() panics when condition is FALSE, so pass "no overflow" condition
+		noOverflow := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], overflow)
+		errorMsg := formatOverflowMessage(n.Op(), n.Type())
+		s.checkWithMessage(noOverflow, ir.Syms.Panicoverflowdetailed, errorMsg)
+	} else {
+		// Unsigned integer overflow detection:
+		// For addition a + b, overflow occurs when result < a (or result < b)
+		// This is because if there's no overflow, result should be >= both operands
+
+		// Check if result < a (overflow condition)
+		resultLtA := s.newValue2(s.ssaOp(ir.OLT, result.Type), types.Types[types.TBOOL], result, a)
+
+		// s.checkWithMessage() panics when condition is FALSE, so pass "no overflow" condition
+		noOverflow := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], resultLtA)
+		errorMsg := formatOverflowMessage(n.Op(), n.Type())
+		s.checkWithMessage(noOverflow, ir.Syms.Panicoverflowdetailed, errorMsg)
+	}
+
+	return result
+}
+
+// intSub performs subtraction with overflow detection for signed and unsigned integers
+func (s *state) intSub(n ir.Node, a, b *ssa.Value) *ssa.Value {
+	// Check source location of this specific arithmetic operation
+	pos := n.Pos()
+	if pos.IsKnown() {
+		filename := base.Ctxt.PosTable.Pos(pos).Filename()
+		if isStandardLibraryFile(filename) {
+			// Skip overflow detection for operations from standard library files
+			return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
+		}
+	}
+
+	if hasOverflowSuppression(n.Pos()) {
+		return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
+	}
+
+	if !s.shouldCheckOverflow(n.Type()) {
+		return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
+	}
+
+	result := s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
+
+	if n.Type().IsSigned() {
+		// Signed integer overflow detection for subtraction a - b:
+		// - Positive overflow: a >= 0, b < 0, and result < a
+		// - Negative overflow: a < 0, b > 0, and result > a
+
+		zero := s.zeroVal(n.Type())
+
+		// Check if a >= 0 (use !(a < 0))
+		aLtZeroTemp2 := s.newValue2(s.ssaOp(ir.OLT, a.Type), types.Types[types.TBOOL], a, zero)
+		aGeZero := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], aLtZeroTemp2)
+		// Check if a < 0
+		aLtZero := s.newValue2(s.ssaOp(ir.OLT, a.Type), types.Types[types.TBOOL], a, zero)
+		// Check if b < 0
+		bLtZero := s.newValue2(s.ssaOp(ir.OLT, b.Type), types.Types[types.TBOOL], b, zero)
+		// Check if b > 0 (use 0 < b)
+		bGtZero := s.newValue2(s.ssaOp(ir.OLT, zero.Type), types.Types[types.TBOOL], zero, b)
+		// Check if result < a
+		resultLtA := s.newValue2(s.ssaOp(ir.OLT, result.Type), types.Types[types.TBOOL], result, a)
+		// Check if result > a (use a < result)
+		resultGtA := s.newValue2(s.ssaOp(ir.OLT, a.Type), types.Types[types.TBOOL], a, result)
+
+		// Positive overflow: a >= 0 && b < 0 && result < a
+		posOverflow := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL],
+			s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], aGeZero, bLtZero), resultLtA)
+
+		// Negative overflow: a < 0 && b > 0 && result > a
+		negOverflow := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL],
+			s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], aLtZero, bGtZero), resultGtA)
+
+		// Overall overflow condition
+		overflow := s.newValue2(ssa.OpOrB, types.Types[types.TBOOL], posOverflow, negOverflow)
+
+		// s.checkWithMessage() panics when condition is FALSE, so pass "no overflow" condition
+		noOverflow := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], overflow)
+		errorMsg := formatOverflowMessage(n.Op(), n.Type())
+		s.checkWithMessage(noOverflow, ir.Syms.Panicoverflowdetailed, errorMsg)
+	} else {
+		// Unsigned integer underflow detection:
+		// For subtraction a - b, underflow occurs when a < b
+		// This is because unsigned integers cannot be negative
+
+		// Check if a < b (underflow condition)
+		aLtB := s.newValue2(s.ssaOp(ir.OLT, a.Type), types.Types[types.TBOOL], a, b)
+
+		// s.checkWithMessage() panics when condition is FALSE, so pass "no underflow" condition
+		noUnderflow := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], aLtB)
+		errorMsg := formatOverflowMessage(n.Op(), n.Type())
+		s.checkWithMessage(noUnderflow, ir.Syms.Panicoverflowdetailed, errorMsg)
+	}
+
+	return result
+}
+
+// intMul performs multiplication with overflow detection for signed and unsigned integers
+func (s *state) intMul(n ir.Node, a, b *ssa.Value) *ssa.Value {
+	// Check source location of this specific arithmetic operation
+	pos := n.Pos()
+	if pos.IsKnown() {
+		filename := base.Ctxt.PosTable.Pos(pos).Filename()
+		if isStandardLibraryFile(filename) {
+			// Skip overflow detection for operations from standard library files
+			return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
+		}
+	}
+
+	if hasOverflowSuppression(n.Pos()) {
+		return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
+	}
+
+	if !s.shouldCheckOverflow(n.Type()) {
+		return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
+	}
+
+	// Multiplication overflow detection for both signed and unsigned integers:
+	// Check if result/a != b (when a != 0) or result/b != a (when b != 0)
+	// This works for both signed and unsigned integers
+
+	result := s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
+	zero := s.zeroVal(n.Type())
+
+	// Check if a is zero
+	aIsZero := s.newValue2(s.ssaOp(ir.OEQ, a.Type), types.Types[types.TBOOL], a, zero)
+	// Check if b is zero
+	bIsZero := s.newValue2(s.ssaOp(ir.OEQ, b.Type), types.Types[types.TBOOL], b, zero)
+	// Either operand is zero - no overflow possible
+	eitherZero := s.newValue2(ssa.OpOrB, types.Types[types.TBOOL], aIsZero, bIsZero)
+
+	// If either operand is zero, no overflow is possible and we must not evaluate result/a
+	// (it would divide by zero when a == 0).
+	bMul := s.endBlock()
+	bMul.Kind = ssa.BlockIf
+	bMul.Likely = ssa.BranchUnlikely
+	bMul.SetControl(eitherZero)
+	bZero := s.f.NewBlock(ssa.BlockPlain)
+	bNonZero := s.f.NewBlock(ssa.BlockPlain)
+	bDone := s.f.NewBlock(ssa.BlockPlain)
+	bMul.AddEdgeTo(bZero)
+	bMul.AddEdgeTo(bNonZero)
+
+	s.startBlock(bZero)
+	s.endBlock().AddEdgeTo(bDone)
+
+	s.startBlock(bNonZero)
+	// For non-zero operands, check if result/a == b.
+	quotientA := s.newValue2(s.ssaOp(ir.ODIV, n.Type()), a.Type, result, a)
+	quotientAEqB := s.newValue2(s.ssaOp(ir.OEQ, quotientA.Type), types.Types[types.TBOOL], quotientA, b)
+	// s.checkWithMessage() panics when condition is FALSE, so pass the "valid" condition.
+	errorMsg := formatOverflowMessage(n.Op(), n.Type())
+	s.checkWithMessage(quotientAEqB, ir.Syms.Panicoverflowdetailed, errorMsg)
+	s.endBlock().AddEdgeTo(bDone)
+
+	s.startBlock(bDone)
+
+	return result
+}
+
+// intDiv performs division with overflow detection for signed integers
+// The specific case we're checking for is MIN_INT / -1 which causes overflow
+// because MIN_INT = -2^(n-1) and -MIN_INT = 2^(n-1) which exceeds MAX_INT = 2^(n-1) - 1
+func (s *state) intDiv(n ir.Node, a, b *ssa.Value) *ssa.Value {
+	// Check source location of this specific arithmetic operation
+	pos := n.Pos()
+	if pos.IsKnown() {
+		filename := base.Ctxt.PosTable.Pos(pos).Filename()
+		if isStandardLibraryFile(filename) {
+			// Skip overflow detection for operations from standard library files
+			// Still do division by zero check for safety
+			needcheck := true
+			switch b.Op {
+			case ssa.OpConst8, ssa.OpConst16, ssa.OpConst32, ssa.OpConst64:
+				if b.AuxInt != 0 {
+					needcheck = false
+				}
+			}
+			if needcheck {
+				cmp := s.newValue2(s.ssaOp(ir.ONE, n.Type()), types.Types[types.TBOOL], b, s.zeroVal(n.Type()))
+				s.check(cmp, ir.Syms.Panicdivide)
+			}
+			return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
+		}
+	}
+
+	// First check for division by zero (same as intDivide function)
 	needcheck := true
 	switch b.Op {
 	case ssa.OpConst8, ssa.OpConst16, ssa.OpConst32, ssa.OpConst64:
@@ -5527,7 +6277,55 @@ func (s *state) intDivide(n ir.Node, a, b *ssa.Value) *ssa.Value {
 		cmp := s.newValue2(s.ssaOp(ir.ONE, n.Type()), types.Types[types.TBOOL], b, s.zeroVal(n.Type()))
 		s.check(cmp, ir.Syms.Panicdivide)
 	}
-	return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
+
+	// If overflow detection is suppressed/disabled, just perform the division
+	if hasOverflowSuppression(n.Pos()) {
+		return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
+	}
+	if !s.shouldCheckOverflow(n.Type()) {
+		return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
+	}
+
+	// Check for MIN_INT / -1 overflow
+	// This occurs when a is the minimum value for the integer type and b is -1
+	// For int8: -128 / -1 = 128 (but max int8 is 127)
+	// For int16: -32768 / -1 = 32768 (but max int16 is 32767)
+	// For int32: -2147483648 / -1 = 2147483648 (but max int32 is 2147483647)
+
+	// Create constants for MIN_INT and -1 based on the type
+	var minInt int64
+	switch n.Type().Size() {
+	case 1: // int8
+		minInt = -128
+	case 2: // int16
+		minInt = -32768
+	case 4: // int32
+		minInt = -2147483648
+	default:
+		// For other sizes, don't apply overflow detection
+		return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
+	}
+
+	minIntConst := s.constInt(n.Type(), minInt)
+	negOneConst := s.constInt(n.Type(), -1)
+
+	// Check if a == MIN_INT
+	aIsMinInt := s.newValue2(s.ssaOp(ir.OEQ, n.Type()), types.Types[types.TBOOL], a, minIntConst)
+
+	// Check if b == -1
+	bIsNegOne := s.newValue2(s.ssaOp(ir.OEQ, n.Type()), types.Types[types.TBOOL], b, negOneConst)
+
+	// Overflow occurs when both conditions are true
+	overflow := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], aIsMinInt, bIsNegOne)
+
+	// s.checkWithMessage() panics when condition is FALSE, so pass "no overflow" condition
+	noOverflow := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], overflow)
+	errorMsg := formatOverflowMessage(n.Op(), n.Type())
+	s.checkWithMessage(noOverflow, ir.Syms.Panicoverflowdetailed, errorMsg)
+
+	// Perform the division
+	result := s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
+	return result
 }
 
 // rtcall issues a call to the given runtime function fn with the listed args.

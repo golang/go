@@ -1,3 +1,6 @@
+.idea/
+temp/*
+fuzz_test/testdata/
 .DS_Store
 *.[56789ao]
 *.a[56789o]
@@ -13,6 +16,7 @@
 .*.swp
 AGENTS.md
 AGENT.md
+CLAUDE.local.md
 core
 *.cgo*.go
 *.cgo*.c

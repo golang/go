@@ -1,0 +1,55 @@
+name: Go-panikint self-compile and test
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+
+  test-no-truncation:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go (bootstrap)
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.25.5'
+
+    - name: Export GOROOT_BOOTSTRAP
+      run: echo "GOROOT_BOOTSTRAP=$(go env GOROOT)" >> $GITHUB_ENV
+
+    - name: Build Go-Panikint (truncation disabled)
+      run: |
+        cd src
+        ./make.bash
+
+    - name: Run tests (truncation disabled)
+      run: |
+        cd tests
+        GOROOT=${{ github.workspace }} ${{ github.workspace }}/bin/go test -v .
+
+  test-with-truncation:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go (bootstrap)
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.25.5'
+
+    - name: Export GOROOT_BOOTSTRAP
+      run: echo "GOROOT_BOOTSTRAP=$(go env GOROOT)" >> $GITHUB_ENV
+
+    - name: Build Go-Panikint (truncation enabled)
+      run: |
+        cd src
+        GOFLAGS="-gcflags=-truncationdetect=true" ./make.bash
+
+    - name: Run tests (truncation enabled)
+      run: |
+        cd tests  
+        GOROOT=${{ github.workspace }} ${{ github.workspace }}/bin/go test -v .
