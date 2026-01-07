@@ -231,9 +231,28 @@ func mapsloop(pass *analysis.Pass) (any, error) {
 				// Have: for k, v := range x { lhs = rhs }
 
 				assign := rng.Body.List[0].(*ast.AssignStmt)
+
+				// usesKV reports whether e references vars k or v.
+				usesKV := func(e ast.Expr) bool {
+					k := info.Defs[rng.Key.(*ast.Ident)]
+					v := info.Defs[rng.Value.(*ast.Ident)]
+					for n := range ast.Preorder(e) {
+						if id, ok := n.(*ast.Ident); ok {
+							obj := info.Uses[id]
+							if obj != nil && // don't rely on k, v being non-nil
+								(obj == k || obj == v) {
+								return true
+							}
+						}
+					}
+					return false
+				}
+
 				if index, ok := assign.Lhs[0].(*ast.IndexExpr); ok &&
+					len(assign.Lhs) == 1 &&
 					astutil.EqualSyntax(rng.Key, index.Index) &&
-					astutil.EqualSyntax(rng.Value, assign.Rhs[0]) {
+					astutil.EqualSyntax(rng.Value, assign.Rhs[0]) &&
+					!usesKV(index.X) { // reject (e.g.) f(k, v)[k] = v
 					if tmap, ok := typeparams.CoreType(info.TypeOf(index.X)).(*types.Map); ok &&
 						types.Identical(info.TypeOf(index), info.TypeOf(rng.Value)) && // m[k], v
 						types.Identical(tmap.Key(), info.TypeOf(rng.Key)) {

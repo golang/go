@@ -34,7 +34,7 @@ var doc string
 var Suite = []*analysis.Analyzer{
 	AnyAnalyzer,
 	// AppendClippedAnalyzer, // not nil-preserving!
-	BLoopAnalyzer,
+	// BLoopAnalyzer, // may skew benchmark results, see golang/go#74967
 	FmtAppendfAnalyzer,
 	ForVarAnalyzer,
 	MapsLoopAnalyzer,

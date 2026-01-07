@@ -80,6 +80,8 @@ or b.ResetTimer within the same function will also be removed.
 Caveats: The b.Loop() method is designed to prevent the compiler from
 optimizing away the benchmark loop, which can occasionally result in
 slower execution due to increased allocations in some specific cases.
+Since its fix may change the performance of nanosecond-scale benchmarks,
+bloop is disabled by default in the `go fix` analyzer suite; see golang/go#74967.
 
 # Analyzer any
 
