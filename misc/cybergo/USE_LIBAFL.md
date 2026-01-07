@@ -9,7 +9,6 @@ This repo adds a glue path so a user can keep writing **standard Go fuzz tests**
 
 ```bash
 go test -fuzz=FuzzXxx --use-libafl
-# (alias) go test -fuzz=FuzzXxx --use-golibafl
 ```
 
 Without the flag, `go test -fuzz` behaves like upstream Go.

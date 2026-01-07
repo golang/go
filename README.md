@@ -6,7 +6,7 @@
 cybergo is a security-focused fork of the Go toolchain.
 
 It currently includes:
-- `--use-libafl` / `--use-golibafl`: run standard `go test -fuzz=...` harnesses with LibAFL.
+- `--use-libafl`: run standard `go test -fuzz=...` harnesses with LibAFL.
 - Go-Panikint instrumentation: integer overflow/underflow detection for integer arithmetic, and optional integer truncation detection for integer conversions.
 
 ## LibAFL fuzzing
@@ -15,7 +15,6 @@ The goal of this fork is to integrate `go-libafl` (the Rust code in `golibafl/`)
 
 ```bash
 CGO_ENABLED=1 ./bin/go test -fuzz=FuzzXxx --use-libafl
-# (alias) CGO_ENABLED=1 ./bin/go test -fuzz=FuzzXxx --use-golibafl
 ```
 
 Without `--use-libafl`, `go test -fuzz` behaves like upstream Go.

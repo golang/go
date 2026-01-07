@@ -70,7 +70,6 @@ func init() {
 	cf.String("fuzztime", "", "")
 	cf.String("fuzzminimizetime", "", "")
 	cf.BoolVar(&testUseLibAFL, "use-libafl", false, "")
-	cf.BoolVar(&testUseLibAFL, "use-golibafl", false, "")
 	cf.StringVar(&testTrace, "trace", "", "")
 	cf.Var(&testV, "v", "")
 	cf.Var(&testShuffle, "shuffle", "")
