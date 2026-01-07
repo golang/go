@@ -142,10 +142,8 @@ fn run(input: PathBuf) {
         println!("\x1b[33mRunning: {}\x1b[0m", f.display());
         let inp =
             std::fs::read(f).unwrap_or_else(|_| panic!("Unable to read file {}", &f.display()));
-        if inp.len() > 1 {
-            unsafe {
-                libfuzzer_test_one_input(&inp);
-            }
+        unsafe {
+            libfuzzer_test_one_input(&inp);
         }
     }
 }
@@ -206,10 +204,8 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path) {
 
         for f in crash_inputs {
             let inp = std::fs::read(&f).unwrap_or_else(|_| panic!("Unable to read file {}", f.display()));
-            if inp.len() > 1 {
-                unsafe {
-                    libfuzzer_test_one_input(&inp);
-                }
+            unsafe {
+                libfuzzer_test_one_input(&inp);
             }
 
             // If we got here, this input no longer reproduces the crash.
