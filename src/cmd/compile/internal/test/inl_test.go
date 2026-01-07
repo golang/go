@@ -185,6 +185,7 @@ func TestIntendedInlining(t *testing.T) {
 		},
 		"net": {
 			"(*UDPConn).ReadFromUDP",
+			"SplitHostPort",
 		},
 		"sync": {
 			// Both OnceFunc and its returned closure need to be inlinable so

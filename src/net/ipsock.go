@@ -163,12 +163,24 @@ func ipv6only(addr IPAddr) bool {
 // See func Dial for a description of the hostport parameter, and host
 // and port results.
 func SplitHostPort(hostport string) (host, port string, err error) {
+	// This implementation is inlineable and saves one heap allocation
+	// in case callers use the error result only in nil checks.
+	host, port, addrErr := splitHostPortNoAlloc(hostport)
+	if (addrErr != AddrError{}) {
+		return host, port, &addrErr
+	}
+	return host, port, nil
+}
+
+// Note: A zero AddrError result indicates success;
+// conversely, a nonzero AddrError result indicates failure.
+func splitHostPortNoAlloc(hostport string) (host, port string, err AddrError) {
 	const (
 		missingPort   = "missing port in address"
 		tooManyColons = "too many colons in address"
 	)
-	addrErr := func(addr, why string) (host, port string, err error) {
-		return "", "", &AddrError{Err: why, Addr: addr}
+	addrErr := func(addr, why string) (host, port string, err AddrError) {
+		return "", "", AddrError{Err: why, Addr: addr}
 	}
 	j, k := 0, 0
 
@@ -214,7 +226,7 @@ func SplitHostPort(hostport string) (host, port string, err error) {
 	}
 
 	port = hostport[i+1:]
-	return host, port, nil
+	return host, port, AddrError{}
 }
 
 func splitHostZone(s string) (host, zone string) {

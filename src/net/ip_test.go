@@ -644,6 +644,43 @@ func TestSplitHostPort(t *testing.T) {
 	}
 }
 
+func TestSplitHostPortDoesNotAllocateForNilCheckCallers(t *testing.T) {
+	for _, tt := range []struct {
+		hostPort string
+		wantErr  bool
+	}{
+		{"localhost:80", false},
+		{"localhost%lo0:80", false},
+		{"127.0.0.1:80", false},
+		{"[::1%lo0]:80", false},
+		{"localhost", true},       // missing port in address
+		{"::1", true},             // too many colons in address
+		{"[foo:bar]", true},       // missing port in address
+		{"[:", true},              // missing ']' in address
+		{"[::1]x", true},          // ']' not followed by a colon
+		{"[foo]:[bar]:baz", true}, // too many colons in address
+		{"foo[bar]:baz", true},    // unexpected '[' in address
+		{"foo]bar:baz", true},     // unexpected ']' in address
+	} {
+		// By design, the following function only uses SplitHostPort's error
+		// result in nil checks.
+		f := func() {
+			_, _, err := SplitHostPort(tt.hostPort)
+			switch {
+			case err != nil && !tt.wantErr:
+				t.Fatalf("SplitHostPort(%q) fails, but should succeed", tt.hostPort)
+			case err == nil && tt.wantErr:
+				t.Fatalf("SplitHostPort(%q) succeeds, but should fail", tt.hostPort)
+			}
+		}
+		allocs := int(testing.AllocsPerRun(5, f))
+		const wantAllocs = 0
+		if allocs > wantAllocs {
+			t.Errorf("SplitHostPort(%q): allocs=%d, want %d", tt.hostPort, allocs, wantAllocs)
+		}
+	}
+}
+
 func TestJoinHostPort(t *testing.T) {
 	for _, tt := range []struct {
 		host     string
