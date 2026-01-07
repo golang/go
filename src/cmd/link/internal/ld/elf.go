@@ -178,14 +178,7 @@ func Elfinit(ctxt *Link) {
 
 	switch ctxt.Arch.Family {
 	// 64-bit architectures
-	case sys.PPC64, sys.S390X:
-		if ctxt.Arch.ByteOrder == binary.BigEndian && ctxt.HeadType != objabi.Hopenbsd {
-			ehdr.Flags = 1 // Version 1 ABI
-		} else {
-			ehdr.Flags = 2 // Version 2 ABI
-		}
-		fallthrough
-	case sys.AMD64, sys.ARM64, sys.Loong64, sys.MIPS64, sys.RISCV64:
+	case sys.AMD64, sys.ARM64, sys.Loong64, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X:
 		if ctxt.Arch.Family == sys.MIPS64 {
 			ehdr.Flags = 0x20000004 // MIPS 3 CPIC
 		}
@@ -194,6 +187,12 @@ func Elfinit(ctxt *Link) {
 		}
 		if ctxt.Arch.Family == sys.RISCV64 {
 			ehdr.Flags = 0x4 // RISCV Float ABI Double
+		}
+		if ctxt.Arch.Family == sys.S390X {
+			ehdr.Flags = 1 // Version 1 ABI
+		}
+		if ctxt.Arch.Family == sys.PPC64 {
+			ehdr.Flags = 2 // Version 2 ABI
 		}
 		elf64 = true
 

@@ -2,15 +2,25 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build (ppc64 || ppc64le) && linux
+
 #include "go_asm.h"
 #include "textflag.h"
 #include "asm_ppc64x.h"
 
-TEXT _rt0_ppc64le_linux(SB),NOSPLIT,$0
+#ifdef GOARCH_ppc64
+#define ENTRYPOINT	_rt0_ppc64_linux
+#define ENTRYPOINT_LIB	_rt0_ppc64_linux_lib
+#else
+#define ENTRYPOINT	_rt0_ppc64le_linux
+#define ENTRYPOINT_LIB	_rt0_ppc64le_linux_lib
+#endif
+
+TEXT ENTRYPOINT(SB),NOSPLIT,$0
 	XOR R0, R0	  // Make sure R0 is zero before _main
 	BR _main<>(SB)
 
-TEXT _rt0_ppc64le_linux_lib(SB),NOSPLIT|NOFRAME,$0
+TEXT ENTRYPOINT_LIB(SB),NOSPLIT|NOFRAME,$0
 	JMP _rt0_ppc64x_lib(SB)
 
 TEXT _main<>(SB),NOSPLIT,$-8
