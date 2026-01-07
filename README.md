@@ -8,6 +8,8 @@ cybergo is a security-focused fork of the Go toolchain. For now, it focuses on t
 - **Integrating [go-panikint](https://github.com/trailofbits/go-panikint)**:instrumentation that panics on integer overflow/underflow (and optionally on truncating integer conversions).
 - **Integrating LibAFL fuzzer** (`--use-libafl`): run standard `go test -fuzz=... --use-libafl` harnesses with LibAFL for better fuzzing performances.
 
+In a (_way more_) simple phrasing, cybergo is a copy of the Go compiler that finds bugs.
+
 ## Build
 
 Go requires a bootstrap Go toolchain. Set `GOROOT_BOOTSTRAP` to an existing Go install, then run:
@@ -30,7 +32,9 @@ Go-Panikint adds **overflow/underflow detection** for integer arithmetic operati
 
 ### How it works
 
-Go-Panikint patches the compiler SSA generation so that integer arithmetic operations and integer conversions get extra runtime checks that call into the runtime to panic with a detailed error message when a bug is detected. Checks are applied using source-location-based filtering so user code is instrumented while standard library files and dependencies (module cache and `vendor/`) are skipped. You can read the associated blog post about it [here](https://blog.trailofbits.com/2025/12/31/detect-gos-silent-arithmetic-bugs-with-go-panikint/).
+Go-Panikint patches the compiler SSA generation so that integer arithmetic operations and integer conversions get extra runtime checks that call into the runtime to panic with a detailed error message when a bug is detected. Checks are applied using source-location-based filtering so user code is instrumented while standard library files and dependencies (module cache and `vendor/`) are skipped. 
+
+You can read the associated blog post about it [here](https://blog.trailofbits.com/2025/12/31/detect-gos-silent-arithmetic-bugs-with-go-panikint/).
 
 ### Enabling truncation detection
 
@@ -59,9 +63,9 @@ x2 := uint8(big) // truncation_false_positive
 ```
 
 
-## Feature 2: LibAFL fuzzing
+## Feature 2: (Go)LibAFL
 
-`--use-libafl` runs **standard Go fuzz tests** (`go test -fuzz=...`) with LibAFL. The runner is implemented in `golibafl/`. This mode requires `CGO_ENABLED=1` and a Rust toolchain (`cargo`).
+Using the `--use-libafl` flag runs standard Go fuzz tests (`go test -fuzz=...`) **with** [LibAFL](https://github.com/AFLplusplus/LibAFL). The runner is implemented in `golibafl/`. This mode requires `CGO_ENABLED=1` and a Rust toolchain (`cargo`).
 
 ```bash
 CGO_ENABLED=1 ./bin/go test -fuzz=FuzzXxx --use-libafl
@@ -80,4 +84,4 @@ More examples in `test/cybergo/examples/`.
 
 ## Credits
 
-- Credits to Bruno Produit and Nills Ollrogge for their work on [golibafl](https://github.com/srlabs/golibafl/).
+Credits to Bruno Produit and Nills Ollrogge for their work on [golibafl](https://github.com/srlabs/golibafl/).
