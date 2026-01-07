@@ -266,6 +266,10 @@ func BenchmarkTickerResetNaive(b *testing.B) {
 }
 
 func TestTimerGC(t *testing.T) {
+	if AsynctimerChan.Value() == "1" {
+		t.Skip("skipping TestTimerGC with asynctimerchan=1")
+	}
+
 	run := func(t *testing.T, what string, f func()) {
 		t.Helper()
 		t.Run(what, func(t *testing.T) {

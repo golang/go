@@ -101,7 +101,7 @@ func mallocStub(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		if goexperiment.RuntimeSecret && gp.secret > 0 {
 			// Mark any object allocated while in secret mode as secret.
 			// This ensures we zero it immediately when freeing it.
-			addSecret(x)
+			addSecret(x, size)
 		}
 	}
 

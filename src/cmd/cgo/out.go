@@ -783,13 +783,13 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 	// We're trying to write a gcc struct that matches gc's layout.
 	// Use packed attribute to force no padding in this struct in case
 	// gcc has different packing requirements.
-	fmt.Fprintf(fgcc, "\t%s %v *_cgo_a = v;\n", ctype, p.packedAttribute())
-	if n.FuncType.Result != nil {
+	tr := n.FuncType.Result
+	if (n.Kind != "macro" && len(n.FuncType.Params) > 0) || tr != nil {
+		fmt.Fprintf(fgcc, "\t%s %v *_cgo_a = v;\n", ctype, p.packedAttribute())
+	}
+	if tr != nil {
 		// Save the stack top for use below.
 		fmt.Fprintf(fgcc, "\tchar *_cgo_stktop = _cgo_topofstack();\n")
-	}
-	tr := n.FuncType.Result
-	if tr != nil {
 		fmt.Fprintf(fgcc, "\t__typeof__(_cgo_a->r) _cgo_r;\n")
 	}
 	fmt.Fprintf(fgcc, "\t_cgo_tsan_acquire();\n")
@@ -819,7 +819,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 		fmt.Fprintf(fgcc, "\t_cgo_errno = errno;\n")
 	}
 	fmt.Fprintf(fgcc, "\t_cgo_tsan_release();\n")
-	if n.FuncType.Result != nil {
+	if tr != nil {
 		// The cgo call may have caused a stack copy (via a callback).
 		// Adjust the return value pointer appropriately.
 		fmt.Fprintf(fgcc, "\t_cgo_a = (void*)((char*)_cgo_a + (_cgo_topofstack() - _cgo_stktop));\n")

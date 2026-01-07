@@ -275,7 +275,7 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 						origArgs = after
 					}
 					immArg = "[c] "
-					immArgCombineOff = " [makeValAndOff(int32(int8(c)),off)] "
+					immArgCombineOff = " [makeValAndOff(int32(uint8(c)),off)] "
 				}
 				memOpData.ArgsLoadAddr = immArg + origArgs + fmt.Sprintf("l:(VMOVDQUload%d {sym} [off] ptr mem)", *lastVreg.Bits)
 				// Remove the last vreg from the arg and change it to "ptr".

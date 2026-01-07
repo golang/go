@@ -12,8 +12,8 @@
   # Applies sign of second operand to first: sign(val, sign_src)
   commutative: false
   documentation: !string |-
-    // NAME returns the product of the first operand with -1, 0, or 1,
-    // whichever constant is nearest to the value of the second operand.
+    // NAME returns the product of x with -1, 0, or 1,
+    // whichever constant is nearest to the value of y.
   # Sign does not have masked version
 - go: OnesCount
   commutative: false

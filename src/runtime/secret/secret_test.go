@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 	"unsafe"
+	"weak"
 )
 
 type secretType int64
@@ -63,28 +64,33 @@ func heapSTiny() *secretType {
 // are freed.
 // See runtime/mheap.go:freeSpecial.
 func TestHeap(t *testing.T) {
-	var u uintptr
+	var addr uintptr
+	var p weak.Pointer[S]
 	Do(func() {
-		u = uintptr(unsafe.Pointer(heapS()))
+		sp := heapS()
+		addr = uintptr(unsafe.Pointer(sp))
+		p = weak.Make(sp)
 	})
-
-	runtime.GC()
+	waitCollected(t, p)
 
 	// Check that object got zeroed.
-	checkRangeForSecret(t, u, u+unsafe.Sizeof(S{}))
+	checkRangeForSecret(t, addr, addr+unsafe.Sizeof(S{}))
 	// Also check our stack, just because we can.
 	checkStackForSecret(t)
 }
 
 func TestHeapTiny(t *testing.T) {
-	var u uintptr
+	var addr uintptr
+	var p weak.Pointer[secretType]
 	Do(func() {
-		u = uintptr(unsafe.Pointer(heapSTiny()))
+		sp := heapSTiny()
+		addr = uintptr(unsafe.Pointer(sp))
+		p = weak.Make(sp)
 	})
-	runtime.GC()
+	waitCollected(t, p)
 
 	// Check that object got zeroed.
-	checkRangeForSecret(t, u, u+unsafe.Sizeof(secretType(0)))
+	checkRangeForSecret(t, addr, addr+unsafe.Sizeof(secretType(0)))
 	// Also check our stack, just because we can.
 	checkStackForSecret(t)
 }
@@ -238,6 +244,20 @@ func checkRangeForSecret(t *testing.T, lo, hi uintptr) {
 			t.Errorf("secret found in [%x,%x] at %x", lo, hi, p)
 		}
 	}
+}
+
+func waitCollected[P any](t *testing.T, ptr weak.Pointer[P]) {
+	t.Helper()
+	i := 0
+	for ptr.Value() != nil {
+		runtime.GC()
+		i++
+		// 20 seems like a decent number of times to try
+		if i > 20 {
+			t.Errorf("value was never collected")
+		}
+	}
+	t.Logf("number of cycles until collection: %d", i)
 }
 
 func TestRegisters(t *testing.T) {

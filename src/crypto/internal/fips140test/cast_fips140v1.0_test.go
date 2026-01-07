@@ -6,4 +6,4 @@
 
 package fipstest
 
-func fips140v2Conditionals() {}
+func fips140v126Conditionals() {}

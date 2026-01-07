@@ -102,6 +102,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
@@ -354,6 +355,11 @@ type Cmd struct {
 	// the work of resolving the extension, so Start doesn't need to do it again.
 	// This is only used on Windows.
 	cachedLookExtensions struct{ in, out string }
+
+	// startCalled records that Start was attempted, regardless of outcome.
+	// (Until go.dev/issue/77075 is resolved, we use atomic.SwapInt32,
+	// not atomic.Bool.Swap, to avoid triggering the copylocks vet check.)
+	startCalled int32
 }
 
 // A ctxResult reports the result of watching the Context associated with a
@@ -635,7 +641,8 @@ func (c *Cmd) Run() error {
 func (c *Cmd) Start() error {
 	// Check for doubled Start calls before we defer failure cleanup. If the prior
 	// call to Start succeeded, we don't want to spuriously close its pipes.
-	if c.Process != nil {
+	// It is an error to call Start twice even if the first call did not create a process.
+	if atomic.SwapInt32(&c.startCalled, 1) != 0 {
 		return errors.New("exec: already started")
 	}
 
@@ -647,6 +654,7 @@ func (c *Cmd) Start() error {
 		if !started {
 			closeDescriptors(c.parentIOPipes)
 			c.parentIOPipes = nil
+			c.goroutine = nil // aid GC, finalization of pipe fds
 		}
 	}()
 

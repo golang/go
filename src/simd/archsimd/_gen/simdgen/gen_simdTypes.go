@@ -30,6 +30,13 @@ func (x simdType) ElemBits() int {
 	return x.Size / x.Lanes
 }
 
+func (x simdType) Article() string {
+	if strings.HasPrefix(x.Name, "Int") {
+		return "an"
+	}
+	return "a" // Float, Uint
+}
+
 // LanesContainer returns the smallest int/uint bit size that is
 // large enough to hold one bit for each lane.  E.g., Mask32x4
 // is 4 lanes, and a uint8 is the smallest uint that has 4 bits.
@@ -86,6 +93,33 @@ func (x simdType) MaskedStoreDoc() string {
 	}
 }
 
+func (x simdType) ToBitsDoc() string {
+	if x.Size == 512 || x.ElemBits() == 16 {
+		return fmt.Sprintf("// Asm: KMOV%s, CPU Features: AVX512", x.IntelSizeSuffix())
+	}
+	// 128/256 bit vectors with 8, 32, 64 bit elements
+	var asm string
+	var feat string
+	switch x.ElemBits() {
+	case 8:
+		asm = "VPMOVMSKB"
+		if x.Size == 256 {
+			feat = "AVX2"
+		} else {
+			feat = "AVX"
+		}
+	case 32:
+		asm = "VMOVMSKPS"
+		feat = "AVX"
+	case 64:
+		asm = "VMOVMSKPD"
+		feat = "AVX"
+	default:
+		panic("unexpected ElemBits")
+	}
+	return fmt.Sprintf("// Asm: %s, CPU Features: %s", asm, feat)
+}
+
 func compareSimdTypes(x, y simdType) int {
 	// "vreg" then "mask"
 	if c := -compareNatural(x.Type, y.Type); c != 0 {
@@ -135,7 +169,11 @@ type v{{.}} struct {
 {{end}}
 
 {{define "typeTmpl"}}
-// {{.Name}} is a {{.Size}}-bit SIMD vector of {{.Lanes}} {{.Base}}
+{{- if eq .Type "mask"}}
+// {{.Name}} is a mask for a SIMD vector of {{.Lanes}} {{.ElemBits}}-bit elements.
+{{- else}}
+// {{.Name}} is a {{.Size}}-bit SIMD vector of {{.Lanes}} {{.Base}}s.
+{{- end}}
 type {{.Name}} struct {
 {{.Fields}}
 }
@@ -171,15 +209,15 @@ func (X86Features) {{.Feature}}() bool {
 `
 
 const simdLoadStoreTemplate = `
-// Len returns the number of elements in a {{.Name}}
+// Len returns the number of elements in {{.Article}} {{.Name}}.
 func (x {{.Name}}) Len() int { return {{.Lanes}} }
 
-// Load{{.Name}} loads a {{.Name}} from an array
+// Load{{.Name}} loads {{.Article}} {{.Name}} from an array.
 //
 //go:noescape
 func Load{{.Name}}(y *[{{.Lanes}}]{{.Base}}) {{.Name}}
 
-// Store stores a {{.Name}} to an array
+// Store stores {{.Article}} {{.Name}} to an array.
 //
 //go:noescape
 func (x {{.Name}}) Store(y *[{{.Lanes}}]{{.Base}})
@@ -199,21 +237,21 @@ func {{.Name}}FromBits(y uint{{.LanesContainer}}) {{.Name}}
 // Only the lower {{.Lanes}} bits of y are used.
 {{- end}}
 //
-// Asm: KMOV{{.IntelSizeSuffix}}, CPU Features: AVX512
+{{.ToBitsDoc}}
 func (x {{.Name}}) ToBits() uint{{.LanesContainer}}
 `
 
 const simdMaskedLoadStoreTemplate = `
-// LoadMasked{{.Name}} loads a {{.Name}} from an array,
-// at those elements enabled by mask
+// LoadMasked{{.Name}} loads {{.Article}} {{.Name}} from an array,
+// at those elements enabled by mask.
 //
 {{.MaskedLoadDoc}}
 //
 //go:noescape
 func LoadMasked{{.Name}}(y *[{{.Lanes}}]{{.Base}}, mask Mask{{.ElemBits}}x{{.Lanes}}) {{.Name}}
 
-// StoreMasked stores a {{.Name}} to an array,
-// at those elements enabled by mask
+// StoreMasked stores {{.Article}} {{.Name}} to an array,
+// at those elements enabled by mask.
 //
 {{.MaskedStoreDoc}}
 //
@@ -395,15 +433,15 @@ func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} uint8, {{.Op2NameAndType "y"
 {{end}}
 
 {{define "vectorConversion"}}
-// {{.Tdst.Name}} converts from {{.Tsrc.Name}} to {{.Tdst.Name}}
-func (from {{.Tsrc.Name}}) As{{.Tdst.Name}}() (to {{.Tdst.Name}})
+// As{{.Tdst.Name}} returns {{.Tdst.Article}} {{.Tdst.Name}} with the same bit representation as x.
+func (x {{.Tsrc.Name}}) As{{.Tdst.Name}}() {{.Tdst.Name}}
 {{end}}
 
 {{define "mask"}}
-// To{{.VectorCounterpart}} converts from {{.Name}} to {{.VectorCounterpart}}
+// To{{.VectorCounterpart}} converts from {{.Name}} to {{.VectorCounterpart}}.
 func (from {{.Name}}) To{{.VectorCounterpart}}() (to {{.VectorCounterpart}})
 
-// asMask converts from {{.VectorCounterpart}} to {{.Name}}
+// asMask converts from {{.VectorCounterpart}} to {{.Name}}.
 func (from {{.VectorCounterpart}}) asMask() (to {{.Name}})
 
 func (x {{.Name}}) And(y {{.Name}}) {{.Name}}

@@ -1845,7 +1845,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpAMD64VPMOVVec32x16ToM,
 		ssa.OpAMD64VPMOVVec64x2ToM,
 		ssa.OpAMD64VPMOVVec64x4ToM,
-		ssa.OpAMD64VPMOVVec64x8ToM:
+		ssa.OpAMD64VPMOVVec64x8ToM,
+		ssa.OpAMD64VPMOVMSKB128,
+		ssa.OpAMD64VPMOVMSKB256,
+		ssa.OpAMD64VMOVMSKPS128,
+		ssa.OpAMD64VMOVMSKPS256,
+		ssa.OpAMD64VMOVMSKPD128,
+		ssa.OpAMD64VMOVMSKPD256:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = simdReg(v.Args[0])

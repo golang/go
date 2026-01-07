@@ -402,13 +402,22 @@ func (c *Conn) quicReadHandshakeBytes(n int) error {
 	return nil
 }
 
-func (c *Conn) quicSetReadSecret(level QUICEncryptionLevel, suite uint16, secret []byte) {
+func (c *Conn) quicSetReadSecret(level QUICEncryptionLevel, suite uint16, secret []byte) error {
+	// Ensure that there are no buffered handshake messages before changing the
+	// read keys, since that can cause messages to be parsed that were encrypted
+	// using old keys which are no longer appropriate.
+	// TODO(roland): we should merge this check with the similar one in setReadTrafficSecret.
+	if c.hand.Len() != 0 {
+		c.sendAlert(alertUnexpectedMessage)
+		return errors.New("tls: handshake buffer not empty before setting read traffic secret")
+	}
 	c.quic.events = append(c.quic.events, QUICEvent{
 		Kind:  QUICSetReadSecret,
 		Level: level,
 		Suite: suite,
 		Data:  secret,
 	})
+	return nil
 }
 
 func (c *Conn) quicSetWriteSecret(level QUICEncryptionLevel, suite uint16, secret []byte) {

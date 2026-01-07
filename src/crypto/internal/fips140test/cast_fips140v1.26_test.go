@@ -8,7 +8,7 @@ package fipstest
 
 import "crypto/internal/fips140/mldsa"
 
-func fips140v2Conditionals() {
+func fips140v126Conditionals() {
 	// ML-DSA sign and verify PCT
 	kMLDSA := mldsa.GenerateKey44()
 	// ML-DSA-44

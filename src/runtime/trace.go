@@ -12,7 +12,7 @@
 //
 // ## Design
 //
-// The basic idea behind the the execution tracer is to have per-M buffers that
+// The basic idea behind the execution tracer is to have per-M buffers that
 // trace data may be written into. Each M maintains a write flag indicating whether
 // its trace buffer is currently in use.
 //
@@ -173,7 +173,7 @@
 // doesn't do this directly for performance reasons. The runtime implementation instead caches
 // a G on the M created for the C thread. On Linux this M is then cached in the thread's TLS,
 // and on other systems, the M is put on a global list on exit from Go. We need to do some
-// extra work to make sure that this is modeled correctly in the the tracer. For example,
+// extra work to make sure that this is modeled correctly in the tracer. For example,
 // a C thread exiting Go may leave a P hanging off of its M (whether that M is kept in TLS
 // or placed back on a list). In order to correctly model goroutine creation and destruction,
 // we must behave as if the P was at some point stolen by the runtime, if the C thread
