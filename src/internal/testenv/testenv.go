@@ -546,3 +546,10 @@ func CPUProfilingBroken() bool {
 
 	return false
 }
+
+// SetGODEBUG appends v to the GODEBUG environment variable for the
+// duration of the test.
+func SetGODEBUG(t testing.TB, v string) {
+	t.Helper()
+	t.Setenv("GODEBUG", os.Getenv("GODEBUG")+","+v)
+}

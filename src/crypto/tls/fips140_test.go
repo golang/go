@@ -18,7 +18,6 @@ import (
 	"internal/testenv"
 	"math/big"
 	"net"
-	"os"
 	"runtime"
 	"strings"
 	"testing"
@@ -269,10 +268,7 @@ func TestFIPSServerSignatureAndHash(t *testing.T) {
 	defer func() {
 		testingOnlySupportedSignatureAlgorithms = nil
 	}()
-	defer func(godebug string) {
-		os.Setenv("GODEBUG", godebug)
-	}(os.Getenv("GODEBUG"))
-	os.Setenv("GODEBUG", "tlssha1=1")
+	testenv.SetGODEBUG(t, "tlssha1=1")
 
 	for _, sigHash := range defaultSupportedSignatureAlgorithms() {
 		t.Run(fmt.Sprintf("%v", sigHash), func(t *testing.T) {

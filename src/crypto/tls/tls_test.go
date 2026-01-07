@@ -2116,7 +2116,7 @@ func TestHandshakeMLKEM(t *testing.T) {
 		{
 			name: "GODEBUG tlsmlkem=0",
 			preparation: func(t *testing.T) {
-				t.Setenv("GODEBUG", "tlsmlkem=0")
+				testenv.SetGODEBUG(t, "tlsmlkem=0")
 			},
 			expectClient:   defaultWithoutPQ,
 			expectSelected: X25519,
@@ -2124,7 +2124,7 @@ func TestHandshakeMLKEM(t *testing.T) {
 		{
 			name: "GODEBUG tlssecpmlkem=0",
 			preparation: func(t *testing.T) {
-				t.Setenv("GODEBUG", "tlssecpmlkem=0")
+				testenv.SetGODEBUG(t, "tlssecpmlkem=0")
 			},
 			expectClient:   []CurveID{X25519MLKEM768, X25519, CurveP256, CurveP384, CurveP521},
 			expectSelected: X25519MLKEM768,
