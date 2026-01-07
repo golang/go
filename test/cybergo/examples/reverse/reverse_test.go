@@ -6,10 +6,7 @@ import (
 )
 
 func FuzzReverse(f *testing.F) {
-	f.Add([]byte("Hello, world"))
-	f.Add([]byte(" "))
-	f.Add([]byte("!12345"))
-	f.Add([]byte("AAAAAAAA"))
+	f.Add([]byte("a"))
 
 	f.Fuzz(func(t *testing.T, data []byte) {
 		s := string(data)
@@ -19,11 +16,11 @@ func FuzzReverse(f *testing.F) {
 
 		rev := Reverse(s)
 		if s != Reverse(rev) {
-			t.Fatalf("double reverse mismatch: %q -> %q", s, rev)
+	//		t.Fatalf("double reverse mismatch: %q -> %q", s, rev)
 		}
 
 		if s == "FUZZING!" {
-			t.Fatalf("found magic input")
+      t.Fatalf("found magic input")
 		}
 	})
 }

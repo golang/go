@@ -174,6 +174,70 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path) {
             })
             .unwrap_or(0)
     };
+    let is_launcher_client = env::var_os("AFL_LAUNCHER_CLIENT").is_some();
+    if !is_launcher_client && count_crash_inputs(&crashes_dir) > 0 {
+        // `go test -fuzz` semantics: if there are pre-existing crashing inputs, replay them.
+        // If they no longer crash (because the harness was fixed/recompiled), move them aside
+        // so they don't cause the run to fail spuriously.
+        if unsafe { libfuzzer_initialize(&args) } == -1 {
+            println!("Warning: LLVMFuzzerInitialize failed with -1");
+        }
+
+        let stale_dir = output.join("crashes.stale");
+        let can_archive = fs::create_dir_all(&stale_dir).is_ok();
+
+        let crash_inputs: Vec<PathBuf> = fs::read_dir(&crashes_dir)
+            .ok()
+            .map(|rd| {
+                rd.filter_map(Result::ok)
+                    .filter(|e| {
+                        !e.file_name().to_string_lossy().starts_with('.')
+                            && e.file_type().is_ok_and(|t| t.is_file())
+                    })
+                    .map(|e| e.path())
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let crash_dir_entries: Vec<PathBuf> = fs::read_dir(&crashes_dir)
+            .ok()
+            .map(|rd| rd.filter_map(Result::ok).map(|e| e.path()).collect())
+            .unwrap_or_default();
+
+        for f in crash_inputs {
+            let inp = std::fs::read(&f).unwrap_or_else(|_| panic!("Unable to read file {}", f.display()));
+            if inp.len() > 1 {
+                unsafe {
+                    libfuzzer_test_one_input(&inp);
+                }
+            }
+
+            // If we got here, this input no longer reproduces the crash.
+            let file_name = f
+                .file_name()
+                .unwrap_or_else(|| panic!("Invalid crash file name: {}", f.display()));
+            let file_name_str = file_name.to_string_lossy();
+            let dst = stale_dir.join(file_name);
+            if can_archive {
+                let _ = fs::rename(&f, &dst);
+            } else {
+                let _ = fs::remove_file(&f);
+            }
+            let related_prefix = format!(".{}", file_name_str);
+            for p in &crash_dir_entries {
+                if let Some(name) = p.file_name().and_then(|n| n.to_str()) {
+                    if name.starts_with(&related_prefix) {
+                        if can_archive {
+                            let _ = fs::rename(p, stale_dir.join(name));
+                        } else {
+                            let _ = fs::remove_file(p);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     let computed_initial_crash_inputs = count_crash_inputs(&crashes_dir);
     // The fuzzer process may be respawned by LibAFL's restarting manager. Propagate the initial
     // crash count across respawns so "stop on first crash" stays correct after a restart.
@@ -190,15 +254,6 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path) {
             computed_initial_crash_inputs
         }
     };
-    let is_launcher_client = env::var_os("AFL_LAUNCHER_CLIENT").is_some();
-    if initial_crash_inputs > 0 && !is_launcher_client {
-        eprintln!(
-            "Found {} crashing input(s) from a previous run. Saved to {}",
-            initial_crash_inputs,
-            crashes_dir.display()
-        );
-        std::process::exit(1);
-    }
     // On macOS, LibAFL's `StdShMemProvider` uses a on-disk unix socket at
     // `./libafl_unix_shmem_server`. If a previous run crashed, a stale socket
     // may be left behind and prevent the shmem service from starting.
