@@ -1,0 +1,27 @@
+name: CyberGo --use-libafl smoke
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+
+jobs:
+  smoke-use-libafl:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go (bootstrap)
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.5"
+
+      - name: Export GOROOT_BOOTSTRAP
+        run: echo "GOROOT_BOOTSTRAP=$(go env GOROOT)" >> "$GITHUB_ENV"
+
+      - name: Set up Rust (nightly)
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: Smoke test (expect crash under --use-libafl)
+        run: bash misc/cybergo/tests/smoke_use_libafl.sh

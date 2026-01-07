@@ -153,7 +153,7 @@ func (f *F) Skipped() bool {
 func (f *F) Add(args ...any) {
 	var values []any
 	for i := range args {
-		if t := reflect.TypeOf(args[i]); !supportedTypes[t] {
+		if t := reflect.TypeOf(args[i]); !supportedFuzzType(t) {
 			panic(fmt.Sprintf("testing: unsupported type to Add %v", t))
 		}
 		values = append(values, args[i])
@@ -161,8 +161,9 @@ func (f *F) Add(args ...any) {
 	f.corpus = append(f.corpus, corpusEntry{Values: values, IsSeed: true, Path: fmt.Sprintf("seed#%d", len(f.corpus))})
 }
 
-// supportedTypes represents all of the supported types which can be fuzzed.
-var supportedTypes = map[reflect.Type]bool{
+// nativeSupportedTypes represents the types fuzzed directly by Go's native
+// fuzzing engine (as opposed to decoding from a raw byte stream).
+var nativeSupportedTypes = map[reflect.Type]bool{
 	reflect.TypeFor[[]byte]():  true,
 	reflect.TypeFor[string]():  true,
 	reflect.TypeFor[bool]():    true,
@@ -182,6 +183,67 @@ var supportedTypes = map[reflect.Type]bool{
 	reflect.TypeFor[uint64]():  true,
 }
 
+func fuzzNeedsBytesEncoding(types []reflect.Type) bool {
+	for _, t := range types {
+		if !nativeSupportedTypes[t] {
+			return true
+		}
+	}
+	return false
+}
+
+func supportedFuzzType(t reflect.Type) bool {
+	seen := make(map[reflect.Type]bool)
+	return supportedFuzzTypeRec(t, 0, seen)
+}
+
+func supportedFuzzTypeRec(t reflect.Type, depth int, seen map[reflect.Type]bool) bool {
+	if t == nil {
+		return false
+	}
+	if depth > libaflMaxDepth {
+		return false
+	}
+	if seen[t] {
+		return true
+	}
+	seen[t] = true
+
+	switch t.Kind() {
+	case reflect.Bool,
+		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+		reflect.Float32, reflect.Float64,
+		reflect.String:
+		return true
+
+	case reflect.Slice:
+		return supportedFuzzTypeRec(t.Elem(), depth+1, seen)
+
+	case reflect.Array:
+		if t.Len() > libaflMaxContainerLen {
+			return false
+		}
+		return supportedFuzzTypeRec(t.Elem(), depth+1, seen)
+
+	case reflect.Struct:
+		if t.NumField() > libaflMaxContainerLen {
+			return false
+		}
+		for i := 0; i < t.NumField(); i++ {
+			if !supportedFuzzTypeRec(t.Field(i).Type, depth+1, seen) {
+				return false
+			}
+		}
+		return true
+
+	case reflect.Ptr:
+		return supportedFuzzTypeRec(t.Elem(), depth+1, seen)
+	}
+
+	return false
+}
+
 // Fuzz runs the fuzz function, ff, for fuzz testing. If ff fails for a set of
 // arguments, those arguments will be added to the seed corpus.
 //
@@ -193,7 +255,10 @@ var supportedTypes = map[reflect.Type]bool{
 //
 // The following types are allowed: []byte, string, bool, byte, rune, float32,
 // float64, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64.
-// More types may be supported in the future.
+//
+// In CyberGo, composite types built from the above (structs, arrays, slices,
+// and pointers) are also supported. These are fuzzed by decoding values from a
+// raw byte stream.
 //
 // ff must not call any [*F] methods, e.g. [F.Log], [F.Error], [F.Skip]. Use
 // the corresponding [*T] method instead. The only [*F] methods that are allowed in
@@ -235,10 +300,23 @@ func (f *F) Fuzz(ff any) {
 	var types []reflect.Type
 	for i := 1; i < fnType.NumIn(); i++ {
 		t := fnType.In(i)
-		if !supportedTypes[t] {
+		if !supportedFuzzType(t) {
 			panic(fmt.Sprintf("testing: unsupported type for fuzzing %v", t))
 		}
 		types = append(types, t)
+	}
+
+	// In CyberGo's LibAFL mode, we don't start the native fuzzing engine here.
+	// Instead, capture the fuzz callback so it can be invoked via the libFuzzer
+	// entrypoint exported from the test main package.
+	if libaflCapture(fn, types) {
+		return
+	}
+
+	bytesBacked := fuzzNeedsBytesEncoding(types)
+	engineTypes := types
+	if bytesBacked {
+		engineTypes = []reflect.Type{reflect.TypeFor[[]byte]()}
 	}
 
 	// Load the testdata seed corpus. Check types of entries in the testdata
@@ -246,28 +324,60 @@ func (f *F) Fuzz(ff any) {
 	//
 	// Don't load the seed corpus if this is a worker process; we won't use it.
 	if f.fstate.mode != fuzzWorker {
-		for _, c := range f.corpus {
-			if err := f.fstate.deps.CheckCorpus(c.Values, types); err != nil {
-				// TODO(#48302): Report the source location of the F.Add call.
+		if bytesBacked {
+			var corpus []corpusEntry
+			for _, c := range f.corpus {
+				if err := f.fstate.deps.CheckCorpus(c.Values, types); err != nil {
+					// TODO(#48302): Report the source location of the F.Add call.
+					f.Fatal(err)
+				}
+				encoded, ok := libaflMarshalInputs(c.Values, types)
+				if !ok {
+					panic("testing: failed to encode fuzz corpus entry")
+				}
+				c.Values = []any{encoded}
+				corpus = append(corpus, c)
+			}
+
+			// Load seed corpus (encoded as a single raw byte stream).
+			c, err := f.fstate.deps.ReadCorpus(filepath.Join(corpusDir, f.name), engineTypes)
+			if err != nil {
 				f.Fatal(err)
 			}
-		}
-
-		// Load seed corpus
-		c, err := f.fstate.deps.ReadCorpus(filepath.Join(corpusDir, f.name), types)
-		if err != nil {
-			f.Fatal(err)
-		}
-		for i := range c {
-			c[i].IsSeed = true // these are all seed corpus values
-			if f.fstate.mode == fuzzCoordinator {
-				// If this is the coordinator process, zero the values, since we don't need
-				// to hold onto them.
-				c[i].Values = nil
+			for i := range c {
+				c[i].IsSeed = true // these are all seed corpus values
+				if f.fstate.mode == fuzzCoordinator {
+					// If this is the coordinator process, zero the values, since we don't need
+					// to hold onto them.
+					c[i].Values = nil
+				}
 			}
-		}
+			corpus = append(corpus, c...)
+			f.corpus = corpus
+		} else {
+			for _, c := range f.corpus {
+				if err := f.fstate.deps.CheckCorpus(c.Values, types); err != nil {
+					// TODO(#48302): Report the source location of the F.Add call.
+					f.Fatal(err)
+				}
+			}
 
-		f.corpus = append(f.corpus, c...)
+			// Load seed corpus
+			c, err := f.fstate.deps.ReadCorpus(filepath.Join(corpusDir, f.name), types)
+			if err != nil {
+				f.Fatal(err)
+			}
+			for i := range c {
+				c[i].IsSeed = true // these are all seed corpus values
+				if f.fstate.mode == fuzzCoordinator {
+					// If this is the coordinator process, zero the values, since we don't need
+					// to hold onto them.
+					c[i].Values = nil
+				}
+			}
+
+			f.corpus = append(f.corpus, c...)
+		}
 	}
 
 	// run calls fn on a given input, as a subtest with its own T.
@@ -327,8 +437,19 @@ func (f *F) Fuzz(ff any) {
 		f.common.inFuzzFn, f.inFuzzFn = true, true
 		go tRunner(t, func(t *T) {
 			args := []reflect.Value{reflect.ValueOf(t)}
-			for _, v := range e.Values {
-				args = append(args, reflect.ValueOf(v))
+			if bytesBacked {
+				if len(e.Values) != 1 {
+					panic(fmt.Sprintf("unexpected corpus entry size: %d", len(e.Values)))
+				}
+				b, ok := e.Values[0].([]byte)
+				if !ok {
+					panic("unexpected corpus entry type")
+				}
+				args = append(args, libaflUnmarshalArgs(b, types)...)
+			} else {
+				for _, v := range e.Values {
+					args = append(args, reflect.ValueOf(v))
+				}
 			}
 			// Before resetting the current coverage, defer the snapshot so that
 			// we make sure it is called right before the tRunner function
@@ -362,7 +483,7 @@ func (f *F) Fuzz(ff any) {
 			int64(minimizeDuration.n),
 			*parallel,
 			f.corpus,
-			types,
+			engineTypes,
 			corpusTargetDir,
 			cacheTargetDir)
 		if err != nil {

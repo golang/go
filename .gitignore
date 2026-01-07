@@ -11,6 +11,8 @@
 *.rej
 *.exe
 .*.swp
+AGENTS.md
+AGENT.md
 core
 *.cgo*.go
 *.cgo*.c
@@ -51,3 +53,7 @@ _testmain.go
 # For files created by specific development environment (e.g. editor),
 # use alternative ways to exclude files from git.
 # For example, set up .git/info/exclude or use a global .gitignore.
+
+# CyberGo (LibAFL runner build artifacts)
+/golibafl/target/
+/golibafl/output/

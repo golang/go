@@ -48,6 +48,11 @@ var acceptedFuzzTypes = []types.Type{
 	types.NewSlice(types.Universe.Lookup("byte").Type()),
 }
 
+const (
+	maxAcceptedFuzzDepth        = 32
+	maxAcceptedFuzzContainerLen = 4096
+)
+
 func run(pass *analysis.Pass) (any, error) {
 	for _, f := range pass.Files {
 		if !strings.HasSuffix(pass.Fset.File(f.FileStart).Name(), "_test.go") {
@@ -264,11 +269,55 @@ func isTestingType(typ types.Type, testingType string) bool {
 
 // Validate that fuzz target function's arguments are of accepted types.
 func isAcceptedFuzzType(paramType types.Type) bool {
+	seen := make(map[types.Type]bool)
+	return isAcceptedFuzzTypeRec(paramType, 0, seen)
+}
+
+func isAcceptedFuzzTypeRec(paramType types.Type, depth int, seen map[types.Type]bool) bool {
+	if paramType == nil {
+		return false
+	}
+	if depth > maxAcceptedFuzzDepth {
+		return false
+	}
+	if seen[paramType] {
+		return true
+	}
+	seen[paramType] = true
+
+	paramType = types.Unalias(paramType)
+	if named, ok := paramType.(*types.Named); ok {
+		return isAcceptedFuzzTypeRec(named.Underlying(), depth+1, seen)
+	}
+
 	for _, typ := range acceptedFuzzTypes {
 		if types.Identical(typ, paramType) {
 			return true
 		}
 	}
+
+	switch t := paramType.(type) {
+	case *types.Slice:
+		return isAcceptedFuzzTypeRec(t.Elem(), depth+1, seen)
+	case *types.Array:
+		if t.Len() > maxAcceptedFuzzContainerLen {
+			return false
+		}
+		return isAcceptedFuzzTypeRec(t.Elem(), depth+1, seen)
+	case *types.Pointer:
+		return isAcceptedFuzzTypeRec(t.Elem(), depth+1, seen)
+	case *types.Struct:
+		if t.NumFields() > maxAcceptedFuzzContainerLen {
+			return false
+		}
+		for i := 0; i < t.NumFields(); i++ {
+			if !isAcceptedFuzzTypeRec(t.Field(i).Type(), depth+1, seen) {
+				return false
+			}
+		}
+		return true
+	}
+
 	return false
 }
 
@@ -278,7 +327,7 @@ func formatAcceptedFuzzType() string {
 		acceptedFuzzTypesStrings = append(acceptedFuzzTypesStrings, typ.String())
 	}
 	acceptedFuzzTypesMsg := strings.Join(acceptedFuzzTypesStrings, ", ")
-	return acceptedFuzzTypesMsg
+	return acceptedFuzzTypesMsg + ", plus composite types built from those (struct, array, slice, pointer)"
 }
 
 func isExampleSuffix(s string) bool {
