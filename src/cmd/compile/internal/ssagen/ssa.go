@@ -7795,7 +7795,7 @@ func AddrAuto(a *obj.Addr, v *ssa.Value) {
 // Call returns a new CALL instruction for the SSA value v.
 // It uses PrepareCall to prepare the call.
 func (s *State) Call(v *ssa.Value) *obj.Prog {
-	pPosIsStmt := s.pp.Pos.IsStmt() // The statement-ness fo the call comes from ssaGenState
+	pPosIsStmt := s.pp.Pos.IsStmt() // The statement-ness of the call comes from ssaGenState
 	s.PrepareCall(v)
 
 	p := s.Prog(obj.ACALL)
