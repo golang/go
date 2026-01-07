@@ -1,4 +1,4 @@
-name: CyberGo --use-libafl smoke
+name: LibAFL smoke
 
 on:
   push:
@@ -23,7 +23,7 @@ jobs:
       - name: Set up Rust (nightly)
         uses: dtolnay/rust-toolchain@nightly
 
-      - name: Build CyberGo toolchain
+      - name: Build cybergo toolchain
         run: cd src && ./make.bash
 
       - name: Smoke (panic)
