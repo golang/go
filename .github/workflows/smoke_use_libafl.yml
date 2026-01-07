@@ -29,6 +29,9 @@ jobs:
       - name: Smoke (panic)
         run: bash misc/cybergo/tests/smoke_use_libafl_panic.sh
 
+      - name: Smoke (overflow)
+        run: bash misc/cybergo/tests/smoke_use_libafl_overflow.sh
+
       - name: Smoke (multiargs)
         run: bash misc/cybergo/tests/smoke_use_libafl_multiargs.sh
 

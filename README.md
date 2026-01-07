@@ -3,25 +3,22 @@
 [![cybergo --use-libafl smoke](https://github.com/kevin-valerio/cybergo/actions/workflows/smoke_use_libafl.yml/badge.svg?branch=master)](https://github.com/kevin-valerio/cybergo/actions/workflows/smoke_use_libafl.yml)
 [![cybergo panikint self-compile and test](https://github.com/kevin-valerio/cybergo/actions/workflows/go.yml/badge.svg?branch=master)](https://github.com/kevin-valerio/cybergo/actions/workflows/go.yml)
 
-cybergo is a security-focused fork of the Go toolchain.
+cybergo is a security-focused fork of the Go toolchain. For now, it focuses on two things:
 
-The goal of this fork is to be security oriented. For now, it focuses on two things:
-
-- **Go-Panikint**: compiler instrumentation that panics on integer overflow/underflow (and optionally on truncating integer conversions).
-- **LibAFL fuzzing** (`--use-libafl`): run standard `go test -fuzz=...` harnesses with LibAFL.
+- **Integrating [go-panikint](https://github.com/trailofbits/go-panikint)**:instrumentation that panics on integer overflow/underflow (and optionally on truncating integer conversions).
+- **Integrating LibAFL fuzzer** (`--use-libafl`): run standard `go test -fuzz=... --use-libafl` harnesses with LibAFL for better fuzzing performances.
 
 ## Build
 
 Go requires a bootstrap Go toolchain. Set `GOROOT_BOOTSTRAP` to an existing Go install, then run:
 
 ```bash
-cd src
-GOROOT_BOOTSTRAP=/path/to/go ./make.bash
+cd src && ./make.bash
 ```
 
 This produces `bin/go`.
 
-## Go-Panikint
+## Feature 1: go-panikint
 
 ### Overview
 
@@ -33,7 +30,7 @@ Go-Panikint adds **overflow/underflow detection** for integer arithmetic operati
 
 ### How it works
 
-Go-Panikint patches the compiler SSA generation so that integer arithmetic operations and integer conversions get extra runtime checks that call into the runtime to panic with a detailed error message when a bug is detected. Checks are applied using source-location-based filtering so user code is instrumented while standard library files and dependencies (module cache and `vendor/`) are skipped.
+Go-Panikint patches the compiler SSA generation so that integer arithmetic operations and integer conversions get extra runtime checks that call into the runtime to panic with a detailed error message when a bug is detected. Checks are applied using source-location-based filtering so user code is instrumented while standard library files and dependencies (module cache and `vendor/`) are skipped. You can read the associated blog post about it [here](https://blog.trailofbits.com/2025/12/31/detect-gos-silent-arithmetic-bugs-with-go-panikint/).
 
 ### Enabling truncation detection
 
@@ -55,21 +52,16 @@ Example:
 ```go
 // overflow_false_positive
 intentionalOverflow := a + b
-
 // truncation_false_positive
 x := uint8(big)
-
 sum2 := a + b // overflow_false_positive
 x2 := uint8(big) // truncation_false_positive
 ```
 
-Test vectors live in `tests/` and `fuzz_test/`.
 
-## LibAFL fuzzing
+## Feature 2: LibAFL fuzzing
 
-`--use-libafl` runs **standard Go fuzz tests** (`go test -fuzz=...`) with LibAFL. The runner is implemented in `golibafl/`.
-
-This mode requires `CGO_ENABLED=1` and a Rust toolchain (`cargo`).
+`--use-libafl` runs **standard Go fuzz tests** (`go test -fuzz=...`) with LibAFL. The runner is implemented in `golibafl/`. This mode requires `CGO_ENABLED=1` and a Rust toolchain (`cargo`).
 
 ```bash
 CGO_ENABLED=1 ./bin/go test -fuzz=FuzzXxx --use-libafl
@@ -84,7 +76,7 @@ cd test/cybergo/examples/reverse
 CGO_ENABLED=1 ../../../../bin/go test -fuzz=FuzzReverse --use-libafl
 ```
 
-More examples live in `test/cybergo/examples/`.
+More examples in `test/cybergo/examples/`.
 
 ## Credits
 
