@@ -8,11 +8,49 @@
 
 我们非常欢迎社区开发者参与项目！无论是修复 Bug、实现新功能，还是改进文档，您的贡献都将帮助推动 RISC-V 生态的发展。
 
-为确保协作高效顺畅，请在提交代码前阅读以下指南：
+## 2. 版本获取与安装
 
+### 2.1 下载版本
+从 [GitHub Releases 页面](https://github.com/zte-riscv/go/releases) 下载对应版本的压缩包，选择适合您系统架构的版本（如 `linux-riscv64.tar.gz`）。
 
-## 2. 提交前准备
-### 2.1 问题跟踪与讨论
+版本号的命名规则为：go版本号+版本发布日期“YYYYMM”，以‘.’分隔，例如：1.25.3.202512。版本发布周期为一个月。
+
+### 2.2 解压安装
+将下载的压缩包解压到目标目录：
+```bash
+# 解压到指定目录（例如 /usr/local）
+tar -C /usr/local -xzf go1.xx.x.linux-riscv64.tar.gz
+```
+
+### 2.3 配置 GOROOT
+配置 `GOROOT` 环境变量，指向 Go 的安装目录：
+
+**方法一：临时配置（当前会话有效）**
+```bash
+export GOROOT=/usr/local/go
+export PATH=$PATH:$GOROOT/bin
+```
+
+**方法二：永久配置（推荐）**
+将以下内容添加到 `~/.bashrc` 或 `~/.bash_profile`：
+```bash
+export GOROOT=/usr/local/go
+export PATH=$PATH:$GOROOT/bin
+```
+然后执行 `source ~/.bashrc` 使配置生效。
+
+**方法三：系统级配置**
+编辑 `/etc/profile` 或 `/etc/environment`，添加上述环境变量配置。
+
+### 2.4 验证安装
+安装完成后，执行以下命令验证：
+```bash
+go version
+```
+如果配置正确，将显示类似 `go version go1.xx.x linux/riscv64` 的输出。
+
+## 3. 提交前准备
+### 3.1 问题跟踪与讨论
 **必须**：
 - 在开始实质性工作前创建或认领相关Issue
 - 在Issue中明确描述变更动机、设计方案和预期影响
@@ -20,15 +58,15 @@
 **建议**：
 - 对于重大变更（如新指令集支持、架构修改），提前提交设计文档进行评审
 
-### 2.2 分支管理
+### 3.2 分支管理
 ```bash
-# 从当前开发分支（如go1.25.0-zte-dev）创建特性分支：
+# 从当前开发分支（如go1.26.3-zte-dev）创建特性分支：
 git fetch origin
-git checkout -b your_dev_branch origin/go1.25.0-zte-dev
+git checkout -b your_dev_branch origin/go1.26.3-zte-dev
 ```
 
-## 3. 代码贡献流程
-### 3.1 开发工作流
+## 4. 代码贡献流程
+### 4.1 开发工作流
 **Issue提交**：
 - 错误报告：记录问题现象、环境及复现步骤
 - 功能/优化：说明技术背景和实现策略
@@ -44,7 +82,7 @@ git checkout -b your_dev_branch origin/go1.25.0-zte-dev
 **合并策略**：
 - 所有提交以sqash merge的方式压缩为单个commit后合入目标分支
 
-### 3.2 提交信息规范
+### 4.2 提交信息规范
 压缩提交时请遵循以下格式：
 ```bash
 git commit -m "包名: 简洁的变更摘要
@@ -55,21 +93,21 @@ git commit -m "包名: 简洁的变更摘要
 - **标题**：包名前缀 + 简要说明（<50字符）
 - **页脚**：包含相关issue引用
 
-## 4. 评审流程
-### 4.1 强制要求
+## 5. 评审流程
+### 5.1 强制要求
 - CI流水线必须通过
 - 最低审批要求：
 - 1名中兴核心维护者的+2
 - 1名字节跳动核心维护者的+2
 
-### 4.2 评审等级
+### 5.2 评审等级
 - `+1`：初步批准（需额外评审人）
 - `+2`：最终批准（可合并）
 
 **对维护者和评审人的要求：
 批准合并时，请回复+1或+2。**
 
-### 4.3 核心维护团队
+### 5.3 核心维护团队
 | GitHub | Role | Org | Auth Level |
 |--------|------|-----|-----------|
 | @agiledragon | Maintainer | ZTE | +2 |
@@ -81,22 +119,22 @@ git commit -m "包名: 简洁的变更摘要
 | @wangpc-pp | Maintainer | ByteDance | +2 |
 | @BoyaoWang430 | Reviewer | ByteDance | +1 |
 
-### 4.4 评审检查清单
+### 5.4 评审检查清单
 - ✅ 符合Go编码规范
 - ✅ 通过CI流水线
 - ✅ 包含对应测试用例
 - ✅ 性能基准测试（如适用）
 
-## 5. CI流水线要求
-### 5.1 测试要求
+## 6. CI流水线要求
+### 6.1 测试要求
 - **静态分析**：对涉及修改的代码包执行`go vet`
 - **代码生成验证**：通过`asmcheck`验证RISCV64架构下是否生成了正确的指令（`go/test/codegen/`）
 - **汇编测试**：验证汇编指令是否生成正确的机器码（`go/src/cmd/asm/internal/asm/testdata/riscv64.s`）
 - **回归测试**：在x86/ARM架构执行`go/src/all.bash`
 - **应用测试**：QEMU-RISCV环境下验证测试文件是否正确执行（`go/test/zte/*_test.go`）
 
-## 6. 性能报告（可选）
-### 6.1 基准测试要求
+## 7. 性能报告（可选）
+### 7.1 基准测试要求
 对性能敏感变更需提供如下信息：
 
 测试环境：
@@ -118,6 +156,6 @@ Sort        456ms ± 1%      401ms± 2%      -12.06% (p=0.000 n=9+10)
 
 ```
 
-## 7. 附录
+## 8. 附录
 官方Go贡献指南：https://golang.org/doc/contribute
 
