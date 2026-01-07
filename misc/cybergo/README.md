@@ -46,4 +46,10 @@ See `misc/cybergo/USE_LIBAFL.md`.
 
 ## Smoke test
 
-Run `misc/cybergo/tests/smoke_use_libafl.sh` to build the toolchain and run a deterministic crashing fuzz target under `--use-libafl`.
+Run `misc/cybergo/tests/smoke_use_libafl.sh` to build the toolchain and run the `--use-libafl` smoke targets (each expects a crash).
+
+To run a single example:
+- `misc/cybergo/tests/smoke_use_libafl_panic.sh`
+- `misc/cybergo/tests/smoke_use_libafl_multiargs.sh`
+- `misc/cybergo/tests/smoke_use_libafl_multiparams.sh`
+- `misc/cybergo/tests/smoke_use_libafl_reverse.sh`

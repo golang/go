@@ -23,5 +23,17 @@ jobs:
       - name: Set up Rust (nightly)
         uses: dtolnay/rust-toolchain@nightly
 
-      - name: Smoke test (expect crash under --use-libafl)
-        run: bash misc/cybergo/tests/smoke_use_libafl.sh
+      - name: Build CyberGo toolchain
+        run: cd src && ./make.bash
+
+      - name: Smoke (panic)
+        run: bash misc/cybergo/tests/smoke_use_libafl_panic.sh
+
+      - name: Smoke (multiargs)
+        run: bash misc/cybergo/tests/smoke_use_libafl_multiargs.sh
+
+      - name: Smoke (multiparams)
+        run: bash misc/cybergo/tests/smoke_use_libafl_multiparams.sh
+
+      - name: Smoke (reverse)
+        run: bash misc/cybergo/tests/smoke_use_libafl_reverse.sh

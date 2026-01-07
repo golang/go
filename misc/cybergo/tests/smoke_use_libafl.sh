@@ -34,52 +34,7 @@ fi
 cd "${ROOT_DIR}/src"
 GOROOT_BOOTSTRAP="${bootstrap_goroot}" ./make.bash
 
-tmp_dir="$(mktemp -d)"
-trap 'rm -rf "${tmp_dir}"' EXIT
-export GOCACHE="${tmp_dir}/gocache"
-
-crash_re='Found [1-9][0-9]* crashing input\(s\)\. Saved to'
-
-run_expect_crash() {
-  local example_dir="${1}"
-  local fuzz_name="${2}"
-  local timeout_dur="${3}"
-  local output_file="${4}"
-
-  cd "${ROOT_DIR}/test/cybergo/examples/${example_dir}"
-  set +e
-  CGO_ENABLED=1 timeout "${timeout_dur}" "${ROOT_DIR}/bin/go" test -fuzz="${fuzz_name}" --use-libafl 2>&1 | tee "${output_file}"
-  local status="${PIPESTATUS[0]}"
-  set -e
-
-  if [[ "${status}" -eq 0 ]]; then
-    echo "expected fuzz run to fail (panic/crash), but it exited 0"
-    exit 1
-  fi
-
-  if ! grep -Eq "${crash_re}" "${output_file}"; then
-    echo "expected output to contain: Found N crashing input(s). Saved to ..."
-    exit 1
-  fi
-}
-
-libafl_input_dir() {
-  local pkg
-  pkg="$("${ROOT_DIR}/bin/go" list -f '{{.ImportPath}}')"
-  echo "${GOCACHE}/fuzz/${pkg}/libafl/input"
-}
-
-run_expect_crash panic FuzzPanic 10m "${tmp_dir}/output.txt"
-run_expect_crash multiargs FuzzMultiArgs 2m "${tmp_dir}/output-multiargs.txt"
-
-cd "${ROOT_DIR}/test/cybergo/examples/multiparams"
-in_dir="$(libafl_input_dir)"
-mkdir -p "${in_dir}"
-printf '\x06libafl\x07cybergo\x69\x7a\x01' > "${in_dir}/seed-crash"
-run_expect_crash multiparams FuzzMultiParams 2m "${tmp_dir}/output-multiparams.txt"
-
-cd "${ROOT_DIR}/test/cybergo/examples/reverse"
-in_dir="$(libafl_input_dir)"
-mkdir -p "${in_dir}"
-printf 'FUZZING!' > "${in_dir}/seed-crash"
-run_expect_crash reverse FuzzReverse 2m "${tmp_dir}/output-reverse.txt"
+bash "${ROOT_DIR}/misc/cybergo/tests/smoke_use_libafl_panic.sh"
+bash "${ROOT_DIR}/misc/cybergo/tests/smoke_use_libafl_multiargs.sh"
+bash "${ROOT_DIR}/misc/cybergo/tests/smoke_use_libafl_multiparams.sh"
+bash "${ROOT_DIR}/misc/cybergo/tests/smoke_use_libafl_reverse.sh"

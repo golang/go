@@ -38,7 +38,7 @@ CGO_ENABLED=1 ../../../../bin/go test -fuzz=FuzzReverse --use-libafl
 ### More details
 
 - Design notes: `misc/cybergo/USE_LIBAFL.md`
-- Smoke test: `misc/cybergo/tests/smoke_use_libafl.sh`
+- Smoke tests: `misc/cybergo/tests/smoke_use_libafl.sh` (all) or `misc/cybergo/tests/smoke_use_libafl_*.sh` (per example)
 
 ## Examples
 
