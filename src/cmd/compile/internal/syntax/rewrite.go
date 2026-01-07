@@ -8454,7 +8454,7 @@ func (r *magicMethodRewriter) hasMagicMethodType(expr Expr) bool {
 // Returns empty string if type cannot be determined or is not a struct
 func (r *magicMethodRewriter) tryInferStructTypeName(expr Expr) string {
 	// Delegate to the shared generic-aware inference used by arithOpRewriter.
-	return r.arithOpRewriter.tryInferStructTypeName(expr)
+	return r.arithOpRewriter.inferOperandTypeForArith(expr)
 }
 
 // hasGetItemMethod checks if an expression's type has _getitem method
