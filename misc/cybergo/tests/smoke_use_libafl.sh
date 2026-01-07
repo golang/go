@@ -35,6 +35,7 @@ cd "${ROOT_DIR}/src"
 GOROOT_BOOTSTRAP="${bootstrap_goroot}" ./make.bash
 
 bash "${ROOT_DIR}/misc/cybergo/tests/smoke_use_libafl_panic.sh"
+bash "${ROOT_DIR}/misc/cybergo/tests/smoke_use_libafl_overflow.sh"
 bash "${ROOT_DIR}/misc/cybergo/tests/smoke_use_libafl_multiargs.sh"
 bash "${ROOT_DIR}/misc/cybergo/tests/smoke_use_libafl_multiparams.sh"
 bash "${ROOT_DIR}/misc/cybergo/tests/smoke_use_libafl_reverse.sh"
