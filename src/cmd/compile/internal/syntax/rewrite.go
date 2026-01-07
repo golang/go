@@ -2745,9 +2745,20 @@ func RewriteOverloadedCallSitesPre(file *File, overloadInfos map[string]*Overloa
 	if file == nil || len(overloadInfos) == 0 {
 		return
 	}
+	knownTypes := make(map[string]bool)
+	for _, info := range overloadInfos {
+		if info == nil {
+			continue
+		}
+		rt := stripGenericArgs(stripLeadingStar(info.ReceiverType))
+		if rt != "" {
+			knownTypes[rt] = true
+		}
+	}
 	rewriter := &overloadPreRewriter{
 		overloads:     overloadInfos,
 		methodNameMap: buildMethodNameMap(overloadInfos),
+		knownTypes:    knownTypes,
 		varTypes:      make(map[string]string),
 	}
 	rewriter.rewriteFile(file)
@@ -2798,7 +2809,7 @@ func addReturnToInitMethod(fn *FuncDecl) {
 	}
 
 	// Skip if already has return values
-	if fn.Type.ResultList != nil && len(fn.Type.ResultList) > 0 {
+	if len(fn.Type.ResultList) > 0 {
 		return
 	}
 
@@ -2842,6 +2853,10 @@ func buildMethodNameMap(overloads map[string]*OverloadInfo) map[string][]*Overlo
 type overloadPreRewriter struct {
 	overloads     map[string]*OverloadInfo
 	methodNameMap map[string][]*OverloadInfo
+	// knownTypes records best-effort type names (base receiver types) that appear in overload sets.
+	// This enables recognizing type-conversion expressions like `Path("x")` during pre-typecheck
+	// overload rewriting (both as receivers and as arguments).
+	knownTypes map[string]bool
 	// varTypes provides best-effort syntactic type inference for named variables,
 	// so pre-typecheck overload rewriting can filter overload sets by receiver type.
 	varTypes map[string]string // var name -> base type name (no leading '*', no type args)
@@ -2858,6 +2873,36 @@ func (r *overloadPreRewriter) rewriteFile(file *File) {
 	for _, decl := range file.DeclList {
 		r.rewriteDeclPre(decl)
 	}
+}
+
+func (r *overloadPreRewriter) isKnownTypeName(name string) bool {
+	if name == "" || r == nil || r.knownTypes == nil {
+		return false
+	}
+	name = stripGenericArgs(name)
+	return r.knownTypes[name]
+}
+
+// inferTypeNameFromTypeConversionPre recognizes type-conversion calls like `T(x)` and returns "T"
+// if T is a known type in this file's overload sets.
+func (r *overloadPreRewriter) inferTypeNameFromTypeConversionPre(call *CallExpr) string {
+	if call == nil || call.Fun == nil {
+		return ""
+	}
+	switch f := call.Fun.(type) {
+	case *Name:
+		if f != nil && r.isKnownTypeName(f.Value) {
+			return stripGenericArgs(f.Value)
+		}
+	case *IndexExpr:
+		// Generic instantiation: T[Args...](x) is also a type conversion in syntax form.
+		if f != nil {
+			if n, ok := f.X.(*Name); ok && n != nil && r.isKnownTypeName(n.Value) {
+				return stripGenericArgs(n.Value)
+			}
+		}
+	}
+	return ""
 }
 
 func (r *overloadPreRewriter) collectFuncReturnTypesPre(file *File) {
@@ -3627,6 +3672,13 @@ func (r *overloadPreRewriter) inferArgTypePre(arg Expr) string {
 	if arg == nil {
 		return "unknown"
 	}
+	// Recognize type conversions like Path("x") so overload selection can
+	// distinguish _div(string) vs _div(Path) etc.
+	if call, ok := arg.(*CallExpr); ok && call != nil {
+		if t := r.inferTypeNameFromTypeConversionPre(call); t != "" {
+			return t
+		}
+	}
 	if n, ok := arg.(*Name); ok && n != nil && r.varTypeStr != nil {
 		if t, ok := r.varTypeStr[n.Value]; ok && t != "" {
 			return t
@@ -3654,6 +3706,12 @@ func (r *overloadPreRewriter) inferReceiverBaseTypeFromExprPre(x Expr) string {
 	// Prefer tracked variable types when receiver is a name.
 	if n, ok := x.(*Name); ok && n != nil && r.varTypes != nil {
 		if t, ok := r.varTypes[n.Value]; ok && t != "" {
+			return stripGenericArgs(stripLeadingStar(t))
+		}
+	}
+	// Recognize type conversions used as receivers, e.g. Path("test")._div("x").
+	if call, ok := x.(*CallExpr); ok && call != nil {
+		if t := r.inferTypeNameFromTypeConversionPre(call); t != "" {
 			return stripGenericArgs(stripLeadingStar(t))
 		}
 	}
@@ -4003,7 +4061,7 @@ type arithOpRewriter struct {
 	// currentFuncRecvVar/currentFuncRecvType provide a fallback for Name-based type
 	// inference inside method bodies. This is used by strict magic index/slice
 	// rewriting (e.g. `recv[i, j]` -> `recv._getitem(...)`) which relies on
-	// tryInferStructTypeName.
+	// inferOperandTypeForArith.
 	currentFuncRecvVar  string
 	currentFuncRecvType string
 
@@ -4838,9 +4896,9 @@ func (r *arithOpRewriter) rewriteStmt(stmt Stmt) Stmt {
 		// (We expand before rewriteExpr so that the operator overloading logic applies.)
 		if s.Rhs != nil && s.Op != 0 && s.Op != Def {
 			if isCompoundAssignableOp(s.Op) {
-				recvType := r.tryInferStructTypeName(s.Lhs)
+				recvType := r.inferOperandTypeForArith(s.Lhs)
 				fwd, _ := arithMethodNamesForOp(s.Op)
-				if recvType != "" && fwd != "" && r.hasArithBinary(recvType, fwd, r.tryInferStructTypeName(s.Rhs)) {
+				if recvType != "" && fwd != "" && r.hasArithBinary(recvType, fwd, r.inferOperandTypeForArith(s.Rhs)) {
 					// Build: a = a <op> b
 					opExpr := new(Operation)
 					opExpr.SetPos(s.Pos())
@@ -4925,8 +4983,8 @@ func (r *arithOpRewriter) rewriteStmt(stmt Stmt) Stmt {
 		s.Chan, s.Value = ch, val
 
 		if !r.insideArithMethod {
-			recvType := r.tryInferStructTypeName(ch)
-			argType := r.tryInferStructTypeName(val)
+			recvType := r.inferOperandTypeForArith(ch)
+			argType := r.inferOperandTypeForArith(val)
 			if recvType != "" && r.hasArithBinary(recvType, "_send", argType) {
 				call := r.createMethodCall(s.Pos(), ch, "_send", []Expr{val})
 				es := new(ExprStmt)
@@ -5115,7 +5173,7 @@ func (r *arithOpRewriter) rewriteExpr(expr Expr) Expr {
 			x := r.rewriteExpr(e.X)
 			e.X = x
 
-			recvType := r.tryInferStructTypeName(x)
+			recvType := r.inferOperandTypeForArith(x)
 			if recvType == "" {
 				return e
 			}
@@ -5151,8 +5209,13 @@ func (r *arithOpRewriter) rewriteExpr(expr Expr) Expr {
 		right := r.rewriteExpr(e.Y)
 		e.X, e.Y = left, right
 
-		leftType := r.tryInferStructTypeName(left)
-		rightType := r.tryInferStructTypeName(right)
+		// For overload selection, we want a best-effort syntactic type string.
+		// tryInferStructTypeName is great for values with tracked types, but it returns ""
+		// for basic literals (e.g. "str"). Falling back to literal typing here enables
+		// choosing the correct suffixed overload name (e.g. "_div_string") when magic
+		// methods are overloaded/renamed.
+		leftType := r.inferOperandTypeForArith(left)
+		rightType := r.inferOperandTypeForArith(right)
 
 		// Comparisons: special mirror fallback.
 		if isComparisonOp(e.Op) {
@@ -5316,7 +5379,7 @@ func (r *arithOpRewriter) rewriteIncDecStmt(stmt *AssignStmt) Stmt {
 		stmt.Lhs = lhs
 		return stmt
 	}
-	lhsType := r.tryInferStructTypeName(lhs)
+	lhsType := r.inferOperandTypeForArith(lhs)
 	if lhsType == "" || !r.hasArithNoArg(lhsType, method) {
 		stmt.Lhs = lhs
 		return stmt
@@ -5378,11 +5441,11 @@ func (r *arithOpRewriter) hasArithBinary(recvType string, methodName string, arg
 			pt = pt[1:]
 		}
 		pt = stripGenericArgs(pt)
-		// any/interface{} accept any type
-		if pt == "any" || pt == "interface{}" {
-			return true
-		}
-		if stripGenericArgs(pt) == stripGenericArgs(argType) {
+		// Use the same pre-typecheck matching rules as overload selection:
+		// - exact match wins
+		// - untyped int literal ("int") can match int64/uint/... and (weaker) float32/float64
+		// - any/interface/unknown are permissive but low-tier
+		if _, ok := matchScorePre(pt, stripGenericArgs(argType)); ok {
 			return true
 		}
 	}
@@ -5414,7 +5477,11 @@ func (r *arithOpRewriter) resolveArithBinaryName(recvType string, methodBase str
 		return methodBase
 	}
 
-	// Prefer the first matching candidate by syntactic param type.
+	bestTier := -1
+	bestScore := -1
+	bestName := ""
+	at := stripGenericArgs(argType)
+	// Choose best match using matchScorePre/tierForMatchScorePre, consistent with overload ranking.
 	for _, fn := range cands {
 		if fn == nil || fn.Type == nil {
 			continue
@@ -5428,13 +5495,19 @@ func (r *arithOpRewriter) resolveArithBinaryName(recvType string, methodBase str
 			pt = pt[1:]
 		}
 		pt = stripGenericArgs(pt)
-		// any/interface{} accept any type
-		if pt == "any" || pt == "interface{}" {
-			return fn.Name.Value
+		score, ok := matchScorePre(pt, at)
+		if !ok {
+			continue
 		}
-		if stripGenericArgs(pt) == stripGenericArgs(argType) {
-			return fn.Name.Value
+		tier := tierForMatchScorePre(score)
+		if tier > bestTier || (tier == bestTier && score > bestScore) {
+			bestTier = tier
+			bestScore = score
+			bestName = fn.Name.Value
 		}
+	}
+	if bestName != "" {
+		return bestName
 	}
 	return methodBase
 }
@@ -5524,7 +5597,7 @@ func (r *arithOpRewriter) trackAssignmentTypes(names []*Name, values Expr) {
 		// Record syntactic type expression (e.g. x := make([]*T, n)) so that
 		// later indexing x[i] can infer element type for magic methods.
 		r.recordVarTypeExprFromValue(names[0].Value, values)
-		typeName := r.tryInferStructTypeName(values)
+		typeName := r.inferOperandTypeForArith(values)
 		if typeName != "" {
 			if r.typeSupportsOperators(typeName) {
 				r.varTypes[names[0].Value] = typeName
@@ -5538,7 +5611,7 @@ func (r *arithOpRewriter) trackAssignmentTypes(names []*Name, values Expr) {
 				break
 			}
 			r.recordVarTypeExprFromValue(n.Value, list.ElemList[i])
-			typeName := r.tryInferStructTypeName(list.ElemList[i])
+			typeName := r.inferOperandTypeForArith(list.ElemList[i])
 			if typeName != "" {
 				if r.typeSupportsOperators(typeName) {
 					r.varTypes[n.Value] = typeName
@@ -5677,27 +5750,27 @@ func (r *arithOpRewriter) tryInferStructTypeName(expr Expr) string {
 		// Otherwise, return as-written (e.g. "T").
 		return baseTypeNameFromTypeExpr(ft)
 	case *ParenExpr:
-		return r.tryInferStructTypeName(e.X)
+		return r.inferOperandTypeForArith(e.X)
 	case *Operation:
 		// &T{} or *p
 		if e.Y == nil {
 			if e.Op == And {
-				return r.tryInferStructTypeName(e.X)
+				return r.inferOperandTypeForArith(e.X)
 			}
 			if e.Op == Mul {
-				return r.tryInferStructTypeName(e.X)
+				return r.inferOperandTypeForArith(e.X)
 			}
 			return ""
 		}
 
 		switch e.Op {
 		case Add, Sub, Mul, Div, Rem, Or, And, Xor, Shl, Shr, AndNot:
-			if lt := r.tryInferStructTypeName(e.X); lt != "" {
+			if lt := r.inferOperandTypeForArith(e.X); lt != "" {
 				return lt
 			}
-			return r.tryInferStructTypeName(e.Y)
+			return r.inferOperandTypeForArith(e.Y)
 		case Recv:
-			return r.tryInferStructTypeName(e.X)
+			return r.inferOperandTypeForArith(e.X)
 		default:
 			return ""
 		}
@@ -5712,7 +5785,7 @@ func (r *arithOpRewriter) tryInferStructTypeName(expr Expr) string {
 		if sel, ok := e.Fun.(*SelectorExpr); ok && sel.Sel != nil {
 			baseMagic := operatorMagicBaseName(sel.Sel.Value)
 			if baseMagic != "" {
-				recvType := r.tryInferStructTypeName(sel.X)
+				recvType := r.inferOperandTypeForArith(sel.X)
 				if recvType != "" {
 					if rt := r.getMagicMethodReturnType(recvType, baseMagic); rt != "" {
 						return rt
@@ -5757,6 +5830,29 @@ func (r *arithOpRewriter) tryInferStructTypeName(expr Expr) string {
 	default:
 		return ""
 	}
+}
+
+// inferOperandTypeForArith tries to infer an operand type for arithmetic/magic operator
+// rewriting. It prefers "struct-ish" syntactic types tracked by tryInferStructTypeName,
+// but falls back to literal typing for basic literals (string/int/float/etc).
+//
+// This matters when magic methods are overloaded and therefore renamed with a suffix
+// (e.g. "_div_string"). Without recognizing basic literals, operator lowering like:
+//
+// may conservatively emit the base name "_div" (argType unknown), which no longer exists
+// after overload renaming, leading to "_div undefined".
+func (r *arithOpRewriter) inferOperandTypeForArith(expr Expr) string {
+	if t := r.tryInferStructTypeName(expr); t != "" {
+		return t
+	}
+	t := inferLiteralType(expr)
+	if t == "" || t == "unknown" {
+		return ""
+	}
+	if len(t) > 8 && t[:8] == "unknown:" {
+		return ""
+	}
+	return t
 }
 
 func (r *arithOpRewriter) substTypeParamsInFieldType(baseType string, fieldType Expr, args []Expr) string {
@@ -8516,7 +8612,7 @@ func rewriteDecoratedMethod(fn *FuncDecl) {
 	newBody.List = []Stmt{decoratedAssign}
 
 	// Add return statement if function has return values
-	if fn.Type.ResultList != nil && len(fn.Type.ResultList) > 0 {
+	if len(fn.Type.ResultList) > 0 {
 		returnStmt := new(ReturnStmt)
 		returnStmt.SetPos(pos)
 		returnStmt.Results = wrappedCall
