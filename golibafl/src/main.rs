@@ -21,10 +21,8 @@ use libafl::{
     stages::{mutational::StdMutationalStage, ShadowTracingStage, StdPowerMutationalStage},
     state::{HasCorpus, HasExecutions, HasSolutions, Stoppable, StdState},
     Error, HasMetadata,
-    monitors::{Monitor, stats::ClientStatsManager},
 };
 use libafl_bolts::{
-    ClientId,
     prelude::{Cores, StdShMemProvider},
     rands::StdRand,
     shmem::ShMemProvider,
@@ -47,35 +45,7 @@ use std::{panic, process::Command};
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
 
-#[derive(Debug)]
-struct StopOnObjectiveMonitor<M> {
-    inner: M,
-}
 
-impl<M> StopOnObjectiveMonitor<M> {
-    fn new(inner: M) -> Self {
-        Self { inner }
-    }
-}
-
-impl<M> Monitor for StopOnObjectiveMonitor<M>
-where
-    M: Monitor,
-{
-    fn display(
-        &mut self,
-        client_stats_manager: &mut ClientStatsManager,
-        event_msg: &str,
-        sender_id: ClientId,
-    ) -> Result<(), Error> {
-        self.inner
-            .display(client_stats_manager, event_msg, sender_id)?;
-        if event_msg == "Objective" {
-            return Err(Error::shutting_down());
-        }
-        Ok(())
-    }
-}
 
 // Command line arguments with clap
 #[derive(Subcommand, Debug, Clone)]
@@ -204,7 +174,22 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path) {
             })
             .unwrap_or(0)
     };
-    let initial_crash_inputs = count_crash_inputs(&crashes_dir);
+    let computed_initial_crash_inputs = count_crash_inputs(&crashes_dir);
+    // The fuzzer process may be respawned by LibAFL's restarting manager. Propagate the initial
+    // crash count across respawns so "stop on first crash" stays correct after a restart.
+    let initial_crash_inputs = match env::var("GOLIBAFL_INITIAL_CRASH_INPUTS")
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+    {
+        Some(v) => v,
+        None => {
+            env::set_var(
+                "GOLIBAFL_INITIAL_CRASH_INPUTS",
+                computed_initial_crash_inputs.to_string(),
+            );
+            computed_initial_crash_inputs
+        }
+    };
     let is_launcher_client = env::var_os("AFL_LAUNCHER_CLIENT").is_some();
     if initial_crash_inputs > 0 && !is_launcher_client {
         eprintln!(
@@ -235,7 +220,7 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path) {
     }
     let shmem_provider =
         StdShMemProvider::new().unwrap_or_else(|err| panic!("Failed to init shared memory: {err:?}"));
-    let monitor = StopOnObjectiveMonitor::new(SimpleMonitor::new(|s| println!("{s}")));
+    let monitor = SimpleMonitor::new(|s| println!("{s}"));
 
     let mut run_client =
         |state: Option<_>,
@@ -436,8 +421,22 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path) {
 
             let monitor_timeout = Duration::from_secs(15);
             loop {
-                restarting_mgr.maybe_report_progress(&mut state, monitor_timeout)?;
-                fuzzer.fuzz_one(&mut stages, &mut executor, &mut state, &mut restarting_mgr)?;
+                if let Err(err) = restarting_mgr.maybe_report_progress(&mut state, monitor_timeout)
+                {
+                    if matches!(err, Error::ShuttingDown) {
+                        restarting_mgr.on_shutdown()?;
+                    }
+                    return Err(err);
+                }
+
+                if let Err(err) =
+                    fuzzer.fuzz_one(&mut stages, &mut executor, &mut state, &mut restarting_mgr)
+                {
+                    if matches!(err, Error::ShuttingDown) {
+                        restarting_mgr.on_shutdown()?;
+                    }
+                    return Err(err);
+                }
 
                 if state.solutions().count() > initial_solutions {
                     let executions = *state.executions();
@@ -470,12 +469,15 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path) {
     let crash_inputs = count_crash_inputs(&crashes_dir);
 
     if crash_inputs > initial_crash_inputs {
-        eprintln!(
-            "Found {} crashing input(s). Saved to {}",
-            crash_inputs - initial_crash_inputs,
-            crashes_dir.display()
-        );
-        std::process::exit(1);
+        if !is_launcher_client {
+            eprintln!(
+                "Found {} crashing input(s). Saved to {}",
+                crash_inputs - initial_crash_inputs,
+                crashes_dir.display()
+            );
+            std::process::exit(1);
+        }
+        return;
     }
 
     if matches!(launch_res, Err(Error::ShuttingDown)) {
