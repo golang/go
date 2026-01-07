@@ -281,7 +281,7 @@ control the execution of any test:
 	    (for example, -fuzzminimizetime 100x).
 
 	-use-libafl
-	    When -fuzz is set, use the LibAFL-based runner shipped with CyberGo
+	    When -fuzz is set, use the LibAFL-based runner shipped with cybergo
 	    instead of Go's native fuzzing engine.
 
 	-json

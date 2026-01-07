@@ -1,8 +1,8 @@
-# CyberGo
+# cybergo
 
-[![CyberGo --use-libafl smoke](https://github.com/kevin-valerio/cybergo/actions/workflows/smoke_use_libafl.yml/badge.svg?branch=master)](https://github.com/kevin-valerio/cybergo/actions/workflows/smoke_use_libafl.yml)
+[![cybergo --use-libafl smoke](https://github.com/kevin-valerio/cybergo/actions/workflows/smoke_use_libafl.yml/badge.svg?branch=master)](https://github.com/kevin-valerio/cybergo/actions/workflows/smoke_use_libafl.yml)
 
-CyberGo is a security-focused fork of the Go toolchain.
+cybergo is a security-focused fork of the Go toolchain.
 
 The goal of this fork is to integrate `go-libafl` (the Rust code in `golibafl/`) into the Go toolchain so you can run **standard Go fuzz tests** (`go test -fuzz=...`) with LibAFL by adding a flag:
 

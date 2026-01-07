@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Common helpers for the CyberGo --use-libafl smoke tests.
+# Common helpers for the cybergo --use-libafl smoke tests.
 #
 # Expected environment:
 # - ROOT_DIR: repo root

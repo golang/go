@@ -256,7 +256,7 @@ func supportedFuzzTypeRec(t reflect.Type, depth int, seen map[reflect.Type]bool)
 // The following types are allowed: []byte, string, bool, byte, rune, float32,
 // float64, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64.
 //
-// In CyberGo, composite types built from the above (structs, arrays, slices,
+// In cybergo, composite types built from the above (structs, arrays, slices,
 // and pointers) are also supported. These are fuzzed by decoding values from a
 // raw byte stream.
 //
@@ -306,7 +306,7 @@ func (f *F) Fuzz(ff any) {
 		types = append(types, t)
 	}
 
-	// In CyberGo's LibAFL mode, we don't start the native fuzzing engine here.
+	// In cybergo's LibAFL mode, we don't start the native fuzzing engine here.
 	// Instead, capture the fuzz callback so it can be invoked via the libFuzzer
 	// entrypoint exported from the test main package.
 	if libaflCapture(fn, types) {

@@ -1,6 +1,6 @@
-# CyberGo: `go test -fuzz --use-libafl`
+# cybergo: `go test -fuzz --use-libafl`
 
-CyberGo contains:
+cybergo contains:
 
 - `./`: a fork of the Go toolchain
 - `golibafl/`: a LibAFL-based fuzzer that can fuzz Go code in-process via a libFuzzer-style entrypoint.
@@ -46,7 +46,7 @@ Instead it builds a **libFuzzer-compatible harness** and runs the Rust LibAFL ru
 
 ### 1) `go test` builds a libFuzzer harness archive (`libharness.a`)
 
-For the test package’s generated main package (`_testmain.go`), CyberGo also generates an extra file (`_libaflmain.go`) and switches the link mode:
+For the test package’s generated main package (`_testmain.go`), cybergo also generates an extra file (`_libaflmain.go`) and switches the link mode:
 
 - buildmode: `c-archive` → produces a static archive: `libharness.a`
 - exports:
@@ -82,7 +82,7 @@ with:
 
 ### 4) Output directories
 
-CyberGo reuses Go’s fuzz cache root (roughly `$(go env GOCACHE)/fuzz`).
+cybergo reuses Go’s fuzz cache root (roughly `$(go env GOCACHE)/fuzz`).
 
 For a package import path `example.com/mod/pkg`, LibAFL output goes under:
 
@@ -98,7 +98,7 @@ If the chosen `-i` directory is empty, `golibafl` generates a small random initi
 
 ## Current limitations
 
-- Supports **multiple parameters** and CyberGo’s fuzzable types:
+- Supports **multiple parameters** and cybergo’s fuzzable types:
   - all of Go’s native fuzzing primitives (`[]byte`, `string`, `bool`, `byte`, `rune`, `float32`, `float64`, `int*`, `uint*`)
   - composite types built from those (`struct`, `array`, `slice`, `*T`), recursively
 

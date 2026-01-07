@@ -1,6 +1,6 @@
-# CyberGo
+# cybergo
 
-CyberGo is a security-focused fork of the Go toolchain that adds an opt-in path to run **standard Go fuzz tests** (`go test -fuzz=...`) using the LibAFL-based runner in `golibafl/`.
+cybergo is a security-focused fork of the Go toolchain that adds an opt-in path to run **standard Go fuzz tests** (`go test -fuzz=...`) using the LibAFL-based runner in `golibafl/`.
 
 ## Quick start
 

@@ -44,7 +44,7 @@ const (
 	libaflMaxDepth        = 32
 )
 
-// LibAFLInit initializes CyberGo's LibAFL fuzz harness for the given fuzz test.
+// LibAFLInit initializes cybergo's LibAFL fuzz harness for the given fuzz test.
 // This is used by the generated test main when 'go test -fuzz ... -use-libafl'
 // is set.
 func LibAFLInit(name string, fuzzFn func(*F)) error {
