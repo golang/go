@@ -54,6 +54,10 @@ func cancel(sigs []os.Signal, action func(int)) {
 	defer handlers.Unlock()
 
 	remove := func(n int) {
+		if n < 0 {
+			return
+		}
+
 		var zerohandler handler
 
 		for c, h := range handlers.m {
@@ -127,19 +131,27 @@ func Notify(c chan<- os.Signal, sig ...os.Signal) {
 	handlers.Lock()
 	defer handlers.Unlock()
 
-	h := handlers.m[c]
-	if h == nil {
-		if handlers.m == nil {
-			handlers.m = make(map[chan<- os.Signal]*handler)
+	// Lazily create the handler. If all of the signals are bogus there is
+	// no need to install a handler at all.
+	getHandler := func() *handler {
+		h := handlers.m[c]
+		if h == nil {
+			if handlers.m == nil {
+				handlers.m = make(map[chan<- os.Signal]*handler)
+			}
+			h = new(handler)
+			handlers.m[c] = h
 		}
-		h = new(handler)
-		handlers.m[c] = h
+
+		return h
 	}
 
 	add := func(n int) {
 		if n < 0 {
 			return
 		}
+
+		h := getHandler()
 		if !h.want(n) {
 			h.set(n)
 			if handlers.ref[n] == 0 {
