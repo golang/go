@@ -3,19 +3,15 @@
 [![cybergo --use-libafl smoke](https://github.com/kevin-valerio/cybergo/actions/workflows/smoke_use_libafl.yml/badge.svg?branch=master)](https://github.com/kevin-valerio/cybergo/actions/workflows/smoke_use_libafl.yml)
 [![cybergo panikint self-compile and test](https://github.com/kevin-valerio/cybergo/actions/workflows/go.yml/badge.svg?branch=master)](https://github.com/kevin-valerio/cybergo/actions/workflows/go.yml)
 
-cybergo is a security-focused fork of the Go toolchain. For now, it focuses on two things:
+cybergo is a security-focused fork of the Go toolchain. In a _very_ simple phrasing, cybergo is a copy of the Go compiler that finds bugs. For now, it focuses on two things:
 
-- Integrating [go-panikint](https://github.com/trailofbits/go-panikint): instrumentation that panics on integer overflow/underflow (and optionally on truncating integer conversions).
-- Integrating LibAFL fuzzer : run standard `go test -fuzz=FuzzHarness` harnesses with LibAFL for better fuzzing performances.
-
-In a (_way more_) simple phrasing, cybergo is a copy of the Go compiler that finds bugs.
+- Integrating [go-panikint](https://github.com/trailofbits/go-panikint): instrumentation that panics on **integer overflow/underflow** (and **optionally on truncating integer conversions**).
+- Integrating [LibAFL](https://github.com/AFLplusplus/LibAFL) fuzzer : run Go fuzzing harnesses with **LibAFL** for better fuzzing performances.
 
 ## Build
 ```bash
-cd src && ./make.bash
+cd src && ./make.bash # this produces `./bin/go`
 ```
-
-This produces `bin/go`.
 
 ## Feature 1: integer overflow and truncation issues detection
 
@@ -60,6 +56,17 @@ Using the `--use-libafl` flag runs standard Go fuzz tests (`go test -fuzz=...`) 
 ./bin/go test -fuzz=FuzzXxx --use-libafl
 ```
 Without `--use-libafl`, `go test -fuzz` behaves like upstream Go.
+
+#### LibAFL (Go) benchmarks
+
+LibAFL performs *way* better than the traditional Go fuzzer.
+
+
+##### Benchmark 1:
+
+The chart below is the evolution of the number of lines covered while fuzzing Google's [UUID](https://github.com/google/uuid) using LibAFL vs go compiler.
+![BENCH1](misc/cybergo/5min_uuid_parsebytes_FuzzParseBytes.png "BENCH1")
+
 
 #### Example
 You can test it on some fuzzing harnesses in `test/cybergo/examples/`.
