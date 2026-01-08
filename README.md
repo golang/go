@@ -48,7 +48,7 @@ x2 := uint8(big) // truncation_false_positive
 ```
 
 
-## Feature 2: LibAFL
+## Feature 2: LibAFL state-of-the-art fuzzing
 
 Using the `--use-libafl` flag runs standard Go fuzz tests (`go test -fuzz=...`) **with** [LibAFL](https://github.com/AFLplusplus/LibAFL). The runner is implemented in `golibafl/`.
 
