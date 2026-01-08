@@ -805,191 +805,197 @@ func (x Uint16x16) Average(y Uint16x16) Uint16x16
 // Asm: VPAVGW, CPU Feature: AVX512
 func (x Uint16x32) Average(y Uint16x32) Uint16x32
 
-/* Broadcast128 */
+/* Broadcast1To2 */
 
-// Broadcast128 copies element zero of its (128-bit) input to all elements of
-// the 128-bit output vector.
+// Broadcast1To2 copies the lowest element of its input to all 2 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTQ, CPU Feature: AVX2
+func (x Float64x2) Broadcast1To2() Float64x2
+
+// Broadcast1To2 copies the lowest element of its input to all 2 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTQ, CPU Feature: AVX2
+func (x Int64x2) Broadcast1To2() Int64x2
+
+// Broadcast1To2 copies the lowest element of its input to all 2 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTQ, CPU Feature: AVX2
+func (x Uint64x2) Broadcast1To2() Uint64x2
+
+/* Broadcast1To4 */
+
+// Broadcast1To4 copies the lowest element of its input to all 4 elements of
+// the output vector.
 //
 // Asm: VBROADCASTSS, CPU Feature: AVX2
-func (x Float32x4) Broadcast128() Float32x4
+func (x Float32x4) Broadcast1To4() Float32x4
 
-// Broadcast128 copies element zero of its (128-bit) input to all elements of
-// the 128-bit output vector.
-//
-// Asm: VPBROADCASTQ, CPU Feature: AVX2
-func (x Float64x2) Broadcast128() Float64x2
-
-// Broadcast128 copies element zero of its (128-bit) input to all elements of
-// the 128-bit output vector.
-//
-// Asm: VPBROADCASTB, CPU Feature: AVX2
-func (x Int8x16) Broadcast128() Int8x16
-
-// Broadcast128 copies element zero of its (128-bit) input to all elements of
-// the 128-bit output vector.
-//
-// Asm: VPBROADCASTW, CPU Feature: AVX2
-func (x Int16x8) Broadcast128() Int16x8
-
-// Broadcast128 copies element zero of its (128-bit) input to all elements of
-// the 128-bit output vector.
-//
-// Asm: VPBROADCASTD, CPU Feature: AVX2
-func (x Int32x4) Broadcast128() Int32x4
-
-// Broadcast128 copies element zero of its (128-bit) input to all elements of
-// the 128-bit output vector.
-//
-// Asm: VPBROADCASTQ, CPU Feature: AVX2
-func (x Int64x2) Broadcast128() Int64x2
-
-// Broadcast128 copies element zero of its (128-bit) input to all elements of
-// the 128-bit output vector.
-//
-// Asm: VPBROADCASTB, CPU Feature: AVX2
-func (x Uint8x16) Broadcast128() Uint8x16
-
-// Broadcast128 copies element zero of its (128-bit) input to all elements of
-// the 128-bit output vector.
-//
-// Asm: VPBROADCASTW, CPU Feature: AVX2
-func (x Uint16x8) Broadcast128() Uint16x8
-
-// Broadcast128 copies element zero of its (128-bit) input to all elements of
-// the 128-bit output vector.
-//
-// Asm: VPBROADCASTD, CPU Feature: AVX2
-func (x Uint32x4) Broadcast128() Uint32x4
-
-// Broadcast128 copies element zero of its (128-bit) input to all elements of
-// the 128-bit output vector.
-//
-// Asm: VPBROADCASTQ, CPU Feature: AVX2
-func (x Uint64x2) Broadcast128() Uint64x2
-
-/* Broadcast256 */
-
-// Broadcast256 copies element zero of its (128-bit) input to all elements of
-// the 256-bit output vector.
-//
-// Asm: VBROADCASTSS, CPU Feature: AVX2
-func (x Float32x4) Broadcast256() Float32x8
-
-// Broadcast256 copies element zero of its (128-bit) input to all elements of
-// the 256-bit output vector.
+// Broadcast1To4 copies the lowest element of its input to all 4 elements of
+// the output vector.
 //
 // Asm: VBROADCASTSD, CPU Feature: AVX2
-func (x Float64x2) Broadcast256() Float64x4
+func (x Float64x2) Broadcast1To4() Float64x4
 
-// Broadcast256 copies element zero of its (128-bit) input to all elements of
-// the 256-bit output vector.
-//
-// Asm: VPBROADCASTB, CPU Feature: AVX2
-func (x Int8x16) Broadcast256() Int8x32
-
-// Broadcast256 copies element zero of its (128-bit) input to all elements of
-// the 256-bit output vector.
-//
-// Asm: VPBROADCASTW, CPU Feature: AVX2
-func (x Int16x8) Broadcast256() Int16x16
-
-// Broadcast256 copies element zero of its (128-bit) input to all elements of
-// the 256-bit output vector.
+// Broadcast1To4 copies the lowest element of its input to all 4 elements of
+// the output vector.
 //
 // Asm: VPBROADCASTD, CPU Feature: AVX2
-func (x Int32x4) Broadcast256() Int32x8
+func (x Int32x4) Broadcast1To4() Int32x4
 
-// Broadcast256 copies element zero of its (128-bit) input to all elements of
-// the 256-bit output vector.
+// Broadcast1To4 copies the lowest element of its input to all 4 elements of
+// the output vector.
 //
 // Asm: VPBROADCASTQ, CPU Feature: AVX2
-func (x Int64x2) Broadcast256() Int64x4
+func (x Int64x2) Broadcast1To4() Int64x4
 
-// Broadcast256 copies element zero of its (128-bit) input to all elements of
-// the 256-bit output vector.
-//
-// Asm: VPBROADCASTB, CPU Feature: AVX2
-func (x Uint8x16) Broadcast256() Uint8x32
-
-// Broadcast256 copies element zero of its (128-bit) input to all elements of
-// the 256-bit output vector.
-//
-// Asm: VPBROADCASTW, CPU Feature: AVX2
-func (x Uint16x8) Broadcast256() Uint16x16
-
-// Broadcast256 copies element zero of its (128-bit) input to all elements of
-// the 256-bit output vector.
+// Broadcast1To4 copies the lowest element of its input to all 4 elements of
+// the output vector.
 //
 // Asm: VPBROADCASTD, CPU Feature: AVX2
-func (x Uint32x4) Broadcast256() Uint32x8
+func (x Uint32x4) Broadcast1To4() Uint32x4
 
-// Broadcast256 copies element zero of its (128-bit) input to all elements of
-// the 256-bit output vector.
+// Broadcast1To4 copies the lowest element of its input to all 4 elements of
+// the output vector.
 //
 // Asm: VPBROADCASTQ, CPU Feature: AVX2
-func (x Uint64x2) Broadcast256() Uint64x4
+func (x Uint64x2) Broadcast1To4() Uint64x4
 
-/* Broadcast512 */
+/* Broadcast1To8 */
 
-// Broadcast512 copies element zero of its (128-bit) input to all elements of
-// the 512-bit output vector.
+// Broadcast1To8 copies the lowest element of its input to all 8 elements of
+// the output vector.
 //
-// Asm: VBROADCASTSS, CPU Feature: AVX512
-func (x Float32x4) Broadcast512() Float32x16
+// Asm: VBROADCASTSS, CPU Feature: AVX2
+func (x Float32x4) Broadcast1To8() Float32x8
 
-// Broadcast512 copies element zero of its (128-bit) input to all elements of
-// the 512-bit output vector.
+// Broadcast1To8 copies the lowest element of its input to all 8 elements of
+// the output vector.
 //
 // Asm: VBROADCASTSD, CPU Feature: AVX512
-func (x Float64x2) Broadcast512() Float64x8
+func (x Float64x2) Broadcast1To8() Float64x8
 
-// Broadcast512 copies element zero of its (128-bit) input to all elements of
-// the 512-bit output vector.
+// Broadcast1To8 copies the lowest element of its input to all 8 elements of
+// the output vector.
 //
-// Asm: VPBROADCASTB, CPU Feature: AVX512
-func (x Int8x16) Broadcast512() Int8x64
+// Asm: VPBROADCASTW, CPU Feature: AVX2
+func (x Int16x8) Broadcast1To8() Int16x8
 
-// Broadcast512 copies element zero of its (128-bit) input to all elements of
-// the 512-bit output vector.
+// Broadcast1To8 copies the lowest element of its input to all 8 elements of
+// the output vector.
 //
-// Asm: VPBROADCASTW, CPU Feature: AVX512
-func (x Int16x8) Broadcast512() Int16x32
+// Asm: VPBROADCASTD, CPU Feature: AVX2
+func (x Int32x4) Broadcast1To8() Int32x8
 
-// Broadcast512 copies element zero of its (128-bit) input to all elements of
-// the 512-bit output vector.
-//
-// Asm: VPBROADCASTD, CPU Feature: AVX512
-func (x Int32x4) Broadcast512() Int32x16
-
-// Broadcast512 copies element zero of its (128-bit) input to all elements of
-// the 512-bit output vector.
+// Broadcast1To8 copies the lowest element of its input to all 8 elements of
+// the output vector.
 //
 // Asm: VPBROADCASTQ, CPU Feature: AVX512
-func (x Int64x2) Broadcast512() Int64x8
+func (x Int64x2) Broadcast1To8() Int64x8
 
-// Broadcast512 copies element zero of its (128-bit) input to all elements of
-// the 512-bit output vector.
+// Broadcast1To8 copies the lowest element of its input to all 8 elements of
+// the output vector.
 //
-// Asm: VPBROADCASTB, CPU Feature: AVX512
-func (x Uint8x16) Broadcast512() Uint8x64
+// Asm: VPBROADCASTW, CPU Feature: AVX2
+func (x Uint16x8) Broadcast1To8() Uint16x8
 
-// Broadcast512 copies element zero of its (128-bit) input to all elements of
-// the 512-bit output vector.
+// Broadcast1To8 copies the lowest element of its input to all 8 elements of
+// the output vector.
 //
-// Asm: VPBROADCASTW, CPU Feature: AVX512
-func (x Uint16x8) Broadcast512() Uint16x32
+// Asm: VPBROADCASTD, CPU Feature: AVX2
+func (x Uint32x4) Broadcast1To8() Uint32x8
 
-// Broadcast512 copies element zero of its (128-bit) input to all elements of
-// the 512-bit output vector.
-//
-// Asm: VPBROADCASTD, CPU Feature: AVX512
-func (x Uint32x4) Broadcast512() Uint32x16
-
-// Broadcast512 copies element zero of its (128-bit) input to all elements of
-// the 512-bit output vector.
+// Broadcast1To8 copies the lowest element of its input to all 8 elements of
+// the output vector.
 //
 // Asm: VPBROADCASTQ, CPU Feature: AVX512
-func (x Uint64x2) Broadcast512() Uint64x8
+func (x Uint64x2) Broadcast1To8() Uint64x8
+
+/* Broadcast1To16 */
+
+// Broadcast1To16 copies the lowest element of its input to all 16 elements of
+// the output vector.
+//
+// Asm: VBROADCASTSS, CPU Feature: AVX512
+func (x Float32x4) Broadcast1To16() Float32x16
+
+// Broadcast1To16 copies the lowest element of its input to all 16 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTB, CPU Feature: AVX2
+func (x Int8x16) Broadcast1To16() Int8x16
+
+// Broadcast1To16 copies the lowest element of its input to all 16 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTW, CPU Feature: AVX2
+func (x Int16x8) Broadcast1To16() Int16x16
+
+// Broadcast1To16 copies the lowest element of its input to all 16 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTD, CPU Feature: AVX512
+func (x Int32x4) Broadcast1To16() Int32x16
+
+// Broadcast1To16 copies the lowest element of its input to all 16 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTB, CPU Feature: AVX2
+func (x Uint8x16) Broadcast1To16() Uint8x16
+
+// Broadcast1To16 copies the lowest element of its input to all 16 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTW, CPU Feature: AVX2
+func (x Uint16x8) Broadcast1To16() Uint16x16
+
+// Broadcast1To16 copies the lowest element of its input to all 16 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTD, CPU Feature: AVX512
+func (x Uint32x4) Broadcast1To16() Uint32x16
+
+/* Broadcast1To32 */
+
+// Broadcast1To32 copies the lowest element of its input to all 32 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTB, CPU Feature: AVX2
+func (x Int8x16) Broadcast1To32() Int8x32
+
+// Broadcast1To32 copies the lowest element of its input to all 32 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTW, CPU Feature: AVX512
+func (x Int16x8) Broadcast1To32() Int16x32
+
+// Broadcast1To32 copies the lowest element of its input to all 32 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTB, CPU Feature: AVX2
+func (x Uint8x16) Broadcast1To32() Uint8x32
+
+// Broadcast1To32 copies the lowest element of its input to all 32 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTW, CPU Feature: AVX512
+func (x Uint16x8) Broadcast1To32() Uint16x32
+
+/* Broadcast1To64 */
+
+// Broadcast1To64 copies the lowest element of its input to all 64 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTB, CPU Feature: AVX512
+func (x Int8x16) Broadcast1To64() Int8x64
+
+// Broadcast1To64 copies the lowest element of its input to all 64 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTB, CPU Feature: AVX512
+func (x Uint8x16) Broadcast1To64() Uint8x64
 
 /* Ceil */
 
