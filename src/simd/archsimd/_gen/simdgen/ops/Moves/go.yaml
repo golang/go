@@ -376,21 +376,21 @@
   out:
   - *any
 
-- go: Broadcast128
-  asm: VPBROADCAST[BWDQ]
+- go: Broadcast1To2
+  asm: VPBROADCASTQ
   in:
   - class: vreg
     bits: 128
-    elemBits: $e
+    elemBits: 64
     base: $b
   out:
   - class: vreg
     bits: 128
-    elemBits: $e
+    elemBits: 64
     base: $b
 
 # weirdly, this one case on AVX2 is memory-operand-only
-- go: Broadcast128
+- go: Broadcast1To2
   asm: VPBROADCASTQ
   in:
   - class: vreg
@@ -405,70 +405,93 @@
     base: int
     OverwriteBase: float
 
-- go: Broadcast256
+- go: Broadcast1To4
   asm: VPBROADCAST[BWDQ]
   in:
   - class: vreg
     bits: 128
-    elemBits: $e
     base: $b
   out:
   - class: vreg
-    bits: 256
-    elemBits: $e
+    lanes: 4
     base: $b
 
-- go: Broadcast512
+- go: Broadcast1To8
   asm: VPBROADCAST[BWDQ]
   in:
   - class: vreg
     bits: 128
-    elemBits: $e
     base: $b
   out:
   - class: vreg
-    bits: 512
-    elemBits: $e
+    lanes: 8
     base: $b
 
-- go: Broadcast128
+- go: Broadcast1To16
+  asm: VPBROADCAST[BWDQ]
+  in:
+  - class: vreg
+    bits: 128
+    base: $b
+  out:
+  - class: vreg
+    lanes: 16
+    base: $b
+
+- go: Broadcast1To32
+  asm: VPBROADCAST[BWDQ]
+  in:
+  - class: vreg
+    bits: 128
+    base: $b
+  out:
+  - class: vreg
+    lanes: 32
+    base: $b
+
+- go: Broadcast1To64
+  asm: VPBROADCASTB
+  in:
+  - class: vreg
+    bits: 128
+    base: $b
+  out:
+  - class: vreg
+    lanes: 64
+    base: $b
+
+- go: Broadcast1To4
   asm: VBROADCASTS[SD]
   in:
   - class: vreg
     bits: 128
-    elemBits: $e
-    base: $b
+    base: float
   out:
   - class: vreg
-    bits: 128
-    elemBits: $e
-    base: $b
+    lanes: 4
+    base: float
 
-- go: Broadcast256
+- go: Broadcast1To8
   asm: VBROADCASTS[SD]
   in:
   - class: vreg
     bits: 128
-    elemBits: $e
-    base: $b
+    base: float
   out:
   - class: vreg
-    bits: 256
-    elemBits: $e
-    base: $b
+    lanes: 8
+    base: float
 
-- go: Broadcast512
+- go: Broadcast1To16
   asm: VBROADCASTS[SD]
   in:
   - class: vreg
     bits: 128
-    elemBits: $e
-    base: $b
+    base: float
   out:
   - class: vreg
-    bits: 512
-    elemBits: $e
-    base: $b
+    lanes: 16
+    base: float
 
 # VPSHUFB for 128-bit byte shuffles will be picked with higher priority than VPERMB, given its lower CPU feature requirement. (It's AVX)
 - go: PermuteOrZero

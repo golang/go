@@ -873,7 +873,7 @@ var broadcastTemplate = templateOf("Broadcast functions", `
 // Emulated, CPU Feature: {{.CPUfeatureBC}}
 func Broadcast{{.VType}}(x {{.Etype}}) {{.VType}} {
 	var z {{.As128BitVec }}
-	return z.SetElem(0, x).Broadcast{{.Vwidth}}()
+	return z.SetElem(0, x).Broadcast1To{{.Count}}()
 }
 `)
 
