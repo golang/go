@@ -6309,36 +6309,36 @@ const (
 	OpAverageUint16x8
 	OpAverageUint16x16
 	OpAverageUint16x32
-	OpBroadcast128Float32x4
-	OpBroadcast128Float64x2
-	OpBroadcast128Int8x16
-	OpBroadcast128Int16x8
-	OpBroadcast128Int32x4
-	OpBroadcast128Int64x2
-	OpBroadcast128Uint8x16
-	OpBroadcast128Uint16x8
-	OpBroadcast128Uint32x4
-	OpBroadcast128Uint64x2
-	OpBroadcast256Float32x4
-	OpBroadcast256Float64x2
-	OpBroadcast256Int8x16
-	OpBroadcast256Int16x8
-	OpBroadcast256Int32x4
-	OpBroadcast256Int64x2
-	OpBroadcast256Uint8x16
-	OpBroadcast256Uint16x8
-	OpBroadcast256Uint32x4
-	OpBroadcast256Uint64x2
-	OpBroadcast512Float32x4
-	OpBroadcast512Float64x2
-	OpBroadcast512Int8x16
-	OpBroadcast512Int16x8
-	OpBroadcast512Int32x4
-	OpBroadcast512Int64x2
-	OpBroadcast512Uint8x16
-	OpBroadcast512Uint16x8
-	OpBroadcast512Uint32x4
-	OpBroadcast512Uint64x2
+	OpBroadcast1To2Float64x2
+	OpBroadcast1To2Int64x2
+	OpBroadcast1To2Uint64x2
+	OpBroadcast1To4Float32x4
+	OpBroadcast1To4Float64x2
+	OpBroadcast1To4Int32x4
+	OpBroadcast1To4Int64x2
+	OpBroadcast1To4Uint32x4
+	OpBroadcast1To4Uint64x2
+	OpBroadcast1To8Float32x4
+	OpBroadcast1To8Float64x2
+	OpBroadcast1To8Int16x8
+	OpBroadcast1To8Int32x4
+	OpBroadcast1To8Int64x2
+	OpBroadcast1To8Uint16x8
+	OpBroadcast1To8Uint32x4
+	OpBroadcast1To8Uint64x2
+	OpBroadcast1To16Float32x4
+	OpBroadcast1To16Int8x16
+	OpBroadcast1To16Int16x8
+	OpBroadcast1To16Int32x4
+	OpBroadcast1To16Uint8x16
+	OpBroadcast1To16Uint16x8
+	OpBroadcast1To16Uint32x4
+	OpBroadcast1To32Int8x16
+	OpBroadcast1To32Int16x8
+	OpBroadcast1To32Uint8x16
+	OpBroadcast1To32Uint16x8
+	OpBroadcast1To64Int8x16
+	OpBroadcast1To64Uint8x16
 	OpCeilFloat32x4
 	OpCeilFloat32x8
 	OpCeilFloat64x2
@@ -89875,152 +89875,152 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:    "Broadcast128Float32x4",
+		name:    "Broadcast1To2Float64x2",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "Broadcast128Float64x2",
+		name:    "Broadcast1To2Int64x2",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "Broadcast128Int8x16",
+		name:    "Broadcast1To2Uint64x2",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "Broadcast128Int16x8",
+		name:    "Broadcast1To4Float32x4",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "Broadcast128Int32x4",
+		name:    "Broadcast1To4Float64x2",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "Broadcast128Int64x2",
+		name:    "Broadcast1To4Int32x4",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "Broadcast128Uint8x16",
+		name:    "Broadcast1To4Int64x2",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "Broadcast128Uint16x8",
+		name:    "Broadcast1To4Uint32x4",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "Broadcast128Uint32x4",
+		name:    "Broadcast1To4Uint64x2",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "Broadcast128Uint64x2",
+		name:    "Broadcast1To8Float32x4",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "Broadcast256Float32x4",
+		name:    "Broadcast1To8Float64x2",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "Broadcast256Float64x2",
+		name:    "Broadcast1To8Int16x8",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "Broadcast256Int8x16",
+		name:    "Broadcast1To8Int32x4",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "Broadcast256Int16x8",
+		name:    "Broadcast1To8Int64x2",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "Broadcast256Int32x4",
+		name:    "Broadcast1To8Uint16x8",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "Broadcast256Int64x2",
+		name:    "Broadcast1To8Uint32x4",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "Broadcast256Uint8x16",
+		name:    "Broadcast1To8Uint64x2",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "Broadcast256Uint16x8",
+		name:    "Broadcast1To16Float32x4",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "Broadcast256Uint32x4",
+		name:    "Broadcast1To16Int8x16",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "Broadcast256Uint64x2",
+		name:    "Broadcast1To16Int16x8",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "Broadcast512Float32x4",
+		name:    "Broadcast1To16Int32x4",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "Broadcast512Float64x2",
+		name:    "Broadcast1To16Uint8x16",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "Broadcast512Int8x16",
+		name:    "Broadcast1To16Uint16x8",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "Broadcast512Int16x8",
+		name:    "Broadcast1To16Uint32x4",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "Broadcast512Int32x4",
+		name:    "Broadcast1To32Int8x16",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "Broadcast512Int64x2",
+		name:    "Broadcast1To32Int16x8",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "Broadcast512Uint8x16",
+		name:    "Broadcast1To32Uint8x16",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "Broadcast512Uint16x8",
+		name:    "Broadcast1To32Uint16x8",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "Broadcast512Uint32x4",
+		name:    "Broadcast1To64Int8x16",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "Broadcast512Uint64x2",
+		name:    "Broadcast1To64Uint8x16",
 		argLen:  1,
 		generic: true,
 	},
