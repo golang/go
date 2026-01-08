@@ -6209,31 +6209,40 @@ func (s *state) intMul(n ir.Node, a, b *ssa.Value) *ssa.Value {
 	// Either operand is zero - no overflow possible
 	eitherZero := s.newValue2(ssa.OpOrB, types.Types[types.TBOOL], aIsZero, bIsZero)
 
-	// If either operand is zero, no overflow is possible and we must not evaluate result/a
-	// (it would divide by zero when a == 0).
-	bMul := s.endBlock()
-	bMul.Kind = ssa.BlockIf
-	bMul.Likely = ssa.BranchUnlikely
-	bMul.SetControl(eitherZero)
+	// Skip the division-based check when either operand is zero to avoid divide-by-zero traps.
+	b0 := s.endBlock()
+	b0.Kind = ssa.BlockIf
+	b0.Likely = ssa.BranchUnlikely
+	b0.SetControl(eitherZero)
 	bZero := s.f.NewBlock(ssa.BlockPlain)
-	bNonZero := s.f.NewBlock(ssa.BlockPlain)
-	bDone := s.f.NewBlock(ssa.BlockPlain)
-	bMul.AddEdgeTo(bZero)
-	bMul.AddEdgeTo(bNonZero)
+	bCheck := s.f.NewBlock(ssa.BlockPlain)
+	bAfter := s.f.NewBlock(ssa.BlockPlain)
+	b0.AddEdgeTo(bZero)
+	b0.AddEdgeTo(bCheck)
 
-	s.startBlock(bZero)
-	s.endBlock().AddEdgeTo(bDone)
+	quotientOkVar := ssaMarker("mulQuotientOk")
 
-	s.startBlock(bNonZero)
+	s.startBlock(bCheck)
 	// For non-zero operands, check if result/a == b.
 	quotientA := s.newValue2(s.ssaOp(ir.ODIV, n.Type()), a.Type, result, a)
 	quotientAEqB := s.newValue2(s.ssaOp(ir.OEQ, quotientA.Type), types.Types[types.TBOOL], quotientA, b)
-	// s.checkWithMessage() panics when condition is FALSE, so pass the "valid" condition.
-	errorMsg := formatOverflowMessage(n.Op(), n.Type())
-	s.checkWithMessage(quotientAEqB, ir.Syms.Panicoverflowdetailed, errorMsg)
-	s.endBlock().AddEdgeTo(bDone)
+	s.vars[quotientOkVar] = quotientAEqB
+	s.endBlock().AddEdgeTo(bAfter)
 
-	s.startBlock(bDone)
+	s.startBlock(bZero)
+	// Value doesn't matter here: eitherZero is true in this branch, so validMul will be true.
+	s.vars[quotientOkVar] = s.constBool(false)
+	s.endBlock().AddEdgeTo(bAfter)
+
+	s.startBlock(bAfter)
+	quotientOk := s.variable(quotientOkVar, types.Types[types.TBOOL])
+	delete(s.vars, quotientOkVar)
+
+	// Valid multiplication: either operand is zero OR result/a == b.
+	validMul := s.newValue2(ssa.OpOrB, types.Types[types.TBOOL], eitherZero, quotientOk)
+	// s.checkWithMessage() panics when condition is FALSE, so pass the valid condition.
+	errorMsg := formatOverflowMessage(n.Op(), n.Type())
+	s.checkWithMessage(validMul, ir.Syms.Panicoverflowdetailed, errorMsg)
 
 	return result
 }
