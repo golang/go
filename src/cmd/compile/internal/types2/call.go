@@ -199,6 +199,11 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 		}
 		T := x.typ
 		x.mode = invalid
+		// We cannot convert a value to an incomplete type; make sure it's complete.
+		if !check.isComplete(T) {
+			x.expr = call
+			return conversion
+		}
 		switch n := len(call.ArgList); n {
 		case 0:
 			check.errorf(call, WrongArgCount, "missing argument in conversion to %s", T)
@@ -319,7 +324,14 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 		} else {
 			x.mode = value
 		}
-		x.typ = sig.results.vars[0].typ // unpack tuple
+		typ := sig.results.vars[0].typ // unpack tuple
+		// We cannot return a value of an incomplete type; make sure it's complete.
+		if !check.isComplete(typ) {
+			x.mode = invalid
+			x.expr = call
+			return statement
+		}
+		x.typ = typ
 	default:
 		x.mode = value
 		x.typ = sig.results
@@ -784,8 +796,12 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, wantType bool
 		goto Error
 	}
 
-	// Avoid crashing when checking an invalid selector in a method declaration
-	// (i.e., where def is not set):
+	// We cannot select on an incomplete type; make sure it's complete.
+	if !check.isComplete(x.typ) {
+		goto Error
+	}
+
+	// Avoid crashing when checking an invalid selector in a method declaration.
 	//
 	//   type S[T any] struct{}
 	//   type V = S[any]
@@ -795,11 +811,14 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, wantType bool
 	// expecting a type expression, it is an error.
 	//
 	// See go.dev/issue/57522 for more details.
-	//
-	// TODO(rfindley): We should do better by refusing to check selectors in all cases where
-	// x.typ is incomplete.
 	if wantType {
 		check.errorf(e.Sel, NotAType, "%s is not a type", syntax.Expr(e))
+		goto Error
+	}
+
+	// Additionally, if x.typ is a pointer type, selecting implicitly dereferences the value, meaning
+	// its base type must also be complete.
+	if p, ok := x.typ.Underlying().(*Pointer); ok && !check.isComplete(p.base) {
 		goto Error
 	}
 

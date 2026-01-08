@@ -48,6 +48,18 @@ func (check *Checker) indexExpr(x *operand, e *indexedExpr) (isFuncInst bool) {
 		return false
 	}
 
+	// We cannot index on an incomplete type; make sure it's complete.
+	if !check.isComplete(x.typ) {
+		x.mode = invalid
+		return false
+	}
+	// Additionally, if x.typ is a pointer to an array type, indexing implicitly dereferences the value, meaning
+	// its base type must also be complete.
+	if p, ok := x.typ.Underlying().(*Pointer); ok && !check.isComplete(p.base) {
+		x.mode = invalid
+		return false
+	}
+
 	// ordinary index expression
 	valid := false
 	length := int64(-1) // valid if >= 0
@@ -254,6 +266,14 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 		if !isTypeParam(x.typ) {
 			cu = x.typ.Underlying() // untyped string remains untyped
 		}
+	}
+
+	// Note that we don't permit slice expressions where x is a type expression, so we don't check for that here.
+	// However, if x.typ is a pointer to an array type, slicing implicitly dereferences the value, meaning
+	// its base type must also be complete.
+	if p, ok := x.typ.Underlying().(*Pointer); ok && !check.isComplete(p.base) {
+		x.mode = invalid
+		return
 	}
 
 	valid := false

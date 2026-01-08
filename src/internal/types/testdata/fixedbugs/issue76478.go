@@ -15,7 +15,7 @@ func f() D {
 }
 type D C
 
-type E /* ERROR "invalid recursive type" */ [unsafe.Sizeof(g[F]())]int
+type E /* ERROR "invalid recursive type" */ [unsafe/* ERROR "must be constant" */.Sizeof(g[F]())]int
 func g[P any]() P {
 	panic(0)
 }

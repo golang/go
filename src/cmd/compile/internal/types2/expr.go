@@ -148,7 +148,8 @@ func (check *Checker) unary(x *operand, e *syntax.Operation) {
 		return
 
 	case syntax.Recv:
-		if elem := check.chanElem(x, x, true); elem != nil {
+		// We cannot receive a value with an incomplete type; make sure it's complete.
+		if elem := check.chanElem(x, x, true); elem != nil && check.isComplete(elem) {
 			x.mode = commaok
 			x.typ = elem
 			check.hasCallOrRecv = true
@@ -993,13 +994,6 @@ func (check *Checker) rawExpr(T *target, x *operand, e syntax.Expr, hint Type, a
 		check.nonGeneric(T, x)
 	}
 
-	// Here, x is a value, meaning it has a type. If that type is pending, then we have
-	// a cycle. As an example:
-	//
-	//  type T [unsafe.Sizeof(T{})]int
-	//
-	// has a cycle T->T which is deemed valid (by decl.go), but which is in fact invalid.
-	check.pendingType(x)
 	check.record(x)
 
 	return kind
@@ -1029,19 +1023,6 @@ func (check *Checker) nonGeneric(T *target, x *operand) {
 	}
 	if what != "" {
 		check.errorf(x.expr, WrongTypeArgCount, "cannot use generic %s %s without instantiation", what, x.expr)
-		x.mode = invalid
-		x.typ = Typ[Invalid]
-	}
-}
-
-// If x has a pending type (i.e. its declaring object is on the object path), pendingType
-// reports an error and invalidates x.mode and x.typ.
-// Otherwise it leaves x alone.
-func (check *Checker) pendingType(x *operand) {
-	if x.mode == invalid || x.mode == novalue {
-		return
-	}
-	if !check.finiteSize(x.typ) {
 		x.mode = invalid
 		x.typ = Typ[Invalid]
 	}
@@ -1140,6 +1121,10 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 		if !isValid(T) {
 			goto Error
 		}
+		// We cannot assert to an incomplete type; make sure it's complete.
+		if !check.isComplete(T) {
+			goto Error
+		}
 		check.typeAssertion(e, x, T, false)
 		x.mode = commaok
 		x.typ = T
@@ -1205,6 +1190,10 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 						base = p.base
 						return true
 					}) {
+						goto Error
+					}
+					// We cannot dereference a pointer with an incomplete base type; make sure it's complete.
+					if !check.isComplete(base) {
 						goto Error
 					}
 					x.mode = variable

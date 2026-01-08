@@ -147,6 +147,12 @@ func (check *Checker) compositeLit(x *operand, e *ast.CompositeLit, hint Type) {
 		base = typ
 	}
 
+	// We cannot create a literal of an incomplete type; make sure it's complete.
+	if !check.isComplete(base) {
+		x.mode = invalid
+		return
+	}
+
 	switch u, _ := commonUnder(base, nil); utyp := u.(type) {
 	case *Struct:
 		if len(e.Elts) == 0 {

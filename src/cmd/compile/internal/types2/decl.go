@@ -483,20 +483,6 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl) {
 	}
 
 	named := check.newNamed(obj, nil, nil)
-
-	// TODO: adjust this comment (gotypesalias) as needed if we don't need allowNilRHS anymore.
-	// The RHS of a named N can be nil if, for example, N is defined as a cycle of aliases with
-	// gotypesalias=0. Consider:
-	//
-	//   type D N    // N.unpack() will panic
-	//   type N A
-	//   type A = N  // N.fromRHS is not set before N.unpack(), since A does not call setDefType
-	//
-	// There is likely a better way to detect such cases, but it may not be worth the effort.
-	// Instead, we briefly permit a nil N.fromRHS while type-checking D.
-	named.allowNilRHS = true
-	defer (func() { named.allowNilRHS = false })()
-
 	if tdecl.TParamList != nil {
 		check.openScope(tdecl, "type parameters")
 		defer check.closeScope()

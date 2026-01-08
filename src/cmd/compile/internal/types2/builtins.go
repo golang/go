@@ -752,7 +752,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			return
 		}
 
-		if hasVarSize(x.typ, nil) {
+		if check.hasVarSize(x.typ) {
 			x.mode = value
 			if check.recordTypes() {
 				check.recordBuiltinType(call.Fun, makeSig(Typ[Uintptr], x.typ))
@@ -816,7 +816,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// the part of the struct which is variable-sized. This makes both the rules
 		// simpler and also permits (or at least doesn't prevent) a compiler from re-
 		// arranging struct fields if it wanted to.
-		if hasVarSize(base, nil) {
+		if check.hasVarSize(base) {
 			x.mode = value
 			if check.recordTypes() {
 				check.recordBuiltinType(call.Fun, makeSig(Typ[Uintptr], obj.Type()))
@@ -840,7 +840,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			return
 		}
 
-		if hasVarSize(x.typ, nil) {
+		if check.hasVarSize(x.typ) {
 			x.mode = value
 			if check.recordTypes() {
 				check.recordBuiltinType(call.Fun, makeSig(Typ[Uintptr], x.typ))
@@ -1007,37 +1007,56 @@ func sliceElem(x *operand) (Type, *typeError) {
 // hasVarSize reports if the size of type t is variable due to type parameters
 // or if the type is infinitely-sized due to a cycle for which the type has not
 // yet been checked.
-func hasVarSize(t Type, seen map[*Named]bool) (varSized bool) {
-	// Cycles are only possible through *Named types.
-	// The seen map is used to detect cycles and track
-	// the results of previously seen types.
-	if named := asNamed(t); named != nil {
-		if v, ok := seen[named]; ok {
-			return v
+func (check *Checker) hasVarSize(t Type) bool {
+	// Note: We could use Underlying here, but passing through the RHS may yield
+	// better error messages.
+	switch t := Unalias(t).(type) {
+	case *Named:
+		if t.stateHas(hasFinite) {
+			// TODO(mark): Rename t.finite to t.varSize to avoid inversion.
+			return !t.finite
 		}
-		if seen == nil {
-			seen = make(map[*Named]bool)
-		}
-		seen[named] = true // possibly cyclic until proven otherwise
-		defer func() {
-			seen[named] = varSized // record final determination for named
-		}()
-	}
 
-	switch u := t.Underlying().(type) {
+		if i, ok := check.objPathIdx[t.obj]; ok {
+			cycle := check.objPath[i:]
+			check.cycleError(cycle, firstInSrc(cycle))
+			return true
+		}
+
+		check.push(t.obj)
+		defer check.pop()
+
+		varSize := check.hasVarSize(t.fromRHS)
+
+		t.mu.Lock()
+		defer t.mu.Unlock()
+
+		// Careful, t.finite has lock-free readers. Since we might be racing
+		// another call to finiteSize, we have to avoid overwriting t.finite.
+		// Otherwise, the race detector will be tripped.
+		if !t.stateHas(hasFinite) {
+			t.finite = !varSize
+			t.setState(hasFinite)
+		}
+
+		return varSize
+
 	case *Array:
-		return hasVarSize(u.elem, seen)
+		// The array length is already computed. If it was a valid length, it
+		// is finite; else, an error was reported in the computation.
+		return check.hasVarSize(t.elem)
+
 	case *Struct:
-		for _, f := range u.fields {
-			if hasVarSize(f.typ, seen) {
+		for _, f := range t.fields {
+			if check.hasVarSize(f.typ) {
 				return true
 			}
 		}
-	case *Interface:
-		return isTypeParam(t)
-	case *Named, *Union:
-		panic("unreachable")
+
+	case *TypeParam:
+		return true
 	}
+
 	return false
 }
 
