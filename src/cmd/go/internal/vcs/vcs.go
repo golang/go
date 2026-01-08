@@ -551,7 +551,7 @@ func (v *Cmd) Ping(scheme, repo string) error {
 	if !cfg.ModulesEnabled {
 		dir = filepath.Join(cfg.BuildContext.GOPATH, "src")
 	}
-	os.MkdirAll(dir, 0777) // Ignore errors — if unsuccessful, the command will likely fail.
+	os.MkdirAll(dir, 0o777) // Ignore errors — if unsuccessful, the command will likely fail.
 
 	release, err := base.AcquireNet()
 	if err != nil {
