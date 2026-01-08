@@ -29,6 +29,14 @@ where
 }
 
 fn main() -> Result<()> {
+    // The harness is produced by `go build -buildmode=c-archive`.
+    // On macOS, the Go stdlib (e.g., crypto/x509) may rely on system frameworks.
+    #[cfg(target_os = "macos")]
+    {
+        println!("cargo:rustc-link-lib=framework=CoreFoundation");
+        println!("cargo:rustc-link-lib=framework=Security");
+    }
+
     if let Ok(harness_lib) = env::var("HARNESS_LIB") {
         let harness_lib = PathBuf::from(harness_lib);
         let dir = harness_lib
@@ -110,19 +118,6 @@ fn main() -> Result<()> {
     println!("cargo:rustc-link-search=native={}", out_dir.display());
     // Tell cargo to link the static Go library
     println!("cargo:rustc-link-lib=static=harness");
-
-    // For macOS users, please add your frameworks your target depends on here.
-    // This is necessary to resolve undefined symbols that may occur during linking.
-    #[cfg(target_os = "macos")]
-    {
-        eprintln!("If you encounter undefined symbols for architecture arm64, please add the necessary frameworks in build.rs.");
-        // Example frameworks that might be needed
-        // println!("cargo:rustc-link-lib=framework=CoreFoundation");
-        // println!("cargo:rustc-link-lib=framework=Security");
-        // println!("cargo:rustc-link-lib=framework=SystemConfiguration");
-        // println!("cargo:rustc-link-lib=dylib=resolv");
-        // ...
-    }
 
     Ok(())
 }
