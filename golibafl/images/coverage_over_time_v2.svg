@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540">
+<rect width="100%" height="100%" fill="white"/>
+<text x="70" y="24" font-family="sans-serif" font-size="18" fill="#111">Coverage over time (20260107T234716Z)</text>
+<line x1="70" y1="480.00" x2="930" y2="480.00" stroke="#eee" stroke-width="1"/>
+<text x="60" y="484.00" text-anchor="end" font-family="sans-serif" font-size="12" fill="#555">0.0%</text>
+<line x1="70" y1="392.00" x2="930" y2="392.00" stroke="#eee" stroke-width="1"/>
+<text x="60" y="396.00" text-anchor="end" font-family="sans-serif" font-size="12" fill="#555">1.8%</text>
+<line x1="70" y1="304.00" x2="930" y2="304.00" stroke="#eee" stroke-width="1"/>
+<text x="60" y="308.00" text-anchor="end" font-family="sans-serif" font-size="12" fill="#555">3.6%</text>
+<line x1="70" y1="216.00" x2="930" y2="216.00" stroke="#eee" stroke-width="1"/>
+<text x="60" y="220.00" text-anchor="end" font-family="sans-serif" font-size="12" fill="#555">5.4%</text>
+<line x1="70" y1="128.00" x2="930" y2="128.00" stroke="#eee" stroke-width="1"/>
+<text x="60" y="132.00" text-anchor="end" font-family="sans-serif" font-size="12" fill="#555">7.2%</text>
+<line x1="70" y1="40.00" x2="930" y2="40.00" stroke="#eee" stroke-width="1"/>
+<text x="60" y="44.00" text-anchor="end" font-family="sans-serif" font-size="12" fill="#555">9.0%</text>
+<line x1="70.00" y1="40" x2="70.00" y2="480" stroke="#f5f5f5" stroke-width="1"/>
+<text x="70.00" y="500" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#555">0</text>
+<line x1="127.81" y1="40" x2="127.81" y2="480" stroke="#f5f5f5" stroke-width="1"/>
+<text x="127.81" y="500" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#555">2</text>
+<line x1="185.62" y1="40" x2="185.62" y2="480" stroke="#f5f5f5" stroke-width="1"/>
+<text x="185.62" y="500" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#555">4</text>
+<line x1="243.43" y1="40" x2="243.43" y2="480" stroke="#f5f5f5" stroke-width="1"/>
+<text x="243.43" y="500" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#555">6</text>
+<line x1="301.24" y1="40" x2="301.24" y2="480" stroke="#f5f5f5" stroke-width="1"/>
+<text x="301.24" y="500" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#555">8</text>
+<line x1="359.04" y1="40" x2="359.04" y2="480" stroke="#f5f5f5" stroke-width="1"/>
+<text x="359.04" y="500" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#555">10</text>
+<line x1="416.85" y1="40" x2="416.85" y2="480" stroke="#f5f5f5" stroke-width="1"/>
+<text x="416.85" y="500" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#555">12</text>
+<line x1="474.66" y1="40" x2="474.66" y2="480" stroke="#f5f5f5" stroke-width="1"/>
+<text x="474.66" y="500" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#555">14</text>
+<line x1="532.47" y1="40" x2="532.47" y2="480" stroke="#f5f5f5" stroke-width="1"/>
+<text x="532.47" y="500" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#555">16</text>
+<line x1="590.28" y1="40" x2="590.28" y2="480" stroke="#f5f5f5" stroke-width="1"/>
+<text x="590.28" y="500" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#555">18</text>
+<line x1="648.09" y1="40" x2="648.09" y2="480" stroke="#f5f5f5" stroke-width="1"/>
+<text x="648.09" y="500" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#555">20</text>
+<line x1="705.90" y1="40" x2="705.90" y2="480" stroke="#f5f5f5" stroke-width="1"/>
+<text x="705.90" y="500" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#555">22</text>
+<line x1="763.71" y1="40" x2="763.71" y2="480" stroke="#f5f5f5" stroke-width="1"/>
+<text x="763.71" y="500" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#555">24</text>
+<line x1="821.52" y1="40" x2="821.52" y2="480" stroke="#f5f5f5" stroke-width="1"/>
+<text x="821.52" y="500" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#555">26</text>
+<line x1="879.32" y1="40" x2="879.32" y2="480" stroke="#f5f5f5" stroke-width="1"/>
+<text x="879.32" y="500" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#555">28</text>
+<line x1="937.13" y1="40" x2="937.13" y2="480" stroke="#f5f5f5" stroke-width="1"/>
+<text x="937.13" y="500" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#555">30</text>
+<line x1="70" y1="40" x2="70" y2="480" stroke="#aaa" stroke-width="1"/>
+<line x1="70" y1="480" x2="930" y2="480" stroke="#aaa" stroke-width="1"/>
+<text x="500.00" y="520" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#333">Elapsed minutes</text>
+<text x="20" y="260.00" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#333" transform="rotate(-90 20 260.00)">Statement coverage (%)</text>
+<polyline fill="none" stroke="#1f77b4" stroke-width="2" points="70.00,313.78 98.90,279.56 127.81,279.56 156.71,279.56 185.62,279.56 214.52,279.56 243.43,279.56 272.33,279.56 301.24,279.56 330.14,279.56 359.04,279.56 387.95,279.56 416.85,279.56 445.76,279.56 474.66,279.56 503.57,279.56 532.47,279.56 561.38,279.56 590.28,279.56 619.18,279.56 648.09,279.56 676.99,279.56 705.90,279.56 734.80,279.56 763.71,279.56 792.61,279.56 821.52,279.56 850.42,279.56 879.32,279.56 908.23,279.56 930.00,279.56"/>
+<polyline fill="none" stroke="#d62728" stroke-width="2" points="70.00,313.78 98.90,313.78 127.81,64.44 156.71,64.44 185.62,64.44 214.52,64.44 243.43,64.44 272.33,64.44 301.24,64.44 330.14,64.44 359.04,64.44 387.95,64.44 416.85,64.44 445.76,64.44 474.66,64.44 503.57,64.44 532.47,64.44 561.38,64.44 590.28,64.44 619.18,64.44 648.09,64.44 676.99,64.44 705.90,64.44 734.80,64.44 763.71,64.44 792.61,64.44 821.52,64.44 850.42,64.44 879.32,64.44 908.23,64.44 930.00,64.44"/>
+<rect x="690" y="46" width="230" height="48" fill="white" stroke="#ddd"/>
+<line x1="702" y1="62" x2="732" y2="62" stroke="#1f77b4" stroke-width="2"/>
+<text x="742" y="66" font-family="sans-serif" font-size="12" fill="#111">Native Go fuzzing</text>
+<line x1="702" y1="80" x2="732" y2="80" stroke="#d62728" stroke-width="2"/>
+<text x="742" y="84" font-family="sans-serif" font-size="12" fill="#111">CyberGo + --use-libafl</text>
+</svg>
