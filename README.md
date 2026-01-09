@@ -13,11 +13,11 @@ cybergo is a security-focused fork of the Go toolchain. In a _very_ simple phras
 cd src && ./make.bash # this produces `./bin/go`
 ```
 
-## Feature 1: integer overflow and truncation issues detection
+## Feature 1: Integer overflow and truncation issues detection
 
 #### Overview
 
-This work is inspired from the previously developed [go-panikint](https://github.com/trailofbits/go-panikint). It adds overflow/underflow detection for integer arithmetic operations and (optionnally) type truncation detection for integer conversions. When overflow or truncation is detected, a **panic** with a detailed error message is triggered, including the specific operation type and integer types involved.
+This work is inspired from the previously developed [go-panikint](https://github.com/trailofbits/go-panikint). It adds overflow/underflow detection for integer arithmetic operations and (optionnally) type truncation detection for integer conversions. When overflow or truncation is detected, a panic with a detailed error message is triggered, including the specific operation type and integer types involved.
 
 _Arithmetic operations_: Handles addition `+`, subtraction `-`, multiplication `*`, and division `/` for both signed and unsigned integer types. For signed integers, covers `int8`, `int16`, `int32`. For unsigned integers, covers `uint8`, `uint16`, `uint32`, `uint64`. The division case specifically detects the `MIN_INT / -1` overflow condition for signed integers. `int64` and `uintptr` are not checked for arithmetic operations.
 
@@ -26,7 +26,8 @@ _Type truncation detection_: Detects potentially lossy integer type conversions.
 Overflow detection is enabled by default. To disable it:
 
 ```bash
-cd src && GOFLAGS='-gcflags=-overflowdetect=false' ./make.bash # enable truncation detection with: -gcflags=-truncationdetect=true
+cd src && GOFLAGS='-gcflags=-overflowdetect=false' ./make.bash 
+# You can also enable truncation with: -gcflags=-truncationdetect=true
 ```
 
 #### How it works
@@ -56,17 +57,11 @@ x2 := uint8(big) // truncation_false_positive
 
 ## Feature 2: LibAFL state-of-the-art fuzzing
 
-Using the `--use-libafl` flag runs standard Go fuzz tests (`go test -fuzz=...`) **with** [LibAFL](https://github.com/AFLplusplus/LibAFL). The runner is implemented in `golibafl/`.
+LibAFL performs *way* better than the traditional Go fuzzer. Using the `--use-libafl` flag runs standard Go fuzz tests (`go test -fuzz=...`) **with** [LibAFL](https://github.com/AFLplusplus/LibAFL). The runner is implemented in `golibafl/`. Without `--use-libafl`, `go test -fuzz` behaves like upstream Go.
 
 ```bash
 ./bin/go test -fuzz=FuzzXxx --use-libafl
 ```
-Without `--use-libafl`, `go test -fuzz` behaves like upstream Go.
-
-#### LibAFL (Go) benchmarks
-
-LibAFL performs *way* better than the traditional Go fuzzer.
-
 
 ##### Benchmark 1:
 
