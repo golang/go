@@ -26,7 +26,7 @@ _Type truncation detection_: Detects potentially lossy integer type conversions.
 Overflow detection is enabled by default. To disable it:
 
 ```bash
-cd src && GOFLAGS='-gcflags=-overflowdetect=false' ./make.bash
+cd src && GOFLAGS='-gcflags=-overflowdetect=false' ./make.bash # enable truncation detection with: -gcflags=-truncationdetect=true
 ```
 
 #### How it works
