@@ -28,12 +28,14 @@ var ErrBadPattern = errors.New("syntax error in pattern")
 //		'[' [ '^' ] { character-range } ']'
 //		            character class (must be non-empty)
 //		c           matches character c (c != '*', '?', '\\', '[')
-//		'\\' c      matches character c
+//		'\\' c      matches character c (except on Windows)
 //
 //	character-range:
 //		c           matches character c (c != '\\', '-', ']')
-//		'\\' c      matches character c
+//		'\\' c      matches character c (except on Windows)
 //		lo '-' hi   matches character c for lo <= c <= hi
+//
+// Path segments in the pattern must be separated by [Separator].
 //
 // Match requires pattern to match all of name, not just a substring.
 // The only possible returned error is [ErrBadPattern], when pattern

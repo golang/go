@@ -145,6 +145,12 @@ d8Y7
 }
 
 func testKeyBasics(t *testing.T, priv *PrivateKey) {
+	defer func() {
+		if t.Failed() {
+			t.Logf("failed key: %#v", priv)
+		}
+	}()
+
 	if err := priv.Validate(); err != nil {
 		t.Errorf("Validate() failed: %s", err)
 	}
