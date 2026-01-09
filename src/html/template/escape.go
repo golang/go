@@ -166,6 +166,8 @@ func (e *escaper) escape(c context, n parse.Node) context {
 
 var debugAllowActionJSTmpl = godebug.New("jstmpllitinterp")
 
+var htmlmetacontenturlescape = godebug.New("htmlmetacontenturlescape")
+
 // escapeAction escapes an action template node.
 func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 	if len(n.Pipe.Decl) != 0 {
@@ -222,6 +224,18 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 			}
 		default:
 			panic(c.urlPart.String())
+		}
+	case stateMetaContent:
+		// Handled below in delim check.
+	case stateMetaContentURL:
+		if htmlmetacontenturlescape.Value() != "0" {
+			s = append(s, "_html_template_urlfilter")
+		} else {
+			// We don't have a great place to increment this, since it's hard to
+			// know if we actually escape any urls in _html_template_urlfilter,
+			// since it has no information about what context it is being
+			// executed in etc. This is probably the best we can do.
+			htmlmetacontenturlescape.IncNonDefault()
 		}
 	case stateJS:
 		s = append(s, "_html_template_jsvalescaper")
