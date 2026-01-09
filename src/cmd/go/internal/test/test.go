@@ -556,6 +556,7 @@ var (
 	testFailFast     bool                              // -failfast flag
 	testFuzz         string                            // -fuzz flag
 	testUseLibAFL    bool                              // -use-libafl flag
+	testPanicOn      string                            // -panic-on flag
 	testJSON         bool                              // -json flag
 	testList         string                            // -list flag
 	testO            string                            // -o flag
@@ -654,6 +655,19 @@ func testNeedBinary() bool {
 // testShowPass reports whether the output for a passing test should be shown.
 func testShowPass() bool {
 	return testV.on || testList != "" || testHelp
+}
+
+func applyPanicOnCallGcflag(pkgs ...*load.Package) {
+	if testPanicOn == "" {
+		return
+	}
+	flag := "-panic-on-call=" + testPanicOn
+	for _, p := range pkgs {
+		if p == nil {
+			continue
+		}
+		p.Internal.Gcflags = append(p.Internal.Gcflags, flag)
+	}
 }
 
 var defaultVetFlags = []string{
@@ -1148,6 +1162,7 @@ var windowsBadWords = []string{
 
 func builderTest(loaderstate *modload.State, b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts, p *load.Package, imported bool, writeCoverMetaAct *work.Action) (buildAction, runAction, printAction *work.Action, perr *load.Package, err error) {
 	if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
+		applyPanicOnCallGcflag(p)
 		build := b.CompileAction(work.ModeBuild, work.ModeBuild, p)
 		run := &work.Action{
 			Mode:       "test run",
@@ -1233,6 +1248,8 @@ func builderTest(loaderstate *modload.State, b *work.Builder, ctx context.Contex
 			pmain.Internal.Imports = append(pmain.Internal.Imports, p1)
 		}
 	}
+
+	applyPanicOnCallGcflag(pmain, ptest, pxtest, p)
 
 	// Set testdir to compile action's objdir.
 	// so that the default file path stripping applies to _testmain.go.

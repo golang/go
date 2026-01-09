@@ -29,6 +29,13 @@ Overflow detection is enabled by default. To disable it:
 cd src && GOFLAGS='-gcflags=-overflowdetect=false' ./make.bash # enable truncation detection with: -gcflags=-truncationdetect=true
 ```
 
+### Panic on selected calls
+
+- New flag: `--panic-on=<pkg.func>[,pkg.func2|prefix.*]` (forwarded as `-panic-on-call` to the compiler).
+- Example: `./bin/go test -fuzz=FuzzX --use-libafl --panic-on=log.error` will inject a panic before each direct call to `log.error` in user code.
+- Prefix patterns ending in `*` match multiple functions, e.g., `my/logger.*`.
+- Instrumentation is applied to user code only (stdlib/runtime/vendor/module-cache are skipped by the pass) and panics use the function name for the crash message.
+
 #### How it works
 
 This feature patches the compiler SSA generation so that integer arithmetic operations and integer conversions get extra runtime checks that call into the runtime to panic with a detailed error message when a bug is detected. Checks are applied using source-location-based filtering so user code is instrumented while standard library files and dependencies (module cache and `vendor/`) are skipped.

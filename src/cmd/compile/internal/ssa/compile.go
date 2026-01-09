@@ -482,6 +482,7 @@ var passes = [...]pass{
 	{name: "sccp", fn: sccp},
 	{name: "generic deadcode", fn: deadcode, required: true}, // remove dead stores, which otherwise mess up store chain
 	{name: "late fuse", fn: fuseLate},
+	{name: "panic on call", fn: panicOnCall},
 	{name: "check bce", fn: checkbce},
 	{name: "dse", fn: dse},
 	{name: "memcombine", fn: memcombine},

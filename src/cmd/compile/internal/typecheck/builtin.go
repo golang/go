@@ -33,6 +33,7 @@ var runtimeDecls = [...]struct {
 	{"panicshift", funcTag, 9},
 	{"panicmakeslicelen", funcTag, 9},
 	{"panicmakeslicecap", funcTag, 9},
+	{"panicOnCall", funcTag, 166},
 	{"throwinit", funcTag, 9},
 	{"panicwrap", funcTag, 9},
 	{"gopanic", funcTag, 11},
@@ -257,7 +258,7 @@ var runtimeDecls = [...]struct {
 }
 
 func runtimeTypes() []*types.Type {
-	var typs [166]*types.Type
+	var typs [167]*types.Type
 	typs[0] = types.ByteType
 	typs[1] = types.NewPtr(typs[0])
 	typs[2] = types.Types[types.TANY]
@@ -424,6 +425,7 @@ func runtimeTypes() []*types.Type {
 	typs[163] = newSig(params(typs[30], typs[30], typs[15]), nil)
 	typs[164] = types.NewArray(typs[0], 16)
 	typs[165] = newSig(params(typs[7], typs[67], typs[164], typs[30], typs[13], typs[71], typs[71]), params(typs[67]))
+	typs[166] = newSig(params(types.NewPtr(types.Types[types.TUINT8]), typs[5]), nil) // panicOnCall(*byte, uintptr)
 	return typs[:]
 }
 
