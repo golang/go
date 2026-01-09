@@ -54,7 +54,7 @@ func makeTimeArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 				return marshalNano(enc, va, mo)
 			} else {
 				// TODO(https://go.dev/issue/71631): Decide on default duration representation.
-				return newMarshalErrorBefore(enc, t, errors.New("no default representation (see https://go.dev/issue/71631); specify an explicit format"))
+				return newMarshalErrorBefore(enc, t, errors.New("no default representation; specify an explicit format"))
 			}
 
 			m.td, _ = reflect.TypeAssert[time.Duration](va.Value)
@@ -79,7 +79,7 @@ func makeTimeArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 				return unmarshalNano(dec, va, uo)
 			} else {
 				// TODO(https://go.dev/issue/71631): Decide on default duration representation.
-				return newUnmarshalErrorBeforeWithSkipping(dec, t, errors.New("no default representation (see https://go.dev/issue/71631); specify an explicit format"))
+				return newUnmarshalErrorBeforeWithSkipping(dec, t, errors.New("no default representation; specify an explicit format"))
 			}
 
 			stringify := !u.isNumeric() || xd.Tokens.Last.NeedObjectName() || uo.Flags.Get(jsonflags.StringifyNumbers)
