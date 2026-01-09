@@ -127,7 +127,8 @@ type CmdFlags struct {
 	WB                 bool         "help:\"enable write barrier\"" // TODO: remove
 	PgoProfile         string       "help:\"read profile or pre-process profile from `file`\""
 	ErrorURL           bool         "help:\"print explanatory URL with error message if applicable\""
-	TruncationDetect   bool         "help:\"enable integer truncation detection (default: true)\""
+	OverflowDetect     bool         "help:\"enable integer overflow detection (default: true)\""
+	TruncationDetect   bool         "help:\"enable integer truncation detection (default: false)\""
 
 	// Configuration derived from flags; not a flag itself.
 	Cfg struct {
@@ -176,6 +177,7 @@ func ParseFlags() {
 	Flag.LinkShared = &Ctxt.Flag_linkshared
 	Flag.Shared = &Ctxt.Flag_shared
 	Flag.WB = true
+	Flag.OverflowDetect = true
 	Flag.TruncationDetect = false
 
 	Debug.ConcurrentOk = true

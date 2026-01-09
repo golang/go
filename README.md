@@ -23,6 +23,12 @@ _Arithmetic operations_: Handles addition `+`, subtraction `-`, multiplication `
 
 _Type truncation detection_: Detects potentially lossy integer type conversions. Covers all integer types: `int8`, `int16`, `int32`, `int64`, `uint8`, `uint16`, `uint32`, `uint64`. Excludes `uintptr` due to platform-dependent usage. This is disabled by default.
 
+Overflow detection is enabled by default. To disable it:
+
+```bash
+cd src && GOFLAGS='-gcflags=-overflowdetect=false' ./make.bash
+```
+
 #### How it works
 
 This feature patches the compiler SSA generation so that integer arithmetic operations and integer conversions get extra runtime checks that call into the runtime to panic with a detailed error message when a bug is detected. Checks are applied using source-location-based filtering so user code is instrumented while standard library files and dependencies (module cache and `vendor/`) are skipped.

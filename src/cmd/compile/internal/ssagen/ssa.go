@@ -5834,6 +5834,10 @@ func hasTruncationSuppression(pos src.XPos) bool {
 // shouldCheckOverflow returns true if overflow detection should be applied for this operation.
 // It checks if the package should be excluded from overflow detection and if the type is supported.
 func (s *state) shouldCheckOverflow(typ *types.Type) bool {
+	// Check if overflow detection is enabled via flag
+	if !base.Flag.OverflowDetect {
+		return false
+	}
 
 	// Apply overflow detection based on source location, not compilation context
 	// The key insight is that when user code calls library functions, those functions
