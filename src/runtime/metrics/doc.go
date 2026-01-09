@@ -306,6 +306,11 @@ Below is the full list of supported metrics, ordered lexicographically.
 		The number of non-default behaviors executed by the go/types
 		package due to a non-default GODEBUG=gotypesalias=... setting.
 
+	/godebug/non-default-behavior/htmlmetacontenturlescape:events
+		The number of non-default behaviors executed by
+		the html/template package due to a non-default
+		GODEBUG=htmlmetacontenturlescape=... setting.
+
 	/godebug/non-default-behavior/http2client:events
 		The number of non-default behaviors executed by the net/http
 		package due to a non-default GODEBUG=http2client=... setting.

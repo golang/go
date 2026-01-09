@@ -155,6 +155,11 @@ and the [go command documentation](/cmd/go#hdr-Build_and_test_caching).
 
 ### Go 1.26
 
+Go 1.26.1 added a new `htmlmetacontenturlescape` setting that controls whether
+html/template will escape URLs in the `url=` portion of the content attribute of
+HTML meta tags. The default `htmlmetacontentescape=1` will cause URLs to be
+escaped. Setting `htmlmetacontentescape=0` disables this behavior.
+
 Go 1.26 added a new `httpcookiemaxnum` setting that controls the maximum number
 of cookies that net/http will accept when parsing HTTP headers. If the number of
 cookie in a header exceeds the number set in `httpcookiemaxnum`, cookie parsing

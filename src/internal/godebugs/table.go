@@ -40,6 +40,7 @@ var All = []Info{
 	{Name: "gocacheverify", Package: "cmd/go"},
 	{Name: "gotestjsonbuildtext", Package: "cmd/go", Changed: 24, Old: "1"},
 	{Name: "gotypesalias", Package: "go/types", Changed: 23, Old: "0"},
+	{Name: "htmlmetacontenturlescape", Package: "html/template"},
 	{Name: "http2client", Package: "net/http"},
 	{Name: "http2debug", Package: "net/http", Opaque: true},
 	{Name: "http2server", Package: "net/http"},

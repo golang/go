@@ -734,6 +734,16 @@ func TestEscape(t *testing.T) {
 			"<script>var a = `${ var a = \"{{\"a \\\" d\"}}\" }`</script>",
 			"<script>var a = `${ var a = \"a \\u0022 d\" }`</script>",
 		},
+		{
+			"meta content attribute url",
+			`<meta http-equiv="refresh" content="asd; url={{"javascript:alert(1)"}}; asd; url={{"vbscript:alert(1)"}}; asd">`,
+			`<meta http-equiv="refresh" content="asd; url=#ZgotmplZ; asd; url=#ZgotmplZ; asd">`,
+		},
+		{
+			"meta content string",
+			`<meta http-equiv="refresh" content="{{"asd: 123"}}">`,
+			`<meta http-equiv="refresh" content="asd: 123">`,
+		},
 	}
 
 	for _, test := range tests {
@@ -1014,6 +1024,14 @@ func TestErrors(t *testing.T) {
 		},
 		{
 			"<script>var tmpl = `asd ${return \"{\"}`;</script>",
+			``,
+		},
+		{
+			`{{if eq "" ""}}<meta>{{end}}`,
+			``,
+		},
+		{
+			`{{if eq "" ""}}<meta content="url={{"asd"}}">{{end}}`,
 			``,
 		},
 
@@ -2196,5 +2214,21 @@ func TestAliasedParseTreeDoesNotOverescape(t *testing.T) {
 	}
 	if got1 != got2 {
 		t.Fatalf(`Template "foo" and "bar" rendered %q and %q respectively, expected equal values`, got1, got2)
+	}
+}
+
+func TestMetaContentEscapeGODEBUG(t *testing.T) {
+	savedGODEBUG := os.Getenv("GODEBUG")
+	os.Setenv("GODEBUG", savedGODEBUG+",htmlmetacontenturlescape=0")
+	defer func() { os.Setenv("GODEBUG", savedGODEBUG) }()
+
+	tmpl := Must(New("").Parse(`<meta http-equiv="refresh" content="asd; url={{"javascript:alert(1)"}}; asd; url={{"vbscript:alert(1)"}}; asd">`))
+	var b strings.Builder
+	if err := tmpl.Execute(&b, nil); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	want := `<meta http-equiv="refresh" content="asd; url=javascript:alert(1); asd; url=vbscript:alert(1); asd">`
+	if got := b.String(); got != want {
+		t.Fatalf("got %q, want %q", got, want)
 	}
 }
