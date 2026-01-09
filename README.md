@@ -65,9 +65,13 @@ LibAFL performs *way* better than the traditional Go fuzzer. Using the `--use-li
 
 ##### Benchmark 1:
 
-The chart below is the evolution of the number of lines covered while fuzzing Google's [UUID](https://github.com/google/uuid) using LibAFL vs go compiler.
+The chart below is the evolution of the number of lines covered while fuzzing Google's [UUID](https://github.com/google/uuid) using LibAFL vs go native fuzzer.
 ![BENCH1](misc/cybergo/5min_uuid_parsebytes_FuzzParseBytes.png "BENCH1")
 
+##### Benchmark 2:
+
+The chart below is the evolution of the number of lines covered while fuzzing [go-ethereum](https://github.com/ethereum/go-ethereum) using LibAFL vs go native fuzzer.
+![BENCH2](misc/cybergo/go-ethereum-30min.png "BENCH1")
 
 #### Example
 You can test it on some fuzzing harnesses in `test/cybergo/examples/`.
