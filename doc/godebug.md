@@ -172,6 +172,11 @@ this setting and default was backported to Go 1.25.4 and Go 1.24.10.
 
 ### Go 1.25
 
+Go 1.25.8 added a new `htmlmetacontenturlescape` setting that controls whether
+html/template will escape URLs in the `url=` portion of the content attribute of
+HTML meta tags. The default `htmlmetacontentescape=1` will cause URLs to be
+escaped. Setting `htmlmetacontentescape=0` disables this behavior.
+
 Go 1.25 added a new `decoratemappings` setting that controls whether the Go
 runtime annotates OS anonymous memory mappings with context about their
 purpose. These annotations appear in /proc/self/maps and /proc/self/smaps as

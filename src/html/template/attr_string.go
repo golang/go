@@ -14,11 +14,12 @@ func _() {
 	_ = x[attrStyle-3]
 	_ = x[attrURL-4]
 	_ = x[attrSrcset-5]
+	_ = x[attrMetaContent-6]
 }
 
-const _attr_name = "attrNoneattrScriptattrScriptTypeattrStyleattrURLattrSrcset"
+const _attr_name = "attrNoneattrScriptattrScriptTypeattrStyleattrURLattrSrcsetattrMetaContent"
 
-var _attr_index = [...]uint8{0, 8, 18, 32, 41, 48, 58}
+var _attr_index = [...]uint8{0, 8, 18, 32, 41, 48, 58, 73}
 
 func (i attr) String() string {
 	if i >= attr(len(_attr_index)-1) {
