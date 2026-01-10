@@ -273,6 +273,10 @@ func CountPagesInUse() (pagesInUse, counted uintptr) {
 	return
 }
 
+func Blocksampled(cycles, rate int64) bool { return blocksampled(cycles, rate) }
+
+func Cheaprand() uint32         { return cheaprand() }
+func Cheaprand64() int64        { return cheaprand64() }
 func Fastrand() uint32          { return uint32(rand()) }
 func Fastrand64() uint64        { return rand() }
 func Fastrandn(n uint32) uint32 { return randn(n) }
