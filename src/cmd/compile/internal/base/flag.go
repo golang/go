@@ -132,7 +132,7 @@ type CmdFlags struct {
 	ErrorURL           bool         "help:\"print explanatory URL with error message if applicable\""
 	OverflowDetect     bool         "help:\"enable integer overflow detection (default: true)\""
 	TruncationDetect   bool         "help:\"enable integer truncation detection (default: false)\""
-	PanicOnCall        string       "help:\"panic when calling listed pkg.func (comma-separated)\""
+	PanicOnCall        string       "flag:\"panic-on-call\" help:\"panic when calling listed pkg.func (comma-separated)\""
 
 	// Configuration derived from flags; not a flag itself.
 	Cfg struct {
