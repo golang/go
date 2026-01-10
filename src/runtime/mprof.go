@@ -696,8 +696,8 @@ func (prof *mLockProfile) recordUnlock(cycles int64) {
 		if cycles == 0 {
 			return
 		}
-		prevScore := uint64(cheaprand64()) % uint64(prev)
-		thisScore := uint64(cheaprand64()) % uint64(cycles)
+		prevScore := cheaprandu64() % uint64(prev)
+		thisScore := cheaprandu64() % uint64(cycles)
 		if prevScore > thisScore {
 			prof.cyclesLost += cycles
 			return
