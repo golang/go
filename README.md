@@ -29,13 +29,6 @@ Overflow detection is enabled by default. To disable it:
 cd src && GOFLAGS='-gcflags=-overflowdetect=false' ./make.bash # enable truncation detection with: -gcflags=-truncationdetect=true
 ```
 
-### Panic on selected calls
-
-- New flag: `--panic-on=<pkg.func>[,pkg.func2|prefix.*]` (forwarded as `-panic-on-call` to the compiler).
-- Example: `./bin/go test -fuzz=FuzzX --use-libafl --panic-on=log.error` will inject a panic before each direct call to `log.error` in user code.
-- Prefix patterns ending in `*` match multiple functions, e.g., `my/logger.*`.
-- Instrumentation is applied to user code only (stdlib/runtime/vendor/module-cache are skipped by the pass) and panics use the function name for the crash message.
-
 #### How it works
 
 This feature patches the compiler SSA generation so that integer arithmetic operations and integer conversions get extra runtime checks that call into the runtime to panic with a detailed error message when a bug is detected. Checks are applied using source-location-based filtering so user code is instrumented while standard library files and dependencies (module cache and `vendor/`) are skipped.
@@ -60,8 +53,21 @@ sum2 := a + b // overflow_false_positive
 x2 := uint8(big) // truncation_false_positive
 ```
 
+## Feature 2: Panic on selected functions
 
-## Feature 2: LibAFL state-of-the-art fuzzing
+When fuzzing targets, we may be interested in triggering a panic when certain functions are called. For example, many pieces of software emit `log.error` messages instead of panicking, even though such conditions often indicate states that security researchers would want to detect during fuzzing.
+However, these errors are usually handled internally (e.g., through retry or pause mechanisms, or by printing messages to logs or stdout), which makes them largely invisible to fuzzers. The objective of this feature is to address this issue.
+
+#### How to use
+
+Compile cybergo, then use the `--panic-on` flag.
+```bash
+./bin/go test -fuzz=FuzzX --use-libafl --panic-on=log.error
+```
+
+Prefix patterns ending in `*` match multiple functions, e.g., `my/logger.*`. The instrumentation is applied to user code only (stdlib/runtime/vendor/module-cache are skipped by the pass) and panics use the function name for the crash message.
+
+## Feature 3: LibAFL state-of-the-art fuzzing
 
 Using the `--use-libafl` flag runs standard Go fuzz tests (`go test -fuzz=...`) **with** [LibAFL](https://github.com/AFLplusplus/LibAFL). The runner is implemented in `golibafl/`.
 
