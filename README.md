@@ -55,17 +55,17 @@ x2 := uint8(big) // truncation_false_positive
 
 ## Feature 2: Panic on selected functions
 
-When fuzzing targets, we may be interested in triggering a panic when certain functions are called. For example, many pieces of software emit `log.error` messages instead of panicking, even though such conditions often indicate states that security researchers would want to detect during fuzzing.
-However, these errors are usually handled internally (e.g., through retry or pause mechanisms, or by printing messages to logs or stdout), which makes them largely invisible to fuzzers. The objective of this feature is to address this issue.
+When fuzzing targets, we may be interested in triggering a panic when certain functions are called. For example, some software may emit `log.error` messages instead of panicking, even though such conditions often indicate states that security researchers would want to detect during fuzzing.
+However, these errors are usually handled internally (e.g., through retry or pause mechanisms, or by printing messages to logs), which makes them largely invisible to fuzzers. The objective of this feature is to address this issue.
 
 #### How to use
 
-Compile cybergo, then use the `--panic-on` flag.
+Compile cybergo, then use the `--panic-on` flag. You can also use `*` to match multiple functions, e.g., `myLogger.*`.
+
 ```bash
-./bin/go test -fuzz=FuzzX --use-libafl --panic-on=log.error
+./bin/go test -fuzz=FuzzX --use-libafl --panic-on="myLog.myCustomError,myLog.anotherError"
 ```
 
-Prefix patterns ending in `*` match multiple functions, e.g., `my/logger.*`. The instrumentation is applied to user code only (stdlib/runtime/vendor/module-cache are skipped by the pass) and panics use the function name for the crash message.
 
 ## Feature 3: LibAFL state-of-the-art fuzzing
 
