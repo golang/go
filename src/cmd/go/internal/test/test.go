@@ -747,6 +747,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	if len(pkgs) == 0 {
 		base.Fatalf("no packages to test")
 	}
+	validatePanicOnPatterns(pkgs)
 
 	if testFuzz != "" {
 		if !platform.FuzzSupported(cfg.Goos, cfg.Goarch) {
