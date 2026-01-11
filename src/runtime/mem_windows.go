@@ -26,7 +26,13 @@ const (
 //
 //go:nosplit
 func sysAllocOS(n uintptr, _ string) unsafe.Pointer {
-	return unsafe.Pointer(stdcall(_VirtualAlloc, 0, n, _MEM_COMMIT|_MEM_RESERVE, _PAGE_READWRITE))
+	p := stdcall(_VirtualAlloc, 0, n, _MEM_COMMIT|_MEM_RESERVE, _PAGE_READWRITE)
+	if p == 0 {
+		errno := getlasterror()
+		print("runtime: VirtualAlloc of ", n, " bytes failed with errno=", errno, "\n")
+		return nil
+	}
+	return unsafe.Pointer(p)
 }
 
 func sysUnusedOS(v unsafe.Pointer, n uintptr) {
@@ -120,14 +126,19 @@ func sysFaultOS(v unsafe.Pointer, n uintptr) {
 func sysReserveOS(v unsafe.Pointer, n uintptr, _ string) unsafe.Pointer {
 	// v is just a hint.
 	// First try at v.
-	// This will fail if any of [v, v+n) is already reserved.
-	v = unsafe.Pointer(stdcall(_VirtualAlloc, uintptr(v), n, _MEM_RESERVE, _PAGE_READWRITE))
-	if v != nil {
-		return v
+	p := stdcall(_VirtualAlloc, uintptr(v), n, _MEM_RESERVE, _PAGE_READWRITE)
+	if p != 0 {
+		return unsafe.Pointer(p)
 	}
 
 	// Next let the kernel choose the address.
-	return unsafe.Pointer(stdcall(_VirtualAlloc, 0, n, _MEM_RESERVE, _PAGE_READWRITE))
+	p = stdcall(_VirtualAlloc, 0, n, _MEM_RESERVE, _PAGE_READWRITE)
+	if p == 0 {
+		errno := getlasterror()
+		print("runtime: VirtualAlloc of ", n, " bytes failed with errno=", errno, "\n")
+		return nil
+	}
+	return unsafe.Pointer(p)
 }
 
 func sysMapOS(v unsafe.Pointer, n uintptr, _ string) {
