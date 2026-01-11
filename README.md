@@ -75,18 +75,43 @@ Compile cybergo, then use the `--panic-on` flag.
 
 The example above would panic when a function `func (l *Logger) Error(msg string)` is called for instance.
 
+<details>
+<summary><strong>How panic on selected functions feature works</strong></summary>
+
+```text
+┌───────────────────────────────────────────────────────────────────────────┐
+│ 1) cybergo `go test`                                                      │
+│    - parses + validates `-panic-on=...` against packages being built      │
+│    - forwards patterns to the compiler via `-panic-on-call=...`           │
+└───────────────┬───────────────────────────────────────────────────────────┘
+                v
+┌───────────────────────────────────────────────────────────────────────────┐
+│ 2) `cmd/compile`                                                          │
+│    - prevents inlining of matching calls so the call stays visible        │
+│    - SSA pass inserts a call to `runtime.panicOnCall(...)`                │
+└───────────────┬───────────────────────────────────────────────────────────┘
+                v
+┌───────────────────────────────────────────────────────────────────────────┐
+│ 3) `runtime.panicOnCall`                                                  │
+│    - panics with: "panic-on-call: func-name"                              │
+└───────────────────────────────────────────────────────────────────────────┘
+```
+
+In practice, this makes any matched call site behave like a crash/panic for fuzzers (note: only static call sites can be trapped).
+</details>
+
 ## Feature 3: LibAFL state-of-the-art fuzzing
 
 LibAFL performs *way* better than the traditional Go fuzzer. Using the `--use-libafl` flag runs standard Go fuzz tests (`go test -fuzz=...`) **with** [LibAFL](https://github.com/AFLplusplus/LibAFL). The runner is implemented in `golibafl/`. Without `--use-libafl`, the fuzzer behaves like upstream Go.
 
-You can also pass an optional config. file for LibAFL, see example [here](misc/cybergo/libafl.config.jsonc)
+You can also pass an optional config. file for LibAFL, see [here.](misc/cybergo/libafl.config.jsonc)
 
 ```bash
-./bin/go test -fuzz=FuzzXxx --use-libafl --libafl-config=path/to/libafl.jsonc # optionnal --libafl-config
+./bin/go test -fuzz=FuzzHarness --use-libafl --libafl-config=path/to/libafl.jsonc # optionnal --libafl-config
 ```
 
 <details>
-<summary><strong>How Go + Rust + LibAFL are wired together</strong></summary>
+<summary><strong>How Go + LibAFL are wired together</strong></summary>
 
 ```text
 ┌───────────────────────────────────────────────────────────────────────────┐

@@ -7,15 +7,15 @@ use libafl::{
         SendExiting,
     },
     feedback_or_fast,
-    feedbacks::{CrashFeedback, MaxMapFeedback},
+    feedbacks::{CrashFeedback, DifferentIsNovel, MapFeedback, MaxMapFeedback},
     fuzzer::{Fuzzer, StdFuzzer},
     inputs::{BytesInput, HasTargetBytes},
     mutators::scheduled::HavocScheduledMutator,
     prelude::{
         havoc_mutations, powersched::PowerSchedule, tokens_mutations, CalibrationStage, CanTrack,
         ClientDescription, EventConfig, I2SRandReplace, IndexesLenTimeMinimizerScheduler, Launcher,
-        RandBytesGenerator, SimpleMonitor, StdMOptMutator, StdMapObserver, StdWeightedScheduler,
-        TimeFeedback, TimeObserver, Tokens,
+        MultiMapObserver, RandBytesGenerator, SimpleMonitor, StdMOptMutator, StdMapObserver,
+        StdWeightedScheduler, TimeFeedback, TimeObserver, Tokens,
     },
     stages::{mutational::StdMutationalStage, ShadowTracingStage, StdPowerMutationalStage},
     state::{HasCorpus, HasExecutions, HasSolutions, Stoppable, StdState},
@@ -25,6 +25,7 @@ use libafl_bolts::{
     prelude::{Cores, StdShMemProvider},
     rands::StdRand,
     shmem::ShMemProvider,
+    simd::MaxReducer,
     tuples::{tuple_list, Merge},
 };
 use libafl_targets::{
@@ -42,6 +43,8 @@ use std::{
 };
 use std::{panic, process::Command};
 
+type NonSimdMaxMapFeedback<C, O> = MapFeedback<C, DifferentIsNovel, O, MaxReducer>;
+
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
 
@@ -54,6 +57,7 @@ struct LibAflFuzzConfig {
     corpus_cache_size: Option<usize>,
     initial_generated_inputs: Option<usize>,
     initial_input_max_len: Option<usize>,
+    go_maxprocs_single: Option<bool>,
     debug_output: Option<bool>,
 }
 
@@ -306,6 +310,7 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
     let mut corpus_cache_size = 4096usize;
     let mut initial_generated_inputs = 8usize;
     let mut initial_input_max_len = 32usize;
+    let mut go_maxprocs_single = true;
     let mut debug_output_override: Option<bool> = None;
 
     if let Some(config_path) = config_path {
@@ -367,6 +372,9 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
                 std::process::exit(2);
             }
             initial_input_max_len = n;
+        }
+        if let Some(v) = config.go_maxprocs_single {
+            go_maxprocs_single = v;
         }
         debug_output_override = config.debug_output;
 
@@ -519,220 +527,249 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
                 return Err(Error::shutting_down());
             }
 
+            if go_maxprocs_single && effective_cores.ids.len() > 1 {
+                env::set_var("GOMAXPROCS", "1");
+            }
+
             // trigger Go runtime initialization, which calls __sanitizer_cov_8bit_counters_init to initialize COUNTERS_MAPS
             if unsafe { libfuzzer_initialize(&args) } == -1 {
                 println!("Warning: LLVMFuzzerInitialize failed with -1");
             }
-            // We assume COUNTERS_MAP len == 1  so that we can use StdMapObserver instead of Multimapobserver to improve performance.
             let counters_map_len = unsafe { COUNTERS_MAPS.len() };
-            assert!(
-                (counters_map_len == 1),
-                "{}",
-                format!("Unexpected COUNTERS_MAPS length: {counters_map_len}")
-            );
-            let edges = unsafe { extra_counters() };
-            let edges_observer =
-                StdMapObserver::from_mut_slice("edges", edges.into_iter().next().unwrap())
-                    .track_indices();
 
-            // Observers
-            let time_observer = TimeObserver::new("time");
-            let cmplog_observer = CmpLogObserver::new("cmplog", true);
-            let map_feedback = MaxMapFeedback::new(&edges_observer);
-            let calibration = CalibrationStage::new(&map_feedback);
+            macro_rules! run_with_edges_observer {
+                ($edges_observer:expr, $map_feedback:ident) => {{
+                    let edges_observer = ($edges_observer).track_indices();
 
-            let mut feedback = feedback_or_fast!(
-                // New maximization map feedback linked to the edges observer and the feedback state
-                map_feedback,
-                // Time feedback, this one does not need a feedback state
-                TimeFeedback::new(&time_observer)
-            );
+                    // Observers
+                    let time_observer = TimeObserver::new("time");
+                    let cmplog_observer = CmpLogObserver::new("cmplog", true);
+                    let map_feedback = $map_feedback::new(&edges_observer);
+                    let calibration = CalibrationStage::new(&map_feedback);
 
-            // A feedback to choose if an input is a solution or not
-            let mut objective = feedback_or_fast!(CrashFeedback::new());
-
-            // create a State from scratch
-            let mut state = state.unwrap_or_else(|| {
-                StdState::new(
-                    StdRand::new(),
-                    // Corpus that will be evolved
-                    CachedOnDiskCorpus::new(
-                        format!("{}/queue/{}", output.display(), client_description.id()),
-                        corpus_cache_size,
-                    )
-                    .unwrap(),
-                    // Corpus in which we store solutions
-                    OnDiskCorpus::new(format!("{}/crashes", output.display())).unwrap(),
-                    &mut feedback,
-                    &mut objective,
-                )
-                .unwrap()
-            });
-            let initial_solutions = state.solutions().count();
-
-            // Setup a randomic Input2State stage
-            let i2s = StdMutationalStage::new(HavocScheduledMutator::new(tuple_list!(
-                I2SRandReplace::new()
-            )));
-
-            // Setup a MOPT mutator
-            let mutator = StdMOptMutator::new(
-                &mut state,
-                havoc_mutations().merge(tokens_mutations()),
-                7,
-                5,
-            )?;
-
-            let power: StdPowerMutationalStage<_, _, BytesInput, _, _, _> =
-                StdPowerMutationalStage::new(mutator);
-
-            let scheduler = IndexesLenTimeMinimizerScheduler::new(
-                &edges_observer,
-                StdWeightedScheduler::with_schedule(
-                    &mut state,
-                    &edges_observer,
-                    Some(power_schedule),
-                ),
-            );
-
-            // A fuzzer with feedbacks and a corpus scheduler
-            let mut fuzzer = StdFuzzer::new(scheduler, feedback, objective);
-
-            // The closure that we want to fuzz
-            let mut harness = |input: &BytesInput| {
-                let target = input.target_bytes();
-                unsafe {
-                    libfuzzer_test_one_input(&target);
-                }
-                ExitKind::Ok
-            };
-
-            let executor = InProcessExecutor::with_timeout(
-                &mut harness,
-                tuple_list!(edges_observer, time_observer),
-                &mut fuzzer,
-                &mut state,
-                &mut restarting_mgr,
-                exec_timeout,
-            )?;
-
-            let mut executor = ShadowExecutor::new(executor, tuple_list!(cmplog_observer));
-
-            // Setup a tracing stage in which we log comparisons
-            let tracing = ShadowTracingStage::new();
-
-            let mut stages = tuple_list!(calibration, tracing, i2s, power);
-
-            if state.metadata_map().get::<Tokens>().is_none() {
-                let mut toks = Tokens::default();
-                toks += autotokens()?;
-
-                if !toks.is_empty() {
-                    state.add_metadata(toks);
-                }
-            }
-
-            // Load corpus from input folder
-            // In case the corpus is empty (on first run), reset
-            if state.must_load_initial_inputs() {
-                let input_is_empty = match read_dir(input) {
-                    Ok(mut entries) => entries.next().is_none(),
-                    Err(_) => true,
-                };
-                if input_is_empty {
-                    // Generator of printable bytearrays of max size initial_input_max_len
-                    let mut generator = RandBytesGenerator::new(initial_input_max_len);
-
-                    // Generate 8 initial inputs
-                    state
-                        .generate_initial_inputs(
-                            &mut fuzzer,
-                            &mut executor,
-                            &mut generator,
-                            &mut restarting_mgr,
-                            initial_generated_inputs,
-                        )
-                        .expect("Failed to generate the initial corpus");
-                    println!(
-                        "We imported {} inputs from the generator.",
-                        state.corpus().count()
+                    let mut feedback = feedback_or_fast!(
+                        // New maximization map feedback linked to the edges observer and the feedback state
+                        map_feedback,
+                        // Time feedback, this one does not need a feedback state
+                        TimeFeedback::new(&time_observer)
                     );
-                } else {
-                    println!("Loading from {input:?}");
-                    // Load from disk
-                    state
-                        .load_initial_inputs(
-                            &mut fuzzer,
-                            &mut executor,
-                            &mut restarting_mgr,
-                            &[input.to_path_buf()],
-                        )
-                        .unwrap_or_else(|err| {
-                            panic!("Failed to load initial corpus at {input:?}: {err:?}");
-                        });
-                    let disk_inputs = state.corpus().count();
-                    println!("We imported {} inputs from disk.", disk_inputs);
-                    if disk_inputs == 0 {
-                        // Generator of printable bytearrays of max size initial_input_max_len
-                        let mut generator = RandBytesGenerator::new(initial_input_max_len);
 
-                        // Generate 8 initial inputs
-                        state
-                            .generate_initial_inputs(
-                                &mut fuzzer,
-                                &mut executor,
-                                &mut generator,
-                                &mut restarting_mgr,
-                                initial_generated_inputs,
+                    // A feedback to choose if an input is a solution or not
+                    let mut objective = feedback_or_fast!(CrashFeedback::new());
+
+                    // create a State from scratch
+                    let mut state = state.unwrap_or_else(|| {
+                        StdState::new(
+                            StdRand::new(),
+                            // Corpus that will be evolved
+                            CachedOnDiskCorpus::new(
+                                format!("{}/queue/{}", output.display(), client_description.id()),
+                                corpus_cache_size,
                             )
-                            .expect("Failed to generate the initial corpus");
-                        println!(
-                            "We imported {} inputs from the generator.",
-                            state.corpus().count()
-                        );
-                    }
-                }
-            }
+                            .unwrap(),
+                            // Corpus in which we store solutions
+                            OnDiskCorpus::new(format!("{}/crashes", output.display())).unwrap(),
+                            &mut feedback,
+                            &mut objective,
+                        )
+                        .unwrap()
+                    });
+                    let initial_solutions = state.solutions().count();
 
-            if state.solutions().count() > initial_solutions {
-                let executions = *state.executions();
-                restarting_mgr.fire(
-                    &mut state,
-                    EventWithStats::with_current_time(Event::<BytesInput>::Stop, executions),
-                )?;
-                state.request_stop();
-                restarting_mgr.on_shutdown()?;
-                return Err(Error::shutting_down());
-            }
+                    // Setup a randomic Input2State stage
+                    let i2s = StdMutationalStage::new(HavocScheduledMutator::new(tuple_list!(
+                        I2SRandReplace::new()
+                    )));
 
-            loop {
-                if let Err(err) = restarting_mgr.maybe_report_progress(&mut state, monitor_timeout)
-                {
-                    if matches!(err, Error::ShuttingDown) {
-                        restarting_mgr.on_shutdown()?;
-                    }
-                    return Err(err);
-                }
-
-                if let Err(err) =
-                    fuzzer.fuzz_one(&mut stages, &mut executor, &mut state, &mut restarting_mgr)
-                {
-                    if matches!(err, Error::ShuttingDown) {
-                        restarting_mgr.on_shutdown()?;
-                    }
-                    return Err(err);
-                }
-
-                if state.solutions().count() > initial_solutions {
-                    let executions = *state.executions();
-                    restarting_mgr.fire(
+                    // Setup a MOPT mutator
+                    let mutator = StdMOptMutator::new(
                         &mut state,
-                        EventWithStats::with_current_time(Event::<BytesInput>::Stop, executions),
+                        havoc_mutations().merge(tokens_mutations()),
+                        7,
+                        5,
                     )?;
-                    state.request_stop();
-                    restarting_mgr.on_shutdown()?;
-                    return Err(Error::shutting_down());
+
+                    let power: StdPowerMutationalStage<_, _, BytesInput, _, _, _> =
+                        StdPowerMutationalStage::new(mutator);
+
+                    let scheduler = IndexesLenTimeMinimizerScheduler::new(
+                        &edges_observer,
+                        StdWeightedScheduler::with_schedule(
+                            &mut state,
+                            &edges_observer,
+                            Some(power_schedule),
+                        ),
+                    );
+
+                    // A fuzzer with feedbacks and a corpus scheduler
+                    let mut fuzzer = StdFuzzer::new(scheduler, feedback, objective);
+
+                    // The closure that we want to fuzz
+                    let mut harness = |input: &BytesInput| {
+                        let target = input.target_bytes();
+                        unsafe {
+                            libfuzzer_test_one_input(&target);
+                        }
+                        ExitKind::Ok
+                    };
+
+                    let executor = InProcessExecutor::with_timeout(
+                        &mut harness,
+                        tuple_list!(edges_observer, time_observer),
+                        &mut fuzzer,
+                        &mut state,
+                        &mut restarting_mgr,
+                        exec_timeout,
+                    )?;
+
+                    let mut executor = ShadowExecutor::new(executor, tuple_list!(cmplog_observer));
+
+                    // Setup a tracing stage in which we log comparisons
+                    let tracing = ShadowTracingStage::new();
+
+                    let mut stages = tuple_list!(calibration, tracing, i2s, power);
+
+                    if state.metadata_map().get::<Tokens>().is_none() {
+                        let mut toks = Tokens::default();
+                        toks += autotokens()?;
+
+                        if !toks.is_empty() {
+                            state.add_metadata(toks);
+                        }
+                    }
+
+                    // Load corpus from input folder
+                    // In case the corpus is empty (on first run), reset
+                    if state.must_load_initial_inputs() {
+                        let input_is_empty = match read_dir(input) {
+                            Ok(mut entries) => entries.next().is_none(),
+                            Err(_) => true,
+                        };
+                        if input_is_empty {
+                            // Generator of printable bytearrays of max size initial_input_max_len
+                            let mut generator = RandBytesGenerator::new(initial_input_max_len);
+
+                            // Generate 8 initial inputs
+                            state
+                                .generate_initial_inputs(
+                                    &mut fuzzer,
+                                    &mut executor,
+                                    &mut generator,
+                                    &mut restarting_mgr,
+                                    initial_generated_inputs,
+                                )
+                                .expect("Failed to generate the initial corpus");
+                            println!(
+                                "We imported {} inputs from the generator.",
+                                state.corpus().count()
+                            );
+                        } else {
+                            println!("Loading from {input:?}");
+                            // Load from disk
+                            state
+                                .load_initial_inputs(
+                                    &mut fuzzer,
+                                    &mut executor,
+                                    &mut restarting_mgr,
+                                    &[input.to_path_buf()],
+                                )
+                                .unwrap_or_else(|err| {
+                                    panic!("Failed to load initial corpus at {input:?}: {err:?}");
+                                });
+                            let disk_inputs = state.corpus().count();
+                            println!("We imported {} inputs from disk.", disk_inputs);
+                            if disk_inputs == 0 {
+                                // Generator of printable bytearrays of max size initial_input_max_len
+                                let mut generator = RandBytesGenerator::new(initial_input_max_len);
+
+                                // Generate 8 initial inputs
+                                state
+                                    .generate_initial_inputs(
+                                        &mut fuzzer,
+                                        &mut executor,
+                                        &mut generator,
+                                        &mut restarting_mgr,
+                                        initial_generated_inputs,
+                                    )
+                                    .expect("Failed to generate the initial corpus");
+                                println!(
+                                    "We imported {} inputs from the generator.",
+                                    state.corpus().count()
+                                );
+                            }
+                        }
+                    }
+
+                    if state.solutions().count() > initial_solutions {
+                        let executions = *state.executions();
+                        restarting_mgr.fire(
+                            &mut state,
+                            EventWithStats::with_current_time(
+                                Event::<BytesInput>::Stop,
+                                executions,
+                            ),
+                        )?;
+                        state.request_stop();
+                        restarting_mgr.on_shutdown()?;
+                        return Err(Error::shutting_down());
+                    }
+
+                    loop {
+                        if let Err(err) =
+                            restarting_mgr.maybe_report_progress(&mut state, monitor_timeout)
+                        {
+                            if matches!(err, Error::ShuttingDown) {
+                                restarting_mgr.on_shutdown()?;
+                            }
+                            return Err(err);
+                        }
+
+                        if let Err(err) = fuzzer.fuzz_one(
+                            &mut stages,
+                            &mut executor,
+                            &mut state,
+                            &mut restarting_mgr,
+                        ) {
+                            if matches!(err, Error::ShuttingDown) {
+                                restarting_mgr.on_shutdown()?;
+                            }
+                            return Err(err);
+                        }
+
+                        if state.solutions().count() > initial_solutions {
+                            let executions = *state.executions();
+                            restarting_mgr.fire(
+                                &mut state,
+                                EventWithStats::with_current_time(
+                                    Event::<BytesInput>::Stop,
+                                    executions,
+                                ),
+                            )?;
+                            state.request_stop();
+                            restarting_mgr.on_shutdown()?;
+                            return Err(Error::shutting_down());
+                        }
+                    }
+                }};
+            }
+
+            match counters_map_len {
+                1 => {
+                    let edges = unsafe { extra_counters() };
+                    let edges = edges.into_iter().next().unwrap();
+                    run_with_edges_observer!(
+                        StdMapObserver::from_mut_slice("edges", edges),
+                        MaxMapFeedback
+                    )
                 }
+                n if n > 1 => {
+                    let edges = unsafe { extra_counters() };
+                    run_with_edges_observer!(
+                        MultiMapObserver::new("edges", edges),
+                        NonSimdMaxMapFeedback
+                    )
+                }
+                _ => panic!("No coverage maps available; cannot fuzz!"),
             }
         };
     let launch_res = Launcher::builder()
