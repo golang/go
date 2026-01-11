@@ -12,6 +12,11 @@
   // default: 1000
   "exec_timeout_ms": 1000,
 
+  // power_schedule: power schedule strategy for the scheduler.
+  // default: "fast"
+  // possible values: "explore" / "exploit" / "fast" / "coe" / "lin" / "quad"
+  "power_schedule": "fast",
+
   // corpus_cache_size: in-memory cache size for each on-disk corpus.
   // default: 4096
   "corpus_cache_size": 4096,

@@ -50,6 +50,7 @@ static GLOBAL: MiMalloc = MiMalloc;
 struct LibAflFuzzConfig {
     cores: Option<String>,
     exec_timeout_ms: Option<u64>,
+    power_schedule: Option<String>,
     corpus_cache_size: Option<usize>,
     initial_generated_inputs: Option<usize>,
     initial_input_max_len: Option<usize>,
@@ -301,6 +302,7 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
 
     let mut effective_cores = cores.clone();
     let mut exec_timeout = Duration::new(1, 0);
+    let mut power_schedule = PowerSchedule::fast();
     let mut corpus_cache_size = 4096usize;
     let mut initial_generated_inputs = 8usize;
     let mut initial_input_max_len = 32usize;
@@ -320,6 +322,24 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
                 std::process::exit(2);
             }
             exec_timeout = Duration::from_millis(ms);
+        }
+        if let Some(ps) = config.power_schedule.as_deref() {
+            let ps_norm = ps.trim().to_ascii_lowercase();
+            power_schedule = match ps_norm.as_str() {
+                "explore" => PowerSchedule::explore(),
+                "exploit" => PowerSchedule::exploit(),
+                "fast" => PowerSchedule::fast(),
+                "coe" => PowerSchedule::coe(),
+                "lin" => PowerSchedule::lin(),
+                "quad" => PowerSchedule::quad(),
+                _ => {
+                    eprintln!(
+                        "golibafl: invalid power_schedule in config {}: {ps} (expected explore/exploit/fast/coe/lin/quad)",
+                        config_path.display()
+                    );
+                    std::process::exit(2);
+                }
+            };
         }
         if let Some(sz) = config.corpus_cache_size {
             if sz == 0 {
@@ -571,7 +591,7 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
                 StdWeightedScheduler::with_schedule(
                     &mut state,
                     &edges_observer,
-                    Some(PowerSchedule::fast()),
+                    Some(power_schedule),
                 ),
             );
 
