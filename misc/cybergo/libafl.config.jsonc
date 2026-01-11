@@ -6,25 +6,26 @@
   // cores: CPU cores to bind LibAFL clients to.
   // default (cybergo go test): "0" (single client)
   // examples: "0,1" / "all" / "none"
-  // "cores": "0",
+  "cores": "0",
 
   // exec_timeout_ms: per-execution timeout for the in-process harness.
   // default: 1000
-  // "exec_timeout_ms": 1000,
+  "exec_timeout_ms": 1000,
 
   // corpus_cache_size: in-memory cache size for each on-disk corpus.
   // default: 4096
-  // "corpus_cache_size": 4096,
+  "corpus_cache_size": 4096,
 
   // initial_generated_inputs: generated corpus size if the input dir is empty.
   // default: 8
-  // "initial_generated_inputs": 8,
+  "initial_generated_inputs": 8,
 
   // initial_input_max_len: max length for generated initial inputs.
   // default: 32
-  // "initial_input_max_len": 32,
+  "initial_input_max_len": 32,
 
   // debug_output: force-enable/disable LIBAFL_DEBUG_OUTPUT (otherwise auto).
   // default: auto (enabled when running with a single client)
-  // "debug_output": true
+  // use `null` for "auto"
+  "debug_output": null
 }
