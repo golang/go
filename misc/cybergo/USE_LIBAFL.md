@@ -45,6 +45,10 @@ Example `libafl.jsonc` (all fields optional; defaults shown in comments):
   // default: 32
   "initial_input_max_len": 32,
 
+  // tui_monitor: enable LibAFL's interactive terminal UI (TUI)
+  // default: true
+  "tui_monitor": true,
+
   // debug_output: force-enable/disable LIBAFL_DEBUG_OUTPUT (otherwise auto)
   // default: auto (enabled when running with a single client)
   "debug_output": true

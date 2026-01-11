@@ -15,7 +15,7 @@ use libafl::{
         havoc_mutations, powersched::PowerSchedule, tokens_mutations, CalibrationStage, CanTrack,
         ClientDescription, EventConfig, I2SRandReplace, IndexesLenTimeMinimizerScheduler, Launcher,
         MultiMapObserver, RandBytesGenerator, SimpleMonitor, StdMOptMutator, StdMapObserver,
-        StdWeightedScheduler, TimeFeedback, TimeObserver, Tokens,
+        StdWeightedScheduler, TimeFeedback, TimeObserver, Tokens, TuiMonitor,
     },
     stages::{mutational::StdMutationalStage, ShadowTracingStage, StdPowerMutationalStage},
     state::{HasCorpus, HasExecutions, HasSolutions, Stoppable, StdState},
@@ -58,6 +58,7 @@ struct LibAflFuzzConfig {
     initial_generated_inputs: Option<usize>,
     initial_input_max_len: Option<usize>,
     go_maxprocs_single: Option<bool>,
+    tui_monitor: Option<bool>,
     debug_output: Option<bool>,
 }
 
@@ -311,6 +312,7 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
     let mut initial_generated_inputs = 8usize;
     let mut initial_input_max_len = 32usize;
     let mut go_maxprocs_single = true;
+    let mut tui_monitor = true;
     let mut debug_output_override: Option<bool> = None;
 
     if let Some(config_path) = config_path {
@@ -375,6 +377,9 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
         }
         if let Some(v) = config.go_maxprocs_single {
             go_maxprocs_single = v;
+        }
+        if let Some(v) = config.tui_monitor {
+            tui_monitor = v;
         }
         debug_output_override = config.debug_output;
 
@@ -514,7 +519,6 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
     }
     let shmem_provider =
         StdShMemProvider::new().unwrap_or_else(|err| panic!("Failed to init shared memory: {err:?}"));
-    let monitor = SimpleMonitor::new(|s| println!("{s}"));
 
     let mut run_client =
         |state: Option<_>,
@@ -772,16 +776,32 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
                 _ => panic!("No coverage maps available; cannot fuzz!"),
             }
         };
-    let launch_res = Launcher::builder()
-        .shmem_provider(shmem_provider)
-        .configuration(EventConfig::from_name("default"))
-        .monitor(monitor)
-        .run_client(&mut run_client)
-        .cores(&effective_cores)
-        .broker_port(broker_port)
-        .fork(false)
-        .build()
-        .launch::<BytesInput, _>();
+
+    let launch_res = if tui_monitor {
+        let monitor = TuiMonitor::builder().build();
+        Launcher::builder()
+            .shmem_provider(shmem_provider)
+            .configuration(EventConfig::from_name("default"))
+            .monitor(monitor)
+            .run_client(&mut run_client)
+            .cores(&effective_cores)
+            .broker_port(broker_port)
+            .fork(false)
+            .build()
+            .launch::<BytesInput, _>()
+    } else {
+        let monitor = SimpleMonitor::new(|s| println!("{s}"));
+        Launcher::builder()
+            .shmem_provider(shmem_provider)
+            .configuration(EventConfig::from_name("default"))
+            .monitor(monitor)
+            .run_client(&mut run_client)
+            .cores(&effective_cores)
+            .broker_port(broker_port)
+            .fork(false)
+            .build()
+            .launch::<BytesInput, _>()
+    };
 
     match &launch_res {
         Ok(()) | Err(Error::ShuttingDown) => (),
