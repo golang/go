@@ -2,22 +2,22 @@
 
 [![integration tests](https://github.com/kevin-valerio/cybergo/actions/workflows/go.yml/badge.svg?branch=master)](https://github.com/kevin-valerio/cybergo/actions/workflows/go.yml)
 
-## Table of Contents
-
-- [Build](#build)
-- [Feature 1: Integer overflow and truncation issues detection](#feature-1-integer-overflow-and-truncation-issues-detection)
-- [Feature 2: Panic on selected functions](#feature-2-panic-on-selected-functions)
-- [Feature 3: LibAFL state-of-the-art fuzzing](#feature-3-libafl-state-of-the-art-fuzzing)
-- [Credits](#credits)
-
 cybergo is a security-focused fork of the Go toolchain. In a _very_ simple phrasing, cybergo is a copy of the Go compiler that finds bugs. For now, it focuses on two things:
 
 - Integrating [go-panikint](https://github.com/trailofbits/go-panikint): instrumentation that panics on **integer overflow/underflow** (and **optionally on truncating integer conversions**).
 - Integrating [LibAFL](https://github.com/AFLplusplus/LibAFL) fuzzer : run Go fuzzing harnesses with **LibAFL** for better fuzzing performances.
 
+## Table of Contents
+
+- [Build](#build)
+  - [Feature 1: Integer overflow and truncation issues detection](#feature-1-integer-overflow-and-truncation-issues-detection)
+  - [Feature 2: Panic on selected functions](#feature-2-panic-on-selected-functions)
+  - [Feature 3: LibAFL state-of-the-art fuzzing](#feature-3-libafl-state-of-the-art-fuzzing)
+- [Credits](#credits)
+
 ## Build
 ```bash
-cd src && ./make.bash # this produces `./bin/go`
+cd src && ./make.bash # This produces `./bin/go`. See `GOFLAGS` below.
 ```
 
 ## Feature 1: Integer overflow and truncation issues detection
@@ -30,12 +30,7 @@ _Arithmetic operations_: Handles addition `+`, subtraction `-`, multiplication `
 
 _Type truncation detection_: Detects potentially lossy integer type conversions. Covers all integer types: `int8`, `int16`, `int32`, `int64`, `uint8`, `uint16`, `uint32`, `uint64`. Excludes `uintptr` due to platform-dependent usage. This is disabled by default.
 
-Overflow detection is enabled by default. To disable it:
-
-```bash
-cd src && GOFLAGS='-gcflags=-overflowdetect=false' ./make.bash 
-# You can also enable truncation with: -gcflags=-truncationdetect=true
-```
+Overflow detection is enabled by default. To disable it, add `GOFLAGS='-gcflags=-overflowdetect=false'` before your `./make.bash`. You can also enable truncation issues checker with: `-gcflags=-truncationdetect=true`
 
 #### How it works
 
@@ -73,7 +68,6 @@ Compile cybergo, then use the `--panic-on` flag. You can also use `*` to match m
 ```bash
 ./bin/go test -fuzz=FuzzX --use-libafl --panic-on="myLog.myCustomError,myLog.anotherError"
 ```
-
 
 ## Feature 3: LibAFL state-of-the-art fuzzing
 
