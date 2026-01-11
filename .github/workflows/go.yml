@@ -1,4 +1,4 @@
-name: Go-panikint self-compile and test
+name: Integration tests
 
 on:
   push:
