@@ -13,10 +13,11 @@ run_expect_crash() {
   local fuzz_name="${2}"
   local timeout_dur="${3}"
   local output_file="${4}"
+  shift 4
 
   cd "${ROOT_DIR}/test/cybergo/examples/${example_dir}"
   set +e
-  CGO_ENABLED=1 timeout "${timeout_dur}" "${ROOT_DIR}/bin/go" test -fuzz="${fuzz_name}" --use-libafl 2>&1 | tee "${output_file}"
+  CGO_ENABLED=1 timeout "${timeout_dur}" "${ROOT_DIR}/bin/go" test -fuzz="${fuzz_name}" --use-libafl "$@" 2>&1 | tee "${output_file}"
   local status="${PIPESTATUS[0]}"
   set -e
 
