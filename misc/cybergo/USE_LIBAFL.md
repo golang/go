@@ -13,6 +13,46 @@ go test -fuzz=FuzzXxx --use-libafl
 
 Without the flag, `go test -fuzz` behaves like upstream Go.
 
+## Runner configuration
+
+cybergo can pass a JSONC configuration file (JSON with `//` comments) to the LibAFL runner:
+
+```bash
+go test -fuzz=FuzzXxx --use-libafl --libafl-config=libafl.jsonc
+```
+
+Example `libafl.jsonc` (all fields optional; defaults shown in comments):
+
+```jsonc
+{
+  // cores: CPU cores to bind LibAFL clients to (ex: "0,1" / "all" / "none")
+  // default (cybergo go test): "0" (single client)
+  "cores": "0,1",
+
+  // exec_timeout_ms: per-execution timeout for the in-process harness
+  // default: 1000
+  "exec_timeout_ms": 1000,
+
+  // corpus_cache_size: in-memory cache size for each on-disk corpus
+  // default: 4096
+  "corpus_cache_size": 4096,
+
+  // initial_generated_inputs: generated corpus size if the input dir is empty
+  // default: 8
+  "initial_generated_inputs": 8,
+
+  // initial_input_max_len: max length for generated initial inputs
+  // default: 32
+  "initial_input_max_len": 32,
+
+  // debug_output: force-enable/disable LIBAFL_DEBUG_OUTPUT (otherwise auto)
+  // default: auto (enabled when running with a single client)
+  "debug_output": true
+}
+```
+
+A ready-to-edit template lives at `misc/cybergo/libafl.config.jsonc`.
+
 ## Quick start
 
 1) Build the forked toolchain:

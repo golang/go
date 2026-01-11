@@ -11,7 +11,6 @@ use libafl::{
     fuzzer::{Fuzzer, StdFuzzer},
     inputs::{BytesInput, HasTargetBytes},
     mutators::scheduled::HavocScheduledMutator,
-    nonzero,
     prelude::{
         havoc_mutations, powersched::PowerSchedule, tokens_mutations, CalibrationStage, CanTrack,
         ClientDescription, EventConfig, I2SRandReplace, IndexesLenTimeMinimizerScheduler, Launcher,
@@ -33,6 +32,7 @@ use libafl_targets::{
     CmpLogObserver, COUNTERS_MAPS,
 };
 use mimalloc::MiMalloc;
+use serde::Deserialize;
 use std::{
     env, fs,
     fs::read_dir,
@@ -45,6 +45,97 @@ use std::{panic, process::Command};
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
 
+#[derive(Deserialize, Debug, Default)]
+#[serde(deny_unknown_fields)]
+struct LibAflFuzzConfig {
+    cores: Option<String>,
+    exec_timeout_ms: Option<u64>,
+    corpus_cache_size: Option<usize>,
+    initial_generated_inputs: Option<usize>,
+    initial_input_max_len: Option<usize>,
+    debug_output: Option<bool>,
+}
+
+fn strip_jsonc_comments(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    let mut chars = input.chars().peekable();
+    let mut in_string = false;
+    let mut escape = false;
+
+    while let Some(ch) = chars.next() {
+        if in_string {
+            out.push(ch);
+            if escape {
+                escape = false;
+                continue;
+            }
+            match ch {
+                '\\' => escape = true,
+                '"' => in_string = false,
+                _ => {}
+            }
+            continue;
+        }
+
+        match ch {
+            '"' => {
+                in_string = true;
+                out.push(ch);
+            }
+            '/' => match chars.peek() {
+                Some('/') => {
+                    // Line comment: keep the newline so error line numbers are still useful.
+                    chars.next();
+                    while let Some(next) = chars.next() {
+                        if next == '\n' {
+                            out.push('\n');
+                            break;
+                        }
+                    }
+                }
+                Some('*') => {
+                    // Block comment: keep any newlines for better diagnostics.
+                    chars.next();
+                    let mut prev = '\0';
+                    while let Some(next) = chars.next() {
+                        if prev == '*' && next == '/' {
+                            break;
+                        }
+                        if next == '\n' {
+                            out.push('\n');
+                        }
+                        prev = next;
+                    }
+                }
+                _ => out.push(ch),
+            },
+            _ => out.push(ch),
+        }
+    }
+
+    out
+}
+
+fn read_fuzz_config(path: &Path) -> LibAflFuzzConfig {
+    let contents = fs::read_to_string(path).unwrap_or_else(|err| {
+        eprintln!("golibafl: failed to read config {}: {err}", path.display());
+        std::process::exit(2);
+    });
+    let json = strip_jsonc_comments(&contents);
+    serde_json::from_str(&json).unwrap_or_else(|err| {
+        eprintln!("golibafl: invalid JSONC config {}: {err}", path.display());
+        std::process::exit(2);
+    })
+}
+
+fn cores_ids_csv(cores: &Cores) -> String {
+    cores.ids
+        .iter()
+        .map(|id| id.0.to_string())
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
 
 
 // Command line arguments with clap
@@ -55,6 +146,9 @@ enum Mode {
         input: PathBuf,
     },
     Fuzz {
+        #[clap(long, value_name = "FILE", help = "JSONC config file path (JSON with // comments)")]
+        config: Option<PathBuf>,
+
         #[clap(
             short = 'j',
             long,
@@ -151,11 +245,81 @@ fn run(input: PathBuf) {
 // Fuzzing function, wrapping the exported libfuzzer functions from golang
 #[allow(clippy::too_many_lines)]
 #[allow(static_mut_refs)]
-fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path) {
+fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_path: Option<&PathBuf>) {
     let args: Vec<String> = env::args().collect();
-    if cores.ids.len() == 1 {
-        env::set_var("LIBAFL_DEBUG_OUTPUT", "1");
+
+    let mut effective_cores = cores.clone();
+    let mut exec_timeout = Duration::new(1, 0);
+    let mut corpus_cache_size = 4096usize;
+    let mut initial_generated_inputs = 8usize;
+    let mut initial_input_max_len = 32usize;
+    let mut debug_output_override: Option<bool> = None;
+
+    if let Some(config_path) = config_path {
+        let config = read_fuzz_config(config_path);
+        if let Some(cores) = config.cores.as_deref() {
+            effective_cores = Cores::from_cmdline(cores).unwrap_or_else(|err| {
+                eprintln!("golibafl: invalid cores in config {}: {err}", config_path.display());
+                std::process::exit(2);
+            });
+        }
+        if let Some(ms) = config.exec_timeout_ms {
+            if ms == 0 {
+                eprintln!("golibafl: exec_timeout_ms must be > 0 (config: {})", config_path.display());
+                std::process::exit(2);
+            }
+            exec_timeout = Duration::from_millis(ms);
+        }
+        if let Some(sz) = config.corpus_cache_size {
+            if sz == 0 {
+                eprintln!("golibafl: corpus_cache_size must be > 0 (config: {})", config_path.display());
+                std::process::exit(2);
+            }
+            corpus_cache_size = sz;
+        }
+        if let Some(n) = config.initial_generated_inputs {
+            if n == 0 {
+                eprintln!(
+                    "golibafl: initial_generated_inputs must be > 0 (config: {})",
+                    config_path.display()
+                );
+                std::process::exit(2);
+            }
+            initial_generated_inputs = n;
+        }
+        if let Some(n) = config.initial_input_max_len {
+            if n == 0 {
+                eprintln!(
+                    "golibafl: initial_input_max_len must be > 0 (config: {})",
+                    config_path.display()
+                );
+                std::process::exit(2);
+            }
+            initial_input_max_len = n;
+        }
+        debug_output_override = config.debug_output;
+
+        println!(
+            "GOLIBAFL_CONFIG_APPLIED cores_ids={} exec_timeout_ms={}",
+            cores_ids_csv(&effective_cores),
+            exec_timeout.as_millis(),
+        );
     }
+
+    match debug_output_override {
+        Some(true) => env::set_var("LIBAFL_DEBUG_OUTPUT", "1"),
+        Some(false) => env::remove_var("LIBAFL_DEBUG_OUTPUT"),
+        None => {
+            if effective_cores.ids.len() == 1 {
+                env::set_var("LIBAFL_DEBUG_OUTPUT", "1");
+            }
+        }
+    }
+
+    let initial_input_max_len = std::num::NonZeroUsize::new(initial_input_max_len).unwrap_or_else(|| {
+        panic!("initial_input_max_len must be > 0");
+    });
+    let monitor_timeout = Duration::from_secs(15);
     let crashes_dir = output.join("crashes");
     let count_crash_inputs = |dir: &Path| -> usize {
         fs::read_dir(dir)
@@ -323,7 +487,7 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path) {
                     // Corpus that will be evolved
                     CachedOnDiskCorpus::new(
                         format!("{}/queue/{}", output.display(), client_description.id()),
-                        4096,
+                        corpus_cache_size,
                     )
                     .unwrap(),
                     // Corpus in which we store solutions
@@ -378,7 +542,7 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path) {
                 &mut fuzzer,
                 &mut state,
                 &mut restarting_mgr,
-                Duration::new(1, 0),
+                exec_timeout,
             )?;
 
             let mut executor = ShadowExecutor::new(executor, tuple_list!(cmplog_observer));
@@ -405,8 +569,8 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path) {
                     Err(_) => true,
                 };
                 if input_is_empty {
-                    // Generator of printable bytearrays of max size 32
-                    let mut generator = RandBytesGenerator::new(nonzero!(32));
+                    // Generator of printable bytearrays of max size initial_input_max_len
+                    let mut generator = RandBytesGenerator::new(initial_input_max_len);
 
                     // Generate 8 initial inputs
                     state
@@ -415,7 +579,7 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path) {
                             &mut executor,
                             &mut generator,
                             &mut restarting_mgr,
-                            8,
+                            initial_generated_inputs,
                         )
                         .expect("Failed to generate the initial corpus");
                     println!(
@@ -438,8 +602,8 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path) {
                     let disk_inputs = state.corpus().count();
                     println!("We imported {} inputs from disk.", disk_inputs);
                     if disk_inputs == 0 {
-                        // Generator of printable bytearrays of max size 32
-                        let mut generator = RandBytesGenerator::new(nonzero!(32));
+                        // Generator of printable bytearrays of max size initial_input_max_len
+                        let mut generator = RandBytesGenerator::new(initial_input_max_len);
 
                         // Generate 8 initial inputs
                         state
@@ -448,7 +612,7 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path) {
                                 &mut executor,
                                 &mut generator,
                                 &mut restarting_mgr,
-                                8,
+                                initial_generated_inputs,
                             )
                             .expect("Failed to generate the initial corpus");
                         println!(
@@ -470,7 +634,6 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path) {
                 return Err(Error::shutting_down());
             }
 
-            let monitor_timeout = Duration::from_secs(15);
             loop {
                 if let Err(err) = restarting_mgr.maybe_report_progress(&mut state, monitor_timeout)
                 {
@@ -506,7 +669,7 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path) {
         .configuration(EventConfig::from_name("default"))
         .monitor(monitor)
         .run_client(&mut run_client)
-        .cores(cores)
+        .cores(&effective_cores)
         .broker_port(broker_port)
         .fork(false)
         .build()
@@ -621,11 +784,12 @@ pub fn main() {
 
     match cli.mode {
         Mode::Fuzz {
+            config,
             cores,
             broker_port,
             input,
             output,
-        } => fuzz(&cores, broker_port, &input, &output),
+        } => fuzz(&cores, broker_port, &input, &output, config.as_ref()),
         Mode::Run { input } => {
             run(input);
         }

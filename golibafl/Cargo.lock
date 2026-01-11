@@ -506,6 +506,8 @@ dependencies = [
  "libafl_bolts",
  "libafl_targets",
  "mimalloc",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

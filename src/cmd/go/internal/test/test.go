@@ -284,6 +284,10 @@ control the execution of any test:
 	    When -fuzz is set, use the LibAFL-based runner shipped with cybergo
 	    instead of Go's native fuzzing engine.
 
+	-libafl-config file
+	    When -use-libafl is set, pass a JSONC configuration file (JSON with // comments)
+	    to the LibAFL runner (implemented in $GOROOT/golibafl).
+
 	-json
 	    Log verbose output and test results in JSON. This presents the
 	    same information as the -v flag in a machine-readable format.
@@ -556,6 +560,7 @@ var (
 	testFailFast     bool                              // -failfast flag
 	testFuzz         string                            // -fuzz flag
 	testUseLibAFL    bool                              // -use-libafl flag
+	testLibAFLConfig string                            // -libafl-config flag
 	testPanicOn      string                            // -panic-on flag
 	testJSON         bool                              // -json flag
 	testList         string                            // -list flag
@@ -725,6 +730,9 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	work.FindExecCmd() // initialize cached result
 
 	work.BuildInit(moduleLoaderState)
+	if testLibAFLConfig != "" && !testUseLibAFL {
+		base.Fatalf("-libafl-config requires -use-libafl")
+	}
 	if testUseLibAFL {
 		if testFuzz == "" {
 			base.Fatalf("-use-libafl requires -fuzz")
@@ -1741,7 +1749,15 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 
 		// Use a single LibAFL client for `go test -fuzz` semantics (stop on first crash)
 		// and to avoid clients continuously importing each other's testcases.
-		args = []string{"cargo", "run", "--release", "--", "fuzz", "-j", "0", "-i", inDir, "-o", outDir}
+		args = []string{"cargo", "run", "--release", "--", "fuzz"}
+		if testLibAFLConfig != "" {
+			cfgPath := testLibAFLConfig
+			if !filepath.IsAbs(cfgPath) {
+				cfgPath = filepath.Join(base.Cwd(), cfgPath)
+			}
+			args = append(args, "--config", cfgPath)
+		}
+		args = append(args, "-j", "0", "-i", inDir, "-o", outDir)
 		cmdDir = golibaflDir
 		addEnv = []string{"HARNESS_LIB=" + buildAction.BuiltTarget()}
 		if seedDir != "" {
