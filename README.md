@@ -70,7 +70,7 @@ However, these errors are usually handled internally (e.g., through retry or pau
 Compile cybergo, then use the `--panic-on` flag. You can also use `*` to match multiple functions, e.g., `myLogger.*`.
 
 ```bash
-./bin/go test -fuzz=FuzzX --use-libafl --panic-on="myLog.myCustomError,myLog.anotherError"
+./bin/go test -fuzz=FuzzHarness --use-libafl --panic-on="test_go_panicon.(*Logger).Error"
 ```
 
 ## Feature 3: LibAFL state-of-the-art fuzzing
