@@ -24,7 +24,7 @@ cfg_path="${tmp_dir}/libafl-config.jsonc"
 cat >"${cfg_path}" <<EOF
 {
   // cores: CPU cores to bind LibAFL clients to
-  "cores": "${cores}"
+  "cores": "${cores}",
 }
 EOF
 

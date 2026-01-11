@@ -116,12 +116,63 @@ fn strip_jsonc_comments(input: &str) -> String {
     out
 }
 
+fn strip_trailing_commas(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    let mut chars = input.chars().peekable();
+    let mut in_string = false;
+    let mut escape = false;
+
+    while let Some(ch) = chars.next() {
+        if in_string {
+            out.push(ch);
+            if escape {
+                escape = false;
+                continue;
+            }
+            match ch {
+                '\\' => escape = true,
+                '"' => in_string = false,
+                _ => {}
+            }
+            continue;
+        }
+
+        match ch {
+            '"' => {
+                in_string = true;
+                out.push(ch);
+            }
+            ',' => {
+                let mut lookahead = chars.clone();
+                while let Some(next) = lookahead.peek().copied() {
+                    if next.is_whitespace() {
+                        lookahead.next();
+                        continue;
+                    }
+                    if next == '}' || next == ']' {
+                        // Trailing comma, ignore.
+                    } else {
+                        out.push(ch);
+                    }
+                    break;
+                }
+                if lookahead.peek().is_none() {
+                    out.push(ch);
+                }
+            }
+            _ => out.push(ch),
+        }
+    }
+
+    out
+}
+
 fn read_fuzz_config(path: &Path) -> LibAflFuzzConfig {
     let contents = fs::read_to_string(path).unwrap_or_else(|err| {
         eprintln!("golibafl: failed to read config {}: {err}", path.display());
         std::process::exit(2);
     });
-    let json = strip_jsonc_comments(&contents);
+    let json = strip_trailing_commas(&strip_jsonc_comments(&contents));
     serde_json::from_str(&json).unwrap_or_else(|err| {
         eprintln!("golibafl: invalid JSONC config {}: {err}", path.display());
         std::process::exit(2);

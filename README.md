@@ -83,6 +83,12 @@ LibAFL performs *way* better than the traditional Go fuzzer. Using the `--use-li
 ./bin/go test -fuzz=FuzzXxx --use-libafl
 ```
 
+The LibAFL runner also supports an optional JSONC config file (JSON with `//` comments). A template lives at `misc/cybergo/libafl.config.jsonc`.
+
+```bash
+./bin/go test -fuzz=FuzzXxx --use-libafl --libafl-config=path/to/libafl.jsonc
+```
+
 ##### Limitations
 Let's talk about the motivation behind using LibAFL. Fuzzing with `go test -fuzz` is _far_ behind the state-of-the-art fuzzing techniques. A good example for this is AFL++'s CMPLOG/Redqueen. Those features allow fuzzers to solve certain constraints. Let's assume the following snippet
 ```go
