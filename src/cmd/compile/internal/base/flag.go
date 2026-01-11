@@ -33,6 +33,9 @@ func usage() {
 // See ParseFlag for non-zero defaults.
 var Flag CmdFlags
 
+// PanicOnCallPatterns holds the parsed list of -panic-on-call patterns.
+var PanicOnCallPatterns []string
+
 // A CountFlag is a counting integer flag.
 // It accepts -name=value to set the value directly,
 // but it also accepts -name with no =value to increment the count.
@@ -129,6 +132,7 @@ type CmdFlags struct {
 	ErrorURL           bool         "help:\"print explanatory URL with error message if applicable\""
 	OverflowDetect     bool         "help:\"enable integer overflow detection (default: true)\""
 	TruncationDetect   bool         "help:\"enable integer truncation detection (default: false)\""
+	PanicOnCall        string       "flag:\"panic-on-call\" help:\"panic when calling listed pkg.func (comma-separated)\""
 
 	// Configuration derived from flags; not a flag itself.
 	Cfg struct {
@@ -179,6 +183,7 @@ func ParseFlags() {
 	Flag.WB = true
 	Flag.OverflowDetect = true
 	Flag.TruncationDetect = false
+	Flag.PanicOnCall = ""
 
 	Debug.ConcurrentOk = true
 	Debug.CompressInstructions = 1
@@ -203,6 +208,8 @@ func ParseFlags() {
 	registerFlags()
 	objabi.Flagparse(usage)
 	counter.CountFlags("compile/flag:", *flag.CommandLine)
+
+	PanicOnCallPatterns = parseListFlag(Flag.PanicOnCall)
 
 	if gcd := os.Getenv("GOCOMPILEDEBUG"); gcd != "" {
 		// This will only override the flags set in gcd;
@@ -390,6 +397,22 @@ func ParseFlags() {
 	if buildcfg.GOOS == "plan9" && buildcfg.GOARCH == "386" {
 		Debug.AlignHot = 0
 	}
+}
+
+func parseListFlag(raw string) []string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 // registerFlags adds flag registrations for all the fields in Flag.

@@ -54,8 +54,21 @@ sum2 := a + b // overflow_false_positive
 x2 := uint8(big) // truncation_false_positive
 ```
 
+## Feature 2: Panic on selected functions
 
-## Feature 2: LibAFL state-of-the-art fuzzing
+When fuzzing targets, we may be interested in triggering a panic when certain functions are called. For example, some software may emit `log.error` messages instead of panicking, even though such conditions often indicate states that security researchers would want to detect during fuzzing.
+However, these errors are usually handled internally (e.g., through retry or pause mechanisms, or by printing messages to logs), which makes them largely invisible to fuzzers. The objective of this feature is to address this issue.
+
+#### How to use
+
+Compile cybergo, then use the `--panic-on` flag. You can also use `*` to match multiple functions, e.g., `myLogger.*`.
+
+```bash
+./bin/go test -fuzz=FuzzX --use-libafl --panic-on="myLog.myCustomError,myLog.anotherError"
+```
+
+
+## Feature 3: LibAFL state-of-the-art fuzzing
 
 LibAFL performs *way* better than the traditional Go fuzzer. Using the `--use-libafl` flag runs standard Go fuzz tests (`go test -fuzz=...`) **with** [LibAFL](https://github.com/AFLplusplus/LibAFL). The runner is implemented in `golibafl/`. Without `--use-libafl`, `go test -fuzz` behaves like upstream Go.
 

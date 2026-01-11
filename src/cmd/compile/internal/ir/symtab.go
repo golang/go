@@ -61,6 +61,7 @@ type symsStruct struct {
     Panicoverflowdetailed     *obj.LSym
     Panictruncate             *obj.LSym
     Panictruncatedetailed     *obj.LSym
+    PanicOnCall               *obj.LSym
     // Upstream symbol for SIMD immediate validation
     PanicSimdImm              *obj.LSym
 	Racefuncenter             *obj.LSym

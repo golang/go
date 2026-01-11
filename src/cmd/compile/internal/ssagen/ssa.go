@@ -164,6 +164,7 @@ func InitConfig() {
 	ir.Syms.Panictruncate = typecheck.LookupRuntimeFunc("panictruncate")
 	ir.Syms.Panictruncatedetailed = typecheck.LookupRuntimeFunc("panictruncatedetailed")
 	ir.Syms.Panicshift = typecheck.LookupRuntimeFunc("panicshift")
+	ir.Syms.PanicOnCall = typecheck.LookupRuntimeFunc("panicOnCall")
 	ir.Syms.PanicSimdImm = typecheck.LookupRuntimeFunc("panicSimdImm")
 	ir.Syms.Racefuncenter = typecheck.LookupRuntimeFunc("racefuncenter")
 	ir.Syms.Racefuncexit = typecheck.LookupRuntimeFunc("racefuncexit")

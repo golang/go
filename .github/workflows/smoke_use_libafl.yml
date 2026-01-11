@@ -40,3 +40,25 @@ jobs:
 
       - name: Smoke (reverse)
         run: bash misc/cybergo/tests/smoke_use_libafl_reverse.sh
+
+  smoke-panic-on:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go (bootstrap)
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.5"
+
+      - name: Export GOROOT_BOOTSTRAP
+        run: echo "GOROOT_BOOTSTRAP=$(go env GOROOT)" >> "$GITHUB_ENV"
+
+      - name: Set up Rust (nightly)
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: Build cybergo toolchain
+        run: cd src && ./make.bash
+
+      - name: Smoke (--panic-on)
+        run: bash misc/cybergo/tests/smoke_use_libafl_panic_on.sh

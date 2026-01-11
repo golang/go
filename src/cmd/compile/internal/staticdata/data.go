@@ -64,6 +64,8 @@ const (
 	stringSymPattern = ".gostring.%d.%s"
 )
 
+var stringSymMu sync.Mutex
+
 // shortHashString converts the hash to a string for use with stringSymPattern.
 // We cut it to 16 bytes and then base64-encode to make it even smaller.
 func shortHashString(hash []byte) string {
@@ -89,9 +91,16 @@ func StringSym(pos src.XPos, s string) (data *obj.LSym) {
 
 	symdata := base.Ctxt.Lookup(stringSymPrefix + symname)
 	if !symdata.OnList() {
-		off := dstringdata(symdata, 0, s, pos, "string")
-		objw.Global(symdata, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
-		symdata.Set(obj.AttrContentAddressable, true)
+		// The SSA backend calls (*ssafn).StringData concurrently for different
+		// functions. Protect StringSym initialization to avoid double-emitting
+		// the same go:string.* symbol.
+		stringSymMu.Lock()
+		if !symdata.OnList() {
+			off := dstringdata(symdata, 0, s, pos, "string")
+			objw.Global(symdata, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
+			symdata.Set(obj.AttrContentAddressable, true)
+		}
+		stringSymMu.Unlock()
 	}
 
 	return symdata
