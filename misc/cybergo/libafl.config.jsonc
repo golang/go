@@ -1,0 +1,43 @@
+{
+  // cybergo LibAFL runner configuration (JSONC: JSON with // comments)
+  // All fields are optional: if omitted, cybergo uses the defaults listed below.
+
+  // cores: CPU cores to bind LibAFL clients to.
+  // default (cybergo go test): "0" (single client)
+  // examples: "0,1" / "all" / "none"
+  "cores": "0",
+
+  // exec_timeout_ms: per-execution timeout for the in-process harness.
+  // default: 1000
+  "exec_timeout_ms": 1000,
+
+  // go_maxprocs_single: when running multiple LibAFL clients, set `GOMAXPROCS=1` in each client.
+  // default: true
+  "go_maxprocs_single": true,
+
+  // power_schedule: power schedule strategy for the scheduler.
+  // default: "fast"
+  // possible values: "explore" / "exploit" / "fast" / "coe" / "lin" / "quad"
+  "power_schedule": "fast",
+
+  // corpus_cache_size: in-memory cache size for each on-disk corpus.
+  // default: 4096
+  "corpus_cache_size": 4096,
+
+  // initial_generated_inputs: generated corpus size if the input dir is empty.
+  // default: 8
+  "initial_generated_inputs": 8,
+
+  // initial_input_max_len: max length for generated initial inputs.
+  // default: 32
+  "initial_input_max_len": 32,
+
+  // tui_monitor: enable LibAFL's interactive terminal UI (TUI).
+  // default: true
+  "tui_monitor": true,
+
+  // debug_output: force-enable/disable LIBAFL_DEBUG_OUTPUT (otherwise auto).
+  // default: auto (enabled when running with a single client)
+  // use `null` for "auto"
+  "debug_output": null
+}
