@@ -7,6 +7,10 @@ cybergo is a security-focused fork of the Go toolchain. In a _very_ simple phras
 - Integrating [go-panikint](https://github.com/trailofbits/go-panikint): instrumentation that panics on **integer overflow/underflow** (and **optionally on truncating integer conversions**).
 - Integrating [LibAFL](https://github.com/AFLplusplus/LibAFL) fuzzer : run Go fuzzing harnesses with **LibAFL** for better fuzzing performances.
 
+It especially has **two** objectives:
+- Being easy to use and UX-friendly (we're tired of complex tools)
+- Helping to find bugs in Go apps via built-in security implementations
+
 ## Table of Contents
 
 - [Build](#build)
@@ -76,6 +80,15 @@ LibAFL performs *way* better than the traditional Go fuzzer. Using the `--use-li
 ```bash
 ./bin/go test -fuzz=FuzzXxx --use-libafl
 ```
+
+##### Limitations
+Let's talk about the motivation behind using LibAFL. Fuzzing with `go test -fuzz` is _far_ behind the state-of-the-art fuzzing techniques. A good example for this is AFL++'s CMPLOG/Redqueen. Those features allow fuzzers to solve certain constraints. Let's assume the following snippet
+```go
+if input == "IMARANDOMSTRINGJUSTCMPLOGMEMAN" {
+	panic("this string is illegal")
+}
+```
+SOTA fuzzers like AFL++ or LibAFL would find the panic instantly in that case. However, Go native fuzzer wouldn't. That is a massive gap that restrains coverage exploration by a **LOT**.
 
 ##### Benchmark 1:
 
