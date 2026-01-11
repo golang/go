@@ -77,16 +77,10 @@ func skipPanicOnCallPackage(pkgPath string) bool {
 	if pkgPath == "" {
 		return true
 	}
-	if strings.HasPrefix(pkgPath, "cmd/") ||
-		strings.HasPrefix(pkgPath, "runtime") ||
-		strings.HasPrefix(pkgPath, "internal/") ||
-		strings.HasPrefix(pkgPath, "bootstrap") {
-		return true
-	}
-	if !strings.Contains(pkgPath, ".") &&
-		pkgPath != "main" &&
-		pkgPath != "command-line-arguments" &&
-		!strings.HasSuffix(pkgPath, "_test") {
+	// Avoid instrumenting standard library or the runtime itself.
+	// Use compiler-provided flags instead of heuristics on the import path,
+	// so local modules like "unit_test" or "test_go_panicon" are still instrumented.
+	if base.Flag.Std || base.Flag.CompilingRuntime {
 		return true
 	}
 	return false

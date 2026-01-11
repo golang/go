@@ -9,6 +9,7 @@ trap 'rm -rf "${tmp_dir}"' EXIT
 export GOCACHE="${tmp_dir}/gocache"
 
 target_sym="cybergo.example/panic_on/myLog.myCustomError"
+target_sym_nodot="test_go_panicon.(*Logger).Error"
 
 # Invalid --panic-on should error out early.
 cd "${ROOT_DIR}/test/cybergo/examples/panic_on/myLog"
@@ -27,6 +28,13 @@ grep -Fq 'invalid -panic-on pattern "run"' "${tmp_dir}/output-invalid-panic-on.t
 run_expect_crash panic_on/myLog FuzzMyCustomError 2m "${tmp_dir}/output-panic-on.txt" "--panic-on=${target_sym}"
 grep -Fq "detected function: ${target_sym}()" "${tmp_dir}/output-panic-on.txt"
 grep -Fq "panic-on-call: ${target_sym}" "${tmp_dir}/output-panic-on.txt"
+
+# Dotless module paths (e.g. "unit_test", "test_go_panicon") should still be
+# instrumented, and inlining of matched targets must be prevented so the SSA
+# pass can see the call site.
+run_expect_crash panic_on_nodot FuzzLoggerError 2m "${tmp_dir}/output-panic-on-nodot.txt" "--panic-on=${target_sym_nodot}"
+grep -Fq "detected function: ${target_sym_nodot}()" "${tmp_dir}/output-panic-on-nodot.txt"
+grep -Fq "panic-on-call: ${target_sym_nodot}" "${tmp_dir}/output-panic-on-nodot.txt"
 
 # Without --panic-on, the same harness should not crash.
 cd "${ROOT_DIR}/test/cybergo/examples/panic_on/myLog"

@@ -853,6 +853,16 @@ func inlineCallCheck(callerfn *ir.Func, call *ir.CallExpr) (bool, bool) {
 	if call.GoDefer || call.NoInline {
 		return false, false
 	}
+	// panic-on-call instrumentation relies on static call sites. Ensure we don't
+	// inline calls that are meant to be trapped, otherwise the call disappears
+	// before the SSA "panic on call" pass runs.
+	if len(base.PanicOnCallPatterns) != 0 {
+		if callee := inlCallee(callerfn, call.Fun, nil, true); callee != nil {
+			if matchesPanicOnCall(ir.LinkFuncName(callee)) {
+				return false, false
+			}
+		}
+	}
 
 	// Prevent inlining some reflect.Value methods when using checkptr,
 	// even when package reflect was compiled without it (#35073).
@@ -876,6 +886,21 @@ func inlineCallCheck(callerfn *ir.Func, call *ir.CallExpr) (bool, bool) {
 		return false, true
 	}
 	return true, false
+}
+
+func matchesPanicOnCall(sym string) bool {
+	for _, p := range base.PanicOnCallPatterns {
+		if strings.HasSuffix(p, "*") {
+			if strings.HasPrefix(sym, strings.TrimSuffix(p, "*")) {
+				return true
+			}
+			continue
+		}
+		if sym == p {
+			return true
+		}
+	}
+	return false
 }
 
 // InlineCallTarget returns the resolved-for-inlining target of a call.
