@@ -77,17 +77,51 @@ The example above would panic when a function `func (l *Logger) Error(msg string
 
 ## Feature 3: LibAFL state-of-the-art fuzzing
 
-LibAFL performs *way* better than the traditional Go fuzzer. Using the `--use-libafl` flag runs standard Go fuzz tests (`go test -fuzz=...`) **with** [LibAFL](https://github.com/AFLplusplus/LibAFL). The runner is implemented in `golibafl/`. Without `--use-libafl`, `go test -fuzz` behaves like upstream Go.
+LibAFL performs *way* better than the traditional Go fuzzer. Using the `--use-libafl` flag runs standard Go fuzz tests (`go test -fuzz=...`) **with** [LibAFL](https://github.com/AFLplusplus/LibAFL). The runner is implemented in `golibafl/`. Without `--use-libafl`, the fuzzer behaves like upstream Go.
+
+You can also pass an optional config. file for LibAFL, see example [here](misc/cybergo/libafl.config.jsonc)
 
 ```bash
-./bin/go test -fuzz=FuzzXxx --use-libafl
+./bin/go test -fuzz=FuzzXxx --use-libafl --libafl-config=path/to/libafl.jsonc # optionnal --libafl-config
 ```
 
-The LibAFL runner also supports an optional JSONC config file (JSON with `//` comments). A template lives at `misc/cybergo/libafl.config.jsonc`.
+<details>
+<summary><strong>How Go + Rust + LibAFL are wired together</strong></summary>
 
-```bash
-./bin/go test -fuzz=FuzzXxx --use-libafl --libafl-config=path/to/libafl.jsonc
+```text
+┌───────────────────────────────────────────────────────────────────────────┐
+│ 1) cybergo `go test`                                                      │
+│    - captures  `testing.F.Fuzz(...)` callback                             │
+│    - generates  extra source file: `_libaflmain.go`                       │
+└───────────────┬───────────────────────────────────────────────────────────┘
+                v
+┌───────────────────────────────────────────────────────────────────────────┐
+│ 2) Generated bridge: `_libaflmain.go`                                     │
+│    - provides libFuzzer-style C ABI entrypoints:                          │
+│        LLVMFuzzerInitialize                                               │
+│        LLVMFuzzerTestOneInput                                             │
+│    - adapts bytes -> Go types -> calls the captured fuzz callback         │
+└───────────────┬───────────────────────────────────────────────────────────┘ 
+                v
+┌───────────────────────────────────────────────────────────────────────────┐
+│ 3) `libharness.a` (static archive on disk) contains:                      │
+│      - compiled objects for all test package (+ dependencies)             │
+│      - generated `_testmain.go` + `_libaflmain.go`                        │
+│      - LLVMFuzzerInitialize                                               │
+│      - LLVMFuzzerTestOneInput                                             │
+└───────────────┬───────────────────────────────────────────────────────────┘
+                v
+┌───────────────────────────────────────────────────────────────────────────┐
+│ 4) `golibafl/` (Rust + LibAFL)                                            │
+│    env: HARNESS_LIB=/path/to/libharness.a                                 │
+│    fuzz loop: mutate input -> LLVMFuzzerTestOneInput(data) -> observe     │
+└───────────────────────────────────────────────────────────────────────────┘
 ```
+
+In `--use-libafl` mode, cybergo builds `libharness.a` and the Rust `golibafl` runner drives it in-process via the libFuzzer entrypoints.
+</details>
+
+
 
 ##### Limitations
 Let's talk about the motivation behind using LibAFL. Fuzzing with `go test -fuzz` is _far_ behind the state-of-the-art fuzzing techniques. A good example for this is AFL++'s CMPLOG/Redqueen. Those features allow fuzzers to solve certain constraints. Let's assume the following snippet

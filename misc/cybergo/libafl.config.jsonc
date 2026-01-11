@@ -1,6 +1,5 @@
 {
   // cybergo LibAFL runner configuration (JSONC: JSON with // comments)
-  //
   // All fields are optional: if omitted, cybergo uses the defaults listed below.
 
   // cores: CPU cores to bind LibAFL clients to.
