@@ -1,7 +1,10 @@
 # cybergo
 
-[![cybergo --use-libafl smoke](https://github.com/kevin-valerio/cybergo/actions/workflows/smoke_use_libafl.yml/badge.svg?branch=master)](https://github.com/kevin-valerio/cybergo/actions/workflows/smoke_use_libafl.yml)
-[![cybergo panikint self-compile and test](https://github.com/kevin-valerio/cybergo/actions/workflows/go.yml/badge.svg?branch=master)](https://github.com/kevin-valerio/cybergo/actions/workflows/go.yml)
+[![integration tests](https://github.com/kevin-valerio/cybergo/actions/workflows/go.yml/badge.svg?branch=master)](https://github.com/kevin-valerio/cybergo/actions/workflows/go.yml)
+
+| Build | Feature 1 | Feature 2 | Feature 3 |
+| --- | --- | --- | --- |
+| [Build](#build) | [Integer overflow/truncation detection](#feature-1-integer-overflow-and-truncation-issues-detection) | [Panic on selected functions](#feature-2-panic-on-selected-functions) | [LibAFL fuzzing](#feature-3-libafl-state-of-the-art-fuzzing) |
 
 cybergo is a security-focused fork of the Go toolchain. In a _very_ simple phrasing, cybergo is a copy of the Go compiler that finds bugs. For now, it focuses on two things:
 
