@@ -156,7 +156,9 @@ if input == "IMARANDOMSTRINGJUSTCMPLOGMEMAN" {
 	panic("this string is illegal")
 }
 ```
-SOTA fuzzers like AFL++ or LibAFL would find the panic instantly in that case. However, Go native fuzzer wouldn't. That is a massive gap that restrains coverage exploration by a **LOT**.
+SOTA fuzzers like AFL++ or LibAFL would find the panic instantly in that case. However, Go native fuzzer wouldn't. That is a massive gap that restrains coverage exploration by a **lot**.
+
+The benchmark below show those limits. Note that those benchmarks can be **reproduced** and improved via the [cybergo-bench-libafl repository](https://github.com/kevin-valerio/cybergo-bench-libafl/tree/main).
 
 ##### Benchmark 1:
 
@@ -167,6 +169,8 @@ The chart below is the evolution of the number of lines covered while fuzzing Go
 
 The chart below is the evolution of the number of lines covered while fuzzing [go-ethereum](https://github.com/ethereum/go-ethereum) using LibAFL vs go native fuzzer.
 ![BENCH2](misc/cybergo/go-ethereum-30min.png "BENCH1")
+
+
 
 #### Example
 You can test it on some fuzzing harnesses in `test/cybergo/examples/`.
