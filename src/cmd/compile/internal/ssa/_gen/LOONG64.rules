@@ -773,6 +773,9 @@
 (SUBF (NEGF (MULF x y)) z) && z.Block.Func.useFMA(v) => (FNMADDF x y z)
 (SUBD (NEGD (MULD x y)) z) && z.Block.Func.useFMA(v) => (FNMADDD x y z)
 
+// Absorb conversion between 32 bit and 64 bit if both src and dst are 32 bit.
+(MOVDF ((ABS|SQRT)D (MOVFD x))) => ((ABS|SQRT)F x)
+
 // generic simplifications
 (ADDV x (NEGV y)) => (SUBV x y)
 (SUBV x (NEGV y)) => (ADDV x y)
