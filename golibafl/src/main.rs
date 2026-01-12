@@ -37,6 +37,7 @@ use serde::Deserialize;
 use std::{
     env, fs,
     fs::read_dir,
+    io::IsTerminal,
     path::{Path, PathBuf},
     process::Stdio,
     time::Duration,
@@ -312,7 +313,7 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
     let mut initial_generated_inputs = 8usize;
     let mut initial_input_max_len = 32usize;
     let mut go_maxprocs_single = true;
-    let mut tui_monitor = true;
+    let mut tui_monitor = std::io::stdout().is_terminal();
     let mut debug_output_override: Option<bool> = None;
 
     if let Some(config_path) = config_path {
@@ -668,7 +669,7 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
                                 state.corpus().count()
                             );
                         } else {
-                            println!("Loading from {input:?}");
+                            eprintln!("Loading from {input:?}");
                             // Load from disk
                             state
                                 .load_initial_inputs(
