@@ -46,7 +46,7 @@ func TestIntegrityCheckFailure(t *testing.T) {
 	moduleStatus(t)
 	cryptotest.MustSupportFIPS140(t)
 
-	bin, err := os.ReadFile(os.Args[0])
+	bin, err := os.ReadFile(testenv.Executable(t))
 	if err != nil {
 		t.Fatal(err)
 	}
