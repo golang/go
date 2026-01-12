@@ -6,7 +6,7 @@ cybergo is a security-focused fork of the Go toolchain. In a _very_ simple phras
 
 - Integrating [go-panikint](https://github.com/trailofbits/go-panikint): instrumentation that panics on **integer overflow/underflow** (and **optionally on truncating integer conversions**).
 - Integrating [LibAFL](https://github.com/AFLplusplus/LibAFL) fuzzer: run Go fuzzing harnesses with **LibAFL** for better fuzzing performances.
-- Panicking on user-provided function call: catching targeted bugs when certains functions are called (eg., `myapp.(*Logger).Error`).
+- Panicking on [user-provided function call](https://github.com/kevin-valerio/cybergo?tab=readme-ov-file#feature-2-panic-on-selected-functions): catching targeted bugs when certains functions are called (eg., `myapp.(*Logger).Error`).
 
 It especially has **two** objectives:
 - Being easy to use and UX-friendly (we're tired of complex tools),
