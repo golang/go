@@ -130,7 +130,7 @@ func tinyFuncName(size uintptr) string {
 	if size == 0 || size > smallScanNoHeaderMax {
 		return "mallocPanic"
 	}
-	return fmt.Sprintf("mallocTiny%d", size)
+	return fmt.Sprintf("mallocgcTinySize%d", size)
 }
 
 func smallNoScanSCFuncName(sc, scMax uint8) string {
