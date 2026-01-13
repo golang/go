@@ -127,7 +127,7 @@
 (Neg(32|16|8) ...) => (NEG ...)
 (Neg(32|64)F ...) => (NEG(F|D) ...)
 
-(Com(32|16|8) x) => (NORconst [0] x)
+(Com(32|16|8) x) => (NOR (MOVWconst [0]) x)
 
 (Sqrt ...) => (SQRTD ...)
 (Sqrt32 ...) => (SQRTF ...)
@@ -382,7 +382,7 @@
 		(OR <typ.UInt32> (SLL <typ.UInt32> (ZeroExt8to32 val)
 			(SLLconst <typ.UInt32> [3]
 				(ANDconst  <typ.UInt32> [3] ptr)))
-		(NORconst [0] <typ.UInt32> (SLL <typ.UInt32>
+		(NOR (MOVWconst [0]) <typ.UInt32> (SLL <typ.UInt32>
 			(MOVWconst [0xff]) (SLLconst <typ.UInt32> [3]
 				(ANDconst <typ.UInt32> [3] ptr))))) mem)
 
@@ -401,7 +401,7 @@
 			(SLLconst <typ.UInt32> [3]
 				(ANDconst  <typ.UInt32> [3]
 					(XORconst <typ.UInt32> [3] ptr))))
-		(NORconst [0] <typ.UInt32> (SLL <typ.UInt32>
+		(NOR (MOVWconst [0]) <typ.UInt32> (SLL <typ.UInt32>
 			(MOVWconst [0xff]) (SLLconst <typ.UInt32> [3]
 				(ANDconst <typ.UInt32> [3]
 					(XORconst <typ.UInt32> [3] ptr)))))) mem)
@@ -599,7 +599,6 @@
 (AND x (MOVWconst [c])) => (ANDconst [c] x)
 (OR  x (MOVWconst [c])) => (ORconst  [c] x)
 (XOR x (MOVWconst [c])) => (XORconst [c] x)
-(NOR x (MOVWconst [c])) => (NORconst [c] x)
 
 (SLL x (MOVWconst [c])) => (SLLconst x [c&31])
 (SRL x (MOVWconst [c])) => (SRLconst x [c&31])
@@ -648,7 +647,6 @@
 (ORconst  [0]  x) => x
 (ORconst  [-1] _) => (MOVWconst [-1])
 (XORconst [0]  x) => x
-(XORconst [-1] x) => (NORconst [0] x)
 
 // generic constant folding
 (ADDconst [c] (MOVWconst [d]))  => (MOVWconst [int32(c+d)])
@@ -673,7 +671,6 @@
 (ORconst [c] (ORconst [d] x)) => (ORconst [c|d] x)
 (XORconst [c] (MOVWconst [d])) => (MOVWconst [c^d])
 (XORconst [c] (XORconst [d] x)) => (XORconst [c^d] x)
-(NORconst [c] (MOVWconst [d])) => (MOVWconst [^(c|d)])
 (NEG (MOVWconst [c])) => (MOVWconst [-c])
 (MOVBreg  (MOVWconst [c])) => (MOVWconst [int32(int8(c))])
 (MOVBUreg (MOVWconst [c])) => (MOVWconst [int32(uint8(c))])

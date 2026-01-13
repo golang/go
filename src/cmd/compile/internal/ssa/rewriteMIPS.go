@@ -333,10 +333,6 @@ func rewriteValueMIPS(v *Value) bool {
 		return rewriteValueMIPS_OpMIPSMUL(v)
 	case OpMIPSNEG:
 		return rewriteValueMIPS_OpMIPSNEG(v)
-	case OpMIPSNOR:
-		return rewriteValueMIPS_OpMIPSNOR(v)
-	case OpMIPSNORconst:
-		return rewriteValueMIPS_OpMIPSNORconst(v)
 	case OpMIPSOR:
 		return rewriteValueMIPS_OpMIPSOR(v)
 	case OpMIPSORconst:
@@ -654,7 +650,7 @@ func rewriteValueMIPS_OpAtomicAnd8(v *Value) bool {
 	typ := &b.Func.Config.Types
 	// match: (AtomicAnd8 ptr val mem)
 	// cond: !config.BigEndian
-	// result: (LoweredAtomicAnd (AND <typ.UInt32Ptr> (MOVWconst [^3]) ptr) (OR <typ.UInt32> (SLL <typ.UInt32> (ZeroExt8to32 val) (SLLconst <typ.UInt32> [3] (ANDconst <typ.UInt32> [3] ptr))) (NORconst [0] <typ.UInt32> (SLL <typ.UInt32> (MOVWconst [0xff]) (SLLconst <typ.UInt32> [3] (ANDconst <typ.UInt32> [3] ptr))))) mem)
+	// result: (LoweredAtomicAnd (AND <typ.UInt32Ptr> (MOVWconst [^3]) ptr) (OR <typ.UInt32> (SLL <typ.UInt32> (ZeroExt8to32 val) (SLLconst <typ.UInt32> [3] (ANDconst <typ.UInt32> [3] ptr))) (NOR (MOVWconst [0]) <typ.UInt32> (SLL <typ.UInt32> (MOVWconst [0xff]) (SLLconst <typ.UInt32> [3] (ANDconst <typ.UInt32> [3] ptr))))) mem)
 	for {
 		ptr := v_0
 		val := v_1
@@ -678,20 +674,21 @@ func rewriteValueMIPS_OpAtomicAnd8(v *Value) bool {
 		v6.AddArg(ptr)
 		v5.AddArg(v6)
 		v3.AddArg2(v4, v5)
-		v7 := b.NewValue0(v.Pos, OpMIPSNORconst, typ.UInt32)
-		v7.AuxInt = int32ToAuxInt(0)
-		v8 := b.NewValue0(v.Pos, OpMIPSSLL, typ.UInt32)
-		v9 := b.NewValue0(v.Pos, OpMIPSMOVWconst, typ.UInt32)
-		v9.AuxInt = int32ToAuxInt(0xff)
-		v8.AddArg2(v9, v5)
-		v7.AddArg(v8)
+		v7 := b.NewValue0(v.Pos, OpMIPSNOR, typ.UInt32)
+		v8 := b.NewValue0(v.Pos, OpMIPSMOVWconst, typ.UInt32)
+		v8.AuxInt = int32ToAuxInt(0)
+		v9 := b.NewValue0(v.Pos, OpMIPSSLL, typ.UInt32)
+		v10 := b.NewValue0(v.Pos, OpMIPSMOVWconst, typ.UInt32)
+		v10.AuxInt = int32ToAuxInt(0xff)
+		v9.AddArg2(v10, v5)
+		v7.AddArg2(v8, v9)
 		v2.AddArg2(v3, v7)
 		v.AddArg3(v0, v2, mem)
 		return true
 	}
 	// match: (AtomicAnd8 ptr val mem)
 	// cond: config.BigEndian
-	// result: (LoweredAtomicAnd (AND <typ.UInt32Ptr> (MOVWconst [^3]) ptr) (OR <typ.UInt32> (SLL <typ.UInt32> (ZeroExt8to32 val) (SLLconst <typ.UInt32> [3] (ANDconst <typ.UInt32> [3] (XORconst <typ.UInt32> [3] ptr)))) (NORconst [0] <typ.UInt32> (SLL <typ.UInt32> (MOVWconst [0xff]) (SLLconst <typ.UInt32> [3] (ANDconst <typ.UInt32> [3] (XORconst <typ.UInt32> [3] ptr)))))) mem)
+	// result: (LoweredAtomicAnd (AND <typ.UInt32Ptr> (MOVWconst [^3]) ptr) (OR <typ.UInt32> (SLL <typ.UInt32> (ZeroExt8to32 val) (SLLconst <typ.UInt32> [3] (ANDconst <typ.UInt32> [3] (XORconst <typ.UInt32> [3] ptr)))) (NOR (MOVWconst [0]) <typ.UInt32> (SLL <typ.UInt32> (MOVWconst [0xff]) (SLLconst <typ.UInt32> [3] (ANDconst <typ.UInt32> [3] (XORconst <typ.UInt32> [3] ptr)))))) mem)
 	for {
 		ptr := v_0
 		val := v_1
@@ -718,13 +715,14 @@ func rewriteValueMIPS_OpAtomicAnd8(v *Value) bool {
 		v6.AddArg(v7)
 		v5.AddArg(v6)
 		v3.AddArg2(v4, v5)
-		v8 := b.NewValue0(v.Pos, OpMIPSNORconst, typ.UInt32)
-		v8.AuxInt = int32ToAuxInt(0)
-		v9 := b.NewValue0(v.Pos, OpMIPSSLL, typ.UInt32)
-		v10 := b.NewValue0(v.Pos, OpMIPSMOVWconst, typ.UInt32)
-		v10.AuxInt = int32ToAuxInt(0xff)
-		v9.AddArg2(v10, v5)
-		v8.AddArg(v9)
+		v8 := b.NewValue0(v.Pos, OpMIPSNOR, typ.UInt32)
+		v9 := b.NewValue0(v.Pos, OpMIPSMOVWconst, typ.UInt32)
+		v9.AuxInt = int32ToAuxInt(0)
+		v10 := b.NewValue0(v.Pos, OpMIPSSLL, typ.UInt32)
+		v11 := b.NewValue0(v.Pos, OpMIPSMOVWconst, typ.UInt32)
+		v11.AuxInt = int32ToAuxInt(0xff)
+		v10.AddArg2(v11, v5)
+		v8.AddArg2(v9, v10)
 		v2.AddArg2(v3, v8)
 		v.AddArg3(v0, v2, mem)
 		return true
@@ -869,37 +867,46 @@ func rewriteValueMIPS_OpBitLen8(v *Value) bool {
 }
 func rewriteValueMIPS_OpCom16(v *Value) bool {
 	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
 	// match: (Com16 x)
-	// result: (NORconst [0] x)
+	// result: (NOR (MOVWconst [0]) x)
 	for {
 		x := v_0
-		v.reset(OpMIPSNORconst)
-		v.AuxInt = int32ToAuxInt(0)
-		v.AddArg(x)
+		v.reset(OpMIPSNOR)
+		v0 := b.NewValue0(v.Pos, OpMIPSMOVWconst, typ.UInt32)
+		v0.AuxInt = int32ToAuxInt(0)
+		v.AddArg2(v0, x)
 		return true
 	}
 }
 func rewriteValueMIPS_OpCom32(v *Value) bool {
 	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
 	// match: (Com32 x)
-	// result: (NORconst [0] x)
+	// result: (NOR (MOVWconst [0]) x)
 	for {
 		x := v_0
-		v.reset(OpMIPSNORconst)
-		v.AuxInt = int32ToAuxInt(0)
-		v.AddArg(x)
+		v.reset(OpMIPSNOR)
+		v0 := b.NewValue0(v.Pos, OpMIPSMOVWconst, typ.UInt32)
+		v0.AuxInt = int32ToAuxInt(0)
+		v.AddArg2(v0, x)
 		return true
 	}
 }
 func rewriteValueMIPS_OpCom8(v *Value) bool {
 	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
 	// match: (Com8 x)
-	// result: (NORconst [0] x)
+	// result: (NOR (MOVWconst [0]) x)
 	for {
 		x := v_0
-		v.reset(OpMIPSNORconst)
-		v.AuxInt = int32ToAuxInt(0)
-		v.AddArg(x)
+		v.reset(OpMIPSNOR)
+		v0 := b.NewValue0(v.Pos, OpMIPSMOVWconst, typ.UInt32)
+		v0.AuxInt = int32ToAuxInt(0)
+		v.AddArg2(v0, x)
 		return true
 	}
 }
@@ -4273,43 +4280,6 @@ func rewriteValueMIPS_OpMIPSNEG(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSNOR(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (NOR x (MOVWconst [c]))
-	// result: (NORconst [c] x)
-	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			x := v_0
-			if v_1.Op != OpMIPSMOVWconst {
-				continue
-			}
-			c := auxIntToInt32(v_1.AuxInt)
-			v.reset(OpMIPSNORconst)
-			v.AuxInt = int32ToAuxInt(c)
-			v.AddArg(x)
-			return true
-		}
-		break
-	}
-	return false
-}
-func rewriteValueMIPS_OpMIPSNORconst(v *Value) bool {
-	v_0 := v.Args[0]
-	// match: (NORconst [c] (MOVWconst [d]))
-	// result: (MOVWconst [^(c|d)])
-	for {
-		c := auxIntToInt32(v.AuxInt)
-		if v_0.Op != OpMIPSMOVWconst {
-			break
-		}
-		d := auxIntToInt32(v_0.AuxInt)
-		v.reset(OpMIPSMOVWconst)
-		v.AuxInt = int32ToAuxInt(^(c | d))
-		return true
-	}
-	return false
-}
 func rewriteValueMIPS_OpMIPSOR(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -5044,18 +5014,6 @@ func rewriteValueMIPS_OpMIPSXORconst(v *Value) bool {
 		}
 		x := v_0
 		v.copyOf(x)
-		return true
-	}
-	// match: (XORconst [-1] x)
-	// result: (NORconst [0] x)
-	for {
-		if auxIntToInt32(v.AuxInt) != -1 {
-			break
-		}
-		x := v_0
-		v.reset(OpMIPSNORconst)
-		v.AuxInt = int32ToAuxInt(0)
-		v.AddArg(x)
 		return true
 	}
 	// match: (XORconst [c] (MOVWconst [d]))
