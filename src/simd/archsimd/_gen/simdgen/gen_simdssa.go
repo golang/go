@@ -133,7 +133,7 @@ func writeSIMDSSA(ops []Operation) *bytes.Buffer {
 		if mem == NoMem && op.hasMaskedMerging(maskType, shapeOut) {
 			regShapeMerging := regShape
 			if shapeOut != OneVregOutAtIn {
-				// We have to copy the slice here becasue the sort will be visible from other
+				// We have to copy the slice here because the sort will be visible from other
 				// aliases when no reslicing is happening.
 				newIn := make([]Operand, len(op.In), len(op.In)+1)
 				copy(newIn, op.In)

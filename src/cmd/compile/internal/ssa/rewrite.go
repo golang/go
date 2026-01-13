@@ -480,7 +480,7 @@ func isSpecializedMalloc(aux Aux) bool {
 	name := fn.String()
 	return strings.HasPrefix(name, "runtime.mallocgcSmallNoScanSC") ||
 		strings.HasPrefix(name, "runtime.mallocgcSmallScanNoHeaderSC") ||
-		strings.HasPrefix(name, "runtime.mallocTiny")
+		strings.HasPrefix(name, "runtime.mallocgcTinySize")
 }
 
 // canLoadUnaligned reports if the architecture supports unaligned load operations.
