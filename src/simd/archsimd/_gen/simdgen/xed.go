@@ -77,7 +77,7 @@ func loadXED(xedPath string) []*unify.Value {
 		switch {
 		case inst.RealOpcode == "N":
 			return // Skip unstable instructions
-		case !(strings.HasPrefix(inst.Extension, "AVX") || strings.HasPrefix(inst.Extension, "SHA")):
+		case !(strings.HasPrefix(inst.Extension, "AVX") || strings.HasPrefix(inst.Extension, "SHA") || inst.Extension == "FMA"):
 			// We're only interested in AVX and SHA instructions.
 			return
 		}
@@ -795,6 +795,7 @@ var cpuFeatureMap = map[string]string{
 	"AVX2":     "AVX2",
 	"AVXAES":   "AVXAES",
 	"SHA":      "SHA",
+	"FMA":      "FMA",
 
 	// AVX-512 foundational features. We combine all of these into one "AVX512" feature.
 	"AVX512F":  "AVX512",
@@ -827,6 +828,7 @@ func init() {
 		"AVX512": {Implies: []string{"AVX2"}},
 
 		"AVXAES": {Virtual: true, Implies: []string{"AVX", "AES"}},
+		"FMA":    {Implies: []string{"AVX"}},
 
 		// AVX-512 subfeatures.
 		"AVX512BITALG":    {Implies: []string{"AVX512"}},

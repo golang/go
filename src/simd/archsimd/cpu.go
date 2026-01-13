@@ -141,6 +141,16 @@ func (X86Features) AVXVNNI() bool {
 	return cpu.X86.HasAVXVNNI
 }
 
+// FMA returns whether the CPU supports the FMA feature.
+//
+// If it returns true, then the CPU also supports AVX.
+//
+// FMA is defined on all GOARCHes, but will only return true on
+// GOARCH amd64.
+func (X86Features) FMA() bool {
+	return cpu.X86.HasFMA
+}
+
 // SHA returns whether the CPU supports the SHA feature.
 //
 // SHA is defined on all GOARCHes, but will only return true on
