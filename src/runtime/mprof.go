@@ -834,7 +834,6 @@ func SetMutexProfileFraction(rate int) int {
 	return int(old)
 }
 
-//go:linkname mutexevent sync.event
 func mutexevent(cycles int64, skip int) {
 	if cycles < 0 {
 		cycles = 0
