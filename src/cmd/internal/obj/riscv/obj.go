@@ -1351,6 +1351,20 @@ func validateCL(ctxt *obj.Link, ins *instruction) {
 	wantNoneReg(ctxt, ins, "rs2", ins.rs2)
 }
 
+func validateCLB(ctxt *obj.Link, ins *instruction) {
+	wantImmU(ctxt, ins, ins.imm, 2)
+	wantIntPrimeReg(ctxt, ins, "rd", ins.rd)
+	wantIntPrimeReg(ctxt, ins, "rs1", ins.rs1)
+	wantNoneReg(ctxt, ins, "rs2", ins.rs2)
+}
+
+func validateCLH(ctxt *obj.Link, ins *instruction) {
+	wantScaledImmU(ctxt, ins, ins.imm, 2, 2)
+	wantIntPrimeReg(ctxt, ins, "rd", ins.rd)
+	wantIntPrimeReg(ctxt, ins, "rs1", ins.rs1)
+	wantNoneReg(ctxt, ins, "rs2", ins.rs2)
+}
+
 func validateCR(ctxt *obj.Link, ins *instruction) {
 	switch ins.as {
 	case ACJR, ACJALR:
@@ -1406,6 +1420,20 @@ func validateCS(ctxt *obj.Link, ins *instruction) {
 	}
 }
 
+func validateCSB(ctxt *obj.Link, ins *instruction) {
+	wantImmU(ctxt, ins, ins.imm, 2)
+	wantNoneReg(ctxt, ins, "rd", ins.rd)
+	wantIntPrimeReg(ctxt, ins, "rs1", ins.rs1)
+	wantIntPrimeReg(ctxt, ins, "rs2", ins.rs2)
+}
+
+func validateCSH(ctxt *obj.Link, ins *instruction) {
+	wantScaledImmU(ctxt, ins, ins.imm, 2, 2)
+	wantNoneReg(ctxt, ins, "rd", ins.rd)
+	wantIntPrimeReg(ctxt, ins, "rs1", ins.rs1)
+	wantIntPrimeReg(ctxt, ins, "rs2", ins.rs2)
+}
+
 func validateCSS(ctxt *obj.Link, ins *instruction) {
 	if ins.rd != REG_SP {
 		ctxt.Diag("%v: rd must be SP/X2", ins)
@@ -1423,6 +1451,14 @@ func validateCSS(ctxt *obj.Link, ins *instruction) {
 	} else {
 		wantIntReg(ctxt, ins, "rs2", ins.rs2)
 	}
+}
+
+func validateCU(ctxt *obj.Link, ins *instruction) {
+	wantIntPrimeReg(ctxt, ins, "rd", ins.rd)
+	if ins.rd != ins.rs1 {
+		ctxt.Diag("%v: rd must be the same as rs1", ins)
+	}
+	wantNoneReg(ctxt, ins, "rs2", ins.rs2)
 }
 
 func validateRII(ctxt *obj.Link, ins *instruction) {
@@ -1698,6 +1734,7 @@ func compressedEncoding(as obj.As) uint32 {
 	// necessary bits.
 	op := uint32(0)
 	switch as {
+	// CA Format
 	case ACSUB:
 		op = 0b100011<<10 | 0b00<<5
 	case ACXOR:
@@ -1710,6 +1747,9 @@ func compressedEncoding(as obj.As) uint32 {
 		op = 0b100111<<10 | 0b00<<5
 	case ACADDW:
 		op = 0b100111<<10 | 0b01<<5
+	case ACMUL:
+		op = 0b100111<<10 | 0b10<<5
+	// CB Format
 	case ACBEQZ:
 		op = 0b110 << 13
 	case ACBNEZ:
@@ -1720,6 +1760,7 @@ func compressedEncoding(as obj.As) uint32 {
 		op = 0b100<<13 | 0b01<<10
 	case ACSRLI:
 		op = 0b100<<13 | 0b00<<10
+	// CI Format
 	case ACLI:
 		op = 0b010 << 13
 	case ACLUI:
@@ -1734,16 +1775,28 @@ func compressedEncoding(as obj.As) uint32 {
 		op = 0b001 << 13
 	case ACADDI16SP:
 		op = 0b011 << 13
+	// CIW Format
 	case ACADDI4SPN:
 		op = 0b000 << 13
+	// CJ Format
 	case ACJ:
 		op = 0b101 << 13
+	// CL Format
 	case ACLW:
 		op = 0b010 << 13
 	case ACLD:
 		op = 0b011 << 13
 	case ACFLD:
 		op = 0b001 << 13
+	// CLB Format
+	case ACLBU:
+		op = 0b100000 << 10
+	// CLH Format
+	case ACLH:
+		op = 0b100001<<10 | 0b1<<6
+	case ACLHU:
+		op = 0b100001<<10 | 0b0<<6
+	// CR Format
 	case ACJR:
 		op = 0b1000 << 12
 	case ACMV:
@@ -1754,18 +1807,39 @@ func compressedEncoding(as obj.As) uint32 {
 		op = 0b1001 << 12
 	case ACADD:
 		op = 0b1001 << 12
+	// CS Format
 	case ACSW:
 		op = 0b110 << 13
 	case ACSD:
 		op = 0b111 << 13
 	case ACFSD:
 		op = 0b101 << 13
+	// CSB Format
+	case ACSB:
+		op = 0b100010 << 10
+	// CSH Format
+	case ACSH:
+		op = 0b100011<<10 | 0b0<<6
+	// CSS Format
 	case ACSWSP:
 		op = 0b110 << 13
 	case ACSDSP:
 		op = 0b111 << 13
 	case ACFSDSP:
 		op = 0b101 << 13
+	// CU Format
+	case ACNOT:
+		op = 0b100111<<10 | 0b11101<<2
+	case ACSEXTB:
+		op = 0b100111<<10 | 0b11001<<2
+	case ACSEXTH:
+		op = 0b100111<<10 | 0b11011<<2
+	case ACZEXTB:
+		op = 0b100111<<10 | 0b11000<<2
+	case ACZEXTH:
+		op = 0b100111<<10 | 0b11010<<2
+	case ACZEXTW:
+		op = 0b100111<<10 | 0b11100<<2
 	}
 
 	return op | enc.opcode
@@ -1874,6 +1948,20 @@ func encodeCL(ins *instruction) uint32 {
 	return compressedEncoding(ins.as) | (imm>>2)<<10 | regCI(ins.rs1)<<7 | (imm&0x3)<<5 | rd<<2
 }
 
+// encodeCLB encodes a compressed load byte (CLB-type) instruction.
+func encodeCLB(ins *instruction) uint32 {
+	// Bit order [0|1]
+	imm := encodeBitPattern(uint32(ins.imm), []int{0, 1})
+	return compressedEncoding(ins.as) | regCI(ins.rs1)<<7 | (imm&0x3)<<5 | regCI(ins.rd)<<2
+}
+
+// encodeCLH encodes a compressed load harfword (CLH-type) instruction.
+func encodeCLH(ins *instruction) uint32 {
+	// Bit order [1]
+	imm := encodeBitPattern(uint32(ins.imm), []int{1})
+	return compressedEncoding(ins.as) | regCI(ins.rs1)<<7 | (imm&0x1)<<5 | regCI(ins.rd)<<2
+}
+
 // encodeCR encodes a compressed register (CR-type) instruction.
 func encodeCR(ins *instruction) uint32 {
 	rs1, rs2 := uint32(0), uint32(0)
@@ -1907,6 +1995,20 @@ func encodeCS(ins *instruction) uint32 {
 	return compressedEncoding(ins.as) | ((imm>>2)&0x7)<<10 | regCI(ins.rs1)<<7 | (imm&3)<<5 | rs2<<2
 }
 
+// encodeCSB encodes a compressed store the least significant byte (CSB-type) instruction.
+func encodeCSB(ins *instruction) uint32 {
+	// Bit order [0|1]
+	imm := encodeBitPattern(uint32(ins.imm), []int{0, 1})
+	return compressedEncoding(ins.as) | regCI(ins.rs1)<<7 | (imm&0x3)<<5 | regCI(ins.rs2)<<2
+}
+
+// encodeCSH encodes a compressed store the least significant halfword (CSH-type) instruction.
+func encodeCSH(ins *instruction) uint32 {
+	// Bit order [1]
+	imm := encodeBitPattern(uint32(ins.imm), []int{1})
+	return compressedEncoding(ins.as) | regCI(ins.rs1)<<7 | (imm&0x1)<<5 | regCI(ins.rs2)<<2
+}
+
 // encodeCSS encodes a compressed stack-relative store (CSS-type) instruction.
 func encodeCSS(ins *instruction) uint32 {
 	imm := uint32(ins.imm)
@@ -1924,6 +2026,11 @@ func encodeCSS(ins *instruction) uint32 {
 		rs2 = regI(ins.rs2)
 	}
 	return compressedEncoding(ins.as) | imm<<7 | rs2<<2
+}
+
+// encodeCU encodes a compressed (CU-type) instruction.
+func encodeCU(ins *instruction) uint32 {
+	return compressedEncoding(ins.as) | regCI(ins.rd)<<7
 }
 
 // encodeR encodes an R-type RISC-V instruction.
@@ -2320,6 +2427,13 @@ var (
 	csEncoding  = encoding{encode: encodeCS, validate: validateCS, length: 2}
 	cssEncoding = encoding{encode: encodeCSS, validate: validateCSS, length: 2}
 
+	// Zcb encodings
+	clbEncoding = encoding{encode: encodeCLB, validate: validateCLB, length: 2}
+	clhEncoding = encoding{encode: encodeCLH, validate: validateCLH, length: 2}
+	csbEncoding = encoding{encode: encodeCSB, validate: validateCSB, length: 2}
+	cshEncoding = encoding{encode: encodeCSH, validate: validateCSH, length: 2}
+	cuEncoding  = encoding{encode: encodeCU, validate: validateCU, length: 2}
+
 	// Encodings for vector configuration setting instruction.
 	vsetvliEncoding  = encoding{encode: encodeVsetvli, validate: validateVsetvli, length: 4}
 	vsetivliEncoding = encoding{encode: encodeVsetivli, validate: validateVsetivli, length: 4}
@@ -2604,6 +2718,24 @@ var instructions = [ALAST & obj.AMask]instructionData{
 
 	// 26.5.6: Compressed Breakpoint Instruction
 	ACEBREAK & obj.AMask: {enc: crEncoding},
+
+	//
+	// "Zc*" Extension for Code Size Reduction
+	//
+
+	// 27.8: "zcb" Extension for simple code-size saving instruction
+	ACLBU & obj.AMask:   {enc: clbEncoding},
+	ACLHU & obj.AMask:   {enc: clhEncoding},
+	ACLH & obj.AMask:    {enc: clhEncoding},
+	ACSB & obj.AMask:    {enc: csbEncoding},
+	ACSH & obj.AMask:    {enc: cshEncoding},
+	ACZEXTB & obj.AMask: {enc: cuEncoding},
+	ACSEXTB & obj.AMask: {enc: cuEncoding},
+	ACZEXTH & obj.AMask: {enc: cuEncoding},
+	ACSEXTH & obj.AMask: {enc: cuEncoding},
+	ACZEXTW & obj.AMask: {enc: cuEncoding},
+	ACNOT & obj.AMask:   {enc: cuEncoding},
+	ACMUL & obj.AMask:   {enc: caEncoding, ternary: true},
 
 	//
 	// "B" Extension for Bit Manipulation, Version 1.0.0
@@ -4440,10 +4572,10 @@ func instructionsForProg(p *obj.Prog, compress bool) []*instruction {
 		ins.as = AFSGNJND
 		ins.rs1 = uint32(p.From.Reg)
 
-	case ACLW, ACLD, ACFLD:
+	case ACLW, ACLD, ACFLD, ACLBU, ACLHU, ACLH:
 		ins.rs1, ins.rs2 = ins.rs2, obj.REG_NONE
 
-	case ACSW, ACSD, ACFSD:
+	case ACSW, ACSD, ACFSD, ACSB, ACSH:
 		ins.rs1, ins.rd = ins.rd, obj.REG_NONE
 		ins.imm = p.To.Offset
 
@@ -4452,6 +4584,9 @@ func instructionsForProg(p *obj.Prog, compress bool) []*instruction {
 
 	case ACANDI, ACSRLI, ACSRAI:
 		ins.rs1, ins.rd = ins.rd, ins.rs1
+
+	case ACZEXTB, ACSEXTB, ACZEXTH, ACSEXTH, ACZEXTW, ACNOT:
+		ins.rd, ins.rs1, ins.rs2 = ins.rs2, ins.rs2, obj.REG_NONE
 
 	case ACBEQZ, ACBNEZ:
 		ins.rd, ins.rs1, ins.rs2 = obj.REG_NONE, uint32(p.From.Reg), obj.REG_NONE
