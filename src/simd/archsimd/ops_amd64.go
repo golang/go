@@ -11,7 +11,7 @@ package archsimd
 // y is the chunk of dw array in use.
 // result = AddRoundKey(InvShiftRows(InvSubBytes(x)), y)
 //
-// Asm: VAESDECLAST, CPU Feature: AVX, AES
+// Asm: VAESDECLAST, CPU Feature: AVXAES
 func (x Uint8x16) AESDecryptLastRound(y Uint32x4) Uint8x16
 
 // AESDecryptLastRound performs a series of operations in AES cipher algorithm defined in FIPS 197.
@@ -37,7 +37,7 @@ func (x Uint8x64) AESDecryptLastRound(y Uint32x16) Uint8x64
 // y is the chunk of dw array in use.
 // result = AddRoundKey(InvMixColumns(InvShiftRows(InvSubBytes(x))), y)
 //
-// Asm: VAESDEC, CPU Feature: AVX, AES
+// Asm: VAESDEC, CPU Feature: AVXAES
 func (x Uint8x16) AESDecryptOneRound(y Uint32x4) Uint8x16
 
 // AESDecryptOneRound performs a series of operations in AES cipher algorithm defined in FIPS 197.
@@ -63,7 +63,7 @@ func (x Uint8x64) AESDecryptOneRound(y Uint32x16) Uint8x64
 // y is the chunk of w array in use.
 // result = AddRoundKey((ShiftRows(SubBytes(x))), y)
 //
-// Asm: VAESENCLAST, CPU Feature: AVX, AES
+// Asm: VAESENCLAST, CPU Feature: AVXAES
 func (x Uint8x16) AESEncryptLastRound(y Uint32x4) Uint8x16
 
 // AESEncryptLastRound performs a series of operations in AES cipher algorithm defined in FIPS 197.
@@ -89,7 +89,7 @@ func (x Uint8x64) AESEncryptLastRound(y Uint32x16) Uint8x64
 // y is the chunk of w array in use.
 // result = AddRoundKey(MixColumns(ShiftRows(SubBytes(x))), y)
 //
-// Asm: VAESENC, CPU Feature: AVX, AES
+// Asm: VAESENC, CPU Feature: AVXAES
 func (x Uint8x16) AESEncryptOneRound(y Uint32x4) Uint8x16
 
 // AESEncryptOneRound performs a series of operations in AES cipher algorithm defined in FIPS 197.
@@ -114,7 +114,7 @@ func (x Uint8x64) AESEncryptOneRound(y Uint32x16) Uint8x64
 // x is the chunk of w array in use.
 // result = InvMixColumns(x)
 //
-// Asm: VAESIMC, CPU Feature: AVX, AES
+// Asm: VAESIMC, CPU Feature: AVXAES
 func (x Uint32x4) AESInvMixColumns() Uint32x4
 
 /* AESRoundKeyGenAssist */
@@ -129,7 +129,7 @@ func (x Uint32x4) AESInvMixColumns() Uint32x4
 //
 // rconVal results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
-// Asm: VAESKEYGENASSIST, CPU Feature: AVX, AES
+// Asm: VAESKEYGENASSIST, CPU Feature: AVXAES
 func (x Uint32x4) AESRoundKeyGenAssist(rconVal uint8) Uint32x4
 
 /* Abs */
