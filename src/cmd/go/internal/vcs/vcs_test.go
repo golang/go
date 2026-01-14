@@ -6,7 +6,6 @@ package vcs
 
 import (
 	"errors"
-	"fmt"
 	"internal/testenv"
 	"os"
 	"path/filepath"
@@ -215,40 +214,61 @@ func TestRepoRootForImportPath(t *testing.T) {
 // Test that vcs.FromDir correctly inspects a given directory and returns the
 // right VCS and repo directory.
 func TestFromDir(t *testing.T) {
-	tempDir := t.TempDir()
-
-	for _, vcs := range vcsList {
-		for r, root := range vcs.RootNames {
-			vcsName := fmt.Sprint(vcs.Name, r)
-			dir := filepath.Join(tempDir, "example.com", vcsName, root.filename)
-			if root.isDir {
-				err := os.MkdirAll(dir, 0755)
-				if err != nil {
-					t.Fatal(err)
-				}
-			} else {
-				err := os.MkdirAll(filepath.Dir(dir), 0755)
-				if err != nil {
-					t.Fatal(err)
-				}
-				f, err := os.Create(dir)
-				if err != nil {
-					t.Fatal(err)
-				}
-				f.Close()
-			}
-
-			wantRepoDir := filepath.Dir(dir)
-			gotRepoDir, gotVCS, err := FromDir(dir, tempDir)
-			if err != nil {
-				t.Errorf("FromDir(%q, %q): %v", dir, tempDir, err)
-				continue
-			}
-			if gotRepoDir != wantRepoDir || gotVCS.Name != vcs.Name {
-				t.Errorf("FromDir(%q, %q) = RepoDir(%s), VCS(%s); want RepoDir(%s), VCS(%s)", dir, tempDir, gotRepoDir, gotVCS.Name, wantRepoDir, vcs.Name)
-			}
-		}
+	tests := []struct {
+		name   string
+		vcs    string
+		root   string
+		create func(path string) error
+	}{
+		{"hg", "Mercurial", ".hg", mkdir},
+		{"git_dir", "Git", ".git", mkdir},
+		{"git_worktree", "Git", ".git", createGitWorktreeFile},
+		{"bzr", "Bazaar", ".bzr", mkdir},
+		{"svn", "Subversion", ".svn", mkdir},
+		{"fossil_fslckout", "Fossil", ".fslckout", touch},
+		{"fossil_FOSSIL_", "Fossil", "_FOSSIL_", touch},
 	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tempDir := t.TempDir()
+			repoDir := filepath.Join(tempDir, "example.com")
+			if err := mkdir(repoDir); err != nil {
+				t.Fatal(err)
+			}
+			rootPath := filepath.Join(repoDir, tt.root)
+			if err := tt.create(rootPath); err != nil {
+				t.Fatal(err)
+			}
+			gotRepoDir, gotVCS, err := FromDir(repoDir, tempDir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if gotRepoDir != repoDir {
+				t.Errorf("RepoDir = %q, want %q", gotRepoDir, repoDir)
+			}
+			if gotVCS.Name != tt.vcs {
+				t.Errorf("VCS = %q, want %q", gotVCS.Name, tt.vcs)
+			}
+		})
+	}
+}
+
+func mkdir(path string) error {
+	return os.Mkdir(path, 0o755)
+}
+
+func touch(path string) error {
+	return os.WriteFile(path, nil, 0o644)
+}
+
+func createGitWorktreeFile(path string) error {
+	gitdir := path + ".worktree"
+	// gitdir must point to a real directory
+	if err := mkdir(gitdir); err != nil {
+		return err
+	}
+	return os.WriteFile(path, []byte("gitdir: "+gitdir+"\n"), 0o644)
 }
 
 func TestIsSecure(t *testing.T) {

@@ -35,10 +35,10 @@ import (
 // A Cmd describes how to use a version control system
 // like Mercurial, Git, or Subversion.
 type Cmd struct {
-	Name      string
-	Cmd       string     // name of binary to invoke command
-	Env       []string   // any environment values to set/override
-	RootNames []rootName // filename and mode indicating the root of a checkout directory
+	Name  string
+	Cmd   string      // name of binary to invoke command
+	Env   []string    // any environment values to set/override
+	Roots []isVCSRoot // filters to identify repository root directories
 
 	Scheme  []string
 	PingCmd string
@@ -149,8 +149,8 @@ var vcsHg = &Cmd{
 	// HGPLAIN=+strictflags turns off additional output that a user may have
 	// enabled via config options or certain extensions.
 	Env: []string{"HGPLAIN=+strictflags"},
-	RootNames: []rootName{
-		{filename: ".hg", isDir: true},
+	Roots: []isVCSRoot{
+		vcsDirRoot(".hg"),
 	},
 
 	Scheme:  []string{"https", "http", "ssh"},
@@ -214,8 +214,8 @@ func parseRevTime(out []byte) (string, time.Time, error) {
 var vcsGit = &Cmd{
 	Name: "Git",
 	Cmd:  "git",
-	RootNames: []rootName{
-		{filename: ".git", isDir: true},
+	Roots: []isVCSRoot{
+		vcsGitRoot{},
 	},
 
 	Scheme: []string{"git", "https", "http", "git+ssh", "ssh"},
@@ -262,8 +262,8 @@ func gitStatus(vcsGit *Cmd, rootDir string) (Status, error) {
 var vcsBzr = &Cmd{
 	Name: "Bazaar",
 	Cmd:  "bzr",
-	RootNames: []rootName{
-		{filename: ".bzr", isDir: true},
+	Roots: []isVCSRoot{
+		vcsDirRoot(".bzr"),
 	},
 
 	Scheme:  []string{"https", "http", "bzr", "bzr+ssh"},
@@ -332,8 +332,8 @@ func bzrStatus(vcsBzr *Cmd, rootDir string) (Status, error) {
 var vcsSvn = &Cmd{
 	Name: "Subversion",
 	Cmd:  "svn",
-	RootNames: []rootName{
-		{filename: ".svn", isDir: true},
+	Roots: []isVCSRoot{
+		vcsDirRoot(".svn"),
 	},
 
 	// There is no tag command in subversion.
@@ -381,9 +381,9 @@ const fossilRepoName = ".fossil"
 var vcsFossil = &Cmd{
 	Name: "Fossil",
 	Cmd:  "fossil",
-	RootNames: []rootName{
-		{filename: ".fslckout", isDir: false},
-		{filename: "_FOSSIL_", isDir: false},
+	Roots: []isVCSRoot{
+		vcsFileRoot(".fslckout"),
+		vcsFileRoot("_FOSSIL_"),
 	},
 
 	Scheme: []string{"https", "http"},
@@ -592,7 +592,7 @@ func FromDir(dir, srcRoot string) (repoDir string, vcsCmd *Cmd, err error) {
 	origDir := dir
 	for len(dir) > len(srcRoot) {
 		for _, vcs := range vcsList {
-			if isVCSRoot(dir, vcs.RootNames) {
+			if isVCSRootDir(dir, vcs.Roots) {
 				if vcsCmd == nil {
 					// Record first VCS we find.
 					vcsCmd = vcs
@@ -631,22 +631,71 @@ func FromDir(dir, srcRoot string) (repoDir string, vcsCmd *Cmd, err error) {
 	return repoDir, vcsCmd, nil
 }
 
-// isVCSRoot identifies a VCS root by checking whether the directory contains
-// any of the listed root names.
-func isVCSRoot(dir string, rootNames []rootName) bool {
-	for _, root := range rootNames {
-		fi, err := os.Stat(filepath.Join(dir, root.filename))
-		if err == nil && fi.IsDir() == root.isDir {
+// isVCSRootDir reports whether dir is a VCS root according to roots.
+func isVCSRootDir(dir string, roots []isVCSRoot) bool {
+	for _, root := range roots {
+		if root.isRoot(dir) {
 			return true
 		}
 	}
-
 	return false
 }
 
-type rootName struct {
-	filename string
-	isDir    bool
+type isVCSRoot interface {
+	isRoot(dir string) bool
+}
+
+// vcsFileRoot identifies a VCS root by the presence of a regular file.
+type vcsFileRoot string
+
+func (vfr vcsFileRoot) isRoot(dir string) bool {
+	fi, err := os.Stat(filepath.Join(dir, string(vfr)))
+	return err == nil && fi.Mode().IsRegular()
+}
+
+// vcsDirRoot identifies a VCS root by the presence of a directory.
+type vcsDirRoot string
+
+func (vdr vcsDirRoot) isRoot(dir string) bool {
+	fi, err := os.Stat(filepath.Join(dir, string(vdr)))
+	return err == nil && fi.IsDir()
+}
+
+// vcsGitRoot identifies a Git root by the presence of a .git directory or a .git worktree file.
+// See https://go.dev/issue/58218.
+type vcsGitRoot struct{}
+
+func (vcsGitRoot) isRoot(dir string) bool {
+	path := filepath.Join(dir, ".git")
+	fi, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	if fi.IsDir() {
+		return true
+	}
+	// Is it a git worktree file?
+	// The format is "gitdir: <path>\n".
+	if !fi.Mode().IsRegular() || fi.Size() == 0 || fi.Size() > 4096 {
+		return false
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	rest, ok := strings.CutPrefix(string(raw), "gitdir:")
+	if !ok {
+		return false
+	}
+	gitdir := strings.TrimSpace(rest)
+	if gitdir == "" {
+		return false
+	}
+	if !filepath.IsAbs(gitdir) {
+		gitdir = filepath.Join(dir, gitdir)
+	}
+	fi, err = os.Stat(gitdir)
+	return err == nil && fi.IsDir()
 }
 
 type vcsNotFoundError struct {
