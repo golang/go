@@ -11,7 +11,7 @@ package archsimd
 // y is the chunk of dw array in use.
 // result = AddRoundKey(InvShiftRows(InvSubBytes(x)), y)
 //
-// Asm: VAESDECLAST, CPU Feature: AVX, AES
+// Asm: VAESDECLAST, CPU Feature: AVXAES
 func (x Uint8x16) AESDecryptLastRound(y Uint32x4) Uint8x16
 
 // AESDecryptLastRound performs a series of operations in AES cipher algorithm defined in FIPS 197.
@@ -37,7 +37,7 @@ func (x Uint8x64) AESDecryptLastRound(y Uint32x16) Uint8x64
 // y is the chunk of dw array in use.
 // result = AddRoundKey(InvMixColumns(InvShiftRows(InvSubBytes(x))), y)
 //
-// Asm: VAESDEC, CPU Feature: AVX, AES
+// Asm: VAESDEC, CPU Feature: AVXAES
 func (x Uint8x16) AESDecryptOneRound(y Uint32x4) Uint8x16
 
 // AESDecryptOneRound performs a series of operations in AES cipher algorithm defined in FIPS 197.
@@ -63,7 +63,7 @@ func (x Uint8x64) AESDecryptOneRound(y Uint32x16) Uint8x64
 // y is the chunk of w array in use.
 // result = AddRoundKey((ShiftRows(SubBytes(x))), y)
 //
-// Asm: VAESENCLAST, CPU Feature: AVX, AES
+// Asm: VAESENCLAST, CPU Feature: AVXAES
 func (x Uint8x16) AESEncryptLastRound(y Uint32x4) Uint8x16
 
 // AESEncryptLastRound performs a series of operations in AES cipher algorithm defined in FIPS 197.
@@ -89,7 +89,7 @@ func (x Uint8x64) AESEncryptLastRound(y Uint32x16) Uint8x64
 // y is the chunk of w array in use.
 // result = AddRoundKey(MixColumns(ShiftRows(SubBytes(x))), y)
 //
-// Asm: VAESENC, CPU Feature: AVX, AES
+// Asm: VAESENC, CPU Feature: AVXAES
 func (x Uint8x16) AESEncryptOneRound(y Uint32x4) Uint8x16
 
 // AESEncryptOneRound performs a series of operations in AES cipher algorithm defined in FIPS 197.
@@ -114,7 +114,7 @@ func (x Uint8x64) AESEncryptOneRound(y Uint32x16) Uint8x64
 // x is the chunk of w array in use.
 // result = InvMixColumns(x)
 //
-// Asm: VAESIMC, CPU Feature: AVX, AES
+// Asm: VAESIMC, CPU Feature: AVXAES
 func (x Uint32x4) AESInvMixColumns() Uint32x4
 
 /* AESRoundKeyGenAssist */
@@ -129,7 +129,7 @@ func (x Uint32x4) AESInvMixColumns() Uint32x4
 //
 // rconVal results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
-// Asm: VAESKEYGENASSIST, CPU Feature: AVX, AES
+// Asm: VAESKEYGENASSIST, CPU Feature: AVXAES
 func (x Uint32x4) AESRoundKeyGenAssist(rconVal uint8) Uint32x4
 
 /* Abs */
@@ -4088,12 +4088,12 @@ func (x Uint64x8) Mul(y Uint64x8) Uint64x8
 
 // MulAdd performs a fused (x * y) + z.
 //
-// Asm: VFMADD213PS, CPU Feature: AVX512
+// Asm: VFMADD213PS, CPU Feature: FMA
 func (x Float32x4) MulAdd(y Float32x4, z Float32x4) Float32x4
 
 // MulAdd performs a fused (x * y) + z.
 //
-// Asm: VFMADD213PS, CPU Feature: AVX512
+// Asm: VFMADD213PS, CPU Feature: FMA
 func (x Float32x8) MulAdd(y Float32x8, z Float32x8) Float32x8
 
 // MulAdd performs a fused (x * y) + z.
@@ -4103,12 +4103,12 @@ func (x Float32x16) MulAdd(y Float32x16, z Float32x16) Float32x16
 
 // MulAdd performs a fused (x * y) + z.
 //
-// Asm: VFMADD213PD, CPU Feature: AVX512
+// Asm: VFMADD213PD, CPU Feature: FMA
 func (x Float64x2) MulAdd(y Float64x2, z Float64x2) Float64x2
 
 // MulAdd performs a fused (x * y) + z.
 //
-// Asm: VFMADD213PD, CPU Feature: AVX512
+// Asm: VFMADD213PD, CPU Feature: FMA
 func (x Float64x4) MulAdd(y Float64x4, z Float64x4) Float64x4
 
 // MulAdd performs a fused (x * y) + z.
@@ -4120,12 +4120,12 @@ func (x Float64x8) MulAdd(y Float64x8, z Float64x8) Float64x8
 
 // MulAddSub performs a fused (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
 //
-// Asm: VFMADDSUB213PS, CPU Feature: AVX512
+// Asm: VFMADDSUB213PS, CPU Feature: FMA
 func (x Float32x4) MulAddSub(y Float32x4, z Float32x4) Float32x4
 
 // MulAddSub performs a fused (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
 //
-// Asm: VFMADDSUB213PS, CPU Feature: AVX512
+// Asm: VFMADDSUB213PS, CPU Feature: FMA
 func (x Float32x8) MulAddSub(y Float32x8, z Float32x8) Float32x8
 
 // MulAddSub performs a fused (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
@@ -4135,12 +4135,12 @@ func (x Float32x16) MulAddSub(y Float32x16, z Float32x16) Float32x16
 
 // MulAddSub performs a fused (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
 //
-// Asm: VFMADDSUB213PD, CPU Feature: AVX512
+// Asm: VFMADDSUB213PD, CPU Feature: FMA
 func (x Float64x2) MulAddSub(y Float64x2, z Float64x2) Float64x2
 
 // MulAddSub performs a fused (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
 //
-// Asm: VFMADDSUB213PD, CPU Feature: AVX512
+// Asm: VFMADDSUB213PD, CPU Feature: FMA
 func (x Float64x4) MulAddSub(y Float64x4, z Float64x4) Float64x4
 
 // MulAddSub performs a fused (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
@@ -4210,12 +4210,12 @@ func (x Uint16x32) MulHigh(y Uint16x32) Uint16x32
 
 // MulSubAdd performs a fused (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
 //
-// Asm: VFMSUBADD213PS, CPU Feature: AVX512
+// Asm: VFMSUBADD213PS, CPU Feature: FMA
 func (x Float32x4) MulSubAdd(y Float32x4, z Float32x4) Float32x4
 
 // MulSubAdd performs a fused (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
 //
-// Asm: VFMSUBADD213PS, CPU Feature: AVX512
+// Asm: VFMSUBADD213PS, CPU Feature: FMA
 func (x Float32x8) MulSubAdd(y Float32x8, z Float32x8) Float32x8
 
 // MulSubAdd performs a fused (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
@@ -4225,12 +4225,12 @@ func (x Float32x16) MulSubAdd(y Float32x16, z Float32x16) Float32x16
 
 // MulSubAdd performs a fused (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
 //
-// Asm: VFMSUBADD213PD, CPU Feature: AVX512
+// Asm: VFMSUBADD213PD, CPU Feature: FMA
 func (x Float64x2) MulSubAdd(y Float64x2, z Float64x2) Float64x2
 
 // MulSubAdd performs a fused (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
 //
-// Asm: VFMSUBADD213PD, CPU Feature: AVX512
+// Asm: VFMSUBADD213PD, CPU Feature: FMA
 func (x Float64x4) MulSubAdd(y Float64x4, z Float64x4) Float64x4
 
 // MulSubAdd performs a fused (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
