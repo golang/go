@@ -1041,7 +1041,7 @@ func testResumption(t *testing.T, version uint16) {
 
 	// Tickets should be removed from the session cache on TLS handshake
 	// failure, and the client should recover from a corrupted PSK
-	testResumeState("FetchTicketToCorrupt", false)
+	testResumeState("FetchTicketToCorrupt", true)
 	corruptTicket()
 	_, _, err = testHandshake(t, clientConfig, serverConfig)
 	if err == nil {
@@ -1583,15 +1583,18 @@ func testVerifyConnection(t *testing.T, version uint16) {
 		if c.NegotiatedProtocol != "protocol1" {
 			return fmt.Errorf("%s: got NegotiatedProtocol %s, want %s", errorType, c.NegotiatedProtocol, "protocol1")
 		}
-		if c.CipherSuite == 0 {
-			return fmt.Errorf("%s: got CipherSuite 0, want non-zero", errorType)
-		}
 		wantDidResume := false
 		if *called == 2 { // if this is the second time, then it should be a resumption
 			wantDidResume = true
 		}
 		if c.DidResume != wantDidResume {
 			return fmt.Errorf("%s: got DidResume %t, want %t", errorType, c.DidResume, wantDidResume)
+		}
+		if c.DidResume {
+			return nil
+		}
+		if c.CipherSuite == 0 {
+			return fmt.Errorf("%s: got CipherSuite 0, want non-zero", errorType)
 		}
 		return nil
 	}

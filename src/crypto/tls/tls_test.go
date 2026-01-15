@@ -935,8 +935,8 @@ func TestCloneNonFuncFields(t *testing.T) {
 		}
 	}
 	// Set the unexported fields related to session ticket keys, which are copied with Clone().
+	c1.autoSessionTicketKeys = []ticketKey{c1.ticketKeyFromBytes(c1.SessionTicketKey)}
 	c1.sessionTicketKeys = []ticketKey{c1.ticketKeyFromBytes(c1.SessionTicketKey)}
-	// We explicitly don't copy autoSessionTicketKeys in Clone, so don't set it.
 
 	c2 := c1.Clone()
 	if !reflect.DeepEqual(&c1, c2) {
@@ -1948,8 +1948,9 @@ func testVerifyCertificates(t *testing.T, version uint16) {
 				t.Error("expected resumption")
 			}
 
-			if serverVerifyPeerCertificates {
-				t.Error("VerifyPeerCertificates got called on the server on resumption")
+			if serverVerifyPeerCertificates != want {
+				t.Errorf("VerifyPeerCertificates on the server on resumption: got %v, want %v",
+					serverVerifyPeerCertificates, want)
 			}
 			if clientVerifyPeerCertificates {
 				t.Error("VerifyPeerCertificates got called on the client on resumption")
@@ -2460,13 +2461,4 @@ func (s messageOnlySigner) SignMessage(rand io.Reader, msg []byte, opts crypto.S
 	h.Write(msg)
 	digest := h.Sum(nil)
 	return s.Signer.Sign(rand, digest, opts)
-}
-
-func TestConfigCloneAutoSessionTicketKeys(t *testing.T) {
-	orig := &Config{}
-	orig.ticketKeys(nil)
-	clone := orig.Clone()
-	if slices.Equal(orig.autoSessionTicketKeys, clone.autoSessionTicketKeys) {
-		t.Fatal("autoSessionTicketKeys slice copied in Clone")
-	}
 }

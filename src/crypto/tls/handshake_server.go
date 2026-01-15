@@ -512,27 +512,6 @@ func (hs *serverHandshakeState) checkForResumption() error {
 		return nil
 	}
 
-	sessionHasClientCerts := len(sessionState.peerCertificates) != 0
-	needClientCerts := requiresClientCert(c.config.ClientAuth)
-	if needClientCerts && !sessionHasClientCerts {
-		return nil
-	}
-	if sessionHasClientCerts && c.config.ClientAuth == NoClientCert {
-		return nil
-	}
-	if sessionHasClientCerts {
-		now := c.config.time()
-		for _, c := range sessionState.peerCertificates {
-			if now.After(c.NotAfter) {
-				return nil
-			}
-		}
-	}
-	if sessionHasClientCerts && c.config.ClientAuth >= VerifyClientCertIfGiven &&
-		len(sessionState.verifiedChains) == 0 {
-		return nil
-	}
-
 	// RFC 7627, Section 5.3
 	if !sessionState.extMasterSecret && hs.clientHello.extendedMasterSecret {
 		return nil
@@ -547,10 +526,10 @@ func (hs *serverHandshakeState) checkForResumption() error {
 		return nil
 	}
 
-	c.peerCertificates = sessionState.peerCertificates
-	c.ocspResponse = sessionState.ocspResponse
-	c.scts = sessionState.scts
-	c.verifiedChains = sessionState.verifiedChains
+	if !c.checkCertsFromClientResumption(sessionState) {
+		return nil
+	}
+
 	c.extMasterSecret = sessionState.extMasterSecret
 	hs.sessionState = sessionState
 	hs.suite = suite
@@ -578,13 +557,6 @@ func (hs *serverHandshakeState) doResumeHandshake() error {
 	}
 	if _, err := hs.c.writeHandshakeRecord(hs.hello, &hs.finishedHash); err != nil {
 		return err
-	}
-
-	if c.config.VerifyConnection != nil {
-		if err := c.config.VerifyConnection(c.connectionStateLocked()); err != nil {
-			c.sendAlert(alertBadCertificate)
-			return err
-		}
 	}
 
 	hs.masterSecret = hs.sessionState.secret
@@ -964,41 +936,6 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 		return errors.New("tls: client didn't provide a certificate")
 	}
 
-	if c.config.ClientAuth >= VerifyClientCertIfGiven && len(certs) > 0 {
-		opts := x509.VerifyOptions{
-			Roots:         c.config.ClientCAs,
-			CurrentTime:   c.config.time(),
-			Intermediates: x509.NewCertPool(),
-			KeyUsages:     []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
-		}
-
-		for _, cert := range certs[1:] {
-			opts.Intermediates.AddCert(cert)
-		}
-
-		chains, err := certs[0].Verify(opts)
-		if err != nil {
-			if _, ok := errors.AsType[x509.UnknownAuthorityError](err); ok {
-				c.sendAlert(alertUnknownCA)
-			} else if errCertificateInvalid, ok := errors.AsType[x509.CertificateInvalidError](err); ok && errCertificateInvalid.Reason == x509.Expired {
-				c.sendAlert(alertCertificateExpired)
-			} else {
-				c.sendAlert(alertBadCertificate)
-			}
-			return &CertificateVerificationError{UnverifiedCertificates: certs, Err: err}
-		}
-
-		c.verifiedChains, err = fipsAllowedChains(chains)
-		if err != nil {
-			c.sendAlert(alertBadCertificate)
-			return &CertificateVerificationError{UnverifiedCertificates: certs, Err: err}
-		}
-	}
-
-	c.peerCertificates = certs
-	c.ocspResponse = certificate.OCSPStaple
-	c.scts = certificate.SignedCertificateTimestamps
-
 	if len(certs) > 0 {
 		switch certs[0].PublicKey.(type) {
 		case *ecdsa.PublicKey, *rsa.PublicKey, ed25519.PublicKey:
@@ -1006,7 +943,42 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 			c.sendAlert(alertUnsupportedCertificate)
 			return fmt.Errorf("tls: client certificate contains an unsupported public key of type %T", certs[0].PublicKey)
 		}
+
+		if c.config.ClientAuth >= VerifyClientCertIfGiven {
+			opts := x509.VerifyOptions{
+				Roots:         c.config.ClientCAs,
+				CurrentTime:   c.config.time(),
+				Intermediates: x509.NewCertPool(),
+				KeyUsages:     []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+			}
+
+			for _, cert := range certs[1:] {
+				opts.Intermediates.AddCert(cert)
+			}
+
+			chains, err := certs[0].Verify(opts)
+			if err != nil {
+				if _, ok := errors.AsType[x509.UnknownAuthorityError](err); ok {
+					c.sendAlert(alertUnknownCA)
+				} else if errCertificateInvalid, ok := errors.AsType[x509.CertificateInvalidError](err); ok && errCertificateInvalid.Reason == x509.Expired {
+					c.sendAlert(alertCertificateExpired)
+				} else {
+					c.sendAlert(alertBadCertificate)
+				}
+				return &CertificateVerificationError{UnverifiedCertificates: certs, Err: err}
+			}
+
+			c.verifiedChains, err = fipsAllowedChains(chains)
+			if err != nil {
+				c.sendAlert(alertBadCertificate)
+				return &CertificateVerificationError{UnverifiedCertificates: certs, Err: err}
+			}
+		}
 	}
+
+	c.peerCertificates = certs
+	c.ocspResponse = certificate.OCSPStaple
+	c.scts = certificate.SignedCertificateTimestamps
 
 	if c.config.VerifyPeerCertificate != nil {
 		if err := c.config.VerifyPeerCertificate(certificates, c.verifiedChains); err != nil {
@@ -1016,6 +988,153 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 	}
 
 	return nil
+}
+
+// processCertsFromClientResumption verifies a chain of client certificates.
+func (c *Conn) processCertsFromClientResumption(certs []*x509.Certificate, verifiedChains [][]*x509.Certificate) ([][]*x509.Certificate, error) {
+	// We do not require client certificate verification, skip this step.
+	if c.config.ClientAuth < VerifyClientCertIfGiven {
+		return nil, nil
+	}
+
+	// The client did not provide a certificate, skip this step.
+	if len(certs) == 0 {
+		return nil, nil
+	}
+
+	opts := x509.VerifyOptions{
+		Roots:       c.config.ClientCAs,
+		CurrentTime: c.config.time(),
+		KeyUsages:   []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+	}
+
+	// If we have already verified the certificate chain.
+	if len(verifiedChains) > 0 {
+		// Check the validity period of the full-chain certificate (exclude the RootCA).
+		for _, c := range certs {
+			if opts.CurrentTime.Before(c.NotBefore) {
+				return nil, x509.CertificateInvalidError{
+					Cert:   c,
+					Reason: x509.Expired,
+					Detail: fmt.Sprintf("current time %s is before %s", opts.CurrentTime.Format(time.RFC3339), c.NotBefore.Format(time.RFC3339)),
+				}
+			}
+
+			if opts.CurrentTime.After(c.NotAfter) {
+				return nil, x509.CertificateInvalidError{
+					Cert:   c,
+					Reason: x509.Expired,
+					Detail: fmt.Sprintf("current time %s is after %s", opts.CurrentTime.Format(time.RFC3339), c.NotAfter.Format(time.RFC3339)),
+				}
+			}
+		}
+
+		reverifiedChains := make([][]*x509.Certificate, 0, len(verifiedChains))
+		for _, verifiedChain := range verifiedChains {
+			// If verifiedChain are empty, Skip it
+			if len(verifiedChain) == 0 {
+				continue
+			}
+
+			// Check the root certificate's validity period and whether it is still trusted by us.
+			rootCA := verifiedChain[len(verifiedChain)-1]
+			_, err := rootCA.Verify(opts)
+			if err != nil {
+				continue
+			}
+
+			reverifiedChains = append(reverifiedChains, verifiedChain)
+		}
+
+		// If we have the valid chains, use it directly.
+		if len(reverifiedChains) > 0 {
+			return fipsAllowedChains(reverifiedChains)
+		}
+	}
+
+	// If no valid verified chain exists, re-execute full-chain certificate verification.
+	opts.Intermediates = x509.NewCertPool()
+	for _, cert := range certs[1:] {
+		opts.Intermediates.AddCert(cert)
+	}
+
+	chains, err := certs[0].Verify(opts)
+	if err != nil {
+		return nil, err
+	}
+
+	return fipsAllowedChains(chains)
+}
+
+// checkCertsFromClientResumption takes a chain of client certificates either
+// from a sessionState and verifies them.
+func (c *Conn) checkCertsFromClientResumption(sessionState *SessionState) bool {
+	// If we don't need the client certificates right now, accept the resumption.
+	if c.config.ClientAuth == NoClientCert {
+		if c.config.VerifyConnection != nil {
+			connectionState := c.connectionStateLocked()
+			connectionState.DidResume = true
+			if err := c.config.VerifyConnection(connectionState); err != nil {
+				return false
+			}
+		}
+		return true
+	}
+
+	// If we request the client to provide certificates, pick up it from sessionState
+	certs := sessionState.peerCertificates
+
+	// If we require the client to provide certificates, check it.
+	if len(certs) == 0 && requiresClientCert(c.config.ClientAuth) {
+		return false
+	}
+
+	for _, cert := range certs {
+		if cert.PublicKeyAlgorithm == x509.RSA {
+			n := cert.PublicKey.(*rsa.PublicKey).N.BitLen()
+			if _, ok := checkKeySize(n); !ok {
+				return false
+			}
+		}
+	}
+
+	if len(certs) > 0 {
+		switch certs[0].PublicKey.(type) {
+		case *ecdsa.PublicKey, *rsa.PublicKey, ed25519.PublicKey:
+		default:
+			return false
+		}
+	}
+
+	verifiedChains, err := c.processCertsFromClientResumption(certs, sessionState.verifiedChains)
+	if err != nil {
+		return false
+	}
+
+	if c.config.VerifyPeerCertificate != nil {
+		certificates := certificatesToBytesSlice(certs)
+		if err := c.config.VerifyPeerCertificate(certificates, verifiedChains); err != nil {
+			return false
+		}
+	}
+
+	if c.config.VerifyConnection != nil {
+		connectionState := c.connectionStateLocked()
+		connectionState.DidResume = true
+		connectionState.SignedCertificateTimestamps = sessionState.scts
+		connectionState.OCSPResponse = sessionState.ocspResponse
+		connectionState.PeerCertificates = certs
+		connectionState.VerifiedChains = verifiedChains
+		if err := c.config.VerifyConnection(connectionState); err != nil {
+			return false
+		}
+	}
+
+	c.ocspResponse = sessionState.ocspResponse
+	c.scts = sessionState.scts
+	c.peerCertificates = certs
+	c.verifiedChains = verifiedChains
+	return true
 }
 
 func clientHelloInfo(ctx context.Context, c *Conn, clientHello *clientHelloMsg) *ClientHelloInfo {
