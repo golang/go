@@ -290,7 +290,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	// Read and decode ELF identifier
 	var ident [16]uint8
 	if _, err := r.ReadAt(ident[0:], 0); err != nil {
-		return nil, err
+		return nil, &FormatError{0, "cannot read ELF identifier", err}
 	}
 	if ident[0] != '\x7f' || ident[1] != 'E' || ident[2] != 'L' || ident[3] != 'F' {
 		return nil, &FormatError{0, "bad magic number", ident[0:4]}

@@ -17,6 +17,7 @@ import (
 	"net"
 	"os"
 	"path"
+	"path/filepath"
 	"reflect"
 	"runtime"
 	"slices"
@@ -1620,5 +1621,48 @@ func BenchmarkSymbols32(b *testing.B) {
 		if len(symbols) != 74 {
 			b.Errorf("\nhave %d symbols\nwant %d symbols\n", len(symbols), 74)
 		}
+	}
+}
+
+func TestOpenEmptyFile(t *testing.T) {
+	name := filepath.Join(t.TempDir(), "empty")
+	if err := os.WriteFile(name, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := Open(name)
+	if err == nil {
+		t.Fatal("Open on empty file: got nil error, want non-nil")
+	}
+
+	var formatErr *FormatError
+	if !errors.As(err, &formatErr) {
+		t.Errorf("Open on empty file: got %T (%v), want *FormatError", err, err)
+	}
+}
+
+func TestNewFileShortReader(t *testing.T) {
+	tests := []struct {
+		name string
+		data []byte
+	}{
+		{"empty", []byte{}},
+		{"one byte", []byte{0x7f}},
+		{"four bytes", []byte{0x7f, 'E', 'L', 'F'}},
+		{"fifteen bytes", make([]byte, 15)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := NewFile(bytes.NewReader(tt.data))
+			if err == nil {
+				t.Fatal("NewFile with short data: got nil error, want non-nil")
+			}
+
+			var formatErr *FormatError
+			if !errors.As(err, &formatErr) {
+				t.Errorf("NewFile with short data: got %T (%v), want *FormatError", err, err)
+			}
+		})
 	}
 }
