@@ -119,6 +119,8 @@ cargo run --release -- fuzz -i <input_dir> -o <output_dir>
 with:
 
 - `HARNESS_LIB=<path to built libharness.a>`
+- `HARNESS_LINK_SEARCH=/path/one:/path/two` (optional: extra native link search dirs)
+- `HARNESS_LINK_LIBS=dylib=dl,static=z` (optional: extra `rustc-link-lib` entries)
 - working directory set to the `golibafl/` crate
 
 `golibafl` was updated to accept `HARNESS_LIB` and **link the prebuilt archive** instead of rebuilding a harness from a `HARNESS=...` directory.

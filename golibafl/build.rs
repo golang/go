@@ -44,9 +44,24 @@ fn main() -> Result<()> {
             .ok_or_else(|| anyhow!("HARNESS_LIB must point to a file"))?;
 
         println!("cargo:rerun-if-env-changed=HARNESS_LIB");
+        println!("cargo:rerun-if-env-changed=HARNESS_LINK_SEARCH");
+        println!("cargo:rerun-if-env-changed=HARNESS_LINK_LIBS");
         println!("cargo:rerun-if-changed={}", harness_lib.display());
         println!("cargo:rustc-link-search=native={}", dir.display());
         println!("cargo:rustc-link-lib=static=harness");
+
+        if let Ok(extra_search) = env::var("HARNESS_LINK_SEARCH") {
+            for dir in extra_search.split(':').map(str::trim).filter(|d| !d.is_empty()) {
+                println!("cargo:rustc-link-search=native={dir}");
+            }
+        }
+
+        if let Ok(extra_libs) = env::var("HARNESS_LINK_LIBS") {
+            for lib in extra_libs.split(',').map(str::trim).filter(|l| !l.is_empty()) {
+                // Accept values like: "static=stylus" or "dylib=dl"
+                println!("cargo:rustc-link-lib={lib}");
+            }
+        }
         return Ok(());
     }
 
