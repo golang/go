@@ -563,3 +563,15 @@ func bitsRotateAndMask(io64 [8]uint64, io32 [4]uint32, io16 [4]uint16, io8 [4]ui
 	// ppc64x: "ANDCC [$]120"
 	io8[0] = io8[0] & uint8(bigc)
 }
+
+func bitsOpXor1(x, y uint32) uint32 {
+	// arm64: "ORR" "AND" "BIC"
+	// loong64: "OR " "AND " "ANDN"
+	return (x | y) &^ (x & y)
+}
+
+func bitsOpXor2(x, y uint32) uint32 {
+	// arm64: "BIC" "ORR"
+	// loong64: "ANDN" "OR "
+	return (x &^ y) | (^x & y)
+}
