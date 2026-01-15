@@ -71,10 +71,10 @@ However, these errors are usually handled internally (e.g., through retry or pau
 Compile cybergo, then use the `--panic-on` flag.
 
 ```bash
-./bin/go test -fuzz=FuzzHarness --use-libafl --panic-on="test_go_panicon.(*Logger).Error"
+./bin/go test -fuzz=FuzzHarness --use-libafl --panic-on="test_go_panicon.(*Logger).Warning,test_go_panicon.(*Logger).Error"
 ```
 
-The example above would panic when a function `func (l *Logger) Error(msg string)` is called for instance.
+The example above would panic when either `(*Logger).Warning` or `(*Logger).Error` is called (comma-separated list).
 
 <details>
 <summary><strong>How panic on selected functions feature works</strong></summary>
