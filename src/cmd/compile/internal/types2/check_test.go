@@ -112,8 +112,6 @@ func parseFlags(src []byte, flags *flag.FlagSet) error {
 
 // testFiles type-checks the package consisting of the given files, and
 // compares the resulting errors with the ERROR annotations in the source.
-// Except for manual tests, each package is type-checked twice, once without
-// use of Alias types, and once with Alias types.
 //
 // The srcs slice contains the file content for the files named in the
 // filenames slice. The colDelta parameter specifies the tolerance for position
@@ -122,16 +120,6 @@ func parseFlags(src []byte, flags *flag.FlagSet) error {
 //
 // If provided, opts may be used to mutate the Config before type-checking.
 func testFiles(t *testing.T, filenames []string, srcs [][]byte, colDelta uint, manual bool, opts ...func(*Config)) {
-	enableAlias := true
-	opts = append(opts, func(conf *Config) { conf.EnableAlias = enableAlias })
-	testFilesImpl(t, filenames, srcs, colDelta, manual, opts...)
-	if !manual {
-		enableAlias = false
-		testFilesImpl(t, filenames, srcs, colDelta, manual, opts...)
-	}
-}
-
-func testFilesImpl(t *testing.T, filenames []string, srcs [][]byte, colDelta uint, manual bool, opts ...func(*Config)) {
 	if len(filenames) == 0 {
 		t.Fatal("no source files")
 	}
@@ -171,12 +159,11 @@ func testFilesImpl(t *testing.T, filenames []string, srcs [][]byte, colDelta uin
 	}
 
 	// apply flag setting (overrides custom configuration)
-	var goexperiment, gotypesalias string
+	var goexperiment string
 	flags := flag.NewFlagSet("", flag.PanicOnError)
 	flags.StringVar(&conf.GoVersion, "lang", "", "")
 	flags.StringVar(&goexperiment, "goexperiment", "", "")
 	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
-	flags.StringVar(&gotypesalias, "gotypesalias", "", "")
 	if err := parseFlags(srcs[0], flags); err != nil {
 		t.Fatal(err)
 	}
@@ -184,11 +171,6 @@ func testFilesImpl(t *testing.T, filenames []string, srcs [][]byte, colDelta uin
 	if goexperiment != "" {
 		revert := setGOEXPERIMENT(goexperiment)
 		defer revert()
-	}
-
-	// By default, gotypesalias is not set.
-	if gotypesalias != "" {
-		conf.EnableAlias = gotypesalias != "0"
 	}
 
 	// Provide Config.Info with all maps so that info recording is tested.

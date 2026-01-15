@@ -201,26 +201,7 @@ loop:
 				break loop
 			}
 
-			// Determine if the type name is an alias or not. For
-			// package-level objects, use the object map which
-			// provides syntactic information (which doesn't rely
-			// on the order in which the objects are set up). For
-			// local objects, we can rely on the order, so use
-			// the object's predicate.
-			// TODO(gri) It would be less fragile to always access
-			// the syntactic information. We should consider storing
-			// this information explicitly in the object.
-			var alias bool
-			if check.conf._EnableAlias {
-				alias = obj.IsAlias()
-			} else {
-				if d := check.objMap[obj]; d != nil {
-					alias = d.tdecl.Assign.IsValid() // package-level object
-				} else {
-					alias = obj.IsAlias() // function local object
-				}
-			}
-			if !alias {
+			if !obj.IsAlias() {
 				ndef++
 			}
 		case *Func:
@@ -283,14 +264,8 @@ func (check *Checker) cycleError(cycle []Object, start int) {
 	obj := cycle[start]
 	tname, _ := obj.(*TypeName)
 	if tname != nil {
-		if check.conf._EnableAlias {
-			if a, ok := tname.Type().(*Alias); ok {
-				a.fromRHS = Typ[Invalid]
-			}
-		} else {
-			if tname.IsAlias() {
-				check.validAlias(tname, Typ[Invalid])
-			}
+		if a, ok := tname.Type().(*Alias); ok {
+			a.fromRHS = Typ[Invalid]
 		}
 	}
 
@@ -546,52 +521,35 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec) {
 			versionErr = true
 		}
 
-		if check.conf._EnableAlias {
-			alias := check.newAlias(obj, nil)
+		alias := check.newAlias(obj, nil)
 
-			// If we could not type the RHS, set it to invalid. This should
-			// only ever happen if we panic before setting.
-			defer func() {
-				if alias.fromRHS == nil {
-					alias.fromRHS = Typ[Invalid]
-					unalias(alias)
-				}
-			}()
-
-			// handle type parameters even if not allowed (Alias type is supported)
-			if tparam0 != nil {
-				check.openScope(tdecl, "type parameters")
-				defer check.closeScope()
-				check.collectTypeParams(&alias.tparams, tdecl.TypeParams)
-			}
-
-			rhs = check.declaredType(tdecl.Type, obj)
-			assert(rhs != nil)
-			alias.fromRHS = rhs
-
-			// spec: In an alias declaration the given type cannot be a type parameter declared in the same declaration."
-			// (see also go.dev/issue/75884, go.dev/issue/#75885)
-			if tpar, ok := rhs.(*TypeParam); ok && alias.tparams != nil && slices.Index(alias.tparams.list(), tpar) >= 0 {
-				check.error(tdecl.Type, MisplacedTypeParam, "cannot use type parameter declared in alias declaration as RHS")
+		// If we could not type the RHS, set it to invalid. This should
+		// only ever happen if we panic before setting.
+		defer func() {
+			if alias.fromRHS == nil {
 				alias.fromRHS = Typ[Invalid]
+				unalias(alias)
 			}
-		} else {
-			// With Go1.23, the default behavior is to use Alias nodes,
-			// reflected by check.enableAlias. Signal non-default behavior.
-			//
-			// TODO(gri) Testing runs tests in both modes. Do we need to exclude
-			//           tracking of non-default behavior for tests?
-			gotypesalias.IncNonDefault()
+		}()
 
-			if !versionErr && tparam0 != nil {
-				check.error(tdecl, UnsupportedFeature, "generic type alias requires GODEBUG=gotypesalias=1 or unset")
-				versionErr = true
-			}
-
-			check.brokenAlias(obj)
-			rhs = check.typ(tdecl.Type)
-			check.validAlias(obj, rhs)
+		// handle type parameters even if not allowed (Alias type is supported)
+		if tparam0 != nil {
+			check.openScope(tdecl, "type parameters")
+			defer check.closeScope()
+			check.collectTypeParams(&alias.tparams, tdecl.TypeParams)
 		}
+
+		rhs = check.declaredType(tdecl.Type, obj)
+		assert(rhs != nil)
+		alias.fromRHS = rhs
+
+		// spec: In an alias declaration the given type cannot be a type parameter declared in the same declaration."
+		// (see also go.dev/issue/75884, go.dev/issue/#75885)
+		if tpar, ok := rhs.(*TypeParam); ok && alias.tparams != nil && slices.Index(alias.tparams.list(), tpar) >= 0 {
+			check.error(tdecl.Type, MisplacedTypeParam, "cannot use type parameter declared in alias declaration as RHS")
+			alias.fromRHS = Typ[Invalid]
+		}
+
 		return
 	}
 

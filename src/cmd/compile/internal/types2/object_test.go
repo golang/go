@@ -80,32 +80,31 @@ func TestEmbeddedMethod(t *testing.T) {
 }
 
 var testObjects = []struct {
-	src   string
-	obj   string
-	want  string
-	alias bool // needs materialized (and possibly generic) aliases
+	src  string
+	obj  string
+	want string
 }{
-	{"import \"io\"; var r io.Reader", "r", "var p.r io.Reader", false},
+	{"import \"io\"; var r io.Reader", "r", "var p.r io.Reader"},
 
-	{"const c = 1.2", "c", "const p.c untyped float", false},
-	{"const c float64 = 3.14", "c", "const p.c float64", false},
+	{"const c = 1.2", "c", "const p.c untyped float"},
+	{"const c float64 = 3.14", "c", "const p.c float64"},
 
-	{"type t struct{f int}", "t", "type p.t struct{f int}", false},
-	{"type t func(int)", "t", "type p.t func(int)", false},
-	{"type t[P any] struct{f P}", "t", "type p.t[P any] struct{f P}", false},
-	{"type t[P any] struct{f P}", "t.P", "type parameter P any", false},
-	{"type C interface{m()}; type t[P C] struct{}", "t.P", "type parameter P p.C", false},
+	{"type t struct{f int}", "t", "type p.t struct{f int}"},
+	{"type t func(int)", "t", "type p.t func(int)"},
+	{"type t[P any] struct{f P}", "t", "type p.t[P any] struct{f P}"},
+	{"type t[P any] struct{f P}", "t.P", "type parameter P any"},
+	{"type C interface{m()}; type t[P C] struct{}", "t.P", "type parameter P p.C"},
 
-	{"type t = struct{f int}", "t", "type p.t = struct{f int}", false},
-	{"type t = func(int)", "t", "type p.t = func(int)", false},
-	{"type A = B; type B = int", "A", "type p.A = p.B", true},
-	{"type A[P ~int] = struct{}", "A", "type p.A[P ~int] = struct{}", true},
-	{"var v int", "v", "var p.v int", false},
+	{"type t = struct{f int}", "t", "type p.t = struct{f int}"},
+	{"type t = func(int)", "t", "type p.t = func(int)"},
+	{"type A = B; type B = int", "A", "type p.A = p.B"},
+	{"type A[P ~int] = struct{}", "A", "type p.A[P ~int] = struct{}"},
+	{"var v int", "v", "var p.v int"},
 
-	{"func f(int) string", "f", "func p.f(int) string", false},
-	{"func g[P any](x P){}", "g", "func p.g[P any](x P)", false},
-	{"func g[P interface{~int}](x P){}", "g.P", "type parameter P interface{~int}", false},
-	{"", "any", "type any = interface{}", false},
+	{"func f(int) string", "f", "func p.f(int) string"},
+	{"func g[P any](x P){}", "g", "func p.g[P any](x P)"},
+	{"func g[P interface{~int}](x P){}", "g.P", "type parameter P interface{~int}"},
+	{"", "any", "type any = interface{}"},
 }
 
 func TestObjectString(t *testing.T) {
@@ -114,8 +113,7 @@ func TestObjectString(t *testing.T) {
 	for i, test := range testObjects {
 		t.Run(fmt.Sprint(i), func(t *testing.T) {
 			src := "package p; " + test.src
-			conf := Config{Error: func(error) {}, Importer: defaultImporter(), EnableAlias: test.alias}
-			pkg, err := typecheck(src, &conf, nil)
+			pkg, err := typecheck(src, nil, nil)
 			if err != nil {
 				t.Fatalf("%s: %s", src, err)
 			}
