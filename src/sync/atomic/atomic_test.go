@@ -2998,3 +2998,69 @@ func TestNilDeref(t *testing.T) {
 type List struct {
 	Next Pointer[List]
 }
+
+// Benchmark tests for CompareAndSwap operations
+
+func BenchmarkCompareAndSwapInt32Success(b *testing.B) {
+	var x int32 = 0
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		CompareAndSwapInt32(&x, int32(i), int32(i+1))
+	}
+}
+
+func BenchmarkCompareAndSwapUint32Success(b *testing.B) {
+	var x uint32 = 0
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		CompareAndSwapUint32(&x, uint32(i), uint32(i+1))
+	}
+}
+
+func BenchmarkCompareAndSwapInt64Success(b *testing.B) {
+	var x int64 = 0
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		CompareAndSwapInt64(&x, int64(i), int64(i+1))
+	}
+}
+
+func BenchmarkCompareAndSwapUint64Success(b *testing.B) {
+	var x uint64 = 0
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		CompareAndSwapUint64(&x, uint64(i), uint64(i+1))
+	}
+}
+
+func BenchmarkCompareAndSwapInt32Fail(b *testing.B) {
+	var x int32 = -1
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		CompareAndSwapInt32(&x, int32(i), int32(i+1))
+	}
+}
+
+func BenchmarkCompareAndSwapUint32Fail(b *testing.B) {
+	var x uint32 = 0
+	b.ResetTimer()
+	for i := 1; i <= b.N; i++ {
+		CompareAndSwapUint32(&x, uint32(i), uint32(i+1))
+	}
+}
+
+func BenchmarkCompareAndSwapInt64Fail(b *testing.B) {
+	var x int64 = -1
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		CompareAndSwapInt64(&x, int64(i), int64(i+1))
+	}
+}
+
+func BenchmarkCompareAndSwapUint64Fail(b *testing.B) {
+	var x uint64 = 0
+	b.ResetTimer()
+	for i := 1; i <= b.N; i++ {
+		CompareAndSwapUint64(&x, uint64(i), uint64(i+1))
+	}
+}

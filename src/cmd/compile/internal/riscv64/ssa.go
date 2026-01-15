@@ -15,6 +15,7 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/obj/riscv"
 	"internal/abi"
+	"internal/buildcfg"
 )
 
 // ssaRegToReg maps ssa register numbers to obj register numbers.
@@ -692,12 +693,58 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.RegTo2 = v.Reg0()
 
 	case ssa.OpRISCV64LoweredAtomicCas32, ssa.OpRISCV64LoweredAtomicCas64:
+		if buildcfg.GORISCV64EXT.Zacas {
+			// MOV  Rarg1, Rtmp					// Move expected value to Rtmp
+			// AMOCAS.W/D Rarg2, (Rarg0), Rtmp  // AMOCAS writes (Rarg0) to Rtmp, regardless of success
+			// SUB  Rtmp, Rarg1, Rtmp			// If the expected value equals the old memory value, Rtmp becomes zero
+			// SEQZ Rtmp, Rout					// Set Rout to 1 if Rtmp is zero, otherwise 0
+
+			amocas := riscv.AAMOCASW
+			if v.Op == ssa.OpRISCV64LoweredAtomicCas64 {
+				amocas = riscv.AAMOCASD
+			}
+
+			r0 := v.Args[0].Reg() // address
+			r1 := v.Args[1].Reg() // expected value
+			r2 := v.Args[2].Reg() // new value
+			out := v.Reg0()
+
+			p := s.Prog(riscv.AMOV)
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = r1
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = riscv.REG_TMP
+
+			p1 := s.Prog(amocas)
+			p1.From.Type = obj.TYPE_REG
+			p1.From.Reg = r2
+			p1.To.Type = obj.TYPE_MEM
+			p1.To.Reg = r0
+			p1.RegTo2 = riscv.REG_TMP
+
+			p2 := s.Prog(riscv.ASUB)
+			p2.From.Type = obj.TYPE_REG
+			p2.From.Reg = r1
+			p2.Reg = riscv.REG_TMP
+			p2.To.Type = obj.TYPE_REG
+			p2.To.Reg = riscv.REG_TMP
+
+			p3 := s.Prog(riscv.ASEQZ)
+			p3.From.Type = obj.TYPE_REG
+			p3.From.Reg = riscv.REG_TMP
+			p3.To.Type = obj.TYPE_REG
+			p3.To.Reg = out
+
+			break
+		}
+
 		// MOV  ZERO, Rout
 		// LR	(Rarg0), Rtmp
-		// BNE	Rtmp, Rarg1, 3(PC)
+		// BNE	Rtmp, Rarg1, 4(PC)
 		// SC	Rarg2, (Rarg0), Rtmp
 		// BNE	Rtmp, ZERO, -3(PC)
 		// MOV	$1, Rout
+		// ANOP
 
 		lr := riscv.ALRW
 		sc := riscv.ASCW

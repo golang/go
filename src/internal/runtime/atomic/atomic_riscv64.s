@@ -42,6 +42,16 @@ TEXT ·Cas(SB), NOSPLIT, $0-17
 	MOV	ptr+0(FP), A0
 	MOVW	old+8(FP), A1
 	MOVW	new+12(FP), A2
+#ifdef GORISCV64EXT_zacas
+	// Use AMOCAS instruction (Zacas extension)
+	MOV	A1, A3
+	AMOCASW	A2, (A0), A3
+	SUB	A3, A1, A3
+	SEQZ	A3, A0
+	MOVB	A0, ret+16(FP)
+	RET
+#else
+	// Use LR/SC loop (standard implementation)
 cas_again:
 	LRW	(A0), A3
 	BNE	A3, A1, cas_fail
@@ -54,12 +64,23 @@ cas_fail:
 	MOV	$0, A0
 	MOV	A0, ret+16(FP)
 	RET
+#endif
 
 // func Cas64(ptr *uint64, old, new uint64) bool
 TEXT ·Cas64(SB), NOSPLIT, $0-25
 	MOV	ptr+0(FP), A0
 	MOV	old+8(FP), A1
 	MOV	new+16(FP), A2
+#ifdef GORISCV64EXT_zacas
+	// Use AMOCAS instruction (Zacas extension)
+	MOV	A1, A3
+	AMOCASD	A2, (A0), A3
+	SUB	A3, A1, A3
+	SEQZ	A3, A0
+	MOVB	A0, ret+24(FP)
+	RET
+#else
+	// Use LR/SC loop (standard implementation)
 cas_again:
 	LRD	(A0), A3
 	BNE	A3, A1, cas_fail
@@ -71,6 +92,7 @@ cas_again:
 cas_fail:
 	MOVB	ZERO, ret+24(FP)
 	RET
+#endif
 
 // func Load(ptr *uint32) uint32
 TEXT ·Load(SB),NOSPLIT|NOFRAME,$0-12
