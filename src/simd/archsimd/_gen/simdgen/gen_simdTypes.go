@@ -189,6 +189,7 @@ type X86Features struct {}
 var X86 X86Features
 
 {{range .}}
+{{$f := .}}
 {{- if eq .Feature "AVX512"}}
 // {{.Feature}} returns whether the CPU supports the AVX512F+CD+BW+DQ+VL features.
 //
@@ -199,11 +200,19 @@ var X86 X86Features
 {{- else -}}
 // {{.Feature}} returns whether the CPU supports the {{.Feature}} feature.
 {{- end}}
+{{- if ne .ImpliesAll ""}}
+//
+// If it returns true, then the CPU also supports {{.ImpliesAll}}.
+{{- end}}
 //
 // {{.Feature}} is defined on all GOARCHes, but will only return true on
 // GOARCH {{.GoArch}}.
-func (X86Features) {{.Feature}}() bool {
-	return cpu.X86.Has{{.Feature}}
+func ({{.FeatureVar}}Features) {{.Feature}}() bool {
+{{- if .Virtual}}
+	return {{range $i, $dep := .Implies}}{{if $i}} && {{end}}cpu.{{$f.FeatureVar}}.Has{{$dep}}{{end}}
+{{- else}}
+	return cpu.{{.FeatureVar}}.Has{{.Feature}}
+{{- end}}
 }
 {{end}}
 `
@@ -591,6 +600,65 @@ func writeSIMDTypes(typeMap simdTypeMap) *bytes.Buffer {
 	return buffer
 }
 
+type goarchFeatures struct {
+	// featureVar is the name of the exported feature-check variable for this
+	// architecture.
+	featureVar string
+
+	// features records per-feature information.
+	features map[string]featureInfo
+}
+
+type featureInfo struct {
+	// Implies is a list of other CPU features that are required for this
+	// feature. These are allowed to chain.
+	//
+	// For example, if the Frob feature lists "Baz", then if X.Frob() returns
+	// true, it must also be true that the CPU has feature Baz.
+	Implies []string
+
+	// Virtual means this feature is not represented directly in internal/cpu,
+	// but is instead the logical AND of the features in Implies.
+	Virtual bool
+}
+
+// goarchFeatureInfo maps from GOARCH to CPU feature to additional information
+// about that feature. Not all features need to be in this map.
+var goarchFeatureInfo = make(map[string]goarchFeatures)
+
+func registerFeatureInfo(goArch string, features goarchFeatures) {
+	goarchFeatureInfo[goArch] = features
+}
+
+func featureImplies(goarch string, base string) string {
+	// Compute the transitive closure of base.
+	var list []string
+	var visit func(f string)
+	visit = func(f string) {
+		list = append(list, f)
+		for _, dep := range goarchFeatureInfo[goarch].features[f].Implies {
+			visit(dep)
+		}
+	}
+	visit(base)
+	// Drop base
+	list = list[1:]
+	// Put in "nice" order
+	slices.Reverse(list)
+	// Combine into a comment-ready form
+	switch len(list) {
+	case 0:
+		return ""
+	case 1:
+		return list[0]
+	case 2:
+		return list[0] + " and " + list[1]
+	default:
+		list[len(list)-1] = "and " + list[len(list)-1]
+		return strings.Join(list, ", ")
+	}
+}
+
 func writeSIMDFeatures(ops []Operation) *bytes.Buffer {
 	// Gather all features
 	type featureKey struct {
@@ -606,12 +674,35 @@ func writeSIMDFeatures(ops []Operation) *bytes.Buffer {
 			featureSet[featureKey{op.GoArch, feature}] = struct{}{}
 		}
 	}
-	features := slices.SortedFunc(maps.Keys(featureSet), func(a, b featureKey) int {
+	featureKeys := slices.SortedFunc(maps.Keys(featureSet), func(a, b featureKey) int {
 		if c := cmp.Compare(a.GoArch, b.GoArch); c != 0 {
 			return c
 		}
 		return compareNatural(a.Feature, b.Feature)
 	})
+
+	// TODO: internal/cpu doesn't enforce these at all. You can even do
+	// GODEBUG=cpu.avx=off and it will happily turn off AVX without turning off
+	// AVX2. We need to push these dependencies into it somehow.
+	type feature struct {
+		featureKey
+		FeatureVar string
+		Virtual    bool
+		Implies    []string
+		ImpliesAll string
+	}
+	var features []feature
+	for _, k := range featureKeys {
+		featureVar := goarchFeatureInfo[k.GoArch].featureVar
+		fi := goarchFeatureInfo[k.GoArch].features[k.Feature]
+		features = append(features, feature{
+			featureKey: k,
+			FeatureVar: featureVar,
+			Virtual:    fi.Virtual,
+			Implies:    fi.Implies,
+			ImpliesAll: featureImplies(k.GoArch, k.Feature),
+		})
+	}
 
 	// If we ever have the same feature name on more than one GOARCH, we'll have
 	// to be more careful about this.
