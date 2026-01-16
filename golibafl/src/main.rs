@@ -38,6 +38,7 @@ use std::{
     env, fs,
     fs::read_dir,
     io::IsTerminal,
+    net::TcpListener,
     path::{Path, PathBuf},
     process::Stdio,
     time::Duration,
@@ -194,6 +195,39 @@ fn cores_ids_csv(cores: &Cores) -> String {
         .join(",")
 }
 
+const GOLIBAFL_BROKER_PORT_ENV: &str = "GOLIBAFL_BROKER_PORT";
+
+fn resolve_broker_port(broker_port: Option<u16>) -> u16 {
+    if let Some(port) = broker_port {
+        return port;
+    }
+
+    match env::var(GOLIBAFL_BROKER_PORT_ENV) {
+        Ok(val) => {
+            return val.parse::<u16>().unwrap_or_else(|_| {
+                eprintln!("golibafl: invalid {GOLIBAFL_BROKER_PORT_ENV}={val} (expected a TCP port number)");
+                std::process::exit(2);
+            });
+        }
+        Err(env::VarError::NotPresent) => {}
+        Err(env::VarError::NotUnicode(_)) => {
+            eprintln!("golibafl: {GOLIBAFL_BROKER_PORT_ENV} must be valid unicode");
+            std::process::exit(2);
+        }
+    }
+
+    let port = TcpListener::bind(("127.0.0.1", 0))
+        .and_then(|listener| listener.local_addr())
+        .map(|addr| addr.port())
+        .unwrap_or_else(|err| {
+            eprintln!("golibafl: failed to pick a random broker TCP port: {err}");
+            std::process::exit(2);
+        });
+
+    env::set_var(GOLIBAFL_BROKER_PORT_ENV, port.to_string());
+    port
+}
+
 
 
 // Command line arguments with clap
@@ -220,11 +254,10 @@ enum Mode {
         #[clap(
             short = 'p',
             long,
-            help = "Choose the broker TCP port, default is 1337",
+            help = "Choose the broker TCP port (default: random free port)",
             name = "PORT",
-            default_value = "1337"
         )]
-        broker_port: u16,
+        broker_port: Option<u16>,
 
         #[clap(
             short,
@@ -918,7 +951,10 @@ pub fn main() {
             broker_port,
             input,
             output,
-        } => fuzz(&cores, broker_port, &input, &output, config.as_ref()),
+        } => {
+            let broker_port = resolve_broker_port(broker_port);
+            fuzz(&cores, broker_port, &input, &output, config.as_ref())
+        }
         Mode::Run { input } => {
             run(input);
         }
