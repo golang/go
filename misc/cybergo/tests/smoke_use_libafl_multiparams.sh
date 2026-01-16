@@ -9,7 +9,7 @@ trap 'rm -rf "${tmp_dir}"' EXIT
 export GOCACHE="${tmp_dir}/gocache"
 
 cd "${ROOT_DIR}/test/cybergo/examples/multiparams"
-in_dir="$(libafl_input_dir)"
+in_dir="$(libafl_input_dir FuzzMultiParams)"
 mkdir -p "${in_dir}"
 printf '\x06libafl\x07cybergo\x69\x7a\x01' > "${in_dir}/seed-crash"
 

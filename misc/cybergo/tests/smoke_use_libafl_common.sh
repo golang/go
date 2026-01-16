@@ -33,7 +33,44 @@ run_expect_crash() {
 }
 
 libafl_input_dir() {
-  local pkg
+  local fuzz_pattern="${1}"
+
+  local pkg dir
   pkg="$("${ROOT_DIR}/bin/go" list -f '{{.ImportPath}}')"
-  echo "${GOCACHE}/fuzz/${pkg}/libafl/input"
+  dir="$("${ROOT_DIR}/bin/go" list -f '{{.Dir}}')"
+
+  local testdata_dir="${dir}/testdata/fuzz"
+  if [[ -d "${testdata_dir}" ]]; then
+    echo "${testdata_dir}"
+    return
+  fi
+
+  local root
+  root="$("${ROOT_DIR}/bin/go" list -f '{{.Root}}')"
+  if [[ -z "${root}" ]]; then
+    root="${dir}"
+  fi
+
+  local base
+  base="$(basename "${root}")"
+  if [[ -z "${base}" || "${base}" == "." || "${base}" == "/" ]]; then
+    base="project"
+  fi
+
+  local root_hash
+  root_hash="$(printf '%s' "${root}" | sha256sum | awk '{print $1}')"
+  local project_key="${base}-${root_hash:0:24}"
+
+  local harness_key
+  if [[ "${fuzz_pattern}" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+    harness_key="${fuzz_pattern}"
+  elif [[ "${fuzz_pattern}" =~ ^\\^([A-Za-z_][A-Za-z0-9_]*)\\$$ ]]; then
+    harness_key="${BASH_REMATCH[1]}"
+  else
+    local pat_hash
+    pat_hash="$(printf '%s' "${fuzz_pattern}" | sha256sum | awk '{print $1}')"
+    harness_key="pattern-${pat_hash:0:24}"
+  fi
+
+  echo "${GOCACHE}/fuzz/${pkg}/libafl/${project_key}/${harness_key}/input"
 }
