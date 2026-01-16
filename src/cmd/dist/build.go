@@ -678,6 +678,10 @@ var gentab = []struct {
 var installed = make(map[string]chan struct{})
 var installedMu sync.Mutex
 
+// waitingOn tracks the package that each installing package is blocked on.
+// This forms the "install stack" used to detect import cycles.
+var waitingOn = make(map[string]string)
+
 func install(dir string) {
 	<-startInstall(dir)
 }
@@ -883,14 +887,54 @@ func runInstall(pkg string, ch chan struct{}) {
 	}
 	sort.Strings(sortedImports)
 
+	// Start all dependency installations and collect the list of deps.
+	deps := make([]string, 0, len(importMap))
 	for _, dep := range importMap {
 		if dep == "C" {
 			fatalf("%s imports C", pkg)
 		}
+		deps = append(deps, dep)
 		startInstall(dep)
 	}
-	for _, dep := range importMap {
+
+	// Wait for all dependencies, checking for import cycles.
+	// Before blocking on each dep, we check if it's already waiting on us
+	// (directly or transitively), which would indicate an import cycle.
+	for _, dep := range deps {
+		// Check for direct self-import.
+		if dep == pkg {
+			fatalf("import cycle: %s -> %s", pkg, dep)
+		}
+
+		installedMu.Lock()
+		// Check for cycle: walk the waitingOn chain from dep.
+		// If we reach pkg, there's a cycle.
+		for p := dep; ; {
+			next, ok := waitingOn[p]
+			if !ok {
+				break
+			}
+			if next == pkg {
+				// Cycle found. Build the cycle path.
+				cycle := []string{pkg, dep}
+				for p2 := dep; p2 != pkg; {
+					next2 := waitingOn[p2]
+					cycle = append(cycle, next2)
+					p2 = next2
+				}
+				installedMu.Unlock()
+				fatalf("import cycle: %s", strings.Join(cycle, " -> "))
+			}
+			p = next
+		}
+		waitingOn[pkg] = dep
+		installedMu.Unlock()
+
 		install(dep)
+
+		installedMu.Lock()
+		delete(waitingOn, pkg)
+		installedMu.Unlock()
 	}
 
 	if goos != gohostos || goarch != gohostarch {
