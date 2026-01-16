@@ -10,7 +10,7 @@ import (
 	"internal/byteorder"
 	"internal/chacha8rand"
 	"internal/goarch"
-	"internal/runtime/math"
+	"math/bits"
 	"unsafe"
 	_ "unsafe" // for go:linkname
 )
@@ -227,13 +227,13 @@ func randn(n uint32) uint32 {
 func cheaprand() uint32 {
 	mp := getg().m
 	// Implement wyrand: https://github.com/wangyi-fudan/wyhash
-	// Only the platform that math.Mul64 can be lowered
+	// Only the platform that bits.Mul64 can be lowered
 	// by the compiler should be in this list.
 	if goarch.IsAmd64|goarch.IsArm64|goarch.IsPpc64|
 		goarch.IsPpc64le|goarch.IsMips64|goarch.IsMips64le|
 		goarch.IsS390x|goarch.IsRiscv64|goarch.IsLoong64 == 1 {
 		mp.cheaprand += 0xa0761d6478bd642f
-		hi, lo := math.Mul64(mp.cheaprand, mp.cheaprand^0xe7037ed1a0b428db)
+		hi, lo := bits.Mul64(mp.cheaprand, mp.cheaprand^0xe7037ed1a0b428db)
 		return uint32(hi ^ lo)
 	}
 

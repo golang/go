@@ -1232,7 +1232,6 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		},
 		all...)
 	alias("math/bits", "Mul", "math/bits", "Mul64", p8...)
-	alias("internal/runtime/math", "Mul64", "math/bits", "Mul64", p8...)
 	addF("math/bits", "Add64",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue3(ssa.OpAdd64carry, types.NewTuple(types.Types[types.TUINT64], types.Types[types.TUINT64]), args[0], args[1], args[2])

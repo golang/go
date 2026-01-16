@@ -10,7 +10,7 @@
 package runtime
 
 import (
-	"internal/runtime/math"
+	"math/bits"
 	"unsafe"
 )
 
@@ -75,7 +75,7 @@ func memhash64Fallback(p unsafe.Pointer, seed uintptr) uintptr {
 }
 
 func mix(a, b uintptr) uintptr {
-	hi, lo := math.Mul64(uint64(a), uint64(b))
+	hi, lo := bits.Mul64(uint64(a), uint64(b))
 	return uintptr(hi ^ lo)
 }
 
