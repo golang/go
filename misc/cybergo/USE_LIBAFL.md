@@ -139,7 +139,7 @@ LibAFL output is separated per **project + package + fuzz target**:
 
 ```
 .../fuzz/<pkg import path>/libafl/<project>/<harness>/
-  input/     # created/used only if no testdata/fuzz exists; may be empty
+  input/     # initial corpus dir (merged from testdata/fuzz + f.Add); may be empty
   queue/     # evolving corpus
   crashes/   # crashes (if any)
 ```
@@ -147,7 +147,11 @@ LibAFL output is separated per **project + package + fuzz target**:
 - `<project>` is derived from the package root directory (module root / GOPATH / GOROOT root) and formatted as `<basename>-<hash>`.
 - `<harness>` is the fuzz target name when `-fuzz` is a simple identifier like `FuzzXxx` (or `^FuzzXxx$`), otherwise `pattern-<hash>`.
 
-If the package has `testdata/fuzz/`, that directory is used as the initial `-i` corpus directory instead of `<...>/input/`.
+On each run, cybergo prepares `<...>/input/` as the initial `-i` corpus directory:
+
+- files from `testdata/fuzz/` (if it exists) are copied into it
+- manual seeds provided via `f.Add(...)` are written into it automatically
+
 If the chosen `-i` directory is empty, `golibafl` generates a small random initial corpus.
 
 On shutdown, `go test` prints the full output directory path:

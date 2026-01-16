@@ -142,7 +142,7 @@ func LibAFLWriteSeeds(dir string) error {
 	}
 
 	for i, seed := range seeds {
-		path := filepath.Join(dir, fmt.Sprintf("seed-%d", i))
+		path := filepath.Join(dir, fmt.Sprintf("cybergo-add-seed-%d", i))
 		f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0666)
 		if err != nil {
 			if errors.Is(err, fs.ErrExist) {

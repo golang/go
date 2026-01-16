@@ -1799,14 +1799,44 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 			base.Fatalf("failed to create libafl output dir: %v", err)
 		}
 
-		seedDir := ""
-		inDir := filepath.Join(a.Package.Dir, "testdata", "fuzz")
-		if _, err := os.Stat(inDir); err != nil {
-			inDir = filepath.Join(libaflOutDir, "input")
-			if err := sh.Mkdir(inDir); err != nil {
-				base.Fatalf("failed to create libafl input dir: %v", err)
+		inDir := filepath.Join(libaflOutDir, "input")
+		if err := sh.Mkdir(inDir); err != nil {
+			base.Fatalf("failed to create libafl input dir: %v", err)
+		}
+
+		// Keep any user-provided files in the input dir, but refresh the
+		// auto-generated seed files every run so they stay in sync with:
+		// - f.Add() calls in the fuzz target
+		// - testdata/fuzz files in the package
+		entries, err := os.ReadDir(inDir)
+		if err != nil {
+			return err
+		}
+		for _, ent := range entries {
+			name := ent.Name()
+			if strings.HasPrefix(name, "cybergo-add-seed-") || strings.HasPrefix(name, "cybergo-testdata-seed-") {
+				if err := os.Remove(filepath.Join(inDir, name)); err != nil && !errors.Is(err, fs.ErrNotExist) {
+					return err
+				}
 			}
-			seedDir = inDir
+		}
+
+		testdataDir := filepath.Join(a.Package.Dir, "testdata", "fuzz")
+		if fi, err := os.Stat(testdataDir); err == nil && fi.IsDir() {
+			entries, err := os.ReadDir(testdataDir)
+			if err != nil {
+				return err
+			}
+			for i, ent := range entries {
+				if ent.IsDir() {
+					continue
+				}
+				src := filepath.Join(testdataDir, ent.Name())
+				dst := filepath.Join(inDir, fmt.Sprintf("cybergo-testdata-seed-%d-%s", i, ent.Name()))
+				if err := sh.CopyFile(dst, src, 0666, false); err != nil {
+					return err
+				}
+			}
 		}
 
 		// Use a single LibAFL client for `go test -fuzz` semantics (stop on first crash)
@@ -1822,9 +1852,7 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 		args = append(args, "-j", "0", "-i", inDir, "-o", libaflOutDir)
 		cmdDir = golibaflDir
 		addEnv = []string{"HARNESS_LIB=" + buildAction.BuiltTarget()}
-		if seedDir != "" {
-			addEnv = append(addEnv, "LIBAFL_SEED_DIR="+seedDir)
-		}
+		addEnv = append(addEnv, "LIBAFL_SEED_DIR="+inDir)
 	} else {
 		execCmd := work.FindExecCmd()
 		testlogArg := []string{}

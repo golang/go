@@ -39,12 +39,6 @@ libafl_input_dir() {
   pkg="$("${ROOT_DIR}/bin/go" list -f '{{.ImportPath}}')"
   dir="$("${ROOT_DIR}/bin/go" list -f '{{.Dir}}')"
 
-  local testdata_dir="${dir}/testdata/fuzz"
-  if [[ -d "${testdata_dir}" ]]; then
-    echo "${testdata_dir}"
-    return
-  fi
-
   local root
   root="$("${ROOT_DIR}/bin/go" list -f '{{.Root}}')"
   if [[ -z "${root}" ]]; then
