@@ -21,6 +21,8 @@ cybergo can pass a JSONC configuration file (JSON with `//` comments) to the Lib
 go test -fuzz=FuzzXxx --use-libafl --libafl-config=libafl.jsonc
 ```
 
+`golibafl` also needs a TCP broker port for LibAFL's internal event manager. By default, it picks a **random free port** (instead of always `1337`). If you need a fixed port, set `GOLIBAFL_BROKER_PORT=1337` (or pass `-p/--port 1337` when running `golibafl` directly).
+
 Example `libafl.jsonc` (all fields optional; defaults shown in comments):
 
 ```jsonc

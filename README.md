@@ -103,7 +103,7 @@ In practice, this makes any matched call site behave like a crash/panic for fuzz
 
 ## Feature 3: LibAFL state-of-the-art fuzzing
 
-LibAFL performs *way* better than the traditional Go fuzzer. Using the `--use-libafl` flag runs standard Go fuzz tests (`go test -fuzz=...`) **with** [LibAFL](https://github.com/AFLplusplus/LibAFL). The runner is implemented in `golibafl/`. Without `--use-libafl`, the fuzzer behaves like upstream Go.
+LibAFL performs *way* better than the traditional Go fuzzer. Using the `--use-libafl` flag runs standard Go fuzz tests (`go test -fuzz=...`) **with** [LibAFL](https://github.com/AFLplusplus/LibAFL). The runner is implemented in `golibafl/`. Without `--use-libafl`, the fuzzer behaves like upstream Go. More documentation in [this Markdown file.](misc/cybergo/USE_LIBAFL.md)
 
 You can also pass an optional config. file for LibAFL, see [here.](misc/cybergo/libafl.config.jsonc)
 
