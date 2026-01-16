@@ -40,7 +40,7 @@ package sort
 //		// x is present at data[i]
 //	} else {
 //		// x is not present in data,
-//		// but i is the index where it would be inserted.
+//		// but i is the index where it would be inserted if i < len(data).
 //	}
 //
 // As a more whimsical example, this program guesses your number:
