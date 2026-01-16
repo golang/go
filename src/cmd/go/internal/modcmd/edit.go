@@ -328,7 +328,10 @@ func runEdit(ctx context.Context, cmd *base.Command, args []string) {
 
 // parsePathVersion parses -flag=arg expecting arg to be path@version.
 func parsePathVersion(flag, arg string) (path, version string) {
-	before, after, found := strings.Cut(arg, "@")
+	before, after, found, err := modload.ParsePathVersion(arg)
+	if err != nil {
+		base.Fatalf("go: -%s=%s: %v", flag, arg, err)
+	}
 	if !found {
 		base.Fatalf("go: -%s=%s: need path@version", flag, arg)
 	}
@@ -362,7 +365,10 @@ func parsePathVersionOptional(adj, arg string, allowDirPath bool) (path, version
 	if allowDirPath && modfile.IsDirectoryPath(arg) {
 		return arg, "", nil
 	}
-	before, after, found := strings.Cut(arg, "@")
+	before, after, found, err := modload.ParsePathVersion(arg)
+	if err != nil {
+		return "", "", err
+	}
 	if !found {
 		path = arg
 	} else {
