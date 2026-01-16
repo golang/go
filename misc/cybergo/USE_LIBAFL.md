@@ -59,6 +59,10 @@ Example `libafl.jsonc` (all fields optional; defaults shown in comments):
 
 A ready-to-edit template lives at `misc/cybergo/libafl.config.jsonc`.
 
+## Troubleshooting
+
+If `golibafl` fails to launch, set `CYBERGO_VERBOSE_AFL=1` to print extra diagnostics and write them to `OUTPUT_DIR/golibafl_launcher_failure_<pid>.txt`.
+
 ## Quick start
 
 1) Build the forked toolchain:

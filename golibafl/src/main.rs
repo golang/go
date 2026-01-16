@@ -64,6 +64,87 @@ struct LibAflFuzzConfig {
     debug_output: Option<bool>,
 }
 
+fn launch_diagnostics(err: &Error) -> String {
+    use std::fmt::Write as _;
+
+    let mut out = String::new();
+    let _ = writeln!(&mut out, "golibafl: launcher failure diagnostics:");
+    let _ = writeln!(&mut out, "  err={err:?}");
+    if let Error::OsError(io_err, msg, _) = err {
+        let _ = writeln!(
+            &mut out,
+            "  os_error kind={:?} raw_os_error={:?} msg={msg:?}",
+            io_err.kind(),
+            io_err.raw_os_error(),
+        );
+    }
+    let _ = writeln!(
+        &mut out,
+        "  AFL_LAUNCHER_CLIENT={:?}",
+        env::var_os("AFL_LAUNCHER_CLIENT")
+    );
+    let _ = writeln!(&mut out, "  PWD={:?}", env::var_os("PWD"));
+    let _ = writeln!(&mut out, "  argv={:?}", env::args().collect::<Vec<_>>());
+
+    match env::current_dir() {
+        Ok(cwd) => {
+            let _ = writeln!(&mut out, "  current_dir={}", cwd.display());
+            let _ = writeln!(&mut out, "  current_dir_exists={}", cwd.exists());
+        }
+        Err(e) => {
+            let _ = writeln!(&mut out, "  current_dir_err={e}");
+        }
+    }
+
+    match env::current_exe() {
+        Ok(exe) => {
+            let _ = writeln!(&mut out, "  current_exe={}", exe.display());
+            let _ = writeln!(&mut out, "  current_exe_exists={}", exe.exists());
+        }
+        Err(e) => {
+            let _ = writeln!(&mut out, "  current_exe_err={e}");
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        match fs::read_link("/proc/self/exe") {
+            Ok(link) => {
+                let _ = writeln!(&mut out, "  /proc/self/exe={}", link.display());
+            }
+            Err(e) => {
+                let _ = writeln!(&mut out, "  /proc/self/exe_err={e}");
+            }
+        }
+        match fs::read_link("/proc/self/cwd") {
+            Ok(link) => {
+                let _ = writeln!(&mut out, "  /proc/self/cwd={}", link.display());
+            }
+            Err(e) => {
+                let _ = writeln!(&mut out, "  /proc/self/cwd_err={e}");
+            }
+        }
+    }
+
+    let _ = writeln!(
+        &mut out,
+        "  LD_LIBRARY_PATH={:?}",
+        env::var_os("LD_LIBRARY_PATH")
+    );
+    let _ = writeln!(
+        &mut out,
+        "  HARNESS_LINK_SEARCH={:?}",
+        env::var_os("HARNESS_LINK_SEARCH")
+    );
+    let _ = writeln!(
+        &mut out,
+        "  HARNESS_LINK_LIBS={:?}",
+        env::var_os("HARNESS_LINK_LIBS")
+    );
+
+    out
+}
+
 fn strip_jsonc_comments(input: &str) -> String {
     let mut out = String::with_capacity(input.len());
     let mut chars = input.chars().peekable();
@@ -339,6 +420,36 @@ fn run(input: PathBuf) {
 fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_path: Option<&PathBuf>) {
     let args: Vec<String> = env::args().collect();
 
+    let needs_cwd = !input.is_absolute()
+        || !output.is_absolute()
+        || config_path
+            .as_ref()
+            .is_some_and(|p| p.is_relative());
+    let cwd = if needs_cwd { env::current_dir().ok() } else { None };
+    let input = if input.is_absolute() {
+        input.clone()
+    } else {
+        cwd.as_ref()
+            .map(|cwd| cwd.join(input))
+            .unwrap_or_else(|| input.clone())
+    };
+    let output = if output.is_absolute() {
+        output.to_path_buf()
+    } else {
+        cwd.as_ref()
+            .map(|cwd| cwd.join(output))
+            .unwrap_or_else(|| output.to_path_buf())
+    };
+    let config_path = config_path.map(|config_path| {
+        if config_path.is_absolute() {
+            config_path.clone()
+        } else {
+            cwd.as_ref()
+                .map(|cwd| cwd.join(config_path))
+                .unwrap_or_else(|| config_path.clone())
+        }
+    });
+
     let mut effective_cores = cores.clone();
     let mut exec_timeout = Duration::new(1, 0);
     let mut power_schedule = PowerSchedule::fast();
@@ -349,7 +460,7 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
     let mut tui_monitor = std::io::stdout().is_terminal();
     let mut debug_output_override: Option<bool> = None;
 
-    if let Some(config_path) = config_path {
+    if let Some(config_path) = config_path.as_ref() {
         let config = read_fuzz_config(config_path);
         if let Some(cores) = config.cores.as_deref() {
             effective_cores = Cores::from_cmdline(cores).unwrap_or_else(|err| {
@@ -433,6 +544,15 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
             }
         }
     }
+
+    // LibAFL's restarting manager uses `std::env::current_dir()` when re-spawning itself in
+    // non-fork mode. If the current working directory is deleted/unlinked (common with temp dirs),
+    // this will fail with ENOENT and abort the whole fuzz run on the first crash/timeout.
+    //
+    // Use a stable per-process workdir under the output directory to make respawns reliable.
+    let workdir = output.join("workdir").join(std::process::id().to_string());
+    let _ = fs::create_dir_all(&workdir);
+    let _ = env::set_current_dir(&workdir);
 
     let initial_input_max_len = std::num::NonZeroUsize::new(initial_input_max_len).unwrap_or_else(|| {
         panic!("initial_input_max_len must be > 0");
@@ -679,7 +799,7 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
                     // Load corpus from input folder
                     // In case the corpus is empty (on first run), reset
                     if state.must_load_initial_inputs() {
-                        let input_is_empty = match read_dir(input) {
+                        let input_is_empty = match read_dir(&input) {
                             Ok(mut entries) => entries.next().is_none(),
                             Err(_) => true,
                         };
@@ -839,7 +959,23 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
 
     match &launch_res {
         Ok(()) | Err(Error::ShuttingDown) => (),
-        Err(err) => panic!("Failed to run launcher: {err:?}"),
+        Err(err) => {
+            if env::var_os("CYBERGO_VERBOSE_AFL").is_some() {
+                let diag = launch_diagnostics(err);
+                eprint!("{diag}");
+                let diag_path = output.join(format!(
+                    "golibafl_launcher_failure_{}.txt",
+                    std::process::id()
+                ));
+                if fs::write(&diag_path, diag.as_bytes()).is_ok() {
+                    eprintln!(
+                        "golibafl: wrote launcher diagnostics to {}",
+                        diag_path.display()
+                    );
+                }
+            }
+            panic!("Failed to run launcher: {err:?}");
+        }
     };
 
     let crash_inputs = count_crash_inputs(&crashes_dir);
