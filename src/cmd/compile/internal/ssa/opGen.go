@@ -5176,6 +5176,7 @@ const (
 	OpRISCV64ADD
 	OpRISCV64ADDI
 	OpRISCV64ADDIW
+	OpRISCV64ADDUW
 	OpRISCV64NEG
 	OpRISCV64NEGW
 	OpRISCV64SUB
@@ -5229,6 +5230,7 @@ const (
 	OpRISCV64SRLW
 	OpRISCV64SLLI
 	OpRISCV64SLLIW
+	OpRISCV64SLLIUW
 	OpRISCV64SRAI
 	OpRISCV64SRAIW
 	OpRISCV64SRLI
@@ -5236,6 +5238,9 @@ const (
 	OpRISCV64SH1ADD
 	OpRISCV64SH2ADD
 	OpRISCV64SH3ADD
+	OpRISCV64SH1ADDUW
+	OpRISCV64SH2ADDUW
+	OpRISCV64SH3ADDUW
 	OpRISCV64AND
 	OpRISCV64ANDN
 	OpRISCV64ANDI
@@ -78939,6 +78944,20 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "ADDUW",
+		argLen: 2,
+		asm:    riscv.AADDUW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+			outputs: []outputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
 		name:   "NEG",
 		argLen: 1,
 		asm:    riscv.ANEG,
@@ -79683,6 +79702,20 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "SLLIUW",
+		auxType: auxInt64,
+		argLen:  1,
+		asm:     riscv.ASLLIUW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+			outputs: []outputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
 		name:    "SRAI",
 		auxType: auxInt64,
 		argLen:  1,
@@ -79770,6 +79803,48 @@ var opcodeTable = [...]opInfo{
 		name:   "SH3ADD",
 		argLen: 2,
 		asm:    riscv.ASH3ADD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+			outputs: []outputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
+		name:   "SH1ADDUW",
+		argLen: 2,
+		asm:    riscv.ASH1ADDUW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+			outputs: []outputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
+		name:   "SH2ADDUW",
+		argLen: 2,
+		asm:    riscv.ASH2ADDUW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+			outputs: []outputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
+		name:   "SH3ADDUW",
+		argLen: 2,
+		asm:    riscv.ASH3ADDUW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
