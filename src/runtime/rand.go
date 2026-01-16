@@ -10,7 +10,7 @@ import (
 	"internal/byteorder"
 	"internal/chacha8rand"
 	"internal/goarch"
-	"internal/runtime/math"
+	"math/bits"
 	"unsafe"
 	_ "unsafe" // for go:linkname
 )
@@ -227,13 +227,13 @@ func randn(n uint32) uint32 {
 func cheaprand() uint32 {
 	mp := getg().m
 	// Implement wyrand: https://github.com/wangyi-fudan/wyhash
-	// Only the platform that math.Mul64 can be lowered
+	// Only the platform that bits.Mul64 can be lowered
 	// by the compiler should be in this list.
 	if goarch.IsAmd64|goarch.IsArm64|goarch.IsPpc64|
 		goarch.IsPpc64le|goarch.IsMips64|goarch.IsMips64le|
 		goarch.IsS390x|goarch.IsRiscv64|goarch.IsLoong64 == 1 {
 		mp.cheaprand += 0xa0761d6478bd642f
-		hi, lo := math.Mul64(mp.cheaprand, mp.cheaprand^0xe7037ed1a0b428db)
+		hi, lo := bits.Mul64(mp.cheaprand, mp.cheaprand^0xe7037ed1a0b428db)
 		return uint32(hi ^ lo)
 	}
 
@@ -269,7 +269,33 @@ func cheaprand() uint32 {
 //go:linkname cheaprand64
 //go:nosplit
 func cheaprand64() int64 {
-	return int64(cheaprand())<<31 ^ int64(cheaprand())
+	return int64(cheaprandu64() & ^(uint64(1) << 63))
+}
+
+// cheaprandu64 is a non-cryptographic-quality 64-bit random generator
+// suitable for calling at very high frequency (such as during sampling decisions).
+// it is "cheap" in the sense of both expense and quality.
+//
+// cheaprandu64 must not be exported to other packages:
+// the rule is that other packages using runtime-provided
+// randomness must always use rand.
+//
+//go:nosplit
+func cheaprandu64() uint64 {
+	// Implement wyrand: https://github.com/wangyi-fudan/wyhash
+	// Only the platform that bits.Mul64 can be lowered
+	// by the compiler should be in this list.
+	if goarch.IsAmd64|goarch.IsArm64|goarch.IsPpc64|
+		goarch.IsPpc64le|goarch.IsMips64|goarch.IsMips64le|
+		goarch.IsS390x|goarch.IsRiscv64|goarch.IsLoong64 == 1 {
+		mp := getg().m
+		// Implement wyrand: https://github.com/wangyi-fudan/wyhash
+		mp.cheaprand += 0xa0761d6478bd642f
+		hi, lo := bits.Mul64(mp.cheaprand, mp.cheaprand^0xe7037ed1a0b428db)
+		return hi ^ lo
+	}
+
+	return uint64(cheaprand())<<32 | uint64(cheaprand())
 }
 
 // cheaprandn is like cheaprand() % n but faster.
