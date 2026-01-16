@@ -83,6 +83,9 @@ type IntegerType int
 //
 // It is valid both to add and to subtract offsets from a pointer in this way.
 // It is also valid to use &^ to round pointers, usually for alignment.
+// When converting the result to a pointer value p of some type *T and dereferencing,
+// p must be appropriately aligned for T. The compiler assumes
+// uintptr(p) % unsafe.Alignof(*p) == 0 for any dereference *p.
 // In all cases, the result must continue to point into the original allocated object.
 //
 // Unlike in C, it is not valid to advance a pointer just beyond the end of
