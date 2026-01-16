@@ -980,6 +980,10 @@ const maxSessionTicketLifetime = 7 * 24 * time.Hour
 
 // Clone returns a shallow clone of c or nil if c is nil. It is safe to clone a [Config] that is
 // being used concurrently by a TLS client or server.
+//
+// If Config.SessionTicketKey is unpopulated, and Config.SetSessionTicketKeys has not been
+// called, the clone will not share the same auto-rotated session ticket keys as the original
+// Config in order to prevent sessions from being resumed across Configs.
 func (c *Config) Clone() *Config {
 	if c == nil {
 		return nil
@@ -1020,7 +1024,8 @@ func (c *Config) Clone() *Config {
 		EncryptedClientHelloRejectionVerify: c.EncryptedClientHelloRejectionVerify,
 		EncryptedClientHelloKeys:            c.EncryptedClientHelloKeys,
 		sessionTicketKeys:                   c.sessionTicketKeys,
-		autoSessionTicketKeys:               c.autoSessionTicketKeys,
+		// We explicitly do not copy autoSessionTicketKeys, so that Configs do
+		// not share the same auto-rotated keys.
 	}
 }
 

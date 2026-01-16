@@ -520,8 +520,13 @@ func (hs *serverHandshakeState) checkForResumption() error {
 	if sessionHasClientCerts && c.config.ClientAuth == NoClientCert {
 		return nil
 	}
-	if sessionHasClientCerts && c.config.time().After(sessionState.peerCertificates[0].NotAfter) {
-		return nil
+	if sessionHasClientCerts {
+		now := c.config.time()
+		for _, c := range sessionState.peerCertificates {
+			if now.After(c.NotAfter) {
+				return nil
+			}
+		}
 	}
 	if sessionHasClientCerts && c.config.ClientAuth >= VerifyClientCertIfGiven &&
 		len(sessionState.verifiedChains) == 0 {
