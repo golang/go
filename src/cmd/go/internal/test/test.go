@@ -7,6 +7,7 @@ package test
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"internal/coverage"
@@ -1559,6 +1560,66 @@ func coverProfTempFile(a *work.Action) string {
 	return a.Objdir + "_cover_.out"
 }
 
+func libaflOutputDir(p *load.Package, fuzzPattern string) string {
+	// Keep LibAFL output under GOCACHE/fuzz so that 'go clean -fuzzcache' works.
+	// Separate by package import path, project root, and fuzz target.
+	return filepath.Join(cache.Default().FuzzDir(), p.ImportPath, "libafl", libaflProjectKey(p), libaflHarnessKey(fuzzPattern))
+}
+
+func libaflProjectKey(p *load.Package) string {
+	root := p.Root
+	if root == "" {
+		root = p.Dir
+	}
+
+	sum := sha256.Sum256([]byte(root))
+	base := filepath.Base(root)
+	if base == "" || base == "." || base == string(filepath.Separator) {
+		base = "project"
+	}
+	return fmt.Sprintf("%s-%x", base, sum[:12])
+}
+
+func libaflHarnessKey(fuzzPattern string) string {
+	if name, ok := libaflFuzzPatternToName(fuzzPattern); ok {
+		return name
+	}
+	sum := sha256.Sum256([]byte(fuzzPattern))
+	return fmt.Sprintf("pattern-%x", sum[:12])
+}
+
+func libaflFuzzPatternToName(pat string) (string, bool) {
+	if isASCIIIdent(pat) {
+		return pat, true
+	}
+	if strings.HasPrefix(pat, "^") && strings.HasSuffix(pat, "$") {
+		inner := strings.TrimSuffix(strings.TrimPrefix(pat, "^"), "$")
+		if isASCIIIdent(inner) {
+			return inner, true
+		}
+	}
+	return "", false
+}
+
+func isASCIIIdent(s string) bool {
+	if s == "" {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if i == 0 {
+			if !(c == '_' || ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z')) {
+				return false
+			}
+			continue
+		}
+		if !(c == '_' || ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || ('0' <= c && c <= '9')) {
+			return false
+		}
+	}
+	return true
+}
+
 // stdoutMu and lockedStdout provide a locked standard output
 // that guarantees never to interlace writes from multiple
 // goroutines, so that we can have multiple JSON streams writing
@@ -1720,10 +1781,11 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 	}
 
 	var (
-		args     []string
-		cmdDir   string
-		addEnv   []string
-		addToEnv string
+		args         []string
+		cmdDir       string
+		addEnv       []string
+		addToEnv     string
+		libaflOutDir string
 	)
 
 	if testFuzz != "" && testUseLibAFL {
@@ -1732,15 +1794,15 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 			return fmt.Errorf("golibafl not found at %s", golibaflDir)
 		}
 
-		outDir := filepath.Join(cache.Default().FuzzDir(), a.Package.ImportPath, "libafl")
-		if err := sh.Mkdir(outDir); err != nil {
+		libaflOutDir = libaflOutputDir(a.Package, testFuzz)
+		if err := sh.Mkdir(libaflOutDir); err != nil {
 			base.Fatalf("failed to create libafl output dir: %v", err)
 		}
 
 		seedDir := ""
 		inDir := filepath.Join(a.Package.Dir, "testdata", "fuzz")
 		if _, err := os.Stat(inDir); err != nil {
-			inDir = filepath.Join(outDir, "input")
+			inDir = filepath.Join(libaflOutDir, "input")
 			if err := sh.Mkdir(inDir); err != nil {
 				base.Fatalf("failed to create libafl input dir: %v", err)
 			}
@@ -1757,7 +1819,7 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 			}
 			args = append(args, "--config", cfgPath)
 		}
-		args = append(args, "-j", "0", "-i", inDir, "-o", outDir)
+		args = append(args, "-j", "0", "-i", inDir, "-o", libaflOutDir)
 		cmdDir = golibaflDir
 		addEnv = []string{"HARNESS_LIB=" + buildAction.BuiltTarget()}
 		if seedDir != "" {
@@ -1956,6 +2018,10 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 			prefix = "\x16"
 		}
 		fmt.Fprintf(cmd.Stdout, "%sFAIL\t%s\t%s\n", prefix, a.Package.ImportPath, t)
+	}
+
+	if libaflOutDir != "" {
+		fmt.Fprintf(cmd.Stdout, "libafl output dir: %s\n", libaflOutDir)
 	}
 
 	if cmd.Stdout != &buf {

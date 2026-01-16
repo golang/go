@@ -129,19 +129,28 @@ with:
 
 ### 4) Output directories
 
-cybergo reuses Go’s fuzz cache root (roughly `$(go env GOCACHE)/fuzz`).
+cybergo reuses Go’s fuzz cache root (roughly `$(go env GOCACHE)/fuzz`) so `go clean -fuzzcache` works.
 
-For a package import path `example.com/mod/pkg`, LibAFL output goes under:
+LibAFL output is separated per **project + package + fuzz target**:
 
 ```
-.../fuzz/example.com/mod/pkg/libafl/
-  input/     # initial corpus dir (used if no testdata/fuzz exists; may be empty)
+.../fuzz/<pkg import path>/libafl/<project>/<harness>/
+  input/     # created/used only if no testdata/fuzz exists; may be empty
   queue/     # evolving corpus
   crashes/   # crashes (if any)
 ```
 
-If the package has `testdata/fuzz/`, that directory is used as the initial `-i` corpus directory instead.
+- `<project>` is derived from the package root directory (module root / GOPATH / GOROOT root) and formatted as `<basename>-<hash>`.
+- `<harness>` is the fuzz target name when `-fuzz` is a simple identifier like `FuzzXxx` (or `^FuzzXxx$`), otherwise `pattern-<hash>`.
+
+If the package has `testdata/fuzz/`, that directory is used as the initial `-i` corpus directory instead of `<...>/input/`.
 If the chosen `-i` directory is empty, `golibafl` generates a small random initial corpus.
+
+On shutdown, `go test` prints the full output directory path:
+
+```
+libafl output dir: /full/path/to/.../libafl/<project>/<harness>
+```
 
 ## Current limitations
 

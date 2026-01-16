@@ -1,0 +1,128 @@
+golibafl/src/main.rs --- 1/3 --- Rust
+ 64  64     debug_output: Option<bool>,
+ 65  65 }
+ ..  66 
+ ..  67 fn launch_diagnostics(err: &Error) -> String {
+ ..  68     use std::fmt::Write as _;
+ ..  69 
+ ..  70     let mut out = String::new();
+ ..  71     let _ = writeln!(&mut out, "golibafl: launcher failure diagnostics:");
+ ..  72     let _ = writeln!(&mut out, "  err={err:?}");
+ ..  73     if let Error::OsError(io_err, msg, _) = err {
+ ..  74         let _ = writeln!(
+ ..  75             &mut out,
+ ..  76             "  os_error kind={:?} raw_os_error={:?} msg={msg:?}",
+ ..  77             io_err.kind(),
+ ..  78             io_err.raw_os_error(),
+ ..  79         );
+ ..  80     }
+ ..  81     let _ = writeln!(
+ ..  82         &mut out,
+ ..  83         "  AFL_LAUNCHER_CLIENT={:?}",
+ ..  84         env::var_os("AFL_LAUNCHER_CLIENT")
+ ..  85     );
+ ..  86     let _ = writeln!(&mut out, "  PWD={:?}", env::var_os("PWD"));
+ ..  87     let _ = writeln!(&mut out, "  argv={:?}", env::args().collect::<Vec<_>>());
+ ..  88 
+ ..  89     match env::current_dir() {
+ ..  90         Ok(cwd) => {
+ ..  91             let _ = writeln!(&mut out, "  current_dir={}", cwd.display());
+ ..  92             let _ = writeln!(&mut out, "  current_dir_exists={}", cwd.exists());
+ ..  93         }
+ ..  94         Err(e) => {
+ ..  95             let _ = writeln!(&mut out, "  current_dir_err={e}");
+ ..  96         }
+ ..  97     }
+ ..  98 
+ ..  99     match env::current_exe() {
+ .. 100         Ok(exe) => {
+ .. 101             let _ = writeln!(&mut out, "  current_exe={}", exe.display());
+ .. 102             let _ = writeln!(&mut out, "  current_exe_exists={}", exe.exists());
+ .. 103         }
+ .. 104         Err(e) => {
+ .. 105             let _ = writeln!(&mut out, "  current_exe_err={e}");
+ .. 106         }
+ .. 107     }
+ .. 108 
+ .. 109     #[cfg(target_os = "linux")]
+ .. 110     {
+ .. 111         match fs::read_link("/proc/self/exe") {
+ .. 112             Ok(link) => {
+ .. 113                 let _ = writeln!(&mut out, "  /proc/self/exe={}", link.display());
+ .. 114             }
+ .. 115             Err(e) => {
+ .. 116                 let _ = writeln!(&mut out, "  /proc/self/exe_err={e}");
+ .. 117             }
+ .. 118         }
+ .. 119         match fs::read_link("/proc/self/cwd") {
+ .. 120             Ok(link) => {
+ .. 121                 let _ = writeln!(&mut out, "  /proc/self/cwd={}", link.display());
+ .. 122             }
+ .. 123             Err(e) => {
+ .. 124                 let _ = writeln!(&mut out, "  /proc/self/cwd_err={e}");
+ .. 125             }
+ .. 126         }
+ .. 127     }
+ .. 128 
+ .. 129     let _ = writeln!(
+ .. 130         &mut out,
+ .. 131         "  LD_LIBRARY_PATH={:?}",
+ .. 132         env::var_os("LD_LIBRARY_PATH")
+ .. 133     );
+ .. 134     let _ = writeln!(
+ .. 135         &mut out,
+ .. 136         "  HARNESS_LINK_SEARCH={:?}",
+ .. 137         env::var_os("HARNESS_LINK_SEARCH")
+ .. 138     );
+ .. 139     let _ = writeln!(
+ .. 140         &mut out,
+ .. 141         "  HARNESS_LINK_LIBS={:?}",
+ .. 142         env::var_os("HARNESS_LINK_LIBS")
+ .. 143     );
+ .. 144 
+ .. 145     out
+ .. 146 }
+ 66 147 
+ 67 148 fn strip_jsonc_comments(input: &str) -> String {
+ 68 149     let mut out = String::with_capacity(input.len());
+
+golibafl/src/main.rs --- 2/3 --- Rust
+434 515         }
+435 516     }
+... 517 
+... 518     // LibAFL's restarting manager uses `std::env::current_dir()` when re-spawning itself in
+... 519     // non-fork mode. If the current working directory is deleted/unlinked (common with temp dirs),
+... 520     // this will fail with ENOENT and abort the whole fuzz run on the first crash/timeout.
+... 521     //
+... 522     // Use a stable per-process workdir under the output directory to make respawns reliable.
+... 523     let workdir = output.join("workdir").join(std::process::id().to_string());
+... 524     let _ = fs::create_dir_all(&workdir);
+... 525     let _ = env::set_current_dir(&workdir);
+436 526 
+437 527     let initial_input_max_len = std::num::NonZeroUsize::new(initial_input_max_len).unwrap_or_else(|| {
+438 528         panic!("initial_input_max_len must be > 0");
+
+golibafl/src/main.rs --- 3/3 --- Rust
+839                                                        929 
+840     match &launch_res {                                930     match &launch_res {
+841         Ok(()) | Err(Error::ShuttingDown) => (),       931         Ok(()) | Err(Error::ShuttingDown) => (),
+842         Err(err) => panic!("Failed to run launcher: {e 932         Err(err) => {
+... rr:?}"),                                               ... 
+...                                                        933             let diag = launch_diagnostics(err);
+...                                                        934             eprint!("{diag}");
+...                                                        935             let diag_path = output.join(format!(
+...                                                        936                 "golibafl_launcher_failure_{}.txt",
+...                                                        937                 std::process::id()
+...                                                        938             ));
+...                                                        939             if fs::write(&diag_path, diag.as_bytes()).
+...                                                        ... is_ok() {
+...                                                        940                 eprintln!("golibafl: wrote launcher di
+...                                                        ... agnostics to {}", diag_path.display());
+...                                                        941             }
+...                                                        942             panic!("Failed to run launcher: {err:?}");
+...                                                        943         }
+843     };                                                 944     };
+844                                                        945 
+845     let crash_inputs = count_crash_inputs(&crashes_dir 946     let crash_inputs = count_crash_inputs(&crashes_dir
+... );                                                     ... );
+
