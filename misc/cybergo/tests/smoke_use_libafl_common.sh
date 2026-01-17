@@ -6,7 +6,7 @@
 # - ROOT_DIR: repo root
 # - GOCACHE: set by the caller (typically to a temp dir)
 
-CYBERGO_LIBAFL_CRASH_RE='Found [1-9][0-9]* crashing input\(s\)\. Saved to'
+CYBERGO_LIBAFL_CRASH_RE='Found [1-9][0-9]* (pre-existing )?crashing input\(s\)\.'
 
 run_expect_crash() {
   local example_dir="${1}"
@@ -27,7 +27,7 @@ run_expect_crash() {
   fi
 
   if ! grep -Eq "${CYBERGO_LIBAFL_CRASH_RE}" "${output_file}"; then
-    echo "expected output to contain: Found N crashing input(s). Saved to ..."
+    echo "expected output to contain: Found N crashing input(s)."
     exit 1
   fi
 }
