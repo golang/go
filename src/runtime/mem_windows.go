@@ -86,7 +86,8 @@ func sysUsedOS(v unsafe.Pointer, n uintptr) {
 			errno := getlasterror()
 			switch errno {
 			case _ERROR_NOT_ENOUGH_MEMORY, _ERROR_COMMITMENT_LIMIT:
-				print("runtime: VirtualAlloc of ", n, " bytes failed with errno=", errno, "\n")
+				inUse := gcController.heapFree.load() + gcController.heapReleased.load() + gcController.heapInUse.load()
+				print("runtime: VirtualAlloc of ", n, " bytes failed with errno=", errno, ": cannot allocate ", n, "-byte block (", inUse, " in use)\n")
 				throw("out of memory")
 			default:
 				print("runtime: VirtualAlloc of ", small, " bytes failed with errno=", errno, "\n")
