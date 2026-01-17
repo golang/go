@@ -314,7 +314,6 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() error {
 		return nil
 	}
 
-pskIdentityLoop:
 	for i, identity := range hs.clientHello.pskIdentities {
 		if i >= maxClientPSKIdentities {
 			break
@@ -359,24 +358,7 @@ pskIdentityLoop:
 		// PSK connections don't re-establish client certificates, but carry
 		// them over in the session ticket. Ensure the presence of client certs
 		// in the ticket is consistent with the configured requirements.
-		sessionHasClientCerts := len(sessionState.peerCertificates) != 0
-		needClientCerts := requiresClientCert(c.config.ClientAuth)
-		if needClientCerts && !sessionHasClientCerts {
-			continue
-		}
-		if sessionHasClientCerts && c.config.ClientAuth == NoClientCert {
-			continue
-		}
-		if sessionHasClientCerts {
-			now := c.config.time()
-			for _, c := range sessionState.peerCertificates {
-				if now.After(c.NotAfter) {
-					continue pskIdentityLoop
-				}
-			}
-		}
-		if sessionHasClientCerts && c.config.ClientAuth >= VerifyClientCertIfGiven &&
-			len(sessionState.verifiedChains) == 0 {
+		if !c.checkCertsFromClientResumption(sessionState) {
 			continue
 		}
 
@@ -1026,6 +1008,12 @@ func (c *Conn) sendSessionTicket(earlyData bool, extra [][]byte) error {
 
 func (hs *serverHandshakeStateTLS13) readClientCertificate() error {
 	c := hs.c
+
+	if hs.usingPSK {
+		// VerifyConnection is already being processed by checkCertsFromClientResumption from
+		// checkForResumption.
+		return nil
+	}
 
 	if !hs.requestClientCert() {
 		// Make sure the connection is still being verified whether or not
