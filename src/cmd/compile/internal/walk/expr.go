@@ -1017,7 +1017,7 @@ func bounded(n ir.Node, max int64) bool {
 	return false
 }
 
-// usemethod checks calls for uses of Method and MethodByName of reflect.Value,
+// usemethod checks calls for uses of Method, Methods and MethodByName of reflect.Value,
 // reflect.Type, reflect.(*rtype), and reflect.(*interfaceType).
 func usemethod(n *ir.CallExpr) {
 	// Don't mark reflect.(*rtype).Method, etc. themselves in the reflect package.
@@ -1025,12 +1025,12 @@ func usemethod(n *ir.CallExpr) {
 	// alive. We only want to mark their callers.
 	if base.Ctxt.Pkgpath == "reflect" {
 		// TODO: is there a better way than hardcoding the names?
-		switch fn := ir.CurFunc.Nname.Sym().Name; {
-		case fn == "(*rtype).Method", fn == "(*rtype).MethodByName":
+		switch ir.CurFunc.Nname.Sym().Name {
+		case "(*rtype).Method", "(*rtype).MethodByName", "(*rtype).Methods.func1":
 			return
-		case fn == "(*interfaceType).Method", fn == "(*interfaceType).MethodByName":
+		case "(*interfaceType).Method", "(*interfaceType).MethodByName":
 			return
-		case fn == "Value.Method", fn == "Value.MethodByName":
+		case "Value.Method", "Value.MethodByName", "Value.Methods.func1", "(*Value).Methods.Value.Methods.func1":
 			return
 		}
 	}
@@ -1042,12 +1042,52 @@ func usemethod(n *ir.CallExpr) {
 
 	// looking for either direct method calls and interface method calls of:
 	//	reflect.Type.Method        - func(int) reflect.Method
+	//  reflect.Type.Methods       - func() iter.Seq[reflect.Method]
 	//	reflect.Type.MethodByName  - func(string) (reflect.Method, bool)
 	//
 	//	reflect.Value.Method       - func(int) reflect.Value
+	//	reflect.Value.Methods      - func() iter.Seq2[reflect.Method, reflect.Value]
 	//	reflect.Value.MethodByName - func(string) reflect.Value
 	methodName := dot.Sel.Name
 	t := dot.Selection.Type
+
+	if methodName == "Methods" && t.NumParams() == 0 && t.NumResults() == 1 {
+		// iter.Seq[V] is defined as: func(yield func(V) bool)
+		// iter.Seq2[K, V] is defined as: func(yield func(K, V) bool)
+		res := t.Result(0).Type
+		sym := res.Sym()
+		if sym == nil || sym.Pkg == nil || sym.Pkg.Path != "iter" {
+			return
+		}
+		underlying := res.Underlying()
+		if underlying.Kind() != types.TFUNC || underlying.NumParams() != 1 {
+			return
+		}
+		yieldParam := underlying.Param(0).Type
+		if yieldParam.Kind() != types.TFUNC {
+			return
+		}
+		if yieldParam.NumResults() != 1 || yieldParam.Result(0).Type.Kind() != types.TBOOL {
+			return
+		}
+		switch yieldParam.NumParams() {
+		case 1:
+			if ps := yieldParam.Param(0).Type.Sym(); ps == nil || types.ReflectSymName(ps) != "Method" {
+				return
+			}
+		case 2:
+			if ps := yieldParam.Param(0).Type.Sym(); ps == nil || types.ReflectSymName(ps) != "Method" {
+				return
+			}
+			if ps := yieldParam.Param(1).Type.Sym(); ps == nil || types.ReflectSymName(ps) != "Value" {
+				return
+			}
+		default:
+			return
+		}
+		ir.CurFunc.LSym.Set(obj.AttrReflectMethod, true)
+		return
+	}
 
 	// Check the number of arguments and return values.
 	if t.NumParams() != 1 || (t.NumResults() != 1 && t.NumResults() != 2) {
@@ -1093,13 +1133,15 @@ func usemethod(n *ir.CallExpr) {
 
 	if ir.IsConst(targetName, constant.String) {
 		name := constant.StringVal(targetName.Val())
-		ir.CurFunc.LSym.AddRel(base.Ctxt, obj.Reloc{
-			Type: objabi.R_USENAMEDMETHOD,
-			Sym:  staticdata.StringSymNoCommon(name),
-		})
-	} else {
-		ir.CurFunc.LSym.Set(obj.AttrReflectMethod, true)
+		if name != "Methods" && name != "Method" {
+			ir.CurFunc.LSym.AddRel(base.Ctxt, obj.Reloc{
+				Type: objabi.R_USENAMEDMETHOD,
+				Sym:  staticdata.StringSymNoCommon(name),
+			})
+			return
+		}
 	}
+	ir.CurFunc.LSym.Set(obj.AttrReflectMethod, true)
 }
 
 func usefield(n *ir.SelectorExpr) {
