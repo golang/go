@@ -17,7 +17,7 @@ func VirtualAllocFailure() {
 	var size int64
 	if unsafe.Sizeof(int(0)) == 8 {
 		// On 64-bit Windows, the user address space is 128 TB.
-		size = (1 << 47) + (1 << 46) // 192 TB
+		size = 3 << 46 // 192 TB
 	} else {
 		// On 32-bit Windows, the user address space is 2 GB.
 		size = 1<<31 - 1 // ~2 GB
