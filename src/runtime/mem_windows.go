@@ -29,7 +29,8 @@ func sysAllocOS(n uintptr, _ string) unsafe.Pointer {
 	p := stdcall(_VirtualAlloc, 0, n, _MEM_COMMIT|_MEM_RESERVE, _PAGE_READWRITE)
 	if p == 0 {
 		errno := getlasterror()
-		print("runtime: VirtualAlloc of ", n, " bytes failed with errno=", errno, "\n")
+		inUse := gcController.heapFree.load() + gcController.heapReleased.load() + gcController.heapInUse.load()
+		print("runtime: VirtualAlloc of ", n, " bytes failed with errno=", errno, ": cannot allocate ", n, "-byte block (", inUse, " in use)\n")
 		return nil
 	}
 	return unsafe.Pointer(p)
@@ -135,7 +136,8 @@ func sysReserveOS(v unsafe.Pointer, n uintptr, _ string) unsafe.Pointer {
 	p = stdcall(_VirtualAlloc, 0, n, _MEM_RESERVE, _PAGE_READWRITE)
 	if p == 0 {
 		errno := getlasterror()
-		print("runtime: VirtualAlloc of ", n, " bytes failed with errno=", errno, "\n")
+		inUse := gcController.heapFree.load() + gcController.heapReleased.load() + gcController.heapInUse.load()
+		print("runtime: VirtualAlloc of ", n, " bytes failed with errno=", errno, ": cannot allocate ", n, "-byte block (", inUse, " in use)\n")
 		return nil
 	}
 	return unsafe.Pointer(p)
