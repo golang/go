@@ -61,6 +61,9 @@ sum2 := a + b // overflow_false_positive
 x2 := uint8(big) // truncation_false_positive
 ```
 
+Sometimes this might not work, that's because Go is in-lining the function. If `// overflow_false_poistive` doesn't work, add `//go:noinline` bbefore the signature of your function
+
+
 ## Feature 2: Panic on selected functions
 
 When fuzzing targets, we may be interested in triggering a panic when certain functions are called. For example, some software may emit `log.error` messages instead of panicking, even though such conditions often indicate states that security researchers would want to detect during fuzzing.
