@@ -11,6 +11,10 @@
   // default: 1000
   "exec_timeout_ms": 1000,
 
+  // stop_all_fuzzers_on_panic: stop the whole fuzzing run on the first crash/panic.
+  // default: true
+  "stop_all_fuzzers_on_panic": true,
+
   // go_maxprocs_single: when running multiple LibAFL clients, set `GOMAXPROCS=1` in each client.
   // default: true
   "go_maxprocs_single": true,

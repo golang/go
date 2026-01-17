@@ -160,6 +160,19 @@ On shutdown, `go test` prints the full output directory path:
 libafl output dir: /full/path/to/.../libafl/<project>/<harness>
 ```
 
+### Crash handling (stop on first crash)
+
+In `--use-libafl` mode, cybergo follows `go test -fuzz` semantics: **stop the whole fuzzing run on the first crash** (even with multiple LibAFL clients).
+
+When a crash is found, `golibafl` prints:
+- the output directory + `crashes/` path
+- the exact crash input file path
+- a repro command: `golibafl run --input <crash_file>`
+
+To keep fuzzing after crashes, set `"stop_all_fuzzers_on_panic": false` in the LibAFL JSONC config.
+
+Note: reproducing may require the same runtime environment variables as fuzzing (e.g. `LD_LIBRARY_PATH` for native deps).
+
 ## Current limitations
 
 - Supports **multiple parameters** and cybergo’s fuzzable types:

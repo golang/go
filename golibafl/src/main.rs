@@ -3,8 +3,8 @@ use libafl::{
     corpus::{CachedOnDiskCorpus, Corpus, OnDiskCorpus},
     executors::{inprocess::InProcessExecutor, ExitKind, ShadowExecutor},
     events::{
-        Event, EventFirer, EventWithStats, LlmpRestartingEventManager, ProgressReporter,
-        SendExiting,
+        Event, EventFirer, EventManagerHook, EventWithStats, LlmpRestartingEventManager,
+        ProgressReporter, SendExiting,
     },
     feedback_or_fast,
     feedbacks::{CrashFeedback, DifferentIsNovel, MapFeedback, MaxMapFeedback},
@@ -22,6 +22,7 @@ use libafl::{
     Error, HasMetadata,
 };
 use libafl_bolts::{
+    ClientId,
     prelude::{Cores, StdShMemProvider},
     rands::StdRand,
     shmem::ShMemProvider,
@@ -50,11 +51,35 @@ type NonSimdMaxMapFeedback<C, O> = MapFeedback<C, DifferentIsNovel, O, MaxReduce
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
 
+#[derive(Copy, Clone, Debug)]
+struct StopOnObjectiveHook {
+    enabled: bool,
+}
+
+impl<I, S> EventManagerHook<I, S> for StopOnObjectiveHook
+where
+    S: Stoppable,
+{
+    fn pre_receive(
+        &mut self,
+        state: &mut S,
+        _client_id: ClientId,
+        event: &EventWithStats<I>,
+    ) -> Result<bool, Error> {
+        // `go test -fuzz` semantics: stop the whole fuzz run once a crash is found.
+        if self.enabled && matches!(event.event(), Event::Objective { .. }) {
+            state.request_stop();
+        }
+        Ok(true)
+    }
+}
+
 #[derive(Deserialize, Debug, Default)]
 #[serde(deny_unknown_fields)]
 struct LibAflFuzzConfig {
     cores: Option<String>,
     exec_timeout_ms: Option<u64>,
+    stop_all_fuzzers_on_panic: Option<bool>,
     power_schedule: Option<String>,
     corpus_cache_size: Option<usize>,
     initial_generated_inputs: Option<usize>,
@@ -452,6 +477,7 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
 
     let mut effective_cores = cores.clone();
     let mut exec_timeout = Duration::new(1, 0);
+    let mut stop_all_fuzzers_on_panic = true;
     let mut power_schedule = PowerSchedule::fast();
     let mut corpus_cache_size = 4096usize;
     let mut initial_generated_inputs = 8usize;
@@ -474,6 +500,9 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
                 std::process::exit(2);
             }
             exec_timeout = Duration::from_millis(ms);
+        }
+        if let Some(v) = config.stop_all_fuzzers_on_panic {
+            stop_all_fuzzers_on_panic = v;
         }
         if let Some(ps) = config.power_schedule.as_deref() {
             let ps_norm = ps.trim().to_ascii_lowercase();
@@ -559,34 +588,8 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
     });
     let monitor_timeout = Duration::from_secs(15);
     let crashes_dir = output.join("crashes");
-    let count_crash_inputs = |dir: &Path| -> usize {
+    let list_crash_inputs = |dir: &Path| -> Vec<PathBuf> {
         fs::read_dir(dir)
-            .ok()
-            .map(|rd| {
-                rd.filter_map(Result::ok)
-                    .filter(|e| {
-                        !e.file_name()
-                            .to_string_lossy()
-                            .starts_with('.')
-                            && e.file_type().is_ok_and(|t| t.is_file())
-                    })
-                    .count()
-            })
-            .unwrap_or(0)
-    };
-    let is_launcher_client = env::var_os("AFL_LAUNCHER_CLIENT").is_some();
-    if !is_launcher_client && count_crash_inputs(&crashes_dir) > 0 {
-        // `go test -fuzz` semantics: if there are pre-existing crashing inputs, replay them.
-        // If they no longer crash (because the harness was fixed/recompiled), move them aside
-        // so they don't cause the run to fail spuriously.
-        if unsafe { libfuzzer_initialize(&args) } == -1 {
-            println!("Warning: LLVMFuzzerInitialize failed with -1");
-        }
-
-        let stale_dir = output.join("crashes.stale");
-        let can_archive = fs::create_dir_all(&stale_dir).is_ok();
-
-        let crash_inputs: Vec<PathBuf> = fs::read_dir(&crashes_dir)
             .ok()
             .map(|rd| {
                 rd.filter_map(Result::ok)
@@ -597,7 +600,20 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
                     .map(|e| e.path())
                     .collect()
             })
-            .unwrap_or_default();
+            .unwrap_or_default()
+    };
+    let count_crash_inputs = |dir: &Path| -> usize { list_crash_inputs(dir).len() };
+    let is_launcher_client = env::var_os("AFL_LAUNCHER_CLIENT").is_some();
+    if !is_launcher_client && count_crash_inputs(&crashes_dir) > 0 {
+        // `go test -fuzz` semantics: if there are pre-existing crashing inputs, replay them.
+        // If they no longer crash (because the harness was fixed/recompiled), move them aside
+        // so they don't cause the run to fail spuriously.
+        let exe = env::current_exe().ok();
+        let stale_dir = output.join("crashes.stale");
+        let can_archive = fs::create_dir_all(&stale_dir).is_ok();
+
+        let crash_inputs: Vec<PathBuf> = list_crash_inputs(&crashes_dir);
+        let mut reproduced: Vec<PathBuf> = Vec::new();
 
         let crash_dir_entries: Vec<PathBuf> = fs::read_dir(&crashes_dir)
             .ok()
@@ -605,9 +621,22 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
             .unwrap_or_default();
 
         for f in crash_inputs {
-            let inp = std::fs::read(&f).unwrap_or_else(|_| panic!("Unable to read file {}", f.display()));
-            unsafe {
-                libfuzzer_test_one_input(&inp);
+            let still_crashes = match exe.as_ref() {
+                Some(exe) => match Command::new(exe)
+                    .args(["run", "--input"])
+                    .arg(&f)
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null())
+                    .status()
+                {
+                    Ok(st) => !st.success(),
+                    Err(_) => true,
+                },
+                None => true,
+            };
+            if still_crashes {
+                reproduced.push(f);
+                continue;
             }
 
             // If we got here, this input no longer reproduces the crash.
@@ -633,6 +662,24 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
                     }
                 }
             }
+        }
+
+        if stop_all_fuzzers_on_panic && !reproduced.is_empty() {
+            eprintln!(
+                "Found {} pre-existing crashing input(s).",
+                reproduced.len()
+            );
+            eprintln!("libafl output dir: {}", output.display());
+            eprintln!("crashes dir: {}", crashes_dir.display());
+            for p in &reproduced {
+                eprintln!("crash input: {}", p.display());
+                if let Some(exe) = exe.as_ref() {
+                    eprintln!("repro: {} run --input {}", exe.display(), p.display());
+                } else {
+                    eprintln!("repro: golibafl run --input {}", p.display());
+                }
+            }
+            std::process::exit(1);
         }
     }
 
@@ -680,7 +727,7 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
          client_description: ClientDescription| {
             // In-process crashes abort the fuzzing instance, and the restarting manager respawns it.
             // Implement `go test -fuzz` semantics: stop the whole run on the first crash.
-            if count_crash_inputs(&crashes_dir) > initial_crash_inputs {
+            if stop_all_fuzzers_on_panic && count_crash_inputs(&crashes_dir) > initial_crash_inputs {
                 restarting_mgr.on_shutdown()?;
                 return Err(Error::shutting_down());
             }
@@ -858,7 +905,7 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
                         }
                     }
 
-                    if state.solutions().count() > initial_solutions {
+                    if stop_all_fuzzers_on_panic && state.solutions().count() > initial_solutions {
                         let executions = *state.executions();
                         restarting_mgr.fire(
                             &mut state,
@@ -894,7 +941,7 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
                             return Err(err);
                         }
 
-                        if state.solutions().count() > initial_solutions {
+                        if stop_all_fuzzers_on_panic && state.solutions().count() > initial_solutions {
                             let executions = *state.executions();
                             restarting_mgr.fire(
                                 &mut state,
@@ -942,7 +989,9 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
             .broker_port(broker_port)
             .fork(false)
             .build()
-            .launch::<BytesInput, _>()
+            .launch_with_hooks::<_, BytesInput, _>(tuple_list!(StopOnObjectiveHook {
+                enabled: stop_all_fuzzers_on_panic,
+            }))
     } else {
         let monitor = SimpleMonitor::new(|s| println!("{s}"));
         Launcher::builder()
@@ -954,7 +1003,9 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
             .broker_port(broker_port)
             .fork(false)
             .build()
-            .launch::<BytesInput, _>()
+            .launch_with_hooks::<_, BytesInput, _>(tuple_list!(StopOnObjectiveHook {
+                enabled: stop_all_fuzzers_on_panic,
+            }))
     };
 
     match &launch_res {
@@ -978,16 +1029,34 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
         }
     };
 
-    let crash_inputs = count_crash_inputs(&crashes_dir);
-
-    if crash_inputs > initial_crash_inputs {
+    let crash_inputs = list_crash_inputs(&crashes_dir);
+    if crash_inputs.len() > initial_crash_inputs {
         if !is_launcher_client {
-            eprintln!(
-                "Found {} crashing input(s). Saved to {}",
-                crash_inputs - initial_crash_inputs,
-                crashes_dir.display()
-            );
-            std::process::exit(1);
+            let new_crashes = crash_inputs.len() - initial_crash_inputs;
+
+            eprintln!("Found {new_crashes} crashing input(s).");
+            eprintln!("libafl output dir: {}", output.display());
+            eprintln!("crashes dir: {}", crashes_dir.display());
+
+            let mut sorted = crash_inputs;
+            sorted.sort_by_key(|p| {
+                fs::metadata(p)
+                    .and_then(|m| m.modified())
+                    .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+            });
+            for p in sorted.iter().rev().take(new_crashes) {
+                eprintln!("crash input: {}", p.display());
+                if let Ok(exe) = env::current_exe() {
+                    eprintln!("repro: {} run --input {}", exe.display(), p.display());
+                } else {
+                    eprintln!("repro: golibafl run --input {}", p.display());
+                }
+            }
+
+            eprintln!("(Crash output is printed above; rerun the repro command to see it again.)");
+            if stop_all_fuzzers_on_panic {
+                std::process::exit(1);
+            }
         }
         return;
     }
