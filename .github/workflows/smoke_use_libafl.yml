@@ -38,6 +38,9 @@ jobs:
       - name: Smoke (multiparams)
         run: bash misc/cybergo/tests/smoke_use_libafl_multiparams.sh
 
+      - name: Smoke (composite)
+        run: bash misc/cybergo/tests/smoke_use_libafl_composite.sh
+
       - name: Smoke (reverse)
         run: bash misc/cybergo/tests/smoke_use_libafl_reverse.sh
 
