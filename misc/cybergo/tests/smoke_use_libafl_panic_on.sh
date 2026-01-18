@@ -9,6 +9,8 @@ trap 'rm -rf "${tmp_dir}"' EXIT
 export GOCACHE="${tmp_dir}/gocache"
 
 target_sym="cybergo.example/panic_on/myLog.myCustomError"
+target_sym2="cybergo.example/panic_on/myLog.myCustomWarning"
+target_sym_wildcard="cybergo.example/panic_on/myLog.myCustom*"
 target_sym_nodot="test_go_panicon.(*Logger).Error"
 
 # Invalid --panic-on should error out early.
@@ -28,6 +30,33 @@ grep -Fq 'invalid -panic-on pattern "run"' "${tmp_dir}/output-invalid-panic-on.t
 run_expect_crash panic_on/myLog FuzzMyCustomError 2m "${tmp_dir}/output-panic-on.txt" "--panic-on=${target_sym}"
 grep -Fq "detected function: ${target_sym}()" "${tmp_dir}/output-panic-on.txt"
 grep -Fq "panic-on-call: ${target_sym}" "${tmp_dir}/output-panic-on.txt"
+
+# Multiple patterns should be supported (comma-separated).
+cd "${ROOT_DIR}/test/cybergo/examples/panic_on/myLog"
+set +e
+timeout 30s "${ROOT_DIR}/bin/go" test -count=1 --panic-on="${target_sym},${target_sym2}" 2>&1 | tee "${tmp_dir}/output-panic-on-multi.txt"
+status="${PIPESTATUS[0]}"
+set -e
+if [[ "${status}" -eq 0 ]]; then
+  echo "expected --panic-on with multiple patterns to fail (panic), but it exited 0"
+  exit 1
+fi
+grep -Fq "detected function: ${target_sym}()" "${tmp_dir}/output-panic-on-multi.txt"
+grep -Fq "detected function: ${target_sym2}()" "${tmp_dir}/output-panic-on-multi.txt"
+grep -Fq "panic-on-call: ${target_sym}" "${tmp_dir}/output-panic-on-multi.txt"
+
+# Wildcard match should be supported (prefix*).
+set +e
+timeout 30s "${ROOT_DIR}/bin/go" test -count=1 --panic-on="${target_sym_wildcard}" 2>&1 | tee "${tmp_dir}/output-panic-on-wildcard.txt"
+status="${PIPESTATUS[0]}"
+set -e
+if [[ "${status}" -eq 0 ]]; then
+  echo "expected --panic-on with wildcard pattern to fail (panic), but it exited 0"
+  exit 1
+fi
+grep -Fq "detected function: ${target_sym}()" "${tmp_dir}/output-panic-on-wildcard.txt"
+grep -Fq "detected function: ${target_sym2}()" "${tmp_dir}/output-panic-on-wildcard.txt"
+grep -Fq "panic-on-call: ${target_sym}" "${tmp_dir}/output-panic-on-wildcard.txt"
 
 # Dotless module paths (e.g. "unit_test", "test_go_panicon") should still be
 # instrumented, and inlining of matched targets must be prevented so the SSA

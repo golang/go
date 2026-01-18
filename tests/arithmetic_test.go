@@ -158,7 +158,6 @@ func TestUnsignedUint64Underflow(t *testing.T) {
 	_ = a - b
 }
 
-
 func TestSignedDivisionOverflow(t *testing.T) {
 	defer func() {
 		if r := recover(); r == nil {
@@ -367,6 +366,28 @@ func TestSafeMultiplication(t *testing.T) {
 	}
 }
 
+func TestSignedInt8MultiplicationOverflow(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("Expected panic for int8 multiplication overflow")
+		}
+	}()
+	var a int8 = 64
+	var b int8 = 2
+	_ = a * b
+}
+
+func TestUnsignedUint8MultiplicationOverflow(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("Expected panic for uint8 multiplication overflow")
+		}
+	}()
+	var a uint8 = 16
+	var b uint8 = 16
+	_ = a * b
+}
+
 func TestSafeArithmetic(t *testing.T) {
 	// These operations should not panic
 	var a int8 = 50
@@ -386,16 +407,16 @@ func TestSafeArithmetic(t *testing.T) {
 
 // Suppression directive tests for overflow/underflow
 func TestOverflowSuppression_LineAbove(t *testing.T) {
-    // Expect no panic due to suppression marker on previous line
-    var a int8 = 120
-    var b int8 = 10
-    // overflow_false_positive
-    _ = a + b
+	// Expect no panic due to suppression marker on previous line
+	var a int8 = 120
+	var b int8 = 10
+	// overflow_false_positive
+	_ = a + b
 }
 
 func TestOverflowSuppression_SameLine(t *testing.T) {
-    // Expect no panic due to suppression marker on same line
-    var a int8 = 120
-    var b int8 = 10
-    _ = a + b // overflow_false_positive
+	// Expect no panic due to suppression marker on same line
+	var a int8 = 120
+	var b int8 = 10
+	_ = a + b // overflow_false_positive
 }

@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-// isTruncationDetectionEnabled checks if truncation detection is enabled by attempting 
+// isTruncationDetectionEnabled checks if truncation detection is enabled by attempting
 // a truncation that should panic if detection is enabled
 func isTruncationDetectionEnabled() bool {
 	panicked := false
@@ -14,12 +14,12 @@ func isTruncationDetectionEnabled() bool {
 				panicked = true
 			}
 		}()
-		
+
 		// Try a simple truncation that should trigger detection if enabled
 		var test uint16 = 256
 		_ = uint8(test) // This should panic if truncation detection is on
 	}()
-	
+
 	return panicked
 }
 
@@ -459,14 +459,26 @@ func TestSafeTruncation(t *testing.T) {
 
 // Suppression directive tests for truncation
 func TestTruncationSuppression_LineAbove(t *testing.T) {
-    // Expect no panic due to suppression marker on previous line
-    var big uint16 = 300
-    // truncation_false_positive
-    _ = uint8(big)
+	skipIfTruncationDisabled(t)
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("Unexpected panic with truncation suppression: %v", r)
+		}
+	}()
+
+	var big uint16 = 300
+	// truncation_false_positive
+	_ = uint8(big)
 }
 
 func TestTruncationSuppression_SameLine(t *testing.T) {
-    // Expect no panic due to suppression marker on same line
-    var big uint16 = 300
-    _ = uint8(big) // truncation_false_positive
+	skipIfTruncationDisabled(t)
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("Unexpected panic with truncation suppression: %v", r)
+		}
+	}()
+
+	var big uint16 = 300
+	_ = uint8(big) // truncation_false_positive
 }
