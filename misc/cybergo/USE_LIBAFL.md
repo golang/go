@@ -59,6 +59,10 @@ Example `libafl.jsonc` (all fields optional; defaults shown in comments):
 
 A ready-to-edit template lives at `misc/cybergo/libafl.config.jsonc`.
 
+## Troubleshooting
+
+If `golibafl` fails to launch, set `CYBERGO_VERBOSE_AFL=1` to print extra diagnostics and write them to `OUTPUT_DIR/golibafl_launcher_failure_<pid>.txt`.
+
 ## Quick start
 
 1) Build the forked toolchain:
@@ -129,19 +133,45 @@ with:
 
 ### 4) Output directories
 
-cybergo reuses Go’s fuzz cache root (roughly `$(go env GOCACHE)/fuzz`).
+cybergo reuses Go’s fuzz cache root (roughly `$(go env GOCACHE)/fuzz`) so `go clean -fuzzcache` works.
 
-For a package import path `example.com/mod/pkg`, LibAFL output goes under:
+LibAFL output is separated per **project + package + fuzz target**:
 
 ```
-.../fuzz/example.com/mod/pkg/libafl/
-  input/     # initial corpus dir (used if no testdata/fuzz exists; may be empty)
+.../fuzz/<pkg import path>/libafl/<project>/<harness>/
+  input/     # initial corpus dir (merged from testdata/fuzz + f.Add); may be empty
   queue/     # evolving corpus
   crashes/   # crashes (if any)
 ```
 
-If the package has `testdata/fuzz/`, that directory is used as the initial `-i` corpus directory instead.
+- `<project>` is derived from the package root directory (module root / GOPATH / GOROOT root) and formatted as `<basename>-<hash>`.
+- `<harness>` is the fuzz target name when `-fuzz` is a simple identifier like `FuzzXxx` (or `^FuzzXxx$`), otherwise `pattern-<hash>`.
+
+On each run, cybergo prepares `<...>/input/` as the initial `-i` corpus directory:
+
+- files from `testdata/fuzz/` (if it exists) are copied into it
+- manual seeds provided via `f.Add(...)` are written into it automatically
+
 If the chosen `-i` directory is empty, `golibafl` generates a small random initial corpus.
+
+On shutdown, `go test` prints the full output directory path:
+
+```
+libafl output dir: /full/path/to/.../libafl/<project>/<harness>
+```
+
+### Crash handling (stop on first crash)
+
+In `--use-libafl` mode, cybergo follows `go test -fuzz` semantics: **stop the whole fuzzing run on the first crash** (even with multiple LibAFL clients).
+
+When a crash is found, `golibafl` prints:
+- the output directory + `crashes/` path
+- the exact crash input file path
+- a repro command: `golibafl run --input <crash_file>`
+
+To keep fuzzing after crashes, set `"stop_all_fuzzers_on_panic": false` in the LibAFL JSONC config.
+
+Note: reproducing may require the same runtime environment variables as fuzzing (e.g. `LD_LIBRARY_PATH` for native deps).
 
 ## Current limitations
 

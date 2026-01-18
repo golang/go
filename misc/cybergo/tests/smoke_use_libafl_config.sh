@@ -29,7 +29,7 @@ cat >"${cfg_path}" <<EOF
 EOF
 
 cd "${ROOT_DIR}/test/cybergo/examples/reverse"
-in_dir="$(libafl_input_dir)"
+in_dir="$(libafl_input_dir FuzzReverse)"
 mkdir -p "${in_dir}"
 printf 'FUZZING!' > "${in_dir}/seed-crash"
 
