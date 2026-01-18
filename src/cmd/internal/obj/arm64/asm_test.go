@@ -46,8 +46,8 @@ func TestSplitImm24uScaled(t *testing.T) {
 		{
 			v:      0x1001,
 			shift:  0,
-			wantHi: 0x1000,
-			wantLo: 0x1,
+			wantHi: 0x2,
+			wantLo: 0xfff,
 		},
 		{
 			v:      0xffffff,
@@ -75,8 +75,8 @@ func TestSplitImm24uScaled(t *testing.T) {
 		{
 			v:      0x2002,
 			shift:  1,
-			wantHi: 0x2000,
-			wantLo: 0x1,
+			wantHi: 0x4,
+			wantLo: 0xfff,
 		},
 		{
 			v:      0xfffffe,
@@ -96,6 +96,11 @@ func TestSplitImm24uScaled(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			v:       0x1000001,
+			shift:   1,
+			wantErr: true,
+		},
+		{
 			v:       0xfffffe,
 			shift:   2,
 			wantErr: true,
@@ -103,8 +108,8 @@ func TestSplitImm24uScaled(t *testing.T) {
 		{
 			v:      0x4004,
 			shift:  2,
-			wantHi: 0x4000,
-			wantLo: 0x1,
+			wantHi: 0x8,
+			wantLo: 0xfff,
 		},
 		{
 			v:      0xfffffc,
@@ -131,8 +136,8 @@ func TestSplitImm24uScaled(t *testing.T) {
 		{
 			v:      0x8008,
 			shift:  3,
-			wantHi: 0x8000,
-			wantLo: 0x1,
+			wantHi: 0x10,
+			wantLo: 0xfff,
 		},
 		{
 			v:      0xfffff8,
@@ -150,6 +155,127 @@ func TestSplitImm24uScaled(t *testing.T) {
 			v:       0x1007000,
 			shift:   3,
 			wantErr: true,
+		},
+		// Unshifted hi cases - hi <= 0xfff fits directly
+		{
+			v:      7,
+			shift:  3,
+			wantHi: 7,
+			wantLo: 0,
+		},
+		{
+			v:      0x8ff7,
+			shift:  3,
+			wantHi: 0xfff,
+			wantLo: 0xfff,
+		},
+		{
+			v:      0x7ff8,
+			shift:  3,
+			wantHi: 0,
+			wantLo: 0xfff,
+		},
+		{
+			v:      0xfff,
+			shift:  1,
+			wantHi: 1,
+			wantLo: 0x7ff,
+		},
+		{
+			v:      0xfff,
+			shift:  2,
+			wantHi: 3,
+			wantLo: 0x3ff,
+		},
+		{
+			v:      0xfff,
+			shift:  3,
+			wantHi: 7,
+			wantLo: 0x1ff,
+		},
+		{
+			v:      0x1ffe,
+			shift:  2,
+			wantHi: 2,
+			wantLo: 0x7ff,
+		},
+		{
+			v:      0x1ffe,
+			shift:  3,
+			wantHi: 6,
+			wantLo: 0x3ff,
+		},
+		{
+			v:      0x1fff,
+			shift:  1,
+			wantHi: 1,
+			wantLo: 0xfff,
+		},
+		{
+			v:      0x1fff,
+			shift:  2,
+			wantHi: 3,
+			wantLo: 0x7ff,
+		},
+		{
+			v:      0x1fff,
+			shift:  3,
+			wantHi: 7,
+			wantLo: 0x3ff,
+		},
+		{
+			v:      0x1001,
+			shift:  1,
+			wantHi: 1,
+			wantLo: 0x800,
+		},
+		{
+			v:      0x1001,
+			shift:  2,
+			wantHi: 1,
+			wantLo: 0x400,
+		},
+		{
+			v:      0x1001,
+			shift:  3,
+			wantHi: 1,
+			wantLo: 0x200,
+		},
+		{
+			v:      0x1000,
+			shift:  0,
+			wantHi: 0x1,
+			wantLo: 0xfff,
+		},
+		{
+			v:      0x8000,
+			shift:  3,
+			wantHi: 0x8,
+			wantLo: 0xfff,
+		},
+		{
+			v:      0xfff,
+			shift:  0,
+			wantHi: 0,
+			wantLo: 0xfff,
+		},
+		{
+			v:      0x1ffe,
+			shift:  1,
+			wantHi: 0,
+			wantLo: 0xfff,
+		},
+		{
+			v:      0x3ffc,
+			shift:  2,
+			wantHi: 0,
+			wantLo: 0xfff,
+		},
+		{
+			v:      0x10fef,
+			shift:  4,
+			wantHi: 0xfff,
+			wantLo: 0xfff,
 		},
 	}
 	for _, test := range tests {
@@ -170,6 +296,21 @@ func TestSplitImm24uScaled(t *testing.T) {
 	}
 	for shift := 0; shift <= 3; shift++ {
 		for v := int32(0); v < 0xfff000+0xfff<<shift; v = v + 1<<shift {
+			hi, lo, err := splitImm24uScaled(v, shift)
+			if err != nil {
+				t.Fatalf("splitImm24uScaled(%x, %x) failed: %v", v, shift, err)
+			}
+			if hi+lo<<shift != v {
+				t.Fatalf("splitImm24uScaled(%x, %x) = (%x, %x) is incorrect", v, shift, hi, lo)
+			}
+		}
+	}
+
+	// Test the unshifted hi range specifically, including unaligned values.
+	// This exercises values where the unshifted path may be used.
+	for shift := 0; shift <= 3; shift++ {
+		maxUnshifted := int32(0xfff + 0xfff<<shift)
+		for v := int32(0); v <= maxUnshifted; v++ {
 			hi, lo, err := splitImm24uScaled(v, shift)
 			if err != nil {
 				t.Fatalf("splitImm24uScaled(%x, %x) failed: %v", v, shift, err)
