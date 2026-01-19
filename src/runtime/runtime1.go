@@ -74,11 +74,6 @@ func sysLibArgsValid() bool {
 //
 //go:nosplit
 func argv_index(argv **byte, i int32) *byte {
-	if islibrary || isarchive {
-		if !sysLibArgsValid() {
-			return nil
-		}
-	}
 	return *(**byte)(add(unsafe.Pointer(argv), uintptr(i)*goarch.PtrSize))
 }
 
@@ -92,13 +87,6 @@ func goargs() {
 	if GOOS == "windows" {
 		return
 	}
-
-	if islibrary || isarchive {
-		if !sysLibArgsValid() {
-			return
-		}
-	}
-
 	argslice = make([]string, argc)
 	for i := int32(0); i < argc; i++ {
 		argslice[i] = gostringnocopy(argv_index(argv, i))
@@ -106,13 +94,6 @@ func goargs() {
 }
 
 func goenvs_unix() {
-	if islibrary || isarchive {
-		if !sysLibArgsValid() {
-			envs = make([]string, 0)
-			return
-		}
-	}
-
 	// TODO(austin): ppc64 in dynamic linking mode doesn't
 	// guarantee env[] will immediately follow argv. Might cause
 	// problems.

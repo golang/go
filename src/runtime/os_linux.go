@@ -227,6 +227,8 @@ const (
 )
 
 var procAuxv = []byte("/proc/self/auxv\x00")
+var procCmdline = []byte("/proc/self/cmdline\x00")
+var procEnviron = []byte("/proc/self/environ\x00")
 
 var addrspace_vec [1]byte
 
@@ -234,8 +236,70 @@ func mincore(addr unsafe.Pointer, n uintptr, dst *byte) int32
 
 var auxvreadbuf [128]uintptr
 
-func sysargs(argc int32, argv **byte) {
-	n := argc + 1
+// readProcNullSeparated reads a /proc file containing null-separated strings
+// and returns the count of strings and a pointer to allocated memory containing
+// an array of pointers to the strings, terminated by nil.
+// The string data itself is also persistently allocated.
+func readProcNullSeparated(path *byte) (count int32, ptrs **byte) {
+	// Read into a temporary stack buffer first
+	var tmpBuf [4096]byte
+
+	fd := open(path, 0 /* O_RDONLY */, 0)
+	if fd < 0 {
+		return 0, nil
+	}
+
+	n := read(fd, noescape(unsafe.Pointer(&tmpBuf[0])), int32(len(tmpBuf)))
+	closefd(fd)
+	if n <= 0 {
+		return 0, nil
+	}
+
+	// Count null-separated strings
+	count = 0
+	for i := int32(0); i < n; i++ {
+		if tmpBuf[i] == 0 {
+			// Don't count empty strings or trailing nulls
+			if i == 0 || (i > 0 && tmpBuf[i-1] == 0) {
+				continue
+			}
+			count++
+		}
+	}
+
+	if count == 0 {
+		return 0, nil
+	}
+
+	// Allocate persistent storage for the data
+	buf := (*byte)(persistentalloc(uintptr(n), 0, &memstats.other_sys))
+	memmove(unsafe.Pointer(buf), unsafe.Pointer(&tmpBuf[0]), uintptr(n))
+
+	// Allocate array of pointers (count + 1 for terminating nil)
+	ptrs = (**byte)(persistentalloc(uintptr(count+1)*goarch.PtrSize, 0, &memstats.other_sys))
+
+	// Fill in the pointers
+	idx := int32(0)
+	start := int32(0)
+	for i := int32(0); i < n && idx < count; i++ {
+		if *(*byte)(add(unsafe.Pointer(buf), uintptr(i))) == 0 {
+			if i > start {
+				// Found end of a string, point to it
+				*(**byte)(add(unsafe.Pointer(ptrs), uintptr(idx)*goarch.PtrSize)) = (*byte)(add(unsafe.Pointer(buf), uintptr(start)))
+				idx++
+			}
+			start = i + 1
+		}
+	}
+
+	// Null terminator
+	*(**byte)(add(unsafe.Pointer(ptrs), uintptr(count)*goarch.PtrSize)) = nil
+
+	return count, ptrs
+}
+
+func sysargs(argcIn int32, argvIn **byte) {
+	n := argcIn + 1
 
 	argsValid := true
 	if islibrary || isarchive {
@@ -246,7 +310,7 @@ func sysargs(argc int32, argv **byte) {
 
 	if argsValid {
 		// skip over argv, envp to get to auxv
-		for argv_index(argv, n) != nil {
+		for argv_index(argvIn, n) != nil {
 			n++
 		}
 
@@ -254,25 +318,53 @@ func sysargs(argc int32, argv **byte) {
 		n++
 
 		// now argv+n is auxv
-		auxvp := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
+		auxvp := (*[1 << 28]uintptr)(add(unsafe.Pointer(argvIn), uintptr(n)*goarch.PtrSize))
 
 		if pairs := sysauxv(auxvp[:]); pairs != 0 {
 			auxv = auxvp[: pairs*2 : pairs*2]
 			return
 		}
 	} else {
-		args := unsafe.Pointer(persistentalloc(goarch.PtrSize*4, 0, &memstats.other_sys))
-		// argv pointer
-		*(**byte)(args) = (*byte)(add(args, goarch.PtrSize*1))
-		// argv data
-		*(**byte)(add(args, goarch.PtrSize*1)) = (*byte)(nil) // end argv TODO: READ FROM /proc/
-		*(**byte)(add(args, goarch.PtrSize*2)) = (*byte)(nil) // end envp TODO: READ FROM /proc/
-		*(**byte)(add(args, goarch.PtrSize*3)) = (*byte)(nil) // end auxv TODO: READ FROM /proc/
-		argc = 0
-		argv = (**byte)(args)
+		// On musl/uClibc, argc/argv/envp are not reliably passed to libraries.
+		// Read them from /proc instead.
+		argcFromProc, argvFromProc := readProcNullSeparated(&procCmdline[0])
+		envc, envpFromProc := readProcNullSeparated(&procEnviron[0])
 
-		// argc = 0
-		// argv = (**byte)(&[3]*byte{nil, nil, nil})
+		// Construct a combined argv array that includes:
+		// [argv[0], argv[1], ..., argv[argc-1], nil, envp[0], envp[1], ..., envp[envc-1], nil]
+		// This matches the expected layout for goenvs_unix()
+		totalPtrs := argcFromProc + 1 + envc + 1
+		combinedArgv := (**byte)(persistentalloc(uintptr(totalPtrs)*goarch.PtrSize, 0, &memstats.other_sys))
+
+		// Copy argv pointers
+		if argvFromProc != nil {
+			for i := int32(0); i < argcFromProc; i++ {
+				*(**byte)(add(unsafe.Pointer(combinedArgv), uintptr(i)*goarch.PtrSize)) =
+					*(**byte)(add(unsafe.Pointer(argvFromProc), uintptr(i)*goarch.PtrSize))
+			}
+		}
+
+		// Null separator after argv
+		*(**byte)(add(unsafe.Pointer(combinedArgv), uintptr(argcFromProc)*goarch.PtrSize)) = nil
+
+		// Copy envp pointers
+		if envpFromProc != nil {
+			for i := int32(0); i < envc; i++ {
+				*(**byte)(add(unsafe.Pointer(combinedArgv), uintptr(argcFromProc+1+i)*goarch.PtrSize)) =
+					*(**byte)(add(unsafe.Pointer(envpFromProc), uintptr(i)*goarch.PtrSize))
+			}
+		}
+
+		// Null terminator after envp
+		*(**byte)(add(unsafe.Pointer(combinedArgv), uintptr(argcFromProc+1+envc)*goarch.PtrSize)) = nil
+
+		// Update the package-level argc/argv globals so they're accessible
+		// to other runtime functions like goargs() and goenvs_unix()
+		argc = argcFromProc
+		argv = combinedArgv
+
+		// For musl/uClibc, we cannot rely on auxv being after envp in memory.
+		// Fall through to read from /proc/self/auxv below.
 	}
 	
 	// In some situations we don't get a loader-provided
