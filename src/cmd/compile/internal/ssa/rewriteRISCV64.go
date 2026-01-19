@@ -505,6 +505,12 @@ func rewriteValueRISCV64(v *Value) bool {
 		return true
 	case OpPopCount8:
 		return rewriteValueRISCV64_OpPopCount8(v)
+	case OpPrefetchCache:
+		v.Op = OpRISCV64PREFETCH
+		return true
+	case OpPrefetchCacheStreamed:
+		v.Op = OpRISCV64PREFETCHNT
+		return true
 	case OpPubBarrier:
 		v.Op = OpRISCV64LoweredPubBarrier
 		return true

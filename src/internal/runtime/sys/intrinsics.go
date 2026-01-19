@@ -197,6 +197,8 @@ func Bswap32(x uint32) uint32 {
 // AMD64: Produce PREFETCHT0 instruction
 //
 // ARM64: Produce PRFM instruction with PLDL1KEEP option
+//
+// RISCV64: Produce PREFETCHR instruction
 func Prefetch(addr uintptr) {}
 
 // PrefetchStreamed prefetches data from memory addr, with a hint that this data is being streamed.
@@ -205,6 +207,8 @@ func Prefetch(addr uintptr) {}
 // AMD64: Produce PREFETCHNTA instruction
 //
 // ARM64: Produce PRFM instruction with PLDL1STRM option
+//
+// RISCV64: Produce PREFETCHR instruction followed by NTLALL instruction
 func PrefetchStreamed(addr uintptr) {}
 
 // GetCallerPC returns the program counter (PC) of its caller's caller.

@@ -5375,6 +5375,8 @@ const (
 	OpRISCV64BSETI
 	OpRISCV64CZEROEQZ
 	OpRISCV64CZERONEZ
+	OpRISCV64PREFETCH
+	OpRISCV64PREFETCHNT
 
 	OpS390XFADDS
 	OpS390XFADD
@@ -81709,6 +81711,28 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
+		name:           "PREFETCH",
+		argLen:         2,
+		hasSideEffects: true,
+		asm:            riscv.APREFETCHR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 9223372037861408754}, // SP X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30 SB
+			},
+		},
+	},
+	{
+		name:           "PREFETCHNT",
+		argLen:         2,
+		hasSideEffects: true,
+		asm:            riscv.APREFETCHR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 9223372037861408754}, // SP X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30 SB
 			},
 		},
 	},

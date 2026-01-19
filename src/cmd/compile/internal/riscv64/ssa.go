@@ -1028,6 +1028,19 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	case ssa.OpClobber, ssa.OpClobberReg:
 		// TODO: implement for clobberdead experiment. Nop is ok for now.
 
+	case ssa.OpRISCV64PREFETCH:
+		p := s.Prog(riscv.APREFETCHR)
+		p.From.Offset = v.AuxInt
+		p.From.Reg = v.Args[0].Reg()
+		p.From.Type = obj.TYPE_MEM
+
+	case ssa.OpRISCV64PREFETCHNT:
+		s.Prog(riscv.ANTLALL)
+		p := s.Prog(riscv.APREFETCHR)
+		p.From.Offset = v.AuxInt
+		p.From.Reg = v.Args[0].Reg()
+		p.From.Type = obj.TYPE_MEM
+
 	default:
 		v.Fatalf("Unhandled op %v", v.Op)
 	}

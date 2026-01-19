@@ -145,6 +145,7 @@ func init() {
 		call        = regInfo{clobbers: callerSave}
 		callClosure = regInfo{inputs: []regMask{gpspMask, regCtxt, 0}, clobbers: callerSave}
 		callInter   = regInfo{inputs: []regMask{gpMask}, clobbers: callerSave}
+		prefreg     = regInfo{inputs: []regMask{gpspsbMask}}
 	)
 
 	RISCV64ops := []opData{
@@ -549,6 +550,9 @@ func init() {
 		// RISC-V Integer Conditional (Zicond) operations extension
 		{name: "CZEROEQZ", argLength: 2, reg: gp21, asm: "CZEROEQZ"},
 		{name: "CZERONEZ", argLength: 2, reg: gp21, asm: "CZERONEZ"},
+
+		{name: "PREFETCH", argLength: 2, reg: prefreg, asm: "PREFETCHR", hasSideEffects: true},
+		{name: "PREFETCHNT", argLength: 2, reg: prefreg, asm: "PREFETCHR", hasSideEffects: true},
 	}
 
 	RISCV64blocks := []blockData{

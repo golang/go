@@ -969,3 +969,6 @@
 (OR (CZEROEQZ x:(ANDI <t> [c] z) cond) y:(CZERONEZ z cond)) => (OR x y)
 (OR (CZERONEZ <t> ((ADDI|ORI|XORI) [c] x) cond) (CZEROEQZ <t> x cond)) => ((ADD|OR|XOR) x (CZERONEZ <t> (MOVDconst [c]) cond))
 (OR (CZEROEQZ <t> ((ADDI|ORI|XORI) [c] x) cond) (CZERONEZ <t> x cond)) => ((ADD|OR|XOR) x (CZEROEQZ <t> (MOVDconst [c]) cond))
+
+(PrefetchCache ...)   => (PREFETCH ...)
+(PrefetchCacheStreamed ...) => (PREFETCHNT ...)
