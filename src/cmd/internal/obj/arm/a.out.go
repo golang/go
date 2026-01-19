@@ -115,7 +115,7 @@ var ARMDWARFRegisters = map[int16]int16{}
 func init() {
 	// f assigns dwarfregisters[from:to] = (base):(step*(to-from)+base)
 	f := func(from, to, base, step int16) {
-		for r := int16(from); r <= to; r++ {
+		for r := from; r <= to; r++ {
 			ARMDWARFRegisters[r] = step*(r-from) + base
 		}
 	}

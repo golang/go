@@ -3,7 +3,6 @@
 # build arguments (such as -cover, -covermode). See issue #57785.
 
 [short] skip
-[!GOEXPERIMENT:coverageredesign] skip
 
 env GOBIN=$WORK/bin
 

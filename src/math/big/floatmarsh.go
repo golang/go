@@ -48,10 +48,10 @@ func (x *Float) GobEncode() ([]byte, error) {
 		b |= 1
 	}
 	buf[1] = b
-	byteorder.BePutUint32(buf[2:], x.prec)
+	byteorder.BEPutUint32(buf[2:], x.prec)
 
 	if x.form == finite {
-		byteorder.BePutUint32(buf[6:], uint32(x.exp))
+		byteorder.BEPutUint32(buf[6:], uint32(x.exp))
 		x.mant[len(x.mant)-n:].bytes(buf[10:]) // cut off unused trailing words
 	}
 
@@ -84,13 +84,13 @@ func (z *Float) GobDecode(buf []byte) error {
 	z.acc = Accuracy((b>>3)&3) - 1
 	z.form = form((b >> 1) & 3)
 	z.neg = b&1 != 0
-	z.prec = byteorder.BeUint32(buf[2:])
+	z.prec = byteorder.BEUint32(buf[2:])
 
 	if z.form == finite {
 		if len(buf) < 10 {
 			return errors.New("Float.GobDecode: buffer too small for finite form float")
 		}
-		z.exp = int32(byteorder.BeUint32(buf[6:]))
+		z.exp = int32(byteorder.BEUint32(buf[6:]))
 		z.mant = z.mant.setBytes(buf[10:])
 	}
 

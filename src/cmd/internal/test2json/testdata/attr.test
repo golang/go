@@ -1,0 +1,7 @@
+=== RUN   TestAttr
+=== ATTR  TestAttr key value
+=== RUN   TestAttr/sub
+=== ATTR  TestAttr/sub key value
+--- PASS: TestAttr (0.00s)
+    --- PASS: TestAttr/sub (0.00s)
+PASS

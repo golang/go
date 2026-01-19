@@ -41,6 +41,9 @@ var (
 
 	// debugging
 	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to this file")
+
+	// errors
+	errFormattingDiffers = fmt.Errorf("formatting differs from gofmt's")
 )
 
 // Keep these in sync with go/format/format.go.
@@ -87,10 +90,8 @@ func initParserMode() {
 	}
 }
 
-func isGoFile(f fs.DirEntry) bool {
-	// ignore non-Go files
-	name := f.Name()
-	return !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".go") && !f.IsDir()
+func isGoFilename(name string) bool {
+	return !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".go")
 }
 
 // A sequencer performs concurrent tasks that may write output, but emits that
@@ -220,8 +221,12 @@ func (r *reporter) Report(err error) {
 		panic("Report with nil error")
 	}
 	st := r.getState()
-	scanner.PrintError(st.err, err)
-	st.exitCode = 2
+	if err == errFormattingDiffers {
+		st.exitCode = 1
+	} else {
+		scanner.PrintError(st.err, err)
+		st.exitCode = 2
+	}
 }
 
 func (r *reporter) ExitCode() int {
@@ -283,6 +288,7 @@ func processFile(filename string, info fs.FileInfo, in io.Reader, r *reporter) e
 			newName := filepath.ToSlash(filename)
 			oldName := newName + ".orig"
 			r.Write(diff.Diff(oldName, src, newName, res))
+			return errFormattingDiffers
 		}
 	}
 
@@ -411,34 +417,30 @@ func gofmtMain(s *sequencer) {
 	}
 
 	for _, arg := range args {
-		switch info, err := os.Stat(arg); {
-		case err != nil:
-			s.AddReport(err)
-		case !info.IsDir():
-			// Non-directory arguments are always formatted.
-			arg := arg
-			s.Add(fileWeight(arg, info), func(r *reporter) error {
-				return processFile(arg, info, nil, r)
-			})
-		default:
-			// Directories are walked, ignoring non-Go files.
-			err := filepath.WalkDir(arg, func(path string, f fs.DirEntry, err error) error {
-				if err != nil || !isGoFile(f) {
-					return err
-				}
-				info, err := f.Info()
-				if err != nil {
-					s.AddReport(err)
-					return nil
-				}
-				s.Add(fileWeight(path, info), func(r *reporter) error {
-					return processFile(path, info, nil, r)
-				})
-				return nil
-			})
-			if err != nil {
-				s.AddReport(err)
+		// Walk each given argument as a directory tree.
+		// If the argument is not a directory, it's always formatted as a Go file.
+		// If the argument is a directory, we walk it, ignoring non-Go files.
+		if err := filepath.WalkDir(arg, func(path string, d fs.DirEntry, err error) error {
+			switch {
+			case err != nil:
+				return err
+			case d.IsDir():
+				return nil // simply recurse into directories
+			case path == arg:
+				// non-directories given as explicit arguments are always formatted
+			case !isGoFilename(d.Name()):
+				return nil // skip walked non-Go files
 			}
+			info, err := d.Info()
+			if err != nil {
+				return err
+			}
+			s.Add(fileWeight(path, info), func(r *reporter) error {
+				return processFile(path, info, nil, r)
+			})
+			return nil
+		}); err != nil {
+			s.AddReport(err)
 		}
 	}
 }

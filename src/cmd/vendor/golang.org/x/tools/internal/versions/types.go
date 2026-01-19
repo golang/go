@@ -5,15 +5,29 @@
 package versions
 
 import (
+	"go/ast"
 	"go/types"
 )
 
-// GoVersion returns the Go version of the type package.
-// It returns zero if no version can be determined.
-func GoVersion(pkg *types.Package) string {
-	// TODO(taking): x/tools can call GoVersion() [from 1.21] after 1.25.
-	if pkg, ok := any(pkg).(interface{ GoVersion() string }); ok {
-		return pkg.GoVersion()
+// FileVersion returns a file's Go version.
+// The reported version is an unknown Future version if a
+// version cannot be determined.
+func FileVersion(info *types.Info, file *ast.File) string {
+	// In tools built with Go >= 1.22, the Go version of a file
+	// follow a cascades of sources:
+	// 1) types.Info.FileVersion, which follows the cascade:
+	//   1.a) file version (ast.File.GoVersion),
+	//   1.b) the package version (types.Config.GoVersion), or
+	// 2) is some unknown Future version.
+	//
+	// File versions require a valid package version to be provided to types
+	// in Config.GoVersion. Config.GoVersion is either from the package's module
+	// or the toolchain (go run). This value should be provided by go/packages
+	// or unitchecker.Config.GoVersion.
+	if v := info.FileVersions[file]; IsValid(v) {
+		return v
 	}
-	return ""
+	// Note: we could instead return runtime.Version() [if valid].
+	// This would act as a max version on what a tool can support.
+	return Future
 }

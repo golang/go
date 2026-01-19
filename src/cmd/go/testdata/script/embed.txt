@@ -31,11 +31,16 @@ cp x.txt .git
 stderr '^x.go:5:12: pattern [*]t: cannot embed file [.]git: invalid name [.]git$'
 rm .git
 
-# build rejects symlinks
+# build rejects symlinks by default
 [symlink] symlink x.tzt -> x.txt
 [symlink] ! go build -x
 [symlink] stderr 'pattern [*]t: cannot embed irregular file x.tzt'
+# with GODEBUG embedfollowsymlinks=1, build allows symlinks of leaf files
+[symlink] env 'GODEBUG=embedfollowsymlinks=1'
+[symlink] go build -x
+[symlink] stderr 'x.tzt'
 [symlink] rm x.tzt
+[symlink] env 'GODEBUG='
 
 # build rejects empty directories
 mkdir t
@@ -71,6 +76,47 @@ go build -x
 rm t/.x.txt
 cp x.txt t/_x.txt
 go build -x
+
+# build disallows symlinks of directories
+[symlink] symlink symdir -> symdirdst
+[symlink] cp x.go4 x.go
+[symlink] ! go build -x
+[symlink] stderr 'x.go:5:12: pattern symdir/[*]: cannot embed file symdir[\\/]x.txt: in non-directory symdir'
+[symlink] cp x.go5 x.go
+[symlink] ! go build -x
+[symlink] stderr 'x.go:5:12: pattern symdir/x.txt: cannot embed file symdir[\\/]x.txt: in non-directory symdir'
+# even with GODEBUG=embedfollowsymlinks=1
+[symlink] env 'GODEBUG=embedfollowsymlinks=1'
+[symlink] cp x.go4 x.go
+[symlink] ! go build -x
+[symlink] stderr 'x.go:5:12: pattern symdir/[*]: cannot embed file symdir[\\/]x.txt: in non-directory symdir'
+[symlink] cp x.go5 x.go
+[symlink] ! go build -x
+[symlink] stderr 'x.go:5:12: pattern symdir/x.txt: cannot embed file symdir[\\/]x.txt: in non-directory symdir'
+[symlink] env 'GODEBUG='
+
+# build rejects names in subdirectories with invalid punctuation
+cp x.go6 x.go
+mkdir photos/subdir
+cp x.txt photos/subdir/foo.jpg
+cp x.txt 'photos/subdir/2022-07-22T15''02''45Z.jpg'
+! go build -x
+stderr '^x.go:5:12: pattern photos/\*: cannot embed file photos/subdir/2022-07-22T15''02''45Z.jpg: invalid name 2022-07-22T15''02''45Z.jpg$'
+[!GOOS:windows] mv 'photos/subdir/2022-07-22T15''02''45Z.jpg' photos/subdir/2022-07-22T15:02:45Z.jpg
+[!GOOS:windows] ! go build -x
+[!GOOS:windows] stderr '^x.go:5:12: pattern photos/\*: cannot embed file photos/subdir/2022-07-22T15:02:45Z.jpg: invalid name 2022-07-22T15:02:45Z.jpg$'
+rm photos
+
+# build ignores hidden names in subdirectories with invalid punctuation
+cp x.go6 x.go
+mkdir photos/subdir
+[!GOOS:windows] cp x.txt photos/subdir/.2022-07-22T15:02:45Z.jpg
+[!GOOS:windows] cp x.txt photos/subdir/_2022-07-22T15:02:45Z.jpg
+cp x.txt 'photos/subdir/.2022-07-22T15''02''45Z.jpg'
+cp x.txt 'photos/subdir/_2022-07-22T15''02''45Z.jpg'
+cp x.txt photos/subdir/foo.jpg
+go build -x
+rm photos
 
 -- x.go --
 package p
@@ -112,6 +158,30 @@ import "embed"
 //go:embed all:t
 var X embed.FS
 
+-- x.go4 --
+package p
+
+import "embed"
+
+//go:embed symdir/*
+var X embed.FS
+
+-- x.go5 --
+package p
+
+import "embed"
+
+//go:embed symdir/x.txt
+var Z string
+
+-- x.go6 --
+package p
+
+import "embed"
+
+//go:embed photos/*
+var X embed.FS
+
 -- x.txt --
 hello
 
@@ -124,6 +194,7 @@ not hello
 package use
 
 import _ "m"
+-- symdirdst/x.txt --
 -- go.mod --
 module m
 

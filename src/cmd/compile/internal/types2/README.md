@@ -32,7 +32,7 @@ This is done via a generator (go/types/generate_test.go) which may be invoked vi
 `go generate` in the go/types directory.
 Generated files are clearly marked with a comment at the top and should not
 be modified by hand.
-For this reason, it is usally best to make changes to the types2 sources first.
+For this reason, it is usually best to make changes to the types2 sources first.
 The changes only need to be ported by hand for the go/types files that cannot
 be generated yet.
 
@@ -56,7 +56,7 @@ The tests are in:
 Tests are .go files annotated with `/* ERROR "msg" */` or `/* ERRORx "msg" */`
 comments (or the respective line comment form).
 For each such error comment, typechecking the respective file is expected to
-report an error at the position of the syntactic token _immediately preceeding_
+report an error at the position of the syntactic token _immediately preceding_
 the comment.
 For `ERROR`, the `"msg"` string must be a substring of the error message
 reported by the typechecker;
@@ -129,7 +129,7 @@ func (check *Checker) f(x *operand, e syntax.Expr, /* addition arguments, if any
 ```
 The result of typechecking expression `e` is returned via the operand `x`
 (which sometimes also serves as incoming argument).
-If an error occured the function f will report the error and try to continue
+If an error occurred the function f will report the error and try to continue
 as best as it can, but it may return an invalid operand (`x.mode == invalid`).
 Callers may need to explicitly check for invalid operands.
 

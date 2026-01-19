@@ -8,6 +8,8 @@ package sigchanyzer
 
 import (
 	"bytes"
+	"slices"
+
 	_ "embed"
 	"go/ast"
 	"go/format"
@@ -16,8 +18,9 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
+	"golang.org/x/tools/internal/typesinternal"
 )
 
 //go:embed doc.go
@@ -26,14 +29,14 @@ var doc string
 // Analyzer describes sigchanyzer analysis function detector.
 var Analyzer = &analysis.Analyzer{
 	Name:     "sigchanyzer",
-	Doc:      analysisutil.MustExtractDoc(doc, "sigchanyzer"),
+	Doc:      analyzerutil.MustExtractDoc(doc, "sigchanyzer"),
 	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/sigchanyzer",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }
 
-func run(pass *analysis.Pass) (interface{}, error) {
-	if !analysisutil.Imports(pass.Pkg, "os/signal") {
+func run(pass *analysis.Pass) (any, error) {
+	if !typesinternal.Imports(pass.Pkg, "os/signal") {
 		return nil, nil // doesn't directly import signal
 	}
 
@@ -69,7 +72,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		// mutating the AST. See https://golang.org/issue/46129.
 		chanDeclCopy := &ast.CallExpr{}
 		*chanDeclCopy = *chanDecl
-		chanDeclCopy.Args = append([]ast.Expr(nil), chanDecl.Args...)
+		chanDeclCopy.Args = slices.Clone(chanDecl.Args)
 		chanDeclCopy.Args = append(chanDeclCopy.Args, &ast.BasicLit{
 			Kind:  token.INT,
 			Value: "1",

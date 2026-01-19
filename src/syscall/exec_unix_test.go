@@ -302,8 +302,7 @@ func TestInvalidExec(t *testing.T) {
 
 // TestExec is for issue #41702.
 func TestExec(t *testing.T) {
-	testenv.MustHaveExec(t)
-	cmd := exec.Command(os.Args[0], "-test.run=^TestExecHelper$")
+	cmd := exec.Command(testenv.Executable(t), "-test.run=^TestExecHelper$")
 	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=2")
 	o, err := cmd.CombinedOutput()
 	if err != nil {

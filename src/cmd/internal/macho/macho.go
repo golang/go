@@ -100,7 +100,7 @@ func (r *LoadCmdReader) Next() (LoadCmd, error) {
 	return cmd, nil
 }
 
-func (r LoadCmdReader) ReadAt(offset int64, data interface{}) error {
+func (r LoadCmdReader) ReadAt(offset int64, data any) error {
 	if _, err := r.f.Seek(r.offset+offset, 0); err != nil {
 		return err
 	}
@@ -117,7 +117,7 @@ func NewLoadCmdUpdater(f io.ReadWriteSeeker, order binary.ByteOrder, nextOffset 
 	return LoadCmdUpdater{NewLoadCmdReader(f, order, nextOffset)}
 }
 
-func (u LoadCmdUpdater) WriteAt(offset int64, data interface{}) error {
+func (u LoadCmdUpdater) WriteAt(offset int64, data any) error {
 	if _, err := u.f.Seek(u.offset+offset, 0); err != nil {
 		return err
 	}

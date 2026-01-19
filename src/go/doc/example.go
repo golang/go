@@ -11,7 +11,6 @@ import (
 	"go/ast"
 	"go/token"
 	"internal/lazyregexp"
-	"path"
 	"slices"
 	"strconv"
 	"strings"
@@ -74,6 +73,9 @@ func Examples(testFiles ...*ast.File) []*Example {
 			}
 			if params := f.Type.Params; len(params.List) != 0 {
 				continue // function has params; not a valid example
+			}
+			if results := f.Type.Results; results != nil && len(results.List) != 0 {
+				continue // function has results; not a valid example
 			}
 			if f.Body == nil { // ast.File.Body nil dereference (see issue 28044)
 				continue
@@ -192,13 +194,6 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
 	// Find unresolved identifiers and uses of top-level declarations.
 	depDecls, unresolved := findDeclsAndUnresolved(body, topDecls, typMethods)
 
-	// Remove predeclared identifiers from unresolved list.
-	for n := range unresolved {
-		if predeclaredTypes[n] || predeclaredConstants[n] || predeclaredFuncs[n] {
-			delete(unresolved, n)
-		}
-	}
-
 	// Use unresolved identifiers to determine the imports used by this
 	// example. The heuristic assumes package names match base import
 	// paths for imports w/o renames (should be good enough most of the time).
@@ -228,7 +223,7 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
 			// because the package syscall/js is not available in the playground.
 			return nil
 		}
-		n := path.Base(p)
+		n := assumedPackageName(p)
 		if s.Name != nil {
 			n = s.Name.Name
 			switch n {
@@ -245,8 +240,15 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
 			spec := *s
 			path := *s.Path
 			spec.Path = &path
-			spec.Path.ValuePos = groupStart(&spec)
+			updateBasicLitPos(spec.Path, groupStart(&spec))
 			namedImports = append(namedImports, &spec)
+			delete(unresolved, n)
+		}
+	}
+
+	// Remove predeclared identifiers from unresolved list.
+	for n := range unresolved {
+		if predeclaredTypes[n] || predeclaredConstants[n] || predeclaredFuncs[n] {
 			delete(unresolved, n)
 		}
 	}
@@ -491,17 +493,14 @@ func findDeclsAndUnresolved(body ast.Node, topDecls map[*ast.Object]ast.Decl, ty
 }
 
 func hasIota(s ast.Spec) bool {
-	has := false
-	ast.Inspect(s, func(n ast.Node) bool {
+	for n := range ast.Preorder(s) {
 		// Check that this is the special built-in "iota" identifier, not
 		// a user-defined shadow.
 		if id, ok := n.(*ast.Ident); ok && id.Name == "iota" && id.Obj == nil {
-			has = true
-			return false
+			return true
 		}
-		return true
-	})
-	return has
+	}
+	return false
 }
 
 // findImportGroupStarts finds the start positions of each sequence of import
@@ -722,4 +721,15 @@ func splitExampleName(s string, i int) (prefix, suffix string, ok bool) {
 func isExampleSuffix(s string) bool {
 	r, size := utf8.DecodeRuneInString(s)
 	return size > 0 && unicode.IsLower(r)
+}
+
+// updateBasicLitPos updates lit.Pos,
+// ensuring that lit.End is displaced by the same amount.
+// (See https://go.dev/issue/76395.)
+func updateBasicLitPos(lit *ast.BasicLit, pos token.Pos) {
+	len := lit.End() - lit.Pos()
+	lit.ValuePos = pos
+	if lit.ValueEnd.IsValid() {
+		lit.ValueEnd = pos + len
+	}
 }

@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 	"unicode/utf8"
 )
@@ -144,6 +145,8 @@ func indirectToJSONMarshaler(a any) any {
 	return v.Interface()
 }
 
+var scriptTagRe = regexp.MustCompile("(?i)<(/?)script")
+
 // jsValEscaper escapes its inputs to a JS Expression (section 11.14) that has
 // neither side-effects nor free variables outside (NaN, Infinity).
 func jsValEscaper(args ...any) string {
@@ -181,9 +184,9 @@ func jsValEscaper(args ...any) string {
 		// In particular we:
 		//   * replace "*/" comment end tokens with "* /", which does not
 		//     terminate the comment
-		//   * replace "</script" with "\x3C/script", and "<!--" with
-		//     "\x3C!--", which prevents confusing script block termination
-		//     semantics
+		//   * replace "<script" and "</script" with "\x3Cscript" and "\x3C/script"
+		//     (case insensitively), and "<!--" with "\x3C!--", which prevents
+		//     confusing script block termination semantics
 		//
 		// We also put a space before the comment so that if it is flush against
 		// a division operator it is not turned into a line comment:
@@ -192,8 +195,8 @@ func jsValEscaper(args ...any) string {
 		//     x//* error marshaling y:
 		//          second line of error message */null
 		errStr := err.Error()
+		errStr = string(scriptTagRe.ReplaceAll([]byte(errStr), []byte(`\x3C${1}script`)))
 		errStr = strings.ReplaceAll(errStr, "*/", "* /")
-		errStr = strings.ReplaceAll(errStr, "</script", `\x3C/script`)
 		errStr = strings.ReplaceAll(errStr, "<!--", `\x3C!--`)
 		return fmt.Sprintf(" /* %s */null ", errStr)
 	}

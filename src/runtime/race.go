@@ -156,7 +156,7 @@ const raceenabled = true
 // callerpc is a return PC of the function that calls this function,
 // pc is start PC of the function that calls this function.
 func raceReadObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
-	kind := t.Kind_ & abi.KindMask
+	kind := t.Kind()
 	if kind == abi.Array || kind == abi.Struct {
 		// for composite objects we have to read every address
 		// because a write might happen to any subobject.
@@ -174,7 +174,7 @@ func race_ReadObjectPC(t *abi.Type, addr unsafe.Pointer, callerpc, pc uintptr) {
 }
 
 func raceWriteObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
-	kind := t.Kind_ & abi.KindMask
+	kind := t.Kind()
 	if kind == abi.Array || kind == abi.Struct {
 		// for composite objects we have to write every address
 		// because a write might happen to any subobject.
@@ -455,7 +455,6 @@ func raceinit() (gctx, pctx uintptr) {
 
 	racecall(&__tsan_init, uintptr(unsafe.Pointer(&gctx)), uintptr(unsafe.Pointer(&pctx)), abi.FuncPCABI0(racecallbackthunk), 0)
 
-	// Round data segment to page boundaries, because it's used in mmap().
 	start := ^uintptr(0)
 	end := uintptr(0)
 	if start > firstmoduledata.noptrdata {
@@ -482,10 +481,13 @@ func raceinit() (gctx, pctx uintptr) {
 	if end < firstmoduledata.ebss {
 		end = firstmoduledata.ebss
 	}
-	size := alignUp(end-start, _PageSize)
-	racecall(&__tsan_map_shadow, start, size, 0, 0)
+	// Use exact bounds for boundary check in racecalladdr. See issue 73483.
 	racedatastart = start
-	racedataend = start + size
+	racedataend = end
+	// Round data segment to page boundaries for race detector (TODO: still needed?)
+	start = alignDown(start, _PageSize)
+	end = alignUp(end, _PageSize)
+	racecall(&__tsan_map_shadow, start, end-start, 0, 0)
 
 	return
 }
@@ -562,6 +564,13 @@ func racegostart(pc uintptr) uintptr {
 //go:nosplit
 func racegoend() {
 	racecall(&__tsan_go_end, getg().racectx, 0, 0, 0)
+}
+
+//go:nosplit
+func racectxstart(pc, spawnctx uintptr) uintptr {
+	var racectx uintptr
+	racecall(&__tsan_go_start, spawnctx, uintptr(unsafe.Pointer(&racectx)), pc, 0)
+	return racectx
 }
 
 //go:nosplit

@@ -359,7 +359,7 @@ func defaultContext() Context {
 
 	env := os.Getenv("CGO_ENABLED")
 	if env == "" {
-		env = defaultCGO_ENABLED
+		env = buildcfg.DefaultCGO_ENABLED
 	}
 	switch env {
 	case "1":
@@ -1139,7 +1139,7 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode) 
 	// we must not being doing special things like AllowBinary or IgnoreVendor,
 	// and all the file system callbacks must be nil (we're meant to use the local file system).
 	if mode&AllowBinary != 0 || mode&IgnoreVendor != 0 ||
-		ctxt.JoinPath != nil || ctxt.SplitPathList != nil || ctxt.IsAbsPath != nil || ctxt.IsDir != nil || ctxt.HasSubdir != nil || ctxt.ReadDir != nil || ctxt.OpenFile != nil || !equal(ctxt.ToolTags, defaultToolTags) || !equal(ctxt.ReleaseTags, defaultReleaseTags) {
+		ctxt.JoinPath != nil || ctxt.SplitPathList != nil || ctxt.IsAbsPath != nil || ctxt.IsDir != nil || ctxt.HasSubdir != nil || ctxt.ReadDir != nil || ctxt.OpenFile != nil || !slices.Equal(ctxt.ToolTags, defaultToolTags) || !slices.Equal(ctxt.ReleaseTags, defaultReleaseTags) {
 		return errNoModules
 	}
 
@@ -1277,18 +1277,6 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode) 
 	p.Root = f[2]
 	p.Goroot = f[3] == "true"
 	return nil
-}
-
-func equal(x, y []string) bool {
-	if len(x) != len(y) {
-		return false
-	}
-	for i, xi := range x {
-		if xi != y[i] {
-			return false
-		}
-	}
-	return true
 }
 
 // hasGoFiles reports whether dir contains any files with names ending in .go.
@@ -1708,7 +1696,7 @@ Lines:
 // that affect the way cgo's C code is built.
 func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup) error {
 	text := cg.Text()
-	for _, line := range strings.Split(text, "\n") {
+	for line := range strings.SplitSeq(text, "\n") {
 		orig := line
 
 		// Line is
@@ -1985,23 +1973,8 @@ func (ctxt *Context) matchTag(name string, allTags map[string]bool) bool {
 	}
 
 	// other tags
-	for _, tag := range ctxt.BuildTags {
-		if tag == name {
-			return true
-		}
-	}
-	for _, tag := range ctxt.ToolTags {
-		if tag == name {
-			return true
-		}
-	}
-	for _, tag := range ctxt.ReleaseTags {
-		if tag == name {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(ctxt.BuildTags, name) || slices.Contains(ctxt.ToolTags, name) ||
+		slices.Contains(ctxt.ReleaseTags, name)
 }
 
 // goodOSArchFile returns false if the name contains a $GOOS or $GOARCH

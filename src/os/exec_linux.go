@@ -8,6 +8,6 @@ import (
 	"syscall"
 )
 
-func (p *Process) closeHandle() {
-	syscall.Close(int(p.handle))
+func (ph *processHandle) closeHandle() {
+	syscall.Close(int(ph.handle))
 }

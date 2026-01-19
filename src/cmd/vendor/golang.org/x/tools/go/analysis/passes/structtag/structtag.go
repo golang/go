@@ -13,8 +13,11 @@ import (
 	"go/types"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
+
+	"fmt"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -34,7 +37,7 @@ var Analyzer = &analysis.Analyzer{
 	Run:              run,
 }
 
-func run(pass *analysis.Pass) (interface{}, error) {
+func run(pass *analysis.Pass) (any, error) {
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
 	nodeFilter := []ast.Node{
@@ -88,8 +91,7 @@ var checkTagSpaces = map[string]bool{"json": true, "xml": true, "asn1": true}
 
 // checkCanonicalFieldTag checks a single struct field tag.
 func checkCanonicalFieldTag(pass *analysis.Pass, field *types.Var, tag string, seen *namesSeen) {
-	switch pass.Pkg.Path() {
-	case "encoding/json", "encoding/xml":
+	if strings.HasPrefix(pass.Pkg.Path(), "encoding/") {
 		// These packages know how to use their own APIs.
 		// Sometimes they are testing what happens to incorrect programs.
 		return
@@ -100,14 +102,18 @@ func checkCanonicalFieldTag(pass *analysis.Pass, field *types.Var, tag string, s
 	}
 
 	if err := validateStructTag(tag); err != nil {
-		pass.Reportf(field.Pos(), "struct field tag %#q not compatible with reflect.StructTag.Get: %s", tag, err)
+		pass.Report(analysis.Diagnostic{
+			Pos:     field.Pos(),
+			End:     field.Pos() + token.Pos(len(field.Name())),
+			Message: fmt.Sprintf("struct field tag %#q not compatible with reflect.StructTag.Get: %s", tag, err),
+		})
 	}
 
 	// Check for use of json or xml tags with unexported fields.
 
 	// Embedded struct. Nothing to do for now, but that
 	// may change, depending on what happens with issue 7363.
-	// TODO(adonovan): investigate, now that that issue is fixed.
+	// TODO(adonovan): investigate, now that issue is fixed.
 	if field.Anonymous() {
 		return
 	}
@@ -122,7 +128,11 @@ func checkCanonicalFieldTag(pass *analysis.Pass, field *types.Var, tag string, s
 		// ignored.
 		case "", "-":
 		default:
-			pass.Reportf(field.Pos(), "struct field %s has %s tag but is not exported", field.Name(), enc)
+			pass.Report(analysis.Diagnostic{
+				Pos:     field.Pos(),
+				End:     field.Pos() + token.Pos(len(field.Name())),
+				Message: fmt.Sprintf("struct field %s has %s tag but is not exported", field.Name(), enc),
+			})
 			return
 		}
 	}
@@ -167,11 +177,8 @@ func checkTagDuplicates(pass *analysis.Pass, tag, key string, nearest, field *ty
 	if i := strings.Index(val, ","); i >= 0 {
 		if key == "xml" {
 			// Use a separate namespace for XML attributes.
-			for _, opt := range strings.Split(val[i:], ",") {
-				if opt == "attr" {
-					key += " attribute" // Key is part of the error message.
-					break
-				}
+			if slices.Contains(strings.Split(val[i:], ","), "attr") {
+				key += " attribute" // Key is part of the error message.
 			}
 		}
 		val = val[:i]
@@ -193,7 +200,11 @@ func checkTagDuplicates(pass *analysis.Pass, tag, key string, nearest, field *ty
 			alsoPos.Filename = rel
 		}
 
-		pass.Reportf(nearest.Pos(), "struct field %s repeats %s tag %q also at %s", field.Name(), key, val, alsoPos)
+		pass.Report(analysis.Diagnostic{
+			Pos:     nearest.Pos(),
+			End:     nearest.Pos() + token.Pos(len(nearest.Name())),
+			Message: fmt.Sprintf("struct field %s repeats %s tag %q also at %s", field.Name(), key, val, alsoPos),
+		})
 	} else {
 		seen.Set(key, val, level, field.Pos())
 	}

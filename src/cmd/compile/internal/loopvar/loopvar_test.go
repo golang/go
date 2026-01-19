@@ -50,7 +50,7 @@ var cases = []testcase{
 	{"1", "", 0, []string{"for_nested.go"}},
 }
 
-// TestLoopVar checks that the GOEXPERIMENT and debug flags behave as expected.
+// TestLoopVarGo1_21 checks that the GOEXPERIMENT and debug flags behave as expected.
 func TestLoopVarGo1_21(t *testing.T) {
 	switch runtime.GOOS {
 	case "linux", "darwin":

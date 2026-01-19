@@ -14,8 +14,7 @@ import (
 	"unicode"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
-	"golang.org/x/tools/internal/versions"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
 )
 
 const Doc = "check //go:build and // +build directives"
@@ -27,7 +26,7 @@ var Analyzer = &analysis.Analyzer{
 	Run:  runBuildTag,
 }
 
-func runBuildTag(pass *analysis.Pass) (interface{}, error) {
+func runBuildTag(pass *analysis.Pass) (any, error) {
 	for _, f := range pass.Files {
 		checkGoFile(pass, f)
 	}
@@ -87,7 +86,7 @@ func checkOtherFile(pass *analysis.Pass, filename string) error {
 
 	// We cannot use the Go parser, since this may not be a Go source file.
 	// Read the raw bytes instead.
-	content, tf, err := analysisutil.ReadFile(pass, filename)
+	content, tf, err := analyzerutil.ReadFile(pass, filename)
 	if err != nil {
 		return err
 	}
@@ -299,7 +298,7 @@ func (check *checker) plusBuildLine(pos token.Pos, line string) {
 	fields := strings.Fields(line[len("//"):])
 	// IsPlusBuildConstraint check above implies fields[0] == "+build"
 	for _, arg := range fields[1:] {
-		for _, elem := range strings.Split(arg, ",") {
+		for elem := range strings.SplitSeq(arg, ",") {
 			if strings.HasPrefix(elem, "!!") {
 				check.pass.Reportf(pos, "invalid double negative in build constraint: %s", arg)
 				check.crossCheck = false
@@ -371,11 +370,6 @@ func (check *checker) finish() {
 
 // tags reports issues in go versions in tags within the expression e.
 func (check *checker) tags(pos token.Pos, e constraint.Expr) {
-	// Check that constraint.GoVersion is meaningful (>= go1.21).
-	if versions.ConstraintGoVersion == nil {
-		return
-	}
-
 	// Use Eval to visit each tag.
 	_ = e.Eval(func(tag string) bool {
 		if malformedGoTag(tag) {
@@ -393,10 +387,8 @@ func malformedGoTag(tag string) bool {
 		// Check for close misspellings of the "go1." prefix.
 		for _, pre := range []string{"go.", "g1.", "go"} {
 			suffix := strings.TrimPrefix(tag, pre)
-			if suffix != tag {
-				if valid, ok := validTag("go1." + suffix); ok && valid {
-					return true
-				}
+			if suffix != tag && validGoVersion("go1."+suffix) {
+				return true
 			}
 		}
 		return false
@@ -404,15 +396,10 @@ func malformedGoTag(tag string) bool {
 
 	// The tag starts with "go1" so it is almost certainly a GoVersion.
 	// Report it if it is not a valid build constraint.
-	valid, ok := validTag(tag)
-	return ok && !valid
+	return !validGoVersion(tag)
 }
 
-// validTag returns (valid, ok) where valid reports when a tag is valid,
-// and ok reports determining if the tag is valid succeeded.
-func validTag(tag string) (valid bool, ok bool) {
-	if versions.ConstraintGoVersion != nil {
-		return versions.ConstraintGoVersion(&constraint.TagExpr{Tag: tag}) != "", true
-	}
-	return false, false
+// validGoVersion reports when a tag is a valid go version.
+func validGoVersion(tag string) bool {
+	return constraint.GoVersion(&constraint.TagExpr{Tag: tag}) != ""
 }

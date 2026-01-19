@@ -5,6 +5,8 @@
 package httptest
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -309,6 +311,26 @@ func TestRecorder(t *testing.T) {
 	}
 }
 
+func TestBodyNotAllowed(t *testing.T) {
+	rw := NewRecorder()
+	rw.Body = new(bytes.Buffer)
+	rw.WriteHeader(204)
+
+	_, err := rw.Write([]byte("hello "))
+	if !errors.Is(err, http.ErrBodyNotAllowed) {
+		t.Errorf("expected BodyNotAllowed for Write after 204, got: %v", err)
+	}
+
+	_, err = rw.WriteString("world")
+	if !errors.Is(err, http.ErrBodyNotAllowed) {
+		t.Errorf("expected BodyNotAllowed for WriteString after 204, got: %v", err)
+	}
+
+	if got, want := rw.Body.String(), "hello world"; got != want {
+		t.Errorf("got Body=%q, want %q", got, want)
+	}
+}
+
 // issue 39017 - disallow Content-Length values such as "+3"
 func TestParseContentLength(t *testing.T) {
 	tests := []struct {
@@ -352,7 +374,6 @@ func TestRecorderPanicsOnNonXXXStatusCode(t *testing.T) {
 		-100, 0, 99, 1000, 20000,
 	}
 	for _, badCode := range badCodes {
-		badCode := badCode
 		t.Run(fmt.Sprintf("Code=%d", badCode), func(t *testing.T) {
 			defer func() {
 				if r := recover(); r == nil {

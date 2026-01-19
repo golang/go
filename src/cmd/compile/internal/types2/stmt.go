@@ -9,7 +9,6 @@ package types2
 import (
 	"cmd/compile/internal/syntax"
 	"go/constant"
-	"internal/buildcfg"
 	. "internal/types/errors"
 	"slices"
 )
@@ -55,10 +54,13 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
 }
 
 func (check *Checker) usage(scope *Scope) {
+	needUse := func(kind VarKind) bool {
+		return !(kind == RecvVar || kind == ParamVar || kind == ResultVar)
+	}
 	var unused []*Var
 	for name, elem := range scope.elems {
 		elem = resolve(name, elem)
-		if v, _ := elem.(*Var); v != nil && !v.used {
+		if v, _ := elem.(*Var); v != nil && needUse(v.kind) && !check.usedVars[v] {
 			unused = append(unused, v)
 		}
 	}
@@ -190,7 +192,7 @@ func (check *Checker) suspendedCall(keyword string, call syntax.Expr) {
 }
 
 // goVal returns the Go value for val, or nil.
-func goVal(val constant.Value) interface{} {
+func goVal(val constant.Value) any {
 	// val should exist, but be conservative and check
 	if val == nil {
 		return nil
@@ -224,7 +226,7 @@ func goVal(val constant.Value) interface{} {
 // types we need to also check the value's types (e.g., byte(1) vs myByte(1))
 // when the switch expression is of interface type.
 type (
-	valueMap  map[interface{}][]valueType // underlying Go value -> valueType
+	valueMap  map[any][]valueType // underlying Go value -> valueType
 	valueType struct {
 		pos syntax.Pos
 		typ Type
@@ -465,21 +467,9 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		if ch.mode == invalid || val.mode == invalid {
 			return
 		}
-		u := coreType(ch.typ)
-		if u == nil {
-			check.errorf(s, InvalidSend, invalidOp+"cannot send to %s: no core type", &ch)
-			return
+		if elem := check.chanElem(s, &ch, false); elem != nil {
+			check.assignment(&val, elem, "send")
 		}
-		uch, _ := u.(*Chan)
-		if uch == nil {
-			check.errorf(s, InvalidSend, invalidOp+"cannot send to non-channel %s", &ch)
-			return
-		}
-		if uch.dir == RecvOnly {
-			check.errorf(s, InvalidSend, invalidOp+"cannot send to receive-only channel %s", &ch)
-			return
-		}
-		check.assignment(&val, uch.elem, "send")
 
 	case *syntax.AssignStmt:
 		if s.Rhs == nil {
@@ -677,7 +667,23 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		inner |= breakOk | continueOk
 
 		if rclause, _ := s.Init.(*syntax.RangeClause); rclause != nil {
-			check.rangeStmt(inner, s, rclause)
+			// extract sKey, sValue, s.Extra from the range clause
+			sKey := rclause.Lhs            // possibly nil
+			var sValue, sExtra syntax.Expr // possibly nil
+			if p, _ := sKey.(*syntax.ListExpr); p != nil {
+				if len(p.ElemList) < 2 {
+					check.error(s, InvalidSyntaxTree, "invalid lhs in range clause")
+					return
+				}
+				// len(p.ElemList) >= 2
+				sKey = p.ElemList[0]
+				sValue = p.ElemList[1]
+				if len(p.ElemList) > 2 {
+					// delay error reporting until we know more
+					sExtra = p.ElemList[2]
+				}
+			}
+			check.rangeStmt(inner, s, s, sKey, sValue, sExtra, rclause.X, rclause.Def)
 			break
 		}
 
@@ -805,7 +811,7 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 		check.openScope(clause, "case")
 		// If lhs exists, declare a corresponding variable in the case-local scope.
 		if lhs != nil {
-			obj := NewVar(lhs.Pos(), check.pkg, lhs.Value, T)
+			obj := newVar(LocalVar, lhs.Pos(), check.pkg, lhs.Value, T)
 			check.declare(check.scope, nil, obj, clause.Colon)
 			check.recordImplicit(clause, obj)
 			// For the "declared and not used" error, all lhs variables act as
@@ -824,251 +830,13 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 	if lhs != nil {
 		var used bool
 		for _, v := range lhsVars {
-			if v.used {
+			if check.usedVars[v] {
 				used = true
 			}
-			v.used = true // avoid usage error when checking entire function
+			check.usedVars[v] = true // avoid usage error when checking entire function
 		}
 		if !used {
 			check.softErrorf(lhs, UnusedVar, "%s declared and not used", lhs.Value)
 		}
 	}
-}
-
-func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *syntax.RangeClause) {
-	// Convert syntax form to local variables.
-	type Expr = syntax.Expr
-	type identType = syntax.Name
-	identName := func(n *identType) string { return n.Value }
-	sKey := rclause.Lhs // possibly nil
-	var sValue, sExtra syntax.Expr
-	if p, _ := sKey.(*syntax.ListExpr); p != nil {
-		if len(p.ElemList) < 2 {
-			check.error(s, InvalidSyntaxTree, "invalid lhs in range clause")
-			return
-		}
-		// len(p.ElemList) >= 2
-		sKey = p.ElemList[0]
-		sValue = p.ElemList[1]
-		if len(p.ElemList) > 2 {
-			// delay error reporting until we know more
-			sExtra = p.ElemList[2]
-		}
-	}
-	isDef := rclause.Def
-	rangeVar := rclause.X
-	noNewVarPos := s
-
-	// Do not use rclause anymore.
-	rclause = nil
-
-	// Everything from here on is shared between cmd/compile/internal/types2 and go/types.
-
-	// check expression to iterate over
-	var x operand
-	check.expr(nil, &x, rangeVar)
-
-	// determine key/value types
-	var key, val Type
-	if x.mode != invalid {
-		// Ranging over a type parameter is permitted if it has a core type.
-		k, v, cause, ok := rangeKeyVal(x.typ, func(v goVersion) bool {
-			return check.allowVersion(v)
-		})
-		switch {
-		case !ok && cause != "":
-			check.softErrorf(&x, InvalidRangeExpr, "cannot range over %s: %s", &x, cause)
-		case !ok:
-			check.softErrorf(&x, InvalidRangeExpr, "cannot range over %s", &x)
-		case k == nil && sKey != nil:
-			check.softErrorf(sKey, InvalidIterVar, "range over %s permits no iteration variables", &x)
-		case v == nil && sValue != nil:
-			check.softErrorf(sValue, InvalidIterVar, "range over %s permits only one iteration variable", &x)
-		case sExtra != nil:
-			check.softErrorf(sExtra, InvalidIterVar, "range clause permits at most two iteration variables")
-		}
-		key, val = k, v
-	}
-
-	// Open the for-statement block scope now, after the range clause.
-	// Iteration variables declared with := need to go in this scope (was go.dev/issue/51437).
-	check.openScope(s, "range")
-	defer check.closeScope()
-
-	// check assignment to/declaration of iteration variables
-	// (irregular assignment, cannot easily map to existing assignment checks)
-
-	// lhs expressions and initialization value (rhs) types
-	lhs := [2]Expr{sKey, sValue} // sKey, sValue may be nil
-	rhs := [2]Type{key, val}     // key, val may be nil
-
-	rangeOverInt := isInteger(x.typ)
-
-	if isDef {
-		// short variable declaration
-		var vars []*Var
-		for i, lhs := range lhs {
-			if lhs == nil {
-				continue
-			}
-
-			// determine lhs variable
-			var obj *Var
-			if ident, _ := lhs.(*identType); ident != nil {
-				// declare new variable
-				name := identName(ident)
-				obj = NewVar(ident.Pos(), check.pkg, name, nil)
-				check.recordDef(ident, obj)
-				// _ variables don't count as new variables
-				if name != "_" {
-					vars = append(vars, obj)
-				}
-			} else {
-				check.errorf(lhs, InvalidSyntaxTree, "cannot declare %s", lhs)
-				obj = NewVar(lhs.Pos(), check.pkg, "_", nil) // dummy variable
-			}
-			assert(obj.typ == nil)
-
-			// initialize lhs iteration variable, if any
-			typ := rhs[i]
-			if typ == nil || typ == Typ[Invalid] {
-				// typ == Typ[Invalid] can happen if allowVersion fails.
-				obj.typ = Typ[Invalid]
-				obj.used = true // don't complain about unused variable
-				continue
-			}
-
-			if rangeOverInt {
-				assert(i == 0) // at most one iteration variable (rhs[1] == nil or Typ[Invalid] for rangeOverInt)
-				check.initVar(obj, &x, "range clause")
-			} else {
-				var y operand
-				y.mode = value
-				y.expr = lhs // we don't have a better rhs expression to use here
-				y.typ = typ
-				check.initVar(obj, &y, "assignment") // error is on variable, use "assignment" not "range clause"
-			}
-			assert(obj.typ != nil)
-		}
-
-		// declare variables
-		if len(vars) > 0 {
-			scopePos := s.Body.Pos()
-			for _, obj := range vars {
-				check.declare(check.scope, nil /* recordDef already called */, obj, scopePos)
-			}
-		} else {
-			check.error(noNewVarPos, NoNewVar, "no new variables on left side of :=")
-		}
-	} else if sKey != nil /* lhs[0] != nil */ {
-		// ordinary assignment
-		for i, lhs := range lhs {
-			if lhs == nil {
-				continue
-			}
-
-			// assign to lhs iteration variable, if any
-			typ := rhs[i]
-			if typ == nil || typ == Typ[Invalid] {
-				continue
-			}
-
-			if rangeOverInt {
-				assert(i == 0) // at most one iteration variable (rhs[1] == nil or Typ[Invalid] for rangeOverInt)
-				check.assignVar(lhs, nil, &x, "range clause")
-				// If the assignment succeeded, if x was untyped before, it now
-				// has a type inferred via the assignment. It must be an integer.
-				// (go.dev/issues/67027)
-				if x.mode != invalid && !isInteger(x.typ) {
-					check.softErrorf(lhs, InvalidRangeExpr, "cannot use iteration variable of type %s", x.typ)
-				}
-			} else {
-				var y operand
-				y.mode = value
-				y.expr = lhs // we don't have a better rhs expression to use here
-				y.typ = typ
-				check.assignVar(lhs, nil, &y, "assignment") // error is on variable, use "assignment" not "range clause"
-			}
-		}
-	} else if rangeOverInt {
-		// If we don't have any iteration variables, we still need to
-		// check that a (possibly untyped) integer range expression x
-		// is valid.
-		// We do this by checking the assignment _ = x. This ensures
-		// that an untyped x can be converted to a value of its default
-		// type (rune or int).
-		check.assignment(&x, nil, "range clause")
-	}
-
-	check.stmt(inner, s.Body)
-}
-
-// rangeKeyVal returns the key and value type produced by a range clause
-// over an expression of type typ.
-// If allowVersion != nil, it is used to check the required language version.
-// If the range clause is not permitted, rangeKeyVal returns ok = false.
-// When ok = false, rangeKeyVal may also return a reason in cause.
-func rangeKeyVal(typ Type, allowVersion func(goVersion) bool) (key, val Type, cause string, ok bool) {
-	bad := func(cause string) (Type, Type, string, bool) {
-		return Typ[Invalid], Typ[Invalid], cause, false
-	}
-
-	orig := typ
-	switch typ := arrayPtrDeref(coreType(typ)).(type) {
-	case nil:
-		return bad("no core type")
-	case *Basic:
-		if isString(typ) {
-			return Typ[Int], universeRune, "", true // use 'rune' name
-		}
-		if isInteger(typ) {
-			if allowVersion != nil && !allowVersion(go1_22) {
-				return bad("requires go1.22 or later")
-			}
-			return orig, nil, "", true
-		}
-	case *Array:
-		return Typ[Int], typ.elem, "", true
-	case *Slice:
-		return Typ[Int], typ.elem, "", true
-	case *Map:
-		return typ.key, typ.elem, "", true
-	case *Chan:
-		if typ.dir == SendOnly {
-			return bad("receive from send-only channel")
-		}
-		return typ.elem, nil, "", true
-	case *Signature:
-		if !buildcfg.Experiment.RangeFunc && allowVersion != nil && !allowVersion(go1_23) {
-			return bad("requires go1.23 or later")
-		}
-		// check iterator arity
-		switch {
-		case typ.Params().Len() != 1:
-			return bad("func must be func(yield func(...) bool): wrong argument count")
-		case typ.Results().Len() != 0:
-			return bad("func must be func(yield func(...) bool): unexpected results")
-		}
-		assert(typ.Recv() == nil)
-		// check iterator argument type
-		cb, _ := coreType(typ.Params().At(0).Type()).(*Signature)
-		switch {
-		case cb == nil:
-			return bad("func must be func(yield func(...) bool): argument is not func")
-		case cb.Params().Len() > 2:
-			return bad("func must be func(yield func(...) bool): yield func has too many parameters")
-		case cb.Results().Len() != 1 || !isBoolean(cb.Results().At(0).Type()):
-			return bad("func must be func(yield func(...) bool): yield func does not return bool")
-		}
-		assert(cb.Recv() == nil)
-		// determine key and value types, if any
-		if cb.Params().Len() >= 1 {
-			key = cb.Params().At(0).Type()
-		}
-		if cb.Params().Len() >= 2 {
-			val = cb.Params().At(1).Type()
-		}
-		return key, val, "", true
-	}
-	return
 }

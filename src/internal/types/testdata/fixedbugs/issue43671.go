@@ -12,11 +12,11 @@ type C4 interface{ chan int | chan<- int }
 type C5[T any] interface{ ~chan T | <-chan T }
 
 func _[T any](ch T) {
-	<-ch // ERRORx `cannot receive from ch .* \(no core type\)`
+	<-ch // ERRORx `cannot receive from ch .*: no specific channel type`
 }
 
 func _[T C0](ch T) {
-	<-ch // ERROR "cannot receive from non-channel ch"
+	<-ch // ERRORx `cannot receive from ch .*: non-channel int`
 }
 
 func _[T C1](ch T) {
@@ -28,11 +28,11 @@ func _[T C2](ch T) {
 }
 
 func _[T C3](ch T) {
-	<-ch // ERRORx `cannot receive from ch .* \(no core type\)`
+	<-ch // ERRORx `cannot receive from ch .*: channels chan int and chan float32 have different element types`
 }
 
 func _[T C4](ch T) {
-	<-ch // ERROR "cannot receive from send-only channel"
+	<-ch // ERRORx `cannot receive from ch .*: send-only channel chan<- int`
 }
 
 func _[T C5[X], X any](ch T, x X) {

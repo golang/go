@@ -28,7 +28,7 @@ import (
 func NewAlias(enabled bool, pos token.Pos, pkg *types.Package, name string, rhs types.Type, tparams []*types.TypeParam) *types.TypeName {
 	if enabled {
 		tname := types.NewTypeName(pos, pkg, name, nil)
-		newAlias(tname, rhs, tparams)
+		SetTypeParams(types.NewAlias(tname, rhs), tparams)
 		return tname
 	}
 	if len(tparams) > 0 {

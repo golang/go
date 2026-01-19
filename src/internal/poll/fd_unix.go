@@ -7,7 +7,7 @@
 package poll
 
 import (
-	"internal/itoa"
+	"internal/strconv"
 	"internal/syscall/unix"
 	"io"
 	"sync/atomic"
@@ -183,16 +183,9 @@ func (fd *FD) Pread(p []byte, off int64) (int, error) {
 	if fd.IsStream && len(p) > maxRW {
 		p = p[:maxRW]
 	}
-	var (
-		n   int
-		err error
-	)
-	for {
-		n, err = syscall.Pread(fd.Sysfd, p, off)
-		if err != syscall.EINTR {
-			break
-		}
-	}
+	n, err := ignoringEINTR2(func() (int, error) {
+		return syscall.Pread(fd.Sysfd, p, off)
+	})
 	if err != nil {
 		n = 0
 	}
@@ -386,7 +379,7 @@ func (fd *FD) Write(p []byte) (int, error) {
 				// If we don't check this we will panic
 				// with slice bounds out of range.
 				// Use a more informative panic.
-				panic("invalid return from write: got " + itoa.Itoa(n) + " from a write of " + itoa.Itoa(max-nn))
+				panic("invalid return from write: got " + strconv.Itoa(n) + " from a write of " + strconv.Itoa(max-nn))
 			}
 			nn += n
 		}

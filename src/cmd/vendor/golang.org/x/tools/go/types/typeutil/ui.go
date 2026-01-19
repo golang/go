@@ -8,8 +8,6 @@ package typeutil
 
 import (
 	"go/types"
-
-	"golang.org/x/tools/internal/aliases"
 )
 
 // IntuitiveMethodSet returns the intuitive method set of a type T,
@@ -28,7 +26,7 @@ import (
 // The order of the result is as for types.MethodSet(T).
 func IntuitiveMethodSet(T types.Type, msets *MethodSetCache) []*types.Selection {
 	isPointerToConcrete := func(T types.Type) bool {
-		ptr, ok := aliases.Unalias(T).(*types.Pointer)
+		ptr, ok := types.Unalias(T).(*types.Pointer)
 		return ok && !types.IsInterface(ptr.Elem())
 	}
 

@@ -1,3 +1,7 @@
+// Copyright 2024 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 #include "textflag.h"
 
 TEXT ·EnableDIT(SB),$0-1
@@ -5,6 +9,11 @@ TEXT ·EnableDIT(SB),$0-1
     UBFX $24, R0, $1, R1
     MOVB R1, ret+0(FP)
     MSR $1, DIT
+    // TODO(roland): the SB instruction is significantly more
+    // performant when available. We should detect its availability
+    // and use it when we can.
+    DSB $7  // nsh
+    ISB $15 // sy
     RET
 
 TEXT ·DITEnabled(SB),$0-1

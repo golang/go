@@ -42,7 +42,7 @@ func (f *xcoffBiobuf) ReadAt(p []byte, off int64) (int, error) {
 // loads the Xcoff file pn from f.
 // Symbols are written into loader, and a slice of the text symbols is returned.
 func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Reader, pkg string, length int64, pn string) (textp []loader.Sym, err error) {
-	errorf := func(str string, args ...interface{}) ([]loader.Sym, error) {
+	errorf := func(str string, args ...any) ([]loader.Sym, error) {
 		return nil, fmt.Errorf("loadxcoff: %v: %v", pn, fmt.Sprintf(str, args...))
 	}
 

@@ -5,6 +5,7 @@
 package pprof
 
 import (
+	"internal/byteorder"
 	"os"
 	"unsafe"
 )
@@ -39,18 +40,13 @@ func machVMInfo(addMapping func(lo, hi, offset uint64, file, buildID string)) bo
 			// offset is usually 0.
 			addMapping(addr,
 				addr+memRegionSize,
-				read64(&info.Offset),
+				byteorder.LEUint64(info.Offset[:]),
 				regionFilename(addr),
 				"")
 			added = true
 		}
 		addr += memRegionSize
 	}
-}
-
-func read64(p *[8]byte) uint64 {
-	// all supported darwin platforms are little endian
-	return uint64(p[0]) | uint64(p[1])<<8 | uint64(p[2])<<16 | uint64(p[3])<<24 | uint64(p[4])<<32 | uint64(p[5])<<40 | uint64(p[6])<<48 | uint64(p[7])<<56
 }
 
 func regionFilename(address uint64) string {

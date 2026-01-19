@@ -206,7 +206,7 @@ func (c *Conf) Fun(entry string, blocs ...bloc) fun {
 // Bloc defines a block for Fun. The bloc name should be unique
 // across the containing Fun. entries should consist of calls to valu,
 // as well as one call to Goto, If, or Exit to specify the block kind.
-func Bloc(name string, entries ...interface{}) bloc {
+func Bloc(name string, entries ...any) bloc {
 	b := bloc{}
 	b.name = name
 	seenCtrl := false
@@ -248,6 +248,11 @@ func If(cond, sub, alt string) ctrl {
 // Exit specifies a BlockExit.
 func Exit(arg string) ctrl {
 	return ctrl{BlockExit, arg, []string{}}
+}
+
+// Ret specifies a BlockRet.
+func Ret(arg string) ctrl {
+	return ctrl{BlockRet, arg, []string{}}
 }
 
 // Eq specifies a BlockAMD64EQ.
@@ -470,7 +475,7 @@ func opcodeMap(f *Func) map[Op]int {
 	return m
 }
 
-// opcodeCounts checks that the number of opcodes listed in m agree with the
+// checkOpcodeCounts checks that the number of opcodes listed in m agree with the
 // number of opcodes that appear in the function.
 func checkOpcodeCounts(t *testing.T, f *Func, m map[Op]int) {
 	n := opcodeMap(f)

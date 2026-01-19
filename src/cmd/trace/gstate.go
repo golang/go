@@ -147,7 +147,7 @@ func (gs *gState[R]) start(ts trace.Time, resource R, ctx *traceContext) {
 			Name:         gs.startCause.name,
 			Start:        ctx.elapsed(gs.startCause.time),
 			End:          ctx.elapsed(ts),
-			FromResource: uint64(gs.startCause.resource),
+			FromResource: gs.startCause.resource,
 			ToResource:   uint64(resource),
 			FromStack:    ctx.Stack(viewerFrames(gs.startCause.stack)),
 		})
@@ -202,13 +202,13 @@ func (gs *gState[R]) syscallEnd(ts trace.Time, blocked bool, ctx *traceContext) 
 // to emit a flow event from, indicating explicitly that this goroutine was unblocked by the system.
 func (gs *gState[R]) blockedSyscallEnd(ts trace.Time, stack trace.Stack, ctx *traceContext) {
 	name := "exit blocked syscall"
-	gs.setStartCause(ts, name, trace.SyscallP, stack)
+	gs.setStartCause(ts, name, traceviewer.SyscallP, stack)
 
 	// Emit an syscall exit instant event for the "Syscall" lane.
 	ctx.Instant(traceviewer.InstantEvent{
 		Name:     name,
 		Ts:       ctx.elapsed(ts),
-		Resource: trace.SyscallP,
+		Resource: traceviewer.SyscallP,
 		Stack:    ctx.Stack(viewerFrames(stack)),
 	})
 }
@@ -228,7 +228,7 @@ func (gs *gState[R]) unblock(ts trace.Time, stack trace.Stack, resource R, ctx *
 		// TODO(mknyszek): Handle this invalidness in a more general way.
 		if _, ok := any(resource).(trace.ThreadID); !ok {
 			// Emit an unblock instant event for the "Network" lane.
-			viewerResource = trace.NetpollP
+			viewerResource = traceviewer.NetpollP
 		}
 		ctx.Instant(traceviewer.InstantEvent{
 			Name:     name,
@@ -257,6 +257,10 @@ func (gs *gState[R]) stop(ts trace.Time, stack trace.Stack, ctx *traceContext) {
 	if gs.lastStopStack != trace.NoStack {
 		stk = ctx.Stack(viewerFrames(gs.lastStopStack))
 	}
+	var endStk int
+	if stack != trace.NoStack {
+		endStk = ctx.Stack(viewerFrames(stack))
+	}
 	// Check invariants.
 	if gs.startRunningTime == 0 {
 		panic("silently broken trace or generator invariant (startRunningTime != 0) not held")
@@ -270,6 +274,7 @@ func (gs *gState[R]) stop(ts trace.Time, stack trace.Stack, ctx *traceContext) {
 		Dur:      ts.Sub(gs.startRunningTime),
 		Resource: uint64(gs.executing),
 		Stack:    stk,
+		EndStack: endStk,
 	})
 
 	// Flush completed ranges.

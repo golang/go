@@ -155,7 +155,6 @@ func TestDialError(t *testing.T) {
 
 	d := Dialer{Timeout: someTimeout}
 	for i, tt := range dialErrorTests {
-		i, tt := i, tt
 		t.Run(fmt.Sprint(i), func(t *testing.T) {
 			c, err := d.Dial(tt.network, tt.address)
 			if err == nil {
@@ -736,11 +735,6 @@ third:
 }
 
 func TestFileError(t *testing.T) {
-	switch runtime.GOOS {
-	case "windows":
-		t.Skipf("not supported on %s", runtime.GOOS)
-	}
-
 	f, err := os.CreateTemp("", "go-nettest")
 	if err != nil {
 		t.Fatal(err)

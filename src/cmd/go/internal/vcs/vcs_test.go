@@ -239,7 +239,7 @@ func TestFromDir(t *testing.T) {
 			}
 
 			wantRepoDir := filepath.Dir(dir)
-			gotRepoDir, gotVCS, err := FromDir(dir, tempDir, false)
+			gotRepoDir, gotVCS, err := FromDir(dir, tempDir)
 			if err != nil {
 				t.Errorf("FromDir(%q, %q): %v", dir, tempDir, err)
 				continue
@@ -425,6 +425,28 @@ func TestMatchGoImport(t *testing.T) {
 			path: "myitcv.io/other",
 			mi:   metaImport{Prefix: "myitcv.io", VCS: "git", RepoRoot: "https://github.com/myitcv/x"},
 		},
+		{
+			imports: []metaImport{
+				{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target", SubDir: "subdir"},
+			},
+			path: "example.com/user/foo",
+			mi:   metaImport{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target", SubDir: "subdir"},
+		},
+		{
+			imports: []metaImport{
+				{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target", SubDir: "foo/subdir"},
+			},
+			path: "example.com/user/foo",
+			mi:   metaImport{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target", SubDir: "foo/subdir"},
+		},
+		{
+			imports: []metaImport{
+				{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target", SubDir: "subdir"},
+				{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target", SubDir: ""},
+			},
+			path: "example.com/user/foo",
+			err:  errors.New("multiple meta tags match import path"),
+		},
 	}
 
 	for _, test := range tests {
@@ -481,6 +503,42 @@ func TestValidateRepoRoot(t *testing.T) {
 				want = "nil"
 			}
 			t.Errorf("validateRepoRoot(%q) = %q, want %s", test.root, err, want)
+		}
+	}
+}
+
+func TestValidateRepoSubDir(t *testing.T) {
+	tests := []struct {
+		subdir string
+		ok     bool
+	}{
+		{
+			subdir: "",
+			ok:     true,
+		},
+		{
+			subdir: "sub/dir",
+			ok:     true,
+		},
+		{
+			subdir: "/leading/slash",
+			ok:     false,
+		},
+		{
+			subdir: "-leading/hyphen",
+			ok:     false,
+		},
+	}
+
+	for _, test := range tests {
+		err := validateRepoSubDir(test.subdir)
+		ok := err == nil
+		if ok != test.ok {
+			want := "error"
+			if test.ok {
+				want = "nil"
+			}
+			t.Errorf("validateRepoSubDir(%q) = %q, want %s", test.subdir, err, want)
 		}
 	}
 }

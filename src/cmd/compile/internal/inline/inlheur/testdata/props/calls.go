@@ -134,7 +134,7 @@ func init() {
 // <endpropsdump>
 // {"Flags":0,"ParamFlags":[0],"ResultFlags":[0]}
 // callsite: calls.go:141:19|0 flagstr "" flagval 0 score -24 mask 512 maskstr "passInlinableFuncToIndCallAdj"
-// callsite: calls.go:141:19|calls.go:232:10|0 flagstr "" flagval 0 score 2 mask 0 maskstr ""
+// callsite: calls.go:141:19|calls.go:231:10|0 flagstr "" flagval 0 score 2 mask 0 maskstr ""
 // <endcallsites>
 // <endfuncpreamble>
 func T_pass_inlinable_func_to_param_feeding_indirect_call(x int) int {
@@ -159,7 +159,7 @@ func T_pass_noninlinable_func_to_param_feeding_indirect_call(x int) int {
 // <endpropsdump>
 // {"Flags":0,"ParamFlags":[32],"ResultFlags":[0]}
 // callsite: calls.go:166:25|0 flagstr "" flagval 0 score -13 mask 1024 maskstr "passInlinableFuncToNestedIndCallAdj"
-// callsite: calls.go:166:25|calls.go:237:11|0 flagstr "" flagval 0 score 2 mask 0 maskstr ""
+// callsite: calls.go:166:25|calls.go:236:11|0 flagstr "" flagval 0 score 2 mask 0 maskstr ""
 // <endcallsites>
 // <endfuncpreamble>
 func T_pass_inlinable_func_to_param_feeding_nested_indirect_call(x int) int {
@@ -178,16 +178,15 @@ func T_pass_noninlinable_func_to_param_feeding_nested_indirect_call(x int) int {
 	return callsParamNested(x, calleeNoInline)
 }
 
-// calls.go T_call_scoring_in_noninlinable_func 195 0 1
+// calls.go T_call_scoring_in_noninlinable_func 194 0 1
 // <endpropsdump>
 // {"Flags":0,"ParamFlags":[0,0],"ResultFlags":[0]}
-// callsite: calls.go:209:14|0 flagstr "CallSiteOnPanicPath" flagval 2 score 42 mask 1 maskstr "panicPathAdj"
-// callsite: calls.go:210:15|1 flagstr "CallSiteOnPanicPath" flagval 2 score 42 mask 1 maskstr "panicPathAdj"
-// callsite: calls.go:212:19|2 flagstr "" flagval 0 score -24 mask 512 maskstr "passInlinableFuncToIndCallAdj"
-// callsite: calls.go:212:19|calls.go:232:10|0 flagstr "" flagval 0 score 4 mask 0 maskstr ""
+// callsite: calls.go:208:14|0 flagstr "CallSiteOnPanicPath" flagval 2 score 42 mask 1 maskstr "panicPathAdj"
+// callsite: calls.go:209:15|1 flagstr "CallSiteOnPanicPath" flagval 2 score 42 mask 1 maskstr "panicPathAdj"
+// callsite: calls.go:211:19|2 flagstr "" flagval 0 score -24 mask 512 maskstr "passInlinableFuncToIndCallAdj"
 // <endcallsites>
 // <endfuncpreamble>
-// calls.go T_call_scoring_in_noninlinable_func.func1 212 0 1
+// calls.go T_call_scoring_in_noninlinable_func.func1 211 0 1
 // <endpropsdump>
 // {"Flags":0,"ParamFlags":[0],"ResultFlags":[0]}
 // <endcallsites>

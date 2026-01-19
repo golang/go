@@ -438,7 +438,7 @@ List:
 	// requirements of other modules.
 	//
 	// If one of those requirements pulls the version back up above the version
-	// identified by reqs.Previous, then the transitive dependencies of that that
+	// identified by reqs.Previous, then the transitive dependencies of that
 	// initially-downgraded version should no longer matter — in particular, we
 	// should not add new dependencies on module paths that nothing else in the
 	// updated module graph even requires.

@@ -97,7 +97,7 @@ func useVMMap(t *testing.T) (hi, lo uint64, retryable bool, err error) {
 		t.Logf("vmmap output: %s", out)
 		if ee, ok := cmdErr.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
 			t.Logf("%v: %v\n%s", cmd, cmdErr, ee.Stderr)
-			if testing.Short() && strings.Contains(string(ee.Stderr), "No process corpse slots currently available, waiting to get one") {
+			if testing.Short() && (strings.Contains(string(ee.Stderr), "No process corpse slots currently available, waiting to get one") || strings.Contains(string(ee.Stderr), "Failed to generate corpse from the process")) {
 				t.Skipf("Skipping knwn flake in short test mode")
 			}
 			retryable = bytes.Contains(ee.Stderr, []byte("resource shortage"))

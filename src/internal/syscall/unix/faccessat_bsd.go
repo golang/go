@@ -20,5 +20,5 @@ func faccessat(dirfd int, path string, mode uint32, flags int) error {
 	if errno != 0 {
 		return errno
 	}
-	return err
+	return nil
 }

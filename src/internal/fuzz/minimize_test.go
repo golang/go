@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build darwin || freebsd || linux || windows
+//go:build darwin || freebsd || linux || openbsd || windows
 
 package fuzz
 
@@ -132,7 +132,6 @@ func TestMinimizeInput(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			ws := &workerServer{

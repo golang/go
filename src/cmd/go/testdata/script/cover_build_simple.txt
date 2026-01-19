@@ -2,9 +2,6 @@
 
 [short] skip
 
-# Hard-wire new coverage for this test.
-env GOEXPERIMENT=coverageredesign
-
 # Build for coverage.
 go build -gcflags=-m -o example.exe -cover example/main &
 [race] go build -o examplewithrace.exe -race -cover example/main &

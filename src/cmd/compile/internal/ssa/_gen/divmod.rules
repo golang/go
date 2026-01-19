@@ -1,0 +1,235 @@
+// Copyright 2025 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Lowering of mul, div, and mod operations.
+// Runs after prove, so that prove can analyze div and mod ops
+// directly instead of these obscured expansions,
+// but before decompose builtin, so that 32-bit systems
+// can still lower 64-bit ops to 32-bit ones.
+//
+// See ../magic.go for a detailed description of these algorithms.
+// See test/codegen/divmod.go for tests.
+
+// Unsigned div and mod by power of 2 handled in generic.rules.
+// (The equivalent unsigned right shift and mask are simple enough for prove to analyze.)
+
+// Signed divide by power of 2.
+// n / c =       n >> log(c) if n >= 0
+//       = (n+c-1) >> log(c) if n < 0
+// We conditionally add c-1 by adding n>>63>>(64-log(c)) (first shift signed, second shift unsigned).
+(Div8  <t> n (Const8  [c])) && isPowerOfTwo(c) =>
+  (Rsh8x64
+    (Add8  <t> n (Rsh8Ux64  <t> (Rsh8x64  <t> n (Const64 <typ.UInt64> [ 7])) (Const64 <typ.UInt64> [int64( 8-log8(c))])))
+    (Const64 <typ.UInt64> [int64(log8(c))]))
+(Div16 <t> n (Const16 [c])) && isPowerOfTwo(c) =>
+  (Rsh16x64
+    (Add16 <t> n (Rsh16Ux64 <t> (Rsh16x64 <t> n (Const64 <typ.UInt64> [15])) (Const64 <typ.UInt64> [int64(16-log16(c))])))
+    (Const64 <typ.UInt64> [int64(log16(c))]))
+(Div32 <t> n (Const32 [c])) && isPowerOfTwo(c) =>
+  (Rsh32x64
+    (Add32 <t> n (Rsh32Ux64 <t> (Rsh32x64 <t> n (Const64 <typ.UInt64> [31])) (Const64 <typ.UInt64> [int64(32-log32(c))])))
+    (Const64 <typ.UInt64> [int64(log32(c))]))
+(Div64 <t> n (Const64 [c])) && isPowerOfTwo(c) =>
+  (Rsh64x64
+    (Add64 <t> n (Rsh64Ux64 <t> (Rsh64x64 <t> n (Const64 <typ.UInt64> [63])) (Const64 <typ.UInt64> [int64(64-log64(c))])))
+    (Const64 <typ.UInt64> [int64(log64(c))]))
+
+// Divide, not a power of 2, by strength reduction to double-width multiply and shift.
+//
+// umagicN(c) computes m, s such that N-bit unsigned divide
+//     x/c = (x*((1<<N)+m))>>N>>s = ((x*m)>>N+x)>>s
+// where the multiplies are unsigned.
+// Note that the returned m is always N+1 bits; umagicN omits the high 1<<N bit.
+// The difficult part is implementing the 2N+1-bit multiply,
+// since in general we have only a 2N-bit multiply available.
+//
+// smagic(c) computes m, s such that N-bit signed divide
+//     x/c = (x*m)>>N>>s - bool2int(x < 0).
+// Here m is an unsigned N-bit number but x is signed.
+//
+// In general the division cases are:
+//
+//  1. A signed divide where 2N ≤ the register size.
+//     This form can use the signed algorithm directly.
+//
+//  2. A signed divide where m is even.
+//     This form can use a signed double-width multiply with m/2,
+//     shifting by s-1.
+//
+//  3. A signed divide where m is odd.
+//     This form can use x*m = ((x*(m-2^N))>>N+x) with a signed multiply.
+//     Since intN(m) is m-2^N < 0, the product and x have different signs,
+//     so there can be no overflow on the addition.
+//
+//  4. An unsigned divide where we know x < 1<<(N-1).
+//     This form can use the signed algorithm without the bool2int fixup,
+//     and since we know the product is only 2N-1 bits, we can use an
+//     unsigned multiply to obtain the high N bits directly, regardless
+//     of whether m is odd or even.
+//
+//  5. An unsigned divide where 2N+1 ≤ the register size.
+//     This form uses the unsigned algorithm with an explicit (1<<N)+m.
+//
+//  6. An unsigned divide where the N+1-bit m is even.
+//     This form can use an N-bit m/2 instead and shift one less bit.
+//
+//  7. An unsigned divide where m is odd but c is even.
+//     This form can shift once and then divide by (c/2) instead.
+//     The magic number m for c is ⌈2^k/c⌉, so we can use
+//     (m+1)/2 = ⌈2^k/(c/2)⌉ instead.
+//
+//  8. A general unsigned divide using an avg instruction.
+//     We noted above that (x*((1<<N)+m))>>N>>s = ((x*m)>>N+x)>>s.
+//     Let hi = (x*m)>>N, so we want (hi+x) >> s = avg(hi, x) >> (s-1).
+
+// Case 1. Signed divides where 2N ≤ register size.
+(Div8  <t> x (Const8  [c])) && smagicOK8(c) =>
+  (Sub8  <t>
+    (Rsh32x64 <t>
+      (Mul32 <typ.UInt32> (SignExt8to32 x) (Const32 <typ.UInt32> [int32(smagic8(c).m)]))
+      (Const64 <typ.UInt64> [8 + smagic8(c).s]))
+    (Rsh32x64 <t> (SignExt8to32  x) (Const64 <typ.UInt64> [31])))
+(Div16 <t> x (Const16 [c])) && smagicOK16(c) =>
+  (Sub16 <t>
+    (Rsh32x64 <t>
+      (Mul32 <typ.UInt32> (SignExt16to32 x) (Const32 <typ.UInt32> [int32(smagic16(c).m)]))
+      (Const64 <typ.UInt64> [16 + smagic16(c).s]))
+    (Rsh32x64 <t> (SignExt16to32 x) (Const64 <typ.UInt64> [31])))
+(Div32 <t> x (Const32 [c])) && smagicOK32(c) && config.RegSize == 8 =>
+  (Sub32 <t>
+    (Rsh64x64 <t>
+      (Mul64 <typ.UInt64> (SignExt32to64 x) (Const64 <typ.UInt64> [int64(smagic32(c).m)]))
+      (Const64 <typ.UInt64> [32 + smagic32(c).s]))
+    (Rsh64x64 <t> (SignExt32to64 x) (Const64 <typ.UInt64> [63])))
+
+// Case 2. Signed divides where m is even.
+(Div32 <t> x (Const32 [c])) && smagicOK32(c) && config.RegSize == 4 && smagic32(c).m&1 == 0 =>
+  (Sub32 <t>
+    (Rsh32x64 <t>
+      (Hmul32 <t> x (Const32 <typ.UInt32> [int32(smagic32(c).m/2)]))
+      (Const64 <typ.UInt64> [smagic32(c).s - 1]))
+    (Rsh32x64 <t> x (Const64 <typ.UInt64> [31])))
+(Div64 <t> x (Const64 [c])) && smagicOK64(c) && smagic64(c).m&1 == 0 =>
+  (Sub64 <t>
+    (Rsh64x64 <t>
+      (Hmul64 <t> x (Const64 <typ.UInt64> [int64(smagic64(c).m/2)]))
+      (Const64 <typ.UInt64> [smagic64(c).s - 1]))
+    (Rsh64x64 <t> x (Const64 <typ.UInt64> [63])))
+
+// Case 3. Signed divides where m is odd.
+(Div32 <t> x (Const32 [c])) && smagicOK32(c) && config.RegSize == 4 && smagic32(c).m&1 != 0 =>
+  (Sub32 <t>
+    (Rsh32x64 <t>
+      (Add32 <t> x (Hmul32 <t> x (Const32 <typ.UInt32> [int32(smagic32(c).m)])))
+      (Const64 <typ.UInt64> [smagic32(c).s]))
+    (Rsh32x64 <t> x (Const64 <typ.UInt64> [31])))
+(Div64 <t> x (Const64 [c])) && smagicOK64(c) && smagic64(c).m&1 != 0 =>
+  (Sub64 <t>
+    (Rsh64x64 <t>
+      (Add64 <t> x (Hmul64 <t> x (Const64 <typ.UInt64> [int64(smagic64(c).m)])))
+      (Const64 <typ.UInt64> [smagic64(c).s]))
+    (Rsh64x64 <t> x (Const64 <typ.UInt64> [63])))
+
+// Case 4. Unsigned divide where x < 1<<(N-1).
+// Skip Div8u since case 5's handling is just as good.
+(Div16u <t> x (Const16 [c])) && t.IsSigned() && smagicOK16(c) =>
+  (Rsh32Ux64 <t>
+    (Mul32 <typ.UInt32> (SignExt16to32 x) (Const32 <typ.UInt32> [int32(smagic16(c).m)]))
+    (Const64 <typ.UInt64> [16 + smagic16(c).s]))
+(Div32u <t> x (Const32 [c])) && t.IsSigned() && smagicOK32(c) && config.RegSize == 8 =>
+  (Rsh64Ux64 <t>
+    (Mul64 <typ.UInt64> (SignExt32to64 x) (Const64 <typ.UInt64> [int64(smagic32(c).m)]))
+    (Const64 <typ.UInt64> [32 + smagic32(c).s]))
+(Div32u <t> x (Const32 [c])) && t.IsSigned() && smagicOK32(c) && config.RegSize == 4 =>
+  (Rsh32Ux64 <t>
+    (Hmul32u <typ.UInt32> x (Const32 <typ.UInt32> [int32(smagic32(c).m)]))
+    (Const64 <typ.UInt64> [smagic32(c).s]))
+(Div64u <t> x (Const64 [c])) && t.IsSigned() && smagicOK64(c) =>
+  (Rsh64Ux64 <t>
+    (Hmul64u <typ.UInt64> x (Const64 <typ.UInt64> [int64(smagic64(c).m)]))
+    (Const64 <typ.UInt64> [smagic64(c).s]))
+
+// Case 5. Unsigned divide where 2N+1 ≤ register size.
+(Div8u  <t> x (Const8  [c])) && umagicOK8(c) =>
+  (Trunc32to8 <t>
+    (Rsh32Ux64 <typ.UInt32>
+      (Mul32 <typ.UInt32> (ZeroExt8to32 x) (Const32 <typ.UInt32> [int32(1<<8 + umagic8(c).m)]))
+      (Const64 <typ.UInt64> [8 + umagic8(c).s])))
+(Div16u <t> x (Const16 [c])) && umagicOK16(c) && config.RegSize == 8 =>
+  (Trunc64to16 <t>
+    (Rsh64Ux64 <typ.UInt64>
+      (Mul64 <typ.UInt64> (ZeroExt16to64 x) (Const64 <typ.UInt64> [int64(1<<16 + umagic16(c).m)]))
+      (Const64 <typ.UInt64> [16 + umagic16(c).s])))
+
+// Case 6. Unsigned divide where m is even.
+(Div16u <t> x (Const16 [c])) && umagicOK16(c) && umagic16(c).m&1 == 0 =>
+  (Trunc32to16 <t>
+    (Rsh32Ux64 <typ.UInt32>
+      (Mul32 <typ.UInt32> (ZeroExt16to32 x) (Const32 <typ.UInt32> [int32(1<<15 + umagic16(c).m/2)]))
+      (Const64 <typ.UInt64> [16 + umagic16(c).s - 1])))
+(Div32u <t> x (Const32 [c])) && umagicOK32(c) && umagic32(c).m&1 == 0 && config.RegSize == 8 =>
+  (Trunc64to32 <t>
+    (Rsh64Ux64 <typ.UInt64>
+      (Mul64 <typ.UInt64> (ZeroExt32to64 x) (Const64 <typ.UInt64> [int64(1<<31 + umagic32(c).m/2)]))
+      (Const64 <typ.UInt64> [32 + umagic32(c).s - 1])))
+(Div32u <t> x (Const32 [c])) && umagicOK32(c) && umagic32(c).m&1 == 0 && config.RegSize == 4 =>
+  (Rsh32Ux64 <t>
+    (Hmul32u <typ.UInt32> x (Const32 <typ.UInt32> [int32(1<<31 + umagic32(c).m/2)]))
+    (Const64 <typ.UInt64> [umagic32(c).s - 1]))
+(Div64u <t> x (Const64 [c])) && umagicOK64(c) && umagic64(c).m&1 == 0 =>
+  (Rsh64Ux64 <t>
+    (Hmul64u <typ.UInt64> x (Const64 <typ.UInt64> [int64(1<<63 + umagic64(c).m/2)]))
+    (Const64 <typ.UInt64> [umagic64(c).s - 1]))
+
+// Case 7. Unsigned divide where c is even.
+(Div16u <t> x (Const16 [c])) && umagicOK16(c) && config.RegSize == 4 && c&1 == 0 =>
+  (Trunc32to16 <t>
+    (Rsh32Ux64 <typ.UInt32>
+      (Mul32 <typ.UInt32>
+        (Rsh32Ux64 <typ.UInt32> (ZeroExt16to32 x) (Const64 <typ.UInt64> [1]))
+        (Const32 <typ.UInt32> [int32(1<<15 + (umagic16(c).m+1)/2)]))
+      (Const64 <typ.UInt64> [16 + umagic16(c).s - 2])))
+(Div32u <t> x (Const32 [c])) && umagicOK32(c) && config.RegSize == 8 && c&1 == 0 =>
+  (Trunc64to32 <t>
+    (Rsh64Ux64 <typ.UInt64>
+      (Mul64 <typ.UInt64>
+        (Rsh64Ux64 <typ.UInt64> (ZeroExt32to64 x) (Const64 <typ.UInt64> [1]))
+        (Const64 <typ.UInt64> [int64(1<<31 + (umagic32(c).m+1)/2)]))
+      (Const64 <typ.UInt64> [32 + umagic32(c).s - 2])))
+(Div32u <t> x (Const32 [c])) && umagicOK32(c) && config.RegSize == 4 && c&1 == 0 =>
+  (Rsh32Ux64 <t>
+    (Hmul32u <typ.UInt32>
+      (Rsh32Ux64 <typ.UInt32> x (Const64 <typ.UInt64> [1]))
+      (Const32 <typ.UInt32> [int32(1<<31 + (umagic32(c).m+1)/2)]))
+    (Const64 <typ.UInt64> [umagic32(c).s - 2]))
+(Div64u <t> x (Const64 [c])) && umagicOK64(c) && c&1 == 0 =>
+  (Rsh64Ux64 <t>
+    (Hmul64u <typ.UInt64>
+      (Rsh64Ux64 <typ.UInt64> x (Const64 <typ.UInt64> [1]))
+      (Const64 <typ.UInt64> [int64(1<<63 + (umagic64(c).m+1)/2)]))
+    (Const64 <typ.UInt64> [umagic64(c).s - 2]))
+
+// Case 8. Unsigned divide using avg.
+(Div16u <t> x (Const16 [c])) && umagicOK16(c) && config.RegSize == 4 =>
+  (Trunc32to16 <t>
+    (Rsh32Ux64 <typ.UInt32>
+      (Avg32u
+        (Lsh32x64 <typ.UInt32> (ZeroExt16to32 x) (Const64 <typ.UInt64> [16]))
+        (Mul32 <typ.UInt32> (ZeroExt16to32 x) (Const32 <typ.UInt32> [int32(umagic16(c).m)])))
+      (Const64 <typ.UInt64> [16 + umagic16(c).s - 1])))
+(Div32u <t> x (Const32 [c])) && umagicOK32(c) && config.RegSize == 8 =>
+  (Trunc64to32 <t>
+    (Rsh64Ux64 <typ.UInt64>
+      (Avg64u
+        (Lsh64x64 <typ.UInt64> (ZeroExt32to64 x) (Const64 <typ.UInt64> [32]))
+        (Mul64 <typ.UInt64> (ZeroExt32to64 x) (Const64 <typ.UInt32> [int64(umagic32(c).m)])))
+      (Const64 <typ.UInt64> [32 + umagic32(c).s - 1])))
+(Div32u <t> x (Const32 [c])) && umagicOK32(c) && config.RegSize == 4 =>
+  (Rsh32Ux64 <t>
+    (Avg32u x (Hmul32u <typ.UInt32> x (Const32 <typ.UInt32> [int32(umagic32(c).m)])))
+    (Const64 <typ.UInt64> [umagic32(c).s - 1]))
+(Div64u <t> x (Const64 [c])) && umagicOK64(c) =>
+  (Rsh64Ux64 <t>
+    (Avg64u x (Hmul64u <typ.UInt64> x (Const64 <typ.UInt64> [int64(umagic64(c).m)])))
+    (Const64 <typ.UInt64> [umagic64(c).s - 1]))

@@ -7,7 +7,17 @@
 // and must have minimal dependencies.
 package chacha8rand
 
-import "internal/byteorder"
+import (
+	"internal/byteorder"
+	"internal/cpu"
+	"unsafe"
+)
+
+// Offsets into internal/cpu records for use in assembly.
+const (
+	offsetLOONG64HasLSX = unsafe.Offsetof(cpu.Loong64.HasLSX)
+	offsetRISCV64HasV   = unsafe.Offsetof(cpu.RISCV64.HasV)
+)
 
 const (
 	ctrInc = 4  // increment counter by 4 between block calls
@@ -53,10 +63,10 @@ func (s *State) Next() (uint64, bool) {
 // Init seeds the State with the given seed value.
 func (s *State) Init(seed [32]byte) {
 	s.Init64([4]uint64{
-		byteorder.LeUint64(seed[0*8:]),
-		byteorder.LeUint64(seed[1*8:]),
-		byteorder.LeUint64(seed[2*8:]),
-		byteorder.LeUint64(seed[3*8:]),
+		byteorder.LEUint64(seed[0*8:]),
+		byteorder.LEUint64(seed[1*8:]),
+		byteorder.LEUint64(seed[2*8:]),
+		byteorder.LEUint64(seed[3*8:]),
 	})
 }
 
@@ -124,9 +134,9 @@ func Marshal(s *State) []byte {
 	data := make([]byte, 6*8)
 	copy(data, "chacha8:")
 	used := (s.c/ctrInc)*chunk + s.i
-	byteorder.BePutUint64(data[1*8:], uint64(used))
+	byteorder.BEPutUint64(data[1*8:], uint64(used))
 	for i, seed := range s.seed {
-		byteorder.LePutUint64(data[(2+i)*8:], seed)
+		byteorder.LEPutUint64(data[(2+i)*8:], seed)
 	}
 	return data
 }
@@ -142,12 +152,12 @@ func Unmarshal(s *State, data []byte) error {
 	if len(data) != 6*8 || string(data[:8]) != "chacha8:" {
 		return new(errUnmarshalChaCha8)
 	}
-	used := byteorder.BeUint64(data[1*8:])
+	used := byteorder.BEUint64(data[1*8:])
 	if used > (ctrMax/ctrInc)*chunk-reseed {
 		return new(errUnmarshalChaCha8)
 	}
 	for i := range s.seed {
-		s.seed[i] = byteorder.LeUint64(data[(2+i)*8:])
+		s.seed[i] = byteorder.LEUint64(data[(2+i)*8:])
 	}
 	s.c = ctrInc * (uint32(used) / chunk)
 	block(&s.seed, &s.buf, s.c)

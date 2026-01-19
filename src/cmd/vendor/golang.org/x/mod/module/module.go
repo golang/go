@@ -96,10 +96,11 @@ package module
 // Changes to the semantics in this file require approval from rsc.
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"path"
-	"sort"
+	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -260,7 +261,7 @@ func modPathOK(r rune) bool {
 
 // importPathOK reports whether r can appear in a package import path element.
 //
-// Import paths are intermediate between module paths and file paths: we allow
+// Import paths are intermediate between module paths and file paths: we
 // disallow characters that would be confusing or ambiguous as arguments to
 // 'go get' (such as '@' and ' ' ), but allow certain characters that are
 // otherwise-unambiguous on the command line and historically used for some
@@ -657,17 +658,15 @@ func CanonicalVersion(v string) string {
 // optionally followed by a tie-breaking suffix introduced by a slash character,
 // like in "v0.0.1/go.mod".
 func Sort(list []Version) {
-	sort.Slice(list, func(i, j int) bool {
-		mi := list[i]
-		mj := list[j]
-		if mi.Path != mj.Path {
-			return mi.Path < mj.Path
+	slices.SortFunc(list, func(i, j Version) int {
+		if i.Path != j.Path {
+			return strings.Compare(i.Path, j.Path)
 		}
 		// To help go.sum formatting, allow version/file.
 		// Compare semver prefix by semver rules,
 		// file by string order.
-		vi := mi.Version
-		vj := mj.Version
+		vi := i.Version
+		vj := j.Version
 		var fi, fj string
 		if k := strings.Index(vi, "/"); k >= 0 {
 			vi, fi = vi[:k], vi[k:]
@@ -676,9 +675,9 @@ func Sort(list []Version) {
 			vj, fj = vj[:k], vj[k:]
 		}
 		if vi != vj {
-			return semver.Compare(vi, vj) < 0
+			return semver.Compare(vi, vj)
 		}
-		return fi < fj
+		return cmp.Compare(fi, fj)
 	})
 }
 
@@ -803,8 +802,8 @@ func MatchPrefixPatterns(globs, target string) bool {
 	for globs != "" {
 		// Extract next non-empty glob in comma-separated list.
 		var glob string
-		if i := strings.Index(globs, ","); i >= 0 {
-			glob, globs = globs[:i], globs[i+1:]
+		if before, after, ok := strings.Cut(globs, ","); ok {
+			glob, globs = before, after
 		} else {
 			glob, globs = globs, ""
 		}

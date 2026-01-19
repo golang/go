@@ -6,6 +6,19 @@
 // A file system can be provided by the host operating system
 // but also by other packages.
 //
+// # Path Names
+//
+// The interfaces in this package all operate on the same
+// path name syntax, regardless of the host operating system.
+//
+// Path names are UTF-8-encoded,
+// unrooted, slash-separated sequences of path elements, like “x/y/z”.
+// Path names must not contain an element that is “.” or “..” or the empty string,
+// except for the special case that the name "." may be used for the root directory.
+// Paths must not start or end with a slash: “/x” and “x/” are invalid.
+//
+// # Testing
+//
 // See the [testing/fstest] package for support with testing
 // implementations of file systems.
 package fs
@@ -41,16 +54,13 @@ type FS interface {
 // ValidPath reports whether the given path name
 // is valid for use in a call to Open.
 //
-// Path names passed to open are UTF-8-encoded,
-// unrooted, slash-separated sequences of path elements, like “x/y/z”.
-// Path names must not contain an element that is “.” or “..” or the empty string,
-// except for the special case that the name "." may be used for the root directory.
-// Paths must not start or end with a slash: “/x” and “x/” are invalid.
-//
 // Note that paths are slash-separated on all systems, even Windows.
 // Paths containing other characters such as backslash and colon
 // are accepted as valid, but those characters must never be
 // interpreted by an [FS] implementation as path element separators.
+// See the [Path Names] section for more details.
+//
+// [Path Names]: https://pkg.go.dev/io/fs#hdr-Path_Names
 func ValidPath(name string) bool {
 	if !utf8.ValidString(name) {
 		return false
@@ -129,7 +139,7 @@ type ReadDirFile interface {
 	// At the end of a directory, the error is io.EOF.
 	// (ReadDir must return io.EOF itself, not an error wrapping io.EOF.)
 	//
-	// If n <= 0, ReadDir returns all the DirEntry values from the directory
+	// If n <= 0, ReadDir returns all remaining DirEntry values from the directory
 	// in a single slice. In this case, if ReadDir succeeds (reads all the way
 	// to the end of the directory), it returns the slice and a nil error.
 	// If it encounters an error before the end of the directory,

@@ -591,6 +591,13 @@ type spcSet struct {
 
 var spcSpace []spcSet
 
+// Each architecture is allotted a distinct subspace: [Lo, Hi) for declaring its
+// arch-specific special operands.
+const (
+	SpecialOperandARM64Base = 0 << 16
+	SpecialOperandRISCVBase = 1 << 16
+)
+
 // RegisterSpecialOperands binds a pretty-printer (SPCconv) for special
 // operand numbers to a given special operand number range. Lo is inclusive,
 // hi is exclusive (valid special operands are lo through hi-1).
@@ -717,7 +724,7 @@ func AlignmentPaddingLength(pc int32, p *Prog, ctxt *Link) int {
 	// emit as many as s bytes of padding to obtain alignment
 	s := p.To.Offset
 	if s < 0 || s >= a {
-		ctxt.Diag("PCALIGNMAX 'amount' %d must be non-negative and smaller than the aligment %d\n", s, a)
+		ctxt.Diag("PCALIGNMAX 'amount' %d must be non-negative and smaller than the alignment %d\n", s, a)
 		return 0
 	}
 	if s >= a-lob {

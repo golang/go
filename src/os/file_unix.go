@@ -65,19 +65,8 @@ type file struct {
 	appendMode  bool                    // whether file is opened for appending
 }
 
-// Fd returns the integer Unix file descriptor referencing the open file.
-// If f is closed, the file descriptor becomes invalid.
-// If f is garbage collected, a finalizer may close the file descriptor,
-// making it invalid; see [runtime.SetFinalizer] for more information on when
-// a finalizer might be run. On Unix systems this will cause the [File.SetDeadline]
-// methods to stop working.
-// Because file descriptors can be reused, the returned file descriptor may
-// only be closed through the [File.Close] method of f, or by its finalizer during
-// garbage collection. Otherwise, during garbage collection the finalizer
-// may close an unrelated file descriptor with the same (reused) number.
-//
-// As an alternative, see the f.SyscallConn method.
-func (f *File) Fd() uintptr {
+// fd is the Unix implementation of Fd.
+func (f *File) fd() uintptr {
 	if f == nil {
 		return ^(uintptr(0))
 	}
@@ -94,16 +83,8 @@ func (f *File) Fd() uintptr {
 	return uintptr(f.pfd.Sysfd)
 }
 
-// NewFile returns a new File with the given file descriptor and
-// name. The returned value will be nil if fd is not a valid file
-// descriptor. On Unix systems, if the file descriptor is in
-// non-blocking mode, NewFile will attempt to return a pollable File
-// (one for which the SetDeadline methods work).
-//
-// After passing it to NewFile, fd may become invalid under the same
-// conditions described in the comments of the Fd method, and the same
-// constraints apply.
-func NewFile(fd uintptr, name string) *File {
+// newFileFromNewFile is called by [NewFile].
+func newFileFromNewFile(fd uintptr, name string) *File {
 	fdi := int(fd)
 	if fdi < 0 {
 		return nil
@@ -359,7 +340,7 @@ func (f *File) seek(offset int64, whence int) (ret int64, err error) {
 
 // Truncate changes the size of the named file.
 // If the file is a symbolic link, it changes the size of the link's target.
-// If there is an error, it will be of type *PathError.
+// If there is an error, it will be of type [*PathError].
 func Truncate(name string, size int64) error {
 	e := ignoringEINTR(func() error {
 		return syscall.Truncate(name, size)
@@ -371,7 +352,7 @@ func Truncate(name string, size int64) error {
 }
 
 // Remove removes the named file or (empty) directory.
-// If there is an error, it will be of type *PathError.
+// If there is an error, it will be of type [*PathError].
 func Remove(name string) error {
 	// System call interface forces us to know
 	// whether name is a file or directory.
@@ -490,7 +471,7 @@ func newUnixDirent(parent, name string, typ FileMode) (DirEntry, error) {
 		name:   name,
 		typ:    typ,
 	}
-	if typ != ^FileMode(0) && !testingForceReadDirLstat {
+	if typ != ^FileMode(0) {
 		return ude, nil
 	}
 

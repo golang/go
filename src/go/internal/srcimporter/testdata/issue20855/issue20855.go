@@ -4,4 +4,4 @@
 
 package issue20855
 
-func init() // "missing function body" is a soft error
+func init() // "func init must have a body" is a soft error

@@ -1,0 +1,38 @@
+!sum
+# const imm predicate(holds for both float and int|uint):
+# 0: Equal
+# 1: Less
+# 2: LessEqual
+# 4: NotEqual
+# 5: GreaterEqual
+# 6: Greater
+- go: Equal
+  constImm: 0
+  commutative: true
+  documentation: !string |-
+    // NAME returns a mask whose elements indicate whether x == y.
+- go: Less
+  constImm: 1
+  commutative: false
+  documentation: !string |-
+    // NAME returns a mask whose elements indicate whether x < y.
+- go: LessEqual
+  constImm: 2
+  commutative: false
+  documentation: !string |-
+    // NAME returns a mask whose elements indicate whether x <= y.
+- go: NotEqual
+  constImm: 4
+  commutative: true
+  documentation: !string |-
+    // NAME returns a mask whose elements indicate whether x != y.
+- go: GreaterEqual
+  constImm: 13
+  commutative: false
+  documentation: !string |-
+    // NAME returns a mask whose elements indicate whether x >= y.
+- go: Greater
+  constImm: 14
+  commutative: false
+  documentation: !string |-
+    // NAME returns a mask whose elements indicate whether x > y.

@@ -29,6 +29,9 @@ var (
 // Buffered input.
 
 // Reader implements buffering for an io.Reader object.
+// A new Reader is created by calling [NewReader] or [NewReaderSize];
+// alternatively the zero value of a Reader may be used after calling [Reset]
+// on it.
 type Reader struct {
 	buf          []byte
 	rd           io.Reader // reader provided by the client
@@ -130,9 +133,10 @@ func (b *Reader) readErr() error {
 }
 
 // Peek returns the next n bytes without advancing the reader. The bytes stop
-// being valid at the next read call. If Peek returns fewer than n bytes, it
-// also returns an error explaining why the read is short. The error is
-// [ErrBufferFull] if n is larger than b's buffer size.
+// being valid at the next read call. If necessary, Peek will read more bytes
+// into the buffer in order to make n bytes available. If Peek returns fewer
+// than n bytes, it also returns an error explaining why the read is short.
+// The error is [ErrBufferFull] if n is larger than b's buffer size.
 //
 // Calling Peek prevents a [Reader.UnreadByte] or [Reader.UnreadRune] call from succeeding
 // until the next read operation.
@@ -307,10 +311,7 @@ func (b *Reader) ReadRune() (r rune, size int, err error) {
 	if b.r == b.w {
 		return 0, 0, b.readErr()
 	}
-	r, size = rune(b.buf[b.r]), 1
-	if r >= utf8.RuneSelf {
-		r, size = utf8.DecodeRune(b.buf[b.r:b.w])
-	}
+	r, size = utf8.DecodeRune(b.buf[b.r:b.w])
 	b.r += size
 	b.lastByte = int(b.buf[b.r-1])
 	b.lastRuneSize = size
@@ -515,9 +516,11 @@ func (b *Reader) WriteTo(w io.Writer) (n int64, err error) {
 	b.lastByte = -1
 	b.lastRuneSize = -1
 
-	n, err = b.writeBuf(w)
-	if err != nil {
-		return
+	if b.r < b.w {
+		n, err = b.writeBuf(w)
+		if err != nil {
+			return
+		}
 	}
 
 	if r, ok := b.rd.(io.WriterTo); ok {

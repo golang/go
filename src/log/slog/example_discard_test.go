@@ -1,16 +1,25 @@
+// Copyright 2024 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package slog_test
 
 import (
 	"log/slog"
-	"log/slog/internal/slogtest"
 	"os"
 )
 
-func ExampleDiscardHandler() {
+func Example_discardHandler() {
+	removeTime := func(groups []string, a slog.Attr) slog.Attr {
+		if a.Key == slog.TimeKey && len(groups) == 0 {
+			return slog.Attr{}
+		}
+		return a
+	}
 	// A slog.TextHandler can output log messages.
 	logger1 := slog.New(slog.NewTextHandler(
 		os.Stdout,
-		&slog.HandlerOptions{ReplaceAttr: slogtest.RemoveTime},
+		&slog.HandlerOptions{ReplaceAttr: removeTime},
 	))
 	logger1.Info("message 1")
 

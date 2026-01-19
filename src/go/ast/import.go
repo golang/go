@@ -33,11 +33,11 @@ func SortImports(fset *token.FileSet, f *File) {
 		for j, s := range d.Specs {
 			if j > i && lineAt(fset, s.Pos()) > 1+lineAt(fset, d.Specs[j-1].End()) {
 				// j begins a new run. End this one.
-				specs = append(specs, sortSpecs(fset, f, d.Specs[i:j])...)
+				specs = append(specs, sortSpecs(fset, f, d, d.Specs[i:j])...)
 				i = j
 			}
 		}
-		specs = append(specs, sortSpecs(fset, f, d.Specs[i:])...)
+		specs = append(specs, sortSpecs(fset, f, d, d.Specs[i:])...)
 		d.Specs = specs
 
 		// Deduping can leave a blank line before the rparen; clean that up.
@@ -109,7 +109,7 @@ type cgPos struct {
 	cg   *CommentGroup
 }
 
-func sortSpecs(fset *token.FileSet, f *File, specs []Spec) []Spec {
+func sortSpecs(fset *token.FileSet, f *File, d *GenDecl, specs []Spec) []Spec {
 	// Can't short-circuit here even if specs are already sorted,
 	// since they might yet need deduplication.
 	// A lone import, however, may be safely ignored.
@@ -207,7 +207,11 @@ func sortSpecs(fset *token.FileSet, f *File, specs []Spec) []Spec {
 			deduped = append(deduped, s)
 		} else {
 			p := s.Pos()
-			fset.File(p).MergeLine(lineAt(fset, p))
+			// This function is exited early when len(specs) <= 1,
+			// so d.Rparen must be populated (d.Rparen.IsValid() == true).
+			if l := lineAt(fset, p); l != lineAt(fset, d.Rparen) {
+				fset.File(p).MergeLine(l)
+			}
 		}
 	}
 	specs = deduped
@@ -218,7 +222,7 @@ func sortSpecs(fset *token.FileSet, f *File, specs []Spec) []Spec {
 		if s.Name != nil {
 			s.Name.NamePos = pos[i].Start
 		}
-		s.Path.ValuePos = pos[i].Start
+		updateBasicLitPos(s.Path, pos[i].Start)
 		s.EndPos = pos[i].End
 		for _, g := range importComments[s] {
 			for _, c := range g.cg.List {
@@ -240,4 +244,15 @@ func sortSpecs(fset *token.FileSet, f *File, specs []Spec) []Spec {
 	})
 
 	return specs
+}
+
+// updateBasicLitPos updates lit.Pos,
+// ensuring that lit.End is displaced by the same amount.
+// (See https://go.dev/issue/76395.)
+func updateBasicLitPos(lit *BasicLit, pos token.Pos) {
+	len := lit.End() - lit.Pos()
+	lit.ValuePos = pos
+	if lit.ValueEnd.IsValid() {
+		lit.ValueEnd = pos + len
+	}
 }

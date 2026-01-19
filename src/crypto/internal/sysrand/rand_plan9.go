@@ -50,7 +50,7 @@ func read(b []byte) error {
 
 	for len(b) >= 8 {
 		if x, ok := state.Next(); ok {
-			byteorder.BePutUint64(b, x)
+			byteorder.BEPutUint64(b, x)
 			b = b[8:]
 		} else {
 			state.Refill()
@@ -59,7 +59,7 @@ func read(b []byte) error {
 	for len(b) > 0 {
 		if x, ok := state.Next(); ok {
 			var buf [8]byte
-			byteorder.BePutUint64(buf[:], x)
+			byteorder.BEPutUint64(buf[:], x)
 			n := copy(b, buf[:])
 			b = b[n:]
 		} else {

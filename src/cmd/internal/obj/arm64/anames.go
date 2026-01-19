@@ -536,5 +536,12 @@ var Anames = []string{
 	"WFI",
 	"WORD",
 	"YIELD",
+	"BTI",
+	"PACIASP",
+	"AUTIASP",
+	"PACIBSP",
+	"AUTIBSP",
+	"AUTIA1716",
+	"AUTIB1716",
 	"LAST",
 }

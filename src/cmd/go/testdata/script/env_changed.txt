@@ -1,5 +1,8 @@
 # Test query for non-defaults in the env
 
+# Go+BoringCrypto conflicts with GOFIPS140.
+[GOEXPERIMENT:boringcrypto] skip
+
 env GOROOT=./a
 env GOTOOLCHAIN=local
 env GOSUMDB=nodefault
@@ -7,6 +10,9 @@ env GOPROXY=nodefault
 env GO111MODULE=auto
 env CGO_CFLAGS=nodefault
 env CGO_CPPFLAGS=nodefault
+env GOFIPS140=latest
+[cgo] env CGO_ENABLED=0
+env GCCGO=nodefault
 
 go env -changed
 # linux output like GOTOOLCHAIN='local'
@@ -17,6 +23,9 @@ stdout 'GOPROXY=''?nodefault''?'
 stdout 'GO111MODULE=''?auto''?'
 stdout 'CGO_CFLAGS=''?nodefault''?'
 stdout 'CGO_CPPFLAGS=''?nodefault''?'
+stdout 'GOFIPS140=''?latest''?'
+[cgo] stdout 'CGO_ENABLED=''?0''?'
+stdout 'GCCGO=''?nodefault''?'
 
 go env -changed -json
 stdout '"GOTOOLCHAIN": "local"'
@@ -25,6 +34,9 @@ stdout '"GOPROXY": "nodefault"'
 stdout '"GO111MODULE": "auto"'
 stdout '"CGO_CFLAGS": "nodefault"'
 stdout '"CGO_CPPFLAGS": "nodefault"'
+stdout '"GOFIPS140": "latest"'
+[cgo] stdout '"CGO_ENABLED": "0"'
+stdout '"GCCGO": "nodefault"'
 
 [GOOS:windows] env GOOS=linux
 [!GOOS:windows] env GOOS=windows
@@ -61,9 +73,15 @@ env GOROOT=./b
 go env -changed
 ! stdout 'GOTOOLCHAIN=''?local''?'
 
+[GOOS:windows] env LocalAppData=C:\
+[GOOS:windows] env GOCACHE=C:\go-build
+[GOOS:windows] go env -changed
+[GOOS:windows] ! stdout 'GOCACHE'
+
 --  a/go.env --
 GOPROXY=s
 GOAMD64=v1
+GOFIPS140=off
 
 --  b/go.env --
 GOTOOLCHAIN=local

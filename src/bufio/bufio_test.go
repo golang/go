@@ -1149,7 +1149,7 @@ func (w errorWriterToTest) Write(p []byte) (int, error) {
 var errorWriterToTests = []errorWriterToTest{
 	{1, 0, nil, io.ErrClosedPipe, io.ErrClosedPipe},
 	{0, 1, io.ErrClosedPipe, nil, io.ErrClosedPipe},
-	{0, 0, io.ErrUnexpectedEOF, io.ErrClosedPipe, io.ErrClosedPipe},
+	{0, 0, io.ErrUnexpectedEOF, io.ErrClosedPipe, io.ErrUnexpectedEOF},
 	{0, 1, io.EOF, nil, nil},
 }
 

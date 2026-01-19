@@ -105,9 +105,13 @@ func (rw *ResponseRecorder) writeHeader(b []byte, str string) {
 // Write implements http.ResponseWriter. The data in buf is written to
 // rw.Body, if not nil.
 func (rw *ResponseRecorder) Write(buf []byte) (int, error) {
+	// Record the write, even if we're going to return an error.
 	rw.writeHeader(buf, "")
 	if rw.Body != nil {
 		rw.Body.Write(buf)
+	}
+	if !bodyAllowedForStatus(rw.Code) {
+		return 0, http.ErrBodyNotAllowed
 	}
 	return len(buf), nil
 }
@@ -115,11 +119,29 @@ func (rw *ResponseRecorder) Write(buf []byte) (int, error) {
 // WriteString implements [io.StringWriter]. The data in str is written
 // to rw.Body, if not nil.
 func (rw *ResponseRecorder) WriteString(str string) (int, error) {
+	// Record the write, even if we're going to return an error.
 	rw.writeHeader(nil, str)
 	if rw.Body != nil {
 		rw.Body.WriteString(str)
 	}
+	if !bodyAllowedForStatus(rw.Code) {
+		return 0, http.ErrBodyNotAllowed
+	}
 	return len(str), nil
+}
+
+// bodyAllowedForStatus reports whether a given response status code
+// permits a body. See RFC 7230, section 3.3.
+func bodyAllowedForStatus(status int) bool {
+	switch {
+	case status >= 100 && status <= 199:
+		return false
+	case status == 204:
+		return false
+	case status == 304:
+		return false
+	}
+	return true
 }
 
 func checkWriteHeaderCode(code int) {
@@ -207,7 +229,7 @@ func (rw *ResponseRecorder) Result() *http.Response {
 	if trailers, ok := rw.snapHeader["Trailer"]; ok {
 		res.Trailer = make(http.Header, len(trailers))
 		for _, k := range trailers {
-			for _, k := range strings.Split(k, ",") {
+			for k := range strings.SplitSeq(k, ",") {
 				k = http.CanonicalHeaderKey(textproto.TrimString(k))
 				if !httpguts.ValidTrailerHeader(k) {
 					// Ignore since forbidden by RFC 7230, section 4.1.2.

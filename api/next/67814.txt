@@ -1,8 +1,0 @@
-pkg net/http, method (*Protocols) SetHTTP1(bool) #67814
-pkg net/http, method (*Protocols) SetHTTP2(bool) #67814
-pkg net/http, method (Protocols) String() string #67814
-pkg net/http, method (Protocols) HTTP1() bool #67814
-pkg net/http, method (Protocols) HTTP2() bool #67814
-pkg net/http, type Protocols struct #67814
-pkg net/http, type Server struct, Protocols *Protocols #67814
-pkg net/http, type Transport struct, Protocols *Protocols #67814

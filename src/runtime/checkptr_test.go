@@ -35,6 +35,7 @@ func TestCheckPtr(t *testing.T) {
 		{"CheckPtrAlignmentNilPtr", ""},
 		{"CheckPtrArithmetic", "fatal error: checkptr: pointer arithmetic result points to invalid allocation\n"},
 		{"CheckPtrArithmetic2", "fatal error: checkptr: pointer arithmetic result points to invalid allocation\n"},
+		{"CheckPtrArithmeticUnsafeAdd", "fatal error: checkptr: pointer arithmetic result points to invalid allocation\n"},
 		{"CheckPtrSize", "fatal error: checkptr: converted pointer straddles multiple allocations\n"},
 		{"CheckPtrSmall", "fatal error: checkptr: pointer arithmetic computed bad pointer value\n"},
 		{"CheckPtrSliceOK", ""},
@@ -44,7 +45,6 @@ func TestCheckPtr(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.cmd, func(t *testing.T) {
 			t.Parallel()
 			got, err := testenv.CleanCmdEnv(exec.Command(exe, tc.cmd)).CombinedOutput()
@@ -87,7 +87,6 @@ func TestCheckPtr2(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.cmd, func(t *testing.T) {
 			t.Parallel()
 			got, err := testenv.CleanCmdEnv(exec.Command(exe, tc.cmd)).CombinedOutput()

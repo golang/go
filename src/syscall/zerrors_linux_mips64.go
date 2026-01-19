@@ -1744,7 +1744,7 @@ var errors = [...]string{
 	148:  "no route to host",
 	149:  "operation already in progress",
 	150:  "operation now in progress",
-	151:  "stale NFS file handle",
+	151:  "stale file handle",
 	158:  "operation canceled",
 	159:  "no medium found",
 	160:  "wrong medium type",

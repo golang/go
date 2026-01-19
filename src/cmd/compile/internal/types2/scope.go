@@ -83,6 +83,19 @@ func (s *Scope) Lookup(name string) Object {
 	return obj
 }
 
+// lookupIgnoringCase returns the objects in scope s whose names match
+// the given name ignoring case. If exported is set, only exported names
+// are returned.
+func (s *Scope) lookupIgnoringCase(name string, exported bool) []Object {
+	var matches []Object
+	for _, n := range s.Names() {
+		if (!exported || isExported(n)) && strings.EqualFold(n, name) {
+			matches = append(matches, s.Lookup(n))
+		}
+	}
+	return matches
+}
+
 // Insert attempts to insert an object obj into scope s.
 // If s already contains an alternative object alt with
 // the same name, Insert leaves s unchanged and returns alt.
@@ -204,10 +217,8 @@ func (*lazyObject) Exported() bool                     { panic("unreachable") }
 func (*lazyObject) Id() string                         { panic("unreachable") }
 func (*lazyObject) String() string                     { panic("unreachable") }
 func (*lazyObject) order() uint32                      { panic("unreachable") }
-func (*lazyObject) color() color                       { panic("unreachable") }
 func (*lazyObject) setType(Type)                       { panic("unreachable") }
 func (*lazyObject) setOrder(uint32)                    { panic("unreachable") }
-func (*lazyObject) setColor(color color)               { panic("unreachable") }
 func (*lazyObject) setParent(*Scope)                   { panic("unreachable") }
 func (*lazyObject) sameId(*Package, string, bool) bool { panic("unreachable") }
 func (*lazyObject) scopePos() syntax.Pos               { panic("unreachable") }

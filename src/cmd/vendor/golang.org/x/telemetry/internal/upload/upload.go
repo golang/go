@@ -12,11 +12,13 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"golang.org/x/telemetry/internal/telemetry"
 )
 
 var (
 	dateRE     = regexp.MustCompile(`(\d\d\d\d-\d\d-\d\d)[.]json$`)
-	dateFormat = time.DateOnly
+	dateFormat = telemetry.DateOnly
 	// TODO(rfindley): use dateFormat throughout.
 )
 
@@ -41,7 +43,7 @@ func (u *uploader) uploadReport(fname string) {
 	// TODO(rfindley): use uploadReportDate here, once we've done a gopls release.
 
 	// first make sure it is not in the future
-	today := thisInstant.Format(time.DateOnly)
+	today := thisInstant.Format(telemetry.DateOnly)
 	match := dateRE.FindStringSubmatch(fname)
 	if match == nil || len(match) < 2 {
 		u.logger.Printf("Report name %q missing date", filepath.Base(fname))
@@ -62,7 +64,7 @@ func (u *uploader) uploadReport(fname string) {
 // try to upload the report, 'true' if successful
 func (u *uploader) uploadReportContents(fname string, buf []byte) bool {
 	fdate := strings.TrimSuffix(filepath.Base(fname), ".json")
-	fdate = fdate[len(fdate)-len(time.DateOnly):]
+	fdate = fdate[len(fdate)-len(telemetry.DateOnly):]
 
 	newname := filepath.Join(u.dir.UploadDir(), fdate+".json")
 

@@ -23,6 +23,12 @@ type Builder struct {
 	buf []byte
 }
 
+// copyCheck implements a dynamic check to prevent modification after
+// copying a non-zero Builder, which would be unsafe (see #25907, #47276).
+//
+// We cannot add a noCopy field to Builder, to cause vet's copylocks
+// check to report copying, because copylocks cannot reliably
+// discriminate the zero and nonzero cases.
 func (b *Builder) copyCheck() {
 	if b.addr == nil {
 		// This hack works around a failing of Go's escape analysis

@@ -34,8 +34,8 @@ func (p *PCG) Seed(seed1, seed2 uint64) {
 // AppendBinary implements the [encoding.BinaryAppender] interface.
 func (p *PCG) AppendBinary(b []byte) ([]byte, error) {
 	b = append(b, "pcg:"...)
-	b = byteorder.BeAppendUint64(b, p.hi)
-	b = byteorder.BeAppendUint64(b, p.lo)
+	b = byteorder.BEAppendUint64(b, p.hi)
+	b = byteorder.BEAppendUint64(b, p.lo)
 	return b, nil
 }
 
@@ -51,8 +51,8 @@ func (p *PCG) UnmarshalBinary(data []byte) error {
 	if len(data) != 20 || string(data[:4]) != "pcg:" {
 		return errUnmarshalPCG
 	}
-	p.hi = byteorder.BeUint64(data[4:])
-	p.lo = byteorder.BeUint64(data[4+8:])
+	p.hi = byteorder.BEUint64(data[4:])
+	p.lo = byteorder.BEUint64(data[4+8:])
 	return nil
 }
 

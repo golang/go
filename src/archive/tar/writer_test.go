@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"errors"
+	"internal/obscuretestdata"
 	"io"
 	"io/fs"
 	"maps"
@@ -74,8 +75,9 @@ func TestWriter(t *testing.T) {
 	)
 
 	vectors := []struct {
-		file  string // Optional filename of expected output
-		tests []testFnc
+		file     string // Optional filename of expected output
+		obscured bool   // Whether file is obscured
+		tests    []testFnc
 	}{{
 		// The writer test file was produced with this command:
 		// tar (GNU tar) 1.26
@@ -151,7 +153,8 @@ func TestWriter(t *testing.T) {
 		//  bsdtar -xvf writer-big-long.tar
 		//
 		// This file is in PAX format.
-		file: "testdata/writer-big-long.tar",
+		file:     "testdata/writer-big-long.tar.base64",
+		obscured: true,
 		tests: []testFnc{
 			testHeader{Header{
 				Typeflag: TypeReg,
@@ -393,7 +396,8 @@ func TestWriter(t *testing.T) {
 					testClose{},
 				},
 			}, {
-				file: "testdata/gnu-sparse-big.tar",
+				file:     "testdata/gnu-sparse-big.tar.base64",
+				obscured: true,
 				tests: []testFnc{
 					testHeader{Header{
 						Typeflag: TypeGNUSparse,
@@ -425,7 +429,8 @@ func TestWriter(t *testing.T) {
 					testClose{nil},
 				},
 			}, {
-				file: "testdata/pax-sparse-big.tar",
+				file:     "testdata/pax-sparse-big.tar.base64",
+				obscured: true,
 				tests: []testFnc{
 					testHeader{Header{
 						Typeflag: TypeReg,
@@ -483,7 +488,7 @@ func TestWriter(t *testing.T) {
 		return x == y
 	}
 	for _, v := range vectors {
-		t.Run(path.Base(v.file), func(t *testing.T) {
+		t.Run(strings.TrimSuffix(path.Base(v.file), ".base64"), func(t *testing.T) {
 			const maxSize = 10 << 10 // 10KiB
 			buf := new(bytes.Buffer)
 			tw := NewWriter(iotest.TruncateWriter(buf, maxSize))
@@ -522,7 +527,16 @@ func TestWriter(t *testing.T) {
 			}
 
 			if v.file != "" {
-				want, err := os.ReadFile(v.file)
+				path := v.file
+				if v.obscured {
+					tf, err := obscuretestdata.DecodeToTempFile(path)
+					if err != nil {
+						t.Fatalf("obscuretestdata.DecodeToTempFile(%s): %v", path, err)
+					}
+					path = tf
+				}
+
+				want, err := os.ReadFile(path)
 				if err != nil {
 					t.Fatalf("ReadFile() = %v, want nil", err)
 				}
@@ -1342,6 +1356,7 @@ func TestWriterAddFS(t *testing.T) {
 		"emptyfolder":          {Mode: 0o755 | os.ModeDir},
 		"file.go":              {Data: []byte("hello")},
 		"subfolder/another.go": {Data: []byte("world")},
+		"symlink.go":           {Mode: 0o777 | os.ModeSymlink, Data: []byte("file.go")},
 		// Notably missing here is the "subfolder" directory. This makes sure even
 		// if we don't have a subfolder directory listed.
 	}
@@ -1370,7 +1385,7 @@ func TestWriterAddFS(t *testing.T) {
 	for _, name := range names {
 		entriesLeft--
 
-		entryInfo, err := fsys.Stat(name)
+		entryInfo, err := fsys.Lstat(name)
 		if err != nil {
 			t.Fatalf("getting entry info error: %v", err)
 		}
@@ -1382,7 +1397,11 @@ func TestWriterAddFS(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if hdr.Name != name {
+		tmpName := name
+		if entryInfo.IsDir() {
+			tmpName += "/"
+		}
+		if hdr.Name != tmpName {
 			t.Errorf("test fs has filename %v; archive header has %v",
 				name, hdr.Name)
 		}
@@ -1392,18 +1411,23 @@ func TestWriterAddFS(t *testing.T) {
 				name, entryInfo.Mode(), hdr.FileInfo().Mode())
 		}
 
-		if entryInfo.IsDir() {
-			continue
-		}
-
-		data, err := io.ReadAll(tr)
-		if err != nil {
-			t.Fatal(err)
-		}
-		origdata := fsys[name].Data
-		if string(data) != string(origdata) {
-			t.Fatalf("test fs has file content %v; archive header has %v",
-				data, origdata)
+		switch entryInfo.Mode().Type() {
+		case fs.ModeDir:
+			// No additional checks necessary.
+		case fs.ModeSymlink:
+			origtarget := string(fsys[name].Data)
+			if hdr.Linkname != origtarget {
+				t.Fatalf("test fs has link content %s; archive header %v", origtarget, hdr.Linkname)
+			}
+		default:
+			data, err := io.ReadAll(tr)
+			if err != nil {
+				t.Fatal(err)
+			}
+			origdata := fsys[name].Data
+			if string(data) != string(origdata) {
+				t.Fatalf("test fs has file content %v; archive header has %v", origdata, data)
+			}
 		}
 	}
 	if entriesLeft > 0 {

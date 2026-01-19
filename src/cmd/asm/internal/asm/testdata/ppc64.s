@@ -692,11 +692,15 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	FADDS F1, F2, F3                // ec62082a
 	DADD F1, F2                     // ec420804
 	DADD F1, F2, F3                 // ec620804
+	DADDQ F2, F4                    // fc841004
+	DADDQ F2, F4, F6                // fcc41004
 	FADDSCC F1, F2, F3              // ec62082b
 	FSUB F1, F2                     // fc420828
 	FSUB F1, F2, F3                 // fc620828
 	DSUB F1, F2                     // ec420c04
-        DSUB F1, F2, F3                 // ec620c04
+	DSUB F1, F2, F3                 // ec620c04
+	DSUBQ F2, F4                    // fc841404
+	DSUBQ F2, F4, F6                // fcc41404
 	FSUBCC F1, F2, F3               // fc620829
 	FSUBS F1, F2                    // ec420828
 	FSUBS F1, F2, F3                // ec620828
@@ -705,7 +709,9 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	FMUL F1, F2                     // fc420072
 	FMUL F1, F2, F3                 // fc620072
 	DMUL F1, F2                     // ec420044
-        DMUL F1, F2, F3                 // ec620044
+	DMUL F1, F2, F3                 // ec620044
+	DMULQ F2, F4                    // fc8400c4
+	DMULQ F2, F4, F6                // fcc400c4
 	FMULCC F1, F2, F3               // fc620073
 	FMULS F1, F2                    // ec420072
 	FMULS F1, F2, F3                // ec620072
@@ -713,7 +719,9 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	FDIV F1, F2                     // fc420824
 	FDIV F1, F2, F3                 // fc620824
 	DDIV F1, F2                     // ec420c44
-        DDIV F1, F2, F3                 // ec620c44
+	DDIV F1, F2, F3                 // ec620c44
+	DDIVQ F2, F4                    // fc841444
+	DDIVQ F2, F4, F6                // fcc41444
 	FDIVCC F1, F2, F3               // fc620825
 	FDIVS F1, F2                    // ec420824
 	FDIVS F1, F2, F3                // ec620824
@@ -780,9 +788,17 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	FCPSGN F1, F2                   // fc420810
 	FCPSGNCC F1, F2                 // fc420811
 	FCMPO F1, F2                    // fc011040
-	FCMPO F1, F2, CR0               // FCMPO F1,CR0,F2 // fc011040
+	FCMPO F1, F2, CR0               // FCMPO F1,CR0,F2  // fc011040
 	FCMPU F1, F2                    // fc011000
-	FCMPU F1, F2, CR0               // FCMPU F1,CR0,F2 // fc011000
+	FCMPU F1, F2, CR0               // FCMPU F1,CR0,F2  // fc011000
+	DCMPO F1, F2                    // ec011104
+	DCMPO F1, F2, CR0               // DCMPO F1,CR0,F2  // ec011104
+	DCMPOQ F2, F4                   // fc022104
+	DCMPOQ F2,F4, CR0               // DCMPOQ F2,CR0,F4 // fc022104
+	DCMPU F1, F2                    // ec011504
+	DCMPU F1, F2, CR0               // DCMPU F1,CR0,F2  // ec011504
+	DCMPUQ F2, F4                   // fc022504
+	DCMPUQ F2,F4, CR0               // DCMPUQ F2,CR0,F4 // fc022504
 	LVX (R3)(R4), V1                // 7c2418ce
 	LVX (R3)(R0), V1                // 7c2018ce
 	LVX (R3), V1                    // 7c2018ce

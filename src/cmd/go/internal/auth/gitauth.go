@@ -6,6 +6,7 @@
 //
 // See https://git-scm.com/docs/gitcredentials or run 'man gitcredentials' for
 // information on how to configure 'git credential'.
+
 package auth
 
 import (
@@ -81,7 +82,7 @@ func runGitAuth(client *http.Client, dir, url string) (string, http.Header, erro
 // Any of these values may be empty if parsing fails.
 func parseGitAuth(data []byte) (parsedPrefix, username, password string) {
 	prefix := new(url.URL)
-	for _, line := range strings.Split(string(data), "\n") {
+	for line := range strings.SplitSeq(string(data), "\n") {
 		key, value, ok := strings.Cut(strings.TrimSpace(line), "=")
 		if !ok {
 			continue

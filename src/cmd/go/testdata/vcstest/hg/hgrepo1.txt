@@ -1,153 +1,97 @@
 handle hg
 
-mkdir git
-cd git
+hg init
 
-env GIT_AUTHOR_NAME='Russ Cox'
-env GIT_AUTHOR_EMAIL='rsc@golang.org'
-env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
-env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
-
-git init
-
-at 2018-04-17T15:43:22-04:00
+env date=2018-04-17T15:43:22-04:00
 unquote ''
 cp stdout README
-git add README
-git commit -a -m 'empty README'
-git branch -m master
-git tag v1.2.3
+hg add README
+hg commit --user=rsc --date=$date -m 'empty README'
+hg branch tagbranch
+hg tag --user=rsc --date=$date v1.2.3
+hg update default
 
-at 2018-04-17T15:45:48-04:00
-git branch v2
-git checkout v2
+env date=2018-04-17T15:45:48-04:00
+hg branch v2
 echo 'v2'
 cp stdout v2
-git add v2
-git commit -a -m 'v2'
-git tag v2.3
-git tag v2.0.1
-git branch v2.3.4
-git tag branch-v2.3.4
+hg add v2
+hg commit --user=rsc --date=$date -m 'v2'
+hg update tagbranch
+hg tag --user=rsc --date=$date -r v2 v2.3
+hg tag --user=rsc --date=$date -r v2 v2.0.1
+hg update v2
+hg branch v2.3.4
 
-at 2018-04-17T16:00:19-04:00
+env date=2018-04-17T16:00:19-04:00
 echo 'intermediate'
 cp stdout foo.txt
-git add foo.txt
-git commit -a -m 'intermediate'
+hg add foo.txt
+hg commit --user=rsc --date=$date -m 'intermediate'
 
-at 2018-04-17T16:00:32-04:00
+env date=2018-04-17T16:00:32-04:00
 echo 'another'
 cp stdout another.txt
-git add another.txt
-git commit -a -m 'another'
-git tag v2.0.2
-git tag branch-v2
+hg add another.txt
+hg commit --user=rsc --date=$date -m 'another'
+hg update tagbranch
+hg tag --user=rsc --date=$date -r v2.3.4 v2.0.2
 
-at 2018-04-17T16:16:52-04:00
-git checkout master
-git branch v3
-git checkout v3
+env date=2018-04-17T16:16:52-04:00
+hg update default
+hg branch v3
 mkdir v3/sub/dir
 echo 'v3/sub/dir/file'
 cp stdout v3/sub/dir/file.txt
-git add v3
-git commit -a -m 'add v3/sub/dir/file.txt'
-git tag branch-v3
+hg add v3
+hg commit --user=rsc --date=$date -m 'add v3/sub/dir/file.txt'
 
-at 2018-04-17T22:23:00-04:00
-git checkout master
-git tag -a v1.2.4-annotated -m 'v1.2.4-annotated'
+env date=2018-04-17T22:23:00-04:00
+hg update default
+hg tag --user=rsc --date=$date -r v1.2.3 v1.2.4-annotated
 
-cd ..
-
-hg init
-hg convert --datesort ./git .
-rm ./git
-
-hg update -C v2
-hg branch v2
+env date=2018-06-27T12:15:24-04:00
+hg update v2
 unquote ''
 cp stdout dummy
 hg add dummy
-hg commit --user 'Russ Cox <rsc@golang.org>' --date '2018-06-27T12:15:24-04:00' -m 'dummy'
+hg commit --user=rsc --date=$date -m 'dummy'
 
-# 'hg convert' blindly stamps a tag-update commit at the end of whatever branch
-# happened to contain the last converted commit — in this case, v3. However, the
-# original vcs-test.golang.org copy of this repo had this commit on the v3
-# branch as a descendent of 'add v3/sub/dir/file.txt', so that's where we put it
-# here. That leaves the convert-repo 'update tags' commit only reachable as the
-# head of the default branch.
-hg update -r 4
-
-hg branch v3
-unquote ''
-cp stdout dummy
-hg add dummy
-hg commit --user 'Russ Cox <rsc@golang.org>' --date '2018-06-27T12:15:45-04:00' -m 'dummy'
-
+env date=2018-06-27T12:16:10-04:00
 hg update v2.3.4
 hg branch v2.3.4
 unquote ''
 cp stdout dummy
 hg add dummy
-hg commit --user 'Russ Cox <rsc@golang.org>' --date '2018-06-27T12:16:10-04:00' -m 'dummy'
+hg commit --user=rsc --date=$date -m 'dummy'
 
-hg tag --user 'Russ Cox <rsc@golang.org>' --date '2018-06-27T12:16:30-04:00' -m 'Removed tag branch-v2, branch-v3, branch-v2.3.4' --remove branch-v2 branch-v3 branch-v2.3.4
-
-# Adding commits to the above branches updates both the branch heads and the
-# corresponding bookmarks.
-# But apparently at some point it did not do so? The original copy of this repo
-# had bookmarks pointing to the base of each branch instead of the tip. 🤔
-# Either way, force the bookmarks we care about to match the original copy of
-# the repo.
-hg book v2 -r 3 --force
-hg book v2.3.4 -r 1 --force
-hg book v3 -r 5 --force
+hg book v2 -r v2.0.2 --force
+hg book v2.3.4 -r v2.0.1 --force
 
 hg log -G --debug
 
 hg tags
 cmp stdout .hg-tags
 
-	# 'hg convert' leaves an 'update tags' commit on the default branch, and that
-	# commit always uses the current date (so is not reproducible). Fortunately,
-	# that commit lands on the 'default' branch and is not tagged as 'tip', so it
-	# seems to be mostly harmless. However, because it is nondeterministic we
-	# should avoid listing it here.
-	#
-	# Unfortunately, some of our builders are still running Debian 9 “Stretch”,
-	# which shipped with a version of 'hg' that does not support 'hg branch -r'
-	# to list branches for specific versions. Although Stretch is past its
-	# end-of-life date, we need to keep the builders happy until they can be
-	# turned down (https://go.dev/issue/56414).
 hg branches
-? cmp stdout .hg-branches
-stdout 'v2\s+6:9a4f43d231ec'
-stdout 'v2.3.4\s+9:18518c07eb8e'
-stdout 'v3\s+7:a2cad8a2b1bb'
-stdout 'default\s+5:'
+cmp stdout .hg-branches
 
-# Likewise, bookmark v3 ends up on the nondeterministic commit.
 hg bookmarks
-? cmp stdout .hg-bookmarks
-stdout 'master\s+0:41964ddce118'
-stdout 'v2\s+3:8f49ee7a6ddc'
-stdout 'v2.3.4\s+1:88fde824ec8b'
-stdout 'v3\s+5:.*'
+cmp stdout .hg-bookmarks
 
--- .hg-branches --
-v2.3.4                         9:18518c07eb8e
-v3                             7:a2cad8a2b1bb
-v2                             6:9a4f43d231ec
 -- .hg-tags --
-tip                                9:18518c07eb8e
-v2.0.2                             3:8f49ee7a6ddc
-v2.3                               1:88fde824ec8b
-v2.0.1                             1:88fde824ec8b
-v1.2.4-annotated                   0:41964ddce118
-v1.2.3                             0:41964ddce118
+tip                               11:745aacc8b24d
+v2.0.2                             6:b1ed98abc268
+v2.3                               2:a546811101e1
+v2.0.1                             2:a546811101e1
+v1.2.4-annotated                   0:c0186fb00e50
+v1.2.3                             0:c0186fb00e50
+-- .hg-branches --
+v2.3.4                        11:745aacc8b24d
+v2                            10:2b5ca8689628
+default                        9:a9a2a32d1392
+v3                             8:442174d28f65
+tagbranch                      7:1a3473c317b4
 -- .hg-bookmarks --
-   master                    0:41964ddce118
-   v2                        3:8f49ee7a6ddc
-   v2.3.4                    1:88fde824ec8b
+   v2                        6:b1ed98abc268
+   v2.3.4                    2:a546811101e1

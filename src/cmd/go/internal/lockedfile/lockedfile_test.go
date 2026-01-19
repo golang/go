@@ -180,8 +180,6 @@ func TestSpuriousEDEADLK(t *testing.T) {
 	// 	P.2 unblocks and locks file B.
 	// 	P.2 unlocks file B.
 
-	testenv.MustHaveExec(t)
-
 	dirVar := t.Name() + "DIR"
 
 	if dir := os.Getenv(dirVar); dir != "" {
@@ -216,7 +214,7 @@ func TestSpuriousEDEADLK(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cmd := testenv.Command(t, os.Args[0], "-test.run=^"+t.Name()+"$")
+	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^"+t.Name()+"$")
 	cmd.Env = append(os.Environ(), fmt.Sprintf("%s=%s", dirVar, dir))
 
 	qDone := make(chan struct{})

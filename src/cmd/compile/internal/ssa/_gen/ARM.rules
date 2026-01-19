@@ -6,6 +6,7 @@
 (Add(32|64)F ...) => (ADD(F|D) ...)
 (Add32carry ...) => (ADDS ...)
 (Add32withcarry ...) => (ADC ...)
+(Add32carrywithcarry ...) => (ADCS ...)
 
 (Sub(Ptr|32|16|8) ...) => (SUB ...)
 (Sub(32|64)F ...) => (SUB(F|D) ...)
@@ -80,6 +81,7 @@
 
 // bit length
 (BitLen32 <t> x) => (RSBconst [32] (CLZ <t> x))
+(BitLen(16|8) x) => (BitLen32 (ZeroExt(16|8)to32 x))
 
 // byte swap for ARMv5
 // let (a, b, c, d) be the bytes of x from high to low
@@ -296,12 +298,12 @@
 // 4 and 128 are magic constants, see runtime/mkduff.go
 (Zero [s] {t} ptr mem)
 	&& s%4 == 0 && s > 4 && s <= 512
-	&& t.Alignment()%4 == 0 && !config.noDuffDevice =>
+	&& t.Alignment()%4 == 0 =>
 	(DUFFZERO [4 * (128 - s/4)] ptr (MOVWconst [0]) mem)
 
 // Large zeroing uses a loop
 (Zero [s] {t} ptr mem)
-	&& (s > 512 || config.noDuffDevice) || t.Alignment()%4 != 0 =>
+	&& s > 512 || t.Alignment()%4 != 0 =>
 	(LoweredZero [t.Alignment()]
 		ptr
 		(ADDconst <ptr.Type> ptr [int32(s-moveSize(t.Alignment(), config))])
@@ -336,12 +338,12 @@
 // 8 and 128 are magic constants, see runtime/mkduff.go
 (Move [s] {t} dst src mem)
 	&& s%4 == 0 && s > 4 && s <= 512
-	&& t.Alignment()%4 == 0 && !config.noDuffDevice && logLargeCopy(v, s) =>
+	&& t.Alignment()%4 == 0 && logLargeCopy(v, s) =>
 	(DUFFCOPY [8 * (128 - s/4)] dst src mem)
 
 // Large move uses a loop
 (Move [s] {t} dst src mem)
-	&& ((s > 512 || config.noDuffDevice) || t.Alignment()%4 != 0) && logLargeCopy(v, s) =>
+	&& (s > 512 || t.Alignment()%4 != 0) && logLargeCopy(v, s) =>
 	(LoweredMove [t.Alignment()]
 		dst
 		src
@@ -394,13 +396,16 @@
 // Write barrier.
 (WB ...) => (LoweredWB ...)
 
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 0 => (LoweredPanicBoundsA [kind] x y mem)
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 1 => (LoweredPanicBoundsB [kind] x y mem)
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 2 => (LoweredPanicBoundsC [kind] x y mem)
+(PanicBounds ...) => (LoweredPanicBoundsRR ...)
+(PanicExtend ...) => (LoweredPanicExtendRR ...)
 
-(PanicExtend [kind] hi lo y mem) && boundsABI(kind) == 0 => (LoweredPanicExtendA [kind] hi lo y mem)
-(PanicExtend [kind] hi lo y mem) && boundsABI(kind) == 1 => (LoweredPanicExtendB [kind] hi lo y mem)
-(PanicExtend [kind] hi lo y mem) && boundsABI(kind) == 2 => (LoweredPanicExtendC [kind] hi lo y mem)
+(LoweredPanicBoundsRR [kind] x (MOVWconst [c]) mem) => (LoweredPanicBoundsRC [kind] x {PanicBoundsC{C:int64(c)}} mem)
+(LoweredPanicBoundsRR [kind] (MOVWconst [c]) y mem) => (LoweredPanicBoundsCR [kind] {PanicBoundsC{C:int64(c)}} y mem)
+(LoweredPanicBoundsRC [kind] {p} (MOVWconst [c]) mem) => (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:int64(c), Cy:p.C}} mem)
+
+(LoweredPanicExtendRR [kind] hi lo (MOVWconst [c]) mem) => (LoweredPanicExtendRC [kind] hi lo {PanicBoundsC{C:int64(c)}} mem)
+(LoweredPanicExtendRR [kind] (MOVWconst [hi]) (MOVWconst [lo]) y mem) => (LoweredPanicBoundsCR [kind] {PanicBoundsC{C:int64(hi)<<32 + int64(uint32(lo))}} y mem)
+(LoweredPanicExtendRC [kind] {p} (MOVWconst [hi]) (MOVWconst [lo]) mem) => (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:int64(hi)<<32+int64(uint32(lo)), Cy:p.C}} mem)
 
 // Optimizations
 
@@ -1473,3 +1478,5 @@
 (MOVBUload [off] {sym} (SB) _) && symIsRO(sym) => (MOVWconst [int32(read8(sym, int64(off)))])
 (MOVHUload [off] {sym} (SB) _) && symIsRO(sym) => (MOVWconst [int32(read16(sym, int64(off), config.ctxt.Arch.ByteOrder))])
 (MOVWload [off] {sym} (SB) _) && symIsRO(sym) => (MOVWconst [int32(read32(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+(MOVBload [off] {sym} (SB) _) && symIsRO(sym) => (MOVWconst [int32(int8(read8(sym, int64(off))))])
+(MOVHload [off] {sym} (SB) _) && symIsRO(sym) => (MOVWconst [int32(int16(read16(sym, int64(off), config.ctxt.Arch.ByteOrder)))])

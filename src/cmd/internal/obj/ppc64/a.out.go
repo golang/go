@@ -311,7 +311,7 @@ var PPC64DWARFRegisters = map[int16]int16{}
 func init() {
 	// f assigns dwarfregister[from:to] = (base):(to-from+base)
 	f := func(from, to, base int16) {
-		for r := int16(from); r <= to; r++ {
+		for r := from; r <= to; r++ {
 			PPC64DWARFRegisters[r] = r - from + base
 		}
 	}
@@ -506,7 +506,13 @@ const (
 	ACRORN
 	ACRXOR
 	ADADD
+	ADADDQ
+	ADCMPO
+	ADCMPOQ
+	ADCMPU
+	ADCMPUQ
 	ADDIV
+	ADDIVQ
 	ADIVW
 	ADIVWCC
 	ADIVWVCC
@@ -516,7 +522,9 @@ const (
 	ADIVWUVCC
 	ADIVWUV
 	ADMUL
+	ADMULQ
 	ADSUB
+	ADSUBQ
 	AMODUD
 	AMODUW
 	AMODSD

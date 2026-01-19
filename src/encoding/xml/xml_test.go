@@ -640,11 +640,11 @@ func TestIssue68387(t *testing.T) {
 	if tok3, err = dec.RawToken(); err != io.EOF || tok3 != nil {
 		t.Fatalf("Missed EOF")
 	}
-	s := StartElement{Name{"", "item"}, []Attr{Attr{Name{"","b"}, "]]>"}}}
+	s := StartElement{Name{"", "item"}, []Attr{Attr{Name{"", "b"}, "]]>"}}}
 	if !reflect.DeepEqual(tok1.(StartElement), s) {
 		t.Error("Wrong start element")
 	}
-	e := EndElement{Name{"","item"}}
+	e := EndElement{Name{"", "item"}}
 	if tok2.(EndElement) != e {
 		t.Error("Wrong end element")
 	}

@@ -7,7 +7,7 @@ stdout 'fortune(\.exe)?$'
 
 go get rsc.io/fortune/v2
 go list -f '{{.Target}}' rsc.io/fortune/v2
-! stdout v2
+! stdout 'v2(\.exe)?$'
 stdout 'fortune(\.exe)?$'
 
 -- go.mod --

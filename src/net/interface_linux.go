@@ -129,22 +129,14 @@ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
 	if err != nil {
 		return nil, os.NewSyscallError("parsenetlinkmessage", err)
 	}
-	var ift []Interface
-	if ifi == nil {
-		var err error
-		ift, err = interfaceTable(0)
-		if err != nil {
-			return nil, err
-		}
-	}
-	ifat, err := addrTable(ift, ifi, msgs)
+	ifat, err := addrTable(ifi, msgs)
 	if err != nil {
 		return nil, err
 	}
 	return ifat, nil
 }
 
-func addrTable(ift []Interface, ifi *Interface, msgs []syscall.NetlinkMessage) ([]Addr, error) {
+func addrTable(ifi *Interface, msgs []syscall.NetlinkMessage) ([]Addr, error) {
 	var ifat []Addr
 loop:
 	for _, m := range msgs {
@@ -153,14 +145,7 @@ loop:
 			break loop
 		case syscall.RTM_NEWADDR:
 			ifam := (*syscall.IfAddrmsg)(unsafe.Pointer(&m.Data[0]))
-			if len(ift) != 0 || ifi.Index == int(ifam.Index) {
-				if len(ift) != 0 {
-					var err error
-					ifi, err = interfaceByIndex(ift, int(ifam.Index))
-					if err != nil {
-						return nil, err
-					}
-				}
+			if ifi == nil || ifi.Index == int(ifam.Index) {
 				attrs, err := syscall.ParseNetlinkRouteAttr(&m)
 				if err != nil {
 					return nil, os.NewSyscallError("parsenetlinkrouteattr", err)

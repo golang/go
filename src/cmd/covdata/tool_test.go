@@ -9,7 +9,6 @@ import (
 	"flag"
 	"fmt"
 	"internal/coverage/pods"
-	"internal/goexperiment"
 	"internal/testenv"
 	"log"
 	"os"
@@ -150,9 +149,6 @@ const debugWorkDir = false
 
 func TestCovTool(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
-	if !goexperiment.CoverageRedesign {
-		t.Skipf("stubbed out due to goexperiment.CoverageRedesign=false")
-	}
 	dir := tempDir(t)
 	if testing.Short() {
 		t.Skip()

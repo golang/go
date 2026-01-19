@@ -3,8 +3,8 @@
 // license that can be found in the LICENSE file.
 
 // Package flate implements the DEFLATE compressed data format, described in
-// RFC 1951.  The gzip and zlib packages implement access to DEFLATE-based file
-// formats.
+// RFC 1951.  The [compress/gzip] and [compress/zlib] packages implement access
+// to DEFLATE-based file formats.
 package flate
 
 import (
@@ -256,7 +256,7 @@ func (h *huffmanDecoder) init(lengths []int) bool {
 }
 
 // The actual read interface needed by [NewReader].
-// If the passed in io.Reader does not also have ReadByte,
+// If the passed in [io.Reader] does not also have ReadByte,
 // the [NewReader] will introduce its own buffering.
 type Reader interface {
 	io.Reader
@@ -817,10 +817,10 @@ func NewReader(r io.Reader) io.ReadCloser {
 }
 
 // NewReaderDict is like [NewReader] but initializes the reader
-// with a preset dictionary. The returned [Reader] behaves as if
+// with a preset dictionary. The returned reader behaves as if
 // the uncompressed data stream started with the given dictionary,
 // which has already been read. NewReaderDict is typically used
-// to read data compressed by NewWriterDict.
+// to read data compressed by [NewWriterDict].
 //
 // The ReadCloser returned by NewReaderDict also implements [Resetter].
 func NewReaderDict(r io.Reader, dict []byte) io.ReadCloser {

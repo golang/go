@@ -35,7 +35,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 		return false
 
 	case value:
-		if sig, _ := under(x.typ).(*Signature); sig != nil && sig.TypeParams().Len() > 0 {
+		if sig, _ := x.typ.Underlying().(*Signature); sig != nil && sig.TypeParams().Len() > 0 {
 			// function instantiation
 			return true
 		}
@@ -50,7 +50,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 	// ordinary index expression
 	valid := false
 	length := int64(-1) // valid if >= 0
-	switch typ := under(x.typ).(type) {
+	switch typ := x.typ.Underlying().(type) {
 	case *Basic:
 		if isString(typ) {
 			valid = true
@@ -73,7 +73,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 		x.typ = typ.elem
 
 	case *Pointer:
-		if typ, _ := under(typ.base).(*Array); typ != nil {
+		if typ, _ := typ.base.Underlying().(*Array); typ != nil {
 			valid = true
 			length = typ.len
 			x.mode = variable
@@ -124,7 +124,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 					mode = value
 				}
 			case *Pointer:
-				if t, _ := under(t.base).(*Array); t != nil {
+				if t, _ := t.base.Underlying().(*Array); t != nil {
 					l = t.len
 					e = t.elem
 				}
@@ -183,7 +183,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 	}
 
 	if !valid {
-		check.errorf(e.Pos(), NonSliceableOperand, invalidOp+"cannot index %s", x)
+		check.errorf(e.Pos(), NonSliceableOperand, "cannot index %s", x)
 		check.use(e.Index)
 		x.mode = invalid
 		return false
@@ -213,11 +213,49 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
 		return
 	}
 
+	// determine common underlying type cu
+	var ct, cu Type // type and respective common underlying type
+	var hasString bool
+	for t, u := range typeset(x.typ) {
+		if u == nil {
+			check.errorf(x, NonSliceableOperand, "cannot slice %s: no specific type in %s", x, x.typ)
+			cu = nil
+			break
+		}
+
+		// Treat strings like byte slices but remember that we saw a string.
+		if isString(u) {
+			u = NewSlice(universeByte)
+			hasString = true
+		}
+
+		// If this is the first type we're seeing, we're done.
+		if cu == nil {
+			ct, cu = t, u
+			continue
+		}
+
+		// Otherwise, the current type must have the same underlying type as all previous types.
+		if !Identical(cu, u) {
+			check.errorf(x, NonSliceableOperand, "cannot slice %s: %s and %s have different underlying types", x, ct, t)
+			cu = nil
+			break
+		}
+	}
+	if hasString {
+		// If we saw a string, proceed with string type,
+		// but don't go from untyped string to string.
+		cu = Typ[String]
+		if !isTypeParam(x.typ) {
+			cu = x.typ.Underlying() // untyped string remains untyped
+		}
+	}
+
 	valid := false
 	length := int64(-1) // valid if >= 0
-	switch u := coreString(x.typ).(type) {
+	switch u := cu.(type) {
 	case nil:
-		check.errorf(x, NonSliceableOperand, invalidOp+"cannot slice %s: %s has no core type", x, x.typ)
+		// error reported above
 		x.mode = invalid
 		return
 
@@ -247,14 +285,14 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
 		valid = true
 		length = u.len
 		if x.mode != variable {
-			check.errorf(x, NonSliceableOperand, invalidOp+"%s (slice of unaddressable value)", x)
+			check.errorf(x, NonSliceableOperand, "cannot slice unaddressable value %s", x)
 			x.mode = invalid
 			return
 		}
 		x.typ = &Slice{elem: u.elem}
 
 	case *Pointer:
-		if u, _ := under(u.base).(*Array); u != nil {
+		if u, _ := u.base.Underlying().(*Array); u != nil {
 			valid = true
 			length = u.len
 			x.typ = &Slice{elem: u.elem}
@@ -266,7 +304,7 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
 	}
 
 	if !valid {
-		check.errorf(x, NonSliceableOperand, invalidOp+"cannot slice %s", x)
+		check.errorf(x, NonSliceableOperand, "cannot slice %s", x)
 		x.mode = invalid
 		return
 	}

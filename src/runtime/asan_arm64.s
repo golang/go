@@ -58,19 +58,47 @@ TEXT	runtime·asanregisterglobals(SB), NOSPLIT, $0-16
 	MOVD	$__asan_register_globals_go(SB), FARG
 	JMP	asancall<>(SB)
 
+// func runtime·lsanregisterrootregion(addr unsafe.Pointer, n uintptr)
+TEXT	runtime·lsanregisterrootregion(SB), NOSPLIT, $0-16
+	MOVD	addr+0(FP), RARG0
+	MOVD	n+8(FP), RARG1
+	// void __lsan_register_root_region_go(void *addr, uintptr_t n);
+	MOVD	$__lsan_register_root_region_go(SB), FARG
+	JMP	asancall<>(SB)
+
+// func runtime·lsanunregisterrootregion(addr unsafe.Pointer, n uintptr)
+TEXT	runtime·lsanunregisterrootregion(SB), NOSPLIT, $0-16
+	MOVD	addr+0(FP), RARG0
+	MOVD	n+8(FP), RARG1
+	// void __lsan_unregister_root_region_go(void *addr, uintptr_t n);
+	MOVD	$__lsan_unregister_root_region_go(SB), FARG
+	JMP	asancall<>(SB)
+
+// func runtime·lsandoleakcheck()
+TEXT	runtime·lsandoleakcheck(SB), NOSPLIT, $0-0
+	// void __lsan_do_leak_check_go(void);
+	MOVD	$__lsan_do_leak_check_go(SB), FARG
+	JMP	asancall<>(SB)
+
 // Switches SP to g0 stack and calls (FARG). Arguments already set.
 TEXT	asancall<>(SB), NOSPLIT, $0-0
 	MOVD	RSP, R19                  // callee-saved
-	CBZ	g, g0stack                // no g, still on a system stack
+	CBZ	g, call                   // no g, still on a system stack
 	MOVD	g_m(g), R10
+
+	// Switch to g0 stack if we aren't already on g0 or gsignal.
+	MOVD	m_gsignal(R10), R11
+	CMP	R11, g
+	BEQ	call
+
 	MOVD	m_g0(R10), R11
 	CMP	R11, g
-	BEQ	g0stack
+	BEQ	call
 
 	MOVD	(g_sched+gobuf_sp)(R11), R5
 	MOVD	R5, RSP
 
-g0stack:
+call:
 	BL	(FARG)
 	MOVD	R19, RSP
 	RET

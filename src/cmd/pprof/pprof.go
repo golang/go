@@ -24,6 +24,7 @@ import (
 	"sync"
 	"time"
 
+	"cmd/internal/disasm"
 	"cmd/internal/objfile"
 	"cmd/internal/telemetry/counter"
 
@@ -162,7 +163,7 @@ func adjustURL(source string, duration, timeout time.Duration) (string, time.Dur
 // (instead of invoking GNU binutils).
 type objTool struct {
 	mu          sync.Mutex
-	disasmCache map[string]*objfile.Disasm
+	disasmCache map[string]*disasm.Disasm
 }
 
 func (*objTool) Open(name string, start, limit, offset uint64, relocationSymbol string) (driver.ObjFile, error) {
@@ -202,11 +203,11 @@ func (t *objTool) Disasm(file string, start, end uint64, intelSyntax bool) ([]dr
 	return asm, nil
 }
 
-func (t *objTool) cachedDisasm(file string) (*objfile.Disasm, error) {
+func (t *objTool) cachedDisasm(file string) (*disasm.Disasm, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if t.disasmCache == nil {
-		t.disasmCache = make(map[string]*objfile.Disasm)
+		t.disasmCache = make(map[string]*disasm.Disasm)
 	}
 	d := t.disasmCache[file]
 	if d != nil {
@@ -216,7 +217,7 @@ func (t *objTool) cachedDisasm(file string) (*objfile.Disasm, error) {
 	if err != nil {
 		return nil, err
 	}
-	d, err = f.Disasm()
+	d, err = disasm.DisasmForFile(f)
 	f.Close()
 	if err != nil {
 		return nil, err

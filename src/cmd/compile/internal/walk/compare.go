@@ -317,8 +317,17 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 }
 
 func walkCompareInterface(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
+	swap := n.X.Op() != ir.OCONVIFACE && n.Y.Op() == ir.OCONVIFACE
 	n.Y = cheapExpr(n.Y, init)
 	n.X = cheapExpr(n.X, init)
+	if swap {
+		// Put the concrete type first in the comparison.
+		// This passes a constant type (itab) to efaceeq (ifaceeq)
+		// which is easier to match against in rewrite rules.
+		// See issue 70738.
+		n.X, n.Y = n.Y, n.X
+	}
+
 	eqtab, eqdata := compare.EqInterface(n.X, n.Y)
 	var cmp ir.Node
 	if n.Op() == ir.OEQ {

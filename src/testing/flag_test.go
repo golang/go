@@ -25,7 +25,6 @@ func TestFlag(t *testing.T) {
 	testenv.MustHaveExec(t)
 
 	for _, flag := range []string{"", "-test.v", "-test.v=test2json"} {
-		flag := flag
 		t.Run(flag, func(t *testing.T) {
 			t.Parallel()
 			cmd := exec.Command(testenv.Executable(t), "-test.run=^TestFlag$", "-test_flag_arg="+flag)

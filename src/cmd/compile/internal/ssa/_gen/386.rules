@@ -7,6 +7,7 @@
 (Add(32|64)F ...) => (ADDS(S|D) ...)
 (Add32carry ...) => (ADDLcarry ...)
 (Add32withcarry ...) => (ADCL ...)
+(Add32carrywithcarry ...) => (ADCLcarry ...)
 
 (Sub(Ptr|32|16|8) ...) => (SUBL ...)
 (Sub(32|64)F ...) => (SUBS(S|D) ...)
@@ -246,7 +247,7 @@
 // Medium copying uses a duff device.
 (Move [s] dst src mem)
 	&& s > 8 && s <= 4*128 && s%4 == 0
-	&& !config.noDuffDevice && logLargeCopy(v, s) =>
+	&& logLargeCopy(v, s) =>
 	(DUFFCOPY [10*(128-s/4)] dst src mem)
 // 10 and 128 are magic constants.  10 is the number of bytes to encode:
 //	MOVL	(SI), CX
@@ -256,7 +257,7 @@
 // and 128 is the number of such blocks. See src/runtime/duff_386.s:duffcopy.
 
 // Large copying uses REP MOVSL.
-(Move [s] dst src mem) && (s > 4*128 || config.noDuffDevice) && s%4 == 0 && logLargeCopy(v, s) =>
+(Move [s] dst src mem) && s > 4*128 && s%4 == 0 && logLargeCopy(v, s) =>
 	(REPMOVSL dst src (MOVLconst [int32(s/4)]) mem)
 
 // Lowering Zero instructions
@@ -299,8 +300,7 @@
 
 // Medium zeroing uses a duff device.
 (Zero [s] destptr mem)
-  && s > 16 && s <= 4*128 && s%4 == 0
-  && !config.noDuffDevice =>
+  && s > 16 && s <= 4*128 && s%4 == 0 =>
 	(DUFFZERO [1*(128-s/4)] destptr (MOVLconst [0]) mem)
 // 1 and 128 are magic constants.  1 is the number of bytes to encode STOSL.
 // 128 is the number of STOSL instructions in duffzero.
@@ -308,7 +308,7 @@
 
 // Large zeroing uses REP STOSQ.
 (Zero [s] destptr mem)
-  && (s > 4*128 || (config.noDuffDevice && s > 16))
+  && s > 4*128
   && s%4 == 0 =>
 	(REPSTOSL destptr (MOVLconst [int32(s/4)]) (MOVLconst [0]) mem)
 
@@ -364,13 +364,16 @@
 // Write barrier.
 (WB ...) => (LoweredWB ...)
 
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 0 => (LoweredPanicBoundsA [kind] x y mem)
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 1 => (LoweredPanicBoundsB [kind] x y mem)
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 2 => (LoweredPanicBoundsC [kind] x y mem)
+(PanicBounds ...) => (LoweredPanicBoundsRR ...)
+(PanicExtend ...) => (LoweredPanicExtendRR ...)
 
-(PanicExtend [kind] hi lo y mem) && boundsABI(kind) == 0 => (LoweredPanicExtendA [kind] hi lo y mem)
-(PanicExtend [kind] hi lo y mem) && boundsABI(kind) == 1 => (LoweredPanicExtendB [kind] hi lo y mem)
-(PanicExtend [kind] hi lo y mem) && boundsABI(kind) == 2 => (LoweredPanicExtendC [kind] hi lo y mem)
+(LoweredPanicBoundsRR [kind] x (MOVLconst [c]) mem) => (LoweredPanicBoundsRC [kind] x {PanicBoundsC{C:int64(c)}} mem)
+(LoweredPanicBoundsRR [kind] (MOVLconst [c]) y mem) => (LoweredPanicBoundsCR [kind] {PanicBoundsC{C:int64(c)}} y mem)
+(LoweredPanicBoundsRC [kind] {p} (MOVLconst [c]) mem) => (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:int64(c), Cy:p.C}} mem)
+
+(LoweredPanicExtendRR [kind] hi lo (MOVLconst [c]) mem) => (LoweredPanicExtendRC [kind] hi lo {PanicBoundsC{C:int64(c)}} mem)
+(LoweredPanicExtendRR [kind] (MOVLconst [hi]) (MOVLconst [lo]) y mem) => (LoweredPanicBoundsCR [kind] {PanicBoundsC{C:int64(hi)<<32 + int64(uint32(lo))}} y mem)
+(LoweredPanicExtendRC [kind] {p} (MOVLconst [hi]) (MOVLconst [lo]) mem) => (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:int64(hi)<<32+int64(uint32(lo)), Cy:p.C}} mem)
 
 // ***************************
 // Above: lowering rules
@@ -940,3 +943,5 @@
 (MOVBload [off] {sym} (SB) _) && symIsRO(sym) => (MOVLconst [int32(read8(sym, int64(off)))])
 (MOVWload [off] {sym} (SB) _) && symIsRO(sym) => (MOVLconst [int32(read16(sym, int64(off), config.ctxt.Arch.ByteOrder))])
 (MOVLload [off] {sym} (SB) _) && symIsRO(sym) => (MOVLconst [int32(read32(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+(MOVBLSXload [off] {sym} (SB) _) && symIsRO(sym) => (MOVLconst [int32(int8(read8(sym, int64(off))))])
+(MOVWLSXload [off] {sym} (SB) _) && symIsRO(sym) => (MOVLconst [int32(int16(read16(sym, int64(off), config.ctxt.Arch.ByteOrder)))])

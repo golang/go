@@ -70,8 +70,6 @@ func TestStdlib(t *testing.T) {
 	var wg sync.WaitGroup
 
 	for dir := range dirFiles {
-		dir := dir
-
 		cpulimit <- struct{}{}
 		wg.Add(1)
 		go func() {
@@ -334,6 +332,10 @@ func TestStdFixed(t *testing.T) {
 		"issue49814.go",  // go/types does not have constraints on array size
 		"issue56103.go",  // anonymous interface cycles; will be a type checker error in 1.22
 		"issue52697.go",  // go/types does not have constraints on stack size
+		"issue68054.go",  // this test requires GODEBUG=gotypesalias=1
+		"issue68580.go",  // this test requires GODEBUG=gotypesalias=1
+		"issue73309.go",  // this test requires GODEBUG=gotypesalias=1
+		"issue73309b.go", // this test requires GODEBUG=gotypesalias=1
 
 		// These tests requires runtime/cgo.Incomplete, which is only available on some platforms.
 		// However, go/types does not know about build constraints.
@@ -356,7 +358,11 @@ func TestStdKen(t *testing.T) {
 
 // Package paths of excluded packages.
 var excluded = map[string]bool{
-	"builtin": true,
+	"builtin":                       true,
+	"cmd/compile/internal/ssa/_gen": true,
+	"runtime/_mkmalloc":             true,
+	"simd/archsimd/_gen/simdgen":    true,
+	"simd/archsimd/_gen/unify":      true,
 }
 
 // printPackageMu synchronizes the printing of type-checked package files in

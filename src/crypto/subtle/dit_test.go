@@ -15,6 +15,8 @@ func TestWithDataIndependentTiming(t *testing.T) {
 		t.Skip("CPU does not support DIT")
 	}
 
+	ditAlreadyEnabled := sys.DITEnabled()
+
 	WithDataIndependentTiming(func() {
 		if !sys.DITEnabled() {
 			t.Fatal("dit not enabled within WithDataIndependentTiming closure")
@@ -31,7 +33,7 @@ func TestWithDataIndependentTiming(t *testing.T) {
 		}
 	})
 
-	if sys.DITEnabled() {
+	if !ditAlreadyEnabled && sys.DITEnabled() {
 		t.Fatal("dit not unset after returning from WithDataIndependentTiming closure")
 	}
 }
@@ -41,12 +43,14 @@ func TestDITPanic(t *testing.T) {
 		t.Skip("CPU does not support DIT")
 	}
 
+	ditAlreadyEnabled := sys.DITEnabled()
+
 	defer func() {
 		e := recover()
 		if e == nil {
 			t.Fatal("didn't panic")
 		}
-		if sys.DITEnabled() {
+		if !ditAlreadyEnabled && sys.DITEnabled() {
 			t.Error("DIT still enabled after panic inside of WithDataIndependentTiming closure")
 		}
 	}()
@@ -57,5 +61,27 @@ func TestDITPanic(t *testing.T) {
 		}
 
 		panic("bad")
+	})
+}
+
+func TestDITGoroutineInheritance(t *testing.T) {
+	if !cpu.ARM64.HasDIT {
+		t.Skip("CPU does not support DIT")
+	}
+
+	ditAlreadyEnabled := sys.DITEnabled()
+
+	WithDataIndependentTiming(func() {
+		done := make(chan struct{})
+		go func() {
+			if !sys.DITEnabled() {
+				t.Error("DIT not enabled in new goroutine")
+			}
+			close(done)
+		}()
+		<-done
+		if !ditAlreadyEnabled && !sys.DITEnabled() {
+			t.Fatal("dit unset after returning from goroutine started in WithDataIndependentTiming closure")
+		}
 	})
 }

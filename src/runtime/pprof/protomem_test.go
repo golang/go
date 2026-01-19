@@ -118,7 +118,7 @@ func locationToStrings(loc *profile.Location, funcs []string) []string {
 	return funcs
 }
 
-// This is a regression test for https://go.dev/issue/64528 .
+// This is a regression test for https://go.dev/issue/64528.
 func TestGenericsHashKeyInPprofBuilder(t *testing.T) {
 	if asan.Enabled {
 		t.Skip("extra allocations with -asan throw off the test; see #70079")
@@ -131,7 +131,7 @@ func TestGenericsHashKeyInPprofBuilder(t *testing.T) {
 	for _, sz := range []int{128, 256} {
 		genericAllocFunc[uint32](sz / 4)
 	}
-	for _, sz := range []int{32, 64} {
+	for _, sz := range []int{64, 128} {
 		genericAllocFunc[uint64](sz / 8)
 	}
 
@@ -149,8 +149,8 @@ func TestGenericsHashKeyInPprofBuilder(t *testing.T) {
 	expected := []string{
 		"testing.tRunner;runtime/pprof.TestGenericsHashKeyInPprofBuilder;runtime/pprof.genericAllocFunc[go.shape.uint32] [1 128 0 0]",
 		"testing.tRunner;runtime/pprof.TestGenericsHashKeyInPprofBuilder;runtime/pprof.genericAllocFunc[go.shape.uint32] [1 256 0 0]",
-		"testing.tRunner;runtime/pprof.TestGenericsHashKeyInPprofBuilder;runtime/pprof.genericAllocFunc[go.shape.uint64] [1 32 0 0]",
 		"testing.tRunner;runtime/pprof.TestGenericsHashKeyInPprofBuilder;runtime/pprof.genericAllocFunc[go.shape.uint64] [1 64 0 0]",
+		"testing.tRunner;runtime/pprof.TestGenericsHashKeyInPprofBuilder;runtime/pprof.genericAllocFunc[go.shape.uint64] [1 128 0 0]",
 	}
 
 	for _, l := range expected {
@@ -227,5 +227,60 @@ func TestGenericsInlineLocations(t *testing.T) {
 	actual := strings.Join(locationToStrings(loc, nil), ";")
 	if expectedLocation != actual && expectedLocationNewInliner != actual {
 		t.Errorf("expected a location with at least 3 functions\n%s\ngot\n%s\n", expectedLocation, actual)
+	}
+}
+
+func growMap() {
+	m := make(map[int]int)
+	for i := range 512 {
+		m[i] = i
+	}
+}
+
+// Runtime frames are hidden in heap profiles.
+// This is a regression test for https://go.dev/issue/71174.
+func TestHeapRuntimeFrames(t *testing.T) {
+	previousRate := runtime.MemProfileRate
+	runtime.MemProfileRate = 1
+	defer func() {
+		runtime.MemProfileRate = previousRate
+	}()
+
+	growMap()
+
+	runtime.GC()
+	buf := bytes.NewBuffer(nil)
+	if err := WriteHeapProfile(buf); err != nil {
+		t.Fatalf("writing profile: %v", err)
+	}
+	p, err := profile.Parse(buf)
+	if err != nil {
+		t.Fatalf("profile.Parse: %v", err)
+	}
+
+	actual := profileToStrings(p)
+
+	// We must see growMap at least once.
+	foundGrowMap := false
+	for _, l := range actual {
+		if !strings.Contains(l, "runtime/pprof.growMap") {
+			continue
+		}
+		foundGrowMap = true
+
+		// Runtime frames like mapassign and map internals should be hidden.
+		if strings.Contains(l, "runtime.") {
+			t.Errorf("Sample got %s, want no runtime frames", l)
+		}
+		if strings.Contains(l, "internal/runtime/") {
+			t.Errorf("Sample got %s, want no runtime frames", l)
+		}
+		if strings.Contains(l, "mapassign") { // in case mapassign moves to a package not matching above paths.
+			t.Errorf("Sample got %s, want no mapassign frames", l)
+		}
+	}
+
+	if !foundGrowMap {
+		t.Errorf("Profile got:\n%s\nwant sample in runtime/pprof.growMap", strings.Join(actual, "\n"))
 	}
 }

@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"go/token"
 	"internal/nettrace"
+	"internal/synctest"
 	"io"
 	"log"
 	mrand "math/rand"
@@ -1549,6 +1550,72 @@ func TestTransportProxy(t *testing.T) {
 	}
 }
 
+// Issue 74633: verify that a client will not indefinitely read a response from
+// a proxy server that writes an infinite byte of stream, rather than
+// responding with 200 OK.
+func TestProxyWithInfiniteHeader(t *testing.T) {
+	defer afterTest(t)
+
+	ln := newLocalListener(t)
+	defer ln.Close()
+	cancelc := make(chan struct{})
+	defer close(cancelc)
+
+	// Simulate a malicious / misbehaving proxy that writes an unlimited number
+	// of bytes rather than responding with 200 OK.
+	go func() {
+		c, err := ln.Accept()
+		if err != nil {
+			t.Errorf("Accept: %v", err)
+			return
+		}
+		defer c.Close()
+		// Read the CONNECT request
+		br := bufio.NewReader(c)
+		cr, err := ReadRequest(br)
+		if err != nil {
+			t.Errorf("proxy server failed to read CONNECT request")
+			return
+		}
+		if cr.Method != "CONNECT" {
+			t.Errorf("unexpected method %q", cr.Method)
+			return
+		}
+
+		// Keep writing bytes until the test exits.
+		for {
+			// runtime.Gosched() is needed here. Otherwise, this test might
+			// livelock in environments like WASM, where the one single thread
+			// we have could be hogged by the infinite loop of writing bytes.
+			runtime.Gosched()
+			select {
+			case <-cancelc:
+				return
+			default:
+				c.Write([]byte("infinite stream of bytes"))
+			}
+		}
+	}()
+
+	c := &Client{
+		Transport: &Transport{
+			Proxy: func(*Request) (*url.URL, error) {
+				return url.Parse("http://" + ln.Addr().String())
+			},
+			// Limit MaxResponseHeaderBytes so the test returns quicker.
+			MaxResponseHeaderBytes: 1024,
+		},
+	}
+	req, err := NewRequest("GET", "https://golang.fake.tld/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = c.Do(req)
+	if err == nil {
+		t.Errorf("unexpected Get success")
+	}
+}
+
 func TestOnProxyConnectResponse(t *testing.T) {
 
 	var tcases = []struct {
@@ -2033,7 +2100,7 @@ func (d *countingDialer) DialContext(ctx context.Context, network, address strin
 	d.total++
 	d.live++
 
-	runtime.SetFinalizer(counted, d.decrement)
+	runtime.AddCleanup(counted, func(dd *countingDialer) { dd.decrement(nil) }, d)
 	return counted, nil
 }
 
@@ -2105,7 +2172,7 @@ func (cc *contextCounter) Track(ctx context.Context) context.Context {
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
 	cc.live++
-	runtime.SetFinalizer(counted, cc.decrement)
+	runtime.AddCleanup(counted, func(c *contextCounter) { cc.decrement(nil) }, cc)
 	return counted
 }
 
@@ -4219,53 +4286,175 @@ func TestTransportTraceGotConnH2IdleConns(t *testing.T) {
 	wantIdle("after round trip", 1)
 }
 
-func TestTransportRemovesH2ConnsAfterIdle(t *testing.T) {
-	run(t, testTransportRemovesH2ConnsAfterIdle, []testMode{http2Mode})
+// https://go.dev/issue/70515
+//
+// When the first request on a new connection fails, we do not retry the request.
+// If the first request on a connection races with IdleConnTimeout,
+// we should not fail the request.
+func TestTransportIdleConnRacesRequest(t *testing.T) {
+	// Use unencrypted HTTP/2, since the *tls.Conn interfers with our ability to
+	// block the connection closing.
+	runSynctest(t, testTransportIdleConnRacesRequest, []testMode{http1Mode, http2UnencryptedMode})
 }
-func testTransportRemovesH2ConnsAfterIdle(t *testing.T, mode testMode) {
+func testTransportIdleConnRacesRequest(t *testing.T, mode testMode) {
+	if mode == http2UnencryptedMode {
+		t.Skip("remove skip when #70515 is fixed")
+	}
+	timeout := 1 * time.Millisecond
+	trFunc := func(tr *Transport) {
+		tr.IdleConnTimeout = timeout
+	}
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	}), trFunc, optFakeNet)
+	cst.li.trackConns = true
+
+	// We want to put a connection into the pool which has never had a request made on it.
+	//
+	// Make a request and cancel it before the dial completes.
+	// Then complete the dial.
+	dialc := make(chan struct{})
+	cst.li.onDial = func() {
+		<-dialc
+	}
+	closec := make(chan struct{})
+	cst.li.onClose = func(*fakeNetConn) {
+		<-closec
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	req1c := make(chan error)
+	go func() {
+		req, _ := NewRequestWithContext(ctx, "GET", cst.ts.URL, nil)
+		resp, err := cst.c.Do(req)
+		if err == nil {
+			resp.Body.Close()
+		}
+		req1c <- err
+	}()
+	// Wait for the connection attempt to start.
+	synctest.Wait()
+	// Cancel the request.
+	cancel()
+	synctest.Wait()
+	if err := <-req1c; err == nil {
+		t.Fatal("expected request to fail, but it succeeded")
+	}
+	// Unblock the dial, placing a new, unused connection into the Transport's pool.
+	close(dialc)
+
+	// We want IdleConnTimeout to race with a new request.
+	//
+	// There's no perfect way to do this, but the following exercises the bug in #70515:
+	// Block net.Conn.Close, wait until IdleConnTimeout occurs, and make a request while
+	// the connection close is still blocked.
+	//
+	// First: Wait for IdleConnTimeout. The net.Conn.Close blocks.
+	synctest.Wait()
+	time.Sleep(timeout)
+	synctest.Wait()
+	// Make a request, which will use a new connection (since the existing one is closing).
+	req2c := make(chan error)
+	go func() {
+		resp, err := cst.c.Get(cst.ts.URL)
+		if err == nil {
+			resp.Body.Close()
+		}
+		req2c <- err
+	}()
+	// Don't synctest.Wait here: The HTTP/1 transport closes the idle conn
+	// with a mutex held, and we'll end up in a deadlock.
+	close(closec)
+	if err := <-req2c; err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+}
+
+func TestTransportRemovesConnsAfterIdle(t *testing.T) {
+	runSynctest(t, testTransportRemovesConnsAfterIdle)
+}
+func testTransportRemovesConnsAfterIdle(t *testing.T, mode testMode) {
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
 
-	timeout := 1 * time.Millisecond
-	retry := true
-	for retry {
-		trFunc := func(tr *Transport) {
-			tr.MaxConnsPerHost = 1
-			tr.MaxIdleConnsPerHost = 1
-			tr.IdleConnTimeout = timeout
-		}
-		cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {}), trFunc)
+	timeout := 1 * time.Second
+	trFunc := func(tr *Transport) {
+		tr.MaxConnsPerHost = 1
+		tr.MaxIdleConnsPerHost = 1
+		tr.IdleConnTimeout = timeout
+	}
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("X-Addr", r.RemoteAddr)
+	}), trFunc, optFakeNet)
 
-		retry = false
-		tooShort := func(err error) bool {
-			if err == nil || !strings.Contains(err.Error(), "use of closed network connection") {
-				return false
-			}
-			if !retry {
-				t.Helper()
-				t.Logf("idle conn timeout %v may be too short; retrying with longer", timeout)
-				timeout *= 2
-				retry = true
-				cst.close()
-			}
-			return true
-		}
-
-		if _, err := cst.c.Get(cst.ts.URL); err != nil {
-			if tooShort(err) {
-				continue
-			}
+	// makeRequest returns the local address a request was made from
+	// (unique for each connection).
+	makeRequest := func() string {
+		resp, err := cst.c.Get(cst.ts.URL)
+		if err != nil {
 			t.Fatalf("got error: %s", err)
 		}
+		resp.Body.Close()
+		return resp.Header.Get("X-Addr")
+	}
 
-		time.Sleep(10 * timeout)
-		if _, err := cst.c.Get(cst.ts.URL); err != nil {
-			if tooShort(err) {
-				continue
-			}
+	addr1 := makeRequest()
+
+	time.Sleep(timeout / 2)
+	synctest.Wait()
+	addr2 := makeRequest()
+	if addr1 != addr2 {
+		t.Fatalf("two requests made within IdleConnTimeout should have used the same conn, but used %v, %v", addr1, addr2)
+	}
+
+	time.Sleep(timeout)
+	synctest.Wait()
+	addr3 := makeRequest()
+	if addr1 == addr3 {
+		t.Fatalf("two requests made more than IdleConnTimeout apart should have used different conns, but used %v, %v", addr1, addr3)
+	}
+}
+
+func TestTransportRemovesConnsAfterBroken(t *testing.T) {
+	runSynctest(t, testTransportRemovesConnsAfterBroken)
+}
+func testTransportRemovesConnsAfterBroken(t *testing.T, mode testMode) {
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+
+	trFunc := func(tr *Transport) {
+		tr.MaxConnsPerHost = 1
+		tr.MaxIdleConnsPerHost = 1
+	}
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("X-Addr", r.RemoteAddr)
+	}), trFunc, optFakeNet)
+	cst.li.trackConns = true
+
+	// makeRequest returns the local address a request was made from
+	// (unique for each connection).
+	makeRequest := func() string {
+		resp, err := cst.c.Get(cst.ts.URL)
+		if err != nil {
 			t.Fatalf("got error: %s", err)
 		}
+		resp.Body.Close()
+		return resp.Header.Get("X-Addr")
+	}
+
+	addr1 := makeRequest()
+	addr2 := makeRequest()
+	if addr1 != addr2 {
+		t.Fatalf("successive requests should have used the same conn, but used %v, %v", addr1, addr2)
+	}
+
+	// The connection breaks.
+	synctest.Wait()
+	cst.li.conns[0].peer.Close()
+	synctest.Wait()
+	addr3 := makeRequest()
+	if addr1 == addr3 {
+		t.Fatalf("successive requests made with conn broken between should have used different conns, but used %v, %v", addr1, addr3)
 	}
 }
 
@@ -4337,7 +4526,6 @@ func TestTransportContentEncodingCaseInsensitive(t *testing.T) {
 }
 func testTransportContentEncodingCaseInsensitive(t *testing.T, mode testMode) {
 	for _, ce := range []string{"gzip", "GZIP"} {
-		ce := ce
 		t.Run(ce, func(t *testing.T) {
 			const encodedString = "Hello Gopher"
 			ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -5377,7 +5565,9 @@ timeoutLoop:
 					return false
 				}
 			}
-			res.Body.Close()
+			if err == nil {
+				res.Body.Close()
+			}
 			conns := idleConns()
 			if len(conns) != 1 {
 				if len(conns) == 0 {
@@ -7312,6 +7502,67 @@ func TestTransportServerProtocols(t *testing.T) {
 			tr.Protocols.SetHTTP2(true)
 		},
 		want: "HTTP/1.1",
+	}, {
+		name:   "unencrypted HTTP2 with prior knowledge",
+		scheme: "http",
+		transport: func(tr *Transport) {
+			tr.Protocols = &Protocols{}
+			tr.Protocols.SetUnencryptedHTTP2(true)
+		},
+		server: func(srv *Server) {
+			srv.Protocols = &Protocols{}
+			srv.Protocols.SetHTTP1(true)
+			srv.Protocols.SetUnencryptedHTTP2(true)
+		},
+		want: "HTTP/2.0",
+	}, {
+		name:   "unencrypted HTTP2 only on server",
+		scheme: "http",
+		transport: func(tr *Transport) {
+			tr.Protocols = &Protocols{}
+			tr.Protocols.SetUnencryptedHTTP2(true)
+		},
+		server: func(srv *Server) {
+			srv.Protocols = &Protocols{}
+			srv.Protocols.SetUnencryptedHTTP2(true)
+		},
+		want: "HTTP/2.0",
+	}, {
+		name:   "unencrypted HTTP2 with no server support",
+		scheme: "http",
+		transport: func(tr *Transport) {
+			tr.Protocols = &Protocols{}
+			tr.Protocols.SetUnencryptedHTTP2(true)
+		},
+		server: func(srv *Server) {
+			srv.Protocols = &Protocols{}
+			srv.Protocols.SetHTTP1(true)
+		},
+		want: "error",
+	}, {
+		name:   "HTTP1 with no server support",
+		scheme: "http",
+		transport: func(tr *Transport) {
+			tr.Protocols = &Protocols{}
+			tr.Protocols.SetHTTP1(true)
+		},
+		server: func(srv *Server) {
+			srv.Protocols = &Protocols{}
+			srv.Protocols.SetUnencryptedHTTP2(true)
+		},
+		want: "error",
+	}, {
+		name:   "HTTPS1 with no server support",
+		scheme: "https",
+		transport: func(tr *Transport) {
+			tr.Protocols = &Protocols{}
+			tr.Protocols.SetHTTP1(true)
+		},
+		server: func(srv *Server) {
+			srv.Protocols = &Protocols{}
+			srv.Protocols.SetHTTP2(true)
+		},
+		want: "error",
 	}} {
 		t.Run(test.name, func(t *testing.T) {
 			// We don't use httptest here because it makes its own decisions
@@ -7362,10 +7613,45 @@ func TestTransportServerProtocols(t *testing.T) {
 			client := &Client{Transport: tr}
 			resp, err := client.Get(test.scheme + "://" + listener.Addr().String())
 			if err != nil {
+				if test.want == "error" {
+					return
+				}
 				t.Fatal(err)
 			}
 			if got := resp.Header.Get("X-Proto"); got != test.want {
 				t.Fatalf("request proto %q, want %q", got, test.want)
+			}
+		})
+	}
+}
+
+func TestIssue61474(t *testing.T) {
+	run(t, testIssue61474, []testMode{http2Mode})
+}
+func testIssue61474(t *testing.T, mode testMode) {
+	if testing.Short() {
+		return
+	}
+
+	// This test reliably exercises the condition causing #61474,
+	// but requires many iterations to do so.
+	// Keep the test around for now, but don't run it by default.
+	t.Skip("test is too large")
+
+	cst := newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {
+	}), func(tr *Transport) {
+		tr.MaxConnsPerHost = 1
+	})
+	var wg sync.WaitGroup
+	defer wg.Wait()
+	for range 100000 {
+		wg.Go(func() {
+			ctx, cancel := context.WithTimeout(t.Context(), 1*time.Millisecond)
+			defer cancel()
+			req, _ := NewRequestWithContext(ctx, "GET", cst.ts.URL, nil)
+			resp, err := cst.c.Do(req)
+			if err == nil {
+				resp.Body.Close()
 			}
 		})
 	}

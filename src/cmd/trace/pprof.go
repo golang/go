@@ -153,10 +153,6 @@ func makeComputePprofFunc(state trace.GoState, trackReason func(string) bool) co
 			if ev.Kind() != trace.EventStateTransition {
 				continue
 			}
-			stack := ev.Stack()
-			if stack == trace.NoStack {
-				continue
-			}
 
 			// The state transition has to apply to a goroutine.
 			st := ev.StateTransition()
@@ -306,18 +302,15 @@ func (m *stackMap) profile() []traceviewer.ProfileRecord {
 	prof := make([]traceviewer.ProfileRecord, 0, len(m.stacks))
 	for stack, record := range m.stacks {
 		rec := *record
-		for i, frame := range slices.Collect(stack.Frames()) {
-			rec.Stack = append(rec.Stack, &trace.Frame{
-				PC:   frame.PC,
-				Fn:   frame.Func,
-				File: frame.File,
-				Line: int(frame.Line),
-			})
+		var i int
+		for frame := range stack.Frames() {
+			rec.Stack = append(rec.Stack, frame)
 			// Cut this off at pprofMaxStack because that's as far
 			// as our deduplication goes.
 			if i >= pprofMaxStack {
 				break
 			}
+			i++
 		}
 		prof = append(prof, rec)
 	}

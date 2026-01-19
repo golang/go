@@ -8,7 +8,6 @@ package os
 
 import (
 	"errors"
-	"runtime"
 	"syscall"
 	"time"
 )
@@ -21,15 +20,12 @@ const (
 
 func (p *Process) wait() (ps *ProcessState, err error) {
 	// Which type of Process do we have?
-	switch p.mode {
-	case modeHandle:
+	if p.handle != nil {
 		// pidfd
 		return p.pidfdWait()
-	case modePID:
+	} else {
 		// Regular PID
 		return p.pidWait()
-	default:
-		panic("unreachable")
 	}
 }
 
@@ -53,7 +49,7 @@ func (p *Process) pidWait() (*ProcessState, error) {
 	if ready {
 		// Mark the process done now, before the call to Wait4,
 		// so that Process.pidSignal will not send a signal.
-		p.pidDeactivate(statusDone)
+		p.doRelease(statusDone)
 		// Acquire a write lock on sigMu to wait for any
 		// active call to the signal method to complete.
 		p.sigMu.Lock()
@@ -63,19 +59,14 @@ func (p *Process) pidWait() (*ProcessState, error) {
 	var (
 		status syscall.WaitStatus
 		rusage syscall.Rusage
-		pid1   int
-		e      error
 	)
-	for {
-		pid1, e = syscall.Wait4(p.Pid, &status, 0, &rusage)
-		if e != syscall.EINTR {
-			break
-		}
+	pid1, err := ignoringEINTR2(func() (int, error) {
+		return syscall.Wait4(p.Pid, &status, 0, &rusage)
+	})
+	if err != nil {
+		return nil, NewSyscallError("wait", err)
 	}
-	if e != nil {
-		return nil, NewSyscallError("wait", e)
-	}
-	p.pidDeactivate(statusDone)
+	p.doRelease(statusDone)
 	return &ProcessState{
 		pid:    pid1,
 		status: status,
@@ -90,21 +81,18 @@ func (p *Process) signal(sig Signal) error {
 	}
 
 	// Which type of Process do we have?
-	switch p.mode {
-	case modeHandle:
+	if p.handle != nil {
 		// pidfd
 		return p.pidfdSendSignal(s)
-	case modePID:
+	} else {
 		// Regular PID
 		return p.pidSignal(s)
-	default:
-		panic("unreachable")
 	}
 }
 
 func (p *Process) pidSignal(s syscall.Signal) error {
 	if p.Pid == pidReleased {
-		return errors.New("os: process already released")
+		return errProcessReleased
 	}
 	if p.Pid == pidUnset {
 		return errors.New("os: process not initialized")
@@ -117,7 +105,7 @@ func (p *Process) pidSignal(s syscall.Signal) error {
 	case statusDone:
 		return ErrProcessDone
 	case statusReleased:
-		return errors.New("os: process already released")
+		return errProcessReleased
 	}
 
 	return convertESRCH(syscall.Kill(p.Pid, s))
@@ -128,29 +116,6 @@ func convertESRCH(err error) error {
 		return ErrProcessDone
 	}
 	return err
-}
-
-func (p *Process) release() error {
-	// We clear the Pid field only for API compatibility. On Unix, Release
-	// has always set Pid to -1. Internally, the implementation relies
-	// solely on statusReleased to determine that the Process is released.
-	p.Pid = pidReleased
-
-	switch p.mode {
-	case modeHandle:
-		// Drop the Process' reference and mark handle unusable for
-		// future calls.
-		//
-		// Ignore the return value: we don't care if this was a no-op
-		// racing with Wait, or a double Release.
-		p.handlePersistentRelease(statusReleased)
-	case modePID:
-		// Just mark the PID unusable.
-		p.pidDeactivate(statusReleased)
-	}
-	// no need for a finalizer anymore
-	runtime.SetFinalizer(p, nil)
-	return nil
 }
 
 func findProcess(pid int) (p *Process, err error) {

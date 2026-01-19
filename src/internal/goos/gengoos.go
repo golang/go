@@ -17,7 +17,7 @@ import (
 var gooses []string
 
 func main() {
-	data, err := os.ReadFile("../../internal/syslist/syslist..go")
+	data, err := os.ReadFile("../../internal/syslist/syslist.go")
 	if err != nil {
 		log.Fatal(err)
 	}

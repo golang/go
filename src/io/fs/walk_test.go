@@ -110,6 +110,47 @@ func TestWalkDir(t *testing.T) {
 	})
 }
 
+func TestWalkDirSymlink(t *testing.T) {
+	fsys := fstest.MapFS{
+		"link":    {Data: []byte("dir"), Mode: ModeSymlink},
+		"dir/a":   {},
+		"dir/b/c": {},
+		"dir/d":   {Data: []byte("b"), Mode: ModeSymlink},
+	}
+
+	wantTypes := map[string]FileMode{
+		"link":     ModeDir,
+		"link/a":   0,
+		"link/b":   ModeDir,
+		"link/b/c": 0,
+		"link/d":   ModeSymlink,
+	}
+	marks := make(map[string]int)
+	walkFn := func(path string, entry DirEntry, err error) error {
+		marks[path]++
+		if want, ok := wantTypes[path]; !ok {
+			t.Errorf("Unexpected path %q in walk", path)
+		} else if got := entry.Type(); got != want {
+			t.Errorf("%s entry type = %v; want %v", path, got, want)
+		}
+		if err != nil {
+			t.Errorf("Walking %s: %v", path, err)
+		}
+		return nil
+	}
+
+	// Expect no errors.
+	err := WalkDir(fsys, "link", walkFn)
+	if err != nil {
+		t.Fatalf("no error expected, found: %s", err)
+	}
+	for path := range wantTypes {
+		if got := marks[path]; got != 1 {
+			t.Errorf("%s visited %d times; expected 1", path, got)
+		}
+	}
+}
+
 func TestIssue51617(t *testing.T) {
 	dir := t.TempDir()
 	for _, sub := range []string{"a", filepath.Join("a", "bad"), filepath.Join("a", "next")} {

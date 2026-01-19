@@ -68,6 +68,7 @@ const (
 	CS8                              = 0x300
 	CSIZE                            = 0x300
 	CSTOPB                           = 0x400
+	DM_MPATH_PROBE_PATHS             = 0x2000fd12
 	ECCGETLAYOUT                     = 0x41484d11
 	ECCGETSTATS                      = 0x40104d12
 	ECHOCTL                          = 0x40
@@ -108,12 +109,17 @@ const (
 	HIDIOCGRAWINFO                   = 0x40084803
 	HIDIOCGRDESC                     = 0x50044802
 	HIDIOCGRDESCSIZE                 = 0x40044801
+	HIDIOCREVOKE                     = 0x8004480d
 	HUPCL                            = 0x4000
 	ICANON                           = 0x100
 	IEXTEN                           = 0x400
 	IN_CLOEXEC                       = 0x80000
 	IN_NONBLOCK                      = 0x800
+	IOCTL_MEI_NOTIFY_GET             = 0x40044803
+	IOCTL_MEI_NOTIFY_SET             = 0x80044802
 	IOCTL_VM_SOCKETS_GET_LOCAL_CID   = 0x200007b9
+	IPV6_FLOWINFO_MASK               = 0xffffff0f
+	IPV6_FLOWLABEL_MASK              = 0xffff0f00
 	ISIG                             = 0x80
 	IUCLC                            = 0x1000
 	IXOFF                            = 0x400
@@ -355,10 +361,13 @@ const (
 	RTC_WIE_ON                       = 0x2000700f
 	RTC_WKALM_RD                     = 0x40287010
 	RTC_WKALM_SET                    = 0x8028700f
+	SCM_DEVMEM_DMABUF                = 0x4f
+	SCM_DEVMEM_LINEAR                = 0x4e
 	SCM_TIMESTAMPING                 = 0x25
 	SCM_TIMESTAMPING_OPT_STATS       = 0x36
 	SCM_TIMESTAMPING_PKTINFO         = 0x3a
 	SCM_TIMESTAMPNS                  = 0x23
+	SCM_TS_OPT_ID                    = 0x51
 	SCM_TXTIME                       = 0x3d
 	SCM_WIFI_STATUS                  = 0x29
 	SECCOMP_IOCTL_NOTIF_ADDFD        = 0x80182103
@@ -393,6 +402,9 @@ const (
 	SO_CNX_ADVICE                    = 0x35
 	SO_COOKIE                        = 0x39
 	SO_DETACH_REUSEPORT_BPF          = 0x44
+	SO_DEVMEM_DMABUF                 = 0x4f
+	SO_DEVMEM_DONTNEED               = 0x50
+	SO_DEVMEM_LINEAR                 = 0x4e
 	SO_DOMAIN                        = 0x27
 	SO_DONTROUTE                     = 0x5
 	SO_ERROR                         = 0x4
@@ -409,6 +421,7 @@ const (
 	SO_OOBINLINE                     = 0xa
 	SO_PASSCRED                      = 0x14
 	SO_PASSPIDFD                     = 0x4c
+	SO_PASSRIGHTS                    = 0x53
 	SO_PASSSEC                       = 0x22
 	SO_PEEK_OFF                      = 0x2a
 	SO_PEERCRED                      = 0x15
@@ -421,6 +434,7 @@ const (
 	SO_RCVBUFFORCE                   = 0x21
 	SO_RCVLOWAT                      = 0x10
 	SO_RCVMARK                       = 0x4b
+	SO_RCVPRIORITY                   = 0x52
 	SO_RCVTIMEO                      = 0x12
 	SO_RCVTIMEO_NEW                  = 0x42
 	SO_RCVTIMEO_OLD                  = 0x12

@@ -25,6 +25,7 @@ func TestJoinReturnsNil(t *testing.T) {
 func TestJoin(t *testing.T) {
 	err1 := errors.New("err1")
 	err2 := errors.New("err2")
+	merr := multiErr{errors.New("err3")}
 	for _, test := range []struct {
 		errs []error
 		want []error
@@ -37,6 +38,9 @@ func TestJoin(t *testing.T) {
 	}, {
 		errs: []error{err1, nil, err2},
 		want: []error{err1, err2},
+	}, {
+		errs: []error{merr},
+		want: []error{merr},
 	}} {
 		got := errors.Join(test.errs...).(interface{ Unwrap() []error }).Unwrap()
 		if !reflect.DeepEqual(got, test.want) {

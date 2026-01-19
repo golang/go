@@ -230,7 +230,7 @@ func GetBase(fh *elf.FileHeader, loadSegment *elf.ProgHeader, stextOffset *uint6
 		}
 		if stextOffset == nil && start > 0 && start < 0x8000000000000000 {
 			// A regular user-mode executable. Compute the base offset using same
-			// arithmetics as in ET_DYN case below, see the explanation there.
+			// arithmetic as in ET_DYN case below, see the explanation there.
 			// Ideally, the condition would just be "stextOffset == nil" as that
 			// represents the address of _stext symbol in the vmlinux image. Alas,
 			// the caller may skip reading it from the binary (it's expensive to scan
@@ -313,7 +313,7 @@ func ProgramHeadersForMapping(phdrs []elf.ProgHeader, mapOff, mapSz uint64) []*e
 		// value is dependent on the memory management unit of the CPU. The page
 		// size is 4KB virtually on all the architectures that we care about, so we
 		// define this metric as a constant. If we encounter architectures where
-		// page sie is not 4KB, we must try to guess the page size on the system
+		// page size is not 4KB, we must try to guess the page size on the system
 		// where the profile was collected, possibly using the architecture
 		// specified in the ELF file header.
 		pageSize       = 4096

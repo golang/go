@@ -18,8 +18,7 @@ import (
 	"strconv"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
-	"golang.org/x/tools/go/ast/astutil"
+	"golang.org/x/tools/internal/typesinternal"
 )
 
 const debug = false
@@ -41,8 +40,8 @@ var Analyzer = &analysis.Analyzer{
 	Run:              run,
 }
 
-func run(pass *analysis.Pass) (interface{}, error) {
-	if !analysisutil.Imports(pass.Pkg, "runtime/cgo") {
+func run(pass *analysis.Pass) (any, error) {
+	if !typesinternal.Imports(pass.Pkg, "runtime/cgo") {
 		return nil, nil // doesn't use cgo
 	}
 
@@ -56,7 +55,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	return nil, nil
 }
 
-func checkCgo(fset *token.FileSet, f *ast.File, info *types.Info, reportf func(token.Pos, string, ...interface{})) {
+func checkCgo(fset *token.FileSet, f *ast.File, info *types.Info, reportf func(token.Pos, string, ...any)) {
 	ast.Inspect(f, func(n ast.Node) bool {
 		call, ok := n.(*ast.CallExpr)
 		if !ok {
@@ -65,7 +64,7 @@ func checkCgo(fset *token.FileSet, f *ast.File, info *types.Info, reportf func(t
 
 		// Is this a C.f() call?
 		var name string
-		if sel, ok := astutil.Unparen(call.Fun).(*ast.SelectorExpr); ok {
+		if sel, ok := ast.Unparen(call.Fun).(*ast.SelectorExpr); ok {
 			if id, ok := sel.X.(*ast.Ident); ok && id.Name == "C" {
 				name = sel.Sel.Name
 			}
@@ -180,7 +179,7 @@ func typeCheckCgoSourceFiles(fset *token.FileSet, pkg *types.Package, files []*a
 	for _, raw := range files {
 		// If f is a cgo-generated file, Position reports
 		// the original file, honoring //line directives.
-		filename := fset.Position(raw.Pos()).Filename
+		filename := fset.Position(raw.Pos()).Filename // sic: Pos, not FileStart
 		f, err := parser.ParseFile(fset, filename, nil, parser.SkipObjectResolution)
 		if err != nil {
 			return nil, nil, fmt.Errorf("can't parse raw cgo file: %v", err)
@@ -351,8 +350,8 @@ func typeOKForCgoCall(t types.Type, m map[types.Type]bool) bool {
 	case *types.Array:
 		return typeOKForCgoCall(t.Elem(), m)
 	case *types.Struct:
-		for i := 0; i < t.NumFields(); i++ {
-			if !typeOKForCgoCall(t.Field(i).Type(), m) {
+		for field := range t.Fields() {
+			if !typeOKForCgoCall(field.Type(), m) {
 				return false
 			}
 		}

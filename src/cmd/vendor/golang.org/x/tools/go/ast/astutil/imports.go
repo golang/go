@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -186,7 +187,7 @@ func AddNamedImport(fset *token.FileSet, f *ast.File, name, path string) (added 
 			spec.(*ast.ImportSpec).Path.ValuePos = first.Pos()
 			first.Specs = append(first.Specs, spec)
 		}
-		f.Decls = append(f.Decls[:i], f.Decls[i+1:]...)
+		f.Decls = slices.Delete(f.Decls, i, i+1)
 		i--
 	}
 
@@ -208,48 +209,46 @@ func DeleteImport(fset *token.FileSet, f *ast.File, path string) (deleted bool) 
 // DeleteNamedImport deletes the import with the given name and path from the file f, if present.
 // If there are duplicate import declarations, all matching ones are deleted.
 func DeleteNamedImport(fset *token.FileSet, f *ast.File, name, path string) (deleted bool) {
-	var delspecs []*ast.ImportSpec
-	var delcomments []*ast.CommentGroup
+	var (
+		delspecs    = make(map[*ast.ImportSpec]bool)
+		delcomments = make(map[*ast.CommentGroup]bool)
+	)
 
 	// Find the import nodes that import path, if any.
 	for i := 0; i < len(f.Decls); i++ {
-		decl := f.Decls[i]
-		gen, ok := decl.(*ast.GenDecl)
+		gen, ok := f.Decls[i].(*ast.GenDecl)
 		if !ok || gen.Tok != token.IMPORT {
 			continue
 		}
 		for j := 0; j < len(gen.Specs); j++ {
-			spec := gen.Specs[j]
-			impspec := spec.(*ast.ImportSpec)
+			impspec := gen.Specs[j].(*ast.ImportSpec)
 			if importName(impspec) != name || importPath(impspec) != path {
 				continue
 			}
 
 			// We found an import spec that imports path.
 			// Delete it.
-			delspecs = append(delspecs, impspec)
+			delspecs[impspec] = true
 			deleted = true
-			copy(gen.Specs[j:], gen.Specs[j+1:])
-			gen.Specs = gen.Specs[:len(gen.Specs)-1]
+			gen.Specs = slices.Delete(gen.Specs, j, j+1)
 
 			// If this was the last import spec in this decl,
 			// delete the decl, too.
 			if len(gen.Specs) == 0 {
-				copy(f.Decls[i:], f.Decls[i+1:])
-				f.Decls = f.Decls[:len(f.Decls)-1]
+				f.Decls = slices.Delete(f.Decls, i, i+1)
 				i--
 				break
 			} else if len(gen.Specs) == 1 {
 				if impspec.Doc != nil {
-					delcomments = append(delcomments, impspec.Doc)
+					delcomments[impspec.Doc] = true
 				}
 				if impspec.Comment != nil {
-					delcomments = append(delcomments, impspec.Comment)
+					delcomments[impspec.Comment] = true
 				}
 				for _, cg := range f.Comments {
 					// Found comment on the same line as the import spec.
 					if cg.End() < impspec.Pos() && fset.Position(cg.End()).Line == fset.Position(impspec.Pos()).Line {
-						delcomments = append(delcomments, cg)
+						delcomments[cg] = true
 						break
 					}
 				}
@@ -293,38 +292,21 @@ func DeleteNamedImport(fset *token.FileSet, f *ast.File, name, path string) (del
 	}
 
 	// Delete imports from f.Imports.
-	for i := 0; i < len(f.Imports); i++ {
-		imp := f.Imports[i]
-		for j, del := range delspecs {
-			if imp == del {
-				copy(f.Imports[i:], f.Imports[i+1:])
-				f.Imports = f.Imports[:len(f.Imports)-1]
-				copy(delspecs[j:], delspecs[j+1:])
-				delspecs = delspecs[:len(delspecs)-1]
-				i--
-				break
-			}
-		}
+	before := len(f.Imports)
+	f.Imports = slices.DeleteFunc(f.Imports, func(imp *ast.ImportSpec) bool {
+		_, ok := delspecs[imp]
+		return ok
+	})
+	if len(f.Imports)+len(delspecs) != before {
+		// This can happen when the AST is invalid (i.e. imports differ between f.Decls and f.Imports).
+		panic(fmt.Sprintf("deleted specs from Decls but not Imports: %v", delspecs))
 	}
 
 	// Delete comments from f.Comments.
-	for i := 0; i < len(f.Comments); i++ {
-		cg := f.Comments[i]
-		for j, del := range delcomments {
-			if cg == del {
-				copy(f.Comments[i:], f.Comments[i+1:])
-				f.Comments = f.Comments[:len(f.Comments)-1]
-				copy(delcomments[j:], delcomments[j+1:])
-				delcomments = delcomments[:len(delcomments)-1]
-				i--
-				break
-			}
-		}
-	}
-
-	if len(delspecs) > 0 {
-		panic(fmt.Sprintf("deleted specs from Decls but not Imports: %v", delspecs))
-	}
+	f.Comments = slices.DeleteFunc(f.Comments, func(cg *ast.CommentGroup) bool {
+		_, ok := delcomments[cg]
+		return ok
+	})
 
 	return
 }
@@ -344,7 +326,12 @@ func RewriteImport(fset *token.FileSet, f *ast.File, oldPath, newPath string) (r
 }
 
 // UsesImport reports whether a given import is used.
+// The provided File must have been parsed with syntactic object resolution
+// (not using go/parser.SkipObjectResolution).
 func UsesImport(f *ast.File, path string) (used bool) {
+	if f.Scope == nil {
+		panic("file f was not parsed with syntactic object resolution")
+	}
 	spec := importSpec(f, path)
 	if spec == nil {
 		return

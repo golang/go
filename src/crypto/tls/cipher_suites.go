@@ -11,8 +11,8 @@ import (
 	"crypto/des"
 	"crypto/hmac"
 	"crypto/internal/boring"
-	fipsaes "crypto/internal/fips/aes"
-	"crypto/internal/fips/aes/gcm"
+	fipsaes "crypto/internal/fips140/aes"
+	"crypto/internal/fips140/aes/gcm"
 	"crypto/rc4"
 	"crypto/sha1"
 	"crypto/sha256"
@@ -78,8 +78,8 @@ func CipherSuites() []*CipherSuite {
 // Most applications should not use the cipher suites in this list, and should
 // only use those returned by [CipherSuites].
 func InsecureCipherSuites() []*CipherSuite {
-	// This list includes RC4, CBC_SHA256, and 3DES cipher suites. See
-	// cipherSuitesPreferenceOrder for details.
+	// This list includes legacy RSA kex, RC4, CBC_SHA256, and 3DES cipher
+	// suites. See cipherSuitesPreferenceOrder for details.
 	return []*CipherSuite{
 		{TLS_RSA_WITH_RC4_128_SHA, "TLS_RSA_WITH_RC4_128_SHA", supportedUpToTLS12, true},
 		{TLS_RSA_WITH_3DES_EDE_CBC_SHA, "TLS_RSA_WITH_3DES_EDE_CBC_SHA", supportedUpToTLS12, true},
@@ -149,8 +149,8 @@ type cipherSuite struct {
 }
 
 var cipherSuites = []*cipherSuite{ // TODO: replace with a map, since the order doesn't matter.
-	{TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305, 32, 0, 12, ecdheRSAKA, suiteECDHE | suiteTLS12, nil, nil, aeadChaCha20Poly1305},
-	{TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305, 32, 0, 12, ecdheECDSAKA, suiteECDHE | suiteECSign | suiteTLS12, nil, nil, aeadChaCha20Poly1305},
+	{TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, 32, 0, 12, ecdheRSAKA, suiteECDHE | suiteTLS12, nil, nil, aeadChaCha20Poly1305},
+	{TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, 32, 0, 12, ecdheECDSAKA, suiteECDHE | suiteECSign | suiteTLS12, nil, nil, aeadChaCha20Poly1305},
 	{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 16, 0, 4, ecdheRSAKA, suiteECDHE | suiteTLS12, nil, nil, aeadAESGCM},
 	{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 16, 0, 4, ecdheECDSAKA, suiteECDHE | suiteECSign | suiteTLS12, nil, nil, aeadAESGCM},
 	{TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, 32, 0, 4, ecdheRSAKA, suiteECDHE | suiteTLS12 | suiteSHA384, nil, nil, aeadAESGCM},
@@ -235,7 +235,7 @@ var cipherSuitesTLS13 = []*cipherSuiteTLS13{ // TODO: replace with a map.
 //   - Anything else comes before CBC_SHA256
 //
 //     SHA-256 variants of the CBC ciphersuites don't implement any Lucky13
-//     countermeasures. See http://www.isg.rhul.ac.uk/tls/Lucky13.html and
+//     countermeasures. See https://www.isg.rhul.ac.uk/tls/Lucky13.html and
 //     https://www.imperialviolet.org/2013/02/04/luckythirteen.html.
 //
 //   - Anything else comes before 3DES
@@ -284,7 +284,7 @@ var cipherSuitesPreferenceOrder = []uint16{
 	// AEADs w/ ECDHE
 	TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 	TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-	TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+	TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
 
 	// CBC w/ ECDHE
 	TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
@@ -313,7 +313,7 @@ var cipherSuitesPreferenceOrder = []uint16{
 
 var cipherSuitesPreferenceOrderNoAES = []uint16{
 	// ChaCha20Poly1305
-	TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+	TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
 
 	// AES-GCM w/ ECDHE
 	TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
@@ -367,7 +367,7 @@ var tdesCiphers = map[uint16]bool{
 }
 
 var (
-	// Keep in sync with crypto/internal/fips/aes/gcm.supportsAESGCM.
+	// Keep in sync with crypto/internal/fips140/aes/gcm.supportsAESGCM.
 	hasGCMAsmAMD64 = cpu.X86.HasAES && cpu.X86.HasPCLMULQDQ && cpu.X86.HasSSE41 && cpu.X86.HasSSSE3
 	hasGCMAsmARM64 = cpu.ARM64.HasAES && cpu.ARM64.HasPMULL
 	hasGCMAsmS390X = cpu.S390X.HasAES && cpu.S390X.HasAESCTR && cpu.S390X.HasGHASH
@@ -387,9 +387,13 @@ var aesgcmCiphers = map[uint16]bool{
 	TLS_AES_256_GCM_SHA384: true,
 }
 
-// aesgcmPreferred returns whether the first known cipher in the preference list
-// is an AES-GCM cipher, implying the peer has hardware support for it.
-func aesgcmPreferred(ciphers []uint16) bool {
+// isAESGCMPreferred returns whether we have hardware support for AES-GCM, and the
+// first known cipher in the peer's preference list is an AES-GCM cipher,
+// implying the peer also has hardware support for it.
+func isAESGCMPreferred(ciphers []uint16) bool {
+	if !hasAESGCMHardwareSupport {
+		return false
+	}
 	for _, cID := range ciphers {
 		if c := cipherSuiteByID(cID); c != nil {
 			return aesgcmCiphers[cID]

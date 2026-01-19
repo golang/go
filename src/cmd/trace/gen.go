@@ -215,12 +215,12 @@ func (g *stackSampleGenerator[R]) StackSample(ctx *traceContext, ev *trace.Event
 // to trace.ResourceNone (the global scope).
 type globalRangeGenerator struct {
 	ranges   map[string]activeRange
-	seenSync bool
+	seenSync int
 }
 
 // Sync notifies the generator of an EventSync event.
 func (g *globalRangeGenerator) Sync() {
-	g.seenSync = true
+	g.seenSync++
 }
 
 // GlobalRange implements a handler for EventRange* events whose Scope.Kind is ResourceNone.
@@ -234,8 +234,9 @@ func (g *globalRangeGenerator) GlobalRange(ctx *traceContext, ev *trace.Event) {
 	case trace.EventRangeBegin:
 		g.ranges[r.Name] = activeRange{ev.Time(), ev.Stack()}
 	case trace.EventRangeActive:
-		// If we've seen a Sync event, then Active events are always redundant.
-		if !g.seenSync {
+		// If we've seen at least 2 Sync events (indicating that we're in at least the second
+		// generation), then Active events are always redundant.
+		if g.seenSync < 2 {
 			// Otherwise, they extend back to the start of the trace.
 			g.ranges[r.Name] = activeRange{ctx.startTime, ev.Stack()}
 		}
@@ -248,7 +249,7 @@ func (g *globalRangeGenerator) GlobalRange(ctx *traceContext, ev *trace.Event) {
 				Name:     r.Name,
 				Ts:       ctx.elapsed(ar.time),
 				Dur:      ev.Time().Sub(ar.time),
-				Resource: trace.GCP,
+				Resource: traceviewer.GCP,
 				Stack:    ctx.Stack(viewerFrames(ar.stack)),
 				EndStack: ctx.Stack(viewerFrames(ev.Stack())),
 			})
@@ -267,7 +268,7 @@ func (g *globalRangeGenerator) Finish(ctx *traceContext) {
 			Name:     name,
 			Ts:       ctx.elapsed(ar.time),
 			Dur:      ctx.endTime.Sub(ar.time),
-			Resource: trace.GCP,
+			Resource: traceviewer.GCP,
 			Stack:    ctx.Stack(viewerFrames(ar.stack)),
 		})
 	}
@@ -294,12 +295,12 @@ func (g *globalMetricGenerator) GlobalMetric(ctx *traceContext, ev *trace.Event)
 // ResourceProc.
 type procRangeGenerator struct {
 	ranges   map[trace.Range]activeRange
-	seenSync bool
+	seenSync int
 }
 
 // Sync notifies the generator of an EventSync event.
 func (g *procRangeGenerator) Sync() {
-	g.seenSync = true
+	g.seenSync++
 }
 
 // ProcRange implements a handler for EventRange* events whose Scope.Kind is ResourceProc.
@@ -313,8 +314,9 @@ func (g *procRangeGenerator) ProcRange(ctx *traceContext, ev *trace.Event) {
 	case trace.EventRangeBegin:
 		g.ranges[r] = activeRange{ev.Time(), ev.Stack()}
 	case trace.EventRangeActive:
-		// If we've seen a Sync event, then Active events are always redundant.
-		if !g.seenSync {
+		// If we've seen at least 2 Sync events (indicating that we're in at least the second
+		// generation), then Active events are always redundant.
+		if g.seenSync < 2 {
 			// Otherwise, they extend back to the start of the trace.
 			g.ranges[r] = activeRange{ctx.startTime, ev.Stack()}
 		}

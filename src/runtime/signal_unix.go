@@ -8,6 +8,7 @@ package runtime
 
 import (
 	"internal/abi"
+	"internal/goexperiment"
 	"internal/runtime/atomic"
 	"internal/runtime/sys"
 	"unsafe"
@@ -488,6 +489,11 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 
 	c.fixsigcode(sig)
 	sighandler(sig, info, ctx, gp)
+
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+		atomic.Store(&gp.m.signalSecret, 1)
+	}
+
 	setg(gp)
 	if setStack {
 		restoreGsignalStack(&gsignalStack)

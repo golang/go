@@ -43,17 +43,19 @@ type Value struct {
 	ptr unsafe.Pointer
 
 	// flag holds metadata about the value.
-	// The lowest bits are flag bits:
+	//
+	// The lowest five bits give the Kind of the value, mirroring typ.Kind().
+	//
+	// The next set of bits are flag bits:
 	//	- flagStickyRO: obtained via unexported not embedded field, so read-only
 	//	- flagEmbedRO: obtained via unexported embedded field, so read-only
 	//	- flagIndir: val holds a pointer to the data
-	//	- flagAddr: v.CanAddr is true (implies flagIndir)
-	// Value cannot represent method values.
-	// The next five bits give the Kind of the value.
-	// This repeats typ.Kind() except for method values.
-	// The remaining 23+ bits give a method number for method values.
+	//	- flagAddr: v.CanAddr is true (implies flagIndir and ptr is non-nil)
+	//	- flagMethod: v is a method value.
+	// If !typ.IsDirectIface(), code can assume that flagIndir is set.
+	//
+	// The remaining 22+ bits give a method number for method values.
 	// If flag.kind() != Func, code can assume that flagMethod is unset.
-	// If ifaceIndir(typ), code can assume that flagIndir is set.
 	flag
 
 	// A method value represents a curried method invocation
@@ -116,7 +118,7 @@ func packEface(v Value) any {
 	e := (*abi.EmptyInterface)(unsafe.Pointer(&i))
 	// First, fill in the data portion of the interface.
 	switch {
-	case t.IfaceIndir():
+	case !t.IsDirectIface():
 		if v.flag&flagIndir == 0 {
 			panic("bad indir")
 		}
@@ -153,7 +155,7 @@ func unpackEface(i any) Value {
 		return Value{}
 	}
 	f := flag(t.Kind())
-	if t.IfaceIndir() {
+	if !t.IsDirectIface() {
 		f |= flagIndir
 	}
 	return Value{t, e.Data, f}

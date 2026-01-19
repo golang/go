@@ -63,7 +63,11 @@ func isWakeup(ev *keventt) bool {
 	return false
 }
 
-func drainWakeupEvent(_ int32) {
+func processWakeupEvent(_ int32, isBlocking bool) {
+	// Only drain if blocking.
+	if !isBlocking {
+		return
+	}
 	var buf [16]byte
 	read(int32(netpollBreakRd), noescape(unsafe.Pointer(&buf[0])), int32(len(buf)))
 }

@@ -89,6 +89,7 @@ func TestTempDir(t *testing.T) {
 	t.Run("test[]", testTempDir)
 	t.Run("test*", testTempDir)
 	t.Run("äöüéè", testTempDir)
+	t.Run(strings.Repeat("a", 300), testTempDir)
 }
 
 func testTempDir(t *testing.T) {
@@ -143,6 +144,39 @@ func testTempDir(t *testing.T) {
 	glob := filepath.Join(dir, "*.txt")
 	if _, err := filepath.Glob(glob); err != nil {
 		t.Error(err)
+	}
+}
+
+func TestTempDirGOTMPDIR(t *testing.T) {
+	// The first call to t.TempDir will create a parent temporary directory
+	// that will contain all temporary directories created by TempDir.
+	//
+	// Use os.TempDir (not t.TempDir) to get a temporary directory,
+	// set GOTMPDIR to that directory,
+	// and then verify that t.TempDir creates a directory in GOTMPDIR.
+	customTmpDir := filepath.Join(os.TempDir(), "custom-gotmpdir-test")
+	if err := os.MkdirAll(customTmpDir, 0777); err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(customTmpDir)
+
+	t.Setenv("GOTMPDIR", customTmpDir)
+
+	dir := t.TempDir()
+	if dir == "" {
+		t.Fatal("expected dir")
+	}
+
+	if !strings.HasPrefix(dir, customTmpDir) {
+		t.Errorf("TempDir did not use GOTMPDIR: got %q, want prefix %q", dir, customTmpDir)
+	}
+
+	fi, err := os.Stat(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !fi.IsDir() {
+		t.Errorf("dir %q is not a dir", dir)
 	}
 }
 
@@ -435,7 +469,7 @@ func TestTesting(t *testing.T) {
 
 // runTest runs a helper test with -test.v, ignoring its exit status.
 // runTest both logs and returns the test output.
-func runTest(t *testing.T, test string) []byte {
+func runTest(t *testing.T, test string, args ...string) []byte {
 	t.Helper()
 
 	testenv.MustHaveExec(t)
@@ -443,6 +477,7 @@ func runTest(t *testing.T, test string) []byte {
 	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^"+test+"$", "-test.bench="+test, "-test.v", "-test.parallel=2", "-test.benchtime=2x")
 	cmd = testenv.CleanCmdEnv(cmd)
 	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=1")
+	cmd.Args = append(cmd.Args, args...)
 	out, err := cmd.CombinedOutput()
 	t.Logf("%v: %v\n%s", cmd, err, out)
 
@@ -700,6 +735,20 @@ func TestBenchmarkRace(t *testing.T) {
 	}
 }
 
+func TestBenchmarkRaceBLoop(t *testing.T) {
+	out := runTest(t, "BenchmarkBLoopRacy")
+	c := bytes.Count(out, []byte("race detected during execution of test"))
+
+	want := 0
+	// We should see one race detector report.
+	if race.Enabled {
+		want = 1
+	}
+	if c != want {
+		t.Errorf("got %d race reports; want %d", c, want)
+	}
+}
+
 func BenchmarkRacy(b *testing.B) {
 	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
 		b.Skipf("skipping intentionally-racy benchmark")
@@ -709,15 +758,25 @@ func BenchmarkRacy(b *testing.B) {
 	}
 }
 
+func BenchmarkBLoopRacy(b *testing.B) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		b.Skipf("skipping intentionally-racy benchmark")
+	}
+	for b.Loop() {
+		doRace()
+	}
+}
+
 func TestBenchmarkSubRace(t *testing.T) {
 	out := runTest(t, "BenchmarkSubRacy")
 	c := bytes.Count(out, []byte("race detected during execution of test"))
 
 	want := 0
-	// We should see two race detector reports:
-	// one in the sub-bencmark, and one in the parent afterward.
+	// We should see 3 race detector reports:
+	// one in the sub-bencmark, one in the parent afterward,
+	// and one in b.Loop.
 	if race.Enabled {
-		want = 2
+		want = 3
 	}
 	if c != want {
 		t.Errorf("got %d race reports; want %d", c, want)
@@ -739,6 +798,12 @@ func BenchmarkSubRacy(b *testing.B) {
 
 	b.Run("racy", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
+			doRace()
+		}
+	})
+
+	b.Run("racy-bLoop", func(b *testing.B) {
+		for b.Loop() {
 			doRace()
 		}
 	})
@@ -771,7 +836,7 @@ func TestRunningTests(t *testing.T) {
 
 	timeout := 10 * time.Millisecond
 	for {
-		cmd := testenv.Command(t, os.Args[0], "-test.run=^"+t.Name()+"$", "-test.timeout="+timeout.String(), "-test.parallel=4")
+		cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^"+t.Name()+"$", "-test.timeout="+timeout.String(), "-test.parallel=4")
 		cmd.Env = append(cmd.Environ(), "GO_WANT_HELPER_PROCESS=1")
 		out, err := cmd.CombinedOutput()
 		t.Logf("%v:\n%s", cmd, out)
@@ -830,7 +895,7 @@ func TestRunningTestsInCleanup(t *testing.T) {
 
 	timeout := 10 * time.Millisecond
 	for {
-		cmd := testenv.Command(t, os.Args[0], "-test.run=^"+t.Name()+"$", "-test.timeout="+timeout.String())
+		cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^"+t.Name()+"$", "-test.timeout="+timeout.String())
 		cmd.Env = append(cmd.Environ(), "GO_WANT_HELPER_PROCESS=1")
 		out, err := cmd.CombinedOutput()
 		t.Logf("%v:\n%s", cmd, out)
@@ -864,7 +929,7 @@ func TestRunningTestsInCleanup(t *testing.T) {
 
 func parseRunningTests(out []byte) (runningTests []string, ok bool) {
 	inRunningTests := false
-	for _, line := range strings.Split(string(out), "\n") {
+	for line := range strings.SplitSeq(string(out), "\n") {
 		if inRunningTests {
 			// Package testing adds one tab, the panic printer adds another.
 			if trimmed, ok := strings.CutPrefix(line, "\t\t"); ok {
@@ -942,4 +1007,210 @@ func TestContext(t *testing.T) {
 			t.Fatal("expected context canceled before cleanup")
 		}
 	})
+}
+
+// TestAttrExample is used by TestAttrSet,
+// and also serves as a convenient test to run that sets an attribute.
+func TestAttrExample(t *testing.T) {
+	t.Attr("key", "value")
+}
+
+func TestAttrSet(t *testing.T) {
+	out := string(runTest(t, "TestAttrExample"))
+
+	want := "=== ATTR  TestAttrExample key value\n"
+	if !strings.Contains(out, want) {
+		t.Errorf("expected output containing %q, got:\n%q", want, out)
+	}
+}
+
+func TestAttrInvalid(t *testing.T) {
+	tests := []struct {
+		key   string
+		value string
+	}{
+		{"k ey", "value"},
+		{"k\tey", "value"},
+		{"k\rey", "value"},
+		{"k\ney", "value"},
+		{"key", "val\rue"},
+		{"key", "val\nue"},
+	}
+
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		for i, test := range tests {
+			t.Run(fmt.Sprint(i), func(t *testing.T) {
+				t.Attr(test.key, test.value)
+			})
+		}
+		return
+	}
+
+	out := string(runTest(t, "TestAttrInvalid"))
+
+	for i := range tests {
+		want := fmt.Sprintf("--- FAIL: TestAttrInvalid/%v ", i)
+		if !strings.Contains(out, want) {
+			t.Errorf("expected output containing %q, got:\n%q", want, out)
+		}
+	}
+}
+
+const artifactContent = "It belongs in a museum.\n"
+
+func TestArtifactDirExample(t *testing.T) {
+	os.WriteFile(filepath.Join(t.ArtifactDir(), "artifact"), []byte(artifactContent), 0o666)
+}
+
+func TestArtifactDirDefault(t *testing.T) {
+	tempDir := t.TempDir()
+	t.Chdir(tempDir)
+	out := runTest(t, "TestArtifactDirExample", "-test.artifacts")
+	checkArtifactDir(t, out, "TestArtifactDirExample", tempDir)
+}
+
+func TestArtifactDirSpecified(t *testing.T) {
+	tempDir := t.TempDir()
+	out := runTest(t, "TestArtifactDirExample", "-test.artifacts", "-test.outputdir="+tempDir)
+	checkArtifactDir(t, out, "TestArtifactDirExample", tempDir)
+}
+
+func TestArtifactDirNoArtifacts(t *testing.T) {
+	t.Chdir(t.TempDir())
+	out := string(runTest(t, "TestArtifactDirExample"))
+	if strings.Contains(out, "=== ARTIFACTS") {
+		t.Errorf("expected output with no === ARTIFACTS, got\n%q", out)
+	}
+	ents, err := os.ReadDir(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range ents {
+		t.Errorf("unexpected file in current directory after test: %v", e.Name())
+	}
+}
+
+func TestArtifactDirSubtestExample(t *testing.T) {
+	t.Run("Subtest", func(t *testing.T) {
+		os.WriteFile(filepath.Join(t.ArtifactDir(), "artifact"), []byte(artifactContent), 0o666)
+	})
+}
+
+func TestArtifactDirInSubtest(t *testing.T) {
+	tempDir := t.TempDir()
+	out := runTest(t, "TestArtifactDirSubtestExample/Subtest", "-test.artifacts", "-test.outputdir="+tempDir)
+	checkArtifactDir(t, out, "TestArtifactDirSubtestExample/Subtest", tempDir)
+}
+
+func TestArtifactDirLongTestNameExample(t *testing.T) {
+	name := strings.Repeat("x", 256)
+	t.Run(name, func(t *testing.T) {
+		os.WriteFile(filepath.Join(t.ArtifactDir(), "artifact"), []byte(artifactContent), 0o666)
+	})
+}
+
+func TestArtifactDirWithLongTestName(t *testing.T) {
+	tempDir := t.TempDir()
+	out := runTest(t, "TestArtifactDirLongTestNameExample", "-test.artifacts", "-test.outputdir="+tempDir)
+	checkArtifactDir(t, out, `TestArtifactDirLongTestNameExample/\w+`, tempDir)
+}
+
+func TestArtifactDirConsistent(t *testing.T) {
+	a := t.ArtifactDir()
+	b := t.ArtifactDir()
+	if a != b {
+		t.Errorf("t.ArtifactDir is not consistent between calls: %q, %q", a, b)
+	}
+}
+
+func checkArtifactDir(t *testing.T, out []byte, testName, outputDir string) {
+	t.Helper()
+
+	re := regexp.MustCompile(`=== ARTIFACTS ` + testName + ` ([^\n]+)`)
+	match := re.FindSubmatch(out)
+	if match == nil {
+		t.Fatalf("expected output matching %q, got\n%q", re, out)
+	}
+	artifactDir := string(match[1])
+
+	// Verify that the artifact directory is contained in the expected output directory.
+	relDir, err := filepath.Rel(outputDir, artifactDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !filepath.IsLocal(relDir) {
+		t.Fatalf("want artifact directory contained in %q, got %q", outputDir, artifactDir)
+	}
+
+	for _, part := range strings.Split(relDir, string(os.PathSeparator)) {
+		const maxSize = 64
+		if len(part) > maxSize {
+			t.Errorf("artifact directory %q contains component >%v characters long: %q", relDir, maxSize, part)
+		}
+	}
+
+	got, err := os.ReadFile(filepath.Join(artifactDir, "artifact"))
+	if err != nil || string(got) != artifactContent {
+		t.Errorf("reading artifact in %q: got %q, %v; want %q", artifactDir, got, err, artifactContent)
+	}
+}
+
+func TestBenchmarkBLoopIterationCorrect(t *testing.T) {
+	out := runTest(t, "BenchmarkBLoopPrint")
+	c := bytes.Count(out, []byte("Printing from BenchmarkBLoopPrint"))
+
+	want := 2
+	if c != want {
+		t.Errorf("got %d loop iterations; want %d", c, want)
+	}
+
+	// b.Loop() will only rampup once.
+	c = bytes.Count(out, []byte("Ramping up from BenchmarkBLoopPrint"))
+	want = 1
+	if c != want {
+		t.Errorf("got %d loop rampup; want %d", c, want)
+	}
+
+	re := regexp.MustCompile(`BenchmarkBLoopPrint(-[0-9]+)?\s+2\s+[0-9]+\s+ns/op`)
+	if !re.Match(out) {
+		t.Error("missing benchmark output")
+	}
+}
+
+func TestBenchmarkBNIterationCorrect(t *testing.T) {
+	out := runTest(t, "BenchmarkBNPrint")
+	c := bytes.Count(out, []byte("Printing from BenchmarkBNPrint"))
+
+	// runTest sets benchtime=2x, with semantics specified in #32051 it should
+	// run 3 times.
+	want := 3
+	if c != want {
+		t.Errorf("got %d loop iterations; want %d", c, want)
+	}
+
+	// b.N style fixed iteration loop will rampup twice:
+	// One in run1(), the other in launch
+	c = bytes.Count(out, []byte("Ramping up from BenchmarkBNPrint"))
+	want = 2
+	if c != want {
+		t.Errorf("got %d loop rampup; want %d", c, want)
+	}
+}
+
+func BenchmarkBLoopPrint(b *testing.B) {
+	b.Logf("Ramping up from BenchmarkBLoopPrint")
+	for b.Loop() {
+		b.Logf("Printing from BenchmarkBLoopPrint")
+	}
+}
+
+func BenchmarkBNPrint(b *testing.B) {
+	b.Logf("Ramping up from BenchmarkBNPrint")
+	for i := 0; i < b.N; i++ {
+		b.Logf("Printing from BenchmarkBNPrint")
+	}
+}
+
+func TestArtifactDir(t *testing.T) {
+	t.Log(t.ArtifactDir())
 }

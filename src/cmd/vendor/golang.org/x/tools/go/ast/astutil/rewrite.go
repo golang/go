@@ -67,6 +67,10 @@ var abort = new(int) // singleton, to signal termination of Apply
 //
 // The methods Replace, Delete, InsertBefore, and InsertAfter
 // can be used to change the AST without disrupting Apply.
+//
+// This type is not to be confused with [inspector.Cursor] from
+// package [golang.org/x/tools/go/ast/inspector], which provides
+// stateless navigation of immutable syntax trees.
 type Cursor struct {
 	parent ast.Node
 	name   string
@@ -183,7 +187,7 @@ type application struct {
 
 func (a *application) apply(parent ast.Node, name string, iter *iterator, n ast.Node) {
 	// convert typed nil into untyped nil
-	if v := reflect.ValueOf(n); v.Kind() == reflect.Ptr && v.IsNil() {
+	if v := reflect.ValueOf(n); v.Kind() == reflect.Pointer && v.IsNil() {
 		n = nil
 	}
 

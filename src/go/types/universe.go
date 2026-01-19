@@ -24,6 +24,7 @@ var Unsafe *Package
 
 var (
 	universeIota       Object
+	universeBool       Type
 	universeByte       Type // uint8 alias, but has name "byte"
 	universeRune       Type // int32 alias, but has name "rune"
 	universeAnyNoAlias *TypeName
@@ -100,7 +101,6 @@ func defPredeclaredTypes() {
 	// interface.
 	{
 		universeAnyNoAlias = NewTypeName(nopos, nil, "any", &Interface{complete: true, tset: &topTypeSet})
-		universeAnyNoAlias.setColor(black)
 		// ensure that the any TypeName reports a consistent Parent, after
 		// hijacking Universe.Lookup with gotypesalias=0.
 		universeAnyNoAlias.setParent(Universe)
@@ -109,7 +109,6 @@ func defPredeclaredTypes() {
 		// into the Universe, but we lean toward the future and insert the Alias
 		// representation.
 		universeAnyAlias = NewTypeName(nopos, nil, "any", nil)
-		universeAnyAlias.setColor(black)
 		_ = NewAlias(universeAnyAlias, universeAnyNoAlias.Type().Underlying()) // Link TypeName and Alias
 		def(universeAnyAlias)
 	}
@@ -117,12 +116,11 @@ func defPredeclaredTypes() {
 	// type error interface{ Error() string }
 	{
 		obj := NewTypeName(nopos, nil, "error", nil)
-		obj.setColor(black)
-		typ := NewNamed(obj, nil, nil)
+		typ := (*Checker)(nil).newNamed(obj, nil, nil)
 
 		// error.Error() string
-		recv := NewVar(nopos, nil, "", typ)
-		res := NewVar(nopos, nil, "", Typ[String])
+		recv := newVar(RecvVar, nopos, nil, "", typ)
+		res := newVar(ResultVar, nopos, nil, "", Typ[String])
 		sig := NewSignatureType(recv, nil, nil, nil, NewTuple(res), false)
 		err := NewFunc(nopos, nil, "Error", sig)
 
@@ -130,20 +128,21 @@ func defPredeclaredTypes() {
 		ityp := &Interface{methods: []*Func{err}, complete: true}
 		computeInterfaceTypeSet(nil, nopos, ityp) // prevent races due to lazy computation of tset
 
-		typ.SetUnderlying(ityp)
+		typ.fromRHS = ityp
+		typ.Underlying()
 		def(obj)
 	}
 
 	// type comparable interface{} // marked as comparable
 	{
 		obj := NewTypeName(nopos, nil, "comparable", nil)
-		obj.setColor(black)
-		typ := NewNamed(obj, nil, nil)
+		typ := (*Checker)(nil).newNamed(obj, nil, nil)
 
 		// interface{} // marked as comparable
 		ityp := &Interface{complete: true, tset: &_TypeSet{nil, allTermlist, true}}
 
-		typ.SetUnderlying(ityp)
+		typ.fromRHS = ityp
+		typ.Underlying()
 		def(obj)
 	}
 }
@@ -165,7 +164,7 @@ func defPredeclaredConsts() {
 }
 
 func defPredeclaredNil() {
-	def(&Nil{object{name: "nil", typ: Typ[UntypedNil], color_: black}})
+	def(&Nil{object{name: "nil", typ: Typ[UntypedNil]}})
 }
 
 // A builtinId is the id of a builtin function.
@@ -278,6 +277,7 @@ func init() {
 	defPredeclaredFuncs()
 
 	universeIota = Universe.Lookup("iota")
+	universeBool = Universe.Lookup("bool").Type()
 	universeByte = Universe.Lookup("byte").Type()
 	universeRune = Universe.Lookup("rune").Type()
 	universeError = Universe.Lookup("error").Type()
@@ -288,7 +288,7 @@ func init() {
 // a scope. Objects with exported names are inserted in the unsafe package
 // scope; other objects are inserted in the universe scope.
 func def(obj Object) {
-	assert(obj.color() == black)
+	assert(obj.Type() != nil)
 	name := obj.Name()
 	if strings.Contains(name, " ") {
 		return // nothing to do

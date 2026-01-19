@@ -27,6 +27,7 @@ package unitchecker
 //   printf checker.
 
 import (
+	"archive/zip"
 	"encoding/gob"
 	"encoding/json"
 	"flag"
@@ -49,9 +50,8 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/internal/analysisflags"
-	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/internal/analysis/driverutil"
 	"golang.org/x/tools/internal/facts"
-	"golang.org/x/tools/internal/versions"
 )
 
 // A Config describes a compilation unit to be analyzed.
@@ -74,7 +74,9 @@ type Config struct {
 	PackageVetx               map[string]string // maps package path to file of fact information
 	VetxOnly                  bool              // run analysis only for facts, not diagnostics
 	VetxOutput                string            // where to write file of fact information
-	SucceedOnTypecheckFailure bool
+	Stdout                    string            // write stdout (e.g. JSON, unified diff) to this file
+	FixArchive                string            // write fixed files to this zip archive, if non-empty
+	SucceedOnTypecheckFailure bool              // obsolete awful hack; see #18395 and below
 }
 
 // Main is the main function of a vet-like analysis tool that must be
@@ -86,6 +88,9 @@ type Config struct {
 //	-V=full         describe executable for build caching
 //	foo.cfg         perform separate modular analyze on the single
 //	                unit described by a JSON config file foo.cfg.
+//	-fix		don't print each diagnostic, apply its first fix
+//	-diff		don't apply a fix, print the diff (requires -fix)
+//	-json		print diagnostics and fixes in JSON form
 func Main(analyzers ...*analysis.Analyzer) {
 	progname := filepath.Base(os.Args[0])
 	log.SetFlags(0)
@@ -131,41 +136,29 @@ func Run(configFile string, analyzers []*analysis.Analyzer) {
 		log.Fatal(err)
 	}
 
+	// Redirect stdout to a file as requested.
+	if cfg.Stdout != "" {
+		f, err := os.Create(cfg.Stdout)
+		if err != nil {
+			log.Fatal(err)
+		}
+		os.Stdout = f
+	}
+
 	fset := token.NewFileSet()
 	results, err := run(fset, cfg, analyzers)
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	code := 0
+
 	// In VetxOnly mode, the analysis is run only for facts.
 	if !cfg.VetxOnly {
-		if analysisflags.JSON {
-			// JSON output
-			tree := make(analysisflags.JSONTree)
-			for _, res := range results {
-				tree.Add(fset, cfg.ID, res.a.Name, res.diagnostics, res.err)
-			}
-			tree.Print()
-		} else {
-			// plain text
-			exit := 0
-			for _, res := range results {
-				if res.err != nil {
-					log.Println(res.err)
-					exit = 1
-				}
-			}
-			for _, res := range results {
-				for _, diag := range res.diagnostics {
-					analysisflags.PrintPlain(fset, diag)
-					exit = 1
-				}
-			}
-			os.Exit(exit)
-		}
+		code = processResults(fset, cfg.ID, cfg.FixArchive, results)
 	}
 
-	os.Exit(0)
+	os.Exit(code)
 }
 
 func readConfig(filename string) (*Config, error) {
@@ -184,6 +177,98 @@ func readConfig(filename string) (*Config, error) {
 		return nil, fmt.Errorf("package has no files: %s", cfg.ImportPath)
 	}
 	return cfg, nil
+}
+
+func processResults(fset *token.FileSet, id, fixArchive string, results []result) (exit int) {
+	if analysisflags.Fix {
+		// Don't print the diagnostics,
+		// but apply all fixes from the root actions.
+
+		// Convert results to form needed by ApplyFixes.
+		fixActions := make([]driverutil.FixAction, len(results))
+		for i, res := range results {
+			fixActions[i] = driverutil.FixAction{
+				Name:         res.a.Name,
+				Pkg:          res.pkg,
+				Files:        res.files,
+				FileSet:      fset,
+				ReadFileFunc: os.ReadFile, // TODO(adonovan): respect overlays
+				Diagnostics:  res.diagnostics,
+			}
+		}
+
+		// By default, fixes overwrite the original file.
+		// With the -diff flag, print the diffs to stdout.
+		// If "go fix" provides a fix archive, we write files
+		// into it so that mutations happen after the build.
+		write := func(filename string, content []byte) error {
+			return os.WriteFile(filename, content, 0644)
+		}
+		if fixArchive != "" {
+			f, err := os.Create(fixArchive)
+			if err != nil {
+				log.Fatalf("can't create -fix archive: %v", err)
+			}
+			zw := zip.NewWriter(f)
+			zw.SetComment(id) // ignore error
+			defer func() {
+				if err := zw.Close(); err != nil {
+					log.Fatalf("closing -fix archive zip writer: %v", err)
+				}
+				if err := f.Close(); err != nil {
+					log.Fatalf("closing -fix archive file: %v", err)
+				}
+			}()
+			write = func(filename string, content []byte) error {
+				f, err := zw.Create(filename)
+				if err != nil {
+					return err
+				}
+				_, err = f.Write(content)
+				return err
+			}
+		}
+
+		if err := driverutil.ApplyFixes(fixActions, write, analysisflags.Diff, false); err != nil {
+			// Fail when applying fixes failed.
+			log.Print(err)
+			exit = 1
+		}
+
+		// Don't proceed to print text/JSON,
+		// and don't report an error
+		// just because there were diagnostics.
+		return
+	}
+
+	// Keep consistent with analogous logic in
+	// printDiagnostics in ../internal/checker/checker.go.
+
+	if analysisflags.JSON {
+		// JSON output
+		tree := make(driverutil.JSONTree)
+		for _, res := range results {
+			tree.Add(fset, id, res.a.Name, res.diagnostics, res.err)
+		}
+		tree.Print(os.Stdout) // ignore error
+
+	} else {
+		// plain text
+		for _, res := range results {
+			if res.err != nil {
+				log.Println(res.err)
+				exit = 1
+			}
+		}
+		for _, res := range results {
+			for _, diag := range res.diagnostics {
+				driverutil.PrintPlain(os.Stderr, fset, analysisflags.Context, diag)
+				exit = 1
+			}
+		}
+	}
+
+	return
 }
 
 type factImporter = func(pkgPath string) ([]byte, error)
@@ -257,15 +342,15 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 		GoVersion: cfg.GoVersion,
 	}
 	info := &types.Info{
-		Types:      make(map[ast.Expr]types.TypeAndValue),
-		Defs:       make(map[*ast.Ident]types.Object),
-		Uses:       make(map[*ast.Ident]types.Object),
-		Implicits:  make(map[ast.Node]types.Object),
-		Instances:  make(map[*ast.Ident]types.Instance),
-		Scopes:     make(map[ast.Node]*types.Scope),
-		Selections: make(map[*ast.SelectorExpr]*types.Selection),
+		Types:        make(map[ast.Expr]types.TypeAndValue),
+		Defs:         make(map[*ast.Ident]types.Object),
+		Uses:         make(map[*ast.Ident]types.Object),
+		Implicits:    make(map[ast.Node]types.Object),
+		Instances:    make(map[*ast.Ident]types.Instance),
+		Scopes:       make(map[ast.Node]*types.Scope),
+		Selections:   make(map[*ast.SelectorExpr]*types.Selection),
+		FileVersions: make(map[*ast.File]string),
 	}
-	versions.InitFileVersions(info)
 
 	pkg, err := tc.Check(cfg.ImportPath, fset, files, info)
 	if err != nil {
@@ -288,7 +373,7 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 	// Also build a map to hold working state and result.
 	type action struct {
 		once        sync.Once
-		result      interface{}
+		result      any
 		err         error
 		usesFacts   bool // (transitively uses)
 		diagnostics []analysis.Diagnostic
@@ -338,7 +423,7 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 
 			// The inputs to this analysis are the
 			// results of its prerequisites.
-			inputs := make(map[*analysis.Analyzer]interface{})
+			inputs := make(map[*analysis.Analyzer]any)
 			var failed []string
 			for _, req := range a.Requires {
 				reqact := exec(req)
@@ -368,17 +453,26 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 			}
 
 			pass := &analysis.Pass{
-				Analyzer:          a,
-				Fset:              fset,
-				Files:             files,
-				OtherFiles:        cfg.NonGoFiles,
-				IgnoredFiles:      cfg.IgnoredFiles,
-				Pkg:               pkg,
-				TypesInfo:         info,
-				TypesSizes:        tc.Sizes,
-				TypeErrors:        nil, // unitchecker doesn't RunDespiteErrors
-				ResultOf:          inputs,
-				Report:            func(d analysis.Diagnostic) { act.diagnostics = append(act.diagnostics, d) },
+				Analyzer:     a,
+				Fset:         fset,
+				Files:        files,
+				OtherFiles:   cfg.NonGoFiles,
+				IgnoredFiles: cfg.IgnoredFiles,
+				Pkg:          pkg,
+				TypesInfo:    info,
+				TypesSizes:   tc.Sizes,
+				TypeErrors:   nil, // unitchecker doesn't RunDespiteErrors
+				ResultOf:     inputs,
+				Report: func(d analysis.Diagnostic) {
+					// Unitchecker doesn't apply fixes, but it does report them in the JSON output.
+					if err := driverutil.ValidateFixes(fset, a, d.SuggestedFixes); err != nil {
+						// Since we have diagnostics, the exit code will be nonzero,
+						// so logging these errors is sufficient.
+						log.Println(err)
+						d.SuggestedFixes = nil
+					}
+					act.diagnostics = append(act.diagnostics, d)
+				},
 				ImportObjectFact:  facts.ImportObjectFact,
 				ExportObjectFact:  facts.ExportObjectFact,
 				AllObjectFacts:    func() []analysis.ObjectFact { return facts.AllObjectFacts(factFilter) },
@@ -387,14 +481,14 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 				AllPackageFacts:   func() []analysis.PackageFact { return facts.AllPackageFacts(factFilter) },
 				Module:            module,
 			}
-			pass.ReadFile = analysisinternal.MakeReadFile(pass)
+			pass.ReadFile = driverutil.CheckedReadFile(pass, os.ReadFile)
 
 			t0 := time.Now()
 			act.result, act.err = a.Run(pass)
 
 			if act.err == nil { // resolve URLs on diagnostics.
 				for i := range act.diagnostics {
-					if url, uerr := analysisflags.ResolveURL(a, act.diagnostics[i]); uerr == nil {
+					if url, uerr := driverutil.ResolveURL(a, act.diagnostics[i]); uerr == nil {
 						act.diagnostics[i].URL = url
 					} else {
 						act.err = uerr // keep the last error
@@ -425,9 +519,7 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 	results := make([]result, len(analyzers))
 	for i, a := range analyzers {
 		act := actions[a]
-		results[i].a = a
-		results[i].err = act.err
-		results[i].diagnostics = act.diagnostics
+		results[i] = result{pkg, files, a, act.diagnostics, act.err}
 	}
 
 	data := facts.Encode()
@@ -442,6 +534,8 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 }
 
 type result struct {
+	pkg         *types.Package
+	files       []*ast.File
 	a           *analysis.Analyzer
 	diagnostics []analysis.Diagnostic
 	err         error

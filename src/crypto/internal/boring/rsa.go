@@ -252,7 +252,7 @@ func encrypt(ctx *C.GO_EVP_PKEY_CTX, out *C.uint8_t, outLen *C.size_t, in *C.uin
 	return C._goboringcrypto_EVP_PKEY_encrypt(ctx, out, outLen, in, inLen)
 }
 
-var invalidSaltLenErr = errors.New("crypto/rsa: PSSOptions.SaltLength cannot be negative")
+var invalidSaltLenErr = errors.New("crypto/rsa: invalid PSS salt length")
 
 func SignRSAPSS(priv *PrivateKeyRSA, h crypto.Hash, hashed []byte, saltLen int) ([]byte, error) {
 	md := cryptoHashToMD(h)

@@ -169,9 +169,9 @@ func Compile(f *Func) {
 func (f *Func) DumpFileForPhase(phaseName string) io.WriteCloser {
 	f.dumpFileSeq++
 	fname := fmt.Sprintf("%s_%02d__%s.dump", f.Name, int(f.dumpFileSeq), phaseName)
-	fname = strings.Replace(fname, " ", "_", -1)
-	fname = strings.Replace(fname, "/", "_", -1)
-	fname = strings.Replace(fname, ":", "_", -1)
+	fname = strings.ReplaceAll(fname, " ", "_")
+	fname = strings.ReplaceAll(fname, "/", "_")
+	fname = strings.ReplaceAll(fname, ":", "_")
 
 	if ssaDir := os.Getenv("GOSSADIR"); ssaDir != "" {
 		fname = filepath.Join(ssaDir, fname)
@@ -264,7 +264,7 @@ func PhaseOption(phase, flag string, val int, valString string) string {
 		lastcr := 0
 		phasenames := "    check, all, build, intrinsics, genssa"
 		for _, p := range passes {
-			pn := strings.Replace(p.name, " ", "_", -1)
+			pn := strings.ReplaceAll(p.name, " ", "_")
 			if len(pn)+len(phasenames)-lastcr > 70 {
 				phasenames += "\n    "
 				lastcr = len(phasenames)
@@ -400,7 +400,7 @@ commas. For example:
 		return ""
 	}
 
-	underphase := strings.Replace(phase, "_", " ", -1)
+	underphase := strings.ReplaceAll(phase, "_", " ")
 	var re *regexp.Regexp
 	if phase[0] == '~' {
 		r, ok := regexp.Compile(underphase[1:])
@@ -461,7 +461,7 @@ var passes = [...]pass{
 	{name: "short circuit", fn: shortcircuit},
 	{name: "decompose user", fn: decomposeUser, required: true},
 	{name: "pre-opt deadcode", fn: deadcode},
-	{name: "opt", fn: opt, required: true},               // NB: some generic rules know the name of the opt pass. TODO: split required rules and optimizing rules
+	{name: "opt", fn: opt, required: true},
 	{name: "zero arg cse", fn: zcse, required: true},     // required to merge OpSB values
 	{name: "opt deadcode", fn: deadcode, required: true}, // remove any blocks orphaned during opt
 	{name: "generic cse", fn: cse},
@@ -469,15 +469,18 @@ var passes = [...]pass{
 	{name: "gcse deadcode", fn: deadcode, required: true}, // clean out after cse and phiopt
 	{name: "nilcheckelim", fn: nilcheckelim},
 	{name: "prove", fn: prove},
+	{name: "divisible", fn: divisible, required: true},
+	{name: "divmod", fn: divmod, required: true},
+	{name: "middle opt", fn: opt, required: true},
 	{name: "early fuse", fn: fuseEarly},
 	{name: "expand calls", fn: expandCalls, required: true},
 	{name: "decompose builtin", fn: postExpandCallsDecompose, required: true},
 	{name: "softfloat", fn: softfloat, required: true},
-	{name: "late opt", fn: opt, required: true}, // TODO: split required rules and optimizing rules
+	{name: "branchelim", fn: branchelim},
+	{name: "late opt", fn: opt, required: true},
 	{name: "dead auto elim", fn: elimDeadAutosGeneric},
 	{name: "sccp", fn: sccp},
 	{name: "generic deadcode", fn: deadcode, required: true}, // remove dead stores, which otherwise mess up store chain
-	{name: "branchelim", fn: branchelim},
 	{name: "late fuse", fn: fuseLate},
 	{name: "check bce", fn: checkbce},
 	{name: "dse", fn: dse},
@@ -485,9 +488,12 @@ var passes = [...]pass{
 	{name: "writebarrier", fn: writebarrier, required: true}, // expand write barrier ops
 	{name: "insert resched checks", fn: insertLoopReschedChecks,
 		disabled: !buildcfg.Experiment.PreemptibleLoops}, // insert resched checks in loops.
+	{name: "cpufeatures", fn: cpufeatures, required: buildcfg.Experiment.SIMD, disabled: !buildcfg.Experiment.SIMD},
+	{name: "rewrite tern", fn: rewriteTern, required: false, disabled: !buildcfg.Experiment.SIMD},
 	{name: "lower", fn: lower, required: true},
 	{name: "addressing modes", fn: addressingModes, required: false},
 	{name: "late lower", fn: lateLower, required: true},
+	{name: "pair", fn: pair},
 	{name: "lowered deadcode for cse", fn: deadcode}, // deadcode immediately before CSE avoids CSE making dead values live again
 	{name: "lowered cse", fn: cse},
 	{name: "elim unread autos", fn: elimUnreadAutos},
@@ -528,6 +534,12 @@ var passOrder = [...]constraint{
 	{"generic cse", "prove"},
 	// deadcode after prove to eliminate all new dead blocks.
 	{"prove", "generic deadcode"},
+	// divisible after prove to let prove analyze div and mod
+	{"prove", "divisible"},
+	// divmod after divisible to avoid rewriting subexpressions of ones divisible will handle
+	{"divisible", "divmod"},
+	// divmod before decompose builtin to handle 64-bit on 32-bit systems
+	{"divmod", "decompose builtin"},
 	// common-subexpression before dead-store elim, so that we recognize
 	// when two address expressions are the same.
 	{"generic cse", "dse"},
@@ -537,7 +549,7 @@ var passOrder = [...]constraint{
 	{"nilcheckelim", "generic deadcode"},
 	// nilcheckelim generates sequences of plain basic blocks
 	{"nilcheckelim", "late fuse"},
-	// nilcheckelim relies on opt to rewrite user nil checks
+	// nilcheckelim relies on the first opt to rewrite user nil checks
 	{"opt", "nilcheckelim"},
 	// tighten will be most effective when as many values have been removed as possible
 	{"generic deadcode", "tighten"},
@@ -582,6 +594,12 @@ var passOrder = [...]constraint{
 	{"late fuse", "memcombine"},
 	// memcombine is a arch-independent pass.
 	{"memcombine", "lower"},
+	// late opt transform some CondSelects into math.
+	{"branchelim", "late opt"},
+	// branchelim is an arch-independent pass.
+	{"branchelim", "lower"},
+	// lower needs cpu feature information (for SIMD)
+	{"cpufeatures", "lower"},
 }
 
 func init() {

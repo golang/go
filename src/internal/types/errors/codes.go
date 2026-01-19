@@ -114,15 +114,16 @@ const (
 	//  	S
 	//  }
 	//
-	InvalidDeclCycle
-
-	// InvalidTypeCycle occurs when a cycle in type definitions results in a
-	// type that is not well-defined.
-	//
 	// Example:
 	//  import "unsafe"
 	//
 	//  type T [unsafe.Sizeof(T{})]int
+	InvalidDeclCycle
+
+	// TODO(markfreeman): Retire InvalidTypeCycle, as it's never emitted.
+
+	// InvalidTypeCycle occurs when a cycle in type definitions results in a
+	// type that is not well-defined.
 	InvalidTypeCycle
 
 	// InvalidConstInit occurs when a const declaration has a non-constant
@@ -719,10 +720,7 @@ const (
 
 	// MisplacedDotDotDot occurs when a "..." is used somewhere other than the
 	// final argument in a function declaration.
-	//
-	// Example:
-	// 	func f(...int, int)
-	MisplacedDotDotDot
+	_ // not used anymore (error reported by parser)
 
 	_ // InvalidDotDotDotOperand was removed.
 
@@ -884,7 +882,9 @@ const (
 	// context in which it is used.
 	//
 	// Example:
-	//  var _ = 1 + []int{}
+	//  func f[T ~int8 | ~int16 | ~int32 | ~int64](x T) T {
+	//  	return x + 1024
+	//  }
 	InvalidUntypedConversion
 
 	// BadOffsetofSyntax occurs when unsafe.Offsetof is called with an argument

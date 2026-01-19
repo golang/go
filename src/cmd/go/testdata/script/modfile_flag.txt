@@ -48,6 +48,10 @@ go build -n -mod=mod .
 go test -n -mod=mod .
 go get rsc.io/quote
 
+# 'go tool' and tool management should work.
+go get -tool example.com/tools/cmd/hello@v1.0.0
+grep cmd/hello go.alt.mod
+go tool hello
 
 # 'go mod vendor' should work.
 go mod vendor

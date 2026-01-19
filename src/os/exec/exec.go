@@ -17,7 +17,7 @@
 //
 // Note that the examples in this package assume a Unix system.
 // They may not run on Windows, and they do not run in the Go Playground
-// used by golang.org and godoc.org.
+// used by go.dev and pkg.go.dev.
 //
 // # Executables in the current directory
 //
@@ -102,6 +102,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
@@ -142,8 +143,8 @@ func (w wrappedError) Unwrap() error {
 
 // Cmd represents an external command being prepared or run.
 //
-// A Cmd cannot be reused after calling its [Cmd.Run], [Cmd.Output] or [Cmd.CombinedOutput]
-// methods.
+// A Cmd cannot be reused after calling its [Cmd.Start], [Cmd.Run],
+// [Cmd.Output], or [Cmd.CombinedOutput] methods.
 type Cmd struct {
 	// Path is the path of the command to run.
 	//
@@ -354,6 +355,11 @@ type Cmd struct {
 	// the work of resolving the extension, so Start doesn't need to do it again.
 	// This is only used on Windows.
 	cachedLookExtensions struct{ in, out string }
+
+	// startCalled records that Start was attempted, regardless of outcome.
+	// (Until go.dev/issue/77075 is resolved, we use atomic.SwapInt32,
+	// not atomic.Bool.Swap, to avoid triggering the copylocks vet check.)
+	startCalled int32
 }
 
 // A ctxResult reports the result of watching the Context associated with a
@@ -635,7 +641,8 @@ func (c *Cmd) Run() error {
 func (c *Cmd) Start() error {
 	// Check for doubled Start calls before we defer failure cleanup. If the prior
 	// call to Start succeeded, we don't want to spuriously close its pipes.
-	if c.Process != nil {
+	// It is an error to call Start twice even if the first call did not create a process.
+	if atomic.SwapInt32(&c.startCalled, 1) != 0 {
 		return errors.New("exec: already started")
 	}
 
@@ -647,6 +654,7 @@ func (c *Cmd) Start() error {
 		if !started {
 			closeDescriptors(c.parentIOPipes)
 			c.parentIOPipes = nil
+			c.goroutine = nil // aid GC, finalization of pipe fds
 		}
 	}()
 
@@ -1000,7 +1008,9 @@ func (c *Cmd) awaitGoroutines(timer *time.Timer) error {
 
 // Output runs the command and returns its standard output.
 // Any returned error will usually be of type [*ExitError].
-// If c.Stderr was nil, Output populates [ExitError.Stderr].
+// If c.Stderr was nil and the returned error is of type
+// [*ExitError], Output populates the Stderr field of the
+// returned error.
 func (c *Cmd) Output() ([]byte, error) {
 	if c.Stdout != nil {
 		return nil, errors.New("exec: Stdout already set")
@@ -1326,3 +1336,13 @@ func addCriticalEnv(env []string) []string {
 // Code should use errors.Is(err, ErrDot), not err == ErrDot,
 // to test whether a returned error err is due to this condition.
 var ErrDot = errors.New("cannot run executable found relative to current directory")
+
+// validateLookPath excludes paths that can't be valid
+// executable names. See issue #74466 and CVE-2025-47906.
+func validateLookPath(s string) error {
+	switch s {
+	case "", ".", "..":
+		return ErrNotFound
+	}
+	return nil
+}

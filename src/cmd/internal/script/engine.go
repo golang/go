@@ -55,6 +55,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -70,14 +72,6 @@ type Engine struct {
 	// If Quiet is true, Execute deletes log prints from the previous
 	// section when starting a new section.
 	Quiet bool
-}
-
-// NewEngine returns an Engine configured with a basic set of commands and conditions.
-func NewEngine() *Engine {
-	return &Engine{
-		Cmds:  DefaultCmds(),
-		Conds: DefaultConds(),
-	}
 }
 
 // A Cmd is a command that is available to a script.
@@ -193,7 +187,7 @@ func (e *Engine) Execute(s *State, file string, script *bufio.Reader, log io.Wri
 
 	var lineno int
 	lineErr := func(err error) error {
-		if errors.As(err, new(*CommandError)) {
+		if _, ok := errors.AsType[*CommandError](err); ok {
 			return err
 		}
 		return fmt.Errorf("%s:%d: %w", file, lineno, err)
@@ -291,7 +285,7 @@ func (e *Engine) Execute(s *State, file string, script *bufio.Reader, log io.Wri
 		// Run the command.
 		err = e.runCommand(s, cmd, impl)
 		if err != nil {
-			if stop := (stopError{}); errors.As(err, &stop) {
+			if stop, ok := errors.AsType[stopError](err); ok {
 				// Since the 'stop' command halts execution of the entire script,
 				// log its message separately from the section in which it appears.
 				err = endSection(true)
@@ -526,7 +520,7 @@ func (e *Engine) conditionsActive(s *State, conds []condition) (bool, error) {
 		if ok {
 			impl = e.Conds[prefix]
 			if impl == nil {
-				return false, fmt.Errorf("unknown condition prefix %q", prefix)
+				return false, fmt.Errorf("unknown condition prefix %q; known: %v", prefix, slices.Collect(maps.Keys(e.Conds)))
 			}
 			if !impl.Usage().Prefix {
 				return false, fmt.Errorf("condition %q cannot be used with a suffix", prefix)
@@ -615,13 +609,13 @@ func checkStatus(cmd *command, err error) error {
 		return nil
 	}
 
-	if s := (stopError{}); errors.As(err, &s) {
+	if _, ok := errors.AsType[stopError](err); ok {
 		// This error originated in the Stop command.
 		// Propagate it as-is.
 		return cmdError(cmd, err)
 	}
 
-	if w := (waitError{}); errors.As(err, &w) {
+	if _, ok := errors.AsType[waitError](err); ok {
 		// This error was surfaced from a background process by a call to Wait.
 		// Add a call frame for Wait itself, but ignore its "want" field.
 		// (Wait itself cannot fail to wait on commands or else it would leak

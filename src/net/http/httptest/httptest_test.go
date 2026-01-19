@@ -157,6 +157,24 @@ func TestNewRequestWithContext(t *testing.T) {
 		},
 
 		{
+			name:   "Post with NoBody",
+			method: "POST",
+			uri:    "/",
+			body:   http.NoBody,
+			want: &http.Request{
+				Method:     "POST",
+				Host:       "example.com",
+				URL:        &url.URL{Path: "/"},
+				Header:     http.Header{},
+				Proto:      "HTTP/1.1",
+				ProtoMajor: 1,
+				ProtoMinor: 1,
+				RemoteAddr: "192.0.2.1:1234",
+				RequestURI: "/",
+			},
+		},
+
+		{
 			name:   "OPTIONS *",
 			method: "OPTIONS",
 			uri:    "*",

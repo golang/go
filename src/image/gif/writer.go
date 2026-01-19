@@ -15,6 +15,7 @@ import (
 	"image/draw"
 	"internal/byteorder"
 	"io"
+	"math/bits"
 )
 
 // Graphic control extension fields.
@@ -23,15 +24,11 @@ const (
 	gcBlockSize = 0x04
 )
 
-var log2Lookup = [8]int{2, 4, 8, 16, 32, 64, 128, 256}
-
 func log2(x int) int {
-	for i, v := range log2Lookup {
-		if x <= v {
-			return i
-		}
+	if x < 2 {
+		return 0
 	}
-	return -1
+	return bits.Len(uint(x-1)) - 1
 }
 
 // writer is a buffered writer.
@@ -146,8 +143,8 @@ func (e *encoder) writeHeader() {
 	}
 
 	// Logical screen width and height.
-	byteorder.LePutUint16(e.buf[0:2], uint16(e.g.Config.Width))
-	byteorder.LePutUint16(e.buf[2:4], uint16(e.g.Config.Height))
+	byteorder.LEPutUint16(e.buf[0:2], uint16(e.g.Config.Width))
+	byteorder.LEPutUint16(e.buf[2:4], uint16(e.g.Config.Height))
 	e.write(e.buf[:4])
 
 	if p, ok := e.g.Config.ColorModel.(color.Palette); ok && len(p) > 0 {
@@ -185,14 +182,14 @@ func (e *encoder) writeHeader() {
 		}
 		e.buf[0] = 0x03 // Block Size.
 		e.buf[1] = 0x01 // Sub-block Index.
-		byteorder.LePutUint16(e.buf[2:4], uint16(e.g.LoopCount))
+		byteorder.LEPutUint16(e.buf[2:4], uint16(e.g.LoopCount))
 		e.buf[4] = 0x00 // Block Terminator.
 		e.write(e.buf[:5])
 	}
 }
 
 func encodeColorTable(dst []byte, p color.Palette, size int) (int, error) {
-	if uint(size) >= uint(len(log2Lookup)) {
+	if uint(size) >= 8 {
 		return 0, errors.New("gif: cannot encode color table with more than 256 entries")
 	}
 	for i, c := range p {
@@ -212,7 +209,7 @@ func encodeColorTable(dst []byte, p color.Palette, size int) (int, error) {
 		dst[3*i+1] = g
 		dst[3*i+2] = b
 	}
-	n := log2Lookup[size]
+	n := 1 << (size + 1)
 	if n > len(p) {
 		// Pad with black.
 		clear(dst[3*len(p) : 3*n])
@@ -271,7 +268,7 @@ func (e *encoder) writeImageBlock(pm *image.Paletted, delay int, disposal byte) 
 		} else {
 			e.buf[3] = 0x00 | disposal<<2
 		}
-		byteorder.LePutUint16(e.buf[4:6], uint16(delay)) // Delay Time (1/100ths of a second)
+		byteorder.LEPutUint16(e.buf[4:6], uint16(delay)) // Delay Time (1/100ths of a second)
 
 		// Transparent color index.
 		if transparentIndex != -1 {
@@ -283,10 +280,10 @@ func (e *encoder) writeImageBlock(pm *image.Paletted, delay int, disposal byte) 
 		e.write(e.buf[:8])
 	}
 	e.buf[0] = sImageDescriptor
-	byteorder.LePutUint16(e.buf[1:3], uint16(b.Min.X))
-	byteorder.LePutUint16(e.buf[3:5], uint16(b.Min.Y))
-	byteorder.LePutUint16(e.buf[5:7], uint16(b.Dx()))
-	byteorder.LePutUint16(e.buf[7:9], uint16(b.Dy()))
+	byteorder.LEPutUint16(e.buf[1:3], uint16(b.Min.X))
+	byteorder.LEPutUint16(e.buf[3:5], uint16(b.Min.Y))
+	byteorder.LEPutUint16(e.buf[5:7], uint16(b.Dx()))
+	byteorder.LEPutUint16(e.buf[7:9], uint16(b.Dy()))
 	e.write(e.buf[:9])
 
 	// To determine whether or not this frame's palette is the same as the

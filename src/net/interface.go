@@ -6,7 +6,7 @@ package net
 
 import (
 	"errors"
-	"internal/itoa"
+	"internal/strconv"
 	"sync"
 	"time"
 	_ "unsafe"
@@ -17,16 +17,6 @@ import (
 
 // BUG(mikio): On AIX, DragonFly BSD, NetBSD, OpenBSD, Plan 9 and
 // Solaris, the MulticastAddrs method of Interface is not implemented.
-
-// errNoSuchInterface should be an internal detail,
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
-//   - github.com/sagernet/sing
-//
-// Do not remove or change the type signature.
-// See go.dev/issue/67401.
-//
-//go:linkname errNoSuchInterface
 
 var (
 	errInvalidInterface         = errors.New("invalid network interface")
@@ -42,7 +32,7 @@ var (
 type Interface struct {
 	Index        int          // positive integer that starts at one, zero is never used
 	MTU          int          // maximum transmission unit
-	Name         string       // e.g., "en0", "lo0", "eth0.100"
+	Name         string       // e.g., "en0", "lo0", "eth0.100"; may be the empty string
 	HardwareAddr HardwareAddr // IEEE MAC-48, EUI-48 and EUI-64 form
 	Flags        Flags        // e.g., FlagUp, FlagLoopback, FlagMulticast
 }
@@ -221,9 +211,11 @@ func (zc *ipv6ZoneCache) update(ift []Interface, force bool) (updated bool) {
 	zc.toIndex = make(map[string]int, len(ift))
 	zc.toName = make(map[int]string, len(ift))
 	for _, ifi := range ift {
-		zc.toIndex[ifi.Name] = ifi.Index
-		if _, ok := zc.toName[ifi.Index]; !ok {
-			zc.toName[ifi.Index] = ifi.Name
+		if ifi.Name != "" {
+			zc.toIndex[ifi.Name] = ifi.Index
+			if _, ok := zc.toName[ifi.Index]; !ok {
+				zc.toName[ifi.Index] = ifi.Name
+			}
 		}
 	}
 	return true
@@ -244,7 +236,7 @@ func (zc *ipv6ZoneCache) name(index int) string {
 		zoneCache.RUnlock()
 	}
 	if !ok { // last resort
-		name = itoa.Uitoa(uint(index))
+		name = strconv.Itoa(index)
 	}
 	return name
 }

@@ -216,7 +216,7 @@ func (ctxt *Link) Int128Sym(hi, lo int64) *LSym {
 
 // GCLocalsSym generates a content-addressable sym containing data.
 func (ctxt *Link) GCLocalsSym(data []byte) *LSym {
-	sum := hash.Sum16(data)
+	sum := hash.Sum32(data)
 	str := base64.StdEncoding.EncodeToString(sum[:16])
 	return ctxt.LookupInit(fmt.Sprintf("gclocals·%s", str), func(lsym *LSym) {
 		lsym.P = data
@@ -320,7 +320,7 @@ func (ctxt *Link) NumberSyms() {
 			// Assign special index for builtin symbols.
 			// Don't do it when linking against shared libraries, as the runtime
 			// may be in a different library.
-			if i := goobj.BuiltinIdx(rs.Name, int(rs.ABI())); i != -1 {
+			if i := goobj.BuiltinIdx(rs.Name, int(rs.ABI())); i != -1 && !rs.IsLinkname() {
 				rs.PkgIdx = goobj.PkgIdxBuiltin
 				rs.SymIdx = int32(i)
 				rs.Set(AttrIndexed, true)

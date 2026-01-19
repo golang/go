@@ -28,8 +28,9 @@ func checkgoarm() {
 		exit(1)
 	}
 
-	// osinit not called yet, so ncpu not set: must use getncpu directly.
-	if getncpu() > 1 && goarm < 7 {
+	// osinit not called yet, so numCPUStartup not set: must use
+	// getCPUCount directly.
+	if getCPUCount() > 1 && goarm < 7 {
 		print("runtime: this system has multiple CPUs and must use\n")
 		print("atomic synchronization instructions. Recompile using GOARM=7.\n")
 		exit(1)

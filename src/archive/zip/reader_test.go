@@ -8,6 +8,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
+	"fmt"
 	"internal/obscuretestdata"
 	"io"
 	"io/fs"
@@ -1212,7 +1214,6 @@ func TestFS(t *testing.T) {
 			[]string{"a/b/c"},
 		},
 	} {
-		test := test
 		t.Run(test.file, func(t *testing.T) {
 			t.Parallel()
 			z, err := OpenReader(test.file)
@@ -1246,7 +1247,6 @@ func TestFSWalk(t *testing.T) {
 			wantErr: true,
 		},
 	} {
-		test := test
 		t.Run(test.file, func(t *testing.T) {
 			t.Parallel()
 			z, err := OpenReader(test.file)
@@ -1278,6 +1278,49 @@ func TestFSWalk(t *testing.T) {
 				t.Errorf("got %v want %v", files, test.want)
 			}
 		})
+	}
+}
+
+func TestFSWalkBadFile(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	zw := NewWriter(&buf)
+	hdr := &FileHeader{Name: "."}
+	hdr.SetMode(fs.ModeDir | 0o755)
+	w, err := zw.CreateHeader(hdr)
+	if err != nil {
+		t.Fatalf("create zip header: %v", err)
+	}
+	_, err = w.Write([]byte("some data"))
+	if err != nil {
+		t.Fatalf("write zip contents: %v", err)
+
+	}
+	err = zw.Close()
+	if err != nil {
+		t.Fatalf("close zip writer: %v", err)
+
+	}
+
+	zr, err := NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+	if err != nil {
+		t.Fatalf("create zip reader: %v", err)
+
+	}
+	var count int
+	var errRepeat = errors.New("repeated call to path")
+	err = fs.WalkDir(zr, ".", func(p string, d fs.DirEntry, err error) error {
+		count++
+		if count > 2 { // once for directory read, once for the error
+			return errRepeat
+		}
+		return err
+	})
+	if err == nil {
+		t.Fatalf("expected error from invalid file name")
+	} else if errors.Is(err, errRepeat) {
+		t.Fatal(err)
 	}
 }
 
@@ -1831,4 +1874,84 @@ func TestBaseOffsetPlusOverflow(t *testing.T) {
 	// an io.SectionReader which would access a slice at a negative offset
 	// as the section reader offset & size were < 0.
 	NewReader(bytes.NewReader(data), int64(len(data))+1875)
+}
+
+func BenchmarkReaderOneDeepDir(b *testing.B) {
+	var buf bytes.Buffer
+	zw := NewWriter(&buf)
+
+	for i := range 4000 {
+		name := strings.Repeat("a/", i) + "data"
+		zw.CreateHeader(&FileHeader{
+			Name:   name,
+			Method: Store,
+		})
+	}
+
+	if err := zw.Close(); err != nil {
+		b.Fatal(err)
+	}
+	data := buf.Bytes()
+
+	for b.Loop() {
+		zr, err := NewReader(bytes.NewReader(data), int64(len(data)))
+		if err != nil {
+			b.Fatal(err)
+		}
+		zr.Open("does-not-exist")
+	}
+}
+
+func BenchmarkReaderManyDeepDirs(b *testing.B) {
+	var buf bytes.Buffer
+	zw := NewWriter(&buf)
+
+	for i := range 2850 {
+		name := fmt.Sprintf("%x", i)
+		name = strings.Repeat("/"+name, i+1)[1:]
+
+		zw.CreateHeader(&FileHeader{
+			Name:   name,
+			Method: Store,
+		})
+	}
+
+	if err := zw.Close(); err != nil {
+		b.Fatal(err)
+	}
+	data := buf.Bytes()
+
+	for b.Loop() {
+		zr, err := NewReader(bytes.NewReader(data), int64(len(data)))
+		if err != nil {
+			b.Fatal(err)
+		}
+		zr.Open("does-not-exist")
+	}
+}
+
+func BenchmarkReaderManyShallowFiles(b *testing.B) {
+	var buf bytes.Buffer
+	zw := NewWriter(&buf)
+
+	for i := range 310000 {
+		name := fmt.Sprintf("%v", i)
+		zw.CreateHeader(&FileHeader{
+			Name:   name,
+			Method: Store,
+		})
+	}
+
+	if err := zw.Close(); err != nil {
+		b.Fatal(err)
+	}
+	data := buf.Bytes()
+
+	for b.Loop() {
+		zr, err := NewReader(bytes.NewReader(data), int64(len(data)))
+		if err != nil {
+			b.Fatal(err)
+		}
+		zr.Open("does-not-exist")
+	}
 }

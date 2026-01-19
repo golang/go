@@ -3,4 +3,4 @@
 // license that can be found in the LICENSE file.
 
 // Call _beginthread, aborting on failure.
-void _cgo_beginthread(void (*func)(void*), void* arg);
+void _cgo_beginthread(unsigned long (__stdcall *func)(void*), void* arg);

@@ -71,3 +71,19 @@ func TestDevirtFuncClosure(t *testing.T) {
 		t.Errorf("ExerciseFuncClosure(10) got %d want 1176", v)
 	}
 }
+
+func BenchmarkDevirtIfaceZeroWeight(t *testing.B) {
+	ExerciseIfaceZeroWeight()
+}
+
+func TestDevirtIfaceZeroWeight(t *testing.T) {
+	ExerciseIfaceZeroWeight()
+}
+
+func BenchmarkDevirtIndirCallZeroWeight(t *testing.B) {
+	ExerciseIndirCallZeroWeight()
+}
+
+func TestDevirtIndirCallZeroWeight(t *testing.T) {
+	ExerciseIndirCallZeroWeight()
+}

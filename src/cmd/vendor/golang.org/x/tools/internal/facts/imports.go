@@ -8,6 +8,7 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/internal/aliases"
+	"golang.org/x/tools/internal/typesinternal"
 )
 
 // importMap computes the import map for a package by traversing the
@@ -47,32 +48,41 @@ func importMap(imports []*types.Package) map[string]*types.Package {
 
 	addType = func(T types.Type) {
 		switch T := T.(type) {
-		case *aliases.Alias:
-			addType(aliases.Unalias(T))
 		case *types.Basic:
 			// nop
-		case *types.Named:
+		case typesinternal.NamedOrAlias: // *types.{Named,Alias}
+			// Add the type arguments if this is an instance.
+			if targs := T.TypeArgs(); targs.Len() > 0 {
+				for t := range targs.Types() {
+					addType(t)
+				}
+			}
+
 			// Remove infinite expansions of *types.Named by always looking at the origin.
 			// Some named types with type parameters [that will not type check] have
 			// infinite expansions:
 			//     type N[T any] struct { F *N[N[T]] }
 			// importMap() is called on such types when Analyzer.RunDespiteErrors is true.
-			T = T.Origin()
+			T = typesinternal.Origin(T)
 			if !typs[T] {
 				typs[T] = true
+
+				// common aspects
 				addObj(T.Obj())
-				addType(T.Underlying())
-				for i := 0; i < T.NumMethods(); i++ {
-					addObj(T.Method(i))
-				}
-				if tparams := T.TypeParams(); tparams != nil {
-					for i := 0; i < tparams.Len(); i++ {
-						addType(tparams.At(i))
+				if tparams := T.TypeParams(); tparams.Len() > 0 {
+					for tparam := range tparams.TypeParams() {
+						addType(tparam)
 					}
 				}
-				if targs := T.TypeArgs(); targs != nil {
-					for i := 0; i < targs.Len(); i++ {
-						addType(targs.At(i))
+
+				// variant aspects
+				switch T := T.(type) {
+				case *types.Alias:
+					addType(aliases.Rhs(T))
+				case *types.Named:
+					addType(T.Underlying())
+					for method := range T.Methods() {
+						addObj(method)
 					}
 				}
 			}
@@ -91,28 +101,28 @@ func importMap(imports []*types.Package) map[string]*types.Package {
 			addType(T.Params())
 			addType(T.Results())
 			if tparams := T.TypeParams(); tparams != nil {
-				for i := 0; i < tparams.Len(); i++ {
-					addType(tparams.At(i))
+				for tparam := range tparams.TypeParams() {
+					addType(tparam)
 				}
 			}
 		case *types.Struct:
-			for i := 0; i < T.NumFields(); i++ {
-				addObj(T.Field(i))
+			for field := range T.Fields() {
+				addObj(field)
 			}
 		case *types.Tuple:
-			for i := 0; i < T.Len(); i++ {
-				addObj(T.At(i))
+			for v := range T.Variables() {
+				addObj(v)
 			}
 		case *types.Interface:
-			for i := 0; i < T.NumMethods(); i++ {
-				addObj(T.Method(i))
+			for method := range T.Methods() {
+				addObj(method)
 			}
-			for i := 0; i < T.NumEmbeddeds(); i++ {
-				addType(T.EmbeddedType(i)) // walk Embedded for implicits
+			for etyp := range T.EmbeddedTypes() {
+				addType(etyp) // walk Embedded for implicits
 			}
 		case *types.Union:
-			for i := 0; i < T.Len(); i++ {
-				addType(T.Term(i).Type())
+			for term := range T.Terms() {
+				addType(term.Type())
 			}
 		case *types.TypeParam:
 			if !typs[T] {

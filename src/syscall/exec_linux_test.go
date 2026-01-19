@@ -11,6 +11,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"internal/asan"
 	"internal/platform"
 	"internal/syscall/unix"
 	"internal/testenv"
@@ -50,7 +51,6 @@ func whoamiNEWUSER(t *testing.T, uid, gid int, setgroups bool) *exec.Cmd {
 
 func TestCloneNEWUSERAndRemap(t *testing.T) {
 	for _, setgroups := range []bool{false, true} {
-		setgroups := setgroups
 		t.Run(fmt.Sprintf("setgroups=%v", setgroups), func(t *testing.T) {
 			uid := os.Getuid()
 			gid := os.Getgid()
@@ -334,6 +334,10 @@ func TestUnshareMountNameSpaceChroot(t *testing.T) {
 
 // Test for Issue 29789: unshare fails when uid/gid mapping is specified
 func TestUnshareUidGidMapping(t *testing.T) {
+	if asan.Enabled {
+		t.Skip("test fails with ASAN beause the ASAN leak checker fails finding memory regions")
+	}
+
 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
 		defer os.Exit(0)
 		if err := syscall.Chroot(os.TempDir()); err != nil {
@@ -646,7 +650,7 @@ func testAmbientCaps(t *testing.T, userns bool) {
 
 	u, err := user.Lookup("nobody")
 	if err != nil {
-		t.Fatal(err)
+		t.Skip("skipping: the nobody user does not exist; see Issue 71644")
 	}
 	uid, err := strconv.ParseInt(u.Uid, 0, 32)
 	if err != nil {

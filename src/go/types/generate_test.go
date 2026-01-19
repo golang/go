@@ -126,6 +126,11 @@ var filemap = map[string]action{
 	"context.go":      nil,
 	"context_test.go": nil,
 	"conversions.go":  nil,
+	"cycles.go": func(f *ast.File) {
+		renameImportPath(f, `"cmd/compile/internal/syntax"->"go/ast"`)
+		renameSelectorExprs(f, "syntax.Name->ast.Ident", "rhs.Value->rhs.Name")
+		renameSelectors(f, "Trace->_Trace")
+	},
 	"errors_test.go":  func(f *ast.File) { renameIdents(f, "nopos->noposn") },
 	"errsupport.go":   nil,
 	"gccgosizes.go":   nil,
@@ -145,7 +150,7 @@ var filemap = map[string]action{
 		renameIdents(f, "syntax->ast")
 		renameSelectors(f, "ElemList->Elts")
 	},
-	"lookup.go":    func(f *ast.File) { fixTokenPos(f) },
+	"lookup.go":    fixTokenPos,
 	"main_test.go": nil,
 	"map.go":       nil,
 	"mono.go": func(f *ast.File) {
@@ -171,6 +176,11 @@ var filemap = map[string]action{
 	"package.go":    nil,
 	"pointer.go":    nil,
 	"predicates.go": nil,
+	"range.go": func(f *ast.File) {
+		renameImportPath(f, `"cmd/compile/internal/syntax"->"go/ast"`)
+		renameSelectorExprs(f, "syntax.Name->ast.Ident", "syntax.ForStmt->ast.RangeStmt", "ident.Value->ident.Name") // must happen before renaming identifiers
+		renameIdents(f, "syntax->ast", "poser->positioner")
+	},
 	"recording.go": func(f *ast.File) {
 		renameImportPath(f, `"cmd/compile/internal/syntax"->"go/ast"`)
 		renameSelectorExprs(f, "syntax.Name->ast.Ident") // must happen before renaming identifiers

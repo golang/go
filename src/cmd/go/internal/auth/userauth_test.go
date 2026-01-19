@@ -7,7 +7,6 @@ package auth
 import (
 	"net/http"
 	"reflect"
-	"strings"
 	"testing"
 )
 
@@ -40,7 +39,7 @@ Data: Test567
 			"Test567",
 		},
 	}
-	credentials, err := parseUserAuth(strings.NewReader(data))
+	credentials, err := parseUserAuth(data)
 	if err != nil {
 		t.Errorf("parseUserAuth(%s): %v", data, err)
 	}
@@ -101,9 +100,54 @@ Authorization: Basic 1lYWxhZGRplW1lYWxhZGRpbs
 Data: Test567
 
 `,
+		// Continuation in URL line
+		`https://example.com/
+ Authorization: Basic YWxhZGRpbjpvcGVuc2VzYW1l
+`,
+
+		// Continuation in header line
+		`https://example.com
+
+Authorization: Basic YWxhZGRpbjpvcGVuc2VzYW1l
+ Authorization: Basic jpvcGVuc2VzYW1lYWxhZGRpb
+`,
+
+		// Continuation in multiple header lines
+		`https://example.com
+
+Authorization: Basic YWxhZGRpbjpvcGVuc2VzYW1l
+ Authorization: Basic jpvcGVuc2VzYW1lYWxhZGRpb
+ Authorization: Basic dGhpc2lzYWxvbmdzdHJpbmc=
+`,
+
+		// Continuation with mixed spacing
+		`https://example.com
+
+Authorization: Basic YWxhZGRpbjpvcGVuc2VzYW1l
+  Authorization: Basic jpvcGVuc2VzYW1lYWxhZGRpb
+`,
+
+		// Continuation with tab character
+		`https://example.com
+
+Authorization: Basic YWxhZGRpbjpvcGVuc2VzYW1l
+        Authorization: Basic jpvcGVuc2VzYW1lYWxhZGRpb
+`,
+		// Continuation at the start of a block
+		` https://example.com
+
+Authorization: Basic YWxhZGRpbjpvcGVuc2VzYW1l
+`,
+
+		// Continuation after a blank line
+		`https://example.com
+
+
+Authorization: Basic YWxhZGRpbjpvcGVuc2VzYW1l
+`,
 	}
 	for _, tc := range testCases {
-		if credentials, err := parseUserAuth(strings.NewReader(tc)); err == nil {
+		if credentials, err := parseUserAuth(tc); err == nil {
 			t.Errorf("parseUserAuth(%s) should have failed, but got: %v", tc, credentials)
 		}
 	}
@@ -132,7 +176,7 @@ Data: Test567
 			"Test567",
 		},
 	}
-	credentials, err := parseUserAuth(strings.NewReader(data))
+	credentials, err := parseUserAuth(data)
 	if err != nil {
 		t.Errorf("parseUserAuth(%s): %v", data, err)
 	}
@@ -146,7 +190,7 @@ func TestParseUserAuthEmptyHeader(t *testing.T) {
 	data := "https://example.com\n\n\n"
 	// Build the expected header
 	header := http.Header{}
-	credentials, err := parseUserAuth(strings.NewReader(data))
+	credentials, err := parseUserAuth(data)
 	if err != nil {
 		t.Errorf("parseUserAuth(%s): %v", data, err)
 	}
@@ -159,7 +203,7 @@ func TestParseUserAuthEmptyHeader(t *testing.T) {
 func TestParseUserAuthEmpty(t *testing.T) {
 	data := ``
 	// Build the expected header
-	credentials, err := parseUserAuth(strings.NewReader(data))
+	credentials, err := parseUserAuth(data)
 	if err != nil {
 		t.Errorf("parseUserAuth(%s) should have succeeded", data)
 	}

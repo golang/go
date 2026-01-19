@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"internal/runtime/atomic"
+	"internal/runtime/gc"
 	"internal/runtime/sys"
 	"unsafe"
 )
@@ -43,13 +44,23 @@ type mcache struct {
 
 	// The rest is not accessed on every malloc.
 
-	alloc [numSpanClasses]*mspan // spans to allocate from, indexed by spanClass
+	// alloc contains spans to allocate from, indexed by spanClass.
+	alloc [numSpanClasses]*mspan
+
+	// TODO(thepudds): better to interleave alloc and reusableScan/reusableNoscan so that
+	// a single malloc call can often access both in the same cache line for a given spanClass.
+	// It's not interleaved right now in part to have slightly smaller diff, and might be
+	// negligible effect on current microbenchmarks.
+
+	// reusableNoscan contains linked lists of reusable noscan heap objects, indexed by spanClass.
+	// The next pointers are stored in the first word of the heap objects.
+	reusableNoscan [numSpanClasses]gclinkptr
 
 	stackcache [_NumStackOrders]stackfreelist
 
 	// flushGen indicates the sweepgen during which this mcache
 	// was last flushed. If flushGen != mheap_.sweepgen, the spans
-	// in this mcache are stale and need to the flushed so they
+	// in this mcache are stale and need to be flushed so they
 	// can be swept. This is done in acquirep.
 	flushGen atomic.Uint32
 }
@@ -95,6 +106,7 @@ func allocmcache() *mcache {
 		c.alloc[i] = &emptymspan
 	}
 	c.nextSample = nextSample()
+
 	return c
 }
 
@@ -152,6 +164,16 @@ func (c *mcache) refill(spc spanClass) {
 	if s.allocCount != s.nelems {
 		throw("refill of span with free space remaining")
 	}
+
+	// TODO(thepudds): we might be able to allow mallocgcTiny to reuse 16 byte objects from spc==5,
+	// but for now, just clear our reusable objects for tinySpanClass.
+	if spc == tinySpanClass {
+		c.reusableNoscan[spc] = 0
+	}
+	if c.reusableNoscan[spc] != 0 {
+		throw("refill of span with reusable pointers remaining on pointer free list")
+	}
+
 	if s != &emptymspan {
 		// Mark this span as no longer cached.
 		if s.sweepgen != mheap_.sweepgen+3 {
@@ -218,18 +240,18 @@ func (c *mcache) refill(spc spanClass) {
 
 // allocLarge allocates a span for a large object.
 func (c *mcache) allocLarge(size uintptr, noscan bool) *mspan {
-	if size+_PageSize < size {
+	if size+pageSize < size {
 		throw("out of memory")
 	}
-	npages := size >> _PageShift
-	if size&_PageMask != 0 {
+	npages := size >> gc.PageShift
+	if size&pageMask != 0 {
 		npages++
 	}
 
 	// Deduct credit for this span allocation and sweep if
 	// necessary. mHeap_Alloc will also sweep npages, so this only
 	// pays the debt down to npage pages.
-	deductSweepCredit(npages*_PageSize, npages)
+	deductSweepCredit(npages*pageSize, npages)
 
 	spc := makeSpanClass(0, noscan)
 	s := mheap_.alloc(npages, spc)
@@ -252,6 +274,14 @@ func (c *mcache) allocLarge(size uintptr, noscan bool) *mspan {
 	// Put the large span in the mcentral swept list so that it's
 	// visible to the background sweeper.
 	mheap_.central[spc].mcentral.fullSwept(mheap_.sweepgen).push(s)
+
+	// Adjust s.limit down to the object-containing part of the span.
+	//
+	// This is just to create a slightly tighter bound on the limit.
+	// It's totally OK if the garbage collector, in particular
+	// conservative scanning, can temporarily observes an inflated
+	// limit. It will simply mark the whole object or just skip it
+	// since we're in the mark phase anyway.
 	s.limit = s.base() + size
 	s.initHeapBits()
 	return s
@@ -303,6 +333,13 @@ func (c *mcache) releaseAll() {
 	c.tinyAllocs = 0
 	memstats.heapStats.release()
 
+	// Clear the reusable linked lists.
+	// For noscan objects, the nodes of the linked lists are the reusable heap objects themselves,
+	// so we can simply clear the linked list head pointers.
+	// TODO(thepudds): consider having debug logging of a non-empty reusable lists getting cleared,
+	// maybe based on the existing debugReusableLog.
+	clear(c.reusableNoscan[:])
+
 	// Update heapLive and heapScan.
 	gcController.update(dHeapLive, scanAlloc)
 }
@@ -329,4 +366,26 @@ func (c *mcache) prepareForSweep() {
 	c.releaseAll()
 	stackcache_clear(c)
 	c.flushGen.Store(mheap_.sweepgen) // Synchronizes with gcStart
+}
+
+// addReusableNoscan adds a noscan object pointer to the reusable pointer free list
+// for a span class.
+func (c *mcache) addReusableNoscan(spc spanClass, ptr uintptr) {
+	if !runtimeFreegcEnabled {
+		return
+	}
+
+	// Add to the reusable pointers free list.
+	v := gclinkptr(ptr)
+	v.ptr().next = c.reusableNoscan[spc]
+	c.reusableNoscan[spc] = v
+}
+
+// hasReusableNoscan reports whether there is a reusable object available for
+// a noscan spc.
+func (c *mcache) hasReusableNoscan(spc spanClass) bool {
+	if !runtimeFreegcEnabled {
+		return false
+	}
+	return c.reusableNoscan[spc] != 0
 }

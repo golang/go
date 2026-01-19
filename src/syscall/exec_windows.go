@@ -9,6 +9,7 @@ package syscall
 import (
 	"internal/bytealg"
 	"runtime"
+	"slices"
 	"sync"
 	"unicode/utf16"
 	"unsafe"
@@ -113,6 +114,49 @@ func makeCmdLine(args []string) string {
 	return string(b)
 }
 
+func envSorted(envv []string) []string {
+	if len(envv) < 2 {
+		return envv
+	}
+
+	lowerKeyCache := map[string][]byte{} // lowercased keys to avoid recomputing them in sort
+	lowerKey := func(kv string) []byte {
+		eq := bytealg.IndexByteString(kv, '=')
+		if eq < 0 {
+			return nil
+		}
+		k := kv[:eq]
+		v, ok := lowerKeyCache[k]
+		if !ok {
+			v = []byte(k)
+			for i, b := range v {
+				// We only normalize ASCII for now.
+				// In practice, all environment variables are ASCII, and the
+				// syscall package can't import "unicode" anyway.
+				// Also, per https://nullprogram.com/blog/2023/08/23/ the
+				// sorting of environment variables doesn't really matter.
+				// TODO(bradfitz): use RtlCompareUnicodeString instead,
+				// per that blog post? For now, ASCII is good enough.
+				if 'a' <= b && b <= 'z' {
+					v[i] -= 'a' - 'A'
+				}
+			}
+			lowerKeyCache[k] = v
+		}
+		return v
+	}
+
+	cmpEnv := func(a, b string) int {
+		return bytealg.Compare(lowerKey(a), lowerKey(b))
+	}
+
+	if !slices.IsSortedFunc(envv, cmpEnv) {
+		envv = slices.Clone(envv)
+		slices.SortFunc(envv, cmpEnv)
+	}
+	return envv
+}
+
 // createEnvBlock converts an array of environment strings into
 // the representation required by CreateProcess: a sequence of NUL
 // terminated strings followed by a nil.
@@ -122,6 +166,12 @@ func createEnvBlock(envv []string) ([]uint16, error) {
 	if len(envv) == 0 {
 		return utf16.Encode([]rune("\x00\x00")), nil
 	}
+
+	// https://learn.microsoft.com/en-us/windows/win32/procthread/changing-environment-variables
+	// says that: "All strings in the environment block must be sorted
+	// alphabetically by name."
+	envv = envSorted(envv)
+
 	var length int
 	for _, s := range envv {
 		if bytealg.IndexByteString(s, 0) != -1 {
@@ -332,12 +382,12 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 			defer DuplicateHandle(parentProcess, fd[i], 0, nil, 0, false, DUPLICATE_CLOSE_SOURCE)
 		}
 	}
-	si := new(_STARTUPINFOEXW)
-	si.ProcThreadAttributeList, err = newProcThreadAttributeList(2)
+	procAttrList, err := newProcThreadAttributeList(2)
 	if err != nil {
 		return 0, 0, err
 	}
-	defer deleteProcThreadAttributeList(si.ProcThreadAttributeList)
+	defer procAttrList.delete()
+	si := new(_STARTUPINFOEXW)
 	si.Cb = uint32(unsafe.Sizeof(*si))
 	si.Flags = STARTF_USESTDHANDLES
 	if sys.HideWindow {
@@ -345,7 +395,7 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 		si.ShowWindow = SW_HIDE
 	}
 	if sys.ParentProcess != 0 {
-		err = updateProcThreadAttribute(si.ProcThreadAttributeList, 0, _PROC_THREAD_ATTRIBUTE_PARENT_PROCESS, unsafe.Pointer(&sys.ParentProcess), unsafe.Sizeof(sys.ParentProcess), nil, nil)
+		err = procAttrList.update(_PROC_THREAD_ATTRIBUTE_PARENT_PROCESS, unsafe.Pointer(&sys.ParentProcess), unsafe.Sizeof(sys.ParentProcess))
 		if err != nil {
 			return 0, 0, err
 		}
@@ -371,7 +421,7 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 
 	// Do not accidentally inherit more than these handles.
 	if willInheritHandles {
-		err = updateProcThreadAttribute(si.ProcThreadAttributeList, 0, _PROC_THREAD_ATTRIBUTE_HANDLE_LIST, unsafe.Pointer(&fd[0]), uintptr(len(fd))*unsafe.Sizeof(fd[0]), nil, nil)
+		err = procAttrList.update(_PROC_THREAD_ATTRIBUTE_HANDLE_LIST, unsafe.Pointer(&fd[0]), uintptr(len(fd))*unsafe.Sizeof(fd[0]))
 		if err != nil {
 			return 0, 0, err
 		}
@@ -382,6 +432,7 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 		return 0, 0, err
 	}
 
+	si.ProcThreadAttributeList = procAttrList.list()
 	pi := new(ProcessInformation)
 	flags := sys.CreationFlags | CREATE_UNICODE_ENVIRONMENT | _EXTENDED_STARTUPINFO_PRESENT
 	if sys.Token != 0 {

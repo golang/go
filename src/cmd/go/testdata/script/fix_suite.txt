@@ -1,0 +1,53 @@
+# Elementary test of each analyzer in the "go fix" suite.
+# This is simply to prove that they are running at all;
+# detailed behavior is tested in x/tools.
+#
+# Each assertion matches the expected diff.
+#
+# Tip: to see the actual stdout,
+# temporarily prefix the go command with "! ".
+
+go fix -diff example.com/x
+
+# buildtag
+stdout '-// \+build go1.26'
+
+# hostport
+stdout 'net.Dial.*net.JoinHostPort'
+
+# inline
+stdout 'var three = 1 \+ 2'
+
+# newexpr (proxy for whole modernize suite)
+stdout 'var _ = new\(123\)'
+
+-- go.mod --
+module example.com/x
+go 1.26
+
+-- x.go --
+//go:build go1.26
+// +build go1.26
+
+// ↑ buildtag
+
+package x
+
+import (
+	"fmt"
+	"net"
+)
+
+// hostport
+var s string
+var _, _ = net.Dial("tcp", fmt.Sprintf("%s:%d", s, 80))
+
+//go:fix inline
+func add(x, y int) int { return x + y }
+
+// inline
+var three = add(1, 2)
+
+// newexpr
+func varOf(x int) *int { return &x }
+var _ = varOf(123)

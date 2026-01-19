@@ -20,8 +20,8 @@ func StackNosplit(race bool) int {
 func stackGuardMultiplier(race bool) int {
 	// This arithmetic must match that in internal/runtime/sys/consts.go:StackGuardMultiplier.
 	n := 1
-	// On AIX, a larger stack is needed for syscalls.
-	if buildcfg.GOOS == "aix" {
+	// On AIX and OpenBSD, a larger stack is needed for syscalls.
+	if buildcfg.GOOS == "aix" || buildcfg.GOOS == "openbsd" {
 		n += 1
 	}
 	// The race build also needs more stack.

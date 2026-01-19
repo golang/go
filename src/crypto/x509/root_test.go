@@ -79,8 +79,10 @@ func TestFallback(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			useFallbackRoots = false
 			fallbacksSet = false
 			systemRoots = tc.systemRoots
+
 			if systemRoots != nil {
 				systemRoots.systemPool = tc.systemPool
 			}

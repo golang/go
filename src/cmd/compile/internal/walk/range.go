@@ -5,7 +5,7 @@
 package walk
 
 import (
-	"internal/buildcfg"
+	"go/constant"
 	"unicode/utf8"
 
 	"cmd/compile/internal/base"
@@ -80,6 +80,10 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		base.Fatalf("walkRange")
 
 	case types.IsInt[k]:
+		if nn := arrayRangeClear(nrange, v1, v2, a); nn != nil {
+			base.Pos = lno
+			return nn
+		}
 		hv1 := typecheck.TempAt(base.Pos, ir.CurFunc, t)
 		hn := typecheck.TempAt(base.Pos, ir.CurFunc, t)
 
@@ -242,21 +246,17 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		hit := nrange.Prealloc
 		th := hit.Type()
 		// depends on layout of iterator struct.
-		// See cmd/compile/internal/reflectdata/reflect.go:MapIterType
-		var keysym, elemsym *types.Sym
-		if buildcfg.Experiment.SwissMap {
-			keysym = th.Field(0).Sym
-			elemsym = th.Field(1).Sym // ditto
-		} else {
-			keysym = th.Field(0).Sym
-			elemsym = th.Field(1).Sym // ditto
-		}
+		// See cmd/compile/internal/reflectdata/map.go:MapIterType
+		keysym := th.Field(0).Sym
+		elemsym := th.Field(1).Sym // ditto
+		iterInit := "mapIterStart"
+		iterNext := "mapIterNext"
 
-		fn := typecheck.LookupRuntime("mapiterinit", t.Key(), t.Elem(), th)
+		fn := typecheck.LookupRuntime(iterInit, t.Key(), t.Elem(), th)
 		init = append(init, mkcallstmt1(fn, reflectdata.RangeMapRType(base.Pos, nrange), ha, typecheck.NodAddr(hit)))
 		nfor.Cond = ir.NewBinaryExpr(base.Pos, ir.ONE, ir.NewSelectorExpr(base.Pos, ir.ODOT, hit, keysym), typecheck.NodNil())
 
-		fn = typecheck.LookupRuntime("mapiternext", th)
+		fn = typecheck.LookupRuntime(iterNext, th)
 		nfor.Post = mkcallstmt1(fn, typecheck.NodAddr(hit))
 
 		key := ir.NewStarExpr(base.Pos, typecheck.ConvNop(ir.NewSelectorExpr(base.Pos, ir.ODOT, hit, keysym), types.NewPtr(t.Key())))
@@ -337,7 +337,10 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 
 		// if hv2 < utf8.RuneSelf
 		nif := ir.NewIfStmt(base.Pos, nil, nil, nil)
-		nif.Cond = ir.NewBinaryExpr(base.Pos, ir.OLT, hv2, ir.NewInt(base.Pos, utf8.RuneSelf))
+
+		// On x86, hv2 <= 127 is shorter to encode than hv2 < 128
+		// Doesn't hurt other archs.
+		nif.Cond = ir.NewBinaryExpr(base.Pos, ir.OLE, hv2, ir.NewInt(base.Pos, utf8.RuneSelf-1))
 
 		// hv1++
 		nif.Body = []ir.Node{ir.NewAssignStmt(base.Pos, hv1, ir.NewBinaryExpr(base.Pos, ir.OADD, hv1, ir.NewInt(base.Pos, 1)))}
@@ -511,13 +514,33 @@ func arrayRangeClear(loop *ir.RangeStmt, v1, v2, a ir.Node) ir.Node {
 	}
 	lhs := stmt.X.(*ir.IndexExpr)
 	x := lhs.X
-	if a.Type().IsPtr() && a.Type().Elem().IsArray() {
-		if s, ok := x.(*ir.StarExpr); ok && s.Op() == ir.ODEREF {
-			x = s.X
+
+	// Get constant number of iterations for int and array cases.
+	n := int64(-1)
+	if ir.IsConst(a, constant.Int) {
+		n = ir.Int64Val(a)
+	} else if a.Type().IsArray() {
+		n = a.Type().NumElem()
+	} else if a.Type().IsPtr() && a.Type().Elem().IsArray() {
+		n = a.Type().Elem().NumElem()
+	}
+
+	if n >= 0 {
+		// Int/Array case.
+		if !x.Type().IsArray() {
+			return nil
+		}
+		if x.Type().NumElem() != n {
+			return nil
+		}
+	} else {
+		// Slice case.
+		if !ir.SameSafeExpr(x, a) {
+			return nil
 		}
 	}
 
-	if !ir.SameSafeExpr(x, a) || !ir.SameSafeExpr(lhs.Index, v1) {
+	if !ir.SameSafeExpr(lhs.Index, v1) {
 		return nil
 	}
 
@@ -525,7 +548,7 @@ func arrayRangeClear(loop *ir.RangeStmt, v1, v2, a ir.Node) ir.Node {
 		return nil
 	}
 
-	return arrayClear(stmt.Pos(), a, loop)
+	return arrayClear(stmt.Pos(), x, loop)
 }
 
 // arrayClear constructs a call to runtime.memclr for fast zeroing of slices and arrays.
@@ -572,7 +595,7 @@ func arrayClear(wbPos src.XPos, a ir.Node, nrange *ir.RangeStmt) ir.Node {
 
 	// For array range clear, also set "i = len(a) - 1"
 	if nrange != nil {
-		idx := ir.NewAssignStmt(base.Pos, nrange.Key, ir.NewBinaryExpr(base.Pos, ir.OSUB, ir.NewUnaryExpr(base.Pos, ir.OLEN, a), ir.NewInt(base.Pos, 1)))
+		idx := ir.NewAssignStmt(base.Pos, nrange.Key, typecheck.Conv(ir.NewBinaryExpr(base.Pos, ir.OSUB, ir.NewUnaryExpr(base.Pos, ir.OLEN, a), ir.NewInt(base.Pos, 1)), nrange.Key.Type()))
 		n.Body.Append(idx)
 	}
 

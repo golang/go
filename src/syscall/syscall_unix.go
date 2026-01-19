@@ -10,10 +10,10 @@ import (
 	errorspkg "errors"
 	"internal/asan"
 	"internal/bytealg"
-	"internal/itoa"
 	"internal/msan"
 	"internal/oserror"
 	"internal/race"
+	"internal/strconv"
 	"runtime"
 	"sync"
 	"unsafe"
@@ -114,7 +114,7 @@ func (e Errno) Error() string {
 			return s
 		}
 	}
-	return "errno " + itoa.Itoa(int(e))
+	return "errno " + strconv.Itoa(int(e))
 }
 
 func (e Errno) Is(target error) bool {
@@ -176,7 +176,7 @@ func (s Signal) String() string {
 			return str
 		}
 	}
-	return "signal " + itoa.Itoa(int(s))
+	return "signal " + strconv.Itoa(int(s))
 }
 
 func Read(fd int, p []byte) (n int, err error) {
@@ -410,17 +410,25 @@ func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) 
 }
 
 func sendmsgNInet4(fd int, p, oob []byte, to *SockaddrInet4, flags int) (n int, err error) {
-	ptr, salen, err := to.sockaddr()
-	if err != nil {
-		return 0, err
+	var ptr unsafe.Pointer
+	var salen _Socklen
+	if to != nil {
+		ptr, salen, err = to.sockaddr()
+		if err != nil {
+			return 0, err
+		}
 	}
 	return sendmsgN(fd, p, oob, ptr, salen, flags)
 }
 
 func sendmsgNInet6(fd int, p, oob []byte, to *SockaddrInet6, flags int) (n int, err error) {
-	ptr, salen, err := to.sockaddr()
-	if err != nil {
-		return 0, err
+	var ptr unsafe.Pointer
+	var salen _Socklen
+	if to != nil {
+		ptr, salen, err = to.sockaddr()
+		if err != nil {
+			return 0, err
+		}
 	}
 	return sendmsgN(fd, p, oob, ptr, salen, flags)
 }

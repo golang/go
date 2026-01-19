@@ -48,7 +48,7 @@ func prototype(xyz []string) {} // ERROR "xyz does not escape"
 func bar() {
 	var got [][]string
 	f := prototype
-	f = func(ss []string) { got = append(got, ss) } // ERROR "leaking param: ss" "func literal does not escape"
+	f = func(ss []string) { got = append(got, ss) } // ERROR "leaking param: ss" "func literal does not escape" "append escapes to heap"
 	s := "string"
 	f([]string{s}) // ERROR "\[\]string{...} escapes to heap"
 }

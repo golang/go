@@ -31,7 +31,7 @@ func TestMain(m *testing.M) {
 func interestingGoroutines() (gs []string) {
 	buf := make([]byte, 2<<20)
 	buf = buf[:runtime.Stack(buf, true)]
-	for _, g := range strings.Split(string(buf), "\n\n") {
+	for g := range strings.SplitSeq(string(buf), "\n\n") {
 		_, stack, _ := strings.Cut(g, "\n")
 		stack = strings.TrimSpace(stack)
 		if stack == "" ||

@@ -50,7 +50,7 @@ func (pos Position) String() string {
 // to configure a [Scanner] such that it only recognizes (Go) identifiers,
 // integers, and skips comments, set the Scanner's Mode field to:
 //
-//	ScanIdents | ScanInts | SkipComments
+//	ScanIdents | ScanInts | ScanComments | SkipComments
 //
 // With the exceptions of comments, which are skipped if SkipComments is
 // set, unrecognized tokens are not ignored. Instead, the scanner simply

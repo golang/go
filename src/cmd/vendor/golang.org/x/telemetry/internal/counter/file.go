@@ -297,7 +297,7 @@ func (f *file) rotate1() time.Time {
 		goVers,
 		runtime.GOOS,
 		runtime.GOARCH,
-		f.timeBegin.Format(time.DateOnly),
+		f.timeBegin.Format(telemetry.DateOnly),
 		FileVersion,
 	)
 	dir := telemetry.Default.LocalDir()

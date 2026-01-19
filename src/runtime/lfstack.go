@@ -24,10 +24,6 @@ type lfstack uint64
 func (head *lfstack) push(node *lfnode) {
 	node.pushcnt++
 	new := lfstackPack(node, node.pushcnt)
-	if node1 := lfstackUnpack(new); node1 != node {
-		print("runtime: lfstack.push invalid packing: node=", node, " cnt=", hex(node.pushcnt), " packed=", hex(new), " -> node=", node1, "\n")
-		throw("lfstack.push")
-	}
 	for {
 		old := atomic.Load64((*uint64)(head))
 		node.next = old
@@ -38,6 +34,11 @@ func (head *lfstack) push(node *lfnode) {
 }
 
 func (head *lfstack) pop() unsafe.Pointer {
+	var backoff uint32
+	// TODO: tweak backoff parameters on other architectures.
+	if GOARCH == "arm64" {
+		backoff = 128
+	}
 	for {
 		old := atomic.Load64((*uint64)(head))
 		if old == 0 {
@@ -48,6 +49,16 @@ func (head *lfstack) pop() unsafe.Pointer {
 		if atomic.Cas64((*uint64)(head), old, next) {
 			return unsafe.Pointer(node)
 		}
+
+		// Use a backoff approach to reduce demand to the shared memory location
+		// decreases memory contention and allows for other threads to make quicker
+		// progress.
+		// Read more in this Arm blog post:
+		// https://community.arm.com/arm-community-blogs/b/architectures-and-processors-blog/posts/multi-threaded-applications-arm
+		procyield(backoff)
+		// Increase backoff time.
+		backoff += backoff / 2
+
 	}
 }
 
@@ -61,15 +72,11 @@ func lfnodeValidate(node *lfnode) {
 	if base, _, _ := findObject(uintptr(unsafe.Pointer(node)), 0, 0); base != 0 {
 		throw("lfstack node allocated from the heap")
 	}
-	if lfstackUnpack(lfstackPack(node, ^uintptr(0))) != node {
-		printlock()
-		println("runtime: bad lfnode address", hex(uintptr(unsafe.Pointer(node))))
-		throw("bad lfnode address")
-	}
+	lfstackPack(node, ^uintptr(0))
 }
 
 func lfstackPack(node *lfnode, cnt uintptr) uint64 {
-	return uint64(taggedPointerPack(unsafe.Pointer(node), cnt))
+	return uint64(taggedPointerPack(unsafe.Pointer(node), cnt&(1<<tagBits-1)))
 }
 
 func lfstackUnpack(val uint64) *lfnode {

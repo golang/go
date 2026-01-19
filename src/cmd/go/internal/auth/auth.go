@@ -12,7 +12,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -60,38 +59,44 @@ func runGoAuth(client *http.Client, res *http.Response, url string) {
 		command = strings.TrimSpace(command)
 		words := strings.Fields(command)
 		if len(words) == 0 {
-			base.Fatalf("GOAUTH encountered an empty command (GOAUTH=%s)", cfg.GOAUTH)
+			base.Fatalf("go: GOAUTH encountered an empty command (GOAUTH=%s)", cfg.GOAUTH)
 		}
 		switch words[0] {
 		case "off":
 			if len(goAuthCmds) != 1 {
-				base.Fatalf("GOAUTH=off cannot be combined with other authentication commands (GOAUTH=%s)", cfg.GOAUTH)
+				base.Fatalf("go: GOAUTH=off cannot be combined with other authentication commands (GOAUTH=%s)", cfg.GOAUTH)
 			}
 			return
 		case "netrc":
 			lines, err := readNetrc()
 			if err != nil {
-				base.Fatalf("could not parse netrc (GOAUTH=%s): %v", cfg.GOAUTH, err)
+				cmdErrs = append(cmdErrs, fmt.Errorf("GOAUTH=%s: %v", command, err))
+				continue
 			}
-			for _, l := range lines {
+			// Process lines in reverse so that if the same machine is listed
+			// multiple times, we end up saving the earlier one
+			// (overwriting later ones). This matches the way the go command
+			// worked before GOAUTH.
+			for i := len(lines) - 1; i >= 0; i-- {
+				l := lines[i]
 				r := http.Request{Header: make(http.Header)}
 				r.SetBasicAuth(l.login, l.password)
 				storeCredential(l.machine, r.Header)
 			}
 		case "git":
 			if len(words) != 2 {
-				base.Fatalf("GOAUTH=git dir method requires an absolute path to the git working directory")
+				base.Fatalf("go: GOAUTH=git dir method requires an absolute path to the git working directory")
 			}
 			dir := words[1]
 			if !filepath.IsAbs(dir) {
-				base.Fatalf("GOAUTH=git dir method requires an absolute path to the git working directory, dir is not absolute")
+				base.Fatalf("go: GOAUTH=git dir method requires an absolute path to the git working directory, dir is not absolute")
 			}
 			fs, err := os.Stat(dir)
 			if err != nil {
-				base.Fatalf("GOAUTH=git encountered an error; cannot stat %s: %v", dir, err)
+				base.Fatalf("go: GOAUTH=git encountered an error; cannot stat %s: %v", dir, err)
 			}
 			if !fs.IsDir() {
-				base.Fatalf("GOAUTH=git dir method requires an absolute path to the git working directory, dir is not a directory")
+				base.Fatalf("go: GOAUTH=git dir method requires an absolute path to the git working directory, dir is not a directory")
 			}
 
 			if url == "" {
@@ -123,7 +128,8 @@ func runGoAuth(client *http.Client, res *http.Response, url string) {
 	// If no GOAUTH command provided a credential for the given url
 	// and an error occurred, log the error.
 	if cfg.BuildX && url != "" {
-		if ok := loadCredential(&http.Request{}, url); !ok && len(cmdErrs) > 0 {
+		req := &http.Request{Header: make(http.Header)}
+		if ok := loadCredential(req, url); !ok && len(cmdErrs) > 0 {
 			log.Printf("GOAUTH encountered errors for %s:", url)
 			for _, err := range cmdErrs {
 				log.Printf("  %v", err)
@@ -136,12 +142,18 @@ func runGoAuth(client *http.Client, res *http.Response, url string) {
 // them to the request headers.
 func loadCredential(req *http.Request, url string) bool {
 	currentPrefix := strings.TrimPrefix(url, "https://")
+	currentPrefix = strings.TrimSuffix(currentPrefix, "/")
+
 	// Iteratively try prefixes, moving up the path hierarchy.
-	for currentPrefix != "/" && currentPrefix != "." && currentPrefix != "" {
+	// E.g. example.com/foo/bar, example.com/foo, example.com
+	for {
 		headers, ok := credentialCache.Load(currentPrefix)
 		if !ok {
-			// Move to the parent directory.
-			currentPrefix = path.Dir(currentPrefix)
+			lastSlash := strings.LastIndexByte(currentPrefix, '/')
+			if lastSlash == -1 {
+				return false
+			}
+			currentPrefix = currentPrefix[:lastSlash]
 			continue
 		}
 		for key, values := range headers.(http.Header) {
@@ -151,7 +163,6 @@ func loadCredential(req *http.Request, url string) bool {
 		}
 		return true
 	}
-	return false
 }
 
 // storeCredential caches or removes credentials (represented by HTTP headers)
@@ -159,6 +170,7 @@ func loadCredential(req *http.Request, url string) bool {
 func storeCredential(prefix string, header http.Header) {
 	// Trim "https://" prefix to match the format used in .netrc files.
 	prefix = strings.TrimPrefix(prefix, "https://")
+	prefix = strings.TrimSuffix(prefix, "/")
 	if len(header) == 0 {
 		credentialCache.Delete(prefix)
 	} else {

@@ -37,12 +37,8 @@ func appendQuotedWith(buf []byte, s string, quote byte, ASCIIonly, graphicOnly b
 		buf = nBuf
 	}
 	buf = append(buf, quote)
-	for width := 0; len(s) > 0; s = s[width:] {
-		r := rune(s[0])
-		width = 1
-		if r >= utf8.RuneSelf {
-			r, width = utf8.DecodeRuneInString(s)
-		}
+	for r, width := rune(0), 0; len(s) > 0; s = s[width:] {
+		r, width = utf8.DecodeRuneInString(s)
 		if width == 1 && r == utf8.RuneError {
 			buf = append(buf, `\x`...)
 			buf = append(buf, lowerhex[s[0]>>4])
@@ -378,7 +374,8 @@ func QuotedPrefix(s string) (string, error) {
 // or backquoted Go string literal, returning the string value
 // that s quotes.  (If s is single-quoted, it would be a Go
 // character literal; Unquote returns the corresponding
-// one-character string. For '' Unquote returns the empty string.)
+// one-character string. For an empty character literal
+// Unquote returns the empty string.)
 func Unquote(s string) (string, error) {
 	out, rem, err := unquote(s, true)
 	if len(rem) > 0 {

@@ -5,6 +5,7 @@
 package windows
 
 import (
+	"internal/runtime/syscall/windows"
 	"syscall"
 	"unsafe"
 )
@@ -14,6 +15,8 @@ const (
 	TCP_KEEPIDLE  = 0x03
 	TCP_KEEPCNT   = 0x10
 	TCP_KEEPINTVL = 0x11
+
+	SIO_UDP_NETRESET = syscall.IOC_IN | syscall.IOC_VENDOR | 15
 )
 
 const (
@@ -162,6 +165,22 @@ type SECURITY_QUALITY_OF_SERVICE struct {
 	EffectiveOnly       byte
 }
 
+// File flags for [os.OpenFile]. The O_ prefix is used to indicate
+// that these flags are specific to the OpenFile function.
+const (
+	O_FILE_FLAG_OPEN_NO_RECALL     = 0x00100000
+	O_FILE_FLAG_OPEN_REPARSE_POINT = 0x00200000
+	O_FILE_FLAG_SESSION_AWARE      = 0x00800000
+	O_FILE_FLAG_POSIX_SEMANTICS    = 0x01000000
+	O_FILE_FLAG_BACKUP_SEMANTICS   = 0x02000000
+	O_FILE_FLAG_DELETE_ON_CLOSE    = 0x04000000
+	O_FILE_FLAG_SEQUENTIAL_SCAN    = 0x08000000
+	O_FILE_FLAG_RANDOM_ACCESS      = 0x10000000
+	O_FILE_FLAG_NO_BUFFERING       = 0x20000000
+	O_FILE_FLAG_OVERLAPPED         = 0x40000000
+	O_FILE_FLAG_WRITE_THROUGH      = 0x80000000
+)
+
 const (
 	// CreateDisposition flags for NtCreateFile and NtCreateNamedPipeFile.
 	FILE_SUPERSEDE           = 0x00000000
@@ -191,8 +210,94 @@ const (
 	FILE_NO_COMPRESSION            = 0x00008000
 	FILE_OPEN_REQUIRING_OPLOCK     = 0x00010000
 	FILE_DISALLOW_EXCLUSIVE        = 0x00020000
+	FILE_SESSION_AWARE             = 0x00040000
 	FILE_RESERVE_OPFILTER          = 0x00100000
 	FILE_OPEN_REPARSE_POINT        = 0x00200000
 	FILE_OPEN_NO_RECALL            = 0x00400000
 	FILE_OPEN_FOR_FREE_SPACE_QUERY = 0x00800000
 )
+
+// https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-file_disposition_info
+type FILE_DISPOSITION_INFO struct {
+	DeleteFile bool
+}
+
+// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_file_disposition_information
+type FILE_DISPOSITION_INFORMATION struct {
+	DeleteFile bool
+}
+
+// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_file_disposition_information_ex
+type FILE_DISPOSITION_INFORMATION_EX struct {
+	Flags uint32
+}
+
+// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_file_disposition_information_ex
+const (
+	FILE_DISPOSITION_DO_NOT_DELETE             = 0x00000000
+	FILE_DISPOSITION_DELETE                    = 0x00000001
+	FILE_DISPOSITION_POSIX_SEMANTICS           = 0x00000002
+	FILE_DISPOSITION_FORCE_IMAGE_SECTION_CHECK = 0x00000004
+	FILE_DISPOSITION_ON_CLOSE                  = 0x00000008
+	FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE = 0x00000010
+)
+
+// Flags for FILE_RENAME_INFORMATION_EX.
+const (
+	FILE_RENAME_REPLACE_IF_EXISTS = 0x00000001
+	FILE_RENAME_POSIX_SEMANTICS   = 0x00000002
+)
+
+// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/ns-ntifs-_file_rename_information
+type FILE_RENAME_INFORMATION struct {
+	ReplaceIfExists bool
+	RootDirectory   syscall.Handle
+	FileNameLength  uint32
+	FileName        [syscall.MAX_PATH]uint16
+}
+
+// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/ns-ntifs-_file_rename_information
+type FILE_RENAME_INFORMATION_EX struct {
+	Flags          uint32
+	RootDirectory  syscall.Handle
+	FileNameLength uint32
+	FileName       [syscall.MAX_PATH]uint16
+}
+
+// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/ns-ntifs-_file_link_information
+type FILE_LINK_INFORMATION struct {
+	ReplaceIfExists bool
+	RootDirectory   syscall.Handle
+	FileNameLength  uint32
+	FileName        [syscall.MAX_PATH]uint16
+}
+
+const FileReplaceCompletionInformation = 61
+
+// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/ns-ntifs-_file_completion_information
+type FILE_COMPLETION_INFORMATION struct {
+	Port syscall.Handle
+	Key  uintptr
+}
+
+// https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-osversioninfoexa
+// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/ns-wdm-_osversioninfoexw
+const VER_NT_WORKSTATION = 0x0000001
+
+type MemoryBasicInformation = windows.MemoryBasicInformation
+
+type Context = windows.Context
+
+const FileFlagsMask = 0xFFF00000
+
+const ValidFileFlagsMask = O_FILE_FLAG_OPEN_REPARSE_POINT |
+	O_FILE_FLAG_BACKUP_SEMANTICS |
+	O_FILE_FLAG_OVERLAPPED |
+	O_FILE_FLAG_OPEN_NO_RECALL |
+	O_FILE_FLAG_SESSION_AWARE |
+	O_FILE_FLAG_POSIX_SEMANTICS |
+	O_FILE_FLAG_DELETE_ON_CLOSE |
+	O_FILE_FLAG_SEQUENTIAL_SCAN |
+	O_FILE_FLAG_NO_BUFFERING |
+	O_FILE_FLAG_RANDOM_ACCESS |
+	O_FILE_FLAG_WRITE_THROUGH

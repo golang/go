@@ -92,7 +92,7 @@ func BenchmarkXORBytes(b *testing.B) {
 	dst := make([]byte, 1<<15)
 	data0 := make([]byte, 1<<15)
 	data1 := make([]byte, 1<<15)
-	sizes := []int64{1 << 3, 1 << 7, 1 << 11, 1 << 15}
+	sizes := []int64{1 << 3, 1 << 7, 1 << 11, 1 << 13, 1 << 15}
 	for _, size := range sizes {
 		b.Run(fmt.Sprintf("%dBytes", size), func(b *testing.B) {
 			s0 := data0[:size]
@@ -102,6 +102,26 @@ func BenchmarkXORBytes(b *testing.B) {
 				XORBytes(dst, s0, s1)
 			}
 		})
+	}
+}
+
+func BenchmarkXORBytesAlignment(b *testing.B) {
+	dst := make([]byte, 8+1<<11)
+	data0 := make([]byte, 8+1<<11)
+	data1 := make([]byte, 8+1<<11)
+	sizes := []int64{1 << 3, 1 << 7, 1 << 11}
+	for _, size := range sizes {
+		for offset := int64(0); offset < 8; offset++ {
+			b.Run(fmt.Sprintf("%dBytes%dOffset", size, offset), func(b *testing.B) {
+				d := dst[offset : offset+size]
+				s0 := data0[offset : offset+size]
+				s1 := data1[offset : offset+size]
+				b.SetBytes(int64(size))
+				for i := 0; i < b.N; i++ {
+					XORBytes(d, s0, s1)
+				}
+			})
+		}
 	}
 }
 

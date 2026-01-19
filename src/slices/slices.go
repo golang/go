@@ -128,9 +128,10 @@ func ContainsFunc[S ~[]E, E any](s S, f func(E) bool) bool {
 // returning the modified slice.
 // The elements at s[i:] are shifted up to make room.
 // In the returned slice r, r[i] == v[0],
-// and, if i < len(s), r[i+len(v)] == value originally at r[i].
+// and, if i < len(s), r[i+len(v)] == value originally at s[i].
 // Insert panics if i > len(s).
 // This function is O(len(s) + len(v)).
+// If the result is empty, it has the same nilness as s.
 func Insert[S ~[]E, E any](s S, i int, v ...E) S {
 	_ = s[i:] // bounds check
 
@@ -217,6 +218,7 @@ func Insert[S ~[]E, E any](s S, i int, v ...E) S {
 // Delete is O(len(s)-i), so if many items must be deleted, it is better to
 // make a single call deleting them all together than to delete one at a time.
 // Delete zeroes the elements s[len(s)-(j-i):len(s)].
+// If the result is empty, it has the same nilness as s.
 func Delete[S ~[]E, E any](s S, i, j int) S {
 	_ = s[i:j:len(s)] // bounds check
 
@@ -233,6 +235,7 @@ func Delete[S ~[]E, E any](s S, i, j int) S {
 // DeleteFunc removes any elements from s for which del returns true,
 // returning the modified slice.
 // DeleteFunc zeroes the elements between the new length and the original length.
+// If the result is empty, it has the same nilness as s.
 func DeleteFunc[S ~[]E, E any](s S, del func(E) bool) S {
 	i := IndexFunc(s, del)
 	if i == -1 {
@@ -253,6 +256,7 @@ func DeleteFunc[S ~[]E, E any](s S, del func(E) bool) S {
 // modified slice.
 // Replace panics if j > len(s) or s[i:j] is not a valid slice of s.
 // When len(v) < (j-i), Replace zeroes the elements between the new length and the original length.
+// If the result is empty, it has the same nilness as s.
 func Replace[S ~[]E, E any](s S, i, j int, v ...E) S {
 	_ = s[i:j] // bounds check
 
@@ -345,6 +349,7 @@ func Replace[S ~[]E, E any](s S, i, j int, v ...E) S {
 // Clone returns a copy of the slice.
 // The elements are copied using assignment, so this is a shallow clone.
 // The result may have additional unused capacity.
+// The result preserves the nilness of s.
 func Clone[S ~[]E, E any](s S) S {
 	// Preserve nilness in case it matters.
 	if s == nil {
@@ -360,6 +365,7 @@ func Clone[S ~[]E, E any](s S) S {
 // Compact modifies the contents of the slice s and returns the modified slice,
 // which may have a smaller length.
 // Compact zeroes the elements between the new length and the original length.
+// The result preserves the nilness of s.
 func Compact[S ~[]E, E comparable](s S) S {
 	if len(s) < 2 {
 		return s
@@ -384,6 +390,7 @@ func Compact[S ~[]E, E comparable](s S) S {
 // CompactFunc is like [Compact] but uses an equality function to compare elements.
 // For runs of elements that compare equal, CompactFunc keeps the first one.
 // CompactFunc zeroes the elements between the new length and the original length.
+// The result preserves the nilness of s.
 func CompactFunc[S ~[]E, E any](s S, eq func(E, E) bool) S {
 	if len(s) < 2 {
 		return s
@@ -409,17 +416,20 @@ func CompactFunc[S ~[]E, E any](s S, eq func(E, E) bool) S {
 // another n elements. After Grow(n), at least n elements can be appended
 // to the slice without another allocation. If n is negative or too large to
 // allocate the memory, Grow panics.
+// The result preserves the nilness of s.
 func Grow[S ~[]E, E any](s S, n int) S {
 	if n < 0 {
 		panic("cannot be negative")
 	}
 	if n -= cap(s) - len(s); n > 0 {
+		// This expression allocates only once (see test).
 		s = append(s[:cap(s)], make([]E, n)...)[:len(s)]
 	}
 	return s
 }
 
 // Clip removes unused capacity from the slice, returning s[:len(s):len(s)].
+// The result preserves the nilness of s.
 func Clip[S ~[]E, E any](s S) S {
 	return s[:len(s):len(s)]
 }
@@ -449,7 +459,7 @@ func overlaps[E any](a, b []E) bool {
 		return false
 	}
 	// TODO: use a runtime/unsafe facility once one becomes available. See issue 12445.
-	// Also see crypto/internal/fips/alias/alias.go:AnyOverlap
+	// Also see crypto/internal/fips140/alias/alias.go:AnyOverlap
 	return uintptr(unsafe.Pointer(&a[0])) <= uintptr(unsafe.Pointer(&b[len(b)-1]))+(elemSize-1) &&
 		uintptr(unsafe.Pointer(&b[0])) <= uintptr(unsafe.Pointer(&a[len(a)-1]))+(elemSize-1)
 }
@@ -475,6 +485,7 @@ func Reverse[S ~[]E, E any](s S) {
 }
 
 // Concat returns a new slice concatenating the passed in slices.
+// If the concatenation is empty, the result is nil.
 func Concat[S ~[]E, E any](slices ...S) S {
 	size := 0
 	for _, s := range slices {
@@ -483,6 +494,9 @@ func Concat[S ~[]E, E any](slices ...S) S {
 			panic("len out of range")
 		}
 	}
+	// Use Grow, not make, to round up to the size class:
+	// the extra space is otherwise unused and helps
+	// callers that append a few elements to the result.
 	newslice := Grow[S](nil, size)
 	for _, s := range slices {
 		newslice = append(newslice, s...)

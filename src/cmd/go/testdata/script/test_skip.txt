@@ -1,3 +1,5 @@
+[short] skip 'runs test'
+
 go test -v -run Test -skip T skip_test.go
 ! stdout RUN
 stdout '^ok.*\[no tests to run\]'

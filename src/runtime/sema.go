@@ -106,8 +106,12 @@ func sync_runtime_SemacquireRWMutex(addr *uint32, lifo bool, skipframes int) {
 }
 
 //go:linkname sync_runtime_SemacquireWaitGroup sync.runtime_SemacquireWaitGroup
-func sync_runtime_SemacquireWaitGroup(addr *uint32) {
-	semacquire1(addr, false, semaBlockProfile, 0, waitReasonSyncWaitGroupWait)
+func sync_runtime_SemacquireWaitGroup(addr *uint32, synctestDurable bool) {
+	reason := waitReasonSyncWaitGroupWait
+	if synctestDurable {
+		reason = waitReasonSynctestWaitGroupWait
+	}
+	semacquire1(addr, false, semaBlockProfile, 0, reason)
 }
 
 //go:linkname poll_runtime_Semrelease internal/poll.runtime_Semrelease
@@ -257,11 +261,13 @@ func semrelease1(addr *uint32, handoff bool, skipframes int) {
 			s.ticket = 1
 		}
 		readyWithTime(s, 5+skipframes)
-		if s.ticket == 1 && getg().m.locks == 0 {
+		if s.ticket == 1 && getg().m.locks == 0 && getg() != getg().m.g0 {
 			// Direct G handoff
+			//
 			// readyWithTime has added the waiter G as runnext in the
 			// current P; we now call the scheduler so that we start running
 			// the waiter G immediately.
+			//
 			// Note that waiter inherits our time slice: this is desirable
 			// to avoid having a highly contended semaphore hog the P
 			// indefinitely. goyield is like Gosched, but it emits a
@@ -271,9 +277,12 @@ func semrelease1(addr *uint32, handoff bool, skipframes int) {
 			// the non-starving case it is possible for a different waiter
 			// to acquire the semaphore while we are yielding/scheduling,
 			// and this would be wasteful. We wait instead to enter starving
-			// regime, and then we start to do direct handoffs of ticket and
-			// P.
+			// regime, and then we start to do direct handoffs of ticket and P.
+			//
 			// See issue 33747 for discussion.
+			//
+			// We don't handoff directly if we're holding locks or on the
+			// system stack, since it's not safe to enter the scheduler.
 			goyield()
 		}
 	}
@@ -294,7 +303,10 @@ func cansemacquire(addr *uint32) bool {
 // queue adds s to the blocked goroutines in semaRoot.
 func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool) {
 	s.g = getg()
-	s.elem = unsafe.Pointer(addr)
+	s.elem.set(unsafe.Pointer(addr))
+	// Storing this pointer so that we can trace the semaphore address
+	// from the blocked goroutine when checking for goroutine leaks.
+	s.g.waiting = s
 	s.next = nil
 	s.prev = nil
 	s.waiters = 0
@@ -302,7 +314,7 @@ func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool) {
 	var last *sudog
 	pt := &root.treap
 	for t := *pt; t != nil; t = *pt {
-		if t.elem == unsafe.Pointer(addr) {
+		if uintptr(unsafe.Pointer(addr)) == t.elem.uintptr() {
 			// Already have addr in list.
 			if lifo {
 				// Substitute s in t's place in treap.
@@ -348,7 +360,7 @@ func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool) {
 			return
 		}
 		last = t
-		if uintptr(unsafe.Pointer(addr)) < uintptr(t.elem) {
+		if uintptr(unsafe.Pointer(addr)) < t.elem.uintptr() {
 			pt = &t.prev
 		} else {
 			pt = &t.next
@@ -393,11 +405,13 @@ func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool) {
 func (root *semaRoot) dequeue(addr *uint32) (found *sudog, now, tailtime int64) {
 	ps := &root.treap
 	s := *ps
+
 	for ; s != nil; s = *ps {
-		if s.elem == unsafe.Pointer(addr) {
+		if uintptr(unsafe.Pointer(addr)) == s.elem.uintptr() {
 			goto Found
 		}
-		if uintptr(unsafe.Pointer(addr)) < uintptr(s.elem) {
+
+		if uintptr(unsafe.Pointer(addr)) < s.elem.uintptr() {
 			ps = &s.prev
 		} else {
 			ps = &s.next
@@ -461,8 +475,10 @@ Found:
 		}
 		tailtime = s.acquiretime
 	}
+	// Goroutine is no longer blocked. Clear the waiting pointer.
+	s.g.waiting = nil
 	s.parent = nil
-	s.elem = nil
+	s.elem.set(nil)
 	s.next = nil
 	s.prev = nil
 	s.ticket = 0
@@ -581,6 +597,10 @@ func notifyListWait(l *notifyList, t uint32) {
 	// Enqueue itself.
 	s := acquireSudog()
 	s.g = getg()
+	// Storing this pointer so that we can trace the condvar address
+	// from the blocked goroutine when checking for goroutine leaks.
+	s.elem.set(unsafe.Pointer(l))
+	s.g.waiting = s
 	s.ticket = t
 	s.releasetime = 0
 	t0 := int64(0)
@@ -598,6 +618,10 @@ func notifyListWait(l *notifyList, t uint32) {
 	if t0 != 0 {
 		blockevent(s.releasetime-t0, 2)
 	}
+	// Goroutine is no longer blocked. Clear up its waiting pointer,
+	// and clean up the sudog before releasing it.
+	s.g.waiting = nil
+	s.elem.set(nil)
 	releaseSudog(s)
 }
 
@@ -629,9 +653,9 @@ func notifyListNotifyAll(l *notifyList) {
 	for s != nil {
 		next := s.next
 		s.next = nil
-		if s.g.syncGroup != nil && getg().syncGroup != s.g.syncGroup {
+		if s.g.bubble != nil && getg().bubble != s.g.bubble {
 			println("semaphore wake of synctest goroutine", s.g.goid, "from outside bubble")
-			panic("semaphore wake of synctest goroutine from outside bubble")
+			fatal("semaphore wake of synctest goroutine from outside bubble")
 		}
 		readyWithTime(s, 4)
 		s = next
@@ -686,9 +710,9 @@ func notifyListNotifyOne(l *notifyList) {
 			}
 			unlock(&l.lock)
 			s.next = nil
-			if s.g.syncGroup != nil && getg().syncGroup != s.g.syncGroup {
+			if s.g.bubble != nil && getg().bubble != s.g.bubble {
 				println("semaphore wake of synctest goroutine", s.g.goid, "from outside bubble")
-				panic("semaphore wake of synctest goroutine from outside bubble")
+				fatal("semaphore wake of synctest goroutine from outside bubble")
 			}
 			readyWithTime(s, 4)
 			return

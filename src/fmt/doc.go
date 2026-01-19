@@ -9,6 +9,18 @@ are simpler.
 
 # Printing
 
+There are four families of printing functions defined by their output destination.
+[Print], [Println] and [Printf] write to [os.Stdout];
+[Sprint], [Sprintln] and [Sprintf] return a string;
+[Fprint], [Fprintln] and [Fprintf] write to an [io.Writer]; and
+[Append], [Appendln] and [Appendf] append the output to a byte slice.
+
+The functions within each family do the formatting according to the end of the name.
+Print, Sprint, Fprint and Append use the default format for each argument,
+adding a space between operands when neither is a string.
+Println, Sprintln, Fprintln and Appendln always add spaces and append a newline.
+Printf, Sprintf, Fprintf and Appendf use a sequence of "verbs" to control the formatting.
+
 The verbs:
 
 General:
@@ -49,6 +61,9 @@ Floating-point and complex constituents:
 	%G	%E for large exponents, %F otherwise
 	%x	hexadecimal notation (with decimal power of two exponent), e.g. -0x1.23abcp+20
 	%X	upper-case hexadecimal notation, e.g. -0X1.23ABCP+20
+
+	The exponent is always a decimal integer.
+	For formats other than %b the exponent is at least two digits.
 
 String and slice of bytes (treated equivalently with these verbs):
 
@@ -219,7 +234,7 @@ formatting methods such as Error or String on unexported fields.
 
 # Explicit argument indexes
 
-In [Printf], [Sprintf], and [Fprintf], the default behavior is for each
+In [Printf], [Sprintf], [Fprintf], and [Appendf], the default behavior is for each
 formatting verb to format successive arguments passed in the call.
 However, the notation [n] immediately before the verb indicates that the
 nth one-indexed argument is to be formatted instead. The same notation

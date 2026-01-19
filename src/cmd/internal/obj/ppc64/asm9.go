@@ -199,11 +199,15 @@ var optabBase = []Optab{
 	{as: ARLDCL, a1: C_REG, a3: C_32CON, a6: C_REG, type_: 14, size: 4},
 	{as: AFADD, a1: C_FREG, a6: C_FREG, type_: 2, size: 4},
 	{as: AFADD, a1: C_FREG, a2: C_FREG, a6: C_FREG, type_: 2, size: 4},
+	{as: ADADDQ, a1: C_FREGP, a6: C_FREGP, type_: 2, size: 4},
+	{as: ADADDQ, a1: C_FREGP, a2: C_FREGP, a6: C_FREGP, type_: 2, size: 4},
 	{as: AFABS, a1: C_FREG, a6: C_FREG, type_: 33, size: 4},
 	{as: AFABS, a6: C_FREG, type_: 33, size: 4},
 	{as: AFMADD, a1: C_FREG, a2: C_FREG, a3: C_FREG, a6: C_FREG, type_: 34, size: 4},
 	{as: AFMUL, a1: C_FREG, a6: C_FREG, type_: 32, size: 4},
 	{as: AFMUL, a1: C_FREG, a2: C_FREG, a6: C_FREG, type_: 32, size: 4},
+	{as: ADMULQ, a1: C_FREGP, a6: C_FREGP, type_: 32, size: 4},
+	{as: ADMULQ, a1: C_FREGP, a2: C_FREGP, a6: C_FREGP, type_: 32, size: 4},
 
 	{as: AMOVBU, a1: C_REG, a6: C_SOREG, type_: 7, size: 4},
 	{as: AMOVBU, a1: C_REG, a6: C_XOREG, type_: 108, size: 4},
@@ -481,6 +485,8 @@ var optabBase = []Optab{
 	{as: ACMPU, a1: C_REG, a2: C_CREG, a6: C_U16CON, type_: 70, size: 4},
 	{as: AFCMPO, a1: C_FREG, a6: C_FREG, type_: 70, size: 4},
 	{as: AFCMPO, a1: C_FREG, a2: C_CREG, a6: C_FREG, type_: 70, size: 4},
+	{as: ADCMPOQ, a1: C_FREGP, a6: C_FREGP, type_: 70, size: 4},
+	{as: ADCMPOQ, a1: C_FREGP, a2: C_CREG, a6: C_FREGP, type_: 70, size: 4},
 	{as: ATW, a1: C_32CON, a2: C_REG, a6: C_REG, type_: 60, size: 4},
 	{as: ATW, a1: C_32CON, a2: C_REG, a6: C_S16CON, type_: 61, size: 4},
 	{as: ADCBF, a1: C_SOREG, type_: 43, size: 4},
@@ -1876,6 +1882,10 @@ func buildop(ctxt *obj.Link) {
 			opset(ADDIV, r0)
 			opset(ADSUB, r0)
 
+		case ADADDQ:
+			opset(ADDIVQ, r0)
+			opset(ADSUBQ, r0)
+
 		case AFMADD:
 			opset(AFMADDCC, r0)
 			opset(AFMADDS, r0)
@@ -1901,8 +1911,16 @@ func buildop(ctxt *obj.Link) {
 			opset(AFMULSCC, r0)
 			opset(ADMUL, r0)
 
+		case ADMULQ:
+			opset(ADMULQ, r0)
+
 		case AFCMPO:
 			opset(AFCMPU, r0)
+			opset(ADCMPU, r0)
+			opset(ADCMPO, r0)
+
+		case ADCMPOQ:
+			opset(ADCMPUQ, r0)
 
 		case AMTFSB0:
 			opset(AMTFSB0CC, r0)
@@ -2117,10 +2135,6 @@ func OPVC(o uint32, xo uint32, oe uint32, rc uint32) uint32 {
 
 func OPVCC(o uint32, xo uint32, oe uint32, rc uint32) uint32 {
 	return o<<26 | xo<<1 | oe<<10 | rc&1
-}
-
-func OPCC(o uint32, xo uint32, rc uint32) uint32 {
-	return OPVCC(o, xo, 0, rc)
 }
 
 /* Generate MD-form opcode */
@@ -2502,7 +2516,7 @@ func decodeMask64(mask int64) (mb, me uint32, valid bool) {
 func loadl16(r int, d int64) uint32 {
 	v := uint16(d)
 	if v == 0 {
-		// Avoid generating "ori r,r,0", r != 0. Instead, generate the architectually preferred nop.
+		// Avoid generating "ori r,r,0", r != 0. Instead, generate the architecturally preferred nop.
 		// For example, "ori r31,r31,0" is a special execution serializing nop on Power10 called "exser".
 		return NOP
 	}
@@ -2641,7 +2655,7 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 	case 9: /* RLDC Ra, $sh, $mb, Rb */
 		sh := uint32(p.RestArgs[0].Addr.Offset) & 0x3F
 		mb := uint32(p.RestArgs[1].Addr.Offset) & 0x3F
-		o1 = AOP_RRR(c.opirr(p.As), uint32(p.From.Reg), uint32(p.To.Reg), (uint32(sh) & 0x1F))
+		o1 = AOP_RRR(c.opirr(p.As), uint32(p.From.Reg), uint32(p.To.Reg), (sh & 0x1F))
 		o1 |= (sh & 0x20) >> 4 // sh[5] is placed in bit 1.
 		o1 |= (mb & 0x1F) << 6 // mb[0:4] is placed in bits 6-10.
 		o1 |= (mb & 0x20)      // mb[5] is placed in bit 5
@@ -2770,7 +2784,7 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 			if n > b || b > 63 {
 				c.ctxt.Diag("Invalid n or b for CLRLSLDI: %x %x\n%v", n, b, p)
 			}
-			o1 = AOP_MD(OP_RLDIC, uint32(p.To.Reg), uint32(r), uint32(n), uint32(b)-uint32(n))
+			o1 = AOP_MD(OP_RLDIC, uint32(p.To.Reg), r, uint32(n), uint32(b)-uint32(n))
 
 		default:
 			c.ctxt.Diag("unexpected op in rldc case\n%v", p)
@@ -2953,7 +2967,7 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 			c.ctxt.Diag("%v is not supported", p)
 		}
 		if o.ispfx {
-			o1, o2 = pfxadd(int16(p.To.Reg), int16(r), PFX_R_ABS, d)
+			o1, o2 = pfxadd(p.To.Reg, int16(r), PFX_R_ABS, d)
 		} else if o.size == 8 {
 			o1 = LOP_IRR(OP_ORI, REGTMP, REGZERO, uint32(int32(d)))          // tmp = uint16(d)
 			o2 = AOP_RRR(c.oprrr(p.As), uint32(p.To.Reg), REGTMP, uint32(r)) // to = tmp + from
@@ -2965,7 +2979,7 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 		} else {
 			// For backwards compatibility with GOPPC64 < 10, generate 34b constants in register.
 			o1 = LOP_IRR(OP_ADDIS, REGZERO, REGTMP, uint32(d>>32)) // tmp = sign_extend((d>>32)&0xFFFF0000)
-			o2 = loadl16(REGTMP, int64(d>>16))                     // tmp |= (d>>16)&0xFFFF
+			o2 = loadl16(REGTMP, d>>16)                            // tmp |= (d>>16)&0xFFFF
 			o3 = AOP_MD(OP_RLDICR, REGTMP, REGTMP, 16, 63-16)      // tmp <<= 16
 			o4 = loadl16(REGTMP, int64(uint16(d)))                 // tmp |= d&0xFFFF
 			o5 = AOP_RRR(c.oprrr(p.As), uint32(p.To.Reg), REGTMP, uint32(r))
@@ -3066,9 +3080,9 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 
 		if o.ispfx {
 			if rel == nil {
-				o1, o2 = pfxadd(int16(p.To.Reg), int16(r), PFX_R_ABS, v)
+				o1, o2 = pfxadd(p.To.Reg, int16(r), PFX_R_ABS, v)
 			} else {
-				o1, o2 = pfxadd(int16(p.To.Reg), REG_R0, PFX_R_PCREL, 0)
+				o1, o2 = pfxadd(p.To.Reg, REG_R0, PFX_R_PCREL, 0)
 				rel.Type = objabi.R_ADDRPOWER_PCREL34
 			}
 		}
@@ -3505,7 +3519,7 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 			v |= 1 << 8
 		}
 
-		o1 = AOP_RRR(OP_MTCRF, uint32(p.From.Reg), 0, 0) | uint32(v)<<12
+		o1 = AOP_RRR(OP_MTCRF, uint32(p.From.Reg), 0, 0) | v<<12
 
 	case 70: /* cmp* r,r,cr or cmp*i r,i,cr or fcmp f,f,cr or cmpeqb r,r */
 		r := uint32(p.Reg&7) << 2
@@ -4008,6 +4022,22 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
 		return OPVCC(59, 34, 0, 0)
 	case ADSUB:
 		return OPVCC(59, 514, 0, 0)
+	case ADADDQ:
+		return OPVCC(63, 2, 0, 0)
+	case ADDIVQ:
+		return OPVCC(63, 546, 0, 0)
+	case ADMULQ:
+		return OPVCC(63, 34, 0, 0)
+	case ADSUBQ:
+		return OPVCC(63, 514, 0, 0)
+	case ADCMPU:
+		return OPVCC(59, 642, 0, 0)
+	case ADCMPUQ:
+		return OPVCC(63, 642, 0, 0)
+	case ADCMPO:
+		return OPVCC(59, 130, 0, 0)
+	case ADCMPOQ:
+		return OPVCC(63, 130, 0, 0)
 
 	case ADCBF:
 		return OPVCC(31, 86, 0, 0)

@@ -18,6 +18,9 @@ type Block struct {
 	// Source position for block's control operation
 	Pos src.XPos
 
+	// What cpu features (AVXnnn, SVEyyy) are implied to reach/execute this block?
+	CPUfeatures CPUfeatures
+
 	// The kind of block this is.
 	Kind BlockKind
 
@@ -264,10 +267,7 @@ func (b *Block) resetWithControl2(kind BlockKind, v, w *Value) {
 // The values in b.Values after i must already have had their args reset,
 // to maintain correct value uses counts.
 func (b *Block) truncateValues(i int) {
-	tail := b.Values[i:]
-	for j := range tail {
-		tail[j] = nil
-	}
+	clear(b.Values[i:])
 	b.Values = b.Values[:i]
 }
 
@@ -427,9 +427,9 @@ func (b *Block) likelyBranch() bool {
 	return true
 }
 
-func (b *Block) Logf(msg string, args ...interface{})   { b.Func.Logf(msg, args...) }
-func (b *Block) Log() bool                              { return b.Func.Log() }
-func (b *Block) Fatalf(msg string, args ...interface{}) { b.Func.Fatalf(msg, args...) }
+func (b *Block) Logf(msg string, args ...any)   { b.Func.Logf(msg, args...) }
+func (b *Block) Log() bool                      { return b.Func.Log() }
+func (b *Block) Fatalf(msg string, args ...any) { b.Func.Fatalf(msg, args...) }
 
 type BranchPrediction int8
 
@@ -452,3 +452,57 @@ const (
 	HotPgoInitial          = HotPgo | HotInitial                // special case; single block loop, initial block is header block has a flow-in entry, but PGO says it is hot
 	HotPgoInitialNotFLowIn = HotPgo | HotInitial | HotNotFlowIn // PGO says it is hot, and the loop is rotated so flow enters loop with a branch
 )
+
+type CPUfeatures uint32
+
+const (
+	CPUNone CPUfeatures = 0
+	CPUAll  CPUfeatures = ^CPUfeatures(0)
+	CPUavx  CPUfeatures = 1 << iota
+	CPUavx2
+	CPUavxvnni
+	CPUavx512
+	CPUbitalg
+	CPUgfni
+	CPUvbmi
+	CPUvbmi2
+	CPUvpopcntdq
+	CPUavx512vnni
+
+	CPUneon
+	CPUsve2
+)
+
+func (f CPUfeatures) hasFeature(x CPUfeatures) bool {
+	return f&x == x
+}
+
+func (f CPUfeatures) String() string {
+	if f == CPUNone {
+		return "none"
+	}
+	if f == CPUAll {
+		return "all"
+	}
+	s := ""
+	foo := func(what string, feat CPUfeatures) {
+		if feat&f != 0 {
+			if s != "" {
+				s += "+"
+			}
+			s += what
+		}
+	}
+	foo("avx", CPUavx)
+	foo("avx2", CPUavx2)
+	foo("avx512", CPUavx512)
+	foo("avxvnni", CPUavxvnni)
+	foo("bitalg", CPUbitalg)
+	foo("gfni", CPUgfni)
+	foo("vbmi", CPUvbmi)
+	foo("vbmi2", CPUvbmi2)
+	foo("popcntdq", CPUvpopcntdq)
+	foo("avx512vnni", CPUavx512vnni)
+
+	return s
+}

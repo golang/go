@@ -29,6 +29,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rsa"
 	"crypto/sha1"
+	"crypto/sha256"
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/pem"
@@ -100,10 +101,10 @@ func marshalPublicKey(pub any) (publicKeyBytes []byte, publicKeyAlgorithm pkix.A
 		if !ok {
 			return nil, pkix.AlgorithmIdentifier{}, errors.New("x509: unsupported elliptic curve")
 		}
-		if !pub.Curve.IsOnCurve(pub.X, pub.Y) {
-			return nil, pkix.AlgorithmIdentifier{}, errors.New("x509: invalid elliptic curve public key")
+		publicKeyBytes, err = pub.Bytes()
+		if err != nil {
+			return nil, pkix.AlgorithmIdentifier{}, err
 		}
-		publicKeyBytes = elliptic.Marshal(pub.Curve, pub.X, pub.Y)
 		publicKeyAlgorithm.Algorithm = oidPublicKeyECDSA
 		var paramBytes []byte
 		paramBytes, err = asn1.Marshal(oid)
@@ -581,16 +582,18 @@ func oidFromECDHCurve(curve ecdh.Curve) (asn1.ObjectIdentifier, bool) {
 // a bitmap of the KeyUsage* constants.
 type KeyUsage int
 
+//go:generate stringer -linecomment -type=KeyUsage,ExtKeyUsage -output=x509_string.go
+
 const (
-	KeyUsageDigitalSignature KeyUsage = 1 << iota
-	KeyUsageContentCommitment
-	KeyUsageKeyEncipherment
-	KeyUsageDataEncipherment
-	KeyUsageKeyAgreement
-	KeyUsageCertSign
-	KeyUsageCRLSign
-	KeyUsageEncipherOnly
-	KeyUsageDecipherOnly
+	KeyUsageDigitalSignature  KeyUsage = 1 << iota // digitalSignature
+	KeyUsageContentCommitment                      // contentCommitment
+	KeyUsageKeyEncipherment                        // keyEncipherment
+	KeyUsageDataEncipherment                       // dataEncipherment
+	KeyUsageKeyAgreement                           // keyAgreement
+	KeyUsageCertSign                               // keyCertSign
+	KeyUsageCRLSign                                // cRLSign
+	KeyUsageEncipherOnly                           // encipherOnly
+	KeyUsageDecipherOnly                           // decipherOnly
 )
 
 // RFC 5280, 4.2.1.12  Extended Key Usage
@@ -605,6 +608,8 @@ const (
 //	id-kp-emailProtection        OBJECT IDENTIFIER ::= { id-kp 4 }
 //	id-kp-timeStamping           OBJECT IDENTIFIER ::= { id-kp 8 }
 //	id-kp-OCSPSigning            OBJECT IDENTIFIER ::= { id-kp 9 }
+//
+// https://www.iana.org/assignments/smi-numbers/smi-numbers.xhtml#smi-numbers-1.3.6.1.5.5.7.3
 var (
 	oidExtKeyUsageAny                            = asn1.ObjectIdentifier{2, 5, 29, 37, 0}
 	oidExtKeyUsageServerAuth                     = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 3, 1}
@@ -627,20 +632,20 @@ var (
 type ExtKeyUsage int
 
 const (
-	ExtKeyUsageAny ExtKeyUsage = iota
-	ExtKeyUsageServerAuth
-	ExtKeyUsageClientAuth
-	ExtKeyUsageCodeSigning
-	ExtKeyUsageEmailProtection
-	ExtKeyUsageIPSECEndSystem
-	ExtKeyUsageIPSECTunnel
-	ExtKeyUsageIPSECUser
-	ExtKeyUsageTimeStamping
-	ExtKeyUsageOCSPSigning
-	ExtKeyUsageMicrosoftServerGatedCrypto
-	ExtKeyUsageNetscapeServerGatedCrypto
-	ExtKeyUsageMicrosoftCommercialCodeSigning
-	ExtKeyUsageMicrosoftKernelCodeSigning
+	ExtKeyUsageAny                            ExtKeyUsage = iota // anyExtendedKeyUsage
+	ExtKeyUsageServerAuth                                        // serverAuth
+	ExtKeyUsageClientAuth                                        // clientAuth
+	ExtKeyUsageCodeSigning                                       // codeSigning
+	ExtKeyUsageEmailProtection                                   // emailProtection
+	ExtKeyUsageIPSECEndSystem                                    // ipsecEndSystem
+	ExtKeyUsageIPSECTunnel                                       // ipsecTunnel
+	ExtKeyUsageIPSECUser                                         // ipsecUser
+	ExtKeyUsageTimeStamping                                      // timeStamping
+	ExtKeyUsageOCSPSigning                                       // OCSPSigning
+	ExtKeyUsageMicrosoftServerGatedCrypto                        // msSGC
+	ExtKeyUsageNetscapeServerGatedCrypto                         // nsSGC
+	ExtKeyUsageMicrosoftCommercialCodeSigning                    // msCodeCom
+	ExtKeyUsageMicrosoftKernelCodeSigning                        // msKernelCode
 )
 
 // extKeyUsageOIDs contains the mapping between an ExtKeyUsage and its OID.
@@ -680,6 +685,19 @@ func oidFromExtKeyUsage(eku ExtKeyUsage) (oid asn1.ObjectIdentifier, ok bool) {
 		}
 	}
 	return
+}
+
+// OID returns the ASN.1 object identifier of the EKU.
+func (eku ExtKeyUsage) OID() OID {
+	asn1OID, ok := oidFromExtKeyUsage(eku)
+	if !ok {
+		panic("x509: internal error: known ExtKeyUsage has no OID")
+	}
+	oid, err := OIDFromASN1OID(asn1OID)
+	if err != nil {
+		panic("x509: internal error: known ExtKeyUsage has invalid OID")
+	}
+	return oid
 }
 
 // A Certificate represents an X.509 certificate.
@@ -786,11 +804,89 @@ type Certificate struct {
 	// cannot be represented by asn1.ObjectIdentifier, it will not be included in
 	// PolicyIdentifiers, but will be present in Policies, which contains all parsed
 	// policy OIDs.
+	// See CreateCertificate for context about how this field and the Policies field
+	// interact.
 	PolicyIdentifiers []asn1.ObjectIdentifier
 
 	// Policies contains all policy identifiers included in the certificate.
+	// See CreateCertificate for context about how this field and the PolicyIdentifiers field
+	// interact.
 	// In Go 1.22, encoding/gob cannot handle and ignores this field.
 	Policies []OID
+
+	// InhibitAnyPolicy and InhibitAnyPolicyZero indicate the presence and value
+	// of the inhibitAnyPolicy extension.
+	//
+	// The value of InhibitAnyPolicy indicates the number of additional
+	// certificates in the path after this certificate that may use the
+	// anyPolicy policy OID to indicate a match with any other policy.
+	//
+	// When parsing a certificate, a positive non-zero InhibitAnyPolicy means
+	// that the field was specified, -1 means it was unset, and
+	// InhibitAnyPolicyZero being true mean that the field was explicitly set to
+	// zero. The case of InhibitAnyPolicy==0 with InhibitAnyPolicyZero==false
+	// should be treated equivalent to -1 (unset).
+	InhibitAnyPolicy int
+	// InhibitAnyPolicyZero indicates that InhibitAnyPolicy==0 should be
+	// interpreted as an actual maximum path length of zero. Otherwise, that
+	// combination is interpreted as InhibitAnyPolicy not being set.
+	InhibitAnyPolicyZero bool
+
+	// InhibitPolicyMapping and InhibitPolicyMappingZero indicate the presence
+	// and value of the inhibitPolicyMapping field of the policyConstraints
+	// extension.
+	//
+	// The value of InhibitPolicyMapping indicates the number of additional
+	// certificates in the path after this certificate that may use policy
+	// mapping.
+	//
+	// When parsing a certificate, a positive non-zero InhibitPolicyMapping
+	// means that the field was specified, -1 means it was unset, and
+	// InhibitPolicyMappingZero being true mean that the field was explicitly
+	// set to zero. The case of InhibitPolicyMapping==0 with
+	// InhibitPolicyMappingZero==false should be treated equivalent to -1
+	// (unset).
+	InhibitPolicyMapping int
+	// InhibitPolicyMappingZero indicates that InhibitPolicyMapping==0 should be
+	// interpreted as an actual maximum path length of zero. Otherwise, that
+	// combination is interpreted as InhibitAnyPolicy not being set.
+	InhibitPolicyMappingZero bool
+
+	// RequireExplicitPolicy and RequireExplicitPolicyZero indicate the presence
+	// and value of the requireExplicitPolicy field of the policyConstraints
+	// extension.
+	//
+	// The value of RequireExplicitPolicy indicates the number of additional
+	// certificates in the path after this certificate before an explicit policy
+	// is required for the rest of the path. When an explicit policy is required,
+	// each subsequent certificate in the path must contain a required policy OID,
+	// or a policy OID which has been declared as equivalent through the policy
+	// mapping extension.
+	//
+	// When parsing a certificate, a positive non-zero RequireExplicitPolicy
+	// means that the field was specified, -1 means it was unset, and
+	// RequireExplicitPolicyZero being true mean that the field was explicitly
+	// set to zero. The case of RequireExplicitPolicy==0 with
+	// RequireExplicitPolicyZero==false should be treated equivalent to -1
+	// (unset).
+	RequireExplicitPolicy int
+	// RequireExplicitPolicyZero indicates that RequireExplicitPolicy==0 should be
+	// interpreted as an actual maximum path length of zero. Otherwise, that
+	// combination is interpreted as InhibitAnyPolicy not being set.
+	RequireExplicitPolicyZero bool
+
+	// PolicyMappings contains a list of policy mappings included in the certificate.
+	PolicyMappings []PolicyMapping
+}
+
+// PolicyMapping represents a policy mapping entry in the policyMappings extension.
+type PolicyMapping struct {
+	// IssuerDomainPolicy contains a policy OID the issuing certificate considers
+	// equivalent to SubjectDomainPolicy in the subject certificate.
+	IssuerDomainPolicy OID
+	// SubjectDomainPolicy contains a OID the issuing certificate considers
+	// equivalent to IssuerDomainPolicy in the subject certificate.
+	SubjectDomainPolicy OID
 }
 
 // ErrUnsupportedAlgorithm results from attempting to perform an operation that
@@ -799,18 +895,10 @@ var ErrUnsupportedAlgorithm = errors.New("x509: cannot verify signature: algorit
 
 // An InsecureAlgorithmError indicates that the [SignatureAlgorithm] used to
 // generate the signature is not secure, and the signature has been rejected.
-//
-// To temporarily restore support for SHA-1 signatures, include the value
-// "x509sha1=1" in the GODEBUG environment variable. Note that this option will
-// be removed in a future release.
 type InsecureAlgorithmError SignatureAlgorithm
 
 func (e InsecureAlgorithmError) Error() string {
-	var override string
-	if SignatureAlgorithm(e) == SHA1WithRSA || SignatureAlgorithm(e) == ECDSAWithSHA1 {
-		override = " (temporarily override with GODEBUG=x509sha1=1)"
-	}
-	return fmt.Sprintf("x509: cannot verify signature: insecure algorithm %v", SignatureAlgorithm(e)) + override
+	return fmt.Sprintf("x509: cannot verify signature: insecure algorithm %v", SignatureAlgorithm(e))
 }
 
 // ConstraintViolationError results when a requested usage is not permitted by
@@ -887,8 +975,6 @@ func signaturePublicKeyAlgoMismatchError(expectedPubKeyAlgo PublicKeyAlgorithm, 
 	return fmt.Errorf("x509: signature algorithm specifies an %s public key, but have public key of type %T", expectedPubKeyAlgo.String(), pubKey)
 }
 
-var x509sha1 = godebug.New("x509sha1")
-
 // checkSignature verifies that signature is a valid signature over signed from
 // a crypto.PublicKey.
 func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey crypto.PublicKey, allowSHA1 bool) (err error) {
@@ -911,12 +997,9 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
 	case crypto.MD5:
 		return InsecureAlgorithmError(algo)
 	case crypto.SHA1:
-		// SHA-1 signatures are mostly disabled. See go.dev/issue/41682.
+		// SHA-1 signatures are only allowed for CRLs and CSRs.
 		if !allowSHA1 {
-			if x509sha1.Value() != "1" {
-				return InsecureAlgorithmError(algo)
-			}
-			x509sha1.IncNonDefault()
+			return InsecureAlgorithmError(algo)
 		}
 		fallthrough
 	default:
@@ -1198,7 +1281,7 @@ func buildCertExtensions(template *Certificate, subjectIsEmpty bool, authorityKe
 		n++
 	}
 
-	usePolicies := x509usepolicies.Value() == "1"
+	usePolicies := x509usepolicies.Value() != "0"
 	if ((!usePolicies && len(template.PolicyIdentifiers) > 0) || (usePolicies && len(template.Policies) > 0)) &&
 		!oidInExtensions(oidExtensionCertificatePolicies, template.ExtraExtensions) {
 		ret[n], err = marshalCertificatePolicies(template.Policies, template.PolicyIdentifiers)
@@ -1391,7 +1474,7 @@ func marshalCertificatePolicies(policies []OID, policyIdentifiers []asn1.ObjectI
 
 	b := cryptobyte.NewBuilder(make([]byte, 0, 128))
 	b.AddASN1(cryptobyte_asn1.SEQUENCE, func(child *cryptobyte.Builder) {
-		if x509usepolicies.Value() == "1" {
+		if x509usepolicies.Value() != "0" {
 			x509usepolicies.IncNonDefault()
 			for _, v := range policies {
 				child.AddASN1(cryptobyte_asn1.SEQUENCE, func(child *cryptobyte.Builder) {
@@ -1503,13 +1586,7 @@ func signingParamsForKey(key crypto.Signer, sigAlgo SignatureAlgorithm) (Signatu
 }
 
 func signTBS(tbs []byte, key crypto.Signer, sigAlg SignatureAlgorithm, rand io.Reader) ([]byte, error) {
-	signed := tbs
 	hashFunc := sigAlg.hashFunc()
-	if hashFunc != 0 {
-		h := hashFunc.New()
-		h.Write(signed)
-		signed = h.Sum(nil)
-	}
 
 	var signerOpts crypto.SignerOpts = hashFunc
 	if sigAlg.isRSAPSS() {
@@ -1519,7 +1596,7 @@ func signTBS(tbs []byte, key crypto.Signer, sigAlg SignatureAlgorithm, rand io.R
 		}
 	}
 
-	signature, err := key.Sign(rand, signed, signerOpts)
+	signature, err := crypto.SignMessage(key, rand, tbs, signerOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -1581,7 +1658,7 @@ var emptyASN1Subject = []byte{0x30, 0}
 //
 // The currently supported key types are *rsa.PublicKey, *ecdsa.PublicKey and
 // ed25519.PublicKey. pub must be a supported key type, and priv must be a
-// crypto.Signer with a supported public key.
+// crypto.Signer or crypto.MessageSigner with a supported public key.
 //
 // The AuthorityKeyId will be taken from the SubjectKeyId of parent, if any,
 // unless the resulting certificate is self-signed. Otherwise the value from
@@ -1590,10 +1667,13 @@ var emptyASN1Subject = []byte{0x30, 0}
 // If SubjectKeyId from template is empty and the template is a CA, SubjectKeyId
 // will be generated from the hash of the public key.
 //
-// The PolicyIdentifier and Policies fields are both used to marshal certificate
-// policy OIDs. By default, only the PolicyIdentifier is marshaled, but if the
-// GODEBUG setting "x509usepolicies" has the value "1", the Policies field will
-// be marshaled instead of the PolicyIdentifier field. The Policies field can
+// If template.SerialNumber is nil, a serial number will be generated which
+// conforms to RFC 5280, Section 4.1.2.2 using entropy from rand.
+//
+// The PolicyIdentifier and Policies fields can both be used to marshal certificate
+// policy OIDs. By default, only the Policies is marshaled, but if the
+// GODEBUG setting "x509usepolicies" has the value "0", the PolicyIdentifiers field will
+// be marshaled instead of the Policies field. This changed in Go 1.24. The Policies field can
 // be used to marshal policy OIDs which have components that are larger than 31
 // bits.
 func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv any) ([]byte, error) {
@@ -1602,17 +1682,34 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 		return nil, errors.New("x509: certificate private key does not implement crypto.Signer")
 	}
 
-	if template.SerialNumber == nil {
-		return nil, errors.New("x509: no SerialNumber given")
+	serialNumber := template.SerialNumber
+	if serialNumber == nil {
+		// Generate a serial number following RFC 5280, Section 4.1.2.2 if one
+		// is not provided. The serial number must be positive and at most 20
+		// octets *when encoded*.
+		serialBytes := make([]byte, 20)
+		if _, err := io.ReadFull(rand, serialBytes); err != nil {
+			return nil, err
+		}
+		// If the top bit is set, the serial will be padded with a leading zero
+		// byte during encoding, so that it's not interpreted as a negative
+		// integer. This padding would make the serial 21 octets so we clear the
+		// top bit to ensure the correct length in all cases.
+		serialBytes[0] &= 0b0111_1111
+		serialNumber = new(big.Int).SetBytes(serialBytes)
 	}
 
-	// RFC 5280 Section 4.1.2.2: serial number must positive
+	// RFC 5280 Section 4.1.2.2: serial number must be positive
 	//
 	// We _should_ also restrict serials to <= 20 octets, but it turns out a lot of people
 	// get this wrong, in part because the encoding can itself alter the length of the
 	// serial. For now we accept these non-conformant serials.
-	if template.SerialNumber.Sign() == -1 {
+	if serialNumber.Sign() == -1 {
 		return nil, errors.New("x509: serial number must be positive")
+	}
+
+	if template.BasicConstraintsValid && template.MaxPathLen < -1 {
+		return nil, errors.New("x509: invalid MaxPathLen, must be greater or equal to -1")
 	}
 
 	if template.BasicConstraintsValid && !template.IsCA && template.MaxPathLen != -1 && (template.MaxPathLen != 0 || template.MaxPathLenZero) {
@@ -1649,12 +1746,22 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 
 	subjectKeyId := template.SubjectKeyId
 	if len(subjectKeyId) == 0 && template.IsCA {
-		// SubjectKeyId generated using method 1 in RFC 5280, Section 4.2.1.2:
-		//   (1) The keyIdentifier is composed of the 160-bit SHA-1 hash of the
-		//   value of the BIT STRING subjectPublicKey (excluding the tag,
-		//   length, and number of unused bits).
-		h := sha1.Sum(publicKeyBytes)
-		subjectKeyId = h[:]
+		if x509sha256skid.Value() == "0" {
+			x509sha256skid.IncNonDefault()
+			// SubjectKeyId generated using method 1 in RFC 5280, Section 4.2.1.2:
+			//   (1) The keyIdentifier is composed of the 160-bit SHA-1 hash of the
+			//   value of the BIT STRING subjectPublicKey (excluding the tag,
+			//   length, and number of unused bits).
+			h := sha1.Sum(publicKeyBytes)
+			subjectKeyId = h[:]
+		} else {
+			// SubjectKeyId generated using method 1 in RFC 7093, Section 2:
+			//    1) The keyIdentifier is composed of the leftmost 160-bits of the
+			//    SHA-256 hash of the value of the BIT STRING subjectPublicKey
+			//    (excluding the tag, length, and number of unused bits).
+			h := sha256.Sum256(publicKeyBytes)
+			subjectKeyId = h[:20]
+		}
 	}
 
 	// Check that the signer's public key matches the private key, if available.
@@ -1675,7 +1782,7 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 	encodedPublicKey := asn1.BitString{BitLength: len(publicKeyBytes) * 8, Bytes: publicKeyBytes}
 	c := tbsCertificate{
 		Version:            2,
-		SerialNumber:       template.SerialNumber,
+		SerialNumber:       serialNumber,
 		SignatureAlgorithm: algorithmIdentifier,
 		Issuer:             asn1.RawValue{FullBytes: asn1Issuer},
 		Validity:           validity{template.NotBefore.UTC(), template.NotAfter.UTC()},
@@ -1701,6 +1808,8 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 		SignatureValue:     asn1.BitString{Bytes: signature, BitLength: len(signature) * 8},
 	})
 }
+
+var x509sha256skid = godebug.New("x509sha256skid")
 
 // pemCRLPrefix is the magic string that indicates that we have a PEM encoded
 // CRL.
@@ -1950,10 +2059,10 @@ func parseCSRExtensions(rawAttributes []asn1.RawValue) ([]pkix.Extension, error)
 //   - Attributes (deprecated)
 //
 // priv is the private key to sign the CSR with, and the corresponding public
-// key will be included in the CSR. It must implement crypto.Signer and its
-// Public() method must return a *rsa.PublicKey or a *ecdsa.PublicKey or a
-// ed25519.PublicKey. (A *rsa.PrivateKey, *ecdsa.PrivateKey or
-// ed25519.PrivateKey satisfies this.)
+// key will be included in the CSR. It must implement crypto.Signer or
+// crypto.MessageSigner and its Public() method must return a *rsa.PublicKey or
+// a *ecdsa.PublicKey or a ed25519.PublicKey. (A *rsa.PrivateKey,
+// *ecdsa.PrivateKey or ed25519.PrivateKey satisfies this.)
 //
 // The returned slice is the certificate request in DER encoding.
 func CreateCertificateRequest(rand io.Reader, template *CertificateRequest, priv any) (csr []byte, err error) {
@@ -2295,8 +2404,9 @@ type tbsCertificateList struct {
 // CreateRevocationList creates a new X.509 v2 [Certificate] Revocation List,
 // according to RFC 5280, based on template.
 //
-// The CRL is signed by priv which should be the private key associated with
-// the public key in the issuer certificate.
+// The CRL is signed by priv which should be a crypto.Signer or
+// crypto.MessageSigner associated with the public key in the issuer
+// certificate.
 //
 // The issuer may not be nil, and the crlSign bit must be set in [KeyUsage] in
 // order to use it as a CRL issuer.

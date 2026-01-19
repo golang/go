@@ -232,10 +232,7 @@ func deadcode(f *Func) {
 			f.NamedValues[*name] = values[:j]
 		}
 	}
-	clearNames := f.Names[i:]
-	for j := range clearNames {
-		clearNames[j] = nil
-	}
+	clear(f.Names[i:])
 	f.Names = f.Names[:i]
 
 	pendingLines := f.cachedLineStarts // Holds statement boundaries that need to be moved to a new value/block
@@ -260,7 +257,7 @@ func deadcode(f *Func) {
 	// Find new homes for lost lines -- require earliest in data flow with same line that is also in same block
 	for i := len(order) - 1; i >= 0; i-- {
 		w := order[i]
-		if j := pendingLines.get(w.Pos); j > -1 && f.Blocks[j] == w.Block {
+		if j, ok := pendingLines.get(w.Pos); ok && f.Blocks[j] == w.Block {
 			w.Pos = w.Pos.WithIsStmt()
 			pendingLines.remove(w.Pos)
 		}
@@ -303,10 +300,7 @@ func deadcode(f *Func) {
 		}
 	}
 	// zero remainder to help GC
-	tail := f.Blocks[i:]
-	for j := range tail {
-		tail[j] = nil
-	}
+	clear(f.Blocks[i:])
 	f.Blocks = f.Blocks[:i]
 }
 

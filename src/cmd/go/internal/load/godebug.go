@@ -14,7 +14,7 @@ import (
 	"strconv"
 	"strings"
 
-	"cmd/go/internal/fips"
+	"cmd/go/internal/fips140"
 	"cmd/go/internal/gover"
 	"cmd/go/internal/modload"
 )
@@ -45,12 +45,12 @@ func ParseGoDebug(text string) (key, value string, err error) {
 // defaultGODEBUG returns the default GODEBUG setting for the main package p.
 // When building a test binary, directives, testDirectives, and xtestDirectives
 // list additional directives from the package under test.
-func defaultGODEBUG(p *Package, directives, testDirectives, xtestDirectives []build.Directive) string {
+func defaultGODEBUG(loaderstate *modload.State, p *Package, directives, testDirectives, xtestDirectives []build.Directive) string {
 	if p.Name != "main" {
 		return ""
 	}
-	goVersion := modload.MainModules.GoVersion()
-	if modload.RootMode == modload.NoRoot && p.Module != nil {
+	goVersion := loaderstate.MainModules.GoVersion(loaderstate)
+	if loaderstate.RootMode == modload.NoRoot && p.Module != nil {
 		// This is go install pkg@version or go run pkg@version.
 		// Use the Go version from the package.
 		// If there isn't one, then assume Go 1.20,
@@ -65,7 +65,7 @@ func defaultGODEBUG(p *Package, directives, testDirectives, xtestDirectives []bu
 
 	// If GOFIPS140 is set to anything but "off",
 	// default to GODEBUG=fips140=on.
-	if fips.Enabled() {
+	if fips140.Enabled() {
 		if m == nil {
 			m = make(map[string]string)
 		}
@@ -73,7 +73,7 @@ func defaultGODEBUG(p *Package, directives, testDirectives, xtestDirectives []bu
 	}
 
 	// Add directives from main module go.mod.
-	for _, g := range modload.MainModules.Godebugs() {
+	for _, g := range loaderstate.MainModules.Godebugs(loaderstate) {
 		if m == nil {
 			m = make(map[string]string)
 		}

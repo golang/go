@@ -22,6 +22,8 @@ import (
 )
 
 func TestBoringASN1Marshal(t *testing.T) {
+	t.Setenv("GODEBUG", "rsa1024min=0")
+
 	k, err := GenerateKey(rand.Reader, 128)
 	if err != nil {
 		t.Fatal(err)

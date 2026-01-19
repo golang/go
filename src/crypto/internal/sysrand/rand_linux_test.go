@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build cgo
+
 package sysrand_test
 
 import (
@@ -32,7 +34,7 @@ func TestNoGetrandom(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode")
 	}
-	testenv.MustHaveExec(t)
+	testenv.MustHaveExec(t) // testenv.Command can't skip from a goroutine
 
 	done := make(chan struct{})
 	go func() {
@@ -47,11 +49,12 @@ func TestNoGetrandom(t *testing.T) {
 			return
 		}
 
-		cmd := testenv.Command(t, os.Args[0], "-test.v")
+		cmd := testenv.Command(t, testenv.Executable(t), "-test.v")
 		cmd.Env = append(os.Environ(), "GO_GETRANDOM_DISABLED=1")
 		out, err := cmd.CombinedOutput()
+		t.Logf("running with GO_GETRANDOM_DISABLED=1:\n%s", out)
 		if err != nil {
-			t.Errorf("subprocess failed: %v\n%s", err, out)
+			t.Errorf("subprocess failed: %v", err)
 			return
 		}
 

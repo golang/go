@@ -16,7 +16,6 @@ import (
 	"errors"
 	"internal/bytealg"
 	"internal/byteorder"
-	"internal/itoa"
 	"math"
 	"strconv"
 	"unique"
@@ -102,8 +101,8 @@ func AddrFrom4(addr [4]byte) Addr {
 func AddrFrom16(addr [16]byte) Addr {
 	return Addr{
 		addr: uint128{
-			byteorder.BeUint64(addr[:8]),
-			byteorder.BeUint64(addr[8:]),
+			byteorder.BEUint64(addr[:8]),
+			byteorder.BEUint64(addr[8:]),
 		},
 		z: z6noz,
 	}
@@ -684,12 +683,12 @@ func (ip Addr) Prefix(b int) (Prefix, error) {
 		return Prefix{}, nil
 	case z4:
 		if b > 32 {
-			return Prefix{}, errors.New("prefix length " + itoa.Itoa(b) + " too large for IPv4")
+			return Prefix{}, errors.New("prefix length " + strconv.Itoa(b) + " too large for IPv4")
 		}
 		effectiveBits += 96
 	default:
 		if b > 128 {
-			return Prefix{}, errors.New("prefix length " + itoa.Itoa(b) + " too large for IPv6")
+			return Prefix{}, errors.New("prefix length " + strconv.Itoa(b) + " too large for IPv6")
 		}
 	}
 	ip.addr = ip.addr.and(mask6(effectiveBits))
@@ -702,8 +701,8 @@ func (ip Addr) Prefix(b int) (Prefix, error) {
 // [Addr.Zone] method to get it).
 // The ip zero value returns all zeroes.
 func (ip Addr) As16() (a16 [16]byte) {
-	byteorder.BePutUint64(a16[:8], ip.addr.hi)
-	byteorder.BePutUint64(a16[8:], ip.addr.lo)
+	byteorder.BEPutUint64(a16[:8], ip.addr.hi)
+	byteorder.BEPutUint64(a16[8:], ip.addr.lo)
 	return a16
 }
 
@@ -712,7 +711,7 @@ func (ip Addr) As16() (a16 [16]byte) {
 // Note that 0.0.0.0 is not the zero Addr.
 func (ip Addr) As4() (a4 [4]byte) {
 	if ip.z == z4 || ip.Is4In6() {
-		byteorder.BePutUint32(a4[:], uint32(ip.addr.lo))
+		byteorder.BEPutUint32(a4[:], uint32(ip.addr.lo))
 		return a4
 	}
 	if ip.z == z0 {
@@ -728,12 +727,12 @@ func (ip Addr) AsSlice() []byte {
 		return nil
 	case z4:
 		var ret [4]byte
-		byteorder.BePutUint32(ret[:], uint32(ip.addr.lo))
+		byteorder.BEPutUint32(ret[:], uint32(ip.addr.lo))
 		return ret[:]
 	default:
 		var ret [16]byte
-		byteorder.BePutUint64(ret[:8], ip.addr.hi)
-		byteorder.BePutUint64(ret[8:], ip.addr.lo)
+		byteorder.BEPutUint64(ret[:8], ip.addr.hi)
+		byteorder.BEPutUint64(ret[8:], ip.addr.lo)
 		return ret[:]
 	}
 }
@@ -1016,10 +1015,10 @@ func (ip Addr) AppendBinary(b []byte) ([]byte, error) {
 	switch ip.z {
 	case z0:
 	case z4:
-		b = byteorder.BeAppendUint32(b, uint32(ip.addr.lo))
+		b = byteorder.BEAppendUint32(b, uint32(ip.addr.lo))
 	default:
-		b = byteorder.BeAppendUint64(b, ip.addr.hi)
-		b = byteorder.BeAppendUint64(b, ip.addr.lo)
+		b = byteorder.BEAppendUint64(b, ip.addr.hi)
+		b = byteorder.BEAppendUint64(b, ip.addr.lo)
 		b = append(b, ip.Zone()...)
 	}
 	return b, nil
@@ -1256,7 +1255,7 @@ func (p AddrPort) AppendBinary(b []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return byteorder.LeAppendUint16(b, p.Port()), nil
+	return byteorder.LEAppendUint16(b, p.Port()), nil
 }
 
 // MarshalBinary implements the [encoding.BinaryMarshaler] interface.
@@ -1277,7 +1276,7 @@ func (p *AddrPort) UnmarshalBinary(b []byte) error {
 	if err != nil {
 		return err
 	}
-	*p = AddrPortFrom(addr, byteorder.LeUint16(b[len(b)-2:]))
+	*p = AddrPortFrom(addr, byteorder.LEUint16(b[len(b)-2:]))
 	return nil
 }
 
@@ -1330,21 +1329,23 @@ func (p Prefix) isZero() bool { return p == Prefix{} }
 // IsSingleIP reports whether p contains exactly one IP.
 func (p Prefix) IsSingleIP() bool { return p.IsValid() && p.Bits() == p.ip.BitLen() }
 
-// compare returns an integer comparing two prefixes.
+// Compare returns an integer comparing two prefixes.
 // The result will be 0 if p == p2, -1 if p < p2, and +1 if p > p2.
 // Prefixes sort first by validity (invalid before valid), then
-// address family (IPv4 before IPv6), then prefix length, then
-// address.
-//
-// Unexported for Go 1.22 because we may want to compare by p.Addr first.
-// See post-acceptance discussion on go.dev/issue/61642.
-func (p Prefix) compare(p2 Prefix) int {
-	if c := cmp.Compare(p.Addr().BitLen(), p2.Addr().BitLen()); c != 0 {
+// address family (IPv4 before IPv6), then masked prefix address, then
+// prefix length, then unmasked address.
+func (p Prefix) Compare(p2 Prefix) int {
+	// Aside from sorting based on the masked address, this use of
+	// Addr.Compare also enforces the valid vs. invalid and address
+	// family ordering for the prefix.
+	if c := p.Masked().Addr().Compare(p2.Masked().Addr()); c != 0 {
 		return c
 	}
+
 	if c := cmp.Compare(p.Bits(), p2.Bits()); c != 0 {
 		return c
 	}
+
 	return p.Addr().Compare(p2.Addr())
 }
 
@@ -1591,5 +1592,5 @@ func (p Prefix) String() string {
 	if !p.IsValid() {
 		return "invalid Prefix"
 	}
-	return p.ip.String() + "/" + itoa.Itoa(p.Bits())
+	return p.ip.String() + "/" + strconv.Itoa(p.Bits())
 }

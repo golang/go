@@ -10,7 +10,7 @@ import (
 )
 
 func cryptBlock(subkeys []uint64, dst, src []byte, decrypt bool) {
-	b := byteorder.BeUint64(src)
+	b := byteorder.BEUint64(src)
 	b = permuteInitialBlock(b)
 	left, right := uint32(b>>32), uint32(b)
 
@@ -32,7 +32,7 @@ func cryptBlock(subkeys []uint64, dst, src []byte, decrypt bool) {
 
 	// switch left & right and perform final permutation
 	preOutput := (uint64(right) << 32) | uint64(left)
-	byteorder.BePutUint64(dst, permuteFinalBlock(preOutput))
+	byteorder.BEPutUint64(dst, permuteFinalBlock(preOutput))
 }
 
 // DES Feistel function. feistelBox must be initialized via
@@ -218,7 +218,7 @@ func (c *desCipher) generateSubkeys(keyBytes []byte) {
 	feistelBoxOnce.Do(initFeistelBox)
 
 	// apply PC1 permutation to key
-	key := byteorder.BeUint64(keyBytes)
+	key := byteorder.BEUint64(keyBytes)
 	permutedKey := permuteBlock(key, permutedChoice1[:])
 
 	// rotate halves of permuted key according to the rotation schedule

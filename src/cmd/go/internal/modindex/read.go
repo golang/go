@@ -33,10 +33,7 @@ import (
 	"cmd/internal/par"
 )
 
-// enabled is used to flag off the behavior of the module index on tip.
-// It will be removed before the release.
-// TODO(matloob): Remove enabled once we have more confidence on the
-// module index.
+// enabled is used to flag off the behavior of the module index on tip, for debugging.
 var enabled = godebug.New("#goindex").Value() != "0"
 
 // Module represents and encoded module index file. It is used to
@@ -126,6 +123,7 @@ var ErrNotIndexed = errors.New("not in module index")
 var (
 	errDisabled           = fmt.Errorf("%w: module indexing disabled", ErrNotIndexed)
 	errNotFromModuleCache = fmt.Errorf("%w: not from module cache", ErrNotIndexed)
+	errFIPS140            = fmt.Errorf("%w: fips140 snapshots not indexed", ErrNotIndexed)
 )
 
 // GetPackage returns the IndexPackage for the directory at the given path.
@@ -143,6 +141,13 @@ func GetPackage(modroot, pkgdir string) (*IndexPackage, error) {
 	if cfg.BuildContext.Compiler == "gccgo" && str.HasPathPrefix(modroot, cfg.GOROOTsrc) {
 		return nil, err // gccgo has no sources for GOROOT packages.
 	}
+	// The pkgdir for fips140 has been replaced in the fsys overlay,
+	// but the module index does not see that. Do not try to use the module index.
+	if strings.Contains(filepath.ToSlash(pkgdir), "internal/fips140/v") {
+		return nil, errFIPS140
+	}
+	modroot = filepath.Clean(modroot)
+	pkgdir = filepath.Clean(pkgdir)
 	return openIndexPackage(modroot, pkgdir)
 }
 
@@ -151,7 +156,7 @@ func GetPackage(modroot, pkgdir string) (*IndexPackage, error) {
 // using the index, for instance because the index is disabled, or the package
 // is not in a module.
 func GetModule(modroot string) (*Module, error) {
-	dir, _ := cache.DefaultDir()
+	dir, _, _ := cache.DefaultDir()
 	if !enabled || dir == "off" {
 		return nil, errDisabled
 	}
@@ -183,16 +188,21 @@ func openIndexModule(modroot string, ismodcache bool) (*Module, error) {
 		if err != nil {
 			return nil, err
 		}
-		data, _, err := cache.GetMmap(cache.Default(), id)
+		data, _, opened, err := cache.GetMmap(cache.Default(), id)
 		if err != nil {
 			// Couldn't read from modindex. Assume we couldn't read from
 			// the index because the module hasn't been indexed yet.
+			// But double check on Windows that we haven't opened the file yet,
+			// because once mmap opens the file, we can't close it, and
+			// Windows won't let us open an already opened file.
 			data, err = indexModule(modroot)
 			if err != nil {
 				return nil, err
 			}
-			if err = cache.PutBytes(cache.Default(), id, data); err != nil {
-				return nil, err
+			if runtime.GOOS != "windows" || !opened {
+				if err = cache.PutBytes(cache.Default(), id, data); err != nil {
+					return nil, err
+				}
 			}
 		}
 		mi, err := fromBytes(modroot, data)
@@ -212,13 +222,18 @@ func openIndexPackage(modroot, pkgdir string) (*IndexPackage, error) {
 		if err != nil {
 			return nil, err
 		}
-		data, _, err := cache.GetMmap(cache.Default(), id)
+		data, _, opened, err := cache.GetMmap(cache.Default(), id)
 		if err != nil {
 			// Couldn't read from index. Assume we couldn't read from
 			// the index because the package hasn't been indexed yet.
+			// But double check on Windows that we haven't opened the file yet,
+			// because once mmap opens the file, we can't close it, and
+			// Windows won't let us open an already opened file.
 			data = indexPackage(modroot, pkgdir)
-			if err = cache.PutBytes(cache.Default(), id, data); err != nil {
-				return nil, err
+			if runtime.GOOS != "windows" || !opened {
+				if err = cache.PutBytes(cache.Default(), id, data); err != nil {
+					return nil, err
+				}
 			}
 		}
 		pkg, err := packageFromBytes(modroot, data)
@@ -1022,11 +1037,6 @@ func (r *reader) int() int {
 // string reads the next string.
 func (r *reader) string() string {
 	return r.d.stringTableAt(r.int())
-}
-
-// bool reads the next bool.
-func (r *reader) bool() bool {
-	return r.int() != 0
 }
 
 // tokpos reads the next token.Position.

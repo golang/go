@@ -212,7 +212,7 @@ func copyLocalData(dstbase string) (pkgpath string, err error) {
 	// Copy all immediate files and testdata directories between
 	// the package being tested and the source root.
 	pkgpath = ""
-	for _, element := range strings.Split(finalPkgpath, string(filepath.Separator)) {
+	for element := range strings.SplitSeq(finalPkgpath, string(filepath.Separator)) {
 		if debug {
 			log.Printf("copying %s", pkgpath)
 		}

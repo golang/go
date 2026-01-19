@@ -48,22 +48,23 @@ func testInterleavedAllocations() error {
 	const iters = 50000
 	// Sizes of the allocations performed by each experiment.
 	frames := []string{"main.allocInterleaved1", "main.allocInterleaved2", "main.allocInterleaved3"}
+	leafFrame := "main.allocInterleaved"
 
 	// Pass if at least one of three experiments has no errors. Use a separate
 	// function for each experiment to identify each experiment in the profile.
 	allocInterleaved1(iters)
-	if checkAllocations(getMemProfileRecords(), frames[0:1], iters, allocInterleavedSizes) == nil {
+	if checkAllocations(getMemProfileRecords(), leafFrame, frames[0:1], iters, allocInterleavedSizes) == nil {
 		// Passed on first try, report no error.
 		return nil
 	}
 	allocInterleaved2(iters)
-	if checkAllocations(getMemProfileRecords(), frames[0:2], iters, allocInterleavedSizes) == nil {
+	if checkAllocations(getMemProfileRecords(), leafFrame, frames[0:2], iters, allocInterleavedSizes) == nil {
 		// Passed on second try, report no error.
 		return nil
 	}
 	allocInterleaved3(iters)
 	// If it fails a third time, we may be onto something.
-	return checkAllocations(getMemProfileRecords(), frames[0:3], iters, allocInterleavedSizes)
+	return checkAllocations(getMemProfileRecords(), leafFrame, frames[0:3], iters, allocInterleavedSizes)
 }
 
 var allocInterleavedSizes = []int64{17 * 1024, 1024, 18 * 1024, 512, 16 * 1024, 256}
@@ -108,22 +109,23 @@ func testSmallAllocations() error {
 	// Sizes of the allocations performed by each experiment.
 	sizes := []int64{1024, 512, 256}
 	frames := []string{"main.allocSmall1", "main.allocSmall2", "main.allocSmall3"}
+	leafFrame := "main.allocSmall"
 
 	// Pass if at least one of three experiments has no errors. Use a separate
 	// function for each experiment to identify each experiment in the profile.
 	allocSmall1(iters)
-	if checkAllocations(getMemProfileRecords(), frames[0:1], iters, sizes) == nil {
+	if checkAllocations(getMemProfileRecords(), leafFrame, frames[0:1], iters, sizes) == nil {
 		// Passed on first try, report no error.
 		return nil
 	}
 	allocSmall2(iters)
-	if checkAllocations(getMemProfileRecords(), frames[0:2], iters, sizes) == nil {
+	if checkAllocations(getMemProfileRecords(), leafFrame, frames[0:2], iters, sizes) == nil {
 		// Passed on second try, report no error.
 		return nil
 	}
 	allocSmall3(iters)
 	// If it fails a third time, we may be onto something.
-	return checkAllocations(getMemProfileRecords(), frames[0:3], iters, sizes)
+	return checkAllocations(getMemProfileRecords(), leafFrame, frames[0:3], iters, sizes)
 }
 
 // allocSmall performs only small allocations for sanity testing.
@@ -161,21 +163,21 @@ func allocSmall3(n int) {
 // Look only at samples that include the named frames, and group the
 // allocations by their line number. All these allocations are done from
 // the same leaf function, so their line numbers are the same.
-func checkAllocations(records []runtime.MemProfileRecord, frames []string, count int64, size []int64) error {
+func checkAllocations(records []runtime.MemProfileRecord, leafFrame string, frames []string, count int64, size []int64) error {
 	objectsPerLine := map[int][]int64{}
 	bytesPerLine := map[int][]int64{}
 	totalCount := []int64{}
 	// Compute the line number of the first allocation. All the
 	// allocations are from the same leaf, so pick the first one.
 	var firstLine int
-	for ln := range allocObjects(records, frames[0]) {
+	for ln := range allocObjects(records, leafFrame, frames[0]) {
 		if firstLine == 0 || firstLine > ln {
 			firstLine = ln
 		}
 	}
 	for _, frame := range frames {
 		var objectCount int64
-		a := allocObjects(records, frame)
+		a := allocObjects(records, leafFrame, frame)
 		for s := range size {
 			// Allocations of size size[s] should be on line firstLine + s.
 			ln := firstLine + s
@@ -258,7 +260,7 @@ type allocStat struct {
 // allocObjects examines the profile records for samples including the
 // named function and returns the allocation stats aggregated by
 // source line number of the allocation (at the leaf frame).
-func allocObjects(records []runtime.MemProfileRecord, function string) map[int]allocStat {
+func allocObjects(records []runtime.MemProfileRecord, leafFrame, function string) map[int]allocStat {
 	a := make(map[int]allocStat)
 	for _, r := range records {
 		var pcs []uintptr
@@ -273,7 +275,7 @@ func allocObjects(records []runtime.MemProfileRecord, function string) map[int]a
 		for {
 			frame, more := frames.Next()
 			name := frame.Function
-			if line == 0 {
+			if name == leafFrame && line == 0 {
 				line = frame.Line
 			}
 			if name == function {

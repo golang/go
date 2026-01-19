@@ -11,6 +11,7 @@ package sha1
 import (
 	"crypto"
 	"crypto/internal/boring"
+	"crypto/internal/fips140only"
 	"errors"
 	"hash"
 	"internal/byteorder"
@@ -54,14 +55,14 @@ func (d *digest) MarshalBinary() ([]byte, error) {
 
 func (d *digest) AppendBinary(b []byte) ([]byte, error) {
 	b = append(b, magic...)
-	b = byteorder.BeAppendUint32(b, d.h[0])
-	b = byteorder.BeAppendUint32(b, d.h[1])
-	b = byteorder.BeAppendUint32(b, d.h[2])
-	b = byteorder.BeAppendUint32(b, d.h[3])
-	b = byteorder.BeAppendUint32(b, d.h[4])
+	b = byteorder.BEAppendUint32(b, d.h[0])
+	b = byteorder.BEAppendUint32(b, d.h[1])
+	b = byteorder.BEAppendUint32(b, d.h[2])
+	b = byteorder.BEAppendUint32(b, d.h[3])
+	b = byteorder.BEAppendUint32(b, d.h[4])
 	b = append(b, d.x[:d.nx]...)
 	b = append(b, make([]byte, len(d.x)-d.nx)...)
-	b = byteorder.BeAppendUint64(b, d.len)
+	b = byteorder.BEAppendUint64(b, d.len)
 	return b, nil
 }
 
@@ -85,11 +86,16 @@ func (d *digest) UnmarshalBinary(b []byte) error {
 }
 
 func consumeUint64(b []byte) ([]byte, uint64) {
-	return b[8:], byteorder.BeUint64(b)
+	return b[8:], byteorder.BEUint64(b)
 }
 
 func consumeUint32(b []byte) ([]byte, uint32) {
-	return b[4:], byteorder.BeUint32(b)
+	return b[4:], byteorder.BEUint32(b)
+}
+
+func (d *digest) Clone() (hash.Cloner, error) {
+	r := *d
+	return &r, nil
 }
 
 func (d *digest) Reset() {
@@ -102,7 +108,7 @@ func (d *digest) Reset() {
 	d.len = 0
 }
 
-// New512_224 returns a new [hash.Hash] computing the SHA1 checksum. The Hash
+// New returns a new [hash.Hash] computing the SHA1 checksum. The Hash
 // also implements [encoding.BinaryMarshaler], [encoding.BinaryAppender] and
 // [encoding.BinaryUnmarshaler] to marshal and unmarshal the internal
 // state of the hash.
@@ -120,6 +126,9 @@ func (d *digest) Size() int { return Size }
 func (d *digest) BlockSize() int { return BlockSize }
 
 func (d *digest) Write(p []byte) (nn int, err error) {
+	if fips140only.Enforced() {
+		return 0, errors.New("crypto/sha1: use of SHA-1 is not allowed in FIPS 140-only mode")
+	}
 	boring.Unreachable()
 	nn = len(p)
 	d.len += uint64(nn)
@@ -152,6 +161,10 @@ func (d *digest) Sum(in []byte) []byte {
 }
 
 func (d *digest) checkSum() [Size]byte {
+	if fips140only.Enforced() {
+		panic("crypto/sha1: use of SHA-1 is not allowed in FIPS 140-only mode")
+	}
+
 	len := d.len
 	// Padding.  Add a 1 bit and 0 bits until 56 bytes mod 64.
 	var tmp [64 + 8]byte // padding + length buffer
@@ -166,7 +179,7 @@ func (d *digest) checkSum() [Size]byte {
 	// Length in bits.
 	len <<= 3
 	padlen := tmp[:t+8]
-	byteorder.BePutUint64(padlen[t:], len)
+	byteorder.BEPutUint64(padlen[t:], len)
 	d.Write(padlen)
 
 	if d.nx != 0 {
@@ -175,11 +188,11 @@ func (d *digest) checkSum() [Size]byte {
 
 	var digest [Size]byte
 
-	byteorder.BePutUint32(digest[0:], d.h[0])
-	byteorder.BePutUint32(digest[4:], d.h[1])
-	byteorder.BePutUint32(digest[8:], d.h[2])
-	byteorder.BePutUint32(digest[12:], d.h[3])
-	byteorder.BePutUint32(digest[16:], d.h[4])
+	byteorder.BEPutUint32(digest[0:], d.h[0])
+	byteorder.BEPutUint32(digest[4:], d.h[1])
+	byteorder.BEPutUint32(digest[8:], d.h[2])
+	byteorder.BEPutUint32(digest[12:], d.h[3])
+	byteorder.BEPutUint32(digest[16:], d.h[4])
 
 	return digest
 }
@@ -192,6 +205,10 @@ func (d *digest) ConstantTimeSum(in []byte) []byte {
 }
 
 func (d *digest) constSum() [Size]byte {
+	if fips140only.Enforced() {
+		panic("crypto/sha1: use of SHA-1 is not allowed in FIPS 140-only mode")
+	}
+
 	var length [8]byte
 	l := d.len << 3
 	for i := uint(0); i < 8; i++ {
@@ -256,6 +273,9 @@ func (d *digest) constSum() [Size]byte {
 func Sum(data []byte) [Size]byte {
 	if boring.Enabled {
 		return boring.SHA1(data)
+	}
+	if fips140only.Enforced() {
+		panic("crypto/sha1: use of SHA-1 is not allowed in FIPS 140-only mode")
 	}
 	var d digest
 	d.Reset()

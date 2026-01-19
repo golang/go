@@ -8,6 +8,7 @@ import (
 	"internal/bytealg"
 	"internal/goarch"
 	"internal/runtime/atomic"
+	"internal/strconv"
 	"unsafe"
 )
 
@@ -38,7 +39,7 @@ func gotraceback() (level int32, all, crash bool) {
 	gp := getg()
 	t := atomic.Load(&traceback_cache)
 	crash = t&tracebackCrash != 0
-	all = gp.m.throwing >= throwTypeUser || t&tracebackAll != 0
+	all = gp.m.throwing > throwTypeUser || t&tracebackAll != 0
 	if gp.m.traceback != 0 {
 		level = int32(gp.m.traceback)
 	} else if gp.m.throwing >= throwTypeRuntime {
@@ -243,10 +244,6 @@ func check() {
 		throw("bad unsafe.Sizeof y1")
 	}
 
-	if timediv(12345*1000000000+54321, 1000000000, &e) != 12345 || e != 54321 {
-		throw("bad timediv")
-	}
-
 	var z uint32
 	z = 1
 	if !atomic.Cas(&z, 1, 2) {
@@ -341,6 +338,8 @@ type dbgVar struct {
 var debug struct {
 	cgocheck                 int32
 	clobberfree              int32
+	containermaxprocs        int32
+	decoratemappings         int32
 	disablethp               int32
 	dontfreezetheworld       int32
 	efence                   int32
@@ -351,11 +350,11 @@ var debug struct {
 	gctrace                  int32
 	invalidptr               int32
 	madvdontneed             int32 // for Linux; issue 28466
-	runtimeContentionStacks  atomic.Int32
 	scavtrace                int32
 	scheddetail              int32
 	schedtrace               int32
 	tracebackancestors       int32
+	updatemaxprocs           int32
 	asyncpreemptoff          int32
 	harddecommit             int32
 	adaptivestackstart       int32
@@ -368,9 +367,10 @@ var debug struct {
 	// debug.malloc is used as a combined debug check
 	// in the malloc function and should be set
 	// if any of the below debug options is != 0.
-	malloc    bool
-	inittrace int32
-	sbrk      int32
+	malloc          bool
+	inittrace       int32
+	sbrk            int32
+	checkfinalizers int32
 	// traceallocfree controls whether execution traces contain
 	// detailed trace data about memory allocation. This value
 	// affects debug.malloc only if it is != 0 and the execution
@@ -392,6 +392,10 @@ var debug struct {
 	// but allowing it is convenient for testing and for programs
 	// that do an os.Setenv in main.init or main.main.
 	asynctimerchan atomic.Int32
+
+	// tracebacklabels controls the inclusion of goroutine labels in the
+	// goroutine status header line.
+	tracebacklabels atomic.Int32
 }
 
 var dbgvars = []*dbgVar{
@@ -400,9 +404,12 @@ var dbgvars = []*dbgVar{
 	{name: "asynctimerchan", atomic: &debug.asynctimerchan},
 	{name: "cgocheck", value: &debug.cgocheck},
 	{name: "clobberfree", value: &debug.clobberfree},
+	{name: "containermaxprocs", value: &debug.containermaxprocs, def: 1},
 	{name: "dataindependenttiming", value: &debug.dataindependenttiming},
+	{name: "decoratemappings", value: &debug.decoratemappings, def: 1},
 	{name: "disablethp", value: &debug.disablethp},
 	{name: "dontfreezetheworld", value: &debug.dontfreezetheworld},
+	{name: "checkfinalizers", value: &debug.checkfinalizers},
 	{name: "efence", value: &debug.efence},
 	{name: "gccheckmark", value: &debug.gccheckmark},
 	{name: "gcpacertrace", value: &debug.gcpacertrace},
@@ -415,7 +422,6 @@ var dbgvars = []*dbgVar{
 	{name: "madvdontneed", value: &debug.madvdontneed},
 	{name: "panicnil", atomic: &debug.panicnil},
 	{name: "profstackdepth", value: &debug.profstackdepth, def: 128},
-	{name: "runtimecontentionstacks", atomic: &debug.runtimeContentionStacks},
 	{name: "sbrk", value: &debug.sbrk},
 	{name: "scavtrace", value: &debug.scavtrace},
 	{name: "scheddetail", value: &debug.scheddetail},
@@ -424,10 +430,12 @@ var dbgvars = []*dbgVar{
 	{name: "traceallocfree", atomic: &debug.traceallocfree},
 	{name: "tracecheckstackownership", value: &debug.traceCheckStackOwnership},
 	{name: "tracebackancestors", value: &debug.tracebackancestors},
+	{name: "tracebacklabels", atomic: &debug.tracebacklabels, def: 0},
 	{name: "tracefpunwindoff", value: &debug.tracefpunwindoff},
+	{name: "updatemaxprocs", value: &debug.updatemaxprocs, def: 1},
 }
 
-func parsedebugvars() {
+func parseRuntimeDebugVars(godebug string) {
 	// defaults
 	debug.cgocheck = 1
 	debug.invalidptr = 1
@@ -445,12 +453,6 @@ func parsedebugvars() {
 	}
 	debug.traceadvanceperiod = defaultTraceAdvancePeriod
 
-	godebug := gogetenv("GODEBUG")
-
-	p := new(string)
-	*p = godebug
-	godebugEnv.Store(p)
-
 	// apply runtime defaults, if any
 	for _, v := range dbgvars {
 		if v.def != 0 {
@@ -462,15 +464,37 @@ func parsedebugvars() {
 			}
 		}
 	}
-
 	// apply compile-time GODEBUG settings
 	parsegodebug(godebugDefault, nil)
 
 	// apply environment settings
 	parsegodebug(godebug, nil)
 
-	debug.malloc = (debug.inittrace | debug.sbrk) != 0
+	debug.malloc = (debug.inittrace | debug.sbrk | debug.checkfinalizers) != 0
 	debug.profstackdepth = min(debug.profstackdepth, maxProfStackDepth)
+
+	// Disable async preemption in checkmark mode. The following situation is
+	// problematic with checkmark mode:
+	//
+	// - The GC doesn't mark object A because it is truly dead.
+	// - The GC stops the world, asynchronously preempting G1 which has a reference
+	//   to A in its top stack frame
+	// - During the stop the world, we run the second checkmark GC. It marks the roots
+	//   and discovers A through G1.
+	// - Checkmark mode reports a failure since there's a discrepancy in mark metadata.
+	//
+	// We could disable just conservative scanning during the checkmark scan, which is
+	// safe but makes checkmark slightly less powerful, but that's a lot more invasive
+	// than just disabling async preemption altogether.
+	if debug.gccheckmark > 0 {
+		debug.asyncpreemptoff = 1
+	}
+}
+
+func finishDebugVarsSetup() {
+	p := new(string)
+	*p = gogetenv("GODEBUG")
+	godebugEnv.Store(p)
 
 	setTraceback(gogetenv("GOTRACEBACK"))
 	traceback_env = traceback_cache
@@ -541,17 +565,17 @@ func parsegodebug(godebug string, seen map[string]bool) {
 		// is int, not int32, and should only be updated
 		// if specified in GODEBUG.
 		if seen == nil && key == "memprofilerate" {
-			if n, ok := atoi(value); ok {
+			if n, err := strconv.Atoi(value); err == nil {
 				MemProfileRate = n
 			}
 		} else {
 			for _, v := range dbgvars {
 				if v.name == key {
-					if n, ok := atoi32(value); ok {
+					if n, err := strconv.ParseInt(value, 10, 32); err == nil {
 						if seen == nil && v.value != nil {
-							*v.value = n
+							*v.value = int32(n)
 						} else if v.atomic != nil {
-							v.atomic.Store(n)
+							v.atomic.Store(int32(n))
 						}
 					}
 				}
@@ -587,7 +611,7 @@ func setTraceback(level string) {
 		fallthrough
 	default:
 		t = tracebackAll
-		if n, ok := atoi(level); ok && n == int(uint32(n)) {
+		if n, err := strconv.Atoi(level); err == nil && n == int(uint32(n)) {
 			t |= uint32(n) << tracebackShift
 		}
 	}
@@ -600,35 +624,6 @@ func setTraceback(level string) {
 	t |= traceback_env
 
 	atomic.Store(&traceback_cache, t)
-}
-
-// Poor mans 64-bit division.
-// This is a very special function, do not use it if you are not sure what you are doing.
-// int64 division is lowered into _divv() call on 386, which does not fit into nosplit functions.
-// Handles overflow in a time-specific manner.
-// This keeps us within no-split stack limits on 32-bit processors.
-//
-//go:nosplit
-func timediv(v int64, div int32, rem *int32) int32 {
-	res := int32(0)
-	for bit := 30; bit >= 0; bit-- {
-		if v >= int64(div)<<uint(bit) {
-			v = v - (int64(div) << uint(bit))
-			// Before this for loop, res was 0, thus all these
-			// power of 2 increments are now just bitsets.
-			res |= 1 << uint(bit)
-		}
-	}
-	if v >= int64(div) {
-		if rem != nil {
-			*rem = 0
-		}
-		return 0x7fffffff
-	}
-	if rem != nil {
-		*rem = int32(v)
-	}
-	return res
 }
 
 // Helpers for Go. Must be NOSPLIT, must only call NOSPLIT functions, and must not block.
@@ -759,12 +754,12 @@ func reflect_addReflectOff(ptr unsafe.Pointer) int32 {
 	return id
 }
 
-//go:linkname fips_getIndicator crypto/internal/fips.getIndicator
+//go:linkname fips_getIndicator crypto/internal/fips140.getIndicator
 func fips_getIndicator() uint8 {
 	return getg().fipsIndicator
 }
 
-//go:linkname fips_setIndicator crypto/internal/fips.setIndicator
+//go:linkname fips_setIndicator crypto/internal/fips140.setIndicator
 func fips_setIndicator(indicator uint8) {
 	getg().fipsIndicator = indicator
 }

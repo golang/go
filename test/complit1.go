@@ -18,9 +18,9 @@ func fp() *[3]int
 var mp map[int]*[3]int
 
 var (
-	_ = [3]int{1, 2, 3}[:] // ERROR "slice of unaddressable value"
-	_ = m[0][:]            // ERROR "slice of unaddressable value"
-	_ = f()[:]             // ERROR "slice of unaddressable value"
+	_ = [3]int{1, 2, 3}[:] // ERROR "cannot slice unaddressable value"
+	_ = m[0][:]            // ERROR "cannot slice unaddressable value"
+	_ = f()[:]             // ERROR "cannot slice unaddressable value"
 
 	_ = 301[:]  // ERROR "cannot slice|attempt to slice object that is not"
 	_ = 3.1[:]  // ERROR "cannot slice|attempt to slice object that is not"

@@ -205,18 +205,6 @@ func (r *importReader) readImport(imports *[]string) {
 	r.readString(imports)
 }
 
-// readComments is like ioutil.ReadAll, except that it only reads the leading
-// block of comments in the file.
-func readComments(f io.Reader) ([]byte, error) {
-	r := &importReader{b: bufio.NewReader(f)}
-	r.peekByte(true)
-	if r.err == nil && !r.eof {
-		// Didn't reach EOF, so must have found a non-space byte. Remove it.
-		r.buf = r.buf[:len(r.buf)-1]
-	}
-	return r.buf, r.err
-}
-
 // readimports returns the imports found in the named file.
 func readimports(file string) []string {
 	var imports []string
@@ -271,6 +259,6 @@ func resolveVendor(imp, srcDir string) string {
 	} else if strings.HasPrefix(srcDir, filepath.Join(goroot, "src")) {
 		return path.Join("vendor", imp)
 	} else {
-		panic(fmt.Sprintf("srcDir %q not in GOOROT/src", srcDir))
+		panic(fmt.Sprintf("srcDir %q not in GOROOT/src", srcDir))
 	}
 }

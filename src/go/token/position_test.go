@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/rand"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -535,5 +536,118 @@ func TestIssue57490(t *testing.T) {
 		if got := f.Pos(f.Offset(want2)); got != want2 {
 			t.Errorf("pos = %d, want %d", got, want2)
 		}
+	}
+}
+
+func TestFileSet_AddExistingFiles(t *testing.T) {
+	fset := NewFileSet()
+
+	check := func(descr, want string) {
+		t.Helper()
+		if got := fsetString(fset); got != want {
+			t.Errorf("%s: got %s, want %s", descr, got, want)
+		}
+	}
+
+	fileA := fset.AddFile("A", -1, 3)
+	fileB := fset.AddFile("B", -1, 5)
+	_ = fileB
+	check("after AddFile [AB]", "{A:1-4 B:5-10}")
+
+	fset.AddExistingFiles() // noop
+	check("after AddExistingFiles []", "{A:1-4 B:5-10}")
+
+	fileC := NewFileSet().AddFile("C", 100, 5)
+	fileD := NewFileSet().AddFile("D", 200, 5)
+	fset.AddExistingFiles(fileC, fileA, fileD, fileC)
+	check("after AddExistingFiles [CADC]", "{A:1-4 B:5-10 C:100-105 D:200-205}")
+
+	fileE := fset.AddFile("E", -1, 3)
+	_ = fileE
+	check("after AddFile [E]", "{A:1-4 B:5-10 C:100-105 D:200-205 E:206-209}")
+}
+
+func fsetString(fset *FileSet) string {
+	var buf strings.Builder
+	buf.WriteRune('{')
+	sep := ""
+	fset.Iterate(func(f *File) bool {
+		fmt.Fprintf(&buf, "%s%s:%d-%d", sep, f.Name(), f.Base(), f.End())
+		sep = " "
+		return true
+	})
+	buf.WriteRune('}')
+	return buf.String()
+}
+
+// Test that File() does not return the already removed file, while used concurrently.
+func TestRemoveFileRace(t *testing.T) {
+	fset := NewFileSet()
+
+	// Create bunch of files.
+	var files []*File
+	for i := range 20000 {
+		f := fset.AddFile("f", -1, (i+1)*10)
+		files = append(files, f)
+	}
+
+	// governor goroutine
+	race1, race2 := make(chan *File), make(chan *File)
+	start := make(chan struct{})
+	go func() {
+		for _, f := range files {
+			<-start
+			race1 <- f
+			race2 <- f
+		}
+		<-start // unlock main test goroutine
+		close(race1)
+		close(race2)
+	}()
+
+	go func() {
+		for f := range race1 {
+			fset.File(Pos(f.Base()) + 5) // populates s.last with f
+		}
+	}()
+
+	start <- struct{}{}
+	for f := range race2 {
+		fset.RemoveFile(f)
+		got := fset.File(Pos(f.Base()) + 5)
+		if got != nil {
+			t.Fatalf("file was not removed correctly")
+		}
+		start <- struct{}{}
+	}
+}
+
+func TestRemovedFileFileReturnsNil(t *testing.T) {
+	fset := NewFileSet()
+
+	// Create bunch of files.
+	var files []*File
+	for i := range 1000 {
+		f := fset.AddFile("f", -1, (i+1)*100)
+		files = append(files, f)
+	}
+
+	rand.Shuffle(len(files), func(i, j int) {
+		files[i], files[j] = files[j], files[i]
+	})
+
+	for _, f := range files {
+		fset.RemoveFile(f)
+		if got := fset.File(Pos(f.Base()) + 10); got != nil {
+			t.Fatalf("file was not removed correctly; got file with base: %v", got.Base())
+		}
+	}
+}
+
+func TestFile_End(t *testing.T) {
+	f := NewFileSet().AddFile("a.go", 100, 42)
+	got := fmt.Sprintf("%d, %d", f.Base(), f.End())
+	if want := "100, 142"; got != want {
+		t.Errorf("Base, End = %s, want %s", got, want)
 	}
 }

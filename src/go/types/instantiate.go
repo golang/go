@@ -14,7 +14,6 @@ import (
 	"errors"
 	"fmt"
 	"go/token"
-	"internal/buildcfg"
 	. "internal/types/errors"
 )
 
@@ -77,7 +76,8 @@ func Instantiate(ctxt *Context, orig Type, targs []Type, validate bool) (Type, e
 // instance instantiates the given original (generic) function or type with the
 // provided type arguments and returns the resulting instance. If an identical
 // instance exists already in the given contexts, it returns that instance,
-// otherwise it creates a new one.
+// otherwise it creates a new one. If there is an error (such as wrong number
+// of type arguments), the result is Typ[Invalid].
 //
 // If expanding is non-nil, it is the Named instance type currently being
 // expanded. If ctxt is non-nil, it is the context associated with the current
@@ -86,7 +86,7 @@ func Instantiate(ctxt *Context, orig Type, targs []Type, validate bool) (Type, e
 //
 // For Named types the resulting instance may be unexpanded.
 //
-// check may be nil (when not type-checking syntax); pos is used only only if check is non-nil.
+// check may be nil (when not type-checking syntax); pos is used only if check is non-nil.
 func (check *Checker) instance(pos token.Pos, orig genericType, targs []Type, expanding *Named, ctxt *Context) (res Type) {
 	// The order of the contexts below matters: we always prefer instances in the
 	// expanding instance context in order to preserve reference cycles.
@@ -132,13 +132,13 @@ func (check *Checker) instance(pos token.Pos, orig genericType, targs []Type, ex
 		res = check.newNamedInstance(pos, orig, targs, expanding) // substituted lazily
 
 	case *Alias:
-		if !buildcfg.Experiment.AliasTypeParams {
-			assert(expanding == nil) // Alias instances cannot be reached from Named types
-		}
-
+		// verify type parameter count (see go.dev/issue/71198 for a test case)
 		tparams := orig.TypeParams()
-		// TODO(gri) investigate if this is needed (type argument and parameter count seem to be correct here)
-		if !check.validateTArgLen(pos, orig.String(), tparams.Len(), len(targs)) {
+		if !check.validateTArgLen(pos, orig.obj.Name(), tparams.Len(), len(targs)) {
+			// TODO(gri) Consider returning a valid alias instance with invalid
+			//           underlying (aliased) type to match behavior of *Named
+			//           types. Then this function will never return an invalid
+			//           result.
 			return Typ[Invalid]
 		}
 		if tparams.Len() == 0 {
@@ -229,12 +229,12 @@ func (check *Checker) verify(pos token.Pos, tparams []*TypeParam, targs []Type, 
 // If the provided cause is non-nil, it may be set to an error string
 // explaining why V does not implement (or satisfy, for constraints) T.
 func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool {
-	Vu := under(V)
-	Tu := under(T)
+	Vu := V.Underlying()
+	Tu := T.Underlying()
 	if !isValid(Vu) || !isValid(Tu) {
 		return true // avoid follow-on errors
 	}
-	if p, _ := Vu.(*Pointer); p != nil && !isValid(under(p.base)) {
+	if p, _ := Vu.(*Pointer); p != nil && !isValid(p.base.Underlying()) {
 		return true // avoid follow-on errors (see go.dev/issue/49541 for an example)
 	}
 
@@ -294,12 +294,12 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
 		}
 		// If T is comparable, V must be comparable.
 		// If V is strictly comparable, we're done.
-		if comparableType(V, false /* strict comparability */, nil, nil) {
+		if comparableType(V, false /* strict comparability */, nil) == nil {
 			return true
 		}
 		// For constraint satisfaction, use dynamic (spec) comparability
 		// so that ordinary, non-type parameter interfaces implement comparable.
-		if constraint && comparableType(V, true /* spec comparability */, nil, nil) {
+		if constraint && comparableType(V, true /* spec comparability */, nil) == nil {
 			// V is comparable if we are at Go 1.20 or higher.
 			if check == nil || check.allowVersion(go1_20) {
 				return true
@@ -342,7 +342,7 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
 			// If V ∉ t.typ but V ∈ ~t.typ then remember this type
 			// so we can suggest it as an alternative in the error
 			// message.
-			if alt == nil && !t.tilde && Identical(t.typ, under(t.typ)) {
+			if alt == nil && !t.tilde && Identical(t.typ, t.typ.Underlying()) {
 				tt := *t
 				tt.tilde = true
 				if tt.includes(V) {

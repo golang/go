@@ -37,7 +37,7 @@ func TestMain(m *testing.M) {
 var tmpDir string
 
 // prettyPrintf prints lines with tmpDir sanitized.
-func prettyPrintf(format string, args ...interface{}) {
+func prettyPrintf(format string, args ...any) {
 	s := fmt.Sprintf(format, args...)
 	if tmpDir != "" {
 		s = strings.ReplaceAll(s, tmpDir, "$TMPDIR")
@@ -46,7 +46,7 @@ func prettyPrintf(format string, args ...interface{}) {
 }
 
 func testMain(m *testing.M) int {
-	if testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
+	if testing.Short() && testenv.Builder() == "" {
 		globalSkip = func(t *testing.T) { t.Skip("short mode and $GO_BUILDER_NAME not set") }
 		return m.Run()
 	}
@@ -145,8 +145,8 @@ func goCmd(t *testing.T, op string, args ...string) string {
 
 // escape converts a string to something suitable for a shell command line.
 func escape(s string) string {
-	s = strings.Replace(s, "\\", "\\\\", -1)
-	s = strings.Replace(s, "'", "\\'", -1)
+	s = strings.ReplaceAll(s, "\\", "\\\\")
+	s = strings.ReplaceAll(s, "'", "\\'")
 	// Conservative guess at characters that will force quoting
 	if s == "" || strings.ContainsAny(s, "\\ ;#*&$~?!|[]()<>{}`") {
 		s = "'" + s + "'"
@@ -194,10 +194,10 @@ func run(t *testing.T, bin string, args ...string) string {
 	out, err := cmd.Output()
 	if err != nil {
 		if t == nil {
-			log.Panicf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, cmd.Stderr)
+			log.Panicf("%#q: %v\n%s", cmd, err, cmd.Stderr)
 		} else {
 			t.Helper()
-			t.Fatalf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, cmd.Stderr)
+			t.Fatalf("%#q: %v\n%s", cmd, err, cmd.Stderr)
 		}
 	}
 
@@ -245,7 +245,7 @@ func TestIssue18676(t *testing.T) {
 	cmd := exec.CommandContext(ctx, "./issue18676.exe")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, out)
+		t.Fatalf("%#q: %v\n%s", cmd, err, out)
 	}
 }
 
@@ -421,4 +421,12 @@ func TestIssue67976(t *testing.T) {
 	// The test program uses runtime/pprof in a plugin.
 	globalSkip(t)
 	goCmd(t, "build", "-buildmode=plugin", "-o", "issue67976.so", "./issue67976/plugin.go")
+}
+
+func TestIssue75102(t *testing.T) {
+	globalSkip(t)
+	// add gcflags different from the executable file to trigger plugin open failed.
+	goCmd(t, "build", "-gcflags=all=-N -l", "-buildmode=plugin", "-o", "issue75102.so", "./issue75102/plugin.go")
+	goCmd(t, "build", "-o", "issue75102.exe", "./issue75102/main.go")
+	run(t, "./issue75102.exe")
 }

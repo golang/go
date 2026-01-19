@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-// Note that Process.mode is always modeHandle because Windows always requires
+// Note that Process.handle is never nil because Windows always requires
 // a handle. A manually-created Process literal is not valid.
 
 func (p *Process) wait() (ps *ProcessState, err error) {
@@ -44,7 +44,11 @@ func (p *Process) wait() (ps *ProcessState, err error) {
 	if e != nil {
 		return nil, NewSyscallError("GetProcessTimes", e)
 	}
-	defer p.Release()
+
+	// For compatibility we use statusReleased here rather
+	// than statusDone.
+	p.doRelease(statusReleased)
+
 	return &ProcessState{p.Pid, syscall.WaitStatus{ExitCode: ec}, &u}, nil
 }
 
@@ -73,23 +77,8 @@ func (p *Process) signal(sig Signal) error {
 	return syscall.Errno(syscall.EWINDOWS)
 }
 
-func (p *Process) release() error {
-	// Drop the Process' reference and mark handle unusable for
-	// future calls.
-	//
-	// The API on Windows expects EINVAL if Release is called multiple
-	// times.
-	if old := p.handlePersistentRelease(statusReleased); old == statusReleased {
-		return syscall.EINVAL
-	}
-
-	// no need for a finalizer anymore
-	runtime.SetFinalizer(p, nil)
-	return nil
-}
-
-func (p *Process) closeHandle() {
-	syscall.CloseHandle(syscall.Handle(p.handle))
+func (ph *processHandle) closeHandle() {
+	syscall.CloseHandle(syscall.Handle(ph.handle))
 }
 
 func findProcess(pid int) (p *Process, err error) {

@@ -87,6 +87,7 @@ var wasmFuncTypes = map[string]*wasmFuncType{
 	"runtime.gcWriteBarrier6": {Results: []byte{I64}},                                     // -> bufptr
 	"runtime.gcWriteBarrier7": {Results: []byte{I64}},                                     // -> bufptr
 	"runtime.gcWriteBarrier8": {Results: []byte{I64}},                                     // -> bufptr
+	"runtime.notInitialized":  {},                                                         //
 	"cmpbody":                 {Params: []byte{I64, I64, I64, I64}, Results: []byte{I64}}, // a, alen, b, blen -> -1/0/1
 	"memeqbody":               {Params: []byte{I64, I64, I64}, Results: []byte{I64}},      // a, b, len -> 0/1
 	"memcmp":                  {Params: []byte{I32, I32, I32}, Results: []byte{I32}},      // a, b, len -> <0/0/>0
@@ -126,7 +127,7 @@ func asmb(ctxt *ld.Link, ldr *loader.Loader) {
 		ldr.SymSect(ldr.Lookup("runtime.rodata", 0)),
 		ldr.SymSect(ldr.Lookup("runtime.typelink", 0)),
 		ldr.SymSect(ldr.Lookup("runtime.itablink", 0)),
-		ldr.SymSect(ldr.Lookup("runtime.symtab", 0)),
+		ldr.SymSect(ldr.Lookup("runtime.firstmoduledata", 0)),
 		ldr.SymSect(ldr.Lookup("runtime.pclntab", 0)),
 		ldr.SymSect(ldr.Lookup("runtime.noptrdata", 0)),
 		ldr.SymSect(ldr.Lookup("runtime.data", 0)),
@@ -301,11 +302,11 @@ func writeTypeSec(ctxt *ld.Link, types []*wasmFuncType) {
 		ctxt.Out.WriteByte(0x60) // functype
 		writeUleb128(ctxt.Out, uint64(len(t.Params)))
 		for _, v := range t.Params {
-			ctxt.Out.WriteByte(byte(v))
+			ctxt.Out.WriteByte(v)
 		}
 		writeUleb128(ctxt.Out, uint64(len(t.Results)))
 		for _, v := range t.Results {
-			ctxt.Out.WriteByte(byte(v))
+			ctxt.Out.WriteByte(v)
 		}
 	}
 

@@ -224,6 +224,28 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		}
 		return true
 
+	case objabi.MachoRelocOffset + ld.MACHO_ARM64_RELOC_SUBTRACTOR*2:
+		// ARM64_RELOC_SUBTRACTOR must be followed by ARM64_RELOC_UNSIGNED.
+		// The pair of relocations resolves to the difference between two
+		// symbol addresses (each relocation specifies a symbol).
+		outer, off := ld.FoldSubSymbolOffset(ldr, targ)
+		if outer != s {
+			// TODO: support subtracted symbol in different section.
+			ldr.Errorf(s, "unsupported ARM64_RELOC_SUBTRACTOR reloc: target %s, outer %s", ldr.SymName(targ), ldr.SymName(outer))
+			break
+		}
+		su := ldr.MakeSymbolUpdater(s)
+		relocs := su.Relocs()
+		if rIdx+1 >= relocs.Count() || relocs.At(rIdx+1).Type() != objabi.MachoRelocOffset+ld.MACHO_ARM64_RELOC_UNSIGNED*2 || relocs.At(rIdx+1).Off() != r.Off() {
+			ldr.Errorf(s, "unexpected ARM64_RELOC_SUBTRACTOR reloc, must be followed by ARM64_RELOC_UNSIGNED at same offset")
+			break
+		}
+		su.SetRelocType(rIdx+1, objabi.R_PCREL)
+		su.SetRelocAdd(rIdx+1, r.Add()+int64(r.Off())+int64(r.Siz())-off)
+		// Remove the other relocation
+		su.SetRelocSiz(rIdx, 0)
+		return true
+
 	case objabi.MachoRelocOffset + ld.MACHO_ARM64_RELOC_BRANCH26*2 + pcrel:
 		su := ldr.MakeSymbolUpdater(s)
 		su.SetRelocType(rIdx, objabi.R_CALLARM64)
@@ -276,6 +298,17 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		su.SetRelocType(rIdx, objabi.R_ARM64_GOT)
 		su.SetRelocSym(rIdx, syms.GOT)
 		su.SetRelocAdd(rIdx, int64(ldr.SymGot(targ)))
+		return true
+
+	case objabi.MachoRelocOffset + ld.MACHO_ARM64_RELOC_POINTER_TO_GOT*2 + pcrel:
+		if targType != sym.SDYNIMPORT {
+			ldr.Errorf(s, "unexpected GOT reloc for non-dynamic symbol %s", ldr.SymName(targ))
+		}
+		ld.AddGotSym(target, ldr, syms, targ, 0)
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_PCREL)
+		su.SetRelocSym(rIdx, syms.GOT)
+		su.SetRelocAdd(rIdx, r.Add()+int64(r.Siz())+int64(ldr.SymGot(targ)))
 		return true
 	}
 
@@ -424,7 +457,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			} else {
 				ldr.Errorf(s, "unexpected relocation for dynamic symbol %s", ldr.SymName(targ))
 			}
-			rela.AddAddrPlus(target.Arch, targ, int64(r.Add()))
+			rela.AddAddrPlus(target.Arch, targ, r.Add())
 			// Not mark r done here. So we still apply it statically,
 			// so in the file content we'll also have the right offset
 			// to the relocation target. So it can be examined statically
@@ -843,7 +876,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 				if r.Siz() == 8 {
 					val = r.Add()
 				} else if target.IsBigEndian() {
-					val = int64(uint32(val)) | int64(r.Add())<<32
+					val = int64(uint32(val)) | r.Add()<<32
 				} else {
 					val = val>>32<<32 | int64(uint32(r.Add()))
 				}
@@ -939,13 +972,13 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 
 			// R_AARCH64_TLSIE_ADR_GOTTPREL_PAGE21
 			// turn ADRP to MOVZ
-			o0 = 0xd2a00000 | uint32(o0&0x1f) | (uint32((v>>16)&0xffff) << 5)
+			o0 = 0xd2a00000 | o0&0x1f | (uint32((v>>16)&0xffff) << 5)
 			// R_AARCH64_TLSIE_LD64_GOTTPREL_LO12_NC
 			// turn LD64 to MOVK
 			if v&3 != 0 {
 				ldr.Errorf(s, "invalid address: %x for relocation type: R_AARCH64_TLSIE_LD64_GOTTPREL_LO12_NC", v)
 			}
-			o1 = 0xf2800000 | uint32(o1&0x1f) | (uint32(v&0xffff) << 5)
+			o1 = 0xf2800000 | o1&0x1f | (uint32(v&0xffff) << 5)
 
 			// when laid out, the instruction order must always be o0, o1.
 			if target.IsBigEndian() {
@@ -994,25 +1027,35 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		}
 
 	case objabi.R_ARM64_PCREL:
+		// When targetting Windows, the instruction immediate field is cleared
+		// before applying relocations, as it contains the offset as bytes
+		// instead of pages. It has already been accounted for in loadpe.Load
+		// by adjusting r.Add().
 		if (val>>24)&0x9f == 0x90 {
-			// R_AARCH64_ADR_PREL_PG_HI21
+			// ELF R_AARCH64_ADR_PREL_PG_HI21, or Mach-O ARM64_RELOC_PAGE21, or PE IMAGE_REL_ARM64_PAGEBASE_REL21
 			// patch instruction: adrp
 			t := ldr.SymAddr(rs) + r.Add() - ((ldr.SymValue(s) + int64(r.Off())) &^ 0xfff)
 			if t >= 1<<32 || t < -1<<32 {
 				ldr.Errorf(s, "program too large, address relocation distance = %d", t)
 			}
 			o0 := (uint32((t>>12)&3) << 29) | (uint32((t>>12>>2)&0x7ffff) << 5)
+			if target.IsWindows() {
+				val &^= 3<<29 | 0x7ffff<<5
+			}
 			return val | int64(o0), noExtReloc, isOk
 		} else if (val>>24)&0x9f == 0x91 {
-			// ELF R_AARCH64_ADD_ABS_LO12_NC or Mach-O ARM64_RELOC_PAGEOFF12
+			// ELF R_AARCH64_ADD_ABS_LO12_NC, or Mach-O ARM64_RELOC_PAGEOFF12, or PE IMAGE_REL_ARM64_PAGEOFFSET_12A
 			// patch instruction: add
 			t := ldr.SymAddr(rs) + r.Add() - ((ldr.SymValue(s) + int64(r.Off())) &^ 0xfff)
 			o1 := uint32(t&0xfff) << 10
+			if target.IsWindows() {
+				val &^= 0xfff << 10
+			}
 			return val | int64(o1), noExtReloc, isOk
 		} else if (val>>24)&0x3b == 0x39 {
-			// Mach-O ARM64_RELOC_PAGEOFF12
+			// Mach-O ARM64_RELOC_PAGEOFF12 or PE IMAGE_REL_ARM64_PAGEOFFSET_12L
 			// patch ldr/str(b/h/w/d/q) (integer or vector) instructions, which have different scaling factors.
-			// Mach-O uses same relocation type for them.
+			// Mach-O and PE use same relocation type for them.
 			shift := uint32(val) >> 30
 			if shift == 0 && (val>>20)&0x048 == 0x048 { // 128-bit vector load
 				shift = 4
@@ -1022,6 +1065,9 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 				ldr.Errorf(s, "invalid address: %x for relocation type: ARM64_RELOC_PAGEOFF12", t)
 			}
 			o1 := (uint32(t&0xfff) >> shift) << 10
+			if target.IsWindows() {
+				val &^= 0xfff << 10
+			}
 			return val | int64(o1), noExtReloc, isOk
 		} else {
 			ldr.Errorf(s, "unsupported instruction for %x R_ARM64_PCREL", val)
@@ -1339,7 +1385,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 			for i := 0; ; i++ {
 				oName := ldr.SymName(rs)
 				name := oName + fmt.Sprintf("%+x-tramp%d", r.Add(), i)
-				tramp = ldr.LookupOrCreateSym(name, int(ldr.SymVersion(rs)))
+				tramp = ldr.LookupOrCreateSym(name, ldr.SymVersion(rs))
 				ldr.SetAttrReachable(tramp, true)
 				if ldr.SymType(tramp) == sym.SDYNIMPORT {
 					// don't reuse trampoline defined in other module
@@ -1365,7 +1411,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 			if ldr.SymType(tramp) == 0 {
 				// trampoline does not exist, create one
 				trampb := ldr.MakeSymbolUpdater(tramp)
-				ctxt.AddTramp(trampb)
+				ctxt.AddTramp(trampb, ldr.SymType(s))
 				if ldr.SymType(rs) == sym.SDYNIMPORT {
 					if r.Add() != 0 {
 						ctxt.Errorf(s, "nonzero addend for DYNIMPORT call: %v+%d", ldr.SymName(rs), r.Add())

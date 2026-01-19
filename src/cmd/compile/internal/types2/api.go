@@ -187,10 +187,6 @@ type Config struct {
 	EnableAlias bool
 }
 
-func srcimporter_setUsesCgo(conf *Config) {
-	conf.go115UsesCgo = true
-}
-
 // Info holds result type information for a type-checked package.
 // Only the information for which a map is provided is collected.
 // If the package has type errors, the collected information may
@@ -208,11 +204,19 @@ type Info struct {
 	//
 	// The Types map does not record the type of every identifier,
 	// only those that appear where an arbitrary expression is
-	// permitted. For instance, the identifier f in a selector
-	// expression x.f is found only in the Selections map, the
-	// identifier z in a variable declaration 'var z int' is found
-	// only in the Defs map, and identifiers denoting packages in
-	// qualified identifiers are collected in the Uses map.
+	// permitted. For instance:
+	// - an identifier f in a selector expression x.f is found
+	//   only in the Selections map;
+	// - an identifier z in a variable declaration 'var z int'
+	//   is found only in the Defs map;
+	// - an identifier p denoting a package in a qualified
+	//   identifier p.X is found only in the Uses map.
+	//
+	// Similarly, no type is recorded for the (synthetic) FuncType
+	// node in a FuncDecl.Type field, since there is no corresponding
+	// syntactic function type expression in the source in this case
+	// Instead, the function type is found in the Defs.map entry for
+	// the corresponding function declaration.
 	Types map[syntax.Expr]TypeAndValue
 
 	// If StoreTypesInSyntax is set, type information identical to

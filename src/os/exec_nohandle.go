@@ -6,4 +6,6 @@
 
 package os
 
-func (p *Process) closeHandle() {}
+func (ph *processHandle) closeHandle() {
+	panic("internal error: unexpected call to closeHandle")
+}

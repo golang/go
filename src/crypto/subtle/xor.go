@@ -4,7 +4,7 @@
 
 package subtle
 
-import "crypto/internal/fips/subtle"
+import "crypto/internal/fips140/subtle"
 
 // XORBytes sets dst[i] = x[i] ^ y[i] for all i < n = min(len(x), len(y)),
 // returning n, the number of bytes written to dst.

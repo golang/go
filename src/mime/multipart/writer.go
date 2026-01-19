@@ -125,8 +125,20 @@ func (w *Writer) CreatePart(header textproto.MIMEHeader) (io.Writer, error) {
 	return p, nil
 }
 
-var quoteEscaper = strings.NewReplacer("\\", "\\\\", `"`, "\\\"")
+var quoteEscaper = strings.NewReplacer("\\", "\\\\", `"`, "\\\"", "\r", "%0D", "\n", "%0A")
 
+// escapeQuotes escapes special characters in field parameter values.
+//
+// For historical reasons, this uses \ escaping for " and \ characters,
+// and percent encoding for CR and LF.
+//
+// The WhatWG specification for form data encoding suggests that we should
+// use percent encoding for " (%22), and should not escape \.
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#multipart/form-data-encoding-algorithm
+//
+// Empirically, as of the time this comment was written, it is necessary
+// to escape \ characters or else Chrome (and possibly other browsers) will
+// interpet the unescaped \ as an escape.
 func escapeQuotes(s string) string {
 	return quoteEscaper.Replace(s)
 }
@@ -135,9 +147,7 @@ func escapeQuotes(s string) string {
 // a new form-data header with the provided field name and file name.
 func (w *Writer) CreateFormFile(fieldname, filename string) (io.Writer, error) {
 	h := make(textproto.MIMEHeader)
-	h.Set("Content-Disposition",
-		fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
-			escapeQuotes(fieldname), escapeQuotes(filename)))
+	h.Set("Content-Disposition", FileContentDisposition(fieldname, filename))
 	h.Set("Content-Type", "application/octet-stream")
 	return w.CreatePart(h)
 }
@@ -149,6 +159,13 @@ func (w *Writer) CreateFormField(fieldname string) (io.Writer, error) {
 	h.Set("Content-Disposition",
 		fmt.Sprintf(`form-data; name="%s"`, escapeQuotes(fieldname)))
 	return w.CreatePart(h)
+}
+
+// FileContentDisposition returns the value of a Content-Disposition header
+// with the provided field name and file name.
+func FileContentDisposition(fieldname, filename string) string {
+	return fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
+		escapeQuotes(fieldname), escapeQuotes(filename))
 }
 
 // WriteField calls [Writer.CreateFormField] and then writes the given value.

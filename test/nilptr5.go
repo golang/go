@@ -30,3 +30,9 @@ func f6(p, q *T) {
 func f8(t *struct{ b [8]int }) struct{ b [8]int } {
 	return *t // ERROR "removed nil check"
 }
+
+// nil check is removed for pointer write (which involves a
+// write barrier).
+func f9(x **int, y *int) {
+	*x = y // ERROR "removed nil check"
+}

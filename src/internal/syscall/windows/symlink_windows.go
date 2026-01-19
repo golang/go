@@ -19,6 +19,7 @@ const (
 	FileBasicInfo                  = 0    // FILE_BASIC_INFO
 	FileStandardInfo               = 1    // FILE_STANDARD_INFO
 	FileNameInfo                   = 2    // FILE_NAME_INFO
+	FileDispositionInfo            = 4    // FILE_DISPOSITION_INFO
 	FileStreamInfo                 = 7    // FILE_STREAM_INFO
 	FileCompressionInfo            = 8    // FILE_COMPRESSION_INFO
 	FileAttributeTagInfo           = 9    // FILE_ATTRIBUTE_TAG_INFO

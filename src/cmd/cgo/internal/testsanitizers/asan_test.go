@@ -8,9 +8,11 @@ package sanitizers_test
 
 import (
 	"bytes"
+	"crypto/fips140"
 	"fmt"
 	"internal/platform"
 	"internal/testenv"
+	"os/exec"
 	"strings"
 	"testing"
 )
@@ -41,6 +43,8 @@ func TestASAN(t *testing.T) {
 		{src: "asan_global3_fail.go", memoryAccessError: "global-buffer-overflow", errorLocation: "asan_global3_fail.go:13"},
 		{src: "asan_global4_fail.go", memoryAccessError: "global-buffer-overflow", errorLocation: "asan_global4_fail.go:21"},
 		{src: "asan_global5.go"},
+		{src: "asan_global_asm"},
+		{src: "asan_global_asm2_fail", memoryAccessError: "global-buffer-overflow", errorLocation: "main.go:17"},
 		{src: "arena_fail.go", memoryAccessError: "use-after-poison", errorLocation: "arena_fail.go:26", experiments: []string{"arenas"}},
 	}
 	for _, tc := range cases {
@@ -70,11 +74,11 @@ func TestASAN(t *testing.T) {
 						!strings.Contains(out, noSymbolizer) &&
 						compilerSupportsLocation() {
 
-						t.Errorf("%#q exited without expected location of the error\n%s; got failure\n%s", strings.Join(cmd.Args, " "), tc.errorLocation, out)
+						t.Errorf("%#q exited without expected location of the error\n%s; got failure\n%s", cmd, tc.errorLocation, out)
 					}
 					return
 				}
-				t.Fatalf("%#q exited without expected memory access error\n%s; got failure\n%s", strings.Join(cmd.Args, " "), tc.memoryAccessError, out)
+				t.Fatalf("%#q exited without expected memory access error\n%s; got failure\n%s", cmd, tc.memoryAccessError, out)
 			}
 			mustRun(t, cmd)
 		})
@@ -114,15 +118,28 @@ func TestASANFuzz(t *testing.T) {
 	dir := newTempDir(t)
 	defer dir.RemoveAll(t)
 
-	cmd := config.goCmd("test", "-fuzz=Fuzz", srcPath("asan_fuzz_test.go"))
+	exe := dir.Join("asan_fuzz_test.exe")
+	cmd := config.goCmd("test", "-c", "-o", exe, srcPath("asan_fuzz_test.go"))
 	t.Logf("%v", cmd)
 	out, err := cmd.CombinedOutput()
+	t.Logf("%s", out)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd = exec.Command(exe, "-test.fuzz=Fuzz", "-test.fuzzcachedir="+dir.Base())
+	cmd.Dir = dir.Base()
+	t.Logf("%v", cmd)
+	out, err = cmd.CombinedOutput()
 	t.Logf("%s", out)
 	if err == nil {
 		t.Error("expected fuzzing failure")
 	}
 	if bytes.Contains(out, []byte("AddressSanitizer")) {
 		t.Error(`output contains "AddressSanitizer", but should not`)
+	}
+	if !bytes.Contains(out, []byte("FUZZ FAILED")) {
+		t.Error(`fuzz test did not fail with a "FUZZ FAILED" sentinel error`)
 	}
 }
 
@@ -139,6 +156,10 @@ func mustHaveASAN(t *testing.T) *config {
 	}
 	if !platform.ASanSupported(goos, goarch) {
 		t.Skipf("skipping on %s/%s; -asan option is not supported.", goos, goarch)
+	}
+
+	if fips140.Enabled() {
+		t.Skipf("skipping with FIPS 140 mode; -asan option is not supported.")
 	}
 
 	// The current implementation is only compatible with the ASan library from version

@@ -72,7 +72,6 @@ func TestFileInfoToDirEntry(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.path, func(t *testing.T) {
 			fi, err := Stat(testFs, test.path)
 			if err != nil {
@@ -94,8 +93,8 @@ func TestFileInfoToDirEntry(t *testing.T) {
 }
 
 func errorPath(err error) string {
-	var perr *PathError
-	if !errors.As(err, &perr) {
+	perr, ok := errors.AsType[*PathError](err)
+	if !ok {
 		return ""
 	}
 	return perr.Path

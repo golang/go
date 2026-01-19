@@ -9,6 +9,7 @@ package ecdh
 import (
 	"crypto"
 	"crypto/internal/boring"
+	"crypto/internal/fips140/ecdh"
 	"crypto/subtle"
 	"errors"
 	"io"
@@ -17,9 +18,9 @@ import (
 type Curve interface {
 	// GenerateKey generates a random PrivateKey.
 	//
-	// Most applications should use [crypto/rand.Reader] as rand. Note that the
-	// returned key does not depend deterministically on the bytes read from rand,
-	// and may change between calls and/or between versions.
+	// Since Go 1.26, a secure source of random bytes is always used, and rand
+	// is ignored unless GODEBUG=cryptocustomrand=1 is set. This setting will be
+	// removed in a future Go release. Instead, use [testing/cryptotest.SetGlobalRandom].
 	GenerateKey(rand io.Reader) (*PrivateKey, error)
 
 	// NewPrivateKey checks that key is valid and returns a PrivateKey.
@@ -60,6 +61,7 @@ type PublicKey struct {
 	curve     Curve
 	publicKey []byte
 	boring    *boring.PublicKeyECDH
+	fips      *ecdh.PublicKey
 }
 
 // Bytes returns a copy of the encoding of the public key.
@@ -90,6 +92,18 @@ func (k *PublicKey) Curve() Curve {
 	return k.curve
 }
 
+// KeyExchanger is an interface for an opaque private key that can be used for
+// key exchange operations. For example, an ECDH key kept in a hardware module.
+//
+// It is implemented by [PrivateKey].
+type KeyExchanger interface {
+	PublicKey() *PublicKey
+	Curve() Curve
+	ECDH(*PublicKey) ([]byte, error)
+}
+
+var _ KeyExchanger = (*PrivateKey)(nil)
+
 // PrivateKey is an ECDH private key, usually kept secret.
 //
 // These keys can be parsed with [crypto/x509.ParsePKCS8PrivateKey] and encoded
@@ -100,6 +114,7 @@ type PrivateKey struct {
 	privateKey []byte
 	publicKey  *PublicKey
 	boring     *boring.PrivateKeyECDH
+	fips       *ecdh.PrivateKey
 }
 
 // ECDH performs an ECDH exchange and returns the shared secret. The [PrivateKey]

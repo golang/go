@@ -17,9 +17,11 @@ information on how to use it see the cgo documentation (go doc cmd/cgo).
 
 The second is the SWIG program, which is a general tool for
 interfacing between languages. For information on SWIG see
-http://swig.org/. When running go build, any file with a .swig
+https://swig.org/. When running go build, any file with a .swig
 extension will be passed to SWIG. Any file with a .swigcxx extension
-will be passed to SWIG with the -c++ option.
+will be passed to SWIG with the -c++ option. A package can't be just
+a .swig or .swigcxx file; there must be at least one .go file, even if
+it has just a package clause.
 
 When either cgo or SWIG is used, go build will pass any .c, .m, .s, .S
 or .sx files to the C compiler, and any .cc, .cpp, .cxx files to the C++
@@ -49,7 +51,7 @@ environment variable (For more details see: 'go help gopath').
 If no import paths are given, the action applies to the
 package in the current directory.
 
-There are four reserved names for paths that should not be used
+There are five reserved names for paths that should not be used
 for packages to be built with the go tool:
 
 - "main" denotes the top-level package in a stand-alone executable.
@@ -63,6 +65,8 @@ Go library.
 
 - "cmd" expands to the Go repository's commands and their
 internal libraries.
+
+- "tool" expands to the tools defined in the current module's go.mod file.
 
 Package names match against fully-qualified import paths or patterns that
 match against any number of import paths. For instance, "fmt" refers to the
@@ -212,12 +216,12 @@ For example,
 	import "example.org/user/foo.hg"
 
 denotes the root directory of the Mercurial repository at
-example.org/user/foo or foo.hg, and
+example.org/user/foo, and
 
 	import "example.org/repo.git/foo/bar"
 
 denotes the foo/bar directory of the Git repository at
-example.org/repo or repo.git.
+example.org/repo.
 
 When a version control system supports multiple protocols,
 each is tried in turn when downloading. For example, a Git
@@ -237,6 +241,11 @@ The meta tag has the form:
 
 	<meta name="go-import" content="import-prefix vcs repo-root">
 
+Starting in Go 1.25, an optional subdirectory will be recognized by the
+go command:
+
+	<meta name="go-import" content="import-prefix vcs repo-root subdir">
+
 The import-prefix is the import path corresponding to the repository
 root. It must be a prefix or an exact match of the package being
 fetched with "go get". If it's not an exact match, another http
@@ -250,6 +259,12 @@ The vcs is one of "bzr", "fossil", "git", "hg", "svn".
 
 The repo-root is the root of the version control system
 containing a scheme and not containing a .vcs qualifier.
+
+The subdir specifies the directory within the repo-root where the
+Go module's root (including its go.mod file) is located. It allows
+you to organize your repository with the Go module code in a subdirectory
+rather than directly at the repository's root.
+If set, all vcs tags must be prefixed with "subdir". i.e. "subdir/v1.2.3"
 
 For example,
 
@@ -265,14 +280,17 @@ If that page contains the meta tag
 	<meta name="go-import" content="example.org git https://code.org/r/p/exproj">
 
 the go tool will verify that https://example.org/?go-get=1 contains the
-same meta tag and then git clone https://code.org/r/p/exproj into
-GOPATH/src/example.org.
+same meta tag and then download the code from the Git repository at https://code.org/r/p/exproj
 
-When using GOPATH, downloaded packages are written to the first directory
-listed in the GOPATH environment variable.
-(See 'go help gopath-get' and 'go help gopath'.)
+If that page contains the meta tag
 
-When using modules, downloaded packages are stored in the module cache.
+	<meta name="go-import" content="example.org git https://code.org/r/p/exproj foo/subdir">
+
+the go tool will verify that https://example.org/?go-get=1 contains the same meta
+tag and then download the code from the "foo/subdir" subdirectory within the Git repository
+at https://code.org/r/p/exproj
+
+Downloaded packages are stored in the module cache.
 See https://golang.org/ref/mod#module-cache.
 
 When using modules, an additional variant of the go-import meta tag is
@@ -491,12 +509,12 @@ See 'go help env' for details.
 
 General-purpose environment variables:
 
+	GCCGO
+		The gccgo command to run for 'go build -compiler=gccgo'.
 	GO111MODULE
 		Controls whether the go command runs in module-aware mode or GOPATH mode.
 		May be "off", "on", or "auto".
 		See https://golang.org/ref/mod#mod-commands.
-	GCCGO
-		The gccgo command to run for 'go build -compiler=gccgo'.
 	GOARCH
 		The architecture, or processor, for which to compile code.
 		Examples are amd64, 386, arm, ppc64.
@@ -507,12 +525,15 @@ General-purpose environment variables:
 		The directory where 'go install' will install a command.
 	GOCACHE
 		The directory where the go command will store cached
-		information for reuse in future builds.
-	GOMODCACHE
-		The directory where the go command will store downloaded modules.
+		information for reuse in future builds. Must be an absolute path.
+	GOCACHEPROG
+		A command (with optional space-separated flags) that implements an
+		external go command build cache.
+		See 'go doc cmd/go/internal/cacheprog'.
 	GODEBUG
-		Enable various debugging facilities. See https://go.dev/doc/godebug
-		for details.
+		Enable various debugging facilities for programs built with Go,
+		including the go command. Cannot be set using 'go env -w'.
+		See https://go.dev/doc/godebug for details.
 	GOENV
 		The location of the Go environment configuration file.
 		Cannot be set using 'go env -w'.
@@ -531,29 +552,33 @@ General-purpose environment variables:
 		manner. Only applies to dependencies that are being fetched directly.
 		GOINSECURE does not disable checksum database validation. GOPRIVATE or
 		GONOSUMDB may be used to achieve that.
+	GOMODCACHE
+		The directory where the go command will store downloaded modules.
 	GOOS
 		The operating system for which to compile code.
 		Examples are linux, darwin, windows, netbsd.
 	GOPATH
 		Controls where various files are stored. See: 'go help gopath'.
-	GOPROXY
-		URL of Go module proxy. See https://golang.org/ref/mod#environment-variables
-		and https://golang.org/ref/mod#module-proxy for details.
 	GOPRIVATE, GONOPROXY, GONOSUMDB
 		Comma-separated list of glob patterns (in the syntax of Go's path.Match)
 		of module path prefixes that should always be fetched directly
 		or that should not be compared against the checksum database.
 		See https://golang.org/ref/mod#private-modules.
+	GOPROXY
+		URL of Go module proxy. See https://golang.org/ref/mod#environment-variables
+		and https://golang.org/ref/mod#module-proxy for details.
 	GOROOT
 		The root of the go tree.
 	GOSUMDB
 		The name of checksum database to use and optionally its public key and
 		URL. See https://golang.org/ref/mod#authenticating.
+	GOTMPDIR
+		Temporary directory used by the go command and testing package.
+		Overrides the platform-specific temporary directory such as "/tmp".
+		The go command and testing package will write temporary source files,
+		packages, and binaries here.
 	GOTOOLCHAIN
 		Controls which Go toolchain is used. See https://go.dev/doc/toolchain.
-	GOTMPDIR
-		The directory where the go command will write
-		temporary source files, packages, and binaries.
 	GOVCS
 		Lists version control commands that may be used with matching servers.
 		See 'go help vcs'.
@@ -574,8 +599,6 @@ Environment variables for use with cgo:
 		The default is 'ar'.
 	CC
 		The command to use to compile C code.
-	CGO_ENABLED
-		Whether the cgo command is supported. Either 0 or 1.
 	CGO_CFLAGS
 		Flags that cgo will pass to the compiler when compiling
 		C code.
@@ -593,6 +616,8 @@ Environment variables for use with cgo:
 	CGO_CXXFLAGS, CGO_CXXFLAGS_ALLOW, CGO_CXXFLAGS_DISALLOW
 		Like CGO_CFLAGS, CGO_CFLAGS_ALLOW, and CGO_CFLAGS_DISALLOW,
 		but for the C++ compiler.
+	CGO_ENABLED
+		Whether the cgo command is supported. Either 0 or 1.
 	CGO_FFLAGS, CGO_FFLAGS_ALLOW, CGO_FFLAGS_DISALLOW
 		Like CGO_CFLAGS, CGO_CFLAGS_ALLOW, and CGO_CFLAGS_DISALLOW,
 		but for the Fortran compiler.
@@ -608,9 +633,21 @@ Environment variables for use with cgo:
 
 Architecture-specific environment variables:
 
+	GO386
+		For GOARCH=386, how to implement floating point instructions.
+		Valid values are sse2 (default), softfloat.
+	GOAMD64
+		For GOARCH=amd64, the microarchitecture level for which to compile.
+		Valid values are v1 (default), v2, v3, v4.
+		See https://golang.org/wiki/MinimumRequirements#amd64
 	GOARM
 		For GOARCH=arm, the ARM architecture for which to compile.
 		Valid values are 5, 6, 7.
+		When the Go tools are built on an arm system,
+		the default value is set based on what the build system supports.
+		When the Go tools are not built on an arm system
+		(that is, when building a cross-compiler),
+		the default value is 7.
 		The value can be followed by an option specifying how to implement floating point instructions.
 		Valid options are ,softfloat (default for 5) and ,hardfloat (default for 6 and 7).
 	GOARM64
@@ -620,13 +657,6 @@ Architecture-specific environment variables:
 		Valid options are ,lse and ,crypto.
 		Note that some extensions are enabled by default starting from a certain GOARM64 version;
 		for example, lse is enabled by default starting from v8.1.
-	GO386
-		For GOARCH=386, how to implement floating point instructions.
-		Valid values are sse2 (default), softfloat.
-	GOAMD64
-		For GOARCH=amd64, the microarchitecture level for which to compile.
-		Valid values are v1 (default), v2, v3, v4.
-		See https://golang.org/wiki/MinimumRequirements#amd64
 	GOMIPS
 		For GOARCH=mips{,le}, whether to use floating point instructions.
 		Valid values are hardfloat (default), softfloat.
@@ -638,8 +668,9 @@ Architecture-specific environment variables:
 		Valid values are power8 (default), power9, power10.
 	GORISCV64
 		For GOARCH=riscv64, the RISC-V user-mode application profile for which
-		to compile. Valid values are rva20u64 (default), rva22u64.
+		to compile. Valid values are rva20u64 (default), rva22u64, rva23u64.
 		See https://github.com/riscv/riscv-profiles/blob/main/src/profiles.adoc
+		and https://github.com/riscv/riscv-profiles/blob/main/src/rva23-profile.adoc
 	GOWASM
 		For GOARCH=wasm, comma-separated list of experimental WebAssembly features to use.
 		Valid values are satconv, signext.
@@ -649,7 +680,6 @@ Environment variables for use with code coverage:
 	GOCOVERDIR
 		Directory into which to write code coverage data files
 		generated by running a "go build -cover" binary.
-		Requires that GOEXPERIMENT=coverageredesign is enabled.
 
 Special-purpose environment variables:
 
@@ -659,9 +689,15 @@ Special-purpose environment variables:
 	GOEXPERIMENT
 		Comma-separated list of toolchain experiments to enable or disable.
 		The list of available experiments may change arbitrarily over time.
-		See src/internal/goexperiment/flags.go for currently valid values.
+		See GOROOT/src/internal/goexperiment/flags.go for currently valid values.
 		Warning: This variable is provided for the development and testing
 		of the Go toolchain itself. Use beyond that purpose is unsupported.
+	GOFIPS140
+		The FIPS-140 cryptography mode to use when building binaries.
+		The default is GOFIPS140=off, which makes no FIPS-140 changes at all.
+		Other values enable FIPS-140 compliance measures and select alternate
+		versions of the cryptography source code.
+		See https://go.dev/doc/security/fips140 for details.
 	GO_EXTLINK_ENABLED
 		Whether the linker should use external linking mode
 		when using -linkmode=auto with code that uses cgo.
@@ -761,7 +797,10 @@ are:
 		Build the listed main package, plus all packages it imports,
 		into a C shared library. The only callable symbols will
 		be those functions exported using a cgo //export comment.
-		Requires exactly one main package to be listed.
+		On wasip1, this mode builds it to a WASI reactor/library,
+		of which the callable symbols are those functions exported
+		using a //go:wasmexport directive. Requires exactly one
+		main package to be listed.
 
 	-buildmode=default
 		Listed main packages are built into executables and listed
@@ -798,6 +837,7 @@ var HelpCache = &base.Command{
 The go command caches build outputs for reuse in future builds.
 The default location for cache data is a subdirectory named go-build
 in the standard user cache directory for the current operating system.
+The cache is safe for concurrent invocations of the go command.
 Setting the GOCACHE environment variable overrides this default,
 and running 'go env GOCACHE' prints the current cache directory.
 
@@ -934,8 +974,8 @@ The defined architecture feature build tags are:
 	  (or ppc64le.power8, ppc64le.power9, and ppc64le.power10)
 	  feature build tags.
 	- For GOARCH=riscv64,
-	  GORISCV64=rva20u64 and rva22u64 correspond to the riscv64.rva20u64
-	  and riscv64.rva22u64 build tags.
+	  GORISCV64=rva20u64, rva22u64 and rva23u64 correspond to the riscv64.rva20u64,
+	  riscv64.rva22u64 and riscv64.rva23u64 build tags.
 	- For GOARCH=wasm, GOWASM=satconv and signext
 	  correspond to the wasm.satconv and wasm.signext feature build tags.
 
@@ -968,6 +1008,12 @@ carry the constraint:
 Naming a file dns_windows.go will cause it to be included only when
 building the package for Windows; similarly, math_386.s will be included
 only when building the package for 32-bit x86.
+
+By convention, packages with assembly implementations may provide a go-only
+version under the "purego" build constraint. This does not limit the use of
+cgo (use the "cgo" build constraint) or unsafe. For example:
+
+        //go:build purego
 
 Go versions 1.16 and earlier used a different syntax for build constraints,
 with a "// +build" prefix. The gofmt command will add an equivalent //go:build
@@ -1007,7 +1053,7 @@ command
 		BlankLine     = '\n' .
 
 	Example:
-		https://example.com/
+		https://example.com
 		https://example.net/api/
 
 		Authorization: Basic <token>
@@ -1017,7 +1063,7 @@ command
 		Example: Data
 
 	If the server responds with any 4xx code, the go command will write the
-	following to the programs' stdin:
+	following to the program's stdin:
 		Response      = StatusLine { HeaderLine } BlankLine .
 		StatusLine    = Protocol Space Status '\n' .
 		Protocol      = /* HTTP protocol */ .
@@ -1032,8 +1078,7 @@ command
 		Content-Type: text/plain; charset=utf-8
 		Date: Thu, 07 Nov 2024 18:43:09 GMT
 
-	Note: at least for HTTP 1.1, the contents written to stdin can be parsed
-	as an HTTP response.
+	Note: it is safe to use net/http.ReadResponse to parse this input.
 
 Before the first HTTPS fetch, the go command will invoke each GOAUTH
 command in the list with no additional arguments and no input.
@@ -1085,7 +1130,7 @@ Furthermore, as with TestEvent, parsers can simply concatenate the Output
 fields of all events to reconstruct the text format output, as it would
 have appeared from go build without the -json flag.
 
-Note that there may also be non-JSON error text on stdnard error, even
+Note that there may also be non-JSON error text on standard error, even
 with the -json flag. Typically, this indicates an early, serious error.
 Consumers should be robust to this.
 	`,

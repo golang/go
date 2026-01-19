@@ -95,6 +95,8 @@ func libFuzzerSupported(goos, goarch string) bool {
 		default:
 			return false
 		}
+	case "loong64":
+		return true
 	default:
 		return false
 	}

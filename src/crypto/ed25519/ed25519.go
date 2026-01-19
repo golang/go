@@ -17,9 +17,14 @@ package ed25519
 
 import (
 	"crypto"
-	"crypto/internal/fips/ed25519"
+	"crypto/internal/fips140/ed25519"
+	"crypto/internal/fips140cache"
+	"crypto/internal/fips140only"
+	"crypto/internal/rand"
+	cryptorand "crypto/rand"
 	"crypto/subtle"
 	"errors"
+	"internal/godebug"
 	"io"
 	"strconv"
 )
@@ -76,6 +81,10 @@ func (priv PrivateKey) Seed() []byte {
 	return append(make([]byte, 0, SeedSize), priv[:SeedSize]...)
 }
 
+// privateKeyCache uses a pointer to the first byte of underlying storage as a
+// key, because [PrivateKey] is a slice header passed around by value.
+var privateKeyCache fips140cache.Cache[byte, ed25519.PrivateKey]
+
 // Sign signs the given message with priv. rand is ignored and can be nil.
 //
 // If opts.HashFunc() is [crypto.SHA512], the pre-hashed variant Ed25519ph is used
@@ -86,10 +95,11 @@ func (priv PrivateKey) Seed() []byte {
 // A value of type [Options] can be used as opts, or crypto.Hash(0) or
 // crypto.SHA512 directly to select plain Ed25519 or Ed25519ph, respectively.
 func (priv PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOpts) (signature []byte, err error) {
-	// NewPrivateKey is very slow in FIPS mode because it performs a
-	// Sign+Verify cycle per FIPS 140-3 IG 10.3.A. We should find a way to cache
-	// it or attach it to the PrivateKey.
-	k, err := ed25519.NewPrivateKey(priv)
+	k, err := privateKeyCache.Get(&priv[0], func() (*ed25519.PrivateKey, error) {
+		return ed25519.NewPrivateKey(priv)
+	}, func(k *ed25519.PrivateKey) bool {
+		return subtle.ConstantTimeCompare(priv, k.Bytes()) == 1
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -102,6 +112,9 @@ func (priv PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOp
 	case hash == crypto.SHA512: // Ed25519ph
 		return ed25519.SignPH(k, message, context)
 	case hash == crypto.Hash(0) && context != "": // Ed25519ctx
+		if fips140only.Enforced() {
+			return nil, errors.New("crypto/ed25519: use of Ed25519ctx is not allowed in FIPS 140-only mode")
+		}
 		return ed25519.SignCtx(k, message, context)
 	case hash == crypto.Hash(0): // Ed25519
 		return ed25519.Sign(k, message), nil
@@ -124,23 +137,36 @@ type Options struct {
 // HashFunc returns o.Hash.
 func (o *Options) HashFunc() crypto.Hash { return o.Hash }
 
-// GenerateKey generates a public/private key pair using entropy from rand.
-// If rand is nil, [crypto/rand.Reader] will be used.
+var cryptocustomrand = godebug.New("cryptocustomrand")
+
+// GenerateKey generates a public/private key pair using entropy from random.
+//
+// If random is nil, a secure random source is used. (Before Go 1.26, a custom
+// [crypto/rand.Reader] was used if set by the application. That behavior can be
+// restored with GODEBUG=cryptocustomrand=1. This setting will be removed in a
+// future Go release. Instead, use [testing/cryptotest.SetGlobalRandom].)
 //
 // The output of this function is deterministic, and equivalent to reading
-// [SeedSize] bytes from rand, and passing them to [NewKeyFromSeed].
-func GenerateKey(rand io.Reader) (PublicKey, PrivateKey, error) {
-	k, err := ed25519.GenerateKey(rand)
-	if err != nil {
+// [SeedSize] bytes from random, and passing them to [NewKeyFromSeed].
+func GenerateKey(random io.Reader) (PublicKey, PrivateKey, error) {
+	if random == nil {
+		if cryptocustomrand.Value() == "1" {
+			random = cryptorand.Reader
+			if !rand.IsDefaultReader(random) {
+				cryptocustomrand.IncNonDefault()
+			}
+		} else {
+			random = rand.Reader
+		}
+	}
+
+	seed := make([]byte, SeedSize)
+	if _, err := io.ReadFull(random, seed); err != nil {
 		return nil, nil, err
 	}
 
-	privateKey := make([]byte, PrivateKeySize)
-	copy(privateKey, k.Bytes())
-
-	publicKey := make([]byte, PublicKeySize)
-	copy(publicKey, privateKey[32:])
-
+	privateKey := NewKeyFromSeed(seed)
+	publicKey := privateKey.Public().(PublicKey)
 	return publicKey, privateKey, nil
 }
 
@@ -175,10 +201,11 @@ func Sign(privateKey PrivateKey, message []byte) []byte {
 }
 
 func sign(signature []byte, privateKey PrivateKey, message []byte) {
-	// NewPrivateKey is very slow in FIPS mode because it performs a
-	// Sign+Verify cycle per FIPS 140-3 IG 10.3.A. We should find a way to cache
-	// it or attach it to the PrivateKey.
-	k, err := ed25519.NewPrivateKey(privateKey)
+	k, err := privateKeyCache.Get(&privateKey[0], func() (*ed25519.PrivateKey, error) {
+		return ed25519.NewPrivateKey(privateKey)
+	}, func(k *ed25519.PrivateKey) bool {
+		return subtle.ConstantTimeCompare(privateKey, k.Bytes()) == 1
+	})
 	if err != nil {
 		panic("ed25519: bad private key: " + err.Error())
 	}
@@ -218,6 +245,9 @@ func VerifyWithOptions(publicKey PublicKey, message, sig []byte, opts *Options) 
 	case opts.Hash == crypto.SHA512: // Ed25519ph
 		return ed25519.VerifyPH(k, message, sig, opts.Context)
 	case opts.Hash == crypto.Hash(0) && opts.Context != "": // Ed25519ctx
+		if fips140only.Enforced() {
+			return errors.New("crypto/ed25519: use of Ed25519ctx is not allowed in FIPS 140-only mode")
+		}
 		return ed25519.VerifyCtx(k, message, sig, opts.Context)
 	case opts.Hash == crypto.Hash(0): // Ed25519
 		return ed25519.Verify(k, message, sig)

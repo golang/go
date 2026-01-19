@@ -25,6 +25,7 @@ func f(x string) int {
 func square(x int) int {
 	// amd64:`JMP\s\(.*\)\(.*\)$`
 	// arm64:`MOVD\s\(R.*\)\(R.*<<3\)`,`JMP\s\(R.*\)$`
+	// loong64: `ALSLV`,`MOVV`,`JMP`
 	switch x {
 	case 1:
 		return 1
@@ -51,6 +52,7 @@ func square(x int) int {
 func length(x string) int {
 	// amd64:`JMP\s\(.*\)\(.*\)$`
 	// arm64:`MOVD\s\(R.*\)\(R.*<<3\)`,`JMP\s\(R.*\)$`
+	// loong64:`ALSLV`,`MOVV`,`JMP`
 	switch x {
 	case "a":
 		return 1
@@ -135,8 +137,8 @@ type K interface {
 
 // use a runtime call for type switches to interface types.
 func interfaceSwitch(x any) int {
-	// amd64:`CALL\truntime.interfaceSwitch`,`MOVL\t16\(AX\)`,`MOVQ\t8\(.*\)(.*\*8)`
-	// arm64:`CALL\truntime.interfaceSwitch`,`LDAR`,`MOVWU\t16\(R0\)`,`MOVD\t\(R.*\)\(R.*\)`
+	// amd64:`CALL runtime.interfaceSwitch`,`MOVL 16\(AX\)`,`MOVQ 8\(.*\)(.*\*8)`
+	// arm64:`CALL runtime.interfaceSwitch`,`LDAR`,`MOVWU 16\(R0\)`,`MOVD \(R.*\)\(R.*\)`
 	switch x.(type) {
 	case I:
 		return 1
@@ -148,8 +150,8 @@ func interfaceSwitch(x any) int {
 }
 
 func interfaceSwitch2(x K) int {
-	// amd64:`CALL\truntime.interfaceSwitch`,`MOVL\t16\(AX\)`,`MOVQ\t8\(.*\)(.*\*8)`
-	// arm64:`CALL\truntime.interfaceSwitch`,`LDAR`,`MOVWU\t16\(R0\)`,`MOVD\t\(R.*\)\(R.*\)`
+	// amd64:`CALL runtime.interfaceSwitch`,`MOVL 16\(AX\)`,`MOVQ 8\(.*\)(.*\*8)`
+	// arm64:`CALL runtime.interfaceSwitch`,`LDAR`,`MOVWU 16\(R0\)`,`MOVD \(R.*\)\(R.*\)`
 	switch x.(type) {
 	case I:
 		return 1
@@ -161,8 +163,8 @@ func interfaceSwitch2(x K) int {
 }
 
 func interfaceCast(x any) int {
-	// amd64:`CALL\truntime.typeAssert`,`MOVL\t16\(AX\)`,`MOVQ\t8\(.*\)(.*\*1)`
-	// arm64:`CALL\truntime.typeAssert`,`LDAR`,`MOVWU\t16\(R0\)`,`MOVD\t\(R.*\)\(R.*\)`
+	// amd64:`CALL runtime.typeAssert`,`MOVL 16\(AX\)`,`MOVQ 8\(.*\)(.*\*1)`
+	// arm64:`CALL runtime.typeAssert`,`LDAR`,`MOVWU 16\(R0\)`,`MOVD \(R.*\)\(R.*\)`
 	if _, ok := x.(I); ok {
 		return 3
 	}
@@ -170,8 +172,8 @@ func interfaceCast(x any) int {
 }
 
 func interfaceCast2(x K) int {
-	// amd64:`CALL\truntime.typeAssert`,`MOVL\t16\(AX\)`,`MOVQ\t8\(.*\)(.*\*1)`
-	// arm64:`CALL\truntime.typeAssert`,`LDAR`,`MOVWU\t16\(R0\)`,`MOVD\t\(R.*\)\(R.*\)`
+	// amd64:`CALL runtime.typeAssert`,`MOVL 16\(AX\)`,`MOVQ 8\(.*\)(.*\*1)`
+	// arm64:`CALL runtime.typeAssert`,`LDAR`,`MOVWU 16\(R0\)`,`MOVD \(R.*\)\(R.*\)`
 	if _, ok := x.(I); ok {
 		return 3
 	}
@@ -179,7 +181,21 @@ func interfaceCast2(x K) int {
 }
 
 func interfaceConv(x IJ) I {
-	// amd64:`CALL\truntime.typeAssert`,`MOVL\t16\(AX\)`,`MOVQ\t8\(.*\)(.*\*1)`
-	// arm64:`CALL\truntime.typeAssert`,`LDAR`,`MOVWU\t16\(R0\)`,`MOVD\t\(R.*\)\(R.*\)`
+	// amd64:`CALL runtime.typeAssert`,`MOVL 16\(AX\)`,`MOVQ 8\(.*\)(.*\*1)`
+	// arm64:`CALL runtime.typeAssert`,`LDAR`,`MOVWU 16\(R0\)`,`MOVD \(R.*\)\(R.*\)`
 	return x
+}
+
+// Make sure we can constant fold after inlining. See issue 71699.
+func stringSwitchInlineable(s string) {
+	switch s {
+	case "foo", "bar", "baz", "goo":
+	default:
+		println("no")
+	}
+}
+func stringSwitch() {
+	// amd64:-"CMP" -"CALL"
+	// arm64:-"CMP" -"CALL"
+	stringSwitchInlineable("foo")
 }

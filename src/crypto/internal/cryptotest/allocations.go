@@ -32,6 +32,12 @@ func SkipTestAllocations(t *testing.T) {
 		t.Skip("skipping allocations test on plan9")
 	}
 
+	// s390x deviates from other assembly implementations and is very hard to
+	// test due to the lack of LUCI builders. See #67307.
+	if runtime.GOARCH == "s390x" {
+		t.Skip("skipping allocations test on s390x")
+	}
+
 	// Some APIs rely on inliner and devirtualization to allocate on the stack.
 	testenv.SkipIfOptimizationOff(t)
 }

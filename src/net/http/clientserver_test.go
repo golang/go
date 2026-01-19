@@ -33,16 +33,28 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 )
 
 type testMode string
 
 const (
-	http1Mode  = testMode("h1")     // HTTP/1.1
-	https1Mode = testMode("https1") // HTTPS/1.1
-	http2Mode  = testMode("h2")     // HTTP/2
+	http1Mode            = testMode("h1")            // HTTP/1.1
+	https1Mode           = testMode("https1")        // HTTPS/1.1
+	http2Mode            = testMode("h2")            // HTTP/2
+	http2UnencryptedMode = testMode("h2unencrypted") // HTTP/2
 )
+
+func (m testMode) Scheme() string {
+	switch m {
+	case http1Mode, http2UnencryptedMode:
+		return "http"
+	case https1Mode, http2Mode:
+		return "https"
+	}
+	panic("unknown testMode")
+}
 
 type testNotParallelOpt struct{}
 
@@ -93,6 +105,17 @@ func run[T TBRun[T]](t T, f func(t T, mode testMode), opts ...any) {
 	}
 }
 
+// runSynctest is run combined with synctest.Run.
+//
+// The TB passed to f arranges for cleanup functions to be run in the synctest bubble.
+func runSynctest(t *testing.T, f func(t *testing.T, mode testMode), opts ...any) {
+	run(t, func(t *testing.T, mode testMode) {
+		synctest.Test(t, func(t *testing.T) {
+			f(t, mode)
+		})
+	}, opts...)
+}
+
 type clientServerTest struct {
 	t  testing.TB
 	h2 bool
@@ -100,6 +123,7 @@ type clientServerTest struct {
 	ts *httptest.Server
 	tr *Transport
 	c  *Client
+	li *fakeNetListener
 }
 
 func (t *clientServerTest) close() {
@@ -137,6 +161,8 @@ func optWithServerLog(lg *log.Logger) func(*httptest.Server) {
 	}
 }
 
+var optFakeNet = new(struct{})
+
 // newClientServerTest creates and starts an httptest.Server.
 //
 // The mode parameter selects the implementation to test:
@@ -148,6 +174,9 @@ func optWithServerLog(lg *log.Logger) func(*httptest.Server) {
 //
 //	func(*httptest.Server) // run before starting the server
 //	func(*http.Transport)
+//
+// The optFakeNet option configures the server and client to use a fake network implementation,
+// suitable for use in testing/synctest tests.
 func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *clientServerTest {
 	if mode == http2Mode {
 		CondSkipHTTP2(t)
@@ -157,15 +186,39 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 		h2: mode == http2Mode,
 		h:  h,
 	}
-	cst.ts = httptest.NewUnstartedServer(h)
 
 	var transportFuncs []func(*Transport)
+
+	if idx := slices.Index(opts, any(optFakeNet)); idx >= 0 {
+		opts = slices.Delete(opts, idx, idx+1)
+		cst.li = fakeNetListen()
+		cst.ts = &httptest.Server{
+			Config:   &Server{Handler: h},
+			Listener: cst.li,
+		}
+		transportFuncs = append(transportFuncs, func(tr *Transport) {
+			tr.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+				return cst.li.connect(), nil
+			}
+		})
+	} else {
+		cst.ts = httptest.NewUnstartedServer(h)
+	}
+
+	if mode == http2UnencryptedMode {
+		p := &Protocols{}
+		p.SetUnencryptedHTTP2(true)
+		cst.ts.Config.Protocols = p
+	}
+
 	for _, opt := range opts {
 		switch opt := opt.(type) {
 		case func(*Transport):
 			transportFuncs = append(transportFuncs, opt)
 		case func(*httptest.Server):
 			opt(cst.ts)
+		case func(*Server):
+			opt(cst.ts.Config)
 		default:
 			t.Fatalf("unhandled option type %T", opt)
 		}
@@ -180,6 +233,9 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 		cst.ts.Start()
 	case https1Mode:
 		cst.ts.StartTLS()
+	case http2UnencryptedMode:
+		ExportHttp2ConfigureServer(cst.ts.Config, nil)
+		cst.ts.Start()
 	case http2Mode:
 		ExportHttp2ConfigureServer(cst.ts.Config, nil)
 		cst.ts.TLS = cst.ts.Config.TLSConfig
@@ -189,7 +245,7 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 	}
 	cst.c = cst.ts.Client()
 	cst.tr = cst.c.Transport.(*Transport)
-	if mode == http2Mode {
+	if mode == http2Mode || mode == http2UnencryptedMode {
 		if err := ExportHttp2ConfigureTransport(cst.tr); err != nil {
 			t.Fatal(err)
 		}
@@ -197,6 +253,13 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 	for _, f := range transportFuncs {
 		f(cst.tr)
 	}
+
+	if mode == http2UnencryptedMode {
+		p := &Protocols{}
+		p.SetUnencryptedHTTP2(true)
+		cst.tr.Protocols = p
+	}
+
 	t.Cleanup(func() {
 		cst.close()
 	})
@@ -214,9 +277,19 @@ func (w testLogWriter) Write(b []byte) (int, error) {
 
 // Testing the newClientServerTest helper itself.
 func TestNewClientServerTest(t *testing.T) {
-	run(t, testNewClientServerTest, []testMode{http1Mode, https1Mode, http2Mode})
+	modes := []testMode{http1Mode, https1Mode, http2Mode}
+	t.Run("realnet", func(t *testing.T) {
+		run(t, func(t *testing.T, mode testMode) {
+			testNewClientServerTest(t, mode)
+		}, modes)
+	})
+	t.Run("synctest", func(t *testing.T) {
+		runSynctest(t, func(t *testing.T, mode testMode) {
+			testNewClientServerTest(t, mode, optFakeNet)
+		}, modes)
+	})
 }
-func testNewClientServerTest(t *testing.T, mode testMode) {
+func testNewClientServerTest(t *testing.T, mode testMode, opts ...any) {
 	var got struct {
 		sync.Mutex
 		proto  string
@@ -228,7 +301,7 @@ func testNewClientServerTest(t *testing.T, mode testMode) {
 		got.proto = r.Proto
 		got.hasTLS = r.TLS != nil
 	})
-	cst := newClientServerTest(t, mode, h)
+	cst := newClientServerTest(t, mode, h, opts...)
 	if _, err := cst.c.Head(cst.ts.URL); err != nil {
 		t.Fatal(err)
 	}
@@ -1172,7 +1245,7 @@ func testTransportGCRequest(t *testing.T, mode testMode, body bool) {
 	(func() {
 		body := strings.NewReader("some body")
 		req, _ := NewRequest("POST", cst.ts.URL, body)
-		runtime.SetFinalizer(req, func(*Request) { close(didGC) })
+		runtime.AddCleanup(req, func(ch chan struct{}) { close(ch) }, didGC)
 		res, err := cst.c.Do(req)
 		if err != nil {
 			t.Fatal(err)

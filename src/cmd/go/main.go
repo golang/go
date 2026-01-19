@@ -24,7 +24,6 @@ import (
 	"cmd/go/internal/clean"
 	"cmd/go/internal/doc"
 	"cmd/go/internal/envcmd"
-	"cmd/go/internal/fix"
 	"cmd/go/internal/fmtcmd"
 	"cmd/go/internal/generate"
 	"cmd/go/internal/help"
@@ -55,7 +54,7 @@ func init() {
 		clean.CmdClean,
 		doc.CmdDoc,
 		envcmd.CmdEnv,
-		fix.CmdFix,
+		vet.CmdFix,
 		fmtcmd.CmdFmt,
 		generate.CmdGenerate,
 		modget.CmdGet,
@@ -221,7 +220,7 @@ func main() {
 	base.Exit()
 }
 
-// cmdIsGoTelemeteryOff reports whether the command is "go telemetry off". This
+// cmdIsGoTelemetryOff reports whether the command is "go telemetry off". This
 // is used to decide whether to disable the opening of counter files. See #69269.
 func cmdIsGoTelemetryOff() bool {
 	restArgs := os.Args[1:]

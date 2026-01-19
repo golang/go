@@ -131,6 +131,14 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		n := n.(*ir.BinaryExpr)
 		n.X = walkExpr(n.X, init)
 		n.Y = walkExpr(n.Y, init)
+		if n.Op() == ir.OUNSAFEADD && ir.ShouldCheckPtr(ir.CurFunc, 1) {
+			// For unsafe.Add(p, n), just walk "unsafe.Pointer(uintptr(p)+uintptr(n))"
+			// for the side effects of validating unsafe.Pointer rules.
+			x := typecheck.ConvNop(n.X, types.Types[types.TUINTPTR])
+			y := typecheck.Conv(n.Y, types.Types[types.TUINTPTR])
+			conv := typecheck.ConvNop(ir.NewBinaryExpr(n.Pos(), ir.OADD, x, y), types.Types[types.TUNSAFEPTR])
+			walkExpr(conv, init)
+		}
 		return n
 
 	case ir.OUNSAFESLICE:
@@ -182,8 +190,8 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		n := n.(*ir.UnaryExpr)
 		return mkcall("gopanic", nil, init, n.X)
 
-	case ir.ORECOVERFP:
-		return walkRecoverFP(n.(*ir.CallExpr), init)
+	case ir.ORECOVER:
+		return walkRecover(n.(*ir.CallExpr), init)
 
 	case ir.OCFUNC:
 		return n
@@ -273,7 +281,7 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		return walkNew(n, init)
 
 	case ir.OADDSTR:
-		return walkAddString(n.Type(), n.(*ir.AddStringExpr), init)
+		return walkAddString(n.(*ir.AddStringExpr), init, nil)
 
 	case ir.OAPPEND:
 		// order should make sure we only see OAS(node, OAPPEND), which we handle above.
@@ -343,6 +351,11 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 
 	case ir.OMETHVALUE:
 		return walkMethodValue(n.(*ir.SelectorExpr), init)
+
+	case ir.OMOVE2HEAP:
+		n := n.(*ir.MoveToHeapExpr)
+		n.Slice = walkExpr(n.Slice, init)
+		return n
 	}
 
 	// No return! Each case must return (or panic),
@@ -464,11 +477,17 @@ func copyExpr(n ir.Node, t *types.Type, init *ir.Nodes) ir.Node {
 	return l
 }
 
-func walkAddString(typ *types.Type, n *ir.AddStringExpr, init *ir.Nodes) ir.Node {
-	c := len(n.List)
-
+// walkAddString walks a string concatenation expression x.
+// If conv is non nil, x is the conv.X field.
+func walkAddString(x *ir.AddStringExpr, init *ir.Nodes, conv *ir.ConvExpr) ir.Node {
+	c := len(x.List)
 	if c < 2 {
 		base.Fatalf("walkAddString count %d too small", c)
+	}
+
+	typ := x.Type()
+	if conv != nil {
+		typ = conv.Type()
 	}
 
 	// list of string arguments
@@ -476,14 +495,14 @@ func walkAddString(typ *types.Type, n *ir.AddStringExpr, init *ir.Nodes) ir.Node
 
 	var fn, fnsmall, fnbig string
 
+	buf := typecheck.NodNil()
 	switch {
 	default:
-		base.FatalfAt(n.Pos(), "unexpected type: %v", typ)
+		base.FatalfAt(x.Pos(), "unexpected type: %v", typ)
 	case typ.IsString():
-		buf := typecheck.NodNil()
-		if n.Esc() == ir.EscNone {
+		if x.Esc() == ir.EscNone {
 			sz := int64(0)
-			for _, n1 := range n.List {
+			for _, n1 := range x.List {
 				if n1.Op() == ir.OLITERAL {
 					sz += int64(len(ir.StringVal(n1)))
 				}
@@ -499,6 +518,10 @@ func walkAddString(typ *types.Type, n *ir.AddStringExpr, init *ir.Nodes) ir.Node
 		args = []ir.Node{buf}
 		fnsmall, fnbig = "concatstring%d", "concatstrings"
 	case typ.IsSlice() && typ.Elem().IsKind(types.TUINT8): // Optimize []byte(str1+str2+...)
+		if conv != nil && conv.Esc() == ir.EscNone {
+			buf = stackBufAddr(tmpstringbufsize, types.Types[types.TUINT8])
+		}
+		args = []ir.Node{buf}
 		fnsmall, fnbig = "concatbyte%d", "concatbytes"
 	}
 
@@ -507,7 +530,7 @@ func walkAddString(typ *types.Type, n *ir.AddStringExpr, init *ir.Nodes) ir.Node
 		// note: order.expr knows this cutoff too.
 		fn = fmt.Sprintf(fnsmall, c)
 
-		for _, n2 := range n.List {
+		for _, n2 := range x.List {
 			args = append(args, typecheck.Conv(n2, types.Types[types.TSTRING]))
 		}
 	} else {
@@ -515,12 +538,12 @@ func walkAddString(typ *types.Type, n *ir.AddStringExpr, init *ir.Nodes) ir.Node
 		fn = fnbig
 		t := types.NewSlice(types.Types[types.TSTRING])
 
-		slargs := make([]ir.Node, len(n.List))
-		for i, n2 := range n.List {
+		slargs := make([]ir.Node, len(x.List))
+		for i, n2 := range x.List {
 			slargs[i] = typecheck.Conv(n2, types.Types[types.TSTRING])
 		}
 		slice := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, t, slargs)
-		slice.Prealloc = n.Prealloc
+		slice.Prealloc = x.Prealloc
 		args = append(args, slice)
 		slice.SetEsc(ir.EscNone)
 	}
@@ -580,6 +603,20 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 		}
 		n := ir.FuncPC(n.Pos(), arg, wantABI)
 		return walkExpr(n, init)
+	}
+
+	if n.Op() == ir.OCALLFUNC {
+		fn := ir.StaticCalleeName(n.Fun)
+		if fn != nil && fn.Sym().Pkg.Path == "internal/abi" && strings.HasPrefix(fn.Sym().Name, "EscapeNonString[") {
+			// internal/abi.EscapeNonString[T] is a compiler intrinsic
+			// for the escape analysis to escape its argument based on
+			// the type. The call itself is no-op. Just walk the
+			// argument.
+			ps := fn.Type().Params()
+			if len(ps) == 2 && ps[1].Type.IsShape() {
+				return walkExpr(n.Args[1], init)
+			}
+		}
 	}
 
 	if name, ok := n.Fun.(*ir.Name); ok {
@@ -672,27 +709,21 @@ func walkDivMod(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 	// runtime calls late in SSA processing.
 	if types.RegSize < 8 && (et == types.TINT64 || et == types.TUINT64) {
 		if n.Y.Op() == ir.OLITERAL {
-			// Leave div/mod by constant powers of 2 or small 16-bit constants.
+			// Leave div/mod by non-zero uint64 constants.
 			// The SSA backend will handle those.
+			// (Zero constants should have been rejected already, but we check just in case.)
 			switch et {
 			case types.TINT64:
-				c := ir.Int64Val(n.Y)
-				if c < 0 {
-					c = -c
-				}
-				if c != 0 && c&(c-1) == 0 {
+				if ir.Int64Val(n.Y) != 0 {
 					return n
 				}
 			case types.TUINT64:
-				c := ir.Uint64Val(n.Y)
-				if c < 1<<16 {
-					return n
-				}
-				if c != 0 && c&(c-1) == 0 {
+				if ir.Uint64Val(n.Y) != 0 {
 					return n
 				}
 			}
 		}
+		// Build call to uint64div, uint64mod, int64div, or int64mod.
 		var fn string
 		if et == types.TINT64 {
 			fn = "int64"

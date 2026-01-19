@@ -853,7 +853,7 @@ func addelfdynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s lo
 		} else {
 			ldr.Errorf(s, "unexpected relocation for dynamic symbol %s", ldr.SymName(targ))
 		}
-		rela.AddAddrPlus(target.Arch, targ, int64(r.Add()))
+		rela.AddAddrPlus(target.Arch, targ, r.Add())
 
 		// Not mark r done here. So we still apply it statically,
 		// so in the file content we'll also have the right offset
@@ -1189,9 +1189,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 	}
 	switch r.Type() {
 	case objabi.R_CALLPOWER:
-
 		// If branch offset is too far then create a trampoline.
-
 		if (ctxt.IsExternal() && ldr.SymSect(s) != ldr.SymSect(rs)) || (ctxt.IsInternal() && int64(int32(t<<6)>>6) != t) || ldr.SymValue(rs) == 0 || (*ld.FlagDebugTramp > 1 && ldr.SymPkg(s) != ldr.SymPkg(rs)) {
 			var tramp loader.Sym
 			for i := 0; ; i++ {
@@ -1210,7 +1208,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 
 				// Look up the trampoline in case it already exists
 
-				tramp = ldr.LookupOrCreateSym(name, int(ldr.SymVersion(rs)))
+				tramp = ldr.LookupOrCreateSym(name, ldr.SymVersion(rs))
 				if oName == "runtime.deferreturn" {
 					ldr.SetIsDeferReturnTramp(tramp, true)
 				}
@@ -1229,7 +1227,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 			}
 			if ldr.SymType(tramp) == 0 {
 				trampb := ldr.MakeSymbolUpdater(tramp)
-				ctxt.AddTramp(trampb)
+				ctxt.AddTramp(trampb, ldr.SymType(s))
 				gentramp(ctxt, ldr, trampb, rs, r.Add())
 			}
 			sb := ldr.MakeSymbolUpdater(s)

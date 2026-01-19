@@ -12,7 +12,8 @@ import (
 	"go/token"
 	"internal/asan"
 	"internal/goarch"
-	"internal/goexperiment"
+	"internal/msan"
+	"internal/race"
 	"internal/testenv"
 	"io"
 	"math"
@@ -1275,10 +1276,6 @@ var deepEqualPerfTests = []struct {
 }
 
 func TestDeepEqualAllocs(t *testing.T) {
-	// TODO(prattmic): maps on stack
-	if goexperiment.SwissMap {
-		t.Skipf("Maps on stack not yet implemented")
-	}
 	if asan.Enabled {
 		t.Skip("test allocates more with -asan; see #70079")
 	}
@@ -2240,18 +2237,18 @@ func TestCallReturnsEmpty(t *testing.T) {
 	// Issue 21717: past-the-end pointer write in Call with
 	// nonzero-sized frame and zero-sized return value.
 	runtime.GC()
-	var finalized uint32
+	var cleanedUp atomic.Uint32
 	f := func() (emptyStruct, *[2]int64) {
-		i := new([2]int64) // big enough to not be tinyalloc'd, so finalizer always runs when i dies
-		runtime.SetFinalizer(i, func(*[2]int64) { atomic.StoreUint32(&finalized, 1) })
+		i := new([2]int64) // big enough to not be tinyalloc'd, so cleanup always runs when i dies
+		runtime.AddCleanup(i, func(cu *atomic.Uint32) { cu.Store(uint32(1)) }, &cleanedUp)
 		return emptyStruct{}, i
 	}
-	v := ValueOf(f).Call(nil)[0] // out[0] should not alias out[1]'s memory, so the finalizer should run.
+	v := ValueOf(f).Call(nil)[0] // out[0] should not alias out[1]'s memory, so the cleanup should run.
 	timeout := time.After(5 * time.Second)
-	for atomic.LoadUint32(&finalized) == 0 {
+	for cleanedUp.Load() == 0 {
 		select {
 		case <-timeout:
-			t.Fatal("finalizer did not run")
+			t.Fatal("cleanup did not run")
 		default:
 		}
 		runtime.Gosched()
@@ -6201,19 +6198,6 @@ func TestChanOfDir(t *testing.T) {
 }
 
 func TestChanOfGC(t *testing.T) {
-	done := make(chan bool, 1)
-	go func() {
-		select {
-		case <-done:
-		case <-time.After(5 * time.Second):
-			panic("deadlock in TestChanOfGC")
-		}
-	}()
-
-	defer func() {
-		done <- true
-	}()
-
 	type T *uintptr
 	tt := TypeOf(T(nil))
 	ct := ChanOf(BothDir, tt)
@@ -6305,6 +6289,32 @@ func TestMapOfGCKeys(t *testing.T) {
 			if k != i*n+j {
 				t.Errorf("lost x[%d][%d] = %d, want %d", i, j, k, i*n+j)
 			}
+		}
+	}
+}
+
+// Test assignment and access to a map with keys larger than word size.
+func TestMapOfGCBigKey(t *testing.T) {
+	type KV struct {
+		i int64
+		j int64
+	}
+
+	kvTyp := TypeFor[KV]()
+	mt := MapOf(kvTyp, kvTyp)
+
+	const n = 100
+	m := MakeMap(mt)
+	for i := 0; i < n; i++ {
+		kv := KV{int64(i), int64(i + 1)}
+		m.SetMapIndex(ValueOf(kv), ValueOf(kv))
+	}
+
+	for i := 0; i < n; i++ {
+		kv := KV{int64(i), int64(i + 1)}
+		elem := m.MapIndex(ValueOf(kv)).Interface().(KV)
+		if elem != kv {
+			t.Errorf("lost m[%v] = %v, want %v", kv, elem, kv)
 		}
 	}
 }
@@ -6797,7 +6807,7 @@ func TestMakeFuncStackCopy(t *testing.T) {
 	ValueOf(&concrete).Elem().Set(fn)
 	x := concrete(nil, 7)
 	if x != 9 {
-		t.Errorf("have %#q want 9", x)
+		t.Errorf("have %d want 9", x)
 	}
 }
 
@@ -7315,7 +7325,8 @@ func TestGCBits(t *testing.T) {
 	verifyGCBits(t, TypeOf(([][10000]Xscalar)(nil)), lit(1))
 	verifyGCBits(t, SliceOf(ArrayOf(10000, Tscalar)), lit(1))
 
-	testGCBitsMap(t)
+	// For maps, we don't manually construct GC data, instead using the
+	// public reflect API in groupAndSlotOf.
 }
 
 func rep(n int, b []byte) []byte { return bytes.Repeat(b, n) }
@@ -7504,7 +7515,6 @@ func TestTypeStrings(t *testing.T) {
 func TestOffsetLock(t *testing.T) {
 	var wg sync.WaitGroup
 	for i := 0; i < 4; i++ {
-		i := i
 		wg.Add(1)
 		go func() {
 			for j := 0; j < 50; j++ {
@@ -8086,11 +8096,11 @@ func TestValue_Len(t *testing.T) {
 func TestValue_Comparable(t *testing.T) {
 	var a int
 	var s []int
-	var i interface{} = a
-	var iNil interface{}
-	var iSlice interface{} = s
-	var iArrayFalse interface{} = [2]interface{}{1, map[int]int{}}
-	var iArrayTrue interface{} = [2]interface{}{1, struct{ I interface{} }{1}}
+	var i any = a
+	var iNil any
+	var iSlice any = s
+	var iArrayFalse any = [2]any{1, map[int]int{}}
+	var iArrayTrue any = [2]any{1, struct{ I any }{1}}
 	var testcases = []struct {
 		value      Value
 		comparable bool
@@ -8227,22 +8237,22 @@ func TestValue_Comparable(t *testing.T) {
 			false,
 		},
 		{
-			ValueOf([2]struct{ I interface{} }{{1}, {1}}),
+			ValueOf([2]struct{ I any }{{1}, {1}}),
 			true,
 			false,
 		},
 		{
-			ValueOf([2]struct{ I interface{} }{{[]int{}}, {1}}),
+			ValueOf([2]struct{ I any }{{[]int{}}, {1}}),
 			false,
 			false,
 		},
 		{
-			ValueOf([2]interface{}{1, struct{ I int }{1}}),
+			ValueOf([2]any{1, struct{ I int }{1}}),
 			true,
 			false,
 		},
 		{
-			ValueOf([2]interface{}{[1]interface{}{map[int]int{}}, struct{ I int }{1}}),
+			ValueOf([2]any{[1]any{map[int]int{}}, struct{ I int }{1}}),
 			false,
 			false,
 		},
@@ -8276,10 +8286,10 @@ type ValueEqualTest struct {
 	vDeref, uDeref bool
 }
 
-var equalI interface{} = 1
-var equalSlice interface{} = []int{1}
-var nilInterface interface{}
-var mapInterface interface{} = map[int]int{}
+var equalI any = 1
+var equalSlice any = []int{1}
+var nilInterface any
+var mapInterface any = map[int]int{}
 
 var valueEqualTests = []ValueEqualTest{
 	{
@@ -8458,8 +8468,8 @@ func TestValue_EqualNonComparable(t *testing.T) {
 		// Value of array is non-comparable because of non-comparable elements.
 		ValueOf([0]map[int]int{}),
 		ValueOf([0]func(){}),
-		ValueOf(([1]struct{ I interface{} }{{[]int{}}})),
-		ValueOf(([1]interface{}{[1]interface{}{map[int]int{}}})),
+		ValueOf(([1]struct{ I any }{{[]int{}}})),
+		ValueOf(([1]any{[1]any{map[int]int{}}})),
 	}
 	for _, value := range values {
 		// Panic when reflect.Value.Equal using two valid non-comparable values.
@@ -8481,8 +8491,7 @@ func TestInitFuncTypes(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			ipT := TypeOf(net.IP{})
-			for i := 0; i < ipT.NumMethod(); i++ {
-				_ = ipT.Method(i)
+			for range ipT.Methods() {
 			}
 		}()
 	}
@@ -8524,7 +8533,6 @@ func TestClear(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			if !tc.testFunc(tc.value) {
@@ -8558,7 +8566,6 @@ func TestValuePointerAndUnsafePointer(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			if got := tc.val.Pointer(); got != uintptr(tc.wantUnsafePointer) {
 				t.Errorf("unexpected uintptr result, got %#x, want %#x", got, uintptr(tc.wantUnsafePointer))
@@ -8654,4 +8661,144 @@ func TestMapOfKeyPanic(t *testing.T) {
 
 	var slice []int
 	m.MapIndex(ValueOf(slice))
+}
+
+func TestTypeAssert(t *testing.T) {
+	testTypeAssert(t, int(123456789), int(123456789), true)
+	testTypeAssert(t, int(-123456789), int(-123456789), true)
+	testTypeAssert(t, int32(123456789), int32(123456789), true)
+	testTypeAssert(t, int8(-123), int8(-123), true)
+	testTypeAssert(t, [2]int{1234, -5678}, [2]int{1234, -5678}, true)
+	testTypeAssert(t, "test value", "test value", true)
+	testTypeAssert(t, any("test value"), any("test value"), true)
+
+	v := 123456789
+	testTypeAssert(t, &v, &v, true)
+
+	testTypeAssert(t, int(123), uint(0), false)
+
+	testTypeAssert[any](t, 1, 1, true)
+	testTypeAssert[fmt.Stringer](t, 1, nil, false)
+
+	vv := testTypeWithMethod{"test"}
+	testTypeAssert[any](t, vv, vv, true)
+	testTypeAssert[any](t, &vv, &vv, true)
+	testTypeAssert[fmt.Stringer](t, vv, vv, true)
+	testTypeAssert[fmt.Stringer](t, &vv, &vv, true)
+	testTypeAssert[interface{ A() }](t, vv, nil, false)
+	testTypeAssert[interface{ A() }](t, &vv, nil, false)
+	testTypeAssert(t, any(vv), any(vv), true)
+	testTypeAssert(t, fmt.Stringer(vv), fmt.Stringer(vv), true)
+
+	testTypeAssert(t, fmt.Stringer(vv), any(vv), true)
+	testTypeAssert(t, any(vv), fmt.Stringer(vv), true)
+	testTypeAssert(t, fmt.Stringer(vv), interface{ M() }(vv), true)
+	testTypeAssert(t, interface{ M() }(vv), fmt.Stringer(vv), true)
+
+	testTypeAssert(t, any(int(1)), int(1), true)
+	testTypeAssert(t, any(int(1)), byte(0), false)
+	testTypeAssert(t, fmt.Stringer(vv), vv, true)
+
+	testTypeAssert(t, any(nil), any(nil), false)
+	testTypeAssert(t, any(nil), error(nil), false)
+	testTypeAssert(t, error(nil), any(nil), false)
+	testTypeAssert(t, error(nil), error(nil), false)
+}
+
+func testTypeAssert[T comparable, V any](t *testing.T, val V, wantVal T, wantOk bool) {
+	t.Helper()
+
+	v, ok := TypeAssert[T](ValueOf(&val).Elem())
+	if v != wantVal || ok != wantOk {
+		t.Errorf("TypeAssert[%v](%#v) = (%#v, %v); want = (%#v, %v)", TypeFor[T](), val, v, ok, wantVal, wantOk)
+	}
+
+	// Additionally make sure that TypeAssert[T](v) behaves in the same way as v.Interface().(T).
+	v2, ok2 := ValueOf(&val).Elem().Interface().(T)
+	if v != v2 || ok != ok2 {
+		t.Errorf("reflect.ValueOf(%#v).Interface().(%v) = (%#v, %v); want = (%#v, %v)", val, TypeFor[T](), v2, ok2, v, ok)
+	}
+}
+
+type testTypeWithMethod struct{ val string }
+
+func (v testTypeWithMethod) String() string { return v.val }
+func (v testTypeWithMethod) M()             {}
+
+func TestTypeAssertMethod(t *testing.T) {
+	method := ValueOf(&testTypeWithMethod{val: "test value"}).MethodByName("String")
+	f, ok := TypeAssert[func() string](method)
+	if !ok {
+		t.Fatalf(`TypeAssert[func() string](method) = (,false); want = (,true)`)
+	}
+
+	out := f()
+	if out != "test value" {
+		t.Fatalf(`TypeAssert[func() string](method)() = %q; want "test value"`, out)
+	}
+}
+
+func TestTypeAssertPanic(t *testing.T) {
+	t.Run("zero val", func(t *testing.T) {
+		defer func() { recover() }()
+		TypeAssert[int](Value{})
+		t.Fatalf("TypeAssert did not panic")
+	})
+	t.Run("read only", func(t *testing.T) {
+		defer func() { recover() }()
+		TypeAssert[int](ValueOf(&testTypeWithMethod{}).FieldByName("val"))
+		t.Fatalf("TypeAssert did not panic")
+	})
+}
+
+func TestTypeAssertAllocs(t *testing.T) {
+	if race.Enabled || asan.Enabled || msan.Enabled {
+		t.Skip("instrumentation breaks this optimization")
+	}
+	typeAssertAllocs[[128]int](t, ValueOf([128]int{}), 0)
+	typeAssertAllocs[any](t, ValueOf([128]int{}), 0)
+
+	val := 123
+	typeAssertAllocs[any](t, ValueOf(val), 0)
+	typeAssertAllocs[any](t, ValueOf(&val).Elem(), 1) // must allocate, so that Set() does not modify the returned inner iface value.
+	typeAssertAllocs[int](t, ValueOf(val), 0)
+	typeAssertAllocs[int](t, ValueOf(&val).Elem(), 0)
+
+	typeAssertAllocs[time.Time](t, ValueOf(new(time.Time)).Elem(), 0)
+	typeAssertAllocs[time.Time](t, ValueOf(*new(time.Time)), 0)
+
+	type I interface{ foo() }
+	typeAssertAllocs[I](t, ValueOf(new(string)).Elem(), 0) // assert fail doesn't alloc
+}
+
+func typeAssertAllocs[T any](t *testing.T, val Value, wantAllocs int) {
+	t.Helper()
+	allocs := testing.AllocsPerRun(10, func() {
+		TypeAssert[T](val)
+	})
+	if allocs != float64(wantAllocs) {
+		t.Errorf("TypeAssert[%v](%v) unexpected amount of allocations = %v; want = %v", TypeFor[T](), val.Type(), allocs, wantAllocs)
+	}
+}
+
+func BenchmarkTypeAssert(b *testing.B) {
+	benchmarkTypeAssert[int](b, ValueOf(int(1)))
+	benchmarkTypeAssert[byte](b, ValueOf(int(1)))
+
+	benchmarkTypeAssert[fmt.Stringer](b, ValueOf(testTypeWithMethod{}))
+	benchmarkTypeAssert[fmt.Stringer](b, ValueOf(&testTypeWithMethod{}))
+	benchmarkTypeAssert[any](b, ValueOf(int(1)))
+	benchmarkTypeAssert[any](b, ValueOf(testTypeWithMethod{}))
+
+	benchmarkTypeAssert[time.Time](b, ValueOf(*new(time.Time)))
+
+	benchmarkTypeAssert[func() string](b, ValueOf(time.Now()).MethodByName("String"))
+}
+
+func benchmarkTypeAssert[T any](b *testing.B, val Value) {
+	b.Run(fmt.Sprintf("TypeAssert[%v](%v)", TypeFor[T](), val.Type()), func(b *testing.B) {
+		for b.Loop() {
+			TypeAssert[T](val)
+		}
+	})
 }

@@ -93,3 +93,20 @@ func ExampleSearchInts() {
 	// found 2 at index 1 in [1 2 3 4 6 7 8]
 	// 5 not found, can be inserted at index 4 in [1 2 3 4 6 7 8]
 }
+
+// This example demonstrates searching for string in a list sorted in ascending order.
+func ExampleSearchStrings() {
+	a := []string{"apple", "banana", "cherry", "date", "fig", "grape"}
+
+	x := "banana"
+	i := sort.SearchStrings(a, x)
+	fmt.Printf("found %s at index %d in %v\n", x, i, a)
+
+	x = "coconut"
+	i = sort.SearchStrings(a, x)
+	fmt.Printf("%s not found, can be inserted at index %d in %v\n", x, i, a)
+
+	// Output:
+	// found banana at index 1 in [apple banana cherry date fig grape]
+	// coconut not found, can be inserted at index 3 in [apple banana cherry date fig grape]
+}

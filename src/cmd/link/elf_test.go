@@ -11,6 +11,7 @@ import (
 	"cmd/internal/hash"
 	"cmd/link/internal/ld"
 	"debug/elf"
+	"encoding/binary"
 	"fmt"
 	"internal/platform"
 	"internal/testenv"
@@ -22,6 +23,7 @@ import (
 	"sync"
 	"testing"
 	"text/template"
+	"unsafe"
 )
 
 func getCCAndCCFLAGS(t *testing.T, env []string) (string, []string) {
@@ -59,6 +61,12 @@ package main
 func main() {}
 `
 
+var goSourceWithData = `
+package main
+var globalVar = 42
+func main() { println(&globalVar) }
+`
+
 // The linker used to crash if an ELF input file had multiple text sections
 // with the same name.
 func TestSectionsWithSameName(t *testing.T) {
@@ -74,7 +82,8 @@ func TestSectionsWithSameName(t *testing.T) {
 	dir := t.TempDir()
 
 	gopath := filepath.Join(dir, "GOPATH")
-	env := append(os.Environ(), "GOPATH="+gopath)
+	gopathEnv := "GOPATH=" + gopath
+	env := append(os.Environ(), gopathEnv)
 
 	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module elf_test\n"), 0666); err != nil {
 		t.Fatal(err)
@@ -85,7 +94,6 @@ func TestSectionsWithSameName(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	goTool := testenv.GoToolPath(t)
 	cc, cflags := getCCAndCCFLAGS(t, env)
 
 	asmObj := filepath.Join(dir, "x.o")
@@ -113,10 +121,10 @@ func TestSectionsWithSameName(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cmd := testenv.Command(t, goTool, "build")
+	cmd := goCmd(t, "build")
 	cmd.Dir = dir
-	cmd.Env = env
-	t.Logf("%s build", goTool)
+	cmd.Env = append(cmd.Env, gopathEnv)
+	t.Logf("%s build", testenv.GoToolPath(t))
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("%s", out)
 		t.Fatal(err)
@@ -144,13 +152,13 @@ func TestMinusRSymsWithSameName(t *testing.T) {
 	dir := t.TempDir()
 
 	gopath := filepath.Join(dir, "GOPATH")
-	env := append(os.Environ(), "GOPATH="+gopath)
+	gopathEnv := "GOPATH=" + gopath
+	env := append(os.Environ(), gopathEnv)
 
 	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module elf_test\n"), 0666); err != nil {
 		t.Fatal(err)
 	}
 
-	goTool := testenv.GoToolPath(t)
 	cc, cflags := getCCAndCCFLAGS(t, env)
 
 	objs := []string{}
@@ -192,10 +200,10 @@ func TestMinusRSymsWithSameName(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Logf("%s build", goTool)
-	cmd := testenv.Command(t, goTool, "build")
+	t.Logf("%s build", testenv.GoToolPath(t))
+	cmd := goCmd(t, "build")
 	cmd.Dir = dir
-	cmd.Env = env
+	cmd.Env = append(cmd.Env, gopathEnv)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("%s", out)
 		t.Fatal(err)
@@ -237,7 +245,7 @@ func TestGNUBuildID(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			exe := filepath.Join(tmpdir, test.name)
-			cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-buildid="+gobuildid+" "+test.ldflags, "-o", exe, goFile)
+			cmd := goCmd(t, "build", "-ldflags=-buildid="+gobuildid+" "+test.ldflags, "-o", exe, goFile)
 			if out, err := cmd.CombinedOutput(); err != nil {
 				t.Fatalf("%v: %v:\n%s", cmd.Args, err, out)
 			}
@@ -271,11 +279,9 @@ func TestMergeNoteSections(t *testing.T) {
 		t.Fatal(err)
 	}
 	outFile := filepath.Join(t.TempDir(), "notes.exe")
-	goTool := testenv.GoToolPath(t)
 	// sha1sum of "gopher"
 	id := "0xf4e8cd51ce8bae2996dc3b74639cdeaa1f7fee5f"
-	cmd := testenv.Command(t, goTool, "build", "-o", outFile, "-ldflags",
-		"-B "+id, goFile)
+	cmd := goCmd(t, "build", "-o", outFile, "-ldflags", "-B "+id, goFile)
 	cmd.Dir = t.TempDir()
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("%s", out)
@@ -357,16 +363,14 @@ func TestPIESize(t *testing.T) {
 		}
 	}
 
-	for _, external := range []bool{false, true} {
-		external := external
+	var linkmodes []string
+	if platform.InternalLinkPIESupported(runtime.GOOS, runtime.GOARCH) {
+		linkmodes = append(linkmodes, "internal")
+	}
+	linkmodes = append(linkmodes, "external")
 
-		name := "TestPieSize-"
-		if external {
-			name += "external"
-		} else {
-			name += "internal"
-		}
-		t.Run(name, func(t *testing.T) {
+	for _, linkmode := range linkmodes {
+		t.Run(fmt.Sprintf("TestPieSize-%v", linkmode), func(t *testing.T) {
 			t.Parallel()
 
 			dir := t.TempDir()
@@ -375,16 +379,11 @@ func TestPIESize(t *testing.T) {
 
 			binexe := filepath.Join(dir, "exe")
 			binpie := filepath.Join(dir, "pie")
-			if external {
-				binexe += "external"
-				binpie += "external"
-			}
+			binexe += linkmode
+			binpie += linkmode
 
 			build := func(bin, mode string) error {
-				cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", bin, "-buildmode="+mode)
-				if external {
-					cmd.Args = append(cmd.Args, "-ldflags=-linkmode=external")
-				}
+				cmd := goCmd(t, "build", "-o", bin, "-buildmode="+mode, "-ldflags=-linkmode="+linkmode)
 				cmd.Args = append(cmd.Args, "pie.go")
 				cmd.Dir = dir
 				t.Logf("%v", cmd.Args)
@@ -533,8 +532,7 @@ func TestIssue51939(t *testing.T) {
 		t.Fatal(err)
 	}
 	outFile := filepath.Join(td, "issue51939.exe")
-	goTool := testenv.GoToolPath(t)
-	cmd := testenv.Command(t, goTool, "build", "-o", outFile, goFile)
+	cmd := goCmd(t, "build", "-o", outFile, goFile)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("%s", out)
 		t.Fatal(err)
@@ -566,7 +564,7 @@ func TestFlagR(t *testing.T) {
 	}
 	exe := filepath.Join(tmpdir, "x.exe")
 
-	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-R=0x100000", "-o", exe, src)
+	cmd := goCmd(t, "build", "-ldflags=-R=0x100000", "-o", exe, src)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("build failed: %v, output:\n%s", err, out)
 	}
@@ -574,5 +572,234 @@ func TestFlagR(t *testing.T) {
 	cmd = testenv.Command(t, exe)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Errorf("executable failed to run: %v\n%s", err, out)
+	}
+}
+
+func TestFlagD(t *testing.T) {
+	// Test that using the -D flag to specify data section address generates
+	// a working binary with data at the specified address.
+	t.Parallel()
+	testFlagD(t, "0x10000000", "", 0x10000000)
+}
+
+func TestFlagDUnaligned(t *testing.T) {
+	// Test that using the -D flag with an unaligned address errors out
+	t.Parallel()
+	testFlagDError(t, "0x10000123", "", "invalid -D value 0x10000123")
+}
+
+func TestFlagDWithR(t *testing.T) {
+	// Test that using the -D flag with -R flag errors on unaligned address.
+	t.Parallel()
+	testFlagDError(t, "0x30001234", "8192", "invalid -D value 0x30001234")
+}
+
+func testFlagD(t *testing.T, dataAddr string, roundQuantum string, expectedAddr uint64) {
+	testenv.MustHaveGoBuild(t)
+	tmpdir := t.TempDir()
+	src := filepath.Join(tmpdir, "x.go")
+	if err := os.WriteFile(src, []byte(goSourceWithData), 0444); err != nil {
+		t.Fatal(err)
+	}
+	exe := filepath.Join(tmpdir, "x.exe")
+
+	// Build linker flags
+	ldflags := "-D=" + dataAddr
+	if roundQuantum != "" {
+		ldflags += " -R=" + roundQuantum
+	}
+
+	cmd := goCmd(t, "build", "-ldflags="+ldflags, "-o", exe, src)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("build failed: %v, output:\n%s", err, out)
+	}
+
+	cmd = testenv.Command(t, exe)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Errorf("executable failed to run: %v\n%s", err, out)
+	}
+
+	ef, err := elf.Open(exe)
+	if err != nil {
+		t.Fatalf("open elf file failed: %v", err)
+	}
+	defer ef.Close()
+
+	// Find the first data-related section to verify segment placement
+	var firstDataSection *elf.Section
+	for _, sec := range ef.Sections {
+		if sec.Type == elf.SHT_PROGBITS || sec.Type == elf.SHT_NOBITS {
+			// These sections are writable, allocated at runtime, but not executable
+			// nor TLS.
+			isWrite := sec.Flags&elf.SHF_WRITE != 0
+			isExec := sec.Flags&elf.SHF_EXECINSTR != 0
+			isAlloc := sec.Flags&elf.SHF_ALLOC != 0
+			isTLS := sec.Flags&elf.SHF_TLS != 0
+
+			if isWrite && !isExec && isAlloc && !isTLS {
+				if firstDataSection == nil || sec.Addr < firstDataSection.Addr {
+					firstDataSection = sec
+				}
+			}
+		}
+	}
+
+	if firstDataSection == nil {
+		t.Fatalf("can't find any writable data sections")
+	}
+	if firstDataSection.Addr != expectedAddr {
+		t.Errorf("data section starts at 0x%x for section %s, expected 0x%x",
+			firstDataSection.Addr, firstDataSection.Name, expectedAddr)
+	}
+}
+
+func testFlagDError(t *testing.T, dataAddr string, roundQuantum string, expectedError string) {
+	testenv.MustHaveGoBuild(t)
+	tmpdir := t.TempDir()
+	src := filepath.Join(tmpdir, "x.go")
+	if err := os.WriteFile(src, []byte(goSourceWithData), 0444); err != nil {
+		t.Fatal(err)
+	}
+	exe := filepath.Join(tmpdir, "x.exe")
+
+	// Build linker flags
+	ldflags := "-D=" + dataAddr
+	if roundQuantum != "" {
+		ldflags += " -R=" + roundQuantum
+	}
+
+	cmd := goCmd(t, "build", "-ldflags="+ldflags, "-o", exe, src)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("expected build to fail with unaligned data address, but it succeeded")
+	}
+	if !strings.Contains(string(out), expectedError) {
+		t.Errorf("expected error message to contain %q, got:\n%s", expectedError, out)
+	}
+}
+
+func TestELFHeadersSorted(t *testing.T) {
+	for _, buildmode := range []string{"exe", "pie"} {
+		t.Run(buildmode, func(t *testing.T) {
+			testELFHeadersSorted(t, buildmode)
+		})
+	}
+}
+
+func testELFHeadersSorted(t *testing.T, buildmode string) {
+	testenv.MustHaveGoBuild(t)
+
+	// We can only test this for internal linking mode.
+	// For external linking the external linker will
+	// decide how to sort the sections.
+	testenv.MustInternalLink(t, testenv.NoSpecialBuildTypes)
+	if buildmode == "pie" {
+		testenv.MustInternalLinkPIE(t)
+	}
+
+	t.Parallel()
+
+	tmpdir := t.TempDir()
+	src := filepath.Join(tmpdir, "x.go")
+	if err := os.WriteFile(src, []byte(goSourceWithData), 0o444); err != nil {
+		t.Fatal(err)
+	}
+
+	exe := filepath.Join(tmpdir, "x.exe")
+	cmd := goCmd(t, "build", "-buildmode="+buildmode, "-ldflags=-linkmode=internal", "-o", exe, src)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("build failed: %v, output:\n%s", err, out)
+	}
+
+	// Check that the first section header is all zeroes.
+	f, err := os.Open(exe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	var ident [elf.EI_NIDENT]byte
+	if _, err := f.Read(ident[:]); err != nil {
+		t.Fatal(err)
+	}
+
+	var bo binary.ByteOrder
+	switch elf.Data(ident[elf.EI_DATA]) {
+	case elf.ELFDATA2LSB:
+		bo = binary.LittleEndian
+	case elf.ELFDATA2MSB:
+		bo = binary.BigEndian
+	default:
+		t.Fatalf("unrecognized data encoding %d", ident[elf.EI_DATA])
+	}
+
+	var shoff int64
+	var shsize int
+	switch elf.Class(ident[elf.EI_CLASS]) {
+	case elf.ELFCLASS32:
+		var hdr elf.Header32
+		data := make([]byte, unsafe.Sizeof(hdr))
+		if _, err := f.ReadAt(data, 0); err != nil {
+			t.Fatal(err)
+		}
+		shoff = int64(bo.Uint32(data[unsafe.Offsetof(hdr.Shoff):]))
+		shsize = int(unsafe.Sizeof(elf.Section32{}))
+
+	case elf.ELFCLASS64:
+		var hdr elf.Header64
+		data := make([]byte, unsafe.Sizeof(hdr))
+		if _, err := f.ReadAt(data, 0); err != nil {
+			t.Fatal(err)
+		}
+		shoff = int64(bo.Uint64(data[unsafe.Offsetof(hdr.Shoff):]))
+		shsize = int(unsafe.Sizeof(elf.Section64{}))
+
+	default:
+		t.Fatalf("unrecognized class %d", ident[elf.EI_CLASS])
+	}
+
+	if shoff > 0 {
+		data := make([]byte, shsize)
+		if _, err := f.ReadAt(data, shoff); err != nil {
+			t.Fatal(err)
+		}
+		for i, c := range data {
+			if c != 0 {
+				t.Errorf("section header 0 byte %d is %d, should be zero", i, c)
+			}
+		}
+	}
+
+	ef, err := elf.NewFile(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ef.Close()
+
+	// After the first zero section header,
+	// we should see allocated sections,
+	// then unallocated sections.
+	// The allocated sections should be sorted by address.
+	i := 1
+	lastAddr := uint64(0)
+	for i < len(ef.Sections) {
+		sec := ef.Sections[i]
+		if sec.Flags&elf.SHF_ALLOC == 0 {
+			break
+		}
+		if sec.Addr < lastAddr {
+			t.Errorf("section %d %q address %#x less than previous address %#x", i, sec.Name, sec.Addr, lastAddr)
+		}
+		lastAddr = sec.Addr
+		i++
+	}
+
+	firstUnalc := i
+	for i < len(ef.Sections) {
+		sec := ef.Sections[i]
+		if sec.Flags&elf.SHF_ALLOC != 0 {
+			t.Errorf("allocated section %d %q follows first unallocated section %d %q", i, sec.Name, firstUnalc, ef.Sections[firstUnalc].Name)
+		}
+		i++
 	}
 }

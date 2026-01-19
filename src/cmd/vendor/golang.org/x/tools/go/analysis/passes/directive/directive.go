@@ -14,7 +14,7 @@ import (
 	"unicode/utf8"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
 )
 
 const Doc = `check Go toolchain directives such as //go:debug
@@ -40,7 +40,7 @@ var Analyzer = &analysis.Analyzer{
 	Run:  runDirective,
 }
 
-func runDirective(pass *analysis.Pass) (interface{}, error) {
+func runDirective(pass *analysis.Pass) (any, error) {
 	for _, f := range pass.Files {
 		checkGoFile(pass, f)
 	}
@@ -86,7 +86,7 @@ func checkGoFile(pass *analysis.Pass, f *ast.File) {
 func checkOtherFile(pass *analysis.Pass, filename string) error {
 	// We cannot use the Go parser, since is not a Go source file.
 	// Read the raw bytes instead.
-	content, tf, err := analysisutil.ReadFile(pass, filename)
+	content, tf, err := analyzerutil.ReadFile(pass, filename)
 	if err != nil {
 		return err
 	}

@@ -11,12 +11,19 @@ import (
 )
 
 func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEntry, infos []FileInfo, err error) {
-	// If this file has no dirinfo, create one.
-	d := file.dirinfo.Load()
-	if d == nil {
-		d = new(dirInfo)
-		file.dirinfo.Store(d)
+	var d *dirInfo
+	for {
+		d = file.dirinfo.Load()
+		if d != nil {
+			break
+		}
+		newD := new(dirInfo)
+		if file.dirinfo.CompareAndSwap(nil, newD) {
+			d = newD
+			break
+		}
 	}
+
 	d.mu.Lock()
 	defer d.mu.Unlock()
 

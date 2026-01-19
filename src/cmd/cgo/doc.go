@@ -127,7 +127,7 @@ environment variable when running the go tool: set it to 1 to enable
 the use of cgo, and to 0 to disable it. The go tool will set the
 build constraint "cgo" if cgo is enabled. The special import "C"
 implies the "cgo" build constraint, as though the file also said
-"//go:build cgo".  Therefore, if cgo is disabled, files that import
+"//go:build cgo". Therefore, if cgo is disabled, files that import
 "C" will not be built by the go tool. (For more about build constraints
 see https://golang.org/pkg/go/build/#hdr-Build_Constraints).
 
@@ -425,8 +425,8 @@ and of course there is nothing stopping the C code from doing anything
 it likes. However, programs that break these rules are likely to fail
 in unexpected and unpredictable ways.
 
-The runtime/cgo.Handle type can be used to safely pass Go values
-between Go and C. See the runtime/cgo package documentation for details.
+The type [runtime/cgo.Handle] can be used to safely pass Go values
+between Go and C.
 
 Note: the current implementation has a bug. While Go code is permitted
 to write nil or a C pointer (but not a Go pointer) to C memory, the
@@ -796,7 +796,7 @@ Instead, the build process generates an object file using dynamic
 linkage to the desired libraries. The main function is provided by
 _cgo_main.c:
 
-	int main() { return 0; }
+	int main(int argc, char **argv) { return 0; }
 	void crosscall2(void(*fn)(void*), void *a, int c, uintptr_t ctxt) { }
 	uintptr_t _cgo_wait_runtime_init_done(void) { return 0; }
 	void _cgo_release_context(uintptr_t ctxt) { }

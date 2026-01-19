@@ -29,6 +29,10 @@ stderr '^go: example\.net/emptysubdir/subdir/\.\.\.: module example\.net/emptysu
 ! go get builtin/...  # in GOROOT/src, but contains no packages
 stderr '^go: builtin/...: malformed module path "builtin": missing dot in first path element$'
 
+cd ../subdirmod
+go get work
+stderr -count=1 'matched no packages'
+
 -- go.mod --
 module example.net/emptysubdir
 
@@ -38,3 +42,7 @@ go 1.16
 package emptysubdir
 -- subdir/README.txt --
 This module intentionally does not contain any p
+-- subdirmod/go.mod --
+module example.net/emptysubdir/subdirmod
+
+go 1.16

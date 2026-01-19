@@ -174,10 +174,7 @@ func chunkedGrab(sources []profileSource, fetch plugin.Fetcher, obj plugin.ObjTo
 	var count int
 
 	for start := 0; start < len(sources); start += chunkSize {
-		end := start + chunkSize
-		if end > len(sources) {
-			end = len(sources)
-		}
+		end := min(start+chunkSize, len(sources))
 		chunkP, chunkMsrc, chunkSave, chunkCount, chunkErr := concurrentGrab(sources[start:end], fetch, obj, ui, tr)
 		switch {
 		case chunkErr != nil:

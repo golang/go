@@ -23,8 +23,8 @@ import (
 )
 
 // This is the entrypoint of the child process used by
-// TestTracebackSystem. It prints a crash report to stdout.
-func crash() {
+// TestTracebackSystem/panic. It prints a crash report to stdout.
+func crashViaPanic() {
 	// Ensure that we get pc=0x%x values in the traceback.
 	debug.SetTraceback("system")
 	writeSentinel(os.Stdout)
@@ -33,6 +33,21 @@ func crash() {
 	go func() {
 		// This call is typically inlined.
 		child1()
+	}()
+	select {}
+}
+
+// This is the entrypoint of the child process used by
+// TestTracebackSystem/trap. It prints a crash report to stdout.
+func crashViaTrap() {
+	// Ensure that we get pc=0x%x values in the traceback.
+	debug.SetTraceback("system")
+	writeSentinel(os.Stdout)
+	debug.SetCrashOutput(os.Stdout, debug.CrashOptions{})
+
+	go func() {
+		// This call is typically inlined.
+		trap1()
 	}()
 	select {}
 }
@@ -85,6 +100,20 @@ func child7() {
 	panic("oops")
 }
 
+func trap1() {
+	trap2()
+}
+
+var sinkPtr *int
+
+func trap2() {
+	trap3(sinkPtr)
+}
+
+func trap3(i *int) {
+	*i = 42
+}
+
 // TestTracebackSystem tests that the syntax of crash reports produced
 // by GOTRACEBACK=system (see traceback2) contains a complete,
 // parseable list of program counters for the running goroutine that
@@ -100,46 +129,75 @@ func TestTracebackSystem(t *testing.T) {
 		t.Skip("Can't read source code for this file on Android")
 	}
 
-	// Fork+exec the crashing process.
-	exe, err := os.Executable()
-	if err != nil {
-		t.Fatal(err)
-	}
-	cmd := testenv.Command(t, exe)
-	cmd.Env = append(cmd.Environ(), entrypointVar+"=crash")
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	cmd.Run() // expected to crash
-	t.Logf("stderr:\n%s\nstdout: %s\n", stderr.Bytes(), stdout.Bytes())
-	crash := stdout.String()
-
-	// If the only line is the sentinel, it wasn't a crash.
-	if strings.Count(crash, "\n") < 2 {
-		t.Fatalf("child process did not produce a crash report")
-	}
-
-	// Parse the PCs out of the child's crash report.
-	pcs, err := parseStackPCs(crash)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Unwind the stack using this executable's symbol table.
-	got := formatStack(pcs)
-	want := `redacted.go:0: runtime.gopanic
-traceback_system_test.go:85: runtime_test.child7: 	panic("oops")
-traceback_system_test.go:68: runtime_test.child6: 	child7() // appears in stack trace
-traceback_system_test.go:59: runtime_test.child5: 	child6() // appears in stack trace
-traceback_system_test.go:53: runtime_test.child4: 	child5()
-traceback_system_test.go:49: runtime_test.child3: 	child4()
-traceback_system_test.go:45: runtime_test.child2: 	child3()
-traceback_system_test.go:41: runtime_test.child1: 	child2()
-traceback_system_test.go:35: runtime_test.crash.func1: 		child1()
+	tests := []struct {
+		name string
+		want string
+	}{
+		{
+			name: "panic",
+			want: `redacted.go:0: runtime.gopanic
+traceback_system_test.go:100: runtime_test.child7: 	panic("oops")
+traceback_system_test.go:83: runtime_test.child6: 	child7() // appears in stack trace
+traceback_system_test.go:74: runtime_test.child5: 	child6() // appears in stack trace
+traceback_system_test.go:68: runtime_test.child4: 	child5()
+traceback_system_test.go:64: runtime_test.child3: 	child4()
+traceback_system_test.go:60: runtime_test.child2: 	child3()
+traceback_system_test.go:56: runtime_test.child1: 	child2()
+traceback_system_test.go:35: runtime_test.crashViaPanic.func1: 		child1()
 redacted.go:0: runtime.goexit
-`
-	if strings.TrimSpace(got) != strings.TrimSpace(want) {
-		t.Errorf("got:\n%swant:\n%s", got, want)
+`,
+		},
+		{
+			// Test panic via trap. x/telemetry is aware that trap
+			// PCs follow runtime.sigpanic and need to be
+			// incremented to offset the decrement done by
+			// CallersFrames.
+			name: "trap",
+			want: `redacted.go:0: runtime.gopanic
+redacted.go:0: runtime.panicmem
+redacted.go:0: runtime.sigpanic
+traceback_system_test.go:114: runtime_test.trap3: 	*i = 42
+traceback_system_test.go:110: runtime_test.trap2: 	trap3(sinkPtr)
+traceback_system_test.go:104: runtime_test.trap1: 	trap2()
+traceback_system_test.go:50: runtime_test.crashViaTrap.func1: 		trap1()
+redacted.go:0: runtime.goexit
+`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Fork+exec the crashing process.
+			exe, err := os.Executable()
+			if err != nil {
+				t.Fatal(err)
+			}
+			cmd := testenv.Command(t, exe)
+			cmd.Env = append(cmd.Environ(), entrypointVar+"="+tc.name)
+			var stdout, stderr bytes.Buffer
+			cmd.Stdout = &stdout
+			cmd.Stderr = &stderr
+			cmd.Run() // expected to crash
+			t.Logf("stderr:\n%s\nstdout: %s\n", stderr.Bytes(), stdout.Bytes())
+			crash := stdout.String()
+
+			// If the only line is the sentinel, it wasn't a crash.
+			if strings.Count(crash, "\n") < 2 {
+				t.Fatalf("child process did not produce a crash report")
+			}
+
+			// Parse the PCs out of the child's crash report.
+			pcs, err := parseStackPCs(crash)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// Unwind the stack using this executable's symbol table.
+			got := formatStack(pcs)
+			if strings.TrimSpace(got) != strings.TrimSpace(tc.want) {
+				t.Errorf("got:\n%swant:\n%s", got, tc.want)
+			}
+		})
 	}
 }
 
@@ -154,6 +212,35 @@ redacted.go:0: runtime.goexit
 //
 // (Copied from golang.org/x/telemetry/crashmonitor.parseStackPCs.)
 func parseStackPCs(crash string) ([]uintptr, error) {
+	// getSymbol parses the symbol name out of a line of the form:
+	// SYMBOL(ARGS)
+	//
+	// Note: SYMBOL may contain parens "pkg.(*T).method". However, type
+	// parameters are always replaced with ..., so they cannot introduce
+	// more parens. e.g., "pkg.(*T[...]).method".
+	//
+	// ARGS can contain parens. We want the first paren that is not
+	// immediately preceded by a ".".
+	//
+	// TODO(prattmic): This is mildly complicated and is only used to find
+	// runtime.sigpanic, so perhaps simplify this by checking explicitly
+	// for sigpanic.
+	getSymbol := func(line string) (string, error) {
+		var prev rune
+		for i, c := range line {
+			if line[i] != '(' {
+				prev = c
+				continue
+			}
+			if prev == '.' {
+				prev = c
+				continue
+			}
+			return line[:i], nil
+		}
+		return "", fmt.Errorf("no symbol for stack frame: %s", line)
+	}
+
 	// getPC parses the PC out of a line of the form:
 	//     \tFILE:LINE +0xRELPC sp=... fp=... pc=...
 	getPC := func(line string) (uint64, error) {
@@ -170,6 +257,9 @@ func parseStackPCs(crash string) ([]uintptr, error) {
 		childSentinel  = sentinel()
 		on             = false // are we in the first running goroutine?
 		lines          = strings.Split(crash, "\n")
+		symLine        = true // within a goroutine, every other line is a symbol or file/line/pc location, starting with symbol.
+		currSymbol     string
+		prevSymbol     string // symbol of the most recent previous frame with a PC.
 	)
 	for i := 0; i < len(lines); i++ {
 		line := lines[i]
@@ -212,21 +302,76 @@ func parseStackPCs(crash string) ([]uintptr, error) {
 		// Note: SYMBOL may contain parens "pkg.(*T).method"
 		// The RELPC is sometimes missing.
 
-		// Skip the symbol(args) line.
-		i++
-		if i == len(lines) {
-			break
-		}
-		line = lines[i]
+		if symLine {
+			var err error
+			currSymbol, err = getSymbol(line)
+			if err != nil {
+				return nil, fmt.Errorf("error extracting symbol: %v", err)
+			}
 
-		// Parse the PC, and correct for the parent and child's
-		// different mappings of the text section.
-		pc, err := getPC(line)
-		if err != nil {
-			// Inlined frame, perhaps; skip it.
-			continue
+			symLine = false // Next line is FILE:LINE.
+		} else {
+			// Parse the PC, and correct for the parent and child's
+			// different mappings of the text section.
+			pc, err := getPC(line)
+			if err != nil {
+				// Inlined frame, perhaps; skip it.
+
+				// Done with this frame. Next line is a new frame.
+				//
+				// Don't update prevSymbol; we only want to
+				// track frames with a PC.
+				currSymbol = ""
+				symLine = true
+				continue
+			}
+
+			pc = pc - parentSentinel + childSentinel
+
+			// If the previous frame was sigpanic, then this frame
+			// was a trap (e.g., SIGSEGV).
+			//
+			// Typically all middle frames are calls, and report
+			// the "return PC". That is, the instruction following
+			// the CALL where the callee will eventually return to.
+			//
+			// runtime.CallersFrames is aware of this property and
+			// will decrement each PC by 1 to "back up" to the
+			// location of the CALL, which is the actual line
+			// number the user expects.
+			//
+			// This does not work for traps, as a trap is not a
+			// call, so the reported PC is not the return PC, but
+			// the actual PC of the trap.
+			//
+			// runtime.Callers is aware of this and will
+			// intentionally increment trap PCs in order to correct
+			// for the decrement performed by
+			// runtime.CallersFrames. See runtime.tracebackPCs and
+			// runtume.(*unwinder).symPC.
+			//
+			// We must emulate the same behavior, otherwise we will
+			// report the location of the instruction immediately
+			// prior to the trap, which may be on a different line,
+			// or even a different inlined functions.
+			//
+			// TODO(prattmic): The runtime applies the same trap
+			// behavior for other "injected calls", see injectCall
+			// in runtime.(*unwinder).next. Do we want to handle
+			// those as well? I don't believe we'd ever see
+			// runtime.asyncPreempt or runtime.debugCallV2 in a
+			// typical crash.
+			if prevSymbol == "runtime.sigpanic" {
+				pc++
+			}
+
+			pcs = append(pcs, uintptr(pc))
+
+			// Done with this frame. Next line is a new frame.
+			prevSymbol = currSymbol
+			currSymbol = ""
+			symLine = true
 		}
-		pcs = append(pcs, uintptr(pc-parentSentinel+childSentinel))
 	}
 	return pcs, nil
 }

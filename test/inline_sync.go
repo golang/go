@@ -37,7 +37,7 @@ var once *sync.Once
 
 func small7() { // ERROR "can inline small7"
 	// the Do fast path should be inlined
-	once.Do(small5) // ERROR "inlining call to sync\.\(\*Once\)\.Do" "inlining call to atomic\.\(\*Uint32\)\.Load"
+	once.Do(small5) // ERROR "inlining call to sync\.\(\*Once\)\.Do" "inlining call to atomic\.\(\*Bool\)\.Load"
 }
 
 var rwmutex *sync.RWMutex

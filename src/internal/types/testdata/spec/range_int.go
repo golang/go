@@ -56,12 +56,12 @@ func _() {
 }
 
 func _[T int | string](x T) {
-	for range x /* ERROR "cannot range over x (variable of type T constrained by int | string): no core type" */ {
+	for range x /* ERROR "cannot range over x (variable of type T constrained by int | string): int and string have different underlying types" */ {
 	}
 }
 
 func _[T int | int64](x T) {
-	for range x /* ERROR "cannot range over x (variable of type T constrained by int | int64): no core type" */ {
+	for range x /* ERROR "cannot range over x (variable of type T constrained by int | int64): int and int64 have different underlying types" */ {
 	}
 }
 

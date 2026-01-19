@@ -620,36 +620,37 @@ func (i SectionIndex) GoString() string { return stringName(uint32(i), shnString
 type SectionType uint32
 
 const (
-	SHT_NULL           SectionType = 0          /* inactive */
-	SHT_PROGBITS       SectionType = 1          /* program defined information */
-	SHT_SYMTAB         SectionType = 2          /* symbol table section */
-	SHT_STRTAB         SectionType = 3          /* string table section */
-	SHT_RELA           SectionType = 4          /* relocation section with addends */
-	SHT_HASH           SectionType = 5          /* symbol hash table section */
-	SHT_DYNAMIC        SectionType = 6          /* dynamic section */
-	SHT_NOTE           SectionType = 7          /* note section */
-	SHT_NOBITS         SectionType = 8          /* no space section */
-	SHT_REL            SectionType = 9          /* relocation section - no addends */
-	SHT_SHLIB          SectionType = 10         /* reserved - purpose unknown */
-	SHT_DYNSYM         SectionType = 11         /* dynamic symbol table section */
-	SHT_INIT_ARRAY     SectionType = 14         /* Initialization function pointers. */
-	SHT_FINI_ARRAY     SectionType = 15         /* Termination function pointers. */
-	SHT_PREINIT_ARRAY  SectionType = 16         /* Pre-initialization function ptrs. */
-	SHT_GROUP          SectionType = 17         /* Section group. */
-	SHT_SYMTAB_SHNDX   SectionType = 18         /* Section indexes (see SHN_XINDEX). */
-	SHT_LOOS           SectionType = 0x60000000 /* First of OS specific semantics */
-	SHT_GNU_ATTRIBUTES SectionType = 0x6ffffff5 /* GNU object attributes */
-	SHT_GNU_HASH       SectionType = 0x6ffffff6 /* GNU hash table */
-	SHT_GNU_LIBLIST    SectionType = 0x6ffffff7 /* GNU prelink library list */
-	SHT_GNU_VERDEF     SectionType = 0x6ffffffd /* GNU version definition section */
-	SHT_GNU_VERNEED    SectionType = 0x6ffffffe /* GNU version needs section */
-	SHT_GNU_VERSYM     SectionType = 0x6fffffff /* GNU version symbol table */
-	SHT_HIOS           SectionType = 0x6fffffff /* Last of OS specific semantics */
-	SHT_LOPROC         SectionType = 0x70000000 /* reserved range for processor */
-	SHT_MIPS_ABIFLAGS  SectionType = 0x7000002a /* .MIPS.abiflags */
-	SHT_HIPROC         SectionType = 0x7fffffff /* specific section header types */
-	SHT_LOUSER         SectionType = 0x80000000 /* reserved range for application */
-	SHT_HIUSER         SectionType = 0xffffffff /* specific indexes */
+	SHT_NULL             SectionType = 0          /* inactive */
+	SHT_PROGBITS         SectionType = 1          /* program defined information */
+	SHT_SYMTAB           SectionType = 2          /* symbol table section */
+	SHT_STRTAB           SectionType = 3          /* string table section */
+	SHT_RELA             SectionType = 4          /* relocation section with addends */
+	SHT_HASH             SectionType = 5          /* symbol hash table section */
+	SHT_DYNAMIC          SectionType = 6          /* dynamic section */
+	SHT_NOTE             SectionType = 7          /* note section */
+	SHT_NOBITS           SectionType = 8          /* no space section */
+	SHT_REL              SectionType = 9          /* relocation section - no addends */
+	SHT_SHLIB            SectionType = 10         /* reserved - purpose unknown */
+	SHT_DYNSYM           SectionType = 11         /* dynamic symbol table section */
+	SHT_INIT_ARRAY       SectionType = 14         /* Initialization function pointers. */
+	SHT_FINI_ARRAY       SectionType = 15         /* Termination function pointers. */
+	SHT_PREINIT_ARRAY    SectionType = 16         /* Pre-initialization function ptrs. */
+	SHT_GROUP            SectionType = 17         /* Section group. */
+	SHT_SYMTAB_SHNDX     SectionType = 18         /* Section indexes (see SHN_XINDEX). */
+	SHT_LOOS             SectionType = 0x60000000 /* First of OS specific semantics */
+	SHT_GNU_ATTRIBUTES   SectionType = 0x6ffffff5 /* GNU object attributes */
+	SHT_GNU_HASH         SectionType = 0x6ffffff6 /* GNU hash table */
+	SHT_GNU_LIBLIST      SectionType = 0x6ffffff7 /* GNU prelink library list */
+	SHT_GNU_VERDEF       SectionType = 0x6ffffffd /* GNU version definition section */
+	SHT_GNU_VERNEED      SectionType = 0x6ffffffe /* GNU version needs section */
+	SHT_GNU_VERSYM       SectionType = 0x6fffffff /* GNU version symbol table */
+	SHT_HIOS             SectionType = 0x6fffffff /* Last of OS specific semantics */
+	SHT_LOPROC           SectionType = 0x70000000 /* reserved range for processor */
+	SHT_RISCV_ATTRIBUTES SectionType = 0x70000003 /* RISCV object attributes */
+	SHT_MIPS_ABIFLAGS    SectionType = 0x7000002a /* .MIPS.abiflags */
+	SHT_HIPROC           SectionType = 0x7fffffff /* specific section header types */
+	SHT_LOUSER           SectionType = 0x80000000 /* reserved range for application */
+	SHT_HIUSER           SectionType = 0xffffffff /* specific indexes */
 )
 
 var shtStrings = []intName{
@@ -678,6 +679,8 @@ var shtStrings = []intName{
 	{0x6ffffffe, "SHT_GNU_VERNEED"},
 	{0x6fffffff, "SHT_GNU_VERSYM"},
 	{0x70000000, "SHT_LOPROC"},
+	// We don't list the processor-dependent SectionType,
+	// as the values overlap.
 	{0x7000002a, "SHT_MIPS_ABIFLAGS"},
 	{0x7fffffff, "SHT_HIPROC"},
 	{0x80000000, "SHT_LOUSER"},
@@ -793,6 +796,8 @@ const (
 	PT_MIPS_RTPROC   ProgType = 0x70000001 /* Runtime procedures */
 	PT_MIPS_OPTIONS  ProgType = 0x70000002 /* Options */
 	PT_MIPS_ABIFLAGS ProgType = 0x70000003 /* ABI flags */
+
+	PT_RISCV_ATTRIBUTES ProgType = 0x70000003 /* RISC-V ELF attribute section. */
 
 	PT_S390_PGSTE ProgType = 0x70000000 /* 4k page table size */
 
@@ -2300,6 +2305,8 @@ const (
 	R_LARCH_TLS_TPREL32                R_LARCH = 10
 	R_LARCH_TLS_TPREL64                R_LARCH = 11
 	R_LARCH_IRELATIVE                  R_LARCH = 12
+	R_LARCH_TLS_DESC32                 R_LARCH = 13
+	R_LARCH_TLS_DESC64                 R_LARCH = 14
 	R_LARCH_MARK_LA                    R_LARCH = 20
 	R_LARCH_MARK_PCREL                 R_LARCH = 21
 	R_LARCH_SOP_PUSH_PCREL             R_LARCH = 22
@@ -2385,6 +2392,23 @@ const (
 	R_LARCH_ADD_ULEB128                R_LARCH = 107
 	R_LARCH_SUB_ULEB128                R_LARCH = 108
 	R_LARCH_64_PCREL                   R_LARCH = 109
+	R_LARCH_CALL36                     R_LARCH = 110
+	R_LARCH_TLS_DESC_PC_HI20           R_LARCH = 111
+	R_LARCH_TLS_DESC_PC_LO12           R_LARCH = 112
+	R_LARCH_TLS_DESC64_PC_LO20         R_LARCH = 113
+	R_LARCH_TLS_DESC64_PC_HI12         R_LARCH = 114
+	R_LARCH_TLS_DESC_HI20              R_LARCH = 115
+	R_LARCH_TLS_DESC_LO12              R_LARCH = 116
+	R_LARCH_TLS_DESC64_LO20            R_LARCH = 117
+	R_LARCH_TLS_DESC64_HI12            R_LARCH = 118
+	R_LARCH_TLS_DESC_LD                R_LARCH = 119
+	R_LARCH_TLS_DESC_CALL              R_LARCH = 120
+	R_LARCH_TLS_LE_HI20_R              R_LARCH = 121
+	R_LARCH_TLS_LE_ADD_R               R_LARCH = 122
+	R_LARCH_TLS_LE_LO12_R              R_LARCH = 123
+	R_LARCH_TLS_LD_PCREL20_S2          R_LARCH = 124
+	R_LARCH_TLS_GD_PCREL20_S2          R_LARCH = 125
+	R_LARCH_TLS_DESC_PCREL20_S2        R_LARCH = 126
 )
 
 var rlarchStrings = []intName{
@@ -2401,6 +2425,8 @@ var rlarchStrings = []intName{
 	{10, "R_LARCH_TLS_TPREL32"},
 	{11, "R_LARCH_TLS_TPREL64"},
 	{12, "R_LARCH_IRELATIVE"},
+	{13, "R_LARCH_TLS_DESC32"},
+	{14, "R_LARCH_TLS_DESC64"},
 	{20, "R_LARCH_MARK_LA"},
 	{21, "R_LARCH_MARK_PCREL"},
 	{22, "R_LARCH_SOP_PUSH_PCREL"},
@@ -2486,6 +2512,23 @@ var rlarchStrings = []intName{
 	{107, "R_LARCH_ADD_ULEB128"},
 	{108, "R_LARCH_SUB_ULEB128"},
 	{109, "R_LARCH_64_PCREL"},
+	{110, "R_LARCH_CALL36"},
+	{111, "R_LARCH_TLS_DESC_PC_HI20"},
+	{112, "R_LARCH_TLS_DESC_PC_LO12"},
+	{113, "R_LARCH_TLS_DESC64_PC_LO20"},
+	{114, "R_LARCH_TLS_DESC64_PC_HI12"},
+	{115, "R_LARCH_TLS_DESC_HI20"},
+	{116, "R_LARCH_TLS_DESC_LO12"},
+	{117, "R_LARCH_TLS_DESC64_LO20"},
+	{118, "R_LARCH_TLS_DESC64_HI12"},
+	{119, "R_LARCH_TLS_DESC_LD"},
+	{120, "R_LARCH_TLS_DESC_CALL"},
+	{121, "R_LARCH_TLS_LE_HI20_R"},
+	{122, "R_LARCH_TLS_LE_ADD_R"},
+	{123, "R_LARCH_TLS_LE_LO12_R"},
+	{124, "R_LARCH_TLS_LD_PCREL20_S2"},
+	{125, "R_LARCH_TLS_GD_PCREL20_S2"},
+	{126, "R_LARCH_TLS_DESC_PCREL20_S2"},
 }
 
 func (i R_LARCH) String() string   { return stringName(uint32(i), rlarchStrings, false) }

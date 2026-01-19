@@ -48,7 +48,7 @@ fn bootstrapenv {
 	GOROOT=$GOROOT_BOOTSTRAP GO111MODULE=off GOENV=off GOOS=() GOARCH=() GOEXPERIMENT=() GOFLAGS=() $*
 }
 
-bootgo = 1.22.6
+bootgo = 1.24.6
 GOROOT = `{cd .. && pwd}
 goroot_bootstrap_set = 'true'
 if(~ $"GOROOT_BOOTSTRAP ''){

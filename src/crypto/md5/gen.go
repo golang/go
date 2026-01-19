@@ -153,7 +153,7 @@ var data = Data{
 		0x8d2a4c8a,
 	},
 	Table3: []uint32{
-		// round3
+		// round 3
 		0xfffa3942,
 		0x8771f681,
 		0x6d9d6122,
@@ -219,7 +219,7 @@ func blockGeneric(dig *digest, p []byte) {
 
 		// load input block
 		{{range $i := seq 16 -}}
-			{{printf "x%x := byteorder.LeUint32(q[4*%#x:])" $i $i}}
+			{{printf "x%x := byteorder.LEUint32(q[4*%#x:])" $i $i}}
 		{{end}}
 
 		// round 1

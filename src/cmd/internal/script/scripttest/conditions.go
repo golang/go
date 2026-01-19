@@ -15,7 +15,7 @@ import (
 	"testing"
 )
 
-// AddToolChainConditions accepts a script.Cond map and adds into it a
+// AddToolChainScriptConditions accepts a [script.Cond] map and adds into it a
 // set of commonly used conditions for doing toolchains testing,
 // including whether the platform supports cgo, a buildmode condition,
 // support for GOEXPERIMENT testing, etc. Callers must also pass in
@@ -88,7 +88,7 @@ func pieLinkExt(s *script.State) (bool, error) {
 
 func hasGodebug(s *script.State, value string) (bool, error) {
 	godebug, _ := s.LookupEnv("GODEBUG")
-	for _, p := range strings.Split(godebug, ",") {
+	for p := range strings.SplitSeq(godebug, ",") {
 		if strings.TrimSpace(p) == value {
 			return true, nil
 		}

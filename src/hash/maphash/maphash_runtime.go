@@ -8,9 +8,11 @@ package maphash
 
 import (
 	"internal/abi"
-	"reflect"
+	"internal/runtime/maps"
 	"unsafe"
 )
+
+const purego = false
 
 //go:linkname runtime_rand runtime.rand
 func runtime_rand() uint64
@@ -27,10 +29,10 @@ func rthash(buf []byte, seed uint64) uint64 {
 	// The runtime hasher only works on uintptr. For 64-bit
 	// architectures, we use the hasher directly. Otherwise,
 	// we use two parallel hashers on the lower and upper 32 bits.
-	if unsafe.Sizeof(uintptr(0)) == 8 {
+	if maps.Use64BitHash {
 		return uint64(runtime_memhash(unsafe.Pointer(&buf[0]), uintptr(seed), uintptr(len)))
 	}
-	lo := runtime_memhash(unsafe.Pointer(&buf[0]), uintptr(seed), uintptr(len))
+	lo := runtime_memhash(unsafe.Pointer(&buf[0]), uintptr(uint32(seed)), uintptr(len))
 	hi := runtime_memhash(unsafe.Pointer(&buf[0]), uintptr(seed>>32), uintptr(len))
 	return uint64(hi)<<32 | uint64(lo)
 }
@@ -44,18 +46,19 @@ func randUint64() uint64 {
 	return runtime_rand()
 }
 
-func comparableF[T comparable](h *Hash, v T) {
-	t := abi.TypeFor[T]()
-	// We can only use the raw memory contents for the hash,
-	// if the raw memory contents are used for computing equality.
-	// That works for some types (int),
-	// but not others (float, string, structs with padding, etc.)
-	if t.TFlag&abi.TFlagRegularMemory != 0 {
-		ptr := unsafe.Pointer(&v)
-		l := t.Size()
-		h.Write(unsafe.Slice((*byte)(ptr), l))
-		return
+func comparableHash[T comparable](v T, seed Seed) uint64 {
+	s := seed.s
+	var m map[T]struct{}
+	mTyp := abi.TypeOf(m)
+	hasher := (*abi.MapType)(unsafe.Pointer(mTyp)).Hasher
+	if maps.Use64BitHash {
+		return uint64(hasher(abi.NoEscape(unsafe.Pointer(&v)), uintptr(s)))
 	}
-	vv := reflect.ValueOf(v)
-	appendT(h, vv)
+	lo := hasher(abi.NoEscape(unsafe.Pointer(&v)), uintptr(uint32(s)))
+	hi := hasher(abi.NoEscape(unsafe.Pointer(&v)), uintptr(s>>32))
+	return uint64(hi)<<32 | uint64(lo)
+}
+
+func writeComparable[T comparable](h *Hash, v T) {
+	h.state.s = comparableHash(v, h.state)
 }

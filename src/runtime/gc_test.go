@@ -7,6 +7,8 @@ package runtime_test
 import (
 	"fmt"
 	"internal/asan"
+	"internal/msan"
+	"internal/race"
 	"internal/testenv"
 	"math/bits"
 	"math/rand"
@@ -199,6 +201,9 @@ func TestPeriodicGC(t *testing.T) {
 }
 
 func TestGcZombieReporting(t *testing.T) {
+	if asan.Enabled || msan.Enabled || race.Enabled {
+		t.Skip("skipped test: checkptr mode catches the issue before getting to zombie reporting")
+	}
 	// This test is somewhat sensitive to how the allocator works.
 	// Pointers in zombies slice may cross-span, thus we
 	// add invalidptr=0 for avoiding the badPointer check.
@@ -834,7 +839,11 @@ func TestWeakToStrongMarkTermination(t *testing.T) {
 		done <- struct{}{}
 	}()
 	go func() {
-		time.Sleep(100 * time.Millisecond)
+		// Usleep here instead of time.Sleep. time.Sleep
+		// can allocate, and if we get unlucky, then it
+		// can end up stuck in gcMarkDone with nothing to
+		// wake it.
+		runtime.Usleep(100000) // 100ms
 
 		// Let mark termination continue.
 		runtime.SetSpinInGCMarkDone(false)
@@ -869,5 +878,27 @@ func TestWeakToStrongMarkTermination(t *testing.T) {
 	// mark termination.
 	if runtime.GCMarkDoneRestarted() {
 		t.Errorf("gcMarkDone restarted")
+	}
+}
+
+func TestDetectFinalizerAndCleanupLeaks(t *testing.T) {
+	got := runTestProg(t, "testprog", "DetectFinalizerAndCleanupLeaks", "GODEBUG=checkfinalizers=1")
+	sp := strings.SplitN(got, "detected possible issues with cleanups and/or finalizers", 2)
+	if len(sp) != 2 {
+		t.Fatalf("expected the runtime to throw, got:\n%s", got)
+	}
+	if strings.Count(sp[0], "is reachable from") != 2 {
+		t.Fatalf("expected exactly two leaked cleanups and/or finalizers, got:\n%s", got)
+	}
+	// N.B. Disable in race mode and in asan mode. Both disable the tiny allocator.
+	wantSymbolizedLocations := 2
+	if !race.Enabled && !asan.Enabled {
+		if strings.Count(sp[0], "is in a tiny block") != 1 {
+			t.Fatalf("expected exactly one report for allocation in a tiny block, got:\n%s", got)
+		}
+		wantSymbolizedLocations++
+	}
+	if strings.Count(sp[0], "main.DetectFinalizerAndCleanupLeaks()") != wantSymbolizedLocations {
+		t.Fatalf("expected %d symbolized locations, got:\n%s", wantSymbolizedLocations, got)
 	}
 }

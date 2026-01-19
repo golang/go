@@ -3,60 +3,103 @@
 // license that can be found in the LICENSE file.
 
 // Package synctest provides support for testing concurrent code.
+//
+// See the testing/synctest package for function documentation.
 package synctest
 
 import (
-	_ "unsafe" // for go:linkname
+	"internal/abi"
+	"unsafe"
 )
 
-// Run executes f in a new goroutine.
-//
-// The new goroutine and any goroutines transitively started by it form
-// an isolated "bubble".
-// Run waits for all goroutines in the bubble to exit before returning.
-//
-// Goroutines in the bubble use a synthetic time implementation.
-// The initial time is midnight UTC 2000-01-01.
-//
-// Time advances when every goroutine in the bubble is blocked.
-// For example, a call to time.Sleep will block until all other
-// goroutines are blocked and return after the bubble's clock has
-// advanced. See [Wait] for the specific definition of blocked.
-//
-// If every goroutine is blocked and there are no timers scheduled,
-// Run panics.
-//
-// Channels, time.Timers, and time.Tickers created within the bubble
-// are associated with it. Operating on a bubbled channel, timer, or ticker
-// from outside the bubble panics.
-//
 //go:linkname Run
 func Run(f func())
 
-// Wait blocks until every goroutine within the current bubble,
-// other than the current goroutine, is durably blocked.
-// It panics if called from a non-bubbled goroutine,
-// or if two goroutines in the same bubble call Wait at the same time.
-//
-// A goroutine is durably blocked if can only be unblocked by another
-// goroutine in its bubble. The following operations durably block
-// a goroutine:
-//   - a send or receive on a channel from within the bubble
-//   - a select statement where every case is a channel within the bubble
-//   - sync.Cond.Wait
-//   - time.Sleep
-//
-// A goroutine executing a system call or waiting for an external event
-// such as a network operation is not durably blocked.
-// For example, a goroutine blocked reading from an network connection
-// is not durably blocked even if no data is currently available on the
-// connection, because it may be unblocked by data written from outside
-// the bubble or may be in the process of receiving data from a kernel
-// network buffer.
-//
-// A goroutine is not durably blocked when blocked on a send or receive
-// on a channel that was not created within its bubble, because it may
-// be unblocked by a channel receive or send from outside its bubble.
-//
 //go:linkname Wait
 func Wait()
+
+// IsInBubble reports whether the current goroutine is in a bubble.
+//
+//go:linkname IsInBubble
+func IsInBubble() bool
+
+// Association is the state of a pointer's bubble association.
+type Association int
+
+const (
+	Unbubbled     = Association(iota) // not associated with any bubble
+	CurrentBubble                     // associated with the current bubble
+	OtherBubble                       // associated with a different bubble
+)
+
+// Associate attempts to associate p with the current bubble.
+// It returns the new association status of p.
+func Associate[T any](p *T) Association {
+	// Ensure p escapes to permit us to attach a special to it.
+	escapedP := abi.Escape(p)
+	return Association(associate(unsafe.Pointer(escapedP)))
+}
+
+//go:linkname associate
+func associate(p unsafe.Pointer) int
+
+// Disassociate disassociates p from any bubble.
+func Disassociate[T any](p *T) {
+	disassociate(unsafe.Pointer(p))
+}
+
+//go:linkname disassociate
+func disassociate(b unsafe.Pointer)
+
+// IsAssociated reports whether p is associated with the current bubble.
+func IsAssociated[T any](p *T) bool {
+	return isAssociated(unsafe.Pointer(p))
+}
+
+//go:linkname isAssociated
+func isAssociated(p unsafe.Pointer) bool
+
+//go:linkname acquire
+func acquire() any
+
+//go:linkname release
+func release(any)
+
+//go:linkname inBubble
+func inBubble(any, func())
+
+// A Bubble is a synctest bubble.
+//
+// Not a public API. Used by syscall/js to propagate bubble membership through syscalls.
+type Bubble struct {
+	b any
+}
+
+// Acquire returns a reference to the current goroutine's bubble.
+// The bubble will not become idle until Release is called.
+func Acquire() *Bubble {
+	if b := acquire(); b != nil {
+		return &Bubble{b}
+	}
+	return nil
+}
+
+// Release releases the reference to the bubble,
+// allowing it to become idle again.
+func (b *Bubble) Release() {
+	if b == nil {
+		return
+	}
+	release(b.b)
+	b.b = nil
+}
+
+// Run executes f in the bubble.
+// The current goroutine must not be part of a bubble.
+func (b *Bubble) Run(f func()) {
+	if b == nil {
+		f()
+	} else {
+		inBubble(b.b, f)
+	}
+}

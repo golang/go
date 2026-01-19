@@ -211,11 +211,17 @@ func (s *Source) group() Value {
 	return GroupValue(as...)
 }
 
-// source returns a Source for the log event.
-// If the Record was created without the necessary information,
-// or if the location is unavailable, it returns a non-nil *Source
-// with zero fields.
-func (r Record) source() *Source {
+// isEmpty returns whether the Source struct is nil or only contains zero fields.
+func (s *Source) isEmpty() bool { return s == nil || *s == Source{} }
+
+// Source returns a new Source for the log event using r's PC.
+// If the PC field is zero, meaning the Record was created without the necessary information
+// or the location is unavailable, then nil is returned.
+func (r Record) Source() *Source {
+	if r.PC == 0 {
+		return nil
+	}
+
 	fs := runtime.CallersFrames([]uintptr{r.PC})
 	f, _ := fs.Next()
 	return &Source{

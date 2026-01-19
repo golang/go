@@ -7,6 +7,7 @@ package runtime_test
 import (
 	"encoding/binary"
 	"fmt"
+	"internal/byteorder"
 	"internal/race"
 	"internal/testenv"
 	"math"
@@ -326,10 +327,7 @@ func genPerm(h *HashSet, b []byte, s []uint32, n int) {
 		return
 	}
 	for _, v := range s {
-		b[n] = byte(v)
-		b[n+1] = byte(v >> 8)
-		b[n+2] = byte(v >> 16)
-		b[n+3] = byte(v >> 24)
+		byteorder.LEPutUint32(b[n:], v)
 		genPerm(h, b, s, n+4)
 	}
 }
@@ -638,11 +636,10 @@ func TestSmhasherSeed(t *testing.T) {
 }
 
 func TestIssue66841(t *testing.T) {
-	testenv.MustHaveExec(t)
 	if *UseAeshash && os.Getenv("TEST_ISSUE_66841") == "" {
 		// We want to test the backup hash, so if we're running on a machine
 		// that uses aeshash, exec ourselves while turning aes off.
-		cmd := testenv.CleanCmdEnv(testenv.Command(t, os.Args[0], "-test.run=^TestIssue66841$"))
+		cmd := testenv.CleanCmdEnv(testenv.Command(t, testenv.Executable(t), "-test.run=^TestIssue66841$"))
 		cmd.Env = append(cmd.Env, "GODEBUG=cpu.aes=off", "TEST_ISSUE_66841=1")
 		out, err := cmd.CombinedOutput()
 		if err != nil {

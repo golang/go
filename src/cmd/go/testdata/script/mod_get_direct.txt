@@ -2,14 +2,14 @@
 # 'GOPROXY=direct go get golang.org/x/tools/gopls@master' did not correctly
 # resolve the pseudo-version for its dependency on golang.org/x/tools.
 
-[!net:cloud.google.com] skip
+[short] skip
 [!git] skip
 
 env GO111MODULE=on
 env GOPROXY=direct
 env GOSUMDB=off
 
-go list -m cloud.google.com/go@main
+go list -m vcs-test.golang.org/git/tagtests.git@master
 ! stdout 'v0.0.0-'
 
 -- go.mod --

@@ -114,7 +114,7 @@ type I1[T any] interface{
 }
 
 // There is no such thing as a variadic generic type.
-type _[T ... /* ERROR "invalid use of '...'" */ any] struct{}
+type _[T ... /* ERROR "invalid use of ..." */ any] struct{}
 
 // Generic interfaces may be embedded as one would expect.
 type I2 interface {

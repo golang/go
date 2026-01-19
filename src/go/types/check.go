@@ -13,6 +13,7 @@ import (
 	"go/token"
 	"internal/godebug"
 	. "internal/types/errors"
+	"os"
 	"sync/atomic"
 )
 
@@ -22,6 +23,9 @@ var noposn = atPos(nopos)
 
 // debugging/development support
 const debug = false // leave on during development
+
+// position tracing for panics during type checking
+const tracePos = true
 
 // gotypesalias controls the use of Alias types.
 // As of Apr 16 2024 they are used by default.
@@ -157,9 +161,10 @@ type Checker struct {
 	fset *token.FileSet
 	pkg  *Package
 	*Info
-	nextID uint64                 // unique Id for type parameters (first valid Id is 1)
-	objMap map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
-	impMap map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
+	nextID  uint64                 // unique Id for type parameters (first valid Id is 1)
+	objMap  map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
+	objList []Object               // source-ordered keys of objMap
+	impMap  map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
 	// see TODO in validtype.go
 	// valids instanceLookup // valid *Named (incl. instantiated) types per the validType check
 
@@ -182,21 +187,25 @@ type Checker struct {
 	dotImportMap  map[dotImportKey]*PkgName // maps dot-imported objects to the package they were dot-imported through
 	brokenAliases map[*TypeName]bool        // set of aliases with broken (not yet determined) types
 	unionTypeSets map[*Union]*_TypeSet      // computed type sets for union types
+	usedVars      map[*Var]bool             // set of used variables
+	usedPkgNames  map[*PkgName]bool         // set of used package names
 	mono          monoGraph                 // graph for detecting non-monomorphizable instantiation loops
 
-	firstErr error                 // first error encountered
-	methods  map[*TypeName][]*Func // maps package scope type names to associated non-blank (non-interface) methods
-	untyped  map[ast.Expr]exprInfo // map of expressions without final type
-	delayed  []action              // stack of delayed action segments; segments are processed in FIFO order
-	objPath  []Object              // path of object dependencies during type inference (for cycle reporting)
-	cleaners []cleaner             // list of types that may need a final cleanup at the end of type-checking
+	firstErr   error                 // first error encountered
+	methods    map[*TypeName][]*Func // maps package scope type names to associated non-blank (non-interface) methods
+	untyped    map[ast.Expr]exprInfo // map of expressions without final type
+	delayed    []action              // stack of delayed action segments; segments are processed in FIFO order
+	objPath    []Object              // path of object dependencies during type-checking (for cycle reporting)
+	objPathIdx map[Object]int        // map of object to object path index during type-checking (for cycle reporting)
+	cleaners   []cleaner             // list of types that may need a final cleanup at the end of type-checking
 
 	// environment within which the current object is type-checked (valid only
 	// for the duration of type-checking a specific object)
 	environment
 
 	// debugging
-	indent int // indentation for tracing
+	posStack []positioner // stack of source positions seen; used for panic tracing
+	indent   int          // indentation for tracing
 }
 
 // addDeclDep adds the dependency edge (check.decl -> to) if check.decl exists
@@ -260,19 +269,22 @@ func (check *Checker) later(f func()) *action {
 	return &check.delayed[i]
 }
 
-// push pushes obj onto the object path and returns its index in the path.
-func (check *Checker) push(obj Object) int {
+// push pushes obj onto the object path and records its index in the path index map.
+func (check *Checker) push(obj Object) {
+	if check.objPathIdx == nil {
+		check.objPathIdx = make(map[Object]int)
+	}
+	check.objPathIdx[obj] = len(check.objPath)
 	check.objPath = append(check.objPath, obj)
-	return len(check.objPath) - 1
 }
 
-// pop pops and returns the topmost object from the object path.
-func (check *Checker) pop() Object {
+// pop pops an object from the object path and removes it from the path index map.
+func (check *Checker) pop() {
 	i := len(check.objPath) - 1
 	obj := check.objPath[i]
-	check.objPath[i] = nil
+	check.objPath[i] = nil // help the garbage collector
 	check.objPath = check.objPath[:i]
-	return obj
+	delete(check.objPathIdx, obj)
 }
 
 type cleaner interface {
@@ -308,13 +320,15 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
 	conf._EnableAlias = gotypesalias.Value() != "0"
 
 	return &Checker{
-		conf:   conf,
-		ctxt:   conf.Context,
-		fset:   fset,
-		pkg:    pkg,
-		Info:   info,
-		objMap: make(map[Object]*declInfo),
-		impMap: make(map[importKey]*Package),
+		conf:         conf,
+		ctxt:         conf.Context,
+		fset:         fset,
+		pkg:          pkg,
+		Info:         info,
+		objMap:       make(map[Object]*declInfo),
+		impMap:       make(map[importKey]*Package),
+		usedVars:     make(map[*Var]bool),
+		usedPkgNames: make(map[*PkgName]bool),
 	}
 }
 
@@ -322,6 +336,8 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
 // The provided files must all belong to the same package.
 func (check *Checker) initFiles(files []*ast.File) {
 	// start with a clean slate (check.Files may be called multiple times)
+	// TODO(gri): what determines which fields are zeroed out here, vs at the end
+	// of checkFiles?
 	check.files = nil
 	check.imports = nil
 	check.dotImportMap = nil
@@ -331,7 +347,15 @@ func (check *Checker) initFiles(files []*ast.File) {
 	check.untyped = nil
 	check.delayed = nil
 	check.objPath = nil
+	check.objPathIdx = nil
 	check.cleaners = nil
+
+	// We must initialize usedVars and usedPkgNames both here and in NewChecker,
+	// because initFiles is not called in the CheckExpr or Eval codepaths, yet we
+	// want to free this memory at the end of Files ('used' predicates are
+	// only needed in the context of a given file).
+	check.usedVars = make(map[*Var]bool)
+	check.usedPkgNames = make(map[*PkgName]bool)
 
 	// determine package name and collect valid files
 	pkg := check.pkg
@@ -408,6 +432,16 @@ func versionMax(a, b goVersion) goVersion {
 	return a
 }
 
+// pushPos pushes pos onto the pos stack.
+func (check *Checker) pushPos(pos positioner) {
+	check.posStack = append(check.posStack, pos)
+}
+
+// popPos pops from the pos stack.
+func (check *Checker) popPos() {
+	check.posStack = check.posStack[:len(check.posStack)-1]
+}
+
 // A bailout panic is used for early termination.
 type bailout struct{}
 
@@ -417,6 +451,24 @@ func (check *Checker) handleBailout(err *error) {
 		// normal return or early exit
 		*err = check.firstErr
 	default:
+		if len(check.posStack) > 0 {
+			doPrint := func(ps []positioner) {
+				for i := len(ps) - 1; i >= 0; i-- {
+					fmt.Fprintf(os.Stderr, "\t%v\n", check.fset.Position(ps[i].Pos()))
+				}
+			}
+
+			fmt.Fprintln(os.Stderr, "The following panic happened checking types near:")
+			if len(check.posStack) <= 10 {
+				doPrint(check.posStack)
+			} else {
+				// if it's long, truncate the middle; it's least likely to help
+				doPrint(check.posStack[len(check.posStack)-5:])
+				fmt.Fprintln(os.Stderr, "\t...")
+				doPrint(check.posStack[:5])
+			}
+		}
+
 		// re-panic
 		panic(p)
 	}
@@ -472,6 +524,12 @@ func (check *Checker) checkFiles(files []*ast.File) {
 	print("== collectObjects ==")
 	check.collectObjects()
 
+	print("== sortObjects ==")
+	check.sortObjects()
+
+	print("== directCycles ==")
+	check.directCycles()
+
 	print("== packageObjects ==")
 	check.packageObjects()
 
@@ -507,9 +565,12 @@ func (check *Checker) checkFiles(files []*ast.File) {
 	check.seenPkgMap = nil
 	check.brokenAliases = nil
 	check.unionTypeSets = nil
+	check.usedVars = nil
+	check.usedPkgNames = nil
 	check.ctxt = nil
 
-	// TODO(rFindley) There's more memory we should release at this point.
+	// TODO(gri): shouldn't the cleanup above occur after the bailout?
+	// TODO(gri) There's more memory we should release at this point.
 }
 
 // processDelayed processes all delayed actions pushed after top.

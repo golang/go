@@ -56,7 +56,7 @@ type candRegion struct {
 type cstate struct {
 	fn             *ir.Func
 	f              *ssa.Func
-	lv             *liveness
+	lv             *Liveness
 	cands          []*ir.Name
 	nameToSlot     map[*ir.Name]int32
 	regions        []candRegion

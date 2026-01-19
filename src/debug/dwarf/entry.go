@@ -229,7 +229,7 @@ func formToClass(form format, attr Attr, vers int, b *buf) Class {
 	}
 }
 
-// An entry is a sequence of attribute/value pairs.
+// An Entry is a sequence of attribute/value pairs.
 type Entry struct {
 	Offset   Offset // offset of Entry in DWARF info
 	Tag      Tag    // tag (kind of Entry)
@@ -407,7 +407,8 @@ type Offset uint32
 
 // Entry reads a single entry from buf, decoding
 // according to the given abbreviation table.
-func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry {
+func (b *buf) entry(cu *Entry, u *unit) *Entry {
+	atab, ubase, vers := u.atable, u.base, u.vers
 	off := b.off
 	id := uint32(b.uint())
 	if id == 0 {
@@ -424,16 +425,6 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry 
 		Children: a.children,
 		Field:    make([]Field, len(a.field)),
 	}
-
-	// If we are currently parsing the compilation unit,
-	// we can't evaluate Addrx or Strx until we've seen the
-	// relevant base entry.
-	type delayed struct {
-		idx int
-		off uint64
-		fmt format
-	}
-	var delay []delayed
 
 	resolveStrx := func(strBase, off uint64) string {
 		off += strBase
@@ -531,18 +522,7 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry 
 				return nil
 			}
 
-			// We have to adjust by the offset of the
-			// compilation unit. This won't work if the
-			// program uses Reader.Seek to skip over the
-			// unit. Not much we can do about that.
-			var addrBase int64
-			if cu != nil {
-				addrBase, _ = cu.Val(AttrAddrBase).(int64)
-			} else if a.tag == TagCompileUnit {
-				delay = append(delay, delayed{i, off, formAddrx})
-				break
-			}
-
+			addrBase := int64(u.addrBase())
 			var err error
 			val, err = b.dwarf.debugAddr(b.format, uint64(addrBase), off)
 			if err != nil {
@@ -574,7 +554,7 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry 
 		case formData16:
 			val = b.bytes(16)
 		case formSdata:
-			val = int64(b.int())
+			val = b.int()
 		case formUdata:
 			val = int64(b.uint())
 		case formImplicitConst:
@@ -682,18 +662,7 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry 
 				off *= 4
 			}
 
-			// We have to adjust by the offset of the
-			// compilation unit. This won't work if the
-			// program uses Reader.Seek to skip over the
-			// unit. Not much we can do about that.
-			var strBase int64
-			if cu != nil {
-				strBase, _ = cu.Val(AttrStrOffsetsBase).(int64)
-			} else if a.tag == TagCompileUnit {
-				delay = append(delay, delayed{i, off, formStrx})
-				break
-			}
-
+			strBase := int64(u.strOffsetsBase())
 			val = resolveStrx(uint64(strBase), off)
 
 		case formStrpSup:
@@ -742,18 +711,7 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry 
 		case formRnglistx:
 			off := b.uint()
 
-			// We have to adjust by the rnglists_base of
-			// the compilation unit. This won't work if
-			// the program uses Reader.Seek to skip over
-			// the unit. Not much we can do about that.
-			var rnglistsBase int64
-			if cu != nil {
-				rnglistsBase, _ = cu.Val(AttrRnglistsBase).(int64)
-			} else if a.tag == TagCompileUnit {
-				delay = append(delay, delayed{i, off, formRnglistx})
-				break
-			}
-
+			rnglistsBase := int64(u.rngListsBase())
 			val = resolveRnglistx(uint64(rnglistsBase), off)
 		}
 
@@ -762,32 +720,6 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry 
 	if b.err != nil {
 		return nil
 	}
-
-	for _, del := range delay {
-		switch del.fmt {
-		case formAddrx:
-			addrBase, _ := e.Val(AttrAddrBase).(int64)
-			val, err := b.dwarf.debugAddr(b.format, uint64(addrBase), del.off)
-			if err != nil {
-				b.err = err
-				return nil
-			}
-			e.Field[del.idx].Val = val
-		case formStrx:
-			strBase, _ := e.Val(AttrStrOffsetsBase).(int64)
-			e.Field[del.idx].Val = resolveStrx(uint64(strBase), del.off)
-			if b.err != nil {
-				return nil
-			}
-		case formRnglistx:
-			rnglistsBase, _ := e.Val(AttrRnglistsBase).(int64)
-			e.Field[del.idx].Val = resolveRnglistx(uint64(rnglistsBase), del.off)
-			if b.err != nil {
-				return nil
-			}
-		}
-	}
-
 	return e
 }
 
@@ -839,6 +771,7 @@ func (r *Reader) Seek(off Offset) {
 		u := &d.unit[0]
 		r.unit = 0
 		r.b = makeBuf(r.d, u, "info", u.off, u.data)
+		r.collectDwarf5BaseOffsets(u)
 		r.cu = nil
 		return
 	}
@@ -854,6 +787,7 @@ func (r *Reader) Seek(off Offset) {
 	u := &d.unit[i]
 	r.unit = i
 	r.b = makeBuf(r.d, u, "info", off, u.data[off-u.off:])
+	r.collectDwarf5BaseOffsets(u)
 }
 
 // maybeNextUnit advances to the next unit if this one is finished.
@@ -869,6 +803,17 @@ func (r *Reader) nextUnit() {
 	u := &r.d.unit[r.unit]
 	r.b = makeBuf(r.d, u, "info", u.off, u.data)
 	r.cu = nil
+	r.collectDwarf5BaseOffsets(u)
+}
+
+func (r *Reader) collectDwarf5BaseOffsets(u *unit) {
+	if u.vers < 5 || u.unit5 != nil {
+		return
+	}
+	u.unit5 = new(unit5)
+	if err := r.d.collectDwarf5BaseOffsets(u); err != nil {
+		r.err = err
+	}
 }
 
 // Next reads the next entry from the encoded entry stream.
@@ -884,7 +829,7 @@ func (r *Reader) Next() (*Entry, error) {
 		return nil, nil
 	}
 	u := &r.d.unit[r.unit]
-	e := r.b.entry(r.cu, u.atable, u.base, u.vers)
+	e := r.b.entry(r.cu, u)
 	if r.b.err != nil {
 		r.err = r.b.err
 		return nil, r.err
@@ -974,6 +919,7 @@ func (r *Reader) SeekPC(pc uint64) (*Entry, error) {
 		r.cu = nil
 		u := &r.d.unit[unit]
 		r.b = makeBuf(r.d, u, "info", u.off, u.data)
+		r.collectDwarf5BaseOffsets(u)
 		e, err := r.Next()
 		if err != nil {
 			return nil, err
@@ -1091,7 +1037,7 @@ func (d *Data) baseAddressForEntry(e *Entry) (*Entry, uint64, error) {
 		}
 		u := &d.unit[i]
 		b := makeBuf(d, u, "info", u.off, u.data)
-		cu = b.entry(nil, u.atable, u.base, u.vers)
+		cu = b.entry(nil, u)
 		if b.err != nil {
 			return nil, 0, b.err
 		}

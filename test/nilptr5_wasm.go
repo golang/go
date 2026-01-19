@@ -30,3 +30,8 @@ func f6(p, q *T) {
 func f8(t *[8]int) [8]int {
 	return *t // ERROR "generated nil check"
 }
+
+// nil check is not removed on Wasm.
+func f9(x **int, y *int) {
+	*x = y // ERROR "generated nil check"
+}

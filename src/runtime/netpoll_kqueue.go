@@ -129,10 +129,11 @@ retry:
 		ev := &events[i]
 
 		if isWakeup(ev) {
-			if delay != 0 {
+			isBlocking := delay != 0
+			processWakeupEvent(kq, isBlocking)
+			if isBlocking {
 				// netpollBreak could be picked up by a nonblocking poll.
-				// Only call drainWakeupEvent and reset the netpollWakeSig if blocking.
-				drainWakeupEvent(kq)
+				// Only reset the netpollWakeSig if blocking.
 				netpollWakeSig.Store(0)
 			}
 			continue

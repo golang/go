@@ -2,7 +2,6 @@
 # Rudimentary test of testing.Coverage().
 
 [short] skip
-[!GOEXPERIMENT:coverageredesign] skip
 
 # Simple test.
 go test -v -cover -count=1

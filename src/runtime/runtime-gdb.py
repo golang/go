@@ -46,11 +46,13 @@ G_MORIBUND_UNUSED = read_runtime_const("'runtime._Gmoribund_unused'", 5)
 G_DEAD = read_runtime_const("'runtime._Gdead'", 6)
 G_ENQUEUE_UNUSED = read_runtime_const("'runtime._Genqueue_unused'", 7)
 G_COPYSTACK = read_runtime_const("'runtime._Gcopystack'", 8)
+G_DEADEXTRA = read_runtime_const("'runtime._Gdeadextra'", 10)
 G_SCAN = read_runtime_const("'runtime._Gscan'", 0x1000)
 G_SCANRUNNABLE = G_SCAN+G_RUNNABLE
 G_SCANRUNNING = G_SCAN+G_RUNNING
 G_SCANSYSCALL = G_SCAN+G_SYSCALL
 G_SCANWAITING = G_SCAN+G_WAITING
+G_SCANEXTRA = G_SCAN+G_DEADEXTRA
 
 sts = {
     G_IDLE: 'idle',
@@ -62,11 +64,13 @@ sts = {
     G_DEAD: 'dead',
     G_ENQUEUE_UNUSED: 'enqueue',
     G_COPYSTACK: 'copystack',
+    G_DEADEXTRA: 'extra',
     G_SCAN: 'scan',
     G_SCANRUNNABLE: 'runnable+s',
     G_SCANRUNNING: 'running+s',
     G_SCANSYSCALL: 'syscall+s',
     G_SCANWAITING: 'waiting+s',
+    G_SCANEXTRA: 'extra+s',
 }
 
 
@@ -160,14 +164,7 @@ class MapTypePrinter:
 		return str(self.val.type)
 
 	def children(self):
-		fields = [f.name for f in self.val.type.strip_typedefs().target().fields()]
-		if 'buckets' in fields:
-			yield from self.old_map_children()
-		else:
-			yield from self.swiss_map_children()
-
-	def swiss_map_children(self):
-		SwissMapGroupSlots = 8 # see internal/abi:SwissMapGroupSlots
+		MapGroupSlots = 8 # see internal/abi:MapGroupSlots
 
 		cnt = 0
 		# Yield keys and elements in group.
@@ -175,7 +172,7 @@ class MapTypePrinter:
 		def group_slots(group):
 			ctrl = group['ctrl']
 
-			for i in xrange(SwissMapGroupSlots):
+			for i in xrange(MapGroupSlots):
 				c = (ctrl >> (8*i)) & 0xff
 				if (c & 0x80) != 0:
 					# Empty or deleted
@@ -186,7 +183,7 @@ class MapTypePrinter:
 				yield str(cnt+1), group['slots'][i]['elem']
 
 		# The linker DWARF generation
-		# (cmd/link/internal/ld.(*dwctxt).synthesizemaptypesSwiss) records
+		# (cmd/link/internal/ld.(*dwctxt).synthesizemaptypes) records
 		# dirPtr as a **table[K,V], but it may actually be two different types:
 		#
 		# For "full size" maps (dirLen > 0), dirPtr is actually a pointer to
@@ -249,7 +246,7 @@ class MapTypePrinter:
 			length = table['groups']['lengthMask'] + 1
 
 			# The linker DWARF generation
-			# (cmd/link/internal/ld.(*dwctxt).synthesizemaptypesSwiss) records
+			# (cmd/link/internal/ld.(*dwctxt).synthesizemaptypes) records
 			# groups.data as a *group[K,V], but it is actually a pointer to
 			# variable length array *[length]group[K,V].
 			#
@@ -268,40 +265,6 @@ class MapTypePrinter:
 			for i in xrange(length):
 				group = groups[i]
 				yield from group_slots(group)
-
-
-	def old_map_children(self):
-		MapBucketCount = 8 # see internal/abi:OldMapBucketCount
-		B = self.val['B']
-		buckets = self.val['buckets']
-		oldbuckets = self.val['oldbuckets']
-		flags = self.val['flags']
-		inttype = self.val['hash0'].type
-		cnt = 0
-		for bucket in xrange(2 ** int(B)):
-			bp = buckets + bucket
-			if oldbuckets:
-				oldbucket = bucket & (2 ** (B - 1) - 1)
-				oldbp = oldbuckets + oldbucket
-				oldb = oldbp.dereference()
-				if (oldb['overflow'].cast(inttype) & 1) == 0:  # old bucket not evacuated yet
-					if bucket >= 2 ** (B - 1):
-						continue    # already did old bucket
-					bp = oldbp
-			while bp:
-				b = bp.dereference()
-				for i in xrange(MapBucketCount):
-					if b['tophash'][i] != 0:
-						k = b['keys'][i]
-						v = b['values'][i]
-						if flags & 1:
-							k = k.dereference()
-						if flags & 2:
-							v = v.dereference()
-						yield str(cnt), k
-						yield str(cnt + 1), v
-						cnt += 2
-				bp = b['overflow']
 
 
 class ChanTypePrinter:
@@ -565,7 +528,7 @@ class GoroutinesCmd(gdb.Command):
 		# args = gdb.string_to_argv(arg)
 		vp = gdb.lookup_type('void').pointer()
 		for ptr in SliceValue(gdb.parse_and_eval("'runtime.allgs'")):
-			if ptr['atomicstatus']['value'] == G_DEAD:
+			if ptr['atomicstatus']['value'] in [G_DEAD, G_DEADEXTRA]:
 				continue
 			s = ' '
 			if ptr['m']:
@@ -590,7 +553,7 @@ def find_goroutine(goid):
 	"""
 	vp = gdb.lookup_type('void').pointer()
 	for ptr in SliceValue(gdb.parse_and_eval("'runtime.allgs'")):
-		if ptr['atomicstatus']['value'] == G_DEAD:
+		if ptr['atomicstatus']['value'] in [G_DEAD, G_DEADEXTRA]:
 			continue
 		if ptr['goid'] == goid:
 			break

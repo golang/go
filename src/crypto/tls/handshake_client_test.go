@@ -11,6 +11,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/tls/internal/fips140tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/base64"
@@ -207,7 +208,7 @@ func (test *clientTest) connFromCommand() (conn *recordingConn, child *exec.Cmd,
 		var serverInfo bytes.Buffer
 		for _, ext := range test.extensions {
 			pem.Encode(&serverInfo, &pem.Block{
-				Type:  fmt.Sprintf("SERVERINFO FOR EXTENSION %d", byteorder.BeUint16(ext)),
+				Type:  fmt.Sprintf("SERVERINFO FOR EXTENSION %d", byteorder.BEUint16(ext)),
 				Bytes: ext,
 			})
 		}
@@ -625,7 +626,7 @@ func TestHandshakeClientHelloRetryRequest(t *testing.T) {
 		args:   []string{"-cipher", "ECDHE-RSA-AES128-GCM-SHA256", "-curves", "P-256"},
 		config: config,
 		validate: func(cs ConnectionState) error {
-			if !cs.testingOnlyDidHRR {
+			if !cs.HelloRetryRequest {
 				return errors.New("expected HelloRetryRequest")
 			}
 			return nil
@@ -637,7 +638,7 @@ func TestHandshakeClientHelloRetryRequest(t *testing.T) {
 
 func TestHandshakeClientECDHERSAChaCha20(t *testing.T) {
 	config := testConfig.Clone()
-	config.CipherSuites = []uint16{TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305}
+	config.CipherSuites = []uint16{TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256}
 
 	test := &clientTest{
 		name:   "ECDHE-RSA-CHACHA20-POLY1305",
@@ -650,7 +651,7 @@ func TestHandshakeClientECDHERSAChaCha20(t *testing.T) {
 
 func TestHandshakeClientECDHEECDSAChaCha20(t *testing.T) {
 	config := testConfig.Clone()
-	config.CipherSuites = []uint16{TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305}
+	config.CipherSuites = []uint16{TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256}
 
 	test := &clientTest{
 		name:   "ECDHE-ECDSA-CHACHA20-POLY1305",
@@ -848,13 +849,17 @@ func testResumption(t *testing.T, version uint16) {
 	if testing.Short() {
 		t.Skip("skipping in -short mode")
 	}
+
+	// Note: using RSA 2048 test certificates because they are compatible with FIPS mode.
+	testCertificates := []Certificate{{Certificate: [][]byte{testRSA2048Certificate}, PrivateKey: testRSA2048PrivateKey}}
 	serverConfig := &Config{
 		MaxVersion:   version,
-		CipherSuites: []uint16{TLS_RSA_WITH_RC4_128_SHA, TLS_ECDHE_RSA_WITH_RC4_128_SHA},
-		Certificates: testConfig.Certificates,
+		CipherSuites: []uint16{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384},
+		Certificates: testCertificates,
+		Time:         testTime,
 	}
 
-	issuer, err := x509.ParseCertificate(testRSACertificateIssuer)
+	issuer, err := x509.ParseCertificate(testRSA2048CertificateIssuer)
 	if err != nil {
 		panic(err)
 	}
@@ -864,10 +869,11 @@ func testResumption(t *testing.T, version uint16) {
 
 	clientConfig := &Config{
 		MaxVersion:         version,
-		CipherSuites:       []uint16{TLS_RSA_WITH_RC4_128_SHA},
+		CipherSuites:       []uint16{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256},
 		ClientSessionCache: NewLRUClientSessionCache(32),
 		RootCAs:            rootCAs,
 		ServerName:         "example.golang",
+		Time:               testTime,
 	}
 
 	testResumeState := func(test string, didResume bool) {
@@ -914,7 +920,7 @@ func testResumption(t *testing.T, version uint16) {
 
 	// An old session ticket is replaced with a ticket encrypted with a fresh key.
 	ticket = getTicket()
-	serverConfig.Time = func() time.Time { return time.Now().Add(24*time.Hour + time.Minute) }
+	serverConfig.Time = func() time.Time { return testTime().Add(24*time.Hour + time.Minute) }
 	testResumeState("ResumeWithOldTicket", true)
 	if bytes.Equal(ticket, getTicket()) {
 		t.Fatal("old first ticket matches the fresh one")
@@ -922,13 +928,13 @@ func testResumption(t *testing.T, version uint16) {
 
 	// Once the session master secret is expired, a full handshake should occur.
 	ticket = getTicket()
-	serverConfig.Time = func() time.Time { return time.Now().Add(24*8*time.Hour + time.Minute) }
+	serverConfig.Time = func() time.Time { return testTime().Add(24*8*time.Hour + time.Minute) }
 	testResumeState("ResumeWithExpiredTicket", false)
 	if bytes.Equal(ticket, getTicket()) {
 		t.Fatal("expired first ticket matches the fresh one")
 	}
 
-	serverConfig.Time = func() time.Time { return time.Now() } // reset the time back
+	serverConfig.Time = testTime // reset the time back
 	key1 := randomKey()
 	serverConfig.SetSessionTicketKeys([][32]byte{key1})
 
@@ -945,11 +951,11 @@ func testResumption(t *testing.T, version uint16) {
 	testResumeState("KeyChangeFinish", true)
 
 	// Age the session ticket a bit, but not yet expired.
-	serverConfig.Time = func() time.Time { return time.Now().Add(24*time.Hour + time.Minute) }
+	serverConfig.Time = func() time.Time { return testTime().Add(24*time.Hour + time.Minute) }
 	testResumeState("OldSessionTicket", true)
 	ticket = getTicket()
 	// Expire the session ticket, which would force a full handshake.
-	serverConfig.Time = func() time.Time { return time.Now().Add(24*8*time.Hour + time.Minute) }
+	serverConfig.Time = func() time.Time { return testTime().Add(24*8*time.Hour + 2*time.Minute) }
 	testResumeState("ExpiredSessionTicket", false)
 	if bytes.Equal(ticket, getTicket()) {
 		t.Fatal("new ticket wasn't provided after old ticket expired")
@@ -957,7 +963,7 @@ func testResumption(t *testing.T, version uint16) {
 
 	// Age the session ticket a bit at a time, but don't expire it.
 	d := 0 * time.Hour
-	serverConfig.Time = func() time.Time { return time.Now().Add(d) }
+	serverConfig.Time = func() time.Time { return testTime().Add(d) }
 	deleteTicket()
 	testResumeState("GetFreshSessionTicket", false)
 	for i := 0; i < 13; i++ {
@@ -968,7 +974,7 @@ func testResumption(t *testing.T, version uint16) {
 	// handshake occurs for TLS 1.2. Resumption should still occur for
 	// TLS 1.3 since the client should be using a fresh ticket sent over
 	// by the server.
-	d += 12 * time.Hour
+	d += 12*time.Hour + time.Minute
 	if version == VersionTLS13 {
 		testResumeState("ExpiredSessionTicket", true)
 	} else {
@@ -982,8 +988,9 @@ func testResumption(t *testing.T, version uint16) {
 	// before the serverConfig is used works.
 	serverConfig = &Config{
 		MaxVersion:   version,
-		CipherSuites: []uint16{TLS_RSA_WITH_RC4_128_SHA, TLS_ECDHE_RSA_WITH_RC4_128_SHA},
-		Certificates: testConfig.Certificates,
+		CipherSuites: []uint16{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384},
+		Certificates: testCertificates,
+		Time:         testTime,
 	}
 	serverConfig.SetSessionTicketKeys([][32]byte{key2})
 
@@ -992,7 +999,7 @@ func testResumption(t *testing.T, version uint16) {
 	// In TLS 1.3, cross-cipher suite resumption is allowed as long as the KDF
 	// hash matches. Also, Config.CipherSuites does not apply to TLS 1.3.
 	if version != VersionTLS13 {
-		clientConfig.CipherSuites = []uint16{TLS_ECDHE_RSA_WITH_RC4_128_SHA}
+		clientConfig.CipherSuites = []uint16{TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384}
 		testResumeState("DifferentCipherSuite", false)
 		testResumeState("DifferentCipherSuiteRecovers", true)
 	}
@@ -1008,7 +1015,8 @@ func testResumption(t *testing.T, version uint16) {
 			// Use a different curve than the client to force a HelloRetryRequest.
 			CurvePreferences: []CurveID{CurveP521, CurveP384, CurveP256},
 			MaxVersion:       version,
-			Certificates:     testConfig.Certificates,
+			Certificates:     testCertificates,
+			Time:             testTime,
 		}
 		testResumeState("InitialHandshake", false)
 		testResumeState("WithHelloRetryRequest", true)
@@ -1016,8 +1024,9 @@ func testResumption(t *testing.T, version uint16) {
 		// Reset serverConfig back.
 		serverConfig = &Config{
 			MaxVersion:   version,
-			CipherSuites: []uint16{TLS_RSA_WITH_RC4_128_SHA, TLS_ECDHE_RSA_WITH_RC4_128_SHA},
-			Certificates: testConfig.Certificates,
+			CipherSuites: []uint16{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384},
+			Certificates: testCertificates,
+			Time:         testTime,
 		}
 	}
 
@@ -1272,7 +1281,7 @@ func TestServerSelectingUnconfiguredApplicationProtocol(t *testing.T) {
 	go func() {
 		client := Client(c, &Config{
 			ServerName:   "foo",
-			CipherSuites: []uint16{TLS_RSA_WITH_AES_128_GCM_SHA256},
+			CipherSuites: []uint16{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256},
 			NextProtos:   []string{"http", "something-else"},
 		})
 		errChan <- client.Handshake()
@@ -1292,7 +1301,7 @@ func TestServerSelectingUnconfiguredApplicationProtocol(t *testing.T) {
 	serverHello := &serverHelloMsg{
 		vers:         VersionTLS12,
 		random:       make([]byte, 32),
-		cipherSuite:  TLS_RSA_WITH_AES_128_GCM_SHA256,
+		cipherSuite:  TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 		alpnProtocol: "how-about-this",
 	}
 	serverHelloBytes := mustMarshal(t, serverHello)
@@ -1308,7 +1317,7 @@ func TestServerSelectingUnconfiguredApplicationProtocol(t *testing.T) {
 	s.Close()
 
 	if err := <-errChan; !strings.Contains(err.Error(), "server selected unadvertised ALPN protocol") {
-		t.Fatalf("Expected error about unconfigured cipher suite but got %q", err)
+		t.Fatalf("Expected error about unconfigured ALPN protocol but got %q", err)
 	}
 }
 
@@ -1724,7 +1733,10 @@ func testVerifyConnection(t *testing.T, version uint16) {
 		},
 	}
 	for _, test := range tests {
-		issuer, err := x509.ParseCertificate(testRSACertificateIssuer)
+		// Note: using RSA 2048 test certificates because they are compatible with FIPS mode.
+		testCertificates := []Certificate{{Certificate: [][]byte{testRSA2048Certificate}, PrivateKey: testRSA2048PrivateKey}}
+
+		issuer, err := x509.ParseCertificate(testRSA2048CertificateIssuer)
 		if err != nil {
 			panic(err)
 		}
@@ -1735,7 +1747,8 @@ func testVerifyConnection(t *testing.T, version uint16) {
 
 		serverConfig := &Config{
 			MaxVersion:   version,
-			Certificates: []Certificate{testConfig.Certificates[0]},
+			Certificates: testCertificates,
+			Time:         testTime,
 			ClientCAs:    rootCAs,
 			NextProtos:   []string{"protocol1"},
 		}
@@ -1748,7 +1761,8 @@ func testVerifyConnection(t *testing.T, version uint16) {
 			ClientSessionCache: NewLRUClientSessionCache(32),
 			RootCAs:            rootCAs,
 			ServerName:         "example.golang",
-			Certificates:       []Certificate{testConfig.Certificates[0]},
+			Certificates:       testCertificates,
+			Time:               testTime,
 			NextProtos:         []string{"protocol1"},
 		}
 		test.configureClient(clientConfig, &clientCalled)
@@ -1783,15 +1797,14 @@ func TestVerifyPeerCertificate(t *testing.T) {
 }
 
 func testVerifyPeerCertificate(t *testing.T, version uint16) {
-	issuer, err := x509.ParseCertificate(testRSACertificateIssuer)
+	// Note: using RSA 2048 test certificates because they are compatible with FIPS mode.
+	issuer, err := x509.ParseCertificate(testRSA2048CertificateIssuer)
 	if err != nil {
 		panic(err)
 	}
 
 	rootCAs := x509.NewCertPool()
 	rootCAs.AddCert(issuer)
-
-	now := func() time.Time { return time.Unix(1476984729, 0) }
 
 	sentinelErr := errors.New("TestVerifyPeerCertificate")
 
@@ -2038,11 +2051,11 @@ func testVerifyPeerCertificate(t *testing.T, version uint16) {
 			config.ServerName = "example.golang"
 			config.ClientAuth = RequireAndVerifyClientCert
 			config.ClientCAs = rootCAs
-			config.Time = now
+			config.Time = testTime
 			config.MaxVersion = version
 			config.Certificates = make([]Certificate, 1)
-			config.Certificates[0].Certificate = [][]byte{testRSACertificate}
-			config.Certificates[0].PrivateKey = testRSAPrivateKey
+			config.Certificates[0].Certificate = [][]byte{testRSA2048Certificate}
+			config.Certificates[0].PrivateKey = testRSA2048PrivateKey
 			config.Certificates[0].SignedCertificateTimestamps = [][]byte{[]byte("dummy sct 1"), []byte("dummy sct 2")}
 			config.Certificates[0].OCSPStaple = []byte("dummy ocsp")
 			test.configureServer(config, &serverCalled)
@@ -2053,9 +2066,10 @@ func testVerifyPeerCertificate(t *testing.T, version uint16) {
 		}()
 
 		config := testConfig.Clone()
+		config.Certificates = []Certificate{{Certificate: [][]byte{testRSA2048Certificate}, PrivateKey: testRSA2048PrivateKey}}
 		config.ServerName = "example.golang"
 		config.RootCAs = rootCAs
-		config.Time = now
+		config.Time = testTime
 		config.MaxVersion = version
 		test.configureClient(config, &clientCalled)
 		clientErr := Client(c, config).Handshake()
@@ -2336,8 +2350,8 @@ var getClientCertificateTests = []struct {
 					panic("empty AcceptableCAs")
 				}
 				cert := &Certificate{
-					Certificate: [][]byte{testRSACertificate},
-					PrivateKey:  testRSAPrivateKey,
+					Certificate: [][]byte{testRSA2048Certificate},
+					PrivateKey:  testRSA2048PrivateKey,
 				}
 				return cert, nil
 			}
@@ -2357,24 +2371,33 @@ func TestGetClientCertificate(t *testing.T) {
 }
 
 func testGetClientCertificate(t *testing.T, version uint16) {
-	issuer, err := x509.ParseCertificate(testRSACertificateIssuer)
+	// Note: using RSA 2048 test certificates because they are compatible with FIPS mode.
+	issuer, err := x509.ParseCertificate(testRSA2048CertificateIssuer)
 	if err != nil {
 		panic(err)
 	}
 
 	for i, test := range getClientCertificateTests {
 		serverConfig := testConfig.Clone()
+		serverConfig.Certificates = []Certificate{{Certificate: [][]byte{testRSA2048Certificate}, PrivateKey: testRSA2048PrivateKey}}
 		serverConfig.ClientAuth = VerifyClientCertIfGiven
 		serverConfig.RootCAs = x509.NewCertPool()
 		serverConfig.RootCAs.AddCert(issuer)
 		serverConfig.ClientCAs = serverConfig.RootCAs
-		serverConfig.Time = func() time.Time { return time.Unix(1476984729, 0) }
+		serverConfig.Time = testTime
 		serverConfig.MaxVersion = version
 
 		clientConfig := testConfig.Clone()
+		clientConfig.Certificates = []Certificate{{Certificate: [][]byte{testRSA2048Certificate}, PrivateKey: testRSA2048PrivateKey}}
 		clientConfig.MaxVersion = version
 
 		test.setup(clientConfig, serverConfig)
+
+		// TLS 1.1 isn't available for FIPS required
+		if fips140tls.Required() && clientConfig.MaxVersion == VersionTLS11 {
+			t.Logf("skipping test %d for FIPS mode", i)
+			continue
+		}
 
 		type serverResult struct {
 			cs  ConnectionState
@@ -2514,11 +2537,15 @@ func TestDowngradeCanary(t *testing.T) {
 	if err := testDowngradeCanary(t, VersionTLS12, VersionTLS12); err != nil {
 		t.Errorf("client didn't ignore expected TLS 1.2 canary")
 	}
-	if err := testDowngradeCanary(t, VersionTLS11, VersionTLS11); err != nil {
-		t.Errorf("client unexpectedly reacted to a canary in TLS 1.1")
-	}
-	if err := testDowngradeCanary(t, VersionTLS10, VersionTLS10); err != nil {
-		t.Errorf("client unexpectedly reacted to a canary in TLS 1.0")
+	if !fips140tls.Required() {
+		if err := testDowngradeCanary(t, VersionTLS11, VersionTLS11); err != nil {
+			t.Errorf("client unexpectedly reacted to a canary in TLS 1.1")
+		}
+		if err := testDowngradeCanary(t, VersionTLS10, VersionTLS10); err != nil {
+			t.Errorf("client unexpectedly reacted to a canary in TLS 1.0")
+		}
+	} else {
+		t.Logf("skiping TLS 1.1 and TLS 1.0 downgrade canary checks in FIPS mode")
 	}
 }
 
@@ -2528,7 +2555,8 @@ func TestResumptionKeepsOCSPAndSCT(t *testing.T) {
 }
 
 func testResumptionKeepsOCSPAndSCT(t *testing.T, ver uint16) {
-	issuer, err := x509.ParseCertificate(testRSACertificateIssuer)
+	// Note: using RSA 2048 test certificates because they are compatible with FIPS mode.
+	issuer, err := x509.ParseCertificate(testRSA2048CertificateIssuer)
 	if err != nil {
 		t.Fatalf("failed to parse test issuer")
 	}
@@ -2539,8 +2567,10 @@ func testResumptionKeepsOCSPAndSCT(t *testing.T, ver uint16) {
 		ClientSessionCache: NewLRUClientSessionCache(32),
 		ServerName:         "example.golang",
 		RootCAs:            roots,
+		Time:               testTime,
 	}
 	serverConfig := testConfig.Clone()
+	serverConfig.Certificates = []Certificate{{Certificate: [][]byte{testRSA2048Certificate}, PrivateKey: testRSA2048PrivateKey}}
 	serverConfig.MaxVersion = ver
 	serverConfig.Certificates[0].OCSPStaple = []byte{1, 2, 3}
 	serverConfig.Certificates[0].SignedCertificateTimestamps = [][]byte{{4, 5, 6}}
@@ -2625,8 +2655,8 @@ func TestClientHandshakeContextCancellation(t *testing.T) {
 	if err != context.Canceled {
 		t.Errorf("Unexpected client handshake error: %v", err)
 	}
-	if runtime.GOARCH == "wasm" {
-		t.Skip("conn.Close does not error as expected when called multiple times on WASM")
+	if runtime.GOOS == "js" || runtime.GOOS == "wasip1" {
+		t.Skip("conn.Close does not error as expected when called multiple times on GOOS=js or GOOS=wasip1")
 	}
 	err = cli.Close()
 	if err == nil {
@@ -2663,7 +2693,6 @@ func TestTLS13OnlyClientHelloCipherSuite(t *testing.T) {
 		},
 	}
 	for _, tt := range tls13Tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			testTLS13OnlyClientHelloCipherSuite(t, tt.ciphers)
@@ -2675,11 +2704,15 @@ func testTLS13OnlyClientHelloCipherSuite(t *testing.T, ciphers []uint16) {
 	serverConfig := &Config{
 		Certificates: testConfig.Certificates,
 		GetConfigForClient: func(chi *ClientHelloInfo) (*Config, error) {
-			if len(chi.CipherSuites) != len(defaultCipherSuitesTLS13NoAES) {
+			expectedCiphersuites := defaultCipherSuitesTLS13NoAES
+			if fips140tls.Required() {
+				expectedCiphersuites = allowedCipherSuitesTLS13FIPS
+			}
+			if len(chi.CipherSuites) != len(expectedCiphersuites) {
 				t.Errorf("only TLS 1.3 suites should be advertised, got=%x", chi.CipherSuites)
 			} else {
-				for i := range defaultCipherSuitesTLS13NoAES {
-					if want, got := defaultCipherSuitesTLS13NoAES[i], chi.CipherSuites[i]; want != got {
+				for i := range expectedCiphersuites {
+					if want, got := expectedCiphersuites[i], chi.CipherSuites[i]; want != got {
 						t.Errorf("cipher at index %d does not match, want=%x, got=%x", i, want, got)
 					}
 				}

@@ -52,6 +52,10 @@ var inCategoryTest = []T{
 	{0x00bb, "P"},
 	{0x00a2, "S"},
 	{0x00a0, "Z"},
+	{0x0065, "LC"},
+	// Unassigned
+	{0x0378, "Cn"},
+	{0x0378, "C"},
 }
 
 var inPropTest = []T{

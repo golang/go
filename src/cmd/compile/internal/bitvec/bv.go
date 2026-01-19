@@ -93,7 +93,7 @@ func (bv BitVec) Unset(i int32) {
 	bv.B[i/wordBits] &^= mask
 }
 
-// bvnext returns the smallest index >= i for which bvget(bv, i) == 1.
+// Next returns the smallest index >= i for which bvget(bv, i) == 1.
 // If there is no such index, bvnext returns -1.
 func (bv BitVec) Next(i int32) int32 {
 	if i >= bv.N {
@@ -196,7 +196,5 @@ func (bv BitVec) String() string {
 }
 
 func (bv BitVec) Clear() {
-	for i := range bv.B {
-		bv.B[i] = 0
-	}
+	clear(bv.B)
 }

@@ -8,7 +8,9 @@ package net
 
 import "io"
 
-const supportsSendfile = false
+func supportsSendfile() bool {
+	return false
+}
 
 func sendFile(c *netFD, r io.Reader) (n int64, err error, handled bool) {
 	return 0, nil, false

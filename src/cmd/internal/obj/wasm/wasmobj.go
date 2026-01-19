@@ -129,6 +129,7 @@ var (
 	morestackNoCtxt       *obj.LSym
 	sigpanic              *obj.LSym
 	wasm_pc_f_loop_export *obj.LSym
+	runtimeNotInitialized *obj.LSym
 )
 
 const (
@@ -149,6 +150,7 @@ func instinit(ctxt *obj.Link) {
 	morestackNoCtxt = ctxt.Lookup("runtime.morestack_noctxt")
 	sigpanic = ctxt.LookupABI("runtime.sigpanic", obj.ABIInternal)
 	wasm_pc_f_loop_export = ctxt.Lookup("wasm_pc_f_loop_export")
+	runtimeNotInitialized = ctxt.Lookup("runtime.notInitialized")
 }
 
 func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
@@ -200,62 +202,9 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		framesize = 0
 	} else if s.Func().WasmExport != nil {
 		genWasmExportWrapper(s, appendp)
-	} else if s.Func().Text.From.Sym.Wrapper() {
-		// if g._panic != nil && g._panic.argp == FP {
-		//   g._panic.argp = bottom-of-frame
-		// }
-		//
-		// MOVD g_panic(g), R0
-		// Get R0
-		// I64Eqz
-		// Not
-		// If
-		//   Get SP
-		//   I64ExtendI32U
-		//   I64Const $framesize+8
-		//   I64Add
-		//   I64Load panic_argp(R0)
-		//   I64Eq
-		//   If
-		//     MOVD SP, panic_argp(R0)
-		//   End
-		// End
-
-		gpanic := obj.Addr{
-			Type:   obj.TYPE_MEM,
-			Reg:    REGG,
-			Offset: 4 * 8, // g_panic
-		}
-
-		panicargp := obj.Addr{
-			Type:   obj.TYPE_MEM,
-			Reg:    REG_R0,
-			Offset: 0, // panic.argp
-		}
-
-		p := s.Func().Text
-		p = appendp(p, AMOVD, gpanic, regAddr(REG_R0))
-
-		p = appendp(p, AGet, regAddr(REG_R0))
-		p = appendp(p, AI64Eqz)
-		p = appendp(p, ANot)
-		p = appendp(p, AIf)
-
-		p = appendp(p, AGet, regAddr(REG_SP))
-		p = appendp(p, AI64ExtendI32U)
-		p = appendp(p, AI64Const, constAddr(framesize+8))
-		p = appendp(p, AI64Add)
-		p = appendp(p, AI64Load, panicargp)
-
-		p = appendp(p, AI64Eq)
-		p = appendp(p, AIf)
-		p = appendp(p, AMOVD, regAddr(REG_SP), panicargp)
-		p = appendp(p, AEnd)
-
-		p = appendp(p, AEnd)
 	}
 
-	if framesize > 0 {
+	if framesize > 0 && s.Func().WasmExport == nil { // genWasmExportWrapper has its own prologue generation
 		p := s.Func().Text
 		p = appendp(p, AGet, regAddr(REG_SP))
 		p = appendp(p, AI32Const, constAddr(framesize))
@@ -370,6 +319,9 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	}
 	tableIdxs = append(tableIdxs, uint64(numResumePoints))
 	s.Size = pc + 1
+	if pc >= 1<<16 {
+		ctxt.Diag("function too big: %s exceeds 65536 blocks", s)
+	}
 
 	if needMoreStack {
 		p := pMorestack
@@ -463,9 +415,9 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 
 			case obj.TYPE_NONE:
 				// (target PC is on stack)
+				p = appendp(p, AI64Const, constAddr(16)) // only needs PC_F bits (16-63), PC_B bits (0-15) are zero
+				p = appendp(p, AI64ShrU)
 				p = appendp(p, AI32WrapI64)
-				p = appendp(p, AI32Const, constAddr(16)) // only needs PC_F bits (16-31), PC_B bits (0-15) are zero
-				p = appendp(p, AI32ShrU)
 
 				// Set PC_B parameter to function entry.
 				// We need to push this before pushing the target PC_F,
@@ -519,9 +471,9 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 
 			case obj.TYPE_NONE:
 				// (target PC is on stack)
+				p = appendp(p, AI64Const, constAddr(16)) // only needs PC_F bits (16-63), PC_B bits (0-15) are zero
+				p = appendp(p, AI64ShrU)
 				p = appendp(p, AI32WrapI64)
-				p = appendp(p, AI32Const, constAddr(16)) // only needs PC_F bits (16-31), PC_B bits (0-15) are zero
-				p = appendp(p, AI32ShrU)
 
 				// Set PC_B parameter to function entry.
 				// We need to push this before pushing the target PC_F,
@@ -935,6 +887,23 @@ func genWasmExportWrapper(s *obj.LSym, appendp func(p *obj.Prog, as obj.As, args
 		panic("wrapper functions for WASM export should not have a body")
 	}
 
+	// Detect and error out if called before runtime initialization
+	// SP is 0 if not initialized
+	p = appendp(p, AGet, regAddr(REG_SP))
+	p = appendp(p, AI32Eqz)
+	p = appendp(p, AIf)
+	p = appendp(p, ACall, obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: runtimeNotInitialized})
+	p = appendp(p, AEnd)
+
+	// Now that we've checked the SP, generate the prologue
+	if framesize > 0 {
+		p = appendp(p, AGet, regAddr(REG_SP))
+		p = appendp(p, AI32Const, constAddr(framesize))
+		p = appendp(p, AI32Sub)
+		p = appendp(p, ASet, regAddr(REG_SP))
+		p.Spadj = int32(framesize)
+	}
+
 	// Store args
 	for i, f := range we.Params {
 		p = appendp(p, AGet, regAddr(REG_SP))
@@ -987,9 +956,10 @@ func genWasmExportWrapper(s *obj.LSym, appendp func(p *obj.Prog, as obj.As, args
 	// In the unwinding case, we call wasm_pc_f_loop_export to handle stack switch and rewinding,
 	// until a normal return (non-unwinding) back to this function.
 	p = appendp(p, AIf)
-	p = appendp(p, AI32Const, retAddr)
-	p = appendp(p, AI32Const, constAddr(16))
-	p = appendp(p, AI32ShrU)
+	p = appendp(p, AI64Const, retAddr)
+	p = appendp(p, AI64Const, constAddr(16))
+	p = appendp(p, AI64ShrU)
+	p = appendp(p, AI32WrapI64)
 	p = appendp(p, ACall, obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: wasm_pc_f_loop_export})
 	p = appendp(p, AEnd)
 
@@ -1056,6 +1026,7 @@ var notUsePC_B = map[string]bool{
 	"runtime.gcWriteBarrier6": true,
 	"runtime.gcWriteBarrier7": true,
 	"runtime.gcWriteBarrier8": true,
+	"runtime.notInitialized":  true,
 	"runtime.wasmDiv":         true,
 	"runtime.wasmTruncS":      true,
 	"runtime.wasmTruncU":      true,
@@ -1121,7 +1092,8 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		"runtime.gcWriteBarrier5",
 		"runtime.gcWriteBarrier6",
 		"runtime.gcWriteBarrier7",
-		"runtime.gcWriteBarrier8":
+		"runtime.gcWriteBarrier8",
+		"runtime.notInitialized":
 		// no locals
 		useAssemblyRegMap()
 	default:

@@ -46,7 +46,8 @@ func TestAll(t *testing.T) {
 		if info.Old != "" && info.Changed == 0 {
 			t.Errorf("Name=%s has Old, missing Changed", info.Name)
 		}
-		if !strings.Contains(doc, "`"+info.Name+"`") {
+		if !strings.Contains(doc, "`"+info.Name+"`") &&
+			!strings.Contains(doc, "`"+info.Name+"=") {
 			t.Errorf("Name=%s not documented in doc/godebug.md", info.Name)
 		}
 		if !info.Opaque && !incs[info.Name] {
@@ -91,4 +92,12 @@ func incNonDefaults(t *testing.T) map[string]bool {
 		}
 	}
 	return seen
+}
+
+func TestRemoved(t *testing.T) {
+	for _, info := range godebugs.Removed {
+		if godebugs.Lookup(info.Name) != nil {
+			t.Fatalf("GODEBUG: %v exists in both Removed and All", info.Name)
+		}
+	}
 }

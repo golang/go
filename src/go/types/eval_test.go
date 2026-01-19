@@ -9,7 +9,6 @@ package types_test
 import (
 	"fmt"
 	"go/ast"
-	"go/importer"
 	"go/parser"
 	"go/token"
 	"go/types"
@@ -188,7 +187,7 @@ func TestEvalPos(t *testing.T) {
 		files = append(files, file)
 	}
 
-	conf := Config{Importer: importer.Default()}
+	conf := Config{Importer: defaultImporter(fset)}
 	pkg, err := conf.Check("p", fset, files, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -209,7 +208,7 @@ func TestEvalPos(t *testing.T) {
 }
 
 // gotypesalias controls the use of Alias types.
-var gotypesalias = godebug.New("#gotypesalias")
+var gotypesalias = godebug.New("gotypesalias")
 
 // split splits string s at the first occurrence of s, trimming spaces.
 func split(s, sep string) (string, string) {
@@ -257,7 +256,7 @@ func f(a int, s string) S {
 		t.Fatal(err)
 	}
 
-	conf := Config{Importer: importer.Default()}
+	conf := Config{Importer: defaultImporter(fset)}
 	pkg, err := conf.Check("p", fset, []*ast.File{f}, nil)
 	if err != nil {
 		t.Fatal(err)

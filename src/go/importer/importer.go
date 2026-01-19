@@ -3,6 +3,13 @@
 // license that can be found in the LICENSE file.
 
 // Package importer provides access to export data importers.
+//
+// These functions, which are mostly deprecated, date from before the
+// introduction of modules in release Go 1.11. They should no longer
+// be relied on except for use in test cases using small programs that
+// depend only on the standard library. For reliable module-aware
+// loading of type information, use the packages.Load function from
+// golang.org/x/tools/go/packages.
 package importer
 
 import (
@@ -73,12 +80,20 @@ func ForCompiler(fset *token.FileSet, compiler string, lookup Lookup) types.Impo
 //
 // Deprecated: Use [ForCompiler], which populates a FileSet
 // with the positions of objects created by the importer.
+//
+//go:fix inline
 func For(compiler string, lookup Lookup) types.Importer {
 	return ForCompiler(token.NewFileSet(), compiler, lookup)
 }
 
 // Default returns an Importer for the compiler that built the running binary.
 // If available, the result implements [types.ImporterFrom].
+//
+// Default may be convenient for use in the simplest of cases, but
+// most clients should instead use [ForCompiler], which accepts a
+// [token.FileSet] from the caller; without it, all position
+// information derived from the Importer will be incorrect and
+// misleading. See also the package documentation.
 func Default() types.Importer {
 	return For(runtime.Compiler, nil)
 }

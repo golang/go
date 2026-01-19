@@ -55,9 +55,9 @@ func newPkgReader(pr pkgbits.PkgDecoder) *pkgReader {
 	return &pkgReader{
 		PkgDecoder: pr,
 
-		posBases: make([]*src.PosBase, pr.NumElems(pkgbits.RelocPosBase)),
-		pkgs:     make([]*types.Pkg, pr.NumElems(pkgbits.RelocPkg)),
-		typs:     make([]*types.Type, pr.NumElems(pkgbits.RelocType)),
+		posBases: make([]*src.PosBase, pr.NumElems(pkgbits.SectionPosBase)),
+		pkgs:     make([]*types.Pkg, pr.NumElems(pkgbits.SectionPkg)),
+		typs:     make([]*types.Type, pr.NumElems(pkgbits.SectionType)),
 
 		newindex: make([]index, pr.TotalElems()),
 	}
@@ -74,7 +74,7 @@ type pkgReaderIndex struct {
 	synthetic func(pos src.XPos, r *reader)
 }
 
-func (pri pkgReaderIndex) asReader(k pkgbits.RelocKind, marker pkgbits.SyncMarker) *reader {
+func (pri pkgReaderIndex) asReader(k pkgbits.SectionKind, marker pkgbits.SyncMarker) *reader {
 	if pri.synthetic != nil {
 		return &reader{synthetic: pri.synthetic}
 	}
@@ -85,7 +85,7 @@ func (pri pkgReaderIndex) asReader(k pkgbits.RelocKind, marker pkgbits.SyncMarke
 	return r
 }
 
-func (pr *pkgReader) newReader(k pkgbits.RelocKind, idx index, marker pkgbits.SyncMarker) *reader {
+func (pr *pkgReader) newReader(k pkgbits.SectionKind, idx index, marker pkgbits.SyncMarker) *reader {
 	return &reader{
 		Decoder: pr.NewDecoder(k, idx, marker),
 		p:       pr,
@@ -255,7 +255,7 @@ func (r *reader) pos0() src.Pos {
 
 // posBase reads a position base from the bitstream.
 func (r *reader) posBase() *src.PosBase {
-	return r.inlPosBase(r.p.posBaseIdx(r.Reloc(pkgbits.RelocPosBase)))
+	return r.inlPosBase(r.p.posBaseIdx(r.Reloc(pkgbits.SectionPosBase)))
 }
 
 // posBaseIdx returns the specified position base, reading it first if
@@ -265,7 +265,7 @@ func (pr *pkgReader) posBaseIdx(idx index) *src.PosBase {
 		return b
 	}
 
-	r := pr.newReader(pkgbits.RelocPosBase, idx, pkgbits.SyncPosBase)
+	r := pr.newReader(pkgbits.SectionPosBase, idx, pkgbits.SyncPosBase)
 	var b *src.PosBase
 
 	absFilename := r.String()
@@ -336,7 +336,7 @@ func (r *reader) inlPos(xpos src.XPos) src.XPos {
 // pkg reads a package reference from the bitstream.
 func (r *reader) pkg() *types.Pkg {
 	r.Sync(pkgbits.SyncPkg)
-	return r.p.pkgIdx(r.Reloc(pkgbits.RelocPkg))
+	return r.p.pkgIdx(r.Reloc(pkgbits.SectionPkg))
 }
 
 // pkgIdx returns the specified package from the export data, reading
@@ -346,7 +346,7 @@ func (pr *pkgReader) pkgIdx(idx index) *types.Pkg {
 		return pkg
 	}
 
-	pkg := pr.newReader(pkgbits.RelocPkg, idx, pkgbits.SyncPkgDef).doPkg()
+	pkg := pr.newReader(pkgbits.SectionPkg, idx, pkgbits.SyncPkgDef).doPkg()
 	pr.pkgs[idx] = pkg
 	return pkg
 }
@@ -393,7 +393,7 @@ func (r *reader) typInfo() typeInfo {
 	if r.Bool() {
 		return typeInfo{idx: index(r.Len()), derived: true}
 	}
-	return typeInfo{idx: r.Reloc(pkgbits.RelocType), derived: false}
+	return typeInfo{idx: r.Reloc(pkgbits.SectionType), derived: false}
 }
 
 // typListIdx returns a list of the specified types, resolving derived
@@ -423,7 +423,7 @@ func (pr *pkgReader) typIdx(info typeInfo, dict *readerDict, wrapped bool) *type
 		return typ
 	}
 
-	r := pr.newReader(pkgbits.RelocType, idx, pkgbits.SyncTypeIdx)
+	r := pr.newReader(pkgbits.SectionType, idx, pkgbits.SyncTypeIdx)
 	r.dict = dict
 
 	typ := r.doTyp()
@@ -643,7 +643,7 @@ func (r *reader) objInfo() objInfo {
 	if r.Version().Has(pkgbits.DerivedFuncInstance) {
 		assert(!r.Bool())
 	}
-	idx := r.Reloc(pkgbits.RelocObj)
+	idx := r.Reloc(pkgbits.SectionObj)
 
 	explicits := make([]typeInfo, r.Len())
 	for i := range explicits {
@@ -685,7 +685,7 @@ func (pr *pkgReader) objIdx(idx index, implicits, explicits []*types.Type, shape
 // Other sources of internal failure (such as duplicate definitions) still fail
 // the build.
 func (pr *pkgReader) objIdxMayFail(idx index, implicits, explicits []*types.Type, shaped bool) (ir.Node, error) {
-	rname := pr.newReader(pkgbits.RelocName, idx, pkgbits.SyncObject1)
+	rname := pr.newReader(pkgbits.SectionName, idx, pkgbits.SyncObject1)
 	_, sym := rname.qualifiedIdent()
 	tag := pkgbits.CodeObj(rname.Code(pkgbits.SyncCodeObj))
 
@@ -714,8 +714,8 @@ func (pr *pkgReader) objIdxMayFail(idx index, implicits, explicits []*types.Type
 		return sym.Def.(*ir.Name), nil
 	}
 
-	r := pr.newReader(pkgbits.RelocObj, idx, pkgbits.SyncObject1)
-	rext := pr.newReader(pkgbits.RelocObjExt, idx, pkgbits.SyncObject1)
+	r := pr.newReader(pkgbits.SectionObj, idx, pkgbits.SyncObject1)
+	rext := pr.newReader(pkgbits.SectionObjExt, idx, pkgbits.SyncObject1)
 
 	r.dict = dict
 	rext.dict = dict
@@ -762,7 +762,7 @@ func (pr *pkgReader) objIdxMayFail(idx index, implicits, explicits []*types.Type
 		if hack {
 			if sym.Def != nil {
 				name = sym.Def.(*ir.Name)
-				assert(name.Type() == typ)
+				assert(types.IdenticalStrict(name.Type(), typ))
 				return name, nil
 			}
 			sym.Def = name
@@ -930,8 +930,19 @@ func shapify(targ *types.Type, basic bool) *types.Type {
 	// types, and discarding struct field names and tags. However, we'll
 	// need to start tracking how type parameters are actually used to
 	// implement some of these optimizations.
+	pointerShaping := basic && targ.IsPtr() && !targ.Elem().NotInHeap()
+	// The exception is when the type parameter is a pointer to a type
+	// which `Type.HasShape()` returns true, but `Type.IsShape()` returns
+	// false, like `*[]go.shape.T`. This is because the type parameter is
+	// used to instantiate a generic function inside another generic function.
+	// In this case, we want to keep the targ as-is, otherwise, we may lose the
+	// original type after `*[]go.shape.T` is shapified to `*go.shape.uint8`.
+	// See issue #54535, #71184.
+	if pointerShaping && !targ.Elem().IsShape() && targ.Elem().HasShape() {
+		return targ
+	}
 	under := targ.Underlying()
-	if basic && targ.IsPtr() && !targ.Elem().NotInHeap() {
+	if pointerShaping {
 		under = types.NewPtr(types.Types[types.TUINT8])
 	}
 
@@ -959,7 +970,7 @@ func shapify(targ *types.Type, basic bool) *types.Type {
 
 // objDictIdx reads and returns the specified object dictionary.
 func (pr *pkgReader) objDictIdx(sym *types.Sym, idx index, implicits, explicits []*types.Type, shaped bool) (*readerDict, error) {
-	r := pr.newReader(pkgbits.RelocObjDict, idx, pkgbits.SyncObject1)
+	r := pr.newReader(pkgbits.SectionObjDict, idx, pkgbits.SyncObject1)
 
 	dict := readerDict{
 		shaped: shaped,
@@ -984,7 +995,7 @@ func (pr *pkgReader) objDictIdx(sym *types.Sym, idx index, implicits, explicits 
 	dict.derived = make([]derivedInfo, r.Len())
 	dict.derivedTypes = make([]*types.Type, len(dict.derived))
 	for i := range dict.derived {
-		dict.derived[i] = derivedInfo{idx: r.Reloc(pkgbits.RelocType)}
+		dict.derived[i] = derivedInfo{idx: r.Reloc(pkgbits.SectionType)}
 		if r.Version().Has(pkgbits.DerivedInfoNeeded) {
 			assert(!r.Bool())
 		}
@@ -1278,7 +1289,7 @@ func (r *reader) addBody(fn *ir.Func, method *types.Sym) {
 	// generic functions; see comment in funcExt.
 	assert(fn.Nname.Defn != nil)
 
-	idx := r.Reloc(pkgbits.RelocBody)
+	idx := r.Reloc(pkgbits.SectionBody)
 
 	pri := pkgReaderIndex{r.p, idx, r.dict, method, nil}
 	bodyReader[fn] = pri
@@ -1292,7 +1303,7 @@ func (r *reader) addBody(fn *ir.Func, method *types.Sym) {
 }
 
 func (pri pkgReaderIndex) funcBody(fn *ir.Func) {
-	r := pri.asReader(pkgbits.RelocBody, pkgbits.SyncFuncBody)
+	r := pri.asReader(pkgbits.SectionBody, pkgbits.SyncFuncBody)
 	r.funcBody(fn)
 }
 
@@ -2420,8 +2431,17 @@ func (r *reader) expr() (res ir.Node) {
 
 	case exprNew:
 		pos := r.pos()
-		typ := r.exprType()
-		return typecheck.Expr(ir.NewUnaryExpr(pos, ir.ONEW, typ))
+		if r.Bool() {
+			// new(expr) -> tmp := expr; &tmp
+			x := r.expr()
+			x = typecheck.DefaultLit(x, nil) // See TODO in exprConvert case.
+			var init ir.Nodes
+			addr := ir.NewAddrExpr(pos, r.tempCopy(pos, x, &init))
+			addr.SetInit(init)
+			return typecheck.Expr(addr)
+		}
+		// new(T)
+		return typecheck.Expr(ir.NewUnaryExpr(pos, ir.ONEW, r.exprType()))
 
 	case exprSizeof:
 		return ir.NewUintptr(r.pos(), r.typ().Size())
@@ -2591,7 +2611,7 @@ func (r *reader) funcInst(pos src.XPos) (wrapperFn, baseFn, dictPtr ir.Node) {
 }
 
 func (pr *pkgReader) objDictName(idx index, implicits, explicits []*types.Type) *ir.Name {
-	rname := pr.newReader(pkgbits.RelocName, idx, pkgbits.SyncObject1)
+	rname := pr.newReader(pkgbits.SectionName, idx, pkgbits.SyncObject1)
 	_, sym := rname.qualifiedIdent()
 	tag := pkgbits.CodeObj(rname.Code(pkgbits.SyncCodeObj))
 
@@ -2941,6 +2961,7 @@ func (r *reader) multiExpr() []ir.Node {
 		as.Def = true
 		for i := range results {
 			tmp := r.temp(pos, r.typ())
+			tmp.Defn = as
 			as.PtrInit().Append(ir.NewDecl(pos, ir.ODCL, tmp))
 			as.Lhs.Append(tmp)
 
@@ -3228,6 +3249,7 @@ func (r *reader) exprType() ir.Node {
 	var rtype, itab ir.Node
 
 	if r.Bool() {
+		// non-empty interface
 		typ, rtype, _, _, itab = r.itab(pos)
 		if !typ.IsInterface() {
 			rtype = nil // TODO(mdempsky): Leave set?
@@ -3437,7 +3459,7 @@ func unifiedInlineCall(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlInd
 		expandInline(fn, pri)
 	}
 
-	r := pri.asReader(pkgbits.RelocBody, pkgbits.SyncFuncBody)
+	r := pri.asReader(pkgbits.SectionBody, pkgbits.SyncFuncBody)
 
 	tmpfn := ir.NewFunc(fn.Pos(), fn.Nname.Pos(), callerfn.Sym(), fn.Type())
 
@@ -3555,7 +3577,7 @@ func unifiedInlineCall(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlInd
 		edit(r.curfn)
 	})
 
-	body := ir.Nodes(r.curfn.Body)
+	body := r.curfn.Body
 
 	// Reparent any declarations into the caller function.
 	for _, name := range r.curfn.Dcl {
@@ -3626,7 +3648,7 @@ func expandInline(fn *ir.Func, pri pkgReaderIndex) {
 	tmpfn.ClosureVars = fn.ClosureVars
 
 	{
-		r := pri.asReader(pkgbits.RelocBody, pkgbits.SyncFuncBody)
+		r := pri.asReader(pkgbits.SectionBody, pkgbits.SyncFuncBody)
 
 		// Don't change parameter's Sym/Nname fields.
 		r.funarghack = true
@@ -3648,17 +3670,6 @@ func expandInline(fn *ir.Func, pri pkgReaderIndex) {
 	// typecheck.Target.Decls. Remove them again so we don't risk trying
 	// to compile them multiple times.
 	typecheck.Target.Funcs = typecheck.Target.Funcs[:topdcls]
-}
-
-// usedLocals returns a set of local variables that are used within body.
-func usedLocals(body []ir.Node) ir.NameSet {
-	var used ir.NameSet
-	ir.VisitList(body, func(n ir.Node) {
-		if n, ok := n.(*ir.Name); ok && n.Op() == ir.ONAME && n.Class == ir.PAUTO {
-			used.Add(n)
-		}
-	})
-	return used
 }
 
 // @@@ Method wrappers

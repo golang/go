@@ -131,7 +131,7 @@ cmpenv go.mod go.mod.latest
 
 cp go.mod.117 go.mod
 go mod tidy -go=1.21.0  # lower than $goversion
-cmpenv go.mod go.mod.121toolchain
+cmp go.mod go.mod.121toolchain
 
 
 -- go.mod --
@@ -333,8 +333,6 @@ replace (
 module example.com/m
 
 go 1.21.0
-
-toolchain $TESTGO_VERSION
 
 require example.net/a v0.1.0
 

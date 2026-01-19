@@ -6,13 +6,14 @@
 
 #include "textflag.h"
 
-// bool Cas(int32 *val, int32 old, int32 new)
+// func Cas(ptr *int32, old, new int32) bool
 // Atomically:
-//	if(*val == old){
-//		*val = new;
-//		return 1;
-//	} else
-//		return 0;
+//	if *ptr == old {
+//		*ptr = new
+//		return true
+//	} else {
+//		return false
+//	}
 TEXT ·Cas(SB),NOSPLIT,$0-13
 	MOVW	ptr+0(FP), R1
 	MOVW	old+4(FP), R2
@@ -98,6 +99,39 @@ try_xchg:
 	BEQ	R3, try_xchg
 	SYNC
 	MOVW	R1, ret+8(FP)
+	RET
+
+// uint8 Xchg(ptr *uint8, new uint8)
+// Atomically:
+//	old := *ptr;
+//	*ptr = new;
+//	return old;
+TEXT ·Xchg8(SB), NOSPLIT, $0-9
+	MOVW	ptr+0(FP), R2
+	MOVBU	new+4(FP), R5
+#ifdef GOARCH_mips
+	// Big endian.  ptr = ptr ^ 3
+	XOR	$3, R2
+#endif
+	// R4 = ((ptr & 3) * 8)
+	AND	$3, R2, R4
+	SLL	$3, R4
+	// Shift val for aligned ptr. R7 = (0xFF << R4) ^ (-1)
+	MOVW	$0xFF, R7
+	SLL	R4, R7
+	XOR	$-1, R7
+	AND	$~3, R2
+	SLL	R4, R5
+
+	SYNC
+	LL	(R2), R9
+	AND	R7, R9, R8
+	OR	R5, R8
+	SC	R8, (R2)
+	BEQ	R8, -5(PC)
+	SYNC
+	SRL	R4, R9
+	MOVBU	R9, ret+8(FP)
 	RET
 
 TEXT ·Casint32(SB),NOSPLIT,$0-13

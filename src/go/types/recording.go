@@ -108,8 +108,8 @@ func (check *Checker) recordCommaOkTypes(x ast.Expr, a []*operand) {
 			assert(tv.Type != nil) // should have been recorded already
 			pos := x.Pos()
 			tv.Type = NewTuple(
-				NewVar(pos, check.pkg, "", t0),
-				NewVar(pos, check.pkg, "", t1),
+				newVar(LocalVar, pos, check.pkg, "", t0),
+				newVar(LocalVar, pos, check.pkg, "", t1),
 			)
 			m[x] = tv
 			// if x is a parenthesized expression (p.X), update p.X

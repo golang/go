@@ -30,10 +30,12 @@ change in breaking ways as the telemetry integration is refined.
 ## Contributing
 
 This repository uses Gerrit for code changes. To learn how to submit changes to
-this repository, see https://golang.org/doc/contribute.html.
+this repository, see https://go.dev/doc/contribute.
 
-The main issue tracker for the time repository is located at
-https://github.com/golang/go/issues. Prefix your issue with "x/telemetry:" in
+The git repository is https://go.googlesource.com/telemetry.
+
+The main issue tracker for the telemetry repository is located at
+https://go.dev/issues. Prefix your issue with "x/telemetry:" in
 the subject line, so it is easy to find.
 
 ### Linting & Formatting

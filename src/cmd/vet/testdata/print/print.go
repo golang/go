@@ -75,7 +75,7 @@ func PrintfTests() {
 	fmt.Printf("%b %b %b %b", 3e9, x, fslice, c)
 	fmt.Printf("%o %o", 3, i)
 	fmt.Printf("%p", p)
-	fmt.Printf("%q %q %q %q", 3, i, 'x', r)
+	fmt.Printf("%q %q %q", rune(3), 'x', r)
 	fmt.Printf("%s %s %s", "hi", s, []byte{65})
 	fmt.Printf("%t %t", true, b)
 	fmt.Printf("%T %T", 3, i)
@@ -162,7 +162,7 @@ func PrintfTests() {
 	Printf("hi")                       // ok
 	const format = "%s %s\n"
 	Printf(format, "hi", "there")
-	Printf(format, "hi")              // ERROR "Printf format %s reads arg #2, but call has 1 arg$"
+	Printf(format, "hi")              // ERROR "Printf format %s reads arg #2, but call has 1 arg"
 	Printf("%s %d %.3v %q", "str", 4) // ERROR "Printf format %.3v reads arg #3, but call has 2 args"
 	f := new(ptrStringer)
 	f.Warn(0, "%s", "hello", 3)           // ERROR "Warn call has possible Printf formatting directive %s"
@@ -200,8 +200,8 @@ func PrintfTests() {
 	// Bad argument reorderings.
 	Printf("%[xd", 3)                      // ERROR "Printf format %\[xd is missing closing \]"
 	Printf("%[x]d x", 3)                   // ERROR "Printf format has invalid argument index \[x\]"
-	Printf("%[3]*s x", "hi", 2)            // ERROR "Printf format has invalid argument index \[3\]"
-	_ = fmt.Sprintf("%[3]d x", 2)          // ERROR "Sprintf format has invalid argument index \[3\]"
+	Printf("%[3]*s x", "hi", 2)            // ERROR "Printf format %\[3\]\*s reads arg #3, but call has 2 args"
+	_ = fmt.Sprintf("%[3]d x", 2)          // ERROR "Sprintf format %\[3\]d reads arg #3, but call has 1 arg"
 	Printf("%[2]*.[1]*[3]d x", 2, "hi", 4) // ERROR "Printf format %\[2]\*\.\[1\]\*\[3\]d uses non-int \x22hi\x22 as argument of \*"
 	Printf("%[0]s x", "arg1")              // ERROR "Printf format has invalid argument index \[0\]"
 	Printf("%[0]d x", 1)                   // ERROR "Printf format has invalid argument index \[0\]"
@@ -677,4 +677,13 @@ func PointersToCompoundTypes() {
 		X *T2
 	}
 	fmt.Printf("%s\n", T1{&T2{"x"}}) // ERROR "Printf format %s has arg T1{&T2{.x.}} of wrong type .*print\.T1"
+}
+
+// Regression test for #68796: materialized aliases cause printf
+// checker not to recognize "any" as identical to "interface{}".
+func printfUsingAnyNotEmptyInterface(format string, args ...any) {
+	_ = fmt.Sprintf(format, args...)
+}
+func _() {
+	printfUsingAnyNotEmptyInterface("%s", 123) // ERROR "wrong type"
 }

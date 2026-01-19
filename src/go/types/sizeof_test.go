@@ -30,19 +30,19 @@ func TestSizeof(t *testing.T) {
 		{Interface{}, 40, 80},
 		{Map{}, 16, 32},
 		{Chan{}, 12, 24},
-		{Named{}, 60, 112},
+		{Named{}, 68, 128},
 		{TypeParam{}, 28, 48},
 		{term{}, 12, 24},
 
 		// Objects
-		{PkgName{}, 48, 88},
-		{Const{}, 48, 88},
-		{TypeName{}, 40, 72},
-		{Var{}, 48, 88},
-		{Func{}, 48, 88},
-		{Label{}, 44, 80},
-		{Builtin{}, 44, 80},
-		{Nil{}, 40, 72},
+		{PkgName{}, 40, 80},
+		{Const{}, 44, 88},
+		{TypeName{}, 36, 72},
+		{Var{}, 44, 88},
+		{Func{}, 44, 88},
+		{Label{}, 40, 80},
+		{Builtin{}, 40, 80},
+		{Nil{}, 36, 72},
 
 		// Misc
 		{Scope{}, 44, 88},

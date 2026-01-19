@@ -80,15 +80,16 @@
 (OffPtr [off] ptr) && is32Bit(off) => (ADDconst [int32(off)] ptr)
 (OffPtr [off] ptr) => (ADD (MOVDconst [off]) ptr)
 
-// TODO: optimize these cases?
-(Ctz64NonZero ...) => (Ctz64 ...)
-(Ctz32NonZero ...) => (Ctz32 ...)
+(Ctz(64|32|16|8)NonZero ...) => (Ctz64 ...)
 
 // Ctz(x) = 64 - findLeftmostOne((x-1)&^x)
 (Ctz64 <t> x) => (SUB (MOVDconst [64]) (FLOGR (AND <t> (SUBconst <t> [1] x) (NOT <t> x))))
 (Ctz32 <t> x) => (SUB (MOVDconst [64]) (FLOGR (MOVWZreg (ANDW <t> (SUBWconst <t> [1] x) (NOTW <t> x)))))
+(Ctz16 x) => (Ctz64 (Or64 <typ.UInt64> x (MOVDconst [1<<16])))
+(Ctz8  x) => (Ctz64 (Or64 <typ.UInt64> x (MOVDconst [1<<8])))
 
 (BitLen64 x) => (SUB (MOVDconst [64]) (FLOGR x))
+(BitLen(32|16|8) x) => (BitLen64 (ZeroExt(32|16|8)to64 x))
 
 // POPCNT treats the input register as a vector of 8 bytes, producing
 // a population count for each individual byte. For inputs larger than
@@ -143,6 +144,9 @@
 (FMA     x y z) => (FMADD z x y)
 
 (Sqrt32    ...) => (FSQRTS ...)
+
+(Max(64|32)F ...) => (WFMAX(D|S)B ...)
+(Min(64|32)F ...) => (WFMIN(D|S)B ...)
 
 // Atomic loads and stores.
 // The SYNC instruction (fast-BCR-serialization) prevents store-load
@@ -454,9 +458,11 @@
 // Write barrier.
 (WB ...) => (LoweredWB ...)
 
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 0 => (LoweredPanicBoundsA [kind] x y mem)
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 1 => (LoweredPanicBoundsB [kind] x y mem)
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 2 => (LoweredPanicBoundsC [kind] x y mem)
+(PanicBounds ...) => (LoweredPanicBoundsRR ...)
+(LoweredPanicBoundsRR [kind] x (MOVDconst [c]) mem) => (LoweredPanicBoundsRC [kind] x {PanicBoundsC{C:c}} mem)
+(LoweredPanicBoundsRR [kind] (MOVDconst [c]) y mem) => (LoweredPanicBoundsCR [kind] {PanicBoundsC{C:c}} y mem)
+(LoweredPanicBoundsRC [kind] {p} (MOVDconst [c]) mem) => (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:c, Cy:p.C}} mem)
+(LoweredPanicBoundsCR [kind] {p} (MOVDconst [c]) mem) => (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:p.C, Cy:c}} mem)
 
 // ***************************
 // Above: lowering rules
@@ -1187,6 +1193,8 @@
 // TODO: more of this
 (ADD x (NEG y)) => (SUB x y)
 (ADDW x (NEGW y)) => (SUBW x y)
+(SUB x (NEG y)) => (ADD x y)
+(SUBW x (NEGW y)) => (ADDW x y)
 (SUB x x) => (MOVDconst [0])
 (SUBW x x) => (MOVDconst [0])
 (AND x x) => x
@@ -1195,6 +1203,7 @@
 (ORW x x) => x
 (XOR x x) => (MOVDconst [0])
 (XORW x x) => (MOVDconst [0])
+(NEG (NEG x)) => x
 (NEG (ADDconst [c] (NEG x))) && c != -(1<<31) => (ADDconst [-c] x)
 (MOVBZreg (ANDWconst [m] x)) => (MOVWZreg (ANDWconst <typ.UInt32> [int32( uint8(m))] x))
 (MOVHZreg (ANDWconst [m] x)) => (MOVWZreg (ANDWconst <typ.UInt32> [int32(uint16(m))] x))

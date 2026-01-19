@@ -46,7 +46,7 @@ func TestOpen(t *testing.T) {
 			continue
 		}
 		base := filepath.Base(tt.path)
-		h, err := windows.Openat(dirfd, base, tt.flag, 0o660)
+		h, err := windows.Openat(dirfd, base, uint64(tt.flag), 0o660)
 		syscall.CloseHandle(dirfd)
 		if err == nil {
 			syscall.CloseHandle(h)

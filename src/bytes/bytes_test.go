@@ -7,6 +7,7 @@ package bytes_test
 import (
 	. "bytes"
 	"fmt"
+	"internal/asan"
 	"internal/testenv"
 	"iter"
 	"math"
@@ -692,14 +693,14 @@ func bmIndexRuneUnicode(rt *unicode.RangeTable, needle rune) func(b *testing.B, 
 	for _, r16 := range rt.R16 {
 		for r := rune(r16.Lo); r <= rune(r16.Hi); r += rune(r16.Stride) {
 			if r != needle {
-				rs = append(rs, rune(r))
+				rs = append(rs, r)
 			}
 		}
 	}
 	for _, r32 := range rt.R32 {
 		for r := rune(r32.Lo); r <= rune(r32.Hi); r += rune(r32.Stride) {
 			if r != needle {
-				rs = append(rs, rune(r))
+				rs = append(rs, r)
 			}
 		}
 	}
@@ -890,9 +891,7 @@ func BenchmarkCountSingle(b *testing.B) {
 				b.Fatal("bad count", j, expect)
 			}
 		}
-		for i := 0; i < len(buf); i++ {
-			buf[i] = 0
-		}
+		clear(buf)
 	})
 }
 
@@ -962,7 +961,7 @@ func TestSplit(t *testing.T) {
 		if tt.n < 0 {
 			b := sliceOfString(Split([]byte(tt.s), []byte(tt.sep)))
 			if !slices.Equal(result, b) {
-				t.Errorf("Split disagrees withSplitN(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, b, a)
+				t.Errorf("Split disagrees with SplitN(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, b, a)
 			}
 		}
 		if len(a) > 0 {
@@ -1024,7 +1023,7 @@ func TestSplitAfter(t *testing.T) {
 		if tt.n < 0 {
 			b := sliceOfString(SplitAfter([]byte(tt.s), []byte(tt.sep)))
 			if !slices.Equal(result, b) {
-				t.Errorf("SplitAfter disagrees withSplitAfterN(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, b, a)
+				t.Errorf("SplitAfter disagrees with SplitAfterN(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, b, a)
 			}
 		}
 	}
@@ -1225,7 +1224,7 @@ func TestMap(t *testing.T) {
 	// Run a couple of awful growth/shrinkage tests
 	a := tenRunes('a')
 
-	// 1.  Grow. This triggers two reallocations in Map.
+	// 1. Grow. This triggers two reallocations in Map.
 	maxRune := func(r rune) rune { return unicode.MaxRune }
 	m := Map(maxRune, []byte(a))
 	expect := tenRunes(unicode.MaxRune)
@@ -1786,9 +1785,20 @@ var ReplaceTests = []ReplaceTest{
 
 func TestReplace(t *testing.T) {
 	for _, tt := range ReplaceTests {
-		in := append([]byte(tt.in), "<spare>"...)
+		var (
+			in  = []byte(tt.in)
+			old = []byte(tt.old)
+			new = []byte(tt.new)
+		)
+		if !asan.Enabled {
+			allocs := testing.AllocsPerRun(10, func() { Replace(in, old, new, tt.n) })
+			if allocs > 1 {
+				t.Errorf("Replace(%q, %q, %q, %d) allocates %.2f objects", tt.in, tt.old, tt.new, tt.n, allocs)
+			}
+		}
+		in = append(in, "<spare>"...)
 		in = in[:len(tt.in)]
-		out := Replace(in, []byte(tt.old), []byte(tt.new), tt.n)
+		out := Replace(in, old, new, tt.n)
 		if s := string(out); s != tt.out {
 			t.Errorf("Replace(%q, %q, %q, %d) = %q, want %q", tt.in, tt.old, tt.new, tt.n, s, tt.out)
 		}
@@ -1796,11 +1806,74 @@ func TestReplace(t *testing.T) {
 			t.Errorf("Replace(%q, %q, %q, %d) didn't copy", tt.in, tt.old, tt.new, tt.n)
 		}
 		if tt.n == -1 {
-			out := ReplaceAll(in, []byte(tt.old), []byte(tt.new))
+			out := ReplaceAll(in, old, new)
 			if s := string(out); s != tt.out {
 				t.Errorf("ReplaceAll(%q, %q, %q) = %q, want %q", tt.in, tt.old, tt.new, s, tt.out)
 			}
 		}
+	}
+}
+
+func FuzzReplace(f *testing.F) {
+	for _, tt := range ReplaceTests {
+		f.Add([]byte(tt.in), []byte(tt.old), []byte(tt.new), tt.n)
+	}
+	f.Fuzz(func(t *testing.T, in, old, new []byte, n int) {
+		differentImpl := func(in, old, new []byte, n int) []byte {
+			var out Buffer
+			if n < 0 {
+				n = math.MaxInt
+			}
+			for i := 0; i < len(in); {
+				if n == 0 {
+					out.Write(in[i:])
+					break
+				}
+				if HasPrefix(in[i:], old) {
+					out.Write(new)
+					i += len(old)
+					n--
+					if len(old) != 0 {
+						continue
+					}
+					if i == len(in) {
+						break
+					}
+				}
+				if len(old) == 0 {
+					_, length := utf8.DecodeRune(in[i:])
+					out.Write(in[i : i+length])
+					i += length
+				} else {
+					out.WriteByte(in[i])
+					i++
+				}
+			}
+			if len(old) == 0 && n != 0 {
+				out.Write(new)
+			}
+			return out.Bytes()
+		}
+		if simple, replace := differentImpl(in, old, new, n), Replace(in, old, new, n); !slices.Equal(simple, replace) {
+			t.Errorf("The two implementations do not match %q != %q for Replace(%q, %q, %q, %d)", simple, replace, in, old, new, n)
+		}
+	})
+}
+
+func BenchmarkReplace(b *testing.B) {
+	for _, tt := range ReplaceTests {
+		desc := fmt.Sprintf("%q %q %q %d", tt.in, tt.old, tt.new, tt.n)
+		var (
+			in  = []byte(tt.in)
+			old = []byte(tt.old)
+			new = []byte(tt.new)
+		)
+		b.Run(desc, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				Replace(in, old, new, tt.n)
+			}
+		})
 	}
 }
 
@@ -2053,8 +2126,9 @@ func TestContainsFunc(t *testing.T) {
 var makeFieldsInput = func() []byte {
 	x := make([]byte, 1<<20)
 	// Input is ~10% space, ~10% 2-byte UTF-8, rest ASCII non-space.
+	r := rand.New(rand.NewSource(99))
 	for i := range x {
-		switch rand.Intn(10) {
+		switch r.Intn(10) {
 		case 0:
 			x[i] = ' '
 		case 1:
@@ -2073,8 +2147,9 @@ var makeFieldsInput = func() []byte {
 var makeFieldsInputASCII = func() []byte {
 	x := make([]byte, 1<<20)
 	// Input is ~10% space, rest ASCII non-space.
+	r := rand.New(rand.NewSource(99))
 	for i := range x {
-		if rand.Intn(10) == 0 {
+		if r.Intn(10) == 0 {
 			x[i] = ' '
 		} else {
 			x[i] = 'x'
@@ -2171,8 +2246,9 @@ func makeBenchInputHard() []byte {
 		"hello", "world",
 	}
 	x := make([]byte, 0, 1<<20)
+	r := rand.New(rand.NewSource(99))
 	for {
-		i := rand.Intn(len(tokens))
+		i := r.Intn(len(tokens))
 		if len(x)+len(tokens[i]) >= 1<<20 {
 			break
 		}

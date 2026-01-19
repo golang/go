@@ -7,6 +7,8 @@ package testing_test
 import (
 	"bytes"
 	"cmp"
+	"context"
+	"errors"
 	"runtime"
 	"slices"
 	"strings"
@@ -127,20 +129,32 @@ func TestRunParallelSkipNow(t *testing.T) {
 	})
 }
 
-func TestLoopEqualsRangeOverBN(t *testing.T) {
-	// Verify that b.N and the b.Loop() iteration count match.
-	var nIterated, nInfered int
+func TestBenchmarkContext(t *testing.T) {
 	testing.Benchmark(func(b *testing.B) {
-		i := 0
-		for b.Loop() {
-			i++
+		ctx := b.Context()
+		if err := ctx.Err(); err != nil {
+			b.Fatalf("expected non-canceled context, got %v", err)
 		}
-		nIterated = i
-		nInfered = b.N
+
+		var innerCtx context.Context
+		b.Run("inner", func(b *testing.B) {
+			innerCtx = b.Context()
+			if err := innerCtx.Err(); err != nil {
+				b.Fatalf("expected inner benchmark to not inherit canceled context, got %v", err)
+			}
+		})
+		b.Run("inner2", func(b *testing.B) {
+			if !errors.Is(innerCtx.Err(), context.Canceled) {
+				t.Fatal("expected context of sibling benchmark to be canceled after its test function finished")
+			}
+		})
+
+		t.Cleanup(func() {
+			if !errors.Is(ctx.Err(), context.Canceled) {
+				t.Fatal("expected context canceled before cleanup")
+			}
+		})
 	})
-	if nIterated != nInfered {
-		t.Fatalf("Iteration of the two different benchmark loop flavor differs, got %d iterations want %d", nIterated, nInfered)
-	}
 }
 
 func ExampleB_RunParallel() {
@@ -183,7 +197,7 @@ func ExampleB_ReportMetric() {
 	// specific algorithm (in this case, sorting).
 	testing.Benchmark(func(b *testing.B) {
 		var compares int64
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			s := []int{5, 4, 3, 2, 1}
 			slices.SortFunc(s, func(a, b int) int {
 				compares++

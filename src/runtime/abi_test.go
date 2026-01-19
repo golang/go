@@ -44,12 +44,10 @@ type TintPointer struct {
 func (*TintPointer) m() {}
 
 func TestFinalizerRegisterABI(t *testing.T) {
-	testenv.MustHaveExec(t)
-
 	// Actually run the test in a subprocess because we don't want
 	// finalizers from other tests interfering.
 	if os.Getenv("TEST_FINALIZER_REGABI") != "1" {
-		cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=^TestFinalizerRegisterABI$", "-test.v"))
+		cmd := testenv.CleanCmdEnv(exec.Command(testenv.Executable(t), "-test.run=^TestFinalizerRegisterABI$", "-test.v"))
 		cmd.Env = append(cmd.Env, "TEST_FINALIZER_REGABI=1")
 		out, err := cmd.CombinedOutput()
 		if !strings.Contains(string(out), "PASS\n") || err != nil {
@@ -67,6 +65,9 @@ func TestFinalizerRegisterABI(t *testing.T) {
 	// it's extremely unlikely.
 	runtime.GC()
 	runtime.GC()
+
+	// Make sure the finalizer goroutine is running.
+	runtime.SetFinalizer(new(TintPointer), func(_ *TintPointer) {})
 
 	// fing will only pick the new IntRegArgs up if it's currently
 	// sleeping and wakes up, so wait for it to go to sleep.

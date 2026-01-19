@@ -146,19 +146,19 @@ func pbit8(b []byte, v uint8) []byte {
 
 // pbit16 copies the 16-bit number v to b in little-endian order and returns the remaining slice of b.
 func pbit16(b []byte, v uint16) []byte {
-	byteorder.LePutUint16(b, v)
+	byteorder.LEPutUint16(b, v)
 	return b[2:]
 }
 
 // pbit32 copies the 32-bit number v to b in little-endian order and returns the remaining slice of b.
 func pbit32(b []byte, v uint32) []byte {
-	byteorder.LePutUint32(b, v)
+	byteorder.LEPutUint32(b, v)
 	return b[4:]
 }
 
 // pbit64 copies the 64-bit number v to b in little-endian order and returns the remaining slice of b.
 func pbit64(b []byte, v uint64) []byte {
-	byteorder.LePutUint64(b, v)
+	byteorder.LEPutUint64(b, v)
 	return b[8:]
 }
 
@@ -179,17 +179,17 @@ func gbit8(b []byte) (uint8, []byte) {
 //
 //go:nosplit
 func gbit16(b []byte) (uint16, []byte) {
-	return byteorder.LeUint16(b), b[2:]
+	return byteorder.LEUint16(b), b[2:]
 }
 
 // gbit32 reads a 32-bit number in little-endian order from b and returns it with the remaining slice of b.
 func gbit32(b []byte) (uint32, []byte) {
-	return byteorder.LeUint32(b), b[4:]
+	return byteorder.LEUint32(b), b[4:]
 }
 
 // gbit64 reads a 64-bit number in little-endian order from b and returns it with the remaining slice of b.
 func gbit64(b []byte) (uint64, []byte) {
-	return byteorder.LeUint64(b), b[8:]
+	return byteorder.LEUint64(b), b[8:]
 }
 
 // gstring reads a string from b, prefixed with a 16-bit length in little-endian order.

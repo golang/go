@@ -15,7 +15,7 @@ import (
 
 func postExpandCallsDecompose(f *Func) {
 	decomposeUser(f)    // redo user decompose to cleanup after expand calls
-	decomposeBuiltIn(f) // handles both regular decomposition and cleanup.
+	decomposeBuiltin(f) // handles both regular decomposition and cleanup.
 }
 
 func expandCalls(f *Func) {
@@ -243,11 +243,8 @@ func (x *expandState) rewriteFuncResults(v *Value, b *Block, aux *AuxCall) {
 		if len(aRegs) > 0 {
 			result = &allResults
 		} else {
-			if a.Op == OpLoad && a.Args[0].Op == OpLocalAddr {
-				addr := a.Args[0]
-				if addr.MemoryArg() == a.MemoryArg() && addr.Aux == aux.NameOfResult(i) {
-					continue // Self move to output parameter
-				}
+			if a.Op == OpLoad && a.Args[0].Op == OpLocalAddr && a.Args[0].Aux == aux.NameOfResult(i) {
+				continue // Self move to output parameter
 			}
 		}
 		rc.init(aRegs, aux.abiInfo, result, auxBase, auxOffset)
@@ -399,6 +396,9 @@ func (x *expandState) decomposeAsNecessary(pos src.XPos, b *Block, a, m0 *Value,
 		return mem
 
 	case types.TSTRUCT:
+		if at.IsSIMD() {
+			break // XXX
+		}
 		for i := 0; i < at.NumFields(); i++ {
 			et := at.Field(i).Type // might need to read offsets from the fields
 			e := b.NewValue1I(pos, OpStructSelect, et, int64(i), a)
@@ -426,7 +426,14 @@ func (x *expandState) decomposeAsNecessary(pos src.XPos, b *Block, a, m0 *Value,
 		if a.Op == OpIMake {
 			data := a.Args[1]
 			for data.Op == OpStructMake || data.Op == OpArrayMake1 {
-				data = data.Args[0]
+				// A struct make might have a few zero-sized fields.
+				// Use the pointer-y one we know is there.
+				for _, a := range data.Args {
+					if a.Type.Size() > 0 {
+						data = a
+						break
+					}
+				}
 			}
 			return x.decomposeAsNecessary(pos, b, data, mem, rc.next(data.Type))
 		}
@@ -547,6 +554,9 @@ func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *Block, container, a, m
 
 	case types.TSTRUCT:
 		// Assume ssagen/ssa.go (in buildssa) spills large aggregates so they won't appear here.
+		if at.IsSIMD() {
+			break // XXX
+		}
 		for i := 0; i < at.NumFields(); i++ {
 			et := at.Field(i).Type
 			e := x.rewriteSelectOrArg(pos, b, container, nil, m0, et, rc.next(et))
@@ -713,6 +723,9 @@ func (x *expandState) rewriteWideSelectToStores(pos src.XPos, b *Block, containe
 
 	case types.TSTRUCT:
 		// Assume ssagen/ssa.go (in buildssa) spills large aggregates so they won't appear here.
+		if at.IsSIMD() {
+			break // XXX
+		}
 		for i := 0; i < at.NumFields(); i++ {
 			et := at.Field(i).Type
 			m0 = x.rewriteWideSelectToStores(pos, b, container, m0, et, rc.next(et))
@@ -847,27 +860,6 @@ func (c *registerCursor) plus(regWidth Abi1RO) registerCursor {
 	return rc
 }
 
-// at returns the register cursor for component i of t, where the first
-// component is numbered 0.
-func (c *registerCursor) at(t *types.Type, i int) registerCursor {
-	rc := *c
-	if i == 0 || len(c.regs) == 0 {
-		return rc
-	}
-	if t.IsArray() {
-		w := c.config.NumParamRegs(t.Elem())
-		rc.nextSlice += Abi1RO(i * w)
-		return rc
-	}
-	if t.IsStruct() {
-		for j := 0; j < i; j++ {
-			rc.next(t.FieldType(j))
-		}
-		return rc
-	}
-	panic("Haven't implemented this case yet, do I need to?")
-}
-
 func (c *registerCursor) init(regs []abi.RegIndex, info *abi.ABIParamResultInfo, result *[]*Value, storeDest *Value, storeOffset int64) {
 	c.regs = regs
 	c.nextSlice = 0
@@ -926,17 +918,6 @@ type expandState struct {
 	indentLevel     int               // Indentation for debugging recursion
 }
 
-// intPairTypes returns the pair of 32-bit int types needed to encode a 64-bit integer type on a target
-// that has no 64-bit integer registers.
-func (x *expandState) intPairTypes(et types.Kind) (tHi, tLo *types.Type) {
-	tHi = x.typs.UInt32
-	if et == types.TINT64 {
-		tHi = x.typs.Int32
-	}
-	tLo = x.typs.UInt32
-	return
-}
-
 // offsetFrom creates an offset from a pointer, simplifying chained offsets and offsets from SP
 func (x *expandState) offsetFrom(b *Block, from *Value, offset int64, pt *types.Type) *Value {
 	ft := from.Type
@@ -958,29 +939,6 @@ func (x *expandState) offsetFrom(b *Block, from *Value, offset int64, pt *types.
 		return x.f.ConstOffPtrSP(pt, offset, x.sp)
 	}
 	return b.NewValue1I(from.Pos.WithNotStmt(), OpOffPtr, pt, offset, from)
-}
-
-func (x *expandState) regWidth(t *types.Type) Abi1RO {
-	return Abi1RO(x.f.ABI1.NumParamRegs(t))
-}
-
-// regOffset returns the register offset of the i'th element of type t
-func (x *expandState) regOffset(t *types.Type, i int) Abi1RO {
-	// TODO maybe cache this in a map if profiling recommends.
-	if i == 0 {
-		return 0
-	}
-	if t.IsArray() {
-		return Abi1RO(i) * x.regWidth(t.Elem())
-	}
-	if t.IsStruct() {
-		k := Abi1RO(0)
-		for j := 0; j < i; j++ {
-			k += x.regWidth(t.FieldType(j))
-		}
-		return k
-	}
-	panic("Haven't implemented this case yet, do I need to?")
 }
 
 // prAssignForArg returns the ABIParamAssignment for v, assumed to be an OpArg.
@@ -1009,7 +967,7 @@ func (x *expandState) indent(n int) {
 }
 
 // Printf does an indented fmt.Printf on the format and args.
-func (x *expandState) Printf(format string, a ...interface{}) (n int, err error) {
+func (x *expandState) Printf(format string, a ...any) (n int, err error) {
 	if x.indentLevel > 0 {
 		fmt.Printf("%[1]*s", x.indentLevel, "")
 	}

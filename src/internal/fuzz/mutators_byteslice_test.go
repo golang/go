@@ -34,12 +34,6 @@ func (mr *mockRand) uint32n(n uint32) uint32 {
 	return uint32(c) % n
 }
 
-func (mr *mockRand) exp2() int {
-	c := mr.values[mr.counter]
-	mr.counter++
-	return c
-}
-
 func (mr *mockRand) bool() bool {
 	b := mr.b
 	mr.b = !mr.b

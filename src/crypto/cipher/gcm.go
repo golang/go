@@ -5,9 +5,10 @@
 package cipher
 
 import (
-	"crypto/internal/fips/aes"
-	"crypto/internal/fips/aes/gcm"
-	"crypto/internal/fips/alias"
+	"crypto/internal/fips140/aes"
+	"crypto/internal/fips140/aes/gcm"
+	"crypto/internal/fips140/alias"
+	"crypto/internal/fips140only"
 	"crypto/subtle"
 	"errors"
 	"internal/byteorder"
@@ -27,6 +28,9 @@ const (
 // An exception is when the underlying [Block] was created by aes.NewCipher
 // on systems with hardware support for AES. See the [crypto/aes] package documentation for details.
 func NewGCM(cipher Block) (AEAD, error) {
+	if fips140only.Enforced() {
+		return nil, errors.New("crypto/cipher: use of GCM with arbitrary IVs is not allowed in FIPS 140-only mode, use NewGCMWithRandomNonce")
+	}
 	return newGCM(cipher, gcmStandardNonceSize, gcmTagSize)
 }
 
@@ -38,6 +42,9 @@ func NewGCM(cipher Block) (AEAD, error) {
 // cryptosystem that uses non-standard nonce lengths. All other users should use
 // [NewGCM], which is faster and more resistant to misuse.
 func NewGCMWithNonceSize(cipher Block, size int) (AEAD, error) {
+	if fips140only.Enforced() {
+		return nil, errors.New("crypto/cipher: use of GCM with arbitrary IVs is not allowed in FIPS 140-only mode, use NewGCMWithRandomNonce")
+	}
 	return newGCM(cipher, size, gcmTagSize)
 }
 
@@ -50,12 +57,18 @@ func NewGCMWithNonceSize(cipher Block, size int) (AEAD, error) {
 // cryptosystem that uses non-standard tag lengths. All other users should use
 // [NewGCM], which is more resistant to misuse.
 func NewGCMWithTagSize(cipher Block, tagSize int) (AEAD, error) {
+	if fips140only.Enforced() {
+		return nil, errors.New("crypto/cipher: use of GCM with arbitrary IVs is not allowed in FIPS 140-only mode, use NewGCMWithRandomNonce")
+	}
 	return newGCM(cipher, gcmStandardNonceSize, tagSize)
 }
 
 func newGCM(cipher Block, nonceSize, tagSize int) (AEAD, error) {
 	c, ok := cipher.(*aes.Block)
 	if !ok {
+		if fips140only.Enforced() {
+			return nil, errors.New("crypto/cipher: use of GCM with non-AES ciphers is not allowed in FIPS 140-only mode")
+		}
 		return newGCMFallback(cipher, nonceSize, tagSize)
 	}
 	// We don't return gcm.New directly, because it would always return a non-nil
@@ -69,7 +82,7 @@ func newGCM(cipher Block, nonceSize, tagSize int) (AEAD, error) {
 
 // NewGCMWithRandomNonce returns the given cipher wrapped in Galois Counter
 // Mode, with randomly-generated nonces. The cipher must have been created by
-// [aes.NewCipher].
+// [crypto/aes.NewCipher].
 //
 // It generates a random 96-bit nonce, which is prepended to the ciphertext by Seal,
 // and is extracted from the ciphertext by Open. The NonceSize of the AEAD is zero,
@@ -127,7 +140,7 @@ func (g gcmWithRandomNonce) Seal(dst, nonce, plaintext, additionalData []byte) [
 	// In Seal, we could work through the input backwards or intentionally load
 	// ahead before writing.
 	//
-	// However, the crypto/internal/fips/aes/gcm APIs also check for exact overlap,
+	// However, the crypto/internal/fips140/aes/gcm APIs also check for exact overlap,
 	// so for now we just do a memmove if we detect overlap.
 	//
 	//     ┌───────────────────────────┬ ─ ─
@@ -209,7 +222,7 @@ func newGCMFallback(cipher Block, nonceSize, tagSize int) (AEAD, error) {
 
 // gcmFallback is only used for non-AES ciphers, which regrettably we
 // theoretically support. It's a copy of the generic implementation from
-// crypto/internal/fips/aes/gcm/gcm_generic.go, refer to that file for more details.
+// crypto/internal/fips140/aes/gcm/gcm_generic.go, refer to that file for more details.
 type gcmFallback struct {
 	cipher    Block
 	nonceSize int
@@ -312,7 +325,7 @@ func deriveCounter(H, counter *[gcmBlockSize]byte, nonce []byte) {
 		counter[gcmBlockSize-1] = 1
 	} else {
 		lenBlock := make([]byte, 16)
-		byteorder.BePutUint64(lenBlock[8:], uint64(len(nonce))*8)
+		byteorder.BEPutUint64(lenBlock[8:], uint64(len(nonce))*8)
 		J := gcm.GHASH(H, nonce, lenBlock)
 		copy(counter[:], J)
 	}
@@ -337,13 +350,13 @@ func gcmCounterCryptGeneric(b Block, out, src []byte, counter *[gcmBlockSize]byt
 
 func gcmInc32(counterBlock *[gcmBlockSize]byte) {
 	ctr := counterBlock[len(counterBlock)-4:]
-	byteorder.BePutUint32(ctr, byteorder.BeUint32(ctr)+1)
+	byteorder.BEPutUint32(ctr, byteorder.BEUint32(ctr)+1)
 }
 
 func gcmAuth(out []byte, H, tagMask *[gcmBlockSize]byte, ciphertext, additionalData []byte) {
 	lenBlock := make([]byte, 16)
-	byteorder.BePutUint64(lenBlock[:8], uint64(len(additionalData))*8)
-	byteorder.BePutUint64(lenBlock[8:], uint64(len(ciphertext))*8)
+	byteorder.BEPutUint64(lenBlock[:8], uint64(len(additionalData))*8)
+	byteorder.BEPutUint64(lenBlock[8:], uint64(len(ciphertext))*8)
 	S := gcm.GHASH(H, additionalData, ciphertext, lenBlock)
 	subtle.XORBytes(out, S, tagMask[:])
 }

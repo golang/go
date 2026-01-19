@@ -169,3 +169,8 @@ TEXT ·a34(SB), 0, $0-0
 	SHLXQ AX, CX, R15
 	ADDQ $1, R15
 	RET
+
+// Ensure from3 get GOT-rewritten without errors.
+TEXT ·a35(SB), 0, $0-0
+	VGF2P8AFFINEQB	$0, runtime·writeBarrier(SB), Z1, Z1
+	RET

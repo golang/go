@@ -23,11 +23,7 @@ func ResetCoverage() {
 func SnapshotCoverage() {
 	cov := coverage()
 	for i, b := range cov {
-		b |= b >> 1
-		b |= b >> 2
-		b |= b >> 4
-		b -= b >> 1
-		coverageSnapshot[i] = b
+		coverageSnapshot[i] = pow2Table[b]
 	}
 }
 
@@ -102,4 +98,18 @@ var (
 	// the 8-bit coverage counters reside in memory. They're known to cmd/link,
 	// which specially assigns their addresses for this purpose.
 	_counters, _ecounters [0]byte
+
+	// lookup table for faster power of two rounding
+	pow2Table [256]byte
 )
+
+func init() {
+	for i := range pow2Table {
+		b := byte(i)
+		b |= b >> 1
+		b |= b >> 2
+		b |= b >> 4
+		b -= b >> 1
+		pow2Table[i] = b
+	}
+}

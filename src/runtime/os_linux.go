@@ -8,7 +8,8 @@ import (
 	"internal/abi"
 	"internal/goarch"
 	"internal/runtime/atomic"
-	"internal/runtime/syscall"
+	"internal/runtime/syscall/linux"
+	"internal/strconv"
 	"unsafe"
 )
 
@@ -38,9 +39,6 @@ type mOS struct {
 
 	waitsema uint32 // semaphore for parking on locks
 }
-
-//go:noescape
-func futex(addr unsafe.Pointer, op int32, val uint32, ts, addr2 unsafe.Pointer, val3 uint32) int32
 
 // Linux futex.
 //
@@ -78,7 +76,7 @@ func futexsleep(addr *uint32, val uint32, ns int64) {
 
 	var ts timespec
 	ts.setNsec(ns)
-	futex(unsafe.Pointer(addr), _FUTEX_WAIT_PRIVATE, val, unsafe.Pointer(&ts), nil, 0)
+	futex(unsafe.Pointer(addr), _FUTEX_WAIT_PRIVATE, val, &ts, nil, 0)
 }
 
 // If any procs are sleeping on addr, wake up at most cnt.
@@ -100,7 +98,7 @@ func futexwakeup(addr *uint32, cnt uint32) {
 	*(*int32)(unsafe.Pointer(uintptr(0x1006))) = 0x1006
 }
 
-func getproccount() int32 {
+func getCPUCount() int32 {
 	// This buffer is huge (8 kB) but we are on the system stack
 	// and there should be plenty of space (64 kB).
 	// Also this is a leaf, so we're not holding up the memory for long.
@@ -206,7 +204,7 @@ func newosproc(mp *m) {
 //
 //go:nosplit
 func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
-	stack := sysAlloc(stacksize, &memstats.stacks_sys)
+	stack := sysAlloc(stacksize, &memstats.stacks_sys, "OS thread stack")
 	if stack == nil {
 		writeErrStr(failallocatestack)
 		exit(1)
@@ -364,8 +362,8 @@ func getHugePageSize() uintptr {
 		return 0
 	}
 	n-- // remove trailing newline
-	v, ok := atoi(slicebytetostringtmp((*byte)(ptr), int(n)))
-	if !ok || v < 0 {
+	v, err := strconv.Atoi(slicebytetostringtmp((*byte)(ptr), int(n)))
+	if err != nil || v < 0 {
 		v = 0
 	}
 	if v&(v-1) != 0 {
@@ -376,9 +374,8 @@ func getHugePageSize() uintptr {
 }
 
 func osinit() {
-	ncpu = getproccount()
+	numCPUStartup = getCPUCount()
 	physHugePageSize = getHugePageSize()
-	osArchInit()
 	vgetrandomInit()
 }
 
@@ -435,13 +432,13 @@ func unminit() {
 	getg().m.procid = 0
 }
 
-// Called from exitm, but not from drop, to undo the effect of thread-owned
+// Called from mexit, but not from dropm, to undo the effect of thread-owned
 // resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
+//
+// This always runs without a P, so //go:nowritebarrierrec is required.
+//
+//go:nowritebarrierrec
 func mdestroy(mp *m) {
-	if mp.vgetrandomState != 0 {
-		vgetrandomPutState(mp.vgetrandomState)
-		mp.vgetrandomState = 0
-	}
 }
 
 // #ifdef GOARCH_386
@@ -460,9 +457,6 @@ func setitimer(mode int32, new, old *itimerval)
 
 //go:noescape
 func timer_create(clockid int32, sevp *sigevent, timerid *int32) int32
-
-//go:noescape
-func timer_settime(timerid int32, flags int32, new, old *itimerspec) int32
 
 //go:noescape
 func timer_delete(timerid int32) int32
@@ -492,7 +486,7 @@ func pipe2(flags int32) (r, w int32, errno int32)
 
 //go:nosplit
 func fcntl(fd, cmd, arg int32) (ret int32, errno int32) {
-	r, _, err := syscall.Syscall6(syscall.SYS_FCNTL, uintptr(fd), uintptr(cmd), uintptr(arg), 0, 0, 0)
+	r, _, err := linux.Syscall6(linux.SYS_FCNTL, uintptr(fd), uintptr(cmd), uintptr(arg), 0, 0, 0)
 	return int32(r), int32(err)
 }
 
@@ -509,7 +503,8 @@ func setsig(i uint32, fn uintptr) {
 	sigfillset(&sa.sa_mask)
 	// Although Linux manpage says "sa_restorer element is obsolete and
 	// should not be used". x86_64 kernel requires it. Only use it on
-	// x86.
+	// x86. Note that on 386 this is cleared when using the C sigaction
+	// function via cgo; see fixSigactionForCgo.
 	if GOARCH == "386" || GOARCH == "amd64" {
 		sa.sa_restorer = abi.FuncPCABI0(sigreturn__sigaction)
 	}
@@ -584,6 +579,21 @@ func sysSigaction(sig uint32, new, old *sigactiont) {
 //
 //go:noescape
 func rt_sigaction(sig uintptr, new, old *sigactiont, size uintptr) int32
+
+// fixSigactionForCgo is called when we are using cgo to call the
+// C sigaction function. On 386 the C function does not expect the
+// SA_RESTORER flag to be set, and in some cases will fail if it is set:
+// it will pass the SA_RESTORER flag to the kernel without passing
+// the sa_restorer field. Since the C function will handle SA_RESTORER
+// for us, we need not pass it. See issue #75253.
+//
+//go:nosplit
+func fixSigactionForCgo(new *sigactiont) {
+	if GOARCH == "386" && new != nil {
+		new.sa_flags &^= _SA_RESTORER
+		new.sa_restorer = 0
+	}
+}
 
 func getpid() int
 func tgkill(tgid, tid, sig int)
@@ -795,7 +805,7 @@ func syscall_runtime_doAllThreadsSyscall(trap, a1, a2, a3, a4, a5, a6 uintptr) (
 	// ensuring all threads execute system calls from multiple calls in the
 	// same order.
 
-	r1, r2, errno := syscall.Syscall6(trap, a1, a2, a3, a4, a5, a6)
+	r1, r2, errno := linux.Syscall6(trap, a1, a2, a3, a4, a5, a6)
 	if GOARCH == "ppc64" || GOARCH == "ppc64le" {
 		// TODO(https://go.dev/issue/51192 ): ppc64 doesn't use r2.
 		r2 = 0
@@ -906,7 +916,7 @@ func runPerThreadSyscall() {
 	}
 
 	args := perThreadSyscall
-	r1, r2, errno := syscall.Syscall6(args.trap, args.a1, args.a2, args.a3, args.a4, args.a5, args.a6)
+	r1, r2, errno := linux.Syscall6(args.trap, args.a1, args.a2, args.a3, args.a4, args.a5, args.a6)
 	if GOARCH == "ppc64" || GOARCH == "ppc64le" {
 		// TODO(https://go.dev/issue/51192 ): ppc64 doesn't use r2.
 		r2 = 0
@@ -945,6 +955,6 @@ func (c *sigctxt) sigFromSeccomp() bool {
 
 //go:nosplit
 func mprotect(addr unsafe.Pointer, n uintptr, prot int32) (ret int32, errno int32) {
-	r, _, err := syscall.Syscall6(syscall.SYS_MPROTECT, uintptr(addr), n, uintptr(prot), 0, 0, 0)
+	r, _, err := linux.Syscall6(linux.SYS_MPROTECT, uintptr(addr), n, uintptr(prot), 0, 0, 0)
 	return int32(r), int32(err)
 }

@@ -38,7 +38,7 @@ func testEndToEnd(t *testing.T, goarch, file string) {
 	ctxt.IsAsm = true
 	defer ctxt.Bso.Flush()
 	failed := false
-	ctxt.DiagFunc = func(format string, args ...interface{}) {
+	ctxt.DiagFunc = func(format string, args ...any) {
 		failed = true
 		t.Errorf(format, args...)
 	}
@@ -193,11 +193,16 @@ Diff:
 	top := pList.Firstpc
 	var text *obj.LSym
 	ok = true
-	ctxt.DiagFunc = func(format string, args ...interface{}) {
+	ctxt.DiagFunc = func(format string, args ...any) {
 		t.Errorf(format, args...)
 		ok = false
 	}
 	obj.Flushplist(ctxt, pList, nil)
+
+	if !ok {
+		// If we've encountered errors, the output is unlikely to be sane.
+		t.FailNow()
+	}
 
 	for p := top; p != nil; p = p.Link {
 		if p.As == obj.ATEXT {
@@ -294,7 +299,7 @@ func testErrors(t *testing.T, goarch, file string, flags ...string) {
 	failed := false
 	var errBuf bytes.Buffer
 	parser.errorWriter = &errBuf
-	ctxt.DiagFunc = func(format string, args ...interface{}) {
+	ctxt.DiagFunc = func(format string, args ...any) {
 		failed = true
 		s := fmt.Sprintf(format, args...)
 		if !strings.HasSuffix(s, "\n") {
@@ -465,7 +470,14 @@ func TestLOONG64Encoder(t *testing.T) {
 	testEndToEnd(t, "loong64", "loong64enc1")
 	testEndToEnd(t, "loong64", "loong64enc2")
 	testEndToEnd(t, "loong64", "loong64enc3")
+	testEndToEnd(t, "loong64", "loong64enc4")
+	testEndToEnd(t, "loong64", "loong64enc5")
+	testEndToEnd(t, "loong64", "loong64enc6")
 	testEndToEnd(t, "loong64", "loong64")
+}
+
+func TestLOONG64Errors(t *testing.T) {
+	testErrors(t, "loong64", "loong64error")
 }
 
 func TestPPC64EndToEnd(t *testing.T) {
@@ -479,12 +491,35 @@ func TestPPC64EndToEnd(t *testing.T) {
 	}
 }
 
-func TestRISCVEndToEnd(t *testing.T) {
-	testEndToEnd(t, "riscv64", "riscv64")
+func testRISCV64AllProfiles(t *testing.T, testFn func(t *testing.T)) {
+	t.Helper()
+
+	defer func(orig int) { buildcfg.GORISCV64 = orig }(buildcfg.GORISCV64)
+
+	for _, goriscv64 := range []int{20, 22, 23} {
+		t.Run(fmt.Sprintf("rva%vu64", goriscv64), func(t *testing.T) {
+			buildcfg.GORISCV64 = goriscv64
+			testFn(t)
+		})
+	}
 }
 
-func TestRISCVErrors(t *testing.T) {
-	testErrors(t, "riscv64", "riscv64error")
+func TestRISCV64EndToEnd(t *testing.T) {
+	testRISCV64AllProfiles(t, func(t *testing.T) {
+		testEndToEnd(t, "riscv64", "riscv64")
+	})
+}
+
+func TestRISCV64Errors(t *testing.T) {
+	testRISCV64AllProfiles(t, func(t *testing.T) {
+		testErrors(t, "riscv64", "riscv64error")
+	})
+}
+
+func TestRISCV64Validation(t *testing.T) {
+	testRISCV64AllProfiles(t, func(t *testing.T) {
+		testErrors(t, "riscv64", "riscv64validation")
+	})
 }
 
 func TestS390XEndToEnd(t *testing.T) {

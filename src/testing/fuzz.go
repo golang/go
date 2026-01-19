@@ -5,6 +5,7 @@
 package testing
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -56,15 +57,15 @@ type InternalFuzzTarget struct {
 // find and report potential bugs in the code being tested.
 //
 // A fuzz test runs the seed corpus by default, which includes entries provided
-// by (*F).Add and entries in the testdata/fuzz/<FuzzTestName> directory. After
-// any necessary setup and calls to (*F).Add, the fuzz test must then call
-// (*F).Fuzz to provide the fuzz target. See the testing package documentation
+// by [F.Add] and entries in the testdata/fuzz/<FuzzTestName> directory. After
+// any necessary setup and calls to [F.Add], the fuzz test must then call
+// [F.Fuzz] to provide the fuzz target. See the testing package documentation
 // for an example, and see the [F.Fuzz] and [F.Add] method documentation for
 // details.
 //
-// *F methods can only be called before (*F).Fuzz. Once the test is
-// executing the fuzz target, only (*T) methods can be used. The only *F methods
-// that are allowed in the (*F).Fuzz function are (*F).Failed and (*F).Name.
+// *F methods can only be called before [F.Fuzz]. Once the test is
+// executing the fuzz target, only [*T] methods can be used. The only *F methods
+// that are allowed in the [F.Fuzz] function are [F.Failed] and [F.Name].
 type F struct {
 	common
 	fstate *fuzzState
@@ -162,29 +163,29 @@ func (f *F) Add(args ...any) {
 
 // supportedTypes represents all of the supported types which can be fuzzed.
 var supportedTypes = map[reflect.Type]bool{
-	reflect.TypeOf(([]byte)("")):  true,
-	reflect.TypeOf((string)("")):  true,
-	reflect.TypeOf((bool)(false)): true,
-	reflect.TypeOf((byte)(0)):     true,
-	reflect.TypeOf((rune)(0)):     true,
-	reflect.TypeOf((float32)(0)):  true,
-	reflect.TypeOf((float64)(0)):  true,
-	reflect.TypeOf((int)(0)):      true,
-	reflect.TypeOf((int8)(0)):     true,
-	reflect.TypeOf((int16)(0)):    true,
-	reflect.TypeOf((int32)(0)):    true,
-	reflect.TypeOf((int64)(0)):    true,
-	reflect.TypeOf((uint)(0)):     true,
-	reflect.TypeOf((uint8)(0)):    true,
-	reflect.TypeOf((uint16)(0)):   true,
-	reflect.TypeOf((uint32)(0)):   true,
-	reflect.TypeOf((uint64)(0)):   true,
+	reflect.TypeFor[[]byte]():  true,
+	reflect.TypeFor[string]():  true,
+	reflect.TypeFor[bool]():    true,
+	reflect.TypeFor[byte]():    true,
+	reflect.TypeFor[rune]():    true,
+	reflect.TypeFor[float32](): true,
+	reflect.TypeFor[float64](): true,
+	reflect.TypeFor[int]():     true,
+	reflect.TypeFor[int8]():    true,
+	reflect.TypeFor[int16]():   true,
+	reflect.TypeFor[int32]():   true,
+	reflect.TypeFor[int64]():   true,
+	reflect.TypeFor[uint]():    true,
+	reflect.TypeFor[uint8]():   true,
+	reflect.TypeFor[uint16]():  true,
+	reflect.TypeFor[uint32]():  true,
+	reflect.TypeFor[uint64]():  true,
 }
 
 // Fuzz runs the fuzz function, ff, for fuzz testing. If ff fails for a set of
 // arguments, those arguments will be added to the seed corpus.
 //
-// ff must be a function with no return value whose first argument is *T and
+// ff must be a function with no return value whose first argument is [*T] and
 // whose remaining arguments are the types to be fuzzed.
 // For example:
 //
@@ -194,9 +195,9 @@ var supportedTypes = map[reflect.Type]bool{
 // float64, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64.
 // More types may be supported in the future.
 //
-// ff must not call any *F methods, e.g. (*F).Log, (*F).Error, (*F).Skip. Use
-// the corresponding *T method instead. The only *F methods that are allowed in
-// the (*F).Fuzz function are (*F).Failed and (*F).Name.
+// ff must not call any [*F] methods, e.g. [F.Log], [F.Error], [F.Skip]. Use
+// the corresponding [*T] method instead. The only [*F] methods that are allowed in
+// the F.Fuzz function are [F.Failed] and [F.Name].
 //
 // This function should be fast and deterministic, and its behavior should not
 // depend on shared state. No mutable input arguments, or pointers to them,
@@ -206,7 +207,7 @@ var supportedTypes = map[reflect.Type]bool{
 //
 // When fuzzing, F.Fuzz does not return until a problem is found, time runs out
 // (set with -fuzztime), or the test process is interrupted by a signal. F.Fuzz
-// should be called exactly once, unless F.Skip or [F.Fail] is called beforehand.
+// should be called exactly once, unless [F.Skip] or [F.Fail] is called beforehand.
 func (f *F) Fuzz(ff any) {
 	if f.fuzzCalled {
 		panic("testing: F.Fuzz called more than once")
@@ -223,7 +224,7 @@ func (f *F) Fuzz(ff any) {
 	if fnType.Kind() != reflect.Func {
 		panic("testing: F.Fuzz must receive a function")
 	}
-	if fnType.NumIn() < 2 || fnType.In(0) != reflect.TypeOf((*T)(nil)) {
+	if fnType.NumIn() < 2 || fnType.In(0) != reflect.TypeFor[*T]() {
 		panic("testing: fuzz target must receive at least two arguments, where the first argument is a *T")
 	}
 	if fnType.NumOut() != 0 {
@@ -293,6 +294,8 @@ func (f *F) Fuzz(ff any) {
 			f.tstate.match.clearSubNames()
 		}
 
+		ctx, cancelCtx := context.WithCancel(f.ctx)
+
 		// Record the stack trace at the point of this call so that if the subtest
 		// function - which runs in a separate stack - is marked as a helper, we can
 		// continue walking the stack into the parent test.
@@ -300,13 +303,15 @@ func (f *F) Fuzz(ff any) {
 		n := runtime.Callers(2, pc[:])
 		t := &T{
 			common: common{
-				barrier: make(chan bool),
-				signal:  make(chan bool),
-				name:    testName,
-				parent:  &f.common,
-				level:   f.level + 1,
-				creator: pc[:n],
-				chatty:  f.chatty,
+				barrier:   make(chan bool),
+				signal:    make(chan bool),
+				name:      testName,
+				parent:    &f.common,
+				level:     f.level + 1,
+				creator:   pc[:n],
+				chatty:    f.chatty,
+				ctx:       ctx,
+				cancelCtx: cancelCtx,
 			},
 			tstate: f.tstate,
 		}
@@ -315,6 +320,7 @@ func (f *F) Fuzz(ff any) {
 			t.parent.w = captureOut
 		}
 		t.w = indenter{&t.common}
+		t.setOutputWriter()
 		if t.chatty != nil {
 			t.chatty.Updatef(t.name, "=== RUN   %s\n", t.name)
 		}
@@ -508,19 +514,23 @@ func runFuzzTests(deps testDeps, fuzzTests []InternalFuzzTarget, deadline time.T
 						continue
 					}
 				}
+				ctx, cancelCtx := context.WithCancel(context.Background())
 				f := &F{
 					common: common{
-						signal:  make(chan bool),
-						barrier: make(chan bool),
-						name:    testName,
-						parent:  &root,
-						level:   root.level + 1,
-						chatty:  root.chatty,
+						signal:    make(chan bool),
+						barrier:   make(chan bool),
+						name:      testName,
+						parent:    &root,
+						level:     root.level + 1,
+						chatty:    root.chatty,
+						ctx:       ctx,
+						cancelCtx: cancelCtx,
 					},
 					tstate: tstate,
 					fstate: fstate,
 				}
 				f.w = indenter{&f.common}
+				f.setOutputWriter()
 				if f.chatty != nil {
 					f.chatty.Updatef(f.name, "=== RUN   %s\n", f.name)
 				}
@@ -590,19 +600,23 @@ func runFuzzing(deps testDeps, fuzzTests []InternalFuzzTarget) (ok bool) {
 		return false
 	}
 
+	ctx, cancelCtx := context.WithCancel(context.Background())
 	f := &F{
 		common: common{
-			signal:  make(chan bool),
-			barrier: nil, // T.Parallel has no effect when fuzzing.
-			name:    testName,
-			parent:  &root,
-			level:   root.level + 1,
-			chatty:  root.chatty,
+			signal:    make(chan bool),
+			barrier:   nil, // T.Parallel has no effect when fuzzing.
+			name:      testName,
+			parent:    &root,
+			level:     root.level + 1,
+			chatty:    root.chatty,
+			ctx:       ctx,
+			cancelCtx: cancelCtx,
 		},
 		fstate: fstate,
 		tstate: tstate,
 	}
 	f.w = indenter{&f.common}
+	f.setOutputWriter()
 	if f.chatty != nil {
 		f.chatty.Updatef(f.name, "=== RUN   %s\n", f.name)
 	}
