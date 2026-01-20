@@ -1,5 +1,11 @@
 ## Tools {#tools}
 
+<!-- go.dev/issue/77177 -->
+
+Response file (`@file`) parsing is now supported for the `compile`, `link`, `asm`, `cgo`, `cover`, and `pack` tools.
+The response file contains whitespace-separated arguments with support for single-quoted and double-quoted strings, escape sequences, and backslash-newline line continuation.
+The format is compatible with GCC's response file implementation to ensure interoperability with existing build systems.
+
 ### Go command {#go-command}
 
 `go test` now invokes the stdversion vet check by default.
