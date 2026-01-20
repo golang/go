@@ -228,6 +228,9 @@ func (s *Schedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Ty
 	case ir.OADDR:
 		r := r.(*ir.AddrExpr)
 		if a, ok := r.X.(*ir.Name); ok && a.Op() == ir.ONAME {
+			if a.Class != ir.PEXTERN {
+				return false // e.g. local from new(expr)
+			}
 			staticdata.InitAddr(l, loff, staticdata.GlobalLinksym(a))
 			return true
 		}
