@@ -53,11 +53,21 @@ func (check *Checker) indexExpr(x *operand, e *indexedExpr) (isFuncInst bool) {
 		x.mode = invalid
 		return false
 	}
-	// Additionally, if x.typ is a pointer to an array type, indexing implicitly dereferences the value, meaning
-	// its base type must also be complete.
-	if p, ok := x.typ.Underlying().(*Pointer); ok && !check.isComplete(p.base) {
-		x.mode = invalid
-		return false
+	switch typ := x.typ.Underlying().(type) {
+	case *Pointer:
+		// Additionally, if x.typ is a pointer to an array type, indexing implicitly dereferences the value, meaning
+		// its base type must also be complete.
+		if !check.isComplete(typ.base) {
+			x.mode = invalid
+			return false
+		}
+	case *Map:
+		// Lastly, if x.typ is a map type, indexing must produce a value of a complete type, meaning
+		// its element type must also be complete.
+		if !check.isComplete(typ.elem) {
+			x.mode = invalid
+			return false
+		}
 	}
 
 	// ordinary index expression

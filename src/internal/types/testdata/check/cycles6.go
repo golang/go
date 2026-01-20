@@ -69,3 +69,5 @@ type T11 /* ERROR "invalid recursive type" */ [unsafe.Sizeof(new(T11)[:])]int
 type T12 /* ERROR "invalid recursive type" */ [unsafe.Sizeof(T12{}[42])]int
 // index on pointer                                                             (case 3)
 type T13 /* ERROR "invalid recursive type" */ [unsafe.Sizeof(new(T13)[42])]int
+// index on map                                                                            (case 1)
+type T14 /* ERROR "invalid recursive type" */ [unsafe.Sizeof((*new(map[int]T14))[42])]int
