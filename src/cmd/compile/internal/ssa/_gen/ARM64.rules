@@ -694,6 +694,12 @@
 (FMOVDload [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2)
 	&& (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
 	(FMOVDload [off1+int32(off2)] {sym} ptr mem)
+(FMOVQload [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2)
+	&& (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
+	(FMOVQload [off1+int32(off2)] {sym} ptr mem)
+(FLDPQ [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2)
+	&& (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
+	(FLDPQ [off1+int32(off2)] {sym} ptr mem)
 
 // register indexed load
 (MOVDload  [off] {sym} (ADD ptr idx) mem) && off == 0 && sym == nil => (MOVDloadidx ptr idx mem)
@@ -779,6 +785,12 @@
 (FMOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem) && is32Bit(int64(off1)+off2)
 	&& (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
 	(FMOVDstore [off1+int32(off2)] {sym} ptr val mem)
+(FMOVQstore [off1] {sym} (ADDconst [off2] ptr) val mem) && is32Bit(int64(off1)+off2)
+	&& (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
+	(FMOVQstore [off1+int32(off2)] {sym} ptr val mem)
+(FSTPQ [off1] {sym} (ADDconst [off2] ptr) val1 val2 mem) && is32Bit(int64(off1)+off2)
+	&& (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
+	(FSTPQ [off1+int32(off2)] {sym} ptr val1 val2 mem)
 
 // register indexed store
 (MOVDstore  [off] {sym} (ADD ptr idx) val mem) && off == 0 && sym == nil => (MOVDstoreidx ptr idx val mem)
@@ -865,6 +877,14 @@
 	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
 	&& (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
 	(FMOVDload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(FMOVQload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
+	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
+	&& (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
+	(FMOVQload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(FLDPQ [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
+	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
+	&& (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
+	(FLDPQ [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 
 (MOVBstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
 	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
@@ -894,6 +914,14 @@
 	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
 	&& (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
 	(FMOVDstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+(FMOVQstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
+	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
+	&& (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
+	(FMOVQstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+(FSTPQ [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val1 val2 mem)
+	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
+	&& (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
+	(FSTPQ [off1+off2] {mergeSym(sym1,sym2)} ptr val1 val2 mem)
 
 // replace load from same location as preceding store with zero/sign extension (or copy in case of full width)
 // these seem to have bad interaction with other rules, resulting in slower code
