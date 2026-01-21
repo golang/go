@@ -2146,7 +2146,7 @@ func TestACVP(t *testing.T) {
 	}
 	configPath := filepath.Join(cwd, testConfigFile)
 	t.Logf("running check_expected.go\ncwd: %q\ndata_dir: %q\nconfig: %q\ntool: %q\nmodule-wrapper: %q\n",
-		cwd, dataDir, configPath, toolPath, os.Args[0])
+		cwd, dataDir, configPath, toolPath, testenv.Executable(t))
 
 	// Run the check_expected test driver using the acvptool we built, and this test binary as the
 	// module wrapper. The file paths in the config file are specified relative to the dataDir root
@@ -2157,7 +2157,7 @@ func TestACVP(t *testing.T) {
 		"-tool",
 		toolPath,
 		// Note: module prefix must match Wrapper value in testConfigFile.
-		"-module-wrappers", "go:" + os.Args[0],
+		"-module-wrappers", "go:" + testenv.Executable(t),
 		"-tests", configPath,
 	}
 	cmd = testenv.Command(t, testenv.GoToolPath(t), args...)

@@ -627,7 +627,7 @@ func (b *Builder) checkCacheForBuild(a, buildAction *Action, covMetaFileName str
 	// If we are going to do a full build anyway,
 	// we're going to regenerate the files in the build action anyway.
 	if need == needVet {
-		if err := b.loadCachedVet(buildAction); err == nil {
+		if err := b.loadCachedVet(buildAction, a.Deps); err == nil {
 			need &^= needVet
 		}
 	}
@@ -841,7 +841,7 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 
 	// Prepare Go vet config if needed.
 	if need&needVet != 0 {
-		buildVetConfig(a, srcfiles)
+		buildVetConfig(a, srcfiles, a.Deps)
 		need &^= needVet
 	}
 	if need&needCompiledGoFiles != 0 {
@@ -1121,7 +1121,7 @@ func (b *Builder) cacheSrcFiles(a *Action, srcfiles []string) {
 	cache.PutBytes(c, cache.Subkey(a.actionID, "srcfiles"), buf.Bytes())
 }
 
-func (b *Builder) loadCachedVet(a *Action) error {
+func (b *Builder) loadCachedVet(a *Action, vetDeps []*Action) error {
 	c := cache.Default()
 	list, _, err := cache.GetBytes(c, cache.Subkey(a.actionID, "srcfiles"))
 	if err != nil {
@@ -1141,7 +1141,7 @@ func (b *Builder) loadCachedVet(a *Action) error {
 		}
 		srcfiles = append(srcfiles, a.Objdir+name)
 	}
-	buildVetConfig(a, srcfiles)
+	buildVetConfig(a, srcfiles, vetDeps)
 	return nil
 }
 
@@ -1197,7 +1197,7 @@ type vetConfig struct {
 	SucceedOnTypecheckFailure bool // awful hack; see #18395 and below
 }
 
-func buildVetConfig(a *Action, srcfiles []string) {
+func buildVetConfig(a *Action, srcfiles []string, vetDeps []*Action) {
 	// Classify files based on .go extension.
 	// srcfiles does not include raw cgo files.
 	var gofiles, nongofiles []string
@@ -1253,7 +1253,7 @@ func buildVetConfig(a *Action, srcfiles []string) {
 		vcfgMapped[p] = true
 	}
 
-	for _, a1 := range a.Deps {
+	for _, a1 := range vetDeps {
 		p1 := a1.Package
 		if p1 == nil || p1.ImportPath == "" || p1 == a.Package {
 			continue

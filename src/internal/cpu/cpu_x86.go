@@ -136,12 +136,6 @@ func doinit() {
 	// e.g. setting the xsavedisable boot option on Windows 10.
 	X86.HasOSXSAVE = isSet(ecx1, cpuid_OSXSAVE)
 
-	// The FMA instruction set extension only has VEX prefixed instructions.
-	// VEX prefixed instructions require OSXSAVE to be enabled.
-	// See Intel 64 and IA-32 Architecture Software Developer’s Manual Volume 2
-	// Section 2.4 "AVX and SSE Instruction Exception Specification"
-	X86.HasFMA = isSet(ecx1, cpuid_FMA) && X86.HasOSXSAVE
-
 	osSupportsAVX := false
 	osSupportsAVX512 := false
 	// For XGETBV, OSXSAVE bit is required and sufficient.
@@ -158,6 +152,14 @@ func doinit() {
 	}
 
 	X86.HasAVX = isSet(ecx1, cpuid_AVX) && osSupportsAVX
+
+	// The FMA instruction set extension requires both the FMA and AVX flags.
+	//
+	// Furthermore, the FMA instructions are all VEX prefixed instructions.
+	// VEX prefixed instructions require OSXSAVE to be enabled.
+	// See Intel 64 and IA-32 Architecture Software Developer’s Manual Volume 2
+	// Section 2.4 "AVX and SSE Instruction Exception Specification"
+	X86.HasFMA = isSet(ecx1, cpuid_FMA) && X86.HasAVX && X86.HasOSXSAVE
 
 	if maxID < 7 {
 		osInit()

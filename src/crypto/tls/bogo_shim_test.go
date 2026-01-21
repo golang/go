@@ -577,7 +577,7 @@ func TestBogoSuite(t *testing.T) {
 		"test",
 		".",
 		fmt.Sprintf("-shim-config=%s", filepath.Join(cwd, "bogo_config.json")),
-		fmt.Sprintf("-shim-path=%s", os.Args[0]),
+		fmt.Sprintf("-shim-path=%s", testenv.Executable(t)),
 		"-shim-extra-flags=-bogo-mode",
 		"-allow-unimplemented",
 		"-loose-errors", // TODO(roland): this should be removed eventually
