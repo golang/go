@@ -429,3 +429,15 @@ func Slice0(p *struct{}, i int) []struct{} {
 	// amd64:-"MULQ"
 	return unsafe.Slice(p, i)
 }
+
+func Issue61730() {
+	var x int
+	// amd64:-"MOVQ .*stmp_"
+	_ = [...][]*int{
+		{&x},
+		nil,
+		nil,
+		nil,
+		nil,
+	}
+}
