@@ -1157,23 +1157,80 @@ fn fuzz(
             }
         }
     }
-    let shmem_provider = StdShMemProvider::new()
-        .unwrap_or_else(|err| panic!("Failed to init shared memory: {err:?}"));
+	    let shmem_provider = StdShMemProvider::new()
+	        .unwrap_or_else(|err| panic!("Failed to init shared memory: {err:?}"));
 
-    let mut run_client = |state: Option<_>,
-                          mut restarting_mgr: LlmpRestartingEventManager<
-        _,
-        BytesInput,
-        _,
-        _,
-        _,
-    >,
-                          client_description: ClientDescription| {
-        // In-process crashes abort the fuzzing instance, and the restarting manager respawns it.
-        // Implement `go test -fuzz` semantics: stop the whole run on the first crash.
-        if stop_all_fuzzers_on_panic && count_crash_inputs(&crashes_dir) > initial_crash_inputs {
-            restarting_mgr.send_exiting()?;
-            return Err(Error::shutting_down());
+	    let mut run_client = |state: Option<_>,
+	                          mut restarting_mgr: LlmpRestartingEventManager<
+	        _,
+	        BytesInput,
+	        _,
+	        _,
+	        _,
+	    >,
+	                          client_description: ClientDescription| {
+	        let dir_has_visible_entries = |dir: &Path| -> bool {
+	            fs::read_dir(dir)
+	                .ok()
+	                .map(|rd| {
+	                    rd.filter_map(Result::ok).any(|e| {
+	                        !e.file_name().to_string_lossy().starts_with('.')
+	                            && e.file_type().is_ok_and(|t| t.is_file() || t.is_dir())
+	                    })
+	                })
+	                .unwrap_or(false)
+	        };
+
+	        let client_id = client_description.id().to_string();
+	        let queue_dir = output.join("queue").join(&client_id);
+	        let resume_bucket_dir = output.join("queue.resume").join(&client_id);
+
+	        // Resume on Ctrl-C by re-importing the previous queue/ corpus into a fresh
+	        // on-disk corpus directory, so the fuzzer does not restart from scratch.
+	        let resume_has_inputs = if state.is_none() {
+	            if dir_has_visible_entries(&queue_dir) {
+	                fs::create_dir_all(&resume_bucket_dir).unwrap_or_else(|err| {
+	                    panic!(
+	                        "golibafl: failed to create resume directory {}: {err}",
+	                        resume_bucket_dir.display()
+	                    )
+	                });
+
+	                let mut dst = resume_bucket_dir.join(format!("queue-{}", std::process::id()));
+	                if dst.exists() {
+	                    for i in 1.. {
+	                        let candidate = resume_bucket_dir
+	                            .join(format!("queue-{}-{i}", std::process::id()));
+	                        if !candidate.exists() {
+	                            dst = candidate;
+	                            break;
+	                        }
+	                    }
+	                }
+	                fs::rename(&queue_dir, &dst).unwrap_or_else(|err| {
+	                    panic!(
+	                        "golibafl: failed to move previous corpus {} to {}: {err}",
+	                        queue_dir.display(),
+	                        dst.display()
+	                    )
+	                });
+	            }
+	            dir_has_visible_entries(&resume_bucket_dir)
+	        } else {
+	            false
+	        };
+	        if resume_has_inputs && verbose {
+	            eprintln!(
+	                "golibafl: resuming from previous corpus at {}",
+	                resume_bucket_dir.display()
+	            );
+	        }
+
+	        // In-process crashes abort the fuzzing instance, and the restarting manager respawns it.
+	        // Implement `go test -fuzz` semantics: stop the whole run on the first crash.
+	        if stop_all_fuzzers_on_panic && count_crash_inputs(&crashes_dir) > initial_crash_inputs {
+	            restarting_mgr.send_exiting()?;
+	            return Err(Error::shutting_down());
         }
 
         if go_maxprocs_single && effective_cores.ids.len() > 1 {
@@ -1220,19 +1277,16 @@ fn fuzz(
                     // A feedback to choose if an input is a solution or not
                     let mut objective = feedback_or_fast!(CrashFeedback::new());
 
-                    // create a State from scratch
-                    let mut state = state.unwrap_or_else(|| {
-                        StdState::new(
-                            StdRand::new(),
-                            // Corpus that will be evolved
-                            CachedOnDiskCorpus::new(
-                                format!("{}/queue/{}", output.display(), client_description.id()),
-                                corpus_cache_size,
-                            )
-                            .unwrap(),
-                            // Corpus in which we store solutions
-                            OnDiskCorpus::new(format!("{}/crashes", output.display())).unwrap(),
-                            &mut feedback,
+	                    // create a State from scratch
+	                    let mut state = state.unwrap_or_else(|| {
+	                        StdState::new(
+	                            StdRand::new(),
+	                            // Corpus that will be evolved
+	                            CachedOnDiskCorpus::new(queue_dir.clone(), corpus_cache_size)
+	                            .unwrap(),
+	                            // Corpus in which we store solutions
+	                            OnDiskCorpus::new(format!("{}/crashes", output.display())).unwrap(),
+	                            &mut feedback,
                             &mut objective,
                         )
                         .unwrap()
@@ -1312,16 +1366,17 @@ fn fuzz(
 
                     // Load corpus from input folder
                     // In case the corpus is empty (on first run), reset
-                    if state.must_load_initial_inputs() {
-                        let input_is_empty = match read_dir(&input) {
-                            Ok(mut entries) => entries.next().is_none(),
-                            Err(_) => true,
-                        };
-                        if input_is_empty {
-                            if verbose {
-                                eprintln!(
-                                    "golibafl: input dir empty; generating {} initial inputs (max_len={})",
-                                    initial_generated_inputs,
+	                    if state.must_load_initial_inputs() {
+	                        let input_is_empty = match read_dir(&input) {
+	                            Ok(mut entries) => entries.next().is_none(),
+	                            Err(_) => true,
+	                        };
+	                        let all_inputs_empty = input_is_empty && !resume_has_inputs;
+	                        if all_inputs_empty {
+	                            if verbose {
+	                                eprintln!(
+	                                    "golibafl: input dir empty; generating {} initial inputs (max_len={})",
+	                                    initial_generated_inputs,
                                     initial_input_max_len
                                 );
                             }
@@ -1348,24 +1403,51 @@ fn fuzz(
                                 "We imported {} inputs from the generator.",
                                 state.corpus().count()
                             );
-                        } else {
-                            eprintln!("Loading from {input:?}");
-                            // Load from disk
-                            state
-                                .load_initial_inputs(
-                                    &mut fuzzer,
-                                    &mut executor,
-                                    &mut restarting_mgr,
-                                    &[input.to_path_buf()],
-                                )
-                                .unwrap_or_else(|err| {
-                                    panic!("Failed to load initial corpus at {input:?}: {err:?}");
-                                });
-                            let disk_inputs = state.corpus().count();
-                            println!("We imported {} inputs from disk.", disk_inputs);
-                            if disk_inputs == 0 {
-                                // Generator of printable bytearrays of max size initial_input_max_len
-                                let mut generator = RandBytesGenerator::new(initial_input_max_len);
+	                        } else {
+	                            eprintln!("Loading from {input:?}");
+	                            if resume_has_inputs {
+	                                eprintln!(
+	                                    "Resuming corpus from {}",
+	                                    resume_bucket_dir.display()
+	                                );
+	                            }
+	                            // Load from disk
+	                            let mut in_dirs = Vec::with_capacity(1 + usize::from(resume_has_inputs));
+	                            in_dirs.push(input.to_path_buf());
+	                            if resume_has_inputs {
+	                                in_dirs.push(resume_bucket_dir.clone());
+	                            }
+	                            let load_res = if resume_has_inputs {
+	                                state.load_initial_inputs_forced(
+	                                    &mut fuzzer,
+	                                    &mut executor,
+	                                    &mut restarting_mgr,
+	                                    &in_dirs,
+	                                )
+	                            } else {
+	                                state.load_initial_inputs(
+	                                    &mut fuzzer,
+	                                    &mut executor,
+	                                    &mut restarting_mgr,
+	                                    &in_dirs,
+	                                )
+	                            };
+	                            load_res.unwrap_or_else(|err| {
+	                                panic!("Failed to load initial corpus at {input:?}: {err:?}");
+	                            });
+	                            let disk_inputs = state.corpus().count();
+	                            println!("We imported {} inputs from disk.", disk_inputs);
+	                            if resume_has_inputs {
+	                                if let Err(err) = fs::remove_dir_all(&resume_bucket_dir) {
+	                                    eprintln!(
+	                                        "golibafl: warning: failed to remove resume directory {}: {err}",
+	                                        resume_bucket_dir.display()
+	                                    );
+	                                }
+	                            }
+	                            if disk_inputs == 0 {
+	                                // Generator of printable bytearrays of max size initial_input_max_len
+	                                let mut generator = RandBytesGenerator::new(initial_input_max_len);
 
                                 // Generate 8 initial inputs
                                 state

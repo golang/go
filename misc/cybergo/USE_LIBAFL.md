@@ -160,6 +160,7 @@ On each run, cybergo prepares `<...>/input/` as the initial `-i` corpus director
 
 - files from `testdata/fuzz/` (if it exists) are copied into it
 - manual seeds provided via `f.Add(...)` are written into it automatically
+- if this fuzzing campaign was already run before, the previous LibAFL `queue/` corpus is automatically reused on restart (so Ctrl-C + rerun continues from the same corpus by default)
 
 If the chosen `-i` directory is empty, `golibafl` generates a small random initial corpus.
 
