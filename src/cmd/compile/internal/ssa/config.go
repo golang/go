@@ -304,6 +304,9 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.LinkReg = linkRegLOONG64
 		c.hasGReg = true
 		c.unalignedOK = true
+		c.haveBswap64 = true
+		c.haveBswap32 = true
+		c.haveBswap16 = true
 		c.haveCondSelect = true
 	case "s390x":
 		c.PtrSize = 8
