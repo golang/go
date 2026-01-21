@@ -840,71 +840,67 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, wantType bool) {
 	}
 	// obj != nil
 
-	// methods may not have a fully set up signature yet
-	if m, _ := obj.(*Func); m != nil {
-		check.objDecl(m)
-	}
-
-	if x.mode == typexpr {
-		// method expression
-		m, _ := obj.(*Func)
-		if m == nil {
+	switch obj := obj.(type) {
+	case *Var:
+		if x.mode == typexpr {
 			check.errorf(e.X, MissingFieldOrMethod, "operand for field selector %s must be value of type %s", sel, x.typ)
 			goto Error
 		}
 
-		check.recordSelection(e, MethodExpr, x.typ, m, index, indirect)
-
-		sig := m.typ.(*Signature)
-		if sig.recv == nil {
-			check.error(e, InvalidDeclCycle, "illegal cycle in method declaration")
-			goto Error
+		// field value
+		check.recordSelection(e, FieldVal, x.typ, obj, index, indirect)
+		if x.mode == variable || indirect {
+			x.mode = variable
+		} else {
+			x.mode = value
 		}
+		x.typ = obj.typ
 
-		// the receiver type becomes the type of the first function
-		// argument of the method expression's function type
-		var params []*Var
-		if sig.params != nil {
-			params = sig.params.vars
-		}
-		// Be consistent about named/unnamed parameters. This is not needed
-		// for type-checking, but the newly constructed signature may appear
-		// in an error message and then have mixed named/unnamed parameters.
-		// (An alternative would be to not print parameter names in errors,
-		// but it's useful to see them; this is cheap and method expressions
-		// are rare.)
-		name := ""
-		if len(params) > 0 && params[0].name != "" {
-			// name needed
-			name = sig.recv.name
-			if name == "" {
-				name = "_"
+	case *Func:
+		check.objDecl(obj) // ensure fully set-up signature
+		check.addDeclDep(obj)
+
+		if x.mode == typexpr {
+			// method expression
+			check.recordSelection(e, MethodExpr, x.typ, obj, index, indirect)
+
+			sig := obj.typ.(*Signature)
+			if sig.recv == nil {
+				check.error(e, InvalidDeclCycle, "illegal cycle in method declaration")
+				goto Error
 			}
-		}
-		params = append([]*Var{NewParam(sig.recv.pos, sig.recv.pkg, name, x.typ)}, params...)
-		x.mode = value
-		x.typ = &Signature{
-			tparams:  sig.tparams,
-			params:   NewTuple(params...),
-			results:  sig.results,
-			variadic: sig.variadic,
-		}
 
-		check.addDeclDep(m)
-
-	} else {
-		// regular selector
-		switch obj := obj.(type) {
-		case *Var:
-			check.recordSelection(e, FieldVal, x.typ, obj, index, indirect)
-			if x.mode == variable || indirect {
-				x.mode = variable
-			} else {
-				x.mode = value
+			// The receiver type becomes the type of the first function
+			// argument of the method expression's function type.
+			var params []*Var
+			if sig.params != nil {
+				params = sig.params.vars
 			}
-			x.typ = obj.typ
+			// Be consistent about named/unnamed parameters. This is not needed
+			// for type-checking, but the newly constructed signature may appear
+			// in an error message and then have mixed named/unnamed parameters.
+			// (An alternative would be to not print parameter names in errors,
+			// but it's useful to see them; this is cheap and method expressions
+			// are rare.)
+			name := ""
+			if len(params) > 0 && params[0].name != "" {
+				// name needed
+				name = sig.recv.name
+				if name == "" {
+					name = "_"
+				}
+			}
+			params = append([]*Var{NewParam(sig.recv.pos, sig.recv.pkg, name, x.typ)}, params...)
+			x.mode = value
+			x.typ = &Signature{
+				tparams:  sig.tparams,
+				params:   NewTuple(params...),
+				results:  sig.results,
+				variadic: sig.variadic,
+			}
+		} else {
+			// method value
 
-		case *Func:
 			// TODO(gri) If we needed to take into account the receiver's
 			// addressability, should we report the type &(x.typ) instead?
 			check.recordSelection(e, MethodVal, x.typ, obj, index, indirect)
@@ -960,12 +956,10 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, wantType bool) {
 			sig := *obj.typ.(*Signature)
 			sig.recv = nil
 			x.typ = &sig
-
-			check.addDeclDep(obj)
-
-		default:
-			panic("unreachable")
 		}
+
+	default:
+		panic("unreachable")
 	}
 
 	// everything went well
