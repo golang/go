@@ -164,7 +164,7 @@ func (check *Checker) compositeLit(x *operand, e *syntax.CompositeLit, hint Type
 				key, _ := kv.Key.(*syntax.Name)
 				// do all possible checks early (before exiting due to errors)
 				// so we don't drop information on the floor
-				check.expr(nil, x, kv.Value)
+				
 				if key == nil {
 					check.errorf(kv, InvalidLitField, "invalid field name %s in struct literal", kv.Key)
 					continue
@@ -182,6 +182,8 @@ func (check *Checker) compositeLit(x *operand, e *syntax.CompositeLit, hint Type
 				fld := fields[i]
 				check.recordUse(key, fld)
 				etyp := fld.typ
+
+				check.expr(newTarget(etyp, "struct literal"), x, kv.Value)
 				check.assignment(x, etyp, "struct literal")
 				// 0 <= i < len(fields)
 				if visited[i] {
@@ -197,7 +199,7 @@ func (check *Checker) compositeLit(x *operand, e *syntax.CompositeLit, hint Type
 					check.error(kv, MixedStructLit, "mixture of field:value and value elements in struct literal")
 					continue
 				}
-				check.expr(nil, x, e)
+				
 				if i >= len(fields) {
 					check.errorf(x, InvalidStructLit, "too many values in struct literal of type %s", base)
 					break // cannot continue
@@ -209,6 +211,7 @@ func (check *Checker) compositeLit(x *operand, e *syntax.CompositeLit, hint Type
 					continue
 				}
 				etyp := fld.typ
+				check.expr(newTarget(etyp, "struct literal"), x, e)
 				check.assignment(x, etyp, "struct literal")
 			}
 			if len(e.ElemList) < len(fields) {
@@ -278,8 +281,11 @@ func (check *Checker) compositeLit(x *operand, e *syntax.CompositeLit, hint Type
 					continue
 				}
 			}
-			check.exprWithHint(x, kv.Value, utyp.elem)
-			check.assignment(x, utyp.elem, "map literal")
+			var v operand
+			check.rawExpr(newTarget(utyp.elem, "map literal"), &v, kv.Value, utyp.elem, false)
+			check.exclude(&v, 1<<novalue|1<<builtin|1<<typexpr)
+			check.singleValue(&v)
+			check.assignment(&v, utyp.elem, "map literal")
 		}
 
 	default:
@@ -355,7 +361,9 @@ func (check *Checker) indexedElts(elts []syntax.Expr, typ Type, length int64) in
 
 		// check element against composite literal element type
 		var x operand
-		check.exprWithHint(&x, eval, typ)
+		check.rawExpr(newTarget(typ, "array or slice literal"), &x, eval, typ, false)
+		check.exclude(&x, 1<<novalue|1<<builtin|1<<typexpr)
+		check.singleValue(&x)
 		check.assignment(&x, typ, "array or slice literal")
 	}
 	return max
