@@ -285,6 +285,10 @@ control the execution of any test:
 	    When -fuzz is set, use the LibAFL-based runner shipped with cybergo
 	    instead of Go's native fuzzing engine.
 
+	-focus-on-new-code={true|false}
+	    When -use-libafl is set, enable LibAFL's git-aware scheduling to prefer
+	    testcases that execute recently changed lines (per git blame).
+
 	-libafl-config file
 	    When -use-libafl is set, pass a JSONC configuration file (JSON with // comments)
 	    to the LibAFL runner (implemented in $GOROOT/golibafl).
@@ -553,24 +557,25 @@ See the documentation of the testing package for more information.
 }
 
 var (
-	testArtifacts    bool                              // -artifacts flag
-	testBench        string                            // -bench flag
-	testC            bool                              // -c flag
-	testCoverPkgs    []*load.Package                   // -coverpkg flag
-	testCoverProfile string                            // -coverprofile flag
-	testFailFast     bool                              // -failfast flag
-	testFuzz         string                            // -fuzz flag
-	testUseLibAFL    bool                              // -use-libafl flag
-	testLibAFLConfig string                            // -libafl-config flag
-	testPanicOn      string                            // -panic-on flag
-	testJSON         bool                              // -json flag
-	testList         string                            // -list flag
-	testO            string                            // -o flag
-	testOutputDir    outputdirFlag                     // -outputdir flag
-	testShuffle      shuffleFlag                       // -shuffle flag
-	testTimeout      time.Duration                     // -timeout flag
-	testV            testVFlag                         // -v flag
-	testVet          = vetFlag{flags: defaultVetFlags} // -vet flag
+	testArtifacts      bool                              // -artifacts flag
+	testBench          string                            // -bench flag
+	testC              bool                              // -c flag
+	testCoverPkgs      []*load.Package                   // -coverpkg flag
+	testCoverProfile   string                            // -coverprofile flag
+	testFailFast       bool                              // -failfast flag
+	testFuzz           string                            // -fuzz flag
+	testUseLibAFL      bool                              // -use-libafl flag
+	testFocusOnNewCode explicitBoolFlag                  // -focus-on-new-code flag (required with -use-libafl)
+	testLibAFLConfig   string                            // -libafl-config flag
+	testPanicOn        string                            // -panic-on flag
+	testJSON           bool                              // -json flag
+	testList           string                            // -list flag
+	testO              string                            // -o flag
+	testOutputDir      outputdirFlag                     // -outputdir flag
+	testShuffle        shuffleFlag                       // -shuffle flag
+	testTimeout        time.Duration                     // -timeout flag
+	testV              testVFlag                         // -v flag
+	testVet            = vetFlag{flags: defaultVetFlags} // -vet flag
 )
 
 type testVFlag struct {
@@ -734,7 +739,13 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	if testLibAFLConfig != "" && !testUseLibAFL {
 		base.Fatalf("-libafl-config requires -use-libafl")
 	}
+	if testFocusOnNewCode.set && !testUseLibAFL {
+		base.Fatalf("-focus-on-new-code requires -use-libafl")
+	}
 	if testUseLibAFL {
+		if !testFocusOnNewCode.set {
+			base.Fatalf("-use-libafl requires -focus-on-new-code={true|false}")
+		}
 		if testFuzz == "" {
 			base.Fatalf("-use-libafl requires -fuzz")
 		}
@@ -1853,6 +1864,11 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 		cmdDir = golibaflDir
 		addEnv = []string{"HARNESS_LIB=" + buildAction.BuiltTarget()}
 		addEnv = append(addEnv, "LIBAFL_SEED_DIR="+inDir)
+		addEnv = append(addEnv, fmt.Sprintf("GOLIBAFL_FOCUS_ON_NEW_CODE=%t", testFocusOnNewCode.val))
+		addEnv = append(addEnv, "GOLIBAFL_TARGET_DIR="+a.Package.Dir)
+		if testFocusOnNewCode.val {
+			addEnv = append(addEnv, "LIBAFL_GIT_RECENCY_MAPPING_PATH="+filepath.Join(libaflOutDir, "git_recency_map.bin"))
+		}
 	} else {
 		execCmd := work.FindExecCmd()
 		testlogArg := []string{}

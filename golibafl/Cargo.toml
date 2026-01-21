@@ -12,10 +12,13 @@ lto = "fat"
 anyhow = "1.0.100"
 
 [dependencies]
-libafl = { git = "https://github.com/AFLplusplus/LibAFL", rev="67f7474a7504597aa466efbddc456ded7f90d649", features = ["prelude",  "std", "derive", "tui_monitor"]}
-libafl_bolts = { git = "https://github.com/AFLplusplus/LibAFL", rev="67f7474a7504597aa466efbddc456ded7f90d649"}
-libafl_targets = { git = "https://github.com/AFLplusplus/LibAFL", rev="67f7474a7504597aa466efbddc456ded7f90d649", features = ["sancov_8bit", "observers", "libfuzzer", "sancov_cmplog", "sancov_pcguard_hitcounts"] }
+# TODO: Switch back to upstream LibAFL once git-aware scheduling is upstreamed.
+libafl = { path = "/home/kevinv/LibAFL-history-aware/crates/libafl", features = ["prelude", "std", "derive", "tui_monitor"] }
+libafl_bolts = { path = "/home/kevinv/LibAFL-history-aware/crates/libafl_bolts" }
+libafl_targets = { path = "/home/kevinv/LibAFL-history-aware/crates/libafl_targets", features = ["sancov_8bit", "observers", "libfuzzer", "sancov_cmplog", "sancov_pcguard_hitcounts"] }
 clap = {version = "4.5.23", features = ["derive"]}
 mimalloc = "0.1.43"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+addr2line = "0.25.1"
+object = "0.37.3"

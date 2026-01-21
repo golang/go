@@ -73,7 +73,7 @@ However, these errors are usually handled internally (e.g., through retry or pau
 Compile cybergo, then use the `--panic-on` flag.
 
 ```bash
-./bin/go test -fuzz=FuzzHarness --use-libafl --panic-on="test_go_panicon.(*Logger).Warning,test_go_panicon.(*Logger).Error"
+./bin/go test -fuzz=FuzzHarness --use-libafl --focus-on-new-code=false --panic-on="test_go_panicon.(*Logger).Warning,test_go_panicon.(*Logger).Error"
 ```
 
 The example above would panic when either `(*Logger).Warning` or `(*Logger).Error` is called (comma-separated list).
@@ -110,7 +110,7 @@ LibAFL performs *way* better than the traditional Go fuzzer. Using the `--use-li
 You can also pass an optional config. file for LibAFL, see [here.](misc/cybergo/libafl.config.jsonc)
 
 ```bash
-./bin/go test -fuzz=FuzzHarness --use-libafl --libafl-config=path/to/libafl.jsonc # optionnal --libafl-config
+./bin/go test -fuzz=FuzzHarness --use-libafl --focus-on-new-code=false --libafl-config=path/to/libafl.jsonc # optionnal --libafl-config
 ```
 
 <details>
@@ -179,7 +179,7 @@ You can test it on some fuzzing harnesses in `test/cybergo/examples/`.
 
 ```bash
 cd test/cybergo/examples/reverse
-../../../../bin/go test -fuzz=FuzzReverse --use-libafl
+../../../../bin/go test -fuzz=FuzzReverse --use-libafl --focus-on-new-code=false
 ```
 
 ## Credits

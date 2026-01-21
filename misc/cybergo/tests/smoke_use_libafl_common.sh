@@ -17,7 +17,7 @@ run_expect_crash() {
 
   cd "${ROOT_DIR}/test/cybergo/examples/${example_dir}"
   set +e
-  CGO_ENABLED=1 timeout "${timeout_dur}" "${ROOT_DIR}/bin/go" test -fuzz="${fuzz_name}" --use-libafl "$@" 2>&1 | tee "${output_file}"
+  CGO_ENABLED=1 timeout "${timeout_dur}" "${ROOT_DIR}/bin/go" test -fuzz="${fuzz_name}" --use-libafl --focus-on-new-code=false "$@" 2>&1 | tee "${output_file}"
   local status="${PIPESTATUS[0]}"
   set -e
 

@@ -1,11 +1,11 @@
 use clap::{Parser, Subcommand};
 use libafl::{
     corpus::{CachedOnDiskCorpus, Corpus, OnDiskCorpus},
-    executors::{inprocess::InProcessExecutor, ExitKind, ShadowExecutor},
     events::{
         Event, EventFirer, EventManagerHook, EventWithStats, LlmpRestartingEventManager,
         ProgressReporter, SendExiting,
     },
+    executors::{inprocess::InProcessExecutor, ExitKind, ShadowExecutor},
     feedback_or_fast,
     feedbacks::{CrashFeedback, DifferentIsNovel, MapFeedback, MaxMapFeedback},
     fuzzer::{Fuzzer, StdFuzzer},
@@ -13,21 +13,22 @@ use libafl::{
     mutators::scheduled::HavocScheduledMutator,
     prelude::{
         havoc_mutations, powersched::PowerSchedule, tokens_mutations, CalibrationStage, CanTrack,
-        ClientDescription, EventConfig, I2SRandReplace, IndexesLenTimeMinimizerScheduler, Launcher,
-        MultiMapObserver, RandBytesGenerator, SimpleMonitor, StdMOptMutator, StdMapObserver,
-        StdWeightedScheduler, TimeFeedback, TimeObserver, Tokens, TuiMonitor,
+        ClientDescription, EventConfig, GitAwareStdWeightedScheduler, GitRecencyMapMetadata,
+        I2SRandReplace, IndexesLenTimeMinimizerScheduler, Launcher, MultiMapObserver,
+        RandBytesGenerator, SimpleMonitor, StdMOptMutator, StdMapObserver, TimeFeedback,
+        TimeObserver, Tokens, TuiMonitor,
     },
     stages::{mutational::StdMutationalStage, ShadowTracingStage, StdPowerMutationalStage},
-    state::{HasCorpus, HasExecutions, HasSolutions, Stoppable, StdState},
+    state::{HasCorpus, HasExecutions, HasSolutions, StdState, Stoppable},
     Error, HasMetadata,
 };
 use libafl_bolts::{
-    ClientId,
     prelude::{Cores, StdShMemProvider},
     rands::StdRand,
     shmem::ShMemProvider,
     simd::MaxReducer,
     tuples::{tuple_list, Merge},
+    ClientId,
 };
 use libafl_targets::{
     autotokens, extra_counters, libfuzzer::libfuzzer_test_one_input, libfuzzer_initialize,
@@ -35,16 +36,20 @@ use libafl_targets::{
 };
 use mimalloc::MiMalloc;
 use serde::Deserialize;
+use std::panic;
 use std::{
+    collections::{HashMap, HashSet},
     env, fs,
     fs::read_dir,
-    io::IsTerminal,
+    io::{IsTerminal, Write},
     net::TcpListener,
     path::{Path, PathBuf},
-    process::Stdio,
+    process::{Command, Output, Stdio},
     time::Duration,
 };
-use std::{panic, process::Command};
+
+use addr2line::Loader;
+use object::{Object, ObjectSection, ObjectSymbol, RelocationTarget, SectionKind};
 
 type NonSimdMaxMapFeedback<C, O> = MapFeedback<C, DifferentIsNovel, O, MaxReducer>;
 
@@ -294,7 +299,8 @@ fn read_fuzz_config(path: &Path) -> LibAflFuzzConfig {
 }
 
 fn cores_ids_csv(cores: &Cores) -> String {
-    cores.ids
+    cores
+        .ids
         .iter()
         .map(|id| id.0.to_string())
         .collect::<Vec<_>>()
@@ -302,6 +308,30 @@ fn cores_ids_csv(cores: &Cores) -> String {
 }
 
 const GOLIBAFL_BROKER_PORT_ENV: &str = "GOLIBAFL_BROKER_PORT";
+const GOLIBAFL_FOCUS_ON_NEW_CODE_ENV: &str = "GOLIBAFL_FOCUS_ON_NEW_CODE";
+const GOLIBAFL_TARGET_DIR_ENV: &str = "GOLIBAFL_TARGET_DIR";
+const LIBAFL_GIT_RECENCY_MAPPING_ENV: &str = "LIBAFL_GIT_RECENCY_MAPPING_PATH";
+
+fn notify_restarting_mgr_exit() {
+    // When running under LibAFL's restarting manager in exec mode, exiting the child process
+    // without writing the StateRestorer page causes the parent to panic.
+    //
+    // Best-effort mark the parent as "do not respawn" before exiting.
+    if env::var_os(libafl::events::restarting::_ENV_FUZZER_SENDER).is_none() {
+        return;
+    }
+
+    let Ok(mut shmem_provider) = StdShMemProvider::new() else {
+        return;
+    };
+
+    if let Ok(mut staterestorer) = libafl_bolts::staterestore::StateRestorer::from_env(
+        &mut shmem_provider,
+        libafl::events::restarting::_ENV_FUZZER_SENDER,
+    ) {
+        staterestorer.send_exiting();
+    }
+}
 
 fn resolve_broker_port(broker_port: Option<u16>) -> u16 {
     if let Some(port) = broker_port {
@@ -334,7 +364,351 @@ fn resolve_broker_port(broker_port: Option<u16>) -> u16 {
     port
 }
 
+fn git(repo_root: &Path, args: &[&str]) -> Output {
+    Command::new("git")
+        .arg("-C")
+        .arg(repo_root)
+        .args(args)
+        .output()
+        .unwrap_or_else(|err| {
+            eprintln!("golibafl: failed to run git: {err}");
+            std::process::exit(2);
+        })
+}
 
+fn repo_root(target_dir: &Path) -> PathBuf {
+    let out = git(target_dir, &["rev-parse", "--show-toplevel"]);
+    if !out.status.success() {
+        eprintln!(
+            "golibafl: git rev-parse --show-toplevel failed: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        std::process::exit(2);
+    }
+    let root = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    if root.is_empty() {
+        eprintln!("golibafl: git rev-parse --show-toplevel returned empty output");
+        std::process::exit(2);
+    }
+    PathBuf::from(root)
+}
+
+fn head_time_epoch_seconds(repo_root: &Path) -> u64 {
+    let out = git(repo_root, &["show", "-s", "--format=%ct", "HEAD"]);
+    if !out.status.success() {
+        eprintln!(
+            "golibafl: git show failed: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        std::process::exit(2);
+    }
+    let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    s.parse::<u64>().unwrap_or_else(|err| {
+        eprintln!("golibafl: failed to parse HEAD time '{s}': {err}");
+        std::process::exit(2);
+    })
+}
+
+fn read_mapping_head_time(path: &Path) -> Option<u64> {
+    let bytes = fs::read(path).ok()?;
+    if bytes.len() < 8 {
+        return None;
+    }
+    Some(u64::from_le_bytes(bytes[0..8].try_into().unwrap()))
+}
+
+fn is_header_line(line: &str) -> bool {
+    let mut it = line.split_whitespace();
+    let Some(hash) = it.next() else {
+        return false;
+    };
+    let Some(orig_line) = it.next() else {
+        return false;
+    };
+    let Some(final_line) = it.next() else {
+        return false;
+    };
+
+    if !hash.chars().all(|c| c == '^' || c.is_ascii_hexdigit()) {
+        return false;
+    }
+    if orig_line.parse::<u32>().is_err() {
+        return false;
+    }
+    if final_line.parse::<u32>().is_err() {
+        return false;
+    }
+    true
+}
+
+fn blame_times_for_lines(
+    repo_root: &Path,
+    file_rel: &str,
+    needed_lines: &HashSet<u32>,
+) -> HashMap<u32, u64> {
+    let (min_line, max_line) = needed_lines
+        .iter()
+        .fold((u32::MAX, 0u32), |acc, &v| (acc.0.min(v), acc.1.max(v)));
+    if min_line == u32::MAX || max_line == 0 {
+        return HashMap::new();
+    }
+
+    let range = format!("{min_line},{max_line}");
+    let out = git(
+        repo_root,
+        &["blame", "--line-porcelain", "-L", &range, "--", file_rel],
+    );
+    if !out.status.success() {
+        // Treat failures as "unknown/old".
+        return HashMap::new();
+    }
+
+    let text = String::from_utf8_lossy(&out.stdout);
+    let mut res: HashMap<u32, u64> = HashMap::new();
+
+    let mut current_final_line: Option<u32> = None;
+    let mut current_committer_time: Option<u64> = None;
+
+    for line in text.lines() {
+        if current_final_line.is_none() && is_header_line(line) {
+            let mut it = line.split_whitespace();
+            let _hash = it.next().unwrap();
+            let _orig = it.next().unwrap();
+            let final_line = it.next().unwrap();
+            current_final_line = final_line.parse::<u32>().ok();
+            current_committer_time = None;
+            continue;
+        }
+
+        if let Some(rest) = line.strip_prefix("committer-time ") {
+            current_committer_time = rest.trim().parse::<u64>().ok();
+            continue;
+        }
+
+        if line.starts_with('\t') {
+            if let (Some(final_line), Some(time)) = (current_final_line, current_committer_time) {
+                if needed_lines.contains(&final_line) {
+                    res.insert(final_line, time);
+                }
+            }
+            current_final_line = None;
+            current_committer_time = None;
+        }
+    }
+
+    res
+}
+
+fn extract_go_o_from_harness(harness_lib: &Path) -> Vec<u8> {
+    let out = Command::new("ar")
+        .arg("p")
+        .arg(harness_lib)
+        .arg("go.o")
+        .output()
+        .unwrap_or_else(|err| {
+            eprintln!("golibafl: failed to run ar: {err}");
+            std::process::exit(2);
+        });
+    if !out.status.success() {
+        eprintln!(
+            "golibafl: failed to extract go.o from {}",
+            harness_lib.display()
+        );
+        std::process::exit(2);
+    }
+    out.stdout
+}
+
+fn resolve_repo_relative_path(
+    path_str: &str,
+    target_dir: &Path,
+    repo_root: &Path,
+    cache: &mut HashMap<String, Option<String>>,
+) -> Option<String> {
+    if let Some(v) = cache.get(path_str) {
+        return v.clone();
+    }
+
+    let p = Path::new(path_str);
+    let abs = if p.is_absolute() {
+        fs::canonicalize(p).ok()
+    } else {
+        fs::canonicalize(target_dir.join(p))
+            .or_else(|_| fs::canonicalize(repo_root.join(p)))
+            .ok()
+    };
+
+    let rel = abs.and_then(|abs| {
+        if !abs.starts_with(repo_root) {
+            return None;
+        }
+        abs.strip_prefix(repo_root).ok().and_then(|p| {
+            let s = p.to_string_lossy().replace('\\', "/");
+            if s.is_empty() {
+                None
+            } else {
+                Some(s)
+            }
+        })
+    });
+
+    cache.insert(path_str.to_string(), rel.clone());
+    rel
+}
+
+fn ensure_git_recency_mapping(mapping_path: &Path, target_dir: &Path) {
+    let repo_root = repo_root(target_dir);
+    let repo_root = fs::canonicalize(&repo_root).unwrap_or_else(|err| {
+        eprintln!(
+            "golibafl: failed to canonicalize repo root {}: {err}",
+            repo_root.display()
+        );
+        std::process::exit(2);
+    });
+    let head_time = head_time_epoch_seconds(&repo_root);
+
+    if read_mapping_head_time(mapping_path) == Some(head_time) {
+        return;
+    }
+
+    let harness_lib = env::var_os("HARNESS_LIB").unwrap_or_else(|| {
+        eprintln!("golibafl: HARNESS_LIB must be set when {GOLIBAFL_FOCUS_ON_NEW_CODE_ENV}=true");
+        std::process::exit(2);
+    });
+    let harness_lib = PathBuf::from(harness_lib);
+    let go_o_bytes = extract_go_o_from_harness(&harness_lib);
+
+    let obj = object::File::parse(&*go_o_bytes).unwrap_or_else(|err| {
+        eprintln!(
+            "golibafl: failed to parse go.o from {}: {err}",
+            harness_lib.display()
+        );
+        std::process::exit(2);
+    });
+    let tmp_go_o = env::temp_dir().join(format!("golibafl_gitrec_go_{}.o", std::process::id()));
+    fs::write(&tmp_go_o, &go_o_bytes).unwrap_or_else(|err| {
+        eprintln!("golibafl: failed to write {}: {err}", tmp_go_o.display());
+        std::process::exit(2);
+    });
+    let loader = Loader::new(&tmp_go_o).unwrap_or_else(|err| {
+        eprintln!("golibafl: failed to load debug info from go.o: {err}");
+        std::process::exit(2);
+    });
+
+    let counters_section = obj.section_by_name(".go.fuzzcntrs").unwrap_or_else(|| {
+        eprintln!(
+            "golibafl: go.o does not contain .go.fuzzcntrs; cannot generate git recency mapping"
+        );
+        std::process::exit(2);
+    });
+    let counters_len = usize::try_from(counters_section.size()).unwrap_or_else(|_| {
+        eprintln!("golibafl: .go.fuzzcntrs is too large");
+        std::process::exit(2);
+    });
+
+    let mut counter_locs: HashMap<usize, (String, u32)> = HashMap::new();
+    let mut path_cache: HashMap<String, Option<String>> = HashMap::new();
+
+    for section in obj.sections() {
+        if section.kind() != SectionKind::Text {
+            continue;
+        }
+        let section_base = section.address();
+        for (offset, reloc) in section.relocations() {
+            let RelocationTarget::Symbol(sym_idx) = reloc.target() else {
+                continue;
+            };
+            let Ok(sym) = obj.symbol_by_index(sym_idx) else {
+                continue;
+            };
+            if sym.section_index() != Some(counters_section.index()) {
+                continue;
+            }
+            let idx = usize::try_from(sym.address().saturating_sub(counters_section.address()))
+                .unwrap_or(usize::MAX);
+            if idx >= counters_len || counter_locs.contains_key(&idx) {
+                continue;
+            }
+
+            let addr = section_base + offset;
+            let Some(loc) = loader.find_location(addr).ok().flatten() else {
+                continue;
+            };
+            let Some(file) = loc.file else {
+                continue;
+            };
+            let Some(line) = loc.line else {
+                continue;
+            };
+
+            let Some(file_rel) =
+                resolve_repo_relative_path(file, target_dir, &repo_root, &mut path_cache)
+            else {
+                continue;
+            };
+            counter_locs.insert(idx, (file_rel, line));
+        }
+    }
+    let _ = fs::remove_file(&tmp_go_o);
+
+    let mut needed_by_file: HashMap<String, HashSet<u32>> = HashMap::new();
+    for (_idx, (file, line)) in &counter_locs {
+        needed_by_file
+            .entry(file.clone())
+            .or_default()
+            .insert(*line);
+    }
+
+    let mut times_by_file: HashMap<String, HashMap<u32, u64>> = HashMap::new();
+    for (file, needed_lines) in &needed_by_file {
+        let times = blame_times_for_lines(&repo_root, file, needed_lines);
+        times_by_file.insert(file.clone(), times);
+    }
+
+    let mut timestamps = vec![0u64; counters_len];
+    for (idx, (file, line)) in counter_locs {
+        if let Some(time) = times_by_file.get(&file).and_then(|m| m.get(&line)).copied() {
+            if let Some(slot) = timestamps.get_mut(idx) {
+                *slot = time;
+            }
+        }
+    }
+
+    if let Some(parent) = mapping_path.parent() {
+        if let Err(err) = fs::create_dir_all(parent) {
+            eprintln!(
+                "golibafl: failed to create mapping directory {}: {err}",
+                parent.display()
+            );
+            std::process::exit(2);
+        }
+    }
+
+    let mut out = fs::File::create(mapping_path).unwrap_or_else(|err| {
+        eprintln!(
+            "golibafl: failed to create mapping file {}: {err}",
+            mapping_path.display()
+        );
+        std::process::exit(2);
+    });
+
+    out.write_all(&head_time.to_le_bytes())
+        .unwrap_or_else(|err| {
+            eprintln!("golibafl: failed to write mapping file: {err}");
+            std::process::exit(2);
+        });
+    out.write_all(&(timestamps.len() as u64).to_le_bytes())
+        .unwrap_or_else(|err| {
+            eprintln!("golibafl: failed to write mapping file: {err}");
+            std::process::exit(2);
+        });
+    for t in timestamps {
+        out.write_all(&t.to_le_bytes()).unwrap_or_else(|err| {
+            eprintln!("golibafl: failed to write mapping file: {err}");
+            std::process::exit(2);
+        });
+    }
+}
 
 // Command line arguments with clap
 #[derive(Subcommand, Debug, Clone)]
@@ -344,7 +718,11 @@ enum Mode {
         input: PathBuf,
     },
     Fuzz {
-        #[clap(long, value_name = "FILE", help = "JSONC config file path (JSON with // comments)")]
+        #[clap(
+            long,
+            value_name = "FILE",
+            help = "JSONC config file path (JSON with // comments)"
+        )]
         config: Option<PathBuf>,
 
         #[clap(
@@ -361,7 +739,7 @@ enum Mode {
             short = 'p',
             long,
             help = "Choose the broker TCP port (default: random free port)",
-            name = "PORT",
+            name = "PORT"
         )]
         broker_port: Option<u16>,
 
@@ -442,15 +820,47 @@ fn run(input: PathBuf) {
 // Fuzzing function, wrapping the exported libfuzzer functions from golang
 #[allow(clippy::too_many_lines)]
 #[allow(static_mut_refs)]
-fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_path: Option<&PathBuf>) {
+fn fuzz(
+    cores: &Cores,
+    broker_port: u16,
+    input: &PathBuf,
+    output: &Path,
+    config_path: Option<&PathBuf>,
+) {
     let args: Vec<String> = env::args().collect();
+    let is_launcher_client = env::var_os("AFL_LAUNCHER_CLIENT").is_some();
+    let verbose = env::var_os("CYBERGO_VERBOSE_AFL").is_some();
+
+    // Go's c-archive runtime initialization relies on constructors and is not
+    // safe to use after `fork()` (it may deadlock waiting for runtime init).
+    //
+    // Prefer exec-based restarts on Unix by default, but allow overriding for
+    // non-Go users/debugging.
+    #[cfg(unix)]
+    if env::var_os("LIBAFL_RESTARTING_USE_FORK").is_none() {
+        env::set_var("LIBAFL_RESTARTING_USE_FORK", "false");
+    }
+
+    let focus_on_new_code = env::var(GOLIBAFL_FOCUS_ON_NEW_CODE_ENV)
+        .ok()
+        .map(|v| {
+            v.parse::<bool>().unwrap_or_else(|_| {
+                eprintln!(
+                    "golibafl: invalid {GOLIBAFL_FOCUS_ON_NEW_CODE_ENV}={v} (expected true/false)"
+                );
+                std::process::exit(2);
+            })
+        })
+        .unwrap_or(false);
 
     let needs_cwd = !input.is_absolute()
         || !output.is_absolute()
-        || config_path
-            .as_ref()
-            .is_some_and(|p| p.is_relative());
-    let cwd = if needs_cwd { env::current_dir().ok() } else { None };
+        || config_path.as_ref().is_some_and(|p| p.is_relative());
+    let cwd = if needs_cwd {
+        env::current_dir().ok()
+    } else {
+        None
+    };
     let input = if input.is_absolute() {
         input.clone()
     } else {
@@ -465,6 +875,16 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
             .map(|cwd| cwd.join(output))
             .unwrap_or_else(|| output.to_path_buf())
     };
+    let target_dir = env::var_os(GOLIBAFL_TARGET_DIR_ENV).map(PathBuf::from);
+    let git_recency_map_path = env::var_os(LIBAFL_GIT_RECENCY_MAPPING_ENV)
+        .map(PathBuf::from)
+        .map(|p| {
+            if p.is_absolute() {
+                p
+            } else {
+                cwd.as_ref().map(|cwd| cwd.join(&p)).unwrap_or(p)
+            }
+        });
     let config_path = config_path.map(|config_path| {
         if config_path.is_absolute() {
             config_path.clone()
@@ -490,13 +910,19 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
         let config = read_fuzz_config(config_path);
         if let Some(cores) = config.cores.as_deref() {
             effective_cores = Cores::from_cmdline(cores).unwrap_or_else(|err| {
-                eprintln!("golibafl: invalid cores in config {}: {err}", config_path.display());
+                eprintln!(
+                    "golibafl: invalid cores in config {}: {err}",
+                    config_path.display()
+                );
                 std::process::exit(2);
             });
         }
         if let Some(ms) = config.exec_timeout_ms {
             if ms == 0 {
-                eprintln!("golibafl: exec_timeout_ms must be > 0 (config: {})", config_path.display());
+                eprintln!(
+                    "golibafl: exec_timeout_ms must be > 0 (config: {})",
+                    config_path.display()
+                );
                 std::process::exit(2);
             }
             exec_timeout = Duration::from_millis(ms);
@@ -524,7 +950,10 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
         }
         if let Some(sz) = config.corpus_cache_size {
             if sz == 0 {
-                eprintln!("golibafl: corpus_cache_size must be > 0 (config: {})", config_path.display());
+                eprintln!(
+                    "golibafl: corpus_cache_size must be > 0 (config: {})",
+                    config_path.display()
+                );
                 std::process::exit(2);
             }
             corpus_cache_size = sz;
@@ -574,6 +1003,18 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
         }
     }
 
+    if focus_on_new_code && !is_launcher_client {
+        let target_dir = target_dir.unwrap_or_else(|| {
+            panic!(
+                "{GOLIBAFL_TARGET_DIR_ENV} must be set when {GOLIBAFL_FOCUS_ON_NEW_CODE_ENV}=true"
+            )
+        });
+        let map_path = git_recency_map_path.as_ref().unwrap_or_else(|| {
+            panic!("{LIBAFL_GIT_RECENCY_MAPPING_ENV} must be set when {GOLIBAFL_FOCUS_ON_NEW_CODE_ENV}=true")
+        });
+        ensure_git_recency_mapping(map_path, &target_dir);
+    }
+
     // LibAFL's restarting manager uses `std::env::current_dir()` when re-spawning itself in
     // non-fork mode. If the current working directory is deleted/unlinked (common with temp dirs),
     // this will fail with ENOENT and abort the whole fuzz run on the first crash/timeout.
@@ -583,9 +1024,10 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
     let _ = fs::create_dir_all(&workdir);
     let _ = env::set_current_dir(&workdir);
 
-    let initial_input_max_len = std::num::NonZeroUsize::new(initial_input_max_len).unwrap_or_else(|| {
-        panic!("initial_input_max_len must be > 0");
-    });
+    let initial_input_max_len =
+        std::num::NonZeroUsize::new(initial_input_max_len).unwrap_or_else(|| {
+            panic!("initial_input_max_len must be > 0");
+        });
     let monitor_timeout = Duration::from_secs(15);
     let crashes_dir = output.join("crashes");
     let list_crash_inputs = |dir: &Path| -> Vec<PathBuf> {
@@ -603,7 +1045,6 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
             .unwrap_or_default()
     };
     let count_crash_inputs = |dir: &Path| -> usize { list_crash_inputs(dir).len() };
-    let is_launcher_client = env::var_os("AFL_LAUNCHER_CLIENT").is_some();
     if !is_launcher_client && count_crash_inputs(&crashes_dir) > 0 {
         // `go test -fuzz` semantics: if there are pre-existing crashing inputs, replay them.
         // If they no longer crash (because the harness was fixed/recompiled), move them aside
@@ -665,10 +1106,7 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
         }
 
         if stop_all_fuzzers_on_panic && !reproduced.is_empty() {
-            eprintln!(
-                "Found {} pre-existing crashing input(s).",
-                reproduced.len()
-            );
+            eprintln!("Found {} pre-existing crashing input(s).", reproduced.len());
             eprintln!("libafl output dir: {}", output.display());
             eprintln!("crashes dir: {}", crashes_dir.display());
             for p in &reproduced {
@@ -679,6 +1117,7 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
                     eprintln!("repro: golibafl run --input {}", p.display());
                 }
             }
+            notify_restarting_mgr_exit();
             std::process::exit(1);
         }
     }
@@ -718,31 +1157,50 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
             }
         }
     }
-    let shmem_provider =
-        StdShMemProvider::new().unwrap_or_else(|err| panic!("Failed to init shared memory: {err:?}"));
+    let shmem_provider = StdShMemProvider::new()
+        .unwrap_or_else(|err| panic!("Failed to init shared memory: {err:?}"));
 
-    let mut run_client =
-        |state: Option<_>,
-         mut restarting_mgr: LlmpRestartingEventManager<_, BytesInput, _, _, _>,
-         client_description: ClientDescription| {
-            // In-process crashes abort the fuzzing instance, and the restarting manager respawns it.
-            // Implement `go test -fuzz` semantics: stop the whole run on the first crash.
-            if stop_all_fuzzers_on_panic && count_crash_inputs(&crashes_dir) > initial_crash_inputs {
-                restarting_mgr.on_shutdown()?;
-                return Err(Error::shutting_down());
-            }
+    let mut run_client = |state: Option<_>,
+                          mut restarting_mgr: LlmpRestartingEventManager<
+        _,
+        BytesInput,
+        _,
+        _,
+        _,
+    >,
+                          client_description: ClientDescription| {
+        // In-process crashes abort the fuzzing instance, and the restarting manager respawns it.
+        // Implement `go test -fuzz` semantics: stop the whole run on the first crash.
+        if stop_all_fuzzers_on_panic && count_crash_inputs(&crashes_dir) > initial_crash_inputs {
+            restarting_mgr.send_exiting()?;
+            return Err(Error::shutting_down());
+        }
 
-            if go_maxprocs_single && effective_cores.ids.len() > 1 {
-                env::set_var("GOMAXPROCS", "1");
-            }
+        if go_maxprocs_single && effective_cores.ids.len() > 1 {
+            env::set_var("GOMAXPROCS", "1");
+        }
 
-            // trigger Go runtime initialization, which calls __sanitizer_cov_8bit_counters_init to initialize COUNTERS_MAPS
-            if unsafe { libfuzzer_initialize(&args) } == -1 {
-                println!("Warning: LLVMFuzzerInitialize failed with -1");
-            }
-            let counters_map_len = unsafe { COUNTERS_MAPS.len() };
+        // trigger Go runtime initialization, which calls __sanitizer_cov_8bit_counters_init to initialize COUNTERS_MAPS
+        if verbose {
+            eprintln!(
+                "golibafl: client start id={} pid={} (calling LLVMFuzzerInitialize)",
+                client_description.id(),
+                std::process::id()
+            );
+        }
+        let init_ret = unsafe { libfuzzer_initialize(&args) };
+        if verbose {
+            eprintln!("golibafl: LLVMFuzzerInitialize returned {init_ret}");
+        }
+        if init_ret == -1 {
+            println!("Warning: LLVMFuzzerInitialize failed with -1");
+        }
+        let counters_map_len = unsafe { COUNTERS_MAPS.len() };
+        if verbose {
+            eprintln!("golibafl: counters_map_len={counters_map_len}");
+        }
 
-            macro_rules! run_with_edges_observer {
+        macro_rules! run_with_edges_observer {
                 ($edges_observer:expr, $map_feedback:ident) => {{
                     let edges_observer = ($edges_observer).track_indices();
 
@@ -797,9 +1255,18 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
                     let power: StdPowerMutationalStage<_, _, BytesInput, _, _, _> =
                         StdPowerMutationalStage::new(mutator);
 
+                    if focus_on_new_code {
+                        let map_path = git_recency_map_path.as_ref().unwrap_or_else(|| {
+                            panic!(
+                                "{LIBAFL_GIT_RECENCY_MAPPING_ENV} must be set when {GOLIBAFL_FOCUS_ON_NEW_CODE_ENV}=true"
+                            )
+                        });
+                        state.add_metadata(GitRecencyMapMetadata::load_from_file(map_path)?);
+                    }
+
                     let scheduler = IndexesLenTimeMinimizerScheduler::new(
                         &edges_observer,
-                        StdWeightedScheduler::with_schedule(
+                        GitAwareStdWeightedScheduler::with_schedule(
                             &mut state,
                             &edges_observer,
                             Some(power_schedule),
@@ -851,6 +1318,13 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
                             Err(_) => true,
                         };
                         if input_is_empty {
+                            if verbose {
+                                eprintln!(
+                                    "golibafl: input dir empty; generating {} initial inputs (max_len={})",
+                                    initial_generated_inputs,
+                                    initial_input_max_len
+                                );
+                            }
                             // Generator of printable bytearrays of max size initial_input_max_len
                             let mut generator = RandBytesGenerator::new(initial_input_max_len);
 
@@ -864,6 +1338,12 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
                                     initial_generated_inputs,
                                 )
                                 .expect("Failed to generate the initial corpus");
+                            if verbose {
+                                eprintln!(
+                                    "golibafl: generated initial corpus size={}",
+                                    state.corpus().count()
+                                );
+                            }
                             println!(
                                 "We imported {} inputs from the generator.",
                                 state.corpus().count()
@@ -915,7 +1395,7 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
                             ),
                         )?;
                         state.request_stop();
-                        restarting_mgr.on_shutdown()?;
+                        restarting_mgr.send_exiting()?;
                         return Err(Error::shutting_down());
                     }
 
@@ -924,7 +1404,7 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
                             restarting_mgr.maybe_report_progress(&mut state, monitor_timeout)
                         {
                             if matches!(err, Error::ShuttingDown) {
-                                restarting_mgr.on_shutdown()?;
+                                restarting_mgr.send_exiting()?;
                             }
                             return Err(err);
                         }
@@ -936,7 +1416,7 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
                             &mut restarting_mgr,
                         ) {
                             if matches!(err, Error::ShuttingDown) {
-                                restarting_mgr.on_shutdown()?;
+                                restarting_mgr.send_exiting()?;
                             }
                             return Err(err);
                         }
@@ -951,32 +1431,32 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
                                 ),
                             )?;
                             state.request_stop();
-                            restarting_mgr.on_shutdown()?;
+                            restarting_mgr.send_exiting()?;
                             return Err(Error::shutting_down());
                         }
                     }
                 }};
             }
 
-            match counters_map_len {
-                1 => {
-                    let edges = unsafe { extra_counters() };
-                    let edges = edges.into_iter().next().unwrap();
-                    run_with_edges_observer!(
-                        StdMapObserver::from_mut_slice("edges", edges),
-                        MaxMapFeedback
-                    )
-                }
-                n if n > 1 => {
-                    let edges = unsafe { extra_counters() };
-                    run_with_edges_observer!(
-                        MultiMapObserver::new("edges", edges),
-                        NonSimdMaxMapFeedback
-                    )
-                }
-                _ => panic!("No coverage maps available; cannot fuzz!"),
+        match counters_map_len {
+            1 => {
+                let edges = unsafe { extra_counters() };
+                let edges = edges.into_iter().next().unwrap();
+                run_with_edges_observer!(
+                    StdMapObserver::from_mut_slice("edges", edges),
+                    MaxMapFeedback
+                )
             }
-        };
+            n if n > 1 => {
+                let edges = unsafe { extra_counters() };
+                run_with_edges_observer!(
+                    MultiMapObserver::new("edges", edges),
+                    NonSimdMaxMapFeedback
+                )
+            }
+            _ => panic!("No coverage maps available; cannot fuzz!"),
+        }
+    };
 
     let launch_res = if tui_monitor {
         let monitor = TuiMonitor::builder().build();
@@ -1055,6 +1535,7 @@ fn fuzz(cores: &Cores, broker_port: u16, input: &PathBuf, output: &Path, config_
 
             eprintln!("(Crash output is printed above; rerun the repro command to see it again.)");
             if stop_all_fuzzers_on_panic {
+                notify_restarting_mgr_exit();
                 std::process::exit(1);
             }
         }

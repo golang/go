@@ -16,7 +16,7 @@ target_sym_nodot="test_go_panicon.(*Logger).Error"
 # Invalid --panic-on should error out early.
 cd "${ROOT_DIR}/test/cybergo/examples/panic_on/myLog"
 set +e
-CGO_ENABLED=1 timeout 30s "${ROOT_DIR}/bin/go" test -fuzz=FuzzMyCustomError --use-libafl --panic-on=run 2>&1 | tee "${tmp_dir}/output-invalid-panic-on.txt"
+CGO_ENABLED=1 timeout 30s "${ROOT_DIR}/bin/go" test -fuzz=FuzzMyCustomError --use-libafl --focus-on-new-code=false --panic-on=run 2>&1 | tee "${tmp_dir}/output-invalid-panic-on.txt"
 status="${PIPESTATUS[0]}"
 set -e
 if [[ "${status}" -eq 0 ]]; then
@@ -70,7 +70,7 @@ cd "${ROOT_DIR}/test/cybergo/examples/panic_on/myLog"
 output_no_panic_on="${tmp_dir}/output-no-panic-on.txt"
 
 set +e
-CGO_ENABLED=1 timeout 5m "${ROOT_DIR}/bin/go" test -fuzz=FuzzMyCustomError --use-libafl 2>&1 | tee "${output_no_panic_on}"
+CGO_ENABLED=1 timeout 5m "${ROOT_DIR}/bin/go" test -fuzz=FuzzMyCustomError --use-libafl --focus-on-new-code=false 2>&1 | tee "${output_no_panic_on}"
 status="${PIPESTATUS[0]}"
 set -e
 

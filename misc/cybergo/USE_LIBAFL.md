@@ -8,17 +8,26 @@ cybergo contains:
 This repo adds a glue path so a user can keep writing **standard Go fuzz tests** (the ones used by `go test -fuzz=...`) and switch engines with a flag:
 
 ```bash
-go test -fuzz=FuzzXxx --use-libafl
+go test -fuzz=FuzzXxx --use-libafl --focus-on-new-code=false
 ```
 
 Without the flag, `go test -fuzz` behaves like upstream Go.
+
+## Git-aware scheduling (focus on new code)
+
+When `--use-libafl` is set, `--focus-on-new-code={true|false}` is **required**.
+
+- `--focus-on-new-code=false`: keep the current behavior.
+- `--focus-on-new-code=true`: prefer inputs that execute recently changed lines (based on `git blame`).
+
+Implementation note: the git-aware scheduler currently comes from a local LibAFL fork (TODO: switch back to upstream LibAFL once upstreamed).
 
 ## Runner configuration
 
 cybergo can pass a JSONC configuration file (JSON with `//` comments) to the LibAFL runner:
 
 ```bash
-go test -fuzz=FuzzXxx --use-libafl --libafl-config=libafl.jsonc
+go test -fuzz=FuzzXxx --use-libafl --focus-on-new-code=false --libafl-config=libafl.jsonc
 ```
 
 `golibafl` also needs a TCP broker port for LibAFL's internal event manager. By default, it picks a **random free port** (instead of always `1337`). If you need a fixed port, set `GOLIBAFL_BROKER_PORT=1337` (or pass `-p/--port 1337` when running `golibafl` directly).
@@ -76,7 +85,7 @@ cd src
 
 ```bash
 cd test/cybergo/examples/reverse
-CGO_ENABLED=1 ../../../../bin/go test -fuzz=FuzzReverse --use-libafl
+CGO_ENABLED=1 ../../../../bin/go test -fuzz=FuzzReverse --use-libafl --focus-on-new-code=false
 ```
 
 Fuzzing runs until you stop it (Ctrl+C). The run prints `ok ...` on clean shutdown.

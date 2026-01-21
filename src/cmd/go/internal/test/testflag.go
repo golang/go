@@ -70,6 +70,7 @@ func init() {
 	cf.String("fuzztime", "", "")
 	cf.String("fuzzminimizetime", "", "")
 	cf.BoolVar(&testUseLibAFL, "use-libafl", false, "")
+	cf.Var(&testFocusOnNewCode, "focus-on-new-code", "")
 	cf.StringVar(&testLibAFLConfig, "libafl-config", "", "")
 	cf.StringVar(&testPanicOn, "panic-on", "", "")
 	cf.StringVar(&testTrace, "trace", "", "")
@@ -181,6 +182,31 @@ func (f *vetFlag) Set(value string) error {
 	if len(f.flags) > 1 && single != "" {
 		return fmt.Errorf("-vet does not accept %q in a list with other analyzers", single)
 	}
+	return nil
+}
+
+type explicitBoolFlag struct {
+	set bool
+	val bool
+}
+
+func (f *explicitBoolFlag) String() string {
+	if !f.set {
+		return ""
+	}
+	if f.val {
+		return "true"
+	}
+	return "false"
+}
+
+func (f *explicitBoolFlag) Set(arg string) error {
+	v, err := strconv.ParseBool(arg)
+	if err != nil {
+		return err
+	}
+	f.set = true
+	f.val = v
 	return nil
 }
 
