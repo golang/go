@@ -434,33 +434,25 @@
 (Move [15] dst src mem) =>
 	(MOVDstore [7] dst (MOVDload [7] src mem)
 		(MOVDstore dst (MOVDload src mem) mem))
-(Move [16] dst src mem) =>
-	(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem)
+(Move [16] dst src mem) => (FMOVQstore dst (FMOVQload src mem) mem)
 
 (Move [s] dst src mem) && s > 16 && s <= 24 =>
 	(MOVDstore [int32(s-8)] dst (MOVDload [int32(s-8)] src mem)
-		(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem))
-(Move [s] dst src mem) && s > 24 && s <= 32 =>
-	(STP [int32(s-16)] dst (Select0 <typ.UInt64> (LDP [int32(s-16)] src mem)) (Select1 <typ.UInt64> (LDP [int32(s-16)] src mem))
-		(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem))
+		(FMOVQstore dst (FMOVQload src mem) mem))
+(Move [s] dst src mem) && s > 24 && s < 32 =>
+	(FMOVQstore [int32(s-16)] dst (FMOVQload [int32(s-16)] src mem)
+		(FMOVQstore dst (FMOVQload src mem) mem))
+(Move [32] dst src mem) =>
+	(FSTPQ dst (Select0 <typ.Vec128> (FLDPQ src mem)) (Select1 <typ.Vec128> (FLDPQ src mem)) mem)
 (Move [s] dst src mem) && s > 32 && s <= 40 =>
 	(MOVDstore [int32(s-8)] dst (MOVDload [int32(s-8)] src mem)
-		(STP [16] dst (Select0 <typ.UInt64> (LDP [16] src mem)) (Select1 <typ.UInt64> (LDP [16] src mem))
-			(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem)))
+		(FSTPQ dst (Select0 <typ.Vec128> (FLDPQ src mem)) (Select1 <typ.Vec128> (FLDPQ src mem)) mem))
 (Move [s] dst src mem) && s > 40 && s <= 48 =>
-	(STP [int32(s-16)] dst (Select0 <typ.UInt64> (LDP [int32(s-16)] src mem)) (Select1 <typ.UInt64> (LDP [int32(s-16)] src mem))
-		(STP [16] dst (Select0 <typ.UInt64> (LDP [16] src mem)) (Select1 <typ.UInt64> (LDP [16] src mem))
-			(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem)))
-(Move [s] dst src mem) && s > 48 && s <= 56 =>
-	(MOVDstore [int32(s-8)] dst (MOVDload [int32(s-8)] src mem)
-		(STP [32] dst (Select0 <typ.UInt64> (LDP [32] src mem)) (Select1 <typ.UInt64> (LDP [32] src mem))
-			(STP [16] dst (Select0 <typ.UInt64> (LDP [16] src mem)) (Select1 <typ.UInt64> (LDP [16] src mem))
-				(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem))))
-(Move [s] dst src mem) && s > 56 && s <= 64 =>
-	(STP [int32(s-16)] dst (Select0 <typ.UInt64> (LDP [int32(s-16)] src mem)) (Select1 <typ.UInt64> (LDP [int32(s-16)] src mem))
-		(STP [32] dst (Select0 <typ.UInt64> (LDP [32] src mem)) (Select1 <typ.UInt64> (LDP [32] src mem))
-			(STP [16] dst (Select0 <typ.UInt64> (LDP [16] src mem)) (Select1 <typ.UInt64> (LDP [16] src mem))
-				(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem))))
+	(FMOVQstore [int32(s-16)] dst (FMOVQload [int32(s-16)] src mem)
+		(FSTPQ dst (Select0 <typ.Vec128> (FLDPQ src mem)) (Select1 <typ.Vec128> (FLDPQ src mem)) mem))
+(Move [s] dst src mem) && s > 48 && s <= 64 =>
+	(FSTPQ [int32(s-32)] dst (Select0 <typ.Vec128> (FLDPQ [int32(s-32)] src mem)) (Select1 <typ.Vec128> (FLDPQ [int32(s-32)] src mem))
+		(FSTPQ dst (Select0 <typ.Vec128> (FLDPQ src mem)) (Select1 <typ.Vec128> (FLDPQ src mem)) mem))
 
 (Move [s] dst src mem) && s > 64 && s < 192 && logLargeCopy(v, s) => (LoweredMove [s] dst src mem)
 (Move [s] dst src mem) && s >= 192 && logLargeCopy(v, s) => (LoweredMoveLoop [s] dst src mem)
