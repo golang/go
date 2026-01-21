@@ -39,7 +39,6 @@ package bloop
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
-	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
@@ -117,11 +116,6 @@ func keepAliveAt(ns ir.Nodes, curNode ir.Node) ir.Node {
 			base.FatalfAt(n.Pos(), "keepAliveAt: node %v is not addressable", n)
 		}
 		arg := ir.NewConvExpr(pos, ir.OCONV, types.Types[types.TUNSAFEPTR], typecheck.NodAddr(n))
-		if !n.Type().IsInterface() {
-			srcRType0 := reflectdata.TypePtrAt(pos, n.Type())
-			arg.TypeWord = srcRType0
-			arg.SrcRType = srcRType0
-		}
 		callExpr := typecheck.Call(pos, typecheck.LookupRuntime("KeepAlive"), ir.Nodes{arg}, false).(*ir.CallExpr)
 		callExpr.IsCompilerVarLive = true
 		callExpr.NoInline = true
