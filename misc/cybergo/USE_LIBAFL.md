@@ -20,7 +20,13 @@ When `--use-libafl` is set, `--focus-on-new-code={true|false}` is **required**.
 - `--focus-on-new-code=false`: keep the current behavior.
 - `--focus-on-new-code=true`: prefer inputs that execute recently changed lines (based on `git blame`).
 
+Note: `--focus-on-new-code=true` needs `git` (to run `git blame`) and may require `addr2line` (binutils) to map coverage counters back to source `file:line`.
+
 Implementation note: the git-aware scheduler currently comes from a local LibAFL fork (TODO: switch back to upstream LibAFL once upstreamed).
+
+### Benchmark (geth)
+
+A paired benchmark for `--focus-on-new-code` on a shallow clone of go-ethereum (geth) lives at `misc/cybergo/bench_focus_on_new_code_geth.sh`.
 
 ## Runner configuration
 

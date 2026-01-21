@@ -41,7 +41,7 @@ use std::{
     collections::{HashMap, HashSet},
     env, fs,
     fs::read_dir,
-    io::{IsTerminal, Write},
+    io::{BufRead, IsTerminal, Read, Write},
     net::TcpListener,
     path::{Path, PathBuf},
     process::{Command, Output, Stdio},
@@ -519,6 +519,91 @@ fn extract_go_o_from_harness(harness_lib: &Path) -> Vec<u8> {
     out.stdout
 }
 
+fn addr2line_locations(obj_path: &Path, addrs: &[u64]) -> HashMap<u64, (String, u32)> {
+    if addrs.is_empty() {
+        return HashMap::new();
+    }
+
+    let mut child = Command::new("addr2line")
+        .arg("-e")
+        .arg(obj_path)
+        .arg("-a")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap_or_else(|err| {
+            eprintln!("golibafl: failed to run addr2line: {err}");
+            std::process::exit(2);
+        });
+
+    let mut stderr = child.stderr.take().unwrap();
+    let stderr_thread = std::thread::spawn(move || {
+        let mut buf = Vec::new();
+        let _ = stderr.read_to_end(&mut buf);
+        buf
+    });
+
+    let mut stdin = child.stdin.take().unwrap();
+    let stdout = child.stdout.take().unwrap();
+    let mut stdout = std::io::BufReader::new(stdout);
+
+    let mut res: HashMap<u64, (String, u32)> = HashMap::new();
+    for addr in addrs {
+        if let Err(err) = writeln!(stdin, "0x{addr:x}") {
+            eprintln!("golibafl: failed to write to addr2line stdin: {err}");
+            std::process::exit(2);
+        }
+
+        // Expect 2 lines per address:
+        //  - "0x1234"
+        //  - "file.go:123"
+        let mut addr_line = String::new();
+        let n = stdout.read_line(&mut addr_line).unwrap_or(0);
+        if n == 0 {
+            break;
+        }
+        let addr_line = addr_line.trim();
+        if !addr_line.starts_with("0x") {
+            continue;
+        }
+        let addr = u64::from_str_radix(addr_line.trim_start_matches("0x"), 16).unwrap_or(0);
+
+        let mut loc_line = String::new();
+        let n = stdout.read_line(&mut loc_line).unwrap_or(0);
+        if n == 0 {
+            break;
+        }
+        let loc_tok = loc_line.split_whitespace().next().unwrap_or("");
+        let Some((file, line)) = loc_tok.rsplit_once(':') else {
+            continue;
+        };
+        let Ok(line) = line.parse::<u32>() else {
+            continue;
+        };
+        if file == "??" || line == 0 {
+            continue;
+        }
+        res.insert(addr, (file.to_string(), line));
+    }
+    drop(stdin);
+
+    let status = child.wait().unwrap_or_else(|err| {
+        eprintln!("golibafl: failed to wait for addr2line: {err}");
+        std::process::exit(2);
+    });
+    let stderr = stderr_thread.join().unwrap_or_default();
+    if !status.success() {
+        eprintln!(
+            "golibafl: addr2line failed: {}",
+            String::from_utf8_lossy(&stderr)
+        );
+        std::process::exit(2);
+    }
+
+    res
+}
+
 fn resolve_repo_relative_path(
     path_str: &str,
     target_dir: &Path,
@@ -590,10 +675,14 @@ fn ensure_git_recency_mapping(mapping_path: &Path, target_dir: &Path) {
         eprintln!("golibafl: failed to write {}: {err}", tmp_go_o.display());
         std::process::exit(2);
     });
-    let loader = Loader::new(&tmp_go_o).unwrap_or_else(|err| {
-        eprintln!("golibafl: failed to load debug info from go.o: {err}");
-        std::process::exit(2);
-    });
+    let loader = match Loader::new(&tmp_go_o) {
+        Ok(loader) => Some(loader),
+        Err(err) => {
+            eprintln!("golibafl: failed to load debug info from go.o: {err}");
+            eprintln!("golibafl: falling back to system addr2line for source locations");
+            None
+        }
+    };
 
     let counters_section = obj.section_by_name(".go.fuzzcntrs").unwrap_or_else(|| {
         eprintln!(
@@ -607,6 +696,7 @@ fn ensure_git_recency_mapping(mapping_path: &Path, target_dir: &Path) {
     });
 
     let mut counter_locs: HashMap<usize, (String, u32)> = HashMap::new();
+    let mut counter_addrs: HashMap<usize, u64> = HashMap::new();
     let mut path_cache: HashMap<String, Option<String>> = HashMap::new();
 
     for section in obj.sections() {
@@ -631,18 +721,40 @@ fn ensure_git_recency_mapping(mapping_path: &Path, target_dir: &Path) {
             }
 
             let addr = section_base + offset;
-            let Some(loc) = loader.find_location(addr).ok().flatten() else {
-                continue;
-            };
-            let Some(file) = loc.file else {
-                continue;
-            };
-            let Some(line) = loc.line else {
-                continue;
-            };
+            if let Some(loader) = loader.as_ref() {
+                let Some(loc) = loader.find_location(addr).ok().flatten() else {
+                    continue;
+                };
+                let Some(file) = loc.file else {
+                    continue;
+                };
+                let Some(line) = loc.line else {
+                    continue;
+                };
 
+                let Some(file_rel) =
+                    resolve_repo_relative_path(file, target_dir, &repo_root, &mut path_cache)
+                else {
+                    continue;
+                };
+                counter_locs.insert(idx, (file_rel, line));
+            } else {
+                counter_addrs.insert(idx, addr);
+            }
+        }
+    }
+
+    if loader.is_none() && !counter_addrs.is_empty() {
+        let mut addrs: Vec<u64> = counter_addrs.values().copied().collect();
+        addrs.sort_unstable();
+        addrs.dedup();
+        let locs = addr2line_locations(&tmp_go_o, &addrs);
+        for (idx, addr) in counter_addrs {
+            let Some((file, line)) = locs.get(&addr).cloned() else {
+                continue;
+            };
             let Some(file_rel) =
-                resolve_repo_relative_path(file, target_dir, &repo_root, &mut path_cache)
+                resolve_repo_relative_path(&file, target_dir, &repo_root, &mut path_cache)
             else {
                 continue;
             };
@@ -1494,6 +1606,7 @@ fn fuzz(
                         {
                             if matches!(err, Error::ShuttingDown) {
                                 restarting_mgr.send_exiting()?;
+                                notify_restarting_mgr_exit();
                             }
                             return Err(err);
                         }
@@ -1506,6 +1619,7 @@ fn fuzz(
                         ) {
                             if matches!(err, Error::ShuttingDown) {
                                 restarting_mgr.send_exiting()?;
+                                notify_restarting_mgr_exit();
                             }
                             return Err(err);
                         }
@@ -1632,6 +1746,7 @@ fn fuzz(
     }
 
     if matches!(launch_res, Err(Error::ShuttingDown)) {
+        notify_restarting_mgr_exit();
         println!("Fuzzing stopped by user. Good bye.");
     }
 }
