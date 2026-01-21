@@ -1366,15 +1366,15 @@ fn fuzz(
 
                     // Load corpus from input folder
                     // In case the corpus is empty (on first run), reset
-	                    if state.must_load_initial_inputs() {
-	                        let input_is_empty = match read_dir(&input) {
-	                            Ok(mut entries) => entries.next().is_none(),
-	                            Err(_) => true,
-	                        };
-	                        let all_inputs_empty = input_is_empty && !resume_has_inputs;
-	                        if all_inputs_empty {
-	                            if verbose {
-	                                eprintln!(
+		                    if state.must_load_initial_inputs() {
+		                        let (input_readable, input_is_empty) = match read_dir(&input) {
+		                            Ok(mut entries) => (true, entries.next().is_none()),
+		                            Err(_) => (false, true),
+		                        };
+		                        let all_inputs_empty = input_is_empty && !resume_has_inputs;
+		                        if all_inputs_empty {
+		                            if verbose {
+		                                eprintln!(
 	                                    "golibafl: input dir empty; generating {} initial inputs (max_len={})",
 	                                    initial_generated_inputs,
                                     initial_input_max_len
@@ -1403,20 +1403,27 @@ fn fuzz(
                                 "We imported {} inputs from the generator.",
                                 state.corpus().count()
                             );
-	                        } else {
-	                            eprintln!("Loading from {input:?}");
-	                            if resume_has_inputs {
-	                                eprintln!(
-	                                    "Resuming corpus from {}",
-	                                    resume_bucket_dir.display()
-	                                );
-	                            }
-	                            // Load from disk
-	                            let mut in_dirs = Vec::with_capacity(1 + usize::from(resume_has_inputs));
-	                            in_dirs.push(input.to_path_buf());
-	                            if resume_has_inputs {
-	                                in_dirs.push(resume_bucket_dir.clone());
-	                            }
+		                        } else {
+		                            if input_readable {
+		                                eprintln!("Loading from {input:?}");
+		                            } else if resume_has_inputs && verbose {
+		                                eprintln!(
+		                                    "golibafl: input dir {input:?} missing/unreadable; resuming only"
+		                                );
+		                            }
+		                            if resume_has_inputs {
+		                                eprintln!("Resuming corpus from {}", resume_bucket_dir.display());
+		                            }
+		                            // Load from disk
+		                            let mut in_dirs = Vec::with_capacity(
+		                                usize::from(input_readable) + usize::from(resume_has_inputs),
+		                            );
+		                            if input_readable {
+		                                in_dirs.push(input.to_path_buf());
+		                            }
+		                            if resume_has_inputs {
+		                                in_dirs.push(resume_bucket_dir.clone());
+		                            }
 	                            let load_res = if resume_has_inputs {
 	                                state.load_initial_inputs_forced(
 	                                    &mut fuzzer,
