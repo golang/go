@@ -835,6 +835,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, wantType bool
 		check.errorf(e.Sel, MissingFieldOrMethod, "%s.%s undefined (%s)", x.expr, sel, why)
 		goto Error
 	}
+	// obj != nil
 
 	// methods may not have a fully set up signature yet
 	if m, _ := obj.(*Func); m != nil {
@@ -845,7 +846,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, wantType bool
 		// method expression
 		m, _ := obj.(*Func)
 		if m == nil {
-			check.errorf(e.Sel, MissingFieldOrMethod, "%s.%s undefined (type %s has no method %s)", x.expr, sel, x.typ, sel)
+			check.errorf(e.X, MissingFieldOrMethod, "operand for field selector %s must be value of type %s", sel, x.typ)
 			goto Error
 		}
 
