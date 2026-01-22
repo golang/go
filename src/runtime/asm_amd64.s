@@ -1286,7 +1286,7 @@ TEXT runtime·memhash<ABIInternal>(SB),NOSPLIT,$0-32
 	// CX = size
 	CMPB	runtime·useAeshash(SB), $0
 	JEQ	noaes
-	JMP	aeshashbody<>(SB)
+	JMP	runtime·aeshashbody<>(SB)
 noaes:
 	JMP	runtime·memhashFallback<ABIInternal>(SB)
 
@@ -1298,7 +1298,7 @@ TEXT runtime·strhash<ABIInternal>(SB),NOSPLIT,$0-24
 	JEQ	noaes
 	MOVQ	8(AX), CX	// length of string
 	MOVQ	(AX), AX	// string data
-	JMP	aeshashbody<>(SB)
+	JMP	runtime·aeshashbody<>(SB)
 noaes:
 	JMP	runtime·strhashFallback<ABIInternal>(SB)
 
@@ -1306,7 +1306,7 @@ noaes:
 // BX: hash seed
 // CX: length
 // At return: AX = return value
-TEXT aeshashbody<>(SB),NOSPLIT,$0-0
+TEXT runtime·aeshashbody<>(SB),NOSPLIT,$0-0
 	// Fill an SSE register with our seeds.
 	MOVQ	BX, X0				// 64 bits of per-table hash seed
 	PINSRW	$4, CX, X0			// 16 bits of length
