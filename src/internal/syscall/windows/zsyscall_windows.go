@@ -83,6 +83,7 @@ var (
 	procGetTempPath2W                     = modkernel32.NewProc("GetTempPath2W")
 	procGetVolumeInformationByHandleW     = modkernel32.NewProc("GetVolumeInformationByHandleW")
 	procGetVolumeNameForVolumeMountPointW = modkernel32.NewProc("GetVolumeNameForVolumeMountPointW")
+	procIsProcessorFeaturePresent         = modkernel32.NewProc("IsProcessorFeaturePresent")
 	procLockFileEx                        = modkernel32.NewProc("LockFileEx")
 	procModule32FirstW                    = modkernel32.NewProc("Module32FirstW")
 	procModule32NextW                     = modkernel32.NewProc("Module32NextW")
@@ -424,6 +425,12 @@ func GetVolumeNameForVolumeMountPoint(volumeMountPoint *uint16, volumeName *uint
 	if r1 == 0 {
 		err = errnoErr(e1)
 	}
+	return
+}
+
+func IsProcessorFeaturePresent(ProcessorFeature uint32) (ret bool) {
+	r0, _, _ := syscall.SyscallN(procIsProcessorFeaturePresent.Addr(), uintptr(ProcessorFeature))
+	ret = r0 != 0
 	return
 }
 

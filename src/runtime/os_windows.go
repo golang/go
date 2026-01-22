@@ -39,6 +39,7 @@ const (
 //go:cgo_import_dynamic runtime._GetSystemDirectoryA GetSystemDirectoryA%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetSystemInfo GetSystemInfo%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetThreadContext GetThreadContext%2 "kernel32.dll"
+//go:cgo_import_dynamic runtime._IsProcessorFeaturePresent IsProcessorFeaturePresent%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SetThreadContext SetThreadContext%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._LoadLibraryExW LoadLibraryExW%3 "kernel32.dll"
 //go:cgo_import_dynamic runtime._PostQueuedCompletionStatus PostQueuedCompletionStatus%4 "kernel32.dll"
@@ -96,6 +97,7 @@ var (
 	_GetSystemDirectoryA,
 	_GetSystemInfo,
 	_GetThreadContext,
+	_IsProcessorFeaturePresent,
 	_SetThreadContext,
 	_LoadLibraryExW,
 	_PostQueuedCompletionStatus,
@@ -259,6 +261,12 @@ func windows_QueryPerformanceFrequency() int64 {
 	var frequency int64
 	stdcall(_QueryPerformanceFrequency, uintptr(unsafe.Pointer(&frequency)))
 	return frequency
+}
+
+//go:linkname cpu_isProcessorFeaturePresent internal/cpu.isProcessorFeaturePresent
+func cpu_isProcessorFeaturePresent(processorFeature uint32) bool {
+	ret := stdcall(_IsProcessorFeaturePresent, uintptr(processorFeature))
+	return ret != 0
 }
 
 func loadOptionalSyscalls() {
