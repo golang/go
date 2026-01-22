@@ -2288,6 +2288,33 @@ func (pc *persistConn) mapRoundTripError(req *transportRequest, startBytesWritte
 // closing a net.Conn that is now owned by the caller.
 var errCallerOwnsConn = errors.New("read loop ending; caller owns writable underlying conn")
 
+// maxPostCloseReadBytes is the max number of bytes that a client is willing to
+// read when draining the response body of any unread bytes after it has been
+// closed. This number is chosen for consistency with maxPostHandlerReadBytes.
+const maxPostCloseReadBytes = 256 << 10
+
+// maxPostCloseReadTime defines the maximum amount of time that a client is
+// willing to spend on draining a response body of any unread bytes after it
+// has been closed.
+const maxPostCloseReadTime = 50 * time.Millisecond
+
+func maybeDrainBody(body io.Reader) bool {
+	drainedCh := make(chan bool, 1)
+	go func() {
+		if _, err := io.CopyN(io.Discard, body, maxPostCloseReadBytes+1); err == io.EOF {
+			drainedCh <- true
+		} else {
+			drainedCh <- false
+		}
+	}()
+	select {
+	case drained := <-drainedCh:
+		return drained
+	case <-time.After(maxPostCloseReadTime):
+		return false
+	}
+}
+
 func (pc *persistConn) readLoop() {
 	closeErr := errReadLoopExiting // default value, if not changed below
 	defer func() {
@@ -2449,6 +2476,9 @@ func (pc *persistConn) readLoop() {
 		// reading the response body. (or for cancellation or death)
 		select {
 		case bodyEOF := <-waitForBodyRead:
+			if !bodyEOF && resp.ContentLength <= maxPostCloseReadBytes {
+				bodyEOF = maybeDrainBody(body.body)
+			}
 			alive = alive &&
 				bodyEOF &&
 				!pc.sawEOF &&
