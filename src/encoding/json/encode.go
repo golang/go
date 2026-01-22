@@ -26,7 +26,7 @@
 //
 // Due to the Go Backwards Compatibility promise (https://go.dev/doc/go1compat)
 // there are a number of behaviors this package exhibits that may cause
-// interopability issues, but cannot be changed. In particular the following
+// interoperability issues, but cannot be changed. In particular the following
 // parsing behaviors may cause issues:
 //
 //   - If a JSON object contains duplicate keys, keys are processed in the order
