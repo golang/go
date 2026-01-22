@@ -351,7 +351,7 @@ func issue26234b(x T) {
 }
 
 func issue26234c() {
-	T.x /* ERROR "T.x undefined (type T has no method x)" */ ()
+	T /* ERROR "operand for field selector x must be value of type T" */ .x()
 }
 
 func issue35895() {
