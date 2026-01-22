@@ -95,7 +95,7 @@
 - go: SHA256Message1
   commutative: false
   documentation: !string |-
-    // NAME does the sigma and addtion of 1 in SHA1 algorithm defined in FIPS 180-4.
+    // NAME does the sigma and addition of 1 in SHA1 algorithm defined in FIPS 180-4.
     // x = {W0, W1, W2, W3}
     // y = {W4, 0, 0, 0}
     // result = {W0+σ(W1), W1+σ(W2), W2+σ(W3), W3+σ(W4)}
