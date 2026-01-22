@@ -19,7 +19,7 @@ func (x Uint8x16) AESDecryptLastRound(y Uint32x4) Uint8x16
 // y is the chunk of dw array in use.
 // result = AddRoundKey(InvShiftRows(InvSubBytes(x)), y)
 //
-// Asm: VAESDECLAST, CPU Feature: AVX512VAES
+// Asm: VAESDECLAST, CPU Feature: VAES
 func (x Uint8x32) AESDecryptLastRound(y Uint32x8) Uint8x32
 
 // AESDecryptLastRound performs a series of operations in AES cipher algorithm defined in FIPS 197.
@@ -45,7 +45,7 @@ func (x Uint8x16) AESDecryptOneRound(y Uint32x4) Uint8x16
 // y is the chunk of dw array in use.
 // result = AddRoundKey(InvMixColumns(InvShiftRows(InvSubBytes(x))), y)
 //
-// Asm: VAESDEC, CPU Feature: AVX512VAES
+// Asm: VAESDEC, CPU Feature: VAES
 func (x Uint8x32) AESDecryptOneRound(y Uint32x8) Uint8x32
 
 // AESDecryptOneRound performs a series of operations in AES cipher algorithm defined in FIPS 197.
@@ -71,7 +71,7 @@ func (x Uint8x16) AESEncryptLastRound(y Uint32x4) Uint8x16
 // y is the chunk of w array in use.
 // result = AddRoundKey((ShiftRows(SubBytes(x))), y)
 //
-// Asm: VAESENCLAST, CPU Feature: AVX512VAES
+// Asm: VAESENCLAST, CPU Feature: VAES
 func (x Uint8x32) AESEncryptLastRound(y Uint32x8) Uint8x32
 
 // AESEncryptLastRound performs a series of operations in AES cipher algorithm defined in FIPS 197.
@@ -97,7 +97,7 @@ func (x Uint8x16) AESEncryptOneRound(y Uint32x4) Uint8x16
 // y is the chunk of w array in use.
 // result = AddRoundKey(MixColumns(ShiftRows(SubBytes(x))), y)
 //
-// Asm: VAESENC, CPU Feature: AVX512VAES
+// Asm: VAESENC, CPU Feature: VAES
 func (x Uint8x32) AESEncryptOneRound(y Uint32x8) Uint8x32
 
 // AESEncryptOneRound performs a series of operations in AES cipher algorithm defined in FIPS 197.
