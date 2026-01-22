@@ -190,6 +190,8 @@ cd test/cybergo/examples/reverse
 
 Coverage-guided fuzzing is great at exploring new paths, but it treats all covered code as equally interesting. When fuzzing large codebases, you may want to bias the fuzzer toward recently modified code, where regressions and bugs are more likely to be introduced. In `--use-libafl` mode, cybergo can use `git blame` to prefer inputs that execute recently changed lines (while keeping coverage guidance as the primary signal).
 
+This work is based on previous work from [LibAFL-git-aware](https://github.com/kevin-valerio/LibAFL-git-aware). All the technical in-depth details are documented there.
+
 #### How to use
 
 Enable git-aware scheduling with `--focus-on-new-code=true`:
