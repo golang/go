@@ -198,27 +198,6 @@ var optab = []Optab{
 	{AMOVW, C_EXTADDR, C_NONE, C_NONE, C_REG, C_NONE, 52, 8, 0, NOTUSETMP},
 
 	// memory access
-	{AMOVWU, C_REG, C_NONE, C_NONE, C_SAUTO, C_NONE, 7, 4, REGSP, 0},
-	{AMOVWU, C_REG, C_NONE, C_NONE, C_LAUTO, C_NONE, 35, 12, REGSP, 0},
-	{AMOVWU, C_SAUTO, C_NONE, C_NONE, C_REG, C_NONE, 8, 4, REGSP, 0},
-	{AMOVWU, C_LAUTO, C_NONE, C_NONE, C_REG, C_NONE, 36, 12, REGSP, 0},
-	{AMOVWU, C_REG, C_NONE, C_NONE, C_SOREG_12, C_NONE, 7, 4, REGZERO, 0},
-	{AMOVWU, C_REG, C_NONE, C_NONE, C_LOREG_32, C_NONE, 35, 12, REGZERO, 0},
-	{AMOVWU, C_SOREG_12, C_NONE, C_NONE, C_REG, C_NONE, 8, 4, REGZERO, 0},
-	{AMOVWU, C_LOREG_32, C_NONE, C_NONE, C_REG, C_NONE, 36, 12, REGZERO, 0},
-	{AMOVWU, C_ROFF, C_NONE, C_NONE, C_REG, C_NONE, 21, 4, 0, 0},
-	// variable access
-	{AMOVWU, C_REG, C_NONE, C_NONE, C_ADDR, C_NONE, 50, 8, 0, 0},
-	{AMOVWU, C_ADDR, C_NONE, C_NONE, C_REG, C_NONE, 51, 8, 0, 0},
-	// TLS access
-	{AMOVWU, C_REG, C_NONE, C_NONE, C_TLS_LE, C_NONE, 53, 16, 0, 0},
-	{AMOVWU, C_TLS_LE, C_NONE, C_NONE, C_REG, C_NONE, 54, 16, 0, 0},
-	{AMOVWU, C_REG, C_NONE, C_NONE, C_TLS_IE, C_NONE, 56, 16, 0, 0},
-	{AMOVWU, C_TLS_IE, C_NONE, C_NONE, C_REG, C_NONE, 57, 16, 0, 0},
-	// moving data between registers
-	{AMOVWU, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 12, 4, 0, 0},
-
-	// memory access
 	{AMOVV, C_REG, C_NONE, C_NONE, C_SAUTO, C_NONE, 7, 4, REGSP, 0},
 	{AMOVV, C_REG, C_NONE, C_NONE, C_LAUTO, C_NONE, 35, 12, REGSP, 0},
 	{AMOVV, C_SAUTO, C_NONE, C_NONE, C_REG, C_NONE, 8, 4, REGSP, 0},
@@ -1520,6 +1499,7 @@ func buildop(ctxt *obj.Link) {
 
 		case AMOVBU:
 			opset(AMOVHU, r0)
+			opset(AMOVWU, r0)
 
 		case AMOVWP:
 			opset(AMOVVP, r0)
@@ -1599,7 +1579,6 @@ func buildop(ctxt *obj.Link) {
 			ARFE,
 			AJAL,
 			AJMP,
-			AMOVWU,
 			AVMOVQ,
 			AXVMOVQ,
 			AVSHUFB,
