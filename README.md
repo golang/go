@@ -2,11 +2,12 @@
 
 [![integration tests](https://github.com/kevin-valerio/cybergo/actions/workflows/go.yml/badge.svg?branch=master)](https://github.com/kevin-valerio/cybergo/actions/workflows/go.yml)
 
-cybergo is a security-focused fork of the Go toolchain. In a _very_ simple phrasing, cybergo is a copy of the Go compiler that finds bugs. For now, it focuses on three things:
+cybergo is a security-focused fork of the Go toolchain. In a _very_ simple phrasing, cybergo is a copy of the Go compiler that finds bugs. For now, it focuses on four things:
 
 - Integrating [go-panikint](https://github.com/trailofbits/go-panikint): instrumentation that panics on **integer overflow/underflow** (and **optionally on truncating integer conversions**).
 - Integrating [LibAFL](https://github.com/AFLplusplus/LibAFL) fuzzer: run Go fuzzing harnesses with **LibAFL** for better fuzzing performances.
 - Panicking on [user-provided function call](https://github.com/kevin-valerio/cybergo?tab=readme-ov-file#feature-2-panic-on-selected-functions): catching targeted bugs when certains functions are called (eg., `myapp.(*Logger).Error`).
+- Git-blame-oriented fuzzing (history-guided): when fuzzing with `--use-libafl`, you can prefer inputs that execute recently changed lines (based on `git blame`).
 
 It especially has **two** objectives:
 - Being easy to use and UX-friendly (we're tired of complex tools),
@@ -18,6 +19,7 @@ It especially has **two** objectives:
   - [Feature 1: Integer overflow and truncation issues detection](#feature-1-integer-overflow-and-truncation-issues-detection)
   - [Feature 2: Panic on selected functions](#feature-2-panic-on-selected-functions)
   - [Feature 3: LibAFL state-of-the-art fuzzing](#feature-3-libafl-state-of-the-art-fuzzing)
+  - [Feature 4: Git-blame-oriented fuzzing](#feature-4-git-blame-oriented-fuzzing)
 - [Credits](#credits)
 
 ## Build
@@ -181,6 +183,47 @@ You can test it on some fuzzing harnesses in `test/cybergo/examples/`.
 cd test/cybergo/examples/reverse
 ../../../../bin/go test -fuzz=FuzzReverse --use-libafl --focus-on-new-code=false
 ```
+
+## Feature 4: Git-blame-oriented fuzzing
+
+#### Overview
+
+Coverage-guided fuzzing is great at exploring new paths, but it treats all covered code as equally interesting. When fuzzing large codebases, you may want to bias the fuzzer toward recently modified code, where regressions and bugs are more likely to be introduced. In `--use-libafl` mode, cybergo can use `git blame` to prefer inputs that execute recently changed lines (while keeping coverage guidance as the primary signal).
+
+#### How to use
+
+Enable git-aware scheduling with `--focus-on-new-code=true`:
+
+```bash
+./bin/go test -fuzz=FuzzHarness --use-libafl --focus-on-new-code=true
+```
+
+This mode needs `git` (to run `git blame`) and an `addr2line` implementation to map coverage counters back to source `file:line` (prefer `llvm-addr2line`; fall back to binutils `addr2line`).
+
+<details>
+<summary><strong>How git-blame-oriented fuzzing works</strong></summary>
+
+```text
+┌───────────────────────────────────────────────────────────────────────────┐
+│ 1) cybergo `go test -fuzz`                                                │
+│    - builds `libharness.a` (contains `go.o` + `.go.fuzzcntrs`)            │
+│    - runs `golibafl` with `GOLIBAFL_FOCUS_ON_NEW_CODE=1`                  │
+└───────────────┬───────────────────────────────────────────────────────────┘
+                v
+┌───────────────────────────────────────────────────────────────────────────┐
+│ 2) `golibafl` generates a cached "git recency map"                         │
+│    - maps coverage counters -> (file:line) via DWARF / (llvm-)addr2line   │
+│    - runs `git blame` to get a timestamp per line                         │
+│    - stores timestamps in `git_recency_map.bin`                           │
+└───────────────┬───────────────────────────────────────────────────────────┘
+                v
+┌───────────────────────────────────────────────────────────────────────────┐
+│ 3) LibAFL scheduler uses the recency map                                  │
+│    - coverage decides what enters the corpus                              │
+│    - among the corpus, prioritize inputs that hit newer lines             │
+└───────────────────────────────────────────────────────────────────────────┘
+```
+</details>
 
 ## Credits
 

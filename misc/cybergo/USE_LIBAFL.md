@@ -20,7 +20,7 @@ When `--use-libafl` is set, `--focus-on-new-code={true|false}` is **required**.
 - `--focus-on-new-code=false`: keep the current behavior.
 - `--focus-on-new-code=true`: prefer inputs that execute recently changed lines (based on `git blame`).
 
-Note: `--focus-on-new-code=true` needs `git` (to run `git blame`) and may require `addr2line` (binutils) to map coverage counters back to source `file:line`.
+Note: `--focus-on-new-code=true` needs `git` (to run `git blame`) and an `addr2line` implementation to map coverage counters back to source `file:line` (prefer `llvm-addr2line`; fall back to binutils `addr2line`).
 
 Implementation note: the git-aware scheduler currently comes from a local LibAFL fork (TODO: switch back to upstream LibAFL once upstreamed).
 
@@ -77,6 +77,8 @@ A ready-to-edit template lives at `misc/cybergo/libafl.config.jsonc`.
 ## Troubleshooting
 
 If `golibafl` fails to launch, set `CYBERGO_VERBOSE_AFL=1` to print extra diagnostics and write them to `OUTPUT_DIR/golibafl_launcher_failure_<pid>.txt`.
+
+If fuzzing prints repeated timeouts with **0 executions** or appears stuck during startup, make sure you are using a LibAFL fork/build that runs the restarting manager in **non-fork (re-exec) mode**. The embedded Go runtime is not fork-safe once initialized, so forking-based restarts can deadlock and look like “exec/sec: 0.000”.
 
 ## Quick start
 
@@ -204,3 +206,4 @@ f.Fuzz(func(t *testing.T, in MyStruct, data []byte, n int) { ... })
 - `--use-libafl` is intended only for `go test -fuzz=...`.
   It errors if you pass it without `-fuzz`.
 - The toolchain adds the `libfuzzer` build tag during compilation in this mode, enabling Go’s `-d=libfuzzer` instrumentation path for coverage/cmp tracing.
+- On Unix, `golibafl` uses LibAFL’s restarting manager in **non-fork (re-exec) mode** for reliability with the embedded Go runtime. This is also why `golibafl` switches its working directory to `OUTPUT_DIR/workdir/<pid>` (so respawns don’t fail if the original cwd is deleted/unlinked).

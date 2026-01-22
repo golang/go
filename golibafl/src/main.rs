@@ -524,18 +524,29 @@ fn addr2line_locations(obj_path: &Path, addrs: &[u64]) -> HashMap<u64, (String, 
         return HashMap::new();
     }
 
-    let mut child = Command::new("addr2line")
-        .arg("-e")
-        .arg(obj_path)
-        .arg("-a")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .unwrap_or_else(|err| {
-            eprintln!("golibafl: failed to run addr2line: {err}");
-            std::process::exit(2);
-        });
+    let spawn = |prog: &str| -> std::io::Result<std::process::Child> {
+        Command::new(prog)
+            .arg("-e")
+            .arg(obj_path)
+            .arg("-a")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+    };
+
+    // Prefer llvm-addr2line when available: it correctly resolves Go DWARF in
+    // relocatable objects, while binutils addr2line often returns "go.go:?".
+    let mut child = match spawn("llvm-addr2line") {
+        Ok(child) => child,
+        Err(_) => match spawn("addr2line") {
+            Ok(child) => child,
+            Err(err) => {
+                eprintln!("golibafl: failed to run addr2line: {err}");
+                std::process::exit(2);
+            }
+        },
+    };
 
     let mut stderr = child.stderr.take().unwrap();
     let stderr_thread = std::thread::spawn(move || {
@@ -721,6 +732,7 @@ fn ensure_git_recency_mapping(mapping_path: &Path, target_dir: &Path) {
             }
 
             let addr = section_base + offset;
+            counter_addrs.insert(idx, addr);
             if let Some(loader) = loader.as_ref() {
                 let Some(loc) = loader.find_location(addr).ok().flatten() else {
                     continue;
@@ -738,18 +750,19 @@ fn ensure_git_recency_mapping(mapping_path: &Path, target_dir: &Path) {
                     continue;
                 };
                 counter_locs.insert(idx, (file_rel, line));
-            } else {
-                counter_addrs.insert(idx, addr);
             }
         }
     }
 
-    if loader.is_none() && !counter_addrs.is_empty() {
+    if !counter_addrs.is_empty() && counter_locs.len() < counter_addrs.len() {
         let mut addrs: Vec<u64> = counter_addrs.values().copied().collect();
         addrs.sort_unstable();
         addrs.dedup();
         let locs = addr2line_locations(&tmp_go_o, &addrs);
         for (idx, addr) in counter_addrs {
+            if counter_locs.contains_key(&idx) {
+                continue;
+            }
             let Some((file, line)) = locs.get(&addr).cloned() else {
                 continue;
             };
@@ -943,15 +956,33 @@ fn fuzz(
     let is_launcher_client = env::var_os("AFL_LAUNCHER_CLIENT").is_some();
     let verbose = env::var_os("CYBERGO_VERBOSE_AFL").is_some();
 
-    // Go's c-archive runtime initialization relies on constructors and is not
-    // safe to use after `fork()` (it may deadlock waiting for runtime init).
-    //
-    // Prefer exec-based restarts on Unix by default, but allow overriding for
-    // non-Go users/debugging.
-    #[cfg(unix)]
-    if env::var_os("LIBAFL_RESTARTING_USE_FORK").is_none() {
-        env::set_var("LIBAFL_RESTARTING_USE_FORK", "false");
+    // In launcher mode, `launch_with_hooks` installs signal handlers and starts background
+    // threads before running the client closure. When fuzzing Go harnesses linked as a static
+    // archive, calling `LLVMFuzzerInitialize` from inside the client closure may deadlock.
+    // Call it once early in the launcher client process to make sure Go runtime initialization
+    // completes before LibAFL sets up the launcher.
+    if is_launcher_client {
+        if verbose {
+            eprintln!("golibafl: launcher client early init (calling LLVMFuzzerInitialize)");
+        }
+        let init_ret = unsafe { libfuzzer_initialize(&args) };
+        if verbose {
+            eprintln!("golibafl: LLVMFuzzerInitialize returned {init_ret}");
+        }
+        if init_ret == -1 {
+            println!("Warning: LLVMFuzzerInitialize failed with -1");
+        }
     }
+
+    let rand_seed = env::var("LIBAFL_RAND_SEED")
+        .ok()
+        .map(|s| {
+            s.parse::<u64>().unwrap_or_else(|_| {
+                eprintln!("golibafl: invalid LIBAFL_RAND_SEED={s} (expected u64)");
+                std::process::exit(2);
+            })
+        });
+
 
     let focus_on_new_code = env::var(GOLIBAFL_FOCUS_ON_NEW_CODE_ENV)
         .ok()
@@ -1392,7 +1423,9 @@ fn fuzz(
 	                    // create a State from scratch
 	                    let mut state = state.unwrap_or_else(|| {
 	                        StdState::new(
-	                            StdRand::new(),
+	                            rand_seed
+	                                .map(StdRand::with_seed)
+	                                .unwrap_or_else(StdRand::new),
 	                            // Corpus that will be evolved
 	                            CachedOnDiskCorpus::new(queue_dir.clone(), corpus_cache_size)
 	                            .unwrap(),
