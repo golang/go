@@ -715,8 +715,9 @@ type m struct {
 
 	mOS
 
-	chacha8   chacha8rand.State
-	cheaprand uint64
+	chacha8     chacha8rand.State
+	cheaprand   uint32
+	cheaprand64 uint64
 
 	// Up to 10 locks held by this m, maintained by the lock ranking code.
 	locksHeldLen int
