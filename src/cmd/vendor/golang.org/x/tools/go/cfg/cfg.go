@@ -47,8 +47,6 @@ import (
 	"go/ast"
 	"go/format"
 	"go/token"
-
-	"golang.org/x/tools/internal/cfginternal"
 )
 
 // A CFG represents the control-flow graph of a single function.
@@ -58,6 +56,9 @@ type CFG struct {
 	Blocks   []*Block // block[0] is entry; order otherwise undefined
 	noreturn bool     // function body lacks a reachable return statement
 }
+
+// NoReturn reports whether the function has no reachable return.
+func (cfg *CFG) NoReturn() bool { return cfg.noreturn }
 
 // A Block represents a basic block: a list of statements and
 // expressions that are always evaluated sequentially.
@@ -182,14 +183,6 @@ func New(body *ast.BlockStmt, mayReturn func(*ast.CallExpr) bool) *CFG {
 	}
 
 	return &CFG{Blocks: b.blocks, noreturn: noreturn}
-}
-
-// isNoReturn reports whether the function has no reachable return.
-// TODO(adonovan): add (*CFG).NoReturn to public API.
-func isNoReturn(_cfg any) bool { return _cfg.(*CFG).noreturn }
-
-func init() {
-	cfginternal.IsNoReturn = isNoReturn // expose to ctrlflow analyzer
 }
 
 func (b *Block) String() string {

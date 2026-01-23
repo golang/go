@@ -316,8 +316,7 @@ func ProgramHeadersForMapping(phdrs []elf.ProgHeader, mapOff, mapSz uint64) []*e
 		// page size is not 4KB, we must try to guess the page size on the system
 		// where the profile was collected, possibly using the architecture
 		// specified in the ELF file header.
-		pageSize       = 4096
-		pageOffsetMask = pageSize - 1
+		pageSize = 4096
 	)
 	mapLimit := mapOff + mapSz
 	var headers []*elf.ProgHeader
@@ -331,12 +330,12 @@ func ProgramHeadersForMapping(phdrs []elf.ProgHeader, mapOff, mapSz uint64) []*e
 		segLimit := p.Off + p.Memsz
 		// The segment must overlap the mapping.
 		if p.Type == elf.PT_LOAD && mapOff < segLimit && p.Off < mapLimit {
-			// If the mapping offset is strictly less than the page aligned segment
-			// offset, then this mapping comes from a different segment, fixes
-			// b/179920361.
+			// If the mapping offset is strictly less than the segment offset aligned
+			// to the segment p_align value then this mapping comes from a different
+			// segment, fixes b/179920361.
 			alignedSegOffset := uint64(0)
-			if p.Off > (p.Vaddr & pageOffsetMask) {
-				alignedSegOffset = p.Off - (p.Vaddr & pageOffsetMask)
+			if p.Off > (p.Vaddr & (p.Align - 1)) {
+				alignedSegOffset = p.Off - (p.Vaddr & (p.Align - 1))
 			}
 			if mapOff < alignedSegOffset {
 				continue

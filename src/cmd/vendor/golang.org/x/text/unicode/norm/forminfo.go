@@ -13,15 +13,18 @@ import "encoding/binary"
 // a rune to a uint16. The values take two forms.  For v >= 0x8000:
 //   bits
 //   15:    1 (inverse of NFD_QC bit of qcInfo)
-//   13..7: qcInfo (see below). isYesD is always true (no decomposition).
+//   12..7: qcInfo (see below). isYesD is always true (no decomposition).
 //    6..0: ccc (compressed CCC value).
 // For v < 0x8000, the respective rune has a decomposition and v is an index
 // into a byte array of UTF-8 decomposition sequences and additional info and
 // has the form:
 //    <header> <decomp_byte>* [<tccc> [<lccc>]]
 // The header contains the number of bytes in the decomposition (excluding this
-// length byte). The two most significant bits of this length byte correspond
-// to bit 5 and 4 of qcInfo (see below).  The byte sequence itself starts at v+1.
+// length byte), with 33 mapped to 31 to fit in 5 bits.
+// (If any 31- or 32-byte decompositions come along, we could switch to using
+// use a general lookup table as long as there are at most 32 distinct lengths.)
+// The three most significant bits of this length byte correspond
+// to bit 5, 4, and 3 of qcInfo (see below).  The byte sequence itself starts at v+1.
 // The byte sequence is followed by a trailing and leading CCC if the values
 // for these are not zero.  The value of v determines which ccc are appended
 // to the sequences.  For v < firstCCC, there are none, for v >= firstCCC,
@@ -32,8 +35,8 @@ import "encoding/binary"
 
 const (
 	qcInfoMask      = 0x3F // to clear all but the relevant bits in a qcInfo
-	headerLenMask   = 0x3F // extract the length value from the header byte
-	headerFlagsMask = 0xC0 // extract the qcInfo bits from the header byte
+	headerLenMask   = 0x1F // extract the length value from the header byte (31 => 33)
+	headerFlagsMask = 0xE0 // extract the qcInfo bits from the header byte
 )
 
 // Properties provides access to normalization properties of a rune.
@@ -109,14 +112,14 @@ func (p Properties) BoundaryAfter() bool {
 	return p.isInert()
 }
 
-// We pack quick check data in 4 bits:
+// We pack quick check data in 6 bits:
 //
 //	5:    Combines forward  (0 == false, 1 == true)
 //	4..3: NFC_QC Yes(00), No (10), or Maybe (11)
 //	2:    NFD_QC Yes (0) or No (1). No also means there is a decomposition.
 //	1..0: Number of trailing non-starters.
 //
-// When all 4 bits are zero, the character is inert, meaning it is never
+// When all 6 bits are zero, the character is inert, meaning it is never
 // influenced by normalization.
 type qcInfo uint8
 
@@ -152,6 +155,9 @@ func (p Properties) Decomposition() []byte {
 	}
 	i := p.index
 	n := decomps[i] & headerLenMask
+	if n == 31 {
+		n = 33
+	}
 	i++
 	return decomps[i : i+uint16(n)]
 }
@@ -260,7 +266,11 @@ func compInfo(v uint16, sz int) Properties {
 	f := (qcInfo(h&headerFlagsMask) >> 2) | 0x4
 	p := Properties{size: uint8(sz), flags: f, index: v}
 	if v >= firstCCC {
-		v += uint16(h&headerLenMask) + 1
+		n := uint16(h & headerLenMask)
+		if n == 31 {
+			n = 33
+		}
+		v += n + 1
 		c := decomps[v]
 		p.tccc = c >> 2
 		p.flags |= qcInfo(c & 0x3)

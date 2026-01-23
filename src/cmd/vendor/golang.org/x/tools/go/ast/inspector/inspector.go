@@ -87,7 +87,7 @@ type event struct {
 // Type can be recovered from the sole bit in typ.
 // [Tried this, wasn't faster. --adonovan]
 
-// Preorder visits all the nodes of the files supplied to New in
+// Preorder visits all the nodes of the files supplied to [New] in
 // depth-first order. It calls f(n) for each node n before it visits
 // n's children.
 //
@@ -133,7 +133,7 @@ func (in *Inspector) Preorder(types []ast.Node, f func(ast.Node)) {
 	}
 }
 
-// Nodes visits the nodes of the files supplied to New in depth-first
+// Nodes visits the nodes of the files supplied to [New] in depth-first
 // order. It calls f(n, true) for each node n before it visits n's
 // children. If f returns true, Nodes invokes f recursively for each
 // of the non-nil children of the node, followed by a call of

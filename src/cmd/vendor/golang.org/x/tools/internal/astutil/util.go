@@ -178,6 +178,9 @@ func (r Range) IsValid() bool { return r.Start.IsValid() && r.Start <= r.EndPos 
 //
 // Select returns the enclosing BlockStmt, the f() CallExpr, and the g() CallExpr.
 //
+// If the selection does not wholly enclose any nodes, Select returns an error
+// and invalid start/end nodes, but it may return a valid enclosing node.
+//
 // Callers that require exactly one syntax tree (e.g. just f() or just
 // g()) should check that the returned start and end nodes are
 // identical.
@@ -214,7 +217,12 @@ func Select(curFile inspector.Cursor, start, end token.Pos) (_enclosing, _start,
 		}
 	}
 	if !CursorValid(curStart) {
-		return noCursor, noCursor, noCursor, fmt.Errorf("no syntax selected")
+		// The selection is valid (inside curEnclosing) but contains no
+		// complete nodes. This happens for point selections (start == end),
+		// or selections covering only only spaces, comments, and punctuation
+		// tokens.
+		// Return the enclosing node so the caller can still use the context.
+		return curEnclosing, noCursor, noCursor, fmt.Errorf("invalid selection")
 	}
 	return curEnclosing, curStart, curEnd, nil
 }

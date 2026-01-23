@@ -99,6 +99,13 @@ func run(pass *analysis.Pass) (any, error) {
 				if obj, ok := pass.TypesInfo.Uses[n]; ok && obj.Pkg() != nil {
 					disallowed := disallowedSymbols(obj.Pkg(), fileVersion)
 					if minVersion, ok := disallowed[origin(obj)]; ok {
+						// Some symbols are accessible before their release but
+						// only with specific build tags unknown to us here.
+						// Avoid false positives in such cases.
+						// TODO(mkalil): move this check into typesinternal.TooNewStdSymbols.
+						if obj.Pkg().Path() == "testing/synctest" && versions.AtLeast(fileVersion, "go1.24") {
+							break // requires go1.24 && goexperiment.synctest || go1.25
+						}
 						noun := "module"
 						if fileVersion != pkgVersion {
 							noun = "file"
