@@ -42,7 +42,12 @@ func CheckFuncStack() {
 	}
 }
 
-// make a new Node off the books.
+// TempAt makes a new Node off the books.
+//
+// N.B., the new Node is a function-local variable defaulting to function scope.
+// It helps in some cases if an ODCL is also created and placed in a narrower scope,
+// such as if the variable can be used in a loop body and potentially escape.
+// TODO: Consider some mechanism to more conveniently create a block scoped temporary.
 func TempAt(pos src.XPos, curfn *ir.Func, typ *types.Type) *ir.Name {
 	if curfn == nil {
 		base.FatalfAt(pos, "no curfn for TempAt")

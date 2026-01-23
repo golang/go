@@ -9,6 +9,10 @@ import (
 	"cmp"
 	"context"
 	"errors"
+	"internal/asan"
+	"internal/msan"
+	"internal/race"
+	"internal/testenv"
 	"runtime"
 	"slices"
 	"strings"
@@ -154,6 +158,63 @@ func TestBenchmarkContext(t *testing.T) {
 				t.Fatal("expected context canceled before cleanup")
 			}
 		})
+	})
+}
+
+// Some auxiliary functions for measuring allocations in a b.Loop benchmark below,
+// where in this case mid-stack inlining allows stack allocation of a slice.
+// This is based on the example in go.dev/issue/73137.
+
+func newX() []byte {
+	out := make([]byte, 8)
+	return use1(out)
+}
+
+//go:noinline
+func use1(out []byte) []byte {
+	return out
+}
+
+// An auxiliary function for measuring allocations with a simple function argument
+// in the b.Loop body.
+
+//go:noinline
+func use2(x any) {}
+
+func TestBenchmarkBLoopAllocs(t *testing.T) {
+	testenv.SkipIfOptimizationOff(t)
+	if race.Enabled || asan.Enabled || msan.Enabled {
+		t.Skip("skipping in case sanitizers alter allocation behavior")
+	}
+
+	t.Run("call-result", func(t *testing.T) {
+		bRet := testing.Benchmark(func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				newX()
+			}
+		})
+		if bRet.N == 0 {
+			t.Fatalf("benchmark reported 0 iterations")
+		}
+		if bRet.AllocsPerOp() != 0 {
+			t.Errorf("want 0 allocs, got %d", bRet.AllocsPerOp())
+		}
+	})
+
+	t.Run("call-arg", func(t *testing.T) {
+		bRet := testing.Benchmark(func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				use2(make([]byte, 1000))
+			}
+		})
+		if bRet.N == 0 {
+			t.Fatalf("benchmark reported 0 iterations")
+		}
+		if bRet.AllocsPerOp() != 0 {
+			t.Errorf("want 0 allocs, got %d", bRet.AllocsPerOp())
+		}
 	})
 }
 
