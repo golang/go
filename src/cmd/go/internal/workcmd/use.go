@@ -7,18 +7,18 @@
 package workcmd
 
 import (
-	"context"
-	"fmt"
-	"io/fs"
-	"os"
-	"path/filepath"
-
 	"cmd/go/internal/base"
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/gover"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/str"
 	"cmd/go/internal/toolchain"
+	"context"
+	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"golang.org/x/mod/modfile"
 )
@@ -233,7 +233,7 @@ func workUse(ctx context.Context, s *modload.State, gowork string, wf *modfile.W
 // its canonical form is absolute.
 //
 // Canonical absolute paths are clean.
-// Canonical relative paths are clean and slash-separated.
+// Relative paths are clean but forward-slash `/` separated.
 func pathRel(workDir, dir string) (abs, canonical string) {
 	if filepath.IsAbs(dir) {
 		abs = filepath.Clean(dir)
@@ -250,5 +250,12 @@ func pathRel(workDir, dir string) (abs, canonical string) {
 
 	// Normalize relative paths to use slashes, so that checked-in go.work
 	// files with relative paths within the repo are platform-independent.
-	return abs, modload.ToDirectoryPath(rel)
+	relPath := modload.ToDirectoryPath(rel)
+
+	// golang.org/issue/64851
+	// use forward slash for relative paths for portability
+	// TODO: @bcmills (should i include a check for GOOS == windows)?
+	relPath = strings.Replace(relPath, `\`, "/", -1)
+
+	return abs, relPath
 }
