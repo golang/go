@@ -800,7 +800,9 @@ func (s *Scanner) End() token.Pos {
 // If the returned token is [token.SEMICOLON], the corresponding
 // literal string is ";" if the semicolon was present in the source,
 // and "\n" if the semicolon was inserted because of a newline or
-// at EOF.
+// at EOF. If the newline is within a /*...*/ comment, the SEMICOLON token
+// is synthesized immediately after the COMMENT token; its position is that
+// of the actual newline within the comment.
 //
 // If the returned token is [token.ILLEGAL], the literal string is the
 // offending character.
