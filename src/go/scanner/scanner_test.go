@@ -1153,3 +1153,29 @@ func TestNumbers(t *testing.T) {
 		}
 	}
 }
+
+func TestScanReuseSemiInNewlineComment(t *testing.T) {
+	fset := token.NewFileSet()
+
+	const src = "identifier /*a\nb*/ + other"
+	var s Scanner
+	s.Init(fset.AddFile("test.go", -1, len(src)), []byte(src), func(pos token.Position, msg string) {
+		t.Fatal(msg)
+	}, ScanComments)
+
+	s.Scan() // IDENT(identifier)
+
+	_, tok, _ := s.Scan() // COMMENT(/*a\nb*/)
+	if tok != token.COMMENT {
+		t.Fatalf("tok = %v; want = token.SEMICOLON", tok)
+	}
+
+	s.Init(fset.AddFile("test.go", -1, len(src)), []byte(src), func(pos token.Position, msg string) {
+		t.Fatal(msg)
+	}, ScanComments)
+
+	_, tok, _ = s.Scan()
+	if tok != token.IDENT {
+		t.Fatalf("tok = %v; want = token.IDENT", tok)
+	}
+}
