@@ -15,7 +15,7 @@ func _(t T) {
 
 type S struct{}
 
-func (S) m[ /* ERROR "must have no type parameters" */ P any]() {}
+func (S) m[P /* ERROR "must have no type parameters" */ any]() {}
 
 func _(s S) {
 	var _ interface{ m[ /* ERROR "must have no type parameters" */ P any](); n() } = s /* ERROR "does not implement" */
