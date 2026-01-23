@@ -1179,3 +1179,167 @@ func TestScanReuseSemiInNewlineComment(t *testing.T) {
 		t.Fatalf("tok = %v; want = token.IDENT", tok)
 	}
 }
+
+func TestScannerEnd(t *testing.T) {
+	type tok struct {
+		tok   token.Token
+		start token.Pos
+		end   token.Pos
+	}
+
+	cases := []struct {
+		name string
+		src  string
+		end  []tok
+	}{
+		{
+			name: "operators",
+			src:  "+ - / >> == =",
+			end: []tok{
+				{token.ADD, 1, 2},
+				{token.SUB, 3, 4},
+				{token.QUO, 5, 6},
+				{token.SHR, 7, 9},
+				{token.EQL, 10, 12},
+				{token.ASSIGN, 13, 14},
+				{token.EOF, 14, 14},
+			},
+		},
+		{
+			name: "braces",
+			src:  "{([])}",
+			end: []tok{
+				{token.LBRACE, 1, 2},
+				{token.LPAREN, 2, 3},
+				{token.LBRACK, 3, 4},
+				{token.RBRACK, 4, 5},
+				{token.RPAREN, 5, 6},
+				{token.RBRACE, 6, 7},
+				{token.SEMICOLON, 7, 7},
+				{token.EOF, 7, 7},
+			},
+		},
+		{
+			name: "literals",
+			src:  `"foo" 123 1.23 0b11`,
+			end: []tok{
+				{token.STRING, 1, 6},
+				{token.INT, 7, 10},
+				{token.FLOAT, 11, 15},
+				{token.INT, 16, 20},
+				{token.SEMICOLON, 20, 20},
+				{token.EOF, 20, 20},
+			},
+		},
+		{
+			name: "missing newline at the end of file",
+			src:  "foo",
+			end: []tok{
+				{token.IDENT, 1, 4},
+				{token.SEMICOLON, 4, 4},
+				{token.EOF, 4, 4},
+			},
+		},
+		{
+			name: "newline at the end of file",
+			src:  "foo\n",
+			end: []tok{
+				{token.IDENT, 1, 4},
+				{token.SEMICOLON, 4, 5},
+				{token.EOF, 5, 5},
+			},
+		},
+		{
+			name: "semicolon at the end of file",
+			src:  "foo;",
+			end: []tok{
+				{token.IDENT, 1, 4},
+				{token.SEMICOLON, 4, 5},
+				{token.EOF, 5, 5},
+			},
+		},
+		{
+			name: "semicolon and newline at the end of file",
+			src:  "foo;\n",
+			end: []tok{
+				{token.IDENT, 1, 4},
+				{token.SEMICOLON, 4, 5},
+				{token.EOF, 6, 6},
+			},
+		},
+		{
+			name: "newline in comment acting as semicolon",
+			src:  "foo /*\n*/ bar",
+			end: []tok{
+				{token.IDENT, 1, 4},
+				{token.COMMENT, 5, 10},
+				{token.SEMICOLON, 7, 8},
+				{token.IDENT, 11, 14},
+				{token.SEMICOLON, 14, 14},
+				{token.EOF, 14, 14},
+			},
+		},
+		{
+			name: "BOM",
+			src:  "\uFEFFfoo",
+			end: []tok{
+				{token.IDENT, 4, 7},
+				{token.SEMICOLON, 7, 7},
+				{token.EOF, 7, 7},
+			},
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			fset := token.NewFileSet()
+
+			var s Scanner
+			errorHandler := func(_ token.Position, msg string) { t.Fatal(msg) }
+			s.Init(fset.AddFile("test.go", -1, len(tt.src)), []byte(tt.src), errorHandler, ScanComments)
+
+			if end := s.End(); end != token.NoPos {
+				t.Errorf("after init: s.End() = %v; want token.NoPos", end)
+			}
+
+			var got []tok
+			for {
+				pos, tokTyp, _ := s.Scan()
+				got = append(got, tok{tokTyp, pos, s.End()})
+				if tokTyp == token.EOF {
+					break
+				}
+			}
+
+			if !slices.Equal(got, tt.end) {
+				t.Fatalf("input %q: got = %v; want = %v", tt.src, got, tt.end)
+			}
+		})
+	}
+}
+
+func TestScannerEndReuse(t *testing.T) {
+	fset := token.NewFileSet()
+
+	const src = "identifier /*a\nb*/ + other"
+	var s Scanner
+	s.Init(fset.AddFile("test.go", -1, len(src)), []byte(src), func(pos token.Position, msg string) {
+		t.Fatal(msg)
+	}, ScanComments)
+
+	s.Scan() // IDENT(identifier)
+	s.Scan() // COMMENT(/*a\n*b/)
+
+	_, tok, _ := s.Scan() // SEMICOLON
+	if tok != token.SEMICOLON {
+		t.Fatalf("tok = %v; want = token.SEMICOLON", tok)
+	}
+
+	s.Init(fset.AddFile("test.go", -1, len(src)), []byte(src), func(pos token.Position, msg string) {
+		t.Fatal(msg)
+	}, ScanComments)
+
+	if end := s.End(); end != token.NoPos {
+		t.Errorf("s.End() = %v; want token.NoPos", end)
+	}
+}

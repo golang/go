@@ -44,6 +44,9 @@ type Scanner struct {
 	nlPos      token.Pos // position of newline in preceding comment
 	stringEnd  token.Pos // end position; defined only for STRING tokens
 
+	endPosValid bool
+	endPos      token.Pos // overrides the offset as the default end position
+
 	// public state - ok to modify
 	ErrorCount int // number of errors encountered
 }
@@ -154,7 +157,9 @@ func (s *Scanner) Init(file *token.File, src []byte, err ErrorHandler, mode Mode
 		err:  err,
 		mode: mode,
 
-		ch: ' ',
+		ch:          ' ',
+		endPosValid: true,
+		endPos:      token.NoPos,
 	}
 
 	s.next()
@@ -777,6 +782,21 @@ func (s *Scanner) switch4(tok0, tok1 token.Token, ch2 rune, tok2, tok3 token.Tok
 	return tok0
 }
 
+// End returns the position immediately after the last scanned token.
+// If [Scanner.Scan] has not been called yet, End returns [token.NoPos].
+func (s *Scanner) End() token.Pos {
+	// Handles special case:
+	// - Makes sure we return [token.NoPos], even when [Scanner.Init] has consumed a BOM.
+	// - When the previous token was a synthetic [token.SEMICOLON] inside a multi-line
+	//   comment, we make sure End returns its ending position (i.e. prevPos+len("\n")).
+	if s.endPosValid {
+		return s.endPos
+	}
+
+	// Normal case: s.file.Pos(s.offset) represents the end of the token
+	return s.file.Pos(s.offset)
+}
+
 // Scan scans the next token and returns the token position, the token,
 // and its literal string if applicable. The source end is indicated by
 // [token.EOF].
@@ -809,10 +829,13 @@ func (s *Scanner) switch4(tok0, tok1 token.Token, ch2 rune, tok2, tok3 token.Tok
 // and thus relative to the file set.
 func (s *Scanner) Scan() (pos token.Pos, tok token.Token, lit string) {
 scanAgain:
+	s.endPosValid = false
 	if s.nlPos.IsValid() {
 		// Return artificial ';' token after /*...*/ comment
 		// containing newline, at position of first newline.
 		pos, tok, lit = s.nlPos, token.SEMICOLON, "\n"
+		s.endPos = pos + 1
+		s.endPosValid = true
 		s.nlPos = token.NoPos
 		return
 	}
