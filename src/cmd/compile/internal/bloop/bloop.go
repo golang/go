@@ -203,6 +203,10 @@ func preserveStmt(curFn *ir.Func, stmt ir.Node) (ret ir.Node) {
 				ir.NewAssignListStmt(n.Pos(), ir.OAS2, lhs,
 					[]ir.Node{n})).(*ir.AssignListStmt)
 			assign.Def = true
+			for _, tmp := range lhs {
+				// Place temp declarations in the loop body to help escape analysis.
+				assign.PtrInit().Append(typecheck.Stmt(ir.NewDecl(assign.Pos(), ir.ODCL, tmp.(*ir.Name))))
+			}
 			curNode = assign
 			plural := ""
 			if len(results) > 1 {
@@ -232,7 +236,11 @@ func preserveStmt(curFn *ir.Func, stmt ir.Node) (ret ir.Node) {
 						} else {
 							// We need a temporary to save this arg.
 							tmp := typecheck.TempAt(elem.Pos(), curFn, elem.Type())
-							argTmps = append(argTmps, typecheck.AssignExpr(ir.NewAssignStmt(elem.Pos(), tmp, elem)))
+							assign := ir.NewAssignStmt(elem.Pos(), tmp, elem)
+							assign.Def = true
+							// Place temp declarations in the loop body to help escape analysis.
+							assign.PtrInit().Append(typecheck.Stmt(ir.NewDecl(assign.Pos(), ir.ODCL, tmp)))
+							argTmps = append(argTmps, typecheck.AssignExpr(assign))
 							names = append(names, tmp)
 							s.List[i] = tmp
 							if base.Flag.LowerM > 1 {
@@ -245,7 +253,11 @@ func preserveStmt(curFn *ir.Func, stmt ir.Node) (ret ir.Node) {
 					// expressions, we need to assign them to temps and change the original arg to reference
 					// them.
 					tmp := typecheck.TempAt(n.Pos(), curFn, a.Type())
-					argTmps = append(argTmps, typecheck.AssignExpr(ir.NewAssignStmt(n.Pos(), tmp, a)))
+					assign := ir.NewAssignStmt(n.Pos(), tmp, a)
+					assign.Def = true
+					// Place temp declarations in the loop body to help escape analysis.
+					assign.PtrInit().Append(typecheck.Stmt(ir.NewDecl(assign.Pos(), ir.ODCL, tmp)))
+					argTmps = append(argTmps, typecheck.AssignExpr(assign))
 					names = append(names, tmp)
 					n.Args[i] = tmp
 					if base.Flag.LowerM > 1 {
