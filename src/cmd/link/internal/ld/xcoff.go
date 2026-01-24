@@ -583,7 +583,7 @@ func xcoffUpdateOuterSize(ctxt *Link, size int64, stype sym.SymKind) {
 	switch stype {
 	default:
 		Errorf("unknown XCOFF outer symbol for type %s", stype.String())
-	case sym.SRODATA, sym.SFUNCTAB, sym.SSTRING:
+	case sym.SRODATA, sym.SRODATARELRO, sym.SFUNCTAB, sym.SSTRING:
 		// Nothing to do
 	case sym.STYPE:
 		if ctxt.UseRelro() && (ctxt.BuildMode == BuildModeCArchive || ctxt.BuildMode == BuildModeCShared || ctxt.BuildMode == BuildModePIE) {
