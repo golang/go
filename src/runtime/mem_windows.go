@@ -31,7 +31,7 @@ func sysAllocOS(n uintptr, _ string) unsafe.Pointer {
 		errno := getlasterror()
 		inUse := gcController.heapFree.load() + gcController.heapReleased.load() + gcController.heapInUse.load()
 		print("runtime: VirtualAlloc of ", n, " bytes failed with errno=", errno, ": cannot allocate ", n, "-byte block (", inUse, " in use)\n")
-		return nil
+		throw("out of memory")
 	}
 	return unsafe.Pointer(p)
 }
@@ -84,13 +84,13 @@ func sysUsedOS(v unsafe.Pointer, n uintptr) {
 		}
 		if small < 4096 {
 			errno := getlasterror()
+			inUse := gcController.heapFree.load() + gcController.heapReleased.load() + gcController.heapInUse.load()
 			switch errno {
 			case _ERROR_NOT_ENOUGH_MEMORY, _ERROR_COMMITMENT_LIMIT:
-				inUse := gcController.heapFree.load() + gcController.heapReleased.load() + gcController.heapInUse.load()
 				print("runtime: VirtualAlloc of ", n, " bytes failed with errno=", errno, ": cannot allocate ", n, "-byte block (", inUse, " in use)\n")
 				throw("out of memory")
 			default:
-				print("runtime: VirtualAlloc of ", small, " bytes failed with errno=", errno, "\n")
+				print("runtime: VirtualAlloc of ", small, " bytes failed with errno=", errno, ": cannot allocate ", small, "-byte block (", inUse, " in use)\n")
 				throw("runtime: failed to commit pages")
 			}
 		}
@@ -139,7 +139,7 @@ func sysReserveOS(v unsafe.Pointer, n uintptr, _ string) unsafe.Pointer {
 		errno := getlasterror()
 		inUse := gcController.heapFree.load() + gcController.heapReleased.load() + gcController.heapInUse.load()
 		print("runtime: VirtualAlloc of ", n, " bytes failed with errno=", errno, ": cannot allocate ", n, "-byte block (", inUse, " in use)\n")
-		return nil
+		throw("out of memory")
 	}
 	return unsafe.Pointer(p)
 }
