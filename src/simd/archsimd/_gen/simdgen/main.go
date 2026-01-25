@@ -4,10 +4,16 @@
 
 // simdgen is an experiment in generating Go <-> asm SIMD mappings.
 //
-// Usage: simdgen [-xedPath=path] [-q=query] input.yaml...
+// Usage: simdgen [-xedPath=path | -arm64Path=path] [-q=query] input.yaml...
+//
+// Only one of -xedPath or -arm64Path may be specified.
 //
 // If -xedPath is provided, one of the inputs is a sum of op-code definitions
 // generated from the Intel XED data at path.
+//
+// If -arm64Path is provided, one of the inputs is a set of instruction
+// definitions parsed from ARM64 ISA XML files at path (obtained from
+// https://developer.arm.com/-/cdn-downloads/permalink/Exploration-Tools-A64-ISA/ISA_A64/ISA_A64_xml_A_profile-2025-12.tar.gz).
 //
 // If input YAML files are provided, each file is read as an input value. See
 // [unify.Closure.UnmarshalYAML] or "go doc unify.Closure.UnmarshalYAML" for the
@@ -37,10 +43,16 @@
 //
 //	go run . -xedPath $XEDPATH -q '{asm: VPADDQ}'
 //
+// For VADD.S4 on ARM64:
+//
+//	go run . -arm64Path $ARM64_ISA_PATH -o yaml -q '{asm: VADD, arrangement: "4S"}'
+//
 // simdgen can also generate Go definitions of SIMD mappings:
 // To generate go files to the go root, run:
 //
 //	go run . -xedPath $XEDPATH -o godefs -goroot $PATH/TO/go go.yaml categories.yaml types.yaml
+//
+// TODO: go.yaml for ARM64 will be added in follow-on commits
 //
 // types.yaml is already written, it specifies the shapes of vectors.
 // categories.yaml and go.yaml contains definitions that unifies with types.yaml and XED
@@ -67,7 +79,7 @@
 // These 3 magics could be disabled by enabling -nosplitmask, -nodedup or
 // -noconstimmporting flags.
 //
-// simdgen right now only supports amd64, -arch=$OTHERARCH will trigger a fatal error.
+// simdgen supports amd64 and arm64 architectures.
 package main
 
 // Big TODOs:
@@ -92,6 +104,7 @@ import (
 	"slices"
 	"strings"
 
+	"simd/archsimd/_gen/simdgen/arm64"
 	"simd/archsimd/_gen/unify"
 
 	"gopkg.in/yaml.v3"
@@ -99,6 +112,7 @@ import (
 
 var (
 	xedPath               = flag.String("xedPath", "", "load XED datafiles from `path`")
+	arm64Path             = flag.String("arm64Path", "", "load ARM64 instruction xml definitions from `path`")
 	flagQ                 = flag.String("q", "", "query: read `def` as another input (skips final validation)")
 	flagO                 = flag.String("o", "yaml", "output type: yaml, godefs (generate definitions into a Go source tree")
 	flagGoDefRoot         = flag.String("goroot", ".", "the path to the Go dev directory that will receive the generated files")
@@ -142,17 +156,35 @@ func main() {
 		}()
 	}
 
+	// Default -arch to arm64 when -arm64Path is specified.
+	if *arm64Path != "" && *FlagArch != "arm64" {
+		if *xedPath != "" {
+			log.Fatalf("both -xedPath and -arm64Path specified")
+		}
+		*FlagArch = "arm64"
+	}
+
+	// Load instructions into the architecture-specific defs set.
+	var defs []*unify.Value
+	switch *FlagArch {
+	case "amd64":
+		if *xedPath != "" {
+			defs = loadXED(*xedPath)
+		}
+	case "arm64":
+		if *arm64Path != "" {
+			var err error
+			defs, err = arm64.Load(*arm64Path)
+			if err != nil {
+				log.Fatalf("loading ARM64 instructions: %s", err)
+			}
+		}
+	default:
+		log.Fatalf("simdgen only supports amd64 and arm64")
+	}
+
 	var inputs []unify.Closure
-
-	if *FlagArch != "amd64" {
-		log.Fatalf("simdgen only supports amd64")
-	}
-
-	// Load XED into a defs set.
-	if *xedPath != "" {
-		xedDefs := loadXED(*xedPath)
-		inputs = append(inputs, unify.NewSum(xedDefs...))
-	}
+	inputs = append(inputs, unify.NewSum(defs...))
 
 	// Load query.
 	if *flagQ != "" {
