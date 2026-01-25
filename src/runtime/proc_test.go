@@ -1159,6 +1159,9 @@ loop:
 // doesn't cause a crash at startup. See issue 38474.
 func TestBigGOMAXPROCS(t *testing.T) {
 	t.Parallel()
+	if runtime.GOOS == "windows" && runtime.GOARCH == "386" {
+		t.Skip("skipping on windows/386 due to address space limit")
+	}
 	output := runTestProg(t, "testprog", "NonexistentTest", "GOMAXPROCS=1024")
 	// Ignore error conditions on small machines.
 	for _, errstr := range []string{
