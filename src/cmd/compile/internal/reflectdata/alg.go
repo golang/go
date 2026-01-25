@@ -785,6 +785,9 @@ func (e *eqSigBuilder) build(t *types.Type) {
 			// The generated loops are kind of inefficient as well,
 			// so unroll the loop a bit.
 			const unrollSize = 32 // make loop body compare around this many bytes
+			if et.Size() == 0 {
+				break // zero-size elements need no comparison
+			}
 			unroll := max(1, unrollSize/et.Size())
 			// Do partial loops directly.
 			for n%unroll != 0 {
