@@ -1,5 +1,5 @@
-# github.com/google/pprof v0.0.0-20251213031049-b05bdaca462f
-## explicit; go 1.24.9
+# github.com/google/pprof v0.0.0-20260115054156-294ebfa9ad83
+## explicit; go 1.24.0
 github.com/google/pprof/driver
 github.com/google/pprof/internal/binutils
 github.com/google/pprof/internal/driver
