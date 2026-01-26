@@ -514,7 +514,7 @@ func (hs *serverHandshakeState) checkForResumption() error {
 		return nil
 	}
 	if sessionHasClientCerts && c.config.ClientAuth >= VerifyClientCertIfGiven &&
-		len(sessionState.verifiedChains) == 0 {
+		!anyUnexpiredChain(sessionState.verifiedChains, c.config.time()) {
 		return nil
 	}
 
