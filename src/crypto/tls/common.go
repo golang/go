@@ -1742,13 +1742,28 @@ func fipsAllowCert(c *x509.Certificate) bool {
 	return false
 }
 
-// anyUnexpiredChain reports if at least one of verifiedChains is still
-// unexpired. If verifiedChains is empty, it returns false.
-func anyUnexpiredChain(verifiedChains [][]*x509.Certificate, now time.Time) bool {
+// anyValidVerifiedChain reports if at least one of the chains in verifiedChains
+// is valid, as indicated by none of the certificates being expired and the root
+// being in opts.Roots (or in the system root pool if opts.Roots is nil). If
+// verifiedChains is empty, it returns false.
+func anyValidVerifiedChain(verifiedChains [][]*x509.Certificate, opts x509.VerifyOptions) bool {
 	for _, chain := range verifiedChains {
-		if len(chain) != 0 && !slices.ContainsFunc(chain, func(cert *x509.Certificate) bool {
-			return now.Before(cert.NotBefore) || now.After(cert.NotAfter) // cert is expired
+		if len(chain) == 0 {
+			continue
+		}
+		if slices.ContainsFunc(chain, func(cert *x509.Certificate) bool {
+			return opts.CurrentTime.Before(cert.NotBefore) || opts.CurrentTime.After(cert.NotAfter)
 		}) {
+			continue
+		}
+		// Since we already validated the chain, we only care that it is
+		// rooted in a CA in CAs, or in the system pool. On platforms where
+		// we control chain validation (e.g. not Windows or macOS) this is a
+		// simple lookup in the CertPool internal hash map. On other
+		// platforms, this may be more expensive, depending on how they
+		// implement verification of just root certificates.
+		root := chain[len(chain)-1]
+		if _, err := root.Verify(opts); err == nil {
 			return true
 		}
 	}
